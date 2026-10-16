@@ -126,6 +126,8 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   nestahoval mimo herní plochu (hlídá e2e test).
 - **Kreslí se jen při změně** (pohled kamery, velikost okna, data) – co se ve scéně mění samo
   (animace, voda, roční období), musí nastavit `needsRender`.
+- **Vývojový náhled** bez přihlášení a databáze: http://localhost:3010/dev/landscape?seed=42
+  (tlačítka předchozí / další / náhodná). V produkci vrací 404.
 - `?renderer=webgl` vynutí WebGL 2 (test záložní cesty). `HEIGHT_SCALE` v `scene/constants.ts`
   převyšuje terén jen vizuálně.
 - **Modely** v `apps/web/public/models/` – jen CC0, zdroj a původní název do `LICENSES.md`.

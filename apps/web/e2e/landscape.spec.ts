@@ -97,3 +97,8 @@ test('krajina naběhne i bez modelů stromů', async ({ page }) => {
   await expect(readyScene(page)).toBeVisible({ timeout: 30_000 });
   expect(errors).toEqual([]);
 });
+
+test('vývojový náhled krajiny není v produkci dostupný', async ({ request }) => {
+  const response = await request.get('/dev/landscape?seed=5');
+  expect(response.status()).toBe(404);
+});
