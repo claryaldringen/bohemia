@@ -48,22 +48,40 @@ kolem 40 generací – dědictví, sňatky a nástupnictví jsou hlavní mechani
 - **Monorepo:** Turborepo + npm workspaces (`apps/*`, `packages/*`), Node 24 (`.nvmrc`)
 - **Jazyk:** TypeScript 6 (strict, `noUncheckedIndexedAccess`), společný `tsconfig.base.json`
 - **Web:** Next.js 16 (App Router, `output: 'standalone'`), React 19, Tailwind CSS v4
+- **Herní pravidla:** `packages/game` – čistý TypeScript bez I/O (zatím herní kalendář)
 - **Kvalita:** ESLint 10 + typescript-eslint (kořenový `eslint.config.mjs`), Prettier, Vitest
+
+Next.js 16 má oproti starším verzím breaking changes – dokumentace k nainstalované verzi je
+v `node_modules/next/dist/docs/`. Soubor `apps/web/AGENTS.md` generuje sám `next dev`; patří
+do gitu (po smazání by ho vytvořil znovu).
 
 **Plánováno (zatím neexistuje):**
 
 - `apps/worker` – samostatný Node proces, který posouvá svět (stavby, narození, úmrtí, roční
   období) i když nikdo není online
-- `packages/game` – herní pravidla jako čistý TypeScript bez I/O
 - `packages/db` – **PostgreSQL** (pevné rozhodnutí – na Hetzner VPS už běží) + Drizzle
 - Autentizace (registrace, přihlášení, pozvánkové kódy)
 
 ## Struktura repa
 
 ```
-apps/web/       Next.js – úvodní stránka (později registrace, přihlášení, herní UI, API)
-docs/design/    herní design – vize + dokument pro každou mechaniku
+apps/web/            Next.js – úvodní stránka (později registrace, přihlášení, herní UI, API)
+  components/        React komponenty (GameDateBadge – herní datum v rohu)
+  lib/               logika webu bez Reactu (české formátování herního data)
+packages/game/       herní pravidla – calendar.ts (skutečný čas ↔ herní datum, stav světa)
+docs/design/         herní design – vize + dokument pro každou mechaniku
 ```
+
+## Herní kalendář
+
+Pravidla v [docs/design/calendar.md](docs/design/calendar.md). Hlavní API z `@bohemia/game`:
+
+- `getWorldState(nowMs, world)` – stav světa (`not-started` / `running` s herním datem / `ended`)
+- `realTimeOf(date, world)` – skutečný okamžik, kdy herní den začíná (pro plánování událostí)
+- `resolveWorldClock(env)` – ostrý svět, nebo testovací svět z `WORLD_START` a `WORLD_END`
+
+Testovací svět: zkopíruj `apps/web/.env.example` do `apps/web/.env.local` a nastav obě
+proměnné – příklady (svět od dneška, zrychlený svět) jsou přímo v souboru.
 
 ## Příkazy
 

@@ -1,8 +1,20 @@
 import type { ReactElement } from 'react';
+import { connection } from 'next/server';
+import { resolveWorldClock } from '@bohemia/game';
+import { GameDateBadge } from '@/components/GameDateBadge';
 
-export default function HomePage(): ReactElement {
+export default async function HomePage(): Promise<ReactElement> {
+  // Svět i aktuální čas se čtou při každém požadavku, ne jednou při buildu.
+  await connection();
+  const world = resolveWorldClock({
+    WORLD_START: process.env.WORLD_START,
+    WORLD_END: process.env.WORLD_END,
+  });
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-6 px-4 text-center">
+      {/* Dočasně tady – patří do rohu herní plochy, až vznikne. */}
+      <GameDateBadge world={world} initialNowMs={Date.now()} />
       <p className="text-sm tracking-[0.3em] text-stone-500 uppercase">Léta Páně 500–1500</p>
       <h1 className="font-serif text-6xl font-semibold sm:text-7xl">Bohemia</h1>
       <p className="max-w-md text-lg text-stone-700 dark:text-stone-300">

@@ -3,6 +3,7 @@ import type { NextConfig } from 'next';
 const nextConfig: NextConfig = {
   // Standalone build – na VPS běží přes PM2 bez celého node_modules.
   output: 'standalone',
+  transpilePackages: ['@bohemia/game'],
   async headers() {
     return [
       {

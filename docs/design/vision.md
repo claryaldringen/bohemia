@@ -37,18 +37,19 @@ ne jeden pán.
 
 ## Rozhodnutí
 
-| Rozhodnutí                                                                                  | Kdo                           |
-| ------------------------------------------------------------------------------------------- | ----------------------------- |
-| Hra v prohlížeči, jméno Bohemia, spuštění 1. 1. 2027                                        | Martin                        |
-| Roky 500–1500 za jeden skutečný rok, plynou dny a roční období                              | Martin                        |
-| Registrace, sdílený svět, vazalství přes pozvánky                                           | Martin                        |
-| Kód na GitHubu (veřejné repo), později běh na vlastním Hetzner VPS                          | Martin                        |
-| Zatím se vyvíjí a běží jen lokálně, nasazení až později                                     | Martin                        |
-| Databáze PostgreSQL (na Hetzneru už běží)                                                   | Martin                        |
-| Rod jako hlavní postava, vazalství není trvalé                                              | návrh Clauda, Martin potvrdil |
-| Stack: Turborepo, Next.js, TypeScript, Drizzle, PM2 + Caddy                                 | návrh Clauda                  |
-| UI česky, kód anglicky                                                                      | návrh Clauda                  |
-| Herní čas jako čistá funkce skutečného času, pravidla v `packages/game`, server je autorita | návrh Clauda                  |
+| Rozhodnutí                                                                                           | Kdo                           |
+| ---------------------------------------------------------------------------------------------------- | ----------------------------- |
+| Hra v prohlížeči, jméno Bohemia, spuštění 1. 1. 2027                                                 | Martin                        |
+| Roky 500–1500 za jeden skutečný rok, plynou dny a roční období                                       | Martin                        |
+| Registrace, sdílený svět, vazalství přes pozvánky                                                    | Martin                        |
+| Kód na GitHubu (veřejné repo), později běh na vlastním Hetzner VPS                                   | Martin                        |
+| Zatím se vyvíjí a běží jen lokálně, nasazení až později                                              | Martin                        |
+| Databáze PostgreSQL (na Hetzneru už běží)                                                            | Martin                        |
+| Rod jako hlavní postava, vazalství není trvalé                                                       | návrh Clauda, Martin potvrdil |
+| Stack: Turborepo, Next.js, TypeScript, Drizzle, PM2 + Caddy                                          | návrh Clauda                  |
+| Herní kalendář: juliánský, roční období podle měsíců, datum malé v rohu ([calendar.md](calendar.md)) | návrh Clauda, Martin schválil |
+| UI česky, kód anglicky                                                                               | návrh Clauda                  |
+| Herní čas jako čistá funkce skutečného času, pravidla v `packages/game`, server je autorita          | návrh Clauda                  |
 
 ## Otevřené otázky
 
@@ -69,5 +70,3 @@ Mechaniky probereme postupně. Zatím nerozhodnuto:
 10. **Pozdní příchozí** – jak se zapojí hráč, který přijde třeba v roce 1200?
 11. **Konec světa** – co nastane v roce 1500: vyhodnocení, nový svět?
 12. **Historická věrnost vs. hratelnost** – v roce 500 v Čechách ještě feudální struktury nejsou.
-13. **Kalendář** – návrh: juliánský kalendář (historicky správný pro celé období, gregoriánský
-    přichází až 1582). Hranice ročních období zatím nerozhodnuty.
