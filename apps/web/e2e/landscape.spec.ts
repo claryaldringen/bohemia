@@ -87,3 +87,13 @@ test('Babylon se nestahuje na přihlašovací stránce', async ({ page }) => {
     expect(body.includes('Babylon.js v'), src).toBe(false);
   }
 });
+
+test('krajina naběhne i bez modelů stromů', async ({ page }) => {
+  await registerAndEnterGame(page, 'bez-stromu');
+  const errors: Error[] = [];
+  page.on('pageerror', (error) => errors.push(error));
+  await page.route('**/models/**', (route) => route.abort());
+  await page.reload();
+  await expect(readyScene(page)).toBeVisible({ timeout: 30_000 });
+  expect(errors).toEqual([]);
+});

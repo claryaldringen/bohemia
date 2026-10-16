@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { generateLandscape } from '@bohemia/game';
-import { tileAt, tileCenter } from '../tile-at';
+import { heightAt, tileAt, tileCenter } from '../tile-at';
 
 // Krajina 128 × 128 po 15 m má střed v počátku a sahá od −960 do 960 m v osách X a Z.
 const landscape = generateLandscape(1);
@@ -32,5 +32,25 @@ describe('tileAt', () => {
       expect(tileAt(landscape, worldX, worldZ)).toEqual({ x, y });
     }
     expect(tileCenter(landscape, 0, 0)).toEqual({ worldX: -952.5, worldZ: -952.5 });
+  });
+});
+
+describe('heightAt', () => {
+  it('ve středu políčka vrátí jeho výšku', () => {
+    for (const [x, y] of [
+      [10, 20],
+      [64, 64],
+      [127, 0],
+    ] as const) {
+      const { worldX, worldZ } = tileCenter(landscape, x, y);
+      expect(heightAt(landscape, worldX, worldZ)).toBeCloseTo(landscape.heights[y * 128 + x]!, 5);
+    }
+  });
+
+  it('mezi středy dvou políček vrátí průměr jejich výšek', () => {
+    const a = tileCenter(landscape, 30, 40);
+    const b = tileCenter(landscape, 31, 40);
+    const expected = (landscape.heights[40 * 128 + 30]! + landscape.heights[40 * 128 + 31]!) / 2;
+    expect(heightAt(landscape, (a.worldX + b.worldX) / 2, a.worldZ)).toBeCloseTo(expected, 5);
   });
 });

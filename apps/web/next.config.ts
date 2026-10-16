@@ -4,6 +4,8 @@ const nextConfig: NextConfig = {
   // Standalone build – na VPS běží přes PM2 bez celého node_modules.
   output: 'standalone',
   transpilePackages: ['@bohemia/game'],
+  // Ikonka dev režimu by vlevo dole překrývala info o políčku.
+  devIndicators: { position: 'bottom-right' },
   async headers() {
     return [
       {

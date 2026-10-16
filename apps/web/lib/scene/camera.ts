@@ -1,6 +1,5 @@
 import { ArcRotateCamera } from '@babylonjs/core/Cameras/arcRotateCamera';
-import { Vector3 } from '@babylonjs/core/Maths/math.vector';
-import type { Observer } from '@babylonjs/core/Misc/observable';
+import { Matrix, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import type { Scene } from '@babylonjs/core/scene';
 
 /** Pohled šikmo shora jako v AoE2 (úhel od svislice, rad). */
@@ -23,6 +22,8 @@ const KEYS = new Set([
 
 export interface RtsCamera {
   camera: ArcRotateCamera;
+  /** Zpracuje vstupy za uplynulý čas; vrátí true, když se změnil pohled (je co překreslit). */
+  update(dtSeconds: number): boolean;
   dispose(): void;
 }
 
@@ -76,8 +77,10 @@ export function createRtsCamera(
   window.addEventListener('blur', onBlur);
   canvas.addEventListener('contextmenu', onContextMenu);
 
-  const observer: Observer<Scene> = scene.onBeforeRenderObservable.add(() => {
-    const dt = scene.getEngine().getDeltaTime() / 1000;
+  const lastView = new Matrix();
+  let hasView = false;
+
+  const update = (dt: number): boolean => {
     // Posun kolečkem i tažením má být stejně „rychlý“ na obrazovce při každém přiblížení.
     camera.panningSensibility = 40_000 / camera.radius;
 
@@ -97,12 +100,20 @@ export function createRtsCamera(
     target.x = Math.min(halfExtent, Math.max(-halfExtent, target.x));
     target.z = Math.min(halfExtent, Math.max(-halfExtent, target.z));
     target.y = groundHeight(target.x, target.z);
-  });
+
+    // Vstupy myši a setrvačnost – scéna se pak kreslí bez další aktualizace kamery.
+    camera.update();
+    const view = camera.getViewMatrix(true);
+    const changed = !hasView || !view.equals(lastView);
+    lastView.copyFrom(view);
+    hasView = true;
+    return changed;
+  };
 
   return {
     camera,
+    update,
     dispose(): void {
-      scene.onBeforeRenderObservable.remove(observer);
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
       window.removeEventListener('blur', onBlur);
