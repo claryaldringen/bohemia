@@ -21,11 +21,19 @@ describe('streamCenterline', () => {
     }
   });
 
-  it('osa prochází blízko každého vodního políčka (do 1 políčka)', () => {
+  it('osa prochází blízko každého vodního políčka (do šířky břehu + 1 políčka)', () => {
     for (let i = 0; i < landscape.surface.length; i++) {
       if (landscape.surface[i] !== SURFACE_CODES.water) continue;
-      const { worldX, worldZ } = tileCenter(landscape, i % 128, Math.floor(i / 128));
-      expect(stream.nearest(worldX, worldZ).distance).toBeLessThanOrEqual(landscape.cellSizeM);
+      const tx = i % 128;
+      const ty = Math.floor(i / 128);
+      const nearestPoint = landscape.stream.reduce((best, p) =>
+        Math.hypot(p.x - tx, p.y - ty) < Math.hypot(best.x - tx, best.y - ty) ? p : best,
+      );
+      const reach = Math.max(nearestPoint.halfWidthLeft, nearestPoint.halfWidthRight) + 1;
+      const { worldX, worldZ } = tileCenter(landscape, tx, ty);
+      expect(stream.nearest(worldX, worldZ).distance).toBeLessThanOrEqual(
+        reach * landscape.cellSizeM,
+      );
     }
   });
 

@@ -1,4 +1,7 @@
-import type { Landscape } from '@bohemia/game';
+import type { Landscape, StreamPoint } from '@bohemia/game';
+
+/** Čísel na bod osy potoka: x, y, levá a pravá poloviční šířka, hladina, mělčina (0/1). */
+const STREAM_FIELDS = 6;
 
 /** Krajina ve tvaru, který jde poslat v props ze serveru do klientské komponenty (≈ 90 kB). */
 export interface LandscapeTransfer {
@@ -11,6 +14,8 @@ export interface LandscapeTransfer {
   surface: string;
   /** Base64 úrodnosti 0–100. */
   fertility: string;
+  /** Base64 Float32 little-endian – body osy potoka po STREAM_FIELDS číslech. */
+  stream: string;
 }
 
 export function encodeLandscape(l: Landscape): LandscapeTransfer {
@@ -23,6 +28,7 @@ export function encodeLandscape(l: Landscape): LandscapeTransfer {
     heightsCm: bytesToBase64(new Uint8Array(heights.buffer)),
     surface: bytesToBase64(l.surface),
     fertility: bytesToBase64(l.fertility),
+    stream: bytesToBase64(encodeStream(l.stream)),
   };
 }
 
@@ -38,7 +44,31 @@ export function decodeLandscape(t: LandscapeTransfer): Landscape {
     heights,
     surface: base64ToBytes(t.surface),
     fertility: base64ToBytes(t.fertility),
+    stream: decodeStream(base64ToBytes(t.stream)),
   };
+}
+
+function encodeStream(stream: readonly StreamPoint[]): Uint8Array {
+  const view = new DataView(new ArrayBuffer(stream.length * STREAM_FIELDS * 4));
+  stream.forEach((p, k) => {
+    const values = [p.x, p.y, p.halfWidthLeft, p.halfWidthRight, p.level, p.shallow ? 1 : 0];
+    values.forEach((v, f) => view.setFloat32((k * STREAM_FIELDS + f) * 4, v, true));
+  });
+  return new Uint8Array(view.buffer);
+}
+
+function decodeStream(bytes: Uint8Array): StreamPoint[] {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const count = bytes.byteLength / (STREAM_FIELDS * 4);
+  const at = (k: number, f: number): number => view.getFloat32((k * STREAM_FIELDS + f) * 4, true);
+  return Array.from({ length: count }, (_, k) => ({
+    x: at(k, 0),
+    y: at(k, 1),
+    halfWidthLeft: at(k, 2),
+    halfWidthRight: at(k, 3),
+    level: at(k, 4),
+    shallow: at(k, 5) === 1,
+  }));
 }
 
 // btoa/atob existují v Node i v prohlížeči; po blocích kvůli limitu argumentů funkce.

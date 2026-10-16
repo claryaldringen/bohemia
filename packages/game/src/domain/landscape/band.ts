@@ -8,8 +8,12 @@ export const VILLAGE_SITE_MIN_FERTILITY = 60;
 export const VILLAGE_SITE_MAX_WATER_DISTANCE_CELLS = 20;
 export const RELIEF_M: readonly [number, number] = [10, 40];
 export const FLAT_MAX_STEP_M = 1.0;
-/** Počet políček s úrodností ≥ 60 – nastaveno podle měření (scripts/measure-landscapes.ts). */
-export const FERTILE_CELLS: readonly [number, number] = [3800, 5200];
+/**
+ * Počet políček s úrodností ≥ 60 – nastaveno podle měření (scripts/measure-landscapes.ts):
+ * p5 a p95 z 500 seedů s rezervou ~150. Zvlněnější terén (16. 10. 2026) má víc svahů, a proto
+ * méně úrodné půdy než původní 3800–5200.
+ */
+export const FERTILE_CELLS: readonly [number, number] = [3600, 4850];
 
 export interface LandscapeMetrics {
   waterSpansEdges: boolean;

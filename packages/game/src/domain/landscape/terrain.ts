@@ -1,7 +1,8 @@
 import { createNoise2D, type NoiseFunction2D } from 'simplex-noise';
 import { distanceToMask, MinHeap, smoothstep } from './grid';
 import { createRandom, type Random } from './random';
-import { LANDSCAPE_SIZE } from './types';
+import { heightAt, SAMPLE_STEP, shapeStream, type ChannelSample } from './stream';
+import { LANDSCAPE_SIZE, type StreamPoint } from './types';
 
 /** Vrstva terénu: výšky, potok a místo pro vesnici. */
 export interface Terrain {
@@ -11,6 +12,8 @@ export interface Terrain {
   /** 1 = voda. */
   water: Uint8Array;
   villageSite: { x: number; y: number };
+  /** Osa potoka po proudu s šířkou břehů a hladinou. */
+  stream: StreamPoint[];
 }
 
 // Místo pro vesnici leží 9–11 políček od potoka: mýtina kolem něj dosáhne k vodě,
@@ -24,24 +27,44 @@ const BLEND_RADIUS = 33;
 const VALLEY_SLOPE = 0.9;
 /** Největší pokles dna mezi sousedními políčky potoka (schodovitý šikmý úsek má 2 kroky na √2). */
 const MAX_BED_DROP = 0.7 * VALLEY_SLOPE;
+/** Hloubka vody nad dnem v ose potoka (m) – tůně prohloubí až vykreslení. */
+const WATER_DEPTH_M = 0.6;
+/** Terén: vrstvený šum (fBm) – základní vlnová délka (políčka), počet oktáv a jejich útlum. */
+const NOISE_BASE_WAVELENGTH = 48;
+const NOISE_OCTAVES = 4;
+const NOISE_PERSISTENCE = 0.5;
+/** Převýšení krajiny (m) – losuje se v tomto rozsahu. */
+const RELIEF_RANGE_M: readonly [number, number] = [18, 28];
+/** Svahy strmější než tolik metrů na políčko se „sesypou“ – zvlněná krajina bez útesů. */
+const MAX_SLOPE_M = 2.4;
 
 export function generateTerrain(seed: number, version: 1): Terrain {
   if (version !== 1) throw new RangeError(`Neznámá verze vrstvy terénu: ${String(version)}`);
   const size = LANDSCAPE_SIZE;
   const random = createRandom(seed);
   const noise = createNoise2D(() => random.next());
-  const relief = 16 + random.next() * 14;
+  const relief = RELIEF_RANGE_M[0] + random.next() * (RELIEF_RANGE_M[1] - RELIEF_RANGE_M[0]);
 
   const heights = baseHeights(noise, size, relief);
-  const { water, path } = routeStream(heights, size, relief, random);
+  relaxSlopes(heights, size);
+  const path = routeStream(heights, size, relief, random);
+  const { samples, water } = shapeStream(path, heights, size, random);
   const villageSite = chooseVillageSite(heights, water, size, random);
   flattenAround(heights, size, villageSite);
-  carveStream(heights, water, path, size, 0.8 + random.next() * 0.6);
+  const levels = carveStream(heights, water, samples, size, 0.8 + random.next() * 0.6);
 
   let min = Infinity;
   for (const h of heights) min = Math.min(min, h);
   for (let i = 0; i < heights.length; i++) heights[i] = heights[i]! - min;
-  return { size, heights, water, villageSite };
+  const stream = samples.map((p, k) => ({
+    x: p.x,
+    y: p.y,
+    halfWidthLeft: p.left,
+    halfWidthRight: p.right,
+    level: levels[k]! - min,
+    shallow: p.shallow,
+  }));
+  return { size, heights, water, villageSite, stream };
 }
 
 /** Vrstvený šum (fBm) škálovaný na převýšení relief. */
@@ -53,10 +76,10 @@ function baseHeights(noise: NoiseFunction2D, size: number, relief: number): Floa
     for (let x = 0; x < size; x++) {
       let value = 0;
       let amplitude = 1;
-      let frequency = 1 / 64;
-      for (let octave = 0; octave < 4; octave++) {
+      let frequency = 1 / NOISE_BASE_WAVELENGTH;
+      for (let octave = 0; octave < NOISE_OCTAVES; octave++) {
         value += amplitude * noise(x * frequency, y * frequency);
-        amplitude *= 0.4;
+        amplitude *= NOISE_PERSISTENCE;
         frequency *= 2;
       }
       heights[y * size + x] = value;
@@ -70,15 +93,43 @@ function baseHeights(noise: NoiseFunction2D, size: number, relief: number): Floa
 }
 
 /**
- * Potok jako nejlevnější cesta (Dijkstra, 8 směrů) od jednoho okraje k protilehlému –
- * preferuje nízko položená místa a vyhýbá se stoupání a bočním okrajům mapy.
+ * Termální eroze: kde se sousední políčka liší víc než MAX_SLOPE_M, přesune se materiál
+ * z vyššího na nižší, dokud svahy nejsou dost mírné. Zvlnění ve středních měřítkách zůstane.
+ */
+function relaxSlopes(heights: Float32Array, size: number): void {
+  for (let pass = 0; pass < 80; pass++) {
+    let moved = false;
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const i = y * size + x;
+        for (const n of [x < size - 1 ? i + 1 : -1, y < size - 1 ? i + size : -1]) {
+          if (n < 0) continue;
+          const difference = heights[i]! - heights[n]!;
+          const excess = Math.abs(difference) - MAX_SLOPE_M;
+          if (excess <= 0) continue;
+          // O něco víc než polovinu přebytku – svah se ustálí kousek pod limitem.
+          const shift = (excess / 2 + 0.01) * Math.sign(difference);
+          heights[i] = heights[i]! - shift;
+          heights[n] = heights[n]! + shift;
+          moved = true;
+        }
+      }
+    }
+    if (!moved) return;
+  }
+}
+
+/**
+ * Trasa potoka jako nejlevnější cesta (Dijkstra, 8 směrů) od jednoho okraje k protilehlému –
+ * preferuje nízko položená místa a vyhýbá se stoupání a bočním okrajům mapy. Tvar koryta
+ * (meandry, šířka, tůně) z ní udělá shapeStream.
  */
 function routeStream(
   heights: Float32Array,
   size: number,
   relief: number,
   random: Random,
-): { water: Uint8Array; path: number[] } {
+): number[] {
   const horizontal = random.next() < 0.5;
   const along = Math.floor(size * 0.3 + random.next() * size * 0.4);
   const start = horizontal ? along * size : along;
@@ -123,29 +174,9 @@ function routeStream(
     }
   }
 
-  const water = new Uint8Array(size * size);
   const path: number[] = [];
-  const add = (i: number): void => {
-    if (water[i]) return;
-    water[i] = 1;
-    path.push(i);
-  };
-  for (let i = goal; i !== -1; i = previous[i]!) {
-    add(i);
-    const p = previous[i]!;
-    if (p === -1) continue;
-    // Diagonální krok doplníme o nižší z rohových políček – potok je souvislý i po hranách.
-    const ix = i % size;
-    const iy = Math.floor(i / size);
-    const px = p % size;
-    const py = Math.floor(p / size);
-    if (ix !== px && iy !== py) {
-      const a = py * size + ix;
-      const b = iy * size + px;
-      add(heights[a]! <= heights[b]! ? a : b);
-    }
-  }
-  return { water, path: path.reverse() };
+  for (let i = goal; i !== -1; i = previous[i]!) path.push(i);
+  return path.reverse();
 }
 
 /** Nejklidnější místo v přiměřené vzdálenosti od potoka, uprostřed mapy. */
@@ -212,38 +243,68 @@ function flattenAround(heights: Float32Array, size: number, site: { x: number; y
 }
 
 /**
- * Koryto potoka teče po spádu: dno vede od vyššího konce jako klesající minimum (prořízne
- * sedla), okolní terén se ke korytu svažuje nejvýš o VALLEY_SLOPE na políčko – vzniká údolí.
+ * Koryto potoka teče po spádu: dno podél osy vede od pramene jako klesající minimum terénu
+ * (prořízne sedla), vodní políčko dostane dno nejbližšího bodu osy a okolní terén se ke korytu
+ * svažuje nejvýš o VALLEY_SLOPE na políčko – vzniká údolí s nivou kolem meandrů. Vrací hladinu
+ * v každém bodě osy.
  */
 function carveStream(
   heights: Float32Array,
   water: Uint8Array,
-  path: readonly number[],
+  samples: readonly ChannelSample[],
   size: number,
   depth: number,
-): void {
-  const downstream = heights[path[0]!]! >= heights[path.at(-1)!]! ? path : [...path].reverse();
-  const bed = new Float32Array(size * size);
+): number[] {
+  const bed: number[] = [];
   let level = Infinity;
-  for (const i of downstream) {
-    level = Math.min(level, heights[i]! - depth);
-    bed[i] = level;
+  for (const p of samples) {
+    // Dno pod nejnižším terénem v okolí – meandr vybočený na svah nesmí viset nad nivou.
+    level = Math.min(
+      level,
+      lowestAround(heights, size, p, Math.max(p.left, p.right) + 1.5) - depth,
+    );
+    bed.push(level);
   }
   // Dno nesmí klesat rychleji, než stoupají svahy údolí – jinak by kužel z níže položeného
   // úseku podřízl břeh horního úseku a voda by „visela“ nad svahem. Kde terén spadne
   // prudčeji, prořízne se dno nad ním hlouběji (soutěska).
-  for (let k = downstream.length - 2; k >= 0; k--) {
-    const i = downstream[k]!;
-    bed[i] = Math.min(bed[i]!, bed[downstream[k + 1]!]! + MAX_BED_DROP);
+  for (let k = bed.length - 2; k >= 0; k--) {
+    bed[k] = Math.min(bed[k]!, bed[k + 1]! + MAX_BED_DROP * SAMPLE_STEP);
   }
+
+  // Vodní políčko: dno nejbližšího bodu osy.
+  const tileBed = new Float32Array(size * size).fill(Infinity);
+  const nearest = new Float32Array(size * size).fill(Infinity);
+  samples.forEach((p, k) => {
+    const reach = Math.ceil(Math.max(p.left, p.right)) + 2;
+    for (
+      let y = Math.max(0, Math.floor(p.y) - reach);
+      y <= Math.min(size - 1, Math.ceil(p.y) + reach);
+      y++
+    ) {
+      for (
+        let x = Math.max(0, Math.floor(p.x) - reach);
+        x <= Math.min(size - 1, Math.ceil(p.x) + reach);
+        x++
+      ) {
+        const i = y * size + x;
+        const d = Math.hypot(x - p.x, y - p.y);
+        if (!water[i] || d >= nearest[i]!) continue;
+        nearest[i] = d;
+        tileBed[i] = bed[k]!;
+      }
+    }
+  });
+  enforceDownhill(tileBed, water, size);
 
   // Strop údolí = vodní políčka plus vzdálenost po mřížce × VALLEY_SLOPE (Dijkstra z celého
   // koryta). Plocha je spojitá a mezi sousedy nikde nestoupá o víc než VALLEY_SLOPE × délka
   // kroku – bez skoků tam, kde se mění nejbližší úsek potoka.
   const valleyTop = new Float64Array(size * size).fill(Infinity);
   const heap = new MinHeap();
-  for (const i of downstream) {
-    valleyTop[i] = bed[i]! + depth - VALLEY_SLOPE;
+  for (let i = 0; i < water.length; i++) {
+    if (!water[i]) continue;
+    valleyTop[i] = tileBed[i]! + depth - VALLEY_SLOPE;
     heap.push(i, valleyTop[i]!);
   }
   while (heap.size > 0) {
@@ -265,6 +326,70 @@ function carveStream(
     }
   }
   for (let i = 0; i < heights.length; i++) {
-    heights[i] = water[i] ? bed[i]! : Math.min(heights[i]!, valleyTop[i]!);
+    heights[i] = water[i] ? tileBed[i]! : Math.min(heights[i]!, valleyTop[i]!);
+  }
+  return bed.map((b) => b + WATER_DEPTH_M);
+}
+
+/** Nejnižší výška políček v kruhu o poloměru radius (políčka) kolem bodu. */
+function lowestAround(
+  heights: Float32Array,
+  size: number,
+  p: { x: number; y: number },
+  radius: number,
+): number {
+  let lowest = heightAt(heights, size, p);
+  for (
+    let y = Math.max(0, Math.floor(p.y - radius));
+    y <= Math.min(size - 1, Math.ceil(p.y + radius));
+    y++
+  ) {
+    for (
+      let x = Math.max(0, Math.floor(p.x - radius));
+      x <= Math.min(size - 1, Math.ceil(p.x + radius));
+      x++
+    ) {
+      if (Math.hypot(x - p.x, y - p.y) <= radius) lowest = Math.min(lowest, heights[y * size + x]!);
+    }
+  }
+  return lowest;
+}
+
+/**
+ * Voda teče z kopce i ve tvaru po políčkách: od nejvyššího vodního políčka na okraji mapy
+ * (pramen) nemá žádné políčko dno výš než sousední políčko blíž prameni. U širokých úseků
+ * a v obloucích by jinak „nejbližší bod osy“ mohl dát o kousek výš i políčku níž po proudu.
+ */
+function enforceDownhill(tileBed: Float32Array, water: Uint8Array, size: number): void {
+  let source = -1;
+  for (let i = 0; i < water.length; i++) {
+    const x = i % size;
+    const y = Math.floor(i / size);
+    const onEdge = x === 0 || y === 0 || x === size - 1 || y === size - 1;
+    if (water[i] && onEdge && (source === -1 || tileBed[i]! > tileBed[source]!)) source = i;
+  }
+  if (source === -1) return;
+  const hops = new Int32Array(water.length).fill(-1);
+  hops[source] = 0;
+  const queue = [source];
+  for (let k = 0; k < queue.length; k++) {
+    const i = queue[k]!;
+    const x = i % size;
+    const y = Math.floor(i / size);
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const nx = x + dx;
+        const ny = y + dy;
+        if ((!dx && !dy) || nx < 0 || ny < 0 || nx >= size || ny >= size) continue;
+        const n = ny * size + nx;
+        if (!water[n]) continue;
+        if (hops[n] === -1) {
+          hops[n] = hops[i]! + 1;
+          queue.push(n);
+        }
+        // Políčko o krok dál od pramene nesmí být výš než kterýkoli soused blíž prameni.
+        if (hops[n] === hops[i]! + 1) tileBed[n] = Math.min(tileBed[n]!, tileBed[i]! - 1e-4);
+      }
+    }
   }
 }

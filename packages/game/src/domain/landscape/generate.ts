@@ -56,5 +56,6 @@ export function generateLandscapeAttempt(attemptSeed: number, versions: LayerVer
     surface,
     fertility,
     villageSite: terrain.villageSite,
+    stream: terrain.stream,
   };
 }

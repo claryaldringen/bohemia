@@ -49,10 +49,18 @@ na který se později přidávají další prvky (černozem, naleziště kovů, 
   vygenerují znovu jinak). Po spuštění nesmí změna existující vrstvy přepsat stávající krajiny –
   u sídla se ukládají verze vrstev (např. `{ terrain: 1, vegetation: 1, fertility: 1 }`) a nová
   verze vrstvy platí jen pro nová sídla; nové vrstvy lze doplnit všem.
-- **Výška:** vrstvený šum (několik oktáv), mírné zvlnění. Převýšení v rámci krajiny ≈ 10–40 m,
-  žádné útesy.
+- **Výška:** vrstvený šum (několik oktáv), zvlněná pahorkatina – výrazné vlny ve středních
+  měřítkách (stovky metrů). Převýšení v rámci krajiny ≈ 10–40 m, žádné útesy: svahy strmější
+  než 2,4 m na políčko se „sesypou“ (termální eroze).
 - **Voda:** potok, který krajinou protéká od jednoho okraje k druhému po spádu terénu (koryto se
-  do terénu mírně zahloubí). Volitelně malý rybník v prohlubni. Vždy aspoň jeden zdroj vody.
+  do terénu zahloubí, kolem vznikne niva). Volitelně malý rybník v prohlubni. Vždy aspoň jeden
+  zdroj vody. **Potok žije** (Martin, 16. 10.): meandruje – osa je součet dvou vln (dlouhé
+  16–24 a krátké 7–10 políček, amplituda 3,5–5 políček), na rovině víc, ve spádu míň (podle
+  paintRiver z 0 A.D.); šířka se mění – ve spádu úzký (poloviční šířka ≈ 0,4 políčka), na
+  rovině širší, a každý břeh meandruje vlastní odchylkou; **tůně** (2–4, poloměr 1,5–2,5
+  políčka) v rovinách; **mělčiny a brody** (1–3) ve strmějších úsecích. Koryto se nekříží ani
+  nedotýká samo sebe. Krajina nese osu potoka (`Landscape.stream`: poloha, šířka levého
+  a pravého břehu, hladina, mělčina), podle ní scéna kreslí koryto, břehy a porost.
 - **Les:** většina plochy (≈ 55–70 %), v souvislých celcích, ne roztroušených tečkách.
 - **Louky:** zbytek – hlavně v nivě podél potoka a na rovinách.
 - **Úrodnost:** nejvyšší na rovinách v rozumné vzdálenosti od vody, nižší na svazích a vršcích,
@@ -64,8 +72,9 @@ na který se později přidávají další prvky (černozem, naleziště kovů, 
   - les tvoří 55–70 % plochy,
   - **místo pro vesnici:** souvislá rovinatá **louka** (ne les – klučení bude něco stát)
     s úrodností ≥ 60 o velikosti **400–1 200 políček** (≈ 9–27 ha), celá do ≈ 300 m od vody,
-  - celkový počet úrodných políček (≥ 60) v krajině **3 800–5 200** (±15 % kolem mediánu
-    naměřeného na 500 seedech) – krajiny se liší vzhledem, ne hodnotou,
+  - celkový počet úrodných políček (≥ 60) v krajině **3 600–4 850** (p5 a p95 z 500 seedů
+    s rezervou; zvlněnější terén má víc svahů, a tak méně úrodné půdy než dřívějších
+    3 800–5 200) – krajiny se liší vzhledem, ne hodnotou,
   - převýšení nepřekročí 40 m.
 
   Generátor má pásmo **cíleně trefovat** (tvarovat terén a vegetaci kolem zvoleného místa pro
@@ -73,9 +82,11 @@ na který se později přidávají další prvky (černozem, naleziště kovů, 
   (deterministicky: seed, seed+1, …), ale počet pokusů má být v praxi malý a změřený.
   Čísla jsou výchozí a laditelná; důležité je, že dolní i horní meze ověřuje kód a testy.
 
-  **Naměřeno (300 seedů, v1):** 97 % krajin projde pásmem na první pokus, nejvýš 2 pokusy;
-  jeden pokus trvá průměrně ≈ 48 ms. Místo pro vesnici 453–609 políček, les 58–66 %,
-  převýšení 16–30 m. Potok teče po spádu: dno klesá nejvýš o 0,63 m na políčko a sedla se
+  **Naměřeno (500 seedů, v1 se zvlněným terénem a meandry, 16. 10.):** 96,6 % krajin projde
+  pásmem na první pokus, nejvýš 3 pokusy; jeden pokus trvá průměrně ≈ 37 ms. Místo pro
+  vesnici 433–656 políček, les 58–66 %, převýšení 17–29 m, klikatost potoka (délka osy /
+  přímá vzdálenost) medián ≈ 1,4. Potok teče po spádu: dno klesá nejvýš o 0,63 m na políčko,
+  leží pod nejnižším terénem v okolí osy (meandr vybočený na svah nevisí nad nivou), sedla se
   prořezávají, svahy údolí stoupají nejvýš o 0,9 m na políčko. Rybník v1 negeneruje
   (volitelný prvek, zatím jen potok). Měření:
   `npx tsx packages/game/scripts/measure-landscapes.ts 500`.
@@ -151,22 +162,23 @@ na který se později přidávají další prvky (černozem, naleziště kovů, 
 
 ## Rozhodnutí
 
-| Rozhodnutí                                                                | Kdo                            |
-| ------------------------------------------------------------------------- | ------------------------------ |
-| Každé sídlo má vlastní krajinu jako samostatný ostrov                     | Martin                         |
-| Krajina ve 3D, vzhled jako AoE2: mírně zvlněná, louky, hodně lesa, potok  | Martin                         |
-| Objekty jako 3D modely – stažené nebo vytvořené přes Blender MCP          | Martin                         |
-| Startovní krajiny srovnatelně dobré, rozdíly později přes bonusové prvky  | Martin                         |
-| Krajina vzniká se sídlem, kamera šikmo shora s posunem a přiblížením      | návrh Clauda, Martin potvrdil  |
-| Orná půda jako úrodnost terénu, pole až s vesnicí                         | návrh Clauda                   |
-| Mřížka 128 × 128 po 15 m, ukládá se jen seed a verze vrstev               | návrh Clauda                   |
-| Generuje server, klient dostane hotová data                               | návrh Clauda                   |
-| Srovnatelnost jako pásmo (dolní i horní meze), místo pro vesnici je louka | návrh Clauda (z „srovnatelně“) |
-| Generování po vrstvách s vlastními verzemi                                | návrh Clauda                   |
-| Babylon.js (WebGPU se záložním WebGL 2)                                   | Martin                         |
-| Scéna jako samostatná třída bez Reactu, rozhraní nad ní v Reactu (HTML)   | návrh Clauda                   |
-| Grafika terénu a stromů z 0 A.D. (CC BY-SA 3.0)                           | Martin                         |
-| Ovládání kamery (myš + WASD/Q/E), info o políčku pod kurzorem             | návrh Clauda                   |
+| Rozhodnutí                                                                 | Kdo                                          |
+| -------------------------------------------------------------------------- | -------------------------------------------- |
+| Každé sídlo má vlastní krajinu jako samostatný ostrov                      | Martin                                       |
+| Krajina ve 3D, vzhled jako AoE2: mírně zvlněná, louky, hodně lesa, potok   | Martin                                       |
+| Objekty jako 3D modely – stažené nebo vytvořené přes Blender MCP           | Martin                                       |
+| Startovní krajiny srovnatelně dobré, rozdíly později přes bonusové prvky   | Martin                                       |
+| Krajina vzniká se sídlem, kamera šikmo shora s posunem a přiblížením       | návrh Clauda, Martin potvrdil                |
+| Orná půda jako úrodnost terénu, pole až s vesnicí                          | návrh Clauda                                 |
+| Mřížka 128 × 128 po 15 m, ukládá se jen seed a verze vrstev                | návrh Clauda                                 |
+| Generuje server, klient dostane hotová data                                | návrh Clauda                                 |
+| Srovnatelnost jako pásmo (dolní i horní meze), místo pro vesnici je louka  | návrh Clauda (z „srovnatelně“)               |
+| Generování po vrstvách s vlastními verzemi                                 | návrh Clauda                                 |
+| Babylon.js (WebGPU se záložním WebGL 2)                                    | Martin                                       |
+| Scéna jako samostatná třída bez Reactu, rozhraní nad ní v Reactu (HTML)    | návrh Clauda                                 |
+| Grafika terénu a stromů z 0 A.D. (CC BY-SA 3.0)                            | Martin                                       |
+| Ovládání kamery (myš + WASD/Q/E), info o políčku pod kurzorem              | návrh Clauda                                 |
+| Zvlněnější terén, meandrující potok s proměnnou šířkou, tůněmi a mělčinami | návrh Clauda na Martinův požadavek z 16. 10. |
 
 ## Stav implementace (v1)
 

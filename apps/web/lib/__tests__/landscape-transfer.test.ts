@@ -16,7 +16,22 @@ describe('přenos krajiny ze serveru do prohlížeče', () => {
     for (let i = 0; i < landscape.heights.length; i++) {
       worst = Math.max(worst, Math.abs(decoded.heights[i]! - landscape.heights[i]!));
     }
-    expect(worst).toBeLessThanOrEqual(0.005);
+    // Půl centimetru ze zaokrouhlení plus nepřesnost Float32 (výšky do ~40 m → ~4e-6 m).
+    expect(worst).toBeLessThanOrEqual(0.005 + 1e-5);
+  });
+
+  it('přenese osu potoka – polohu, šířky břehů, hladinu a mělčiny', () => {
+    const decoded = decodeLandscape(encodeLandscape(landscape));
+    expect(decoded.stream).toHaveLength(landscape.stream.length);
+    landscape.stream.forEach((p, k) => {
+      const q = decoded.stream[k]!;
+      expect(q.x).toBeCloseTo(p.x, 4);
+      expect(q.y).toBeCloseTo(p.y, 4);
+      expect(q.halfWidthLeft).toBeCloseTo(p.halfWidthLeft, 4);
+      expect(q.halfWidthRight).toBeCloseTo(p.halfWidthRight, 4);
+      expect(q.level).toBeCloseTo(p.level, 4);
+      expect(q.shallow).toBe(p.shallow);
+    });
   });
 
   it('zakódovaná krajina má po JSON.stringify méně než 150 kB', () => {

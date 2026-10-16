@@ -96,21 +96,13 @@ describe('groundWeights s vyhlazeným korytem', () => {
   };
   const mud = GROUND_LAYERS.indexOf('mud');
 
-  it('bahno sleduje vyhlazenou osu i tam, kde osa zaoblila roh přes nevodní políčko', () => {
+  it('bahno sleduje osu potoka – na ose je bahno nejsilnější vrstvou', () => {
     const half = (landscape.size * landscape.cellSizeM) / 2;
-    const cornerPoints = stream.points.filter((p) => {
-      const x = Math.floor((p.x + half) / landscape.cellSizeM);
-      const y = Math.floor((p.z + half) / landscape.cellSizeM);
-      return (
-        x >= 0 &&
-        y >= 0 &&
-        x < 128 &&
-        y < 128 &&
-        landscape.surface[y * 128 + x] !== SURFACE_CODES.water
-      );
-    });
-    expect(cornerPoints.length).toBeGreaterThan(0);
-    for (const p of cornerPoints) {
+    const onMap = stream.points.filter(
+      (p) => Math.max(Math.abs(p.x), Math.abs(p.z)) < half - landscape.cellSizeM,
+    );
+    expect(onMap.length).toBeGreaterThan(100);
+    for (const p of onMap) {
       const i = texelAt(p.x, p.z);
       const strongest = Math.max(...smooth.layers.map((layer) => layer[i]!));
       expect(smooth.layers[mud]![i], `${p.x.toFixed(0)},${p.z.toFixed(0)}`).toBe(strongest);

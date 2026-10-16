@@ -13,6 +13,22 @@ export interface LayerVersions {
 }
 export const CURRENT_LAYER_VERSIONS: LayerVersions = { terrain: 1, vegetation: 1, fertility: 1 };
 
+/**
+ * Bod osy potoka, seřazené po proudu. Souřadnice v políčkách (celé číslo = střed políčka),
+ * šířky v políčkách: levý břeh leží ve směru (−ty, tx) od směru toku (tx, ty).
+ */
+export interface StreamPoint {
+  readonly x: number;
+  readonly y: number;
+  /** Vzdálenost levého a pravého okraje vody od osy (políčka) – břehy meandrují každý jinak. */
+  readonly halfWidthLeft: number;
+  readonly halfWidthRight: number;
+  /** Hladina (m nad nejnižším políčkem krajiny); po proudu nestoupá. */
+  readonly level: number;
+  /** Mělčina nebo brod – široký mělký úsek (rákos, štěrk), ne tůň. */
+  readonly shallow: boolean;
+}
+
 /** Krajina sídla – mřížka size × size, index políčka y * size + x. */
 export interface Landscape {
   readonly size: number;
@@ -25,6 +41,8 @@ export interface Landscape {
   readonly fertility: Uint8Array;
   /** Střed místa, kde se dá založit vesnice. */
   readonly villageSite: { x: number; y: number };
+  /** Osa potoka s šířkou břehů a hladinou (pro vykreslení koryta). */
+  readonly stream: readonly StreamPoint[];
 }
 
 export function surfaceAt(landscape: Landscape, x: number, y: number): Surface {
