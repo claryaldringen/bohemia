@@ -49,6 +49,8 @@ kolem 40 generací – dědictví, sňatky a nástupnictví jsou hlavní mechani
 - **Jazyk:** TypeScript 6 (strict, `noUncheckedIndexedAccess`), společný `tsconfig.base.json`
 - **Web:** Next.js 16 (App Router, `output: 'standalone'`), React 19, Tailwind CSS v4
 - **Herní pravidla:** `packages/game` – čistý TypeScript bez I/O (zatím herní kalendář)
+- **Databáze:** PostgreSQL + Drizzle (`packages/db`), migrace jako SQL v `packages/db/drizzle/`
+- **Účty:** Better Auth – e-mail + heslo s ověřením e-mailu, obnova hesla, Google, sessions v DB
 - **Kvalita:** ESLint 10 + typescript-eslint (kořenový `eslint.config.mjs`), Prettier, Vitest
 
 Next.js 16 má oproti starším verzím breaking changes – dokumentace k nainstalované verzi je
@@ -59,16 +61,18 @@ do gitu (po smazání by ho vytvořil znovu).
 
 - `apps/worker` – samostatný Node proces, který posouvá svět (stavby, narození, úmrtí, roční
   období) i když nikdo není online
-- `packages/db` – **PostgreSQL** (pevné rozhodnutí – na Hetzner VPS už běží) + Drizzle
-- Autentizace (registrace, přihlášení, pozvánkové kódy)
+- Pozvánkové kódy (s mechanikou vazalství), odesílání skutečných e-mailů
 
 ## Struktura repa
 
 ```
-apps/web/            Next.js – úvodní stránka (později registrace, přihlášení, herní UI, API)
-  components/        React komponenty (GameDateBadge – herní datum v rohu)
-  lib/               logika webu bez Reactu (české formátování herního data)
+apps/web/            Next.js – úvodní stránka, registrace, přihlášení, herní plocha (/game)
+  app/api/auth/      Better Auth endpointy
+  components/        React komponenty (auth/ formuláře, GameDateBadge – herní datum v rohu)
+  lib/               serverová a pomocná logika (auth, session, e-maily, formátování data)
+  e2e/               Playwright testy (proti produkčnímu buildu a databázi bohemia_test)
 packages/game/       herní pravidla – calendar.ts (skutečný čas ↔ herní datum, stav světa)
+packages/db/         Drizzle schéma, klient a migrace (schema/auth.ts generuje Better Auth CLI)
 docs/design/         herní design – vize + dokument pro každou mechaniku
 ```
 
@@ -83,20 +87,37 @@ Pravidla v [docs/design/calendar.md](docs/design/calendar.md). Hlavní API z `@b
 Testovací svět: zkopíruj `apps/web/.env.example` do `apps/web/.env.local` a nastav obě
 proměnné – příklady (svět od dneška, zrychlený svět) jsou přímo v souboru.
 
+## Účty hráčů
+
+Pravidla v [docs/design/accounts.md](docs/design/accounts.md). Na serveru `getSession()`
+(`apps/web/lib/session.ts`), v prohlížeči `authClient` (`lib/auth-client.ts`). Instance Better
+Auth vzniká líně přes `getAuth()` – `next build` stránky jen importuje a databázi nepotřebuje.
+
+- **E-maily** se zatím jen vypisují do terminálu dev serveru (ověřovací odkaz se zkopíruje
+  odtamtud). V produkci bez nastaveného odesílání `sendMail` záměrně spadne.
+- **Hlášky Better Auth** se překládají v `lib/auth-errors.ts` – nové chybové kódy doplnit tam.
+- **Změna polí uživatele** (`user.additionalFields` v `lib/auth.ts`) → upravit i
+  `packages/db/src/schema/auth.ts` a vygenerovat migraci.
+- **Google:** přihlašovací údaje z Google Cloud Console do `apps/web/.env.local`
+  (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`); bez nich se tlačítko Google nezobrazí.
+
 ## Příkazy
 
 ```bash
 npm install
+npm run db:migrate    # migrace do lokální DB bohemia (bez DATABASE_URL)
 npm run dev           # http://localhost:3010
 npm run build
 npm run typecheck     # next typegen + tsc
 npm run lint
-npm run test
+npm run test          # unit testy (Vitest)
+npm run test:e2e      # Playwright – build + next start na :3011 proti DB bohemia_test
 npm run format:check  # npm run format = oprava
+npm run db:generate   # nová migrace po změně schématu v packages/db/src/schema
 ```
 
 Všechny příkazy jdou přes Turborepo do jednotlivých workspaces. Před commitem musí projít
-`typecheck`, `lint`, `test` a `format:check`.
+`typecheck`, `lint`, `test` a `format:check`; u změn přihlašování nebo stránek i `test:e2e`.
 
 ---
 
@@ -128,6 +149,13 @@ Všechny příkazy jdou přes Turborepo do jednotlivých workspaces. Před commi
 nenasazovat ani nepřipravovat produkční infrastrukturu.
 
 - **Databáze lokálně:** PostgreSQL 17 z Homebrew (`postgresql@17`, běží jako služba na
-  `127.0.0.1:5432`). `psql` není v PATH – plná cesta `/opt/homebrew/opt/postgresql@17/bin/psql`.
+  `127.0.0.1:5432`, uživatel `postgres` bez hesla). Databáze `bohemia` (vývoj) a `bohemia_test`
+  (e2e testy). Bez `DATABASE_URL` se použije `bohemia`. `psql` není v PATH – plná cesta
+  `/opt/homebrew/opt/postgresql@17/bin/psql`.
+- **`apps/web/.env.local`** (mimo git) drží `BETTER_AUTH_SECRET` a `BETTER_AUTH_URL`; vzor
+  všech proměnných je v `apps/web/.env.example`.
 - **Později:** Hetzner VPS (PostgreSQL už tam je), PM2 + Caddy, Next.js ve standalone režimu.
-  Až se bude nasazovat, popsat v `docs/deployment.md`.
+  Až se bude nasazovat, popsat v `docs/deployment.md`. Nezapomenout: skutečné odesílání
+  e-mailů, `BETTER_AUTH_SECRET` a `DATABASE_URL` v produkci, Google redirect URI pro produkční
+  doménu a `advanced.ipAddress` v Better Auth (za Caddy věřit jen jeho `X-Forwarded-For`, jinak
+  jde omezení pokusů o přihlášení obejít podvrženou IP).

@@ -32,9 +32,9 @@ trvat aspoň 365 250 ms (≈ 6 minut), aby na každý herní den připadla aspo�
 
 ## Zobrazení
 
-Malé datum v rohu herní plochy, např. „16. října 1024 · podzim“, průběžně aktualizované. Než
-vznikne herní plocha, je dočasně na úvodní stránce. Před začátkem světa ukazuje
-„Svět začne 1. 1. 2027“. Vzhled se doladí později.
+Malé datum v pravém horním rohu herní plochy (`/game`), např. „16. října 1024 · podzim“,
+průběžně aktualizované. Před začátkem světa ukazuje „Svět začne 1. 1. 2027“. Vzhled se doladí
+později.
 
 ## Mimo rozsah
 

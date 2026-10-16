@@ -15,3 +15,8 @@ coverage/
 # Lokální nástroje
 .superpowers/
 .playwright-mcp/
+
+# Playwright
+test-results/
+playwright-report/
+.mail-outbox/

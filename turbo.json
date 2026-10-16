@@ -1,6 +1,15 @@
 {
   "$schema": "https://turborepo.com/schema.json",
-  "globalEnv": ["WORLD_START", "WORLD_END"],
+  "globalEnv": [
+    "WORLD_START",
+    "WORLD_END",
+    "DATABASE_URL",
+    "BETTER_AUTH_SECRET",
+    "BETTER_AUTH_URL",
+    "GOOGLE_CLIENT_ID",
+    "GOOGLE_CLIENT_SECRET",
+    "MAIL_OUTBOX_DIR"
+  ],
   "tasks": {
     "build": { "dependsOn": ["^build"], "outputs": [".next/**", "!.next/cache/**", "dist/**"] },
     "dev": { "cache": false, "persistent": true },

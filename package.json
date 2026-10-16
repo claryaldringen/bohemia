@@ -12,7 +12,10 @@
     "format:check": "turbo format:check",
     "format": "turbo format",
     "typecheck": "turbo typecheck",
-    "test": "turbo test"
+    "test": "turbo test",
+    "test:e2e": "npm run test:e2e -w @bohemia/web",
+    "db:migrate": "npm run db:migrate -w @bohemia/db",
+    "db:generate": "npm run db:generate -w @bohemia/db"
   },
   "devDependencies": {
     "turbo": "^2.11.8"
