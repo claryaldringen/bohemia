@@ -15,6 +15,8 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@babylonjs/core": "^9.31.0",
+    "@babylonjs/loaders": "^9.31.0",
     "@bohemia/db": "*",
     "@bohemia/game": "*",
     "better-auth": "^1.7.10",
