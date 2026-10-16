@@ -11,7 +11,7 @@ export function databaseUrl(env: { DATABASE_URL?: string; NODE_ENV?: string }): 
   return LOCAL_DATABASE_URL;
 }
 
-export type Database = NodePgDatabase<typeof schema>;
+export type Database = NodePgDatabase<typeof schema> & { $client: Pool };
 
 export function createDatabase(url: string): Database {
   return drizzle(new Pool({ connectionString: url }), { schema });
