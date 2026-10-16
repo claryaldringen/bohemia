@@ -27,10 +27,13 @@ const LAYER_TEXTURES: Record<GroundLayer, { file: string; repeatM: number }> = {
   forestFloor: { file: 'forest-floor.jpg', repeatM: 24 },
   shore: { file: 'shore.jpg', repeatM: 50 },
   mud: { file: 'mud.jpg', repeatM: 32 },
+  // Dno potoka a náplavy – oblázky musí být vidět i z dálky, proto kratší opakování.
+  gravel: { file: 'gravel.jpg', repeatM: 12 },
+  sand: { file: 'sand.jpg', repeatM: 16 },
 };
 
 /**
- * Materiál terénu: StandardMaterial, jehož barvu míchá TerrainSplatPlugin ze 6 textur
+ * Materiál terénu: StandardMaterial, jehož barvu míchá TerrainSplatPlugin z 8 textur
  * a ztmavuje pod stromy.
  */
 export function createTerrainMaterial(
@@ -41,7 +44,7 @@ export function createTerrainMaterial(
 ): StandardMaterial {
   const material = new StandardMaterial('terrain-material', scene);
   material.specularColor = Color3.Black();
-  const [first, second] = packSplatTextures(groundWeights(l, stream, forest));
+  const [first, second, third] = packSplatTextures(groundWeights(l, stream, forest));
   const resolution = l.size * 4;
   const splat = (data: Uint8Array, name: string): RawTexture => {
     const texture = RawTexture.CreateRGBATexture(
@@ -64,7 +67,11 @@ export function createTerrainMaterial(
     return texture;
   });
   new TerrainSplatPlugin(material, {
-    splats: [splat(first, 'terrain-splat-0'), splat(second, 'terrain-splat-1')],
+    splats: [
+      splat(first, 'terrain-splat-0'),
+      splat(second, 'terrain-splat-1'),
+      splat(third, 'terrain-splat-2'),
+    ],
     layers,
     extentM: l.size * l.cellSizeM,
     repeatsM: GROUND_LAYERS.map((layer) => LAYER_TEXTURES[layer].repeatM),
@@ -73,17 +80,30 @@ export function createTerrainMaterial(
 }
 
 interface SplatInputs {
-  splats: [RawTexture, RawTexture];
+  splats: [RawTexture, RawTexture, RawTexture];
   layers: Texture[];
   extentM: number;
   repeatsM: number[];
 }
 
-const SAMPLERS = ['splat0', 'splat1', 'layer0', 'layer1', 'layer2', 'layer3', 'layer4', 'layer5'];
+const SAMPLERS = [
+  'splat0',
+  'splat1',
+  'splat2',
+  'layer0',
+  'layer1',
+  'layer2',
+  'layer3',
+  'layer4',
+  'layer5',
+  'layer6',
+  'layer7',
+];
 
 /**
- * Míchá barvu terénu ze 6 dlaždicových textur podle dvou splat textur (váhy vrstev); modrý
- * kanál druhé splat textury ztmavuje půdu pod stromy (nejvýš o polovinu).
+ * Míchá barvu terénu z 8 dlaždicových textur podle tří splat textur (váhy vrstev); modrý
+ * kanál druhé splat textury ztmavuje půdu pod stromy (nejvýš o polovinu), třetí nese štěrk
+ * a písek dna potoka.
  * Textury se mapují rovinně podle světových souřadnic, pootočené o 45° (opakování je tak méně
  * nápadné), každá s vlastní délkou opakování. Funguje pro WebGL (GLSL) i WebGPU (WGSL).
  */
@@ -121,6 +141,7 @@ class TerrainSplatPlugin extends MaterialPluginBase {
         { name: 'terrainExtent', size: 1, type: 'float' },
         { name: 'layerRepeatA', size: 4, type: 'vec4' },
         { name: 'layerRepeatB', size: 2, type: 'vec2' },
+        { name: 'layerRepeatC', size: 2, type: 'vec2' },
       ],
       fragment:
         shaderLanguage === ShaderLanguage.WGSL
@@ -128,11 +149,13 @@ class TerrainSplatPlugin extends MaterialPluginBase {
 uniform terrainExtent: f32;
 uniform layerRepeatA: vec4f;
 uniform layerRepeatB: vec2f;
+uniform layerRepeatC: vec2f;
 #endif`
           : `#ifdef TERRAIN_SPLAT
 uniform float terrainExtent;
 uniform vec4 layerRepeatA;
 uniform vec2 layerRepeatB;
+uniform vec2 layerRepeatC;
 #endif`,
     };
   }
@@ -143,8 +166,10 @@ uniform vec2 layerRepeatB;
     uniformBuffer.updateFloat('terrainExtent', extentM);
     uniformBuffer.updateFloat4('layerRepeatA', r[0]!, r[1]!, r[2]!, r[3]!);
     uniformBuffer.updateFloat2('layerRepeatB', r[4]!, r[5]!);
+    uniformBuffer.updateFloat2('layerRepeatC', r[6]!, r[7]!);
     uniformBuffer.setTexture('splat0', splats[0]);
     uniformBuffer.setTexture('splat1', splats[1]);
+    uniformBuffer.setTexture('splat2', splats[2]);
     layers.forEach((texture, i) => uniformBuffer.setTexture(`layer${i}`, texture));
   }
 
@@ -173,13 +198,16 @@ let terrainXz = fragmentInputs.vPositionW.xz;
 let splatUv = (terrainXz + uniforms.terrainExtent * 0.5) / uniforms.terrainExtent;
 let wA = textureSample(splat0, splat0Sampler, splatUv);
 let wB = textureSample(splat1, splat1Sampler, splatUv);
+let wC = textureSample(splat2, splat2Sampler, splatUv);
 var terrainColor = (0.55 * textureSample(layer0, layer0Sampler, terrainLayerUv(terrainXz, uniforms.layerRepeatA.x)).rgb + 0.45 * textureSample(layer0, layer0Sampler, terrainLayerUv2(terrainXz, uniforms.layerRepeatA.x)).rgb) * wA.r;
 terrainColor += (0.55 * textureSample(layer1, layer1Sampler, terrainLayerUv(terrainXz, uniforms.layerRepeatA.y)).rgb + 0.45 * textureSample(layer1, layer1Sampler, terrainLayerUv2(terrainXz, uniforms.layerRepeatA.y)).rgb) * wA.g;
 terrainColor += (0.55 * textureSample(layer2, layer2Sampler, terrainLayerUv(terrainXz, uniforms.layerRepeatA.z)).rgb + 0.45 * textureSample(layer2, layer2Sampler, terrainLayerUv2(terrainXz, uniforms.layerRepeatA.z)).rgb) * wA.b;
 terrainColor += (0.55 * textureSample(layer3, layer3Sampler, terrainLayerUv(terrainXz, uniforms.layerRepeatA.w)).rgb + 0.45 * textureSample(layer3, layer3Sampler, terrainLayerUv2(terrainXz, uniforms.layerRepeatA.w)).rgb) * wA.a;
 terrainColor += (0.55 * textureSample(layer4, layer4Sampler, terrainLayerUv(terrainXz, uniforms.layerRepeatB.x)).rgb + 0.45 * textureSample(layer4, layer4Sampler, terrainLayerUv2(terrainXz, uniforms.layerRepeatB.x)).rgb) * wB.r;
 terrainColor += (0.55 * textureSample(layer5, layer5Sampler, terrainLayerUv(terrainXz, uniforms.layerRepeatB.y)).rgb + 0.45 * textureSample(layer5, layer5Sampler, terrainLayerUv2(terrainXz, uniforms.layerRepeatB.y)).rgb) * wB.g;
-let terrainTotal = wA.r + wA.g + wA.b + wA.a + wB.r + wB.g;
+terrainColor += (0.55 * textureSample(layer6, layer6Sampler, terrainLayerUv(terrainXz, uniforms.layerRepeatC.x)).rgb + 0.45 * textureSample(layer6, layer6Sampler, terrainLayerUv2(terrainXz, uniforms.layerRepeatC.x)).rgb) * wC.r;
+terrainColor += (0.55 * textureSample(layer7, layer7Sampler, terrainLayerUv(terrainXz, uniforms.layerRepeatC.y)).rgb + 0.45 * textureSample(layer7, layer7Sampler, terrainLayerUv2(terrainXz, uniforms.layerRepeatC.y)).rgb) * wC.g;
+let terrainTotal = wA.r + wA.g + wA.b + wA.a + wB.r + wB.g + wC.r + wC.g;
 baseColor = vec4f(terrainColor / max(terrainTotal, 0.001) * (1.0 - 0.5 * wB.b), 1.0);
 #endif`,
       };
@@ -199,13 +227,16 @@ vec2 terrainXz = vPositionW.xz;
 vec2 splatUv = (terrainXz + terrainExtent * 0.5) / terrainExtent;
 vec4 wA = texture2D(splat0, splatUv);
 vec4 wB = texture2D(splat1, splatUv);
+vec4 wC = texture2D(splat2, splatUv);
 vec3 terrainColor = (0.55 * texture2D(layer0, terrainLayerUv(terrainXz, layerRepeatA.x)).rgb + 0.45 * texture2D(layer0, terrainLayerUv2(terrainXz, layerRepeatA.x)).rgb) * wA.r;
 terrainColor += (0.55 * texture2D(layer1, terrainLayerUv(terrainXz, layerRepeatA.y)).rgb + 0.45 * texture2D(layer1, terrainLayerUv2(terrainXz, layerRepeatA.y)).rgb) * wA.g;
 terrainColor += (0.55 * texture2D(layer2, terrainLayerUv(terrainXz, layerRepeatA.z)).rgb + 0.45 * texture2D(layer2, terrainLayerUv2(terrainXz, layerRepeatA.z)).rgb) * wA.b;
 terrainColor += (0.55 * texture2D(layer3, terrainLayerUv(terrainXz, layerRepeatA.w)).rgb + 0.45 * texture2D(layer3, terrainLayerUv2(terrainXz, layerRepeatA.w)).rgb) * wA.a;
 terrainColor += (0.55 * texture2D(layer4, terrainLayerUv(terrainXz, layerRepeatB.x)).rgb + 0.45 * texture2D(layer4, terrainLayerUv2(terrainXz, layerRepeatB.x)).rgb) * wB.r;
 terrainColor += (0.55 * texture2D(layer5, terrainLayerUv(terrainXz, layerRepeatB.y)).rgb + 0.45 * texture2D(layer5, terrainLayerUv2(terrainXz, layerRepeatB.y)).rgb) * wB.g;
-float terrainTotal = wA.r + wA.g + wA.b + wA.a + wB.r + wB.g;
+terrainColor += (0.55 * texture2D(layer6, terrainLayerUv(terrainXz, layerRepeatC.x)).rgb + 0.45 * texture2D(layer6, terrainLayerUv2(terrainXz, layerRepeatC.x)).rgb) * wC.r;
+terrainColor += (0.55 * texture2D(layer7, terrainLayerUv(terrainXz, layerRepeatC.y)).rgb + 0.45 * texture2D(layer7, terrainLayerUv2(terrainXz, layerRepeatC.y)).rgb) * wC.g;
+float terrainTotal = wA.r + wA.g + wA.b + wA.a + wB.r + wB.g + wC.r + wC.g;
 baseColor = vec4(terrainColor / max(terrainTotal, 0.001) * (1.0 - 0.5 * wB.b), 1.0);
 #endif`,
     };

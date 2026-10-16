@@ -1,7 +1,6 @@
 import { SURFACE_CODES, type Landscape } from '@bohemia/game';
 import type { ForestField } from './forest-field';
 import { IMPOSTOR_ATLAS } from './impostor-atlas';
-import { CHANNEL_HALF_WIDTH_M } from './render-surface';
 import type { StreamCenterline } from './stream-geometry';
 import { heightAt, tileAt } from './tile-at';
 import { edgeDensity } from './tree-placement';
@@ -70,7 +69,7 @@ export function impostorPlacements(
       if (!tile) continue;
       const surface = l.surface[tile.y * l.size + tile.x];
       if (surface === SURFACE_CODES.water) continue;
-      if (stream && stream.nearest(worldX, worldZ).distance <= CHANNEL_HALF_WIDTH_M + 2) continue;
+      if (stream && stream.nearest(worldX, worldZ).bankDistance <= 2) continue;
       const site = l.villageSite;
       const nearVillage =
         Math.max(Math.abs(tile.x - site.x), Math.abs(tile.y - site.y)) <= VILLAGE_CLEARING_TILES;

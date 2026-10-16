@@ -35,8 +35,10 @@ describe('distanceToMask', () => {
     const size = 128;
     const mask = new Uint8Array(size * size);
     for (let x = 0; x < size; x++) for (let w = 0; w < 3; w++) mask[(60 + w) * size + x] = 1;
+    for (let k = 0; k < 3; k++) distanceToMask(mask, size); // zahřátí JIT
     const started = performance.now();
     for (let k = 0; k < 20; k++) distanceToMask(mask, size);
-    expect((performance.now() - started) / 20).toBeLessThan(3);
+    // Hrubá síla trvala ~27 ms; lineární algoritmus ~1 ms – rezerva na souběžně běžící testy.
+    expect((performance.now() - started) / 20).toBeLessThan(8);
   });
 });

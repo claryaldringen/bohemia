@@ -45,6 +45,16 @@ const SHALLOW_HALF_WIDTH: readonly [number, number] = [0.9, 1.15];
 const SHALLOW_LENGTH = 3;
 /** Rezerva mezi dvěma částmi koryta, které se k sobě přiblíží v meandru (políčka). */
 const CHANNEL_GAP = 2;
+/**
+ * Strmá vlásenka: dva úseky s rozdílem hladin nad NECK_DROP_M (m), které jsou přímo blíž než
+ * NECK_CHORD × délka toku mezi nimi, musí být od sebe aspoň součet šířek + NECK_GAP políček –
+ * v přírodě by se taková šíje protrhla. Zbylé mírnější šíje prolne vykreslení.
+ */
+const NECK_DROP_M = 0.8;
+const NECK_GAP = 3.5;
+const NECK_CHORD = 0.6;
+/** Kolem příliš blízkých úseků se meandr zmírní v okně ± tolik políček podél toku. */
+const CALM_WINDOW = 15;
 
 /**
  * Tvar potoka nad trasou po políčkách: vyhlazená osa, meandry jako součet dvou sinusovek
@@ -123,17 +133,20 @@ export function shapeStream(
   const shortWave = range(random, SHORT_WAVE);
   const longPhase = random.next() * Math.PI * 2;
   const shortPhase = random.next() * Math.PI * 2;
-  let amplitude = range(random, AMPLITUDE);
+  const amplitude = range(random, AMPLITUDE);
   const normals = base.map((_, k) => tangent(base, k));
+  // Kde by se meandry přiblížily k sobě, zkřížily nebo vytvořily strmou šíji, meandr se tam
+  // zmírní – jen lokálně, zbytek potoka meandruje dál.
+  const scale = new Float64Array(base.length).fill(1);
   let axis = base;
-  // Kde by se meandry přiblížily k sobě nebo zkřížily, amplituda se postupně zmenší.
-  for (let attempt = 0; attempt < 8; attempt++) {
+  for (let attempt = 0; attempt < 10; attempt++) {
     axis = base.map((p, k) => {
       const s = along[k]!;
       const taper = smoothstep(s / EDGE_TAPER) * smoothstep((total - s) / EDGE_TAPER);
       const envelope = (STEEP_AMPLITUDE + (1 - STEEP_AMPLITUDE) * flat[k]!) * taper;
       const offset =
         amplitude *
+        scale[k]! *
         envelope *
         (Math.sin((2 * Math.PI * s) / longWave + longPhase) +
           SHORT_SHARE * Math.sin((2 * Math.PI * s) / shortWave + shortPhase));
@@ -143,8 +156,22 @@ export function shapeStream(
         y: Math.min(size - 1, Math.max(0, p.y + tx * offset)),
       };
     });
-    if (!crowded(axis, left, right)) break;
-    amplitude *= attempt < 6 ? 0.75 : 0;
+    const conflicts = conflictingPoints(axis, left, right, estimateLevels(heights, size, axis));
+    if (conflicts.length === 0) break;
+    if (attempt === 9) {
+      scale.fill(0);
+      axis = base;
+      break;
+    }
+    const window = CALM_WINDOW / SAMPLE_STEP;
+    const calm = new Float64Array(base.length).fill(1);
+    for (const c of conflicts) {
+      for (let k = Math.max(0, c - window); k <= Math.min(base.length - 1, c + window); k++) {
+        const t = Math.abs(k - c) / window;
+        calm[k] = Math.min(calm[k]!, 1 - 0.5 * (0.5 + 0.5 * Math.cos(Math.PI * t)));
+      }
+    }
+    calm.forEach((factor, k) => (scale[k] = scale[k]! * factor));
   }
 
   // Po posunutí do meandrů se body v obloucích roztáhnou – znovu rovnoměrně po SAMPLE_STEP,
@@ -333,12 +360,26 @@ function pickSpots(
   return chosen.map((c) => c.k);
 }
 
-/** Přiblíží se dvě části koryta (daleko od sebe podél toku) víc, než dovolí jejich šířky? */
-function crowded(
+/** Odhad hladiny podél osy: klesající minimum terénu pod osou (koryto se vyhloubí později). */
+function estimateLevels(
+  heights: Float32Array,
+  size: number,
+  axis: readonly { x: number; y: number }[],
+): number[] {
+  let level = Infinity;
+  return axis.map((p) => (level = Math.min(level, heightAt(heights, size, p))));
+}
+
+/**
+ * Body osy, kde se dvě části koryta přiblíží víc, než dovolí jejich šířky (daleko od sebe
+ * podél toku), nebo kde vznikne strmá šíje (vlásenka s velkým rozdílem hladin).
+ */
+function conflictingPoints(
   axis: readonly { x: number; y: number }[],
   left: readonly number[],
   right: readonly number[],
-): boolean {
+  levels: readonly number[],
+): number[] {
   const along = arcLengths(axis);
   const width = (k: number): number => Math.max(left[k]!, right[k]!);
   const cell = 4;
@@ -350,6 +391,7 @@ function crowded(
     if (list) list.push(k);
     else buckets.set(id, [k]);
   });
+  const conflicts = new Set<number>();
   for (let a = 0; a < axis.length; a++) {
     const pa = axis[a]!;
     const bx = Math.floor(pa.x / cell);
@@ -358,14 +400,22 @@ function crowded(
       for (let dy = -2; dy <= 2; dy++) {
         for (const b of buckets.get(key(bx + dx, by + dy)) ?? []) {
           if (b <= a) continue;
+          const apart = along[b]! - along[a]!;
+          const distance = Math.hypot(pa.x - axis[b]!.x, pa.y - axis[b]!.y);
           const gap = width(a) + width(b) + CHANNEL_GAP;
-          if (along[b]! - along[a]! < gap * 3) continue;
-          if (Math.hypot(pa.x - axis[b]!.x, pa.y - axis[b]!.y) < gap) return true;
+          const touching = apart >= gap * 3 && distance < gap;
+          const steepNeck =
+            Math.abs(levels[a]! - levels[b]!) > NECK_DROP_M &&
+            distance < Math.min(width(a) + width(b) + NECK_GAP, NECK_CHORD * apart);
+          if (touching || steepNeck) {
+            conflicts.add(a);
+            conflicts.add(b);
+          }
         }
       }
     }
   }
-  return false;
+  return [...conflicts];
 }
 
 /**

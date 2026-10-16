@@ -41,4 +41,82 @@ describe('streamCenterline', () => {
     const far = stream.points[0]!;
     expect(stream.nearest(far.x + 900, far.z + 900, 40).distance).toBe(Infinity);
   });
+
+  const cell = landscape.cellSizeM;
+  const half = (landscape.size * cell) / 2;
+  const world = (p: { x: number; y: number }): { x: number; z: number } => ({
+    x: -half + (p.x + 0.5) * cell,
+    z: -half + (p.y + 0.5) * cell,
+  });
+  /** Bod osy z dat krajiny, jednotkový směr toku a levá normála ve světě. */
+  const frame = (
+    k: number,
+  ): { x: number; z: number; tx: number; tz: number; nx: number; nz: number } => {
+    const a = world(landscape.stream[Math.max(0, k - 1)]!);
+    const b = world(landscape.stream[Math.min(landscape.stream.length - 1, k + 1)]!);
+    const length = Math.hypot(b.x - a.x, b.z - a.z);
+    const tx = (b.x - a.x) / length;
+    const tz = (b.z - a.z) / length;
+    return { ...world(landscape.stream[k]!), tx, tz, nx: -tz, nz: tx };
+  };
+  const inner = landscape.stream.slice(20, -20).map((_, i) => i + 20);
+
+  it('šířka vody na straně dotazu odpovídá levému a pravému břehu z dat krajiny', () => {
+    for (const k of inner.filter((_, i) => i % 25 === 0)) {
+      const p = landscape.stream[k]!;
+      const f = frame(k);
+      const left = stream.nearest(f.x + f.nx * 1.5, f.z + f.nz * 1.5);
+      const right = stream.nearest(f.x - f.nx * 1.5, f.z - f.nz * 1.5);
+      expect(left.halfWidth).toBeCloseTo(p.halfWidthLeft * cell, 0);
+      expect(right.halfWidth).toBeCloseTo(p.halfWidthRight * cell, 0);
+    }
+  });
+
+  it('vzdálenost od okraje vody: ve vodě záporná, na břehu kladná', () => {
+    for (const k of inner.filter((_, i) => i % 25 === 0)) {
+      const p = landscape.stream[k]!;
+      const f = frame(k);
+      expect(stream.nearest(f.x, f.z).bankDistance).toBeLessThan(0);
+      const out = p.halfWidthLeft * cell + 5;
+      const bank = stream.nearest(f.x + f.nx * out, f.z + f.nz * out).bankDistance;
+      // V oblouku bývá sousední úsek osy o kus blíž – dolní mez o půl metru volnější.
+      expect(bank).toBeGreaterThan(2.5);
+      expect(bank).toBeLessThan(7);
+    }
+  });
+
+  it('proud: v tůních pomalý, v mělčinách rychlý, směr toku míří po proudu', () => {
+    const halfWidth = (k: number): number =>
+      (landscape.stream[k]!.halfWidthLeft + landscape.stream[k]!.halfWidthRight) / 2;
+    const pools = inner.filter((k) => halfWidth(k) >= 1.6);
+    const shallows = inner.filter((k) => landscape.stream[k]!.shallow);
+    expect(pools.length).toBeGreaterThan(0);
+    expect(shallows.length).toBeGreaterThan(0);
+    const speed = (k: number): number => stream.nearest(frame(k).x, frame(k).z).speed;
+    const mean = (ks: number[]): number => ks.reduce((sum, k) => sum + speed(k), 0) / ks.length;
+    expect(mean(pools)).toBeLessThan(0.3);
+    expect(mean(shallows)).toBeGreaterThan(0.6);
+    for (const k of inner.filter((_, i) => i % 10 === 0)) {
+      const f = frame(k);
+      const q = stream.nearest(f.x, f.z);
+      expect(q.flowX * f.tx + q.flowZ * f.tz).toBeGreaterThan(0.9);
+    }
+  });
+
+  it('vnitřní strana oblouku je kladná, vnější záporná', () => {
+    // Nejostřejší oblouk: směr toku se nejvíc stočí na krátké vzdálenosti.
+    let best = { k: -1, turn: 0 };
+    for (const k of inner) {
+      const a = frame(k - 6);
+      const b = frame(k + 6);
+      const turn = a.tx * b.tz - a.tz * b.tx; // kladné = stáčí se doleva
+      if (Math.abs(turn) > Math.abs(best.turn)) best = { k, turn };
+    }
+    const f = frame(best.k);
+    const side = Math.sign(best.turn); // levá strana je vnitřní, když se stáčí doleva
+    const insideQuery = stream.nearest(f.x + f.nx * side * 2, f.z + f.nz * side * 2);
+    const outsideQuery = stream.nearest(f.x - f.nx * side * 2, f.z - f.nz * side * 2);
+    expect(insideQuery.innerBend).toBeGreaterThan(0.2);
+    expect(outsideQuery.innerBend).toBeLessThan(-0.2);
+  });
 });

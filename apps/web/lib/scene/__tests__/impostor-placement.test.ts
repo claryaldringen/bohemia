@@ -3,7 +3,6 @@ import { generateLandscape, SURFACE_CODES } from '@bohemia/game';
 import { buildForestField } from '../forest-field';
 import { IMPOSTOR_ATLAS } from '../impostor-atlas';
 import { impostorPlacements } from '../impostor-placement';
-import { CHANNEL_HALF_WIDTH_M } from '../render-surface';
 import { streamCenterline } from '../stream-geometry';
 import { heightAt, tileAt } from '../tile-at';
 import { treePlacements } from '../tree-placement';
@@ -68,7 +67,7 @@ describe('impostorPlacements', () => {
     for (const p of placements) {
       const tile = tileAt(landscape, p.worldX, p.worldZ)!;
       expect(landscape.surface[tile.y * landscape.size + tile.x]).not.toBe(SURFACE_CODES.water);
-      expect(stream.nearest(p.worldX, p.worldZ).distance).toBeGreaterThan(CHANNEL_HALF_WIDTH_M + 2);
+      expect(stream.nearest(p.worldX, p.worldZ).bankDistance).toBeGreaterThan(2);
     }
   });
 

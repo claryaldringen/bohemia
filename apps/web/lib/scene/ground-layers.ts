@@ -1,11 +1,10 @@
 import { SURFACE_CODES, type Landscape } from '@bohemia/game';
 import { createNoise2D } from 'simplex-noise';
 import type { ForestField } from './forest-field';
-import { CHANNEL_HALF_WIDTH_M } from './render-surface';
 import type { StreamCenterline } from './stream-geometry';
 import type { TreePlacement } from './tree-placement';
 
-/** Vrstvy povrchu terénu – pořadí odpovídá kanálům splat textur (RGBA + RG). */
+/** Vrstvy povrchu terénu – pořadí odpovídá kanálům splat textur (RGBA, RG + stín, RG). */
 export const GROUND_LAYERS = [
   'grass',
   'grassLush',
@@ -13,6 +12,8 @@ export const GROUND_LAYERS = [
   'forestFloor',
   'shore',
   'mud',
+  'gravel',
+  'sand',
 ] as const;
 export type GroundLayer = (typeof GROUND_LAYERS)[number];
 
@@ -93,15 +94,23 @@ export function groundWeights(
         w[LAYER.grassLush] = w[LAYER.grassLush]! + shift;
       }
       if (stream) {
-        const d = stream.nearest(x, z).distance;
-        const mud = 1 - smoothstep(CHANNEL_HALF_WIDTH_M - 1.5, CHANNEL_HALF_WIDTH_M + 2.5, d);
-        const shore = Math.max(
-          0,
-          1 - smoothstep(CHANNEL_HALF_WIDTH_M + 4, CHANNEL_HALF_WIDTH_M + 16, d) - mud,
-        );
-        const land = 1 - mud - shore;
+        // Vzdálenost od okraje vody – potok mění šířku, tůně jsou široké.
+        const near = stream.nearest(x, z);
+        const d = near.bankDistance;
+        const channel = 1 - smoothstep(-1.5, 2.5, d);
+        // Náplav na vnitřní straně oblouku – i nad hladinou, kde proud ukládá štěrk a písek.
+        const bar =
+          smoothstep(0.15, 0.5, near.innerBend) *
+          smoothstep(0.2, 0.4, near.speed) *
+          (1 - smoothstep(3, 10, d));
+        const bed = Math.max(channel, bar);
+        const mix = bar > channel ? barMix(near.speed) : bedMix(near.speed, near.pool);
+        const shore = Math.max(0, 1 - smoothstep(4, 16, d) - bed);
+        const land = 1 - bed - shore;
         for (let k = 0; k < w.length; k++) w[k] = w[k]! * land;
-        w[LAYER.mud] = mud;
+        w[LAYER.mud] = bed * mix.mud;
+        w[LAYER.sand] = bed * mix.sand;
+        w[LAYER.gravel] = bed * mix.gravel;
         w[LAYER.shore] = shore;
       }
       for (let k = 0; k < w.length; k++) {
@@ -161,18 +170,40 @@ function treeShade(l: Landscape, trees: readonly TreePlacement[], resolution: nu
   return Uint8Array.from(shade, (v) => Math.round(v * 255));
 }
 
-/** Dvě RGBA textury pro shader: [trávy + lesní půda], [břeh + bahno + ztmavení pod stromy]. */
-export function packSplatTextures(weights: GroundWeights): [Uint8Array, Uint8Array] {
+/**
+ * Tři RGBA textury pro shader: [trávy + lesní půda], [břeh + bahno + ztmavení pod stromy],
+ * [štěrk + písek].
+ */
+export function packSplatTextures(weights: GroundWeights): [Uint8Array, Uint8Array, Uint8Array] {
   const n = weights.resolution * weights.resolution;
   const first = new Uint8Array(n * 4);
   const second = new Uint8Array(n * 4);
+  const third = new Uint8Array(n * 4);
   for (let i = 0; i < n; i++) {
     for (let c = 0; c < 4; c++) first[i * 4 + c] = weights.layers[c]![i]!;
     second[i * 4] = weights.layers[4]![i]!;
     second[i * 4 + 1] = weights.layers[5]![i]!;
     second[i * 4 + 2] = weights.shade[i]!;
+    third[i * 4] = weights.layers[6]![i]!;
+    third[i * 4 + 1] = weights.layers[7]![i]!;
   }
-  return [first, second];
+  return [first, second, third];
+}
+
+/**
+ * Dno koryta podle proudu jako v přírodě: v rychlém proudu štěrk (jemný sediment voda odnese),
+ * v mírném písek, v pomalém a v tůních bahno.
+ */
+function bedMix(speed: number, pool: number): { mud: number; sand: number; gravel: number } {
+  const gravel = smoothstep(0.5, 0.78, speed) * (1 - pool);
+  const sand = smoothstep(0.22, 0.45, speed) * (1 - gravel) * (1 - pool);
+  return { mud: 1 - gravel - sand, sand, gravel };
+}
+
+/** Náplav: v rychlejším proudu štěrkový, v pomalejším písčitý. */
+function barMix(speed: number): { mud: number; sand: number; gravel: number } {
+  const gravel = smoothstep(0.45, 0.7, speed);
+  return { mud: 0, sand: 1 - gravel, gravel };
 }
 
 function weightsPerTile(l: Landscape, tileWater: boolean, tileForest: boolean): Float32Array {

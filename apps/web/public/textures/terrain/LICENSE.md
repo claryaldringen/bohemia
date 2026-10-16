@@ -24,3 +24,5 @@ souborů, ne zbytku hry Bohemia.
 | `mud-normal.jpg`          | `mud_01_norm.png`                                      |
 | `forest-floor-normal.jpg` | `forestfloor_003_norm.png`                             |
 | `canopy.jpg`              | render ze stromů v `public/models/trees/`              |
+| `gravel.jpg`              | `../shoreline_stoney_a.png` (převedeno do JPEG)        |
+| `sand.jpg`                | `../medit_sand_wet.dds` (převedeno do JPEG)            |

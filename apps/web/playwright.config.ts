@@ -11,7 +11,8 @@ export default defineConfig({
   // Testy sdílejí jednu testovací databázi a jeden outbox e-mailů.
   workers: 1,
   globalSetup: './e2e/global-setup.ts',
-  use: { baseURL: BASE_URL, trace: 'retain-on-failure' },
+  // reducedMotion: voda ve scéně stojí – nepřetržité softwarové kreslení by zdrželo vstupy myši.
+  use: { baseURL: BASE_URL, trace: 'retain-on-failure', reducedMotion: 'reduce' },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {
     // Produkční build: dev server kompiluje stránky až na požádání a přestavuje je za běhu,

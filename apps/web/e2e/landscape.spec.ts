@@ -5,6 +5,10 @@ test.beforeEach(async ({ context }) => {
   await useUniqueClientIp(context);
 });
 
+// Bezhlavý prohlížeč kreslí scénu softwarově – příprava krajiny se stromy, dekoracemi a stíny
+// tu trvá ≈ 15 s (v běžném Chrome ≈ 1,5 s) a některé testy ji načítají dvakrát.
+test.describe.configure({ timeout: 90_000 });
+
 const readyScene = (page: Page): ReturnType<Page['locator']> =>
   page.locator('canvas[data-scene-ready="true"]');
 
@@ -248,6 +252,26 @@ test('bez 3D grafiky uvidí hráč vysvětlení místo prázdné plochy', async 
   });
   await registerAndEnterGame(page, 'bez-3d');
   await expect(page.getByText('Krajinu se nepodařilo zobrazit')).toBeVisible({ timeout: 30_000 });
+});
+
+test('během přípravy krajiny je vidět ukazatel průběhu, po vykreslení zmizí', async ({ page }) => {
+  await registerAndEnterGame(page, 'ukazatel');
+  await page.goto('/');
+  // Modely stromů přijdou se zpožděním – ukazatel musí být vidět, dokud scéna není hotová.
+  await page.route('**/models/**', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    await route.continue().catch(() => undefined);
+  });
+  await page.getByRole('link', { name: 'Pokračovat do hry' }).click();
+  const progress = page.getByRole('progressbar', { name: 'Příprava krajiny' });
+  await expect(progress).toBeVisible();
+  await expect(readyScene(page)).toBeAttached({ timeout: 30_000 });
+  const loading = page.getByTestId('scene-loading');
+  await expect(loading).toHaveAttribute('aria-hidden', 'true');
+  // Skrytý ukazatel není v přístupnostním stromu – hledá se i mezi skrytými prvky.
+  await expect(
+    loading.getByRole('progressbar', { name: 'Příprava krajiny', includeHidden: true }),
+  ).toHaveAttribute('aria-valuenow', '100');
 });
 
 test('odchod z herní plochy během načítání scénu uvolní bez chyb', async ({ page }) => {

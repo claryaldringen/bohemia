@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { generateLandscape, SURFACE_CODES } from '@bohemia/game';
 import { buildForestField } from '../forest-field';
-import { CHANNEL_HALF_WIDTH_M } from '../render-surface';
 import { streamCenterline } from '../stream-geometry';
 import { tileAt } from '../tile-at';
 import { edgeDensity, treePlacements } from '../tree-placement';
@@ -26,9 +25,7 @@ describe('treePlacements', () => {
     for (const tree of placements) {
       const tile = tileAt(landscape, tree.worldX, tree.worldZ)!;
       expect(landscape.surface[tile.y * landscape.size + tile.x]).not.toBe(SURFACE_CODES.water);
-      expect(stream.nearest(tree.worldX, tree.worldZ).distance).toBeGreaterThan(
-        CHANNEL_HALF_WIDTH_M + 2,
-      );
+      expect(stream.nearest(tree.worldX, tree.worldZ).bankDistance).toBeGreaterThan(2);
     }
   });
 

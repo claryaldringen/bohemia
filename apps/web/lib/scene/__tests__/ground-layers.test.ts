@@ -99,8 +99,19 @@ describe('groundWeights s vyhlazeným korytem', () => {
     return tz * smooth.resolution + tx;
   };
   const mud = GROUND_LAYERS.indexOf('mud');
+  const sand = GROUND_LAYERS.indexOf('sand');
+  const gravel = GROUND_LAYERS.indexOf('gravel');
+  const bed = (i: number): number =>
+    smooth.layers[mud]![i]! + smooth.layers[sand]![i]! + smooth.layers[gravel]![i]!;
+  const dominant = (i: number): number => {
+    let best = 0;
+    smooth.layers.forEach((layer, k) => {
+      if (layer[i]! > smooth.layers[best]![i]!) best = k;
+    });
+    return best;
+  };
 
-  it('bahno sleduje osu potoka – na ose je bahno nejsilnější vrstvou', () => {
+  it('dno potoka sleduje osu – na ose převažuje bahno, písek nebo štěrk', () => {
     const half = (landscape.size * landscape.cellSizeM) / 2;
     const onMap = stream.points.filter(
       (p) => Math.max(Math.abs(p.x), Math.abs(p.z)) < half - landscape.cellSizeM,
@@ -108,21 +119,55 @@ describe('groundWeights s vyhlazeným korytem', () => {
     expect(onMap.length).toBeGreaterThan(100);
     for (const p of onMap) {
       const i = texelAt(p.x, p.z);
-      const strongest = Math.max(...smooth.layers.map((layer) => layer[i]!));
-      expect(smooth.layers[mud]![i], `${p.x.toFixed(0)},${p.z.toFixed(0)}`).toBe(strongest);
+      expect(bed(i), `${p.x.toFixed(0)},${p.z.toFixed(0)}`).toBeGreaterThan(200);
     }
   });
 
-  it('25 m od osy už bahno není', () => {
+  it('podloží podle proudu: v peřejích štěrk, v tůních bahno', () => {
+    const axis = stream.points.slice(10, -10);
+    const fast = axis.filter((p) => p.speed > 0.75 && p.pool < 0.1);
+    const pools = axis.filter((p) => p.pool > 0.9);
+    expect(fast.length).toBeGreaterThan(5);
+    expect(pools.length).toBeGreaterThan(5);
+    const share = (ps: typeof axis, layer: number): number =>
+      ps.filter((p) => dominant(texelAt(p.x, p.z)) === layer).length / ps.length;
+    expect(share(fast, gravel)).toBeGreaterThan(0.6);
+    expect(share(pools, mud)).toBeGreaterThan(0.6);
+  });
+
+  it('na vnitřní straně oblouku v proudu je náplav (štěrk nebo písek) i kousek nad vodou', () => {
+    let bars = 0;
+    let bends = 0;
+    const axis = stream.points.slice(10, -10);
+    for (let k = 0; k < axis.length - 1; k += 4) {
+      const a = axis[k]!;
+      if (Math.abs(a.turn) < 0.7 || a.speed < 0.35 || a.pool > 0.1) continue;
+      const b = axis[k + 1]!;
+      const length = Math.hypot(b.x - a.x, b.z - a.z);
+      const side = Math.sign(a.turn); // kladné stočení = doleva = levá strana je vnitřní
+      const half = side > 0 ? a.halfLeft : a.halfRight;
+      const x = a.x - ((b.z - a.z) / length) * side * (half + 3);
+      const z = a.z + ((b.x - a.x) / length) * side * (half + 3);
+      if (stream.nearest(x, z).bankDistance > 4) continue;
+      bends++;
+      const i = texelAt(x, z);
+      if (smooth.layers[sand]![i]! + smooth.layers[gravel]![i]! > 128) bars++;
+    }
+    expect(bends).toBeGreaterThan(3);
+    expect(bars / bends).toBeGreaterThan(0.6);
+  });
+
+  it('18 m od okraje vody už bahno není', () => {
     for (const p of stream.points.slice(10, -10).filter((_, i) => i % 15 === 0)) {
       const a = stream.points[stream.points.indexOf(p) + 1]!;
-      // kolmo k ose
+      // kolmo k ose, na levou stranu (−dz, dx) za okraj vody
       const dx = a.x - p.x;
       const dz = a.z - p.z;
       const length = Math.hypot(dx, dz) || 1;
-      const x = p.x - (dz / length) * 25;
-      const z = p.z + (dx / length) * 25;
-      if (stream.nearest(x, z).distance < 24) continue;
+      const out = p.halfLeft + 18;
+      const x = p.x - (dz / length) * out;
+      const z = p.z + (dx / length) * out;
+      if (stream.nearest(x, z).bankDistance < 17) continue;
       expect(smooth.layers[mud]![texelAt(x, z)]).toBeLessThan(40);
     }
   });

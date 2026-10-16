@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { deriveSeed } from '../random';
 import { generateTerrain } from '../terrain';
 import { LANDSCAPE_SIZE, type StreamPoint } from '../types';
 import {
@@ -181,6 +182,36 @@ describe('generateTerrain – potok', () => {
           const pb = stream[b]!;
           const gap = halfWidth(pa) + halfWidth(pb) + 1.5;
           if (along[b]! - along[a]! < gap * 3) continue;
+          worst = Math.min(worst, Math.hypot(pa.x - pb.x, pa.y - pb.y) - gap);
+        }
+      }
+      expect(worst, `seed ${seed}`).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it('strmá vlásenka nevznikne – úseky s rozdílem hladin přes 1 m se k sobě nepřiblíží', () => {
+    // I terény skutečných krajin 0–39 (seed terénu je odvozený).
+    const landscapes = Array.from({ length: 40 }, (_, s) => {
+      const seed = deriveSeed(s, 'terrain');
+      return { seed, terrain: generateTerrain(seed, 1) };
+    });
+    for (const { seed, terrain } of [...terrains, ...landscapes]) {
+      const { stream } = terrain;
+      const along: number[] = [0];
+      for (let k = 1; k < stream.length; k++) {
+        along.push(
+          along[k - 1]! +
+            Math.hypot(stream[k]!.x - stream[k - 1]!.x, stream[k]!.y - stream[k - 1]!.y),
+        );
+      }
+      let worst = Infinity;
+      for (let a = 0; a < stream.length; a += 2) {
+        for (let b = a + 1; b < stream.length; b += 2) {
+          const pa = stream[a]!;
+          const pb = stream[b]!;
+          if (Math.abs(pa.level - pb.level) <= 1) continue;
+          // Vlásenka: přímo blízko, podél toku daleko. Na rovném úseku platí jen přímá vzdálenost.
+          const gap = Math.min(halfWidth(pa) + halfWidth(pb) + 3, 0.6 * (along[b]! - along[a]!));
           worst = Math.min(worst, Math.hypot(pa.x - pb.x, pa.y - pb.y) - gap);
         }
       }

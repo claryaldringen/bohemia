@@ -1,0 +1,88 @@
+[
+  {
+    "name": "cattails",
+    "dae": "meshes/gaia/cattails.dae",
+    "texture": "textures/skins/gaia/cattails_1.png",
+    "scale": 0.3
+  },
+  {
+    "name": "reeds",
+    "dae": "meshes/gaia/cross_large_tall.dae",
+    "texture": "textures/skins/gaia/reeds_pond_lush_a.dds",
+    "scale": 0.35
+  },
+  {
+    "name": "lilies",
+    "dae": "meshes/gaia/water_lillies.dae",
+    "texture": "textures/skins/gaia/water_lillies.dds",
+    "scale": 1.0
+  },
+  {
+    "name": "boulder",
+    "dae": "meshes/gaia/rock_shoreline_boulder_a.dae",
+    "texture": "textures/skins/gaia/rock_ocean_1.dds",
+    "scale": 0.3,
+    "opaque": true
+  },
+  {
+    "name": "stone-1",
+    "dae": "meshes/gaia/stone_granite_me_a.dae",
+    "texture": "textures/skins/gaia/stone_temperate_01.png",
+    "scale": 1.6,
+    "opaque": true,
+    "texture_px": 256
+  },
+  {
+    "name": "stone-2",
+    "dae": "meshes/gaia/stone_granite_sm_a.dae",
+    "texture": "textures/skins/gaia/stone_temperate_01.png",
+    "scale": 1.8,
+    "opaque": true,
+    "texture_px": 256
+  },
+  {
+    "name": "willow",
+    "dae": "meshes/gaia/trees/willow_a.dae",
+    "texture": "textures/skins/gaia/willow_green.png",
+    "scale": 0.6,
+    "foliage": {
+      "u_below": 0.66
+    },
+    "texture_px": 512
+  },
+  {
+    "name": "underbrush-1",
+    "dae": "meshes/gaia/underbrush_01.dae",
+    "texture": "textures/skins/gaia/tree_euro_beech_a.dds",
+    "scale": 0.65,
+    "foliage": "all"
+  },
+  {
+    "name": "underbrush-2",
+    "dae": "meshes/gaia/underbrush_02.dae",
+    "texture": "textures/skins/gaia/tree_oak_b.dds",
+    "scale": 0.65,
+    "foliage": "all"
+  },
+  {
+    "name": "shrub-1",
+    "dae": "meshes/gaia/bush_la_1.dae",
+    "texture": "textures/skins/gaia/bush_tempe_a.dds",
+    "scale": 0.6,
+    "foliage": "all"
+  },
+  {
+    "name": "shrub-2",
+    "dae": "meshes/gaia/bush_la_3.dae",
+    "texture": "textures/skins/gaia/bush_tempe_a.dds",
+    "scale": 0.55,
+    "foliage": "all"
+  },
+  {
+    "name": "shrub-3",
+    "dae": "meshes/gaia/bush_me_1.dae",
+    "texture": "textures/skins/gaia/bush_tempe_a.dds",
+    "scale": 0.5,
+    "foliage": "all"
+  }
+]

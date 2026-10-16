@@ -3,7 +3,9 @@
 blender -b --factory-startup --python tools/blender/trees_from_0ad.py -- \
     tools/blender/trees.json <0ad>/binaries/data/mods/public/art apps/web/public/models/trees [náhled.png]
 
-trees.json: [{"name", "dae", "texture", "foliage"?, "scale"?} | {"name", "parts": [...], "scale"?}]
+trees.json: [{"name", "dae", "texture", "foliage"?, "scale"?, "opaque"?, "texture_px"?} | {"name", "parts": [...], "scale"?}]
+"opaque" = bez průhlednosti a s ořezem zadních stěn (kameny), textura se exportuje jako JPEG;
+"texture_px" textury větší než daný rozměr zmenší. Stejně se převádějí i dekorace (decor.json).
 Cesty k .dae a texturám jsou relativní k art/ složce 0 A.D.; "foliage" nastaví normály listí
 od středu koruny ("all", nebo {"u_below": u} pro atlas s kůrou vpravo).
 """
@@ -73,11 +75,17 @@ def build_mesh(root, geom_id, world, name):
     positions = source_data(root, pos_src)
 
     faces, uvs, normals = [], [], []
-    prims = mesh_el.findall("c:triangles", NS) + mesh_el.findall("c:polylist", NS)
+    prims = (
+        mesh_el.findall("c:triangles", NS)
+        + mesh_el.findall("c:polylist", NS)
+        + mesh_el.findall("c:polygons", NS)
+    )
     for tris in prims:
         inputs = tris.findall("c:input", NS)
         stride = max(int(i.get("offset")) for i in inputs) + 1
-        p = ints(tris.find("c:p", NS))
+        # <polygons> má každý polygon ve vlastním <p>, ostatní vše v jednom.
+        p_els = tris.findall("c:p", NS)
+        p = [i for el in p_els for i in ints(el)]
         by_sem = {i.get("semantic"): i for i in inputs}
         v_off = int(by_sem["VERTEX"].get("offset"))
         n_in = by_sem.get("NORMAL")
@@ -85,7 +93,12 @@ def build_mesh(root, geom_id, world, name):
         n_data = source_data(root, n_in.get("source")[1:]) if n_in is not None else None
         t_data = source_data(root, t_in.get("source")[1:]) if t_in is not None else None
         vcount_el = tris.find("c:vcount", NS)
-        counts = ints(vcount_el) if vcount_el is not None else [3] * (len(p) // (stride * 3))
+        if vcount_el is not None:
+            counts = ints(vcount_el)
+        elif tris.tag.endswith("polygons"):
+            counts = [len(ints(el)) // stride for el in p_els]
+        else:
+            counts = [3] * (len(p) // (stride * 3))
         k = 0
         for count in counts:
             poly = [p[k + c * stride : k + (c + 1) * stride] for c in range(count)]
@@ -110,17 +123,23 @@ def build_mesh(root, geom_id, world, name):
     return mesh
 
 
-def make_material(name, texture_path):
+def make_material(name, texture_path, opaque=False, texture_px=None):
     mat = bpy.data.materials.new(name)
     mat.use_nodes = True
-    mat.use_backface_culling = False
+    mat.use_backface_culling = opaque
     nodes = mat.node_tree.nodes
     links = mat.node_tree.links
     bsdf = next(n for n in nodes if n.type == "BSDF_PRINCIPLED")
     tex = nodes.new("ShaderNodeTexImage")
     tex.image = bpy.data.images.load(texture_path)
+    if texture_px and max(tex.image.size) > texture_px:
+        tex.image.scale(texture_px, texture_px)
     tex.interpolation = "Linear"
     links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
+    if opaque:
+        bsdf.inputs["Roughness"].default_value = 1.0
+        bsdf.inputs["Specular IOR Level"].default_value = 0.0
+        return mat
     # Ořez průhlednosti (glTF alphaMode MASK, cutoff 0,5) – exportér ho pozná z „Round“.
     rnd = nodes.new("ShaderNodeMath")
     rnd.operation = "ROUND"
@@ -177,7 +196,7 @@ def foliage_normals(obj, rule):
             normals[li] = (n + Vector((0, 0, 0.5))).normalized()
     mesh.normals_split_custom_set(normals)
 
-def import_part(dae, texture, offset, name, foliage=None):
+def import_part(dae, texture, offset, name, foliage=None, opaque=False, texture_px=None):
     root = ET.parse(dae).getroot()
     up = root.findtext(".//c:asset/c:up_axis", default="Z_UP", namespaces=NS).strip()
     # 0 A.D. jednotky z <unit> ignoruje – souřadnice jsou vždy v „metrech“ hry.
@@ -188,7 +207,7 @@ def import_part(dae, texture, offset, name, foliage=None):
         o = bpy.data.objects.new(name, mesh)
         bpy.context.scene.collection.objects.link(o)
         objs.append(o)
-    mat = make_material(f"{name}-{len(bpy.data.materials)}", texture)
+    mat = make_material(f"{name}-{len(bpy.data.materials)}", texture, opaque, texture_px)
     for o in objs:
         o.data.materials.append(mat)
         if foliage:
@@ -201,7 +220,13 @@ def import_tree(spec):
         {"dae": spec["dae"], "texture": spec["texture"], "foliage": spec.get("foliage")}
     ]
     base_root, objs = import_part(
-        parts[0]["dae"], parts[0]["texture"], Matrix.Identity(4), spec["name"], parts[0].get("foliage")
+        parts[0]["dae"],
+        parts[0]["texture"],
+        Matrix.Identity(4),
+        spec["name"],
+        parts[0].get("foliage"),
+        spec.get("opaque", False),
+        spec.get("texture_px"),
     )
     for part in parts[1:]:
         offset = named_node_matrix(base_root, part["attach"]) if part.get("attach") else Matrix.Identity(4)
@@ -219,7 +244,7 @@ def import_tree(spec):
     zs = [v.co.z for v in obj.data.vertices]
     xs = [v.co.x for v in obj.data.vertices]
     ys = [v.co.y for v in obj.data.vertices]
-    base = [v.co for v in obj.data.vertices if v.co.z < min(zs) + 0.05 * (max(zs) - min(zs))]
+    base = [v.co for v in obj.data.vertices if v.co.z <= min(zs) + 0.05 * (max(zs) - min(zs))]
     cx = sum(c.x for c in base) / len(base)
     cy = sum(c.y for c in base) / len(base)
     obj.data.transform(Matrix.Translation((-cx, -cy, -min(zs))))
@@ -232,7 +257,7 @@ def import_tree(spec):
     return obj
 
 
-def export(obj, path):
+def export(obj, path, opaque=False):
     bpy.ops.object.select_all(action="DESELECT")
     obj.select_set(True)
     bpy.context.view_layer.objects.active = obj
@@ -244,7 +269,7 @@ def export(obj, path):
         export_texcoords=True,
         export_normals=True,
         export_materials="EXPORT",
-        export_image_format="AUTO",
+        export_image_format="JPEG" if opaque else "AUTO",
         export_apply=True,
     )
 
@@ -296,7 +321,7 @@ def main():
                 if key in part:
                     part[key] = f"{art_dir}/{part[key]}"
         obj = import_tree(spec)
-        export(obj, f"{out_dir}/{spec['name']}.glb")
+        export(obj, f"{out_dir}/{spec['name']}.glb", spec.get("opaque", False))
         objs.append(obj)
     if preview_path:
         preview(objs, preview_path)
