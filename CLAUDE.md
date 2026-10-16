@@ -71,7 +71,7 @@ apps/web/            Next.js – úvodní stránka, registrace, přihlášení, 
   components/        React komponenty (auth/ formuláře, GameDateBadge – herní datum v rohu)
   lib/               serverová a pomocná logika (auth, session, e-maily, formátování data)
   e2e/               Playwright testy (proti produkčnímu buildu a databázi bohemia_test)
-packages/game/       herní pravidla – calendar.ts (skutečný čas ↔ herní datum, stav světa)
+packages/game/       herní jádro – domain/ (pravidla, zatím calendar.ts), později application/
 packages/db/         Drizzle schéma, klient a migrace (schema/auth.ts generuje Better Auth CLI)
 docs/design/         herní design – vize + dokument pro každou mechaniku
 ```
@@ -121,14 +121,34 @@ Všechny příkazy jdou přes Turborepo do jednotlivých workspaces. Před commi
 
 ---
 
-## Architektonické zásady
+## Architektura – hexagonální (porty a adaptéry)
 
-- **Herní čas je čistá funkce skutečného času**, ne čítač tiků. Herní datum se vždy dopočítá
-  z aktuálního času a data spuštění. Výpadek workeru tak čas neposune – worker po restartu
-  doběhne zmeškané události podle jejich herního termínu.
-- **Herní pravidla patří do `packages/game`** jako čisté deterministické funkce bez přístupu
-  k DB, síti či hodinám (čas se předává parametrem). Web i worker je jen volají. Díky tomu jdou
-  pravidla důkladně testovat.
+**Závazné pro všechny herní mechaniky** (schváleno 16. 10. 2026).
+
+```
+packages/game/src/domain/       doména – entity a pravidla, čisté deterministické funkce
+packages/game/src/application/  use-casy (herní akce) + porty (rozhraní: repozitáře, Clock…)
+packages/db/src/adapters/       adaptéry portů – Drizzle implementace repozitářů
+apps/web, apps/worker           vstupní body – spojí adaptéry s use-casy (composition root)
+```
+
+- **Závislosti míří jen dovnitř:** vstupní body a adaptéry → use-casy → doména. Doména nezná
+  nic jiného, use-casy znají jen doménu a vlastní porty.
+- **Doména a use-casy neimportují infrastrukturu** (DB, Drizzle, Next.js, React, Better Auth,
+  `node:*`) a doména neimportuje use-casy – **hlídá ESLint** (`eslint.config.mjs`).
+- **Determinismus:** v `packages/game` žádné `Date.now()`, `new Date()` bez argumentu ani
+  `Math.random()` – čas a náhoda přicházejí parametrem nebo přes port – **hlídá ESLint**.
+- **Use-case = jedna herní akce** hráče nebo světa (např. `buildStructure`, `resolveSeason`):
+  načte stav přes port, zavolá doménové pravidlo, uloží výsledek přes port. Žádná herní logika
+  v adaptérech, route handlerech, server actions ani React komponentách.
+- **Web i worker volají stejné use-casy** – herní logika existuje jen jednou.
+- **Testy:** doména a use-casy unit testy s in-memory implementacemi portů (ne mocky Drizzlu);
+  adaptéry proti skutečné databázi `bohemia_test`.
+- **Přihlašování (Better Auth) je mimo hexagon** – služba frameworku v `apps/web`. Doména zná
+  jen ID hráče.
+- **Herní čas je čistá funkce skutečného času**, ne čítač tiků (`domain/calendar.ts`). Výpadek
+  workeru tak čas neposune – worker po restartu doběhne zmeškané události podle jejich herního
+  termínu.
 - **Server je jediná autorita.** Klient jen zobrazuje a posílá záměry hráče; výsledky
   (stavby, suroviny, boje) počítá a ověřuje server.
 

@@ -1,6 +1,6 @@
 # Herní kalendář
 
-Stav: schváleno 16. 10. 2026. Implementace: `packages/game/src/calendar.ts`.
+Stav: schváleno 16. 10. 2026. Implementace: `packages/game/src/domain/calendar.ts`.
 
 ## Proč
 

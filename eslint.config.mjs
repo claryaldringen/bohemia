@@ -2,6 +2,37 @@ import { defineConfig } from 'eslint/config';
 import tseslint from 'typescript-eslint';
 import reactHooks from 'eslint-plugin-react-hooks';
 
+// Hexagonální architektura (viz CLAUDE.md): doména a use-casy v packages/game nesmí sahat
+// na infrastrukturu – ta patří do adaptérů (packages/db) a vstupních bodů (apps/*).
+const INFRASTRUCTURE = [
+  '@bohemia/db',
+  '@bohemia/db/*',
+  'drizzle-orm',
+  'drizzle-orm/*',
+  'pg',
+  'next',
+  'next/*',
+  'react',
+  'react/*',
+  'react-dom',
+  'react-dom/*',
+  'better-auth',
+  'better-auth/*',
+  'node:*',
+  'fs',
+  'path',
+  'crypto',
+  'child_process',
+];
+const infrastructureRule = {
+  group: INFRASTRUCTURE,
+  message: 'Herní jádro nesmí importovat infrastrukturu – použij port (rozhraní) a adaptér.',
+};
+const domainRule = {
+  group: ['**/application', '**/application/**'],
+  message: 'Doména nesmí záviset na use-casech – závislosti míří jen dovnitř.',
+};
+
 export default defineConfig(
   {
     ignores: [
@@ -27,6 +58,33 @@ export default defineConfig(
     rules: {
       'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'warn',
+    },
+  },
+  {
+    files: ['packages/game/src/**/*.ts'],
+    ignores: ['**/__tests__/**'],
+    rules: {
+      'no-restricted-imports': ['error', { patterns: [infrastructureRule] }],
+      // Determinismus: čas a náhoda přicházejí parametrem nebo přes port, nikdy z globálu.
+      'no-restricted-properties': [
+        'error',
+        { object: 'Date', property: 'now', message: 'Čas předej parametrem (port Clock).' },
+        { object: 'Math', property: 'random', message: 'Náhodu předej přes port.' },
+      ],
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "NewExpression[callee.name='Date'][arguments.length=0]",
+          message: 'Čas předej parametrem (port Clock).',
+        },
+      ],
+    },
+  },
+  {
+    files: ['packages/game/src/domain/**/*.ts'],
+    ignores: ['**/__tests__/**'],
+    rules: {
+      'no-restricted-imports': ['error', { patterns: [infrastructureRule, domainRule] }],
     },
   },
   {

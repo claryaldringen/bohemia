@@ -48,6 +48,7 @@ ne jeden pán.
 | Rod jako hlavní postava, vazalství není trvalé                                                       | návrh Clauda, Martin potvrdil |
 | Stack: Turborepo, Next.js, TypeScript, Drizzle, PM2 + Caddy                                          | návrh Clauda                  |
 | Herní kalendář: juliánský, roční období podle měsíců, datum malé v rohu ([calendar.md](calendar.md)) | návrh Clauda, Martin schválil |
+| Hexagonální architektura (porty a adaptéry), hranice hlídá ESLint                                    | návrh Clauda, Martin schválil |
 | UI česky, kód anglicky                                                                               | návrh Clauda                  |
 | Herní čas jako čistá funkce skutečného času, pravidla v `packages/game`, server je autorita          | návrh Clauda                  |
 
