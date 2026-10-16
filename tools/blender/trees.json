@@ -1,0 +1,100 @@
+[
+  {
+    "name": "spruce-1",
+    "dae": "meshes/gaia/fir_tree_tall_1.dae",
+    "texture": "textures/skins/gaia/tree_fir_tall_1.png",
+    "scale": 1.15,
+    "foliage": {
+      "u_below": 0.72
+    }
+  },
+  {
+    "name": "spruce-2",
+    "dae": "meshes/gaia/fir_tree_tall_3.dae",
+    "texture": "textures/skins/gaia/tree_fir_tall_1.png",
+    "scale": 1.15,
+    "foliage": {
+      "u_below": 0.72
+    }
+  },
+  {
+    "name": "oak-1",
+    "parts": [
+      {
+        "dae": "meshes/gaia/tree_oak_new_a.dae",
+        "texture": "textures/skins/gaia/tree_dead.dds"
+      },
+      {
+        "dae": "meshes/gaia/tree_oak_new_top_a.dae",
+        "texture": "textures/skins/gaia/tree_oak_c.dds",
+        "foliage": "all"
+      }
+    ],
+    "scale": 0.6
+  },
+  {
+    "name": "oak-2",
+    "parts": [
+      {
+        "dae": "meshes/gaia/tree_oak_new_c.dae",
+        "texture": "textures/skins/gaia/tree_dead.dds"
+      },
+      {
+        "dae": "meshes/gaia/tree_oak_new_top_c.dae",
+        "texture": "textures/skins/gaia/tree_oak_a.dds",
+        "foliage": "all"
+      }
+    ],
+    "scale": 0.6
+  },
+  {
+    "name": "beech-1",
+    "parts": [
+      {
+        "dae": "meshes/gaia/tree_oak_a.dae",
+        "texture": "textures/skins/gaia/trunk_beech_a.dds"
+      },
+      {
+        "dae": "meshes/gaia/tree_oak_top_a.dae",
+        "texture": "textures/skins/gaia/tree_euro_beech_a.dds",
+        "attach": "prop_tree",
+        "foliage": "all"
+      }
+    ],
+    "scale": 0.9
+  },
+  {
+    "name": "beech-2",
+    "parts": [
+      {
+        "dae": "meshes/gaia/tree_oak_b.dae",
+        "texture": "textures/skins/gaia/trunk_beech_a.dds"
+      },
+      {
+        "dae": "meshes/gaia/tree_oak_top_c.dae",
+        "texture": "textures/skins/gaia/tree_euro_beech_a.dds",
+        "attach": "prop_tree",
+        "foliage": "all"
+      }
+    ],
+    "scale": 0.9
+  },
+  {
+    "name": "birch-1",
+    "dae": "meshes/gaia/euro_birch_01.dae",
+    "texture": "textures/skins/gaia/birch_tree_02.png",
+    "scale": 0.85,
+    "foliage": {
+      "u_below": 0.72
+    }
+  },
+  {
+    "name": "birch-2",
+    "dae": "meshes/gaia/euro_birch_02.dae",
+    "texture": "textures/skins/gaia/birch_tree_02.png",
+    "scale": 0.85,
+    "foliage": {
+      "u_below": 0.72
+    }
+  }
+]

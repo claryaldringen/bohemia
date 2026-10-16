@@ -117,14 +117,15 @@ na který se později přidávají další prvky (černozem, naleziště kovů, 
   o políčku, později suroviny, nabídky a dialogy – texty, formuláře a budoucí překlady se tak
   řeší jednou, stejně jako ve zbytku webu.
 - **Server stránky předá data krajiny**, klientská komponenta je pošle scéně.
-- **Terén:** jedna síť z výškové mapy, barvy podle povrchu (louka, lesní půda, břeh).
-  **Voda:** hladina v korytě potoka / rybníku.
-- **Stromy a další objekty jsou 3D modely** (glTF/GLB) z **jedné ucelené low-poly sady s licencí
-  CC0** (např. Kenney Nature Kit nebo Quaternius) – jednotný styl, smí do veřejného repa.
-  Několik druhů dřevin (listnaté i jehličnaté), natočení a velikost odvozené ze seedu.
-  Vykreslování instancované (thin instances – tisíce stromů). Modely v `apps/web/public/models/`, licence
-  v `apps/web/public/models/LICENSES.md`. Co v sadě není, vytvoříme přes Blender MCP ve stejném
-  stylu.
+- **Terén:** jedna síť z výškové mapy, povrch míchá textury trávy, lesní půdy, břehu a bahna
+  (z 0 A.D., CC BY-SA 3.0). **Voda:** hladina v hladkém korytě potoka.
+- **Stromy a další objekty jsou 3D modely** (glTF/GLB) – grafika z **0 A.D.** (Wildfire Games,
+  CC BY-SA 3.0, Martinova volba), jednotný styl s texturami terénu, smí do veřejného repa
+  s uvedením autora. Dřeviny: smrk, dub, buk, bříza (každá ve dvou podobách), natočení
+  a velikost odvozené ze seedu, výš převažují smrky. Jednotlivé stromy jen na okraji lesa
+  (1.–2. řada), vnitřek lesa je plocha korun s texturou vyrenderovanou shora ze stejných
+  stromů. Vykreslování instancované (thin instances). Modely v `apps/web/public/models/`,
+  licence v `apps/web/public/models/LICENSES.md`, převod z 0 A.D. v `tools/blender/`.
 - **Kamera** jako v AoE2 – perspektiva šikmo shora (≈ 45°). Ovládání myší: táhnutí levým
   tlačítkem = posun, kolečko = přiblížení (s limity, nesmí se dostat pod terén ani daleko od
   krajiny), táhnutí pravým tlačítkem = otočení kolem svislé osy. Klávesnice: WASD/šipky = posun,
@@ -162,18 +163,17 @@ na který se později přidávají další prvky (černozem, naleziště kovů, 
 | Generování po vrstvách s vlastními verzemi                                | návrh Clauda                   |
 | Babylon.js (WebGPU se záložním WebGL 2)                                   | Martin                         |
 | Scéna jako samostatná třída bez Reactu, rozhraní nad ní v Reactu (HTML)   | návrh Clauda                   |
-| Jedna CC0 low-poly sada modelů                                            | návrh Clauda                   |
+| Grafika terénu a stromů z 0 A.D. (CC BY-SA 3.0)                           | Martin                         |
 | Ovládání kamery (myš + WASD/Q/E), info o políčku pod kurzorem             | návrh Clauda                   |
 
 ## Stav implementace (v1)
 
-- Modely stromů: **Kenney Nature Kit** (CC0) – 2 listnáče, 2 jehličnany; barvy upravené ve scéně.
+- Modely stromů: **0 A.D.** – 2× smrk, dub, buk, bříza; smrky ve scéně dobarvené do modrozelena.
 - Scéna se kreslí jen při změně pohledu (statická krajina nezatěžuje počítač).
 - Terén je ve scéně vizuálně převýšený (`HEIGHT_SCALE = 3`); laditelné spolu se vzhledem.
 
 ## Necháno na staviteli
 
-Konkrétní šumový algoritmus a jeho parametry, barvy terénu, osvětlení, volba sady modelů
-(Kenney vs. Quaternius), formát přenosu dat krajiny, způsob zajištění jediného prvního sídla,
+Konkrétní šumový algoritmus a jeho parametry, barvy terénu, osvětlení, formát přenosu dat krajiny, způsob zajištění jediného prvního sídla,
 přesné rozmístění stromů v rámci políčka (stačí odvodit z polohy políčka), horní mez
 celkové úrodnosti podle měření.

@@ -5,6 +5,8 @@ Textury v této složce pocházejí ze hry **0 A.D.** – autor **Wildfire Games
 [Creative Commons Attribution-ShareAlike 3.0](http://creativecommons.org/licenses/by-sa/3.0/).
 
 Úpravy: zmenšeno (barevné textury na 1024 px, normálové mapy na 512 px) a převedeno do JPEG.
+`canopy.jpg` je koruna lesa shora vyrenderovaná ze stromů 0 A.D. (`apps/web/public/models/trees/`)
+skriptem `tools/blender/canopy_texture.py`.
 Upravené soubory jsou šířeny pod stejnou licencí CC BY-SA 3.0. Licence se týká jen těchto
 souborů, ne zbytku hry Bohemia.
 
@@ -21,3 +23,4 @@ souborů, ne zbytku hry Bohemia.
 | `shore-normal.jpg`        | `grass_mud_01_norm.png`                                |
 | `mud-normal.jpg`          | `mud_01_norm.png`                                      |
 | `forest-floor-normal.jpg` | `forestfloor_003_norm.png`                             |
+| `canopy.jpg`              | render ze stromů v `public/models/trees/`              |

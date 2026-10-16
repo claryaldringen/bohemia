@@ -83,7 +83,7 @@ export class LandscapeScene {
       groundHeight: (x, z) => surface.heightAt(x, z) * HEIGHT_SCALE,
     });
     await addTrees(this.scene, treePlacements(landscape), {
-      baseUrl: '/models/nature/',
+      baseUrl: '/models/trees/',
       groundHeight: (x, z) => surface.heightAt(x, z) * HEIGHT_SCALE,
     });
     if (this.disposed) return;

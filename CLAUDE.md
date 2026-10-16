@@ -72,7 +72,7 @@ apps/web/            Next.js – úvodní stránka, registrace, přihlášení, 
   components/        React komponenty (auth/ formuláře, game/ herní plocha, GameDateBadge)
   lib/               serverová a pomocná logika (auth, session, db, game – composition root)
   lib/scene/         3D scéna krajiny v Babylonu – čisté TS třídy bez Reactu
-  public/models/     3D modely (jen CC0, licence v LICENSES.md)
+  public/models/     3D modely stromů z 0 A.D. (licence v LICENSES.md)
   e2e/               Playwright testy (proti produkčnímu buildu a databázi bohemia_test)
 packages/game/       herní jádro
   src/domain/        pravidla – calendar.ts, landscape/ (generování krajiny po vrstvách)
@@ -136,9 +136,10 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   podél vyhlazené osy potoka (`stream-geometry.ts`); `terrain-material.ts` míchá 6 textur podle
   splat map (`ground-layers.ts`) pluginem pro GLSL i WGSL. Vnitřek lesa je plocha korun
   (`forest-canopy.ts`), jednotlivé stromy jen na okraji (1.–2. řada, `forest-depth.ts`).
-- **Grafika (licence):** CC0 (Kenney – `public/models/`), nebo z **0 A.D.** pod **CC BY-SA 3.0**
-  (`public/textures/terrain/` – uvést Wildfire Games, upravené soubory pod stejnou licencí).
-  Zdroj a původní název každého souboru do `LICENSE.md` / `LICENSES.md` vedle něj.
+- **Grafika (licence):** CC0, nebo z **0 A.D.** pod **CC BY-SA 3.0** (textury terénu, stromy –
+  uvést Wildfire Games, upravené soubory pod stejnou licencí). Zdroj a původní název každého
+  souboru do `LICENSE.md` / `LICENSES.md` vedle něj. Převod stromů a render textury korun:
+  `tools/blender/` (headless Blender 5, `blender -b --factory-startup --python …`).
 
 ## Příkazy
 

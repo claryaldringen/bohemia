@@ -12,12 +12,13 @@ import { RENDER_SUBDIVISION, type RenderSurface } from './render-surface';
 
 /** Výška korun nad zemí (m) a velikost „hrbolů“ jednotlivých korun. */
 const CANOPY_HEIGHT_M = 11;
-const CROWN_BUMP_M = 4.5;
+const CROWN_BUMP_M = 2.5;
 /** Koruny začínají uprostřed krajní řady lesa a plnou výšku mají od třetí řady. */
 const CANOPY_START_DEPTH = 1.2;
 const CANOPY_FULL_DEPTH = 3;
-const LEAF_TEXTURE_URL = '/textures/terrain/grass-lush.jpg';
-const LEAF_TEXTURE_REPEAT_M = 22;
+/** Koruny shora vyrenderované z modelů stromů – bezešvá dlaždice 48 × 48 m. */
+const CANOPY_TEXTURE_URL = '/textures/terrain/canopy.jpg';
+const CANOPY_TEXTURE_REPEAT_M = 48;
 
 /**
  * Vnitřek lesa jako souvislá plocha korun (místo tisíců stromů) – zvlněná šumem, na okraji
@@ -40,19 +41,13 @@ export function createCanopyMesh(scene: Scene, l: Landscape, surface: RenderSurf
     if (vertexIndex[v]! >= 0) return vertexIndex[v]!;
     const { x, z } = surface.position(v);
     const rise = smoothstep(CANOPY_START_DEPTH, CANOPY_FULL_DEPTH, depthAt[v]!);
-    const crowns = 0.6 * bumps(x / 7, z / 7) + 0.4 * bumps(x / 3 + 50, z / 3);
+    const crowns = 0.7 * bumps(x / 24, z / 24) + 0.3 * bumps(x / 9 + 50, z / 9);
     const above = rise * (CANOPY_HEIGHT_M + crowns * CROWN_BUMP_M);
     positions.push(x, surface.heights[v]! * HEIGHT_SCALE + above, z);
-    // Světlejší a tmavší skupiny korun, aby les nebyl jednolitý.
-    const shade = 0.5 + 0.5 * tint(x / 45, z / 45);
-    const light = 0.7 + 0.45 * (0.5 + 0.5 * crowns);
-    colors.push(
-      (0.55 + 0.25 * shade) * light,
-      (0.72 + 0.18 * shade) * light,
-      (0.45 + 0.08 * shade) * light,
-      1,
-    );
-    uvs.push(x / LEAF_TEXTURE_REPEAT_M, z / LEAF_TEXTURE_REPEAT_M);
+    // Světlejší a tmavší skupiny korun – zakryjí i opakování dlaždice.
+    const shade = 0.5 + 0.5 * tint(x / 70, z / 70);
+    colors.push(0.95 + 0.25 * shade, 1.0 + 0.15 * shade, 0.9 + 0.1 * shade, 1);
+    uvs.push(x / CANOPY_TEXTURE_REPEAT_M, z / CANOPY_TEXTURE_REPEAT_M);
     vertexIndex[v] = positions.length / 3 - 1;
     return vertexIndex[v]!;
   };
@@ -80,7 +75,7 @@ export function createCanopyMesh(scene: Scene, l: Landscape, surface: RenderSurf
   vertexData.applyToMesh(mesh);
 
   const material = new StandardMaterial('forest-canopy-material', scene);
-  const leaves = new Texture(LEAF_TEXTURE_URL, scene);
+  const leaves = new Texture(CANOPY_TEXTURE_URL, scene);
   leaves.anisotropicFilteringLevel = 4;
   material.diffuseTexture = leaves;
   material.specularColor = Color3.Black();

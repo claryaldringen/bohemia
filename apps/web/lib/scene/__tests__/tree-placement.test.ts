@@ -37,8 +37,19 @@ describe('treePlacements', () => {
     expect(treePlacements(landscape)).toEqual(placements);
   });
 
-  it('les je smíšený – zastoupené jsou listnáče i jehličnany', () => {
-    const species = new Set(placements.map((t) => t.species));
-    expect(species).toEqual(new Set(['deciduous-1', 'deciduous-2', 'conifer-1', 'conifer-2']));
+  it('les je smíšený – smrky, duby, buky i břízy, každý ve dvou podobách', () => {
+    const models = new Set(placements.map((t) => t.model));
+    expect(models).toEqual(
+      new Set([
+        'spruce-1',
+        'spruce-2',
+        'oak-1',
+        'oak-2',
+        'beech-1',
+        'beech-2',
+        'birch-1',
+        'birch-2',
+      ]),
+    );
   });
 });

@@ -2,20 +2,25 @@ import { SURFACE_CODES, type Landscape } from '@bohemia/game';
 import { forestDepth } from './forest-depth';
 import { tileCenter } from './tile-at';
 
-export type TreeSpecies = 'deciduous-1' | 'deciduous-2' | 'conifer-1' | 'conifer-2';
-export const TREE_SPECIES: readonly TreeSpecies[] = [
-  'deciduous-1',
-  'deciduous-2',
-  'conifer-1',
-  'conifer-2',
+export type TreeModel =
+  'spruce-1' | 'spruce-2' | 'oak-1' | 'oak-2' | 'beech-1' | 'beech-2' | 'birch-1' | 'birch-2';
+export const TREE_MODELS: readonly TreeModel[] = [
+  'spruce-1',
+  'spruce-2',
+  'oak-1',
+  'oak-2',
+  'beech-1',
+  'beech-2',
+  'birch-1',
+  'birch-2',
 ];
 
 export interface TreePlacement {
-  species: TreeSpecies;
+  model: TreeModel;
   worldX: number;
   worldZ: number;
   rotationY: number;
-  /** Násobek základní velikosti druhu (0,8–1,2). */
+  /** Násobek velikosti modelu (0,8–1,2). */
   scale: number;
 }
 
@@ -28,7 +33,7 @@ function hash(x: number, y: number, k: number): number {
 
 /**
  * Stromy jen na okraji lesa: krajní řada 3–4 na políčko, druhá řada 2 – vnitřek lesa kreslí
- * plocha korun. Ve vyšších polohách převažují jehličnany.
+ * plocha korun. Ve vyšších polohách převažují smrky, níž duby, buky a břízy.
  */
 export function treePlacements(l: Landscape): TreePlacement[] {
   let maxHeight = 0;
@@ -43,10 +48,8 @@ export function treePlacements(l: Landscape): TreePlacement[] {
       const count = depth[i] === 2 ? 2 : hash(x, y, 0) < 0.5 ? 3 : 4;
       const coniferChance = 0.2 + 0.6 * (l.heights[i]! / (maxHeight || 1));
       for (let k = 1; k <= count; k++) {
-        const conifer = hash(x, y, k * 7 + 1) < coniferChance;
-        const variant = hash(x, y, k * 7 + 2) < 0.5 ? 1 : 2;
         placements.push({
-          species: `${conifer ? 'conifer' : 'deciduous'}-${variant}`,
+          model: pickModel(hash(x, y, k * 7 + 1), coniferChance, hash(x, y, k * 7 + 2)),
           worldX: center.worldX + (hash(x, y, k * 7 + 3) - 0.5) * l.cellSizeM * 0.8,
           worldZ: center.worldZ + (hash(x, y, k * 7 + 4) - 0.5) * l.cellSizeM * 0.8,
           rotationY: hash(x, y, k * 7 + 5) * Math.PI * 2,
@@ -56,4 +59,14 @@ export function treePlacements(l: Landscape): TreePlacement[] {
     }
   }
   return placements;
+}
+
+/** Smrk s pravděpodobností coniferChance, jinak listnáč: dub 40 %, buk 35 %, bříza 25 %. */
+function pickModel(kind: number, coniferChance: number, variant: number): TreeModel {
+  const v = variant < 0.5 ? 1 : 2;
+  if (kind < coniferChance) return `spruce-${v}`;
+  const broadleaf = (kind - coniferChance) / (1 - coniferChance);
+  if (broadleaf < 0.4) return `oak-${v}`;
+  if (broadleaf < 0.75) return `beech-${v}`;
+  return `birch-${v}`;
 }
