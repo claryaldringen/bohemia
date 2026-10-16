@@ -96,6 +96,15 @@ test('krajina naběhne i bez modelů stromů', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
+test('krajina naběhne i bez atlasu stromů vnitřku lesa', async ({ page }) => {
+  await registerAndEnterGame(page, 'bez-atlasu');
+  const errors = collectErrors(page);
+  await page.route('**/models/trees/impostors.*', (route) => route.abort());
+  await page.reload();
+  await expect(readyScene(page)).toBeVisible({ timeout: 30_000 });
+  expect(errors).toEqual([]);
+});
+
 test('vývojový náhled krajiny není v produkci dostupný', async ({ request }) => {
   const response = await request.get('/dev/landscape?seed=5');
   expect(response.status()).toBe(404);

@@ -13,6 +13,8 @@ import { HEIGHT_SCALE } from './constants';
 import { createEngine, type RendererName } from './create-engine';
 import { createCanopyMesh } from './forest-canopy';
 import { buildForestField } from './forest-field';
+import { impostorPlacements } from './impostor-placement';
+import { addImpostors } from './impostors';
 import { createTerrainMesh } from './terrain-mesh';
 import { buildRenderSurface } from './render-surface';
 import { tileAt, tileCenter } from './tile-at';
@@ -62,6 +64,11 @@ export class LandscapeScene {
     scene.clearColor = new Color4(0.63, 0.75, 0.85, 1);
     // Působí jen na materiály s vlastní ambientColor (stromy), ostatní ji mají černou.
     scene.ambientColor = new Color3(1, 1, 1);
+    // Opar (vzdušná perspektiva): vzdálená krajina slábne do barvy oblohy – dodá hloubku
+    // a schová opakování textur v dálce. Do 300 m skoro nic, na 1,5 km asi pětina.
+    scene.fogMode = Scene.FOGMODE_EXP2;
+    scene.fogDensity = 0.00032;
+    scene.fogColor = new Color3(0.68, 0.77, 0.86);
     scene.skipPointerMovePicking = true;
     const sky = new HemisphericLight('sky', new Vector3(0.2, 1, 0.1), scene);
     sky.intensity = 0.5;
@@ -76,6 +83,7 @@ export class LandscapeScene {
     if (this.disposed) return;
     this.landscape = landscape;
     const surface = buildRenderSurface(landscape);
+    const groundHeight = (x: number, z: number): number => surface.heightAt(x, z) * HEIGHT_SCALE;
     const field = buildForestField(landscape);
     const trees = treePlacements(landscape, field, surface.stream);
     this.terrain = createTerrainMesh(this.scene, landscape, surface, { field, trees });
@@ -85,12 +93,16 @@ export class LandscapeScene {
     this.rtsCamera = createRtsCamera(this.scene, this.canvas, {
       halfExtent: (landscape.size * landscape.cellSizeM) / 2,
       start: { x: site.worldX, z: site.worldZ },
-      groundHeight: (x, z) => surface.heightAt(x, z) * HEIGHT_SCALE,
+      groundHeight,
     });
-    await addTrees(this.scene, trees, {
-      baseUrl: '/models/trees/',
-      groundHeight: (x, z) => surface.heightAt(x, z) * HEIGHT_SCALE,
-    });
+    // Okraj lesa 2–3 řady 3D stromů, za nimi vnitřek lesa z impostorů.
+    const impostors = impostorPlacements(landscape, field, surface.stream);
+    await Promise.all([
+      addTrees(this.scene, trees, { baseUrl: '/models/trees/', groundHeight }),
+      addImpostors(this.scene, this.rtsCamera.camera, impostors, groundHeight).catch((error) =>
+        console.warn('Atlas stromů se nepodařilo načíst – vnitřek lesa zůstane bez stromů.', error),
+      ),
+    ]);
     if (this.disposed) return;
     await this.scene.whenReadyAsync();
     if (this.disposed || this.rendering) return;

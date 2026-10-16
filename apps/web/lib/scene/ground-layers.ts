@@ -31,15 +31,14 @@ export interface GroundWeights {
   shade: Uint8Array;
 }
 
-/** Vyhlazená hranice lesa a stromy – lesní půda pak sleduje hranici a pod stromy se ztmaví. */
+/** Vyhlazená hranice lesa a stromy – v lese tráva místo lesní půdy, pod stromy se ztmaví. */
 export interface ForestGround {
   field: ForestField;
   trees: readonly TreePlacement[];
 }
 
-/** Poloměr (m, při měřítku 1) a síla ztmavení pod stromem a keřem. */
-const TREE_SHADE = { radiusM: 5.5, strength: 0.45 };
-const BUSH_SHADE = { radiusM: 3.5, strength: 0.35 };
+/** Poloměr (m, při měřítku 1) a síla ztmavení pod stromem. */
+const TREE_SHADE = { radiusM: 6, strength: 0.6 };
 
 const LAYER = Object.fromEntries(GROUND_LAYERS.map((name, i) => [name, i])) as Record<
   GroundLayer,
@@ -49,7 +48,7 @@ const LAYER = Object.fromEntries(GROUND_LAYERS.map((name, i) => [name, i])) as R
 /**
  * Váhy povrchů terénu (splat mapa) z dat krajiny – deterministicky, bez náhody. S osou potoka
  * se bahno a břeh řídí vzdáleností od vyhlazeného koryta, jinak vodními políčky. S vyhlazenou
- * hranicí lesa se lesní půda řídí jí, jinak lesními políčky.
+ * hranicí lesa je v lese tráva (stromy kreslí impostory, pod nimi stín), jinak lesní půda.
  */
 export function groundWeights(
   l: Landscape,
@@ -61,6 +60,7 @@ export function groundWeights(
   const resolution = l.size * TEXELS_PER_TILE;
   const layers = GROUND_LAYERS.map(() => new Uint8Array(resolution * resolution));
   const w = new Float32Array(GROUND_LAYERS.length);
+  const present = new Uint8Array(GROUND_LAYERS.length);
 
   for (let ty = 0; ty < resolution; ty++) {
     for (let tx = 0; tx < resolution; tx++) {
@@ -84,14 +84,13 @@ export function groundWeights(
       const x = -half + ((tx + 0.5) / resolution) * l.size * l.cellSizeM;
       const z = -half + ((ty + 0.5) / resolution) * l.size * l.cellSizeM;
       if (forest) {
-        // Lesní půda začíná kousek před hranicí (pod lemem) a na okraji je prolnutá trávou
-        // s hlínou – rozcuchaný okraj jako v 0 A.D.
-        const inside = forest.field.distanceAt(x, z);
-        const floor = smoothstep(-2, 4, inside);
-        const ragged = 0.45 * (1 - smoothstep(2, 10, inside));
-        for (let k = 0; k < w.length; k++) w[k] = w[k]! * (1 - floor);
-        w[LAYER.forestFloor] = w[LAYER.forestFloor]! + floor * (1 - ragged);
-        w[LAYER.grassDirt] = w[LAYER.grassDirt]! + floor * ragged;
+        // Pod stromy tráva jako na louce (hrabanka mezi impostory působila rušivě), v lese mírně
+        // svěžejší; les od louky odliší stromy a ztmavení pod nimi.
+        const lush = 0.35 * smoothstep(0, 12, forest.field.distanceAt(x, z));
+        const shift = lush * (w[LAYER.grass]! + w[LAYER.grassDirt]!);
+        w[LAYER.grass] = w[LAYER.grass]! * (1 - lush);
+        w[LAYER.grassDirt] = w[LAYER.grassDirt]! * (1 - lush);
+        w[LAYER.grassLush] = w[LAYER.grassLush]! + shift;
       }
       if (stream) {
         const d = stream.nearest(x, z).distance;
@@ -107,13 +106,15 @@ export function groundWeights(
       }
       for (let k = 0; k < w.length; k++) {
         // Šum jen tam, kde vrstva vůbec je – jinak by se objevovala uprostřed cizích ploch.
-        w[k] = w[k]! > 0 ? w[k]! + (layerNoise(tx, ty, k) - 0.5) * NOISE_STRENGTH : 0;
+        present[k] = w[k]! > 0 ? 1 : 0;
+        w[k] = present[k] ? w[k]! + (layerNoise(tx, ty, k) - 0.5) * NOISE_STRENGTH : -Infinity;
         max = Math.max(max, w[k]!);
       }
-      // Height blend: vyhraje vrstva s nejvyšší (zašuměnou) vahou, okolní jen v úzkém pásu.
+      // Height blend: vyhraje vrstva s nejvyšší (zašuměnou) vahou, okolní jen v úzkém pásu;
+      // vrstva, která v texelu není, zůstane nulová.
       let sum = 0;
       for (let k = 0; k < w.length; k++) {
-        w[k] = Math.max(0, w[k]! - max + BLEND_WIDTH);
+        w[k] = present[k] ? Math.max(0, w[k]! - max + BLEND_WIDTH) : 0;
         sum += w[k]!;
       }
       const i = ty * resolution + tx;
@@ -135,7 +136,7 @@ function treeShade(l: Landscape, trees: readonly TreePlacement[], resolution: nu
   const extent = l.size * l.cellSizeM;
   const step = extent / resolution;
   for (const tree of trees) {
-    const { radiusM, strength } = tree.model.startsWith('bush') ? BUSH_SHADE : TREE_SHADE;
+    const { radiusM, strength } = TREE_SHADE;
     const r = radiusM * tree.scale;
     const ci = (tree.worldX + extent / 2) / step - 0.5;
     const cj = (tree.worldZ + extent / 2) / step - 0.5;

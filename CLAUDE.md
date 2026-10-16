@@ -72,7 +72,7 @@ apps/web/            Next.js – úvodní stránka, registrace, přihlášení, 
   components/        React komponenty (auth/ formuláře, game/ herní plocha, GameDateBadge)
   lib/               serverová a pomocná logika (auth, session, db, game – composition root)
   lib/scene/         3D scéna krajiny v Babylonu – čisté TS třídy bez Reactu
-  public/models/     3D modely stromů z 0 A.D. (licence v LICENSES.md)
+  public/models/     modely stromů a atlas impostorů z 0 A.D. (licence v LICENSES.md)
   e2e/               Playwright testy (proti produkčnímu buildu a databázi bohemia_test)
 packages/game/       herní jádro
   src/domain/        pravidla – calendar.ts, landscape/ (generování krajiny po vrstvách)
@@ -135,13 +135,22 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
 - **Vzhled terénu:** `render-surface.ts` zjemní výšky 4× (Catmull-Rom) a vyhloubí hladké koryto
   podél vyhlazené osy potoka (`stream-geometry.ts`); `terrain-material.ts` míchá 6 textur podle
   splat map (`ground-layers.ts`) pluginem pro GLSL i WGSL. Hranici lesa vyhlazuje a zvlňuje
-  `forest-field.ts` (znaménková vzdálenost od hranice) – podle ní se zvedá plocha korun
-  (`forest-canopy.ts`), rozmisťují stromy okraje, lem a ojedinělé stromy a keře v louce
-  (`tree-placement.ts`) a kreslí lesní půda se ztmavením pod stromy.
+  `forest-field.ts` (znaménková vzdálenost od hranice). **Okraj lesa** jsou 2–3 husté řady
+  3D stromů z 0 A.D. (`tree-placement.ts`, do 18 m od hranice) + lem a ojedinělé stromy
+  v louce; **vnitřek** (od 10 m) jsou impostory (`impostor-placement.ts`, `impostors.ts`) –
+  desítky tisíc svislých obrázků stromů z atlasu vyrenderovaného pod pevným náklonem kamery,
+  natáčejí se jen při změně směru kamery. Jejich začátek musí z každého směru zakrýt 3D stromy.
+  Skladba druhů je jedna funkce pro obojí (`tree-species.ts`): okraj světlomilný (dub, bříza,
+  buk), uvnitř buk, dub, trochu břízy a jedle ve skupinách (výš víc) – Martin. V lese se kreslí
+  tráva, ne lesní půda (Martin), pod stromy ztmavená. Tmavá plocha korun (`forest-canopy.ts`)
+  jen vyplňuje mezery hluboko v lese. PBR materiály se oparem musí volat `applyGammaFog`
+  (`gamma-fog.ts`) – vestavěný opar PBR zešedí zeleň. **Změna náklonu kamery (`BETA`
+  v `camera.ts`) nebo modelů stromů = nový render atlasu** (`tools/blender/impostors.py`)
+  a přepis hodnot v `impostor-atlas.ts`.
 - **Grafika (licence):** CC0, nebo z **0 A.D.** pod **CC BY-SA 3.0** (textury terénu, stromy –
   uvést Wildfire Games, upravené soubory pod stejnou licencí). Zdroj a původní název každého
-  souboru do `LICENSE.md` / `LICENSES.md` vedle něj. Převod stromů a render textury korun:
-  `tools/blender/` (headless Blender 5, `blender -b --factory-startup --python …`).
+  souboru do `LICENSE.md` / `LICENSES.md` vedle něj. Převod stromů, atlas impostorů a render
+  textury korun: `tools/blender/` (headless Blender 5, `blender -b --factory-startup --python …`).
 
 ## Příkazy
 

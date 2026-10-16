@@ -9,17 +9,22 @@ import { HEIGHT_SCALE } from './constants';
 import type { ForestField } from './forest-field';
 import type { RenderSurface } from './render-surface';
 
-/** Výška korun nad zemí (m) a velikost „hrbolů“ jednotlivých korun. */
-const CANOPY_HEIGHT_M = 11;
+/**
+ * Výška plochy korun nad zemí (m) a velikost „hrbolů“. Les kreslí impostory, plocha jen tmavě
+ * vyplní mezery mezi nimi – je nižší než koruny a ztmavená jako stín pod nimi.
+ */
+const CANOPY_HEIGHT_M = 6;
 const CROWN_BUMP_M = 2.5;
 /**
- * Vzdálenost od hranice lesa (m), kde koruny vystupují ze země a kde mají plnou výšku. Pás před
- * tím patří jednotlivým stromům okraje, které náběh korun zakryjí.
+ * Vzdálenost od hranice lesa (m), kde plocha vystupuje ze země a kde má plnou výšku. Pás před
+ * tím patří jednotlivým stromům okraje a řidnoucímu lesu – mezi nimi je vidět lesní půda.
  */
-const CANOPY_START_M = 6;
-const CANOPY_FULL_M = 24;
+const CANOPY_START_M = 26;
+const CANOPY_FULL_M = 46;
 /** Pod hranicí plochy korun se plocha zanoří pod terén – průsečík se zemí je hladký. */
 const SINK_M = 2;
+/** Ztmavení plochy korun – v mezerách mezi impostory je vidět stín, ne světlé koruny. */
+const SHADOW = 0.6;
 /** Koruny shora vyrenderované z modelů stromů – bezešvá dlaždice 48 × 48 m. */
 const CANOPY_TEXTURE_URL = '/textures/terrain/canopy.jpg';
 const CANOPY_TEXTURE_REPEAT_M = 48;
@@ -57,7 +62,12 @@ export function createCanopyMesh(
     positions.push(x, surface.heights[v]! * HEIGHT_SCALE + above, z);
     // Světlejší a tmavší skupiny korun – zakryjí i opakování dlaždice.
     const shade = 0.5 + 0.5 * tint(x / 70, z / 70);
-    colors.push(0.95 + 0.25 * shade, 1.0 + 0.15 * shade, 0.9 + 0.1 * shade, 1);
+    colors.push(
+      SHADOW * (0.95 + 0.25 * shade),
+      SHADOW * (1.0 + 0.15 * shade),
+      SHADOW * (0.9 + 0.1 * shade),
+      1,
+    );
     uvs.push(x / CANOPY_TEXTURE_REPEAT_M, z / CANOPY_TEXTURE_REPEAT_M);
     vertexIndex[v] = positions.length / 3 - 1;
     return vertexIndex[v]!;

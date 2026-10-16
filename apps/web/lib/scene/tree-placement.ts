@@ -4,19 +4,12 @@ import type { ForestField } from './forest-field';
 import { CHANNEL_HALF_WIDTH_M } from './render-surface';
 import type { StreamCenterline } from './stream-geometry';
 import { heightAt, tileAt } from './tile-at';
+import { pickModel, speciesWeights } from './tree-species';
 
-/** Modely vegetace ve scéně – stromy i keře. */
+/** Modely stromů (3D na okraji lesa, v atlasu impostorů uvnitř); keřový lem kreslí dekorace. */
 export type TreeModel =
-  | 'spruce-1'
-  | 'spruce-2'
-  | 'oak-1'
-  | 'oak-2'
-  | 'beech-1'
-  | 'beech-2'
-  | 'birch-1'
-  | 'birch-2'
-  | 'bush-1'
-  | 'bush-2';
+  'spruce-1' | 'spruce-2' | 'oak-1' | 'oak-2' | 'beech-1' | 'beech-2' | 'birch-1' | 'birch-2';
+
 export const TREE_MODELS: readonly TreeModel[] = [
   'spruce-1',
   'spruce-2',
@@ -26,8 +19,6 @@ export const TREE_MODELS: readonly TreeModel[] = [
   'beech-2',
   'birch-1',
   'birch-2',
-  'bush-1',
-  'bush-2',
 ];
 
 export interface TreePlacement {
@@ -41,12 +32,16 @@ export interface TreePlacement {
 
 /** Rozteč kandidátních míst (m) – každé se posune náhodně v rámci své buňky. */
 const CANDIDATE_SPACING_M = 5;
-/** Pásma podle vzdálenosti od hranice lesa (m, kladná v lese) a pravděpodobnost stromu v nich. */
+/**
+ * Pásma podle vzdálenosti od hranice lesa (m, kladná v lese) a pravděpodobnost stromu v nich.
+ * Okraj tvoří 2–3 husté řady 3D stromů – zakryjí začátek impostorů vnitřku lesa (od 10 m).
+ */
 const BANDS: readonly { from: number; to: number; chance: number }[] = [
-  { from: 7, to: 16, chance: 0.4 }, // druhá řada – vyčnívá z náběhu korun
-  { from: 0, to: 7, chance: 0.8 }, // okraj lesa
+  { from: 12, to: 18, chance: 0.75 }, // třetí řada – za ní už jen impostory
+  { from: 6, to: 12, chance: 0.95 }, // druhá řada
+  { from: 0, to: 6, chance: 0.95 }, // krajní řada
   { from: -6, to: 0, chance: 0.22 }, // řidší lem před lesem
-  { from: -30, to: -6, chance: 0.012 }, // ojedinělé stromy a keře v louce
+  { from: -30, to: -6, chance: 0.012 }, // ojedinělé stromy v louce
 ];
 /** Bez stromů mimo les do této vzdálenosti (políčka) od místa pro vesnici. */
 const VILLAGE_CLEARING_TILES = 2;
@@ -88,7 +83,9 @@ export function treePlacements(
       const d = field.distanceAt(worldX, worldZ);
       const band = BANDS.find((b) => d >= b.from && d < b.to);
       if (!band) continue;
-      const density = d < -6 ? 1 : edgeDensity(worldX, worldZ);
+      // Řady okraje jsou souvislé, shluky jen mírně mění hustotu; lem před lesem je nepravidelný.
+      const density =
+        d < -6 ? 1 : d >= 0 ? 0.8 + 0.2 * edgeDensity(worldX, worldZ) : edgeDensity(worldX, worldZ);
       if (hash(gx, gz, 3) >= band.chance * density) continue;
 
       const tile = tileAt(l, worldX, worldZ);
@@ -101,32 +98,22 @@ export function treePlacements(
         Math.max(Math.abs(tile.x - site.x), Math.abs(tile.y - site.y)) <= VILLAGE_CLEARING_TILES;
       if (surface !== SURFACE_CODES.forest && nearVillage) continue;
 
-      const outside = d < 0;
-      const bush = outside && hash(gx, gz, 4) < 0.45;
-      const coniferChance =
-        (0.2 + 0.6 * (heightAt(l, worldX, worldZ) / (maxHeight || 1))) * (d < -6 ? 0.5 : 1);
+      const weights = speciesWeights(
+        d,
+        heightAt(l, worldX, worldZ) / (maxHeight || 1),
+        worldX,
+        worldZ,
+      );
       placements.push({
-        model: bush
-          ? `bush-${hash(gx, gz, 5) < 0.5 ? 1 : 2}`
-          : pickModel(hash(gx, gz, 6), coniferChance, hash(gx, gz, 5)),
+        model: pickModel(hash(gx, gz, 6), weights, hash(gx, gz, 5)),
         worldX,
         worldZ,
         rotationY: hash(gx, gz, 7) * Math.PI * 2,
-        scale: 0.8 + hash(gx, gz, 8) * 0.4 + (d < -6 && !bush ? 0.15 : 0),
+        scale: 0.8 + hash(gx, gz, 8) * 0.4 + (d < -6 ? 0.15 : 0),
       });
     }
   }
   return placements;
-}
-
-/** Smrk s pravděpodobností coniferChance, jinak listnáč: dub 40 %, buk 35 %, bříza 25 %. */
-function pickModel(kind: number, coniferChance: number, variant: number): TreeModel {
-  const v = variant < 0.5 ? 1 : 2;
-  if (kind < coniferChance) return `spruce-${v}`;
-  const broadleaf = (kind - coniferChance) / (1 - coniferChance);
-  if (broadleaf < 0.4) return `oak-${v}`;
-  if (broadleaf < 0.75) return `beech-${v}`;
-  return `birch-${v}`;
 }
 
 function seededRandom(seed: number): () => number {

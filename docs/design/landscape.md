@@ -132,12 +132,17 @@ na který se později přidávají další prvky (černozem, naleziště kovů, 
   (z 0 A.D., CC BY-SA 3.0). **Voda:** hladina v hladkém korytě potoka.
 - **Stromy a další objekty jsou 3D modely** (glTF/GLB) – grafika z **0 A.D.** (Wildfire Games,
   CC BY-SA 3.0, Martinova volba), jednotný styl s texturami terénu, smí do veřejného repa
-  s uvedením autora. Dřeviny: smrk, dub, buk, bříza (každá ve dvou podobách), natočení
-  a velikost odvozené ze seedu, výš převažují smrky. Hranice lesa je ve scéně vyhlazená
-  a zvlněná (herní data políček se nemění). Jednotlivé stromy jen u hranice: hustý okraj,
-  řidší lem před lesem a ojedinělé stromy a keře v louce (mimo okolí místa pro vesnici), pod
-  nimi ztmavená půda. Vnitřek lesa je plocha korun s texturou vyrenderovanou shora ze
-  stejných stromů. Vykreslování instancované (thin instances). Modely v `apps/web/public/models/`,
+  s uvedením autora. Dřeviny: dub, buk, bříza a jedle (modely `spruce-*` jsou jedle z 0 A.D.),
+  každá ve dvou podobách, natočení a velikost odvozené ze seedu. Skladba podle středověkého
+  lesa pahorkatiny (Martin): okraj světlomilný – dub 45 %, bříza 25 %, buk 25 %, jehličnan
+  nejvýš 5 %; uvnitř buk 35 %, dub 30 %, bříza 10 %, jedle 10–25 % podle výšky ve skupinách;
+  přechod plynule 10–30 m od hranice. Hranice lesa je ve scéně vyhlazená a zvlněná (herní data
+  políček se nemění). **Okraj lesa tvoří 2–3 řady 3D stromů** (Martin), před nimi řidší lem
+  a ojedinělé stromy v louce (mimo okolí místa pro vesnici). **Vnitřek lesa tvoří impostory**
+  – obrázky týchž stromů vyrenderované pod pevným náklonem kamery (kamera se otáčí jen kolem
+  svislé osy, takže obrázek sedí z každého směru); jejich začátek zakrývají řady 3D stromů.
+  V lese je tráva (ne hrabanka – Martin), pod stromy ztmavená. Mezery hluboko v lese vyplňuje
+  tmavá plocha korun. Vykreslování instancované (thin instances). Modely v `apps/web/public/models/`,
   licence v `apps/web/public/models/LICENSES.md`, převod z 0 A.D. v `tools/blender/`.
 - **Kamera** jako v AoE2 – perspektiva šikmo shora (≈ 45°). Ovládání myší: táhnutí levým
   tlačítkem = posun, kolečko = přiblížení (s limity, nesmí se dostat pod terén ani daleko od
@@ -182,7 +187,8 @@ na který se později přidávají další prvky (černozem, naleziště kovů, 
 
 ## Stav implementace (v1)
 
-- Modely stromů: **0 A.D.** – 2× smrk, dub, buk, bříza; smrky ve scéně dobarvené do modrozelena.
+- Modely stromů: **0 A.D.** – 2× jedle (`spruce-*`), dub, buk, bříza; jedle ve scéně dobarvené
+  do zelena (textura má hodně hnědých větviček).
 - Scéna se kreslí jen při změně pohledu (statická krajina nezatěžuje počítač).
 - Terén je ve scéně vizuálně převýšený (`HEIGHT_SCALE = 3`); laditelné spolu se vzhledem.
 

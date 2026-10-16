@@ -61,18 +61,20 @@ describe('buildForestField', () => {
   it('vzdálenost se mění plynule – sousední body sítě se liší nejvýš o jejich vzdálenost', () => {
     const n = field.resolution;
     const step = (size * cell) / n;
+    // Největší skok mezi sousedy – jedno expect místo statisíců (rychlost testu).
+    let worst = 0;
     for (let j = 0; j < n; j++) {
       for (let i = 0; i < n - 1; i++) {
         const a = field.distance[j * n + i]!;
-        expect(Math.abs(field.distance[j * n + i + 1]! - a)).toBeLessThanOrEqual(step * 1.5);
-        if (j < n - 1) {
-          expect(Math.abs(field.distance[(j + 1) * n + i]! - a)).toBeLessThanOrEqual(step * 1.5);
-        }
+        worst = Math.max(worst, Math.abs(field.distance[j * n + i + 1]! - a));
+        if (j < n - 1) worst = Math.max(worst, Math.abs(field.distance[(j + 1) * n + i]! - a));
       }
     }
+    expect(worst).toBeLessThanOrEqual(step * 1.5);
   });
 
   it('pole je deterministické', () => {
-    expect(buildForestField(landscape).distance).toEqual(field.distance);
+    const again = buildForestField(landscape).distance;
+    expect(Buffer.from(again.buffer).equals(Buffer.from(field.distance.buffer))).toBe(true);
   });
 });

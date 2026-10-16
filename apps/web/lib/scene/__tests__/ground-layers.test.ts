@@ -77,7 +77,11 @@ describe('groundWeights', () => {
   });
 
   it('je deterministické', () => {
-    expect(groundWeights(landscape).layers).toEqual(weights.layers);
+    // Porovnání po bajtech – toEqual po prvcích je u 1,5 milionu hodnot pomalé.
+    const again = groundWeights(landscape).layers;
+    again.forEach((layer, k) =>
+      expect(Buffer.from(layer).equals(Buffer.from(weights.layers[k]!))).toBe(true),
+    );
   });
 });
 
@@ -137,23 +141,20 @@ describe('groundWeights s vyhlazenou hranicí lesa a stromy', () => {
   ];
   const forestFloor = withForest.layers[GROUND_LAYERS.indexOf('forestFloor')]!;
 
-  it('lesní půda sleduje vyhlazenou hranici lesa, ne políčka', () => {
-    let deep = 0;
-    let open = 0;
+  it('s vyhlazenou hranicí lesa se lesní půda nekreslí – v lese je tráva', () => {
+    expect(forestFloor.every((w) => w === 0)).toBe(true);
+    const grassLayers = ['grass', 'grassLush', 'grassDirt'].map(
+      (layer) => withForest.layers[GROUND_LAYERS.indexOf(layer as never)]!,
+    );
+    let checked = 0;
     for (let i = 0; i < forestFloor.length; i += 101) {
       const [x, z] = centerOf(i);
-      if (stream.nearest(x, z).distance < 30) continue;
-      const d = field.distanceAt(x, z);
-      if (d > 10) {
-        expect(forestFloor[i]).toBeGreaterThan(128);
-        deep++;
-      } else if (d < -10) {
-        expect(forestFloor[i]).toBe(0);
-        open++;
-      }
+      if (stream.nearest(x, z).distance < 30 || field.distanceAt(x, z) < 10) continue;
+      const grass = grassLayers.reduce((sum, layer) => sum + layer[i]!, 0);
+      expect(grass).toBeGreaterThan(200);
+      checked++;
     }
-    expect(deep).toBeGreaterThan(100);
-    expect(open).toBeGreaterThan(100);
+    expect(checked).toBeGreaterThan(100);
   });
 
   it('pod stromy je půda ztmavená, louka daleko od stromů ne', () => {
@@ -169,7 +170,7 @@ describe('groundWeights s vyhlazenou hranicí lesa a stromy', () => {
       const bottom = s(i0, j0 + 1) + (s(i0 + 1, j0 + 1) - s(i0, j0 + 1)) * (fi - i0);
       return top + (bottom - top) * (fj - j0);
     };
-    for (const tree of trees.filter((t) => !t.model.startsWith('bush')).slice(0, 200)) {
+    for (const tree of trees.slice(0, 200)) {
       expect(shadeAt(tree.worldX, tree.worldZ)).toBeGreaterThan(40);
     }
     let checked = 0;
