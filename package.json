@@ -15,7 +15,8 @@
     "test": "turbo test",
     "test:e2e": "npm run test:e2e -w @bohemia/web",
     "db:migrate": "npm run db:migrate -w @bohemia/db",
-    "db:generate": "npm run db:generate -w @bohemia/db"
+    "db:generate": "npm run db:generate -w @bohemia/db",
+    "test:db": "npm run test:db -w @bohemia/db"
   },
   "devDependencies": {
     "turbo": "^2.11.8"

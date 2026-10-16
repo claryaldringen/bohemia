@@ -16,9 +16,11 @@
     "lint": "eslint .",
     "format:check": "prettier --check . --ignore-path ../../.gitignore",
     "format": "prettier --write . --ignore-path ../../.gitignore",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "test:db": "vitest run --config vitest.db.config.ts"
   },
   "dependencies": {
+    "@bohemia/game": "*",
     "drizzle-orm": "^0.45.4",
     "pg": "^8.23.1"
   },
