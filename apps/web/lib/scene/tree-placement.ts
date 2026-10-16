@@ -1,4 +1,5 @@
 import { SURFACE_CODES, type Landscape } from '@bohemia/game';
+import { forestDepth } from './forest-depth';
 import { tileCenter } from './tile-at';
 
 export type TreeSpecies = 'deciduous-1' | 'deciduous-2' | 'conifer-1' | 'conifer-2';
@@ -25,17 +26,21 @@ function hash(x: number, y: number, k: number): number {
   return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
 }
 
-/** 2–3 stromy na každé lesní políčko; ve vyšších polohách převažují jehličnany. */
+/**
+ * Stromy jen na okraji lesa: krajní řada 3–4 na políčko, druhá řada 2 – vnitřek lesa kreslí
+ * plocha korun. Ve vyšších polohách převažují jehličnany.
+ */
 export function treePlacements(l: Landscape): TreePlacement[] {
   let maxHeight = 0;
   for (const h of l.heights) maxHeight = Math.max(maxHeight, h);
+  const depth = forestDepth(l);
   const placements: TreePlacement[] = [];
   for (let y = 0; y < l.size; y++) {
     for (let x = 0; x < l.size; x++) {
       const i = y * l.size + x;
-      if (l.surface[i] !== SURFACE_CODES.forest) continue;
+      if (l.surface[i] !== SURFACE_CODES.forest || depth[i]! > 2) continue;
       const center = tileCenter(l, x, y);
-      const count = hash(x, y, 0) < 0.5 ? 2 : 3;
+      const count = depth[i] === 2 ? 2 : hash(x, y, 0) < 0.5 ? 3 : 4;
       const coniferChance = 0.2 + 0.6 * (l.heights[i]! / (maxHeight || 1));
       for (let k = 1; k <= count; k++) {
         const conifer = hash(x, y, k * 7 + 1) < coniferChance;

@@ -70,7 +70,7 @@ export function createRtsCamera(
 
   const pressed = new Set<string>();
   const onKeyDown = (event: KeyboardEvent): void => {
-    const target = event.target as HTMLElement | null;
+    const target = event.target instanceof Element ? event.target : null;
     if (event.ctrlKey || event.metaKey || target?.closest('input, textarea, select')) return;
     if (KEYS.has(event.code)) pressed.add(event.code);
   };

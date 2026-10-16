@@ -132,8 +132,13 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   (tlačítka předchozí / další / náhodná). V produkci vrací 404.
 - `?renderer=webgl` vynutí WebGL 2 (test záložní cesty). `HEIGHT_SCALE` v `scene/constants.ts`
   převyšuje terén jen vizuálně.
-- **Modely** v `apps/web/public/models/` – jen CC0, zdroj a původní název do `LICENSES.md`.
-  Stromy: Kenney Nature Kit, barvy listí a kůry se nastavují ve `scene/trees.ts`.
+- **Vzhled terénu:** `render-surface.ts` zjemní výšky 4× (Catmull-Rom) a vyhloubí hladké koryto
+  podél vyhlazené osy potoka (`stream-geometry.ts`); `terrain-material.ts` míchá 6 textur podle
+  splat map (`ground-layers.ts`) pluginem pro GLSL i WGSL. Vnitřek lesa je plocha korun
+  (`forest-canopy.ts`), jednotlivé stromy jen na okraji (1.–2. řada, `forest-depth.ts`).
+- **Grafika (licence):** CC0 (Kenney – `public/models/`), nebo z **0 A.D.** pod **CC BY-SA 3.0**
+  (`public/textures/terrain/` – uvést Wildfire Games, upravené soubory pod stejnou licencí).
+  Zdroj a původní název každého souboru do `LICENSE.md` / `LICENSES.md` vedle něj.
 
 ## Příkazy
 

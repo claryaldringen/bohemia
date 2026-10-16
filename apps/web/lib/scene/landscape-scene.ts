@@ -11,8 +11,10 @@ import type { TileInfo } from '../tile-info';
 import { createRtsCamera, type RtsCamera } from './camera';
 import { HEIGHT_SCALE } from './constants';
 import { createEngine, type RendererName } from './create-engine';
+import { createCanopyMesh } from './forest-canopy';
 import { createTerrainMesh } from './terrain-mesh';
-import { heightAt, tileAt, tileCenter } from './tile-at';
+import { buildRenderSurface } from './render-surface';
+import { tileAt, tileCenter } from './tile-at';
 import { treePlacements } from './tree-placement';
 import { addTrees } from './trees';
 import { createWaterMesh } from './water';
@@ -30,6 +32,8 @@ export class LandscapeScene {
   private pointerMoved = false;
   private pointerInside = false;
   private needsRender = true;
+  /** Do kdy kreslit každý snímek (shadery a textury se po načtení dokončují asynchronně). */
+  private renderBurstUntil = 0;
   private rendering = false;
   private disposed = false;
 
@@ -41,7 +45,7 @@ export class LandscapeScene {
   ) {
     this.resizeObserver = new ResizeObserver(() => {
       engine.resize();
-      this.needsRender = true;
+      this.renderBurst(300);
     });
     this.resizeObserver.observe(canvas);
     canvas.addEventListener('pointermove', this.onPointerMove);
@@ -68,23 +72,25 @@ export class LandscapeScene {
   async setLandscape(landscape: Landscape): Promise<void> {
     if (this.disposed) return;
     this.landscape = landscape;
-    this.terrain = createTerrainMesh(this.scene, landscape);
-    createWaterMesh(this.scene, landscape);
+    const surface = buildRenderSurface(landscape);
+    this.terrain = createTerrainMesh(this.scene, landscape, surface);
+    createWaterMesh(this.scene, surface);
+    createCanopyMesh(this.scene, landscape, surface);
     const site = tileCenter(landscape, landscape.villageSite.x, landscape.villageSite.y);
     this.rtsCamera = createRtsCamera(this.scene, this.canvas, {
       halfExtent: (landscape.size * landscape.cellSizeM) / 2,
       start: { x: site.worldX, z: site.worldZ },
-      groundHeight: (x, z) => heightAt(landscape, x, z) * HEIGHT_SCALE,
+      groundHeight: (x, z) => surface.heightAt(x, z) * HEIGHT_SCALE,
     });
     await addTrees(this.scene, treePlacements(landscape), {
       baseUrl: '/models/nature/',
-      groundHeight: (x, z) => heightAt(landscape, x, z) * HEIGHT_SCALE,
+      groundHeight: (x, z) => surface.heightAt(x, z) * HEIGHT_SCALE,
     });
     if (this.disposed) return;
     await this.scene.whenReadyAsync();
     if (this.disposed || this.rendering) return;
     this.rendering = true;
-    this.needsRender = true;
+    this.renderBurst(1500);
     this.engine.runRenderLoop(() => this.frame());
   }
 
@@ -124,6 +130,7 @@ export class LandscapeScene {
   private frame(): void {
     const camera = this.rtsCamera;
     if (!camera) return;
+    if (performance.now() < this.renderBurstUntil) this.needsRender = true;
     if (camera.update(this.engine.getDeltaTime() / 1000)) {
       this.needsRender = true;
       // Pod nehybným kurzorem je po pohybu kamery jiné políčko.
@@ -133,6 +140,15 @@ export class LandscapeScene {
     if (!this.needsRender) return;
     this.needsRender = false;
     this.scene.render(false);
+  }
+
+  /**
+   * Chvíli kreslit každý snímek: WebGL kompiluje shadery paralelně a první snímky po načtení
+   * nebo změně velikosti nemusí obsahovat vše – bez toho by na obrazovce zůstal neúplný obraz.
+   */
+  private renderBurst(durationMs: number): void {
+    this.renderBurstUntil = Math.max(this.renderBurstUntil, performance.now() + durationMs);
+    this.needsRender = true;
   }
 
   /** Pick jednou za snímek, ne při každém pohybu myši. */
