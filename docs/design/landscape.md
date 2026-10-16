@@ -64,14 +64,19 @@ na který se později přidávají další prvky (černozem, naleziště kovů, 
   - les tvoří 55–70 % plochy,
   - **místo pro vesnici:** souvislá rovinatá **louka** (ne les – klučení bude něco stát)
     s úrodností ≥ 60 o velikosti **400–1 200 políček** (≈ 9–27 ha), celá do ≈ 300 m od vody,
-  - celkový počet úrodných políček (≥ 60) v krajině v pásmu, které stavitel nastaví podle
-    měření na vzorku seedů tak, aby se krajiny lišily vzhledem, ne hodnotou,
+  - celkový počet úrodných políček (≥ 60) v krajině **3 800–5 200** (±15 % kolem mediánu
+    naměřeného na 500 seedech) – krajiny se liší vzhledem, ne hodnotou,
   - převýšení nepřekročí 40 m.
 
   Generátor má pásmo **cíleně trefovat** (tvarovat terén a vegetaci kolem zvoleného místa pro
   vesnici), ne jen náhodně zkoušet; pokud krajina nevyhoví, zkusí další odvozený seed
   (deterministicky: seed, seed+1, …), ale počet pokusů má být v praxi malý a změřený.
   Čísla jsou výchozí a laditelná; důležité je, že dolní i horní meze ověřuje kód a testy.
+
+  **Naměřeno (500 seedů, v1):** 93 % krajin projde pásmem na první pokus, nejvýš 3 pokusy;
+  jeden pokus trvá průměrně ≈ 42 ms. Místo pro vesnici 434–613 políček, les 58–66 %,
+  převýšení 14–30 m. Rybník v1 negeneruje (volitelný prvek, zatím jen potok). Měření:
+  `npx tsx packages/game/scripts/measure-landscapes.ts 500`.
 
 - **Generuje server.** Klient dostane hotová data krajiny (výšky, povrch, úrodnost), ne seed.
   Herní logika tak vždy vychází z dat serveru a rozdíly v počítání s desetinnými čísly mezi

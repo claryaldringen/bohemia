@@ -106,3 +106,40 @@ export function componentSizes(mask: Uint8Array, size: number): number[] {
   }
   return sizes;
 }
+
+const WATER_CODE = 0;
+const MEADOW_CODE = 2;
+
+/**
+ * Největší místo pro vesnici: 4-souvislá oblast louky s úrodností ≥ 60, rovinatá (krok ≤ 1 m)
+ * a celá do 20 políček (300 m) od vody.
+ */
+export function largestVillageSite(l: {
+  size: number;
+  heights: Float32Array;
+  surface: Uint8Array;
+  fertility: Uint8Array;
+}): number {
+  const { size } = l;
+  const waterCells: [number, number][] = [];
+  for (let i = 0; i < l.surface.length; i++) {
+    if (l.surface[i] === WATER_CODE) waterCells.push([i % size, Math.floor(i / size)]);
+  }
+  const mask = new Uint8Array(size * size);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const i = y * size + x;
+      if (l.surface[i] !== MEADOW_CODE || l.fertility[i]! < 60) continue;
+      if (maxNeighbourStepM(l.heights, size, x, y) > 1) continue;
+      const nearWater = waterCells.some(([wx, wy]) => (wx - x) ** 2 + (wy - y) ** 2 <= 20 * 20);
+      if (nearWater) mask[i] = 1;
+    }
+  }
+  return Math.max(0, ...componentSizes(mask, size));
+}
+
+export function fertileCellCount(fertility: Uint8Array): number {
+  let count = 0;
+  for (const f of fertility) if (f >= 60) count++;
+  return count;
+}
