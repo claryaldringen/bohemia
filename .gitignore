@@ -1,0 +1,17 @@
+node_modules/
+.next/
+next-env.d.ts
+dist/
+.turbo/
+coverage/
+*.tsbuildinfo
+.DS_Store
+
+# Tajemství – repo je veřejné
+.env
+.env.*
+!.env.example
+
+# Lokální nástroje
+.superpowers/
+.playwright-mcp/
