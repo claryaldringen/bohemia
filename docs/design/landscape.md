@@ -163,6 +163,12 @@ na který se později přidávají další prvky (černozem, naleziště kovů, 
 | Jedna CC0 low-poly sada modelů                                            | návrh Clauda                   |
 | Ovládání kamery (myš + WASD/Q/E), info o políčku pod kurzorem             | návrh Clauda                   |
 
+## Stav implementace (v1)
+
+- Modely stromů: **Kenney Nature Kit** (CC0) – 2 listnáče, 2 jehličnany; barvy upravené ve scéně.
+- Scéna se kreslí jen při změně pohledu (statická krajina nezatěžuje počítač).
+- Terén je ve scéně vizuálně převýšený (`HEIGHT_SCALE = 3`); laditelné spolu se vzhledem.
+
 ## Necháno na staviteli
 
 Konkrétní šumový algoritmus a jeho parametry, barvy terénu, osvětlení, volba sady modelů

@@ -48,7 +48,8 @@ kolem 40 generací – dědictví, sňatky a nástupnictví jsou hlavní mechani
 - **Monorepo:** Turborepo + npm workspaces (`apps/*`, `packages/*`), Node 24 (`.nvmrc`)
 - **Jazyk:** TypeScript 6 (strict, `noUncheckedIndexedAccess`), společný `tsconfig.base.json`
 - **Web:** Next.js 16 (App Router, `output: 'standalone'`), React 19, Tailwind CSS v4
-- **Herní pravidla:** `packages/game` – čistý TypeScript bez I/O (zatím herní kalendář)
+- **Herní jádro:** `packages/game` – doména (kalendář, generování krajiny) a use-casy, bez I/O
+- **3D:** Babylon.js 9 (`@babylonjs/core` + `@babylonjs/loaders`), WebGPU se záložním WebGL 2
 - **Databáze:** PostgreSQL + Drizzle (`packages/db`), migrace jako SQL v `packages/db/drizzle/`
 - **Účty:** Better Auth – e-mail + heslo s ověřením e-mailu, obnova hesla, Google, sessions v DB
 - **Kvalita:** ESLint 10 + typescript-eslint (kořenový `eslint.config.mjs`), Prettier, Vitest
@@ -68,11 +69,16 @@ do gitu (po smazání by ho vytvořil znovu).
 ```
 apps/web/            Next.js – úvodní stránka, registrace, přihlášení, herní plocha (/game)
   app/api/auth/      Better Auth endpointy
-  components/        React komponenty (auth/ formuláře, GameDateBadge – herní datum v rohu)
-  lib/               serverová a pomocná logika (auth, session, e-maily, formátování data)
+  components/        React komponenty (auth/ formuláře, game/ herní plocha, GameDateBadge)
+  lib/               serverová a pomocná logika (auth, session, db, game – composition root)
+  lib/scene/         3D scéna krajiny v Babylonu – čisté TS třídy bez Reactu
+  public/models/     3D modely (jen CC0, licence v LICENSES.md)
   e2e/               Playwright testy (proti produkčnímu buildu a databázi bohemia_test)
-packages/game/       herní jádro – domain/ (pravidla, zatím calendar.ts), později application/
-packages/db/         Drizzle schéma, klient a migrace (schema/auth.ts generuje Better Auth CLI)
+packages/game/       herní jádro
+  src/domain/        pravidla – calendar.ts, landscape/ (generování krajiny po vrstvách)
+  src/application/   use-casy a porty (enterGame, SettlementRepository, SeedSource)
+  scripts/           vývojové nástroje (measure-landscapes.ts)
+packages/db/         Drizzle schéma, klient, migrace a adaptéry portů (src/adapters/)
 docs/design/         herní design – vize + dokument pro každou mechaniku
 ```
 
@@ -101,6 +107,30 @@ Auth vzniká líně přes `getAuth()` – `next build` stránky jen importuje a 
 - **Google:** přihlašovací údaje z Google Cloud Console do `apps/web/.env.local`
   (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`); bez nich se tlačítko Google nezobrazí.
 
+## Krajina sídla
+
+Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
+
+- **Generování** (`packages/game/src/domain/landscape/`): `generateLandscape(seed, versions)` –
+  vrstvy terén a voda → vegetace → úrodnost, každá s vlastním seedem (`deriveSeed`) a verzí.
+  Pásmo srovnatelnosti hlídá `checkBand` (konstanty v `band.ts`) a testy na 300 seedech. Po
+  změně generátoru pusť `measure-landscapes` a zkontroluj podíl krajin na první pokus a čas.
+- **Po ostrém spuštění** se existující vrstva nesmí změnit (přepsala by krajiny hráčů) – nová
+  verze vrstvy, nebo nová vrstva.
+- **Use-case** `enterGame` (sídelní sídlo hráče, atomicky přes unikátní index); ve webu
+  `enterGameForPlayer` v `lib/game.ts`. Krajinu generuje server, do prohlížeče jde zakódovaná
+  (`lib/landscape-transfer.ts`).
+- **Scéna** (`apps/web/lib/scene/`): `LandscapeScene` bez Reactu, React (`GameView`) ji jen
+  vytvoří, pošle data a poslouchá `onTileHover`. Babylon importovat **z konkrétních modulů**
+  (`@babylonjs/core/Meshes/mesh`…), nikdy z `@babylonjs/core` – a jen ze scény, aby se engine
+  nestahoval mimo herní plochu (hlídá e2e test).
+- **Kreslí se jen při změně** (pohled kamery, velikost okna, data) – co se ve scéně mění samo
+  (animace, voda, roční období), musí nastavit `needsRender`.
+- `?renderer=webgl` vynutí WebGL 2 (test záložní cesty). `HEIGHT_SCALE` v `scene/constants.ts`
+  převyšuje terén jen vizuálně.
+- **Modely** v `apps/web/public/models/` – jen CC0, zdroj a původní název do `LICENSES.md`.
+  Stromy: Kenney Nature Kit, barvy listí a kůry se nastavují ve `scene/trees.ts`.
+
 ## Příkazy
 
 ```bash
@@ -111,13 +141,16 @@ npm run build
 npm run typecheck     # next typegen + tsc
 npm run lint
 npm run test          # unit testy (Vitest)
+npm run test:db       # testy adaptérů proti DB bohemia_test (Homebrew Postgres musí běžet)
 npm run test:e2e      # Playwright – build + next start na :3011 proti DB bohemia_test
 npm run format:check  # npm run format = oprava
 npm run db:generate   # nová migrace po změně schématu v packages/db/src/schema
+npx tsx packages/game/scripts/measure-landscapes.ts 500   # měření generátoru krajiny
 ```
 
 Všechny příkazy jdou přes Turborepo do jednotlivých workspaces. Před commitem musí projít
-`typecheck`, `lint`, `test` a `format:check`; u změn přihlašování nebo stránek i `test:e2e`.
+`typecheck`, `lint`, `test` a `format:check`; u změn adaptérů DB i `test:db`, u změn
+přihlašování, stránek nebo scény i `test:e2e`.
 
 ---
 
