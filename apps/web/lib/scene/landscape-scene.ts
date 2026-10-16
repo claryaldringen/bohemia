@@ -51,10 +51,11 @@ export class LandscapeScene {
     scene.clearColor = new Color4(0.63, 0.75, 0.85, 1);
     scene.skipPointerMovePicking = true;
     const sky = new HemisphericLight('sky', new Vector3(0.2, 1, 0.1), scene);
-    sky.intensity = 0.65;
+    sky.intensity = 0.5;
     sky.groundColor = new Color3(0.32, 0.3, 0.26);
-    const sun = new DirectionalLight('sun', new Vector3(-0.55, -1, -0.35), scene);
-    sun.intensity = 0.8;
+    // Nízké slunce zvýrazní zvlnění terénu.
+    const sun = new DirectionalLight('sun', new Vector3(-0.8, -0.55, -0.35), scene);
+    sun.intensity = 1.05;
     return new LandscapeScene(canvas, engine, scene, renderer);
   }
 

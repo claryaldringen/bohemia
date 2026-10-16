@@ -1,37 +1,10 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
+import { login, register, signOut, uniqueEmail, useUniqueClientIp } from './helpers';
 import { linkFromLastMail } from './mail';
 
-const uniqueEmail = (prefix: string): string => `${prefix}-${Date.now()}@example.com`;
-
-// Better Auth omezuje počet pokusů o přihlášení na IP adresu (podle X-Forwarded-For).
-// Každý test vystupuje jako jiný hráč z jiné adresy, jinak by se pokusy sčítaly napříč testy.
-let testIndex = 0;
 test.beforeEach(async ({ context }) => {
-  testIndex++;
-  await context.setExtraHTTPHeaders({ 'x-forwarded-for': `10.0.${testIndex}.${Date.now() % 250}` });
+  await useUniqueClientIp(context);
 });
-
-async function register(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/');
-  await page.getByRole('link', { name: 'Registrace' }).click();
-  await expect(page.getByRole('heading', { name: 'Registrace' })).toBeVisible();
-  await page.getByLabel('E-mail').fill(email);
-  await page.getByLabel('Heslo').fill(password);
-  await page.getByRole('button', { name: 'Zaregistrovat se' }).click();
-  await expect(page.getByText('Zkontroluj e-mail')).toBeVisible();
-}
-
-async function signOut(page: Page): Promise<void> {
-  await page.getByRole('button', { name: 'Odhlásit' }).click();
-  await expect(page).toHaveURL(/\/$/);
-}
-
-async function login(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/login');
-  await page.getByLabel('E-mail').fill(email);
-  await page.getByLabel('Heslo').fill(password);
-  await page.getByRole('button', { name: 'Přihlásit se' }).click();
-}
 
 test('nepřihlášeného pošle herní plocha na přihlášení', async ({ page }) => {
   await page.goto('/game');

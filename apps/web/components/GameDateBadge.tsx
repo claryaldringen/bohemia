@@ -22,7 +22,7 @@ export function GameDateBadge({ world, initialNowMs }: Props): ReactElement {
   }, []);
 
   return (
-    <p className="fixed top-3 right-4 font-serif text-xs text-stone-500">
+    <p className="fixed top-2 right-2 z-10 rounded bg-stone-100/80 px-2 py-1 font-serif text-xs text-stone-600 backdrop-blur dark:bg-stone-950/70 dark:text-stone-400">
       {formatWorldState(getWorldState(nowMs, world), world)}
     </p>
   );
