@@ -73,9 +73,11 @@ na který se později přidávají další prvky (černozem, naleziště kovů, 
   (deterministicky: seed, seed+1, …), ale počet pokusů má být v praxi malý a změřený.
   Čísla jsou výchozí a laditelná; důležité je, že dolní i horní meze ověřuje kód a testy.
 
-  **Naměřeno (500 seedů, v1):** 93 % krajin projde pásmem na první pokus, nejvýš 3 pokusy;
-  jeden pokus trvá průměrně ≈ 42 ms. Místo pro vesnici 434–613 políček, les 58–66 %,
-  převýšení 14–30 m. Rybník v1 negeneruje (volitelný prvek, zatím jen potok). Měření:
+  **Naměřeno (300 seedů, v1):** 97 % krajin projde pásmem na první pokus, nejvýš 2 pokusy;
+  jeden pokus trvá průměrně ≈ 48 ms. Místo pro vesnici 453–609 políček, les 58–66 %,
+  převýšení 16–30 m. Potok teče po spádu: dno klesá nejvýš o 0,63 m na políčko a sedla se
+  prořezávají, svahy údolí stoupají nejvýš o 0,9 m na políčko. Rybník v1 negeneruje
+  (volitelný prvek, zatím jen potok). Měření:
   `npx tsx packages/game/scripts/measure-landscapes.ts 500`.
 
 - **Generuje server.** Klient dostane hotová data krajiny (výšky, povrch, úrodnost), ne seed.

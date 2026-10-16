@@ -1,7 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { generateTerrain } from '../terrain';
 import { LANDSCAPE_SIZE } from '../types';
-import { maxNeighbourStepM, reliefM, waterTouchesOppositeEdges } from './landscape-checks';
+import {
+  maxNeighbourStepM,
+  reliefM,
+  streamClimbM,
+  waterTouchesOppositeEdges,
+} from './landscape-checks';
 
 const SEEDS = Array.from({ length: 50 }, (_, i) => i * 7919 + 1);
 
@@ -39,6 +44,13 @@ describe('generateTerrain', () => {
     for (const seed of SEEDS) {
       const { water, size } = generateTerrain(seed, 1);
       expect(waterTouchesOppositeEdges(water, size), `seed ${seed}`).toBe(true);
+    }
+  });
+
+  it('potok teče z kopce – dno od vyššího konce nikde nestoupá', () => {
+    for (const seed of SEEDS) {
+      const { heights, water, size } = generateTerrain(seed, 1);
+      expect(streamClimbM(heights, water, size), `seed ${seed}`).toBeLessThanOrEqual(0.01);
     }
   });
 

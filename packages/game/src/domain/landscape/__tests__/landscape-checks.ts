@@ -143,3 +143,40 @@ export function fertileCellCount(fertility: Uint8Array): number {
   for (const f of fertility) if (f >= 60) count++;
   return count;
 }
+
+/**
+ * Největší stoupání dna potoku (m) při průchodu od jeho nejvyššího okrajového políčka
+ * (BFS po 8-souvislých vodních políčkách). 0 = potok všude teče z kopce nebo po rovině.
+ */
+export function streamClimbM(heights: Float32Array, water: Uint8Array, size: number): number {
+  let source = -1;
+  for (let i = 0; i < water.length; i++) {
+    const x = i % size;
+    const y = Math.floor(i / size);
+    const onEdge = x === 0 || y === 0 || x === size - 1 || y === size - 1;
+    if (water[i] && onEdge && (source === -1 || heights[i]! > heights[source]!)) source = i;
+  }
+  if (source === -1) return Infinity;
+  const seen = new Uint8Array(water.length);
+  const queue = [source];
+  seen[source] = 1;
+  let climb = 0;
+  for (let k = 0; k < queue.length; k++) {
+    const i = queue[k]!;
+    const x = i % size;
+    const y = Math.floor(i / size);
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const nx = x + dx;
+        const ny = y + dy;
+        if ((!dx && !dy) || nx < 0 || ny < 0 || nx >= size || ny >= size) continue;
+        const n = ny * size + nx;
+        if (!water[n] || seen[n]) continue;
+        seen[n] = 1;
+        climb = Math.max(climb, heights[n]! - heights[i]!);
+        queue.push(n);
+      }
+    }
+  }
+  return climb;
+}
