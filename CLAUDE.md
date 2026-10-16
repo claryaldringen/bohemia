@@ -55,9 +55,8 @@ kolem 40 generací – dědictví, sňatky a nástupnictví jsou hlavní mechani
 - `apps/worker` – samostatný Node proces, který posouvá svět (stavby, narození, úmrtí, roční
   období) i když nikdo není online
 - `packages/game` – herní pravidla jako čistý TypeScript bez I/O
-- `packages/db` – PostgreSQL + Drizzle
+- `packages/db` – **PostgreSQL** (pevné rozhodnutí – na Hetzner VPS už běží) + Drizzle
 - Autentizace (registrace, přihlášení, pozvánkové kódy)
-- Nasazení na Hetzner VPS přes PM2 + Caddy
 
 ## Struktura repa
 
@@ -105,7 +104,12 @@ Všechny příkazy jdou přes Turborepo do jednotlivých workspaces. Před commi
 - **Herní design před kódem:** novou mechaniku nejdřív popsat v `docs/design/` a nechat
   schválit, teprve pak implementovat.
 
-## Nasazení
+## Lokální vývoj a nasazení
 
-Hetzner VPS, PM2 + Caddy, Next.js ve standalone režimu. Zatím nenastaveno – až vznikne,
-popsat v `docs/deployment.md`.
+**Zatím se vyvíjí a běží jen lokálně.** Nasazení na VPS se řeší až později – do té doby nic
+nenasazovat ani nepřipravovat produkční infrastrukturu.
+
+- **Databáze lokálně:** PostgreSQL 17 z Homebrew (`postgresql@17`, běží jako služba na
+  `127.0.0.1:5432`). `psql` není v PATH – plná cesta `/opt/homebrew/opt/postgresql@17/bin/psql`.
+- **Později:** Hetzner VPS (PostgreSQL už tam je), PM2 + Caddy, Next.js ve standalone režimu.
+  Až se bude nasazovat, popsat v `docs/deployment.md`.

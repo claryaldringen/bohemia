@@ -42,9 +42,11 @@ ne jeden pán.
 | Hra v prohlížeči, jméno Bohemia, spuštění 1. 1. 2027                                        | Martin                        |
 | Roky 500–1500 za jeden skutečný rok, plynou dny a roční období                              | Martin                        |
 | Registrace, sdílený svět, vazalství přes pozvánky                                           | Martin                        |
-| Kód na GitHubu (veřejné repo), běh na vlastním Hetzner VPS                                  | Martin                        |
+| Kód na GitHubu (veřejné repo), později běh na vlastním Hetzner VPS                          | Martin                        |
+| Zatím se vyvíjí a běží jen lokálně, nasazení až později                                     | Martin                        |
+| Databáze PostgreSQL (na Hetzneru už běží)                                                   | Martin                        |
 | Rod jako hlavní postava, vazalství není trvalé                                              | návrh Clauda, Martin potvrdil |
-| Stack: Turborepo, Next.js, TypeScript, PostgreSQL + Drizzle, PM2 + Caddy                    | návrh Clauda                  |
+| Stack: Turborepo, Next.js, TypeScript, Drizzle, PM2 + Caddy                                 | návrh Clauda                  |
 | UI česky, kód anglicky                                                                      | návrh Clauda                  |
 | Herní čas jako čistá funkce skutečného času, pravidla v `packages/game`, server je autorita | návrh Clauda                  |
 
