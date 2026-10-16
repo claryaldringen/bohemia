@@ -3,11 +3,17 @@ import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import type { Scene } from '@babylonjs/core/scene';
 import type { Landscape } from '@bohemia/game';
 import { HEIGHT_SCALE } from './constants';
+import type { ForestGround } from './ground-layers';
 import type { RenderSurface } from './render-surface';
 import { createTerrainMaterial } from './terrain-material';
 
 /** Terén z hustší výškové sítě (hladké kopce, vyhloubené koryto), povrch míchá terénní materiál. */
-export function createTerrainMesh(scene: Scene, l: Landscape, surface: RenderSurface): Mesh {
+export function createTerrainMesh(
+  scene: Scene,
+  l: Landscape,
+  surface: RenderSurface,
+  forest?: ForestGround,
+): Mesh {
   const n = surface.resolution;
   const positions = new Float32Array(n * n * 3);
   for (let v = 0; v < n * n; v++) {
@@ -39,7 +45,7 @@ export function createTerrainMesh(scene: Scene, l: Landscape, surface: RenderSur
 
   const mesh = new Mesh('terrain', scene);
   vertexData.applyToMesh(mesh);
-  mesh.material = createTerrainMaterial(scene, l, surface.stream);
+  mesh.material = createTerrainMaterial(scene, l, surface.stream, forest);
   mesh.freezeWorldMatrix();
   return mesh;
 }

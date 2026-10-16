@@ -4,34 +4,44 @@ import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import type { Scene } from '@babylonjs/core/scene';
-import type { Landscape } from '@bohemia/game';
 import { createNoise2D } from 'simplex-noise';
 import { HEIGHT_SCALE } from './constants';
-import { forestDepth } from './forest-depth';
-import { RENDER_SUBDIVISION, type RenderSurface } from './render-surface';
+import type { ForestField } from './forest-field';
+import type { RenderSurface } from './render-surface';
 
 /** Výška korun nad zemí (m) a velikost „hrbolů“ jednotlivých korun. */
 const CANOPY_HEIGHT_M = 11;
 const CROWN_BUMP_M = 2.5;
-/** Koruny začínají uprostřed krajní řady lesa a plnou výšku mají od třetí řady. */
-const CANOPY_START_DEPTH = 1.2;
-const CANOPY_FULL_DEPTH = 3;
+/**
+ * Vzdálenost od hranice lesa (m), kde koruny vystupují ze země a kde mají plnou výšku. Pás před
+ * tím patří jednotlivým stromům okraje, které náběh korun zakryjí.
+ */
+const CANOPY_START_M = 6;
+const CANOPY_FULL_M = 24;
+/** Pod hranicí plochy korun se plocha zanoří pod terén – průsečík se zemí je hladký. */
+const SINK_M = 2;
 /** Koruny shora vyrenderované z modelů stromů – bezešvá dlaždice 48 × 48 m. */
 const CANOPY_TEXTURE_URL = '/textures/terrain/canopy.jpg';
 const CANOPY_TEXTURE_REPEAT_M = 48;
 
 /**
- * Vnitřek lesa jako souvislá plocha korun (místo tisíců stromů) – zvlněná šumem, na okraji
- * klesá k zemi, kde ji zakryjí jednotlivé stromy krajních řad.
+ * Vnitřek lesa jako souvislá plocha korun (místo tisíců stromů) – zvlněná šumem, k vyhlazené
+ * hranici lesa klesá pod zem; okraj zakryjí jednotlivé stromy.
  */
-export function createCanopyMesh(scene: Scene, l: Landscape, surface: RenderSurface): Mesh | null {
-  const depth = forestDepth(l);
+export function createCanopyMesh(
+  scene: Scene,
+  surface: RenderSurface,
+  field: ForestField,
+): Mesh | null {
   const n = surface.resolution;
   const bumps = createNoise2D(seededRandom(7));
   const tint = createNoise2D(seededRandom(11));
   const vertexIndex = new Int32Array(n * n).fill(-1);
-  const depthAt = new Float32Array(n * n);
-  for (let v = 0; v < n * n; v++) depthAt[v] = vertexDepth(l, depth, v % n, Math.floor(v / n));
+  const inside = new Float32Array(n * n);
+  for (let v = 0; v < n * n; v++) {
+    const { x, z } = surface.position(v);
+    inside[v] = field.distanceAt(x, z);
+  }
 
   const positions: number[] = [];
   const colors: number[] = [];
@@ -40,9 +50,10 @@ export function createCanopyMesh(scene: Scene, l: Landscape, surface: RenderSurf
   const vertex = (v: number): number => {
     if (vertexIndex[v]! >= 0) return vertexIndex[v]!;
     const { x, z } = surface.position(v);
-    const rise = smoothstep(CANOPY_START_DEPTH, CANOPY_FULL_DEPTH, depthAt[v]!);
+    const rise = smoothstep(CANOPY_START_M, CANOPY_FULL_M, inside[v]!);
+    const sink = SINK_M * (1 - smoothstep(CANOPY_START_M - 4, CANOPY_START_M, inside[v]!));
     const crowns = 0.7 * bumps(x / 24, z / 24) + 0.3 * bumps(x / 9 + 50, z / 9);
-    const above = rise * (CANOPY_HEIGHT_M + crowns * CROWN_BUMP_M);
+    const above = rise * (CANOPY_HEIGHT_M + crowns * CROWN_BUMP_M) - sink;
     positions.push(x, surface.heights[v]! * HEIGHT_SCALE + above, z);
     // Světlejší a tmavší skupiny korun – zakryjí i opakování dlaždice.
     const shade = 0.5 + 0.5 * tint(x / 70, z / 70);
@@ -56,7 +67,7 @@ export function createCanopyMesh(scene: Scene, l: Landscape, surface: RenderSurf
     for (let i = 0; i < n - 1; i++) {
       const a = j * n + i;
       const corners = [a, a + 1, a + n, a + n + 1];
-      if (corners.some((v) => depthAt[v]! < CANOPY_START_DEPTH)) continue;
+      if (corners.every((v) => inside[v]! < CANOPY_START_M - 4)) continue;
       const [va, vb, vc, vd] = corners.map(vertex) as [number, number, number, number];
       indices.push(va, vb, vc, vb, vd, vc);
     }
@@ -83,22 +94,6 @@ export function createCanopyMesh(scene: Scene, l: Landscape, surface: RenderSurf
   mesh.isPickable = false;
   mesh.freezeWorldMatrix();
   return mesh;
-}
-
-/** Hloubka lesa v bodě sítě – bilineárně mezi středy políček (síť začíná ve středu políčka 0). */
-function vertexDepth(l: Landscape, depth: Uint16Array, i: number, j: number): number {
-  const u = i / RENDER_SUBDIVISION;
-  const v = j / RENDER_SUBDIVISION;
-  const x0 = Math.min(l.size - 1, Math.floor(u));
-  const y0 = Math.min(l.size - 1, Math.floor(v));
-  const x1 = Math.min(l.size - 1, x0 + 1);
-  const y1 = Math.min(l.size - 1, y0 + 1);
-  const fx = u - x0;
-  const fy = v - y0;
-  const d = (x: number, y: number): number => depth[y * l.size + x]!;
-  const top = d(x0, y0) + (d(x1, y0) - d(x0, y0)) * fx;
-  const bottom = d(x0, y1) + (d(x1, y1) - d(x0, y1)) * fx;
-  return top + (bottom - top) * fy;
 }
 
 function smoothstep(edge0: number, edge1: number, x: number): number {

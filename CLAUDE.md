@@ -134,8 +134,10 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   převyšuje terén jen vizuálně.
 - **Vzhled terénu:** `render-surface.ts` zjemní výšky 4× (Catmull-Rom) a vyhloubí hladké koryto
   podél vyhlazené osy potoka (`stream-geometry.ts`); `terrain-material.ts` míchá 6 textur podle
-  splat map (`ground-layers.ts`) pluginem pro GLSL i WGSL. Vnitřek lesa je plocha korun
-  (`forest-canopy.ts`), jednotlivé stromy jen na okraji (1.–2. řada, `forest-depth.ts`).
+  splat map (`ground-layers.ts`) pluginem pro GLSL i WGSL. Hranici lesa vyhlazuje a zvlňuje
+  `forest-field.ts` (znaménková vzdálenost od hranice) – podle ní se zvedá plocha korun
+  (`forest-canopy.ts`), rozmisťují stromy okraje, lem a ojedinělé stromy a keře v louce
+  (`tree-placement.ts`) a kreslí lesní půda se ztmavením pod stromy.
 - **Grafika (licence):** CC0, nebo z **0 A.D.** pod **CC BY-SA 3.0** (textury terénu, stromy –
   uvést Wildfire Games, upravené soubory pod stejnou licencí). Zdroj a původní název každého
   souboru do `LICENSE.md` / `LICENSES.md` vedle něj. Převod stromů a render textury korun:

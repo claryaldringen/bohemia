@@ -12,8 +12,10 @@ import { TREE_MODELS, type TreePlacement } from './tree-placement';
  * Zesvětlení a tón modelů: textury jehličí jsou tmavé s hnědými větvičkami a karty se navzájem
  * stíní – smrky se zesvětlí víc a posunou do modrozelena.
  */
-const SPRUCE_TINT = new Color3(1.25, 1.6, 1.4);
+const SPRUCE_TINT = new Color3(1.1, 1.4, 1.25);
 const BROADLEAF_TINT = new Color3(1.1, 1.1, 1.1);
+/** Rozptýlené světlo prosvítající korunou – stinná strana stromu nezčerná. */
+const FOLIAGE_AMBIENT = new Color3(0.3, 0.32, 0.3);
 
 /**
  * Les z instancí modelů – jeden mesh na model. Modely jsou v metrech s kořenem u paty kmene.
@@ -35,6 +37,7 @@ export async function addTrees(
         if (!(material instanceof PBRMaterial)) continue;
         material.albedoColor = model.startsWith('spruce') ? SPRUCE_TINT : BROADLEAF_TINT;
         material.roughness = 1;
+        material.ambientColor = FOLIAGE_AMBIENT;
       }
 
       const parts = container.meshes.filter(

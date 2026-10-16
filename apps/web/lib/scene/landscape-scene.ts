@@ -12,6 +12,7 @@ import { createRtsCamera, type RtsCamera } from './camera';
 import { HEIGHT_SCALE } from './constants';
 import { createEngine, type RendererName } from './create-engine';
 import { createCanopyMesh } from './forest-canopy';
+import { buildForestField } from './forest-field';
 import { createTerrainMesh } from './terrain-mesh';
 import { buildRenderSurface } from './render-surface';
 import { tileAt, tileCenter } from './tile-at';
@@ -59,6 +60,8 @@ export class LandscapeScene {
     const { engine, renderer } = await createEngine(canvas, options.renderer ?? 'auto');
     const scene = new Scene(engine);
     scene.clearColor = new Color4(0.63, 0.75, 0.85, 1);
+    // Působí jen na materiály s vlastní ambientColor (stromy), ostatní ji mají černou.
+    scene.ambientColor = new Color3(1, 1, 1);
     scene.skipPointerMovePicking = true;
     const sky = new HemisphericLight('sky', new Vector3(0.2, 1, 0.1), scene);
     sky.intensity = 0.5;
@@ -73,16 +76,18 @@ export class LandscapeScene {
     if (this.disposed) return;
     this.landscape = landscape;
     const surface = buildRenderSurface(landscape);
-    this.terrain = createTerrainMesh(this.scene, landscape, surface);
+    const field = buildForestField(landscape);
+    const trees = treePlacements(landscape, field, surface.stream);
+    this.terrain = createTerrainMesh(this.scene, landscape, surface, { field, trees });
     createWaterMesh(this.scene, surface);
-    createCanopyMesh(this.scene, landscape, surface);
+    createCanopyMesh(this.scene, surface, field);
     const site = tileCenter(landscape, landscape.villageSite.x, landscape.villageSite.y);
     this.rtsCamera = createRtsCamera(this.scene, this.canvas, {
       halfExtent: (landscape.size * landscape.cellSizeM) / 2,
       start: { x: site.worldX, z: site.worldZ },
       groundHeight: (x, z) => surface.heightAt(x, z) * HEIGHT_SCALE,
     });
-    await addTrees(this.scene, treePlacements(landscape), {
+    await addTrees(this.scene, trees, {
       baseUrl: '/models/trees/',
       groundHeight: (x, z) => surface.heightAt(x, z) * HEIGHT_SCALE,
     });

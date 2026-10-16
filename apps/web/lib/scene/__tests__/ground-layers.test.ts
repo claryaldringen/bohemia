@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { generateLandscape, SURFACE_CODES } from '@bohemia/game';
+import { buildForestField } from '../forest-field';
 import { GROUND_LAYERS, groundWeights } from '../ground-layers';
 import { streamCenterline } from '../stream-geometry';
+import { treePlacements } from '../tree-placement';
 
 const landscape = generateLandscape(3);
 const weights = groundWeights(landscape);
@@ -127,5 +129,65 @@ describe('groundWeights s vyhlazeným korytem', () => {
       if (stream.nearest(x, z).distance < 24) continue;
       expect(smooth.layers[mud]![texelAt(x, z)]).toBeLessThan(40);
     }
+  });
+});
+
+describe('groundWeights s vyhlazenou hranicí lesa a stromy', () => {
+  const field = buildForestField(landscape);
+  const stream = streamCenterline(landscape);
+  const trees = treePlacements(landscape, field, stream);
+  const withForest = groundWeights(landscape, stream, { field, trees });
+  const half = (landscape.size * landscape.cellSizeM) / 2;
+  const step = (landscape.size * landscape.cellSizeM) / withForest.resolution;
+  const centerOf = (i: number): [number, number] => [
+    -half + ((i % withForest.resolution) + 0.5) * step,
+    -half + (Math.floor(i / withForest.resolution) + 0.5) * step,
+  ];
+  const forestFloor = withForest.layers[GROUND_LAYERS.indexOf('forestFloor')]!;
+
+  it('lesní půda sleduje vyhlazenou hranici lesa, ne políčka', () => {
+    let deep = 0;
+    let open = 0;
+    for (let i = 0; i < forestFloor.length; i += 101) {
+      const [x, z] = centerOf(i);
+      if (stream.nearest(x, z).distance < 30) continue;
+      const d = field.distanceAt(x, z);
+      if (d > 10) {
+        expect(forestFloor[i]).toBeGreaterThan(128);
+        deep++;
+      } else if (d < -10) {
+        expect(forestFloor[i]).toBe(0);
+        open++;
+      }
+    }
+    expect(deep).toBeGreaterThan(100);
+    expect(open).toBeGreaterThan(100);
+  });
+
+  it('pod stromy je půda ztmavená, louka daleko od stromů ne', () => {
+    // Shader vzorkuje bilineárně – stejně se díváme i tady.
+    const shadeAt = (x: number, z: number): number => {
+      const n = withForest.resolution;
+      const fi = Math.min(n - 1.001, Math.max(0, (x + half) / step - 0.5));
+      const fj = Math.min(n - 1.001, Math.max(0, (z + half) / step - 0.5));
+      const i0 = Math.floor(fi);
+      const j0 = Math.floor(fj);
+      const s = (i: number, j: number): number => withForest.shade[j * n + i]!;
+      const top = s(i0, j0) + (s(i0 + 1, j0) - s(i0, j0)) * (fi - i0);
+      const bottom = s(i0, j0 + 1) + (s(i0 + 1, j0 + 1) - s(i0, j0 + 1)) * (fi - i0);
+      return top + (bottom - top) * (fj - j0);
+    };
+    for (const tree of trees.filter((t) => !t.model.startsWith('bush')).slice(0, 200)) {
+      expect(shadeAt(tree.worldX, tree.worldZ)).toBeGreaterThan(40);
+    }
+    let checked = 0;
+    for (let i = 0; i < withForest.shade.length; i += 97) {
+      const [x, z] = centerOf(i);
+      const far = trees.every((t) => Math.hypot(t.worldX - x, t.worldZ - z) > 12);
+      if (!far || field.distanceAt(x, z) > 0) continue;
+      expect(withForest.shade[i]).toBe(0);
+      if (++checked > 300) break;
+    }
+    expect(checked).toBeGreaterThan(100);
   });
 });

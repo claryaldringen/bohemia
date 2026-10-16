@@ -96,5 +96,19 @@
     "foliage": {
       "u_below": 0.72
     }
+  },
+  {
+    "name": "bush-1",
+    "dae": "meshes/gaia/temp_bush_01.dae",
+    "texture": "textures/skins/gaia/temperate_bush_01.png",
+    "scale": 0.4,
+    "foliage": "all"
+  },
+  {
+    "name": "bush-2",
+    "dae": "meshes/gaia/temp_bush_02.dae",
+    "texture": "textures/skins/gaia/temperate_bush_02.png",
+    "scale": 0.4,
+    "foliage": "all"
   }
 ]

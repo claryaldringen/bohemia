@@ -5,7 +5,7 @@ s uvedením autora).
 
 ## trees/
 
-Stromy ze hry **0 A.D.** – autor **Wildfire Games** (https://www.wildfiregames.com/), licence
+Stromy a keře ze hry **0 A.D.** – autor **Wildfire Games** (https://www.wildfiregames.com/), licence
 [Creative Commons Attribution-ShareAlike 3.0](http://creativecommons.org/licenses/by-sa/3.0/).
 
 Úpravy: převedeno z COLLADA do GLB skriptem `tools/blender/trees_from_0ad.py` (nastavení
@@ -23,3 +23,5 @@ stejnou licencí CC BY-SA 3.0. Licence se týká jen těchto souborů, ne zbytku
 | `beech-2.glb`  | `tree_oak_b.dae`, `tree_oak_top_c.dae`, `trunk_beech_a.dds`, `tree_euro_beech_a.dds` |
 | `birch-1.glb`  | `euro_birch_01.dae`, `birch_tree_02.png`                                             |
 | `birch-2.glb`  | `euro_birch_02.dae`, `birch_tree_02.png`                                             |
+| `bush-1.glb`   | `temp_bush_01.dae`, `temperate_bush_01.png`                                          |
+| `bush-2.glb`   | `temp_bush_02.dae`, `temperate_bush_02.png`                                          |

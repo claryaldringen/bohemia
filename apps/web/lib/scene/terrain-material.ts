@@ -8,7 +8,13 @@ import type { UniformBuffer } from '@babylonjs/core/Materials/uniformBuffer';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import type { Scene } from '@babylonjs/core/scene';
 import type { Landscape } from '@bohemia/game';
-import { GROUND_LAYERS, groundWeights, packSplatTextures, type GroundLayer } from './ground-layers';
+import {
+  GROUND_LAYERS,
+  groundWeights,
+  packSplatTextures,
+  type ForestGround,
+  type GroundLayer,
+} from './ground-layers';
 import type { StreamCenterline } from './stream-geometry';
 
 const TEXTURE_BASE_URL = '/textures/terrain/';
@@ -23,15 +29,19 @@ const LAYER_TEXTURES: Record<GroundLayer, { file: string; repeatM: number }> = {
   mud: { file: 'mud.jpg', repeatM: 32 },
 };
 
-/** Materiál terénu: StandardMaterial, jehož barvu míchá TerrainSplatPlugin ze 6 textur. */
+/**
+ * Materiál terénu: StandardMaterial, jehož barvu míchá TerrainSplatPlugin ze 6 textur
+ * a ztmavuje pod stromy.
+ */
 export function createTerrainMaterial(
   scene: Scene,
   l: Landscape,
   stream?: StreamCenterline,
+  forest?: ForestGround,
 ): StandardMaterial {
   const material = new StandardMaterial('terrain-material', scene);
   material.specularColor = Color3.Black();
-  const [first, second] = packSplatTextures(groundWeights(l, stream));
+  const [first, second] = packSplatTextures(groundWeights(l, stream, forest));
   const resolution = l.size * 4;
   const splat = (data: Uint8Array, name: string): RawTexture => {
     const texture = RawTexture.CreateRGBATexture(
@@ -72,7 +82,8 @@ interface SplatInputs {
 const SAMPLERS = ['splat0', 'splat1', 'layer0', 'layer1', 'layer2', 'layer3', 'layer4', 'layer5'];
 
 /**
- * Míchá barvu terénu ze 6 dlaždicových textur podle dvou splat textur (váhy vrstev).
+ * Míchá barvu terénu ze 6 dlaždicových textur podle dvou splat textur (váhy vrstev); modrý
+ * kanál druhé splat textury ztmavuje půdu pod stromy (nejvýš o polovinu).
  * Textury se mapují rovinně podle světových souřadnic, pootočené o 45° (opakování je tak méně
  * nápadné), každá s vlastní délkou opakování. Funguje pro WebGL (GLSL) i WebGPU (WGSL).
  */
@@ -169,7 +180,7 @@ terrainColor += (0.55 * textureSample(layer3, layer3Sampler, terrainLayerUv(terr
 terrainColor += (0.55 * textureSample(layer4, layer4Sampler, terrainLayerUv(terrainXz, uniforms.layerRepeatB.x)).rgb + 0.45 * textureSample(layer4, layer4Sampler, terrainLayerUv2(terrainXz, uniforms.layerRepeatB.x)).rgb) * wB.r;
 terrainColor += (0.55 * textureSample(layer5, layer5Sampler, terrainLayerUv(terrainXz, uniforms.layerRepeatB.y)).rgb + 0.45 * textureSample(layer5, layer5Sampler, terrainLayerUv2(terrainXz, uniforms.layerRepeatB.y)).rgb) * wB.g;
 let terrainTotal = wA.r + wA.g + wA.b + wA.a + wB.r + wB.g;
-baseColor = vec4f(terrainColor / max(terrainTotal, 0.001), 1.0);
+baseColor = vec4f(terrainColor / max(terrainTotal, 0.001) * (1.0 - 0.5 * wB.b), 1.0);
 #endif`,
       };
     }
@@ -195,7 +206,7 @@ terrainColor += (0.55 * texture2D(layer3, terrainLayerUv(terrainXz, layerRepeatA
 terrainColor += (0.55 * texture2D(layer4, terrainLayerUv(terrainXz, layerRepeatB.x)).rgb + 0.45 * texture2D(layer4, terrainLayerUv2(terrainXz, layerRepeatB.x)).rgb) * wB.r;
 terrainColor += (0.55 * texture2D(layer5, terrainLayerUv(terrainXz, layerRepeatB.y)).rgb + 0.45 * texture2D(layer5, terrainLayerUv2(terrainXz, layerRepeatB.y)).rgb) * wB.g;
 float terrainTotal = wA.r + wA.g + wA.b + wA.a + wB.r + wB.g;
-baseColor = vec4(terrainColor / max(terrainTotal, 0.001), 1.0);
+baseColor = vec4(terrainColor / max(terrainTotal, 0.001) * (1.0 - 0.5 * wB.b), 1.0);
 #endif`,
     };
   }

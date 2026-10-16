@@ -1,7 +1,9 @@
 import { SURFACE_CODES, type Landscape } from '@bohemia/game';
 import { createNoise2D } from 'simplex-noise';
+import type { ForestField } from './forest-field';
 import { CHANNEL_HALF_WIDTH_M } from './render-surface';
 import type { StreamCenterline } from './stream-geometry';
+import type { TreePlacement } from './tree-placement';
 
 /** Vrstvy povrchu terénu – pořadí odpovídá kanálům splat textur (RGBA + RG). */
 export const GROUND_LAYERS = [
@@ -25,7 +27,19 @@ export interface GroundWeights {
   resolution: number;
   /** Váha každé vrstvy 0–255 pro každý texel (index y * resolution + x); součet ≈ 255. */
   layers: Uint8Array[];
+  /** Ztmavení půdy pod stromy 0–255 (stín koruny, jako „decal“ pod stromy v 0 A.D.). */
+  shade: Uint8Array;
 }
+
+/** Vyhlazená hranice lesa a stromy – lesní půda pak sleduje hranici a pod stromy se ztmaví. */
+export interface ForestGround {
+  field: ForestField;
+  trees: readonly TreePlacement[];
+}
+
+/** Poloměr (m, při měřítku 1) a síla ztmavení pod stromem a keřem. */
+const TREE_SHADE = { radiusM: 5.5, strength: 0.45 };
+const BUSH_SHADE = { radiusM: 3.5, strength: 0.35 };
 
 const LAYER = Object.fromEntries(GROUND_LAYERS.map((name, i) => [name, i])) as Record<
   GroundLayer,
@@ -34,10 +48,15 @@ const LAYER = Object.fromEntries(GROUND_LAYERS.map((name, i) => [name, i])) as R
 
 /**
  * Váhy povrchů terénu (splat mapa) z dat krajiny – deterministicky, bez náhody. S osou potoka
- * se bahno a břeh řídí vzdáleností od vyhlazeného koryta, jinak vodními políčky.
+ * se bahno a břeh řídí vzdáleností od vyhlazeného koryta, jinak vodními políčky. S vyhlazenou
+ * hranicí lesa se lesní půda řídí jí, jinak lesními políčky.
  */
-export function groundWeights(l: Landscape, stream?: StreamCenterline): GroundWeights {
-  const tileWeights = weightsPerTile(l, !stream);
+export function groundWeights(
+  l: Landscape,
+  stream?: StreamCenterline,
+  forest?: ForestGround,
+): GroundWeights {
+  const tileWeights = weightsPerTile(l, !stream, !forest);
   const half = (l.size * l.cellSizeM) / 2;
   const resolution = l.size * TEXELS_PER_TILE;
   const layers = GROUND_LAYERS.map(() => new Uint8Array(resolution * resolution));
@@ -62,9 +81,19 @@ export function groundWeights(l: Landscape, stream?: StreamCenterline): GroundWe
         const base = top + (bottom - top) * fy;
         w[k] = base;
       }
+      const x = -half + ((tx + 0.5) / resolution) * l.size * l.cellSizeM;
+      const z = -half + ((ty + 0.5) / resolution) * l.size * l.cellSizeM;
+      if (forest) {
+        // Lesní půda začíná kousek před hranicí (pod lemem) a na okraji je prolnutá trávou
+        // s hlínou – rozcuchaný okraj jako v 0 A.D.
+        const inside = forest.field.distanceAt(x, z);
+        const floor = smoothstep(-2, 4, inside);
+        const ragged = 0.45 * (1 - smoothstep(2, 10, inside));
+        for (let k = 0; k < w.length; k++) w[k] = w[k]! * (1 - floor);
+        w[LAYER.forestFloor] = w[LAYER.forestFloor]! + floor * (1 - ragged);
+        w[LAYER.grassDirt] = w[LAYER.grassDirt]! + floor * ragged;
+      }
       if (stream) {
-        const x = -half + ((tx + 0.5) / resolution) * l.size * l.cellSizeM;
-        const z = -half + ((ty + 0.5) / resolution) * l.size * l.cellSizeM;
         const d = stream.nearest(x, z).distance;
         const mud = 1 - smoothstep(CHANNEL_HALF_WIDTH_M - 1.5, CHANNEL_HALF_WIDTH_M + 2.5, d);
         const shore = Math.max(
@@ -91,10 +120,47 @@ export function groundWeights(l: Landscape, stream?: StreamCenterline): GroundWe
       for (let k = 0; k < w.length; k++) layers[k]![i] = Math.round((w[k]! / sum) * 255);
     }
   }
-  return { resolution, layers };
+  return {
+    resolution,
+    layers,
+    shade: forest
+      ? treeShade(l, forest.trees, resolution)
+      : new Uint8Array(resolution * resolution),
+  };
 }
 
-/** Dvě RGBA textury pro shader: [trávy + lesní půda], [břeh + bahno]. */
+/** Kruhové ztmavení pod každým stromem a keřem (silnější uprostřed, k okraji slábne). */
+function treeShade(l: Landscape, trees: readonly TreePlacement[], resolution: number): Uint8Array {
+  const shade = new Float32Array(resolution * resolution);
+  const extent = l.size * l.cellSizeM;
+  const step = extent / resolution;
+  for (const tree of trees) {
+    const { radiusM, strength } = tree.model.startsWith('bush') ? BUSH_SHADE : TREE_SHADE;
+    const r = radiusM * tree.scale;
+    const ci = (tree.worldX + extent / 2) / step - 0.5;
+    const cj = (tree.worldZ + extent / 2) / step - 0.5;
+    const reach = Math.ceil(r / step);
+    for (
+      let j = Math.max(0, Math.floor(cj - reach));
+      j <= Math.min(resolution - 1, Math.ceil(cj + reach));
+      j++
+    ) {
+      for (
+        let i = Math.max(0, Math.floor(ci - reach));
+        i <= Math.min(resolution - 1, Math.ceil(ci + reach));
+        i++
+      ) {
+        const t = (Math.hypot(i - ci, j - cj) * step) / r;
+        if (t >= 1) continue;
+        const k = j * resolution + i;
+        shade[k] = Math.max(shade[k]!, strength * (1 - t * t));
+      }
+    }
+  }
+  return Uint8Array.from(shade, (v) => Math.round(v * 255));
+}
+
+/** Dvě RGBA textury pro shader: [trávy + lesní půda], [břeh + bahno + ztmavení pod stromy]. */
 export function packSplatTextures(weights: GroundWeights): [Uint8Array, Uint8Array] {
   const n = weights.resolution * weights.resolution;
   const first = new Uint8Array(n * 4);
@@ -103,11 +169,12 @@ export function packSplatTextures(weights: GroundWeights): [Uint8Array, Uint8Arr
     for (let c = 0; c < 4; c++) first[i * 4 + c] = weights.layers[c]![i]!;
     second[i * 4] = weights.layers[4]![i]!;
     second[i * 4 + 1] = weights.layers[5]![i]!;
+    second[i * 4 + 2] = weights.shade[i]!;
   }
   return [first, second];
 }
 
-function weightsPerTile(l: Landscape, tileWater: boolean): Float32Array {
+function weightsPerTile(l: Landscape, tileWater: boolean, tileForest: boolean): Float32Array {
   const { size } = l;
   const waterDistance = tileDistanceToWater(l);
   const weights = new Float32Array(size * size * GROUND_LAYERS.length);
@@ -130,7 +197,7 @@ function weightsPerTile(l: Landscape, tileWater: boolean): Float32Array {
       const rest = 1 - shore;
       if (rest <= 0) continue;
 
-      if (surface === SURFACE_CODES.forest) {
+      if (surface === SURFACE_CODES.forest && tileForest) {
         // Okraj lesa je rozcuchaný: lesní půda prolnutá trávou s hlínou (jako v 0 A.D.).
         const edge = isForestEdge(l, x, y);
         set(i, 'forestFloor', rest * (edge ? 0.55 : 1));

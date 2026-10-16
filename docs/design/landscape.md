@@ -122,9 +122,11 @@ na který se později přidávají další prvky (černozem, naleziště kovů, 
 - **Stromy a další objekty jsou 3D modely** (glTF/GLB) – grafika z **0 A.D.** (Wildfire Games,
   CC BY-SA 3.0, Martinova volba), jednotný styl s texturami terénu, smí do veřejného repa
   s uvedením autora. Dřeviny: smrk, dub, buk, bříza (každá ve dvou podobách), natočení
-  a velikost odvozené ze seedu, výš převažují smrky. Jednotlivé stromy jen na okraji lesa
-  (1.–2. řada), vnitřek lesa je plocha korun s texturou vyrenderovanou shora ze stejných
-  stromů. Vykreslování instancované (thin instances). Modely v `apps/web/public/models/`,
+  a velikost odvozené ze seedu, výš převažují smrky. Hranice lesa je ve scéně vyhlazená
+  a zvlněná (herní data políček se nemění). Jednotlivé stromy jen u hranice: hustý okraj,
+  řidší lem před lesem a ojedinělé stromy a keře v louce (mimo okolí místa pro vesnici), pod
+  nimi ztmavená půda. Vnitřek lesa je plocha korun s texturou vyrenderovanou shora ze
+  stejných stromů. Vykreslování instancované (thin instances). Modely v `apps/web/public/models/`,
   licence v `apps/web/public/models/LICENSES.md`, převod z 0 A.D. v `tools/blender/`.
 - **Kamera** jako v AoE2 – perspektiva šikmo shora (≈ 45°). Ovládání myší: táhnutí levým
   tlačítkem = posun, kolečko = přiblížení (s limity, nesmí se dostat pod terén ani daleko od
