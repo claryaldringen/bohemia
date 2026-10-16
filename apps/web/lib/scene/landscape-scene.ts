@@ -28,6 +28,7 @@ export class LandscapeScene {
   private rtsCamera: RtsCamera | null = null;
   private hovered: TileInfo | null = null;
   private pointerMoved = false;
+  private pointerInside = false;
   private needsRender = true;
   private rendering = false;
   private disposed = false;
@@ -106,10 +107,12 @@ export class LandscapeScene {
   }
 
   private readonly onPointerMove = (): void => {
+    this.pointerInside = true;
     this.pointerMoved = true;
   };
 
   private readonly onPointerLeave = (): void => {
+    this.pointerInside = false;
     this.pointerMoved = false;
     this.emit(null);
   };
@@ -121,7 +124,11 @@ export class LandscapeScene {
   private frame(): void {
     const camera = this.rtsCamera;
     if (!camera) return;
-    if (camera.update(this.engine.getDeltaTime() / 1000)) this.needsRender = true;
+    if (camera.update(this.engine.getDeltaTime() / 1000)) {
+      this.needsRender = true;
+      // Pod nehybným kurzorem je po pohybu kamery jiné políčko.
+      if (this.pointerInside) this.pointerMoved = true;
+    }
     this.pickHoveredTile();
     if (!this.needsRender) return;
     this.needsRender = false;

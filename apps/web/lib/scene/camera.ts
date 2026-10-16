@@ -54,12 +54,19 @@ export function createRtsCamera(
   camera.lowerRadiusLimit = MIN_RADIUS;
   camera.upperRadiusLimit = MAX_RADIUS;
   camera.wheelDeltaPercentage = 0.02;
-  camera._panningMouseButton = 0;
   camera.mapPanning = true;
   camera.minZ = 1;
   camera.maxZ = 6000;
   camera.inputs.removeByType('ArcRotateCameraKeyboardMoveInput');
-  camera.attachControl(canvas, true);
+  // noPreventDefault = false: kolečko a gesto přiblížení nezoomují stránku a vodorovný swipe
+  // na trackpadu nevrací prohlížeč zpět.
+  camera.attachControl(canvas, false);
+  // Babylon 9 má výchozí mapu vstupů levé = otáčení, pravé = posun; strategie chce opak.
+  camera.movement.input.inputMap = [
+    { source: 'pointer', button: 0, interaction: 'pan' },
+    { source: 'pointer', button: 2, interaction: 'rotate' },
+    { source: 'wheel', interaction: 'zoom' },
+  ];
 
   const pressed = new Set<string>();
   const onKeyDown = (event: KeyboardEvent): void => {
@@ -81,8 +88,8 @@ export function createRtsCamera(
   let hasView = false;
 
   const update = (dt: number): boolean => {
-    // Posun kolečkem i tažením má být stejně „rychlý“ na obrazovce při každém přiblížení.
-    camera.panningSensibility = 40_000 / camera.radius;
+    // Krajina se při tažení posouvá zhruba s kurzorem, při každém přiblížení.
+    camera.panningSensibility = 14_000 / camera.radius;
 
     const forward = new Vector3(-Math.cos(camera.alpha), 0, -Math.sin(camera.alpha));
     const right = new Vector3(Math.sin(camera.alpha), 0, -Math.cos(camera.alpha));
