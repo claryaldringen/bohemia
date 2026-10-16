@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { CURRENT_LAYER_VERSIONS, generateLandscape } from '../../domain/landscape';
+import {
+  checkBand,
+  CURRENT_LAYER_VERSIONS,
+  generateLandscape,
+  generateLandscapeAttempt,
+} from '../../domain/landscape';
 import { enterGame } from '../enter-game';
 import type { SeedSource } from '../settlements';
 import { InMemorySettlements } from './in-memory-settlements';
@@ -19,7 +24,6 @@ describe('enterGame', () => {
     expect(settlement).toMatchObject({
       ownerId: 'hrac-1',
       isSeat: true,
-      landscapeSeed: 4242,
       layerVersions: CURRENT_LAYER_VERSIONS,
     });
     expect(settlements.settlements).toHaveLength(1);
@@ -48,7 +52,7 @@ describe('enterGame', () => {
     expect(results[1]!.landscape.heights).toEqual(results[0]!.landscape.heights);
   });
 
-  it('sídlo se vygeneruje podle svého uloženého seedu, ne podle nového', async () => {
+  it('sídlo se vygeneruje přesně z uloženého seedu, ne z nového', async () => {
     const settlements = new InMemorySettlements();
     await settlements.createSeat({
       ownerId: 'hrac-1',
@@ -56,7 +60,42 @@ describe('enterGame', () => {
       layerVersions: CURRENT_LAYER_VERSIONS,
     });
     const { landscape } = await enterGame({ settlements, seeds: seedsFrom(999) }, 'hrac-1');
-    expect(landscape).toEqual(generateLandscape(7));
+    expect(landscape).toEqual(generateLandscapeAttempt(7, CURRENT_LAYER_VERSIONS));
+  });
+
+  // Seed, jehož první pokus nepadne do pásma – generátor pro něj zkouší další pokusy.
+  const seedNeedingRetry = (): number => {
+    for (let seed = 0; seed < 2000; seed++) {
+      if (!checkBand(generateLandscapeAttempt(seed, CURRENT_LAYER_VERSIONS)).ok) return seed;
+    }
+    throw new Error('Žádný seed s opakovaným pokusem – test nemá co ověřit.');
+  };
+
+  it('nové sídlo uloží seed přijatého pokusu, ne vylosovaný seed', async () => {
+    const drawn = seedNeedingRetry();
+    const settlements = new InMemorySettlements();
+    const { settlement, landscape } = await enterGame(
+      { settlements, seeds: seedsFrom(drawn) },
+      'hrac-1',
+    );
+    expect(settlement.landscapeSeed).not.toBe(drawn);
+    expect(
+      checkBand(generateLandscapeAttempt(settlement.landscapeSeed, CURRENT_LAYER_VERSIONS)).ok,
+    ).toBe(true);
+    expect(landscape).toEqual(generateLandscape(drawn));
+  });
+
+  it('uložené sídlo se načte bez kontroly pásma – ladění pásma krajinu nezmění', async () => {
+    const stored = seedNeedingRetry();
+    const settlements = new InMemorySettlements();
+    await settlements.createSeat({
+      ownerId: 'hrac-1',
+      landscapeSeed: stored,
+      layerVersions: CURRENT_LAYER_VERSIONS,
+    });
+    const { landscape } = await enterGame({ settlements, seeds: seedsFrom(1) }, 'hrac-1');
+    expect(landscape).toEqual(generateLandscapeAttempt(stored, CURRENT_LAYER_VERSIONS));
+    expect(landscape.heights).not.toEqual(generateLandscape(stored).heights);
   });
 
   it('různí hráči dostanou různá sídla', async () => {

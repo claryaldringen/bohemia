@@ -115,8 +115,10 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   vrstvy terén a voda → vegetace → úrodnost, každá s vlastním seedem (`deriveSeed`) a verzí.
   Pásmo srovnatelnosti hlídá `checkBand` (konstanty v `band.ts`) a testy na 300 seedech. Po
   změně generátoru pusť `measure-landscapes` a zkontroluj podíl krajin na první pokus a čas.
-- **Po ostrém spuštění** se existující vrstva nesmí změnit (přepsala by krajiny hráčů) – nová
-  verze vrstvy, nebo nová vrstva.
+- **Uložené sídlo nese seed přijatého pokusu** a jeho krajina se generuje přes
+  `generateLandscapeAttempt` bez kontroly pásma. Změna pásma (`band.ts`) proto platí jen pro nová
+  sídla. **Po ostrém spuštění** se existující vrstva nesmí změnit (přepsala by krajiny hráčů) –
+  nová verze vrstvy, nebo nová vrstva.
 - **Use-case** `enterGame` (sídelní sídlo hráče, atomicky přes unikátní index); ve webu
   `enterGameForPlayer` v `lib/game.ts`. Krajinu generuje server, do prohlížeče jde zakódovaná
   (`lib/landscape-transfer.ts`).
