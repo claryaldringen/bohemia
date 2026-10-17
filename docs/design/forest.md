@@ -1,6 +1,7 @@
 # Les a dřevo
 
-Stav: návrh k 17. 10. 2026, čeká na schválení. Implementace zatím není.
+Stav: schváleno 17. 10. 2026 (Martin: „Takhle je to zatím ok“). Implementace zatím není – staví na
+vrstvě překážek (stromy jako herní data).
 
 ## Proč
 
