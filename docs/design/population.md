@@ -91,6 +91,8 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
   umírají asi 1,5 % ročně, starší víc (kolem 8 % ročně). Hlad a přeplněnost úmrtnost zvýší.
 - **Přeplněnost** sama nastaví strop: populace domácnosti se ustálí kolem kapacity obydlí
   (+1–2), takže ves bez nových staveb přestane růst, ale nevymře.
+- **Hygiena** (bez ukazatele) zvyšuje úmrtnost, když ves nemá pohřebiště, je plné nebo leží moc
+  blízko obydlí či vody – [cemetery.md](cemetery.md) (Martin).
 - **Jídlo** vstupuje jako **nasycení vsi** 0–1 – počítá ho [fields.md](fields.md). Hlad ves
   zmenší na tolik lidí, kolik pole uživí, ale nezničí ji (návrh Clauda).
 - Porody a úmrtí jsou **jednotlivé náhodné události**, ale opakovatelné: náhoda se odvozuje
