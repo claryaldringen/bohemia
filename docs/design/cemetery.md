@@ -4,7 +4,7 @@ Stav: schváleno 17. 10. 2026 (Martin: „Ukazatel hygieny nebude. Prostě to bu
 populaci. Ohledně ostatního sis to domyslel dobře.“). Implementováno 17. 10. 2026: jádro
 `packages/game/src/domain/village/cemetery.ts`, umístění `cemeteryPartsFromCells`, scéna
 `apps/web/lib/scene/cemetery-renderer.ts`, Hřbitov [V] v mřížce staveb; čtverce navazující
-stranou na hřbitov ho rozšíří (Martin). Hřbitov se zatím jako
+stranou na hřbitov ho rozšíří. Hřbitov se zatím jako
 pole nesmí zakládat v lese (mýcení přijde později) a překážky stojí 0 – vrstva překážek ještě
 není (fields.md).
 
