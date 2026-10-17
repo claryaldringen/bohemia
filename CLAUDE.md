@@ -81,7 +81,7 @@ packages/game/       herní jádro
   src/application/   use-casy a porty (enterGame, SettlementRepository, SeedSource)
   scripts/           vývojové nástroje (measure-landscapes.ts, measure-village.ts)
 packages/db/         Drizzle schéma, klient, migrace a adaptéry portů (src/adapters/)
-docs/design/         herní design – vize + dokument pro každou mechaniku
+docs/design/         herní design – vize + dokument pro každou mechaniku, rešerše v research/
 ```
 
 ## Herní kalendář
@@ -240,6 +240,12 @@ Pravidla v [docs/design/population.md](docs/design/population.md) a
 - **Čísla** pravidel jsou jen v `rules.ts` (u každého odkaz na sekci návrhu); změna čísla = i
   text v návrhu. Kalibrace: `measure-village.ts` nasimuluje stovky vsí a vypíše cíle z Kalibrace
   obou dokumentů s OK / MIMO (`200 60` rychlé cíle, `100 1000` vymření do roku 1500).
+- **Meze produktivity** (Martin): čísla s rozpětím v literatuře jsou v `rules.ts` dvojice
+  `{ worst, best }` – bez řemesel `worst`, s plně pokrytou potřebou výrobků řemeslníků `best`.
+  Hodnotu podle pokrytí 0–1 dávají funkce v `productivity.ts` (`withinBounds`, `fieldWorkPerHa`,
+  `storageLossPerYear`…). Řemesla zatím nejsou – volající předávají `NO_CRAFTS` (pokrytí 0);
+  stav řemesel nevymýšlet, až vzniknou, pokrytí se spočítá v `simulate.ts`. Zdroje čísel jsou
+  v rešerších `docs/design/research/`.
 - **Web:** server actions `app/game/actions.ts` (`getVillageView`, `foundVillage`, `placeDwelling`,
   `placeField`, `renameVillage` → `VillageView` / `null` / `{ error }`), composition root
   `lib/village.ts`, `lib/village-view.ts` (DTO, smí i do prohlížeče). Typy pro scénu jsou

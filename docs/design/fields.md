@@ -2,7 +2,9 @@
 
 Stav: schváleno 17. 10. 2026 (Martin). Týž den změna (Martin, po prvním prototypu): **pole se
 staví po čtvercích** – políčkách krajiny 15 × 15 m, jak je obvyklé v realtime strategiích – místo
-volného obrysu. Implementace jádra: `packages/game/src/domain/village/`.
+volného obrysu. Týž den **oprava čísel podle rešerše** (Martin: „Ano, zapracuj i ostatní opravy.“ –
+[rešerše](research/2026-10-17-zemedelstvi-populace.md)) a **meze produktivity** (viz níže).
+Implementace jádra: `packages/game/src/domain/village/`.
 
 ## Proč
 
@@ -27,7 +29,8 @@ všechnu práci vsi a teprve lepší nástroje a osevní systémy (další mecha
   vsi od začátku (Martin).
 - **Cíl:** práce na poli se řídí ročními obdobími (kalendář) – jarní a letní špičky jsou znát.
 - **Cíl:** pole dá populaci skutečné nasycení a nahradí pevných 85 % práce na obživu.
-- **Ne-cíl (teď):** druhy plodin (zatím jedno „obilí“), lepší nástroje (rádlo, pluh, kosa),
+- **Ne-cíl (teď):** druhy plodin (zatím jedno „obilí“), lepší nástroje (**rádlo a voli později
+  – Martin**; pluh, kosa),
   tažná a hospodářská zvířata, seno a pastva, lepší osevní systémy (dvojpolní, trojpolní),
   počasí a s ním náhoda v úrodě, zahrady a rybolov jako zdroj jídla, využití vykáceného dřeva,
   obchod s jídlem, více vesnic.
@@ -61,8 +64,23 @@ všechnu práci vsi a teprve lepší nástroje a osevní systémy (další mecha
 - **Krajina sídla** – vygenerovaná krajina plus **stav sídla nad ní**: pole, vykácené stromy,
   odstraněné kameny, zarůstání. Generátor krajiny se nemění (po ostrém spuštění se existující
   vrstva nesmí změnit – viz [krajina](landscape.md)).
+- **Meze produktivity** – horní a dolní mez práce nebo ztrát, viz níže.
 
 ## Pravidla
+
+### Meze produktivity
+
+Martin (17. 10. 2026): „Zatím uvažuj jen motyky. Voly a rádlo přidáme později. … Ta produktivita
+má nějaké meze. Bez řemeslníků ber tu nejhorší hranici, s řemeslníky tu nejlepší.“
+
+- Každá práce nebo ztráta, kde literatura dává rozpětí, má **horní mez** (ves bez řemesel)
+  a **dolní mez** (plně pokrytá potřeba výrobků řemeslníků); mezi nimi se hodnota posouvá
+  lineárně podle pokrytí 0–1 ([řemesla](crafts.md)). Kde literatura dává jedno číslo, platí
+  obojí.
+- **Kovář** (nástroje) posouvá práci – polní práce, zakládání polí a vracení přílohu; **hrnčíř**
+  (nádoby) ztráty zásob a denní minimum domácností.
+- **Řemesla zatím nejsou**, takže dnes platí všude horní mez. V tabulkách níže je dolní mez
+  v závorce („s řemesly“).
 
 ### Založení pole (rozhoduje hráč)
 
@@ -76,11 +94,11 @@ všechnu práci vsi a teprve lepší nástroje a osevní systémy (další mecha
 - Pole může ležet na louce, v křovinách i v lese (Martin). Všechno, co je na čtvercích pole,
   osadníci při založení odstraní – stojí to práci navíc:
 
-  | Povrch dílu (za hektar)              | Práce navíc                    |
-  | ------------------------------------ | ------------------------------ |
-  | louka – rozrušení drnu               | 40 člověkodní                  |
-  | křoviny – vysekání a vytrhání kořenů | 150 člověkodní                 |
-  | les – kácení, pálení, klučení pařezů | 250 člověkodní (stromy v ceně) |
+  | Povrch dílu (za hektar)              | Práce navíc (s řemesly)             | Zdroj             |
+  | ------------------------------------ | ----------------------------------- | ----------------- |
+  | louka – rozrušení drnu               | 100 člověkodní (90)                 | Semjonov 1974     |
+  | křoviny – vysekání a vytrhání kořenů | 100 člověkodní (60)                 | Rösch a kol. 2017 |
+  | les – kácení, pálení, klučení pařezů | 250 člověkodní (150), stromy v ceně | Rösch a kol. 2017 |
 
   | Překážka na louce (za kus) | Práce navíc                                                |
   | -------------------------- | ---------------------------------------------------------- |
@@ -90,7 +108,10 @@ všechnu práci vsi a teprve lepší nástroje a osevní systémy (další mecha
   | keř                        | 0,5 člověkodne                                             |
   | skalní výchoz              | neodstraní se – pole ho obejde, plocha pod ním se nepočítá |
 
-  Všechna čísla jsou návrh Clauda. Stejné ceny překážek platí pro umístění obydlí
+  Ceny povrchu jsou oprava podle rešerše (dřív 40 / 150 / 250): panenský drn jde motykou
+  ≈ 2,5× pomaleji než lehká půda (Semjonov 1974), 15letý porost stojí ≈ 49 dní na hektar
+  kamennými sekerami (Rösch a kol. 2017); žďár bez klučení pařezů přijde s další mechanikou.
+  Překážky jsou návrh Clauda. Stejné ceny překážek platí pro umístění obydlí
   ([populace](population.md)) – jedna tabulka pro celou hru.
 
 - **Založení je stavba:** dostává společnou práci vsi stejně jako stavby obydlí (rovným dílem
@@ -120,10 +141,15 @@ Výchozí osevní systém je přílohová soustava raných Slovanů (Martin). Pr
 - **Osev:** díl se osévá rok po roku, dokud jeho aktuální úrodnost neklesne pod **70 %**
   přirozené. Osetý rok ji sníží o 12 % přirozené, takže čerstvý díl se oseje **3 roky** po sobě
   (100 → 88 → 76 → 64 %). Pak jde do **přílohu**.
-- **Příloh:** díl leží ladem bez péče a zarůstá (viz Zarůstání). Úrodnost se mu vrací o 5 %
-  přirozené za rok (nejvýš na přirozenou) – z 64 % se na **95 %** dostane za **7 let**. Jeden
-  oběh dílu tak trvá zhruba 10 let a oseto je v průměru asi 30 % půdy: ves potřebuje pole
-  **≈ 3,3× větší než osev** (dvojpolní systém by potřeboval 2×).
+- **Příloh:** díl leží ladem bez péče a zarůstá (viz Zarůstání). Úrodnost se mu vrací o **2,5 %**
+  přirozené za rok (nejvýš na přirozenou) – z 64 % se na **95 %** dostane za **13 let** a vrací se
+  ve stadiu křovin, ještě než zaroste v les. Jeden oběh dílu tak trvá zhruba 16 let a oseto je
+  v průměru asi 19 % půdy: ves potřebuje pole **≈ 5,3× větší než osev** (dvojpolní systém by
+  potřeboval 2×). Oprava podle rešerše (dřív 5 % a 7 let): pole z drnu se užívala 2–3 roky
+  a pak ležela ladem 20 i více let (Beranová 1980), trávopolní soustava 15–20 let, žďár ≈ 12 let
+  (Rösch a kol. 2017). **K potvrzení:** rozhodnutí znělo +2 % za rok s cílem 12–13 let, jenže
+  +2 % vede z 64 % na 95 % až za 16 let (12–13 let platí od 70 %) a každý příloh by zarostl
+  v les – proto 2,5 % (rešerše uvádí 2–2,5 %).
 - **Smí se osít** díl, jehož aktuální úrodnost je aspoň 70 % přirozené.
 - **Pořadí:** k 1. září ves vybírá díly na příští rok v tomto pořadí, dokud nepokryje potřebu
   (viz Kolik ves oseje):
@@ -149,7 +175,7 @@ dospělí všech domácností pracují na společných polích (Martin). Ves pr�
 pořadí (návrh Clauda; nahrazuje pevných 85 % a dělení práce po domácnostech v populaci):
 
 1. **Denní minimum domácností** – vaření, voda, oheň, péče o malé děti: 0,5 člověkodne denně
-   na každou domácnost.
+   na každou domácnost (s hrnčířem 0,45; FAO: venkovské ženy 0,5–0,6 dne).
 2. **Polní práce v jejich období** (tabulka níže).
 3. **Opravy obydlí** (populace).
 4. **Domácí výroba** – oděv, nádobí, jednoduché železné předměty, palivo: v průměru 0,3
@@ -157,17 +183,22 @@ pořadí (návrh Clauda; nahrazuje pevných 85 % a dělení práce po domácnost
    nedodělaná se přenáší, nejvýš za 60 dní, a má přednost před společnou prací.
 5. Zbytek je **společná práce vsi** – stavby obydlí a zakládání polí (populace).
 
-**Polní práce při ruční práci** (člověkodny na osetý hektar za rok – návrh Clauda):
+**Polní práce při ruční práci** (člověkodny na osetý hektar za rok, v závorce s řemesly – oprava
+podle rešerše, dřív 200 – kopání 80, výmlat 30). Zatím jen motyky; **rádlo a voli později
+(Martin)** – rádlo by zpracování půdy zkrátilo na ≈ 5–15 člověkodní na hektar, drn ale dál chce
+motyku nebo oheň (Semjonov 1974).
 
-| Práce                      | Kdy (kalendář)                           | Člověkodny / ha |
-| -------------------------- | ---------------------------------------- | --------------- |
-| kopání motykou             | podzim (září–listopad) nebo březen–duben | 80              |
-| setí a zahrabání           | březen–duben                             | 10              |
-| pletí                      | květen–červen                            | 30              |
-| sklizeň srpem a vázání     | červenec–srpen                           | 30              |
-| odnos úrody v nůších       | červenec–srpen                           | 20              |
-| výmlat cepem               | listopad–únor                            | 30              |
-| **celkem na osetý hektar** |                                          | **200**         |
+| Práce                      | Kdy (kalendář)                           | Člověkodny / ha | Zdroj                 |
+| -------------------------- | ---------------------------------------- | --------------- | --------------------- |
+| kopání motykou             | podzim (září–listopad) nebo březen–duben | 100 (50)        | Semjonov 1974         |
+| setí a zahrabání           | březen–duben                             | 10              | nedohledáno           |
+| pletí                      | květen–červen                            | 30 (15)         | FAO                   |
+| sklizeň srpem a vázání     | červenec–srpen                           | 30 (15)         | Halstead a Jones 1989 |
+| odnos úrody v nůších       | červenec–srpen                           | 20              | nedohledáno           |
+| výmlat cepem a převívání   | listopad–únor                            | 15 (10)         | Clark 2007 (EB 1911)  |
+| **celkem na osetý hektar** |                                          | **205 (120)**   |                       |
+
+První sezónu po vymýcení lesa se díl **neplete** (viz Úroda).
 
 - **Vzdálenost:** práce na dílu je o 1 % dražší za každých 10 m nad 100 m od nejbližšího
   obydlí (chůze, nošení v nůších – návrh Clauda). Díl 500 m daleko stojí o 40 % víc práce.
@@ -181,9 +212,11 @@ pořadí (návrh Clauda; nahrazuje pevných 85 % a dělení práce po domácnost
   nebere a úroda zaseté části se za nezasetou nesráží podruhé – pletí a sklizeň se měří vůči
   zaseté ploše.
 - **Vrácení přílohu** do osevu (podzim září–listopad, před kopáním – návrh Clauda) stojí práci
-  navíc podle stáří přílohu: 1–2 roky nic, 3–5 let (louka, drn) 40 člověkodní na hektar,
-  6–10 let (mladý nálet – vypálí se) 60, 11–15 let (husté křoviny) 150, víc než 15 let (les)
-  250 jako mýcení. V běžném oběhu se příloh vrací po 7–8 letech, tedy za 60 na hektar.
+  navíc podle stáří přílohu (v závorce s řemesly – oprava podle rešerše, dřív 40 / 60 / 150 /
+  250): 1–2 roky nic, 3–5 let (louka, drn) 100 člověkodní na hektar (90), 6–10 let (mladý nálet –
+  vypálí se) 100 (60), 11–15 let (husté křoviny) 100 (60), víc než 15 let (les) 250 (150) jako
+  mýcení (Semjonov 1974, Rösch a kol. 2017). V běžném oběhu se příloh vrací po 13 letech
+  (křoviny), tedy za 100 na hektar.
 
 ### Úroda
 
@@ -195,10 +228,14 @@ pořadí (návrh Clauda; nahrazuje pevných 85 % a dělení práce po domácnost
   raný středověk 1 : 3). Do zásob jde čistá úroda.
 - Úroda se sníží podle nedodělané práce (pletí, sklizeň, odnos – viz Včasnost).
 - **Úrodnost:** osetý rok sníží aktuální úrodnost dílu o 12 % přirozené, rok v přílohu ji
-  o 5 % přirozené vrátí, nejvýš na přirozenou (viz Přílohová soustava – návrh Clauda).
-- **Vymýcený les:** popel z pálení dá dílu první 3 roky po založení úrodnost o 20 vyšší (nejvýš 100) – právě na jednu fázi osevu. Pak platí přirozená úrodnost políčka z krajiny (návrh Clauda
-  – žďáření, půda po vypálení je nejúrodnější). Stejně i příloh, který zarostl v les a ves ho
-  znovu vymýtí.
+  o 2,5 % přirozené vrátí, nejvýš na přirozenou (viz Přílohová soustava).
+- **Vymýcený les:** popel z pálení dá dílu v **první sezóně osevu** úrodnost o **40** vyšší a ve
+  **druhé o 20** (nejvýš 100), od třetí platí přirozená úrodnost políčka z krajiny. **První
+  sezónu se díl neplete** – vypálená půda je bez plevele a nedodělané pletí ostatních dílů ho
+  nesráží. Oprava podle rešerše (dřív +20 na 3 roky): první osev čerstvě vymýcené a vypálené
+  plochy dal úrody srovnatelné s dnešním zemědělstvím a sklizeň bez plevele (Rösch a kol. 2017).
+  Bonus platí jen do 3 let od vymýcení – díl, který ves do té doby neoseje, o něj přijde.
+  Stejně i příloh, který zarostl v les a ves ho znovu vymýtí.
 - **Bez náhody** – stejná práce na stejné půdě dá stejnou úrodu (Martin). Dobré a špatné roky
   přijdou až s mechanikou počasí; hájení z [populace](population.md) se pak rozšíří i na
   neúrodu.
@@ -210,7 +247,8 @@ pořadí (návrh Clauda; nahrazuje pevných 85 % a dělení práce po domácnost
 - **Zbytek stravy** (zahrada, sběr, ryby, drobné hospodářství) se zatím nemodeluje a bere se jako
   pokrytý. Domácí výroba je jen spotřeba práce – její nedodělání nasycení nesnižuje (návrh
   Clauda). Nasycení tak závisí jen na zásobách obilí, jak čeká [populace](population.md).
-- **Ztráty při skladování:** 10 % zásob za rok (myši, plíseň), rozložené rovnoměrně.
+- **Ztráty při skladování:** 10 % zásob za rok (myši, plíseň), rozložené rovnoměrně; s hrnčířem
+  5 % (meze – dobře utěsněná jáma ztrácí málo, Butser; rozpětí návrh Clauda).
 - **Přídělový systém:** dokud zásoby vystačí do příští sklizně, jí ves dosyta (nasycení 1).
   Když nevystačí, obyvatelé rozdělí to, co zbývá, rovnoměrně do sklizně – nasycení je podíl
   zásob a potřeby do sklizně (návrh Clauda). Ves tak hladoví postupně, ne ze dne na den.
@@ -287,18 +325,21 @@ vsi od začátku (Martin). Hektar lesa stojí 250 člověkodní a vymýcená pů
 
 ## Kalibrace
 
-Měřicí skript (jako u populace) ověří:
+Měřicí skript (jako u populace) ověří (cíle odvozené z oběhu – velikost pole, délka přílohu,
+louky – se po opravě podle rešerše přepočítaly; cíle práce na obživu, nasycení a zásob zůstaly):
 
 - startovní ves s osevem ≈ 1,7 ha na úrodnosti 70 je nasycená a v ustáleném oběhu (pole
-  ≈ 5,6 ha) dává na obživu 85–90 % práce,
-- plná domácnost se uživí z osevu ≈ 2,7 ha (pole ≈ 9 ha) a dává na obživu ≈ 80 %,
-- díl se v běžném oběhu oseje 3 roky po sobě a do osevu se vrací po 7–8 letech přílohu,
+  ≈ 9 ha, dřív ≈ 5,6) dává na obživu 85–90 % práce,
+- plná domácnost se uživí z osevu ≈ 2,7 ha (pole ≈ 14 ha, dřív ≈ 9) a dává na obživu ≈ 80 %,
+- díl se v běžném oběhu oseje 3 roky po sobě a do osevu se vrací po 13–14 letech přílohu (dřív
+  7–8),
 - ves s polem o polovinu větším, než oběh potřebuje, nadbytečnou část nevybírá – ta zůstává
   v přílohu a po 15 letech je z ní les,
 - ves s poli přiměřené velikosti drží zásoby mezi 1 a 1,5 roční potřeby a nasycení ≥ 0,95
   po 95 % let,
 - startovní ves stihne jarní i letní práce s rezervou aspoň 20 %,
-- na typické krajině uživí louky v okolí 3–4 domácnosti; ves, která mýtí les, roste dál,
+- na typické krajině uživí louky v okolí 2–3 domácnosti (dřív 3–4); ves, která mýtí les, roste
+  dál,
 - cíle populace platí dál i se skutečným jídlem místo pevných 85 % (první stavba u 90 % vsí
   do ≈ 8 let).
 
@@ -348,11 +389,14 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 
 ## Navazuje
 
+- **Řemesla** ([crafts.md](crafts.md)) – kovář a hrnčíř posunou práci a ztráty z horních mezí
+  k dolním (viz Meze produktivity).
 - **Lepší nástroje a osevní systémy** – hlavní cesta, jak práci na jídle uvolnit (Martin):
-  rádlo a tažná zvířata (kopání → orba), kosa; **dvojpolní** systém (pole trvale v osevu, střídá
-  se osev a úhor – potřeba půdy klesne z ≈ 3,3× na 2× osevu a odpadne vracení přílohů), později
-  **trojpolní** (ozim, jař, úhor – 1,5× osevu, hnojení od dobytka). Každý krok uvolní půdu
-  i práci.
+  **rádlo a voli později (Martin)** – kopání → orba (≈ 5–15 člověkodní na hektar místo 50–100;
+  historicky měli Slované rádlo nejspíš od 7.–8. století, Nekuda 1985), kosa; **dvojpolní**
+  systém (pole trvale v osevu, střídá se osev a úhor – potřeba půdy klesne z ≈ 5,3× na 2× osevu
+  a odpadne vracení přílohů), později **trojpolní** (ozim, jař, úhor – 1,5× osevu, hnojení od
+  dobytka). Každý krok uvolní půdu i práci.
 - **Počasí** – dobré a špatné roky úrody (Martin: náhoda až s počasím); hájení se pak rozšíří
   i na neúrodu.
 - **Druhy plodin** (ozim a jař, proso, luštěniny), **zvířata, seno a pastva**, **les a dřevo**
@@ -370,35 +414,42 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 
 ## Rozhodnutí
 
-| Rozhodnutí                                                                                   | Kdo                           |
-| -------------------------------------------------------------------------------------------- | ----------------------------- |
-| Pole = celá zemědělská půda; obdělává se jen část, zbytek ladem podle středověkých systémů   | Martin                        |
-| Zpočátku jen ruční práce; příliš velké pole ves neobdělá a část zarůstá                      | Martin                        |
-| Pole jsou samostatná a společná pro celou ves; zakládá je hráč zvlášť                        | Martin                        |
-| Pole se vyznačí volným obrysem na zemi; jde i do lesa, překážky prodraží založení            | Martin                        |
-| Změna: pole se staví po čtvercích – políčkách krajiny (místo volného obrysu)                 | Martin                        |
-| Ves se zakládá zemnicí; pole přidá hráč, kdy chce (dřív zemnicí a prvním polem)              | Martin (17. 10. 2026)         |
-| Odstraněné stromy a kameny zmizí natrvalo; dřevo do zásob až s mechanikou dřeva              | Martin                        |
-| Hráč určuje, kde pole jsou a jak velká; kolik se oseje, rozhoduje ves podle potřeby          | návrh Clauda, Martin potvrdil |
-| Ležení ladem obnovuje úrodnost, osev ji vyčerpává; systém se časem zlepšuje                  | návrh Clauda, Martin potvrdil |
-| Pole nahradí 85 %; nástroje a systémy uvolní práci                                           | návrh Clauda, Martin potvrdil |
-| Práce podle ročních období, sklizeň do zásob → nasycení                                      | návrh Clauda, Martin potvrdil |
-| Úroda podle úrodnosti, práce a včasnosti; zarostlá půda → louka → les                        | návrh Clauda, Martin potvrdil |
-| Díly pole po políčkách krajiny; max 800 m od obydlí, min 0,1 ha                              | návrh Clauda                  |
-| Ceny založení: louka 40, křoviny 150, les 250 člověkodní/ha; tabulka překážek                | návrh Clauda                  |
-| Založení jako stavba ze společné práce, díly postupně od obydlí                              | návrh Clauda                  |
-| Ves oseje k 1. 9. potřebu + 15 % (kalibrace z 10 %)                                          | návrh Clauda                  |
-| Příloh se neudržuje a zarůstá; nevybrané díly stárnou až v les                               | návrh Clauda                  |
-| Práce za celou ves: pořadí, denní minimum, domácí výroba (jen práce, přenos max 60 dní)      | návrh Clauda                  |
-| Práce 200 člověkodní/ha, výnos 760 kg × úrodnost, osivo 175 kg, potřeba 180/140/100          | návrh Clauda                  |
-| Vymýcený les +20 úrodnosti na 3 roky; vzdálenost +1 % / 10 m                                 | návrh Clauda                  |
-| Společné zásoby vsi, ztráty 10 %, přídělový systém, start se zásobami na 18 měsíců           | návrh Clauda                  |
-| Přirozená louka nezarůstá; les z náletu ve scéně jako mladé stromky                          | návrh Clauda                  |
-| Překážky jako verzovaná vrstva krajiny v `packages/game`; co je překážka a za kolik          | návrh Clauda                  |
-| Hlad ves zmenší, ale nezničí; hájení chrání i před hladem                                    | návrh Clauda                  |
-| Výchozí osevní systém: přílohová soustava raných Slovanů                                     | Martin                        |
-| Úroda zatím bez náhody – dobré a špatné roky až s počasím (pak hájení i na neúrodu)          | Martin                        |
-| Přílohová soustava: osev do 70 % úrodnosti (≈ 3 roky), příloh do 95 % (≈ 7 let), pořadí dílů | návrh Clauda                  |
-| Vrácení přílohu podle stadia: louka 40, nálet 60, křoviny 150, les 250 člověkodní/ha         | návrh Clauda                  |
-| Jedno obilí                                                                                  | návrh Clauda                  |
-| Ovládání (čtverce na mřížce, panely, vzhled) – ladí se na prototypu                          | návrh Clauda                  |
+| Rozhodnutí                                                                                                               | Kdo                                        |
+| ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------ |
+| Pole = celá zemědělská půda; obdělává se jen část, zbytek ladem podle středověkých systémů                               | Martin                                     |
+| Zpočátku jen ruční práce; příliš velké pole ves neobdělá a část zarůstá                                                  | Martin                                     |
+| Pole jsou samostatná a společná pro celou ves; zakládá je hráč zvlášť                                                    | Martin                                     |
+| Pole se vyznačí volným obrysem na zemi; jde i do lesa, překážky prodraží založení                                        | Martin                                     |
+| Změna: pole se staví po čtvercích – políčkách krajiny (místo volného obrysu)                                             | Martin                                     |
+| Ves se zakládá zemnicí; pole přidá hráč, kdy chce (dřív zemnicí a prvním polem)                                          | Martin (17. 10. 2026)                      |
+| Odstraněné stromy a kameny zmizí natrvalo; dřevo do zásob až s mechanikou dřeva                                          | Martin                                     |
+| Hráč určuje, kde pole jsou a jak velká; kolik se oseje, rozhoduje ves podle potřeby                                      | návrh Clauda, Martin potvrdil              |
+| Ležení ladem obnovuje úrodnost, osev ji vyčerpává; systém se časem zlepšuje                                              | návrh Clauda, Martin potvrdil              |
+| Pole nahradí 85 %; nástroje a systémy uvolní práci                                                                       | návrh Clauda, Martin potvrdil              |
+| Práce podle ročních období, sklizeň do zásob → nasycení                                                                  | návrh Clauda, Martin potvrdil              |
+| Úroda podle úrodnosti, práce a včasnosti; zarostlá půda → louka → les                                                    | návrh Clauda, Martin potvrdil              |
+| Díly pole po políčkách krajiny; max 800 m od obydlí, min 0,1 ha                                                          | návrh Clauda                               |
+| ~~Ceny založení: louka 40, křoviny 150, les 250 člověkodní/ha~~; tabulka překážek                                        | návrh Clauda                               |
+| Založení jako stavba ze společné práce, díly postupně od obydlí                                                          | návrh Clauda                               |
+| Ves oseje k 1. 9. potřebu + 15 % (kalibrace z 10 %)                                                                      | návrh Clauda                               |
+| Příloh se neudržuje a zarůstá; nevybrané díly stárnou až v les                                                           | návrh Clauda                               |
+| Práce za celou ves: pořadí, denní minimum, domácí výroba (jen práce, přenos max 60 dní)                                  | návrh Clauda                               |
+| ~~Práce 200 člověkodní/ha~~, výnos 760 kg × úrodnost, osivo 175 kg, potřeba 180/140/100                                  | návrh Clauda                               |
+| ~~Vymýcený les +20 úrodnosti na 3 roky~~; vzdálenost +1 % / 10 m                                                         | návrh Clauda                               |
+| Společné zásoby vsi, ztráty 10 %, přídělový systém, start se zásobami na 18 měsíců                                       | návrh Clauda                               |
+| Přirozená louka nezarůstá; les z náletu ve scéně jako mladé stromky                                                      | návrh Clauda                               |
+| Překážky jako verzovaná vrstva krajiny v `packages/game`; co je překážka a za kolik                                      | návrh Clauda                               |
+| Hlad ves zmenší, ale nezničí; hájení chrání i před hladem                                                                | návrh Clauda                               |
+| Výchozí osevní systém: přílohová soustava raných Slovanů                                                                 | Martin                                     |
+| Úroda zatím bez náhody – dobré a špatné roky až s počasím (pak hájení i na neúrodu)                                      | Martin                                     |
+| Přílohová soustava: osev do 70 % úrodnosti (≈ 3 roky), příloh do 95 % (~~≈ 7 let~~), pořadí dílů                         | návrh Clauda                               |
+| ~~Vrácení přílohu podle stadia: louka 40, nálet 60, křoviny 150, les 250 člověkodní/ha~~                                 | návrh Clauda                               |
+| Jedno obilí                                                                                                              | návrh Clauda                               |
+| Ovládání (čtverce na mřížce, panely, vzhled) – ladí se na prototypu                                                      | návrh Clauda                               |
+| Meze produktivity: čísla s rozpětím mají horní mez (bez řemesel) a dolní (s řemesly)                                     | Martin (17. 10. 2026)                      |
+| Zatím jen motyky; rádlo a voli později                                                                                   | Martin (17. 10. 2026)                      |
+| Polní práce 205 (s řemesly 120) člověkodní/ha: kopání 100 (50), pletí 30 (15), sklizeň 30 (15), výmlat 15 (10)           | Martin – oprava podle rešerše 17. 10. 2026 |
+| Založení a vrácení přílohu: louka 100 (90), nálet a křoviny 100 (60), les 250 (150) člověkodní/ha                        | Martin – oprava podle rešerše 17. 10. 2026 |
+| Obnova v přílohu 2,5 % za rok – příloh 13 let, pole ≈ 5,3× osevu (rozhodnutí: 2 %, viz Přílohová soustava – k potvrzení) | Martin – oprava podle rešerše 17. 10. 2026 |
+| Vymýcený les +40 / +20 / 0 úrodnosti podle sezóny osevu, první sezónu bez pletí                                          | Martin – oprava podle rešerše 17. 10. 2026 |
+| Hrnčíř: ztráty zásob 10 → 5 %, denní minimum 0,5 → 0,45 (rozpětí návrh Clauda)                                           | Martin – oprava podle rešerše 17. 10. 2026 |

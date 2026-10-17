@@ -28,6 +28,10 @@ další rozhodnutí o místě v krajině – vedle obydlí a polí.
 - **Velikost:** každý pohřbený zabere **4 m²** i s uličkami – na čtverec se vejde 56 hrobů
   (návrh Clauda). Hroby se zatím znovu nepoužívají, pohřebiště se postupně plní a hráč ho musí
   rozšiřovat. Kdo zemře a nemá kde ležet, je to jako by ves pohřebiště neměla.
+  Po rešerši zůstávají 4 m² (Martin, 17. 10. 2026): kostrová řadová pohřebiště mají 1,5–2,9 m²
+  na hrob (Přezletice – Koštová a kol. 2022, Radomyšl – Blajerová a Nechvátal 2008), mohylníky
+  6.–8. století 10–50 m² na mohylu (Strážovice); doba se zatím neřeší
+  ([rešerše](research/2026-10-17-remesla-drevo-sad.md)).
 - **Hygiena** (vnitřní číslo 0–1, hráč ho nevidí – Martin):
   - **0**, když ves nemá pohřebiště s volným místem (žádné, nebo všechna plná),
   - jinak podle **vzdálenosti** nejlepšího pohřebiště s volným místem: od nejbližšího obydlí

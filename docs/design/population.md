@@ -1,7 +1,9 @@
 # Obyvatelstvo a obydlí vesnice
 
 Stav: schváleno 17. 10. 2026 (Martin: „asi ok, doladíme později“), týž den upraveno umístění
-obydlí a společná pole (Martin) a odemčení nového obydlí – hráč staví, kdy chce (Martin).
+obydlí a společná pole (Martin) a odemčení nového obydlí – hráč staví, kdy chce (Martin). Týž den
+oprava čísel podle rešerše (Martin – úmrtnost dospělých, porody od 16 let, životnost zemnice;
+[rešerše](research/2026-10-17-zemedelstvi-populace.md)).
 Implementace jádra: `packages/game/src/domain/village/`.
 
 ## Proč
@@ -35,14 +37,18 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
 
 - **Ves** – jedno sídlo hráče; drží společné zásoby (zatím práci, později jídlo, vodu, dřevo).
 - **Obyvatel** – jednotlivec s datem narození (bez jména a pohlaví – návrh Clauda). Věkové
-  skupiny: **dítě** 0–13 let, **dospělý** 14–44, **starší** 45+.
+  skupiny: **dítě** 0–13 let, **dospělý** 14–44 (děti může mít až od 16 let), **starší** 45+.
 - **Domácnost** – lidé jednoho obydlí. Každé obydlí je právě jedna domácnost.
 - **Obydlí** – zatím dva typy:
 
   | Typ         | Míst | Nová stavba    | Typická životnost |
   | ----------- | ---- | -------------- | ----------------- |
-  | zemnice     | 6    | 60 člověkodní  | ≈ 15 let          |
+  | zemnice     | 6    | 60 člověkodní  | ≈ 18 let          |
   | polozemnice | 8    | 220 člověkodní | ≈ 20–25 let       |
+
+  Životnost zemnice je oprava podle rešerše (dřív ≈ 15 let): pravěké dřevěné stavby vydržely
+  běžně 20–30 let bez ohledu na založení (Fries-Knoblach 2007), rekonstrukce zahloubeného domu
+  stála 13 let bez oprav a vydržela by déle (Waldhauser 2008).
 
   Polozemnice je sušší a teplejší – dětem v ní je lépe (nižší dětská úmrtnost). Pro čerstvě
   plnou domácnost trvá zemnice zhruba jedno roční období, polozemnice celý herní rok – hráč volí
@@ -59,7 +65,7 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
 - Hráč v krajině svého sídla umístí půdorys první zemnice (viz Umístění obydlí) – tím ves
   založí. Zemnice tam hned stojí (osadníci přišli) a bydlí v ní **4 lidé**: dva dospělí (kolem
   25 let) a dva dospívající (12 a 13 let – návrh Clauda, aby první nová domácnost mohla
-  vzniknout do pár let). Ves dostane navržené staročeské jméno, které hráč může kdykoli změnit.
+  vzniknout do pár let; zůstávají i s porody od 16 let – Martin). Ves dostane navržené staročeské jméno, které hráč může kdykoli změnit.
 - **První pole není podmínkou založení** (Martin, 17. 10. 2026: „Hráč sám rozhodne kdy a co bude
   stavět, jako v každé RTS.“) – pole jsou samostatná a společná pro celou ves a hráč je zakládá,
   kdy chce ([fields.md](fields.md)). Ves bez pole žije ze zásob na 18 měsíců a pak hladoví;
@@ -90,10 +96,15 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
 
 ### Růst populace
 
-- **Porody:** každý dospělý pár (dva dospělí 14–44 let v jedné domácnosti) má zhruba jedno
-  dítě za 3 roky. Hlad porody tlumí až zastaví, přeplněnost je výrazně sníží.
-- **Úmrtí:** zhruba 40 % dětí se nedožije 14 let (v polozemnici méně než v zemnici); dospělí
-  umírají asi 1,5 % ročně, starší víc (kolem 8 % ročně). Hlad a přeplněnost úmrtnost zvýší.
+- **Porody:** každý pár (dva lidé **16–44 let** v jedné domácnosti) má zhruba jedno dítě za
+  3 roky (intervaly mezi porody 24–39 měsíců – Macfarlane 2002). Porody od 16 let jsou oprava
+  podle rešerše (dřív od 14 – plodnost od 14 je optimistická); pro práci, odemčení nového obydlí
+  a rozpad domácnosti je dospělý dál od 14. Hlad porody tlumí až zastaví, přeplněnost je
+  výrazně sníží.
+- **Úmrtí:** zhruba 40 % dětí se nedožije 14 let (v polozemnici méně než v zemnici; Lahovice:
+  41 % do 20 let – Zazvonilová a kol. 2020); dospělí umírají asi **2 % ročně** (oprava podle
+  rešerše, dřív 1,5 % – v Lahovicích umírali muži v průměru ve 43–47 a ženy ve 39–43 letech),
+  starší víc (kolem 8 % ročně). Hlad a přeplněnost úmrtnost zvýší.
 - **Přeplněnost** sama nastaví strop: populace domácnosti se ustálí kolem kapacity obydlí
   (+1–2), takže ves bez nových staveb přestane růst, ale nevymře.
 - **Hygiena** (bez ukazatele) zvyšuje úmrtnost, když ves nemá pohřebiště, je plné nebo leží moc
@@ -135,7 +146,8 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
   **prázdné** – postavené „do zásoby“.
 - **Prázdné obydlí** obsadí sama první domácnost, která podmínku splní – dva nejmladší dospělí
   se do něj přestěhují (návrh Clauda). Dokud čeká, neopravuje se a chátrá, ale potřeba oprav
-  roste s věkem: nová zemnice vydrží prázdná ≈ 14 let, polozemnice ≈ 26 let.
+  roste s věkem: nová zemnice vydrží prázdná ≈ 16 let (s životností 15 let ≈ 14), polozemnice
+  ≈ 26 let.
 - Hráč dostane upozornění, když je domácnost plná a žádné nové obydlí pro ni nečeká.
 - Když hráč nestaví, přeplněná domácnost žije v těsnu – méně porodů, víc úmrtí, ves přestane
   růst (Martin potvrdil).
@@ -143,7 +155,10 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
 ### Chátrání a přestavba (rozhodují obyvatelé)
 
 - Každé obydlí má **stav** 0–100 % a stárne. Potřeba oprav (člověkodny za rok) roste s věkem
-  – zpočátku malá, ke konci životnosti velká (Martin).
+  – zpočátku malá, ke konci životnosti velká (Martin): roční potřeba na konci životnosti
+  × (věk / životnost)². S delší životností zemnice (18 let místo 15) se křivka sama roztáhla:
+  na konci života dál 15 člověkodní ročně, za celý život 90 místo 75 a prázdná zemnice
+  chátrá ≈ 16 let místo ≈ 14.
 - Opravy jdou z práce vsi hned po polních pracích ([fields.md](fields.md)), takže stárnoucí
   domy ubírají společnou práci vsi. Když na opravy práce nestačí, stav klesá rychleji.
 - Ke konci životnosti stojí opravy obydlí zhruba polovinu toho, co jeho domácnost přidá do
@@ -184,8 +199,9 @@ stovky vsí a ověří cíle:
   přijde u 90 % vsí do **≈ 8 herních let** (≈ 3 skutečné dny) – Martin:
   „zkusíme to“; hrubá simulace s hájením: medián 3 roky, 90 % do 7, 99 % do 20,
 - čerstvě plná domácnost postaví zemnici zhruba za roční období, polozemnici za herní rok,
-- zemnice se přestavuje typicky po ≈ 15 letech, polozemnice po ≈ 20–25; ke konci životnosti
-  stojí opravy zhruba polovinu toho, co domácnost přidá do společné práce,
+- zemnice se přestavuje typicky po ≈ 18 letech (do opravy podle rešerše ≈ 15), polozemnice po
+  ≈ 20–25; ke konci životnosti stojí opravy zhruba polovinu toho, co domácnost přidá do
+  společné práce,
 - ves, kde hráč staví, kdykoli může, vymře do roku 1500 jen výjimečně (hrubá simulace: 0,6 %);
   za pár dní nepřítomnosti se nic takového nestane (anti-cíl). Jak často vymře jediná
   domácnost bez nových staveb, je jen informace, ne cíl (hrubá simulace ≈ 90 % do 1000 let,
@@ -255,26 +271,30 @@ zasetá část, odemčení počítá jen dospělé 14–44, rozpad domácnosti s
 
 ## Rozhodnutí
 
-| Rozhodnutí                                                                   | Kdo                           |
-| ---------------------------------------------------------------------------- | ----------------------------- |
-| Ves jako zásobárna aktiv: jídlo, voda, dřevo a hlavně lidé / člověkohodiny   | Martin                        |
-| Start: 4 lidé v jedné zemnici, hráč vybere místo                             | Martin                        |
-| Dost jídla → populace roste; cílem je efektivní výroba jídla                 | Martin                        |
-| Obydlí zatím zemnice a polozemnice                                           | Martin                        |
-| Obydlí se umisťuje volně (půdorys) na dost rovné zemi; překážky a les zdraží | Martin                        |
-| Pole jsou samostatná a společná pro celou ves                                | Martin                        |
-| Vlastní modely obydlí: omazané stěny, slámové došky; Millennium A.D. ne      | Martin                        |
-| Nová obydlí vždy staví hráč; plná domácnost → nová domácnost v novém obydlí  | Martin                        |
-| Hráč staví kdy chce (bez odemčení plnou domácností), ves zakládá zemnicí     | Martin (17. 10. 2026)         |
-| Odemčení surovinami předem – bez nich je tlačítko stavby zašedlé             | Martin (17. 10. 2026)         |
-| Obydlí chátrají, opravy rostou; přestavbu (i na lepší) rozhodují obyvatelé   | Martin                        |
-| Bez staveb ves přestane růst, ale nerozpadne se                              | návrh Clauda, Martin potvrdil |
-| Přestavba vždy na lepší obydlí, pokud jsou suroviny; typ nové stavby hráč    | Martin                        |
-| Hájení: prvních 30 herních let vsi přeje štěstí; žádní příchozí z okolí      | Martin                        |
-| Podoba hájení: dospělí neumírají, poloviční dětská úmrtnost                  | návrh Clauda                  |
-| Kapacity 6 / 8, ceny 60 / 220 člověkodní (roční období / rok), životnosti    | návrh Clauda                  |
-| Porodnost, úmrtnost, opravy až polovina příspěvku domácnosti                 | návrh Clauda                  |
-| Stěhuje se pár z plné domácnosti se 4 dospělými; dva nejmladší               | návrh Clauda                  |
-| Rozpad domácnosti, prázdná obydlí čekají na plnou domácnost                  | návrh Clauda                  |
-| Obyvatelé bez jmen a pohlaví, náhoda ze seedu, kronika                       | návrh Clauda                  |
-| Dřevo zatím v ceně práce                                                     | návrh Clauda (dočasné)        |
+| Rozhodnutí                                                                   | Kdo                                        |
+| ---------------------------------------------------------------------------- | ------------------------------------------ |
+| Ves jako zásobárna aktiv: jídlo, voda, dřevo a hlavně lidé / člověkohodiny   | Martin                                     |
+| Start: 4 lidé v jedné zemnici, hráč vybere místo                             | Martin                                     |
+| Dost jídla → populace roste; cílem je efektivní výroba jídla                 | Martin                                     |
+| Obydlí zatím zemnice a polozemnice                                           | Martin                                     |
+| Obydlí se umisťuje volně (půdorys) na dost rovné zemi; překážky a les zdraží | Martin                                     |
+| Pole jsou samostatná a společná pro celou ves                                | Martin                                     |
+| Vlastní modely obydlí: omazané stěny, slámové došky; Millennium A.D. ne      | Martin                                     |
+| Nová obydlí vždy staví hráč; plná domácnost → nová domácnost v novém obydlí  | Martin                                     |
+| Hráč staví kdy chce (bez odemčení plnou domácností), ves zakládá zemnicí     | Martin (17. 10. 2026)                      |
+| Odemčení surovinami předem – bez nich je tlačítko stavby zašedlé             | Martin (17. 10. 2026)                      |
+| Obydlí chátrají, opravy rostou; přestavbu (i na lepší) rozhodují obyvatelé   | Martin                                     |
+| Bez staveb ves přestane růst, ale nerozpadne se                              | návrh Clauda, Martin potvrdil              |
+| Přestavba vždy na lepší obydlí, pokud jsou suroviny; typ nové stavby hráč    | Martin                                     |
+| Hájení: prvních 30 herních let vsi přeje štěstí; žádní příchozí z okolí      | Martin                                     |
+| Podoba hájení: dospělí neumírají, poloviční dětská úmrtnost                  | návrh Clauda                               |
+| Kapacity 6 / 8, ceny 60 / 220 člověkodní (roční období / rok), životnosti    | návrh Clauda                               |
+| Porodnost, úmrtnost, opravy až polovina příspěvku domácnosti                 | návrh Clauda                               |
+| Dospělí umírají 2 % ročně (dřív 1,5 %)                                       | Martin – oprava podle rešerše 17. 10. 2026 |
+| Porody od 16 let; dospělý pro práci, odemčení a domácnost zůstává 14–44      | Martin – oprava podle rešerše 17. 10. 2026 |
+| Životnost zemnice ≈ 18 let (dřív ≈ 15); opravy na konci dál 15 čd ročně      | Martin – oprava podle rešerše 17. 10. 2026 |
+| Startovní dospívající 12 a 13 let zůstávají                                  | Martin (17. 10. 2026)                      |
+| Stěhuje se pár z plné domácnosti se 4 dospělými; dva nejmladší               | návrh Clauda                               |
+| Rozpad domácnosti, prázdná obydlí čekají na plnou domácnost                  | návrh Clauda                               |
+| Obyvatelé bez jmen a pohlaví, náhoda ze seedu, kronika                       | návrh Clauda                               |
+| Dřevo zatím v ceně práce                                                     | návrh Clauda (dočasné)                     |
