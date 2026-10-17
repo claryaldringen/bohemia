@@ -19,7 +19,7 @@ export interface PlaceDwellingInput {
 }
 
 export const CANNOT_BUILD_DWELLING =
-  'Nové obydlí teď stavět nejde – žádná plná domácnost se 4 dospělými na něj nečeká.';
+  'Nové obydlí teď stavět nejde – chybí plná domácnost se 4 dospělými, nebo se pro ni už staví.';
 
 /** Hráč zahájí stavbu nového obydlí (ves se nejdřív dopočítá do dneška). */
 export function placeDwelling(
