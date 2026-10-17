@@ -174,7 +174,10 @@ stovky vsí a ověří cíle:
 
 - V krajině: umístění první zemnice a dalších obydlí, rozestavěné stavby. **Modely obydlí jsou
   vlastní** (procedurálně v Blenderu s texturami z 0 A.D. – 0 A.D. slovanská obydlí nemá):
-  zemnice i polozemnice mají **omazané stěny a střechu ze slámových došků** (Martin). Stavby
+  zemnice i polozemnice mají **omazané stěny a střechu ze slámových došků** (Martin), na
+  hřebeni jen nízké převázání bez „bakule“, aby byla vidět **zkřížená štítová prkna („kozy“)**;
+  **před vchodem vyšlapaná hlína**, která měkce přechází do okolní trávy, a **podél okapu, kde se
+  střecha dotýká země, hustší trsy trávy** – stéká tam víc vody (Martin). Stavby
   z módu Millennium A.D. (ruské sruby, severské domy) se nepoužijí – jiná doba či region
   a nejistá licence (Martin); nanejvýš jako předloha tvarů pro pozdější roubené chalupy.
 - Panel vsi: počet lidí podle věku, domácnosti (typ obydlí, obsazenost, plná/přeplněná, stav),
