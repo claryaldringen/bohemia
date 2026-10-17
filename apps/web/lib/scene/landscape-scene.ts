@@ -30,7 +30,8 @@ import { buildRelief } from './terrain-relief';
 import { tileAt, tileCenter } from './tile-at';
 import { treePlacements } from './tree-placement';
 import { addTrees } from './trees';
-import { PlacementController } from './village-placement';
+import { FieldPainter } from './field-painting';
+import { PlacementController, type ActivePlacement } from './village-placement';
 import { VillageRenderer } from './village-renderer';
 import type { SceneVillage } from '../village-view';
 import type { PlacementHandlers, PlacementMode } from './village-types';
@@ -84,7 +85,7 @@ export class LandscapeScene {
   private village: VillageRenderer | null = null;
   /** Poslední stav vsi od rozhraní – vykreslí se, jakmile je krajina hotová. */
   private villageState: SceneVillage | null = null;
-  private placement: PlacementController | null = null;
+  private placement: ActivePlacement | null = null;
 
   private constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -287,45 +288,62 @@ export class LandscapeScene {
   }
 
   /**
-   * Umisťování obydlí nebo kreslení pole (viz PlacementController). Běžící umisťování se
-   * nejdřív zruší (jeho `onCancel`). Po potvrzení nebo zrušení skončí samo.
+   * Umisťování obydlí (PlacementController) nebo malování pole po čtvercích (FieldPainter).
+   * Běžící umisťování se nejdřív zruší (jeho `onCancel`). Po potvrzení nebo zrušení skončí samo.
    */
   startPlacement(mode: PlacementMode, handlers: PlacementHandlers): void {
     if (this.disposed) return;
     this.placement?.cancel();
     const camera = this.rtsCamera;
     const village = this.village;
-    if (!camera || !village) throw new Error('Umisťovat jde až po načtení krajiny.');
-    const controller: PlacementController = new PlacementController(
-      {
-        scene: this.scene,
-        canvas: this.canvas,
-        pickGround: (x, y) => this.pickGround(x, y),
-        decalHeight: (x, z) => village.decalHeight(x, z),
-        metersPerPixel: () =>
-          (2 * camera.camera.radius * Math.tan(camera.camera.fov / 2)) /
-          Math.max(1, this.canvas.clientHeight),
-        cameraAlpha: () => camera.camera.alpha,
-        setCameraKeyRotation: (enabled) => camera.setKeyRotation(enabled),
-        ghostModel: (type) => village.ghostModel(type),
-        baseHeight: (d) => village.baseHeight(d),
-        requestRender: () => {
-          this.needsRender = true;
-        },
+    const landscape = this.landscape;
+    if (!camera || !village || !landscape) {
+      throw new Error('Umisťovat jde až po načtení krajiny.');
+    }
+    const requestRender = (): void => {
+      this.needsRender = true;
+    };
+    const controlled: PlacementHandlers = {
+      onConfirm: (result) => {
+        if (this.placement === controller) this.placement = null;
+        handlers.onConfirm(result);
       },
-      mode,
-      {
-        onConfirm: (result) => {
-          if (this.placement === controller) this.placement = null;
-          handlers.onConfirm(result);
-        },
-        onCancel: () => {
-          if (this.placement === controller) this.placement = null;
-          handlers.onCancel();
-        },
-        onPreview: handlers.onPreview ? (preview) => handlers.onPreview?.(preview) : undefined,
+      onCancel: () => {
+        if (this.placement === controller) this.placement = null;
+        handlers.onCancel();
       },
-    );
+      onPreview: handlers.onPreview ? (preview) => handlers.onPreview?.(preview) : undefined,
+    };
+    const controller: ActivePlacement =
+      mode.kind === 'field'
+        ? new FieldPainter(
+            {
+              scene: this.scene,
+              canvas: this.canvas,
+              landscape,
+              pickGround: (x, y) => this.pickGround(x, y),
+              decalHeight: (x, z) => village.decalHeight(x, z),
+              setLeftButtonPan: (enabled) => camera.setLeftButtonPan(enabled),
+              requestRender,
+            },
+            mode,
+            controlled,
+          )
+        : new PlacementController(
+            {
+              scene: this.scene,
+              canvas: this.canvas,
+              pickGround: (x, y) => this.pickGround(x, y),
+              decalHeight: (x, z) => village.decalHeight(x, z),
+              cameraAlpha: () => camera.camera.alpha,
+              setCameraKeyRotation: (enabled) => camera.setKeyRotation(enabled),
+              ghostModel: (type) => village.ghostModel(type),
+              baseHeight: (d) => village.baseHeight(d),
+              requestRender,
+            },
+            mode,
+            controlled,
+          );
     this.placement = controller;
     if (mode.kind === 'dwelling') {
       // Model ducha se načte (jednou) a pak naskočí pod kurzorem.
@@ -340,6 +358,11 @@ export class LandscapeScene {
   /** Zruší umisťování (zavolá jeho `onCancel`); bez umisťování nic nedělá. */
   cancelPlacement(): void {
     this.placement?.cancel();
+  }
+
+  /** Potvrdí umisťování jako Enter (tlačítko Potvrdit u pole); neprošlé zůstane běžet. */
+  confirmPlacement(): void {
+    this.placement?.confirm();
   }
 
   onTileHover(listener: HoverListener): () => void {

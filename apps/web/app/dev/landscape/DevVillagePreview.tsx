@@ -12,13 +12,18 @@ import {
   type PartStage,
   type PlacementCheck,
   type Position,
+  type TileCell,
 } from '@bohemia/game';
 import { GameView } from '@/components/game/GameView';
 import { decodeLandscape, type LandscapeTransfer } from '@/lib/landscape-transfer';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
 import { tileAt, tileCenter } from '@/lib/scene/tile-at';
-import { pointInPolygon, polygonArea, polygonBounds } from '@/lib/scene/village-layout';
-import type { PlacementPreview, SceneDwelling, SceneField } from '@/lib/scene/village-types';
+import type {
+  FieldPaintPreview,
+  PlacementPreview,
+  SceneDwelling,
+  SceneField,
+} from '@/lib/scene/village-types';
 import type { SceneVillage } from '@/lib/village-view';
 
 const STAGES: PartStage[] = [
@@ -36,8 +41,7 @@ const buttonClass =
 
 interface DevField {
   id: number;
-  outline: [number, number][];
-  parts: { x: number; z: number; size: number }[];
+  parts: { cell: TileCell; x: number; z: number; size: number }[];
 }
 
 export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer }): ReactElement {
@@ -56,7 +60,6 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
       dwellings,
       fields: fields.map((field): SceneField => ({
         id: field.id,
-        outline: field.outline,
         parts: field.parts.map((part, i) => ({
           ...part,
           stage: STAGES[(stage + (mixed ? i : 0)) % STAGES.length]!,
@@ -106,15 +109,14 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     if (!scene) return;
     setPlacing('Pole');
     scene.startPlacement(
-      { kind: 'field', preview: (outline) => fakeFieldPreview(decoded, village, outline) },
+      { kind: 'field', preview: (cells) => fakeFieldPreview(decoded, village, cells) },
       {
         ...handlers,
         onConfirm: (result) => {
           handlers.onCancel();
           if (result.kind !== 'field') return;
           const id = nextId.current++;
-          const parts = fieldParts(decoded, result.outline);
-          setFields((list) => [...list, { id, outline: result.outline, parts }]);
+          setFields((list) => [...list, { id, parts: fieldParts(decoded, result.cells) }]);
         },
       },
     );
@@ -176,7 +178,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
             <span className="text-stone-500">
               (Esc zruší
               {placing === 'Pole'
-                ? ', Backspace ubere bod, Enter / dvojklik uzavře'
+                ? ', klik / tažení maluje čtverce, Shift ubírá, Enter potvrdí'
                 : ', Q/E otáčí, klik postaví'}
               )
             </span>
@@ -209,57 +211,38 @@ function fakeDwellingCheck(l: Landscape, village: SceneVillage, p: Position): Pl
   if (village.dwellings.some((d) => Math.hypot(d.position.x - p.x, d.position.z - p.z) < 7)) {
     return { ok: false, reason: 'Překáží jiné obydlí' };
   }
-  if (village.fields.some((f) => pointInPolygon(f.outline, p.x, p.z))) {
+  if (village.fields.some((f) => f.parts.some((c) => c.cell.x === tile.x && c.cell.y === tile.y))) {
     return { ok: false, reason: 'Na poli stavět nejde' };
   }
   return { ok: true, reason: null };
 }
 
-/** Zjednodušený náhled pole: výměra a díly (políčka obrysu mimo vodu). */
+/** Zjednodušený náhled pole: čtverce ve vodě a v jiném poli jsou zakázané. */
 function fakeFieldPreview(
   l: Landscape,
   village: SceneVillage,
-  outline: [number, number][],
-): { check: PlacementCheck; label: string } {
-  const area = polygonArea(outline);
-  const parts = fieldParts(l, outline);
-  const label = `${(area / 10_000).toFixed(2).replace('.', ',')} ha · ${parts.length} dílů`;
-  if (area < 200) return { check: { ok: false, reason: 'Pole je moc malé' }, label };
-  if (parts.length === 0) return { check: { ok: false, reason: 'Pole je celé na vodě' }, label };
-  if (village.dwellings.some((d) => pointInPolygon(outline, d.position.x, d.position.z))) {
-    return { check: { ok: false, reason: 'V poli stojí obydlí' }, label };
-  }
-  return { check: { ok: true, reason: null }, label };
+  cells: TileCell[],
+): FieldPaintPreview {
+  const taken = new Set(
+    village.fields.flatMap((f) => f.parts.map((p) => `${p.cell.x},${p.cell.y}`)),
+  );
+  const blockedCells = cells.filter(
+    (c) => surfaceAt(l, c.x, c.y) === 'water' || taken.has(`${c.x},${c.y}`),
+  );
+  const label = `${cells.length} čtverců · ${((cells.length * l.cellSizeM ** 2) / 10_000).toFixed(2).replace('.', ',')} ha`;
+  const check: PlacementCheck =
+    blockedCells.length > 0
+      ? { ok: false, reason: 'Ve vodě ani přes jiné pole pole nejde' }
+      : { ok: true, reason: null };
+  return { check, label, blockedCells };
 }
 
-/** Políčka, která obrys zasahuje (vzorkování 5 × 5 bodů na políčko), kromě vody. */
-function fieldParts(
-  l: Landscape,
-  outline: [number, number][],
-): { x: number; z: number; size: number }[] {
-  const bounds = polygonBounds(outline);
-  const from = tileAt(l, bounds.minX, bounds.minZ) ?? { x: 0, y: 0 };
-  const to = tileAt(l, bounds.maxX, bounds.maxZ) ?? { x: l.size - 1, y: l.size - 1 };
-  const size = l.cellSizeM;
-  const parts: { x: number; z: number; size: number }[] = [];
-  for (let y = from.y; y <= to.y; y++) {
-    for (let x = from.x; x <= to.x; x++) {
-      if (surfaceAt(l, x, y) === 'water') continue;
-      const c = tileCenter(l, x, y);
-      let hit = outline.some(
-        ([px, pz]) => Math.abs(px - c.worldX) <= size / 2 && Math.abs(pz - c.worldZ) <= size / 2,
-      );
-      for (let i = 0; i < 5 && !hit; i++) {
-        for (let j = 0; j < 5 && !hit; j++) {
-          hit = pointInPolygon(
-            outline,
-            c.worldX + ((i + 0.5) / 5 - 0.5) * size,
-            c.worldZ + ((j + 0.5) / 5 - 0.5) * size,
-          );
-        }
-      }
-      if (hit) parts.push({ x: c.worldX, z: c.worldZ, size });
-    }
-  }
-  return parts;
+/** Díly pole – políčka ve středech čtverců (bez vody). */
+function fieldParts(l: Landscape, cells: TileCell[]): DevField['parts'] {
+  return cells
+    .filter((c) => surfaceAt(l, c.x, c.y) !== 'water')
+    .map((cell) => {
+      const c = tileCenter(l, cell.x, cell.y);
+      return { cell, x: c.worldX, z: c.worldZ, size: l.cellSizeM };
+    });
 }

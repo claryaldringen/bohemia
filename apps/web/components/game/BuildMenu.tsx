@@ -2,8 +2,10 @@
 
 import type { ReactElement } from 'react';
 import type { DwellingType } from '@bohemia/game';
+import type { PlacementPreview } from '@/lib/scene/village-types';
 import { formatManDays } from '@/lib/village-format';
 import type { VillageView } from '@/lib/village-view';
+import { FIELD_PAINT_HINT, FieldPaintStatus } from './FieldPaintStatus';
 
 export type BuildItem = DwellingType | 'field';
 
@@ -15,8 +17,7 @@ const ITEM_NAMES: Record<BuildItem, string> = {
 
 const HINTS: Record<'dwelling' | 'field', string> = {
   dwelling: 'Klikni na rovné místo na louce · Q/E otáčí · Esc zruší',
-  field:
-    'Klikáním přidávej body obrysu · Backspace ubere bod · Enter nebo dvojklik uzavře · Esc zruší',
+  field: FIELD_PAINT_HINT,
 };
 
 const buttonClass =
@@ -24,21 +25,27 @@ const buttonClass =
 
 /**
  * Nabídka staveb dole uprostřed: obydlí (zašedlá s důvodem, dokud je pravidla nedovolí) a pole.
- * Během umisťování ukazuje, co se staví, nápovědu a tlačítko Zrušit.
+ * Během umisťování ukazuje, co se staví, nápovědu a tlačítko Zrušit; u pole i živý souhrn
+ * (čtverce, výměra, úrodnost, cena), proč ještě neprojde, a tlačítko Potvrdit.
  */
 export function BuildMenu({
   view,
   placing,
+  preview,
   busy,
   sceneReady,
   onBuild,
+  onConfirm,
   onCancel,
 }: {
   view: VillageView;
   placing: { item: BuildItem; kind: 'dwelling' | 'field' } | null;
+  /** Poslední stav umisťování ze scény (u pole souhrn a kontrola). */
+  preview: PlacementPreview | null;
   busy: boolean;
   sceneReady: boolean;
   onBuild: (item: BuildItem) => void;
+  onConfirm: () => void;
   onCancel: () => void;
 }): ReactElement {
   const canDwell = view.canBuildDwelling;
@@ -71,10 +78,21 @@ export function BuildMenu({
     >
       {placing ? (
         <div className="flex items-center gap-3 px-1">
-          <div>
+          <div className="min-w-0 max-w-xl">
             <p className="font-semibold">{ITEM_NAMES[placing.item]}</p>
+            {placing.kind === 'field' && <FieldPaintStatus preview={preview} />}
             <p className="text-xs text-stone-600 dark:text-stone-400">{HINTS[placing.kind]}</p>
           </div>
+          {placing.kind === 'field' && (
+            <button
+              type="button"
+              onClick={onConfirm}
+              disabled={!preview?.check.ok}
+              className="rounded bg-emerald-800 px-3 py-1.5 text-stone-50 hover:bg-emerald-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Potvrdit
+            </button>
+          )}
           <button
             type="button"
             onClick={onCancel}

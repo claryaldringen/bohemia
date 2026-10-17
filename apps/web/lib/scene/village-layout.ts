@@ -1,11 +1,12 @@
-// Čistá geometrie vsi pro scénu (bez Babylonu): půdorysy, mnohoúhelníky polí, obtisky na terénu
-// a vzhled dílů pole podle stavu. Souřadnice světa scény v metrech (x, z).
+// Čistá geometrie vsi pro scénu (bez Babylonu): půdorysy, mnohoúhelníky, obtisky na terénu
+// a vzhled dílů pole podle stavu (geometrie polí po čtvercích je ve field-cells.ts). Souřadnice světa scény v metrech (x, z).
 import {
   DWELLING_FOOTPRINT_M,
   type DwellingType,
   type PartStage,
   type Position,
 } from '@bohemia/game';
+import { cellsBounds, cellsContain } from './field-cells';
 import type { SceneField } from './village-types';
 
 export type Point = [number, number];
@@ -196,22 +197,6 @@ export function stripSegments(
   return segments;
 }
 
-/** Směr nejdelší hrany obrysu (jednotkový vektor) – podél něj jdou brázdy a řádky obilí. */
-export function principalDirection(outline: readonly Point[]): Point {
-  let best: Point = [1, 0];
-  let bestLength = 0;
-  for (let i = 0, j = outline.length - 1; i < outline.length; j = i++) {
-    const dx = outline[i]![0] - outline[j]![0];
-    const dz = outline[i]![1] - outline[j]![1];
-    const length = Math.hypot(dx, dz);
-    if (length > bestLength) {
-      bestLength = length;
-      best = [dx / length, dz / length];
-    }
-  }
-  return best;
-}
-
 // --- Vzhled dílů pole ---
 
 export type FieldTexture = 'grass-dirt' | 'mud' | 'grass' | 'grass-lush';
@@ -323,25 +308,12 @@ export function dwellingHideShape(type: DwellingType, position: Position): HideS
   return { bounds: polygonBounds(corners), contains: (x, z) => pointInPolygon(corners, x, z) };
 }
 
-/** Pole – uvnitř obrysu (s malým přesahem) a zároveň v některém z jeho dílů. */
+/** Pole – ve čtvercích jeho dílů (s malým přesahem). */
 export function fieldHideShape(field: SceneField, marginM = 1): HideShape | null {
-  if (field.outline.length < 3 || field.parts.length === 0) return null;
-  const outline = field.outline;
-  const outlineBounds = polygonBounds(outline);
-  const bounds = {
-    minX: outlineBounds.minX - marginM,
-    maxX: outlineBounds.maxX + marginM,
-    minZ: outlineBounds.minZ - marginM,
-    maxZ: outlineBounds.maxZ + marginM,
-  };
-  const parts = field.parts;
+  if (field.parts.length === 0) return null;
   return {
-    bounds,
-    contains: (x, z) =>
-      parts.some(
-        (p) =>
-          Math.abs(x - p.x) <= p.size / 2 + marginM && Math.abs(z - p.z) <= p.size / 2 + marginM,
-      ) && signedDistance(outline, x, z) > -marginM,
+    bounds: cellsBounds(field.parts, marginM),
+    contains: cellsContain(field.parts, marginM),
   };
 }
 

@@ -35,12 +35,18 @@ export interface RtsCamera {
   update(dtSeconds: number): boolean;
   /** Q/E otáčí kamerou (výchozí); při umisťování obydlí otáčí obydlím – kamera je pak vypne. */
   setKeyRotation(enabled: boolean): void;
+  /**
+   * Levé tlačítko posouvá krajinu (výchozí); při malování pole maluje – kamera ho pak pustí
+   * a posouvá se prostředním tlačítkem (to posouvá vždy).
+   */
+  setLeftButtonPan(enabled: boolean): void;
   dispose(): void;
 }
 
 /**
- * Kamera ve stylu strategií: levé tlačítko posouvá, pravé otáčí kolem svislé osy, kolečko
- * přibližuje; WASD/šipky posouvají, Q/E otáčejí. Cíl kamery drží na terénu uvnitř krajiny.
+ * Kamera ve stylu strategií: levé (i prostřední) tlačítko posouvá, pravé otáčí kolem svislé
+ * osy, kolečko přibližuje; WASD/šipky posouvají, Q/E otáčejí. Cíl kamery drží na terénu uvnitř
+ * krajiny.
  */
 export function createRtsCamera(
   scene: Scene,
@@ -74,11 +80,13 @@ export function createRtsCamera(
   // na trackpadu nevrací prohlížeč zpět.
   camera.attachControl(canvas, false);
   // Babylon 9 má výchozí mapu vstupů levé = otáčení, pravé = posun; strategie chce opak.
-  camera.movement.input.inputMap = [
-    { source: 'pointer', button: 0, interaction: 'pan' },
+  const inputMap = (leftPans: boolean): typeof camera.movement.input.inputMap => [
+    ...(leftPans ? [{ source: 'pointer' as const, button: 0, interaction: 'pan' as const }] : []),
+    { source: 'pointer', button: 1, interaction: 'pan' },
     { source: 'pointer', button: 2, interaction: 'rotate' },
     { source: 'wheel', interaction: 'zoom' },
   ];
+  camera.movement.input.inputMap = inputMap(true);
 
   const pressed = new Set<string>();
   let keyRotation = true;
@@ -135,6 +143,10 @@ export function createRtsCamera(
     update,
     setKeyRotation(enabled: boolean): void {
       keyRotation = enabled;
+    },
+    setLeftButtonPan(enabled: boolean): void {
+      // Mapa platí od příštího stisku – rozběhnuté tažení dokončí, co začalo.
+      camera.movement.input.inputMap = inputMap(enabled);
     },
     dispose(): void {
       window.removeEventListener('keydown', onKeyDown);

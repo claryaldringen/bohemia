@@ -7,22 +7,24 @@ import {
   VILLAGE_NAME_MAX_LENGTH,
   checkDwellingPlacement,
   checkVillageName,
-  fieldPartsFromOutline,
+  fieldPartsFromCells,
   suggestVillageName,
   type FieldPreview,
   type Landscape,
   type Position,
+  type TileCell,
 } from '@bohemia/game';
 import type { Placement } from '@/hooks/use-placement';
 import { fieldPreviewLabel } from '@/lib/village-format';
 import { foundingSceneVillage, type SceneVillage } from '@/lib/village-view';
+import { FIELD_PAINT_HINT, FieldPaintStatus } from './FieldPaintStatus';
 
 type Step = 'name' | 'dwelling' | 'field' | 'confirm';
 
 export interface FoundingInput {
   name: string;
   dwelling: Position;
-  fieldOutline: [number, number][];
+  fieldCells: TileCell[];
 }
 
 const STEPS: { step: Step; label: string }[] = [
@@ -69,7 +71,7 @@ function PlacementStatus({
 
 /**
  * Založení vsi při prvním vstupu do hry (vlevo nahoře, krajina zůstává vidět a ovladatelná):
- * jméno → umístění první zemnice → obrys prvního pole → odeslání na server. Kontroly umístění
+ * jméno → umístění první zemnice → čtverce prvního pole → odeslání na server. Kontroly umístění
  * běží v prohlížeči nad stejnými pravidly jako na serveru, server je ověří znovu.
  */
 export function FoundingPanel({
@@ -94,10 +96,7 @@ export function FoundingPanel({
   );
   const [name, setName] = useState(() => suggestVillageName(seed));
   const [dwelling, setDwelling] = useState<Position | null>(null);
-  const [field, setField] = useState<{
-    outline: [number, number][];
-    preview: FieldPreview;
-  } | null>(null);
+  const [field, setField] = useState<FieldPreview | null>(null);
   /** Spustit umisťování kroku, jakmile je scéna připravená. */
   const [wantPlacement, setWantPlacement] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -125,26 +124,25 @@ export function FoundingPanel({
 
   const startField = useCallback(
     (zemnice: Position): void => {
-      const preview = (outline: [number, number][]): FieldPreview =>
-        fieldPartsFromOutline(landscape, null, outline, [zemnice]);
+      const preview = (cells: TileCell[]): FieldPreview =>
+        fieldPartsFromCells(landscape, null, cells, [zemnice]);
       start(
         {
           kind: 'field',
-          preview: (outline) => {
-            const result = preview(outline);
-            return { check: result.check, label: fieldPreviewLabel(result) };
+          preview: (cells) => {
+            const result = preview(cells);
+            return {
+              check: result.check,
+              label: fieldPreviewLabel(result),
+              blockedCells: result.blockedCells,
+            };
           },
         },
         (result) => {
           if (result.kind !== 'field') return;
-          const fieldPreview = preview(result.outline);
-          setField({ outline: result.outline, preview: fieldPreview });
-          onPreviewVillage(
-            foundingSceneVillage(landscape, zemnice, {
-              outline: result.outline,
-              parts: fieldPreview.parts,
-            }),
-          );
+          const fieldPreview = preview(result.cells);
+          setField(fieldPreview);
+          onPreviewVillage(foundingSceneVillage(landscape, zemnice, fieldPreview));
           setStep('confirm');
         },
       );
@@ -196,7 +194,7 @@ export function FoundingPanel({
     if (!dwelling || !field) return;
     setPending(true);
     setError(null);
-    const failure = await onFound({ name, dwelling, fieldOutline: field.outline });
+    const failure = await onFound({ name, dwelling, fieldCells: field.cells });
     if (failure !== null) {
       setError(failure);
       setPending(false);
@@ -294,15 +292,30 @@ export function FoundingPanel({
         <div className="mt-3 space-y-2">
           <h3 className="font-semibold">Vyznač první pole</h3>
           <p className="text-stone-600 dark:text-stone-400">
-            Klikáním vyznač obrys pole na louce poblíž zemnice. Backspace ubere bod, Enter nebo
-            dvojklik obrys uzavře, Esc zruší.
+            Vybarvi čtverce louky poblíž zemnice – pole potřebuje aspoň 5 čtverců (0,1 ha) v jednom
+            celku. Pro začátek stačí kolem 0,5 ha, další pole přidáš později.
           </p>
-          <PlacementStatus
-            placing={placement.active === 'field'}
-            sceneReady={sceneReady}
-            idleLabel="Vyznačit pole"
-            onStart={() => startField(dwelling)}
-          />
+          <p className="text-xs text-stone-500 dark:text-stone-400">{FIELD_PAINT_HINT}</p>
+          {placement.active === 'field' ? (
+            <div className="space-y-2 rounded bg-stone-200/70 px-2 py-1.5 dark:bg-stone-900/70">
+              <FieldPaintStatus preview={placement.preview} />
+              <button
+                type="button"
+                className={primaryClass}
+                disabled={!placement.preview?.check.ok}
+                onClick={placement.confirm}
+              >
+                Potvrdit pole
+              </button>
+            </div>
+          ) : (
+            <PlacementStatus
+              placing={false}
+              sceneReady={sceneReady}
+              idleLabel="Vyznačit pole"
+              onStart={() => startField(dwelling)}
+            />
+          )}
           <div>
             <button type="button" className={secondaryClass} onClick={toDwelling}>
               Zpět – jiné místo zemnice
@@ -319,7 +332,7 @@ export function FoundingPanel({
             <dt className="text-stone-600 dark:text-stone-400">Zemnice</dt>
             <dd>stojí, bydlí v ní {START_AGES.length} lidé</dd>
             <dt className="text-stone-600 dark:text-stone-400">Pole</dt>
-            <dd>{fieldPreviewLabel(field.preview)}</dd>
+            <dd>{fieldPreviewLabel(field)}</dd>
           </dl>
           {error && (
             <p role="alert" className="text-xs text-red-700 dark:text-red-400">

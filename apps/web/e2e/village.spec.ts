@@ -2,12 +2,14 @@ import { test, expect, type Page } from '@playwright/test';
 import { Client } from 'pg';
 import {
   checkDwellingPlacement,
-  fieldPartsFromOutline,
+  fieldPartsFromCells,
   generateLandscapeAttempt,
   tileCenterWorld,
+  tileOfWorldPoint,
   type Landscape,
   type LayerVersions,
   type Position,
+  type TileCell,
 } from '@bohemia/game';
 import type { PlacementResult } from '../lib/scene/village-types';
 import { TEST_DATABASE_URL } from '../playwright.config';
@@ -44,10 +46,17 @@ async function seatLandscape(email: string): Promise<Landscape> {
   }
 }
 
-/** Místo pro první zemnici u místa vsi a čtverec pole (36 × 36 m ≈ 0,13 ha) vedle ní. */
-function foundingSpot(l: Landscape): { dwelling: Position; outline: [number, number][] } {
+/** Obdélník čtverců (políček) s levým horním čtvercem (x, y). */
+function block(x: number, y: number, width: number, height: number): TileCell[] {
+  const cells: TileCell[] = [];
+  for (let j = 0; j < height; j++)
+    for (let i = 0; i < width; i++) cells.push({ x: x + i, y: y + j });
+  return cells;
+}
+
+/** Místo pro první zemnici u místa vsi a pole 3 × 2 čtverce (0,135 ha) vedle ní. */
+function foundingSpot(l: Landscape): { dwelling: Position; cells: TileCell[] } {
   const site = tileCenterWorld(l, l.villageSite.x, l.villageSite.y);
-  const half = 18;
   for (let r = 0; r <= 240; r += 6) {
     for (let a = 0; a < 12; a++) {
       const angle = (a / 12) * 2 * Math.PI;
@@ -57,23 +66,16 @@ function foundingSpot(l: Landscape): { dwelling: Position; outline: [number, num
         rotation: 0,
       };
       if (!checkDwellingPlacement(l, null, 'zemnice', dwelling).ok) continue;
-      for (const [dx, dz] of [
-        [26, 0],
-        [-26, 0],
-        [0, 26],
-        [0, -26],
+      const tile = tileOfWorldPoint(l, dwelling.x, dwelling.z);
+      if (!tile) continue;
+      for (const [x, y] of [
+        [tile.x + 1, tile.y - 1],
+        [tile.x - 3, tile.y - 1],
+        [tile.x - 1, tile.y + 1],
+        [tile.x - 1, tile.y - 2],
       ] as const) {
-        const cx = dwelling.x + dx;
-        const cz = dwelling.z + dz;
-        const outline: [number, number][] = [
-          [cx - half, cz - half],
-          [cx + half, cz - half],
-          [cx + half, cz + half],
-          [cx - half, cz + half],
-        ];
-        if (fieldPartsFromOutline(l, null, outline, [dwelling]).check.ok) {
-          return { dwelling, outline };
-        }
+        const cells = block(x, y, 3, 2);
+        if (fieldPartsFromCells(l, null, cells, [dwelling]).check.ok) return { dwelling, cells };
       }
     }
   }
@@ -106,8 +108,11 @@ test('nový hráč založí ves – jméno, zemnice, první pole – a vidí pan
   await confirmPlacement(page, { kind: 'dwelling', type: 'zemnice', position: spot.dwelling });
 
   await expect(founding.getByRole('heading', { name: 'Vyznač první pole' })).toBeVisible();
-  await confirmPlacement(page, { kind: 'field', outline: spot.outline });
-  await expect(founding.getByText(/^0,1\d ha · úrodnost \d+ · \d+ člověkod/)).toBeVisible();
+  await expect(founding.getByRole('button', { name: 'Potvrdit pole' })).toBeDisabled();
+  await confirmPlacement(page, { kind: 'field', cells: spot.cells });
+  await expect(
+    founding.getByText(/^6 čtverců · 0,1\d ha · úrodnost \d+ · \d+ člověkod/),
+  ).toBeVisible();
   await page.getByRole('button', { name: 'Založit ves' }).click();
 
   const panel = page.getByTestId('village-panel');

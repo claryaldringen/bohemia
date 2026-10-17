@@ -5,30 +5,35 @@
 //
 // Position.rotation = natočení kolem svislé osy v radiánech jako `mesh.rotation.y` v Babylonu:
 // 0 = vchod míří do +Z, π/2 do +X (vchod míří do směru (sin r, cos r) v osách x, z).
-import type { DwellingType, PlacementCheck, Position } from '@bohemia/game';
+import type { DwellingType, PlacementCheck, Position, TileCell } from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
 
 /** Obydlí ve scéně; `built: false` = staveniště, jeho vzhled ukazuje `progress` (0–1). */
 export type SceneDwelling = SceneVillage['dwellings'][number];
 
-/** Pole ve scéně – obrys [x, z] (m) tak, jak ho hráč nakreslil, a díly po políčkách. */
+/** Pole ve scéně – díly po čtvercích (políčkách krajiny). */
 export type SceneField = SceneVillage['fields'][number];
 
-/** Díl pole – střed políčka (m), strana políčka a stadium; díl = průnik obrysu s políčkem. */
+/** Díl pole – políčko, jeho střed (m), strana políčka a stadium; díl = celé políčko. */
 export type SceneFieldPart = SceneField['parts'][number];
+
+/** Náhled malovaného pole: kontrola, popisek (čtverce, výměra, cena) a zakázané čtverce. */
+export interface FieldPaintPreview {
+  check: PlacementCheck;
+  label: string;
+  /** Čtverce, kam pole nesmí – scéna je zbarví červeně. */
+  blockedCells: readonly TileCell[];
+}
 
 /** Co hráč právě umisťuje a jak scéna ověří, jestli to jde. */
 export type PlacementMode =
   | { kind: 'dwelling'; type: DwellingType; check(position: Position): PlacementCheck }
-  | {
-      kind: 'field';
-      preview(outline: [number, number][]): { check: PlacementCheck; label: string };
-    };
+  | { kind: 'field'; preview(cells: TileCell[]): FieldPaintPreview };
 
 /** Potvrzené umístění – scéna ho ohlásí jen tehdy, když kontrola prošla. */
 export type PlacementResult =
   | { kind: 'dwelling'; type: DwellingType; position: Position }
-  | { kind: 'field'; outline: [number, number][] };
+  | { kind: 'field'; cells: TileCell[] };
 
 /**
  * Průběžný stav umisťování pro rozhraní: kontrola, popisek (u pole výměra a cena z `preview`,

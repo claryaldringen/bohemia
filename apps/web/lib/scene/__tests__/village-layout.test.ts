@@ -11,7 +11,6 @@ import {
   partLook,
   pointInPolygon,
   polygonArea,
-  principalDirection,
   signedDistance,
   softCoverage,
   stripSegments,
@@ -73,17 +72,6 @@ describe('mnohoúhelník pole', () => {
   it('plocha nezávisí na směru obíhání', () => {
     expect(polygonArea(lShape)).toBeCloseTo(75);
     expect(polygonArea([...lShape].reverse())).toBeCloseTo(75);
-  });
-
-  it('brázdy jdou podél nejdelší hrany', () => {
-    const [dx, dz] = principalDirection([
-      [0, 0],
-      [40, 0],
-      [40, 10],
-      [0, 10],
-    ]);
-    expect(Math.abs(dx)).toBeCloseTo(1);
-    expect(dz).toBeCloseTo(0);
   });
 });
 
@@ -185,10 +173,9 @@ describe('skrytí stromů a kamenů pod vsí', () => {
       dwellingHideShape('zemnice', { x: 100, z: 100, rotation: 0 }),
       fieldHideShape({
         id: 1,
-        outline: lShape,
         parts: [
-          { x: 2.5, z: 2.5, size: 5, stage: 'sown' },
-          { x: 2.5, z: 7.5, size: 5, stage: 'sown' },
+          { cell: { x: 0, y: 0 }, x: 2.5, z: 2.5, size: 5, stage: 'sown' },
+          { cell: { x: 0, y: 1 }, x: 2.5, z: 7.5, size: 5, stage: 'sown' },
         ],
       })!,
     ];
@@ -197,8 +184,8 @@ describe('skrytí stromů a kamenů pod vsí', () => {
       [100, 105, 'vyšlapaná hlína před vchodem (+z)'],
       [100, 112, 'daleko před vchodem'],
       [2, 2, 'v dílu pole'],
-      [7, 2, 'v obrysu, ale mimo díly (díl není na louce)'],
-      [8, 8, 've vykousnutém rohu L'],
+      [5.5, 7, 'těsně vedle dílu (do 1 m)'],
+      [7, 2, 'vedle pole'],
       [50, 50, 'mimo ves'],
     ];
     const mask = hiddenMask(Float32Array.from(points.flatMap(([x, z]) => [x, z])), shapes);
@@ -207,13 +194,13 @@ describe('skrytí stromů a kamenů pod vsí', () => {
       'vyšlapaná hlína před vchodem (+z)': 1,
       'daleko před vchodem': 0,
       'v dílu pole': 1,
-      'v obrysu, ale mimo díly (díl není na louce)': 0,
-      've vykousnutém rohu L': 0,
+      'těsně vedle dílu (do 1 m)': 1,
+      'vedle pole': 0,
       'mimo ves': 0,
     });
   });
 
   it('pole bez dílů nic neskrývá', () => {
-    expect(fieldHideShape({ id: 2, outline: square, parts: [] })).toBeNull();
+    expect(fieldHideShape({ id: 2, parts: [] })).toBeNull();
   });
 });

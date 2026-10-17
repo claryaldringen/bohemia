@@ -12,6 +12,7 @@ import type { Scene } from '@babylonjs/core/scene';
 import { DWELLING_FOOTPRINT_M, type DwellingType } from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
 import { EARTH_LAYERS, earthPatch, eaveTufts, type TuftModel } from './dwelling-decor';
+import { cellsBoundary, cellsCoverage, rowDirection } from './field-cells';
 import { applyGammaFog } from './gamma-fog';
 import { instanceMatrices, loadMergedModel, type ModelInstance } from './instanced-model';
 import {
@@ -24,7 +25,6 @@ import {
   localToWorld,
   partLook,
   polygonBounds,
-  principalDirection,
   softCoverage,
   stripSegments,
   type DecalGrid,
@@ -48,10 +48,13 @@ const PLANT_AMBIENT = new Color3(0.45, 0.48, 0.45);
 const TUFT_TINT = new Color3(0.56, 0.86, 0.4);
 /** Obydlí je o kousek zapuštěné – na mírném svahu tak žádný roh nevisí nad terénem (m). */
 const DWELLING_SINK_M = 0.05;
-/** Krok sítě obtisku pole (m) a šířka měkkého okraje obrysu. */
-const FIELD_GRID_M = 1.5;
+/**
+ * Kolik bodů sítě obtisku pole připadá na stranu čtverce – 8 na 15 m sedí na síť terénu
+ * (4 body na políčko), obtisk pak leží přesně na něm. Šířka měkkého okraje pole (m).
+ */
+const FIELD_GRID_PER_CELL = 8;
 const FIELD_EDGE_SOFT_M = 1.2;
-/** Mez kolem pole – tenký pás podél obrysu (m). */
+/** Mez kolem pole – tenký pás podél hranice čtverců (m). */
 const OUTLINE_WIDTH_M = 0.3;
 /** Rozteč řádků obilí / brázd (m) a délka opakování textury podél nich. */
 const ROW_SPACING_M = 0.75;
@@ -415,7 +418,7 @@ export class VillageRenderer {
     const seen = new Set<number>();
     for (const field of fields) {
       seen.add(field.id);
-      const key = JSON.stringify([field.outline, field.parts]);
+      const key = JSON.stringify(field.parts);
       const current = this.fields.get(field.id);
       if (current?.key === key) continue;
       changed = true;
@@ -436,12 +439,12 @@ export class VillageRenderer {
   }
 
   /**
-   * Pole: díly (čtverce políček) oříznuté obrysem s měkkým okrajem, obarvené podle stavu –
-   * jeden mesh na texturu, řádky obilí / brázdy navrch a tenká mez podél obrysu.
+   * Pole: díly (čtverce políček) s měkkým okrajem na hranici pole, obarvené podle stavu –
+   * jeden mesh na texturu, řádky obilí / brázdy navrch a tenká mez kolem čtverců.
    */
   private fieldMeshes(field: SceneField): Mesh[] {
-    if (field.outline.length < 3) return [];
-    const coverage = softCoverage(field.outline, FIELD_EDGE_SOFT_M);
+    if (field.parts.length === 0) return [];
+    const coverage = cellsCoverage(field.parts, FIELD_EDGE_SOFT_M);
     const groups = new Map<
       FieldTexture,
       { grids: DecalGrid[]; colors: [number, number, number][]; alphas: number[] }
@@ -455,7 +458,7 @@ export class VillageRenderer {
       const half = part.size / 2;
       const grid = decalGrid(
         { minX: part.x - half, maxX: part.x + half, minZ: part.z - half, maxZ: part.z + half },
-        FIELD_GRID_M,
+        part.size / FIELD_GRID_PER_CELL,
         coverage,
       );
       if (grid.indices.length === 0) continue;
@@ -472,7 +475,7 @@ export class VillageRenderer {
       }
     }
     const meshes: Mesh[] = [];
-    const [dx, dz] = principalDirection(field.outline);
+    const [dx, dz] = rowDirection(field.parts);
     for (const [texture, group] of groups) {
       const mesh = this.mergedDecal(`village-field-${field.id}-${texture}`, group, LIFT.field, 18);
       mesh.material = this.decalMaterial(texture);
@@ -491,7 +494,9 @@ export class VillageRenderer {
     const outline = createStripMesh(
       this.scene,
       `village-outline-${field.id}`,
-      stripSegments(field.outline, true, OUTLINE_WIDTH_M, 1.5),
+      cellsBoundary(field.parts).flatMap((line) =>
+        stripSegments(line, false, OUTLINE_WIDTH_M, 1.5),
+      ),
       this.context.decalHeight,
       LIFT.outline,
     );
