@@ -18,6 +18,7 @@ import { GameView } from '@/components/game/GameView';
 import { decodeLandscape, type LandscapeTransfer } from '@/lib/landscape-transfer';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
 import { tileAt, tileCenter } from '@/lib/scene/tile-at';
+import { CONSTRUCTION_PHASES, constructionPhase } from '@/lib/scene/village-construction';
 import type {
   FieldPaintPreview,
   PlacementPreview,
@@ -39,6 +40,13 @@ const STAGES: PartStage[] = [
 const buttonClass =
   'rounded bg-stone-800 px-2 py-0.5 text-stone-50 hover:bg-stone-700 disabled:opacity-40 dark:bg-stone-200 dark:text-stone-900 dark:hover:bg-stone-300';
 
+interface DevWindow extends Window {
+  __bohemiaDev?: {
+    scene: LandscapeScene;
+    setDwellings: (dwellings: SceneDwelling[]) => void;
+  };
+}
+
 interface DevField {
   id: number;
   parts: { cell: TileCell; x: number; z: number; size: number }[];
@@ -53,6 +61,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   const [mixed, setMixed] = useState(true);
   const [placing, setPlacing] = useState<string | null>(null);
   const [preview, setPreview] = useState<PlacementPreview | null>(null);
+  const [smokeAlways, setSmokeAlways] = useState(false);
   const nextId = useRef(1);
 
   const village = useMemo<SceneVillage>(
@@ -72,6 +81,20 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   useEffect(() => {
     scene?.setVillage(village);
   }, [scene, village]);
+
+  useEffect(() => {
+    scene?.setSmokeAlways(smokeAlways);
+  }, [scene, smokeAlways]);
+
+  // Přístup ke scéně a vsi pro snímky z Playwrightu (jen tato vývojová stránka).
+  useEffect(() => {
+    if (!scene) return;
+    const devWindow = window as DevWindow;
+    devWindow.__bohemiaDev = { scene, setDwellings };
+    return () => {
+      delete devWindow.__bohemiaDev;
+    };
+  }, [scene]);
 
   const handlers = {
     onCancel: (): void => {
@@ -122,14 +145,42 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     );
   };
 
-  const advanceConstruction = (): void =>
+  const advanceConstruction = (step: number): void =>
     setDwellings((list) =>
       list.map((d) => {
         if (d.built) return d;
-        const progress = Math.min(1, d.progress + 0.25);
+        const progress = Math.min(1, Math.max(0, Math.round((d.progress + step) * 100) / 100));
         return { ...d, progress, built: progress >= 1 };
       }),
     );
+
+  /** Řada stavenišť ve všech fázích vedle sebe u místa vsi (a hotové obydlí na konci). */
+  const showPhases = (): void => {
+    scene?.cancelPlacement();
+    const site = tileCenter(decoded, decoded.villageSite.x, decoded.villageSite.y);
+    const list: SceneDwelling[] = [];
+    (['zemnice', 'polozemnice'] as const).forEach((type, row) => {
+      const phases = CONSTRUCTION_PHASES[type];
+      const stops = [...phases.map((p) => (p.from + p.to) / 2), 1];
+      stops.forEach((progress, i) => {
+        const x = site.worldX + (i - (stops.length - 1) / 2) * 10.5;
+        const z = site.worldZ + row * 14;
+        const tile = tileAt(decoded, x, z);
+        if (!tile || surfaceAt(decoded, tile.x, tile.y) === 'water') return;
+        list.push({
+          id: nextId.current++,
+          type,
+          // vchodem ke kameře (ta se ve výchozím pohledu dívá k +z)
+          position: { x, z, rotation: Math.PI },
+          built: progress >= 1,
+          progress,
+        });
+      });
+    });
+    setDwellings(list);
+  };
+
+  const firstSite = dwellings.find((d) => !d.built);
 
   return (
     <>
@@ -152,9 +203,29 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         <button className={buttonClass} disabled={!scene} onClick={placeField}>
           Pole
         </button>
-        <button className={buttonClass} onClick={advanceConstruction}>
-          Stavby +25 %
+        <button className={buttonClass} onClick={() => advanceConstruction(-0.1)}>
+          Stavby −10 %
         </button>
+        <button className={buttonClass} onClick={() => advanceConstruction(0.1)}>
+          Stavby +10 %
+        </button>
+        {firstSite && (
+          <span data-testid="dev-village-phase">
+            {Math.round(firstSite.progress * 100)} % ·{' '}
+            {constructionPhase(firstSite.type, firstSite.progress).label}
+          </span>
+        )}
+        <button className={buttonClass} disabled={!scene} onClick={showPhases}>
+          Ukázka fází
+        </button>
+        <label className="flex items-center gap-1">
+          <input
+            type="checkbox"
+            checked={smokeAlways}
+            onChange={(e) => setSmokeAlways(e.target.checked)}
+          />
+          dým stále
+        </label>
         <button className={buttonClass} onClick={() => setStage((s) => (s + 1) % STAGES.length)}>
           Díly: {STAGES[stage]}
         </button>

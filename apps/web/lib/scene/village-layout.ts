@@ -1,11 +1,7 @@
 // Čistá geometrie vsi pro scénu (bez Babylonu): půdorysy, mnohoúhelníky, obtisky na terénu
-// a vzhled dílů pole podle stavu (geometrie polí po čtvercích je ve field-cells.ts). Souřadnice světa scény v metrech (x, z).
-import {
-  DWELLING_FOOTPRINT_M,
-  type DwellingType,
-  type PartStage,
-  type Position,
-} from '@bohemia/game';
+// a vzhled dílů pole podle stavu (geometrie polí po čtvercích je ve field-cells.ts). Souřadnice
+// světa scény v metrech (x, z).
+import type { DwellingType, PartStage, Position } from '@bohemia/game';
 import { cellsBounds, cellsContain } from './field-cells';
 import type { SceneField } from './village-types';
 
@@ -19,8 +15,10 @@ export const DWELLING_CLEARANCE_M: Record<
   DwellingType,
   { minX: number; maxX: number; minZ: number; maxZ: number }
 > = {
-  zemnice: { minX: -4.3, maxX: 4.3, minZ: -3.8, maxZ: 7.5 },
-  polozemnice: { minX: -4.6, maxX: 4.8, minZ: -4, maxZ: 7.5 },
+  // i se staveništěm (hromada hlíny, hráň, snopy – village-construction.ts) a střechou
+  // předsazenou 1,05 m před štíty
+  zemnice: { minX: -4.8, maxX: 4.8, minZ: -4.4, maxZ: 7.5 },
+  polozemnice: { minX: -5.1, maxX: 5.1, minZ: -4.7, maxZ: 7.5 },
 };
 
 /** Bod v souřadnicích modelu (x napříč, z k vchodu) → svět, natočení jako `mesh.rotation.y`. */
@@ -247,46 +245,6 @@ export function partLook(stage: PartStage): PartLook {
       return { texture: 'grass-lush', tint: [0.34, 0.48, 0.3], alpha: 0.95, rows: null };
   }
 }
-
-// --- Staveniště ---
-
-export interface ConstructionLook {
-  /** Krytí vykopané jámy 0–1 (roste na začátku stavby). */
-  pit: number;
-  /** Sloupy: x, z v souřadnicích modelu a výška (m); s průběhem rostou. */
-  posts: { x: number; z: number; height: number }[];
-  /** Hřebenová vaznice mezi štítovými sloupy (od 60 %). */
-  ridge: boolean;
-  /** Krokve od hřebene k rohům (od 80 %). */
-  rafters: boolean;
-}
-
-/** Plná výška sloupů (m): rohové u stěn a štítové pod hřebenem. */
-const WALL_POST_M = 1.3;
-const RIDGE_POST_M = 2.6;
-
-export function constructionLook(type: DwellingType, progress: number): ConstructionLook {
-  const p = Math.min(1, Math.max(0, progress));
-  const { width, depth } = DWELLING_FOOTPRINT_M[type];
-  const grow = smoothstep(0.1, 0.6, p);
-  const w = width / 2 - 0.2;
-  const d = depth / 2 - 0.2;
-  const posts =
-    grow <= 0
-      ? []
-      : [
-          { x: -w, z: -d, height: WALL_POST_M * grow },
-          { x: w, z: -d, height: WALL_POST_M * grow },
-          { x: w, z: d, height: WALL_POST_M * grow },
-          { x: -w, z: d, height: WALL_POST_M * grow },
-          { x: 0, z: -d, height: RIDGE_POST_M * grow },
-          { x: 0, z: d, height: RIDGE_POST_M * grow },
-        ];
-  return { pit: 0.35 + 0.65 * smoothstep(0, 0.25, p), posts, ridge: p >= 0.6, rafters: p >= 0.8 };
-}
-
-/** Výšky sloupů staveniště při plném průběhu – pro vaznici a krokve. */
-export const CONSTRUCTION_POST_M = { wall: WALL_POST_M, ridge: RIDGE_POST_M } as const;
 
 // --- Skrytí stromů a kamenů pod stavbami a poli ---
 

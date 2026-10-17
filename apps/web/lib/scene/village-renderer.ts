@@ -1,3 +1,4 @@
+import type { Camera } from '@babylonjs/core/Cameras/camera';
 import { Material } from '@babylonjs/core/Materials/material';
 import { MultiMaterial } from '@babylonjs/core/Materials/multiMaterial';
 import { PBRMaterial } from '@babylonjs/core/Materials/PBR/pbrMaterial';
@@ -5,19 +6,36 @@ import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { RawTexture } from '@babylonjs/core/Materials/Textures/rawTexture';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
-import { Vector3 } from '@babylonjs/core/Maths/math.vector';
-import { CreateBox } from '@babylonjs/core/Meshes/Builders/boxBuilder';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
+import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import type { Scene } from '@babylonjs/core/scene';
-import { DWELLING_FOOTPRINT_M, type DwellingType } from '@bohemia/game';
+import { DWELLING_FOOTPRINT_M, type DwellingType, type WorldClock } from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
-import { EARTH_LAYERS, earthPatch, eaveTufts, type TuftModel } from './dwelling-decor';
+import { EARTH_LAYERS, SMOKE_VENT, earthPatch, eaveTufts, type TuftModel } from './dwelling-decor';
+import {
+  PIT_SHAPES,
+  pitMeshData,
+  pitOutline,
+  spoilHeapData,
+  worldToLocal,
+  type PitCut,
+} from './dwelling-pit';
 import { cellsBoundary, cellsCoverage, rowDirection } from './field-cells';
 import { applyGammaFog } from './gamma-fog';
-import { instanceMatrices, loadMergedModel, type ModelInstance } from './instanced-model';
 import {
-  CONSTRUCTION_POST_M,
-  constructionLook,
+  instanceMatrices,
+  loadMergedModel,
+  loadModelParts,
+  type ModelInstance,
+} from './instanced-model';
+import { applyPitCut, type PitCuts } from './pit-cut';
+import {
+  SITE_PROP_PLACES,
+  constructionState,
+  type ConstructionState,
+} from './village-construction';
+import {
+  DWELLING_CLEARANCE_M,
   decalGrid,
   dwellingHideShape,
   fieldHideShape,
@@ -25,11 +43,13 @@ import {
   localToWorld,
   partLook,
   polygonBounds,
+  smoothstep,
   softCoverage,
   stripSegments,
   type DecalGrid,
   type FieldTexture,
   type HideShape,
+  type Point,
 } from './village-layout';
 import {
   createDecalMaterial,
@@ -37,9 +57,11 @@ import {
   createStripMesh,
   type HeightFn,
 } from './village-meshes';
+import { VillageSmoke, type SmokeSource } from './village-smoke';
 import type { SceneDwelling, SceneField } from './village-types';
 
 const MODEL_BASE_URL = '/models/dwellings/';
+const SMOKE_TEXTURE_URL = '/textures/particles/smoke.png';
 const DWELLING_TYPES: readonly DwellingType[] = ['zemnice', 'polozemnice'];
 const TUFT_MODELS: readonly TuftModel[] = ['grass-tuft-1', 'grass-tuft-2'];
 const AMBIENT = new Color3(0.38, 0.38, 0.36);
@@ -60,15 +82,22 @@ const OUTLINE_WIDTH_M = 0.3;
 const ROW_SPACING_M = 0.75;
 const ROW_REPEAT_M = 4;
 /** Výška obtisků nad terénem (m) – navzájem v pořadí, aby se nepraly o hloubku. */
-const LIFT = { field: 0.03, rows: 0.045, outline: 0.06, worn: 0.03, earth: 0.04, pit: 0.035 };
-const WOOD = new Color3(0.42, 0.31, 0.21);
-const POST_THICKNESS_M = 0.16;
+const LIFT = { field: 0.03, rows: 0.045, outline: 0.06, worn: 0.03, earth: 0.04, turf: 0.045 };
+/** Sejmutý drn přesahuje jámu o tolik (m) – po vykopání zůstane kolem okraje tmavá hlína. */
+const TURF_MARGIN_M = 0.35;
+/** Ušlapaná tráva kolem staveniště: o kolik menší než místo pro stavbu a jak měkký okraj (m). */
+const TRAMPLED_INSET_M = 0.6;
+const TRAMPLED_SOFT_M = 2.2;
+/** Hromada hlíny z jámy v plné velikosti (m) – většina hlíny jde nakonec na valy. */
+const SPOIL_HEAP_M = { rx: 1.7, rz: 1.2, height: 0.72 };
 
 interface DwellingView {
   key: string;
   dwelling: SceneDwelling;
   meshes: Mesh[];
   shape: HideShape;
+  /** Vyhloubená jáma (terén se v ní prořízne), nebo null, dokud se nekope. */
+  cut: PitCut | null;
 }
 
 interface FieldView {
@@ -88,12 +117,18 @@ interface VillageContext {
   onAsyncChange(): void;
   /** Dočetla se textura obtisku – překreslit. */
   requestRender(): void;
+  /** Jámy prořezávané do terénu a obtisků (sdílí je materiál terénu). */
+  pitCuts: PitCuts;
+  /** Směr slunečních paprsků – stín okraje jámy. */
+  sunDirection: { x: number; y: number; z: number };
 }
 
 /**
- * Ves ve scéně: hotová obydlí jako modely (thin instances, jeden mesh na typ), kolem nich
- * vyšlapaná hlína a trsy trávy u okapu, staveniště (jáma a rostoucí sloupy), pole jako obtisky
- * na terénu podle stavu dílů s mezí podél obrysu. `update` mění jen to, co se změnilo.
+ * Ves ve scéně: hotová obydlí jako modely (thin instances, jeden mesh na typ) nad vyhloubenou
+ * jámou se schody, kolem nich vyšlapaná hlína a trsy trávy u okapu, z dýmníku občas dým;
+ * staveniště po fázích (village-construction.ts) z dílů modelu a rekvizit v instancích, jáma
+ * se prohlubuje s průběhem; pole jako obtisky na terénu podle stavu dílů s mezí podél obrysu.
+ * `update` mění jen to, co se změnilo.
  */
 export class VillageRenderer {
   private readonly dwellings = new Map<number, DwellingView>();
@@ -104,13 +139,20 @@ export class VillageRenderer {
   private readonly materials = new Map<string, Material>();
   private loading: Promise<void> | null = null;
   private builtKey = '';
+  /** Díly staveniště a rekvizity z construction.glb podle jména uzlu (zemnice-thatch-1, site-spoil…). */
+  private readonly siteParts = new Map<string, Mesh>();
+  private siteLoading: Promise<void> | null = null;
+  private siteKey = '';
+  private readonly smoke: VillageSmoke;
   private village: SceneVillage = { dwellings: [], fields: [] };
   private disposed = false;
 
   constructor(
     private readonly scene: Scene,
     private readonly context: VillageContext,
-  ) {}
+  ) {
+    this.smoke = new VillageSmoke(scene, SMOKE_TEXTURE_URL);
+  }
 
   /** Vrátí true, když se ve scéně něco změnilo (je co překreslit). */
   update(village: SceneVillage): boolean {
@@ -119,7 +161,27 @@ export class VillageRenderer {
     const dwellings = this.updateDwellings(village.dwellings);
     const fields = this.updateFields(village.fields);
     const models = this.updateModels();
-    return dwellings || fields || models;
+    const sites = this.updateConstruction();
+    const smoke = this.updateSmokeSources();
+    return dwellings || fields || models || sites || smoke;
+  }
+
+  /**
+   * Posune dým z obydlí na okamžik `nowMs` (jen dým v záběru kamery; bez kamery všechen).
+   * Vrátí true, když je co překreslit.
+   */
+  animateSmoke(nowMs: number, camera: Camera | null): boolean {
+    return this.smoke.animate(nowMs, camera);
+  }
+
+  /** Vývojová volba: dým ze všech hotových obydlí pořád. */
+  setSmokeAlways(enabled: boolean): void {
+    this.smoke.setAlways(enabled);
+  }
+
+  /** Svět, podle jehož herního dne se v obydlích topí (ráno a večer). */
+  setWorldClock(world: WorldClock): void {
+    this.smoke.setWorldClock(world);
   }
 
   /** Oblasti, kde se mají skrýt stromy a kameny krajiny. */
@@ -144,6 +206,7 @@ export class VillageRenderer {
 
   dispose(): void {
     this.disposed = true;
+    this.smoke.dispose();
     for (const view of this.dwellings.values()) for (const mesh of view.meshes) mesh.dispose();
     for (const view of this.fields.values()) for (const mesh of view.meshes) mesh.dispose();
     this.dwellings.clear();
@@ -216,11 +279,14 @@ export class VillageRenderer {
       if (current?.key === key) continue;
       changed = true;
       if (current) for (const mesh of current.meshes) mesh.dispose();
+      const state = dwelling.built ? null : constructionState(dwelling.type, dwelling.progress);
+      const dug = !state || state.pitDepth > 0;
       this.dwellings.set(dwelling.id, {
         key,
         dwelling,
-        meshes: dwelling.built ? this.dwellingGround(dwelling) : this.constructionSite(dwelling),
+        meshes: state ? this.constructionSite(dwelling, state) : this.dwellingGround(dwelling),
         shape: dwellingHideShape(dwelling.type, dwelling.position),
+        cut: dug ? { position: dwelling.position, shape: PIT_SHAPES[dwelling.type] } : null,
       });
     }
     for (const [id, view] of this.dwellings) {
@@ -229,7 +295,99 @@ export class VillageRenderer {
       this.dwellings.delete(id);
       changed = true;
     }
+    if (changed) {
+      const cuts: PitCut[] = [];
+      for (const view of this.dwellings.values()) if (view.cut) cuts.push(view.cut);
+      this.context.pitCuts.set(cuts);
+    }
     return changed;
+  }
+
+  /** Dýmníky hotových obývaných obydlí pro dým. */
+  private updateSmokeSources(): boolean {
+    const sources: SmokeSource[] = this.village.dwellings
+      .filter((d) => d.built && d.inhabited !== false)
+      .map((d) => {
+        const vent = SMOKE_VENT[d.type];
+        const [x, z] = localToWorld(d.position, 0, vent.z);
+        return { seed: d.id, x, y: this.baseHeight(d) + vent.y, z };
+      });
+    return this.smoke.setSources(sources);
+  }
+
+  /**
+   * Díly staveniště (z construction.glb) a rekvizity v instancích – přepočítají se, jen když
+   * se změnilo některé staveniště.
+   */
+  private updateConstruction(): boolean {
+    const sites = this.village.dwellings.filter((d) => !d.built);
+    const key = sites.map(dwellingKey).join(';');
+    if (key === this.siteKey) return false;
+    if (sites.length > 0) void this.loadConstruction();
+    if (!this.siteLoading) return false;
+    this.siteKey = key;
+    const instances = new Map<string, ModelInstance[]>();
+    const push = (name: string, instance: ModelInstance): void => {
+      const list = instances.get(name);
+      if (list) list.push(instance);
+      else instances.set(name, [instance]);
+    };
+    for (const d of sites) {
+      const state = constructionState(d.type, d.progress);
+      const base = this.baseHeight(d);
+      const rotationY = d.position.rotation;
+      for (const part of state.parts) {
+        push(`${d.type}-${part}`, {
+          x: d.position.x,
+          y: base,
+          z: d.position.z,
+          rotationY,
+          scale: 1,
+        });
+      }
+      for (const { prop, scale } of state.props) {
+        // hromada hlíny je vlastní síť staveniště (leží na terénu, barvy jako jáma)
+        if (prop === 'spoil') continue;
+        const place = SITE_PROP_PLACES[d.type][prop];
+        const [x, z] = localToWorld(d.position, place.x, place.z);
+        push(`site-${prop}`, {
+          x,
+          y: this.context.groundHeight(x, z) - 0.02,
+          z,
+          rotationY: rotationY + place.rotation,
+          scale,
+        });
+      }
+    }
+    for (const [name, mesh] of this.siteParts) setInstances(mesh, instances.get(name) ?? []);
+    return true;
+  }
+
+  /** Načte díly staveniště (jednou); po načtení se staveniště překreslí. */
+  private loadConstruction(): Promise<void> {
+    this.siteLoading ??= (async () => {
+      try {
+        const parts = await loadModelParts(
+          this.scene,
+          `${MODEL_BASE_URL}construction.glb`,
+          'village-site-',
+          prepareDwellingMaterial,
+        );
+        if (!parts) return;
+        for (const [name, mesh] of parts) {
+          mesh.setEnabled(false);
+          this.context.addShadowCaster(mesh);
+          this.siteParts.set(name, mesh);
+        }
+      } catch (error) {
+        console.warn('Díly staveniště se nepodařilo načíst.', error);
+      }
+      if (this.disposed) return;
+      this.siteKey = '';
+      this.updateConstruction();
+      this.context.onAsyncChange();
+    })();
+    return this.siteLoading;
   }
 
   /** Modely hotových obydlí a trsy u okapu – přepočítají se, jen když se změnila hotová obydlí. */
@@ -319,98 +477,154 @@ export class VillageRenderer {
     );
     earth.material = this.decalMaterial('mud', -3);
     earth.alphaIndex = 2;
-    return [worn, earth];
+    const { depth } = PIT_SHAPES[d.type];
+    return [worn, earth, this.pitMesh(d, depth, 1, false)];
+  }
+
+  /** Jáma se šíjí a schody (stěny po okraj terénu, dno, stupně) – terén v ní prořízne pit-cut. */
+  private pitMesh(d: SceneDwelling, depth: number, roofCover: number, fresh: boolean): Mesh {
+    const data = pitMeshData(PIT_SHAPES[d.type], d.position, {
+      depth,
+      base: this.baseHeight(d),
+      rim: this.context.decalHeight,
+      roofCover,
+      fresh,
+      sun: this.context.sunDirection,
+    });
+    const vertexData = new VertexData();
+    vertexData.positions = data.positions;
+    vertexData.normals = data.normals;
+    vertexData.uvs = data.uvs;
+    vertexData.colors = data.colors;
+    vertexData.indices = data.indices;
+    const mesh = new Mesh(`village-pit-${d.id}`, this.scene);
+    vertexData.applyToMesh(mesh);
+    mesh.material = this.pitMaterial();
+    mesh.isPickable = false;
+    mesh.receiveShadows = true;
+    return mesh;
+  }
+
+  /** Obvod jámy se šíjí ve světě (rozšířený o `margin`). */
+  private pitOutlineWorld(d: SceneDwelling, margin: number): Point[] {
+    return pitOutline(PIT_SHAPES[d.type], margin).map(([x, z]) => localToWorld(d.position, x, z));
   }
 
   /**
-   * Staveniště: vykopaná jáma (obtisk hlíny v půdorysu, sytější s průběhem) a dřevěná
-   * konstrukce – rohové a štítové sloupy rostou, od 60 % hřebenová vaznice, od 80 % krokve.
+   * Staveniště podle fáze (village-construction.ts): ušlapaná tráva kolem, světlá čára
+   * vytyčení, sejmutý drn (tmavá hlína od zadní stěny k šíji), od kopání jáma, která se
+   * prohlubuje. Díly konstrukce a rekvizity kreslí `updateConstruction` v instancích.
    */
-  private constructionSite(d: SceneDwelling): Mesh[] {
-    const look = constructionLook(d.type, d.progress);
-    const { width, depth } = DWELLING_FOOTPRINT_M[d.type];
-    const outline = footprintCorners(d.position, width + 0.8, depth + 0.8);
-    const b = polygonBounds(outline);
-    const pit = createDecalMesh(
-      this.scene,
-      `village-pit-${d.id}`,
-      decalGrid(
-        { minX: b.minX - 1, maxX: b.maxX + 1, minZ: b.minZ - 1, maxZ: b.maxZ + 1 },
-        0.5,
-        softCoverage(outline, 0.8),
-      ),
-      {
-        height: this.context.decalHeight,
-        smoothHeight: this.context.groundHeight,
-        lift: LIFT.pit,
-        color: [0.78, 0.64, 0.5],
-        alpha: look.pit,
-        uv: 12,
-      },
-    );
-    pit.material = this.decalMaterial('mud', -3);
-    pit.alphaIndex = 2;
-    const meshes: Mesh[] = [pit];
-
-    const base = this.baseHeight(d);
-    const parts: Mesh[] = [];
-    const world = (lx: number, lz: number, y: number): Vector3 => {
-      const [x, z] = localToWorld(d.position, lx, lz);
-      return new Vector3(x, y, z);
-    };
-    for (const post of look.posts) {
-      const box = CreateBox(
-        `village-post-${d.id}`,
-        { width: POST_THICKNESS_M, depth: POST_THICKNESS_M, height: post.height + 0.3 },
+  private constructionSite(d: SceneDwelling, state: ConstructionState): Mesh[] {
+    const meshes: Mesh[] = [];
+    if (state.trampled > 0) {
+      const c = DWELLING_CLEARANCE_M[d.type];
+      const inset = TRAMPLED_INSET_M + TRAMPLED_SOFT_M / 2;
+      const area: Point[] = [
+        localToWorld(d.position, c.minX + inset, c.minZ + inset),
+        localToWorld(d.position, c.maxX - inset, c.minZ + inset),
+        localToWorld(d.position, c.maxX - inset, c.maxZ - inset - 2),
+        localToWorld(d.position, c.minX + inset, c.maxZ - inset - 2),
+      ];
+      const b = polygonBounds(area);
+      const pad = TRAMPLED_SOFT_M;
+      const trampled = createDecalMesh(
         this.scene,
+        `village-trampled-${d.id}`,
+        decalGrid(
+          { minX: b.minX - pad, maxX: b.maxX + pad, minZ: b.minZ - pad, maxZ: b.maxZ + pad },
+          0.6,
+          softCoverage(area, TRAMPLED_SOFT_M),
+        ),
+        {
+          height: this.context.decalHeight,
+          smoothHeight: this.context.groundHeight,
+          lift: LIFT.worn,
+          color: [1, 0.95, 0.86],
+          alpha: state.trampled,
+          uv: 20,
+        },
       );
-      // 0,3 m zapuštěné do země
-      box.position = world(post.x, post.z, base + post.height / 2 - 0.15);
-      box.rotation.y = d.position.rotation;
-      parts.push(box);
+      trampled.material = this.decalMaterial('grass-dirt');
+      trampled.alphaIndex = 1;
+      meshes.push(trampled);
     }
-    const beam = (from: Vector3, to: Vector3): void => {
-      const length = Vector3.Distance(from, to);
-      const box = CreateBox(
-        `village-beam-${d.id}`,
-        { width: POST_THICKNESS_M * 0.8, height: POST_THICKNESS_M * 0.8, depth: length },
+    if (state.turf > 0) {
+      // drn se snímá od zadní stěny (−z) k šíji
+      const shape = PIT_SHAPES[d.type];
+      const outline = this.pitOutlineWorld(d, TURF_MARGIN_M);
+      const b = polygonBounds(outline);
+      const coverage = softCoverage(outline, 0.35);
+      const start = -shape.halfZ - TURF_MARGIN_M;
+      const front = start + state.turf * (shape.rampEndZ + TURF_MARGIN_M - start + 0.3);
+      const turf = createDecalMesh(
         this.scene,
+        `village-turf-${d.id}`,
+        decalGrid(
+          { minX: b.minX - 0.5, maxX: b.maxX + 0.5, minZ: b.minZ - 0.5, maxZ: b.maxZ + 0.5 },
+          0.3,
+          (x, z) =>
+            coverage(x, z) *
+            (1 - smoothstep(front - 0.4, front, worldToLocal(d.position, x, z)[1])),
+        ),
+        {
+          height: this.context.decalHeight,
+          smoothHeight: this.context.groundHeight,
+          lift: LIFT.turf,
+          color: [0.72, 0.58, 0.46],
+          uv: 10,
+        },
       );
-      box.position = Vector3.Center(from, to);
-      box.lookAt(to);
-      parts.push(box);
-    };
-    const posts = look.posts;
-    if (look.ridge && posts.length === 6) {
-      const top = (i: number): Vector3 =>
-        world(posts[i]!.x, posts[i]!.z, base + CONSTRUCTION_POST_M.ridge);
-      beam(top(4), top(5));
-      if (look.rafters) {
-        for (const [ridge, corner] of [
-          [4, 0],
-          [4, 1],
-          [5, 2],
-          [5, 3],
-        ] as const) {
-          beam(
-            top(ridge),
-            world(posts[corner]!.x, posts[corner]!.z, base + CONSTRUCTION_POST_M.wall),
-          );
-        }
-      }
+      turf.material = this.decalMaterial('mud', -3);
+      turf.alphaIndex = 2;
+      meshes.push(turf);
     }
-    if (parts.length > 0) {
-      const frame = Mesh.MergeMeshes(parts, true, true);
-      if (frame) {
-        frame.name = `village-frame-${d.id}`;
-        frame.material = this.woodMaterial();
-        frame.isPickable = false;
-        frame.receiveShadows = true;
-        this.context.addShadowCaster(frame);
-        meshes.push(frame);
-      }
+    if (state.outline > 0) {
+      const line = createStripMesh(
+        this.scene,
+        `village-layout-${d.id}`,
+        stripSegments(this.pitOutlineWorld(d, 0), true, 0.09, 0.5),
+        this.context.decalHeight,
+        LIFT.outline,
+      );
+      line.material = this.layoutMaterial();
+      meshes.push(line);
     }
+    if (state.pitDepth > 0) meshes.push(this.pitMesh(d, state.pitDepth, state.roofCover, true));
+    const spoil = state.props.find((p) => p.prop === 'spoil');
+    if (spoil) meshes.push(this.spoilHeap(d, spoil.scale));
     return meshes;
+  }
+
+  /** Hromada vykopané hlíny vedle jámy – roste s kopáním, ubývá na valy. */
+  private spoilHeap(d: SceneDwelling, scale: number): Mesh {
+    const place = SITE_PROP_PLACES[d.type].spoil;
+    const [x, z] = localToWorld(d.position, place.x, place.z);
+    const data = spoilHeapData({
+      seed: d.id,
+      x,
+      z,
+      rotation: d.position.rotation + place.rotation,
+      rx: SPOIL_HEAP_M.rx * Math.sqrt(scale),
+      rz: SPOIL_HEAP_M.rz * Math.sqrt(scale),
+      height: SPOIL_HEAP_M.height * scale,
+      ground: this.context.decalHeight,
+    });
+    const vertexData = new VertexData();
+    vertexData.positions = data.positions;
+    vertexData.uvs = data.uvs;
+    vertexData.colors = data.colors;
+    vertexData.indices = data.indices;
+    const normals = new Float32Array(data.positions.length);
+    VertexData.ComputeNormals(data.positions, data.indices, normals);
+    vertexData.normals = normals;
+    const mesh = new Mesh(`village-spoil-${d.id}`, this.scene);
+    vertexData.applyToMesh(mesh);
+    mesh.material = this.pitMaterial();
+    mesh.isPickable = false;
+    mesh.receiveShadows = true;
+    this.context.addShadowCaster(mesh);
+    return mesh;
   }
 
   private updateFields(fields: readonly SceneField[]): boolean {
@@ -555,6 +769,8 @@ export class VillageRenderer {
     let material = this.materials.get(key);
     if (!material) {
       const decal = createDecalMaterial(this.scene, `village-${key}`, { texture, zOffset });
+      // obtisky (vyšlapaná hlína, sejmutý drn) nesmí viset nad jámou
+      applyPitCut(decal, this.context.pitCuts);
       const loaded = decal.diffuseTexture;
       if (loaded instanceof Texture && !loaded.isReady()) {
         loaded.onLoadObservable.addOnce(() => this.context.requestRender());
@@ -614,14 +830,36 @@ export class VillageRenderer {
     return material;
   }
 
-  private woodMaterial(): Material {
-    let material = this.materials.get('wood');
+  /** Hlína jámy: textura bahna z terénu, barvy (ornice, podloží, stín) nesou vrcholy. */
+  private pitMaterial(): Material {
+    let material = this.materials.get('pit');
     if (!material) {
-      const standard = new StandardMaterial('village-wood', this.scene);
-      standard.diffuseColor = WOOD;
+      const standard = new StandardMaterial('village-pit', this.scene);
       standard.specularColor = Color3.Black();
+      // stěnu vidět zevnitř i tam, kde na svahu okraj klesne pod dno
+      standard.backFaceCulling = false;
+      standard.twoSidedLighting = true;
+      const texture = new Texture('/textures/terrain/mud.jpg', this.scene);
+      texture.anisotropicFilteringLevel = 8;
+      if (!texture.isReady()) texture.onLoadObservable.addOnce(() => this.context.requestRender());
+      standard.diffuseTexture = texture;
       material = standard;
-      this.materials.set('wood', material);
+      this.materials.set('pit', material);
+    }
+    return material;
+  }
+
+  /** Světlá čára vytyčení (vápno / naražená tráva po provázku). */
+  private layoutMaterial(): Material {
+    let material = this.materials.get('layout');
+    if (!material) {
+      const standard = new StandardMaterial('village-layout', this.scene);
+      standard.diffuseColor = new Color3(0.8, 0.76, 0.64);
+      standard.specularColor = Color3.Black();
+      standard.zOffset = -4;
+      standard.backFaceCulling = false;
+      material = standard;
+      this.materials.set('layout', material);
     }
     return material;
   }

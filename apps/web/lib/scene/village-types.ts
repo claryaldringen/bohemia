@@ -8,7 +8,10 @@
 import type { DwellingType, PlacementCheck, Position, TileCell } from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
 
-/** Obydlí ve scéně; `built: false` = staveniště, jeho vzhled ukazuje `progress` (0–1). */
+/**
+ * Obydlí ve scéně; `built: false` = staveniště, jeho vzhled ukazuje `progress` (0–1).
+ * `inhabited` – jen z obývaného obydlí občas stoupá dým; bez údaje se bere jako obývané.
+ */
 export type SceneDwelling = SceneVillage['dwellings'][number];
 
 /** Pole ve scéně – díly po čtvercích (políčkách krajiny). */

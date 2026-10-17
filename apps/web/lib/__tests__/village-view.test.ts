@@ -89,6 +89,13 @@ describe('buildVillageView', () => {
     expect(view.constructionsStalled).toBe(true);
   });
 
+  it('scéna: obydlí bez obyvatel není obývané', () => {
+    const s = state();
+    s.people = [];
+    const { scene } = buildVillageView(record(s), landscape, DAY);
+    expect(scene.dwellings[0]?.inhabited).toBe(false);
+  });
+
   it('scéna: obydlí, díly pole ve středech políček a rozestavěné obydlí', () => {
     const s = state();
     // stavba obydlí rovnou do stavu – pravidla odemčení tu netestujeme
@@ -111,6 +118,7 @@ describe('buildVillageView', () => {
         position: { x: -50, z: -50, rotation: 0.5 },
         built: true,
         progress: 1,
+        inhabited: true,
       },
       {
         id: 99,

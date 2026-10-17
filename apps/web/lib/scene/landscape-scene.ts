@@ -6,7 +6,7 @@ import { Color3, Color4 } from '@babylonjs/core/Maths/math.color';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { Scene } from '@babylonjs/core/scene';
-import { surfaceAt, type Landscape } from '@bohemia/game';
+import { surfaceAt, type Landscape, type WorldClock } from '@bohemia/game';
 import type { TileInfo } from '../tile-info';
 import { AmbientSound } from './ambient-sound';
 import { createRtsCamera, type RtsCamera } from './camera';
@@ -25,6 +25,7 @@ import { createTerrainMesh } from './terrain-mesh';
 import { buildRenderSurface } from './render-surface';
 import { terrainMeshHeight } from './drape';
 import { InstanceHider } from './instance-hider';
+import { PitCuts, applyPitCut } from './pit-cut';
 import { addSunShadows, type SunShadows } from './sun-shadows';
 import { buildRelief } from './terrain-relief';
 import { tileAt, tileCenter } from './tile-at';
@@ -86,6 +87,10 @@ export class LandscapeScene {
   /** Poslední stav vsi od rozhraní – vykreslí se, jakmile je krajina hotová. */
   private villageState: SceneVillage | null = null;
   private placement: ActivePlacement | null = null;
+  /** Jámy obydlí – terén a obtisky se v nich prořezávají (pit-cut.ts). */
+  private readonly pitCuts = new PitCuts();
+  private worldClock: WorldClock | null = null;
+  private smokeAlways = false;
 
   private constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -165,7 +170,11 @@ export class LandscapeScene {
         this.renderWhenReady();
       },
       requestRender: () => this.renderWhenReady(),
+      pitCuts: this.pitCuts,
+      sunDirection: SUN_DIRECTION,
     });
+    if (this.worldClock) this.village.setWorldClock(this.worldClock);
+    this.village.setSmokeAlways(this.smokeAlways);
     await report('forest', 0.4);
     if (this.disposed) return;
     const field = buildForestField(landscape);
@@ -195,6 +204,7 @@ export class LandscapeScene {
     await report('surface', 0.5);
     if (this.disposed) return;
     this.terrain = createTerrainMesh(this.scene, landscape, surface, { field, trees });
+    if (this.terrain.material) applyPitCut(this.terrain.material, this.pitCuts);
     this.water = createWaterMesh(this.scene, surface);
     createCanopyMesh(this.scene, surface, field);
     const site = tileCenter(landscape, landscape.villageSite.x, landscape.villageSite.y);
@@ -355,6 +365,22 @@ export class LandscapeScene {
     this.renderWhenReady();
   }
 
+  /**
+   * Svět, podle jehož herního dne se v obydlích topí (dým ráno a večer). Bez volání ostrý svět;
+   * testovací svět (WORLD_START, WORLD_END) sem předá rozhraní.
+   */
+  setWorldClock(world: WorldClock): void {
+    this.village?.setWorldClock(world);
+    this.worldClock = world;
+  }
+
+  /** Vývojová volba: dým ze všech hotových obydlí pořád (kontrola vzhledu dýmu). */
+  setSmokeAlways(enabled: boolean): void {
+    this.smokeAlways = enabled;
+    this.village?.setSmokeAlways(enabled);
+    if (this.village?.animateSmoke(Date.now(), null)) this.needsRender = true;
+  }
+
   /** Zruší umisťování (zavolá jeho `onCancel`); bez umisťování nic nedělá. */
   cancelPlacement(): void {
     this.placement?.cancel();
@@ -407,6 +433,8 @@ export class LandscapeScene {
     const hidden = this.hider.apply(village.hideShapes());
     // Rozhraní posílá stav vsi opakovaně (dotaz každých pár sekund) – beze změny nic.
     if (!changed && !hidden) return;
+    // Dým hned na místě – i při omezeném pohybu, kdy se pak už nehýbe.
+    village.animateSmoke(Date.now(), null);
     this.shadows?.refresh();
     this.renderWhenReady();
   }
@@ -450,6 +478,8 @@ export class LandscapeScene {
         animated = true;
       }
       if (this.fauna?.animate(now / 1000, camera.camera)) animated = true;
+      // dým z obydlí – rozvrh ohně podle herního dne, proto skutečný čas
+      if (this.village?.animateSmoke(Date.now(), camera.camera)) animated = true;
       if (animated) {
         this.lastWaterFrame = now;
         this.needsRender = true;
