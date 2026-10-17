@@ -1049,7 +1049,7 @@ def main():
             render([obj], os.path.join(RENDER, f"{obj.name}_front.png"), (-7.5, -11.5, 5.2), (0.3, 0, 0.9))
             render([obj], os.path.join(RENDER, f"{obj.name}_side.png"), (15.0, -2.5, 4.2), (0, -0.3, 1.0), lens=35)
             render([obj], os.path.join(RENDER, f"{obj.name}_back.png"), (9.5, 9.0, 6.0), (0, 0, 0.8))
-            render([obj], os.path.join(RENDER, f"{obj.name}_close.png"), (-2.6, -7.2, 2.3), (0.1, -2.4, 0.3), size=(1200, 900), lens=32)
+            render([obj], os.path.join(RENDER, f"{obj.name}_close.png"), (-2.4, -8.6, 3.9), (0.05, -2.7, 0.0), size=(1200, 900), lens=30)
             for o in extra:
                 bpy.data.objects.remove(o)
         bpy.data.objects["ground"].hide_render = False

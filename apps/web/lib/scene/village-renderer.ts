@@ -86,7 +86,7 @@ const TURF_MARGIN_M = 0.35;
 const TRAMPLED_INSET_M = 0.6;
 const TRAMPLED_SOFT_M = 2.2;
 /** Hromada hlíny z jámy v plné velikosti (m) – většina hlíny jde nakonec na valy. */
-const SPOIL_HEAP_M = { rx: 1.55, rz: 1.05, height: 0.9 };
+const SPOIL_HEAP_M = { rx: 1.7, rz: 1.2, height: 0.72 };
 
 interface DwellingView {
   key: string;
@@ -300,10 +300,10 @@ export class VillageRenderer {
     return changed;
   }
 
-  /** Dýmníky hotových obydlí pro dým. */
+  /** Dýmníky hotových obývaných obydlí pro dým. */
   private updateSmokeSources(): boolean {
     const sources: SmokeSource[] = this.village.dwellings
-      .filter((d) => d.built)
+      .filter((d) => d.built && d.inhabited !== false)
       .map((d) => {
         const vent = SMOKE_VENT[d.type];
         const [x, z] = localToWorld(d.position, 0, vent.z);

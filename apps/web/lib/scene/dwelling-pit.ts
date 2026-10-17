@@ -513,6 +513,8 @@ export interface SpoilHeapData {
   indices: Uint32Array;
 }
 
+/** Hroudy a kamínky textury bahna jsou na hromadě menší než na stěnách jámy. */
+const HEAP_UV_REPEAT_M = 1.3;
 const HEAP_RINGS = 9;
 const HEAP_SEGMENTS = 28;
 
@@ -547,13 +549,13 @@ export function spoilHeapData(o: SpoilHeapOptions): SpoilHeapData {
         Math.pow(1 - rho * rho, 0.6) *
         (1 + 0.15 * Math.sin(2 * theta + phase[2]!) * rho + lumps * (1 - rho * 0.4));
       positions.push(x, o.ground(x, z) + (i === 0 ? -0.04 : lift), z);
-      uvs.push(x / UV_REPEAT_M, (z + lift) / UV_REPEAT_M);
+      uvs.push(x / HEAP_UV_REPEAT_M, (z + lift) / HEAP_UV_REPEAT_M);
       const t = smoothstep(0.05, 0.45, lift / Math.max(o.height, 1e-6));
       const grain =
         0.9 + 0.14 * Math.sin(7 * theta + phase[3]! + 9 * rho) * Math.sin(3 * theta + 5 * rho);
       // nahoře vyschlé podloží (světlejší, méně syté), dole ornice
-      const top = [0.92, 0.78, 0.6] as const;
-      const bottom = COLORS.topsoil;
+      const top = [0.92, 0.84, 0.72] as const;
+      const bottom = [0.62, 0.54, 0.46] as const;
       colors.push(
         (bottom[0] + (top[0] - bottom[0]) * t) * grain,
         (bottom[1] + (top[1] - bottom[1]) * t) * grain,

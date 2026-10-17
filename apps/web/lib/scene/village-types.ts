@@ -31,6 +31,8 @@ export interface SceneDwelling {
   /** false = staveniště; jeho vzhled ukazuje `progress` (0–1). */
   built: boolean;
   progress: number;
+  /** Obývané obydlí – jen z něj občas stoupá dým. Bez údaje se bere jako obývané. */
+  inhabited?: boolean;
 }
 
 export interface SceneFieldPart {
