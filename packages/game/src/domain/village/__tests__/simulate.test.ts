@@ -4,7 +4,7 @@ import { foundVillage, startNewDwelling } from '../actions';
 import type { PartInput } from '../actions';
 import { daysUntilHarvest, eatDay } from '../food';
 import { ageYears, foodNeedPerDay, occupants } from '../people';
-import { AGE, FERTILITY } from '../rules';
+import { AGE, CHRONICLE_MAX_EVENTS, FERTILITY } from '../rules';
 import { advanceVillage } from '../simulate';
 import type { ChronicleEvent, Person, VillageState } from '../types';
 import { createPlan, threshLossKg } from '../year-plan';
@@ -88,6 +88,32 @@ describe('advanceVillage – dopočítání', () => {
     expect(harvests(whole).length).toBeGreaterThanOrEqual(10);
     expect(count(whole, 'birth')).toBeGreaterThan(0);
     expect(whole.lastDay).toBe(end);
+  });
+
+  it('kronika drží posledních CHRONICLE_MAX_EVENTS událostí – nejnovější, i po kouscích', () => {
+    const start = found(at(600, 3, 15));
+    const old: ChronicleEvent[] = Array.from({ length: CHRONICLE_MAX_EVENTS + 100 }, (_, i) => ({
+      day: i,
+      kind: 'birth',
+    }));
+    start.chronicle = [...old];
+    const end = at(602, 3, 15);
+    const s = advanceVillage(start, end);
+    expect(s.chronicle).toHaveLength(CHRONICLE_MAX_EVENTS);
+    const fresh = s.chronicle.filter((e) => e.day > start.lastDay);
+    expect(fresh.length).toBeGreaterThanOrEqual(2); // aspoň dvě sklizně
+    expect(s.chronicle.slice(-fresh.length)).toEqual(fresh);
+    expect(s.chronicle.slice(0, -fresh.length)).toEqual(
+      old.slice(-(CHRONICLE_MAX_EVENTS - fresh.length)),
+    );
+
+    let chunked = start;
+    for (const days of [1, 40, 300, 7, 500]) {
+      chunked = advanceVillage(chunked, Math.min(end, chunked.lastDay + days));
+      expect(chunked.chronicle.length).toBeLessThanOrEqual(CHRONICLE_MAX_EVENTS);
+    }
+    chunked = advanceVillage(chunked, end);
+    expect(chunked).toEqual(s);
   });
 
   it('nemění vstupní stav a do stejného dne vrátí shodnou kopii', () => {

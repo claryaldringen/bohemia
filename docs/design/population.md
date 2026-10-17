@@ -148,6 +148,8 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
 - Ves vede kroniku událostí s herním datem: narození, úmrtí (dítě / dospělý / starší),
   založení domácnosti, dokončení stavby, rozhodnutí obyvatel o přestavbě. Po návratu ji hráč
   uvidí jako první.
+- Kronika drží **posledních 500 událostí**, starší se zahazují (návrh Clauda – stav vsi za
+  1000 let jinak roste bez konce; simulace kroniku nečte, takže na průběh vsi to nemá vliv).
 
 ## Zjednodušení do dalších mechanik
 

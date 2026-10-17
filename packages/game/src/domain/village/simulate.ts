@@ -13,6 +13,7 @@ import { allocateDay } from './labor';
 import { ageGroup, foodNeedPerDay, isFertileAdult, laborPerDay } from './people';
 import { populationDay } from './population';
 import {
+  CHRONICLE_MAX_EVENTS,
   COMMON_LABOR_HISTORY_DAYS,
   DAILY_MIN_PER_HOUSEHOLD,
   DWELLINGS,
@@ -58,7 +59,8 @@ const SATIATION_EPSILON = 1e-9;
 
 /**
  * Dopočítá ves do dne `toDay` včetně – den po dni od `lastDay + 1`. Vstup nemění.
- * Výsledek nezávisí na tom, po jakých kouscích se dopočítává (náhoda dne je ze seedu a dne).
+ * Výsledek nezávisí na tom, po jakých kouscích se dopočítává (náhoda dne je ze seedu a dne;
+ * kronika se zkrátí na posledních CHRONICLE_MAX_EVENTS událostí – simulace ji nečte).
  * RangeError, když `toDay` leží za koncem světa nebo před už odsimulovaným dnem.
  */
 export function advanceVillage(state: VillageState, toDay: number): VillageState {
@@ -71,7 +73,14 @@ export function advanceVillage(state: VillageState, toDay: number): VillageState
   const next = structuredClone(state);
   for (let day = next.lastDay + 1; day <= toDay; day++) simulateDay(next, day);
   next.lastDay = toDay;
+  trimChronicle(next);
   return next;
+}
+
+/** Kronika drží jen posledních CHRONICLE_MAX_EVENTS událostí (mutuje stav). */
+function trimChronicle(state: VillageState): void {
+  const excess = state.chronicle.length - CHRONICLE_MAX_EVENTS;
+  if (excess > 0) state.chronicle.splice(0, excess);
 }
 
 /** Jeden den vsi v pevném pořadí kroků (mutuje stav). */

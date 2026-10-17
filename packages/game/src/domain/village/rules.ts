@@ -105,6 +105,8 @@ export const DAILY_MIN_PER_HOUSEHOLD = 0.5;
 export const DOMESTIC = { perHousehold: 0.3, perPerson: 0.15, backlogMaxDays: 60 } as const;
 // population.md – Nové obydlí (společná práce za posledních 30 dní pro „má na to“)
 export const COMMON_LABOR_HISTORY_DAYS = 30;
+// population.md – Kronika (ves drží posledních 500 událostí, starší se zahazují)
+export const CHRONICLE_MAX_EVENTS = 500;
 
 // fields.md – Práce, tabulka Kdy (okna prací v měsících včetně; kopání, které se na podzim nestihne, pokračuje v březnu–dubnu)
 export const WINDOWS: Record<TaskName, readonly (readonly [number, number])[]> = {
