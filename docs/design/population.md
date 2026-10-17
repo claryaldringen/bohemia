@@ -101,9 +101,10 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
 - **Hájení:** prvních 30 herních let od založení vsi jí přeje štěstí (Martin) – dospělí
   neumírají (ani hladem) a dětí umírá polovina oproti běžné úmrtnosti (podoba štěstí je návrh Clauda, doladí
   se kalibrací). Malá ves tak nevymře hned na začátku a všichni hráči mají srovnatelný start.
-- **Rozpad domácnosti** (návrh Clauda): domácnost bez dospělého (jen děti nebo starší) a osamělý
-  dospělý bez dětí se přestěhují do domácnosti s nejvíc volnými místy (smí ji i přeplnit) –
-  jinak by domácnost, kde zbyl jeden dospělý, už nikdy neměla děti. Kronika to zapíše.
+- **Rozpad domácnosti** (návrh Clauda): domácnost bez dospělého 14–44 let (jen děti nebo
+  starší) a osamělý dospělý bez dětí se přestěhují do domácnosti s nejvíc volnými místy (smí
+  ji i přeplnit) – jinak by domácnost, kde zbyl jeden dospělý, už nikdy neměla děti. Kronika
+  to zapíše.
   Opuštěné obydlí se neopravuje a chátrá; při stavu 0 zanikne a políčko se uvolní.
 
 ### Nové obydlí (rozhoduje hráč)

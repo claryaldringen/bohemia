@@ -64,10 +64,13 @@ export function deathChancePerDay(
   return 1 - (1 - Math.min(1, yearly)) ** (1 / DAYS_PER_RISK_YEAR);
 }
 
-/** Dojde k rozpadu domácnosti? Jen děti, nebo jediný člověk 14+ a nikdo jiný. */
+/**
+ * Dojde k rozpadu domácnosti? Nikdo 14–44 let (jen děti nebo starší), nebo jediný člověk
+ * a nikdo jiný.
+ */
 function isDissolving(members: Person[], day: number): boolean {
   if (members.length === 0) return false;
-  const adults = members.filter((p) => ageYears(p.bornDay, day) >= AGE.adult).length;
+  const adults = members.filter((p) => isFertileAdult(p, day)).length;
   return adults === 0 || members.length === 1;
 }
 
