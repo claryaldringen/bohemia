@@ -205,6 +205,21 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
 - **Světlo:** letní slunce a obloha podle 0 A.D., kontrast 1,1. **Stíny od slunce**
   (`sun-shadows.ts`) – stínová mapa 4096 přes celou krajinu se vykreslí jednou; vrhají je meshe
   pojmenované `trees-*`, `impostors-*` a `decor-*` (při přejmenování zachovat prefix).
+- **Roční období** (jen vzhled, žádná pravidla): `season-look.ts` (čisté funkce, testy) z dne
+  v roce spočítá sníh, suchou / svěží trávu, množství, podzimní barvu a mladost listí, květy,
+  světlo, opar, vodu a zvuky – plynulé přechody 2–5 týdnů, **léto (`REFERENCE_DAY`) je
+  výchozí vzhled a nesmí se měnit**. `LandscapeScene.updateSeason` se jednou za sekundu podívá
+  na herní datum (celé dny, svět mimo běh = léto) a jen při znatelné změně nastaví světlo,
+  opar, vodu, zvuky a uniformy a jednou překreslí – vzhled se mění nejvýš jednou za herní den.
+  Shadery v `season-materials.ts` (GLSL i WGSL, bez textury navíc – šum je procedurální):
+  terén (tráva podle vah vrstev, sníh podle šumu a sklonu, ne na dně potoka), obtisky vsi
+  (`applySeasonGround`), PBR stromy a dekorace (`applySeasonModel` podle jména modelu –
+  druhy v `season-foliage.ts`: listnáče se barví a opadávají, z koruny zbudou větvičky, kůra
+  ztratí zelený tón; jehličí a kameny pod sněhem; rákos stojí suchý; trnka a jabloně kvetou),
+  střechy (`applySeasonSnow`), impostory a plocha korun. Nový model stromu nebo keře = záznam
+  v `seasonFoliageFor`. Stínová mapa listí nezná – pod 30 % listí listnáče (`isDeciduousMesh`)
+  ze stínové mapy vypadnou (jedno překreslení mapy) a stíny zesvětlí. Vývojový náhled má
+  posuvník dne v roce a „přehrát rok“ (`setSeasonDay`).
 - **Ukazatel načítání:** `setLandscape(landscape, onProgress)` hlásí kroky přípravy a mezi
   náročnými kroky pustí prohlížeč překreslit; `GameView` ukazuje `SceneLoading`.
 - **Zvuky** (podle 0 A.D.): `ambient-mix.ts` (čisté funkce, testy) spočítá z cíle a přiblížení
