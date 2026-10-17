@@ -312,7 +312,7 @@ const linear = (color: Rgb): string =>
     .join(', ');
 /** Barvy PBR (lineární): sníh, větvičky holé koruny, květy (trnky, hlohu, jabloní). */
 const SNOW_LINEAR = linear(SNOW_GAMMA);
-const TWIG_LINEAR = linear([0.36, 0.31, 0.27]);
+const TWIG_LINEAR = linear([0.45, 0.4, 0.36]);
 const BLOSSOM_LINEAR = linear([0.97, 0.94, 0.95]);
 
 /**

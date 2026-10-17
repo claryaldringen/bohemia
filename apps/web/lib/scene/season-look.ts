@@ -199,7 +199,7 @@ const ANCHORS: Record<SeasonName, SeasonAnchor> = {
       fogColor: [0.78, 0.81, 0.86],
       fogDensity: 0.0004,
     },
-    water: { tint: [0.8, 0.95, 1.12], sky: [0.7, 0.74, 0.8] },
+    water: { tint: [0.72, 0.92, 1.3], sky: [0.7, 0.74, 0.8] },
     sound: { birds: 0.35, birdsong: 0.2, leaves: 0.6 },
   },
 };
