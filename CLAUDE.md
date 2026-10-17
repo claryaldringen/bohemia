@@ -252,6 +252,13 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   sítě a textury z kódu) s brankou k nejbližšímu hotovému obydlí (při rozšíření jinam zůstane),
   uvnitř mohylky po hrobech (mřížka 7 × 8 na čtverec, poslední čerstvé z hlíny); založení
   vytyčení → kůly → pletení, rozšíření ve stavbě má vlastní plot, pak plot obepne celý hřbitov.
+  **Sad** (`orchard-renderer.ts`, bez Babylonu `orchard-layout.ts`): jabloně z 0 A.D.
+  (`models/trees/apple-1…4.glb`, s plody `apple-fruit-1…4.glb` – převod
+  `tools/blender/orchard.json`, textura bez plodů `apple_leaves.py`, zralá `apple_ripe.py`)
+  sponem do pětky, 2 na čtverec; výsadba čára vytyčení → kůly → sazenice, mladé stromky u kůlu
+  rostou 12 let. Velikost (`growth`) a jablka (`fruit`, srpen až sklizeň) počítá server
+  v `SceneVillage.orchards` – **háček pro roční období** (květ, barva listí zatím ne). Modely se
+  načtou až s prvním sadem.
   Dým z dýmníku (`village-smoke.ts`, sprity) podle rozvrhu ohně za herní den (`smoke-schedule.ts`, deterministicky) – hýbe se jen v záběru, ve stejném
   taktu `WATER_FPS` jako voda, při omezeném pohybu stojí.
 - **Řemeslné dílny – zatím jen modely** (pravidla v [docs/design/crafts.md](docs/design/crafts.md)
@@ -277,7 +284,8 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
 ## Ves (hratelný prototyp)
 
 Pravidla v [docs/design/population.md](docs/design/population.md),
-[docs/design/fields.md](docs/design/fields.md) a [docs/design/cemetery.md](docs/design/cemetery.md),
+[docs/design/fields.md](docs/design/fields.md), [docs/design/cemetery.md](docs/design/cemetery.md)
+a [docs/design/orchard.md](docs/design/orchard.md),
 rozhraní částí v
 [docs/superpowers/plans/2026-10-17-village-slice.md](docs/superpowers/plans/2026-10-17-village-slice.md).
 
@@ -286,8 +294,10 @@ rozhraní částí v
   Ves se dopočítá při každém načtení a akci (worker zatím není).
 - **API jádra:** `foundVillage` (4 lidé, zásoby, stavba první zemnice, volitelně první pole),
   `advanceVillage(state, toDay)` (dopočítá ves do dne včetně) a akce hráče `startNewDwelling`,
-  `foundField` a `foundCemetery`. Stav vsi je JSON-serializovatelný, funkce vstupní stav nemění.
-  Nové části stavu jsou volitelné (`VillageState.cemeteries?`) – vsi uložené dřív se načtou.
+  `foundField`, `foundCemetery` a `foundOrchard`. Stav vsi je JSON-serializovatelný, funkce
+  vstupní stav nemění. Nové části stavu jsou volitelné (`VillageState.cemeteries?`,
+  `orchards?`, `applesKg?`, `orchardWork?`) – vsi uložené dřív se načtou a beze sadů se jejich
+  stav nemění.
 - **Hřbitov** (`cemetery.ts`, cemetery.md): čtverce s 56 hroby, zemřelý se pohřbí do hotového
   hřbitova s místem nejblíž k obydlím (`bury` v `populationDay`), kronika `cemetery-full`.
   Čtverce navazující stranou na hřbitov ho **rozšíří** (`foundCemetery`: stejné id, čtverce na
@@ -298,6 +308,14 @@ rozhraní částí v
   násobí úmrtnost, hájení chrání. Je jen vnitřní – **nikdy ji neukazovat hráči** (Martin), panel
   ukáže jen hroby (obsazené / všechny) a na kolik let (`CemeterySummary.yearsLeft` z úmrtí
   v kronice).
+- **Sad** (`orchard.ts`, orchard.md): staví se po čtvercích jako pole (`orchardPartsFromCells`,
+  sad, pole, hřbitov ani obydlí se nepřekrývají). Výsadba je stavba ze společné práce jen v oknech
+  jara a podzimu (`orchardPlantingNeed` mimo okna 0), čtverec dostane `plantedDay`. Rok sadu
+  začíná 1. 3. (`orchardYear`), úroda `orchardYieldShare`. Sezónní práce celé vsi
+  (`VillageState.orchardWork` – sklizeň září–říjen, péče v zimě; `orchardSeasonDay` na začátku
+  dne) jde do `allocateDay` mezi polní úlohy podle konce okna. Jablka `applesKg` se jí před
+  obilím (`eatMeal` ve `food.ts`, bez jablek přesně `eatDay`) a ráno 1. 3. shnijí; osev se jimi
+  neřídí.
 - **Hráč staví kdy chce** (Martin) – stavbu smí zablokovat jen **cena předem** (`costs.ts`:
   `BUILD_COSTS`, `buildAffordability`): suroviny ze zásob (dnes žádné) a u obydlí **lidé
   k osídlení** (`settlers` = `availableSettlers` v `dwellings.ts`: domácnosti s párem navíc −
@@ -311,12 +329,13 @@ rozhraní částí v
   text v návrhu. Kalibrace: `measure-village.ts` nasimuluje stovky vsí a vypíše cíle z Kalibrace
   obou dokumentů s OK / MIMO (`200 60` rychlé cíle, `100 1000` vymření do roku 1500).
 - **Web:** server actions `app/game/actions.ts` (`getVillageView`, `foundVillage`, `placeDwelling`,
-  `placeField`, `placeCemetery`, `renameVillage` → `VillageView` / `null` / `{ error }`),
+  `placeField`, `placeCemetery`, `placeOrchard`, `renameVillage` → `VillageView` / `null` /
+  `{ error }`),
   composition root `lib/village.ts`, `lib/village-view.ts` (DTO, smí i do prohlížeče). Typy pro scénu jsou
   odvozené odtud a z `@bohemia/game` – nedefinovat je znovu ve scéně.
 - **Rozhraní jako v 0 A.D., bez popisků a průvodce** (Martin): `components/game/VillageGame.tsx`
-  skládá `hud/` – `TopBar` (jméno vsi, klik = přejmenovat; ikony s čísly: lidé, obilí, volná
-  práce, nasycení barvou ikony, datum; zvuk a odhlášení), `Minimap` (vlevo dole, `lib/minimap.ts`,
+  skládá `hud/` – `TopBar` (jméno vsi, klik = přejmenovat; ikony s čísly: lidé, obilí, jablka
+  jen když jsou, volná práce, nasycení barvou ikony, datum; zvuk a odhlášení), `Minimap` (vlevo dole, `lib/minimap.ts`,
   klik / tažení přesune pohled), `SelectionPanel` (dole uprostřed, jen při výběru,
   `lib/selection-details.ts`), `BuildGrid` (vpravo dole), `NoticeLines` (mizející řádky nahoře),
   `CursorReason` (důvod, proč umístění nejde; oranžově `check.warning`, které stavbu
