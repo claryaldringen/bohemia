@@ -1,6 +1,7 @@
 # Pole a jídlo vesnice
 
-Stav: schváleno 17. 10. 2026 (Martin). Implementace zatím není.
+Stav: schváleno 17. 10. 2026 (Martin). Implementace jádra: `packages/game/src/domain/village/`
+(UI, databáze a scéna v dalších plánech).
 
 ## Proč
 

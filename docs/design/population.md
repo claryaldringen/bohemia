@@ -1,7 +1,8 @@
 # Obyvatelstvo a obydlí vesnice
 
 Stav: schváleno 17. 10. 2026 (Martin: „asi ok, doladíme později“), týž den upraveno umístění
-obydlí a společná pole (Martin). Implementace zatím není.
+obydlí a společná pole (Martin). Implementace jádra: `packages/game/src/domain/village/` (UI,
+databáze a scéna v dalších plánech).
 
 ## Proč
 
