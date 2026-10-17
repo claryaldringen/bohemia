@@ -1,4 +1,5 @@
 import {
+  CEMETERY,
   DWELLINGS,
   FOUNDING_COST_PER_HA,
   dateOfDayIndex,
@@ -7,6 +8,7 @@ import {
   tileCenterWorld,
   type BuildBlocker,
   type ChronicleEvent,
+  type ConstructionKind,
   type ConstructionSummary,
   type DwellingType,
   type Landscape,
@@ -18,9 +20,10 @@ import {
   type TileCell,
   type VillageRecord,
   type VillageState,
+  villageCemeteries,
 } from '@bohemia/game';
 import { formatGameDate } from './game-date';
-import { formatHa, formatInteger } from './village-format';
+import { cemeterySpaceLabel, formatCells, formatHa, formatInteger } from './village-format';
 
 // Pohled na ves pro panel a scénu (DTO server actions). Čistý modul – smí ho importovat
 // i klient (typy, převod scény na data pro kontrolu umístění).
@@ -45,13 +48,16 @@ export interface VillageView {
   satiation: number;
   commonLaborPerDay: number;
   canBuildDwelling: PlacementCheck;
-  costs: { zemnice: number; polozemnice: number; fieldPerHa: number };
+  /** Ceny staveb v člověkodnech – obydlí, pole za hektar, pohřebiště za čtverec. */
+  costs: { zemnice: number; polozemnice: number; fieldPerHa: number; cemeteryPerSquare: number };
   constructions: {
     id: number;
-    kind: 'dwelling' | 'rebuild' | 'field';
+    kind: ConstructionKind;
     label: string;
     progress: number;
   }[];
+  /** Pohřebiště v pořadí pohřbívání – kolik místa zbývá (hygienu hráč nevidí – cemetery.md). */
+  cemeteries: VillageCemetery[];
   /** Ves hladoví – zásoby nevystačí do sklizně. */
   hungry: boolean;
   /** Stavby stojí – několik dní po sobě nezbyla žádná společná práce. */
@@ -59,6 +65,23 @@ export interface VillageView {
   scene: SceneVillage;
   /** Posledních CHRONICLE_LENGTH událostí, nejnovější první. */
   chronicle: { day: number; dateLabel: string; text: string }[];
+}
+
+/** Pohřebiště pro panel výběru. */
+export interface VillageCemetery {
+  id: number;
+  squares: number;
+  /** Vytyčené a ohrazené – přijímá mrtvé. */
+  built: boolean;
+  /** Průběh založení 0–1 (hotové 1). */
+  progress: number;
+  capacity: number;
+  graves: number;
+  freeGraves: number;
+  /** Odhad, za kolik let se zaplní (podle úmrtí posledních let); bez úmrtí null. */
+  yearsLeft: number | null;
+  /** Česky pro panel – „Zbývá 40 hrobů – asi na 12 let.“ */
+  spaceLabel: string;
 }
 
 export interface SceneVillage {
@@ -79,6 +102,17 @@ export interface SceneVillage {
   fields: {
     id: number;
     parts: { cell: TileCell; x: number; z: number; size: number; stage: PartStage }[];
+  }[];
+  /**
+   * Pohřebiště po čtvercích (střed políčka ve světě a strana jako u pole) – průběh založení
+   * (0–1, `built` hotové) a počet obsazených hrobů. Bez údaje žádná.
+   */
+  cemeteries?: {
+    id: number;
+    squares: { cell: TileCell; x: number; z: number; size: number }[];
+    built: boolean;
+    progress: number;
+    graves: number;
   }[];
 }
 
@@ -102,9 +136,10 @@ function deathText(group: 'child' | 'adult' | 'elder'): string {
   return 'Zemřel jeden ze starších.';
 }
 
-function finishedText(kind: 'dwelling' | 'rebuild' | 'field'): string {
+function finishedText(kind: ConstructionKind): string {
   if (kind === 'dwelling') return 'Dostavěli nové obydlí.';
   if (kind === 'rebuild') return 'Dokončili přestavbu obydlí.';
+  if (kind === 'cemetery') return 'Pohřebiště je vytyčené a ohrazené – dá se do něj pohřbívat.';
   return 'Pole je založené – dá se osévat.';
 }
 
@@ -133,11 +168,16 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       return 'Hlad skončil.';
     case 'part-became-forest':
       return 'Opuštěný díl pole zarostl v les.';
+    case 'cemetery-full':
+      return event.othersFree
+        ? 'Jedno z pohřebišť se zaplnilo – pohřbívá se do dalšího.'
+        : 'Pohřebiště se zaplnilo – mrtvé už není kam pohřbívat.';
   }
 }
 
 function constructionLabel(c: ConstructionSummary): string {
   if (c.kind === 'field') return `Pole ${formatHa(c.areaM2 ?? 0)}`;
+  if (c.kind === 'cemetery') return `Pohřebiště (${formatCells(c.squares ?? 0)})`;
   const type = c.dwellingType ?? 'zemnice';
   if (c.kind === 'rebuild') return `Přestavba na ${DWELLING_NAMES[type].accusative}`;
   return DWELLING_NAMES[type].nominative;
@@ -171,7 +211,29 @@ function sceneVillage(
         : [],
     ),
   }));
-  return { dwellings: [...built, ...sites], fields };
+  const cemeteries = villageCemeteries(state).map((c) => ({
+    id: c.id,
+    squares: c.squares.map((s) => ({
+      cell: { x: s.cell.x, y: s.cell.y },
+      x: s.x,
+      z: s.z,
+      size: c.squareSizeM,
+    })),
+    built: c.builtDay !== null,
+    progress: cemeteryProgress(c.id, c.builtDay !== null, constructions),
+    graves: c.graves,
+  }));
+  return { dwellings: [...built, ...sites], fields, cemeteries };
+}
+
+/** Průběh založení pohřebiště 0–1 – hotové 1, jinak podle jeho stavby. */
+function cemeteryProgress(
+  id: number,
+  built: boolean,
+  constructions: readonly ConstructionSummary[],
+): number {
+  if (built) return 1;
+  return constructions.find((s) => s.kind === 'cemetery' && s.cemeteryId === id)?.progress ?? 0;
 }
 
 function scenePart(
@@ -224,6 +286,7 @@ export function buildVillageView(
       zemnice: DWELLINGS.zemnice.cost,
       polozemnice: DWELLINGS.polozemnice.cost,
       fieldPerHa: FOUNDING_COST_PER_HA.meadow,
+      cemeteryPerSquare: CEMETERY.costPerSquare,
     },
     constructions: summary.constructions.map((c) => ({
       id: c.id,
@@ -233,20 +296,28 @@ export function buildVillageView(
     })),
     hungry: summary.hungry,
     constructionsStalled: summary.constructionsStalled,
+    cemeteries: summary.cemeteries.map((c) => {
+      const progress = cemeteryProgress(c.id, c.built, summary.constructions);
+      return { ...c, progress, spaceLabel: cemeterySpaceLabel(c) };
+    }),
     scene: sceneVillage(state, landscape, day, summary.constructions),
     chronicle: chronicle(state, name),
   };
 }
 
 /**
- * Data pro kontrolu umístění v prohlížeči (`checkDwellingPlacement`, `fieldPartsFromCells`)
- * ze scény vsi – hotová i rozestavěná obydlí jako obydlí, pole podle čtverců dílů.
+ * Data pro kontrolu umístění v prohlížeči (`checkDwellingPlacement`, `fieldPartsFromCells`,
+ * `cemeteryPartsFromCells`) ze scény vsi – hotová i rozestavěná obydlí jako obydlí, pole podle
+ * čtverců dílů, pohřebiště podle svých čtverců.
  */
 export function placementVillageFromScene(scene: SceneVillage): PlacementVillage {
   return {
     dwellings: scene.dwellings.map((d) => ({ type: d.type, position: d.position })),
     constructions: [],
     parts: scene.fields.flatMap((f) => f.parts.map((p) => ({ cell: p.cell }))),
+    cemeteries: (scene.cemeteries ?? []).map((c) => ({
+      squares: c.squares.map((s) => ({ cell: s.cell })),
+    })),
   };
 }
 

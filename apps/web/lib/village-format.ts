@@ -67,3 +67,34 @@ export function fieldPreviewLabel(
     formatManDays(preview.foundingCost),
   ].join(' · ');
 }
+
+/** Počet hrobů – „1 hrob“, „3 hroby“, „56 hrobů“. */
+export function formatGraves(count: number): string {
+  return `${formatInteger(count)} ${plural(count, 'hrob', 'hroby', 'hrobů')}`;
+}
+
+/** Odhad v letech – „asi na 12 let“, „asi na 1 rok“, „méně než na rok“, „na víc než 100 let“. */
+export function formatYearsLeft(years: number): string {
+  if (years < 1) return 'méně než na rok';
+  if (years > 100) return 'na víc než 100 let';
+  const whole = Math.round(years);
+  return `asi na ${formatInteger(whole)} ${plural(whole, 'rok', 'roky', 'let')}`;
+}
+
+/**
+ * Kolik místa na pohřebišti zbývá (cemetery.md – Co hráč vidí: hroby a odhad na kolik let,
+ * ne hygiena): „Zbývá 40 hrobů – asi na 12 let.“, „Pohřebiště je plné – ves potřebuje nové.“
+ */
+export function cemeterySpaceLabel(cemetery: {
+  built: boolean;
+  capacity: number;
+  freeGraves: number;
+  yearsLeft: number | null;
+}): string {
+  if (!cemetery.built) return `Až bude ohrazené, vejde se sem ${formatGraves(cemetery.capacity)}.`;
+  if (cemetery.freeGraves === 0) return 'Pohřebiště je plné – ves potřebuje nové.';
+  const graves = `Zbývá ${formatGraves(cemetery.freeGraves)}`;
+  return cemetery.yearsLeft === null
+    ? `${graves}.`
+    : `${graves} – ${formatYearsLeft(cemetery.yearsLeft)}.`;
+}
