@@ -379,8 +379,10 @@ export class LandscapeScene {
   private applyVillage(): void {
     const village = this.village;
     if (!village || !this.villageState) return;
-    village.update(this.villageState);
-    this.hider.apply(village.hideShapes());
+    const changed = village.update(this.villageState);
+    const hidden = this.hider.apply(village.hideShapes());
+    // Rozhraní posílá stav vsi opakovaně (dotaz každých pár sekund) – beze změny nic.
+    if (!changed && !hidden) return;
     this.shadows?.refresh();
     this.renderWhenReady();
   }

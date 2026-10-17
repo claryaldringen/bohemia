@@ -251,7 +251,7 @@ export function partLook(stage: PartStage): PartLook {
         texture: 'mud',
         tint: [0.95, 0.84, 0.68],
         alpha: 1,
-        rows: { color: [0.42, 0.62, 0.2], alpha: 0.85 },
+        rows: { color: [0.38, 0.56, 0.2], alpha: 0.75 },
       };
     case 'young-fallow':
       return { texture: 'grass-dirt', tint: [0.95, 1, 0.78], alpha: 0.9, rows: null };

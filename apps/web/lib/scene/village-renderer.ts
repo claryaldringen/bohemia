@@ -108,12 +108,14 @@ export class VillageRenderer {
     private readonly context: VillageContext,
   ) {}
 
-  update(village: SceneVillage): void {
-    if (this.disposed) return;
+  /** Vrátí true, když se ve scéně něco změnilo (je co překreslit). */
+  update(village: SceneVillage): boolean {
+    if (this.disposed) return false;
     this.village = village;
-    this.updateDwellings(village.dwellings);
-    this.updateFields(village.fields);
-    this.updateModels();
+    const dwellings = this.updateDwellings(village.dwellings);
+    const fields = this.updateFields(village.fields);
+    const models = this.updateModels();
+    return dwellings || fields || models;
   }
 
   /** Oblasti, kde se mají skrýt stromy a kameny krajiny. */
@@ -200,13 +202,15 @@ export class VillageRenderer {
     this.context.onAsyncChange();
   }
 
-  private updateDwellings(dwellings: readonly SceneDwelling[]): void {
+  private updateDwellings(dwellings: readonly SceneDwelling[]): boolean {
+    let changed = false;
     const seen = new Set<number>();
     for (const dwelling of dwellings) {
       seen.add(dwelling.id);
       const key = dwellingKey(dwelling);
       const current = this.dwellings.get(dwelling.id);
       if (current?.key === key) continue;
+      changed = true;
       if (current) for (const mesh of current.meshes) mesh.dispose();
       this.dwellings.set(dwelling.id, {
         key,
@@ -219,16 +223,18 @@ export class VillageRenderer {
       if (seen.has(id)) continue;
       for (const mesh of view.meshes) mesh.dispose();
       this.dwellings.delete(id);
+      changed = true;
     }
+    return changed;
   }
 
   /** Modely hotových obydlí a trsy u okapu – přepočítají se, jen když se změnila hotová obydlí. */
-  private updateModels(): void {
+  private updateModels(): boolean {
     const built = this.village.dwellings.filter((d) => d.built);
     const key = built.map(dwellingKey).join(';');
-    if (key === this.builtKey) return;
+    if (key === this.builtKey) return false;
     if (built.length > 0) void this.loadModels();
-    if (!this.loading) return;
+    if (!this.loading) return false;
     this.builtKey = key;
     for (const type of DWELLING_TYPES) {
       const model = this.models.get(type);
@@ -261,6 +267,7 @@ export class VillageRenderer {
           })),
       );
     }
+    return true;
   }
 
   /** Výška vykresleného terénu (obtisky ducha při umisťování). */
@@ -402,13 +409,15 @@ export class VillageRenderer {
     return meshes;
   }
 
-  private updateFields(fields: readonly SceneField[]): void {
+  private updateFields(fields: readonly SceneField[]): boolean {
+    let changed = false;
     const seen = new Set<number>();
     for (const field of fields) {
       seen.add(field.id);
       const key = JSON.stringify([field.outline, field.parts]);
       const current = this.fields.get(field.id);
       if (current?.key === key) continue;
+      changed = true;
       if (current) for (const mesh of current.meshes) mesh.dispose();
       this.fields.set(field.id, {
         key,
@@ -420,7 +429,9 @@ export class VillageRenderer {
       if (seen.has(id)) continue;
       for (const mesh of view.meshes) mesh.dispose();
       this.fields.delete(id);
+      changed = true;
     }
+    return changed;
   }
 
   /**
