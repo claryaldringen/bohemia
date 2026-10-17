@@ -359,6 +359,17 @@ rozhraní částí v
   `lib/scene/field-painting.ts` (`FieldPainter`, režim `squares`, logika výběru ve
   `field-cells.ts`) – ovládání v tabulce výše. Obrys pole (`Field.outline`) zůstal jen u starých
   vsí.
+- **Les a dřevo** ([forest.md](docs/design/forest.md), `domain/village/wood.ts`): klády na hromadě
+  (`woodLogs`, staré vsi 0, hnijí 4 % ročně), obydlí, první zemnice i přestavby berou dřevo
+  (`DWELLING_TREES` 7 / 18) nejdřív z hromady, zbytek vyhradí při zahájení mezi nejbližšími
+  dospělými stromy (`planDwellingWood`, `nearestMatureTrees` – hledá po políčkách) a kácí je jako
+  první část práce stavby (`fellAsWorked` → pařezy). Simulace proto dostává vrstvu překážek
+  (`advanceVillage(state, day, obstacles)` – vždy stejně, jinak výsledek závisí na kouscích);
+  bez ní (testy, kalibrace) se kácí bez polohy. Mýcení (díly polí, čtverce hřbitova, staveniště)
+  dá kládu za dospělý strom (`trees` u dílu / čtverce). Dřevo je surovina předem (`villageStock`
+  s vrstvou překážek: klády + stromy, které jde skácet). Palivo: přirážka domácí práce podle
+  `forestDistanceM` obydlí. Scéna: hromada klád `lib/scene/log-pile.ts` (místo a hranice
+  v `log-pile-layout.ts`), staveniště ukazuje průběh bez kácení (`buildProgress`).
 - **Upozornění** (`lib/village-notices.ts`): plná domácnost (fakt), hlad, stojící stavby, plný
   hřbitov (žádný hotový nemá volný hrob) – nově vzniklé jako krátký mizející řádek nahoře,
   žádný trvalý seznam. Kronika je jen v DTO.
