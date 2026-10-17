@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import {
   generateLandscape,
+  obstacleKind,
   obstaclesOf,
   packObstacles,
   type ObstacleLayer,
@@ -10,8 +11,20 @@ import {
 import { foundCemetery, foundField, foundVillage, startNewDwelling } from '../actions';
 import { villageStock } from '../costs';
 import { allocateDay } from '../labor';
-import { matureTreesByDistance, obstacleChangesAt, NO_OBSTACLE_CHANGES } from '../obstacles';
-import { forestEdgeDistanceM, withForestDistances } from '../placement';
+import {
+  countMatureTrees,
+  matureTreesByDistance,
+  obstacleChangesAt,
+  obstacleStatus,
+  NO_OBSTACLE_CHANGES,
+} from '../obstacles';
+import {
+  checkDwellingPlacement,
+  fieldPartsFromCells,
+  forestEdgeDistanceM,
+  placementVillageOf,
+  withForestDistances,
+} from '../placement';
 import {
   DOMESTIC,
   DWELLING_TREES,
@@ -100,6 +113,64 @@ describe('nejbližší dospělé stromy', () => {
         all.filter((t) => !exclude.has(t.id)).slice(0, count),
       );
     }
+  });
+
+  it('počet stromů ke skácení (mezipaměť vrstvy + změny vsi) sedí s projitím celé vrstvy', () => {
+    const s = fullVillage();
+    const near = matureTreesByDistance(layer, NO_OBSTACLE_CHANGES, SITE, { limit: 10 });
+    const stone = Array.from({ length: layer.count }, (_, i) => i).find(
+      (i) => obstacleKind(layer, i) === 'stone',
+    )!;
+    s.felledTrees = [
+      { id: near[0]!.id, day: DAY - 10 },
+      { id: near[1]!.id, day: DAY - 40 * 366 }, // dorůstá z náletu
+      { id: near[2]!.id, day: DAY - 80 * 366 }, // už zase dospělý
+    ];
+    s.clearedObstacles = [
+      { id: near[3]!.id, day: DAY },
+      { id: layer.id[stone]!, day: DAY },
+    ];
+    s.parts = [
+      {
+        id: 90,
+        fieldId: 89,
+        areaM2: 225,
+        distanceM: 50,
+        naturalFertility: 50,
+        fertilityShare: 1,
+        bonusUntilDay: null,
+        state: 'founding',
+        sownYears: 0,
+        fallowSinceDay: null,
+        foundingCost: 10,
+        foundingDone: 0,
+        surface: 'meadow',
+        obstacles: [near[4]!.id, near[0]!.id],
+      },
+    ];
+    s.constructions = [
+      {
+        id: 91,
+        kind: 'dwelling',
+        startedDay: DAY,
+        cost: 60,
+        done: 0,
+        dwellingType: 'zemnice',
+        position: SITE,
+        dwellingId: null,
+        fieldId: null,
+        wood: { trees: 7, fromPile: 5, fell: [{ id: near[5]!.id, cost: 2 }], felled: 0 },
+      },
+    ];
+    const changes = obstacleChangesAt(s, DAY);
+    const status = obstacleStatus(changes);
+    const claimed = new Set([near[4]!.id, near[0]!.id, near[5]!.id]);
+    let brute = 0;
+    for (let i = 0; i < layer.count; i++) {
+      if (status.kindOf(layer, i) === 'tree' && !claimed.has(layer.id[i]!)) brute++;
+    }
+    expect(availableTrees(layer, s, DAY)).toBe(brute);
+    expect(availableTrees(layer, s, DAY)).toBe(countMatureTrees(layer, changes) - 2);
   });
 
   it('když stromů není dost, vrátí všechny; pokácené a odstraněné vynechá', () => {
@@ -244,7 +315,7 @@ describe('kácení prací stavby', () => {
     );
   });
 
-  it('vyhrazený strom, který mezitím vymýtilo pole, stavba nahradí kládou z hromady', () => {
+  it('vyhrazený strom, který mezitím zmizel, se počítá jako pokácený – bez klády z hromady', () => {
     const s = fullVillage();
     s.woodLogs = 0;
     const started = startNewDwelling(s, DAY, 'zemnice', { x: 40, z: 0, rotation: 0 }, 0, [], {
@@ -253,10 +324,10 @@ describe('kácení prací stavby', () => {
     const c = started.constructions.at(-1)!;
     const gone = c.wood!.fell[0]!.id!;
     started.clearedObstacles!.push({ id: gone, day: DAY + 1 });
-    started.woodLogs = 1; // kláda z mýcení
+    started.woodLogs = 1; // jiná kláda na hromadě
     c.done = c.wood!.fell[0]!.cost;
     fellAsWorked(started, c, DAY + 2);
-    expect(started.woodLogs).toBe(0);
+    expect(started.woodLogs).toBe(1);
     expect(started.felledTrees).toEqual([]);
     expect(c.wood!.felled).toBe(1);
   });
@@ -277,19 +348,190 @@ describe('kácení prací stavby', () => {
   });
 });
 
+describe('vyhrazený strom patří své stavbě', () => {
+  // ruční krajina 64 × 64 políček po 15 m (jako vrstva `forest`), celá louka
+  const land = makeLandscape({ size: 64 });
+  /** Políčko světa (x, z) v krajině 64 × 15 m se středem v počátku. */
+  const tileOf = (x: number, z: number): { x: number; y: number } => ({
+    x: Math.floor((x + 480) / 15),
+    y: Math.floor((z + 480) / 15),
+  });
+  const started = (): VillageState => {
+    const s = fullVillage();
+    s.woodLogs = 0;
+    return startNewDwelling(s, DAY, 'zemnice', { x: 40, z: 0, rotation: 0 }, 0, [], {
+      obstacles: forest,
+    });
+  };
+  /** Pět čtverců pole přes sloupec stromů x = 60 m kolem z = 0 (tam jsou vyhrazené stromy). */
+  const cells = (): { x: number; y: number }[] => {
+    const t = tileOf(60, 0);
+    return [-2, -1, 0, 1, 2].map((dy) => ({ x: t.x, y: t.y + dy }));
+  };
+
+  it('stavba napřed, pole potom: díly nepočítají vyhrazené stromy do klád', () => {
+    const s = started();
+    const reserved = reservedTrees(s);
+    const village = placementVillageOf(s, DAY);
+    const preview = fieldPartsFromCells(
+      land,
+      village,
+      cells(),
+      [{ x: 0, z: 0, rotation: 0 }],
+      forest,
+    );
+    expect(preview.check.ok).toBe(true);
+    const listed = preview.parts.flatMap((p) => p.obstacleIds ?? []);
+    for (const id of reserved) expect(listed).toContain(id);
+    const trees = preview.parts.reduce((sum, p) => sum + (p.trees ?? 0), 0);
+    expect(trees).toBe((preview.obstacleCounts.tree ?? 0) - reserved.size);
+    // pole a obydlí se postaví – klády jen za nevyhrazené stromy, nic se nebere z hromady
+    const withField = foundField(s, DAY, { parts: preview.parts });
+    const later = advanceVillage(withField, DAY + 365, forest);
+    expect(later.constructions).toEqual([]);
+    expect(later.woodLogs).toBeLessThanOrEqual(trees);
+    expect(later.woodLogs).toBeGreaterThan(trees * (1 - LOG_ROT_PER_YEAR) - 1e-9);
+  });
+
+  it('pole napřed, stavba potom: stromy zakládaných dílů stavba nevyhradí', () => {
+    const s = fullVillage();
+    s.woodLogs = 0;
+    const preview = fieldPartsFromCells(
+      land,
+      placementVillageOf(s, DAY),
+      cells(),
+      [{ x: 0, z: 0, rotation: 0 }],
+      forest,
+    );
+    const withField = foundField(s, DAY, { parts: preview.parts });
+    const onField = new Set(preview.parts.flatMap((p) => p.obstacleIds ?? []));
+    const built = startNewDwelling(withField, DAY, 'zemnice', { x: 40, z: 0, rotation: 0 }, 0, [], {
+      obstacles: forest,
+    });
+    const fell = built.constructions.at(-1)!.wood!.fell;
+    expect(fell).toHaveLength(7);
+    for (const t of fell) expect(onField.has(t.id!)).toBe(false);
+    expect(availableTrees(forest, built, DAY)).toBe(forest.count - onField.size - fell.length);
+  });
+
+  it('první zemnice při založení vsi nevyhradí stromy prvního pole', () => {
+    const preview = fieldPartsFromCells(
+      land,
+      null,
+      cells(),
+      [{ x: 40, z: 0, rotation: 0 }],
+      forest,
+    );
+    const s = foundVillage({
+      seed: 3,
+      day: DAY,
+      dwellingPosition: { x: 40, z: 0, rotation: 0 },
+      firstField: { parts: preview.parts },
+      obstacles: forest,
+    });
+    const onField = new Set(preview.parts.flatMap((p) => p.obstacleIds ?? []));
+    const fell = s.constructions[0]!.wood!.fell;
+    expect(fell).toHaveLength(7);
+    for (const t of fell) expect(onField.has(t.id!)).toBe(false);
+  });
+
+  it('staveniště jiného obydlí přes vyhrazený strom: klády jen za nevyhrazené stromy', () => {
+    const s = started();
+    // druhá plná domácnost (6 dospělých) – další pár k osídlení
+    s.dwellings.push({
+      id: 60,
+      type: 'zemnice',
+      builtDay: DAY,
+      condition: 1,
+      position: { x: -60, z: 0, rotation: 0 },
+    });
+    s.people.push(
+      ...[0, 1, 2, 3, 4, 5].map((i) => ({ id: 300 + i, bornDay: DAY - 25 * 366, dwellingId: 60 })),
+    );
+    const reserved = reservedTrees(s);
+    const position = { x: 62, z: 0, rotation: 0 };
+    const check = checkDwellingPlacement(
+      land,
+      placementVillageOf(s, DAY),
+      'zemnice',
+      position,
+      forest,
+    );
+    expect(check.ok).toBe(true);
+    const covered = check.obstacleIds.filter((id) => reserved.has(id));
+    expect(covered.length).toBeGreaterThan(0);
+    expect(check.clearedTrees).toBe((check.obstacleCounts.tree ?? 0) - covered.length);
+    const second = startNewDwelling(
+      s,
+      DAY,
+      'zemnice',
+      position,
+      check.obstacleCost,
+      check.obstacleIds,
+      {
+        obstacles: forest,
+        clearedTrees: check.clearedTrees,
+      },
+    );
+    // první stavba svůj zmizelý strom „pokácí“ bez klády – hromada nejde do minusu ani nepřibude
+    const first = second.constructions.find((c) => c.position?.x === 40)!;
+    first.done = first.cost;
+    const logs = second.woodLogs;
+    fellAsWorked(second, first, DAY + 1);
+    expect(second.woodLogs).toBe(logs);
+    expect(first.wood!.felled).toBe(7);
+  });
+});
+
 describe('hromada klád', () => {
   it('klády hnijí ≈ 4 % ročně, den po dni', () => {
     const s = fullVillage();
     s.woodLogs = 100;
-    const after = advanceVillage(s, DAY + 365);
+    const after = advanceVillage(s, DAY + 365, null);
     expect(after.woodLogs).toBeCloseTo(100 * (1 - LOG_ROT_PER_YEAR), 9);
     expect(wholeLogs(after.woodLogs!)).toBe(96);
+  });
+
+  it('opuštěná přestavba vrátí klády z hromady', () => {
+    const s = fullVillage();
+    s.woodLogs = 2;
+    s.dwellings.push({
+      id: 60,
+      type: 'zemnice',
+      builtDay: DAY,
+      condition: 1,
+      position: { x: -50, z: 0, rotation: 0 },
+    });
+    s.constructions.push({
+      id: 61,
+      kind: 'rebuild',
+      startedDay: DAY,
+      cost: 100,
+      done: 0,
+      dwellingType: 'zemnice',
+      position: null,
+      dwellingId: 60,
+      fieldId: null,
+      wood: {
+        trees: 7,
+        fromPile: 5,
+        fell: [
+          { id: 3, cost: 2 },
+          { id: 4, cost: 2 },
+        ],
+        felled: 0,
+      },
+    });
+    const after = advanceVillage(s, DAY + 1, forest);
+    expect(after.constructions.some((c) => c.id === 61)).toBe(false);
+    expect(after.woodLogs).toBeCloseTo(7, 2);
+    expect(reservedTrees(after).size).toBe(0);
   });
 
   it('ves uložená před dřevem (bez klád) se dopočítá s nulou', () => {
     const s = fullVillage();
     delete s.woodLogs;
-    const after = advanceVillage(s, DAY + 30);
+    const after = advanceVillage(s, DAY + 30, null);
     expect(after.woodLogs).toBeUndefined();
     expect(summarizeVillage(after, after.lastDay).woodLogs).toBe(0);
   });
@@ -311,7 +553,7 @@ describe('hromada klád', () => {
       parts: [part, { ...part, obstacleIds: [15], trees: 1 }, bare, bare, bare],
     });
     expect(founded.parts.map((p) => p.trees)).toEqual([3, 1, undefined, undefined, undefined]);
-    const done = advanceVillage(founded, DAY + 200);
+    const done = advanceVillage(founded, DAY + 200, null);
     expect(done.parts.every((p) => p.state !== 'founding')).toBe(true);
     // 4 klády, od založení dílů do dne 200 nahnilé nejvýš o roční 4 %
     expect(done.woodLogs).toBeGreaterThan(4 * (1 - LOG_ROT_PER_YEAR));
@@ -336,7 +578,7 @@ describe('hromada klád', () => {
         },
       ],
     });
-    const done = advanceVillage(founded, DAY + 60);
+    const done = advanceVillage(founded, DAY + 60, null);
     expect(done.cemeteries![0]!.builtDay).not.toBeNull();
     expect(done.woodLogs).toBeGreaterThan(1.95);
     expect(done.woodLogs).toBeLessThan(2);

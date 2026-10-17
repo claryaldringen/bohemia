@@ -75,14 +75,14 @@ const SATIATION_EPSILON = 1e-9;
  * Výsledek nezávisí na tom, po jakých kouscích se dopočítává (náhoda dne je ze seedu a dne;
  * kronika se zkrátí na posledních CHRONICLE_MAX_EVENTS událostí – simulace ji nečte).
  * `obstacles` = vrstva překážek krajiny sídla: přestavby podle ní vyhradí stromy ke kácení
- * (forest.md); bez ní (testy, kalibrace) se kácí bez polohy. Volající ji musí dávat vždy stejně,
- * jinak výsledek na kouscích závisí.
+ * (forest.md). Povinná – `null` (kácení bez polohy) jen v testech; volající ji musí dávat vždy
+ * stejně, jinak výsledek na kouscích závisí.
  * RangeError, když `toDay` leží za koncem světa nebo před už odsimulovaným dnem.
  */
 export function advanceVillage(
   state: VillageState,
   toDay: number,
-  obstacles?: ObstacleLayer,
+  obstacles: ObstacleLayer | null,
 ): VillageState {
   if (!Number.isInteger(toDay) || toDay >= TOTAL_GAME_DAYS) {
     throw new RangeError(`Den ${toDay} neleží ve světě (0 až ${TOTAL_GAME_DAYS - 1}).`);
@@ -104,7 +104,7 @@ function trimChronicle(state: VillageState): void {
 }
 
 /** Jeden den vsi v pevném pořadí kroků (mutuje stav). */
-function simulateDay(state: VillageState, day: number, obstacles: ObstacleLayer | undefined): void {
+function simulateDay(state: VillageState, day: number, obstacles: ObstacleLayer | null): void {
   const date = dateOfDayIndex(day);
   rotLogs(state);
   if (isOn(date, PLANNING_DAY)) planYear(state, day, date.year);
@@ -297,12 +297,15 @@ function work(state: VillageState, day: number): void {
 
 /**
  * Opuštěná obydlí se neopravují ani nepřestavují: rozestavěná přestavba prázdného obydlí se
- * opustí (nebere společnou práci), obydlí chátrá a na nule zanikne.
+ * opustí (nebere společnou práci, klády, které vzala z hromady, se na ni vrátí, vyhrazené stromy
+ * se uvolní), obydlí chátrá a na nule zanikne.
  */
 function decayEmptyDwellings(state: VillageState, day: number, occupied: Set<number>): void {
-  state.constructions = state.constructions.filter(
-    (c) => !(c.kind === 'rebuild' && c.dwellingId !== null && !occupied.has(c.dwellingId)),
-  );
+  state.constructions = state.constructions.filter((c) => {
+    const abandoned = c.kind === 'rebuild' && c.dwellingId !== null && !occupied.has(c.dwellingId);
+    if (abandoned && c.wood) addLogs(state, c.wood.fromPile);
+    return !abandoned;
+  });
   const gone = new Set<number>();
   for (const d of state.dwellings) {
     if (occupied.has(d.id)) continue;
@@ -514,11 +517,7 @@ function moveInYoungestPair(state: VillageState, day: number, dwellingId: number
  * dřevo jako nová stavba (forest.md): klády z hromady, zbytek vyhradí mezi nejbližšími dospělými
  * stromy k obydlí. Nezastaví ji ani nedostatek dřeva – vezme, co je.
  */
-function decideRebuilds(
-  state: VillageState,
-  day: number,
-  obstacles: ObstacleLayer | undefined,
-): void {
+function decideRebuilds(state: VillageState, day: number, obstacles: ObstacleLayer | null): void {
   const rebuilding = new Set(
     state.constructions.filter((c) => c.kind === 'rebuild').map((c) => c.dwellingId),
   );
@@ -528,7 +527,7 @@ function decideRebuilds(
   for (const d of occupiedDwellings(state)) {
     if (rebuilding.has(d.id) || !wantsRebuild(d, day)) continue;
     const type = rebuildType(d.type, averageCommon);
-    const plan = planDwellingWood(state, type, d.position, day, obstacles ? { obstacles } : {});
+    const plan = planDwellingWood(state, type, d.position, day, { obstacles });
     const wood = takeWood(state, plan);
     state.constructions.push({
       id: state.nextId++,

@@ -22,7 +22,7 @@ export type VillageChange = { ok: true; state: VillageState } | { ok: false; rea
 export function advancedToToday(
   state: VillageState,
   today: number,
-  obstacles?: ObstacleLayer,
+  obstacles: ObstacleLayer,
 ): VillageState {
   return state.lastDay >= today ? state : advanceVillage(state, today, obstacles);
 }
@@ -30,28 +30,25 @@ export function advancedToToday(
 /**
  * Načte ves, dopočítá ji do dneška, provede změnu a uloží s kontrolou verze. Při souběhu
  * (verze nesouhlasí) to zkusí znovu nad čerstvým stavem. Nezměněný stav se neukládá.
- * S krajinou sídla doplní vsi z doby před vrstvou překážek odstraněné překážky
- * (`withObstacleClearing`) a obydlím z doby před palivem vzdálenost k lesu
- * (`withForestDistances`) – jednou, pak se uloží. Ves se dopočítává s vrstvou překážek krajiny
- * (přestavby kácí stromy); bez krajiny jen ve výjimkách bez dopočtu přestaveb (testy).
+ * Vsi z doby před vrstvou překážek nejdřív doplní odstraněné překážky (`withObstacleClearing`)
+ * a obydlím z doby před palivem vzdálenost k lesu (`withForestDistances`) – před dopočtem, aby
+ * se s nimi už počítalo; pak se uloží. Ves se dopočítává s vrstvou překážek krajiny sídla
+ * (přestavby kácí stromy).
  */
 export async function updateVillage(
   villages: VillageRepository,
   settlementId: string,
   today: number,
-  landscape: Landscape | null,
+  landscape: Landscape,
   change: (state: VillageState) => VillageChange,
 ): Promise<VillageResult> {
+  const obstacles = obstaclesOf(landscape);
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     const record = await villages.find(settlementId);
     if (record === null) return { ok: false, reason: NO_VILLAGE };
-    const obstacles = landscape === null ? undefined : obstaclesOf(landscape);
-    const current = advancedToToday(record.state, today, obstacles);
-    const cleared =
-      obstacles !== undefined && current.clearedObstacles === undefined
-        ? withObstacleClearing(current, obstacles)
-        : current;
-    const changed = change(landscape === null ? cleared : withForestDistances(cleared, landscape));
+    const migrated = withForestDistances(withObstacleClearing(record.state, obstacles), landscape);
+    const current = advancedToToday(migrated, today, obstacles);
+    const changed = change(current);
     if (!changed.ok) return changed;
     if (changed.state === record.state) return { ok: true, village: record };
     const saved: VillageRecord | null = await villages.save(

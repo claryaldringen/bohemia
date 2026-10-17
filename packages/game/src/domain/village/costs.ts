@@ -59,11 +59,11 @@ export const BUILD_COSTS: Record<BuildKind, BuildCost> = {
 /**
  * Co ves má předem k dispozici – zásoby, dřevo a lidé k osídlení (ves dopočítaná do `lastDay`).
  * Dřevo = celé klády + dospělé stromy z vrstvy překážek `obstacles`, které jde skácet; bez vrstvy
- * (testy, kalibrace) stromů neomezeně.
+ * (jen testy) stromů neomezeně.
  */
 export function villageStock(
   state: VillageState,
-  obstacles?: ObstacleLayer,
+  obstacles?: ObstacleLayer | null,
 ): Record<StockResource, number> {
   return {
     grain: state.storesKg,
@@ -98,7 +98,7 @@ export function affordability(
 export function buildAffordability(
   state: VillageState,
   kind: BuildKind,
-  obstacles?: ObstacleLayer,
+  obstacles?: ObstacleLayer | null,
   costs: Record<BuildKind, BuildCost> = BUILD_COSTS,
 ): Affordability {
   return affordability(villageStock(state, obstacles), costs[kind].upfront);

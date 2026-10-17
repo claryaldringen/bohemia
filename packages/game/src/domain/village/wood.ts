@@ -1,4 +1,10 @@
-import { length2, obstacleIndex, obstaclesNear, type ObstacleLayer } from '../landscape';
+import {
+  length2,
+  obstacleIndex,
+  obstacleKind,
+  obstaclesNear,
+  type ObstacleLayer,
+} from '../landscape';
 import { distanceFactor } from './fields';
 import {
   fellTrees,
@@ -72,7 +78,10 @@ export function treesToFell(c: Pick<Construction, 'wood'>): number {
   return c.wood ? c.wood.fell.length - c.wood.felled : 0;
 }
 
-/** Stromy vyhrazené rozestavěnými stavbami, které ještě stojí (nepokácené). */
+/**
+ * Stromy vyhrazené rozestavěnými stavbami, které ještě stojí (nepokácené). Patří své stavbě:
+ * nepočítají se do klád z mýcení (pole, hřbitov, staveniště) a nekácí je jiná stavba.
+ */
 export function reservedTrees(state: Pick<VillageState, 'constructions'>): Set<number> {
   const reserved = new Set<number>();
   for (const c of state.constructions) {
@@ -83,6 +92,22 @@ export function reservedTrees(state: Pick<VillageState, 'constructions'>): Set<n
     }
   }
   return reserved;
+}
+
+/**
+ * Překážky, které stavba obydlí pro své dřevo kácet nesmí, protože už patří jiné stavbě: stromy
+ * vyhrazené jinými stavbami a překážky na zakládaných dílech polí a čtvercích hřbitova ve stavbě
+ * (ty odstraní a za stromy dají klády jejich stavba).
+ */
+export function claimedObstacles(
+  state: Pick<VillageState, 'constructions' | 'parts' | 'cemeteries'>,
+): Set<number> {
+  const claimed = reservedTrees(state);
+  for (const part of state.parts) for (const id of part.obstacles ?? []) claimed.add(id);
+  for (const cemetery of state.cemeteries ?? []) {
+    for (const square of cemetery.squares) for (const id of square.obstacles ?? []) claimed.add(id);
+  }
+  return claimed;
 }
 
 /**
@@ -129,17 +154,37 @@ export function nearestMatureTrees(
   }
 }
 
+/** Počet dospělých stromů vygenerované vrstvy – spočítá se jednou na vrstvu. */
+const layerTreeCounts = new WeakMap<ObstacleLayer, number>();
+
+function layerMatureTrees(layer: ObstacleLayer): number {
+  let count = layerTreeCounts.get(layer);
+  if (count === undefined) {
+    count = 0;
+    for (let i = 0; i < layer.count; i++) if (obstacleKind(layer, i) === 'tree') count++;
+    layerTreeCounts.set(layer, count);
+  }
+  return count;
+}
+
 /**
- * Kolik dospělých stromů krajiny sídla jde ještě skácet – všechny stojící dospělé stromy bez
- * vyhrazených stavbami, bez ohledu na vzdálenost (forest.md – dá se ještě stavět?). Prochází
- * celou vrstvu – volat jen při akci hráče nebo pohledu na ves, ne den po dni.
+ * Kolik dospělých stromů krajiny sídla jde ještě skácet – stojící dospělé stromy bez těch, které
+ * patří jiné stavbě (`claimedObstacles`), bez ohledu na vzdálenost (forest.md – dá se ještě
+ * stavět?). Počet stromů vrstvy je v mezipaměti, odečítají se jen změny vsi – celá vrstva se
+ * neprochází.
  */
 export function availableTrees(layer: ObstacleLayer, state: VillageState, day: number): number {
   const changes = obstacleChangesAt(state, day);
   const status = obstacleStatus(changes);
-  let count = 0;
-  for (let i = 0; i < layer.count; i++) if (status.kindOf(layer, i) === 'tree') count++;
-  for (const id of reservedTrees(state)) {
+  let count = layerMatureTrees(layer);
+  // odstraněné, pokácené a dorůstající stromy (seznamy změn se nepřekrývají)
+  for (const list of [changes.removed, changes.stumps, changes.saplings]) {
+    for (const id of list) {
+      const index = obstacleIndex(layer, id);
+      if (index >= 0 && obstacleKind(layer, index) === 'tree') count--;
+    }
+  }
+  for (const id of claimedObstacles(state)) {
     const index = obstacleIndex(layer, id);
     if (index >= 0 && status.kindOf(layer, index) === 'tree') count--;
   }
@@ -148,11 +193,11 @@ export function availableTrees(layer: ObstacleLayer, state: VillageState, day: n
 
 /**
  * Dřevo, které má ves pro stavbu: celé klády na hromadě + dospělé stromy, které jde skácet.
- * Bez vrstvy překážek (testy, kalibrace) se kácí bez polohy – stromů je neomezeně.
+ * Bez vrstvy překážek (null – jen testy) se kácí bez polohy – stromů je neomezeně.
  */
 export function woodSupply(
   state: VillageState,
-  obstacles: ObstacleLayer | undefined,
+  obstacles: ObstacleLayer | null | undefined,
   day: number = state.lastDay,
 ): number {
   const trees = obstacles ? availableTrees(obstacles, state, day) : Infinity;
@@ -185,10 +230,10 @@ export interface WoodPlan {
 
 export interface WoodPlanOptions {
   /**
-   * Vrstva překážek krajiny – stromy ke kácení. Bez ní (testy, kalibrace) se dřevo, které
+   * Vrstva překážek krajiny – stromy ke kácení. Bez ní (null, jen testy) se dřevo, které
    * nestačí z hromady, kácí bez polohy za cenu blízkého lesa.
    */
-  obstacles?: ObstacleLayer;
+  obstacles?: ObstacleLayer | null;
   /** Dospělé stromy na vyklízené ploše (mezi `clearedIds`). */
   clearedTrees?: number;
   /** Překážky vyklízené plochy – osadníci je odstraní i s pařezy, nekácí se pro stavbu. */
@@ -198,7 +243,7 @@ export interface WoodPlanOptions {
 /**
  * Plán dřeva obydlí `type` u staveniště `position` v den `day` (forest.md – Stavby a kácení):
  * nejdřív celé klády z hromady (Martin), zbytek nejbližší stojící dospělé stromy ke staveništi,
- * které nevyhradila jiná stavba. Stav nemění.
+ * které nepatří jiné stavbě (`claimedObstacles`). Stav nemění.
  */
 export function planDwellingWood(
   state: VillageState,
@@ -221,7 +266,7 @@ export function planDwellingWood(
     }));
     return { clearedTrees, fromPile, fell, missing: 0 };
   }
-  const exclude = reservedTrees(state);
+  const exclude = claimedObstacles(state);
   for (const id of options.clearedIds ?? []) exclude.add(id);
   const trees = nearestMatureTrees(
     options.obstacles,
@@ -264,8 +309,8 @@ function isStanding(state: VillageState, id: number, day: number): boolean {
 /**
  * Kácení podle odvedené práce stavby (mutuje stav): kácí se jako první část práce, strom po
  * stromu – pokácený strom nechá pařez (`fellTrees`). Vyhrazený strom, který mezitím zmizel
- * (vymýtilo ho pole nebo jiné staveniště a jeho kláda šla na hromadu), stavba nahradí kládou
- * z hromady.
+ * (odstranilo ho staveniště jiného obydlí), se počítá jako pokácený – patří této stavbě, na
+ * hromadu za něj kláda nešla.
  */
 export function fellAsWorked(state: VillageState, c: Construction, day: number): void {
   const wood = c.wood;
@@ -276,12 +321,8 @@ export function fellAsWorked(state: VillageState, c: Construction, day: number):
     reached += tree.cost;
     if (i < wood.felled) continue;
     if (c.done + EPSILON < reached) return;
-    if (tree.id !== null) {
-      if (isStanding(state, tree.id, day)) {
-        state.felledTrees = fellTrees(state, [tree.id], day).felledTrees ?? [];
-      } else {
-        state.woodLogs = Math.max(0, woodLogs(state) - 1);
-      }
+    if (tree.id !== null && isStanding(state, tree.id, day)) {
+      state.felledTrees = fellTrees(state, [tree.id], day).felledTrees ?? [];
     }
     wood.felled = i + 1;
   }

@@ -28,6 +28,7 @@ import {
   FIELD_LIMITS,
 } from './rules';
 import type { DwellingType, Position, TileCell, VillageState } from './types';
+import { reservedTrees } from './wood';
 
 // Umisťování obydlí, polí a pohřebišť (population.md – Umístění obydlí, fields.md – Založení
 // pole, cemetery.md – Stavba). Čisté funkce pro server i klienta (náhled při umisťování).
@@ -58,6 +59,11 @@ export interface PlacementVillage {
   readonly cemeteries?: readonly { readonly squares: readonly { readonly cell: TileCell }[] }[];
   /** Překážky, které ves už odstranila nebo pokácela (`obstacleChangesAt`); bez nich žádné. */
   readonly obstacleChanges?: ObstacleChanges;
+  /**
+   * Stromy vyhrazené rozestavěnými stavbami (`reservedTrees`) – patří své stavbě, mýcení za ně
+   * kládu nedá (forest.md). Bez údaje žádné.
+   */
+  readonly reservedTrees?: readonly number[];
 }
 
 /** Kontrola umístění obydlí s cenou překážek na vyklízené ploše. */
@@ -66,6 +72,8 @@ export interface DwellingPlacementCheck extends PlacementCheck {
   obstacleCost: number;
   /** Překážky, které osadníci při zahájení stavby odstraní. */
   obstacleIds: number[];
+  /** Dospělé stromy mezi nimi, které nevyhradila jiná stavba – dají klády na hromadu. */
+  clearedTrees: number;
   /** Kolik překážek kterého druhu na místě je. */
   obstacleCounts: Partial<Record<ObstacleKind, number>>;
 }
@@ -303,7 +311,7 @@ export function checkDwellingPlacement(
   position: Position,
   obstacles: ObstacleLayer = obstaclesOf(landscape),
 ): DwellingPlacementCheck {
-  const none = { obstacleCost: 0, obstacleIds: [], obstacleCounts: {} };
+  const none = { obstacleCost: 0, obstacleIds: [], clearedTrees: 0, obstacleCounts: {} };
   if (![position.x, position.z, position.rotation].every(Number.isFinite)) {
     return { ...fail('Neplatná poloha obydlí.'), ...none };
   }
@@ -328,13 +336,27 @@ export function checkDwellingPlacement(
     ...nearCemeteryWarning(landscape, village, position),
     obstacleCost: tally.cost,
     obstacleIds: tally.ids,
+    clearedTrees: unreservedTrees(village, tally.treeIds),
     obstacleCounts: tally.counts,
   };
 }
 
-/** Ves pro kontrolu umístění na serveru – stav vsi se změnami překážek v den `day`. */
+/** Kolik z dospělých stromů `treeIds` nevyhradila žádná stavba (ty dají klády z mýcení). */
+function unreservedTrees(village: PlacementVillage | null, treeIds: readonly number[]): number {
+  const reserved = new Set(village?.reservedTrees ?? []);
+  return treeIds.filter((id) => !reserved.has(id)).length;
+}
+
+/**
+ * Ves pro kontrolu umístění na serveru – stav vsi se změnami překážek v den `day` a stromy
+ * vyhrazenými stavbami.
+ */
 export function placementVillageOf(state: VillageState, day: number): PlacementVillage {
-  return { ...state, obstacleChanges: obstacleChangesAt(state, day) };
+  return {
+    ...state,
+    obstacleChanges: obstacleChangesAt(state, day),
+    reservedTrees: [...reservedTrees(state)],
+  };
 }
 
 /** Polohy obydlí vsi včetně rozestavěných – od nich se měří vzdálenost dílů pole. */
@@ -559,6 +581,11 @@ export function withForestDistances(state: VillageState, landscape: Landscape): 
   return next;
 }
 
+/** Stromy dílu nebo čtverce pro klády z mýcení – bez stromů se údaj vynechá. */
+function withTrees(trees: number): { trees?: number } {
+  return trees > 0 ? { trees } : {};
+}
+
 const EMPTY_PREVIEW = {
   cells: [],
   parts: [],
@@ -640,7 +667,7 @@ export function fieldPartsFromCells(
       surface: 'meadow',
       obstacleCost: tally.cost,
       ...(tally.ids.length > 0 ? { obstacleIds: tally.ids } : {}),
-      ...(tally.counts.tree ? { trees: tally.counts.tree } : {}),
+      ...withTrees(unreservedTrees(village, tally.treeIds)),
       cell,
     });
   }
@@ -786,7 +813,7 @@ export function cemeteryPartsFromCells(
       waterDistanceM: water,
       obstacleCost: tally.cost,
       ...(tally.ids.length > 0 ? { obstacleIds: tally.ids } : {}),
-      ...(tally.counts.tree ? { trees: tally.counts.tree } : {}),
+      ...withTrees(unreservedTrees(village, tally.treeIds)),
     });
   }
 

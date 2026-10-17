@@ -10,7 +10,7 @@ export interface RenameVillageInput {
   today: number;
   name: string;
   /** Krajina sídla – ves se s ní dopočítává (přestavby kácí stromy, forest.md). */
-  landscape?: Landscape;
+  landscape: Landscape;
 }
 
 /** Hráč přejmenuje ves (stejná pravidla jména jako při založení). */

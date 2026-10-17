@@ -210,8 +210,8 @@ export function foundVillage(input: {
   /** Dospělé stromy mezi `dwellingObstacleIds` – osadníci je skácí na hromadu klád. */
   dwellingClearedTrees?: number;
   /**
-   * Vrstva překážek krajiny – stromy ke kácení. Bez ní (testy, kalibrace) se kácí bez polohy
-   * za cenu blízkého lesa.
+   * Vrstva překážek krajiny – stromy ke kácení. Bez ní (jen testy) se kácí bez polohy za cenu
+   * blízkého lesa.
    */
   obstacles?: ObstacleLayer;
   /** Vzdálenost první zemnice k nejbližšímu okraji lesa (m) – palivo (forest.md). */
@@ -270,6 +270,8 @@ export function foundVillage(input: {
     felledTrees: [],
     woodLogs: 0,
   };
+  // pole napřed – stromy na jeho dílech patří poli (klády po založení), zemnice je nekácí
+  if (firstField) addField(state, day, firstField);
   const plan = planDwellingWood(state, 'zemnice', dwellingPosition, day, {
     ...(input.obstacles ? { obstacles: input.obstacles } : {}),
     clearedTrees,
@@ -278,7 +280,6 @@ export function foundVillage(input: {
   const zemnice = state.constructions[0]!;
   zemnice.wood = takeWood(state, plan);
   zemnice.cost += woodFellingCost(zemnice.wood);
-  if (firstField) addField(state, day, firstField);
   return state;
 }
 
@@ -296,7 +297,7 @@ function requireAffordable(state: VillageState, kind: BuildKind, obstacles?: Obs
 export interface DwellingSiteOptions {
   /**
    * Vrstva překážek krajiny – stromy ke kácení (nejbližší dospělé stromy ke staveništi). Bez ní
-   * (testy, kalibrace) se dřevo, které nestačí z hromady, kácí bez polohy za cenu blízkého lesa.
+   * (jen testy) se dřevo, které nestačí z hromady, kácí bez polohy za cenu blízkého lesa.
    */
   obstacles?: ObstacleLayer;
   /** Dospělé stromy mezi `obstacleIds` – osadníci je skácí na hromadu klád. */

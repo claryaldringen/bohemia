@@ -120,7 +120,7 @@ export interface ConstructionWood {
   fromPile: number;
   /**
    * Stromy ke kácení v pořadí kácení (nejbližší ke staveništi první): id z vrstvy překážek (null =
-   * kácení bez polohy – ves bez vrstvy překážek, testy a kalibrace) a práce za skácení a dovoz
+   * kácení bez polohy – ves bez vrstvy překážek, jen testy) a práce za skácení a dovoz
    * (člověkodny, i se vzdáleností).
    */
   fell: { id: number | null; cost: number }[];

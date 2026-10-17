@@ -136,14 +136,17 @@ describe('foundVillageForSettlement', () => {
 describe('loadVillage', () => {
   it('bez vsi vrátí null', async () => {
     expect(
-      await loadVillage({ villages: new InMemoryVillages() }, { settlementId: ID, today: TODAY }),
+      await loadVillage(
+        { villages: new InMemoryVillages() },
+        { settlementId: ID, today: TODAY, landscape },
+      ),
     ).toBeNull();
   });
 
   it('dopočítá ves do dneška a uloží ji s vyšší verzí', async () => {
     const villages = await foundedVillages();
     const later = TODAY + 40;
-    const record = await loadVillage({ villages }, { settlementId: ID, today: later });
+    const record = await loadVillage({ villages }, { settlementId: ID, today: later, landscape });
     expect(record?.state.lastDay).toBe(later);
     expect(record?.version).toBe(2);
     expect(villages.records.get(ID)?.state.lastDay).toBe(later);
@@ -151,7 +154,7 @@ describe('loadVillage', () => {
 
   it('už dopočítanou ves neukládá znovu', async () => {
     const villages = await foundedVillages();
-    const record = await loadVillage({ villages }, { settlementId: ID, today: TODAY });
+    const record = await loadVillage({ villages }, { settlementId: ID, today: TODAY, landscape });
     expect(record?.version).toBe(1);
     expect(villages.saves).toBe(0);
   });
@@ -164,7 +167,10 @@ describe('loadVillage', () => {
       interfered = true;
       villages.edit(id, (s) => (s.storesKg += 1));
     };
-    const record = await loadVillage({ villages }, { settlementId: ID, today: TODAY + 5 });
+    const record = await loadVillage(
+      { villages },
+      { settlementId: ID, today: TODAY + 5, landscape },
+    );
     expect(record?.version).toBe(3);
     expect(record?.state.lastDay).toBe(TODAY + 5);
   });
@@ -279,7 +285,7 @@ describe('placeField', () => {
     const villages = await foundedVillages();
     const ahead = TODAY + 5;
     villages.edit(ID, (s) => {
-      Object.assign(s, advanceVillage(s, ahead));
+      Object.assign(s, advanceVillage(s, ahead, null));
     });
     const result = await placeField(
       { villages },
@@ -389,7 +395,7 @@ describe('renameVillage', () => {
     const villages = await foundedVillages();
     const result = await renameVillage(
       { villages },
-      { settlementId: ID, today: TODAY + 2, name: '  Nové   Dvory ' },
+      { settlementId: ID, today: TODAY + 2, name: '  Nové   Dvory ', landscape },
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -401,18 +407,24 @@ describe('renameVillage', () => {
   it('odmítne prázdné a dlouhé jméno i ves, která není', async () => {
     const villages = await foundedVillages();
     const deps = { villages };
-    const empty = await renameVillage(deps, { settlementId: ID, today: TODAY, name: '  ' });
+    const empty = await renameVillage(deps, {
+      settlementId: ID,
+      today: TODAY,
+      name: '  ',
+      landscape,
+    });
     expect(empty).toEqual({ ok: false, reason: 'Ves potřebuje jméno.' });
     const long = await renameVillage(deps, {
       settlementId: ID,
       today: TODAY,
       name: 'x'.repeat(41),
+      landscape,
     });
     expect(long.ok).toBe(false);
     expect(villages.records.get(ID)?.name).toBe('Libice');
     const none = await renameVillage(
       { villages: new InMemoryVillages() },
-      { settlementId: ID, today: TODAY, name: 'Lhota' },
+      { settlementId: ID, today: TODAY, name: 'Lhota', landscape },
     );
     expect(none).toEqual({ ok: false, reason: 'Ves ještě není založená.' });
   });
@@ -550,7 +562,7 @@ describe('překážky krajiny ve vsi (vrstva překážek)', () => {
     for (const id of again.obstacleIds) expect(cleared).not.toContain(id);
   });
 
-  it('ves z doby před vrstvou překážek si je při načtení s krajinou doplní a uloží', async () => {
+  it('ves z doby před vrstvou překážek a palivem si je při načtení doplní před dopočtem a uloží', async () => {
     const villages = new InMemoryVillages();
     await foundVillageForSettlement(
       { villages, seeds },
@@ -559,13 +571,16 @@ describe('překážky krajiny ve vsi (vrstva překážek)', () => {
     const record = villages.records.get(ID)!;
     delete record.state.clearedObstacles;
     delete record.state.felledTrees;
-    const withoutLandscape = await loadVillage({ villages }, { settlementId: ID, today: TODAY });
-    expect(withoutLandscape!.state.clearedObstacles).toBeUndefined();
+    delete record.state.constructions[0]!.forestDistanceM;
     const loaded = await loadVillage(
       { villages },
-      { settlementId: ID, today: TODAY, landscape: real },
+      { settlementId: ID, today: TODAY + 3, landscape: real },
     );
-    expect(loaded!.state.clearedObstacles!.map((c) => c.id)).toEqual(expected.obstacleIds);
+    // doplněné ke dni, do kterého byla ves uložená – ještě před dopočtem
+    expect(loaded!.state.clearedObstacles).toEqual(
+      expected.obstacleIds.map((id) => ({ id, day: TODAY })),
+    );
+    expect(loaded!.state.constructions[0]!.forestDistanceM).toBeGreaterThanOrEqual(0);
     expect(villages.records.get(ID)!.state.clearedObstacles).toBeDefined();
   });
 });
