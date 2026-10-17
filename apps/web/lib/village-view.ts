@@ -10,6 +10,7 @@ import {
   type ConstructionSummary,
   type DwellingType,
   type Landscape,
+  type PartInput,
   type PartStage,
   type PlacementCheck,
   type PlacementVillage,
@@ -18,6 +19,7 @@ import {
   type VillageState,
 } from '@bohemia/game';
 import { formatGameDate } from './game-date';
+import { formatHa, formatInteger } from './village-format';
 
 // Pohled na ves pro panel a scénu (DTO server actions). Čistý modul – smí ho importovat
 // i klient (typy, převod scény na data pro kontrolu umístění).
@@ -73,7 +75,8 @@ export interface SceneVillage {
 
 export const CHRONICLE_LENGTH = 8;
 
-const DWELLING_NAMES: Record<DwellingType, { nominative: string; accusative: string }> = {
+/** Názvy obydlí v 1. a 4. pádě. */
+export const DWELLING_NAMES: Record<DwellingType, { nominative: string; accusative: string }> = {
   zemnice: { nominative: 'Zemnice', accusative: 'zemnici' },
   polozemnice: { nominative: 'Polozemnice', accusative: 'polozemnici' },
 };
@@ -83,17 +86,6 @@ const BUILD_BLOCKERS: Record<BuildBlocker, string> = {
     'Nové obydlí jde stavět, až bude některá domácnost plná a budou v ní aspoň 4 dospělí.',
   'already-building': 'Na každou plnou domácnost smí být rozestavěné jen jedno nové obydlí.',
 };
-
-const M2_PER_HA = 10_000;
-
-/** Číslo s mezerami po tisících (bez nezlomitelných mezer – stejně na serveru i v prohlížeči). */
-function formatInteger(value: number): string {
-  return String(Math.round(value)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
-}
-
-function formatHa(areaM2: number): string {
-  return (areaM2 / M2_PER_HA).toFixed(2).replace('.', ',');
-}
 
 function deathText(group: 'child' | 'adult' | 'elder'): string {
   if (group === 'child') return 'Zemřelo dítě.';
@@ -136,7 +128,7 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
 }
 
 function constructionLabel(c: ConstructionSummary): string {
-  if (c.kind === 'field') return `Pole ${formatHa(c.areaM2 ?? 0)} ha`;
+  if (c.kind === 'field') return `Pole ${formatHa(c.areaM2 ?? 0)}`;
   const type = c.dwellingType ?? 'zemnice';
   if (c.kind === 'rebuild') return `Přestavba na ${DWELLING_NAMES[type].accusative}`;
   return DWELLING_NAMES[type].nominative;
@@ -228,5 +220,46 @@ export function placementVillageFromScene(scene: SceneVillage): PlacementVillage
     dwellings: scene.dwellings.map((d) => ({ type: d.type, position: d.position })),
     constructions: [],
     fields: scene.fields.map((f) => ({ outline: f.outline })),
+  };
+}
+
+/** Id náhledu zakládané vsi – záporná, aby se nepletla s id ze serveru (od 1). */
+const FOUNDING_DWELLING_ID = -1;
+const FOUNDING_FIELD_ID = -2;
+
+/**
+ * Náhled zakládané vsi ve scéně, než ji hráč odešle na server: první zemnice už stojí
+ * (osadníci přišli), díly prvního pole se zakládají.
+ */
+export function foundingSceneVillage(
+  landscape: Landscape,
+  dwelling: Position | null,
+  field: { outline: [number, number][]; parts: readonly PartInput[] } | null,
+): SceneVillage {
+  return {
+    dwellings: dwelling
+      ? [
+          {
+            id: FOUNDING_DWELLING_ID,
+            type: 'zemnice',
+            position: dwelling,
+            built: true,
+            progress: 1,
+          },
+        ]
+      : [],
+    fields: field
+      ? [
+          {
+            id: FOUNDING_FIELD_ID,
+            outline: field.outline,
+            parts: field.parts.flatMap((p) => {
+              if (p.cell === undefined) return [];
+              const center = tileCenterWorld(landscape, p.cell.x, p.cell.y);
+              return [{ x: center.x, z: center.z, size: landscape.cellSizeM, stage: 'founding' }];
+            }),
+          },
+        ]
+      : [],
   };
 }

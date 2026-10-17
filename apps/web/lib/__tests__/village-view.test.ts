@@ -13,6 +13,7 @@ import {
   CHRONICLE_LENGTH,
   buildVillageView,
   chronicleText,
+  foundingSceneVillage,
   placementVillageFromScene,
 } from '../village-view';
 
@@ -198,5 +199,37 @@ describe('chronicleText', () => {
     expect(
       chronicleText({ day: DAY, kind: 'rebuild-decided', dwellingId: 1, type: 'polozemnice' }, 'X'),
     ).toBe('Obyvatelé se rozhodli přestavět dožilé obydlí na polozemnici.');
+  });
+});
+
+describe('foundingSceneVillage', () => {
+  it('bez zemnice a pole je ves prázdná', () => {
+    expect(foundingSceneVillage(landscape, null, null)).toEqual({ dwellings: [], fields: [] });
+  });
+
+  it('zemnice stojí a díly pole se zakládají na středech políček', () => {
+    const position = { x: 3, z: -4, rotation: 1 };
+    const outline: [number, number][] = [
+      [0, 0],
+      [30, 0],
+      [30, 15],
+    ];
+    const village = foundingSceneVillage(landscape, position, {
+      outline,
+      parts: parts.slice(0, 2),
+    });
+    expect(village.dwellings).toEqual([
+      { id: -1, type: 'zemnice', position, built: true, progress: 1 },
+    ]);
+    expect(village.fields).toEqual([
+      {
+        id: -2,
+        outline,
+        parts: [
+          { x: 7.5, z: 7.5, size: 15, stage: 'founding' },
+          { x: 22.5, z: 7.5, size: 15, stage: 'founding' },
+        ],
+      },
+    ]);
   });
 });

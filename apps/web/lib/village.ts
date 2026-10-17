@@ -7,6 +7,7 @@ import {
   placeDwelling,
   placeField,
   type DwellingType,
+  type EnterGameResult,
   type Landscape,
   type Position,
   type VillageRepository,
@@ -40,6 +41,22 @@ async function context(playerId: string): Promise<Context> {
   return { ok: true, settlementId: settlement.id, landscape, day: today.day };
 }
 
+/** Jako `context`, ale pro sídlo, které už volající načetl (krajina se negeneruje znovu). */
+function seatContext({ settlement, landscape }: EnterGameResult): Context {
+  const today = gameDayIndex(Date.now(), currentWorld());
+  if (!today.ok) return today;
+  return { ok: true, settlementId: settlement.id, landscape, day: today.day };
+}
+
+async function villageView(ctx: Context): Promise<VillageView | null | { error: string }> {
+  if (!ctx.ok) return { error: ctx.error };
+  const record = await loadVillage(
+    { villages: villages() },
+    { settlementId: ctx.settlementId, today: ctx.day },
+  );
+  return record === null ? null : buildVillageView(record, ctx.landscape, ctx.day);
+}
+
 function toActionResult(
   result: VillageResult,
   landscape: Landscape,
@@ -52,13 +69,14 @@ function toActionResult(
 export async function villageViewForPlayer(
   playerId: string,
 ): Promise<VillageView | null | { error: string }> {
-  const ctx = await context(playerId);
-  if (!ctx.ok) return { error: ctx.error };
-  const record = await loadVillage(
-    { villages: villages() },
-    { settlementId: ctx.settlementId, today: ctx.day },
-  );
-  return record === null ? null : buildVillageView(record, ctx.landscape, ctx.day);
+  return villageView(await context(playerId));
+}
+
+/** Ves už načteného sídla hráče (stránka /game má sídlo s krajinou z `enterGameForPlayer`). */
+export function villageViewForSeat(
+  seat: EnterGameResult,
+): Promise<VillageView | null | { error: string }> {
+  return villageView(seatContext(seat));
 }
 
 export async function foundVillageForPlayer(
