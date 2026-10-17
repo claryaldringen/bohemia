@@ -1,4 +1,4 @@
-import type { Season, WorldClock, WorldState } from '@bohemia/game';
+import type { CalendarDate, Season, WorldClock, WorldState } from '@bohemia/game';
 
 const MONTHS_GENITIVE = [
   'ledna',
@@ -43,6 +43,11 @@ function formatWorldStart(startMs: number): string {
   return isMidnight ? date : `${date}, ${parts.hour}:${parts.minute}`;
 }
 
+/** Herní datum jako „12. dubna 503“. */
+export function formatGameDate({ day, month, year }: CalendarDate): string {
+  return `${day}. ${MONTHS_GENITIVE[month - 1]} ${year}`;
+}
+
 export function formatWorldState(state: WorldState, world: WorldClock): string {
   switch (state.status) {
     case 'not-started':
@@ -50,8 +55,7 @@ export function formatWorldState(state: WorldState, world: WorldClock): string {
     case 'ended':
       return 'Rok 1500 – svět skončil';
     case 'running': {
-      const { day, month, year, season } = state.date;
-      return `${day}. ${MONTHS_GENITIVE[month - 1]} ${year} · ${SEASON_NAMES[season]}`;
+      return `${formatGameDate(state.date)} · ${SEASON_NAMES[state.date.season]}`;
     }
   }
 }
