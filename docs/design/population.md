@@ -65,7 +65,8 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
 - Hráč v krajině svého sídla umístí půdorys první zemnice (viz Umístění obydlí) – tím ves
   založí. Zemnice tam hned stojí (osadníci přišli) a bydlí v ní **4 lidé**: dva dospělí (kolem
   25 let) a dva dospívající (12 a 13 let – návrh Clauda, aby první nová domácnost mohla
-  vzniknout do pár let; zůstávají i s porody od 16 let – Martin). Ves dostane navržené staročeské jméno, které hráč může kdykoli změnit.
+  vzniknout do pár let; zůstávají i s porody od 16 let – Martin). Ves dostane navržené
+  staročeské jméno, které hráč může kdykoli změnit.
 - **První pole není podmínkou založení** (Martin, 17. 10. 2026: „Hráč sám rozhodne kdy a co bude
   stavět, jako v každé RTS.“) – pole jsou samostatná a společná pro celou ves a hráč je zakládá,
   kdy chce ([fields.md](fields.md)). Ves bez pole žije ze zásob na 18 měsíců a pak hladoví;
@@ -207,31 +208,37 @@ stovky vsí a ověří cíle:
   domácnost bez nových staveb, je jen informace, ne cíl (hrubá simulace ≈ 90 % do 1000 let,
   měření níže).
 
-**Naměřeno** (`packages/game/scripts/measure-village.ts`, 17. 10. 2026, se skutečným jídlem
-z [fields.md](fields.md); 200 vsí × 60 let po opravách z finální revize – plete a sklízí se jen
-zasetá část, odemčení počítá jen dospělé 14–44, rozpad domácnosti samých starších; vymření
-30 vsí × 1000 let je ještě z měření před těmito opravami):
+**Naměřeno** (`packages/game/scripts/measure-village.ts 200 60`, 17. 10. 2026 po opravě podle
+rešerše – úmrtnost 2 %, porody od 16 let, zemnice 18 let a opravy polí z [fields.md](fields.md);
+v závorce měření před opravou; vymření 30 vsí × 1000 let je ještě ze starších měření):
 
-- první možnost stavět: medián 3,9 roku, 90 % vsí do 7,8 roku, 99 % do 38 let (před opravami
-  22 – starší se do čtyř dospělých nepočítají) – splněno,
-- čerstvě plná domácnost postaví zemnici za ≈ 77 dní, polozemnici za ≈ 295 dní – splněno,
-- zemnice se přestavuje po 15 letech, polozemnice po 22 (dřív zchátrá < 1 % obydlí) – splněno,
+- první možnost stavět: medián 4,6 roku (3,9), 90 % vsí do 8,9 roku (7,8), 99 % do 38 let
+  (38) – **MIMO** (cíl ≈ 8 let): dospívající ze startu mají děti až od 16 let (dřív tvořili pár
+  už ve 14) a ves víc hladoví, takže porody jsou řidší,
+- čerstvě plná domácnost postaví zemnici za ≈ 156 dní (77), polozemnici za ≈ 592 dní (295) –
+  **MIMO**: společnou práci si bere i zakládání polí, které je dražší (louka 100 místo 40
+  člověkodní na hektar) a pole musí být větší (≈ 5,3× osevu místo 3,3×),
+- zemnice se přestavuje po 18 letech (15), polozemnice po 22; dřív zchátrá 3,7 % zemnic (0,8 %)
+  – splněno,
 - opravy na konci životnosti: kalibrace je snížila na 15 (zemnice) a 17 (polozemnice)
   člověkodní ročně z 35 a 40 (s 35 zemnice chátrala na nulu už po ≈ 12 letech – ve špičkách
-  polních prací na opravy nezbývá práce); to bylo ≈ 0,5 a 0,6 společné práce domácnosti, když
-  jí bylo ≈ 29 člověkodní ročně. Po opravách z finální revize má domácnost od 10. roku vsi
-  ≈ 46 člověkodní společné práce ročně (hlavně proto, že se domácnosti dělí až se čtyřmi
-  dospělými 14–44), takže opravy jsou jen ≈ 0,33 a 0,37 – cíl ≈ ½
-  **zatím ne**; návrh: opravy na konci životnosti zemnice ≈ 23, polozemnice ≈ 26 člověkodní
+  polních prací na opravy nezbývá práce). Domácnost má od 10. roku vsi ≈ 51 člověkodní
+  společné práce ročně (46), takže opravy jsou jen ≈ 0,30 a 0,34 (0,33 a 0,37) – cíl ≈ ½
+  **zatím ne**; návrh: opravy na konci životnosti zemnice ≈ 25, polozemnice ≈ 28 člověkodní
   (čeká na schválení a nové měření),
-- vymření do roku 1500: ves, kde hráč staví, kdykoli může, nevymřela žádná (0 z 30; na konci
-  medián 33 domácností a 142 lidí – když dojde půda, hlad drží ves u toho, co pole uživí).
-  Cíl ≤ 1 % to ale **nepotvrzuje**: při 0 z 30 je 95% horní mez podílu vymřelých vsí ≈ 10 %
-  (pravidlo tří: 3 / n) – potvrdit ≤ 1 % by chtělo ≈ 300 vsí × 1000 let; skript proto
-  u vymření vypisuje i velikost vzorku,
-- jediná domácnost bez nových staveb (jen informace): do 1000 let vymře ≈ 33 % (10 z 30,
-  medián po ≈ 530 letech) – přestavba na polozemnici jí dá 8 míst a domácnost kolem 8–9 lidí
-  je odolná.
+- ves, kde hráč staví, kdykoli může, má po 60 letech medián 3 domácnosti a 15 lidí (6 a 31);
+  za 60 let nevymřela žádná z 200,
+- jediná domácnost bez nových staveb: za 60 let vymře 0,5 % (0,5 %), žijící mají medián 7 lidí
+  (9),
+- vymření do roku 1500 (starší měření, před finální revizí a před opravou podle rešerše): ves,
+  kde hráč staví, kdykoli může, nevymřela žádná (0 z 30; na konci medián 33 domácností a 142
+  lidí – když dojde půda, hlad drží ves u toho, co pole uživí). Cíl ≤ 1 % to ale
+  **nepotvrzuje**: při 0 z 30 je 95% horní mez podílu vymřelých vsí ≈ 10 % (pravidlo tří:
+  3 / n) – potvrdit ≤ 1 % by chtělo ≈ 300 vsí × 1000 let; skript proto u vymření vypisuje
+  i velikost vzorku,
+- jediná domácnost bez nových staveb (jen informace, starší měření): do 1000 let vymře ≈ 33 %
+  (10 z 30, medián po ≈ 530 letech) – přestavba na polozemnici jí dá 8 míst a domácnost kolem
+  8–9 lidí je odolná.
 
 ## Co hráč vidí
 

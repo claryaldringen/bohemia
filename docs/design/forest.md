@@ -73,7 +73,8 @@ k lesu stojí práci a mýcení pro pole dá klády na stavby.
 - **Hromada klád** leží viditelně složená stranou u vsi (Martin) – vesničané ji založí u nejbližšího
   obydlí na volném místě (návrh Clauda). Ubývá podle toho, jak se staví (Martin).
 - **Klády hnijí:** ležící dřevo ztratí ≈ **4 % ročně** (oprava podle rešerše, dřív 10 %: ležící
-  kmeny ztrácejí ≈ 2–5 % hmoty ročně – Petrillo a kol. 2016 a rozklad buku v rezervacích, FEM 2016) – hromadit je do zásoby se nevyplácí.
+  kmeny ztrácejí ≈ 2–5 % hmoty ročně – Petrillo a kol. 2016 a rozklad buku v rezervacích, FEM
+  2016) – hromadit je do zásoby se nevyplácí.
 
 ### Krajina sídla
 
