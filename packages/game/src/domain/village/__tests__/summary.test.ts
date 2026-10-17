@@ -4,6 +4,7 @@ import { foundVillage, startNewDwelling, type PartInput } from '../actions';
 import { advanceVillage } from '../simulate';
 import { STALL_DAYS, partStage, summarizeVillage } from '../summary';
 import type { FieldPart, Person, VillageState } from '../types';
+import { withBuiltFirstDwelling } from './village-fixtures';
 
 const DAY = dayIndexOf({ year: 503, month: 4, day: 12 });
 const YEAR = 365.25;
@@ -67,10 +68,24 @@ describe('partStage', () => {
 });
 
 describe('summarizeVillage', () => {
-  it('čerstvá ves: 2 dospělí a 2 děti v jedné zemnici, zásoby na 18 měsíců', () => {
+  it('čerstvá ves: 2 dospělí a 2 děti staví zemnici, zásoby na 18 měsíců', () => {
     const s = advanceVillage(found(), DAY);
     const summary = summarizeVillage(s, DAY);
     expect(summary.people).toEqual({ children: 2, adults: 2, elders: 0 });
+    // zakladatelé bydlí na staveništi – obydlí (domácnost v panelu) přibude s dostavěním
+    expect(summary.households).toEqual([]);
+    const zemnice = summary.constructions.find((c) => c.kind === 'dwelling');
+    expect(zemnice).toMatchObject({ dwellingType: 'zemnice', dwellingId: 1, areaM2: null });
+    expect(zemnice!.progress).toBeGreaterThan(0);
+    expect(zemnice!.progress).toBeLessThan(1);
+    expect(summary.storesMonths).toBeCloseTo(18, 0);
+    expect(summary.satiation).toBe(1);
+    expect(summary.fullHousehold).toBe(false);
+  });
+
+  it('s hotovou zemnicí: jedna domácnost, 4 lidé v zemnici pro 6', () => {
+    const s = advanceVillage(withBuiltFirstDwelling(found()), DAY);
+    const summary = summarizeVillage(s, DAY);
     expect(summary.households).toEqual([
       {
         dwellingId: 1,
@@ -82,14 +97,12 @@ describe('summarizeVillage', () => {
         condition: expect.closeTo(1, 3),
       },
     ]);
-    expect(summary.storesMonths).toBeCloseTo(18, 0);
-    expect(summary.satiation).toBe(1);
     expect(summary.fullHousehold).toBe(false);
   });
 
   it('rozestavěné pole má průběh mezi 0 a 1 a výměru', () => {
     const s = advanceVillage(found(), DAY + 3);
-    const [field] = summarizeVillage(s, DAY + 3).constructions;
+    const field = summarizeVillage(s, DAY + 3).constructions.find((c) => c.kind === 'field');
     expect(field).toMatchObject({ kind: 'field', areaM2: 8 * 225 });
     expect(field!.progress).toBeGreaterThan(0);
     expect(field!.progress).toBeLessThan(1);
@@ -104,7 +117,7 @@ describe('summarizeVillage', () => {
   });
 
   it('plná domácnost se 4 dospělými se ohlásí, dokud pro ni nezačne nové obydlí', () => {
-    const s = found();
+    const s = withBuiltFirstDwelling(found());
     const extra: Person[] = [20, 21].map((age, i) => ({
       id: 100 + i,
       bornDay: DAY - Math.ceil(age * YEAR),
@@ -120,6 +133,7 @@ describe('summarizeVillage', () => {
     const waiting = summarizeVillage(building, DAY);
     expect(waiting.fullHousehold).toBe(false);
     expect(waiting.constructions.find((c) => c.kind === 'dwelling')).toMatchObject({
+      dwellingId: null,
       dwellingType: 'zemnice',
       progress: 0,
       areaM2: null,

@@ -63,7 +63,7 @@ export function BuildGrid({
   disabled,
   onBuild,
 }: {
-  /** Nabízené stavby; null = bez ceny (první zemnice zakládá ves – osadníci přišli). */
+  /** Nabízené stavby; null = bez ceny (první zemnice zakládá ves – osídlí ji zakladatelé). */
   options: Partial<Record<BuildItem['kind'], BuildOption | null>>;
   /** Co se právě umisťuje. */
   active: BuildItem['kind'] | null;

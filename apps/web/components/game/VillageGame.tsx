@@ -248,7 +248,7 @@ export function VillageGame({
     setPending(list);
   };
 
-  /** Postaví obydlí – první zemnice ves založí (osadníci přišli), další jsou stavby. */
+  /** Postaví obydlí – první zemnice ves založí (osadníci si ji postaví), další jsou stavby. */
   const buildDwelling = (type: DwellingType, position: Position): void => {
     const entry: PendingDwelling = { id: -1 - pendingId.current++, type, position };
     setPendingList([...pendingRef.current, entry]);

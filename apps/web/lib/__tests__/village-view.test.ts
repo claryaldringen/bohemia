@@ -42,6 +42,20 @@ const state = (): VillageState =>
     dwellingPosition: { x: -50, z: -50, rotation: 0.5 },
     firstField: { parts },
   });
+/** Ves s dostavěnou první zemnicí (id domácnosti zakladatelů) – jako starší uložené vsi. */
+const settled = (): VillageState => {
+  const s = state();
+  const site = s.constructions.find((c) => c.kind === 'dwelling' && c.dwellingId !== null)!;
+  s.constructions = s.constructions.filter((c) => c !== site);
+  s.dwellings.push({
+    id: site.dwellingId!,
+    type: 'zemnice',
+    builtDay: DAY,
+    condition: 1,
+    position: site.position!,
+  });
+  return s;
+};
 const record = (s: VillageState = state()): VillageRecord => ({
   settlementId: 's-1',
   name: 'Libice',
@@ -50,7 +64,7 @@ const record = (s: VillageState = state()): VillageRecord => ({
 });
 
 describe('buildVillageView', () => {
-  it('čerstvá ves: lidé, domácnost s věky, zásoby a stavby kdykoli (nic předem)', () => {
+  it('čerstvá ves: lidé, zásoby, stavba zemnice zakladatelů a pole', () => {
     const view = buildVillageView(record(), landscape, DAY);
     expect(view).toMatchObject({
       name: 'Libice',
@@ -63,22 +77,20 @@ describe('buildVillageView', () => {
       polozemnice: { laborManDays: 220, perHa: false, upfront: [], affordable: true },
       field: { laborManDays: 40, perHa: true, upfront: [], affordable: true },
     });
-    expect(view.households).toEqual([
-      {
-        dwellingId: 1,
-        type: 'zemnice',
-        occupants: 4,
-        capacity: 6,
-        full: false,
-        overcrowded: false,
-        condition: 1,
-        ages: [25, 25, 13, 12],
-        ageYears: 0,
-      },
-    ]);
+    // zakladatelé bydlí na staveništi – domácnost s obydlím přibude s dostavěním zemnice
+    expect(view.households).toEqual([]);
     expect(view.storesMonths).toBeCloseTo(18, 0);
     const fieldId = view.fields[0]?.id;
     expect(view.constructions).toEqual([
+      {
+        id: expect.any(Number),
+        kind: 'dwelling',
+        label: 'Zemnice',
+        progress: 0,
+        dwellingType: 'zemnice',
+        dwellingId: null,
+        fieldId: null,
+      },
       {
         id: expect.any(Number),
         kind: 'field',
@@ -96,6 +108,39 @@ describe('buildVillageView', () => {
     expect(view.constructionsStalled).toBe(false);
   });
 
+  it('s dostavěnou zemnicí: domácnost s věky obyvatel', () => {
+    const view = buildVillageView(record(settled()), landscape, DAY);
+    expect(view.households).toEqual([
+      {
+        dwellingId: 1,
+        type: 'zemnice',
+        occupants: 4,
+        capacity: 6,
+        full: false,
+        overcrowded: false,
+        condition: 1,
+        ages: [25, 25, 13, 12],
+        ageYears: 0,
+      },
+    ]);
+  });
+
+  it('scéna: zemnice zakladatelů je do dostavění staveniště', () => {
+    const s = state();
+    const site = s.constructions[0]!;
+    site.done = 15;
+    const { scene } = buildVillageView(record(s), landscape, DAY);
+    expect(scene.dwellings).toEqual([
+      {
+        id: site.id,
+        type: 'zemnice',
+        position: { x: -50, z: -50, rotation: 0.5 },
+        built: false,
+        progress: 0.25,
+      },
+    ]);
+  });
+
   it('hlad a stojící stavby přejdou ze souhrnu vsi', () => {
     const s = state();
     s.hungry = true;
@@ -106,14 +151,14 @@ describe('buildVillageView', () => {
   });
 
   it('scéna: obydlí bez obyvatel není obývané', () => {
-    const s = state();
+    const s = settled();
     s.people = [];
     const { scene } = buildVillageView(record(s), landscape, DAY);
     expect(scene.dwellings[0]?.inhabited).toBe(false);
   });
 
   it('scéna: obydlí, díly pole ve středech políček a rozestavěné obydlí', () => {
-    const s = state();
+    const s = settled();
     // stavba obydlí rovnou do stavu – pravidla odemčení tu netestujeme
     s.constructions.push({
       id: 99,

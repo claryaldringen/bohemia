@@ -213,7 +213,7 @@ Pravidla v [docs/design/population.md](docs/design/population.md) a
 - **Jádro** `packages/game/src/domain/village/` (simulace, umístění `placement.ts`, souhrn
   `summary.ts`), use-casy a port `VillageRepository` v `application/`, tabulka `village`.
   Ves se dopočítá při každém načtení a akci (worker zatím není).
-- **API jádra:** `foundVillage` (zemnice, 4 lidé, zásoby, volitelně první pole),
+- **API jádra:** `foundVillage` (4 lidé, zásoby, stavba první zemnice, volitelně první pole),
   `advanceVillage(state, toDay)` (dopočítá ves do dne včetně) a akce hráče `startNewDwelling`
   a `foundField`. Stav vsi je JSON-serializovatelný, funkce vstupní stav nemění.
 - **Hráč staví kdy chce** (Martin) – žádné odemčení plnou domácností; `waitingHouseholds` je jen
@@ -242,7 +242,11 @@ Pravidla v [docs/design/population.md](docs/design/population.md) a
   `squares`, kontrola) – nová stavba = záznam tam, cena v `BUILD_COSTS` a server action
   v `SUBMIT_SQUARES` (`VillageGame`); mřížka, zkratky i malování po čtvercích se nemění.
 - **Založení vsi:** dokud ves není, mřížka nabízí jen zemnici – její umístění ves založí
-  s navrženým jménem (`suggestVillageName`). Pole není podmínkou.
+  s navrženým jménem (`suggestVillageName`). Pole není podmínkou. Zemnici si osadníci teprve
+  postaví (stavba s `dwellingId` = id jejich domácnosti; do dostavění bydlí na staveništi, pak
+  se nastěhují – `finishConstructions`). Domácnost = `Person.dwellingId`, i když obydlí ještě
+  nestojí (`householdCount` v `simulate.ts`, porody po domácnostech). Starší uložené vsi se
+  zemnicí od založení se dopočítají beze změny.
 - **Ovládání (jako 0 A.D., hraje se i na trackpadu):** výběr `village-picking.ts` (rámeček
   `selection-highlight.ts`), kamera `camera.ts` (čisté funkce `camera-input.ts`,
   `edge-scroll.ts`). Kliknutí = do 6 px pohybu (`CLICK_SLOP_PX`), delší tah je tah.

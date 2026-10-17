@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../domain/calendar';
 import { advanceVillage, type Position, type VillageState } from '../../domain/village';
 import { block, makeLandscape } from '../../domain/village/__tests__/placement-fixtures';
+import { withBuiltFirstDwelling } from '../../domain/village/__tests__/village-fixtures';
 import { foundVillageForSettlement, type FoundVillageInput } from '../found-village';
 import { loadVillage } from '../load-village';
 import { placeDwelling } from '../place-dwelling';
@@ -35,8 +36,12 @@ async function foundedVillages(): Promise<InMemoryVillages> {
   return villages;
 }
 
-/** Domácnost plná dospělých (6 lidí, z toho 6 dospělých) – smí stavět nové obydlí. */
+/**
+ * Zemnice zakladatelů dostavěná a domácnost v ní plná dospělých (6 lidí, z toho 6 dospělých) –
+ * může se z ní oddělit mladý pár.
+ */
 function makeFullHousehold(state: VillageState): void {
+  Object.assign(state, withBuiltFirstDwelling(state));
   const day = state.lastDay;
   state.people.forEach((p) => (p.bornDay = Math.min(p.bornDay, day - Math.ceil(16 * YEAR))));
   for (const [i, age] of [20, 22].entries()) {
@@ -54,15 +59,19 @@ describe('foundVillageForSettlement', () => {
     expect(village).toMatchObject({ settlementId: ID, name: 'Libice', version: 1 });
     expect(village.state.seed).toBe(4242);
     expect(village.state.lastDay).toBe(TODAY);
-    expect(village.state.dwellings).toHaveLength(1);
-    expect(village.state.dwellings[0]?.position).toEqual(at(-50, -50));
+    // první zemnici si zakladatelé teprve staví
+    expect(village.state.dwellings).toEqual([]);
+    const zemnice = village.state.constructions.find((c) => c.kind === 'dwelling');
+    expect(zemnice).toMatchObject({ dwellingType: 'zemnice', startedDay: TODAY });
+    expect(zemnice?.done).toBeGreaterThan(0);
+    expect(zemnice?.position).toEqual(at(-50, -50));
     expect(village.state.fields).toHaveLength(1);
     expect(village.state.parts).toHaveLength(16);
     expect(village.state.parts.every((p) => p.cell !== undefined)).toBe(true);
     expect(village.state.chronicle[0]).toEqual({ day: TODAY, kind: 'village-founded' });
   });
 
-  it('bez čtverců pole založí ves jen se zemnicí', async () => {
+  it('bez čtverců pole založí ves jen se stavbou zemnice', async () => {
     const villages = new InMemoryVillages();
     for (const fieldCells of [undefined, []]) {
       villages.records.clear();
@@ -72,9 +81,8 @@ describe('foundVillageForSettlement', () => {
       );
       expect(result.ok).toBe(true);
       if (!result.ok) return;
-      expect(result.village.state.dwellings).toHaveLength(1);
       expect(result.village.state.fields).toEqual([]);
-      expect(result.village.state.constructions).toEqual([]);
+      expect(result.village.state.constructions.map((c) => c.kind)).toEqual(['dwelling']);
     }
   });
 
@@ -161,7 +169,10 @@ describe('placeDwelling', () => {
     });
     expect(second.ok).toBe(true);
     if (!second.ok) return;
-    expect(second.village.state.constructions.filter((c) => c.kind === 'dwelling')).toHaveLength(2);
+    const added = second.village.state.constructions.filter(
+      (c) => c.kind === 'dwelling' && c.dwellingId === null,
+    );
+    expect(added).toHaveLength(2);
   });
 
   it('plná domácnost: stavba začne dnes, ves je dopočítaná do dneška', async () => {
@@ -176,15 +187,22 @@ describe('placeDwelling', () => {
     if (!result.ok) return;
     expect(result.village.state.lastDay).toBe(today);
     const site = result.village.state.constructions.find((c) => c.kind === 'dwelling');
-    expect(site).toMatchObject({ dwellingType: 'polozemnice', startedDay: today, done: 0 });
+    expect(site).toMatchObject({
+      dwellingType: 'polozemnice',
+      startedDay: today,
+      done: 0,
+      dwellingId: null,
+    });
     expect(site?.position).toEqual(at(-80, -50));
   });
 
   it('obydlí přes zemnici nebo pole odmítne', async () => {
     const villages = await foundedVillages();
-    villages.edit(ID, makeFullHousehold);
     const deps = { villages };
     const base = { settlementId: ID, landscape, today: TODAY + 1, type: 'zemnice' as const };
+    const onSite = await placeDwelling(deps, { ...base, position: at(-48, -50) });
+    expect(onSite).toEqual({ ok: false, reason: 'Překrývá se s rozestavěným obydlím.' });
+    villages.edit(ID, makeFullHousehold);
     const onHouse = await placeDwelling(deps, { ...base, position: at(-48, -50) });
     expect(onHouse).toEqual({ ok: false, reason: 'Překrývá se s jiným obydlím.' });
     const inField = await placeDwelling(deps, { ...base, position: at(0, 0) });

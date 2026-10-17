@@ -167,7 +167,7 @@ function sowingLimits(
   const need = state.people.reduce((sum, p) => sum + FOOD_NEED_KG_PER_YEAR[ageGroup(p, day)], 0);
   const targetKg = state.storesKg > STORES_HIGH_YEARS * need ? need : need * (1 + SOW_RESERVE);
   const capacity = state.people.reduce((sum, p) => sum + laborPerDay(p, day), 0);
-  const dailyMin = DAILY_MIN_PER_HOUSEHOLD * occupiedDwellings(state).length;
+  const dailyMin = DAILY_MIN_PER_HOUSEHOLD * householdCount(state);
   const free = Math.max(0, capacity - dailyMin) * PEAK_CAPACITY_SHARE;
   const springCap = free * windowDays(year, WINDOWS.sow);
   const summerCap = free * windowDays(year, WINDOWS.harvest);
@@ -220,6 +220,14 @@ function occupiedDwellings(state: VillageState): Dwelling[] {
 }
 
 /**
+ * Počet domácností – i zakladatelů, kteří do dostavění první zemnice bydlí na staveništi
+ * (denní minimum a domácí práce mají taky). Ve vsi s hotovými obydlími = obývaná obydlí.
+ */
+function householdCount(state: VillageState): number {
+  return new Set(state.people.map((p) => p.dwellingId)).size;
+}
+
+/**
  * Krok 3: rozdělení práce vsi. Polní úlohy plánu (bez výmlatu – úroda plánu ještě neroste)
  * a výmlat loňské úrody; opravy obydlí poměrně k potřebě; společná práce do staveb.
  */
@@ -241,7 +249,7 @@ function work(state: VillageState, day: number): void {
   const repairNeed = repairNeeds.reduce((sum, n) => sum + n, 0);
   const allocation = allocateDay({
     capacity: state.people.reduce((sum, p) => sum + laborPerDay(p, day), 0),
-    households: households.length,
+    households: householdCount(state),
     people: state.people.length,
     tasks: owned.map(({ name, remaining }) => ({ name, remaining })),
     repairNeed,
@@ -356,7 +364,11 @@ function isFinished(state: VillageState, c: Construction): boolean {
   return c.done >= c.cost;
 }
 
-/** Krok 4: dokončené stavby – nové obydlí, přestavěné obydlí, založené pole. */
+/**
+ * Krok 4: dokončené stavby – nové obydlí, přestavěné obydlí, založené pole. První zemnice
+ * dostane id domácnosti zakladatelů (`dwellingId` stavby) – ti už v ní bydlí, nikdo se
+ * nestěhuje. Do jiného nového obydlí se stěhuje mladý pár.
+ */
 function finishConstructions(state: VillageState, day: number): void {
   const unfinished: Construction[] = [];
   for (const c of state.constructions) {
@@ -381,7 +393,7 @@ function finishConstructions(state: VillageState, day: number): void {
     }
     if (c.position === null) throw new Error(`Stavba obydlí ${c.id} nemá polohu.`);
     const dwelling: Dwelling = {
-      id: state.nextId++,
+      id: c.dwellingId ?? state.nextId++,
       type: c.dwellingType,
       builtDay: day,
       condition: 1,
@@ -389,7 +401,7 @@ function finishConstructions(state: VillageState, day: number): void {
     };
     state.dwellings.push(dwelling);
     state.chronicle.push(finishedEvent(day, c, dwelling.id));
-    moveInYoungestPair(state, day, dwelling.id);
+    if (c.dwellingId === null) moveInYoungestPair(state, day, dwelling.id);
   }
   state.constructions = unfinished;
 }

@@ -100,7 +100,7 @@ function dissolveHouseholds(state: VillageState, day: number): ChronicleEvent[] 
 }
 
 /**
- * Jeden den populace: úmrtí (lidé podle id), porody (obydlí podle id, jeden pokus na pár),
+ * Jeden den populace: úmrtí (lidé podle id), porody (domácnosti podle id, jeden pokus na pár),
  * pak rozpad domácností. Mutuje stav a vrací události dne.
  */
 export function populationDay(
@@ -138,15 +138,20 @@ export function populationDay(
   }
   state.people = state.people.filter((p) => !dead.has(p.id));
 
-  // porody
-  for (const d of [...state.dwellings].sort((a, b) => a.id - b.id)) {
+  // porody – po domácnostech podle id (i zakladatelé na staveništi první zemnice; prázdné
+  // obydlí by stejně nemělo pár)
+  const households = [...new Set(state.people.map((p) => p.dwellingId))].sort((a, b) => a - b);
+  for (const household of households) {
     const pairs = Math.floor(
-      occupants(state, d.id).filter((p) => isFertileAdult(p, day)).length / 2,
+      occupants(state, household).filter((p) => isFertileAdult(p, day)).length / 2,
     );
-    const chance = birthChancePerDay({ satiation, overcrowded: crowded.get(d.id) ?? false });
+    const chance = birthChancePerDay({
+      satiation,
+      overcrowded: crowded.get(household) ?? false,
+    });
     for (let i = 0; i < pairs; i++) {
       if (random.next() < chance) {
-        state.people.push({ id: state.nextId++, bornDay: day, dwellingId: d.id });
+        state.people.push({ id: state.nextId++, bornDay: day, dwellingId: household });
         events.push({ day, kind: 'birth' });
       }
     }

@@ -68,9 +68,10 @@ všechnu práci vsi a teprve lepší nástroje a osevní systémy (další mecha
 
 - **Ves se zakládá zemnicí, pole přidá hráč, kdy chce** (Martin, 17. 10. 2026: „Hráč sám
   rozhodne kdy a co bude stavět, jako v každé RTS.“ – dřív „rozhodnu, kde bude stát první
-  zemnice a pole“ a ves bez prvního pole založit nešla). Ves bez pole žije ze startovních
-  zásob na 18 měsíců (≈ 13 skutečných hodin) a pak hladoví – hlad ji zmenší, ale v době hájení
-  dospělí neumírají.
+  zemnice a pole“ a ves bez prvního pole založit nešla). Zemnici si osadníci nejdřív postaví
+  ([populace](population.md) – Založení vsi); první pole, když ho hráč hned vyznačí, se staví
+  souběžně a o společnou práci se dělí. Ves bez pole žije ze startovních zásob na 18 měsíců
+  (≈ 13 skutečných hodin) a pak hladoví – hlad ji zmenší, ale v době hájení dospělí neumírají.
 - Hráč označí čtverce pole na mřížce políček (Martin). Pole nesmí zasahovat do vody, do obydlí ani
   do jiného pole; nejmenší výměra 0,1 ha, nejdál **800 m** od nejbližšího obydlí (návrh Clauda).
 - Pole může ležet na louce, v křovinách i v lese (Martin). Všechno, co je na čtvercích pole,

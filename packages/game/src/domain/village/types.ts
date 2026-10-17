@@ -9,6 +9,10 @@ export interface Position {
 export interface Person {
   id: number;
   bornDay: number;
+  /**
+   * Domácnost = id obydlí. Zakladatelé vsi mají id první zemnice už během její stavby (bydlí na
+   * staveništi), obydlí s tím id vznikne až s dokončením.
+   */
   dwellingId: number;
 }
 export interface Dwelling {
@@ -55,7 +59,8 @@ export interface Construction {
   done: number;
   dwellingType: DwellingType | null;
   position: Position | null; // dwelling
-  dwellingId: number | null; // rebuild
+  /** rebuild: přestavované obydlí; dwelling: domácnost zakladatelů (první zemnice), jinak null. */
+  dwellingId: number | null;
   fieldId: number | null; // field – zakládá díly od nejbližšího
 }
 export type TaskName = 'reclaim' | 'dig' | 'sow' | 'weed' | 'harvest' | 'thresh';

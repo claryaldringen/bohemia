@@ -123,10 +123,12 @@ function addField(state: VillageState, day: number, field: FieldInput): void {
 }
 
 /**
- * Založí ves: zemnice, 4 lidé podle START_AGES a zásoby na START_STORES_MONTHS. První pole je
- * volitelné (hráč staví, kdy chce – population.md, Založení vsi); když je, vznikne jako stavba.
- * Id se čerpají z jednoho čítače `nextId` (od 1) v pořadí obydlí, lidé, pole, jeho díly,
- * stavba pole.
+ * Založí ves: 4 lidé podle START_AGES, zásoby na START_STORES_MONTHS a stavba první zemnice
+ * (population.md – Založení vsi). Zemnici si zakladatelé postaví vlastní prací jako každou
+ * stavbu – do dostavění bydlí na staveništi a pak se do ní nastěhují (jejich domácnost má id
+ * budoucí zemnice, stavba ho nese v `dwellingId`). První pole je volitelné (hráč staví, kdy
+ * chce); když je, vznikne jako stavba. Id se čerpají z jednoho čítače `nextId` (od 1) v pořadí
+ * domácnost zakladatelů (= id zemnice), lidé, stavba zemnice, pole, jeho díly, stavba pole.
  *
  * Konvence dne: ves vzniká na začátku dne `day` – `lastDay = day − 1`, takže den založení
  * odsimuluje až následující `advanceVillage(state, day)` (založení vsi ho volá hned).
@@ -141,25 +143,36 @@ export function foundVillage(input: {
   validateDay(day);
   validatePosition(dwellingPosition);
   if (firstField) validateField(firstField);
-  const dwellingId = 1;
+  const householdId = 1;
   const people: Person[] = START_AGES.map((age, i) => ({
-    id: dwellingId + 1 + i,
+    id: householdId + 1 + i,
     bornDay: day - Math.ceil(age * DAYS_PER_YEAR),
-    dwellingId,
+    dwellingId: householdId,
   }));
+  const constructionId = householdId + 1 + people.length;
   const annualNeed = people.reduce((sum, p) => sum + FOOD_NEED_KG_PER_YEAR[ageGroup(p, day)], 0);
   const state: VillageState = {
     seed,
     foundedDay: day,
     lastDay: day - 1,
-    nextId: dwellingId + 1 + people.length,
+    nextId: constructionId + 1,
     people,
-    dwellings: [
-      { id: dwellingId, type: 'zemnice', builtDay: day, condition: 1, position: dwellingPosition },
-    ],
+    dwellings: [],
     fields: [],
     parts: [],
-    constructions: [],
+    constructions: [
+      {
+        id: constructionId,
+        kind: 'dwelling',
+        startedDay: day,
+        cost: DWELLINGS.zemnice.cost,
+        done: 0,
+        dwellingType: 'zemnice',
+        position: { ...dwellingPosition },
+        dwellingId: householdId,
+        fieldId: null,
+      },
+    ],
     plan: null,
     threshingFromPlan: null,
     storesKg: (annualNeed * START_STORES_MONTHS) / MONTHS_PER_YEAR,

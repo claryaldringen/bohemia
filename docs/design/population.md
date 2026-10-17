@@ -57,9 +57,15 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
 ### Založení vsi
 
 - Hráč v krajině svého sídla umístí půdorys první zemnice (viz Umístění obydlí) – tím ves
-  založí. Zemnice tam hned stojí (osadníci přišli) a bydlí v ní **4 lidé**: dva dospělí (kolem
-  25 let) a dva dospívající (12 a 13 let – návrh Clauda, aby první nová domácnost mohla
-  vzniknout do pár let). Ves dostane navržené staročeské jméno, které hráč může kdykoli změnit.
+  založí. Přijdou **4 lidé**: dva dospělí (kolem 25 let) a dva dospívající (12 a 13 let – návrh
+  Clauda, aby první nová domácnost mohla vzniknout do pár let). Ves dostane navržené staročeské
+  jméno, které hráč může kdykoli změnit.
+- **První zemnici si osadníci postaví sami** (Martin, 17. 10. 2026: „první zemnice byla
+  postavena hrozně rychle – nebyl vidět průběh stavby“): je to stavba jako každá jiná – roste
+  ze společné práce vsi a hráč vidí její fáze. Startovní domácnosti zbývá ≈ 1,2 člověkodne
+  společné práce denně, takže zemnice (60 člověkodní) stojí asi za 50 herních dní (≈ 1 h 10 min
+  skutečného času), s prvním polem déle – obě stavby se o práci dělí. Do dostavění osadníci
+  bydlí na staveništi (bez vlivu na úmrtnost), pak se do zemnice nastěhují (návrh Clauda).
 - **První pole není podmínkou založení** (Martin, 17. 10. 2026: „Hráč sám rozhodne kdy a co bude
   stavět, jako v každé RTS.“) – pole jsou samostatná a společná pro celou ves a hráč je zakládá,
   kdy chce ([fields.md](fields.md)). Ves bez pole žije ze zásob na 18 měsíců a pak hladoví;
@@ -259,6 +265,7 @@ zasetá část, odemčení počítá jen dospělé 14–44, rozpad domácnosti s
 | ---------------------------------------------------------------------------- | ----------------------------- |
 | Ves jako zásobárna aktiv: jídlo, voda, dřevo a hlavně lidé / člověkohodiny   | Martin                        |
 | Start: 4 lidé v jedné zemnici, hráč vybere místo                             | Martin                        |
+| První zemnici si osadníci postaví sami, průběh stavby je vidět               | Martin (17. 10. 2026)         |
 | Dost jídla → populace roste; cílem je efektivní výroba jídla                 | Martin                        |
 | Obydlí zatím zemnice a polozemnice                                           | Martin                        |
 | Obydlí se umisťuje volně (půdorys) na dost rovné zemi; překážky a les zdraží | Martin                        |

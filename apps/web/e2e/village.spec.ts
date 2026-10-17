@@ -74,6 +74,37 @@ async function villageState(settlementId: string): Promise<VillageState> {
   return row.state;
 }
 
+/** Uloží upravený stav vsi (jako by ho zapsal server) – další dotaz na ves (5 s) ho ukáže. */
+async function writeVillageState(settlementId: string, state: VillageState): Promise<void> {
+  await query(
+    'UPDATE village SET state = $2::jsonb, version = version + 1 WHERE settlement_id = $1',
+    [settlementId, JSON.stringify(state)],
+  );
+}
+
+/**
+ * Dostavěná zemnice zakladatelů – stav jako u vsí uložených dřív, než si ji osadníci stavěli
+ * sami (obydlí s id domácnosti, stavba zmizí).
+ */
+function withBuiltFirstDwelling(state: VillageState): VillageState {
+  const site = state.constructions.find((c) => c.kind === 'dwelling' && c.dwellingId !== null);
+  if (!site || site.dwellingId === null || site.position === null) return state;
+  return {
+    ...state,
+    constructions: state.constructions.filter((c) => c !== site),
+    dwellings: [
+      {
+        id: site.dwellingId,
+        type: 'zemnice',
+        builtDay: state.lastDay,
+        condition: 1,
+        position: site.position,
+      },
+      ...state.dwellings,
+    ],
+  };
+}
+
 /** Obdélník čtverců (políček) s levým horním čtvercem (x, y). */
 function block(x: number, y: number, width: number, height: number): TileCell[] {
   const cells: TileCell[] = [];
@@ -176,22 +207,52 @@ test('nový hráč založí ves umístěním zemnice, přejmenuje ji a vybere ze
   await page.keyboard.press('Enter');
   await expect(name).toHaveText('Testovice');
 
-  // R vrátí pohled na ves, kliknutí na zemnici ji vybere a panel ukáže obyvatele.
+  // Zemnici si osadníci teprve staví – v uložené vsi je to stavba, obydlí zatím žádné.
+  const founded = await villageState(s.settlementId);
+  expect(founded.dwellings).toEqual([]);
+  expect(founded.constructions).toEqual([
+    expect.objectContaining({
+      kind: 'dwelling',
+      dwellingType: 'zemnice',
+      position: spots.dwelling,
+    }),
+  ]);
+
+  // R vrátí pohled na ves, kliknutí na zemnici ji vybere – panel ukáže průběh stavby.
   await page.keyboard.press('r');
   const point = await page.evaluate(
     (p) => window.__bohemiaE2E!.projectToScreen!(p.x, p.z),
     spots.dwelling,
   );
   expect(point).not.toBeNull();
-  await page.mouse.move(point!.x - 3, point!.y);
-  await page.mouse.click(point!.x, point!.y);
+  const clickZemnice = async (): Promise<void> => {
+    await page.mouse.move(point!.x - 3, point!.y);
+    await page.mouse.click(point!.x, point!.y);
+  };
+  await clickZemnice();
   const panel = page.getByTestId('selection-panel');
-  await expect(panel).toHaveAttribute('data-kind', 'dwelling');
-  await expect(panel.getByTestId('selection-occupants')).toHaveText('4/6');
-  await expect(panel.getByTestId('selection-ages').getByRole('listitem')).toHaveCount(4);
+  await expect(panel).toHaveAttribute('data-kind', 'site');
+  const progress = Number(
+    await panel.getByTestId('selection-progress').getAttribute('aria-valuenow'),
+  );
+  expect(progress).toBeLessThan(100);
   // Pravé tlačítko výběr zruší (jako v 0 A.D.).
   await page.mouse.click(point!.x, point!.y, { button: 'right' });
   await expect(panel).toHaveCount(0);
+
+  // Dostavěná zemnice (i ves uložená dřív se zemnicí od založení): osadníci v ní bydlí.
+  await writeVillageState(s.settlementId, withBuiltFirstDwelling(founded));
+  await expect
+    .poll(
+      async () => {
+        await clickZemnice();
+        return panel.getAttribute('data-kind');
+      },
+      { timeout: 20_000 },
+    )
+    .toBe('dwelling');
+  await expect(panel.getByTestId('selection-occupants')).toHaveText('4/6');
+  await expect(panel.getByTestId('selection-ages').getByRole('listitem')).toHaveCount(4);
 
   // Ves je uložená na serveru – po novém načtení stránky je tu dál i s novým jménem.
   await page.reload();
