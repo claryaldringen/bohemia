@@ -175,6 +175,9 @@ pořadí (návrh Clauda; nahrazuje pevných 85 % a dělení práce po domácnost
 - **Na jaře se nejdřív seje, co je zkopané,** a teprve zbytek práce jde do dalšího kopání
   (kalibrace). Pole, které se do konce dubna nedokope, tak dá aspoň úrodu zkopané části – dřív
   kopání předbíhalo setí a nedokopané pole nedalo nic.
+- **Plete a sklízí se jen zasetá část, mlátí jen sklizená** (kalibrace): nezasetá půda práci
+  nebere a úroda zaseté části se za nezasetou nesráží podruhé – pletí a sklizeň se měří vůči
+  zaseté ploše.
 - **Vrácení přílohu** do osevu (podzim září–listopad, před kopáním – návrh Clauda) stojí práci
   navíc podle stáří přílohu: 1–2 roky nic, 3–5 let (louka, drn) 40 člověkodní na hektar,
   6–10 let (mladý nálet – vypálí se) 60, 11–15 let (husté křoviny) 150, víc než 15 let (les)
@@ -300,21 +303,25 @@ Měřicí skript (jako u populace) ověří:
 **Naměřeno** (`packages/game/scripts/measure-village.ts 200 60`, 17. 10. 2026 – syntetická louka
 s úrodností 70, hráč drží pole na osev × 3,3, strategie v hlavičce skriptu). Kalibrace zvýšila
 rezervu osevu z 10 na 15 %, domácí výrobu z 0,12 na 0,15 člověkodne na člověka a strop osevu
-na všechnu práci ve špičce (z 80 %); na jaře se nově nejdřív seje, co je zkopané:
+na všechnu práci ve špičce (z 80 %); na jaře se nově nejdřív seje, co je zkopané. Po finální
+revizi se plete a sklízí jen zasetá část a odemčení nového obydlí počítá jen dospělé 14–44
+(population.md) – hodnoty níže jsou z měření po těchto opravách:
 
 - startovní ves: osev ≈ 1,6 ha, pole ≈ 5,3 ha, nasycená, na obživu ≈ 86 % práce – splněno,
 - plná domácnost: osev ≈ 2,6 ha, pole ≈ 8,8 ha, na obživu ≈ 79 % – splněno,
 - díl se oseje 3 roky a 7 let leží v přílohu (90 % dílů 7–9 let); z pole o polovinu většího
   zaroste v les ≈ 35 % plochy, první díl po 16 letech – splněno,
 - startovní ves má ve špičkách rezervu práce ≈ 34 % (jaro) a ≈ 35 % (léto) – splněno,
-- syntetická louka (35 ha, úrodnost 70 – úrodnější než typická) dojde při ≈ 5 domácnostech,
-- ves, kde hráč staví, kdykoli může, je nasycená (≥ 0,95) v ≈ 92 % let (bez staveb v 98 %;
-  nejhorší 1 % let s nasycením 0,72) – cíl 95 % zatím ne, **doladí se hraním (Martin –
-  prototyp)**. Zbytek hladu: strop osevu podle práce ve špičkách nepočítá se vzdáleností dílů
-  ani s vracením přílohů a rostoucí ves má hodně malých dětí, takže práce ve špičce nestačí na
-  osev pro všechny,
-- zásoby po sklizni: 10. percentil 1,08, medián 1,33, 90. percentil 1,54 – mezi 1 a 1,5 roční
-  potřeby v ≈ 80 % let (horní hranici přetáhne jedna bohatá sklizeň nebo úmrtí během roku).
+- syntetická louka (35 ha, úrodnost 70 – úrodnější než typická) dojde při ≈ 4 domácnostech
+  (před opravami ≈ 5),
+- ves, kde hráč staví, kdykoli může, je nasycená (≥ 0,95) v ≈ 94 % let (před opravami 92 %;
+  bez staveb v 98 %; nejhorší 1 % let s nasycením 0,76, 5 % s 0,92) – cíl 95 % zatím ne,
+  **doladí se hraním (Martin – prototyp)**. Zbytek hladu: strop osevu podle práce ve špičkách
+  nepočítá se vzdáleností dílů ani s vracením přílohů a rostoucí ves má hodně malých dětí,
+  takže práce ve špičce nestačí na osev pro všechny,
+- zásoby po sklizni: 10. percentil 1,12, medián 1,35, 90. percentil 1,56 (před opravami 1,08,
+  1,33 a 1,54) – mezi 1 a 1,5 roční potřeby v ≈ 79 % let (horní hranici přetáhne jedna bohatá
+  sklizeň nebo úmrtí během roku).
 
 ## Co hráč vidí
 

@@ -179,15 +179,22 @@ stovky vsí a ověří cíle:
   měření níže).
 
 **Naměřeno** (`packages/game/scripts/measure-village.ts`, 17. 10. 2026, se skutečným jídlem
-z [fields.md](fields.md); 200 vsí × 60 let, vymření 30 vsí × 1000 let):
+z [fields.md](fields.md); 200 vsí × 60 let po opravách z finální revize – plete a sklízí se jen
+zasetá část, odemčení počítá jen dospělé 14–44, rozpad domácnosti samých starších; vymření
+30 vsí × 1000 let je ještě z měření před těmito opravami):
 
-- první možnost stavět: medián 3,9 roku, 90 % vsí do 7,8 roku, 99 % do 22 let – splněno,
-- čerstvě plná domácnost postaví zemnici za ≈ 80 dní, polozemnici za ≈ 300 dní – splněno,
-- zemnice se přestavuje po 15 letech, polozemnice po 22 (dřív zchátrá < 1 % obydlí); opravy
-  na konci životnosti jsou ≈ 0,5 (zemnice) a 0,6 (polozemnice) společné práce domácnosti,
-  která je v rostoucí vsi jen ≈ 29 člověkodní ročně – splněno po kalibraci: roční opravy na
-  konci životnosti zemnice 35 → 15, polozemnice 40 → 17 člověkodní (s 35 zemnice chátrala na
-  nulu už po ≈ 12 letech – ve špičkách polních prací na opravy nezbývá práce),
+- první možnost stavět: medián 3,9 roku, 90 % vsí do 7,8 roku, 99 % do 38 let (před opravami
+  22 – starší se do čtyř dospělých nepočítají) – splněno,
+- čerstvě plná domácnost postaví zemnici za ≈ 77 dní, polozemnici za ≈ 295 dní – splněno,
+- zemnice se přestavuje po 15 letech, polozemnice po 22 (dřív zchátrá < 1 % obydlí) – splněno,
+- opravy na konci životnosti: kalibrace je snížila na 15 (zemnice) a 17 (polozemnice)
+  člověkodní ročně z 35 a 40 (s 35 zemnice chátrala na nulu už po ≈ 12 letech – ve špičkách
+  polních prací na opravy nezbývá práce); to bylo ≈ 0,5 a 0,6 společné práce domácnosti, když
+  jí bylo ≈ 29 člověkodní ročně. Po opravách z finální revize má domácnost od 10. roku vsi
+  ≈ 46 člověkodní společné práce ročně (hlavně proto, že se domácnosti dělí až se čtyřmi
+  dospělými 14–44), takže opravy jsou jen ≈ 0,33 a 0,37 – cíl ≈ ½
+  **zatím ne**; návrh: opravy na konci životnosti zemnice ≈ 23, polozemnice ≈ 26 člověkodní
+  (čeká na schválení a nové měření),
 - vymření do roku 1500: ves, kde hráč staví, kdykoli může, nevymřela žádná (0 z 30; na konci
   medián 33 domácností a 142 lidí – když dojde půda, hlad drží ves u toho, co pole uživí).
   Cíl ≤ 1 % to ale **nepotvrzuje**: při 0 z 30 je 95% horní mez podílu vymřelých vsí ≈ 10 %
