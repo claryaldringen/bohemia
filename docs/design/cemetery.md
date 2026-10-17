@@ -53,10 +53,12 @@ další rozhodnutí o místě v krajině – vedle obydlí a polí.
 
 ## Naměřeno
 
-`measure-village.ts 200 60` (17. 10. 2026) – skript hřbitov nestaví, takže ukazuje, co udělá
-ves, která ho nemá nikdy (po 30 letech hájení hygiena 0): na konci 60 let medián 22 lidí
-a 5 domácností místo 31 a 6, vymření žádné (0 z 200); jediná domácnost bez staveb vymře do 60 let
-ve 2 % vsí místo 0,5 %; nasycení ≥ 0,95 celý rok 93,7 % let místo 94,0 %. Čísla se neladila.
+`measure-village.ts 200 60` (17. 10. 2026). Hráč, který staví, založí hřbitov hned po první
+zemnici (200 m od obydlí, 150 m od vody) a rozšíří ho o čtverec, když je z 80 % plný: na konci
+60 let medián 31 lidí a 6 domácností, nasycení ≥ 0,95 celý rok 94,1 % let, vymření žádné
+(0 z 200) – stejně jako před zavedením hřbitova (31, 6, 94,0 %). Jediná domácnost bez staveb
+(ani hřbitova – po 30 letech hájení hygiena 0) vymře do 60 let ve 2 % vsí místo 0,5 %;
+nasycení ≥ 0,95 u ní 97,6 % let místo 98,2 %. Čísla se neladila.
 
 ## Rozhodnutí
 
