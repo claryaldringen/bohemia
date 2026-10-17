@@ -322,9 +322,9 @@ export function recordClearedObstacles(
 
 /**
  * Ves založená před vrstvou překážek (bez `clearedObstacles`): doplní odstraněné překážky
- * pod obydlími, rozestavěnými obydlími a založenými díly polí, díly ve stavu zakládání
- * dostanou své překážky. Den odstranění neznáme – použije se den, do kterého je ves
- * dopočítaná. Ves s překážkami vrací beze změny.
+ * pod obydlími, rozestavěnými obydlími, založenými díly polí a hotovými čtverci hřbitovů, díly
+ * ve stavu zakládání a čtverce hřbitovů ve stavbě dostanou své překážky. Den odstranění
+ * neznáme – použije se den, do kterého je ves dopočítaná. Ves s překážkami vrací beze změny.
  */
 export function withObstacleClearing(state: VillageState, layer: ObstacleLayer): VillageState {
   if (state.clearedObstacles !== undefined) return state;
@@ -342,9 +342,12 @@ export function withObstacleClearing(state: VillageState, layer: ObstacleLayer):
     ),
   ];
   const removed = new Set<number>();
-  const fieldTiles = new Set(
-    next.parts.flatMap((p) => (p.cell ? [p.cell.y * layer.size + p.cell.x] : [])),
-  );
+  const cemeteries = next.cemeteries ?? [];
+  // překážky v políčkách polí a hřbitovů patří jim, ne obydlí
+  const fieldTiles = new Set([
+    ...next.parts.flatMap((p) => (p.cell ? [p.cell.y * layer.size + p.cell.x] : [])),
+    ...cemeteries.flatMap((c) => c.squares.map((s) => s.cell.y * layer.size + s.cell.x)),
+  ]);
   for (const site of sites) {
     const tally = dwellingObstacles(layer, status, site.type, site.position, fieldTiles);
     for (const id of tally.ids) removed.add(id);
@@ -357,6 +360,17 @@ export function withObstacleClearing(state: VillageState, layer: ObstacleLayer):
       if (pending.length > 0) part.obstacles = pending;
     } else {
       for (const id of ids) removed.add(id);
+    }
+  }
+  for (const cemetery of cemeteries) {
+    for (const square of cemetery.squares) {
+      const ids = cellObstacles(layer, status, square.cell).ids;
+      const building = square.constructionId !== undefined || cemetery.builtDay === null;
+      if (building) {
+        if (ids.length > 0) square.obstacles = ids;
+      } else {
+        for (const id of ids) removed.add(id);
+      }
     }
   }
   recordClearedObstacles(

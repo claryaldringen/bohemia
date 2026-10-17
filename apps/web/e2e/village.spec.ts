@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { Client } from 'pg';
 import {
+  cemeteryPartsFromCells,
   checkDwellingPlacement,
   fieldPartsFromCells,
   generateLandscapeAttempt,
@@ -74,6 +75,37 @@ async function villageState(settlementId: string): Promise<VillageState> {
   return row.state;
 }
 
+/** Uloží upravený stav vsi (jako by ho zapsal server) – další dotaz na ves (5 s) ho ukáže. */
+async function writeVillageState(settlementId: string, state: VillageState): Promise<void> {
+  await query(
+    'UPDATE village SET state = $2::jsonb, version = version + 1 WHERE settlement_id = $1',
+    [settlementId, JSON.stringify(state)],
+  );
+}
+
+/**
+ * Dostavěná zemnice zakladatelů – stav jako u vsí uložených dřív, než si ji osadníci stavěli
+ * sami (obydlí s id domácnosti, stavba zmizí).
+ */
+function withBuiltFirstDwelling(state: VillageState): VillageState {
+  const site = state.constructions.find((c) => c.kind === 'dwelling' && c.dwellingId !== null);
+  if (!site || site.dwellingId === null || site.position === null) return state;
+  return {
+    ...state,
+    constructions: state.constructions.filter((c) => c !== site),
+    dwellings: [
+      {
+        id: site.dwellingId,
+        type: 'zemnice',
+        builtDay: state.lastDay,
+        condition: 1,
+        position: site.position,
+      },
+      ...state.dwellings,
+    ],
+  };
+}
+
 /** Obdélník čtverců (políček) s levým horním čtvercem (x, y). */
 function block(x: number, y: number, width: number, height: number): TileCell[] {
   const cells: TileCell[] = [];
@@ -126,6 +158,27 @@ function villageSpots(l: Landscape): { dwelling: Position; cells: TileCell[]; se
   throw new Error('V krajině není volné místo pro ves.');
 }
 
+/** Nejbližší čtverec ke zemnici, kam smí hřbitov (blízkost obydlí jen varuje). */
+function cemeterySpot(l: Landscape, dwelling: Position): TileCell {
+  const tile = tileOfWorldPoint(l, dwelling.x, dwelling.z);
+  if (!tile) throw new Error('Zemnice leží mimo krajinu.');
+  const village: PlacementVillage = {
+    dwellings: [{ type: 'zemnice', position: dwelling }],
+    constructions: [],
+    parts: [],
+  };
+  for (let r = 2; r <= 8; r++) {
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+        const cell = { x: tile.x + dx, y: tile.y + dy };
+        if (cemeteryPartsFromCells(l, village, [cell], [dwelling]).check.ok) return cell;
+      }
+    }
+  }
+  throw new Error('U zemnice není místo pro hřbitov.');
+}
+
 const readyScene = (page: Page): ReturnType<Page['locator']> =>
   page.locator('canvas[data-scene-ready="true"]');
 
@@ -166,8 +219,10 @@ test('nový hráč založí ves umístěním zemnice, přejmenuje ji a vybere ze
   await found(page, spots.dwelling);
   const name = page.getByTestId('village-name');
   await expect(name).toHaveText(suggestVillageName(s.seed));
-  await expect(grid.getByRole('button')).toHaveCount(3);
-  await expect(grid.getByRole('button', { name: 'Polozemnice' })).toBeEnabled();
+  await expect(grid.getByRole('button')).toHaveCount(4);
+  // Nové obydlí nemá kdo osídlit – zakladatelé si stavějí vlastní zemnici. Hřbitov lidi nechce.
+  await expect(grid.getByRole('button', { name: 'Polozemnice' })).toBeDisabled();
+  await expect(grid.getByRole('button', { name: 'Hřbitov' })).toBeEnabled();
   expect((await villageState(s.settlementId)).fields).toEqual([]);
 
   // Jméno se přepíše přímo v horní liště.
@@ -176,40 +231,100 @@ test('nový hráč založí ves umístěním zemnice, přejmenuje ji a vybere ze
   await page.keyboard.press('Enter');
   await expect(name).toHaveText('Testovice');
 
-  // R vrátí pohled na ves, kliknutí na zemnici ji vybere a panel ukáže obyvatele.
+  // Zemnici si osadníci teprve staví – v uložené vsi je to stavba, obydlí zatím žádné.
+  const founded = await villageState(s.settlementId);
+  expect(founded.dwellings).toEqual([]);
+  expect(founded.constructions).toEqual([
+    expect.objectContaining({
+      kind: 'dwelling',
+      dwellingType: 'zemnice',
+      position: spots.dwelling,
+    }),
+  ]);
+
+  // R vrátí pohled na ves, kliknutí na zemnici ji vybere – panel ukáže průběh stavby.
   await page.keyboard.press('r');
   const point = await page.evaluate(
     (p) => window.__bohemiaE2E!.projectToScreen!(p.x, p.z),
     spots.dwelling,
   );
   expect(point).not.toBeNull();
-  await page.mouse.move(point!.x - 3, point!.y);
-  await page.mouse.click(point!.x, point!.y);
+  const clickZemnice = async (): Promise<void> => {
+    await page.mouse.move(point!.x - 3, point!.y);
+    await page.mouse.click(point!.x, point!.y);
+  };
+  await clickZemnice();
   const panel = page.getByTestId('selection-panel');
-  await expect(panel).toHaveAttribute('data-kind', 'dwelling');
-  await expect(panel.getByTestId('selection-occupants')).toHaveText('4/6');
-  await expect(panel.getByTestId('selection-ages').getByRole('listitem')).toHaveCount(4);
+  await expect(panel).toHaveAttribute('data-kind', 'site');
+  const progress = Number(
+    await panel.getByTestId('selection-progress').getAttribute('aria-valuenow'),
+  );
+  expect(progress).toBeLessThan(100);
   // Pravé tlačítko výběr zruší (jako v 0 A.D.).
   await page.mouse.click(point!.x, point!.y, { button: 'right' });
   await expect(panel).toHaveCount(0);
+
+  // Dostavěná zemnice (i ves uložená dřív se zemnicí od založení): osadníci v ní bydlí.
+  await writeVillageState(s.settlementId, withBuiltFirstDwelling(founded));
+  await expect
+    .poll(
+      async () => {
+        await clickZemnice();
+        return panel.getAttribute('data-kind');
+      },
+      { timeout: 20_000 },
+    )
+    .toBe('dwelling');
+  await expect(panel.getByTestId('selection-occupants')).toHaveText('4/6');
+  await expect(panel.getByTestId('selection-ages').getByRole('listitem')).toHaveCount(4);
 
   // Ves je uložená na serveru – po novém načtení stránky je tu dál i s novým jménem.
   await page.reload();
   await expect(page.getByTestId('village-name')).toHaveText('Testovice', { timeout: 30_000 });
 });
 
-test('hráč staví kdykoli – polozemnici i pole hned po založení', async ({ page }) => {
+test('obydlí jde stavět, jen když je kým ho osadit – pole kdykoli', async ({ page }) => {
   const { seat: s } = await newPlayer(page, 'stavby');
   const spots = villageSpots(s.landscape);
   await found(page, spots.dwelling);
   const grid = page.getByTestId('build-grid');
+  const polozemnice = grid.getByRole('button', { name: 'Polozemnice' });
 
-  // Polozemnice hned – žádné odemčení plnou domácností.
-  await grid.getByRole('button', { name: 'Polozemnice' }).click();
-  await expect(grid.getByRole('button', { name: 'Polozemnice' })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
+  // Lidé k osídlení nejsou: tlačítko zašedlé, v popisku chybějící lidé červeně, zkratka nic.
+  await expect(polozemnice).toBeDisabled();
+  await expect(grid.getByRole('button', { name: 'Zemnice', exact: true })).toBeDisabled();
+  await polozemnice.hover();
+  const settlers = grid
+    .getByRole('listitem')
+    .filter({ has: page.getByRole('button', { name: 'Polozemnice' }) })
+    .locator('[data-resource="settlers"]');
+  await expect(settlers).toBeVisible();
+  await expect(settlers).toHaveAttribute('data-missing', 'true');
+  await page.mouse.move(10, 300);
+  await page.keyboard.press('x');
+  await expect(polozemnice).toHaveAttribute('aria-pressed', 'false');
+
+  // Pole klávesovou zkratkou C, kdykoli po založení.
+  await page.keyboard.press('c');
+  await expect(grid.getByRole('button', { name: 'Pole' })).toHaveAttribute('aria-pressed', 'true');
+  await confirmPlacement(page, { kind: 'squares', cells: spots.cells });
+  await expect.poll(async () => (await villageState(s.settlementId)).fields.length).toBe(1);
+
+  // Zemnice dostavěná a domácnost v ní plná se 4 dospělými – jeden pár k osídlení.
+  const full = withBuiltFirstDwelling(await villageState(s.settlementId));
+  const adultBorn = full.lastDay - Math.ceil(16 * 365.25);
+  for (const person of full.people) person.bornDay = Math.min(person.bornDay, adultBorn);
+  for (let i = 0; i < 2; i++) {
+    full.people.push({
+      id: full.nextId++,
+      bornDay: adultBorn,
+      dwellingId: full.people[0]!.dwellingId,
+    });
+  }
+  await writeVillageState(s.settlementId, full);
+  await expect(polozemnice).toBeEnabled({ timeout: 20_000 });
+  await polozemnice.click();
+  await expect(polozemnice).toHaveAttribute('aria-pressed', 'true');
   await confirmPlacement(page, { kind: 'dwelling', type: 'polozemnice', position: spots.second });
   await expect
     .poll(async () => {
@@ -217,12 +332,8 @@ test('hráč staví kdykoli – polozemnici i pole hned po založení', async ({
       return state.constructions.filter((c) => c.kind === 'dwelling').map((c) => c.dwellingType);
     })
     .toEqual(['polozemnice']);
-
-  // Pole klávesovou zkratkou C, kdykoli po založení.
-  await page.keyboard.press('c');
-  await expect(grid.getByRole('button', { name: 'Pole' })).toHaveAttribute('aria-pressed', 'true');
-  await confirmPlacement(page, { kind: 'squares', cells: spots.cells });
-  await expect.poll(async () => (await villageState(s.settlementId)).fields.length).toBe(1);
+  // Jediný pár čeká na rozestavěnou polozemnici – další obydlí zase nejde.
+  await expect(polozemnice).toBeDisabled();
   await expect(page.locator('[data-testid="village-notice"][data-kind="error"]')).toHaveCount(0);
 });
 
@@ -238,4 +349,48 @@ test('upozornění vsi se ukáže krátkým řádkem nahoře a samo zmizí', asy
   const notice = page.locator('[data-testid="village-notice"][data-kind="hungry"]');
   await expect(notice).toHaveText('Ves hladoví', { timeout: 20_000 });
   await expect(notice).toHaveCount(0, { timeout: 15_000 });
+});
+
+test('hráč založí hřbitov po čtvercích a vybere ho – panel ukáže hroby', async ({ page }) => {
+  const { seat: s } = await newPlayer(page, 'hrbitov');
+  const spots = villageSpots(s.landscape);
+  await found(page, spots.dwelling);
+  const grid = page.getByTestId('build-grid');
+  const cell = cemeterySpot(s.landscape, spots.dwelling);
+
+  // Hřbitov klávesovou zkratkou V, malování po čtvercích jako pole.
+  await page.keyboard.press('v');
+  await expect(grid.getByRole('button', { name: 'Hřbitov' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await confirmPlacement(page, { kind: 'squares', cells: [cell] });
+  await expect
+    .poll(async () => (await villageState(s.settlementId)).cemeteries?.length ?? 0)
+    .toBe(1);
+  await expect(page.locator('[data-testid="village-notice"][data-kind="error"]')).toHaveCount(0);
+
+  // Kliknutí na čtverec hřbitova ho vybere – nehotový ukáže jen průběh založení.
+  await page.keyboard.press('r');
+  const center = tileCenterWorld(s.landscape, cell.x, cell.y);
+  const point = await page.evaluate((p) => window.__bohemiaE2E!.projectToScreen!(p.x, p.z), center);
+  expect(point).not.toBeNull();
+  await page.mouse.move(point!.x - 3, point!.y);
+  await page.mouse.click(point!.x, point!.y);
+  const panel = page.getByTestId('selection-panel');
+  await expect(panel).toHaveAttribute('data-kind', 'cemetery');
+  await expect(panel.getByTestId('selection-progress')).toBeVisible();
+
+  // Ohrazený hřbitov se třemi hroby přímo v uložené vsi – další dotaz (každých 5 s) ho ukáže.
+  const state = await villageState(s.settlementId);
+  const cemetery = state.cemeteries![0]!;
+  cemetery.builtDay = state.lastDay;
+  cemetery.graves = 3;
+  state.constructions = state.constructions.filter((c) => c.kind !== 'cemetery');
+  await query('UPDATE village SET state = $2, version = version + 1 WHERE settlement_id = $1', [
+    s.settlementId,
+    JSON.stringify(state),
+  ]);
+  await expect(panel.getByTestId('selection-graves')).toHaveText('3/56', { timeout: 20_000 });
+  await expect(panel.getByTestId('selection-years')).toBeVisible();
 });

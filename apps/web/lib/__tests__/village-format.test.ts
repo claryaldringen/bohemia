@@ -8,6 +8,7 @@ import {
   formatManDays,
   formatPercent,
   formatStoresMonths,
+  formatYearsShort,
   plural,
 } from '../village-format';
 
@@ -54,5 +55,16 @@ describe('čísla vsi česky', () => {
     ).toBe('19 čtverců · 0,43 ha · úrodnost 63 · 17 člověkodnů');
     expect(formatCells(1)).toBe('1 čtverec');
     expect(formatCells(3)).toBe('3 čtverce');
+  });
+});
+
+describe('místo na hřbitově', () => {
+  it('na kolik let – krátce pro panel', () => {
+    expect(formatYearsShort(12.4)).toBe('~12');
+    expect(formatYearsShort(1.2)).toBe('~1');
+    expect(formatYearsShort(0.4)).toBe('<1');
+    expect(formatYearsShort(0)).toBe('0');
+    expect(formatYearsShort(250)).toBe('>100');
+    expect(formatYearsShort(null)).toBe('–');
   });
 });

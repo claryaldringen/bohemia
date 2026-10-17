@@ -1,7 +1,14 @@
 # Hřbitov (pohřebiště) vesnice
 
 Stav: schváleno 17. 10. 2026 (Martin: „Ukazatel hygieny nebude. Prostě to bude mít vliv na
-populaci. Ohledně ostatního sis to domyslel dobře.“). Implementace zatím není.
+populaci. Ohledně ostatního sis to domyslel dobře.“). Implementováno 17. 10. 2026: jádro
+`packages/game/src/domain/village/cemetery.ts`, umístění `cemeteryPartsFromCells`, scéna
+`apps/web/lib/scene/cemetery-renderer.ts`, Hřbitov [V] v mřížce staveb; čtverce navazující
+stranou na hřbitov ho rozšíří. Hřbitov se zatím jako
+pole nesmí zakládat v lese (mýcení přijde později). Překážky z vrstvy překážek (fields.md)
+zdraží čtverec po kusech jako u pole a zmizí s dostavěním hřbitova nebo rozšíření; čtverec,
+do kterého zasahuje skalní výchoz, hřbitov mít nesmí – výchoz se neodstraní a hroby jdou
+v pevné mřížce 56 na čtverec (návrh Clauda).
 
 ## Proč
 
@@ -46,6 +53,15 @@ další rozhodnutí o místě v krajině – vedle obydlí a polí.
 - V panelu vsi u pohřebiště **kolik místa zbývá** (hroby a odhad na kolik let) – ne hygiena.
 - Ve scéně ohrazené pohřebiště; podle doby by mohlo vypadat jinak – v 6.–8. století žárové hroby
   a mohylky, od 9. století kostrové hroby (nápad na později).
+
+## Naměřeno
+
+`measure-village.ts 200 60` (17. 10. 2026). Hráč, který staví, založí hřbitov hned po první
+zemnici (200 m od obydlí, 150 m od vody) a rozšíří ho o čtverec, když je z 80 % plný: na konci
+60 let medián 31 lidí a 6 domácností, nasycení ≥ 0,95 celý rok 94,1 % let, vymření žádné
+(0 z 200) – stejně jako před zavedením hřbitova (31, 6, 94,0 %). Jediná domácnost bez staveb
+(ani hřbitova – po 30 letech hájení hygiena 0) vymře do 60 let ve 2 % vsí místo 0,5 %;
+nasycení ≥ 0,95 u ní 97,6 % let místo 98,2 %. Čísla se neladila.
 
 ## Rozhodnutí
 

@@ -8,6 +8,7 @@ import { AGE, CHRONICLE_MAX_EVENTS, FERTILITY } from '../rules';
 import { advanceVillage } from '../simulate';
 import type { ChronicleEvent, Person, VillageState } from '../types';
 import { createPlan, threshLossKg } from '../year-plan';
+import { withBuiltFirstDwelling } from './village-fixtures';
 
 const at = (year: number, month: number, day: number): number => dayIndexOf({ year, month, day });
 const YEAR = 365.25;
@@ -50,9 +51,9 @@ function nonFinite(value: unknown, path = 'state'): string[] {
   return [];
 }
 
-/** Ves bez pole a staveb se zásobami navíc – pro testy obydlí. */
+/** Ves s hotovou zemnicí (id 1), bez pole a staveb, se zásobami navíc – pro testy obydlí. */
 function withoutFields(day: number, extra: Person[] = []): VillageState {
-  const s = found(day);
+  const s = withBuiltFirstDwelling(found(day));
   s.parts = [];
   s.fields = [];
   s.constructions = [];
@@ -482,6 +483,80 @@ describe('advanceVillage – stavby', () => {
   });
 });
 
+describe('advanceVillage – založení vsi', () => {
+  it('zakladatelé si první zemnici postaví sami – roste den po dni, pak se do ní nastěhují', () => {
+    const day = at(600, 10, 1);
+    const s0 = foundVillage({ seed: 5, day, dwellingPosition: POSITION });
+    const household = s0.people[0]!.dwellingId;
+    const zemnice = s0.constructions[0]!;
+    let s = s0;
+    let last = -1;
+    let finishedDay: number | null = null;
+    for (let d = day; d < day + 365 && finishedDay === null; d++) {
+      s = advanceVillage(s, d);
+      const site = s.constructions.find((c) => c.id === zemnice.id);
+      if (site) {
+        // průběh stavby je vidět – roste, ale ne skokem
+        expect(site.done).toBeGreaterThan(last);
+        expect(site.done).toBeLessThan(site.cost);
+        last = site.done;
+        expect(s.dwellings).toEqual([]);
+      } else finishedDay = d;
+    }
+    // ≈ 60 člověkodní ze společné práce startovní domácnosti – desítky dní, ne den
+    expect(finishedDay).not.toBeNull();
+    expect(finishedDay! - day).toBeGreaterThan(20);
+    expect(finishedDay! - day).toBeLessThan(120);
+    expect(s.dwellings).toEqual([
+      { id: household, type: 'zemnice', builtDay: finishedDay, condition: 1, position: POSITION },
+    ]);
+    expect(s.people.every((p) => p.dwellingId === household)).toBe(true);
+    expect(s.chronicle).toContainEqual({
+      day: finishedDay,
+      kind: 'construction-finished',
+      constructionKind: 'dwelling',
+      dwellingId: household,
+      fieldId: null,
+    });
+    expect(count(s, 'household-founded')).toBe(0);
+  });
+
+  it('na staveništi nikdo neumře na to, že nemá obydlí, a zakladatelé mají denní minimum', () => {
+    const day = at(600, 10, 1);
+    const s0 = foundVillage({ seed: 9, day, dwellingPosition: POSITION });
+    const s = advanceVillage(s0, day + 30);
+    expect(s.dwellings).toEqual([]); // zemnice ještě stojí rozestavěná
+    expect(s.people.length).toBeGreaterThanOrEqual(4);
+    expect(count(s, 'death')).toBe(0);
+    expect(count(s, 'household-merged')).toBe(0);
+    // společná práce = síla 2,6 − denní minimum 0,5 − domácí práce 0,9 (jedna domácnost)
+    expect(s.commonLaborHistory.at(-1)).toBeCloseTo(2.6 - 0.5 - 0.3 - 4 * 0.15, 9);
+  });
+
+  it('stavbu první zemnice a první pole staví zakladatelé společnou prací rovným dílem', () => {
+    const day = at(600, 10, 1);
+    const s = advanceVillage(found(day), day);
+    const [zemnice, plot] = s.constructions;
+    expect(zemnice?.kind).toBe('dwelling');
+    expect(plot?.kind).toBe('field');
+    expect(zemnice!.done).toBeCloseTo(plot!.done, 9);
+  });
+
+  it('po kouscích s JSON mezi nimi dá stejný stav jako jedním voláním – i přes dostavění', () => {
+    const start = foundVillage({ seed: 11, day: at(600, 3, 15), dwellingPosition: POSITION });
+    const end = start.foundedDay + 200;
+    const whole = advanceVillage(start, end);
+    expect(whole.dwellings).toHaveLength(1); // zemnice se mezitím dostavěla
+    const viaJson = (s: VillageState): VillageState =>
+      JSON.parse(JSON.stringify(s)) as VillageState;
+    let chunked = viaJson(start);
+    for (const days of [1, 3, 17, 1, 40, 2, 90, 200]) {
+      chunked = viaJson(advanceVillage(chunked, Math.min(end, chunked.lastDay + days)));
+    }
+    expect(chunked).toEqual(whole);
+  });
+});
+
 describe('advanceVillage – obydlí', () => {
   it('dokončené nové obydlí: přestěhují se dva nejmladší dospělí', () => {
     const day = at(600, 10, 1);
@@ -509,10 +584,18 @@ describe('advanceVillage – obydlí', () => {
     expect(s.constructions).toEqual([]);
   });
 
-  it('obydlí postavené hned po založení stojí prázdné, dokud domácnost nezplní – nechátrá hned', () => {
+  it('obydlí postavené do zásoby stojí prázdné, dokud domácnost nezplní – nechátrá hned', () => {
     const day = at(600, 10, 1);
-    const building = startNewDwelling(found(day), day, 'zemnice', { x: 30, z: 0, rotation: 0 }, 0);
-    const s = advanceVillage(building, day + Math.ceil(2 * YEAR));
+    const settled = withBuiltFirstDwelling(found(day));
+    // pár, pro který se stavělo, mezitím chybí (např. domácnost přišla o dospělého)
+    settled.dwellings.push({
+      id: 50,
+      type: 'zemnice',
+      builtDay: day,
+      condition: 1,
+      position: { x: 30, z: 0, rotation: 0 },
+    });
+    const s = advanceVillage(settled, day + Math.ceil(2 * YEAR));
     const fresh = s.dwellings.find((d) => d.id !== 1);
     expect(fresh).toBeDefined();
     expect(occupants(s, fresh!.id)).toEqual([]);
@@ -626,7 +709,7 @@ describe('advanceVillage – obydlí', () => {
 
   it('dožilé obydlí obyvatelé přestaví – na lepší, když na to ves má', () => {
     const day = at(600, 10, 1);
-    const s0 = found(day);
+    const s0 = withBuiltFirstDwelling(found(day));
     s0.dwellings[0]!.builtDay = day - 16 * 365;
     const decided = advanceVillage(s0, day);
     expect(decided.chronicle).toContainEqual({

@@ -57,9 +57,15 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
 ### Založení vsi
 
 - Hráč v krajině svého sídla umístí půdorys první zemnice (viz Umístění obydlí) – tím ves
-  založí. Zemnice tam hned stojí (osadníci přišli) a bydlí v ní **4 lidé**: dva dospělí (kolem
-  25 let) a dva dospívající (12 a 13 let – návrh Clauda, aby první nová domácnost mohla
-  vzniknout do pár let). Ves dostane navržené staročeské jméno, které hráč může kdykoli změnit.
+  založí. Přijdou **4 lidé**: dva dospělí (kolem 25 let) a dva dospívající (12 a 13 let – návrh
+  Clauda, aby první nová domácnost mohla vzniknout do pár let). Ves dostane navržené staročeské
+  jméno, které hráč může kdykoli změnit.
+- **První zemnici si osadníci postaví sami** (Martin, 17. 10. 2026: „první zemnice byla
+  postavena hrozně rychle – nebyl vidět průběh stavby“): je to stavba jako každá jiná – roste
+  ze společné práce vsi a hráč vidí její fáze. Startovní domácnosti zbývá ≈ 1,2 člověkodne
+  společné práce denně, takže zemnice (60 člověkodní) stojí asi za 50 herních dní (≈ 1 h 10 min
+  skutečného času), s prvním polem déle – obě stavby se o práci dělí. Do dostavění osadníci
+  bydlí na staveništi (bez vlivu na úmrtnost), pak se do zemnice nastěhují (návrh Clauda).
 - **První pole není podmínkou založení** (Martin, 17. 10. 2026: „Hráč sám rozhodne kdy a co bude
   stavět, jako v každé RTS.“) – pole jsou samostatná a společná pro celou ves a hráč je zakládá,
   kdy chce ([fields.md](fields.md)). Ves bez pole žije ze zásob na 18 měsíců a pak hladoví;
@@ -117,15 +123,26 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
 
 - O každé nové stavbě rozhoduje hráč (Martin) – vybere typ a místo (viz Umístění obydlí).
 - **Hráč staví kdy chce** (Martin, 17. 10. 2026: „Hráč sám rozhodne kdy a co bude stavět, jako
-  v každé RTS.“) – dřívější odemčení stavby plnou domácností se čtyřmi dospělými padlo. Zemnici
-  i polozemnici smí hráč začít kdykoli a kolik chce; rozestavěné stavby se dělí o společnou
-  práci vsi rovným dílem, takže víc staveb najednou roste pomaleji.
+  v každé RTS.“) – kdy začne, rozhoduje hráč; brání mu jen to, co stavba potřebuje předem
+  (suroviny, lidé k osídlení – viz níže). Rozestavěné stavby se dělí o společnou práci vsi
+  rovným dílem, takže víc staveb najednou roste pomaleji.
 - **Odemčení surovinami** (Martin, 17. 10. 2026: „Odemykání bude samozřejmě také – pokud nebudu
   mít suroviny na postavení stavby, bude její tlačítko v panelu disabled.“): stavba může mít
   kromě práce i **cenu předem** v surovinách ze zásob vsi; když je ves nemá, tlačítko stavby je
-  zašedlé a v popisku je chybějící část červeně (jako v 0 A.D.). Dnes žádná stavba nic předem
-  nestojí (práce se platí postupně) – mechanismus je připravený pro dřevo a kámen
+  zašedlé a v popisku je chybějící část červeně (jako v 0 A.D.). Dnes žádná stavba suroviny
+  předem nestojí (práce se platí postupně) – mechanismus je připravený pro dřevo a kámen
   (`packages/game/src/domain/village/costs.ts`).
+- **Lidé k osídlení** (Martin, 17. 10. 2026: „Také mi to nabízí stavbu obytných budov, i když je
+  nemám kým osadit.“): obydlí (zemnice, polozemnice a později řemeslné dílny) jde začít, jen
+  když je kým ho osadit. Je to další položka ceny předem ve stejném mechanismu jako suroviny,
+  ne skryté pravidlo: **lidé k osídlení** = domácnosti, ze kterých se může oddělit mladý pár
+  (plná domácnost se 4 dospělými 14–44, viz Po dokončení), minus prázdná obydlí, minus
+  rozestavěná nová obydlí – každé už jeden pár čeká. Obydlí stojí jednu domácnost k osídlení;
+  stavba ji jen zamluví, nikoho neodebírá. Když lidé k osídlení nejsou, tlačítko obydlí je
+  zašedlé, nejde spustit ani zkratkou a v popisku jsou chybějící lidé k osídlení červeně (jako
+  v 0 A.D., bez dalšího textu); server stavbu odmítne („Nové obydlí nemá kdo osídlit.“). Pole
+  jdou vždy. První zemnici při založení vsi osídlí sami zakladatelé – před založením je vždy
+  k dispozici.
 - **Cena:** člověkodny ze společné práce vsi (dřevo viz Zjednodušení). Stavba roste den po dni
   podle toho, kolik společné práce přitéká; hráč vidí postup.
 - **Po dokončení** se do nového obydlí přestěhují **dva nejmladší dospělí** z domácnosti, která
@@ -137,7 +154,8 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
 - **Prázdné obydlí** obsadí sama první domácnost, která podmínku splní – dva nejmladší dospělí
   se do něj přestěhují (návrh Clauda). Dokud čeká, neopravuje se a chátrá, ale potřeba oprav
   roste s věkem: nová zemnice vydrží prázdná ≈ 14 let, polozemnice ≈ 26 let.
-- Hráč dostane upozornění, když je domácnost plná a žádné nové obydlí pro ni nečeká.
+- Hráč dostane upozornění, když je domácnost plná a žádné nové obydlí pro ni nečeká (fakt –
+  zároveň s ním se odemkne stavba obydlí).
 - Když hráč nestaví, přeplněná domácnost žije v těsnu – méně porodů, víc úmrtí, ves přestane
   růst (Martin potvrdil).
 
@@ -181,8 +199,8 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
 Čísla výše jsou výchozí. Jako u generátoru krajiny vznikne měřicí skript, který nasimuluje
 stovky vsí a ověří cíle:
 
-- první plná domácnost (do 17. 10. 2026 „první možnost stavět“, dnes hráč staví kdykoli)
-  přijde u 90 % vsí do **≈ 8 herních let** (≈ 3 skutečné dny) – Martin:
+- první plná domácnost (= první lidé k osídlení, tedy první možnost stavět obydlí; pole jdou
+  kdykoli) přijde u 90 % vsí do **≈ 8 herních let** (≈ 3 skutečné dny) – Martin:
   „zkusíme to“; hrubá simulace s hájením: medián 3 roky, 90 % do 7, 99 % do 20,
 - čerstvě plná domácnost postaví zemnici zhruba za roční období, polozemnici za herní rok,
 - zemnice se přestavuje typicky po ≈ 15 letech, polozemnice po ≈ 20–25; ke konci životnosti
@@ -260,6 +278,7 @@ zasetá část, odemčení počítá jen dospělé 14–44, rozpad domácnosti s
 | ---------------------------------------------------------------------------- | ----------------------------- |
 | Ves jako zásobárna aktiv: jídlo, voda, dřevo a hlavně lidé / člověkohodiny   | Martin                        |
 | Start: 4 lidé v jedné zemnici, hráč vybere místo                             | Martin                        |
+| První zemnici si osadníci postaví sami, průběh stavby je vidět               | Martin (17. 10. 2026)         |
 | Dost jídla → populace roste; cílem je efektivní výroba jídla                 | Martin                        |
 | Obydlí zatím zemnice a polozemnice                                           | Martin                        |
 | Obydlí se umisťuje volně (půdorys) na dost rovné zemi; překážky a les zdraží | Martin                        |
@@ -268,6 +287,7 @@ zasetá část, odemčení počítá jen dospělé 14–44, rozpad domácnosti s
 | Nová obydlí vždy staví hráč; plná domácnost → nová domácnost v novém obydlí  | Martin                        |
 | Hráč staví kdy chce (bez odemčení plnou domácností), ves zakládá zemnicí     | Martin (17. 10. 2026)         |
 | Odemčení surovinami předem – bez nich je tlačítko stavby zašedlé             | Martin (17. 10. 2026)         |
+| Obydlí jen, když je kým ho osadit (lidé k osídlení jako cena předem)         | Martin (17. 10. 2026)         |
 | Obydlí chátrají, opravy rostou; přestavbu (i na lepší) rozhodují obyvatelé   | Martin                        |
 | Bez staveb ves přestane růst, ale nerozpadne se                              | návrh Clauda, Martin potvrdil |
 | Přestavba vždy na lepší obydlí, pokud jsou suroviny; typ nové stavby hráč    | Martin                        |

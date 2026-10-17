@@ -5,6 +5,7 @@ import type { PartInput } from '../actions';
 import { ageGroup, ageYears } from '../people';
 import { DWELLINGS, FIELD_LIMITS, START_AGES } from '../rules';
 import type { Person, VillageState } from '../types';
+import { withBuiltFirstDwelling } from './village-fixtures';
 
 const DAY = 1000;
 const POSITION = { x: 10, z: 20, rotation: 0 };
@@ -30,17 +31,31 @@ const start = (): VillageState =>
   });
 
 describe('foundVillage', () => {
-  it('založí 4 lidi: 2 dospělé a 2 děti 12 a 13 let, v jedné zemnici', () => {
+  it('založí 4 lidi: 2 dospělé a 2 děti 12 a 13 let, jednu domácnost', () => {
     const s = start();
     expect(s.people).toHaveLength(4);
     const groups = s.people.map((p) => ageGroup(p, DAY));
     expect(groups.filter((g) => g === 'adult')).toHaveLength(2);
     expect(groups.filter((g) => g === 'child')).toHaveLength(2);
     expect(s.people.map((p) => ageYears(p.bornDay, DAY))).toEqual([...START_AGES]);
-    expect(s.dwellings).toHaveLength(1);
-    expect(s.dwellings[0]).toMatchObject({ type: 'zemnice', condition: 1, builtDay: DAY });
-    expect(s.dwellings[0]?.position).toEqual(POSITION);
-    expect(s.people.every((p) => p.dwellingId === s.dwellings[0]?.id)).toBe(true);
+    expect(new Set(s.people.map((p) => p.dwellingId)).size).toBe(1);
+  });
+
+  it('první zemnice je stavba zakladatelů – stojí až po dostavění, pak v ní bydlí', () => {
+    const s = start();
+    expect(s.dwellings).toEqual([]);
+    const zemnice = s.constructions.find((c) => c.kind === 'dwelling');
+    expect(zemnice).toMatchObject({
+      kind: 'dwelling',
+      startedDay: DAY,
+      cost: DWELLINGS.zemnice.cost,
+      done: 0,
+      dwellingType: 'zemnice',
+      fieldId: null,
+    });
+    expect(zemnice?.position).toEqual(POSITION);
+    // domácnost zakladatelů má id budoucí zemnice
+    expect(s.people.every((p) => p.dwellingId === zemnice?.dwellingId)).toBe(true);
   });
 
   it('dá zásoby na 18 měsíců: 840 kg', () => {
@@ -55,8 +70,8 @@ describe('foundVillage', () => {
       true,
     );
     expect(s.parts.every((p) => p.fertilityShare === 1 && p.bonusUntilDay === null)).toBe(true);
-    expect(s.constructions).toHaveLength(1);
-    const c = s.constructions[0];
+    expect(s.constructions.map((c) => c.kind)).toEqual(['dwelling', 'field']);
+    const c = s.constructions.find((x) => x.kind === 'field');
     expect(c).toMatchObject({ kind: 'field', done: 0, startedDay: DAY, fieldId: s.fields[0]?.id });
     expect(c?.cost).toBeCloseTo(s.parts.reduce((sum, p) => sum + p.foundingCost, 0));
   });
@@ -65,7 +80,7 @@ describe('foundVillage', () => {
     const s = start();
     const ids = [
       ...s.people.map((p) => p.id),
-      ...s.dwellings.map((d) => d.id),
+      ...s.people.map((p) => p.dwellingId).slice(0, 1),
       ...s.fields.map((f) => f.id),
       ...s.parts.map((p) => p.id),
       ...s.constructions.map((c) => c.id),
@@ -112,15 +127,16 @@ describe('foundVillage', () => {
     }
   });
 
-  it('bez prvního pole založí ves jen se zemnicí – pole přidá hráč, kdy chce', () => {
+  it('bez prvního pole založí ves jen se stavbou zemnice – pole přidá hráč, kdy chce', () => {
     for (const firstField of [undefined, null]) {
       const s = foundVillage({ seed: 7, day: DAY, dwellingPosition: POSITION, firstField });
-      expect(s.dwellings).toHaveLength(1);
+      expect(s.dwellings).toEqual([]);
       expect(s.people).toHaveLength(4);
       expect(s.fields).toEqual([]);
       expect(s.parts).toEqual([]);
-      expect(s.constructions).toEqual([]);
-      expect(s.nextId).toBe(1 + 1 + START_AGES.length);
+      expect(s.constructions.map((c) => c.kind)).toEqual(['dwelling']);
+      // domácnost zakladatelů, lidé, stavba zemnice
+      expect(s.nextId).toBe(1 + START_AGES.length + 1 + 1);
     }
   });
 
@@ -138,7 +154,7 @@ describe('foundVillage', () => {
 
 describe('startNewDwelling', () => {
   const sixPeople = (): VillageState => {
-    const s = start();
+    const s = withBuiltFirstDwelling(start());
     const extra: Person[] = [
       { id: 100, bornDay: DAY - 20 * 365.25, dwellingId: 1 },
       { id: 101, bornDay: DAY - 20 * 365.25, dwellingId: 1 },
@@ -151,13 +167,14 @@ describe('startNewDwelling', () => {
     return s;
   };
 
-  it('hráč staví kdy chce – i na startovní vsi, a víc staveb za sebou', () => {
-    const first = startNewDwelling(start(), DAY, 'zemnice', POSITION, 0);
-    const second = startNewDwelling(first, DAY, 'polozemnice', { ...POSITION, x: 40 }, 0);
-    expect(second.constructions.filter((c) => c.kind === 'dwelling')).toHaveLength(2);
+  it('obydlí jde začít, jen když je kým ho osadit – startovní ves (zemnice se staví) ne', () => {
+    expect(() => startNewDwelling(start(), DAY, 'zemnice', POSITION, 0)).toThrow(RangeError);
+    // ani s dostavěnou zemnicí – 4 lidé, 2 dospělí, žádný pár navíc
+    const settled = withBuiltFirstDwelling(start());
+    expect(() => startNewDwelling(settled, DAY, 'polozemnice', POSITION, 0)).toThrow(RangeError);
   });
 
-  it('při 6 lidech se 4 dospělými projde i druhá stavba hned potom', () => {
+  it('při 6 lidech se 4 dospělými projde jedna stavba, druhá na stejný pár ne', () => {
     const s = sixPeople();
     const next = startNewDwelling(s, DAY, 'polozemnice', POSITION, 15);
     const added = next.constructions.at(-1);
@@ -171,7 +188,7 @@ describe('startNewDwelling', () => {
       fieldId: null,
     });
     expect(added?.position).toEqual(POSITION);
-    expect(startNewDwelling(next, DAY, 'zemnice', POSITION, 0).constructions).toHaveLength(3);
+    expect(() => startNewDwelling(next, DAY, 'zemnice', POSITION, 0)).toThrow(RangeError);
   });
 
   it('záporné náklady na překážky vyhodí RangeError', () => {
@@ -212,7 +229,7 @@ describe('foundField', () => {
     const next = foundField(s, DAY + 5, field);
     expect(next.fields).toHaveLength(2);
     expect(next.parts).toHaveLength(3);
-    expect(next.constructions).toHaveLength(2);
+    expect(next.constructions).toHaveLength(s.constructions.length + 1);
     const created = next.parts.at(-1);
     expect(created).toMatchObject({ state: 'founding', foundingDone: 0, sownYears: 0 });
     expect(next.constructions.at(-1)).toMatchObject({

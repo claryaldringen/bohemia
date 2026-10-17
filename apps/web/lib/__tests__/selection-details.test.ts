@@ -51,6 +51,28 @@ const view = {
     },
   ],
   fields: [{ id: 5, areaM2: 2250, fertility: 61.4, stages: { sown: 6, founding: 4 } }],
+  cemeteries: [
+    {
+      id: 30,
+      squares: 2,
+      built: true,
+      progress: 1,
+      capacity: 112,
+      graves: 72,
+      freeGraves: 40,
+      yearsLeft: 12.2,
+    },
+    {
+      id: 31,
+      squares: 1,
+      built: false,
+      progress: 0.5,
+      capacity: 56,
+      graves: 0,
+      freeGraves: 56,
+      yearsLeft: null,
+    },
+  ],
 } as unknown as VillageView;
 
 describe('selectionDetails', () => {
@@ -98,5 +120,26 @@ describe('selectionDetails', () => {
       ],
       founding: 0.25,
     });
+  });
+});
+
+describe('selectionDetails – hřbitov', () => {
+  it('hroby a odhad v letech; zakládaný jen s průběhem založení', () => {
+    expect(selectionDetails(view, scene, { kind: 'cemetery', id: 30 })).toEqual({
+      kind: 'cemetery',
+      id: 30,
+      squares: 2,
+      capacity: 112,
+      graves: 72,
+      freeGraves: 40,
+      yearsLeft: 12.2,
+      built: true,
+      building: null,
+    });
+    expect(selectionDetails(view, scene, { kind: 'cemetery', id: 31 })).toMatchObject({
+      built: false,
+      building: 0.5,
+    });
+    expect(selectionDetails(view, scene, { kind: 'cemetery', id: 99 })).toBeNull();
   });
 });

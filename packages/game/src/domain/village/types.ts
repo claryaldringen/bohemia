@@ -9,6 +9,10 @@ export interface Position {
 export interface Person {
   id: number;
   bornDay: number;
+  /**
+   * Domácnost = id obydlí. Zakladatelé vsi mají id první zemnice už během její stavby (bydlí na
+   * staveništi), obydlí s tím id vznikne až s dokončením.
+   */
   dwellingId: number;
 }
 export interface Dwelling {
@@ -48,7 +52,36 @@ export interface Field {
   /** @deprecated Obrys z prvního prototypu (pole se kreslila volným obrysem) – jen staré vsi. */
   outline?: [number, number][];
 }
-export type ConstructionKind = 'dwelling' | 'rebuild' | 'field';
+/** Čtverec pohřebiště – políčko krajiny, jeho střed ve světě (m) a vzdálenost od vody. */
+export interface CemeterySquare {
+  cell: TileCell;
+  x: number;
+  z: number;
+  /** Vzdálenost čtverce od nejbližší vody (m) – z krajiny při založení (simulace krajinu nemá). */
+  waterDistanceM: number;
+  /**
+   * Rozšíření ve stavbě – id stavby, která čtverec ohrazuje; do jejího dokončení se čtverec
+   * nepočítá (hroby, hygiena). Bez údaje je čtverec hotový se hřbitovem.
+   */
+  constructionId?: number;
+  /** Překážky na čtverci (id z vrstvy překážek) – zmizí z krajiny, až osadníci čtverec ohradí. */
+  obstacles?: number[];
+}
+/**
+ * Hřbitov (pohřebiště) – souvislá skupina čtverců (cemetery.md); hroby se plní a znovu
+ * nepoužívají. Rozšíření přidává čtverce na konec (`constructionId`, dokud se ohrazují).
+ */
+export interface Cemetery {
+  id: number;
+  squares: CemeterySquare[];
+  /** Strana čtverce (m) – vzdálenost od obydlí se měří k okraji čtverce. */
+  squareSizeM: number;
+  /** Obsazené hroby. */
+  graves: number;
+  /** Den dokončení (vytyčení a ohrazení); dokud se zakládá, null. */
+  builtDay: number | null;
+}
+export type ConstructionKind = 'dwelling' | 'rebuild' | 'field' | 'cemetery';
 export interface Construction {
   id: number;
   kind: ConstructionKind;
@@ -57,8 +90,10 @@ export interface Construction {
   done: number;
   dwellingType: DwellingType | null;
   position: Position | null; // dwelling
-  dwellingId: number | null; // rebuild
+  /** rebuild: přestavované obydlí; dwelling: domácnost zakladatelů (první zemnice), jinak null. */
+  dwellingId: number | null;
   fieldId: number | null; // field – zakládá díly od nejbližšího
+  cemeteryId?: number | null; // cemetery (u starších staveb chybí)
 }
 export type TaskName = 'reclaim' | 'dig' | 'sow' | 'weed' | 'harvest' | 'thresh';
 export interface YearPlan {
@@ -85,6 +120,14 @@ export type ChronicleEvent = { day: number } & (
   | { kind: 'hunger-began' }
   | { kind: 'hunger-ended' }
   | { kind: 'part-became-forest'; partId: number }
+  | {
+      kind: 'cemetery-full';
+      cemeteryId: number;
+      /** Jiný hotový hřbitov má volný hrob. */
+      othersFree: boolean;
+      /** Nějaký hřbitov nebo rozšíření se právě staví (u starších událostí chybí). */
+      othersBuilding?: boolean;
+    }
 );
 export interface VillageState {
   seed: number;
@@ -103,9 +146,11 @@ export interface VillageState {
   hungry: boolean;
   commonLaborHistory: number[]; // společná práce posledních 30 dní (pro „má na to“)
   chronicle: ChronicleEvent[];
+  /** Pohřebiště – u vsí uložených před zavedením pohřebišť chybí (= žádné). */
+  cemeteries?: Cemetery[];
   /**
-   * Překážky krajiny odstraněné natrvalo i s pařezy (pole, obydlí). Chybí u vsí založených před
-   * vrstvou překážek – doplní je `withObstacleClearing`.
+   * Překážky krajiny odstraněné natrvalo i s pařezy (pole, obydlí, hřbitovy). Chybí u vsí
+   * založených před vrstvou překážek – doplní je `withObstacleClearing`.
    */
   clearedObstacles?: ObstacleChange[];
   /** Pokácené stromy – zbyl po nich pařez a z náletu znovu dorostou (TREE_REGROWTH_YEARS). */

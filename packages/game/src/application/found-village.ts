@@ -46,7 +46,7 @@ export async function foundVillageForSettlement(
   const cells = input.fieldCells ?? [];
   let firstField: FieldInput | null = null;
   if (cells.length > 0) {
-    // překážky pod první zemnicí osadníci už odstranili – pole je neplatí podruhé
+    // překážky na staveništi první zemnice osadníci odstraní při založení – pole je neplatí podruhé
     const founding: PlacementVillage = {
       dwellings: [],
       constructions: [],
@@ -64,6 +64,7 @@ export async function foundVillageForSettlement(
     dwellingPosition: { ...input.dwelling },
     firstField,
     dwellingObstacleIds: dwelling.obstacleIds,
+    dwellingObstacleCost: dwelling.obstacleCost,
   });
   const state = advanceVillage(founded, input.today);
   const created = await deps.villages.create(

@@ -1,11 +1,14 @@
 import { DWELLING_FOOTPRINT_M, type TileCell } from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
 
-// Výběr obydlí a polí kliknutím do scény – čisté funkce bez Babylonu (paprsek z kamery dodá
-// scéna jako čísla).
+// Výběr obydlí, polí a hřbitovů kliknutím do scény – čisté funkce bez Babylonu (paprsek
+// z kamery dodá scéna jako čísla).
 
-/** Co je ve vsi vybrané: obydlí (hotové i rozestavěné – id ze scény vsi), nebo pole. */
-export type VillageTarget = { kind: 'dwelling'; id: number } | { kind: 'field'; id: number };
+/** Co je ve vsi vybrané: obydlí (hotové i rozestavěné – id ze scény vsi), pole, nebo hřbitov. */
+export type VillageTarget =
+  | { kind: 'dwelling'; id: number }
+  | { kind: 'field'; id: number }
+  | { kind: 'cemetery'; id: number };
 
 export interface Vec3 {
   x: number;
@@ -52,7 +55,8 @@ export function insideFootprint(
 
 /**
  * Co je pod kurzorem: obydlí, které paprsek protne od země do výšky střechy (nejbližší ke
- * kameře), jinak pole, jehož čtverec leží pod bodem terénu `ground`; null = prázdná zem.
+ * kameře), jinak pole nebo hřbitov, jehož čtverec leží pod bodem terénu `ground`; null =
+ * prázdná zem.
  */
 export function pickVillageTarget(
   village: SceneVillage,
@@ -81,12 +85,18 @@ export function pickVillageTarget(
   const field = village.fields.find((f) =>
     f.parts.some((p) => p.cell.x === cell.x && p.cell.y === cell.y),
   );
-  return field ? { kind: 'field', id: field.id } : null;
+  if (field) return { kind: 'field', id: field.id };
+  const cemetery = (village.cemeteries ?? []).find((c) =>
+    c.squares.some((s) => s.cell.x === cell.x && s.cell.y === cell.y),
+  );
+  return cemetery ? { kind: 'cemetery', id: cemetery.id } : null;
 }
 
 /** Existuje vybraný cíl ve vsi (po obnovení stavu mohl zaniknout)? */
 export function targetExists(village: SceneVillage, target: VillageTarget): boolean {
-  return target.kind === 'dwelling'
-    ? village.dwellings.some((d) => d.id === target.id)
-    : village.fields.some((f) => f.id === target.id);
+  if (target.kind === 'dwelling') return village.dwellings.some((d) => d.id === target.id);
+  if (target.kind === 'cemetery') {
+    return (village.cemeteries ?? []).some((c) => c.id === target.id);
+  }
+  return village.fields.some((f) => f.id === target.id);
 }

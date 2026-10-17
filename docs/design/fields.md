@@ -68,9 +68,10 @@ všechnu práci vsi a teprve lepší nástroje a osevní systémy (další mecha
 
 - **Ves se zakládá zemnicí, pole přidá hráč, kdy chce** (Martin, 17. 10. 2026: „Hráč sám
   rozhodne kdy a co bude stavět, jako v každé RTS.“ – dřív „rozhodnu, kde bude stát první
-  zemnice a pole“ a ves bez prvního pole založit nešla). Ves bez pole žije ze startovních
-  zásob na 18 měsíců (≈ 13 skutečných hodin) a pak hladoví – hlad ji zmenší, ale v době hájení
-  dospělí neumírají.
+  zemnice a pole“ a ves bez prvního pole založit nešla). Zemnici si osadníci nejdřív postaví
+  ([populace](population.md) – Založení vsi); první pole, když ho hráč hned vyznačí, se staví
+  souběžně a o společnou práci se dělí. Ves bez pole žije ze startovních zásob na 18 měsíců
+  (≈ 13 skutečných hodin) a pak hladoví – hlad ji zmenší, ale v době hájení dospělí neumírají.
 - Hráč označí čtverce pole na mřížce políček (Martin). Pole nesmí zasahovat do vody, do obydlí ani
   do jiného pole; nejmenší výměra 0,1 ha, nejdál **800 m** od nejbližšího obydlí (návrh Clauda).
 - Pole může ležet na louce, v křovinách i v lese (Martin). Všechno, co je na čtvercích pole,
@@ -266,8 +267,11 @@ pořadí (návrh Clauda; nahrazuje pevných 85 % a dělení práce po domácnost
   Ceny podle tabulky výše počítá `placement.ts` z překážek, které na místě opravdu stojí:
   obydlí platí kusy na vyklízené ploše kolem půdorysu (staveniště ≈ 10 × 12 m), díl pole kusy
   v políčku; skalní výchoz pod obydlím stavbu nedovolí, v poli zůstane a plocha pod ním (kruh
-  o poloměru 3 m × velikost skály) se do dílu nepočítá. Odstraněné překážky zmizí natrvalo:
-  u obydlí při zahájení stavby, u pole s každým založeným dílem (jak říká Zakládání). Scéna je
+  o poloměru 3 m × velikost skály) se do dílu nepočítá. Čtverec hřbitova platí překážky jako
+  díl pole; skalní výchoz ho zablokuje, protože hroby jdou na čtverec v pevné mřížce
+  ([hřbitov](cemetery.md)). Odstraněné překážky zmizí natrvalo: u obydlí (i první zemnice
+  při založení vsi) při zahájení stavby, u pole s každým založeným dílem (jak říká Zakládání),
+  u hřbitova s dostavěním hřbitova nebo rozšíření. Scéna je
   skryje bez nového načtení stránky. **Zatím ne:** ztmavená tráva pod stromy, tmavá plocha korun
   a stínová mapa terénu se po vykácení nepřepočítají (na pasece zůstane tmavší skvrna); zarostlý
   příloh (les z náletu) ani rušení polí odstraněné překážky nevrací; cenu překážek rozhraní

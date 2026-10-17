@@ -1,7 +1,7 @@
 import type { ReactElement, ReactNode } from 'react';
 import { PART_COLORS } from '@/lib/minimap';
 import { PART_STAGE_NAMES, type SelectionDetails } from '@/lib/selection-details';
-import { formatHa, formatPercent } from '@/lib/village-format';
+import { formatHa, formatPercent, formatYearsShort } from '@/lib/village-format';
 import { DWELLING_NAMES } from '@/lib/village-view';
 import { Tooltip } from './Tooltip';
 
@@ -153,10 +153,45 @@ function FieldBody({
   );
 }
 
+function CemeteryBody({
+  details,
+}: {
+  details: Extract<SelectionDetails, { kind: 'cemetery' }>;
+}): ReactElement {
+  if (!details.built) {
+    return (
+      <div className="flex flex-col justify-center gap-1.5">
+        <Bar value={details.building ?? 0} name="Založení" testId="selection-progress" />
+      </div>
+    );
+  }
+  const full = details.freeGraves === 0;
+  return (
+    <div className="flex min-w-0 flex-col gap-1.5">
+      <div className="flex items-center gap-3">
+        <Tooltip content="Hroby" placement="above">
+          <span
+            data-testid="selection-graves"
+            tabIndex={0}
+            className={`text-sm font-semibold tabular-nums ${full ? 'text-red-400' : ''}`}
+          >
+            {details.graves}/{details.capacity}
+          </span>
+        </Tooltip>
+        <Stat icon="date" name="Místo na roky" testId="selection-years">
+          {formatYearsShort(details.yearsLeft)}
+        </Stat>
+      </div>
+      {details.building !== null && <Bar value={details.building} name="Rozšíření" />}
+    </div>
+  );
+}
+
 /**
  * Panel výběru dole uprostřed (jako v 0 A.D.) – jen když je něco vybrané: portrét, typ
  * a ikony s čísly. Obydlí: obyvatelé, věk obyvatel, stav, stáří; staveniště: průběh stavby;
- * pole: výměra, úrodnost, díly podle stadia.
+ * pole: výměra, úrodnost, díly podle stadia; hřbitov: hroby, na kolik let místo vystačí
+ * a průběh založení / rozšíření.
  */
 export function SelectionPanel({
   details,
@@ -169,6 +204,9 @@ export function SelectionPanel({
   if (details.kind === 'field') {
     portrait = <Portrait icon="pole" name="Pole" />;
     body = <FieldBody details={details} />;
+  } else if (details.kind === 'cemetery') {
+    portrait = <Portrait icon="hrbitov" name="Hřbitov" />;
+    body = <CemeteryBody details={details} />;
   } else if (details.kind === 'site') {
     portrait = <Portrait icon={details.type} name={DWELLING_NAMES[details.type].nominative} />;
     body = (

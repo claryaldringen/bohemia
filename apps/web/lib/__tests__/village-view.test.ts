@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   checkDwellingPlacement,
   dayIndexOf,
+  foundCemetery,
   foundVillage,
   type ChronicleEvent,
   type Landscape,
@@ -43,6 +44,20 @@ const state = (): VillageState =>
     dwellingPosition: { x: -50, z: -50, rotation: 0.5 },
     firstField: { parts },
   });
+/** Ves s dostavěnou první zemnicí (id domácnosti zakladatelů) – jako starší uložené vsi. */
+const settled = (): VillageState => {
+  const s = state();
+  const site = s.constructions.find((c) => c.kind === 'dwelling' && c.dwellingId !== null)!;
+  s.constructions = s.constructions.filter((c) => c !== site);
+  s.dwellings.push({
+    id: site.dwellingId!,
+    type: 'zemnice',
+    builtDay: DAY,
+    condition: 1,
+    position: site.position!,
+  });
+  return s;
+};
 const record = (s: VillageState = state()): VillageRecord => ({
   settlementId: 's-1',
   name: 'Libice',
@@ -51,7 +66,7 @@ const record = (s: VillageState = state()): VillageRecord => ({
 });
 
 describe('buildVillageView', () => {
-  it('čerstvá ves: lidé, domácnost s věky, zásoby a stavby kdykoli (nic předem)', () => {
+  it('čerstvá ves: lidé, zásoby, stavba zemnice zakladatelů a pole', () => {
     const view = buildVillageView(record(), landscape, DAY);
     expect(view).toMatchObject({
       name: 'Libice',
@@ -59,11 +74,79 @@ describe('buildVillageView', () => {
       people: { children: 2, adults: 2, elders: 0 },
       fullHousehold: false,
     });
+    // obydlí nemá kdo osídlit (zakladatelé si staví vlastní zemnici) – pole a hřbitov jdou
+    const noSettlers = [{ resource: 'settlers', amount: 1, missing: 1 }];
     expect(view.build).toEqual({
-      zemnice: { laborManDays: 60, perHa: false, upfront: [], affordable: true },
-      polozemnice: { laborManDays: 220, perHa: false, upfront: [], affordable: true },
-      field: { laborManDays: 40, perHa: true, upfront: [], affordable: true },
+      zemnice: {
+        laborManDays: 60,
+        perHa: false,
+        perSquare: false,
+        upfront: noSettlers,
+        affordable: false,
+      },
+      polozemnice: {
+        laborManDays: 220,
+        perHa: false,
+        perSquare: false,
+        upfront: noSettlers,
+        affordable: false,
+      },
+      field: { laborManDays: 40, perHa: true, perSquare: false, upfront: [], affordable: true },
+      cemetery: { laborManDays: 10, perHa: false, perSquare: true, upfront: [], affordable: true },
     });
+    // zakladatelé bydlí na staveništi – domácnost s obydlím přibude s dostavěním zemnice
+    expect(view.households).toEqual([]);
+    expect(view.storesMonths).toBeCloseTo(18, 0);
+    const fieldId = view.fields[0]?.id;
+    expect(view.constructions).toEqual([
+      {
+        id: expect.any(Number),
+        kind: 'dwelling',
+        label: 'Zemnice',
+        progress: 0,
+        dwellingType: 'zemnice',
+        dwellingId: null,
+        fieldId: null,
+        cemeteryId: null,
+      },
+      {
+        id: expect.any(Number),
+        kind: 'field',
+        label: 'Pole 0,11 ha',
+        progress: 0,
+        dwellingType: null,
+        dwellingId: null,
+        fieldId,
+        cemeteryId: null,
+      },
+    ]);
+    expect(view.fields).toEqual([
+      { id: fieldId, areaM2: 5 * 225, fertility: 50, stages: { founding: 5 } },
+    ]);
+    expect(view.hungry).toBe(false);
+    expect(view.constructionsStalled).toBe(false);
+  });
+
+  it('plná domácnost se 4 dospělými dá lidi k osídlení – obydlí jde stavět', () => {
+    const s = settled();
+    for (const [i, years] of [20, 19].entries()) {
+      s.people.push({ id: 90 + i, bornDay: DAY - Math.ceil(years * 365.25), dwellingId: 1 });
+    }
+    s.people.forEach((p) => (p.bornDay = Math.min(p.bornDay, DAY - Math.ceil(16 * 365.25))));
+    s.lastDay = DAY;
+    const view = buildVillageView(record(s), landscape, DAY);
+    expect(view.build.polozemnice).toEqual({
+      laborManDays: 220,
+      perHa: false,
+      perSquare: false,
+      upfront: [{ resource: 'settlers', amount: 1, missing: 0 }],
+      affordable: true,
+    });
+    expect(view.fullHousehold).toBe(true);
+  });
+
+  it('s dostavěnou zemnicí: domácnost s věky obyvatel', () => {
+    const view = buildVillageView(record(settled()), landscape, DAY);
     expect(view.households).toEqual([
       {
         dwellingId: 1,
@@ -77,24 +160,22 @@ describe('buildVillageView', () => {
         ageYears: 0,
       },
     ]);
-    expect(view.storesMonths).toBeCloseTo(18, 0);
-    const fieldId = view.fields[0]?.id;
-    expect(view.constructions).toEqual([
+  });
+
+  it('scéna: zemnice zakladatelů je do dostavění staveniště', () => {
+    const s = state();
+    const site = s.constructions[0]!;
+    site.done = 15;
+    const { scene } = buildVillageView(record(s), landscape, DAY);
+    expect(scene.dwellings).toEqual([
       {
-        id: expect.any(Number),
-        kind: 'field',
-        label: 'Pole 0,11 ha',
-        progress: 0,
-        dwellingType: null,
-        dwellingId: null,
-        fieldId,
+        id: site.id,
+        type: 'zemnice',
+        position: { x: -50, z: -50, rotation: 0.5 },
+        built: false,
+        progress: 0.25,
       },
     ]);
-    expect(view.fields).toEqual([
-      { id: fieldId, areaM2: 5 * 225, fertility: 50, stages: { founding: 5 } },
-    ]);
-    expect(view.hungry).toBe(false);
-    expect(view.constructionsStalled).toBe(false);
   });
 
   it('hlad a stojící stavby přejdou ze souhrnu vsi', () => {
@@ -107,14 +188,14 @@ describe('buildVillageView', () => {
   });
 
   it('scéna: obydlí bez obyvatel není obývané', () => {
-    const s = state();
+    const s = settled();
     s.people = [];
     const { scene } = buildVillageView(record(s), landscape, DAY);
     expect(scene.dwellings[0]?.inhabited).toBe(false);
   });
 
   it('scéna: obydlí, díly pole ve středech políček a rozestavěné obydlí', () => {
-    const s = state();
+    const s = settled();
     // stavba obydlí rovnou do stavu – pravidla odemčení tu netestujeme
     s.constructions.push({
       id: 99,
@@ -153,6 +234,7 @@ describe('buildVillageView', () => {
       dwellingType: 'polozemnice',
       dwellingId: null,
       fieldId: null,
+      cemeteryId: null,
     });
     expect(scene.fields).toHaveLength(1);
     expect(scene.fields[0]?.parts).toEqual([
@@ -210,6 +292,66 @@ describe('buildVillageView', () => {
   });
 });
 
+describe('hřbitov v pohledu na ves', () => {
+  const withCemetery = (): VillageState =>
+    foundCemetery(state(), DAY - 1, {
+      squares: [
+        { cell: { x: 0, y: 0 }, x: -112.5, z: -112.5, waterDistanceM: 500, obstacleCost: 0 },
+        { cell: { x: 1, y: 0 }, x: -97.5, z: -112.5, waterDistanceM: 500, obstacleCost: 0 },
+      ],
+      squareSizeM: 15,
+    });
+
+  it('zakládaný hřbitov: stavba, místo, scéna a cena za čtverec', () => {
+    const view = buildVillageView(record(withCemetery()), landscape, DAY);
+    const cemeteryId = view.cemeteries[0]?.id;
+    expect(view.build.cemetery).toMatchObject({ laborManDays: 10, perSquare: true });
+    expect(view.constructions.at(-1)).toMatchObject({
+      kind: 'cemetery',
+      label: 'Hřbitov (2 čtverce)',
+      cemeteryId,
+    });
+    expect(view.cemeteries).toEqual([
+      {
+        id: cemeteryId,
+        squares: 2,
+        built: false,
+        progress: 0,
+        capacity: 112,
+        graves: 0,
+        freeGraves: 112,
+        yearsLeft: null,
+      },
+    ]);
+    expect(view.scene.cemeteries).toEqual([
+      {
+        id: cemeteryId,
+        squares: [
+          { cell: { x: 0, y: 0 }, x: -112.5, z: -112.5, size: 15 },
+          { cell: { x: 1, y: 0 }, x: -97.5, z: -112.5, size: 15 },
+        ],
+        built: false,
+        progress: 0,
+        graves: 0,
+      },
+    ]);
+    expect(placementVillageFromScene(view.scene).cemeteries).toEqual([
+      { squares: [{ cell: { x: 0, y: 0 } }, { cell: { x: 1, y: 0 } }] },
+    ]);
+  });
+
+  it('hotový hřbitov s hroby: obsazené hroby a zbývající místo', () => {
+    const s = withCemetery();
+    s.constructions = s.constructions.filter((c) => c.kind !== 'cemetery');
+    s.cemeteries![0]!.builtDay = DAY - 1;
+    s.cemeteries![0]!.graves = 100;
+    const view = buildVillageView(record(s), landscape, DAY);
+    expect(view.cemeteries[0]).toMatchObject({ built: true, progress: 1, freeGraves: 12 });
+    expect(view.cemeteries[0]).not.toHaveProperty('spaceLabel');
+    expect(view.scene.cemeteries?.[0]).toMatchObject({ built: true, graves: 100 });
+  });
+});
+
 describe('chronicleText', () => {
   const events: ChronicleEvent[] = [
     { day: DAY, kind: 'village-founded' },
@@ -231,6 +373,16 @@ describe('chronicleText', () => {
     { day: DAY, kind: 'hunger-began' },
     { day: DAY, kind: 'hunger-ended' },
     { day: DAY, kind: 'part-became-forest', partId: 4 },
+    { day: DAY, kind: 'cemetery-full', cemeteryId: 5, othersFree: true },
+    { day: DAY, kind: 'cemetery-full', cemeteryId: 5, othersFree: false },
+    { day: DAY, kind: 'cemetery-full', cemeteryId: 5, othersFree: false, othersBuilding: true },
+    {
+      day: DAY,
+      kind: 'construction-finished',
+      constructionKind: 'cemetery',
+      dwellingId: null,
+      fieldId: null,
+    },
   ];
 
   it('každá událost má český text', () => {
@@ -244,5 +396,26 @@ describe('chronicleText', () => {
     expect(
       chronicleText({ day: DAY, kind: 'rebuild-decided', dwellingId: 1, type: 'polozemnice' }, 'X'),
     ).toBe('Obyvatelé se rozhodli přestavět dožilé obydlí na polozemnici.');
+  });
+});
+
+describe('kronika – zaplněný hřbitov', () => {
+  const full = (othersFree: boolean, othersBuilding?: boolean): ChronicleEvent => ({
+    day: DAY,
+    kind: 'cemetery-full',
+    cemeteryId: 5,
+    othersFree,
+    ...(othersBuilding === undefined ? {} : { othersBuilding }),
+  });
+
+  it('„není kam pohřbívat“ jen když se žádný hřbitov nestaví ani nemá místo', () => {
+    expect(chronicleText(full(true, false), 'X')).toBe(
+      'Jeden z hřbitovů se zaplnil – pohřbívá se do dalšího.',
+    );
+    expect(chronicleText(full(false, true), 'X')).toBe('Hřbitov se zaplnil.');
+    expect(chronicleText(full(false, false), 'X')).toBe(
+      'Hřbitov se zaplnil – mrtvé není kam pohřbívat.',
+    );
+    expect(chronicleText(full(false), 'X')).toMatch(/není kam/);
   });
 });

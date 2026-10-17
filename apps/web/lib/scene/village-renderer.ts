@@ -11,6 +11,7 @@ import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import type { Scene } from '@babylonjs/core/scene';
 import { DWELLING_FOOTPRINT_M, type DwellingType, type WorldClock } from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
+import { CemeteryRenderer } from './cemetery-renderer';
 import { EARTH_LAYERS, SMOKE_VENT, earthPatch, eaveTufts, type TuftModel } from './dwelling-decor';
 import {
   PIT_SHAPES,
@@ -127,8 +128,8 @@ interface VillageContext {
  * Ves ve scéně: hotová obydlí jako modely (thin instances, jeden mesh na typ) nad vyhloubenou
  * jámou se schody, kolem nich vyšlapaná hlína a trsy trávy u okapu, z dýmníku občas dým;
  * staveniště po fázích (village-construction.ts) z dílů modelu a rekvizit v instancích, jáma
- * se prohlubuje s průběhem; pole jako obtisky na terénu podle stavu dílů s mezí podél obrysu.
- * `update` mění jen to, co se změnilo.
+ * se prohlubuje s průběhem; pole jako obtisky na terénu podle stavu dílů s mezí podél obrysu;
+ * pohřebiště s plotem a mohylkami (cemetery-renderer.ts). `update` mění jen to, co se změnilo.
  */
 export class VillageRenderer {
   private readonly dwellings = new Map<number, DwellingView>();
@@ -144,6 +145,7 @@ export class VillageRenderer {
   private siteLoading: Promise<void> | null = null;
   private siteKey = '';
   private readonly smoke: VillageSmoke;
+  private readonly cemeteries: CemeteryRenderer;
   private village: SceneVillage = { dwellings: [], fields: [] };
   private disposed = false;
 
@@ -152,6 +154,7 @@ export class VillageRenderer {
     private readonly context: VillageContext,
   ) {
     this.smoke = new VillageSmoke(scene, SMOKE_TEXTURE_URL);
+    this.cemeteries = new CemeteryRenderer(scene, context);
   }
 
   /** Vrátí true, když se ve scéně něco změnilo (je co překreslit). */
@@ -160,10 +163,11 @@ export class VillageRenderer {
     this.village = village;
     const dwellings = this.updateDwellings(village.dwellings);
     const fields = this.updateFields(village.fields);
+    const cemeteries = this.cemeteries.update(village.cemeteries ?? [], village.dwellings);
     const models = this.updateModels();
     const sites = this.updateConstruction();
     const smoke = this.updateSmokeSources();
-    return dwellings || fields || models || sites || smoke;
+    return dwellings || fields || cemeteries || models || sites || smoke;
   }
 
   /**
@@ -189,6 +193,7 @@ export class VillageRenderer {
     const shapes: HideShape[] = [];
     for (const view of this.dwellings.values()) shapes.push(view.shape);
     for (const view of this.fields.values()) if (view.shape) shapes.push(view.shape);
+    shapes.push(...this.cemeteries.hideShapes());
     return shapes;
   }
 
@@ -207,6 +212,7 @@ export class VillageRenderer {
   dispose(): void {
     this.disposed = true;
     this.smoke.dispose();
+    this.cemeteries.dispose();
     for (const view of this.dwellings.values()) for (const mesh of view.meshes) mesh.dispose();
     for (const view of this.fields.values()) for (const mesh of view.meshes) mesh.dispose();
     this.dwellings.clear();

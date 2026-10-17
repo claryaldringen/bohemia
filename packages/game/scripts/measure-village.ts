@@ -14,7 +14,10 @@
 //   a přílohy s úrodností aspoň 0,7 – nepokryje potřebu celého oběhu: osev × 3,3, kde osev =
 //   roční potřeba × (1 + rezerva) / čistá úroda hektaru v průměru tří let osevu (tak osev
 //   vybírá i ves).
-// - Druhá strategie „nikdy nestaví“: totéž bez nových obydlí – jediná domácnost.
+// - Hřbitov (cemetery.md): hráč ho založí hned po dostavění první zemnice – jeden čtverec 200 m
+//   od obydlí (všechna stojí v počátku) a 150 m od vody, hygiena 1 – a rozšíří ho o čtverec,
+//   když je z 80 % plný a žádné rozšíření se zrovna nestaví.
+// - Druhá strategie „nikdy nestaví“: totéž bez nových obydlí a bez hřbitova – jediná domácnost.
 // - Sondy s pevným složením domácnosti (startovní: 2 dospělí a 2 děti 7–13 let; plná:
 //   4 dospělí a 2 malé děti): skript před každým krokem vrátí lidi do pevného složení, takže
 //   ves nestárne ani neroste – měří ustálený oběh, práci na obživu a špičky z Ukázky. Sonda
@@ -43,13 +46,17 @@ import {
   THRESH_END_DAY,
   advanceVillage,
   ageGroup,
+  buildAffordability,
+  cemeteryCapacity,
   daysUntilHarvest,
   eatDay,
   fallowYears,
   foodNeedPerDay,
+  foundCemetery,
   foundField,
   foundVillage,
   grossYieldPerHa,
+  isCemeteryBuilding,
   laborPerDay,
   qualifyingDwellings,
   repairNeedPerDay,
@@ -103,6 +110,10 @@ const PROBES = {
   oversize: { ages: [25.5, 25.5, 10.5, 10.5], oversize: 1.5 },
 } as const;
 type ProbeName = keyof typeof PROBES;
+// hřbitov hráče: čtverce za sebou v ose x, první 200 m od obydlí v počátku, 150 m od vody
+const CEMETERY_FIRST_CELL = 13;
+const CEMETERY_WATER_M = 150;
+const CEMETERY_EXTEND_AT = 0.8;
 const PROBE_SEEDS = 5;
 const PROBE_YEARS = 50;
 const PROBE_STEP_DAYS = 28; // sonda nestaví – stačí krok 4 týdny
@@ -430,6 +441,25 @@ function recordPlan(result: RunResult, after: VillageState, pinned: boolean): vo
   }
 }
 
+/**
+ * Hřbitov hráče: založí ho, dokud žádný není, a rozšíří o čtverec, když je z 80 % plný
+ * a nic se na něm nestaví.
+ */
+function tendCemetery(state: VillageState, day: number): VillageState {
+  const cemetery = state.cemeteries?.[0];
+  if (cemetery && isCemeteryBuilding(cemetery)) return state;
+  if (cemetery && cemetery.graves < CEMETERY_EXTEND_AT * cemeteryCapacity(cemetery)) return state;
+  const index = CEMETERY_FIRST_CELL + (cemetery?.squares.length ?? 0);
+  const square = {
+    cell: { x: index, y: 0 },
+    x: index * 15 + 7.5,
+    z: 7.5,
+    waterDistanceM: CEMETERY_WATER_M,
+    obstacleCost: 0,
+  };
+  return foundCemetery(state, day, { squares: [square], squareSizeM: 15 });
+}
+
 function runVillage(start: VillageState, startLand: number, opts: RunOptions): RunResult {
   const result = emptyResult();
   let state = start;
@@ -502,7 +532,7 @@ function runVillage(start: VillageState, startLand: number, opts: RunOptions): R
     // stavby hráče
     if (result.firstBuildDay === null && qualifyingDwellings(after, day).length > 0) {
       result.firstBuildDay = day;
-      if (opts.forkPolozemnice) {
+      if (opts.forkPolozemnice && buildAffordability(after, 'polozemnice').affordable) {
         const fork = startNewDwelling(after, day, 'polozemnice', POSITION, 0);
         const forked = runVillage(fork, land, {
           ...opts,
@@ -514,6 +544,7 @@ function runVillage(start: VillageState, startLand: number, opts: RunOptions): R
         if (forked.stopDay !== null) result.polozemniceDays = forked.stopDay - day;
       }
     }
+    if (opts.build && after.dwellings.length > 0) after = tendCemetery(after, day);
     if (opts.build) {
       // Hráč staví kdy chce – bot postaví zemnici pro každou plnou domácnost, která nemá kam.
       while (waitingHouseholds(after, day) > 0) {

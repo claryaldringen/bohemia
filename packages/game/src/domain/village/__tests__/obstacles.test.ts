@@ -7,7 +7,8 @@ import {
   type ObstacleLayer,
   type ObstaclePlacement,
 } from '../../landscape';
-import { foundField, foundVillage, startNewDwelling } from '../actions';
+import { foundCemetery, foundField, foundVillage, startNewDwelling } from '../actions';
+import { villageCemeteries } from '../cemetery';
 import {
   countMatureTrees,
   fellTrees,
@@ -18,7 +19,13 @@ import {
   withObstacleClearing,
   type ObstacleChanges,
 } from '../obstacles';
-import { checkDwellingPlacement, fieldPartsFromCells, type PlacementVillage } from '../placement';
+import {
+  cemeteryPartsFromCells,
+  checkDwellingPlacement,
+  fieldPartsFromCells,
+  placementVillageOf,
+  type PlacementVillage,
+} from '../placement';
 import {
   DWELLINGS,
   OBSTACLE_COST,
@@ -27,8 +34,9 @@ import {
   TREE_SAPLING_AFTER_YEARS,
 } from '../rules';
 import { advanceVillage } from '../simulate';
-import type { Position, VillageState } from '../types';
+import type { Position, TileCell, VillageState } from '../types';
 import { block, makeLandscape } from './placement-fixtures';
+import { withBuiltFirstDwelling } from './village-fixtures';
 
 // Ruční krajina 16 × 16 políček po 15 m se středem v počátku: políčko (8, 8) = svět 0–15 m.
 const landscape = makeLandscape();
@@ -71,6 +79,17 @@ const village = (changes: ObstacleChanges = NO_OBSTACLE_CHANGES): PlacementVilla
   obstacleChanges: changes,
 });
 const FAR_DWELLING = [at(-30, 0)];
+
+/** Ves s dostavěnou první zemnicí a plnou domácností – je kým osadit nové obydlí. */
+function settled(state: VillageState): VillageState {
+  const s = withBuiltFirstDwelling(state);
+  const day = s.lastDay;
+  s.people.forEach((p) => (p.bornDay = Math.min(p.bornDay, day - Math.ceil(16 * YEAR))));
+  for (const [i, age] of [20, 22].entries()) {
+    s.people.push({ id: 900 + i, bornDay: day - Math.ceil(age * YEAR), dwellingId: 1 });
+  }
+  return s;
+}
 
 describe('fieldPartsFromCells – překážky na čtvercích', () => {
   const preview = fieldPartsFromCells(landscape, village(), block(8, 8, 2, 3), FAR_DWELLING, layer);
@@ -171,12 +190,18 @@ describe('odstraňování překážek stavbami', () => {
       dwellingPosition: at(-30, 0),
       firstField: { parts },
       dwellingObstacleIds: [104],
+      dwellingObstacleCost: OBSTACLE_COST.youngTree,
     });
 
-  it('první zemnice stojí hned – její překážky jsou pryč od založení', () => {
+  it('první zemnice: překážky zmizí při zahájení stavby (založení vsi), stavba je zaplatí', () => {
     const s = founded();
     expect(s.clearedObstacles).toEqual([{ id: 104, day: DAY }]);
     expect(s.felledTrees).toEqual([]);
+    const zemnice = s.constructions.find((c) => c.kind === 'dwelling')!;
+    expect(zemnice.cost).toBe(DWELLINGS.zemnice.cost + OBSTACLE_COST.youngTree);
+    expect(() =>
+      foundVillage({ seed: 1, day: DAY, dwellingPosition: at(-30, 0), dwellingObstacleCost: -1 }),
+    ).toThrow(RangeError);
   });
 
   it('díl pole nese své překážky, dokud ho osadníci nezaloží – pak zmizí natrvalo', () => {
@@ -194,19 +219,143 @@ describe('odstraňování překážek stavbami', () => {
   });
 
   it('nové obydlí odstraní překážky hned při zahájení stavby a zaplatí je prací', () => {
-    const s = advanceVillage(founded(), DAY + 1);
+    const s = settled(advanceVillage(founded(), DAY + 1));
     const next = startNewDwelling(s, DAY + 1, 'zemnice', at(3, -2), 3, [100]);
     expect(next.clearedObstacles).toContainEqual({ id: 100, day: DAY + 1 });
     expect(next.constructions.at(-1)!.cost).toBe(DWELLINGS.zemnice.cost + 3);
   });
 
   it('id překážek musí být celá nezáporná čísla bez opakování', () => {
-    const s = advanceVillage(founded(), DAY + 1);
+    const s = settled(advanceVillage(founded(), DAY + 1));
+    expect(() => startNewDwelling(s, DAY + 1, 'zemnice', at(3, -2), 0, [7])).not.toThrow();
     expect(() => startNewDwelling(s, DAY + 1, 'zemnice', at(3, -2), 0, [1.5])).toThrow(RangeError);
     expect(() => startNewDwelling(s, DAY + 1, 'zemnice', at(3, -2), 0, [7, 7])).toThrow(RangeError);
     expect(() => foundField(s, DAY + 1, { parts: [{ ...parts[0]!, obstacleIds: [-1] }] })).toThrow(
       RangeError,
     );
+  });
+});
+
+describe('hřbitov – překážky na čtvercích jako u pole', () => {
+  const DAY = 1500;
+  const cells = (...list: [number, number][]): TileCell[] => list.map(([x, y]) => ({ x, y }));
+
+  it('čtverec platí překážky po kusech a nese je; skalní výchoz čtverec zablokuje', () => {
+    const preview = cemeteryPartsFromCells(
+      landscape,
+      village(),
+      cells([8, 8], [9, 8]),
+      FAR_DWELLING,
+      layer,
+    );
+    expect(preview.check.ok).toBe(true);
+    expect(preview.squares.map((sq) => sq.obstacleIds)).toEqual([[100, 101], [102]]);
+    expect(preview.squares.map((sq) => sq.obstacleCost)).toEqual([
+      OBSTACLE_COST.tree + OBSTACLE_COST.stone,
+      OBSTACLE_COST.shrub,
+    ]);
+    expect(preview.obstacleCost).toBe(
+      OBSTACLE_COST.tree + OBSTACLE_COST.stone + OBSTACLE_COST.shrub,
+    );
+    expect(preview.foundingCost).toBe(2 * 10 + preview.obstacleCost);
+    expect(preview.obstacleCounts).toEqual({ tree: 1, stone: 1, shrub: 1 });
+
+    const rock = cemeteryPartsFromCells(
+      landscape,
+      village(),
+      cells([8, 8], [8, 9]),
+      FAR_DWELLING,
+      layer,
+    );
+    expect(rock.check).toEqual({
+      ok: false,
+      reason: 'Stojí tu skalní výchoz – ten osadníci neodstraní.',
+    });
+    expect(rock.blockedCells).toEqual([{ x: 8, y: 9 }]);
+  });
+
+  it('odstraněné a pokácené překážky se neplatí znovu (pařez za sazbu pařezu)', () => {
+    const changes = { removed: [101], stumps: [100], saplings: [] };
+    const preview = cemeteryPartsFromCells(
+      landscape,
+      village(changes),
+      cells([8, 8]),
+      FAR_DWELLING,
+      layer,
+    );
+    expect(preview.squares[0]!.obstacleIds).toEqual([100]);
+    expect(preview.obstacleCost).toBe(OBSTACLE_COST.stump);
+  });
+
+  it('překážky zmizí s dostavěním hřbitova i rozšíření', () => {
+    const start = advanceVillage(
+      foundVillage({ seed: 1, day: DAY, dwellingPosition: at(-30, 0) }),
+      DAY + 1,
+    );
+    const first = cemeteryPartsFromCells(
+      landscape,
+      placementVillageOf(start, DAY + 1),
+      cells([9, 8]),
+      FAR_DWELLING,
+      layer,
+    );
+    const founding = foundCemetery(start, DAY + 1, { squares: first.squares, squareSizeM: 15 });
+    expect(villageCemeteries(founding)[0]!.squares[0]!.obstacles).toEqual([102]);
+    expect(founding.constructions.at(-1)!.cost).toBe(10 + OBSTACLE_COST.shrub);
+    expect(founding.clearedObstacles).toEqual([]);
+
+    const built = advanceVillage(founding, DAY + 400);
+    const cemetery = villageCemeteries(built)[0]!;
+    expect(cemetery.builtDay).not.toBeNull();
+    expect(cemetery.squares[0]!.obstacles).toBeUndefined();
+    expect(built.clearedObstacles!.map((c) => c.id)).toEqual([102]);
+    expect(built.clearedObstacles![0]!.day).toBe(cemetery.builtDay);
+
+    const day = built.lastDay;
+    const more = cemeteryPartsFromCells(
+      landscape,
+      placementVillageOf(built, day),
+      cells([8, 8]),
+      FAR_DWELLING,
+      layer,
+    );
+    expect(more.extendsCemetery).toBe(true);
+    const extending = foundCemetery(built, day, { squares: more.squares, squareSizeM: 15 });
+    const pending = villageCemeteries(extending)[0]!.squares.at(-1)!;
+    expect(pending.obstacles).toEqual([100, 101]);
+    expect(pending.constructionId).toBeDefined();
+    const extended = advanceVillage(extending, day + 400);
+    expect(villageCemeteries(extended)[0]!.squares.every((sq) => !sq.obstacles)).toBe(true);
+    expect(extended.clearedObstacles!.map((c) => c.id).sort()).toEqual([100, 101, 102]);
+  });
+
+  it('id překážek čtverců se nesmí opakovat ani mezi čtverci', () => {
+    const start = advanceVillage(
+      foundVillage({ seed: 1, day: DAY, dwellingPosition: at(-30, 0) }),
+      DAY + 1,
+    );
+    const { squares } = cemeteryPartsFromCells(
+      landscape,
+      null,
+      cells([8, 8], [9, 8]),
+      FAR_DWELLING,
+      layer,
+    );
+    const twice = [squares[0]!, { ...squares[1]!, obstacleIds: [100] }];
+    expect(() => foundCemetery(start, DAY + 1, { squares: twice, squareSizeM: 15 })).toThrow(
+      RangeError,
+    );
+  });
+
+  it('překážky ve čtverci hřbitova obydlí vedle neplatí', () => {
+    const withCemetery: PlacementVillage = {
+      ...village(),
+      cemeteries: [{ squares: [{ cell: { x: 8, y: 8 } }] }],
+    };
+    // půdorys x 1–5, z −4…0 je mimo hřbitov, staveniště zasahuje do čtverce (8, 8) se stromem
+    const check = checkDwellingPlacement(landscape, withCemetery, 'zemnice', at(3, -2), layer);
+    expect(check.ok).toBe(true);
+    expect(check.obstacleIds).toEqual([]);
   });
 });
 
@@ -324,6 +473,32 @@ describe('withObstacleClearing – ves z doby před vrstvou překážek', () => 
     expect(s.felledTrees).toEqual([]);
     const pending = s.parts.flatMap((p) => p.obstacles ?? []).sort();
     expect(pending).toEqual([100, 101, 102]);
+  });
+
+  it('hotové čtverce hřbitova mají překážky odstraněné, čtverce ve stavbě dostanou své', () => {
+    const s = foundVillage({ seed: 1, day: DAY, dwellingPosition: at(-30, 0) });
+    const square = (cell: TileCell, constructionId?: number) => ({
+      cell,
+      x: cell.x * 15 - 112.5,
+      z: cell.y * 15 - 112.5,
+      waterDistanceM: 500,
+      ...(constructionId === undefined ? {} : { constructionId }),
+    });
+    s.cemeteries = [
+      {
+        id: 50,
+        squares: [square({ x: 9, y: 8 }), square({ x: 8, y: 8 }, 77)],
+        squareSizeM: 15,
+        graves: 0,
+        builtDay: DAY,
+      },
+    ];
+    delete s.clearedObstacles;
+    delete s.felledTrees;
+    const cleared = withObstacleClearing(s, layer);
+    expect(cleared.clearedObstacles!.map((c) => c.id)).toEqual([102]);
+    expect(cleared.cemeteries![0]!.squares[1]!.obstacles).toEqual([100, 101]);
+    expect(cleared.cemeteries![0]!.squares[0]!.obstacles).toBeUndefined();
   });
 
   it('založené díly mají překážky odstraněné; ves s překážkami vrací beze změny', () => {

@@ -46,14 +46,25 @@ export function qualifyingDwellings(state: VillageState, day: number): Dwelling[
 }
 
 /**
- * Kolik plných domácností (`qualifyingDwellings`) nemá kam se rozdělit – na každou z nich
- * nečeká prázdné ani rozestavěné obydlí. Jen informace pro hráče (upozornění „Domácnost je
- * plná“); stavět smí hráč kdykoli (population.md – Nové obydlí).
+ * Lidé k osídlení nového obydlí (population.md – Odemčení): domácnosti, ze kterých se může
+ * oddělit mladý pár (`qualifyingDwellings`), minus prázdná obydlí a rozestavěná nová obydlí –
+ * každé už jeden pár čeká. První zemnice zakladatelů (stavba s `dwellingId`) nikoho nečeká,
+ * zakladatelé ji osídlí sami. Může vyjít záporně (obydlí postavená do zásoby).
+ */
+export function availableSettlers(state: VillageState, day: number): number {
+  const building = state.constructions.filter(
+    (c) => c.kind === 'dwelling' && c.dwellingId === null,
+  ).length;
+  const empty = state.dwellings.filter((d) => occupants(state, d.id).length === 0).length;
+  return qualifyingDwellings(state, day).length - building - empty;
+}
+
+/**
+ * Kolik plných domácností nemá kam se rozdělit – na každou z nich nečeká prázdné ani
+ * rozestavěné obydlí (= kladní `availableSettlers`). Upozornění „Domácnost je plná“.
  */
 export function waitingHouseholds(state: VillageState, day: number): number {
-  const building = state.constructions.filter((c) => c.kind === 'dwelling').length;
-  const empty = state.dwellings.filter((d) => occupants(state, d.id).length === 0).length;
-  return Math.max(0, qualifyingDwellings(state, day).length - building - empty);
+  return Math.max(0, availableSettlers(state, day));
 }
 
 function fractionalAge(dwelling: Dwelling, day: number): number {

@@ -6,6 +6,8 @@
 // a pravidla umístění patří do hry (/game) a herního jádra, ne sem.
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import {
+  CEMETERY,
+  cemeteryPartsFromCells,
   surfaceAt,
   type DwellingType,
   type Landscape,
@@ -17,6 +19,7 @@ import {
 import { GameView } from '@/components/game/GameView';
 import { decodeLandscape, type LandscapeTransfer } from '@/lib/landscape-transfer';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
+import { CEMETERY_PHASES } from '@/lib/scene/cemetery-layout';
 import { tileAt, tileCenter } from '@/lib/scene/tile-at';
 import { CONSTRUCTION_PHASES, constructionPhase } from '@/lib/scene/village-construction';
 import type {
@@ -25,7 +28,8 @@ import type {
   SceneDwelling,
   SceneField,
 } from '@/lib/scene/village-types';
-import type { SceneVillage } from '@/lib/village-view';
+import { formatCells, formatHa, plural } from '@/lib/village-format';
+import { placementVillageFromScene, type SceneVillage } from '@/lib/village-view';
 
 const STAGES: PartStage[] = [
   'founding',
@@ -40,10 +44,13 @@ const STAGES: PartStage[] = [
 const buttonClass =
   'rounded bg-stone-800 px-2 py-0.5 text-stone-50 hover:bg-stone-700 disabled:opacity-40 dark:bg-stone-200 dark:text-stone-900 dark:hover:bg-stone-300';
 
+type DevCemetery = NonNullable<SceneVillage['cemeteries']>[number];
+
 interface DevWindow extends Window {
   __bohemiaDev?: {
     scene: LandscapeScene;
     setDwellings: (dwellings: SceneDwelling[]) => void;
+    setCemeteries: (cemeteries: DevCemetery[]) => void;
   };
 }
 
@@ -57,6 +64,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   const [scene, setScene] = useState<LandscapeScene | null>(null);
   const [dwellings, setDwellings] = useState<SceneDwelling[]>([]);
   const [fields, setFields] = useState<DevField[]>([]);
+  const [cemeteries, setCemeteries] = useState<DevCemetery[]>([]);
   const [stage, setStage] = useState(0);
   const [mixed, setMixed] = useState(true);
   const [placing, setPlacing] = useState<string | null>(null);
@@ -74,8 +82,9 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
           stage: STAGES[(stage + (mixed ? i : 0)) % STAGES.length]!,
         })),
       })),
+      cemeteries,
     }),
-    [dwellings, fields, stage, mixed],
+    [dwellings, fields, cemeteries, stage, mixed],
   );
 
   useEffect(() => {
@@ -90,7 +99,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   useEffect(() => {
     if (!scene) return;
     const devWindow = window as DevWindow;
-    devWindow.__bohemiaDev = { scene, setDwellings };
+    devWindow.__bohemiaDev = { scene, setDwellings, setCemeteries };
     return () => {
       delete devWindow.__bohemiaDev;
     };
@@ -145,14 +154,121 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     );
   };
 
-  const advanceConstruction = (step: number): void =>
+  /** Hřbitov se skutečnou kontrolou z herního jádra (i s varováním u obydlí a vody). */
+  const placeCemetery = (): void => {
+    if (!scene) return;
+    setPlacing('Hřbitov');
+    scene.startPlacement(
+      {
+        kind: 'squares',
+        preview: (cells) => {
+          const result = cemeteryPartsFromCells(
+            decoded,
+            placementVillageFromScene(village),
+            cells,
+            village.dwellings.map((d) => d.position),
+          );
+          return {
+            check: result.check,
+            label: `${formatCells(cells.length)} · ${result.capacity} ${plural(result.capacity, 'hrob', 'hroby', 'hrobů')}`,
+            blockedCells: result.blockedCells,
+            warningCells: result.warningCells,
+          };
+        },
+      },
+      {
+        ...handlers,
+        onConfirm: (result) => {
+          handlers.onCancel();
+          if (result.kind !== 'squares') return;
+          const id = nextId.current++;
+          const squares = fieldParts(decoded, result.cells);
+          setCemeteries((list) => [...list, { id, squares, built: false, progress: 0, graves: 0 }]);
+        },
+      },
+    );
+  };
+
+  const advanceConstruction = (step: number): void => {
+    const next = (progress: number): number =>
+      Math.min(1, Math.max(0, Math.round((progress + step) * 100) / 100));
     setDwellings((list) =>
       list.map((d) => {
         if (d.built) return d;
-        const progress = Math.min(1, Math.max(0, Math.round((d.progress + step) * 100) / 100));
+        const progress = next(d.progress);
         return { ...d, progress, built: progress >= 1 };
       }),
     );
+    setCemeteries((list) =>
+      list.map((c) => {
+        if (c.built) return c;
+        const progress = next(c.progress);
+        return { ...c, progress, built: progress >= 1 };
+      }),
+    );
+  };
+
+  /** Pohřbí do hotových hřbitovů dalších `count` mrtvých (nejvýš do zaplnění). */
+  const addGraves = (count: number): void =>
+    setCemeteries((list) =>
+      list.map((c) => {
+        if (!c.built) return c;
+        const capacity = c.squares.length * CEMETERY.gravesPerSquare;
+        return { ...c, graves: Math.min(capacity, Math.max(0, c.graves + count)) };
+      }),
+    );
+
+  /**
+   * Hřbitovy 2 × 2 čtverce ve všech fázích založení vedle sebe kousek od místa vsi, hotové
+   * s hroby a hotový s rozšířením ve stavbě; zemnice před nimi ukáže, kam míří branka.
+   */
+  const showCemeteries = (): void => {
+    scene?.cancelPlacement();
+    const { x: sx, y: sy } = decoded.villageSite;
+    const stops = [...CEMETERY_PHASES.map((p) => (p.from + p.to) / 2), 1, 1];
+    const list: DevCemetery[] = [];
+    stops.forEach((progress, i) => {
+      const cells: TileCell[] = [];
+      for (let dy = 0; dy < 2; dy++)
+        for (let dx = 0; dx < 2; dx++) cells.push({ x: sx - 7 + i * 3 + dx, y: sy + 2 + dy });
+      const squares = fieldParts(decoded, cells);
+      if (squares.length < cells.length) return;
+      const built = progress >= 1;
+      const graves = built ? (i === stops.length - 1 ? 224 : 70) : 0;
+      list.push({ id: nextId.current++, squares, built, progress, graves });
+    });
+    // hotový hřbitov s rozšířením ve stavbě (dva čtverce za ním, kůly zatlučené z poloviny)
+    const extended = fieldParts(decoded, [
+      { x: sx - 7, y: sy + 5 },
+      { x: sx - 6, y: sy + 5 },
+      { x: sx - 7, y: sy + 6 },
+      { x: sx - 6, y: sy + 6 },
+    ]);
+    const extension = fieldParts(decoded, [
+      { x: sx - 7, y: sy + 7 },
+      { x: sx - 6, y: sy + 7 },
+    ]).map((square) => ({ ...square, pending: true }));
+    if (extended.length === 4 && extension.length === 2) {
+      list.push({
+        id: nextId.current++,
+        squares: [...extended, ...extension],
+        built: true,
+        progress: 0.3,
+        graves: 150,
+      });
+    }
+    const site = tileCenter(decoded, sx, sy);
+    setDwellings([
+      {
+        id: nextId.current++,
+        type: 'zemnice',
+        position: { x: site.worldX, z: site.worldZ - 10, rotation: 0 },
+        built: true,
+        progress: 1,
+      },
+    ]);
+    setCemeteries(list);
+  };
 
   /** Řada stavenišť ve všech fázích vedle sebe u místa vsi (a hotové obydlí na konci). */
   const showPhases = (): void => {
@@ -203,6 +319,15 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         <button className={buttonClass} disabled={!scene} onClick={placeField}>
           Pole
         </button>
+        <button className={buttonClass} disabled={!scene} onClick={placeCemetery}>
+          Hřbitov
+        </button>
+        <button className={buttonClass} onClick={() => addGraves(10)}>
+          Hroby +10
+        </button>
+        <button className={buttonClass} disabled={!scene} onClick={showCemeteries}>
+          Ukázka hřbitovů
+        </button>
         <button className={buttonClass} onClick={() => advanceConstruction(-0.1)}>
           Stavby −10 %
         </button>
@@ -239,6 +364,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
             scene?.cancelPlacement();
             setDwellings([]);
             setFields([]);
+            setCemeteries([]);
           }}
         >
           Smazat ves
@@ -248,7 +374,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
             {placing}: {preview ? `${preview.check.ok ? '✓' : '✗'} ${previewText(preview)}` : '…'}{' '}
             <span className="text-stone-500">
               (Esc zruší
-              {placing === 'Pole'
+              {placing === 'Pole' || placing === 'Hřbitov'
                 ? ', klik / tažení maluje čtverce, Ctrl ubírá, Enter potvrdí, pravý klik zruší'
                 : ', [ ] otáčí, klik postaví, Shift + klik staví dál'}
               )
@@ -269,7 +395,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
 }
 
 function previewText(preview: PlacementPreview): string {
-  const reason = preview.check.ok ? null : preview.check.reason;
+  const reason = preview.check.ok ? (preview.check.warning ?? null) : preview.check.reason;
   return [preview.label, reason].filter((text) => text).join(' – ');
 }
 
@@ -296,7 +422,7 @@ function fakeFieldPreview(l: Landscape, village: SceneVillage, cells: TileCell[]
   const blockedCells = cells.filter(
     (c) => surfaceAt(l, c.x, c.y) === 'water' || taken.has(`${c.x},${c.y}`),
   );
-  const label = `${cells.length} čtverců · ${((cells.length * l.cellSizeM ** 2) / 10_000).toFixed(2).replace('.', ',')} ha`;
+  const label = `${formatCells(cells.length)} · ${formatHa(cells.length * l.cellSizeM ** 2)}`;
   const check: PlacementCheck =
     blockedCells.length > 0
       ? { ok: false, reason: 'Ve vodě ani přes jiné pole pole nejde' }

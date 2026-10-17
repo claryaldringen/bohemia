@@ -100,3 +100,29 @@ describe('pickVillageTarget', () => {
     expect(targetExists(village, { kind: 'field', id: 3 })).toBe(true);
   });
 });
+
+describe('hřbitov', () => {
+  const withCemetery: SceneVillage = {
+    ...village,
+    cemeteries: [
+      {
+        id: 40,
+        squares: [{ cell: { x: 0, y: 3 }, x: 7.5, z: 52.5, size: CELL }],
+        built: true,
+        progress: 1,
+        graves: 3,
+      },
+    ],
+  };
+
+  it('klik na čtverec hřbitova ho vybere; zaniklý hřbitov neexistuje', () => {
+    const target = pickVillageTarget(withCemetery, rayTo(7, 50), {
+      ground: { x: 7, z: 50 },
+      groundHeight: flat,
+      cellOf,
+    });
+    expect(target).toEqual({ kind: 'cemetery', id: 40 });
+    expect(targetExists(withCemetery, { kind: 'cemetery', id: 40 })).toBe(true);
+    expect(targetExists(village, { kind: 'cemetery', id: 40 })).toBe(false);
+  });
+});
