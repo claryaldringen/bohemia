@@ -205,9 +205,20 @@ Pravidla v [docs/design/population.md](docs/design/population.md) a
   `lib/village-view.ts` (DTO, smí i do prohlížeče). Typy pro scénu jsou odvozené odtud
   a z `@bohemia/game` – nedefinovat je znovu ve scéně.
 - **Rozhraní** `components/game/VillageGame.tsx`: `FoundingPanel` (jméno → zemnice → pole),
-  `VillagePanel`, `BuildMenu`, `PlacementBubble`; `hooks/use-placement.ts` (umisťování ve scéně
-  pro React), `hooks/use-polling.ts` (ves každých 5 s, jen při viditelném panelu). Kontroly
-  umístění běží v prohlížeči nad stejnými funkcemi jádra, server je ověří znovu.
+  `VillagePanel`, `BuildMenu`, `PlacementBubble`, `NoticeToasts`; `hooks/use-placement.ts`
+  (umisťování ve scéně pro React), `hooks/use-polling.ts` (ves každých 5 s, jen při viditelném
+  panelu). Kontroly umístění běží v prohlížeči nad stejnými funkcemi jádra, server je ověří znovu.
+- **Pole po čtvercích** (políčka krajiny 15 × 15 m, díl = políčko): `fieldPartsFromCells`
+  v `placement.ts`, server actions dostávají `cells` / `fieldCells` (`{ x, y }[]`). Malování ve
+  scéně `lib/scene/field-painting.ts` (`FieldPainter`, logika výběru ve `field-cells.ts`): klik
+  přepne čtverec, tažení přidá obdélník, Shift + tažení nebo pravý klik ubere, Backspace / Ctrl+Z
+  vrátí tah, Enter nebo tlačítko Potvrdit potvrdí, Esc zruší. Levé tlačítko při malování maluje –
+  krajina se posouvá prostředním tlačítkem, mezerníkem + tažením nebo WASD (`setLeftButtonPan`
+  v `camera.ts`), pravé tažení dál otáčí. Obrys pole (`Field.outline`) zůstal jen u starých vsí.
+- **Upozornění** (`lib/village-notices.ts`): plná domácnost a jde stavět, hlad, stojící stavby
+  (`VillageView.hungry`, `constructionsStalled`) – nově vzniklé jako toast, trvající v panelu.
+- **Krajina sídla** se na serveru drží v LRU mezipaměti (`lib/landscape-cache.ts`, port
+  `LandscapeSource` v `enterGame`) – negeneruje se při každé akci a dotazu.
 - **e2e:** testy běží v běžícím pomalém světě (2000–2200). Kliknutí do scény nahrazuje háček
   `window.__bohemiaE2E.confirmPlacement` (`lib/e2e-hooks.ts`) – existuje jen v buildu
   s `NEXT_PUBLIC_E2E_HOOKS=1` (nastavuje `playwright.config.ts`), jinde se z kódu vypustí.

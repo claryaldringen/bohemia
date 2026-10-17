@@ -8,15 +8,17 @@ ladí se za běhu. Pravidla: `docs/design/population.md`, `docs/design/fields.md
 ## Co hráč dělá
 
 1. **Založení vsi** při prvním vstupu na `/game`: jméno vsi (hra nabídne staročeské), umístění
-   první zemnice (půdorys u kurzoru), nakreslení prvního pole (obrys), potvrzení.
+   první zemnice (půdorys u kurzoru), vybarvení čtverců prvního pole, potvrzení.
 2. **Panel vsi** (vlevo nahoře): jméno, lidé (děti / dospělí / starší), domácnosti (typ,
    obsazenost, plná / přeplněná, stav), zásoby obilí a na kolik měsíců, nasycení, volná společná
    práce za den, rozestavěné stavby s průběhem, posledních ~8 událostí kroniky.
 3. **Nabídka staveb:** Zemnice, Polozemnice (cena v člověkodnech; zašedlé s důvodem, dokud
    `canStartNewDwelling` neplatí), Pole (cena za ha louky).
 4. **Umístění obydlí:** půdorys u kurzoru, zelený / červený s důvodem, Q/E otáčí, klik potvrdí,
-   Esc zruší. **Pole:** klikáním body obrysu, Backspace ubere bod, dvojklik / Enter uzavře, Esc
-   zruší; během kreslení výměra, průměrná úrodnost, cena.
+   Esc zruší. **Pole** (iterace 2 – po čtvercích, políčkách krajiny): klik přepne čtverec, tažení
+   přidá obdélník, Shift + tažení nebo pravý klik ubere, Backspace vrátí tah, Enter / Potvrdit
+   potvrdí, Esc zruší; krajina se posouvá prostředním tlačítkem, mezerníkem + tažením nebo WASD.
+   Během malování mřížka kolem kurzoru, počet čtverců, výměra, průměrná úrodnost, cena.
 5. **Scéna:** hotová obydlí jako naše modely (omazané stěny, slámové došky, kozy, vyšlapaná
    hlína, trsy u okapu), rozestavěná jako výkop / lešení, pole na terénu podle stavu dílů.
 
@@ -44,18 +46,20 @@ export function checkDwellingPlacement(
   type: DwellingType,
   position: Position,
 ): PlacementCheck; // rovina ≤ 0,5 m, louka, ne voda, ne přes obydlí / pole
-export function fieldPartsFromOutline(
+export function fieldPartsFromCells(
   landscape: Landscape,
-  village: VillageState | null,
-  outline: [number, number][],
+  village: PlacementVillage | null,
+  cells: TileCell[],
   dwellingPositions: Position[],
 ): {
+  cells: TileCell[];
   parts: PartInput[];
   areaM2: number;
   averageFertility: number;
   foundingCost: number;
+  blockedCells: TileCell[];
   check: PlacementCheck;
-}; // průnik s políčky, jen louka
+}; // díl = celé políčko; voda, les (zatím), překryv, 800 m, jeden celek stranou, ≥ 0,1 ha
 ```
 
 Souřadnice = svět scény v metrech (`x`, `z`, střed krajiny 0,0; políčka podle `tileCenter`), výšky
@@ -107,18 +111,18 @@ export interface SceneVillage {
   }[];
   fields: {
     id: number;
-    outline: [number, number][];
-    parts: { x: number; z: number; size: number; stage: PartStage }[];
+    parts: { cell: TileCell; x: number; z: number; size: number; stage: PartStage }[];
   }[];
 }
 export type PartStage =
   'founding' | 'ready' | 'sown' | 'young-fallow' | 'meadow' | 'young-growth' | 'shrub' | 'forest';
-// actions: getVillageView(): VillageView | null; foundVillage({ name, dwelling, fieldOutline });
-// placeDwelling({ type, position }); placeField({ outline }) – vrací VillageView nebo { error }
+// actions: getVillageView(): VillageView | null; foundVillage({ name, dwelling, fieldCells });
+// placeDwelling({ type, position }); placeField({ cells }) – vrací VillageView nebo { error }
 ```
 
 **Scéna (`apps/web/lib/scene/`):** `LandscapeScene.setVillage(village: SceneVillage)` (inkrementálně,
 bez přestavby krajiny), `LandscapeScene.startPlacement(mode, handlers)` s `mode` =
 `{ kind: 'dwelling'; type; check(position): PlacementCheck }` nebo
-`{ kind: 'field'; preview(outline): { check: PlacementCheck; label: string } }` a
-`handlers = { onConfirm(result), onCancel() }`; `cancelPlacement()`.
+`{ kind: 'field'; preview(cells): { check: PlacementCheck; label: string; blockedCells } }` a
+`handlers = { onConfirm(result), onCancel() }`; `cancelPlacement()`, `confirmPlacement()`
+(tlačítko Potvrdit u pole).
