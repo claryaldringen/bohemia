@@ -173,6 +173,15 @@ describe('startNewDwelling', () => {
     expect(() => startNewDwelling(s, NaN, 'zemnice', POSITION, 0)).toThrow(RangeError);
   });
 
+  it('den před už dopočítaným dnem vsi vyhodí RangeError, v den vsi projde', () => {
+    const s = sixPeople();
+    s.lastDay = DAY + 10;
+    expect(() => startNewDwelling(s, DAY + 9, 'zemnice', POSITION, 0)).toThrow(RangeError);
+    expect(
+      startNewDwelling(s, DAY + 10, 'zemnice', POSITION, 0).constructions.at(-1),
+    ).toMatchObject({ kind: 'dwelling', startedDay: DAY + 10 });
+  });
+
   it('nemění vstupní stav', () => {
     const s = sixPeople();
     const copy = structuredClone(s);
@@ -242,6 +251,17 @@ describe('foundField', () => {
     }
     expect(() => foundField(start(), NaN, field)).toThrow(RangeError);
     expect(() => foundField(start(), 2.5, field)).toThrow(RangeError);
+  });
+
+  it('den před už dopočítaným dnem vsi vyhodí RangeError, v den vsi projde', () => {
+    const s = start();
+    expect(s.lastDay).toBe(DAY - 1); // založení: den založení odsimuluje až advanceVillage
+    s.lastDay = DAY + 10;
+    expect(() => foundField(s, DAY + 9, field)).toThrow(RangeError);
+    expect(foundField(s, DAY + 10, field).constructions.at(-1)).toMatchObject({
+      kind: 'field',
+      startedDay: DAY + 10,
+    });
   });
 
   it('nemění vstupní stav', () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../domain/calendar';
-import type { Position, VillageState } from '../../domain/village';
+import { advanceVillage, type Position, type VillageState } from '../../domain/village';
 import { block, makeLandscape } from '../../domain/village/__tests__/placement-fixtures';
 import { foundVillageForSettlement, type FoundVillageInput } from '../found-village';
 import { loadVillage } from '../load-village';
@@ -186,6 +186,25 @@ describe('placeField', () => {
     expect(parts.every((p) => p.areaM2 === 225)).toBe(true);
     expect(Math.min(...parts.map((p) => p.distanceM))).toBeGreaterThan(70);
     expect(state.constructions.find((c) => c.fieldId === fieldId)?.startedDay).toBe(today);
+  });
+
+  it('ves dopočítaná za dnešek (čas se posunul zpět): pole začne v den vsi, ne výjimka', async () => {
+    const villages = await foundedVillages();
+    const ahead = TODAY + 5;
+    villages.edit(ID, (s) => {
+      Object.assign(s, advanceVillage(s, ahead));
+    });
+    const result = await placeField(
+      { villages },
+      { settlementId: ID, landscape, today: TODAY + 1, cells: block(10, 6, 3, 4) },
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.village.state.lastDay).toBe(ahead);
+    expect(result.village.state.constructions.at(-1)).toMatchObject({
+      kind: 'field',
+      startedDay: ahead,
+    });
   });
 
   it('pole přes první pole odmítne a ves nezmění', async () => {

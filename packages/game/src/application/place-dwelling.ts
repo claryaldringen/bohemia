@@ -27,12 +27,14 @@ export function placeDwelling(
   input: PlaceDwellingInput,
 ): Promise<VillageResult> {
   return updateVillage(deps.villages, input.settlementId, input.today, (state) => {
-    if (!canStartNewDwelling(state, input.today)) {
+    // akce patří do dne, do kterého je ves dopočítaná – dnešek, nebo „budoucí“ den vsi
+    const day = state.lastDay;
+    if (!canStartNewDwelling(state, day)) {
       return { ok: false, reason: CANNOT_BUILD_DWELLING };
     }
     const check = checkDwellingPlacement(input.landscape, state, input.type, input.position);
     if (!check.ok) return { ok: false, reason: check.reason ?? 'Sem obydlí nepatří.' };
     const position = { ...input.position };
-    return { ok: true, state: startNewDwelling(state, input.today, input.type, position, 0) };
+    return { ok: true, state: startNewDwelling(state, day, input.type, position, 0) };
   });
 }

@@ -26,6 +26,7 @@ export function placeField(
     const positions = villageDwellingPositions(state);
     const field = fieldPartsFromCells(input.landscape, state, input.cells, positions);
     if (!field.check.ok) return { ok: false, reason: field.check.reason ?? 'Sem pole nepatří.' };
-    return { ok: true, state: foundField(state, input.today, { parts: field.parts }) };
+    // akce patří do dne, do kterého je ves dopočítaná – dnešek, nebo „budoucí“ den vsi
+    return { ok: true, state: foundField(state, state.lastDay, { parts: field.parts }) };
   });
 }

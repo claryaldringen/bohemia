@@ -36,6 +36,14 @@ function validateDay(day: number): void {
   }
 }
 
+/** Akce hráče nesmí do minulosti vsi – před den, do kterého je už dopočítaná; jinak RangeError. */
+function validateActionDay(state: VillageState, day: number): void {
+  validateDay(day);
+  if (day < state.lastDay) {
+    throw new RangeError(`Ves je dopočítaná do dne ${state.lastDay}, akce v den ${day} nejde.`);
+  }
+}
+
 /** Poloha obydlí musí mít konečné souřadnice i natočení; jinak RangeError. */
 function validatePosition(position: Position): void {
   if (![position.x, position.z, position.rotation].every(Number.isFinite)) {
@@ -118,6 +126,9 @@ function addField(state: VillageState, day: number, field: FieldInput): void {
  * Založí ves: zemnice, 4 lidé podle START_AGES, zásoby na START_STORES_MONTHS a první pole
  * jako stavba. Id se čerpají z jednoho čítače `nextId` (od 1) v pořadí obydlí, lidé, pole,
  * jeho díly, stavba pole.
+ *
+ * Konvence dne: ves vzniká na začátku dne `day` – `lastDay = day − 1`, takže den založení
+ * odsimuluje až následující `advanceVillage(state, day)` (založení vsi ho volá hned).
  */
 export function foundVillage(input: {
   seed: number;
@@ -160,7 +171,13 @@ export function foundVillage(input: {
   return state;
 }
 
-/** Zahájí stavbu nového obydlí; RangeError, když to pravidla nedovolují nebo je vstup neplatný. */
+/**
+ * Zahájí stavbu nového obydlí; RangeError, když to pravidla nedovolují nebo je vstup neplatný.
+ *
+ * Konvence dne (jako u `foundField`): akce se volá na ves dopočítanou do dne `day`
+ * (`advanceVillage(state, day)`) a patří na konec toho dne – práci stavba dostane od dne
+ * `day + 1`. Den před `state.lastDay` (do minulosti vsi) → RangeError.
+ */
 export function startNewDwelling(
   state: VillageState,
   day: number,
@@ -168,7 +185,7 @@ export function startNewDwelling(
   position: Position,
   obstacleCost: number,
 ): VillageState {
-  validateDay(day);
+  validateActionDay(state, day);
   validatePosition(position);
   validateObstacleCost(obstacleCost);
   if (!canStartNewDwelling(state, day)) {
@@ -189,9 +206,15 @@ export function startNewDwelling(
   return next;
 }
 
-/** Zahájí založení nového pole (díly ve stavu 'founding'); RangeError při neplatném vstupu. */
+/**
+ * Zahájí založení nového pole (díly ve stavu 'founding'); RangeError při neplatném vstupu.
+ *
+ * Konvence dne (jako u `startNewDwelling`): akce se volá na ves dopočítanou do dne `day`
+ * a patří na konec toho dne – práci pole dostane od dne `day + 1`. Den před `state.lastDay`
+ * (do minulosti vsi) → RangeError.
+ */
 export function foundField(state: VillageState, day: number, field: FieldInput): VillageState {
-  validateDay(day);
+  validateActionDay(state, day);
   validateField(field);
   const next = structuredClone(state);
   addField(next, day, field);
