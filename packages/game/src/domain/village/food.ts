@@ -61,6 +61,11 @@ export interface MealResult {
   storesKg: number;
   applesKg: number;
   satiation: number;
+  /**
+   * Nejnižší příděl do sklizně podle výhledu 0–1: dnešní nasycení, nebo příděl obilí po tom, co
+   * jablka 1. 3. shnijí, je-li menší. Pod 1 ves hladoví (upozornění hned, ne až 1. 3.).
+   */
+  outlook: number;
 }
 
 /**
@@ -79,17 +84,27 @@ export function eatMeal(
   daysToRot: number,
 ): MealResult {
   if (applesKg <= 0 || daysToRot <= 0) {
-    return { ...eatDay(storesKg, needPerDayKg, daysToHarvest), applesKg: Math.max(0, applesKg) };
+    const meal = eatDay(storesKg, needPerDayKg, daysToHarvest);
+    return { ...meal, applesKg: Math.max(0, applesKg), outlook: meal.satiation };
   }
   const grain = storesKg * (1 - STORAGE_LOSS_PER_YEAR) ** (1 / 365);
-  if (needPerDayKg <= 0) return { storesKg: grain, applesKg, satiation: 1 };
+  if (needPerDayKg <= 0) return { storesKg: grain, applesKg, satiation: 1, outlook: 1 };
   const apples = applesKg * APPLE_FOOD_VALUE; // v kg obilí
   const need = needPerDayKg;
   const rotDays = Math.min(daysToRot, daysToHarvest);
   let satiation = 1;
+  let outlook = 1;
   if (grain + Math.min(apples, need * rotDays) < need * daysToHarvest) {
     const even = (grain + apples) / (need * daysToHarvest);
-    satiation = Math.min(1, apples <= even * need * rotDays ? even : apples / (need * rotDays));
+    if (apples <= even * need * rotDays) {
+      satiation = Math.min(1, even);
+      outlook = satiation;
+    } else {
+      // do zkažení jen jablka, obilí zůstane na dny po nich – výhled je příděl obilí potom
+      satiation = Math.min(1, apples / (need * rotDays));
+      const after = daysToHarvest - rotDays;
+      outlook = after > 0 ? Math.min(satiation, grain / (need * after)) : satiation;
+    }
   }
   const eaten = need * satiation;
   const fromApples = Math.min(apples, eaten);
@@ -97,5 +112,6 @@ export function eatMeal(
     storesKg: Math.max(0, grain - (eaten - fromApples)),
     applesKg: Math.max(0, (apples - fromApples) / APPLE_FOOD_VALUE),
     satiation,
+    outlook,
   };
 }

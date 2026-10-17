@@ -133,6 +133,11 @@ export function orchardExpectedYieldKg(orchard: Orchard, day: number): number {
   return orchard.squares.reduce((sum, s) => sum + squareYieldKgInSeason(s, season), 0);
 }
 
+/** Plodí čtverec v hospodářském roce dne `day` (vysazený a úroda větší než nula)? */
+export function squareBearing(square: OrchardSquare, day: number): boolean {
+  return square.plantedDay !== null && orchardYieldShare(orchardYear(square.plantedDay, day)) > 0;
+}
+
 /**
  * Práce na sklizni čtverce (člověkodny): 8 na hektar při plné úrodě, při menší úrodě poměrně
  * méně; dražší se vzdáleností od obydlí jako polní práce (fields.md – Vzdálenost).
@@ -198,8 +203,9 @@ export function orchardPlantingNeed(state: VillageState, c: Construction, day: n
 
 /**
  * Vloží společnou práci do výsadby (mutuje stav): čtverce od nejbližšího, přebytek dne teče do
- * dalšího. Vysazený čtverec dostane den výsadby a překážky z něj zmizí natrvalo (jako u dílu
- * pole). `completes` = výsadba dostala vše, co jí dnes chyběla.
+ * dalšího. Překážky z čtverce zmizí natrvalo, jakmile na něm práce začne (nejdřív se vyklidí,
+ * pak se zatloukají kůly a sázejí stromky – sazenice tak nestojí mezi kameny a keři), vysazený
+ * čtverec dostane den výsadby. `completes` = výsadba dostala vše, co jí dnes chyběla.
  */
 export function plantOrchard(
   state: VillageState,
@@ -212,15 +218,16 @@ export function plantOrchard(
   if (!orchard) return;
   let left = amount;
   for (const square of unplantedSquares(orchard)) {
+    if (!completes && left <= 0) break;
+    if (square.obstacles) {
+      recordClearedObstacles(state, square.obstacles, day);
+      delete square.obstacles;
+    }
     const need = square.plantingCost - square.plantingDone;
     if (completes || left >= need) {
       left -= need;
       square.plantingDone = square.plantingCost;
       square.plantedDay = day;
-      if (square.obstacles) {
-        recordClearedObstacles(state, square.obstacles, day);
-        delete square.obstacles;
-      }
     } else {
       square.plantingDone += left;
       break;
@@ -269,8 +276,8 @@ export function orchardSeasonDay(state: VillageState, day: number): ChronicleEve
   if (isOn(date, CARE_SEASON.end) && state.orchardWork?.task === 'care') state.orchardWork = null;
   if (isOn(date, SEASON_START)) events.push(...retireOrchards(state, day));
   if (isOn(date, HARVEST_SEASON.end) && state.orchardWork?.task === 'harvest') {
-    const kg = harvestedApplesKg(state.orchardWork);
-    if (kg > 0) events.push({ day, kind: 'apple-harvest', kg: Math.round(kg) });
+    const kg = Math.round(harvestedApplesKg(state.orchardWork));
+    if (kg > 0) events.push({ day, kind: 'apple-harvest', kg });
     state.orchardWork = null;
   }
   if (isOn(date, HARVEST_SEASON.start)) startWork(state, day, 'harvest');

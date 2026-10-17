@@ -8,7 +8,29 @@ export * from './year-plan';
 export * from './labor';
 export * from './population';
 export * from './cemetery';
-export * from './orchard';
+// sady – jen čisté funkce; kroky simulace (výsadba, práce a sezóna sadů) zůstávají uvnitř
+export {
+  ORCHARD_TASK_NAMES,
+  firstOrchardSeason,
+  harvestedApplesKg,
+  monthInWindow,
+  nextHarvestSeason,
+  orchardAgeYears,
+  orchardAreaM2,
+  orchardExpectedYieldKg,
+  orchardPlantingCost,
+  orchardSeason,
+  orchardWorkRemaining,
+  orchardYear,
+  orchardYieldShare,
+  seasonBounds,
+  squareBearing,
+  squareCareWork,
+  squareHarvestWork,
+  squareYieldKg,
+  villageApplesKg,
+  villageOrchards,
+} from './orchard';
 export * from './actions';
 export * from './simulate';
 export * from './polygon';

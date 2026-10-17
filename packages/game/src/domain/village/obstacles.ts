@@ -26,7 +26,7 @@ const DAYS_PER_YEAR = 365.25;
 
 /** Změny překážek v daný den – pro scénu, kontroly umístění a výběr stromů ke kácení. */
 export interface ObstacleChanges {
-  /** Odstraněné natrvalo (pole, obydlí). */
+  /** Odstraněné natrvalo (pole, obydlí, hřbitovy, sady). */
   readonly removed: readonly number[];
   /** Pokácené stromy – stojí po nich pařez. */
   readonly stumps: readonly number[];
@@ -309,7 +309,7 @@ export function fellTrees(state: VillageState, ids: readonly number[], day: numb
   return { ...state, felledTrees: [...kept, ...ids.map((id) => ({ id, day }))] };
 }
 
-/** Přidá odstraněné překážky (pole, obydlí) – mutuje stav, volat na klonu. */
+/** Přidá odstraněné překážky (pole, obydlí, hřbitovy, sady) – mutuje stav, volat na klonu. */
 export function recordClearedObstacles(
   state: VillageState,
   ids: readonly number[],

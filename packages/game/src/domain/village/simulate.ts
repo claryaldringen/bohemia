@@ -589,7 +589,8 @@ function endThreshing(state: VillageState): void {
 
 /**
  * Krok 8: jídlo dne ze zásob – jablka přednostně (orchard.md); vrací nasycení a zapíše začátek
- * a konec hladu.
+ * a konec hladu. Hlad začíná už tehdy, když příděl podle výhledu do sklizně klesne pod plný – i
+ * když se dnes jí dosyta jablky a obilí nevystačí až po 1. 3. (bez jablek totéž co nasycení).
  */
 function eat(state: VillageState, day: number): number {
   const need = state.people.reduce((sum, p) => sum + foodNeedPerDay(p, day), 0);
@@ -603,7 +604,7 @@ function eat(state: VillageState, day: number): number {
   const { storesKg, satiation } = meal;
   state.storesKg = storesKg;
   if (state.applesKg !== undefined) state.applesKg = meal.applesKg;
-  const hungry = satiation < 1 - SATIATION_EPSILON;
+  const hungry = meal.outlook < 1 - SATIATION_EPSILON;
   if (hungry !== state.hungry) {
     state.hungry = hungry;
     state.chronicle.push({ day, kind: hungry ? 'hunger-began' : 'hunger-ended' });

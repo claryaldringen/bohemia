@@ -96,7 +96,10 @@ export interface OrchardSquare {
   plantingDone: number;
   /** Den, kdy osadníci čtverec vysadili; dokud se sází, null. */
   plantedDay: number | null;
-  /** Překážky na čtverci (id z vrstvy překážek) – zmizí z krajiny, až osadníci čtverec vysadí. */
+  /**
+   * Překážky na čtverci (id z vrstvy překážek) – zmizí z krajiny, jakmile ho osadníci začnou
+   * sázet (vyklizení je první část výsadby).
+   */
   obstacles?: number[];
 }
 /** Jabloňový sad – souvislá skupina čtverců (orchard.md). */
@@ -188,7 +191,7 @@ export interface VillageState {
   /** Pohřebiště – u vsí uložených před zavedením pohřebišť chybí (= žádné). */
   cemeteries?: Cemetery[];
   /**
-   * Překážky krajiny odstraněné natrvalo i s pařezy (pole, obydlí, hřbitovy). Chybí u vsí
+   * Překážky krajiny odstraněné natrvalo i s pařezy (pole, obydlí, hřbitovy, sady). Chybí u vsí
    * založených před vrstvou překážek – doplní je `withObstacleClearing`.
    */
   clearedObstacles?: ObstacleChange[];

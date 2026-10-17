@@ -19,6 +19,7 @@ import {
   obstacleStatus,
   outcropUnder,
   type ObstacleChanges,
+  type ObstacleTally,
 } from './obstacles';
 import { polygonsOverlap, rectangleCorners, type Point } from './polygon';
 import {
@@ -549,6 +550,76 @@ export function waterDistanceM(landscape: Landscape, cell: TileCell): number {
   return Number.isFinite(best) ? best : 2 * landscape.size * landscape.cellSizeM;
 }
 
+/** Čtverec louky stavby po čtvercích (pole, sad) – plocha bez skalních výchozů a překážky. */
+interface MeadowSquare {
+  cell: TileCell;
+  /** Index políčka v krajině (y × size + x). */
+  index: number;
+  areaM2: number;
+  /** Od středu políčka k nejbližšímu obydlí. */
+  distanceM: number;
+  tally: ObstacleTally;
+}
+
+/**
+ * Společná kontrola čtverců pole a sadu (staví se stejně – orchard.md): u každého čtverce, co mu
+ * brání (voda, les, obydlí, pole, hřbitov, sad, dál než 800 m – zakázané čtverce do náhledu),
+ * a čtverce louky s plochou bez skalních výchozů (nejvýš MAX_OUTCROP_SHARE čtverce), vzdáleností
+ * k nejbližšímu z `dwellingPositions` a překážkami z vrstvy bez toho, co ves už odstranila.
+ */
+function meadowSquares(
+  landscape: Landscape,
+  village: PlacementVillage | null,
+  cells: readonly TileCell[],
+  dwellingPositions: Position[],
+  obstacles: ObstacleLayer,
+): {
+  squares: MeadowSquare[];
+  problems: SquareFlags & { far: boolean };
+  blockedCells: TileCell[];
+  obstacleCounts: Partial<Record<ObstacleKind, number>>;
+} {
+  const status = obstacleStatus(village?.obstacleChanges);
+  const flagsOf = squareFlags(landscape, village, dwellingPositions);
+  const cellArea = landscape.cellSizeM * landscape.cellSizeM;
+  const problems: SquareFlags & { far: boolean } = {
+    water: false,
+    forest: false,
+    dwelling: false,
+    field: false,
+    cemetery: false,
+    orchard: false,
+    far: false,
+  };
+  const squares: MeadowSquare[] = [];
+  const blockedCells: TileCell[] = [];
+  const obstacleCounts: Partial<Record<ObstacleKind, number>> = {};
+  for (const cell of cells) {
+    const distanceM = distanceToNearest(landscape, cell, dwellingPositions);
+    const flags = { ...flagsOf(cell), far: distanceM > FIELD_LIMITS.maxDistanceM };
+    let blocked = false;
+    for (const key of Object.keys(flags) as (keyof typeof flags)[]) {
+      if (!flags[key]) continue;
+      problems[key] = true;
+      blocked = true;
+    }
+    if (blocked) blockedCells.push(cell);
+    if (surfaceAt(landscape, cell.x, cell.y) !== 'meadow') continue;
+    const tally = cellObstacles(obstacles, status, cell);
+    for (const [kind, count] of Object.entries(tally.counts) as [ObstacleKind, number][]) {
+      obstacleCounts[kind] = (obstacleCounts[kind] ?? 0) + count;
+    }
+    squares.push({
+      cell,
+      index: cellIndex(landscape, cell),
+      areaM2: cellArea - Math.min(tally.outcropAreaM2, cellArea * MAX_OUTCROP_SHARE),
+      distanceM,
+      tally,
+    });
+  }
+  return { squares, problems, blockedCells, obstacleCounts };
+}
+
 const EMPTY_PREVIEW = {
   cells: [],
   parts: [],
@@ -588,52 +659,22 @@ export function fieldPartsFromCells(
       check: fail(shape.reason),
     };
   }
-  const status = obstacleStatus(village?.obstacleChanges);
-  const obstacleCounts: Partial<Record<ObstacleKind, number>> = {};
-
-  const flagsOf = squareFlags(landscape, village, dwellingPositions);
-  const cellArea = landscape.cellSizeM * landscape.cellSizeM;
-  const problems = {
-    water: false,
-    forest: false,
-    dwelling: false,
-    field: false,
-    cemetery: false,
-    orchard: false,
-    far: false,
-  };
-  const parts: PartInput[] = [];
-  const blockedCells: TileCell[] = [];
-  for (const cell of shape.cells) {
-    const index = cellIndex(landscape, cell);
-    const surface = surfaceAt(landscape, cell.x, cell.y);
-    const distanceM = distanceToNearest(landscape, cell, dwellingPositions);
-    const cellProblems = {
-      ...flagsOf(cell),
-      far: distanceM > FIELD_LIMITS.maxDistanceM,
-    };
-    let blocked = false;
-    for (const key of Object.keys(cellProblems) as (keyof typeof cellProblems)[]) {
-      if (!cellProblems[key]) continue;
-      problems[key] = true;
-      blocked = true;
-    }
-    if (blocked) blockedCells.push(cell);
-    if (surface !== 'meadow') continue;
-    const tally = cellObstacles(obstacles, status, cell);
-    for (const [kind, count] of Object.entries(tally.counts) as [ObstacleKind, number][]) {
-      obstacleCounts[kind] = (obstacleCounts[kind] ?? 0) + count;
-    }
-    parts.push({
-      areaM2: cellArea - Math.min(tally.outcropAreaM2, cellArea * MAX_OUTCROP_SHARE),
-      distanceM,
-      naturalFertility: landscape.fertility[index]!,
-      surface: 'meadow',
-      obstacleCost: tally.cost,
-      ...(tally.ids.length > 0 ? { obstacleIds: tally.ids } : {}),
-      cell,
-    });
-  }
+  const { squares, problems, blockedCells, obstacleCounts } = meadowSquares(
+    landscape,
+    village,
+    shape.cells,
+    dwellingPositions,
+    obstacles,
+  );
+  const parts: PartInput[] = squares.map((square) => ({
+    areaM2: square.areaM2,
+    distanceM: square.distanceM,
+    naturalFertility: landscape.fertility[square.index]!,
+    surface: 'meadow',
+    obstacleCost: square.tally.cost,
+    ...(square.tally.ids.length > 0 ? { obstacleIds: square.tally.ids } : {}),
+    cell: square.cell,
+  }));
 
   const areaM2 = parts.reduce((sum, p) => sum + p.areaM2, 0);
   const averageFertility =
@@ -643,7 +684,7 @@ export function fieldPartsFromCells(
     0,
   );
   const obstacleCost = parts.reduce((sum, p) => sum + p.obstacleCost, 0);
-  const minCells = Math.ceil(FIELD_LIMITS.minAreaM2 / cellArea);
+  const minCells = Math.ceil(FIELD_LIMITS.minAreaM2 / (landscape.cellSizeM * landscape.cellSizeM));
   const checks: [boolean, () => string][] = [
     [problems.water, () => 'Pole nesmí zasahovat do vody.'],
     [problems.forest, () => 'Pole jde zatím zakládat jen na louce – mýcení lesa přijde později.'],
@@ -705,44 +746,15 @@ export function orchardPartsFromCells(
       check: fail(shape.reason),
     };
   }
-  const status = obstacleStatus(village?.obstacleChanges);
-  const flagsOf = squareFlags(landscape, village, dwellingPositions);
-  const cellArea = landscape.cellSizeM * landscape.cellSizeM;
-  const problems: SquareFlags & { far: boolean } = {
-    water: false,
-    forest: false,
-    dwelling: false,
-    field: false,
-    cemetery: false,
-    orchard: false,
-    far: false,
-  };
-  const squares: OrchardSquareInput[] = [];
-  const blockedCells: TileCell[] = [];
-  const obstacleCounts: Partial<Record<ObstacleKind, number>> = {};
-  for (const cell of shape.cells) {
-    const distanceM = distanceToNearest(landscape, cell, dwellingPositions);
-    const flags = { ...flagsOf(cell), far: distanceM > FIELD_LIMITS.maxDistanceM };
-    let blocked = false;
-    for (const key of Object.keys(flags) as (keyof typeof flags)[]) {
-      if (!flags[key]) continue;
-      problems[key] = true;
-      blocked = true;
-    }
-    if (blocked) blockedCells.push(cell);
-    if (surfaceAt(landscape, cell.x, cell.y) !== 'meadow') continue;
-    const tally = cellObstacles(obstacles, status, cell);
-    for (const [kind, count] of Object.entries(tally.counts) as [ObstacleKind, number][]) {
-      obstacleCounts[kind] = (obstacleCounts[kind] ?? 0) + count;
-    }
-    squares.push({
-      cell,
-      areaM2: cellArea - Math.min(tally.outcropAreaM2, cellArea * MAX_OUTCROP_SHARE),
-      distanceM,
-      obstacleCost: tally.cost,
-      ...(tally.ids.length > 0 ? { obstacleIds: tally.ids } : {}),
-    });
-  }
+  const meadow = meadowSquares(landscape, village, shape.cells, dwellingPositions, obstacles);
+  const { problems, blockedCells, obstacleCounts } = meadow;
+  const squares: OrchardSquareInput[] = meadow.squares.map((square) => ({
+    cell: square.cell,
+    areaM2: square.areaM2,
+    distanceM: square.distanceM,
+    obstacleCost: square.tally.cost,
+    ...(square.tally.ids.length > 0 ? { obstacleIds: square.tally.ids } : {}),
+  }));
   const checks: [boolean, string][] = [
     [problems.water, 'Sad nesmí zasahovat do vody.'],
     [problems.forest, 'Sad jde zatím zakládat jen na louce – mýcení lesa přijde později.'],
