@@ -23,7 +23,7 @@ import type { Construction, ConstructionWood, DwellingType, VillageState } from 
 // vybírají jednou při zahájení stavby (vyhradí se) – simulace pak kácí jen podle uložených id,
 // nikdy neprochází celou vrstvu překážek (desítky tisíc stromů) den po dni.
 
-/** Tolerance proti chybám desetinných čísel (celé klády, práce stavby). */
+/** Tolerance proti chybám desetinných čísel u odvedené práce stavby. */
 const EPSILON = 1e-9;
 /** Klády hnijí rovnoměrně po dnech – za rok ubude LOG_ROT_PER_YEAR. */
 const DAILY_LOG_KEEP = (1 - LOG_ROT_PER_YEAR) ** (1 / 365);
