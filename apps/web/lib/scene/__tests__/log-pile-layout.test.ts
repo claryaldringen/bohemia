@@ -3,6 +3,7 @@ import {
   NO_OBSTACLE_CHANGES,
   SURFACE_CODES,
   dwellingClearing,
+  dwellingFootprint,
   packObstacles,
   pointInPolygon,
   polygonsOverlap,
@@ -79,13 +80,19 @@ describe('logPileSite', () => {
     expect(logPileSite(landscape, village, empty, NO_OBSTACLE_CHANGES)).toBeNull();
   });
 
-  it('leží u obydlí nejblíž lesu, mimo vyklizené plochy obydlí', () => {
+  it('leží u obydlí nejblíž lesu – vedle něj, mimo vyklizené plochy ostatních obydlí', () => {
     const near = dwelling(2, 60, 0);
-    const village: SceneVillage = { dwellings: [dwelling(1, -100, 0), near], fields: [] };
+    // sousední obydlí hned vedle (dál od lesu) – hromada nesmí na jeho vyklizenou plochu
+    const neighbour = dwelling(3, 50, 0);
+    const village: SceneVillage = {
+      dwellings: [dwelling(1, -100, 0), near, neighbour],
+      fields: [],
+    };
     const site = logPileSite(landscape, village, empty, NO_OBSTACLE_CHANGES)!;
-    expect(Math.hypot(site.x - near.position.x, site.z - near.position.z)).toBeLessThan(12);
+    expect(Math.hypot(site.x - near.position.x, site.z - near.position.z)).toBeLessThan(10);
     const pile = rectangleCorners(site.x, site.z, PILE_WIDTH_M, PILE_DEPTH_M, site.rotation);
-    for (const d of village.dwellings) {
+    expect(polygonsOverlap(pile, dwellingFootprint(near.type, near.position))).toBe(false);
+    for (const d of [village.dwellings[0]!, neighbour]) {
       expect(polygonsOverlap(pile, dwellingClearing(d.type, d.position))).toBe(false);
     }
   });
