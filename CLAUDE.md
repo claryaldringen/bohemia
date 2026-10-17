@@ -222,6 +222,21 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   `construction.glb` v instancích. Dým z dýmníku (`village-smoke.ts`, sprity) podle rozvrhu
   ohně za herní den (`smoke-schedule.ts`, deterministicky) – hýbe se jen v záběru, ve stejném
   taktu `WATER_FPS` jako voda, při omezeném pohybu stojí.
+- **Řemeslné dílny – zatím jen modely** (pravidla v [docs/design/crafts.md](docs/design/crafts.md)
+  čekají na schválení, do hry, jádra ani panelu staveb nepatří): `public/models/crafts/`
+  hrnčíř a kovář (polozemnice s přístřeškem o `PORCH` 3,6 m vpředu, pod ním pec / výheň
+  s kovadlinou), uhlíř (zemnice s mechovou střechou) a samostatný milíř ≈ 9,5 m od ní
+  (`MILIR_OFFSET` v `tools/blender/crafts.py` = `MILIR_OFFSET_M` v
+  `lib/scene/building-showcase-layout.ts`). Tvary bere `crafts.py` z `dwellings.py` (ten má proto
+  `if __name__ == "__main__"`), sedí do jam obydlí (hrnčíř, kovář = polozemnice, uhlíř = zemnice).
+  Atlas: `tools/blender/craft_atlas.py` (atlas obydlí + pec, kámen, zem milíře, uhlí…; varianta
+  `atlas-moss.jpg` s mechem místo slámy). Postup v hlavičce `crafts.py`, ikony `icons.py hrncir,kovar,uhlir`.
+  **Fáze stavby** řemesel: `village-construction.ts` má tabulku fází pro každý druh
+  (`ConstructionKind` = obydlí + `CraftKind`; dílny na fázích svého obydlí + přístřešek, pec /
+  výheň, dílna, uhlíř mech místo došků, milíř zvlášť), díly v `public/models/crafts/construction.glb`
+  a `construction-moss.glb` (předpona druhu). Obydlí se tím nezměnila.
+  **Náhled všech staveb** bez databáze: http://localhost:3010/dev/buildings (`building-showcase.ts`,
+  staveniště `showcase-sites.ts`, posuvník a přehrání stavby; v produkci 404).
 - **Grafika (licence):** CC0, nebo z **0 A.D.** pod **CC BY-SA 3.0** (textury terénu, stromy –
   uvést Wildfire Games, upravené soubory pod stejnou licencí). Zdroj a původní název každého
   souboru do `LICENSE.md` / `LICENSES.md` vedle něj. Převod stromů, atlas impostorů a render
