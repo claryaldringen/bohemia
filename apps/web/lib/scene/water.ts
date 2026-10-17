@@ -21,6 +21,13 @@ const RIPPLE_REPEAT_M: readonly [number, number] = [11, 3.7];
 const FLOW_SPEED_MPS: readonly [number, number] = [0.12, 1.6];
 /** Viditelnost do hloubky (m): kalná voda nad bahnem → průzračná nad štěrkem. */
 const VISIBILITY_M: readonly [number, number] = [0.3, 2.6];
+/**
+ * Nejmenší krytí hladiny: stojatá → tekoucí voda (od rychlosti FLOWING_SPEED). Rozčeřená hladina
+ * odráží a rozptyluje světlo, takže i mělký čirý brod nad oblázky je vidět jako voda – s krytím
+ * jen podle hloubky by dno vypadalo suché (Martin).
+ */
+const MIN_ALPHA: readonly [number, number] = [0.12, 0.6];
+const FLOWING_SPEED: readonly [number, number] = [0.2, 0.6];
 /** Barvy (podle 0 A.D. temperate, ale méně kalné – Martin chce průzračnou vodu). */
 const MURKY_COLOR = new Color3(0.2, 0.21, 0.12);
 const CLEAR_COLOR = new Color3(0.13, 0.24, 0.23);
@@ -67,9 +74,12 @@ export function createWaterMesh(scene: Scene, surface: RenderSurface): WaterSurf
     const edge = 1 - smoothstep(-2.5, 0.5, near.bankDistance);
     // Rychlá voda nad štěrkem je průzračná, pomalá nad bahnem a v tůni kalná.
     const clarity = smoothstep(0.2, 0.75, near.speed) * (1 - 0.6 * near.pool);
+    const minAlpha =
+      MIN_ALPHA[0] +
+      (MIN_ALPHA[1] - MIN_ALPHA[0]) * smoothstep(FLOWING_SPEED[0], FLOWING_SPEED[1], near.speed);
     positions.push(x, level * HEIGHT_SCALE, z);
     flow.push(near.flowX, near.flowZ, near.speed, clarity);
-    info.push(depth, edge);
+    info.push(depth, edge, minAlpha);
     vertexIndex[v] = positions.length / 3 - 1;
     return vertexIndex[v]!;
   };
@@ -96,7 +106,7 @@ export function createWaterMesh(scene: Scene, surface: RenderSurface): WaterSurf
   const mesh = new Mesh('water', scene);
   vertexData.applyToMesh(mesh);
   mesh.setVerticesData('waterFlow', flow, false, 4);
-  mesh.setVerticesData('waterInfo', info, false, 2);
+  mesh.setVerticesData('waterInfo', info, false, 3);
 
   const material = new StandardMaterial('water-material', scene);
   material.specularColor = new Color3(0.9, 0.88, 0.8);
@@ -173,7 +183,7 @@ function createRippleNormalMap(scene: Scene): RawTexture {
 
 /**
  * Shader vody (GLSL i WGSL) nad StandardMaterialem: vlastní atributy vrcholů waterFlow
- * (směr toku x/z, rychlost, průzračnost) a waterInfo (hloubka, okraj).
+ * (směr toku x/z, rychlost, průzračnost) a waterInfo (hloubka, okraj, nejmenší krytí).
  */
 class WaterPlugin extends MaterialPluginBase {
   time = 0;
@@ -267,17 +277,17 @@ uniform vec3 waterSky;
       return wgsl
         ? {
             CUSTOM_VERTEX_DEFINITIONS: `attribute waterFlow: vec4f;
-attribute waterInfo: vec2f;
+attribute waterInfo: vec3f;
 varying vWaterFlow: vec4f;
-varying vWaterInfo: vec2f;`,
+varying vWaterInfo: vec3f;`,
             CUSTOM_VERTEX_MAIN_END: `vertexOutputs.vWaterFlow = vertexInputs.waterFlow;
 vertexOutputs.vWaterInfo = vertexInputs.waterInfo;`,
           }
         : {
             CUSTOM_VERTEX_DEFINITIONS: `attribute vec4 waterFlow;
-attribute vec2 waterInfo;
+attribute vec3 waterInfo;
 varying vec4 vWaterFlow;
-varying vec2 vWaterInfo;`,
+varying vec3 vWaterInfo;`,
             CUSTOM_VERTEX_MAIN_END: `vWaterFlow = waterFlow;
 vWaterInfo = waterInfo;`,
           };
@@ -290,7 +300,7 @@ vWaterInfo = waterInfo;`,
     if (wgsl) {
       return {
         CUSTOM_FRAGMENT_DEFINITIONS: `varying vWaterFlow: vec4f;
-varying vWaterInfo: vec2f;
+varying vWaterInfo: vec3f;
 var waterRipplesSampler: sampler;
 var waterRipples: texture_2d<f32>;
 fn waterLayer(xz: vec2f, dir: vec2f, metersPerSecond: f32, repeatM: f32, time: f32, period: f32) -> vec2f {
@@ -305,7 +315,7 @@ fn waterLayer(xz: vec2f, dir: vec2f, metersPerSecond: f32, repeatM: f32, time: f
         CUSTOM_FRAGMENT_UPDATE_DIFFUSE: `let waterClarity = fragmentInputs.vWaterFlow.w;
 let waterVisibilityM = mix(uniforms.waterVisibility.x, uniforms.waterVisibility.y, waterClarity);
 baseColor = vec4f(mix(uniforms.waterMurky, uniforms.waterClear, waterClarity), baseColor.a);
-alpha = fragmentInputs.vWaterInfo.y * clamp(1.0 - exp(-fragmentInputs.vWaterInfo.x / waterVisibilityM), 0.12, 1.0);`,
+alpha = fragmentInputs.vWaterInfo.y * clamp(1.0 - exp(-fragmentInputs.vWaterInfo.x / waterVisibilityM), fragmentInputs.vWaterInfo.z, 1.0);`,
         CUSTOM_FRAGMENT_BEFORE_LIGHTS: `{
   let waterDir = fragmentInputs.vWaterFlow.xy;
   let waterRate = mix(uniforms.waterSpeed.x, uniforms.waterSpeed.y, fragmentInputs.vWaterFlow.z);
@@ -323,7 +333,7 @@ alpha = fragmentInputs.vWaterInfo.y * clamp(1.0 - exp(-fragmentInputs.vWaterInfo
     }
     return {
       CUSTOM_FRAGMENT_DEFINITIONS: `varying vec4 vWaterFlow;
-varying vec2 vWaterInfo;
+varying vec3 vWaterInfo;
 uniform sampler2D waterRipples;
 vec2 waterLayer(vec2 xz, vec2 dir, float metersPerSecond, float repeatM, float time, float period) {
   float phase0 = fract(time / period);
@@ -337,7 +347,7 @@ vec2 waterLayer(vec2 xz, vec2 dir, float metersPerSecond, float repeatM, float t
       CUSTOM_FRAGMENT_UPDATE_DIFFUSE: `float waterClarity = vWaterFlow.w;
 float waterVisibilityM = mix(waterVisibility.x, waterVisibility.y, waterClarity);
 baseColor.rgb = mix(waterMurky, waterClear, waterClarity);
-alpha = vWaterInfo.y * clamp(1.0 - exp(-vWaterInfo.x / waterVisibilityM), 0.12, 1.0);`,
+alpha = vWaterInfo.y * clamp(1.0 - exp(-vWaterInfo.x / waterVisibilityM), vWaterInfo.z, 1.0);`,
       CUSTOM_FRAGMENT_BEFORE_LIGHTS: `{
   vec2 waterDir = vWaterFlow.xy;
   float waterRate = mix(waterSpeed.x, waterSpeed.y, vWaterFlow.z);
