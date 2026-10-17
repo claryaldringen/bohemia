@@ -16,6 +16,7 @@ import { loadVillage } from '../load-village';
 import { placeCemetery } from '../place-cemetery';
 import { NO_SETTLERS, placeDwelling } from '../place-dwelling';
 import { placeField } from '../place-field';
+import { placeOrchard } from '../place-orchard';
 import { renameVillage } from '../rename-village';
 import type { SeedSource } from '../settlements';
 import { InMemoryVillages } from './in-memory-villages';
@@ -345,6 +346,68 @@ describe('placeCemetery', () => {
       { settlementId: ID, landscape, today: TODAY + 1, cells: [{ x: 3, y: 3 }] },
     );
     expect(result.ok).toBe(true);
+  });
+});
+
+describe('placeOrchard', () => {
+  it('založí sad – výsadba 80 člověkodní/ha (1,8 na čtverec) začne dnes, čtverce se sázejí', async () => {
+    const villages = await foundedVillages();
+    const today = TODAY + 2;
+    const result = await placeOrchard(
+      { villages },
+      { settlementId: ID, landscape, today, cells: block(10, 6, 2, 2) },
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const { state } = result.village;
+    expect(state.orchards).toHaveLength(1);
+    const orchard = state.orchards![0]!;
+    expect(orchard.squares.map((s) => s.cell)).toEqual(block(10, 6, 2, 2));
+    expect(orchard.squares.every((s) => s.plantedDay === null && s.areaM2 === 225)).toBe(true);
+    expect(state.constructions.at(-1)).toMatchObject({
+      kind: 'orchard',
+      orchardId: orchard.id,
+      startedDay: today,
+    });
+    expect(state.constructions.at(-1)?.cost).toBeCloseTo(4 * 1.8);
+  });
+
+  it('sad přes pole, ve vodě nebo přes jiný sad odmítne a ves nezmění', async () => {
+    const villages = await foundedVillages();
+    const overField = await placeOrchard(
+      { villages },
+      { settlementId: ID, landscape, today: TODAY + 1, cells: block(9, 9, 2, 1) },
+    );
+    expect(overField).toEqual({ ok: false, reason: 'Sad se překrývá s polem.' });
+    const inWater = await placeOrchard(
+      { villages },
+      { settlementId: ID, landscape, today: TODAY + 1, cells: block(14, 2, 2, 1) },
+    );
+    expect(inWater).toEqual({ ok: false, reason: 'Sad nesmí zasahovat do vody.' });
+    expect(villages.records.get(ID)?.version).toBe(1);
+    const first = await placeOrchard(
+      { villages },
+      { settlementId: ID, landscape, today: TODAY + 1, cells: block(10, 6, 2, 2) },
+    );
+    expect(first.ok).toBe(true);
+    const again = await placeOrchard(
+      { villages },
+      { settlementId: ID, landscape, today: TODAY + 1, cells: block(11, 7, 2, 2) },
+    );
+    expect(again).toEqual({ ok: false, reason: 'Sad se překrývá s jiným sadem.' });
+    const fieldOver = await placeField(
+      { villages },
+      { settlementId: ID, landscape, today: TODAY + 1, cells: block(11, 7, 2, 2) },
+    );
+    expect(fieldOver).toEqual({ ok: false, reason: 'Pole se překrývá se sadem.' });
+  });
+
+  it('bez vsi sad založit nejde', async () => {
+    const result = await placeOrchard(
+      { villages: new InMemoryVillages() },
+      { settlementId: ID, landscape, today: TODAY, cells: block(10, 6, 2, 2) },
+    );
+    expect(result.ok).toBe(false);
   });
 });
 

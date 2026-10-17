@@ -18,6 +18,9 @@
 //   od obydlí (všechna stojí v počátku) a 150 m od vody, hygiena 1 – a rozšíří ho o čtverec,
 //   když je z 80 % plný a žádné rozšíření se zrovna nestaví.
 // - Druhá strategie „nikdy nestaví“: totéž bez nových obydlí a bez hřbitova – jediná domácnost.
+// - Třetí strategie „staví a sází sad“ (orchard.md): jako první, a hned po dostavění první
+//   zemnice založí jabloňový sad 0,5 ha (22 čtverců 120 m od obydlí, mimo půdu pro pole) –
+//   jen informace, sad cíle polí a populace nemění.
 // - Sondy s pevným složením domácnosti (startovní: 2 dospělí a 2 děti 7–13 let; plná:
 //   4 dospělí a 2 malé děti): skript před každým krokem vrátí lidi do pevného složení, takže
 //   ves nestárne ani neroste – měří ustálený oběh, práci na obživu a špičky z Ukázky. Sonda
@@ -25,7 +28,8 @@
 //
 // Nasycení dne se počítá stejně jako v simulaci – ze stavu na konci předchozího dne. V krocích,
 // kde ves hladověla, skript přehraje jídlo den po dni ze začátku kroku a kroniky; když přehrané
-// zásoby nesedí s koncem kroku, přepočítá krok den po dni (výsledek na kouscích nezávisí).
+// zásoby nesedí s koncem kroku (nebo ves má jablka – sklízejí se postupně), přepočítá krok den po
+// dni (výsledek na kouscích nezávisí).
 // Vsi a sondy běží paralelně ve worker vláknech (každá ves je samostatná úloha).
 import { availableParallelism } from 'node:os';
 import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
@@ -48,13 +52,17 @@ import {
   ageGroup,
   buildAffordability,
   cemeteryCapacity,
+  daysUntilAppleRot,
   daysUntilHarvest,
   eatDay,
+  eatMeal,
   fallowYears,
   foodNeedPerDay,
   foundCemetery,
   foundField,
+  foundOrchard,
   foundVillage,
+  isAppleRotDay,
   grossYieldPerHa,
   isCemeteryBuilding,
   laborPerDay,
@@ -114,6 +122,11 @@ type ProbeName = keyof typeof PROBES;
 const CEMETERY_FIRST_CELL = 13;
 const CEMETERY_WATER_M = 150;
 const CEMETERY_EXTEND_AT = 0.8;
+// sad hráče (třetí strategie): 22 čtverců ≈ 0,5 ha, 120 m od obydlí, mimo půdu pro pole
+const ORCHARD_SQUARES = 22;
+const ORCHARD_DISTANCE_M = 120;
+// plná úroda sadu od 25. roku (orchard.md) – úroda jablek se měří od tohoto roku vsi
+const ORCHARD_FULL_FROM_YEAR = 26;
 const PROBE_SEEDS = 5;
 const PROBE_YEARS = 50;
 const PROBE_STEP_DAYS = 28; // sonda nestaví – stačí krok 4 týdny
@@ -212,6 +225,8 @@ interface RunOptions {
   forkPolozemnice: boolean;
   /** Skončit, jakmile je hotová stavba s tímto id (rozvětvení pro polozemnici). */
   stopAfterConstruction: number | null;
+  /** Po dostavění první zemnice založit sad (třetí strategie). */
+  orchard?: boolean;
 }
 
 interface PlanRecord {
@@ -250,6 +265,8 @@ interface RunResult {
   finalHouseholds: number;
   maxHouseholds: number;
   replays: number;
+  appleHarvests: Map<number, number>; // rok sklizně → kg jablek
+  orchardDay: number | null; // den založení sadu
 }
 
 function harvestYear(day: number): number {
@@ -261,10 +278,15 @@ function isOn(date: CalendarDate, target: { month: number; day: number }): boole
   return date.month === target.month && date.day === target.day;
 }
 
-/** Nasycení dne `day` ze stavu na konci předchozího dne – stejně jako krok jídla v simulaci. */
+/**
+ * Nasycení dne `day` ze stavu na konci předchozího dne – stejně jako krok jídla v simulaci
+ * (jablka přednostně, 1. 3. ráno shnijí).
+ */
 function satiationOn(previous: VillageState, day: number): number {
   const need = previous.people.reduce((sum, p) => sum + foodNeedPerDay(p, day), 0);
-  return eatDay(previous.storesKg, need, daysUntilHarvest(day)).satiation;
+  const apples = isAppleRotDay(day) ? 0 : (previous.applesKg ?? 0);
+  return eatMeal(previous.storesKg, apples, need, daysUntilHarvest(day), daysUntilAppleRot(day))
+    .satiation;
 }
 
 /**
@@ -303,6 +325,8 @@ function foodTrack(
   const beforeIds = new Set(before.people.map((p) => p.id));
   const vanished = before.people.filter((p) => !afterIds.has(p.id));
   const born = after.people.filter((p) => !beforeIds.has(p.id));
+  // jablka se sklízejí postupně v září–říjnu – přehrát je bez simulace práce nejde
+  if ((before.applesKg ?? 0) > 0 || (after.applesKg ?? 0) > 0 || after.orchardWork) return null;
   const deathDay = new Map<number, number>();
   for (const e of events) {
     if (e.kind !== 'death') continue;
@@ -356,6 +380,8 @@ function emptyResult(): RunResult {
     finalHouseholds: 0,
     maxHouseholds: 0,
     replays: 0,
+    appleHarvests: new Map(),
+    orchardDay: null,
   };
 }
 
@@ -460,6 +486,17 @@ function tendCemetery(state: VillageState, day: number): VillageState {
   return foundCemetery(state, day, { squares: [square], squareSizeM: 15 });
 }
 
+/** Sad hráče (třetí strategie): 22 čtverců v řadě y = −5 (pole leží v řadě y = 0 a dál). */
+function plantOrchard(state: VillageState, day: number): VillageState {
+  const squares = Array.from({ length: ORCHARD_SQUARES }, (_, i) => ({
+    cell: { x: i, y: -5 },
+    areaM2: PART_M2,
+    distanceM: ORCHARD_DISTANCE_M,
+    obstacleCost: 0,
+  }));
+  return foundOrchard(state, day, { squares });
+}
+
 function runVillage(start: VillageState, startLand: number, opts: RunOptions): RunResult {
   const result = emptyResult();
   let state = start;
@@ -490,6 +527,8 @@ function runVillage(start: VillageState, startLand: number, opts: RunOptions): R
       } else if (e.kind === 'part-became-forest') {
         result.forestParts.add(e.partId);
         result.firstForestYears ??= (e.day - start.foundedDay) / DAYS_PER_YEAR;
+      } else if (e.kind === 'apple-harvest') {
+        result.appleHarvests.set(dateOfDayIndex(e.day).year, e.kg);
       }
     }
     if (firstConstruction && !after.constructions.some((c) => c.id === firstConstruction?.id)) {
@@ -545,6 +584,10 @@ function runVillage(start: VillageState, startLand: number, opts: RunOptions): R
       }
     }
     if (opts.build && after.dwellings.length > 0) after = tendCemetery(after, day);
+    if (opts.orchard && result.orchardDay === null && after.dwellings.length > 0) {
+      after = plantOrchard(after, day);
+      result.orchardDay = day;
+    }
     if (opts.build) {
       // Hráč staví kdy chce – bot postaví zemnici pro každou plnou domácnost, která nemá kam.
       while (waitingHouseholds(after, day) > 0) {
@@ -633,7 +676,8 @@ type TaskResult =
       endDay: number;
       builder: RunResult;
       loner: RunResult;
-      ms: { builder: number; loner: number };
+      orchard: RunResult;
+      ms: { builder: number; loner: number; orchard: number };
     }
   | { kind: 'probe'; probe: ProbeName; summary: ProbeSummary; ms: number; replays: number };
 
@@ -657,8 +701,14 @@ function runVillageTask(index: number): TaskResult {
     build: false,
     forkPolozemnice: false,
   });
-  const ms = { builder: t1 - t0, loner: performance.now() - t1 };
-  return { kind: 'village', index, foundDay, endDay, builder, loner, ms };
+  const t2 = performance.now();
+  const orchard = runVillage(foundOn(index, foundDay, START_PARTS), START_PARTS, {
+    ...options,
+    forkPolozemnice: false,
+    orchard: true,
+  });
+  const ms = { builder: t1 - t0, loner: t2 - t1, orchard: performance.now() - t2 };
+  return { kind: 'village', index, foundDay, endDay, builder, loner, orchard, ms };
 }
 
 function runProbe(name: ProbeName): TaskResult {
@@ -1013,6 +1063,50 @@ function report(villages: VillageResult[], probes: Record<ProbeName, ProbeSummar
     `jaro ${pct(start.reserves.spring)} | pletí ${pct(start.reserves.weed)} | léto ${pct(start.reserves.summer)} | vše stihne v ${pct(start.finished)} let`,
     ok(Math.min(start.reserves.spring, start.reserves.summer) >= 0.2 && start.finished === 1),
   );
+  // třetí strategie – hráč staví a hned po první zemnici vysadí sad 0,5 ha
+  const orchardYears = villages.flatMap(({ orchard, foundDay, endDay }) =>
+    fullYears(orchard, foundDay, endDay)
+      .filter((y) => orchard.landGoneYear === null || y < orchard.landGoneYear)
+      .map((y) => orchard.minSatiation.get(y) ?? 1),
+  );
+  const orchards = villages.map((v) => v.orchard);
+  row(
+    'Hráč staví + sad 0,5 ha: nasycení ≥ 0,95 celý rok',
+    'jen informace (bez sadu viz výše)',
+    `${pct(share(orchardYears.map((v) => v >= SATIATION_OK)))} let (n ${orchardYears.length}) | na konci domácností medián ${fmt(
+      quantile(
+        orchards.map((r) => r.finalHouseholds),
+        0.5,
+      ),
+      0,
+    )}, lidí ${fmt(
+      quantile(
+        orchards.map((r) => r.finalPeople),
+        0.5,
+      ),
+      0,
+    )} | vymření ${pct(share(orchards.map((r) => r.extinctDay !== null)))}`,
+    'info',
+  );
+  const planted = villages.flatMap(({ orchard }) =>
+    orchard.orchardDay === null ? [] : [{ orchard, from: dateOfDayIndex(orchard.orchardDay).year }],
+  );
+  const firstApples = planted.map(({ orchard, from }) => {
+    const years = [...orchard.appleHarvests.keys()].sort((a, b) => a - b);
+    return years.length > 0 ? years[0]! - from : Infinity;
+  });
+  const fullHarvests = planted.flatMap(({ orchard, from }) =>
+    [...orchard.appleHarvests.entries()]
+      .filter(([y]) => y - from >= ORCHARD_FULL_FROM_YEAR)
+      .map(([, kg]) => kg),
+  );
+  row(
+    'Sad 0,5 ha: první jablka / úroda v plné síle',
+    '6. rok / ≈ 1 500 kg (3 t/ha, ≈ 215 kg obilí)',
+    `první sklizeň medián ${fmt(quantile(firstApples, 0.5), 0)} let po založení | od ${ORCHARD_FULL_FROM_YEAR}. roku sklizeň medián ${fmt(quantile(fullHarvests, 0.5), 0)} kg, p10 ${fmt(quantile(fullHarvests, 0.1), 0)} kg (n ${fullHarvests.length})`,
+    'info',
+  );
+
   const meadowGone = builders.map((r) => r.meadowGoneHouseholds).filter((v) => v !== null);
   row(
     'Louky (35 ha, úrodnost 70) uživí domácností',
@@ -1058,10 +1152,10 @@ async function main(): Promise<void> {
   const cpu = (pick: (v: VillageResult) => number): string =>
     fmt(villages.reduce((sum, v) => sum + pick(v), 0) / 1000);
   const replays =
-    villages.reduce((sum, v) => sum + v.builder.replays + v.loner.replays, 0) +
+    villages.reduce((sum, v) => sum + v.builder.replays + v.loner.replays + v.orchard.replays, 0) +
     results.reduce((sum, r) => sum + (r.kind === 'probe' ? r.replays : 0), 0);
   console.log(
-    `Čas: ${fmt((performance.now() - started) / 1000)} s (CPU: hráč staví ${cpu((v) => v.ms.builder)} s, nestaví ${cpu((v) => v.ms.loner)} s; vláken ${Math.max(1, Math.min(availableParallelism() - 1, tasks.length))}), přepočtů den po dni ${replays}`,
+    `Čas: ${fmt((performance.now() - started) / 1000)} s (CPU: hráč staví ${cpu((v) => v.ms.builder)} s, nestaví ${cpu((v) => v.ms.loner)} s, se sadem ${cpu((v) => v.ms.orchard)} s; vláken ${Math.max(1, Math.min(availableParallelism() - 1, tasks.length))}), přepočtů den po dni ${replays}`,
   );
 }
 

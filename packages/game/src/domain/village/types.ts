@@ -81,7 +81,39 @@ export interface Cemetery {
   /** Den dokončení (vytyčení a ohrazení); dokud se zakládá, null. */
   builtDay: number | null;
 }
-export type ConstructionKind = 'dwelling' | 'rebuild' | 'field' | 'cemetery';
+/**
+ * Čtverec jabloňového sadu – políčko krajiny (orchard.md). Sází se jako stavba ze společné práce
+ * (od nejbližšího k obydlím), od výsadby stromy rostou a plodí podle roku sadu.
+ */
+export interface OrchardSquare {
+  cell: TileCell;
+  /** Plocha čtverce bez skalních výchozů (m²) – jako u dílu pole. */
+  areaM2: number;
+  /** Vzdálenost středu čtverce od nejbližšího obydlí při založení (m) – práce v sadu dražší. */
+  distanceM: number;
+  /** Výsadba: člověkodny (80/ha + překážky) a kolik je hotovo. */
+  plantingCost: number;
+  plantingDone: number;
+  /** Den, kdy osadníci čtverec vysadili; dokud se sází, null. */
+  plantedDay: number | null;
+  /** Překážky na čtverci (id z vrstvy překážek) – zmizí z krajiny, až osadníci čtverec vysadí. */
+  obstacles?: number[];
+}
+/** Jabloňový sad – souvislá skupina čtverců (orchard.md). */
+export interface Orchard {
+  id: number;
+  squares: OrchardSquare[];
+}
+/** Sezónní práce v sadech celé vsi – sklizeň (září–říjen), nebo péče (prosinec–únor). */
+export interface OrchardWork {
+  task: 'harvest' | 'care';
+  /** Potřebné a hotové člověkodny. */
+  required: number;
+  done: number;
+  /** Sklizeň: kg jablek při plné sklizni (péče 0). */
+  yieldKg: number;
+}
+export type ConstructionKind = 'dwelling' | 'rebuild' | 'field' | 'cemetery' | 'orchard';
 export interface Construction {
   id: number;
   kind: ConstructionKind;
@@ -94,8 +126,11 @@ export interface Construction {
   dwellingId: number | null;
   fieldId: number | null; // field – zakládá díly od nejbližšího
   cemeteryId?: number | null; // cemetery (u starších staveb chybí)
+  orchardId?: number | null; // orchard – vysazuje čtverce od nejbližšího (u ostatních chybí)
 }
 export type TaskName = 'reclaim' | 'dig' | 'sow' | 'weed' | 'harvest' | 'thresh';
+/** Sezónní práce v sadech (orchard.md) – v rozdělení práce vedle polních prací. */
+export type OrchardTaskName = 'orchard-care' | 'orchard-harvest';
 export interface YearPlan {
   plannedDay: number;
   partIds: number[];
@@ -117,6 +152,10 @@ export type ChronicleEvent = { day: number } & (
     }
   | { kind: 'rebuild-decided'; dwellingId: number; type: DwellingType }
   | { kind: 'harvest'; kg: number }
+  /** Konec sklizně jablek (1. 11.) – kolik kg se sklidilo. */
+  | { kind: 'apple-harvest'; kg: number }
+  /** Sad dosloužil (60. rok) a vrátil se v louku. */
+  | { kind: 'orchard-gone'; orchardId: number }
   | { kind: 'hunger-began' }
   | { kind: 'hunger-ended' }
   | { kind: 'part-became-forest'; partId: number }
@@ -155,6 +194,12 @@ export interface VillageState {
   clearedObstacles?: ObstacleChange[];
   /** Pokácené stromy – zbyl po nich pařez a z náletu znovu dorostou (TREE_REGROWTH_YEARS). */
   felledTrees?: ObstacleChange[];
+  /** Jabloňové sady – u vsí uložených před zavedením sadů chybí (= žádné). */
+  orchards?: Orchard[];
+  /** Zásoby jablek (kg) – jí se před obilím, 1. 3. shnijí. Chybí = žádná. */
+  applesKg?: number;
+  /** Rozběhnutá sezónní práce v sadech (sklizeň, péče); chybí nebo null = žádná. */
+  orchardWork?: OrchardWork | null;
 }
 
 /** Změna krajiny sídla nad vygenerovanou vrstvou překážek – id překážky a den. */

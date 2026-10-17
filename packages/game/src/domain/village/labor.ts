@@ -1,25 +1,31 @@
 import { DAILY_MIN_PER_HOUSEHOLD, DOMESTIC } from './rules';
-import type { TaskName } from './types';
+import type { OrchardTaskName, TaskName } from './types';
+
+/** Sezónní práce v rozdělení práce vsi – polní (fields.md) a v sadech (orchard.md). */
+export type LaborTaskName = TaskName | OrchardTaskName;
 
 export interface DayAllocationInput {
   capacity: number;
   households: number;
   people: number;
-  tasks: { name: TaskName; remaining: number }[];
+  tasks: { name: LaborTaskName; remaining: number }[];
   repairNeed: number;
   domesticBacklog: number;
 }
 
 export interface DayAllocation {
   dailyMin: number;
-  tasks: Record<TaskName, number>;
+  tasks: Record<LaborTaskName, number>;
   repairs: number;
   domestic: number;
   domesticBacklog: number;
   common: number;
 }
 
-/** Denní rozdělení práce: minimum → úlohy v daném pořadí → opravy → domácí výroba → společná práce. */
+/**
+ * Denní rozdělení práce: minimum → sezónní úlohy (polní i v sadech) v daném pořadí → opravy →
+ * domácí výroba → společná práce.
+ */
 export function allocateDay(input: DayAllocationInput): DayAllocation {
   let left = Math.max(0, input.capacity);
   const take = (wanted: number): number => {
@@ -28,13 +34,15 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
     return amount;
   };
   const dailyMin = take(DAILY_MIN_PER_HOUSEHOLD * input.households);
-  const tasks: Record<TaskName, number> = {
+  const tasks: Record<LaborTaskName, number> = {
     reclaim: 0,
     dig: 0,
     sow: 0,
     weed: 0,
     harvest: 0,
     thresh: 0,
+    'orchard-care': 0,
+    'orchard-harvest': 0,
   };
   for (const task of input.tasks) tasks[task.name] += take(task.remaining);
   const repairs = take(input.repairNeed);

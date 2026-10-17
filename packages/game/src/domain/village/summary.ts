@@ -8,7 +8,14 @@ import {
 } from './cemetery';
 import { isFull, isOvercrowded, waitingHouseholds } from './dwellings';
 import { fallowYears } from './fields';
-import { daysUntilHarvest, eatDay } from './food';
+import { daysUntilAppleRot, daysUntilHarvest, eatMeal, isAppleRotDay } from './food';
+import {
+  orchardAgeYears,
+  orchardAreaM2,
+  orchardExpectedYieldKg,
+  villageApplesKg,
+  villageOrchards,
+} from './orchard';
 import { ageGroup, foodNeedPerDay, occupants } from './people';
 import { CHRONICLE_MAX_EVENTS, DWELLINGS, OVERGROWTH_STAGES } from './rules';
 import type {
@@ -46,6 +53,8 @@ export interface ConstructionSummary {
   /** Zakládané pohřebiště a počet jeho čtverců, u ostatních staveb null. */
   cemeteryId: number | null;
   squares: number | null;
+  /** Vysazovaný sad, u ostatních staveb null (výměra v `areaM2`). */
+  orchardId: number | null;
   /** Průběh 0–1. */
   progress: number;
 }
@@ -66,11 +75,26 @@ export interface CemeterySummary {
   yearsLeft: number | null;
 }
 
+/** Jabloňový sad pro panel – plocha, stáří a odhad úrody (orchard.md – Co hráč vidí). */
+export interface OrchardSummary {
+  id: number;
+  areaM2: number;
+  squares: number;
+  /** Kolik čtverců už je vysazeno. */
+  plantedSquares: number;
+  /** Stáří v celých letech od výsadby; dokud se nic nevysadilo, null. */
+  ageYears: number | null;
+  /** Úroda nejbližší sklizně při plné sklizni (kg jablek). */
+  expectedYieldKg: number;
+}
+
 export interface VillageSummary {
   people: { children: number; adults: number; elders: number };
   households: HouseholdSummary[];
   storesKg: number;
-  /** Na kolik měsíců zásoby vystačí při dnešní potřebě (bez lidí 0). */
+  /** Zásoby jablek (kg) – jí se před obilím, 1. 3. shnijí. */
+  applesKg: number;
+  /** Na kolik měsíců zásoby obilí vystačí při dnešní potřebě (bez lidí 0). */
   storesMonths: number;
   /** Nasycení příštího dne 0–1 podle přídělového systému. */
   satiation: number;
@@ -90,6 +114,8 @@ export interface VillageSummary {
   cemeteries: CemeterySummary[];
   /** Úmrtí za rok v posledních letech (odhad z kroniky) – pro odhad místa na pohřebištích. */
   deathsPerYear: number;
+  /** Jabloňové sady v pořadí založení. */
+  orchards: OrchardSummary[];
 }
 
 const DAYS_PER_YEAR = 365;
@@ -131,18 +157,34 @@ function households(state: VillageState, day: number): HouseholdSummary[] {
   }));
 }
 
-/** Nasycení příštího dne: příděl ze zásob do sklizně (stejně jako eatDay v simulaci). */
+/**
+ * Nasycení příštího dne: příděl ze zásob obilí a jablek do sklizně (stejně jako eatMeal
+ * v simulaci; 1. 3. ráno jablka shnijí).
+ */
 function nextDaySatiation(state: VillageState, day: number, needPerDay: number): number {
   if (needPerDay <= 0) return 1;
   const next = Math.min(day + 1, TOTAL_GAME_DAYS - 1);
-  return eatDay(state.storesKg, needPerDay, daysUntilHarvest(next)).satiation;
+  const apples = isAppleRotDay(next) ? 0 : villageApplesKg(state);
+  return eatMeal(
+    state.storesKg,
+    apples,
+    needPerDay,
+    daysUntilHarvest(next),
+    daysUntilAppleRot(next),
+  ).satiation;
 }
 
 function constructionSummary(state: VillageState, c: Construction): ConstructionSummary {
+  const orchard =
+    c.kind === 'orchard' ? villageOrchards(state).find((o) => o.id === c.orchardId) : undefined;
   const areaM2 =
     c.kind === 'field'
       ? state.parts.filter((p) => p.fieldId === c.fieldId).reduce((s, p) => s + p.areaM2, 0)
-      : null;
+      : c.kind === 'orchard'
+        ? orchard
+          ? orchardAreaM2(orchard)
+          : 0
+        : null;
   return {
     id: c.id,
     kind: c.kind,
@@ -152,6 +194,7 @@ function constructionSummary(state: VillageState, c: Construction): Construction
     areaM2,
     cemeteryId: c.kind === 'cemetery' ? (c.cemeteryId ?? null) : null,
     squares: c.kind === 'cemetery' ? constructionSquares(state, c) : null,
+    orchardId: c.kind === 'orchard' ? (c.orchardId ?? null) : null,
     progress: c.cost > 0 ? Math.min(1, c.done / c.cost) : 1,
   };
 }
@@ -222,6 +265,7 @@ export function summarizeVillage(state: VillageState, day: number): VillageSumma
     people: peopleByGroup(state, day),
     households: households(state, day),
     storesKg: state.storesKg,
+    applesKg: villageApplesKg(state),
     storesMonths:
       needPerDay > 0 ? state.storesKg / ((needPerDay * DAYS_PER_YEAR) / MONTHS_PER_YEAR) : 0,
     satiation: nextDaySatiation(state, day, needPerDay),
@@ -232,5 +276,13 @@ export function summarizeVillage(state: VillageState, day: number): VillageSumma
     constructionsStalled: stalled(state),
     cemeteries: cemeterySummaries(state, deathsPerYear),
     deathsPerYear,
+    orchards: villageOrchards(state).map((o) => ({
+      id: o.id,
+      areaM2: orchardAreaM2(o),
+      squares: o.squares.length,
+      plantedSquares: o.squares.filter((s) => s.plantedDay !== null).length,
+      ageYears: orchardAgeYears(o, day),
+      expectedYieldKg: orchardExpectedYieldKg(o, day),
+    })),
   };
 }

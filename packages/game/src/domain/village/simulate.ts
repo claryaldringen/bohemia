@@ -9,9 +9,19 @@ import {
   wantsRebuild,
 } from './dwellings';
 import { endOfSeason, fallowYears, selectPartsToSow } from './fields';
-import { daysUntilHarvest, eatDay } from './food';
+import { daysUntilAppleRot, daysUntilHarvest, eatMeal } from './food';
 import { recordClearedObstacles } from './obstacles';
-import { allocateDay } from './labor';
+import { allocateDay, type LaborTaskName } from './labor';
+import {
+  ORCHARD_TASK_NAMES,
+  isOrchardPlanted,
+  orchardPlantingNeed,
+  orchardSeasonDay,
+  orchardWorkRemaining,
+  plantOrchard,
+  villageApplesKg,
+  workOrchards,
+} from './orchard';
 import { ageGroup, foodNeedPerDay, isFertileAdult, laborPerDay, occupants } from './people';
 import { householdBreaksUp, populationDay } from './population';
 import {
@@ -24,6 +34,7 @@ import {
   FOOD_NEED_KG_PER_YEAR,
   FOREST_AFTER_YEARS,
   HARVEST_DAY,
+  ORCHARD_WINDOWS,
   PEAK_CAPACITY_SHARE,
   PLANNING_DAY,
   SOW_RESERVE,
@@ -48,6 +59,7 @@ import {
   harvestKg,
   taskRemaining,
   threshLossKg,
+  windowEndOf,
 } from './year-plan';
 
 type DayOfYear = Readonly<Pick<CalendarDate, 'month' | 'day'>>;
@@ -88,6 +100,8 @@ function trimChronicle(state: VillageState): void {
 /** Jeden den vsi v pevném pořadí kroků (mutuje stav). */
 function simulateDay(state: VillageState, day: number): void {
   const date = dateOfDayIndex(day);
+  // sady: shnilá jablka, konec péče a stárnutí (1. 3.), začátek a konec sklizně a péče
+  state.chronicle.push(...orchardSeasonDay(state, day));
   if (isOn(date, PLANNING_DAY)) planYear(state, day, date.year);
   if (date.month >= PLANNING_DAY.month || date.month <= LAST_JOIN_MONTH) {
     joinFinishedParts(state, day, date.year);
@@ -231,7 +245,9 @@ function householdCount(state: VillageState): number {
 
 /**
  * Krok 3: rozdělení práce vsi. Polní úlohy plánu (bez výmlatu – úroda plánu ještě neroste)
- * a výmlat loňské úrody; opravy obydlí poměrně k potřebě; společná práce do staveb.
+ * a výmlat loňské úrody, sezónní práce v sadech podle konce svého okna (sklizeň jablek před
+ * podzimním kopáním, péče až po výmlatu); opravy obydlí poměrně k potřebě; společná práce do
+ * staveb.
  */
 function work(state: VillageState, day: number): void {
   const owned: { name: TaskName; remaining: number; plan: YearPlan }[] = [];
@@ -246,6 +262,18 @@ function work(state: VillageState, day: number): void {
     owned.push({ name: 'thresh', remaining: taskRemaining(threshing, 'thresh'), plan: threshing });
   }
 
+  const tasks: { name: LaborTaskName; remaining: number }[] = owned.map(({ name, remaining }) => ({
+    name,
+    remaining,
+  }));
+  const orchard = orchardTask(state, day);
+  if (orchard) {
+    // polní úlohy se stejným nebo dřívějším koncem okna mají přednost (výmlat před péčí)
+    const month = dateOfDayIndex(day).month;
+    const after = owned.findIndex((t) => (windowEndOf(WINDOWS[t.name], month) ?? 0) > orchard.end);
+    tasks.splice(after < 0 ? tasks.length : after, 0, orchard);
+  }
+
   const households = occupiedDwellings(state);
   const repairNeeds = households.map((d) => repairNeedPerDay(d, day));
   const repairNeed = repairNeeds.reduce((sum, n) => sum + n, 0);
@@ -253,7 +281,7 @@ function work(state: VillageState, day: number): void {
     capacity: state.people.reduce((sum, p) => sum + laborPerDay(p, day), 0),
     households: householdCount(state),
     people: state.people.length,
-    tasks: owned.map(({ name, remaining }) => ({ name, remaining })),
+    tasks,
     repairNeed,
     domesticBacklog: state.domesticBacklog,
   });
@@ -262,6 +290,7 @@ function work(state: VillageState, day: number): void {
     const done = task.plan.done[task.name] + allocation.tasks[task.name];
     task.plan.done[task.name] = Math.min(task.plan.required[task.name], done);
   }
+  if (orchard) workOrchards(state, allocation.tasks[orchard.name]);
   households.forEach((d, i) => {
     const need = repairNeeds[i] ?? 0;
     applyRepairs(d, repairNeed > 0 ? (allocation.repairs * need) / repairNeed : 0, need);
@@ -273,6 +302,19 @@ function work(state: VillageState, day: number): void {
   if (state.commonLaborHistory.length > COMMON_LABOR_HISTORY_DAYS) {
     state.commonLaborHistory.splice(0, state.commonLaborHistory.length - COMMON_LABOR_HISTORY_DAYS);
   }
+}
+
+/** Sezónní práce v sadech dnes (sklizeň, nebo péče) s koncem okna pro pořadí; jinak null. */
+function orchardTask(
+  state: VillageState,
+  day: number,
+): { name: LaborTaskName; remaining: number; end: number } | null {
+  const work = state.orchardWork;
+  const remaining = orchardWorkRemaining(work);
+  if (!work || remaining <= 0) return null;
+  const end = windowEndOf(ORCHARD_WINDOWS[work.task], dateOfDayIndex(day).month);
+  if (end === null) return null;
+  return { name: ORCHARD_TASK_NAMES[work.task], remaining, end };
 }
 
 /**
@@ -293,8 +335,12 @@ function decayEmptyDwellings(state: VillageState, day: number, occupied: Set<num
   state.dwellings = state.dwellings.filter((d) => !gone.has(d.id));
 }
 
-/** Kolik práce stavbě ještě chybí; pole = zbývající zakládání jeho nehotových dílů. */
-function constructionNeed(state: VillageState, c: Construction): number {
+/**
+ * Kolik práce stavbě dnes chybí; pole = zbývající zakládání jeho nehotových dílů, sad =
+ * zbývající výsadba (jen v oknech výsadby – mimo ně stavba čeká).
+ */
+function constructionNeed(state: VillageState, c: Construction, day: number): number {
+  if (c.kind === 'orchard') return orchardPlantingNeed(state, c, day);
   if (c.kind !== 'field') return Math.max(0, c.cost - c.done);
   return foundingParts(state, c).reduce((sum, p) => sum + (p.foundingCost - p.foundingDone), 0);
 }
@@ -309,7 +355,7 @@ function foundingParts(state: VillageState, c: Construction): FieldPart[] {
  */
 function build(state: VillageState, day: number, common: number): void {
   let active = state.constructions
-    .map((c) => ({ c, need: constructionNeed(state, c) }))
+    .map((c) => ({ c, need: constructionNeed(state, c, day) }))
     .filter((x) => x.need > 0);
   let left = common;
   while (active.length > 0 && left > 0) {
@@ -335,6 +381,10 @@ function invest(
   amount: number,
   completes: boolean,
 ): void {
+  if (c.kind === 'orchard') {
+    plantOrchard(state, day, c, amount, completes);
+    return;
+  }
   if (c.kind !== 'field') {
     c.done = completes ? c.cost : Math.min(c.cost, c.done + amount);
     return;
@@ -368,13 +418,14 @@ function invest(
 
 function isFinished(state: VillageState, c: Construction): boolean {
   if (c.kind === 'field') return foundingParts(state, c).length === 0;
+  if (c.kind === 'orchard') return isOrchardPlanted(state, c);
   return c.done >= c.cost;
 }
 
 /**
- * Krok 4: dokončené stavby – nové obydlí, přestavěné obydlí, založené pole a pohřebiště. První
- * zemnice dostane id domácnosti zakladatelů (`dwellingId` stavby) – ti už v ní bydlí, nikdo se
- * nestěhuje. Do jiného nového obydlí se stěhuje mladý pár.
+ * Krok 4: dokončené stavby – nové obydlí, přestavěné obydlí, založené pole, vysazený sad
+ * a pohřebiště. První zemnice dostane id domácnosti zakladatelů (`dwellingId` stavby) – ti už
+ * v ní bydlí, nikdo se nestěhuje. Do jiného nového obydlí se stěhuje mladý pár.
  */
 function finishConstructions(state: VillageState, day: number): void {
   const unfinished: Construction[] = [];
@@ -383,7 +434,7 @@ function finishConstructions(state: VillageState, day: number): void {
       unfinished.push(c);
       continue;
     }
-    if (c.kind === 'field') {
+    if (c.kind === 'field' || c.kind === 'orchard') {
       state.chronicle.push(finishedEvent(day, c, null));
       continue;
     }
@@ -536,11 +587,22 @@ function endThreshing(state: VillageState): void {
   state.threshingFromPlan = null;
 }
 
-/** Krok 8: jídlo dne ze zásob; vrací nasycení a zapíše začátek a konec hladu. */
+/**
+ * Krok 8: jídlo dne ze zásob – jablka přednostně (orchard.md); vrací nasycení a zapíše začátek
+ * a konec hladu.
+ */
 function eat(state: VillageState, day: number): number {
   const need = state.people.reduce((sum, p) => sum + foodNeedPerDay(p, day), 0);
-  const { storesKg, satiation } = eatDay(state.storesKg, need, daysUntilHarvest(day));
+  const meal = eatMeal(
+    state.storesKg,
+    villageApplesKg(state),
+    need,
+    daysUntilHarvest(day),
+    daysUntilAppleRot(day),
+  );
+  const { storesKg, satiation } = meal;
   state.storesKg = storesKg;
+  if (state.applesKg !== undefined) state.applesKg = meal.applesKg;
   const hungry = satiation < 1 - SATIATION_EPSILON;
   if (hungry !== state.hungry) {
     state.hungry = hungry;

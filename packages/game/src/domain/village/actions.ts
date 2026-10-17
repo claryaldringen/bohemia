@@ -3,6 +3,7 @@ import { cemeteryFoundingCost, touchingCemeteries, villageCemeteries } from './c
 import { buildAffordability, payUpfront, type BuildKind } from './costs';
 import { partFoundingCost } from './fields';
 import { recordClearedObstacles } from './obstacles';
+import { orchardPlantingCost, villageOrchards } from './orchard';
 import { ageGroup } from './people';
 import {
   DWELLINGS,
@@ -15,6 +16,7 @@ import type {
   CemeterySquare,
   DwellingType,
   FieldSurface,
+  OrchardSquare,
   Person,
   Position,
   TileCell,
@@ -55,6 +57,18 @@ export type CemeteryInput = {
   /** Strana čtverce – políčka krajiny (m). */
   squareSizeM: number;
 };
+
+/**
+ * Čtverec vysazovaného sadu (z `orchardPartsFromCells`): políčko, plocha bez skalních výchozů,
+ * vzdálenost od nejbližšího obydlí, cena překážek a překážky (id z vrstvy překážek), které
+ * zmizí, až osadníci čtverec vysadí.
+ */
+export type OrchardSquareInput = Pick<OrchardSquare, 'cell' | 'areaM2' | 'distanceM'> & {
+  obstacleCost: number;
+  obstacleIds?: number[];
+};
+
+export type OrchardInput = { squares: OrchardSquareInput[] };
 
 /** Den akce musí být celé číslo uvnitř světa; jinak RangeError. */
 function validateDay(day: number): void {
@@ -402,6 +416,79 @@ export function foundCemetery(
     dwellingId: null,
     fieldId: null,
     cemeteryId,
+  });
+  return next;
+}
+
+/** Ověří vstup sadu; jinak RangeError (čísla, která nejsou konečná, by stav otrávila). */
+function validateOrchard(input: OrchardInput): void {
+  if (input.squares.length === 0) throw new RangeError('Sad musí mít aspoň jeden čtverec.');
+  const cells = new Set<string>();
+  for (const square of input.squares) {
+    if (!Number.isInteger(square.cell.x) || !Number.isInteger(square.cell.y)) {
+      throw new RangeError('Políčko čtverce sadu musí mít celočíselné souřadnice.');
+    }
+    if (!Number.isFinite(square.areaM2) || square.areaM2 <= 0) {
+      throw new RangeError('Plocha čtverce sadu musí být kladná a konečná.');
+    }
+    if (!Number.isFinite(square.distanceM)) {
+      throw new RangeError('Vzdálenost čtverce sadu od vsi musí být konečná.');
+    }
+    if (square.distanceM > FIELD_LIMITS.maxDistanceM) {
+      throw new RangeError(`Čtverec sadu je dál než ${FIELD_LIMITS.maxDistanceM} m od vsi.`);
+    }
+    validateObstacleCost(square.obstacleCost);
+    cells.add(`${square.cell.x},${square.cell.y}`);
+  }
+  if (cells.size !== input.squares.length) throw new RangeError('Čtverce sadu se opakují.');
+  validateObstacleIds(input.squares.flatMap((s) => s.obstacleIds ?? []));
+}
+
+/**
+ * Zahájí výsadbu jabloňového sadu (orchard.md – Stavba): nový sad se čtverci, které se teprve
+ * sázejí, a stavba ze společné práce vsi – 80 člověkodní na hektar + překážky, jen v oknech
+ * výsadby (jaro, podzim). RangeError při neplatném vstupu, překryvu s jiným sadem nebo když ves
+ * nemá suroviny předem. Ostatní pravidla umístění (louka, pole, obydlí, hřbitov, vzdálenost,
+ * souvislost) ověří `orchardPartsFromCells`.
+ *
+ * Konvence dne (jako u `foundField`): akce se volá na ves dopočítanou do dne `day` a patří na
+ * konec toho dne – práci stavba dostane od dne `day + 1`. Den před `state.lastDay` → RangeError.
+ */
+export function foundOrchard(state: VillageState, day: number, input: OrchardInput): VillageState {
+  validateActionDay(state, day);
+  validateOrchard(input);
+  const taken = new Set(
+    villageOrchards(state).flatMap((o) => o.squares.map((s) => `${s.cell.x},${s.cell.y}`)),
+  );
+  if (input.squares.some((s) => taken.has(`${s.cell.x},${s.cell.y}`))) {
+    throw new RangeError('Čtverec už patří sadu.');
+  }
+  requireAffordable(state, 'orchard');
+  const next = structuredClone(state);
+  payUpfront(next, 'orchard');
+  const orchardId = next.nextId++;
+  const squares: OrchardSquare[] = input.squares.map((s) => ({
+    cell: { x: s.cell.x, y: s.cell.y },
+    areaM2: s.areaM2,
+    distanceM: s.distanceM,
+    plantingCost: orchardPlantingCost(s.areaM2, s.obstacleCost),
+    plantingDone: 0,
+    plantedDay: null,
+    ...(s.obstacleIds?.length ? { obstacles: [...s.obstacleIds] } : {}),
+  }));
+  next.orchards = [...villageOrchards(next), { id: orchardId, squares }];
+  next.applesKg ??= 0;
+  next.constructions.push({
+    id: next.nextId++,
+    kind: 'orchard',
+    startedDay: day,
+    cost: squares.reduce((sum, s) => sum + s.plantingCost, 0),
+    done: 0,
+    dwellingType: null,
+    position: null,
+    dwellingId: null,
+    fieldId: null,
+    orchardId,
   });
   return next;
 }

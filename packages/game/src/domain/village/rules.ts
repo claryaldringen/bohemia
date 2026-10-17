@@ -1,5 +1,8 @@
 import type { DwellingType, FieldSurface, TaskName } from './types';
 
+/** Úsek okna prací – od měsíce do měsíce včetně (1–12). */
+export type WindowSegment = readonly [number, number];
+
 // population.md – Pojmy (tabulka obydlí: kapacita, cena, životnost), Chátrání a přestavba (opravy, dětská úmrtnost)
 export const DWELLINGS = {
   zemnice: {
@@ -120,7 +123,7 @@ export const HYGIENE_DEATH_EXTRA = { child: 0.5, adult: 0.3, elder: 0.3 } as con
 export const CHRONICLE_MAX_EVENTS = 500;
 
 // fields.md – Práce, tabulka Kdy (okna prací v měsících včetně; kopání, které se na podzim nestihne, pokračuje v březnu–dubnu)
-export const WINDOWS: Record<TaskName, readonly (readonly [number, number])[]> = {
+export const WINDOWS: Record<TaskName, readonly WindowSegment[]> = {
   reclaim: [[9, 11]],
   dig: [
     [9, 11],
@@ -134,6 +137,40 @@ export const WINDOWS: Record<TaskName, readonly (readonly [number, number])[]> =
     [1, 2],
   ],
 };
+// orchard.md – Pravidla (Martin – oprava podle rešerše 17. 10. 2026): výsadba 80 člověkodní/ha
+// (+ překážky jako u pole), péče v zimě 10 člověkodní/ha ročně, sklizeň 8 člověkodní/ha při plné
+// úrodě (při menší úrodě poměrně méně); první jablka 6. rok po výsadbě, úroda lineárně do plné
+// úrody 25. rok, plná do 50. roku, pak lineárně k nule v 60. roce – tehdy se sad vrátí v louku;
+// plná úroda ≈ 3 t jablek/ha ročně
+export const ORCHARD = {
+  plantingPerHa: 80,
+  carePerHa: 10,
+  harvestPerHa: 8,
+  fullYieldKgPerHa: 3000,
+  firstFruitYear: 6,
+  fullYieldYear: 25,
+  declineAfterYear: 50,
+  endYear: 60,
+} as const;
+// orchard.md – Úroda (jablka mají asi 1/7 výživy obilí na kg: 3 t jablek ≈ 430 kg obilí)
+export const APPLE_FOOD_VALUE = 1 / 7;
+// orchard.md – okna prací v měsících včetně: výsadba na jaře nebo na podzim jako kopání (návrh
+// Clauda), péče (prořezávání) v zimě, sklizeň v září–říjnu. Sezóny péče a sklizně začínají
+// prvním dnem prvního měsíce a končí prvním dnem po posledním měsíci (péče 1. 12. – 1. 3.).
+export const ORCHARD_PLANTING_WINDOWS = WINDOWS.dig;
+export const ORCHARD_WINDOWS: Record<'harvest' | 'care', readonly WindowSegment[]> = {
+  harvest: [[9, 10]],
+  care: [
+    [12, 12],
+    [1, 2],
+  ],
+};
+// orchard.md – Jídlo (jablka se jí přednostně; co zbude k 1. 3., shnije – před jídlem dne)
+export const APPLE_ROT_DAY = { month: 3, day: 1 } as const;
+// orchard.md – Rok sadu (návrh Clauda): hospodářský rok sadu začíná na jaře 1. 3. – jarní
+// výsadba je 1. rokem sadu hned, podzimní (od září) až od příštího jara
+export const ORCHARD_SEASON = { startMonth: 3, autumnPlantingFromMonth: 9 } as const;
+
 // fields.md – Kolik ves oseje (k 1. září), Práce a Včasnost (sklizeň do konce srpna, výmlat do
 // konce února). Musí souhlasit s WINDOWS: sklizeň je poslední den okna harvest, plán den po ní,
 // konec výmlatu den po konci okna thresh (hlídá rules.test.ts).
