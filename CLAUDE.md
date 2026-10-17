@@ -191,6 +191,23 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   shaderu (GLSL i WGSL). **Výjimka z kreslení jen při změně jako voda:** hýbou se jen skupiny
   v záběru, sdílejí `WATER_FPS`, při omezeném pohybu stojí. Ryby se kreslí po vodě (skupina
   vykreslování 1) – hloubku pod kalnou hladinou dělá jejich průhlednost.
+- **Domácí zvířata** (Martin, zatím jen oživení – mechanika později): slepice u hotových obydlí
+  (zemnice 2, polozemnice 3 – `chickensFor`, řemesla později podle základního typu), na
+  obývané obydlí 3 ovce, koza a 2 prasata, kráva na dvě domácnosti; pasáci nejsou.
+  `livestock-placement.ts` je odvodí z dat vsi pro scénu (`SceneVillage`, i nepovinné
+  `cemeteries`) a krajiny: slepice obcházejí dům mimo obdélník domu se šíjí (`chickenBox`),
+  ovce s kozami (stádo na 5 domácností) a krávy se pasou na louce do 300 m (ne pole, hřbitov,
+  obydlí, voda, skála, prudký svah), prasata na okraji lesa do 150 m (jinak do 260 m) jen tam,
+  kde les leží za nimi ve směru výchozího pohledu kamery – hlouběji je zakryjí koruny. Stádo
+  má trasu po sousedních pastvinách a během herních dní se po ní stěhuje tam a zpět
+  (`livestock-motion.ts`, herní den jako dým); zvíře popojde, pase se / zobe / ryje nebo stojí –
+  čisté funkce času, deterministicky. `livestock.ts` (`VillageLivestock`, háček v
+  `landscape-scene.ts`) je kreslí jako fauna: mesh `livestock-*` na druh, krok (parabola přes
+  dvě pózy) a hlava dolů (třetí morph target) ve vertex shaderu, výška a náklon podle terénu.
+  Textura z GLB se čte jako sRGB – StandardMaterial ji převádí zpět (`LIVESTOCK_GAMMA`), jinak
+  jsou zvířata tmavá. Modely v `fauna.json` (ovce, koza, kráva, prase, slepice) jsou ve
+  skutečné velikosti, ve scéně stylizovaně větší (`SCALE`). Terén pro zvířata je rastr 4 m
+  kolem vsi (`livestockGround`) – přepočet jen při změně obydlí, polí nebo hřbitovů.
 - **Ves** (`village-renderer.ts`): obydlí stojí nad skutečnou jámou – terén a obtisky se v ní
   prořezávají (`pit-cut.ts`, discard ve fragment shaderu podle pole uniform, ne textury – terén
   už má 15 samplerů), stěny, dno a schody šíje kreslí `dwelling-pit.ts` (ornice, podloží a stín
