@@ -1,0 +1,14 @@
+[
+  {
+    "name": "basket-a",
+    "dae": "meshes/props/wrld_basket_a.dae",
+    "texture": "textures/skins/props/basket_celt_1.dds",
+    "opaque": true
+  },
+  {
+    "name": "basket-b",
+    "dae": "meshes/props/wrld_basket_b.dae",
+    "texture": "textures/skins/props/basket_celt_1.dds",
+    "opaque": true
+  }
+]
