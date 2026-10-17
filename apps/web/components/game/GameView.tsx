@@ -10,8 +10,17 @@ import { TileInfoPanel } from './TileInfoPanel';
 
 const LOADING_START: { step: LoadingStep; done: number } = { step: 'engine', done: 0.05 };
 
-/** Herní plocha: 3D scéna krajiny přes celé okno a info o políčku pod kurzorem. */
-export function GameView({ landscape }: { landscape: LandscapeTransfer }): ReactElement {
+/**
+ * Herní plocha: 3D scéna krajiny přes celé okno a info o políčku pod kurzorem. `onSceneReady`
+ * dostane hotovou scénu (ves, umisťování staveb) a při jejím zrušení null.
+ */
+export function GameView({
+  landscape,
+  onSceneReady,
+}: {
+  landscape: LandscapeTransfer;
+  onSceneReady?: (scene: LandscapeScene | null) => void;
+}): ReactElement {
   const containerRef = useRef<HTMLDivElement>(null);
   const [tile, setTile] = useState<TileInfo | null>(null);
   const [failed, setFailed] = useState(false);
@@ -20,6 +29,11 @@ export function GameView({ landscape }: { landscape: LandscapeTransfer }): React
   const [soundOn, setSoundOn] = useSoundPreference();
   const sceneRef = useRef<LandscapeScene | null>(null);
   const soundOnRef = useRef(soundOn);
+  const onSceneReadyRef = useRef(onSceneReady);
+
+  useEffect(() => {
+    onSceneReadyRef.current = onSceneReady;
+  }, [onSceneReady]);
 
   useEffect(() => {
     soundOnRef.current = soundOn;
@@ -72,6 +86,7 @@ export function GameView({ landscape }: { landscape: LandscapeTransfer }): React
       if (cancelled) return;
       canvas.dataset.sceneReady = 'true';
       setReady(true);
+      onSceneReadyRef.current?.(scene);
     })().catch((error: unknown) => {
       console.error('Krajinu se nepodařilo zobrazit.', error);
       if (!cancelled) setFailed(true);
@@ -79,6 +94,7 @@ export function GameView({ landscape }: { landscape: LandscapeTransfer }): React
 
     return () => {
       cancelled = true;
+      if (sceneRef.current) onSceneReadyRef.current?.(null);
       sceneRef.current = null;
       dispose?.();
       canvas.remove();

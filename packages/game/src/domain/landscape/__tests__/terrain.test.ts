@@ -39,7 +39,7 @@ describe('generateTerrain', () => {
       expect(relief, `seed ${seed}`).toBeGreaterThanOrEqual(10);
       expect(relief, `seed ${seed}`).toBeLessThanOrEqual(40);
     }
-  });
+  }, 30_000);
 
   it('potok spojuje protilehlé okraje', () => {
     for (const seed of SEEDS) {

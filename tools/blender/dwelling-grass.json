@@ -1,0 +1,14 @@
+[
+  {
+    "name": "grass-tuft-1",
+    "dae": "meshes/gaia/cross_large_short.dae",
+    "texture": "textures/skins/gaia/grass_field_lush_tall.dds",
+    "scale": 0.11
+  },
+  {
+    "name": "grass-tuft-2",
+    "dae": "meshes/gaia/cross_large_tall.dae",
+    "texture": "textures/skins/gaia/grass_field_lush_tall_b.dds",
+    "scale": 0.1
+  }
+]

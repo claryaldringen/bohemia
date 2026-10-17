@@ -1,0 +1,139 @@
+import { TOTAL_GAME_DAYS } from '../calendar';
+import { canStartNewDwelling, isFull, isOvercrowded, qualifyingDwellings } from './dwellings';
+import { fallowYears } from './fields';
+import { daysUntilHarvest, eatDay } from './food';
+import { ageGroup, foodNeedPerDay, occupants } from './people';
+import { DWELLINGS, OVERGROWTH_STAGES } from './rules';
+import type {
+  Construction,
+  ConstructionKind,
+  DwellingType,
+  FieldPart,
+  VillageState,
+} from './types';
+
+// Souhrn vsi pro panel hráče a scénu – jen čte stav, nic nemění.
+
+/** Stadium dílu pro scénu: zakládá se, připravený, osetý, nebo příloh podle let zarůstání. */
+export type PartStage =
+  'founding' | 'ready' | 'sown' | 'young-fallow' | 'meadow' | 'young-growth' | 'shrub' | 'forest';
+
+export interface HouseholdSummary {
+  dwellingId: number;
+  type: DwellingType;
+  occupants: number;
+  capacity: number;
+  full: boolean;
+  overcrowded: boolean;
+  condition: number;
+}
+
+export interface ConstructionSummary {
+  id: number;
+  kind: ConstructionKind;
+  dwellingType: DwellingType | null;
+  dwellingId: number | null;
+  fieldId: number | null;
+  /** Výměra zakládaného pole (m²), u obydlí null. */
+  areaM2: number | null;
+  /** Průběh 0–1. */
+  progress: number;
+}
+
+/** Proč nejde zahájit nové obydlí: žádná domácnost nesplňuje podmínku / už se staví. */
+export type BuildBlocker = 'no-full-household' | 'already-building';
+
+export interface VillageSummary {
+  people: { children: number; adults: number; elders: number };
+  households: HouseholdSummary[];
+  storesKg: number;
+  /** Na kolik měsíců zásoby vystačí při dnešní potřebě (bez lidí 0). */
+  storesMonths: number;
+  /** Nasycení příštího dne 0–1 podle přídělového systému. */
+  satiation: number;
+  /** Průměrná společná práce za den (posledních 30 dní). */
+  commonLaborPerDay: number;
+  canBuildDwelling: boolean;
+  buildBlocker: BuildBlocker | null;
+  constructions: ConstructionSummary[];
+}
+
+const DAYS_PER_YEAR = 365;
+const MONTHS_PER_YEAR = 12;
+
+/** Stadium dílu v daný den; příloh podle celých let zarůstání (fields.md – Zarůstání). */
+export function partStage(part: FieldPart, day: number): PartStage {
+  if (part.state !== 'fallow') return part.state;
+  const years = fallowYears(part, day);
+  return OVERGROWTH_STAGES.find((s) => years <= s.maxYears)?.stage ?? 'forest';
+}
+
+function peopleByGroup(state: VillageState, day: number): VillageSummary['people'] {
+  const people = { children: 0, adults: 0, elders: 0 };
+  for (const person of state.people) {
+    const group = ageGroup(person, day);
+    if (group === 'child') people.children++;
+    else if (group === 'adult') people.adults++;
+    else people.elders++;
+  }
+  return people;
+}
+
+function households(state: VillageState, day: number): HouseholdSummary[] {
+  return state.dwellings.map((d) => ({
+    dwellingId: d.id,
+    type: d.type,
+    occupants: occupants(state, d.id).length,
+    capacity: DWELLINGS[d.type].capacity,
+    full: isFull(state, d.id, day),
+    overcrowded: isOvercrowded(state, d.id, day),
+    condition: d.condition,
+  }));
+}
+
+/** Nasycení příštího dne: příděl ze zásob do sklizně (stejně jako eatDay v simulaci). */
+function nextDaySatiation(state: VillageState, day: number, needPerDay: number): number {
+  if (needPerDay <= 0) return 1;
+  const next = Math.min(day + 1, TOTAL_GAME_DAYS - 1);
+  return eatDay(state.storesKg, needPerDay, daysUntilHarvest(next)).satiation;
+}
+
+function constructionSummary(state: VillageState, c: Construction): ConstructionSummary {
+  const areaM2 =
+    c.kind === 'field'
+      ? state.parts.filter((p) => p.fieldId === c.fieldId).reduce((s, p) => s + p.areaM2, 0)
+      : null;
+  return {
+    id: c.id,
+    kind: c.kind,
+    dwellingType: c.dwellingType,
+    dwellingId: c.dwellingId,
+    fieldId: c.fieldId,
+    areaM2,
+    progress: c.cost > 0 ? Math.min(1, c.done / c.cost) : 1,
+  };
+}
+
+/** Souhrn vsi v den `day` (stav má být dopočítaný do tohoto dne). */
+export function summarizeVillage(state: VillageState, day: number): VillageSummary {
+  const needPerDay = state.people.reduce((sum, p) => sum + foodNeedPerDay(p, day), 0);
+  const history = state.commonLaborHistory;
+  const canBuild = canStartNewDwelling(state, day);
+  const blocker: BuildBlocker | null = canBuild
+    ? null
+    : qualifyingDwellings(state, day).length === 0
+      ? 'no-full-household'
+      : 'already-building';
+  return {
+    people: peopleByGroup(state, day),
+    households: households(state, day),
+    storesKg: state.storesKg,
+    storesMonths:
+      needPerDay > 0 ? state.storesKg / ((needPerDay * DAYS_PER_YEAR) / MONTHS_PER_YEAR) : 0,
+    satiation: nextDaySatiation(state, day, needPerDay),
+    commonLaborPerDay: history.length > 0 ? history.reduce((s, v) => s + v, 0) / history.length : 0,
+    canBuildDwelling: canBuild,
+    buildBlocker: blocker,
+    constructions: state.constructions.map((c) => constructionSummary(state, c)),
+  };
+}

@@ -69,8 +69,9 @@ do gitu (po smazání by ho vytvořil znovu).
 ```
 apps/web/            Next.js – úvodní stránka, registrace, přihlášení, herní plocha (/game)
   app/api/auth/      Better Auth endpointy
-  components/        React komponenty (auth/ formuláře, game/ herní plocha, GameDateBadge)
-  lib/               serverová a pomocná logika (auth, session, db, game – composition root)
+  components/        React komponenty (auth/ formuláře, game/ herní plocha a ves, GameDateBadge)
+  hooks/             React hooky (umisťování staveb ve scéně, dotazování na ves)
+  lib/               serverová a pomocná logika (auth, session, db, game a village – composition root)
   lib/scene/         3D scéna krajiny v Babylonu – čisté TS třídy bez Reactu
   public/models/     modely stromů, dekorací a zvířat a atlas impostorů z 0 A.D. (licence v LICENSES.md)
   e2e/               Playwright testy (proti produkčnímu buildu a databázi bohemia_test)
@@ -189,6 +190,27 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   uvést Wildfire Games, upravené soubory pod stejnou licencí). Zdroj a původní název každého
   souboru do `LICENSE.md` / `LICENSES.md` vedle něj. Převod stromů, atlas impostorů a render
   textury korun: `tools/blender/` (headless Blender 5, `blender -b --factory-startup --python …`).
+
+## Ves (hratelný prototyp)
+
+Pravidla v [docs/design/population.md](docs/design/population.md) a
+[docs/design/fields.md](docs/design/fields.md), rozhraní částí v
+[docs/superpowers/plans/2026-10-17-village-slice.md](docs/superpowers/plans/2026-10-17-village-slice.md).
+
+- **Jádro** `packages/game/src/domain/village/` (simulace, umístění `placement.ts`, souhrn
+  `summary.ts`), use-casy a port `VillageRepository` v `application/`, tabulka `village`.
+  Ves se dopočítá při každém načtení a akci (worker zatím není).
+- **Web:** server actions `app/game/actions.ts` (`getVillageView`, `foundVillage`, `placeDwelling`,
+  `placeField` → `VillageView` / `null` / `{ error }`), composition root `lib/village.ts`,
+  `lib/village-view.ts` (DTO, smí i do prohlížeče). Typy pro scénu jsou odvozené odtud
+  a z `@bohemia/game` – nedefinovat je znovu ve scéně.
+- **Rozhraní** `components/game/VillageGame.tsx`: `FoundingPanel` (jméno → zemnice → pole),
+  `VillagePanel`, `BuildMenu`, `PlacementBubble`; `hooks/use-placement.ts` (umisťování ve scéně
+  pro React), `hooks/use-polling.ts` (ves každých 5 s, jen při viditelném panelu). Kontroly
+  umístění běží v prohlížeči nad stejnými funkcemi jádra, server je ověří znovu.
+- **e2e:** testy běží v běžícím pomalém světě (2000–2200). Kliknutí do scény nahrazuje háček
+  `window.__bohemiaE2E.confirmPlacement` (`lib/e2e-hooks.ts`) – existuje jen v buildu
+  s `NEXT_PUBLIC_E2E_HOOKS=1` (nastavuje `playwright.config.ts`), jinde se z kódu vypustí.
 
 ## Příkazy
 

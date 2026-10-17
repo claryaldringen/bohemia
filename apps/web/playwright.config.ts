@@ -26,9 +26,12 @@ export default defineConfig({
       MAIL_OUTBOX_DIR,
       BETTER_AUTH_URL: BASE_URL,
       BETTER_AUTH_SECRET: 'e2e-testovaci-tajemstvi-jen-pro-lokalni-testy',
-      // Pevný svět daleko v budoucnu – výsledek testů nezávisí na dnešním datu.
-      WORLD_START: '2100-01-01T00:00:00+01:00',
-      WORLD_END: '2101-01-01T00:00:00+01:00',
+      // Běžící pomalý svět (200 let = 1000 herních let, herní den ≈ 4,8 h) – ves jde založit
+      // a během testů se herní datum prakticky nemění.
+      WORLD_START: '2000-01-01T00:00:00+01:00',
+      WORLD_END: '2200-01-01T00:00:00+01:00',
+      // Testovací háček umisťování staveb (lib/e2e-hooks.ts) – vepíše se do tohoto buildu.
+      NEXT_PUBLIC_E2E_HOOKS: '1',
       // Google se v testech nepoužívá – tlačítko se nezobrazí.
       GOOGLE_CLIENT_ID: '',
       GOOGLE_CLIENT_SECRET: '',

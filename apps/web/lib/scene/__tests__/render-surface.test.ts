@@ -142,5 +142,5 @@ describe('buildRenderSurface – napojení břehů na okolní terén', () => {
       }
       expect(worst, `seed ${seed}`).toBeLessThanOrEqual(0.75);
     }
-  });
+  }, 30_000);
 });

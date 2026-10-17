@@ -6,3 +6,4 @@ export {
   MAX_ATTEMPTS,
 } from './generate';
 export { checkBand, measureLandscape, type LandscapeMetrics } from './band';
+export { heightAtWorld, tileCenterWorld, tileOfWorldPoint } from './world';

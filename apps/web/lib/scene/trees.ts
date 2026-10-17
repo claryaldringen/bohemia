@@ -7,6 +7,7 @@ import { Matrix, Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import type { Scene } from '@babylonjs/core/scene';
 import { applyGammaFog } from './gamma-fog';
+import { setStaticInstances } from './instanced-model';
 import { TREE_MODELS, type TreePlacement } from './tree-placement';
 
 /**
@@ -83,7 +84,7 @@ export async function addTrees(
         );
         matrix.copyToArray(matrices, i * 16);
       });
-      tree.thinInstanceSetBuffer('matrix', matrices, 16, true);
+      setStaticInstances(tree, matrices);
     }),
   );
   for (const result of results) {

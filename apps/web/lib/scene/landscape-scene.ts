@@ -23,11 +23,17 @@ import { addImpostors } from './impostors';
 import { meadowTreePlacements } from './meadow-trees';
 import { createTerrainMesh } from './terrain-mesh';
 import { buildRenderSurface } from './render-surface';
-import { addSunShadows } from './sun-shadows';
+import { terrainMeshHeight } from './drape';
+import { InstanceHider } from './instance-hider';
+import { addSunShadows, type SunShadows } from './sun-shadows';
 import { buildRelief } from './terrain-relief';
 import { tileAt, tileCenter } from './tile-at';
 import { treePlacements } from './tree-placement';
 import { addTrees } from './trees';
+import { PlacementController } from './village-placement';
+import { VillageRenderer } from './village-renderer';
+import type { SceneVillage } from '../village-view';
+import type { PlacementHandlers, PlacementMode } from './village-types';
 import { createWaterMesh, type WaterSurface } from './water';
 import { deadwoodPlacements, pinePlacements, youngTreePlacements } from './woodland-placement';
 
@@ -70,6 +76,15 @@ export class LandscapeScene {
   /** Zvuky krajiny – vznikají až po přípravě scény. */
   private ambient: AmbientSound | null = null;
   private soundEnabled = true;
+  private shadows: SunShadows | null = null;
+  /** Vrhače stínu vsi, které vznikly dřív než stínová mapa. */
+  private readonly pendingCasters: Mesh[] = [];
+  /** Stromy a kameny krajiny, které se skrývají pod stavbami a poli. */
+  private readonly hider = new InstanceHider();
+  private village: VillageRenderer | null = null;
+  /** Poslední stav vsi od rozhraní – vykreslí se, jakmile je krajina hotová. */
+  private villageState: SceneVillage | null = null;
+  private placement: PlacementController | null = null;
 
   private constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -137,6 +152,19 @@ export class LandscapeScene {
     if (this.disposed) return;
     const surface = buildRenderSurface(landscape);
     const groundHeight = (x: number, z: number): number => surface.heightAt(x, z) * HEIGHT_SCALE;
+    this.village = new VillageRenderer(this.scene, {
+      groundHeight,
+      decalHeight: (x, z) => terrainMeshHeight(surface, x, z),
+      addShadowCaster: (mesh) => {
+        if (this.shadows) this.shadows.addCaster(mesh);
+        else this.pendingCasters.push(mesh);
+      },
+      onAsyncChange: () => {
+        this.shadows?.refresh();
+        this.renderWhenReady();
+      },
+      requestRender: () => this.renderWhenReady(),
+    });
     await report('forest', 0.4);
     if (this.disposed) return;
     const field = buildForestField(landscape);
@@ -202,17 +230,28 @@ export class LandscapeScene {
       ),
     ]);
     if (this.disposed) return;
+    // Stromy a dekorace pod stavbami a poli vsi se skryjí (thin instances podle polohy paty).
+    this.hider.track(
+      this.scene.meshes.filter(
+        (mesh): mesh is Mesh => mesh instanceof Mesh && /^(trees|decor)-/.test(mesh.name),
+      ),
+    );
     const sun = this.scene.getLightByName('sun');
     if (sun instanceof DirectionalLight) {
-      addSunShadows(sun, {
-        casters: this.scene.meshes.filter(
-          (mesh): mesh is Mesh =>
-            mesh instanceof Mesh && /^(trees|impostors|decor)-/.test(mesh.name),
-        ),
+      this.shadows = addSunShadows(sun, {
+        casters: [
+          ...this.scene.meshes.filter(
+            (mesh): mesh is Mesh =>
+              mesh instanceof Mesh && /^(trees|impostors|decor)-/.test(mesh.name),
+          ),
+          ...this.pendingCasters.filter((mesh) => !mesh.isDisposed()),
+        ],
         receivers: this.terrain ? [this.terrain] : [],
         extentM: landscape.size * landscape.cellSizeM,
       });
+      this.pendingCasters.length = 0;
     }
+    this.applyVillage();
     await report('shaders', 0.92);
     if (this.disposed) return;
     await this.scene.whenReadyAsync();
@@ -237,6 +276,72 @@ export class LandscapeScene {
     this.ambient?.setEnabled(enabled);
   }
 
+  /**
+   * Vykreslí ves (inkrementálně – přestaví jen obydlí a pole, která se změnila; krajina zůstane).
+   * Jde volat kdykoli, i před dokončením `setLandscape` – ves se pak ukáže s krajinou.
+   */
+  setVillage(village: SceneVillage): void {
+    if (this.disposed) return;
+    this.villageState = village;
+    this.applyVillage();
+  }
+
+  /**
+   * Umisťování obydlí nebo kreslení pole (viz PlacementController). Běžící umisťování se
+   * nejdřív zruší (jeho `onCancel`). Po potvrzení nebo zrušení skončí samo.
+   */
+  startPlacement(mode: PlacementMode, handlers: PlacementHandlers): void {
+    if (this.disposed) return;
+    this.placement?.cancel();
+    const camera = this.rtsCamera;
+    const village = this.village;
+    if (!camera || !village) throw new Error('Umisťovat jde až po načtení krajiny.');
+    const controller: PlacementController = new PlacementController(
+      {
+        scene: this.scene,
+        canvas: this.canvas,
+        pickGround: (x, y) => this.pickGround(x, y),
+        decalHeight: (x, z) => village.decalHeight(x, z),
+        metersPerPixel: () =>
+          (2 * camera.camera.radius * Math.tan(camera.camera.fov / 2)) /
+          Math.max(1, this.canvas.clientHeight),
+        cameraAlpha: () => camera.camera.alpha,
+        setCameraKeyRotation: (enabled) => camera.setKeyRotation(enabled),
+        ghostModel: (type) => village.ghostModel(type),
+        baseHeight: (d) => village.baseHeight(d),
+        requestRender: () => {
+          this.needsRender = true;
+        },
+      },
+      mode,
+      {
+        onConfirm: (result) => {
+          if (this.placement === controller) this.placement = null;
+          handlers.onConfirm(result);
+        },
+        onCancel: () => {
+          if (this.placement === controller) this.placement = null;
+          handlers.onCancel();
+        },
+        onPreview: handlers.onPreview ? (preview) => handlers.onPreview?.(preview) : undefined,
+      },
+    );
+    this.placement = controller;
+    if (mode.kind === 'dwelling') {
+      // Model ducha se načte (jednou) a pak naskočí pod kurzorem.
+      void village.loadModels().then(() => {
+        if (this.placement === controller) this.pointerMoved = this.pointerInside;
+      });
+    }
+    this.pointerMoved = this.pointerInside;
+    this.renderWhenReady();
+  }
+
+  /** Zruší umisťování (zavolá jeho `onCancel`); bez umisťování nic nedělá. */
+  cancelPlacement(): void {
+    this.placement?.cancel();
+  }
+
   onTileHover(listener: HoverListener): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
@@ -246,6 +351,9 @@ export class LandscapeScene {
     if (this.disposed) return;
     this.disposed = true;
     this.listeners.clear();
+    this.placement?.dispose();
+    this.placement = null;
+    this.village?.dispose();
     this.resizeObserver.disconnect();
     this.canvas.removeEventListener('pointermove', this.onPointerMove);
     this.canvas.removeEventListener('pointerleave', this.onPointerLeave);
@@ -264,8 +372,42 @@ export class LandscapeScene {
   private readonly onPointerLeave = (): void => {
     this.pointerInside = false;
     this.pointerMoved = false;
+    this.placement?.setCursor(null, null);
     this.emit(null);
   };
+
+  /** Překreslí ves podle posledního stavu a skryje stromy a kameny pod ní. */
+  private applyVillage(): void {
+    const village = this.village;
+    if (!village || !this.villageState) return;
+    const changed = village.update(this.villageState);
+    const hidden = this.hider.apply(village.hideShapes());
+    // Rozhraní posílá stav vsi opakovaně (dotaz každých pár sekund) – beze změny nic.
+    if (!changed && !hidden) return;
+    this.shadows?.refresh();
+    this.renderWhenReady();
+  }
+
+  /**
+   * Překreslit hned a znovu, až budou hotové shadery a textury nových meshů (kompilují se
+   * a stahují asynchronně – bez toho by do dalšího pohybu kamery zůstal neúplný obraz).
+   */
+  private renderWhenReady(): void {
+    this.renderBurst(300);
+    void this.scene.whenReadyAsync().then(() => {
+      if (!this.disposed) this.renderBurst(300);
+    });
+  }
+
+  /** Bod terénu pod pixelem plátna (CSS px) jako [x, z], nebo null mimo krajinu. */
+  private pickGround(x: number, y: number): [number, number] | null {
+    const terrain = this.terrain;
+    if (!terrain || !this.landscape) return null;
+    const pick = this.scene.pick(x, y, (mesh) => mesh === terrain);
+    const point = pick?.hit ? pick.pickedPoint : null;
+    if (!point || !tileAt(this.landscape, point.x, point.z)) return null;
+    return [point.x, point.z];
+  }
 
   /**
    * Krajina je statická – kreslí se jen při změně pohledu nebo velikosti okna. Šetří to
@@ -298,6 +440,7 @@ export class LandscapeScene {
       this.ambient?.setView({ x: target.x, z: target.z, radius });
     }
     this.pickHoveredTile();
+    this.placement?.tick(now);
     if (!this.needsRender) return;
     this.needsRender = false;
     this.scene.render(false);
@@ -312,18 +455,14 @@ export class LandscapeScene {
     this.needsRender = true;
   }
 
-  /** Pick jednou za snímek, ne při každém pohybu myši. */
+  /** Pick jednou za snímek, ne při každém pohybu myši – políčko pod kurzorem i umisťování. */
   private pickHoveredTile(): void {
     if (!this.pointerMoved || !this.landscape || !this.terrain) return;
     this.pointerMoved = false;
-    const terrain = this.terrain;
-    const pick = this.scene.pick(
-      this.scene.pointerX,
-      this.scene.pointerY,
-      (mesh) => mesh === terrain,
-    );
-    const point = pick?.hit ? pick.pickedPoint : null;
-    const tile = point ? tileAt(this.landscape, point.x, point.z) : null;
+    const { pointerX, pointerY } = this.scene;
+    const point = this.pickGround(pointerX, pointerY);
+    this.placement?.setCursor(point, point ? { x: pointerX, y: pointerY } : null);
+    const tile = point ? tileAt(this.landscape, point[0], point[1]) : null;
     if (!tile) {
       this.emit(null);
       return;

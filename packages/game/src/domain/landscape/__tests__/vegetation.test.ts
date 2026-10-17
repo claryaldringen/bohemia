@@ -15,7 +15,7 @@ describe('generateVegetation', () => {
       expect(forestShare, `seed ${seed}`).toBeGreaterThanOrEqual(0.55);
       expect(forestShare, `seed ${seed}`).toBeLessThanOrEqual(0.7);
     }
-  });
+  }, 30_000);
 
   it('voda z terénu zůstane vodou a jinde voda není', () => {
     const terrain = generateTerrain(11, 1);

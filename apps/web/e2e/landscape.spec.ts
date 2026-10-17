@@ -304,7 +304,7 @@ test('přepínač zvuků krajiny se přepíná a volba vydrží nové načtení'
   const toggle = page.getByRole('button', { name: 'Zvuky krajiny' });
   await expect(toggle).toHaveAttribute('aria-pressed', 'true');
   // Leží pod datem vpravo nahoře, nepřekrývá ho.
-  const date = (await page.getByText(/^Svět začne/).boundingBox())!;
+  const date = (await page.getByTestId('game-date').boundingBox())!;
   const box = (await toggle.boundingBox())!;
   expect(box.y).toBeGreaterThanOrEqual(date.y + date.height);
 

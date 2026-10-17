@@ -17,7 +17,7 @@ const SHADOW_DARKNESS = 0.35;
 export function addSunShadows(
   sun: DirectionalLight,
   options: { casters: readonly Mesh[]; receivers: readonly Mesh[]; extentM: number },
-): { refresh(): void; dispose(): void } {
+): SunShadows {
   const half = options.extentM / 2;
   // Pevný výřez přes celou krajinu (při pohledu ze slunce je čtverec mapy natočený, proto √2).
   // Automatické přizpůsobení podle stromů by se měnilo s každým druhem a stíny by poskakovaly.
@@ -44,6 +44,18 @@ export function addSunShadows(
   if (map) map.refreshRate = RenderTargetTexture.REFRESHRATE_RENDER_ONCE;
   return {
     refresh: () => map?.resetRefreshCounter(),
+    addCaster: (mesh) => {
+      generator.addShadowCaster(mesh, false);
+      map?.resetRefreshCounter();
+    },
     dispose: () => generator.dispose(),
   };
+}
+
+export interface SunShadows {
+  /** Vykreslí stínovou mapu znovu (po změně vrhačů – stavby, skryté stromy). */
+  refresh(): void;
+  /** Přidá vrhač stínu (vesnice vzniká až po krajině) a mapu obnoví. */
+  addCaster(mesh: Mesh): void;
+  dispose(): void;
 }
