@@ -1,9 +1,10 @@
 import type { Mesh } from '@babylonjs/core/Meshes/mesh';
+import { staticInstanceMatrices } from './instanced-model';
 import { hiddenMask, type HideShape } from './village-layout';
 
 interface Tracked {
   mesh: Mesh;
-  /** Původní matice všech instancí (16 čísel na instanci). */
+  /** Původní matice všech instancí (16 čísel na instanci) – nemění se, jen se nahrazují. */
   matrices: Float32Array;
   /** Pata instance x, z po dvojicích. */
   positions: Float32Array;
@@ -18,18 +19,17 @@ interface Tracked {
 export class InstanceHider {
   private readonly tracked: Tracked[] = [];
 
-  /** Zaznamená meshe s thin instancemi (volat po načtení modelů krajiny). */
+  /** Zaznamená meshe s nehybnými instancemi (`setStaticInstances`) po načtení krajiny. */
   track(meshes: readonly Mesh[]): void {
     for (const mesh of meshes) {
-      const count = mesh.thinInstanceCount;
-      if (count <= 0 || this.tracked.some((t) => t.mesh === mesh)) continue;
-      const matrices = new Float32Array(count * 16);
+      const matrices = staticInstanceMatrices(mesh);
+      if (!matrices || this.tracked.some((t) => t.mesh === mesh)) continue;
+      const count = matrices.length / 16;
       const positions = new Float32Array(count * 2);
-      mesh.thinInstanceGetWorldMatrices().forEach((matrix, i) => {
-        matrix.copyToArray(matrices, i * 16);
+      for (let i = 0; i < count; i++) {
         positions[i * 2] = matrices[i * 16 + 12]!;
         positions[i * 2 + 1] = matrices[i * 16 + 14]!;
-      });
+      }
       this.tracked.push({ mesh, matrices, positions, hidden: '' });
     }
   }
@@ -54,9 +54,9 @@ export class InstanceHider {
         t.mesh.setEnabled(false);
         continue;
       }
-      const matrices =
-        hiddenIndices.length === 0 ? t.matrices.slice() : new Float32Array(visible * 16);
+      let matrices = t.matrices;
       if (hiddenIndices.length > 0) {
+        matrices = new Float32Array(visible * 16);
         let k = 0;
         mask.forEach((hide, i) => {
           if (hide) return;

@@ -32,8 +32,22 @@ export async function addInstancedModel(
   if (instances.length === 0) return null;
   const model = await loadMergedModel(scene, url, name, prepareMaterial);
   if (!model) return null;
-  model.thinInstanceSetBuffer('matrix', instanceMatrices(instances), 16, true);
+  setStaticInstances(model, instanceMatrices(instances));
   return model;
+}
+
+/** Původní matice instancí nehybných meshů (stromy, dekorace) – pro skrývání pod vsí. */
+const staticInstances = new WeakMap<Mesh, Float32Array>();
+
+/** Nastaví meshi nehybné instance a zapamatuje si jejich matice (Babylon drží stejné pole). */
+export function setStaticInstances(mesh: Mesh, matrices: Float32Array): void {
+  mesh.thinInstanceSetBuffer('matrix', matrices, 16, true);
+  staticInstances.set(mesh, matrices);
+}
+
+/** Matice instancí z `setStaticInstances`, nebo undefined. */
+export function staticInstanceMatrices(mesh: Mesh): Float32Array | undefined {
+  return staticInstances.get(mesh);
 }
 
 /**
