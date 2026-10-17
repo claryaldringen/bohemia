@@ -1,11 +1,52 @@
-// Fáze stavby obydlí bez Babylonu: co staveniště ukáže při průběhu 0–1 – díly modelu
-// z construction.glb (tools/blender/dwellings.py), hloubka jámy, obtisky a rekvizity.
-// Souřadnice modelu jako `localToWorld` (x napříč, z k vchodu).
+// Fáze stavby bez Babylonu: co staveniště ukáže při průběhu 0–1 – díly modelu z construction.glb
+// (obydlí: tools/blender/dwellings.py, řemeslné dílny a milíř: tools/blender/crafts.py), hloubka
+// jámy, obtisky a rekvizity. Každý druh stavby má svou tabulku fází; řemeslné dílny stojí na
+// fázích obydlí (hrnčíř a kovář polozemnice, uhlíř zemnice) a přidávají své. Souřadnice modelu
+// jako `localToWorld` (x napříč, z k vchodu).
 import { PIT_SHAPES } from './dwelling-pit';
 import type { DwellingType } from '@bohemia/game';
 
+/**
+ * Řemeslné stavby – zatím jen modely (docs/design/crafts.md čeká na schválení): hrnčíř, kovář,
+ * uhlíř a milíř, který stojí kus od uhlířovy zemnice a staví se zvlášť.
+ */
+export type CraftKind = 'hrncir' | 'kovar' | 'uhlir' | 'milir';
+export const CRAFT_KINDS: readonly CraftKind[] = ['hrncir', 'kovar', 'uhlir', 'milir'];
+/** Druh stavby, který umí staveniště: obydlí nebo řemeslná stavba. */
+export type ConstructionKind = DwellingType | CraftKind;
+
+/** Obydlí, na jehož fázích (a v jehož jámě) stavba stojí; milíř nemá jámu ani obydlí. */
+export const CONSTRUCTION_BASE: Record<ConstructionKind, DwellingType | null> = {
+  zemnice: 'zemnice',
+  polozemnice: 'polozemnice',
+  hrncir: 'polozemnice',
+  kovar: 'polozemnice',
+  uhlir: 'zemnice',
+  milir: null,
+};
+
 export type ConstructionPhaseId =
-  'layout' | 'turf' | 'dig' | 'posts' | 'logs' | 'frame' | 'wattle' | 'daub' | 'thatch' | 'finish';
+  | 'layout'
+  | 'turf'
+  | 'dig'
+  | 'posts'
+  | 'logs'
+  | 'frame'
+  | 'porch'
+  | 'wattle'
+  | 'daub'
+  | 'thatch'
+  | 'moss'
+  | 'finish'
+  | 'kiln'
+  | 'forge'
+  | 'workshop'
+  | 'ground'
+  | 'ring'
+  | 'stack'
+  | 'cover'
+  | 'top'
+  | 'vents';
 
 export interface ConstructionPhase {
   id: ConstructionPhaseId;
@@ -15,12 +56,35 @@ export interface ConstructionPhase {
   to: number;
 }
 
+/** Fáze polozemnice s přístřeškem (hrnčíř, kovář) až po hřeben – pak pec / výheň a dílna. */
+function porchHousePhases(
+  craft: ConstructionPhase,
+  workshop: ConstructionPhase,
+): readonly ConstructionPhase[] {
+  return [
+    { id: 'layout', label: 'vytyčení – kolíky a provázek', from: 0, to: 0.04 },
+    { id: 'turf', label: 'sejmutí drnu', from: 0.04, to: 0.09 },
+    { id: 'dig', label: 'kopání jámy', from: 0.09, to: 0.19 },
+    { id: 'logs', label: 'roubení stěn', from: 0.19, to: 0.32 },
+    { id: 'frame', label: 'vaznice, sloupy a krokve', from: 0.32, to: 0.39 },
+    { id: 'porch', label: 'přístřešek – sloupy, vaznice a krokve', from: 0.39, to: 0.45 },
+    { id: 'wattle', label: 'latě a pletené štíty', from: 0.45, to: 0.5 },
+    { id: 'daub', label: 'omazávání mazanicí', from: 0.5, to: 0.57 },
+    { id: 'thatch', label: 'došky po řadách i přes přístřešek', from: 0.57, to: 0.73 },
+    { id: 'finish', label: 'hřeben, kozy a valy', from: 0.73, to: 0.77 },
+    craft,
+    workshop,
+  ];
+}
+
 /**
  * Fáze stavby (průběh 0–1, navazují na sebe): vytyčení, sejmutí drnu, kopání jámy, pak
  * zemnice sloupy a krov na zemi, polozemnice srub z trámů po řadách, latě a pletené štíty,
- * mazanice, došky po řadách zdola nahoru a nakonec hřeben s kozami a valy hlíny.
+ * mazanice, došky po řadách zdola nahoru a nakonec hřeben s kozami a valy hlíny. Řemeslné
+ * dílny navíc přístřešek, pec / výheň a vybavení dílny, uhlíř kryje střechu mechem; milíř
+ * se skládá zvlášť – věnec polen, polena po vrstvách, kryt z hlíny a drnů, komín a průduchy.
  */
-export const CONSTRUCTION_PHASES: Record<DwellingType, readonly ConstructionPhase[]> = {
+export const CONSTRUCTION_PHASES: Record<ConstructionKind, readonly ConstructionPhase[]> = {
   zemnice: [
     { id: 'layout', label: 'vytyčení – kolíky a provázek', from: 0, to: 0.06 },
     { id: 'turf', label: 'sejmutí drnu', from: 0.06, to: 0.14 },
@@ -43,14 +107,59 @@ export const CONSTRUCTION_PHASES: Record<DwellingType, readonly ConstructionPhas
     { id: 'thatch', label: 'došky po řadách', from: 0.72, to: 0.94 },
     { id: 'finish', label: 'hřeben, kozy a valy', from: 0.94, to: 1 },
   ],
+  hrncir: porchHousePhases(
+    { id: 'kiln', label: 'hrnčířská pec – podstavec, kopule, topeniště', from: 0.77, to: 0.93 },
+    { id: 'workshop', label: 'dílna – police, hrnce, kruh a dřevo', from: 0.93, to: 1 },
+  ),
+  kovar: porchHousePhases(
+    { id: 'forge', label: 'výheň – ohniště, měchy, kovadlina', from: 0.77, to: 0.93 },
+    { id: 'workshop', label: 'dílna – uhlí, koryto, železo a dřevo', from: 0.93, to: 1 },
+  ),
+  uhlir: [
+    { id: 'layout', label: 'vytyčení – kolíky a provázek', from: 0, to: 0.05 },
+    { id: 'turf', label: 'sejmutí drnu', from: 0.05, to: 0.11 },
+    { id: 'dig', label: 'kopání jámy', from: 0.11, to: 0.29 },
+    { id: 'posts', label: 'zahloubené sloupy', from: 0.29, to: 0.36 },
+    { id: 'frame', label: 'vaznice a krokve', from: 0.36, to: 0.45 },
+    { id: 'wattle', label: 'latě a pletené štíty', from: 0.45, to: 0.54 },
+    { id: 'daub', label: 'omazávání mazanicí', from: 0.54, to: 0.61 },
+    { id: 'moss', label: 'mech po řadách místo došků', from: 0.61, to: 0.85 },
+    { id: 'finish', label: 'hřeben, kozy a valy', from: 0.85, to: 0.91 },
+    { id: 'workshop', label: 'hráň polen na milíř a koše uhlí', from: 0.91, to: 1 },
+  ],
+  milir: [
+    { id: 'layout', label: 'vytyčení kruhu a fíra uprostřed', from: 0, to: 0.06 },
+    { id: 'ground', label: 'milířiště – srovnaná zem', from: 0.06, to: 0.14 },
+    { id: 'ring', label: 'věnec polen u země', from: 0.14, to: 0.24 },
+    { id: 'stack', label: 'polena kolem fíry po vrstvách', from: 0.24, to: 0.52 },
+    { id: 'cover', label: 'kryt z hlíny a drnů zdola nahoru', from: 0.52, to: 0.78 },
+    { id: 'top', label: 'vrchol a komín', from: 0.78, to: 0.86 },
+    { id: 'vents', label: 'průduchy a zapálení', from: 0.86, to: 0.93 },
+    { id: 'finish', label: 'žebřík, hrabice a drny', from: 0.93, to: 1 },
+  ],
 };
 
-/** Řad došků na model (podle atlasu – tools/blender/atlas.py). */
-export const THATCH_COURSES: Record<DwellingType, number> = { zemnice: 8, polozemnice: 9 };
+/** Řad došků (u uhlíře mechu) na model (podle atlasu – tools/blender/atlas.py); milíř nemá střechu. */
+export const THATCH_COURSES: Record<ConstructionKind, number> = {
+  zemnice: 8,
+  polozemnice: 9,
+  hrncir: 9,
+  kovar: 9,
+  uhlir: 8,
+  milir: 0,
+};
 const RAFTER_PAIRS = 5;
 const LOG_COURSES = 6;
+/** Vrstvy polen a prstence krytu milíře (tools/blender/crafts.py). */
+const MILIR_STACK_TIERS = 4;
+const MILIR_COVER_RINGS = 3;
 
-export type SiteProp = 'spoil' | 'turf' | 'timber' | 'rods' | 'straw' | 'spade' | 'basket';
+export type SiteProp =
+  'spoil' | 'turf' | 'timber' | 'rods' | 'straw' | 'spade' | 'basket' | 'stones' | 'clay';
+/**
+ * Rekvizity staveniště: obydlí z construction.glb obydlí („site-…“), kameny a hlína pro pec
+ * a výheň z construction.glb řemesel. Hromadu hlíny z jámy kreslí scéna.
+ */
 export const SITE_PROPS: readonly SiteProp[] = [
   'spoil',
   'turf',
@@ -59,13 +168,26 @@ export const SITE_PROPS: readonly SiteProp[] = [
   'straw',
   'spade',
   'basket',
+  'stones',
+  'clay',
 ];
 
-/** Kde na staveništi leží rekvizity (souřadnice modelu, natočení vůči obydlí). */
-export const SITE_PROP_PLACES: Record<
-  DwellingType,
-  Record<SiteProp, { x: number; z: number; rotation: number }>
-> = {
+type PropPlaces = Record<SiteProp, { x: number; z: number; rotation: number }>;
+
+const POLOZEMNICE_PLACES: PropPlaces = {
+  spoil: { x: -3.85, z: -0.4, rotation: Math.PI / 2 },
+  turf: { x: 3.75, z: -2.8, rotation: 0.3 },
+  timber: { x: 3.75, z: 0.5, rotation: 0.05 },
+  rods: { x: -1.3, z: -3.75, rotation: 0.1 },
+  straw: { x: 1.4, z: -3.85, rotation: Math.PI / 2 },
+  spade: { x: -2.95, z: 1.0, rotation: 0.6 },
+  basket: { x: -1.45, z: 3.4, rotation: 0 },
+  stones: { x: 3.6, z: 3.3, rotation: 0.4 },
+  clay: { x: -3.5, z: 4.4, rotation: 0.2 },
+};
+
+/** Kde na staveništi leží rekvizity (souřadnice modelu, natočení vůči stavbě). */
+export const SITE_PROP_PLACES: Record<ConstructionKind, PropPlaces> = {
   zemnice: {
     spoil: { x: -3.55, z: -0.4, rotation: Math.PI / 2 },
     turf: { x: 3.45, z: -2.7, rotation: 0.3 },
@@ -74,23 +196,44 @@ export const SITE_PROP_PLACES: Record<
     straw: { x: 1.4, z: -3.55, rotation: Math.PI / 2 },
     spade: { x: -2.65, z: 1.0, rotation: 0.6 },
     basket: { x: -1.35, z: 3.6, rotation: 0 },
+    stones: { x: 3.4, z: 3.2, rotation: 0.4 },
+    clay: { x: -3.3, z: 4.4, rotation: 0.2 },
   },
-  polozemnice: {
-    spoil: { x: -3.85, z: -0.4, rotation: Math.PI / 2 },
-    turf: { x: 3.75, z: -2.8, rotation: 0.3 },
-    timber: { x: 3.75, z: 0.5, rotation: 0.05 },
-    rods: { x: -1.3, z: -3.75, rotation: 0.1 },
-    straw: { x: 1.4, z: -3.85, rotation: Math.PI / 2 },
-    spade: { x: -2.95, z: 1.0, rotation: 0.6 },
-    basket: { x: -1.45, z: 3.4, rotation: 0 },
+  polozemnice: POLOZEMNICE_PLACES,
+  // pod přístřeškem stojí pec / výheň a police – koš stranou před dílnou, kameny a hlína
+  // vedle přístřešku (mimo polena u pece a uhlí u výhně)
+  hrncir: { ...POLOZEMNICE_PLACES, basket: { x: -3.3, z: 2.9, rotation: 0 } },
+  kovar: { ...POLOZEMNICE_PLACES, basket: { x: -3.3, z: 2.9, rotation: 0 } },
+  uhlir: {
+    spoil: { x: -3.55, z: -0.4, rotation: Math.PI / 2 },
+    turf: { x: 3.45, z: -2.7, rotation: 0.3 },
+    timber: { x: 2.2, z: -3.6, rotation: Math.PI / 2 },
+    rods: { x: -1.3, z: -3.45, rotation: 0.1 },
+    straw: { x: 1.4, z: -3.55, rotation: Math.PI / 2 },
+    spade: { x: -2.65, z: 1.6, rotation: 0.6 },
+    basket: { x: -2.6, z: 3.6, rotation: 0 },
+    stones: { x: 3.4, z: 3.2, rotation: 0.4 },
+    clay: { x: -3.3, z: 4.4, rotation: 0.2 },
+  },
+  // milíř: hráň polen na skládání a stoh drnů na kryt (drny a lopata zůstanou u hotového)
+  milir: {
+    spoil: { x: 0, z: 0, rotation: 0 },
+    turf: { x: 3.4, z: 2.6, rotation: 0.4 },
+    timber: { x: -4.0, z: 0.8, rotation: 1.2 },
+    rods: { x: 0, z: 0, rotation: 0 },
+    straw: { x: 0, z: 0, rotation: 0 },
+    spade: { x: 2.4, z: 1.2, rotation: 0.6 },
+    basket: { x: 2.6, z: 2.55, rotation: 0 },
+    stones: { x: 0, z: 0, rotation: 0 },
+    clay: { x: 0, z: 0, rotation: 0 },
   },
 };
 
 export interface ConstructionState {
   phase: ConstructionPhase;
-  /** Díly z construction.glb, které stojí (bez předpony typu, např. 'rafters-2'). */
+  /** Díly z construction.glb, které stojí (bez předpony druhu, např. 'rafters-2'). */
   parts: string[];
-  /** Hloubka jámy (m); 0 = ještě se nekope a terén zůstává celý. */
+  /** Hloubka jámy (m); 0 = ještě se nekope a terén zůstává celý (milíř jámu nemá). */
   pitDepth: number;
   /** Jak moc jámu kryje střecha 0–1. */
   roofCover: number;
@@ -110,8 +253,8 @@ export function ramp(p: number, from: number, to: number): number {
 }
 
 /** Fáze stavby podle průběhu (poslední fáze zahrnuje i 1). */
-export function constructionPhase(type: DwellingType, progress: number): ConstructionPhase {
-  const phases = CONSTRUCTION_PHASES[type];
+export function constructionPhase(kind: ConstructionKind, progress: number): ConstructionPhase {
+  const phases = CONSTRUCTION_PHASES[kind];
   const p = Math.min(1, Math.max(0, progress));
   return phases.find((phase) => p < phase.to) ?? phases[phases.length - 1]!;
 }
@@ -123,12 +266,77 @@ interface PartRule {
   to?: number;
 }
 
+/** Fáze druhu podle id; chybějící fáze → první (průběh v ní nic nemění). */
+function phaseOf(kind: ConstructionKind, id: ConstructionPhaseId): ConstructionPhase {
+  return CONSTRUCTION_PHASES[kind].find((p) => p.id === id) ?? CONSTRUCTION_PHASES[kind][0]!;
+}
+
+function hasPhase(kind: ConstructionKind, id: ConstructionPhaseId): boolean {
+  return CONSTRUCTION_PHASES[kind].some((p) => p.id === id);
+}
+
+/** Díly řemesla po sobě uvnitř jedné fáze: [díl, kdy v rámci fáze 0–1]. */
+const CRAFT_STEPS: Partial<Record<ConstructionKind, [ConstructionPhaseId, [string, number][]][]>> =
+  {
+    hrncir: [
+      [
+        'kiln',
+        [
+          ['kiln-base', 0.05],
+          ['kiln-dome-1', 0.3],
+          ['kiln-dome-2', 0.5],
+          ['kiln-dome-3', 0.7],
+          ['kiln-mouth', 0.88],
+        ],
+      ],
+      [
+        'workshop',
+        [
+          ['shelf', 0.05],
+          ['pots', 0.3],
+          ['wheel', 0.5],
+          ['clay', 0.7],
+          ['wood', 0.85],
+        ],
+      ],
+    ],
+    kovar: [
+      [
+        'forge',
+        [
+          ['forge-hearth', 0.05],
+          ['forge-fire', 0.3],
+          ['forge-wall', 0.45],
+          ['forge-bellows', 0.65],
+          ['anvil', 0.85],
+        ],
+      ],
+      [
+        'workshop',
+        [
+          ['charcoal', 0.1],
+          ['trough', 0.35],
+          ['iron', 0.6],
+          ['wood', 0.8],
+        ],
+      ],
+    ],
+    uhlir: [
+      [
+        'workshop',
+        [
+          ['wood', 0.1],
+          ['coal', 0.5],
+          ['tools', 0.8],
+        ],
+      ],
+    ],
+  };
+
 /** Kdy se který díl objeví – postupně uvnitř své fáze. */
-export function partSchedule(type: DwellingType): PartRule[] {
-  const phase = (id: ConstructionPhaseId): ConstructionPhase =>
-    CONSTRUCTION_PHASES[type].find((p) => p.id === id)!;
+export function partSchedule(kind: ConstructionKind): PartRule[] {
   const within = (id: ConstructionPhaseId, t: number): number => {
-    const p = phase(id);
+    const p = phaseOf(kind, id);
     return p.from + (p.to - p.from) * t;
   };
   const series = (
@@ -145,8 +353,22 @@ export function partSchedule(type: DwellingType): PartRule[] {
       ...(until === undefined ? {} : { to: until }),
     }));
   const rules: PartRule[] = [];
+  const base = CONSTRUCTION_BASE[kind];
+  if (base === null) {
+    // milíř: kolíky po obvodu a fíra uprostřed, milířiště, věnec, polena, kryt, komín, průduchy
+    rules.push({ part: 'stakes', from: 0, to: within('ring', 0.1) });
+    rules.push({ part: 'pole', from: within('layout', 0.5), to: within('top', 0.2) });
+    rules.push({ part: 'ground', from: within('ground', 0.3) });
+    rules.push({ part: 'ring', from: within('ring', 0.2) });
+    rules.push(...series('stack', MILIR_STACK_TIERS, 'stack', 0.05, 0.85));
+    rules.push(...series('cover', MILIR_COVER_RINGS, 'cover', 0.05, 0.8));
+    rules.push({ part: 'top', from: within('top', 0.3) });
+    rules.push({ part: 'vents', from: within('vents', 0.3) });
+    rules.push({ part: 'tools', from: within('finish', 0.3) });
+    return rules;
+  }
   const daubFrom = within('daub', 0.25);
-  if (type === 'zemnice') {
+  if (base === 'zemnice') {
     rules.push({ part: 'stakes', from: 0, to: within('posts', 0.2) });
     rules.push({ part: 'posts', from: within('posts', 0.2) });
     rules.push({ part: 'ridge-beam', from: within('posts', 0.75) });
@@ -159,54 +381,103 @@ export function partSchedule(type: DwellingType): PartRule[] {
     rules.push({ part: 'ridge-beam', from: within('frame', 0.4) });
     rules.push(...series('rafters', RAFTER_PAIRS, 'frame', 0.5, 0.95));
   }
+  if (hasPhase(kind, 'porch')) {
+    rules.push({ part: 'porch-posts', from: within('porch', 0.1) });
+    rules.push(...series('porch-rafters', RAFTER_PAIRS, 'porch', 0.35, 0.9));
+  }
   rules.push({ part: 'laths', from: within('wattle', 0.15) });
+  if (hasPhase(kind, 'porch')) rules.push({ part: 'porch-laths', from: within('wattle', 0.3) });
   rules.push({ part: 'wattle', from: within('wattle', 0.55), to: daubFrom });
   rules.push({ part: 'daub', from: daubFrom });
-  rules.push(...series('thatch', THATCH_COURSES[type], 'thatch', 0.04, 0.92));
+  // uhlíř kryje střechu mechem – stejné řady jako došky, jen v jeho fázi
+  const roof: ConstructionPhaseId = hasPhase(kind, 'moss') ? 'moss' : 'thatch';
+  rules.push(...series('thatch', THATCH_COURSES[kind], roof, 0.04, 0.92));
   rules.push({ part: 'ridge', from: within('finish', 0.1) });
   rules.push({ part: 'berms', from: within('finish', 0.45) });
+  for (const [id, steps] of CRAFT_STEPS[kind] ?? []) {
+    for (const [part, t] of steps) rules.push({ part, from: within(id, t) });
+  }
   return rules;
 }
 
-/** Všechny díly staveniště daného typu (jména v construction.glb bez předpony). */
-export function constructionParts(type: DwellingType): string[] {
-  return partSchedule(type).map((rule) => rule.part);
+/** Všechny díly staveniště daného druhu (jména v construction.glb bez předpony). */
+export function constructionParts(kind: ConstructionKind): string[] {
+  return partSchedule(kind).map((rule) => rule.part);
 }
 
 /** Co staveniště ukáže při průběhu `progress` (0–1). */
-export function constructionState(type: DwellingType, progress: number): ConstructionState {
+export function constructionState(kind: ConstructionKind, progress: number): ConstructionState {
   const p = Math.min(1, Math.max(0, progress));
-  const phase = (id: ConstructionPhaseId): ConstructionPhase =>
-    CONSTRUCTION_PHASES[type].find((x) => x.id === id) ?? CONSTRUCTION_PHASES[type][0]!;
-  const parts = partSchedule(type)
+  const phase = (id: ConstructionPhaseId): ConstructionPhase => phaseOf(kind, id);
+  const parts = partSchedule(kind)
     .filter((rule) => p >= rule.from && (rule.to === undefined || p < rule.to))
     .map((rule) => rule.part);
+  const props: { prop: SiteProp; scale: number }[] = [];
+  const add = (prop: SiteProp, visible: boolean, scale: number): void => {
+    if (visible && scale > 0) props.push({ prop, scale });
+  };
+  const base = CONSTRUCTION_BASE[kind];
+  if (base === null) {
+    // milíř: bez jámy a drnu, vytyčený kruh zmizí s milířištěm; dřevo ubývá se skládáním,
+    // drny přibývají a s krytem ubývají
+    const ground = phase('ground');
+    const ring = phase('ring');
+    const stack = phase('stack');
+    const cover = phase('cover');
+    add('timber', p < stack.to, 1 - 0.65 * ramp(p, ring.from, stack.to));
+    add(
+      'turf',
+      p >= ground.from && p < cover.to,
+      (0.4 + 0.6 * ramp(p, ring.from, stack.to)) * (1 - 0.7 * ramp(p, cover.from, cover.to)),
+    );
+    add('spade', p >= ground.from, 1);
+    return {
+      phase: constructionPhase(kind, p),
+      parts,
+      pitDepth: 0,
+      roofCover: 0,
+      outline: 1 - ramp(p, ground.from, ground.to),
+      turf: 0,
+      trampled: 0.85 * ramp(p, 0.01, ring.from),
+      props,
+    };
+  }
   const turf = phase('turf');
   const dig = phase('dig');
   const frame = phase('frame');
   const wattle = phase('wattle');
   const daub = phase('daub');
-  const thatch = phase('thatch');
+  const roof = phase(hasPhase(kind, 'moss') ? 'moss' : 'thatch');
   const finish = phase('finish');
   // dřevo se začne brát se sloupy (zemnice), nebo s roubením (polozemnice)
-  const timberUse = type === 'zemnice' ? phase('posts') : phase('logs');
-  const props: { prop: SiteProp; scale: number }[] = [];
-  const add = (prop: SiteProp, visible: boolean, scale: number): void => {
-    if (visible && scale > 0) props.push({ prop, scale });
-  };
+  const timberUse = base === 'zemnice' ? phase('posts') : phase('logs');
   const used = 1 - 0.6 * ramp(p, finish.from, finish.to);
   add('spoil', p >= dig.from, (0.3 + 0.7 * ramp(p, dig.from, dig.to)) * used);
   add('turf', p >= turf.from, (0.4 + 0.6 * ramp(p, turf.from, turf.to)) * used);
   add('timber', p < frame.to, 1 - 0.65 * ramp(p, timberUse.from, frame.to));
   add('rods', p >= frame.from && p < wattle.to, 1 - 0.6 * ramp(p, wattle.from, wattle.to));
-  add('straw', p >= daub.from && p < thatch.to, 1 - 0.7 * ramp(p, thatch.from, thatch.to));
+  add('straw', p >= daub.from && p < roof.to, 1 - 0.7 * ramp(p, roof.from, roof.to));
   add('spade', p >= turf.from, 1);
   add('basket', p >= dig.from, 1);
+  // pec a výheň: kameny se snášejí během stavby a ubývají s podstavcem, hlína na mazanici a pec
+  const craft = hasPhase(kind, 'kiln')
+    ? phase('kiln')
+    : hasPhase(kind, 'forge')
+      ? phase('forge')
+      : null;
+  if (craft) {
+    add(
+      'stones',
+      p >= frame.from && p < craft.to,
+      (0.5 + 0.5 * ramp(p, frame.from, finish.to)) * (1 - 0.7 * ramp(p, craft.from, craft.to)),
+    );
+    add('clay', p >= wattle.from && p < craft.to, 1 - 0.6 * ramp(p, craft.from, craft.to));
+  }
   return {
-    phase: constructionPhase(type, p),
+    phase: constructionPhase(kind, p),
     parts,
-    pitDepth: PIT_SHAPES[type].depth * ramp(p, dig.from, dig.to),
-    roofCover: ramp(p, thatch.from, thatch.to),
+    pitDepth: PIT_SHAPES[base].depth * ramp(p, dig.from, dig.to),
+    roofCover: ramp(p, roof.from, roof.to),
     outline: 1 - ramp(p, dig.from, dig.from + 0.04),
     turf: ramp(p, turf.from, turf.to),
     trampled: 0.85 * ramp(p, 0.01, dig.from + 0.04),
