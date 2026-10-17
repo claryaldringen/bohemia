@@ -83,6 +83,42 @@ export async function loadMergedModel(
   return model;
 }
 
+/**
+ * Načte GLB s pojmenovanými díly (uzly) a každý díl vrátí jako samostatný mesh se zapečeným
+ * převodem os z glTF (jako `loadMergedModel`, jen bez spojení dílů) – podle jména uzlu.
+ * Když se scéna mezitím zruší, vrátí null.
+ */
+export async function loadModelParts(
+  scene: Scene,
+  url: string,
+  prefix: string,
+  prepareMaterial?: (material: Material) => void,
+): Promise<Map<string, Mesh> | null> {
+  const container = await LoadAssetContainerAsync(url, scene);
+  if (scene.isDisposed) return null;
+  container.addAllToScene();
+  if (prepareMaterial) for (const material of container.materials) prepareMaterial(material);
+  const parts = new Map<string, Mesh>();
+  // kopie seznamu – zapečení zdrojový mesh zruší a ten ze seznamu kontejneru zmizí
+  for (const mesh of [...container.meshes]) {
+    if (!(mesh instanceof Mesh) || mesh.getTotalVertices() === 0) continue;
+    // primitiva uzlu se jmenují „uzel_primitive0“ – díl = jméno uzlu
+    const name = mesh.name.replace(/_primitive\d+$/, '');
+    const baked = Mesh.MergeMeshes([mesh], true, true);
+    if (!baked) continue;
+    baked.name = `${prefix}${name}`;
+    baked.isPickable = false;
+    parts.set(name, baked);
+  }
+  // zbylé uzly (kořen s převodem os) – díly mají převod zapečený
+  for (const mesh of [...container.meshes]) if (!mesh.isDisposed()) mesh.dispose();
+  for (const material of container.materials) {
+    if (material.backFaceCulling)
+      material.sideOrientation = Material.CounterClockWiseSideOrientation;
+  }
+  return parts;
+}
+
 /** Matice instancí pro `thinInstanceSetBuffer('matrix', …)`. */
 export function instanceMatrices(instances: readonly ModelInstance[]): Float32Array {
   const matrices = new Float32Array(instances.length * 16);

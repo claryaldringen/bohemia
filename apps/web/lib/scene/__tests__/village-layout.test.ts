@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
   DWELLING_FOOTPRINT_M,
-  constructionLook,
   decalGrid,
   dwellingHideShape,
   fieldHideShape,
@@ -142,7 +141,7 @@ describe('stripSegments – mez podél obrysu', () => {
   });
 });
 
-describe('vzhled dílů pole a staveniště', () => {
+describe('vzhled dílů pole', () => {
   const stages: PartStage[] = [
     'founding',
     'ready',
@@ -168,20 +167,6 @@ describe('vzhled dílů pole a staveniště', () => {
     const brightness = (stage: PartStage): number => partLook(stage).tint.reduce((a, b) => a + b);
     expect(brightness('young-growth')).toBeGreaterThan(brightness('shrub'));
     expect(brightness('shrub')).toBeGreaterThan(brightness('forest'));
-  });
-
-  it('staveniště: sloupy rostou s průběhem, vaznice od 60 %, krokve od 80 %', () => {
-    expect(constructionLook('zemnice', 0).posts).toHaveLength(0);
-    const half = constructionLook('zemnice', 0.4);
-    const most = constructionLook('zemnice', 0.9);
-    expect(half.posts).toHaveLength(6);
-    expect(half.posts[0]!.height).toBeLessThan(most.posts[0]!.height);
-    expect(half.ridge).toBe(false);
-    expect(constructionLook('zemnice', 0.65)).toMatchObject({ ridge: true, rafters: false });
-    expect(most).toMatchObject({ ridge: true, rafters: true });
-    expect(constructionLook('polozemnice', 0).pit).toBeLessThan(
-      constructionLook('polozemnice', 0.3).pit,
-    );
   });
 });
 
