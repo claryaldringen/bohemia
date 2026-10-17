@@ -28,6 +28,7 @@ import { addDecorations } from './decorations';
 import { addFauna, type Fauna } from './fauna';
 import { birdFlocks, fishSchools } from './fauna-placement';
 import { FelledTrees } from './felled-trees';
+import { LogPile } from './log-pile';
 import { createCanopyMesh } from './forest-canopy';
 import { addImpostors } from './impostors';
 import { obstacleScenery } from './obstacle-scenery';
@@ -113,6 +114,7 @@ export class LandscapeScene {
   private obstacles: ObstacleLayer | null = null;
   /** Pařezy a nálet po pokácených stromech. */
   private felled: FelledTrees | null = null;
+  private logPile: LogPile | null = null;
   private village: VillageRenderer | null = null;
   /** Domácí zvířata vsi (ozdoba) – slepice u obydlí, stáda na loukách a v lese. */
   private livestock: VillageLivestock | null = null;
@@ -233,6 +235,17 @@ export class LandscapeScene {
       onAsyncChange: () => {
         this.shadows?.refresh();
         this.renderWhenReady();
+      },
+    });
+    // hromada klád u vsi (forest.md) – vlastní síť kmenů, kolik klád, tolik kmenů
+    this.logPile?.dispose();
+    this.logPile = new LogPile(this.scene, {
+      landscape,
+      layer: obstacles,
+      groundHeight,
+      addShadowCaster: (mesh) => {
+        if (this.shadows) this.shadows.addCaster(mesh);
+        else this.pendingCasters.push(mesh);
       },
     });
     const relief = buildRelief(landscape);
@@ -617,7 +630,8 @@ export class LandscapeScene {
 
   /**
    * Překreslí ves podle posledního stavu: skryje stromy, keře a kameny, které ves odstranila
-   * nebo vykácela (podle id ze stavu vsi), na místo pokácených stromů dá pařez nebo nálet.
+   * nebo vykácela (podle id ze stavu vsi), na místo pokácených stromů dá pařez nebo nálet,
+   * u obydlí nejblíž lesu složí hromadu klád.
    */
   private applyVillage(): void {
     const village = this.village;
@@ -627,11 +641,12 @@ export class LandscapeScene {
     const hiddenIds = new Set([...changes.removed, ...changes.stumps, ...changes.saplings]);
     const hidden = this.hider.apply(village.hideShapes(), hiddenIds);
     const felled = this.obstacles ? (this.felled?.update(this.obstacles, changes) ?? false) : false;
+    const logs = this.logPile?.update(this.villageState, changes) ?? false;
     const animals = this.livestock?.update(this.villageState, Date.now()) ?? false;
     // Rozhraní posílá stav vsi opakovaně (dotaz každých pár sekund) – beze změny nic.
     // Vybrané pole mohlo změnit čtverce (zarůstání), vybrané obydlí zaniknout.
     if (changed) this.highlight?.show(this.villageState, this.selection);
-    if (!changed && !hidden && !felled && !animals) return;
+    if (!changed && !hidden && !felled && !logs && !animals) return;
     // Dým hned na místě – i při omezeném pohybu, kdy se pak už nehýbe.
     village.animateSmoke(Date.now(), null);
     this.shadows?.refresh();

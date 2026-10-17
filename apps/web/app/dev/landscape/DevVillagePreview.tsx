@@ -70,6 +70,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   const [placing, setPlacing] = useState<string | null>(null);
   const [preview, setPreview] = useState<PlacementPreview | null>(null);
   const [smokeAlways, setSmokeAlways] = useState(false);
+  const [woodLogs, setWoodLogs] = useState(0);
   const nextId = useRef(1);
 
   const village = useMemo<SceneVillage>(
@@ -83,8 +84,9 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         })),
       })),
       cemeteries,
+      woodLogs,
     }),
-    [dwellings, fields, cemeteries, stage, mixed],
+    [dwellings, fields, cemeteries, stage, mixed, woodLogs],
   );
 
   useEffect(() => {
@@ -342,6 +344,13 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         )}
         <button className={buttonClass} disabled={!scene} onClick={showPhases}>
           Ukázka fází
+        </button>
+        <button className={buttonClass} onClick={() => setWoodLogs((n) => Math.max(0, n - 10))}>
+          Klády −10
+        </button>
+        <span data-testid="dev-village-wood">{woodLogs} klád</span>
+        <button className={buttonClass} onClick={() => setWoodLogs((n) => n + 10)}>
+          Klády +10
         </button>
         <label className="flex items-center gap-1">
           <input
