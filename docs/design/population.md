@@ -1,6 +1,7 @@
 # Obyvatelstvo a obydlí vesnice
 
-Stav: schváleno 17. 10. 2026 (Martin: „asi ok, doladíme později“). Implementace zatím není.
+Stav: schváleno 17. 10. 2026 (Martin: „asi ok, doladíme později“), týž den upraveno umístění
+obydlí a společná pole (Martin). Implementace zatím není.
 
 ## Proč
 
@@ -53,11 +54,23 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
 
 ### Založení vsi
 
-- Hráč v krajině svého sídla vybere políčko louky pro první zemnici. Zemnice tam hned stojí
-  (osadníci přišli) a bydlí v ní **4 lidé**: dva dospělí (kolem 25 let) a dva dospívající
-  (12 a 13 let – návrh Clauda, aby první nová domácnost mohla vzniknout do pár let).
-- Obydlí zabírá jedno políčko louky; na políčku smí stát jen jedno obydlí (návrh Clauda).
-- Pole se umisťuje s mechanikou jídla (viz Navazuje).
+- Hráč v krajině svého sídla umístí půdorys první zemnice (viz Umístění obydlí). Zemnice tam
+  hned stojí (osadníci přišli) a bydlí v ní **4 lidé**: dva dospělí (kolem 25 let) a dva
+  dospívající (12 a 13 let – návrh Clauda, aby první nová domácnost mohla vzniknout do pár let).
+- Pole jsou samostatná a společná pro celou ves – zakládají se zvlášť ([fields.md](fields.md)).
+
+### Umístění obydlí
+
+- Hráč vidí **půdorys** obydlí a umístí ho volně, kamkoli, kde je **země dost rovná** (Martin) –
+  ne po políčkách. Výchozí: rozdíl výšky terénu pod půdorysem nejvýš 0,5 m; zemnice má půdorys
+  zhruba 4 × 4 m, polozemnice 5 × 5 m (návrh Clauda).
+- Obydlí nesmí stát ve vodě ani se překrývat s jiným obydlím nebo polem (návrh Clauda).
+- **Překážky** na místě, např. kameny, osadníci odstraní, ale stavba stojí víc člověkodní
+  (Martin). Totéž **v lese** – stromy je třeba skácet a vykopat pařezy. Výchozí: kámen 1–5
+  člověkodní podle velikosti, strom 2 člověkodny (návrh Clauda). Hráč cenu vidí už při
+  umisťování.
+- Odstraněné kameny a stromy z krajiny sídla zmizí natrvalo – krajina sídla je vygenerovaná
+  krajina plus změny, které v ní udělali lidé (návrh Clauda).
 
 ### Práce
 
@@ -92,7 +105,7 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
 ### Nové obydlí (rozhoduje hráč)
 
 - O každé nové stavbě rozhoduje hráč (Martin). Hráč vidí, že je domácnost plná, a postaví
-  nové obydlí – vybere typ a políčko.
+  nové obydlí – vybere typ a místo (viz Umístění obydlí).
 - **Odemčení:** stavět lze, když je některá domácnost plná a žijí v ní aspoň **4 dospělí**
   (Martin: „je v ní moc dospělých“; čtveřici upřesnil Claude, aby měl kdo odejít i zůstat).
 - **Cena:** člověkodny ze společné práce vsi (dřevo viz Zjednodušení). Stavba roste den po dni
@@ -177,21 +190,23 @@ stovky vsí a ověří cíle:
 
 ## Rozhodnutí
 
-| Rozhodnutí                                                                  | Kdo                           |
-| --------------------------------------------------------------------------- | ----------------------------- |
-| Ves jako zásobárna aktiv: jídlo, voda, dřevo a hlavně lidé / člověkohodiny  | Martin                        |
-| Start: 4 lidé v jedné zemnici, hráč vybere místo                            | Martin                        |
-| Dost jídla → populace roste; cílem je efektivní výroba jídla                | Martin                        |
-| Obydlí zatím zemnice a polozemnice                                          | Martin                        |
-| Nová obydlí vždy staví hráč; plná domácnost → nová domácnost v novém obydlí | Martin                        |
-| Obydlí chátrají, opravy rostou; přestavbu (i na lepší) rozhodují obyvatelé  | Martin                        |
-| Bez staveb ves přestane růst, ale nerozpadne se                             | návrh Clauda, Martin potvrdil |
-| Přestavba vždy na lepší obydlí, pokud jsou suroviny; typ nové stavby hráč   | Martin                        |
-| Hájení: prvních 30 herních let vsi přeje štěstí; žádní příchozí z okolí     | Martin                        |
-| Podoba hájení: dospělí neumírají, poloviční dětská úmrtnost                 | návrh Clauda                  |
-| Kapacity 6 / 8, ceny 60 / 220 člověkodní (roční období / rok), životnosti   | návrh Clauda                  |
-| Porodnost, úmrtnost, opravy až polovina volné práce                         | návrh Clauda                  |
-| Odemčení při plné domácnosti se 4 dospělými; stěhují se dva nejmladší       | návrh Clauda                  |
-| Rozpad domácnosti, prázdná obydlí, nejvýš stavba na každou plnou domácnost  | návrh Clauda                  |
-| Obyvatelé bez jmen a pohlaví, náhoda ze seedu, kronika                      | návrh Clauda                  |
-| Dřevo zatím v ceně práce, 85 % práce na obživu, nasycení 1                  | návrh Clauda (dočasné)        |
+| Rozhodnutí                                                                   | Kdo                           |
+| ---------------------------------------------------------------------------- | ----------------------------- |
+| Ves jako zásobárna aktiv: jídlo, voda, dřevo a hlavně lidé / člověkohodiny   | Martin                        |
+| Start: 4 lidé v jedné zemnici, hráč vybere místo                             | Martin                        |
+| Dost jídla → populace roste; cílem je efektivní výroba jídla                 | Martin                        |
+| Obydlí zatím zemnice a polozemnice                                           | Martin                        |
+| Obydlí se umisťuje volně (půdorys) na dost rovné zemi; překážky a les zdraží | Martin                        |
+| Pole jsou samostatná a společná pro celou ves                                | Martin                        |
+| Nová obydlí vždy staví hráč; plná domácnost → nová domácnost v novém obydlí  | Martin                        |
+| Obydlí chátrají, opravy rostou; přestavbu (i na lepší) rozhodují obyvatelé   | Martin                        |
+| Bez staveb ves přestane růst, ale nerozpadne se                              | návrh Clauda, Martin potvrdil |
+| Přestavba vždy na lepší obydlí, pokud jsou suroviny; typ nové stavby hráč    | Martin                        |
+| Hájení: prvních 30 herních let vsi přeje štěstí; žádní příchozí z okolí      | Martin                        |
+| Podoba hájení: dospělí neumírají, poloviční dětská úmrtnost                  | návrh Clauda                  |
+| Kapacity 6 / 8, ceny 60 / 220 člověkodní (roční období / rok), životnosti    | návrh Clauda                  |
+| Porodnost, úmrtnost, opravy až polovina volné práce                          | návrh Clauda                  |
+| Odemčení při plné domácnosti se 4 dospělými; stěhují se dva nejmladší        | návrh Clauda                  |
+| Rozpad domácnosti, prázdná obydlí, nejvýš stavba na každou plnou domácnost   | návrh Clauda                  |
+| Obyvatelé bez jmen a pohlaví, náhoda ze seedu, kronika                       | návrh Clauda                  |
+| Dřevo zatím v ceně práce, 85 % práce na obživu, nasycení 1                   | návrh Clauda (dočasné)        |
