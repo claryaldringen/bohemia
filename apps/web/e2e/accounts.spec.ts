@@ -24,7 +24,9 @@ test('registrace → ověření e-mailu → herní plocha → odhlášení → p
   await page.goto(await linkFromLastMail(email, /potvrď svůj e-mail/));
   await expect(page).toHaveURL(/\/game$/);
   await expect(page.getByText(email)).toBeVisible();
-  await expect(page.getByText('Svět začne 1. 1. 2100')).toBeVisible();
+  await expect(page.getByTestId('game-date')).toHaveText(
+    /^\d+\. \p{L}+ \d+ · (jaro|léto|podzim|zima)$/u,
+  );
 
   await signOut(page);
   await page.goto('/game');
