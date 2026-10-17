@@ -6,6 +6,7 @@ import {
   fieldPartsFromCells,
   foundVillage,
   normalizeVillageName,
+  type FieldInput,
   type Position,
   type TileCell,
 } from '../domain/village';
@@ -20,15 +21,15 @@ export interface FoundVillageInput {
   name: string;
   /** Poloha první zemnice. */
   dwelling: Position;
-  /** Čtverce prvního pole – políčka krajiny. */
-  fieldCells: TileCell[];
+  /** Čtverce prvního pole – políčka krajiny; bez nich (prázdné) se ves založí bez pole. */
+  fieldCells?: TileCell[];
 }
 
 const ALREADY_FOUNDED = 'Ves už je založená.';
 
 /**
- * Založí ves sídla: jméno, první zemnice a první pole (ověřené podle krajiny). Ves se hned
- * dopočítá do dneška – den založení už proběhl, jako po každé akci.
+ * Založí ves sídla: jméno, první zemnice a volitelně první pole (ověřené podle krajiny). Ves se
+ * hned dopočítá do dneška – den založení už proběhl, jako po každé akci.
  */
 export async function foundVillageForSettlement(
   deps: { villages: VillageRepository; seeds: SeedSource },
@@ -41,14 +42,19 @@ export async function foundVillageForSettlement(
   if (!name.ok) return { ok: false, reason: name.reason ?? 'Neplatné jméno vsi.' };
   const dwelling = checkDwellingPlacement(input.landscape, null, 'zemnice', input.dwelling);
   if (!dwelling.ok) return { ok: false, reason: dwelling.reason ?? 'Sem zemnice nepatří.' };
-  const field = fieldPartsFromCells(input.landscape, null, input.fieldCells, [input.dwelling]);
-  if (!field.check.ok) return { ok: false, reason: field.check.reason ?? 'Sem pole nepatří.' };
+  const cells = input.fieldCells ?? [];
+  let firstField: FieldInput | null = null;
+  if (cells.length > 0) {
+    const field = fieldPartsFromCells(input.landscape, null, cells, [input.dwelling]);
+    if (!field.check.ok) return { ok: false, reason: field.check.reason ?? 'Sem pole nepatří.' };
+    firstField = { parts: field.parts };
+  }
 
   const founded = foundVillage({
     seed: deps.seeds.nextSeed(),
     day: input.today,
     dwellingPosition: { ...input.dwelling },
-    firstField: { parts: field.parts },
+    firstField,
   });
   const state = advanceVillage(founded, input.today);
   const created = await deps.villages.create(

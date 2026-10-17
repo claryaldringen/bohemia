@@ -38,8 +38,8 @@ export const LUCKY_YEARS = 30;
 export const LUCKY_CHILD_DEATH_FACTOR = 0.5;
 // population.md – Růst populace (hlad tlumí porody a zvyšuje úmrtnost); fields.md – Zásoby a nasycení
 export const HUNGER = { birthsStopAt: 0.5, birthsFullAt: 0.95, deathExtraAtZero: 3 } as const;
-// population.md – Nové obydlí (odemčení: domácnost s aspoň 4 dospělými)
-export const UNLOCK_MIN_ADULTS = 4;
+// population.md – Nové obydlí (do nového obydlí se stěhuje pár z domácnosti s aspoň 4 dospělými)
+export const NEW_HOUSEHOLD_MIN_ADULTS = 4;
 // fields.md – Zásoby a nasycení (roční potřeba jídla podle věku)
 export const FOOD_NEED_KG_PER_YEAR = { child: 100, adult: 180, elder: 140 } as const;
 // fields.md – Zásoby a nasycení (ztráty při skladování, start se zásobami)

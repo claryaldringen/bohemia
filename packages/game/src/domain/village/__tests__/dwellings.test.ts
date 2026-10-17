@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   applyRepairs,
-  canStartNewDwelling,
   isFull,
   isOvercrowded,
   qualifyingDwellings,
   rebuildType,
   repairNeedPerDay,
+  waitingHouseholds,
   wantsRebuild,
 } from '../dwellings';
 import { DWELLINGS } from '../rules';
@@ -59,14 +59,14 @@ describe('kapacita obydlí', () => {
   });
 });
 
-describe('odemčení nového obydlí', () => {
+describe('plná domácnost pro nové obydlí', () => {
   it('startovní ves nekvalifikuje', () => {
     const s = village([ofAge(1, 25), ofAge(2, 25), ofAge(3, 13), ofAge(4, 12)]);
     expect(qualifyingDwellings(s, DAY)).toEqual([]);
-    expect(canStartNewDwelling(s, DAY)).toBe(false);
+    expect(waitingHouseholds(s, DAY)).toBe(0);
   });
 
-  it('plná domácnost se 4 dospělými 14–44 kvalifikuje a stavba ji zablokuje', () => {
+  it('plná domácnost se 4 dospělými 14–44 kvalifikuje a čeká, dokud pro ni nezačne stavba', () => {
     const s = village([
       ofAge(1, 25),
       ofAge(2, 25),
@@ -76,7 +76,7 @@ describe('odemčení nového obydlí', () => {
       ofAge(6, 2),
     ]);
     expect(qualifyingDwellings(s, DAY).map((d) => d.id)).toEqual([1]);
-    expect(canStartNewDwelling(s, DAY)).toBe(true);
+    expect(waitingHouseholds(s, DAY)).toBe(1);
     s.constructions.push({
       id: 50,
       kind: 'dwelling',
@@ -88,7 +88,15 @@ describe('odemčení nového obydlí', () => {
       dwellingId: null,
       fieldId: null,
     });
-    expect(canStartNewDwelling(s, DAY)).toBe(false);
+    expect(waitingHouseholds(s, DAY)).toBe(0);
+  });
+
+  it('na plnou domácnost čeká i prázdné hotové obydlí', () => {
+    const s = village(
+      [ofAge(1, 25), ofAge(2, 25), ofAge(3, 16), ofAge(4, 20), ofAge(5, 5), ofAge(6, 2)],
+      [dwelling(1), dwelling(2)],
+    );
+    expect(waitingHouseholds(s, DAY)).toBe(0);
   });
 
   it('starší se do čtyř dospělých nepočítají – dva by odešli a zůstali by jen starší a děti', () => {
@@ -101,7 +109,7 @@ describe('odemčení nového obydlí', () => {
       ofAge(6, 2),
     ]);
     expect(qualifyingDwellings(s, DAY)).toEqual([]);
-    expect(canStartNewDwelling(s, DAY)).toBe(false);
+    expect(waitingHouseholds(s, DAY)).toBe(0);
   });
 
   it('plná domácnost se 7 lidmi, ale jen 2 dospělými, nekvalifikuje', () => {

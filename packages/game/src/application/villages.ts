@@ -23,6 +23,8 @@ export interface VillageRepository {
     state: VillageState,
     expectedVersion: number,
   ): Promise<VillageRecord | null>;
+  /** Přejmenuje ves (stav ani verzi nemění); false = sídlo ves nemá. */
+  rename(settlementId: string, name: string): Promise<boolean>;
 }
 
 /** Výsledek herní akce nad vsí – ves po akci, nebo důvod odmítnutí česky pro hráče. */

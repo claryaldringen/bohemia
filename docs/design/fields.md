@@ -66,9 +66,11 @@ všechnu práci vsi a teprve lepší nástroje a osevní systémy (další mecha
 
 ### Založení pole (rozhoduje hráč)
 
-- **Ves se zakládá zemnicí a prvním polem** (Martin: „rozhodnu, kde bude stát první zemnice
-  a pole“). Bez prvního pole ves založit nejde – jinak by hráč, který po umístění zemnice
-  odejde, našel ves za pár skutečných hodin vyhladovělou.
+- **Ves se zakládá zemnicí, pole přidá hráč, kdy chce** (Martin, 17. 10. 2026: „Hráč sám
+  rozhodne kdy a co bude stavět, jako v každé RTS.“ – dřív „rozhodnu, kde bude stát první
+  zemnice a pole“ a ves bez prvního pole založit nešla). Ves bez pole žije ze startovních
+  zásob na 18 měsíců (≈ 13 skutečných hodin) a pak hladoví – hlad ji zmenší, ale v době hájení
+  dospělí neumírají.
 - Hráč označí čtverce pole na mřížce políček (Martin). Pole nesmí zasahovat do vody, do obydlí ani
   do jiného pole; nejmenší výměra 0,1 ha, nejdál **800 m** od nejbližšího obydlí (návrh Clauda).
 - Pole může ležet na louce, v křovinách i v lese (Martin). Všechno, co je na čtvercích pole,
@@ -328,18 +330,17 @@ revizi se plete a sklízí jen zasetá část a odemčení nového obydlí poč�
 Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umisťují podle
 [populace](population.md) – půdorys kamkoli, kde je dost rovná země):
 
-- **Založení pole:** tlačítko „Pole“, hráč tažením označí čtverce na mřížce políček (jako
-  v realtime strategiích; Martin), stejně je i ubírá. Během kreslení vidí: výměru, průměrnou
-  úrodnost, kolik je louky, křovin a lesa, překážky uvnitř (kameny, stromy, skalní výchozy),
-  cenu založení v člověkodnech a odhad, jak dlouho bude založení trvat při současné společné
-  práci. Obrys, který zasahuje do vody, obydlí nebo jiného pole, se zbarví červeně.
+- **Založení pole:** ikona pole v mřížce staveb (jako v 0 A.D.), hráč tažením označí čtverce na
+  mřížce políček (jako v realtime strategiích; Martin), s Ctrl je ubírá. Bez souhrnu
+  a nápověd (Martin, 17. 10. 2026: „Odstraň všechny popisky – hráč nepotřebuje průvodce.“):
+  čtverce jsou zelené (pole projde), žluté (ještě ne) a červené (sem pole nesmí), u kurzoru jen
+  krátký důvod, proč pole neprojde. Výměru, úrodnost a stadia dílů ukáže panel vybraného pole.
 - **Zakládání:** pole se zakládá jako stavba – hotové díly se postupně zbarví, stromy
   a kameny z nich zmizí.
-- **Panel pole:** výměra, kolik je oseto, kolik leží v přílohu a v jakém stadiu (mladý příloh,
-  louka, nálet, křoviny, les), očekávaná úroda, jestli práce v tomto období stačí a kdy bude
-  potřeba pole rozšířit.
-- **Panel vsi:** zásoby jídla (kg a na kolik měsíců), nasycení, souhrn polí, kolik práce jde
-  na pole a kolik zbývá na společnou práci.
+- **Panel pole** (výběr kliknutím): výměra, úrodnost, kolik dílů se zakládá, je oseto a leží
+  v přílohu podle stadia (mladý příloh, louka, nálet, křoviny, les) – ikony a čísla. Očekávaná
+  úroda a jestli práce stačí – později.
+- **Horní lišta:** zásoby obilí, volná společná práce za den, nasycení (barva ikony).
 - **Ve scéně:** pole na terénu podle ročního období – oraniště (jaro), zelené a zlaté obilí,
   strniště, přílohy v různém stadiu zarůstání (tráva, vyšší tráva, keře, nálet mladých
   stromků) – kolem vsi pestrá mozaika, hranice pole (mez). 3D a textury jsou samostatný úkol.
@@ -376,7 +377,7 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 | Pole jsou samostatná a společná pro celou ves; zakládá je hráč zvlášť                        | Martin                        |
 | Pole se vyznačí volným obrysem na zemi; jde i do lesa, překážky prodraží založení            | Martin                        |
 | Změna: pole se staví po čtvercích – políčkách krajiny (místo volného obrysu)                 | Martin                        |
-| Ves se zakládá zemnicí a prvním polem                                                        | Martin                        |
+| Ves se zakládá zemnicí; pole přidá hráč, kdy chce (dřív zemnicí a prvním polem)              | Martin (17. 10. 2026)         |
 | Odstraněné stromy a kameny zmizí natrvalo; dřevo do zásob až s mechanikou dřeva              | Martin                        |
 | Hráč určuje, kde pole jsou a jak velká; kolik se oseje, rozhoduje ves podle potřeby          | návrh Clauda, Martin potvrdil |
 | Ležení ladem obnovuje úrodnost, osev ji vyčerpává; systém se časem zlepšuje                  | návrh Clauda, Martin potvrdil |

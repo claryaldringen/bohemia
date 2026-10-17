@@ -4,8 +4,9 @@ import { advanceVillage, type Position, type VillageState } from '../../domain/v
 import { block, makeLandscape } from '../../domain/village/__tests__/placement-fixtures';
 import { foundVillageForSettlement, type FoundVillageInput } from '../found-village';
 import { loadVillage } from '../load-village';
-import { CANNOT_BUILD_DWELLING, placeDwelling } from '../place-dwelling';
+import { placeDwelling } from '../place-dwelling';
 import { placeField } from '../place-field';
+import { renameVillage } from '../rename-village';
 import type { SeedSource } from '../settlements';
 import { InMemoryVillages } from './in-memory-villages';
 
@@ -59,6 +60,22 @@ describe('foundVillageForSettlement', () => {
     expect(village.state.parts).toHaveLength(16);
     expect(village.state.parts.every((p) => p.cell !== undefined)).toBe(true);
     expect(village.state.chronicle[0]).toEqual({ day: TODAY, kind: 'village-founded' });
+  });
+
+  it('bez čtverců pole založí ves jen se zemnicí', async () => {
+    const villages = new InMemoryVillages();
+    for (const fieldCells of [undefined, []]) {
+      villages.records.clear();
+      const result = await foundVillageForSettlement(
+        { villages, seeds },
+        foundingInput({ fieldCells }),
+      );
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.village.state.dwellings).toHaveLength(1);
+      expect(result.village.state.fields).toEqual([]);
+      expect(result.village.state.constructions).toEqual([]);
+    }
   });
 
   it('druhé založení odmítne a ves nezmění', async () => {
@@ -131,13 +148,20 @@ describe('loadVillage', () => {
 });
 
 describe('placeDwelling', () => {
-  it('bez plné domácnosti stavět nejde', async () => {
+  it('hráč staví kdy chce – i bez plné domácnosti, víc obydlí za sebou', async () => {
     const villages = await foundedVillages();
-    const result = await placeDwelling(
-      { villages },
-      { settlementId: ID, landscape, today: TODAY + 1, type: 'zemnice', position: at(-80, -50) },
-    );
-    expect(result).toEqual({ ok: false, reason: CANNOT_BUILD_DWELLING });
+    const deps = { villages };
+    const base = { settlementId: ID, landscape, today: TODAY + 1 };
+    const first = await placeDwelling(deps, { ...base, type: 'zemnice', position: at(-80, -50) });
+    expect(first.ok).toBe(true);
+    const second = await placeDwelling(deps, {
+      ...base,
+      type: 'polozemnice',
+      position: at(-80, -80),
+    });
+    expect(second.ok).toBe(true);
+    if (!second.ok) return;
+    expect(second.village.state.constructions.filter((c) => c.kind === 'dwelling')).toHaveLength(2);
   });
 
   it('plná domácnost: stavba začne dnes, ves je dopočítaná do dneška', async () => {
@@ -223,5 +247,39 @@ describe('placeField', () => {
       { settlementId: ID, landscape, today: TODAY, cells: block(8, 8, 3, 3) },
     );
     expect(result.ok).toBe(false);
+  });
+});
+
+describe('renameVillage', () => {
+  it('přejmenuje ves (normalizované jméno) a vrátí ji dopočítanou do dneška', async () => {
+    const villages = await foundedVillages();
+    const result = await renameVillage(
+      { villages },
+      { settlementId: ID, today: TODAY + 2, name: '  Nové   Dvory ' },
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.village.name).toBe('Nové Dvory');
+    expect(result.village.state.lastDay).toBe(TODAY + 2);
+    expect(villages.records.get(ID)?.name).toBe('Nové Dvory');
+  });
+
+  it('odmítne prázdné a dlouhé jméno i ves, která není', async () => {
+    const villages = await foundedVillages();
+    const deps = { villages };
+    const empty = await renameVillage(deps, { settlementId: ID, today: TODAY, name: '  ' });
+    expect(empty).toEqual({ ok: false, reason: 'Ves potřebuje jméno.' });
+    const long = await renameVillage(deps, {
+      settlementId: ID,
+      today: TODAY,
+      name: 'x'.repeat(41),
+    });
+    expect(long.ok).toBe(false);
+    expect(villages.records.get(ID)?.name).toBe('Libice');
+    const none = await renameVillage(
+      { villages: new InMemoryVillages() },
+      { settlementId: ID, today: TODAY, name: 'Lhota' },
+    );
+    expect(none).toEqual({ ok: false, reason: 'Ves ještě není založená.' });
   });
 });

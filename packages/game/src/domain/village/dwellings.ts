@@ -1,5 +1,5 @@
 import { isFertileAdult, occupants } from './people';
-import { BETTER_DWELLING, DWELLINGS, UNLOCK_MIN_ADULTS } from './rules';
+import { BETTER_DWELLING, DWELLINGS, NEW_HOUSEHOLD_MIN_ADULTS } from './rules';
 import type { Dwelling, DwellingType, VillageState } from './types';
 
 const DAYS_PER_YEAR = 365.25; // věk obydlí v (neceločíselných) letech
@@ -30,23 +30,30 @@ export function isOvercrowded(state: VillageState, dwellingId: number, day: numb
 
 /**
  * Obydlí, jejichž domácnost je plná a má aspoň 4 dospělé (14–44 let – starší se nepočítají,
- * population.md – Pojmy a Odemčení); od nejvíc přeplněné, při shodě podle id. Dva nejmladší
- * dospělí tak můžou odejít a dva zůstanou – zbytek domácnosti se po jejich odchodu nerozpadne.
+ * population.md – Nové obydlí); od nejvíc přeplněné, při shodě podle id. Z takové domácnosti
+ * se dva nejmladší dospělí přestěhují do nového (prázdného) obydlí a dva zůstanou – zbytek
+ * domácnosti se po jejich odchodu nerozpadne.
  */
 export function qualifyingDwellings(state: VillageState, day: number): Dwelling[] {
   return state.dwellings
     .filter(
       (d) =>
         crowding(state, d) >= 0 &&
-        occupants(state, d.id).filter((p) => isFertileAdult(p, day)).length >= UNLOCK_MIN_ADULTS,
+        occupants(state, d.id).filter((p) => isFertileAdult(p, day)).length >=
+          NEW_HOUSEHOLD_MIN_ADULTS,
     )
     .sort((a, b) => crowding(state, b) - crowding(state, a) || a.id - b.id);
 }
 
-/** Lze zahájit další obydlí: kvalifikujících domácností je víc než rozestavěných obydlí. */
-export function canStartNewDwelling(state: VillageState, day: number): boolean {
+/**
+ * Kolik plných domácností (`qualifyingDwellings`) nemá kam se rozdělit – na každou z nich
+ * nečeká prázdné ani rozestavěné obydlí. Jen informace pro hráče (upozornění „Domácnost je
+ * plná“); stavět smí hráč kdykoli (population.md – Nové obydlí).
+ */
+export function waitingHouseholds(state: VillageState, day: number): number {
   const building = state.constructions.filter((c) => c.kind === 'dwelling').length;
-  return qualifyingDwellings(state, day).length > building;
+  const empty = state.dwellings.filter((d) => occupants(state, d.id).length === 0).length;
+  return Math.max(0, qualifyingDwellings(state, day).length - building - empty);
 }
 
 function fractionalAge(dwelling: Dwelling, day: number): number {

@@ -43,7 +43,6 @@ import {
   THRESH_END_DAY,
   advanceVillage,
   ageGroup,
-  canStartNewDwelling,
   daysUntilHarvest,
   eatDay,
   fallowYears,
@@ -56,6 +55,7 @@ import {
   repairNeedPerDay,
   startNewDwelling,
   threshLossKg,
+  waitingHouseholds,
 } from '../src/domain/village';
 import type {
   ChronicleEvent,
@@ -515,7 +515,8 @@ function runVillage(start: VillageState, startLand: number, opts: RunOptions): R
       }
     }
     if (opts.build) {
-      while (canStartNewDwelling(after, day)) {
+      // Hráč staví kdy chce – bot postaví zemnici pro každou plnou domácnost, která nemá kam.
+      while (waitingHouseholds(after, day) > 0) {
         after = startNewDwelling(after, day, 'zemnice', POSITION, 0);
         const id = after.constructions.at(-1)?.id;
         if (result.zemniceDays === null && firstConstruction === null && id !== undefined) {

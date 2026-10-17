@@ -1,6 +1,6 @@
 import type { Landscape } from '../domain/landscape';
 import {
-  canStartNewDwelling,
+  buildAffordability,
   checkDwellingPlacement,
   startNewDwelling,
   type DwellingType,
@@ -18,10 +18,13 @@ export interface PlaceDwellingInput {
   position: Position;
 }
 
-export const CANNOT_BUILD_DWELLING =
-  'Nové obydlí teď stavět nejde – chybí plná domácnost se 4 dospělými, nebo se pro ni už staví.';
+/** Ves nemá suroviny, které stavba stojí předem (population.md – Odemčení). */
+export const CANNOT_AFFORD = 'Na tuhle stavbu ves nemá suroviny.';
 
-/** Hráč zahájí stavbu nového obydlí (ves se nejdřív dopočítá do dneška). */
+/**
+ * Hráč zahájí stavbu nového obydlí – kdykoli, jen na ni ves musí mít suroviny předem (ves se
+ * nejdřív dopočítá do dneška).
+ */
 export function placeDwelling(
   deps: { villages: VillageRepository },
   input: PlaceDwellingInput,
@@ -29,8 +32,8 @@ export function placeDwelling(
   return updateVillage(deps.villages, input.settlementId, input.today, (state) => {
     // akce patří do dne, do kterého je ves dopočítaná – dnešek, nebo „budoucí“ den vsi
     const day = state.lastDay;
-    if (!canStartNewDwelling(state, day)) {
-      return { ok: false, reason: CANNOT_BUILD_DWELLING };
+    if (!buildAffordability(state, input.type).affordable) {
+      return { ok: false, reason: CANNOT_AFFORD };
     }
     const check = checkDwellingPlacement(input.landscape, state, input.type, input.position);
     if (!check.ok) return { ok: false, reason: check.reason ?? 'Sem obydlí nepatří.' };

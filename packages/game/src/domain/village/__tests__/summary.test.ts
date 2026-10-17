@@ -84,8 +84,7 @@ describe('summarizeVillage', () => {
     ]);
     expect(summary.storesMonths).toBeCloseTo(18, 0);
     expect(summary.satiation).toBe(1);
-    expect(summary.canBuildDwelling).toBe(false);
-    expect(summary.buildBlocker).toBe('no-full-household');
+    expect(summary.fullHousehold).toBe(false);
   });
 
   it('rozestavěné pole má průběh mezi 0 a 1 a výměru', () => {
@@ -104,7 +103,7 @@ describe('summarizeVillage', () => {
     expect(summarizeVillage(s, DAY).commonLaborPerDay).toBe(0);
   });
 
-  it('plná domácnost se 4 dospělými může stavět, rozestavěné obydlí to zablokuje', () => {
+  it('plná domácnost se 4 dospělými se ohlásí, dokud pro ni nezačne nové obydlí', () => {
     const s = found();
     const extra: Person[] = [20, 21].map((age, i) => ({
       id: 100 + i,
@@ -116,13 +115,11 @@ describe('summarizeVillage', () => {
     s.people[3]!.bornDay = DAY - Math.ceil(15 * YEAR);
     const ready = summarizeVillage(s, DAY);
     expect(ready.households[0]).toMatchObject({ occupants: 6, full: true, overcrowded: false });
-    expect(ready.canBuildDwelling).toBe(true);
-    expect(ready.buildBlocker).toBeNull();
+    expect(ready.fullHousehold).toBe(true);
     const building = startNewDwelling(s, DAY, 'zemnice', { x: 20, z: 0, rotation: 0 }, 0);
-    const blocked = summarizeVillage(building, DAY);
-    expect(blocked.canBuildDwelling).toBe(false);
-    expect(blocked.buildBlocker).toBe('already-building');
-    expect(blocked.constructions.find((c) => c.kind === 'dwelling')).toMatchObject({
+    const waiting = summarizeVillage(building, DAY);
+    expect(waiting.fullHousehold).toBe(false);
+    expect(waiting.constructions.find((c) => c.kind === 'dwelling')).toMatchObject({
       dwellingType: 'zemnice',
       progress: 0,
       areaM2: null,

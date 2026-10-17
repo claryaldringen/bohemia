@@ -103,6 +103,17 @@ describe('createVillageRepository', () => {
     expect(advanceVillage(loaded!.state, later)).toEqual(advanceVillage(stored, later));
   });
 
+  it('rename změní jméno, stav ani verzi ne; bez vsi vrátí false', async () => {
+    await villages.create(settlementId, 'Libice', state());
+    expect(await villages.rename(settlementId, 'Testovice')).toBe(true);
+    expect(await villages.find(settlementId)).toMatchObject({
+      name: 'Testovice',
+      version: 1,
+      state: state(),
+    });
+    expect(await villages.rename('00000000-0000-0000-0000-000000000000', 'Jiná')).toBe(false);
+  });
+
   it('smazání hráče smaže sídlo i ves', async () => {
     await villages.create(settlementId, 'Libice', state());
     await db.execute(sql`DELETE FROM "user" WHERE id = 'hrac-1'`);

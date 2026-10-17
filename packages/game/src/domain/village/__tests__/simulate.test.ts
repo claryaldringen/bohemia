@@ -509,6 +509,18 @@ describe('advanceVillage – obydlí', () => {
     expect(s.constructions).toEqual([]);
   });
 
+  it('obydlí postavené hned po založení stojí prázdné, dokud domácnost nezplní – nechátrá hned', () => {
+    const day = at(600, 10, 1);
+    const building = startNewDwelling(found(day), day, 'zemnice', { x: 30, z: 0, rotation: 0 }, 0);
+    const s = advanceVillage(building, day + Math.ceil(2 * YEAR));
+    const fresh = s.dwellings.find((d) => d.id !== 1);
+    expect(fresh).toBeDefined();
+    expect(occupants(s, fresh!.id)).toEqual([]);
+    expect(s.people.every((p) => p.dwellingId === 1)).toBe(true);
+    // prázdné obydlí se neopravuje, ale potřeba oprav roste s věkem – za 2 roky skoro nic
+    expect(fresh!.condition).toBeGreaterThan(0.99);
+  });
+
   it('prázdné obydlí obsadí kvalifikovaná domácnost', () => {
     const day = at(600, 10, 1);
     const s0 = withoutFields(day, [adultOfAge(100, 20, day), adultOfAge(101, 21, day)]);

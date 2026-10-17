@@ -44,5 +44,15 @@ export function createVillageRepository(db: Database): VillageRepository {
         .returning();
       return row ? toRecord(row) : null;
     },
+
+    async rename(settlementId, name): Promise<boolean> {
+      // Jméno je mimo stav simulace – verze (zámek stavu) se nemění.
+      const rows = await db
+        .update(village)
+        .set({ name, updatedAt: sql`now()` })
+        .where(eq(village.settlementId, settlementId))
+        .returning({ settlementId: village.settlementId });
+      return rows.length > 0;
+    },
   };
 }
