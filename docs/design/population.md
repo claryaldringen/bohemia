@@ -113,6 +113,8 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
   nové obydlí – vybere typ a místo (viz Umístění obydlí).
 - **Odemčení:** stavět lze, když je některá domácnost plná a žijí v ní aspoň **4 dospělí**
   (Martin: „je v ní moc dospělých“; čtveřici upřesnil Claude, aby měl kdo odejít i zůstat).
+  Starší se nepočítají – kdyby odešli dva dospělí a zůstali jen starší s dětmi, domácnost by
+  se rozpadla a přestěhovala za nimi.
 - **Cena:** člověkodny ze společné práce vsi (dřevo viz Zjednodušení). Stavba roste den po dni
   podle toho, kolik společné práce přitéká; hráč vidí postup.
 - **Kolik staveb najednou:** rozestavěných nových obydlí smí být nejvýš tolik, kolik je

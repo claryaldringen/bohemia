@@ -542,8 +542,8 @@ describe('advanceVillage – obydlí', () => {
   });
 
   /**
-   * Dvě kvalifikované domácnosti: obydlí 1 (přeplněné, v pořadí první) má jediného člověka
-   * 14–44, tři starší a tři děti; obydlí 2 (plné) čtyři dospělé a dvě děti.
+   * Obydlí 1 (přeplněné) má jediného člověka 14–44, tři starší a tři děti – nekvalifikuje,
+   * starší se do čtyř dospělých nepočítají; obydlí 2 (plné) má čtyři dospělé a dvě děti.
    */
   function firstQualifyingWithoutPair(day: number): VillageState {
     const s = withoutFields(day);
@@ -564,7 +564,7 @@ describe('advanceVillage – obydlí', () => {
       .map((p) => p.id)
       .filter((id) => id < nextId);
 
-  it('prázdné obydlí: když první kvalifikovaná domácnost nemá dva lidi 14–44, zkusí se další (Ruling 19)', () => {
+  it('prázdné obydlí obsadí pár z domácnosti se čtyřmi dospělými, ne z přeplněnější se staršími', () => {
     const day = at(600, 10, 1);
     const s0 = firstQualifyingWithoutPair(day);
     s0.dwellings.push({ id: 50, type: 'zemnice', builtDay: day, condition: 1, position: POSITION });
@@ -574,7 +574,7 @@ describe('advanceVillage – obydlí', () => {
     expect(originalOccupants(s, 1, s0.nextId)).toEqual([10, 11, 12, 13, 14, 15, 16]);
   });
 
-  it('nové obydlí: když první kvalifikovaná domácnost nemá dva lidi 14–44, zkusí se další (Ruling 19)', () => {
+  it('do nového obydlí jde pár z domácnosti se čtyřmi dospělými, ne z přeplněnější se staršími', () => {
     const day = at(600, 10, 1);
     const s0 = firstQualifyingWithoutPair(day);
     const building = startNewDwelling(s0, day, 'zemnice', { x: 5, z: 5, rotation: 0 }, 0);
@@ -583,6 +583,19 @@ describe('advanceVillage – obydlí', () => {
     expect(fresh).toBeDefined();
     expect(originalOccupants(s, fresh!.id, s0.nextId)).toEqual([22, 23]);
     expect(originalOccupants(s, 1, s0.nextId)).toEqual([10, 11, 12, 13, 14, 15, 16]);
+  });
+
+  it('pár neodejde, když by po něm zůstali jen starší a děti – žádné stěhování sem a tam', () => {
+    // plná polozemnice: dva starší, dva lidé 14–44 a čtyři děti; vedle prázdné obydlí
+    const day = at(600, 10, 1);
+    const s0 = withoutFields(day);
+    s0.dwellings[0]!.type = 'polozemnice';
+    s0.people = [53, 53, 40, 21, 9, 3, 2, 1].map((years, i) => adultOfAge(10 + i, years, day));
+    s0.dwellings.push({ id: 50, type: 'zemnice', builtDay: day, condition: 1, position: POSITION });
+    const s = advanceVillage(s0, day + 10);
+    expect(count(s, 'household-founded')).toBe(0);
+    expect(count(s, 'household-merged')).toBe(0);
+    expect(originalOccupants(s, 1, s0.nextId)).toEqual([10, 11, 12, 13, 14, 15, 16, 17]);
   });
 
   it('prázdné obydlí chátrá a na nule zanikne', () => {

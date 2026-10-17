@@ -10,8 +10,8 @@ import {
 import { endOfSeason, fallowYears, selectPartsToSow } from './fields';
 import { daysUntilHarvest, eatDay } from './food';
 import { allocateDay } from './labor';
-import { ageGroup, foodNeedPerDay, isFertileAdult, laborPerDay } from './people';
-import { populationDay } from './population';
+import { ageGroup, foodNeedPerDay, isFertileAdult, laborPerDay, occupants } from './people';
+import { householdBreaksUp, populationDay } from './population';
 import {
   CHRONICLE_MAX_EVENTS,
   COMMON_LABOR_HISTORY_DAYS,
@@ -406,17 +406,22 @@ function finishedEvent(day: number, c: Construction, dwellingId: number | null):
 
 /**
  * Dva nejmladší lidé 14–44 z první domácnosti, která splňuje podmínku nového obydlí a dva
- * takové lidi má, se přestěhují do obydlí `dwellingId` (při shodě data narození mladší = vyšší
- * id). Domácnosti se zkoušejí v pořadí `qualifyingDwellings` – podmínka počítá i starší, takže
- * první z nich nemusí mít dva lidi 14–44.
+ * takové lidi může uvolnit, se přestěhují do obydlí `dwellingId` (při shodě data narození
+ * mladší = vyšší id). Domácnosti se zkoušejí v pořadí `qualifyingDwellings`. Pár neodejde, když
+ * by se zbytek domácnosti hned rozpadl (zůstali by jen starší a děti) – rozpad by zbytek večer
+ * přestěhoval za párem a druhý den by se pár stěhoval znovu. S podmínkou čtyř dospělých 14–44
+ * to nenastane; kontrola to hlídá i pro případ, že se podmínka změní.
  */
 function moveInYoungestPair(state: VillageState, day: number, dwellingId: number): void {
   for (const source of qualifyingDwellings(state, day)) {
-    const movers = state.people
-      .filter((p) => p.dwellingId === source.id && isFertileAdult(p, day))
+    const members = occupants(state, source.id);
+    const movers = members
+      .filter((p) => isFertileAdult(p, day))
       .sort((a, b) => b.bornDay - a.bornDay || b.id - a.id)
       .slice(0, 2);
     if (movers.length < 2) continue;
+    const staying = members.filter((p) => !movers.includes(p));
+    if (householdBreaksUp(staying, day)) continue;
     for (const p of movers) p.dwellingId = dwellingId;
     state.chronicle.push({ day, kind: 'household-founded', dwellingId });
     return;

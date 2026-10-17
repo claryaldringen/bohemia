@@ -1,5 +1,5 @@
-import { ageYears, occupants } from './people';
-import { AGE, BETTER_DWELLING, DWELLINGS, UNLOCK_MIN_ADULTS } from './rules';
+import { isFertileAdult, occupants } from './people';
+import { BETTER_DWELLING, DWELLINGS, UNLOCK_MIN_ADULTS } from './rules';
 import type { Dwelling, DwellingType, VillageState } from './types';
 
 const DAYS_PER_YEAR = 365.25; // věk obydlí v (neceločíselných) letech
@@ -28,14 +28,17 @@ export function isOvercrowded(state: VillageState, dwellingId: number, day: numb
   return dwelling !== undefined && crowding(state, dwelling) > 0;
 }
 
-/** Obydlí, jejichž domácnost je plná a má aspoň 4 lidi 14+; od nejvíc přeplněné, při shodě podle id. */
+/**
+ * Obydlí, jejichž domácnost je plná a má aspoň 4 dospělé (14–44 let – starší se nepočítají,
+ * population.md – Pojmy a Odemčení); od nejvíc přeplněné, při shodě podle id. Dva nejmladší
+ * dospělí tak můžou odejít a dva zůstanou – zbytek domácnosti se po jejich odchodu nerozpadne.
+ */
 export function qualifyingDwellings(state: VillageState, day: number): Dwelling[] {
   return state.dwellings
     .filter(
       (d) =>
         crowding(state, d) >= 0 &&
-        occupants(state, d.id).filter((p) => ageYears(p.bornDay, day) >= AGE.adult).length >=
-          UNLOCK_MIN_ADULTS,
+        occupants(state, d.id).filter((p) => isFertileAdult(p, day)).length >= UNLOCK_MIN_ADULTS,
     )
     .sort((a, b) => crowding(state, b) - crowding(state, a) || a.id - b.id);
 }

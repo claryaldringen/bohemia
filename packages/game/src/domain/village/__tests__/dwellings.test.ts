@@ -66,12 +66,12 @@ describe('odemčení nového obydlí', () => {
     expect(canStartNewDwelling(s, DAY)).toBe(false);
   });
 
-  it('plná domácnost se 4 lidmi 14+ kvalifikuje a stavba ji zablokuje', () => {
+  it('plná domácnost se 4 dospělými 14–44 kvalifikuje a stavba ji zablokuje', () => {
     const s = village([
       ofAge(1, 25),
       ofAge(2, 25),
       ofAge(3, 16),
-      ofAge(4, 50),
+      ofAge(4, 44),
       ofAge(5, 5),
       ofAge(6, 2),
     ]);
@@ -88,6 +88,19 @@ describe('odemčení nového obydlí', () => {
       dwellingId: null,
       fieldId: null,
     });
+    expect(canStartNewDwelling(s, DAY)).toBe(false);
+  });
+
+  it('starší se do čtyř dospělých nepočítají – dva by odešli a zůstali by jen starší a děti', () => {
+    const s = village([
+      ofAge(1, 33),
+      ofAge(2, 32),
+      ofAge(3, 45),
+      ofAge(4, 50),
+      ofAge(5, 5),
+      ofAge(6, 2),
+    ]);
+    expect(qualifyingDwellings(s, DAY)).toEqual([]);
     expect(canStartNewDwelling(s, DAY)).toBe(false);
   });
 

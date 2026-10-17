@@ -68,7 +68,7 @@ export function deathChancePerDay(
  * Dojde k rozpadu domácnosti? Nikdo 14–44 let (jen děti nebo starší), nebo jediný člověk
  * a nikdo jiný.
  */
-function isDissolving(members: Person[], day: number): boolean {
+export function householdBreaksUp(members: Person[], day: number): boolean {
   if (members.length === 0) return false;
   const adults = members.filter((p) => isFertileAdult(p, day)).length;
   return adults === 0 || members.length === 1;
@@ -79,7 +79,7 @@ function dissolveHouseholds(state: VillageState, day: number): ChronicleEvent[] 
   const events: ChronicleEvent[] = [];
   const ids = state.dwellings.map((d) => d.id).sort((a, b) => a - b);
   for (const fromId of ids) {
-    if (!isDissolving(occupants(state, fromId), day)) continue;
+    if (!householdBreaksUp(occupants(state, fromId), day)) continue;
     let target: { id: number; free: number } | null = null;
     for (const d of state.dwellings) {
       if (d.id === fromId) continue;
