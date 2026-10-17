@@ -2,8 +2,8 @@
 
 Stav: schváleno 17. 10. 2026 (Martin: „Takhle je to zatím ok“). Implementace zatím není – staví na
 vrstvě překážek (stromy jako herní data). Ta už je hotová (17. 10. 2026): dospělé stromy sídla
-s id a polohou, kácení s pařezem a obnovou (`fellTrees`, `treeRegrowth`, TREE_REGROWTH_YEARS = 30,
-prvních 10 let pařez, pak nálet – návrh Clauda), nejbližší dospělé stromy (`matureTreesByDistance`)
+s id a polohou, kácení s pařezem a obnovou (`fellTrees`, `treeRegrowth`: 30 let pařez, pak mladý
+stromek, po 70 letech dospělý strom), nejbližší dospělé stromy (`matureTreesByDistance`)
 a jejich počet (`countMatureTrees`) v `packages/game/src/domain/village/obstacles.ts`; scéna
 pařezy a nálet kreslí. Zbývá dřevo samo: hromada klád, kácení při stavbě, mýcení, palivo.
 
@@ -56,8 +56,9 @@ k lesu stojí práci a mýcení pro pole dá klády na stavby.
   daleký les stavbu jen prodraží (návrh Clauda). Rozestavěná stavba se nezastaví: dřevo se jí
   vyhradí při zahájení (návrh Clauda).
 - **Les ustupuje:** pokácené stromy z krajiny sídla zmizí natrvalo, zůstane po nich **pařez**
-  (návrh Clauda). Pokácený strom se z náletu obnoví zhruba **za 30 let** (návrh Clauda) –
-  okraj lesa u vsi tak řídne a ustupuje, ale nezmizí navždy.
+  (návrh Clauda). Z náletu je pokácený strom zhruba **za 30 let** mladý stromek a **za 70 let**
+  zase dospělý strom, který jde kácet (Martin, oprava podle rešerše) – okraj lesa u vsi tak
+  řídne a ustupuje, ale nezmizí navždy.
 - Řemesla později spotřebují dřevo stejnou cestou (Martin).
 
 ### Mýcení a hromada klád
@@ -100,7 +101,7 @@ k lesu stojí práci a mýcení pro pole dá klády na stavby.
 | Stavba bere nejdřív z hromady, kácí se jen při nedostatku                        | Martin       |
 | Když není z čeho kácet (klády + dospělé stromy nestačí), stavba je zašedlá       | Martin       |
 | 12 / 35 stromů na zemnici / polozemnici, 2 čd na strom, vzdálenost +1 % / 10 m   | návrh Clauda |
-| Jen dospělé stromy, pařez po kácení, obnova z náletu ≈ 30 let                    | návrh Clauda |
+| Jen dospělé stromy, pařez po kácení; nálet: mladý strom ≈ 30 let, dospělý ≈ 70   | Martin       |
 | Klády hnijí ≈ 10 % ročně; strom z mýcení = 1 kláda; hromada u nejbližšího obydlí | návrh Clauda |
 | Palivo jako třetina domácí výroby, dražší se vzdáleností k lesu                  | návrh Clauda |
 | Stromy jako herní data (vrstva překážek) jsou předpoklad                         | návrh Clauda |

@@ -156,10 +156,10 @@ export const DWELLING_CLEARING_M: Record<
 // fields.md – Překážka na louce (skalní výchoz se neodstraní, plocha pod ním se nepočítá):
 // poloměr výchozu (m) na jednotku velikosti modelu (modely skal 0 A.D. mají půdorys ≈ 6 m)
 export const OUTCROP_RADIUS_M = 3;
-// forest.md – Les ustupuje: pokácený strom se z náletu obnoví ≈ za 30 let (návrh Clauda);
-// prvních TREE_SAPLING_AFTER_YEARS let je po něm jen pařez, pak mladý stromek (návrh Clauda)
-export const TREE_REGROWTH_YEARS = 30;
-export const TREE_SAPLING_AFTER_YEARS = 10;
+// forest.md – Les ustupuje (oprava podle rešerše, schválil Martin): z pařezu vyroste nálet
+// a pokácený strom je ≈ za 30 let mladý stromek, za ≈ 70 let zase dospělý strom (dá se kácet)
+export const TREE_SAPLING_AFTER_YEARS = 30;
+export const TREE_REGROWTH_YEARS = 70;
 // fields.md – Zarůstání (stadia přílohu podle celých let bez péče; víc než 15 let = les)
 export const OVERGROWTH_STAGES = [
   { maxYears: 2, stage: 'young-fallow' },

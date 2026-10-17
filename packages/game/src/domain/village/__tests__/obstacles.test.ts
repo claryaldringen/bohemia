@@ -219,7 +219,9 @@ describe('kácení a obnova lesa (forest.md)', () => {
     expect(treeRegrowth(DAY, DAY)).toBe('stump');
     expect(treeRegrowth(DAY, DAY + Math.ceil(TREE_SAPLING_AFTER_YEARS * YEAR))).toBe('sapling');
     expect(treeRegrowth(DAY, DAY + Math.ceil(TREE_REGROWTH_YEARS * YEAR))).toBe('grown');
-    expect(TREE_REGROWTH_YEARS).toBe(30);
+    expect(treeRegrowth(DAY, DAY + Math.ceil(29 * YEAR))).toBe('stump');
+    expect(treeRegrowth(DAY, DAY + Math.ceil(69 * YEAR))).toBe('sapling');
+    expect([TREE_SAPLING_AFTER_YEARS, TREE_REGROWTH_YEARS]).toEqual([30, 70]);
   });
 
   it('fellTrees zapíše stromy s dnem a změny ukazují pařezy, pak nálet', () => {
@@ -233,9 +235,9 @@ describe('kácení a obnova lesa (forest.md)', () => {
       stumps: [100, 105],
       saplings: [],
     });
-    const later = DAY + 5 + Math.ceil(12 * YEAR);
+    const later = DAY + 5 + Math.ceil(35 * YEAR);
     expect(obstacleChangesAt(felled, later).saplings).toEqual([100, 105]);
-    const grown = DAY + 5 + Math.ceil(31 * YEAR);
+    const grown = DAY + 5 + Math.ceil(71 * YEAR);
     expect(obstacleChangesAt(felled, grown)).toEqual(NO_OBSTACLE_CHANGES);
   });
 

@@ -186,10 +186,10 @@ describe('buildVillageView', () => {
     s.clearedObstacles = [{ id: 7, day: DAY }];
     s.felledTrees = [
       { id: 9, day: DAY },
-      { id: 11, day: DAY - 4000 },
+      { id: 11, day: DAY - 12_000 },
     ];
     const { scene } = buildVillageView(record(s), landscape, DAY);
-    // strom 11 je pokácený přes 10 let – roste z náletu
+    // strom 11 je pokácený přes 30 let – roste z náletu
     expect(scene.obstacles).toEqual({ removed: [7], stumps: [9], saplings: [11] });
     expect(placementVillageFromScene(scene).obstacleChanges).toEqual(scene.obstacles);
   });
