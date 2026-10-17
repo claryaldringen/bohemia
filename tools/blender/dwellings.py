@@ -8,8 +8,15 @@ props_glb_dir: koše z 0 A.D. (basket-a.glb, basket-b.glb) převedené přes tre
 s tools/blender/dwelling-props.json. render_dir: náhledy v Cycles, "-" = bez náhledů.
 atlas_dir: atlas.jpg + atlas.json z tools/blender/atlas.py (pásy opakované v U, plochy ve V uvnitř
 pásu podle metrů). Souřadnice Blenderu: Z nahoru, hřeben střechy podél osy Y, vchod na štítu
-v -Y. Počátek = střed půdorysu na úrovni původního terénu; jáma jde pod nulu. V glTF (a ve scéně
-při natočení 0) míří vchod do +Z.
+v -Y. Počátek = střed půdorysu na úrovni původního terénu. V glTF (a ve scéně při natočení 0)
+míří vchod do +Z. Jámu se šíjí a schody kreslí scéna (apps/web/lib/scene/dwelling-pit.ts –
+rozměry musí sedět s DOOR, *_RAMP a půdorysy jam tady); modely mají jen štíty, ostění dveří
+a sloupy, které do jámy sahají. Střecha přečnívá před oba štíty o GABLE_OVERHANG.
+
+Výstup: zemnice.glb, polozemnice.glb (hotová obydlí) a construction.glb – díly staveniště
+po fázích (uzly „zemnice-…“, „polozemnice-…“: kolíky, sloupy, krov, latě, výplet, srub, řady
+došků zdola nahoru, hřeben, valy) a rekvizity („site-…“); kdy se který díl ukáže, určuje
+apps/web/lib/scene/village-construction.ts.
 
 Celý postup (art = <0ad>/binaries/data/mods/public/art, PNG z DDS viz atlas.py):
   python3 -I tools/blender/atlas.py <celt_struct_1.png> <celt_struct.png> \
@@ -288,10 +295,28 @@ def make_material():
     return mat
 
 
-def thatch_roof(b, half_len, z_ridge, slope, x_eave, thickness, ny=4, kozy=(1.5, 0.62)):
+class Parts:
+    """Části obydlí podle fází stavby – každá svůj Builder (staveniště je skládá postupně)."""
+
+    def __init__(self, prefix):
+        self.prefix = prefix
+        self.builders = {}
+
+    def __call__(self, key):
+        if key not in self.builders:
+            self.builders[key] = Builder(f"{self.prefix}-{key}")
+        return self.builders[key]
+
+    def build(self, mat):
+        return [b.build(mat) for b in self.builders.values()]
+
+
+def thatch_roof(part, half_len, z_ridge, slope, x_eave, thickness, ny=6, kozy=(1.5, 0.62)):
     """Sedlová slámová střecha z řad došků (kurzů): každá řada je nepatrně strmější než
     střecha, takže spodní hrana přečnívá řadu pod ní o LIP – stupeň vrhá stín a řady jsou
-    čitelné i z dálky. Vrací z_in(x) – spodní plochu střechy."""
+    čitelné i z dálky. part(klíč) vrátí Builder: řady 'thatch-1' … 'thatch-N' zdola nahoru
+    (staveniště je kladou postupně), hřeben s kozami 'ridge'. Vrací z_in(x) – spodní plochu
+    střechy."""
     cs = 1 / math.sqrt(1 + slope * slope)
     t_v = thickness / cs  # svislá tloušťka
     L = x_eave / cs  # délka po spádu
@@ -317,6 +342,7 @@ def thatch_roof(b, half_len, z_ridge, slope, x_eave, thickness, ny=4, kozy=(1.5,
     for sgn in (-1, 1):
         out_top = (sgn * slope, 0, 1)
         for k in range(n_courses):
+            b = part(f"thatch-{k + 1}")
             s0 = COURSES[k]
             s1 = min(COURSES[k + 1], L)
             r0 = LIP
@@ -349,15 +375,17 @@ def thatch_roof(b, half_len, z_ridge, slope, x_eave, thickness, ny=4, kozy=(1.5,
                     out=out,
                     uvm=[(s0, (zt0 - o0[2]) * cs), (s1, (zt1 - o1[2]) * cs), (s1, (zt1 - i1[2]) * cs), (s0, (zt0 - i0[2]) * cs)],
                 )
+            # spodní strana řady
+            xa, xb = x_of(sgn, s0), x_of(sgn, s1)
+            b.poly(
+                [(xb, -half_len, z_in(xb)), (xa, -half_len, z_in(xa)), (xa, half_len, z_in(xa)), (xb, half_len, z_in(xb))],
+                "thatch",
+                out=(-sgn, 0, -1),
+                uvm=[(-half_len, s1), (-half_len, s0), (half_len, s0), (half_len, s1)],
+            )
         ex = sgn * x_eave
-        # spodní strana
-        b.poly(
-            [(0, -half_len, z_in(0)), (ex, -half_len, z_in(ex)), (ex, half_len, z_in(ex)), (0, half_len, z_in(0))],
-            "thatch",
-            out=(-sgn, 0, -1),
-            uvm=[(-half_len, L), (-half_len, 0), (half_len, 0), (half_len, L)],
-        )
-        # okapová hrana (tloušťka došků)
+        # okapová hrana (tloušťka došků) patří k první řadě
+        b = part("thatch-1")
         for j in range(ny):
             ya, yb = ys[j], ys[j + 1]
             pa, pb = P(sgn, 0, ya, LIP), P(sgn, 0, yb, LIP)
@@ -369,6 +397,7 @@ def thatch_roof(b, half_len, z_ridge, slope, x_eave, thickness, ny=4, kozy=(1.5,
             )
     # hřeben: jen nízká úzká převázaná sláma přes spoj obou stran (Martin: žádná „bakule“,
     # ať jsou vidět kozy na štítech)
+    b = part("ridge")
     w, h = 0.17, 0.08
     Lr = half_len
     zr = z_ridge - 0.02
@@ -404,16 +433,12 @@ def thatch_roof(b, half_len, z_ridge, slope, x_eave, thickness, ny=4, kozy=(1.5,
     return z_in
 
 
-def entrance(b, y_wall, width=1.0, length=1.6, mound_h=0.3):
-    """Vstupní šíje se schody dolů – terén se zatím nevyhlubuje, proto jen tmavý „obtisk“
-    se schody těsně nad zemí a po stranách valy vykopané hlíny."""
+def entrance_berms(b, y_wall, half_width, length, mound_h=0.3):
+    """Valy vykopané hlíny po stranách vstupní šíje. Šíji samotnou (schody dolů do jámy)
+    i jámu kreslí scéna – vyhloubí terén (dwelling-pit.ts)."""
     y0, y1 = y_wall, y_wall - length
-    hw = width / 2
-    z = 0.05
-    pts = [(-hw, y1, z), (hw, y1, z), (hw, y0, z), (-hw, y0, z)]
-    b.poly(pts, "trench", out=(0, 0, 1), uvm=[((p[0] + hw) / width, (p[1] - y1) / length) for p in pts])
     for sgn in (-1, 1):
-        b.berm((sgn * (hw + 0.3), y0 + 0.2, 0), (sgn * (hw + 0.3), y1 - 0.1, 0), mound_h, 0.7, segments=2, mat="spoil")
+        b.berm((sgn * (half_width + 0.4), y0 + 0.2, 0), (sgn * (half_width + 0.4), y1 - 0.1, 0), mound_h, 0.7, segments=2, mat="spoil")
 
 
 def gable_frame(b, y, apex, slope, z_low, z_high, size=0.12):
@@ -427,44 +452,108 @@ def gable_frame(b, y, apex, slope, z_low, z_high, size=0.12):
     b.beam((-x_at(z_high) - 0.05, yo, z_high), (x_at(z_high) + 0.05, yo, z_high), size * 0.9)
 
 
-def build_zemnice(mat, name="zemnice"):
-    b = Builder(name)
+DOOR = 0.42  # polovina šířky dveří a vstupní šíje (m)
+GABLE_OVERHANG = 1.05  # o kolik střecha přečnívá před štíty vpředu i vzadu (m)
+ZEMNICE_RAMP = 1.7  # délka vstupní šíje zemnice (m) – jako v dwelling-pit.ts
+POLOZEMNICE_RAMP = 1.0
+
+
+def stakes_and_string(b, outline):
+    """Vytyčení: kolíky v rozích půdorysu i šíje, mezi nimi napnutý provázek."""
+    for x, y in outline:
+        b.beam((x, y, -0.15), (x, y, 0.5), 0.06)
+    for i, (x0, y0) in enumerate(outline):
+        x1, y1 = outline[(i + 1) % len(outline)]
+        b.beam((x0, y0, 0.34), (x1, y1, 0.34), 0.022, mat="thatch_edge")
+
+
+def outline_with_ramp(hx, hy, ramp):
+    """Obrys jámy se šíjí v −y (Blender): rohy po obvodu."""
+    return [(-hx, hy), (hx, hy), (hx, -hy), (DOOR, -hy), (DOOR, -hy - ramp), (-DOOR, -hy - ramp), (-DOOR, -hy), (-hx, -hy)]
+
+
+def ridge_frame(part, posts_y, z_post_base, apex, half_len, slope, x_eave, z_in, n_rafters=5):
+    """Krov: dva sloupy s rozsochou pod hřebenovou vaznicí, krokve po párech, latě."""
+    b = part("posts")
+    for y in posts_y:
+        b.beam((0, y, z_post_base), (0, y, apex - 0.2), 0.17)
+        for sgn in (-1, 1):  # rozsocha – vidlice, ve které leží vaznice
+            b.beam((0, y, apex - 0.34), (sgn * 0.12, y, apex - 0.1), 0.08)
+    b = part("ridge-beam")
+    b.beam((0, -half_len + 0.05, apex - 0.1), (0, half_len - 0.05, apex - 0.1), 0.15)
+    for i in range(n_rafters):
+        y = -half_len + 0.14 + i * (2 * half_len - 0.28) / (n_rafters - 1)
+        b = part(f"rafters-{i + 1}")
+        for sgn in (-1, 1):
+            xe = sgn * (x_eave - 0.03)
+            b.beam((xe, y, z_in(xe) - 0.06), (sgn * 0.04, y, z_in(0) - 0.06), 0.1)
+    b = part("laths")
+    cs = 1 / math.sqrt(1 + slope * slope)
+    L = x_eave / cs
+    s = 0.22
+    while s < L - 0.2:
+        for sgn in (-1, 1):
+            x = sgn * (x_eave - s * cs)
+            b.beam((x, -half_len + 0.02, z_in(x) - 0.03), (x, half_len - 0.02, z_in(x) - 0.03), 0.05)
+        s += 0.42
+
+
+def wattle_gables(b, ys, apex, slope, z_low, z_high, door_top=None):
+    """Pletené štíty (výplet z proutí) v pásech po ≈ 0,8 m – textura proutí má pás 0,94 m.
+    U předního štítu (y < 0) zůstane otvor dveří do door_top."""
+    def x_at(z):
+        return (apex - z) / slope
+
+    for y, out in ys:
+        cuts = [z_low]
+        if y < 0 and door_top is not None and door_top > z_low:
+            cuts.append(door_top)
+        while cuts[-1] + 0.8 < z_high:
+            cuts.append(cuts[-1] + 0.8)
+        cuts.append(z_high)
+        for z0, z1 in zip(cuts, cuts[1:]):
+            if y < 0 and door_top is not None and z1 <= door_top + 1e-6:
+                pieces = [(-1, -DOOR), (1, DOOR)]
+            else:
+                pieces = [(0, 0)]
+            for sgn, inner in pieces:
+                if sgn == 0:
+                    pts = [(-x_at(z0), y, z0), (x_at(z0), y, z0), (x_at(z1), y, z1), (-x_at(z1), y, z1)]
+                else:
+                    pts = [(sgn * x_at(z0), y, z0), (inner, y, z0), (inner, y, z1), (sgn * x_at(z1), y, z1)]
+                b.poly(pts, "wattle", out=out, uvm=[(p[0], p[2] - z0 + 0.05) for p in pts])
+
+
+def build_zemnice(part, stages=False):
+    """Zemnice: jáma 1 m (kreslí ji scéna, terén se tam vyhloubí), střecha s okapem na zemi,
+    štíty omazané hlínou. stages=True přidá díly staveniště (kolíky, krov, latě, výplet)."""
     D = 1.0  # hloubka jámy
     px, py = 1.85, 2.0  # půlrozměry jámy
     slope = 1.08  # ≈ 47°
     x_eave = 2.3
     z_ridge = slope * x_eave  # okap leží na zemi
-    half_len = 2.35
+    # střecha předsazená před štíty (Martin) – vpředu kryje šíji se schody dolů do jámy
+    half_len = py + GABLE_OVERHANG
     th = 0.3
-    z_in = thatch_roof(b, half_len, z_ridge, slope, x_eave, th, kozy=(1.35, 0.6))
+    z_in = thatch_roof(part, half_len, z_ridge, slope, x_eave, th, kozy=(1.35, 0.6))
 
-    # jáma (pod zemí – uvidí se až po vyhloubení terénu)
-    fl = [(-px, -py, -D), (px, -py, -D), (px, py, -D), (-px, py, -D)]
-    b.poly(fl, "earth", out=(0, 0, 1), uvm=[(p[0] / (2 * px) + 0.5, p[1] / (2 * py) + 0.5) for p in fl])
-    for pts, out in (
-        ([(-px, -py, -D), (-px, py, -D), (-px, py, 0), (-px, -py, 0)], (1, 0, 0)),
-        ([(px, -py, -D), (px, py, -D), (px, py, 0), (px, -py, 0)], (-1, 0, 0)),
-        ([(-px, py, -D), (px, py, -D), (px, py, 0), (-px, py, 0)], (0, -1, 0)),
-        ([(-px, -py, -D), (px, -py, -D), (px, -py, 0), (-px, -py, 0)], (0, 1, 0)),
-    ):
-        b.poly(pts, "earth", out=out, uvm=[(0.5, 0.5)] * 4)
-
-    # štíty omazané hlínou (mazanice na výpleti), nahoře dýmník, rám z trámů
+    # štíty omazané hlínou (mazanice na výpleti), nahoře dýmník, rám z trámů. Omítka sahá pod
+    # zem (ZG) – na svahu tak mezi štítem a okrajem jámy nezůstane škvíra.
     apex = z_in(0)
     zv = apex - 0.42
+    ZG = -0.5
 
     def x_at(z):
         return (apex - z) / slope
 
+    b = part("daub")
     for y, out in ((-py, (0, -1, 0)), (py, (0, 1, 0))):
+        top = [(px, y, 0), (x_at(0), y, 0), (x_at(zv), y, zv), (-x_at(zv), y, zv), (-x_at(0), y, 0), (-px, y, 0)]
         if y < 0:
-            # přední štít s otvorem dveří (dveře 0,8 m, nad zemí 0,75 m – dole schody)
-            pts = [
-                (-x_at(0), y, 0), (-0.42, y, 0), (-0.42, y, 0.78), (0.42, y, 0.78),
-                (0.42, y, 0), (x_at(0), y, 0), (x_at(zv), y, zv), (-x_at(zv), y, zv),
-            ]
+            # přední štít s otvorem dveří (0,84 m) až dolů na dno jámy – před ním schody šíje
+            pts = [(-px, y, ZG), (-DOOR, y, ZG), (-DOOR, y, 0.78), (DOOR, y, 0.78), (DOOR, y, ZG), (px, y, ZG)] + top
         else:
-            pts = [(-x_at(0), y, 0), (x_at(0), y, 0), (x_at(zv), y, zv), (-x_at(zv), y, zv)]
+            pts = [(-px, y, ZG), (px, y, ZG)] + top
         b.poly(pts, "daub", out=out)
         b.poly([(-x_at(zv), y, zv), (x_at(zv), y, zv), (0, y, apex)], "dark", out=out)
         gable_frame(b, y, apex, slope, 0.0, zv)
@@ -475,29 +564,38 @@ def build_zemnice(mat, name="zemnice"):
         else:
             for sgn in (-1, 1):
                 b.beam((sgn * (x_at(0.06) - 0.05), yo, 0.06), (sgn * 0.55, yo, 0.06), 0.12)
-    # dveřní otvor – tmavý výklenek, rám z trámů
+    # dveřní otvor – tmavý výklenek až na dno jámy, rám z trámů
     yd = -py
-    b.poly([(-0.42, yd + 0.5, -D), (0.42, yd + 0.5, -D), (0.42, yd + 0.5, 0.78), (-0.42, yd + 0.5, 0.78)], "dark", out=(0, -1, 0))
+    b.poly([(-DOOR, yd + 0.5, -D), (DOOR, yd + 0.5, -D), (DOOR, yd + 0.5, 0.78), (-DOOR, yd + 0.5, 0.78)], "dark", out=(0, -1, 0))
     for sgn in (-1, 1):
-        b.poly([(sgn * 0.42, yd, -D), (sgn * 0.42, yd + 0.5, -D), (sgn * 0.42, yd + 0.5, 0.78), (sgn * 0.42, yd, 0.78)], "dark", out=(-sgn, 0, 0))
-        b.beam((sgn * 0.48, yd - 0.06, -0.2), (sgn * 0.48, yd - 0.06, 0.9), 0.12)
-    b.poly([(-0.42, yd, 0.78), (0.42, yd, 0.78), (0.42, yd + 0.5, 0.78), (-0.42, yd + 0.5, 0.78)], "dark", out=(0, 0, -1))
+        b.poly([(sgn * DOOR, yd, -D), (sgn * DOOR, yd + 0.5, -D), (sgn * DOOR, yd + 0.5, 0.78), (sgn * DOOR, yd, 0.78)], "dark", out=(-sgn, 0, 0))
+        b.beam((sgn * 0.48, yd - 0.06, -D), (sgn * 0.48, yd - 0.06, 0.9), 0.12)
+    b.poly([(-DOOR, yd, 0.78), (DOOR, yd, 0.78), (DOOR, yd + 0.5, 0.78), (-DOOR, yd + 0.5, 0.78)], "dark", out=(0, 0, -1))
     b.beam((-0.62, yd - 0.06, 0.84), (0.62, yd - 0.06, 0.84), 0.13)
-    # tmavá podlaha v otvoru – jinak by dveřmi prosvítal terén (jáma v něm zatím není)
-    b.poly([(-0.42, yd, 0.04), (0.42, yd, 0.04), (0.42, yd + 0.5, 0.04), (-0.42, yd + 0.5, 0.04)], "dark", out=(0, 0, 1))
-    # vchod: schody dolů a hlína po stranách
-    entrance(b, yd - 0.05, width=0.95, length=1.7, mound_h=0.32)
-    # val drnů a hlíny podél okapů (okap leží na valu) a u zadního štítu
+
+    # val drnů a hlíny podél okapů (okap leží na valu) a u zadního štítu, hlína u šíje
+    b = part("berms")
+    entrance_berms(b, yd - 0.05, DOOR, ZEMNICE_RAMP, mound_h=0.32)
     for sgn in (-1, 1):
         b.berm((sgn * (x_eave - 0.05), -half_len - 0.1, 0), (sgn * (x_eave - 0.05), half_len + 0.1, 0), 0.32, 0.9, segments=4)
     b.berm((-1.6, py + 0.15, 0), (1.6, py + 0.15, 0), 0.35, 0.8, segments=3)
     for sgn in (-1, 1):
         b.berm((sgn * 0.75, -py - 0.15, 0), (sgn * 1.75, -py - 0.15, 0), 0.3, 0.7, segments=1, mat="spoil")
-    return b.build(mat)
+
+    if stages:
+        stakes_and_string(part("stakes"), outline_with_ramp(px, py, ZEMNICE_RAMP))
+        # sloupy stojí v jámě kousek za štíty (přední je schovaný za tmavým výklenkem dveří)
+        ridge_frame(part, (-(py - 0.6), py - 0.6), -D, apex, half_len, slope, x_eave, z_in)
+        b = part("posts")
+        for sx in (-1, 1):  # rohové kůly výdřevy jámy
+            for sy in (-1, 1):
+                b.beam((sx * (px - 0.08), sy * (py - 0.08), -D), (sx * (px - 0.08), sy * (py - 0.08), 0.12), 0.12)
+        wattle_gables(part("wattle"), ((-py + 0.03, (0, -1, 0)), (py - 0.03, (0, 1, 0))), apex, slope, 0.0, zv, door_top=0.78)
 
 
-def build_polozemnice(mat):
-    b = Builder("polozemnice")
+def build_polozemnice(part, stages=False):
+    """Polozemnice: jáma 0,5 m, ve které stojí srub omazaný hlínou. stages=True přidá díly
+    staveniště (kolíky, řady trámů srubu, krov, latě, výplet štítů)."""
     D = 0.5
     o, t = 2.1, 0.22  # vnější půlrozměr srubu a tloušťka trámu
     over = 0.25  # přesah trámů na nárožích
@@ -507,17 +605,18 @@ def build_polozemnice(mat):
     t_v = th * math.sqrt(2)
     z_ridge = z_top + t_v + slope * o  # spodní plocha střechy sedí na hraně stěny
     x_eave = 2.6
-    half_len = o + over + 0.3
+    half_len = o + GABLE_OVERHANG  # předsazená střecha kryje vstupní šíji (Martin)
 
     # srub omazaný hlínou: stěny jako kvádry s omítkou, na nárožích přečnívají konce trámů
+    b = part("daub")
     for sgn in (-1, 1):
         x0, x1 = sorted((sgn * o, sgn * (o - t)))
         b.box(x0, x1, -o, o, -D, z_top, "daub")
     b.box(-o + t, o - t, o - t, o, -D, z_top, "daub", skip=("-x", "+x"))
-    b.box(-o + t, -0.42, -o, -o + t, -D, z_top, "daub", skip=("-x",))
-    b.box(0.42, o - t, -o, -o + t, -D, z_top, "daub", skip=("+x",))
+    b.box(-o + t, -DOOR, -o, -o + t, -D, z_top, "daub", skip=("-x",))
+    b.box(DOOR, o - t, -o, -o + t, -D, z_top, "daub", skip=("+x",))
     b.box(-0.6, 0.6, -o, -o + t, 0.78, z_top, "daub", skip=("-z",))
-    b.poly([(-0.42, -o, 0.78), (0.42, -o, 0.78), (0.42, -o + t, 0.78), (-0.42, -o + t, 0.78)], "beam", out=(0, 0, -1))
+    b.poly([(-DOOR, -o, 0.78), (DOOR, -o, 0.78), (DOOR, -o + t, 0.78), (-DOOR, -o + t, 0.78)], "beam", out=(0, 0, -1))
     # konce trámů na nárožích (střídají se o půl trámu)
     for sx in (-1, 1):
         for sy in (-1, 1):
@@ -527,21 +626,19 @@ def build_polozemnice(mat):
             xa, xb = sorted((sx * o, sx * (o + over)))
             ya, yb = sorted((sy * o, sy * (o - t)))
             b.log_stub(xa, xb, ya, yb, -0.05, z_top - 0.04 - 0.11, "x", zoff=0.111)
-    # vaznice (pozednice) pod střechou
+    # tmavé nitro za dveřmi (až na dno jámy – před dveřmi schody šíje)
+    b.poly([(-DOOR, -o + t + 0.3, -D), (DOOR, -o + t + 0.3, -D), (DOOR, -o + t + 0.3, 0.78), (-DOOR, -o + t + 0.3, 0.78)], "dark", out=(0, -1, 0))
     for sgn in (-1, 1):
-        b.beam((sgn * (o - t / 2), -o - over - 0.05, z_top + 0.07), (sgn * (o - t / 2), o + over + 0.05, z_top + 0.07), 0.16)
-    # tmavé nitro za dveřmi
-    b.poly([(-0.42, -o + t + 0.3, -D), (0.42, -o + t + 0.3, -D), (0.42, -o + t + 0.3, 0.78), (-0.42, -o + t + 0.3, 0.78)], "dark", out=(0, -1, 0))
-    for sgn in (-1, 1):
-        b.poly([(sgn * 0.42, -o, -D), (sgn * 0.42, -o + t + 0.3, -D), (sgn * 0.42, -o + t + 0.3, 0.78), (sgn * 0.42, -o, 0.78)], "dark", out=(-sgn, 0, 0))
-        b.beam((sgn * 0.5, -o - 0.07, -0.3), (sgn * 0.5, -o - 0.07, 0.86), 0.13)
+        b.poly([(sgn * DOOR, -o, -D), (sgn * DOOR, -o + t + 0.3, -D), (sgn * DOOR, -o + t + 0.3, 0.78), (sgn * DOOR, -o, 0.78)], "dark", out=(-sgn, 0, 0))
+        b.beam((sgn * 0.5, -o - 0.07, -D), (sgn * 0.5, -o - 0.07, 0.86), 0.13)
     b.beam((-0.66, -o - 0.07, 0.86), (0.66, -o - 0.07, 0.86), 0.12)
-    b.poly([(-0.42, -o, 0.04), (0.42, -o, 0.04), (0.42, -o + t + 0.3, 0.04), (-0.42, -o + t + 0.3, 0.04)], "dark", out=(0, 0, 1))
-    # podlaha jámy
-    fl = [(-o + t, -o + t, -D), (o - t, -o + t, -D), (o - t, o - t, -D), (-o + t, o - t, -D)]
-    b.poly(fl, "earth", out=(0, 0, 1), uvm=[(p[0] / (2 * o) + 0.5, p[1] / (2 * o) + 0.5) for p in fl])
 
-    z_in = thatch_roof(b, half_len, z_ridge, slope, x_eave, th, kozy=(1.6, 0.65))
+    # vaznice (pozednice) pod střechou – vystrčené až pod předsazenou střechu
+    b = part("plates")
+    for sgn in (-1, 1):
+        b.beam((sgn * (o - t / 2), -half_len + 0.08, z_top + 0.07), (sgn * (o - t / 2), half_len - 0.08, z_top + 0.07), 0.16)
+
+    z_in = thatch_roof(part, half_len, z_ridge, slope, x_eave, th, kozy=(1.6, 0.65))
 
     # štíty omazané nad srubem, nahoře dýmník, rám z trámů
     apex = z_in(0)
@@ -550,6 +647,7 @@ def build_polozemnice(mat):
     def x_at(z):
         return (apex - z) / slope
 
+    b = part("daub")
     for y, out in ((-o, (0, -1, 0)), (o, (0, 1, 0))):
         b.poly([(-x_at(z_top), y, z_top), (x_at(z_top), y, z_top), (x_at(zv), y, zv), (-x_at(zv), y, zv)], "daub", out=out)
         b.poly([(-x_at(zv), y, zv), (x_at(zv), y, zv), (0, y, apex)], "dark", out=out)
@@ -557,14 +655,96 @@ def build_polozemnice(mat):
         # vrchní trám srubu pod štítem
         yo = y + (0.05 if y > 0 else -0.05)
         b.beam((-o - 0.1, yo, z_top + 0.03), (o + 0.1, yo, z_top + 0.03), 0.14)
-    # hlína nahrnutá kolem srubu (val), vchod se schody
+    # hlína nahrnutá kolem srubu (val), u šíje hlína po stranách
+    b = part("berms")
     for sgn in (-1, 1):
         b.berm((sgn * (o + 0.3), -o - 0.1, 0), (sgn * (o + 0.3), o + 0.1, 0), 0.22, 0.7, segments=3)
     b.berm((-o + 0.1, o + 0.3, 0), (o - 0.1, o + 0.3, 0), 0.22, 0.7, segments=3)
     for sgn in (-1, 1):
         b.berm((sgn * 0.85, -o - 0.3, 0), (sgn * (o - 0.1), -o - 0.3, 0), 0.2, 0.6, segments=1, mat="spoil")
-    entrance(b, -o - 0.05, width=0.95, length=1.0, mound_h=0.22)
-    return b.build(mat)
+    entrance_berms(b, -o - 0.05, DOOR, POLOZEMNICE_RAMP, mound_h=0.22)
+
+    if stages:
+        stakes_and_string(part("stakes"), outline_with_ramp(o, o, POLOZEMNICE_RAMP))
+        # srub z neomítnutých trámů po řadách (na nárožích přečnívají, vpředu otvor dveří)
+        n = 6
+        for k in range(n):
+            zc = -D + t / 2 + k * (z_top + D - t) / (n - 1)
+            b = part(f"logs-{k + 1}")
+            for sgn in (-1, 1):
+                xc = sgn * (o - t / 2)
+                b.beam((xc, -o - over, zc), (xc, o + over, zc), t)
+                yc = sgn * (o - t / 2)
+                zl = zc + 0.02
+                if sgn < 0 and zc - t / 2 < 0.78:
+                    b.beam((-o - over, yc, zl), (-DOOR, yc, zl), t * 0.96)
+                    b.beam((DOOR, yc, zl), (o + over, yc, zl), t * 0.96)
+                else:
+                    b.beam((-o - over, yc, zl), (o + over, yc, zl), t * 0.96)
+        ridge_frame(part, (-(o - t / 2), o - t / 2), z_top, apex, half_len, slope, x_eave, z_in)
+        wattle_gables(part("wattle"), ((-o + 0.03, (0, -1, 0)), (o - 0.03, (0, 1, 0))), apex, slope, z_top + 0.02, zv)
+
+
+def site_props(part, mat):
+    """Rekvizity staveniště (sdílené oběma typy, kreslí se v instancích): stoh drnů, hráň
+    kmenů a tyčí, svazky proutí, snopy slámy, rýč, koš."""
+    # hromadu vykopané hlíny kreslí scéna (leží na terénu, barvy jako stěny jámy)
+    # stoh drnů – navrch tráva, boky hlína s kořeny
+    b = part("turf")
+    for layer in range(3):
+        for i in range(3):
+            for j in range(2):
+                if layer == 2 and (i + j) % 2:
+                    continue
+                x0 = -0.62 + i * 0.42 + 0.03 * math.sin(layer * 3 + i)
+                y0 = -0.32 + j * 0.33
+                z0 = layer * 0.11
+                x1, y1, z1 = x0 + 0.4, y0 + 0.31, z0 + 0.1
+                top = [(x0, y0, z1), (x1, y0, z1), (x1, y1, z1), (x0, y1, z1)]
+                b.poly(top, "turf", out=(0, 0, 1), uvm=[(p[0] + layer, 0.08 + 0.6 * (p[1] - y0)) for p in top])
+                for pts, out in (
+                    ([(x0, y0, z0), (x1, y0, z0), (x1, y0, z1), (x0, y0, z1)], (0, -1, 0)),
+                    ([(x0, y1, z0), (x1, y1, z0), (x1, y1, z1), (x0, y1, z1)], (0, 1, 0)),
+                    ([(x0, y0, z0), (x0, y1, z0), (x0, y1, z1), (x0, y0, z1)], (-1, 0, 0)),
+                    ([(x1, y0, z0), (x1, y1, z0), (x1, y1, z1), (x1, y0, z1)], (1, 0, 0)),
+                ):
+                    b.poly(pts, "spoil", out=out, uvm=[(p[0] + p[1] + layer, 0.32 + 1.2 * (p[2] - z0)) for p in pts])
+    # hráň kmenů a tyčí na krov
+    b = part("timber")
+    for row, count in enumerate((4, 3, 2)):
+        for k in range(count):
+            x = (k - (count - 1) / 2) * 0.19
+            z = 0.09 + row * 0.16
+            b.beam((x, -1.4, z), (x, 1.4, z), 0.17)
+    for k, (x, a) in enumerate(((-0.55, 0.06), (0.6, -0.05))):
+        b.beam((x, -1.7, 0.05), (x + a, 1.7, 0.05), 0.1)
+    # svazky proutí na výplet
+    b = part("rods")
+    for bundle, y0 in enumerate((-0.25, 0.25)):
+        for k in range(12):
+            ang = 2 * math.pi * k / 12
+            r = 0.08 + 0.03 * ((k * 7) % 3)
+            b.beam((-1.0, y0 + r * math.cos(ang), 0.14 + r * math.sin(ang)), (1.0, y0 + r * 0.8 * math.cos(ang + 0.3), 0.14 + r * math.sin(ang + 0.3)), 0.028)
+    # snopy slámy na došky (osmiboké válce, čela z řezu slámy)
+    b = part("straw")
+    sheaves = [(-0.38, 0.17), (0.0, 0.17), (0.38, 0.17), (-0.19, 0.48), (0.19, 0.48)]
+    for xc, zc in sheaves:
+        n, r, hl = 8, 0.18, 0.55
+        ring = [(xc + r * math.cos(2 * math.pi * k / n), zc + r * math.sin(2 * math.pi * k / n)) for k in range(n)]
+        for k in range(n):
+            (x0, z0), (x1, z1) = ring[k], ring[(k + 1) % n]
+            pts = [(x0, -hl, z0), (x1, -hl, z1), (x1, hl, z1), (x0, hl, z0)]
+            b.poly(pts, "thatch", out=((x0 + x1) / 2 - xc, 0, (z0 + z1) / 2 - zc), uvm=[(k * 0.14, 1.0), ((k + 1) * 0.14, 1.0), ((k + 1) * 0.14, 2.1), (k * 0.14, 2.1)])
+        for y, out in ((-hl, (0, -1, 0)), (hl, (0, 1, 0))):
+            pts = [(x, y, z) for x, z in ring]
+            b.poly(pts, "thatch_edge", out=out, uvm=[(x - xc, 0.25 + (z - zc)) for x, z in ring])
+    # rýč zapíchnutý do země
+    b = part("spade")
+    b.beam((0, 0, 0.28), (0.08, 0.3, 1.25), 0.045)
+    b.box(-0.11, 0.11, -0.02, 0.02, -0.15, 0.3, "beam")
+    basket = import_prop("basket-a", 0.42, (0, 0, 0), mat)
+    basket.name = f"{part.prefix}-basket"
+    return [basket]
 
 
 def wattle_fence(mat, length=4.0, height=0.9, name="fence"):
@@ -644,10 +824,11 @@ def tri_count(obj):
     return sum(len(p.vertices) - 2 for p in obj.data.polygons)
 
 
-def export(obj, path):
+def export(objs, path):
     bpy.ops.object.select_all(action="DESELECT")
-    obj.select_set(True)
-    bpy.context.view_layer.objects.active = obj
+    for obj in objs:
+        obj.select_set(True)
+    bpy.context.view_layer.objects.active = objs[0]
     bpy.ops.export_scene.gltf(
         filepath=path,
         export_format="GLB",
@@ -680,6 +861,95 @@ def render(objs, path, cam_loc, target, size=(1400, 900), lens=50):
     scene.render.resolution_x, scene.render.resolution_y = size
     scene.render.filepath = path
     bpy.ops.render.render(write_still=True)
+
+
+def textured_material(name, path, tint=(1, 1, 1)):
+    m = bpy.data.materials.new(name)
+    bsdf = next(n for n in m.node_tree.nodes if n.type == "BSDF_PRINCIPLED")
+    tex = m.node_tree.nodes.new("ShaderNodeTexImage")
+    tex.image = bpy.data.images.load(path)
+    mix = m.node_tree.nodes.new("ShaderNodeMix")
+    mix.data_type = "RGBA"
+    mix.blend_type = "MULTIPLY"
+    mix.inputs["Factor"].default_value = 1.0
+    m.node_tree.links.new(tex.outputs["Color"], mix.inputs["A"])
+    mix.inputs["B"].default_value = (*tint, 1)
+    m.node_tree.links.new(mix.outputs["Result"], bsdf.inputs["Base Color"])
+    bsdf.inputs["Roughness"].default_value = 1.0
+    bsdf.inputs["Specular IOR Level"].default_value = 0.0
+    return m
+
+
+def pit_ground(kind, grass_mat, earth_mat):
+    """Jen pro náhledy: zem s vyhloubenou jámou a šíjí se schody jako ve scéně
+    (dwelling-pit.ts). Vrací objekty, které se po renderu smažou."""
+    if kind == "zemnice":
+        hx, hy, re, D, steps = 1.85, 2.0, 2.0 + ZEMNICE_RAMP, 1.0, 4
+    else:
+        hx, hy, re, D, steps = 2.04, 2.04, 2.1 + POLOZEMNICE_RAMP, 0.5, 2
+
+    def inside(x, y):
+        return (abs(x) < hx and abs(y) < hy) or (abs(x) < DOOR and -re < y <= -hy + 1e-9)
+
+    R, S = 8.0, 40.0
+    xs = sorted({round(-R + 0.1 * i, 4) for i in range(int(2 * R / 0.1) + 1)} | {-hx, hx, -DOOR, DOOR})
+    ys = sorted({round(-R + 0.1 * i, 4) for i in range(int(2 * R / 0.1) + 1)} | {-hy, hy, -re})
+    verts, faces, uvs = [], [], []
+
+    def quad(pts):
+        base = len(verts)
+        verts.extend(pts)
+        faces.append([base, base + 1, base + 2, base + 3])
+        uvs.append([((p[0] + S) / 65, (p[1] + S) / 65) for p in pts])
+
+    for x0, x1 in zip(xs, xs[1:]):
+        for y0, y1 in zip(ys, ys[1:]):
+            if not inside((x0 + x1) / 2, (y0 + y1) / 2):
+                quad([(x0, y0, 0), (x1, y0, 0), (x1, y1, 0), (x0, y1, 0)])
+    for x0, x1, y0, y1 in ((-S, S, -S, -R), (-S, S, R, S), (-S, -R, -R, R), (R, S, -R, R)):
+        quad([(x0, y0, 0), (x1, y0, 0), (x1, y1, 0), (x0, y1, 0)])
+
+    def mesh(name, verts, faces, uvs, mat):
+        me = bpy.data.meshes.new(name)
+        me.from_pydata(verts, [], faces)
+        layer = me.uv_layers.new()
+        for poly, uv in zip(me.polygons, uvs):
+            for li, t in zip(poly.loop_indices, uv):
+                layer.data[li].uv = t
+        me.materials.append(mat)
+        obj = bpy.data.objects.new(name, me)
+        bpy.context.scene.collection.objects.link(obj)
+        return obj
+
+    ground = mesh("ground-pit", verts, faces, uvs, grass_mat)
+    # jáma: dno, stěny, šíje se schody
+    pv, pf, pu = [], [], []
+
+    def pquad(pts, uv):
+        base = len(pv)
+        pv.extend(pts)
+        pf.append(list(range(base, base + len(pts))))
+        pu.append(uv)
+
+    tread = (re - hy) / steps
+    level = lambda i: -D + D * i / steps
+    pquad([(-hx, -hy, -D), (hx, -hy, -D), (hx, hy, -D), (-hx, hy, -D)], [(-hx / 3, -hy / 3), (hx / 3, -hy / 3), (hx / 3, hy / 3), (-hx / 3, hy / 3)])
+    wall = lambda a, b, z0a, z0b: pquad([(a[0], a[1], z0a), (b[0], b[1], z0b), (b[0], b[1], 0.01), (a[0], a[1], 0.01)], [(0, z0a / 3), (math.dist(a, b) / 3, z0b / 3), (math.dist(a, b) / 3, 0), (0, 0)])
+    wall((-hx, hy), (hx, hy), -D, -D)
+    wall((-hx, -hy), (-hx, hy), -D, -D)
+    wall((hx, hy), (hx, -hy), -D, -D)
+    wall((-hx, -hy), (-DOOR, -hy), -D, -D)
+    wall((DOOR, -hy), (hx, -hy), -D, -D)
+    for i in range(steps):
+        y0, y1 = -hy - i * tread, -hy - (i + 1) * tread
+        z = level(i)
+        pquad([(-DOOR, y0, z), (DOOR, y0, z), (DOOR, y1, z), (-DOOR, y1, z)], [(-DOOR / 3, y0 / 3), (DOOR / 3, y0 / 3), (DOOR / 3, y1 / 3), (-DOOR / 3, y1 / 3)])
+        z_next = level(i + 1) if i + 1 < steps else 0.0
+        pquad([(-DOOR, y1, z), (DOOR, y1, z), (DOOR, y1, z_next), (-DOOR, y1, z_next)], [(0, z / 3), (0.28, z / 3), (0.28, z_next / 3), (0, z_next / 3)])
+        for sgn in (-1, 1):
+            wall((sgn * DOOR, y0), (sgn * DOOR, y1), z, z)
+    pit = mesh("ground-pit-walls", pv, pf, pu, earth_mat)
+    return [ground, pit]
 
 
 def setup_world(grass_path):
@@ -721,13 +991,15 @@ def main():
     bpy.ops.wm.read_factory_settings(use_empty=True)
     mat = make_material()
 
-    z = build_zemnice(mat)
+    zp = Parts("f-zemnice")
+    build_zemnice(zp)
     fw = firewood_stack(mat)
     fw.location = (3.05, 0.9, 0)
     fw.rotation_euler = (0, 0, math.radians(90))
-    zemnice = join([z, fw, import_prop("basket-a", 0.42, (-1.0, -3.2, 0.0), mat)], "zemnice")
+    zemnice = join(zp.build(mat) + [fw, import_prop("basket-a", 0.42, (-1.55, -3.55, 0.0), mat)], "zemnice")
 
-    p = build_polozemnice(mat)
+    pp = Parts("f-polozemnice")
+    build_polozemnice(pp)
     f = wattle_fence(mat)
     f.location = (-3.6, 0.6, 0)
     f.rotation_euler = (0, 0, math.radians(90))
@@ -736,29 +1008,54 @@ def main():
     fw2.rotation_euler = (0, 0, math.radians(90))
     p_props = [
         fw2,
-        import_prop("basket-a", 0.42, (1.05, -2.75, 0.0), mat),
-        import_prop("basket-b", 0.38, (1.55, -2.65, 0.0), mat, 0.6),
+        import_prop("basket-a", 0.42, (1.5, -3.0, 0.0), mat),
+        import_prop("basket-b", 0.38, (2.0, -2.85, 0.0), mat, 0.6),
     ]
-    polozemnice = join([p, f] + p_props, "polozemnice")
+    polozemnice = join(pp.build(mat) + [f] + p_props, "polozemnice")
 
     os.makedirs(OUT, exist_ok=True)
     for obj in (zemnice, polozemnice):
         obj.location = (0, 0, 0)
-        export(obj, os.path.join(OUT, f"{obj.name}.glb"))
+        export([obj], os.path.join(OUT, f"{obj.name}.glb"))
         d = obj.dimensions
         print(f"STAT {obj.name}: {tri_count(obj)} tris, {len(obj.data.materials)} mat, {d.x:.2f} x {d.y:.2f} x {d.z:.2f} m")
+
+    # staveniště: díly obou obydlí podle fází stavby a rekvizity – jeden GLB, jeden atlas
+    zs = Parts("zemnice")
+    build_zemnice(zs, stages=True)
+    ps = Parts("polozemnice")
+    build_polozemnice(ps, stages=True)
+    sp = Parts("site")
+    extra = site_props(sp, mat)
+    stage_objs = zs.build(mat) + ps.build(mat) + sp.build(mat) + extra
+    bpy.ops.object.select_all(action="DESELECT")
+    for obj in stage_objs:
+        obj.select_set(True)
+    bpy.context.view_layer.objects.active = stage_objs[0]
+    bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+    export(stage_objs, os.path.join(OUT, "construction.glb"))
+    for obj in stage_objs:
+        print(f"PART {obj.name}: {tri_count(obj)} tris")
 
     if RENDER != "-":
         setup_world(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "apps", "web", "public", "textures", "terrain", "grass.jpg"))
         os.makedirs(RENDER, exist_ok=True)
+        terrain = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "apps", "web", "public", "textures", "terrain")
+        grass_mat = bpy.data.materials["ground"]
+        earth_mat = textured_material("pit-earth", os.path.join(terrain, "mud.jpg"), (0.8, 0.62, 0.45))
+        bpy.data.objects["ground"].hide_render = True
         for obj in (zemnice, polozemnice):
+            extra = pit_ground(obj.name, grass_mat, earth_mat)
             render([obj], os.path.join(RENDER, f"{obj.name}_front.png"), (-7.5, -11.5, 5.2), (0.3, 0, 0.9))
+            render([obj], os.path.join(RENDER, f"{obj.name}_side.png"), (15.0, -2.5, 4.2), (0, -0.3, 1.0), lens=35)
             render([obj], os.path.join(RENDER, f"{obj.name}_back.png"), (9.5, 9.0, 6.0), (0, 0, 0.8))
-            render([obj], os.path.join(RENDER, f"{obj.name}_close.png"), (-2.6, -6.2, 1.9), (0.2, -1.6, 1.0), size=(1200, 900), lens=35)
+            render([obj], os.path.join(RENDER, f"{obj.name}_close.png"), (-2.6, -7.2, 2.3), (0.1, -2.4, 0.3), size=(1200, 900), lens=32)
+            for o in extra:
+                bpy.data.objects.remove(o)
+        bpy.data.objects["ground"].hide_render = False
         # obě vedle sebe z herního úhlu (≈ 49° od svislice)
         zemnice.location = (-4.5, 0, 0)
         polozemnice.location = (4.5, 0, 0)
         render([zemnice, polozemnice], os.path.join(RENDER, "both_game_angle.png"), (0, -24, 21.5), (0, 0, 0.5), size=(1600, 900))
-
 
 main()
