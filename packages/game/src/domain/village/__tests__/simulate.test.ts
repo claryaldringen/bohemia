@@ -584,11 +584,18 @@ describe('advanceVillage – obydlí', () => {
     expect(s.constructions).toEqual([]);
   });
 
-  it('obydlí postavené hned po založení stojí prázdné, dokud domácnost nezplní – nechátrá hned', () => {
+  it('obydlí postavené do zásoby stojí prázdné, dokud domácnost nezplní – nechátrá hned', () => {
     const day = at(600, 10, 1);
     const settled = withBuiltFirstDwelling(found(day));
-    const building = startNewDwelling(settled, day, 'zemnice', { x: 30, z: 0, rotation: 0 }, 0);
-    const s = advanceVillage(building, day + Math.ceil(2 * YEAR));
+    // pár, pro který se stavělo, mezitím chybí (např. domácnost přišla o dospělého)
+    settled.dwellings.push({
+      id: 50,
+      type: 'zemnice',
+      builtDay: day,
+      condition: 1,
+      position: { x: 30, z: 0, rotation: 0 },
+    });
+    const s = advanceVillage(settled, day + Math.ceil(2 * YEAR));
     const fresh = s.dwellings.find((d) => d.id !== 1);
     expect(fresh).toBeDefined();
     expect(occupants(s, fresh!.id)).toEqual([]);

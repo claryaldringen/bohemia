@@ -72,9 +72,11 @@ describe('buildVillageView', () => {
       people: { children: 2, adults: 2, elders: 0 },
       fullHousehold: false,
     });
+    // obydlí nemá kdo osídlit (zakladatelé si stavějí vlastní zemnici) – pole jde vždy
+    const noSettlers = [{ resource: 'settlers', amount: 1, missing: 1 }];
     expect(view.build).toEqual({
-      zemnice: { laborManDays: 60, perHa: false, upfront: [], affordable: true },
-      polozemnice: { laborManDays: 220, perHa: false, upfront: [], affordable: true },
+      zemnice: { laborManDays: 60, perHa: false, upfront: noSettlers, affordable: false },
+      polozemnice: { laborManDays: 220, perHa: false, upfront: noSettlers, affordable: false },
       field: { laborManDays: 40, perHa: true, upfront: [], affordable: true },
     });
     // zakladatelé bydlí na staveništi – domácnost s obydlím přibude s dostavěním zemnice
@@ -106,6 +108,23 @@ describe('buildVillageView', () => {
     ]);
     expect(view.hungry).toBe(false);
     expect(view.constructionsStalled).toBe(false);
+  });
+
+  it('plná domácnost se 4 dospělými dá lidi k osídlení – obydlí jde stavět', () => {
+    const s = settled();
+    for (const [i, years] of [20, 19].entries()) {
+      s.people.push({ id: 90 + i, bornDay: DAY - Math.ceil(years * 365.25), dwellingId: 1 });
+    }
+    s.people.forEach((p) => (p.bornDay = Math.min(p.bornDay, DAY - Math.ceil(16 * 365.25))));
+    s.lastDay = DAY;
+    const view = buildVillageView(record(s), landscape, DAY);
+    expect(view.build.polozemnice).toEqual({
+      laborManDays: 220,
+      perHa: false,
+      upfront: [{ resource: 'settlers', amount: 1, missing: 0 }],
+      affordable: true,
+    });
+    expect(view.fullHousehold).toBe(true);
   });
 
   it('s dostavěnou zemnicí: domácnost s věky obyvatel', () => {

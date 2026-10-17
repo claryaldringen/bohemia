@@ -198,7 +198,8 @@ test('nový hráč založí ves umístěním zemnice, přejmenuje ji a vybere ze
   const name = page.getByTestId('village-name');
   await expect(name).toHaveText(suggestVillageName(s.seed));
   await expect(grid.getByRole('button')).toHaveCount(3);
-  await expect(grid.getByRole('button', { name: 'Polozemnice' })).toBeEnabled();
+  // Nové obydlí nemá kdo osídlit – zakladatelé si stavějí vlastní zemnici.
+  await expect(grid.getByRole('button', { name: 'Polozemnice' })).toBeDisabled();
   expect((await villageState(s.settlementId)).fields).toEqual([]);
 
   // Jméno se přepíše přímo v horní liště.
@@ -259,18 +260,48 @@ test('nový hráč založí ves umístěním zemnice, přejmenuje ji a vybere ze
   await expect(page.getByTestId('village-name')).toHaveText('Testovice', { timeout: 30_000 });
 });
 
-test('hráč staví kdykoli – polozemnici i pole hned po založení', async ({ page }) => {
+test('obydlí jde stavět, jen když je kým ho osadit – pole kdykoli', async ({ page }) => {
   const { seat: s } = await newPlayer(page, 'stavby');
   const spots = villageSpots(s.landscape);
   await found(page, spots.dwelling);
   const grid = page.getByTestId('build-grid');
+  const polozemnice = grid.getByRole('button', { name: 'Polozemnice' });
 
-  // Polozemnice hned – žádné odemčení plnou domácností.
-  await grid.getByRole('button', { name: 'Polozemnice' }).click();
-  await expect(grid.getByRole('button', { name: 'Polozemnice' })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
+  // Lidé k osídlení nejsou: tlačítko zašedlé, v popisku chybějící lidé červeně, zkratka nic.
+  await expect(polozemnice).toBeDisabled();
+  await expect(grid.getByRole('button', { name: 'Zemnice' })).toBeDisabled();
+  await polozemnice.hover();
+  const settlers = grid
+    .getByRole('listitem')
+    .filter({ has: polozemnice })
+    .locator('[data-resource="settlers"]');
+  await expect(settlers).toBeVisible();
+  await expect(settlers).toHaveAttribute('data-missing', 'true');
+  await page.mouse.move(10, 300);
+  await page.keyboard.press('x');
+  await expect(polozemnice).toHaveAttribute('aria-pressed', 'false');
+
+  // Pole klávesovou zkratkou C, kdykoli po založení.
+  await page.keyboard.press('c');
+  await expect(grid.getByRole('button', { name: 'Pole' })).toHaveAttribute('aria-pressed', 'true');
+  await confirmPlacement(page, { kind: 'squares', cells: spots.cells });
+  await expect.poll(async () => (await villageState(s.settlementId)).fields.length).toBe(1);
+
+  // Zemnice dostavěná a domácnost v ní plná se 4 dospělými – jeden pár k osídlení.
+  const full = withBuiltFirstDwelling(await villageState(s.settlementId));
+  const adultBorn = full.lastDay - Math.ceil(16 * 365.25);
+  for (const person of full.people) person.bornDay = Math.min(person.bornDay, adultBorn);
+  for (let i = 0; i < 2; i++) {
+    full.people.push({
+      id: full.nextId++,
+      bornDay: adultBorn,
+      dwellingId: full.people[0]!.dwellingId,
+    });
+  }
+  await writeVillageState(s.settlementId, full);
+  await expect(polozemnice).toBeEnabled({ timeout: 20_000 });
+  await polozemnice.click();
+  await expect(polozemnice).toHaveAttribute('aria-pressed', 'true');
   await confirmPlacement(page, { kind: 'dwelling', type: 'polozemnice', position: spots.second });
   await expect
     .poll(async () => {
@@ -278,12 +309,8 @@ test('hráč staví kdykoli – polozemnici i pole hned po založení', async ({
       return state.constructions.filter((c) => c.kind === 'dwelling').map((c) => c.dwellingType);
     })
     .toEqual(['polozemnice']);
-
-  // Pole klávesovou zkratkou C, kdykoli po založení.
-  await page.keyboard.press('c');
-  await expect(grid.getByRole('button', { name: 'Pole' })).toHaveAttribute('aria-pressed', 'true');
-  await confirmPlacement(page, { kind: 'squares', cells: spots.cells });
-  await expect.poll(async () => (await villageState(s.settlementId)).fields.length).toBe(1);
+  // Jediný pár čeká na rozestavěnou polozemnici – další obydlí zase nejde.
+  await expect(polozemnice).toBeDisabled();
   await expect(page.locator('[data-testid="village-notice"][data-kind="error"]')).toHaveCount(0);
 });
 

@@ -29,12 +29,15 @@ import { formatHa, formatInteger } from './village-format';
 
 export type { BuildKind, PartStage, StockResource } from '@bohemia/game';
 
-/** Stavba v nabídce staveb: cena a jestli na ni ves má (bez surovin je tlačítko zašedlé). */
+/**
+ * Stavba v nabídce staveb: cena a jestli na ni ves má (bez surovin nebo lidí k osídlení je
+ * tlačítko zašedlé).
+ */
 export interface BuildOption {
   /** Člověkodny ze společné práce – u pole za hektar (`perHa`). */
   laborManDays: number;
   perHa: boolean;
-  /** Suroviny předem: kolik stavba stojí a kolik chybí (0 = ves má). */
+  /** Předem – suroviny a lidé k osídlení: kolik stavba chce a kolik chybí (0 = ves má). */
   upfront: { resource: StockResource; amount: number; missing: number }[];
   affordable: boolean;
 }
@@ -62,7 +65,7 @@ export interface VillageView {
   commonLaborPerDay: number;
   /** Některá domácnost je plná a nečeká na ni žádné nové obydlí (upozornění). */
   fullHousehold: boolean;
-  /** Nabídka staveb – hráč staví kdy chce, jen na suroviny předem musí ves mít. */
+  /** Nabídka staveb – hráč staví kdy chce, předem musí ves mít suroviny a lidi k osídlení. */
   build: Record<BuildKind, BuildOption>;
   constructions: {
     id: number;
@@ -228,7 +231,7 @@ function chronicle(state: VillageState, name: string): VillageView['chronicle'] 
 const BUILD_KINDS: readonly BuildKind[] = ['zemnice', 'polozemnice', 'field'];
 const DAYS_PER_YEAR = 365.25;
 
-/** Nabídka staveb: cena z pravidel a co z cen předem ves nemá. */
+/** Nabídka staveb: cena z pravidel a co z ceny předem (suroviny, lidé k osídlení) ves nemá. */
 function buildOptions(state: VillageState): Record<BuildKind, BuildOption> {
   const entries = BUILD_KINDS.map((kind): [BuildKind, BuildOption] => {
     const cost = BUILD_COSTS[kind];

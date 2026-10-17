@@ -216,10 +216,12 @@ Pravidla v [docs/design/population.md](docs/design/population.md) a
 - **API jádra:** `foundVillage` (4 lidé, zásoby, stavba první zemnice, volitelně první pole),
   `advanceVillage(state, toDay)` (dopočítá ves do dne včetně) a akce hráče `startNewDwelling`
   a `foundField`. Stav vsi je JSON-serializovatelný, funkce vstupní stav nemění.
-- **Hráč staví kdy chce** (Martin) – žádné odemčení plnou domácností; `waitingHouseholds` je jen
-  informace pro upozornění. Stavbu smí zablokovat jen **cena předem** v surovinách (`costs.ts`:
-  `BUILD_COSTS`, `buildAffordability`; dnes nic předem nestojí) – tlačítko je pak zašedlé
-  a v popisku chybějící část červeně.
+- **Hráč staví kdy chce** (Martin) – stavbu smí zablokovat jen **cena předem** (`costs.ts`:
+  `BUILD_COSTS`, `buildAffordability`): suroviny ze zásob (dnes žádné) a u obydlí **lidé
+  k osídlení** (`settlers` = `availableSettlers` v `dwellings.ts`: domácnosti s párem navíc −
+  prázdná − rozestavěná nová obydlí). Tlačítko je pak zašedlé, zkratka nic nespustí, v popisku
+  chybějící část červeně; server odmítne (`NO_SETTLERS`, `CANNOT_AFFORD`). `waitingHouseholds`
+  (upozornění „Domácnost je plná“) = kladní lidé k osídlení.
 - **Determinismus:** simulace jde den po dni v pevném pořadí kroků (`simulate.ts`), náhoda dne
   je ze seedu vsi a indexu dne – výsledek nezávisí na tom, po jakých kouscích se ves dopočítá.
 - **Čísla** pravidel jsou jen v `rules.ts` (u každého odkaz na sekci návrhu); změna čísla = i

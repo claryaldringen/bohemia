@@ -5,7 +5,7 @@ import { block, makeLandscape } from '../../domain/village/__tests__/placement-f
 import { withBuiltFirstDwelling } from '../../domain/village/__tests__/village-fixtures';
 import { foundVillageForSettlement, type FoundVillageInput } from '../found-village';
 import { loadVillage } from '../load-village';
-import { placeDwelling } from '../place-dwelling';
+import { NO_SETTLERS, placeDwelling } from '../place-dwelling';
 import { placeField } from '../place-field';
 import { renameVillage } from '../rename-village';
 import type { SeedSource } from '../settlements';
@@ -156,23 +156,25 @@ describe('loadVillage', () => {
 });
 
 describe('placeDwelling', () => {
-  it('hráč staví kdy chce – i bez plné domácnosti, víc obydlí za sebou', async () => {
+  it('obydlí bez lidí k osídlení odmítne česky a ves nezmění', async () => {
     const villages = await foundedVillages();
     const deps = { villages };
     const base = { settlementId: ID, landscape, today: TODAY + 1 };
+    // čerstvá ves: zakladatelé si teprve staví zemnici, nikdo další nečeká
+    const fresh = await placeDwelling(deps, { ...base, type: 'zemnice', position: at(-80, -50) });
+    expect(fresh).toEqual({ ok: false, reason: NO_SETTLERS });
+    // plná domácnost dá jeden pár – první stavba projde, druhá ne
+    villages.edit(ID, makeFullHousehold);
     const first = await placeDwelling(deps, { ...base, type: 'zemnice', position: at(-80, -50) });
     expect(first.ok).toBe(true);
+    const version = villages.records.get(ID)?.version;
     const second = await placeDwelling(deps, {
       ...base,
       type: 'polozemnice',
       position: at(-80, -80),
     });
-    expect(second.ok).toBe(true);
-    if (!second.ok) return;
-    const added = second.village.state.constructions.filter(
-      (c) => c.kind === 'dwelling' && c.dwellingId === null,
-    );
-    expect(added).toHaveLength(2);
+    expect(second).toEqual({ ok: false, reason: NO_SETTLERS });
+    expect(villages.records.get(ID)?.version).toBe(version);
   });
 
   it('plná domácnost: stavba začne dnes, ves je dopočítaná do dneška', async () => {
@@ -200,8 +202,6 @@ describe('placeDwelling', () => {
     const villages = await foundedVillages();
     const deps = { villages };
     const base = { settlementId: ID, landscape, today: TODAY + 1, type: 'zemnice' as const };
-    const onSite = await placeDwelling(deps, { ...base, position: at(-48, -50) });
-    expect(onSite).toEqual({ ok: false, reason: 'Překrývá se s rozestavěným obydlím.' });
     villages.edit(ID, makeFullHousehold);
     const onHouse = await placeDwelling(deps, { ...base, position: at(-48, -50) });
     expect(onHouse).toEqual({ ok: false, reason: 'Překrývá se s jiným obydlím.' });

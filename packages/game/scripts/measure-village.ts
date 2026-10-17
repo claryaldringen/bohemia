@@ -43,6 +43,7 @@ import {
   THRESH_END_DAY,
   advanceVillage,
   ageGroup,
+  buildAffordability,
   daysUntilHarvest,
   eatDay,
   fallowYears,
@@ -502,7 +503,7 @@ function runVillage(start: VillageState, startLand: number, opts: RunOptions): R
     // stavby hráče
     if (result.firstBuildDay === null && qualifyingDwellings(after, day).length > 0) {
       result.firstBuildDay = day;
-      if (opts.forkPolozemnice) {
+      if (opts.forkPolozemnice && buildAffordability(after, 'polozemnice').affordable) {
         const fork = startNewDwelling(after, day, 'polozemnice', POSITION, 0);
         const forked = runVillage(fork, land, {
           ...opts,

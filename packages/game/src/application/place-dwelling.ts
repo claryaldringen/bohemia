@@ -20,10 +20,12 @@ export interface PlaceDwellingInput {
 
 /** Ves nemá suroviny, které stavba stojí předem (population.md – Odemčení). */
 export const CANNOT_AFFORD = 'Na tuhle stavbu ves nemá suroviny.';
+/** Nové obydlí nemá kdo osídlit – žádná domácnost nemá mladý pár navíc (population.md – Odemčení). */
+export const NO_SETTLERS = 'Nové obydlí nemá kdo osídlit.';
 
 /**
- * Hráč zahájí stavbu nového obydlí – kdykoli, jen na ni ves musí mít suroviny předem (ves se
- * nejdřív dopočítá do dneška).
+ * Hráč zahájí stavbu nového obydlí – kdykoli, když je kým ho osadit a ves má suroviny předem
+ * (ves se nejdřív dopočítá do dneška).
  */
 export function placeDwelling(
   deps: { villages: VillageRepository },
@@ -32,8 +34,9 @@ export function placeDwelling(
   return updateVillage(deps.villages, input.settlementId, input.today, (state) => {
     // akce patří do dne, do kterého je ves dopočítaná – dnešek, nebo „budoucí“ den vsi
     const day = state.lastDay;
-    if (!buildAffordability(state, input.type).affordable) {
-      return { ok: false, reason: CANNOT_AFFORD };
+    const { affordable, missing } = buildAffordability(state, input.type);
+    if (!affordable) {
+      return { ok: false, reason: missing.settlers ? NO_SETTLERS : CANNOT_AFFORD };
     }
     const check = checkDwellingPlacement(input.landscape, state, input.type, input.position);
     if (!check.ok) return { ok: false, reason: check.reason ?? 'Sem obydlí nepatří.' };

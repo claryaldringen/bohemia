@@ -185,16 +185,19 @@ export function foundVillage(input: {
   return state;
 }
 
-/** Suroviny předem musí ves mít; jinak RangeError (pravidla ověří use-case dřív, česky). */
+/**
+ * Co stavba potřebuje předem (suroviny, lidi k osídlení), ves mít musí; jinak RangeError
+ * (pravidla ověří use-case dřív, česky).
+ */
 function requireAffordable(state: VillageState, kind: BuildKind): void {
   if (!buildAffordability(state, kind).affordable) {
-    throw new RangeError('Na stavbu ves nemá suroviny.');
+    throw new RangeError('Na stavbu ves nemá suroviny nebo lidi k osídlení.');
   }
 }
 
 /**
- * Zahájí stavbu nového obydlí – kdykoli (hráč staví, kdy chce; population.md – Nové obydlí);
- * RangeError, když ves nemá suroviny předem nebo je vstup neplatný.
+ * Zahájí stavbu nového obydlí – kdykoli, když je kým ho osadit (population.md – Nové obydlí,
+ * Odemčení); RangeError, když ves nemá suroviny předem, lidi k osídlení nebo je vstup neplatný.
  *
  * Konvence dne (jako u `foundField`): akce se volá na ves dopočítanou do dne `day`
  * (`advanceVillage(state, day)`) a patří na konec toho dne – práci stavba dostane od dne
