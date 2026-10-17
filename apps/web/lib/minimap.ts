@@ -1,6 +1,5 @@
-import { SURFACE_CODES, type Landscape, type PartStage } from '@bohemia/game';
+import { buildRelief, SURFACE_CODES, type Landscape, type PartStage } from '@bohemia/game';
 import { SUN_DIRECTION } from './scene/constants';
-import { buildRelief } from './scene/terrain-relief';
 import { sampleTiles } from './scene/tile-at';
 
 // Minimapa krajiny sídla (jako v 0 A.D.): pohled shora, sever (+z) nahoře. Čisté funkce –

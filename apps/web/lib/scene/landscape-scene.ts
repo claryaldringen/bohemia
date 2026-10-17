@@ -6,7 +6,16 @@ import { Color3, Color4 } from '@babylonjs/core/Maths/math.color';
 import { Matrix, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { Scene } from '@babylonjs/core/scene';
-import { surfaceAt, tileOfWorldPoint, type Landscape, type WorldClock } from '@bohemia/game';
+import {
+  buildForestField,
+  NO_OBSTACLE_CHANGES,
+  obstaclesOf,
+  surfaceAt,
+  tileOfWorldPoint,
+  type Landscape,
+  type ObstacleLayer,
+  type WorldClock,
+} from '@bohemia/game';
 import type { TileInfo } from '../tile-info';
 import { AmbientSound } from './ambient-sound';
 import { createRtsCamera, type RtsCamera } from './camera';
@@ -16,20 +25,17 @@ import { decorPlacements } from './decor-placement';
 import { addDecorations } from './decorations';
 import { addFauna, type Fauna } from './fauna';
 import { birdFlocks, fishSchools } from './fauna-placement';
+import { FelledTrees } from './felled-trees';
 import { createCanopyMesh } from './forest-canopy';
-import { buildForestField } from './forest-field';
-import { impostorPlacements } from './impostor-placement';
 import { addImpostors } from './impostors';
-import { meadowTreePlacements } from './meadow-trees';
+import { obstacleScenery } from './obstacle-scenery';
 import { createTerrainMesh } from './terrain-mesh';
 import { buildRenderSurface } from './render-surface';
 import { terrainMeshHeight } from './drape';
 import { InstanceHider } from './instance-hider';
 import { PitCuts, applyPitCut } from './pit-cut';
 import { addSunShadows, type SunShadows } from './sun-shadows';
-import { buildRelief } from './terrain-relief';
 import { tileAt, tileCenter } from './tile-at';
-import { treePlacements } from './tree-placement';
 import { addTrees } from './trees';
 import { FieldPainter } from './field-painting';
 import { SelectionHighlight } from './selection-highlight';
@@ -39,7 +45,6 @@ import { VillageRenderer } from './village-renderer';
 import type { SceneVillage } from '../village-view';
 import type { PlacementHandlers, PlacementMode } from './village-types';
 import { createWaterMesh, type WaterSurface } from './water';
-import { deadwoodPlacements, pinePlacements, youngTreePlacements } from './woodland-placement';
 
 type HoverListener = (tile: TileInfo | null) => void;
 /** Kliknutí do scény mimo umisťování: vybrané obydlí / pole, nebo null (zrušit výběr). */
@@ -102,8 +107,12 @@ export class LandscapeScene {
   private shadows: SunShadows | null = null;
   /** Vrhače stínu vsi, které vznikly dřív než stínová mapa. */
   private readonly pendingCasters: Mesh[] = [];
-  /** Stromy a kameny krajiny, které se skrývají pod stavbami a poli. */
+  /** Stromy, keře a kameny krajiny, které ves odstranila nebo vykácela (a ozdoby pod stavbami). */
   private readonly hider = new InstanceHider();
+  /** Vrstva překážek krajiny (herní data – stejná jako na serveru). */
+  private obstacles: ObstacleLayer | null = null;
+  /** Pařezy a nálet po pokácených stromech. */
+  private felled: FelledTrees | null = null;
   private village: VillageRenderer | null = null;
   /** Poslední stav vsi od rozhraní – vykreslí se, jakmile je krajina hotová. */
   private villageState: SceneVillage | null = null;
@@ -202,25 +211,28 @@ export class LandscapeScene {
     this.highlight = new SelectionHighlight(this.scene, (x, z) => terrainMeshHeight(surface, x, z));
     await report('forest', 0.4);
     if (this.disposed) return;
+    // Stromy, keře a kameny jsou herní data – vrstva překážek z herního jádra, stejná jako na
+    // serveru: okraj lesa a jeho vnitřek (impostory), stromy v loukách a na břehu, borovice na
+    // skalách, mladé stromky, souše, padlé stromy, pařezy, keře, kameny a skalní výchozy.
+    const obstacles = obstaclesOf(landscape);
+    this.obstacles = obstacles;
+    // pole lesa spočítala už vrstva překážek (mezipaměť podle povrchu)
     const field = buildForestField(landscape);
-    // Okraj lesa, v loukách osamělé stromy a skupinky, podél potoka břehový porost, na skalách
-    // borovice, před lesem mladé stromky; souše, padlé stromy, pařezy a kmeny v potoce.
-    const relief = buildRelief(landscape);
-    const meadowTrees = meadowTreePlacements(landscape, field, surface.stream);
-    const pines = pinePlacements(landscape, field, surface.stream, relief, meadowTrees);
-    const trees = [
-      ...treePlacements(landscape, field, surface.stream),
-      ...meadowTrees,
-      ...pines,
-      ...youngTreePlacements(landscape, field, surface.stream),
-    ];
-    const decor = [
-      ...decorPlacements(landscape, surface.stream, field, {
-        relief,
-        trees: [...meadowTrees, ...pines],
-      }),
-      ...deadwoodPlacements(landscape, field, surface.stream),
-    ];
+    const scenery = obstacleScenery(obstacles);
+    const trees = scenery.trees;
+    // ozdoby vody (rákos, lekníny, kmeny v potoce) nejsou překážky – jen vzhled scény
+    const decor = [...scenery.decor, ...decorPlacements(landscape, surface.stream)];
+    this.felled = new FelledTrees(this.scene, {
+      groundHeight,
+      addShadowCaster: (mesh) => {
+        if (this.shadows) this.shadows.addCaster(mesh);
+        else this.pendingCasters.push(mesh);
+      },
+      onAsyncChange: () => {
+        this.shadows?.refresh();
+        this.renderWhenReady();
+      },
+    });
     // Ozdobná zvířata podle 0 A.D.: hejna ryb v tůních, kroužící vrány a káně.
     const fauna = {
       fish: fishSchools(surface),
@@ -239,7 +251,7 @@ export class LandscapeScene {
       groundHeight,
     });
     // Okraj lesa 2–3 řady 3D stromů, za nimi vnitřek lesa z impostorů.
-    const impostors = impostorPlacements(landscape, field, surface.stream);
+    const impostors = scenery.impostors;
     await report('models', 0.6);
     if (this.disposed) return;
     let loaded = 0;
@@ -266,10 +278,10 @@ export class LandscapeScene {
       ),
     ]);
     if (this.disposed) return;
-    // Stromy a dekorace pod stavbami a poli vsi se skryjí (thin instances podle polohy paty).
+    // Odstraněné a vykácené překážky se skryjí podle id, ozdoby pod stavbami podle polohy paty.
     this.hider.track(
       this.scene.meshes.filter(
-        (mesh): mesh is Mesh => mesh instanceof Mesh && /^(trees|decor)-/.test(mesh.name),
+        (mesh): mesh is Mesh => mesh instanceof Mesh && /^(trees|decor|impostors)-/.test(mesh.name),
       ),
     );
     const sun = this.scene.getLightByName('sun');
@@ -582,16 +594,22 @@ export class LandscapeScene {
     return { corners, alpha: camera.alpha };
   }
 
-  /** Překreslí ves podle posledního stavu a skryje stromy a kameny pod ní. */
+  /**
+   * Překreslí ves podle posledního stavu: skryje stromy, keře a kameny, které ves odstranila
+   * nebo vykácela (podle id ze stavu vsi), na místo pokácených stromů dá pařez nebo nálet.
+   */
   private applyVillage(): void {
     const village = this.village;
     if (!village || !this.villageState) return;
     const changed = village.update(this.villageState);
-    const hidden = this.hider.apply(village.hideShapes());
+    const changes = this.villageState.obstacles ?? NO_OBSTACLE_CHANGES;
+    const hiddenIds = new Set([...changes.removed, ...changes.stumps, ...changes.saplings]);
+    const hidden = this.hider.apply(village.hideShapes(), hiddenIds);
+    const felled = this.obstacles ? (this.felled?.update(this.obstacles, changes) ?? false) : false;
     // Rozhraní posílá stav vsi opakovaně (dotaz každých pár sekund) – beze změny nic.
     // Vybrané pole mohlo změnit čtverce (zarůstání), vybrané obydlí zaniknout.
     if (changed) this.highlight?.show(this.villageState, this.selection);
-    if (!changed && !hidden) return;
+    if (!changed && !hidden && !felled) return;
     // Dým hned na místě – i při omezeném pohybu, kdy se pak už nehýbe.
     village.animateSmoke(Date.now(), null);
     this.shadows?.refresh();

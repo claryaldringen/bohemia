@@ -54,13 +54,14 @@ export async function addDecorations(
             z: p.worldZ,
             rotationY: p.rotationY,
             scale: p.scale,
+            id: p.id,
             up: model.startsWith('rock')
               ? slopeUp(p, options.groundHeight, ROCK_TILT)
               : model.startsWith('fallen')
                 ? slopeUp(p, options.groundHeight, FALLEN_TILT)
                 : undefined,
           })),
-        (material) => prepareMaterial(model, material),
+        (material) => prepareDecorMaterial(model, material),
       ),
     ),
   );
@@ -107,7 +108,8 @@ function slopeUp(
   return { x: x / length, y: 1 / length, z: z / length };
 }
 
-function prepareMaterial(model: DecorModel, material: Material): void {
+/** Materiál dekorace – světlo a tón podle druhu (rostliny jako stromy okraje, kameny tlumeně). */
+export function prepareDecorMaterial(model: DecorModel, material: Material): void {
   if (!(material instanceof PBRMaterial)) return;
   applyGammaFog(material);
   material.roughness = 1;

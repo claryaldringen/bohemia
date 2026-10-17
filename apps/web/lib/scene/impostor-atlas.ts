@@ -1,4 +1,4 @@
-import type { TreeModel } from './tree-placement';
+import type { TreeModel } from './obstacle-scenery';
 
 /** Buňka atlasu impostorů: strana čtverce (m) a pata kmene v buňce (u zleva, v odspodu, 0–1). */
 export interface ImpostorCell {

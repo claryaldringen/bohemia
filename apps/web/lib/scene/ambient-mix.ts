@@ -1,5 +1,5 @@
 import { CAMERA_ZOOM_M } from './constants';
-import type { ForestField } from './forest-field';
+import type { ForestField } from '@bohemia/game';
 import { bedMix } from './ground-layers';
 import type { StreamPoint } from './stream-geometry';
 

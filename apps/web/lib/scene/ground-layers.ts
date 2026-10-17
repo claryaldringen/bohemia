@@ -1,9 +1,7 @@
-import { SURFACE_CODES, type Landscape } from '@bohemia/game';
+import { buildRelief, SURFACE_CODES, type ForestField, type Landscape } from '@bohemia/game';
 import { createNoise2D } from 'simplex-noise';
-import type { ForestField } from './forest-field';
 import type { StreamCenterline } from './stream-geometry';
-import { buildRelief } from './terrain-relief';
-import type { TreePlacement } from './tree-placement';
+import type { TreePlacement } from './obstacle-scenery';
 
 /**
  * Vrstvy povrchu terénu – pořadí odpovídá kanálům splat textur: první RGBA, druhá RG (+ stín

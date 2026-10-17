@@ -1,6 +1,5 @@
-import { SURFACE_CODES, type Landscape } from '@bohemia/game';
+import { SURFACE_CODES, type ForestField, type Landscape } from '@bohemia/game';
 import { HEIGHT_SCALE } from './constants';
-import type { ForestField } from './forest-field';
 import type { RenderSurface } from './render-surface';
 import {
   streamStations,

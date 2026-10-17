@@ -6,7 +6,7 @@ import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import type { Scene } from '@babylonjs/core/scene';
 import { createNoise2D } from 'simplex-noise';
 import { HEIGHT_SCALE } from './constants';
-import type { ForestField } from './forest-field';
+import type { ForestField } from '@bohemia/game';
 import type { RenderSurface } from './render-surface';
 
 /**

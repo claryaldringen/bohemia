@@ -1,11 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { generateLandscape, SURFACE_CODES } from '@bohemia/game';
-import { buildForestField } from '../forest-field';
+import {
+  buildForestField,
+  buildRelief,
+  generateLandscape,
+  obstaclesOf,
+  SURFACE_CODES,
+} from '@bohemia/game';
 import { GROUND_LAYERS, groundWeights, packSplatTextures } from '../ground-layers';
 import { streamCenterline } from '../stream-geometry';
-import { buildRelief } from '../terrain-relief';
 import { tileCenter } from '../tile-at';
-import { treePlacements } from '../tree-placement';
+import { obstacleScenery } from '../obstacle-scenery';
 
 const landscape = generateLandscape(3);
 const weights = groundWeights(landscape);
@@ -186,7 +190,7 @@ describe('groundWeights s vyhlazeným korytem', () => {
 describe('groundWeights s vyhlazenou hranicí lesa a stromy', () => {
   const field = buildForestField(landscape);
   const stream = streamCenterline(landscape);
-  const trees = treePlacements(landscape, field, stream);
+  const trees = obstacleScenery(obstaclesOf(landscape)).trees;
   const withForest = groundWeights(landscape, stream, { field, trees });
   const half = (landscape.size * landscape.cellSizeM) / 2;
   const step = (landscape.size * landscape.cellSizeM) / withForest.resolution;
