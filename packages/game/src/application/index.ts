@@ -6,4 +6,5 @@ export * from './load-village';
 export * from './found-village';
 export * from './place-dwelling';
 export * from './place-field';
+export * from './place-cemetery';
 export * from './rename-village';

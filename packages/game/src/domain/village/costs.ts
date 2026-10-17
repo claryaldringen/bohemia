@@ -1,5 +1,5 @@
 import { availableSettlers } from './dwellings';
-import { DWELLINGS, FOUNDING_COST_PER_HA } from './rules';
+import { CEMETERY, DWELLINGS, FOUNDING_COST_PER_HA } from './rules';
 import type { DwellingType, VillageState } from './types';
 
 // Ceny staveb a jestli na ně ves má (population.md – Nové obydlí, Odemčení). Práce
@@ -9,7 +9,7 @@ import type { DwellingType, VillageState } from './types';
 // stavba nejde a tlačítko v nabídce staveb je zašedlé s chybějící částí červeně (jako v 0 A.D.).
 
 /** Co hráč staví z nabídky staveb. */
-export type BuildKind = DwellingType | 'field';
+export type BuildKind = DwellingType | 'field' | 'cemetery';
 
 /**
  * Co stavba potřebuje předem: obilí ze zásob (dřevo a kámen přibudou) a lidé k osídlení
@@ -24,21 +24,24 @@ export const STOCK_RESOURCES: readonly StockResource[] = ['grain', 'settlers'];
 export type ResourceAmounts = Partial<Record<StockResource, number>>;
 
 export interface BuildCost {
-  /** Člověkodny ze společné práce – u pole za hektar louky (`perHa`). */
+  /** Člověkodny ze společné práce – u pole za hektar louky (`perHa`), u pohřebiště za čtverec. */
   laborManDays: number;
   perHa: boolean;
+  /** Cena za čtverec (pohřebiště – cemetery.md); bez údaje ne. */
+  perSquare?: boolean;
   /** Předem při zahájení stavby: suroviny ze zásob vsi a lidé k osídlení. */
   upfront: ResourceAmounts;
 }
 
 /**
  * Ceny staveb. Žádná zatím nestojí suroviny – práce se platí postupně; obydlí (a později
- * řemeslné dílny) chtějí jednu domácnost k osídlení.
+ * řemeslné dílny) chtějí jednu domácnost k osídlení, pole a hřbitov nikoho.
  */
 export const BUILD_COSTS: Record<BuildKind, BuildCost> = {
   zemnice: { laborManDays: DWELLINGS.zemnice.cost, perHa: false, upfront: { settlers: 1 } },
   polozemnice: { laborManDays: DWELLINGS.polozemnice.cost, perHa: false, upfront: { settlers: 1 } },
   field: { laborManDays: FOUNDING_COST_PER_HA.meadow, perHa: true, upfront: {} },
+  cemetery: { laborManDays: CEMETERY.costPerSquare, perHa: false, perSquare: true, upfront: {} },
 };
 
 /** Co ves má předem k dispozici – zásoby a lidé k osídlení (ves dopočítaná do `lastDay`). */

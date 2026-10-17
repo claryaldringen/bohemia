@@ -67,3 +67,15 @@ export function fieldPreviewLabel(
     formatManDays(preview.foundingCost),
   ].join(' · ');
 }
+
+/**
+ * Na kolik let místo vystačí – krátce pro panel výběru: „~12“, „<1“, „>100“, plno „0“, bez
+ * odhadu (žádná úmrtí) „–“.
+ */
+export function formatYearsShort(years: number | null): string {
+  if (years === null) return '–';
+  if (years <= 0) return '0';
+  if (years < 1) return '<1';
+  if (years > 100) return '>100';
+  return `~${formatInteger(years)}`;
+}

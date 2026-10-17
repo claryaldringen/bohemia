@@ -34,7 +34,7 @@ function BuildTooltip({
           <span className="flex items-center gap-1">
             <img src="/icons/resources/labor.png" alt="" width={16} height={16} />
             {formatManDays(option.laborManDays)}
-            {option.perHa ? ' / ha' : ''}
+            {option.perHa ? ' / ha' : option.perSquare ? ' / čtverec' : ''}
           </span>
           {option.upfront.map((cost) => (
             <span

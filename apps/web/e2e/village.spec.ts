@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { Client } from 'pg';
 import {
+  cemeteryPartsFromCells,
   checkDwellingPlacement,
   fieldPartsFromCells,
   generateLandscapeAttempt,
@@ -157,6 +158,27 @@ function villageSpots(l: Landscape): { dwelling: Position; cells: TileCell[]; se
   throw new Error('V krajině není volné místo pro ves.');
 }
 
+/** Nejbližší čtverec ke zemnici, kam smí hřbitov (blízkost obydlí jen varuje). */
+function cemeterySpot(l: Landscape, dwelling: Position): TileCell {
+  const tile = tileOfWorldPoint(l, dwelling.x, dwelling.z);
+  if (!tile) throw new Error('Zemnice leží mimo krajinu.');
+  const village: PlacementVillage = {
+    dwellings: [{ type: 'zemnice', position: dwelling }],
+    constructions: [],
+    parts: [],
+  };
+  for (let r = 2; r <= 8; r++) {
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+        const cell = { x: tile.x + dx, y: tile.y + dy };
+        if (cemeteryPartsFromCells(l, village, [cell], [dwelling]).check.ok) return cell;
+      }
+    }
+  }
+  throw new Error('U zemnice není místo pro hřbitov.');
+}
+
 const readyScene = (page: Page): ReturnType<Page['locator']> =>
   page.locator('canvas[data-scene-ready="true"]');
 
@@ -197,9 +219,10 @@ test('nový hráč založí ves umístěním zemnice, přejmenuje ji a vybere ze
   await found(page, spots.dwelling);
   const name = page.getByTestId('village-name');
   await expect(name).toHaveText(suggestVillageName(s.seed));
-  await expect(grid.getByRole('button')).toHaveCount(3);
-  // Nové obydlí nemá kdo osídlit – zakladatelé si stavějí vlastní zemnici.
+  await expect(grid.getByRole('button')).toHaveCount(4);
+  // Nové obydlí nemá kdo osídlit – zakladatelé si stavějí vlastní zemnici. Hřbitov lidi nechce.
   await expect(grid.getByRole('button', { name: 'Polozemnice' })).toBeDisabled();
+  await expect(grid.getByRole('button', { name: 'Hřbitov' })).toBeEnabled();
   expect((await villageState(s.settlementId)).fields).toEqual([]);
 
   // Jméno se přepíše přímo v horní liště.
@@ -326,4 +349,48 @@ test('upozornění vsi se ukáže krátkým řádkem nahoře a samo zmizí', asy
   const notice = page.locator('[data-testid="village-notice"][data-kind="hungry"]');
   await expect(notice).toHaveText('Ves hladoví', { timeout: 20_000 });
   await expect(notice).toHaveCount(0, { timeout: 15_000 });
+});
+
+test('hráč založí hřbitov po čtvercích a vybere ho – panel ukáže hroby', async ({ page }) => {
+  const { seat: s } = await newPlayer(page, 'hrbitov');
+  const spots = villageSpots(s.landscape);
+  await found(page, spots.dwelling);
+  const grid = page.getByTestId('build-grid');
+  const cell = cemeterySpot(s.landscape, spots.dwelling);
+
+  // Hřbitov klávesovou zkratkou V, malování po čtvercích jako pole.
+  await page.keyboard.press('v');
+  await expect(grid.getByRole('button', { name: 'Hřbitov' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await confirmPlacement(page, { kind: 'squares', cells: [cell] });
+  await expect
+    .poll(async () => (await villageState(s.settlementId)).cemeteries?.length ?? 0)
+    .toBe(1);
+  await expect(page.locator('[data-testid="village-notice"][data-kind="error"]')).toHaveCount(0);
+
+  // Kliknutí na čtverec hřbitova ho vybere – nehotový ukáže jen průběh založení.
+  await page.keyboard.press('r');
+  const center = tileCenterWorld(s.landscape, cell.x, cell.y);
+  const point = await page.evaluate((p) => window.__bohemiaE2E!.projectToScreen!(p.x, p.z), center);
+  expect(point).not.toBeNull();
+  await page.mouse.move(point!.x - 3, point!.y);
+  await page.mouse.click(point!.x, point!.y);
+  const panel = page.getByTestId('selection-panel');
+  await expect(panel).toHaveAttribute('data-kind', 'cemetery');
+  await expect(panel.getByTestId('selection-progress')).toBeVisible();
+
+  // Ohrazený hřbitov se třemi hroby přímo v uložené vsi – další dotaz (každých 5 s) ho ukáže.
+  const state = await villageState(s.settlementId);
+  const cemetery = state.cemeteries![0]!;
+  cemetery.builtDay = state.lastDay;
+  cemetery.graves = 3;
+  state.constructions = state.constructions.filter((c) => c.kind !== 'cemetery');
+  await query('UPDATE village SET state = $2, version = version + 1 WHERE settlement_id = $1', [
+    s.settlementId,
+    JSON.stringify(state),
+  ]);
+  await expect(panel.getByTestId('selection-graves')).toHaveText('3/56', { timeout: 20_000 });
+  await expect(panel.getByTestId('selection-years')).toBeVisible();
 });

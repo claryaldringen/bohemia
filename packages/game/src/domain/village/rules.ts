@@ -105,6 +105,17 @@ export const DAILY_MIN_PER_HOUSEHOLD = 0.5;
 export const DOMESTIC = { perHousehold: 0.3, perPerson: 0.15, backlogMaxDays: 60 } as const;
 // population.md – Nové obydlí (společná práce za posledních 30 dní pro „má na to“)
 export const COMMON_LABOR_HISTORY_DAYS = 30;
+// cemetery.md – Pravidla (stavba: vytyčení a ohrazení 10 člověkodní na čtverec; hrob i s uličkami
+// 4 m², na čtverec 15 × 15 m se vejde 56 hrobů)
+export const CEMETERY = { costPerSquare: 10, graveM2: 4, gravesPerSquare: 56 } as const;
+// cemetery.md – Hygiena (pohřebiště s volným místem: od nejbližšího obydlí v pořádku od 150 m,
+// nejhorší pod 50 m; od vody v pořádku od 100 m, nejhorší pod 30 m; mezi tím plynule, násobí se)
+export const CEMETERY_DISTANCE_M = {
+  dwelling: { worst: 50, ok: 150 },
+  water: { worst: 30, ok: 100 },
+} as const;
+// cemetery.md – Vliv na úmrtnost (roční riziko × 1 + extra × (1 − hygiena); hájení chrání)
+export const HYGIENE_DEATH_EXTRA = { child: 0.5, adult: 0.3, elder: 0.3 } as const;
 // population.md – Kronika (ves drží posledních 500 událostí, starší se zahazují)
 export const CHRONICLE_MAX_EVENTS = 500;
 

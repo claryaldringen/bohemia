@@ -29,6 +29,8 @@ export interface SquaresPreview {
   label: string;
   /** Čtverce, kam pole nesmí – scéna je zbarví červeně. */
   blockedCells: readonly TileCell[];
+  /** Čtverce, kterých se týká varování (`check.warning`) – scéna je zbarví oranžově. */
+  warningCells?: readonly TileCell[];
 }
 
 /**

@@ -4,6 +4,7 @@ import { createVillageRepository } from '@bohemia/db';
 import {
   foundVillageForSettlement,
   loadVillage,
+  placeCemetery,
   placeDwelling,
   placeField,
   renameVillage,
@@ -114,6 +115,19 @@ export async function placeFieldForPlayer(
   const ctx = await context(playerId);
   if (!ctx.ok) return { error: ctx.error };
   const result = await placeField(
+    { villages: villages() },
+    { settlementId: ctx.settlementId, landscape: ctx.landscape, today: ctx.day, ...input },
+  );
+  return toActionResult(result, ctx.landscape, ctx.day);
+}
+
+export async function placeCemeteryForPlayer(
+  playerId: string,
+  input: { cells: TileCell[] },
+): Promise<VillageActionResult> {
+  const ctx = await context(playerId);
+  if (!ctx.ok) return { error: ctx.error };
+  const result = await placeCemetery(
     { villages: villages() },
     { settlementId: ctx.settlementId, landscape: ctx.landscape, today: ctx.day, ...input },
   );
