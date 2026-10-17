@@ -269,11 +269,11 @@ test('obydlí jde stavět, jen když je kým ho osadit – pole kdykoli', async 
 
   // Lidé k osídlení nejsou: tlačítko zašedlé, v popisku chybějící lidé červeně, zkratka nic.
   await expect(polozemnice).toBeDisabled();
-  await expect(grid.getByRole('button', { name: 'Zemnice' })).toBeDisabled();
+  await expect(grid.getByRole('button', { name: 'Zemnice', exact: true })).toBeDisabled();
   await polozemnice.hover();
   const settlers = grid
     .getByRole('listitem')
-    .filter({ has: polozemnice })
+    .filter({ has: page.getByRole('button', { name: 'Polozemnice' }) })
     .locator('[data-resource="settlers"]');
   await expect(settlers).toBeVisible();
   await expect(settlers).toHaveAttribute('data-missing', 'true');
