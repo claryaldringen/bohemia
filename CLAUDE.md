@@ -48,7 +48,7 @@ kolem 40 generací – dědictví, sňatky a nástupnictví jsou hlavní mechani
 - **Monorepo:** Turborepo + npm workspaces (`apps/*`, `packages/*`), Node 24 (`.nvmrc`)
 - **Jazyk:** TypeScript 6 (strict, `noUncheckedIndexedAccess`), společný `tsconfig.base.json`
 - **Web:** Next.js 16 (App Router, `output: 'standalone'`), React 19, Tailwind CSS v4
-- **Herní jádro:** `packages/game` – doména (kalendář, generování krajiny) a use-casy, bez I/O
+- **Herní jádro:** `packages/game` – doména (kalendář, generování krajiny, simulace vsi) a use-casy, bez I/O
 - **3D:** Babylon.js 9 (`@babylonjs/core` + `@babylonjs/loaders`), WebGPU se záložním WebGL 2
 - **Databáze:** PostgreSQL + Drizzle (`packages/db`), migrace jako SQL v `packages/db/drizzle/`
 - **Účty:** Better Auth – e-mail + heslo s ověřením e-mailu, obnova hesla, Google, sessions v DB
@@ -77,8 +77,9 @@ apps/web/            Next.js – úvodní stránka, registrace, přihlášení, 
   e2e/               Playwright testy (proti produkčnímu buildu a databázi bohemia_test)
 packages/game/       herní jádro
   src/domain/        pravidla – calendar.ts, landscape/ (generování krajiny po vrstvách)
+    village/         simulace vsi – lidé, obydlí, pole, jídlo a práce den po dni
   src/application/   use-casy a porty (enterGame, SettlementRepository, SeedSource)
-  scripts/           vývojové nástroje (measure-landscapes.ts)
+  scripts/           vývojové nástroje (measure-landscapes.ts, measure-village.ts)
 packages/db/         Drizzle schéma, klient, migrace a adaptéry portů (src/adapters/)
 docs/design/         herní design – vize + dokument pro každou mechaniku
 ```
@@ -208,6 +209,14 @@ Pravidla v [docs/design/population.md](docs/design/population.md) a
 - **Jádro** `packages/game/src/domain/village/` (simulace, umístění `placement.ts`, souhrn
   `summary.ts`), use-casy a port `VillageRepository` v `application/`, tabulka `village`.
   Ves se dopočítá při každém načtení a akci (worker zatím není).
+- **API jádra:** `foundVillage` (zemnice, 4 lidé, zásoby a první pole),
+  `advanceVillage(state, toDay)` (dopočítá ves do dne včetně) a akce hráče `startNewDwelling`
+  a `foundField`. Stav vsi je JSON-serializovatelný, funkce vstupní stav nemění.
+- **Determinismus:** simulace jde den po dni v pevném pořadí kroků (`simulate.ts`), náhoda dne
+  je ze seedu vsi a indexu dne – výsledek nezávisí na tom, po jakých kouscích se ves dopočítá.
+- **Čísla** pravidel jsou jen v `rules.ts` (u každého odkaz na sekci návrhu); změna čísla = i
+  text v návrhu. Kalibrace: `measure-village.ts` nasimuluje stovky vsí a vypíše cíle z Kalibrace
+  obou dokumentů s OK / MIMO (`200 60` rychlé cíle, `100 1000` vymření do roku 1500).
 - **Web:** server actions `app/game/actions.ts` (`getVillageView`, `foundVillage`, `placeDwelling`,
   `placeField` → `VillageView` / `null` / `{ error }`), composition root `lib/village.ts`,
   `lib/village-view.ts` (DTO, smí i do prohlížeče). Typy pro scénu jsou odvozené odtud
@@ -246,6 +255,7 @@ npm run test:e2e      # Playwright – build + next start na :3011 proti DB bohe
 npm run format:check  # npm run format = oprava
 npm run db:generate   # nová migrace po změně schématu v packages/db/src/schema
 npx tsx packages/game/scripts/measure-landscapes.ts 500   # měření generátoru krajiny
+npx tsx packages/game/scripts/measure-village.ts 200 60   # kalibrace simulace vsi
 ```
 
 Všechny příkazy jdou přes Turborepo do jednotlivých workspaces. Před commitem musí projít

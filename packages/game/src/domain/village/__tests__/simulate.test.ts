@@ -217,6 +217,7 @@ describe('advanceVillage – roční plán a sklizeň', () => {
     const start = found(at(600, 6, 1));
     start.constructions = [];
     start.lastDay = day - 1;
+    start.storesKg = 5000; // zásoby nad prahem – cíl osevu je jen potřeba, nezávisle na rezervě
     start.parts.forEach((p, i) => {
       p.foundingDone = p.foundingCost;
       p.state = i < 70 ? 'sown' : 'ready';
@@ -324,6 +325,33 @@ describe('advanceVillage – roční plán a sklizeň', () => {
     const s = advanceVillage(s0, day);
     expect(s.storesKg).toBeCloseTo(eaten - 250, 9);
     expect(s.threshingFromPlan).toBeNull();
+  });
+
+  it('pole nedokopané do 30. 4.: zkopaná část se zaseje a sklidí (Ruling 14)', () => {
+    // plán ≈ 3 ha bez podzimního kopání – jarní práce startovní vsi stačí na ≈ 1,4 ha
+    const s0 = found(at(600, 6, 1), 42, field(133));
+    s0.constructions = [];
+    s0.lastDay = at(601, 2, 28);
+    s0.storesKg = 5000;
+    for (const p of s0.parts) {
+      p.foundingDone = p.foundingCost;
+      p.state = 'sown';
+    }
+    s0.plan = createPlan(s0.parts, at(600, 9, 1));
+
+    const spring = advanceVillage(s0, at(601, 4, 30));
+    const dig = { done: spring.plan?.done.dig ?? 0, required: spring.plan?.required.dig ?? 0 };
+    const sow = { done: spring.plan?.done.sow ?? 0, required: spring.plan?.required.sow ?? 0 };
+    expect(dig.done).toBeGreaterThan(0);
+    expect(dig.done).toBeLessThan(dig.required);
+    // seje se, co bylo zkopané v předchozích dnech – nezasetý zůstane jen pruh posledního dne
+    const dugShare = dig.done / dig.required;
+    const sownShare = sow.done / sow.required;
+    expect(sownShare).toBeLessThanOrEqual(dugShare + 1e-9);
+    expect(sownShare).toBeGreaterThan(dugShare - 0.01);
+
+    const s = advanceVillage(spring, at(601, 8, 31));
+    expect(harvests(s).at(-1)?.kg).toBeGreaterThan(0);
   });
 });
 

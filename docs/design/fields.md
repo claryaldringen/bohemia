@@ -2,7 +2,7 @@
 
 Stav: schváleno 17. 10. 2026 (Martin). Týž den změna (Martin, po prvním prototypu): **pole se
 staví po čtvercích** – políčkách krajiny 15 × 15 m, jak je obvyklé v realtime strategiích – místo
-volného obrysu.
+volného obrysu. Implementace jádra: `packages/game/src/domain/village/`.
 
 ## Proč
 
@@ -103,9 +103,11 @@ všechnu práci vsi a teprve lepší nástroje a osevní systémy (další mecha
 
 - Každý rok k **1. září** (po sklizni, před podzimním kopáním) ves sama rozhodne, kolik na
   příští rok oseje (návrh Clauda, vychází z Martinova cíle uvolňovat práci): tolik, aby úroda
-  pokryla **roční potřebu všech obyvatel a 10 % navíc** (rezerva), ale:
+  pokryla **roční potřebu všech obyvatel a 15 % navíc** (rezerva na ztráty při skladování
+  a růst rodiny během roku – kalibrace), ale:
   - nejvýš kolik je dílů, které smí osít (viz Přílohová soustava),
-  - nejvýš kolik její práce stihne ve špičkách (jaro, léto – viz Práce),
+  - nejvýš kolik její práce stihne ve špičkách (jaro, léto – viz Práce; počítá se všechna
+    práce po denním minimu – kalibrace z 80 %),
   - když mají zásoby víc než 1,5 roční potřeby, jen potřebu bez rezervy.
 - Které díly oseje, určuje pořadí v Přílohové soustavě.
 
@@ -149,7 +151,7 @@ pořadí (návrh Clauda; nahrazuje pevných 85 % a dělení práce po domácnost
 2. **Polní práce v jejich období** (tabulka níže).
 3. **Opravy obydlí** (populace).
 4. **Domácí výroba** – oděv, nádobí, jednoduché železné předměty, palivo: v průměru 0,3
-   člověkodne denně na domácnost + 0,12 na člověka. Dá se odkládat a dělá se hlavně v zimě;
+   člověkodne denně na domácnost + 0,15 na člověka. Dá se odkládat a dělá se hlavně v zimě;
    nedodělaná se přenáší, nejvýš za 60 dní, a má přednost před společnou prací.
 5. Zbytek je **společná práce vsi** – stavby obydlí a zakládání polí (populace).
 
@@ -170,6 +172,9 @@ pořadí (návrh Clauda; nahrazuje pevných 85 % a dělení práce po domácnost
 - **Včasnost:** co se v období nestihne, propadá: nezasetý díl se ten rok nesklidí, neopletý
   dá nižší úrodu, nesklizená úroda shnije na poli, nevymlácené do konce února se zkazí (návrh
   Clauda; přesné podíly doladí kalibrace).
+- **Na jaře se nejdřív seje, co je zkopané,** a teprve zbytek práce jde do dalšího kopání
+  (kalibrace). Pole, které se do konce dubna nedokope, tak dá aspoň úrodu zkopané části – dřív
+  kopání předbíhalo setí a nedokopané pole nedalo nic.
 - **Vrácení přílohu** do osevu (podzim září–listopad, před kopáním – návrh Clauda) stojí práci
   navíc podle stáří přílohu: 1–2 roky nic, 3–5 let (louka, drn) 40 člověkodní na hektar,
   6–10 let (mladý nálet – vypálí se) 60, 11–15 let (husté křoviny) 150, víc než 15 let (les)
@@ -253,20 +258,20 @@ pořadí (návrh Clauda; nahrazuje pevných 85 % a dělení práce po domácnost
 Startovní ves (jedna domácnost: 2 dospělí a 2 dospívající – viz populace), pole na louce
 s úrodností 70 do 100 m od obydlí:
 
-- potřeba 2 × 180 + 2 × 100 = 560 kg, s rezervou 10 % **≈ 615 kg** za rok,
-- čistá úroda hektaru v průměru osevu ≈ 585 − 175 = 410 kg, po ztrátách ≈ 370 kg → oseje
-  **≈ 1,7 ha** (≈ 75 políček krajiny),
-- první 3 roky stačí pole ≈ 1,7 ha; pak každý rok třetina osevu (≈ 0,6 ha) odchází do přílohu
-  a ves potřebuje další díly – v ustáleném oběhu pole **≈ 5,6 ha** (≈ 250 políček),
-- práce v ustáleném oběhu: osev ≈ 335 člověkodní, vrácení přílohů ≈ 35 (0,6 ha × 60), denní
-  minimum ≈ 185, domácí výroba ≈ 285, dohromady ≈ 840, tedy **≈ 88 %** z ≈ 950 člověkodní,
-  které ves za rok má – společné práce zbývá ≈ 12 % (populace počítala s 15 %),
+- potřeba 2 × 180 + 2 × 100 = 560 kg, s rezervou 15 % **≈ 645 kg** za rok,
+- čistá úroda hektaru v průměru osevu ≈ 585 − 175 = 410 kg → oseje **≈ 1,6 ha** (≈ 70 políček
+  krajiny); když mají zásoby víc než 1,5 roční potřeby, jen potřebu (≈ 1,4 ha),
+- první 3 roky stačí pole ≈ 1,6 ha; pak každý rok třetina osevu (≈ 0,5 ha) odchází do přílohu
+  a ves potřebuje další díly – v ustáleném oběhu pole **≈ 5,3 ha** (≈ 235 políček),
+- práce v ustáleném oběhu (měření): osev a vrácení přílohů ≈ 300 člověkodní, denní minimum
+  ≈ 185, domácí výroba ≈ 330, dohromady ≈ 815, tedy **≈ 86 %** z ≈ 950 člověkodní, které ves
+  za rok má – společné práce zbývá ≈ 14 % (populace počítala s 15 %),
 - špičky stihne: na jaře (polovina kopání na podzim) i v létě při sklizni potřebuje asi dvě
   třetiny práce, která zbývá po denním minimu.
 
-Plná domácnost (4 dospělí a 2 malé děti) potřebuje s rezervou ≈ 1 010 kg, tedy osev ≈ 2,7 ha
-a v ustáleném oběhu pole ≈ 9 ha; na obživu jí padne ≈ 80 % práce. Na přirozené úrodnosti 45
-(průměr luk v okolí vsi) potřebuje osev ≈ 3,6 ha a pole ≈ 12 ha a obživa jí vezme ≈ 93 % práce
+Plná domácnost (4 dospělí a 2 malé děti) potřebuje s rezervou ≈ 1 060 kg, tedy osev ≈ 2,6 ha
+a v ustáleném oběhu pole ≈ 9 ha; na obživu jí padne ≈ 79 % práce. Na přirozené úrodnosti 45
+(průměr luk v okolí vsi) potřebuje osev ≈ 3,4 ha a pole ≈ 11 ha a obživa jí vezme ≈ 90 % práce
 – na chudé půdě ves sotva roste.
 
 **Kolik půdy je:** do 600 m od místa vsi je typicky jen ≈ 35 ha luk s průměrnou úrodností
@@ -291,6 +296,25 @@ Měřicí skript (jako u populace) ověří:
 - na typické krajině uživí louky v okolí 3–4 domácnosti; ves, která mýtí les, roste dál,
 - cíle populace platí dál i se skutečným jídlem místo pevných 85 % (první stavba u 90 % vsí
   do ≈ 8 let).
+
+**Naměřeno** (`packages/game/scripts/measure-village.ts 200 60`, 17. 10. 2026 – syntetická louka
+s úrodností 70, hráč drží pole na osev × 3,3, strategie v hlavičce skriptu). Kalibrace zvýšila
+rezervu osevu z 10 na 15 %, domácí výrobu z 0,12 na 0,15 člověkodne na člověka a strop osevu
+na všechnu práci ve špičce (z 80 %); na jaře se nově nejdřív seje, co je zkopané:
+
+- startovní ves: osev ≈ 1,6 ha, pole ≈ 5,3 ha, nasycená, na obživu ≈ 86 % práce – splněno,
+- plná domácnost: osev ≈ 2,6 ha, pole ≈ 8,8 ha, na obživu ≈ 79 % – splněno,
+- díl se oseje 3 roky a 7 let leží v přílohu (90 % dílů 7–9 let); z pole o polovinu většího
+  zaroste v les ≈ 35 % plochy, první díl po 16 letech – splněno,
+- startovní ves má ve špičkách rezervu práce ≈ 34 % (jaro) a ≈ 35 % (léto) – splněno,
+- syntetická louka (35 ha, úrodnost 70 – úrodnější než typická) dojde při ≈ 5 domácnostech,
+- ves, kde hráč staví, kdykoli může, je nasycená (≥ 0,95) v ≈ 92 % let (bez staveb v 98 %;
+  nejhorší 1 % let s nasycením 0,72) – cíl 95 % zatím ne, **doladí se hraním (Martin –
+  prototyp)**. Zbytek hladu: strop osevu podle práce ve špičkách nepočítá se vzdáleností dílů
+  ani s vracením přílohů a rostoucí ves má hodně malých dětí, takže práce ve špičce nestačí na
+  osev pro všechny,
+- zásoby po sklizni: 10. percentil 1,08, medián 1,33, 90. percentil 1,54 – mezi 1 a 1,5 roční
+  potřeby v ≈ 80 % let (horní hranici přetáhne jedna bohatá sklizeň nebo úmrtí během roku).
 
 ## Co hráč vidí
 
@@ -355,7 +379,7 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 | Díly pole po políčkách krajiny; max 800 m od obydlí, min 0,1 ha                              | návrh Clauda                  |
 | Ceny založení: louka 40, křoviny 150, les 250 člověkodní/ha; tabulka překážek                | návrh Clauda                  |
 | Založení jako stavba ze společné práce, díly postupně od obydlí                              | návrh Clauda                  |
-| Ves oseje k 1. 9. potřebu + 10 %                                                             | návrh Clauda                  |
+| Ves oseje k 1. 9. potřebu + 15 % (kalibrace z 10 %)                                          | návrh Clauda                  |
 | Příloh se neudržuje a zarůstá; nevybrané díly stárnou až v les                               | návrh Clauda                  |
 | Práce za celou ves: pořadí, denní minimum, domácí výroba (jen práce, přenos max 60 dní)      | návrh Clauda                  |
 | Práce 200 člověkodní/ha, výnos 760 kg × úrodnost, osivo 175 kg, potřeba 180/140/100          | návrh Clauda                  |

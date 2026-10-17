@@ -124,6 +124,7 @@ describe('deathChancePerDay', () => {
 });
 
 describe('populationDay', () => {
+  // Smyčky přes stovky seedů × roky trvají pod paralelní zátěží déle než výchozích 5 s – limit 30 s.
   it('v hájení při nasycení 1 nezemře žádný dospělý (200 seedů × 30 let)', () => {
     let deaths = 0;
     for (let seed = 1; seed <= 200; seed++) {
@@ -133,7 +134,7 @@ describe('populationDay', () => {
       }
     }
     expect(deaths).toBe(0);
-  }, 20_000);
+  }, 30_000);
 
   it('(B) mrtví se losují před porody, takže hlad na ně u dvou dospělých nemá vliv (500 seedů)', () => {
     let compared = 0;
@@ -169,7 +170,7 @@ describe('populationDay', () => {
       }
     }
     expect(hungryDeaths).toBeGreaterThan(fedDeaths);
-  }, 20_000);
+  }, 30_000);
 
   it('stejný stav a den dají stejné události', () => {
     const a = startVillage(7);
