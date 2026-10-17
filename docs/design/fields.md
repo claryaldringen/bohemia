@@ -106,7 +106,8 @@ všechnu práci vsi a teprve lepší nástroje a osevní systémy (další mecha
   pokryla **roční potřebu všech obyvatel a 15 % navíc** (rezerva na ztráty při skladování
   a růst rodiny během roku – kalibrace), ale:
   - nejvýš kolik je dílů, které smí osít (viz Přílohová soustava),
-  - nejvýš kolik její práce stihne ve špičkách (jaro, léto – viz Práce),
+  - nejvýš kolik její práce stihne ve špičkách (jaro, léto – viz Práce; počítá se všechna
+    práce po denním minimu – kalibrace z 80 %),
   - když mají zásoby víc než 1,5 roční potřeby, jen potřebu bez rezervy.
 - Které díly oseje, určuje pořadí v Přílohové soustavě.
 
@@ -171,6 +172,9 @@ pořadí (návrh Clauda; nahrazuje pevných 85 % a dělení práce po domácnost
 - **Včasnost:** co se v období nestihne, propadá: nezasetý díl se ten rok nesklidí, neopletý
   dá nižší úrodu, nesklizená úroda shnije na poli, nevymlácené do konce února se zkazí (návrh
   Clauda; přesné podíly doladí kalibrace).
+- **Na jaře se nejdřív seje, co je zkopané,** a teprve zbytek práce jde do dalšího kopání
+  (kalibrace). Pole, které se do konce dubna nedokope, tak dá aspoň úrodu zkopané části – dřív
+  kopání předbíhalo setí a nedokopané pole nedalo nic.
 - **Vrácení přílohu** do osevu (podzim září–listopad, před kopáním – návrh Clauda) stojí práci
   navíc podle stáří přílohu: 1–2 roky nic, 3–5 let (louka, drn) 40 člověkodní na hektar,
   6–10 let (mladý nálet – vypálí se) 60, 11–15 let (husté křoviny) 150, víc než 15 let (les)
@@ -295,7 +299,8 @@ Měřicí skript (jako u populace) ověří:
 
 **Naměřeno** (`packages/game/scripts/measure-village.ts 200 60`, 17. 10. 2026 – syntetická louka
 s úrodností 70, hráč drží pole na osev × 3,3, strategie v hlavičce skriptu). Kalibrace zvýšila
-rezervu osevu z 10 na 15 % a domácí výrobu z 0,12 na 0,15 člověkodne na člověka:
+rezervu osevu z 10 na 15 %, domácí výrobu z 0,12 na 0,15 člověkodne na člověka a strop osevu
+na všechnu práci ve špičce (z 80 %); na jaře se nově nejdřív seje, co je zkopané:
 
 - startovní ves: osev ≈ 1,6 ha, pole ≈ 5,3 ha, nasycená, na obživu ≈ 86 % práce – splněno,
 - plná domácnost: osev ≈ 2,6 ha, pole ≈ 8,8 ha, na obživu ≈ 79 % – splněno,
@@ -303,19 +308,13 @@ rezervu osevu z 10 na 15 % a domácí výrobu z 0,12 na 0,15 člověkodne na čl
   zaroste v les ≈ 35 % plochy, první díl po 16 letech – splněno,
 - startovní ves má ve špičkách rezervu práce ≈ 34 % (jaro) a ≈ 35 % (léto) – splněno,
 - syntetická louka (35 ha, úrodnost 70 – úrodnější než typická) dojde při ≈ 5 domácnostech,
-- **nesplněno:** ves, kde hráč staví, kdykoli může, je nasycená (≥ 0,95) jen v ≈ 83 % let
-  (bez staveb v 97 %) a zásoby po sklizni má mezi 1 a 1,5 roční potřeby v ≈ 77 % let
-  (10. percentil 0,98, 90. percentil 1,52). Čísla to nespraví – vyšší rezerva posune zásoby
-  nad 1,5 a vyšší podíl práce ve špičce přidá roky bez úrody. Příčiny jsou v pravidlech:
-  - na jaře má kopání přednost před setím – když se kopání do konce dubna nestihne (třeba po
-    drahém vracení zarostlých přílohů na podzim), nezaseje se nic a ves celý rok hladoví,
-  - strop osevu podle práce ve špičkách nepočítá se vzdáleností dílů ani s vracením přílohů,
-  - rostoucí ves má hodně malých dětí a práce ve špičce nestačí na osev pro všechny.
-
-  Návrh k rozhodnutí (Martin): setí před kopáním (zaseje se, co je zkopané). Měření na 100
-  vsích: zmizí roky úplně bez úrody (1. percentil nejnižšího nasycení roku 0,13 → 0,71)
-  a nasycení ≥ 0,95 je v ≈ 84 % let; spolu s podílem práce ve špičce 100 % místo 80 %
-  v ≈ 92 % let a zásoby v pásmu v ≈ 79 % let.
+- ves, kde hráč staví, kdykoli může, je nasycená (≥ 0,95) v ≈ 92 % let (bez staveb v 98 %;
+  nejhorší 1 % let s nasycením 0,72) – cíl 95 % zatím ne, **doladí se hraním (Martin –
+  prototyp)**. Zbytek hladu: strop osevu podle práce ve špičkách nepočítá se vzdáleností dílů
+  ani s vracením přílohů a rostoucí ves má hodně malých dětí, takže práce ve špičce nestačí na
+  osev pro všechny,
+- zásoby po sklizni: 10. percentil 1,08, medián 1,33, 90. percentil 1,54 – mezi 1 a 1,5 roční
+  potřeby v ≈ 80 % let (horní hranici přetáhne jedna bohatá sklizeň nebo úmrtí během roku).
 
 ## Co hráč vidí
 

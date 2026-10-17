@@ -49,7 +49,7 @@ export const START_STORES_MONTHS = 18;
 export const SOW_RESERVE = 0.15;
 export const STORES_HIGH_YEARS = 1.5;
 // fields.md – Kolik ves oseje (návrh Clauda)
-export const PEAK_CAPACITY_SHARE = 0.8; // ve špičce jde na pole nejvýš 80 % práce po denním minimu
+export const PEAK_CAPACITY_SHARE = 1; // ve špičce smí jít na pole všechna práce po denním minimu (kalibrace z 0,8)
 export const SPRING_DIG_SHARE = 0.5; // polovina kopání připadne na jaro (zbytek na podzim)
 // fields.md – Úroda (hrubá úroda na hektar podle úrodnosti)
 export const YIELD_BASE_KG_PER_HA = 760; // × (0,4 + 0,6 × úrodnost / 100)

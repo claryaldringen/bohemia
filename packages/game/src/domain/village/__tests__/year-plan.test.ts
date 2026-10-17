@@ -72,9 +72,9 @@ describe('taskRemaining a activeTasks', () => {
     const p = createPlan([part({ state: 'fallow', fallowSinceDay: at(500, 9, 1) })], at(506, 9, 1));
     expect(activeTasks(p, at(506, 10, 10))).toEqual(['reclaim', 'dig']);
   });
-  it('duben: kopání i setí jen s nedodělaným kopáním', () => {
+  it('duben: nejdřív setí zkopané části, pak další kopání (Ruling 14)', () => {
     const p = withDone(plan, { dig: 40 });
-    expect(activeTasks(p, at(501, 4, 10))).toEqual(['dig', 'sow']);
+    expect(activeTasks(p, at(501, 4, 10))).toEqual(['sow', 'dig']);
     expect(activeTasks(withDone(plan, { dig: 80 }), at(501, 4, 10))).toEqual(['sow']);
     expect(activeTasks(plan, at(501, 4, 10))).toEqual(['dig']);
   });

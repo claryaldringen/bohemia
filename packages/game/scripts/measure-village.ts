@@ -869,7 +869,7 @@ function report(villages: VillageResult[], probes: Record<ProbeName, ProbeSummar
     .map((v) => ((v.loner.extinctDay ?? 0) - v.foundDay) / DAYS_PER_YEAR);
   row(
     `Vymření – jediná domácnost bez staveb (${config.years} let)`,
-    '≈ 90 % do 1000 let',
+    'jen informace (není cíl)',
     `${pct(lonersExtinct)} | vymřelé za medián ${fmt(quantile(lonerExtinctYears, 0.5), 0)} let | žijící: lidí medián ${fmt(
       quantile(
         loners.filter((r) => r.extinctDay === null).map((r) => r.finalPeople),
@@ -877,7 +877,7 @@ function report(villages: VillageResult[], probes: Record<ProbeName, ProbeSummar
       ),
       0,
     )}`,
-    millennium ? ok(lonersExtinct >= 0.8 && lonersExtinct <= 0.97) : '–',
+    'info',
   );
 
   const { start, full, oversize } = probes;

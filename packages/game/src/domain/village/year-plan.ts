@@ -11,11 +11,15 @@ import type { FieldPart, TaskName, YearPlan } from './types';
 
 const M2_PER_HA = 10_000;
 const MONTHS_PER_YEAR = 12;
-/** Pořadí úloh – rozhoduje při shodě konce okna. */
+/**
+ * Pořadí úloh – rozhoduje při shodě konce okna. Na podzim vracení přílohu před kopáním, na jaře
+ * setí před dalším kopáním (Ruling 14): zaseje se, co je zkopané (taskRemaining), takže pole
+ * nedokopané do konce dubna dá aspoň úrodu zkopané části.
+ */
 export const TASK_ORDER: readonly TaskName[] = [
   'reclaim',
-  'dig',
   'sow',
+  'dig',
   'weed',
   'harvest',
   'thresh',
