@@ -1,10 +1,12 @@
 import type { Landscape } from '../domain/landscape';
 import {
+  buildAffordability,
   fieldPartsFromCells,
   foundField,
   villageDwellingPositions,
   type TileCell,
 } from '../domain/village';
+import { CANNOT_AFFORD } from './place-dwelling';
 import { updateVillage } from './update-village';
 import type { VillageRepository, VillageResult } from './villages';
 
@@ -23,6 +25,7 @@ export function placeField(
   input: PlaceFieldInput,
 ): Promise<VillageResult> {
   return updateVillage(deps.villages, input.settlementId, input.today, (state) => {
+    if (!buildAffordability(state, 'field').affordable) return { ok: false, reason: CANNOT_AFFORD };
     const positions = villageDwellingPositions(state);
     const field = fieldPartsFromCells(input.landscape, state, input.cells, positions);
     if (!field.check.ok) return { ok: false, reason: field.check.reason ?? 'Sem pole nepatří.' };

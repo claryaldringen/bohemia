@@ -1,3 +1,4 @@
+import { BUILD_COSTS } from './costs';
 import { CEMETERY, CEMETERY_DISTANCE_M, HYGIENE_DEATH_EXTRA } from './rules';
 import type { Cemetery, ChronicleEvent, Position, VillageState } from './types';
 
@@ -27,9 +28,10 @@ export function acceptsBurials(cemetery: Cemetery): boolean {
   return cemetery.builtDay !== null && freeGraves(cemetery) > 0;
 }
 
-/** Cena založení pohřebiště v člověkodnech: 10 na čtverec + překážky. */
+/** Cena založení pohřebiště v člověkodnech: 10 na čtverec (`BUILD_COSTS`) + překážky. */
 export function cemeteryFoundingCost(squares: readonly { obstacleCost: number }[]): number {
-  return squares.reduce((sum, s) => sum + CEMETERY.costPerSquare + s.obstacleCost, 0);
+  const perSquare = BUILD_COSTS.cemetery.laborManDays;
+  return squares.reduce((sum, s) => sum + perSquare + s.obstacleCost, 0);
 }
 
 /** Vzdálenost bodu od čtverce se středem (x, z) a stranou `sizeM` – uvnitř čtverce 0. */

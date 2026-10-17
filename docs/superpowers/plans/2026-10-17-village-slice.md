@@ -1,7 +1,9 @@
 # Hratelná ves – první prototyp (vertikální řez)
 
 Stav: rozhoduje Martin („Prostě to udělej, pak to budeme ladit… rychlé iterace“) – prototyp,
-ladí se za běhu. Pravidla: `docs/design/population.md`, `docs/design/fields.md`. Jádro simulace:
+ladí se za běhu. **Rozhraní a ovládání níže (průvodce založením, panel vsi, nabídka staveb,
+odemčení plnou domácností) nahradilo 17. 10. 2026 rozhraní jako v 0 A.D. a stavění kdykoli** –
+platí CLAUDE.md (Ves) a population.md (Nové obydlí). Pravidla: `docs/design/population.md`, `docs/design/fields.md`. Jádro simulace:
 `packages/game/src/domain/village/` (`foundVillage`, `advanceVillage`, `startNewDwelling`,
 `foundField`).
 

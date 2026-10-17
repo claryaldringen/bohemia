@@ -11,9 +11,12 @@ export interface Placement {
   active: PlacementMode['kind'] | null;
   /** Poslední stav pod kurzorem pro bublinu (null = kurzor mimo krajinu nebo nic neběží). */
   preview: PlacementPreview | null;
-  /** Spustí umisťování ve scéně; běžící se zruší. `onConfirm` dostane jen prošlé umístění. */
+  /**
+   * Spustí umisťování ve scéně; běžící se zruší. `onConfirm` dostane jen prošlé umístění –
+   * se Shiftem i víckrát za sebou (umisťování pak běží dál).
+   */
   start(mode: PlacementMode, onConfirm: (result: PlacementResult) => void): void;
-  /** Potvrdí umisťování jako Enter (tlačítko Potvrdit u pole); neprošlé běží dál. */
+  /** Potvrdí umisťování jako Enter; neprošlé běží dál. */
   confirm(): void;
   cancel(): void;
 }
@@ -23,7 +26,7 @@ function checkResult(mode: PlacementMode, result: PlacementResult): PlacementChe
   if (mode.kind === 'dwelling' && result.kind === 'dwelling' && result.type === mode.type) {
     return mode.check(result.position);
   }
-  if (mode.kind === 'field' && result.kind === 'field') return mode.preview(result.cells).check;
+  if (mode.kind === 'squares' && result.kind === 'squares') return mode.preview(result.cells).check;
   return { ok: false, reason: 'Teď se umisťuje něco jiného.' };
 }
 
@@ -51,7 +54,11 @@ export function usePlacement(scene: LandscapeScene | null): Placement {
         return true;
       };
       scene.startPlacement(mode, {
-        onConfirm: (result) => {
+        onConfirm: (result, keepPlacing) => {
+          if (keepPlacing) {
+            if (tokenRef.current === token) onConfirm(result);
+            return;
+          }
           if (finish()) onConfirm(result);
         },
         onCancel: () => {

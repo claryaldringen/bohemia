@@ -4,6 +4,7 @@ import {
   parseCells,
   parsePlaceDwellingInput,
   parsePlaceFieldInput,
+  parseRenameVillageInput,
   parsePosition,
 } from '../village-input';
 
@@ -50,7 +51,16 @@ describe('ověření vstupu server actions vsi', () => {
       fieldCells: cells,
     });
     expect(parseFoundVillageInput({ name: 5, dwelling, fieldCells: cells })).toBeNull();
-    expect(parseFoundVillageInput({ name: 'Libice', dwelling, fieldOutline: [] })).toBeNull();
+    expect(parseFoundVillageInput({ name: 'Libice', dwelling, fieldCells: 'x' })).toBeNull();
+    // bez čtverců pole – ves se založí jen se zemnicí
+    expect(parseFoundVillageInput({ name: 'Libice', dwelling })).toEqual({
+      name: 'Libice',
+      dwelling,
+      fieldCells: [],
+    });
+    expect(parseRenameVillageInput({ name: 'Lhota' })).toEqual({ name: 'Lhota' });
+    expect(parseRenameVillageInput({ name: 'x'.repeat(201) })).toBeNull();
+    expect(parseRenameVillageInput('Lhota')).toBeNull();
     expect(parsePlaceDwellingInput({ type: 'polozemnice', position: dwelling })).toEqual({
       type: 'polozemnice',
       position: dwelling,

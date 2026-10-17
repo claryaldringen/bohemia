@@ -112,6 +112,18 @@ describe('foundVillage', () => {
     }
   });
 
+  it('bez prvního pole založí ves jen se zemnicí – pole přidá hráč, kdy chce', () => {
+    for (const firstField of [undefined, null]) {
+      const s = foundVillage({ seed: 7, day: DAY, dwellingPosition: POSITION, firstField });
+      expect(s.dwellings).toHaveLength(1);
+      expect(s.people).toHaveLength(4);
+      expect(s.fields).toEqual([]);
+      expect(s.parts).toEqual([]);
+      expect(s.constructions).toEqual([]);
+      expect(s.nextId).toBe(1 + 1 + START_AGES.length);
+    }
+  });
+
   it('první pole se ověřuje jako foundField', () => {
     expect(() =>
       foundVillage({
@@ -139,11 +151,13 @@ describe('startNewDwelling', () => {
     return s;
   };
 
-  it('na startovní vsi vyhodí RangeError', () => {
-    expect(() => startNewDwelling(start(), DAY, 'zemnice', POSITION, 0)).toThrow(RangeError);
+  it('hráč staví kdy chce – i na startovní vsi, a víc staveb za sebou', () => {
+    const first = startNewDwelling(start(), DAY, 'zemnice', POSITION, 0);
+    const second = startNewDwelling(first, DAY, 'polozemnice', { ...POSITION, x: 40 }, 0);
+    expect(second.constructions.filter((c) => c.kind === 'dwelling')).toHaveLength(2);
   });
 
-  it('při 6 lidech se 4 dospělými projde, druhá stavba hned potom ne', () => {
+  it('při 6 lidech se 4 dospělými projde i druhá stavba hned potom', () => {
     const s = sixPeople();
     const next = startNewDwelling(s, DAY, 'polozemnice', POSITION, 15);
     const added = next.constructions.at(-1);
@@ -157,7 +171,7 @@ describe('startNewDwelling', () => {
       fieldId: null,
     });
     expect(added?.position).toEqual(POSITION);
-    expect(() => startNewDwelling(next, DAY, 'zemnice', POSITION, 0)).toThrow(RangeError);
+    expect(startNewDwelling(next, DAY, 'zemnice', POSITION, 0).constructions).toHaveLength(3);
   });
 
   it('záporné náklady na překážky vyhodí RangeError', () => {

@@ -1,6 +1,6 @@
 import { TOTAL_GAME_DAYS } from '../calendar';
 import { cemeteryFoundingCost, villageCemeteries } from './cemetery';
-import { canStartNewDwelling } from './dwellings';
+import { buildAffordability, payUpfront, type BuildKind } from './costs';
 import { partFoundingCost } from './fields';
 import { ageGroup } from './people';
 import {
@@ -141,9 +141,10 @@ function addField(state: VillageState, day: number, field: FieldInput): void {
 }
 
 /**
- * Založí ves: zemnice, 4 lidé podle START_AGES, zásoby na START_STORES_MONTHS a první pole
- * jako stavba. Id se čerpají z jednoho čítače `nextId` (od 1) v pořadí obydlí, lidé, pole,
- * jeho díly, stavba pole.
+ * Založí ves: zemnice, 4 lidé podle START_AGES a zásoby na START_STORES_MONTHS. První pole je
+ * volitelné (hráč staví, kdy chce – population.md, Založení vsi); když je, vznikne jako stavba.
+ * Id se čerpají z jednoho čítače `nextId` (od 1) v pořadí obydlí, lidé, pole, jeho díly,
+ * stavba pole.
  *
  * Konvence dne: ves vzniká na začátku dne `day` – `lastDay = day − 1`, takže den založení
  * odsimuluje až následující `advanceVillage(state, day)` (založení vsi ho volá hned).
@@ -152,12 +153,12 @@ export function foundVillage(input: {
   seed: number;
   day: number;
   dwellingPosition: Position;
-  firstField: FieldInput;
+  firstField?: FieldInput | null;
 }): VillageState {
   const { seed, day, dwellingPosition, firstField } = input;
   validateDay(day);
   validatePosition(dwellingPosition);
-  validateField(firstField);
+  if (firstField) validateField(firstField);
   const dwellingId = 1;
   const people: Person[] = START_AGES.map((age, i) => ({
     id: dwellingId + 1 + i,
@@ -185,12 +186,20 @@ export function foundVillage(input: {
     commonLaborHistory: [],
     chronicle: [{ day, kind: 'village-founded' }],
   };
-  addField(state, day, firstField);
+  if (firstField) addField(state, day, firstField);
   return state;
 }
 
+/** Suroviny předem musí ves mít; jinak RangeError (pravidla ověří use-case dřív, česky). */
+function requireAffordable(state: VillageState, kind: BuildKind): void {
+  if (!buildAffordability(state, kind).affordable) {
+    throw new RangeError('Na stavbu ves nemá suroviny.');
+  }
+}
+
 /**
- * Zahájí stavbu nového obydlí; RangeError, když to pravidla nedovolují nebo je vstup neplatný.
+ * Zahájí stavbu nového obydlí – kdykoli (hráč staví, kdy chce; population.md – Nové obydlí);
+ * RangeError, když ves nemá suroviny předem nebo je vstup neplatný.
  *
  * Konvence dne (jako u `foundField`): akce se volá na ves dopočítanou do dne `day`
  * (`advanceVillage(state, day)`) a patří na konec toho dne – práci stavba dostane od dne
@@ -206,10 +215,9 @@ export function startNewDwelling(
   validateActionDay(state, day);
   validatePosition(position);
   validateObstacleCost(obstacleCost);
-  if (!canStartNewDwelling(state, day)) {
-    throw new RangeError('Nové obydlí teď nelze zahájit.');
-  }
+  requireAffordable(state, type);
   const next = structuredClone(state);
+  payUpfront(next, type);
   next.constructions.push({
     id: next.nextId++,
     kind: 'dwelling',
@@ -225,7 +233,8 @@ export function startNewDwelling(
 }
 
 /**
- * Zahájí založení nového pole (díly ve stavu 'founding'); RangeError při neplatném vstupu.
+ * Zahájí založení nového pole (díly ve stavu 'founding'); RangeError při neplatném vstupu
+ * nebo když ves nemá suroviny předem.
  *
  * Konvence dne (jako u `startNewDwelling`): akce se volá na ves dopočítanou do dne `day`
  * a patří na konec toho dne – práci pole dostane od dne `day + 1`. Den před `state.lastDay`
@@ -234,7 +243,9 @@ export function startNewDwelling(
 export function foundField(state: VillageState, day: number, field: FieldInput): VillageState {
   validateActionDay(state, day);
   validateField(field);
+  requireAffordable(state, 'field');
   const next = structuredClone(state);
+  payUpfront(next, 'field');
   addField(next, day, field);
   return next;
 }
@@ -262,7 +273,7 @@ function validateCemetery(input: CemeteryInput): void {
 /**
  * Zahájí založení pohřebiště (cemetery.md – Stavba): pohřebiště bez hrobů a stavba ze
  * společné práce vsi za 10 člověkodní na čtverec + překážky. Mrtvé přijímá až po dokončení.
- * RangeError při neplatném vstupu.
+ * RangeError při neplatném vstupu nebo když ves nemá suroviny předem.
  *
  * Konvence dne (jako u `foundField`): akce se volá na ves dopočítanou do dne `day` a patří na
  * konec toho dne – práci stavba dostane od dne `day + 1`. Den před `state.lastDay` → RangeError.
@@ -274,7 +285,9 @@ export function foundCemetery(
 ): VillageState {
   validateActionDay(state, day);
   validateCemetery(input);
+  requireAffordable(state, 'cemetery');
   const next = structuredClone(state);
+  payUpfront(next, 'cemetery');
   const cemeteryId = next.nextId++;
   next.cemeteries = [
     ...villageCemeteries(next),

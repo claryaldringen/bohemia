@@ -11,6 +11,8 @@ test.describe.configure({ timeout: 90_000 });
 
 const readyScene = (page: Page): ReturnType<Page['locator']> =>
   page.locator('canvas[data-scene-ready="true"]');
+/** Plátno scény (rozhraní má i další plátno – minimapu). */
+const sceneCanvas = (page: Page): ReturnType<Page['locator']> => page.locator('canvas[data-scene]');
 
 async function hoverCenter(page: Page): Promise<void> {
   const viewport = page.viewportSize()!;
@@ -19,33 +21,42 @@ async function hoverCenter(page: Page): Promise<void> {
   await page.mouse.move(viewport.width / 2, viewport.height / 2);
 }
 
-test('po vstupu do hry se vykreslí krajina a info o políčku pod kurzorem', async ({ page }) => {
+// Ve hře je políčko pod kurzorem jen na plátně (`data-tile`, `data-tile-info`) – rozhraní jako
+// v 0 A.D. nemá popisky; info o políčku ukazuje jen vývojový náhled krajiny.
+test('po vstupu do hry se vykreslí krajina a plátno zná políčko pod kurzorem', async ({ page }) => {
   await registerAndEnterGame(page, 'krajina');
   await expect(readyScene(page)).toBeVisible({ timeout: 30_000 });
   await hoverCenter(page);
-  await expect(page.getByTestId('tile-info')).toHaveText(/^(Voda|Les|Louka) · úrodnost \d+$/);
+  await expect(readyScene(page)).toHaveAttribute(
+    'data-tile-info',
+    /^(Voda|Les|Louka) · úrodnost \d+$/,
+  );
+  await expect(page.getByTestId('tile-info')).toHaveCount(0);
 });
 
 test('krajina zůstane po novém načtení stránky stejná', async ({ page }) => {
   await registerAndEnterGame(page, 'stejna-krajina');
   await expect(readyScene(page)).toBeVisible({ timeout: 30_000 });
   await hoverCenter(page);
-  const info = page.getByTestId('tile-info');
-  await expect(info).toBeVisible();
-  const before = { tile: await info.getAttribute('data-tile'), text: await info.textContent() };
+  const info = readyScene(page);
+  await expect(info).toHaveAttribute('data-tile', /\d+,\d+/);
+  const before = {
+    tile: await info.getAttribute('data-tile'),
+    text: await info.getAttribute('data-tile-info'),
+  };
 
   await page.reload();
   await expect(readyScene(page)).toBeVisible({ timeout: 30_000 });
   await hoverCenter(page);
   await expect(info).toHaveAttribute('data-tile', before.tile!);
-  await expect(info).toHaveText(before.text!);
+  await expect(info).toHaveAttribute('data-tile-info', before.text!);
 });
 
 test('bez WebGPU běží scéna na WebGL', async ({ page }) => {
   await registerAndEnterGame(page, 'webgl');
   await page.goto('/game?renderer=webgl');
   await expect(readyScene(page)).toBeVisible({ timeout: 30_000 });
-  await expect(page.locator('canvas')).toHaveAttribute('data-renderer', 'webgl');
+  await expect(sceneCanvas(page)).toHaveAttribute('data-renderer', 'webgl');
 });
 
 test('odhlášení během načítání scény nezpůsobí chybu', async ({ page }) => {
@@ -58,13 +69,13 @@ test('odhlášení během načítání scény nezpůsobí chybu', async ({ page 
   expect(errors).toEqual([]);
 });
 
-test('info o políčku zmizí, když kurzor opustí krajinu', async ({ page }) => {
+test('políčko pod kurzorem zmizí, když kurzor opustí krajinu', async ({ page }) => {
   await registerAndEnterGame(page, 'mimo-krajinu');
   await expect(readyScene(page)).toBeVisible({ timeout: 30_000 });
   await hoverCenter(page);
-  await expect(page.getByTestId('tile-info')).toBeVisible();
-  await page.getByText('Bohemia', { exact: true }).hover();
-  await expect(page.getByTestId('tile-info')).toBeHidden();
+  await expect(readyScene(page)).toHaveAttribute('data-tile', /\d+,\d+/);
+  await page.getByTestId('top-bar').hover();
+  await expect(readyScene(page)).not.toHaveAttribute('data-tile', /.*/);
 });
 
 test('plátno se přizpůsobí velikosti okna', async ({ page }) => {
@@ -73,7 +84,7 @@ test('plátno se přizpůsobí velikosti okna', async ({ page }) => {
   await page.setViewportSize({ width: 800, height: 600 });
   await expect
     .poll(async () => {
-      const box = await page.locator('canvas').boundingBox();
+      const box = await sceneCanvas(page).boundingBox();
       return box && [Math.round(box.width), Math.round(box.height)];
     })
     .toEqual([800, 600]);
@@ -119,13 +130,13 @@ test('vývojový náhled krajiny není v produkci dostupný', async ({ request }
 /** Políčko pod středem obrazovky jako [x, y]. */
 async function centerTile(page: Page): Promise<[number, number]> {
   await hoverCenter(page);
-  const info = page.getByTestId('tile-info');
-  await expect(info).toBeVisible();
+  const info = readyScene(page);
+  await expect(info).toHaveAttribute('data-tile', /\d+,\d+/);
   const [x, y] = (await info.getAttribute('data-tile'))!.split(',').map(Number);
   return [x!, y!];
 }
 
-async function drag(page: Page, button: 'left' | 'right', dx: number): Promise<void> {
+async function drag(page: Page, button: 'left' | 'middle' | 'right', dx: number): Promise<void> {
   const viewport = page.viewportSize()!;
   const x = viewport.width / 2;
   const y = viewport.height / 2;
@@ -159,18 +170,19 @@ function collectErrors(page: Page): string[] {
   return errors;
 }
 
-test('levé tlačítko krajinu posouvá, pravé ji otáčí kolem středu', async ({ page }) => {
+test('prostřední tlačítko krajinu posouvá, levé a pravé tažení s ní nehýbe', async ({ page }) => {
   await withoutTrees(page);
   await registerAndEnterGame(page, 'ovladani');
   await expect(readyScene(page)).toBeVisible({ timeout: 30_000 });
   const start = await centerTile(page);
 
-  await drag(page, 'right', 250);
-  expect(tileDistance(await centerTile(page), start)).toBeLessThanOrEqual(1);
+  // Jako v 0 A.D.: levé tlačítko vybírá a staví, pravé ruší – kamerou nehýbou.
+  await drag(page, 'left', 300);
+  await drag(page, 'right', 300);
+  expect(tileDistance(await centerTile(page), start)).toBeLessThanOrEqual(0);
 
-  // Výchozí přiblížení je blízko (120 m): 600 px posune krajinu asi o 50 m ≈ 3,4 políčka –
-  // jasně víc než otočení, které drží střed do 1 políčka.
-  await drag(page, 'left', 600);
+  // Výchozí přiblížení je blízko (120 m): 600 px posune krajinu asi o 50 m ≈ 3,4 políčka.
+  await drag(page, 'middle', 600);
   expect(tileDistance(await centerTile(page), start)).toBeGreaterThan(2);
 });
 
@@ -192,7 +204,7 @@ test.fixme('info o políčku se změní, když se pohne kamera a myš ne', async
 test('kolečko ani gesto přiblížení nepřibližují stránku', async ({ page }) => {
   await registerAndEnterGame(page, 'kolecko');
   await expect(readyScene(page)).toBeVisible({ timeout: 30_000 });
-  const prevented = await page.locator('canvas').evaluate((canvas) => {
+  const prevented = await sceneCanvas(page).evaluate((canvas) => {
     const wheel = new WheelEvent('wheel', { deltaY: 100, bubbles: true, cancelable: true });
     const pinch = new WheelEvent('wheel', {
       deltaY: 100,
@@ -227,7 +239,7 @@ test('když WebGPU selže až při startu, scéna naběhne na WebGL', async ({ p
   });
   await registerAndEnterGame(page, 'webgpu-selhalo');
   await expect(readyScene(page)).toBeVisible({ timeout: 30_000 });
-  await expect(page.locator('canvas')).toHaveAttribute('data-renderer', 'webgl');
+  await expect(sceneCanvas(page)).toHaveAttribute('data-renderer', 'webgl');
 });
 
 test('prohlížeč bez WebGPU zvolí WebGL sám', async ({ page }) => {
@@ -236,7 +248,7 @@ test('prohlížeč bez WebGPU zvolí WebGL sám', async ({ page }) => {
   });
   await registerAndEnterGame(page, 'bez-webgpu');
   await expect(readyScene(page)).toBeVisible({ timeout: 30_000 });
-  await expect(page.locator('canvas')).toHaveAttribute('data-renderer', 'webgl');
+  await expect(sceneCanvas(page)).toHaveAttribute('data-renderer', 'webgl');
 });
 
 test('bez 3D grafiky uvidí hráč vysvětlení místo prázdné plochy', async ({ page }) => {
@@ -286,7 +298,7 @@ test('odchod z herní plochy během načítání scénu uvolní bez chyb', async
     await route.continue().catch(() => undefined);
   });
   await page.getByRole('link', { name: 'Pokračovat do hry' }).click();
-  await expect(page.locator('canvas')).toBeAttached({ timeout: 30_000 });
+  await expect(sceneCanvas(page)).toBeAttached({ timeout: 30_000 });
   await page.goBack();
   await expect(page).toHaveURL(/\/$/);
   await page.waitForTimeout(3500);
@@ -300,17 +312,18 @@ test('přepínač zvuků krajiny se přepíná a volba vydrží nové načtení'
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   // Plátno vzniká v efektu – stránka je hydratovaná a kliknutí se neztratí.
-  await expect(page.locator('canvas')).toBeAttached();
+  await expect(sceneCanvas(page)).toBeAttached();
   const toggle = page.getByRole('button', { name: 'Zvuky krajiny' });
   await expect(toggle).toHaveAttribute('aria-pressed', 'true');
-  // Leží pod datem vpravo nahoře, nepřekrývá ho.
+  // Leží v horní liště vpravo od data, nepřekrývá ho.
   const date = (await page.getByTestId('game-date').boundingBox())!;
   const box = (await toggle.boundingBox())!;
-  expect(box.y).toBeGreaterThanOrEqual(date.y + date.height);
+  const bar = (await page.getByTestId('top-bar').boundingBox())!;
+  expect(box.x).toBeGreaterThanOrEqual(date.x + date.width);
+  expect(box.y + box.height).toBeLessThanOrEqual(bar.y + bar.height);
 
   await toggle.click();
   await expect(toggle).toHaveAttribute('aria-pressed', 'false');
-  await expect(toggle).toHaveAttribute('title', 'Zapnout zvuky krajiny');
   await page.reload();
   // Po načtení stránky se připravuje scéna – v bezhlavém prohlížeči chvíli blokuje stránku.
   await expect(toggle).toHaveAttribute('aria-pressed', 'false', { timeout: 30_000 });

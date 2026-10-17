@@ -20,7 +20,7 @@ import {
   createStripMesh,
   type HeightFn,
 } from './village-meshes';
-import type { FieldPaintPreview, PlacementHandlers, PlacementMode } from './village-types';
+import type { PlacementHandlers, PlacementMode, SquaresPreview } from './village-types';
 
 /** Kliknutí = stisk a puštění tlačítka bez tažení (px); delší tah maluje obdélník. */
 const CLICK_SLOP_PX = 6;
@@ -49,12 +49,10 @@ export interface PaintContext {
   /** Bod terénu pod pixelem plátna (CSS px), nebo null. */
   pickGround(x: number, y: number): Point | null;
   decalHeight: HeightFn;
-  /** Levé tlačítko posouvá kameru (true), nebo maluje (false); prostřední posouvá vždy. */
-  setLeftButtonPan(enabled: boolean): void;
   requestRender(): void;
 }
 
-type FieldMode = Extract<PlacementMode, { kind: 'field' }>;
+type FieldMode = Extract<PlacementMode, { kind: 'squares' }>;
 
 /** Rozběhnutý tah levým tlačítkem – obdélník čtverců od `start` po `end`. */
 interface Stroke {
@@ -68,12 +66,13 @@ interface Stroke {
 }
 
 /**
- * Malování pole po čtvercích (jako v realtime strategiích). Myš: levé kliknutí přepne čtverec,
- * levé tažení přidá obdélník čtverců, se Shiftem ubere; pravé kliknutí čtverec ubere (pravé
- * tažení dál otáčí kamerou). Krajina se posouvá prostředním tlačítkem, s mezerníkem i levým,
- * a klávesami WASD / šipkami. Enter (nebo tlačítko v rozhraní – `confirm`) potvrdí, Esc zruší
- * tah nebo celé malování, Backspace / Ctrl+Z vrátí poslední tah. Kolem kurzoru je vidět
- * mřížka čtverců, vybrané čtverce zelené (pole projde) / žluté (ještě ne) a zakázané červené.
+ * Malování stavby po čtvercích – pole a další stavby malované jako pole (jako v realtime
+ * strategiích); co smí kam, říká `mode.preview`. Myš: levé kliknutí přepne čtverec,
+ * levé tažení přidá obdélník čtverců, s Ctrl (na Macu i Cmd) ubere; pravé kliknutí malování
+ * zruší (jako v 0 A.D.). Krajina se posouvá prostředním tlačítkem, okrajem okna a WASD.
+ * Enter potvrdí, Esc zruší tah nebo celé malování, Backspace / Ctrl+Z vrátí poslední tah.
+ * Kolem kurzoru je vidět mřížka čtverců, vybrané čtverce zelené (pole projde) / žluté
+ * (ještě ne) a zakázané červené.
  */
 export class FieldPainter {
   private readonly selection = new CellSelection();
@@ -81,13 +80,13 @@ export class FieldPainter {
   private rightDown: { x: number; y: number } | null = null;
   private cursorCell: TileCell | null = null;
   private screen: { x: number; y: number } | null = null;
-  private spaceHeld = false;
-  private shiftHeld = false;
+  /** Ctrl / Cmd drží – tah ubírá. */
+  private eraseHeld = false;
   private selectionDirty = true;
   private cursorDirty = true;
   private lastPreview = 0;
   private candidate: TileCell[] = [];
-  private preview: FieldPaintPreview | null = null;
+  private preview: SquaresPreview | null = null;
   private selectionMeshes: Mesh[] = [];
   private cursorMeshes: Mesh[] = [];
   private readonly fillMaterial: StandardMaterial;
@@ -125,7 +124,6 @@ export class FieldPainter {
     this.gridMaterial.diffuseTexture = this.gridTexture;
     this.gridMaterial.useAlphaFromDiffuseTexture = true;
 
-    context.setLeftButtonPan(false);
     context.canvas.addEventListener('pointerdown', this.onPointerDown);
     context.canvas.addEventListener('pointerup', this.onPointerUp);
     context.canvas.addEventListener('pointercancel', this.onPointerCancel);
@@ -172,7 +170,7 @@ export class FieldPainter {
     if (this.candidate.length === 0 || !this.preview?.check.ok) return;
     const cells = this.candidate;
     this.dispose();
-    this.handlers.onConfirm({ kind: 'field', cells });
+    this.handlers.onConfirm({ kind: 'squares', cells });
   }
 
   /** Zruší malování a ohlásí to (`onCancel`). */
@@ -194,7 +192,6 @@ export class FieldPainter {
     window.removeEventListener('keyup', this.onKeyUp);
     window.removeEventListener('blur', this.onBlur);
     canvas.style.cursor = '';
-    this.context.setLeftButtonPan(true);
     disposeAll(this.selectionMeshes);
     disposeAll(this.cursorMeshes);
     for (const m of [this.fillMaterial, this.gridMaterial, ...Object.values(this.lineMaterials)]) {
@@ -210,7 +207,7 @@ export class FieldPainter {
       this.rightDown = { x: event.offsetX, y: event.offsetY };
       return;
     }
-    if (event.button !== 0 || this.spaceHeld) return;
+    if (event.button !== 0) return;
     const cell = this.cellAt(event.offsetX, event.offsetY);
     if (!cell) return;
     try {
@@ -222,7 +219,7 @@ export class FieldPainter {
       pointerId: event.pointerId,
       start: cell,
       end: cell,
-      mode: event.shiftKey ? 'remove' : 'add',
+      mode: event.ctrlKey || event.metaKey ? 'remove' : 'add',
       from: { x: event.offsetX, y: event.offsetY },
       dragged: false,
     };
@@ -234,8 +231,7 @@ export class FieldPainter {
       const down = this.rightDown;
       this.rightDown = null;
       if (!down || distance(down, { x: event.offsetX, y: event.offsetY }) > CLICK_SLOP_PX) return;
-      const cell = this.cellAt(event.offsetX, event.offsetY);
-      if (cell && this.selection.apply([cell], 'remove')) this.markSelection();
+      this.cancel();
       return;
     }
     const stroke = this.stroke;
@@ -261,6 +257,10 @@ export class FieldPainter {
   private readonly onKeyDown = (event: KeyboardEvent): void => {
     const target = event.target instanceof Element ? event.target : null;
     if (target?.closest('input, textarea, select')) return;
+    if (event.key === 'Control' || event.key === 'Meta') {
+      this.setErase(true);
+      return;
+    }
     if ((event.ctrlKey || event.metaKey) && event.code === 'KeyZ') {
       event.preventDefault();
       this.undo();
@@ -286,39 +286,20 @@ export class FieldPainter {
         event.preventDefault();
         this.undo();
         return;
-      case 'Space':
-        // Na tlačítku mezerník tlačítko stiskne – posun krajiny jen jinde.
-        if (target?.closest('button, a, [role="button"]')) return;
-        event.preventDefault();
-        this.setSpace(true);
-        return;
-      case 'ShiftLeft':
-      case 'ShiftRight':
-        this.setShift(true);
-        return;
     }
   };
 
   private readonly onKeyUp = (event: KeyboardEvent): void => {
-    if (event.code === 'Space') this.setSpace(false);
-    else if (event.code === 'ShiftLeft' || event.code === 'ShiftRight') this.setShift(false);
+    if (event.key === 'Control' || event.key === 'Meta') this.setErase(false);
   };
 
   private readonly onBlur = (): void => {
-    this.setSpace(false);
-    this.setShift(false);
+    this.setErase(false);
   };
 
-  private setSpace(held: boolean): void {
-    if (this.spaceHeld === held) return;
-    this.spaceHeld = held;
-    this.context.setLeftButtonPan(held);
-    this.context.canvas.style.cursor = held ? 'grab' : 'crosshair';
-  }
-
-  private setShift(held: boolean): void {
-    if (this.shiftHeld === held) return;
-    this.shiftHeld = held;
+  private setErase(held: boolean): void {
+    if (this.eraseHeld === held) return;
+    this.eraseHeld = held;
     this.cursorDirty = true;
   }
 
@@ -405,7 +386,7 @@ export class FieldPainter {
     if (cell) {
       this.cursorMeshes.push(this.gridMesh(cell));
       if (!this.stroke) {
-        const look: Look = this.shiftHeld || this.selection.has(cell) ? 'bad' : 'erase';
+        const look: Look = this.eraseHeld || this.selection.has(cell) ? 'bad' : 'erase';
         const hover = cellsBoundary([this.square(cell)]);
         this.cursorMeshes.push(this.lineMesh('field-paint-hover', hover, look, 0.3));
       }
@@ -417,10 +398,10 @@ export class FieldPainter {
   private report(): void {
     if (this.done) return;
     const preview = this.preview;
-    // Prázdný výběr není chyba – jen nápověda (bez důvodu, rozhraní ji ukáže neutrálně).
+    // Prázdný výběr není chyba – bez důvodu (rozhraní pak u kurzoru nic neukáže).
     this.handlers.onPreview?.({
       check: preview?.check ?? { ok: false, reason: null },
-      label: preview?.label ?? EMPTY_HINT,
+      label: preview?.label ?? '',
       screen: this.screen,
     });
   }
@@ -501,8 +482,6 @@ export class FieldPainter {
     return mesh;
   }
 }
-
-const EMPTY_HINT = 'Klikni nebo táhni po čtvercích louky';
 
 /** Textura jednoho čtverce mřížky: tenká čára po okraji (opakuje se přes celou mřížku). */
 function createGridTexture(scene: Scene): RawTexture {

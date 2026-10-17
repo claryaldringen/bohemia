@@ -11,9 +11,21 @@ const view = (overrides: Partial<VillageView> = {}): VillageView => ({
   storesMonths: 17,
   satiation: 1,
   commonLaborPerDay: 1,
-  canBuildDwelling: { ok: false, reason: 'Zatím ne.' },
-  costs: { zemnice: 60, polozemnice: 220, fieldPerHa: 40, cemeteryPerSquare: 10 },
+  fullHousehold: false,
+  build: {
+    zemnice: { laborManDays: 60, perHa: false, perSquare: false, upfront: [], affordable: true },
+    polozemnice: {
+      laborManDays: 220,
+      perHa: false,
+      perSquare: false,
+      upfront: [],
+      affordable: true,
+    },
+    field: { laborManDays: 40, perHa: true, perSquare: false, upfront: [], affordable: true },
+    cemetery: { laborManDays: 10, perHa: false, perSquare: true, upfront: [], affordable: true },
+  },
   constructions: [],
+  fields: [],
   cemeteries: [],
   hungry: false,
   constructionsStalled: false,
@@ -27,18 +39,15 @@ describe('villageNotices', () => {
     expect(villageNotices(view())).toEqual([]);
   });
 
-  it('hlad, stojící stavby a plná domácnost – problémy první', () => {
+  it('hlad, stojící stavby a plná domácnost – problémy první, jen krátký fakt', () => {
     const notices = villageNotices(
-      view({
-        hungry: true,
-        satiation: 0.72,
-        constructionsStalled: true,
-        canBuildDwelling: { ok: true, reason: null },
-      }),
+      view({ hungry: true, satiation: 0.72, constructionsStalled: true, fullHousehold: true }),
     );
-    expect(notices.map((n) => n.kind)).toEqual(['hungry', 'stalled', 'can-build']);
-    expect(notices[0]?.text).toMatch(/nasycení 72 %/);
-    expect(notices[2]?.tone).toBe('good');
+    expect(notices).toEqual([
+      { kind: 'hungry', tone: 'warn', text: 'Ves hladoví' },
+      { kind: 'stalled', tone: 'warn', text: 'Stavby stojí' },
+      { kind: 'full-household', tone: 'info', text: 'Domácnost je plná' },
+    ]);
   });
 });
 
@@ -48,8 +57,8 @@ describe('newNotices', () => {
     const hungry = view({ hungry: true, satiation: 0.8 });
     expect(newNotices(calm, hungry).map((n) => n.kind)).toEqual(['hungry']);
     expect(newNotices(hungry, view({ hungry: true, satiation: 0.6 }))).toEqual([]);
-    const both = view({ hungry: true, canBuildDwelling: { ok: true, reason: null } });
-    expect(newNotices(hungry, both).map((n) => n.kind)).toEqual(['can-build']);
+    const both = view({ hungry: true, fullHousehold: true });
+    expect(newNotices(hungry, both).map((n) => n.kind)).toEqual(['full-household']);
   });
 
   it('po skončení a novém začátku stavu ohlásí znovu', () => {

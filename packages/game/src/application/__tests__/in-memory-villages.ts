@@ -44,6 +44,14 @@ export class InMemoryVillages implements VillageRepository {
     return structuredClone(record);
   }
 
+  async rename(settlementId: string, name: string): Promise<boolean> {
+    await Promise.resolve();
+    const current = this.records.get(settlementId);
+    if (!current) return false;
+    current.name = name;
+    return true;
+  }
+
   /** Přímá úprava uloženého stavu (příprava testu), zvýší verzi. */
   edit(settlementId: string, change: (state: VillageState) => void): void {
     const current = this.records.get(settlementId);

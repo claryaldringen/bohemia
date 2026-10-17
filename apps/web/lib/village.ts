@@ -7,6 +7,7 @@ import {
   placeCemetery,
   placeDwelling,
   placeField,
+  renameVillage,
   type DwellingType,
   type EnterGameResult,
   type Landscape,
@@ -83,7 +84,7 @@ export function villageViewForSeat(
 
 export async function foundVillageForPlayer(
   playerId: string,
-  input: { name: string; dwelling: Position; fieldCells: TileCell[] },
+  input: { name: string; dwelling: Position; fieldCells?: TileCell[] },
 ): Promise<VillageActionResult> {
   const ctx = await context(playerId);
   if (!ctx.ok) return { error: ctx.error };
@@ -129,6 +130,19 @@ export async function placeCemeteryForPlayer(
   const result = await placeCemetery(
     { villages: villages() },
     { settlementId: ctx.settlementId, landscape: ctx.landscape, today: ctx.day, ...input },
+  );
+  return toActionResult(result, ctx.landscape, ctx.day);
+}
+
+export async function renameVillageForPlayer(
+  playerId: string,
+  input: { name: string },
+): Promise<VillageActionResult> {
+  const ctx = await context(playerId);
+  if (!ctx.ok) return { error: ctx.error };
+  const result = await renameVillage(
+    { villages: villages() },
+    { settlementId: ctx.settlementId, today: ctx.day, name: input.name },
   );
   return toActionResult(result, ctx.landscape, ctx.day);
 }

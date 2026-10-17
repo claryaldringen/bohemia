@@ -13,6 +13,8 @@ export const E2E_HOOKS_ENABLED = process.env.NEXT_PUBLIC_E2E_HOOKS === '1';
 export interface E2EHooks {
   /** Potvrdí běžící umisťování, jako by hráč klikl do scény; neprojde-li kontrolou, vyhodí chybu. */
   confirmPlacement?: (result: PlacementResult) => void;
+  /** Bod krajiny (x, z) na obrazovce v CSS px, nebo null mimo záběr – kam kliknout myší. */
+  projectToScreen?: (x: number, z: number) => { x: number; y: number } | null;
 }
 
 declare global {

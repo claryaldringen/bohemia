@@ -1,22 +1,23 @@
 import {
-  CEMETERY,
-  DWELLINGS,
-  FOUNDING_COST_PER_HA,
+  BUILD_COSTS,
+  STOCK_RESOURCES,
+  ageYears,
+  buildAffordability,
   dateOfDayIndex,
+  effectiveFertility,
   partStage,
   summarizeVillage,
   tileCenterWorld,
-  type BuildBlocker,
+  type BuildKind,
   type ChronicleEvent,
   type ConstructionKind,
   type ConstructionSummary,
   type DwellingType,
   type Landscape,
-  type PartInput,
   type PartStage,
-  type PlacementCheck,
   type PlacementVillage,
   type Position,
+  type StockResource,
   type TileCell,
   type VillageRecord,
   type VillageState,
@@ -28,7 +29,19 @@ import { cemeterySpaceLabel, formatCells, formatHa, formatInteger } from './vill
 // Pohled na ves pro panel a scénu (DTO server actions). Čistý modul – smí ho importovat
 // i klient (typy, převod scény na data pro kontrolu umístění).
 
-export type { PartStage } from '@bohemia/game';
+export type { BuildKind, PartStage, StockResource } from '@bohemia/game';
+
+/** Stavba v nabídce staveb: cena a jestli na ni ves má (bez surovin je tlačítko zašedlé). */
+export interface BuildOption {
+  /** Člověkodny ze společné práce – u pole za hektar (`perHa`), u pohřebiště za čtverec. */
+  laborManDays: number;
+  perHa: boolean;
+  /** Cena za čtverec (pohřebiště). */
+  perSquare: boolean;
+  /** Suroviny předem: kolik stavba stojí a kolik chybí (0 = ves má). */
+  upfront: { resource: StockResource; amount: number; missing: number }[];
+  affordable: boolean;
+}
 
 export interface VillageView {
   name: string;
@@ -42,19 +55,39 @@ export interface VillageView {
     full: boolean;
     overcrowded: boolean;
     condition: number;
+    /** Věk obyvatel v celých letech, od nejstaršího. */
+    ages: number[];
+    /** Stáří obydlí v celých letech. */
+    ageYears: number;
   }[];
   storesKg: number;
   storesMonths: number;
   satiation: number;
   commonLaborPerDay: number;
-  canBuildDwelling: PlacementCheck;
-  /** Ceny staveb v člověkodnech – obydlí, pole za hektar, pohřebiště za čtverec. */
-  costs: { zemnice: number; polozemnice: number; fieldPerHa: number; cemeteryPerSquare: number };
+  /** Některá domácnost je plná a nečeká na ni žádné nové obydlí (upozornění). */
+  fullHousehold: boolean;
+  /** Nabídka staveb – hráč staví kdy chce, jen na suroviny předem musí ves mít. */
+  build: Record<BuildKind, BuildOption>;
   constructions: {
     id: number;
     kind: ConstructionKind;
     label: string;
     progress: number;
+    /** Typ stavěného obydlí (u přestavby nový typ), u pole null. */
+    dwellingType: DwellingType | null;
+    /** Přestavované obydlí (rebuild), jinak null. */
+    dwellingId: number | null;
+    /** Zakládané pole (field), jinak null. */
+    fieldId: number | null;
+    /** Zakládané pohřebiště (cemetery), jinak null. */
+    cemeteryId: number | null;
+  }[];
+  /** Pole pro panel výběru: výměra, průměrná úrodnost a počet dílů podle stadia. */
+  fields: {
+    id: number;
+    areaM2: number;
+    fertility: number;
+    stages: Partial<Record<PartStage, number>>;
   }[];
   /** Pohřebiště v pořadí pohřbívání – kolik místa zbývá (hygienu hráč nevidí – cemetery.md). */
   cemeteries: VillageCemetery[];
@@ -122,12 +155,6 @@ export const CHRONICLE_LENGTH = 8;
 export const DWELLING_NAMES: Record<DwellingType, { nominative: string; accusative: string }> = {
   zemnice: { nominative: 'Zemnice', accusative: 'zemnici' },
   polozemnice: { nominative: 'Polozemnice', accusative: 'polozemnici' },
-};
-
-const BUILD_BLOCKERS: Record<BuildBlocker, string> = {
-  'no-full-household':
-    'Nové obydlí jde stavět, až bude některá domácnost plná a budou v ní aspoň 4 dospělí.',
-  'already-building': 'Na každou plnou domácnost smí být rozestavěné jen jedno nové obydlí.',
 };
 
 function deathText(group: 'child' | 'adult' | 'elder'): string {
@@ -262,6 +289,48 @@ function chronicle(state: VillageState, name: string): VillageView['chronicle'] 
     }));
 }
 
+const BUILD_KINDS: readonly BuildKind[] = ['zemnice', 'polozemnice', 'field', 'cemetery'];
+const DAYS_PER_YEAR = 365.25;
+
+/** Nabídka staveb: cena z pravidel a co z cen předem ves nemá. */
+function buildOptions(state: VillageState): Record<BuildKind, BuildOption> {
+  const entries = BUILD_KINDS.map((kind): [BuildKind, BuildOption] => {
+    const cost = BUILD_COSTS[kind];
+    const { affordable, missing } = buildAffordability(state, kind);
+    const upfront = STOCK_RESOURCES.flatMap((resource) => {
+      const amount = cost.upfront[resource] ?? 0;
+      return amount > 0 ? [{ resource, amount, missing: missing[resource] ?? 0 }] : [];
+    });
+    const option: BuildOption = {
+      laborManDays: cost.laborManDays,
+      perHa: cost.perHa,
+      perSquare: cost.perSquare ?? false,
+      upfront,
+      affordable,
+    };
+    return [kind, option];
+  });
+  return Object.fromEntries(entries) as Record<BuildKind, BuildOption>;
+}
+
+/** Pole pro panel výběru – výměra, úrodnost vážená plochou a díly podle stadia. */
+function fieldViews(state: VillageState, day: number): VillageView['fields'] {
+  return state.fields.map((f) => {
+    const parts = state.parts.filter((p) => p.fieldId === f.id);
+    const areaM2 = parts.reduce((sum, p) => sum + p.areaM2, 0);
+    const fertility =
+      areaM2 > 0
+        ? parts.reduce((sum, p) => sum + effectiveFertility(p, day) * p.areaM2, 0) / areaM2
+        : 0;
+    const stages: Partial<Record<PartStage, number>> = {};
+    for (const p of parts) {
+      const stage = partStage(p, day);
+      stages[stage] = (stages[stage] ?? 0) + 1;
+    }
+    return { id: f.id, areaM2, fertility, stages };
+  });
+}
+
 /** Pohled na ves v den `day` (ves má být dopočítaná do tohoto dne). */
 export function buildVillageView(
   record: VillageRecord,
@@ -274,26 +343,34 @@ export function buildVillageView(
     name,
     dayIndex: day,
     people: summary.people,
-    households: summary.households,
+    households: summary.households.map((h) => {
+      const dwelling = state.dwellings.find((d) => d.id === h.dwellingId);
+      return {
+        ...h,
+        ages: state.people
+          .filter((p) => p.dwellingId === h.dwellingId)
+          .map((p) => ageYears(p.bornDay, day))
+          .sort((a, b) => b - a),
+        ageYears: dwelling ? Math.max(0, Math.floor((day - dwelling.builtDay) / DAYS_PER_YEAR)) : 0,
+      };
+    }),
     storesKg: summary.storesKg,
     storesMonths: summary.storesMonths,
     satiation: summary.satiation,
     commonLaborPerDay: summary.commonLaborPerDay,
-    canBuildDwelling: summary.canBuildDwelling
-      ? { ok: true, reason: null }
-      : { ok: false, reason: BUILD_BLOCKERS[summary.buildBlocker ?? 'no-full-household'] },
-    costs: {
-      zemnice: DWELLINGS.zemnice.cost,
-      polozemnice: DWELLINGS.polozemnice.cost,
-      fieldPerHa: FOUNDING_COST_PER_HA.meadow,
-      cemeteryPerSquare: CEMETERY.costPerSquare,
-    },
+    fullHousehold: summary.fullHousehold,
+    build: buildOptions(state),
     constructions: summary.constructions.map((c) => ({
       id: c.id,
       kind: c.kind,
       label: constructionLabel(c),
       progress: c.progress,
+      dwellingType: c.dwellingType,
+      dwellingId: c.kind === 'rebuild' ? c.dwellingId : null,
+      fieldId: c.kind === 'field' ? c.fieldId : null,
+      cemeteryId: c.cemeteryId,
     })),
+    fields: fieldViews(state, day),
     hungry: summary.hungry,
     constructionsStalled: summary.constructionsStalled,
     cemeteries: summary.cemeteries.map((c) => {
@@ -318,43 +395,5 @@ export function placementVillageFromScene(scene: SceneVillage): PlacementVillage
     cemeteries: (scene.cemeteries ?? []).map((c) => ({
       squares: c.squares.map((s) => ({ cell: s.cell })),
     })),
-  };
-}
-
-/** Id náhledu zakládané vsi – záporná, aby se nepletla s id ze serveru (od 1). */
-const FOUNDING_DWELLING_ID = -1;
-const FOUNDING_FIELD_ID = -2;
-
-/**
- * Náhled zakládané vsi ve scéně, než ji hráč odešle na server: první zemnice už stojí
- * (osadníci přišli), díly prvního pole se zakládají.
- */
-export function foundingSceneVillage(
-  landscape: Landscape,
-  dwelling: Position | null,
-  field: { parts: readonly PartInput[] } | null,
-): SceneVillage {
-  return {
-    dwellings: dwelling
-      ? [
-          {
-            id: FOUNDING_DWELLING_ID,
-            type: 'zemnice',
-            position: dwelling,
-            built: true,
-            progress: 1,
-          },
-        ]
-      : [],
-    fields: field
-      ? [
-          {
-            id: FOUNDING_FIELD_ID,
-            parts: field.parts.flatMap((p) =>
-              p.cell !== undefined ? [scenePart(landscape, p.cell, 'founding')] : [],
-            ),
-          },
-        ]
-      : [],
   };
 }

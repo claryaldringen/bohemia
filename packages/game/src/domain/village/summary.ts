@@ -1,6 +1,6 @@
 import { TOTAL_GAME_DAYS } from '../calendar';
 import { burialOrder, cemeteryCapacity, freeGraves, villageCemeteries } from './cemetery';
-import { canStartNewDwelling, isFull, isOvercrowded, qualifyingDwellings } from './dwellings';
+import { isFull, isOvercrowded, waitingHouseholds } from './dwellings';
 import { fallowYears } from './fields';
 import { daysUntilHarvest, eatDay } from './food';
 import { ageGroup, foodNeedPerDay, occupants } from './people';
@@ -60,9 +60,6 @@ export interface CemeterySummary {
   yearsLeft: number | null;
 }
 
-/** Proč nejde zahájit nové obydlí: žádná domácnost nesplňuje podmínku / už se staví. */
-export type BuildBlocker = 'no-full-household' | 'already-building';
-
 export interface VillageSummary {
   people: { children: number; adults: number; elders: number };
   households: HouseholdSummary[];
@@ -73,8 +70,11 @@ export interface VillageSummary {
   satiation: number;
   /** Průměrná společná práce za den (posledních 30 dní). */
   commonLaborPerDay: number;
-  canBuildDwelling: boolean;
-  buildBlocker: BuildBlocker | null;
+  /**
+   * Některá domácnost je plná (4 dospělí 14–44) a nečeká na ni žádné nové obydlí – upozornění
+   * pro hráče, stavbu nepodmiňuje.
+   */
+  fullHousehold: boolean;
   constructions: ConstructionSummary[];
   /** Ves hladoví – zásoby nevystačí do sklizně (jako `hunger-began` v kronice). */
   hungry: boolean;
@@ -206,13 +206,7 @@ function stalled(state: VillageState): boolean {
 export function summarizeVillage(state: VillageState, day: number): VillageSummary {
   const needPerDay = state.people.reduce((sum, p) => sum + foodNeedPerDay(p, day), 0);
   const history = state.commonLaborHistory;
-  const canBuild = canStartNewDwelling(state, day);
   const deathsPerYear = recentDeathsPerYear(state, day);
-  const blocker: BuildBlocker | null = canBuild
-    ? null
-    : qualifyingDwellings(state, day).length === 0
-      ? 'no-full-household'
-      : 'already-building';
   return {
     people: peopleByGroup(state, day),
     households: households(state, day),
@@ -221,8 +215,7 @@ export function summarizeVillage(state: VillageState, day: number): VillageSumma
       needPerDay > 0 ? state.storesKg / ((needPerDay * DAYS_PER_YEAR) / MONTHS_PER_YEAR) : 0,
     satiation: nextDaySatiation(state, day, needPerDay),
     commonLaborPerDay: history.length > 0 ? history.reduce((s, v) => s + v, 0) / history.length : 0,
-    canBuildDwelling: canBuild,
-    buildBlocker: blocker,
+    fullHousehold: waitingHouseholds(state, day) > 0,
     constructions: state.constructions.map((c) => constructionSummary(state, c)),
     hungry: state.hungry,
     constructionsStalled: stalled(state),
