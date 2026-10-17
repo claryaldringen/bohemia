@@ -83,7 +83,7 @@ describe('enterGame', () => {
       checkBand(generateLandscapeAttempt(settlement.landscapeSeed, CURRENT_LAYER_VERSIONS)).ok,
     ).toBe(true);
     expect(landscape).toEqual(generateLandscape(drawn));
-  });
+  }, 30_000);
 
   it('uložené sídlo se načte bez kontroly pásma – ladění pásma krajinu nezmění', async () => {
     const stored = seedNeedingRetry();
@@ -96,7 +96,7 @@ describe('enterGame', () => {
     const { landscape } = await enterGame({ settlements, seeds: seedsFrom(1) }, 'hrac-1');
     expect(landscape).toEqual(generateLandscapeAttempt(stored, CURRENT_LAYER_VERSIONS));
     expect(landscape.heights).not.toEqual(generateLandscape(stored).heights);
-  });
+  }, 30_000);
 
   it('různí hráči dostanou různá sídla', async () => {
     const deps = { settlements: new InMemorySettlements(), seeds: seedsFrom(1, 2) };

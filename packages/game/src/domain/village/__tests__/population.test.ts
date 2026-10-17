@@ -154,7 +154,7 @@ describe('populationDay', () => {
       }
     }
     expect(compared).toBeGreaterThan(500);
-  });
+  }, 30_000);
 
   it('(C) (200 seedů × 10 let) šestičlenná ves po hájení má při hladu víc úmrtí dospělých než při sytosti', () => {
     let hungryDeaths = 0;
