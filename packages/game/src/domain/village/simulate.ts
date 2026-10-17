@@ -1,5 +1,6 @@
 import { TOTAL_GAME_DAYS, dateOfDayIndex, dayIndexOf } from '../calendar';
 import type { CalendarDate } from '../calendar';
+import type { ObstacleLayer } from '../landscape';
 import { villageCemeteries } from './cemetery';
 import {
   applyRepairs,
@@ -18,7 +19,6 @@ import {
   CHRONICLE_MAX_EVENTS,
   COMMON_LABOR_HISTORY_DAYS,
   DAILY_MIN_PER_HOUSEHOLD,
-  DWELLINGS,
   FERTILITY,
   FIELD_WORK_PER_HA,
   FOOD_NEED_KG_PER_YEAR,
@@ -31,6 +31,7 @@ import {
   STORES_HIGH_YEARS,
   THRESH_END_DAY,
   WINDOWS,
+  dwellingBuildLabor,
 } from './rules';
 import type {
   ChronicleEvent,
@@ -41,6 +42,16 @@ import type {
   VillageState,
   YearPlan,
 } from './types';
+import {
+  addLogs,
+  fellAsWorked,
+  fuelExtraPerDay,
+  logsFromClearedTrees,
+  planDwellingWood,
+  rotLogs,
+  takeWood,
+  woodFellingCost,
+} from './wood';
 import {
   TASK_ORDER,
   activeTasks,
@@ -63,9 +74,16 @@ const SATIATION_EPSILON = 1e-9;
  * Dopočítá ves do dne `toDay` včetně – den po dni od `lastDay + 1`. Vstup nemění.
  * Výsledek nezávisí na tom, po jakých kouscích se dopočítává (náhoda dne je ze seedu a dne;
  * kronika se zkrátí na posledních CHRONICLE_MAX_EVENTS událostí – simulace ji nečte).
+ * `obstacles` = vrstva překážek krajiny sídla: přestavby podle ní vyhradí stromy ke kácení
+ * (forest.md); bez ní (testy, kalibrace) se kácí bez polohy. Volající ji musí dávat vždy stejně,
+ * jinak výsledek na kouscích závisí.
  * RangeError, když `toDay` leží za koncem světa nebo před už odsimulovaným dnem.
  */
-export function advanceVillage(state: VillageState, toDay: number): VillageState {
+export function advanceVillage(
+  state: VillageState,
+  toDay: number,
+  obstacles?: ObstacleLayer,
+): VillageState {
   if (!Number.isInteger(toDay) || toDay >= TOTAL_GAME_DAYS) {
     throw new RangeError(`Den ${toDay} neleží ve světě (0 až ${TOTAL_GAME_DAYS - 1}).`);
   }
@@ -73,7 +91,7 @@ export function advanceVillage(state: VillageState, toDay: number): VillageState
     throw new RangeError(`Ves je dopočítaná do dne ${state.lastDay}, nelze zpět na ${toDay}.`);
   }
   const next = structuredClone(state);
-  for (let day = next.lastDay + 1; day <= toDay; day++) simulateDay(next, day);
+  for (let day = next.lastDay + 1; day <= toDay; day++) simulateDay(next, day, obstacles);
   next.lastDay = toDay;
   trimChronicle(next);
   return next;
@@ -86,15 +104,16 @@ function trimChronicle(state: VillageState): void {
 }
 
 /** Jeden den vsi v pevném pořadí kroků (mutuje stav). */
-function simulateDay(state: VillageState, day: number): void {
+function simulateDay(state: VillageState, day: number, obstacles: ObstacleLayer | undefined): void {
   const date = dateOfDayIndex(day);
+  rotLogs(state);
   if (isOn(date, PLANNING_DAY)) planYear(state, day, date.year);
   if (date.month >= PLANNING_DAY.month || date.month <= LAST_JOIN_MONTH) {
     joinFinishedParts(state, day, date.year);
   }
   work(state, day);
   finishConstructions(state, day);
-  decideRebuilds(state, day);
+  decideRebuilds(state, day, obstacles);
   occupyEmptyDwellings(state, day);
   const satiation = eat(state, day);
   state.chronicle.push(...populationDay(state, day, satiation));
@@ -256,6 +275,7 @@ function work(state: VillageState, day: number): void {
     tasks: owned.map(({ name, remaining }) => ({ name, remaining })),
     repairNeed,
     domesticBacklog: state.domesticBacklog,
+    fuelExtra: fuelExtraPerDay(state),
   });
 
   for (const task of owned) {
@@ -337,6 +357,8 @@ function invest(
 ): void {
   if (c.kind !== 'field') {
     c.done = completes ? c.cost : Math.min(c.cost, c.done + amount);
+    // dřevo se kácí jako první část práce stavby (forest.md)
+    fellAsWorked(state, c, day);
     return;
   }
   // pole zakládá díly od nejbližšího k obydlí; přebytek dne teče do dalšího dílu
@@ -349,10 +371,15 @@ function invest(
       part.foundingDone = part.foundingCost;
       part.state = 'ready';
       if (part.surface === 'forest') part.bonusUntilDay = forestBonusUntil(day);
-      // založený díl: stromy, kameny a keře z něj zmizí natrvalo (fields.md – Zakládání)
+      // založený díl: stromy, kameny a keře z něj zmizí natrvalo (fields.md – Zakládání),
+      // dospělé stromy dají klády na hromadu (forest.md – Mýcení)
       if (part.obstacles) {
         recordClearedObstacles(state, part.obstacles, day);
         delete part.obstacles;
+      }
+      if (part.trees) {
+        addLogs(state, logsFromClearedTrees(part.trees));
+        delete part.trees;
       }
     } else {
       part.foundingDone += left;
@@ -410,6 +437,7 @@ function finishConstructions(state: VillageState, day: number): void {
       builtDay: day,
       condition: 1,
       position: { ...c.position },
+      ...(c.forestDistanceM === undefined ? {} : { forestDistanceM: c.forestDistanceM }),
     };
     state.dwellings.push(dwelling);
     state.chronicle.push(finishedEvent(day, c, dwelling.id));
@@ -432,6 +460,10 @@ function finishCemetery(state: VillageState, day: number, c: Construction): void
       ? extension
       : cemetery.squares.filter((s) => s.constructionId === undefined);
   for (const square of finished) {
+    if (square.trees) {
+      addLogs(state, logsFromClearedTrees(square.trees));
+      delete square.trees;
+    }
     if (!square.obstacles) continue;
     recordClearedObstacles(state, square.obstacles, day);
     delete square.obstacles;
@@ -477,8 +509,16 @@ function moveInYoungestPair(state: VillageState, day: number, dwellingId: number
   }
 }
 
-/** Krok 5: obyvatelé dožilého nebo zchátralého obydlí se rozhodnou ho přestavět. */
-function decideRebuilds(state: VillageState, day: number): void {
+/**
+ * Krok 5: obyvatelé dožilého nebo zchátralého obydlí se rozhodnou ho přestavět. Přestavba bere
+ * dřevo jako nová stavba (forest.md): klády z hromady, zbytek vyhradí mezi nejbližšími dospělými
+ * stromy k obydlí. Nezastaví ji ani nedostatek dřeva – vezme, co je.
+ */
+function decideRebuilds(
+  state: VillageState,
+  day: number,
+  obstacles: ObstacleLayer | undefined,
+): void {
   const rebuilding = new Set(
     state.constructions.filter((c) => c.kind === 'rebuild').map((c) => c.dwellingId),
   );
@@ -488,16 +528,19 @@ function decideRebuilds(state: VillageState, day: number): void {
   for (const d of occupiedDwellings(state)) {
     if (rebuilding.has(d.id) || !wantsRebuild(d, day)) continue;
     const type = rebuildType(d.type, averageCommon);
+    const plan = planDwellingWood(state, type, d.position, day, obstacles ? { obstacles } : {});
+    const wood = takeWood(state, plan);
     state.constructions.push({
       id: state.nextId++,
       kind: 'rebuild',
       startedDay: day,
-      cost: DWELLINGS[type].cost,
+      cost: dwellingBuildLabor(type) + woodFellingCost(wood),
       done: 0,
       dwellingType: type,
       position: null,
       dwellingId: d.id,
       fieldId: null,
+      wood,
     });
     state.chronicle.push({ day, kind: 'rebuild-decided', dwellingId: d.id, type });
   }

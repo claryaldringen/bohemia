@@ -500,6 +500,65 @@ export function waterDistanceM(landscape: Landscape, cell: TileCell): number {
   return Number.isFinite(best) ? best : 2 * landscape.size * landscape.cellSizeM;
 }
 
+/** Políčka lesa krajiny (indexy) – spočítají se jednou pro každou krajinu. */
+const forestTilesCache = new WeakMap<Landscape, Int32Array>();
+
+function forestTiles(landscape: Landscape): Int32Array {
+  let tiles = forestTilesCache.get(landscape);
+  if (!tiles) {
+    const list: number[] = [];
+    for (let y = 0; y < landscape.size; y++) {
+      for (let x = 0; x < landscape.size; x++) {
+        if (surfaceAt(landscape, x, y) === 'forest') list.push(y * landscape.size + x);
+      }
+    }
+    tiles = Int32Array.from(list);
+    forestTilesCache.set(landscape, tiles);
+  }
+  return tiles;
+}
+
+/**
+ * Vzdálenost bodu světa k nejbližšímu okraji lesa v m – k nejbližšímu políčku lesa, v lese 0
+ * (forest.md – Palivo). Krajina bez lesa: dvojnásobek strany krajiny (konečné číslo – ukládá se
+ * do JSON).
+ */
+export function forestEdgeDistanceM(landscape: Landscape, x: number, z: number): number {
+  const half = (landscape.size * landscape.cellSizeM) / 2;
+  const size = landscape.cellSizeM;
+  let best = Infinity;
+  for (const index of forestTiles(landscape)) {
+    const minX = (index % landscape.size) * size - half;
+    const minZ = Math.floor(index / landscape.size) * size - half;
+    const dx = Math.max(0, minX - x, x - (minX + size));
+    const dz = Math.max(0, minZ - z, z - (minZ + size));
+    best = Math.min(best, Math.hypot(dx, dz));
+  }
+  return Number.isFinite(best) ? best : 2 * landscape.size * landscape.cellSizeM;
+}
+
+/**
+ * Ves z doby před palivem (obydlí a stavby obydlí bez `forestDistanceM`): doplní vzdálenost
+ * k okraji lesa z krajiny. Ves, které nic nechybí, vrací beze změny.
+ */
+export function withForestDistances(state: VillageState, landscape: Landscape): VillageState {
+  const missing =
+    state.dwellings.some((d) => d.forestDistanceM === undefined) ||
+    state.constructions.some(
+      (c) => c.kind === 'dwelling' && c.position !== null && c.forestDistanceM === undefined,
+    );
+  if (!missing) return state;
+  const next = structuredClone(state);
+  for (const d of next.dwellings) {
+    d.forestDistanceM ??= forestEdgeDistanceM(landscape, d.position.x, d.position.z);
+  }
+  for (const c of next.constructions) {
+    if (c.kind !== 'dwelling' || c.position === null) continue;
+    c.forestDistanceM ??= forestEdgeDistanceM(landscape, c.position.x, c.position.z);
+  }
+  return next;
+}
+
 const EMPTY_PREVIEW = {
   cells: [],
   parts: [],
@@ -581,6 +640,7 @@ export function fieldPartsFromCells(
       surface: 'meadow',
       obstacleCost: tally.cost,
       ...(tally.ids.length > 0 ? { obstacleIds: tally.ids } : {}),
+      ...(tally.counts.tree ? { trees: tally.counts.tree } : {}),
       cell,
     });
   }
@@ -726,6 +786,7 @@ export function cemeteryPartsFromCells(
       waterDistanceM: water,
       obstacleCost: tally.cost,
       ...(tally.ids.length > 0 ? { obstacleIds: tally.ids } : {}),
+      ...(tally.counts.tree ? { trees: tally.counts.tree } : {}),
     });
   }
 

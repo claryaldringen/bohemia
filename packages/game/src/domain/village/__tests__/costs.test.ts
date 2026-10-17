@@ -9,7 +9,7 @@ import {
   type BuildCost,
   type BuildKind,
 } from '../costs';
-import { DWELLINGS, FOUNDING_COST_PER_HA } from '../rules';
+import { DWELLING_TREES, DWELLINGS, FOUNDING_COST_PER_HA } from '../rules';
 import type { Person, VillageState } from '../types';
 import { withBuiltFirstDwelling } from './village-fixtures';
 
@@ -40,17 +40,18 @@ const withUpfront = (kind: BuildKind, grain: number): Record<BuildKind, BuildCos
 });
 
 describe('ceny staveb', () => {
-  it('práce podle pravidel; obydlí chce předem jednu domácnost k osídlení, pole nic', () => {
+  it('práce podle pravidel; obydlí chce předem dřevo a jednu domácnost k osídlení, pole nic', () => {
     expect(BUILD_COSTS.zemnice).toEqual({
       laborManDays: DWELLINGS.zemnice.cost,
       perHa: false,
-      upfront: { settlers: 1 },
+      upfront: { wood: DWELLING_TREES.zemnice, settlers: 1 },
     });
     expect(BUILD_COSTS.polozemnice).toEqual({
       laborManDays: DWELLINGS.polozemnice.cost,
       perHa: false,
-      upfront: { settlers: 1 },
+      upfront: { wood: DWELLING_TREES.polozemnice, settlers: 1 },
     });
+    expect(DWELLING_TREES).toEqual({ zemnice: 7, polozemnice: 18 });
     expect(BUILD_COSTS.field).toEqual({
       laborManDays: FOUNDING_COST_PER_HA.meadow,
       perHa: true,
@@ -61,7 +62,8 @@ describe('ceny staveb', () => {
   it('čerstvá ves (zemnice se staví) nemá koho osadit – obydlí nejde, pole ano i bez zásob', () => {
     const s = start();
     s.storesKg = 0;
-    expect(villageStock(s)).toEqual({ grain: 0, settlers: 0 });
+    // bez vrstvy překážek (testy, kalibrace) se kácí bez polohy – stromů neomezeně
+    expect(villageStock(s)).toEqual({ grain: 0, wood: Infinity, settlers: 0 });
     for (const kind of ['zemnice', 'polozemnice'] as const) {
       expect(buildAffordability(s, kind)).toEqual({ affordable: false, missing: { settlers: 1 } });
     }
@@ -87,29 +89,38 @@ describe('ceny staveb', () => {
 
 describe('affordability', () => {
   it('chybějící část po surovinách', () => {
-    expect(affordability({ grain: 30, settlers: 0 }, { grain: 50 })).toEqual({
+    const stock = (grain: number, wood = 0): Record<'grain' | 'wood' | 'settlers', number> => ({
+      grain,
+      wood,
+      settlers: 0,
+    });
+    expect(affordability(stock(30), { grain: 50 })).toEqual({
       affordable: false,
       missing: { grain: 20 },
     });
-    expect(affordability({ grain: 50, settlers: 0 }, { grain: 50 })).toEqual({
+    expect(affordability(stock(50), { grain: 50 })).toEqual({
       affordable: true,
       missing: {},
     });
-    expect(affordability({ grain: 0, settlers: 0 }, {})).toEqual({ affordable: true, missing: {} });
-    expect(affordability({ grain: 0, settlers: 0 }, { grain: 5, settlers: 1 })).toEqual({
+    expect(affordability(stock(0), {})).toEqual({ affordable: true, missing: {} });
+    expect(affordability(stock(0), { grain: 5, settlers: 1 })).toEqual({
       affordable: false,
       missing: { grain: 5, settlers: 1 },
+    });
+    expect(affordability(stock(0, 4), { wood: 7 })).toEqual({
+      affordable: false,
+      missing: { wood: 3 },
     });
   });
 
   it('hypotetická cena předem: bez zásob stavba nejde, se zásobami se zaplatí', () => {
     const s = fullHousehold();
     const costs = withUpfront('zemnice', s.storesKg + 40);
-    expect(buildAffordability(s, 'zemnice', costs)).toEqual({
+    expect(buildAffordability(s, 'zemnice', undefined, costs)).toEqual({
       affordable: false,
       missing: { grain: expect.closeTo(40, 6) },
     });
-    expect(buildAffordability(s, 'polozemnice', costs).affordable).toBe(true);
+    expect(buildAffordability(s, 'polozemnice', undefined, costs).affordable).toBe(true);
     const cheap = withUpfront('zemnice', 100);
     const paid = structuredClone(s);
     payUpfront(paid, 'zemnice', cheap);

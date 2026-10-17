@@ -1,11 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../domain/calendar';
-import { generateLandscape, tileCenterWorld } from '../../domain/landscape';
+import { generateLandscape, obstaclesOf, tileCenterWorld } from '../../domain/landscape';
 import {
   advanceVillage,
   checkDwellingPlacement,
-  DWELLINGS,
+  DWELLING_TREES,
+  dwellingBuildLabor,
+  fellingCost,
+  matureTreesByDistance,
+  obstacleChangesAt,
   placementVillageOf,
+  woodFellingCost,
   type Position,
   type VillageState,
 } from '../../domain/village';
@@ -14,7 +19,7 @@ import { withBuiltFirstDwelling } from '../../domain/village/__tests__/village-f
 import { foundVillageForSettlement, type FoundVillageInput } from '../found-village';
 import { loadVillage } from '../load-village';
 import { placeCemetery } from '../place-cemetery';
-import { NO_SETTLERS, placeDwelling } from '../place-dwelling';
+import { NO_SETTLERS, NO_WOOD, placeDwelling } from '../place-dwelling';
 import { placeField } from '../place-field';
 import { renameVillage } from '../rename-village';
 import type { SeedSource } from '../settlements';
@@ -47,7 +52,7 @@ async function foundedVillages(): Promise<InMemoryVillages> {
 
 /**
  * Zemnice zakladatelů dostavěná a domácnost v ní plná dospělých (6 lidí, z toho 6 dospělých) –
- * může se z ní oddělit mladý pár.
+ * může se z ní oddělit mladý pár. Na hromadě leží 40 klád (ruční krajina testů nemá stromy).
  */
 function makeFullHousehold(state: VillageState): void {
   Object.assign(state, withBuiltFirstDwelling(state));
@@ -56,6 +61,7 @@ function makeFullHousehold(state: VillageState): void {
   for (const [i, age] of [20, 22].entries()) {
     state.people.push({ id: 900 + i, bornDay: day - Math.ceil(age * YEAR), dwellingId: 1 });
   }
+  state.woodLogs = 40;
 }
 
 describe('foundVillageForSettlement', () => {
@@ -216,6 +222,36 @@ describe('placeDwelling', () => {
     expect(onHouse).toEqual({ ok: false, reason: 'Překrývá se s jiným obydlím.' });
     const inField = await placeDwelling(deps, { ...base, position: at(0, 0) });
     expect(inField).toEqual({ ok: false, reason: 'Překrývá se s polem.' });
+  });
+
+  it('bez dřeva (klády nestačí a krajina nemá stromy) stavbu odmítne česky', async () => {
+    const villages = await foundedVillages();
+    villages.edit(ID, (state) => {
+      makeFullHousehold(state);
+      state.woodLogs = DWELLING_TREES.zemnice - 0.5;
+    });
+    const version = villages.records.get(ID)?.version;
+    const base = { settlementId: ID, landscape, today: TODAY + 1, position: at(-80, -50) };
+    const result = await placeDwelling({ villages }, { ...base, type: 'zemnice' });
+    expect(result).toEqual({ ok: false, reason: NO_WOOD });
+    expect(villages.records.get(ID)?.version).toBe(version);
+  });
+
+  it('obydlí bere klády z hromady – bez kácení stojí práci bez dřeva', async () => {
+    const villages = await foundedVillages();
+    villages.edit(ID, makeFullHousehold);
+    const result = await placeDwelling(
+      { villages },
+      { settlementId: ID, landscape, today: TODAY + 1, type: 'zemnice', position: at(-80, -50) },
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const site = result.village.state.constructions.at(-1)!;
+    expect(site.wood).toEqual({ trees: 7, fromPile: 7, fell: [], felled: 0 });
+    expect(site.cost).toBeCloseTo(dwellingBuildLabor('zemnice'), 9);
+    // den dopočtu do dneška klády trochu nahnily (4 % ročně)
+    expect(result.village.state.woodLogs).toBeCloseTo(40 - 7, 1);
+    expect(result.village.state.woodLogs).toBeLessThan(40 - 7);
   });
 });
 
@@ -409,7 +445,72 @@ describe('překážky krajiny ve vsi (vrstva překážek)', () => {
     if (!result.ok) return;
     expect(result.village.state.clearedObstacles!.map((c) => c.id)).toEqual(expected.obstacleIds);
     const zemnice = result.village.state.constructions.find((c) => c.kind === 'dwelling')!;
-    expect(zemnice.cost).toBeCloseTo(DWELLINGS.zemnice.cost + expected.obstacleCost, 9);
+    expect(zemnice.cost).toBeCloseTo(
+      dwellingBuildLabor('zemnice') + expected.obstacleCost + woodFellingCost(zemnice.wood),
+      9,
+    );
+    // dřevo první zemnice: stromy ze staveniště na hromadu, zbytek z nejbližších stromů
+    const siteTrees = expected.obstacleCounts.tree ?? 0;
+    expect(zemnice.wood!.fromPile).toBe(Math.min(7, siteTrees));
+    expect(zemnice.wood!.trees).toBe(7);
+    expect(zemnice.forestDistanceM).toBeGreaterThanOrEqual(0);
+  });
+
+  it('nové obydlí bez klád vyhradí nejbližší dospělé stromy a pokácí je prací stavby', async () => {
+    const villages = new InMemoryVillages();
+    await foundVillageForSettlement(
+      { villages, seeds },
+      {
+        settlementId: ID,
+        landscape: real,
+        today: TODAY,
+        name: 'Libice',
+        dwelling: at(site.x, site.z),
+      },
+    );
+    villages.edit(ID, (state) => {
+      makeFullHousehold(state);
+      state.woodLogs = 0;
+    });
+    const before = villages.records.get(ID)!.state;
+    const result = await placeDwelling(
+      { villages },
+      { settlementId: ID, landscape: real, today: TODAY + 1, type: 'polozemnice', position: spot },
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const state = result.village.state;
+    const construction = state.constructions.at(-1)!;
+    const check = checkDwellingPlacement(
+      real,
+      placementVillageOf(before, TODAY + 1),
+      'polozemnice',
+      spot,
+    );
+    const siteTrees = check.obstacleCounts.tree ?? 0;
+    // stromy jiných staveb (první zemnice) jsou vyhrazené – vyloučit je
+    const reserved = new Set(
+      before.constructions.flatMap((c) => c.wood?.fell.map((t) => t.id) ?? []),
+    );
+    const nearest = matureTreesByDistance(
+      obstaclesOf(real),
+      obstacleChangesAt(before, TODAY + 1),
+      spot,
+    )
+      .filter((t) => !check.obstacleIds.includes(t.id) && !reserved.has(t.id))
+      .slice(0, 18 - Math.min(18, siteTrees));
+    expect(construction.wood!.fell.map((t) => t.id)).toEqual(nearest.map((t) => t.id));
+    construction.wood!.fell.forEach((t, i) => {
+      expect(t.cost).toBeCloseTo(fellingCost(nearest[i]!.distanceM), 9);
+    });
+    expect(construction.cost).toBeCloseTo(
+      dwellingBuildLabor('polozemnice') + check.obstacleCost + woodFellingCost(construction.wood),
+      9,
+    );
+    // stavba dostane práci – po dostavění jsou po stromech pařezy
+    const finished = advanceVillage(state, TODAY + 3 * 365, obstaclesOf(real));
+    const stumps = obstacleChangesAt(finished, finished.lastDay).stumps;
+    for (const t of nearest) expect(stumps).toContain(t.id);
   });
 
   it('nové obydlí zaplatí překážky prací a osadníci je odstraní při zahájení stavby', async () => {
@@ -433,7 +534,9 @@ describe('překážky krajiny ve vsi (vrstva překážek)', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     const construction = result.village.state.constructions.at(-1)!;
-    expect(construction.cost).toBeCloseTo(DWELLINGS.zemnice.cost + expected.obstacleCost, 9);
+    // klády z hromady (makeFullHousehold) – bez kácení
+    expect(construction.wood?.fell).toEqual([]);
+    expect(construction.cost).toBeCloseTo(dwellingBuildLabor('zemnice') + expected.obstacleCost, 9);
     expect(expected.obstacleCost).toBeGreaterThan(0);
     const cleared = result.village.state.clearedObstacles!.map((c) => c.id);
     for (const id of expected.obstacleIds) expect(cleared).toContain(id);

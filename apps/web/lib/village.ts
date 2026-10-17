@@ -142,7 +142,7 @@ export async function renameVillageForPlayer(
   if (!ctx.ok) return { error: ctx.error };
   const result = await renameVillage(
     { villages: villages() },
-    { settlementId: ctx.settlementId, today: ctx.day, name: input.name },
+    { settlementId: ctx.settlementId, today: ctx.day, name: input.name, landscape: ctx.landscape },
   );
   return toActionResult(result, ctx.landscape, ctx.day);
 }

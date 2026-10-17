@@ -171,6 +171,25 @@ export const OUTCROP_RADIUS_M = 3;
 // a pokácený strom je ≈ za 30 let mladý stromek, za ≈ 70 let zase dospělý strom (dá se kácet)
 export const TREE_SAPLING_AFTER_YEARS = 30;
 export const TREE_REGROWTH_YEARS = 70;
+// forest.md – Stavby a kácení (Martin – oprava podle rešerše 17. 10. 2026): strom = velký strom;
+// zemnice ≈ 7 stromů, polozemnice ≈ 18 stromů; přestavba stejně jako nová stavba
+export const DWELLING_TREES: Record<DwellingType, number> = { zemnice: 7, polozemnice: 18 };
+// forest.md – Kácení: skácení a dovoz 2 člověkodny za strom, +1 % za každých 10 m nad 100 m od
+// staveniště (vzdálenost jako u polí – DISTANCE). U blízkého lesa stojí stavba práci jako dřív –
+// cena obydlí (DWELLINGS.cost) v sobě kácení blízkého lesa už má (dwellingBuildLabor).
+export const FELLING_MAN_DAYS_PER_TREE = 2;
+// forest.md – Mýcení a hromada klád: dospělý strom z mýcení (pole, hřbitov, staveniště) = 1 kláda
+export const LOGS_PER_CLEARED_TREE = 1;
+// forest.md – Klády hnijí (Martin – oprava podle rešerše 17. 10. 2026): ≈ 4 % ročně
+export const LOG_ROT_PER_YEAR = 0.04;
+// forest.md – Palivo: palivová část domácí výroby (návrh Clauda: třetina) je o 1 % dražší za
+// každých 10 m nad 100 m od obydlí k nejbližšímu okraji lesa (vzdálenost jako u polí – DISTANCE)
+export const FUEL_DOMESTIC_SHARE = 1 / 3;
+
+/** Práce na obydlí bez dřeva – cena obydlí minus kácení jeho stromů u blízkého lesa. */
+export function dwellingBuildLabor(type: DwellingType): number {
+  return DWELLINGS[type].cost - DWELLING_TREES[type] * FELLING_MAN_DAYS_PER_TREE;
+}
 // fields.md – Zarůstání (stadia přílohu podle celých let bez péče; víc než 15 let = les)
 export const OVERGROWTH_STAGES = [
   { maxYears: 2, stage: 'young-fallow' },

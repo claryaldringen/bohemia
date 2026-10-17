@@ -8,6 +8,8 @@ export interface DayAllocationInput {
   tasks: { name: TaskName; remaining: number }[];
   repairNeed: number;
   domesticBacklog: number;
+  /** Práce navíc na palivu za den – ves daleko od lesa (forest.md – Palivo); bez údaje 0. */
+  fuelExtra?: number;
 }
 
 export interface DayAllocation {
@@ -38,7 +40,10 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
   };
   for (const task of input.tasks) tasks[task.name] += take(task.remaining);
   const repairs = take(input.repairNeed);
-  const todayNeed = DOMESTIC.perHousehold * input.households + DOMESTIC.perPerson * input.people;
+  const todayNeed =
+    DOMESTIC.perHousehold * input.households +
+    DOMESTIC.perPerson * input.people +
+    Math.max(0, input.fuelExtra ?? 0);
   const domestic = take(todayNeed + input.domesticBacklog);
   const domesticBacklog = Math.max(
     0,
