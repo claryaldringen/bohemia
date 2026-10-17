@@ -293,6 +293,14 @@ export function fellAsWorked(state: VillageState, c: Construction, day: number):
  * Zakladatelé, kteří bydlí na staveništi první zemnice, se počítají od staveniště.
  */
 export function fuelExtraPerDay(state: VillageState): number {
+  // běžný případ (les blízko všech obydlí) bez počítání domácností – volá se každý den
+  const far = (distance: number | undefined): boolean => distanceFactor(distance ?? 0) > 1;
+  if (
+    !state.dwellings.some((d) => far(d.forestDistanceM)) &&
+    !state.constructions.some((c) => far(c.forestDistanceM))
+  ) {
+    return 0;
+  }
   const members = new Map<number, number>();
   for (const p of state.people) members.set(p.dwellingId, (members.get(p.dwellingId) ?? 0) + 1);
   let extra = 0;
