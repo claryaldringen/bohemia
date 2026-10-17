@@ -8,6 +8,7 @@ import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { Scene } from '@babylonjs/core/scene';
 import {
   buildForestField,
+  buildRelief,
   NO_OBSTACLE_CHANGES,
   obstaclesOf,
   surfaceAt,
@@ -34,6 +35,7 @@ import { createTerrainMesh } from './terrain-mesh';
 import { buildRenderSurface } from './render-surface';
 import { terrainMeshHeight } from './drape';
 import { InstanceHider } from './instance-hider';
+import { VillageLivestock } from './livestock';
 import { PitCuts, applyPitCut } from './pit-cut';
 import { addSunShadows, type SunShadows } from './sun-shadows';
 import { tileAt, tileCenter } from './tile-at';
@@ -112,6 +114,8 @@ export class LandscapeScene {
   /** Pařezy a nálet po pokácených stromech. */
   private felled: FelledTrees | null = null;
   private village: VillageRenderer | null = null;
+  /** Domácí zvířata vsi (ozdoba) – slepice u obydlí, stáda na loukách a v lese. */
+  private livestock: VillageLivestock | null = null;
   /** Poslední stav vsi od rozhraní – vykreslí se, jakmile je krajina hotová. */
   private villageState: SceneVillage | null = null;
   private placement: ActivePlacement | null = null;
@@ -231,6 +235,19 @@ export class LandscapeScene {
         this.renderWhenReady();
       },
     });
+    const relief = buildRelief(landscape);
+    // Domácí zvířata vsi – rozmístí se podle vsi (applyVillage), modely až s prvním zvířetem.
+    this.livestock?.dispose();
+    this.livestock = new VillageLivestock(this.scene, {
+      landscape,
+      field,
+      stream: surface.stream,
+      relief,
+      groundHeight: (x, z) => terrainMeshHeight(surface, x, z),
+      baseUrl: '/models/fauna/',
+      onLoaded: () => this.renderWhenReady(),
+    });
+    if (this.worldClock) this.livestock.setWorldClock(this.worldClock);
     // Ozdobná zvířata podle 0 A.D.: hejna ryb v tůních, kroužící vrány a káně.
     const fauna = {
       fish: fishSchools(surface),
@@ -406,6 +423,7 @@ export class LandscapeScene {
    */
   setWorldClock(world: WorldClock): void {
     this.village?.setWorldClock(world);
+    this.livestock?.setWorldClock(world);
     this.worldClock = world;
   }
 
@@ -501,6 +519,7 @@ export class LandscapeScene {
     this.placement?.dispose();
     this.placement = null;
     this.village?.dispose();
+    this.livestock?.dispose();
     this.resizeObserver.disconnect();
     this.canvas.removeEventListener('pointermove', this.onPointerMove);
     this.canvas.removeEventListener('pointerleave', this.onPointerLeave);
@@ -608,10 +627,11 @@ export class LandscapeScene {
     const hiddenIds = new Set([...changes.removed, ...changes.stumps, ...changes.saplings]);
     const hidden = this.hider.apply(village.hideShapes(), hiddenIds);
     const felled = this.obstacles ? (this.felled?.update(this.obstacles, changes) ?? false) : false;
+    const animals = this.livestock?.update(this.villageState, Date.now()) ?? false;
     // Rozhraní posílá stav vsi opakovaně (dotaz každých pár sekund) – beze změny nic.
     // Vybrané pole mohlo změnit čtverce (zarůstání), vybrané obydlí zaniknout.
     if (changed) this.highlight?.show(this.villageState, this.selection);
-    if (!changed && !hidden && !felled) return;
+    if (!changed && !hidden && !felled && !animals) return;
     // Dým hned na místě – i při omezeném pohybu, kdy se pak už nehýbe.
     village.animateSmoke(Date.now(), null);
     this.shadows?.refresh();
@@ -659,6 +679,8 @@ export class LandscapeScene {
       if (this.fauna?.animate(now / 1000, camera.camera)) animated = true;
       // dým z obydlí – rozvrh ohně podle herního dne, proto skutečný čas
       if (this.village?.animateSmoke(Date.now(), camera.camera)) animated = true;
+      // domácí zvířata – stáda se stěhují podle herního dne, proto skutečný čas
+      if (this.livestock?.animate(Date.now(), camera.camera)) animated = true;
       if (animated) {
         this.lastWaterFrame = now;
         this.needsRender = true;

@@ -67,11 +67,16 @@ interface Herd {
 }
 
 /** Načtený model: vrcholy v základní póze a dvě klíčové pózy (morph targety z GLB). */
-interface FaunaGeometry {
+export interface FaunaGeometry {
   vertexData: VertexData;
   /** Koeficienty přechodu mezi pózami: poloha = základ + A·p + B·p² (p = póza −1 … 1). */
   keyA: Float32Array;
   keyB: Float32Array;
+  /**
+   * Třetí klíčová póza jako posun od základní (dobytek: hlava dolů při pastvě), nebo null,
+   * když ji model nemá.
+   */
+  keyC: Float32Array | null;
   texture: BaseTexture | null;
 }
 
@@ -174,7 +179,7 @@ function boundingInfo(b: Bounds): BoundingInfo {
  * a klíčové pózy: první morph target je póza +1, druhý −1. Když se scéna mezitím zruší, vrátí
  * null; chybu načtení propustí volajícímu.
  */
-async function loadGeometry(scene: Scene, url: string): Promise<FaunaGeometry | null> {
+export async function loadGeometry(scene: Scene, url: string): Promise<FaunaGeometry | null> {
   const container = await LoadAssetContainerAsync(url, scene);
   if (scene.isDisposed) return null;
   // Do scény jen kvůli texturám – s ní se pak uvolní. Meshe a materiál GLB se hned zahodí.
@@ -186,6 +191,7 @@ async function loadGeometry(scene: Scene, url: string): Promise<FaunaGeometry | 
   const positions = source?.getVerticesData(VertexBuffer.PositionKind);
   const plus = manager && manager.numTargets >= 2 ? manager.getTarget(0).getPositions() : null;
   const minus = manager && manager.numTargets >= 2 ? manager.getTarget(1).getPositions() : null;
+  const third = manager && manager.numTargets >= 3 ? manager.getTarget(2).getPositions() : null;
   const material = source?.material;
   const texture = material instanceof PBRMaterial ? material.albedoTexture : null;
   if (!source || !positions || !plus || !minus) {
@@ -201,10 +207,12 @@ async function loadGeometry(scene: Scene, url: string): Promise<FaunaGeometry | 
   const base = new Float32Array(positions.length);
   const keyA = new Float32Array(positions.length);
   const keyB = new Float32Array(positions.length);
+  const keyC = third ? new Float32Array(positions.length) : null;
   const outNormals = new Float32Array(positions.length);
   const p = new Vector3();
   const a = new Vector3();
   const b = new Vector3();
+  const c = new Vector3();
   const n = new Vector3();
   for (let i = 0; i < count; i++) {
     Vector3.TransformCoordinatesFromFloatsToRef(
@@ -232,6 +240,16 @@ async function loadGeometry(scene: Scene, url: string): Promise<FaunaGeometry | 
     // Parabola přes tři pózy: p = −1 → minus, 0 → základ, +1 → plus.
     keyA.set([(a.x - b.x) / 2, (a.y - b.y) / 2, (a.z - b.z) / 2], i * 3);
     keyB.set([(a.x + b.x) / 2 - p.x, (a.y + b.y) / 2 - p.y, (a.z + b.z) / 2 - p.z], i * 3);
+    if (third && keyC) {
+      Vector3.TransformCoordinatesFromFloatsToRef(
+        third[i * 3]!,
+        third[i * 3 + 1]!,
+        third[i * 3 + 2]!,
+        world,
+        c,
+      );
+      keyC.set([c.x - p.x, c.y - p.y, c.z - p.z], i * 3);
+    }
     if (normals) {
       Vector3.TransformNormalFromFloatsToRef(
         normals[i * 3]!,
@@ -254,7 +272,7 @@ async function loadGeometry(scene: Scene, url: string): Promise<FaunaGeometry | 
 
   for (const mesh of container.meshes) mesh.dispose(false, false);
   for (const used of container.materials) used.dispose(false, false);
-  return { vertexData, keyA, keyB, texture };
+  return { vertexData, keyA, keyB, keyC, texture };
 }
 
 function createHerd(
@@ -331,6 +349,27 @@ function createHerd(
 
 /** Zapíše matici instance (poloha, směr, náklon, měřítko) a stav pózy a krytí. */
 function writeInstance(herd: Herd, index: number, pose: FaunaPose, scale: number): void {
+  writeInstanceMatrix(herd.matrices, index, pose, scale);
+  herd.states[index * 2] = pose.flap;
+  herd.states[index * 2 + 1] = pose.opacity;
+}
+
+/** Poloha, směr a náklon instance – co potřebuje matice (FaunaPose i dobytek). */
+export type InstancePlacement = Pick<
+  FaunaPose,
+  'x' | 'y' | 'z' | 'forwardX' | 'forwardY' | 'forwardZ' | 'tiltX' | 'tiltZ'
+>;
+
+/**
+ * Matice instance `index` do `matrices`: model míří ve směru `forward`, jeho „nahoru“ se
+ * naklání podle `tilt` (vodorovné složky směru nahoru), měřítko `scale`.
+ */
+export function writeInstanceMatrix(
+  matrices: Float32Array,
+  index: number,
+  pose: InstancePlacement,
+  scale: number,
+): void {
   const { forwardX: fx, forwardY: fy, forwardZ: fz, tiltX: hx, tiltZ: hz } = pose;
   const hy = Math.sqrt(Math.max(0, 1 - hx * hx - hz * hz));
   // Osa křídel = „nahoru“ × dopředu, skutečné „nahoru“ = dopředu × osa křídel.
@@ -344,7 +383,7 @@ function writeInstance(herd: Herd, index: number, pose: FaunaPose, scale: number
   const ux = fy * rz - fz * ry;
   const uy = fz * rx - fx * rz;
   const uz = fx * ry - fy * rx;
-  const m = herd.matrices;
+  const m = matrices;
   const o = index * 16;
   m[o] = rx * scale;
   m[o + 1] = ry * scale;
@@ -362,8 +401,6 @@ function writeInstance(herd: Herd, index: number, pose: FaunaPose, scale: number
   m[o + 13] = pose.y;
   m[o + 14] = pose.z;
   m[o + 15] = 1;
-  herd.states[index * 2] = pose.flap;
-  herd.states[index * 2 + 1] = pose.opacity;
 }
 
 /**

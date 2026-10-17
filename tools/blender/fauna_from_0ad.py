@@ -1,4 +1,4 @@
-"""Zvířata z 0 A.D. (skinované COLLADA) -> GLB pro scénu (ryby a ptáci).
+"""Zvířata z 0 A.D. (skinované COLLADA) -> GLB pro scénu (ryby, ptáci a domácí zvířata).
 
 blender -b --factory-startup --python tools/blender/fauna_from_0ad.py -- \
     tools/blender/fauna.json <0ad>/binaries/data/mods/public/art apps/web/public/models/fauna [náhled.png]
@@ -11,7 +11,8 @@ v Pythonu). Scéna mezi pózami plynule přechází ve vertex shaderu (křídla 
 vlevo / vpravo) – viz apps/web/lib/scene/fauna.ts.
 "pose": {"animation", "time"} je základní póza (bez ní klidová póza skinu), "keys": {"jméno":
 {"animation", "time"}} klíčové pózy – první je póza +1, druhá −1 (scéna mezi nimi přechází přes
-základní pózu). "key_gain" zesílí odchylku klíčových póz od základní, "symmetric" je zrcadlí
+základní pózu), nepovinná třetí se přidává lineárně (domácí zvířata: hlava dole při pastvě –
+apps/web/lib/scene/livestock.ts). "key_gain" zesílí odchylku klíčových póz od základní, "symmetric" je zrcadlí
 podle pravé poloviny (animace se při mávání naklánějí do strany). "forward" je osa,
 kam model v 0 A.D. míří ("+y" / "-y"); výsledek míří vždy na -Y (v Babylonu +Z), křídla leží
 v ose X a střed obrysu základní pózy je v počátku. "size" model zvětší nebo zmenší tak, aby měl
@@ -52,8 +53,20 @@ def matrix16(v):
 
 
 def node_matrix(node):
-    el = node.find("c:matrix", NS)
-    return matrix16(floats(el)) if el is not None else Matrix.Identity(4)
+    """Transformace uzlu v pořadí prvků – kořen kostry kozy má měřítko v <scale>, ne v <matrix>."""
+    m = Matrix.Identity(4)
+    for child in node:
+        tag = child.tag.split("}")[1]
+        vals = floats(child) if child.text else []
+        if tag == "matrix":
+            m = m @ matrix16(vals)
+        elif tag == "translate":
+            m = m @ Matrix.Translation(Vector(vals))
+        elif tag == "rotate":
+            m = m @ Matrix.Rotation(math.radians(vals[3]), 4, Vector(vals[:3]))
+        elif tag == "scale":
+            m = m @ Matrix.Diagonal(Vector(vals + [1.0]))
+    return m
 
 
 def skins(root):
