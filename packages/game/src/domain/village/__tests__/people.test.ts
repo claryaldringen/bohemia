@@ -1,0 +1,64 @@
+import { describe, expect, it } from 'vitest';
+import {
+  ageGroup,
+  ageYears,
+  foodNeedPerDay,
+  isFertileAdult,
+  laborPerDay,
+  occupants,
+} from '../people';
+import type { Person, VillageState } from '../types';
+
+const YEAR = 365.25;
+const person = (id: number, dwellingId = 1, bornDay = 0): Person => ({ id, bornDay, dwellingId });
+const atAge = (years: number): number => YEAR * years;
+
+describe('věk', () => {
+  it('počítá celé roky', () => {
+    expect(ageYears(0, atAge(6))).toBe(6);
+    expect(ageYears(0, atAge(6) + 364)).toBe(6);
+    expect(ageYears(100, 100 + atAge(14))).toBe(14);
+  });
+
+  it('rozlišuje skupiny dítě, dospělý, starší', () => {
+    expect(ageGroup(person(1), atAge(13))).toBe('child');
+    expect(ageGroup(person(1), atAge(14))).toBe('adult');
+    expect(ageGroup(person(1), atAge(44))).toBe('adult');
+    expect(ageGroup(person(1), atAge(45))).toBe('elder');
+  });
+});
+
+describe('práce', () => {
+  it('dítě do 7 let nepracuje, starší dítě 0,3, dospělý 1, starší 0,5', () => {
+    expect(laborPerDay(person(1), atAge(6))).toBe(0);
+    expect(laborPerDay(person(1), atAge(7))).toBe(0.3);
+    expect(laborPerDay(person(1), atAge(13))).toBe(0.3);
+    expect(laborPerDay(person(1), atAge(14))).toBe(1);
+    expect(laborPerDay(person(1), atAge(45))).toBe(0.5);
+  });
+});
+
+describe('potřeba jídla', () => {
+  it('dospělý 180, dítě 100, starší 140 kg ročně', () => {
+    expect(foodNeedPerDay(person(1), atAge(20))).toBeCloseTo(180 / 365);
+    expect(foodNeedPerDay(person(1), atAge(3))).toBeCloseTo(100 / 365);
+    expect(foodNeedPerDay(person(1), atAge(50))).toBeCloseTo(140 / 365);
+  });
+});
+
+describe('plodnost', () => {
+  it('plodný je dospělý 14–44', () => {
+    expect(isFertileAdult(person(1), atAge(13))).toBe(false);
+    expect(isFertileAdult(person(1), atAge(14))).toBe(true);
+    expect(isFertileAdult(person(1), atAge(44))).toBe(true);
+    expect(isFertileAdult(person(1), atAge(45))).toBe(false);
+  });
+});
+
+describe('obyvatelé obydlí', () => {
+  it('vrací obyvatele daného obydlí seřazené podle id', () => {
+    const state = { people: [person(5, 2), person(3, 1), person(1, 1), person(2, 2)] };
+    expect(occupants(state as VillageState, 1).map((p) => p.id)).toEqual([1, 3]);
+    expect(occupants(state as VillageState, 9)).toEqual([]);
+  });
+});
