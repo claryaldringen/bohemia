@@ -2,6 +2,7 @@ import { dateOfDayIndex } from '../calendar';
 import {
   DISTANCE,
   FERTILITY,
+  FOREST_AFTER_YEARS,
   FOUNDING_COST_PER_HA,
   RECLAIM_COST_PER_HA,
   SEED_KG_PER_HA,
@@ -12,8 +13,6 @@ import type { ChronicleEvent, FieldPart, FieldSurface } from './types';
 const M2_PER_HA = 10_000;
 /** Tolerance proti chybám desetinných čísel při porovnání podílů úrodnosti. */
 const EPSILON = 1e-9;
-/** Po kolika letech přílohu se z dílu stane les (spec: „přes 15 let“). */
-export const FOREST_AFTER_YEARS = 16;
 
 /** Úrodnost dílu v daný den: přirozená × podíl + bonus po vymýcení lesa, nejvýš 100. */
 export function effectiveFertility(part: FieldPart, day: number): number {

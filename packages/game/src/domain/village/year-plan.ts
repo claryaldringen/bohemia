@@ -12,7 +12,14 @@ import type { FieldPart, TaskName, YearPlan } from './types';
 const M2_PER_HA = 10_000;
 const MONTHS_PER_YEAR = 12;
 /** Pořadí úloh – rozhoduje při shodě konce okna. */
-const TASK_ORDER: readonly TaskName[] = ['reclaim', 'dig', 'sow', 'weed', 'harvest', 'thresh'];
+export const TASK_ORDER: readonly TaskName[] = [
+  'reclaim',
+  'dig',
+  'sow',
+  'weed',
+  'harvest',
+  'thresh',
+];
 const RATE_TASKS = ['dig', 'sow', 'weed', 'harvest', 'thresh'] as const;
 
 function emptyRecord(): Record<TaskName, number> {

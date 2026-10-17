@@ -76,6 +76,8 @@ export const RECLAIM_COST_PER_HA = [
   { maxYears: 15, cost: 150 },
   { maxYears: Infinity, cost: 250 },
 ] as const;
+// fields.md – Zarůstání (víc než 15 let přílohu: z dílu je les)
+export const FOREST_AFTER_YEARS = 16;
 // fields.md – Založení pole (povrch dílu za hektar)
 export const FOUNDING_COST_PER_HA: Record<FieldSurface, number> = {
   meadow: 40,
@@ -119,6 +121,12 @@ export const WINDOWS: Record<TaskName, readonly (readonly [number, number])[]> =
     [1, 2],
   ],
 };
+// fields.md – Kolik ves oseje (k 1. září), Práce a Včasnost (sklizeň do konce srpna, výmlat do
+// konce února). Musí souhlasit s WINDOWS: sklizeň je poslední den okna harvest, plán den po ní,
+// konec výmlatu den po konci okna thresh (hlídá rules.test.ts).
+export const HARVEST_DAY = { month: 8, day: 31 } as const;
+export const PLANNING_DAY = { month: 9, day: 1 } as const;
+export const THRESH_END_DAY = { month: 3, day: 1 } as const;
 
 // population.md – Růst populace (roční úmrtnost dětí: za AGE.adult let vymře CHILD_DEATH_BEFORE_ADULT dětí)
 /** Roční úmrtnost dětí – za AGE.adult let vymře CHILD_DEATH_BEFORE_ADULT dětí. */

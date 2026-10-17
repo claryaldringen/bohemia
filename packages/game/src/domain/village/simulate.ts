@@ -7,7 +7,7 @@ import {
   repairNeedPerDay,
   wantsRebuild,
 } from './dwellings';
-import { FOREST_AFTER_YEARS, endOfSeason, fallowYears, selectPartsToSow } from './fields';
+import { endOfSeason, fallowYears, selectPartsToSow } from './fields';
 import { daysUntilHarvest, eatDay } from './food';
 import { allocateDay } from './labor';
 import { ageGroup, foodNeedPerDay, isFertileAdult, laborPerDay } from './people';
@@ -19,10 +19,14 @@ import {
   FERTILITY,
   FIELD_WORK_PER_HA,
   FOOD_NEED_KG_PER_YEAR,
+  FOREST_AFTER_YEARS,
+  HARVEST_DAY,
   PEAK_CAPACITY_SHARE,
+  PLANNING_DAY,
   SOW_RESERVE,
   SPRING_DIG_SHARE,
   STORES_HIGH_YEARS,
+  THRESH_END_DAY,
   WINDOWS,
 } from './rules';
 import type {
@@ -34,23 +38,23 @@ import type {
   VillageState,
   YearPlan,
 } from './types';
-import { activeTasks, createPlan, harvestKg, taskRemaining, threshLossKg } from './year-plan';
+import {
+  TASK_ORDER,
+  activeTasks,
+  createPlan,
+  harvestKg,
+  taskRemaining,
+  threshLossKg,
+} from './year-plan';
 
-type DayOfYear = Pick<CalendarDate, 'month' | 'day'>;
+type DayOfYear = Readonly<Pick<CalendarDate, 'month' | 'day'>>;
 
-/** fields.md – Kolik ves oseje: k 1. září ves rozhodne o osevu na příští rok. */
-const PLANNING_DAY: DayOfYear = { month: 9, day: 1 };
-/** fields.md – Práce: sklizeň končí v srpnu, úroda jde do zásob 31. 8. */
-const HARVEST_DAY: DayOfYear = { month: 8, day: 31 };
-/** fields.md – Včasnost: co se nevymlátí do konce února, se zkazí (1. 3.). */
-const THRESH_END_DAY: DayOfYear = { month: 3, day: 1 };
 /** Díl hotový nejpozději v posledním měsíci setí (duben) jde ještě do letošního plánu. */
 const LAST_JOIN_MONTH = Math.max(...WINDOWS.sow.map(([, to]) => to));
 /** Bonus vymýceného lesa trvá roky × 365 dní. */
 const DAYS_PER_BONUS_YEAR = 365;
 /** Tolerance, pod kterou se nasycení ještě bere jako plné. */
 const SATIATION_EPSILON = 1e-9;
-const TASK_NAMES: readonly TaskName[] = ['reclaim', 'dig', 'sow', 'weed', 'harvest', 'thresh'];
 
 /**
  * Dopočítá ves do dne `toDay` včetně – den po dni od `lastDay + 1`. Vstup nemění.
@@ -81,10 +85,12 @@ function simulateDay(state: VillageState, day: number): void {
   finishConstructions(state, day);
   decideRebuilds(state, day);
   occupyEmptyDwellings(state, day);
-  if (isOn(date, HARVEST_DAY)) harvest(state, day);
-  if (isOn(date, THRESH_END_DAY)) endThreshing(state);
   const satiation = eat(state, day);
   state.chronicle.push(...populationDay(state, day, satiation));
+  // Sklizeň a ztráta nevymláceného až po jídle (Ruling 13) – 31. 8. se jí ještě z loňských
+  // zásob, jak počítá daysUntilHarvest (31. 8. → 1 den).
+  if (isOn(date, HARVEST_DAY)) harvest(state, day);
+  if (isOn(date, THRESH_END_DAY)) endThreshing(state);
 }
 
 function isOn(date: CalendarDate, target: DayOfYear): boolean {
@@ -135,7 +141,7 @@ function joinFinishedParts(state: VillageState, day: number, year: number): void
   const added = selectPartsToSow(candidates, targetKg, maxHa, day).filter((p) => !inPlan.has(p.id));
   if (added.length === 0) return;
   const extra = createPlan(added, day);
-  for (const task of TASK_NAMES) plan.required[task] += extra.required[task];
+  for (const task of TASK_ORDER) plan.required[task] += extra.required[task];
   plan.partIds.push(...extra.partIds);
   sow(added, day);
 }
@@ -179,13 +185,16 @@ function windowDays(year: number, segments: readonly (readonly [number, number])
   return days;
 }
 
+/** Do kdy platí bonus úrodnosti lesa vymýceného v den `day`. */
+function forestBonusUntil(day: number): number {
+  return day + FERTILITY.forestBonusYears * DAYS_PER_BONUS_YEAR;
+}
+
 /** Vybrané díly se osejí; příloh starší 15 let se vrací z lesa a dostane bonus úrodnosti. */
 function sow(parts: FieldPart[], day: number): void {
   for (const part of parts) {
     if (part.state === 'fallow') {
-      if (fallowYears(part, day) >= FOREST_AFTER_YEARS) {
-        part.bonusUntilDay = day + FERTILITY.forestBonusYears * DAYS_PER_BONUS_YEAR;
-      }
+      if (fallowYears(part, day) >= FOREST_AFTER_YEARS) part.bonusUntilDay = forestBonusUntil(day);
       part.fallowSinceDay = null;
       part.sownYears = 0;
     }
@@ -317,9 +326,7 @@ function invest(
       left -= need;
       part.foundingDone = part.foundingCost;
       part.state = 'ready';
-      if (part.surface === 'forest') {
-        part.bonusUntilDay = day + FERTILITY.forestBonusYears * DAYS_PER_BONUS_YEAR;
-      }
+      if (part.surface === 'forest') part.bonusUntilDay = forestBonusUntil(day);
     } else {
       part.foundingDone += left;
       break;
@@ -436,7 +443,7 @@ function occupyEmptyDwellings(state: VillageState, day: number): void {
 
 // --- sklizeň a jídlo --------------------------------------------------------------------
 
-/** Krok 7 (31. 8.): čistá úroda do zásob, plán jde k výmlatu. */
+/** 31. 8. (po jídle dne): čistá úroda do zásob, plán jde k výmlatu. */
 function harvest(state: VillageState, day: number): void {
   const plan = state.plan;
   if (plan === null) return;
@@ -448,7 +455,7 @@ function harvest(state: VillageState, day: number): void {
   state.plan = null;
 }
 
-/** Krok 7 (1. 3.): nevymlácená část úrody se zkazila. */
+/** 1. 3. (po jídle dne): nevymlácená část úrody se zkazila. */
 function endThreshing(state: VillageState): void {
   const threshing = state.threshingFromPlan;
   if (threshing === null) return;
