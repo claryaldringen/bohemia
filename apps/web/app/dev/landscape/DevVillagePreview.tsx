@@ -5,22 +5,21 @@
 // nejde jen na vodu a přes jiné stavby), ves žije jen ve stavu komponenty. Skutečné rozhraní vsi
 // a pravidla umístění patří do hry (/game) a herního jádra, ne sem.
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
-import { surfaceAt, type Landscape } from '@bohemia/game';
+import {
+  surfaceAt,
+  type DwellingType,
+  type Landscape,
+  type PartStage,
+  type PlacementCheck,
+  type Position,
+} from '@bohemia/game';
 import { GameView } from '@/components/game/GameView';
 import { decodeLandscape, type LandscapeTransfer } from '@/lib/landscape-transfer';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
 import { tileAt, tileCenter } from '@/lib/scene/tile-at';
 import { pointInPolygon, polygonArea, polygonBounds } from '@/lib/scene/village-layout';
-import type {
-  DwellingType,
-  PartStage,
-  PlacementCheck,
-  PlacementPreview,
-  Position,
-  SceneDwelling,
-  SceneField,
-  SceneVillage,
-} from '@/lib/scene/village-types';
+import type { PlacementPreview, SceneDwelling, SceneField } from '@/lib/scene/village-types';
+import type { SceneVillage } from '@/lib/village-view';
 
 const STAGES: PartStage[] = [
   'founding',

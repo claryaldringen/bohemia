@@ -9,12 +9,13 @@ import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { CreateBox } from '@babylonjs/core/Meshes/Builders/boxBuilder';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import type { Scene } from '@babylonjs/core/scene';
+import { DWELLING_FOOTPRINT_M, type DwellingType } from '@bohemia/game';
+import type { SceneVillage } from '../village-view';
 import { EARTH_LAYERS, earthPatch, eaveTufts, type TuftModel } from './dwelling-decor';
 import { applyGammaFog } from './gamma-fog';
 import { instanceMatrices, loadMergedModel, type ModelInstance } from './instanced-model';
 import {
   CONSTRUCTION_POST_M,
-  DWELLING_FOOTPRINT_M,
   constructionLook,
   decalGrid,
   dwellingHideShape,
@@ -36,7 +37,7 @@ import {
   createStripMesh,
   type HeightFn,
 } from './village-meshes';
-import type { DwellingType, SceneDwelling, SceneField, SceneVillage } from './village-types';
+import type { SceneDwelling, SceneField } from './village-types';
 
 const MODEL_BASE_URL = '/models/dwellings/';
 const DWELLING_TYPES: readonly DwellingType[] = ['zemnice', 'polozemnice'];

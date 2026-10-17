@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import type { PartStage } from '@bohemia/game';
 import {
-  DWELLING_FOOTPRINT_M,
   constructionLook,
   decalGrid,
   dwellingHideShape,
@@ -17,7 +17,6 @@ import {
   stripSegments,
   type Point,
 } from '../village-layout';
-import type { PartStage } from '../village-types';
 
 const square: Point[] = [
   [0, 0],
@@ -53,11 +52,6 @@ describe('localToWorld a footprintCorners', () => {
       for (const [x, z] of corners) expect(Math.hypot(x - 10, z - 20)).toBeCloseTo(Math.SQRT2 * 2);
       expect(polygonArea(corners)).toBeCloseTo(16);
     }
-  });
-
-  it('půdorysy odpovídají herním pravidlům (4 × 4 a 5 × 5 m)', () => {
-    expect(DWELLING_FOOTPRINT_M.zemnice).toEqual({ width: 4, depth: 4 });
-    expect(DWELLING_FOOTPRINT_M.polozemnice).toEqual({ width: 5, depth: 5 });
   });
 });
 

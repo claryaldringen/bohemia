@@ -4,9 +4,14 @@ import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { CreateBox } from '@babylonjs/core/Meshes/Builders/boxBuilder';
 import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 import type { Scene } from '@babylonjs/core/scene';
-import { instanceMatrices } from './instanced-model';
 import {
   DWELLING_FOOTPRINT_M,
+  type DwellingType,
+  type PlacementCheck,
+  type Position,
+} from '@bohemia/game';
+import { instanceMatrices } from './instanced-model';
+import {
   decalGrid,
   footprintCorners,
   localToWorld,
@@ -21,14 +26,7 @@ import {
   createStripMesh,
   type HeightFn,
 } from './village-meshes';
-import type {
-  DwellingType,
-  PlacementCheck,
-  PlacementHandlers,
-  PlacementMode,
-  Position,
-  SceneDwelling,
-} from './village-types';
+import type { PlacementHandlers, PlacementMode, SceneDwelling } from './village-types';
 
 /** Krok otáčení obydlí klávesami Q/E. */
 const ROTATE_STEP = Math.PI / 12;

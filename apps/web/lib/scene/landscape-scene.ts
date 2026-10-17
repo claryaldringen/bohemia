@@ -32,7 +32,8 @@ import { treePlacements } from './tree-placement';
 import { addTrees } from './trees';
 import { PlacementController } from './village-placement';
 import { VillageRenderer } from './village-renderer';
-import type { PlacementHandlers, PlacementMode, SceneVillage } from './village-types';
+import type { SceneVillage } from '../village-view';
+import type { PlacementHandlers, PlacementMode } from './village-types';
 import { createWaterMesh, type WaterSurface } from './water';
 import { deadwoodPlacements, pinePlacements, youngTreePlacements } from './woodland-placement';
 

@@ -1,58 +1,21 @@
-// Typy vsi pro scénu a rozhraní hry (docs/superpowers/plans/2026-10-17-village-slice.md).
-// Bez Babylonu – importovat je smí i React komponenty. DwellingType, Position, PartStage
-// a PlacementCheck odpovídají typům herního jádra (packages/game/src/domain/village).
+// Rozhraní scény vsi pro React (docs/superpowers/plans/2026-10-17-village-slice.md). Bez
+// Babylonu – importovat ho smí i komponenty. Doménové typy (DwellingType, Position, PartStage,
+// PlacementCheck) jsou z herního jádra, ves pro scénu (SceneVillage) z lib/village-view.ts –
+// tady jen jejich části a typy umisťování.
+//
+// Position.rotation = natočení kolem svislé osy v radiánech jako `mesh.rotation.y` v Babylonu:
+// 0 = vchod míří do +Z, π/2 do +X (vchod míří do směru (sin r, cos r) v osách x, z).
+import type { DwellingType, PlacementCheck, Position } from '@bohemia/game';
+import type { SceneVillage } from '../village-view';
 
-export type DwellingType = 'zemnice' | 'polozemnice';
+/** Obydlí ve scéně; `built: false` = staveniště, jeho vzhled ukazuje `progress` (0–1). */
+export type SceneDwelling = SceneVillage['dwellings'][number];
 
-/**
- * Umístění obydlí ve světě scény (m, střed krajiny v 0,0; políčka podle `tileCenter`).
- * `rotation` = natočení kolem svislé osy v radiánech jako `mesh.rotation.y` v Babylonu:
- * 0 = vchod míří do +Z, π/2 do +X (vchod míří do směru (sin r, cos r) v osách x, z).
- */
-export interface Position {
-  x: number;
-  z: number;
-  rotation: number;
-}
+/** Pole ve scéně – obrys [x, z] (m) tak, jak ho hráč nakreslil, a díly po políčkách. */
+export type SceneField = SceneVillage['fields'][number];
 
-export type PartStage =
-  'founding' | 'ready' | 'sown' | 'young-fallow' | 'meadow' | 'young-growth' | 'shrub' | 'forest';
-
-/** Výsledek kontroly umístění; `reason` česky pro hráče, když `ok` neplatí. */
-export interface PlacementCheck {
-  ok: boolean;
-  reason: string | null;
-}
-
-export interface SceneDwelling {
-  id: number;
-  type: DwellingType;
-  position: Position;
-  /** false = staveniště; jeho vzhled ukazuje `progress` (0–1). */
-  built: boolean;
-  progress: number;
-}
-
-export interface SceneFieldPart {
-  /** Střed políčka (m) – díl je průnik obrysu pole s tímto čtvercem. */
-  x: number;
-  z: number;
-  /** Strana políčka (m), v prototypu 15. */
-  size: number;
-  stage: PartStage;
-}
-
-export interface SceneField {
-  id: number;
-  /** Obrys pole [x, z] (m) tak, jak ho hráč nakreslil. */
-  outline: [number, number][];
-  parts: SceneFieldPart[];
-}
-
-export interface SceneVillage {
-  dwellings: SceneDwelling[];
-  fields: SceneField[];
-}
+/** Díl pole – střed políčka (m), strana políčka a stadium; díl = průnik obrysu s políčkem. */
+export type SceneFieldPart = SceneField['parts'][number];
 
 /** Co hráč právě umisťuje a jak scéna ověří, jestli to jde. */
 export type PlacementMode =

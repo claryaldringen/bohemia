@@ -1,17 +1,14 @@
 // Čistá geometrie vsi pro scénu (bez Babylonu): půdorysy, mnohoúhelníky polí, obtisky na terénu
 // a vzhled dílů pole podle stavu. Souřadnice světa scény v metrech (x, z).
-import type { DwellingType, PartStage, Position, SceneField } from './village-types';
+import {
+  DWELLING_FOOTPRINT_M,
+  type DwellingType,
+  type PartStage,
+  type Position,
+} from '@bohemia/game';
+import type { SceneField } from './village-types';
 
 export type Point = [number, number];
-
-/**
- * Půdorys obydlí (m) – stejné hodnoty jako DWELLING_FOOTPRINT_M v herním jádru
- * (packages/game/src/domain/village/placement.ts); scéna podle něj kreslí obrys při umisťování.
- */
-export const DWELLING_FOOTPRINT_M: Record<DwellingType, { width: number; depth: number }> = {
-  zemnice: { width: 4, depth: 4 },
-  polozemnice: { width: 5, depth: 5 },
-};
 
 /**
  * Kolik místa obydlí ve scéně zabere i s valy, rekvizitami a vyšlapanou hlínou před vchodem

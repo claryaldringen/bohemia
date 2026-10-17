@@ -1,7 +1,7 @@
 // Okolí obydlí bez Babylonu: trsy trávy pod okapem a vyšlapaná hlína před vchodem (podle spiku
 // obydlí). Tvar modelů: tools/blender/dwellings.py – Blender x napříč, y podél hřebene, vchod v −y;
 // ve scéně (glTF) je bod Blenderu (x, y) v souřadnicích modelu (−x, −y), vchod tedy míří do +z.
-import type { DwellingType, Position } from './village-types';
+import type { DwellingType, Position } from '@bohemia/game';
 import { localToWorld, seededRandom, smoothstep, type DecalGrid } from './village-layout';
 
 /**
