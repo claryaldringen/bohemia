@@ -4,7 +4,9 @@ import {
   createHerdState,
   createLivestockPose,
   herdAnimalPose,
+  herdRouteIndex,
   herdState,
+  keepRouteSpot,
   routeAt,
   valueNoise,
   type LivestockClock,
@@ -165,6 +167,80 @@ describe('valueNoise', () => {
       expect(Math.abs(v)).toBeLessThanOrEqual(1);
       expect(Math.abs(v - last)).toBeLessThan(0.05);
       last = v;
+    }
+  });
+});
+
+describe('keepRouteSpot', () => {
+  const herd = (route: [number, number][]): Herd => ({
+    kind: 'flock',
+    seed: 1,
+    phase: 0,
+    routeOffset: 0,
+    route: route.map(([x, z]) => ({ x, z })),
+    radiusM: 5,
+    animals: [],
+  });
+  // Pastvina č. 2, přesun už doběhl (konec období).
+  const clock: LivestockClock = { seconds: 0, gameDay: 2.95 / 1.5, daySeconds: DAY_S };
+
+  it('po přepočtu zůstane stádo na pastvině, kde právě je', () => {
+    const before = herd([
+      [0, 0],
+      [10, 0],
+      [20, 0],
+      [30, 0],
+    ]);
+    const after = keepRouteSpot(
+      before,
+      herd([
+        [50, 50],
+        [20, 0],
+        [60, 60],
+      ]),
+      clock,
+    );
+    expect(herdRouteIndex(before, clock)).toBe(2);
+    const state = herdState(after, clock, createHerdState());
+    expect(state.x).toBeCloseTo(20, 6);
+    expect(state.z).toBeCloseTo(0, 6);
+    // Dál pokračuje po nové trase.
+    const later = herdState(
+      after,
+      { ...clock, gameDay: clock.gameDay + 1 / 1.5 },
+      createHerdState(),
+    );
+    expect([later.x, later.z]).toEqual([60, 60]);
+  });
+
+  it('když nová trasa pastvinu nemá, stádo se nemění', () => {
+    const next = herd([
+      [5, 5],
+      [6, 6],
+    ]);
+    expect(
+      keepRouteSpot(
+        herd([
+          [0, 0],
+          [10, 0],
+          [20, 0],
+        ]),
+        next,
+        clock,
+      ),
+    ).toBe(next);
+    expect(keepRouteSpot({ ...next, kind: 'cattle' }, next, clock)).toBe(next);
+  });
+
+  it('beze změny vsi stádo zůstává, kde bylo – i uprostřed přesunu a na cestě zpět', () => {
+    for (const h of plan.herds) {
+      for (let t = 0; t < DAY_S * 400; t += 997) {
+        const kept = keepRouteSpot(h, h, clockAt(t));
+        const a = herdState(h, clockAt(t), createHerdState());
+        const b = herdState(kept, clockAt(t), createHerdState());
+        expect(b.x).toBeCloseTo(a.x, 6);
+        expect(b.z).toBeCloseTo(a.z, 6);
+      }
     }
   });
 });

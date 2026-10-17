@@ -78,6 +78,11 @@ export interface Herd {
   seed: number;
   /** Posun rozvrhu stěhování (podíl dne) – stáda se nestěhují všechna naráz. */
   phase: number;
+  /**
+   * Posun v trase (pastvin) – po přepočtu vsi zůstane stádo na pastvině, kde právě je, pokud ji
+   * nová trasa obsahuje (keepRouteSpot v livestock-motion.ts).
+   */
+  routeOffset: number;
   route: { x: number; z: number }[];
   radiusM: number;
   animals: HerdAnimal[];
@@ -503,6 +508,7 @@ function buildHerd(
     kind,
     seed: herdSeed,
     phase: hash01(herdSeed, 4, 71),
+    routeOffset: 0,
     route: route.map((i) => ({ x: candidates[i]!.x, z: candidates[i]!.z })),
     radiusM,
     animals,
@@ -515,14 +521,11 @@ export const GROUND_REACH_M = PASTURE_REACH_M + 40;
 /** Pastva: dál od lesa (m), od vody (m), sklon (m/m) a skalnatost (0–1). */
 const PASTURE_LIMITS = { forestM: -6, bankM: 3, slope: 0.12, rock: 0.25 };
 /**
- * Prasata: pás u okraje lesa (m od hranice, záporné v louce) – na okraji pod krajními stromy,
- * jen kde les leží za nimi ve směru výchozího pohledu kamery (k +z, kamera se dívá na sever).
- * Hlouběji v lese nebo před lesem by je zakryly koruny okrajových stromů (2–3 husté řady 3D
- * stromů, kamera skloněná 49° od svislice nevidí zem ještě ≈ 20 m za dvacetimetrovým stromem).
+ * Prasata: pás u okraje lesa (m od hranice, záporné v louce) – na okraji pod krajními stromy.
+ * Hlouběji v lese je z kamery zakryjí koruny (okraj tvoří 2–3 husté řady 3D stromů); za
+ * okrajem lesa z druhé strany je po otočení kamery taky nemusí být vidět – to nevadí.
  */
 const FOREST_EDGE_M = { from: -7, to: 5 };
-/** Les musí na 16 m k +z zhoustnout aspoň o tolik metrů vzdálenosti od hranice. */
-const FOREST_BEHIND_M = 6;
 const FOREST_LIMITS = { bankM: 3, slope: 0.16, rock: 0.35 };
 /** Slepice: od vody (m), sklon a skalnatost. */
 const WALK_LIMITS = { bankM: 1, slope: 0.2, rock: 0.5 };
@@ -576,7 +579,6 @@ export function livestockGround(
       if (
         forest >= FOREST_EDGE_M.from &&
         forest <= FOREST_EDGE_M.to &&
-        env.field.distanceAt(x, z + 8) - env.field.distanceAt(x, z - 8) >= FOREST_BEHIND_M &&
         bank > FOREST_LIMITS.bankM &&
         slope < FOREST_LIMITS.slope &&
         rock < FOREST_LIMITS.rock

@@ -201,8 +201,6 @@ describe('livestockGround na skutečné krajině', () => {
         if (herd.kind === 'swine') {
           expect(forest).toBeGreaterThanOrEqual(-8);
           expect(forest).toBeLessThanOrEqual(6);
-          // Les za prasaty ve směru výchozího pohledu kamery (+z).
-          expect(field.distanceAt(spot.x, spot.z + 8)).toBeGreaterThan(forest);
         } else {
           expect(forest).toBeLessThan(-5);
         }

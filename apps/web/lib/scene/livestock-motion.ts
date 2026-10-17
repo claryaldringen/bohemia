@@ -158,6 +158,40 @@ export function routeAt(route: Herd['route'], j: number): { x: number; z: number
   return route[m < n ? m : period - m]!;
 }
 
+/** Pořadí pastviny trasy, na které stádo v daném čase je (nebo ke které jde). */
+export function herdRouteIndex(herd: Herd, clock: LivestockClock): number {
+  const position = clock.gameDay * HERD_MOVES_PER_DAY[herd.kind] + herd.phase;
+  return Math.floor(position) + herd.routeOffset;
+}
+
+/**
+ * Nové stádo po přepočtu vsi (nová obydlí a pole mění trasu): když nová trasa obsahuje
+ * pastvinu, na které je staré stádo právě teď, posune se v ní tak, aby tam zůstalo – stádo
+ * po stavbě nepřeskočí jinam. Přednost má místo, kam se na novou pastvinu přichází ze stejné
+ * předchozí (rozběhnutý přesun pak pokračuje plynule). Jinak se vrátí beze změny.
+ */
+export function keepRouteSpot(previous: Herd, next: Herd, clock: LivestockClock): Herd {
+  if (previous.kind !== next.kind || next.route.length === 0) return next;
+  const index = herdRouteIndex(previous, clock);
+  const spot = routeAt(previous.route, index);
+  const from = routeAt(previous.route, index - 1);
+  const same = (a: { x: number; z: number }, b: { x: number; z: number }): boolean =>
+    Math.abs(a.x - b.x) < 1e-6 && Math.abs(a.z - b.z) < 1e-6;
+  // Celé kolo tam a zpět – pastvina může být na cestě tam i zpátky.
+  const period = Math.max(1, 2 * next.route.length - 2);
+  let found = -1;
+  for (let j = 0; j < period; j++) {
+    if (!same(routeAt(next.route, j), spot)) continue;
+    if (same(routeAt(next.route, j - 1), from)) {
+      found = j;
+      break;
+    }
+    if (found < 0) found = j;
+  }
+  if (found < 0) return next;
+  return { ...next, routeOffset: found - herdRouteIndex({ ...next, routeOffset: 0 }, clock) };
+}
+
 /**
  * Kde je stádo: herní den určí, na které pastvině trasy má být; na začátku každého období
  * k ní dojde z předchozí (rovnoměrně, s rozejitím a zastavením).
@@ -165,9 +199,9 @@ export function routeAt(route: Herd['route'], j: number): { x: number; z: number
 export function herdState(herd: Herd, clock: LivestockClock, out: HerdState): HerdState {
   const perDay = HERD_MOVES_PER_DAY[herd.kind];
   const position = clock.gameDay * perDay + herd.phase;
-  const j = Math.floor(position);
+  const j = Math.floor(position) + herd.routeOffset;
   const periodS = clock.daySeconds / perDay;
-  const elapsed = (position - j) * periodS;
+  const elapsed = (position - Math.floor(position)) * periodS;
   const from = routeAt(herd.route, j - 1);
   const to = routeAt(herd.route, j);
   const dx = to.x - from.x;

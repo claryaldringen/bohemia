@@ -197,15 +197,17 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   `livestock-placement.ts` je odvodí z dat vsi pro scénu (`SceneVillage`, i nepovinné
   `cemeteries`) a krajiny: slepice obcházejí dům mimo obdélník domu se šíjí (`chickenBox`),
   ovce s kozami (stádo na 5 domácností) a krávy se pasou na louce do 300 m (ne pole, hřbitov,
-  obydlí, voda, skála, prudký svah), prasata na okraji lesa do 150 m (jinak do 260 m) jen tam,
-  kde les leží za nimi ve směru výchozího pohledu kamery – hlouběji je zakryjí koruny. Stádo
-  má trasu po sousedních pastvinách a během herních dní se po ní stěhuje tam a zpět
-  (`livestock-motion.ts`, herní den jako dým); zvíře popojde, pase se / zobe / ryje nebo stojí –
-  čisté funkce času, deterministicky. `livestock.ts` (`VillageLivestock`, háček v
+  obydlí, voda, skála, prudký svah), prasata na okraji lesa (−7 až +5 m od hranice, hlouběji je
+  zakryjí koruny) do 150 m (jinak do 260 m), nejbližší vhodný okraj první – za lesem po otočení
+  kamery zmizí, to nevadí (Martin). Stádo má trasu po sousedních pastvinách a během herních dní
+  se po ní stěhuje tam a zpět (`livestock-motion.ts`, herní den jako dým); po přepočtu vsi
+  zůstane na své pastvině, když ji nová trasa má (`keepRouteSpot`). Zvíře popojde, pase se /
+  zobe / ryje nebo stojí – čisté funkce času, deterministicky. `livestock.ts` (`VillageLivestock`, háček v
   `landscape-scene.ts`) je kreslí jako fauna: mesh `livestock-*` na druh, krok (parabola přes
   dvě pózy) a hlava dolů (třetí morph target) ve vertex shaderu, výška a náklon podle terénu.
   Textura z GLB se čte jako sRGB – StandardMaterial ji převádí zpět (`LIVESTOCK_GAMMA`), jinak
-  jsou zvířata tmavá. Modely v `fauna.json` (ovce, koza, kráva, prase, slepice) jsou ve
+  jsou zvířata tmavá. **Známá vada:** ryby a ptáci (`fauna.ts`) ten převod nemají, jsou proto
+  tmavší, než by měli být – barvy ryb jsou na tom vyladěné, zatím se nechávají. Modely v `fauna.json` (ovce, koza, kráva, prase, slepice) jsou ve
   skutečné velikosti, ve scéně stylizovaně větší (`SCALE`). Terén pro zvířata je rastr 4 m
   kolem vsi (`livestockGround`) – přepočet jen při změně obydlí, polí nebo hřbitovů.
 - **Ves** (`village-renderer.ts`): obydlí stojí nad skutečnou jámou – terén a obtisky se v ní

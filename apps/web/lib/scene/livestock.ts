@@ -21,6 +21,7 @@ import {
   herdAnimalPose,
   herdArea,
   herdState,
+  keepRouteSpot,
   routeArea,
   type Area,
   type HerdState,
@@ -30,6 +31,7 @@ import {
 import {
   livestockGround,
   planLivestock,
+  type Herd,
   type LivestockGround,
   type LivestockSpecies,
   type LivestockVillage,
@@ -97,6 +99,8 @@ export class VillageLivestock {
   private village: LivestockVillage | null = null;
   private key = '';
   private groups: Group[] = [];
+  /** Stáda posledního rozmístění – nová stáda po přepočtu zůstanou na své pastvině. */
+  private herds: Herd[] = [];
   private readonly kinds = new Map<LivestockSpecies, Kind>();
   private geometries: Map<LivestockSpecies, FaunaGeometry> | null = null;
   private loading: Promise<void> | null = null;
@@ -187,10 +191,21 @@ export class VillageLivestock {
       return had;
     }
     const built = village.dwellings.filter((d) => d.built);
-    const plan =
+    const planned =
       built.length > 0
         ? planLivestock(village, this.groundAround(built), villageSeed(this.env.landscape))
         : { chickens: [], herds: [] };
+    // Stádo stejného druhu a pořadí zůstane na pastvině, kde právě je (když ji nová trasa má).
+    const clock = this.clock(nowMs);
+    const plan = {
+      ...planned,
+      herds: planned.herds.map((herd) => {
+        const sameKind = planned.herds.filter((h) => h.kind === herd.kind);
+        const previous = this.herds.filter((h) => h.kind === herd.kind)[sameKind.indexOf(herd)];
+        return previous ? keepRouteSpot(previous, herd, clock) : herd;
+      }),
+    };
+    this.herds = plan.herds;
 
     const counts = new Map<LivestockSpecies, number>();
     const slot = (species: LivestockSpecies): number => {
