@@ -1,7 +1,11 @@
 # Les a dřevo
 
 Stav: schváleno 17. 10. 2026 (Martin: „Takhle je to zatím ok“). Implementace zatím není – staví na
-vrstvě překážek (stromy jako herní data).
+vrstvě překážek (stromy jako herní data). Ta už je hotová (17. 10. 2026): dospělé stromy sídla
+s id a polohou, kácení s pařezem a obnovou (`fellTrees`, `treeRegrowth`, TREE_REGROWTH_YEARS = 30,
+prvních 10 let pařez, pak nálet – návrh Clauda), nejbližší dospělé stromy (`matureTreesByDistance`)
+a jejich počet (`countMatureTrees`) v `packages/game/src/domain/village/obstacles.ts`; scéna
+pařezy a nálet kreslí. Zbývá dřevo samo: hromada klád, kácení při stavbě, mýcení, palivo.
 
 ## Proč
 

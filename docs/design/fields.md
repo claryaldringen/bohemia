@@ -257,6 +257,20 @@ pořadí (návrh Clauda; nahrazuje pevných 85 % a dělení práce po domácnost
   dotčenou oblast: vykácené stromy a odstraněné kameny zmizí, nové pole se vykreslí, stínová
   mapa se překreslí. Změnu hráč uvidí **bez nového načtení stránky** (cíl; jak – viz Na
   stavitelovi).
+- **Stav (vrstva překážek, 17. 10. 2026):** rozmístění stromů, keřů a kamenů je v
+  `packages/game/src/domain/landscape/obstacles/` – vrstva krajiny `obstacles` verze 1 s vlastním
+  seedem, scéna ji jen kreslí. Každá překážka má stabilní id, polohu, druh (strom, mladý stromek,
+  souš, padlý strom, pařez, keř, kámen, balvan, skalní výchoz), podobu (model, z ní dřevina)
+  a jestli ji scéna kreslí 3D modelem, nebo obrázkem (vnitřek lesa). Vrstvu generuje server
+  i prohlížeč stejnou funkcí ze stejných dat (deterministicky, ověřeno testem), nepřenáší se.
+  Ceny podle tabulky výše počítá `placement.ts` z překážek, které na místě opravdu stojí:
+  obydlí platí kusy na vyklízené ploše kolem půdorysu (staveniště ≈ 10 × 12 m), díl pole kusy
+  v políčku; skalní výchoz pod obydlím stavbu nedovolí, v poli zůstane a plocha pod ním (kruh
+  o poloměru 3 m × velikost skály) se do dílu nepočítá. Odstraněné překážky zmizí natrvalo:
+  u obydlí při zahájení stavby, u pole s každým založeným dílem (jak říká Zakládání). Scéna je
+  skryje bez nového načtení stránky. **Zatím ne:** ztmavená tráva pod stromy, tmavá plocha korun
+  a stínová mapa terénu se po vykácení nepřepočítají (na pasece zůstane tmavší skvrna); zarostlý
+  příloh (les z náletu) ani rušení polí odstraněné překážky nevrací.
 
 ## Ukázka
 

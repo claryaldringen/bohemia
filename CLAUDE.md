@@ -126,7 +126,22 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   nová verze vrstvy, nebo nová vrstva.
 - **Use-case** `enterGame` (sídelní sídlo hráče, atomicky přes unikátní index); ve webu
   `enterGameForPlayer` v `lib/game.ts`. Krajinu generuje server, do prohlížeče jde zakódovaná
-  (`lib/landscape-transfer.ts`).
+  (`lib/landscape-transfer.ts`, přesnost = `transferPrecision`).
+- **Stromy, keře a kameny jsou herní data** – vrstva překážek
+  (`packages/game/src/domain/landscape/obstacles/`, fields.md – Překážky jsou herní data):
+  `obstaclesOf(landscape)` = líně generovaná vrstva (seed `landscape.obstacleLayer`, verze
+  `LayerVersions.obstacles`), sloupce typovaných polí (`id`, `x`, `z`, `kind`, `look`,
+  `rotation`, `scale`, `impostor`) + index po políčkách (`obstaclesInTile`, `obstaclesNear`,
+  `obstacleIndex` půlením). Druhy = řádky tabulky cen: `tree`, `youngTree`, `snag`,
+  `fallenTree`, `stump`, `shrub`, `stone`, `boulder`, `outcrop`. **Id je stabilní**: zdroj
+  (rozmisťovač) × 2²² + buňka jeho mřížky × 8 + pořadí ve skupině (`obstacleId`). Generuje ji
+  server (mezipaměť podle objektu krajiny – s LRU krajin) **i prohlížeč** ze stejné funkce
+  (≈ 250–350 ms, přenos by byl ≈ 470 kB gzip): vstupem je krajina s přesností prohlížeče
+  a jen deterministická matematika (`det-math.ts` – žádné Math.sin/cos/atan2/hypot, liší se
+  mezi enginy). Test v `landscape-transfer.test.ts` hlídá, že prohlížeč dostane přesně
+  serverovou vrstvu. Pole lesa (`forest-field.ts`), osa potoka ve světě (`stream-geometry.ts`)
+  a tvar terénu (`relief.ts`) jsou proto také v jádru – **jejich změna po ostrém spuštění =
+  nová verze vrstvy překážek**, stejně jako změna rozmisťovačů.
 - **Scéna** (`apps/web/lib/scene/`): `LandscapeScene` bez Reactu, React (`GameView`) ji jen
   vytvoří, pošle data a poslouchá `onTileHover`, `onSelect` a `onViewChange`. Plátno scény má
   `data-scene` (rozhraní má i plátno minimapy), políčko pod kurzorem nese `data-tile`. Babylon importovat **z konkrétních modulů**
@@ -135,41 +150,49 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
 - **Kreslí se jen při změně** (pohled kamery, velikost okna, data) – co se ve scéně mění samo
   (animace, voda, roční období), musí nastavit `needsRender`. **Výjimka: voda teče** (Martin) –
   dokud je hladina v záběru, scéna se překresluje `WATER_FPS` (30) za sekundu; vlnky plují po
-  proudu (`water.ts`, rychlost proudu, kalnost a podloží odvozuje `stream-geometry.ts` ze spádu
-  a šířky potoka).
+  proudu (`water.ts`, rychlost proudu odvozuje osa potoka v jádru ze spádu a šířky potoka,
+  kalnost a podloží `scene/stream-geometry.ts`).
 - **Vývojový náhled** bez přihlášení a databáze: http://localhost:3010/dev/landscape?seed=42
   (tlačítka předchozí / další / náhodná). V produkci vrací 404.
 - `?renderer=webgl` vynutí WebGL 2 (test záložní cesty). `HEIGHT_SCALE` v `scene/constants.ts`
   převyšuje terén jen vizuálně. Tamtéž rozsah přiblížení kamery `CAMERA_ZOOM_M` (výchozí 120 m
   a nejblíž 50 m jako v 0 A.D.) – řídí se jím i mix zvuků.
 - **Vzhled terénu:** `render-surface.ts` zjemní výšky 4× (Catmull-Rom) a vyhloubí hladké koryto
-  podél vyhlazené osy potoka (`stream-geometry.ts`) – tůně hlubší, mělčiny mělké, vnitřní strana
+  podél vyhlazené osy potoka (`streamCenterline` z jádra) – tůně hlubší, mělčiny mělké, vnitřní strana
   oblouku mělčí s náplavem; `terrain-material.ts` míchá 11 textur podle splat map
   (`ground-layers.ts`, dno potoka podle proudu: štěrk, písek, bahno) pluginem pro GLSL i WGSL –
   i se stínem je to 15 samplerů, WebGL 2 zaručuje 16 (další vrstva = pole textur). Louky podle
-  tvaru terénu (`terrain-relief.ts`): kamenitá půda a skalní výchozy kde je prudký svah nebo
+  tvaru terénu (`buildRelief` z jádra): kamenitá půda a skalní výchozy kde je prudký svah nebo
   ostrý hřbet (`rockinessAt`, jako útesy 0 A.D. podle sklonu), sušší tráva na svazích ke slunci
-  (`SUN_DIRECTION`), ostrůvky kvetoucí louky. Hranici lesa vyhlazuje a zvlňuje
-  `forest-field.ts` (znaménková vzdálenost od hranice). **Okraj lesa** jsou 2–3 husté řady
-  3D stromů z 0 A.D. (`tree-placement.ts`, do 18 m od hranice) + lem a ojedinělé stromy
-  v louce; **vnitřek** (od 10 m) jsou impostory (`impostor-placement.ts`, `impostors.ts`) –
+  (`SUN_RAYS` v jádru, stejný směr jako `SUN_DIRECTION` scény), ostrůvky kvetoucí louky.
+  Hranici lesa vyhlazuje a zvlňuje `buildForestField` (jádro, znaménková vzdálenost od
+  hranice). **Scéna kreslí stromy, keře a kameny z vrstvy překážek** (`obstacle-scenery.ts`
+  je rozdělí na 3D stromy, impostory a dekorace; rozmisťovače jsou v `landscape/obstacles/`).
+  **Okraj lesa** jsou 2–3 husté řady 3D stromů z 0 A.D. (`forest-trees.ts`, do 18 m od
+  hranice) + lem a ojedinělé stromy v louce; **vnitřek** (od 10 m) jsou impostory (`impostors.ts`) –
   desítky tisíc svislých obrázků stromů z atlasu vyrenderovaného pod pevným náklonem kamery,
   natáčejí se jen při změně směru kamery. Jejich začátek musí z každého směru zakrýt 3D stromy.
-  Skladba druhů je jedna funkce pro obojí (`tree-species.ts`): okraj světlomilný (dub, bříza,
+  Skladba druhů je jedna funkce pro obojí (`species.ts`): okraj světlomilný (dub, bříza,
   buk), uvnitř buk, dub, trochu břízy a jedle ve skupinách (výš víc) – Martin. **Stromy mimo
   les** (`meadow-trees.ts`, jen 3D): osamělé duby a jilmy v loukách (parkové i volné části)
-  a břehový porost topolů a jilmů podél potoka; `woodland-placement.ts`: borovice na skalách
-  a suchých hřbetech, mladé stromky ve skupinkách před lesem, souše, padlé stromy, pařezy
-  u vesnice a kmeny v klidné vodě. V lese se kreslí tráva, ne lesní půda (Martin),
+  a břehový porost topolů a jilmů podél potoka; `woodland.ts`: borovice na skalách
+  a suchých hřbetech, mladé stromky ve skupinkách před lesem, souše, padlé stromy a pařezy
+  u vesnice; `rocks-shrubs.ts`: keře, kameny, balvany, skalní výchozy a vrby. V lese se kreslí tráva, ne lesní půda (Martin),
   pod stromy ztmavená. Tmavá plocha korun (`forest-canopy.ts`)
   jen vyplňuje mezery hluboko v lese. PBR materiály se oparem musí volat `applyGammaFog`
   (`gamma-fog.ts`) – vestavěný opar PBR zešedí zeleň. **Změna náklonu kamery (`BETA`
   v `camera.ts`) nebo modelů stromů = nový render atlasu** (`tools/blender/impostors.py`)
   a přepis hodnot v `impostor-atlas.ts`.
-- **Dekorace** (`decor-placement.ts`, `decorations.ts`): rákos, orobinec, lekníny a vrby podle
-  tvaru a proudu potoka, keřový lem lesa, keře kolem osamělých stromů a v ostrůvcích, skalní
-  výchozy (naklopené podle svahu) a kameny v loukách. Modely načítá `instanced-model.ts`
-  (thin instances), převod z 0 A.D. přes `tools/blender/decor.json`.
+- **Dekorace** (`decorations.ts`): překážky z vrstvy (keře, kameny, skalní výchozy naklopené
+  podle svahu, souše, padlé stromy, pařezy, vrby) a ozdoby vody bez herní funkce
+  (`decor-placement.ts`: rákos, orobinec, lekníny, kmeny v potoce – zůstávají ve scéně). Modely
+  načítá `instanced-model.ts` (thin instances, s id překážek), převod z 0 A.D. přes
+  `tools/blender/decor.json`.
+- **Změny krajiny vsi ve scéně:** `SceneVillage.obstacles` (`removed`, `stumps`, `saplings` –
+  id) skryje `InstanceHider` podle id (3D stromy, impostory i dekorace); ozdoby bez id skrývá
+  pod stavbami a poli podle tvaru. Na místo pokáceného stromu dá `felled-trees.ts` pařez,
+  po TREE_SAPLING_AFTER_YEARS mladý stromek. Ztmavená tráva pod stromy a stínová mapa terénu
+  se zatím nepřepočítají (fields.md – Krajina sídla a scéna, Stav).
 - **Světlo:** letní slunce a obloha podle 0 A.D., kontrast 1,1. **Stíny od slunce**
   (`sun-shadows.ts`) – stínová mapa 4096 přes celou krajinu se vykreslí jednou; vrhají je meshe
   pojmenované `trees-*`, `impostors-*` a `decor-*` (při přejmenování zachovat prefix).
@@ -260,7 +283,20 @@ Pravidla v [docs/design/population.md](docs/design/population.md) a
 - **Upozornění** (`lib/village-notices.ts`): plná domácnost (fakt), hlad, stojící stavby –
   nově vzniklé jako krátký mizející řádek nahoře, žádný trvalý seznam. Kronika je jen v DTO.
 - **Krajina sídla** se na serveru drží v LRU mezipaměti (`lib/landscape-cache.ts`, port
-  `LandscapeSource` v `enterGame`) – negeneruje se při každé akci a dotazu.
+  `LandscapeSource` v `enterGame`) – negeneruje se při každé akci a dotazu. Vrstva překážek
+  se generuje až pro stavby (`obstaclesOf`, mezipaměť podle objektu krajiny); dotaz na ves
+  (`getVillageView`) ji nepotřebuje.
+- **Překážky ve vsi** (`domain/village/obstacles.ts`, fields.md – tabulka překážek): obydlí
+  platí překážky na vyklízené ploše (`DWELLING_CLEARING_M` = staveniště scény) po kusech,
+  skalní výchoz pod půdorysem stavbu nedovolí; díl pole platí překážky v políčku (v lese by
+  platila sazba za hektar), výchoz zůstane a plocha pod ním se nepočítá. Kontroly
+  (`checkDwellingPlacement`, `fieldPartsFromCells`) berou vrstvu výchozím parametrem
+  `obstaclesOf(landscape)` a vrací `obstacleCost` a id; v prohlížeči i na serveru stejně.
+  **Odstranění:** obydlí při zahájení stavby, díl pole až po založení (`FieldPart.obstacles`
+  → `VillageState.clearedObstacles`). Pokácené stromy (`felledTrees`) nechají pařez a dorostou
+  (`TREE_REGROWTH_YEARS`). Pomocníci pro les a dřevo: `matureTreesByDistance`, `fellTrees`,
+  `treeRegrowth`, `countMatureTrees`, `obstacleChangesAt`. Vsi z doby před vrstvou si
+  odstraněné překážky doplní při načtení s krajinou (`withObstacleClearing` v `updateVillage`).
 - **e2e:** testy běží v běžícím pomalém světě (2000–2200). Kliknutí do scény při umisťování
   nahrazuje háček `window.__bohemiaE2E.confirmPlacement`, kam kliknout myší pro výběr řekne
   `projectToScreen` (`lib/e2e-hooks.ts`) – existují jen v buildu s `NEXT_PUBLIC_E2E_HOOKS=1`
