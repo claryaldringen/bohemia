@@ -5,7 +5,8 @@ blender -b --factory-startup --python tools/blender/trees_from_0ad.py -- \
 
 trees.json: [{"name", "dae", "texture", "foliage"?, "scale"?, "opaque"?, "texture_px"?} | {"name", "parts": [...], "scale"?}]
 "opaque" = bez průhlednosti a s ořezem zadních stěn (kameny), textura se exportuje jako JPEG;
-"texture_px" textury větší než daný rozměr zmenší. Stejně se převádějí i dekorace (decor.json).
+"texture_px" textury větší než daný rozměr zmenší. Stejně se převádějí i dekorace (decor.json)
+a jabloně (orchard.json – textury nejdřív připraví tools/blender/apple_leaves.py a apple_ripe.py).
 Cesty k .dae a texturám jsou relativní k art/ složce 0 A.D.; "foliage" nastaví normály listí
 od středu koruny ("all", nebo {"u_below": u} pro atlas s kůrou vpravo, {"u_above": u} vlevo).
 """
