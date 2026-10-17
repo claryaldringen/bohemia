@@ -4,7 +4,8 @@ Celé jedním příkazem z kořene repa (Blender 5, ImageMagick `magick`, intern
 
     blender -b --factory-startup --python tools/blender/icons.py -- apps/web/public/icons [jen,vybrané,ikony]
 
-Výstup (128 × 128 PNG, průhledné rohy) – `build/` zemnice, polozemnice, pole, hrbitov;
+Výstup (128 × 128 PNG, průhledné rohy) – `build/` zemnice, polozemnice, pole, hrbitov,
+hrncir, kovar, uhlir (řemeslné dílny z `apps/web/public/models/crafts/`, uhlíř s milířem);
 (64 × 64 PNG) – `resources/` people, food, labor, satiation, date. Bez druhého argumentu
 vše, jinak čárkami oddělený výběr (např. `pole,hrbitov,food`).
 
@@ -34,6 +35,7 @@ OUT = os.path.abspath(args[0])
 ONLY = set(args[1].split(",")) if len(args) > 1 and args[1] else None
 ROOT = os.getcwd()
 MODELS = os.path.join(ROOT, "apps/web/public/models/dwellings")
+CRAFTS = os.path.join(ROOT, "apps/web/public/models/crafts")
 TEX = os.path.join(ROOT, "apps/web/public/textures/terrain")
 TMP = tempfile.mkdtemp(prefix="bohemia-icons-")
 RES = 256
@@ -240,9 +242,9 @@ def blob(bm, c, rad, seg=8, rings=5):
         v.co = centre + Euler(rot).to_matrix() @ v.co
 
 
-def place_model(name, material_fix=None):
+def place_model(name, material_fix=None, folder=MODELS):
     before = set(bpy.data.objects)
-    bpy.ops.import_scene.gltf(filepath=f"{MODELS}/{name}.glb")
+    bpy.ops.import_scene.gltf(filepath=f"{folder}/{name}.glb")
     new = [o for o in bpy.data.objects if o not in before]
     # glTF Y-up → Blender Z-up už řeší importér; vchod míří do -Y
     return [o for o in new if o.type == "MESH"]
@@ -264,6 +266,42 @@ def icon_dwelling(name):
     pts = world_points(objs)
     pts = [Vector((p.x, p.y, max(p.z, 0.0))) for p in pts]
     camera(pts + [Vector((0, 0, -0.2))], az=32, el=33, margin=1.04, shift=(0, -0.02))
+
+
+def icon_craft(name):
+    """Řemeslná dílna (tools/blender/crafts.py) jako portrét obydlí. Hrnčíř a kovář zepředu
+    do přístřešku (pec / výheň musí být v ikoně vidět), uhlíř i s kouřícím milířem – blíž
+    a vzadu vlevo (ve vsi je MILIR_OFFSET v crafts.py), ať se do čtverce vejde obojí."""
+    objs = place_model(name, folder=CRAFTS)
+    if name == "uhlir":
+        milir = place_model("milir", folder=CRAFTS)
+        for o in milir:
+            o.location.x -= 5.6
+            o.location.y += 3.2
+        objs += milir
+        # dým z komínu milíře – v malé ikoně z něj teprve je poznat milíř, ne kopec
+        smoke = mat("smoke", (0.78, 0.77, 0.74), 1.0)
+        bsdf = next(n for n in smoke.node_tree.nodes if n.type == "BSDF_PRINCIPLED")
+        bsdf.inputs["Alpha"].default_value = 0.55
+        bm = bmesh.new()
+        for k, (dx, dy, z, r) in enumerate(((0.0, 0.0, 2.7, 0.35), (0.25, 0.15, 3.3, 0.5), (0.65, 0.3, 4.0, 0.62), (1.2, 0.45, 4.7, 0.7))):
+            blob(bm, ((-5.6 + dx, 3.2 + dy, z), (0, 0, k)), (r, r, r * 0.8), 12, 7)
+        objs.append(to_obj(bm, "smoke", smoke))
+    ground(11.5, mat("g", tex=f"{TEX}/grass-dirt.jpg", scale=0.22, tint=(0.8, 0.74, 0.6)), z=0.0, fade=0.6)
+    bm = bmesh.new()
+    for i in range(7):
+        a = random.Random(i).uniform(0, 6.28)
+        blob(bm, ((math.cos(a) * 3.9 + 0.2, math.sin(a) * 1.0 + 4.2, 0.0), (0, 0, a)), (1.6, 1.0, 0.45), 10, 6)
+    to_obj(bm, "spoil", mat("mud", tex=f"{TEX}/mud.jpg", scale=0.3, tint=(1.2, 0.9, 0.7)))
+    sun(az=-55, el=46)
+    pts = [Vector((p.x, p.y, max(p.z, 0.0))) for p in world_points(objs)]
+    if name == "uhlir":
+        camera(pts + [Vector((0, 0, -0.2))], az=32, el=33, margin=1.06, shift=(0, -0.02))
+    else:
+        # přední polovina dílny s přístřeškem, pohled skoro zepředu pod střechu
+        front = [o.matrix_world @ v.co for o in objs for v in o.data.vertices]
+        front = [p for p in front if p.y < -0.5 and p.z > -0.1]
+        camera(front, az=14, el=29, margin=1.04, shift=(0, -0.04))
 
 
 def icon_pole():
@@ -494,6 +532,9 @@ BUILD = {
     "polozemnice": lambda: icon_dwelling("polozemnice"),
     "pole": icon_pole,
     "hrbitov": icon_hrbitov,
+    "hrncir": lambda: icon_craft("hrncir"),
+    "kovar": lambda: icon_craft("kovar"),
+    "uhlir": lambda: icon_craft("uhlir"),
 }
 RESOURCES = {"food": icon_food, "labor": icon_labor, "satiation": icon_satiation, "date": icon_date}
 
