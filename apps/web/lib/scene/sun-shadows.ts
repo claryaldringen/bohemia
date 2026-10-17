@@ -7,7 +7,7 @@ import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 /** Rozlišení stínové mapy – na krajinu 1,9 km vychází ≈ 0,7 m na texel. */
 const SHADOW_MAP_SIZE = 4096;
 /** Jak tmavé jsou stíny (0 = černé) – okolní světlo z oblohy je prosvětlí. */
-const SHADOW_DARKNESS = 0.35;
+export const SHADOW_DARKNESS = 0.35;
 
 /**
  * Stíny od slunce jako v 0 A.D.: stromy, keře a skály vrhají stín na terén. Krajina i slunce
@@ -44,6 +44,14 @@ export function addSunShadows(
   if (map) map.refreshRate = RenderTargetTexture.REFRESHRATE_RENDER_ONCE;
   return {
     refresh: () => map?.resetRefreshCounter(),
+    setDarkness: (darkness) => generator.setDarkness(darkness),
+    setCastersEnabled: (meshes, enabled) => {
+      for (const mesh of meshes) {
+        if (enabled) generator.addShadowCaster(mesh, false);
+        else generator.removeShadowCaster(mesh, false);
+      }
+      map?.resetRefreshCounter();
+    },
     addCaster: (mesh) => {
       generator.addShadowCaster(mesh, false);
       map?.resetRefreshCounter();
@@ -55,6 +63,10 @@ export function addSunShadows(
 export interface SunShadows {
   /** Vykreslí stínovou mapu znovu (po změně vrhačů – stavby, skryté stromy). */
   refresh(): void;
+  /** Jak tmavé jsou stíny (0 = černé) – jen uniforma, mapa se nepřekresluje. */
+  setDarkness(darkness: number): void;
+  /** Vyřadí vrhače ze stínové mapy, nebo je vrátí (holé listnáče v zimě), a mapu obnoví. */
+  setCastersEnabled(meshes: readonly Mesh[], enabled: boolean): void;
   /** Přidá vrhač stínu (vesnice vzniká až po krajině) a mapu obnoví. */
   addCaster(mesh: Mesh): void;
   dispose(): void;

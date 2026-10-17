@@ -6,6 +6,7 @@ import { HEIGHT_SCALE } from './constants';
 import { DECOR_MODELS, type DecorModel, type DecorPlacement } from './decor-placement';
 import { applyGammaFog } from './gamma-fog';
 import { addInstancedModel } from './instanced-model';
+import { applySeasonModel } from './season-materials';
 
 /** Lekníny kousek nad hladinou, ať se s ní neperou o hloubku (m ve scéně). */
 const FLOAT_ABOVE_WATER = 0.15;
@@ -127,4 +128,6 @@ export function prepareDecorMaterial(model: DecorModel, material: Material): voi
     material.albedoColor = SHRUB_TINT;
   if (model === 'rock-tower') material.albedoColor = TOWER_TINT;
   if (material.albedoTexture) material.albedoTexture.anisotropicFilteringLevel = 8;
+  // Roční období: keře a vrby se barví a opadávají, rákos usychá, na kamenech a kmenech sníh.
+  applySeasonModel(material, model);
 }

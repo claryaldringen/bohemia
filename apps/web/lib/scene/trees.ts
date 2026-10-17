@@ -10,6 +10,7 @@ import type { Scene } from '@babylonjs/core/scene';
 import { applyGammaFog } from './gamma-fog';
 import { instanceIds, setStaticInstances } from './instanced-model';
 import { TREE_MODELS, type TreeModel, type TreePlacement } from './obstacle-scenery';
+import { applySeasonModel } from './season-materials';
 
 /**
  * Tón a jas 3D stromů okraje – laděné tak, aby splynuly s impostory vnitřku lesa (vyrenderovanými
@@ -96,4 +97,6 @@ export function prepareTreeMaterial(model: TreeModel, material: Material): void 
   if (material.albedoTexture) material.albedoTexture.anisotropicFilteringLevel = 8;
   // Opar v gama prostoru jako u terénu a impostorů (vestavěný opar PBR zešedí zeleň).
   applyGammaFog(material);
+  // Roční období: listnáče se barví a opadávají, na jehličí napadne sníh.
+  applySeasonModel(material, model);
 }

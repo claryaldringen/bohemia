@@ -58,6 +58,7 @@ import {
   createStripMesh,
   type HeightFn,
 } from './village-meshes';
+import { applySeasonGround, applySeasonModel, applySeasonSnow } from './season-materials';
 import { VillageSmoke, type SmokeSource } from './village-smoke';
 import type { SceneDwelling, SceneField } from './village-types';
 
@@ -77,6 +78,8 @@ const DWELLING_SINK_M = 0.05;
  */
 const FIELD_GRID_PER_CELL = 8;
 const FIELD_EDGE_SOFT_M = 1.2;
+/** Sníh na obtiscích vsi (pole, řádky, cesty) – část jejich barvy zimou prosvítá, mez zůstane. */
+const VILLAGE_SNOW = 0.85;
 /** Mez kolem pole – tenký pás podél hranice čtverců (m). */
 const OUTLINE_WIDTH_M = 0.3;
 /** Rozteč řádků obilí / brázd (m) a délka opakování textury podél nich. */
@@ -777,6 +780,8 @@ export class VillageRenderer {
       const decal = createDecalMaterial(this.scene, `village-${key}`, { texture, zOffset });
       // obtisky (vyšlapaná hlína, sejmutý drn) nesmí viset nad jámou
       applyPitCut(decal, this.context.pitCuts);
+      // tráva v nich usychá jako na terénu, v zimě je zasype sníh – pole a cesty jen prosvítají
+      applySeasonGround(decal, VILLAGE_SNOW);
       const loaded = decal.diffuseTexture;
       if (loaded instanceof Texture && !loaded.isReady()) {
         loaded.onLoadObservable.addOnce(() => this.context.requestRender());
@@ -816,6 +821,7 @@ export class VillageRenderer {
       texture.hasAlpha = true;
       standard.diffuseTexture = texture;
       standard.useAlphaFromDiffuseTexture = true;
+      applySeasonGround(standard, VILLAGE_SNOW);
       material = standard;
       this.materials.set('rows', material);
     }
@@ -896,6 +902,8 @@ function prepareDwellingMaterial(material: Material): void {
   material.metallic = 0;
   material.ambientColor = AMBIENT;
   if (material.albedoTexture) material.albedoTexture.anisotropicFilteringLevel = 8;
+  // v zimě sníh na střechách (plochy obrácené nahoru)
+  applySeasonSnow(material);
 }
 
 function prepareTuftMaterial(material: Material): void {
@@ -908,4 +916,6 @@ function prepareTuftMaterial(material: Material): void {
   material.directIntensity = 0.75;
   material.albedoColor = TUFT_TINT;
   if (material.albedoTexture) material.albedoTexture.anisotropicFilteringLevel = 8;
+  // trsy na podzim usychají a přes zimu stojí suché
+  applySeasonModel(material, 'grass-tuft');
 }
