@@ -35,6 +35,8 @@ const OUTCROP_MIN_ROCKINESS = 0.45;
 const TREE_SHRUB_CHANCE = 0.45;
 const SHRUB_ISLAND_SPACING_M = 30;
 const SHRUB_ISLAND_CHANCE = 0.035;
+/** Mřížka (m), podle které dostanou keře kolem stromů stabilní id. */
+const TREE_SHRUB_CELL_M = 4;
 
 /** Keře v loukách (hloh, trnka, šípek) – jiné tvary než keřový lem lesa. */
 const MEADOW_SHRUBS: readonly DecorObstacleLook[] = ['shrub-4', 'shrub-5', 'shrub-6', 'shrub-7'];
@@ -236,27 +238,32 @@ export function rockAndShrubPlacements(
   // Keře v loukách: kolem části osamělých stromů (pastevní duby obrůstá hloh a trnka) a ostrůvky
   // keřů – víc na kamenitých stráních, které se nesečou.
   const shrubHash = hashFor(ctx, 'meadow-shrubs');
+  const shrubFits = (x: number, z: number): boolean =>
+    onLand(x, z) &&
+    stream.nearest(x, z).bankDistance > 2.5 &&
+    field.distanceAt(x, z) < -6 &&
+    trees.every((t) => length2(t.x - x, t.z - z) >= 3);
   const meadowShrub = (
-    list: ObstaclePlacement[],
     id: number,
     x: number,
     z: number,
     k: number,
     j: number,
-  ): void => {
-    if (!onLand(x, z) || stream.nearest(x, z).bankDistance <= 2.5) return;
-    if (field.distanceAt(x, z) >= -6) return;
-    if (trees.some((t) => length2(t.x - x, t.z - z) < 3)) return;
-    list.push({
-      id,
-      kind: 'shrub',
-      look: MEADOW_SHRUBS[Math.floor(shrubHash(k, j, 131) * MEADOW_SHRUBS.length)]!,
-      x,
-      z,
-      rotation: shrubHash(k, j, 132) * Math.PI * 2,
-      scale: 0.9 + shrubHash(k, j, 133) * 0.6,
-    });
-  };
+  ): ObstaclePlacement => ({
+    id,
+    kind: 'shrub',
+    look: MEADOW_SHRUBS[Math.floor(shrubHash(k, j, 131) * MEADOW_SHRUBS.length)]!,
+    x,
+    z,
+    rotation: shrubHash(k, j, 132) * Math.PI * 2,
+    scale: 0.9 + shrubHash(k, j, 133) * 0.6,
+  });
+  // Keře kolem stromů mají id podle místa (mřížka TREE_SHRUB_CELL_M) – ne podle pořadí stromu,
+  // které by se změnilo, kdyby kdekoli přibyl nebo ubyl strom.
+  const treeShrubCells = Math.floor((l.size * l.cellSizeM) / TREE_SHRUB_CELL_M);
+  const toShrubCell = (v: number): number =>
+    Math.min(treeShrubCells - 1, Math.max(0, Math.floor((v + half) / TREE_SHRUB_CELL_M)));
+  const shrubsInCell = new Map<number, number>();
   trees.forEach((tree, k) => {
     if (shrubHash(k, 0, 134) >= TREE_SHRUB_CHANCE) return;
     const count = 1 + Math.floor(shrubHash(k, 1, 134) * 3);
@@ -265,16 +272,17 @@ export function rockAndShrubPlacements(
       angle += 0.6 + shrubHash(k, 10 + i, 134) * 0.9;
       // Na okraji koruny – pod ní by keř nebyl vidět.
       const radius = 6.5 + shrubHash(k, 20 + i, 134) * 4;
-      meadowShrub(
-        bySource.treeShrub,
-        obstacleId('treeShrub', k, i),
-        tree.x + detCos(angle) * radius,
-        tree.z + detSin(angle) * radius,
-        k,
-        30 + i,
-      );
+      const x = tree.x + detCos(angle) * radius;
+      const z = tree.z + detSin(angle) * radius;
+      if (!shrubFits(x, z)) continue;
+      const cell = toShrubCell(z) * treeShrubCells + toShrubCell(x);
+      const member = shrubsInCell.get(cell) ?? 0;
+      if (member >= 8) continue;
+      shrubsInCell.set(cell, member + 1);
+      bySource.treeShrub.push(meadowShrub(obstacleId('treeShrub', cell, member), x, z, k, 30 + i));
     }
   });
+  bySource.treeShrub.sort((a, b) => a.id - b.id);
   const islandHash = hashFor(ctx, 'shrub-islands');
   const islandCells = Math.floor((l.size * l.cellSizeM) / SHRUB_ISLAND_SPACING_M);
   for (let gz = 0; gz < islandCells; gz++) {
@@ -289,14 +297,13 @@ export function rockAndShrubPlacements(
       for (let i = 0; i < count; i++) {
         const angle = islandHash(k, i, 145) * Math.PI * 2;
         const radius = i === 0 ? 0 : 1.5 + islandHash(k, i, 146) * 4.5;
-        meadowShrub(
-          bySource.shrubIsland,
-          obstacleId('shrubIsland', cell, i),
-          cx + detCos(angle) * radius,
-          cz + detSin(angle) * radius,
-          k,
-          50 + i,
-        );
+        const x = cx + detCos(angle) * radius;
+        const z = cz + detSin(angle) * radius;
+        if (shrubFits(x, z)) {
+          bySource.shrubIsland.push(
+            meadowShrub(obstacleId('shrubIsland', cell, i), x, z, k, 50 + i),
+          );
+        }
       }
     }
   }

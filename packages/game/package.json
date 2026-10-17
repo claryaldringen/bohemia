@@ -24,6 +24,6 @@
     "vitest": "^5.0.5"
   },
   "dependencies": {
-    "simplex-noise": "^4.0.3"
+    "simplex-noise": "4.0.3"
   }
 }

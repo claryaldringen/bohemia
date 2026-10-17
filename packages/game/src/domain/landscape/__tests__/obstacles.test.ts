@@ -107,6 +107,31 @@ describe('generateObstacles – vrstva překážek', () => {
   });
 });
 
+/** Otisk vrstvy: počet a FNV-1a přes bajty všech sloupců. */
+function layerHash(l: ObstacleLayer): string {
+  let h = 0x811c9dc5;
+  const columns = [l.id, l.x, l.z, l.kind, l.look, l.rotation, l.scale, l.impostor];
+  for (const column of columns) {
+    const bytes = new Uint8Array(column.buffer, column.byteOffset, column.byteLength);
+    for (let i = 0; i < bytes.length; i++) h = Math.imul(h ^ bytes[i]!, 0x01000193);
+  }
+  return `${l.count}:${(h >>> 0).toString(16).padStart(8, '0')}`;
+}
+
+describe('vrstva překážek verze 1 – zlatý otisk', () => {
+  // Vrstva po ostrém spuštění nesmí změnit ani bit (přepsala by krajiny hráčů). Když tenhle
+  // test spadne, změnilo se něco, na čem vrstva stojí (rozmisťovače, pole lesa, osa potoka,
+  // tvar terénu, det-math, generátor krajiny, simplex-noise…). Před spuštěním stačí otisk
+  // vědomě přepsat; po spuštění je potřeba nová verze vrstvy a v1 zachovat.
+  it.each([
+    [1, '66989:537aa60a'],
+    [42, '66959:75f4c88b'],
+    [123, '70442:f720e62c'],
+  ])('seed %i', (seed, expected) => {
+    expect(layerHash(generateObstacles(generateLandscape(seed)))).toBe(expected);
+  });
+});
+
 describe('obstacleId', () => {
   it('skládá zdroj, buňku a pořadí ve skupině', () => {
     expect(obstacleId('edgeTree', 0)).toBe(OBSTACLE_SOURCES.edgeTree * 2 ** 22);

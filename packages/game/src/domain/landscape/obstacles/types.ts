@@ -182,7 +182,8 @@ export const OBSTACLE_SOURCES = {
 
 export type ObstacleSource = keyof typeof OBSTACLE_SOURCES;
 
-const SOURCE_SHIFT = 2 ** 22;
+/** 2^22 – místo na zdroj (napsané číslem: ** je ve vrstvě zakázané, viz eslint.config.mjs). */
+const SOURCE_SHIFT = 4_194_304;
 const MEMBERS = 8;
 
 /** Stabilní id překážky ze zdroje, buňky mřížky rozmisťovače a pořadí ve skupině (0–7). */
