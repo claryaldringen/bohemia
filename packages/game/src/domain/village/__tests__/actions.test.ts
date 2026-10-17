@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { foundField, foundVillage, startNewDwelling } from '../actions';
 import type { PartInput } from '../actions';
-import { ageGroup } from '../people';
+import { ageGroup, ageYears } from '../people';
 import { DWELLINGS, FIELD_LIMITS, START_AGES } from '../rules';
 import type { Person, VillageState } from '../types';
 
@@ -35,9 +35,7 @@ describe('foundVillage', () => {
     const groups = s.people.map((p) => ageGroup(p, DAY));
     expect(groups.filter((g) => g === 'adult')).toHaveLength(2);
     expect(groups.filter((g) => g === 'child')).toHaveLength(2);
-    expect(s.people.map((p) => p.bornDay)).toEqual(
-      START_AGES.map((age) => DAY - Math.floor(age * 365.25)),
-    );
+    expect(s.people.map((p) => ageYears(p.bornDay, DAY))).toEqual([...START_AGES]);
     expect(s.dwellings).toHaveLength(1);
     expect(s.dwellings[0]).toMatchObject({ type: 'zemnice', condition: 1, builtDay: DAY });
     expect(s.dwellings[0]?.position).toEqual(POSITION);

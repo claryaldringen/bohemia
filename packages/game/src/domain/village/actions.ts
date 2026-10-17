@@ -92,7 +92,7 @@ export function foundVillage(input: {
   const dwellingId = 1;
   const people: Person[] = START_AGES.map((age, i) => ({
     id: dwellingId + 1 + i,
-    bornDay: day - Math.floor(age * DAYS_PER_YEAR),
+    bornDay: day - Math.ceil(age * DAYS_PER_YEAR),
     dwellingId,
   }));
   const annualNeed = people.reduce((sum, p) => sum + FOOD_NEED_KG_PER_YEAR[ageGroup(p, day)], 0);
