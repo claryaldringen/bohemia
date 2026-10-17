@@ -370,8 +370,7 @@ function finishConstructions(state: VillageState, day: number): void {
       continue;
     }
     if (c.kind === 'cemetery') {
-      const cemetery = villageCemeteries(state).find((x) => x.id === c.cemeteryId);
-      if (cemetery) cemetery.builtDay = day;
+      finishCemetery(state, day, c);
       state.chronicle.push(finishedEvent(day, c, null));
       continue;
     }
@@ -399,6 +398,21 @@ function finishConstructions(state: VillageState, day: number): void {
     moveInYoungestPair(state, day, dwelling.id);
   }
   state.constructions = unfinished;
+}
+
+/**
+ * Dokončené založení hřbitova (hřbitov přijímá mrtvé), nebo rozšíření (jeho čtverce se začnou
+ * počítat – stavba je pozná podle `constructionId`).
+ */
+function finishCemetery(state: VillageState, day: number, c: Construction): void {
+  const cemetery = villageCemeteries(state).find((x) => x.id === c.cemeteryId);
+  if (!cemetery) return;
+  const extension = cemetery.squares.filter((s) => s.constructionId === c.id);
+  if (extension.length === 0) {
+    cemetery.builtDay = day;
+    return;
+  }
+  for (const square of extension) delete square.constructionId;
 }
 
 function finishedEvent(day: number, c: Construction, dwellingId: number | null): ChronicleEvent {

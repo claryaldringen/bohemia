@@ -1,5 +1,11 @@
 import { TOTAL_GAME_DAYS } from '../calendar';
-import { burialOrder, cemeteryCapacity, freeGraves, villageCemeteries } from './cemetery';
+import {
+  burialOrder,
+  cemeteryCapacity,
+  freeGraves,
+  readySquares,
+  villageCemeteries,
+} from './cemetery';
 import { isFull, isOvercrowded, waitingHouseholds } from './dwellings';
 import { fallowYears } from './fields';
 import { daysUntilHarvest, eatDay } from './food';
@@ -145,12 +151,17 @@ function constructionSummary(state: VillageState, c: Construction): Construction
     fieldId: c.fieldId,
     areaM2,
     cemeteryId: c.kind === 'cemetery' ? (c.cemeteryId ?? null) : null,
-    squares:
-      c.kind === 'cemetery'
-        ? (villageCemeteries(state).find((x) => x.id === c.cemeteryId)?.squares.length ?? 0)
-        : null,
+    squares: c.kind === 'cemetery' ? constructionSquares(state, c) : null,
     progress: c.cost > 0 ? Math.min(1, c.done / c.cost) : 1,
   };
+}
+
+/** Kolik čtverců stavba hřbitova ohrazuje – rozšíření jen svoje, založení ostatní. */
+function constructionSquares(state: VillageState, c: Construction): number {
+  const cemetery = villageCemeteries(state).find((x) => x.id === c.cemeteryId);
+  if (!cemetery) return 0;
+  const own = cemetery.squares.filter((s) => s.constructionId === c.id).length;
+  return own > 0 ? own : readySquares(cemetery.squares).length;
 }
 
 /**
@@ -162,7 +173,7 @@ export function recentDeathsPerYear(state: VillageState, day: number): number {
   let from = Math.max(state.foundedDay, day - RECENT_DEATHS_YEARS * DAYS_PER_YEAR);
   const oldest = state.chronicle[0];
   if (state.chronicle.length >= CHRONICLE_MAX_EVENTS && oldest) from = Math.max(from, oldest.day);
-  const deaths = state.chronicle.filter((e) => e.kind === 'death' && e.day > from).length;
+  const deaths = state.chronicle.filter((e) => e.kind === 'death' && e.day >= from).length;
   return deaths / Math.max(1, (day - from) / DAYS_PER_YEAR);
 }
 

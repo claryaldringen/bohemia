@@ -53,8 +53,16 @@ export interface CemeterySquare {
   z: number;
   /** Vzdálenost čtverce od nejbližší vody (m) – z krajiny při založení (simulace krajinu nemá). */
   waterDistanceM: number;
+  /**
+   * Rozšíření ve stavbě – id stavby, která čtverec ohrazuje; do jejího dokončení se čtverec
+   * nepočítá (hroby, hygiena). Bez údaje je čtverec hotový se hřbitovem.
+   */
+  constructionId?: number;
 }
-/** Pohřebiště – souvislá skupina čtverců (cemetery.md); hroby se plní a znovu nepoužívají. */
+/**
+ * Hřbitov (pohřebiště) – souvislá skupina čtverců (cemetery.md); hroby se plní a znovu
+ * nepoužívají. Rozšíření přidává čtverce na konec (`constructionId`, dokud se ohrazují).
+ */
 export interface Cemetery {
   id: number;
   squares: CemeterySquare[];
@@ -103,7 +111,14 @@ export type ChronicleEvent = { day: number } & (
   | { kind: 'hunger-began' }
   | { kind: 'hunger-ended' }
   | { kind: 'part-became-forest'; partId: number }
-  | { kind: 'cemetery-full'; cemeteryId: number; othersFree: boolean }
+  | {
+      kind: 'cemetery-full';
+      cemeteryId: number;
+      /** Jiný hotový hřbitov má volný hrob. */
+      othersFree: boolean;
+      /** Nějaký hřbitov nebo rozšíření se právě staví (u starších událostí chybí). */
+      othersBuilding?: boolean;
+    }
 );
 export interface VillageState {
   seed: number;

@@ -29,7 +29,7 @@ export function placeCemetery(
     const positions = villageDwellingPositions(state);
     const preview = cemeteryPartsFromCells(input.landscape, state, input.cells, positions);
     if (!preview.check.ok) {
-      return { ok: false, reason: preview.check.reason ?? 'Sem pohřebiště nepatří.' };
+      return { ok: false, reason: preview.check.reason ?? 'Sem hřbitov nepatří.' };
     }
     // akce patří do dne, do kterého je ves dopočítaná – dnešek, nebo „budoucí“ den vsi
     const cemetery = { squares: preview.squares, squareSizeM: input.landscape.cellSizeM };

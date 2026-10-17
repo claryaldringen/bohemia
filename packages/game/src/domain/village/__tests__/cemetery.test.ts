@@ -159,6 +159,7 @@ describe('pohřeb', () => {
       kind: 'cemetery-full',
       cemeteryId: 101,
       othersFree: true,
+      othersBuilding: true,
     });
     expect(s.cemeteries[1]!.graves).toBe(56);
     expect(bury(s, 7)).toBeNull();
@@ -171,7 +172,11 @@ describe('pohřeb', () => {
     expect(bury(s, 5)).toBeNull();
     expect(s.cemeteries).toBeUndefined();
     s.cemeteries = [cemetery(100, [square(400, 0)], { graves: 55 })];
-    expect(bury(s, 6)).toMatchObject({ kind: 'cemetery-full', othersFree: false });
+    expect(bury(s, 6)).toMatchObject({
+      kind: 'cemetery-full',
+      othersFree: false,
+      othersBuilding: false,
+    });
     expect(bury(s, 7)).toBeNull();
     expect(s.cemeteries[0]!.graves).toBe(56);
   });
@@ -305,5 +310,58 @@ describe('souhrn pohřebišť', () => {
     const summary = summarizeVillage(s, s.lastDay + 1);
     expect(summary.deathsPerYear).toBe(0);
     expect(summary.cemeteries.map((c) => c.yearsLeft)).toEqual([0, null]);
+  });
+});
+
+describe('rozšíření hřbitova', () => {
+  const built = (): VillageState => {
+    const s = advanceVillage(found(), FOUNDED);
+    s.cemeteries = [cemetery(100, [square(300, 0), square(315, 0)], { graves: 112 })];
+    return s;
+  };
+
+  it('čtverce navazující stranou rozšíří hřbitov – do dokončení se nepočítají', () => {
+    const s = built();
+    const next = foundCemetery(s, s.lastDay, input([square(330, 0)]));
+    expect(next.cemeteries).toHaveLength(1);
+    const c = next.cemeteries![0]!;
+    const construction = next.constructions.at(-1)!;
+    expect(construction).toMatchObject({ kind: 'cemetery', cemeteryId: 100, cost: 10 });
+    expect(c.squares[2]).toEqual({ ...square(330, 0), constructionId: construction.id });
+    // plný hřbitov: rozšíření ve stavbě místo nepřidá
+    expect(cemeteryCapacity(c)).toBe(112);
+    expect(bury(next, s.lastDay)).toBeNull();
+    const later = advanceVillage(next, s.lastDay + 365);
+    const done = later.cemeteries![0]!;
+    expect(done.squares[2]?.constructionId).toBeUndefined();
+    expect(cemeteryCapacity(done)).toBe(168);
+    expect(done.builtDay).toBe(0);
+  });
+
+  it('zaplnění, když se staví rozšíření: othersBuilding (kronika neříká, že není kam)', () => {
+    const s = built();
+    s.cemeteries![0]!.graves = 111;
+    const next = foundCemetery(s, s.lastDay, input([square(330, 0)]));
+    expect(bury(next, s.lastDay)).toMatchObject({ othersFree: false, othersBuilding: true });
+  });
+
+  it('nenavazující čtverce = nový hřbitov; na dva navázat ani překrýt nejde', () => {
+    const s = built();
+    // políčka: hřbitov 100 = (20, 0) a (21, 0), hřbitov 101 = (23, 0)
+    s.cemeteries!.push(cemetery(101, [square(345, 0)]));
+    const apart = foundCemetery(s, s.lastDay, input([square(300, 60)]));
+    expect(apart.cemeteries).toHaveLength(3);
+    expect(() => foundCemetery(s, s.lastDay, input([square(330, 0)]))).toThrow(
+      'Hřbitov smí navazovat jen na jeden hřbitov.',
+    );
+    expect(() => foundCemetery(s, s.lastDay, input([square(300, 0)]))).toThrow(RangeError);
+    expect(() => foundCemetery(s, s.lastDay, input([square(300, 15), square(300, 15)]))).toThrow(
+      RangeError,
+    );
+  });
+
+  it('hygiena a pořadí pohřbívání počítají jen hotové čtverce', () => {
+    const c = cemetery(100, [square(300, 0), { ...square(15, 0), constructionId: 7 }]);
+    expect(cemeteryHygiene(c, [{ x: 0, z: 0, rotation: 0 }])).toBe(1);
   });
 });

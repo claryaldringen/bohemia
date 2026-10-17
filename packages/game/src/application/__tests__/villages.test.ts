@@ -280,13 +280,35 @@ describe('placeCemetery', () => {
       { villages },
       { settlementId: ID, landscape, today: TODAY + 1, cells: block(9, 9, 2, 1) },
     );
-    expect(overField).toEqual({ ok: false, reason: 'Pohřebiště se překrývá s polem.' });
+    expect(overField).toEqual({ ok: false, reason: 'Hřbitov se překrývá s polem.' });
     const inWater = await placeCemetery(
       { villages },
       { settlementId: ID, landscape, today: TODAY + 1, cells: block(14, 2, 2, 1) },
     );
-    expect(inWater).toEqual({ ok: false, reason: 'Pohřebiště nesmí zasahovat do vody.' });
+    expect(inWater).toEqual({ ok: false, reason: 'Hřbitov nesmí zasahovat do vody.' });
     expect(villages.records.get(ID)?.version).toBe(1);
+  });
+
+  it('čtverce navazující na hřbitov ho rozšíří – stejné id, nová stavba', async () => {
+    const villages = await foundedVillages();
+    const first = await placeCemetery(
+      { villages },
+      { settlementId: ID, landscape, today: TODAY + 1, cells: block(0, 12, 2, 2) },
+    );
+    if (!first.ok) throw new Error(first.reason);
+    const result = await placeCemetery(
+      { villages },
+      { settlementId: ID, landscape, today: TODAY + 2, cells: block(2, 12, 1, 2) },
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const { state } = result.village;
+    expect(state.cemeteries).toHaveLength(1);
+    const cemetery = state.cemeteries![0]!;
+    expect(cemetery.squares).toHaveLength(6);
+    const extension = state.constructions.at(-1);
+    expect(extension).toMatchObject({ kind: 'cemetery', cemeteryId: cemetery.id, cost: 20 });
+    expect(cemetery.squares.slice(4).every((s) => s.constructionId === extension?.id)).toBe(true);
   });
 
   it('blízko obydlí jen varuje v náhledu – server pohřebiště založí', async () => {

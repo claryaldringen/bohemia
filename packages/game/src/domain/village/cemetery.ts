@@ -1,9 +1,17 @@
 import { BUILD_COSTS } from './costs';
 import { CEMETERY, CEMETERY_DISTANCE_M, HYGIENE_DEATH_EXTRA } from './rules';
-import type { Cemetery, ChronicleEvent, Position, VillageState } from './types';
+import type {
+  Cemetery,
+  CemeterySquare,
+  ChronicleEvent,
+  Position,
+  TileCell,
+  VillageState,
+} from './types';
 
-// Pohřebiště (cemetery.md): kapacita, hygiena podle vzdálenosti od obydlí a od vody, pohřeb
-// zemřelých. Hygiena je vnitřní číslo simulace – hráč ji nevidí (Martin), jen její následky.
+// Hřbitovy (cemetery.md): kapacita, hygiena podle vzdálenosti od obydlí a od vody, pohřeb
+// zemřelých a rozšiřování. Hygiena je vnitřní číslo simulace – hráč ji nevidí (Martin), jen její
+// následky. Čtverce rozšíření ve stavbě (`constructionId`) se nepočítají.
 
 type AgeGroup = 'child' | 'adult' | 'elder';
 type DistanceLimits = { readonly worst: number; readonly ok: number };
@@ -13,9 +21,21 @@ export function villageCemeteries(state: Pick<VillageState, 'cemeteries'>): Ceme
   return state.cemeteries ?? [];
 }
 
-/** Kolik hrobů se do pohřebiště vejde (56 na čtverec). */
+/** Hotové čtverce hřbitova – bez rozšíření, které se ještě ohrazuje. */
+export function readySquares<T extends Pick<CemeterySquare, 'constructionId'>>(
+  squares: readonly T[],
+): T[] {
+  return squares.filter((s) => s.constructionId === undefined);
+}
+
+/** Staví se hřbitov (založení), nebo jeho rozšíření? */
+export function isCemeteryBuilding(cemetery: Cemetery): boolean {
+  return cemetery.builtDay === null || cemetery.squares.some((s) => s.constructionId !== undefined);
+}
+
+/** Kolik hrobů se do hřbitova vejde (56 na hotový čtverec). */
 export function cemeteryCapacity(cemetery: Pick<Cemetery, 'squares'>): number {
-  return cemetery.squares.length * CEMETERY.gravesPerSquare;
+  return readySquares(cemetery.squares).length * CEMETERY.gravesPerSquare;
 }
 
 /** Volné hroby pohřebiště. */
@@ -28,7 +48,7 @@ export function acceptsBurials(cemetery: Cemetery): boolean {
   return cemetery.builtDay !== null && freeGraves(cemetery) > 0;
 }
 
-/** Cena založení pohřebiště v člověkodnech: 10 na čtverec (`BUILD_COSTS`) + překážky. */
+/** Cena založení nebo rozšíření hřbitova v člověkodnech: 10 na čtverec (`BUILD_COSTS`) + překážky. */
 export function cemeteryFoundingCost(squares: readonly { obstacleCost: number }[]): number {
   const perSquare = BUILD_COSTS.cemetery.laborManDays;
   return squares.reduce((sum, s) => sum + perSquare + s.obstacleCost, 0);
@@ -77,8 +97,9 @@ export function cemeteryHygiene(
   cemetery: Pick<Cemetery, 'squares' | 'squareSizeM'>,
   dwellings: readonly Position[],
 ): number {
-  const dwelling = cemeteryDwellingDistance(cemetery.squares, cemetery.squareSizeM, dwellings);
-  const water = cemetery.squares.reduce((min, s) => Math.min(min, s.waterDistanceM), Infinity);
+  const squares = readySquares(cemetery.squares);
+  const dwelling = cemeteryDwellingDistance(squares, cemetery.squareSizeM, dwellings);
+  const water = squares.reduce((min, s) => Math.min(min, s.waterDistanceM), Infinity);
   return (
     hygieneDistanceFactor(dwelling, CEMETERY_DISTANCE_M.dwelling) *
     hygieneDistanceFactor(water, CEMETERY_DISTANCE_M.water)
@@ -116,7 +137,10 @@ export function burialOrder(
   dwellings: readonly Position[],
 ): Cemetery[] {
   return cemeteries
-    .map((c) => ({ c, d: cemeteryDwellingDistance(c.squares, c.squareSizeM, dwellings) }))
+    .map((c) => ({
+      c,
+      d: cemeteryDwellingDistance(readySquares(c.squares), c.squareSizeM, dwellings),
+    }))
     .sort((a, b) => (a.d === b.d ? a.c.id - b.c.id : a.d - b.d))
     .map((x) => x.c);
 }
@@ -133,6 +157,27 @@ export function bury(state: VillageState, day: number): ChronicleEvent | null {
   if (!target) return null;
   target.graves += 1;
   if (freeGraves(target) > 0) return null;
-  const othersFree = open.some((c) => c !== target);
-  return { day, kind: 'cemetery-full', cemeteryId: target.id, othersFree };
+  return {
+    day,
+    kind: 'cemetery-full',
+    cemeteryId: target.id,
+    othersFree: open.some((c) => c !== target),
+    othersBuilding: villageCemeteries(state).some(isCemeteryBuilding),
+  };
+}
+
+function sharesEdge(a: TileCell, b: TileCell): boolean {
+  return Math.abs(a.x - b.x) + Math.abs(a.y - b.y) === 1;
+}
+
+/**
+ * Hřbitovy, na které čtverce navazují stranou (cemetery.md – rozšíření): jeden = čtverce ho
+ * rozšíří, žádný = nový hřbitov. Pořadí podle id.
+ */
+export function touchingCemeteries<
+  C extends { readonly squares: readonly { readonly cell: TileCell }[] },
+>(cemeteries: readonly C[], cells: readonly TileCell[]): C[] {
+  return cemeteries.filter((c) =>
+    c.squares.some((s) => cells.some((cell) => sharesEdge(s.cell, cell))),
+  );
 }

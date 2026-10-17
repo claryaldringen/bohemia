@@ -1,5 +1,5 @@
 import { TOTAL_GAME_DAYS } from '../calendar';
-import { cemeteryFoundingCost, villageCemeteries } from './cemetery';
+import { cemeteryFoundingCost, touchingCemeteries, villageCemeteries } from './cemetery';
 import { buildAffordability, payUpfront, type BuildKind } from './costs';
 import { partFoundingCost } from './fields';
 import { ageGroup } from './people';
@@ -250,30 +250,35 @@ export function foundField(state: VillageState, day: number, field: FieldInput):
   return next;
 }
 
-/** Ověří vstup pohřebiště; jinak RangeError (čísla, která nejsou konečná, by stav otrávila). */
+/** Ověří vstup hřbitova; jinak RangeError (čísla, která nejsou konečná, by stav otrávila). */
 function validateCemetery(input: CemeteryInput): void {
-  if (input.squares.length === 0) throw new RangeError('Pohřebiště musí mít aspoň jeden čtverec.');
+  if (input.squares.length === 0) throw new RangeError('Hřbitov musí mít aspoň jeden čtverec.');
   if (!Number.isFinite(input.squareSizeM) || input.squareSizeM <= 0) {
-    throw new RangeError('Strana čtverce pohřebiště musí být kladná a konečná.');
+    throw new RangeError('Strana čtverce hřbitova musí být kladná a konečná.');
   }
+  const cells = new Set<string>();
   for (const square of input.squares) {
     if (!Number.isInteger(square.cell.x) || !Number.isInteger(square.cell.y)) {
-      throw new RangeError('Políčko čtverce pohřebiště musí mít celočíselné souřadnice.');
+      throw new RangeError('Políčko čtverce hřbitova musí mít celočíselné souřadnice.');
     }
     if (!Number.isFinite(square.x) || !Number.isFinite(square.z)) {
-      throw new RangeError('Střed čtverce pohřebiště musí mít konečné souřadnice.');
+      throw new RangeError('Střed čtverce hřbitova musí mít konečné souřadnice.');
     }
     if (!Number.isFinite(square.waterDistanceM) || square.waterDistanceM < 0) {
-      throw new RangeError('Vzdálenost čtverce pohřebiště od vody musí být nezáporná a konečná.');
+      throw new RangeError('Vzdálenost čtverce hřbitova od vody musí být nezáporná a konečná.');
     }
     validateObstacleCost(square.obstacleCost);
+    cells.add(`${square.cell.x},${square.cell.y}`);
   }
+  if (cells.size !== input.squares.length) throw new RangeError('Čtverce hřbitova se opakují.');
 }
 
 /**
- * Zahájí založení pohřebiště (cemetery.md – Stavba): pohřebiště bez hrobů a stavba ze
- * společné práce vsi za 10 člověkodní na čtverec + překážky. Mrtvé přijímá až po dokončení.
- * RangeError při neplatném vstupu nebo když ves nemá suroviny předem.
+ * Zahájí založení hřbitova, nebo jeho rozšíření (cemetery.md – Stavba): čtverce, které stranou
+ * navazují na hotový nebo rozestavěný hřbitov, ho rozšíří (stejné id, čtverce na konec, do
+ * dokončení stavby se nepočítají); jinak vznikne nový hřbitov bez hrobů. Stavba ze společné
+ * práce vsi za 10 člověkodní na čtverec + překážky. RangeError při neplatném vstupu, při
+ * navázání na víc hřbitovů, překryvu s hřbitovem nebo když ves nemá suroviny předem.
  *
  * Konvence dne (jako u `foundField`): akce se volá na ves dopočítanou do dne `day` a patří na
  * konec toho dne – práci stavba dostane od dne `day + 1`. Den před `state.lastDay` → RangeError.
@@ -285,27 +290,55 @@ export function foundCemetery(
 ): VillageState {
   validateActionDay(state, day);
   validateCemetery(input);
+  const existing = villageCemeteries(state);
+  const taken = new Set(existing.flatMap((c) => c.squares.map((s) => `${s.cell.x},${s.cell.y}`)));
+  if (input.squares.some((s) => taken.has(`${s.cell.x},${s.cell.y}`))) {
+    throw new RangeError('Čtverec už patří hřbitovu.');
+  }
+  const touching = touchingCemeteries(
+    existing,
+    input.squares.map((s) => s.cell),
+  );
+  if (touching.length > 1) throw new RangeError('Hřbitov smí navazovat jen na jeden hřbitov.');
+  const extended = touching[0];
+  if (extended && extended.squareSizeM !== input.squareSizeM) {
+    throw new RangeError('Rozšíření musí mít stejně velké čtverce jako hřbitov.');
+  }
   requireAffordable(state, 'cemetery');
   const next = structuredClone(state);
   payUpfront(next, 'cemetery');
-  const cemeteryId = next.nextId++;
-  next.cemeteries = [
-    ...villageCemeteries(next),
-    {
+  const cemeteries = villageCemeteries(next);
+  const square = (
+    { cell, x, z, waterDistanceM }: CemeterySquareInput,
+    constructionId?: number,
+  ): CemeterySquare => ({
+    cell: { x: cell.x, y: cell.y },
+    x,
+    z,
+    waterDistanceM,
+    ...(constructionId === undefined ? {} : { constructionId }),
+  });
+  let cemeteryId: number;
+  let constructionId: number;
+  const target = extended ? cemeteries.find((c) => c.id === extended.id) : undefined;
+  if (target) {
+    cemeteryId = target.id;
+    constructionId = next.nextId++;
+    target.squares.push(...input.squares.map((s) => square(s, constructionId)));
+  } else {
+    cemeteryId = next.nextId++;
+    constructionId = next.nextId++;
+    cemeteries.push({
       id: cemeteryId,
-      squares: input.squares.map(({ cell, x, z, waterDistanceM }) => ({
-        cell: { x: cell.x, y: cell.y },
-        x,
-        z,
-        waterDistanceM,
-      })),
+      squares: input.squares.map((s) => square(s)),
       squareSizeM: input.squareSizeM,
       graves: 0,
       builtDay: null,
-    },
-  ];
+    });
+  }
+  next.cemeteries = cemeteries;
   next.constructions.push({
-    id: next.nextId++,
+    id: constructionId,
     kind: 'cemetery',
     startedDay: day,
     cost: cemeteryFoundingCost(input.squares),

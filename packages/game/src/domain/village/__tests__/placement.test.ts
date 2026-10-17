@@ -293,7 +293,7 @@ describe('fieldPartsFromCells – co pole nesmí', () => {
   });
 });
 
-describe('pohřebiště brání obydlí i poli', () => {
+describe('hřbitov brání obydlí i poli', () => {
   const landscape = makeLandscape();
   // čtverce x 4–5, y 10 = svět x −60 … −30, z 30 … 45
   const village: PlacementVillage = {
@@ -301,15 +301,32 @@ describe('pohřebiště brání obydlí i poli', () => {
     cemeteries: [{ squares: block(4, 10, 2, 1).map((cell) => ({ cell })) }],
   };
 
-  it('obydlí nesmí zasahovat do čtverce pohřebiště', () => {
+  it('obydlí nesmí zasahovat do čtverce hřbitova', () => {
     const check = checkDwellingPlacement(landscape, village, 'zemnice', at(-45, 38));
-    expect(check).toEqual({ ok: false, reason: 'Překrývá se s pohřebištěm.' });
-    expect(checkDwellingPlacement(landscape, village, 'zemnice', at(-45, 20)).ok).toBe(true);
+    expect(check).toEqual({ ok: false, reason: 'Překrývá se s hřbitovem.' });
   });
 
-  it('pole se nesmí překrývat s pohřebištěm', () => {
+  it('obydlí blíž hřbitovu než 150 m jen varuje', () => {
+    // okraj hřbitova z = 30, obydlí v z = 10 → 20 m od okraje
+    expect(checkDwellingPlacement(landscape, village, 'zemnice', at(-45, 10))).toEqual({
+      ok: true,
+      reason: null,
+      warning: 'Blízko hřbitova (20 m)',
+    });
+    const far = makeLandscape({ size: 40 });
+    const farVillage: PlacementVillage = {
+      ...EMPTY,
+      cemeteries: [{ squares: [{ cell: { x: 0, y: 0 } }] }],
+    };
+    expect(checkDwellingPlacement(far, farVillage, 'zemnice', at(0, 0))).toEqual({
+      ok: true,
+      reason: null,
+    });
+  });
+
+  it('pole se nesmí překrývat s hřbitovem', () => {
     const over = fieldPartsFromCells(landscape, village, block(5, 9, 3, 2), [at(0, 0)]);
-    expect(over.check.reason).toBe('Pole se překrývá s pohřebištěm.');
+    expect(over.check.reason).toBe('Pole se překrývá s hřbitovem.');
     expect(over.blockedCells).toEqual([{ x: 5, y: 10 }]);
   });
 });
@@ -347,31 +364,25 @@ describe('cemeteryPartsFromCells', () => {
     });
     expect(result.capacity).toBe(224);
     expect(result.foundingCost).toBe(40);
-    expect(result.warning).toBeNull();
+    expect(result.extendsCemetery).toBe(false);
     expect(result.warningCells).toEqual([]);
   });
 
   it('blízko obydlí jen varuje – neblokuje', () => {
     // čtverec 18 začíná na x = 30 m – okraj 30 m od obydlí v počátku
     const result = cemeteryPartsFromCells(landscape, null, block(18, 15, 1, 2), home);
-    expect(result.check.ok).toBe(true);
-    expect(result.warning).toBe(
-      'Pohřebiště je blízko obydlí (30 m) – ves bude zdravější, když bude aspoň 150 m daleko.',
-    );
+    expect(result.check).toEqual({ ok: true, reason: null, warning: 'Blízko obydlí (30 m)' });
     expect(result.warningCells).toEqual(block(18, 15, 1, 2));
   });
 
-  it('blízko vody varuje, blízko obou zmíní obojí', () => {
+  it('blízko vody varuje, blízko obou dva řádky', () => {
     const water = cemeteryPartsFromCells(landscape, null, block(28, 28, 1, 1), home);
-    expect(water.check.ok).toBe(true);
-    expect(water.warning).toBe(
-      'Pohřebiště je blízko vody (30 m) – ves bude zdravější, když bude aspoň 100 m od potoka.',
-    );
+    expect(water.check).toEqual({ ok: true, reason: null, warning: 'Blízko vody (30 m)' });
     const both = cemeteryPartsFromCells(landscape, null, block(28, 15, 1, 1), [at(150, 0)]);
-    expect(both.warning).toMatch(/^Pohřebiště je blízko obydlí \(\d+ m\) i vody \(30 m\)/);
+    expect(both.check.warning).toBe('Blízko obydlí (30 m)\nBlízko vody (30 m)');
   });
 
-  it('voda, les, obydlí, pole a jiné pohřebiště blokují; zakázané čtverce do náhledu', () => {
+  it('voda, les, obydlí, pole a jiný hřbitov blokují; zakázané čtverce do náhledu', () => {
     const village: PlacementVillage = {
       dwellings: [{ type: 'zemnice', position: at(0, 0) }],
       constructions: [],
@@ -380,16 +391,52 @@ describe('cemeteryPartsFromCells', () => {
     };
     const check = (cells: TileCell[]): string | null =>
       cemeteryPartsFromCells(landscape, village, cells, home).check.reason;
-    expect(check(block(30, 5, 2, 1))).toBe('Pohřebiště nesmí zasahovat do vody.');
+    expect(check(block(30, 5, 2, 1))).toBe('Hřbitov nesmí zasahovat do vody.');
     expect(check(block(1, 1, 2, 1))).toMatch(/jen na louce/);
-    expect(check(block(15, 15, 2, 2))).toBe('Pohřebiště se překrývá s obydlím.');
-    expect(check(block(19, 20, 2, 1))).toBe('Pohřebiště se překrývá s polem.');
-    expect(check(block(11, 20, 2, 1))).toBe('Pohřebiště se překrývá s jiným pohřebištěm.');
+    expect(check(block(15, 15, 2, 2))).toBe('Hřbitov se překrývá s obydlím.');
+    expect(check(block(19, 20, 2, 1))).toBe('Hřbitov se překrývá s polem.');
+    expect(check(block(11, 20, 2, 1))).toBe('Hřbitov se překrývá s jiným hřbitovem.');
     expect(
       cemeteryPartsFromCells(landscape, village, block(19, 20, 2, 1), home).blockedCells,
     ).toEqual([{ x: 20, y: 20 }]);
     const water = cemeteryPartsFromCells(landscape, village, block(30, 5, 2, 1), home);
     expect(water.squares.map((s) => s.cell)).toEqual([{ x: 30, y: 5 }]);
+  });
+
+  it('čtverce navazující stranou na hřbitov ho rozšíří; na dva hřbitovy navázat nejde', () => {
+    const village: PlacementVillage = {
+      ...EMPTY,
+      cemeteries: [
+        { squares: block(10, 10, 2, 1).map((cell) => ({ cell })) },
+        { squares: block(16, 10, 1, 1).map((cell) => ({ cell })) },
+      ],
+    };
+    const extend = cemeteryPartsFromCells(landscape, village, block(10, 11, 2, 1), home);
+    expect(extend.check.ok).toBe(true);
+    expect(extend.extendsCemetery).toBe(true);
+    expect(extend.capacity).toBe(112);
+    // roh nestačí – jen strana
+    const corner = cemeteryPartsFromCells(landscape, village, [{ x: 12, y: 11 }], home);
+    expect(corner.extendsCemetery).toBe(false);
+    // dva oddělené čtverce, oba navazují na hřbitov – s ním tvoří celek
+    const both = cemeteryPartsFromCells(
+      landscape,
+      village,
+      [
+        { x: 9, y: 10 },
+        { x: 12, y: 10 },
+      ],
+      home,
+    );
+    expect(both.check.ok).toBe(true);
+    const two = cemeteryPartsFromCells(landscape, village, block(12, 10, 4, 1), home);
+    expect(two.check.reason).toBe('Hřbitov smí navazovat jen na jeden hřbitov.');
+    const big: PlacementVillage = {
+      ...EMPTY,
+      cemeteries: [{ squares: block(2, 2, 10, 10).map((cell) => ({ cell })) }],
+    };
+    const tooBig = cemeteryPartsFromCells(landscape, big, [{ x: 12, y: 2 }], home);
+    expect(tooBig.check.reason).toBe('Hřbitov může mít nejvýš 100 čtverců.');
   });
 
   it('čtverce musí tvořit jeden celek; neplatné, mimo krajinu a příliš mnoho čtverců neprojdou', () => {
@@ -402,21 +449,19 @@ describe('cemeteryPartsFromCells', () => {
       ],
       home,
     );
-    expect(apart.check.reason).toBe(
-      'Čtverce pohřebiště musí tvořit jeden celek – sousedit stranou.',
-    );
+    expect(apart.check.reason).toBe('Čtverce hřbitova musí tvořit jeden celek – sousedit stranou.');
     expect(cemeteryPartsFromCells(landscape, null, [{ x: 1.5, y: 2 }], home).check.reason).toBe(
-      'Neplatné čtverce pohřebiště.',
+      'Neplatné čtverce hřbitova.',
     );
     expect(cemeteryPartsFromCells(landscape, null, [{ x: 40, y: 2 }], home).check.reason).toBe(
-      'Pohřebiště musí ležet uvnitř krajiny sídla.',
+      'Hřbitov musí ležet uvnitř krajiny sídla.',
     );
     expect(cemeteryPartsFromCells(landscape, null, [], home).check.reason).toBe(
-      'Vyber aspoň jeden čtverec pohřebiště.',
+      'Vyber aspoň jeden čtverec hřbitova.',
     );
     const huge = cemeteryPartsFromCells(landscape, null, block(2, 2, 11, 10), home);
     expect(MAX_CEMETERY_CELLS).toBe(100);
-    expect(huge.check.reason).toBe('Pohřebiště může mít nejvýš 100 čtverců.');
+    expect(huge.check.reason).toBe('Hřbitov může mít nejvýš 100 čtverců.');
   });
 });
 

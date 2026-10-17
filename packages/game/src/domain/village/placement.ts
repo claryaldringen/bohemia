@@ -6,7 +6,7 @@ import {
   type Landscape,
 } from '../landscape';
 import type { CemeterySquareInput, PartInput } from './actions';
-import { cemeteryFoundingCost, distanceToSquare } from './cemetery';
+import { cemeteryFoundingCost, distanceToSquare, touchingCemeteries } from './cemetery';
 import { partFoundingCost } from './fields';
 import { polygonsOverlap, rectangleCorners, type Point } from './polygon';
 import {
@@ -27,6 +27,11 @@ import type { DwellingType, Position, TileCell } from './types';
 export interface PlacementCheck {
   ok: boolean;
   reason: string | null;
+  /**
+   * Varování u prošlého umístění – stavbu neblokuje, hráč ho uvidí u kurzoru (hřbitov blízko
+   * obydlí nebo vody, obydlí blízko hřbitova). Bez varování chybí.
+   */
+  warning?: string;
 }
 
 /** Co z vsi potřebuje kontrola překryvu – VillageState ji splňuje, klient ji složí ze scény. */
@@ -57,29 +62,29 @@ export interface FieldPreview {
 }
 
 /**
- * Náhled pohřebiště ze čtverců – čtverce pro `foundCemetery`, cena, místo a varování, když je
- * moc blízko obydlí nebo vody (hygienu samotnou hráč nevidí – cemetery.md).
+ * Náhled hřbitova ze čtverců – čtverce pro `foundCemetery`, cena, místo a varování
+ * (`check.warning`), když je moc blízko obydlí nebo vody (hygienu samotnou hráč nevidí).
  */
 export interface CemeteryPreview {
   /** Vybrané čtverce bez opakování, po řádcích (y, pak x). */
   cells: TileCell[];
-  /** Čtverce pohřebiště – jeden na každý čtverec louky. */
+  /** Čtverce hřbitova – jeden na každý čtverec louky. */
   squares: CemeterySquareInput[];
-  /** Kolik hrobů se do pohřebiště vejde. */
+  /** Kolik hrobů se do nových čtverců vejde. */
   capacity: number;
   foundingCost: number;
-  /** Čtverce, kam pohřebiště nesmí (voda, les, obydlí, pole, jiné pohřebiště) – scéna je zčervená. */
+  /** Čtverce navazují na hřbitov a rozšíří ho (jinak vznikne nový). */
+  extendsCemetery: boolean;
+  /** Čtverce, kam hřbitov nesmí (voda, les, obydlí, pole, jiný hřbitov) – scéna je zčervená. */
   blockedCells: TileCell[];
-  /** Čtverce blíž obydlí než 150 m nebo vodě než 100 m – scéna je může zbarvit varovně. */
+  /** Čtverce blíž obydlí než 150 m nebo vodě než 100 m – scéna je zbarví oranžově. */
   warningCells: TileCell[];
   check: PlacementCheck;
-  /** Varování do bubliny (stavbu neblokuje): pohřebiště je moc blízko obydlí nebo vody. */
-  warning: string | null;
 }
 
 /** Nejvíc čtverců jednoho pole (≈ 34 ha) – ochrana serveru před obřím vstupem. */
 export const MAX_FIELD_CELLS = 1500;
-/** Nejvíc čtverců jednoho pohřebiště (5 600 hrobů) – ochrana serveru před obřím vstupem. */
+/** Nejvíc čtverců jednoho hřbitova (5 600 hrobů) – ochrana serveru před obřím vstupem. */
 export const MAX_CEMETERY_CELLS = 100;
 /** Krok vzorkování půdorysu obydlí (m) – výšky a povrch políček pod ním. */
 const FOOTPRINT_SAMPLE_STEP_M = 0.5;
@@ -99,6 +104,11 @@ function formatNumber(value: number, decimals: number): string {
 /** Celé číslo s mezerami po tisících. */
 function formatInteger(value: number): string {
   return String(Math.round(value)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+}
+
+/** Celé metry dolů – „149 m“ je opravdu méně než 150 m. */
+function wholeMeters(value: number): string {
+  return `${formatInteger(Math.floor(value))} m`;
 }
 
 /** Rohy půdorysu obydlí ve světě. */
@@ -219,14 +229,34 @@ function checkFootprintFree(
   const occupied = occupiedCells(landscape, village);
   if (under.some((i) => occupied.has(i))) return fail('Překrývá se s polem.');
   const cemeteries = cemeteryCells(landscape, village);
-  if (under.some((i) => cemeteries.has(i))) return fail('Překrývá se s pohřebištěm.');
+  if (under.some((i) => cemeteries.has(i))) return fail('Překrývá se s hřbitovem.');
   return OK;
+}
+
+/** Varování, když obydlí stojí blíž hřbitovu, než je pro hygienu v pořádku (neblokuje). */
+function nearCemeteryWarning(
+  landscape: Landscape,
+  village: PlacementVillage | null,
+  position: Position,
+): PlacementCheck {
+  let nearest = Infinity;
+  for (const cemetery of village?.cemeteries ?? []) {
+    for (const { cell } of cemetery.squares) {
+      const center = tileCenterWorld(landscape, cell.x, cell.y);
+      nearest = Math.min(
+        nearest,
+        distanceToSquare(position.x, position.z, center, landscape.cellSizeM),
+      );
+    }
+  }
+  if (nearest >= CEMETERY_DISTANCE_M.dwelling.ok) return OK;
+  return { ok: true, reason: null, warning: `Blízko hřbitova (${wholeMeters(nearest)})` };
 }
 
 /**
  * Smí obydlí stát na místě? Rozdíl výšek pod půdorysem nejvýš 0,5 m, všechna políčka pod ním
  * louka (ne voda, zatím ani les), žádný překryv s obydlími, rozestavěnými obydlími, poli
- * a pohřebišti.
+ * a hřbitovy. Blíž hřbitovu než 150 m jen varuje (`warning`).
  */
 export function checkDwellingPlacement(
   landscape: Landscape,
@@ -239,7 +269,9 @@ export function checkDwellingPlacement(
   }
   const terrain = checkFootprintTerrain(landscape, footprintSamples(type, position));
   if (!terrain.ok) return terrain;
-  return checkFootprintFree(landscape, village, dwellingFootprint(type, position));
+  const free = checkFootprintFree(landscape, village, dwellingFootprint(type, position));
+  if (!free.ok) return free;
+  return nearCemeteryWarning(landscape, village, position);
 }
 
 /** Polohy obydlí vsi včetně rozestavěných – od nich se měří vzdálenost dílů pole. */
@@ -254,7 +286,7 @@ export function villageDwellingPositions(village: PlacementVillage | null): Posi
 
 type CellsShape = { ok: true; cells: TileCell[] } | { ok: false; reason: string };
 
-/** Co se staví po čtvercích – název v 1. a 2. pádě (obojí rodu středního) a nejvíc čtverců. */
+/** Co se staví po čtvercích – název v 1. a 2. pádě a nejvíc čtverců. */
 interface SquaresKind {
   nominative: string;
   genitive: string;
@@ -262,8 +294,8 @@ interface SquaresKind {
 }
 const FIELD_KIND: SquaresKind = { nominative: 'Pole', genitive: 'pole', maxCells: MAX_FIELD_CELLS };
 const CEMETERY_KIND: SquaresKind = {
-  nominative: 'Pohřebiště',
-  genitive: 'pohřebiště',
+  nominative: 'Hřbitov',
+  genitive: 'hřbitova',
   maxCells: MAX_CEMETERY_CELLS,
 };
 
@@ -482,7 +514,7 @@ export function fieldPartsFromCells(
     [problems.forest, () => 'Pole jde zatím zakládat jen na louce – mýcení lesa přijde později.'],
     [problems.dwelling, () => 'Pole se překrývá s obydlím.'],
     [problems.field, () => 'Pole se překrývá s jiným polem.'],
-    [problems.cemetery, () => 'Pole se překrývá s pohřebištěm.'],
+    [problems.cemetery, () => 'Pole se překrývá s hřbitovem.'],
     [problems.far, () => `Pole je dál než ${FIELD_LIMITS.maxDistanceM} m od nejbližšího obydlí.`],
     [
       !isConnected(landscape, shape.cells),
@@ -507,44 +539,26 @@ export function fieldPartsFromCells(
   };
 }
 
-/** Celé metry dolů – „149 m“ je opravdu méně než 150 m. */
-function wholeMeters(value: number): string {
-  return `${formatInteger(Math.floor(value))} m`;
-}
-
-/** Varování do bubliny, když je pohřebiště blíž obydlí nebo vodě, než je v pořádku. */
-function cemeteryWarning(dwellingM: number, waterM: number): string | null {
-  const { dwelling, water } = CEMETERY_DISTANCE_M;
-  const nearDwelling = dwellingM < dwelling.ok;
-  const nearWater = waterM < water.ok;
-  if (nearDwelling && nearWater) {
-    return (
-      `Pohřebiště je blízko obydlí (${wholeMeters(dwellingM)}) i vody (${wholeMeters(waterM)}) – ` +
-      `ves bude zdravější, když bude aspoň ${dwelling.ok} m od obydlí a ${water.ok} m od vody.`
-    );
-  }
-  if (nearDwelling) {
-    return (
-      `Pohřebiště je blízko obydlí (${wholeMeters(dwellingM)}) – ves bude zdravější, ` +
-      `když bude aspoň ${dwelling.ok} m daleko.`
-    );
-  }
-  if (nearWater) {
-    return (
-      `Pohřebiště je blízko vody (${wholeMeters(waterM)}) – ves bude zdravější, ` +
-      `když bude aspoň ${water.ok} m od potoka.`
-    );
-  }
-  return null;
+/** Varování u kurzoru, když je hřbitov blíž obydlí nebo vodě, než je v pořádku (řádek na každé). */
+function cemeteryWarning(dwellingM: number, waterM: number): string | undefined {
+  const lines = [
+    dwellingM < CEMETERY_DISTANCE_M.dwelling.ok
+      ? `Blízko obydlí (${wholeMeters(dwellingM)})`
+      : null,
+    waterM < CEMETERY_DISTANCE_M.water.ok ? `Blízko vody (${wholeMeters(waterM)})` : null,
+  ].filter((line) => line !== null);
+  return lines.length > 0 ? lines.join('\n') : undefined;
 }
 
 /**
- * Pohřebiště ze čtverců – políček krajiny (cemetery.md – Stavba). Čtverce jen na louce (les
- * zatím ne – jako u polí). Kontrola v tomto pořadí: platné čtverce v krajině, ne voda, ne les,
- * nepřekrývá obydlí (i plánovaná z `dwellingPositions`), pole ani jiné pohřebiště, čtverce
- * sousedí stranou v jednom celku. Blízkost obydlí (pod 150 m) a vody (pod 100 m) stavbu
- * neblokuje – jen `warning` a `warningCells`. Náhled se počítá i při neúspěchu – kromě
- * neplatných čtverců.
+ * Hřbitov ze čtverců – políček krajiny (cemetery.md – Stavba). Čtverce jen na louce (les
+ * zatím ne – jako u polí). Čtverce, které stranou navazují na hřbitov, ho rozšíří
+ * (`extendsCemetery`). Kontrola v tomto pořadí: platné čtverce v krajině, ne voda, ne les,
+ * nepřekrývá obydlí (i plánovaná z `dwellingPositions`), pole ani hřbitov, navazuje nejvýš na
+ * jeden hřbitov, čtverce (i s rozšiřovaným hřbitovem) sousedí stranou v jednom celku, celý
+ * hřbitov nejvýš MAX_CEMETERY_CELLS čtverců. Blízkost obydlí (pod 150 m) a vody (pod 100 m)
+ * stavbu neblokuje – jen `check.warning` a `warningCells`. Náhled se počítá i při neúspěchu
+ * – kromě neplatných čtverců.
  */
 export function cemeteryPartsFromCells(
   landscape: Landscape,
@@ -559,10 +573,10 @@ export function cemeteryPartsFromCells(
       squares: [],
       capacity: 0,
       foundingCost: 0,
+      extendsCemetery: false,
       blockedCells: [],
       warningCells: [],
       check: fail(shape.reason),
-      warning: null,
     };
   }
 
@@ -606,26 +620,34 @@ export function cemeteryPartsFromCells(
     squares.push({ ...square, waterDistanceM: water, obstacleCost: 0 });
   }
 
+  const touching = touchingCemeteries(village?.cemeteries ?? [], shape.cells);
+  const extended = touching.length === 1 ? touching[0]!.squares.map((s) => s.cell) : [];
   const checks: [boolean, string][] = [
-    [problems.water, 'Pohřebiště nesmí zasahovat do vody.'],
-    [problems.forest, 'Pohřebiště jde zatím zakládat jen na louce – mýcení lesa přijde později.'],
-    [problems.dwelling, 'Pohřebiště se překrývá s obydlím.'],
-    [problems.field, 'Pohřebiště se překrývá s polem.'],
-    [problems.cemetery, 'Pohřebiště se překrývá s jiným pohřebištěm.'],
+    [problems.water, 'Hřbitov nesmí zasahovat do vody.'],
+    [problems.forest, 'Hřbitov jde zatím zakládat jen na louce – mýcení lesa přijde později.'],
+    [problems.dwelling, 'Hřbitov se překrývá s obydlím.'],
+    [problems.field, 'Hřbitov se překrývá s polem.'],
+    [problems.cemetery, 'Hřbitov se překrývá s jiným hřbitovem.'],
+    [touching.length > 1, 'Hřbitov smí navazovat jen na jeden hřbitov.'],
     [
-      !isConnected(landscape, shape.cells),
-      'Čtverce pohřebiště musí tvořit jeden celek – sousedit stranou.',
+      !isConnected(landscape, [...shape.cells, ...extended]),
+      'Čtverce hřbitova musí tvořit jeden celek – sousedit stranou.',
+    ],
+    [
+      shape.cells.length + extended.length > MAX_CEMETERY_CELLS,
+      `Hřbitov může mít nejvýš ${formatInteger(MAX_CEMETERY_CELLS)} čtverců.`,
     ],
   ];
   const failed = checks.find(([broken]) => broken);
+  const warning = squares.length > 0 ? cemeteryWarning(nearestDwellingM, nearestWaterM) : undefined;
   return {
     cells: shape.cells,
     squares,
     capacity: squares.length * CEMETERY.gravesPerSquare,
     foundingCost: cemeteryFoundingCost(squares),
+    extendsCemetery: touching.length === 1,
     blockedCells,
     warningCells,
-    check: failed ? fail(failed[1]) : OK,
-    warning: squares.length > 0 ? cemeteryWarning(nearestDwellingM, nearestWaterM) : null,
+    check: failed ? fail(failed[1]) : warning ? { ok: true, reason: null, warning } : OK,
   };
 }
