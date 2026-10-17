@@ -10,17 +10,17 @@ import { Color3, Color4 } from '@babylonjs/core/Maths/math.color';
 import { Matrix, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { CreateGround } from '@babylonjs/core/Meshes/Builders/groundBuilder';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
-import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import { Scene } from '@babylonjs/core/scene';
-import { SHOWCASE_BUILDINGS, type ShowcaseModel } from './building-showcase-layout';
+import { SHOWCASE_BUILDINGS } from './building-showcase-layout';
 import { SUN_DIRECTION } from './constants';
 import { createEngine, type RendererName } from './create-engine';
-import { PIT_SHAPES, pitMeshData, type PitCut } from './dwelling-pit';
 import { eaveTufts, type TuftModel } from './dwelling-decor';
 import { applyGammaFog } from './gamma-fog';
-import { addInstancedModel, loadMergedModel } from './instanced-model';
+import { addInstancedModel, loadMergedModel, loadModelParts } from './instanced-model';
 import { PitCuts, applyPitCut } from './pit-cut';
-import { addSunShadows } from './sun-shadows';
+import { ShowcaseSites } from './showcase-sites';
+import { addSunShadows, type SunShadows } from './sun-shadows';
+import { CONSTRUCTION_BASE } from './village-construction';
 
 /** Úhel kamery od svislice ve hře (BETA v camera.ts) – výchozí pohled vývojové stránky. */
 const GAME_BETA = 0.85;
@@ -34,6 +34,12 @@ const AMBIENT = new Color3(0.38, 0.38, 0.36);
 const PLANT_AMBIENT = new Color3(0.45, 0.48, 0.45);
 const TUFT_TINT = new Color3(0.56, 0.86, 0.4);
 const TUFT_MODELS: readonly TuftModel[] = ['grass-tuft-1', 'grass-tuft-2'];
+/** Díly staveniště: obydlí a jejich rekvizity, řemesla (+ kameny a hlína), uhlíř a milíř. */
+const CONSTRUCTION_URLS = [
+  '/models/dwellings/construction.glb',
+  '/models/crafts/construction.glb',
+  '/models/crafts/construction-moss.glb',
+];
 
 /**
  * VÝVOJOVÝ NÁHLED – jen pro /dev/buildings: stavby vedle sebe na rovné louce se světlem hry
@@ -47,6 +53,12 @@ export class BuildingShowcase {
   private hasView = false;
   private burstUntil = 0;
   private disposed = false;
+  private progress = 1;
+  private sites: ShowcaseSites | null = null;
+  private shadows: SunShadows | null = null;
+  /** Hotové modely a trsy trávy – při stavbě skryté. */
+  private readonly finished: Mesh[] = [];
+  private readonly tufts: Mesh[] = [];
 
   private constructor(
     private readonly engine: AbstractEngine,
@@ -140,25 +152,26 @@ export class BuildingShowcase {
     if (this.disposed) return;
     this.disposed = true;
     this.resizeObserver.disconnect();
+    this.sites?.dispose();
     this.camera.detachControl();
     this.engine.stopRenderLoop();
     this.scene.dispose();
     this.engine.dispose();
   }
 
+  /**
+   * Průběh stavby všech staveb 0–1 (1 = hotové): staveniště po fázích jako ve vsi
+   * (village-construction.ts) – díly, jáma, drn, vytyčení, hromada hlíny a rekvizity.
+   */
+  setProgress(progress: number): void {
+    this.progress = Math.min(1, Math.max(0, progress));
+    this.applyProgress();
+  }
+
   private async build(sun: DirectionalLight): Promise<void> {
     const scene = this.scene;
     const models = SHOWCASE_BUILDINGS.flatMap((b) => b.models);
-    const pitted = models.filter(
-      (m): m is ShowcaseModel & { pit: NonNullable<ShowcaseModel['pit']> } => m.pit !== null,
-    );
     const pitCuts = new PitCuts();
-    pitCuts.set(
-      pitted.map((m): PitCut => ({
-        position: { x: m.x, z: m.z, rotation: m.rotation },
-        shape: PIT_SHAPES[m.pit],
-      })),
-    );
 
     const ground = CreateGround(
       'showcase-ground',
@@ -177,40 +190,8 @@ export class BuildingShowcase {
     applyPitCut(grassMaterial, pitCuts);
     ground.material = grassMaterial;
 
-    // jámy se schody jako ve vsi (dwelling-pit.ts): na rovině okraj ve výšce 0
-    const pitMaterial = new StandardMaterial('showcase-pit', scene);
-    pitMaterial.specularColor = Color3.Black();
-    pitMaterial.backFaceCulling = false;
-    pitMaterial.twoSidedLighting = true;
-    pitMaterial.diffuseTexture = new Texture('/textures/terrain/mud.jpg', scene);
-    const pits = pitted.map((m, i) => {
-      const data = pitMeshData(
-        PIT_SHAPES[m.pit],
-        { x: m.x, z: m.z, rotation: m.rotation },
-        {
-          depth: PIT_SHAPES[m.pit].depth,
-          base: BASE_Y,
-          rim: () => 0,
-          roofCover: 1,
-          fresh: false,
-          sun: SUN_DIRECTION,
-        },
-      );
-      const vertexData = new VertexData();
-      vertexData.positions = data.positions;
-      vertexData.normals = data.normals;
-      vertexData.uvs = data.uvs;
-      vertexData.colors = data.colors;
-      vertexData.indices = data.indices;
-      const mesh = new Mesh(`showcase-pit-${i}`, scene);
-      vertexData.applyToMesh(mesh);
-      mesh.material = pitMaterial;
-      mesh.isPickable = false;
-      mesh.receiveShadows = true;
-      return mesh;
-    });
-
     const casters: Mesh[] = [];
+    const parts = new Map<string, Mesh>();
     await Promise.all([
       ...models.map(async (m, i) => {
         try {
@@ -224,13 +205,17 @@ export class BuildingShowcase {
           mesh.position.set(m.x, BASE_Y, m.z);
           mesh.rotation.y = m.rotation;
           casters.push(mesh);
+          this.finished.push(mesh);
         } catch (error) {
           console.warn(`Model ${m.url} se nepodařilo načíst.`, error);
         }
       }),
       ...TUFT_MODELS.map(async (name) => {
-        const instances = pitted
-          .flatMap((m, i) => eaveTufts(m.pit, { x: m.x, z: m.z, rotation: m.rotation }, i + 1))
+        const instances = models
+          .flatMap((m, i) => {
+            const base = CONSTRUCTION_BASE[m.kind];
+            return base ? eaveTufts(base, m, i + 1) : [];
+          })
           .filter((t) => t.model === name)
           .map((t) => ({ x: t.x, y: -0.04, z: t.z, rotationY: t.rotationY, scale: t.scale }));
         try {
@@ -241,22 +226,45 @@ export class BuildingShowcase {
             instances,
             prepareTuftMaterial,
           );
-          if (mesh) casters.push(mesh);
+          if (!mesh) return;
+          casters.push(mesh);
+          this.tufts.push(mesh);
         } catch (error) {
           console.warn('Trsy trávy se nepodařilo načíst.', error);
         }
       }),
+      ...CONSTRUCTION_URLS.map(async (url) => {
+        try {
+          const loaded = await loadModelParts(scene, url, 'showcase-site-', prepareModelMaterial);
+          for (const [name, mesh] of loaded ?? []) {
+            mesh.setEnabled(false);
+            parts.set(name, mesh);
+            casters.push(mesh);
+          }
+        } catch (error) {
+          console.warn(`Díly staveniště ${url} se nepodařilo načíst.`, error);
+        }
+      }),
     ]);
     if (this.disposed) return;
-    addSunShadows(sun, {
-      casters,
-      receivers: [ground, ...pits],
-      extentM: GROUND_SIZE.width,
-    });
+    this.sites = new ShowcaseSites(scene, models, parts, pitCuts, BASE_Y);
+    this.shadows = addSunShadows(sun, { casters, receivers: [ground], extentM: GROUND_SIZE.width });
+    this.applyProgress();
     await scene.whenReadyAsync();
     if (this.disposed) return;
     this.burst(1500);
     this.engine.runRenderLoop(() => this.frame());
+  }
+
+  /** Hotové modely a trsy u okapu jen při 100 %, jinak staveniště; stíny znovu. */
+  private applyProgress(): void {
+    if (!this.sites) return;
+    const built = this.progress >= 1;
+    for (const mesh of this.finished) mesh.setEnabled(built);
+    for (const mesh of this.tufts) mesh.setEnabled(built);
+    this.sites.update(this.progress);
+    this.shadows?.refresh();
+    this.burst(400);
   }
 
   /** Kreslí jen při změně pohledu (a chvíli po načtení, než se dokončí shadery a textury). */
