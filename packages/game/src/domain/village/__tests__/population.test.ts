@@ -124,16 +124,16 @@ describe('deathChancePerDay', () => {
 });
 
 describe('populationDay', () => {
-  it('v hájení při nasycení 1 nezemře žádný dospělý (50 seedů × 30 let)', () => {
+  it('v hájení při nasycení 1 nezemře žádný dospělý (200 seedů × 30 let)', () => {
     let deaths = 0;
-    for (let seed = 1; seed <= 50; seed++) {
+    for (let seed = 1; seed <= 200; seed++) {
       const state = startVillage(seed);
       for (let day = FOUNDED; day < FOUNDED + 30 * 365; day++) {
         deaths += adultDeaths(populationDay(state, day, 1));
       }
     }
     expect(deaths).toBe(0);
-  });
+  }, 20_000);
 
   it('(B) mrtví se losují před porody, takže hlad na ně u dvou dospělých nemá vliv (500 seedů)', () => {
     let compared = 0;
@@ -156,10 +156,10 @@ describe('populationDay', () => {
     expect(compared).toBeGreaterThan(500);
   });
 
-  it('(C) (100 seedů × 10 let) šestičlenná ves po hájení má při hladu víc úmrtí dospělých než při sytosti', () => {
+  it('(C) (200 seedů × 10 let) šestičlenná ves po hájení má při hladu víc úmrtí dospělých než při sytosti', () => {
     let hungryDeaths = 0;
     let fedDeaths = 0;
-    for (let seed = 1; seed <= 100; seed++) {
+    for (let seed = 1; seed <= 200; seed++) {
       const people = [1, 2, 3, 4, 5, 6].map((id) => ofAge(id, 20 + id, 1, AFTER_LUCK));
       const hungry = village(seed, people, [dwelling(1)]);
       const fed = copy(hungry);
@@ -169,7 +169,7 @@ describe('populationDay', () => {
       }
     }
     expect(hungryDeaths).toBeGreaterThan(fedDeaths);
-  });
+  }, 20_000);
 
   it('stejný stav a den dají stejné události', () => {
     const a = startVillage(7);
