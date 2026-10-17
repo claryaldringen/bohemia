@@ -49,6 +49,7 @@ ne jeden pán.
 | Stack: Turborepo, Next.js, TypeScript, Drizzle, PM2 + Caddy                                                         | návrh Clauda                  |
 | Herní kalendář: juliánský, roční období podle měsíců, datum malé v rohu ([calendar.md](calendar.md))                | návrh Clauda, Martin schválil |
 | Obyvatelstvo a obydlí vesnice: domácnosti, růst, stavby hráče, přestavby obyvateli ([population.md](population.md)) | Martin, čísla návrh Clauda    |
+| Pole a jídlo: společná pole vsi, přílohová soustava, ruční práce, zásoby a nasycení ([fields.md](fields.md))        | Martin, čísla návrh Clauda    |
 | Hexagonální architektura (porty a adaptéry), hranice hlídá ESLint                                                   | návrh Clauda, Martin schválil |
 | UI česky, kód anglicky                                                                                              | návrh Clauda                  |
 | Herní čas jako čistá funkce skutečného času, pravidla v `packages/game`, server je autorita                         | návrh Clauda                  |

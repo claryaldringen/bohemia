@@ -57,7 +57,8 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
 - Hráč v krajině svého sídla umístí půdorys první zemnice (viz Umístění obydlí). Zemnice tam
   hned stojí (osadníci přišli) a bydlí v ní **4 lidé**: dva dospělí (kolem 25 let) a dva
   dospívající (12 a 13 let – návrh Clauda, aby první nová domácnost mohla vzniknout do pár let).
-- Pole jsou samostatná a společná pro celou ves – zakládají se zvlášť ([fields.md](fields.md)).
+- Spolu se zemnicí hráč založí i **první pole** (Martin) – pole jsou samostatná a společná pro
+  celou ves ([fields.md](fields.md)).
 
 ### Umístění obydlí
 
@@ -66,9 +67,9 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
   zhruba 4 × 4 m, polozemnice 5 × 5 m (návrh Clauda).
 - Obydlí nesmí stát ve vodě ani se překrývat s jiným obydlím nebo polem (návrh Clauda).
 - **Překážky** na místě, např. kameny, osadníci odstraní, ale stavba stojí víc člověkodní
-  (Martin). Totéž **v lese** – stromy je třeba skácet a vykopat pařezy. Výchozí: kámen 1–5
-  člověkodní podle velikosti, strom 2 člověkodny (návrh Clauda). Hráč cenu vidí už při
-  umisťování.
+  (Martin). Totéž **v lese** – stromy je třeba skácet a vykopat pařezy. Ceny překážek a mýcení
+  jsou jedna tabulka pro celou hru ve [fields.md](fields.md) (návrh Clauda). Hráč cenu vidí už
+  při umisťování.
 - Odstraněné kameny a stromy z krajiny sídla zmizí natrvalo – krajina sídla je vygenerovaná
   krajina plus změny, které v ní udělali lidé (návrh Clauda).
 
@@ -76,9 +77,9 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
 
 - Pracovní síla za den: dospělý 1 člověkoden, starší 0,5, dítě 7–13 let 0,3, mladší 0
   (návrh Clauda).
-- Domácnost spotřebuje většinu své práce na vlastní obživu a potřeby. **Dokud nebude navržené
-  jídlo, je to pevně 85 %** (návrh Clauda); zbylých 15 % je **volná práce domácnosti**.
-- Volná práce domácnosti jde nejdřív na opravy jejího obydlí, zbytek do **společné práce vsi**.
+- Pole jsou společná, a proto se práce počítá **za celou ves** – dospělí všech domácností
+  pracují pro ves. Pořadí (denní minimum domácností, polní práce, opravy obydlí, domácí výroba,
+  zbytek **společná práce vsi**) popisuje [fields.md](fields.md).
 - Společná práce se nedá schovat na později – každý den jde do rozestavěných staveb (stavby
   hráče i přestavby obyvatel, rovným dílem), a když žádná není, propadne.
 
@@ -90,12 +91,13 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
   umírají asi 1,5 % ročně, starší víc (kolem 8 % ročně). Hlad a přeplněnost úmrtnost zvýší.
 - **Přeplněnost** sama nastaví strop: populace domácnosti se ustálí kolem kapacity obydlí
   (+1–2), takže ves bez nových staveb přestane růst, ale nevymře.
-- **Jídlo** vstupuje jako **nasycení vsi** 0–1. Spočítá ho mechanika jídla; do té doby je 1.
+- **Jídlo** vstupuje jako **nasycení vsi** 0–1 – počítá ho [fields.md](fields.md). Hlad ves
+  zmenší na tolik lidí, kolik pole uživí, ale nezničí ji (návrh Clauda).
 - Porody a úmrtí jsou **jednotlivé náhodné události**, ale opakovatelné: náhoda se odvozuje
   ze seedu světa, vsi a herního data. Stejný stav ve stejný den dá vždy stejný výsledek.
 - Lidé stárnou podle data narození; s věkem přecházejí mezi skupinami.
 - **Hájení:** prvních 30 herních let od založení vsi jí přeje štěstí (Martin) – dospělí
-  neumírají a dětí umírá polovina oproti běžné úmrtnosti (podoba štěstí je návrh Clauda, doladí
+  neumírají (ani hladem) a dětí umírá polovina oproti běžné úmrtnosti (podoba štěstí je návrh Clauda, doladí
   se kalibrací). Malá ves tak nevymře hned na začátku a všichni hráči mají srovnatelný start.
 - **Rozpad domácnosti** (návrh Clauda): domácnost bez dospělého (jen děti nebo starší) a osamělý
   dospělý bez dětí se přestěhují do domácnosti s nejvíc volnými místy (smí ji i přeplnit) –
@@ -125,9 +127,10 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
 
 - Každé obydlí má **stav** 0–100 % a stárne. Potřeba oprav (člověkodny za rok) roste s věkem
   – zpočátku malá, ke konci životnosti velká (Martin).
-- Opravy platí domácnost ze své volné práce, takže stárnoucí domy ubírají společnou práci vsi.
-  Když na opravy nestačí, stav klesá rychleji.
-- Ke konci životnosti berou opravy zhruba polovinu volné práce domácnosti (návrh Clauda) –
+- Opravy jdou z práce vsi hned po polních pracích ([fields.md](fields.md)), takže stárnoucí
+  domy ubírají společnou práci vsi. Když na opravy práce nestačí, stav klesá rychleji.
+- Ke konci životnosti stojí opravy obydlí zhruba polovinu toho, co jeho domácnost přidá do
+  společné práce vsi (návrh Clauda) –
   stárnoucí domy citelně ubírají vsi práci.
 - **Přestavba:** když se opravy přestanou vyplácet (typicky kolem konce životnosti) nebo stav
   klesne na 0, obyvatelé se **sami** rozhodnou dům zbourat a na stejném místě postavit nový
@@ -149,7 +152,8 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
 - **Dřevo:** dokud nebude navržená těžba (les, kácení), dřevo se neeviduje – kácení a dovoz
   jsou zahrnuté v ceně stavby v člověkodnech (návrh Clauda; Martin chtěl dřevo ze společných
   zásob, přijde s mechanikou lesa).
-- **Jídlo:** nasycení = 1 a pevných 85 % práce na obživu, dokud nebude navržená výroba jídla.
+- **Jídlo a práce na obživu** řeší [fields.md](fields.md) (nasycení ze zásob obilí, práce za
+  celou ves).
 - **Voda:** zatím bez vlivu.
 
 ## Kalibrace
@@ -161,7 +165,7 @@ stovky vsí a ověří cíle:
   „zkusíme to“; hrubá simulace s hájením: medián 3 roky, 90 % do 7, 99 % do 20,
 - čerstvě plná domácnost postaví zemnici zhruba za roční období, polozemnici za herní rok,
 - zemnice se přestavuje typicky po ≈ 15 letech, polozemnice po ≈ 20–25; ke konci životnosti
-  berou opravy zhruba polovinu volné práce domácnosti,
+  stojí opravy zhruba polovinu toho, co domácnost přidá do společné práce,
 - ves, kde hráč staví, kdykoli může, vymře do roku 1500 jen výjimečně (hrubá simulace: 0,6 %).
   Jediná domácnost bez nových staveb za staletí vymře (simulace: ≈ 90 % do 1000 let) – stavět
   se vyplácí; za pár dní nepřítomnosti se ale nic takového nestane (anti-cíl).
@@ -176,8 +180,8 @@ stovky vsí a ověří cíle:
 
 ## Navazuje
 
-- **Jídlo a pole** – další dokument: pole, sklizeň podle ročních období, zásoby, nasycení, kolik
-  práce domácnost potřebuje na obživu (nahradí pevných 85 %).
+- **Jídlo a pole** – [fields.md](fields.md): společná pole, sklizeň podle ročních období,
+  zásoby, nasycení a práce na obživu.
 - **Les a dřevo**, veřejné projekty (opevnění), rod hráče a sňatky.
 
 ## Na stavitelovi
@@ -205,8 +209,8 @@ stovky vsí a ověří cíle:
 | Hájení: prvních 30 herních let vsi přeje štěstí; žádní příchozí z okolí      | Martin                        |
 | Podoba hájení: dospělí neumírají, poloviční dětská úmrtnost                  | návrh Clauda                  |
 | Kapacity 6 / 8, ceny 60 / 220 člověkodní (roční období / rok), životnosti    | návrh Clauda                  |
-| Porodnost, úmrtnost, opravy až polovina volné práce                          | návrh Clauda                  |
+| Porodnost, úmrtnost, opravy až polovina příspěvku domácnosti                 | návrh Clauda                  |
 | Odemčení při plné domácnosti se 4 dospělými; stěhují se dva nejmladší        | návrh Clauda                  |
 | Rozpad domácnosti, prázdná obydlí, nejvýš stavba na každou plnou domácnost   | návrh Clauda                  |
 | Obyvatelé bez jmen a pohlaví, náhoda ze seedu, kronika                       | návrh Clauda                  |
-| Dřevo zatím v ceně práce, 85 % práce na obživu, nasycení 1                   | návrh Clauda (dočasné)        |
+| Dřevo zatím v ceně práce                                                     | návrh Clauda (dočasné)        |
