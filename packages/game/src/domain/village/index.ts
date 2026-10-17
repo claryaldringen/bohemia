@@ -3,3 +3,4 @@ export * from './rules';
 export * from './people';
 export * from './food';
 export * from './dwellings';
+export * from './fields';
