@@ -1,4 +1,5 @@
 import { SURFACE_CODES, type Landscape, type Surface } from '../../landscape';
+import type { TileCell } from '../types';
 
 // Ručně vyrobená krajina pro testy umisťování: políčka 15 m, střed krajiny v počátku.
 // Při velikosti 16 leží hranice políček na násobcích 15 m (…, −15, 0, 15, …).
@@ -34,12 +35,10 @@ export function makeLandscape(spec: LandscapeSpec = {}): Landscape {
   };
 }
 
-/** Osový čtverec s levým horním rohem (x, z). */
-export function square(x: number, z: number, side: number): [number, number][] {
-  return [
-    [x, z],
-    [x + side, z],
-    [x + side, z + side],
-    [x, z + side],
-  ];
+/** Obdélník čtverců (políček) s levým horním čtvercem (x, y), po řádcích. */
+export function block(x: number, y: number, width: number, height: number): TileCell[] {
+  const cells: TileCell[] = [];
+  for (let j = 0; j < height; j++)
+    for (let i = 0; i < width; i++) cells.push({ x: x + i, y: y + j });
+  return cells;
 }

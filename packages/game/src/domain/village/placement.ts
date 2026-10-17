@@ -1,20 +1,19 @@
-import { heightAtWorld, surfaceAt, tileOfWorldPoint, type Landscape } from '../landscape';
+import {
+  heightAtWorld,
+  surfaceAt,
+  tileCenterWorld,
+  tileOfWorldPoint,
+  type Landscape,
+} from '../landscape';
 import type { PartInput } from './actions';
 import { partFoundingCost } from './fields';
-import {
-  clipToRect,
-  isSimplePolygon,
-  normalizeOutline,
-  polygonArea,
-  polygonsOverlap,
-  rectangleCorners,
-  type Point,
-} from './polygon';
+import { polygonsOverlap, rectangleCorners, type Point } from './polygon';
 import { DWELLING_FOOTPRINT_M, DWELLING_MAX_HEIGHT_DIFF_M, FIELD_LIMITS } from './rules';
 import type { DwellingType, Position, TileCell } from './types';
 
 // Umisťování obydlí a polí (population.md – Umístění obydlí, fields.md – Založení pole).
-// Čisté funkce pro server i klienta (náhled při umisťování). Souřadnice = svět scény v metrech.
+// Čisté funkce pro server i klienta (náhled při umisťování). Obydlí stojí kdekoli (souřadnice
+// světa scény v metrech), pole se skládá z celých čtverců – políček krajiny (15 × 15 m).
 
 /** Výsledek kontroly umístění; důvod je česky pro hráče. */
 export interface PlacementCheck {
@@ -29,24 +28,28 @@ export interface PlacementVillage {
     readonly dwellingType: DwellingType | null;
     readonly position: Position | null;
   }[];
-  readonly fields: readonly { readonly outline: readonly Point[] }[];
+  /** Díly polí – každý zabírá své políčko (díl bez políčka se nepočítá). */
+  readonly parts: readonly { readonly cell?: TileCell }[];
 }
 
-/** Náhled pole z obrysu – díly pro `foundField` / `foundVillage` a souhrn pro hráče. */
+/** Náhled pole ze čtverců – díly pro `foundField` / `foundVillage` a souhrn pro hráče. */
 export interface FieldPreview {
+  /** Vybrané čtverce bez opakování, po řádcích (y, pak x). */
+  cells: TileCell[];
+  /** Díly – jeden na každý čtverec louky. */
   parts: PartInput[];
   areaM2: number;
   averageFertility: number;
   foundingCost: number;
+  /** Čtverce, kam pole nesmí (voda, les, obydlí, jiné pole, moc daleko) – scéna je zčervená. */
+  blockedCells: TileCell[];
   check: PlacementCheck;
 }
 
-/** Nejvíc bodů obrysu pole (ochrana serveru před obřím vstupem). */
-export const MAX_OUTLINE_POINTS = 100;
+/** Nejvíc čtverců jednoho pole (≈ 34 ha) – ochrana serveru před obřím vstupem. */
+export const MAX_FIELD_CELLS = 1500;
 /** Krok vzorkování půdorysu obydlí (m) – výšky a povrch políček pod ním. */
 const FOOTPRINT_SAMPLE_STEP_M = 0.5;
-/** Menší útržek obrysu v políčku (m²) se nepočítá jako díl. */
-const MIN_PART_AREA_M2 = 1;
 const M2_PER_HA = 10_000;
 
 const OK: PlacementCheck = { ok: true, reason: null };
@@ -60,10 +63,52 @@ function formatNumber(value: number, decimals: number): string {
   return value.toFixed(decimals).replace('.', ',');
 }
 
+/** Celé číslo s mezerami po tisících. */
+function formatInteger(value: number): string {
+  return String(Math.round(value)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+}
+
 /** Rohy půdorysu obydlí ve světě. */
 export function dwellingFootprint(type: DwellingType, position: Position): Point[] {
   const { width, depth } = DWELLING_FOOTPRINT_M[type];
   return rectangleCorners(position.x, position.z, width, depth, position.rotation);
+}
+
+/** Rohy políčka (čtverce pole) ve světě. */
+export function cellCorners(landscape: Landscape, cell: TileCell): Point[] {
+  const center = tileCenterWorld(landscape, cell.x, cell.y);
+  return rectangleCorners(center.x, center.z, landscape.cellSizeM, landscape.cellSizeM, 0);
+}
+
+function cellIndex(landscape: Landscape, cell: TileCell): number {
+  return cell.y * landscape.size + cell.x;
+}
+
+/** Políčka, jejichž vnitřek se překrývá s mnohoúhelníkem (dotyk hranou překryv není). */
+function cellsUnderPolygon(landscape: Landscape, polygon: readonly Point[]): number[] {
+  const half = (landscape.size * landscape.cellSizeM) / 2;
+  const toTile = (v: number): number =>
+    Math.min(landscape.size - 1, Math.max(0, Math.floor((v + half) / landscape.cellSizeM)));
+  const xs = polygon.map((p) => p[0]);
+  const zs = polygon.map((p) => p[1]);
+  const out: number[] = [];
+  for (let y = toTile(Math.min(...zs)); y <= toTile(Math.max(...zs)); y++) {
+    for (let x = toTile(Math.min(...xs)); x <= toTile(Math.max(...xs)); x++) {
+      if (polygonsOverlap(cellCorners(landscape, { x, y }), polygon)) {
+        out.push(cellIndex(landscape, { x, y }));
+      }
+    }
+  }
+  return out;
+}
+
+/** Políčka, která už zabírají pole vsi. */
+function occupiedCells(landscape: Landscape, village: PlacementVillage | null): Set<number> {
+  const occupied = new Set<number>();
+  for (const part of village?.parts ?? []) {
+    if (part.cell) occupied.add(cellIndex(landscape, part.cell));
+  }
+  return occupied;
 }
 
 /** Body mřížky po FOOTPRINT_SAMPLE_STEP_M přes otočený půdorys, včetně okrajů. */
@@ -110,8 +155,12 @@ function checkFootprintTerrain(landscape: Landscape, samples: readonly Point[]):
   return OK;
 }
 
-/** Půdorys se nepřekrývá s obydlím, rozestavěným obydlím ani polem. */
-function checkFootprintFree(village: PlacementVillage | null, footprint: Point[]): PlacementCheck {
+/** Půdorys se nepřekrývá s obydlím, rozestavěným obydlím ani se čtvercem pole. */
+function checkFootprintFree(
+  landscape: Landscape,
+  village: PlacementVillage | null,
+  footprint: Point[],
+): PlacementCheck {
   if (village === null) return OK;
   for (const d of village.dwellings) {
     if (polygonsOverlap(footprint, dwellingFootprint(d.type, d.position))) {
@@ -124,7 +173,8 @@ function checkFootprintFree(village: PlacementVillage | null, footprint: Point[]
       return fail('Překrývá se s rozestavěným obydlím.');
     }
   }
-  if (village.fields.some((f) => polygonsOverlap(footprint, f.outline))) {
+  const occupied = occupiedCells(landscape, village);
+  if (cellsUnderPolygon(landscape, footprint).some((i) => occupied.has(i))) {
     return fail('Překrývá se s polem.');
   }
   return OK;
@@ -145,7 +195,7 @@ export function checkDwellingPlacement(
   }
   const terrain = checkFootprintTerrain(landscape, footprintSamples(type, position));
   if (!terrain.ok) return terrain;
-  return checkFootprintFree(village, dwellingFootprint(type, position));
+  return checkFootprintFree(landscape, village, dwellingFootprint(type, position));
 }
 
 /** Polohy obydlí vsi včetně rozestavěných – od nich se měří vzdálenost dílů pole. */
@@ -158,79 +208,66 @@ export function villageDwellingPositions(village: PlacementVillage | null): Posi
   return [...built, ...planned];
 }
 
-/** Obrys je mnohoúhelník rozumné velikosti uvnitř krajiny. */
-function checkOutlineShape(landscape: Landscape, points: readonly Point[]): PlacementCheck {
-  if (!points.every(([x, z]) => Number.isFinite(x) && Number.isFinite(z))) {
-    return fail('Neplatné souřadnice obrysu pole.');
+type CellsShape = { ok: true; cells: TileCell[] } | { ok: false; reason: string };
+
+/** Čtverce jako celá čísla uvnitř krajiny, bez opakování, seřazené po řádcích (y, pak x). */
+function normalizeFieldCells(landscape: Landscape, cells: readonly TileCell[]): CellsShape {
+  if (!cells.every((c) => Number.isInteger(c.x) && Number.isInteger(c.y))) {
+    return { ok: false, reason: 'Neplatné čtverce pole.' };
   }
-  if (points.length < 3) return fail('Obrys pole potřebuje aspoň 3 body.');
-  if (points.length > MAX_OUTLINE_POINTS) {
-    return fail(`Obrys pole může mít nejvýš ${MAX_OUTLINE_POINTS} bodů.`);
+  if (cells.some((c) => c.x < 0 || c.y < 0 || c.x >= landscape.size || c.y >= landscape.size)) {
+    return { ok: false, reason: 'Pole musí ležet uvnitř krajiny sídla.' };
   }
-  if (!isSimplePolygon(points)) return fail('Obrys pole se nesmí křížit.');
-  if (points.some(([x, z]) => tileOfWorldPoint(landscape, x, z) === null)) {
-    return fail('Pole musí ležet uvnitř krajiny sídla.');
+  const byIndex = new Map<number, TileCell>();
+  for (const c of cells) byIndex.set(cellIndex(landscape, c), { x: c.x, y: c.y });
+  if (byIndex.size === 0) return { ok: false, reason: 'Vyber aspoň jeden čtverec pole.' };
+  if (byIndex.size > MAX_FIELD_CELLS) {
+    return {
+      ok: false,
+      reason: `Pole může mít nejvýš ${formatInteger(MAX_FIELD_CELLS)} čtverců.`,
+    };
   }
-  return OK;
+  const sorted = [...byIndex.entries()].sort((a, b) => a[0] - b[0]).map(([, cell]) => cell);
+  return { ok: true, cells: sorted };
 }
 
-interface CellPiece {
-  cell: TileCell;
-  areaM2: number;
-}
-
-/** Průnik obrysu s políčky krajiny po řádcích (y, pak x); útržky pod 1 m² se zahodí. */
-function clipToCells(landscape: Landscape, points: readonly Point[]): CellPiece[] {
-  const half = (landscape.size * landscape.cellSizeM) / 2;
-  const cell = landscape.cellSizeM;
-  const toTile = (v: number): number =>
-    Math.min(landscape.size - 1, Math.max(0, Math.floor((v + half) / cell)));
-  const xs = points.map((p) => p[0]);
-  const zs = points.map((p) => p[1]);
-  const pieces: CellPiece[] = [];
-  for (let y = toTile(Math.min(...zs)); y <= toTile(Math.max(...zs)); y++) {
-    for (let x = toTile(Math.min(...xs)); x <= toTile(Math.max(...xs)); x++) {
-      const minX = -half + x * cell;
-      const minZ = -half + y * cell;
-      const areaM2 = polygonArea(clipToRect(points, minX, minZ, minX + cell, minZ + cell));
-      if (areaM2 >= MIN_PART_AREA_M2) pieces.push({ cell: { x, y }, areaM2 });
+/** Čtverce tvoří jednu skupinu, ve které sousedí stranou (4-souvislost). */
+function isConnected(landscape: Landscape, cells: readonly TileCell[]): boolean {
+  const first = cells[0];
+  if (!first) return true;
+  const remaining = new Set(cells.map((c) => cellIndex(landscape, c)));
+  const stack = [first];
+  remaining.delete(cellIndex(landscape, first));
+  while (stack.length > 0) {
+    const { x, y } = stack.pop()!;
+    for (const [dx, dy] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ] as const) {
+      const next = { x: x + dx, y: y + dy };
+      const index = cellIndex(landscape, next);
+      if (next.x < 0 || next.x >= landscape.size || !remaining.has(index)) continue;
+      remaining.delete(index);
+      stack.push(next);
     }
   }
-  return pieces;
+  return remaining.size === 0;
 }
 
 /** Vzdálenost středu políčka k nejbližšímu obydlí (bez obydlí nekonečno). */
 function distanceToNearest(landscape: Landscape, cell: TileCell, positions: Position[]): number {
-  const half = (landscape.size * landscape.cellSizeM) / 2;
-  const cx = -half + (cell.x + 0.5) * landscape.cellSizeM;
-  const cz = -half + (cell.y + 0.5) * landscape.cellSizeM;
-  return positions.reduce((best, p) => Math.min(best, Math.hypot(p.x - cx, p.z - cz)), Infinity);
+  const c = tileCenterWorld(landscape, cell.x, cell.y);
+  return positions.reduce((best, p) => Math.min(best, Math.hypot(p.x - c.x, p.z - c.z)), Infinity);
 }
 
-/** Díly pole z kusů na louce: přirozená úrodnost z krajiny, zatím bez překážek. */
-function meadowParts(
+/** Políčka pod obydlími vsi i plánovanými (plánované obydlí bez typu – první – je zemnice). */
+function dwellingCells(
   landscape: Landscape,
-  pieces: CellPiece[],
-  dwellingPositions: Position[],
-): PartInput[] {
-  return pieces
-    .filter((p) => surfaceAt(landscape, p.cell.x, p.cell.y) === 'meadow')
-    .map((p) => ({
-      areaM2: p.areaM2,
-      distanceM: distanceToNearest(landscape, p.cell, dwellingPositions),
-      naturalFertility: landscape.fertility[p.cell.y * landscape.size + p.cell.x]!,
-      surface: 'meadow',
-      obstacleCost: 0,
-      cell: p.cell,
-    }));
-}
-
-/** Obrys se nepřekrývá s obydlími (i plánovanými – ty jako zemnice) ani s jinými poli. */
-function checkFieldFree(
   village: PlacementVillage | null,
-  outline: readonly Point[],
   dwellingPositions: Position[],
-): PlacementCheck {
+): Set<number> {
   const footprints = [
     ...(village?.dwellings.map((d) => dwellingFootprint(d.type, d.position)) ?? []),
     ...(village?.constructions.flatMap((c) =>
@@ -238,53 +275,72 @@ function checkFieldFree(
         ? [dwellingFootprint(c.dwellingType, c.position)]
         : [],
     ) ?? []),
-    // plánované obydlí bez typu (první obydlí vsi) je zemnice
     ...dwellingPositions.map((p) => dwellingFootprint('zemnice', p)),
   ];
-  if (footprints.some((f) => polygonsOverlap(outline, f))) {
-    return fail('Pole se překrývá s obydlím.');
-  }
-  if (village?.fields.some((f) => polygonsOverlap(outline, f.outline))) {
-    return fail('Pole se překrývá s jiným polem.');
-  }
-  return OK;
+  return new Set(footprints.flatMap((f) => cellsUnderPolygon(landscape, f)));
 }
 
-/** Výměra a vzdálenost dílů podle FIELD_LIMITS. */
-function checkFieldLimits(parts: PartInput[], areaM2: number): PlacementCheck {
-  if (areaM2 < FIELD_LIMITS.minAreaM2) {
-    return fail(
-      `Pole musí mít aspoň ${formatNumber(FIELD_LIMITS.minAreaM2 / M2_PER_HA, 1)} ha louky ` +
-        `(teď ${formatNumber(areaM2 / M2_PER_HA, 2)} ha).`,
-    );
-  }
-  if (parts.some((p) => p.distanceM > FIELD_LIMITS.maxDistanceM)) {
-    return fail(`Pole je dál než ${FIELD_LIMITS.maxDistanceM} m od nejbližšího obydlí.`);
-  }
-  return OK;
-}
-
-const EMPTY_PREVIEW = { parts: [], areaM2: 0, averageFertility: 0, foundingCost: 0 } as const;
+const EMPTY_PREVIEW = {
+  cells: [],
+  parts: [],
+  areaM2: 0,
+  averageFertility: 0,
+  foundingCost: 0,
+  blockedCells: [],
+} as const;
 
 /**
- * Pole z obrysu: průnik s políčky krajiny (15 m), díly jen na louce (les se zatím zahodí).
- * Vzdálenost dílu = od středu políčka k nejbližšímu z `dwellingPositions`. Kontrola: platný
- * jednoduchý obrys v krajině, nezasahuje do vody, nepřekrývá obydlí ani jiná pole, aspoň
- * 0,1 ha louky, žádný díl dál než 800 m. Náhled (díly, výměra…) se počítá i při neúspěchu
- * kontroly – kromě neplatného tvaru obrysu.
+ * Pole ze čtverců – políček krajiny (15 × 15 m, díl = celé políčko). Díly jen na louce (les
+ * zatím ne). Vzdálenost dílu = od středu políčka k nejbližšímu z `dwellingPositions`. Kontrola
+ * v tomto pořadí: platné čtverce v krajině, ne voda, ne les, nepřekrývá obydlí ani jiná pole,
+ * žádný díl dál než 800 m, čtverce sousedí stranou v jednom celku, aspoň 0,1 ha. Náhled
+ * (díly, výměra, zakázané čtverce…) se počítá i při neúspěchu – kromě neplatných čtverců.
  */
-export function fieldPartsFromOutline(
+export function fieldPartsFromCells(
   landscape: Landscape,
   village: PlacementVillage | null,
-  outline: readonly Point[],
+  cells: readonly TileCell[],
   dwellingPositions: Position[],
 ): FieldPreview {
-  const points = normalizeOutline(outline);
-  const shape = checkOutlineShape(landscape, points);
-  if (!shape.ok) return { ...EMPTY_PREVIEW, parts: [], check: shape };
+  const shape = normalizeFieldCells(landscape, cells);
+  if (!shape.ok)
+    return { ...EMPTY_PREVIEW, cells: [], parts: [], blockedCells: [], check: fail(shape.reason) };
 
-  const pieces = clipToCells(landscape, points);
-  const parts = meadowParts(landscape, pieces, dwellingPositions);
+  const occupied = occupiedCells(landscape, village);
+  const underDwellings = dwellingCells(landscape, village, dwellingPositions);
+  const cellArea = landscape.cellSizeM * landscape.cellSizeM;
+  const problems = { water: false, forest: false, dwelling: false, field: false, far: false };
+  const parts: PartInput[] = [];
+  const blockedCells: TileCell[] = [];
+  for (const cell of shape.cells) {
+    const index = cellIndex(landscape, cell);
+    const surface = surfaceAt(landscape, cell.x, cell.y);
+    const distanceM = distanceToNearest(landscape, cell, dwellingPositions);
+    const cellProblems = {
+      water: surface === 'water',
+      forest: surface === 'forest',
+      dwelling: underDwellings.has(index),
+      field: occupied.has(index),
+      far: distanceM > FIELD_LIMITS.maxDistanceM,
+    };
+    let blocked = false;
+    for (const key of Object.keys(cellProblems) as (keyof typeof cellProblems)[]) {
+      if (!cellProblems[key]) continue;
+      problems[key] = true;
+      blocked = true;
+    }
+    if (blocked) blockedCells.push(cell);
+    if (surface !== 'meadow') continue;
+    parts.push({
+      areaM2: cellArea,
+      distanceM,
+      naturalFertility: landscape.fertility[index]!,
+      surface: 'meadow',
+      obstacleCost: 0,
+      cell,
+    });
+  }
+
   const areaM2 = parts.reduce((sum, p) => sum + p.areaM2, 0);
   const averageFertility =
     areaM2 > 0 ? parts.reduce((sum, p) => sum + p.naturalFertility * p.areaM2, 0) / areaM2 : 0;
@@ -292,16 +348,32 @@ export function fieldPartsFromOutline(
     (sum, p) => sum + partFoundingCost(p.surface, p.areaM2, p.obstacleCost),
     0,
   );
-  const inWater = pieces.some((p) => surfaceAt(landscape, p.cell.x, p.cell.y) === 'water');
-  const checks = [
-    () => (inWater ? fail('Pole nesmí zasahovat do vody.') : OK),
-    () => checkFieldFree(village, points, dwellingPositions),
-    () => checkFieldLimits(parts, areaM2),
+  const minCells = Math.ceil(FIELD_LIMITS.minAreaM2 / cellArea);
+  const checks: [boolean, () => string][] = [
+    [problems.water, () => 'Pole nesmí zasahovat do vody.'],
+    [problems.forest, () => 'Pole jde zatím zakládat jen na louce – mýcení lesa přijde později.'],
+    [problems.dwelling, () => 'Pole se překrývá s obydlím.'],
+    [problems.field, () => 'Pole se překrývá s jiným polem.'],
+    [problems.far, () => `Pole je dál než ${FIELD_LIMITS.maxDistanceM} m od nejbližšího obydlí.`],
+    [
+      !isConnected(landscape, shape.cells),
+      () => 'Čtverce pole musí tvořit jeden celek – sousedit stranou.',
+    ],
+    [
+      areaM2 < FIELD_LIMITS.minAreaM2,
+      () =>
+        `Pole musí mít aspoň ${formatNumber(FIELD_LIMITS.minAreaM2 / M2_PER_HA, 1)} ha, ` +
+        `tedy ${minCells} čtverců (teď ${shape.cells.length}).`,
+    ],
   ];
-  let check = OK;
-  for (const run of checks) {
-    check = run();
-    if (!check.ok) break;
-  }
-  return { parts, areaM2, averageFertility, foundingCost, check };
+  const failed = checks.find(([broken]) => broken);
+  return {
+    cells: shape.cells,
+    parts,
+    areaM2,
+    averageFertility,
+    foundingCost,
+    blockedCells,
+    check: failed ? fail(failed[1]()) : OK,
+  };
 }

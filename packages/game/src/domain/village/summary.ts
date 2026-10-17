@@ -56,10 +56,18 @@ export interface VillageSummary {
   canBuildDwelling: boolean;
   buildBlocker: BuildBlocker | null;
   constructions: ConstructionSummary[];
+  /** Ves hladoví – zásoby nevystačí do sklizně (jako `hunger-began` v kronice). */
+  hungry: boolean;
+  /** Stavby stojí – posledních STALL_DAYS dní nezbyla žádná společná práce. */
+  constructionsStalled: boolean;
 }
 
 const DAYS_PER_YEAR = 365;
 const MONTHS_PER_YEAR = 12;
+/** Kolik posledních dní bez společné práce znamená, že stavby stojí. */
+export const STALL_DAYS = 3;
+/** Méně společné práce za den (člověkodny) se bere jako žádná. */
+const NO_LABOR = 0.01;
 
 /** Stadium dílu v daný den; příloh podle celých let zarůstání (fields.md – Zarůstání). */
 export function partStage(part: FieldPart, day: number): PartStage {
@@ -114,6 +122,16 @@ function constructionSummary(state: VillageState, c: Construction): Construction
   };
 }
 
+/** Stavby stojí: nějaká se staví a posledních STALL_DAYS dní na ni nezbyla společná práce. */
+function stalled(state: VillageState): boolean {
+  const recent = state.commonLaborHistory.slice(-STALL_DAYS);
+  return (
+    state.constructions.length > 0 &&
+    recent.length === STALL_DAYS &&
+    recent.every((labor) => labor < NO_LABOR)
+  );
+}
+
 /** Souhrn vsi v den `day` (stav má být dopočítaný do tohoto dne). */
 export function summarizeVillage(state: VillageState, day: number): VillageSummary {
   const needPerDay = state.people.reduce((sum, p) => sum + foodNeedPerDay(p, day), 0);
@@ -135,5 +153,7 @@ export function summarizeVillage(state: VillageState, day: number): VillageSumma
     canBuildDwelling: canBuild,
     buildBlocker: blocker,
     constructions: state.constructions.map((c) => constructionSummary(state, c)),
+    hungry: state.hungry,
+    constructionsStalled: stalled(state),
   };
 }

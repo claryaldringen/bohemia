@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../domain/calendar';
 import type { Position, VillageState } from '../../domain/village';
-import { makeLandscape, square } from '../../domain/village/__tests__/placement-fixtures';
+import { block, makeLandscape } from '../../domain/village/__tests__/placement-fixtures';
 import { foundVillageForSettlement, type FoundVillageInput } from '../found-village';
 import { loadVillage } from '../load-village';
 import { CANNOT_BUILD_DWELLING, placeDwelling } from '../place-dwelling';
@@ -22,7 +22,8 @@ const foundingInput = (overrides: Partial<FoundVillageInput> = {}): FoundVillage
   today: TODAY,
   name: '  Libice ',
   dwelling: at(-50, -50),
-  fieldOutline: square(-20, -20, 40),
+  // čtverce x, y 6–9 = svět −30 … 30 m v obou osách
+  fieldCells: block(6, 6, 4, 4),
   ...overrides,
 });
 
@@ -173,7 +174,7 @@ describe('placeField', () => {
     const today = TODAY + 3;
     const result = await placeField(
       { villages },
-      { settlementId: ID, landscape, today, outline: square(20, -20, 40) },
+      { settlementId: ID, landscape, today, cells: block(10, 6, 3, 4) },
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -181,8 +182,8 @@ describe('placeField', () => {
     expect(state.fields).toHaveLength(2);
     const fieldId = state.fields[1]!.id;
     const parts = state.parts.filter((p) => p.fieldId === fieldId);
-    // x 20–60 = 3 sloupce políček (20–30, 30–45, 45–60), z −20–20 = 4 řádky
     expect(parts).toHaveLength(12);
+    expect(parts.every((p) => p.areaM2 === 225)).toBe(true);
     expect(Math.min(...parts.map((p) => p.distanceM))).toBeGreaterThan(70);
     expect(state.constructions.find((c) => c.fieldId === fieldId)?.startedDay).toBe(today);
   });
@@ -191,7 +192,7 @@ describe('placeField', () => {
     const villages = await foundedVillages();
     const result = await placeField(
       { villages },
-      { settlementId: ID, landscape, today: TODAY + 1, outline: square(0, 0, 40) },
+      { settlementId: ID, landscape, today: TODAY + 1, cells: block(8, 8, 3, 3) },
     );
     expect(result).toEqual({ ok: false, reason: 'Pole se překrývá s jiným polem.' });
     expect(villages.records.get(ID)?.version).toBe(1);
@@ -200,7 +201,7 @@ describe('placeField', () => {
   it('bez vsi pole založit nejde', async () => {
     const result = await placeField(
       { villages: new InMemoryVillages() },
-      { settlementId: ID, landscape, today: TODAY, outline: square(0, 0, 40) },
+      { settlementId: ID, landscape, today: TODAY, cells: block(8, 8, 3, 3) },
     );
     expect(result.ok).toBe(false);
   });

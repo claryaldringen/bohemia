@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  clipToRect,
-  isSimplePolygon,
-  normalizeOutline,
   pointInPolygon,
   polygonArea,
   polygonsOverlap,
@@ -37,107 +34,6 @@ describe('polygonArea', () => {
         [5, 5],
       ]),
     ).toBe(0);
-  });
-});
-
-describe('clipToRect', () => {
-  it('ořízne čtverec přes roh obdélníku na čtvrtinu', () => {
-    const clipped = clipToRect(square(-5, -5, 10), 0, 0, 15, 15);
-    expect(polygonArea(clipped)).toBeCloseTo(25);
-  });
-
-  it('mnohoúhelník celý uvnitř zůstane, celý mimo zmizí', () => {
-    expect(polygonArea(clipToRect(square(2, 2, 5), 0, 0, 15, 15))).toBeCloseTo(25);
-    expect(clipToRect(square(20, 20, 5), 0, 0, 15, 15)).toHaveLength(0);
-  });
-
-  it('nekonvexní tvar L dá správnou plochu průniku', () => {
-    const l: Point[] = [
-      [0, 0],
-      [20, 0],
-      [20, 5],
-      [5, 5],
-      [5, 20],
-      [0, 20],
-    ];
-    // v obdélníku 0–15 × 0–15: pruh 15 × 5 dole + pruh 5 × 10 vlevo
-    expect(polygonArea(clipToRect(l, 0, 0, 15, 15))).toBeCloseTo(75 + 50);
-  });
-});
-
-describe('isSimplePolygon', () => {
-  it('čtverec a nekonvexní mnohoúhelník jsou jednoduché', () => {
-    expect(isSimplePolygon(square(0, 0, 10))).toBe(true);
-    expect(
-      isSimplePolygon([
-        [0, 0],
-        [10, 0],
-        [5, 3],
-        [10, 10],
-        [0, 10],
-      ]),
-    ).toBe(true);
-  });
-
-  it('motýlek (křížící se obrys) jednoduchý není', () => {
-    expect(
-      isSimplePolygon([
-        [0, 0],
-        [10, 10],
-        [10, 0],
-        [0, 10],
-      ]),
-    ).toBe(false);
-  });
-
-  it('obrys, který se vrací po vlastní hraně, jednoduchý není', () => {
-    expect(
-      isSimplePolygon([
-        [0, 0],
-        [10, 0],
-        [5, 0],
-        [5, 5],
-      ]),
-    ).toBe(false);
-  });
-
-  it('obrys dotýkající se sám sebe vrcholem jednoduchý není', () => {
-    expect(
-      isSimplePolygon([
-        [0, 0],
-        [10, 0],
-        [10, 10],
-        [5, 0],
-        [0, 10],
-      ]),
-    ).toBe(false);
-  });
-
-  it('méně než 3 body jednoduchý mnohoúhelník nejsou', () => {
-    expect(
-      isSimplePolygon([
-        [0, 0],
-        [1, 1],
-      ]),
-    ).toBe(false);
-  });
-});
-
-describe('normalizeOutline', () => {
-  it('vynechá body na sobě i uzavírající opakování prvního bodu', () => {
-    expect(
-      normalizeOutline([
-        [0, 0],
-        [10, 0],
-        [10, 0],
-        [10, 10],
-        [0, 0],
-      ]),
-    ).toEqual([
-      [0, 0],
-      [10, 0],
-      [10, 10],
-    ]);
   });
 });
 

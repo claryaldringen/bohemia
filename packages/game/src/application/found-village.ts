@@ -3,11 +3,11 @@ import {
   advanceVillage,
   checkDwellingPlacement,
   checkVillageName,
-  fieldPartsFromOutline,
+  fieldPartsFromCells,
   foundVillage,
-  normalizeOutline,
   normalizeVillageName,
   type Position,
+  type TileCell,
 } from '../domain/village';
 import type { SeedSource } from './settlements';
 import type { VillageRepository, VillageResult } from './villages';
@@ -20,7 +20,8 @@ export interface FoundVillageInput {
   name: string;
   /** Poloha první zemnice. */
   dwelling: Position;
-  fieldOutline: [number, number][];
+  /** Čtverce prvního pole – políčka krajiny. */
+  fieldCells: TileCell[];
 }
 
 const ALREADY_FOUNDED = 'Ves už je založená.';
@@ -40,15 +41,14 @@ export async function foundVillageForSettlement(
   if (!name.ok) return { ok: false, reason: name.reason ?? 'Neplatné jméno vsi.' };
   const dwelling = checkDwellingPlacement(input.landscape, null, 'zemnice', input.dwelling);
   if (!dwelling.ok) return { ok: false, reason: dwelling.reason ?? 'Sem zemnice nepatří.' };
-  const outline = normalizeOutline(input.fieldOutline);
-  const field = fieldPartsFromOutline(input.landscape, null, outline, [input.dwelling]);
+  const field = fieldPartsFromCells(input.landscape, null, input.fieldCells, [input.dwelling]);
   if (!field.check.ok) return { ok: false, reason: field.check.reason ?? 'Sem pole nepatří.' };
 
   const founded = foundVillage({
     seed: deps.seeds.nextSeed(),
     day: input.today,
     dwellingPosition: { ...input.dwelling },
-    firstField: { outline, parts: field.parts },
+    firstField: { parts: field.parts },
   });
   const state = advanceVillage(founded, input.today);
   const created = await deps.villages.create(

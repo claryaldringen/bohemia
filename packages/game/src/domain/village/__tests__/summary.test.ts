@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { foundVillage, startNewDwelling, type PartInput } from '../actions';
 import { advanceVillage } from '../simulate';
-import { partStage, summarizeVillage } from '../summary';
+import { STALL_DAYS, partStage, summarizeVillage } from '../summary';
 import type { FieldPart, Person, VillageState } from '../types';
 
 const DAY = dayIndexOf({ year: 503, month: 4, day: 12 });
@@ -133,5 +133,25 @@ describe('summarizeVillage', () => {
     const s = found();
     s.storesKg = 50;
     expect(summarizeVillage(s, DAY).satiation).toBeLessThan(1);
+  });
+
+  it('hlad hlásí podle stavu vsi (jako kronika)', () => {
+    const s = found();
+    expect(summarizeVillage(s, DAY).hungry).toBe(false);
+    s.hungry = true;
+    expect(summarizeVillage(s, DAY).hungry).toBe(true);
+  });
+
+  it(`stavby stojí, když ${STALL_DAYS} dny po sobě nezbyla společná práce`, () => {
+    const s = found(); // první pole se zakládá
+    s.commonLaborHistory = [2, 0, 0];
+    expect(summarizeVillage(s, DAY).constructionsStalled).toBe(false);
+    s.commonLaborHistory = [2, 0, 0, 0];
+    expect(summarizeVillage(s, DAY).constructionsStalled).toBe(true);
+    s.commonLaborHistory = [0, 0];
+    expect(summarizeVillage(s, DAY).constructionsStalled).toBe(false);
+    s.commonLaborHistory = [0, 0, 0];
+    s.constructions = [];
+    expect(summarizeVillage(s, DAY).constructionsStalled).toBe(false);
   });
 });

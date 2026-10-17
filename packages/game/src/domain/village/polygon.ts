@@ -6,8 +6,6 @@ export type Point = readonly [number, number];
 const BOUNDARY_EPSILON_M = 1e-6;
 /** Odsazení sondy dovnitř mnohoúhelníku od středu hrany (m) – větší než BOUNDARY_EPSILON_M. */
 const PROBE_OFFSET_M = 1e-3;
-/** Dva body blíž než tohle (m) jsou jeden bod obrysu. */
-const SAME_POINT_M = 0.01;
 
 function at(points: readonly Point[], i: number): Point {
   return points[((i % points.length) + points.length) % points.length]!;
@@ -28,49 +26,6 @@ function signedDoubleArea(points: readonly Point[]): number {
 export function polygonArea(points: readonly Point[]): number {
   if (points.length < 3) return 0;
   return Math.abs(signedDoubleArea(points)) / 2;
-}
-
-/** Ořez mnohoúhelníku jednou osovou polorovinou (krok Sutherland–Hodgman). */
-function clipAxis(
-  points: readonly Point[],
-  axis: 0 | 1,
-  bound: number,
-  keepAbove: boolean,
-): Point[] {
-  const inside = (p: Point): boolean => (keepAbove ? p[axis] >= bound : p[axis] <= bound);
-  const cut = (a: Point, b: Point): Point => {
-    const t = (bound - a[axis]) / (b[axis] - a[axis]);
-    return [a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])];
-  };
-  const out: Point[] = [];
-  for (let i = 0; i < points.length; i++) {
-    const previous = at(points, i - 1);
-    const current = at(points, i);
-    if (inside(current)) {
-      if (!inside(previous)) out.push(cut(previous, current));
-      out.push(current);
-    } else if (inside(previous)) {
-      out.push(cut(previous, current));
-    }
-  }
-  return out;
-}
-
-/**
- * Průnik mnohoúhelníku s osovým obdélníkem (Sutherland–Hodgman). U nekonvexního tvaru může
- * výsledek obsahovat hrany nulové šířky, plocha (polygonArea) je ale přesná.
- */
-export function clipToRect(
-  points: readonly Point[],
-  minX: number,
-  minZ: number,
-  maxX: number,
-  maxZ: number,
-): Point[] {
-  let clipped = clipAxis(points, 0, minX, true);
-  clipped = clipAxis(clipped, 0, maxX, false);
-  clipped = clipAxis(clipped, 1, minZ, true);
-  return clipAxis(clipped, 1, maxZ, false);
 }
 
 function cross(o: Point, a: Point, b: Point): number {
@@ -102,60 +57,9 @@ function onSegment(p: Point, a: Point, b: Point): boolean {
   return distanceToSegment(p, a, b) <= BOUNDARY_EPSILON_M;
 }
 
-/** Úsečky se protínají nebo dotýkají (i koncovým bodem). */
-function segmentsTouch(a: Point, b: Point, c: Point, d: Point): boolean {
-  const d1 = side(c, d, a);
-  const d2 = side(c, d, b);
-  const d3 = side(a, b, c);
-  const d4 = side(a, b, d);
-  if (d1 * d2 < 0 && d3 * d4 < 0) return true;
-  return onSegment(a, c, d) || onSegment(b, c, d) || onSegment(c, a, b) || onSegment(d, a, b);
-}
-
 /** Úsečky se kříží uvnitř obou (dotyk koncovým bodem nebo překryv na přímce se nepočítá). */
 function segmentsCross(a: Point, b: Point, c: Point, d: Point): boolean {
   return side(c, d, a) * side(c, d, b) < 0 && side(a, b, c) * side(a, b, d) < 0;
-}
-
-/** Jednoduchý mnohoúhelník: aspoň 3 body a hrany se navzájem nekříží ani nedotýkají. */
-export function isSimplePolygon(points: readonly Point[]): boolean {
-  const n = points.length;
-  if (n < 3) return false;
-  for (let i = 0; i < n; i++) {
-    const a = at(points, i);
-    const b = at(points, i + 1);
-    for (let j = i + 1; j < n; j++) {
-      const c = at(points, j);
-      const d = at(points, j + 1);
-      if (j === i + 1) {
-        // sousední hrany sdílejí vrchol b = c – nesmí se vracet po sobě
-        if (onSegment(d, a, b) || onSegment(a, c, d)) return false;
-      } else if (i === 0 && j === n - 1) {
-        // první a poslední hrana sdílejí vrchol a = d
-        if (onSegment(c, a, b) || onSegment(b, c, d)) return false;
-      } else if (segmentsTouch(a, b, c, d)) {
-        return false;
-      }
-    }
-  }
-  return true;
-}
-
-/** Obrys bez bodů na sobě (dvojklik) a bez uzavírajícího opakování prvního bodu. */
-export function normalizeOutline(outline: readonly Point[]): [number, number][] {
-  const out: [number, number][] = [];
-  for (const [x, z] of outline) {
-    const last = out[out.length - 1];
-    if (last && Math.hypot(last[0] - x, last[1] - z) < SAME_POINT_M) continue;
-    out.push([x, z]);
-  }
-  while (out.length > 1) {
-    const first = out[0]!;
-    const last = out[out.length - 1]!;
-    if (Math.hypot(first[0] - last[0], first[1] - last[1]) >= SAME_POINT_M) break;
-    out.pop();
-  }
-  return out;
 }
 
 /** Bod leží uvnitř mnohoúhelníku; bod na hraně (v toleranci) uvnitř není. */

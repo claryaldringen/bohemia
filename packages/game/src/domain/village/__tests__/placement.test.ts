@@ -1,17 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { generateLandscape, tileCenterWorld, surfaceAt } from '../../landscape';
 import {
+  MAX_FIELD_CELLS,
   checkDwellingPlacement,
-  fieldPartsFromOutline,
+  fieldPartsFromCells,
   villageDwellingPositions,
   type PlacementVillage,
 } from '../placement';
 import { DWELLING_FOOTPRINT_M, FIELD_LIMITS } from '../rules';
-import type { Position } from '../types';
-import { makeLandscape, square } from './placement-fixtures';
+import type { Position, TileCell } from '../types';
+import { block, makeLandscape } from './placement-fixtures';
 
 const at = (x: number, z: number, rotation = 0): Position => ({ x, z, rotation });
-const EMPTY: PlacementVillage = { dwellings: [], constructions: [], fields: [] };
+const EMPTY: PlacementVillage = { dwellings: [], constructions: [], parts: [] };
 
 describe('DWELLING_FOOTPRINT_M', () => {
   it('zemnice má půdorys 4 × 4 m, polozemnice 5 × 5 m', () => {
@@ -80,7 +81,8 @@ describe('checkDwellingPlacement – překryv', () => {
   const village: PlacementVillage = {
     dwellings: [{ type: 'zemnice', position: at(0, 0) }],
     constructions: [{ dwellingType: 'polozemnice', position: at(30, 0) }],
-    fields: [{ outline: square(-60, 30, 40) }],
+    // čtverce x 4–6, y 10–12 = svět x −60 … −15, z 30 … 75
+    parts: block(4, 10, 3, 3).map((cell) => ({ cell })),
   };
 
   it('nesmí se překrývat s obydlím', () => {
@@ -96,193 +98,194 @@ describe('checkDwellingPlacement – překryv', () => {
     expect(check.reason).toMatch(/rozestavěným/);
   });
 
-  it('nesmí stát v poli', () => {
-    const check = checkDwellingPlacement(landscape, village, 'zemnice', at(-40, 45));
+  it('nesmí stát v poli ani zasahovat do jeho čtverce', () => {
+    const check = checkDwellingPlacement(landscape, village, 'zemnice', at(-40, 50));
     expect(check.ok).toBe(false);
     expect(check.reason).toMatch(/polem/);
-    // těsně vedle pole (hrana pole x = −20, půdorys do −20,5)
-    expect(checkDwellingPlacement(landscape, village, 'zemnice', at(-18, 45)).ok).toBe(true);
+    // půdorys x −18 … −14 zasahuje 1 m do čtverce pole (hrana pole x = −15)
+    expect(checkDwellingPlacement(landscape, village, 'zemnice', at(-16, 50)).ok).toBe(false);
+    // půdorys x −15 … −11 se pole jen dotýká
+    expect(checkDwellingPlacement(landscape, village, 'zemnice', at(-13, 50)).ok).toBe(true);
+  });
+
+  it('díl bez políčka (stará data) nic nezabírá', () => {
+    const old: PlacementVillage = { ...EMPTY, parts: [{}] };
+    expect(checkDwellingPlacement(landscape, old, 'zemnice', at(-40, 50)).ok).toBe(true);
   });
 });
 
-describe('fieldPartsFromOutline – díly po políčkách', () => {
+describe('fieldPartsFromCells – díly po čtvercích', () => {
   const landscape = makeLandscape({ fertility: (x) => (x < 8 ? 40 : 80) });
   const home = [at(0, -100)];
 
-  it('čtverec uvnitř jednoho políčka dá jeden díl s plochou čtverce', () => {
-    const result = fieldPartsFromOutline(landscape, null, square(2, 2, 10), home);
-    expect(result.parts).toHaveLength(1);
-    expect(result.parts[0]).toMatchObject({
+  it('každý čtverec louky je díl o celém políčku (225 m²)', () => {
+    const result = fieldPartsFromCells(landscape, null, block(8, 8, 2, 1), home);
+    expect(result.parts).toHaveLength(2);
+    expect(result.parts[0]).toEqual({
+      areaM2: 225,
+      // vzdálenost od středu políčka (7,5; 7,5) k obydlí (0; −100)
+      distanceM: Math.hypot(7.5, 107.5),
+      naturalFertility: 80,
       surface: 'meadow',
       obstacleCost: 0,
-      naturalFertility: 80,
       cell: { x: 8, y: 8 },
     });
-    expect(result.parts[0]?.areaM2).toBeCloseTo(100);
-    expect(result.areaM2).toBeCloseTo(100);
-    // vzdálenost od středu políčka (7,5; 7,5) k obydlí (0; −100)
-    expect(result.parts[0]?.distanceM).toBeCloseTo(Math.hypot(7.5, 107.5));
+    expect(result.areaM2).toBe(450);
+    expect(result.blockedCells).toEqual([]);
   });
 
-  it('malé pole neprojde nejmenší výměrou', () => {
-    const result = fieldPartsFromOutline(landscape, null, square(2, 2, 10), home);
-    expect(result.check.ok).toBe(false);
-    expect(result.check.reason).toMatch(/0,1 ha/);
-  });
-
-  it('čtverec přes roh čtyř políček se rozdělí na čtyři díly', () => {
-    const result = fieldPartsFromOutline(landscape, null, square(-12, -12, 24), home);
-    expect(result.parts).toHaveLength(4);
-    for (const part of result.parts) expect(part.areaM2).toBeCloseTo(144);
-    expect(result.areaM2).toBeCloseTo(576);
-    expect(result.parts.map((p) => p.cell)).toEqual([
-      { x: 7, y: 7 },
-      { x: 8, y: 7 },
-      { x: 7, y: 8 },
+  it('opakované čtverce se počítají jednou a řadí se po řádcích', () => {
+    const cells: TileCell[] = [
+      { x: 9, y: 9 },
       { x: 8, y: 8 },
+      { x: 9, y: 8 },
+      { x: 8, y: 8 },
+    ];
+    const result = fieldPartsFromCells(landscape, null, cells, home);
+    expect(result.cells).toEqual([
+      { x: 8, y: 8 },
+      { x: 9, y: 8 },
+      { x: 9, y: 9 },
     ]);
+    expect(result.parts.map((p) => p.cell)).toEqual(result.cells);
+  });
+
+  it('pod 0,1 ha (5 čtverců) pole neprojde', () => {
+    const small = fieldPartsFromCells(landscape, null, block(8, 8, 4, 1), home);
+    expect(small.check.ok).toBe(false);
+    expect(small.check.reason).toBe('Pole musí mít aspoň 0,1 ha, tedy 5 čtverců (teď 4).');
+    const enough = fieldPartsFromCells(landscape, null, block(8, 8, 5, 1), home);
+    expect(enough.check).toEqual({ ok: true, reason: null });
+    expect(enough.areaM2).toBeGreaterThanOrEqual(FIELD_LIMITS.minAreaM2);
   });
 
   it('průměrná úrodnost je vážená plochou dílů', () => {
-    // 2/3 plochy v úrodnosti 40 (x < 0), 1/3 v úrodnosti 80
-    const result = fieldPartsFromOutline(
-      landscape,
-      null,
-      [
-        [-30, 0],
-        [15, 0],
-        [15, 30],
-        [-30, 30],
-      ],
-      home,
-    );
+    const result = fieldPartsFromCells(landscape, null, block(6, 8, 3, 1), home);
     expect(result.averageFertility).toBeCloseTo((40 * 2 + 80) / 3);
   });
 
-  it('trojúhelník: celé, poloviční a jen vrcholem dotčené políčko', () => {
-    const result = fieldPartsFromOutline(
+  it('cena je 40 člověkodní za hektar louky', () => {
+    const result = fieldPartsFromCells(landscape, null, block(6, 6, 3, 2), home);
+    expect(result.check.ok).toBe(true);
+    expect(result.areaM2).toBe(1350);
+    expect(result.foundingCost).toBeCloseTo(40 * 0.135);
+  });
+
+  it('čtverce musí sousedit stranou v jednom celku – roh nestačí', () => {
+    const apart = fieldPartsFromCells(
       landscape,
       null,
-      [
-        [0, 0],
-        [30, 0],
-        [0, 30],
-      ],
+      [...block(4, 4, 3, 2), ...block(9, 4, 1, 1)],
       home,
     );
-    expect(result.parts.map((p) => p.areaM2)).toEqual([225, 112.5, 112.5]);
-    expect(result.areaM2).toBeCloseTo(450);
+    expect(apart.check.ok).toBe(false);
+    expect(apart.check.reason).toMatch(/jeden celek/);
+    const corner = fieldPartsFromCells(
+      landscape,
+      null,
+      [...block(4, 4, 3, 2), { x: 7, y: 6 }],
+      home,
+    );
+    expect(corner.check.ok).toBe(false);
+    const side = fieldPartsFromCells(landscape, null, [...block(4, 4, 3, 2), { x: 7, y: 5 }], home);
+    expect(side.check.ok).toBe(true);
   });
 
-  it('dost velké pole projde, cena je 40 člověkodní za hektar louky', () => {
-    const result = fieldPartsFromOutline(landscape, null, square(-20, -20, 40), home);
-    expect(result.check).toEqual({ ok: true, reason: null });
-    expect(result.parts).toHaveLength(16);
-    expect(result.areaM2).toBeCloseTo(1600);
-    expect(result.foundingCost).toBeCloseTo(40 * 0.16);
-    expect(result.areaM2).toBeGreaterThanOrEqual(FIELD_LIMITS.minAreaM2);
-  });
-
-  it('opakovaný bod a uzavírající bod obrysu nevadí', () => {
-    const outline: [number, number][] = [...square(-20, -20, 40), [-20, -20]];
-    outline.splice(1, 0, [-20, -20]);
-    const result = fieldPartsFromOutline(landscape, null, outline, home);
-    expect(result.check.ok).toBe(true);
-    expect(result.areaM2).toBeCloseTo(1600);
+  it('pole ve tvaru L s dírou uprostřed je jeden celek', () => {
+    const ring = block(4, 4, 3, 3).filter((c) => !(c.x === 5 && c.y === 5));
+    expect(fieldPartsFromCells(landscape, null, ring, home).check.ok).toBe(true);
   });
 });
 
-describe('fieldPartsFromOutline – co pole nesmí', () => {
+describe('fieldPartsFromCells – co pole nesmí', () => {
   const home = [at(0, -100)];
 
-  it('obrys s méně než 3 body nebo křížící se obrys neprojde', () => {
+  it('neplatné čtverce, prázdný výběr a čtverce mimo krajinu neprojdou', () => {
     const l = makeLandscape();
-    const short = fieldPartsFromOutline(
-      l,
-      null,
-      [
-        [0, 0],
-        [30, 0],
-      ],
-      home,
-    );
-    expect(short.check.ok).toBe(false);
-    expect(short.parts).toHaveLength(0);
-    const bow = fieldPartsFromOutline(
-      l,
-      null,
-      [
-        [0, 0],
-        [40, 40],
-        [40, 0],
-        [0, 40],
-      ],
-      home,
-    );
-    expect(bow.check.ok).toBe(false);
-    expect(bow.check.reason).toMatch(/křížit/);
+    const fraction = fieldPartsFromCells(l, null, [{ x: 1.5, y: 0 }], home);
+    expect(fraction.check.reason).toMatch(/Neplatné/);
+    expect(fraction.parts).toHaveLength(0);
+    expect(fieldPartsFromCells(l, null, [], home).check.ok).toBe(false);
+    const outside = fieldPartsFromCells(l, null, [...block(4, 4, 3, 2), { x: 16, y: 4 }], home);
+    expect(outside.check.ok).toBe(false);
+    expect(outside.check.reason).toMatch(/krajiny/);
   });
 
-  it('pole zasahující do vody neprojde', () => {
+  it(`pole může mít nejvýš ${MAX_FIELD_CELLS} čtverců`, () => {
+    const l = makeLandscape({ size: 64 });
+    const huge = fieldPartsFromCells(l, null, block(0, 0, 64, 24), [at(0, 0)]);
+    expect(huge.check.ok).toBe(false);
+    expect(huge.check.reason).toBe('Pole může mít nejvýš 1 500 čtverců.');
+  });
+
+  it('pole zasahující do vody neprojde a vodní čtverce jsou zakázané', () => {
     const l = makeLandscape({ surface: (x) => (x === 9 ? 'water' : 'meadow') });
-    const result = fieldPartsFromOutline(l, null, square(-20, -20, 40), home);
+    const result = fieldPartsFromCells(l, null, block(6, 6, 4, 2), home);
     expect(result.check.ok).toBe(false);
     expect(result.check.reason).toMatch(/vod/);
+    expect(result.blockedCells).toEqual([
+      { x: 9, y: 6 },
+      { x: 9, y: 7 },
+    ]);
   });
 
-  it('díly v lese se zahodí – počítá se jen louka', () => {
+  it('pole v lese zatím neprojde – lesní čtverce nejsou díly', () => {
     const l = makeLandscape({ surface: (x) => (x >= 8 ? 'forest' : 'meadow') });
-    const result = fieldPartsFromOutline(l, null, square(-40, -20, 60), home);
-    expect(result.areaM2).toBeCloseTo(40 * 60);
+    const result = fieldPartsFromCells(l, null, block(5, 6, 4, 2), home);
+    expect(result.check.ok).toBe(false);
+    expect(result.check.reason).toMatch(/jen na louce/);
     expect(result.parts.every((p) => p.cell !== undefined && p.cell.x < 8)).toBe(true);
-    expect(result.check.ok).toBe(true);
-  });
-
-  it('pole celé v lese nemá žádný díl a neprojde', () => {
-    const l = makeLandscape({ surface: () => 'forest' });
-    const result = fieldPartsFromOutline(l, null, square(-20, -20, 40), home);
-    expect(result.parts).toHaveLength(0);
-    expect(result.check.ok).toBe(false);
-  });
-
-  it('pole mimo krajinu neprojde', () => {
-    const result = fieldPartsFromOutline(makeLandscape(), null, square(100, 0, 40), home);
-    expect(result.check.ok).toBe(false);
-    expect(result.check.reason).toMatch(/krajiny/);
+    expect(result.areaM2).toBe(6 * 225);
+    expect(result.blockedCells).toEqual([
+      { x: 8, y: 6 },
+      { x: 8, y: 7 },
+    ]);
   });
 
   it('pole se nesmí překrývat s jiným polem, sousedit s ním smí', () => {
     const l = makeLandscape();
-    const village: PlacementVillage = { ...EMPTY, fields: [{ outline: square(-20, -20, 40) }] };
-    const over = fieldPartsFromOutline(l, village, square(0, 0, 40), home);
+    const village: PlacementVillage = {
+      ...EMPTY,
+      parts: block(6, 6, 3, 2).map((cell) => ({ cell })),
+    };
+    const over = fieldPartsFromCells(l, village, block(8, 6, 3, 2), home);
     expect(over.check.ok).toBe(false);
-    expect(over.check.reason).toMatch(/polem/);
-    expect(fieldPartsFromOutline(l, village, square(20, -20, 40), home).check.ok).toBe(true);
+    expect(over.check.reason).toMatch(/jiným polem/);
+    expect(over.blockedCells).toEqual([
+      { x: 8, y: 6 },
+      { x: 8, y: 7 },
+    ]);
+    expect(fieldPartsFromCells(l, village, block(9, 6, 3, 2), home).check.ok).toBe(true);
   });
 
   it('pole se nesmí překrývat s obydlím ani s plánovaným obydlím', () => {
     const l = makeLandscape();
+    // zemnice v počátku leží na rohu čtverců 7 a 8 v obou směrech
     const village: PlacementVillage = {
       ...EMPTY,
       dwellings: [{ type: 'zemnice', position: at(0, 0) }],
     };
-    expect(fieldPartsFromOutline(l, village, square(-20, -20, 40), home).check.ok).toBe(false);
-    const planned = fieldPartsFromOutline(l, null, square(-20, -20, 40), [at(0, 0)]);
+    const built = fieldPartsFromCells(l, village, block(8, 8, 3, 2), home);
+    expect(built.check.reason).toMatch(/obydlím/);
+    expect(built.blockedCells).toEqual([{ x: 8, y: 8 }]);
+    const planned = fieldPartsFromCells(l, null, block(5, 7, 3, 2), [at(0, 0)]);
     expect(planned.check.ok).toBe(false);
     expect(planned.check.reason).toMatch(/obydlím/);
+    expect(fieldPartsFromCells(l, village, block(9, 8, 3, 2), home).check.ok).toBe(true);
   });
 
   it('pole dál než 800 m od obydlí neprojde', () => {
-    const l = makeLandscape({ size: 64 }); // 960 m
-    const far = fieldPartsFromOutline(l, null, square(400, 400, 40), [at(-400, -400)]);
+    const l = makeLandscape({ size: 64 }); // 960 m, čtverec 0 začíná na −480 m
+    const far = fieldPartsFromCells(l, null, block(58, 58, 3, 2), [at(-400, -400)]);
     expect(far.check.ok).toBe(false);
     expect(far.check.reason).toMatch(/800 m/);
-    const near = fieldPartsFromOutline(l, null, square(-300, -300, 40), [at(-400, -400)]);
+    expect(far.blockedCells).toHaveLength(6);
+    const near = fieldPartsFromCells(l, null, block(12, 12, 3, 2), [at(-400, -400)]);
     expect(near.check.ok).toBe(true);
   });
 
   it('bez obydlí je každý díl moc daleko', () => {
-    const result = fieldPartsFromOutline(makeLandscape(), null, square(-20, -20, 40), []);
+    const result = fieldPartsFromCells(makeLandscape(), null, block(6, 6, 3, 2), []);
     expect(result.check.ok).toBe(false);
   });
 });
@@ -295,7 +298,7 @@ describe('villageDwellingPositions', () => {
         { dwellingType: 'polozemnice', position: at(3, 4) },
         { dwellingType: null, position: null },
       ],
-      fields: [],
+      parts: [],
     };
     expect(villageDwellingPositions(village)).toEqual([at(1, 2), at(3, 4)]);
     expect(villageDwellingPositions(null)).toEqual([]);
@@ -303,8 +306,8 @@ describe('villageDwellingPositions', () => {
 });
 
 describe('umístění na vygenerované krajině', () => {
-  // U místa vsi najde první políčko, kde zemnice uprostřed projde, a pole vedle ní.
-  const findSpot = (seed: number): { dwelling: Position; field: [number, number][] } | null => {
+  // U místa vsi najde první políčko, kde zemnice uprostřed projde, a pole 3 × 2 čtverce vedle ní.
+  const findSpot = (seed: number): { dwelling: Position; field: TileCell[] } | null => {
     const l = generateLandscape(seed);
     const { x: sx, y: sy } = l.villageSite;
     for (let r = 0; r < 10; r++) {
@@ -316,9 +319,8 @@ describe('umístění na vygenerované krajině', () => {
           const c = tileCenterWorld(l, tx, ty);
           const dwelling = at(c.x, c.z);
           if (!checkDwellingPlacement(l, null, 'zemnice', dwelling).ok) continue;
-          const field = square(c.x + 5, c.z - 20, 40);
-          if (fieldPartsFromOutline(l, null, field, [dwelling]).check.ok)
-            return { dwelling, field };
+          const field = block(tx + 1, ty - 1, 3, 2);
+          if (fieldPartsFromCells(l, null, field, [dwelling]).check.ok) return { dwelling, field };
         }
       }
     }
@@ -335,7 +337,7 @@ describe('umístění na vygenerované krajině', () => {
     const l = generateLandscape(3);
     const spot = findSpot(3);
     expect(spot).not.toBeNull();
-    const result = fieldPartsFromOutline(l, null, spot!.field, [spot!.dwelling]);
+    const result = fieldPartsFromCells(l, null, spot!.field, [spot!.dwelling]);
     for (const part of result.parts) {
       expect(part.naturalFertility).toBe(l.fertility[part.cell!.y * l.size + part.cell!.x]);
     }

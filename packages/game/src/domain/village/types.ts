@@ -38,12 +38,14 @@ export interface FieldPart {
   foundingCost: number; // člověkodny (povrch × plocha + překážky)
   foundingDone: number;
   surface: FieldSurface; // povrch při založení
-  cell?: TileCell; // políčko krajiny, ve kterém díl leží (pro scénu)
+  cell?: TileCell; // políčko krajiny = čtverec pole, který díl zabírá
 }
+/** Pole – jeho čtverce jsou políčka jeho dílů (`FieldPart.cell`). */
 export interface Field {
   id: number;
-  outline: [number, number][];
-} // obrys jen nese plán 3
+  /** @deprecated Obrys z prvního prototypu (pole se kreslila volným obrysem) – jen staré vsi. */
+  outline?: [number, number][];
+}
 export type ConstructionKind = 'dwelling' | 'rebuild' | 'field';
 export interface Construction {
   id: number;

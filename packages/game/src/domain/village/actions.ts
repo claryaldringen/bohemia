@@ -22,7 +22,11 @@ export type PartInput = {
   cell?: TileCell; // políčko krajiny dílu (z placement.ts)
 };
 
-export type FieldInput = { outline: [number, number][]; parts: PartInput[] };
+export type FieldInput = {
+  parts: PartInput[];
+  /** @deprecated Obrys z prvního prototypu – nová pole se skládají ze čtverců (dílů). */
+  outline?: [number, number][];
+};
 
 /** Ověří vstup pole (společné pro první pole vsi i `foundField`); jinak RangeError. */
 function validateField(field: FieldInput): void {
@@ -43,7 +47,7 @@ function validateField(field: FieldInput): void {
 /** Přidá do (již naklonovaného) stavu pole, jeho díly ve stavu 'founding' a stavbu pole. */
 function addField(state: VillageState, day: number, field: FieldInput): void {
   const fieldId = state.nextId++;
-  state.fields.push({ id: fieldId, outline: field.outline });
+  state.fields.push({ id: fieldId });
   let cost = 0;
   for (const input of field.parts) {
     const foundingCost = partFoundingCost(input.surface, input.areaM2, input.obstacleCost);
