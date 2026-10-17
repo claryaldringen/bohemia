@@ -11,6 +11,7 @@ const GRID_SLOTS = 8;
 
 const RESOURCE_ICONS: Record<StockResource, { icon: string; unit: string; name: string }> = {
   grain: { icon: 'food', unit: 'kg', name: 'Obilí' },
+  wood: { icon: 'wood', unit: '', name: 'Dřevo (stromy)' },
   settlers: { icon: 'people', unit: '', name: 'Lidé k osídlení' },
 };
 

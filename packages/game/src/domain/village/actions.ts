@@ -1,4 +1,5 @@
 import { TOTAL_GAME_DAYS } from '../calendar';
+import type { ObstacleLayer } from '../landscape';
 import { cemeteryFoundingCost, touchingCemeteries, villageCemeteries } from './cemetery';
 import { buildAffordability, payUpfront, type BuildKind } from './costs';
 import { partFoundingCost } from './fields';
@@ -6,11 +7,11 @@ import { recordClearedObstacles } from './obstacles';
 import { orchardPlantingCost, villageOrchards } from './orchard';
 import { ageGroup } from './people';
 import {
-  DWELLINGS,
   FIELD_LIMITS,
   FOOD_NEED_KG_PER_YEAR,
   START_AGES,
   START_STORES_MONTHS,
+  dwellingBuildLabor,
 } from './rules';
 import type {
   CemeterySquare,
@@ -22,6 +23,7 @@ import type {
   TileCell,
   VillageState,
 } from './types';
+import { planDwellingWood, takeWood, woodFellingCost, type WoodPlan } from './wood';
 
 const DAYS_PER_YEAR = 365.25; // věk se počítá po 365,25 dne
 const MONTHS_PER_YEAR = 12;
@@ -35,6 +37,8 @@ export type PartInput = {
   cell?: TileCell; // políčko krajiny dílu (z placement.ts)
   /** Překážky na čtverci (id z vrstvy překážek) – zmizí, až osadníci díl založí. */
   obstacleIds?: number[];
+  /** Dospělé stromy mezi překážkami – po založení dílu dají klády na hromadu (forest.md). */
+  trees?: number;
 };
 
 export type FieldInput = {
@@ -47,9 +51,11 @@ export type FieldInput = {
  * Čtverec zakládaného pohřebiště (z `cemeteryPartsFromCells`), cena překážek na něm a překážky
  * (id z vrstvy překážek), které zmizí, až osadníci hřbitov nebo rozšíření dostaví.
  */
-export type CemeterySquareInput = Omit<CemeterySquare, 'obstacles'> & {
+export type CemeterySquareInput = Omit<CemeterySquare, 'obstacles' | 'trees'> & {
   obstacleCost: number;
   obstacleIds?: number[];
+  /** Dospělé stromy mezi překážkami – po ohrazení čtverce dají klády na hromadu (forest.md). */
+  trees?: number;
 };
 
 export type CemeteryInput = {
@@ -66,6 +72,8 @@ export type CemeteryInput = {
 export type OrchardSquareInput = Pick<OrchardSquare, 'cell' | 'areaM2' | 'distanceM'> & {
   obstacleCost: number;
   obstacleIds?: number[];
+  /** Dospělé stromy na čtverci, které nevyhradila jiná stavba – klády z mýcení. */
+  trees?: number;
 };
 
 export type OrchardInput = { squares: OrchardSquareInput[] };
@@ -98,6 +106,20 @@ function validateObstacleCost(obstacleCost: number): void {
   if (obstacleCost < 0) throw new RangeError('Cena překážek nesmí být záporná.');
 }
 
+/** Počet stromů (klády z mýcení) je nezáporné celé číslo; jinak RangeError. */
+function validateTrees(trees: number): void {
+  if (!Number.isInteger(trees) || trees < 0) {
+    throw new RangeError('Počet stromů musí být nezáporné celé číslo.');
+  }
+}
+
+/** Vzdálenost k okraji lesa je nezáporná a konečná; jinak RangeError. */
+function validateForestDistance(distanceM: number): void {
+  if (!Number.isFinite(distanceM) || distanceM < 0) {
+    throw new RangeError('Vzdálenost k lesu musí být nezáporná a konečná.');
+  }
+}
+
 /** Id překážek jsou nezáporná celá čísla bez opakování; jinak RangeError. */
 function validateObstacleIds(ids: readonly number[]): void {
   if (!ids.every((id) => Number.isInteger(id) && id >= 0)) {
@@ -124,6 +146,7 @@ function validateField(field: FieldInput): void {
     }
     validateObstacleCost(part.obstacleCost);
     validateObstacleIds(part.obstacleIds ?? []);
+    validateTrees(part.trees ?? 0);
     if (part.distanceM > FIELD_LIMITS.maxDistanceM) {
       throw new RangeError(`Díl pole je dál než ${FIELD_LIMITS.maxDistanceM} m od vsi.`);
     }
@@ -158,6 +181,7 @@ function addField(state: VillageState, day: number, field: FieldInput): void {
       surface: input.surface,
       ...(input.cell ? { cell: { ...input.cell } } : {}),
       ...(input.obstacleIds?.length ? { obstacles: [...input.obstacleIds] } : {}),
+      ...(input.trees ? { trees: input.trees } : {}),
     });
   }
   state.constructions.push({
@@ -183,6 +207,10 @@ function addField(state: VillageState, day: number, field: FieldInput): void {
  *
  * Konvence dne: ves vzniká na začátku dne `day` – `lastDay = day − 1`, takže den založení
  * odsimuluje až následující `advanceVillage(state, day)` (založení vsi ho volá hned).
+ *
+ * Dřevo první zemnice (forest.md): stromy z vyklízené plochy jdou na hromadu klád, zbytek se
+ * skácí z nejbližších dospělých stromů (`obstacles`) jako část stavby. Založení vsi dřevo
+ * neblokuje – když stromy nestačí, zemnice vezme, co je.
  */
 export function foundVillage(input: {
   seed: number;
@@ -195,14 +223,26 @@ export function foundVillage(input: {
    */
   dwellingObstacleIds?: readonly number[];
   dwellingObstacleCost?: number;
+  /** Dospělé stromy mezi `dwellingObstacleIds` – osadníci je skácí na hromadu klád. */
+  dwellingClearedTrees?: number;
+  /**
+   * Vrstva překážek krajiny – stromy ke kácení. Bez ní (jen testy) se kácí bez polohy za cenu
+   * blízkého lesa.
+   */
+  obstacles?: ObstacleLayer;
+  /** Vzdálenost první zemnice k nejbližšímu okraji lesa (m) – palivo (forest.md). */
+  forestDistanceM?: number;
 }): VillageState {
   const { seed, day, dwellingPosition, firstField } = input;
   const dwellingObstacleIds = input.dwellingObstacleIds ?? [];
   const dwellingObstacleCost = input.dwellingObstacleCost ?? 0;
+  const clearedTrees = input.dwellingClearedTrees ?? 0;
   validateDay(day);
   validatePosition(dwellingPosition);
   validateObstacleCost(dwellingObstacleCost);
   validateObstacleIds(dwellingObstacleIds);
+  validateTrees(clearedTrees);
+  if (input.forestDistanceM !== undefined) validateForestDistance(input.forestDistanceM);
   if (firstField) validateField(firstField);
   const householdId = 1;
   const people: Person[] = START_AGES.map((age, i) => ({
@@ -226,12 +266,13 @@ export function foundVillage(input: {
         id: constructionId,
         kind: 'dwelling',
         startedDay: day,
-        cost: DWELLINGS.zemnice.cost + dwellingObstacleCost,
+        cost: dwellingBuildLabor('zemnice') + dwellingObstacleCost,
         done: 0,
         dwellingType: 'zemnice',
         position: { ...dwellingPosition },
         dwellingId: householdId,
         fieldId: null,
+        ...(input.forestDistanceM === undefined ? {} : { forestDistanceM: input.forestDistanceM }),
       },
     ],
     plan: null,
@@ -243,26 +284,54 @@ export function foundVillage(input: {
     chronicle: [{ day, kind: 'village-founded' }],
     clearedObstacles: dwellingObstacleIds.map((id) => ({ id, day })),
     felledTrees: [],
+    woodLogs: 0,
   };
+  // pole napřed – stromy na jeho dílech patří poli (klády po založení), zemnice je nekácí
   if (firstField) addField(state, day, firstField);
+  const plan = planDwellingWood(state, 'zemnice', dwellingPosition, day, {
+    ...(input.obstacles ? { obstacles: input.obstacles } : {}),
+    clearedTrees,
+    clearedIds: dwellingObstacleIds,
+  });
+  const zemnice = state.constructions[0]!;
+  zemnice.wood = takeWood(state, plan);
+  zemnice.cost += woodFellingCost(zemnice.wood);
   return state;
 }
 
 /**
- * Co stavba potřebuje předem (suroviny, lidi k osídlení), ves mít musí; jinak RangeError
+ * Co stavba potřebuje předem (suroviny, dřevo, lidi k osídlení), ves mít musí; jinak RangeError
  * (pravidla ověří use-case dřív, česky).
  */
-function requireAffordable(state: VillageState, kind: BuildKind): void {
-  if (!buildAffordability(state, kind).affordable) {
-    throw new RangeError('Na stavbu ves nemá suroviny nebo lidi k osídlení.');
+function requireAffordable(state: VillageState, kind: BuildKind, obstacles?: ObstacleLayer): void {
+  if (!buildAffordability(state, kind, obstacles).affordable) {
+    throw new RangeError('Na stavbu ves nemá suroviny, dřevo nebo lidi k osídlení.');
   }
+}
+
+/** Staveniště nového obydlí – dřevo a palivo (forest.md). */
+export interface DwellingSiteOptions {
+  /**
+   * Vrstva překážek krajiny – stromy ke kácení (nejbližší dospělé stromy ke staveništi). Bez ní
+   * (jen testy) se dřevo, které nestačí z hromady, kácí bez polohy za cenu blízkého lesa.
+   */
+  obstacles?: ObstacleLayer;
+  /** Dospělé stromy mezi `obstacleIds` – osadníci je skácí na hromadu klád. */
+  clearedTrees?: number;
+  /** Vzdálenost obydlí k nejbližšímu okraji lesa (m) – palivo. */
+  forestDistanceM?: number;
 }
 
 /**
  * Zahájí stavbu nového obydlí – kdykoli, když je kým ho osadit (population.md – Nové obydlí,
- * Odemčení); RangeError, když ves nemá suroviny předem, lidi k osídlení nebo je vstup neplatný.
- * Překážky na vyklízené ploše (`obstacleIds`, cena v `obstacleCost`) osadníci odstraní hned
- * při zahájení stavby.
+ * Odemčení); RangeError, když ves nemá suroviny předem, dřevo, lidi k osídlení nebo je vstup
+ * neplatný. Překážky na vyklízené ploše (`obstacleIds`, cena v `obstacleCost`) osadníci odstraní
+ * hned při zahájení stavby, dospělé stromy z ní (`clearedTrees`) dají klády na hromadu.
+ *
+ * Dřevo (forest.md – Stavby a kácení): stavba vezme celé klády z hromady a zbytek stromů vyhradí
+ * mezi nejbližšími dospělými stromy ke staveništi – skácí je jako první část své práce (2 čd za
+ * strom, dál než 100 m od staveniště dráž). Práce na samotném obydlí je cena obydlí bez kácení
+ * blízkého lesa (`dwellingBuildLabor`).
  *
  * Konvence dne (jako u `foundField`): akce se volá na ves dopočítanou do dne `day`
  * (`advanceVillage(state, day)`) a patří na konec toho dne – práci stavba dostane od dne
@@ -275,25 +344,37 @@ export function startNewDwelling(
   position: Position,
   obstacleCost: number,
   obstacleIds: readonly number[] = [],
+  site: DwellingSiteOptions = {},
 ): VillageState {
   validateActionDay(state, day);
   validatePosition(position);
   validateObstacleCost(obstacleCost);
   validateObstacleIds(obstacleIds);
-  requireAffordable(state, type);
+  validateTrees(site.clearedTrees ?? 0);
+  if (site.forestDistanceM !== undefined) validateForestDistance(site.forestDistanceM);
+  requireAffordable(state, type, site.obstacles);
+  const plan: WoodPlan = planDwellingWood(state, type, position, day, {
+    ...(site.obstacles ? { obstacles: site.obstacles } : {}),
+    clearedTrees: site.clearedTrees ?? 0,
+    clearedIds: obstacleIds,
+  });
+  if (plan.missing > 0) throw new RangeError('Na stavbu ves nemá dřevo – není z čeho kácet.');
   const next = structuredClone(state);
   payUpfront(next, type);
   recordClearedObstacles(next, obstacleIds, day);
+  const wood = takeWood(next, plan);
   next.constructions.push({
     id: next.nextId++,
     kind: 'dwelling',
     startedDay: day,
-    cost: DWELLINGS[type].cost + obstacleCost,
+    cost: dwellingBuildLabor(type) + obstacleCost + woodFellingCost(wood),
     done: 0,
     dwellingType: type,
     position,
     dwellingId: null,
     fieldId: null,
+    wood,
+    ...(site.forestDistanceM === undefined ? {} : { forestDistanceM: site.forestDistanceM }),
   });
   return next;
 }
@@ -334,6 +415,7 @@ function validateCemetery(input: CemeteryInput): void {
       throw new RangeError('Vzdálenost čtverce hřbitova od vody musí být nezáporná a konečná.');
     }
     validateObstacleCost(square.obstacleCost);
+    validateTrees(square.trees ?? 0);
     cells.add(`${square.cell.x},${square.cell.y}`);
   }
   if (cells.size !== input.squares.length) throw new RangeError('Čtverce hřbitova se opakují.');
@@ -376,7 +458,7 @@ export function foundCemetery(
   payUpfront(next, 'cemetery');
   const cemeteries = villageCemeteries(next);
   const square = (
-    { cell, x, z, waterDistanceM, obstacleIds }: CemeterySquareInput,
+    { cell, x, z, waterDistanceM, obstacleIds, trees }: CemeterySquareInput,
     constructionId?: number,
   ): CemeterySquare => ({
     cell: { x: cell.x, y: cell.y },
@@ -385,6 +467,7 @@ export function foundCemetery(
     waterDistanceM,
     ...(constructionId === undefined ? {} : { constructionId }),
     ...(obstacleIds?.length ? { obstacles: [...obstacleIds] } : {}),
+    ...(trees ? { trees } : {}),
   });
   let cemeteryId: number;
   let constructionId: number;
@@ -438,6 +521,7 @@ function validateOrchard(input: OrchardInput): void {
       throw new RangeError(`Čtverec sadu je dál než ${FIELD_LIMITS.maxDistanceM} m od vsi.`);
     }
     validateObstacleCost(square.obstacleCost);
+    validateTrees(square.trees ?? 0);
     cells.add(`${square.cell.x},${square.cell.y}`);
   }
   if (cells.size !== input.squares.length) throw new RangeError('Čtverce sadu se opakují.');
@@ -475,6 +559,7 @@ export function foundOrchard(state: VillageState, day: number, input: OrchardInp
     plantingDone: 0,
     plantedDay: null,
     ...(s.obstacleIds?.length ? { obstacles: [...s.obstacleIds] } : {}),
+    ...(s.trees ? { trees: s.trees } : {}),
   }));
   next.orchards = [...villageOrchards(next), { id: orchardId, squares }];
   next.applesKg ??= 0;

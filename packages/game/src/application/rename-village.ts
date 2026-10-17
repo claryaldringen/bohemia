@@ -1,3 +1,4 @@
+import type { Landscape } from '../domain/landscape';
 import { checkVillageName, normalizeVillageName } from '../domain/village';
 import { loadVillage } from './load-village';
 import { NO_VILLAGE } from './update-village';
@@ -8,6 +9,8 @@ export interface RenameVillageInput {
   /** Dnešní herní den (index dne) – ves se vrací dopočítaná do dneška. */
   today: number;
   name: string;
+  /** Krajina sídla – ves se s ní dopočítává (přestavby kácí stromy, forest.md). */
+  landscape: Landscape;
 }
 
 /** Hráč přejmenuje ves (stejná pravidla jména jako při založení). */

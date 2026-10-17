@@ -102,8 +102,22 @@ function DwellingBody({
         ))}
       </ul>
       <Bar value={details.condition} name="Stav" testId="selection-condition" />
-      {details.rebuild && <Bar value={details.rebuild.progress} name="Přestavba" />}
+      {details.rebuild && (
+        <div className="flex items-center gap-3">
+          <Bar value={details.rebuild.progress} name="Přestavba" />
+          {details.rebuild.treesToFell > 0 && <WoodToFell trees={details.rebuild.treesToFell} />}
+        </div>
+      )}
     </div>
+  );
+}
+
+/** Dřevo, které stavba ještě musí skácet (forest.md) – ikona a počet stromů. */
+function WoodToFell({ trees }: { trees: number }): ReactElement {
+  return (
+    <Stat icon="wood" name="Stromy ke skácení" testId="selection-wood">
+      {trees}
+    </Stat>
   );
 }
 
@@ -236,7 +250,8 @@ function OrchardBody({
 
 /**
  * Panel výběru dole uprostřed (jako v 0 A.D.) – jen když je něco vybrané: portrét, typ
- * a ikony s čísly. Obydlí: obyvatelé, věk obyvatel, stav, stáří; staveniště: průběh stavby;
+ * a ikony s čísly. Obydlí: obyvatelé, věk obyvatel, stav, stáří (u přestavby i stromy ke
+ * skácení); staveniště: průběh stavby a stromy, které ještě musí skácet;
  * pole: výměra, úrodnost, díly podle stadia; hřbitov: hroby, na kolik let místo vystačí
  * a průběh založení / rozšíření; sad: výměra, stáří, úroda příští sklizně a průběh výsadby.
  */
@@ -261,9 +276,12 @@ export function SelectionPanel({
     portrait = <Portrait icon={details.type} name={DWELLING_NAMES[details.type].nominative} />;
     body = (
       <div className="flex flex-col justify-center gap-1.5">
-        <Stat icon="labor" name="Stavba">
-          {formatPercent(details.progress)}
-        </Stat>
+        <div className="flex items-center gap-3">
+          <Stat icon="labor" name="Stavba">
+            {formatPercent(details.progress)}
+          </Stat>
+          {details.treesToFell > 0 && <WoodToFell trees={details.treesToFell} />}
+        </div>
         <Bar value={details.progress} name="Stavba" testId="selection-progress" />
       </div>
     );

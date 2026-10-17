@@ -208,7 +208,7 @@ describe('odstraňování překážek stavbami', () => {
     const s = founded();
     const pending = s.parts.flatMap((p) => p.obstacles ?? []);
     expect(pending.sort()).toEqual([100, 101, 102]);
-    const later = advanceVillage(s, DAY + 200);
+    const later = advanceVillage(s, DAY + 200, null);
     expect(later.parts.every((p) => p.state !== 'founding')).toBe(true);
     expect(later.parts.some((p) => p.obstacles !== undefined)).toBe(false);
     const cleared = later.clearedObstacles!.map((c) => c.id).sort();
@@ -219,14 +219,14 @@ describe('odstraňování překážek stavbami', () => {
   });
 
   it('nové obydlí odstraní překážky hned při zahájení stavby a zaplatí je prací', () => {
-    const s = settled(advanceVillage(founded(), DAY + 1));
+    const s = settled(advanceVillage(founded(), DAY + 1, null));
     const next = startNewDwelling(s, DAY + 1, 'zemnice', at(3, -2), 3, [100]);
     expect(next.clearedObstacles).toContainEqual({ id: 100, day: DAY + 1 });
     expect(next.constructions.at(-1)!.cost).toBe(DWELLINGS.zemnice.cost + 3);
   });
 
   it('id překážek musí být celá nezáporná čísla bez opakování', () => {
-    const s = settled(advanceVillage(founded(), DAY + 1));
+    const s = settled(advanceVillage(founded(), DAY + 1, null));
     expect(() => startNewDwelling(s, DAY + 1, 'zemnice', at(3, -2), 0, [7])).not.toThrow();
     expect(() => startNewDwelling(s, DAY + 1, 'zemnice', at(3, -2), 0, [1.5])).toThrow(RangeError);
     expect(() => startNewDwelling(s, DAY + 1, 'zemnice', at(3, -2), 0, [7, 7])).toThrow(RangeError);
@@ -291,6 +291,7 @@ describe('hřbitov – překážky na čtvercích jako u pole', () => {
     const start = advanceVillage(
       foundVillage({ seed: 1, day: DAY, dwellingPosition: at(-30, 0) }),
       DAY + 1,
+      null,
     );
     const first = cemeteryPartsFromCells(
       landscape,
@@ -304,7 +305,7 @@ describe('hřbitov – překážky na čtvercích jako u pole', () => {
     expect(founding.constructions.at(-1)!.cost).toBe(10 + OBSTACLE_COST.shrub);
     expect(founding.clearedObstacles).toEqual([]);
 
-    const built = advanceVillage(founding, DAY + 400);
+    const built = advanceVillage(founding, DAY + 400, null);
     const cemetery = villageCemeteries(built)[0]!;
     expect(cemetery.builtDay).not.toBeNull();
     expect(cemetery.squares[0]!.obstacles).toBeUndefined();
@@ -324,7 +325,7 @@ describe('hřbitov – překážky na čtvercích jako u pole', () => {
     const pending = villageCemeteries(extending)[0]!.squares.at(-1)!;
     expect(pending.obstacles).toEqual([100, 101]);
     expect(pending.constructionId).toBeDefined();
-    const extended = advanceVillage(extending, day + 400);
+    const extended = advanceVillage(extending, day + 400, null);
     expect(villageCemeteries(extended)[0]!.squares.every((sq) => !sq.obstacles)).toBe(true);
     expect(extended.clearedObstacles!.map((c) => c.id).sort()).toEqual([100, 101, 102]);
   });
@@ -333,6 +334,7 @@ describe('hřbitov – překážky na čtvercích jako u pole', () => {
     const start = advanceVillage(
       foundVillage({ seed: 1, day: DAY, dwellingPosition: at(-30, 0) }),
       DAY + 1,
+      null,
     );
     const { squares } = cemeteryPartsFromCells(
       landscape,

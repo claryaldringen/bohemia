@@ -232,3 +232,24 @@ describe('ambientMix', () => {
     }
   });
 });
+
+describe('roční období', () => {
+  it('bez období je to léto; v zimě ptáci skoro mlčí a vítr v holých větvích je tišší', () => {
+    const view = { x: FOREST_EDGE_X, z: 0, radius: NEAR };
+    const summer = ambientMix(view, environment());
+    expect(ambientMix(view, environment(), { birds: 1, birdsong: 1, leaves: 1 })).toEqual(summer);
+    const winter = ambientMix(view, environment(), { birds: 0.35, birdsong: 0.2, leaves: 0.6 });
+    expect(winter.birds).toBeCloseTo(summer.birds * 0.35);
+    expect(winter.birdsong).toBeCloseTo(summer.birdsong * 0.2);
+    expect(winter.leaves).toBeCloseTo(summer.leaves * 0.6);
+    // potok zní pořád stejně
+    expect(winter.streamMedium).toBe(summer.streamMedium);
+    expect(winter.streamFast).toBe(summer.streamFast);
+  });
+
+  it('zesílení (jarní zpěv, podzimní vítr) nepřekročí plnou hlasitost', () => {
+    const view = { x: FOREST_EDGE_X + 200, z: 0, radius: NEAR };
+    const loud = ambientMix(view, environment(), { birds: 3, birdsong: 3, leaves: 3 });
+    for (const layer of AMBIENT_LAYERS) expect(loud[layer]).toBeLessThanOrEqual(1);
+  });
+});

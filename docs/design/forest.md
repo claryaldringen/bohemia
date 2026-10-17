@@ -1,11 +1,13 @@
 # Les a dřevo
 
-Stav: schváleno 17. 10. 2026 (Martin: „Takhle je to zatím ok“). Implementace zatím není – staví na
-vrstvě překážek (stromy jako herní data). Ta už je hotová (17. 10. 2026): dospělé stromy sídla
-s id a polohou, kácení s pařezem a obnovou (`fellTrees`, `treeRegrowth`: 30 let pařez, pak mladý
-stromek, po 70 letech dospělý strom), nejbližší dospělé stromy (`matureTreesByDistance`)
-a jejich počet (`countMatureTrees`) v `packages/game/src/domain/village/obstacles.ts`; scéna
-pařezy a nálet kreslí. Zbývá dřevo samo: hromada klád, kácení při stavbě, mýcení, palivo.
+Stav: schváleno 17. 10. 2026 (Martin: „Takhle je to zatím ok“), čísla opravená podle rešerše
+(Martin, 17. 10. 2026). **Implementováno 18. 10. 2026:** hromada klád (`VillageState.woodLogs`),
+dřevo obydlí, první zemnice i přestaveb s kácením nejbližších dospělých stromů jako částí práce
+stavby, klády z mýcení (pole, hřbitov, staveniště), hnití klád, dřevo jako surovina předem
+(zašedlé tlačítko), palivo podle vzdálenosti k lesu – `packages/game/src/domain/village/wood.ts`;
+v rozhraní klády v horní liště, dřevo v ceně staveb a stromy ke skácení u stavby, ve scéně hromada
+klád a pařezy. Staví na vrstvě překážek (stromy jako herní data, kácení s pařezem a obnovou
+v `obstacles.ts`).
 
 ## Proč
 
@@ -35,26 +37,41 @@ k lesu stojí práci a mýcení pro pole dá klády na stavby.
   část domácí výroby ([fields.md](fields.md) – Práce).
 - Sběr paliva se prodraží, když je ves daleko od lesa: palivová část domácí výroby (návrh Clauda:
   třetina) je o 1 % dražší za každých 10 m nad 100 m od obydlí k nejbližšímu okraji lesa – stejně
-  jako vzdálenost u polí.
+  jako vzdálenost u polí. Počítá se po domácnostech, okraj lesa = nejbližší lesní políčko
+  krajiny (vzdálenost se uloží při zahájení stavby obydlí – návrh Clauda).
 
 ### Stavby a kácení
 
-- **Stavba spotřebuje dřevo** (návrh Clauda): zemnice ≈ **12 stromů** (sloupy, vaznice, krokve),
-  polozemnice ≈ **35 stromů** (hlavně kmeny srubu); přestavba stejně jako nová stavba.
+- **Stavba spotřebuje dřevo** (Martin – oprava podle rešerše 17. 10. 2026): strom = **velký
+  strom**; zemnice ≈ **7 stromů** (sloupy, vaznice, krokve), polozemnice ≈ **18 stromů** (hlavně
+  kmeny srubu); přestavba stejně jako nová stavba.
 - **Nejdřív z hromady klád** (Martin): stavba bere klády ze zásoby vsi. Kácí se, jen když klády
-  nestačí.
+  nestačí. Hromada se počítá v celých kládách: zásoba hnije po troškách a na kusy se
+  zaokrouhluje (nahnilá kláda se počítá, dokud z ní zbývá aspoň polovina) – tolik klád hráč vidí
+  a tolik jich stavba může vzít (návrh Clauda).
 - **Kácení** (Martin: vesničané sami, nejbližší vhodný les): pokácí se nejbližší **dospělé**
   stromy ke staveništi – ne mladé stromky, souše ani padlé kmeny (návrh Clauda). Skácení
   a dovoz stojí **2 člověkodny za strom** a zdraží se o 1 % za každých 10 m nad 100 m od
-  staveniště (návrh Clauda). Je to součást stavby – dostává společnou práci vsi jako ostatní
-  stavby ([populace](population.md)). U blízkého lesa vychází cena staveb zhruba jako dnes
-  (kalibrace), se vzdáleností roste.
+  staveniště (Martin – oprava podle rešerše). Je to součást stavby – dostává společnou práci vsi
+  jako ostatní stavby ([populace](population.md)). U blízkého lesa vychází cena staveb jako dřív:
+  cena obydlí (60 / 220 čd) v sobě kácení blízkého lesa má, samotná stavba je o 7 × 2 / 18 × 2 čd
+  levnější; klády z hromady ji zlevní, daleký les prodraží.
+- **Kdy se kácí** (návrh Clauda): stromy ke kácení se vyberou při zahájení stavby (vyhradí se –
+  jiná stavba je nevezme) a kácí se jako první část práce stavby, strom po stromu; po každém
+  zůstane pařez. Staveniště ve scéně ukazuje samotnou stavbu, panel stavby kolik stromů zbývá
+  skácet. **Vyhrazený strom patří své stavbě** (revize implementace 18. 10. 2026): pole,
+  hřbitov ani staveniště jiného obydlí za něj kládu nedají, a když ho staveniště jiného obydlí
+  odstraní, stavba ho počítá jako pokácený (bez klády z hromady). Naopak stromy na zakládaných
+  dílech polí a čtvercích hřbitova ve stavbě patří té stavbě – obydlí je pro své dřevo nevyhradí.
+- **Opuštěná přestavba** (obydlí zůstalo prázdné) vrátí klády, které vzala z hromady; vyhrazené
+  stromy se uvolní (revize implementace 18. 10. 2026).
 - **Když není z čeho kácet, stavba se nedá zahájit** (Martin, 17. 10. 2026: „Dřevo ať taky
   blokuje, dokud není z čeho kácet“): klády na hromadě + dospělé stromy v krajině sídla nestačí
   na stavbu → tlačítko stavby je zašedlé a tooltip ukáže chybějící dřevo červeně (odemykání jen
   surovinami, jako v 0 A.D.). Počítají se všechny dospělé stromy sídla bez ohledu na vzdálenost –
   daleký les stavbu jen prodraží (návrh Clauda). Rozestavěná stavba se nezastaví: dřevo se jí
-  vyhradí při zahájení (návrh Clauda).
+  vyhradí při zahájení (návrh Clauda). Přestavbu, o které rozhodnou obyvatelé sami, ani první
+  zemnici při založení vsi nedostatek dřeva nezastaví – vezmou, co je (návrh Clauda).
 - **Les ustupuje:** pokácené stromy z krajiny sídla zmizí natrvalo, zůstane po nich **pařez**
   (návrh Clauda). Z náletu je pokácený strom zhruba **za 30 let** mladý stromek a **za 70 let**
   zase dospělý strom, který jde kácet (Martin, oprava podle rešerše) – okraj lesa u vsi tak
@@ -64,11 +81,14 @@ k lesu stojí práci a mýcení pro pole dá klády na stavby.
 ### Mýcení a hromada klád
 
 - **Mýcení lesa pro pole dá klády** (Martin): každý dospělý strom na čtvercích zakládaného pole
-  přidá do zásoby vsi jednu kládu (strom = jedna jednotka dřeva – návrh Clauda).
-- **Hromada klád** leží viditelně složená stranou u vsi (Martin) – vesničané ji založí u nejbližšího
-  obydlí na volném místě (návrh Clauda). Ubývá podle toho, jak se staví (Martin).
-- **Klády hnijí:** ležící dřevo ztratí ≈ 10 % ročně (návrh Clauda) – hromadit je do zásoby se
-  nevyplácí.
+  přidá do zásoby vsi jednu kládu (strom = jedna jednotka dřeva – návrh Clauda), až osadníci díl
+  založí. Stejně dospělé stromy na čtvercích hřbitova (po ohrazení) a na vyklízené ploše obydlí
+  (při zahájení stavby – ta je pak hned spotřebuje).
+- **Hromada klád** leží viditelně složená stranou u vsi (Martin) – vesničané ji založí u obydlí
+  nejblíž okraji lesa na volném místě vedle něj (návrh Clauda): hranice po 21 kládách, ve scéně
+  nejvýš tři. Ubývá podle toho, jak se staví (Martin).
+- **Klády hnijí:** ležící dřevo ztratí ≈ **4 % ročně** (Martin – oprava podle rešerše 17. 10.
+  2026), den po dni – hromadit je do zásoby se dlouhodobě nevyplácí.
 
 ### Krajina sídla
 
@@ -79,10 +99,12 @@ k lesu stojí práci a mýcení pro pole dá klády na stavby.
 ## Co hráč vidí
 
 - Ve scéně: ustupující okraj lesa s pařezy, nálet na starých pasekách, hromadu klád u vsi, která
-  ubývá; na staveništi dovážené kmeny.
+  ubývá (bez volného místa vedle obydlí se nekreslí – nikdy do vody ani na pole).
 - V panelu staveb: zašedlé tlačítko, když není z čeho kácet (tooltip s chybějícím dřevem).
-- V panelu vsi: počet klád v zásobě; u rozestavěné stavby, kolik dřeva ještě chybí a jak daleko je
-  les.
+- V horní liště počet klád na hromadě; u rozestavěné stavby a přestavby, kolik stromů ještě zbývá
+  skácet.
+- **Zatím ne:** dovážené kmeny na staveništi podle kácení (staveniště má jen pevnou hromádku
+  trámů) a vzdálenost k lesu v panelu stavby.
 
 ## Navazuje
 
@@ -92,16 +114,21 @@ k lesu stojí práci a mýcení pro pole dá klády na stavby.
 
 ## Rozhodnutí
 
-| Rozhodnutí                                                                       | Kdo          |
-| -------------------------------------------------------------------------------- | ------------ |
-| Palivo (klestí, odřezky) sbírají vesničané sami, bez kácení                      | Martin       |
-| Stromy se kácí na stavby, později na řemesla                                     | Martin       |
-| Kde kácet, si vyberou vesničané sami – nejbližší vhodný les                      | Martin       |
-| Dřevo z mýcení jde na hromadu klád u vsi, ubývá se stavbami                      | Martin       |
-| Stavba bere nejdřív z hromady, kácí se jen při nedostatku                        | Martin       |
-| Když není z čeho kácet (klády + dospělé stromy nestačí), stavba je zašedlá       | Martin       |
-| 12 / 35 stromů na zemnici / polozemnici, 2 čd na strom, vzdálenost +1 % / 10 m   | návrh Clauda |
-| Jen dospělé stromy, pařez po kácení; nálet: mladý strom ≈ 30 let, dospělý ≈ 70   | Martin       |
-| Klády hnijí ≈ 10 % ročně; strom z mýcení = 1 kláda; hromada u nejbližšího obydlí | návrh Clauda |
-| Palivo jako třetina domácí výroby, dražší se vzdáleností k lesu                  | návrh Clauda |
-| Stromy jako herní data (vrstva překážek) jsou předpoklad                         | návrh Clauda |
+| Rozhodnutí                                                                     | Kdo                                        |
+| ------------------------------------------------------------------------------ | ------------------------------------------ |
+| Palivo (klestí, odřezky) sbírají vesničané sami, bez kácení                    | Martin                                     |
+| Stromy se kácí na stavby, později na řemesla                                   | Martin                                     |
+| Kde kácet, si vyberou vesničané sami – nejbližší vhodný les                    | Martin                                     |
+| Dřevo z mýcení jde na hromadu klád u vsi, ubývá se stavbami                    | Martin                                     |
+| Stavba bere nejdřív z hromady, kácí se jen při nedostatku                      | Martin                                     |
+| Když není z čeho kácet (klády + dospělé stromy nestačí), stavba je zašedlá     | Martin                                     |
+| Strom = velký strom; 7 / 18 stromů na zemnici / polozemnici                    | Martin – oprava podle rešerše 17. 10. 2026 |
+| Kácení a dovoz 2 čd na strom, nad 100 m od staveniště +1 % / 10 m              | Martin – oprava podle rešerše 17. 10. 2026 |
+| Jen dospělé stromy, pařez po kácení; nálet: mladý strom ≈ 30 let, dospělý ≈ 70 | Martin                                     |
+| Klády hnijí ≈ 4 % ročně                                                        | Martin – oprava podle rešerše 17. 10. 2026 |
+| Strom z mýcení = 1 kláda; hromada u obydlí nejblíž lesu                        | návrh Clauda                               |
+| Stromy se vyhradí při zahájení, kácí se jako první část práce stavby           | návrh Clauda                               |
+| Přestavbu a první zemnici dřevo neblokuje – vezmou, co je                      | návrh Clauda                               |
+| Vyhrazený strom patří své stavbě; opuštěná přestavba vrátí klády z hromady     | revize implementace 18. 10. 2026           |
+| Palivo jako třetina domácí výroby, dražší se vzdáleností k lesu                | návrh Clauda                               |
+| Stromy jako herní data (vrstva překážek) jsou předpoklad                       | návrh Clauda                               |

@@ -107,6 +107,8 @@ export interface ObstacleTally {
   cost: number;
   /** Překážky, které osadníci odstraní (bez skalních výchozů). */
   ids: number[];
+  /** Z nich dospělé stromy – za každý kláda na hromadu, pokud ho nevyhradila stavba (forest.md). */
+  treeIds: number[];
   /** Kolik překážek kterého druhu na místě je (i výchozy). */
   counts: Partial<Record<ObstacleKind, number>>;
   /** Plocha pod skalními výchozy (m²) – pole ji obejde. */
@@ -114,7 +116,7 @@ export interface ObstacleTally {
 }
 
 function emptyTally(): ObstacleTally {
-  return { cost: 0, ids: [], counts: {}, outcropAreaM2: 0 };
+  return { cost: 0, ids: [], treeIds: [], counts: {}, outcropAreaM2: 0 };
 }
 
 function addToTally(
@@ -130,6 +132,7 @@ function addToTally(
     return;
   }
   tally.ids.push(layer.id[index]!);
+  if (kind === 'tree') tally.treeIds.push(layer.id[index]!);
   tally.cost += OBSTACLE_COST[kind];
 }
 

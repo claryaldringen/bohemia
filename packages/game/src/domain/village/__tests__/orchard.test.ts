@@ -15,8 +15,15 @@ import {
   villageOrchards,
 } from '../orchard';
 import { MAX_ORCHARD_CELLS, orchardPartsFromCells, type PlacementVillage } from '../placement';
-import { APPLE_FOOD_VALUE, OBSTACLE_COST, ORCHARD, OUTCROP_RADIUS_M } from '../rules';
+import {
+  APPLE_FOOD_VALUE,
+  LOGS_PER_CLEARED_TREE,
+  OBSTACLE_COST,
+  ORCHARD,
+  OUTCROP_RADIUS_M,
+} from '../rules';
 import { advanceVillage } from '../simulate';
+import { claimedObstacles, woodLogs } from '../wood';
 import { summarizeVillage } from '../summary';
 import type { ChronicleEvent, Orchard, Position, TileCell, VillageState } from '../types';
 import { block, makeLandscape } from './placement-fixtures';
@@ -44,7 +51,7 @@ function village(day: number): VillageState {
     dwellingPosition: POSITION,
     firstField: { parts: field() },
   });
-  return advanceVillage(withBuiltFirstDwelling(founded), day);
+  return advanceVillage(withBuiltFirstDwelling(founded), day, null);
 }
 
 /** Čtverce sadu v řadě (x = 0…n−1), od obydlí 60 m a dál. */
@@ -309,6 +316,22 @@ describe('orchardPartsFromCells – staví se jako pole', () => {
     expect(result.plantingCost).toBeCloseTo(
       orchardPlantingCost(result.areaM2, OBSTACLE_COST.tree + OBSTACLE_COST.stone),
     );
+    // dospělý strom dá kládu z mýcení – ne, když ho vyhradila stavba obydlí (forest.md)
+    expect(result.squares[0]!.trees).toBe(1);
+    const reserved: PlacementVillage = {
+      dwellings: [],
+      constructions: [],
+      parts: [],
+      reservedTrees: [100],
+    };
+    const withReserved = orchardPartsFromCells(
+      small,
+      reserved,
+      block(8, 8, 1, 1),
+      [POSITION],
+      layer,
+    );
+    expect(withReserved.squares[0]!.trees).toBeUndefined();
   });
 });
 
@@ -343,11 +366,11 @@ describe('foundOrchard', () => {
 describe('advanceVillage – sad', () => {
   it('výsadba čeká na okno (jaro, podzim) – v zimě společnou práci nebere', () => {
     const s = foundOrchard(village(at(602, 1, 5)), at(602, 1, 5), { squares: squares(4) });
-    const winter = advanceVillage(s, at(602, 2, 28));
+    const winter = advanceVillage(s, at(602, 2, 28), null);
     // v zimě společná práce zbývala – výsadba ji přesto nebrala
     expect(winter.commonLaborHistory.every((labor) => labor > 0.5)).toBe(true);
     expect(villageOrchards(winter)[0]!.squares.every((q) => q.plantingDone === 0)).toBe(true);
-    const spring = advanceVillage(winter, at(602, 4, 30));
+    const spring = advanceVillage(winter, at(602, 4, 30), null);
     const planted = villageOrchards(spring)[0]!.squares;
     expect(planted.every((q) => q.plantedDay !== null)).toBe(true);
     expect(planted.every((q) => dateOfDayIndex(q.plantedDay!).month === 3)).toBe(true);
@@ -357,7 +380,7 @@ describe('advanceVillage – sad', () => {
     // velká cena čtverce (překážky 400 čd) – za jeden den se nevysadí
     const input = [{ ...squares(1)[0]!, obstacleCost: 400, obstacleIds: [7] }];
     const s = foundOrchard(village(at(602, 1, 5)), at(602, 1, 5), { squares: input });
-    const spring = advanceVillage(s, at(602, 4, 30));
+    const spring = advanceVillage(s, at(602, 4, 30), null);
     const square = villageOrchards(spring)[0]!.squares[0]!;
     expect(square.plantingDone).toBeGreaterThan(0);
     expect(square.plantedDay).toBeNull();
@@ -366,16 +389,30 @@ describe('advanceVillage – sad', () => {
     expect(dateOfDayIndex(cleared!.day).month).toBeGreaterThanOrEqual(3);
   });
 
+  it('dospělé stromy z vyklizeného čtverce dají klády jako u pole; do té doby je nekácí stavba', () => {
+    const input = [{ ...squares(1)[0]!, obstacleCost: 6, obstacleIds: [7, 8], trees: 2 }];
+    const s = foundOrchard(village(at(602, 1, 5)), at(602, 1, 5), { squares: input });
+    expect(villageOrchards(s)[0]!.squares[0]!.trees).toBe(2);
+    // stromy čtverce, který se ještě nezačal sázet, patří sadu – obydlí je pro dřevo nekácí
+    expect([...claimedObstacles(s)]).toEqual(expect.arrayContaining([7, 8]));
+    const before = woodLogs(s);
+    const spring = advanceVillage(s, at(602, 4, 30), null);
+    const square = villageOrchards(spring)[0]!.squares[0]!;
+    expect(square.trees).toBeUndefined();
+    expect(woodLogs(spring)).toBeGreaterThan(before + 2 * LOGS_PER_CLEARED_TREE * 0.9);
+    expect(claimedObstacles(spring).has(7)).toBe(false);
+  });
+
   it('výsadba od nejbližšího čtverce; překážky zmizí s výsadbou čtverce; kronika', () => {
     const s = foundOrchard(village(at(600, 6, 10)), at(600, 6, 10), {
       squares: squares(4, [7, 8]),
     });
-    const summer = advanceVillage(s, at(600, 8, 31));
+    const summer = advanceVillage(s, at(600, 8, 31), null);
     expect(villageOrchards(summer)[0]!.squares.every((q) => q.plantingDone === 0)).toBe(true);
     expect(summer.clearedObstacles?.some((c) => c.id === 7)).toBe(false);
 
     // mladá ves má na podzim všechnu práci v poli – sad vysadí na jaře
-    const spring = advanceVillage(summer, at(601, 4, 30));
+    const spring = advanceVillage(summer, at(601, 4, 30), null);
     const planted = villageOrchards(spring)[0]!.squares;
     expect(planted.every((q) => q.plantedDay !== null)).toBe(true);
     const months = planted.map((q) => dateOfDayIndex(q.plantedDay!).month);
@@ -398,7 +435,7 @@ describe('advanceVillage – sad', () => {
 
   it('jarní výsadba 600: první jablka v září 605 (6. rok), sklizeň do zásob a kronika', () => {
     const s = foundOrchard(village(at(600, 2, 10)), at(600, 2, 10), { squares: squares(8) });
-    const result = advanceVillage(s, at(605, 11, 1));
+    const result = advanceVillage(s, at(605, 11, 1), null);
     const orchard = villageOrchards(result)[0]!;
     expect(orchard.squares.every((q) => dateOfDayIndex(q.plantedDay!).year === 600)).toBe(true);
     expect(orchard.squares.every((q) => dateOfDayIndex(q.plantedDay!).month <= 4)).toBe(true);
@@ -411,25 +448,25 @@ describe('advanceVillage – sad', () => {
     const base = village(at(601, 8, 20));
     const s = withOrchard(base, 40, at(570, 4, 1)); // 32. rok sadu – plná úroda
     expect(s.orchardWork ?? null).toBeNull();
-    const harvest = advanceVillage(s, at(601, 9, 1));
+    const harvest = advanceVillage(s, at(601, 9, 1), null);
     expect(harvest.orchardWork).toMatchObject({ task: 'harvest', yieldKg: 2700 });
     expect(harvest.orchardWork!.required).toBeCloseTo(8 * ha(40) * 1, 6);
 
-    const end = advanceVillage(s, at(601, 11, 1));
+    const end = advanceVillage(s, at(601, 11, 1), null);
     expect(events(end, 'apple-harvest').at(-1)?.kg).toBe(2700);
     expect(end.orchardWork ?? null).toBeNull();
     // jablka se jedla první – obilí ubylo míň než ve vsi bez sadu
-    const without = advanceVillage(base, at(601, 11, 1));
+    const without = advanceVillage(base, at(601, 11, 1), null);
     expect(end.storesKg).toBeGreaterThan(without.storesKg);
     expect(end.applesKg).toBeGreaterThan(0);
 
-    const winter = advanceVillage(end, at(601, 12, 1));
+    const winter = advanceVillage(end, at(601, 12, 1), null);
     expect(winter.orchardWork).toMatchObject({ task: 'care' });
     expect(winter.orchardWork!.required).toBeCloseTo(10 * ha(40), 6);
-    const lastFeb = advanceVillage(winter, at(602, 2, 28));
+    const lastFeb = advanceVillage(winter, at(602, 2, 28), null);
     expect(lastFeb.applesKg).toBeGreaterThan(0);
     expect(lastFeb.orchardWork!.done).toBeCloseTo(lastFeb.orchardWork!.required, 6);
-    const march = advanceVillage(lastFeb, at(602, 3, 1));
+    const march = advanceVillage(lastFeb, at(602, 3, 1), null);
     expect(march.applesKg).toBe(0);
     expect(march.orchardWork ?? null).toBeNull();
   });
@@ -437,7 +474,7 @@ describe('advanceVillage – sad', () => {
   it('sklizeň jablek má přednost před podzimním kopáním (dřívější konec okna)', () => {
     const base = village(at(601, 8, 31));
     const s = withOrchard(base, 400, at(570, 4, 1)); // 9 ha – sklizeň ≈ 72 člověkodní
-    const day = advanceVillage(s, at(601, 9, 2));
+    const day = advanceVillage(s, at(601, 9, 2), null);
     expect(day.orchardWork!.done).toBeGreaterThan(1);
     expect(day.plan?.done.dig ?? 0).toBe(0);
     expect(day.plan?.done.reclaim ?? 0).toBe(0);
@@ -448,7 +485,7 @@ describe('advanceVillage – sad', () => {
     s.storesKg = 30; // obilí na pár týdnů
     s.applesKg = 4000 / APPLE_FOOD_VALUE; // jablek víc, než se do konce února sní
     s.hungry = false;
-    const next = advanceVillage(s, at(601, 10, 2));
+    const next = advanceVillage(s, at(601, 10, 2), null);
     const summary = summarizeVillage(next, next.lastDay);
     expect(summary.satiation).toBe(1); // dnes se jí dosyta jablky
     expect(next.hungry).toBe(true);
@@ -459,7 +496,7 @@ describe('advanceVillage – sad', () => {
   it('nesklizená jablka shnijí – málo práce, velký sad', () => {
     const base = village(at(601, 8, 31));
     const s = withOrchard(base, 1200, at(570, 4, 1)); // 27 ha – sklizeň 216 čd, ves stihne část
-    const end = advanceVillage(s, at(601, 11, 1));
+    const end = advanceVillage(s, at(601, 11, 1), null);
     const kg = events(end, 'apple-harvest').at(-1)!.kg;
     expect(kg).toBeGreaterThan(0);
     expect(kg).toBeLessThan(ORCHARD.fullYieldKgPerHa * ha(1200) * 0.8);
@@ -468,13 +505,13 @@ describe('advanceVillage – sad', () => {
   it('v 60. roce sad dosloužil – 1. 3. zaroste loukou a kronika to zapíše', () => {
     const base = village(at(599, 8, 1));
     const s = withOrchard(base, 4, at(541, 4, 1)); // 59. rok sadu v září 599
-    const autumn = advanceVillage(s, at(599, 11, 1));
+    const autumn = advanceVillage(s, at(599, 11, 1), null);
     expect(events(autumn, 'apple-harvest').at(-1)?.kg).toBe(
       Math.round(ORCHARD.fullYieldKgPerHa * ha(4) * 0.1),
     );
-    const before = advanceVillage(autumn, at(600, 2, 29));
+    const before = advanceVillage(autumn, at(600, 2, 29), null);
     expect(villageOrchards(before)).toHaveLength(1);
-    const after = advanceVillage(before, at(600, 3, 1));
+    const after = advanceVillage(before, at(600, 3, 1), null);
     expect(villageOrchards(after)).toHaveLength(0);
     expect(events(after, 'orchard-gone')).toEqual([
       { day: at(600, 3, 1), kind: 'orchard-gone', orchardId: s.orchards![0]!.id },
@@ -482,7 +519,7 @@ describe('advanceVillage – sad', () => {
   });
 
   it('ves bez sadů (i uložená před sady) zůstane beze změny tvaru stavu', () => {
-    const s = advanceVillage(village(at(600, 6, 10)), at(603, 6, 10));
+    const s = advanceVillage(village(at(600, 6, 10)), at(603, 6, 10), null);
     expect(s.orchards).toBeUndefined();
     expect(s.applesKg).toBeUndefined();
     expect(s.orchardWork).toBeUndefined();
@@ -494,7 +531,7 @@ describe('advanceVillage – sad', () => {
     const end = at(612, 3, 15);
     const act = (s: VillageState): VillageState =>
       foundOrchard(s, actionDay, { squares: squares(60, [3]) });
-    const whole = advanceVillage(act(advanceVillage(start, actionDay)), end);
+    const whole = advanceVillage(act(advanceVillage(start, actionDay, null)), end, null);
 
     const viaJson = (s: VillageState): VillageState =>
       JSON.parse(JSON.stringify(s)) as VillageState;
@@ -503,14 +540,15 @@ describe('advanceVillage – sad', () => {
     for (let i = 0; chunked.lastDay < end; i++) {
       const target = chunked.lastDay < actionDay ? actionDay : end;
       chunked = viaJson(
-        advanceVillage(chunked, Math.min(target, chunked.lastDay + steps[i % steps.length]!)),
+        advanceVillage(chunked, Math.min(target, chunked.lastDay + steps[i % steps.length]!), null),
       );
       if (chunked.lastDay === actionDay) chunked = viaJson(act(chunked));
     }
     expect(chunked).toEqual(whole);
 
-    let daily = act(advanceVillage(start, actionDay));
-    while (daily.lastDay < end) daily = advanceVillage(daily, Math.min(end, daily.lastDay + 1));
+    let daily = act(advanceVillage(start, actionDay, null));
+    while (daily.lastDay < end)
+      daily = advanceVillage(daily, Math.min(end, daily.lastDay + 1), null);
     expect(daily).toEqual(whole);
     // sad opravdu plodil – jinak by shoda nic neznamenala
     expect(events(whole, 'apple-harvest').length).toBeGreaterThanOrEqual(5);
@@ -520,7 +558,7 @@ describe('advanceVillage – sad', () => {
 describe('summarizeVillage – sad', () => {
   it('jablka v zásobách, sady s plochou, stářím a odhadem úrody', () => {
     const base = village(at(601, 8, 20));
-    const s = advanceVillage(withOrchard(base, 40, at(590, 4, 1)), at(601, 9, 30));
+    const s = advanceVillage(withOrchard(base, 40, at(590, 4, 1)), at(601, 9, 30), null);
     const summary = summarizeVillage(s, s.lastDay);
     expect(summary.applesKg).toBeGreaterThan(0);
     expect(summary.orchards).toHaveLength(1);
@@ -543,7 +581,7 @@ describe('summarizeVillage – sad', () => {
     const withApples = { ...structuredClone(base), applesKg: 2000 };
     expect(summarizeVillage(withApples, base.lastDay).satiation).toBeGreaterThan(hungry);
     // 28. 2.: příští den jablka shnijí ráno – nepočítají se
-    const feb = advanceVillage(base, at(602, 2, 28));
+    const feb = advanceVillage(base, at(602, 2, 28), null);
     feb.storesKg = 50;
     const febApples = { ...structuredClone(feb), applesKg: 2000 };
     expect(summarizeVillage(febApples, feb.lastDay).satiation).toBeCloseTo(

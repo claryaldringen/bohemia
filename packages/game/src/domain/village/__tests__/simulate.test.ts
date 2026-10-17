@@ -71,18 +71,22 @@ describe('advanceVillage – dopočítání', () => {
   it('(a) po kouscích dá stejný stav jako jedním voláním (10 let)', () => {
     const start = found(at(600, 3, 15));
     const end = at(610, 3, 15);
-    const whole = advanceVillage(start, end);
+    const whole = advanceVillage(start, end, null);
 
-    let chunked = advanceVillage(start, start.lastDay + 1);
-    chunked = advanceVillage(chunked, chunked.lastDay + 30);
+    let chunked = advanceVillage(start, start.lastDay + 1, null);
+    chunked = advanceVillage(chunked, chunked.lastDay + 30, null);
     const steps = [7, 400, 1, 1000, 13, 365, 2, 777];
     for (let i = 0; chunked.lastDay < end; i++) {
-      chunked = advanceVillage(chunked, Math.min(end, chunked.lastDay + steps[i % steps.length]!));
+      chunked = advanceVillage(
+        chunked,
+        Math.min(end, chunked.lastDay + steps[i % steps.length]!),
+        null,
+      );
     }
     expect(chunked).toEqual(whole);
 
     let daily = start;
-    while (daily.lastDay < end) daily = advanceVillage(daily, daily.lastDay + 1);
+    while (daily.lastDay < end) daily = advanceVillage(daily, daily.lastDay + 1, null);
     expect(daily).toEqual(whole);
 
     // ves za 10 let opravdu žila – jinak by shoda nic neznamenala
@@ -99,7 +103,7 @@ describe('advanceVillage – dopočítání', () => {
     }));
     start.chronicle = [...old];
     const end = at(602, 3, 15);
-    const s = advanceVillage(start, end);
+    const s = advanceVillage(start, end, null);
     expect(s.chronicle).toHaveLength(CHRONICLE_MAX_EVENTS);
     const fresh = s.chronicle.filter((e) => e.day > start.lastDay);
     expect(fresh.length).toBeGreaterThanOrEqual(2); // aspoň dvě sklizně
@@ -110,10 +114,10 @@ describe('advanceVillage – dopočítání', () => {
 
     let chunked = start;
     for (const days of [1, 40, 300, 7, 500]) {
-      chunked = advanceVillage(chunked, Math.min(end, chunked.lastDay + days));
+      chunked = advanceVillage(chunked, Math.min(end, chunked.lastDay + days), null);
       expect(chunked.chronicle.length).toBeLessThanOrEqual(CHRONICLE_MAX_EVENTS);
     }
-    chunked = advanceVillage(chunked, end);
+    chunked = advanceVillage(chunked, end, null);
     expect(chunked).toEqual(s);
   });
 
@@ -129,7 +133,7 @@ describe('advanceVillage – dopočítání', () => {
         actionDay,
         { parts: field(40) },
       );
-    const whole = advanceVillage(act(advanceVillage(start, actionDay)), end);
+    const whole = advanceVillage(act(advanceVillage(start, actionDay, null)), end, null);
 
     const viaJson = (s: VillageState): VillageState =>
       JSON.parse(JSON.stringify(s)) as VillageState;
@@ -138,7 +142,7 @@ describe('advanceVillage – dopočítání', () => {
     for (let i = 0; chunked.lastDay < end; i++) {
       const target = chunked.lastDay < actionDay ? actionDay : end;
       chunked = viaJson(
-        advanceVillage(chunked, Math.min(target, chunked.lastDay + steps[i % steps.length]!)),
+        advanceVillage(chunked, Math.min(target, chunked.lastDay + steps[i % steps.length]!), null),
       );
       if (chunked.lastDay === actionDay) chunked = viaJson(act(chunked));
     }
@@ -156,9 +160,9 @@ describe('advanceVillage – dopočítání', () => {
   it('nemění vstupní stav a do stejného dne vrátí shodnou kopii', () => {
     const start = found(at(600, 3, 15));
     const before = structuredClone(start);
-    advanceVillage(start, at(601, 3, 15));
+    advanceVillage(start, at(601, 3, 15), null);
     expect(start).toEqual(before);
-    const same = advanceVillage(start, start.lastDay);
+    const same = advanceVillage(start, start.lastDay, null);
     expect(same).toEqual(start);
     expect(same).not.toBe(start);
   });
@@ -167,7 +171,7 @@ describe('advanceVillage – dopočítání', () => {
     // Okno do druhé sklizně (Ruling 12): trvalé nasycení s polem, které hráč rozšiřuje
     // (≥ 0,95 po 95 % let), je cíl kalibrace v Task 10 – startovní pole 1,7 ha je po třech
     // osevech vyčerpané a potřeba roste (dospívající → dospělí, porody).
-    const s = advanceVillage(found(at(600, 10, 1)), at(602, 8, 31));
+    const s = advanceVillage(found(at(600, 10, 1)), at(602, 8, 31), null);
     expect(harvests(s).filter((e) => e.kg > 0)).toHaveLength(2);
     expect(count(s, 'hunger-began')).toBe(0);
     expect(s.hungry).toBe(false);
@@ -176,7 +180,7 @@ describe('advanceVillage – dopočítání', () => {
   it('(c) zásoby nikdy záporné a žádné NaN – kontrola po každém roce', () => {
     let s = found(at(600, 3, 15));
     for (let year = 601; year <= 610; year++) {
-      s = advanceVillage(s, at(year, 3, 15));
+      s = advanceVillage(s, at(year, 3, 15), null);
       expect(s.storesKg).toBeGreaterThanOrEqual(0);
       expect(nonFinite(s)).toEqual([]);
     }
@@ -184,28 +188,28 @@ describe('advanceVillage – dopočítání', () => {
 
   it('(d) za konec světa RangeError, dopočet do posledního dne projde', () => {
     const s = found(at(1495, 5, 1));
-    expect(() => advanceVillage(s, TOTAL_GAME_DAYS)).toThrow(RangeError);
-    const end = advanceVillage(s, TOTAL_GAME_DAYS - 1);
+    expect(() => advanceVillage(s, TOTAL_GAME_DAYS, null)).toThrow(RangeError);
+    const end = advanceVillage(s, TOTAL_GAME_DAYS - 1, null);
     expect(end.lastDay).toBe(TOTAL_GAME_DAYS - 1);
     expect(nonFinite(end)).toEqual([]);
   });
 
   it('do minulosti RangeError', () => {
-    const s = advanceVillage(found(at(600, 3, 15)), at(600, 4, 1));
-    expect(() => advanceVillage(s, s.lastDay - 1)).toThrow(RangeError);
+    const s = advanceVillage(found(at(600, 3, 15)), at(600, 4, 1), null);
+    expect(() => advanceVillage(s, s.lastDay - 1, null)).toThrow(RangeError);
   });
 
   it('(e) ves založená 20. 6. bez hotových dílů dožije ze zásob a 1. 9. má plán s díly', () => {
     const start = found(at(600, 6, 20));
     expect(start.parts.every((p) => p.state === 'founding')).toBe(true);
 
-    const lastSummerDay = advanceVillage(start, at(600, 8, 31));
+    const lastSummerDay = advanceVillage(start, at(600, 8, 31), null);
     expect(lastSummerDay.plan).toBeNull(); // díly hotové po dubnu čekají na 1. 9.
     expect(lastSummerDay.parts.some((p) => p.state === 'ready')).toBe(true);
     expect(count(lastSummerDay, 'hunger-began')).toBe(0);
     expect(lastSummerDay.people).toHaveLength(start.people.length);
 
-    const s = advanceVillage(lastSummerDay, at(600, 9, 1));
+    const s = advanceVillage(lastSummerDay, at(600, 9, 1), null);
     expect(s.plan).not.toBeNull();
     expect(s.plan?.partIds.length).toBeGreaterThan(0);
     const sown = s.parts.filter((p) => p.state === 'sown').map((p) => p.id);
@@ -217,7 +221,7 @@ describe('advanceVillage – dopočítání', () => {
   it('ves bez lidí: žádná výjimka, žádné NaN, nasycení se neřeší', () => {
     const start = found(at(600, 3, 15));
     start.people = [];
-    const s = advanceVillage(start, at(602, 3, 15));
+    const s = advanceVillage(start, at(602, 3, 15), null);
     expect(nonFinite(s)).toEqual([]);
     expect(s.storesKg).toBeGreaterThanOrEqual(0);
     expect(count(s, 'hunger-began')).toBe(0);
@@ -228,7 +232,7 @@ describe('advanceVillage – dopočítání', () => {
     const start = found(at(600, 3, 15));
     start.parts = [];
     const end = at(605, 3, 15);
-    const s = advanceVillage(start, end);
+    const s = advanceVillage(start, end, null);
     expect(count(s, 'hunger-began')).toBeGreaterThan(0);
     expect(s.hungry).toBe(true);
     expect(harvests(s).length).toBeGreaterThan(0); // plán bez dílů – kronika zapíše 0 kg
@@ -242,10 +246,10 @@ describe('advanceVillage – dopočítání', () => {
 describe('advanceVillage – roční plán a sklizeň', () => {
   it('díl dokončený na podzim hned založí plán a další díly ho rozšíří (Ruling 2)', () => {
     const start = found(at(600, 10, 1));
-    const early = advanceVillage(start, at(600, 10, 3));
+    const early = advanceVillage(start, at(600, 10, 3), null);
     expect(early.plan).not.toBeNull();
     expect(early.plan?.plannedDay).toBeLessThanOrEqual(at(600, 10, 3));
-    const later = advanceVillage(early, at(600, 12, 31));
+    const later = advanceVillage(early, at(600, 12, 31), null);
     expect(later.plan?.plannedDay).toBe(early.plan?.plannedDay);
     expect(later.plan?.partIds.length).toBeGreaterThan(early.plan?.partIds.length ?? 0);
     // výmlat v listopadu a prosinci patří loňské úrodě – letošní plán nemlátí předem
@@ -258,9 +262,9 @@ describe('advanceVillage – roční plán a sklizeň', () => {
   });
 
   it('31. 8. sklizeň do zásob a plán k výmlatu, 1. 3. výmlat skončí (Ruling 8)', () => {
-    const before = advanceVillage(found(at(600, 3, 15)), at(600, 8, 30));
+    const before = advanceVillage(found(at(600, 3, 15)), at(600, 8, 30), null);
     expect(before.plan).not.toBeNull();
-    const s = advanceVillage(before, at(600, 8, 31));
+    const s = advanceVillage(before, at(600, 8, 31), null);
     const harvest = harvests(s).at(-1);
     expect(harvest?.day).toBe(at(600, 8, 31));
     expect(harvest?.kg).toBeGreaterThan(0);
@@ -269,10 +273,10 @@ describe('advanceVillage – roční plán a sklizeň', () => {
     expect(Math.round(s.threshingFromPlan?.harvestedKg ?? -1)).toBe(harvest?.kg);
     expect(s.storesKg).toBeGreaterThan(before.storesKg + (harvest?.kg ?? 0) - 5);
 
-    const winterEnd = advanceVillage(s, at(601, 2, 28));
+    const winterEnd = advanceVillage(s, at(601, 2, 28), null);
     const thresh = winterEnd.threshingFromPlan;
     expect(thresh?.done.thresh).toBeCloseTo(thresh?.required.thresh ?? -1, 6);
-    expect(advanceVillage(winterEnd, at(601, 3, 1)).threshingFromPlan).toBeNull();
+    expect(advanceVillage(winterEnd, at(601, 3, 1), null).threshingFromPlan).toBeNull();
   });
 
   it('1. 9. nevybrané osevy a připravené díly jdou do přílohu (Ruling 9, 10)', () => {
@@ -286,7 +290,7 @@ describe('advanceVillage – roční plán a sklizeň', () => {
       p.state = i < 70 ? 'sown' : 'ready';
       p.sownYears = i < 70 ? 1 : 0;
     });
-    const s = advanceVillage(start, day);
+    const s = advanceVillage(start, day, null);
     const selected = new Set(s.plan?.partIds);
     expect(selected.size).toBeGreaterThan(0);
     expect(selected.size).toBeLessThan(70); // cíl pokryjí už osevy
@@ -312,7 +316,7 @@ describe('advanceVillage – roční plán a sklizeň', () => {
       p.state = 'fallow';
       p.fallowSinceDay = at(sinceYear, 9, 1);
     }
-    return { s: advanceVillage(start, day), day };
+    return { s: advanceVillage(start, day, null), day };
   }
 
   it('1. 9. příloh 16 let (víc než 15) se vrací z lesa: mýcení v plánu a bonus úrodnosti', () => {
@@ -359,14 +363,14 @@ describe('advanceVillage – roční plán a sklizeň', () => {
     s.chronicle.filter((e) => e.kind === 'hunger-began' || e.kind === 'hunger-ended');
 
   it('31. 8. se jí ještě z loňských zásob: malá sklizeň hlad nepřeruší (Ruling 13)', () => {
-    const s = advanceVillage(hungryBeforeHarvest(10), at(600, 9, 2));
+    const s = advanceVillage(hungryBeforeHarvest(10), at(600, 9, 2), null);
     expect(harvests(s)).toEqual([{ day: at(600, 8, 31), kind: 'harvest', kg: 101 }]);
     expect(hungerEvents(s)).toEqual([]);
     expect(s.hungry).toBe(true);
   });
 
   it('sklizeň, která vystačí na rok, ukončí hlad až 1. 9. (Ruling 13)', () => {
-    const s = advanceVillage(hungryBeforeHarvest(START_PARTS), at(600, 9, 2));
+    const s = advanceVillage(hungryBeforeHarvest(START_PARTS), at(600, 9, 2), null);
     expect(harvests(s)).toEqual([{ day: at(600, 8, 31), kind: 'harvest', kg: 756 }]);
     expect(hungerEvents(s)).toEqual([{ day: at(600, 9, 1), kind: 'hunger-ended' }]);
     expect(s.hungry).toBe(false);
@@ -385,7 +389,7 @@ describe('advanceVillage – roční plán a sklizeň', () => {
     const eaten = eatDay(s0.storesKg, need, daysUntilHarvest(day)).storesKg;
     expect(threshLossKg(threshing, 500)).toBeCloseTo(250, 9);
 
-    const s = advanceVillage(s0, day);
+    const s = advanceVillage(s0, day, null);
     expect(s.storesKg).toBeCloseTo(eaten - 250, 9);
     expect(s.threshingFromPlan).toBeNull();
   });
@@ -402,7 +406,7 @@ describe('advanceVillage – roční plán a sklizeň', () => {
     }
     s0.plan = createPlan(s0.parts, at(600, 9, 1));
 
-    const spring = advanceVillage(s0, at(601, 4, 30));
+    const spring = advanceVillage(s0, at(601, 4, 30), null);
     const dig = { done: spring.plan?.done.dig ?? 0, required: spring.plan?.required.dig ?? 0 };
     const sow = { done: spring.plan?.done.sow ?? 0, required: spring.plan?.required.sow ?? 0 };
     expect(dig.done).toBeGreaterThan(0);
@@ -413,7 +417,7 @@ describe('advanceVillage – roční plán a sklizeň', () => {
     expect(sownShare).toBeLessThanOrEqual(dugShare + 1e-9);
     expect(sownShare).toBeGreaterThan(dugShare - 0.01);
 
-    const s = advanceVillage(spring, at(601, 8, 31));
+    const s = advanceVillage(spring, at(601, 8, 31), null);
     expect(harvests(s).at(-1)?.kg).toBeGreaterThan(0);
   });
 
@@ -428,7 +432,7 @@ describe('advanceVillage – roční plán a sklizeň', () => {
     }
     s0.plan = createPlan(s0.parts, at(600, 9, 1));
 
-    const summerEnd = advanceVillage(s0, at(601, 8, 30));
+    const summerEnd = advanceVillage(s0, at(601, 8, 30), null);
     const plan = summerEnd.plan!;
     const sownShare = plan.done.sow / plan.required.sow;
     expect(sownShare).toBeGreaterThan(0.2);
@@ -437,7 +441,7 @@ describe('advanceVillage – roční plán a sklizeň', () => {
     expect(plan.done.weed).toBeCloseTo(plan.required.weed * sownShare, 6);
     expect(plan.done.harvest).toBeCloseTo(plan.required.harvest * sownShare, 6);
 
-    const s = advanceVillage(summerEnd, at(601, 8, 31));
+    const s = advanceVillage(summerEnd, at(601, 8, 31), null);
     const ha = s0.parts.reduce((sum, p) => sum + p.areaM2, 0) / 10_000;
     const fullYield = ha * sownShare * (760 * (0.4 + 0.6 * 0.7) - 175);
     expect(harvests(s).at(-1)?.kg).toBe(Math.round(fullYield));
@@ -472,7 +476,7 @@ describe('advanceVillage – stavby', () => {
         fieldId: null,
       },
     );
-    const s = advanceVillage(s0, day);
+    const s = advanceVillage(s0, day, null);
     const common = s.commonLaborHistory.at(-1) ?? 0;
     expect(common / 2).toBeGreaterThan(0.1); // stavba obydlí potřebuje méně než svůj díl
     expect(s.chronicle).toContainEqual(
@@ -493,7 +497,7 @@ describe('advanceVillage – založení vsi', () => {
     let last = -1;
     let finishedDay: number | null = null;
     for (let d = day; d < day + 365 && finishedDay === null; d++) {
-      s = advanceVillage(s, d);
+      s = advanceVillage(s, d, null);
       const site = s.constructions.find((c) => c.id === zemnice.id);
       if (site) {
         // průběh stavby je vidět – roste, ale ne skokem
@@ -524,7 +528,7 @@ describe('advanceVillage – založení vsi', () => {
   it('na staveništi nikdo neumře na to, že nemá obydlí, a zakladatelé mají denní minimum', () => {
     const day = at(600, 10, 1);
     const s0 = foundVillage({ seed: 9, day, dwellingPosition: POSITION });
-    const s = advanceVillage(s0, day + 30);
+    const s = advanceVillage(s0, day + 30, null);
     expect(s.dwellings).toEqual([]); // zemnice ještě stojí rozestavěná
     expect(s.people.length).toBeGreaterThanOrEqual(4);
     expect(count(s, 'death')).toBe(0);
@@ -535,7 +539,7 @@ describe('advanceVillage – založení vsi', () => {
 
   it('stavbu první zemnice a první pole staví zakladatelé společnou prací rovným dílem', () => {
     const day = at(600, 10, 1);
-    const s = advanceVillage(found(day), day);
+    const s = advanceVillage(found(day), day, null);
     const [zemnice, plot] = s.constructions;
     expect(zemnice?.kind).toBe('dwelling');
     expect(plot?.kind).toBe('field');
@@ -545,13 +549,13 @@ describe('advanceVillage – založení vsi', () => {
   it('po kouscích s JSON mezi nimi dá stejný stav jako jedním voláním – i přes dostavění', () => {
     const start = foundVillage({ seed: 11, day: at(600, 3, 15), dwellingPosition: POSITION });
     const end = start.foundedDay + 200;
-    const whole = advanceVillage(start, end);
+    const whole = advanceVillage(start, end, null);
     expect(whole.dwellings).toHaveLength(1); // zemnice se mezitím dostavěla
     const viaJson = (s: VillageState): VillageState =>
       JSON.parse(JSON.stringify(s)) as VillageState;
     let chunked = viaJson(start);
     for (const days of [1, 3, 17, 1, 40, 2, 90, 200]) {
-      chunked = viaJson(advanceVillage(chunked, Math.min(end, chunked.lastDay + days)));
+      chunked = viaJson(advanceVillage(chunked, Math.min(end, chunked.lastDay + days), null));
     }
     expect(chunked).toEqual(whole);
   });
@@ -562,7 +566,7 @@ describe('advanceVillage – obydlí', () => {
     const day = at(600, 10, 1);
     const s0 = withoutFields(day, [adultOfAge(100, 20, day), adultOfAge(101, 21, day)]);
     const building = startNewDwelling(s0, day, 'zemnice', { x: 5, z: 5, rotation: 0 }, 0);
-    const s = advanceVillage(building, day + 120);
+    const s = advanceVillage(building, day + 120, null);
     const finished = s.chronicle.find(
       (e) => e.kind === 'construction-finished' && e.constructionKind === 'dwelling',
     );
@@ -595,7 +599,7 @@ describe('advanceVillage – obydlí', () => {
       condition: 1,
       position: { x: 30, z: 0, rotation: 0 },
     });
-    const s = advanceVillage(settled, day + Math.ceil(2 * YEAR));
+    const s = advanceVillage(settled, day + Math.ceil(2 * YEAR), null);
     const fresh = s.dwellings.find((d) => d.id !== 1);
     expect(fresh).toBeDefined();
     expect(occupants(s, fresh!.id)).toEqual([]);
@@ -608,7 +612,7 @@ describe('advanceVillage – obydlí', () => {
     const day = at(600, 10, 1);
     const s0 = withoutFields(day, [adultOfAge(100, 20, day), adultOfAge(101, 21, day)]);
     s0.dwellings.push({ id: 50, type: 'zemnice', builtDay: day, condition: 1, position: POSITION });
-    const s = advanceVillage(s0, day);
+    const s = advanceVillage(s0, day, null);
     expect(occupants(s, 50).map((p) => p.id)).toEqual([100, 101]);
     expect(s.chronicle).toContainEqual({ day, kind: 'household-founded', dwellingId: 50 });
   });
@@ -629,7 +633,7 @@ describe('advanceVillage – obydlí', () => {
       dwellingId: 1,
       fieldId: null,
     });
-    const s = advanceVillage(s0, day + 30);
+    const s = advanceVillage(s0, day + 30, null);
     expect(s.constructions).toEqual([]);
     expect(count(s, 'construction-finished')).toBe(0);
     expect(s.dwellings.find((d) => d.id === 1)?.type).toBe('zemnice');
@@ -663,7 +667,7 @@ describe('advanceVillage – obydlí', () => {
     const day = at(600, 10, 1);
     const s0 = firstQualifyingWithoutPair(day);
     s0.dwellings.push({ id: 50, type: 'zemnice', builtDay: day, condition: 1, position: POSITION });
-    const s = advanceVillage(s0, day);
+    const s = advanceVillage(s0, day, null);
     expect(originalOccupants(s, 50, s0.nextId)).toEqual([22, 23]);
     expect(s.chronicle).toContainEqual({ day, kind: 'household-founded', dwellingId: 50 });
     expect(originalOccupants(s, 1, s0.nextId)).toEqual([10, 11, 12, 13, 14, 15, 16]);
@@ -673,7 +677,7 @@ describe('advanceVillage – obydlí', () => {
     const day = at(600, 10, 1);
     const s0 = firstQualifyingWithoutPair(day);
     const building = startNewDwelling(s0, day, 'zemnice', { x: 5, z: 5, rotation: 0 }, 0);
-    const s = advanceVillage(building, day + 120);
+    const s = advanceVillage(building, day + 120, null);
     const fresh = s.dwellings.find((d) => d.id !== 1 && d.id !== 2);
     expect(fresh).toBeDefined();
     expect(originalOccupants(s, fresh!.id, s0.nextId)).toEqual([22, 23]);
@@ -687,7 +691,7 @@ describe('advanceVillage – obydlí', () => {
     s0.dwellings[0]!.type = 'polozemnice';
     s0.people = [53, 53, 40, 21, 9, 3, 2, 1].map((years, i) => adultOfAge(10 + i, years, day));
     s0.dwellings.push({ id: 50, type: 'zemnice', builtDay: day, condition: 1, position: POSITION });
-    const s = advanceVillage(s0, day + 10);
+    const s = advanceVillage(s0, day + 10, null);
     expect(count(s, 'household-founded')).toBe(0);
     expect(count(s, 'household-merged')).toBe(0);
     expect(originalOccupants(s, 1, s0.nextId)).toEqual([10, 11, 12, 13, 14, 15, 16, 17]);
@@ -703,7 +707,7 @@ describe('advanceVillage – obydlí', () => {
       condition: 0.0001,
       position: POSITION,
     });
-    const s = advanceVillage(s0, day);
+    const s = advanceVillage(s0, day, null);
     expect(s.dwellings.map((d) => d.id)).toEqual([1]);
   });
 
@@ -711,7 +715,7 @@ describe('advanceVillage – obydlí', () => {
     const day = at(600, 10, 1);
     const s0 = withBuiltFirstDwelling(found(day));
     s0.dwellings[0]!.builtDay = day - 16 * 365;
-    const decided = advanceVillage(s0, day);
+    const decided = advanceVillage(s0, day, null);
     expect(decided.chronicle).toContainEqual({
       day,
       kind: 'rebuild-decided',
@@ -722,7 +726,7 @@ describe('advanceVillage – obydlí', () => {
     expect(rebuild).toHaveLength(1);
     expect(rebuild[0]).toMatchObject({ dwellingId: 1, dwellingType: 'polozemnice', cost: 220 });
 
-    const s = advanceVillage(decided, day + 2 * 365);
+    const s = advanceVillage(decided, day + 2 * 365, null);
     const finished = s.chronicle.find(
       (e) => e.kind === 'construction-finished' && e.constructionKind === 'rebuild',
     );

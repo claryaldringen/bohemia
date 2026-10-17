@@ -29,6 +29,7 @@ import {
 } from '@/lib/scene/orchard-layout';
 import { tileAt, tileCenter } from '@/lib/scene/tile-at';
 import { CONSTRUCTION_PHASES, constructionPhase } from '@/lib/scene/village-construction';
+import { REFERENCE_DAY, dateOfDayOfYear } from '@/lib/scene/season-look';
 import type {
   SquaresPreview,
   PlacementPreview,
@@ -48,6 +49,9 @@ const STAGES: PartStage[] = [
   'shrub',
   'forest',
 ];
+const SEASON_NAMES = { spring: 'jaro', summer: 'léto', autumn: 'podzim', winter: 'zima' } as const;
+/** „Přehrát rok“ – celý rok za tolik sekund. */
+const YEAR_PLAY_S = 60;
 const buttonClass =
   'rounded bg-stone-800 px-2 py-0.5 text-stone-50 hover:bg-stone-700 disabled:opacity-40 dark:bg-stone-200 dark:text-stone-900 dark:hover:bg-stone-300';
 
@@ -80,6 +84,10 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   const [placing, setPlacing] = useState<string | null>(null);
   const [preview, setPreview] = useState<PlacementPreview | null>(null);
   const [smokeAlways, setSmokeAlways] = useState(false);
+  const [woodLogs, setWoodLogs] = useState(0);
+  // roční období: den v roce (null = podle herního data) a přehrávání roku
+  const [seasonDay, setSeasonDay] = useState<number | null>(null);
+  const [playingYear, setPlayingYear] = useState(false);
   const nextId = useRef(1);
 
   const village = useMemo<SceneVillage>(
@@ -94,8 +102,9 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
       })),
       cemeteries,
       orchards,
+      woodLogs,
     }),
-    [dwellings, fields, cemeteries, orchards, stage, mixed],
+    [dwellings, fields, cemeteries, orchards, stage, mixed, woodLogs],
   );
 
   useEffect(() => {
@@ -105,6 +114,24 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   useEffect(() => {
     scene?.setSmokeAlways(smokeAlways);
   }, [scene, smokeAlways]);
+
+  useEffect(() => {
+    scene?.setSeasonDay(seasonDay);
+  }, [scene, seasonDay]);
+
+  useEffect(() => {
+    if (!playingYear) return;
+    let frame = 0;
+    let last = performance.now();
+    const step = (now: number): void => {
+      const days = ((now - last) / 1000 / YEAR_PLAY_S) * 365;
+      last = now;
+      setSeasonDay((day) => (((day ?? REFERENCE_DAY) - 1 + days) % 365) + 1);
+      frame = requestAnimationFrame(step);
+    };
+    frame = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(frame);
+  }, [playingYear]);
 
   // Přístup ke scéně a vsi pro snímky z Playwrightu (jen tato vývojová stránka).
   useEffect(() => {
@@ -421,6 +448,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
 
   const firstSite = dwellings.find((d) => !d.built);
   const plantingSquare = orchards.flatMap((o) => o.squares).find((s) => s.planting < 1);
+  const seasonDate = dateOfDayOfYear(seasonDay ?? REFERENCE_DAY);
 
   return (
     <>
@@ -485,6 +513,13 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         <button className={buttonClass} disabled={!scene} onClick={showPhases}>
           Ukázka fází
         </button>
+        <button className={buttonClass} onClick={() => setWoodLogs((n) => Math.max(0, n - 10))}>
+          Klády −10
+        </button>
+        <span data-testid="dev-village-wood">{woodLogs} klád</span>
+        <button className={buttonClass} onClick={() => setWoodLogs((n) => n + 10)}>
+          Klády +10
+        </button>
         <label className="flex items-center gap-1">
           <input
             type="checkbox"
@@ -500,6 +535,39 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
           <input type="checkbox" checked={mixed} onChange={(e) => setMixed(e.target.checked)} />
           střídat stavy
         </label>
+        <label className="flex items-center gap-1" title="Den v roce – roční období krajiny">
+          Období
+          <input
+            type="range"
+            min={1}
+            max={365}
+            step={1}
+            value={Math.floor(seasonDay ?? REFERENCE_DAY)}
+            data-testid="dev-season-day"
+            onChange={(e) => {
+              setPlayingYear(false);
+              setSeasonDay(Number(e.target.value));
+            }}
+          />
+          <span className="w-28 tabular-nums" data-testid="dev-season-label">
+            {seasonDay === null
+              ? 'podle data'
+              : `${seasonDate.day}. ${seasonDate.month}. · ${SEASON_NAMES[seasonDate.season]}`}
+          </span>
+        </label>
+        <button className={buttonClass} onClick={() => setPlayingYear((playing) => !playing)}>
+          {playingYear ? '■ zastavit' : '▶ přehrát rok'}
+        </button>
+        <button
+          className={buttonClass}
+          disabled={seasonDay === null}
+          onClick={() => {
+            setPlayingYear(false);
+            setSeasonDay(null);
+          }}
+        >
+          Období podle data
+        </button>
         <button
           className={buttonClass}
           onClick={() => {

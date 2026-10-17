@@ -30,11 +30,13 @@ rozhoduje, kolik louky a práce dá do jistoty na dlouho dopředu místo obilí 
   [fields.md](fields.md); skalní výchoz se neodstraní a plocha pod ním se nepočítá) ze společné
   práce vsi; sází se jen na jaře (březen–duben) nebo na podzim (září–listopad) – okna jako kopání
   (návrh Clauda). Mimo okna stavba sadu společnou práci nebere a čeká; čtverce se sázejí od
-  nejbližšího k obydlím a překážky z čtverce zmizí, až je vysazený. Polní práce mají přednost
-  (pořadí práce ve [fields.md](fields.md)) – mladá ves, která má na podzim všechnu práci v poli,
-  vysadí sad až na jaře. Překážky z čtverce zmizí, jakmile se na něm začne pracovat (nejdřív se
-  vyklidí – sazenice nestojí mezi kameny a keři). Panel sadu ukáže, že výsadba čeká na jaro
-  nebo podzim.
+  nejbližšího k obydlím. Polní práce mají přednost (pořadí práce ve [fields.md](fields.md)) –
+  mladá ves, která má na podzim všechnu práci v poli, vysadí sad až na jaře. Překážky z čtverce
+  zmizí, jakmile se na něm začne pracovat (nejdřív se vyklidí – sazenice nestojí mezi kameny
+  a keři); dospělé stromy, které nevyhradila stavba obydlí, přitom dají klády na hromadu jako
+  u dílu pole ([les a dřevo](forest.md)). Stromy čtverců, které se ještě nezačaly sázet, patří
+  sadu – stavba obydlí je pro dřevo nekácí. Panel sadu ukáže, že výsadba čeká na jaro nebo
+  podzim.
 - **Rok sadu** (návrh Clauda): hospodářský rok sadu začíná 1. 3. – jarní výsadba je 1. rokem
   sadu hned, podzimní (od září) až od příštího jara.
 - **Růst a úroda** (Martin – oprava podle rešerše): první jablka **6. rok** po výsadbě, úroda

@@ -69,7 +69,7 @@ describe('partStage', () => {
 
 describe('summarizeVillage', () => {
   it('čerstvá ves: 2 dospělí a 2 děti staví zemnici, zásoby na 18 měsíců', () => {
-    const s = advanceVillage(found(), DAY);
+    const s = advanceVillage(found(), DAY, null);
     const summary = summarizeVillage(s, DAY);
     expect(summary.people).toEqual({ children: 2, adults: 2, elders: 0 });
     // zakladatelé bydlí na staveništi – obydlí (domácnost v panelu) přibude s dostavěním
@@ -84,7 +84,7 @@ describe('summarizeVillage', () => {
   });
 
   it('s hotovou zemnicí: jedna domácnost, 4 lidé v zemnici pro 6', () => {
-    const s = advanceVillage(withBuiltFirstDwelling(found()), DAY);
+    const s = advanceVillage(withBuiltFirstDwelling(found()), DAY, null);
     const summary = summarizeVillage(s, DAY);
     expect(summary.households).toEqual([
       {
@@ -101,7 +101,7 @@ describe('summarizeVillage', () => {
   });
 
   it('rozestavěné pole má průběh mezi 0 a 1 a výměru', () => {
-    const s = advanceVillage(found(), DAY + 3);
+    const s = advanceVillage(found(), DAY + 3, null);
     const field = summarizeVillage(s, DAY + 3).constructions.find((c) => c.kind === 'field');
     expect(field).toMatchObject({ kind: 'field', areaM2: 8 * 225 });
     expect(field!.progress).toBeGreaterThan(0);

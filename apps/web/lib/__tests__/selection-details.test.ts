@@ -10,7 +10,8 @@ const scene: SceneVillage = {
       type: 'polozemnice',
       position: { x: 20, z: 0, rotation: 0 },
       built: false,
-      progress: 0.4,
+      // staveniště ve scéně ukazuje samotnou stavbu – dřevo se ještě kácí
+      progress: 0.1,
     },
   ],
   fields: [{ id: 5, parts: [] }],
@@ -39,6 +40,7 @@ const view = {
       dwellingType: 'polozemnice',
       dwellingId: null,
       fieldId: null,
+      treesToFell: 5,
     },
     {
       id: 12,
@@ -118,14 +120,21 @@ describe('selectionDetails', () => {
     });
   });
 
-  it('staveniště: typ a průběh (i před založením vsi, ze scény)', () => {
+  it('staveniště: typ, celý průběh i s kácením a stromy ke skácení (bez vsi ze scény)', () => {
     expect(selectionDetails(view, scene, { kind: 'dwelling', id: 9 })).toEqual({
       kind: 'site',
       id: 9,
       type: 'polozemnice',
       progress: 0.4,
+      treesToFell: 5,
     });
-    expect(selectionDetails(null, scene, { kind: 'dwelling', id: 9 })?.kind).toBe('site');
+    expect(selectionDetails(null, scene, { kind: 'dwelling', id: 9 })).toEqual({
+      kind: 'site',
+      id: 9,
+      type: 'polozemnice',
+      progress: 0.1,
+      treesToFell: 0,
+    });
   });
 
   it('pole: výměra, úrodnost, díly podle stadia v pořadí a zakládání', () => {

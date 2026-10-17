@@ -2,17 +2,20 @@ import {
   BUILD_COSTS,
   ORCHARD_WINDOWS,
   STOCK_RESOURCES,
+  affordability,
   ageYears,
-  buildAffordability,
   dateOfDayIndex,
   effectiveFertility,
   monthInWindow,
   obstacleChangesAt,
   ORCHARD_PLANTING_WINDOWS,
+  obstaclesOf,
   partStage,
   squareBearing,
   summarizeVillage,
   tileCenterWorld,
+  villageStock,
+  wholeLogs,
   type BuildKind,
   type ChronicleEvent,
   type ConstructionKind,
@@ -42,7 +45,7 @@ import { formatCells, formatHa, formatInteger } from './village-format';
 export type { BuildKind, PartStage, StockResource } from '@bohemia/game';
 
 /**
- * Stavba v nabídce staveb: cena a jestli na ni ves má (bez surovin nebo lidí k osídlení je
+ * Stavba v nabídce staveb: cena a jestli na ni ves má (bez surovin, dřeva nebo lidí k osídlení je
  * tlačítko zašedlé).
  */
 export interface BuildOption {
@@ -51,7 +54,10 @@ export interface BuildOption {
   perHa: boolean;
   /** Cena za čtverec (pohřebiště). */
   perSquare: boolean;
-  /** Předem – suroviny a lidé k osídlení: kolik stavba chce a kolik chybí (0 = ves má). */
+  /**
+   * Předem – suroviny (obilí, dřevo ve stromech) a lidé k osídlení: kolik stavba chce a kolik
+   * chybí (0 = ves má).
+   */
   upfront: { resource: StockResource; amount: number; missing: number }[];
   affordable: boolean;
 }
@@ -76,6 +82,8 @@ export interface VillageView {
   storesKg: number;
   /** Zásoby jablek (kg) – horní lišta je ukáže vedle obilí, jen když nějaká jsou. */
   applesKg: number;
+  /** Klády na hromadě u vsi v kusech (forest.md). */
+  woodLogs: number;
   storesMonths: number;
   satiation: number;
   commonLaborPerDay: number;
@@ -98,6 +106,8 @@ export interface VillageView {
     cemeteryId: number | null;
     /** Vysazovaný sad (orchard), jinak null. */
     orchardId: number | null;
+    /** Kolik stromů stavba ještě musí skácet (obydlí, přestavba – forest.md). */
+    treesToFell: number;
   }[];
   /** Pole pro panel výběru: výměra, průměrná úrodnost a počet dílů podle stadia. */
   fields: {
@@ -203,6 +213,8 @@ export interface SceneVillage {
    * pokácela (pařez, později nálet) – id z vrstvy. Bez údaje žádné.
    */
   obstacles?: ObstacleChanges;
+  /** Klády na hromadě v kusech – scéna je složí u obydlí nejblíž lesu. Bez údaje žádné. */
+  woodLogs?: number;
 }
 
 export const CHRONICLE_LENGTH = 8;
@@ -288,9 +300,10 @@ function sceneVillage(
     progress: 1,
     inhabited: occupied.has(d.id),
   }));
+  // staveniště ukazuje samotnou stavbu – dřevo se kácí v lese, než se začne stavět
   const sites = state.constructions.flatMap((c) => {
     if (c.kind !== 'dwelling' || c.dwellingType === null || c.position === null) return [];
-    const progress = constructions.find((s) => s.id === c.id)?.progress ?? 0;
+    const progress = constructions.find((s) => s.id === c.id)?.buildProgress ?? 0;
     return [{ id: c.id, type: c.dwellingType, position: c.position, built: false, progress }];
   });
   const fields = state.fields.map((f) => ({
@@ -324,6 +337,7 @@ function sceneVillage(
     cemeteries,
     ...(orchards.length > 0 ? { orchards } : {}),
     obstacles: obstacleChangesAt(state, day),
+    woodLogs: wholeLogs(state.woodLogs ?? 0),
   };
 }
 
@@ -414,11 +428,15 @@ const BUILD_KINDS: readonly BuildKind[] = [
 ];
 const DAYS_PER_YEAR = 365.25;
 
-/** Nabídka staveb: cena z pravidel a co z ceny předem (suroviny, lidé k osídlení) ves nemá. */
-function buildOptions(state: VillageState): Record<BuildKind, BuildOption> {
+/**
+ * Nabídka staveb: cena z pravidel a co z ceny předem (suroviny, dřevo, lidé k osídlení) ves nemá.
+ * Dřevo = klády + dospělé stromy krajiny sídla, které jde skácet (vrstva překážek).
+ */
+function buildOptions(state: VillageState, landscape: Landscape): Record<BuildKind, BuildOption> {
+  const stock = villageStock(state, obstaclesOf(landscape));
   const entries = BUILD_KINDS.map((kind): [BuildKind, BuildOption] => {
     const cost = BUILD_COSTS[kind];
-    const { affordable, missing } = buildAffordability(state, kind);
+    const { affordable, missing } = affordability(stock, cost.upfront);
     const upfront = STOCK_RESOURCES.flatMap((resource) => {
       const amount = cost.upfront[resource] ?? 0;
       return amount > 0 ? [{ resource, amount, missing: missing[resource] ?? 0 }] : [];
@@ -478,11 +496,12 @@ export function buildVillageView(
     }),
     storesKg: summary.storesKg,
     applesKg: summary.applesKg,
+    woodLogs: wholeLogs(summary.woodLogs),
     storesMonths: summary.storesMonths,
     satiation: summary.satiation,
     commonLaborPerDay: summary.commonLaborPerDay,
     fullHousehold: summary.fullHousehold,
-    build: buildOptions(state),
+    build: buildOptions(state, landscape),
     constructions: summary.constructions.map((c) => ({
       id: c.id,
       kind: c.kind,
@@ -493,6 +512,7 @@ export function buildVillageView(
       fieldId: c.kind === 'field' ? c.fieldId : null,
       cemeteryId: c.cemeteryId,
       orchardId: c.orchardId,
+      treesToFell: c.treesToFell,
     })),
     fields: fieldViews(state, day),
     hungry: summary.hungry,

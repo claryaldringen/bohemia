@@ -30,6 +30,7 @@ import {
   FIELD_LIMITS,
 } from './rules';
 import type { DwellingType, Position, TileCell, VillageState } from './types';
+import { reservedTrees } from './wood';
 
 // Umisťování obydlí, polí, sadů a pohřebišť (population.md – Umístění obydlí, fields.md –
 // Založení pole, orchard.md – Stavba, cemetery.md – Stavba). Čisté funkce pro server i klienta
@@ -62,6 +63,11 @@ export interface PlacementVillage {
   readonly orchards?: readonly { readonly squares: readonly { readonly cell: TileCell }[] }[];
   /** Překážky, které ves už odstranila nebo pokácela (`obstacleChangesAt`); bez nich žádné. */
   readonly obstacleChanges?: ObstacleChanges;
+  /**
+   * Stromy vyhrazené rozestavěnými stavbami (`reservedTrees`) – patří své stavbě, mýcení za ně
+   * kládu nedá (forest.md). Bez údaje žádné.
+   */
+  readonly reservedTrees?: readonly number[];
 }
 
 /** Kontrola umístění obydlí s cenou překážek na vyklízené ploše. */
@@ -70,6 +76,8 @@ export interface DwellingPlacementCheck extends PlacementCheck {
   obstacleCost: number;
   /** Překážky, které osadníci při zahájení stavby odstraní. */
   obstacleIds: number[];
+  /** Dospělé stromy mezi nimi, které nevyhradila jiná stavba – dají klády na hromadu. */
+  clearedTrees: number;
   /** Kolik překážek kterého druhu na místě je. */
   obstacleCounts: Partial<Record<ObstacleKind, number>>;
 }
@@ -341,7 +349,7 @@ export function checkDwellingPlacement(
   position: Position,
   obstacles: ObstacleLayer = obstaclesOf(landscape),
 ): DwellingPlacementCheck {
-  const none = { obstacleCost: 0, obstacleIds: [], obstacleCounts: {} };
+  const none = { obstacleCost: 0, obstacleIds: [], clearedTrees: 0, obstacleCounts: {} };
   if (![position.x, position.z, position.rotation].every(Number.isFinite)) {
     return { ...fail('Neplatná poloha obydlí.'), ...none };
   }
@@ -370,13 +378,27 @@ export function checkDwellingPlacement(
     ...nearCemeteryWarning(landscape, village, position),
     obstacleCost: tally.cost,
     obstacleIds: tally.ids,
+    clearedTrees: unreservedTrees(village, tally.treeIds),
     obstacleCounts: tally.counts,
   };
 }
 
-/** Ves pro kontrolu umístění na serveru – stav vsi se změnami překážek v den `day`. */
+/** Kolik z dospělých stromů `treeIds` nevyhradila žádná stavba (ty dají klády z mýcení). */
+function unreservedTrees(village: PlacementVillage | null, treeIds: readonly number[]): number {
+  const reserved = new Set(village?.reservedTrees ?? []);
+  return treeIds.filter((id) => !reserved.has(id)).length;
+}
+
+/**
+ * Ves pro kontrolu umístění na serveru – stav vsi se změnami překážek v den `day` a stromy
+ * vyhrazenými stavbami.
+ */
 export function placementVillageOf(state: VillageState, day: number): PlacementVillage {
-  return { ...state, obstacleChanges: obstacleChangesAt(state, day) };
+  return {
+    ...state,
+    obstacleChanges: obstacleChangesAt(state, day),
+    reservedTrees: [...reservedTrees(state)],
+  };
 }
 
 /** Polohy obydlí vsi včetně rozestavěných – od nich se měří vzdálenost dílů pole. */
@@ -620,6 +642,70 @@ function meadowSquares(
   return { squares, problems, blockedCells, obstacleCounts };
 }
 
+/** Políčka lesa krajiny (indexy) – spočítají se jednou pro každou krajinu. */
+const forestTilesCache = new WeakMap<Landscape, Int32Array>();
+
+function forestTiles(landscape: Landscape): Int32Array {
+  let tiles = forestTilesCache.get(landscape);
+  if (!tiles) {
+    const list: number[] = [];
+    for (let y = 0; y < landscape.size; y++) {
+      for (let x = 0; x < landscape.size; x++) {
+        if (surfaceAt(landscape, x, y) === 'forest') list.push(y * landscape.size + x);
+      }
+    }
+    tiles = Int32Array.from(list);
+    forestTilesCache.set(landscape, tiles);
+  }
+  return tiles;
+}
+
+/**
+ * Vzdálenost bodu světa k nejbližšímu okraji lesa v m – k nejbližšímu políčku lesa, v lese 0
+ * (forest.md – Palivo). Krajina bez lesa: dvojnásobek strany krajiny (konečné číslo – ukládá se
+ * do JSON).
+ */
+export function forestEdgeDistanceM(landscape: Landscape, x: number, z: number): number {
+  const half = (landscape.size * landscape.cellSizeM) / 2;
+  const size = landscape.cellSizeM;
+  let best = Infinity;
+  for (const index of forestTiles(landscape)) {
+    const minX = (index % landscape.size) * size - half;
+    const minZ = Math.floor(index / landscape.size) * size - half;
+    const dx = Math.max(0, minX - x, x - (minX + size));
+    const dz = Math.max(0, minZ - z, z - (minZ + size));
+    best = Math.min(best, Math.hypot(dx, dz));
+  }
+  return Number.isFinite(best) ? best : 2 * landscape.size * landscape.cellSizeM;
+}
+
+/**
+ * Ves z doby před palivem (obydlí a stavby obydlí bez `forestDistanceM`): doplní vzdálenost
+ * k okraji lesa z krajiny. Ves, které nic nechybí, vrací beze změny.
+ */
+export function withForestDistances(state: VillageState, landscape: Landscape): VillageState {
+  const missing =
+    state.dwellings.some((d) => d.forestDistanceM === undefined) ||
+    state.constructions.some(
+      (c) => c.kind === 'dwelling' && c.position !== null && c.forestDistanceM === undefined,
+    );
+  if (!missing) return state;
+  const next = structuredClone(state);
+  for (const d of next.dwellings) {
+    d.forestDistanceM ??= forestEdgeDistanceM(landscape, d.position.x, d.position.z);
+  }
+  for (const c of next.constructions) {
+    if (c.kind !== 'dwelling' || c.position === null) continue;
+    c.forestDistanceM ??= forestEdgeDistanceM(landscape, c.position.x, c.position.z);
+  }
+  return next;
+}
+
+/** Stromy dílu nebo čtverce pro klády z mýcení – bez stromů se údaj vynechá. */
+function withTrees(trees: number): { trees?: number } {
+  return trees > 0 ? { trees } : {};
+}
+
 const EMPTY_PREVIEW = {
   cells: [],
   parts: [],
@@ -673,6 +759,7 @@ export function fieldPartsFromCells(
     surface: 'meadow',
     obstacleCost: square.tally.cost,
     ...(square.tally.ids.length > 0 ? { obstacleIds: square.tally.ids } : {}),
+    ...withTrees(unreservedTrees(village, square.tally.treeIds)),
     cell: square.cell,
   }));
 
@@ -754,6 +841,7 @@ export function orchardPartsFromCells(
     distanceM: square.distanceM,
     obstacleCost: square.tally.cost,
     ...(square.tally.ids.length > 0 ? { obstacleIds: square.tally.ids } : {}),
+    ...withTrees(unreservedTrees(village, square.tally.treeIds)),
   }));
   const checks: [boolean, string][] = [
     [problems.water, 'Sad nesmí zasahovat do vody.'],
@@ -885,6 +973,7 @@ export function cemeteryPartsFromCells(
       waterDistanceM: water,
       obstacleCost: tally.cost,
       ...(tally.ids.length > 0 ? { obstacleIds: tally.ids } : {}),
+      ...withTrees(unreservedTrees(village, tally.treeIds)),
     });
   }
 

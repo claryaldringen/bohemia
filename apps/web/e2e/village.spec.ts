@@ -227,7 +227,12 @@ async function newPlayer(page: Page, prefix: string): Promise<{ email: string; s
 async function found(page: Page, dwelling: Position): Promise<void> {
   await page.getByTestId('build-grid').getByRole('button', { name: 'Zemnice' }).click();
   await confirmPlacement(page, { kind: 'dwelling', type: 'zemnice', position: dwelling });
-  await expect(page.getByTestId('village-people')).toHaveText('4', { timeout: 30_000 });
+  // ves zakládají 4 lidé – v den založení se ale může narodit dítě, proto aspoň 4
+  const people = page.getByTestId('village-people');
+  await expect(people).toHaveText(/^\d+$/, { timeout: 30_000 });
+  await expect
+    .poll(async () => Number(await people.textContent()), { timeout: 30_000 })
+    .toBeGreaterThanOrEqual(4);
 }
 
 test('nový hráč založí ves umístěním zemnice, přejmenuje ji a vybere zemnici', async ({ page }) => {
@@ -455,6 +460,7 @@ test('hráč vysadí sad po čtvercích a vybere ho – panel ukáže výsadbu, 
     square.plantedDay = state.lastDay - Math.ceil(30 * 365.25);
     square.plantingDone = square.plantingCost;
     delete square.obstacles;
+    delete square.trees;
   }
   state.constructions = state.constructions.filter((c) => c.kind !== 'orchard');
   await query('UPDATE village SET state = $2, version = version + 1 WHERE settlement_id = $1', [

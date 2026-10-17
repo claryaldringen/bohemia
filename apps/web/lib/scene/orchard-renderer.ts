@@ -9,6 +9,7 @@ import { OUTCROP_RADIUS_M, obstacleKind, obstaclesNear, type ObstacleLayer } fro
 import type { SceneVillage } from '../village-view';
 import { cellsBoundary, cellsBounds, cellsContain } from './field-cells';
 import { applyGammaFog } from './gamma-fog';
+import { applySeasonModel } from './season-materials';
 import { instanceMatrices, loadMergedModel, type ModelInstance } from './instanced-model';
 import {
   APPLE_VARIANTS,
@@ -133,7 +134,7 @@ export class OrchardRenderer {
             this.scene,
             `${MODEL_BASE_URL}${name}.glb`,
             `orchard-${name}`,
-            prepareAppleMaterial,
+            (material) => prepareAppleMaterial(material, name),
           );
           if (!model) return null;
           model.setEnabled(false);
@@ -316,8 +317,11 @@ function setInstances(mesh: Mesh, instances: readonly ModelInstance[]): void {
   mesh.setEnabled(true);
 }
 
-/** Materiál jabloně – jako 3D stromy krajiny: tlumené světlo, bez odlesku, opar v gama prostoru. */
-function prepareAppleMaterial(material: Material): void {
+/**
+ * Materiál jabloně – jako 3D stromy krajiny: tlumené světlo, bez odlesku, opar v gama prostoru
+ * a roční období podle jména modelu (`apple*` – jarní květ, podzimní listí, v zimě holé).
+ */
+function prepareAppleMaterial(material: Material, model: string): void {
   if (!(material instanceof PBRMaterial)) return;
   material.albedoColor = FOLIAGE_TINT;
   material.roughness = 1;
@@ -328,4 +332,5 @@ function prepareAppleMaterial(material: Material): void {
   material.alphaCutOff = 0.2;
   if (material.albedoTexture) material.albedoTexture.anisotropicFilteringLevel = 8;
   applyGammaFog(material);
+  applySeasonModel(material, model);
 }

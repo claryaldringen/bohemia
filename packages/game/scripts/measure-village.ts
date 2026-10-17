@@ -5,7 +5,10 @@
 // Strategie hráče:
 // - Syntetická krajina: 35 ha louky s úrodností 70 po dílech 225 m², vzdálenost od obydlí roste
 //   podle pořadí zakládání z 50 na 600 m; za loukou les s úrodností 60 (165 ha, 50–800 m podle
-//   pořadí). Překážky žádné.
+//   pořadí). Překážky žádné. Les jako vrstva překážek: dospělé stromy (hustota jako ve skutečné
+//   krajině, ≈ 258 na ha) na východ od vsi od 50 m dál – stavby z nich kácí nejbližší (dřevo,
+//   forest.md), díl lesa dá po založení klády za své stromy. Obydlí stojí 50 m od okraje lesa
+//   (palivo bez přirážky).
 // - Ves se zakládá zemnicí a prvním polem ≈ 1,7 ha (75 dílů) jako v Ukázce fields.md; den
 //   založení se mezi vesnicemi rozprostře přes celý rok 500 (všechna roční období).
 // - Hráč staví zemnici, kdykoli může – kontroluje po každém kroku (týden, v dlouhých bězích
@@ -35,6 +38,7 @@ import { availableParallelism } from 'node:os';
 import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
 import { TOTAL_GAME_DAYS, dateOfDayIndex, dayIndexOf } from '../src/domain/calendar';
 import type { CalendarDate } from '../src/domain/calendar';
+import { packObstacles, type ObstaclePlacement } from '../src/domain/landscape';
 import {
   DAILY_MIN_PER_HOUSEHOLD,
   DWELLINGS,
@@ -106,6 +110,22 @@ const STEP_DAYS = config.years > 100 ? 28 : 7;
 const FIRST_YEAR = 500;
 const LAST_YEAR = 1499;
 const POSITION = { x: 0, z: 0, rotation: 0 };
+// les syntetické krajiny: stromy po čtvercové mřížce s roztečí pro ≈ 258 stromů na ha od 50 m na
+// východ od vsi (vrstva 128 × 15 m = ±960 m); díl lesa (225 m²) má ≈ 5,8 stromu
+const TREES_PER_HA = 258;
+const FOREST_EDGE_M = 50;
+const FOREST = ((): ReturnType<typeof packObstacles> => {
+  const spacing = Math.sqrt(M2_PER_HA / TREES_PER_HA);
+  const trees: ObstaclePlacement[] = [];
+  let id = 1;
+  for (let x = FOREST_EDGE_M; x < 950; x += spacing) {
+    for (let z = -950; z < 950; z += spacing) {
+      trees.push({ id: id++, kind: 'tree', look: 'oak-1', x, z, rotation: 0, scale: 1 });
+    }
+  }
+  return packObstacles(trees, 128, 15);
+})();
+const DWELLING_SITE = { obstacles: FOREST, forestDistanceM: FOREST_EDGE_M };
 const OUTLINE: [number, number][] = [
   [0, 0],
   [15, 0],
@@ -153,12 +173,16 @@ function landPart(index: number): PartInput | null {
   const j = index - MEADOW_PARTS;
   if (j >= FOREST_PARTS) return null;
   const f = LAND.forest;
+  // stromy dílu lesa: 5 nebo 6, v průměru hustota lesa (stromy jsou v ceně za hektar)
+  const trees = Math.floor(((j + 1) * PART_M2 * TREES_PER_HA) / M2_PER_HA);
+  const before = Math.floor((j * PART_M2 * TREES_PER_HA) / M2_PER_HA);
   return {
     areaM2: PART_M2,
     distanceM: lerp(f.fromM, f.toM, j / (FOREST_PARTS - 1)),
     naturalFertility: f.fertility,
     surface: 'forest',
     obstacleCost: 0,
+    trees: trees - before,
   };
 }
 
@@ -267,6 +291,8 @@ interface RunResult {
   replays: number;
   appleHarvests: Map<number, number>; // rok sklizně → kg jablek
   orchardDay: number | null; // den založení sadu
+  /** Dřevo staveb obydlí (i přestaveb): klády z hromady a pokácené stromy. */
+  wood: { fromPile: number; felled: number; finalLogs: number };
 }
 
 function harvestYear(day: number): number {
@@ -382,6 +408,7 @@ function emptyResult(): RunResult {
     replays: 0,
     appleHarvests: new Map(),
     orchardDay: null,
+    wood: { fromPile: 0, felled: 0, finalLogs: 0 },
   };
 }
 
@@ -391,7 +418,7 @@ function lowerMin(map: Map<number, number>, key: number, value: number): void {
 
 /** Jeden krok simulace; nasycení dní zapíše do výsledku. Vrací stav na konci kroku. */
 function step(result: RunResult, before: VillageState, stop: number): VillageState {
-  const after = advanceVillage(before, stop);
+  const after = advanceVillage(before, stop, FOREST);
   const hunger =
     before.hungry || after.hungry || after.chronicle.some((e) => e.kind === 'hunger-began');
   if (!hunger) return after;
@@ -404,7 +431,7 @@ function step(result: RunResult, before: VillageState, stop: number): VillageSta
   let s = before;
   for (let d = before.lastDay + 1; d <= stop; d++) {
     lowerMin(result.minSatiation, harvestYear(d), satiationOn(s, d));
-    s = advanceVillage(s, d);
+    s = advanceVillage(s, d, FOREST);
   }
   return s;
 }
@@ -502,6 +529,16 @@ function runVillage(start: VillageState, startLand: number, opts: RunOptions): R
   let state = start;
   let land = startLand;
   let firstConstruction: { id: number; day: number } | null = null;
+  const seenConstructions = new Set<number>();
+  const countWood = (s: VillageState): void => {
+    for (const c of s.constructions) {
+      if (!c.wood || seenConstructions.has(c.id)) continue;
+      seenConstructions.add(c.id);
+      result.wood.fromPile += c.wood.fromPile;
+      result.wood.felled += c.wood.fell.length;
+    }
+  };
+  countWood(start);
   const finishedDwelling = (events: ChronicleEvent[]): ChronicleEvent | undefined =>
     events.find((e) => e.kind === 'construction-finished' && e.constructionKind === 'dwelling');
 
@@ -514,6 +551,7 @@ function runVillage(start: VillageState, startLand: number, opts: RunOptions): R
     const day = after.lastDay;
     const date = dateOfDayIndex(day);
     addLabor(result, after, day - before.lastDay);
+    countWood(after);
 
     for (const e of events) {
       if (e.kind === 'rebuild-decided') {
@@ -571,8 +609,8 @@ function runVillage(start: VillageState, startLand: number, opts: RunOptions): R
     // stavby hráče
     if (result.firstBuildDay === null && qualifyingDwellings(after, day).length > 0) {
       result.firstBuildDay = day;
-      if (opts.forkPolozemnice && buildAffordability(after, 'polozemnice').affordable) {
-        const fork = startNewDwelling(after, day, 'polozemnice', POSITION, 0);
+      if (opts.forkPolozemnice && buildAffordability(after, 'polozemnice', FOREST).affordable) {
+        const fork = startNewDwelling(after, day, 'polozemnice', POSITION, 0, [], DWELLING_SITE);
         const forked = runVillage(fork, land, {
           ...opts,
           endDay: Math.min(opts.endDay, day + 5 * 365),
@@ -591,7 +629,8 @@ function runVillage(start: VillageState, startLand: number, opts: RunOptions): R
     if (opts.build) {
       // Hráč staví kdy chce – bot postaví zemnici pro každou plnou domácnost, která nemá kam.
       while (waitingHouseholds(after, day) > 0) {
-        after = startNewDwelling(after, day, 'zemnice', POSITION, 0);
+        after = startNewDwelling(after, day, 'zemnice', POSITION, 0, [], DWELLING_SITE);
+        countWood(after);
         const id = after.constructions.at(-1)?.id;
         if (result.zemniceDays === null && firstConstruction === null && id !== undefined) {
           firstConstruction = { id, day };
@@ -603,6 +642,7 @@ function runVillage(start: VillageState, startLand: number, opts: RunOptions): R
   }
   result.finalPeople = state.people.length;
   result.finalHouseholds = occupiedCount(state);
+  result.wood.finalLogs = state.woodLogs ?? 0;
   return result;
 }
 
@@ -612,6 +652,8 @@ function foundOn(seed: number, day: number, parts: number): VillageState {
     day,
     dwellingPosition: POSITION,
     firstField: { outline: OUTLINE, parts: landParts(0, parts) },
+    obstacles: FOREST,
+    forestDistanceM: FOREST_EDGE_M,
   });
 }
 
@@ -1033,6 +1075,33 @@ function report(villages: VillageResult[], probes: Record<ProbeName, ProbeSummar
     '≥ 95 % let',
     `${pct(satiationOk)} let | nejnižší nasycení roku p1 ${fmt(quantile(minSatiation, 0.01), 2)}, p5 ${fmt(quantile(minSatiation, 0.05), 2)} | bez hladu ${pct(share(minSatiation.map((v) => v >= 1 - EPSILON)))} (n ${minSatiation.length})`,
     ok(satiationOk >= 0.95),
+  );
+  const wood = builders.map((r) => r.wood);
+  const totalPile = wood.reduce((sum, w) => sum + w.fromPile, 0);
+  const totalFelled = wood.reduce((sum, w) => sum + w.felled, 0);
+  row(
+    `Dřevo obydlí – hráč staví (${config.years} let)`,
+    'jen informace (forest.md)',
+    `z hromady ${pct(totalPile / Math.max(1, totalPile + totalFelled))} | pokácené stromy na ves medián ${fmt(
+      quantile(
+        wood.map((w) => w.felled),
+        0.5,
+      ),
+      0,
+    )} | klády na konci medián ${fmt(
+      quantile(
+        wood.map((w) => w.finalLogs),
+        0.5,
+      ),
+      0,
+    )}, p90 ${fmt(
+      quantile(
+        wood.map((w) => w.finalLogs),
+        0.9,
+      ),
+      0,
+    )}`,
+    'info',
   );
   const landGone = builders.filter((r) => r.landGoneYear !== null).length;
   if (landGone > 0) {

@@ -21,6 +21,11 @@ export interface Dwelling {
   builtDay: number;
   condition: number /* 0–1 */;
   position: Position;
+  /**
+   * Vzdálenost obydlí k nejbližšímu okraji lesa (m) – z krajiny při zahájení stavby (simulace
+   * krajinu nemá); prodražuje palivo (forest.md – Palivo). U starších obydlí chybí (= les blízko).
+   */
+  forestDistanceM?: number;
 }
 export type PartState = 'founding' | 'ready' | 'sown' | 'fallow';
 /** Políčko krajiny – sloupec x a řádek y mřížky. */
@@ -45,6 +50,8 @@ export interface FieldPart {
   cell?: TileCell; // políčko krajiny = čtverec pole, který díl zabírá
   /** Překážky na čtverci (id z vrstvy překážek) – zmizí z krajiny, až osadníci díl založí. */
   obstacles?: number[];
+  /** Dospělé stromy mezi překážkami – po založení dílu dají klády na hromadu (forest.md). */
+  trees?: number;
 }
 /** Pole – jeho čtverce jsou políčka jeho dílů (`FieldPart.cell`). */
 export interface Field {
@@ -66,6 +73,8 @@ export interface CemeterySquare {
   constructionId?: number;
   /** Překážky na čtverci (id z vrstvy překážek) – zmizí z krajiny, až osadníci čtverec ohradí. */
   obstacles?: number[];
+  /** Dospělé stromy mezi překážkami – po ohrazení čtverce dají klády na hromadu (forest.md). */
+  trees?: number;
 }
 /**
  * Hřbitov (pohřebiště) – souvislá skupina čtverců (cemetery.md); hroby se plní a znovu
@@ -101,6 +110,8 @@ export interface OrchardSquare {
    * sázet (vyklizení je první část výsadby).
    */
   obstacles?: number[];
+  /** Dospělé stromy mezi překážkami – s vyklizením čtverce dají klády na hromadu (forest.md). */
+  trees?: number;
 }
 /** Jabloňový sad – souvislá skupina čtverců (orchard.md). */
 export interface Orchard {
@@ -130,6 +141,29 @@ export interface Construction {
   fieldId: number | null; // field – zakládá díly od nejbližšího
   cemeteryId?: number | null; // cemetery (u starších staveb chybí)
   orchardId?: number | null; // orchard – vysazuje čtverce od nejbližšího (u ostatních chybí)
+  /** Dřevo obydlí a přestavby (forest.md); u starších staveb a polí chybí. */
+  wood?: ConstructionWood;
+  /** Nové obydlí: vzdálenost k nejbližšímu okraji lesa (m) – obydlí ji po dostavění převezme. */
+  forestDistanceM?: number;
+}
+/**
+ * Dřevo stavby (forest.md – Stavby a kácení): kolik ho stavba spotřebuje, kolik klád vzala při
+ * zahájení z hromady a které stromy se pro ni kácí. Stromy jsou vyhrazené od zahájení a kácí se
+ * jako první část práce stavby – pokácený strom nechá pařez (`felledTrees`).
+ */
+export interface ConstructionWood {
+  /** Dřevo, které stavba spotřebuje (stromy = klády). */
+  trees: number;
+  /** Klády vzaté při zahájení z hromady. */
+  fromPile: number;
+  /**
+   * Stromy ke kácení v pořadí kácení (nejbližší ke staveništi první): id z vrstvy překážek (null =
+   * kácení bez polohy – ves bez vrstvy překážek, jen testy) a práce za skácení a dovoz
+   * (člověkodny, i se vzdáleností).
+   */
+  fell: { id: number | null; cost: number }[];
+  /** Kolik stromů z `fell` už je pokácených. */
+  felled: number;
 }
 export type TaskName = 'reclaim' | 'dig' | 'sow' | 'weed' | 'harvest' | 'thresh';
 /** Sezónní práce v sadech (orchard.md) – v rozdělení práce vedle polních prací. */
@@ -203,6 +237,11 @@ export interface VillageState {
   applesKg?: number;
   /** Rozběhnutá sezónní práce v sadech (sklizeň, péče); chybí nebo null = žádná. */
   orchardWork?: OrchardWork | null;
+  /**
+   * Klády na hromadě u vsi (forest.md – Mýcení a hromada klád) – z mýcení přibývají, stavby je
+   * berou, hnijí (proto i neceločíselné). U vsí uložených před dřevem chybí (= 0).
+   */
+  woodLogs?: number;
 }
 
 /** Změna krajiny sídla nad vygenerovanou vrstvou překážek – id překážky a den. */

@@ -19,10 +19,21 @@ export type SelectionDetails =
       ageYears: number;
       full: boolean;
       overcrowded: boolean;
-      /** Obyvatelé obydlí přestavují (průběh 0–1 a nový typ), jinak null. */
-      rebuild: { progress: number; type: DwellingType } | null;
+      /**
+       * Obyvatelé obydlí přestavují (průběh 0–1, nový typ a stromy, které ještě musí skácet),
+       * jinak null.
+       */
+      rebuild: { progress: number; type: DwellingType; treesToFell: number } | null;
     }
-  | { kind: 'site'; id: number; type: DwellingType; progress: number }
+  | {
+      kind: 'site';
+      id: number;
+      type: DwellingType;
+      /** Průběh celé stavby i s kácením dřeva 0–1. */
+      progress: number;
+      /** Kolik stromů stavba ještě musí skácet (forest.md). */
+      treesToFell: number;
+    }
   | {
       kind: 'field';
       id: number;
@@ -95,7 +106,15 @@ export function selectionDetails(
     const dwelling = scene.dwellings.find((d) => d.id === target.id);
     if (!dwelling) return null;
     if (!dwelling.built) {
-      return { kind: 'site', id: dwelling.id, type: dwelling.type, progress: dwelling.progress };
+      // staveniště ve scéně ukazuje jen stavbu – panel celý průběh i s kácením dřeva
+      const construction = view?.constructions.find((c) => c.id === dwelling.id);
+      return {
+        kind: 'site',
+        id: dwelling.id,
+        type: dwelling.type,
+        progress: construction?.progress ?? dwelling.progress,
+        treesToFell: construction?.treesToFell ?? 0,
+      };
     }
     const household = view?.households.find((h) => h.dwellingId === target.id);
     if (!household) return null;
@@ -114,7 +133,11 @@ export function selectionDetails(
       full: household.full,
       overcrowded: household.overcrowded,
       rebuild: rebuild
-        ? { progress: rebuild.progress, type: rebuild.dwellingType ?? household.type }
+        ? {
+            progress: rebuild.progress,
+            type: rebuild.dwellingType ?? household.type,
+            treesToFell: rebuild.treesToFell,
+          }
         : null,
     };
   }

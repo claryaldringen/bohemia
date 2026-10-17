@@ -39,3 +39,4 @@ export * from './obstacles';
 export * from './summary';
 export * from './names';
 export * from './costs';
+export * from './wood';

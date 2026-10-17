@@ -25,6 +25,7 @@ import type {
   FieldPart,
   VillageState,
 } from './types';
+import { treesToFell, woodFellingCost, woodLogs } from './wood';
 
 // Souhrn vsi pro panel hráče a scénu – jen čte stav, nic nemění.
 
@@ -57,6 +58,10 @@ export interface ConstructionSummary {
   orchardId: number | null;
   /** Průběh 0–1. */
   progress: number;
+  /** Průběh samotné stavby bez kácení dřeva 0–1 (staveniště ve scéně). */
+  buildProgress: number;
+  /** Kolik stromů stavba ještě musí skácet (forest.md). */
+  treesToFell: number;
 }
 
 /** Pohřebiště pro panel – kolik místa zbývá (hygienu hráč nevidí – cemetery.md). */
@@ -94,6 +99,8 @@ export interface VillageSummary {
   storesKg: number;
   /** Zásoby jablek (kg) – jí se před obilím, 1. 3. shnijí. */
   applesKg: number;
+  /** Klády na hromadě u vsi (forest.md). */
+  woodLogs: number;
   /** Na kolik měsíců zásoby obilí vystačí při dnešní potřebě (bez lidí 0). */
   storesMonths: number;
   /** Nasycení příštího dne 0–1 podle přídělového systému. */
@@ -196,7 +203,17 @@ function constructionSummary(state: VillageState, c: Construction): Construction
     squares: c.kind === 'cemetery' ? constructionSquares(state, c) : null,
     orchardId: c.kind === 'orchard' ? (c.orchardId ?? null) : null,
     progress: c.cost > 0 ? Math.min(1, c.done / c.cost) : 1,
+    buildProgress: buildProgress(c),
+    treesToFell: treesToFell(c),
   };
+}
+
+/** Průběh stavby po skácení dřeva – kácí se jako první část práce. */
+function buildProgress(c: Construction): number {
+  const felling = woodFellingCost(c.wood);
+  const building = c.cost - felling;
+  if (building <= 0) return c.done >= c.cost ? 1 : 0;
+  return Math.min(1, Math.max(0, (c.done - felling) / building));
 }
 
 /** Kolik čtverců stavba hřbitova ohrazuje – rozšíření jen svoje, založení ostatní. */
@@ -266,6 +283,7 @@ export function summarizeVillage(state: VillageState, day: number): VillageSumma
     households: households(state, day),
     storesKg: state.storesKg,
     applesKg: villageApplesKg(state),
+    woodLogs: woodLogs(state),
     storesMonths:
       needPerDay > 0 ? state.storesKg / ((needPerDay * DAYS_PER_YEAR) / MONTHS_PER_YEAR) : 0,
     satiation: nextDaySatiation(state, day, needPerDay),

@@ -205,6 +205,21 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
 - **Světlo:** letní slunce a obloha podle 0 A.D., kontrast 1,1. **Stíny od slunce**
   (`sun-shadows.ts`) – stínová mapa 4096 přes celou krajinu se vykreslí jednou; vrhají je meshe
   pojmenované `trees-*`, `impostors-*` a `decor-*` (při přejmenování zachovat prefix).
+- **Roční období** (jen vzhled, žádná pravidla): `season-look.ts` (čisté funkce, testy) z dne
+  v roce spočítá sníh, suchou / svěží trávu, množství, podzimní barvu a mladost listí, květy,
+  světlo, opar, vodu a zvuky – plynulé přechody 2–5 týdnů, **léto (`REFERENCE_DAY`) je
+  výchozí vzhled a nesmí se měnit**. `LandscapeScene.updateSeason` se jednou za sekundu podívá
+  na herní datum (celé dny, svět mimo běh = léto) a jen při znatelné změně nastaví světlo,
+  opar, vodu, zvuky a uniformy a jednou překreslí – vzhled se mění nejvýš jednou za herní den.
+  Shadery v `season-materials.ts` (GLSL i WGSL, bez textury navíc – šum je procedurální):
+  terén (tráva podle vah vrstev, sníh podle šumu a sklonu, ne na dně potoka), obtisky vsi
+  (`applySeasonGround`), PBR stromy a dekorace (`applySeasonModel` podle jména modelu –
+  druhy v `season-foliage.ts`: listnáče se barví a opadávají, z koruny zbudou větvičky, kůra
+  ztratí zelený tón; jehličí a kameny pod sněhem; rákos stojí suchý; trnka a jabloně kvetou),
+  střechy (`applySeasonSnow`), impostory a plocha korun. Nový model stromu nebo keře = záznam
+  v `seasonFoliageFor`. Stínová mapa listí nezná – pod 30 % listí listnáče (`isDeciduousMesh`)
+  ze stínové mapy vypadnou (jedno překreslení mapy) a stíny zesvětlí. Vývojový náhled má
+  posuvník dne v roce a „přehrát rok“ (`setSeasonDay`).
 - **Ukazatel načítání:** `setLandscape(landscape, onProgress)` hlásí kroky přípravy a mezi
   náročnými kroky pustí prohlížeč překreslit; `GameView` ukazuje `SceneLoading`.
 - **Zvuky** (podle 0 A.D.): `ambient-mix.ts` (čisté funkce, testy) spočítá z cíle a přiblížení
@@ -258,7 +273,9 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   sponem do pětky, 2 na čtverec; výsadba čára vytyčení → kůly → sazenice, mladé stromky u kůlu
   rostou 12 let, skalní výchozy z vrstvy překážek stromy obejdou. Velikost (`growth`) a jablka
   (`fruit`, srpen až sklizeň) počítá server (`lib/orchard-look.ts`) v `SceneVillage.orchards` –
-  **háček pro roční období** (květ, barva listí zatím ne). Modely se načtou až s prvním sadem.
+  háček pro podzim; květ, podzimní listí a holé koruny dodají roční období (`applySeasonModel`
+  podle jména `apple*`, meshe `orchard-*` jsou v zimě mezi holými vrhači stínu). Modely se
+  načtou až s prvním sadem.
   Dým z dýmníku (`village-smoke.ts`, sprity) podle rozvrhu ohně za herní den (`smoke-schedule.ts`, deterministicky) – hýbe se jen v záběru, ve stejném
   taktu `WATER_FPS` jako voda, při omezeném pohybu stojí.
 - **Řemeslné dílny – zatím jen modely** (pravidla v [docs/design/crafts.md](docs/design/crafts.md)
@@ -316,8 +333,10 @@ rozhraní částí v
   dne) jde do `allocateDay` mezi polní úlohy podle konce okna. Jablka `applesKg` se jí před
   obilím (`eatMeal` ve `food.ts`, bez jablek přesně `eatDay`) a ráno 1. 3. shnijí; osev se jimi
   neřídí. Hlad (`hungry`) se řídí výhledem `outlook` – hlásí se hned, když obilí po zkažení
-  jablek nevystačí. Kroky simulace sadů (`plantOrchard`, `workOrchards`, `orchardSeasonDay`) se
-  z `@bohemia/game` neexportují.
+  jablek nevystačí. Překážky čtverce zmizí s první prací na něm a dospělé stromy (nevyhrazené
+  stavbou) dají klády jako u pole; nevyklizené čtverce sadu jsou v `claimedObstacles`. Kroky
+  simulace sadů (`plantOrchard`, `workOrchards`, `orchardSeasonDay`) se z `@bohemia/game`
+  neexportují.
 - **Hráč staví kdy chce** (Martin) – stavbu smí zablokovat jen **cena předem** (`costs.ts`:
   `BUILD_COSTS`, `buildAffordability`): suroviny ze zásob (dnes žádné) a u obydlí **lidé
   k osídlení** (`settlers` = `availableSettlers` v `dwellings.ts`: domácnosti s párem navíc −
@@ -380,6 +399,21 @@ rozhraní částí v
   `lib/scene/field-painting.ts` (`FieldPainter`, režim `squares`, logika výběru ve
   `field-cells.ts`) – ovládání v tabulce výše. Obrys pole (`Field.outline`) zůstal jen u starých
   vsí.
+- **Les a dřevo** ([forest.md](docs/design/forest.md), `domain/village/wood.ts`): klády na hromadě
+  (`woodLogs`, staré vsi 0, hnijí 4 % ročně), obydlí, první zemnice i přestavby berou dřevo
+  (`DWELLING_TREES` 7 / 18) nejdřív z hromady, zbytek vyhradí při zahájení mezi nejbližšími
+  dospělými stromy (`planDwellingWood`, `nearestMatureTrees` – hledá po políčkách) a kácí je jako
+  první část práce stavby (`fellAsWorked` → pařezy). Simulace proto povinně dostává vrstvu
+  překážek (`advanceVillage(state, day, obstacles)`; `null` = kácení bez polohy jen v testech),
+  use-casy krajinu (`updateVillage`, `loadVillage`, `renameVillage`); kalibrace má syntetický
+  les. Vyhrazený strom patří své stavbě: mýcení za něj kládu nedá (`reservedTrees`
+  v `PlacementVillage`) a stromy zakládaných dílů a čtverců hřbitova obydlí nevyhradí
+  (`claimedObstacles`). Mýcení (díly polí, čtverce hřbitova, staveniště) dá kládu za dospělý
+  strom (`trees` u dílu / čtverce). Dřevo je surovina předem (`villageStock` s vrstvou překážek:
+  klády + stromy, které jde skácet – počet stromů vrstvy v mezipaměti). Palivo: přirážka domácí
+  práce podle `forestDistanceM` obydlí. Scéna: hromada klád `lib/scene/log-pile.ts` (místo
+  a hranice v `log-pile-layout.ts`, bez volného místa se nekreslí), staveniště ukazuje průběh
+  bez kácení (`buildProgress`).
 - **Upozornění** (`lib/village-notices.ts`): plná domácnost (fakt), hlad, stojící stavby, plný
   hřbitov (žádný hotový nemá volný hrob) – nově vzniklé jako krátký mizející řádek nahoře,
   žádný trvalý seznam. Kronika je jen v DTO.

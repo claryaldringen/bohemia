@@ -255,9 +255,9 @@ describe('foundCemetery', () => {
 
 describe('pohřebiště v simulaci', () => {
   it('stavba ze společné práce – po dokončení přijímá mrtvé, kronika to zapíše', () => {
-    const start = advanceVillage(found(), FOUNDED);
+    const start = advanceVillage(found(), FOUNDED, null);
     const placed = foundCemetery(start, start.lastDay, input([square(300, 0)]));
-    const later = advanceVillage(placed, FOUNDED + 3 * 365);
+    const later = advanceVillage(placed, FOUNDED + 3 * 365, null);
     const c = later.cemeteries![0]!;
     expect(c.builtDay).not.toBeNull();
     expect(later.constructions.some((x) => x.kind === 'cemetery')).toBe(false);
@@ -271,23 +271,31 @@ describe('pohřebiště v simulaci', () => {
   });
 
   it('stará ves bez pohřebišť (uložená dřív) se dopočítá a pohřebiště nemá', () => {
-    const old = advanceVillage(found(), FOUNDED);
+    const old = advanceVillage(found(), FOUNDED, null);
     delete old.cemeteries;
-    const later = advanceVillage(JSON.parse(JSON.stringify(old)) as VillageState, AFTER_LUCK + 400);
+    const later = advanceVillage(
+      JSON.parse(JSON.stringify(old)) as VillageState,
+      AFTER_LUCK + 400,
+      null,
+    );
     expect(later.cemeteries).toBeUndefined();
     expect(summarizeVillage(later, later.lastDay).cemeteries).toEqual([]);
   });
 
   it('po kouscích dá stejný stav jako jedním voláním – i s pohřbíváním po hájení', () => {
-    const start = advanceVillage(found(), FOUNDED);
+    const start = advanceVillage(found(), FOUNDED, null);
     const placed = foundCemetery(start, start.lastDay, input([square(300, 0)]));
     placed.people.push(...Array.from({ length: 12 }, (_, i) => adult(900 + i, 40, FOUNDED)));
     const end = AFTER_LUCK + 2 * 365;
-    const whole = advanceVillage(placed, end);
+    const whole = advanceVillage(placed, end, null);
     let chunked = placed;
     const steps = [1, 400, 13, 777, 2, 365];
     for (let i = 0; chunked.lastDay < end; i++) {
-      chunked = advanceVillage(chunked, Math.min(end, chunked.lastDay + steps[i % steps.length]!));
+      chunked = advanceVillage(
+        chunked,
+        Math.min(end, chunked.lastDay + steps[i % steps.length]!),
+        null,
+      );
     }
     expect(chunked).toEqual(whole);
     expect(whole.cemeteries![0]!.graves).toBeGreaterThan(0);
@@ -337,7 +345,7 @@ describe('souhrn pohřebišť', () => {
 
 describe('rozšíření hřbitova', () => {
   const built = (): VillageState => {
-    const s = advanceVillage(found(), FOUNDED);
+    const s = advanceVillage(found(), FOUNDED, null);
     s.cemeteries = [cemetery(100, [square(300, 0), square(315, 0)], { graves: 112 })];
     return s;
   };
@@ -353,7 +361,7 @@ describe('rozšíření hřbitova', () => {
     // plný hřbitov: rozšíření ve stavbě místo nepřidá
     expect(cemeteryCapacity(c)).toBe(112);
     expect(bury(next, s.lastDay)).toBeNull();
-    const later = advanceVillage(next, s.lastDay + 365);
+    const later = advanceVillage(next, s.lastDay + 365, null);
     const done = later.cemeteries![0]!;
     expect(done.squares[2]?.constructionId).toBeUndefined();
     expect(cemeteryCapacity(done)).toBe(168);

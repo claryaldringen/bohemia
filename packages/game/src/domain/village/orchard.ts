@@ -2,6 +2,7 @@ import { dateOfDayIndex } from '../calendar';
 import type { CalendarDate } from '../calendar';
 import { distanceFactor } from './fields';
 import { recordClearedObstacles } from './obstacles';
+import { addLogs, logsFromClearedTrees } from './wood';
 import {
   APPLE_ROT_DAY,
   ORCHARD,
@@ -222,6 +223,11 @@ export function plantOrchard(
     if (square.obstacles) {
       recordClearedObstacles(state, square.obstacles, day);
       delete square.obstacles;
+    }
+    // dospělé stromy z vyklizeného čtverce dají klády na hromadu jako u dílu pole (forest.md)
+    if (square.trees) {
+      addLogs(state, logsFromClearedTrees(square.trees));
+      delete square.trees;
     }
     const need = square.plantingCost - square.plantingDone;
     if (completes || left >= need) {

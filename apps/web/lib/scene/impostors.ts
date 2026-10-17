@@ -13,6 +13,7 @@ import type { Scene } from '@babylonjs/core/scene';
 import { IMPOSTOR_ATLAS, type ImpostorCell } from './impostor-atlas';
 import { setStaticInstances } from './instanced-model';
 import type { ImpostorPlacement } from './obstacle-scenery';
+import { applySeasonImpostors } from './season-materials';
 
 /** Jas obrázků stromů (nejvýš 1) – ladí se proti terénu, aby les nebyl tmavá skvrna ani bledý. */
 const BRIGHTNESS = new Color3(0.92, 0.95, 0.92);
@@ -51,6 +52,8 @@ export async function addImpostors(
   material.disableLighting = true;
   material.emissiveColor = BRIGHTNESS;
   material.backFaceCulling = false;
+  // podzimní barvy a holé zimní koruny listnáčů (smrky zůstanou)
+  applySeasonImpostors(material);
 
   const quads = IMPOSTOR_ATLAS.cells
     .flatMap((cell, index) =>
