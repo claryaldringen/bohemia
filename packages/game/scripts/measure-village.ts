@@ -843,11 +843,13 @@ function report(villages: VillageResult[], probes: Record<ProbeName, ProbeSummar
   );
 
   const millennium = config.years >= 1000;
+  const extinctCount = builders.filter((r) => r.extinctDay !== null).length;
   const extinct = share(builders.map((r) => r.extinctDay !== null));
   row(
     `Vymření – hráč staví (${config.years} let)`,
     '≤ 1 % do roku 1500',
-    `${pct(extinct)} | na konci domácností medián ${fmt(
+    // velikost vzorku: 0 z n potvrdí ≤ 1 % až od n ≈ 300 (95% horní mez ≈ 3 / n)
+    `${pct(extinct)} (${extinctCount} z ${builders.length} vsí) | na konci domácností medián ${fmt(
       quantile(
         builders.map((r) => r.finalHouseholds),
         0.5,
@@ -870,7 +872,7 @@ function report(villages: VillageResult[], probes: Record<ProbeName, ProbeSummar
   row(
     `Vymření – jediná domácnost bez staveb (${config.years} let)`,
     'jen informace (není cíl)',
-    `${pct(lonersExtinct)} | vymřelé za medián ${fmt(quantile(lonerExtinctYears, 0.5), 0)} let | žijící: lidí medián ${fmt(
+    `${pct(lonersExtinct)} (n ${loners.length}) | vymřelé za medián ${fmt(quantile(lonerExtinctYears, 0.5), 0)} let | žijící: lidí medián ${fmt(
       quantile(
         loners.filter((r) => r.extinctDay === null).map((r) => r.finalPeople),
         0.5,

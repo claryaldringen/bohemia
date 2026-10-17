@@ -187,7 +187,10 @@ z [fields.md](fields.md); 200 vsí × 60 let, vymření 30 vsí × 1000 let):
   konci životnosti zemnice 35 → 15, polozemnice 40 → 17 člověkodní (s 35 zemnice chátrala na
   nulu už po ≈ 12 letech – ve špičkách polních prací na opravy nezbývá práce),
 - vymření do roku 1500: ves, kde hráč staví, kdykoli může, nevymřela žádná (0 z 30; na konci
-  medián 33 domácností a 142 lidí – když dojde půda, hlad drží ves u toho, co pole uživí),
+  medián 33 domácností a 142 lidí – když dojde půda, hlad drží ves u toho, co pole uživí).
+  Cíl ≤ 1 % to ale **nepotvrzuje**: při 0 z 30 je 95% horní mez podílu vymřelých vsí ≈ 10 %
+  (pravidlo tří: 3 / n) – potvrdit ≤ 1 % by chtělo ≈ 300 vsí × 1000 let; skript proto
+  u vymření vypisuje i velikost vzorku,
 - jediná domácnost bez nových staveb (jen informace): do 1000 let vymře ≈ 33 % (10 z 30,
   medián po ≈ 530 letech) – přestavba na polozemnici jí dá 8 míst a domácnost kolem 8–9 lidí
   je odolná.
