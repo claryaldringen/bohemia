@@ -15,6 +15,12 @@ import {
   type ForestGround,
   type GroundLayer,
 } from './ground-layers';
+import {
+  SEASON_HELPERS_GLSL,
+  SEASON_HELPERS_WGSL,
+  SEASON_UBO,
+  bindSeasonUniforms,
+} from './season-materials';
 import type { StreamCenterline } from './stream-geometry';
 
 const TEXTURE_BASE_URL = '/textures/terrain/';
@@ -83,6 +89,32 @@ export function createTerrainMaterial(
   return material;
 }
 
+/**
+ * Roční období na terénu (gama prostor, `groundColor` = smíchaná barva vrstev, váhy wA–wC):
+ * tráva (tráva, bujná, kvetoucí, suchá a napůl vyšlapaná) na jaře zesvětlí a zezelená, na
+ * podzim usychá ve skvrnách do slámově hnědé; sníh podle šumu, ne na strmých svazích a na dně
+ * potoka (štěrk, písek a bahno jsou většinou pod vodou – prosvítaly by bíle).
+ */
+const SEASON_GROUND_GLSL = `if (seasonA.y > 0.0 || seasonA.z > 0.0) {
+  float seasonVeg = clamp((wA.r + wA.g + 0.6 * wA.b + wB.a + wC.b) / terrainTotal, 0.0, 1.0);
+  groundColor = seasonGrass(groundColor, seasonVeg, terrainXz, seasonA);
+}
+if (seasonA.x > 0.0) {
+  float seasonBed = clamp((wC.r + wC.g + wB.g) / terrainTotal, 0.0, 1.0);
+  float seasonCover = seasonSnowCover(terrainXz, seasonA.x) * smoothstep(0.55, 0.8, normalW.y) * (1.0 - seasonBed);
+  groundColor = mix(groundColor, seasonSnowColor(groundColor), seasonCover);
+}`;
+
+const SEASON_GROUND_WGSL = `if (uniforms.seasonA.y > 0.0 || uniforms.seasonA.z > 0.0) {
+  let seasonVeg = clamp((wA.r + wA.g + 0.6 * wA.b + wB.a + wC.b) / terrainTotal, 0.0, 1.0);
+  groundColor = seasonGrass(groundColor, seasonVeg, terrainXz, uniforms.seasonA);
+}
+if (uniforms.seasonA.x > 0.0) {
+  let seasonBed = clamp((wC.r + wC.g + wB.g) / terrainTotal, 0.0, 1.0);
+  let seasonCover = seasonSnowCover(terrainXz, uniforms.seasonA.x) * smoothstep(0.55, 0.8, normalW.y) * (1.0 - seasonBed);
+  groundColor = mix(groundColor, seasonSnowColor(groundColor), seasonCover);
+}`;
+
 interface SplatInputs {
   splats: [RawTexture, RawTexture, RawTexture];
   layers: Texture[];
@@ -114,6 +146,10 @@ const SAMPLERS = [
  * terénu je to 15 samplerů – WebGL 2 zaručuje 16, další vrstva by potřebovala pole textur.
  * Textury se mapují rovinně podle světových souřadnic, pootočené o 45° (opakování je tak méně
  * nápadné), každá s vlastní délkou opakování. Funguje pro WebGL (GLSL) i WebGPU (WGSL).
+ *
+ * Roční období (season-materials.ts) bez textury navíc: tráva (vrstvy trávy podle vah) na jaře
+ * svěží, na podzim a v zimě suchá a hnědá ve skvrnách; sníh podle šumu a sklonu (strmé svahy
+ * a dno potoka zůstanou holé); stín pod stromy je v zimě slabší (holé koruny).
  */
 class TerrainSplatPlugin extends MaterialPluginBase {
   constructor(
@@ -150,6 +186,7 @@ class TerrainSplatPlugin extends MaterialPluginBase {
         { name: 'layerRepeatA', size: 4, type: 'vec4' },
         { name: 'layerRepeatB', size: 4, type: 'vec4' },
         { name: 'layerRepeatC', size: 4, type: 'vec4' },
+        ...SEASON_UBO,
       ],
       fragment:
         shaderLanguage === ShaderLanguage.WGSL
@@ -158,12 +195,16 @@ uniform terrainExtent: f32;
 uniform layerRepeatA: vec4f;
 uniform layerRepeatB: vec4f;
 uniform layerRepeatC: vec4f;
+uniform seasonA: vec4f;
+uniform seasonB: vec4f;
 #endif`
           : `#ifdef TERRAIN_SPLAT
 uniform float terrainExtent;
 uniform vec4 layerRepeatA;
 uniform vec4 layerRepeatB;
 uniform vec4 layerRepeatC;
+uniform vec4 seasonA;
+uniform vec4 seasonB;
 #endif`,
     };
   }
@@ -175,6 +216,7 @@ uniform vec4 layerRepeatC;
     uniformBuffer.updateFloat4('layerRepeatA', r[0]!, r[1]!, r[2]!, r[3]!);
     uniformBuffer.updateFloat4('layerRepeatB', r[4]!, r[5]!, r[8]!, 0);
     uniformBuffer.updateFloat4('layerRepeatC', r[6]!, r[7]!, r[9]!, r[10]!);
+    bindSeasonUniforms(uniformBuffer, this._material.getScene());
     uniformBuffer.setTexture('splat0', splats[0]);
     uniformBuffer.setTexture('splat1', splats[1]);
     uniformBuffer.setTexture('splat2', splats[2]);
@@ -200,6 +242,7 @@ fn terrainLayerUv(xz: vec2f, repeatM: f32) -> vec2f {
 fn terrainLayerUv2(xz: vec2f, repeatM: f32) -> vec2f {
   return vec2f(xz.x * 0.94 - xz.y * 0.34, xz.x * 0.34 + xz.y * 0.94) / (repeatM * 2.3) + vec2f(0.37, 0.71);
 }
+${SEASON_HELPERS_WGSL}
 #endif`,
         CUSTOM_FRAGMENT_UPDATE_DIFFUSE: `#ifdef TERRAIN_SPLAT
 let terrainXz = fragmentInputs.vPositionW.xz;
@@ -218,8 +261,10 @@ terrainColor += (0.55 * textureSample(layer7, layer7Sampler, terrainLayerUv(terr
 terrainColor += (0.55 * textureSample(layer8, layer8Sampler, terrainLayerUv(terrainXz, uniforms.layerRepeatB.z)).rgb + 0.45 * textureSample(layer8, layer8Sampler, terrainLayerUv2(terrainXz, uniforms.layerRepeatB.z)).rgb) * wB.a;
 terrainColor += (0.55 * textureSample(layer9, layer9Sampler, terrainLayerUv(terrainXz, uniforms.layerRepeatC.z)).rgb + 0.45 * textureSample(layer9, layer9Sampler, terrainLayerUv2(terrainXz, uniforms.layerRepeatC.z)).rgb) * wC.b;
 terrainColor += (0.55 * textureSample(layer10, layer10Sampler, terrainLayerUv(terrainXz, uniforms.layerRepeatC.w)).rgb + 0.45 * textureSample(layer10, layer10Sampler, terrainLayerUv2(terrainXz, uniforms.layerRepeatC.w)).rgb) * wC.a;
-let terrainTotal = wA.r + wA.g + wA.b + wA.a + wB.r + wB.g + wB.a + wC.r + wC.g + wC.b + wC.a;
-baseColor = vec4f(terrainColor / max(terrainTotal, 0.001) * (1.0 - 0.5 * wB.b), 1.0);
+let terrainTotal = max(wA.r + wA.g + wA.b + wA.a + wB.r + wB.g + wB.a + wC.r + wC.g + wC.b + wC.a, 0.001);
+var groundColor = terrainColor / terrainTotal;
+${SEASON_GROUND_WGSL}
+baseColor = vec4f(groundColor * (1.0 - 0.5 * wB.b * mix(0.55, 1.0, uniforms.seasonB.x)), 1.0);
 #endif`,
       };
     }
@@ -232,6 +277,7 @@ vec2 terrainLayerUv(vec2 xz, float repeatM) {
 vec2 terrainLayerUv2(vec2 xz, float repeatM) {
   return vec2(xz.x * 0.94 - xz.y * 0.34, xz.x * 0.34 + xz.y * 0.94) / (repeatM * 2.3) + vec2(0.37, 0.71);
 }
+${SEASON_HELPERS_GLSL}
 #endif`,
       CUSTOM_FRAGMENT_UPDATE_DIFFUSE: `#ifdef TERRAIN_SPLAT
 vec2 terrainXz = vPositionW.xz;
@@ -250,8 +296,11 @@ terrainColor += (0.55 * texture2D(layer7, terrainLayerUv(terrainXz, layerRepeatC
 terrainColor += (0.55 * texture2D(layer8, terrainLayerUv(terrainXz, layerRepeatB.z)).rgb + 0.45 * texture2D(layer8, terrainLayerUv2(terrainXz, layerRepeatB.z)).rgb) * wB.a;
 terrainColor += (0.55 * texture2D(layer9, terrainLayerUv(terrainXz, layerRepeatC.z)).rgb + 0.45 * texture2D(layer9, terrainLayerUv2(terrainXz, layerRepeatC.z)).rgb) * wC.b;
 terrainColor += (0.55 * texture2D(layer10, terrainLayerUv(terrainXz, layerRepeatC.w)).rgb + 0.45 * texture2D(layer10, terrainLayerUv2(terrainXz, layerRepeatC.w)).rgb) * wC.a;
-float terrainTotal = wA.r + wA.g + wA.b + wA.a + wB.r + wB.g + wB.a + wC.r + wC.g + wC.b + wC.a;
-baseColor = vec4(terrainColor / max(terrainTotal, 0.001) * (1.0 - 0.5 * wB.b), 1.0);
+float terrainTotal = max(wA.r + wA.g + wA.b + wA.a + wB.r + wB.g + wB.a + wC.r + wC.g + wC.b + wC.a, 0.001);
+vec3 groundColor = terrainColor / terrainTotal;
+${SEASON_GROUND_GLSL}
+// pod holými korunami je v zimě stín slabší
+baseColor = vec4(groundColor * (1.0 - 0.5 * wB.b * mix(0.55, 1.0, seasonB.x)), 1.0);
 #endif`,
     };
   }

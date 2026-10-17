@@ -4,6 +4,7 @@ import {
   type AmbientEnvironment,
   type AmbientGains,
   type AmbientLayer,
+  type AmbientSeason,
   type AmbientView,
 } from './ambient-mix';
 
@@ -131,6 +132,9 @@ export class AmbientSound {
   private graph: Graph | null = null;
   private targets: AmbientGains | null = null;
   private pendingView: AmbientView | null = null;
+  /** Poslední pohled kamery – mix se podle něj přepočítá i při změně ročního období. */
+  private lastView: AmbientView | null = null;
+  private season: AmbientSeason | undefined;
   private viewTimer: number | null = null;
   private prefetchTimer: number | null = null;
   private suspendTimer: number | null = null;
@@ -179,6 +183,13 @@ export class AmbientSound {
     }, VIEW_UPDATE_MS);
   }
 
+  /** Roční období – ptáci a vítr v listí (ambient-mix.ts); mix se přepočítá pro poslední pohled. */
+  setSeason(season: AmbientSeason): void {
+    if (this.disposed) return;
+    this.season = season;
+    if (this.lastView) this.setView(this.lastView);
+  }
+
   /**
    * Zapne nebo vypne zvuky. Volat přímo z obsluhy kliknutí – Safari pustí zvuk jen v gestu.
    */
@@ -223,7 +234,8 @@ export class AmbientSound {
     const view = this.pendingView;
     if (!view) return;
     this.pendingView = null;
-    this.targets = ambientMix(view, this.environment);
+    this.lastView = view;
+    this.targets = ambientMix(view, this.environment, this.season);
     this.applyTargets(LAYER_TAU_S);
   }
 

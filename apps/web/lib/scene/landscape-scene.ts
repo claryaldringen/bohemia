@@ -10,6 +10,7 @@ import {
   buildForestField,
   buildRelief,
   NO_OBSTACLE_CHANGES,
+  OFFICIAL_WORLD,
   obstaclesOf,
   surfaceAt,
   tileOfWorldPoint,
@@ -38,7 +39,10 @@ import { terrainMeshHeight } from './drape';
 import { InstanceHider } from './instance-hider';
 import { VillageLivestock } from './livestock';
 import { PitCuts, applyPitCut } from './pit-cut';
-import { addSunShadows, type SunShadows } from './sun-shadows';
+import { seasonDayAt, seasonLook, seasonLookDistance, type SeasonLook } from './season-look';
+import { isDeciduousMesh } from './season-foliage';
+import { setSeasonShaderState } from './season-materials';
+import { SHADOW_DARKNESS, addSunShadows, type SunShadows } from './sun-shadows';
 import { tileAt, tileCenter } from './tile-at';
 import { addTrees } from './trees';
 import { FieldPainter } from './field-painting';
@@ -66,6 +70,19 @@ type ViewListener = (view: ViewFootprint) => void;
  * Snímků za sekundu animace vody (vlnky po proudu) a zvířat; kamera v pohybu kreslí rychleji.
  */
 const WATER_FPS = 30;
+/**
+ * Roční období: jak často (ms) se podívá na herní datum a od jaké změny vzhledu (season-look.ts)
+ * scénu překreslí. Datum se mění jednou za herní den (≈ 86 s), změna za den je pár procent.
+ */
+const SEASON_CHECK_MS = 1000;
+const SEASON_EPSILON = 0.002;
+/** Stíny v zimě – holé listnáče propouštějí světlo (jen uniforma, mapa se nepřekresluje). */
+const WINTER_SHADOW_DARKNESS = 0.6;
+/**
+ * Pod tímto množstvím listí (season-look.ts) listnáče nevrhají stín – holá koruna by vrhala
+ * stín plného listí (stínová mapa listí nezná). Stínová mapa se překreslí jen při přechodu.
+ */
+const BARE_SHADOW_LEAVES = 0.3;
 
 export class LandscapeScene {
   private readonly listeners = new Set<HoverListener>();
@@ -125,6 +142,14 @@ export class LandscapeScene {
   private readonly pitCuts = new PitCuts();
   private worldClock: WorldClock | null = null;
   private smokeAlways = false;
+  /** Vývojový přepínač dne v roce (null = podle herního data). */
+  private seasonDay: number | null = null;
+  /** Naposledy nastavený vzhled ročního období a kdy se znovu podívat na datum. */
+  private season: SeasonLook | null = null;
+  private seasonCheckAt = 0;
+  /** Listnáče ve stínové mapě a jestli jsou zrovna vyřazené (holé). */
+  private deciduousCasters: Mesh[] = [];
+  private bareShadows = false;
 
   private constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -137,6 +162,7 @@ export class LandscapeScene {
       this.renderBurst(300);
     });
     this.resizeObserver.observe(canvas);
+    this.updateSeason(true);
     canvas.addEventListener('pointermove', this.onPointerMove);
     canvas.addEventListener('pointerleave', this.onPointerLeave);
     canvas.addEventListener('pointerdown', this.onPointerDown);
@@ -153,26 +179,19 @@ export class LandscapeScene {
     // Působí jen na materiály s vlastní ambientColor (stromy), ostatní ji mají černou.
     scene.ambientColor = new Color3(1, 1, 1);
     // Opar (vzdušná perspektiva): vzdálená krajina slábne do barvy oblohy – dodá hloubku
-    // a schová opakování textur v dálce. Do 300 m skoro nic, na 1,5 km asi pětina.
+    // a schová opakování textur v dálce. Hustotu a barvu nastavuje roční období.
     scene.fogMode = Scene.FOGMODE_EXP2;
-    scene.fogDensity = 0.00032;
-    scene.fogColor = new Color3(0.68, 0.77, 0.86);
     // Úprava obrazu jako v 0 A.D. (temperate: kontrast 1,05) – sytější stíny a světla.
     scene.imageProcessingConfiguration.contrast = 1.1;
     scene.skipPointerMovePicking = true;
-    // Letní světlo jako v 0 A.D. (biom temperate): modravá obloha, teplé slunce. Slunce je
-    // níž než v poledne (≈ 35°) – zvlnění terénu je tak lépe vidět.
-    const sky = new HemisphericLight('sky', new Vector3(0.2, 1, 0.1), scene);
-    sky.intensity = 0.5;
-    sky.diffuse = new Color3(0.93, 0.96, 1.05);
-    sky.groundColor = new Color3(0.32, 0.3, 0.26);
-    const sun = new DirectionalLight(
+    // Obloha a slunce jako v 0 A.D. (biom temperate). Slunce je níž než v poledne (≈ 35°) –
+    // zvlnění terénu je tak lépe vidět. Barvy a síla světel podle ročního období (konstruktor).
+    new HemisphericLight('sky', new Vector3(0.2, 1, 0.1), scene);
+    new DirectionalLight(
       'sun',
       new Vector3(SUN_DIRECTION.x, SUN_DIRECTION.y, SUN_DIRECTION.z),
       scene,
     );
-    sun.intensity = 1.05;
-    sun.diffuse = new Color3(1.03, 0.98, 0.88);
     return new LandscapeScene(canvas, engine, scene, renderer);
   }
 
@@ -328,7 +347,11 @@ export class LandscapeScene {
         extentM: landscape.size * landscape.cellSizeM,
       });
       this.pendingCasters.length = 0;
+      this.deciduousCasters = this.scene.meshes.filter(
+        (mesh): mesh is Mesh => mesh instanceof Mesh && isDeciduousMesh(mesh.name),
+      );
     }
+    this.updateSeason(true);
     this.applyVillage();
     await report('shaders', 0.92);
     if (this.disposed) return;
@@ -344,6 +367,7 @@ export class LandscapeScene {
         this.canvas.dataset.sound = state;
       },
     });
+    if (this.season) this.ambient.setSeason(this.season.sound);
     this.renderBurst(1500);
     this.engine.runRenderLoop(() => this.frame());
   }
@@ -438,6 +462,16 @@ export class LandscapeScene {
     this.village?.setWorldClock(world);
     this.livestock?.setWorldClock(world);
     this.worldClock = world;
+    this.updateSeason(true);
+  }
+
+  /**
+   * Vývojová volba: roční období podle zadaného dne v roce (1–366, i desetinného – plynulé
+   * přetáčení), null = zpět podle herního data.
+   */
+  setSeasonDay(day: number | null): void {
+    this.seasonDay = day;
+    this.updateSeason(true);
   }
 
   /** Vývojová volba: dým ze všech hotových obydlí pořád (kontrola vzhledu dýmu). */
@@ -682,6 +716,7 @@ export class LandscapeScene {
     const camera = this.rtsCamera;
     if (!camera) return;
     const now = performance.now();
+    if (now >= this.seasonCheckAt) this.updateSeason(false);
     if (now < this.renderBurstUntil) this.needsRender = true;
     // Voda teče a zvířata se hýbou sama – výjimka z kreslení jen při změně, dokud jsou v záběru.
     const moving = !this.reducedMotion?.matches;
@@ -717,6 +752,47 @@ export class LandscapeScene {
     if (!this.needsRender) return;
     this.needsRender = false;
     this.scene.render(false);
+  }
+
+  /**
+   * Roční období podle herního data (nebo vývojového přepínače): když se vzhled znatelně
+   * změnil, nastaví světlo, opar, vodu, stíny, zvuky a uniformy materiálů a scénu jednou
+   * překreslí. Vzhled se mění nejvýš jednou za herní den – žádné kreslení navíc.
+   */
+  private updateSeason(force: boolean): void {
+    this.seasonCheckAt = performance.now() + SEASON_CHECK_MS;
+    const day = this.seasonDay ?? seasonDayAt(Date.now(), this.worldClock ?? OFFICIAL_WORLD);
+    const look = seasonLook(day);
+    if (!force && this.season && seasonLookDistance(look, this.season) < SEASON_EPSILON) return;
+    this.season = look;
+    const { light } = look;
+    const scene = this.scene;
+    const sun = scene.getLightByName('sun');
+    if (sun instanceof DirectionalLight) {
+      sun.intensity = light.sunIntensity;
+      sun.diffuse.set(...light.sunColor);
+    }
+    const sky = scene.getLightByName('sky');
+    if (sky instanceof HemisphericLight) {
+      sky.intensity = light.skyIntensity;
+      sky.diffuse.set(...light.skyColor);
+      sky.groundColor.set(...light.groundColor);
+    }
+    scene.clearColor.set(...light.clearColor, 1);
+    scene.fogColor.set(...light.fogColor);
+    scene.fogDensity = light.fogDensity;
+    setSeasonShaderState(scene, look);
+    this.shadows?.setDarkness(
+      SHADOW_DARKNESS + (WINTER_SHADOW_DARKNESS - SHADOW_DARKNESS) * (1 - look.leaves),
+    );
+    const bare = look.leaves < BARE_SHADOW_LEAVES;
+    if (this.shadows && bare !== this.bareShadows) {
+      this.bareShadows = bare;
+      this.shadows.setCastersEnabled(this.deciduousCasters, !bare);
+    }
+    this.water?.setSeason(look.water.tint, look.water.sky);
+    this.ambient?.setSeason(look.sound);
+    this.needsRender = true;
   }
 
   /**

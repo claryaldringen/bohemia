@@ -8,6 +8,7 @@ import { createNoise2D } from 'simplex-noise';
 import { HEIGHT_SCALE } from './constants';
 import type { ForestField } from '@bohemia/game';
 import type { RenderSurface } from './render-surface';
+import { applySeasonCanopy } from './season-materials';
 
 /**
  * Výška plochy korun nad zemí (m) a velikost „hrbolů“. Les kreslí impostory, plocha jen tmavě
@@ -100,6 +101,8 @@ export function createCanopyMesh(
   leaves.anisotropicFilteringLevel = 4;
   material.diffuseTexture = leaves;
   material.specularColor = Color3.Black();
+  // podzimní skvrny, v zimě holé větve se sněhem pod nimi
+  applySeasonCanopy(material);
   mesh.material = material;
   mesh.isPickable = false;
   mesh.freezeWorldMatrix();
