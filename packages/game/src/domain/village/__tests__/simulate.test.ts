@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { TOTAL_GAME_DAYS, dayIndexOf } from '../../calendar';
-import { foundVillage, startNewDwelling } from '../actions';
+import { foundField, foundVillage, startNewDwelling } from '../actions';
 import type { PartInput } from '../actions';
 import { daysUntilHarvest, eatDay } from '../food';
 import { ageYears, foodNeedPerDay, occupants } from '../people';
@@ -114,6 +114,42 @@ describe('advanceVillage – dopočítání', () => {
     }
     chunked = advanceVillage(chunked, end);
     expect(chunked).toEqual(s);
+  });
+
+  it('(a) i ves, kde hráč staví, dá po kouscích s JSON mezi nimi stejný stav (10 let)', () => {
+    const start = found(at(600, 3, 15));
+    // plná domácnost se 4 dospělými – smí hned stavět nové obydlí
+    start.people.push(adultOfAge(100, 20, start.foundedDay), adultOfAge(101, 21, start.foundedDay));
+    const actionDay = at(602, 10, 20);
+    const end = at(610, 3, 15);
+    const act = (s: VillageState): VillageState =>
+      foundField(
+        startNewDwelling(s, actionDay, 'zemnice', { x: 5, z: 5, rotation: 0 }, 0),
+        actionDay,
+        { parts: field(40) },
+      );
+    const whole = advanceVillage(act(advanceVillage(start, actionDay)), end);
+
+    const viaJson = (s: VillageState): VillageState =>
+      JSON.parse(JSON.stringify(s)) as VillageState;
+    const steps = [1, 29, 400, 7, 1000, 13, 365, 2, 777];
+    let chunked = viaJson(start);
+    for (let i = 0; chunked.lastDay < end; i++) {
+      const target = chunked.lastDay < actionDay ? actionDay : end;
+      chunked = viaJson(
+        advanceVillage(chunked, Math.min(target, chunked.lastDay + steps[i % steps.length]!)),
+      );
+      if (chunked.lastDay === actionDay) chunked = viaJson(act(chunked));
+    }
+    expect(chunked).toEqual(whole);
+
+    // ves opravdu stavěla – nové obydlí obsazené a druhé pole založené
+    expect(whole.dwellings.length).toBeGreaterThanOrEqual(2);
+    expect(count(whole, 'household-founded')).toBeGreaterThanOrEqual(1);
+    const fieldsFinished = whole.chronicle.filter(
+      (e) => e.kind === 'construction-finished' && e.constructionKind === 'field',
+    );
+    expect(fieldsFinished.length).toBeGreaterThanOrEqual(2);
   });
 
   it('nemění vstupní stav a do stejného dne vrátí shodnou kopii', () => {
