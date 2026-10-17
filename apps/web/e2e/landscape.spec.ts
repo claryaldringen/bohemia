@@ -168,8 +168,10 @@ test('levé tlačítko krajinu posouvá, pravé ji otáčí kolem středu', asyn
   await drag(page, 'right', 250);
   expect(tileDistance(await centerTile(page), start)).toBeLessThanOrEqual(1);
 
-  await drag(page, 'left', 250);
-  expect(tileDistance(await centerTile(page), start)).toBeGreaterThan(5);
+  // Výchozí přiblížení je blízko (120 m): 600 px posune krajinu asi o 50 m ≈ 3,4 políčka –
+  // jasně víc než otočení, které drží střed do 1 políčka.
+  await drag(page, 'left', 600);
+  expect(tileDistance(await centerTile(page), start)).toBeGreaterThan(2);
 });
 
 // TODO: v bezhlavém Chromiu se pohyb kamery bez myši neprojeví (v běžném Chrome ověřeno ručně:

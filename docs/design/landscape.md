@@ -157,7 +157,8 @@ na který se později přidávají další prvky (černozem, naleziště kovů, 
 - **Kamera** jako v AoE2 – perspektiva šikmo shora (≈ 45°). Ovládání myší: táhnutí levým
   tlačítkem = posun, kolečko = přiblížení (s limity, nesmí se dostat pod terén ani daleko od
   krajiny), táhnutí pravým tlačítkem = otočení kolem svislé osy. Klávesnice: WASD/šipky = posun,
-  Q/E = otočení.
+  Q/E = otočení. **Přiblížení jako v 0 A.D.** (Martin): výchozí 120 m od cíle, nejblíž 50 m,
+  zorný úhel 45°; nejdál 1,4 km, aby šla přehlédnout celá krajina.
 - **Info o políčku pod kurzorem:** povrch a úrodnost – pomůže hráči plánovat, kde založit
   vesnici.
 - **Zvuky krajiny** (Martin, podle 0 A.D.): ptáci letního dne všude (stejná stopa jako ambient
@@ -207,6 +208,7 @@ na který se později přidávají další prvky (černozem, naleziště kovů, 
 | Grafika terénu a stromů z 0 A.D. (CC BY-SA 3.0)                            | Martin                                       |
 | Ovládání kamery (myš + WASD/Q/E), info o políčku pod kurzorem              | návrh Clauda                                 |
 | Zvlněnější terén, meandrující potok s proměnnou šířkou, tůněmi a mělčinami | návrh Clauda na Martinův požadavek z 16. 10. |
+| Výchozí a nejbližší přiblížení kamery jako v 0 A.D. (120 m, 50 m, 45°)     | Martin (17. 10.)                             |
 
 ## Stav implementace (v1)
 

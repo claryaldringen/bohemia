@@ -1,3 +1,4 @@
+import { CAMERA_ZOOM_M } from './constants';
 import type { ForestField } from './forest-field';
 import { bedMix } from './ground-layers';
 import type { StreamPoint } from './stream-geometry';
@@ -44,9 +45,9 @@ export interface AmbientEnvironment {
   forest: Pick<ForestField, 'distanceAt'>;
 }
 
-/** Rozsah přiblížení kamery (`MIN_RADIUS`, `MAX_RADIUS` v camera.ts). */
-const ZOOM_NEAR_M = 150;
-const ZOOM_FAR_M = 1400;
+/** Rozsah přiblížení kamery (camera.ts). */
+const ZOOM_NEAR_M = CAMERA_ZOOM_M.min;
+const ZOOM_FAR_M = CAMERA_ZOOM_M.max;
 /** Posluchač je nad cílem kamery ve výšce tohoto podílu vzdálenosti kamery. */
 const LISTENER_HEIGHT = 0.35;
 /** Do této vzdálenosti (m) zní zdroj naplno – posluchač při největším přiblížení. */

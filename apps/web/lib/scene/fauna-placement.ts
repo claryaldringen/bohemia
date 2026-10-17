@@ -99,7 +99,7 @@ const FISH_RADIUS = { from: 0.8, to: 1.15 };
 const FISH_COUNT = { from: 4, to: 8 };
 /**
  * Ryby jsou stylizovaně velké (model 0,8 m → 0,8–1,15 m; v 0 A.D. jsou ryby taky přerostlé) –
- * z nejbližší kamery (150 m) jsou i tak jen pár pixelů dlouhé.
+ * z výchozí kamery (120 m) mají kolem 8 px, z nejbližší (50 m) kolem 20 px.
  */
 const FISH_SCALE = { from: 1, to: 1.45 };
 /** Hloubka pod hladinou (m) – v kalné vodě je vidět jen ryby u hladiny. */

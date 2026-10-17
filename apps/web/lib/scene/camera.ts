@@ -1,11 +1,20 @@
 import { ArcRotateCamera } from '@babylonjs/core/Cameras/arcRotateCamera';
 import { Matrix, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import type { Scene } from '@babylonjs/core/scene';
+import { CAMERA_ZOOM_M } from './constants';
 
-/** Pohled šikmo shora jako v AoE2 (úhel od svislice, rad). */
+/**
+ * Pohled šikmo shora jako v AoE2 (úhel od svislice, rad) – 41° pod vodorovnou, 0 A.D. má 35°.
+ * Změna = nový render atlasu impostorů (`tools/blender/impostors.py`).
+ */
 const BETA = 0.85;
-const MIN_RADIUS = 150;
-const MAX_RADIUS = 1400;
+/** Zorný úhel (svislý, rad) – 45° jako `fov` v 0 A.D. */
+const FOV = Math.PI / 4;
+/**
+ * Krok přiblížení kolečkem (podíl vzdálenosti): jeden zub (deltaY 100) ≈ čtvrtina vzdálenosti –
+ * od výchozího přiblížení ≈ 30 m jako zub kolečka v 0 A.D. (32), celý rozsah na 13 zubů.
+ */
+const WHEEL_DELTA_PERCENTAGE = 0.03;
 const ROTATE_SPEED = 1.4; // rad/s pro Q/E
 const KEYS = new Set([
   'KeyW',
@@ -45,15 +54,16 @@ export function createRtsCamera(
     'camera',
     -Math.PI / 2,
     BETA,
-    650,
+    CAMERA_ZOOM_M.default,
     new Vector3(start.x, groundHeight(start.x, start.z), start.z),
     scene,
   );
+  camera.fov = FOV;
   camera.lowerBetaLimit = BETA;
   camera.upperBetaLimit = BETA;
-  camera.lowerRadiusLimit = MIN_RADIUS;
-  camera.upperRadiusLimit = MAX_RADIUS;
-  camera.wheelDeltaPercentage = 0.02;
+  camera.lowerRadiusLimit = CAMERA_ZOOM_M.min;
+  camera.upperRadiusLimit = CAMERA_ZOOM_M.max;
+  camera.wheelDeltaPercentage = WHEEL_DELTA_PERCENTAGE;
   camera.mapPanning = true;
   camera.minZ = 1;
   camera.maxZ = 6000;

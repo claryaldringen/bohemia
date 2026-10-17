@@ -6,9 +6,12 @@ import {
   type AmbientEnvironment,
   type AmbientGains,
 } from '../ambient-mix';
+import { CAMERA_ZOOM_M } from '../constants';
 
-const NEAR = 150;
-const FAR = 1400;
+const NEAR = CAMERA_ZOOM_M.min;
+const FAR = CAMERA_ZOOM_M.max;
+/** Střední oddálení – záběr přes několik set metrů. */
+const MID = 650;
 
 /** Peřej přes oblázky – štěrkové dno, potok zní naplno. */
 const RIFFLE = 0.95;
@@ -83,7 +86,8 @@ describe('ambientMix', () => {
   it('potok je hlasitější blízko vody a z blízka, daleko od vody utichne', () => {
     const env = environment();
     const onWater = streamLoudness(ambientMix({ x: 0, z: 0, radius: NEAR }, env));
-    const nearBank = streamLoudness(ambientMix({ x: 60, z: 0, radius: NEAR }, env));
+    // 12 m od břehu – při největším přiblížení pořád uprostřed záběru.
+    const nearBank = streamLoudness(ambientMix({ x: 20, z: 0, radius: NEAR }, env));
     const away = streamLoudness(ambientMix({ x: 300, z: 0, radius: NEAR }, env));
     const zoomedOut = streamLoudness(ambientMix({ x: 0, z: 0, radius: FAR }, env));
     expect(onWater).toBeGreaterThan(0.5);
@@ -97,7 +101,7 @@ describe('ambientMix', () => {
   it('při oddálení je potok slyšet i z větší vzdálenosti, protože je v záběru', () => {
     const env = environment();
     expect(streamLoudness(ambientMix({ x: 300, z: 0, radius: NEAR }, env))).toBe(0);
-    expect(streamLoudness(ambientMix({ x: 300, z: 0, radius: 650 }, env))).toBeGreaterThan(0);
+    expect(streamLoudness(ambientMix({ x: 300, z: 0, radius: MID }, env))).toBeGreaterThan(0);
   });
 
   it('potok zní jen tam, kde teče přes oblázky – nad bahnem, pískem a v tůni je ticho', () => {
@@ -214,9 +218,11 @@ describe('ambientMix', () => {
 
   it('při posunu kamery se hlasitost mění plynule (bez skoků)', () => {
     const env = environment();
-    for (const radius of [NEAR, 650]) {
+    for (const radius of [NEAR, CAMERA_ZOOM_M.default, MID]) {
+      // Krok posunu nejvýš 5 m, z blízka úměrně menší (záběr je menší, krajina ujede víc).
+      const step = Math.min(5, radius / 30);
       let previous = ambientMix({ x: -600, z: 0, radius }, env);
-      for (let x = -595; x <= 900; x += 5) {
+      for (let x = -600 + step; x <= 900; x += step) {
         const next = ambientMix({ x, z: 0, radius }, env);
         for (const layer of AMBIENT_LAYERS) {
           expect(Math.abs(next[layer] - previous[layer]), `${layer} x=${x}`).toBeLessThan(0.05);

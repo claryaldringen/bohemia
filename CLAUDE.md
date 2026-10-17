@@ -134,7 +134,8 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
 - **Vývojový náhled** bez přihlášení a databáze: http://localhost:3010/dev/landscape?seed=42
   (tlačítka předchozí / další / náhodná). V produkci vrací 404.
 - `?renderer=webgl` vynutí WebGL 2 (test záložní cesty). `HEIGHT_SCALE` v `scene/constants.ts`
-  převyšuje terén jen vizuálně.
+  převyšuje terén jen vizuálně. Tamtéž rozsah přiblížení kamery `CAMERA_ZOOM_M` (výchozí 120 m
+  a nejblíž 50 m jako v 0 A.D.) – řídí se jím i mix zvuků.
 - **Vzhled terénu:** `render-surface.ts` zjemní výšky 4× (Catmull-Rom) a vyhloubí hladké koryto
   podél vyhlazené osy potoka (`stream-geometry.ts`) – tůně hlubší, mělčiny mělké, vnitřní strana
   oblouku mělčí s náplavem; `terrain-material.ts` míchá 11 textur podle splat map
