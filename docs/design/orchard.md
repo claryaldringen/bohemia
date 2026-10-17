@@ -32,7 +32,9 @@ rozhoduje, kolik louky a práce dá do jistoty na dlouho dopředu místo obilí 
   (návrh Clauda). Mimo okna stavba sadu společnou práci nebere a čeká; čtverce se sázejí od
   nejbližšího k obydlím a překážky z čtverce zmizí, až je vysazený. Polní práce mají přednost
   (pořadí práce ve [fields.md](fields.md)) – mladá ves, která má na podzim všechnu práci v poli,
-  vysadí sad až na jaře.
+  vysadí sad až na jaře. Překážky z čtverce zmizí, jakmile se na něm začne pracovat (nejdřív se
+  vyklidí – sazenice nestojí mezi kameny a keři). Panel sadu ukáže, že výsadba čeká na jaro
+  nebo podzim.
 - **Rok sadu** (návrh Clauda): hospodářský rok sadu začíná 1. 3. – jarní výsadba je 1. rokem
   sadu hned, podzimní (od září) až od příštího jara.
 - **Růst a úroda** (Martin – oprava podle rešerše): první jablka **6. rok** po výsadbě, úroda
@@ -54,18 +56,21 @@ rozhoduje, kolik louky a práce dá do jistoty na dlouho dopředu místo obilí 
   zbude k **1. 3.** (ráno), shnije. Přídělový systém (fields.md) počítá jen s jablky, která se
   stihnou sníst do konce února: když jídlo do sklizně nevystačí, dělí se rovně – a když jablek
   je víc, než se při rovném přídělu stihne sníst, jí se do zkažení jen jablka (nejvýš dosyta)
-  a obilí zůstane na dobu po nich (návrh Clauda). Jablka nemají ztráty ze skladování. Plánování
-  osevu a rezerva obilí se jablky nemění.
+  a obilí zůstane na dobu po nich (návrh Clauda). Hlad (upozornění a kronika) začíná, jakmile
+  příděl podle výhledu do sklizně klesne pod plný – i když se zatím jí dosyta jablky a obilí
+  nevystačí až po 1. 3. Jablka nemají ztráty ze skladování. Plánování osevu a rezerva obilí se
+  jablky nemění.
 - **Hájení** a hlad fungují beze změny ([populace](population.md)).
 
 ## Co hráč vidí
 
 - V panelu staveb ikona sadu (název + cena za hektar v tooltipu), stavba po čtvercích.
 - Ve scéně jabloně z 0 A.D. (CC BY-SA 3.0) sponem do pětky – 2 stromy na čtverec, ≈ 10,6 m od
-  sebe: během výsadby čára vytyčení, kůly a sazenice, mladé stromky u kůlu rostou do plné
-  velikosti za 12 let (návrh Clauda); plodící sad má od srpna do sklizně na stromech jablka.
+  sebe, skalní výchozy obejdou: během výsadby čára vytyčení, kůly a sazenice, mladé stromky
+  u kůlu rostou do plné velikosti za 12 let (návrh Clauda); plodící sad má od srpna do sklizně
+  na stromech jablka.
 - U vybraného sadu: plocha, stáří a odhad úrody nejbližší sklizně (kg jablek), během výsadby
-  průběh. Horní lišta ukáže jablka vedle obilí, jen když nějaká jsou. Minimapa kreslí sady.
+  průběh – a když čeká na okno, ikona s popiskem „Sází se na jaře a na podzim“. Horní lišta ukáže jablka vedle obilí, jen když nějaká jsou. Minimapa kreslí sady.
 - Kronika: sad je vysazený, sklizeň jablek (kg), starý sad dosloužil.
 
 ## Naměřeno

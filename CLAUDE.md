@@ -256,9 +256,9 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   (`models/trees/apple-1…4.glb`, s plody `apple-fruit-1…4.glb` – převod
   `tools/blender/orchard.json`, textura bez plodů `apple_leaves.py`, zralá `apple_ripe.py`)
   sponem do pětky, 2 na čtverec; výsadba čára vytyčení → kůly → sazenice, mladé stromky u kůlu
-  rostou 12 let. Velikost (`growth`) a jablka (`fruit`, srpen až sklizeň) počítá server
-  v `SceneVillage.orchards` – **háček pro roční období** (květ, barva listí zatím ne). Modely se
-  načtou až s prvním sadem.
+  rostou 12 let, skalní výchozy z vrstvy překážek stromy obejdou. Velikost (`growth`) a jablka
+  (`fruit`, srpen až sklizeň) počítá server (`lib/orchard-look.ts`) v `SceneVillage.orchards` –
+  **háček pro roční období** (květ, barva listí zatím ne). Modely se načtou až s prvním sadem.
   Dým z dýmníku (`village-smoke.ts`, sprity) podle rozvrhu ohně za herní den (`smoke-schedule.ts`, deterministicky) – hýbe se jen v záběru, ve stejném
   taktu `WATER_FPS` jako voda, při omezeném pohybu stojí.
 - **Řemeslné dílny – zatím jen modely** (pravidla v [docs/design/crafts.md](docs/design/crafts.md)
@@ -315,7 +315,9 @@ rozhraní částí v
   (`VillageState.orchardWork` – sklizeň září–říjen, péče v zimě; `orchardSeasonDay` na začátku
   dne) jde do `allocateDay` mezi polní úlohy podle konce okna. Jablka `applesKg` se jí před
   obilím (`eatMeal` ve `food.ts`, bez jablek přesně `eatDay`) a ráno 1. 3. shnijí; osev se jimi
-  neřídí.
+  neřídí. Hlad (`hungry`) se řídí výhledem `outlook` – hlásí se hned, když obilí po zkažení
+  jablek nevystačí. Kroky simulace sadů (`plantOrchard`, `workOrchards`, `orchardSeasonDay`) se
+  z `@bohemia/game` neexportují.
 - **Hráč staví kdy chce** (Martin) – stavbu smí zablokovat jen **cena předem** (`costs.ts`:
   `BUILD_COSTS`, `buildAffordability`): suroviny ze zásob (dnes žádné) a u obydlí **lidé
   k osídlení** (`settlers` = `availableSettlers` v `dwellings.ts`: domácnosti s párem navíc −

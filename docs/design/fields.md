@@ -151,7 +151,8 @@ pořadí (návrh Clauda; nahrazuje pevných 85 % a dělení práce po domácnost
 
 1. **Denní minimum domácností** – vaření, voda, oheň, péče o malé děti: 0,5 člověkodne denně
    na každou domácnost.
-2. **Polní práce v jejich období** (tabulka níže).
+2. **Polní práce v jejich období** (tabulka níže) – a sezónní práce v sadech (sklizeň jablek,
+   péče) podle konce svého okna ([sad](orchard.md)).
 3. **Opravy obydlí** (populace).
 4. **Domácí výroba** – oděv, nádobí, jednoduché železné předměty, palivo: v průměru 0,3
    člověkodne denně na domácnost + 0,15 na člověka. Dá se odkládat a dělá se hlavně v zimě;
@@ -210,7 +211,8 @@ pořadí (návrh Clauda; nahrazuje pevných 85 % a dělení práce po domácnost
 - **Potřeba jídla z pole** (kg obilí za rok): dospělý 180, starší 140, dítě 100.
 - **Zbytek stravy** (zahrada, sběr, ryby, drobné hospodářství) se zatím nemodeluje a bere se jako
   pokrytý. Domácí výroba je jen spotřeba práce – její nedodělání nasycení nesnižuje (návrh
-  Clauda). Nasycení tak závisí jen na zásobách obilí, jak čeká [populace](population.md).
+  Clauda). Nasycení tak závisí jen na zásobách obilí, jak čeká [populace](population.md) – se
+  sadem na obilí a jablcích, která se jí přednostně ([sad](orchard.md)).
 - **Ztráty při skladování:** 10 % zásob za rok (myši, plíseň), rozložené rovnoměrně.
 - **Přídělový systém:** dokud zásoby vystačí do příští sklizně, jí ves dosyta (nasycení 1).
   Když nevystačí, obyvatelé rozdělí to, co zbývá, rovnoměrně do sklizně – nasycení je podíl
