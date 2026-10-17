@@ -45,6 +45,12 @@ k lesu stojí práci a mýcení pro pole dá klády na stavby.
   staveniště (návrh Clauda). Je to součást stavby – dostává společnou práci vsi jako ostatní
   stavby ([populace](population.md)). U blízkého lesa vychází cena staveb zhruba jako dnes
   (kalibrace), se vzdáleností roste.
+- **Když není z čeho kácet, stavba se nedá zahájit** (Martin, 17. 10. 2026: „Dřevo ať taky
+  blokuje, dokud není z čeho kácet“): klády na hromadě + dospělé stromy v krajině sídla nestačí
+  na stavbu → tlačítko stavby je zašedlé a tooltip ukáže chybějící dřevo červeně (odemykání jen
+  surovinami, jako v 0 A.D.). Počítají se všechny dospělé stromy sídla bez ohledu na vzdálenost –
+  daleký les stavbu jen prodraží (návrh Clauda). Rozestavěná stavba se nezastaví: dřevo se jí
+  vyhradí při zahájení (návrh Clauda).
 - **Les ustupuje:** pokácené stromy z krajiny sídla zmizí natrvalo, zůstane po nich **pařez**
   (návrh Clauda). Pokácený strom se z náletu obnoví zhruba **za 30 let** (návrh Clauda) –
   okraj lesa u vsi tak řídne a ustupuje, ale nezmizí navždy.
@@ -69,6 +75,7 @@ k lesu stojí práci a mýcení pro pole dá klády na stavby.
 
 - Ve scéně: ustupující okraj lesa s pařezy, nálet na starých pasekách, hromadu klád u vsi, která
   ubývá; na staveništi dovážené kmeny.
+- V panelu staveb: zašedlé tlačítko, když není z čeho kácet (tooltip s chybějícím dřevem).
 - V panelu vsi: počet klád v zásobě; u rozestavěné stavby, kolik dřeva ještě chybí a jak daleko je
   les.
 
@@ -87,6 +94,7 @@ k lesu stojí práci a mýcení pro pole dá klády na stavby.
 | Kde kácet, si vyberou vesničané sami – nejbližší vhodný les                      | Martin       |
 | Dřevo z mýcení jde na hromadu klád u vsi, ubývá se stavbami                      | Martin       |
 | Stavba bere nejdřív z hromady, kácí se jen při nedostatku                        | Martin       |
+| Když není z čeho kácet (klády + dospělé stromy nestačí), stavba je zašedlá       | Martin       |
 | 12 / 35 stromů na zemnici / polozemnici, 2 čd na strom, vzdálenost +1 % / 10 m   | návrh Clauda |
 | Jen dospělé stromy, pařez po kácení, obnova z náletu ≈ 30 let                    | návrh Clauda |
 | Klády hnijí ≈ 10 % ročně; strom z mýcení = 1 kláda; hromada u nejbližšího obydlí | návrh Clauda |
