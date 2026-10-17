@@ -43,6 +43,7 @@ describe('createPlan', () => {
     expect(plan.partIds).toEqual([1]);
     expect(plan.plannedDay).toBe(day);
     expect(plan.done.dig).toBe(0);
+    expect(plan.harvestedKg).toBeNull();
   });
   it('ve 500 m je kopání o 40 % dražší', () => {
     expect(createPlan([part({ distanceM: 500 })], day).required.dig).toBeCloseTo(112);

@@ -30,7 +30,13 @@ export function createPlan(selected: FieldPart[], day: number): YearPlan {
       required.reclaim += reclaimCostPerHa(fallowYears(part, day)) * ha * factor;
     }
   }
-  return { plannedDay: day, partIds: selected.map((p) => p.id), required, done: emptyRecord() };
+  return {
+    plannedDay: day,
+    partIds: selected.map((p) => p.id),
+    required,
+    done: emptyRecord(),
+    harvestedKg: null,
+  };
 }
 
 /** Zbývající práce úlohy; setí nepředběhne hotové kopání. */

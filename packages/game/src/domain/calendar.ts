@@ -36,7 +36,8 @@ const DAYS_IN_COMMON_YEAR = 365;
 const DAYS_IN_CYCLE = DAYS_IN_LEAP_YEAR + 3 * DAYS_IN_COMMON_YEAR;
 const MONTH_LENGTHS = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31] as const;
 
-function isLeapYear(year: number): boolean {
+/** Přestupný rok juliánského kalendáře (každý rok dělitelný čtyřmi). */
+export function isLeapYear(year: number): boolean {
   return year % 4 === 0;
 }
 

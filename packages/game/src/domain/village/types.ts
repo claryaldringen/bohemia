@@ -56,6 +56,7 @@ export interface YearPlan {
   partIds: number[];
   required: Record<TaskName, number>;
   done: Record<TaskName, number>;
+  harvestedKg: number | null; // čistá úroda sklizená 31. 8. (pro ztrátu nevymláceného 1. 3.)
 }
 export type ChronicleEvent = { day: number } & (
   | { kind: 'village-founded' }

@@ -8,3 +8,4 @@ export * from './year-plan';
 export * from './labor';
 export * from './population';
 export * from './actions';
+export * from './simulate';

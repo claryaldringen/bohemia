@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dayIndexOf } from '../../calendar';
+import { TOTAL_GAME_DAYS, dayIndexOf } from '../../calendar';
 import { daysUntilHarvest, eatDay } from '../food';
 
 const day = (year: number, month: number, d: number): number => dayIndexOf({ year, month, day: d });
@@ -24,6 +24,14 @@ describe('eatDay', () => {
     expect(Number.isNaN(r.storesKg)).toBe(false);
   });
 
+  it('příděl v poslední den před sklizní nenechá zásoby zápornou chybou zaokrouhlení', () => {
+    // 28/997 kg a potřeba 1,7 + 2/31 kg: bez ořezu vyjde −3,5e-18
+    const r = eatDay(0.028084252758274825, 1.764516129032258, 1);
+    expect(r.storesKg).toBeGreaterThanOrEqual(0);
+    expect(r.satiation).toBeGreaterThan(0);
+    expect(r.satiation).toBeLessThan(1);
+  });
+
   it('prázdné zásoby dávají nasycení 0 a zásoby 0', () => {
     expect(eatDay(0, 5, 100)).toEqual({ storesKg: 0, satiation: 0 });
   });
@@ -46,5 +54,11 @@ describe('daysUntilHarvest', () => {
 
   it('počítá přestupný únor před sklizní', () => {
     expect(daysUntilHarvest(day(599, 9, 1))).toBe(366);
+  });
+
+  it('na posledním podzimu světa počítá se sklizní roku 1500 (přestupný) bez výjimky', () => {
+    expect(daysUntilHarvest(day(1499, 9, 1))).toBe(366);
+    expect(daysUntilHarvest(TOTAL_GAME_DAYS - 1)).toBe(245);
+    expect(daysUntilHarvest(day(1499, 8, 31))).toBe(1);
   });
 });
