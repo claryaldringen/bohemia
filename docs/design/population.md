@@ -172,8 +172,11 @@ stovky vsí a ověří cíle:
 
 ## Co hráč vidí
 
-- V krajině: umístění první zemnice a dalších obydlí, rozestavěné stavby. 3D modely zemnice
-  a polozemnice jsou samostatný úkol (0 A.D. slovanská obydlí nemá).
+- V krajině: umístění první zemnice a dalších obydlí, rozestavěné stavby. **Modely obydlí jsou
+  vlastní** (procedurálně v Blenderu s texturami z 0 A.D. – 0 A.D. slovanská obydlí nemá):
+  zemnice i polozemnice mají **omazané stěny a střechu ze slámových došků** (Martin). Stavby
+  z módu Millennium A.D. (ruské sruby, severské domy) se nepoužijí – jiná doba či region
+  a nejistá licence (Martin); nanejvýš jako předloha tvarů pro pozdější roubené chalupy.
 - Panel vsi: počet lidí podle věku, domácnosti (typ obydlí, obsazenost, plná/přeplněná, stav),
   volná společná práce za den, rozestavěné stavby, kronika.
 - Upozornění, že je domácnost plná a lze stavět.
@@ -202,6 +205,7 @@ stovky vsí a ověří cíle:
 | Obydlí zatím zemnice a polozemnice                                           | Martin                        |
 | Obydlí se umisťuje volně (půdorys) na dost rovné zemi; překážky a les zdraží | Martin                        |
 | Pole jsou samostatná a společná pro celou ves                                | Martin                        |
+| Vlastní modely obydlí: omazané stěny, slámové došky; Millennium A.D. ne      | Martin                        |
 | Nová obydlí vždy staví hráč; plná domácnost → nová domácnost v novém obydlí  | Martin                        |
 | Obydlí chátrají, opravy rostou; přestavbu (i na lepší) rozhodují obyvatelé   | Martin                        |
 | Bez staveb ves přestane růst, ale nerozpadne se                              | návrh Clauda, Martin potvrdil |
