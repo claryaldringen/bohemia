@@ -160,6 +160,13 @@ na který se později přidávají další prvky (černozem, naleziště kovů, 
   Q/E = otočení.
 - **Info o políčku pod kurzorem:** povrch a úrodnost – pomůže hráči plánovat, kde založit
   vesnici.
+- **Zvuky krajiny** (Martin, podle 0 A.D.): ptáci letního dne všude (stejná stopa jako ambient
+  v 0 A.D.), u okraje lesa navíc zpěv ptáků, v lese a u něj vítr v listí, potok podle rychlosti
+  proudu (pomalý, střední, rychlý – prolínají se). Hlasitost podle toho, kam se kamera dívá:
+  zdroje v záběru, blíž = hlasitěji (jako 0 A.D. ∝ 1 / vzdálenost), při oddálení vše tišší, ale
+  ptáci nezmizí. Zvuk začne po prvním kliknutí (pravidlo prohlížečů), přepínač vpravo nahoře si
+  volbu pamatuje. Zvuky z 0 A.D. (CC BY-SA 3.0, Wildfire Games), licence a původní soubory
+  v `apps/web/public/audio/LICENSE.md`, převod `tools/audio/ambient.sh`.
 - **Výkon:** plynule (≈ 60 fps) na běžném notebooku; krajina se zobrazí do ≈ 2 s od načtení
   stránky. Generování ze seedu musí být rychlé (cíl desítky ms); případně si server hotovou
   krajinu drží v paměti.

@@ -2,8 +2,10 @@
 
 import { useEffect, useRef, useState, type ReactElement } from 'react';
 import { decodeLandscape, type LandscapeTransfer } from '@/lib/landscape-transfer';
+import type { LandscapeScene } from '@/lib/scene/landscape-scene';
 import type { TileInfo } from '@/lib/tile-info';
 import { SceneLoading, type LoadingStep } from './SceneLoading';
+import { SoundToggle, useSoundPreference } from './SoundToggle';
 import { TileInfoPanel } from './TileInfoPanel';
 
 const LOADING_START: { step: LoadingStep; done: number } = { step: 'engine', done: 0.05 };
@@ -15,6 +17,21 @@ export function GameView({ landscape }: { landscape: LandscapeTransfer }): React
   const [failed, setFailed] = useState(false);
   const [progress, setProgress] = useState(LOADING_START);
   const [ready, setReady] = useState(false);
+  const [soundOn, setSoundOn] = useSoundPreference();
+  const sceneRef = useRef<LandscapeScene | null>(null);
+  const soundOnRef = useRef(soundOn);
+
+  useEffect(() => {
+    soundOnRef.current = soundOn;
+    sceneRef.current?.setSoundEnabled(soundOn);
+  }, [soundOn]);
+
+  const toggleSound = (): void => {
+    const next = !soundOn;
+    setSoundOn(next);
+    // Přímo v obsluze kliknutí – Safari pustí zvuk jen v gestu uživatele.
+    sceneRef.current?.setSoundEnabled(next);
+  };
 
   useEffect(() => {
     const container = containerRef.current;
@@ -44,6 +61,8 @@ export function GameView({ landscape }: { landscape: LandscapeTransfer }): React
         return;
       }
       dispose = () => scene.dispose();
+      sceneRef.current = scene;
+      scene.setSoundEnabled(soundOnRef.current);
       canvas.dataset.renderer = scene.renderer;
       scene.onTileHover(setTile);
       setProgress({ step: 'engine', done: 0.25 });
@@ -60,6 +79,7 @@ export function GameView({ landscape }: { landscape: LandscapeTransfer }): React
 
     return () => {
       cancelled = true;
+      sceneRef.current = null;
       dispose?.();
       canvas.remove();
       html.style.overscrollBehavior = previousOverscroll;
@@ -74,6 +94,7 @@ export function GameView({ landscape }: { landscape: LandscapeTransfer }): React
       {/* Barva oblohy scény – během načítání není vidět bílá plocha. */}
       <div ref={containerRef} className="fixed inset-0 bg-[#a1bfd9]" />
       <TileInfoPanel tile={tile} />
+      {!failed && <SoundToggle enabled={soundOn} onToggle={toggleSound} />}
       {!failed && <SceneLoading step={progress.step} done={progress.done} hidden={ready} />}
       {failed && (
         <div className="fixed inset-0 flex items-center justify-center px-4">

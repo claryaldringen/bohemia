@@ -168,6 +168,13 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   pojmenované `trees-*`, `impostors-*` a `decor-*` (při přejmenování zachovat prefix).
 - **Ukazatel načítání:** `setLandscape(landscape, onProgress)` hlásí kroky přípravy a mezi
   náročnými kroky pustí prohlížeč překreslit; `GameView` ukazuje `SceneLoading`.
+- **Zvuky** (podle 0 A.D.): `ambient-mix.ts` (čisté funkce, testy) spočítá z cíle a přiblížení
+  kamery hlasitost vrstev – ptáci dne, zpěv ptáků u okraje lesa, vítr v listí, potok pomalý /
+  střední / rychlý podle `speed`. `ambient-sound.ts` je přehrává přes Web Audio (bez Babylonu):
+  soubory stahuje až po přípravě scény, mix mění jen při pohybu kamery, zvuk pustí po prvním
+  gestu (pravidlo prohlížečů), ve skrytém panelu uspí. Stav nese `canvas[data-sound]`, přepínač
+  `SoundToggle` (volba v localStorage). Soubory Opus/WebM v `public/audio/ambient/` (převod
+  `tools/audio/ambient.sh` – smyčky mají délku N + 312 ≡ 0 mod 960, viz `loopRegion`).
 - **Grafika (licence):** CC0, nebo z **0 A.D.** pod **CC BY-SA 3.0** (textury terénu, stromy –
   uvést Wildfire Games, upravené soubory pod stejnou licencí). Zdroj a původní název každého
   souboru do `LICENSE.md` / `LICENSES.md` vedle něj. Převod stromů, atlas impostorů a render

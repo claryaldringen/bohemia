@@ -290,3 +290,75 @@ test('odchod z herní plochy během načítání scénu uvolní bez chyb', async
   await page.waitForTimeout(3500);
   expect(errors).toEqual([]);
 });
+
+// --- Zvuky krajiny ---
+
+test('přepínač zvuků krajiny se přepíná a volba vydrží nové načtení', async ({ page }) => {
+  await registerAndEnterGame(page, 'zvuky-prepinac');
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  // Plátno vzniká v efektu – stránka je hydratovaná a kliknutí se neztratí.
+  await expect(page.locator('canvas')).toBeAttached();
+  const toggle = page.getByRole('button', { name: 'Zvuky krajiny' });
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  // Leží pod datem vpravo nahoře, nepřekrývá ho.
+  const date = (await page.getByText(/^Svět začne/).boundingBox())!;
+  const box = (await toggle.boundingBox())!;
+  expect(box.y).toBeGreaterThanOrEqual(date.y + date.height);
+
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  await expect(toggle).toHaveAttribute('title', 'Zapnout zvuky krajiny');
+  await page.reload();
+  // Po načtení stránky se připravuje scéna – v bezhlavém prohlížeči chvíli blokuje stránku.
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false', { timeout: 30_000 });
+  expect(errors).toEqual([]);
+});
+
+test('zvuky se stáhnou až po přípravě krajiny, hrají po kliknutí a přepínač je ztiší', async ({
+  page,
+}) => {
+  await withoutTrees(page);
+  // Okamžik, kdy je scéna připravená – stahování zvuků musí začít až po něm.
+  await page.addInitScript(() => {
+    performance.setResourceTimingBufferSize(2000);
+    new MutationObserver(() => {
+      const w = window as unknown as { sceneReadyAt?: number };
+      if (w.sceneReadyAt === undefined && document.querySelector('canvas[data-scene-ready]')) {
+        w.sceneReadyAt = performance.now();
+      }
+    }).observe(document, {
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['data-scene-ready'],
+    });
+  });
+  await registerAndEnterGame(page, 'zvuky-hraji');
+  // Bezhlavý prohlížeč nemá zvukový výstup (Chrome pak sám hlásí chybu zvukového zařízení
+  // do konzole) – hlídají se jen výjimky z kódu stránky.
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await expect(readyScene(page)).toBeVisible({ timeout: 30_000 });
+
+  const viewport = page.viewportSize()!;
+  await page.mouse.click(viewport.width / 2, viewport.height / 2);
+  await expect(readyScene(page)).toHaveAttribute('data-sound', 'running', { timeout: 30_000 });
+  const audio = await page.evaluate(() => {
+    const readyAt = (window as unknown as { sceneReadyAt?: number }).sceneReadyAt ?? Infinity;
+    const entries = performance
+      .getEntriesByType('resource')
+      .filter((entry) => entry.name.includes('/audio/'));
+    return { total: entries.length, early: entries.filter((entry) => entry.startTime < readyAt) };
+  });
+  expect(audio.total).toBeGreaterThan(0);
+  expect(audio.early).toEqual([]);
+
+  const toggle = page.getByRole('button', { name: 'Zvuky krajiny' });
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  await expect(readyScene(page)).toHaveAttribute('data-sound', 'muted');
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  await expect(readyScene(page)).not.toHaveAttribute('data-sound', 'muted');
+  expect(errors).toEqual([]);
+});

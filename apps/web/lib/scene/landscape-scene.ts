@@ -8,6 +8,7 @@ import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { Scene } from '@babylonjs/core/scene';
 import { surfaceAt, type Landscape } from '@bohemia/game';
 import type { TileInfo } from '../tile-info';
+import { AmbientSound } from './ambient-sound';
 import { createRtsCamera, type RtsCamera } from './camera';
 import { HEIGHT_SCALE, SUN_DIRECTION } from './constants';
 import { createEngine, type RendererName } from './create-engine';
@@ -60,6 +61,9 @@ export class LandscapeScene {
   private renderBurstUntil = 0;
   private rendering = false;
   private disposed = false;
+  /** Zvuky krajiny – vznikají až po přípravě scény. */
+  private ambient: AmbientSound | null = null;
+  private soundEnabled = true;
 
   private constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -196,8 +200,22 @@ export class LandscapeScene {
     onProgress({ step: 'shaders', done: 1 });
     if (this.disposed || this.rendering) return;
     this.rendering = true;
+    // Zvuky se stahují až teď – nezdrží přípravu scény; mix sleduje pohled kamery ve frame().
+    this.ambient = new AmbientSound({
+      environment: { stream: surface.stream, forest: field },
+      enabled: this.soundEnabled,
+      onStateChange: (state) => {
+        this.canvas.dataset.sound = state;
+      },
+    });
     this.renderBurst(1500);
     this.engine.runRenderLoop(() => this.frame());
+  }
+
+  /** Zapne nebo vypne zvuky krajiny – volat přímo z kliknutí (prohlížeč pustí zvuk po gestu). */
+  setSoundEnabled(enabled: boolean): void {
+    this.soundEnabled = enabled;
+    this.ambient?.setEnabled(enabled);
   }
 
   onTileHover(listener: HoverListener): () => void {
@@ -212,6 +230,7 @@ export class LandscapeScene {
     this.resizeObserver.disconnect();
     this.canvas.removeEventListener('pointermove', this.onPointerMove);
     this.canvas.removeEventListener('pointerleave', this.onPointerLeave);
+    this.ambient?.dispose();
     this.rtsCamera?.dispose();
     this.engine.stopRenderLoop();
     this.scene.dispose();
@@ -251,6 +270,8 @@ export class LandscapeScene {
       this.needsRender = true;
       // Pod nehybným kurzorem je po pohybu kamery jiné políčko.
       if (this.pointerInside) this.pointerMoved = true;
+      const { target, radius } = camera.camera;
+      this.ambient?.setView({ x: target.x, z: target.z, radius });
     }
     this.pickHoveredTile();
     if (!this.needsRender) return;
