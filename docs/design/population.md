@@ -1,0 +1,197 @@
+# Obyvatelstvo a obydlí vesnice
+
+Stav: schváleno 17. 10. 2026 (Martin: „asi ok, doladíme později“). Implementace zatím není.
+
+## Proč
+
+Hráč začíná jednou slovanskou vesnicí a její hlavní bohatství jsou lidé – přesněji jejich
+práce. Jedna domácnost si základní potřeby (jídlo, látky, keramiku, jednoduché železné předměty)
+obstará sama, ale na společné projekty vsi (např. opevnění) jí skoro nezbývá čas. Hra je tedy
+o tom, aby ves rostla a výroba jídla byla co nejefektivnější – aby postupně ve vsi mohli být
+i lidé, kteří se jídlem nezabývají vůbec nebo jen menší část času (Martin).
+
+Tento dokument popisuje, jak ves roste: domácnosti, obydlí, porody a úmrtí, stavbu nových
+obydlí hráčem a jejich chátrání a přestavby obyvateli.
+
+## Cíle, ne-cíle, anti-cíle
+
+- **Cíl:** hráč založí ves jednou zemnicí se čtyřmi lidmi a sleduje, jak se rodina rozrůstá;
+  když je domácnost plná, postaví další obydlí a ves se rozroste o novou domácnost.
+- **Cíl:** po návratu do hry (i po týdnu, tedy skoro po generaci) hráč pochopí, co se ve vsi
+  mezitím stalo – kronika porodů, úmrtí, přestaveb.
+- **Cíl:** práce (člověkodny) je společná měna vsi – stavby a opravy ji spotřebují a zbytek
+  půjde později do veřejných projektů.
+- **Ne-cíl (teď):** jiné stavby než obydlí, výroba jídla a pole (vlastní dokument, viz
+  Navazuje), těžba dřeva, voda, jednotliví lidé se jmény, sňatky mezi vesnicemi, rod hráče,
+  více vesnic. **Příchozí z okolí zatím ne** – narušilo by to budoucí mechaniky (Martin).
+- **Anti-cíl:** ves, která se bez hráče rozpadne nebo vymře jen proto, že hráč pár dní nebyl
+  online. Nestavění zpomalí růst, ale neruinuje ves.
+- **Anti-cíl:** čísla typu „4,37 člověka“ – lidé jsou celí.
+
+## Pojmy
+
+- **Ves** – jedno sídlo hráče; drží společné zásoby (zatím práci, později jídlo, vodu, dřevo).
+- **Obyvatel** – jednotlivec s datem narození (bez jména a pohlaví – návrh Clauda). Věkové
+  skupiny: **dítě** 0–13 let, **dospělý** 14–44, **starší** 45+.
+- **Domácnost** – lidé jednoho obydlí. Každé obydlí je právě jedna domácnost.
+- **Obydlí** – zatím dva typy:
+
+  | Typ         | Míst | Nová stavba    | Typická životnost |
+  | ----------- | ---- | -------------- | ----------------- |
+  | zemnice     | 6    | 60 člověkodní  | ≈ 15 let          |
+  | polozemnice | 8    | 220 člověkodní | ≈ 20–25 let       |
+
+  Polozemnice je sušší a teplejší – dětem v ní je lépe (nižší dětská úmrtnost). Pro čerstvě
+  plnou domácnost trvá zemnice zhruba jedno roční období, polozemnice celý herní rok – hráč volí
+  mezi rychlou úlevou pro rodinu v těsnu a lepším domem, na který se čeká (návrh Clauda). Čísla
+  jsou výchozí a doladí se měřením (viz Kalibrace).
+
+- **Plná domácnost** – žije v ní tolik lidí, kolik má obydlí míst. **Přeplněná** – víc.
+- **Člověkoden** – práce jednoho dospělého za herní den.
+
+## Pravidla
+
+### Založení vsi
+
+- Hráč v krajině svého sídla vybere políčko louky pro první zemnici. Zemnice tam hned stojí
+  (osadníci přišli) a bydlí v ní **4 lidé**: dva dospělí (kolem 25 let) a dva dospívající
+  (12 a 13 let – návrh Clauda, aby první nová domácnost mohla vzniknout do pár let).
+- Obydlí zabírá jedno políčko louky; na políčku smí stát jen jedno obydlí (návrh Clauda).
+- Pole se umisťuje s mechanikou jídla (viz Navazuje).
+
+### Práce
+
+- Pracovní síla za den: dospělý 1 člověkoden, starší 0,5, dítě 7–13 let 0,3, mladší 0
+  (návrh Clauda).
+- Domácnost spotřebuje většinu své práce na vlastní obživu a potřeby. **Dokud nebude navržené
+  jídlo, je to pevně 85 %** (návrh Clauda); zbylých 15 % je **volná práce domácnosti**.
+- Volná práce domácnosti jde nejdřív na opravy jejího obydlí, zbytek do **společné práce vsi**.
+- Společná práce se nedá schovat na později – každý den jde do rozestavěných staveb (stavby
+  hráče i přestavby obyvatel, rovným dílem), a když žádná není, propadne.
+
+### Růst populace
+
+- **Porody:** každý dospělý pár (dva dospělí 14–44 let v jedné domácnosti) má zhruba jedno
+  dítě za 3 roky. Hlad porody tlumí až zastaví, přeplněnost je výrazně sníží.
+- **Úmrtí:** zhruba 40 % dětí se nedožije 14 let (v polozemnici méně než v zemnici); dospělí
+  umírají asi 1,5 % ročně, starší víc (kolem 8 % ročně). Hlad a přeplněnost úmrtnost zvýší.
+- **Přeplněnost** sama nastaví strop: populace domácnosti se ustálí kolem kapacity obydlí
+  (+1–2), takže ves bez nových staveb přestane růst, ale nevymře.
+- **Jídlo** vstupuje jako **nasycení vsi** 0–1. Spočítá ho mechanika jídla; do té doby je 1.
+- Porody a úmrtí jsou **jednotlivé náhodné události**, ale opakovatelné: náhoda se odvozuje
+  ze seedu světa, vsi a herního data. Stejný stav ve stejný den dá vždy stejný výsledek.
+- Lidé stárnou podle data narození; s věkem přecházejí mezi skupinami.
+- **Hájení:** prvních 30 herních let od založení vsi jí přeje štěstí (Martin) – dospělí
+  neumírají a dětí umírá polovina oproti běžné úmrtnosti (podoba štěstí je návrh Clauda, doladí
+  se kalibrací). Malá ves tak nevymře hned na začátku a všichni hráči mají srovnatelný start.
+- **Rozpad domácnosti** (návrh Clauda): domácnost bez dospělého (jen děti nebo starší) a osamělý
+  dospělý bez dětí se přestěhují do domácnosti s nejvíc volnými místy (smí ji i přeplnit) –
+  jinak by domácnost, kde zbyl jeden dospělý, už nikdy neměla děti. Kronika to zapíše.
+  Opuštěné obydlí se neopravuje a chátrá; při stavu 0 zanikne a políčko se uvolní.
+
+### Nové obydlí (rozhoduje hráč)
+
+- O každé nové stavbě rozhoduje hráč (Martin). Hráč vidí, že je domácnost plná, a postaví
+  nové obydlí – vybere typ a políčko.
+- **Odemčení:** stavět lze, když je některá domácnost plná a žijí v ní aspoň **4 dospělí**
+  (Martin: „je v ní moc dospělých“; čtveřici upřesnil Claude, aby měl kdo odejít i zůstat).
+- **Cena:** člověkodny ze společné práce vsi (dřevo viz Zjednodušení). Stavba roste den po dni
+  podle toho, kolik společné práce přitéká; hráč vidí postup.
+- **Kolik staveb najednou:** rozestavěných nových obydlí smí být nejvýš tolik, kolik je
+  domácností, které podmínku splňují – jednu domácnost nejde vyprázdnit frontou staveb
+  (návrh Clauda).
+- **Po dokončení** se do nového obydlí přestěhují **dva nejmladší dospělí** z domácnosti, která
+  podmínku splňuje (z více takových z nejvíc přeplněné), a založí novou domácnost. Děti
+  zůstávají (návrh Clauda). Když ji v tu chvíli nesplňuje žádná, obydlí zůstane prázdné.
+- **Prázdné obydlí** obsadí sama první domácnost, která podmínku splní – dva nejmladší dospělí
+  se do něj přestěhují (návrh Clauda).
+- Když hráč nestaví, přeplněná domácnost žije v těsnu – méně porodů, víc úmrtí, ves přestane
+  růst (Martin potvrdil).
+
+### Chátrání a přestavba (rozhodují obyvatelé)
+
+- Každé obydlí má **stav** 0–100 % a stárne. Potřeba oprav (člověkodny za rok) roste s věkem
+  – zpočátku malá, ke konci životnosti velká (Martin).
+- Opravy platí domácnost ze své volné práce, takže stárnoucí domy ubírají společnou práci vsi.
+  Když na opravy nestačí, stav klesá rychleji.
+- Ke konci životnosti berou opravy zhruba polovinu volné práce domácnosti (návrh Clauda) –
+  stárnoucí domy citelně ubírají vsi práci.
+- **Přestavba:** když se opravy přestanou vyplácet (typicky kolem konce životnosti) nebo stav
+  klesne na 0, obyvatelé se **sami** rozhodnou dům zbourat a na stejném místě postavit nový
+  (Martin). Hráč o tom nerozhoduje.
+- Obyvatelé staví **vždy lepší** obydlí než dosud (zemnice → polozemnice), pokud na to ves má
+  suroviny – jinak stejné (Martin). „Má na to“: společná práce vsi stačí, aby stavba skončila do
+  jednoho roku (návrh Clauda). Typ úplně nové stavby vybírá hráč.
+- Během přestavby domácnost bydlí dál (stavba se abstrahuje, starý dům zmizí až s dokončením
+  nového – návrh Clauda).
+
+### Kronika
+
+- Ves vede kroniku událostí s herním datem: narození, úmrtí (dítě / dospělý / starší),
+  založení domácnosti, dokončení stavby, rozhodnutí obyvatel o přestavbě. Po návratu ji hráč
+  uvidí jako první.
+
+## Zjednodušení do dalších mechanik
+
+- **Dřevo:** dokud nebude navržená těžba (les, kácení), dřevo se neeviduje – kácení a dovoz
+  jsou zahrnuté v ceně stavby v člověkodnech (návrh Clauda; Martin chtěl dřevo ze společných
+  zásob, přijde s mechanikou lesa).
+- **Jídlo:** nasycení = 1 a pevných 85 % práce na obživu, dokud nebude navržená výroba jídla.
+- **Voda:** zatím bez vlivu.
+
+## Kalibrace
+
+Čísla výše jsou výchozí. Jako u generátoru krajiny vznikne měřicí skript, který nasimuluje
+stovky vsí a ověří cíle:
+
+- první možnost stavět přijde u 90 % vsí do **≈ 8 herních let** (≈ 3 skutečné dny) – Martin:
+  „zkusíme to“; hrubá simulace s hájením: medián 3 roky, 90 % do 7, 99 % do 20,
+- čerstvě plná domácnost postaví zemnici zhruba za roční období, polozemnici za herní rok,
+- zemnice se přestavuje typicky po ≈ 15 letech, polozemnice po ≈ 20–25; ke konci životnosti
+  berou opravy zhruba polovinu volné práce domácnosti,
+- ves, kde hráč staví, kdykoli může, vymře do roku 1500 jen výjimečně (hrubá simulace: 0,6 %).
+  Jediná domácnost bez nových staveb za staletí vymře (simulace: ≈ 90 % do 1000 let) – stavět
+  se vyplácí; za pár dní nepřítomnosti se ale nic takového nestane (anti-cíl).
+
+## Co hráč vidí
+
+- V krajině: umístění první zemnice a dalších obydlí, rozestavěné stavby. 3D modely zemnice
+  a polozemnice jsou samostatný úkol (0 A.D. slovanská obydlí nemá).
+- Panel vsi: počet lidí podle věku, domácnosti (typ obydlí, obsazenost, plná/přeplněná, stav),
+  volná společná práce za den, rozestavěné stavby, kronika.
+- Upozornění, že je domácnost plná a lze stavět.
+
+## Navazuje
+
+- **Jídlo a pole** – další dokument: pole, sklizeň podle ročních období, zásoby, nasycení, kolik
+  práce domácnost potřebuje na obživu (nahradí pevných 85 %).
+- **Les a dřevo**, veřejné projekty (opevnění), rod hráče a sňatky.
+
+## Na stavitelovi
+
+- Přesné vzorce porodů, úmrtí, chátrání a oprav – tak, aby splnily cíle v Kalibraci.
+- Krok simulace (den, měsíc) a jak se ves dopočítá, když nikdo není online. Svět běží
+  nepřetržitě; než vznikne `apps/worker`, může se ves dopočítat při načtení. Výsledek nesmí
+  záviset na tom, kdy se dopočítává.
+- Datový model, podoba panelu a kroniky.
+
+## Rozhodnutí
+
+| Rozhodnutí                                                                  | Kdo                           |
+| --------------------------------------------------------------------------- | ----------------------------- |
+| Ves jako zásobárna aktiv: jídlo, voda, dřevo a hlavně lidé / člověkohodiny  | Martin                        |
+| Start: 4 lidé v jedné zemnici, hráč vybere místo                            | Martin                        |
+| Dost jídla → populace roste; cílem je efektivní výroba jídla                | Martin                        |
+| Obydlí zatím zemnice a polozemnice                                          | Martin                        |
+| Nová obydlí vždy staví hráč; plná domácnost → nová domácnost v novém obydlí | Martin                        |
+| Obydlí chátrají, opravy rostou; přestavbu (i na lepší) rozhodují obyvatelé  | Martin                        |
+| Bez staveb ves přestane růst, ale nerozpadne se                             | návrh Clauda, Martin potvrdil |
+| Přestavba vždy na lepší obydlí, pokud jsou suroviny; typ nové stavby hráč   | Martin                        |
+| Hájení: prvních 30 herních let vsi přeje štěstí; žádní příchozí z okolí     | Martin                        |
+| Podoba hájení: dospělí neumírají, poloviční dětská úmrtnost                 | návrh Clauda                  |
+| Kapacity 6 / 8, ceny 60 / 220 člověkodní (roční období / rok), životnosti   | návrh Clauda                  |
+| Porodnost, úmrtnost, opravy až polovina volné práce                         | návrh Clauda                  |
+| Odemčení při plné domácnosti se 4 dospělými; stěhují se dva nejmladší       | návrh Clauda                  |
+| Rozpad domácnosti, prázdná obydlí, nejvýš stavba na každou plnou domácnost  | návrh Clauda                  |
+| Obyvatelé bez jmen a pohlaví, náhoda ze seedu, kronika                      | návrh Clauda                  |
+| Dřevo zatím v ceně práce, 85 % práce na obživu, nasycení 1                  | návrh Clauda (dočasné)        |

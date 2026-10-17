@@ -37,20 +37,21 @@ ne jeden pán.
 
 ## Rozhodnutí
 
-| Rozhodnutí                                                                                           | Kdo                           |
-| ---------------------------------------------------------------------------------------------------- | ----------------------------- |
-| Hra v prohlížeči, jméno Bohemia, spuštění 1. 1. 2027                                                 | Martin                        |
-| Roky 500–1500 za jeden skutečný rok, plynou dny a roční období                                       | Martin                        |
-| Registrace, sdílený svět, vazalství přes pozvánky                                                    | Martin                        |
-| Kód na GitHubu (veřejné repo), později běh na vlastním Hetzner VPS                                   | Martin                        |
-| Zatím se vyvíjí a běží jen lokálně, nasazení až později                                              | Martin                        |
-| Databáze PostgreSQL (na Hetzneru už běží)                                                            | Martin                        |
-| Rod jako hlavní postava, vazalství není trvalé                                                       | návrh Clauda, Martin potvrdil |
-| Stack: Turborepo, Next.js, TypeScript, Drizzle, PM2 + Caddy                                          | návrh Clauda                  |
-| Herní kalendář: juliánský, roční období podle měsíců, datum malé v rohu ([calendar.md](calendar.md)) | návrh Clauda, Martin schválil |
-| Hexagonální architektura (porty a adaptéry), hranice hlídá ESLint                                    | návrh Clauda, Martin schválil |
-| UI česky, kód anglicky                                                                               | návrh Clauda                  |
-| Herní čas jako čistá funkce skutečného času, pravidla v `packages/game`, server je autorita          | návrh Clauda                  |
+| Rozhodnutí                                                                                                          | Kdo                           |
+| ------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
+| Hra v prohlížeči, jméno Bohemia, spuštění 1. 1. 2027                                                                | Martin                        |
+| Roky 500–1500 za jeden skutečný rok, plynou dny a roční období                                                      | Martin                        |
+| Registrace, sdílený svět, vazalství přes pozvánky                                                                   | Martin                        |
+| Kód na GitHubu (veřejné repo), později běh na vlastním Hetzner VPS                                                  | Martin                        |
+| Zatím se vyvíjí a běží jen lokálně, nasazení až později                                                             | Martin                        |
+| Databáze PostgreSQL (na Hetzneru už běží)                                                                           | Martin                        |
+| Rod jako hlavní postava, vazalství není trvalé                                                                      | návrh Clauda, Martin potvrdil |
+| Stack: Turborepo, Next.js, TypeScript, Drizzle, PM2 + Caddy                                                         | návrh Clauda                  |
+| Herní kalendář: juliánský, roční období podle měsíců, datum malé v rohu ([calendar.md](calendar.md))                | návrh Clauda, Martin schválil |
+| Obyvatelstvo a obydlí vesnice: domácnosti, růst, stavby hráče, přestavby obyvateli ([population.md](population.md)) | Martin, čísla návrh Clauda    |
+| Hexagonální architektura (porty a adaptéry), hranice hlídá ESLint                                                   | návrh Clauda, Martin schválil |
+| UI česky, kód anglicky                                                                                              | návrh Clauda                  |
+| Herní čas jako čistá funkce skutečného času, pravidla v `packages/game`, server je autorita                         | návrh Clauda                  |
 
 ## Otevřené otázky
 
