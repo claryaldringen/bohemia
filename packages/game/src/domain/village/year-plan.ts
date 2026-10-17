@@ -50,13 +50,38 @@ export function createPlan(selected: FieldPart[], day: number): YearPlan {
   };
 }
 
-/** Zbývající práce úlohy; setí nepředběhne hotové kopání. */
+/** Hotový podíl úlohy vůči celému plánu (0–1); úloha bez práce v plánu = 1. */
+function planShare(plan: YearPlan, task: TaskName): number {
+  return plan.required[task] > 0 ? Math.min(1, plan.done[task] / plan.required[task]) : 1;
+}
+
+/**
+ * Kolik práce úlohy se letos opravdu dělá (Ruling 17): setí jen na zkopané části, pletí
+ * a sklizeň jen na zasetou, výmlat jen sklizenou úrodu. Nezasetá půda se neplete ani nesklízí.
+ */
+function workableRequired(plan: YearPlan, task: TaskName): number {
+  switch (task) {
+    case 'sow':
+      return plan.required.sow * planShare(plan, 'dig');
+    case 'weed':
+    case 'harvest':
+      return plan.required[task] * planShare(plan, 'sow');
+    case 'thresh':
+      return plan.required.thresh * planShare(plan, 'harvest');
+    default:
+      return plan.required[task];
+  }
+}
+
+/** Zbývající práce úlohy – jen na části, kam předchozí úloha došla (viz workableRequired). */
 export function taskRemaining(plan: YearPlan, task: TaskName): number {
-  const left = plan.required[task] - plan.done[task];
-  if (task !== 'sow') return Math.max(0, left);
-  const digFraction = plan.required.dig > 0 ? plan.done.dig / plan.required.dig : 1;
-  const allowed = plan.required.sow * digFraction - plan.done.sow;
-  return Math.max(0, Math.min(left, allowed));
+  return Math.max(0, workableRequired(plan, task) - plan.done[task]);
+}
+
+/** Hotový podíl úlohy vůči práci, která se letos dělá (0–1); bez takové práce 1. */
+function workedShare(plan: YearPlan, task: TaskName): number {
+  const workable = workableRequired(plan, task);
+  return workable > 0 ? Math.min(1, plan.done[task] / workable) : 1;
 }
 
 /** Konec aktuálního úseku okna v měsících; navazující úsek od ledna se přičte (mlácení do konce února). */
@@ -85,15 +110,14 @@ export function activeTasks(plan: YearPlan, day: number): TaskName[] {
   return result.sort((a, b) => a.end - b.end).map((r) => r.task);
 }
 
-function fraction(plan: YearPlan, task: TaskName): number {
-  return plan.required[task] > 0 ? plan.done[task] / plan.required[task] : 1;
-}
-
-/** Čistá úroda v kg (po odečtení osiva) z vybraných dílů plánu. */
+/**
+ * Čistá úroda v kg (po odečtení osiva) z vybraných dílů plánu. Pletí a sklizeň se měří jen
+ * vůči zaseté části (Ruling 17) – částečné setí se tak nepromítne do úrody dvakrát.
+ */
 export function harvestKg(plan: YearPlan, parts: FieldPart[], day: number): number {
-  const sowFrac = fraction(plan, 'sow');
-  const weedFrac = fraction(plan, 'weed');
-  const harvestFrac = fraction(plan, 'harvest');
+  const sowFrac = planShare(plan, 'sow');
+  const weedFrac = workedShare(plan, 'weed');
+  const harvestFrac = workedShare(plan, 'harvest');
   let total = 0;
   for (const id of plan.partIds) {
     const part = parts.find((p) => p.id === id);
@@ -109,7 +133,7 @@ export function harvestKg(plan: YearPlan, parts: FieldPart[], day: number): numb
   return total;
 }
 
-/** Ztráta nevymlácené části úrody. */
+/** Ztráta nevymlácené části úrody (výmlat se měří vůči sklizené části). */
 export function threshLossKg(plan: YearPlan, harvestedKg: number): number {
-  return harvestedKg * (1 - fraction(plan, 'thresh'));
+  return harvestedKg * (1 - workedShare(plan, 'thresh'));
 }

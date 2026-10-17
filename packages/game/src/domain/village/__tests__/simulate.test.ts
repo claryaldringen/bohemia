@@ -353,6 +353,32 @@ describe('advanceVillage – roční plán a sklizeň', () => {
     const s = advanceVillage(spring, at(601, 8, 31));
     expect(harvests(s).at(-1)?.kg).toBeGreaterThan(0);
   });
+
+  it('nezasetá půda se neplete ani nesklízí a úroda zaseté části se nesráží (Ruling 17)', () => {
+    const s0 = found(at(600, 6, 1), 42, field(133));
+    s0.constructions = [];
+    s0.lastDay = at(601, 2, 28);
+    s0.storesKg = 5000;
+    for (const p of s0.parts) {
+      p.foundingDone = p.foundingCost;
+      p.state = 'sown';
+    }
+    s0.plan = createPlan(s0.parts, at(600, 9, 1));
+
+    const summerEnd = advanceVillage(s0, at(601, 8, 30));
+    const plan = summerEnd.plan!;
+    const sownShare = plan.done.sow / plan.required.sow;
+    expect(sownShare).toBeGreaterThan(0.2);
+    expect(sownShare).toBeLessThan(0.8);
+    // práce šla jen na zasetou část – a ta je celá opletá i sklizená
+    expect(plan.done.weed).toBeCloseTo(plan.required.weed * sownShare, 6);
+    expect(plan.done.harvest).toBeCloseTo(plan.required.harvest * sownShare, 6);
+
+    const s = advanceVillage(summerEnd, at(601, 8, 31));
+    const ha = s0.parts.reduce((sum, p) => sum + p.areaM2, 0) / 10_000;
+    const fullYield = ha * sownShare * (760 * (0.4 + 0.6 * 0.7) - 175);
+    expect(harvests(s).at(-1)?.kg).toBe(Math.round(fullYield));
+  });
 });
 
 describe('advanceVillage – stavby', () => {

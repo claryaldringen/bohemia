@@ -79,8 +79,26 @@ describe('taskRemaining a activeTasks', () => {
     expect(activeTasks(plan, at(501, 4, 10))).toEqual(['dig']);
   });
   it('červen: pletí', () => {
-    expect(activeTasks(finished({ ...plan, done: { ...plan.done } }), at(501, 6, 10))).toEqual([]);
-    expect(activeTasks(plan, at(501, 6, 10))).toEqual(['weed']);
+    const sown = withDone(plan, { dig: 80, sow: 10 });
+    expect(activeTasks(finished(plan), at(501, 6, 10))).toEqual([]);
+    expect(activeTasks(sown, at(501, 6, 10))).toEqual(['weed']);
+  });
+  it('nezasetá půda se neplete ani nesklízí (Ruling 17)', () => {
+    const halfSown = withDone(plan, { dig: 40, sow: 5 });
+    expect(taskRemaining(halfSown, 'weed')).toBeCloseTo(15);
+    expect(taskRemaining(halfSown, 'harvest')).toBeCloseTo(25);
+    expect(taskRemaining(withDone(halfSown, { weed: 15 }), 'weed')).toBeCloseTo(0);
+    expect(activeTasks(withDone(halfSown, { weed: 15 }), at(501, 6, 10))).toEqual([]);
+    expect(activeTasks(withDone(halfSown, { harvest: 25 }), at(501, 8, 10))).toEqual([]);
+    // nic nezaseto – v létě není co dělat
+    expect(activeTasks(plan, at(501, 6, 10))).toEqual([]);
+    expect(activeTasks(plan, at(501, 8, 10))).toEqual([]);
+  });
+  it('výmlat jen sklizené části (Ruling 17)', () => {
+    const halfHarvested = withDone(plan, { dig: 40, sow: 5, weed: 15, harvest: 25 });
+    expect(taskRemaining(halfHarvested, 'thresh')).toBeCloseTo(15);
+    expect(taskRemaining(withDone(halfHarvested, { thresh: 15 }), 'thresh')).toBeCloseTo(0);
+    expect(taskRemaining(plan, 'thresh')).toBe(0);
   });
   it('mlácení běží od listopadu do února jako jedno okno', () => {
     const p = withDone(plan, { harvest: 50 });
@@ -89,7 +107,10 @@ describe('taskRemaining a activeTasks', () => {
     expect(activeTasks(p, at(501, 3, 10))).not.toContain('thresh');
   });
   it('v listopadu kopání (konec 30. 11.) předchází mlácení (konec února)', () => {
-    expect(activeTasks(plan, at(500, 11, 10))).toEqual(['dig', 'thresh']);
+    expect(activeTasks(withDone(plan, { harvest: 50 }), at(500, 11, 10))).toEqual([
+      'dig',
+      'thresh',
+    ]);
   });
 });
 
@@ -106,8 +127,25 @@ describe('harvestKg', () => {
   it('nic neosetého = 0, nikdy záporné', () => {
     expect(harvestKg(plan, [part()], day)).toBe(0);
   });
+  it('polovina zasetá a celá opletá i sklizená: úroda poloviny bez další srážky (Ruling 17)', () => {
+    // 0,5 ha × 623,2 kg − osivo 0,5 ha × 175 kg; dřív pletí a sklizeň měřené vůči celému
+    // hektaru srazily úrodu podruhé (≈ 68 kg)
+    const halfSown = withDone(plan, { dig: 40, sow: 5, weed: 15, harvest: 25 });
+    expect(harvestKg(halfSown, [part()], day)).toBeCloseTo(623.2 * 0.5 - 175 * 0.5, 1);
+    expect(harvestKg(finished(plan), [part()], day)).toBeCloseTo(
+      2 * harvestKg(halfSown, [part()], day),
+      6,
+    );
+  });
+  it('na polovině zaseté půdy neopletá polovina dá úrodu jako napůl opletý hektar', () => {
+    const halfSown = withDone(plan, { dig: 40, sow: 5, weed: 7.5, harvest: 25 });
+    expect(harvestKg(halfSown, [part()], day)).toBeCloseTo(623.2 * 0.5 * 0.8 - 175 * 0.5, 1);
+  });
   it('mlátící ztráta', () => {
-    expect(threshLossKg(withDone(plan, { thresh: 15 }), 1000)).toBeCloseTo(500);
+    expect(threshLossKg(withDone(plan, { harvest: 50, thresh: 15 }), 1000)).toBeCloseTo(500);
     expect(threshLossKg(finished(plan), 1000)).toBeCloseTo(0);
+    // sklizená polovina vymlácená celá – nic se nezkazí
+    const halfHarvested = withDone(plan, { harvest: 25, thresh: 15 });
+    expect(threshLossKg(halfHarvested, 1000)).toBeCloseTo(0);
   });
 });
