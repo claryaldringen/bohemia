@@ -7,3 +7,4 @@ export * from './fields';
 export * from './year-plan';
 export * from './labor';
 export * from './population';
+export * from './actions';
