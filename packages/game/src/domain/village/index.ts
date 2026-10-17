@@ -6,3 +6,4 @@ export * from './dwellings';
 export * from './fields';
 export * from './year-plan';
 export * from './labor';
+export * from './population';
