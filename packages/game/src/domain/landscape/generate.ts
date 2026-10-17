@@ -57,5 +57,9 @@ export function generateLandscapeAttempt(attemptSeed: number, versions: LayerVer
     fertility,
     villageSite: terrain.villageSite,
     stream: terrain.stream,
+    obstacleLayer: {
+      seed: deriveSeed(attemptSeed, 'obstacles'),
+      version: versions.obstacles ?? 1,
+    },
   };
 }

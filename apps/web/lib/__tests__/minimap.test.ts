@@ -14,6 +14,7 @@ const landscape: Landscape = {
   fertility: new Uint8Array(SIZE * SIZE).fill(50),
   villageSite: { x: 4, y: 4 },
   stream: [],
+  obstacleLayer: null,
 };
 
 describe('převod souřadnic minimapy', () => {

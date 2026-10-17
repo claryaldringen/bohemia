@@ -41,12 +41,14 @@ export class LruCache<K, V> {
 }
 
 function landscapeKey(seed: number, versions: LayerVersions): string {
-  return `${seed}|${versions.terrain}.${versions.vegetation}.${versions.fertility}`;
+  const { terrain, vegetation, fertility, obstacles = 1 } = versions;
+  return `${seed}|${terrain}.${vegetation}.${fertility}.${obstacles}`;
 }
 
 /**
  * Zdroj krajin sídel s LRU mezipamětí. Krajina se po vygenerování nemění (nikdo ji nepřepisuje),
- * proto se vrací stále stejný objekt.
+ * proto se vrací stále stejný objekt – a s ním i jeho vrstva překážek (`obstaclesOf` si ji
+ * pamatuje podle objektu krajiny a zahodí ji s ním).
  */
 export function cachedLandscapes(
   capacity: number,

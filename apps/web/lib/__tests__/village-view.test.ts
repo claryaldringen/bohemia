@@ -26,6 +26,7 @@ const landscape: Landscape = {
   fertility: new Uint8Array(SIZE * SIZE).fill(50),
   villageSite: { x: 8, y: 8 },
   stream: [],
+  obstacleLayer: null,
 };
 const parts: PartInput[] = [0, 1, 2, 3, 4].map((i) => ({
   areaM2: 225,
