@@ -108,7 +108,8 @@ export function pileToWorld(site: LogPileSite, lx: number, lz: number): Point {
  * Kde leží hromada klád: u obydlí (i rozestavěného) nejblíž okraji lesa (při shodě menší id), na
  * prvním volném místě vedle něj – po stranách, za ním a pak dál. Volné = v krajině, ne ve vodě,
  * na poli ani hřbitově, mimo vyklizenou plochu jiných obydlí a bez stojících překážek (stromy,
- * kameny, keře). Když volno není, leží na prvním místě. Bez obydlí null.
+ * kameny, keře). Bez obydlí nebo bez volného místa null – hromada se pak nekreslí (nikdy ne do
+ * vody ani na pole).
  */
 export function logPileSite(
   landscape: Landscape,
@@ -143,8 +144,7 @@ export function logPileSite(
     const [x, z] = localToWorld(home.position, lx, lz);
     return { x, z, rotation: home.position.rotation + turn };
   });
-  const free = sites.find((site) => isFree(landscape, village, layer, changes, site, home.id));
-  return free ?? sites[0]!;
+  return sites.find((site) => isFree(landscape, village, layer, changes, site, home.id)) ?? null;
 }
 
 function isFree(

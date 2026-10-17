@@ -115,4 +115,25 @@ describe('logPileSite', () => {
     const removed = { removed: [1], stumps: [], saplings: [] };
     expect(logPileSite(landscape, village, tree, removed)).toEqual(first);
   });
+
+  it('bez volného místa se hromada nekreslí – nikdy do vody ani na pole', () => {
+    // obydlí na ostrůvku jednoho políčka louky uprostřed vody
+    const island: Landscape = {
+      ...landscape,
+      surface: Uint8Array.from({ length: SIZE * SIZE }, (_, i) =>
+        i === 16 * SIZE + 16 ? SURFACE_CODES.meadow : SURFACE_CODES.water,
+      ),
+    };
+    const village: SceneVillage = { dwellings: [dwelling(1, 7.5, 7.5)], fields: [] };
+    expect(logPileSite(island, village, empty, NO_OBSTACLE_CHANGES)).toBeNull();
+    // kolem obydlí samá pole
+    const parts = [];
+    for (let y = 10; y < 23; y++) {
+      for (let x = 10; x < 23; x++) {
+        parts.push({ cell: { x, y }, x: 0, z: 0, size: 15, stage: 'sown' as const });
+      }
+    }
+    const farm: SceneVillage = { dwellings: [dwelling(1, 7.5, 7.5)], fields: [{ id: 2, parts }] };
+    expect(logPileSite(landscape, farm, empty, NO_OBSTACLE_CHANGES)).toBeNull();
+  });
 });
