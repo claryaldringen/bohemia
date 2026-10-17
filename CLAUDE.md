@@ -102,6 +102,8 @@ Auth vzniká líně přes `getAuth()` – `next build` stránky jen importuje a 
 
 - **E-maily** se zatím jen vypisují do terminálu dev serveru (ověřovací odkaz se zkopíruje
   odtamtud). V produkci bez nastaveného odesílání `sendMail` záměrně spadne.
+- **Vývojový účet** bez registrace: `npm run db:seed-dev` založí (nebo obnoví) ověřený účet
+  v lokální DB `bohemia`, přihlašovací údaje jsou na začátku `apps/web/scripts/seed-dev-user.ts`.
 - **Hlášky Better Auth** se překládají v `lib/auth-errors.ts` – nové chybové kódy doplnit tam.
 - **Změna polí uživatele** (`user.additionalFields` v `lib/auth.ts`) → upravit i
   `packages/db/src/schema/auth.ts` a vygenerovat migraci.
@@ -245,6 +247,7 @@ npm run test:db       # testy adaptérů proti DB bohemia_test (Homebrew Postgre
 npm run test:e2e      # Playwright – build + next start na :3011 proti DB bohemia_test
 npm run format:check  # npm run format = oprava
 npm run db:generate   # nová migrace po změně schématu v packages/db/src/schema
+npm run db:seed-dev   # vývojový účet v lokální DB bez registrace
 npx tsx packages/game/scripts/measure-landscapes.ts 500   # měření generátoru krajiny
 ```
 
