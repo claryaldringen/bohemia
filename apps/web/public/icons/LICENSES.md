@@ -19,6 +19,7 @@ pod stejnou licencí. Licence se týká jen těchto souborů, ne zbytku hry Bohe
 | `build/uhlir.png`         | totéž z `models/crafts/uhlir.glb` a `models/crafts/milir.glb`, dým z milíře vymodelovaný ve skriptu                                                                  |
 | `resources/people.png`    | `binaries/data/mods/public/art/textures/ui/session/icons/resources/population.png` z 0 A.D. (0ad/0ad), bez úprav (64 × 64 px); nezasahuje do něj logo Wildfire Games |
 | `resources/food.png`      | vlastní render – snopek obilí (model ve skriptu); ikona `food.png` z 0 A.D. je kus masa, proto nepoužita                                                             |
+| `resources/wood.png`      | vlastní render – hranice klád s letokruhy na čelech (model ve skriptu)                                                                                               |
 | `resources/labor.png`     | vlastní render – motyka (model ve skriptu)                                                                                                                           |
 | `resources/satiation.png` | vlastní render – hliněná miska s chlebem (model ve skriptu)                                                                                                          |
 | `resources/date.png`      | vlastní render – slunce (model ve skriptu); `time_small.png` z 0 A.D. (16 px) nepoužita                                                                              |

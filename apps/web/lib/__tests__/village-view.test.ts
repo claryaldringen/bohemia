@@ -74,21 +74,22 @@ describe('buildVillageView', () => {
       people: { children: 2, adults: 2, elders: 0 },
       fullHousehold: false,
     });
-    // obydlí nemá kdo osídlit (zakladatelé si staví vlastní zemnici) – pole a hřbitov jdou
-    const noSettlers = [{ resource: 'settlers', amount: 1, missing: 1 }];
+    // obydlí nemá kdo osídlit (zakladatelé si staví vlastní zemnici) ani z čeho ho postavit
+    // (krajina testu nemá stromy, klády nejsou) – pole a hřbitov jdou
+    const noSettlers = { resource: 'settlers', amount: 1, missing: 1 };
     expect(view.build).toEqual({
       zemnice: {
         laborManDays: 60,
         perHa: false,
         perSquare: false,
-        upfront: noSettlers,
+        upfront: [{ resource: 'wood', amount: 7, missing: 7 }, noSettlers],
         affordable: false,
       },
       polozemnice: {
         laborManDays: 220,
         perHa: false,
         perSquare: false,
-        upfront: noSettlers,
+        upfront: [{ resource: 'wood', amount: 18, missing: 18 }, noSettlers],
         affordable: false,
       },
       field: { laborManDays: 40, perHa: true, perSquare: false, upfront: [], affordable: true },
@@ -108,6 +109,7 @@ describe('buildVillageView', () => {
         dwellingId: null,
         fieldId: null,
         cemeteryId: null,
+        treesToFell: 7,
       },
       {
         id: expect.any(Number),
@@ -118,8 +120,10 @@ describe('buildVillageView', () => {
         dwellingId: null,
         fieldId,
         cemeteryId: null,
+        treesToFell: 0,
       },
     ]);
+    expect(view.woodLogs).toBe(0);
     expect(view.fields).toEqual([
       { id: fieldId, areaM2: 5 * 225, fertility: 50, stages: { founding: 5 } },
     ]);
@@ -134,15 +138,26 @@ describe('buildVillageView', () => {
     }
     s.people.forEach((p) => (p.bornDay = Math.min(p.bornDay, DAY - Math.ceil(16 * 365.25))));
     s.lastDay = DAY;
+    s.woodLogs = 20.3;
     const view = buildVillageView(record(s), landscape, DAY);
     expect(view.build.polozemnice).toEqual({
       laborManDays: 220,
       perHa: false,
       perSquare: false,
-      upfront: [{ resource: 'settlers', amount: 1, missing: 0 }],
+      upfront: [
+        { resource: 'wood', amount: 18, missing: 0 },
+        { resource: 'settlers', amount: 1, missing: 0 },
+      ],
       affordable: true,
     });
     expect(view.fullHousehold).toBe(true);
+    expect(view.woodLogs).toBe(20);
+    expect(view.scene.woodLogs).toBe(20);
+    // bez klád (a bez stromů v krajině) chybí dřevo
+    s.woodLogs = 5;
+    const short = buildVillageView(record(s), landscape, DAY).build.zemnice;
+    expect(short.affordable).toBe(false);
+    expect(short.upfront[0]).toEqual({ resource: 'wood', amount: 7, missing: 2 });
   });
 
   it('s dostavěnou zemnicí: domácnost s věky obyvatel', () => {
@@ -165,7 +180,10 @@ describe('buildVillageView', () => {
   it('scéna: zemnice zakladatelů je do dostavění staveniště', () => {
     const s = state();
     const site = s.constructions[0]!;
-    site.done = 15;
+    // bez vrstvy překážek kácí zemnice 7 stromů bez polohy (14 čd), pak staví (46 čd) – scéna
+    // ukazuje jen stavbu
+    expect(site.cost).toBe(60);
+    site.done = 14 + 11.5;
     const { scene } = buildVillageView(record(s), landscape, DAY);
     expect(scene.dwellings).toEqual([
       {
@@ -235,6 +253,7 @@ describe('buildVillageView', () => {
       dwellingId: null,
       fieldId: null,
       cemeteryId: null,
+      treesToFell: 0,
     });
     expect(scene.fields).toHaveLength(1);
     expect(scene.fields[0]?.parts).toEqual([
@@ -244,6 +263,28 @@ describe('buildVillageView', () => {
       { cell: { x: 11, y: 8 }, x: 52.5, z: 7.5, size: 15, stage: 'founding' },
       { cell: { x: 12, y: 8 }, x: 67.5, z: 7.5, size: 15, stage: 'founding' },
     ]);
+  });
+
+  it('staveniště ve scéně ukazuje stavbu bez kácení, panel celý průběh a stromy ke skácení', () => {
+    const s = settled();
+    const fell = [3, 3, 3, 3].map((cost, i) => ({ id: 500 + i, cost }));
+    s.constructions.push({
+      id: 99,
+      kind: 'dwelling',
+      startedDay: DAY,
+      cost: 100 + 12,
+      done: 6 + 25,
+      dwellingType: 'polozemnice',
+      position: { x: 30, z: 40, rotation: 0 },
+      dwellingId: null,
+      fieldId: null,
+      wood: { trees: 18, fromPile: 14, fell, felled: 2 },
+    });
+    const { scene, constructions } = buildVillageView(record(s), landscape, DAY);
+    expect(scene.dwellings.find((d) => d.id === 99)?.progress).toBeCloseTo(0.19, 9);
+    const c = constructions.find((x) => x.id === 99)!;
+    expect(c.progress).toBeCloseTo(31 / 112, 9);
+    expect(c.treesToFell).toBe(2);
   });
 
   it('ze scény jde složit data pro kontrolu umístění v prohlížeči', () => {

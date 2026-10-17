@@ -6,17 +6,17 @@ Celé jedním příkazem z kořene repa (Blender 5, ImageMagick `magick`, intern
 
 Výstup (128 × 128 PNG, průhledné rohy) – `build/` zemnice, polozemnice, pole, hrbitov,
 hrncir, kovar, uhlir (řemeslné dílny z `apps/web/public/models/crafts/`, uhlíř s milířem);
-(64 × 64 PNG) – `resources/` people, food, labor, satiation, date. Bez druhého argumentu
+(64 × 64 PNG) – `resources/` people, food, wood, labor, satiation, date. Bez druhého argumentu
 vše, jinak čárkami oddělený výběr (např. `pole,hrbitov,food`).
 
-Postup: portréty staveb a ikony `food`, `labor`, `satiation`, `date` se vyrenderují v Cycles
+Postup: portréty staveb a ikony `food`, `wood`, `labor`, `satiation`, `date` se vyrenderují v Cycles
 (ortografická kamera ~3/4 shora, teplé slunce, měkký stín, 256 px) a ImageMagick je zmenší
 a vloží na tmavě hnědé pozadí s vinětou a zaoblenými rohy (jako portréty 0 A.D.); ikony surovin
 zůstávají průhledné jako v 0 A.D. `people` je původní ikona 0 A.D. (`population.png`, CC BY-SA 3.0),
 stahuje se z oficiálního repozitáře 0 A.D. (GitHub 0ad/0ad), jen zmenšená/zachovaná; licence viz
 `apps/web/public/icons/LICENSES.md`. Zemnice a polozemnice jsou vlastní modely
-(`apps/web/public/models/dwellings/`), pole, hřbitov, obilí, motyka, miska s chlebem a slunce se
-modelují přímo v tomto skriptu, textury země jsou z `apps/web/public/textures/terrain/`.
+(`apps/web/public/models/dwellings/`), pole, hřbitov, obilí, hranice klád, motyka, miska s chlebem
+a slunce se modelují přímo v tomto skriptu, textury země jsou z `apps/web/public/textures/terrain/`.
 """
 import math
 import os
@@ -445,6 +445,44 @@ def icon_food():
     return True
 
 
+def icon_wood():
+    """Hranice klád (3 + 2 + 1) – kůra a světlá čela s letokruhy."""
+    rng = random.Random(7)
+    r = 0.27
+    bark, ends = bmesh.new(), bmesh.new()
+    h = r * math.sqrt(3)
+    logs = [(-2 * r, r), (0, r), (2 * r, r), (-r, r + h), (r, r + h), (0, r + 2 * h)]
+    rings = (0.0, 0.3, 0.42, 0.7, 0.82, 0.93, 1.0)
+    for y, z in logs:
+        rr = r * rng.uniform(0.93, 1.0)
+        x0 = -0.85 + rng.uniform(-0.08, 0.08)
+        x1 = 0.85 + rng.uniform(-0.08, 0.08)
+        cyl(bark, (x0, y, z), (x1, y, z), rr, rr * 0.97, 14)
+        # čelo: soustředné mezikruží střídavě světlé a tmavší (letokruhy), okraj tmavý (lýko)
+        seg = 20
+        c = Vector((x1 + 0.004, y, z))
+        prev = [c] * seg
+        for k, f in enumerate(rings[1:], start=1):
+            cur = [c + Vector((0, math.cos(2 * math.pi * i / seg), math.sin(2 * math.pi * i / seg))) * rr * 0.97 * f for i in range(seg)]
+            pv = [ends.verts.new(v) for v in prev] if k > 1 else None
+            cv = [ends.verts.new(v) for v in cur]
+            for i in range(seg):
+                j = (i + 1) % seg
+                if k == 1:
+                    cc = ends.verts.new(c)
+                    face = ends.faces.new((cc, cv[i], cv[j]))
+                else:
+                    face = ends.faces.new((pv[i], pv[j], cv[j], cv[i]))
+                face.material_index = k % 2
+            prev = cur
+    to_obj(bark, "bark", mat("bark", (0.17, 0.1, 0.05), 0.95, noise=26, bump=0.6))
+    o = to_obj(ends, "ends", mat("sapwood", (0.95, 0.72, 0.4), 0.75, noise=40), smooth=False)
+    o.data.materials.append(mat("ring", (0.6, 0.38, 0.17), 0.8))
+    sun(az=40, el=45, strength=4.2)
+    camera([Vector((-0.95, -0.85, 0)), Vector((0.95, 0.85, r + 2 * h + r))], az=58, el=24, margin=1.04)
+    return True
+
+
 def icon_labor():
     """Dřevěná motyka se železným (kovaným) listem."""
     wood = bmesh.new()
@@ -536,7 +574,13 @@ BUILD = {
     "kovar": lambda: icon_craft("kovar"),
     "uhlir": lambda: icon_craft("uhlir"),
 }
-RESOURCES = {"food": icon_food, "labor": icon_labor, "satiation": icon_satiation, "date": icon_date}
+RESOURCES = {
+    "food": icon_food,
+    "wood": icon_wood,
+    "labor": icon_labor,
+    "satiation": icon_satiation,
+    "date": icon_date,
+}
 
 
 def backdrop(src, dst, size):

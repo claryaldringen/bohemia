@@ -8,6 +8,7 @@ const view = (overrides: Partial<VillageView> = {}): VillageView => ({
   people: { children: 2, adults: 2, elders: 0 },
   households: [],
   storesKg: 800,
+  woodLogs: 0,
   storesMonths: 17,
   satiation: 1,
   commonLaborPerDay: 1,

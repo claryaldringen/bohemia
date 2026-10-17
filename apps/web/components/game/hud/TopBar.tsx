@@ -162,7 +162,8 @@ function IconButton({
 
 /**
  * Horní lišta jako v 0 A.D.: jméno vsi (klik = přejmenovat), ikony s čísly – lidé, obilí,
- * volná práce, nasycení (jen barva ikony), herní datum – a vpravo zvuk a odhlášení.
+ * klády na hromadě, volná práce, nasycení (jen barva ikony), herní datum – a vpravo zvuk
+ * a odhlášení.
  */
 export function TopBar({
   view,
@@ -204,6 +205,9 @@ export function TopBar({
           </Resource>
           <Resource icon="food" name="Obilí" testId="village-stores">
             {formatInteger(view.storesKg)}
+          </Resource>
+          <Resource icon="wood" name="Klády na hromadě" testId="village-wood">
+            {formatInteger(view.woodLogs)}
           </Resource>
           <Resource icon="labor" name="Volná práce" testId="village-labor">
             {formatDecimal(Math.max(0, view.commonLaborPerDay), 1)}
