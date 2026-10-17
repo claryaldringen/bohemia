@@ -2,6 +2,7 @@ import {
   cemeteryPartsFromCells,
   checkDwellingPlacement,
   fieldPartsFromCells,
+  orchardPartsFromCells,
   type BuildKind,
   type DwellingType,
   type Landscape,
@@ -17,7 +18,7 @@ import {
 // (`BUILD_COSTS`) a server action v `VillageGame` (`SUBMIT`) – rozhraní se nemění.
 //
 // Zkratky jsou spodní řada levé ruky jako fronta výroby v 0 A.D. (Z X C V B N M) – WASD, Q/E
-// a R patří kameře.
+// a R patří kameře. Sad [B] staví se jako pole (orchard.md).
 
 /**
  * Kontrola stavby po čtvercích: projde? a které čtverce jsou zakázané (červeně); u prošlé
@@ -110,6 +111,23 @@ export const BUILD_ITEMS: readonly BuildItem[] = [
         blockedCells: result.blockedCells,
         warningCells: result.warningCells,
       };
+    },
+  },
+  {
+    kind: 'orchard',
+    name: 'Sad',
+    icon: 'sad',
+    hotkey: 'KeyB',
+    hotkeyLabel: 'B',
+    placement: 'squares',
+    check: (landscape, village, cells) => {
+      const result = orchardPartsFromCells(
+        landscape,
+        village,
+        cells,
+        village.dwellings.map((d) => d.position),
+      );
+      return { check: result.check, blockedCells: result.blockedCells };
     },
   },
 ];

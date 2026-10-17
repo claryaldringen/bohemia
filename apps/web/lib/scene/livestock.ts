@@ -422,7 +422,7 @@ export class VillageLivestock {
   }
 }
 
-/** Co z vsi rozhoduje o zvířatech: obydlí (i staveniště jako překážky), pole a hřbitovy. */
+/** Co z vsi rozhoduje o zvířatech: obydlí (i staveniště jako překážky), pole, hřbitovy a sady. */
 function villageKey(village: LivestockVillage): string {
   const dwellings = village.dwellings.map(
     (d) =>
@@ -432,6 +432,7 @@ function villageKey(village: LivestockVillage): string {
   const squares = [
     ...village.fields.flatMap((f) => f.parts),
     ...(village.cemeteries ?? []).flatMap((c) => c.squares),
+    ...(village.orchards ?? []).flatMap((o) => o.squares),
   ].map((s) => `${s.x.toFixed(1)},${s.z.toFixed(1)}`);
   return `${dwellings.join(';')}|${squares.join(';')}`;
 }

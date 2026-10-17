@@ -1,7 +1,7 @@
 import type { ReactElement, ReactNode } from 'react';
 import { PART_COLORS } from '@/lib/minimap';
 import { PART_STAGE_NAMES, type SelectionDetails } from '@/lib/selection-details';
-import { formatHa, formatPercent, formatYearsShort } from '@/lib/village-format';
+import { formatHa, formatInteger, formatPercent, formatYearsShort } from '@/lib/village-format';
 import { DWELLING_NAMES } from '@/lib/village-view';
 import { Tooltip } from './Tooltip';
 
@@ -187,11 +187,44 @@ function CemeteryBody({
   );
 }
 
+function OrchardBody({
+  details,
+}: {
+  details: Extract<SelectionDetails, { kind: 'orchard' }>;
+}): ReactElement {
+  return (
+    <div className="flex min-w-0 flex-col gap-1.5">
+      <div className="flex items-center gap-3">
+        <Tooltip content="Výměra" placement="above">
+          <span
+            data-testid="selection-area"
+            tabIndex={0}
+            className="text-sm font-semibold tabular-nums"
+          >
+            {formatHa(details.areaM2)}
+          </span>
+        </Tooltip>
+        {details.ageYears !== null && (
+          <Stat icon="date" name="Stáří (roky)" testId="selection-age">
+            {details.ageYears}
+          </Stat>
+        )}
+        <Stat icon="apples" name="Úroda (kg)" testId="selection-yield">
+          {formatInteger(details.expectedYieldKg)}
+        </Stat>
+      </div>
+      {details.planting !== null && (
+        <Bar value={details.planting} name="Výsadba" testId="selection-progress" />
+      )}
+    </div>
+  );
+}
+
 /**
  * Panel výběru dole uprostřed (jako v 0 A.D.) – jen když je něco vybrané: portrét, typ
  * a ikony s čísly. Obydlí: obyvatelé, věk obyvatel, stav, stáří; staveniště: průběh stavby;
  * pole: výměra, úrodnost, díly podle stadia; hřbitov: hroby, na kolik let místo vystačí
- * a průběh založení / rozšíření.
+ * a průběh založení / rozšíření; sad: výměra, stáří, úroda příští sklizně a průběh výsadby.
  */
 export function SelectionPanel({
   details,
@@ -207,6 +240,9 @@ export function SelectionPanel({
   } else if (details.kind === 'cemetery') {
     portrait = <Portrait icon="hrbitov" name="Hřbitov" />;
     body = <CemeteryBody details={details} />;
+  } else if (details.kind === 'orchard') {
+    portrait = <Portrait icon="sad" name="Sad" />;
+    body = <OrchardBody details={details} />;
   } else if (details.kind === 'site') {
     portrait = <Portrait icon={details.type} name={DWELLING_NAMES[details.type].nominative} />;
     body = (

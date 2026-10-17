@@ -126,3 +126,36 @@ describe('hřbitov', () => {
     expect(targetExists(village, { kind: 'cemetery', id: 40 })).toBe(false);
   });
 });
+
+describe('sad', () => {
+  const withOrchard: SceneVillage = {
+    ...village,
+    orchards: [
+      {
+        id: 50,
+        squares: [
+          {
+            cell: { x: 1, y: 4 },
+            x: 22.5,
+            z: 67.5,
+            size: CELL,
+            planting: 1,
+            growth: 0.6,
+            fruit: false,
+          },
+        ],
+      },
+    ],
+  };
+
+  it('klik na čtverec sadu ho vybere; zaniklý sad neexistuje', () => {
+    const target = pickVillageTarget(withOrchard, rayTo(22, 66), {
+      ground: { x: 22, z: 66 },
+      groundHeight: flat,
+      cellOf,
+    });
+    expect(target).toEqual({ kind: 'orchard', id: 50 });
+    expect(targetExists(withOrchard, { kind: 'orchard', id: 50 })).toBe(true);
+    expect(targetExists(village, { kind: 'orchard', id: 50 })).toBe(false);
+  });
+});

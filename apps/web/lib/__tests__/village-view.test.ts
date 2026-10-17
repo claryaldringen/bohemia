@@ -3,6 +3,7 @@ import {
   checkDwellingPlacement,
   dayIndexOf,
   foundCemetery,
+  foundOrchard,
   foundVillage,
   type ChronicleEvent,
   type Landscape,
@@ -93,6 +94,7 @@ describe('buildVillageView', () => {
       },
       field: { laborManDays: 40, perHa: true, perSquare: false, upfront: [], affordable: true },
       cemetery: { laborManDays: 10, perHa: false, perSquare: true, upfront: [], affordable: true },
+      orchard: { laborManDays: 80, perHa: true, perSquare: false, upfront: [], affordable: true },
     });
     // zakladatelé bydlí na staveništi – domácnost s obydlím přibude s dostavěním zemnice
     expect(view.households).toEqual([]);
@@ -108,6 +110,7 @@ describe('buildVillageView', () => {
         dwellingId: null,
         fieldId: null,
         cemeteryId: null,
+        orchardId: null,
       },
       {
         id: expect.any(Number),
@@ -118,6 +121,7 @@ describe('buildVillageView', () => {
         dwellingId: null,
         fieldId,
         cemeteryId: null,
+        orchardId: null,
       },
     ]);
     expect(view.fields).toEqual([
@@ -235,6 +239,7 @@ describe('buildVillageView', () => {
       dwellingId: null,
       fieldId: null,
       cemeteryId: null,
+      orchardId: null,
     });
     expect(scene.fields).toHaveLength(1);
     expect(scene.fields[0]?.parts).toEqual([
@@ -417,5 +422,107 @@ describe('kronika – zaplněný hřbitov', () => {
       'Hřbitov se zaplnil – mrtvé není kam pohřbívat.',
     );
     expect(chronicleText(full(false), 'X')).toMatch(/není kam/);
+  });
+});
+
+describe('sad v pohledu na ves', () => {
+  const withOrchard = (): VillageState =>
+    foundOrchard(state(), DAY - 1, {
+      squares: [
+        { cell: { x: 2, y: 2 }, areaM2: 225, distanceM: 60, obstacleCost: 0 },
+        { cell: { x: 3, y: 2 }, areaM2: 225, distanceM: 70, obstacleCost: 0 },
+      ],
+    });
+
+  it('vysazovaný sad: stavba, panel, scéna a cena za hektar', () => {
+    const view = buildVillageView(record(withOrchard()), landscape, DAY);
+    const orchardId = view.orchards[0]?.id;
+    expect(view.build.orchard).toMatchObject({ laborManDays: 80, perHa: true });
+    expect(view.constructions.at(-1)).toMatchObject({
+      kind: 'orchard',
+      label: 'Sad 0,04 ha',
+      orchardId,
+    });
+    expect(view.orchards).toEqual([
+      { id: orchardId, areaM2: 450, squares: 2, ageYears: null, expectedYieldKg: 0, planting: 0 },
+    ]);
+    expect(view.applesKg).toBe(0);
+    expect(view.scene.orchards).toEqual([
+      {
+        id: orchardId,
+        squares: [
+          {
+            cell: { x: 2, y: 2 },
+            x: -82.5,
+            z: -82.5,
+            size: 15,
+            planting: 0,
+            growth: 0,
+            fruit: false,
+          },
+          {
+            cell: { x: 3, y: 2 },
+            x: -67.5,
+            z: -82.5,
+            size: 15,
+            planting: 0,
+            growth: 0,
+            fruit: false,
+          },
+        ],
+      },
+    ]);
+    expect(placementVillageFromScene(view.scene).orchards).toEqual([
+      { squares: [{ cell: { x: 2, y: 2 } }, { cell: { x: 3, y: 2 } }] },
+    ]);
+  });
+
+  it('plodící sad: stáří, odhad úrody, velikost stromů a jablka v srpnu', () => {
+    const s = withOrchard();
+    s.constructions = s.constructions.filter((c) => c.kind !== 'orchard');
+    for (const square of s.orchards![0]!.squares) {
+      square.plantedDay = dayIndexOf({ year: 507, month: 4, day: 1 });
+      square.plantingDone = square.plantingCost;
+    }
+    s.applesKg = 12.4;
+    const august = dayIndexOf({ year: 530, month: 8, day: 10 });
+    s.lastDay = august;
+    const view = buildVillageView(record(s), landscape, august);
+    expect(view.orchards[0]).toMatchObject({ ageYears: 23, planting: null });
+    // sklizeň 530 je 24. rok sadu – 19/20 plné úrody (3 t/ha)
+    expect(view.orchards[0]!.expectedYieldKg).toBeCloseTo(3000 * 0.045 * (19 / 20), 6);
+    expect(view.applesKg).toBe(12.4);
+    expect(view.scene.orchards?.[0]?.squares[0]).toMatchObject({
+      planting: 1,
+      growth: 1,
+      fruit: true,
+    });
+    const june = buildVillageView(
+      record(s),
+      landscape,
+      dayIndexOf({ year: 530, month: 6, day: 1 }),
+    );
+    expect(june.scene.orchards?.[0]?.squares[0]?.fruit).toBe(false);
+  });
+
+  it('kronika: sklizeň jablek a dosloužilý sad', () => {
+    expect(chronicleText({ day: 0, kind: 'apple-harvest', kg: 1234 }, 'Libice')).toBe(
+      'Sklizeň jablek: 1 234 kg.',
+    );
+    expect(chronicleText({ day: 0, kind: 'orchard-gone', orchardId: 3 }, 'Libice')).toBe(
+      'Starý sad dosloužil a zarostl loukou.',
+    );
+    expect(
+      chronicleText(
+        {
+          day: 0,
+          kind: 'construction-finished',
+          constructionKind: 'orchard',
+          dwellingId: null,
+          fieldId: null,
+        },
+        'Libice',
+      ),
+    ).toBe('Sad je vysazený.');
   });
 });

@@ -11,6 +11,7 @@ import {
 import { DWELLING_FOOTPRINT_M, type Landscape } from '@bohemia/game';
 import {
   CEMETERY_COLOR,
+  ORCHARD_COLOR,
   PART_COLORS,
   minimapImage,
   minimapToWorld,
@@ -26,7 +27,7 @@ const IMAGE_PX = 256;
 
 /**
  * Minimapa vlevo dole (jako v 0 A.D.): krajina sídla shora (voda, les, louka, skála), pole,
- * hřbitovy, obydlí a obrys záběru kamery. Kliknutí nebo tažení přesune pohled.
+ * hřbitovy, sady, obydlí a obrys záběru kamery. Kliknutí nebo tažení přesune pohled.
  */
 export function Minimap({
   landscape,
@@ -89,6 +90,15 @@ export function Minimap({
       const [r, g, b] = CEMETERY_COLOR;
       context.fillStyle = `rgb(${r} ${g} ${b} / ${cemetery.built ? 1 : 0.55})`;
       for (const square of cemetery.squares) {
+        const p = at(square.x, square.z);
+        context.fillRect(p.x - cellPx / 2, p.y - cellPx / 2, cellPx + 0.3, cellPx + 0.3);
+      }
+    }
+    // sady po čtvercích (čtverce, které se ještě sázejí, průsvitné)
+    for (const orchard of village.orchards ?? []) {
+      const [r, g, b] = ORCHARD_COLOR;
+      for (const square of orchard.squares) {
+        context.fillStyle = `rgb(${r} ${g} ${b} / ${square.planting >= 1 ? 1 : 0.55})`;
         const p = at(square.x, square.z);
         context.fillRect(p.x - cellPx / 2, p.y - cellPx / 2, cellPx + 0.3, cellPx + 0.3);
       }

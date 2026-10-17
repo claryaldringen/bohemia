@@ -30,6 +30,9 @@ export const PART_COLORS: Record<PartStage, Rgb> = {
 /** Hřbitov na minimapě – šedavá zeleň (mohylky v trávě, plot). */
 export const CEMETERY_COLOR: Rgb = [150, 146, 112];
 
+/** Sad na minimapě – sytá zeleň korun jabloní, tmavší než louka a světlejší než les. */
+export const ORCHARD_COLOR: Rgb = [78, 118, 52];
+
 /** Strana krajiny v metrech. */
 function extentM(l: Landscape): number {
   return l.size * l.cellSizeM;

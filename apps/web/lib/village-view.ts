@@ -1,11 +1,15 @@
 import {
   BUILD_COSTS,
+  ORCHARD_WINDOWS,
   STOCK_RESOURCES,
   ageYears,
   buildAffordability,
   dateOfDayIndex,
   effectiveFertility,
+  monthInWindow,
   obstacleChangesAt,
+  orchardYear,
+  orchardYieldShare,
   partStage,
   summarizeVillage,
   tileCenterWorld,
@@ -16,6 +20,8 @@ import {
   type DwellingType,
   type Landscape,
   type ObstacleChanges,
+  type OrchardSquare,
+  type OrchardWork,
   type PartStage,
   type PlacementVillage,
   type Position,
@@ -24,8 +30,10 @@ import {
   type VillageRecord,
   type VillageState,
   villageCemeteries,
+  villageOrchards,
 } from '@bohemia/game';
 import { formatGameDate } from './game-date';
+import { fruitVisible, treeGrowth } from './scene/orchard-layout';
 import { formatCells, formatHa, formatInteger } from './village-format';
 
 // Pohled na ves pro panel a scénu (DTO server actions). Čistý modul – smí ho importovat
@@ -38,7 +46,7 @@ export type { BuildKind, PartStage, StockResource } from '@bohemia/game';
  * tlačítko zašedlé).
  */
 export interface BuildOption {
-  /** Člověkodny ze společné práce – u pole za hektar (`perHa`), u hřbitova za čtverec. */
+  /** Člověkodny ze společné práce – u pole a sadu za hektar (`perHa`), u hřbitova za čtverec. */
   laborManDays: number;
   perHa: boolean;
   /** Cena za čtverec (pohřebiště). */
@@ -66,6 +74,8 @@ export interface VillageView {
     ageYears: number;
   }[];
   storesKg: number;
+  /** Zásoby jablek (kg) – horní lišta je ukáže vedle obilí, jen když nějaká jsou. */
+  applesKg: number;
   storesMonths: number;
   satiation: number;
   commonLaborPerDay: number;
@@ -86,6 +96,8 @@ export interface VillageView {
     fieldId: number | null;
     /** Zakládaný nebo rozšiřovaný hřbitov (cemetery), jinak null. */
     cemeteryId: number | null;
+    /** Vysazovaný sad (orchard), jinak null. */
+    orchardId: number | null;
   }[];
   /** Pole pro panel výběru: výměra, průměrná úrodnost a počet dílů podle stadia. */
   fields: {
@@ -96,6 +108,8 @@ export interface VillageView {
   }[];
   /** Hřbitovy v pořadí pohřbívání – kolik místa zbývá (hygienu hráč nevidí – cemetery.md). */
   cemeteries: VillageCemetery[];
+  /** Jabloňové sady pro panel výběru – plocha, stáří, odhad úrody (orchard.md). */
+  orchards: VillageOrchard[];
   /** Ves hladoví – zásoby nevystačí do sklizně. */
   hungry: boolean;
   /** Stavby stojí – několik dní po sobě nezbyla žádná společná práce. */
@@ -119,6 +133,19 @@ export interface VillageCemetery {
   freeGraves: number;
   /** Odhad, za kolik let se zaplní (podle úmrtí posledních let); bez úmrtí null. */
   yearsLeft: number | null;
+}
+
+/** Sad pro panel výběru – čísla, žádné věty. */
+export interface VillageOrchard {
+  id: number;
+  areaM2: number;
+  squares: number;
+  /** Stáří v celých letech od výsadby; dokud se nic nevysadilo, null. */
+  ageYears: number | null;
+  /** Úroda nejbližší sklizně při plné sklizni (kg jablek). */
+  expectedYieldKg: number;
+  /** Průběh výsadby 0–1; vysazený sad null. */
+  planting: number | null;
 }
 
 export interface SceneVillage {
@@ -153,6 +180,23 @@ export interface SceneVillage {
     graves: number;
   }[];
   /**
+   * Jabloňové sady po čtvercích (střed políčka ve světě a strana jako u pole): průběh výsadby
+   * čtverce 0–1, velikost stromů 0–1 (mladé stromky rostou – orchard-layout.ts) a jestli na
+   * stromech visí jablka (pozdní léto a podzim, než se sklidí). Bez údaje žádné.
+   */
+  orchards?: {
+    id: number;
+    squares: {
+      cell: TileCell;
+      x: number;
+      z: number;
+      size: number;
+      planting: number;
+      growth: number;
+      fruit: boolean;
+    }[];
+  }[];
+  /**
    * Stromy, keře a kameny vrstvy překážek, které ves odstranila (pole, obydlí, hřbitovy) nebo
    * pokácela (pařez, později nálet) – id z vrstvy. Bez údaje žádné.
    */
@@ -177,6 +221,7 @@ function finishedText(kind: ConstructionKind): string {
   if (kind === 'dwelling') return 'Dostavěli nové obydlí.';
   if (kind === 'rebuild') return 'Dokončili přestavbu obydlí.';
   if (kind === 'cemetery') return 'Hřbitov je ohrazený – dá se do něj pohřbívat.';
+  if (kind === 'orchard') return 'Sad je vysazený.';
   return 'Pole je založené – dá se osévat.';
 }
 
@@ -199,6 +244,10 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       return `Obyvatelé se rozhodli přestavět dožilé obydlí na ${DWELLING_NAMES[event.type].accusative}.`;
     case 'harvest':
       return `Sklizeň: ${formatInteger(event.kg)} kg obilí.`;
+    case 'apple-harvest':
+      return `Sklizeň jablek: ${formatInteger(event.kg)} kg.`;
+    case 'orchard-gone':
+      return 'Starý sad dosloužil a zarostl loukou.';
     case 'hunger-began':
       return 'Ve vsi začal hlad – zásoby nevystačí do sklizně.';
     case 'hunger-ended':
@@ -216,6 +265,7 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
 function constructionLabel(c: ConstructionSummary): string {
   if (c.kind === 'field') return `Pole ${formatHa(c.areaM2 ?? 0)}`;
   if (c.kind === 'cemetery') return `Hřbitov (${formatCells(c.squares ?? 0)})`;
+  if (c.kind === 'orchard') return `Sad ${formatHa(c.areaM2 ?? 0)}`;
   const type = c.dwellingType ?? 'zemnice';
   if (c.kind === 'rebuild') return `Přestavba na ${DWELLING_NAMES[type].accusative}`;
   return DWELLING_NAMES[type].nominative;
@@ -262,11 +312,54 @@ function sceneVillage(
     progress: cemeteryProgress(c.id, c.builtDay !== null, constructions),
     graves: c.graves,
   }));
+  const orchards = villageOrchards(state).map((o) => ({
+    id: o.id,
+    squares: o.squares.map((s) => sceneOrchardSquare(landscape, s, day, state.orchardWork ?? null)),
+  }));
   return {
     dwellings: [...built, ...sites],
     fields,
     cemeteries,
+    ...(orchards.length > 0 ? { orchards } : {}),
     obstacles: obstacleChangesAt(state, day),
+  };
+}
+
+const DAYS_PER_TREE_YEAR = 365.25;
+
+/**
+ * Čtverec sadu pro scénu: průběh výsadby, velikost stromů podle stáří (po setinách – instance
+ * se nepřestavují při každém dotazu) a jablka na stromech, když sad plodí a ještě se nesklidil.
+ */
+function sceneOrchardSquare(
+  landscape: Landscape,
+  square: OrchardSquare,
+  day: number,
+  work: OrchardWork | null,
+): NonNullable<SceneVillage['orchards']>[number]['squares'][number] {
+  const center = tileCenterWorld(landscape, square.cell.x, square.cell.y);
+  const planted = square.plantedDay;
+  const planting =
+    planted !== null ? 1 : square.plantingCost > 0 ? square.plantingDone / square.plantingCost : 0;
+  const growth =
+    planted === null ? 0 : Math.round(treeGrowth((day - planted) / DAYS_PER_TREE_YEAR) * 100) / 100;
+  const month = dateOfDayIndex(day).month;
+  const fruit =
+    planted !== null &&
+    fruitVisible({
+      bearing: orchardYieldShare(orchardYear(planted, day)) > 0,
+      month,
+      harvestWindow: monthInWindow(ORCHARD_WINDOWS.harvest, month),
+      harvested: work?.task === 'harvest' ? work.done >= work.required : true,
+    });
+  return {
+    cell: { x: square.cell.x, y: square.cell.y },
+    x: center.x,
+    z: center.z,
+    size: landscape.cellSizeM,
+    planting,
+    growth,
+    fruit,
   };
 }
 
@@ -310,7 +403,13 @@ function chronicle(state: VillageState, name: string): VillageView['chronicle'] 
     }));
 }
 
-const BUILD_KINDS: readonly BuildKind[] = ['zemnice', 'polozemnice', 'field', 'cemetery'];
+const BUILD_KINDS: readonly BuildKind[] = [
+  'zemnice',
+  'polozemnice',
+  'field',
+  'cemetery',
+  'orchard',
+];
 const DAYS_PER_YEAR = 365.25;
 
 /** Nabídka staveb: cena z pravidel a co z ceny předem (suroviny, lidé k osídlení) ves nemá. */
@@ -376,6 +475,7 @@ export function buildVillageView(
       };
     }),
     storesKg: summary.storesKg,
+    applesKg: summary.applesKg,
     storesMonths: summary.storesMonths,
     satiation: summary.satiation,
     commonLaborPerDay: summary.commonLaborPerDay,
@@ -390,6 +490,7 @@ export function buildVillageView(
       dwellingId: c.kind === 'rebuild' ? c.dwellingId : null,
       fieldId: c.kind === 'field' ? c.fieldId : null,
       cemeteryId: c.cemeteryId,
+      orchardId: c.orchardId,
     })),
     fields: fieldViews(state, day),
     hungry: summary.hungry,
@@ -398,6 +499,19 @@ export function buildVillageView(
       const progress = cemeteryProgress(c.id, c.built, summary.constructions);
       return { ...c, progress };
     }),
+    orchards: summary.orchards.map((o) => {
+      const planting = summary.constructions.find(
+        (c) => c.kind === 'orchard' && c.orchardId === o.id,
+      );
+      return {
+        id: o.id,
+        areaM2: o.areaM2,
+        squares: o.squares,
+        ageYears: o.ageYears,
+        expectedYieldKg: o.expectedYieldKg,
+        planting: planting ? planting.progress : null,
+      };
+    }),
     scene: sceneVillage(state, landscape, day, summary.constructions),
     chronicle: chronicle(state, name),
   };
@@ -405,8 +519,8 @@ export function buildVillageView(
 
 /**
  * Data pro kontrolu umístění v prohlížeči (`checkDwellingPlacement`, `fieldPartsFromCells`,
- * `cemeteryPartsFromCells`) ze scény vsi – hotová i rozestavěná obydlí jako obydlí, pole podle
- * čtverců dílů, pohřebiště podle svých čtverců.
+ * `cemeteryPartsFromCells`, `orchardPartsFromCells`) ze scény vsi – hotová i rozestavěná obydlí
+ * jako obydlí, pole podle čtverců dílů, pohřebiště a sady podle svých čtverců.
  */
 export function placementVillageFromScene(scene: SceneVillage): PlacementVillage {
   return {
@@ -415,6 +529,9 @@ export function placementVillageFromScene(scene: SceneVillage): PlacementVillage
     parts: scene.fields.flatMap((f) => f.parts.map((p) => ({ cell: p.cell }))),
     cemeteries: (scene.cemeteries ?? []).map((c) => ({
       squares: c.squares.map((s) => ({ cell: s.cell })),
+    })),
+    orchards: (scene.orchards ?? []).map((o) => ({
+      squares: o.squares.map((s) => ({ cell: s.cell })),
     })),
     ...(scene.obstacles ? { obstacleChanges: scene.obstacles } : {}),
   };

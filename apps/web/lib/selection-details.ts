@@ -2,7 +2,8 @@ import type { DwellingType, PartStage } from '@bohemia/game';
 import type { VillageTarget } from './scene/village-picking';
 import type { SceneVillage, VillageView } from './village-view';
 
-// Co ukáže panel výběru (dole uprostřed, jako v 0 A.D.) o vybraném obydlí, poli nebo hřbitovu.
+// Co ukáže panel výběru (dole uprostřed, jako v 0 A.D.) o vybraném obydlí, poli, hřbitovu nebo
+// sadu.
 // Čistý modul – data z pohledu na ves a scény vsi.
 
 export type SelectionDetails =
@@ -45,6 +46,17 @@ export type SelectionDetails =
       built: boolean;
       /** Stavba – založení, u hotového rozšíření (průběh 0–1); bez stavby null. */
       building: number | null;
+    }
+  | {
+      kind: 'orchard';
+      id: number;
+      areaM2: number;
+      /** Stáří v celých letech od výsadby; nevysazený null. */
+      ageYears: number | null;
+      /** Úroda nejbližší sklizně (kg jablek). */
+      expectedYieldKg: number;
+      /** Výsadba (průběh 0–1); vysazený sad null. */
+      planting: number | null;
     };
 
 /** Pořadí stadií dílů v panelu pole – od zakládání po zarůstání. */
@@ -117,6 +129,18 @@ export function selectionDetails(
       yearsLeft: cemetery.yearsLeft,
       built: cemetery.built,
       building: cemetery.built && cemetery.progress >= 1 ? null : cemetery.progress,
+    };
+  }
+  if (target.kind === 'orchard') {
+    const orchard = view?.orchards.find((o) => o.id === target.id);
+    if (!orchard) return null;
+    return {
+      kind: 'orchard',
+      id: orchard.id,
+      areaM2: orchard.areaM2,
+      ageYears: orchard.ageYears,
+      expectedYieldKg: orchard.expectedYieldKg,
+      planting: orchard.planting,
     };
   }
   const field = view?.fields.find((f) => f.id === target.id);

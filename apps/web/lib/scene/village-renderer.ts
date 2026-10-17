@@ -29,6 +29,7 @@ import {
   loadModelParts,
   type ModelInstance,
 } from './instanced-model';
+import { OrchardRenderer } from './orchard-renderer';
 import { applyPitCut, type PitCuts } from './pit-cut';
 import {
   SITE_PROP_PLACES,
@@ -129,7 +130,8 @@ interface VillageContext {
  * jámou se schody, kolem nich vyšlapaná hlína a trsy trávy u okapu, z dýmníku občas dým;
  * staveniště po fázích (village-construction.ts) z dílů modelu a rekvizit v instancích, jáma
  * se prohlubuje s průběhem; pole jako obtisky na terénu podle stavu dílů s mezí podél obrysu;
- * pohřebiště s plotem a mohylkami (cemetery-renderer.ts). `update` mění jen to, co se změnilo.
+ * pohřebiště s plotem a mohylkami (cemetery-renderer.ts); jabloňové sady (orchard-renderer.ts).
+ * `update` mění jen to, co se změnilo.
  */
 export class VillageRenderer {
   private readonly dwellings = new Map<number, DwellingView>();
@@ -146,6 +148,7 @@ export class VillageRenderer {
   private siteKey = '';
   private readonly smoke: VillageSmoke;
   private readonly cemeteries: CemeteryRenderer;
+  private readonly orchards: OrchardRenderer;
   private village: SceneVillage = { dwellings: [], fields: [] };
   private disposed = false;
 
@@ -155,6 +158,7 @@ export class VillageRenderer {
   ) {
     this.smoke = new VillageSmoke(scene, SMOKE_TEXTURE_URL);
     this.cemeteries = new CemeteryRenderer(scene, context);
+    this.orchards = new OrchardRenderer(scene, context);
   }
 
   /** Vrátí true, když se ve scéně něco změnilo (je co překreslit). */
@@ -164,10 +168,11 @@ export class VillageRenderer {
     const dwellings = this.updateDwellings(village.dwellings);
     const fields = this.updateFields(village.fields);
     const cemeteries = this.cemeteries.update(village.cemeteries ?? [], village.dwellings);
+    const orchards = this.orchards.update(village.orchards ?? []);
     const models = this.updateModels();
     const sites = this.updateConstruction();
     const smoke = this.updateSmokeSources();
-    return dwellings || fields || cemeteries || models || sites || smoke;
+    return dwellings || fields || cemeteries || orchards || models || sites || smoke;
   }
 
   /**
@@ -194,6 +199,7 @@ export class VillageRenderer {
     for (const view of this.dwellings.values()) shapes.push(view.shape);
     for (const view of this.fields.values()) if (view.shape) shapes.push(view.shape);
     shapes.push(...this.cemeteries.hideShapes());
+    shapes.push(...this.orchards.hideShapes());
     return shapes;
   }
 
@@ -213,6 +219,7 @@ export class VillageRenderer {
     this.disposed = true;
     this.smoke.dispose();
     this.cemeteries.dispose();
+    this.orchards.dispose();
     for (const view of this.dwellings.values()) for (const mesh of view.meshes) mesh.dispose();
     for (const view of this.fields.values()) for (const mesh of view.meshes) mesh.dispose();
     this.dwellings.clear();

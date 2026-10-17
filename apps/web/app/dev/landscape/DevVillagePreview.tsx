@@ -8,6 +8,7 @@ import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import {
   CEMETERY,
   cemeteryPartsFromCells,
+  orchardPartsFromCells,
   surfaceAt,
   type DwellingType,
   type Landscape,
@@ -20,6 +21,12 @@ import { GameView } from '@/components/game/GameView';
 import { decodeLandscape, type LandscapeTransfer } from '@/lib/landscape-transfer';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
 import { CEMETERY_PHASES } from '@/lib/scene/cemetery-layout';
+import {
+  PLANTING_PHASES,
+  TREE_GROWTH_YEARS,
+  plantingPhase,
+  treeGrowth,
+} from '@/lib/scene/orchard-layout';
 import { tileAt, tileCenter } from '@/lib/scene/tile-at';
 import { CONSTRUCTION_PHASES, constructionPhase } from '@/lib/scene/village-construction';
 import type {
@@ -45,12 +52,14 @@ const buttonClass =
   'rounded bg-stone-800 px-2 py-0.5 text-stone-50 hover:bg-stone-700 disabled:opacity-40 dark:bg-stone-200 dark:text-stone-900 dark:hover:bg-stone-300';
 
 type DevCemetery = NonNullable<SceneVillage['cemeteries']>[number];
+type DevOrchard = NonNullable<SceneVillage['orchards']>[number];
 
 interface DevWindow extends Window {
   __bohemiaDev?: {
     scene: LandscapeScene;
     setDwellings: (dwellings: SceneDwelling[]) => void;
     setCemeteries: (cemeteries: DevCemetery[]) => void;
+    setOrchards: (orchards: DevOrchard[]) => void;
   };
 }
 
@@ -65,6 +74,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   const [dwellings, setDwellings] = useState<SceneDwelling[]>([]);
   const [fields, setFields] = useState<DevField[]>([]);
   const [cemeteries, setCemeteries] = useState<DevCemetery[]>([]);
+  const [orchards, setOrchards] = useState<DevOrchard[]>([]);
   const [stage, setStage] = useState(0);
   const [mixed, setMixed] = useState(true);
   const [placing, setPlacing] = useState<string | null>(null);
@@ -83,8 +93,9 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         })),
       })),
       cemeteries,
+      orchards,
     }),
-    [dwellings, fields, cemeteries, stage, mixed],
+    [dwellings, fields, cemeteries, orchards, stage, mixed],
   );
 
   useEffect(() => {
@@ -99,7 +110,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   useEffect(() => {
     if (!scene) return;
     const devWindow = window as DevWindow;
-    devWindow.__bohemiaDev = { scene, setDwellings, setCemeteries };
+    devWindow.__bohemiaDev = { scene, setDwellings, setCemeteries, setOrchards };
     return () => {
       delete devWindow.__bohemiaDev;
     };
@@ -189,6 +200,108 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     );
   };
 
+  /** Sad se skutečnou kontrolou z herního jádra; vysazuje se tlačítky Stavby ± 10 %. */
+  const placeOrchard = (): void => {
+    if (!scene) return;
+    setPlacing('Sad');
+    scene.startPlacement(
+      {
+        kind: 'squares',
+        preview: (cells) => {
+          const result = orchardPartsFromCells(
+            decoded,
+            placementVillageFromScene(village),
+            cells,
+            village.dwellings.map((d) => d.position),
+          );
+          return {
+            check: result.check,
+            label: `${formatCells(cells.length)} · ${formatHa(result.areaM2)}`,
+            blockedCells: result.blockedCells,
+          };
+        },
+      },
+      {
+        ...handlers,
+        onConfirm: (result) => {
+          handlers.onCancel();
+          if (result.kind !== 'squares') return;
+          const id = nextId.current++;
+          const squares = fieldParts(decoded, result.cells).map((square) => ({
+            ...square,
+            planting: 0,
+            growth: 0,
+            fruit: false,
+          }));
+          setOrchards((list) => [...list, { id, squares }]);
+        },
+      },
+    );
+  };
+
+  /** Stromy všech vysazených sadů o `years` let starší (velikost podle stáří). */
+  const ageOrchards = (years: number): void =>
+    setOrchards((list) =>
+      list.map((o) => ({
+        ...o,
+        squares: o.squares.map((s) => {
+          if (s.planting < 1) return s;
+          // stáří zpět z velikosti (treeGrowth je lineární do plné velikosti)
+          const share = (s.growth - treeGrowth(0)) / (1 - treeGrowth(0));
+          const age = Math.max(0, share * TREE_GROWTH_YEARS + years);
+          return { ...s, growth: Math.round(treeGrowth(age) * 100) / 100 };
+        }),
+      })),
+    );
+
+  const toggleFruit = (): void =>
+    setOrchards((list) =>
+      list.map((o) => ({
+        ...o,
+        squares: o.squares.map((s) => ({ ...s, fruit: s.planting >= 1 && !s.fruit })),
+      })),
+    );
+
+  /**
+   * Sady 2 × 2 čtverce vedle sebe kousek od místa vsi: obě fáze výsadby, mladý sad (s kůly),
+   * dorůstající a dospělý sad, dospělý s jablky.
+   */
+  const showOrchards = (): void => {
+    scene?.cancelPlacement();
+    const { x: sx, y: sy } = decoded.villageSite;
+    const stops: { planting: number; age: number; fruit: boolean }[] = [
+      ...PLANTING_PHASES.map((p) => ({ planting: (p.from + p.to) / 2, age: 0, fruit: false })),
+      { planting: 1, age: 1, fruit: false },
+      { planting: 1, age: 6, fruit: false },
+      { planting: 1, age: 20, fruit: false },
+      { planting: 1, age: 20, fruit: true },
+    ];
+    const list: DevOrchard[] = [];
+    stops.forEach((stop, i) => {
+      const cells: TileCell[] = [];
+      for (let dy = 0; dy < 2; dy++)
+        for (let dx = 0; dx < 2; dx++) cells.push({ x: sx - 8 + i * 3 + dx, y: sy + 2 + dy });
+      const squares = fieldParts(decoded, cells);
+      if (squares.length < cells.length) return;
+      const growth = stop.planting >= 1 ? Math.round(treeGrowth(stop.age) * 100) / 100 : 0;
+      list.push({
+        id: nextId.current++,
+        squares: squares.map((s) => ({ ...s, planting: stop.planting, growth, fruit: stop.fruit })),
+      });
+    });
+    const site = tileCenter(decoded, sx, sy);
+    setDwellings([
+      {
+        id: nextId.current++,
+        type: 'zemnice',
+        position: { x: site.worldX, z: site.worldZ - 10, rotation: 0 },
+        built: true,
+        progress: 1,
+      },
+    ]);
+    setOrchards(list);
+  };
+
   const advanceConstruction = (step: number): void => {
     const next = (progress: number): number =>
       Math.min(1, Math.max(0, Math.round((progress + step) * 100) / 100));
@@ -205,6 +318,16 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         const progress = next(c.progress);
         return { ...c, progress, built: progress >= 1 };
       }),
+    );
+    setOrchards((list) =>
+      list.map((o) => ({
+        ...o,
+        squares: o.squares.map((s) => {
+          if (s.planting >= 1) return s;
+          const planting = next(s.planting);
+          return { ...s, planting, growth: planting >= 1 ? treeGrowth(0) : 0 };
+        }),
+      })),
     );
   };
 
@@ -297,6 +420,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   };
 
   const firstSite = dwellings.find((d) => !d.built);
+  const plantingSquare = orchards.flatMap((o) => o.squares).find((s) => s.planting < 1);
 
   return (
     <>
@@ -322,6 +446,24 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         <button className={buttonClass} disabled={!scene} onClick={placeCemetery}>
           Hřbitov
         </button>
+        <button className={buttonClass} disabled={!scene} onClick={placeOrchard}>
+          Sad
+        </button>
+        <button className={buttonClass} disabled={!scene} onClick={showOrchards}>
+          Ukázka sadů
+        </button>
+        <button className={buttonClass} onClick={() => ageOrchards(2)}>
+          Sady +2 roky
+        </button>
+        <button className={buttonClass} onClick={toggleFruit}>
+          Jablka
+        </button>
+        {plantingSquare && (
+          <span data-testid="dev-orchard-phase">
+            Sad {Math.round(plantingSquare.planting * 100)} % ·{' '}
+            {plantingPhase(plantingSquare.planting).label}
+          </span>
+        )}
         <button className={buttonClass} onClick={() => addGraves(10)}>
           Hroby +10
         </button>
@@ -365,6 +507,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
             setDwellings([]);
             setFields([]);
             setCemeteries([]);
+            setOrchards([]);
           }}
         >
           Smazat ves
@@ -374,7 +517,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
             {placing}: {preview ? `${preview.check.ok ? '✓' : '✗'} ${previewText(preview)}` : '…'}{' '}
             <span className="text-stone-500">
               (Esc zruší
-              {placing === 'Pole' || placing === 'Hřbitov'
+              {placing === 'Pole' || placing === 'Hřbitov' || placing === 'Sad'
                 ? ', klik / tažení maluje čtverce, Ctrl ubírá, Enter potvrdí, pravý klik zruší'
                 : ', [ ] otáčí, klik postaví, Shift + klik staví dál'}
               )

@@ -73,6 +73,10 @@ const view = {
       yearsLeft: null,
     },
   ],
+  orchards: [
+    { id: 60, areaM2: 900, squares: 4, ageYears: 7, expectedYieldKg: 81, planting: null },
+    { id: 61, areaM2: 225, squares: 1, ageYears: null, expectedYieldKg: 0, planting: 0.3 },
+  ],
 } as unknown as VillageView;
 
 describe('selectionDetails', () => {
@@ -141,5 +145,23 @@ describe('selectionDetails – hřbitov', () => {
       building: 0.5,
     });
     expect(selectionDetails(view, scene, { kind: 'cemetery', id: 99 })).toBeNull();
+  });
+});
+
+describe('selectionDetails – sad', () => {
+  it('výměra, stáří, úroda příští sklizně; vysazovaný s průběhem výsadby', () => {
+    expect(selectionDetails(view, scene, { kind: 'orchard', id: 60 })).toEqual({
+      kind: 'orchard',
+      id: 60,
+      areaM2: 900,
+      ageYears: 7,
+      expectedYieldKg: 81,
+      planting: null,
+    });
+    expect(selectionDetails(view, scene, { kind: 'orchard', id: 61 })).toMatchObject({
+      ageYears: null,
+      planting: 0.3,
+    });
+    expect(selectionDetails(view, scene, { kind: 'orchard', id: 99 })).toBeNull();
   });
 });

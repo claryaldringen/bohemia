@@ -30,6 +30,7 @@ export interface LivestockVillage {
   }[];
   fields: readonly { parts: readonly { x: number; z: number; size: number }[] }[];
   cemeteries?: readonly { squares: readonly { x: number; z: number; size: number }[] }[];
+  orchards?: readonly { squares: readonly { x: number; z: number; size: number }[] }[];
 }
 
 /** Terén pro zvířata (bez vsi). */
@@ -184,9 +185,9 @@ export function chickenPoint(
   return localToWorld(flock.position, dx * r, (minZ + maxZ) / 2 + dz * r);
 }
 
-/** Pole, hřbitovy a obydlí vsi jako překážky pro stáda a slepice. */
+/** Pole, hřbitovy, sady a obydlí vsi jako překážky pro stáda a slepice. */
 interface Obstacles {
-  /** Na poli nebo hřbitově (čtverec rozšířený o `margin`). */
+  /** Na poli, hřbitově nebo v sadu (čtverec rozšířený o `margin`). */
   onCrop(x: number, z: number, margin: number): boolean;
   /** Na hřbitově (čtverec rozšířený o `margin`). */
   onCemetery(x: number, z: number, margin: number): boolean;
@@ -198,7 +199,8 @@ interface Obstacles {
 
 function obstacles(village: LivestockVillage): Obstacles {
   const graves = (village.cemeteries ?? []).flatMap((c) => c.squares);
-  const squares = [...village.fields.flatMap((f) => f.parts), ...graves];
+  const orchards = (village.orchards ?? []).flatMap((o) => o.squares);
+  const squares = [...village.fields.flatMap((f) => f.parts), ...graves, ...orchards];
   const inSquare =
     (list: readonly { x: number; z: number; size: number }[]) =>
     (x: number, z: number, margin: number): boolean =>

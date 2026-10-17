@@ -59,8 +59,8 @@ export class SelectionHighlight {
 }
 
 /**
- * Obrys cíle jako lomené čáry: rámeček kolem půdorysu obydlí, nebo mez kolem čtverců pole či
- * hřbitova.
+ * Obrys cíle jako lomené čáry: rámeček kolem půdorysu obydlí, nebo mez kolem čtverců pole,
+ * hřbitova či sadu.
  */
 function targetOutline(village: SceneVillage, target: VillageTarget): Point[][] {
   if (target.kind === 'dwelling') {
@@ -77,6 +77,10 @@ function targetOutline(village: SceneVillage, target: VillageTarget): Point[][] 
   if (target.kind === 'cemetery') {
     const cemetery = village.cemeteries?.find((c) => c.id === target.id);
     return cemetery ? cellsBoundary(cemetery.squares) : [];
+  }
+  if (target.kind === 'orchard') {
+    const orchard = village.orchards?.find((o) => o.id === target.id);
+    return orchard ? cellsBoundary(orchard.squares) : [];
   }
   const field = village.fields.find((f) => f.id === target.id);
   if (!field || field.parts.length === 0) return [];
