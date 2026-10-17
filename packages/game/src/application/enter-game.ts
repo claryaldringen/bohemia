@@ -4,11 +4,13 @@ import {
   generateLandscapeAttempt,
   type Landscape,
 } from '../domain/landscape';
-import type { SeedSource, Settlement, SettlementRepository } from './settlements';
+import type { LandscapeSource, SeedSource, Settlement, SettlementRepository } from './settlements';
 
 export interface EnterGameDeps {
   settlements: SettlementRepository;
   seeds: SeedSource;
+  /** Krajina uloženého sídla – bez ní se pokaždé vygeneruje znovu. */
+  landscapes?: LandscapeSource;
 }
 
 export interface EnterGameResult {
@@ -19,6 +21,8 @@ export interface EnterGameResult {
 /** Vstup hráče do hry: najde jeho sídelní sídlo, nebo ho založí, a vrátí sídlo s krajinou. */
 export async function enterGame(deps: EnterGameDeps, playerId: string): Promise<EnterGameResult> {
   const existing = await deps.settlements.findSeat(playerId);
+  const landscapeOf = (settlement: Settlement): Landscape =>
+    (deps.landscapes ?? GENERATED).landscapeOf(settlement.landscapeSeed, settlement.layerVersions);
   if (existing) return { settlement: existing, landscape: landscapeOf(existing) };
 
   const accepted = generateAcceptedLandscape(deps.seeds.nextSeed());
@@ -34,6 +38,4 @@ export async function enterGame(deps: EnterGameDeps, playerId: string): Promise<
 }
 
 /** Uložené sídlo má seed přijatého pokusu – krajina se generuje přesně z něj, bez pásma. */
-function landscapeOf(settlement: Settlement): Landscape {
-  return generateLandscapeAttempt(settlement.landscapeSeed, settlement.layerVersions);
-}
+const GENERATED: LandscapeSource = { landscapeOf: generateLandscapeAttempt };

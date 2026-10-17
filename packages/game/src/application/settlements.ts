@@ -1,4 +1,4 @@
-import type { LayerVersions } from '../domain/landscape';
+import type { Landscape, LayerVersions } from '../domain/landscape';
 
 /** Sídlo (aglomerace) hráče – každé má vlastní krajinu ze seedu. */
 export interface Settlement {
@@ -26,4 +26,12 @@ export interface SettlementRepository {
 export interface SeedSource {
   /** Celé číslo 0 … 2^31 − 1. */
   nextSeed(): number;
+}
+
+/**
+ * Port: krajina uloženého sídla ze seedu přijatého pokusu. Generování trvá desítky až stovky
+ * ms – vstupní bod ji může držet v mezipaměti (krajina se pro daný seed a verze nemění).
+ */
+export interface LandscapeSource {
+  landscapeOf(attemptSeed: number, versions: LayerVersions): Landscape;
 }

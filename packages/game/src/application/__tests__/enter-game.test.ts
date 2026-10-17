@@ -6,7 +6,7 @@ import {
   generateLandscapeAttempt,
 } from '../../domain/landscape';
 import { enterGame } from '../enter-game';
-import type { SeedSource } from '../settlements';
+import type { LandscapeSource, SeedSource } from '../settlements';
 import { InMemorySettlements } from './in-memory-settlements';
 
 const seedsFrom = (...values: number[]): SeedSource => {
@@ -104,5 +104,28 @@ describe('enterGame', () => {
     const b = await enterGame(deps, 'hrac-b');
     expect(a.settlement.id).not.toBe(b.settlement.id);
     expect(deps.settlements.settlements).toHaveLength(2);
+  });
+
+  it('krajinu uloženého sídla bere z LandscapeSource (mezipaměť webu)', async () => {
+    const settlements = new InMemorySettlements();
+    await settlements.createSeat({
+      ownerId: 'hrac-1',
+      landscapeSeed: 7,
+      layerVersions: CURRENT_LAYER_VERSIONS,
+    });
+    const asked: number[] = [];
+    const cached = generateLandscapeAttempt(7, CURRENT_LAYER_VERSIONS);
+    const landscapes: LandscapeSource = {
+      landscapeOf: (seed) => {
+        asked.push(seed);
+        return cached;
+      },
+    };
+    const { landscape } = await enterGame(
+      { settlements, seeds: seedsFrom(99), landscapes },
+      'hrac-1',
+    );
+    expect(landscape).toBe(cached);
+    expect(asked).toEqual([7]);
   });
 });
