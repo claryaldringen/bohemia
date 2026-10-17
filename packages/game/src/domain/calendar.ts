@@ -59,7 +59,7 @@ function seasonOf(month: number): Season {
   return 'winter';
 }
 
-/** Index herního dne (0 = 1. 1. 500) → herní datum. */
+/** Index herního dne (0 = 1. 1. 500) → herní datum. Index se neověřuje: očekává se 0 ≤ index < TOTAL_GAME_DAYS. */
 export function dateOfDayIndex(dayIndex: number): GameDate {
   const cycle = Math.floor(dayIndex / DAYS_IN_CYCLE);
   let dayInYear = dayIndex % DAYS_IN_CYCLE;
