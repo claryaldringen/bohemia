@@ -417,9 +417,10 @@ export class FieldPainter {
   private report(): void {
     if (this.done) return;
     const preview = this.preview;
+    // Prázdný výběr není chyba – jen nápověda (bez důvodu, rozhraní ji ukáže neutrálně).
     this.handlers.onPreview?.({
-      check: preview?.check ?? { ok: false, reason: EMPTY_HINT },
-      label: preview?.label ?? '',
+      check: preview?.check ?? { ok: false, reason: null },
+      label: preview?.label ?? EMPTY_HINT,
       screen: this.screen,
     });
   }

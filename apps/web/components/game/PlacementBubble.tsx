@@ -5,7 +5,10 @@ const CURSOR_GAP_PX = 18;
 /** Kolik místa bublina potřebuje vpravo a dole od kurzoru, jinak přeskočí na druhou stranu. */
 const BUBBLE_ROOM_PX = { x: 320, y: 90 };
 
-/** Bublina u kurzoru při umisťování: co se staví (výměra, cena) a proč to nejde – zeleně / červeně. */
+/**
+ * Bublina u kurzoru při umisťování: co se staví (výměra, cena) a proč to nejde – zeleně /
+ * červeně, nápověda bez důvodu neutrálně.
+ */
 export function PlacementBubble({
   preview,
 }: {
@@ -14,6 +17,8 @@ export function PlacementBubble({
   if (!preview?.screen) return null;
   const { check, label, screen } = preview;
   const reason = check.ok ? null : check.reason;
+  // Neprošlé umístění bez důvodu je jen nápověda (např. prázdné pole) – neutrálně, ne červeně.
+  const tone = check.ok ? 'bg-emerald-800/90' : reason ? 'bg-red-800/90' : 'bg-stone-800/90';
   // U pravého / dolního okraje okna bublina přeskočí na druhou stranu kurzoru.
   const flipX = screen.x > window.innerWidth - BUBBLE_ROOM_PX.x;
   const flipY = screen.y > window.innerHeight - BUBBLE_ROOM_PX.y;
@@ -22,7 +27,7 @@ export function PlacementBubble({
       data-testid="placement-bubble"
       data-ok={check.ok}
       role="status"
-      className={`pointer-events-none fixed z-20 max-w-72 rounded px-2 py-1 text-xs leading-snug text-white shadow ${check.ok ? 'bg-emerald-800/90' : 'bg-red-800/90'}`}
+      className={`pointer-events-none fixed z-20 max-w-72 rounded px-2 py-1 text-xs leading-snug text-white shadow ${tone}`}
       style={{
         left: flipX ? undefined : screen.x + CURSOR_GAP_PX,
         right: flipX ? window.innerWidth - screen.x + CURSOR_GAP_PX : undefined,

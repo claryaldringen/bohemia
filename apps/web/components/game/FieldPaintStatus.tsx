@@ -16,9 +16,7 @@ export function FieldPaintStatus({ preview }: { preview: PlacementPreview | null
   const reason = preview && !preview.check.ok ? preview.check.reason : null;
   return (
     <div data-testid="field-paint-status" aria-live="polite" className="text-xs">
-      <p className="font-medium text-stone-800 tabular-nums dark:text-stone-200">
-        {label || 'Zatím žádný čtverec'}
-      </p>
+      <p className="font-medium text-stone-800 tabular-nums dark:text-stone-200">{label}</p>
       {reason && <p className="text-red-700 dark:text-red-400">{reason}</p>}
     </div>
   );
