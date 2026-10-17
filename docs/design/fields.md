@@ -270,7 +270,9 @@ pořadí (návrh Clauda; nahrazuje pevných 85 % a dělení práce po domácnost
   u obydlí při zahájení stavby, u pole s každým založeným dílem (jak říká Zakládání). Scéna je
   skryje bez nového načtení stránky. **Zatím ne:** ztmavená tráva pod stromy, tmavá plocha korun
   a stínová mapa terénu se po vykácení nepřepočítají (na pasece zůstane tmavší skvrna); zarostlý
-  příloh (les z náletu) ani rušení polí odstraněné překážky nevrací.
+  příloh (les z náletu) ani rušení polí odstraněné překážky nevrací; cenu překážek rozhraní
+  zatím neukazuje (pravidlo rozhraní: u kurzoru žádné souhrny, jen důvod, proč stavba nejde) –
+  kontroly umístění ji spočítají a stavba ji zaplatí prací.
 
 ## Ukázka
 

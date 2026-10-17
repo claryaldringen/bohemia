@@ -73,8 +73,9 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
 - Obydlí nesmí stát ve vodě ani se překrývat s jiným obydlím nebo polem (návrh Clauda).
 - **Překážky** na místě, např. kameny, osadníci odstraní, ale stavba stojí víc člověkodní
   (Martin). Totéž **v lese** – stromy je třeba skácet a vykopat pařezy. Ceny překážek a mýcení
-  jsou jedna tabulka pro celou hru ve [fields.md](fields.md) (návrh Clauda). Hráč cenu vidí už
-  při umisťování.
+  jsou jedna tabulka pro celou hru ve [fields.md](fields.md) (návrh Clauda). Kontrola umístění
+  cenu spočítá už při umisťování; rozhraní ji zatím neukazuje (u kurzoru jen důvod, proč stavba
+  nejde – fields.md, Krajina sídla a scéna, Stav).
 - Odstraněné kameny a stromy z krajiny sídla zmizí natrvalo – krajina sídla je vygenerovaná
   krajina plus změny, které v ní udělali lidé (návrh Clauda).
 

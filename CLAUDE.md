@@ -138,10 +138,19 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   server (mezipaměť podle objektu krajiny – s LRU krajin) **i prohlížeč** ze stejné funkce
   (≈ 250–350 ms, přenos by byl ≈ 470 kB gzip): vstupem je krajina s přesností prohlížeče
   a jen deterministická matematika (`det-math.ts` – žádné Math.sin/cos/atan2/hypot, liší se
-  mezi enginy). Test v `landscape-transfer.test.ts` hlídá, že prohlížeč dostane přesně
-  serverovou vrstvu. Pole lesa (`forest-field.ts`), osa potoka ve světě (`stream-geometry.ts`)
-  a tvar terénu (`relief.ts`) jsou proto také v jádru – **jejich změna po ostrém spuštění =
-  nová verze vrstvy překážek**, stejně jako změna rozmisťovačů.
+  mezi enginy – v souborech vrstvy je **hlídá ESLint**, i mocninu `**`). Test
+  v `landscape-transfer.test.ts` ověřuje, že prohlížeč dostane bit po bitu serverovou vrstvu –
+  **dokazuje to ale jen shodu ve V8** (Node = Chrome); u Firefoxu a Safari shodu drží jen to,
+  že vrstva používá výhradně přesně zaokrouhlované operace. Zlatý otisk vrstvy (3 seedy,
+  `obstacles.test.ts`) spadne při jakékoli změně. **Novou verzi vrstvy překážek po ostrém
+  spuštění vyžaduje změna čehokoli, na čem stojí:** rozmisťovače (`landscape/obstacles/`), pole lesa (`forest-field.ts`), osa potoka ve světě
+  (`stream-geometry.ts`), tvar terénu (`relief.ts`, `SUN_RAYS`), `det-math.ts`,
+  `transferPrecision` i přesnost kodéru ve webu (`landscape-transfer.ts`: výšky na cm, osa
+  potoka ve Float32), pomocné funkce `world.ts`, `deriveSeed` a `createRandom`, verze
+  `simplex-noise` (připnutá bez stříšky), číslování `OBSTACLE_SOURCES` (id) a
+  `VILLAGE_CLEARING_TILES` – a samozřejmě generátor krajiny, ze které vrstva vychází.
+  Pozor: `streamCenterline` (`deriveFlow`) řídí i vzhled vody a zvuk potoka – ladění vody
+  přes osu potoka mění i vrstvu (vzhledovou část pak oddělit).
 - **Scéna** (`apps/web/lib/scene/`): `LandscapeScene` bez Reactu, React (`GameView`) ji jen
   vytvoří, pošle data a poslouchá `onTileHover`, `onSelect` a `onViewChange`. Plátno scény má
   `data-scene` (rozhraní má i plátno minimapy), políčko pod kurzorem nese `data-tile`. Babylon importovat **z konkrétních modulů**
@@ -300,7 +309,8 @@ Pravidla v [docs/design/population.md](docs/design/population.md) a
 - **Krajina sídla** se na serveru drží v LRU mezipaměti (`lib/landscape-cache.ts`, port
   `LandscapeSource` v `enterGame`) – negeneruje se při každé akci a dotazu. Vrstva překážek
   se generuje až pro stavby (`obstaclesOf`, mezipaměť podle objektu krajiny); dotaz na ves
-  (`getVillageView`) ji nepotřebuje.
+  (`getVillageView`) ji potřebuje jen při prvním načtení vsi založené před vrstvou (doplnění
+  odstraněných překážek, ≈ 300 ms jednou).
 - **Překážky ve vsi** (`domain/village/obstacles.ts`, fields.md – tabulka překážek): obydlí
   platí překážky na vyklízené ploše (`DWELLING_CLEARING_M` = staveniště scény) po kusech,
   skalní výchoz pod půdorysem stavbu nedovolí; díl pole platí překážky v políčku (v lese by

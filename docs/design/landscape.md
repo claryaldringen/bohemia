@@ -226,10 +226,22 @@ na který se později přidávají další prvky (černozem, naleziště kovů, 
   Výjimka z „klient dostane hotová data“: vrstva má ≈ 65–72 tisíc překážek (≈ 470 kB po
   kompresi, krajina samotná ≈ 50 kB), a tak ji prohlížeč generuje sám stejnou funkcí ze
   stejných dat jako server – z krajiny s přesností přenosu a jen s deterministickou
-  matematikou (+ − × ÷ √, žádné sin/cos/atan2/hypot, které se mezi JS enginy liší); test
-  ověřuje, že výsledek je bit po bitu shodný. Generování trvá ≈ 250–350 ms (stejně jako dřív
-  rozmisťování ve scéně), na serveru jednou na krajinu v mezipaměti. Rákos, orobinec, lekníny,
-  kmeny v potoce a zvířata zůstávají jen ozdobou scény. Pásmo srovnatelnosti se nemění.
+  matematikou (+ − × ÷ √, žádné sin/cos/atan2/hypot, které se mezi JS enginy liší – hlídá
+  ESLint); test ověřuje, že výsledek je bit po bitu shodný, **ale jen ve V8** (Node = Chrome).
+  Firefox a Safari test nepokrývá – shodu tam drží jen omezení na přesně zaokrouhlované
+  operace. Generování trvá ≈ 230–350 ms (stejně jako dřív rozmisťování ve scéně), na serveru
+  jednou na krajinu v mezipaměti (vrstva ≈ 1,8–2,0 MB paměti, pole lesa se nedrží). Rákos,
+  orobinec, lekníny, kmeny v potoce a zvířata zůstávají jen ozdobou scény. Pásmo
+  srovnatelnosti se nemění.
+- **Co vrstvu překážek mění** (po ostrém spuštění jen novou verzí vrstvy, zlatý otisk v testech to
+  hlídá): rozmisťovače (`landscape/obstacles/`), pole lesa (`forest-field.ts`), osa potoka ve
+  světě (`stream-geometry.ts`), tvar terénu (`relief.ts`, `SUN_RAYS`), `det-math.ts`,
+  `transferPrecision` i přesnost kodéru ve webu (`landscape-transfer.ts`: výšky na cm, osa potoka
+  ve Float32), pomocné funkce `world.ts`, `deriveSeed` a `createRandom`, verze `simplex-noise`
+  (připnutá bez stříšky), číslování `OBSTACLE_SOURCES` (id) a `VILLAGE_CLEARING_TILES` – a
+  samozřejmě generátor krajiny, ze které vrstva vychází. `streamCenterline` (`deriveFlow`) přitom
+  řídí i vzhled vody a zvuk potoka – ladění vody přes osu potoka změní i vrstvu, vzhledovou část
+  je pak třeba oddělit.
 
 ## Necháno na staviteli
 
