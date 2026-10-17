@@ -1,6 +1,6 @@
 import { createRandom, deriveSeed } from '../landscape/random';
 import { isOvercrowded } from './dwellings';
-import { ageGroup, ageYears, isFertileAdult, occupants } from './people';
+import { ageGroup, ageYears, isAdult, isFertile, occupants } from './people';
 import {
   ADULT_DEATHS_PER_YEAR,
   AGE,
@@ -70,7 +70,7 @@ export function deathChancePerDay(
  */
 export function householdBreaksUp(members: Person[], day: number): boolean {
   if (members.length === 0) return false;
-  const adults = members.filter((p) => isFertileAdult(p, day)).length;
+  const adults = members.filter((p) => isAdult(p, day)).length;
   return adults === 0 || members.length === 1;
 }
 
@@ -121,28 +121,26 @@ export function populationDay(
   let livingAdults = state.people.filter((p) => ageYears(p.bornDay, day) >= AGE.adult).length;
   const dead = new Set<number>();
   for (const person of [...state.people].sort((a, b) => a.id - b.id)) {
-    const isAdult = ageYears(person.bornDay, day) >= AGE.adult;
+    const grownUp = ageYears(person.bornDay, day) >= AGE.adult;
     const chance = deathChancePerDay(person, {
       day,
       foundedDay: state.foundedDay,
       satiation,
       overcrowded: crowded.get(person.dwellingId) ?? false,
       dwellingType: typeOf.get(person.dwellingId) ?? 'zemnice',
-      protectFromHunger: isAdult && livingAdults <= HUNGER_GUARD_ADULTS,
+      protectFromHunger: grownUp && livingAdults <= HUNGER_GUARD_ADULTS,
     });
     if (random.next() < chance) {
       dead.add(person.id);
-      if (isAdult) livingAdults--;
+      if (grownUp) livingAdults--;
       events.push({ day, kind: 'death', group: ageGroup(person, day) });
     }
   }
   state.people = state.people.filter((p) => !dead.has(p.id));
 
-  // porody
+  // porody – pár jsou dva lidé 16–44 let v jedné domácnosti
   for (const d of [...state.dwellings].sort((a, b) => a.id - b.id)) {
-    const pairs = Math.floor(
-      occupants(state, d.id).filter((p) => isFertileAdult(p, day)).length / 2,
-    );
+    const pairs = Math.floor(occupants(state, d.id).filter((p) => isFertile(p, day)).length / 2);
     const chance = birthChancePerDay({ satiation, overcrowded: crowded.get(d.id) ?? false });
     for (let i = 0; i < pairs; i++) {
       if (random.next() < chance) {

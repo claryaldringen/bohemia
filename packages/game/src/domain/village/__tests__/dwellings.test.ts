@@ -152,12 +152,31 @@ describe('opravy a přestavba', () => {
     expect(d.condition).toBe(0.5);
   });
 
-  it('chce přestavbu po uplynutí životnosti nebo při nulovém stavu', () => {
+  it('chce přestavbu po uplynutí životnosti (zemnice 18 let) nebo při nulovém stavu', () => {
     const d = dwelling(1);
-    expect(wantsRebuild(d, 15 * YEAR)).toBe(true);
-    expect(wantsRebuild(d, 14 * YEAR)).toBe(false);
+    expect(DWELLINGS.zemnice.lifespanYears).toBe(18);
+    expect(wantsRebuild(d, 18 * YEAR)).toBe(true);
+    expect(wantsRebuild(d, 17 * YEAR)).toBe(false);
     d.condition = 0;
     expect(wantsRebuild(d, 1)).toBe(true);
+  });
+
+  it('prázdné obydlí bez oprav vydrží – zemnice ≈ 16 let, polozemnice ≈ 26 let', () => {
+    const lastsYears = (type: Dwelling['type']): number => {
+      const d = dwelling(1, 0, type);
+      let day = 0;
+      while (d.condition > 0) {
+        day++;
+        applyRepairs(d, 0, repairNeedPerDay(d, day));
+      }
+      return day / YEAR;
+    };
+    const zemnice = lastsYears('zemnice');
+    expect(zemnice).toBeGreaterThan(15);
+    expect(zemnice).toBeLessThan(16.5);
+    const polozemnice = lastsYears('polozemnice');
+    expect(polozemnice).toBeGreaterThan(25.5);
+    expect(polozemnice).toBeLessThan(27.5);
   });
 
   it('lepší obydlí, když na něj ves za rok společné práce má', () => {

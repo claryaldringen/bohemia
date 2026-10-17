@@ -31,7 +31,7 @@ export interface FieldPart {
   distanceM: number;
   naturalFertility: number; // 0–100 z krajiny
   fertilityShare: number; // aktuální úrodnost / přirozená, 0–1
-  bonusUntilDay: number | null; // +20 po vymýcení lesa
+  bonusUntilDay: number | null; // do kdy platí bonus vymýceného lesa (FOREST_BONUS)
   state: PartState;
   sownYears: number; // kolik let v řadě oseto
   fallowSinceDay: number | null; // od kdy leží v přílohu
@@ -59,6 +59,21 @@ export interface Construction {
   fieldId: number | null; // field – zakládá díly od nejbližšího
 }
 export type TaskName = 'reclaim' | 'dig' | 'sow' | 'weed' | 'harvest' | 'thresh';
+/** Polní práce s pevnou sazbou na osetý hektar (vracení přílohu se počítá podle stáří přílohu). */
+export type FieldTask = Exclude<TaskName, 'reclaim'>;
+/**
+ * Meze produktivity (Martin): hodnota bez řemesel (`worst`) a s plně pokrytou potřebou výrobků
+ * řemeslníků (`best`); mezi nimi lineárně podle pokrytí (productivity.ts).
+ */
+export interface Bounds {
+  readonly worst: number;
+  readonly best: number;
+}
+/** Pokrytí potřeby výrobků řemeslníků 0–1 (crafts.md): nástroje od kováře, nádoby od hrnčíře. */
+export interface CraftCoverage {
+  readonly tools: number;
+  readonly pottery: number;
+}
 export interface YearPlan {
   plannedDay: number;
   partIds: number[];

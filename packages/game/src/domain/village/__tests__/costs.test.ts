@@ -30,7 +30,7 @@ describe('ceny staveb', () => {
     });
     expect(BUILD_COSTS.polozemnice.laborManDays).toBe(DWELLINGS.polozemnice.cost);
     expect(BUILD_COSTS.field).toMatchObject({
-      laborManDays: FOUNDING_COST_PER_HA.meadow,
+      laborManDays: FOUNDING_COST_PER_HA.meadow.worst, // řemesla zatím nejsou – horní mez
       perHa: true,
     });
   });

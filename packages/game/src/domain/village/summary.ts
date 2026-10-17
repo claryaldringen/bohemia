@@ -3,6 +3,7 @@ import { isFull, isOvercrowded, waitingHouseholds } from './dwellings';
 import { fallowYears } from './fields';
 import { daysUntilHarvest, eatDay } from './food';
 import { ageGroup, foodNeedPerDay, occupants } from './people';
+import { NO_CRAFTS } from './productivity';
 import { DWELLINGS, OVERGROWTH_STAGES } from './rules';
 import type {
   Construction,
@@ -103,7 +104,7 @@ function households(state: VillageState, day: number): HouseholdSummary[] {
 function nextDaySatiation(state: VillageState, day: number, needPerDay: number): number {
   if (needPerDay <= 0) return 1;
   const next = Math.min(day + 1, TOTAL_GAME_DAYS - 1);
-  return eatDay(state.storesKg, needPerDay, daysUntilHarvest(next)).satiation;
+  return eatDay(state.storesKg, needPerDay, daysUntilHarvest(next), NO_CRAFTS.pottery).satiation;
 }
 
 function constructionSummary(state: VillageState, c: Construction): ConstructionSummary {

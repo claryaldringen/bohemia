@@ -1,11 +1,21 @@
-import type { DwellingType, FieldSurface, TaskName } from './types';
+import type { Bounds, DwellingType, FieldSurface, FieldTask, TaskName } from './types';
+
+// Meze produktivity (Martin, oprava podle rešerše 17. 10. 2026 – docs/design/research/): práce
+// a ztráty, pro které literatura dává rozpětí, mají dvojici { worst, best }. Ves bez řemesel
+// platí `worst`, s plně pokrytou potřebou výrobků řemeslníků `best`, mezi tím lineárně podle
+// pokrytí (productivity.ts). Kovář posouvá práci (nástroje), hrnčíř ztráty zásob a denní
+// minimum (nádoby). Kde literatura dává jedno číslo, platí obojí. Řemesla zatím nejsou –
+// volající předávají pokrytí 0 (NO_CRAFTS), tedy `worst`.
 
 // population.md – Pojmy (tabulka obydlí: kapacita, cena, životnost), Chátrání a přestavba (opravy, dětská úmrtnost)
+// Životnost zemnice 18 let (oprava podle rešerše, bylo 15): potřeba oprav roste s (věk / životnost)²,
+// takže se s životností sama roztáhne – roční potřeba na konci zůstává 15, za celý život 90
+// člověkodní (bylo 75) a prázdná zemnice vydrží ≈ 16 let (bylo ≈ 14).
 export const DWELLINGS = {
   zemnice: {
     capacity: 6,
     cost: 60,
-    lifespanYears: 15,
+    lifespanYears: 18,
     repairAtEndOfLifePerYear: 15, // kalibrace: ≈ ½ společné práce domácnosti (measure-village)
     childDeathFactor: 1,
   },
@@ -22,14 +32,15 @@ export const BETTER_DWELLING: Record<DwellingType, DwellingType> = {
   zemnice: 'polozemnice',
   polozemnice: 'polozemnice',
 };
-// population.md – Pojmy a Práce (věkové hranice, pracovní síla); START_AGES: Založení vsi (4 lidé)
-export const AGE = { olderChild: 7, adult: 14, elder: 45 } as const;
+// population.md – Pojmy a Práce (věkové hranice, pracovní síla), Růst populace (porody od 16 let –
+// oprava podle rešerše, dospělý pro práci a odemčení zůstává 14–44); START_AGES: Založení vsi (4 lidé)
+export const AGE = { olderChild: 7, adult: 14, fertile: 16, elder: 45 } as const;
 export const LABOR_PER_DAY = { olderChild: 0.3, adult: 1, elder: 0.5 } as const;
 export const START_AGES = [25, 25, 13, 12] as const;
 // population.md – Růst populace (porodnost, úmrtnost dětí a dospělých, štěstí)
 export const BIRTHS_PER_PAIR_PER_YEAR = 1 / 3;
 export const CHILD_DEATH_BEFORE_ADULT = 0.4; // → ročně 1 − 0,6^(1/14)
-export const ADULT_DEATHS_PER_YEAR = 0.015;
+export const ADULT_DEATHS_PER_YEAR = 0.02; // oprava podle rešerše (bylo 0,015; Lahovice)
 export const ELDER_DEATHS_PER_YEAR = 0.08;
 // population.md – Růst populace (přeplněnost)
 export const CROWDED_BIRTH_FACTOR = 0.3;
@@ -42,8 +53,8 @@ export const HUNGER = { birthsStopAt: 0.5, birthsFullAt: 0.95, deathExtraAtZero:
 export const NEW_HOUSEHOLD_MIN_ADULTS = 4;
 // fields.md – Zásoby a nasycení (roční potřeba jídla podle věku)
 export const FOOD_NEED_KG_PER_YEAR = { child: 100, adult: 180, elder: 140 } as const;
-// fields.md – Zásoby a nasycení (ztráty při skladování, start se zásobami)
-export const STORAGE_LOSS_PER_YEAR = 0.1;
+// fields.md – Zásoby a nasycení (ztráty při skladování – meze: s hrnčířem 5 %, start se zásobami)
+export const STORAGE_LOSS_PER_YEAR: Bounds = { worst: 0.1, best: 0.05 };
 export const START_STORES_MONTHS = 18;
 // fields.md – Kolik ves oseje (potřeba + rezerva 15 %, nad 1,5 roční potřeby jen potřeba)
 export const SOW_RESERVE = 0.15;
@@ -57,32 +68,41 @@ export const YIELD_BASE_KG_PER_HA = 760; // × (0,4 + 0,6 × úrodnost / 100)
 export const SEED_KG_PER_HA = 175;
 // fields.md – Úroda (neopletený díl), Zarůstání
 export const UNWEEDED_YIELD = 0.6; // neopletý díl dá 60 % (návrh Clauda, kalibrace)
-// fields.md – Přílohová soustava (osev, úhor), Úroda (úrodnost, vymýcený les), Založení pole
+// fields.md – Přílohová soustava (osev, příloh), Úroda (úrodnost). Obnova v přílohu 2,5 %
+// přirozené za rok (oprava podle rešerše, bylo 5 %): z 0,64 na 0,95 za 13 let.
 export const FERTILITY = {
   sowDepletion: 0.12,
-  fallowRecovery: 0.05,
+  fallowRecovery: 0.025,
   sowableMin: 0.7,
   fallowReady: 0.95,
-  forestBonus: 20,
-  forestBonusYears: 3,
 } as const;
-// fields.md – Práce (člověkodny na hektar; sklizeň 30 + odnos 20)
-export const FIELD_WORK_PER_HA = { dig: 80, sow: 10, weed: 30, harvest: 50, thresh: 30 } as const; // sklizeň 30 + odnos 20
-// fields.md – Založení pole (vymýcení lesa podle stáří zarůstání)
-export const RECLAIM_COST_PER_HA = [
-  { maxYears: 2, cost: 0 },
-  { maxYears: 5, cost: 40 },
-  { maxYears: 10, cost: 60 },
-  { maxYears: 15, cost: 150 },
-  { maxYears: Infinity, cost: 250 },
-] as const;
+// fields.md – Úroda (vymýcený les; oprava podle rešerše, bylo +20 na 3 roky): bonus úrodnosti
+// podle sezóny osevu po vymýcení (1. +40, 2. +20, pak 0) a první sezónu se neplete. Bonus platí
+// jen do `windowYears` let od vymýcení – díl, který ves do té doby neoseje, o popel přijde.
+export const FOREST_BONUS = { bySeason: [40, 20], windowYears: 3 } as const;
+// fields.md – Práce (člověkodny na osetý hektar – meze; sklizeň srpem 30 → 15 + odnos v nůších 20)
+export const FIELD_WORK_PER_HA: Record<FieldTask, Bounds> = {
+  dig: { worst: 100, best: 50 },
+  sow: { worst: 10, best: 10 },
+  weed: { worst: 30, best: 15 },
+  harvest: { worst: 50, best: 35 },
+  thresh: { worst: 15, best: 10 },
+};
+// fields.md – Práce (vrácení přílohu podle stáří zarůstání – meze; víc než 15 let = les)
+export const RECLAIM_COST_PER_HA: readonly { maxYears: number; cost: Bounds }[] = [
+  { maxYears: 2, cost: { worst: 0, best: 0 } },
+  { maxYears: 5, cost: { worst: 100, best: 90 } },
+  { maxYears: 10, cost: { worst: 100, best: 60 } },
+  { maxYears: 15, cost: { worst: 100, best: 60 } },
+  { maxYears: Infinity, cost: { worst: 250, best: 150 } },
+];
 // fields.md – Zarůstání (víc než 15 let přílohu: z dílu je les)
 export const FOREST_AFTER_YEARS = 16;
-// fields.md – Založení pole (povrch dílu za hektar)
-export const FOUNDING_COST_PER_HA: Record<FieldSurface, number> = {
-  meadow: 40,
-  shrub: 150,
-  forest: 250,
+// fields.md – Založení pole (povrch dílu za hektar – meze)
+export const FOUNDING_COST_PER_HA: Record<FieldSurface, Bounds> = {
+  meadow: { worst: 100, best: 90 },
+  shrub: { worst: 100, best: 60 },
+  forest: { worst: 250, best: 150 },
 };
 // fields.md – Založení pole (překážky na díle, práce navíc)
 export const OBSTACLE_COST = {
@@ -99,8 +119,8 @@ export const OBSTACLE_COST = {
 export const DISTANCE = { freeM: 100, percentPer10M: 1 } as const;
 // fields.md – Založení pole (nejdál 800 m od obydlí, nejmenší výměra 0,1 ha)
 export const FIELD_LIMITS = { maxDistanceM: 800, minAreaM2: 1000 } as const;
-// fields.md – Práce (denní minimum domácností); population.md – Práce
-export const DAILY_MIN_PER_HOUSEHOLD = 0.5;
+// fields.md – Práce (denní minimum domácností – meze: s hrnčířem 0,45); population.md – Práce
+export const DAILY_MIN_PER_HOUSEHOLD: Bounds = { worst: 0.5, best: 0.45 };
 // fields.md – Práce (domácí výroba, přenos nedodělané práce nejvýš 60 dní)
 export const DOMESTIC = { perHousehold: 0.3, perPerson: 0.15, backlogMaxDays: 60 } as const;
 // population.md – Nové obydlí (společná práce za posledních 30 dní pro „má na to“)

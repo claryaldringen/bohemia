@@ -2,6 +2,7 @@ import { TOTAL_GAME_DAYS } from '../calendar';
 import { buildAffordability, payUpfront, type BuildKind } from './costs';
 import { partFoundingCost } from './fields';
 import { ageGroup } from './people';
+import { NO_CRAFTS } from './productivity';
 import {
   DWELLINGS,
   FIELD_LIMITS,
@@ -90,7 +91,12 @@ function addField(state: VillageState, day: number, field: FieldInput): void {
   state.fields.push({ id: fieldId });
   let cost = 0;
   for (const input of field.parts) {
-    const foundingCost = partFoundingCost(input.surface, input.areaM2, input.obstacleCost);
+    const foundingCost = partFoundingCost(
+      input.surface,
+      input.areaM2,
+      input.obstacleCost,
+      NO_CRAFTS.tools,
+    );
     cost += foundingCost;
     state.parts.push({
       id: state.nextId++,

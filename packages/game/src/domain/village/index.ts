@@ -1,5 +1,6 @@
 export * from './types';
 export * from './rules';
+export * from './productivity';
 export * from './people';
 export * from './food';
 export * from './dwellings';

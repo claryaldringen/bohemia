@@ -4,10 +4,13 @@ import {
   effectiveFertility,
   fallowYears,
   grossYieldPerHa,
+  isWeedFree,
   reclaimCostPerHa,
+  returnsFromForest,
 } from './fields';
-import { FIELD_WORK_PER_HA, SEED_KG_PER_HA, UNWEEDED_YIELD, WINDOWS } from './rules';
-import type { FieldPart, TaskName, YearPlan } from './types';
+import { fieldWorkPerHa } from './productivity';
+import { SEED_KG_PER_HA, UNWEEDED_YIELD, WINDOWS } from './rules';
+import type { FieldPart, FieldTask, TaskName, YearPlan } from './types';
 
 const M2_PER_HA = 10_000;
 const MONTHS_PER_YEAR = 12;
@@ -24,21 +27,29 @@ export const TASK_ORDER: readonly TaskName[] = [
   'harvest',
   'thresh',
 ];
-const RATE_TASKS = ['dig', 'sow', 'weed', 'harvest', 'thresh'] as const;
+const RATE_TASKS: readonly FieldTask[] = ['dig', 'sow', 'weed', 'harvest', 'thresh'];
 
 function emptyRecord(): Record<TaskName, number> {
   return { reclaim: 0, dig: 0, sow: 0, weed: 0, harvest: 0, thresh: 0 };
 }
 
-/** Plán prací na rok pro vybrané díly: potřebné člověkodny podle sazeb a vzdálenosti. */
-export function createPlan(selected: FieldPart[], day: number): YearPlan {
+/**
+ * Plán prací na rok pro vybrané díly: potřebné člověkodny podle sazeb (meze podle pokrytí
+ * nástroji) a vzdálenosti. První sezónu po vymýcení lesa se díl neplete – čerstvě vymýcený
+ * i příloh, který se letos vrací z lesa.
+ */
+export function createPlan(selected: FieldPart[], day: number, toolCoverage: number): YearPlan {
   const required = emptyRecord();
   for (const part of selected) {
     const ha = part.areaM2 / M2_PER_HA;
     const factor = distanceFactor(part.distanceM);
-    for (const task of RATE_TASKS) required[task] += ha * FIELD_WORK_PER_HA[task] * factor;
+    const weedFree = isWeedFree(part, day) || returnsFromForest(part, day);
+    for (const task of RATE_TASKS) {
+      if (task === 'weed' && weedFree) continue;
+      required[task] += ha * fieldWorkPerHa(task, toolCoverage) * factor;
+    }
     if (part.state === 'fallow') {
-      required.reclaim += reclaimCostPerHa(fallowYears(part, day)) * ha * factor;
+      required.reclaim += reclaimCostPerHa(fallowYears(part, day), toolCoverage) * ha * factor;
     }
   }
   return {
@@ -112,7 +123,8 @@ export function activeTasks(plan: YearPlan, day: number): TaskName[] {
 
 /**
  * Čistá úroda v kg (po odečtení osiva) z vybraných dílů plánu. Pletí a sklizeň se měří jen
- * vůči zaseté části (Ruling 17) – částečné setí se tak nepromítne do úrody dvakrát.
+ * vůči zaseté části (Ruling 17) – částečné setí se tak nepromítne do úrody dvakrát. Díl
+ * v první sezóně po vymýcení lesa pletí nepotřebuje, nedodělané pletí ostatních ho nesráží.
  */
 export function harvestKg(plan: YearPlan, parts: FieldPart[], day: number): number {
   const sowFrac = planShare(plan, 'sow');
@@ -123,10 +135,11 @@ export function harvestKg(plan: YearPlan, parts: FieldPart[], day: number): numb
     const part = parts.find((p) => p.id === id);
     if (!part) continue;
     const ha = part.areaM2 / M2_PER_HA;
+    const weeded = isWeedFree(part, day) ? 1 : weedFrac;
     const gross =
       grossYieldPerHa(effectiveFertility(part, day)) *
       sowFrac *
-      (UNWEEDED_YIELD + (1 - UNWEEDED_YIELD) * weedFrac) *
+      (UNWEEDED_YIELD + (1 - UNWEEDED_YIELD) * weeded) *
       harvestFrac;
     total += Math.max(0, ha * gross - ha * SEED_KG_PER_HA * sowFrac);
   }

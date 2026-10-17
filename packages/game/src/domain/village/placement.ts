@@ -7,6 +7,7 @@ import {
 } from '../landscape';
 import type { PartInput } from './actions';
 import { partFoundingCost } from './fields';
+import { NO_CRAFTS } from './productivity';
 import { polygonsOverlap, rectangleCorners, type Point } from './polygon';
 import { DWELLING_FOOTPRINT_M, DWELLING_MAX_HEIGHT_DIFF_M, FIELD_LIMITS } from './rules';
 import type { DwellingType, Position, TileCell } from './types';
@@ -345,7 +346,7 @@ export function fieldPartsFromCells(
   const averageFertility =
     areaM2 > 0 ? parts.reduce((sum, p) => sum + p.naturalFertility * p.areaM2, 0) / areaM2 : 0;
   const foundingCost = parts.reduce(
-    (sum, p) => sum + partFoundingCost(p.surface, p.areaM2, p.obstacleCost),
+    (sum, p) => sum + partFoundingCost(p.surface, p.areaM2, p.obstacleCost, NO_CRAFTS.tools),
     0,
   );
   const minCells = Math.ceil(FIELD_LIMITS.minAreaM2 / cellArea);

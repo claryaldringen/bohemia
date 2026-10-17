@@ -84,9 +84,9 @@ describe('birthChancePerDay', () => {
 });
 
 describe('deathChancePerDay', () => {
-  it('dospělý mimo hájení ≈ 0,015 ročně', () => {
+  it('dospělý mimo hájení ≈ 0,02 ročně', () => {
     const p = deathChancePerDay(person(30, AFTER_LUCK), { ...ctx, day: AFTER_LUCK });
-    expect(p).toBeCloseTo(1 - 0.985 ** (1 / 365), 10);
+    expect(p).toBeCloseTo(1 - 0.98 ** (1 / 365), 10);
   });
   it('v hájení dospělý ani starší neumírají, dítě má poloviční riziko', () => {
     const day = FOUNDED + 5 * YEAR;
@@ -180,6 +180,23 @@ describe('populationDay', () => {
     }
     expect(a).toEqual(b);
   });
+
+  it('porody až od 16 let: pár 14letých (dospělí pro práci) za 2 roky dítě nemá, 16letých ano (50 seedů)', () => {
+    const births = (age: number): number => {
+      let count = 0;
+      for (let seed = 1; seed <= 50; seed++) {
+        const day0 = FOUNDED + 5 * YEAR; // hájení – nikdo dospělý neumře
+        const pair = [ofAge(1, age, 1, day0), ofAge(2, age, 1, day0)];
+        const state = village(seed, pair, [dwelling(1)]);
+        for (let day = day0; day < day0 + 2 * 365 - 1; day++) {
+          count += populationDay(state, day, 1).filter((e) => e.kind === 'birth').length;
+        }
+      }
+      return count;
+    };
+    expect(births(14)).toBe(0);
+    expect(births(16)).toBeGreaterThan(0);
+  }, 30_000);
 
   it('narozené dítě dostane nové id, den narození a obydlí rodičů', () => {
     // dvojice plodných dospělých, nasycení 1 – někdy za pár let se musí narodit dítě

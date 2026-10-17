@@ -1,9 +1,10 @@
 import { dateOfDayIndex } from '../calendar';
+import { foundingCostPerHa, withinBounds } from './productivity';
 import {
   DISTANCE,
   FERTILITY,
   FOREST_AFTER_YEARS,
-  FOUNDING_COST_PER_HA,
+  FOREST_BONUS,
   RECLAIM_COST_PER_HA,
   SEED_KG_PER_HA,
   YIELD_BASE_KG_PER_HA,
@@ -14,11 +15,33 @@ const M2_PER_HA = 10_000;
 /** Tolerance proti chybám desetinných čísel při porovnání podílů úrodnosti. */
 const EPSILON = 1e-9;
 
+/** Díl je v okně po vymýcení lesa (popel z pálení ještě působí). */
+function inClearingWindow(part: FieldPart, day: number): boolean {
+  return part.bonusUntilDay !== null && part.bonusUntilDay >= day;
+}
+
+/**
+ * Bonus úrodnosti vymýceného lesa podle sezóny osevu od vymýcení: první +40, druhá +20, pak 0
+ * (`sownYears` = kolik sezón už je díl oset). Mimo okno po vymýcení 0.
+ */
+export function forestBonus(part: FieldPart, day: number): number {
+  if (!inClearingWindow(part, day)) return 0;
+  return FOREST_BONUS.bySeason[part.sownYears] ?? 0;
+}
+
+/** První sezóna po vymýcení lesa – vypálená půda je bez plevele, díl se neplete. */
+export function isWeedFree(part: FieldPart, day: number): boolean {
+  return inClearingWindow(part, day) && part.sownYears === 0;
+}
+
+/** Příloh starší 15 let je les – osev ho nejdřív vymýtí (s bonusem jako vymýcený les). */
+export function returnsFromForest(part: FieldPart, day: number): boolean {
+  return part.state === 'fallow' && fallowYears(part, day) >= FOREST_AFTER_YEARS;
+}
+
 /** Úrodnost dílu v daný den: přirozená × podíl + bonus po vymýcení lesa, nejvýš 100. */
 export function effectiveFertility(part: FieldPart, day: number): number {
-  const bonus =
-    part.bonusUntilDay !== null && part.bonusUntilDay >= day ? FERTILITY.forestBonus : 0;
-  return Math.min(100, part.naturalFertility * part.fertilityShare + bonus);
+  return Math.min(100, part.naturalFertility * part.fertilityShare + forestBonus(part, day));
 }
 
 /** Hrubá úroda v kg na hektar podle úrodnosti (0–100). */
@@ -41,19 +64,20 @@ export function fallowYears(part: FieldPart, day: number): number {
   return Math.max(0, now.year - since.year - (beforeAnniversary ? 1 : 0));
 }
 
-/** Cena vymýcení hektaru zarostlého dílu v člověkodnech podle let přílohu. */
-export function reclaimCostPerHa(years: number): number {
+/** Cena vrácení hektaru zarostlého dílu v člověkodnech podle let přílohu a pokrytí nástroji. */
+export function reclaimCostPerHa(years: number, toolCoverage: number): number {
   const step = RECLAIM_COST_PER_HA.find((s) => years <= s.maxYears);
-  return step?.cost ?? 0;
+  return step ? withinBounds(step.cost, toolCoverage) : 0;
 }
 
-/** Cena založení dílu: povrch × hektary + překážky. */
+/** Cena založení dílu: povrch × hektary (podle pokrytí nástroji) + překážky. */
 export function partFoundingCost(
   surface: FieldSurface,
   areaM2: number,
   obstacleCost: number,
+  toolCoverage: number,
 ): number {
-  return FOUNDING_COST_PER_HA[surface] * (areaM2 / M2_PER_HA) + obstacleCost;
+  return foundingCostPerHa(surface, toolCoverage) * (areaM2 / M2_PER_HA) + obstacleCost;
 }
 
 /**
@@ -68,6 +92,7 @@ export function endOfSeason(part: FieldPart, day: number): ChronicleEvent | null
       part.state = 'fallow';
       part.fallowSinceDay = day;
       part.sownYears = 0;
+      part.bonusUntilDay = null; // fáze osevu skončila – popel z vymýcení už nepůsobí
     }
     return null;
   }

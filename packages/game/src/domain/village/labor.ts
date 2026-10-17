@@ -1,4 +1,5 @@
-import { DAILY_MIN_PER_HOUSEHOLD, DOMESTIC } from './rules';
+import { dailyMinPerHousehold } from './productivity';
+import { DOMESTIC } from './rules';
 import type { TaskName } from './types';
 
 export interface DayAllocationInput {
@@ -8,6 +9,8 @@ export interface DayAllocationInput {
   tasks: { name: TaskName; remaining: number }[];
   repairNeed: number;
   domesticBacklog: number;
+  /** Pokrytí nádobami 0–1 – posouvá denní minimum mezi mezemi (crafts.md). */
+  potteryCoverage: number;
 }
 
 export interface DayAllocation {
@@ -27,7 +30,7 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
     left -= amount;
     return amount;
   };
-  const dailyMin = take(DAILY_MIN_PER_HOUSEHOLD * input.households);
+  const dailyMin = take(dailyMinPerHousehold(input.potteryCoverage) * input.households);
   const tasks: Record<TaskName, number> = {
     reclaim: 0,
     dig: 0,

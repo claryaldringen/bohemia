@@ -7,20 +7,18 @@ import {
   repairNeedPerDay,
   wantsRebuild,
 } from './dwellings';
-import { endOfSeason, fallowYears, selectPartsToSow } from './fields';
+import { endOfSeason, returnsFromForest, selectPartsToSow } from './fields';
 import { daysUntilHarvest, eatDay } from './food';
 import { allocateDay } from './labor';
-import { ageGroup, foodNeedPerDay, isFertileAdult, laborPerDay, occupants } from './people';
+import { ageGroup, foodNeedPerDay, isAdult, laborPerDay, occupants } from './people';
 import { householdBreaksUp, populationDay } from './population';
+import { NO_CRAFTS, dailyMinPerHousehold, fieldWorkPerHa } from './productivity';
 import {
   CHRONICLE_MAX_EVENTS,
   COMMON_LABOR_HISTORY_DAYS,
-  DAILY_MIN_PER_HOUSEHOLD,
   DWELLINGS,
-  FERTILITY,
-  FIELD_WORK_PER_HA,
   FOOD_NEED_KG_PER_YEAR,
-  FOREST_AFTER_YEARS,
+  FOREST_BONUS,
   HARVEST_DAY,
   PEAK_CAPACITY_SHARE,
   PLANNING_DAY,
@@ -50,9 +48,12 @@ import {
 
 type DayOfYear = Readonly<Pick<CalendarDate, 'month' | 'day'>>;
 
+// Řemesla zatím nejsou (crafts.md) – práce i ztráty se počítají s pokrytím NO_CRAFTS, tedy
+// s horními mezemi (`worst`). Až řemesla vzniknou, pokrytí se spočítá ze stavu vsi tady.
+
 /** Díl hotový nejpozději v posledním měsíci setí (duben) jde ještě do letošního plánu. */
 const LAST_JOIN_MONTH = Math.max(...WINDOWS.sow.map(([, to]) => to));
-/** Bonus vymýceného lesa trvá roky × 365 dní. */
+/** Okno bonusu vymýceného lesa trvá roky × 365 dní. */
 const DAYS_PER_BONUS_YEAR = 365;
 /** Tolerance, pod kterou se nasycení ještě bere jako plné. */
 const SATIATION_EPSILON = 1e-9;
@@ -117,7 +118,7 @@ function planYear(state: VillageState, day: number, year: number): void {
   const { targetKg, maxHa } = sowingLimits(state, day, year);
   const selected = selectPartsToSow(state.parts, targetKg, maxHa, day);
   // plán vzniká před změnou stavu dílů – vrácení přílohu se počítá jen u dílů v přílohu
-  state.plan = createPlan(selected, day);
+  state.plan = createPlan(selected, day, NO_CRAFTS.tools);
   const chosen = new Set(selected.map((p) => p.id));
   for (const part of state.parts) {
     if (chosen.has(part.id) || (part.state !== 'sown' && part.state !== 'ready')) continue;
@@ -140,7 +141,7 @@ function joinFinishedParts(state: VillageState, day: number, year: number): void
   if (plan === null) {
     const selected = selectPartsToSow(state.parts, targetKg, maxHa, day);
     if (selected.length === 0) return;
-    state.plan = createPlan(selected, day);
+    state.plan = createPlan(selected, day, NO_CRAFTS.tools);
     sow(selected, day);
     return;
   }
@@ -149,7 +150,7 @@ function joinFinishedParts(state: VillageState, day: number, year: number): void
   const candidates = state.parts.filter((p) => inPlan.has(p.id) || p.state === 'ready');
   const added = selectPartsToSow(candidates, targetKg, maxHa, day).filter((p) => !inPlan.has(p.id));
   if (added.length === 0) return;
-  const extra = createPlan(added, day);
+  const extra = createPlan(added, day, NO_CRAFTS.tools);
   for (const task of TASK_ORDER) plan.required[task] += extra.required[task];
   plan.partIds.push(...extra.partIds);
   sow(added, day);
@@ -167,13 +168,14 @@ function sowingLimits(
   const need = state.people.reduce((sum, p) => sum + FOOD_NEED_KG_PER_YEAR[ageGroup(p, day)], 0);
   const targetKg = state.storesKg > STORES_HIGH_YEARS * need ? need : need * (1 + SOW_RESERVE);
   const capacity = state.people.reduce((sum, p) => sum + laborPerDay(p, day), 0);
-  const dailyMin = DAILY_MIN_PER_HOUSEHOLD * occupiedDwellings(state).length;
+  const dailyMin = dailyMinPerHousehold(NO_CRAFTS.pottery) * occupiedDwellings(state).length;
   const free = Math.max(0, capacity - dailyMin) * PEAK_CAPACITY_SHARE;
   const springCap = free * windowDays(year, WINDOWS.sow);
   const summerCap = free * windowDays(year, WINDOWS.harvest);
+  const work = (task: 'dig' | 'sow' | 'harvest'): number => fieldWorkPerHa(task, NO_CRAFTS.tools);
   const maxHa = Math.min(
-    springCap / (FIELD_WORK_PER_HA.dig * SPRING_DIG_SHARE + FIELD_WORK_PER_HA.sow),
-    summerCap / FIELD_WORK_PER_HA.harvest,
+    springCap / (work('dig') * SPRING_DIG_SHARE + work('sow')),
+    summerCap / work('harvest'),
   );
   return { targetKg, maxHa };
 }
@@ -194,16 +196,16 @@ function windowDays(year: number, segments: readonly (readonly [number, number])
   return days;
 }
 
-/** Do kdy platí bonus úrodnosti lesa vymýceného v den `day`. */
+/** Do kdy platí okno bonusu úrodnosti lesa vymýceného v den `day`. */
 function forestBonusUntil(day: number): number {
-  return day + FERTILITY.forestBonusYears * DAYS_PER_BONUS_YEAR;
+  return day + FOREST_BONUS.windowYears * DAYS_PER_BONUS_YEAR;
 }
 
 /** Vybrané díly se osejí; příloh starší 15 let se vrací z lesa a dostane bonus úrodnosti. */
 function sow(parts: FieldPart[], day: number): void {
   for (const part of parts) {
     if (part.state === 'fallow') {
-      if (fallowYears(part, day) >= FOREST_AFTER_YEARS) part.bonusUntilDay = forestBonusUntil(day);
+      if (returnsFromForest(part, day)) part.bonusUntilDay = forestBonusUntil(day);
       part.fallowSinceDay = null;
       part.sownYears = 0;
     }
@@ -246,6 +248,7 @@ function work(state: VillageState, day: number): void {
     tasks: owned.map(({ name, remaining }) => ({ name, remaining })),
     repairNeed,
     domesticBacklog: state.domesticBacklog,
+    potteryCoverage: NO_CRAFTS.pottery,
   });
 
   for (const task of owned) {
@@ -416,7 +419,7 @@ function moveInYoungestPair(state: VillageState, day: number, dwellingId: number
   for (const source of qualifyingDwellings(state, day)) {
     const members = occupants(state, source.id);
     const movers = members
-      .filter((p) => isFertileAdult(p, day))
+      .filter((p) => isAdult(p, day))
       .sort((a, b) => b.bornDay - a.bornDay || b.id - a.id)
       .slice(0, 2);
     if (movers.length < 2) continue;
@@ -490,7 +493,12 @@ function endThreshing(state: VillageState): void {
 /** Krok 8: jídlo dne ze zásob; vrací nasycení a zapíše začátek a konec hladu. */
 function eat(state: VillageState, day: number): number {
   const need = state.people.reduce((sum, p) => sum + foodNeedPerDay(p, day), 0);
-  const { storesKg, satiation } = eatDay(state.storesKg, need, daysUntilHarvest(day));
+  const { storesKg, satiation } = eatDay(
+    state.storesKg,
+    need,
+    daysUntilHarvest(day),
+    NO_CRAFTS.pottery,
+  );
   state.storesKg = storesKg;
   const hungry = satiation < 1 - SATIATION_EPSILON;
   if (hungry !== state.hungry) {

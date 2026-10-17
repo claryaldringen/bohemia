@@ -15,7 +15,7 @@ const view = (overrides: Partial<VillageView> = {}): VillageView => ({
   build: {
     zemnice: { laborManDays: 60, perHa: false, upfront: [], affordable: true },
     polozemnice: { laborManDays: 220, perHa: false, upfront: [], affordable: true },
-    field: { laborManDays: 40, perHa: true, upfront: [], affordable: true },
+    field: { laborManDays: 100, perHa: true, upfront: [], affordable: true },
   },
   constructions: [],
   fields: [],

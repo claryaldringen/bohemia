@@ -30,9 +30,18 @@ export function foodNeedPerDay(person: Person, day: number): number {
   return FOOD_NEED_KG_PER_YEAR[ageGroup(person, day)] / FOOD_DAYS_PER_YEAR;
 }
 
-/** Plodný dospělý (14–44 let). */
-export function isFertileAdult(person: Person, day: number): boolean {
+/**
+ * Dospělý 14–44 let – pracuje plně, počítá se do čtyř dospělých pro nové obydlí a drží
+ * domácnost pohromadě (population.md).
+ */
+export function isAdult(person: Person, day: number): boolean {
   return ageGroup(person, day) === 'adult';
+}
+
+/** Může mít děti: 16–44 let (population.md – Růst populace; porody od 16, ne od dospělosti). */
+export function isFertile(person: Person, day: number): boolean {
+  const age = ageYears(person.bornDay, day);
+  return age >= AGE.fertile && age < AGE.elder;
 }
 
 /** Obyvatelé obydlí seřazení podle id. */

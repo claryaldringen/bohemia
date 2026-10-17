@@ -164,11 +164,11 @@ describe('fieldPartsFromCells – díly po čtvercích', () => {
     expect(result.averageFertility).toBeCloseTo((40 * 2 + 80) / 3);
   });
 
-  it('cena je 40 člověkodní za hektar louky', () => {
+  it('cena je 100 člověkodní za hektar louky (bez řemesel horní mez)', () => {
     const result = fieldPartsFromCells(landscape, null, block(6, 6, 3, 2), home);
     expect(result.check.ok).toBe(true);
     expect(result.areaM2).toBe(1350);
-    expect(result.foundingCost).toBeCloseTo(40 * 0.135);
+    expect(result.foundingCost).toBeCloseTo(100 * 0.135);
   });
 
   it('čtverce musí sousedit stranou v jednom celku – roh nestačí', () => {

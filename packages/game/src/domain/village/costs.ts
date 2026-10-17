@@ -1,4 +1,5 @@
-import { DWELLINGS, FOUNDING_COST_PER_HA } from './rules';
+import { NO_CRAFTS, foundingCostPerHa } from './productivity';
+import { DWELLINGS } from './rules';
 import type { DwellingType, VillageState } from './types';
 
 // Ceny staveb a jestli na ně ves má (population.md – Nové obydlí, Odemčení). Práce
@@ -29,7 +30,7 @@ export interface BuildCost {
 export const BUILD_COSTS: Record<BuildKind, BuildCost> = {
   zemnice: { laborManDays: DWELLINGS.zemnice.cost, perHa: false, upfront: {} },
   polozemnice: { laborManDays: DWELLINGS.polozemnice.cost, perHa: false, upfront: {} },
-  field: { laborManDays: FOUNDING_COST_PER_HA.meadow, perHa: true, upfront: {} },
+  field: { laborManDays: foundingCostPerHa('meadow', NO_CRAFTS.tools), perHa: true, upfront: {} },
 };
 
 /** Zásoby vsi podle surovin. */
