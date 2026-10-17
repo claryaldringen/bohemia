@@ -205,7 +205,12 @@ async function newPlayer(page: Page, prefix: string): Promise<{ email: string; s
 async function found(page: Page, dwelling: Position): Promise<void> {
   await page.getByTestId('build-grid').getByRole('button', { name: 'Zemnice' }).click();
   await confirmPlacement(page, { kind: 'dwelling', type: 'zemnice', position: dwelling });
-  await expect(page.getByTestId('village-people')).toHaveText('4', { timeout: 30_000 });
+  // ves zakládají 4 lidé – v den založení se ale může narodit dítě, proto aspoň 4
+  const people = page.getByTestId('village-people');
+  await expect(people).toHaveText(/^\d+$/, { timeout: 30_000 });
+  await expect
+    .poll(async () => Number(await people.textContent()), { timeout: 30_000 })
+    .toBeGreaterThanOrEqual(4);
 }
 
 test('nový hráč založí ves umístěním zemnice, přejmenuje ji a vybere zemnici', async ({ page }) => {
