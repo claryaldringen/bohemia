@@ -30,18 +30,19 @@ export interface ForestField {
  * na úrovni 0,5 se spočítá znaménková vzdálenost. Hranice zůstává do zhruba třetiny políčka
  * od hran políček – herní plocha lesa a vykreslený les se tak téměř kryjí.
  */
-export function buildForestField(l: Landscape): ForestField {
+export function buildForestField(l: Landscape, options: { remember?: boolean } = {}): ForestField {
   const cached = fieldCache.get(l.surface);
   if (cached) return cached;
   const field = computeForestField(l);
-  fieldCache.set(l.surface, field);
+  if (options.remember ?? true) fieldCache.set(l.surface, field);
   return field;
 }
 
 /**
- * Mezipaměť podle pole povrchu: pole lesa závisí jen na povrchu políček (a mřížce), a tak ho
- * vrstva překážek, scéna i zvuky spočítají jednou – i když každý dostane jiný objekt krajiny
- * se stejným povrchem (`transferPrecision`).
+ * Mezipaměť podle pole povrchu: pole lesa závisí jen na povrchu políček (a mřížce). Scéna si ho
+ * zapamatuje (`remember`, výchozí) a vrstva překážek ho pak jen převezme – i když dostane jiný
+ * objekt krajiny se stejným povrchem (`transferPrecision`). Vrstva překážek sama si ho
+ * nepamatuje: na serveru by jinak ≈ 1 MB pole lesa žilo s každou krajinou v mezipaměti.
  */
 const fieldCache = new WeakMap<Uint8Array, ForestField>();
 

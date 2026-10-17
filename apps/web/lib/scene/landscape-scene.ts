@@ -214,10 +214,10 @@ export class LandscapeScene {
     // Stromy, keře a kameny jsou herní data – vrstva překážek z herního jádra, stejná jako na
     // serveru: okraj lesa a jeho vnitřek (impostory), stromy v loukách a na břehu, borovice na
     // skalách, mladé stromky, souše, padlé stromy, pařezy, keře, kameny a skalní výchozy.
+    // pole lesa napřed (zapamatuje se) – vrstva překážek ho převezme, nepočítá se dvakrát
+    const field = buildForestField(landscape);
     const obstacles = obstaclesOf(landscape);
     this.obstacles = obstacles;
-    // pole lesa spočítala už vrstva překážek (mezipaměť podle povrchu)
-    const field = buildForestField(landscape);
     const scenery = obstacleScenery(obstacles);
     const trees = scenery.trees;
     // ozdoby vody (rákos, lekníny, kmeny v potoce) nejsou překážky – jen vzhled scény

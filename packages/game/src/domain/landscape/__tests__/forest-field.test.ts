@@ -85,4 +85,12 @@ describe('buildForestField', () => {
   it('stejný povrch = stejné pole z mezipaměti', () => {
     expect(buildForestField({ ...landscape })).toBe(field);
   });
+
+  it('bez zapamatování se pole do mezipaměti neuloží (vrstva překážek na serveru)', () => {
+    const other = { ...landscape, surface: landscape.surface.slice() };
+    const once = buildForestField(other, { remember: false });
+    expect(buildForestField(other, { remember: false })).not.toBe(once);
+    const remembered = buildForestField(other);
+    expect(buildForestField(other, { remember: false })).toBe(remembered);
+  });
 });

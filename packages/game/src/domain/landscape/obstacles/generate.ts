@@ -40,7 +40,8 @@ export function scatterContext(landscape: Landscape, seed: number): ScatterConte
   for (const h of l.heights) maxHeight = Math.max(maxHeight, h);
   return {
     landscape: l,
-    field: buildForestField(l),
+    // pole lesa jen převezme, když ho už má scéna – na serveru se po vygenerování zahodí
+    field: buildForestField(l, { remember: false }),
     stream: streamCenterline(l),
     relief: buildRelief(l),
     seed,
