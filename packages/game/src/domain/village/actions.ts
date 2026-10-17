@@ -8,7 +8,7 @@ import {
   START_AGES,
   START_STORES_MONTHS,
 } from './rules';
-import type { DwellingType, FieldSurface, Person, Position, VillageState } from './types';
+import type { DwellingType, FieldSurface, Person, Position, TileCell, VillageState } from './types';
 
 const DAYS_PER_YEAR = 365.25; // věk se počítá po 365,25 dne
 const MONTHS_PER_YEAR = 12;
@@ -19,6 +19,7 @@ export type PartInput = {
   naturalFertility: number;
   surface: FieldSurface;
   obstacleCost: number;
+  cell?: TileCell; // políčko krajiny dílu (z placement.ts)
 };
 
 export type FieldInput = { outline: [number, number][]; parts: PartInput[] };
@@ -61,6 +62,7 @@ function addField(state: VillageState, day: number, field: FieldInput): void {
       foundingCost,
       foundingDone: 0,
       surface: input.surface,
+      ...(input.cell ? { cell: { ...input.cell } } : {}),
     });
   }
   state.constructions.push({

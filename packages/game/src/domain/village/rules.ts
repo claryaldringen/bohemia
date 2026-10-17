@@ -133,3 +133,18 @@ export const THRESH_END_DAY = { month: 3, day: 1 } as const;
 export function childDeathsPerYear(): number {
   return 1 - (1 - CHILD_DEATH_BEFORE_ADULT) ** (1 / AGE.adult);
 }
+
+// population.md – Umístění obydlí (půdorys zemnice ≈ 4 × 4 m, polozemnice 5 × 5 m, rovina ≤ 0,5 m)
+export const DWELLING_FOOTPRINT_M: Record<DwellingType, { width: number; depth: number }> = {
+  zemnice: { width: 4, depth: 4 },
+  polozemnice: { width: 5, depth: 5 },
+};
+export const DWELLING_MAX_HEIGHT_DIFF_M = 0.5;
+// fields.md – Zarůstání (stadia přílohu podle celých let bez péče; víc než 15 let = les)
+export const OVERGROWTH_STAGES = [
+  { maxYears: 2, stage: 'young-fallow' },
+  { maxYears: 5, stage: 'meadow' },
+  { maxYears: 10, stage: 'young-growth' },
+  { maxYears: 15, stage: 'shrub' },
+  { maxYears: Infinity, stage: 'forest' },
+] as const;

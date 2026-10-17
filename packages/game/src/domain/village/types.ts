@@ -19,6 +19,11 @@ export interface Dwelling {
   position: Position;
 }
 export type PartState = 'founding' | 'ready' | 'sown' | 'fallow';
+/** Políčko krajiny – sloupec x a řádek y mřížky. */
+export interface TileCell {
+  x: number;
+  y: number;
+}
 export interface FieldPart {
   id: number;
   fieldId: number;
@@ -33,6 +38,7 @@ export interface FieldPart {
   foundingCost: number; // člověkodny (povrch × plocha + překážky)
   foundingDone: number;
   surface: FieldSurface; // povrch při založení
+  cell?: TileCell; // políčko krajiny, ve kterém díl leží (pro scénu)
 }
 export interface Field {
   id: number;
