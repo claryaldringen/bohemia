@@ -1,13 +1,14 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
-import { checkDwellingPlacement, fieldPartsFromOutline } from '@bohemia/game';
+import { checkDwellingPlacement, fieldPartsFromCells } from '@bohemia/game';
 import { foundVillage, getVillageView, placeDwelling, placeField } from '@/app/game/actions';
 import { usePlacement } from '@/hooks/use-placement';
 import { usePolling } from '@/hooks/use-polling';
 import { decodeLandscape, type LandscapeTransfer } from '@/lib/landscape-transfer';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
 import { fieldPreviewLabel } from '@/lib/village-format';
+import { newNotices, type VillageNotice } from '@/lib/village-notices';
 import {
   foundingSceneVillage,
   placementVillageFromScene,
@@ -17,6 +18,7 @@ import {
 import { BuildMenu, type BuildItem } from './BuildMenu';
 import { FoundingPanel, type FoundingInput } from './FoundingPanel';
 import { GameView } from './GameView';
+import { NoticeToasts, type NoticeToast } from './NoticeToasts';
 import { PlacementBubble } from './PlacementBubble';
 import { VillagePanel } from './VillagePanel';
 
@@ -25,6 +27,8 @@ export type VillageData = VillageView | null | { error: string };
 
 const POLL_MS = 5000;
 const TOAST_MS = 6000;
+/** Nejvíc upozornění vsi najednou – starší ustoupí novějším. */
+const MAX_NOTICE_TOASTS = 3;
 const CONNECTION_FAILED = 'Spojení se serverem selhalo – zkus to prosím znovu.';
 
 function isVillageView(state: VillageData): state is VillageView {
@@ -55,6 +59,7 @@ export function VillageGame({
   const [placingItem, setPlacingItem] = useState<BuildItem | null>(null);
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [notices, setNotices] = useState<NoticeToast[]>([]);
   const placement = usePlacement(scene);
   const view = isVillageView(village) ? village : null;
   const villageError = village !== null && 'error' in village ? village.error : null;
@@ -67,6 +72,25 @@ export function VillageGame({
   useEffect(() => {
     viewRef.current = view;
   }, [view]);
+  // Poslední použitý pohled na ves – nová upozornění se počítají proti němu.
+  const noticedRef = useRef<VillageView | null>(view);
+  const noticeId = useRef(0);
+
+  /** Použije nový stav vsi a ohlásí upozornění, která mezitím nově vznikla. */
+  const applyVillage = useCallback((next: VillageData): void => {
+    setVillage(next);
+    if (!isVillageView(next)) return;
+    const fresh: VillageNotice[] = newNotices(noticedRef.current, next);
+    noticedRef.current = next;
+    if (fresh.length === 0) return;
+    setNotices((list) =>
+      [...list, ...fresh.map((n) => ({ ...n, id: ++noticeId.current }))].slice(-MAX_NOTICE_TOASTS),
+    );
+  }, []);
+
+  const dismissNotice = useCallback((id: number): void => {
+    setNotices((list) => list.filter((n) => n.id !== id));
+  }, []);
 
   const sceneVillage = view ? view.scene : preview;
   useEffect(() => {
@@ -87,8 +111,8 @@ export function VillageGame({
     appliedSeq.current = seq;
     // Chyba (např. odhlášení v jiném panelu) poslední pohled na ves nesmaže – jen se ohlásí.
     if (result !== null && 'error' in result && viewRef.current) setToast(result.error);
-    else setVillage(result);
-  }, []);
+    else applyVillage(result);
+  }, [applyVillage]);
   // Dokud ves není, není co obnovovat (založení vrátí pohled samo).
   usePolling(poll, POLL_MS, village !== null);
 
@@ -102,7 +126,7 @@ export function VillageGame({
         const result = await action();
         if ('error' in result) return result.error;
         appliedSeq.current = Math.max(appliedSeq.current, seq);
-        setVillage(result);
+        applyVillage(result);
         return null;
       } catch (error) {
         console.error('Akce vsi selhala.', error);
@@ -112,7 +136,7 @@ export function VillageGame({
         setBusy(false);
       }
     },
-    [],
+    [applyVillage],
   );
 
   const runBuildAction = (action: () => Promise<VillageView | { error: string }>): void => {
@@ -133,20 +157,23 @@ export function VillageGame({
       placement.start(
         {
           kind: 'field',
-          preview: (outline) => {
+          preview: (cells) => {
             const scene = viewRef.current?.scene ?? { dwellings: [], fields: [] };
-            const result = fieldPartsFromOutline(
+            const result = fieldPartsFromCells(
               decoded,
               placementVillageFromScene(scene),
-              outline,
+              cells,
               scene.dwellings.map((d) => d.position),
             );
-            return { check: result.check, label: fieldPreviewLabel(result) };
+            return {
+              check: result.check,
+              label: fieldPreviewLabel(result),
+              blockedCells: result.blockedCells,
+            };
           },
         },
         (result) => {
-          if (result.kind === 'field')
-            runBuildAction(() => placeField({ outline: result.outline }));
+          if (result.kind === 'field') runBuildAction(() => placeField({ cells: result.cells }));
         },
       );
       return;
@@ -196,13 +223,16 @@ export function VillageGame({
           placing={
             placement.active && placingItem ? { item: placingItem, kind: placement.active } : null
           }
+          preview={placement.preview}
           busy={busy}
           sceneReady={scene !== null}
           onBuild={startBuild}
+          onConfirm={placement.confirm}
           onCancel={placement.cancel}
         />
       )}
       <PlacementBubble preview={placement.active ? placement.preview : null} />
+      <NoticeToasts notices={notices} onDismiss={dismissNotice} />
       {toast && (
         <div
           role="alert"

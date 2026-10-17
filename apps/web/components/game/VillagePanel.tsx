@@ -9,6 +9,7 @@ import {
   formatPercent,
   formatStoresMonths,
 } from '@/lib/village-format';
+import { villageNotices } from '@/lib/village-notices';
 import { DWELLING_NAMES, type VillageView } from '@/lib/village-view';
 
 function Section({ title, children }: { title: string; children: ReactNode }): ReactElement {
@@ -49,11 +50,15 @@ function Badge({ tone, children }: { tone: 'ok' | 'warn'; children: ReactNode })
   return <span className={`rounded px-1 text-[11px] ${colors}`}>{children}</span>;
 }
 
-/** Panel vsi vlevo nahoře: lidé, domácnosti, zásoby, práce, stavby a kronika. Jde sbalit. */
+/**
+ * Panel vsi vlevo nahoře: trvající upozornění, lidé, domácnosti, zásoby, práce, stavby
+ * a kronika. Jde sbalit.
+ */
 export function VillagePanel({ view }: { view: VillageView }): ReactElement {
   const [open, setOpen] = useState(true);
   const { people } = view;
   const total = people.children + people.adults + people.elders;
+  const notices = villageNotices(view);
 
   return (
     <aside
@@ -79,6 +84,24 @@ export function VillagePanel({ view }: { view: VillageView }): ReactElement {
 
       {open && (
         <div id="village-panel-body" className="space-y-2 overflow-y-auto px-3 pb-3">
+          {notices.length > 0 && (
+            <Section title="Upozornění">
+              <ul data-testid="village-notices" className="space-y-1">
+                {notices.map((n) => (
+                  <li key={n.kind} className="flex items-baseline gap-2 leading-snug">
+                    <span
+                      aria-hidden
+                      className={`inline-block h-2 w-2 shrink-0 rounded-full ${n.tone === 'good' ? 'bg-emerald-600' : 'bg-amber-600'}`}
+                    />
+                    <span>
+                      <span className="font-semibold">{n.title}</span>{' '}
+                      <span className="text-xs text-stone-600 dark:text-stone-400">{n.text}</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </Section>
+          )}
           <Section title="Lidé">
             <p>
               <span data-testid="village-people" className="font-semibold">
