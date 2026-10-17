@@ -1,4 +1,4 @@
-import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
+import { PBRMaterial } from '@babylonjs/core/Materials/PBR/pbrMaterial';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Matrix, Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
@@ -6,6 +6,7 @@ import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import type { Scene } from '@babylonjs/core/scene';
 import type { Landscape, ObstacleChanges, ObstacleLayer } from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
+import { applyGammaFog } from './gamma-fog';
 import {
   PILE_DEPTH_M,
   PILE_WIDTH_M,
@@ -14,6 +15,7 @@ import {
   pileToWorld,
   type LogPileSite,
 } from './log-pile-layout';
+import { applySeasonSnow } from './season-materials';
 
 /** Úseků kmene po obvodu a po délce (kůra se po délce mírně mění). */
 const SIDES = 12;
@@ -108,10 +110,14 @@ export class LogPile {
     if (this.mesh) return this.mesh;
     const mesh = new Mesh('village-logs', this.scene);
     logVertexData().applyToMesh(mesh);
-    const material = new StandardMaterial('village-logs', this.scene);
-    material.diffuseColor = Color3.White();
-    material.specularColor = Color3.Black();
-    material.ambientColor = new Color3(0.4, 0.38, 0.36);
+    // PBR jako modely vsi: opar podle gama (applyGammaFog) a v zimě sníh na horních plochách
+    const material = new PBRMaterial('village-logs', this.scene);
+    material.albedoColor = Color3.White();
+    material.metallic = 0;
+    material.roughness = 1;
+    material.ambientColor = new Color3(0.38, 0.38, 0.36);
+    applyGammaFog(material);
+    applySeasonSnow(material);
     // čela i plášť mají vlastní normály – na pořadí vrcholů nezáleží
     material.backFaceCulling = false;
     mesh.material = material;
@@ -145,7 +151,8 @@ function logVertexData(): VertexData {
   ): number => {
     positions.push(...p);
     normals.push(...n);
-    colors.push(c[0]!, c[1]!, c[2]!, 1);
+    // barvy vrcholů jsou gama, PBR počítá lineárně
+    colors.push(c[0]! ** 2.2, c[1]! ** 2.2, c[2]! ** 2.2, 1);
     return positions.length / 3 - 1;
   };
   // plášť
