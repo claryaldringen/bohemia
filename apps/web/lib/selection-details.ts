@@ -57,6 +57,8 @@ export type SelectionDetails =
       expectedYieldKg: number;
       /** Výsadba (průběh 0–1); vysazený sad null. */
       planting: number | null;
+      /** Výsadba čeká na okno (jaro, podzim). */
+      plantingWaits: boolean;
     };
 
 /** Pořadí stadií dílů v panelu pole – od zakládání po zarůstání. */
@@ -141,6 +143,7 @@ export function selectionDetails(
       ageYears: orchard.ageYears,
       expectedYieldKg: orchard.expectedYieldKg,
       planting: orchard.planting,
+      plantingWaits: orchard.plantingWaits,
     };
   }
   const field = view?.fields.find((f) => f.id === target.id);

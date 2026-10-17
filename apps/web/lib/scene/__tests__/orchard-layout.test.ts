@@ -1,16 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   APPLE_VARIANTS,
-  SAPLING_GROWTH,
-  STAKE_YEARS,
   TREES_PER_SQUARE,
-  TREE_GROWTH_YEARS,
-  fruitVisible,
-  hasStake,
   orchardTreeSpots,
   plantingPhase,
   plantingProgress,
-  treeGrowth,
 } from '../orchard-layout';
 
 const square = { cell: { x: 4, y: 7 }, x: 30, z: -15, size: 15 };
@@ -35,13 +29,17 @@ describe('jabloně ve čtverci', () => {
     expect(orchardTreeSpots({ ...square, cell: { x: 5, y: 7 } })).not.toEqual(spots);
   });
 
-  it('sazenice roste do plné velikosti; kůl první roky', () => {
-    expect(treeGrowth(0)).toBe(SAPLING_GROWTH);
-    expect(treeGrowth(TREE_GROWTH_YEARS / 2)).toBeCloseTo((1 + SAPLING_GROWTH) / 2);
-    expect(treeGrowth(TREE_GROWTH_YEARS)).toBe(1);
-    expect(treeGrowth(40)).toBe(1);
-    expect(hasStake(treeGrowth(1))).toBe(true);
-    expect(hasStake(treeGrowth(STAKE_YEARS + 0.1))).toBe(false);
+  it('stromy obejdou skalní výchoz – odsunou se z něj, nebo tam nejsou', () => {
+    const free = orchardTreeSpots(square);
+    const first = free[0]!;
+    // výchoz přímo pod prvním stromem: strom se odsune ven (aspoň poloměr + 1 m od středu)
+    const rock = { x: first.x + 0.5, z: first.z + 0.5, radius: 2 };
+    const moved = orchardTreeSpots(square, [rock]);
+    expect(moved).toHaveLength(free.length);
+    expect(Math.hypot(moved[0]!.x - rock.x, moved[0]!.z - rock.z)).toBeGreaterThanOrEqual(3 - 1e-9);
+    expect(moved[1]).toEqual(free[1]);
+    // obří výchoz přes celý čtverec – stromy tam nejsou
+    expect(orchardTreeSpots(square, [{ x: square.x, z: square.z, radius: 12 }])).toEqual([]);
   });
 
   it('výsadba po fázích: nejdřív kůly, pak sazenice', () => {
@@ -53,14 +51,5 @@ describe('jabloně ve čtverci', () => {
     expect(plantingProgress(0.25, TREES_PER_SQUARE)).toEqual({ stakes: 1, saplings: 0 });
     expect(plantingPhase(0.2).label).toBe('Kůly');
     expect(plantingPhase(0.8).label).toBe('Sazenice');
-  });
-
-  it('jablka visí v srpnu a během sklizně, než se sklidí – jen na plodícím sadu', () => {
-    const base = { bearing: true, month: 8, harvestWindow: false, harvested: false };
-    expect(fruitVisible(base)).toBe(true);
-    expect(fruitVisible({ ...base, bearing: false })).toBe(false);
-    expect(fruitVisible({ ...base, month: 9, harvestWindow: true })).toBe(true);
-    expect(fruitVisible({ ...base, month: 9, harvestWindow: true, harvested: true })).toBe(false);
-    expect(fruitVisible({ ...base, month: 6 })).toBe(false);
   });
 });

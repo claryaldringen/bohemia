@@ -214,7 +214,21 @@ function OrchardBody({
         </Stat>
       </div>
       {details.planting !== null && (
-        <Bar value={details.planting} name="Výsadba" testId="selection-progress" />
+        <div className="flex items-center gap-1.5">
+          <Bar value={details.planting} name="Výsadba" testId="selection-progress" />
+          {details.plantingWaits && (
+            <Tooltip content="Sází se na jaře a na podzim" placement="above">
+              <img
+                data-testid="selection-planting-waits"
+                src="/icons/resources/date.png"
+                alt="Sází se na jaře a na podzim"
+                width={18}
+                height={18}
+                tabIndex={0}
+              />
+            </Tooltip>
+          )}
+        </div>
       )}
     </div>
   );

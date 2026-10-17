@@ -220,6 +220,7 @@ export class LandscapeScene {
     const field = buildForestField(landscape);
     const obstacles = obstaclesOf(landscape);
     this.obstacles = obstacles;
+    if (this.village.setObstacles(obstacles)) this.renderWhenReady();
     const scenery = obstacleScenery(obstacles);
     const trees = scenery.trees;
     // ozdoby vody (rákos, lekníny, kmeny v potoce) nejsou překážky – jen vzhled scény

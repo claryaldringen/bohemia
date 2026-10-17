@@ -8,9 +8,9 @@ import {
   effectiveFertility,
   monthInWindow,
   obstacleChangesAt,
-  orchardYear,
-  orchardYieldShare,
+  ORCHARD_PLANTING_WINDOWS,
   partStage,
+  squareBearing,
   summarizeVillage,
   tileCenterWorld,
   type BuildKind,
@@ -33,7 +33,7 @@ import {
   villageOrchards,
 } from '@bohemia/game';
 import { formatGameDate } from './game-date';
-import { fruitVisible, treeGrowth } from './scene/orchard-layout';
+import { fruitVisible, treeGrowth } from './orchard-look';
 import { formatCells, formatHa, formatInteger } from './village-format';
 
 // Pohled na ves pro panel a scénu (DTO server actions). Čistý modul – smí ho importovat
@@ -146,6 +146,8 @@ export interface VillageOrchard {
   expectedYieldKg: number;
   /** Průběh výsadby 0–1; vysazený sad null. */
   planting: number | null;
+  /** Výsadba čeká na okno – sází se jen na jaře a na podzim (orchard.md). */
+  plantingWaits: boolean;
 }
 
 export interface SceneVillage {
@@ -181,7 +183,7 @@ export interface SceneVillage {
   }[];
   /**
    * Jabloňové sady po čtvercích (střed políčka ve světě a strana jako u pole): průběh výsadby
-   * čtverce 0–1, velikost stromů 0–1 (mladé stromky rostou – orchard-layout.ts) a jestli na
+   * čtverce 0–1, velikost stromů 0–1 (mladé stromky rostou – orchard-look.ts) a jestli na
    * stromech visí jablka (pozdní léto a podzim, než se sklidí). Bez údaje žádné.
    */
   orchards?: {
@@ -197,7 +199,7 @@ export interface SceneVillage {
     }[];
   }[];
   /**
-   * Stromy, keře a kameny vrstvy překážek, které ves odstranila (pole, obydlí, hřbitovy) nebo
+   * Stromy, keře a kameny vrstvy překážek, které ves odstranila (pole, obydlí, hřbitovy, sady) nebo
    * pokácela (pařez, později nálet) – id z vrstvy. Bez údaje žádné.
    */
   obstacles?: ObstacleChanges;
@@ -347,7 +349,7 @@ function sceneOrchardSquare(
   const fruit =
     planted !== null &&
     fruitVisible({
-      bearing: orchardYieldShare(orchardYear(planted, day)) > 0,
+      bearing: squareBearing(square, day),
       month,
       harvestWindow: monthInWindow(ORCHARD_WINDOWS.harvest, month),
       harvested: work?.task === 'harvest' ? work.done >= work.required : true,
@@ -510,6 +512,9 @@ export function buildVillageView(
         ageYears: o.ageYears,
         expectedYieldKg: o.expectedYieldKg,
         planting: planting ? planting.progress : null,
+        plantingWaits:
+          planting !== undefined &&
+          !monthInWindow(ORCHARD_PLANTING_WINDOWS, dateOfDayIndex(day).month),
       };
     }),
     scene: sceneVillage(state, landscape, day, summary.constructions),

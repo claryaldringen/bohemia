@@ -5,6 +5,7 @@ import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import type { Scene } from '@babylonjs/core/scene';
+import { OUTCROP_RADIUS_M, obstacleKind, obstaclesNear, type ObstacleLayer } from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
 import { cellsBoundary, cellsBounds, cellsContain } from './field-cells';
 import { applyGammaFog } from './gamma-fog';
@@ -15,11 +16,13 @@ import {
   hasStake,
   orchardTreeSpots,
   plantingProgress,
+  type Outcrop,
 } from './orchard-layout';
 import { stripSegments, type HideShape } from './village-layout';
 import { createStripMesh, type HeightFn } from './village-meshes';
 
 type SceneOrchard = NonNullable<SceneVillage['orchards']>[number];
+type SceneOrchardSquare = SceneOrchard['squares'][number];
 
 const MODEL_BASE_URL = '/models/trees/';
 /** Kůl u mladého stromku: průřez a délka (m), kus je zatlučený v zemi; stojí kousek od kmene. */
@@ -30,6 +33,8 @@ const STAKE_OFFSET_M = 0.3;
 /** Výška čáry vytyčení nad terénem (m) a kolik kolem čtverců se skryjí ozdoby krajiny. */
 const LAYOUT_LIFT_M = 0.06;
 const HIDE_MARGIN_M = 1;
+/** Jak daleko za okrajem čtverce se hledají skalní výchozy (největší ≈ 5,4 m poloměr). */
+const OUTCROP_SEARCH_M = OUTCROP_RADIUS_M * 2;
 /** Listí jabloní jako 3D stromy okraje lesa (trees.ts) – tlumené světlo, bez odlesku. */
 const FOLIAGE_TINT = new Color3(0.88, 0.92, 0.82);
 const FOLIAGE_AMBIENT = new Color3(0.36, 0.38, 0.34);
@@ -39,13 +44,16 @@ const STAKE_AMBIENT = new Color3(0.42, 0.42, 0.4);
  * Jabloňové sady ve scéně (orchard.md – Co hráč vidí): jabloně z 0 A.D. v řadách po čtvercích
  * (orchard-layout.ts) – mladé stromky rostou do plné velikosti a první roky stojí u kůlu, plodící
  * sad má od srpna do sklizně na stromech jablka (model s plody). Výsadba po fázích: světlá čára
- * vytyčení kolem sadu, kůly, pak sazenice. Modely jsou v instancích (jeden mesh na variantu
- * a plody), načtou se až s prvním sadem.
+ * vytyčení kolem sadu, kůly, pak sazenice (překážky z čtverce jádro odstraní, jakmile se na něm
+ * začne pracovat); stromy obejdou skalní výchozy z vrstvy překážek. Modely jsou v instancích
+ * (jeden mesh na variantu a plody), načtou se až s prvním sadem.
  */
 export class OrchardRenderer {
   private key = '';
   private orchards: readonly SceneOrchard[] = [];
-  private layoutMeshes: Mesh[] = [];
+  /** Čára vytyčení podle sadu – přestaví se, jen když se změní jeho čtverce. */
+  private readonly layouts = new Map<number, { cells: string; mesh: Mesh }>();
+  private obstacles: ObstacleLayer | null = null;
   private shapes: HideShape[] = [];
   /** Modely jabloní: index varianta × 2 + (s plody ? 1 : 0); null = nenačtený. */
   private models: (Mesh | null)[] = [];
@@ -73,11 +81,7 @@ export class OrchardRenderer {
     if (key === this.key) return false;
     this.key = key;
     this.orchards = orchards;
-    for (const mesh of this.layoutMeshes) mesh.dispose();
-    this.layoutMeshes = orchards.flatMap((o) => {
-      const planting = o.squares.some((s) => s.planting < 1);
-      return planting && o.squares.length > 0 ? [this.layoutMesh(o)] : [];
-    });
+    this.updateLayouts(orchards);
     this.shapes = orchards
       .filter((o) => o.squares.length > 0)
       .map((o) => ({
@@ -89,6 +93,15 @@ export class OrchardRenderer {
     return true;
   }
 
+  /** Vrstva překážek krajiny – stromy sadu obejdou skalní výchozy. */
+  setObstacles(layer: ObstacleLayer): boolean {
+    if (this.obstacles === layer) return false;
+    this.obstacles = layer;
+    if (this.orchards.length === 0) return false;
+    this.updateInstances();
+    return true;
+  }
+
   /** Oblasti, kde se mají skrýt ozdoby krajiny (čtverce sadů s okrajem). */
   hideShapes(): HideShape[] {
     return this.shapes;
@@ -96,8 +109,8 @@ export class OrchardRenderer {
 
   dispose(): void {
     this.disposed = true;
-    for (const mesh of this.layoutMeshes) mesh.dispose();
-    this.layoutMeshes = [];
+    for (const layout of this.layouts.values()) layout.mesh.dispose();
+    this.layouts.clear();
     for (const model of this.models) model?.dispose();
     this.stakeMesh?.dispose();
   }
@@ -149,7 +162,7 @@ export class OrchardRenderer {
     const height = this.context.groundHeight;
     for (const orchard of this.orchards) {
       for (const square of orchard.squares) {
-        const spots = orchardTreeSpots(square);
+        const spots = orchardTreeSpots(square, this.outcropsNear(square));
         const planted = square.planting >= 1;
         const { stakes: staked, saplings } = planted
           ? { stakes: hasStake(square.growth) ? spots.length : 0, saplings: spots.length }
@@ -180,6 +193,38 @@ export class OrchardRenderer {
     });
     if (stakes.length > 0) this.stakeMesh ??= this.createStakeMesh();
     if (this.stakeMesh) setInstances(this.stakeMesh, stakes);
+  }
+
+  /**
+   * Čáry vytyčení sadů, které se sázejí – stávající se nechají, nová se postaví jen pro sad se
+   * změněnými čtverci (velikost stromů a jablka se mění častěji než čtverce).
+   */
+  private updateLayouts(orchards: readonly SceneOrchard[]): void {
+    const keep = new Set<number>();
+    for (const orchard of orchards) {
+      if (orchard.squares.length === 0 || orchard.squares.every((s) => s.planting >= 1)) continue;
+      keep.add(orchard.id);
+      const cells = orchard.squares.map((s) => `${s.cell.x},${s.cell.y}`).join(';');
+      const current = this.layouts.get(orchard.id);
+      if (current?.cells === cells) continue;
+      current?.mesh.dispose();
+      this.layouts.set(orchard.id, { cells, mesh: this.layoutMesh(orchard) });
+    }
+    for (const [id, layout] of this.layouts) {
+      if (keep.has(id)) continue;
+      layout.mesh.dispose();
+      this.layouts.delete(id);
+    }
+  }
+
+  /** Skalní výchozy, které zasahují do čtverce (i z vedlejších políček); bez vrstvy žádné. */
+  private outcropsNear(square: SceneOrchardSquare): Outcrop[] {
+    const layer = this.obstacles;
+    if (!layer) return [];
+    const half = square.size / 2 + OUTCROP_SEARCH_M;
+    return obstaclesNear(layer, square.x - half, square.z - half, square.x + half, square.z + half)
+      .filter((i) => obstacleKind(layer, i) === 'outcrop')
+      .map((i) => ({ x: layer.x[i]!, z: layer.z[i]!, radius: OUTCROP_RADIUS_M * layer.scale[i]! }));
   }
 
   /** Světlá čára vytyčení po obrysu sadu (provázek, naražená tráva) – jen během výsadby. */

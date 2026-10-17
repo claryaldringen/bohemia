@@ -5,6 +5,7 @@ import {
   checkDwellingPlacement,
   fieldPartsFromCells,
   generateLandscapeAttempt,
+  orchardPartsFromCells,
   suggestVillageName,
   tileCenterWorld,
   tileOfWorldPoint,
@@ -177,6 +178,27 @@ function cemeterySpot(l: Landscape, dwelling: Position): TileCell {
     }
   }
   throw new Error('U zemnice není místo pro hřbitov.');
+}
+
+/** Nejbližší dva čtverce ke zemnici (vedle sebe), kam smí sad – staví se jako pole. */
+function orchardSpot(l: Landscape, dwelling: Position): TileCell[] {
+  const tile = tileOfWorldPoint(l, dwelling.x, dwelling.z);
+  if (!tile) throw new Error('Zemnice leží mimo krajinu.');
+  const village: PlacementVillage = {
+    dwellings: [{ type: 'zemnice', position: dwelling }],
+    constructions: [],
+    parts: [],
+  };
+  for (let r = 2; r <= 8; r++) {
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+        const cells = block(tile.x + dx, tile.y + dy, 2, 1);
+        if (orchardPartsFromCells(l, village, cells, [dwelling]).check.ok) return cells;
+      }
+    }
+  }
+  throw new Error('U zemnice není místo pro sad.');
 }
 
 const readyScene = (page: Page): ReturnType<Page['locator']> =>
@@ -395,4 +417,51 @@ test('hráč založí hřbitov po čtvercích a vybere ho – panel ukáže hrob
   ]);
   await expect(panel.getByTestId('selection-graves')).toHaveText('3/56', { timeout: 20_000 });
   await expect(panel.getByTestId('selection-years')).toBeVisible();
+});
+
+test('hráč vysadí sad po čtvercích a vybere ho – panel ukáže výsadbu, stáří a úrodu', async ({
+  page,
+}) => {
+  const { seat: s } = await newPlayer(page, 'sad');
+  const spots = villageSpots(s.landscape);
+  await found(page, spots.dwelling);
+  const grid = page.getByTestId('build-grid');
+  const cells = orchardSpot(s.landscape, spots.dwelling);
+
+  // Sad klávesovou zkratkou B, malování po čtvercích jako pole.
+  await page.keyboard.press('b');
+  await expect(grid.getByRole('button', { name: 'Sad' })).toHaveAttribute('aria-pressed', 'true');
+  await confirmPlacement(page, { kind: 'squares', cells });
+  await expect.poll(async () => (await villageState(s.settlementId)).orchards?.length ?? 0).toBe(1);
+  await expect(page.locator('[data-testid="village-notice"][data-kind="error"]')).toHaveCount(0);
+
+  // Kliknutí na čtverec sadu ho vybere – sázející se sad ukáže průběh výsadby a odhad úrody.
+  await page.keyboard.press('r');
+  const center = tileCenterWorld(s.landscape, cells[0]!.x, cells[0]!.y);
+  const point = await page.evaluate((p) => window.__bohemiaE2E!.projectToScreen!(p.x, p.z), center);
+  expect(point).not.toBeNull();
+  await page.mouse.move(point!.x - 3, point!.y);
+  await page.mouse.click(point!.x, point!.y);
+  const panel = page.getByTestId('selection-panel');
+  await expect(panel).toHaveAttribute('data-kind', 'orchard');
+  await expect(panel.getByTestId('selection-progress')).toBeVisible();
+  await expect(panel.getByTestId('selection-yield')).toHaveText('0');
+
+  // Sad vysazený před 30 lety přímo v uložené vsi – další dotaz (každých 5 s) ho ukáže v plné
+  // úrodě: 2 čtverce = 0,045 ha × 3 t = 135 kg jablek.
+  const state = await villageState(s.settlementId);
+  const orchard = state.orchards![0]!;
+  for (const square of orchard.squares) {
+    square.plantedDay = state.lastDay - Math.ceil(30 * 365.25);
+    square.plantingDone = square.plantingCost;
+    delete square.obstacles;
+  }
+  state.constructions = state.constructions.filter((c) => c.kind !== 'orchard');
+  await query('UPDATE village SET state = $2, version = version + 1 WHERE settlement_id = $1', [
+    s.settlementId,
+    JSON.stringify(state),
+  ]);
+  await expect(panel.getByTestId('selection-age')).toHaveText(/^(29|30)$/, { timeout: 20_000 });
+  await expect(panel.getByTestId('selection-progress')).toHaveCount(0);
+  await expect(panel.getByTestId('selection-yield')).not.toHaveText('0');
 });

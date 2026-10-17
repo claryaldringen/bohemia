@@ -74,8 +74,24 @@ const view = {
     },
   ],
   orchards: [
-    { id: 60, areaM2: 900, squares: 4, ageYears: 7, expectedYieldKg: 81, planting: null },
-    { id: 61, areaM2: 225, squares: 1, ageYears: null, expectedYieldKg: 0, planting: 0.3 },
+    {
+      id: 60,
+      areaM2: 900,
+      squares: 4,
+      ageYears: 7,
+      expectedYieldKg: 81,
+      planting: null,
+      plantingWaits: false,
+    },
+    {
+      id: 61,
+      areaM2: 225,
+      squares: 1,
+      ageYears: null,
+      expectedYieldKg: 0,
+      planting: 0.3,
+      plantingWaits: true,
+    },
   ],
 } as unknown as VillageView;
 
@@ -157,10 +173,12 @@ describe('selectionDetails – sad', () => {
       ageYears: 7,
       expectedYieldKg: 81,
       planting: null,
+      plantingWaits: false,
     });
     expect(selectionDetails(view, scene, { kind: 'orchard', id: 61 })).toMatchObject({
       ageYears: null,
       planting: 0.3,
+      plantingWaits: true,
     });
     expect(selectionDetails(view, scene, { kind: 'orchard', id: 99 })).toBeNull();
   });

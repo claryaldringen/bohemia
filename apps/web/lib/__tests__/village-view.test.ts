@@ -444,7 +444,16 @@ describe('sad v pohledu na ves', () => {
       orchardId,
     });
     expect(view.orchards).toEqual([
-      { id: orchardId, areaM2: 450, squares: 2, ageYears: null, expectedYieldKg: 0, planting: 0 },
+      {
+        id: orchardId,
+        areaM2: 450,
+        squares: 2,
+        ageYears: null,
+        expectedYieldKg: 0,
+        planting: 0,
+        // 12. 4. – jarní okno výsadby
+        plantingWaits: false,
+      },
     ]);
     expect(view.applesKg).toBe(0);
     expect(view.scene.orchards).toEqual([
@@ -472,6 +481,11 @@ describe('sad v pohledu na ves', () => {
         ],
       },
     ]);
+    // v červnu výsadba čeká na podzimní okno
+    const june = dayIndexOf({ year: 503, month: 6, day: 1 });
+    expect(buildVillageView(record(withOrchard()), landscape, june).orchards[0]).toMatchObject({
+      plantingWaits: true,
+    });
     expect(placementVillageFromScene(view.scene).orchards).toEqual([
       { squares: [{ cell: { x: 2, y: 2 } }, { cell: { x: 3, y: 2 } }] },
     ]);

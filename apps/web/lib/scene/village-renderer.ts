@@ -9,7 +9,12 @@ import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import type { Scene } from '@babylonjs/core/scene';
-import { DWELLING_FOOTPRINT_M, type DwellingType, type WorldClock } from '@bohemia/game';
+import {
+  DWELLING_FOOTPRINT_M,
+  type DwellingType,
+  type ObstacleLayer,
+  type WorldClock,
+} from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
 import { CemeteryRenderer } from './cemetery-renderer';
 import { EARTH_LAYERS, SMOKE_VENT, earthPatch, eaveTufts, type TuftModel } from './dwelling-decor';
@@ -186,6 +191,11 @@ export class VillageRenderer {
   /** Vývojová volba: dým ze všech hotových obydlí pořád. */
   setSmokeAlways(enabled: boolean): void {
     this.smoke.setAlways(enabled);
+  }
+
+  /** Vrstva překážek krajiny (skalní výchozy pro stromy sadu); vrátí true, když je co překreslit. */
+  setObstacles(layer: ObstacleLayer): boolean {
+    return this.orchards.setObstacles(layer);
   }
 
   /** Svět, podle jehož herního dne se v obydlích topí (ráno a večer). */

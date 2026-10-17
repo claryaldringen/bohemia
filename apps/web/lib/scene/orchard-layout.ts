@@ -1,9 +1,17 @@
 // Jabloňový sad ve scéně bez Babylonu (orchard.md – Co hráč vidí): jabloně v řadách po
-// čtvercích, mladé stromky rostou do plné velikosti, výsadba po fázích (kolíky → sazenice),
-// u mladých stromků kůl. Souřadnice světa scény v metrech (x, z), čtverce jako u pole
-// (field-cells.ts).
+// čtvercích (mimo skalní výchozy), výsadba po fázích (kůly → sazenice). Velikost stromků
+// a jablka počítá server (`lib/orchard-look.ts`). Souřadnice světa scény v metrech (x, z),
+// čtverce jako u pole (field-cells.ts).
 import type { CellSquare } from './field-cells';
 import { seededRandom } from './village-layout';
+
+export {
+  SAPLING_GROWTH,
+  STAKE_YEARS,
+  TREE_GROWTH_YEARS,
+  hasStake,
+  treeGrowth,
+} from '../orchard-look';
 
 /**
  * Mřížka míst pro stromy po 7,5 m (2 × 2 na čtverec 15 × 15 m), stromy jen na každém druhém
@@ -16,11 +24,6 @@ export const TREES_PER_SIDE = 2;
 export const TREES_PER_SQUARE = (TREES_PER_SIDE * TREES_PER_SIDE) / 2;
 /** Varianty modelu jabloně (apple-1 … apple-4, s plody apple-fruit-1 … apple-fruit-4). */
 export const APPLE_VARIANTS = 4;
-/** Sazenice má ≈ 30 % výšky dospělé jabloně, plnou velikost má strom za 12 let (návrh Clauda). */
-export const SAPLING_GROWTH = 0.3;
-export const TREE_GROWTH_YEARS = 12;
-/** Mladý stromek je první 3 roky přivázaný ke kůlu. */
-export const STAKE_YEARS = 3;
 /** Výsadba: do poloviny průběhu se zatloukají kůly, pak se sázejí stromky. */
 export const PLANTING_PHASES = [
   { from: 0, to: 0.5, label: 'Kůly' },
@@ -29,16 +32,15 @@ export const PLANTING_PHASES = [
 /** Rozházení stromu v řadě (m) a velikosti (±). */
 const JITTER_M = 0.5;
 const SCALE_JITTER = 0.08;
+/** Kmen stojí aspoň tolik (m) od okraje skalního výchozu a od okraje čtverce. */
+const OUTCROP_CLEARANCE_M = 1;
+const EDGE_MARGIN_M = 0.5;
 
-/** Velikost stromu 0–1 podle stáří (roky od výsadby). */
-export function treeGrowth(ageYears: number): number {
-  const t = Math.min(1, Math.max(0, ageYears / TREE_GROWTH_YEARS));
-  return SAPLING_GROWTH + (1 - SAPLING_GROWTH) * t;
-}
-
-/** Strom u kůlu – mladší než STAKE_YEARS (podle velikosti). */
-export function hasStake(growth: number): boolean {
-  return growth < treeGrowth(STAKE_YEARS);
+/** Skalní výchoz – střed (m) a poloměr (m); stromy ho obejdou. */
+export interface Outcrop {
+  x: number;
+  z: number;
+  radius: number;
 }
 
 export interface OrchardTreeSpot {
@@ -54,9 +56,14 @@ export interface OrchardTreeSpot {
 /**
  * Místa stromů ve čtverci – šachovnice na mřížce TREES_PER_SIDE × TREES_PER_SIDE s drobným
  * rozházením, natočením, velikostí a variantou modelu (deterministicky podle políčka – strom
- * stojí pořád na stejném místě). Pořadí po řadách – v tomto pořadí se sází.
+ * stojí pořád na stejném místě). Pořadí po řadách – v tomto pořadí se sází. Místo ve skalním
+ * výchozu (`outcrops`, i z vedlejšího políčka) se odsune ven z výchozu; když by pak leželo mimo
+ * čtverec nebo v jiném výchozu, strom tam není (jádro plochu pod výchozem do sadu nepočítá).
  */
-export function orchardTreeSpots(square: CellSquare): OrchardTreeSpot[] {
+export function orchardTreeSpots(
+  square: CellSquare,
+  outcrops: readonly Outcrop[] = [],
+): OrchardTreeSpot[] {
   const random = seededRandom(square.cell.x * 73_856_093 + square.cell.y * 19_349_663 + 7);
   const step = square.size / TREES_PER_SIDE;
   const spots: OrchardTreeSpot[] = [];
@@ -64,16 +71,39 @@ export function orchardTreeSpots(square: CellSquare): OrchardTreeSpot[] {
     for (let column = 0; column < TREES_PER_SIDE; column++) {
       // čtverec má sudý počet míst na stranu – šachovnice navazuje přes sousední čtverce
       if ((row + column) % 2 !== 0) continue;
-      spots.push({
+      const spot = {
         x: square.x - square.size / 2 + (column + 0.5) * step + (random() - 0.5) * 2 * JITTER_M,
         z: square.z - square.size / 2 + (row + 0.5) * step + (random() - 0.5) * 2 * JITTER_M,
         rotationY: random() * Math.PI * 2,
         scale: 1 + (random() - 0.5) * 2 * SCALE_JITTER,
         variant: Math.floor(random() * APPLE_VARIANTS) % APPLE_VARIANTS,
-      });
+      };
+      const placed = clearOfOutcrops(square, spot, outcrops);
+      if (placed) spots.push({ ...spot, ...placed });
     }
   }
   return spots;
+}
+
+/** Místo stromu mimo skalní výchozy (odsunuté ven z prvního zasaženého), nebo null. */
+function clearOfOutcrops(
+  square: CellSquare,
+  spot: { x: number; z: number },
+  outcrops: readonly Outcrop[],
+): { x: number; z: number } | null {
+  const reach = (o: Outcrop): number => o.radius + OUTCROP_CLEARANCE_M;
+  const hit = outcrops.find((o) => Math.hypot(spot.x - o.x, spot.z - o.z) < reach(o));
+  if (!hit) return spot;
+  const dx = spot.x - hit.x;
+  const dz = spot.z - hit.z;
+  const length = Math.hypot(dx, dz);
+  // přesně ve středu výchozu – odsunout k nejbližšímu okraji čtverce ve směru x
+  const [ux, uz] = length > 1e-6 ? [dx / length, dz / length] : [1, 0];
+  const moved = { x: hit.x + ux * reach(hit), z: hit.z + uz * reach(hit) };
+  const half = square.size / 2 - EDGE_MARGIN_M;
+  const inside = Math.abs(moved.x - square.x) <= half && Math.abs(moved.z - square.z) <= half;
+  const blocked = outcrops.some((o) => Math.hypot(moved.x - o.x, moved.z - o.z) < reach(o) - 1e-9);
+  return inside && !blocked ? moved : null;
 }
 
 /** Co z výsadby čtverce stojí: kolik míst má kůl a kolik už sazenici (počty stromů). */
@@ -95,23 +125,4 @@ export function plantingPhase(progress: number): (typeof PLANTING_PHASES)[number
   return (
     PLANTING_PHASES.find((p) => progress < p.to) ?? PLANTING_PHASES[PLANTING_PHASES.length - 1]!
   );
-}
-
-/** Jablka dozrávají v srpnu – před sklizní (září–říjen). */
-export const FRUIT_RIPENING_MONTH = 8;
-
-/**
- * Visí na stromech jablka? Plodící sad (`bearing`) od srpna (dozrávají) a během sklizně, dokud
- * se nesklidí – podzimní háček pro scénu; roční období (barva listí, květ) přidá vlastní
- * mechanika scény.
- */
-export function fruitVisible(input: {
-  bearing: boolean;
-  month: number;
-  harvestWindow: boolean;
-  harvested: boolean;
-}): boolean {
-  if (!input.bearing) return false;
-  if (input.month === FRUIT_RIPENING_MONTH) return true;
-  return input.harvestWindow && !input.harvested;
 }
