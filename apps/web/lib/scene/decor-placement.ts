@@ -1,7 +1,12 @@
 import { SURFACE_CODES, type Landscape } from '@bohemia/game';
 import { createNoise2D } from 'simplex-noise';
 import type { ForestField } from './forest-field';
-import type { StreamCenterline, StreamSample } from './stream-geometry';
+import {
+  streamStations,
+  type StreamCenterline,
+  type StreamSample,
+  type StreamStation,
+} from './stream-geometry';
 import { tileAt } from './tile-at';
 
 /** Drobné modely krajiny bez herní funkce (jen vzhled). */
@@ -99,12 +104,12 @@ export function decorPlacements(
   const inMap = (x: number, z: number): boolean => tileAt(l, x, z) !== null;
 
   // Stav potoka u břehu na dané straně stanice: šířka, proud, tůň, strana oblouku.
-  const bank = (station: Station, side: number): StreamSample =>
+  const bank = (station: StreamStation, side: number): StreamSample =>
     stream.nearest(station.x + station.nx * side * 0.5, station.z + station.nz * side * 0.5);
 
   // Rákos a orobinec: shluky na kraji vody. V klidné vodě, v tůních a na vnitřních obloucích
   // hustě (orobinec hlavně ve stojaté vodě), v rychlém proudu nad štěrkem řídce.
-  for (const station of stations(stream, REED_STEP_M)) {
+  for (const station of streamStations(stream, REED_STEP_M)) {
     for (const side of [-1, 1]) {
       const k = station.index * 2 + (side > 0 ? 1 : 0);
       const here = bank(station, side);
@@ -137,7 +142,7 @@ export function decorPlacements(
   }
 
   // Lekníny jen v klidné vodě – hlavně v tůních, kde jich je víc.
-  for (const station of stations(stream, LILY_STEP_M)) {
+  for (const station of streamStations(stream, LILY_STEP_M)) {
     const k = station.index;
     const side = hash(k, 2, 21) < 0.5 ? -1 : 1;
     const here = bank(station, side);
@@ -176,7 +181,7 @@ export function decorPlacements(
   };
 
   // Balvany na nárazovém (vnějším) břehu v rychlém proudu – proud tam odnesl hlínu.
-  for (const station of stations(stream, BANK_BOULDER_STEP_M)) {
+  for (const station of streamStations(stream, BANK_BOULDER_STEP_M)) {
     const k = station.index;
     const side = hash(k, 2, 41) < 0.5 ? -1 : 1;
     const here = bank(station, side);
@@ -194,7 +199,7 @@ export function decorPlacements(
 
   // Vrby: skupiny s mezerami (šum podél toku) u tůní a klidné vody, jen mimo les.
   const willowGroups = createNoise2D(seededRandom(0x5a11));
-  for (const station of stations(stream, WILLOW_STEP_M)) {
+  for (const station of streamStations(stream, WILLOW_STEP_M)) {
     for (const side of [-1, 1]) {
       const k = station.index * 2 + (side > 0 ? 1 : 0);
       const here = bank(station, side);
@@ -276,47 +281,6 @@ export function decorPlacements(
 function shrubModel(big: boolean, pick: number): DecorModel {
   if (big) return pick < 0.5 ? 'underbrush-1' : pick < 0.85 ? 'underbrush-2' : 'shrub-1';
   return pick < 0.4 ? 'shrub-1' : pick < 0.7 ? 'shrub-2' : 'shrub-3';
-}
-
-interface Station {
-  index: number;
-  /** Vzdálenost podél osy od pramene (m). */
-  s: number;
-  x: number;
-  z: number;
-  /** Jednotková normála osy (vodorovně). */
-  nx: number;
-  nz: number;
-}
-
-/** Body na ose potoka po krocích `step` metrů. */
-function stations(stream: StreamCenterline, step: number): Station[] {
-  const result: Station[] = [];
-  const points = stream.points;
-  let next = 0;
-  let travelled = 0;
-  for (let i = 0; i < points.length - 1; i++) {
-    const a = points[i]!;
-    const b = points[i + 1]!;
-    const length = Math.hypot(b.x - a.x, b.z - a.z);
-    if (length === 0) continue;
-    const tx = (b.x - a.x) / length;
-    const tz = (b.z - a.z) / length;
-    while (next <= travelled + length) {
-      const t = next - travelled;
-      result.push({
-        index: result.length,
-        s: next,
-        x: a.x + tx * t,
-        z: a.z + tz * t,
-        nx: -tz,
-        nz: tx,
-      });
-      next += step;
-    }
-    travelled += length;
-  }
-  return result;
 }
 
 function seededRandom(seed: number): () => number {

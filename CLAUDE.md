@@ -145,8 +145,10 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   desítky tisíc svislých obrázků stromů z atlasu vyrenderovaného pod pevným náklonem kamery,
   natáčejí se jen při změně směru kamery. Jejich začátek musí z každého směru zakrýt 3D stromy.
   Skladba druhů je jedna funkce pro obojí (`tree-species.ts`): okraj světlomilný (dub, bříza,
-  buk), uvnitř buk, dub, trochu břízy a jedle ve skupinách (výš víc) – Martin. V lese se kreslí
-  tráva, ne lesní půda (Martin), pod stromy ztmavená. Tmavá plocha korun (`forest-canopy.ts`)
+  buk), uvnitř buk, dub, trochu břízy a jedle ve skupinách (výš víc) – Martin. **Stromy mimo
+  les** (`meadow-trees.ts`, jen 3D): osamělé duby a jilmy v loukách (parkové i volné části)
+  a břehový porost topolů a jilmů podél potoka. V lese se kreslí tráva, ne lesní půda (Martin),
+  pod stromy ztmavená. Tmavá plocha korun (`forest-canopy.ts`)
   jen vyplňuje mezery hluboko v lese. PBR materiály se oparem musí volat `applyGammaFog`
   (`gamma-fog.ts`) – vestavěný opar PBR zešedí zeleň. **Změna náklonu kamery (`BETA`
   v `camera.ts`) nebo modelů stromů = nový render atlasu** (`tools/blender/impostors.py`)

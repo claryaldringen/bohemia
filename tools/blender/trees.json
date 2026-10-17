@@ -96,5 +96,113 @@
     "foliage": {
       "u_below": 0.72
     }
+  },
+  {
+    "name": "oak-large-1",
+    "parts": [
+      {
+        "dae": "meshes/gaia/tree_oak_large_a.dae",
+        "texture": "textures/skins/gaia/trunk_deciduous_b.dds"
+      },
+      {
+        "dae": "meshes/gaia/tree_oak_large_top_a.dae",
+        "texture": "textures/skins/gaia/tree_oak_a.dds",
+        "attach": "prop_tree",
+        "foliage": "all"
+      }
+    ]
+  },
+  {
+    "name": "oak-large-2",
+    "parts": [
+      {
+        "dae": "meshes/gaia/tree_oak_large_b.dae",
+        "texture": "textures/skins/gaia/trunk_deciduous_b.dds"
+      },
+      {
+        "dae": "meshes/gaia/tree_oak_large_top_b.dae",
+        "texture": "textures/skins/gaia/tree_oak_c.dds",
+        "attach": "prop_tree",
+        "foliage": "all"
+      }
+    ]
+  },
+  {
+    "name": "oak-large-3",
+    "parts": [
+      {
+        "dae": "meshes/gaia/tree_oak_large_c.dae",
+        "texture": "textures/skins/gaia/trunk_deciduous_b.dds"
+      },
+      {
+        "dae": "meshes/gaia/tree_oak_large_top_c.dae",
+        "texture": "textures/skins/gaia/tree_oak_a.dds",
+        "attach": "prop_tree",
+        "foliage": "all"
+      }
+    ]
+  },
+  {
+    "name": "elm-1",
+    "dae": "meshes/gaia/tree_elm_01.dae",
+    "texture": "textures/skins/gaia/tree_elm_01.png",
+    "scale": 0.75,
+    "foliage": {
+      "u_above": 0.27
+    }
+  },
+  {
+    "name": "elm-2",
+    "dae": "meshes/gaia/tree_elm_02.dae",
+    "texture": "textures/skins/gaia/tree_elm_02.png",
+    "scale": 0.75,
+    "foliage": {
+      "u_above": 0.27
+    }
+  },
+  {
+    "name": "elm-3",
+    "dae": "meshes/gaia/tree_elm_03.dae",
+    "texture": "textures/skins/gaia/tree_elm_01.png",
+    "scale": 0.75,
+    "foliage": {
+      "u_above": 0.27
+    }
+  },
+  {
+    "name": "elm-4",
+    "dae": "meshes/gaia/tree_elm_04.dae",
+    "texture": "textures/skins/gaia/tree_elm_02.png",
+    "scale": 0.75,
+    "foliage": {
+      "u_above": 0.27
+    }
+  },
+  {
+    "name": "poplar-1",
+    "dae": "meshes/gaia/poplar_01.dae",
+    "texture": "textures/skins/gaia/poplar_01.png",
+    "scale": 0.8,
+    "foliage": {
+      "u_above": 0.27
+    }
+  },
+  {
+    "name": "poplar-2",
+    "dae": "meshes/gaia/poplar_02.dae",
+    "texture": "textures/skins/gaia/poplar_02.png",
+    "scale": 0.8,
+    "foliage": {
+      "u_above": 0.27
+    }
+  },
+  {
+    "name": "poplar-3",
+    "dae": "meshes/gaia/poplar_03.dae",
+    "texture": "textures/skins/gaia/poplar_01.png",
+    "scale": 0.8,
+    "foliage": {
+      "u_above": 0.27
+    }
   }
 ]

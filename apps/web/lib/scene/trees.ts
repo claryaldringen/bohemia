@@ -17,6 +17,8 @@ import { TREE_MODELS, type TreePlacement } from './tree-placement';
  */
 const FOLIAGE_TINT = new Color3(0.86, 0.9, 0.82);
 const SPRUCE_TINT = new Color3(0.8, 1.45, 1.0);
+/** Jilmy a topoly mají v textuře bledé, šedavé listí – dorovnání do zeleně dubů. */
+const PALE_TINT = new Color3(0.66, 0.84, 0.44);
 const FOLIAGE_AMBIENT = new Color3(0.36, 0.38, 0.34);
 
 /**
@@ -37,7 +39,11 @@ export async function addTrees(
       container.addAllToScene();
       for (const material of container.materials) {
         if (!(material instanceof PBRMaterial)) continue;
-        material.albedoColor = model.startsWith('spruce') ? SPRUCE_TINT : FOLIAGE_TINT;
+        material.albedoColor = model.startsWith('spruce')
+          ? SPRUCE_TINT
+          : model.startsWith('elm') || model.startsWith('poplar')
+            ? PALE_TINT
+            : FOLIAGE_TINT;
         material.roughness = 1;
         // Bez odlesku: odraz světlé oblohy na kartách listí dělal z dálky stromy bledé a modravé.
         material.metallicF0Factor = 0;

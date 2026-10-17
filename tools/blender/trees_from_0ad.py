@@ -7,7 +7,7 @@ trees.json: [{"name", "dae", "texture", "foliage"?, "scale"?, "opaque"?, "textur
 "opaque" = bez průhlednosti a s ořezem zadních stěn (kameny), textura se exportuje jako JPEG;
 "texture_px" textury větší než daný rozměr zmenší. Stejně se převádějí i dekorace (decor.json).
 Cesty k .dae a texturám jsou relativní k art/ složce 0 A.D.; "foliage" nastaví normály listí
-od středu koruny ("all", nebo {"u_below": u} pro atlas s kůrou vpravo).
+od středu koruny ("all", nebo {"u_below": u} pro atlas s kůrou vpravo, {"u_above": u} vlevo).
 """
 import json
 import math
@@ -176,6 +176,8 @@ def foliage_normals(obj, rule):
         if rule == "all":
             return True
         u = sum(uv[i].uv[0] for i in poly.loop_indices) / poly.loop_total
+        if "u_above" in rule:
+            return u > rule["u_above"]
         return u < rule["u_below"]
 
     leaf_polys = [p for p in mesh.polygons if is_leaf(p)]
@@ -277,16 +279,19 @@ def export(obj, path, opaque=False):
 def preview(objs, path):
     """Řada stromů zboku (ortho, EEVEE) pro rychlou kontrolu."""
     scene = bpy.context.scene
-    gap = 14.0
+    width = max(max(o.dimensions.x, o.dimensions.y) for o in objs)
+    height = max(o.dimensions.z for o in objs)
+    gap = max(14.0, width + 2)
+    view = max(26.0, height * 1.15)
     for i, o in enumerate(objs):
         o.location.x = (i - (len(objs) - 1) / 2) * gap
     cam_data = bpy.data.cameras.new("cam")
     cam_data.type = "ORTHO"
     cam_data.sensor_fit = "VERTICAL"
-    cam_data.ortho_scale = 26
+    cam_data.ortho_scale = view
     cam = bpy.data.objects.new("cam", cam_data)
     scene.collection.objects.link(cam)
-    cam.location = (0, -60, 11)
+    cam.location = (0, -60, view * 0.42)
     cam.rotation_euler = (math.radians(88), 0, 0)
     scene.camera = cam
     sun = bpy.data.objects.new("sun", bpy.data.lights.new("sun", "SUN"))
@@ -304,7 +309,7 @@ def preview(objs, path):
     except TypeError as e:
         print("engine:", e)
     scene.render.resolution_y = 400
-    scene.render.resolution_x = int(400 * gap * len(objs) / 26)
+    scene.render.resolution_x = int(400 * gap * len(objs) / view)
     scene.render.filepath = path
     bpy.ops.render.render(write_still=True)
 

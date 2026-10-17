@@ -132,13 +132,16 @@ na který se později přidávají další prvky (černozem, naleziště kovů, 
   (z 0 A.D., CC BY-SA 3.0). **Voda:** hladina v hladkém korytě potoka.
 - **Stromy a další objekty jsou 3D modely** (glTF/GLB) – grafika z **0 A.D.** (Wildfire Games,
   CC BY-SA 3.0, Martinova volba), jednotný styl s texturami terénu, smí do veřejného repa
-  s uvedením autora. Dřeviny: dub, buk, bříza a jedle (modely `spruce-*` jsou jedle z 0 A.D.),
+  s uvedením autora. Dřeviny lesa: dub, buk, bříza a jedle (modely `spruce-*` jsou jedle z 0 A.D.),
   každá ve dvou podobách, natočení a velikost odvozené ze seedu. Skladba podle středověkého
   lesa pahorkatiny (Martin): okraj světlomilný – dub 45 %, bříza 25 %, buk 25 %, jehličnan
   nejvýš 5 %; uvnitř buk 35 %, dub 30 %, bříza 10 %, jedle 10–25 % podle výšky ve skupinách;
   přechod plynule 10–30 m od hranice. Hranice lesa je ve scéně vyhlazená a zvlněná (herní data
   políček se nemění). **Okraj lesa tvoří 2–3 řady 3D stromů** (Martin), před nimi řidší lem
-  a ojedinělé stromy v louce (mimo okolí místa pro vesnici). **Vnitřek lesa tvoří impostory**
+  a ojedinělé stromy v louce (mimo okolí místa pro vesnici). **Stromy mimo les** (Martin):
+  v loukách osamělé mohutné duby a jilmy, jednotlivě i ve skupinkách – někde parková louka,
+  jinde rozlehlá volná plocha; podél potoka břehový porost topolů a jilmů s mezerami (olše
+  v 0 A.D. chybí). Jen vzhled scény – herní data políček se nemění. **Vnitřek lesa tvoří impostory**
   – obrázky týchž stromů vyrenderované pod pevným náklonem kamery (kamera se otáčí jen kolem
   svislé osy, takže obrázek sedí z každého směru); jejich začátek zakrývají řady 3D stromů.
   V lese je tráva (ne hrabanka – Martin), pod stromy ztmavená. Mezery hluboko v lese vyplňuje

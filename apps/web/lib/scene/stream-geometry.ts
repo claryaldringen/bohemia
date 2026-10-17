@@ -258,6 +258,47 @@ function withNearestQuery(points: StreamPoint[]): StreamCenterline {
   };
 }
 
+export interface StreamStation {
+  index: number;
+  /** Vzdálenost podél osy od pramene (m). */
+  s: number;
+  x: number;
+  z: number;
+  /** Jednotková normála osy (vodorovně). */
+  nx: number;
+  nz: number;
+}
+
+/** Body na ose potoka po krocích `step` metrů. */
+export function streamStations(stream: StreamCenterline, step: number): StreamStation[] {
+  const result: StreamStation[] = [];
+  const points = stream.points;
+  let next = 0;
+  let travelled = 0;
+  for (let i = 0; i < points.length - 1; i++) {
+    const a = points[i]!;
+    const b = points[i + 1]!;
+    const length = Math.hypot(b.x - a.x, b.z - a.z);
+    if (length === 0) continue;
+    const tx = (b.x - a.x) / length;
+    const tz = (b.z - a.z) / length;
+    while (next <= travelled + length) {
+      const t = next - travelled;
+      result.push({
+        index: result.length,
+        s: next,
+        x: a.x + tx * t,
+        z: a.z + tz * t,
+        nx: -tz,
+        nz: tx,
+      });
+      next += step;
+    }
+    travelled += length;
+  }
+  return result;
+}
+
 function smoothstep(edge0: number, edge1: number, x: number): number {
   const t = Math.min(1, Math.max(0, (x - edge0) / (edge1 - edge0)));
   return t * t * (3 - 2 * t);

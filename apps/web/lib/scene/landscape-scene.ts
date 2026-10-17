@@ -17,6 +17,7 @@ import { createCanopyMesh } from './forest-canopy';
 import { buildForestField } from './forest-field';
 import { impostorPlacements } from './impostor-placement';
 import { addImpostors } from './impostors';
+import { meadowTreePlacements } from './meadow-trees';
 import { createTerrainMesh } from './terrain-mesh';
 import { buildRenderSurface } from './render-surface';
 import { addSunShadows } from './sun-shadows';
@@ -123,7 +124,11 @@ export class LandscapeScene {
     await report('forest', 0.4);
     if (this.disposed) return;
     const field = buildForestField(landscape);
-    const trees = treePlacements(landscape, field, surface.stream);
+    // Okraj lesa, v loukách osamělé stromy a skupinky, podél potoka břehový porost.
+    const trees = [
+      ...treePlacements(landscape, field, surface.stream),
+      ...meadowTreePlacements(landscape, field, surface.stream),
+    ];
     const decor = decorPlacements(landscape, surface.stream, field);
     await report('surface', 0.5);
     if (this.disposed) return;

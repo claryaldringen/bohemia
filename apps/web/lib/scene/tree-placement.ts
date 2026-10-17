@@ -5,9 +5,29 @@ import type { StreamCenterline } from './stream-geometry';
 import { heightAt, tileAt } from './tile-at';
 import { pickModel, speciesWeights } from './tree-species';
 
-/** Modely stromů (3D na okraji lesa, v atlasu impostorů uvnitř); keřový lem kreslí dekorace. */
+/**
+ * Modely stromů: lesní druhy (3D na okraji lesa, v atlasu impostorů uvnitř) a stromy luk
+ * a břehů (`meadow-trees.ts`, jen 3D). Keřový lem kreslí dekorace.
+ */
 export type TreeModel =
-  'spruce-1' | 'spruce-2' | 'oak-1' | 'oak-2' | 'beech-1' | 'beech-2' | 'birch-1' | 'birch-2';
+  | 'spruce-1'
+  | 'spruce-2'
+  | 'oak-1'
+  | 'oak-2'
+  | 'beech-1'
+  | 'beech-2'
+  | 'birch-1'
+  | 'birch-2'
+  | 'oak-large-1'
+  | 'oak-large-2'
+  | 'oak-large-3'
+  | 'elm-1'
+  | 'elm-2'
+  | 'elm-3'
+  | 'elm-4'
+  | 'poplar-1'
+  | 'poplar-2'
+  | 'poplar-3';
 
 export const TREE_MODELS: readonly TreeModel[] = [
   'spruce-1',
@@ -18,6 +38,16 @@ export const TREE_MODELS: readonly TreeModel[] = [
   'beech-2',
   'birch-1',
   'birch-2',
+  'oak-large-1',
+  'oak-large-2',
+  'oak-large-3',
+  'elm-1',
+  'elm-2',
+  'elm-3',
+  'elm-4',
+  'poplar-1',
+  'poplar-2',
+  'poplar-3',
 ];
 
 export interface TreePlacement {
