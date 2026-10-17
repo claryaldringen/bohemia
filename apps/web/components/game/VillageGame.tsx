@@ -12,6 +12,7 @@ import {
 import {
   foundVillage,
   getVillageView,
+  placeCemetery,
   placeDwelling,
   placeField,
   renameVillage,
@@ -57,6 +58,7 @@ type ActionResult = VillageView | { error: string };
  */
 const SUBMIT_SQUARES: Partial<Record<BuildKind, (cells: TileCell[]) => Promise<ActionResult>>> = {
   field: (cells) => placeField({ cells }),
+  cemetery: (cells) => placeCemetery({ cells }),
 };
 
 function isVillageView(state: VillageData): state is VillageView {
@@ -302,7 +304,7 @@ export function VillageGame({
     startBuildRef.current = startBuild;
   });
 
-  // Klávesy rozhraní: zkratky staveb (Z, X, C) a Esc zruší výběr.
+  // Klávesy rozhraní: zkratky staveb (Z, X, C, V) a Esc zruší výběr.
   const placingRef = useRef(placement.active);
   useEffect(() => {
     placingRef.current = placement.active;

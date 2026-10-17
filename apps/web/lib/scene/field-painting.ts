@@ -38,6 +38,7 @@ const COLORS = {
   bad: [0.92, 0.24, 0.18],
   draw: [0.98, 0.78, 0.3],
   erase: [0.95, 0.95, 0.92],
+  warn: [1, 0.55, 0.12],
 } as const satisfies Record<string, readonly [number, number, number]>;
 type Look = keyof typeof COLORS;
 
@@ -115,6 +116,7 @@ export class FieldPainter {
       bad: line('bad'),
       draw: line('draw'),
       erase: line('erase'),
+      warn: line('warn'),
     };
     this.gridTexture = createGridTexture(scene);
     this.gridMaterial = createDecalMaterial(scene, 'field-paint-grid', {
@@ -349,12 +351,13 @@ export class FieldPainter {
     disposeAll(this.selectionMeshes);
     const ok = this.preview?.check.ok ?? false;
     const blocked = new Set((this.preview?.blockedCells ?? []).map((c) => cellKey(c)));
+    const warned = new Set((this.preview?.warningCells ?? []).map((c) => cellKey(c)));
     const squares = this.candidate.map((cell) => this.square(cell));
-    const fills = squares.map((s) => ({
-      square: s,
-      look: (blocked.has(cellKey(s.cell)) ? 'bad' : ok ? 'ok' : 'draw') as Look,
-      alpha: FILL_ALPHA,
-    }));
+    const fills = squares.map((s): { square: CellSquare; look: Look; alpha: number } => {
+      const key = cellKey(s.cell);
+      const look: Look = blocked.has(key) ? 'bad' : !ok ? 'draw' : warned.has(key) ? 'warn' : 'ok';
+      return { square: s, look, alpha: FILL_ALPHA };
+    });
     if (stroke?.mode === 'remove') {
       for (const cell of strokeCells) {
         if (this.selection.has(cell)) {
@@ -403,6 +406,7 @@ export class FieldPainter {
       check: preview?.check ?? { ok: false, reason: null },
       label: preview?.label ?? '',
       screen: this.screen,
+      warning: preview?.check.ok ? (preview.warning ?? null) : null,
     });
   }
 

@@ -9,7 +9,13 @@ import {
   type ReactElement,
 } from 'react';
 import { DWELLING_FOOTPRINT_M, type Landscape } from '@bohemia/game';
-import { PART_COLORS, minimapImage, minimapToWorld, worldToMinimap } from '@/lib/minimap';
+import {
+  CEMETERY_COLOR,
+  PART_COLORS,
+  minimapImage,
+  minimapToWorld,
+  worldToMinimap,
+} from '@/lib/minimap';
 import type { LandscapeScene, ViewFootprint } from '@/lib/scene/landscape-scene';
 import type { SceneVillage } from '@/lib/village-view';
 
@@ -20,7 +26,7 @@ const IMAGE_PX = 256;
 
 /**
  * Minimapa vlevo dole (jako v 0 A.D.): krajina sídla shora (voda, les, louka, skála), pole,
- * obydlí a obrys záběru kamery. Kliknutí nebo tažení přesune pohled.
+ * hřbitovy, obydlí a obrys záběru kamery. Kliknutí nebo tažení přesune pohled.
  */
 export function Minimap({
   landscape,
@@ -75,6 +81,15 @@ export function Minimap({
         const [r, g, b] = PART_COLORS[part.stage];
         context.fillStyle = `rgb(${r} ${g} ${b})`;
         const p = at(part.x, part.z);
+        context.fillRect(p.x - cellPx / 2, p.y - cellPx / 2, cellPx + 0.3, cellPx + 0.3);
+      }
+    }
+    // hřbitovy po čtvercích (zakládané průsvitné)
+    for (const cemetery of village.cemeteries ?? []) {
+      const [r, g, b] = CEMETERY_COLOR;
+      context.fillStyle = `rgb(${r} ${g} ${b} / ${cemetery.built ? 1 : 0.55})`;
+      for (const square of cemetery.squares) {
+        const p = at(square.x, square.z);
         context.fillRect(p.x - cellPx / 2, p.y - cellPx / 2, cellPx + 0.3, cellPx + 0.3);
       }
     }

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   checkDwellingPlacement,
   dayIndexOf,
+  foundCemetery,
   foundVillage,
   type ChronicleEvent,
   type Landscape,
@@ -205,6 +206,67 @@ describe('buildVillageView', () => {
   });
 });
 
+describe('hřbitov v pohledu na ves', () => {
+  const withCemetery = (): VillageState =>
+    foundCemetery(state(), DAY - 1, {
+      squares: [
+        { cell: { x: 0, y: 0 }, x: -112.5, z: -112.5, waterDistanceM: 500, obstacleCost: 0 },
+        { cell: { x: 1, y: 0 }, x: -97.5, z: -112.5, waterDistanceM: 500, obstacleCost: 0 },
+      ],
+      squareSizeM: 15,
+    });
+
+  it('zakládaný hřbitov: stavba, místo, scéna a cena za čtverec', () => {
+    const view = buildVillageView(record(withCemetery()), landscape, DAY);
+    const cemeteryId = view.cemeteries[0]?.id;
+    expect(view.build.cemetery).toMatchObject({ laborManDays: 10, perSquare: true });
+    expect(view.constructions.at(-1)).toMatchObject({
+      kind: 'cemetery',
+      label: 'Pohřebiště (2 čtverce)',
+      cemeteryId,
+    });
+    expect(view.cemeteries).toEqual([
+      {
+        id: cemeteryId,
+        squares: 2,
+        built: false,
+        progress: 0,
+        capacity: 112,
+        graves: 0,
+        freeGraves: 112,
+        yearsLeft: null,
+        spaceLabel: 'Až bude ohrazené, vejde se sem 112 hrobů.',
+      },
+    ]);
+    expect(view.scene.cemeteries).toEqual([
+      {
+        id: cemeteryId,
+        squares: [
+          { cell: { x: 0, y: 0 }, x: -112.5, z: -112.5, size: 15 },
+          { cell: { x: 1, y: 0 }, x: -97.5, z: -112.5, size: 15 },
+        ],
+        built: false,
+        progress: 0,
+        graves: 0,
+      },
+    ]);
+    expect(placementVillageFromScene(view.scene).cemeteries).toEqual([
+      { squares: [{ cell: { x: 0, y: 0 } }, { cell: { x: 1, y: 0 } }] },
+    ]);
+  });
+
+  it('hotový hřbitov s hroby: obsazené hroby a zbývající místo', () => {
+    const s = withCemetery();
+    s.constructions = s.constructions.filter((c) => c.kind !== 'cemetery');
+    s.cemeteries![0]!.builtDay = DAY - 1;
+    s.cemeteries![0]!.graves = 100;
+    const view = buildVillageView(record(s), landscape, DAY);
+    expect(view.cemeteries[0]).toMatchObject({ built: true, progress: 1, freeGraves: 12 });
+    expect(view.cemeteries[0]?.spaceLabel).toBe('Zbývá 12 hrobů.');
+    expect(view.scene.cemeteries?.[0]).toMatchObject({ built: true, graves: 100 });
+  });
+});
+
 describe('chronicleText', () => {
   const events: ChronicleEvent[] = [
     { day: DAY, kind: 'village-founded' },
@@ -226,6 +288,15 @@ describe('chronicleText', () => {
     { day: DAY, kind: 'hunger-began' },
     { day: DAY, kind: 'hunger-ended' },
     { day: DAY, kind: 'part-became-forest', partId: 4 },
+    { day: DAY, kind: 'cemetery-full', cemeteryId: 5, othersFree: true },
+    { day: DAY, kind: 'cemetery-full', cemeteryId: 5, othersFree: false },
+    {
+      day: DAY,
+      kind: 'construction-finished',
+      constructionKind: 'cemetery',
+      dwellingId: null,
+      fieldId: null,
+    },
   ];
 
   it('každá událost má český text', () => {

@@ -153,10 +153,35 @@ function FieldBody({
   );
 }
 
+function CemeteryBody({
+  details,
+}: {
+  details: Extract<SelectionDetails, { kind: 'cemetery' }>;
+}): ReactElement {
+  const full = details.freeGraves === 0;
+  return (
+    <div className="flex min-w-0 flex-col gap-1.5">
+      <Tooltip content="Hroby – obsazené / všechny" placement="above">
+        <span
+          data-testid="selection-graves"
+          tabIndex={0}
+          className={`text-sm font-semibold tabular-nums ${full ? 'text-red-400' : ''}`}
+        >
+          {details.graves}/{details.capacity}
+        </span>
+      </Tooltip>
+      <p data-testid="selection-space" className="text-xs leading-snug text-[#ecdfc4]">
+        {details.spaceLabel}
+      </p>
+      {details.founding !== null && <Bar value={details.founding} name="Založení" />}
+    </div>
+  );
+}
+
 /**
  * Panel výběru dole uprostřed (jako v 0 A.D.) – jen když je něco vybrané: portrét, typ
  * a ikony s čísly. Obydlí: obyvatelé, věk obyvatel, stav, stáří; staveniště: průběh stavby;
- * pole: výměra, úrodnost, díly podle stadia.
+ * pole: výměra, úrodnost, díly podle stadia; hřbitov: hroby a na kolik let místo vystačí.
  */
 export function SelectionPanel({
   details,
@@ -169,6 +194,9 @@ export function SelectionPanel({
   if (details.kind === 'field') {
     portrait = <Portrait icon="pole" name="Pole" />;
     body = <FieldBody details={details} />;
+  } else if (details.kind === 'cemetery') {
+    portrait = <Portrait icon="hrbitov" name="Hřbitov" />;
+    body = <CemeteryBody details={details} />;
   } else if (details.kind === 'site') {
     portrait = <Portrait icon={details.type} name={DWELLING_NAMES[details.type].nominative} />;
     body = (

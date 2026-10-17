@@ -2,8 +2,8 @@ import type { DwellingType, PartStage } from '@bohemia/game';
 import type { VillageTarget } from './scene/village-picking';
 import type { SceneVillage, VillageView } from './village-view';
 
-// Co ukáže panel výběru (dole uprostřed, jako v 0 A.D.) o vybraném obydlí nebo poli. Čistý
-// modul – data z pohledu na ves a scény vsi.
+// Co ukáže panel výběru (dole uprostřed, jako v 0 A.D.) o vybraném obydlí, poli nebo hřbitovu.
+// Čistý modul – data z pohledu na ves a scény vsi.
 
 export type SelectionDetails =
   | {
@@ -30,6 +30,20 @@ export type SelectionDetails =
       /** Díly podle stadia v pořadí PART_STAGE_ORDER (jen nenulová). */
       stages: { stage: PartStage; count: number }[];
       /** Zakládání pole (průběh 0–1), hotové null. */
+      founding: number | null;
+    }
+  | {
+      kind: 'cemetery';
+      id: number;
+      squares: number;
+      capacity: number;
+      graves: number;
+      freeGraves: number;
+      /** Odhad, za kolik let se zaplní; bez úmrtí null. Hygienu hráč nevidí (cemetery.md). */
+      yearsLeft: number | null;
+      /** „Zbývá 40 hrobů – asi na 12 let.“ */
+      spaceLabel: string;
+      /** Zakládání (průběh 0–1), hotový hřbitov null. */
       founding: number | null;
     };
 
@@ -88,6 +102,21 @@ export function selectionDetails(
       rebuild: rebuild
         ? { progress: rebuild.progress, type: rebuild.dwellingType ?? household.type }
         : null,
+    };
+  }
+  if (target.kind === 'cemetery') {
+    const cemetery = view?.cemeteries.find((c) => c.id === target.id);
+    if (!cemetery) return null;
+    return {
+      kind: 'cemetery',
+      id: cemetery.id,
+      squares: cemetery.squares,
+      capacity: cemetery.capacity,
+      graves: cemetery.graves,
+      freeGraves: cemetery.freeGraves,
+      yearsLeft: cemetery.yearsLeft,
+      spaceLabel: cemetery.spaceLabel,
+      founding: cemetery.built ? null : cemetery.progress,
     };
   }
   const field = view?.fields.find((f) => f.id === target.id);

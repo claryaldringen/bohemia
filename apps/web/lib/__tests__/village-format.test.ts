@@ -1,13 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import {
+  cemeterySpaceLabel,
   fieldPreviewLabel,
   formatCells,
+  formatGraves,
   formatHa,
   formatInteger,
   formatLaborPerDay,
   formatManDays,
   formatPercent,
   formatStoresMonths,
+  formatYearsLeft,
   plural,
 } from '../village-format';
 
@@ -54,5 +57,30 @@ describe('čísla vsi česky', () => {
     ).toBe('19 čtverců · 0,43 ha · úrodnost 63 · 17 člověkodnů');
     expect(formatCells(1)).toBe('1 čtverec');
     expect(formatCells(3)).toBe('3 čtverce');
+  });
+});
+
+describe('místo na hřbitově', () => {
+  it('hroby a odhad v letech česky', () => {
+    expect(formatGraves(1)).toBe('1 hrob');
+    expect(formatGraves(3)).toBe('3 hroby');
+    expect(formatGraves(56)).toBe('56 hrobů');
+    expect(formatYearsLeft(0.4)).toBe('méně než na rok');
+    expect(formatYearsLeft(1.2)).toBe('asi na 1 rok');
+    expect(formatYearsLeft(3)).toBe('asi na 3 roky');
+    expect(formatYearsLeft(12.4)).toBe('asi na 12 let');
+    expect(formatYearsLeft(250)).toBe('na víc než 100 let');
+  });
+
+  it('popisek: zakládaný, plný, bez odhadu a s odhadem', () => {
+    const base = { built: true, capacity: 112, freeGraves: 40, yearsLeft: 12.2 };
+    expect(cemeterySpaceLabel(base)).toBe('Zbývá 40 hrobů – asi na 12 let.');
+    expect(cemeterySpaceLabel({ ...base, yearsLeft: null })).toBe('Zbývá 40 hrobů.');
+    expect(cemeterySpaceLabel({ ...base, freeGraves: 0 })).toBe(
+      'Pohřebiště je plné – ves potřebuje nové.',
+    );
+    expect(cemeterySpaceLabel({ ...base, built: false })).toBe(
+      'Až bude ohrazené, vejde se sem 112 hrobů.',
+    );
   });
 });

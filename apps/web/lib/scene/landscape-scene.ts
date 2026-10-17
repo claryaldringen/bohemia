@@ -420,7 +420,7 @@ export class LandscapeScene {
   }
 
   /**
-   * Kliknutí do scény mimo umisťování (jako v 0 A.D.): levé na obydlí nebo pole ho vybere, na
+   * Kliknutí do scény mimo umisťování (jako v 0 A.D.): levé na obydlí, pole nebo hřbitov ho vybere, na
    * prázdnou zem a pravé výběr zruší (null). Zvýraznění nastaví až rozhraní (`setSelection`).
    */
   onSelect(listener: SelectListener): () => void {
@@ -428,7 +428,7 @@ export class LandscapeScene {
     return () => this.selectListeners.delete(listener);
   }
 
-  /** Zvýrazní vybrané obydlí / pole rámečkem na zemi (null = nic). */
+  /** Zvýrazní vybrané obydlí / pole / hřbitov rámečkem na zemi (null = nic). */
   setSelection(target: VillageTarget | null): void {
     this.selection = target;
     this.highlight?.show(this.villageState, target);
@@ -534,7 +534,7 @@ export class LandscapeScene {
     for (const listener of this.selectListeners) listener(target);
   }
 
-  /** Obydlí nebo pole pod pixelem plátna (CSS px). */
+  /** Obydlí, pole nebo hřbitov pod pixelem plátna (CSS px). */
   private pickTarget(x: number, y: number): VillageTarget | null {
     const camera = this.rtsCamera?.camera;
     const landscape = this.landscape;
