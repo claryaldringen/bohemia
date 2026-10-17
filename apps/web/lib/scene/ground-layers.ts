@@ -2,9 +2,13 @@ import { SURFACE_CODES, type Landscape } from '@bohemia/game';
 import { createNoise2D } from 'simplex-noise';
 import type { ForestField } from './forest-field';
 import type { StreamCenterline } from './stream-geometry';
+import { buildRelief } from './terrain-relief';
 import type { TreePlacement } from './tree-placement';
 
-/** Vrstvy povrchu terénu – pořadí odpovídá kanálům splat textur (RGBA, RG + stín, RG). */
+/**
+ * Vrstvy povrchu terénu – pořadí odpovídá kanálům splat textur: první RGBA, druhá RG (+ stín
+ * v B, kvetoucí louka v A), třetí RGBA.
+ */
 export const GROUND_LAYERS = [
   'grass',
   'grassLush',
@@ -14,6 +18,9 @@ export const GROUND_LAYERS = [
   'mud',
   'gravel',
   'sand',
+  'flowers',
+  'dryGrass',
+  'rocky',
 ] as const;
 export type GroundLayer = (typeof GROUND_LAYERS)[number];
 
@@ -40,6 +47,15 @@ export interface ForestGround {
 
 /** Poloměr (m, při měřítku 1) a síla ztmavení pod stromem. */
 const TREE_SHADE = { radiusM: 6, strength: 0.6 };
+/** Kamenitá půda tam, kde vystupuje skála (`Relief.rockinessAt`) – nejvýš tento podíl trávy. */
+const ROCKY_MAX = 0.5;
+/** Sušší tráva na svazích ke slunci (sklon ke slunci, m/m) a na hřbetech (vypouklost, m). */
+const DRY_SUNWARD = { from: 0.015, to: 0.06 };
+const DRY_CREST = { from: 0.3, to: 0.9 };
+const DRY_MAX = 0.85;
+/** Ostrůvky kvetoucí louky – šum s velikostí skvrn ≈ FLOWER_SCALE_M a třetinovými laloky. */
+const FLOWER_SCALE_M = 190;
+const FLOWER_MAX = 0.7;
 
 const LAYER = Object.fromEntries(GROUND_LAYERS.map((name, i) => [name, i])) as Record<
   GroundLayer,
@@ -57,6 +73,7 @@ export function groundWeights(
   forest?: ForestGround,
 ): GroundWeights {
   const tileWeights = weightsPerTile(l, !stream, !forest);
+  const relief = buildRelief(l);
   const half = (l.size * l.cellSizeM) / 2;
   const resolution = l.size * TEXELS_PER_TILE;
   const layers = GROUND_LAYERS.map(() => new Uint8Array(resolution * resolution));
@@ -93,9 +110,38 @@ export function groundWeights(
         w[LAYER.grassDirt] = w[LAYER.grassDirt]! * (1 - lush);
         w[LAYER.grassLush] = w[LAYER.grassLush]! + shift;
       }
-      if (stream) {
-        // Vzdálenost od okraje vody – potok mění šířku, tůně jsou široké.
-        const near = stream.nearest(x, z);
+      // Vzdálenost od okraje vody – potok mění šířku, tůně jsou široké.
+      const near = stream?.nearest(x, z);
+      // Louky podle tvaru terénu: kamenitá půda na prudkých svazích a hřbetech, sušší tráva na
+      // osluněných svazích, jinde ostrůvky kvetoucí louky. Nahrazují část trávy, v lese nejsou.
+      const grass = w[LAYER.grass]! + w[LAYER.grassLush]! + w[LAYER.grassDirt]!;
+      const meadow = forest ? 1 - smoothstep(-8, 0, forest.field.distanceAt(x, z)) : 1;
+      if (grass > 0 && meadow > 0) {
+        const convexity = relief.convexityAt(x, z);
+        const rocky = ROCKY_MAX * relief.rockinessAt(x, z);
+        const wet = near ? 1 - smoothstep(15, 40, near.bankDistance) : 0;
+        const dry =
+          DRY_MAX *
+          (1 - wet) *
+          Math.min(
+            1,
+            0.75 * smoothstep(DRY_SUNWARD.from, DRY_SUNWARD.to, relief.sunwardAt(x, z)) +
+              0.4 * smoothstep(DRY_CREST.from, DRY_CREST.to, convexity),
+          );
+        const patches =
+          0.65 * flowerNoise(x / FLOWER_SCALE_M, z / FLOWER_SCALE_M) +
+          0.35 * flowerNoise(x / (FLOWER_SCALE_M / 3) + 17.3, z / (FLOWER_SCALE_M / 3) - 4.1);
+        const flowers = FLOWER_MAX * smoothstep(0.15, 0.5, patches) * (1 - 0.6 * dry);
+        const keep = (1 - rocky) * (1 - dry) * (1 - flowers);
+        const taken = meadow * (1 - keep);
+        w[LAYER.grass] = w[LAYER.grass]! * (1 - taken);
+        w[LAYER.grassLush] = w[LAYER.grassLush]! * (1 - taken);
+        w[LAYER.grassDirt] = w[LAYER.grassDirt]! * (1 - taken);
+        w[LAYER.rocky] = grass * meadow * rocky;
+        w[LAYER.dryGrass] = grass * meadow * (1 - rocky) * dry;
+        w[LAYER.flowers] = grass * meadow * (1 - rocky) * (1 - dry) * flowers;
+      }
+      if (near) {
         const d = near.bankDistance;
         const channel = 1 - smoothstep(-1.5, 2.5, d);
         // Náplav na vnitřní straně oblouku – i nad hladinou, kde proud ukládá štěrk a písek.
@@ -171,8 +217,8 @@ function treeShade(l: Landscape, trees: readonly TreePlacement[], resolution: nu
 }
 
 /**
- * Tři RGBA textury pro shader: [trávy + lesní půda], [břeh + bahno + ztmavení pod stromy],
- * [štěrk + písek].
+ * Tři RGBA textury pro shader: [trávy + lesní půda], [břeh + bahno + ztmavení pod stromy +
+ * kvetoucí louka], [štěrk + písek + suchá tráva + kamenitá půda].
  */
 export function packSplatTextures(weights: GroundWeights): [Uint8Array, Uint8Array, Uint8Array] {
   const n = weights.resolution * weights.resolution;
@@ -184,8 +230,11 @@ export function packSplatTextures(weights: GroundWeights): [Uint8Array, Uint8Arr
     second[i * 4] = weights.layers[4]![i]!;
     second[i * 4 + 1] = weights.layers[5]![i]!;
     second[i * 4 + 2] = weights.shade[i]!;
+    second[i * 4 + 3] = weights.layers[8]![i]!;
     third[i * 4] = weights.layers[6]![i]!;
     third[i * 4 + 1] = weights.layers[7]![i]!;
+    third[i * 4 + 2] = weights.layers[9]![i]!;
+    third[i * 4 + 3] = weights.layers[10]![i]!;
   }
   return [first, second, third];
 }
@@ -309,6 +358,17 @@ const layerNoises = Array.from({ length: GROUND_LAYERS.length }, (_, k) => {
   };
   return createNoise2D(random);
 });
+
+// Ostrůvky kvetoucí louky – pevný šum, krajiny se liší tvarem terénu a lesa.
+const flowerNoise = createNoise2D(
+  (() => {
+    let state = 0xf10e5;
+    return (): number => {
+      state = (Math.imul(state ^ (state >>> 15), 0x2c1b3c6d) + 0x6d2b79f5) >>> 0;
+      return state / 4294967296;
+    };
+  })(),
+);
 
 /** Šum 0–1 pro vrstvu k ve dvou měřítkách (≈ 40 m a ≈ 12 m). */
 function layerNoise(x: number, y: number, k: number): number {

@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { generateLandscape, SURFACE_CODES } from '@bohemia/game';
 import { buildForestField } from '../forest-field';
-import { GROUND_LAYERS, groundWeights } from '../ground-layers';
+import { GROUND_LAYERS, groundWeights, packSplatTextures } from '../ground-layers';
 import { streamCenterline } from '../stream-geometry';
+import { buildRelief } from '../terrain-relief';
+import { tileCenter } from '../tile-at';
 import { treePlacements } from '../tree-placement';
 
 const landscape = generateLandscape(3);
@@ -53,9 +55,17 @@ describe('groundWeights', () => {
     }
   });
 
-  it('uprostřed velké louky převažuje tráva', () => {
-    for (const [x, y] of tilesOf(SURFACE_CODES.meadow).slice(0, 50)) {
-      expect(['grass', 'grassLush', 'grassDirt']).toContain(dominant(weightsAtTile(x, y)));
+  it('uprostřed velké louky mimo prudké svahy převažuje tráva (i kvetoucí nebo suchá)', () => {
+    const relief = buildRelief(landscape);
+    const gentle = tilesOf(SURFACE_CODES.meadow).filter(([x, y]) => {
+      const { worldX, worldZ } = tileCenter(landscape, x, y);
+      return relief.slopeAt(worldX, worldZ) < 0.1 && relief.convexityAt(worldX, worldZ) < 0.7;
+    });
+    expect(gentle.length).toBeGreaterThan(50);
+    for (const [x, y] of gentle.slice(0, 50)) {
+      expect(['grass', 'grassLush', 'grassDirt', 'flowers', 'dryGrass']).toContain(
+        dominant(weightsAtTile(x, y)),
+      );
     }
   });
 
@@ -227,5 +237,73 @@ describe('groundWeights s vyhlazenou hranicí lesa a stromy', () => {
       if (++checked > 300) break;
     }
     expect(checked).toBeGreaterThan(100);
+  });
+});
+
+describe('povrchy luk podle tvaru terénu', () => {
+  const field = buildForestField(landscape);
+  const stream = streamCenterline(landscape);
+  const relief = buildRelief(landscape);
+  const ground = groundWeights(landscape, stream, { field, trees: [] });
+  const half = (landscape.size * landscape.cellSizeM) / 2;
+  const step = (landscape.size * landscape.cellSizeM) / ground.resolution;
+  const layer = (name: (typeof GROUND_LAYERS)[number]): Uint8Array =>
+    ground.layers[GROUND_LAYERS.indexOf(name)]!;
+  const rocky = layer('rocky');
+  const dry = layer('dryGrass');
+  const flowers = layer('flowers');
+  const mean = (values: number[]): number => values.reduce((a, b) => a + b, 0) / values.length;
+  const texels: { i: number; x: number; z: number }[] = [];
+  for (let i = 0; i < rocky.length; i += 7) {
+    const x = -half + ((i % ground.resolution) + 0.5) * step;
+    const z = -half + (Math.floor(i / ground.resolution) + 0.5) * step;
+    texels.push({ i, x, z });
+  }
+  /** Texely luk daleko od lesa i potoka. */
+  const meadow = texels.filter(
+    (t) => field.distanceAt(t.x, t.z) < -15 && stream.nearest(t.x, t.z).bankDistance > 40,
+  );
+
+  it('na nejprudších svazích luk vystupuje kamenitá půda, na rovině ne', () => {
+    const steep = meadow.filter((t) => relief.slopeAt(t.x, t.z) > 0.15);
+    const flat = meadow.filter(
+      (t) => relief.slopeAt(t.x, t.z) < 0.05 && relief.convexityAt(t.x, t.z) < 0.3,
+    );
+    expect(steep.length).toBeGreaterThan(20);
+    expect(mean(steep.map((t) => rocky[t.i]!))).toBeGreaterThan(90);
+    expect(flat.filter((t) => rocky[t.i]! > 0).length / flat.length).toBeLessThan(0.02);
+  });
+
+  it('svahy ke slunci jsou sušší než svahy odvrácené', () => {
+    const sunny = meadow.filter((t) => relief.sunwardAt(t.x, t.z) > 0.06);
+    const shaded = meadow.filter((t) => relief.sunwardAt(t.x, t.z) < -0.03);
+    expect(sunny.length).toBeGreaterThan(20);
+    expect(shaded.length).toBeGreaterThan(20);
+    const sunnyDry = mean(sunny.map((t) => dry[t.i]!));
+    expect(sunnyDry).toBeGreaterThan(40);
+    expect(sunnyDry).toBeGreaterThan(3 * mean(shaded.map((t) => dry[t.i]!)));
+  });
+
+  it('kvetoucí louka tvoří ostrůvky – část luk, ne všechny', () => {
+    const share = meadow.filter((t) => flowers[t.i]! > 128).length / meadow.length;
+    expect(share).toBeGreaterThan(0.08);
+    expect(share).toBeLessThan(0.45);
+  });
+
+  it('hluboko v lese ani na břehu potoka nové povrchy nejsou', () => {
+    const outside = texels.filter(
+      (t) => field.distanceAt(t.x, t.z) > 5 || stream.nearest(t.x, t.z).bankDistance < 3,
+    );
+    expect(outside.length).toBeGreaterThan(1000);
+    for (const t of outside) expect(flowers[t.i]! + dry[t.i]! + rocky[t.i]!).toBe(0);
+  });
+
+  it('nové vrstvy jdou do volných kanálů splat textur', () => {
+    const [, second, third] = packSplatTextures(ground);
+    for (const t of meadow.slice(0, 500)) {
+      expect(second[t.i * 4 + 3]).toBe(flowers[t.i]);
+      expect(third[t.i * 4 + 2]).toBe(dry[t.i]);
+      expect(third[t.i * 4 + 3]).toBe(rocky[t.i]);
+    }
   });
 });

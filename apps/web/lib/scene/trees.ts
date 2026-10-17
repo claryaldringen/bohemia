@@ -19,6 +19,8 @@ const FOLIAGE_TINT = new Color3(0.86, 0.9, 0.82);
 const SPRUCE_TINT = new Color3(0.8, 1.45, 1.0);
 /** Jilmy a topoly mají v textuře bledé, šedavé listí – dorovnání do zeleně dubů. */
 const PALE_TINT = new Color3(0.66, 0.84, 0.44);
+/** Borovice lesní má modrozelené jehličí – textura 0 A.D. (přímořská borovice) je žlutější. */
+const PINE_TINT = new Color3(0.72, 0.88, 0.82);
 const FOLIAGE_AMBIENT = new Color3(0.36, 0.38, 0.34);
 
 /**
@@ -43,7 +45,9 @@ export async function addTrees(
           ? SPRUCE_TINT
           : model.startsWith('elm') || model.startsWith('poplar')
             ? PALE_TINT
-            : FOLIAGE_TINT;
+            : model.startsWith('pine')
+              ? PINE_TINT
+              : FOLIAGE_TINT;
         material.roughness = 1;
         // Bez odlesku: odraz světlé oblohy na kartách listí dělal z dálky stromy bledé a modravé.
         material.metallicF0Factor = 0;

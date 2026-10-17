@@ -1,7 +1,7 @@
 import '@babylonjs/core/Meshes/thinInstanceMesh';
 import '@babylonjs/loaders/glTF';
 import { LoadAssetContainerAsync } from '@babylonjs/core/Loading/sceneLoader';
-import type { Material } from '@babylonjs/core/Materials/material';
+import { Material } from '@babylonjs/core/Materials/material';
 import { Matrix, Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import type { Scene } from '@babylonjs/core/scene';
@@ -13,6 +13,8 @@ export interface ModelInstance {
   z: number;
   rotationY: number;
   scale: number;
+  /** Naklonění: svislá osa modelu míří sem (jednotkový vektor), jinak stojí svisle. */
+  up?: { x: number; y: number; z: number };
 }
 
 /**
@@ -39,15 +41,29 @@ export async function addInstancedModel(
   const model = Mesh.MergeMeshes(parts, true, true, undefined, false, true);
   for (const mesh of container.meshes) if (mesh !== model && !mesh.isDisposed()) mesh.dispose();
   if (!model) return null;
+  // Loader glTF převrací osu Z zrcadlením kořenového uzlu a ořez stěn se podle něj otočí sám;
+  // spojení meshů zrcadlení zapeče do vrcholů, takže by se u neprůhledných modelů (kameny)
+  // ořezávaly přední stěny a zbyla by dutá skořápka. Oboustranné listí to nepotřebuje.
+  for (const material of container.materials) {
+    if (material.backFaceCulling)
+      material.sideOrientation = Material.CounterClockWiseSideOrientation;
+  }
   model.name = name;
   model.isPickable = false;
 
   const matrices = new Float32Array(instances.length * 16);
   const matrix = new Matrix();
+  const tilt = new Quaternion();
   instances.forEach((instance, i) => {
+    let rotation = Quaternion.RotationAxis(Vector3.Up(), instance.rotationY);
+    if (instance.up) {
+      const { x, y, z } = instance.up;
+      Quaternion.FromUnitVectorsToRef(Vector3.Up(), new Vector3(x, y, z), tilt);
+      rotation = tilt.multiply(rotation);
+    }
     Matrix.ComposeToRef(
       new Vector3(instance.scale, instance.scale, instance.scale),
-      Quaternion.RotationAxis(Vector3.Up(), instance.rotationY),
+      rotation,
       new Vector3(instance.x, instance.y, instance.z),
       matrix,
     );

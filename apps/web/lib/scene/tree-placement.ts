@@ -7,7 +7,8 @@ import { pickModel, speciesWeights } from './tree-species';
 
 /**
  * Modely stromů: lesní druhy (3D na okraji lesa, v atlasu impostorů uvnitř) a stromy luk
- * a břehů (`meadow-trees.ts`, jen 3D). Keřový lem kreslí dekorace.
+ * a břehů (`meadow-trees.ts`), borovice na skalách a mladé stromky před lesem
+ * (`woodland-placement.ts`) – ty jen 3D. Keřový lem kreslí dekorace.
  */
 export type TreeModel =
   | 'spruce-1'
@@ -27,7 +28,12 @@ export type TreeModel =
   | 'elm-4'
   | 'poplar-1'
   | 'poplar-2'
-  | 'poplar-3';
+  | 'poplar-3'
+  | 'pine-1'
+  | 'pine-2'
+  | 'pine-3'
+  | 'fir-young-1'
+  | 'fir-young-2';
 
 export const TREE_MODELS: readonly TreeModel[] = [
   'spruce-1',
@@ -48,6 +54,11 @@ export const TREE_MODELS: readonly TreeModel[] = [
   'poplar-1',
   'poplar-2',
   'poplar-3',
+  'pine-1',
+  'pine-2',
+  'pine-3',
+  'fir-young-1',
+  'fir-young-2',
 ];
 
 export interface TreePlacement {

@@ -204,5 +204,68 @@
     "foliage": {
       "u_above": 0.27
     }
+  },
+  {
+    "name": "pine-1",
+    "parts": [
+      {
+        "dae": "meshes/gaia/pine_maritime_1.dae",
+        "texture": "textures/skins/gaia/tree_pine_maritime_trunk.png"
+      },
+      {
+        "dae": "meshes/gaia/pine_maritime_1_needles.dae",
+        "texture": "textures/skins/gaia/tree_pine_maritime.png",
+        "foliage": "all"
+      }
+    ],
+    "scale": 0.8
+  },
+  {
+    "name": "pine-2",
+    "parts": [
+      {
+        "dae": "meshes/gaia/pine_maritime_2.dae",
+        "texture": "textures/skins/gaia/tree_pine_maritime_trunk.png"
+      },
+      {
+        "dae": "meshes/gaia/pine_maritime_2_needles.dae",
+        "texture": "textures/skins/gaia/tree_pine_maritime.png",
+        "foliage": "all"
+      }
+    ],
+    "scale": 0.8
+  },
+  {
+    "name": "pine-3",
+    "parts": [
+      {
+        "dae": "meshes/gaia/pine_maritime_3.dae",
+        "texture": "textures/skins/gaia/tree_pine_maritime_trunk.png"
+      },
+      {
+        "dae": "meshes/gaia/pine_maritime_3_needles.dae",
+        "texture": "textures/skins/gaia/tree_pine_maritime.png",
+        "foliage": "all"
+      }
+    ],
+    "scale": 0.8
+  },
+  {
+    "name": "fir-young-1",
+    "dae": "meshes/gaia/fir_sapling_1.dae",
+    "texture": "textures/skins/gaia/cedar_atlas_2.png",
+    "scale": 0.45,
+    "foliage": {
+      "u_above": 0.13
+    }
+  },
+  {
+    "name": "fir-young-2",
+    "dae": "meshes/gaia/fir_sapling_2.dae",
+    "texture": "textures/skins/gaia/cedar_atlas_2.png",
+    "scale": 0.45,
+    "foliage": {
+      "u_above": 0.13
+    }
   }
 ]

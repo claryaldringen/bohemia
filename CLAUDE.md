@@ -137,8 +137,12 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   převyšuje terén jen vizuálně.
 - **Vzhled terénu:** `render-surface.ts` zjemní výšky 4× (Catmull-Rom) a vyhloubí hladké koryto
   podél vyhlazené osy potoka (`stream-geometry.ts`) – tůně hlubší, mělčiny mělké, vnitřní strana
-  oblouku mělčí s náplavem; `terrain-material.ts` míchá 8 textur podle splat map
-  (`ground-layers.ts`, dno potoka podle proudu: štěrk, písek, bahno) pluginem pro GLSL i WGSL. Hranici lesa vyhlazuje a zvlňuje
+  oblouku mělčí s náplavem; `terrain-material.ts` míchá 11 textur podle splat map
+  (`ground-layers.ts`, dno potoka podle proudu: štěrk, písek, bahno) pluginem pro GLSL i WGSL –
+  i se stínem je to 15 samplerů, WebGL 2 zaručuje 16 (další vrstva = pole textur). Louky podle
+  tvaru terénu (`terrain-relief.ts`): kamenitá půda a skalní výchozy kde je prudký svah nebo
+  ostrý hřbet (`rockinessAt`, jako útesy 0 A.D. podle sklonu), sušší tráva na svazích ke slunci
+  (`SUN_DIRECTION`), ostrůvky kvetoucí louky. Hranici lesa vyhlazuje a zvlňuje
   `forest-field.ts` (znaménková vzdálenost od hranice). **Okraj lesa** jsou 2–3 husté řady
   3D stromů z 0 A.D. (`tree-placement.ts`, do 18 m od hranice) + lem a ojedinělé stromy
   v louce; **vnitřek** (od 10 m) jsou impostory (`impostor-placement.ts`, `impostors.ts`) –
@@ -147,14 +151,17 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   Skladba druhů je jedna funkce pro obojí (`tree-species.ts`): okraj světlomilný (dub, bříza,
   buk), uvnitř buk, dub, trochu břízy a jedle ve skupinách (výš víc) – Martin. **Stromy mimo
   les** (`meadow-trees.ts`, jen 3D): osamělé duby a jilmy v loukách (parkové i volné části)
-  a břehový porost topolů a jilmů podél potoka. V lese se kreslí tráva, ne lesní půda (Martin),
+  a břehový porost topolů a jilmů podél potoka; `woodland-placement.ts`: borovice na skalách
+  a suchých hřbetech, mladé stromky ve skupinkách před lesem, souše, padlé stromy, pařezy
+  u vesnice a kmeny v klidné vodě. V lese se kreslí tráva, ne lesní půda (Martin),
   pod stromy ztmavená. Tmavá plocha korun (`forest-canopy.ts`)
   jen vyplňuje mezery hluboko v lese. PBR materiály se oparem musí volat `applyGammaFog`
   (`gamma-fog.ts`) – vestavěný opar PBR zešedí zeleň. **Změna náklonu kamery (`BETA`
   v `camera.ts`) nebo modelů stromů = nový render atlasu** (`tools/blender/impostors.py`)
   a přepis hodnot v `impostor-atlas.ts`.
 - **Dekorace** (`decor-placement.ts`, `decorations.ts`): rákos, orobinec, lekníny a vrby podle
-  tvaru a proudu potoka, keřový lem lesa, kameny v loukách. Modely načítá `instanced-model.ts`
+  tvaru a proudu potoka, keřový lem lesa, keře kolem osamělých stromů a v ostrůvcích, skalní
+  výchozy (naklopené podle svahu) a kameny v loukách. Modely načítá `instanced-model.ts`
   (thin instances), převod z 0 A.D. přes `tools/blender/decor.json`.
 - **Světlo:** letní slunce a obloha podle 0 A.D., kontrast 1,1. **Stíny od slunce**
   (`sun-shadows.ts`) – stínová mapa 4096 přes celou krajinu se vykreslí jednou; vrhají je meshe

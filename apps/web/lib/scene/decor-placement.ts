@@ -7,7 +7,9 @@ import {
   type StreamSample,
   type StreamStation,
 } from './stream-geometry';
+import type { Relief } from './terrain-relief';
 import { tileAt } from './tile-at';
+import type { TreePlacement } from './tree-placement';
 
 /** Drobné modely krajiny bez herní funkce (jen vzhled). */
 export type DecorModel =
@@ -22,7 +24,25 @@ export type DecorModel =
   | 'underbrush-2'
   | 'shrub-1'
   | 'shrub-2'
-  | 'shrub-3';
+  | 'shrub-3'
+  | 'shrub-4'
+  | 'shrub-5'
+  | 'shrub-6'
+  | 'shrub-7'
+  | 'rock-boulder'
+  | 'rock-ridge'
+  | 'rock-tower'
+  | 'rock-moss-1'
+  | 'rock-moss-2'
+  | 'snag-1'
+  | 'snag-2'
+  | 'snag-3'
+  | 'snag-oak'
+  | 'stump'
+  | 'fallen-1'
+  | 'fallen-2'
+  | 'fallen-3'
+  | 'log-water';
 export const DECOR_MODELS: readonly DecorModel[] = [
   'reeds',
   'cattails',
@@ -36,6 +56,24 @@ export const DECOR_MODELS: readonly DecorModel[] = [
   'shrub-1',
   'shrub-2',
   'shrub-3',
+  'shrub-4',
+  'shrub-5',
+  'shrub-6',
+  'shrub-7',
+  'rock-boulder',
+  'rock-ridge',
+  'rock-tower',
+  'rock-moss-1',
+  'rock-moss-2',
+  'snag-1',
+  'snag-2',
+  'snag-3',
+  'snag-oak',
+  'stump',
+  'fallen-1',
+  'fallen-2',
+  'fallen-3',
+  'log-water',
 ];
 
 export interface DecorPlacement {
@@ -71,6 +109,13 @@ const SHRUB_BANDS: readonly { from: number; to: number; chance: number; big: boo
 ];
 /** Rozteč kandidátních míst pro kameny v krajině (m). */
 const STONE_SPACING_M = 40;
+/** Skalní výchozy: rozteč kandidátních míst (m) a nejmenší „skalnatost“ (`Relief.rockinessAt`). */
+const OUTCROP_SPACING_M = 14;
+const OUTCROP_MIN_ROCKINESS = 0.45;
+/** Keře v loukách: podíl osamělých stromů obrostlých keři; ostrůvky keřů (rozteč v m, šance). */
+const TREE_SHRUB_CHANCE = 0.45;
+const SHRUB_ISLAND_SPACING_M = 30;
+const SHRUB_ISLAND_CHANCE = 0.035;
 /** Bez dekorací mimo vodu do této vzdálenosti (políčka) od místa pro vesnici. */
 const VILLAGE_CLEARING_TILES = 2;
 
@@ -81,15 +126,24 @@ function hash(x: number, y: number, k: number): number {
   return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
 }
 
+/** Co dalšího dekorace potřebují znát: tvar terénu a stromy v loukách. */
+export interface DecorScenery {
+  relief: Relief;
+  /** Stromy mimo les (louky, břehy, borovice na skalách) – keře kolem nich, skály mimo kmeny. */
+  trees: readonly TreePlacement[];
+}
+
 /**
  * Dekorace jako v generátoru 0 A.D.: rákos a orobinec ve shlucích na kraji koryta, lekníny
- * na hladině, skupiny vrb a balvany na břehu, keřový lem před lesem a skupinky kamenů v loukách
- * a na okraji lesa – deterministicky.
+ * na hladině, skupiny vrb a balvany na břehu, keřový lem před lesem, keře kolem osamělých
+ * stromů a v ostrůvcích, skalní výchozy na prudkých svazích a hřbetech a skupinky kamenů
+ * v loukách a na okraji lesa – deterministicky.
  */
 export function decorPlacements(
   l: Landscape,
   stream: StreamCenterline,
   field: ForestField,
+  scenery: DecorScenery,
 ): DecorPlacement[] {
   const placements: DecorPlacement[] = [];
   const reedClumps = createNoise2D(seededRandom(0xdec0));
@@ -252,6 +306,99 @@ export function decorPlacements(
     }
   }
 
+  // Skalní výchozy: kde se půda na prudkém svahu nebo ostrém hřbetu neudrží (jako útesy 0 A.D.),
+  // vystupuje velká skála a kolem ní leží mechem porostlé balvany – mimo kmeny stromů (borovice).
+  const clearOfTrees = (x: number, z: number, gapM: number): boolean =>
+    scenery.trees.every((t) => Math.hypot(t.worldX - x, t.worldZ - z) >= gapM);
+  const outcropCells = Math.floor((l.size * l.cellSizeM) / OUTCROP_SPACING_M);
+  for (let gz = 0; gz < outcropCells; gz++) {
+    for (let gx = 0; gx < outcropCells; gx++) {
+      const x = -half + (gx + hash(gx, gz, 111)) * OUTCROP_SPACING_M;
+      const z = -half + (gz + hash(gx, gz, 112)) * OUTCROP_SPACING_M;
+      const rockiness = scenery.relief.rockinessAt(x, z);
+      if (rockiness < OUTCROP_MIN_ROCKINESS || hash(gx, gz, 113) >= 0.4 * rockiness) continue;
+      if (!onLand(x, z) || stream.nearest(x, z).bankDistance <= 4) continue;
+      if (field.distanceAt(x, z) >= 6 || !clearOfTrees(x, z, 5)) continue;
+      const pick = hash(gx, gz, 114);
+      placements.push({
+        model:
+          rockiness > 0.85 && pick < 0.2
+            ? 'rock-tower'
+            : pick < 0.6
+              ? 'rock-boulder'
+              : 'rock-ridge',
+        worldX: x,
+        worldZ: z,
+        rotationY: hash(gx, gz, 115) * Math.PI * 2,
+        scale: 1 + hash(gx, gz, 116) * 0.8,
+      });
+      const k = gz * outcropCells + gx;
+      const satellites = 1 + Math.floor(hash(gx, gz, 117) * 2);
+      for (let i = 0; i < satellites; i++) {
+        const angle = hash(k, i, 118) * Math.PI * 2;
+        const radius = 5 + hash(k, i, 119) * 4;
+        const sx = x + Math.cos(angle) * radius;
+        const sz = z + Math.sin(angle) * radius;
+        if (!onLand(sx, sz) || stream.nearest(sx, sz).bankDistance <= 3) continue;
+        if (!clearOfTrees(sx, sz, 3)) continue;
+        placements.push({
+          model: hash(k, i, 120) < 0.5 ? 'rock-moss-1' : 'rock-moss-2',
+          worldX: sx,
+          worldZ: sz,
+          rotationY: hash(k, i, 121) * Math.PI * 2,
+          scale: 0.8 + hash(k, i, 122) * 0.6,
+        });
+      }
+    }
+  }
+
+  // Keře v loukách: kolem části osamělých stromů (pastevní duby obrůstá hloh a trnka) a ostrůvky
+  // keřů – víc na kamenitých stráních, které se nesečou.
+  const meadowShrub = (x: number, z: number, k: number, j: number): void => {
+    if (!onLand(x, z) || stream.nearest(x, z).bankDistance <= 2.5) return;
+    if (field.distanceAt(x, z) >= -6) return;
+    if (scenery.trees.some((t) => Math.hypot(t.worldX - x, t.worldZ - z) < 3)) return;
+    placements.push({
+      model: MEADOW_SHRUBS[Math.floor(hash(k, j, 131) * MEADOW_SHRUBS.length)]!,
+      worldX: x,
+      worldZ: z,
+      rotationY: hash(k, j, 132) * Math.PI * 2,
+      scale: 0.9 + hash(k, j, 133) * 0.6,
+    });
+  };
+  scenery.trees.forEach((tree, k) => {
+    if (hash(k, 0, 134) >= TREE_SHRUB_CHANCE) return;
+    const count = 1 + Math.floor(hash(k, 1, 134) * 3);
+    let angle = hash(k, 2, 134) * Math.PI * 2;
+    for (let i = 0; i < count; i++) {
+      angle += 0.6 + hash(k, 10 + i, 134) * 0.9;
+      // Na okraji koruny – pod ní by keř nebyl vidět.
+      const radius = 6.5 + hash(k, 20 + i, 134) * 4;
+      meadowShrub(
+        tree.worldX + Math.cos(angle) * radius,
+        tree.worldZ + Math.sin(angle) * radius,
+        k,
+        30 + i,
+      );
+    }
+  });
+  const islandCells = Math.floor((l.size * l.cellSizeM) / SHRUB_ISLAND_SPACING_M);
+  for (let gz = 0; gz < islandCells; gz++) {
+    for (let gx = 0; gx < islandCells; gx++) {
+      const cx = -half + (gx + hash(gx, gz, 141)) * SHRUB_ISLAND_SPACING_M;
+      const cz = -half + (gz + hash(gx, gz, 142)) * SHRUB_ISLAND_SPACING_M;
+      const chance = SHRUB_ISLAND_CHANCE * (0.7 + 2 * scenery.relief.rockinessAt(cx, cz));
+      if (hash(gx, gz, 143) >= chance) continue;
+      const k = 100000 + gz * islandCells + gx;
+      const count = 3 + Math.floor(hash(gx, gz, 144) * 5);
+      for (let i = 0; i < count; i++) {
+        const angle = hash(k, i, 145) * Math.PI * 2;
+        const radius = i === 0 ? 0 : 1.5 + hash(k, i, 146) * 4.5;
+        meadowShrub(cx + Math.cos(angle) * radius, cz + Math.sin(angle) * radius, k, 50 + i);
+      }
+    }
+  }
+
   const cells = Math.floor((l.size * l.cellSizeM) / STONE_SPACING_M);
   for (let gz = 0; gz < cells; gz++) {
     for (let gx = 0; gx < cells; gx++) {
@@ -276,6 +423,9 @@ export function decorPlacements(
   }
   return placements;
 }
+
+/** Keře v loukách (hloh, trnka, šípek) – jiné tvary než keřový lem lesa. */
+const MEADOW_SHRUBS: readonly DecorModel[] = ['shrub-4', 'shrub-5', 'shrub-6', 'shrub-7'];
 
 /** U lesa velké podrostové keře (buk, dub), dál do louky menší keře. */
 function shrubModel(big: boolean, pick: number): DecorModel {

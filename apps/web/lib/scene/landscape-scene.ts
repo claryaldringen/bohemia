@@ -9,7 +9,7 @@ import { Scene } from '@babylonjs/core/scene';
 import { surfaceAt, type Landscape } from '@bohemia/game';
 import type { TileInfo } from '../tile-info';
 import { createRtsCamera, type RtsCamera } from './camera';
-import { HEIGHT_SCALE } from './constants';
+import { HEIGHT_SCALE, SUN_DIRECTION } from './constants';
 import { createEngine, type RendererName } from './create-engine';
 import { decorPlacements } from './decor-placement';
 import { addDecorations } from './decorations';
@@ -21,10 +21,12 @@ import { meadowTreePlacements } from './meadow-trees';
 import { createTerrainMesh } from './terrain-mesh';
 import { buildRenderSurface } from './render-surface';
 import { addSunShadows } from './sun-shadows';
+import { buildRelief } from './terrain-relief';
 import { tileAt, tileCenter } from './tile-at';
 import { treePlacements } from './tree-placement';
 import { addTrees } from './trees';
 import { createWaterMesh, type WaterSurface } from './water';
+import { deadwoodPlacements, pinePlacements, youngTreePlacements } from './woodland-placement';
 
 type HoverListener = (tile: TileInfo | null) => void;
 
@@ -97,7 +99,11 @@ export class LandscapeScene {
     sky.intensity = 0.5;
     sky.diffuse = new Color3(0.93, 0.96, 1.05);
     sky.groundColor = new Color3(0.32, 0.3, 0.26);
-    const sun = new DirectionalLight('sun', new Vector3(-0.8, -0.6, -0.35), scene);
+    const sun = new DirectionalLight(
+      'sun',
+      new Vector3(SUN_DIRECTION.x, SUN_DIRECTION.y, SUN_DIRECTION.z),
+      scene,
+    );
     sun.intensity = 1.05;
     sun.diffuse = new Color3(1.03, 0.98, 0.88);
     return new LandscapeScene(canvas, engine, scene, renderer);
@@ -124,12 +130,24 @@ export class LandscapeScene {
     await report('forest', 0.4);
     if (this.disposed) return;
     const field = buildForestField(landscape);
-    // Okraj lesa, v loukách osamělé stromy a skupinky, podél potoka břehový porost.
+    // Okraj lesa, v loukách osamělé stromy a skupinky, podél potoka břehový porost, na skalách
+    // borovice, před lesem mladé stromky; souše, padlé stromy, pařezy a kmeny v potoce.
+    const relief = buildRelief(landscape);
+    const meadowTrees = meadowTreePlacements(landscape, field, surface.stream);
+    const pines = pinePlacements(landscape, field, surface.stream, relief, meadowTrees);
     const trees = [
       ...treePlacements(landscape, field, surface.stream),
-      ...meadowTreePlacements(landscape, field, surface.stream),
+      ...meadowTrees,
+      ...pines,
+      ...youngTreePlacements(landscape, field, surface.stream),
     ];
-    const decor = decorPlacements(landscape, surface.stream, field);
+    const decor = [
+      ...decorPlacements(landscape, surface.stream, field, {
+        relief,
+        trees: [...meadowTrees, ...pines],
+      }),
+      ...deadwoodPlacements(landscape, field, surface.stream),
+    ];
     await report('surface', 0.5);
     if (this.disposed) return;
     this.terrain = createTerrainMesh(this.scene, landscape, surface, { field, trees });

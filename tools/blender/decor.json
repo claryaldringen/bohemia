@@ -84,5 +84,143 @@
     "texture": "textures/skins/gaia/bush_tempe_a.dds",
     "scale": 0.5,
     "foliage": "all"
+  },
+  {
+    "name": "rock-boulder",
+    "dae": "meshes/gaia/stone_granite_boulder_a.dae",
+    "texture": "textures/skins/gaia/stone_temperate_01.png",
+    "scale": 0.8,
+    "opaque": true,
+    "texture_px": 512
+  },
+  {
+    "name": "rock-ridge",
+    "dae": "meshes/gaia/stone_granite_peak_a.dae",
+    "texture": "textures/skins/gaia/stone_temperate_01.png",
+    "scale": 0.9,
+    "opaque": true,
+    "texture_px": 512
+  },
+  {
+    "name": "rock-tower",
+    "dae": "meshes/gaia/stone_cubic_weathered_01.dae",
+    "texture": "textures/skins/gaia/stonequarry_temperate.png",
+    "scale": 0.55,
+    "opaque": true,
+    "texture_px": 512
+  },
+  {
+    "name": "rock-moss-1",
+    "dae": "meshes/gaia/wrld_rock_highland1.dae",
+    "texture": "textures/skins/gaia/wrld_rock_highlands_moss.dds",
+    "scale": 1.2,
+    "opaque": true,
+    "texture_px": 256
+  },
+  {
+    "name": "rock-moss-2",
+    "dae": "meshes/gaia/wrld_rock_highland2.dae",
+    "texture": "textures/skins/gaia/wrld_rock_highlands_moss.dds",
+    "scale": 1.2,
+    "opaque": true,
+    "texture_px": 256
+  },
+  {
+    "name": "shrub-4",
+    "dae": "meshes/gaia/bush_la_2.dae",
+    "texture": "textures/skins/gaia/bush_tempe_a.dds",
+    "scale": 0.6,
+    "foliage": "all"
+  },
+  {
+    "name": "shrub-5",
+    "dae": "meshes/gaia/bush_la_5.dae",
+    "texture": "textures/skins/gaia/bush_tempe_a.dds",
+    "scale": 0.6,
+    "foliage": "all"
+  },
+  {
+    "name": "shrub-6",
+    "dae": "meshes/gaia/bush_me_2.dae",
+    "texture": "textures/skins/gaia/bush_tempe_a.dds",
+    "scale": 0.55,
+    "foliage": "all"
+  },
+  {
+    "name": "shrub-7",
+    "dae": "meshes/gaia/bush_me_4.dae",
+    "texture": "textures/skins/gaia/bush_tempe_a.dds",
+    "scale": 0.55,
+    "foliage": "all"
+  },
+  {
+    "name": "snag-1",
+    "parts": [
+      {
+        "dae": "meshes/gaia/tree_dead_a_1.dae",
+        "texture": "textures/skins/gaia/tree_dead.dds"
+      },
+      {
+        "dae": "meshes/props/tree_dead_a1_branches.dae",
+        "texture": "textures/skins/gaia/tree_dead_branches.png"
+      }
+    ],
+    "scale": 0.6
+  },
+  {
+    "name": "snag-2",
+    "parts": [
+      {
+        "dae": "meshes/gaia/tree_dead_a_2.dae",
+        "texture": "textures/skins/gaia/tree_dead.dds"
+      },
+      {
+        "dae": "meshes/props/tree_dead_a2_branches.dae",
+        "texture": "textures/skins/gaia/tree_dead_branches.png"
+      }
+    ],
+    "scale": 0.5
+  },
+  {
+    "name": "snag-3",
+    "dae": "meshes/gaia/dead_deciduous_3.dae",
+    "texture": "textures/skins/gaia/dead_deciduous_tree.png",
+    "scale": 0.9
+  },
+  {
+    "name": "snag-oak",
+    "dae": "meshes/gaia/tree_oak_new_d.dae",
+    "texture": "textures/skins/gaia/tree_dead.dds",
+    "scale": 0.6
+  },
+  {
+    "name": "stump",
+    "dae": "meshes/gaia/dead_deciduous_5.dae",
+    "texture": "textures/skins/gaia/dead_deciduous_tree.png",
+    "scale": 0.4
+  },
+  {
+    "name": "fallen-1",
+    "dae": "meshes/gaia/dead_deciduous_6.dae",
+    "texture": "textures/skins/gaia/dead_deciduous_tree.png",
+    "scale": 0.55
+  },
+  {
+    "name": "fallen-2",
+    "dae": "meshes/gaia/dead_deciduous_7.dae",
+    "texture": "textures/skins/gaia/dead_deciduous_tree.png",
+    "scale": 0.6
+  },
+  {
+    "name": "fallen-3",
+    "dae": "meshes/gaia/dead_deciduous_8.dae",
+    "texture": "textures/skins/gaia/dead_deciduous_tree.png",
+    "scale": 0.65
+  },
+  {
+    "name": "log-water",
+    "dae": "meshes/gaia/log_a.dae",
+    "texture": "textures/skins/gaia/log_a.dds",
+    "scale": 0.8
   }
 ]

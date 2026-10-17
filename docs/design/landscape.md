@@ -129,7 +129,11 @@ na který se později přidávají další prvky (černozem, naleziště kovů, 
   řeší jednou, stejně jako ve zbytku webu.
 - **Server stránky předá data krajiny**, klientská komponenta je pošle scéně.
 - **Terén:** jedna síť z výškové mapy, povrch míchá textury trávy, lesní půdy, břehu a bahna
-  (z 0 A.D., CC BY-SA 3.0). **Voda:** hladina v hladkém korytě potoka.
+  (z 0 A.D., CC BY-SA 3.0). Louky podle tvaru terénu (Martin): na prudkých svazích a ostrých
+  hřbetech vystupuje skála – kamenitá půda a skalní výchozy (jako útesy 0 A.D. podle sklonu),
+  svahy ke slunci mají sušší trávu, jinde ostrůvky kvetoucí louky; v loukách keře kolem
+  osamělých stromů a v ostrůvcích. Jen vzhled – herní data se nemění. **Voda:** hladina
+  v hladkém korytě potoka.
 - **Stromy a další objekty jsou 3D modely** (glTF/GLB) – grafika z **0 A.D.** (Wildfire Games,
   CC BY-SA 3.0, Martinova volba), jednotný styl s texturami terénu, smí do veřejného repa
   s uvedením autora. Dřeviny lesa: dub, buk, bříza a jedle (modely `spruce-*` jsou jedle z 0 A.D.),
@@ -141,7 +145,10 @@ na který se později přidávají další prvky (černozem, naleziště kovů, 
   a ojedinělé stromy v louce (mimo okolí místa pro vesnici). **Stromy mimo les** (Martin):
   v loukách osamělé mohutné duby a jilmy, jednotlivě i ve skupinkách – někde parková louka,
   jinde rozlehlá volná plocha; podél potoka břehový porost topolů a jilmů s mezerami (olše
-  v 0 A.D. chybí). Jen vzhled scény – herní data políček se nemění. **Vnitřek lesa tvoří impostory**
+  v 0 A.D. chybí). Na skalách a suchých hřbetech borovice (reliktní bory; přímořská borovice
+  z 0 A.D. vypadá jako naše borovice lesní), před lesem skupinky mladých stromků (louka zarůstá),
+  na okraji lesa souše a padlé stromy, u lesa poblíž vesnice pařezy, v klidné vodě kmeny.
+  Jen vzhled scény – herní data políček se nemění. **Vnitřek lesa tvoří impostory**
   – obrázky týchž stromů vyrenderované pod pevným náklonem kamery (kamera se otáčí jen kolem
   svislé osy, takže obrázek sedí z každého směru); jejich začátek zakrývají řady 3D stromů.
   V lese je tráva (ne hrabanka – Martin), pod stromy ztmavená. Mezery hluboko v lese vyplňuje
