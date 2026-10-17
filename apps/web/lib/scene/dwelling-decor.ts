@@ -9,10 +9,20 @@ import { localToWorld, seededRandom, smoothstep, type DecalGrid } from './villag
  * eaveHalf = polovina její délky, frontY = přední štít se dveřmi.
  */
 const SHAPES: Record<DwellingType, { eaveX: number; eaveHalf: number; frontY: number }> = {
-  // okap leží na valu drnů (hřbet x ≈ 2,25, pata 2,7) – voda stéká po vnější straně valu
-  zemnice: { eaveX: 2.5, eaveHalf: 2.45, frontY: -2.0 },
+  // okap leží na valu drnů (hřbet x ≈ 2,25, pata 2,7) – voda stéká po vnější straně valu;
+  // střecha přečnívá štíty o 1,05 m (vpředu kryje šíji), hlína před vchodem začíná u jejího ústí
+  zemnice: { eaveX: 2.5, eaveHalf: 3.1, frontY: -2.6 },
   // přesah střechy 0,5 m za stěnu – kapková linie x = 2,6
-  polozemnice: { eaveX: 2.6, eaveHalf: 2.65, frontY: -2.1 },
+  polozemnice: { eaveX: 2.6, eaveHalf: 3.2, frontY: -2.6 },
+};
+
+/**
+ * Dýmník (tmavý otvor ve vrcholu zadního štítu) v souřadnicích modelu ve scéně: výška nad patou
+ * a z (zadní štít je v −z). Odtud stoupá dým (village-smoke.ts).
+ */
+export const SMOKE_VENT: Record<DwellingType, { y: number; z: number }> = {
+  zemnice: { y: 1.85, z: -2.1 },
+  polozemnice: { y: 2.85, z: -2.2 },
 };
 
 export type TuftModel = 'grass-tuft-1' | 'grass-tuft-2';

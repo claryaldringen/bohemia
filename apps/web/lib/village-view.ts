@@ -64,6 +64,8 @@ export interface SceneVillage {
     position: Position;
     built: boolean;
     progress: number;
+    /** Bydlí v něm někdo – jen z obydlí s obyvateli stoupá dým. Bez údaje = obývané. */
+    inhabited?: boolean;
   }[];
   /** Pole s obrysem a díly – střed políčka (x, z), strana políčka `size` v m a stadium. */
   fields: {
@@ -140,12 +142,14 @@ function sceneVillage(
   day: number,
   constructions: ConstructionSummary[],
 ): SceneVillage {
+  const occupied = new Set(state.people.map((p) => p.dwellingId));
   const built = state.dwellings.map((d) => ({
     id: d.id,
     type: d.type,
     position: d.position,
     built: true,
     progress: 1,
+    inhabited: occupied.has(d.id),
   }));
   const sites = state.constructions.flatMap((c) => {
     if (c.kind !== 'dwelling' || c.dwellingType === null || c.position === null) return [];

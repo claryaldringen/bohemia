@@ -21,7 +21,8 @@ describe('okolí obydlí', () => {
       const lz = dx * s + dz * c;
       expect(Math.abs(lx)).toBeGreaterThan(2.2);
       expect(Math.abs(lx)).toBeLessThan(3.3);
-      expect(Math.abs(lz)).toBeLessThan(3);
+      // podél celé střechy, i pod přesahem před štíty (1,05 m)
+      expect(Math.abs(lz)).toBeLessThan(3.6);
     }
   });
 
