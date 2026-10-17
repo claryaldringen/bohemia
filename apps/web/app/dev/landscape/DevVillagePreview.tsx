@@ -219,8 +219,8 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     );
 
   /**
-   * Hřbitovy 2 × 2 čtverce ve všech fázích založení vedle sebe kousek od místa vsi a hotový
-   * s hroby; zemnice před nimi ukáže, kam míří branka.
+   * Hřbitovy 2 × 2 čtverce ve všech fázích založení vedle sebe kousek od místa vsi, hotové
+   * s hroby a hotový s rozšířením ve stavbě; zemnice před nimi ukáže, kam míří branka.
    */
   const showCemeteries = (): void => {
     scene?.cancelPlacement();
@@ -237,6 +237,26 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
       const graves = built ? (i === stops.length - 1 ? 224 : 70) : 0;
       list.push({ id: nextId.current++, squares, built, progress, graves });
     });
+    // hotový hřbitov s rozšířením ve stavbě (dva čtverce za ním, kůly zatlučené z poloviny)
+    const extended = fieldParts(decoded, [
+      { x: sx - 7, y: sy + 5 },
+      { x: sx - 6, y: sy + 5 },
+      { x: sx - 7, y: sy + 6 },
+      { x: sx - 6, y: sy + 6 },
+    ]);
+    const extension = fieldParts(decoded, [
+      { x: sx - 7, y: sy + 7 },
+      { x: sx - 6, y: sy + 7 },
+    ]).map((square) => ({ ...square, pending: true }));
+    if (extended.length === 4 && extension.length === 2) {
+      list.push({
+        id: nextId.current++,
+        squares: [...extended, ...extension],
+        built: true,
+        progress: 0.3,
+        graves: 150,
+      });
+    }
     const site = tileCenter(decoded, sx, sy);
     setDwellings([
       {
