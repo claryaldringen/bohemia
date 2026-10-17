@@ -8,6 +8,7 @@ export {
 export { checkBand, measureLandscape, type LandscapeMetrics } from './band';
 export { heightAtWorld, sampleTilesAtWorld, tileCenterWorld, tileOfWorldPoint } from './world';
 export { transferPrecision } from './quantize';
+export { detAtan2, detCos, detSin, length2 } from './det-math';
 export { buildForestField, type ForestField } from './forest-field';
 export { buildRelief, SUN_RAYS, type Relief } from './relief';
 export {

@@ -33,6 +33,9 @@ function treeModel(look: TreeLook): FelledModel {
   };
 }
 
+/** Kolikrát zkusit načíst model pařezu nebo náletu, než se to vzdá. */
+const MAX_LOAD_ATTEMPTS = 3;
+
 /** Hash id → [0, 1) – podoba náletu je jen vzhled. */
 function idHash(id: number, k: number): number {
   let h = Math.imul(id ^ Math.imul(k, 0x27d4eb2d), 0x85ebca6b);
@@ -68,6 +71,8 @@ function saplingOf(look: string, id: number): { model: TreeLook; scale: number }
 export class FelledTrees {
   private readonly meshes = new Map<string, Mesh>();
   private readonly loading = new Map<string, Promise<void>>();
+  /** Nepovedená načtení modelu – po MAX_LOAD_ATTEMPTS se to už nezkouší. */
+  private readonly failures = new Map<string, number>();
   /** Požadované instance podle modelu – po dočtení modelu se použijí ty nejnovější. */
   private desired = new Map<string, { model: FelledModel; instances: ModelInstance[] }>();
   private signature = '';
@@ -140,7 +145,11 @@ export class FelledTrees {
     for (const [key, entry] of desired) {
       if (this.meshes.has(key)) {
         changed = this.apply(key) || changed;
-      } else if (entry.instances.length > 0 && !this.loading.has(key)) {
+      } else if (
+        entry.instances.length > 0 &&
+        !this.loading.has(key) &&
+        (this.failures.get(key) ?? 0) < MAX_LOAD_ATTEMPTS
+      ) {
         this.loading.set(key, this.load(entry.model));
       }
     }
@@ -158,19 +167,28 @@ export class FelledTrees {
       if (!mesh) return;
       this.meshes.set(model.key, mesh);
       this.options.addShadowCaster(mesh);
-      this.apply(model.key);
-      this.options.onAsyncChange();
+      // překreslit, jen když model něco kreslí (mezitím mohly pařezy zmizet)
+      if (this.apply(model.key)) this.options.onAsyncChange();
     } catch (error) {
       console.warn('Model pařezu nebo náletu se nepodařilo načíst.', error);
+      this.failures.set(model.key, (this.failures.get(model.key) ?? 0) + 1);
+      // příští stav vsi (dotaz každých pár sekund) to zkusí znovu
+      this.signature = '';
+    } finally {
+      this.loading.delete(model.key);
     }
   }
 
-  /** Nastaví meshi požadované instance; bez instancí ho vypne. */
+  /**
+   * Nastaví meshi požadované instance; bez instancí ho vypne. Vrátí true, když se kreslení
+   * změnilo (vypnutý mesh bez instancí překreslení nepotřebuje).
+   */
   private apply(key: string): boolean {
     const mesh = this.meshes.get(key);
     const entry = this.desired.get(key);
     if (!mesh || !entry) return false;
     if (entry.instances.length === 0) {
+      if (!mesh.isEnabled()) return false;
       mesh.setEnabled(false);
       return true;
     }

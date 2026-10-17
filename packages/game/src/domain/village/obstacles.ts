@@ -1,4 +1,7 @@
 import {
+  detCos,
+  detSin,
+  length2,
   obstacleKind,
   obstaclesInTile,
   obstaclesNear,
@@ -73,15 +76,19 @@ export function obstacleChangesAt(state: ChangeLists, day: number): ObstacleChan
 export interface ObstacleStatus {
   /** Druh překážky teď (pokácený strom = pařez, dorůstající = mladý stromek), odstraněná null. */
   kindOf(layer: ObstacleLayer, index: number): ObstacleKind | null;
-  /** Všechny změněné překážky – scéna skryje jejich původní podobu. */
-  changed: ReadonlySet<number>;
 }
 
+/** Dotazy podle objektu změn – kontrola umístění běží při každém pohybu kurzoru, změny ne. */
+const statusCache = new WeakMap<ObstacleChanges, ObstacleStatus>();
+
+/** Dotazy nad změnami vsi; pro týž objekt změn se množiny staví jen jednou. */
 export function obstacleStatus(changes: ObstacleChanges = NO_OBSTACLE_CHANGES): ObstacleStatus {
+  const cached = statusCache.get(changes);
+  if (cached) return cached;
   const removed = new Set(changes.removed);
   const stumps = new Set(changes.stumps);
   const saplings = new Set(changes.saplings);
-  return {
+  const status: ObstacleStatus = {
     kindOf(layer, index) {
       const id = layer.id[index]!;
       if (removed.has(id)) return null;
@@ -89,8 +96,9 @@ export function obstacleStatus(changes: ObstacleChanges = NO_OBSTACLE_CHANGES): 
       if (saplings.has(id)) return 'youngTree';
       return obstacleKind(layer, index);
     },
-    changed: new Set([...removed, ...stumps, ...saplings]),
   };
+  statusCache.set(changes, status);
+  return status;
 }
 
 /** Překážky na místě stavby a co stojí jejich odstranění. */
@@ -114,7 +122,6 @@ function addToTally(
   layer: ObstacleLayer,
   index: number,
   kind: ObstacleKind,
-  charge: boolean,
 ): void {
   tally.counts[kind] = (tally.counts[kind] ?? 0) + 1;
   if (kind === 'outcrop') {
@@ -123,31 +130,31 @@ function addToTally(
     return;
   }
   tally.ids.push(layer.id[index]!);
-  if (charge) tally.cost += OBSTACLE_COST[kind];
+  tally.cost += OBSTACLE_COST[kind];
 }
 
 /**
- * Překážky na čtverci pole (pata v políčku). Na lese platí sazba lesa za hektar – stromy jsou
- * v ceně (`charge: false`), osadníci je ale stejně odstraní.
+ * Překážky na čtverci pole (pata v políčku). Pole jdou zatím jen na louku; až půjdou do lesa,
+ * platí na lesním čtverci sazba za hektar a stromy jsou v ceně (fields.md – Co je překážka).
  */
 export function cellObstacles(
   layer: ObstacleLayer,
   status: ObstacleStatus,
   cell: TileCell,
-  charge: boolean,
 ): ObstacleTally {
   const tally = emptyTally();
   for (const index of obstaclesInTile(layer, cell.x, cell.y)) {
     const kind = status.kindOf(layer, index);
-    if (kind !== null) addToTally(tally, layer, index, kind, charge);
+    if (kind !== null) addToTally(tally, layer, index, kind);
   }
   return tally;
 }
 
 /** Bod v souřadnicích modelu obydlí (x napříč, z k vchodu) → svět (natočení jako rotation.y). */
 function localToWorld(position: Position, lx: number, lz: number): Point {
-  const cos = Math.cos(position.rotation);
-  const sin = Math.sin(position.rotation);
+  // deterministicky – kontrola v prohlížeči a na serveru musí najít tytéž překážky
+  const cos = detCos(position.rotation);
+  const sin = detSin(position.rotation);
   return [position.x + lx * cos + lz * sin, position.z - lx * sin + lz * cos];
 }
 
@@ -194,7 +201,7 @@ export function dwellingObstacles(
   for (const index of obstaclesInPolygon(layer, dwellingClearing(type, position))) {
     if (fieldTiles.has(tileOf(layer.z[index]!) * layer.size + tileOf(layer.x[index]!))) continue;
     const kind = status.kindOf(layer, index);
-    if (kind !== null) addToTally(tally, layer, index, kind, true);
+    if (kind !== null) addToTally(tally, layer, index, kind);
   }
   return tally;
 }
@@ -208,7 +215,7 @@ function distanceToSegment(p: Point, a: Point, b: Point): number {
     lengthSq === 0
       ? 0
       : Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dz) / lengthSq));
-  return Math.hypot(p[0] - (a[0] + t * dx), p[1] - (a[1] + t * dz));
+  return length2(p[0] - (a[0] + t * dx), p[1] - (a[1] + t * dz));
 }
 
 /** Zasahuje do mnohoúhelníku některý skalní výchoz (kruh kolem paty)? Výchoz se neodstraní. */
@@ -268,7 +275,7 @@ export function matureTreesByDistance(
     if (status.kindOf(layer, i) !== 'tree') continue;
     const x = layer.x[i]!;
     const z = layer.z[i]!;
-    const distanceM = Math.hypot(x - from.x, z - from.z);
+    const distanceM = length2(x - from.x, z - from.z);
     if (distanceM <= maxDistance) trees.push({ id: layer.id[i]!, x, z, distanceM });
   }
   trees.sort((a, b) => a.distanceM - b.distanceM || a.id - b.id);
@@ -344,7 +351,7 @@ export function withObstacleClearing(state: VillageState, layer: ObstacleLayer):
   }
   for (const part of next.parts) {
     if (!part.cell) continue;
-    const ids = cellObstacles(layer, status, part.cell, false).ids;
+    const ids = cellObstacles(layer, status, part.cell).ids;
     if (part.state === 'founding') {
       const pending = ids.filter((id) => !removed.has(id));
       if (pending.length > 0) part.obstacles = pending;

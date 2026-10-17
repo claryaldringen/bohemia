@@ -405,8 +405,7 @@ export function fieldPartsFromCells(
     }
     if (blocked) blockedCells.push(cell);
     if (surface !== 'meadow') continue;
-    // v lese platí sazba za hektar (stromy v ceně), na louce překážky po kusech
-    const tally = cellObstacles(obstacles, status, cell, surface === 'meadow');
+    const tally = cellObstacles(obstacles, status, cell);
     for (const [kind, count] of Object.entries(tally.counts) as [ObstacleKind, number][]) {
       obstacleCounts[kind] = (obstacleCounts[kind] ?? 0) + count;
     }
