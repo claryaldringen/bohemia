@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { getWorldState, OFFICIAL_WORLD, realTimeOf, type WorldClock } from '../calendar';
+import {
+  dateOfDayIndex,
+  dayIndexOf,
+  getWorldState,
+  OFFICIAL_WORLD,
+  realTimeOf,
+  TOTAL_GAME_DAYS,
+  type WorldClock,
+} from '../calendar';
 
 // Očekávané hodnoty jsou spočítané nezávisle (juliánské číslo dne, celočíselná aritmetika),
 // ne tímto kódem. Okamžiky „uprostřed dne“ jsou daleko od hranic dnů.
@@ -126,5 +134,29 @@ describe('realTimeOf – kdy herní den začíná', () => {
     [700, 1, 1.5],
   ])('%s-%s-%s odmítne jako neplatné datum', (year, month, day) => {
     expect(() => realTimeOf({ year, month, day }, OFFICIAL_WORLD)).toThrow(RangeError);
+  });
+});
+
+describe('dayIndexOf a dateOfDayIndex – převod data a indexu dne', () => {
+  it('1. 1. 500 má index 0', () => {
+    expect(dayIndexOf({ year: 500, month: 1, day: 1 })).toBe(0);
+  });
+
+  it('převod tam a zpět zachová datum a doplní den v roce a roční období', () => {
+    expect(dateOfDayIndex(dayIndexOf({ year: 1024, month: 10, day: 16 }))).toEqual({
+      year: 1024,
+      month: 10,
+      day: 16,
+      dayOfYear: 290,
+      season: 'autumn',
+    });
+  });
+
+  it('poslední herní den světa je 31. 12. 1499', () => {
+    expect(dateOfDayIndex(TOTAL_GAME_DAYS - 1)).toMatchObject({
+      year: 1499,
+      month: 12,
+      day: 31,
+    });
   });
 });

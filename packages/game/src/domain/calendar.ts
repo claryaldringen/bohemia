@@ -60,7 +60,7 @@ function seasonOf(month: number): Season {
 }
 
 /** Index herního dne (0 = 1. 1. 500) → herní datum. */
-function dateFromDayIndex(dayIndex: number): GameDate {
+export function dateOfDayIndex(dayIndex: number): GameDate {
   const cycle = Math.floor(dayIndex / DAYS_IN_CYCLE);
   let dayInYear = dayIndex % DAYS_IN_CYCLE;
   let yearInCycle = 0;
@@ -91,11 +91,11 @@ function dayIndexAt(nowMs: number, world: WorldClock): number {
 export function getWorldState(nowMs: number, world: WorldClock): WorldState {
   if (nowMs < world.startMs) return { status: 'not-started' };
   if (nowMs >= world.endMs) return { status: 'ended' };
-  return { status: 'running', date: dateFromDayIndex(dayIndexAt(nowMs, world)) };
+  return { status: 'running', date: dateOfDayIndex(dayIndexAt(nowMs, world)) };
 }
 
 /** Herní datum → index herního dne (0 = 1. 1. 500). */
-function dayIndexOf({ year, month, day }: CalendarDate): number {
+export function dayIndexOf({ year, month, day }: CalendarDate): number {
   const valid =
     [year, month, day].every(Number.isInteger) &&
     year >= FIRST_YEAR &&
