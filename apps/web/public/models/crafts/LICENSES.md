@@ -18,12 +18,14 @@ terénu viz `apps/web/public/textures/terrain/LICENSE.md`, v repu jako `grass-lu
 345–512 × 130–210 px) – používají se jen výřezy atlasu obydlí. Upravené soubory jsou šířeny pod
 stejnou licencí CC BY-SA 3.0. Licence se týká jen těchto souborů, ne zbytku hry Bohemia.
 
-| Soubor       | Původní soubory (art/…)                                                                                                                                                                                     |
-| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `hrncir.glb` | atlas obydlí (viz `../dwellings/LICENSES.md`) + `textures/terrain/types/temperate/mud_01.png`, `../shoreline_stoney_a.png`; koš `meshes/props/wrld_basket_b.dae` + `textures/skins/props/basket_celt_1.dds` |
-| `kovar.glb`  | atlas obydlí + `mud_01.png`, `../shoreline_stoney_a.png`; koš `meshes/props/wrld_basket_a.dae` + `textures/skins/props/basket_celt_1.dds`                                                                   |
-| `uhlir.glb`  | atlas obydlí s mechem místo slámy: `textures/terrain/types/temperate/grass_04.png`, `forestfloor_003.png`, `mud_01.png`; koše `meshes/props/wrld_basket_a.dae` + `basket_celt_1.dds`                        |
-| `milir.glb`  | stejný atlas jako `uhlir.glb` (zem milíře z `mud_01.png` a `grass_04.png`, věnec polen z `celt_struct.dds`); koš `meshes/props/wrld_basket_a.dae` + `basket_celt_1.dds`                                     |
+| Soubor                  | Původní soubory (art/…)                                                                                                                                                                                     |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `hrncir.glb`            | atlas obydlí (viz `../dwellings/LICENSES.md`) + `textures/terrain/types/temperate/mud_01.png`, `../shoreline_stoney_a.png`; koš `meshes/props/wrld_basket_b.dae` + `textures/skins/props/basket_celt_1.dds` |
+| `kovar.glb`             | atlas obydlí + `mud_01.png`, `../shoreline_stoney_a.png`; koš `meshes/props/wrld_basket_a.dae` + `textures/skins/props/basket_celt_1.dds`                                                                   |
+| `uhlir.glb`             | atlas obydlí s mechem místo slámy: `textures/terrain/types/temperate/grass_04.png`, `forestfloor_003.png`, `mud_01.png`; koše `meshes/props/wrld_basket_a.dae` + `basket_celt_1.dds`                        |
+| `milir.glb`             | stejný atlas jako `uhlir.glb` (zem milíře z `mud_01.png` a `grass_04.png`, věnec polen z `celt_struct.dds`); koš `meshes/props/wrld_basket_a.dae` + `basket_celt_1.dds`                                     |
+| `construction.glb`      | díly staveniště hrnčíře a kováře a rekvizity (kameny, hlína) – stejné zdroje jako `hrncir.glb` a `kovar.glb`                                                                                                |
+| `construction-moss.glb` | díly staveniště uhlíře a milíře – stejné zdroje jako `uhlir.glb` a `milir.glb`                                                                                                                              |
 
 Jámu se schody, ve které hrnčíř, kovář (jáma polozemnice) a uhlíř (jáma zemnice) stojí, kreslí
 scéna (`apps/web/lib/scene/dwelling-pit.ts`) s texturou bahna z terénu.
