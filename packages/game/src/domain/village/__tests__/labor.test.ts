@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { DAILY_MIN_PER_HOUSEHOLD, DOMESTIC } from '../rules';
 import { allocateDay } from '../labor';
 
+const DOMESTIC_FOR_4 = DOMESTIC.perHousehold + DOMESTIC.perPerson * 4;
 const base = {
   capacity: 2.6,
   households: 1,
@@ -25,8 +26,8 @@ describe('allocateDay', () => {
   it('bez úloh: minimum, domácí výroba, zbytek společná práce', () => {
     const r = allocateDay(base);
     expect(r.dailyMin).toBeCloseTo(DAILY_MIN_PER_HOUSEHOLD);
-    expect(r.domestic).toBeCloseTo(DOMESTIC.perHousehold + DOMESTIC.perPerson * 4);
-    expect(r.common).toBeCloseTo(2.6 - 0.5 - 0.78);
+    expect(r.domestic).toBeCloseTo(DOMESTIC_FOR_4);
+    expect(r.common).toBeCloseTo(2.6 - DAILY_MIN_PER_HOUSEHOLD - DOMESTIC_FOR_4);
     expect(sum(r)).toBeCloseTo(2.6);
     expect(r.tasks.dig).toBe(0);
   });
@@ -41,7 +42,7 @@ describe('allocateDay', () => {
     expect(r.tasks.sow).toBeCloseTo(1);
     expect(r.tasks.dig).toBeCloseTo(1.1);
     expect(r.domestic).toBe(0);
-    expect(r.domesticBacklog).toBeCloseTo(0.78);
+    expect(r.domesticBacklog).toBeCloseTo(DOMESTIC_FOR_4);
     expect(sum(r)).toBeCloseTo(2.6);
   });
   it('opravy před domácí výrobou', () => {
@@ -58,7 +59,7 @@ describe('allocateDay', () => {
     expect(r.domesticBacklog).toBeGreaterThanOrEqual(0);
   });
   it('nedodělek se v zimě dožene a nepřekročí 60denní potřebu', () => {
-    const need = DOMESTIC.perHousehold + DOMESTIC.perPerson * 4;
+    const need = DOMESTIC_FOR_4;
     const r = allocateDay({ ...base, capacity: 100, domesticBacklog: 30 });
     expect(r.domestic).toBeCloseTo(need + 30);
     expect(r.domesticBacklog).toBe(0);

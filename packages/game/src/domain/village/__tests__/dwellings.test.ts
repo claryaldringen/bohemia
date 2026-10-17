@@ -108,10 +108,11 @@ describe('odemčení nového obydlí', () => {
 });
 
 describe('opravy a přestavba', () => {
-  it('v den postavení nic neopravuje, na konci životnosti zemnice 35 člověkodní ročně', () => {
+  it('v den postavení nic neopravuje, na konci životnosti zemnice plnou roční potřebu oprav', () => {
     const d = dwelling(1, 0);
+    const atEnd = DWELLINGS.zemnice.repairAtEndOfLifePerYear / 365;
     expect(repairNeedPerDay(d, 0)).toBe(0);
-    expect(repairNeedPerDay(d, 15 * YEAR)).toBeCloseTo(35 / 365, 4);
+    expect(repairNeedPerDay(d, DWELLINGS.zemnice.lifespanYears * YEAR)).toBeCloseTo(atEnd, 4);
   });
 
   it('nedodělek ubírá stav o (potřeba − práce) / cena, nejméně na 0', () => {

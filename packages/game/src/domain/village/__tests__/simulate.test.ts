@@ -217,6 +217,7 @@ describe('advanceVillage – roční plán a sklizeň', () => {
     const start = found(at(600, 6, 1));
     start.constructions = [];
     start.lastDay = day - 1;
+    start.storesKg = 5000; // zásoby nad prahem – cíl osevu je jen potřeba, nezávisle na rezervě
     start.parts.forEach((p, i) => {
       p.foundingDone = p.foundingCost;
       p.state = i < 70 ? 'sown' : 'ready';

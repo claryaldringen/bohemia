@@ -6,14 +6,14 @@ export const DWELLINGS = {
     capacity: 6,
     cost: 60,
     lifespanYears: 15,
-    repairAtEndOfLifePerYear: 35,
+    repairAtEndOfLifePerYear: 15, // kalibrace: ≈ ½ společné práce domácnosti (measure-village)
     childDeathFactor: 1,
   },
   polozemnice: {
     capacity: 8,
     cost: 220,
     lifespanYears: 22,
-    repairAtEndOfLifePerYear: 40,
+    repairAtEndOfLifePerYear: 17, // kalibrace: ≈ ½ společné práce domácnosti (measure-village)
     childDeathFactor: 0.8,
   },
 } as const;
@@ -45,8 +45,8 @@ export const FOOD_NEED_KG_PER_YEAR = { child: 100, adult: 180, elder: 140 } as c
 // fields.md – Zásoby a nasycení (ztráty při skladování, start se zásobami)
 export const STORAGE_LOSS_PER_YEAR = 0.1;
 export const START_STORES_MONTHS = 18;
-// fields.md – Kolik ves oseje (potřeba + rezerva 10 %, nad 1,5 roční potřeby jen potřeba)
-export const SOW_RESERVE = 0.1;
+// fields.md – Kolik ves oseje (potřeba + rezerva 15 %, nad 1,5 roční potřeby jen potřeba)
+export const SOW_RESERVE = 0.15;
 export const STORES_HIGH_YEARS = 1.5;
 // fields.md – Kolik ves oseje (návrh Clauda)
 export const PEAK_CAPACITY_SHARE = 0.8; // ve špičce jde na pole nejvýš 80 % práce po denním minimu
@@ -102,7 +102,7 @@ export const FIELD_LIMITS = { maxDistanceM: 800, minAreaM2: 1000 } as const;
 // fields.md – Práce (denní minimum domácností); population.md – Práce
 export const DAILY_MIN_PER_HOUSEHOLD = 0.5;
 // fields.md – Práce (domácí výroba, přenos nedodělané práce nejvýš 60 dní)
-export const DOMESTIC = { perHousehold: 0.3, perPerson: 0.12, backlogMaxDays: 60 } as const;
+export const DOMESTIC = { perHousehold: 0.3, perPerson: 0.15, backlogMaxDays: 60 } as const;
 // population.md – Nové obydlí (společná práce za posledních 30 dní pro „má na to“)
 export const COMMON_LABOR_HISTORY_DAYS = 30;
 

@@ -171,6 +171,25 @@ stovky vsí a ověří cíle:
   Jediná domácnost bez nových staveb za staletí vymře (simulace: ≈ 90 % do 1000 let) – stavět
   se vyplácí; za pár dní nepřítomnosti se ale nic takového nestane (anti-cíl).
 
+**Naměřeno** (`packages/game/scripts/measure-village.ts`, 17. 10. 2026, se skutečným jídlem
+z [fields.md](fields.md); 200 vsí × 60 let, vymření 30 vsí × 1000 let, jediná domácnost
+100 vsí):
+
+- první možnost stavět: medián 3,9 roku, 90 % vsí do 7,8 roku, 99 % do 22 let – splněno,
+- čerstvě plná domácnost postaví zemnici za ≈ 80 dní, polozemnici za ≈ 300 dní – splněno,
+- zemnice se přestavuje po 15 letech, polozemnice po 22 (dřív zchátrá < 1 % obydlí); opravy
+  na konci životnosti jsou ≈ 0,5 (zemnice) a 0,6 (polozemnice) společné práce domácnosti,
+  která je v rostoucí vsi jen ≈ 28 člověkodní ročně – splněno po kalibraci: roční opravy na
+  konci životnosti zemnice 35 → 15, polozemnice 40 → 17 člověkodní (s 35 zemnice chátrala na
+  nulu už po ≈ 12 letech – ve špičkách polních prací na opravy nezbývá práce),
+- vymření do roku 1500: ves, kde hráč staví, kdykoli může, nevymřela žádná (0 z 30; na konci
+  medián 36 domácností a 152 lidí – když dojde půda, hlad drží ves u toho, co pole uživí),
+- **nesplněno:** jediná domácnost bez nových staveb vymře do 1000 let jen v ≈ 50 % případů
+  (medián po ≈ 460 letech; cíl ≈ 90 %). Přestavba na polozemnici jí dá 8 míst a domácnost
+  kolem 8–9 lidí je odolná; čísla přeplněnosti s tím skoro nehnou (porody v přeplnění
+  0,3 → 0,15: 53 %, úmrtnost v přeplnění 1,5 → 2,5: 61 %). Stavět se vyplácí i tak – zda na
+  ≈ 90 % trvat, rozhodne Martin.
+
 ## Co hráč vidí
 
 - V krajině: umístění první zemnice a dalších obydlí, rozestavěné stavby. 3D modely zemnice
