@@ -24,7 +24,14 @@ describe('DWELLING_FOOTPRINT_M', () => {
 describe('checkDwellingPlacement – terén', () => {
   it('na rovné louce jde stavět', () => {
     const check = checkDwellingPlacement(makeLandscape(), null, 'zemnice', at(7.5, 7.5));
-    expect(check).toEqual({ ok: true, reason: null });
+    // ručně vyrobená krajina nemá překážky
+    expect(check).toEqual({
+      ok: true,
+      reason: null,
+      obstacleCost: 0,
+      obstacleIds: [],
+      obstacleCounts: {},
+    });
   });
 
   it('mimo krajinu stavět nejde', () => {
@@ -306,9 +313,18 @@ describe('villageDwellingPositions', () => {
 });
 
 describe('umístění na vygenerované krajině', () => {
+  // Krajiny jednou – kontroly umístění si k nim vygenerují vrstvu překážek (stovky ms na krajinu).
+  const landscapes = new Map<number, ReturnType<typeof generateLandscape>>();
+  const landscapeOf = (seed: number): ReturnType<typeof generateLandscape> => {
+    const cached = landscapes.get(seed);
+    if (cached) return cached;
+    const l = generateLandscape(seed);
+    landscapes.set(seed, l);
+    return l;
+  };
   // U místa vsi najde první políčko, kde zemnice uprostřed projde, a pole 3 × 2 čtverce vedle ní.
   const findSpot = (seed: number): { dwelling: Position; field: TileCell[] } | null => {
-    const l = generateLandscape(seed);
+    const l = landscapeOf(seed);
     const { x: sx, y: sy } = l.villageSite;
     for (let r = 0; r < 10; r++) {
       for (let dy = -r; dy <= r; dy++) {
@@ -331,10 +347,10 @@ describe('umístění na vygenerované krajině', () => {
     for (const seed of [1, 2, 3, 4, 5]) {
       expect(findSpot(seed), `seed ${seed}`).not.toBeNull();
     }
-  });
+  }, 30_000);
 
   it('díly pole na vygenerované krajině nesou úrodnost svého políčka', () => {
-    const l = generateLandscape(3);
+    const l = landscapeOf(3);
     const spot = findSpot(3);
     expect(spot).not.toBeNull();
     const result = fieldPartsFromCells(l, null, spot!.field, [spot!.dwelling]);

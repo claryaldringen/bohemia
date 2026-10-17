@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../domain/calendar';
-import { advanceVillage, type Position, type VillageState } from '../../domain/village';
+import { generateLandscape, tileCenterWorld } from '../../domain/landscape';
+import {
+  advanceVillage,
+  checkDwellingPlacement,
+  DWELLINGS,
+  placementVillageOf,
+  type Position,
+  type VillageState,
+} from '../../domain/village';
 import { block, makeLandscape } from '../../domain/village/__tests__/placement-fixtures';
 import { foundVillageForSettlement, type FoundVillageInput } from '../found-village';
 import { loadVillage } from '../load-village';
@@ -281,5 +289,87 @@ describe('renameVillage', () => {
       { settlementId: ID, today: TODAY, name: 'Lhota' },
     );
     expect(none).toEqual({ ok: false, reason: 'Ves ještě není založená.' });
+  });
+});
+
+describe('překážky krajiny ve vsi (vrstva překážek)', () => {
+  const real = generateLandscape(3);
+  const site = tileCenterWorld(real, real.villageSite.x, real.villageSite.y);
+  /** Místo pro zemnici u vsi, kde na staveništi stojí překážky (keř, kámen, strom…). */
+  const spotWithObstacles = (): Position => {
+    for (let r = 20; r < 400; r += 5) {
+      for (let a = 0; a < 64; a++) {
+        const p = at(site.x + r * Math.cos(a / 10), site.z + r * Math.sin(a / 10));
+        const check = checkDwellingPlacement(real, null, 'zemnice', p);
+        if (check.ok && check.obstacleIds.length > 0) return p;
+      }
+    }
+    throw new Error('Žádné místo s překážkami.');
+  };
+  const spot = spotWithObstacles();
+  const expected = checkDwellingPlacement(real, null, 'zemnice', spot);
+
+  it('založení vsi odstraní překážky pod první zemnicí', async () => {
+    const villages = new InMemoryVillages();
+    const result = await foundVillageForSettlement(
+      { villages, seeds },
+      { settlementId: ID, landscape: real, today: TODAY, name: 'Libice', dwelling: spot },
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.village.state.clearedObstacles!.map((c) => c.id)).toEqual(expected.obstacleIds);
+  });
+
+  it('nové obydlí zaplatí překážky prací a osadníci je odstraní při zahájení stavby', async () => {
+    const villages = new InMemoryVillages();
+    const founded = await foundVillageForSettlement(
+      { villages, seeds },
+      {
+        settlementId: ID,
+        landscape: real,
+        today: TODAY,
+        name: 'Libice',
+        dwelling: at(site.x, site.z),
+      },
+    );
+    expect(founded.ok).toBe(true);
+    const result = await placeDwelling(
+      { villages },
+      { settlementId: ID, landscape: real, today: TODAY + 1, type: 'zemnice', position: spot },
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const construction = result.village.state.constructions.at(-1)!;
+    expect(construction.cost).toBeCloseTo(DWELLINGS.zemnice.cost + expected.obstacleCost, 9);
+    expect(expected.obstacleCost).toBeGreaterThan(0);
+    const cleared = result.village.state.clearedObstacles!.map((c) => c.id);
+    for (const id of expected.obstacleIds) expect(cleared).toContain(id);
+    // stejné místo podruhé: překážky už nejsou (a obydlí se překrývá)
+    const again = checkDwellingPlacement(
+      real,
+      placementVillageOf(result.village.state, TODAY + 1),
+      'zemnice',
+      at(spot.x + 40, spot.z),
+    );
+    for (const id of again.obstacleIds) expect(cleared).not.toContain(id);
+  });
+
+  it('ves z doby před vrstvou překážek si je při načtení s krajinou doplní a uloží', async () => {
+    const villages = new InMemoryVillages();
+    await foundVillageForSettlement(
+      { villages, seeds },
+      { settlementId: ID, landscape: real, today: TODAY, name: 'Libice', dwelling: spot },
+    );
+    const record = villages.records.get(ID)!;
+    delete record.state.clearedObstacles;
+    delete record.state.felledTrees;
+    const withoutLandscape = await loadVillage({ villages }, { settlementId: ID, today: TODAY });
+    expect(withoutLandscape!.state.clearedObstacles).toBeUndefined();
+    const loaded = await loadVillage(
+      { villages },
+      { settlementId: ID, today: TODAY, landscape: real },
+    );
+    expect(loaded!.state.clearedObstacles!.map((c) => c.id)).toEqual(expected.obstacleIds);
+    expect(villages.records.get(ID)!.state.clearedObstacles).toBeDefined();
   });
 });

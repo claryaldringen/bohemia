@@ -39,6 +39,8 @@ export interface FieldPart {
   foundingDone: number;
   surface: FieldSurface; // povrch při založení
   cell?: TileCell; // políčko krajiny = čtverec pole, který díl zabírá
+  /** Překážky na čtverci (id z vrstvy překážek) – zmizí z krajiny, až osadníci díl založí. */
+  obstacles?: number[];
 }
 /** Pole – jeho čtverce jsou políčka jeho dílů (`FieldPart.cell`). */
 export interface Field {
@@ -101,4 +103,17 @@ export interface VillageState {
   hungry: boolean;
   commonLaborHistory: number[]; // společná práce posledních 30 dní (pro „má na to“)
   chronicle: ChronicleEvent[];
+  /**
+   * Překážky krajiny odstraněné natrvalo i s pařezy (pole, obydlí). Chybí u vsí založených před
+   * vrstvou překážek – doplní je `withObstacleClearing`.
+   */
+  clearedObstacles?: ObstacleChange[];
+  /** Pokácené stromy – zbyl po nich pařez a z náletu znovu dorostou (TREE_REGROWTH_YEARS). */
+  felledTrees?: ObstacleChange[];
+}
+
+/** Změna krajiny sídla nad vygenerovanou vrstvou překážek – id překážky a den. */
+export interface ObstacleChange {
+  id: number;
+  day: number;
 }

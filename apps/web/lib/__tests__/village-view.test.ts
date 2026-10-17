@@ -181,6 +181,19 @@ describe('buildVillageView', () => {
     expect(inField.reason).toMatch(/polem/);
   });
 
+  it('scéna nese odstraněné a pokácené překážky – i do kontroly umístění v prohlížeči', () => {
+    const s = state();
+    s.clearedObstacles = [{ id: 7, day: DAY }];
+    s.felledTrees = [
+      { id: 9, day: DAY },
+      { id: 11, day: DAY - 4000 },
+    ];
+    const { scene } = buildVillageView(record(s), landscape, DAY);
+    // strom 11 je pokácený přes 10 let – roste z náletu
+    expect(scene.obstacles).toEqual({ removed: [7], stumps: [9], saplings: [11] });
+    expect(placementVillageFromScene(scene).obstacleChanges).toEqual(scene.obstacles);
+  });
+
   it('kronika: nejnovější první, s datem „12. dubna 503“, nejvýš CHRONICLE_LENGTH událostí', () => {
     const s = state();
     const view = buildVillageView(record(s), landscape, DAY);

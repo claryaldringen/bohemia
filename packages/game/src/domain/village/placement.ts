@@ -1,15 +1,26 @@
 import {
   heightAtWorld,
+  obstaclesOf,
   surfaceAt,
   tileCenterWorld,
   tileOfWorldPoint,
   type Landscape,
+  type ObstacleKind,
+  type ObstacleLayer,
 } from '../landscape';
 import type { PartInput } from './actions';
 import { partFoundingCost } from './fields';
+import {
+  cellObstacles,
+  dwellingObstacles,
+  obstacleChangesAt,
+  obstacleStatus,
+  outcropUnder,
+  type ObstacleChanges,
+} from './obstacles';
 import { polygonsOverlap, rectangleCorners, type Point } from './polygon';
 import { DWELLING_FOOTPRINT_M, DWELLING_MAX_HEIGHT_DIFF_M, FIELD_LIMITS } from './rules';
-import type { DwellingType, Position, TileCell } from './types';
+import type { DwellingType, Position, TileCell, VillageState } from './types';
 
 // Umisťování obydlí a polí (population.md – Umístění obydlí, fields.md – Založení pole).
 // Čisté funkce pro server i klienta (náhled při umisťování). Obydlí stojí kdekoli (souřadnice
@@ -30,6 +41,18 @@ export interface PlacementVillage {
   }[];
   /** Díly polí – každý zabírá své políčko (díl bez políčka se nepočítá). */
   readonly parts: readonly { readonly cell?: TileCell }[];
+  /** Překážky, které ves už odstranila nebo pokácela (`obstacleChangesAt`); bez nich žádné. */
+  readonly obstacleChanges?: ObstacleChanges;
+}
+
+/** Kontrola umístění obydlí s cenou překážek na vyklízené ploše. */
+export interface DwellingPlacementCheck extends PlacementCheck {
+  /** Práce navíc za překážky (člověkodny, tabulka ve fields.md). */
+  obstacleCost: number;
+  /** Překážky, které osadníci při zahájení stavby odstraní. */
+  obstacleIds: number[];
+  /** Kolik překážek kterého druhu na místě je. */
+  obstacleCounts: Partial<Record<ObstacleKind, number>>;
 }
 
 /** Náhled pole ze čtverců – díly pro `foundField` / `foundVillage` a souhrn pro hráče. */
@@ -41,6 +64,10 @@ export interface FieldPreview {
   areaM2: number;
   averageFertility: number;
   foundingCost: number;
+  /** Z ceny založení práce navíc za překážky (kameny, stromy, keře…). */
+  obstacleCost: number;
+  /** Překážky na čtvercích pole podle druhu (i skalní výchozy, které pole obejde). */
+  obstacleCounts: Partial<Record<ObstacleKind, number>>;
   /** Čtverce, kam pole nesmí (voda, les, obydlí, jiné pole, moc daleko) – scéna je zčervená. */
   blockedCells: TileCell[];
   check: PlacementCheck;
@@ -53,6 +80,8 @@ const FOOTPRINT_SAMPLE_STEP_M = 0.5;
 const M2_PER_HA = 10_000;
 
 const OK: PlacementCheck = { ok: true, reason: null };
+/** Skalní výchozy smí zabrat nejvýš tolik z čtverce pole – díl má vždy nějakou plochu. */
+const MAX_OUTCROP_SHARE = 0.9;
 
 function fail(reason: string): PlacementCheck {
   return { ok: false, reason };
@@ -182,20 +211,49 @@ function checkFootprintFree(
 
 /**
  * Smí obydlí stát na místě? Rozdíl výšek pod půdorysem nejvýš 0,5 m, všechna políčka pod ním
- * louka (ne voda, zatím ani les), žádný překryv s obydlími, rozestavěnými obydlími a poli.
+ * louka (ne voda, zatím ani les), žádný překryv s obydlími, rozestavěnými obydlími, poli ani
+ * se skalním výchozem. Ostatní překážky na vyklízené ploše (`DWELLING_CLEARING_M`) osadníci
+ * odstraní – cena po kusech podle tabulky ve fields.md. `obstacles` = vrstva překážek krajiny.
  */
 export function checkDwellingPlacement(
   landscape: Landscape,
   village: PlacementVillage | null,
   type: DwellingType,
   position: Position,
-): PlacementCheck {
+  obstacles: ObstacleLayer = obstaclesOf(landscape),
+): DwellingPlacementCheck {
+  const none = { obstacleCost: 0, obstacleIds: [], obstacleCounts: {} };
   if (![position.x, position.z, position.rotation].every(Number.isFinite)) {
-    return fail('Neplatná poloha obydlí.');
+    return { ...fail('Neplatná poloha obydlí.'), ...none };
   }
   const terrain = checkFootprintTerrain(landscape, footprintSamples(type, position));
-  if (!terrain.ok) return terrain;
-  return checkFootprintFree(landscape, village, dwellingFootprint(type, position));
+  if (!terrain.ok) return { ...terrain, ...none };
+  const footprint = dwellingFootprint(type, position);
+  const free = checkFootprintFree(landscape, village, footprint);
+  if (!free.ok) return { ...free, ...none };
+  const status = obstacleStatus(village?.obstacleChanges);
+  if (outcropUnder(obstacles, status, footprint)) {
+    return { ...fail('Stojí tu skalní výchoz – ten osadníci neodstraní.'), ...none };
+  }
+  // překážky v políčkách polí odstraní založení dílu, obydlí je neplatí
+  const tally = dwellingObstacles(
+    obstacles,
+    status,
+    type,
+    position,
+    occupiedCells(landscape, village),
+  );
+  return {
+    ...OK,
+    obstacleCost: tally.cost,
+    obstacleIds: tally.ids,
+    obstacleCounts: tally.counts,
+  };
+}
+
+/** Ves pro kontrolu umístění na serveru – stav vsi se změnami překážek v den `day`. */
+export function placementVillageOf(state: VillageState, day: number): PlacementVillage {
+  return { ...state, obstacleChanges: obstacleChangesAt(state, day) };
 }
 
 /** Polohy obydlí vsi včetně rozestavěných – od nich se měří vzdálenost dílů pole. */
@@ -286,12 +344,17 @@ const EMPTY_PREVIEW = {
   areaM2: 0,
   averageFertility: 0,
   foundingCost: 0,
+  obstacleCost: 0,
+  obstacleCounts: {},
   blockedCells: [],
 } as const;
 
 /**
  * Pole ze čtverců – políček krajiny (15 × 15 m, díl = celé políčko). Díly jen na louce (les
- * zatím ne). Vzdálenost dílu = od středu políčka k nejbližšímu z `dwellingPositions`. Kontrola
+ * zatím ne). Překážky na čtverci (pata v políčku, z vrstvy `obstacles` bez toho, co ves už
+ * odstranila) zvednou cenu dílu podle tabulky ve fields.md a osadníci je odstraní, až díl
+ * založí; skalní výchoz zůstane a plocha pod ním se do dílu nepočítá. Vzdálenost dílu = od
+ * středu políčka k nejbližšímu z `dwellingPositions`. Kontrola
  * v tomto pořadí: platné čtverce v krajině, ne voda, ne les, nepřekrývá obydlí ani jiná pole,
  * žádný díl dál než 800 m, čtverce sousedí stranou v jednom celku, aspoň 0,1 ha. Náhled
  * (díly, výměra, zakázané čtverce…) se počítá i při neúspěchu – kromě neplatných čtverců.
@@ -301,10 +364,21 @@ export function fieldPartsFromCells(
   village: PlacementVillage | null,
   cells: readonly TileCell[],
   dwellingPositions: Position[],
+  obstacles: ObstacleLayer = obstaclesOf(landscape),
 ): FieldPreview {
   const shape = normalizeFieldCells(landscape, cells);
-  if (!shape.ok)
-    return { ...EMPTY_PREVIEW, cells: [], parts: [], blockedCells: [], check: fail(shape.reason) };
+  if (!shape.ok) {
+    return {
+      ...EMPTY_PREVIEW,
+      cells: [],
+      parts: [],
+      obstacleCounts: {},
+      blockedCells: [],
+      check: fail(shape.reason),
+    };
+  }
+  const status = obstacleStatus(village?.obstacleChanges);
+  const obstacleCounts: Partial<Record<ObstacleKind, number>> = {};
 
   const occupied = occupiedCells(landscape, village);
   const underDwellings = dwellingCells(landscape, village, dwellingPositions);
@@ -331,12 +405,18 @@ export function fieldPartsFromCells(
     }
     if (blocked) blockedCells.push(cell);
     if (surface !== 'meadow') continue;
+    // v lese platí sazba za hektar (stromy v ceně), na louce překážky po kusech
+    const tally = cellObstacles(obstacles, status, cell, surface === 'meadow');
+    for (const [kind, count] of Object.entries(tally.counts) as [ObstacleKind, number][]) {
+      obstacleCounts[kind] = (obstacleCounts[kind] ?? 0) + count;
+    }
     parts.push({
-      areaM2: cellArea,
+      areaM2: cellArea - Math.min(tally.outcropAreaM2, cellArea * MAX_OUTCROP_SHARE),
       distanceM,
       naturalFertility: landscape.fertility[index]!,
       surface: 'meadow',
-      obstacleCost: 0,
+      obstacleCost: tally.cost,
+      ...(tally.ids.length > 0 ? { obstacleIds: tally.ids } : {}),
       cell,
     });
   }
@@ -348,6 +428,7 @@ export function fieldPartsFromCells(
     (sum, p) => sum + partFoundingCost(p.surface, p.areaM2, p.obstacleCost),
     0,
   );
+  const obstacleCost = parts.reduce((sum, p) => sum + p.obstacleCost, 0);
   const minCells = Math.ceil(FIELD_LIMITS.minAreaM2 / cellArea);
   const checks: [boolean, () => string][] = [
     [problems.water, () => 'Pole nesmí zasahovat do vody.'],
@@ -373,6 +454,8 @@ export function fieldPartsFromCells(
     areaM2,
     averageFertility,
     foundingCost,
+    obstacleCost,
+    obstacleCounts,
     blockedCells,
     check: failed ? fail(failed[1]()) : OK,
   };

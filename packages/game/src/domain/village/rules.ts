@@ -142,6 +142,24 @@ export const DWELLING_FOOTPRINT_M: Record<DwellingType, { width: number; depth: 
   polozemnice: { width: 5, depth: 5 },
 };
 export const DWELLING_MAX_HEIGHT_DIFF_M = 0.5;
+// population.md – Umístění obydlí (překážky na místě osadníci odstraní), fields.md – Co je
+// překážka (obydlí: kusy na ploše ≈ 10 × 10 m kolem půdorysu). Plocha v souřadnicích modelu
+// (x napříč, z k vchodu, m) – staveniště s hromadou hlíny a střecha předsazená před štíty;
+// scéna podle ní kreslí staveniště (DWELLING_CLEARANCE_M).
+export const DWELLING_CLEARING_M: Record<
+  DwellingType,
+  { minX: number; maxX: number; minZ: number; maxZ: number }
+> = {
+  zemnice: { minX: -4.8, maxX: 4.8, minZ: -4.4, maxZ: 7.5 },
+  polozemnice: { minX: -5.1, maxX: 5.1, minZ: -4.7, maxZ: 7.5 },
+};
+// fields.md – Překážka na louce (skalní výchoz se neodstraní, plocha pod ním se nepočítá):
+// poloměr výchozu (m) na jednotku velikosti modelu (modely skal 0 A.D. mají půdorys ≈ 6 m)
+export const OUTCROP_RADIUS_M = 3;
+// forest.md – Les ustupuje: pokácený strom se z náletu obnoví ≈ za 30 let (návrh Clauda);
+// prvních TREE_SAPLING_AFTER_YEARS let je po něm jen pařez, pak mladý stromek (návrh Clauda)
+export const TREE_REGROWTH_YEARS = 30;
+export const TREE_SAPLING_AFTER_YEARS = 10;
 // fields.md – Zarůstání (stadia přílohu podle celých let bez péče; víc než 15 let = les)
 export const OVERGROWTH_STAGES = [
   { maxYears: 2, stage: 'young-fallow' },

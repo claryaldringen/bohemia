@@ -11,6 +11,7 @@ export * from './actions';
 export * from './simulate';
 export * from './polygon';
 export * from './placement';
+export * from './obstacles';
 export * from './summary';
 export * from './names';
 export * from './costs';

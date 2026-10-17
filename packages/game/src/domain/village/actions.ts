@@ -1,6 +1,7 @@
 import { TOTAL_GAME_DAYS } from '../calendar';
 import { buildAffordability, payUpfront, type BuildKind } from './costs';
 import { partFoundingCost } from './fields';
+import { recordClearedObstacles } from './obstacles';
 import { ageGroup } from './people';
 import {
   DWELLINGS,
@@ -21,6 +22,8 @@ export type PartInput = {
   surface: FieldSurface;
   obstacleCost: number;
   cell?: TileCell; // políčko krajiny dílu (z placement.ts)
+  /** Překážky na čtverci (id z vrstvy překážek) – zmizí, až osadníci díl založí. */
+  obstacleIds?: number[];
 };
 
 export type FieldInput = {
@@ -57,6 +60,14 @@ function validateObstacleCost(obstacleCost: number): void {
   if (obstacleCost < 0) throw new RangeError('Cena překážek nesmí být záporná.');
 }
 
+/** Id překážek jsou nezáporná celá čísla bez opakování; jinak RangeError. */
+function validateObstacleIds(ids: readonly number[]): void {
+  if (!ids.every((id) => Number.isInteger(id) && id >= 0)) {
+    throw new RangeError('Id překážek musí být nezáporná celá čísla.');
+  }
+  if (new Set(ids).size !== ids.length) throw new RangeError('Překážka se nesmí opakovat.');
+}
+
 /**
  * Ověří vstup pole (společné pro první pole vsi i `foundField`); jinak RangeError. Čísla, která
  * nejsou konečná (NaN, ±∞), by stav otrávila natrvalo – po uložení do JSON z nich je `null`.
@@ -74,6 +85,7 @@ function validateField(field: FieldInput): void {
       throw new RangeError('Úrodnost dílu musí být konečná.');
     }
     validateObstacleCost(part.obstacleCost);
+    validateObstacleIds(part.obstacleIds ?? []);
     if (part.distanceM > FIELD_LIMITS.maxDistanceM) {
       throw new RangeError(`Díl pole je dál než ${FIELD_LIMITS.maxDistanceM} m od vsi.`);
     }
@@ -107,6 +119,7 @@ function addField(state: VillageState, day: number, field: FieldInput): void {
       foundingDone: 0,
       surface: input.surface,
       ...(input.cell ? { cell: { ...input.cell } } : {}),
+      ...(input.obstacleIds?.length ? { obstacles: [...input.obstacleIds] } : {}),
     });
   }
   state.constructions.push({
@@ -136,10 +149,14 @@ export function foundVillage(input: {
   day: number;
   dwellingPosition: Position;
   firstField?: FieldInput | null;
+  /** Překážky na místě první zemnice – osadníci je odstranili (zemnice hned stojí). */
+  dwellingObstacleIds?: readonly number[];
 }): VillageState {
   const { seed, day, dwellingPosition, firstField } = input;
+  const dwellingObstacleIds = input.dwellingObstacleIds ?? [];
   validateDay(day);
   validatePosition(dwellingPosition);
+  validateObstacleIds(dwellingObstacleIds);
   if (firstField) validateField(firstField);
   const dwellingId = 1;
   const people: Person[] = START_AGES.map((age, i) => ({
@@ -167,6 +184,8 @@ export function foundVillage(input: {
     hungry: false,
     commonLaborHistory: [],
     chronicle: [{ day, kind: 'village-founded' }],
+    clearedObstacles: dwellingObstacleIds.map((id) => ({ id, day })),
+    felledTrees: [],
   };
   if (firstField) addField(state, day, firstField);
   return state;
@@ -181,7 +200,8 @@ function requireAffordable(state: VillageState, kind: BuildKind): void {
 
 /**
  * Zahájí stavbu nového obydlí – kdykoli (hráč staví, kdy chce; population.md – Nové obydlí);
- * RangeError, když ves nemá suroviny předem nebo je vstup neplatný.
+ * RangeError, když ves nemá suroviny předem nebo je vstup neplatný. Překážky na vyklízené
+ * ploše (`obstacleIds`, cena v `obstacleCost`) osadníci odstraní hned při zahájení stavby.
  *
  * Konvence dne (jako u `foundField`): akce se volá na ves dopočítanou do dne `day`
  * (`advanceVillage(state, day)`) a patří na konec toho dne – práci stavba dostane od dne
@@ -193,13 +213,16 @@ export function startNewDwelling(
   type: DwellingType,
   position: Position,
   obstacleCost: number,
+  obstacleIds: readonly number[] = [],
 ): VillageState {
   validateActionDay(state, day);
   validatePosition(position);
   validateObstacleCost(obstacleCost);
+  validateObstacleIds(obstacleIds);
   requireAffordable(state, type);
   const next = structuredClone(state);
   payUpfront(next, type);
+  recordClearedObstacles(next, obstacleIds, day);
   next.constructions.push({
     id: next.nextId++,
     kind: 'dwelling',

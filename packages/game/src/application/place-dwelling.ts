@@ -2,6 +2,7 @@ import type { Landscape } from '../domain/landscape';
 import {
   buildAffordability,
   checkDwellingPlacement,
+  placementVillageOf,
   startNewDwelling,
   type DwellingType,
   type Position,
@@ -29,15 +30,31 @@ export function placeDwelling(
   deps: { villages: VillageRepository },
   input: PlaceDwellingInput,
 ): Promise<VillageResult> {
-  return updateVillage(deps.villages, input.settlementId, input.today, (state) => {
+  return updateVillage(deps.villages, input.settlementId, input.today, input.landscape, (state) => {
     // akce patří do dne, do kterého je ves dopočítaná – dnešek, nebo „budoucí“ den vsi
     const day = state.lastDay;
     if (!buildAffordability(state, input.type).affordable) {
       return { ok: false, reason: CANNOT_AFFORD };
     }
-    const check = checkDwellingPlacement(input.landscape, state, input.type, input.position);
+    const check = checkDwellingPlacement(
+      input.landscape,
+      placementVillageOf(state, day),
+      input.type,
+      input.position,
+    );
     if (!check.ok) return { ok: false, reason: check.reason ?? 'Sem obydlí nepatří.' };
     const position = { ...input.position };
-    return { ok: true, state: startNewDwelling(state, day, input.type, position, 0) };
+    // překážky na vyklízené ploše: práce navíc, osadníci je odstraní při zahájení stavby
+    return {
+      ok: true,
+      state: startNewDwelling(
+        state,
+        day,
+        input.type,
+        position,
+        check.obstacleCost,
+        check.obstacleIds,
+      ),
+    };
   });
 }

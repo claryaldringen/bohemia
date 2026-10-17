@@ -7,6 +7,7 @@ import {
   foundVillage,
   normalizeVillageName,
   type FieldInput,
+  type PlacementVillage,
   type Position,
   type TileCell,
 } from '../domain/village';
@@ -45,7 +46,14 @@ export async function foundVillageForSettlement(
   const cells = input.fieldCells ?? [];
   let firstField: FieldInput | null = null;
   if (cells.length > 0) {
-    const field = fieldPartsFromCells(input.landscape, null, cells, [input.dwelling]);
+    // překážky pod první zemnicí osadníci už odstranili – pole je neplatí podruhé
+    const founding: PlacementVillage = {
+      dwellings: [],
+      constructions: [],
+      parts: [],
+      obstacleChanges: { removed: dwelling.obstacleIds, stumps: [], saplings: [] },
+    };
+    const field = fieldPartsFromCells(input.landscape, founding, cells, [input.dwelling]);
     if (!field.check.ok) return { ok: false, reason: field.check.reason ?? 'Sem pole nepatří.' };
     firstField = { parts: field.parts };
   }
@@ -55,6 +63,7 @@ export async function foundVillageForSettlement(
     day: input.today,
     dwellingPosition: { ...input.dwelling },
     firstField,
+    dwellingObstacleIds: dwelling.obstacleIds,
   });
   const state = advanceVillage(founded, input.today);
   const created = await deps.villages.create(

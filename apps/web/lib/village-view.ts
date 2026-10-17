@@ -5,6 +5,7 @@ import {
   buildAffordability,
   dateOfDayIndex,
   effectiveFertility,
+  obstacleChangesAt,
   partStage,
   summarizeVillage,
   tileCenterWorld,
@@ -13,6 +14,7 @@ import {
   type ConstructionSummary,
   type DwellingType,
   type Landscape,
+  type ObstacleChanges,
   type PartStage,
   type PlacementVillage,
   type Position,
@@ -111,6 +113,11 @@ export interface SceneVillage {
     id: number;
     parts: { cell: TileCell; x: number; z: number; size: number; stage: PartStage }[];
   }[];
+  /**
+   * Stromy, keře a kameny vrstvy překážek, které ves odstranila (pole, obydlí) nebo pokácela
+   * (pařez, později nálet) – id z vrstvy. Bez údaje žádné.
+   */
+  obstacles?: ObstacleChanges;
 }
 
 export const CHRONICLE_LENGTH = 8;
@@ -196,7 +203,7 @@ function sceneVillage(
         : [],
     ),
   }));
-  return { dwellings: [...built, ...sites], fields };
+  return { dwellings: [...built, ...sites], fields, obstacles: obstacleChangesAt(state, day) };
 }
 
 function scenePart(
@@ -315,5 +322,6 @@ export function placementVillageFromScene(scene: SceneVillage): PlacementVillage
     dwellings: scene.dwellings.map((d) => ({ type: d.type, position: d.position })),
     constructions: [],
     parts: scene.fields.flatMap((f) => f.parts.map((p) => ({ cell: p.cell }))),
+    ...(scene.obstacles ? { obstacleChanges: scene.obstacles } : {}),
   };
 }

@@ -54,7 +54,7 @@ async function villageView(ctx: Context): Promise<VillageView | null | { error: 
   if (!ctx.ok) return { error: ctx.error };
   const record = await loadVillage(
     { villages: villages() },
-    { settlementId: ctx.settlementId, today: ctx.day },
+    { settlementId: ctx.settlementId, today: ctx.day, landscape: ctx.landscape },
   );
   return record === null ? null : buildVillageView(record, ctx.landscape, ctx.day);
 }

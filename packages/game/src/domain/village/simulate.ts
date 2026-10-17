@@ -9,6 +9,7 @@ import {
 } from './dwellings';
 import { endOfSeason, fallowYears, selectPartsToSow } from './fields';
 import { daysUntilHarvest, eatDay } from './food';
+import { recordClearedObstacles } from './obstacles';
 import { allocateDay } from './labor';
 import { ageGroup, foodNeedPerDay, isFertileAdult, laborPerDay, occupants } from './people';
 import { householdBreaksUp, populationDay } from './population';
@@ -339,6 +340,11 @@ function invest(
       part.foundingDone = part.foundingCost;
       part.state = 'ready';
       if (part.surface === 'forest') part.bonusUntilDay = forestBonusUntil(day);
+      // založený díl: stromy, kameny a keře z něj zmizí natrvalo (fields.md – Zakládání)
+      if (part.obstacles) {
+        recordClearedObstacles(state, part.obstacles, day);
+        delete part.obstacles;
+      }
     } else {
       part.foundingDone += left;
       break;
