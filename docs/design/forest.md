@@ -46,8 +46,9 @@ k lesu stojí práci a mýcení pro pole dá klády na stavby.
   strom**; zemnice ≈ **7 stromů** (sloupy, vaznice, krokve), polozemnice ≈ **18 stromů** (hlavně
   kmeny srubu); přestavba stejně jako nová stavba.
 - **Nejdřív z hromady klád** (Martin): stavba bere klády ze zásoby vsi. Kácí se, jen když klády
-  nestačí. Bere celé klády – nahnilý kus se počítá, dokud z něj zbývá aspoň polovina (návrh
-  Clauda).
+  nestačí. Hromada se počítá v celých kládách: zásoba hnije po troškách a na kusy se
+  zaokrouhluje (nahnilá kláda se počítá, dokud z ní zbývá aspoň polovina) – tolik klád hráč vidí
+  a tolik jich stavba může vzít (návrh Clauda).
 - **Kácení** (Martin: vesničané sami, nejbližší vhodný les): pokácí se nejbližší **dospělé**
   stromy ke staveništi – ne mladé stromky, souše ani padlé kmeny (návrh Clauda). Skácení
   a dovoz stojí **2 člověkodny za strom** a zdraží se o 1 % za každých 10 m nad 100 m od
@@ -58,7 +59,12 @@ k lesu stojí práci a mýcení pro pole dá klády na stavby.
 - **Kdy se kácí** (návrh Clauda): stromy ke kácení se vyberou při zahájení stavby (vyhradí se –
   jiná stavba je nevezme) a kácí se jako první část práce stavby, strom po stromu; po každém
   zůstane pařez. Staveniště ve scéně ukazuje samotnou stavbu, panel stavby kolik stromů zbývá
-  skácet. Vyhrazený strom, který mezitím vymýtilo pole, stavba nahradí kládou z hromady.
+  skácet. **Vyhrazený strom patří své stavbě** (revize implementace 18. 10. 2026): pole,
+  hřbitov ani staveniště jiného obydlí za něj kládu nedají, a když ho staveniště jiného obydlí
+  odstraní, stavba ho počítá jako pokácený (bez klády z hromady). Naopak stromy na zakládaných
+  dílech polí a čtvercích hřbitova ve stavbě patří té stavbě – obydlí je pro své dřevo nevyhradí.
+- **Opuštěná přestavba** (obydlí zůstalo prázdné) vrátí klády, které vzala z hromady; vyhrazené
+  stromy se uvolní (revize implementace 18. 10. 2026).
 - **Když není z čeho kácet, stavba se nedá zahájit** (Martin, 17. 10. 2026: „Dřevo ať taky
   blokuje, dokud není z čeho kácet“): klády na hromadě + dospělé stromy v krajině sídla nestačí
   na stavbu → tlačítko stavby je zašedlé a tooltip ukáže chybějící dřevo červeně (odemykání jen
@@ -93,10 +99,12 @@ k lesu stojí práci a mýcení pro pole dá klády na stavby.
 ## Co hráč vidí
 
 - Ve scéně: ustupující okraj lesa s pařezy, nálet na starých pasekách, hromadu klád u vsi, která
-  ubývá; na staveništi dovážené kmeny.
+  ubývá (bez volného místa vedle obydlí se nekreslí – nikdy do vody ani na pole).
 - V panelu staveb: zašedlé tlačítko, když není z čeho kácet (tooltip s chybějícím dřevem).
-- V panelu vsi: počet klád v zásobě; u rozestavěné stavby, kolik dřeva ještě chybí a jak daleko je
-  les.
+- V horní liště počet klád na hromadě; u rozestavěné stavby a přestavby, kolik stromů ještě zbývá
+  skácet.
+- **Zatím ne:** dovážené kmeny na staveništi podle kácení (staveniště má jen pevnou hromádku
+  trámů) a vzdálenost k lesu v panelu stavby.
 
 ## Navazuje
 
@@ -121,5 +129,6 @@ k lesu stojí práci a mýcení pro pole dá klády na stavby.
 | Strom z mýcení = 1 kláda; hromada u obydlí nejblíž lesu                        | návrh Clauda                               |
 | Stromy se vyhradí při zahájení, kácí se jako první část práce stavby           | návrh Clauda                               |
 | Přestavbu a první zemnici dřevo neblokuje – vezmou, co je                      | návrh Clauda                               |
+| Vyhrazený strom patří své stavbě; opuštěná přestavba vrátí klády z hromady     | revize implementace 18. 10. 2026           |
 | Palivo jako třetina domácí výroby, dražší se vzdáleností k lesu                | návrh Clauda                               |
 | Stromy jako herní data (vrstva překážek) jsou předpoklad                       | návrh Clauda                               |

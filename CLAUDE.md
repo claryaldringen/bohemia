@@ -363,13 +363,17 @@ rozhraní částí v
   (`woodLogs`, staré vsi 0, hnijí 4 % ročně), obydlí, první zemnice i přestavby berou dřevo
   (`DWELLING_TREES` 7 / 18) nejdřív z hromady, zbytek vyhradí při zahájení mezi nejbližšími
   dospělými stromy (`planDwellingWood`, `nearestMatureTrees` – hledá po políčkách) a kácí je jako
-  první část práce stavby (`fellAsWorked` → pařezy). Simulace proto dostává vrstvu překážek
-  (`advanceVillage(state, day, obstacles)` – vždy stejně, jinak výsledek závisí na kouscích);
-  bez ní (testy, kalibrace) se kácí bez polohy. Mýcení (díly polí, čtverce hřbitova, staveniště)
-  dá kládu za dospělý strom (`trees` u dílu / čtverce). Dřevo je surovina předem (`villageStock`
-  s vrstvou překážek: klády + stromy, které jde skácet). Palivo: přirážka domácí práce podle
-  `forestDistanceM` obydlí. Scéna: hromada klád `lib/scene/log-pile.ts` (místo a hranice
-  v `log-pile-layout.ts`), staveniště ukazuje průběh bez kácení (`buildProgress`).
+  první část práce stavby (`fellAsWorked` → pařezy). Simulace proto povinně dostává vrstvu
+  překážek (`advanceVillage(state, day, obstacles)`; `null` = kácení bez polohy jen v testech),
+  use-casy krajinu (`updateVillage`, `loadVillage`, `renameVillage`); kalibrace má syntetický
+  les. Vyhrazený strom patří své stavbě: mýcení za něj kládu nedá (`reservedTrees`
+  v `PlacementVillage`) a stromy zakládaných dílů a čtverců hřbitova obydlí nevyhradí
+  (`claimedObstacles`). Mýcení (díly polí, čtverce hřbitova, staveniště) dá kládu za dospělý
+  strom (`trees` u dílu / čtverce). Dřevo je surovina předem (`villageStock` s vrstvou překážek:
+  klády + stromy, které jde skácet – počet stromů vrstvy v mezipaměti). Palivo: přirážka domácí
+  práce podle `forestDistanceM` obydlí. Scéna: hromada klád `lib/scene/log-pile.ts` (místo
+  a hranice v `log-pile-layout.ts`, bez volného místa se nekreslí), staveniště ukazuje průběh
+  bez kácení (`buildProgress`).
 - **Upozornění** (`lib/village-notices.ts`): plná domácnost (fakt), hlad, stojící stavby, plný
   hřbitov (žádný hotový nemá volný hrob) – nově vzniklé jako krátký mizející řádek nahoře,
   žádný trvalý seznam. Kronika je jen v DTO.
