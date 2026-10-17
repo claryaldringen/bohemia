@@ -243,20 +243,30 @@ Pravidla v [docs/design/population.md](docs/design/population.md) a
   v `SUBMIT_SQUARES` (`VillageGame`); mřížka, zkratky i malování po čtvercích se nemění.
 - **Založení vsi:** dokud ves není, mřížka nabízí jen zemnici – její umístění ves založí
   s navrženým jménem (`suggestVillageName`). Pole není podmínkou.
-- **Ovládání (jako 0 A.D.):** levé kliknutí vybere obydlí / pole (`village-picking.ts`, rámeček
-  `selection-highlight.ts`), na prázdnou zem nebo pravým výběr zruší, Esc taky. Kamera
-  (`camera.ts`): WASD / šipky a kurzor u okraje okna (`edge-scroll.ts`) posouvají, kolečko
-  přibližuje, Q/E otáčí, prostřední tlačítko posouvá, R vrátí pohled na ves (`setCameraHome`).
-  Levé ani pravé tažení kamerou nehýbe. Zkratky staveb Z zemnice, X polozemnice, C pole.
-  **Obydlí** (`village-placement.ts`): duch u kurzoru, klik postaví, Shift + klik postaví a staví
-  dál, `[` / `]` otáčí, pravé tlačítko / Esc zruší. Rozhraní obydlí hned ukáže jako staveniště
-  a akce posílá na server za sebou (fronta v `VillageGame`).
+- **Ovládání (jako 0 A.D., hraje se i na trackpadu):** výběr `village-picking.ts` (rámeček
+  `selection-highlight.ts`), kamera `camera.ts` (čisté funkce `camera-input.ts`,
+  `edge-scroll.ts`). Kliknutí = do 6 px pohybu (`CLICK_SLOP_PX`), delší tah je tah.
+
+  | Vstup                  | Nic se neumisťuje                   | Obydlí (`village-placement.ts`) | Po čtvercích (`field-painting.ts`) |
+  | ---------------------- | ----------------------------------- | ------------------------------- | ---------------------------------- |
+  | levé kliknutí          | vybere obydlí / pole, na zemi zruší | postaví, Shift + klik staví dál | přepne čtverec                     |
+  | levé tažení            | posouvá krajinu (uchopená mapa)     | –                               | přidá obdélník, s Ctrl (Cmd) ubere |
+  | mezerník + levé tažení | posouvá                             | posouvá                         | posouvá                            |
+  | prostřední tažení      | posouvá                             | posouvá                         | posouvá                            |
+  | pravé tlačítko         | zruší výběr                         | zruší                           | zruší malování                     |
+  | Esc                    | zruší výběr                         | zruší                           | zruší tah, pak malování            |
+  | další                  |                                     | `[` / `]` otáčí, Enter postaví  | Backspace / Ctrl+Z vrátí, Enter    |
+
+  Vždy: WASD / šipky a kurzor u okraje okna posouvají, kolečko i rozevření prstů na trackpadu
+  (Ctrl + kolečko, v Safari `gesturechange`) přibližují, Q/E otáčí, R vrátí pohled na ves
+  (`setCameraHome`). Zkratky staveb Z zemnice, X polozemnice, C pole. Rozhraní obydlí hned ukáže
+  jako staveniště a akce posílá na server za sebou (fronta v `VillageGame`).
+
 - **Stavby po čtvercích** (pole; políčka krajiny 15 × 15 m, díl = políčko): `fieldPartsFromCells`
   v `placement.ts`, server actions dostávají `cells` / `fieldCells` (`{ x, y }[]`). Malování ve
   scéně `lib/scene/field-painting.ts` (`FieldPainter`, režim `squares`, logika výběru ve
-  `field-cells.ts`): klik přepne čtverec, tažení přidá obdélník, Ctrl (Cmd) + tažení ubere,
-  Backspace / Ctrl+Z vrátí tah, Enter potvrdí, Esc zruší tah nebo malování, pravé tlačítko
-  malování zruší. Obrys pole (`Field.outline`) zůstal jen u starých vsí.
+  `field-cells.ts`) – ovládání v tabulce výše. Obrys pole (`Field.outline`) zůstal jen u starých
+  vsí.
 - **Upozornění** (`lib/village-notices.ts`): plná domácnost (fakt), hlad, stojící stavby –
   nově vzniklé jako krátký mizející řádek nahoře, žádný trvalý seznam. Kronika je jen v DTO.
 - **Krajina sídla** se na serveru drží v LRU mezipaměti (`lib/landscape-cache.ts`, port

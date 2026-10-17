@@ -69,7 +69,8 @@ interface Stroke {
  * Malování stavby po čtvercích – pole a další stavby malované jako pole (jako v realtime
  * strategiích); co smí kam, říká `mode.preview`. Myš: levé kliknutí přepne čtverec,
  * levé tažení přidá obdélník čtverců, s Ctrl (na Macu i Cmd) ubere; pravé kliknutí malování
- * zruší (jako v 0 A.D.). Krajina se posouvá prostředním tlačítkem, okrajem okna a WASD.
+ * zruší (jako v 0 A.D.). Krajina se posouvá prostředním tlačítkem, mezerníkem + tahem, okrajem
+ * okna a WASD (levé tažení tu maluje – posun s mezerníkem zařídí kamera, stisk sem nepustí).
  * Enter potvrdí, Esc zruší tah nebo celé malování, Backspace / Ctrl+Z vrátí poslední tah.
  * Kolem kurzoru je vidět mřížka čtverců, vybrané čtverce zelené (pole projde) / žluté
  * (ještě ne) a zakázané červené.

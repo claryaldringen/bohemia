@@ -10,6 +10,7 @@ import { surfaceAt, tileOfWorldPoint, type Landscape, type WorldClock } from '@b
 import type { TileInfo } from '../tile-info';
 import { AmbientSound } from './ambient-sound';
 import { createRtsCamera, type RtsCamera } from './camera';
+import { isDrag } from './camera-input';
 import { HEIGHT_SCALE, SUN_DIRECTION } from './constants';
 import { createEngine, type RendererName } from './create-engine';
 import { decorPlacements } from './decor-placement';
@@ -51,9 +52,6 @@ export interface ViewFootprint {
   alpha: number;
 }
 type ViewListener = (view: ViewFootprint) => void;
-
-/** Kliknutí = stisk a puštění tlačítka bez tažení (px). */
-const CLICK_SLOP_PX = 6;
 
 /** 3D scéna krajiny – obyčejná třída bez Reactu (adaptér zobrazení). */
 /**
@@ -237,6 +235,8 @@ export class LandscapeScene {
       halfExtent: (landscape.size * landscape.cellSizeM) / 2,
       start: { x: site.worldX, z: site.worldZ },
       groundHeight,
+      // levé tažení posouvá krajinu, jen když se nic neumisťuje (malování pole tahem maluje)
+      leftDragPans: () => this.placement === null,
     });
     // Okraj lesa 2–3 řady 3D stromů, za nimi vnitřek lesa z impostorů.
     const impostors = impostorPlacements(landscape, field, surface.stream);
@@ -520,12 +520,13 @@ export class LandscapeScene {
     });
   };
 
-  /** Kliknutí mimo umisťování vybírá (levé) a ruší výběr (pravé). */
+  /** Kliknutí mimo umisťování vybírá (levé) a ruší výběr (pravé); tah krajinou nevybírá. */
   private readonly onPointerUp = (event: PointerEvent): void => {
     const down = this.downs.get(event.button);
     this.downs.delete(event.button);
     if (!down || down.placing || this.placement !== null) return;
-    if (Math.hypot(event.offsetX - down.x, event.offsetY - down.y) > CLICK_SLOP_PX) return;
+    if (isDrag(down, { x: event.offsetX, y: event.offsetY })) return;
+    if (event.button === 0 && this.rtsCamera?.leftPressPanned()) return;
     if (event.button === 0) this.emitSelect(this.pickTarget(event.offsetX, event.offsetY));
     else if (event.button === 2) this.emitSelect(null);
   };

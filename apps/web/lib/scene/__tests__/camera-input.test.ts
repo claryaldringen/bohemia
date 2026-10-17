@@ -1,0 +1,33 @@
+import { describe, expect, it } from 'vitest';
+import { CLICK_SLOP_PX, isDrag, pinchZoomFactor } from '../camera-input';
+
+describe('isDrag', () => {
+  it('do meze kliknutí je to kliknutí, dál tah', () => {
+    expect(isDrag({ x: 10, y: 10 }, { x: 10, y: 10 })).toBe(false);
+    expect(isDrag({ x: 10, y: 10 }, { x: 10 + CLICK_SLOP_PX, y: 10 })).toBe(false);
+    expect(isDrag({ x: 10, y: 10 }, { x: 10 + CLICK_SLOP_PX + 1, y: 10 })).toBe(true);
+    expect(isDrag({ x: 0, y: 0 }, { x: 5, y: 5 })).toBe(true);
+  });
+});
+
+describe('pinchZoomFactor', () => {
+  it('rozevření prstů přibližuje, sevření oddaluje', () => {
+    expect(pinchZoomFactor(-5)).toBeLessThan(1);
+    expect(pinchZoomFactor(5)).toBeGreaterThan(1);
+    expect(pinchZoomFactor(0)).toBe(1);
+  });
+
+  it('gesto 2× (součet deltaY −100 · ln 2 po malých krocích) kameru přiblíží na polovinu', () => {
+    const steps = 20;
+    const delta = (-100 * Math.LN2) / steps;
+    let factor = 1;
+    for (let i = 0; i < steps; i++) factor *= pinchZoomFactor(delta);
+    expect(factor).toBeCloseTo(0.5, 6);
+  });
+
+  it('Ctrl + zub kolečka myši (deltaY 100, i v řádcích) neskočí víc než o čtvrtinu', () => {
+    expect(pinchZoomFactor(100)).toBeCloseTo(Math.exp(0.25), 6);
+    expect(pinchZoomFactor(-100)).toBeCloseTo(Math.exp(-0.25), 6);
+    expect(pinchZoomFactor(3, 1)).toBeCloseTo(Math.exp(0.25), 6);
+  });
+});
