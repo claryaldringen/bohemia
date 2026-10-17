@@ -177,7 +177,10 @@ stovky vsí a ověří cíle:
   zemnice i polozemnice mají **omazané stěny a střechu ze slámových došků** (Martin), na
   hřebeni jen nízké převázání bez „bakule“, aby byla vidět **zkřížená štítová prkna („kozy“)**;
   **před vchodem vyšlapaná hlína**, která měkce přechází do okolní trávy, a **podél okapu, kde se
-  střecha dotýká země, hustší trsy trávy** – stéká tam víc vody (Martin). Stavby
+  střecha dotýká země, hustší trsy trávy** – stéká tam víc vody (Martin). **Zemnice je opravdu
+  jáma v zemi** (terén se pod ní otevře, vchod sestupuje do jámy), polozemnice mělčí; **stavba má
+  víc fází** (vytyčení, sejmutí drnu, kopání jámy, sloupy, krokve, stěny, mazanice, došky, kozy
+  a dýmník); ze zemnic **občas stoupá dým** (Martin). Stavby
   z módu Millennium A.D. (ruské sruby, severské domy) se nepoužijí – jiná doba či region
   a nejistá licence (Martin); nanejvýš jako předloha tvarů pro pozdější roubené chalupy.
 - Panel vsi: počet lidí podle věku, domácnosti (typ obydlí, obsazenost, plná/přeplněná, stav),

@@ -1,6 +1,8 @@
 # Pole a jídlo vesnice
 
-Stav: schváleno 17. 10. 2026 (Martin). Implementace zatím není.
+Stav: schváleno 17. 10. 2026 (Martin). Týž den změna (Martin, po prvním prototypu): **pole se
+staví po čtvercích** – políčkách krajiny 15 × 15 m, jak je obvyklé v realtime strategiích – místo
+volného obrysu.
 
 ## Proč
 
@@ -16,7 +18,7 @@ všechnu práci vsi a teprve lepší nástroje a osevní systémy (další mecha
 
 ## Cíle, ne-cíle, anti-cíle
 
-- **Cíl:** hráč zakládá **společná pole vsi** volným obrysem na zemi (Martin) a na volbě místa
+- **Cíl:** hráč zakládá **společná pole vsi** po čtvercích – políčkách krajiny (Martin) a na volbě místa
   záleží – úrodnost, vzdálenost od obydlí, louka nebo les, kameny a stromy v cestě.
 - **Cíl:** příliš velké pole ves celé neobdělá a část zarůstá (Martin) – práce vložená do
   založení té části přijde vniveč. Příliš malé pole ves neuživí. Hráč hledá správnou výměru.
@@ -33,16 +35,15 @@ všechnu práci vsi a teprve lepší nástroje a osevní systémy (další mecha
   pole živí ves sama.
 - **Anti-cíl:** ležení ladem jako číslo bez významu – osevní systém má odpovídat středověku
   (Martin): zpočátku přílohová soustava raných Slovanů (Martin).
-- **Anti-cíl:** pole nalepená na čtvercovou mřížku – obrys je volný (Martin).
+- ~~Anti-cíl: pole nalepená na čtvercovou mřížku~~ – zrušeno, pole se staví po čtvercích (Martin).
 
 ## Pojmy
 
-- **Pole** – samostatný objekt vsi: plocha na zemi ohraničená **volným obrysem**
-  (mnohoúhelníkem), kterou hráč založil. Pole jsou **společná pro celou ves** (Martin) – nepatří
+- **Pole** – samostatný objekt vsi: souvislá skupina **čtverců – políček krajiny** (15 × 15 m),
+  kterou hráč založil (Martin; dřív volný obrys). Pole jsou **společná pro celou ves** (Martin) – nepatří
   žádné domácnosti. Ves jich může mít víc. „Pole“ v tomto dokumentu znamená celou zemědělskou
   půdu – obdělává se jen část, zbytek leží ladem (Martin).
-- **Díl pole** – průnik pole s políčkem krajiny (15 × 15 m). Pro výpočty se pole dělí na díly
-  (návrh Clauda – obrys je volný, ale úrodnost a povrch nese krajina po políčkách). Díl má:
+- **Díl pole** – jeden čtverec pole = jedno políčko krajiny (15 × 15 m, 225 m²). Díl má:
   - **plochu** (m²) – kolik z políčka pole zabírá,
   - **přirozenou úrodnost** – úrodnost políčka z krajiny (0–100),
   - **aktuální úrodnost** – osev ji vyčerpává, ležení ladem obnovuje,
@@ -68,9 +69,9 @@ všechnu práci vsi a teprve lepší nástroje a osevní systémy (další mecha
 - **Ves se zakládá zemnicí a prvním polem** (Martin: „rozhodnu, kde bude stát první zemnice
   a pole“). Bez prvního pole ves založit nejde – jinak by hráč, který po umístění zemnice
   odejde, našel ves za pár skutečných hodin vyhladovělou.
-- Hráč vyznačí obrys pole na zemi (Martin). Pole nesmí zasahovat do vody, do obydlí ani do
-  jiného pole; nejmenší výměra 0,1 ha, nejdál **800 m** od nejbližšího obydlí (návrh Clauda).
-- Pole může ležet na louce, v křovinách i v lese (Martin). Všechno, co je uvnitř obrysu,
+- Hráč označí čtverce pole na mřížce políček (Martin). Pole nesmí zasahovat do vody, do obydlí ani
+  do jiného pole; nejmenší výměra 0,1 ha, nejdál **800 m** od nejbližšího obydlí (návrh Clauda).
+- Pole může ležet na louce, v křovinách i v lese (Martin). Všechno, co je na čtvercích pole,
   osadníci při založení odstraní – stojí to práci navíc:
 
   | Povrch dílu (za hektar)              | Práce navíc                    |
@@ -95,7 +96,7 @@ všechnu práci vsi a teprve lepší nástroje a osevní systémy (další mecha
   k obydlím první; hotový díl ves může osít v nejbližším vhodném období (návrh Clauda).
 - Odstraněné stromy a kameny **z krajiny sídla zmizí natrvalo** (Martin). Vykácené dřevo
   půjde do zásob vsi, až vznikne mechanika dřeva; do té doby se neeviduje.
-- Hráč může obrys pole upravit nebo pole zrušit. Přidaná plocha se zakládá jako nové pole,
+- Hráč může čtverce pole přidat, ubrat nebo pole zrušit. Přidaná plocha se zakládá jako nové pole,
   ubraná nebo zrušená zarůstá.
 
 ### Kolik ves oseje (rozhodují obyvatelé)
@@ -296,8 +297,8 @@ Měřicí skript (jako u populace) ověří:
 Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umisťují podle
 [populace](population.md) – půdorys kamkoli, kde je dost rovná země):
 
-- **Založení pole:** tlačítko „Založit pole“, hráč klikáním vyznačí body obrysu na zemi
-  (dvojklik nebo Enter obrys uzavře, body jde posouvat). Během kreslení vidí: výměru, průměrnou
+- **Založení pole:** tlačítko „Pole“, hráč tažením označí čtverce na mřížce políček (jako
+  v realtime strategiích; Martin), stejně je i ubírá. Během kreslení vidí: výměru, průměrnou
   úrodnost, kolik je louky, křovin a lesa, překážky uvnitř (kameny, stromy, skalní výchozy),
   cenu založení v člověkodnech a odhad, jak dlouho bude založení trvat při současné společné
   práci. Obrys, který zasahuje do vody, obydlí nebo jiného pole, se zbarví červeně.
@@ -327,13 +328,13 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 
 ## Na stavitelovi
 
-- Jak obrys rozdělit na díly (průnik s políčky krajiny), přesné vzorce včasnosti, rozdělení
+- Přesné vzorce včasnosti, rozdělení
   práce během dne a sezóny, pořadí osevu a zakládání dílů – tak, aby splnily cíle v Kalibraci.
 - Krok simulace a dopočítání vsi (společně s populací; výsledek nesmí záviset na tom, kdy se
   dopočítává).
 - Datový model stavu sídla nad krajinou a jak scéna přestaví dotčenou oblast (celé přestavění
   krajiny se zachováním kamery je přijatelné, pokud je dost rychlé).
-- Podoba panelů a kreslení obrysu.
+- Podoba panelů a označování čtverců.
 
 ## Rozhodnutí
 
@@ -343,6 +344,7 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 | Zpočátku jen ruční práce; příliš velké pole ves neobdělá a část zarůstá                      | Martin                        |
 | Pole jsou samostatná a společná pro celou ves; zakládá je hráč zvlášť                        | Martin                        |
 | Pole se vyznačí volným obrysem na zemi; jde i do lesa, překážky prodraží založení            | Martin                        |
+| Změna: pole se staví po čtvercích – políčkách krajiny (místo volného obrysu)                 | Martin                        |
 | Ves se zakládá zemnicí a prvním polem                                                        | Martin                        |
 | Odstraněné stromy a kameny zmizí natrvalo; dřevo do zásob až s mechanikou dřeva              | Martin                        |
 | Hráč určuje, kde pole jsou a jak velká; kolik se oseje, rozhoduje ves podle potřeby          | návrh Clauda, Martin potvrdil |
@@ -367,4 +369,4 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 | Přílohová soustava: osev do 70 % úrodnosti (≈ 3 roky), příloh do 95 % (≈ 7 let), pořadí dílů | návrh Clauda                  |
 | Vrácení přílohu podle stadia: louka 40, nálet 60, křoviny 150, les 250 člověkodní/ha         | návrh Clauda                  |
 | Jedno obilí                                                                                  | návrh Clauda                  |
-| Ovládání (kreslení obrysu, panely, vzhled) – k potvrzení na náčrtech                         | návrh Clauda                  |
+| Ovládání (čtverce na mřížce, panely, vzhled) – ladí se na prototypu                          | návrh Clauda                  |
