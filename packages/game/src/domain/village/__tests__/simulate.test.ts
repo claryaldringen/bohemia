@@ -505,6 +505,50 @@ describe('advanceVillage – obydlí', () => {
     expect(s.commonLaborHistory.at(-1)).toBeGreaterThan(0); // společná práce propadá, nestaví
   });
 
+  /**
+   * Dvě kvalifikované domácnosti: obydlí 1 (přeplněné, v pořadí první) má jediného člověka
+   * 14–44, tři starší a tři děti; obydlí 2 (plné) čtyři dospělé a dvě děti.
+   */
+  function firstQualifyingWithoutPair(day: number): VillageState {
+    const s = withoutFields(day);
+    const person = (id: number, years: number, dwellingId: number): Person => ({
+      ...adultOfAge(id, years, day),
+      dwellingId,
+    });
+    s.people = [
+      ...[30, 50, 55, 60, 5, 6, 4].map((years, i) => person(10 + i, years, 1)),
+      ...[30, 28, 22, 20, 3, 2].map((years, i) => person(20 + i, years, 2)),
+    ];
+    s.dwellings.push({ id: 2, type: 'zemnice', builtDay: day, condition: 1, position: POSITION });
+    return s;
+  }
+  /** Původní obyvatelé obydlí (bez dětí narozených během běhu). */
+  const originalOccupants = (s: VillageState, dwellingId: number, nextId: number): number[] =>
+    occupants(s, dwellingId)
+      .map((p) => p.id)
+      .filter((id) => id < nextId);
+
+  it('prázdné obydlí: když první kvalifikovaná domácnost nemá dva lidi 14–44, zkusí se další (Ruling 19)', () => {
+    const day = at(600, 10, 1);
+    const s0 = firstQualifyingWithoutPair(day);
+    s0.dwellings.push({ id: 50, type: 'zemnice', builtDay: day, condition: 1, position: POSITION });
+    const s = advanceVillage(s0, day);
+    expect(originalOccupants(s, 50, s0.nextId)).toEqual([22, 23]);
+    expect(s.chronicle).toContainEqual({ day, kind: 'household-founded', dwellingId: 50 });
+    expect(originalOccupants(s, 1, s0.nextId)).toEqual([10, 11, 12, 13, 14, 15, 16]);
+  });
+
+  it('nové obydlí: když první kvalifikovaná domácnost nemá dva lidi 14–44, zkusí se další (Ruling 19)', () => {
+    const day = at(600, 10, 1);
+    const s0 = firstQualifyingWithoutPair(day);
+    const building = startNewDwelling(s0, day, 'zemnice', { x: 5, z: 5, rotation: 0 }, 0);
+    const s = advanceVillage(building, day + 120);
+    const fresh = s.dwellings.find((d) => d.id !== 1 && d.id !== 2);
+    expect(fresh).toBeDefined();
+    expect(originalOccupants(s, fresh!.id, s0.nextId)).toEqual([22, 23]);
+    expect(originalOccupants(s, 1, s0.nextId)).toEqual([10, 11, 12, 13, 14, 15, 16]);
+  });
+
   it('prázdné obydlí chátrá a na nule zanikne', () => {
     const day = at(600, 10, 1);
     const s0 = withoutFields(day);

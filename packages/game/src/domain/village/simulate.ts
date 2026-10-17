@@ -405,19 +405,22 @@ function finishedEvent(day: number, c: Construction, dwellingId: number | null):
 }
 
 /**
- * Dva nejmladší lidé 14–44 z první domácnosti, která splňuje podmínku nového obydlí, se
- * přestěhují do obydlí `dwellingId` (při shodě data narození mladší = vyšší id).
+ * Dva nejmladší lidé 14–44 z první domácnosti, která splňuje podmínku nového obydlí a dva
+ * takové lidi má, se přestěhují do obydlí `dwellingId` (při shodě data narození mladší = vyšší
+ * id). Domácnosti se zkoušejí v pořadí `qualifyingDwellings` – podmínka počítá i starší, takže
+ * první z nich nemusí mít dva lidi 14–44.
  */
 function moveInYoungestPair(state: VillageState, day: number, dwellingId: number): void {
-  const source = qualifyingDwellings(state, day)[0];
-  if (source === undefined) return;
-  const movers = state.people
-    .filter((p) => p.dwellingId === source.id && isFertileAdult(p, day))
-    .sort((a, b) => b.bornDay - a.bornDay || b.id - a.id)
-    .slice(0, 2);
-  if (movers.length < 2) return;
-  for (const p of movers) p.dwellingId = dwellingId;
-  state.chronicle.push({ day, kind: 'household-founded', dwellingId });
+  for (const source of qualifyingDwellings(state, day)) {
+    const movers = state.people
+      .filter((p) => p.dwellingId === source.id && isFertileAdult(p, day))
+      .sort((a, b) => b.bornDay - a.bornDay || b.id - a.id)
+      .slice(0, 2);
+    if (movers.length < 2) continue;
+    for (const p of movers) p.dwellingId = dwellingId;
+    state.chronicle.push({ day, kind: 'household-founded', dwellingId });
+    return;
+  }
 }
 
 /** Krok 5: obyvatelé dožilého nebo zchátralého obydlí se rozhodnou ho přestavět. */
@@ -446,7 +449,10 @@ function decideRebuilds(state: VillageState, day: number): void {
   }
 }
 
-/** Krok 6: prázdné obydlí obsadí první domácnost, která splňuje podmínku nového obydlí. */
+/**
+ * Krok 6: prázdné obydlí obsadí první domácnost, která splňuje podmínku nového obydlí a má dva
+ * lidi 14–44.
+ */
 function occupyEmptyDwellings(state: VillageState, day: number): void {
   const occupied = new Set(state.people.map((p) => p.dwellingId));
   const empty = state.dwellings.filter((d) => !occupied.has(d.id)).sort((a, b) => a.id - b.id);
