@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { TOTAL_GAME_DAYS } from '../../calendar';
 import { foundField, foundVillage, startNewDwelling } from '../actions';
 import type { PartInput } from '../actions';
 import { ageGroup, ageYears } from '../people';
@@ -88,6 +89,29 @@ describe('foundVillage', () => {
     });
   });
 
+  it('den mimo svět nebo neceločíselný vyhodí RangeError', () => {
+    const found = (day: number): VillageState =>
+      foundVillage({ seed: 1, day, dwellingPosition: POSITION, firstField: { parts: [part()] } });
+    for (const day of [NaN, Infinity, -1, 1.5, TOTAL_GAME_DAYS]) {
+      expect(() => found(day), `den ${day}`).toThrow(RangeError);
+    }
+    expect(found(0).lastDay).toBe(-1);
+    expect(found(TOTAL_GAME_DAYS - 1).foundedDay).toBe(TOTAL_GAME_DAYS - 1);
+  });
+
+  it('poloha zemnice s nekonečnou souřadnicí nebo natočením vyhodí RangeError', () => {
+    for (const bad of [{ x: NaN }, { z: Infinity }, { rotation: -Infinity }]) {
+      expect(() =>
+        foundVillage({
+          seed: 1,
+          day: DAY,
+          dwellingPosition: { ...POSITION, ...bad },
+          firstField: { parts: [part()] },
+        }),
+      ).toThrow(RangeError);
+    }
+  });
+
   it('první pole se ověřuje jako foundField', () => {
     expect(() =>
       foundVillage({
@@ -140,6 +164,15 @@ describe('startNewDwelling', () => {
     expect(() => startNewDwelling(sixPeople(), DAY, 'zemnice', POSITION, -1)).toThrow(RangeError);
   });
 
+  it('nekonečná poloha, cena překážek nebo den vyhodí RangeError', () => {
+    const s = sixPeople();
+    const bad = { ...POSITION, x: NaN };
+    expect(() => startNewDwelling(s, DAY, 'zemnice', bad, 0)).toThrow(RangeError);
+    expect(() => startNewDwelling(s, DAY, 'zemnice', POSITION, NaN)).toThrow(RangeError);
+    expect(() => startNewDwelling(s, DAY, 'zemnice', POSITION, Infinity)).toThrow(RangeError);
+    expect(() => startNewDwelling(s, NaN, 'zemnice', POSITION, 0)).toThrow(RangeError);
+  });
+
   it('nemění vstupní stav', () => {
     const s = sixPeople();
     const copy = structuredClone(s);
@@ -188,6 +221,27 @@ describe('foundField', () => {
     expect(() =>
       foundField(start(), DAY, { outline: OUTLINE, parts: [part({ obstacleCost: -1 })] }),
     ).toThrow(RangeError);
+  });
+
+  it('nekonečná plocha, vzdálenost, úrodnost, překážky nebo den vyhodí RangeError', () => {
+    const bad: Partial<PartInput>[] = [
+      { areaM2: NaN },
+      { areaM2: Infinity },
+      { distanceM: NaN },
+      { distanceM: -Infinity },
+      { naturalFertility: NaN },
+      { naturalFertility: Infinity },
+      { obstacleCost: NaN },
+      { obstacleCost: Infinity },
+    ];
+    for (const overrides of bad) {
+      expect(
+        () => foundField(start(), DAY, { parts: [part(), part(overrides)] }),
+        JSON.stringify(overrides, (_, v: unknown) => (typeof v === 'number' ? String(v) : v)),
+      ).toThrow(RangeError);
+    }
+    expect(() => foundField(start(), NaN, field)).toThrow(RangeError);
+    expect(() => foundField(start(), 2.5, field)).toThrow(RangeError);
   });
 
   it('nemění vstupní stav', () => {

@@ -1,3 +1,4 @@
+import { TOTAL_GAME_DAYS } from '../calendar';
 import { canStartNewDwelling } from './dwellings';
 import { partFoundingCost } from './fields';
 import { ageGroup } from './people';
@@ -28,12 +29,43 @@ export type FieldInput = {
   outline?: [number, number][];
 };
 
-/** Ověří vstup pole (společné pro první pole vsi i `foundField`); jinak RangeError. */
+/** Den akce musí být celé číslo uvnitř světa; jinak RangeError. */
+function validateDay(day: number): void {
+  if (!Number.isInteger(day) || day < 0 || day >= TOTAL_GAME_DAYS) {
+    throw new RangeError(`Den ${day} neleží ve světě (0 až ${TOTAL_GAME_DAYS - 1}).`);
+  }
+}
+
+/** Poloha obydlí musí mít konečné souřadnice i natočení; jinak RangeError. */
+function validatePosition(position: Position): void {
+  if (![position.x, position.z, position.rotation].every(Number.isFinite)) {
+    throw new RangeError('Poloha obydlí musí mít konečné souřadnice a natočení.');
+  }
+}
+
+/** Cena překážek musí být konečná a nezáporná; jinak RangeError. */
+function validateObstacleCost(obstacleCost: number): void {
+  if (!Number.isFinite(obstacleCost)) throw new RangeError('Cena překážek musí být konečná.');
+  if (obstacleCost < 0) throw new RangeError('Cena překážek nesmí být záporná.');
+}
+
+/**
+ * Ověří vstup pole (společné pro první pole vsi i `foundField`); jinak RangeError. Nekonečná
+ * čísla (NaN, ±∞) by stav otrávila natrvalo – po uložení do JSON z nich je `null`.
+ */
 function validateField(field: FieldInput): void {
   if (field.parts.length === 0) throw new RangeError('Pole musí mít aspoň jeden díl.');
   for (const part of field.parts) {
-    if (!(part.areaM2 > 0)) throw new RangeError('Plocha dílu musí být kladná.');
-    if (part.obstacleCost < 0) throw new RangeError('Cena překážek nesmí být záporná.');
+    if (!Number.isFinite(part.areaM2) || part.areaM2 <= 0) {
+      throw new RangeError('Plocha dílu musí být kladná a konečná.');
+    }
+    if (!Number.isFinite(part.distanceM)) {
+      throw new RangeError('Vzdálenost dílu od vsi musí být konečná.');
+    }
+    if (!Number.isFinite(part.naturalFertility)) {
+      throw new RangeError('Úrodnost dílu musí být konečná.');
+    }
+    validateObstacleCost(part.obstacleCost);
     if (part.distanceM > FIELD_LIMITS.maxDistanceM) {
       throw new RangeError(`Díl pole je dál než ${FIELD_LIMITS.maxDistanceM} m od vsi.`);
     }
@@ -94,6 +126,8 @@ export function foundVillage(input: {
   firstField: FieldInput;
 }): VillageState {
   const { seed, day, dwellingPosition, firstField } = input;
+  validateDay(day);
+  validatePosition(dwellingPosition);
   validateField(firstField);
   const dwellingId = 1;
   const people: Person[] = START_AGES.map((age, i) => ({
@@ -126,7 +160,7 @@ export function foundVillage(input: {
   return state;
 }
 
-/** Zahájí stavbu nového obydlí; RangeError, když to pravidla nedovolují nebo je cena překážek záporná. */
+/** Zahájí stavbu nového obydlí; RangeError, když to pravidla nedovolují nebo je vstup neplatný. */
 export function startNewDwelling(
   state: VillageState,
   day: number,
@@ -134,7 +168,9 @@ export function startNewDwelling(
   position: Position,
   obstacleCost: number,
 ): VillageState {
-  if (obstacleCost < 0) throw new RangeError('Cena překážek nesmí být záporná.');
+  validateDay(day);
+  validatePosition(position);
+  validateObstacleCost(obstacleCost);
   if (!canStartNewDwelling(state, day)) {
     throw new RangeError('Nové obydlí teď nelze zahájit.');
   }
@@ -155,6 +191,7 @@ export function startNewDwelling(
 
 /** Zahájí založení nového pole (díly ve stavu 'founding'); RangeError při neplatném vstupu. */
 export function foundField(state: VillageState, day: number, field: FieldInput): VillageState {
+  validateDay(day);
   validateField(field);
   const next = structuredClone(state);
   addField(next, day, field);
