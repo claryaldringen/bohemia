@@ -51,6 +51,13 @@ další rozhodnutí o místě v krajině – vedle obydlí a polí.
 - Ve scéně ohrazené pohřebiště; podle doby by mohlo vypadat jinak – v 6.–8. století žárové hroby
   a mohylky, od 9. století kostrové hroby (nápad na později).
 
+## Naměřeno
+
+`measure-village.ts 200 60` (17. 10. 2026) – skript hřbitov nestaví, takže ukazuje, co udělá
+ves, která ho nemá nikdy (po 30 letech hájení hygiena 0): na konci 60 let medián 22 lidí
+a 5 domácností místo 31 a 6, vymření žádné (0 z 200); jediná domácnost bez staveb vymře do 60 let
+ve 2 % vsí místo 0,5 %; nasycení ≥ 0,95 celý rok 93,7 % let místo 94,0 %. Čísla se neladila.
+
 ## Rozhodnutí
 
 | Rozhodnutí                                                                            | Kdo                           |

@@ -95,9 +95,11 @@ function dwellingPositions(state: VillageState): Position[] {
  * (žádné pohřebiště, nebo jsou všechna plná).
  */
 export function villageHygiene(state: VillageState): number {
+  const cemeteries = villageCemeteries(state);
+  if (cemeteries.length === 0) return 0;
   const dwellings = dwellingPositions(state);
   let best = 0;
-  for (const cemetery of villageCemeteries(state)) {
+  for (const cemetery of cemeteries) {
     if (acceptsBurials(cemetery)) best = Math.max(best, cemeteryHygiene(cemetery, dwellings));
   }
   return best;
@@ -126,6 +128,7 @@ export function burialOrder(
  */
 export function bury(state: VillageState, day: number): ChronicleEvent | null {
   const open = villageCemeteries(state).filter(acceptsBurials);
+  if (open.length === 0) return null;
   const target = burialOrder(open, dwellingPositions(state))[0];
   if (!target) return null;
   target.graves += 1;
