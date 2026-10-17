@@ -33,6 +33,8 @@ export interface RtsCamera {
   camera: ArcRotateCamera;
   /** Zpracuje vstupy za uplynulý čas; vrátí true, když se změnil pohled (je co překreslit). */
   update(dtSeconds: number): boolean;
+  /** Q/E otáčí kamerou (výchozí); při umisťování obydlí otáčí obydlím – kamera je pak vypne. */
+  setKeyRotation(enabled: boolean): void;
   dispose(): void;
 }
 
@@ -79,6 +81,7 @@ export function createRtsCamera(
   ];
 
   const pressed = new Set<string>();
+  let keyRotation = true;
   const onKeyDown = (event: KeyboardEvent): void => {
     const target = event.target instanceof Element ? event.target : null;
     if (event.ctrlKey || event.metaKey || target?.closest('input, textarea, select')) return;
@@ -110,8 +113,8 @@ export function createRtsCamera(
     if (pressed.has('KeyA') || pressed.has('ArrowLeft')) move.addInPlace(right);
     if (move.lengthSquared() > 0)
       camera.target.addInPlace(move.normalize().scale(camera.radius * 0.9 * dt));
-    if (pressed.has('KeyQ')) camera.alpha -= ROTATE_SPEED * dt;
-    if (pressed.has('KeyE')) camera.alpha += ROTATE_SPEED * dt;
+    if (keyRotation && pressed.has('KeyQ')) camera.alpha -= ROTATE_SPEED * dt;
+    if (keyRotation && pressed.has('KeyE')) camera.alpha += ROTATE_SPEED * dt;
 
     const target = camera.target;
     target.x = Math.min(halfExtent, Math.max(-halfExtent, target.x));
@@ -130,6 +133,9 @@ export function createRtsCamera(
   return {
     camera,
     update,
+    setKeyRotation(enabled: boolean): void {
+      keyRotation = enabled;
+    },
     dispose(): void {
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);

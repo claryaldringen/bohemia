@@ -30,6 +30,22 @@ export async function addInstancedModel(
   prepareMaterial?: (material: Material) => void,
 ): Promise<Mesh | null> {
   if (instances.length === 0) return null;
+  const model = await loadMergedModel(scene, url, name, prepareMaterial);
+  if (!model) return null;
+  model.thinInstanceSetBuffer('matrix', instanceMatrices(instances), 16, true);
+  return model;
+}
+
+/**
+ * Načte GLB a spojí jeho části do jednoho meshe (bez instancí – ty nastaví volající, nebo se
+ * mesh použije jako předloha). Když se scéna mezitím zruší, vrátí null.
+ */
+export async function loadMergedModel(
+  scene: Scene,
+  url: string,
+  name: string,
+  prepareMaterial?: (material: Material) => void,
+): Promise<Mesh | null> {
   const container = await LoadAssetContainerAsync(url, scene);
   if (scene.isDisposed) return null;
   container.addAllToScene();
@@ -50,7 +66,11 @@ export async function addInstancedModel(
   }
   model.name = name;
   model.isPickable = false;
+  return model;
+}
 
+/** Matice instancí pro `thinInstanceSetBuffer('matrix', …)`. */
+export function instanceMatrices(instances: readonly ModelInstance[]): Float32Array {
   const matrices = new Float32Array(instances.length * 16);
   const matrix = new Matrix();
   const tilt = new Quaternion();
@@ -69,6 +89,5 @@ export async function addInstancedModel(
     );
     matrix.copyToArray(matrices, i * 16);
   });
-  model.thinInstanceSetBuffer('matrix', matrices, 16, true);
-  return model;
+  return matrices;
 }
