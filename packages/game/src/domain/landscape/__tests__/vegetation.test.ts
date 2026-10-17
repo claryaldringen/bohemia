@@ -6,6 +6,7 @@ import { componentSizes, share } from './landscape-checks';
 
 const SEEDS = Array.from({ length: 100 }, (_, i) => i * 104729 + 3);
 const { water, forest, meadow } = SURFACE_CODES;
+// Smyčky přes desítky seedů trvají pod paralelní zátěží déle než výchozích 5 s.
 
 describe('generateVegetation', () => {
   it('podíl lesa je 55–70 %', () => {
@@ -15,7 +16,7 @@ describe('generateVegetation', () => {
       expect(forestShare, `seed ${seed}`).toBeGreaterThanOrEqual(0.55);
       expect(forestShare, `seed ${seed}`).toBeLessThanOrEqual(0.7);
     }
-  });
+  }, 20_000);
 
   it('voda z terénu zůstane vodou a jinde voda není', () => {
     const terrain = generateTerrain(11, 1);
@@ -33,7 +34,7 @@ describe('generateVegetation', () => {
         meadow,
       );
     }
-  });
+  }, 20_000);
 
   it('les netvoří osamělá políčka (žádný lesní ostrůvek pod 4 políčka)', () => {
     for (const seed of SEEDS.slice(0, 20)) {
@@ -45,7 +46,7 @@ describe('generateVegetation', () => {
         `seed ${seed}`,
       ).toBeGreaterThanOrEqual(4);
     }
-  });
+  }, 20_000);
 
   it('změna seedu vegetace nezmění terén', () => {
     const terrain = generateTerrain(21, 1);
