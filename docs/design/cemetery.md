@@ -1,7 +1,11 @@
 # Hřbitov (pohřebiště) vesnice
 
 Stav: schváleno 17. 10. 2026 (Martin: „Ukazatel hygieny nebude. Prostě to bude mít vliv na
-populaci. Ohledně ostatního sis to domyslel dobře.“). Implementace zatím není.
+populaci. Ohledně ostatního sis to domyslel dobře.“). Implementováno 17. 10. 2026: jádro
+`packages/game/src/domain/village/cemetery.ts`, umístění `cemeteryPartsFromCells`, scéna
+`apps/web/lib/scene/cemetery-renderer.ts`, Hřbitov [V] v mřížce staveb. Hřbitov se zatím jako
+pole nesmí zakládat v lese (mýcení přijde později) a překážky stojí 0 – vrstva překážek ještě
+není (fields.md).
 
 ## Proč
 
