@@ -28,8 +28,8 @@ const landscape: Landscape = {
   villageSite: { x: 8, y: 8 },
   stream: [],
 };
-const parts: PartInput[] = [0, 1, 2, 3].map((i) => ({
-  areaM2: 400,
+const parts: PartInput[] = [0, 1, 2, 3, 4].map((i) => ({
+  areaM2: 225,
   distanceM: 50,
   naturalFertility: 50,
   surface: 'meadow',
@@ -41,15 +41,7 @@ const state = (): VillageState =>
     seed: 5,
     day: DAY,
     dwellingPosition: { x: -50, z: -50, rotation: 0.5 },
-    firstField: {
-      outline: [
-        [0, 0],
-        [60, 0],
-        [60, 15],
-        [0, 15],
-      ],
-      parts,
-    },
+    firstField: { parts },
   });
 const record = (s: VillageState = state()): VillageRecord => ({
   settlementId: 's-1',
@@ -82,8 +74,19 @@ describe('buildVillageView', () => {
     expect(view.canBuildDwelling.ok).toBe(false);
     expect(view.canBuildDwelling.reason).toMatch(/4 dospělí/);
     expect(view.constructions).toEqual([
-      { id: expect.any(Number), kind: 'field', label: 'Pole 0,16 ha', progress: 0 },
+      { id: expect.any(Number), kind: 'field', label: 'Pole 0,11 ha', progress: 0 },
     ]);
+    expect(view.hungry).toBe(false);
+    expect(view.constructionsStalled).toBe(false);
+  });
+
+  it('hlad a stojící stavby přejdou ze souhrnu vsi', () => {
+    const s = state();
+    s.hungry = true;
+    s.commonLaborHistory = [0, 0, 0];
+    const view = buildVillageView(record(s), landscape, DAY);
+    expect(view.hungry).toBe(true);
+    expect(view.constructionsStalled).toBe(true);
   });
 
   it('scéna: obydlí, díly pole ve středech políček a rozestavěné obydlí', () => {
@@ -125,10 +128,11 @@ describe('buildVillageView', () => {
     });
     expect(scene.fields).toHaveLength(1);
     expect(scene.fields[0]?.parts).toEqual([
-      { x: 7.5, z: 7.5, size: 15, stage: 'founding' },
-      { x: 22.5, z: 7.5, size: 15, stage: 'founding' },
-      { x: 37.5, z: 7.5, size: 15, stage: 'founding' },
-      { x: 52.5, z: 7.5, size: 15, stage: 'founding' },
+      { cell: { x: 8, y: 8 }, x: 7.5, z: 7.5, size: 15, stage: 'founding' },
+      { cell: { x: 9, y: 8 }, x: 22.5, z: 7.5, size: 15, stage: 'founding' },
+      { cell: { x: 10, y: 8 }, x: 37.5, z: 7.5, size: 15, stage: 'founding' },
+      { cell: { x: 11, y: 8 }, x: 52.5, z: 7.5, size: 15, stage: 'founding' },
+      { cell: { x: 12, y: 8 }, x: 67.5, z: 7.5, size: 15, stage: 'founding' },
     ]);
   });
 
@@ -209,25 +213,16 @@ describe('foundingSceneVillage', () => {
 
   it('zemnice stojí a díly pole se zakládají na středech políček', () => {
     const position = { x: 3, z: -4, rotation: 1 };
-    const outline: [number, number][] = [
-      [0, 0],
-      [30, 0],
-      [30, 15],
-    ];
-    const village = foundingSceneVillage(landscape, position, {
-      outline,
-      parts: parts.slice(0, 2),
-    });
+    const village = foundingSceneVillage(landscape, position, { parts: parts.slice(0, 2) });
     expect(village.dwellings).toEqual([
       { id: -1, type: 'zemnice', position, built: true, progress: 1 },
     ]);
     expect(village.fields).toEqual([
       {
         id: -2,
-        outline,
         parts: [
-          { x: 7.5, z: 7.5, size: 15, stage: 'founding' },
-          { x: 22.5, z: 7.5, size: 15, stage: 'founding' },
+          { cell: { x: 8, y: 8 }, x: 7.5, z: 7.5, size: 15, stage: 'founding' },
+          { cell: { x: 9, y: 8 }, x: 22.5, z: 7.5, size: 15, stage: 'founding' },
         ],
       },
     ]);

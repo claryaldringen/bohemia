@@ -10,6 +10,7 @@ import {
   type EnterGameResult,
   type Landscape,
   type Position,
+  type TileCell,
   type VillageRepository,
   type VillageResult,
 } from '@bohemia/game';
@@ -81,7 +82,7 @@ export function villageViewForSeat(
 
 export async function foundVillageForPlayer(
   playerId: string,
-  input: { name: string; dwelling: Position; fieldOutline: [number, number][] },
+  input: { name: string; dwelling: Position; fieldCells: TileCell[] },
 ): Promise<VillageActionResult> {
   const ctx = await context(playerId);
   if (!ctx.ok) return { error: ctx.error };
@@ -107,7 +108,7 @@ export async function placeDwellingForPlayer(
 
 export async function placeFieldForPlayer(
   playerId: string,
-  input: { outline: [number, number][] },
+  input: { cells: TileCell[] },
 ): Promise<VillageActionResult> {
   const ctx = await context(playerId);
   if (!ctx.ok) return { error: ctx.error };

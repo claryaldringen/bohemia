@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   fieldPreviewLabel,
+  formatCells,
   formatHa,
   formatInteger,
   formatLaborPerDay,
@@ -47,8 +48,11 @@ describe('čísla vsi česky', () => {
   });
 
   it('popisek náhledu pole', () => {
-    expect(fieldPreviewLabel({ areaM2: 4200, averageFertility: 62.6, foundingCost: 118.7 })).toBe(
-      '0,42 ha · úrodnost 63 · 119 člověkodnů',
-    );
+    const cells = Array.from({ length: 19 }, (_, x) => ({ x, y: 0 }));
+    expect(
+      fieldPreviewLabel({ cells, areaM2: 4275, averageFertility: 62.6, foundingCost: 17.1 }),
+    ).toBe('19 čtverců · 0,43 ha · úrodnost 63 · 17 člověkodnů');
+    expect(formatCells(1)).toBe('1 čtverec');
+    expect(formatCells(3)).toBe('3 čtverce');
   });
 });

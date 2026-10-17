@@ -51,9 +51,17 @@ export function formatLaborPerDay(manDays: number): string {
   return `${formatDecimal(Math.max(0, manDays), 1)} člověkodne za den`;
 }
 
-/** Popisek náhledu pole při kreslení: výměra louky, průměrná úrodnost a cena založení. */
-export function fieldPreviewLabel(preview: Omit<FieldPreview, 'parts' | 'check'>): string {
+/** Počet čtverců pole – „1 čtverec“, „3 čtverce“, „12 čtverců“. */
+export function formatCells(count: number): string {
+  return `${formatInteger(count)} ${plural(count, 'čtverec', 'čtverce', 'čtverců')}`;
+}
+
+/** Popisek náhledu pole: počet čtverců, výměra louky, průměrná úrodnost a cena založení. */
+export function fieldPreviewLabel(
+  preview: Pick<FieldPreview, 'cells' | 'areaM2' | 'averageFertility' | 'foundingCost'>,
+): string {
   return [
+    formatCells(preview.cells.length),
     formatHa(preview.areaM2),
     `úrodnost ${Math.round(preview.averageFertility)}`,
     formatManDays(preview.foundingCost),

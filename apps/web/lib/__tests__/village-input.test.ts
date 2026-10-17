@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   parseFoundVillageInput,
-  parseOutline,
+  parseCells,
   parsePlaceDwellingInput,
   parsePlaceFieldInput,
   parsePosition,
@@ -16,20 +16,21 @@ describe('ověření vstupu server actions vsi', () => {
     expect(parsePosition(null)).toBeNull();
   });
 
-  it('obrys je pole dvojic čísel rozumné délky; přebytečné klíče polohy zahodí', () => {
+  it('čtverce pole jsou pole { x, y } s čísly rozumné délky; přebytečné klíče zahodí', () => {
     expect(
-      parseOutline([
-        [0, 0],
-        [1, 2],
+      parseCells([
+        { x: 0, y: 0 },
+        { x: 1, y: 2, evil: true },
       ]),
     ).toEqual([
-      [0, 0],
-      [1, 2],
+      { x: 0, y: 0 },
+      { x: 1, y: 2 },
     ]);
-    expect(parseOutline([[0, 0, 1]])).toBeNull();
-    expect(parseOutline([[0, NaN]])).toBeNull();
-    expect(parseOutline('0,0')).toBeNull();
-    expect(parseOutline(Array.from({ length: 1001 }, () => [0, 0]))).toBeNull();
+    expect(parseCells([[0, 0]])).toBeNull();
+    expect(parseCells([{ x: 0, y: NaN }])).toBeNull();
+    expect(parseCells([{ x: '1', y: 0 }])).toBeNull();
+    expect(parseCells('0,0')).toBeNull();
+    expect(parseCells(Array.from({ length: 5001 }, () => ({ x: 0, y: 0 })))).toBeNull();
     expect(parsePosition({ x: 1, z: 2, rotation: 0, evil: true })).toEqual({
       x: 1,
       z: 2,
@@ -38,24 +39,24 @@ describe('ověření vstupu server actions vsi', () => {
   });
 
   it('založení vsi, obydlí a pole', () => {
-    const outline = [
-      [0, 0],
-      [10, 0],
-      [0, 10],
+    const cells = [
+      { x: 4, y: 5 },
+      { x: 5, y: 5 },
     ];
     const dwelling = { x: 1, z: 2, rotation: 0 };
-    expect(parseFoundVillageInput({ name: 'Libice', dwelling, fieldOutline: outline })).toEqual({
+    expect(parseFoundVillageInput({ name: 'Libice', dwelling, fieldCells: cells })).toEqual({
       name: 'Libice',
       dwelling,
-      fieldOutline: outline,
+      fieldCells: cells,
     });
-    expect(parseFoundVillageInput({ name: 5, dwelling, fieldOutline: outline })).toBeNull();
+    expect(parseFoundVillageInput({ name: 5, dwelling, fieldCells: cells })).toBeNull();
+    expect(parseFoundVillageInput({ name: 'Libice', dwelling, fieldOutline: [] })).toBeNull();
     expect(parsePlaceDwellingInput({ type: 'polozemnice', position: dwelling })).toEqual({
       type: 'polozemnice',
       position: dwelling,
     });
     expect(parsePlaceDwellingInput({ type: 'hrad', position: dwelling })).toBeNull();
-    expect(parsePlaceFieldInput({ outline })).toEqual({ outline });
+    expect(parsePlaceFieldInput({ cells })).toEqual({ cells });
     expect(parsePlaceFieldInput({})).toBeNull();
   });
 });

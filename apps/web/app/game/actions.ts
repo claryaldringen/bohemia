@@ -33,7 +33,7 @@ export async function getVillageView(): Promise<VillageView | null | { error: st
   return villageViewForPlayer(id);
 }
 
-/** Založení vsi: `{ name, dwelling: { x, z, rotation }, fieldOutline: [x, z][] }`. */
+/** Založení vsi: `{ name, dwelling: { x, z, rotation }, fieldCells: { x, y }[] }`. */
 export async function foundVillage(input: unknown): Promise<VillageActionResult> {
   const id = await playerId();
   if (id === null) return { error: NOT_SIGNED_IN };
@@ -51,7 +51,7 @@ export async function placeDwelling(input: unknown): Promise<VillageActionResult
   return placeDwellingForPlayer(id, parsed);
 }
 
-/** Založení pole: `{ outline: [x, z][] }`. */
+/** Založení pole po čtvercích (políčkách krajiny): `{ cells: { x, y }[] }`. */
 export async function placeField(input: unknown): Promise<VillageActionResult> {
   const id = await playerId();
   if (id === null) return { error: NOT_SIGNED_IN };

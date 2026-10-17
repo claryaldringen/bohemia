@@ -15,6 +15,7 @@ import {
   type PlacementCheck,
   type PlacementVillage,
   type Position,
+  type TileCell,
   type VillageRecord,
   type VillageState,
 } from '@bohemia/game';
@@ -51,6 +52,10 @@ export interface VillageView {
     label: string;
     progress: number;
   }[];
+  /** Ves hladoví – zásoby nevystačí do sklizně. */
+  hungry: boolean;
+  /** Stavby stojí – několik dní po sobě nezbyla žádná společná práce. */
+  constructionsStalled: boolean;
   scene: SceneVillage;
   /** Posledních CHRONICLE_LENGTH událostí, nejnovější první. */
   chronicle: { day: number; dateLabel: string; text: string }[];
@@ -65,11 +70,13 @@ export interface SceneVillage {
     built: boolean;
     progress: number;
   }[];
-  /** Pole s obrysem a díly – střed políčka (x, z), strana políčka `size` v m a stadium. */
+  /**
+   * Pole po čtvercích – díl = políčko krajiny `cell`, jeho střed (x, z) ve světě, strana
+   * políčka `size` v m a stadium.
+   */
   fields: {
     id: number;
-    outline: [number, number][];
-    parts: { x: number; z: number; size: number; stage: PartStage }[];
+    parts: { cell: TileCell; x: number; z: number; size: number; stage: PartStage }[];
   }[];
 }
 
@@ -154,14 +161,28 @@ function sceneVillage(
   });
   const fields = state.fields.map((f) => ({
     id: f.id,
-    outline: f.outline,
-    parts: state.parts.flatMap((p) => {
-      if (p.fieldId !== f.id || p.cell === undefined) return [];
-      const center = tileCenterWorld(landscape, p.cell.x, p.cell.y);
-      return [{ x: center.x, z: center.z, size: landscape.cellSizeM, stage: partStage(p, day) }];
-    }),
+    parts: state.parts.flatMap((p) =>
+      p.fieldId === f.id && p.cell !== undefined
+        ? [scenePart(landscape, p.cell, partStage(p, day))]
+        : [],
+    ),
   }));
   return { dwellings: [...built, ...sites], fields };
+}
+
+function scenePart(
+  landscape: Landscape,
+  cell: TileCell,
+  stage: PartStage,
+): SceneVillage['fields'][number]['parts'][number] {
+  const center = tileCenterWorld(landscape, cell.x, cell.y);
+  return {
+    cell: { x: cell.x, y: cell.y },
+    x: center.x,
+    z: center.z,
+    size: landscape.cellSizeM,
+    stage,
+  };
 }
 
 function chronicle(state: VillageState, name: string): VillageView['chronicle'] {
@@ -206,20 +227,22 @@ export function buildVillageView(
       label: constructionLabel(c),
       progress: c.progress,
     })),
+    hungry: summary.hungry,
+    constructionsStalled: summary.constructionsStalled,
     scene: sceneVillage(state, landscape, day, summary.constructions),
     chronicle: chronicle(state, name),
   };
 }
 
 /**
- * Data pro kontrolu umístění v prohlížeči (`checkDwellingPlacement`, `fieldPartsFromOutline`)
- * ze scény vsi – hotová i rozestavěná obydlí jako obydlí, pole podle obrysu.
+ * Data pro kontrolu umístění v prohlížeči (`checkDwellingPlacement`, `fieldPartsFromCells`)
+ * ze scény vsi – hotová i rozestavěná obydlí jako obydlí, pole podle čtverců dílů.
  */
 export function placementVillageFromScene(scene: SceneVillage): PlacementVillage {
   return {
     dwellings: scene.dwellings.map((d) => ({ type: d.type, position: d.position })),
     constructions: [],
-    fields: scene.fields.map((f) => ({ outline: f.outline })),
+    parts: scene.fields.flatMap((f) => f.parts.map((p) => ({ cell: p.cell }))),
   };
 }
 
@@ -234,7 +257,7 @@ const FOUNDING_FIELD_ID = -2;
 export function foundingSceneVillage(
   landscape: Landscape,
   dwelling: Position | null,
-  field: { outline: [number, number][]; parts: readonly PartInput[] } | null,
+  field: { parts: readonly PartInput[] } | null,
 ): SceneVillage {
   return {
     dwellings: dwelling
@@ -252,12 +275,9 @@ export function foundingSceneVillage(
       ? [
           {
             id: FOUNDING_FIELD_ID,
-            outline: field.outline,
-            parts: field.parts.flatMap((p) => {
-              if (p.cell === undefined) return [];
-              const center = tileCenterWorld(landscape, p.cell.x, p.cell.y);
-              return [{ x: center.x, z: center.z, size: landscape.cellSizeM, stage: 'founding' }];
-            }),
+            parts: field.parts.flatMap((p) =>
+              p.cell !== undefined ? [scenePart(landscape, p.cell, 'founding')] : [],
+            ),
           },
         ]
       : [],
