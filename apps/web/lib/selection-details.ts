@@ -41,10 +41,10 @@ export type SelectionDetails =
       freeGraves: number;
       /** Odhad, za kolik let se zaplní; bez úmrtí null. Hygienu hráč nevidí (cemetery.md). */
       yearsLeft: number | null;
-      /** „Zbývá 40 hrobů – asi na 12 let.“ */
-      spaceLabel: string;
-      /** Zakládání (průběh 0–1), hotový hřbitov null. */
-      founding: number | null;
+      /** Vytyčený a ohrazený – nehotový ukáže jen průběh založení. */
+      built: boolean;
+      /** Stavba – založení, u hotového rozšíření (průběh 0–1); bez stavby null. */
+      building: number | null;
     };
 
 /** Pořadí stadií dílů v panelu pole – od zakládání po zarůstání. */
@@ -115,8 +115,8 @@ export function selectionDetails(
       graves: cemetery.graves,
       freeGraves: cemetery.freeGraves,
       yearsLeft: cemetery.yearsLeft,
-      spaceLabel: cemetery.spaceLabel,
-      founding: cemetery.built ? null : cemetery.progress,
+      built: cemetery.built,
+      building: cemetery.built && cemetery.progress >= 1 ? null : cemetery.progress,
     };
   }
   const field = view?.fields.find((f) => f.id === target.id);

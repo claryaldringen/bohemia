@@ -28,6 +28,7 @@ import type {
   SceneDwelling,
   SceneField,
 } from '@/lib/scene/village-types';
+import { formatCells, formatHa, plural } from '@/lib/village-format';
 import { placementVillageFromScene, type SceneVillage } from '@/lib/village-view';
 
 const STAGES: PartStage[] = [
@@ -169,9 +170,8 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
           );
           return {
             check: result.check,
-            label: `${cells.length} čtverců · ${result.capacity} hrobů`,
+            label: `${formatCells(cells.length)} · ${result.capacity} ${plural(result.capacity, 'hrob', 'hroby', 'hrobů')}`,
             blockedCells: result.blockedCells,
-            warning: result.warning,
             warningCells: result.warningCells,
           };
         },
@@ -375,7 +375,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
 }
 
 function previewText(preview: PlacementPreview): string {
-  const reason = preview.check.ok ? (preview.warning ?? null) : preview.check.reason;
+  const reason = preview.check.ok ? (preview.check.warning ?? null) : preview.check.reason;
   return [preview.label, reason].filter((text) => text).join(' – ');
 }
 
@@ -402,7 +402,7 @@ function fakeFieldPreview(l: Landscape, village: SceneVillage, cells: TileCell[]
   const blockedCells = cells.filter(
     (c) => surfaceAt(l, c.x, c.y) === 'water' || taken.has(`${c.x},${c.y}`),
   );
-  const label = `${cells.length} čtverců · ${((cells.length * l.cellSizeM ** 2) / 10_000).toFixed(2).replace('.', ',')} ha`;
+  const label = `${formatCells(cells.length)} · ${formatHa(cells.length * l.cellSizeM ** 2)}`;
   const check: PlacementCheck =
     blockedCells.length > 0
       ? { ok: false, reason: 'Ve vodě ani přes jiné pole pole nejde' }

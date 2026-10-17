@@ -21,12 +21,11 @@ import {
 
 /**
  * Kontrola stavby po čtvercích: projde? a které čtverce jsou zakázané (červeně); u prošlé
- * stavby volitelně varování, které ji neblokuje (hřbitov blízko obydlí nebo vody – oranžově).
+ * stavby volitelně varování `check.warning`, které ji neblokuje, a jeho čtverce (oranžově).
  */
 export interface SquaresCheck {
   check: PlacementCheck;
   blockedCells: readonly TileCell[];
-  warning?: string | null;
   warningCells?: readonly TileCell[];
 }
 
@@ -109,7 +108,6 @@ export const BUILD_ITEMS: readonly BuildItem[] = [
       return {
         check: result.check,
         blockedCells: result.blockedCells,
-        warning: result.warning,
         warningCells: result.warningCells,
       };
     },

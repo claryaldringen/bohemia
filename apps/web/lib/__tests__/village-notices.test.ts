@@ -73,3 +73,30 @@ describe('newNotices', () => {
     expect(newNotices(null, view({ hungry: true }))).toEqual([]);
   });
 });
+
+describe('hřbitov je plný', () => {
+  const cemetery = (built: boolean, freeGraves: number): VillageView['cemeteries'][number] => ({
+    id: 1,
+    squares: 1,
+    built,
+    progress: built ? 1 : 0.3,
+    capacity: 56,
+    graves: 56 - freeGraves,
+    freeGraves,
+    yearsLeft: null,
+  });
+
+  it('jen když žádný hotový hřbitov nemá volný hrob – bez hřbitova nic', () => {
+    const kinds = (cemeteries: VillageView['cemeteries']): string[] =>
+      villageNotices(view({ cemeteries })).map((n) => n.kind);
+    expect(kinds([])).toEqual([]);
+    expect(kinds([cemetery(true, 0)])).toEqual(['cemetery-full']);
+    expect(kinds([cemetery(true, 0), cemetery(true, 3)])).toEqual([]);
+    // rozestavěný hřbitov mrtvé nepřijme – hotové jsou plné
+    expect(kinds([cemetery(true, 0), cemetery(false, 56)])).toEqual(['cemetery-full']);
+    expect(kinds([cemetery(false, 56)])).toEqual([]);
+    expect(villageNotices(view({ cemeteries: [cemetery(true, 0)] }))[0]?.text).toBe(
+      'Hřbitov je plný',
+    );
+  });
+});

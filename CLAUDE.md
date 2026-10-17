@@ -198,9 +198,10 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   Staveniště jde po fázích (`village-construction.ts`, ≥ 8 fází, průběh 0–1) z dílů
   `construction.glb` v instancích. **Hřbitov** (`cemetery-renderer.ts`, geometrie bez Babylonu
   v `cemetery-layout.ts`): nízký proutěný plot kolem čtverců (kůly v instancích, pletení z vlastní
-  sítě a textury z kódu) s brankou k nejbližšímu obydlí, uvnitř mohylky po hrobech (mřížka 7 × 8
-  na čtverec, poslední čerstvé z hlíny); založení vytyčení → kůly → pletení. Dým z dýmníku (`village-smoke.ts`, sprity) podle rozvrhu
-  ohně za herní den (`smoke-schedule.ts`, deterministicky) – hýbe se jen v záběru, ve stejném
+  sítě a textury z kódu) s brankou k nejbližšímu hotovému obydlí (při rozšíření jinam zůstane),
+  uvnitř mohylky po hrobech (mřížka 7 × 8 na čtverec, poslední čerstvé z hlíny); založení
+  vytyčení → kůly → pletení, rozšíření ve stavbě má vlastní plot, pak plot obepne celý hřbitov.
+  Dým z dýmníku (`village-smoke.ts`, sprity) podle rozvrhu ohně za herní den (`smoke-schedule.ts`, deterministicky) – hýbe se jen v záběru, ve stejném
   taktu `WATER_FPS` jako voda, při omezeném pohybu stojí.
 - **Grafika (licence):** CC0, nebo z **0 A.D.** pod **CC BY-SA 3.0** (textury terénu, stromy –
   uvést Wildfire Games, upravené soubory pod stejnou licencí). Zdroj a původní název každého
@@ -223,10 +224,13 @@ rozhraní částí v
   Nové části stavu jsou volitelné (`VillageState.cemeteries?`) – vsi uložené dřív se načtou.
 - **Hřbitov** (`cemetery.ts`, cemetery.md): čtverce s 56 hroby, zemřelý se pohřbí do hotového
   hřbitova s místem nejblíž k obydlím (`bury` v `populationDay`), kronika `cemetery-full`.
+  Čtverce navazující stranou na hřbitov ho **rozšíří** (`foundCemetery`: stejné id, čtverce na
+  konec s `constructionId`, dokud se ohrazují, a nepočítají se); na dva hřbitovy navázat nejde.
+  Hráči se říká vždy **Hřbitov** (texty), v kódu zůstává `cemetery`.
   **Hygiena** (`villageHygiene`, 0 bez hřbitova s místem, jinak podle vzdálenosti od obydlí
   a vody – vzdálenost od vody se ukládá u čtverce při založení, simulace krajinu nemá) násobí
   úmrtnost, hájení chrání. Je jen vnitřní – **nikdy ji neukazovat hráči** (Martin), panel ukáže
-  jen zbývající hroby a odhad v letech (`CemeterySummary.yearsLeft` z úmrtí v kronice).
+  jen hroby (obsazené / všechny) a na kolik let (`CemeterySummary.yearsLeft` z úmrtí v kronice).
 - **Hráč staví kdy chce** (Martin) – žádné odemčení plnou domácností; `waitingHouseholds` je jen
   informace pro upozornění. Stavbu smí zablokovat jen **cena předem** v surovinách (`costs.ts`:
   `BUILD_COSTS`, `buildAffordability`; dnes nic předem nestojí) – tlačítko je pak zašedlé
@@ -237,16 +241,16 @@ rozhraní částí v
   text v návrhu. Kalibrace: `measure-village.ts` nasimuluje stovky vsí a vypíše cíle z Kalibrace
   obou dokumentů s OK / MIMO (`200 60` rychlé cíle, `100 1000` vymření do roku 1500).
 - **Web:** server actions `app/game/actions.ts` (`getVillageView`, `foundVillage`, `placeDwelling`,
-  `placeField`, `placeCemetery`, `renameVillage` → `VillageView` / `null` / `{ error }`), composition root
-  `lib/village.ts`, `lib/village-view.ts` (DTO, smí i do prohlížeče). Typy pro scénu jsou
+  `placeField`, `placeCemetery`, `renameVillage` → `VillageView` / `null` / `{ error }`),
+  composition root `lib/village.ts`, `lib/village-view.ts` (DTO, smí i do prohlížeče). Typy pro scénu jsou
   odvozené odtud a z `@bohemia/game` – nedefinovat je znovu ve scéně.
 - **Rozhraní jako v 0 A.D., bez popisků a průvodce** (Martin): `components/game/VillageGame.tsx`
   skládá `hud/` – `TopBar` (jméno vsi, klik = přejmenovat; ikony s čísly: lidé, obilí, volná
   práce, nasycení barvou ikony, datum; zvuk a odhlášení), `Minimap` (vlevo dole, `lib/minimap.ts`,
   klik / tažení přesune pohled), `SelectionPanel` (dole uprostřed, jen při výběru,
   `lib/selection-details.ts`), `BuildGrid` (vpravo dole), `NoticeLines` (mizející řádky nahoře),
-  `CursorReason` (důvod, proč umístění nejde; oranžově varování, které stavbu neblokuje –
-  hřbitov blízko obydlí nebo vody). Popisky = `hud/Tooltip.tsx`, jeden krátký
+  `CursorReason` (důvod, proč umístění nejde; oranžově `check.warning`, které stavbu
+  neblokuje – hřbitov blízko obydlí nebo vody, obydlí blízko hřbitova). Popisky = `hud/Tooltip.tsx`, jeden krátký
   název (u staveb i cena). Vzhled panelů: třídy `hud-*` v `app/globals.css`. Ikony
   `public/icons/build/` a `public/icons/resources/`. Panely, nad kterými se krajina neposouvá
   okrajem okna, mají `data-hud-block`.
@@ -255,8 +259,8 @@ rozhraní částí v
   v `SUBMIT_SQUARES` (`VillageGame`); mřížka, zkratky i malování po čtvercích se nemění.
 - **Založení vsi:** dokud ves není, mřížka nabízí jen zemnici – její umístění ves založí
   s navrženým jménem (`suggestVillageName`). Pole není podmínkou.
-- **Ovládání (jako 0 A.D.):** levé kliknutí vybere obydlí / pole / hřbitov (`village-picking.ts`, rámeček
-  `selection-highlight.ts`), na prázdnou zem nebo pravým výběr zruší, Esc taky. Kamera
+- **Ovládání (jako 0 A.D.):** levé kliknutí vybere obydlí / pole / hřbitov (`village-picking.ts`,
+  rámeček `selection-highlight.ts`), na prázdnou zem nebo pravým výběr zruší, Esc taky. Kamera
   (`camera.ts`): WASD / šipky a kurzor u okraje okna (`edge-scroll.ts`) posouvají, kolečko
   přibližuje, Q/E otáčí, prostřední tlačítko posouvá, R vrátí pohled na ves (`setCameraHome`).
   Levé ani pravé tažení kamerou nehýbe. Zkratky staveb Z zemnice, X polozemnice, C pole,
@@ -266,14 +270,15 @@ rozhraní částí v
   a akce posílá na server za sebou (fronta v `VillageGame`).
 - **Stavby po čtvercích** (pole, hřbitov; políčka krajiny 15 × 15 m, díl = políčko):
   `fieldPartsFromCells` a `cemeteryPartsFromCells` v `placement.ts` (společné kontroly čtverců;
-  u hřbitova navíc `warning` / `warningCells`, které neblokují – v malování oranžově), server
+  u hřbitova navíc `check.warning` a `warningCells`, které neblokují – oranžově), server
   actions dostávají `cells` / `fieldCells` (`{ x, y }[]`). Malování ve
   scéně `lib/scene/field-painting.ts` (`FieldPainter`, režim `squares`, logika výběru ve
   `field-cells.ts`): klik přepne čtverec, tažení přidá obdélník, Ctrl (Cmd) + tažení ubere,
   Backspace / Ctrl+Z vrátí tah, Enter potvrdí, Esc zruší tah nebo malování, pravé tlačítko
   malování zruší. Obrys pole (`Field.outline`) zůstal jen u starých vsí.
-- **Upozornění** (`lib/village-notices.ts`): plná domácnost (fakt), hlad, stojící stavby –
-  nově vzniklé jako krátký mizející řádek nahoře, žádný trvalý seznam. Kronika je jen v DTO.
+- **Upozornění** (`lib/village-notices.ts`): plná domácnost (fakt), hlad, stojící stavby, plný
+  hřbitov (žádný hotový nemá volný hrob) – nově vzniklé jako krátký mizející řádek nahoře,
+  žádný trvalý seznam. Kronika je jen v DTO.
 - **Krajina sídla** se na serveru drží v LRU mezipaměti (`lib/landscape-cache.ts`, port
   `LandscapeSource` v `enterGame`) – negeneruje se při každé akci a dotazu.
 - **e2e:** testy běží v běžícím pomalém světě (2000–2200). Kliknutí do scény při umisťování

@@ -29,9 +29,7 @@ export interface SquaresPreview {
   label: string;
   /** Čtverce, kam pole nesmí – scéna je zbarví červeně. */
   blockedCells: readonly TileCell[];
-  /** Varování, které stavbu neblokuje (hřbitov blízko obydlí nebo vody) – text u kurzoru. */
-  warning?: string | null;
-  /** Čtverce, kterých se varování týká – scéna je zbarví oranžově. */
+  /** Čtverce, kterých se týká varování (`check.warning`) – scéna je zbarví oranžově. */
   warningCells?: readonly TileCell[];
 }
 
@@ -57,8 +55,6 @@ export interface PlacementPreview {
   check: PlacementCheck;
   label: string;
   screen: { x: number; y: number } | null;
-  /** Varování u prošlého umístění (stavbu neblokuje), jinak null / bez údaje. */
-  warning?: string | null;
 }
 
 export interface PlacementHandlers {

@@ -60,6 +60,20 @@ describe('fenceLayout', () => {
     expect(gatePosts.every((p) => p.z === -7.5 && Math.abs(p.x - 7.5) < GATE_WIDTH_M)).toBe(true);
   });
 
+  it('branka zůstane na místě, když se hřbitov rozšíří jinam; rozšíření ve stavbě branku nemá', () => {
+    const village = { x: 0, z: -100 };
+    const gate = (squares: CellSquare[]): string[] =>
+      fenceLayout(squares, village)
+        .posts.filter((p) => p.gate)
+        .map((p) => `${p.x.toFixed(2)},${p.z.toFixed(2)}`)
+        .sort();
+    const before = gate([square(0, 0)]);
+    expect(before).toHaveLength(2);
+    // rozšíření na sever (+z) a na východ – jižní strana u vsi zůstává
+    expect(gate([square(0, 0), square(0, 1), square(1, 0), square(1, 1)])).toEqual(before);
+    expect(fenceLayout([square(0, 1)], village, false).posts.some((p) => p.gate)).toBe(false);
+  });
+
   it('úseky navazují v pořadí obcházení – kůly se zatloukají dokola', () => {
     const fence = fenceLayout([square(0, 0), square(1, 0), square(1, 1)], null);
     for (let i = 1; i < fence.posts.length; i++) {

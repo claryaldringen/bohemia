@@ -107,30 +107,48 @@ function chainSegments(segments: readonly [Point, Point][]): [Point, Point][] {
   return out;
 }
 
+/** Střed branky na úseku: bod úseku nejblíž k `toward`, aby branka i kůly po stranách vešly. */
+function gateCenter([a, b]: [Point, Point], toward: { x: number; z: number } | null): number {
+  const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
+  const margin = (GATE_WIDTH_M / 2 + POST_SPACING_M) / length;
+  if (!toward) return 0.5;
+  const t =
+    ((toward.x - a[0]) * (b[0] - a[0]) + (toward.z - a[1]) * (b[1] - a[1])) / (length * length);
+  return Math.min(1 - margin, Math.max(margin, t));
+}
+
 /**
- * Plot kolem čtverců pohřebiště: úseky po obrysu, kůly po ≈ 1,4 m (na koncích úseků vždy)
- * a branka uprostřed nejbližšího dost dlouhého úseku k bodu `gateToward` (k vsi); bez bodu
- * na prvním dost dlouhém úseku.
+ * Plot kolem čtverců hřbitova: úseky po obrysu, kůly po ≈ 1,4 m (na koncích úseků vždy)
+ * a branka v místě plotu nejblíž k bodu `gateToward` (k vsi) na dost dlouhém úseku – když se
+ * hřbitov rozšíří jinam, branka zůstane, kde byla; bez bodu uprostřed prvního dost dlouhého
+ * úseku. `withGate: false` = plot bez branky (rozšíření ve stavbě).
  */
 export function fenceLayout(
   squares: readonly CellSquare[],
   gateToward: { x: number; z: number } | null,
+  withGate = true,
 ): FenceLayout {
   const outline = cellsBoundary(squares);
   const segments = chainSegments(
     outline.map((line): [Point, Point] => [line[0]!, line[line.length - 1]!]),
   );
   const length = ([a, b]: [Point, Point]): number => Math.hypot(b[0] - a[0], b[1] - a[1]);
-  const mid = ([a, b]: [Point, Point]): Point => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+  const at = ([a, b]: [Point, Point], t: number): Point => [
+    a[0] + (b[0] - a[0]) * t,
+    a[1] + (b[1] - a[1]) * t,
+  ];
   let gateIndex = -1;
+  let gateT = 0.5;
   let best = Infinity;
   segments.forEach((segment, i) => {
-    if (length(segment) < GATE_MIN_RUN_M) return;
-    const [mx, mz] = mid(segment);
-    const d = gateToward ? Math.hypot(mx - gateToward.x, mz - gateToward.z) : i;
+    if (!withGate || length(segment) < GATE_MIN_RUN_M) return;
+    const t = gateCenter(segment, gateToward);
+    const [gx, gz] = at(segment, t);
+    const d = gateToward ? Math.hypot(gx - gateToward.x, gz - gateToward.z) : i;
     if (d < best) {
       best = d;
       gateIndex = i;
+      gateT = t;
     }
   });
 
@@ -162,13 +180,10 @@ export function fenceLayout(
       postsAlong(segment, false, false);
       return;
     }
-    // branka: mezera uprostřed úseku, kůly po stranách vyšší
-    const total = length(segment);
-    const before = (total - GATE_WIDTH_M) / 2 / total;
-    const after = (total + GATE_WIDTH_M) / 2 / total;
-    const at = (t: number): Point => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
-    const first: [Point, Point] = [a, at(before)];
-    const second: [Point, Point] = [at(after), b];
+    // branka: mezera kolem jejího středu, kůly po stranách vyšší
+    const half = GATE_WIDTH_M / 2 / length(segment);
+    const first: [Point, Point] = [a, at(segment, gateT - half)];
+    const second: [Point, Point] = [at(segment, gateT + half), b];
     runs.push(first, second);
     postsAlong(first, false, true);
     postsAlong(second, true, false);

@@ -54,12 +54,12 @@ describe('hřbitov', () => {
     if (item.placement !== 'squares') throw new Error('Hřbitov se maluje po čtvercích.');
     const near = item.check(landscape, village, [{ x: 18, y: 16 }]);
     expect(near.check.ok).toBe(true);
-    expect(near.warning).toMatch(/blízko obydlí/);
+    expect(near.check.warning).toMatch(/^Blízko obydlí \(\d+ m\)$/);
     expect(near.warningCells).toEqual([{ x: 18, y: 16 }]);
     const far = item.check(landscape, village, [{ x: 30, y: 30 }]);
     expect(far.check.ok).toBe(true);
-    expect(far.warning).toBeNull();
+    expect(far.check.warning).toBeUndefined();
     const over = item.check(landscape, village, [{ x: 16, y: 16 }]);
-    expect(over.check.reason).toBe('Pohřebiště se překrývá s obydlím.');
+    expect(over.check.reason).toBe('Hřbitov se překrývá s obydlím.');
   });
 });

@@ -406,7 +406,6 @@ export class FieldPainter {
       check: preview?.check ?? { ok: false, reason: null },
       label: preview?.label ?? '',
       screen: this.screen,
-      warning: preview?.check.ok ? (preview.warning ?? null) : null,
     });
   }
 

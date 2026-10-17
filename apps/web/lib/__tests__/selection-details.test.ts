@@ -61,7 +61,6 @@ const view = {
       graves: 72,
       freeGraves: 40,
       yearsLeft: 12.2,
-      spaceLabel: 'Zbývá 40 hrobů – asi na 12 let.',
     },
     {
       id: 31,
@@ -72,7 +71,6 @@ const view = {
       graves: 0,
       freeGraves: 56,
       yearsLeft: null,
-      spaceLabel: 'Až bude ohrazené, vejde se sem 56 hrobů.',
     },
   ],
 } as unknown as VillageView;
@@ -126,7 +124,7 @@ describe('selectionDetails', () => {
 });
 
 describe('selectionDetails – hřbitov', () => {
-  it('hroby, místo a odhad v letech; zakládaný s průběhem založení', () => {
+  it('hroby a odhad v letech; zakládaný jen s průběhem založení', () => {
     expect(selectionDetails(view, scene, { kind: 'cemetery', id: 30 })).toEqual({
       kind: 'cemetery',
       id: 30,
@@ -135,11 +133,12 @@ describe('selectionDetails – hřbitov', () => {
       graves: 72,
       freeGraves: 40,
       yearsLeft: 12.2,
-      spaceLabel: 'Zbývá 40 hrobů – asi na 12 let.',
-      founding: null,
+      built: true,
+      building: null,
     });
     expect(selectionDetails(view, scene, { kind: 'cemetery', id: 31 })).toMatchObject({
-      founding: 0.5,
+      built: false,
+      building: 0.5,
     });
     expect(selectionDetails(view, scene, { kind: 'cemetery', id: 99 })).toBeNull();
   });

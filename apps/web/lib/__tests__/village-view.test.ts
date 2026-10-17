@@ -222,7 +222,7 @@ describe('hřbitov v pohledu na ves', () => {
     expect(view.build.cemetery).toMatchObject({ laborManDays: 10, perSquare: true });
     expect(view.constructions.at(-1)).toMatchObject({
       kind: 'cemetery',
-      label: 'Pohřebiště (2 čtverce)',
+      label: 'Hřbitov (2 čtverce)',
       cemeteryId,
     });
     expect(view.cemeteries).toEqual([
@@ -235,7 +235,6 @@ describe('hřbitov v pohledu na ves', () => {
         graves: 0,
         freeGraves: 112,
         yearsLeft: null,
-        spaceLabel: 'Až bude ohrazené, vejde se sem 112 hrobů.',
       },
     ]);
     expect(view.scene.cemeteries).toEqual([
@@ -262,7 +261,7 @@ describe('hřbitov v pohledu na ves', () => {
     s.cemeteries![0]!.graves = 100;
     const view = buildVillageView(record(s), landscape, DAY);
     expect(view.cemeteries[0]).toMatchObject({ built: true, progress: 1, freeGraves: 12 });
-    expect(view.cemeteries[0]?.spaceLabel).toBe('Zbývá 12 hrobů.');
+    expect(view.cemeteries[0]).not.toHaveProperty('spaceLabel');
     expect(view.scene.cemeteries?.[0]).toMatchObject({ built: true, graves: 100 });
   });
 });
@@ -290,6 +289,7 @@ describe('chronicleText', () => {
     { day: DAY, kind: 'part-became-forest', partId: 4 },
     { day: DAY, kind: 'cemetery-full', cemeteryId: 5, othersFree: true },
     { day: DAY, kind: 'cemetery-full', cemeteryId: 5, othersFree: false },
+    { day: DAY, kind: 'cemetery-full', cemeteryId: 5, othersFree: false, othersBuilding: true },
     {
       day: DAY,
       kind: 'construction-finished',
@@ -310,5 +310,26 @@ describe('chronicleText', () => {
     expect(
       chronicleText({ day: DAY, kind: 'rebuild-decided', dwellingId: 1, type: 'polozemnice' }, 'X'),
     ).toBe('Obyvatelé se rozhodli přestavět dožilé obydlí na polozemnici.');
+  });
+});
+
+describe('kronika – zaplněný hřbitov', () => {
+  const full = (othersFree: boolean, othersBuilding?: boolean): ChronicleEvent => ({
+    day: DAY,
+    kind: 'cemetery-full',
+    cemeteryId: 5,
+    othersFree,
+    ...(othersBuilding === undefined ? {} : { othersBuilding }),
+  });
+
+  it('„není kam pohřbívat“ jen když se žádný hřbitov nestaví ani nemá místo', () => {
+    expect(chronicleText(full(true, false), 'X')).toBe(
+      'Jeden z hřbitovů se zaplnil – pohřbívá se do dalšího.',
+    );
+    expect(chronicleText(full(false, true), 'X')).toBe('Hřbitov se zaplnil.');
+    expect(chronicleText(full(false, false), 'X')).toBe(
+      'Hřbitov se zaplnil – mrtvé není kam pohřbívat.',
+    );
+    expect(chronicleText(full(false), 'X')).toMatch(/není kam/);
   });
 });

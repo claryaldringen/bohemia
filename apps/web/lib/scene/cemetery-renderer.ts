@@ -12,6 +12,7 @@ import {
   cemeteryConstruction,
   fenceLayout,
   gravePlacements,
+  type CemeteryConstruction,
   type FenceLayout,
 } from './cemetery-layout';
 import { cellsBounds, cellsContain, type CellSquare } from './field-cells';
@@ -114,44 +115,75 @@ export class CemeteryRenderer {
     this.earthMoundMesh?.dispose();
   }
 
+  /**
+   * Hřbitov: nehotový celý ve fázích založení; hotový s plotem kolem hotových čtverců
+   * a mohylkami, rozšíření ve stavbě má vlastní plot ve fázích (bez branky), po dokončení se
+   * plot obepne kolem všech čtverců.
+   */
   private build(cemetery: SceneCemetery, gate: Point | null, key: string): CemeteryView {
     const squares: CellSquare[] = cemetery.squares;
-    const fence = fenceLayout(squares, gate ? { x: gate[0], z: gate[1] } : null);
-    const state = cemeteryConstruction(cemetery.progress, cemetery.built);
-    const meshes: Mesh[] = [];
-    if (state.layout) meshes.push(this.layoutMesh(cemetery.id, fence));
-    if (state.wattleHeight > 0)
-      meshes.push(this.wattleMesh(cemetery.id, fence, state.wattleHeight));
-
-    const height = this.context.decalHeight;
-    const posts: ModelInstance[] = [];
-    if (state.posts > 0) {
-      const count = Math.round(fence.posts.length * state.posts);
-      for (const post of fence.posts.slice(0, count)) {
-        posts.push({
-          x: post.x,
-          y: height(post.x, post.z) - POST_SINK_M,
-          z: post.z,
-          rotationY: 0,
-          scale: post.gate ? GATE_POST_SCALE : 1,
+    const ready: CellSquare[] = cemetery.squares.filter((s) => !s.pending);
+    const pending: CellSquare[] = cemetery.squares.filter((s) => s.pending);
+    const toward = gate ? { x: gate[0], z: gate[1] } : null;
+    const fences: { fence: FenceLayout; state: CemeteryConstruction; key: string }[] = [];
+    if (!cemetery.built) {
+      fences.push({
+        fence: fenceLayout(squares, toward),
+        state: cemeteryConstruction(cemetery.progress, false),
+        key: 'all',
+      });
+    } else {
+      if (ready.length > 0) {
+        fences.push({
+          fence: fenceLayout(ready, toward),
+          state: cemeteryConstruction(1, true),
+          key: 'ready',
         });
       }
-    } else if (state.layout) {
-      for (const [x, z] of fence.corners) {
-        posts.push({
-          x,
-          y: height(x, z) - POST_SINK_M * STAKE_SCALE,
-          z,
-          rotationY: 0,
-          scale: STAKE_SCALE,
+      if (pending.length > 0) {
+        fences.push({
+          fence: fenceLayout(pending, null, false),
+          state: cemeteryConstruction(cemetery.progress, false),
+          key: 'extension',
         });
+      }
+    }
+
+    const meshes: Mesh[] = [];
+    const posts: ModelInstance[] = [];
+    const height = this.context.decalHeight;
+    for (const { fence, state, key: part } of fences) {
+      const name = `${cemetery.id}-${part}`;
+      if (state.layout) meshes.push(this.layoutMesh(name, fence));
+      if (state.wattleHeight > 0) meshes.push(this.wattleMesh(name, fence, state.wattleHeight));
+      if (state.posts > 0) {
+        const count = Math.round(fence.posts.length * state.posts);
+        for (const post of fence.posts.slice(0, count)) {
+          posts.push({
+            x: post.x,
+            y: height(post.x, post.z) - POST_SINK_M,
+            z: post.z,
+            rotationY: 0,
+            scale: post.gate ? GATE_POST_SCALE : 1,
+          });
+        }
+      } else if (state.layout) {
+        for (const [x, z] of fence.corners) {
+          posts.push({
+            x,
+            y: height(x, z) - POST_SINK_M * STAKE_SCALE,
+            z,
+            rotationY: 0,
+            scale: STAKE_SCALE,
+          });
+        }
       }
     }
 
     const grassMounds: ModelInstance[] = [];
     const earthMounds: ModelInstance[] = [];
     if (cemetery.built) {
-      for (const grave of gravePlacements(squares, cemetery.graves, cemetery.id)) {
+      for (const grave of gravePlacements(ready, cemetery.graves, cemetery.id)) {
         const r = MOUND_RADIUS_M * grave.scale;
         // pata mohylky v nejnižším bodě pod ní – na svahu nevisí
         const y = Math.min(
@@ -194,7 +226,7 @@ export class CemeteryRenderer {
   }
 
   /** Světlá čára vytyčení po obrysu čtverců (provázek, naražená tráva). */
-  private layoutMesh(id: number, fence: FenceLayout): Mesh {
+  private layoutMesh(id: string, fence: FenceLayout): Mesh {
     const mesh = createStripMesh(
       this.scene,
       `village-cemetery-layout-${id}`,
@@ -214,7 +246,7 @@ export class CemeteryRenderer {
   }
 
   /** Pletený plot – svislé pásy podél úseků do výšky `top`, položené na terén. */
-  private wattleMesh(id: number, fence: FenceLayout, top: number): Mesh {
+  private wattleMesh(id: string, fence: FenceLayout, top: number): Mesh {
     const positions: number[] = [];
     const normals: number[] = [];
     const uvs: number[] = [];
@@ -430,17 +462,23 @@ export class CemeteryRenderer {
   }
 }
 
-/** Nejbližší obydlí ke středu pohřebiště – k němu míří branka; bez obydlí null. */
+/**
+ * Nejbližší hotové obydlí ke středu hotových čtverců hřbitova – k němu míří branka (obydlí
+ * čekající na server ani staveniště ji neposunou); bez obydlí null.
+ */
 function gateTarget(
-  squares: readonly { x: number; z: number }[],
+  squares: readonly { x: number; z: number; pending?: boolean }[],
   dwellings: readonly SceneDwelling[],
 ): Point | null {
-  if (squares.length === 0) return null;
-  const cx = squares.reduce((s, q) => s + q.x, 0) / squares.length;
-  const cz = squares.reduce((s, q) => s + q.z, 0) / squares.length;
+  const ready = squares.filter((s) => !s.pending);
+  const base = ready.length > 0 ? ready : squares;
+  if (base.length === 0) return null;
+  const cx = base.reduce((s, q) => s + q.x, 0) / base.length;
+  const cz = base.reduce((s, q) => s + q.z, 0) / base.length;
   let best: Point | null = null;
   let bestD = Infinity;
   for (const d of dwellings) {
+    if (!d.built) continue;
     const dist = Math.hypot(d.position.x - cx, d.position.z - cz);
     if (dist < bestD) {
       bestD = dist;
@@ -451,11 +489,12 @@ function gateTarget(
 }
 
 function cemeteryKey(c: SceneCemetery, gate: Point | null): string {
+  const building = !c.built || c.squares.some((s) => s.pending);
   return [
-    c.squares.map((s) => `${s.cell.x},${s.cell.y}`).join(';'),
+    c.squares.map((s) => `${s.cell.x},${s.cell.y}${s.pending ? 'p' : ''}`).join(';'),
     c.built,
     // průběh po 2 % – plot nepřibývá plynule, ale ani se nepřestavuje při každém dotazu
-    c.built ? '' : Math.round(c.progress * 50),
+    building ? Math.round(c.progress * 50) : '',
     c.graves,
     gate ? `${Math.round(gate[0])},${Math.round(gate[1])}` : '',
   ].join('|');

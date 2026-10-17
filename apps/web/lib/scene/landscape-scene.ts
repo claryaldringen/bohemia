@@ -420,8 +420,9 @@ export class LandscapeScene {
   }
 
   /**
-   * Kliknutí do scény mimo umisťování (jako v 0 A.D.): levé na obydlí, pole nebo hřbitov ho vybere, na
-   * prázdnou zem a pravé výběr zruší (null). Zvýraznění nastaví až rozhraní (`setSelection`).
+   * Kliknutí do scény mimo umisťování (jako v 0 A.D.): levé na obydlí, pole nebo hřbitov ho
+   * vybere, na prázdnou zem a pravé výběr zruší (null). Zvýraznění nastaví až rozhraní
+   * (`setSelection`).
    */
   onSelect(listener: SelectListener): () => void {
     this.selectListeners.add(listener);
