@@ -14,6 +14,9 @@ pod stejnou licencí. Licence se týká jen těchto souborů, ne zbytku hry Bohe
 | `build/polozemnice.png`   | totéž z `models/dwellings/polozemnice.glb`                                                                                                                           |
 | `build/pole.png`          | vlastní model (záhony a klasy obilí vymodelované ve skriptu), textury `grass-dirt.jpg` a `mud.jpg` (0 A.D.)                                                          |
 | `build/hrbitov.png`       | vlastní model (mohyly, plot z proutí, kameny, kůly), textury `grass-lush.jpg` a `grass-dirt.jpg` (0 A.D.)                                                            |
+| `build/hrncir.png`        | vlastní render modelu `models/crafts/hrncir.glb` (licence v `models/crafts/LICENSES.md`), textury `grass-dirt.jpg` a `mud.jpg` (0 A.D.), pozadí s vinětou            |
+| `build/kovar.png`         | totéž z `models/crafts/kovar.glb`                                                                                                                                    |
+| `build/uhlir.png`         | totéž z `models/crafts/uhlir.glb` a `models/crafts/milir.glb`, dým z milíře vymodelovaný ve skriptu                                                                  |
 | `resources/people.png`    | `binaries/data/mods/public/art/textures/ui/session/icons/resources/population.png` z 0 A.D. (0ad/0ad), bez úprav (64 × 64 px); nezasahuje do něj logo Wildfire Games |
 | `resources/food.png`      | vlastní render – snopek obilí (model ve skriptu); ikona `food.png` z 0 A.D. je kus masa, proto nepoužita                                                             |
 | `resources/labor.png`     | vlastní render – motyka (model ve skriptu)                                                                                                                           |

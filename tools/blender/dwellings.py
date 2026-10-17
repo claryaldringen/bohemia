@@ -1058,4 +1058,7 @@ def main():
         polozemnice.location = (4.5, 0, 0)
         render([zemnice, polozemnice], os.path.join(RENDER, "both_game_angle.png"), (0, -24, 21.5), (0, 0, 0.5), size=(1600, 900))
 
-main()
+
+# crafts.py importuje tvary obydlí (Builder, thatch_roof, build_*) – jen při spuštění skriptu
+if __name__ == "__main__":
+    main()
