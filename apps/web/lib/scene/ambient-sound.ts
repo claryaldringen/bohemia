@@ -32,7 +32,6 @@ export interface AmbientSoundOptions {
 /** Smyčky – hrají pořád, hlasitost řídí mix. */
 const LOOPS: [AmbientLayer, string][] = [
   ['birds', 'birds-day'],
-  ['streamSlow', 'stream-slow'],
   ['streamMedium', 'stream-medium'],
   ['streamFast', 'stream-fast'],
 ];

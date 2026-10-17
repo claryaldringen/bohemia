@@ -161,8 +161,9 @@ na který se později přidávají další prvky (černozem, naleziště kovů, 
 - **Info o políčku pod kurzorem:** povrch a úrodnost – pomůže hráči plánovat, kde založit
   vesnici.
 - **Zvuky krajiny** (Martin, podle 0 A.D.): ptáci letního dne všude (stejná stopa jako ambient
-  v 0 A.D.), u okraje lesa navíc zpěv ptáků, v lese a u něj vítr v listí, potok podle rychlosti
-  proudu (pomalý, střední, rychlý – prolínají se). Hlasitost podle toho, kam se kamera dívá:
+  v 0 A.D.), u okraje lesa navíc zpěv ptáků, v lese a u něj vítr v listí, potok jen tam, kde
+  teče přes oblázky (Martin) – nad bahnem, pískem a v tůních je tichý; mírný proud a prudká
+  peřej se prolínají podle rychlosti. Hlasitost podle toho, kam se kamera dívá:
   zdroje v záběru, blíž = hlasitěji (jako 0 A.D. ∝ 1 / vzdálenost), při oddálení vše tišší, ale
   ptáci nezmizí. Zvuk začne po prvním kliknutí (pravidlo prohlížečů), přepínač vpravo nahoře si
   volbu pamatuje. Zvuky z 0 A.D. (CC BY-SA 3.0, Wildfire Games), licence a původní soubory

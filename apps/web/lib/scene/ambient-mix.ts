@@ -1,4 +1,5 @@
 import type { ForestField } from './forest-field';
+import { bedMix } from './ground-layers';
 import type { StreamPoint } from './stream-geometry';
 
 /**
@@ -15,14 +16,13 @@ export const AMBIENT_LAYERS = [
   'birds',
   'birdsong',
   'leaves',
-  'streamSlow',
   'streamMedium',
   'streamFast',
 ] as const;
 
 /**
  * Vrstvy: `birds` ptáci dne všude, `birdsong` zpěv ptáků u lesa (hlavně na okraji), `leaves`
- * vítr v listí v lese a u něj, `stream*` potok podle rychlosti proudu.
+ * vítr v listí v lese a u něj, `stream*` potok tam, kde teče přes oblázky, podle rychlosti proudu.
  */
 export type AmbientLayer = (typeof AMBIENT_LAYERS)[number];
 
@@ -38,7 +38,9 @@ export interface AmbientView {
 
 /** Co v krajině zní – podmnožina `StreamCenterline` a `ForestField`. */
 export interface AmbientEnvironment {
-  stream: { points: readonly Pick<StreamPoint, 'x' | 'z' | 'speed' | 'halfLeft' | 'halfRight'>[] };
+  stream: {
+    points: readonly Pick<StreamPoint, 'x' | 'z' | 'speed' | 'pool' | 'halfLeft' | 'halfRight'>[];
+  };
   forest: Pick<ForestField, 'distanceAt'>;
 }
 
@@ -67,20 +69,21 @@ const EDGE_WIDTH_ZOOM = 0.15;
 const INTERIOR_BIRDSONG = 0.5;
 /** Ptáci dne při největším oddálení (podíl hlasitosti při přiblížení) – krajina neztichne. */
 const BIRDS_FAR = 0.55;
-/** Rychlosti proudu (0–1), kde zní naplno pomalá, střední a rychlá voda. */
-const SLOW_SPEED = 0.15;
-const MEDIUM_SPEED = 0.45;
-const FAST_SPEED = 0.75;
+/**
+ * Rychlosti proudu (0–1), kde zní naplno střední (mírný proud přes oblázky) a rychlá voda
+ * (prudká peřej). Oblázky na dně jsou od rychlosti ≈ 0,55, typicky 0,64–0,88.
+ */
+const MEDIUM_SPEED = 0.6;
+const FAST_SPEED = 0.9;
 
 /**
  * Hlasitost vrstev naplno (lineárně). Soubory mají sjednocenou hlasitost (kromě vody, kde zůstal
- * poměr 0 A.D.: pomalá voda tišší než rychlá) – tady se ladí vzájemný poměr.
+ * poměr 0 A.D.: střední voda tišší než rychlá) – tady se ladí vzájemný poměr.
  */
 const LEVEL: AmbientGains = {
   birds: 0.5,
   birdsong: 0.6,
   leaves: 0.7,
-  streamSlow: 0.9,
   streamMedium: 0.9,
   streamFast: 0.9,
 };
@@ -100,25 +103,20 @@ export function ambientMix(view: AmbientView, environment: AmbientEnvironment): 
     birds: LEVEL.birds * (1 + (BIRDS_FAR - 1) * zoom),
     birdsong: LEVEL.birdsong * area * forest.birdsong,
     leaves: LEVEL.leaves * area * forest.leaves,
-    streamSlow: LEVEL.streamSlow * stream.slow,
     streamMedium: LEVEL.streamMedium * stream.medium,
     streamFast: LEVEL.streamFast * stream.fast,
   };
 }
 
 /**
- * Podíl pomalé, střední a rychlé vody pro rychlost proudu 0–1. Prolínání drží stejný výkon
- * (součet čtverců 1) – šum vody se při změně rychlosti mění v barvě, ne v hlasitosti.
+ * Podíl střední a rychlé vody pro rychlost proudu 0–1. Prolínání drží stejný výkon (součet
+ * čtverců 1) – šum vody se při změně rychlosti mění v barvě, ne v hlasitosti.
  */
-export function streamSpeedWeights(speed: number): { slow: number; medium: number; fast: number } {
-  if (!(speed > SLOW_SPEED)) return { slow: 1, medium: 0, fast: 0 };
-  if (speed >= FAST_SPEED) return { slow: 0, medium: 0, fast: 1 };
-  if (speed <= MEDIUM_SPEED) {
-    const t = (speed - SLOW_SPEED) / (MEDIUM_SPEED - SLOW_SPEED);
-    return { slow: Math.cos((t * Math.PI) / 2), medium: Math.sin((t * Math.PI) / 2), fast: 0 };
-  }
+export function streamSpeedWeights(speed: number): { medium: number; fast: number } {
+  if (!(speed > MEDIUM_SPEED)) return { medium: 1, fast: 0 };
+  if (speed >= FAST_SPEED) return { medium: 0, fast: 1 };
   const t = (speed - MEDIUM_SPEED) / (FAST_SPEED - MEDIUM_SPEED);
-  return { slow: 0, medium: Math.cos((t * Math.PI) / 2), fast: Math.sin((t * Math.PI) / 2) };
+  return { medium: Math.cos((t * Math.PI) / 2), fast: Math.sin((t * Math.PI) / 2) };
 }
 
 /** Útlum se vzdáleností od posluchače jako v 0 A.D. (OpenAL, hlasitost ∝ 1 / vzdálenost). */
@@ -132,15 +130,17 @@ function inView(horizontal: number, radius: number): number {
 }
 
 /**
- * Potok: každý úsek osy je zdroj, který zní podle vzdálenosti od okraje vody. Za každou
- * rychlost proudu rozhoduje nejhlasitější úsek – tůň pod kamerou i peřej opodál jsou slyšet.
+ * Potok zní jen tam, kde teče přes oblázky – štěrkové dno stejně jako na obrazovce
+ * (`bedMix`); nad bahnem, pískem a v tůních je tichý (Martin). Každý úsek osy je zdroj, který
+ * zní podle vzdálenosti od okraje vody a podílu oblázků na dně. Za každou rychlost proudu
+ * rozhoduje nejhlasitější úsek – peřej opodál je slyšet i nad tichou tůní.
  */
 function streamPresence(
   view: AmbientView,
   radius: number,
   points: AmbientEnvironment['stream']['points'],
-): { slow: number; medium: number; fast: number } {
-  const result = { slow: 0, medium: 0, fast: 0 };
+): { medium: number; fast: number } {
+  const result = { medium: 0, fast: 0 };
   const listenerHeight = radius * LISTENER_HEIGHT;
   const reach = VIEW_OUTER * radius;
   for (let i = 0; i + 1 < points.length; i++) {
@@ -160,9 +160,12 @@ function streamPresence(
       Math.hypot(view.x - (a.x + abx * t), view.z - (a.z + abz * t)) - halfWidth,
     );
     if (toBank >= reach) continue;
-    const presence = inView(toBank, radius) * attenuation(Math.hypot(toBank, listenerHeight));
-    const w = streamSpeedWeights(a.speed + (b.speed - a.speed) * t);
-    result.slow = Math.max(result.slow, presence * w.slow);
+    const speed = a.speed + (b.speed - a.speed) * t;
+    const pebbles = bedMix(speed, a.pool + (b.pool - a.pool) * t).gravel;
+    if (pebbles <= 0) continue;
+    const presence =
+      pebbles * inView(toBank, radius) * attenuation(Math.hypot(toBank, listenerHeight));
+    const w = streamSpeedWeights(speed);
     result.medium = Math.max(result.medium, presence * w.medium);
     result.fast = Math.max(result.fast, presence * w.fast);
   }

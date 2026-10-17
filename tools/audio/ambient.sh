@@ -73,8 +73,7 @@ shot birdsong-4 dayscape/day_temperate_14.ogg 1 0 32k
 # Vítr v listí – jednotlivé poryvy.
 shot leaves-1 weather/windleaves_10.ogg 1 24 32k
 shot leaves-2 weather/windleaves_11.ogg 1 24 32k
-# Potok – water/river_slow.xml, river_med.xml, river_fast.xml (vzájemná hlasitost z 0 A.D.).
-loop stream-slow water/river_slow_21.ogg 1 0 48k 2
+# Potok přes oblázky – water/river_med.xml, river_fast.xml (vzájemná hlasitost z 0 A.D.).
 loop stream-medium water/river_med_21.ogg 1 0 48k 2
 loop stream-fast water/river_fast_21.ogg 1 0 48k 2
 

@@ -10,11 +10,18 @@ import {
 const NEAR = 150;
 const FAR = 1400;
 
-/** Rovný potok podél osy z (x = 0), poloviční šířka 8 m, všude stejná rychlost proudu. */
-function straightStream(speed: number): AmbientEnvironment['stream'] {
+/** Peřej přes oblázky – štěrkové dno, potok zní naplno. */
+const RIFFLE = 0.95;
+
+/** Rovný potok podél osy z (x = 0), poloviční šířka 8 m; rychlost proudu podle z. */
+function straightStream(
+  speedAt: number | ((z: number) => number),
+  pool = 0,
+): AmbientEnvironment['stream'] {
   const points = [];
   for (let z = -1000; z <= 1000; z += 7.5) {
-    points.push({ x: 0, z, speed, halfLeft: 8, halfRight: 8 });
+    const speed = typeof speedAt === 'number' ? speedAt : speedAt(z);
+    points.push({ x: 0, z, speed, pool, halfLeft: 8, halfRight: 8 });
   }
   return { points };
 }
@@ -27,28 +34,26 @@ const halfPlaneForest: AmbientEnvironment['forest'] = {
 const noForest: AmbientEnvironment['forest'] = { distanceAt: () => -10_000 };
 
 const environment = (
-  speed = 0.45,
+  speed = RIFFLE,
   forest: AmbientEnvironment['forest'] = halfPlaneForest,
 ): AmbientEnvironment => ({ stream: straightStream(speed), forest });
 
 const total = (gains: AmbientGains): number =>
   AMBIENT_LAYERS.reduce((sum, layer) => sum + gains[layer], 0);
 const streamLoudness = (gains: AmbientGains): number =>
-  Math.hypot(gains.streamSlow, gains.streamMedium, gains.streamFast);
+  Math.hypot(gains.streamMedium, gains.streamFast);
 
 describe('streamSpeedWeights', () => {
-  it('líný proud je jen pomalá voda, peřej jen rychlá', () => {
-    expect(streamSpeedWeights(0.05)).toEqual({ slow: 1, medium: 0, fast: 0 });
-    expect(streamSpeedWeights(0.95)).toEqual({ slow: 0, medium: 0, fast: 1 });
-    const medium = streamSpeedWeights(0.45);
-    expect(medium.medium).toBeCloseTo(1);
+  it('mírný proud přes oblázky je střední voda, prudká peřej rychlá', () => {
+    expect(streamSpeedWeights(0.55)).toEqual({ medium: 1, fast: 0 });
+    expect(streamSpeedWeights(0.95)).toEqual({ medium: 0, fast: 1 });
   });
 
   it('prolínání drží stejný výkon (součet čtverců je 1) a s rychlostí plynule přechází', () => {
     let previousFast = 0;
     for (let speed = 0; speed <= 1; speed += 0.01) {
       const w = streamSpeedWeights(speed);
-      expect(w.slow ** 2 + w.medium ** 2 + w.fast ** 2).toBeCloseTo(1, 6);
+      expect(w.medium ** 2 + w.fast ** 2).toBeCloseTo(1, 6);
       expect(w.fast).toBeGreaterThanOrEqual(previousFast - 1e-9);
       previousFast = w.fast;
     }
@@ -95,21 +100,40 @@ describe('ambientMix', () => {
     expect(streamLoudness(ambientMix({ x: 300, z: 0, radius: 650 }, env))).toBeGreaterThan(0);
   });
 
-  it('rychlost proudu volí vrstvu: tůň pomalá, peřej rychlá', () => {
+  it('potok zní jen tam, kde teče přes oblázky – nad bahnem, pískem a v tůni je ticho', () => {
     const view = { x: 0, z: 0, radius: NEAR };
-    const slow = ambientMix(view, environment(0.1));
-    expect(slow.streamSlow).toBeGreaterThan(0.5);
-    expect(slow.streamMedium).toBe(0);
-    expect(slow.streamFast).toBe(0);
-    const fast = ambientMix(view, environment(0.9));
-    expect(fast.streamFast).toBeGreaterThan(0.5);
-    expect(fast.streamSlow).toBe(0);
-    expect(fast.streamMedium).toBe(0);
-    const medium = ambientMix(view, environment(0.45));
-    expect(medium.streamMedium).toBeGreaterThan(medium.streamSlow);
-    expect(medium.streamMedium).toBeGreaterThan(medium.streamFast);
-    // Celková síla potoka nezávisí na rychlosti – mění se jen barva zvuku.
-    expect(streamLoudness(slow)).toBeCloseTo(streamLoudness(fast), 6);
+    expect(streamLoudness(ambientMix(view, environment(0.1)))).toBe(0);
+    expect(streamLoudness(ambientMix(view, environment(0.4)))).toBe(0);
+    const pool = { stream: straightStream(RIFFLE, 1), forest: noForest };
+    expect(streamLoudness(ambientMix(view, pool))).toBe(0);
+    expect(streamLoudness(ambientMix(view, environment(RIFFLE)))).toBeGreaterThan(0.5);
+  });
+
+  it('rychlost proudu přes oblázky volí vrstvu: mírný proud střední voda, peřej rychlá', () => {
+    const view = { x: 0, z: 0, radius: NEAR };
+    const gentle = ambientMix(view, environment(0.6));
+    expect(gentle.streamMedium).toBeGreaterThan(0);
+    expect(gentle.streamFast).toBe(0);
+    const riffle = ambientMix(view, environment(RIFFLE));
+    expect(riffle.streamFast).toBeGreaterThan(0.5);
+    expect(riffle.streamMedium).toBe(0);
+    // Víc oblázků v rychlejším proudu – peřej zní silněji než mírný proud.
+    expect(streamLoudness(riffle)).toBeGreaterThan(streamLoudness(gentle));
+  });
+
+  it('nad tichým úsekem je slyšet peřej opodál, slaběji než u ní, daleko od ní nic', () => {
+    // Od z = 0 dál peřej přes oblázky, před ní líný proud nad bahnem.
+    const env = {
+      stream: straightStream((z) => (z < 0 ? 0.1 : RIFFLE)),
+      forest: noForest,
+    };
+    const atRiffle = streamLoudness(ambientMix({ x: 0, z: 100, radius: NEAR }, env));
+    const nearby = streamLoudness(ambientMix({ x: 0, z: -40, radius: NEAR }, env));
+    const farAway = streamLoudness(ambientMix({ x: 0, z: -400, radius: NEAR }, env));
+    expect(atRiffle).toBeGreaterThan(0.5);
+    expect(nearby).toBeGreaterThan(0);
+    expect(nearby).toBeLessThan(atRiffle);
+    expect(farAway).toBe(0);
   });
 
   it('v krajině bez potoka je potok potichu', () => {
@@ -117,7 +141,7 @@ describe('ambientMix', () => {
       { x: 0, z: 0, radius: NEAR },
       { stream: { points: [] }, forest: halfPlaneForest },
     );
-    expect(gains.streamSlow + gains.streamMedium + gains.streamFast).toBe(0);
+    expect(gains.streamMedium + gains.streamFast).toBe(0);
   });
 
   it('vítr v listí šumí v lese a u lesa, uprostřed louky ne', () => {
@@ -161,7 +185,7 @@ describe('ambientMix', () => {
 
   it('tentýž zdroj pod kamerou je při oddálení tišší', () => {
     const forestEverywhere: AmbientEnvironment['forest'] = { distanceAt: () => 300 };
-    const env = environment(0.45, forestEverywhere);
+    const env = environment(RIFFLE, forestEverywhere);
     const near = ambientMix({ x: 0, z: 0, radius: NEAR }, env);
     const far = ambientMix({ x: 0, z: 0, radius: FAR }, env);
     for (const layer of AMBIENT_LAYERS) {

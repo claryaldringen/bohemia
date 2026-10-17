@@ -24,6 +24,5 @@ jen těchto souborů, ne zbytku hry Bohemia.
 | `birdsong-4.webm`    | `dayscape/day_temperate_14.ogg`                           |
 | `leaves-1.webm`      | `weather/windleaves_10.ogg`                               |
 | `leaves-2.webm`      | `weather/windleaves_11.ogg`                               |
-| `stream-slow.webm`   | `water/river_slow_21.ogg`                                 |
 | `stream-medium.webm` | `water/river_med_21.ogg`                                  |
 | `stream-fast.webm`   | `water/river_fast_21.ogg`                                 |

@@ -169,8 +169,9 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
 - **Ukazatel načítání:** `setLandscape(landscape, onProgress)` hlásí kroky přípravy a mezi
   náročnými kroky pustí prohlížeč překreslit; `GameView` ukazuje `SceneLoading`.
 - **Zvuky** (podle 0 A.D.): `ambient-mix.ts` (čisté funkce, testy) spočítá z cíle a přiblížení
-  kamery hlasitost vrstev – ptáci dne, zpěv ptáků u okraje lesa, vítr v listí, potok pomalý /
-  střední / rychlý podle `speed`. `ambient-sound.ts` je přehrává přes Web Audio (bez Babylonu):
+  kamery hlasitost vrstev – ptáci dne, zpěv ptáků u okraje lesa, vítr v listí, potok jen kde
+  teče přes oblázky (štěrkové dno z `bedMix`, Martin), střední / rychlý podle `speed`.
+  `ambient-sound.ts` je přehrává přes Web Audio (bez Babylonu):
   soubory stahuje až po přípravě scény, mix mění jen při pohybu kamery, zvuk pustí po prvním
   gestu (pravidlo prohlížečů), ve skrytém panelu uspí. Stav nese `canvas[data-sound]`, přepínač
   `SoundToggle` (volba v localStorage). Soubory Opus/WebM v `public/audio/ambient/` (převod

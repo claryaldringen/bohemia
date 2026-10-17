@@ -243,7 +243,7 @@ export function packSplatTextures(weights: GroundWeights): [Uint8Array, Uint8Arr
  * Dno koryta podle proudu jako v přírodě: v rychlém proudu štěrk (jemný sediment voda odnese),
  * v mírném písek, v pomalém a v tůních bahno.
  */
-function bedMix(speed: number, pool: number): { mud: number; sand: number; gravel: number } {
+export function bedMix(speed: number, pool: number): { mud: number; sand: number; gravel: number } {
   const gravel = smoothstep(0.5, 0.78, speed) * (1 - pool);
   const sand = smoothstep(0.22, 0.45, speed) * (1 - gravel) * (1 - pool);
   return { mud: 1 - gravel - sand, sand, gravel };
