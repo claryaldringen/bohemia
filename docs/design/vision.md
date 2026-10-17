@@ -52,6 +52,7 @@ ne jeden pán.
 | Pole a jídlo: společná pole vsi, přílohová soustava, ruční práce, zásoby a nasycení ([fields.md](fields.md))        | Martin, čísla návrh Clauda    |
 | Hřbitov: poloha a velikost ovlivňují úmrtnost, bez ukazatele hygieny ([cemetery.md](cemetery.md))                   | Martin, čísla návrh Clauda    |
 | Les a dřevo: palivo sbírají vesničané, kácí se na stavby, klády z mýcení ([forest.md](forest.md))                   | Martin, čísla návrh Clauda    |
+| Jabloňový sad: staví se po čtvercích jako pole, plodí od 6. roku ([orchard.md](orchard.md))                         | Martin, čísla návrh Clauda    |
 | Hexagonální architektura (porty a adaptéry), hranice hlídá ESLint                                                   | návrh Clauda, Martin schválil |
 | UI česky, kód anglicky                                                                                              | návrh Clauda                  |
 | Herní čas jako čistá funkce skutečného času, pravidla v `packages/game`, server je autorita                         | návrh Clauda                  |
