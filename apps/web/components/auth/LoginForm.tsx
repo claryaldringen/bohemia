@@ -3,6 +3,7 @@
 import { useState, type SubmitEvent, type ReactElement } from 'react';
 import { authClient } from '@/lib/auth-client';
 import { authErrorMessage } from '@/lib/auth-errors';
+import { DEV_LOGIN_BY_NAME, loginEmail } from '@/lib/dev-login';
 import { Field, FormError, SubmitButton } from './form';
 
 export function LoginForm({ googleEnabled }: { googleEnabled: boolean }): ReactElement {
@@ -15,7 +16,7 @@ export function LoginForm({ googleEnabled }: { googleEnabled: boolean }): ReactE
     setPending(true);
     setError(undefined);
     const { error } = await authClient.signIn.email({
-      email: String(form.get('email')),
+      email: loginEmail(String(form.get('email'))),
       password: String(form.get('password')),
       // Better Auth tuhle adresu dá i do nového ověřovacího e-mailu, když e-mail ještě není
       // potvrzený – bez ní by odkaz vedl na úvodní stránku.
@@ -42,7 +43,13 @@ export function LoginForm({ googleEnabled }: { googleEnabled: boolean }): ReactE
   return (
     <div className="space-y-4">
       <form onSubmit={onSubmit} className="space-y-4">
-        <Field label="E-mail" name="email" type="email" autoComplete="email" required />
+        <Field
+          label={DEV_LOGIN_BY_NAME ? 'E-mail nebo jméno vývojového účtu' : 'E-mail'}
+          name="email"
+          type={DEV_LOGIN_BY_NAME ? 'text' : 'email'}
+          autoComplete="email"
+          required
+        />
         <Field
           label="Heslo"
           name="password"

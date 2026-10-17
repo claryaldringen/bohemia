@@ -4,12 +4,14 @@ import { randomUUID } from 'node:crypto';
 import { and, eq } from 'drizzle-orm';
 import { hashPassword } from 'better-auth/crypto';
 import { createDatabase, databaseUrl, schema } from '@bohemia/db';
+import { DEV_EMAIL_DOMAIN } from '../lib/dev-login';
 
-// Jen pro lokální databázi – v produkci skript odmítne běžet.
+// Jen pro lokální databázi – v produkci skript odmítne běžet. Ve vývoji se přihlásí i samotným
+// jménem (lib/dev-login.ts doplní doménu).
 const DEV_USER = {
-  name: 'Vývojář',
-  email: 'dev@bohemia.test',
-  password: 'bohemia-dev',
+  name: 'Jarmil',
+  email: `jarmil@${DEV_EMAIL_DOMAIN}`,
+  password: 'prdel',
 } as const;
 
 async function main(): Promise<void> {

@@ -104,6 +104,7 @@ Auth vzniká líně přes `getAuth()` – `next build` stránky jen importuje a 
   odtamtud). V produkci bez nastaveného odesílání `sendMail` záměrně spadne.
 - **Vývojový účet** bez registrace: `npm run db:seed-dev` založí (nebo obnoví) ověřený účet
   v lokální DB `bohemia`, přihlašovací údaje jsou na začátku `apps/web/scripts/seed-dev-user.ts`.
+  Ve vývoji jde přihlásit i samotným jménem (`lib/dev-login.ts` doplní `@bohemia.test`).
 - **Hlášky Better Auth** se překládají v `lib/auth-errors.ts` – nové chybové kódy doplnit tam.
 - **Změna polí uživatele** (`user.additionalFields` v `lib/auth.ts`) → upravit i
   `packages/db/src/schema/auth.ts` a vygenerovat migraci.
