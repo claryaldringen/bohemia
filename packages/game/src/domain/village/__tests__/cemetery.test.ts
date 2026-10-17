@@ -16,6 +16,7 @@ import { CEMETERY, CEMETERY_DISTANCE_M } from '../rules';
 import { advanceVillage } from '../simulate';
 import { recentDeathsPerYear, summarizeVillage } from '../summary';
 import type { Cemetery, CemeterySquare, Person, VillageState } from '../types';
+import { withBuiltFirstDwelling } from './village-fixtures';
 
 const YEAR = 365.25;
 const at = (year: number, month: number, day: number): number => dayIndexOf({ year, month, day });
@@ -30,13 +31,17 @@ const field = (count = 75): PartInput[] =>
     surface: 'meadow',
     obstacleCost: 0,
   }));
-const found = (day = FOUNDED, seed = 42): VillageState =>
+/** Čerstvá ves – zakladatelé teprve staví první zemnici v (0, 0). */
+const foundSite = (day = FOUNDED, seed = 42): VillageState =>
   foundVillage({
     seed,
     day,
     dwellingPosition: { x: 0, z: 0, rotation: 0 },
     firstField: { parts: field() },
   });
+/** Ves se zemnicí zakladatelů v (0, 0) – od ní se měří hygiena a pořadí pohřbívání. */
+const found = (day = FOUNDED, seed = 42): VillageState =>
+  withBuiltFirstDwelling(foundSite(day, seed));
 
 /** Čtverec se středem (x, z) a vzdáleností od vody. */
 const square = (x: number, z: number, waterDistanceM = 500): CemeterySquare => ({
@@ -179,6 +184,23 @@ describe('pohřeb', () => {
     });
     expect(bury(s, 7)).toBeNull();
     expect(s.cemeteries[0]!.graves).toBe(56);
+  });
+
+  it('během stavby první zemnice (obydlí ještě nestojí): hygiena jen od vody, pohřeb jde', () => {
+    const s = foundSite(FOUNDED, 7);
+    expect(s.dwellings).toEqual([]);
+    s.cemeteries = [cemetery(100, [square(15, 0, 65)]), cemetery(101, [square(30, 0)])];
+    // bez obydlí blízkost obydlí nepřitěžuje – zbude činitel vody nejlepšího hřbitova
+    expect(villageHygiene(s)).toBe(1);
+    s.cemeteries.pop();
+    expect(villageHygiene(s)).toBeCloseTo(0.5, 10);
+    s.people.push(...Array.from({ length: 30 }, (_, i) => adult(500 + i, 80, AFTER_LUCK)));
+    let deaths = 0;
+    for (let day = AFTER_LUCK; day < AFTER_LUCK + 365; day++) {
+      deaths += populationDay(s, day, 1).filter((e) => e.kind === 'death').length;
+    }
+    expect(deaths).toBeGreaterThan(0);
+    expect(s.cemeteries[0]!.graves).toBe(deaths);
   });
 
   it('populationDay pohřbí každého zemřelého', () => {
