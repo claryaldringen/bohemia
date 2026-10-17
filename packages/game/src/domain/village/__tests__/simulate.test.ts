@@ -482,6 +482,29 @@ describe('advanceVillage – obydlí', () => {
     expect(s.chronicle).toContainEqual({ day, kind: 'household-founded', dwellingId: 50 });
   });
 
+  it('opuštěné obydlí se nepřestavuje: rozestavěná přestavba se opustí (Ruling 19)', () => {
+    const day = at(600, 10, 1);
+    const s0 = withoutFields(day);
+    s0.dwellings.push({ id: 50, type: 'zemnice', builtDay: day, condition: 1, position: POSITION });
+    for (const p of s0.people) p.dwellingId = 50; // obydlí 1 zůstalo prázdné
+    s0.constructions.push({
+      id: 90,
+      kind: 'rebuild',
+      startedDay: day - 10,
+      cost: 220,
+      done: 10,
+      dwellingType: 'polozemnice',
+      position: null,
+      dwellingId: 1,
+      fieldId: null,
+    });
+    const s = advanceVillage(s0, day + 30);
+    expect(s.constructions).toEqual([]);
+    expect(count(s, 'construction-finished')).toBe(0);
+    expect(s.dwellings.find((d) => d.id === 1)?.type).toBe('zemnice');
+    expect(s.commonLaborHistory.at(-1)).toBeGreaterThan(0); // společná práce propadá, nestaví
+  });
+
   it('prázdné obydlí chátrá a na nule zanikne', () => {
     const day = at(600, 10, 1);
     const s0 = withoutFields(day);

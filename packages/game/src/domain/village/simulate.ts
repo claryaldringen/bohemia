@@ -265,8 +265,14 @@ function work(state: VillageState, day: number): void {
   }
 }
 
-/** Opuštěná obydlí se neopravují a chátrají; na nule zaniknou (i s rozestavěnou přestavbou). */
+/**
+ * Opuštěná obydlí se neopravují ani nepřestavují: rozestavěná přestavba prázdného obydlí se
+ * opustí (nebere společnou práci), obydlí chátrá a na nule zanikne.
+ */
 function decayEmptyDwellings(state: VillageState, day: number, occupied: Set<number>): void {
+  state.constructions = state.constructions.filter(
+    (c) => !(c.kind === 'rebuild' && c.dwellingId !== null && !occupied.has(c.dwellingId)),
+  );
   const gone = new Set<number>();
   for (const d of state.dwellings) {
     if (occupied.has(d.id)) continue;
@@ -275,9 +281,6 @@ function decayEmptyDwellings(state: VillageState, day: number, occupied: Set<num
   }
   if (gone.size === 0) return;
   state.dwellings = state.dwellings.filter((d) => !gone.has(d.id));
-  state.constructions = state.constructions.filter(
-    (c) => !(c.kind === 'rebuild' && c.dwellingId !== null && gone.has(c.dwellingId)),
-  );
 }
 
 /** Kolik práce stavbě ještě chybí; pole = zbývající zakládání jeho nehotových dílů. */
