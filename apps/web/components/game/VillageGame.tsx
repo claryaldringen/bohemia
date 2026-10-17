@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
-import { checkDwellingPlacement, fieldPartsFromOutline } from '@bohemia/game';
+import { checkDwellingPlacement, fieldPartsFromOutline, type WorldClock } from '@bohemia/game';
 import { foundVillage, getVillageView, placeDwelling, placeField } from '@/app/game/actions';
 import { usePlacement } from '@/hooks/use-placement';
 import { usePolling } from '@/hooks/use-polling';
@@ -40,11 +40,14 @@ export function VillageGame({
   landscape,
   seed,
   initialVillage,
+  world,
 }: {
   landscape: LandscapeTransfer;
   /** Seed krajiny sídla – podle něj hra nabídne jméno vsi. */
   seed: number;
   initialVillage: VillageData;
+  /** Svět jako na serveru – podle jeho herního dne se v obydlích topí (dým). */
+  world: WorldClock;
 }): ReactElement {
   const decoded = useMemo(() => decodeLandscape(landscape), [landscape]);
   const [scene, setScene] = useState<LandscapeScene | null>(null);
@@ -67,6 +70,10 @@ export function VillageGame({
   useEffect(() => {
     viewRef.current = view;
   }, [view]);
+
+  useEffect(() => {
+    scene?.setWorldClock(world);
+  }, [scene, world]);
 
   const sceneVillage = view ? view.scene : preview;
   useEffect(() => {
