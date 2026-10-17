@@ -46,7 +46,26 @@ export interface Field {
   /** @deprecated Obrys z prvního prototypu (pole se kreslila volným obrysem) – jen staré vsi. */
   outline?: [number, number][];
 }
-export type ConstructionKind = 'dwelling' | 'rebuild' | 'field';
+/** Čtverec pohřebiště – políčko krajiny, jeho střed ve světě (m) a vzdálenost od vody. */
+export interface CemeterySquare {
+  cell: TileCell;
+  x: number;
+  z: number;
+  /** Vzdálenost čtverce od nejbližší vody (m) – z krajiny při založení (simulace krajinu nemá). */
+  waterDistanceM: number;
+}
+/** Pohřebiště – souvislá skupina čtverců (cemetery.md); hroby se plní a znovu nepoužívají. */
+export interface Cemetery {
+  id: number;
+  squares: CemeterySquare[];
+  /** Strana čtverce (m) – vzdálenost od obydlí se měří k okraji čtverce. */
+  squareSizeM: number;
+  /** Obsazené hroby. */
+  graves: number;
+  /** Den dokončení (vytyčení a ohrazení); dokud se zakládá, null. */
+  builtDay: number | null;
+}
+export type ConstructionKind = 'dwelling' | 'rebuild' | 'field' | 'cemetery';
 export interface Construction {
   id: number;
   kind: ConstructionKind;
@@ -57,6 +76,7 @@ export interface Construction {
   position: Position | null; // dwelling
   dwellingId: number | null; // rebuild
   fieldId: number | null; // field – zakládá díly od nejbližšího
+  cemeteryId?: number | null; // cemetery (u starších staveb chybí)
 }
 export type TaskName = 'reclaim' | 'dig' | 'sow' | 'weed' | 'harvest' | 'thresh';
 export interface YearPlan {
@@ -83,6 +103,7 @@ export type ChronicleEvent = { day: number } & (
   | { kind: 'hunger-began' }
   | { kind: 'hunger-ended' }
   | { kind: 'part-became-forest'; partId: number }
+  | { kind: 'cemetery-full'; cemeteryId: number; othersFree: boolean }
 );
 export interface VillageState {
   seed: number;
@@ -101,4 +122,6 @@ export interface VillageState {
   hungry: boolean;
   commonLaborHistory: number[]; // společná práce posledních 30 dní (pro „má na to“)
   chronicle: ChronicleEvent[];
+  /** Pohřebiště – u vsí uložených před zavedením pohřebišť chybí (= žádné). */
+  cemeteries?: Cemetery[];
 }

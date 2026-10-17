@@ -1,4 +1,5 @@
 import { TOTAL_GAME_DAYS } from '../calendar';
+import { cemeteryFoundingCost, villageCemeteries } from './cemetery';
 import { canStartNewDwelling } from './dwellings';
 import { partFoundingCost } from './fields';
 import { ageGroup } from './people';
@@ -9,7 +10,15 @@ import {
   START_AGES,
   START_STORES_MONTHS,
 } from './rules';
-import type { DwellingType, FieldSurface, Person, Position, TileCell, VillageState } from './types';
+import type {
+  CemeterySquare,
+  DwellingType,
+  FieldSurface,
+  Person,
+  Position,
+  TileCell,
+  VillageState,
+} from './types';
 
 const DAYS_PER_YEAR = 365.25; // věk se počítá po 365,25 dne
 const MONTHS_PER_YEAR = 12;
@@ -27,6 +36,15 @@ export type FieldInput = {
   parts: PartInput[];
   /** @deprecated Obrys z prvního prototypu – nová pole se skládají ze čtverců (dílů). */
   outline?: [number, number][];
+};
+
+/** Čtverec zakládaného pohřebiště (z `cemeteryPartsFromCells`) a cena překážek na něm. */
+export type CemeterySquareInput = CemeterySquare & { obstacleCost: number };
+
+export type CemeteryInput = {
+  squares: CemeterySquareInput[];
+  /** Strana čtverce – políčka krajiny (m). */
+  squareSizeM: number;
 };
 
 /** Den akce musí být celé číslo uvnitř světa; jinak RangeError. */
@@ -218,5 +236,72 @@ export function foundField(state: VillageState, day: number, field: FieldInput):
   validateField(field);
   const next = structuredClone(state);
   addField(next, day, field);
+  return next;
+}
+
+/** Ověří vstup pohřebiště; jinak RangeError (čísla, která nejsou konečná, by stav otrávila). */
+function validateCemetery(input: CemeteryInput): void {
+  if (input.squares.length === 0) throw new RangeError('Pohřebiště musí mít aspoň jeden čtverec.');
+  if (!Number.isFinite(input.squareSizeM) || input.squareSizeM <= 0) {
+    throw new RangeError('Strana čtverce pohřebiště musí být kladná a konečná.');
+  }
+  for (const square of input.squares) {
+    if (!Number.isInteger(square.cell.x) || !Number.isInteger(square.cell.y)) {
+      throw new RangeError('Políčko čtverce pohřebiště musí mít celočíselné souřadnice.');
+    }
+    if (!Number.isFinite(square.x) || !Number.isFinite(square.z)) {
+      throw new RangeError('Střed čtverce pohřebiště musí mít konečné souřadnice.');
+    }
+    if (!Number.isFinite(square.waterDistanceM) || square.waterDistanceM < 0) {
+      throw new RangeError('Vzdálenost čtverce pohřebiště od vody musí být nezáporná a konečná.');
+    }
+    validateObstacleCost(square.obstacleCost);
+  }
+}
+
+/**
+ * Zahájí založení pohřebiště (cemetery.md – Stavba): pohřebiště bez hrobů a stavba ze
+ * společné práce vsi za 10 člověkodní na čtverec + překážky. Mrtvé přijímá až po dokončení.
+ * RangeError při neplatném vstupu.
+ *
+ * Konvence dne (jako u `foundField`): akce se volá na ves dopočítanou do dne `day` a patří na
+ * konec toho dne – práci stavba dostane od dne `day + 1`. Den před `state.lastDay` → RangeError.
+ */
+export function foundCemetery(
+  state: VillageState,
+  day: number,
+  input: CemeteryInput,
+): VillageState {
+  validateActionDay(state, day);
+  validateCemetery(input);
+  const next = structuredClone(state);
+  const cemeteryId = next.nextId++;
+  next.cemeteries = [
+    ...villageCemeteries(next),
+    {
+      id: cemeteryId,
+      squares: input.squares.map(({ cell, x, z, waterDistanceM }) => ({
+        cell: { x: cell.x, y: cell.y },
+        x,
+        z,
+        waterDistanceM,
+      })),
+      squareSizeM: input.squareSizeM,
+      graves: 0,
+      builtDay: null,
+    },
+  ];
+  next.constructions.push({
+    id: next.nextId++,
+    kind: 'cemetery',
+    startedDay: day,
+    cost: cemeteryFoundingCost(input.squares),
+    done: 0,
+    dwellingType: null,
+    position: null,
+    dwellingId: null,
+    fieldId: null,
+    cemeteryId,
+  });
   return next;
 }

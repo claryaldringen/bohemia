@@ -7,6 +7,7 @@ export * from './fields';
 export * from './year-plan';
 export * from './labor';
 export * from './population';
+export * from './cemetery';
 export * from './actions';
 export * from './simulate';
 export * from './polygon';

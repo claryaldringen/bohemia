@@ -5,6 +5,7 @@ import { block, makeLandscape } from '../../domain/village/__tests__/placement-f
 import { foundVillageForSettlement, type FoundVillageInput } from '../found-village';
 import { loadVillage } from '../load-village';
 import { CANNOT_BUILD_DWELLING, placeDwelling } from '../place-dwelling';
+import { placeCemetery } from '../place-cemetery';
 import { placeField } from '../place-field';
 import type { SeedSource } from '../settlements';
 import { InMemoryVillages } from './in-memory-villages';
@@ -223,5 +224,54 @@ describe('placeField', () => {
       { settlementId: ID, landscape, today: TODAY, cells: block(8, 8, 3, 3) },
     );
     expect(result.ok).toBe(false);
+  });
+});
+
+describe('placeCemetery', () => {
+  it('založí pohřebiště – stavba 10 člověkodní na čtverec začne dnes', async () => {
+    const villages = await foundedVillages();
+    const today = TODAY + 2;
+    const result = await placeCemetery(
+      { villages },
+      { settlementId: ID, landscape, today, cells: block(0, 12, 2, 2) },
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const { state } = result.village;
+    expect(state.cemeteries).toHaveLength(1);
+    const cemetery = state.cemeteries![0]!;
+    expect(cemetery).toMatchObject({ graves: 0, builtDay: null, squareSizeM: 15 });
+    expect(cemetery.squares.map((s) => s.cell)).toEqual(block(0, 12, 2, 2));
+    expect(state.constructions.at(-1)).toMatchObject({
+      kind: 'cemetery',
+      cemeteryId: cemetery.id,
+      startedDay: today,
+      cost: 40,
+    });
+  });
+
+  it('pohřebiště přes pole nebo ve vodě odmítne a ves nezmění', async () => {
+    const villages = await foundedVillages();
+    const overField = await placeCemetery(
+      { villages },
+      { settlementId: ID, landscape, today: TODAY + 1, cells: block(9, 9, 2, 1) },
+    );
+    expect(overField).toEqual({ ok: false, reason: 'Pohřebiště se překrývá s polem.' });
+    const inWater = await placeCemetery(
+      { villages },
+      { settlementId: ID, landscape, today: TODAY + 1, cells: block(14, 2, 2, 1) },
+    );
+    expect(inWater).toEqual({ ok: false, reason: 'Pohřebiště nesmí zasahovat do vody.' });
+    expect(villages.records.get(ID)?.version).toBe(1);
+  });
+
+  it('blízko obydlí jen varuje v náhledu – server pohřebiště založí', async () => {
+    const villages = await foundedVillages();
+    // čtverec (4, 4) leží hned u zemnice (−50; −50)
+    const result = await placeCemetery(
+      { villages },
+      { settlementId: ID, landscape, today: TODAY + 1, cells: [{ x: 3, y: 3 }] },
+    );
+    expect(result.ok).toBe(true);
   });
 });

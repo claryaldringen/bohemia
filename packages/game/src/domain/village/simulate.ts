@@ -1,5 +1,6 @@
 import { TOTAL_GAME_DAYS, dateOfDayIndex, dayIndexOf } from '../calendar';
 import type { CalendarDate } from '../calendar';
+import { villageCemeteries } from './cemetery';
 import {
   applyRepairs,
   qualifyingDwellings,
@@ -356,7 +357,7 @@ function isFinished(state: VillageState, c: Construction): boolean {
   return c.done >= c.cost;
 }
 
-/** Krok 4: dokončené stavby – nové obydlí, přestavěné obydlí, založené pole. */
+/** Krok 4: dokončené stavby – nové obydlí, přestavěné obydlí, založené pole a pohřebiště. */
 function finishConstructions(state: VillageState, day: number): void {
   const unfinished: Construction[] = [];
   for (const c of state.constructions) {
@@ -365,6 +366,12 @@ function finishConstructions(state: VillageState, day: number): void {
       continue;
     }
     if (c.kind === 'field') {
+      state.chronicle.push(finishedEvent(day, c, null));
+      continue;
+    }
+    if (c.kind === 'cemetery') {
+      const cemetery = villageCemeteries(state).find((x) => x.id === c.cemeteryId);
+      if (cemetery) cemetery.builtDay = day;
       state.chronicle.push(finishedEvent(day, c, null));
       continue;
     }
