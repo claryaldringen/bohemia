@@ -72,7 +72,7 @@ apps/web/            Next.js – úvodní stránka, registrace, přihlášení, 
   components/        React komponenty (auth/ formuláře, game/ herní plocha, GameDateBadge)
   lib/               serverová a pomocná logika (auth, session, db, game – composition root)
   lib/scene/         3D scéna krajiny v Babylonu – čisté TS třídy bez Reactu
-  public/models/     modely stromů a atlas impostorů z 0 A.D. (licence v LICENSES.md)
+  public/models/     modely stromů, dekorací a zvířat a atlas impostorů z 0 A.D. (licence v LICENSES.md)
   e2e/               Playwright testy (proti produkčnímu buildu a databázi bohemia_test)
 packages/game/       herní jádro
   src/domain/        pravidla – calendar.ts, landscape/ (generování krajiny po vrstvách)
@@ -176,6 +176,14 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   gestu (pravidlo prohlížečů), ve skrytém panelu uspí. Stav nese `canvas[data-sound]`, přepínač
   `SoundToggle` (volba v localStorage). Soubory Opus/WebM v `public/audio/ambient/` (převod
   `tools/audio/ambient.sh` – smyčky mají délku N + 312 ≡ 0 mod 960, viz `loopRegion`).
+- **Zvířata** (podle 0 A.D., jen ozdoba): hejna ryb kroužících v tůních a klidné hluboké vodě,
+  hejna vran nad loukami u lesa a jedno káně. Kde jsou, určuje `fauna-placement.ts`, jak se
+  hýbou `fauna-motion.ts` (čisté funkce času, testy); `fauna.ts` je kreslí jako instance (mesh
+  `fauna-*` na druh – ne vrhač stínu). Mávání křídel a mrskání ocasem je přechod mezi třemi
+  pózami z animací 0 A.D. (morph targety GLB z `tools/blender/fauna_from_0ad.py`) ve vertex
+  shaderu (GLSL i WGSL). **Výjimka z kreslení jen při změně jako voda:** hýbou se jen skupiny
+  v záběru, sdílejí `WATER_FPS`, při omezeném pohybu stojí. Ryby se kreslí po vodě (skupina
+  vykreslování 1) – hloubku pod kalnou hladinou dělá jejich průhlednost.
 - **Grafika (licence):** CC0, nebo z **0 A.D.** pod **CC BY-SA 3.0** (textury terénu, stromy –
   uvést Wildfire Games, upravené soubory pod stejnou licencí). Zdroj a původní název každého
   souboru do `LICENSE.md` / `LICENSES.md` vedle něj. Převod stromů, atlas impostorů a render

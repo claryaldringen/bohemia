@@ -11,6 +11,7 @@ import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import type { Scene } from '@babylonjs/core/scene';
 import { HEIGHT_SCALE } from './constants';
 import type { RenderSurface } from './render-surface';
+import { WATER_VISIBILITY_M, waterClarity } from './stream-geometry';
 
 /** Vodní plocha sahá kousek za okraj vody, aby okraj mohl plynule vyblednout (m). */
 const EDGE_MARGIN_M = 1.5;
@@ -19,8 +20,6 @@ const RIPPLE_SIZE = 256;
 const RIPPLE_REPEAT_M: readonly [number, number] = [11, 3.7];
 /** Rychlost proudu ve scéně (m/s): stojatá tůň → peřej. */
 const FLOW_SPEED_MPS: readonly [number, number] = [0.12, 1.6];
-/** Viditelnost do hloubky (m): kalná voda nad bahnem → průzračná nad štěrkem. */
-const VISIBILITY_M: readonly [number, number] = [0.3, 2.6];
 /**
  * Nejmenší krytí hladiny: stojatá → tekoucí voda (od rychlosti FLOWING_SPEED). Rozčeřená hladina
  * odráží a rozptyluje světlo, takže i mělký čirý brod nad oblázky je vidět jako voda – s krytím
@@ -73,7 +72,7 @@ export function createWaterMesh(scene: Scene, surface: RenderSurface): WaterSurf
     // Obrys vody podle vzdálenosti od okraje břehu – průsečík s terénem na mřížce by byl zubatý.
     const edge = 1 - smoothstep(-2.5, 0.5, near.bankDistance);
     // Rychlá voda nad štěrkem je průzračná, pomalá nad bahnem a v tůni kalná.
-    const clarity = smoothstep(0.2, 0.75, near.speed) * (1 - 0.6 * near.pool);
+    const clarity = waterClarity(near);
     const minAlpha =
       MIN_ALPHA[0] +
       (MIN_ALPHA[1] - MIN_ALPHA[0]) * smoothstep(FLOWING_SPEED[0], FLOWING_SPEED[1], near.speed);
@@ -257,7 +256,7 @@ uniform vec3 waterSky;
     uniformBuffer.updateFloat('waterTime', this.time);
     uniformBuffer.updateFloat2('waterRepeat', RIPPLE_REPEAT_M[0], RIPPLE_REPEAT_M[1]);
     uniformBuffer.updateFloat2('waterSpeed', FLOW_SPEED_MPS[0], FLOW_SPEED_MPS[1]);
-    uniformBuffer.updateFloat2('waterVisibility', VISIBILITY_M[0], VISIBILITY_M[1]);
+    uniformBuffer.updateFloat2('waterVisibility', WATER_VISIBILITY_M[0], WATER_VISIBILITY_M[1]);
     uniformBuffer.updateColor3('waterMurky', MURKY_COLOR);
     uniformBuffer.updateColor3('waterClear', CLEAR_COLOR);
     uniformBuffer.updateColor3('waterSky', SKY_REFLECTION);

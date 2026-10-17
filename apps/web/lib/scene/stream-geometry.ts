@@ -10,6 +10,8 @@ const BEND_WINDOW_M = 40;
 const FULL_BEND_RAD = 1.2;
 /** Druhý úsek v `nearestPair` musí ležet podél toku dál než tolik metrů od prvního. */
 const OTHER_REACH_M = 60;
+/** Viditelnost do hloubky (m): kalná voda nad bahnem → průzračná nad štěrkem. */
+export const WATER_VISIBILITY_M: readonly [number, number] = [0.3, 2.6];
 
 export interface StreamPoint {
   x: number;
@@ -256,6 +258,20 @@ function withNearestQuery(points: StreamPoint[]): StreamCenterline {
     nearest: (x, z, maxDistance) => nearestPair(x, z, maxDistance)[0],
     nearestPair,
   };
+}
+
+/**
+ * Průzračnost vody 0–1: rychlá voda nad štěrkem je průzračná, pomalá nad bahnem a v tůni
+ * kalná. Podle ní se kreslí hladina (water.ts) i ryby pod ní (fauna-placement.ts).
+ */
+export function waterClarity(sample: Pick<StreamSample, 'speed' | 'pool'>): number {
+  return smoothstep(0.2, 0.75, sample.speed) * (1 - 0.6 * sample.pool);
+}
+
+/** Do jaké hloubky (m) je vodou dané průzračnosti vidět – shader hladiny počítá totéž. */
+export function waterVisibilityM(clarity: number): number {
+  const [murky, clear] = WATER_VISIBILITY_M;
+  return murky + (clear - murky) * clarity;
 }
 
 export interface StreamStation {

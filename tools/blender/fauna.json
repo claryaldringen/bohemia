@@ -1,0 +1,80 @@
+[
+  {
+    "name": "crow",
+    "dae": "meshes/skeletal/crow.dae",
+    "texture": "textures/skins/skeletal/animal_crow.png",
+    "forward": "+y",
+    "size": {
+      "axis": "x",
+      "m": 1.3
+    },
+    "pose": {
+      "animation": "animation/other/crow_glide.dae",
+      "time": 0
+    },
+    "keys": {
+      "up": {
+        "animation": "animation/other/crow_flight.dae",
+        "time": 0.58
+      },
+      "down": {
+        "animation": "animation/other/crow_flight.dae",
+        "time": 0.17
+      }
+    },
+    "opaque": true,
+    "symmetric": true
+  },
+  {
+    "name": "hawk",
+    "dae": "animation/other/hawk_flight.dae",
+    "texture": "textures/skins/skeletal/animal_hawk2.png",
+    "forward": "-y",
+    "size": {
+      "axis": "x",
+      "m": 1.8
+    },
+    "pose": {
+      "animation": "animation/other/hawk_glide.dae",
+      "time": 1.4
+    },
+    "keys": {
+      "up": {
+        "animation": "animation/other/hawk_flight.dae",
+        "time": 0.92
+      },
+      "down": {
+        "animation": "animation/other/hawk_flight.dae",
+        "time": 1.25
+      }
+    },
+    "symmetric": true
+  },
+  {
+    "name": "fish",
+    "dae": "meshes/skeletal/fish_single.dae",
+    "texture": "textures/skins/skeletal/animal_fish_generic.png",
+    "forward": "-y",
+    "size": {
+      "axis": "y",
+      "m": 0.8
+    },
+    "pose": {
+      "animation": "animation/others/fish_move.dae",
+      "time": 0.21
+    },
+    "keys": {
+      "left": {
+        "animation": "animation/others/fish_move.dae",
+        "time": 0.0
+      },
+      "right": {
+        "animation": "animation/others/fish_move.dae",
+        "time": 0.42
+      }
+    },
+    "opaque": true,
+    "texture_px": 128,
+    "key_gain": 3
+  }
+]

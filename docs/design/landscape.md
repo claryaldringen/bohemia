@@ -168,6 +168,11 @@ na který se později přidávají další prvky (černozem, naleziště kovů, 
   ptáci nezmizí. Zvuk začne po prvním kliknutí (pravidlo prohlížečů), přepínač vpravo nahoře si
   volbu pamatuje. Zvuky z 0 A.D. (CC BY-SA 3.0, Wildfire Games), licence a původní soubory
   v `apps/web/public/audio/LICENSE.md`, převod `tools/audio/ambient.sh`.
+- **Zvířata** (Martin, podle 0 A.D.): v tůních a klidné vodě krouží hejna ryb (občas některá
+  vyskočí nad hladinu), nad loukami u lesa krouží hejna vran a výš jedno káně. **Jen ozdoba** –
+  žádná herní mechanika; lov, rybolov a chov zvířat se navrhnou později. Hýbou se jen v záběru
+  (jako voda), při omezeném pohybu stojí. Modely z 0 A.D. (CC BY-SA 3.0, Wildfire Games),
+  licence v `apps/web/public/models/fauna/LICENSES.md`.
 - **Výkon:** plynule (≈ 60 fps) na běžném notebooku; krajina se zobrazí do ≈ 2 s od načtení
   stránky. Generování ze seedu musí být rychlé (cíl desítky ms); případně si server hotovou
   krajinu drží v paměti.

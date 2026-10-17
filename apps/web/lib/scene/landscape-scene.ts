@@ -14,6 +14,8 @@ import { HEIGHT_SCALE, SUN_DIRECTION } from './constants';
 import { createEngine, type RendererName } from './create-engine';
 import { decorPlacements } from './decor-placement';
 import { addDecorations } from './decorations';
+import { addFauna, type Fauna } from './fauna';
+import { birdFlocks, fishSchools } from './fauna-placement';
 import { createCanopyMesh } from './forest-canopy';
 import { buildForestField } from './forest-field';
 import { impostorPlacements } from './impostor-placement';
@@ -32,7 +34,9 @@ import { deadwoodPlacements, pinePlacements, youngTreePlacements } from './woodl
 type HoverListener = (tile: TileInfo | null) => void;
 
 /** 3D scéna krajiny – obyčejná třída bez Reactu (adaptér zobrazení). */
-/** Snímků za sekundu animace vody (vlnky po proudu); kamera v pohybu kreslí rychleji. */
+/**
+ * Snímků za sekundu animace vody (vlnky po proudu) a zvířat; kamera v pohybu kreslí rychleji.
+ */
 const WATER_FPS = 30;
 
 export class LandscapeScene {
@@ -41,6 +45,8 @@ export class LandscapeScene {
   private landscape: Landscape | null = null;
   private terrain: Mesh | null = null;
   private water: WaterSurface | null = null;
+  /** Ozdobné ryby a ptáci – hýbou se jako voda, dokud jsou v záběru. */
+  private fauna: Fauna | null = null;
   /** Poslední snímek animace vody (ms) – voda se překresluje nejvýš WATER_FPS za sekundu. */
   private lastWaterFrame = 0;
   /**
@@ -152,6 +158,11 @@ export class LandscapeScene {
       }),
       ...deadwoodPlacements(landscape, field, surface.stream),
     ];
+    // Ozdobná zvířata podle 0 A.D.: hejna ryb v tůních, kroužící vrány a káně.
+    const fauna = {
+      fish: fishSchools(surface),
+      birds: birdFlocks(landscape, field, surface.stream, groundHeight),
+    };
     await report('surface', 0.5);
     if (this.disposed) return;
     this.terrain = createTerrainMesh(this.scene, landscape, surface, { field, trees });
@@ -169,7 +180,7 @@ export class LandscapeScene {
     if (this.disposed) return;
     let loaded = 0;
     const counted = <T>(promise: Promise<T>): Promise<T> =>
-      promise.finally(() => onProgress({ step: 'models', done: 0.6 + 0.1 * ++loaded }));
+      promise.finally(() => onProgress({ step: 'models', done: 0.6 + 0.075 * ++loaded }));
     await Promise.all([
       counted(addTrees(this.scene, trees, { baseUrl: '/models/trees/', groundHeight })),
       counted(addDecorations(this.scene, decor, { baseUrl: '/models/decor/', groundHeight })),
@@ -179,6 +190,14 @@ export class LandscapeScene {
             'Atlas stromů se nepodařilo načíst – vnitřek lesa zůstane bez stromů.',
             error,
           ),
+        ),
+      ),
+      counted(
+        addFauna(this.scene, fauna, { baseUrl: '/models/fauna/' }).then(
+          (result) => {
+            this.fauna = result;
+          },
+          (error) => console.warn('Zvířata krajiny se nepodařilo načíst.', error),
         ),
       ),
     ]);
@@ -257,11 +276,16 @@ export class LandscapeScene {
     if (!camera) return;
     const now = performance.now();
     if (now < this.renderBurstUntil) this.needsRender = true;
-    // Voda teče sama – výjimka z kreslení jen při změně, dokud je hladina v záběru.
-    const waterMoves = !this.reducedMotion?.matches;
-    if (this.water && waterMoves && now - this.lastWaterFrame >= 1000 / WATER_FPS) {
-      if (camera.camera.isInFrustum(this.water.mesh)) {
+    // Voda teče a zvířata se hýbou sama – výjimka z kreslení jen při změně, dokud jsou v záběru.
+    const moving = !this.reducedMotion?.matches;
+    if (moving && now - this.lastWaterFrame >= 1000 / WATER_FPS) {
+      let animated = false;
+      if (this.water && camera.camera.isInFrustum(this.water.mesh)) {
         this.water.animate(now / 1000);
+        animated = true;
+      }
+      if (this.fauna?.animate(now / 1000, camera.camera)) animated = true;
+      if (animated) {
         this.lastWaterFrame = now;
         this.needsRender = true;
       }
