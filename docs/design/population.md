@@ -180,7 +180,8 @@ stovky vsí a ověří cíle:
   střecha dotýká země, hustší trsy trávy** – stéká tam víc vody (Martin). **Zemnice je opravdu
   jáma v zemi** (terén se pod ní otevře, vchod sestupuje do jámy), polozemnice mělčí; **stavba má
   víc fází** (vytyčení, sejmutí drnu, kopání jámy, sloupy, krokve, stěny, mazanice, došky, kozy
-  a dýmník); ze zemnic **občas stoupá dým** (Martin). Stavby
+  a dýmník); ze zemnic **občas stoupá dým**; střecha je **předsazená vepředu i vzadu**, aby zakryla
+  vchod svažující se do jámy (Martin). Stavby
   z módu Millennium A.D. (ruské sruby, severské domy) se nepoužijí – jiná doba či region
   a nejistá licence (Martin); nanejvýš jako předloha tvarů pro pozdější roubené chalupy.
 - Panel vsi: počet lidí podle věku, domácnosti (typ obydlí, obsazenost, plná/přeplněná, stav),
