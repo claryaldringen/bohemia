@@ -58,8 +58,8 @@ function validateObstacleCost(obstacleCost: number): void {
 }
 
 /**
- * Ověří vstup pole (společné pro první pole vsi i `foundField`); jinak RangeError. Nekonečná
- * čísla (NaN, ±∞) by stav otrávila natrvalo – po uložení do JSON z nich je `null`.
+ * Ověří vstup pole (společné pro první pole vsi i `foundField`); jinak RangeError. Čísla, která
+ * nejsou konečná (NaN, ±∞), by stav otrávila natrvalo – po uložení do JSON z nich je `null`.
  */
 function validateField(field: FieldInput): void {
   if (field.parts.length === 0) throw new RangeError('Pole musí mít aspoň jeden díl.');
