@@ -20,7 +20,7 @@ import type { LandscapeScene } from '@/lib/scene/landscape-scene';
 import { tileAt, tileCenter } from '@/lib/scene/tile-at';
 import { CONSTRUCTION_PHASES, constructionPhase } from '@/lib/scene/village-construction';
 import type {
-  FieldPaintPreview,
+  SquaresPreview,
   PlacementPreview,
   SceneDwelling,
   SceneField,
@@ -132,12 +132,12 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     if (!scene) return;
     setPlacing('Pole');
     scene.startPlacement(
-      { kind: 'field', preview: (cells) => fakeFieldPreview(decoded, village, cells) },
+      { kind: 'squares', preview: (cells) => fakeFieldPreview(decoded, village, cells) },
       {
         ...handlers,
         onConfirm: (result) => {
           handlers.onCancel();
-          if (result.kind !== 'field') return;
+          if (result.kind !== 'squares') return;
           const id = nextId.current++;
           setFields((list) => [...list, { id, parts: fieldParts(decoded, result.cells) }]);
         },
@@ -249,8 +249,8 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
             <span className="text-stone-500">
               (Esc zruší
               {placing === 'Pole'
-                ? ', klik / tažení maluje čtverce, Shift ubírá, Enter potvrdí'
-                : ', Q/E otáčí, klik postaví'}
+                ? ', klik / tažení maluje čtverce, Ctrl ubírá, Enter potvrdí, pravý klik zruší'
+                : ', [ ] otáčí, klik postaví, Shift + klik staví dál'}
               )
             </span>
           </span>
@@ -289,11 +289,7 @@ function fakeDwellingCheck(l: Landscape, village: SceneVillage, p: Position): Pl
 }
 
 /** Zjednodušený náhled pole: čtverce ve vodě a v jiném poli jsou zakázané. */
-function fakeFieldPreview(
-  l: Landscape,
-  village: SceneVillage,
-  cells: TileCell[],
-): FieldPaintPreview {
+function fakeFieldPreview(l: Landscape, village: SceneVillage, cells: TileCell[]): SquaresPreview {
   const taken = new Set(
     village.fields.flatMap((f) => f.parts.map((p) => `${p.cell.x},${p.cell.y}`)),
   );

@@ -21,9 +21,9 @@ import {
 } from './village-meshes';
 import type { PlacementHandlers, PlacementMode, SceneDwelling } from './village-types';
 
-/** Krok otáčení obydlí klávesami Q/E. */
+/** Krok otáčení obydlí klávesami [ a ] (jako otáčení budovy v 0 A.D.). */
 const ROTATE_STEP = Math.PI / 12;
-/** Kliknutí = stisk a puštění tlačítka bez tažení (px) – tažení posouvá / otáčí kameru. */
+/** Kliknutí = stisk a puštění tlačítka bez tažení (px). */
 const CLICK_SLOP_PX = 6;
 const OK_COLOR = new Color3(0.3, 0.85, 0.35);
 const BAD_COLOR = new Color3(0.92, 0.24, 0.18);
@@ -57,17 +57,15 @@ export interface PlacementContext {
   decalHeight: HeightFn;
   /** Natočení kamery (alpha) – obydlí se poprvé natočí vchodem ke kameře. */
   cameraAlpha(): number;
-  /** Q/E otáčí kamerou – při umisťování obydlí otáčí obydlím. */
-  setCameraKeyRotation(enabled: boolean): void;
   ghostModel(type: DwellingType): Mesh | null;
   baseHeight(d: Pick<SceneDwelling, 'type' | 'position'>): number;
   requestRender(): void;
 }
 
 /**
- * Umisťování obydlí. Myš: levé tlačítko bez tažení potvrdí (tažení dál posouvá kameru), pravé
- * bez tažení zruší (tažení dál otáčí kamerou). Klávesy: Q/E otáčí obydlím, Enter potvrdí, Esc
- * zruší. Kurzor nad terénem dodává scéna jednou za snímek (`setCursor`).
+ * Umisťování obydlí jako v 0 A.D.: duch u kurzoru, levé kliknutí postaví, se Shiftem postaví
+ * a umisťuje dál další kus; pravé kliknutí nebo Esc zruší. Klávesy [ a ] otáčejí obydlím,
+ * Enter postaví pod kurzorem. Kurzor nad terénem dodává scéna jednou za snímek (`setCursor`).
  */
 export class PlacementController implements ActivePlacement {
   private readonly ghost: Mesh[] = [];
@@ -98,7 +96,6 @@ export class PlacementController implements ActivePlacement {
     };
     // Vchod ke kameře: kamera stojí ve směru (cos α, sin α) od cíle, vchod míří (sin r, cos r).
     this.rotation = Math.PI / 2 - context.cameraAlpha();
-    context.setCameraKeyRotation(false);
     context.canvas.addEventListener('pointerdown', this.onPointerDown);
     context.canvas.addEventListener('pointerup', this.onPointerUp);
     window.addEventListener('keydown', this.onKeyDown);
@@ -118,7 +115,7 @@ export class PlacementController implements ActivePlacement {
 
   /** Postaví obydlí pod kurzorem jako kliknutí (Enter). */
   confirm(): void {
-    if (this.cursor) this.place(this.cursor);
+    if (this.cursor) this.place(this.cursor, false);
   }
 
   /** Zruší umisťování a ohlásí to (`onCancel`). */
@@ -136,7 +133,6 @@ export class PlacementController implements ActivePlacement {
     this.context.canvas.removeEventListener('pointerup', this.onPointerUp);
     window.removeEventListener('keydown', this.onKeyDown);
     this.context.canvas.style.cursor = '';
-    this.context.setCameraKeyRotation(true);
     this.clearGhost();
     this.model?.setEnabled(false);
     for (const m of [...Object.values(this.materials), ...Object.values(this.fillMaterials)])
@@ -155,7 +151,7 @@ export class PlacementController implements ActivePlacement {
     if (!down || Math.hypot(event.offsetX - down.x, event.offsetY - down.y) > CLICK_SLOP_PX) return;
     if (event.button === 0) {
       const point = this.context.pickGround(event.offsetX, event.offsetY);
-      if (point) this.place(point);
+      if (point) this.place(point, event.shiftKey);
     } else if (event.button === 2) {
       this.cancel();
     }
@@ -169,9 +165,9 @@ export class PlacementController implements ActivePlacement {
       this.cancel();
       return;
     }
-    if (event.code === 'KeyQ' || event.code === 'KeyE') {
+    if (event.code === 'BracketLeft' || event.code === 'BracketRight') {
       event.preventDefault();
-      this.rotation += event.code === 'KeyE' ? ROTATE_STEP : -ROTATE_STEP;
+      this.rotation += event.code === 'BracketRight' ? ROTATE_STEP : -ROTATE_STEP;
       this.refresh();
     } else if (event.code === 'Enter' || event.code === 'NumpadEnter') {
       event.preventDefault();
@@ -179,14 +175,22 @@ export class PlacementController implements ActivePlacement {
     }
   };
 
-  /** Postaví obydlí na bodě terénu, když projde kontrolou. */
-  private place(point: Point): void {
+  /**
+   * Postaví obydlí na bodě terénu, když projde kontrolou. `keepPlacing` (Shift) – umisťování
+   * běží dál a duch se hned ověří znovu (rozhraní už zná právě postavené obydlí).
+   */
+  private place(point: Point, keepPlacing: boolean): void {
     const position = this.position(point);
     if (!this.mode.check(position).ok) {
       this.refresh();
       return;
     }
     const type = this.mode.type;
+    if (keepPlacing) {
+      this.handlers.onConfirm({ kind: 'dwelling', type, position }, true);
+      this.refresh();
+      return;
+    }
     this.dispose();
     this.handlers.onConfirm({ kind: 'dwelling', type, position });
   }

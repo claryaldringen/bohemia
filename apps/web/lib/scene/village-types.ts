@@ -20,23 +20,29 @@ export type SceneField = SceneVillage['fields'][number];
 /** Díl pole – políčko, jeho střed (m), strana políčka a stadium; díl = celé políčko. */
 export type SceneFieldPart = SceneField['parts'][number];
 
-/** Náhled malovaného pole: kontrola, popisek (čtverce, výměra, cena) a zakázané čtverce. */
-export interface FieldPaintPreview {
+/**
+ * Náhled stavby malované po čtvercích (pole, později sad, hřbitov): kontrola, popisek
+ * a zakázané čtverce.
+ */
+export interface SquaresPreview {
   check: PlacementCheck;
   label: string;
   /** Čtverce, kam pole nesmí – scéna je zbarví červeně. */
   blockedCells: readonly TileCell[];
 }
 
-/** Co hráč právě umisťuje a jak scéna ověří, jestli to jde. */
+/**
+ * Co hráč právě umisťuje a jak scéna ověří, jestli to jde: obydlí půdorysem (duch u kurzoru),
+ * nebo stavbu po čtvercích políček (pole a další stavby malované jako pole).
+ */
 export type PlacementMode =
   | { kind: 'dwelling'; type: DwellingType; check(position: Position): PlacementCheck }
-  | { kind: 'field'; preview(cells: TileCell[]): FieldPaintPreview };
+  | { kind: 'squares'; preview(cells: TileCell[]): SquaresPreview };
 
 /** Potvrzené umístění – scéna ho ohlásí jen tehdy, když kontrola prošla. */
 export type PlacementResult =
   | { kind: 'dwelling'; type: DwellingType; position: Position }
-  | { kind: 'field'; cells: TileCell[] };
+  | { kind: 'squares'; cells: TileCell[] };
 
 /**
  * Průběžný stav umisťování pro rozhraní: kontrola, popisek (u pole výměra a cena z `preview`,
@@ -50,7 +56,11 @@ export interface PlacementPreview {
 }
 
 export interface PlacementHandlers {
-  onConfirm(result: PlacementResult): void;
+  /**
+   * Prošlé umístění. `keepPlacing` – hráč stavěl se Shiftem (jako v 0 A.D.): umisťování běží
+   * dál pro další kus, jinak skončilo.
+   */
+  onConfirm(result: PlacementResult, keepPlacing?: boolean): void;
   onCancel(): void;
   /** Volitelné – změna kontroly / popisku během umisťování (null = kurzor mimo krajinu). */
   onPreview?(preview: PlacementPreview | null): void;
