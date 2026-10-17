@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type ReactElement } from 'react';
 import { decodeLandscape, type LandscapeTransfer } from '@/lib/landscape-transfer';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
-import type { TileInfo } from '@/lib/tile-info';
+import { formatTileInfo, type TileInfo } from '@/lib/tile-info';
 import { SceneLoading, type LoadingStep } from './SceneLoading';
 import { SoundToggle, useSoundPreference } from './SoundToggle';
 import { TileInfoPanel } from './TileInfoPanel';
@@ -11,15 +11,20 @@ import { TileInfoPanel } from './TileInfoPanel';
 const LOADING_START: { step: LoadingStep; done: number } = { step: 'engine', done: 0.05 };
 
 /**
- * Herní plocha: 3D scéna krajiny přes celé okno a info o políčku pod kurzorem. `onSceneReady`
- * dostane hotovou scénu (ves, umisťování staveb) a při jejím zrušení null.
+ * Herní plocha: 3D scéna krajiny přes celé okno. `onSceneReady` dostane hotovou scénu (ves,
+ * umisťování staveb) a při jejím zrušení null. Vývojový náhled ukazuje i info o políčku pod
+ * kurzorem a plovoucí přepínač zvuku; ve hře je přepínač v horní liště a políčko pod kurzorem
+ * nese jen plátno (`data-tile`, `data-tile-info` – pro testy).
  */
 export function GameView({
   landscape,
   onSceneReady,
+  overlays = true,
 }: {
   landscape: LandscapeTransfer;
   onSceneReady?: (scene: LandscapeScene | null) => void;
+  /** Info o políčku a plovoucí přepínač zvuku (vývojový náhled); hra má vlastní rozhraní. */
+  overlays?: boolean;
 }): ReactElement {
   const containerRef = useRef<HTMLDivElement>(null);
   const [tile, setTile] = useState<TileInfo | null>(null);
@@ -54,6 +59,8 @@ export function GameView({
     // spouští dvakrát a dva enginy na jednom plátně by si přebíjely kontext.
     const canvas = document.createElement('canvas');
     canvas.className = 'block h-full w-full touch-none outline-none';
+    // Plátno scény (rozhraní má další plátna – minimapu); testy ho hledají podle `data-scene`.
+    canvas.dataset.scene = 'landscape';
     container.appendChild(canvas);
     // Gesta trackpadu (swipe zpět, přetažení přes okraj) nemají na herní ploše co dělat.
     const html = document.documentElement;
@@ -78,7 +85,16 @@ export function GameView({
       sceneRef.current = scene;
       scene.setSoundEnabled(soundOnRef.current);
       canvas.dataset.renderer = scene.renderer;
-      scene.onTileHover(setTile);
+      scene.onTileHover((next) => {
+        if (next) {
+          canvas.dataset.tile = `${next.x},${next.y}`;
+          canvas.dataset.tileInfo = formatTileInfo(next);
+        } else {
+          delete canvas.dataset.tile;
+          delete canvas.dataset.tileInfo;
+        }
+        setTile(next);
+      });
       setProgress({ step: 'engine', done: 0.25 });
       await scene.setLandscape(decodeLandscape(landscape), (next) => {
         if (!cancelled) setProgress(next);
@@ -109,8 +125,8 @@ export function GameView({
     <>
       {/* Barva oblohy scény – během načítání není vidět bílá plocha. */}
       <div ref={containerRef} className="fixed inset-0 bg-[#a1bfd9]" />
-      <TileInfoPanel tile={tile} />
-      {!failed && <SoundToggle enabled={soundOn} onToggle={toggleSound} />}
+      {overlays && <TileInfoPanel tile={tile} />}
+      {overlays && !failed && <SoundToggle enabled={soundOn} onToggle={toggleSound} />}
       {!failed && <SceneLoading step={progress.step} done={progress.done} hidden={ready} />}
       {failed && (
         <div className="fixed inset-0 flex items-center justify-center px-4">

@@ -69,7 +69,7 @@ do gitu (po smazání by ho vytvořil znovu).
 ```
 apps/web/            Next.js – úvodní stránka, registrace, přihlášení, herní plocha (/game)
   app/api/auth/      Better Auth endpointy
-  components/        React komponenty (auth/ formuláře, game/ herní plocha a ves, GameDateBadge)
+  components/        React komponenty (auth/ formuláře, game/ herní plocha a ves, game/hud/ rozhraní)
   hooks/             React hooky (umisťování staveb ve scéně, dotazování na ves)
   lib/               serverová a pomocná logika (auth, session, db, game a village – composition root)
   lib/scene/         3D scéna krajiny v Babylonu – čisté TS třídy bez Reactu
@@ -128,7 +128,8 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   `enterGameForPlayer` v `lib/game.ts`. Krajinu generuje server, do prohlížeče jde zakódovaná
   (`lib/landscape-transfer.ts`).
 - **Scéna** (`apps/web/lib/scene/`): `LandscapeScene` bez Reactu, React (`GameView`) ji jen
-  vytvoří, pošle data a poslouchá `onTileHover`. Babylon importovat **z konkrétních modulů**
+  vytvoří, pošle data a poslouchá `onTileHover`, `onSelect` a `onViewChange`. Plátno scény má
+  `data-scene` (rozhraní má i plátno minimapy), políčko pod kurzorem nese `data-tile`. Babylon importovat **z konkrétních modulů**
   (`@babylonjs/core/Meshes/mesh`…), nikdy z `@babylonjs/core` – a jen ze scény, aby se engine
   nestahoval mimo herní plochu (hlídá e2e test).
 - **Kreslí se jen při změně** (pohled kamery, velikost okna, data) – co se ve scéně mění samo
@@ -180,7 +181,7 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   `ambient-sound.ts` je přehrává přes Web Audio (bez Babylonu):
   soubory stahuje až po přípravě scény, mix mění jen při pohybu kamery, zvuk pustí po prvním
   gestu (pravidlo prohlížečů), ve skrytém panelu uspí. Stav nese `canvas[data-sound]`, přepínač
-  `SoundToggle` (volba v localStorage). Soubory Opus/WebM v `public/audio/ambient/` (převod
+  v horní liště hry (`hud/TopBar.tsx`, ve vývojovém náhledu `SoundToggle`; volba v localStorage). Soubory Opus/WebM v `public/audio/ambient/` (převod
   `tools/audio/ambient.sh` – smyčky mají délku N + 312 ≡ 0 mod 960, viz `loopRegion`).
 - **Zvířata** (podle 0 A.D., jen ozdoba): hejna ryb kroužících v tůních a klidné hluboké vodě,
   hejna vran nad loukami u lesa a jedno káně. Kde jsou, určuje `fauna-placement.ts`, jak se
@@ -212,36 +213,58 @@ Pravidla v [docs/design/population.md](docs/design/population.md) a
 - **Jádro** `packages/game/src/domain/village/` (simulace, umístění `placement.ts`, souhrn
   `summary.ts`), use-casy a port `VillageRepository` v `application/`, tabulka `village`.
   Ves se dopočítá při každém načtení a akci (worker zatím není).
-- **API jádra:** `foundVillage` (zemnice, 4 lidé, zásoby a první pole),
+- **API jádra:** `foundVillage` (zemnice, 4 lidé, zásoby, volitelně první pole),
   `advanceVillage(state, toDay)` (dopočítá ves do dne včetně) a akce hráče `startNewDwelling`
   a `foundField`. Stav vsi je JSON-serializovatelný, funkce vstupní stav nemění.
+- **Hráč staví kdy chce** (Martin) – žádné odemčení plnou domácností; `waitingHouseholds` je jen
+  informace pro upozornění. Stavbu smí zablokovat jen **cena předem** v surovinách (`costs.ts`:
+  `BUILD_COSTS`, `buildAffordability`; dnes nic předem nestojí) – tlačítko je pak zašedlé
+  a v popisku chybějící část červeně.
 - **Determinismus:** simulace jde den po dni v pevném pořadí kroků (`simulate.ts`), náhoda dne
   je ze seedu vsi a indexu dne – výsledek nezávisí na tom, po jakých kouscích se ves dopočítá.
 - **Čísla** pravidel jsou jen v `rules.ts` (u každého odkaz na sekci návrhu); změna čísla = i
   text v návrhu. Kalibrace: `measure-village.ts` nasimuluje stovky vsí a vypíše cíle z Kalibrace
   obou dokumentů s OK / MIMO (`200 60` rychlé cíle, `100 1000` vymření do roku 1500).
 - **Web:** server actions `app/game/actions.ts` (`getVillageView`, `foundVillage`, `placeDwelling`,
-  `placeField` → `VillageView` / `null` / `{ error }`), composition root `lib/village.ts`,
-  `lib/village-view.ts` (DTO, smí i do prohlížeče). Typy pro scénu jsou odvozené odtud
-  a z `@bohemia/game` – nedefinovat je znovu ve scéně.
-- **Rozhraní** `components/game/VillageGame.tsx`: `FoundingPanel` (jméno → zemnice → pole),
-  `VillagePanel`, `BuildMenu`, `PlacementBubble`, `NoticeToasts`; `hooks/use-placement.ts`
-  (umisťování ve scéně pro React), `hooks/use-polling.ts` (ves každých 5 s, jen při viditelném
-  panelu). Kontroly umístění běží v prohlížeči nad stejnými funkcemi jádra, server je ověří znovu.
-- **Pole po čtvercích** (políčka krajiny 15 × 15 m, díl = políčko): `fieldPartsFromCells`
+  `placeField`, `renameVillage` → `VillageView` / `null` / `{ error }`), composition root
+  `lib/village.ts`, `lib/village-view.ts` (DTO, smí i do prohlížeče). Typy pro scénu jsou
+  odvozené odtud a z `@bohemia/game` – nedefinovat je znovu ve scéně.
+- **Rozhraní jako v 0 A.D., bez popisků a průvodce** (Martin): `components/game/VillageGame.tsx`
+  skládá `hud/` – `TopBar` (jméno vsi, klik = přejmenovat; ikony s čísly: lidé, obilí, volná
+  práce, nasycení barvou ikony, datum; zvuk a odhlášení), `Minimap` (vlevo dole, `lib/minimap.ts`,
+  klik / tažení přesune pohled), `SelectionPanel` (dole uprostřed, jen při výběru,
+  `lib/selection-details.ts`), `BuildGrid` (vpravo dole), `NoticeLines` (mizející řádky nahoře),
+  `CursorReason` (jen důvod, proč umístění nejde). Popisky = `hud/Tooltip.tsx`, jeden krátký
+  název (u staveb i cena). Vzhled panelů: třídy `hud-*` v `app/globals.css`. Ikony
+  `public/icons/build/` a `public/icons/resources/`. Panely, nad kterými se krajina neposouvá
+  okrajem okna, mají `data-hud-block`.
+- **Katalog staveb** `lib/build-items.ts` (název, ikona, zkratka, umístění `footprint` /
+  `squares`, kontrola) – nová stavba = záznam tam, cena v `BUILD_COSTS` a server action
+  v `SUBMIT_SQUARES` (`VillageGame`); mřížka, zkratky i malování po čtvercích se nemění.
+- **Založení vsi:** dokud ves není, mřížka nabízí jen zemnici – její umístění ves založí
+  s navrženým jménem (`suggestVillageName`). Pole není podmínkou.
+- **Ovládání (jako 0 A.D.):** levé kliknutí vybere obydlí / pole (`village-picking.ts`, rámeček
+  `selection-highlight.ts`), na prázdnou zem nebo pravým výběr zruší, Esc taky. Kamera
+  (`camera.ts`): WASD / šipky a kurzor u okraje okna (`edge-scroll.ts`) posouvají, kolečko
+  přibližuje, Q/E otáčí, prostřední tlačítko posouvá, R vrátí pohled na ves (`setCameraHome`).
+  Levé ani pravé tažení kamerou nehýbe. Zkratky staveb Z zemnice, X polozemnice, C pole.
+  **Obydlí** (`village-placement.ts`): duch u kurzoru, klik postaví, Shift + klik postaví a staví
+  dál, `[` / `]` otáčí, pravé tlačítko / Esc zruší. Rozhraní obydlí hned ukáže jako staveniště
+  a akce posílá na server za sebou (fronta v `VillageGame`).
+- **Stavby po čtvercích** (pole; políčka krajiny 15 × 15 m, díl = políčko): `fieldPartsFromCells`
   v `placement.ts`, server actions dostávají `cells` / `fieldCells` (`{ x, y }[]`). Malování ve
-  scéně `lib/scene/field-painting.ts` (`FieldPainter`, logika výběru ve `field-cells.ts`): klik
-  přepne čtverec, tažení přidá obdélník, Shift + tažení nebo pravý klik ubere, Backspace / Ctrl+Z
-  vrátí tah, Enter nebo tlačítko Potvrdit potvrdí, Esc zruší. Levé tlačítko při malování maluje –
-  krajina se posouvá prostředním tlačítkem, mezerníkem + tažením nebo WASD (`setLeftButtonPan`
-  v `camera.ts`), pravé tažení dál otáčí. Obrys pole (`Field.outline`) zůstal jen u starých vsí.
-- **Upozornění** (`lib/village-notices.ts`): plná domácnost a jde stavět, hlad, stojící stavby
-  (`VillageView.hungry`, `constructionsStalled`) – nově vzniklé jako toast, trvající v panelu.
+  scéně `lib/scene/field-painting.ts` (`FieldPainter`, režim `squares`, logika výběru ve
+  `field-cells.ts`): klik přepne čtverec, tažení přidá obdélník, Ctrl (Cmd) + tažení ubere,
+  Backspace / Ctrl+Z vrátí tah, Enter potvrdí, Esc zruší tah nebo malování, pravé tlačítko
+  malování zruší. Obrys pole (`Field.outline`) zůstal jen u starých vsí.
+- **Upozornění** (`lib/village-notices.ts`): plná domácnost (fakt), hlad, stojící stavby –
+  nově vzniklé jako krátký mizející řádek nahoře, žádný trvalý seznam. Kronika je jen v DTO.
 - **Krajina sídla** se na serveru drží v LRU mezipaměti (`lib/landscape-cache.ts`, port
   `LandscapeSource` v `enterGame`) – negeneruje se při každé akci a dotazu.
-- **e2e:** testy běží v běžícím pomalém světě (2000–2200). Kliknutí do scény nahrazuje háček
-  `window.__bohemiaE2E.confirmPlacement` (`lib/e2e-hooks.ts`) – existuje jen v buildu
-  s `NEXT_PUBLIC_E2E_HOOKS=1` (nastavuje `playwright.config.ts`), jinde se z kódu vypustí.
+- **e2e:** testy běží v běžícím pomalém světě (2000–2200). Kliknutí do scény při umisťování
+  nahrazuje háček `window.__bohemiaE2E.confirmPlacement`, kam kliknout myší pro výběr řekne
+  `projectToScreen` (`lib/e2e-hooks.ts`) – existují jen v buildu s `NEXT_PUBLIC_E2E_HOOKS=1`
+  (nastavuje `playwright.config.ts`), jinde se z kódu vypustí.
 
 ## Příkazy
 

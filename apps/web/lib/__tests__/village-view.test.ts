@@ -13,7 +13,6 @@ import {
   CHRONICLE_LENGTH,
   buildVillageView,
   chronicleText,
-  foundingSceneVillage,
   placementVillageFromScene,
 } from '../village-view';
 
@@ -51,13 +50,18 @@ const record = (s: VillageState = state()): VillageRecord => ({
 });
 
 describe('buildVillageView', () => {
-  it('panel čerstvé vsi: lidé, domácnost, zásoby, ceny a důvod, proč zatím stavět nejde', () => {
+  it('čerstvá ves: lidé, domácnost s věky, zásoby a stavby kdykoli (nic předem)', () => {
     const view = buildVillageView(record(), landscape, DAY);
     expect(view).toMatchObject({
       name: 'Libice',
       dayIndex: DAY,
       people: { children: 2, adults: 2, elders: 0 },
-      costs: { zemnice: 60, polozemnice: 220, fieldPerHa: 40 },
+      fullHousehold: false,
+    });
+    expect(view.build).toEqual({
+      zemnice: { laborManDays: 60, perHa: false, upfront: [], affordable: true },
+      polozemnice: { laborManDays: 220, perHa: false, upfront: [], affordable: true },
+      field: { laborManDays: 40, perHa: true, upfront: [], affordable: true },
     });
     expect(view.households).toEqual([
       {
@@ -68,13 +72,25 @@ describe('buildVillageView', () => {
         full: false,
         overcrowded: false,
         condition: 1,
+        ages: [25, 25, 13, 12],
+        ageYears: 0,
       },
     ]);
     expect(view.storesMonths).toBeCloseTo(18, 0);
-    expect(view.canBuildDwelling.ok).toBe(false);
-    expect(view.canBuildDwelling.reason).toMatch(/4 dospělí/);
+    const fieldId = view.fields[0]?.id;
     expect(view.constructions).toEqual([
-      { id: expect.any(Number), kind: 'field', label: 'Pole 0,11 ha', progress: 0 },
+      {
+        id: expect.any(Number),
+        kind: 'field',
+        label: 'Pole 0,11 ha',
+        progress: 0,
+        dwellingType: null,
+        dwellingId: null,
+        fieldId,
+      },
+    ]);
+    expect(view.fields).toEqual([
+      { id: fieldId, areaM2: 5 * 225, fertility: 50, stages: { founding: 5 } },
     ]);
     expect(view.hungry).toBe(false);
     expect(view.constructionsStalled).toBe(false);
@@ -133,6 +149,9 @@ describe('buildVillageView', () => {
       kind: 'dwelling',
       label: 'Polozemnice',
       progress: 0.25,
+      dwellingType: 'polozemnice',
+      dwellingId: null,
+      fieldId: null,
     });
     expect(scene.fields).toHaveLength(1);
     expect(scene.fields[0]?.parts).toEqual([
@@ -211,28 +230,5 @@ describe('chronicleText', () => {
     expect(
       chronicleText({ day: DAY, kind: 'rebuild-decided', dwellingId: 1, type: 'polozemnice' }, 'X'),
     ).toBe('Obyvatelé se rozhodli přestavět dožilé obydlí na polozemnici.');
-  });
-});
-
-describe('foundingSceneVillage', () => {
-  it('bez zemnice a pole je ves prázdná', () => {
-    expect(foundingSceneVillage(landscape, null, null)).toEqual({ dwellings: [], fields: [] });
-  });
-
-  it('zemnice stojí a díly pole se zakládají na středech políček', () => {
-    const position = { x: 3, z: -4, rotation: 1 };
-    const village = foundingSceneVillage(landscape, position, { parts: parts.slice(0, 2) });
-    expect(village.dwellings).toEqual([
-      { id: -1, type: 'zemnice', position, built: true, progress: 1 },
-    ]);
-    expect(village.fields).toEqual([
-      {
-        id: -2,
-        parts: [
-          { cell: { x: 8, y: 8 }, x: 7.5, z: 7.5, size: 15, stage: 'founding' },
-          { cell: { x: 9, y: 8 }, x: 22.5, z: 7.5, size: 15, stage: 'founding' },
-        ],
-      },
-    ]);
   });
 });

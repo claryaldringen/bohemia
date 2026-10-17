@@ -5,6 +5,7 @@ import {
   foundVillageForPlayer,
   placeDwellingForPlayer,
   placeFieldForPlayer,
+  renameVillageForPlayer,
   villageViewForPlayer,
   type VillageActionResult,
   type VillageView,
@@ -13,6 +14,7 @@ import {
   parseFoundVillageInput,
   parsePlaceDwellingInput,
   parsePlaceFieldInput,
+  parseRenameVillageInput,
 } from '@/lib/village-input';
 
 // Server actions vsi. Každá je veřejný POST endpoint: přihlášení ze session, vstup ověřený
@@ -33,7 +35,7 @@ export async function getVillageView(): Promise<VillageView | null | { error: st
   return villageViewForPlayer(id);
 }
 
-/** Založení vsi: `{ name, dwelling: { x, z, rotation }, fieldCells: { x, y }[] }`. */
+/** Založení vsi: `{ name, dwelling: { x, z, rotation }, fieldCells?: { x, y }[] }`. */
 export async function foundVillage(input: unknown): Promise<VillageActionResult> {
   const id = await playerId();
   if (id === null) return { error: NOT_SIGNED_IN };
@@ -58,4 +60,13 @@ export async function placeField(input: unknown): Promise<VillageActionResult> {
   const parsed = parsePlaceFieldInput(input);
   if (parsed === null) return { error: INVALID_INPUT };
   return placeFieldForPlayer(id, parsed);
+}
+
+/** Přejmenování vsi: `{ name }`. */
+export async function renameVillage(input: unknown): Promise<VillageActionResult> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  const parsed = parseRenameVillageInput(input);
+  if (parsed === null) return { error: INVALID_INPUT };
+  return renameVillageForPlayer(id, parsed);
 }

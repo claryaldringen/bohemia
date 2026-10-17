@@ -45,17 +45,24 @@ export function parseName(value: unknown): string | null {
   return typeof value === 'string' && value.length <= MAX_RAW_NAME_LENGTH ? value : null;
 }
 
-/** Vstup založení vsi `{ name, dwelling, fieldCells }`, jinak null. */
+/** Vstup založení vsi `{ name, dwelling, fieldCells? }` (bez čtverců = bez pole), jinak null. */
 export function parseFoundVillageInput(
   value: unknown,
 ): { name: string; dwelling: Position; fieldCells: TileCell[] } | null {
   if (!isRecord(value)) return null;
   const name = parseName(value.name);
   const dwelling = parsePosition(value.dwelling);
-  const fieldCells = parseCells(value.fieldCells);
+  const fieldCells = value.fieldCells === undefined ? [] : parseCells(value.fieldCells);
   return name !== null && dwelling !== null && fieldCells !== null
     ? { name, dwelling, fieldCells }
     : null;
+}
+
+/** Vstup přejmenování vsi `{ name }`, jinak null. */
+export function parseRenameVillageInput(value: unknown): { name: string } | null {
+  if (!isRecord(value)) return null;
+  const name = parseName(value.name);
+  return name !== null ? { name } : null;
 }
 
 /** Vstup stavby obydlí `{ type, position }`, jinak null. */
