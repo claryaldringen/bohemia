@@ -14,7 +14,7 @@ import { LANDSCAPE } from '../../domain/village/__tests__/paths-fixtures';
 import { withBuiltFirstDwelling } from '../../domain/village/__tests__/village-fixtures';
 import { UNKNOWN_DIRECTION, buildTrail } from '../build-trail';
 import { foundVillageForSettlement } from '../found-village';
-import { sendExpedition } from '../send-expedition';
+import { OWN_VILLAGE_TRADE, sendExpedition } from '../send-expedition';
 import { InMemoryVillages } from './in-memory-villages';
 
 // Zemská stezka a obchod (trade.md) – use-casy nad uloženou vsí (repozitář v paměti).
@@ -85,6 +85,13 @@ describe('sendExpedition', () => {
     });
     const pay = n.demands.find((g) => villageGoodStock(state, g) * sellPrice(g) >= buyPrice(want))!;
     const give = { [pay]: Math.ceil(buyPrice(want) / sellPrice(pay)) } as TradeGoods;
+    // tím směrem leží vlastní ves – soused bez simulace tam není (migration.md)
+    expect(
+      await sendExpedition(
+        { villages },
+        { ...base, direction: 'S', give, get, ownDirections: ['S'] },
+      ),
+    ).toEqual({ ok: false, reason: OWN_VILLAGE_TRADE });
     const sent = await sendExpedition({ villages }, { ...base, direction: 'S', give, get });
     expect(sent.ok).toBe(true);
     if (!sent.ok) return;

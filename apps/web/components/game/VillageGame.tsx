@@ -3,8 +3,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import {
   CRAFT_BASE,
+  NEW_VILLAGE_MIN_DISTANCE_M,
+  TOO_CLOSE_TO_VILLAGE,
   shiftWorldClock,
   suggestVillageName,
+  type Direction8,
   type BuildKind,
   type Craft,
   type DwellingPlot,
@@ -23,6 +26,8 @@ import {
   foundDevVillage,
   foundVillage,
   getVillageView,
+  leaveVillage,
+  settleJourney,
   placeCemetery,
   placeDwelling,
   placeField,
@@ -50,7 +55,14 @@ import { nextPollDelayMs } from '@/lib/village-polling';
 import { decodeLandscape, type LandscapeTransfer } from '@/lib/landscape-transfer';
 import { structureGridAt, type CellSquare } from '@/lib/scene/field-cells';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
+import {
+  distanceToPoints,
+  isNeighbourTarget,
+  scenePoints,
+  withNeighbourVillages,
+} from '@/lib/scene/neighbour-villages';
 import type { VillageTarget } from '@/lib/scene/village-picking';
+import { DIRECTION_NAMES } from '@/lib/trade-names';
 import {
   allDwellingsTarget,
   nextSelection,
@@ -75,6 +87,7 @@ import { GameView } from './GameView';
 import { BuildGrid } from './hud/BuildGrid';
 import { CursorReason } from './hud/CursorReason';
 import { DefeatScreen } from './hud/DefeatScreen';
+import { JourneyBanner } from './hud/RelocationControls';
 import { GameMenu } from './hud/GameMenu';
 import { Minimap } from './hud/Minimap';
 import { NoticeLines, type NoticeLine } from './hud/NoticeLines';
@@ -303,9 +316,11 @@ export function VillageGame({
     () => withPending(view ? view.scene : EMPTY_SCENE, pending),
     [view, pending],
   );
+  // stavby jiných vsí na téže mapě se kreslí s vlastními – jen pohled (migration.md)
+  const drawnVillage = useMemo(() => withNeighbourVillages(sceneVillage), [sceneVillage]);
   useEffect(() => {
-    scene?.setVillage(sceneVillage);
-  }, [scene, sceneVillage]);
+    scene?.setVillage(drawnVillage);
+  }, [scene, drawnVillage]);
 
   // R vrací pohled na ves – na první obydlí, jakmile ves stojí.
   const home = view?.scene.dwellings[0]?.position ?? null;
@@ -318,7 +333,10 @@ export function VillageGame({
   useEffect(
     () =>
       scene?.onSelect((target, additive) =>
-        setSelected((prev) => nextSelection(prev, target, additive)),
+        // stavby jiné vsi na téže mapě se nevybírají – klik na ně jako na prázdnou zem
+        setSelected((prev) =>
+          nextSelection(prev, target && isNeighbourTarget(target) ? null : target, additive),
+        ),
       ),
     [scene],
   );
@@ -439,10 +457,14 @@ export function VillageGame({
     };
     setPendingList([...pendingRef.current, entry]);
     const villageId = viewRef.current?.id ?? null;
+    // lidé dorazili na novou mapu – první zemnice založí jejich ves (migration.md – fáze 4)
+    const arrived = viewRef.current?.journey?.arrived === true;
     void runBuildAction(() =>
       villageId === null
         ? foundVillage({ name: suggestVillageName(seed), dwelling: position })
-        : placeDwelling({ villageId, type, position, ...(plot ? { plot } : {}) }),
+        : arrived
+          ? settleJourney({ villageId, dwelling: position })
+          : placeDwelling({ villageId, type, position, ...(plot ? { plot } : {}) }),
     ).finally(() => setPendingList(pendingRef.current.filter((d) => d.id !== entry.id)));
   };
 
@@ -497,11 +519,16 @@ export function VillageGame({
     );
   };
 
-  // vymřelá ves nic nestaví – nabídka staveb je prázdná (i zkratky)
+  // vymřelá a opuštěná ves nic nestaví – nabídka staveb je prázdná (i zkratky); lidé na cestě
+  // po příjezdu umisťují první zemnici (migration.md – fáze 4)
   const options: Partial<Record<BuildKind, BuildOption | null>> = view
-    ? view.extinct
+    ? view.extinct || view.abandoned
       ? {}
-      : view.build
+      : view.journey
+        ? view.journey.arrived
+          ? { zemnice: null }
+          : {}
+        : view.build
     : villageError === null
       ? { zemnice: null }
       : {};
@@ -548,6 +575,65 @@ export function VillageGame({
       });
     };
     run();
+  };
+
+  /**
+   * Odejít do nové vsi (migration.md – fáze 3 a 4): domácnosti obydlí `householdIds`. Na téže
+   * mapě hráč nejdřív umístí první zemnici nové vsi (nejméně 300 m od staveb všech vsí mapy),
+   * pak se rozhraní přepne na novou ves; na novou mapu lidé hned vyrazí (ve vsi zůstane řádek).
+   */
+  const leave = (target: 'here' | Direction8, householdIds: readonly number[]): void => {
+    const villageId = viewRef.current?.id;
+    if (!scene || !villageId || householdIds.length === 0) return;
+    const dwellingIds = [...householdIds];
+    setSelected(null);
+    if (target !== 'here') {
+      void runAction(() =>
+        leaveVillage({ villageId, dwellingIds, destination: { kind: 'map', direction: target } }),
+      ).then((failure) => {
+        pushNotice(
+          failure === null
+            ? {
+                kind: 'households-left',
+                tone: 'info',
+                text: `Lidé vyrazili na ${DIRECTION_NAMES[target].name}`,
+              }
+            : { kind: 'error', tone: 'error', text: failure },
+        );
+      });
+      return;
+    }
+    setPlacingItem(null);
+    const mode = dwellingMode('zemnice');
+    if (mode.kind !== 'dwelling') return;
+    const firstHome: PlacementMode = {
+      kind: 'dwelling',
+      type: 'zemnice',
+      // nová ves stojí nejméně 300 m od staveb všech vsí mapy (migration.md)
+      check: (position: Position) => {
+        const far = distanceToPoints(position, scenePoints(sceneVillageRef.current));
+        if (far < NEW_VILLAGE_MIN_DISTANCE_M) return { ok: false, reason: TOO_CLOSE_TO_VILLAGE };
+        return mode.check(position);
+      },
+    };
+    placement.start(firstHome, (result) => {
+      if (result.kind !== 'dwelling') return;
+      void runAction(() =>
+        leaveVillage({
+          villageId,
+          dwellingIds,
+          destination: { kind: 'here', dwelling: result.position },
+        }),
+      ).then((failure) => {
+        if (failure !== null) {
+          pushNotice({ kind: 'error', tone: 'error', text: failure });
+          return;
+        }
+        const founded = viewRef.current?.id;
+        if (founded) rememberVillage(founded);
+        lookAtVillage();
+      });
+    });
   };
 
   const startBuild = (kind: BuildKind): void => {
@@ -825,7 +911,7 @@ export function VillageGame({
             : null
         }
       />
-      <Minimap landscape={decoded} scene={scene} village={sceneVillage} />
+      <Minimap landscape={decoded} scene={scene} village={drawnVillage} />
       <SelectionPanel
         details={selectionDetails(view, sceneVillage, current)}
         onTrainTeam={(penId) => {
@@ -835,6 +921,7 @@ export function VillageGame({
             : Promise.resolve();
         }}
         onRelocate={relocate}
+        onLeave={leave}
         onCancelRelocation={(constructionId) => {
           const villageId = viewRef.current?.id;
           return villageId
@@ -887,8 +974,20 @@ export function VillageGame({
           onSignOut={signOut}
         />
       )}
+      {view?.journey && <JourneyBanner journey={view.journey} />}
       {gameOver && view?.extinct && (
         <DefeatScreen name={view.name} lifespan={view.extinct} onRestart={() => restart(false)} />
+      )}
+      {gameOver && !view?.extinct && view?.abandoned && (
+        <DefeatScreen
+          name={view.name}
+          lifespan={{
+            foundedYear: view.abandoned.foundedYear,
+            extinctYear: view.abandoned.abandonedYear,
+            years: view.abandoned.years,
+          }}
+          onRestart={() => restart(false)}
+        />
       )}
     </>
   );

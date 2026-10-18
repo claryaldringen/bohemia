@@ -16,6 +16,7 @@ import {
   type FieldInput,
   type PlacementVillage,
   type Position,
+  type Settlers,
   type SquareGrid,
   type TileCell,
   type VillagePoint,
@@ -34,6 +35,11 @@ export interface FoundVillageInput {
   dwelling: Position;
   /** Čtverce prvního pole – políčka krajiny; bez nich (prázdné) se ves založí bez pole. */
   fieldCells?: TileCell[];
+  /**
+   * Osadníci odešlí z jiné vsi (migration.md – Odchod do nové vsi) – místo čtyř zakladatelů,
+   * zásob a výchozího stáda.
+   */
+  settlers?: Settlers;
 }
 
 const ALREADY_FOUNDED = 'Ves už je založená.';
@@ -87,6 +93,19 @@ function foundedVillage(
 ): { ok: true; state: VillageState; name: string } | { ok: false; reason: string } {
   const name = checkVillageName(input.name);
   if (!name.ok) return { ok: false, reason: name.reason ?? 'Neplatné jméno vsi.' };
+  const founded = foundedVillageState(seeds.nextSeed(), input);
+  return founded.ok ? { ...founded, name: normalizeVillageName(input.name) } : founded;
+}
+
+/**
+ * Stav nové vsi se seedem `seed` dopočítaný do dneška – první zemnice (a volitelně pole) ověřené
+ * podle krajiny, s osadníky nebo se čtyřmi zakladateli; jinak důvod česky. Bez jména (to drží
+ * záznam vsi).
+ */
+export function foundedVillageState(
+  seed: number,
+  input: Omit<FoundVillageInput, 'settlementId' | 'name'>,
+): { ok: true; state: VillageState } | { ok: false; reason: string } {
   const obstacles = obstaclesOf(input.landscape);
   const dwelling = checkDwellingPlacement(
     input.landscape,
@@ -118,7 +137,7 @@ function foundedVillage(
   }
 
   const founded = foundVillage({
-    seed: seeds.nextSeed(),
+    seed,
     day: input.today,
     dwellingPosition: { ...input.dwelling },
     firstField,
@@ -128,6 +147,7 @@ function foundedVillage(
     obstacles,
     forestDistanceM: forestEdgeDistanceM(input.landscape, input.dwelling.x, input.dwelling.z),
     dwellingSpared: dwelling.spared,
+    ...(input.settlers ? { settlers: input.settlers } : {}),
   });
   // nová ves nemá polozemnice bez pozemku – rovnou převedená (`withPlots` ji už nebude měnit);
   // louka a les do 600 m od první zemnice – pastva a žaludy výchozího stáda (diet.md)
@@ -137,5 +157,5 @@ function foundedVillage(
     obstacles,
     input.landscape,
   );
-  return { ok: true, state, name: normalizeVillageName(input.name) };
+  return { ok: true, state };
 }

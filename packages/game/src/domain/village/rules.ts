@@ -874,3 +874,12 @@ export const ABANDONMENT = {
   remnantYears: { idol: 10, shrine: 20 },
   graceDays: 365,
 } as const;
+
+// migration.md – Odchod do nové vsi (návrh Clauda): s sebou jídlo, které unesou – 25 kg na
+// člověka od 7 let, nejvýš poměrný díl zásob vsi podle počtu lidí; cesta na novou mapu 1–3 dny
+// podle vzdálenosti ke kraji mapy (každých `perDayM` metrů den), po hotové zemské stezce 1 den.
+export const LEAVING = {
+  carryKgPerPerson: 25,
+  carryFromAge: 7,
+  travelDays: { min: 1, max: 3, perDayM: 400 },
+} as const;

@@ -22,6 +22,7 @@ import { orchardPlantingCost, villageOrchards } from './orchard';
 import { copyPlot } from './plots';
 import type { Walk } from './paths/walking';
 import { ageGroup } from './people';
+import { settlersMaxId, type Settlers } from './departure';
 import { relocationAffordability, relocationBlock, returnConstructionWood } from './relocation';
 import {
   CRAFTS,
@@ -346,6 +347,12 @@ export function foundVillage(input: {
   forestDistanceM?: number;
   /** Posvátné duby a háje na vyklízené ploše první zemnice – zůstanou stát (happiness.md). */
   dwellingSpared?: SparedSacred;
+  /**
+   * Osadníci odešlí z jiné vsi (migration.md – Odchod do nové vsi): místo čtyř zakladatelů,
+   * zásob a výchozího stáda přijdou jejich lidé (s rodokmenem), jídlo a stáda. Všichni bydlí na
+   * staveništi první zemnice, dokud ji nepostaví.
+   */
+  settlers?: Settlers;
 }): VillageState {
   const { seed, day, dwellingPosition, firstField } = input;
   const dwellingObstacleIds = input.dwellingObstacleIds ?? [];
@@ -359,22 +366,28 @@ export function foundVillage(input: {
   if (input.forestDistanceM !== undefined) validateForestDistance(input.forestDistanceM);
   if (firstField) validateField(firstField);
   if (input.dwellingSpared) validateSpared(input.dwellingSpared);
-  const householdId = 1;
+  const { settlers } = input;
+  if (settlers && settlers.people.length === 0) throw new RangeError('Osadníci chybí.');
+  // osadníci si nesou id ze staré vsi – nová ves čísluje za nimi
+  const householdId = settlers ? settlersMaxId(settlers) + 1 : 1;
   // zakladatelé jsou dva páry (kinship.md – Pohlaví): manželé 25 let a chlapec s dívkou, kteří
   // nejsou příbuzní (rodiče neznámí) – vezmou se, až dorostou
-  const people: Person[] = START_AGES.map((age, i) => ({
-    id: householdId + 1 + i,
-    bornDay: day - Math.ceil(age * DAYS_PER_YEAR),
-    dwellingId: householdId,
-    sex: START_SEXES[i] ?? 'male',
-  }));
+  const people: Person[] = settlers
+    ? settlers.people.map((p) => ({ ...p, dwellingId: householdId }))
+    : START_AGES.map((age, i) => ({
+        id: householdId + 1 + i,
+        bornDay: day - Math.ceil(age * DAYS_PER_YEAR),
+        dwellingId: householdId,
+        sex: START_SEXES[i] ?? 'male',
+      }));
   const [husband, wife] = people;
-  if (husband && wife) {
+  if (!settlers && husband && wife) {
     husband.spouseId = wife.id;
     wife.spouseId = husband.id;
   }
-  const constructionId = householdId + 1 + people.length;
+  const constructionId = settlers ? householdId + 1 : householdId + 1 + people.length;
   const annualNeed = people.reduce((sum, p) => sum + FOOD_NEED_KG_PER_YEAR[ageGroup(p, day)], 0);
+  const food = settlers?.food;
   const state: VillageState = {
     seed,
     foundedDay: day,
@@ -400,7 +413,7 @@ export function foundVillage(input: {
     ],
     plan: null,
     threshingFromPlan: null,
-    storesKg: (annualNeed * START_STORES_MONTHS) / MONTHS_PER_YEAR,
+    storesKg: food ? food.grainKg : (annualNeed * START_STORES_MONTHS) / MONTHS_PER_YEAR,
     domesticBacklog: 0,
     hungry: false,
     commonLaborHistory: [],
@@ -408,9 +421,21 @@ export function foundVillage(input: {
     clearedObstacles: dwellingObstacleIds.map((id) => ({ id, day })),
     felledTrees: [],
     woodLogs: 0,
-    // výchozí stádo osadníků (diet.md – Dobytek); krajinu pro pastvu doplní use-case
-    livestock: startingLivestock({ people }),
-    meatKg: 0,
+    // výchozí stádo osadníků (diet.md – Dobytek), u odešlých jejich díl stád; krajinu pro pastvu
+    // doplní use-case
+    livestock: settlers
+      ? { herds: { ...settlers.herds }, young: { ...settlers.young } }
+      : startingLivestock({ people }),
+    meatKg: food ? food.meatKg : 0,
+    ...(food && food.cheeseKg > 0 ? { cheeseKg: food.cheeseKg } : {}),
+    ...(food && food.legumesKg > 0 ? { legumesKg: food.legumesKg } : {}),
+    ...(food && food.applesKg > 0 ? { applesKg: food.applesKg } : {}),
+    ...(settlers && settlers.ancestors.length > 0
+      ? { ancestors: settlers.ancestors.map((a) => ({ ...a })) }
+      : {}),
+    ...(settlers && settlers.emigrants.length > 0
+      ? { emigrants: settlers.emigrants.map((e) => ({ ...e })) }
+      : {}),
     // první zemnice zakladatelů je dvorcem vojvody (trade.md – Dvorec vojvody)
     manorId: householdId,
   };

@@ -17,6 +17,8 @@ import {
   placeSacredForPlayer,
   placeWorkshopForPlayer,
   relocateHouseholdForPlayer,
+  leaveVillageForPlayer,
+  settleJourneyForPlayer,
   plantRoadApplesForPlayer,
   renameVillageForPlayer,
   skipTimeForPlayerView,
@@ -42,6 +44,8 @@ import {
   parsePlaceSacredInput,
   parsePlaceWorkshopInput,
   parseRelocateHouseholdInput,
+  parseLeaveVillageInput,
+  parseSettleJourneyInput,
   parsePlantRoadApplesInput,
   parseRenameVillageInput,
   parseRestartGameInput,
@@ -173,6 +177,23 @@ export async function relocateHousehold(input: unknown): Promise<VillageActionRe
 /** Zrušení rozestavěného přestěhování: `{ villageId, constructionId }` – dřevo zpět na hromadu. */
 export async function cancelRelocation(input: unknown): Promise<VillageActionResult> {
   return villageAction(input, parseCancelRelocationInput, cancelRelocationForPlayer);
+}
+
+/**
+ * Odchod do nové vsi (migration.md – fáze 3 a 4): `{ villageId, dwellingIds, destination }` –
+ * na téže mapě (`{ kind: 'here', dwelling }`, vrátí novou ves) nebo na novou mapu (`{ kind: 'map',
+ * direction }`, vrátí starou ves). Server místo i domácnosti ověří znovu.
+ */
+export async function leaveVillage(input: unknown): Promise<VillageActionResult> {
+  return villageAction(input, parseLeaveVillageInput, leaveVillageForPlayer);
+}
+
+/**
+ * Lidé dorazili na novou mapu – první zemnice nové vsi: `{ villageId, dwelling }` (migration.md
+ * – fáze 4). Server místo ověří znovu.
+ */
+export async function settleJourney(input: unknown): Promise<VillageActionResult> {
+  return villageAction(input, parseSettleJourneyInput, settleJourneyForPlayer);
 }
 
 /** Založení pole po čtvercích (políčkách krajiny): `{ villageId, cells: { x, y }[] }`. */

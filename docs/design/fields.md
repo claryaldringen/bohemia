@@ -261,6 +261,12 @@ Clauda**; implementace v `square-grid.ts` a `squares.ts` (jádro), ve scéně `f
   sadům a pozemkům hlídají skutečnými plochami, takže je lze natočit později stejným modelem
   (`Cemetery.grid`, ohrada natočený čtverec jako pozemek). Volně stojící stavby (zemnice, dílny,
   modla, svatyně) se natáčejí po 15° odjakživa; dvorec vojvody hráč nestaví, zůstává v osách.
+- **Jiné vsi na téže mapě** ([stěhování](migration.md) – Vsi na téže mapě): přehled jiných vsí
+  nese natočené čtverce polí, sadů a lesa vsi s jejich mřížkou zvlášť (`squares`), natočený
+  pozemek jako tvar obydlí. Cizí půdu blokují kontroly podle skutečné plochy – natočený čtverec
+  či pozemek jiné vsi zablokuje jen stavby a čtverce, do kterých opravdu zasahuje; políčka
+  v mřížce krajiny a celá políčka pod jejich volnými obydlími a posvátnými stavbami jako dřív
+  (rozhodnutí Clauda). Přehled bez `squares` platí dál.
 - **Kompatibilita:** stavby bez mřížky a pozemky bez natočení se počítají bit po bitu jako dřív
   (testy a kalibrace beze změny); dopočet po kouscích dává totéž jako vcelku i s natočenými
   stavbami.

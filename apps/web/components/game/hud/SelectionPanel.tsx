@@ -37,7 +37,7 @@ import { ManorUpgrades } from './ManorPanel';
 import { TradePanel } from './TradePanel';
 import {
   CancelRelocationButton,
-  LeaveButton,
+  LeaveControls,
   RelocateButtons,
   RelocationProgress,
 } from './RelocationControls';
@@ -268,6 +268,11 @@ interface RelocationActions {
   onRelocate?: (type: BuildableDwellingType, householdIds: readonly number[]) => void;
   /** Zruší rozestavěné stěhování (stavba nového domu) – hotovo, až se vrátí. */
   onCancelRelocation?: (constructionId: number) => Promise<void>;
+  /**
+   * Odejít do nové vsi (migration.md – fáze 3 a 4): na téže mapě (`here` – hráč pak umístí první
+   * zemnici), nebo na novou mapu ve směru.
+   */
+  onLeave?: (target: 'here' | Direction8, householdIds: readonly number[]) => void;
 }
 
 /** Vylepšení vsi z dvorce vojvody (trade.md) – zemská stezka a obchod. */
@@ -282,6 +287,7 @@ function DwellingBody({
   details,
   onRelocate,
   onCancelRelocation,
+  onLeave,
   onBuildTrail,
   onSendExpedition,
 }: {
@@ -340,14 +346,16 @@ function DwellingBody({
           )}
         />
       )}
-      {details.relocate && (
+      {(details.relocate || details.leave) && (
         <div className="flex items-center gap-2">
-          <RelocateButtons
-            options={details.relocate}
-            households={1}
-            onRelocate={onRelocate ? (type) => onRelocate(type, [details.id]) : undefined}
-          />
-          <LeaveButton />
+          {details.relocate && (
+            <RelocateButtons
+              options={details.relocate}
+              households={1}
+              onRelocate={onRelocate ? (type) => onRelocate(type, [details.id]) : undefined}
+            />
+          )}
+          <LeaveControls leave={details.leave} onLeave={onLeave} />
         </div>
       )}
     </div>
@@ -356,11 +364,12 @@ function DwellingBody({
 
 /**
  * Víc vybraných obydlí (migration.md – Výběr víc obydlí): kolik domácností a lidí, Přestěhovat
- * (nový dům postupně každé domácnosti, která se může stěhovat) a Odejít (zatím zašedlé).
+ * (nový dům postupně každé domácnosti, která se může stěhovat) a Odejít (růžice odchodu).
  */
 function DwellingsBody({
   details,
   onRelocate,
+  onLeave,
 }: {
   details: Extract<SelectionDetails, { kind: 'dwellings' }>;
 } & RelocationActions): ReactElement {
@@ -382,7 +391,7 @@ function DwellingsBody({
             onRelocate={onRelocate ? (type) => onRelocate(type, details.relocatable) : undefined}
           />
         )}
-        <LeaveButton />
+        <LeaveControls leave={details.leave} onLeave={onLeave} />
       </div>
     </div>
   );
@@ -1041,6 +1050,7 @@ export function SelectionPanel({
   onTrainTeam,
   onRelocate,
   onCancelRelocation,
+  onLeave,
   onUpgradeRoad,
   onPlantRoadApples,
   onBuildTrail,
@@ -1130,7 +1140,7 @@ export function SelectionPanel({
     );
   } else if (details.kind === 'dwellings') {
     portrait = <Portrait icon="zemnice" name={`Obydlí (${details.ids.length})`} />;
-    body = <DwellingsBody details={details} onRelocate={onRelocate} />;
+    body = <DwellingsBody details={details} onRelocate={onRelocate} onLeave={onLeave} />;
   } else {
     // dvorec vojvody (trade.md) – i když je to zatím zemnice zakladatelů
     portrait = details.manor ? (
@@ -1143,6 +1153,7 @@ export function SelectionPanel({
         details={details}
         onRelocate={onRelocate}
         onCancelRelocation={onCancelRelocation}
+        onLeave={onLeave}
         onBuildTrail={onBuildTrail}
         onSendExpedition={onSendExpedition}
       />

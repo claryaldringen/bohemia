@@ -101,6 +101,9 @@ import {
   villageOrchards,
   villageWoods,
   woodAgeYears,
+  abandonedVillageAt,
+  withNeighbours,
+  type NeighbourSnapshot,
 } from '@bohemia/game';
 import { formatGameDate } from './game-date';
 import { fruitVisible, treeGrowth } from './orchard-look';
@@ -112,10 +115,20 @@ import {
   type HouseholdRelocation,
 } from './relocation-view';
 import { manorView, type VillageManor } from './manor-view';
+import { foreignFromScene, plotOfScene } from './scene/neighbour-villages';
 import { sceneTrails, trailRoadWork } from './trail-view';
 import { DIRECTION_NAMES, goodsText } from './trade-names';
-import { formatCells, formatHa, formatInteger } from './village-format';
+import { formatCells, formatHa, formatInteger, plural } from './village-format';
 import type { VillageListItem } from './village-list';
+import {
+  journeyView,
+  leaveOptions,
+  villageAbandonment,
+  type SceneNeighbour,
+  type VillageAbandonment,
+  type VillageJourneyView,
+  type VillageLeave,
+} from './departure-view';
 
 // Pohled na ves pro panel a scénu (DTO server actions). Čistý modul – smí ho importovat
 // i klient (typy, převod scény na data pro kontrolu umístění).
@@ -438,6 +451,12 @@ export interface VillageView {
   sacred: VillageSacred;
   /** Ves vymřela – herní rok založení a vymření a kolik let žila; žijící ves null. */
   extinct: VillageLifespan | null;
+  /** Ves je opuštěná – odešli všichni (migration.md); žijící ves null. */
+  abandoned: VillageAbandonment | null;
+  /** Lidé jsou na cestě na novou mapu (migration.md – fáze 4); ves, která stojí, null. */
+  journey: VillageJourneyView | null;
+  /** Odchod do nové vsi – dny cesty na novou mapu po směrech a kam to nejde (migration.md). */
+  leave: VillageLeave;
   /**
    * Konec hry – hráči vymřely všechny vsi (ne jen tahle). Rozhraní ukáže obrazovku porážky
    * s tlačítkem Začít znovu.
@@ -727,6 +746,12 @@ export interface SceneVillage {
   livestock?: Record<HerdSpecies, number>;
   /** Ohrady (oxen.md) – čtverec, stavba a zvířata v ní. Bez údaje žádné. */
   pens?: ScenePen[];
+  /**
+   * Stavby jiných vsí na téže mapě – jen pohled (migration.md – Vsi na téže mapě). Scéna je
+   * kreslí s ostatními stavbami (`withNeighbourVillages`), kontrola umístění je zná jako
+   * cizí půdu (`placementVillageFromScene`). Bez údaje žádné.
+   */
+  neighbours?: SceneNeighbour[];
   /**
    * Les vsi (fields.md – Les vsi) – čtverce polí zarostlé lesem: políčko, povrch při založení
    * a stáří lesa v celých letech (od 30). Stromy jsou mezi překážkami přidanými vsí
@@ -1072,6 +1097,18 @@ const STRUCTURE_FELL_TEXTS: Record<AbandonedStructure, string> = {
   pen: 'Opuštěná ohrada se rozpadla.',
 };
 
+/** Domácnosti odešly založit novou ves (migration.md) – kronika. */
+function householdsLeftText(households: number, people: number, direction?: Direction8): string {
+  const who =
+    households === 1
+      ? 'Jedna domácnost odešla'
+      : households <= 4
+        ? `${households} domácnosti odešly`
+        : `${households} domácností odešlo`;
+  const where = direction ? ` na ${DIRECTION_NAMES[direction].name}` : '';
+  return `${who} založit novou ves${where} – ${formatInteger(people)} ${plural(people, 'člověk', 'lidé', 'lidí')}.`;
+}
+
 /** Text události kroniky česky. */
 export function chronicleText(event: ChronicleEvent, villageName: string): string {
   switch (event.kind) {
@@ -1103,6 +1140,12 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       return 'Stěhování domácnosti se zrušilo – zůstává ve starém domě.';
     case 'household-relocated':
       return 'Domácnost se přestěhovala do nového domu – starý zůstal prázdný.';
+    case 'households-left':
+      return householdsLeftText(event.households, event.people, event.direction);
+    case 'village-abandoned':
+      return `Odešli všichni – ves ${villageName} je opuštěná.`;
+    case 'journey-started':
+      return `Lidé vyrazili na ${DIRECTION_NAMES[event.direction].name} – na místo nové vsi dorazí ${formatGameDate(dateOfDayIndex(event.arrivalDay))}.`;
     case 'harvest':
       return `${HARVEST_NAMES[event.crop ?? 'any']}: ${formatInteger(event.kg)} kg ${event.crop === 'legume' ? 'luštěnin' : 'obilí'}.`;
     case 'apple-harvest':
@@ -1994,6 +2037,26 @@ export interface VillageViewContext {
   gameOver?: boolean;
   /** Všechny vsi hráče pro přepínač; bez nich jen tahle ves. */
   villages?: VillageListItem[];
+  /**
+   * Jiné vsi na téže mapě (migration.md) – přehled jejich staveb a pasek (`neighbourSnapshot`)
+   * a jejich stavby pro scénu. Bez nich je ves na mapě sama.
+   */
+  neighbours?: NeighbourSnapshot | null;
+  neighbourScenes?: SceneNeighbour[];
+  /** Vlastní vsi na sousedních mapách po směrech – tam se neodchází ani neobchoduje. */
+  ownMaps?: Partial<Record<Direction8, string>>;
+  /** Proč z téhle mapy na novou mapu odejít nejde (mapa bez polohy v mřížce), nebo null. */
+  mapsBlocked?: string | null;
+}
+
+/** Stavby vsi pro scénu – jako v pohledu na ves (stavby jiné vsi na téže mapě). */
+export function sceneOfVillage(
+  state: VillageState,
+  landscape: Landscape,
+  day: number,
+): SceneVillage {
+  const shown = abandonedVillageAt(state, day);
+  return sceneVillage(shown, landscape, day, summarizeVillage(shown, day, obstaclesOf(landscape)));
 }
 
 /**
@@ -2006,7 +2069,9 @@ export function buildVillageView(
   day: number,
   context: VillageViewContext = {},
 ): VillageView {
-  const { state, name } = record;
+  const { name } = record;
+  // jiné vsi na téže mapě (paseky, cizí půda) a opuštěná ves jen jako pohled (migration.md)
+  const state = abandonedVillageAt(withNeighbours(record.state, context.neighbours ?? null), day);
   const obstacles = obstaclesOf(landscape);
   const summary = summarizeVillage(state, day, obstacles);
   const gameOver = context.gameOver ?? false;
@@ -2021,6 +2086,8 @@ export function buildVillageView(
         name,
         people: state.people.length,
         extinct: state.extinctDay !== undefined,
+        abandoned: state.abandonedDay !== undefined,
+        travelling: state.journey !== undefined,
         hungry: summary.hungry,
         starving: summary.starving,
       },
@@ -2091,6 +2158,9 @@ export function buildVillageView(
     },
     sacred: sacredView(state, summary, obstacles, day),
     extinct: villageLifespan(state),
+    abandoned: villageAbandonment(state),
+    journey: journeyView(state, day),
+    leave: leaveOptions(state, landscape, context.ownMaps ?? {}, context.mapsBlocked ?? null),
     gameOver,
     cemeteries: summary.cemeteries.map((c) => {
       const progress = cemeteryProgress(c.id, c.built, summary.constructions);
@@ -2120,10 +2190,14 @@ export function buildVillageView(
     }),
     pens: penViews(state, day, summary),
     roads: roadViews(state, landscape, day, summary),
-    scene: { ...sceneVillage(state, landscape, day, summary), trails: sceneTrails(state) },
+    scene: {
+      ...sceneVillage(state, landscape, day, summary),
+      trails: sceneTrails(state),
+      ...(context.neighbourScenes?.length ? { neighbours: context.neighbourScenes } : {}),
+    },
     chronicle: chronicle(state, name),
     lastMarriageDay: lastMarriageDay(state),
-    manor: manorView(state, landscape, day),
+    manor: manorView(state, landscape, day, context.ownMaps ?? {}),
     goods: { ...foreignGoods(state) },
   };
 }
@@ -2153,18 +2227,6 @@ function penViews(state: VillageState, day: number, summary: VillageSummary): Vi
   });
 }
 
-/** Pozemek ze scény pro kontrolu umístění – i natočený (střed a natočení čtverce). */
-function plotOfScene(plot: ScenePlot): DwellingPlot {
-  return {
-    cell: plot.cell,
-    variant: plot.variant,
-    ...(plot.yard ? { yard: plot.yard.cell } : {}),
-    ...(plot.rotation !== undefined && !plot.yard
-      ? { square: { x: plot.x, z: plot.z, rotation: plot.rotation } }
-      : {}),
-  };
-}
-
 /**
  * Data pro kontrolu umístění v prohlížeči (`checkDwellingPlacement`, `fieldPartsFromCells`,
  * `cemeteryPartsFromCells`, `orchardPartsFromCells`) ze scény vsi – hotová i rozestavěná obydlí
@@ -2188,10 +2250,13 @@ function scenePlacementVillage(scene: SceneVillage): PlacementVillage {
     dwellings: scene.dwellings.map((d) => ({
       type: d.type,
       position: d.position,
+      // pozemek i s dvorem dvorce (trade.md) a natočením (fields.md – Natočené stavby)
       ...(d.plot ? { plot: plotOfScene(d.plot) } : {}),
       ...(d.craft ? { workshop: { craft: d.craft } } : {}),
     })),
     constructions: [],
+    // stavby a půda jiných vsí na téže mapě (migration.md)
+    ...(foreignFromScene(scene) ? { foreign: foreignFromScene(scene) } : {}),
     // natočená pole (fields.md – Natočené stavby) – díly jsou čtverce v jejich mřížce
     fields: scene.fields.map((f) => ({ id: f.id, ...(f.grid ? { grid: f.grid } : {}) })),
     // pole a plocha dílu (políčko) pro navazující pole – rozšíření a sloučení (fields.md)

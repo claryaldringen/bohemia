@@ -16,6 +16,8 @@ import {
   villageIdOf,
   parsePlantRoadApplesInput,
   parseUpgradeRoadInput,
+  parseLeaveVillageInput,
+  parseSettleJourneyInput,
 } from '../village-input';
 
 describe('ověření vstupu server actions vsi', () => {
@@ -239,5 +241,44 @@ describe('vstup stezky a obchodu (trade.md)', () => {
     expect(parseSendExpeditionInput({ direction: 'N', give: { gold: 1 }, get: {} })).toBeNull();
     expect(parseSendExpeditionInput({ direction: 'N', give: { grain: -1 }, get: {} })).toBeNull();
     expect(parseSendExpeditionInput({ direction: 'N', give: { grain: 1.5 }, get: {} })).toBeNull();
+  });
+});
+
+describe('vstupy odchodu do nové vsi (migration.md – fáze 3 a 4)', () => {
+  const dwelling = { x: 1, z: 2, rotation: 0 };
+
+  it('odchod na téže mapě i na novou mapu', () => {
+    expect(
+      parseLeaveVillageInput({ dwellingIds: [3, 5], destination: { kind: 'here', dwelling } }),
+    ).toEqual({ dwellingIds: [3, 5], destination: { kind: 'here', dwelling } });
+    expect(
+      parseLeaveVillageInput({ dwellingIds: [3], destination: { kind: 'map', direction: 'SW' } }),
+    ).toEqual({ dwellingIds: [3], destination: { kind: 'map', direction: 'SW' } });
+  });
+
+  it('bez obydlí, se špatným id, směrem nebo cílem null', () => {
+    expect(
+      parseLeaveVillageInput({ dwellingIds: [], destination: { kind: 'here', dwelling } }),
+    ).toBeNull();
+    expect(
+      parseLeaveVillageInput({ dwellingIds: [0], destination: { kind: 'here', dwelling } }),
+    ).toBeNull();
+    expect(
+      parseLeaveVillageInput({ dwellingIds: [1], destination: { kind: 'map', direction: 'UP' } }),
+    ).toBeNull();
+    expect(parseLeaveVillageInput({ dwellingIds: [1], destination: { kind: 'moon' } })).toBeNull();
+    expect(parseLeaveVillageInput({ dwellingIds: [1] })).toBeNull();
+    expect(
+      parseLeaveVillageInput({
+        dwellingIds: Array.from({ length: 201 }, (_, i) => i + 1),
+        destination: { kind: 'map', direction: 'N' },
+      }),
+    ).toBeNull();
+  });
+
+  it('založení vsi po příjezdu: poloha první zemnice', () => {
+    expect(parseSettleJourneyInput({ dwelling })).toEqual({ dwelling });
+    expect(parseSettleJourneyInput({ dwelling: { x: 1 } })).toBeNull();
+    expect(parseSettleJourneyInput(null)).toBeNull();
   });
 });

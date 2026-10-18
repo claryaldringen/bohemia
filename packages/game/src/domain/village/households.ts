@@ -83,11 +83,30 @@ function byCrowding(state: VillageState): Dwelling[] {
 }
 
 /**
- * Všechny rodiny vsi, které se mohou oddělit (`familiesOf`) – domácnosti od nejvíc přeplněné,
- * při shodě nižší id.
+ * Rodiny, které z domácnosti obydlí `dwelling` opravdu odejdou do nových domů: jen z plné nebo
+ * přeplněné domácnosti (Martin: „plná domácnost → nová domácnost v novém obydlí“, „ať prázdný
+ * dům obsadí i plná domácnost“; z neplného domu ne – rozhodnutí 18. 10. 2026) a jen dokud dům před
+ * odchodem další rodiny zůstává plný – po odchodu první už obvykle plný není. V pořadí
+ * `familiesOf`.
+ */
+export function departingFamilies(state: VillageState, dwelling: Dwelling, day: number): Family[] {
+  let living = occupants(state, dwelling.id).length;
+  const capacity = DWELLINGS[dwelling.type].capacity;
+  const out: Family[] = [];
+  for (const family of familiesOf(state, dwelling, day)) {
+    if (living < capacity) break;
+    out.push(family);
+    living -= family.people.length;
+  }
+  return out;
+}
+
+/**
+ * Rodiny vsi, které se teď mohou oddělit do prázdného nebo nového domu – z každé plné domácnosti
+ * první z `departingFamilies`; domácnosti od nejvíc přeplněné, při shodě nižší id.
  */
 export function leavingFamilies(state: VillageState, day: number): Family[] {
-  return byCrowding(state).flatMap((d) => familiesOf(state, d, day));
+  return byCrowding(state).flatMap((d) => departingFamilies(state, d, day).slice(0, 1));
 }
 
 /**
@@ -166,14 +185,15 @@ export function occupyEmptyDwellings(state: VillageState, day: number): void {
 }
 
 /**
- * Kolik nových domácností může ves založit (kinship.md – Lidé k osídlení): rodiny ženatých synů,
- * které se mohou oddělit, a svobodní nejstarší synové plných domů, ze kterých žádná rodina odejít
- * nemůže.
+ * Kolik nových domácností může ves založit (kinship.md – Lidé k osídlení): z plných a přeplněných
+ * domácností rodiny ženatých synů, které odejdou, dokud dům zůstává plný (`departingFamilies`),
+ * a svobodní nejstarší synové plných domů, ze kterých žádná rodina odejít nemůže. Neplný dům
+ * nikoho nedává.
  */
 export function possibleNewHouseholds(state: VillageState, day: number): number {
   let count = 0;
   for (const d of state.dwellings) {
-    const families = familiesOf(state, d, day).length;
+    const families = departingFamilies(state, d, day).length;
     count += families > 0 ? families : loneSonOf(state, d, day) ? 1 : 0;
   }
   return count;

@@ -20,6 +20,7 @@ import {
   sacredOakLife,
   sacredOakNow,
   sacredSitesOf,
+  neighbourSnapshot,
   startRelocation,
   surfaceAt,
   tileCenterWorld,
@@ -1442,6 +1443,8 @@ describe('buildVillageView – víc vsí a přestěhování (migration.md)', () 
         name: 'Libice',
         people: 4,
         extinct: false,
+        abandoned: false,
+        travelling: false,
         hungry: false,
         starving: false,
       },
@@ -1569,5 +1572,52 @@ describe('opuštěné stavby v pohledu na ves (abandonment.md)', () => {
     const fell = view.chronicle.find((e) => e.kind === 'structure-fell')!;
     expect(fell.structure).toBe('pen');
     expect(fell.text).toBe('Opuštěná ohrada se rozpadla.');
+  });
+});
+
+describe('buildVillageView – odchod do nové vsi (migration.md – fáze 3 a 4)', () => {
+  it('opuštěná ves: roky, žádné stavby k nabídce, domy chátrají podle dne odchodu', () => {
+    const s = settled();
+    s.people = [];
+    s.abandonedDay = DAY;
+    const view = buildVillageView(record(s), landscape, DAY + 2 * 365);
+    expect(view.abandoned).toEqual({ foundedYear: 503, abandonedYear: 503, years: 0 });
+    expect(view.extinct).toBeNull();
+    expect(view.scene.dwellings[0]!.condition).toBeLessThan(1);
+    const later = buildVillageView(record(s), landscape, DAY + 6 * 365);
+    expect(later.scene.dwellings).toEqual([]);
+    expect(later.scene.ruins?.length).toBe(1);
+  });
+
+  it('lidé na cestě: kam a za kolik dní, ves zatím bez staveb', () => {
+    const s = state();
+    s.constructions = [];
+    s.journey = { direction: 'N', departedDay: DAY, arrivalDay: DAY + 2 };
+    const view = buildVillageView(record(s), landscape, DAY + 1);
+    expect(view.journey).toEqual({
+      direction: 'N',
+      arrivalDay: DAY + 2,
+      arrived: false,
+      daysLeft: 1,
+    });
+    expect(view.scene.dwellings).toEqual([]);
+  });
+
+  it('jiná ves na téže mapě: její stavby pro scénu, paseky a vlastní vsi kolem po směrech', () => {
+    const other = settled();
+    other.clearedObstacles = [{ id: 4242, day: DAY }];
+    const neighbourScene = buildVillageView(record(other), landscape, DAY).scene;
+    const view = buildVillageView(record(settled()), landscape, DAY, {
+      neighbours: neighbourSnapshot([other], DAY),
+      neighbourScenes: [{ dwellings: neighbourScene.dwellings, fields: neighbourScene.fields }],
+      ownMaps: { S: 'Budeč' },
+    });
+    expect(view.scene.neighbours).toHaveLength(1);
+    expect(view.scene.obstacles?.removed).toContain(4242);
+    expect(view.leave.directions.find((d) => d.direction === 'S')!.blocked).toMatch(/Budeč/);
+    // kontrola umístění v prohlížeči zná cizí půdu
+    const placement = placementVillageFromScene(view.scene);
+    expect(placement.foreign?.dwellings).toHaveLength(1);
+    expect(placement.foreign?.cells.length).toBeGreaterThan(0);
   });
 });
