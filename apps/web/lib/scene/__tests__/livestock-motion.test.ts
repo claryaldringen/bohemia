@@ -4,9 +4,12 @@ import {
   createHerdState,
   createLivestockPose,
   herdAnimalPose,
+  herdPeriodS,
   herdRouteIndex,
   herdState,
   keepRouteSpot,
+  livestockClock,
+  LIVESTOCK_EPOCH_MS,
   routeAt,
   valueNoise,
   type LivestockClock,
@@ -14,12 +17,9 @@ import {
 import { chickenBox, planLivestock, type Herd } from '../livestock-placement';
 import { GROUND, VILLAGE, inSquares as inVillageSquares } from './livestock-fixtures';
 
-const DAY_S = 86.4;
-const clockAt = (seconds: number): LivestockClock => ({
-  seconds,
-  gameDay: seconds / DAY_S,
-  daySeconds: DAY_S,
-});
+const clockAt = (seconds: number): LivestockClock => ({ seconds });
+/** Dvacet minut skutečného času. */
+const SPAN_S = 20 * 60;
 
 const plan = planLivestock(VILLAGE, GROUND, 7);
 const inSquares = (x: number, z: number): boolean => inVillageSquares(VILLAGE, x, z);
@@ -34,32 +34,51 @@ describe('routeAt', () => {
   });
 });
 
+describe('livestockClock', () => {
+  it('skutečný čas od pevného počátku – herní svět do něj nevstupuje', () => {
+    expect(livestockClock(LIVESTOCK_EPOCH_MS + 90_000).seconds).toBe(90);
+  });
+});
+
 describe('herdState', () => {
   const herd = plan.herds.find((h) => h.kind === 'flock')!;
 
-  it('stádo se stěhuje plynule a většinu dne stojí na pastvině', () => {
+  it('stádo je na pastvině pár minut a k další dojde krokem, ne během', () => {
     const state = createHerdState();
+    const dt = 0.5;
     let last: { x: number; z: number } | null = null;
     let resting = 0;
-    const steps = 2000;
-    for (let i = 0; i <= steps; i++) {
-      const t = (i / steps) * DAY_S * 3;
+    let restRun = 0;
+    let longestRest = 0;
+    let steps = 0;
+    for (let t = 0; t <= SPAN_S * 2; t += dt) {
       herdState(herd, clockAt(t), state);
-      if (last) expect(Math.hypot(state.x - last.x, state.z - last.z)).toBeLessThan(0.5);
+      if (last) {
+        // Krokem v hloučku – nejvýš 0,85 m/s.
+        expect(Math.hypot(state.x - last.x, state.z - last.z) / dt).toBeLessThan(0.86);
+      }
       last = { x: state.x, z: state.z };
-      if (state.moving === 0) resting++;
+      if (state.moving === 0) {
+        resting++;
+        restRun += dt;
+        longestRest = Math.max(longestRest, restRun);
+      } else {
+        restRun = 0;
+      }
+      steps++;
       expect(state.moving).toBeGreaterThanOrEqual(0);
       expect(state.moving).toBeLessThanOrEqual(1);
     }
-    expect(resting / steps).toBeGreaterThan(0.3);
+    expect(resting / steps).toBeGreaterThan(0.85);
+    expect(longestRest).toBeGreaterThan(180);
+    expect(herdPeriodS(herd)).toBeGreaterThanOrEqual(240);
   });
 
   it('mezi přesuny stojí na pastvině trasy', () => {
     const state = createHerdState();
-    herdState(herd, clockAt(DAY_S * 10), state);
-    const spot = herd.route.some((p) => Math.hypot(p.x - state.x, p.z - state.z) < 1e-6);
-    // Buď stojí na pastvině, nebo je právě na cestě mezi dvěma sousedními.
-    expect(spot || state.moving > 0 || state.travelled > 0).toBe(true);
+    herdState(herd, clockAt(herdPeriodS(herd) * (10.9 - herd.phase)), state);
+    expect(state.moving).toBe(0);
+    expect(herd.route.some((p) => Math.hypot(p.x - state.x, p.z - state.z) < 1e-6)).toBe(true);
   });
 });
 
@@ -68,7 +87,7 @@ describe('herdAnimalPose', () => {
     const state = createHerdState();
     const pose = createLivestockPose();
     for (const herd of plan.herds) {
-      for (let t = 0; t < DAY_S * 4; t += 0.7) {
+      for (let t = 0; t < SPAN_S * 2; t += 1.3) {
         const clock = clockAt(t);
         herdState(herd, clock, state);
         for (let i = 0; i < herd.animals.length; i++) {
@@ -92,27 +111,36 @@ describe('herdAnimalPose', () => {
     }
   });
 
-  it('zvíře chodí plynule (žádné skoky), pase se i stojí', () => {
-    const herd = plan.herds.find((h) => h.kind === 'flock')!;
+  it('zvířata chodí klidně: popojdou krokem a desítky sekund se pasou', () => {
     const state = createHerdState();
     const pose = createLivestockPose();
-    let last: { x: number; z: number } | null = null;
-    let grazing = 0;
-    let standing = 0;
-    let walking = 0;
-    for (let t = 0; t < 600; t += 0.05) {
-      const clock = clockAt(t);
-      herdState(herd, clock, state);
-      herdAnimalPose(herd, 0, clock, state, pose);
-      if (last) expect(Math.hypot(pose.x - last.x, pose.z - last.z)).toBeLessThan(0.2);
-      last = { x: pose.x, z: pose.z };
-      if (pose.head > 0.8) grazing++;
-      if (pose.head < 0.05 && Math.abs(pose.stride) < 0.01) standing++;
-      if (Math.abs(pose.stride) > 0.5) walking++;
+    const dt = 0.1;
+    for (const herd of plan.herds) {
+      for (let i = 0; i < herd.animals.length; i++) {
+        let last: { x: number; z: number } | null = null;
+        let grazing = 0;
+        let walking = 0;
+        let samples = 0;
+        let fastest = 0;
+        for (let t = 0; t < SPAN_S; t += dt) {
+          const clock = clockAt(t);
+          herdState(herd, clock, state);
+          herdAnimalPose(herd, i, clock, state, pose);
+          if (last) {
+            fastest = Math.max(fastest, Math.hypot(pose.x - last.x, pose.z - last.z) / dt);
+          }
+          last = { x: pose.x, z: pose.z };
+          samples++;
+          if (pose.head > 0.7) grazing++;
+          if (Math.abs(pose.stride) > 0.3) walking++;
+        }
+        // Chodí ≈ 0,6–1 m/s (prase ryje pomalu), nikdy neběží – ani když se stádo stěhuje
+        // (vlastní popocházení se s přesunem nesčítá).
+        expect(fastest).toBeLessThan(1.05);
+        expect(grazing / samples).toBeGreaterThan(0.45);
+        expect(walking / samples).toBeLessThan(0.25);
+      }
     }
-    expect(grazing).toBeGreaterThan(1000);
-    expect(standing).toBeGreaterThan(100);
-    expect(walking).toBeGreaterThan(50);
   });
 
   it('stejný čas = stejná póza (deterministicky, bez stavu)', () => {
@@ -124,6 +152,11 @@ describe('herdAnimalPose', () => {
     herdAnimalPose(herd, 3, clockAt(1234.5), s, a);
     herdAnimalPose(herd, 2, clockAt(99), s, b);
     herdAnimalPose(herd, 3, clockAt(1234.5), s, b);
+    expect(b).toEqual(a);
+    // I po velmi dlouhé době (skutečný čas od počátku roku 2026).
+    herdState(herd, clockAt(3e8), s);
+    herdAnimalPose(herd, 3, clockAt(3e8), s, a);
+    herdAnimalPose(herd, 3, clockAt(3e8), s, b);
     expect(b).toEqual(a);
   });
 });
@@ -137,7 +170,7 @@ describe('chickenPose', () => {
       for (let i = 0; i < flock.chickens.length; i++) {
         let last: { x: number; z: number } | null = null;
         let pecks = 0;
-        for (let t = 0; t < 200; t += 0.05) {
+        for (let t = 0; t < 300; t += 0.05) {
           chickenPose(flock, i, clockAt(t), pose);
           const c = Math.cos(flock.position.rotation);
           const s = Math.sin(flock.position.rotation);
@@ -149,7 +182,8 @@ describe('chickenPose', () => {
           expect(Math.abs(lx)).toBeLessThan(box.halfX + flock.reachM.to + 0.5);
           expect(lz).toBeGreaterThan(box.minZ - flock.reachM.to - 0.5);
           expect(lz).toBeLessThan(box.maxZ + flock.reachM.to + 0.5);
-          if (last) expect(Math.hypot(pose.x - last.x, pose.z - last.z)).toBeLessThan(0.15);
+          // Cupitá klidně – nejvýš ≈ 1 m/s.
+          if (last) expect(Math.hypot(pose.x - last.x, pose.z - last.z)).toBeLessThan(0.05);
           last = { x: pose.x, z: pose.z };
           if (pose.head > 0.9) pecks++;
         }
@@ -182,7 +216,8 @@ describe('keepRouteSpot', () => {
     animals: [],
   });
   // Pastvina č. 2, přesun už doběhl (konec období).
-  const clock: LivestockClock = { seconds: 0, gameDay: 2.95 / 1.5, daySeconds: DAY_S };
+  const period = herdPeriodS(herd([[0, 0]]));
+  const clock: LivestockClock = { seconds: 2.95 * period };
 
   it('po přepočtu zůstane stádo na pastvině, kde právě je', () => {
     const before = herd([
@@ -205,11 +240,7 @@ describe('keepRouteSpot', () => {
     expect(state.x).toBeCloseTo(20, 6);
     expect(state.z).toBeCloseTo(0, 6);
     // Dál pokračuje po nové trase.
-    const later = herdState(
-      after,
-      { ...clock, gameDay: clock.gameDay + 1 / 1.5 },
-      createHerdState(),
-    );
+    const later = herdState(after, { seconds: clock.seconds + period }, createHerdState());
     expect([later.x, later.z]).toEqual([60, 60]);
   });
 
@@ -234,7 +265,7 @@ describe('keepRouteSpot', () => {
 
   it('beze změny vsi stádo zůstává, kde bylo – i uprostřed přesunu a na cestě zpět', () => {
     for (const h of plan.herds) {
-      for (let t = 0; t < DAY_S * 400; t += 997) {
+      for (let t = 0; t < 400 * 600; t += 997) {
         const kept = keepRouteSpot(h, h, clockAt(t));
         const a = herdState(h, clockAt(t), createHerdState());
         const b = herdState(kept, clockAt(t), createHerdState());

@@ -9,17 +9,23 @@ import { hash01 } from './smoke-schedule';
 
 // Pohyb domácích zvířat jako čistá funkce času – scéna jen dosadí čas a přepíše instance.
 // Každé zvíře žije po úsecích: na začátku úseku se otočí a dojde na nové místo (blízko
-// předchozího – hladký šum), pak se pase / zobe nebo stojí. Stádo se během herních dní stěhuje
-// po pastvinách své trasy. Nic se nepočítá postupně – stejný čas = stejná póza.
+// předchozího – hladký šum), pak se pase / zobe nebo stojí. Stádo je na pastvině pár minut
+// a pak se krokem přestěhuje na další pastvinu své trasy. Všechno běží ve skutečném čase, ne
+// v herním – ve zrychleném světě (herní den ≈ 3 s) by zvířata jinak běhala (Martin). Nic se
+// nepočítá postupně – stejný okamžik = stejná póza.
+
+/** Počátek času zvířat (skutečný čas, ms) – menší čísla než od roku 1970. */
+export const LIVESTOCK_EPOCH_MS = Date.UTC(2026, 0, 1);
 
 /** Čas pro zvířata. */
 export interface LivestockClock {
-  /** Skutečný čas (s) – chůze, pastva a zobání jednotlivých zvířat. */
+  /** Skutečný čas (s od LIVESTOCK_EPOCH_MS) – chůze, pastva i stěhování stád. */
   seconds: number;
-  /** Herní den jako spojité číslo (gameDayAt) – kdy se stádo stěhuje na další pastvinu. */
-  gameDay: number;
-  /** Skutečná délka herního dne (s). */
-  daySeconds: number;
+}
+
+/** Čas zvířat ve skutečný okamžik `nowMs` (epoch ms) – nezávisí na herním světě. */
+export function livestockClock(nowMs: number): LivestockClock {
+  return { seconds: (nowMs - LIVESTOCK_EPOCH_MS) / 1000 };
 }
 
 /** Okamžitý stav zvířete pro vykreslení (výšku a náklon podle terénu doplní scéna). */
@@ -43,6 +49,11 @@ export interface HerdState {
   headingX: number;
   headingZ: number;
   travelled: number;
+  /**
+   * Kolik sekund stádo celkem prošlo při stěhování – po tu dobu má každé zvíře vlastní pastvu
+   * a popocházení zastavené (jde s hloučkem), takže se jeho chůze se stěhováním nesčítá.
+   */
+  pausedS: number;
 }
 
 /** Obdélník ve vodorovné rovině (m). */
@@ -70,54 +81,55 @@ interface Gait {
 
 /**
  * Chůze a pastva podle animací 0 A.D. (sheep_walk, goat_walk, bovidae_walk_relax,
- * animal_pig_walk_01, chicken_walk) a skutečných zvířat: ovce a kozy popojdou každých pár
- * sekund, kráva pomaleji a dál, slepice cupitá krátkými kroky.
+ * animal_pig_walk_01, chicken_walk) a skutečných zvířat: ovce, kozy a krávy se desítky sekund
+ * pasou a pak popojdou pár metrů krokem (≈ 0,8–1 m/s), prase pomalu ryje, slepice zobe
+ * a cupitá o kousek častěji.
  */
 const GAIT: Record<LivestockSpecies, Gait> = {
   sheep: {
-    slotS: { from: 8, to: 13 },
-    speed: 0.55,
-    strideM: 0.75,
-    turnS: 0.8,
-    headS: 0.8,
-    graze: 0.75,
-    wander: 0.3,
-  },
-  goat: {
-    slotS: { from: 6, to: 10 },
-    speed: 0.7,
+    slotS: { from: 18, to: 40 },
+    speed: 0.9,
     strideM: 0.8,
-    turnS: 0.6,
-    headS: 0.6,
-    graze: 0.65,
-    wander: 0.3,
-  },
-  cow: {
-    slotS: { from: 11, to: 17 },
-    speed: 0.6,
-    strideM: 1.4,
-    turnS: 1.1,
-    headS: 1.1,
-    graze: 0.75,
+    turnS: 1.0,
+    headS: 1.0,
+    graze: 0.8,
     wander: 0.25,
   },
+  goat: {
+    slotS: { from: 14, to: 30 },
+    speed: 1.0,
+    strideM: 0.85,
+    turnS: 0.8,
+    headS: 0.8,
+    graze: 0.7,
+    wander: 0.28,
+  },
+  cow: {
+    slotS: { from: 25, to: 50 },
+    speed: 0.9,
+    strideM: 1.5,
+    turnS: 1.4,
+    headS: 1.3,
+    graze: 0.8,
+    wander: 0.22,
+  },
   pig: {
-    slotS: { from: 7, to: 11 },
-    speed: 0.5,
+    slotS: { from: 20, to: 40 },
+    speed: 0.6,
     strideM: 0.6,
-    turnS: 0.7,
-    headS: 0.6,
-    graze: 0.85,
-    wander: 0.3,
+    turnS: 1.0,
+    headS: 0.8,
+    graze: 0.88,
+    wander: 0.25,
   },
   chicken: {
-    slotS: { from: 4, to: 7 },
-    speed: 0.7,
+    slotS: { from: 8, to: 14 },
+    speed: 0.6,
     strideM: 0.22,
-    turnS: 0.3,
-    headS: 0.25,
+    turnS: 0.35,
+    headS: 0.3,
     graze: 0.7,
-    wander: 0.18,
+    wander: 0.15,
   },
 };
 
@@ -132,21 +144,26 @@ const PATH_SAMPLES = 6;
 /** Kroky se zastaví, když je cesta kratší (m) – zvíře se jen otočí. */
 const MIN_STEP_M = 0.05;
 
-/** Stádo se stěhuje tolikrát za herní den, takhle rychle (m/s) a nejvýš takový podíl času. */
-const HERD_MOVES_PER_DAY: Record<HerdKind, number> = { flock: 1.5, cattle: 1, swine: 2 };
-const HERD_SPEED_MPS: Record<HerdKind, number> = { flock: 0.45, cattle: 0.4, swine: 0.35 };
-const HERD_MAX_TRAVEL = 0.7;
+/**
+ * Stádo zůstane na pastvině několik minut skutečného času (s) a pak k další dojde v hloučku
+ * krokem – přesun trvá vždy stejně dlouho (s): sousední pastviny jsou nejvýš 22 m od sebe,
+ * stádo tak jde nejvýš ≈ 0,8 m/s, k bližší pastvině pomaleji.
+ */
+const HERD_STAY_S: Record<HerdKind, { from: number; to: number }> = {
+  flock: { from: 240, to: 420 },
+  cattle: { from: 300, to: 540 },
+  swine: { from: 180, to: 360 },
+};
+const HERD_TRAVEL_S: Record<HerdKind, number> = { flock: 28, cattle: 28, swine: 32 };
 /** Rozejití a zastavení stáda (s). */
-const HERD_RAMP_S = 1.2;
-/** Při stěhování se stádo stáhne k sobě (podíl poloměru). */
-const HERD_GATHER = 0.5;
+const HERD_RAMP_S = 2;
 
 export function createLivestockPose(): LivestockPose {
   return { x: 0, z: 0, forwardX: 0, forwardZ: 1, stride: 0, head: 0 };
 }
 
 export function createHerdState(): HerdState {
-  return { x: 0, z: 0, moving: 0, headingX: 0, headingZ: 1, travelled: 0 };
+  return { x: 0, z: 0, moving: 0, headingX: 0, headingZ: 1, travelled: 0, pausedS: 0 };
 }
 
 /** Pastvina `j` trasy – tam a zpět (po poslední zase zpět k první), i pro záporné `j`. */
@@ -158,10 +175,15 @@ export function routeAt(route: Herd['route'], j: number): { x: number; z: number
   return route[m < n ? m : period - m]!;
 }
 
+/** Jak dlouho (s) je stádo na jedné pastvině i s přesunem k ní. */
+export function herdPeriodS(herd: Pick<Herd, 'kind' | 'seed'>): number {
+  const stay = HERD_STAY_S[herd.kind];
+  return stay.from + (stay.to - stay.from) * hash01(herd.seed, 5, 87);
+}
+
 /** Pořadí pastviny trasy, na které stádo v daném čase je (nebo ke které jde). */
 export function herdRouteIndex(herd: Herd, clock: LivestockClock): number {
-  const position = clock.gameDay * HERD_MOVES_PER_DAY[herd.kind] + herd.phase;
-  return Math.floor(position) + herd.routeOffset;
+  return Math.floor(clock.seconds / herdPeriodS(herd) + herd.phase) + herd.routeOffset;
 }
 
 /**
@@ -193,22 +215,26 @@ export function keepRouteSpot(previous: Herd, next: Herd, clock: LivestockClock)
 }
 
 /**
- * Kde je stádo: herní den určí, na které pastvině trasy má být; na začátku každého období
- * k ní dojde z předchozí (rovnoměrně, s rozejitím a zastavením).
+ * Kde je stádo: čas určí, na které pastvině trasy má být (každá na pár minut); na začátku
+ * období k ní dojde z předchozí krokem (rovnoměrně, s rozejitím a zastavením). Přesun trvá
+ * vždy stejně dlouho, takže celkovou dobu stěhování (`pausedS`) jde spočítat bez historie.
  */
 export function herdState(herd: Herd, clock: LivestockClock, out: HerdState): HerdState {
-  const perDay = HERD_MOVES_PER_DAY[herd.kind];
-  const position = clock.gameDay * perDay + herd.phase;
+  const periodS = herdPeriodS(herd);
+  const position = clock.seconds / periodS + herd.phase;
   const j = Math.floor(position) + herd.routeOffset;
-  const periodS = clock.daySeconds / perDay;
   const elapsed = (position - Math.floor(position)) * periodS;
   const from = routeAt(herd.route, j - 1);
   const to = routeAt(herd.route, j);
   const dx = to.x - from.x;
   const dz = to.z - from.z;
   const distance = Math.hypot(dx, dz);
-  const travelS = Math.min(distance / HERD_SPEED_MPS[herd.kind], periodS * HERD_MAX_TRAVEL);
+  // Sousední pastviny trasy jsou vždy různé – jen stádo s jedinou pastvinou se nestěhuje.
+  const travelS = herd.route.length > 1 ? Math.min(HERD_TRAVEL_S[herd.kind], periodS / 2) : 0;
   const u = travelS > 0 ? clamp01(elapsed / travelS) : 1;
+  // Přesuny všech dřívějších období a dosavadní část současného (spojité – na konci období
+  // je přesun dávno hotový, další začíná od nuly).
+  out.pausedS = Math.floor(position) * travelS + Math.min(elapsed, travelS);
   out.x = from.x + dx * u;
   out.z = from.z + dz * u;
   out.travelled = u * distance;
@@ -253,12 +279,13 @@ export function herdAnimalPose(
     p.z = A.z + (B.z - A.z) * u;
     return p;
   };
-  wander(animal.species, animal.seed, animal.scale, clock.seconds, path, out);
-  // Při stěhování jde celé stádo v hloučku za vedoucím směrem.
+  // Vlastní čas zvířete stojí, dokud se stádo stěhuje – chůze se nesčítá s přesunem.
+  wander(animal.species, animal.seed, animal.scale, clock.seconds - state.pausedS, path, out);
+  // Při stěhování jde celé stádo v hloučku jedním směrem (cestu volnou v šířce stáda hlídá
+  // livestock-placement.ts).
   const m = state.moving;
-  const gather = 1 - HERD_GATHER * m;
-  out.x = state.x + out.x * gather;
-  out.z = state.z + out.z * gather;
+  out.x += state.x;
+  out.z += state.z;
   if (m > 0) {
     const fx = out.forwardX * (1 - m) + state.headingX * m;
     const fz = out.forwardZ * (1 - m) + state.headingZ * m;

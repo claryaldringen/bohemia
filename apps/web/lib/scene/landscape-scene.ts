@@ -287,7 +287,6 @@ export class LandscapeScene {
       baseUrl: '/models/fauna/',
       onLoaded: () => this.renderWhenReady(),
     });
-    if (this.worldClock) this.livestock.setWorldClock(this.worldClock);
     // Ozdobná zvířata podle 0 A.D.: hejna ryb v tůních, kroužící vrány a káně.
     const fauna = {
       fish: fishSchools(surface),
@@ -469,7 +468,6 @@ export class LandscapeScene {
    */
   setWorldClock(world: WorldClock): void {
     this.village?.setWorldClock(world);
-    this.livestock?.setWorldClock(world);
     this.worldClock = world;
     this.updateSeason(true);
   }
@@ -761,7 +759,7 @@ export class LandscapeScene {
       if (this.fauna?.animate(now / 1000, camera.camera)) animated = true;
       // dým z obydlí – rozvrh ohně podle herního dne, proto skutečný čas
       if (this.village?.animateSmoke(Date.now(), camera.camera)) animated = true;
-      // domácí zvířata – stáda se stěhují podle herního dne, proto skutečný čas
+      // domácí zvířata – skutečný čas (epoch ms), ne herní: stejný okamžik = stejná póza
       if (this.livestock?.animate(Date.now(), camera.camera)) animated = true;
       if (animated) {
         this.lastWaterFrame = now;
