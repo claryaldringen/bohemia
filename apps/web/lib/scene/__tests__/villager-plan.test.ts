@@ -11,6 +11,8 @@ import {
   crewSplit,
   elderCount,
   figureCounts,
+  figureSexes,
+  womenChance,
   shareCounts,
   planVillagers,
   walkRoute,
@@ -989,6 +991,41 @@ describe('řemeslníci – práce v dílně (crafts.md)', () => {
         );
       }
     }
+  });
+});
+
+// Postavy podle skutečného pohlaví lidí vsi (kinship.md – Co hráč vidí).
+describe('pohlaví postav podle vsi', () => {
+  it('podíl činnosti se posune podle podílu žen ve vsi – půl na půl beze změny', () => {
+    expect(womenChance(0.7, 0.5)).toBeCloseTo(0.7, 12);
+    expect(womenChance(0.7, null)).toBe(0.7);
+    expect(womenChance(0.7, 0)).toBe(0);
+    expect(womenChance(0.3, 1)).toBe(1);
+    expect(womenChance(0.5, 0.25)).toBeCloseTo(0.25, 12);
+    expect(womenChance(0, 0.9)).toBe(0); // orba – jen muži
+  });
+
+  it('podíly ze souhrnu vsi: ženy mezi muži a ženami, starší, dívky a vdané', () => {
+    expect(
+      figureSexes({
+        children: 3,
+        adults: 4,
+        elders: 2,
+        men: 3,
+        women: 1,
+        boys: 1,
+        girls: 2,
+        elderMen: 0,
+        elderWomen: 2,
+        couples: 1,
+      }),
+    ).toEqual({ women: 0.25, elderWomen: 1, girls: 2 / 3, married: 1 / 3 });
+    expect(figureSexes({ children: 1, adults: 2, elders: 0 })).toEqual({
+      women: null,
+      elderWomen: null,
+      girls: null,
+      married: null,
+    });
   });
 });
 

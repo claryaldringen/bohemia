@@ -45,6 +45,7 @@ import {
   type LivestockSummary,
   type ChronicleEvent,
   type LandTaker,
+  type FamilyCounts,
   type ConstructionKind,
   type ConstructionSummary,
   type Craft,
@@ -306,6 +307,8 @@ export interface VillageView {
     /** Řemeslo dílny (crafts.md); obyčejné obydlí null. */
     craft: Craft | null;
     occupants: number;
+    /** Muži, ženy, děti, starší a manželské páry (kinship.md – panel obydlí). */
+    family: FamilyCounts;
     capacity: number;
     full: boolean;
     overcrowded: boolean;
@@ -851,7 +854,11 @@ export type SceneLaborShare = LaborShare & { parts?: readonly number[] };
 export interface SceneLabor {
   day: number;
   month: number;
-  people: { children: number; adults: number; elders: number };
+  /**
+   * Lidé vsi podle věku a – když jsou známí – podle pohlaví (kinship.md): postavy ve scéně jsou
+   * muži a ženy v poměru, jaký ves má (`villager-plan.ts`); bez údaje půl na půl.
+   */
+  people: { children: number; adults: number; elders: number } & Partial<FamilyCounts>;
   shares: SceneLaborShare[];
 }
 
@@ -958,11 +965,15 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
     case 'village-extinct':
       return `Zemřel poslední obyvatel – ves ${villageName} vymřela.`;
     case 'household-founded':
-      return 'Dva mladí dospělí založili v novém obydlí vlastní domácnost.';
+      return 'V obydlí založila domácnost nová rodina.';
     case 'household-merged':
-      return 'Zbytek domácnosti se přestěhoval k sousedům.';
+      return 'Zbytek domácnosti se přestěhoval k příbuzným nebo sousedům.';
     case 'marriage':
-      return 'Svatba – jeden ze snoubenců se přestěhoval do domu druhého.';
+      return 'Svatba – nevěsta se přestěhovala k ženichovi.';
+    case 'bride-from-outside':
+      return 'Muž si přivedl nevěstu ze sousední vsi.';
+    case 'married-away':
+      return 'Dcera se vdala do sousední vsi.';
     case 'construction-finished':
       return finishedText(event.constructionKind, event.craft);
     case 'rebuild-decided':
@@ -1121,7 +1132,7 @@ function sceneVillage(
     squares: o.squares.map((s) => sceneOrchardSquare(landscape, s, day, state.orchardWork ?? null)),
   }));
   const reserved = [...reservedTrees(state)].sort((a, b) => a - b);
-  const labor = sceneLabor(state, summary.people);
+  const labor = sceneLabor(state, { ...summary.people, ...summary.family });
   const sacred = sceneSacred(state, landscape, day, summary);
   const obstacles = obstacleChangesAt(state, day);
   const roads = sceneRoads(state, summary.constructions);

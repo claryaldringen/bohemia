@@ -70,15 +70,25 @@ async function foundedVillages(): Promise<InMemoryVillages> {
 
 /**
  * Zemnice zakladatelů dostavěná a domácnost v ní plná dospělých (6 lidí, z toho 6 dospělých) –
- * může se z ní oddělit mladý pár. Na hromadě leží 40 klád (ruční krajina testů nemá stromy).
+ * může se z ní oddělit rodina nepříbuzného manželského páru (kinship.md – Domácnosti). Na hromadě
+ * leží 40 klád (ruční krajina testů nemá stromy).
  */
 function makeFullHousehold(state: VillageState): void {
   Object.assign(state, withBuiltFirstDwelling(state));
   const day = state.lastDay;
   state.people.forEach((p) => (p.bornDay = Math.min(p.bornDay, day - Math.ceil(16 * YEAR))));
-  for (const [i, age] of [20, 22].entries()) {
-    state.people.push({ id: 900 + i, bornDay: day - Math.ceil(age * YEAR), dwellingId: 1 });
+  // nepříbuzný manželský pár (kinship.md) – rodina, která se může oddělit; děti zakladatelů jsou
+  // oba chlapci, ať se mezi sebou nevezmou
+  for (const [i, age] of [22, 20].entries()) {
+    state.people.push({
+      id: 900 + i,
+      bornDay: day - Math.ceil(age * YEAR),
+      dwellingId: 1,
+      sex: i === 0 ? 'male' : 'female',
+      spouseId: i === 0 ? 901 : 900,
+    });
   }
+  for (const p of state.people) if (p.id !== 901 && p.spouseId === undefined) p.sex = 'male';
   state.woodLogs = 40;
 }
 

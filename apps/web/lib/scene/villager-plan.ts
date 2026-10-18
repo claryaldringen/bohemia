@@ -13,6 +13,7 @@ import type {
   LaborTarget,
   SceneFieldPart,
   SceneLaborShare,
+  SceneLabor,
   SceneVillage,
 } from '../village-view';
 import { TREE_CLEARANCE_M, buildingClearings, insideClearings } from './building-clearings';
@@ -257,6 +258,8 @@ interface Context {
   ground: VillagerGround;
   seed: number;
   day: number;
+  /** Podíly žen ve vsi – postavy podle skutečného pohlaví lidí (kinship.md). */
+  sexes: FigureSexes;
   center: Point;
   houses: House[];
   /** Obydlí, kde se bydlí (bez nich staveniště zakladatelů). */
@@ -279,7 +282,14 @@ export function planVillagers(
 ): PlannedVillager[] {
   const labor = village.labor;
   if (!labor || village.dwellings.length === 0) return [];
-  const ctx = context(village, ground, options.seed, labor.day, options.paths ?? null);
+  const ctx = context(
+    village,
+    ground,
+    options.seed,
+    labor.day,
+    options.paths ?? null,
+    figureSexes(labor.people),
+  );
   const counts = shareCounts(labor.shares, labor.month, options.maxWorkers ?? MAX_WORKERS);
   const people: PlannedVillager[] = [];
   labor.shares.forEach((share, s) => {
@@ -288,13 +298,13 @@ export function planVillagers(
     const place = placer(ctx, share, count);
     for (let i = 0; i < count; i++) {
       const who = identity(ctx.seed, `${share.activity}:${targetKey(share.target)}:${i}`, {
-        women: WOMEN[share.activity],
+        women: womenChance(WOMEN[share.activity], ctx.sexes.women),
         child: false,
       });
       // u stavby musí někdo stát, i když zvláštní místo (strom, řada, plot) nevyšlo
       const pose =
         place(i, who) ?? (isConstructionShare(share) ? builderNearby(ctx, share, i, who) : null);
-      if (pose) people.push(villager(who, pose, adultHair(who)));
+      if (pose) people.push(villager(who, pose, adultHair(who, ctx.sexes.married)));
     }
   });
   const winter = WINTER_MONTHS.includes(labor.month);
@@ -468,6 +478,7 @@ function context(
   seed: number,
   day: number,
   paths: VillagerPaths | null,
+  sexes: FigureSexes = figureSexes(null),
 ): Context {
   const dwellings: House[] = village.dwellings.map((d) => ({
     id: d.id,
@@ -540,7 +551,7 @@ function context(
     z: settled.reduce((s, h) => s + h.position.z, 0) / settled.length,
   };
   const graves = (village.cemeteries ?? []).flatMap((c) => c.squares);
-  return { village, ground, seed, day, center, houses, homes: settled, graves, paths };
+  return { village, ground, seed, day, sexes, center, houses, homes: settled, graves, paths };
 }
 
 /**
@@ -660,9 +671,55 @@ function clothOf(seed: number): VillagerLook['cloth'] {
   return [last[0] * shade, last[1] * shade, last[2] * shade];
 }
 
-/** Vdané ženy nosí šátek – většinou lněný, některé barvený mořenou. */
-function adultHair(who: Identity): HairLook {
-  if (who.kind !== 'woman' || hash01(who.seed, 6, 91) >= MARRIED) return 'natural';
+/**
+ * Podíly žen ve vsi pro postavy (kinship.md – postavy podle skutečného pohlaví): ženy mezi muži
+ * a ženami 14–44, starší ženy mezi staršími, dívky mezi dětmi a vdané mezi ženami. Bez údajů
+ * (ves bez pohlaví, staré testy) null – platí výchozí podíly činností.
+ */
+export interface FigureSexes {
+  women: number | null;
+  elderWomen: number | null;
+  girls: number | null;
+  married: number | null;
+}
+
+/** Podíl `part` z `part + other`, nebo null, když nikdo není. */
+function shareOf(part: number | undefined, other: number | undefined): number | null {
+  if (part === undefined || other === undefined || part + other === 0) return null;
+  return part / (part + other);
+}
+
+export function figureSexes(people: SceneLabor['people'] | null): FigureSexes {
+  if (!people) return { women: null, elderWomen: null, girls: null, married: null };
+  const women = (people.women ?? 0) + (people.elderWomen ?? 0);
+  return {
+    women: shareOf(people.women, people.men),
+    elderWomen: shareOf(people.elderWomen, people.elderMen),
+    girls: shareOf(people.girls, people.boys),
+    married:
+      people.couples === undefined || women === 0 ? null : Math.min(1, people.couples / women),
+  };
+}
+
+/**
+ * Pravděpodobnost, že postava činnosti je žena: výchozí podíl činnosti `base` (počítá s vsí půl
+ * na půl) posunutý podle podílu žen ve vsi `share` – poměr šancí se vynásobí. Ves bez žen má jen
+ * muže, ves bez mužů jen ženy; bez údaje `base`.
+ */
+export function womenChance(base: number, share: number | null): number {
+  if (share === null) return base;
+  if (share <= 0 || base <= 0) return 0;
+  if (share >= 1 || base >= 1) return 1;
+  const odds = (base / (1 - base)) * (share / (1 - share));
+  return odds / (1 + odds);
+}
+
+/**
+ * Vdané ženy nosí šátek – většinou lněný, některé barvený mořenou. Podíl vdaných podle vsi
+ * (`married`), bez údaje MARRIED.
+ */
+function adultHair(who: Identity, married: number | null = null): HairLook {
+  if (who.kind !== 'woman' || hash01(who.seed, 6, 91) >= (married ?? MARRIED)) return 'natural';
   return hash01(who.seed, 7, 91) < 0.75 ? 'linen' : 'madder';
 }
 
@@ -1752,7 +1809,10 @@ function elders(ctx: Context, count: number): PlannedVillager[] {
   const out: PlannedVillager[] = [];
   for (let i = 0; i < count && homes.length > 0; i++) {
     const home = homes[i % homes.length]!;
-    const who = identity(ctx.seed, `elder:${home.id}:${i}`, { women: 0.5, child: false });
+    const who = identity(ctx.seed, `elder:${home.id}:${i}`, {
+      women: womenChance(0.5, ctx.sexes.elderWomen),
+      child: false,
+    });
     const side = i % 2 === 0 ? 1 : -1;
     const edge = side > 0 ? home.box.maxX + gap(0.7) : home.box.minX - gap(0.7);
     const p = worldPoint(home.position, edge, home.box.minZ * 0.3);
@@ -1774,7 +1834,10 @@ function elders(ctx: Context, count: number): PlannedVillager[] {
 function herders(ctx: Context, count: number): PlannedVillager[] {
   const out: PlannedVillager[] = [];
   for (let k = 0; k < count; k++) {
-    const who = identity(ctx.seed, `herder:${k}`, { women: 0.4, child: true });
+    const who = identity(ctx.seed, `herder:${k}`, {
+      women: womenChance(0.4, ctx.sexes.girls),
+      child: true,
+    });
     const speed = walkSpeed(who.kind, 'walk', who.scale) * 0.8;
     const home = nearestFree(ctx, ctx.center.x + 12 + k * 2, ctx.center.z + 12, 6) ?? ctx.center;
     out.push(villager(who, herder(k, home, who.seed, who.phase, speed, 0.8), 'natural'));

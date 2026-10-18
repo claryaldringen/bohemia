@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { cancelRelocation, foundVillage, startNewDwelling, startRelocation } from '../actions';
 import { buildAffordability } from '../costs';
-import { availableSettlers } from '../dwellings';
+import { availableSettlers } from '../households';
 import { occupants } from '../people';
 import {
   relocatingHouseholds,
