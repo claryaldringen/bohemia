@@ -1,6 +1,17 @@
 import { describe, it, expect } from 'vitest';
-import { OFFICIAL_WORLD, type GameDate, type WorldClock } from '@bohemia/game';
-import { formatWorldState } from '../game-date';
+import {
+  OFFICIAL_WORLD,
+  TOTAL_GAME_DAYS,
+  getWorldState,
+  type GameDate,
+  type WorldClock,
+} from '@bohemia/game';
+import {
+  DATE_REFRESH_MS,
+  dateRefreshDelay,
+  formatWorldState,
+  nextDateChangeMs,
+} from '../game-date';
 
 const date = (overrides: Partial<GameDate>): GameDate => ({
   year: 1024,
@@ -57,5 +68,31 @@ describe('formatWorldState', () => {
 
   it('po konci světa oznámí konec', () => {
     expect(formatWorldState({ status: 'ended' }, OFFICIAL_WORLD)).toBe('Rok 1500 – svět skončil');
+  });
+});
+
+describe('obnova data v liště – na začátku dalšího herního dne', () => {
+  // ostrý svět: rok = 365 skutečných dní na 1000 herních let – den ≈ 86 s
+  const world: WorldClock = OFFICIAL_WORLD;
+  const dayMs = (world.endMs - world.startMs) / TOTAL_GAME_DAYS;
+
+  it('běžící svět: další den začne do ≈ 86 s a v tu chvíli je v liště nové datum', () => {
+    const now = world.startMs + 1000 * dayMs + 20_000;
+    const next = nextDateChangeMs(now, world)!;
+    expect(next - now).toBeGreaterThan(0);
+    expect(next - now).toBeLessThanOrEqual(Math.ceil(dayMs));
+    expect(formatWorldState(getWorldState(next, world), world)).not.toBe(
+      formatWorldState(getWorldState(next - 1, world), world),
+    );
+    expect(dateRefreshDelay(now, world)).toBe(next - now + 1);
+  });
+
+  it('zrychlený svět nejvýš jednou za sekundu, svět před startem nejdéle po 5 minutách, po konci nic', () => {
+    const fast: WorldClock = { startMs: 0, endMs: TOTAL_GAME_DAYS * 10 };
+    expect(dateRefreshDelay(5_000, fast)).toBe(DATE_REFRESH_MS.min);
+    expect(nextDateChangeMs(world.startMs - 1e9, world)).toBe(world.startMs);
+    expect(dateRefreshDelay(world.startMs - 1e9, world)).toBe(DATE_REFRESH_MS.max);
+    expect(nextDateChangeMs(world.endMs, world)).toBeNull();
+    expect(dateRefreshDelay(world.endMs, world)).toBeNull();
   });
 });

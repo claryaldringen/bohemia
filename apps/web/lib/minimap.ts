@@ -1,12 +1,13 @@
 import {
   buildRelief,
+  DWELLING_FOOTPRINT_M,
   SACRED_BUILDINGS,
   SURFACE_CODES,
   type FieldSurface,
   type Landscape,
   type PartStage,
 } from '@bohemia/game';
-import type { SceneSacred } from './village-view';
+import type { SceneSacred, SceneVillage } from './village-view';
 import { CLEARED_SHARE, type ClearedForest } from './scene/cleared-forest';
 import { SUN_DIRECTION } from './scene/constants';
 import { sampleTiles } from './scene/tile-at';
@@ -184,4 +185,137 @@ export function minimapImage(
     }
   }
   return data;
+}
+
+/** Co minimapa kreslí na plátno (podmnožina CanvasRenderingContext2D – testy). */
+export type MinimapContext = Pick<
+  CanvasRenderingContext2D,
+  | 'fillStyle'
+  | 'strokeStyle'
+  | 'lineWidth'
+  | 'fillRect'
+  | 'strokeRect'
+  | 'beginPath'
+  | 'arc'
+  | 'fill'
+  | 'moveTo'
+  | 'lineTo'
+  | 'closePath'
+  | 'stroke'
+>;
+
+/**
+ * Ves na minimapě (strana `sizePx`): les vsi, pole po čtvercích podle stadia, hřbitovy, sady,
+ * posvátná místa a obydlí. Kreslí se jednou do vrstvy pod záběrem kamery – při pohybu kamery se
+ * nepřekresluje (Minimap.tsx), jen při změně vsi.
+ */
+export function drawMinimapVillage(
+  context: MinimapContext,
+  landscape: Landscape,
+  village: Pick<
+    SceneVillage,
+    'woods' | 'fields' | 'cemeteries' | 'orchards' | 'sacred' | 'dwellings'
+  >,
+  sizePx: number,
+): void {
+  const at = (x: number, z: number): { x: number; y: number } =>
+    worldToMinimap(landscape, x, z, sizePx);
+  const cellPx = (landscape.cellSizeM / (landscape.size * landscape.cellSizeM)) * sizePx;
+
+  // les vsi – čtverce polí zarostlé lesem (fields.md – Les vsi)
+  {
+    const [r, g, b] = WOOD_COLOR;
+    context.fillStyle = `rgb(${r} ${g} ${b})`;
+    for (const wood of village.woods ?? []) {
+      const p = at(wood.x, wood.z);
+      context.fillRect(p.x - cellPx / 2, p.y - cellPx / 2, cellPx + 0.3, cellPx + 0.3);
+    }
+  }
+  // pole po čtvercích podle stadia dílů
+  for (const field of village.fields) {
+    for (const part of field.parts) {
+      const [r, g, b] = PART_COLORS[part.stage];
+      context.fillStyle = `rgb(${r} ${g} ${b})`;
+      const p = at(part.x, part.z);
+      context.fillRect(p.x - cellPx / 2, p.y - cellPx / 2, cellPx + 0.3, cellPx + 0.3);
+    }
+  }
+  // hřbitovy po čtvercích (zakládané průsvitné)
+  for (const cemetery of village.cemeteries ?? []) {
+    const [r, g, b] = CEMETERY_COLOR;
+    context.fillStyle = `rgb(${r} ${g} ${b} / ${cemetery.built ? 1 : 0.55})`;
+    for (const square of cemetery.squares) {
+      const p = at(square.x, square.z);
+      context.fillRect(p.x - cellPx / 2, p.y - cellPx / 2, cellPx + 0.3, cellPx + 0.3);
+    }
+  }
+  // sady po čtvercích (čtverce, které se ještě sázejí, průsvitné)
+  for (const orchard of village.orchards ?? []) {
+    const [r, g, b] = ORCHARD_COLOR;
+    for (const square of orchard.squares) {
+      context.fillStyle = `rgb(${r} ${g} ${b} / ${square.planting >= 1 ? 1 : 0.55})`;
+      const p = at(square.x, square.z);
+      context.fillRect(p.x - cellPx / 2, p.y - cellPx / 2, cellPx + 0.3, cellPx + 0.3);
+    }
+  }
+  // posvátná místa – okrové: háje průsvitně po čtvercích, duby tečkou, modly a svatyně půdorysem
+  {
+    const [r, g, b] = SACRED_COLOR;
+    for (const mark of sacredMinimapMarks(landscape, village.sacred, sizePx)) {
+      if (mark.kind === 'square') {
+        context.fillStyle = `rgb(${r} ${g} ${b} / 0.45)`;
+        const half = mark.size / 2;
+        context.fillRect(mark.x - half, mark.y - half, mark.size + 0.3, mark.size + 0.3);
+      } else if (mark.kind === 'dot') {
+        context.fillStyle = `rgb(${r} ${g} ${b})`;
+        context.beginPath();
+        context.arc(mark.x, mark.y, mark.radius, 0, Math.PI * 2);
+        context.fill();
+      } else {
+        context.fillStyle = mark.built ? `rgb(${r} ${g} ${b})` : `rgb(${r} ${g} ${b} / 0.55)`;
+        context.strokeStyle = '#2a1d10';
+        context.lineWidth = 1;
+        const half = mark.size / 2;
+        context.fillRect(mark.x - half, mark.y - half, mark.size, mark.size);
+        context.strokeRect(mark.x - half, mark.y - half, mark.size, mark.size);
+      }
+    }
+  }
+  // obydlí – světlé čtverečky (rozestavěná průsvitná), jako budovy hráče v 0 A.D.
+  for (const dwelling of village.dwellings) {
+    const p = at(dwelling.position.x, dwelling.position.z);
+    const side = Math.max(
+      3.5,
+      (DWELLING_FOOTPRINT_M[dwelling.type].width / landscape.cellSizeM) * cellPx * 1.6,
+    );
+    context.fillStyle = dwelling.built ? '#f6e3b0' : 'rgb(246 227 176 / 0.55)';
+    context.strokeStyle = '#2a1d10';
+    context.lineWidth = 1;
+    context.fillRect(p.x - side / 2, p.y - side / 2, side, side);
+    context.strokeRect(p.x - side / 2, p.y - side / 2, side, side);
+  }
+}
+
+/** Obrys záběru kamery na minimapě (4 rohy na zemi); bez záběru nic. */
+export function drawMinimapView(
+  context: MinimapContext,
+  landscape: Landscape,
+  view: { corners: readonly (readonly [number, number])[] } | null,
+  sizePx: number,
+): void {
+  const at = (x: number, z: number): { x: number; y: number } =>
+    worldToMinimap(landscape, x, z, sizePx);
+  // záběr kamery
+  if (view) {
+    context.beginPath();
+    view.corners.forEach(([x, z], i) => {
+      const p = at(x, z);
+      if (i === 0) context.moveTo(p.x, p.y);
+      else context.lineTo(p.x, p.y);
+    });
+    context.closePath();
+    context.strokeStyle = 'rgb(255 255 255 / 0.9)';
+    context.lineWidth = 1.25;
+    context.stroke();
+  }
 }

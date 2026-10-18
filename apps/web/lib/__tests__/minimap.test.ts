@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { NO_OBSTACLE_CHANGES, packObstacles, type Landscape } from '@bohemia/game';
-import { minimapImage, minimapToWorld, sacredMinimapMarks, worldToMinimap } from '../minimap';
+import {
+  drawMinimapView,
+  drawMinimapVillage,
+  minimapImage,
+  minimapToWorld,
+  sacredMinimapMarks,
+  worldToMinimap,
+  type MinimapContext,
+} from '../minimap';
+import type { SceneVillage } from '../village-view';
 import { clearedForest } from '../scene/cleared-forest';
 
 const SIZE = 8;
@@ -98,5 +107,79 @@ describe('sacredMinimapMarks', () => {
     expect(marks[2]).toMatchObject({ size: 4, built: true });
     expect(marks[3]).toMatchObject({ size: 30, built: false });
     expect(sacredMinimapMarks(landscape, undefined, 120)).toEqual([]);
+  });
+});
+
+/** Plátno, které si zapisuje volání (fillRect, stroke…). */
+function recorder(): MinimapContext & { calls: string[] } {
+  const calls: string[] = [];
+  const record =
+    (name: string) =>
+    (...args: unknown[]): void => {
+      calls.push(
+        `${name}(${args.map((a) => (typeof a === 'number' ? a.toFixed(1) : a)).join(',')})`,
+      );
+    };
+  return {
+    calls,
+    fillStyle: '',
+    strokeStyle: '',
+    lineWidth: 1,
+    fillRect: record('fillRect'),
+    strokeRect: record('strokeRect'),
+    beginPath: record('beginPath'),
+    arc: record('arc'),
+    fill: record('fill'),
+    moveTo: record('moveTo'),
+    lineTo: record('lineTo'),
+    closePath: record('closePath'),
+    stroke: record('stroke'),
+  };
+}
+
+describe('kreslení minimapy – ves ve vrstvě, záběr zvlášť', () => {
+  const part = (x: number, y: number): SceneVillage['fields'][number]['parts'][number] => ({
+    id: x * 10 + y,
+    cell: { x, y },
+    x: x * 15 - 52.5,
+    z: y * 15 - 52.5,
+    size: 15,
+    stage: 'sown',
+  });
+  const village: SceneVillage = {
+    dwellings: [
+      { id: 1, type: 'zemnice', position: { x: 0, z: 0, rotation: 0 }, built: true, progress: 1 },
+    ],
+    fields: [{ id: 1, parts: [part(1, 1), part(2, 1), part(3, 1)] }],
+  };
+
+  it('vrstva vsi: čtverec na díl pole a obydlí s obrysem', () => {
+    const context = recorder();
+    drawMinimapVillage(context, landscape, village, 196);
+    expect(context.calls.filter((c) => c.startsWith('fillRect'))).toHaveLength(3 + 1);
+    expect(context.calls.filter((c) => c.startsWith('strokeRect'))).toHaveLength(1);
+  });
+
+  it('záběr kamery je jen obrys – pole ani obydlí se při pohybu kamery nepřekreslují', () => {
+    const context = recorder();
+    drawMinimapView(
+      context,
+      landscape,
+      {
+        corners: [
+          [-10, 10],
+          [10, 10],
+          [10, -10],
+          [-10, -10],
+        ],
+      },
+      196,
+    );
+    expect(context.calls.filter((c) => c.startsWith('fillRect'))).toHaveLength(0);
+    expect(context.calls.filter((c) => c.startsWith('lineTo'))).toHaveLength(3);
+    expect(context.calls.at(-1)).toBe('stroke()');
+    const empty = recorder();
+    drawMinimapView(empty, landscape, null, 196);
+    expect(empty.calls).toEqual([]);
   });
 });

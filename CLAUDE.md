@@ -853,14 +853,16 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   sýr (ikona `cheese`, v popisku mléko za den) když je mléko nebo sýr, ovoce (jablka) jen když
   jsou nebo je sad, seno s ohradou, klády, uhlí / nástroje / keramika jen ves s řemesly, volná
   práce, nasycení (barva ikony podle energie – hlad, tooltip nasycení s energií, bílkovinami
-  a podíly obilí / luštěniny / maso / mléko a sýr / vejce / ovoce), štěstí, datum; zvuk
-  a tlačítko nabídky),
+  a podíly obilí / luštěniny / maso / mléko a sýr / vejce / ovoce), štěstí, datum – obnoví se
+  na začátku dalšího herního dne, ne každou sekundu (`dateRefreshDelay` v `lib/game-date.ts`);
+  zvuk a tlačítko nabídky),
   `GameMenu` (nabídka hry jako v 0 A.D. pod lištou vpravo, F10 – smí mít slova: Začít znovu,
   Odhlásit s e-mailem v popisku, Zpět do hry; Začít znovu se živou vsí jen po potvrzení v panelu,
   bez dialogů prohlížeče, při zakládání vsi zamčené; otevření zruší umisťování i výběr, klávesy
   hry zachytí na `window` ve fázi capture, Esc zavře – z potvrzení vrátí –, klik mimo panel zavře
   a do krajiny nedojde; po konci hry se neotevře; logika kláves v `lib/game-menu.ts`), `Minimap` (vlevo dole, `lib/minimap.ts`,
-  klik / tažení přesune pohled), `SelectionPanel` (dole uprostřed, jen při výběru,
+  klik / tažení přesune pohled; krajina a ves se kreslí jednou do vrstvy v rozlišení plátna
+  – `drawMinimapVillage` – a při pohybu kamery se přes ni kreslí jen záběr – `drawMinimapView`), `SelectionPanel` (dole uprostřed, jen při výběru,
   `lib/selection-details.ts`; u obydlí a víc vybraných obydlí – počet domácností a lidí –
   tlačítka Přestěhovat po typu nového domu a Odejít, zatím zašedlé, a průběh stěhování se
   Zrušit – `hud/RelocationControls.tsx`; u víc domácností se nové domy umisťují postupně, po
@@ -941,7 +943,12 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   starší úhor je louka na seno – od 18. 10. 2026 posílá jádro i vzhled úhoru ve fázi louky:
   `pasture`, seč `meadow` → `mown` → `haystacks`). Práce mění díl, až když k němu dojde: rozpracovaný díl se dělí
   napříč řádky (po 8 pruzích – `WORK_STEPS`) na hotovou a nehotovou část, práce jde od strany
-  blíž vsi (`workFrame`). Kreslí `field-renderer.ts` (`FieldRenderer` ve `VillageRenderer`):
+  blíž vsi (`workFrame`). Kreslí `field-renderer.ts` (`FieldRenderer` ve `VillageRenderer`),
+  **po blocích 8 × 8 dílů** (`field-blocks.ts`): obtisky a rostliny bloku se přepočítají, jen
+  když se změnil vzhled jeho dílů (postup práce, žeň po čtvercích) nebo okraj, směr řádků či
+  střed pole; hotové bloky se jen spojí (rostliny v pořadí dílů – výsledek jako celé pole
+  najednou, hlídá `field-blocks.test.ts`). `fieldPartViews` má mezipaměť pro stav vsi (díly,
+  obydlí, den). Kreslí se:
   obtisky z textur 0 A.D. (`public/textures/fields/` – zem s měkkými brázdami podél řádků,
   osetá zem, strniště, porost shora; tráva a kvetoucí louka z terénu) s nepravidelným měkkým
   okrajem (`raggedCoverage`) bez meze (Martin) – kde pole sousedí s jiným polem, okraj se

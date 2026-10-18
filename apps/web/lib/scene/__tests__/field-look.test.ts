@@ -191,3 +191,17 @@ describe('na kterých dílech se pracuje', () => {
     expect(grazeablePart({ stage: 'young-forest' }, aug)).toBe(false);
   });
 });
+
+describe('fieldPartViews – mezipaměť pro jeden stav vsi', () => {
+  it('stejné díly, obydlí a den vrátí tentýž výsledek; jiný den nebo jiné díly ho přepočítají', () => {
+    const parts = [part(3, 1), part(4, 1), part(5, 2, 'meadow')];
+    const first = fieldPartViews({ parts }, { dayOfYear: 200, village: VILLAGE });
+    expect(fieldPartViews({ parts }, { dayOfYear: 200, village: VILLAGE })).toBe(first);
+    const otherDay = fieldPartViews({ parts }, { dayOfYear: 201, village: VILLAGE });
+    expect(otherDay).not.toBe(first);
+    // nové pole dílů (další stav vsi) se stejným obsahem – stejný vzhled, spočítaný znovu
+    const again = fieldPartViews({ parts: [...parts] }, { dayOfYear: 201, village: VILLAGE });
+    expect(again).not.toBe(otherDay);
+    expect(again).toEqual(otherDay);
+  });
+});
