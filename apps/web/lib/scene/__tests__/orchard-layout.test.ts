@@ -54,6 +54,13 @@ describe('jabloně ve čtverci', () => {
     expect(orchardTreeSpots(square, [{ x: square.x, z: square.z, radius: 12 }])).toEqual([]);
   });
 
+  it('pod obydlím na čtverci sadu strom chybí – ostatní zůstanou na svém místě', () => {
+    const free = orchardTreeSpots(square);
+    const first = free[0]!;
+    const built = orchardTreeSpots(square, [], (x, z) => Math.hypot(x - first.x, z - first.z) < 1);
+    expect(built).toEqual(free.slice(1));
+  });
+
   it('vytyčení: provázek podél každé řady přes celý čtverec', () => {
     const lines = orchardRowLines([square]);
     expect(lines).toHaveLength(TREES_PER_SIDE);

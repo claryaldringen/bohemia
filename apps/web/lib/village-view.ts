@@ -547,6 +547,18 @@ function finishedText(kind: ConstructionKind, craft?: Craft): string {
   return 'Pole je založené – dá se osévat.';
 }
 
+/** Pole nebo sad ustoupil stavbě obydlí – kronika (population.md – Obydlí na poli a v sadu). */
+function landTakenText(land: 'field' | 'orchard', areaM2: number, gone: boolean): string {
+  if (land === 'field') {
+    return gone
+      ? 'Pole ustoupilo stavbě obydlí a zaniklo.'
+      : `Pole ustoupilo stavbě obydlí – zmenšilo se o ${formatInteger(areaM2)} m².`;
+  }
+  return gone
+    ? 'Sad ustoupil stavbě obydlí a zanikl.'
+    : `Sad ustoupil stavbě obydlí – zmenšil se o ${formatInteger(areaM2)} m².`;
+}
+
 /** Text události kroniky česky. */
 export function chronicleText(event: ChronicleEvent, villageName: string): string {
   switch (event.kind) {
@@ -572,6 +584,8 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       return `Sklizeň jablek: ${formatInteger(event.kg)} kg.`;
     case 'orchard-gone':
       return 'Starý sad dosloužil a zarostl loukou.';
+    case 'land-taken':
+      return landTakenText(event.land, event.areaM2, event.gone);
     case 'hunger-began':
       return 'Ve vsi začal hlad – zásoby nevystačí do sklizně.';
     case 'hunger-ended':
@@ -1126,8 +1140,9 @@ export function placementVillageFromScene(scene: SceneVillage): PlacementVillage
     cemeteries: (scene.cemeteries ?? []).map((c) => ({
       squares: c.squares.map((s) => ({ cell: s.cell })),
     })),
+    // plocha čtverce (políčko) pro varování, že sad stavbou obydlí zanikne
     orchards: (scene.orchards ?? []).map((o) => ({
-      squares: o.squares.map((s) => ({ cell: s.cell })),
+      squares: o.squares.map((s) => ({ cell: s.cell, areaM2: s.size * s.size })),
     })),
     ...(scene.obstacles ? { obstacleChanges: scene.obstacles } : {}),
     ...(scene.reservedTrees ? { reservedTrees: scene.reservedTrees } : {}),

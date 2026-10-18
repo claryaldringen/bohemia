@@ -17,6 +17,7 @@ import {
   type WorldClock,
 } from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
+import { buildingClearings } from './building-clearings';
 import { CemeteryRenderer } from './cemetery-renderer';
 import { EARTH_LAYERS, SMOKE_VENT, earthPatch, eaveTufts, type TuftModel } from './dwelling-decor';
 import {
@@ -232,7 +233,10 @@ export class VillageRenderer {
     const dwellings = this.updateDwellings(village.dwellings);
     const fields = this.fields.update(village);
     const cemeteries = this.cemeteries.update(village.cemeteries ?? [], village.dwellings);
-    const orchards = this.orchards.update(village.orchards ?? []);
+    const orchards = this.orchards.update(
+      village.orchards ?? [],
+      buildingClearings(village.dwellings),
+    );
     const plots = this.plots.update(plotViews(village.dwellings));
     const sacred = this.sacred.update(village.sacred);
     const models = this.updateModels();

@@ -14,6 +14,13 @@ import {
   type ObstacleLayer,
 } from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
+import {
+  TREE_CLEARANCE_M,
+  clearingsKey,
+  clearingsNear,
+  insideClearings,
+  type Clearing,
+} from './building-clearings';
 import { cellsBoundary, cellsBounds, cellsContain } from './field-cells';
 import { applyGammaFog } from './gamma-fog';
 import { applySeasonModel } from './season-materials';
@@ -65,6 +72,8 @@ const STAKE_AMBIENT = new Color3(0.42, 0.42, 0.4);
 export class OrchardRenderer {
   private key = '';
   private orchards: readonly SceneOrchard[] = [];
+  /** Vyklízené plochy obydlí u sadů – pod nimi jabloně nestojí. */
+  private clearings: readonly Clearing[] = [];
   /** Čára vytyčení podle sadu – přestaví se, jen když se změní jeho čtverce. */
   private readonly layouts = new Map<
     number,
@@ -97,12 +106,19 @@ export class OrchardRenderer {
     this.pegs = new StakingPegs(scene, (mesh) => context.addShadowCaster(mesh));
   }
 
-  /** Překreslí sady, když se změnily; vrátí true, když se něco změnilo. */
-  update(orchards: readonly SceneOrchard[]): boolean {
-    const key = orchardsKey(orchards);
+  /**
+   * Překreslí sady, když se změnily; vrátí true, když se něco změnilo. `clearings` = vyklízené
+   * plochy obydlí (building-clearings.ts) – stromy pod domem na čtverci sadu chybí.
+   */
+  update(orchards: readonly SceneOrchard[], clearings: readonly Clearing[] = []): boolean {
+    const squares = orchards.flatMap((o) => o.squares);
+    const near =
+      squares.length > 0 ? clearingsNear(clearings, cellsBounds(squares), TREE_CLEARANCE_M) : [];
+    const key = `${orchardsKey(orchards)}#${clearingsKey(near)}`;
     if (key === this.key) return false;
     this.key = key;
     this.orchards = orchards;
+    this.clearings = near;
     this.updateLayouts(orchards);
     this.shapes = orchards
       .filter((o) => o.squares.length > 0)
@@ -183,9 +199,10 @@ export class OrchardRenderer {
     const trees: ModelInstance[][] = Array.from({ length: APPLE_VARIANTS * 2 }, () => []);
     const stakes: ModelInstance[] = [];
     const height = this.context.groundHeight;
+    const built = insideClearings(this.clearings, TREE_CLEARANCE_M);
     for (const orchard of this.orchards) {
       for (const square of orchard.squares) {
-        const spots = orchardTreeSpots(square, this.outcropsNear(square));
+        const spots = orchardTreeSpots(square, this.outcropsNear(square), built);
         const planted = square.planting >= 1;
         const { stakes: staked, saplings } = planted
           ? { stakes: hasStake(square.growth) ? spots.length : 0, saplings: spots.length }
