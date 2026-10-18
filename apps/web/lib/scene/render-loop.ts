@@ -4,6 +4,27 @@
  * `WATER_FPS`; snímek enginu (`beginFrame` / `endFrame`) vzniká jen tehdy, když se opravdu kreslí.
  */
 
+import { WATER_FPS } from './constants';
+
+/**
+ * Nižší plynulost animací na pozadí (Martin 18. 10. 2026) – okno bez fokusu (záložka je vidět,
+ * hráč je v jiném okně), a hráč, který se dvě minuty ničeho nedotkl. Skrytá záložka nekreslí
+ * vůbec (requestAnimationFrame stojí).
+ */
+export const BACKGROUND_FPS = 10;
+export const IDLE_FPS = 20;
+export const IDLE_AFTER_MS = 2 * 60 * 1000;
+
+/**
+ * Plynulost animací (voda, zvířata, lidé, dým, obilí): bez fokusu BACKGROUND_FPS, po
+ * IDLE_AFTER_MS bez vstupu IDLE_FPS, jinak WATER_FPS – vstup nebo fokus vrátí plnou hned.
+ */
+export function animationFps(state: { focused: boolean; idleMs: number }): number {
+  if (!state.focused) return BACKGROUND_FPS;
+  if (state.idleMs >= IDLE_AFTER_MS) return IDLE_FPS;
+  return WATER_FPS;
+}
+
 /**
  * O kolik ms smí takt přijít dřív: snímky displeje sedí na interval jen se zaokrouhlením
  * (120 Hz má 8,33 ms) – bez tolerance by čtvrtý snímek o zlomek ms nestačil a 30 fps spadlo na 24.

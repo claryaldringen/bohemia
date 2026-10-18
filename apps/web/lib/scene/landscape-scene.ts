@@ -39,7 +39,7 @@ import { ScenePerf } from './scene-perf';
 import { addImpostors, type ImpostorForest } from './impostors';
 import { obstacleScenery } from './obstacle-scenery';
 import { createTerrainMesh, type TerrainMesh } from './terrain-mesh';
-import { loopStep, nextTick, tickDue } from './render-loop';
+import { animationFps, loopStep, nextTick, tickDue } from './render-loop';
 import { buildRenderSurface } from './render-surface';
 import { terrainMeshHeight } from './drape';
 import { InstanceHider } from './instance-hider';
@@ -131,6 +131,12 @@ export class LandscapeScene {
   /** WebGL ztratil kontext – do obnovení se nekreslí (jako ve smyčce Babylonu). */
   private contextLost = false;
   /**
+   * Okno má fokus a kdy hráč naposledy něco udělal (myš, klávesy, kolečko, dotyk) – na pozadí
+   * jdou animace pomaleji (`animationFps`).
+   */
+  private focused = typeof document.hasFocus === 'function' ? document.hasFocus() : true;
+  private lastInputAt = performance.now();
+  /**
    * Systémové „omezit pohyb“ – voda pak stojí a scéna se kreslí jen při změně. Hodnota se mění
    * živě (MediaQueryList). Zapínají ho i e2e testy: bezhlavý prohlížeč kreslí softwarově
    * a nepřetržité kreslení by zdrželo vstupy myši.
@@ -204,6 +210,11 @@ export class LandscapeScene {
     canvas.addEventListener('pointerleave', this.onPointerLeave);
     canvas.addEventListener('pointerdown', this.onPointerDown);
     canvas.addEventListener('pointerup', this.onPointerUp);
+    window.addEventListener('focus', this.onFocus);
+    window.addEventListener('blur', this.onBlur);
+    for (const type of INPUT_EVENTS) {
+      window.addEventListener(type, this.onInput, { capture: true, passive: true });
+    }
   }
 
   static async create(
@@ -741,6 +752,11 @@ export class LandscapeScene {
     this.canvas.removeEventListener('pointerleave', this.onPointerLeave);
     this.canvas.removeEventListener('pointerdown', this.onPointerDown);
     this.canvas.removeEventListener('pointerup', this.onPointerUp);
+    window.removeEventListener('focus', this.onFocus);
+    window.removeEventListener('blur', this.onBlur);
+    for (const type of INPUT_EVENTS) {
+      window.removeEventListener(type, this.onInput, { capture: true });
+    }
     this.ambient?.dispose();
     this.rtsCamera?.dispose();
     this.perf?.dispose();
@@ -749,6 +765,19 @@ export class LandscapeScene {
     this.scene.dispose();
     this.engine.dispose();
   }
+
+  private readonly onFocus = (): void => {
+    this.focused = true;
+    this.lastInputAt = performance.now();
+  };
+
+  private readonly onBlur = (): void => {
+    this.focused = false;
+  };
+
+  private readonly onInput = (): void => {
+    this.lastInputAt = performance.now();
+  };
 
   private readonly onPointerMove = (): void => {
     this.pointerInside = true;
@@ -930,8 +959,8 @@ export class LandscapeScene {
   /**
    * Krajina je statická – kreslí se jen při změně pohledu nebo velikosti okna. Šetří to
    * výkon i baterii (tisíce stromů) a nezahlcuje prohlížeč bez grafické karty. Animace
-   * a dokreslování po načtení (`renderBurst`) jdou v taktu WATER_FPS, ne s displejem; pohyb
-   * kamery se kreslí s displejem.
+   * a dokreslování po načtení (`renderBurst`) jdou v taktu WATER_FPS (na pozadí méně), ne
+   * s displejem; pohyb kamery se kreslí s displejem.
    */
   private frame(): void {
     const camera = this.rtsCamera;
@@ -941,13 +970,16 @@ export class LandscapeScene {
     this.lastLoopAt = now;
     this.perf?.loop(now);
     if (now >= this.seasonCheckAt) this.updateSeason(false);
-    const fps = WATER_FPS;
+    // na pozadí (okno bez fokusu, hráč dvě minuty nic nedělá) jdou animace pomaleji; při
+    // omezeném pohybu animace stojí a takt slouží jen dokreslování po načtení
+    const moving = !this.reducedMotion?.matches;
+    const fps = moving ? this.animationFps() : WATER_FPS;
     if (tickDue(now, this.lastAnimationTick, fps)) {
-      // takt se posouvá při každé kontrole – kontroly animací nejvýš WATER_FPS za sekundu
+      // takt se posouvá při každé kontrole – kontroly animací nejvýš `fps` za sekundu
       this.lastAnimationTick = nextTick(now, this.lastAnimationTick, fps);
       if (now < this.renderBurstUntil) this.needsRender = true;
       // Voda teče a zvířata se hýbou sama – výjimka z kreslení jen při změně, dokud jsou v záběru.
-      if (!this.reducedMotion?.matches && this.animate(now, camera.camera)) {
+      if (moving && this.animate(now, camera.camera)) {
         this.needsRender = true;
       }
     }
@@ -997,9 +1029,16 @@ export class LandscapeScene {
     return animated;
   }
 
-  /** Plynulost animací (snímků za sekundu) – při omezeném pohybu stojí. */
+  /**
+   * Plynulost animací (snímků za sekundu) – při omezeném pohybu stojí, na pozadí méně
+   * (render-loop.ts – `animationFps`).
+   */
   private animationFps(): number {
-    return this.reducedMotion?.matches ? 0 : WATER_FPS;
+    if (this.reducedMotion?.matches) return 0;
+    return animationFps({
+      focused: this.focused,
+      idleMs: performance.now() - this.lastInputAt,
+    });
   }
 
   /**
@@ -1116,6 +1155,9 @@ export class LandscapeScene {
     for (const listener of this.listeners) listener(tile);
   }
 }
+
+/** Vstupy hráče, po kterých jdou animace zase plně (nižší plynulost po nečinnosti). */
+const INPUT_EVENTS = ['pointermove', 'pointerdown', 'keydown', 'wheel', 'touchstart'] as const;
 
 /** Kroky přípravy scény – texty k nim ukazuje rozhraní. */
 export type SceneStep = 'terrain' | 'forest' | 'surface' | 'models' | 'shaders';

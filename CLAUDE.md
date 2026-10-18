@@ -177,7 +177,17 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   proudu (`water.ts`, rychlost proudu odvozuje osa potoka v jádru ze spádu a šířky potoka,
   kalnost a podloží `scene/stream-geometry.ts`). Zamrzlá voda neteče: `flowsInView` zná čtverce
   hladiny (`FLOW_CHUNK_M`) a od jaké zimy jsou celé zamrzlé – kreslí se, jen dokud je v záběru
-  nezamrzlá voda.
+  nezamrzlá voda. **Na pozadí nižší plynulost** (Martin 18. 10. 2026): okno bez fokusu (záložka
+  vidět) 10 fps, po 2 minutách bez vstupu hráče 20 fps, vstup nebo fokus hned zpět na 30
+  (`animationFps` v `render-loop.ts`); skrytá záložka nekreslí vůbec.
+- **Klidová smyčka** (`startLoop` v `landscape-scene.ts`, takt `render-loop.ts`): vlastní
+  `requestAnimationFrame` místo `engine.runRenderLoop` – snímek enginu (`beginFrame` /
+  `endFrame`, ve WebGPU odeslání příkazů) vzniká **jen když se kreslí**. Kontroly animací
+  (voda, zvířata, lidé, dým, obilí) a dokreslování po načtení (`renderBurst`) jdou v taktu
+  animací (`tickDue` / `nextTick` – i na displeji 120 Hz přesně 30×/s), pohyb kamery se kreslí
+  s displejem. Nové animace patří do `animate()`, ne přímo do smyčky. Výkon měří vývojový
+  ukazatel vpravo dole na `/dev/landscape` (`ScenePerfPanel`, `scene-perf.ts` – kreslící
+  snímky, smyčka, CPU a GPU snímku, draw cally, trojúhelníky, pick).
 - **Vývojový náhled** bez přihlášení a databáze: http://localhost:3010/dev/landscape?seed=42
   (tlačítka předchozí / další / náhodná / původní vrstvy, lišta vsi s minimapou – pole jde
   malovat i do lesa a překážky z něj hned zmizí, „Kácet 20 stromů“). V produkci vrací 404.

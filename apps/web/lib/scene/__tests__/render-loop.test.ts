@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { loopStep, nextTick, tickDue } from '../render-loop';
+import { WATER_FPS } from '../constants';
+import {
+  BACKGROUND_FPS,
+  IDLE_AFTER_MS,
+  IDLE_FPS,
+  animationFps,
+  loopStep,
+  nextTick,
+  tickDue,
+} from '../render-loop';
 
 /** Kolik taktů za sekundu vyjde při snímcích displeje `hz` za sekundu. */
 function ticksPerSecond(hz: number, fps: number): number {
@@ -42,5 +51,24 @@ describe('loopStep – krok kamery mezi průchody smyčky', () => {
     expect(loopStep(1000, null)).toBe(0);
     expect(loopStep(1016, 1000)).toBeCloseTo(0.016);
     expect(loopStep(9000, 1000)).toBe(0.1);
+  });
+});
+
+describe('animationFps – nižší plynulost na pozadí', () => {
+  it('okno s fokusem a hráč u hry: plná plynulost', () => {
+    expect(animationFps({ focused: true, idleMs: 0 })).toBe(WATER_FPS);
+    expect(animationFps({ focused: true, idleMs: IDLE_AFTER_MS - 1 })).toBe(WATER_FPS);
+  });
+
+  it('dvě minuty bez vstupu: 20 fps', () => {
+    expect(IDLE_AFTER_MS).toBe(120_000);
+    expect(animationFps({ focused: true, idleMs: IDLE_AFTER_MS })).toBe(IDLE_FPS);
+    expect(IDLE_FPS).toBe(20);
+  });
+
+  it('okno bez fokusu: 10 fps, i když hráč právě hýbal myší', () => {
+    expect(animationFps({ focused: false, idleMs: 0 })).toBe(BACKGROUND_FPS);
+    expect(animationFps({ focused: false, idleMs: IDLE_AFTER_MS * 2 })).toBe(BACKGROUND_FPS);
+    expect(BACKGROUND_FPS).toBe(10);
   });
 });
