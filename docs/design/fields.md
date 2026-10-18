@@ -560,15 +560,36 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
   (stejně u sadu a hřbitova, u obydlí navíc ikona stromů s počtem stromů ke kácení, když
   nestačí klády), nebo krátký červený důvod, proč pole neprojde. Výměru, úrodnost a stadia
   dílů ukáže panel vybraného pole.
-- **Zakládání:** pole se zakládá jako stavba – hotové díly se postupně zbarví, stromy
-  a kameny z nich zmizí.
+- **Zakládání:** pole se zakládá jako stavba po dílech od obydlí – rozpracovaný díl se rozrývá
+  po řádcích, stromy a kameny z hotového dílu zmizí.
 - **Panel pole** (výběr kliknutím): výměra, úrodnost, kolik dílů se zakládá, je oseto a leží
   v přílohu podle stadia (mladý příloh, pastvina) – ikony a čísla; oseté díly podle plodiny (ozim,
   jař). Očekávaná úroda a jestli práce stačí – později.
 - **Horní lišta:** zásoby obilí, volná společná práce za den, nasycení (barva ikony).
-- **Ve scéně:** pole po čtvercích podle stavu obilí – holá zem, zkopaná zem, zasetá, vzešlé osení,
-  zelené a zlaté obilí, strniště (viz Postup práce po čtvercích), přílohy jako mladý příloh
-  a pastvina – kolem vsi mozaika, hranice pole (mez). 3D a textury jsou samostatný úkol.
+- **Vytyčení:** nově zadané pole je hned vytyčené – kolíky v rozích a po čtvercích a provázek
+  po obrysu dílů, které se ještě zakládají (Martin: „Když někde zadám stavbu, ať se hned vytyčí
+  provázkem a kolíky.“). Čtverec, na kterém osadníci začnou, se rozrývá po řádcích; hotové díly
+  vytyčení ztratí.
+- **Ve scéně** (podle 0 A.D., Martin: tvrdé pruhy brázd a vzcházejícího obilí byly „hnusné“):
+  zem s měkkými brázdami (textura pole z 0 A.D.) natočenými podél delší strany pole, okraj
+  pole měkký a nepravidelný, bez meze (Martin 18. 10. 2026: „Pole mají nějakou divnou hranici.
+  Můžeš ji zrušit?“); sousední pole na sebe navazují bez švu. Obilí jsou 3D trsy v řádcích (pšenice z 0 A.D.),
+  které rostou: oseto (zavláčená tmavá zem) → vzchází (řídké nízké zelené trsy v řádcích) →
+  zelené obilí (husté, z dálky zelené pole) → zralé zlaté obilí, které se lehce vlní ve větru →
+  žeň (sklizená část se strništěm a panáky snopů, zbytek zralý) → strniště. Úhor: mladý úhor
+  (1–2 roky) je strniště s plevelem, kde se pasou ovce, kozy a krávy s pasáčkem (Martin: „Nálety
+  na úhoru nebudou, protože se tam budou pást…“); starší úhor je louka, která se kosí na seno
+  (Martin) – na jaře vysoká kvetoucí tráva, v červnu se seče po dílech (řádky sena), pak kupky
+  a od poloviny července stohy na otavě, které přes podzim a zimu postupně mizí (zkrmují se);
+  na otavě se od srpna do konce listopadu pase. Z dálky trsy řídnou a pole nese barva obtisku.
+  Kolem vsi se navíc seče pár luk na seno (jen vzhled, na dvě domácnosti jedna louka).
+- **Práce po čtvercích** (Martin: „aby pole neměnilo fáze, které jsou závislé na člověku,
+  samovolně“): díl se změní (zoráno, oseto, sklizeno, posečeno), až když k němu práce dojde –
+  rozpracovaný je vždy jeden díl na úlohu a mění se po řádcích od strany blíž vsi; postavy
+  pracují přesně na něm, řada stojí na čáře práce, a když je čtverec hotový, dojdou na další.
+  **Stav:** herní jádro posílá vzhled dílů po čtvercích (`SceneFieldPart.look` / `work` /
+  `before` z `fieldPartLooks` – viz Postup práce po čtvercích) a frontu práce
+  (`SceneLaborShare.parts`); scéna odhaduje z data jen starší příloh (louka na seno, pastvina).
 - **Kronika:** založení pole, sklizeň (kolik – ves s ozimem i jaří zvlášť sklizeň ozimu a jaře),
   hlad.
 

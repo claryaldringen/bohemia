@@ -54,6 +54,7 @@ import {
   THRESH_END_DAY,
   WINTER_HARVEST_DAY,
   advanceVillage,
+  villageHappiness,
   ageGroup,
   buildAffordability,
   cemeteryCapacity,
@@ -144,7 +145,7 @@ const FOREST = ((): ReturnType<typeof packObstacles> => {
   let id = 1;
   for (let x = FOREST_EDGE_M; x < 950; x += spacing) {
     for (let z = -950; z < 950; z += spacing) {
-      trees.push({ id: id++, kind: 'tree', look: 'oak-1', x, z, rotation: 0, scale: 1 });
+      trees.push({ id: id++, kind: 'tree', look: 'beech-1', x, z, rotation: 0, scale: 1 });
     }
   }
   return packObstacles(trees, 128, 15);
@@ -332,6 +333,8 @@ interface RunResult {
   autumnDig: Map<number, number>;
   /** Rok sklizně → podíl ozimu na osevu (ha). */
   winterShare: Map<number, number>;
+  /** Štěstí obyvatel na konci každého kroku (happiness.md) – jen informace. */
+  happiness: number[];
 }
 
 function harvestYear(day: number): number {
@@ -465,6 +468,7 @@ function emptyResult(): RunResult {
     wood: { fromPile: 0, felled: 0, finalLogs: 0 },
     autumnDig: new Map(),
     winterShare: new Map(),
+    happiness: [],
   };
 }
 
@@ -628,6 +632,7 @@ function runVillage(start: VillageState, startLand: number, opts: RunOptions): R
     const date = dateOfDayIndex(day);
     addLabor(result, after, day - before.lastDay);
     countWood(after);
+    if (after.extinctDay === undefined) result.happiness.push(villageHappiness(after));
 
     for (const e of events) {
       if (e.kind === 'rebuild-decided') {
@@ -978,6 +983,21 @@ function report(villages: VillageResult[], probes: Record<ProbeName, ProbeSummar
   };
   const ok = (pass: boolean): Status => (pass ? 'OK' : 'MIMO');
   const builders = villages.map((v) => v.builder);
+
+  // štěstí obyvatel (happiness.md) – bez posvátných míst (hráč skriptu je nestaví), jen informace
+  for (const [label, runs] of [
+    ['hráč staví', builders],
+    ['nestaví', villages.map((v) => v.loner)],
+  ] as const) {
+    const all = runs.flatMap((r) => r.happiness);
+    const finals = runs.flatMap((r) => r.happiness.slice(-1));
+    row(
+      `Štěstí obyvatel (${label})`,
+      'informace – 0–100, výchozí 50',
+      `všechny kroky: medián ${fmt(quantile(all, 0.5))} | p10 ${fmt(quantile(all, 0.1))} | p90 ${fmt(quantile(all, 0.9))} | nejmíň ${fmt(quantile(all, 0))} | nejvíc ${fmt(quantile(all, 1))} | na konci medián ${fmt(quantile(finals, 0.5))}`,
+      'info',
+    );
+  }
 
   const firstBuild = villages.map(({ builder, foundDay }) =>
     builder.firstBuildDay === null ? Infinity : (builder.firstBuildDay - foundDay) / DAYS_PER_YEAR,

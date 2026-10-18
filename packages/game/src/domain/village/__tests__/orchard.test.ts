@@ -306,7 +306,7 @@ describe('orchardPartsFromCells – staví se jako pole', () => {
     const small = makeLandscape();
     const layer = packObstacles(
       [
-        { id: 100, kind: 'tree', look: 'oak-1', x: 3, z: 3, rotation: 0, scale: 1 },
+        { id: 100, kind: 'tree', look: 'beech-1', x: 3, z: 3, rotation: 0, scale: 1 },
         { id: 101, kind: 'stone', look: 'stone-1', x: 10, z: 10, rotation: 0, scale: 1 },
         { id: 103, kind: 'outcrop', look: 'rock-boulder', x: 5, z: 22, rotation: 0, scale: 1 },
       ],

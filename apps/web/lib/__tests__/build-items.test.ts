@@ -4,6 +4,7 @@ import {
   checkDwellingPlacement,
   dwellingBuildLabor,
   fieldPartsFromCells,
+  sacredBuildLabor,
   orchardPartsFromCells,
   packObstacles,
   type Landscape,
@@ -31,6 +32,8 @@ describe('zkratky staveb', () => {
     expect(buildItemForKey(key('KeyC'))?.kind).toBe('field');
     expect(buildItemForKey(key('KeyV'))?.kind).toBe('cemetery');
     expect(buildItemForKey(key('KeyB'))?.kind).toBe('orchard');
+    expect(buildItemForKey(key('KeyN'))?.kind).toBe('idol');
+    expect(buildItemForKey(key('KeyM'))?.kind).toBe('shrine');
     expect(new Set(BUILD_ITEMS.map((item) => item.hotkey)).size).toBe(BUILD_ITEMS.length);
     const camera = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyQ', 'KeyE', 'KeyR'];
     expect(BUILD_ITEMS.filter((item) => camera.includes(item.hotkey))).toEqual([]);
@@ -171,7 +174,7 @@ describe('cena u kurzoru', () => {
     const tree = (id: number, x: number, z: number): ObstaclePlacement => ({
       id,
       kind: 'tree',
-      look: 'oak-1',
+      look: 'beech-1',
       x,
       z,
       rotation: 0,
@@ -211,5 +214,48 @@ describe('cena u kurzoru', () => {
       forest,
     );
     expect(cleared.trees).toBe(3);
+  });
+});
+
+describe('modla a svatyně', () => {
+  const SIZE = 32;
+  const landscape: Landscape = {
+    size: SIZE,
+    cellSizeM: 15,
+    heights: new Float32Array(SIZE * SIZE),
+    surface: new Uint8Array(SIZE * SIZE).fill(2),
+    fertility: new Uint8Array(SIZE * SIZE).fill(50),
+    villageSite: { x: 16, y: 16 },
+    stream: [],
+    obstacleLayer: null,
+  };
+  const village: PlacementVillage = {
+    dwellings: [{ type: 'zemnice', position: { x: 0, z: 0, rotation: 0 } }],
+    constructions: [],
+    parts: [],
+  };
+
+  it('půdorys u kurzoru jako obydlí; cena práce bez dubů (krajina bez stromů), přes obydlí ne', () => {
+    for (const kind of ['idol', 'shrine'] as const) {
+      const item = buildItem(kind);
+      if (item.placement !== 'sacred') throw new Error('Modla a svatyně se umisťují půdorysem.');
+      expect(item.sacredKind).toBe(kind);
+      const free = item.check(landscape, village, { x: 60, z: 60, rotation: 0 });
+      expect(free.ok).toBe(true);
+      expect(free.cost).toEqual({ laborManDays: sacredBuildLabor(kind), trees: 0, oaks: 0 });
+      const over = item.check(landscape, village, { x: 0, z: 0, rotation: 0 });
+      expect(over.ok).toBe(false);
+      expect(over.cost).toBeNull();
+    }
+  });
+
+  it('svatyně je jedna na ves', () => {
+    const item = buildItem('shrine');
+    if (item.placement !== 'sacred') throw new Error('Svatyně se umisťuje půdorysem.');
+    const withShrine: PlacementVillage = {
+      ...village,
+      sacredBuildings: [{ kind: 'shrine', position: { x: -100, z: -100, rotation: 0 } }],
+    };
+    expect(item.check(landscape, withShrine, { x: 60, z: 60, rotation: 0 }).ok).toBe(false);
   });
 });

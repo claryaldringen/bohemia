@@ -1,9 +1,17 @@
 import type { ObstacleLayer } from '../landscape';
 import { availableSettlers } from './dwellings';
 import { NO_CRAFTS, foundingCostPerHa } from './productivity';
-import { CEMETERY, DWELLING_TREES, DWELLINGS, ORCHARD, dwellingBuildLabor } from './rules';
-import type { DwellingType, VillageState } from './types';
-import { woodSupply, type WoodPlan } from './wood';
+import {
+  CEMETERY,
+  DWELLING_TREES,
+  DWELLINGS,
+  dwellingBuildLabor,
+  FELLING_MAN_DAYS_PER_TREE,
+  ORCHARD,
+  SACRED_BUILDINGS,
+} from './rules';
+import type { DwellingType, SacredBuildingKind, VillageState } from './types';
+import { oakSupply, woodSupply, type WoodPlan } from './wood';
 
 // Ceny staveb a jestli na ně ves má (population.md – Nové obydlí, Odemčení). Práce
 // (člověkodny) se platí postupně ze společné práce vsi během stavby – na tu ves „má“ vždy.
@@ -13,17 +21,17 @@ import { woodSupply, type WoodPlan } from './wood';
 // hromadě + dospělé stromy sídla, které jde skácet – stavba ho při zahájení vyhradí.
 
 /** Co hráč staví z nabídky staveb. */
-export type BuildKind = DwellingType | 'field' | 'cemetery' | 'orchard';
+export type BuildKind = DwellingType | 'field' | 'cemetery' | 'orchard' | SacredBuildingKind;
 
 /**
  * Co stavba potřebuje předem: obilí ze zásob, dřevo (stromy – klády z hromady, nebo dospělé
- * stromy ke skácení; kámen přibude) a lidé k osídlení (`availableSettlers` – mladý pár, který se
- * do nového obydlí nastěhuje). Lidi stavba neodebírá, jen je zamluví – rozestavěné obydlí
- * snižuje počet volných.
+ * stromy ke skácení; kámen přibude), dospělé duby ke skácení (modla a svatyně – happiness.md)
+ * a lidé k osídlení (`availableSettlers` – mladý pár, který se do nového obydlí nastěhuje). Lidi
+ * stavba neodebírá, jen je zamluví – rozestavěné obydlí snižuje počet volných.
  */
-export type StockResource = 'grain' | 'wood' | 'settlers';
+export type StockResource = 'grain' | 'wood' | 'oaks' | 'settlers';
 
-export const STOCK_RESOURCES: readonly StockResource[] = ['grain', 'wood', 'settlers'];
+export const STOCK_RESOURCES: readonly StockResource[] = ['grain', 'wood', 'oaks', 'settlers'];
 
 /** Množství surovin (jen uvedené suroviny). */
 export type ResourceAmounts = Partial<Record<StockResource, number>>;
@@ -59,7 +67,38 @@ export const BUILD_COSTS: Record<BuildKind, BuildCost> = {
   field: { laborManDays: foundingCostPerHa('meadow', NO_CRAFTS.tools), perHa: true, upfront: {} },
   cemetery: { laborManDays: CEMETERY.costPerSquare, perHa: false, perSquare: true, upfront: {} },
   orchard: { laborManDays: ORCHARD.plantingPerHa, perHa: true, upfront: {} },
+  idol: {
+    laborManDays: SACRED_BUILDINGS.idol.laborManDays,
+    perHa: false,
+    upfront: { oaks: SACRED_BUILDINGS.idol.oaks },
+  },
+  shrine: {
+    laborManDays: SACRED_BUILDINGS.shrine.laborManDays,
+    perHa: false,
+    upfront: { oaks: SACRED_BUILDINGS.shrine.oaks },
+  },
 };
+
+/**
+ * Práce na modle nebo svatyni bez kácení dubů – cena (happiness.md) v sobě má kácení blízkých
+ * dubů jako cena obydlí kácení blízkého lesa.
+ */
+export function sacredBuildLabor(kind: SacredBuildingKind): number {
+  const spec = SACRED_BUILDINGS[kind];
+  return spec.laborManDays - spec.oaks * FELLING_MAN_DAYS_PER_TREE;
+}
+
+/**
+ * Práce na modle nebo svatyni (člověkodny) jako při zahájení stavby: stavba bez dubů, překážky
+ * na půdorysu (`obstacleCost`) a kácení dubů z plánu (`planSacredWood`).
+ */
+export function sacredLaborManDays(
+  kind: SacredBuildingKind,
+  obstacleCost: number,
+  wood: Pick<WoodPlan, 'fell'>,
+): number {
+  return sacredBuildLabor(kind) + obstacleCost + wood.fell.reduce((sum, t) => sum + t.cost, 0);
+}
 
 /**
  * Práce na obydlí (člověkodny) jako při zahájení stavby (`startNewDwelling`, `foundVillage`):
@@ -86,6 +125,7 @@ export function villageStock(
   return {
     grain: state.storesKg,
     wood: woodSupply(state, obstacles),
+    oaks: oakSupply(state, obstacles),
     settlers: Math.max(0, availableSettlers(state, state.lastDay)),
   };
 }

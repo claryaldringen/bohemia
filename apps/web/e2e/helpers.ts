@@ -23,8 +23,18 @@ export async function register(page: Page, email: string, password: string): Pro
   await expect(page.getByText('Zkontroluj e-mail')).toBeVisible();
 }
 
+/** Otevře nabídku hry tlačítkem v horní liště (jako F10) a vrátí její panel. */
+export async function openGameMenu(page: Page): Promise<ReturnType<Page['getByRole']>> {
+  await page.getByRole('button', { name: 'Nabídka' }).click();
+  const menu = page.getByRole('dialog', { name: 'Nabídka' });
+  await expect(menu).toBeVisible();
+  return menu;
+}
+
+/** Odhlásí hráče z nabídky hry. */
 export async function signOut(page: Page): Promise<void> {
-  await page.getByRole('button', { name: 'Odhlásit' }).click();
+  const menu = await openGameMenu(page);
+  await menu.getByRole('button', { name: 'Odhlásit' }).click();
   await expect(page).toHaveURL(/\/$/);
 }
 

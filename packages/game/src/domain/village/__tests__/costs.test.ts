@@ -63,7 +63,7 @@ describe('ceny staveb', () => {
     const s = start();
     s.storesKg = 0;
     // bez vrstvy překážek (testy, kalibrace) se kácí bez polohy – stromů neomezeně
-    expect(villageStock(s)).toEqual({ grain: 0, wood: Infinity, settlers: 0 });
+    expect(villageStock(s)).toEqual({ grain: 0, wood: Infinity, oaks: Infinity, settlers: 0 });
     for (const kind of ['zemnice', 'polozemnice'] as const) {
       expect(buildAffordability(s, kind)).toEqual({ affordable: false, missing: { settlers: 1 } });
     }
@@ -89,9 +89,13 @@ describe('ceny staveb', () => {
 
 describe('affordability', () => {
   it('chybějící část po surovinách', () => {
-    const stock = (grain: number, wood = 0): Record<'grain' | 'wood' | 'settlers', number> => ({
+    const stock = (
+      grain: number,
+      wood = 0,
+    ): Record<'grain' | 'wood' | 'oaks' | 'settlers', number> => ({
       grain,
       wood,
+      oaks: 0,
       settlers: 0,
     });
     expect(affordability(stock(30), { grain: 50 })).toEqual({

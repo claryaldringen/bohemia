@@ -13,7 +13,7 @@ import {
   formatYearsShort,
   plural,
 } from '@/lib/village-format';
-import { DWELLING_NAMES } from '@/lib/village-view';
+import { DWELLING_NAMES, SACRED_BUILDING_NAMES } from '@/lib/village-view';
 import { Tooltip } from './Tooltip';
 
 function Portrait({ icon, name }: { icon: string; name: string }): ReactElement {
@@ -35,11 +35,15 @@ function Portrait({ icon, name }: { icon: string; name: string }): ReactElement 
 
 function Stat({
   icon,
+  src,
   name,
   testId,
   children,
 }: {
-  icon: string;
+  /** Ikona suroviny v `public/icons/resources/` bez přípony. */
+  icon?: string;
+  /** Jiná ikona – celá cesta (dub z `public/icons/build/`). */
+  src?: string;
   name: string;
   testId?: string;
   children: ReactNode;
@@ -47,7 +51,7 @@ function Stat({
   return (
     <Tooltip content={name} placement="above">
       <span className="flex items-center gap-1" tabIndex={0}>
-        <img src={`/icons/resources/${icon}.png`} alt="" width={20} height={20} />
+        <img src={src ?? `/icons/resources/${icon}.png`} alt="" width={20} height={20} />
         <span data-testid={testId} className="text-sm font-semibold tabular-nums">
           {children}
         </span>
@@ -306,11 +310,85 @@ function OrchardBody({
 }
 
 /**
+ * Kolik místo přidává štěstí (happiness.md) – ikona štěstí a „+N“; rozestavěná stavba přidá až
+ * po dostavění (bledší).
+ */
+function HappinessGain({
+  value,
+  pending = false,
+}: {
+  value: number;
+  pending?: boolean;
+}): ReactElement {
+  return (
+    <Stat
+      icon="happiness"
+      name={pending ? 'Štěstí po dostavění' : 'Štěstí'}
+      testId="selection-happiness"
+    >
+      <span className={pending ? 'opacity-60' : ''}>+{value}</span>
+    </Stat>
+  );
+}
+
+/** Dospělé duby – ikona dubu a počet (háj: duby v háji, stavba: duby ke skácení). */
+function Oaks({
+  count,
+  name,
+  testId,
+}: {
+  count: number;
+  name: string;
+  testId: string;
+}): ReactElement {
+  return (
+    <Stat src="/icons/build/dub.png" name={name} testId={testId}>
+      {count}
+    </Stat>
+  );
+}
+
+const SACRED_ICONS: Record<Extract<SelectionDetails, { kind: 'sacred' }>['type'], string> = {
+  idol: 'modla',
+  shrine: 'svatyne',
+};
+
+function SacredBody({
+  details,
+}: {
+  details: Extract<SelectionDetails, { kind: 'sacred' }>;
+}): ReactElement {
+  if (details.building === null) {
+    return (
+      <div className="flex flex-col justify-center gap-1.5">
+        <HappinessGain value={details.happiness} />
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-col justify-center gap-1.5">
+      <div className="flex items-center gap-3">
+        <Stat icon="labor" name="Stavba">
+          {formatPercent(details.building)}
+        </Stat>
+        <HappinessGain value={details.happiness} pending />
+        {details.oaksToFell > 0 && (
+          <Oaks count={details.oaksToFell} name="Duby ke skácení" testId="selection-oaks" />
+        )}
+      </div>
+      <Bar value={details.building} name="Stavba" testId="selection-progress" />
+    </div>
+  );
+}
+
+/**
  * Panel výběru dole uprostřed (jako v 0 A.D.) – jen když je něco vybrané: portrét, typ
  * a ikony s čísly. Obydlí: obyvatelé, věk obyvatel, stav, stáří (u přestavby i stromy ke
  * skácení); staveniště: průběh stavby a stromy, které ještě musí skácet;
  * pole: výměra, úrodnost, díly podle stadia; hřbitov: hroby, na kolik let místo vystačí
- * a průběh založení / rozšíření; sad: výměra, stáří, úroda příští sklizně a průběh výsadby.
+ * a průběh založení / rozšíření; sad: výměra, stáří, úroda příští sklizně a průběh výsadby;
+ * posvátný dub, háj, modla a svatyně: kolik přidávají štěstí (háj i počet dubů), rozestavěná
+ * modla a svatyně průběh stavby a duby ke skácení.
  */
 export function SelectionPanel({
   details,
@@ -329,6 +407,28 @@ export function SelectionPanel({
   } else if (details.kind === 'orchard') {
     portrait = <Portrait icon="sad" name="Sad" />;
     body = <OrchardBody details={details} />;
+  } else if (details.kind === 'sacred-oak') {
+    portrait = <Portrait icon="dub" name="Posvátný dub" />;
+    body = (
+      <div className="flex flex-col justify-center gap-1.5">
+        <HappinessGain value={details.happiness} />
+      </div>
+    );
+  } else if (details.kind === 'grove') {
+    portrait = <Portrait icon="haj" name="Dubový háj" />;
+    body = (
+      <div className="flex flex-col justify-center gap-1.5">
+        <div className="flex items-center gap-3">
+          <HappinessGain value={details.happiness} />
+          <Oaks count={details.oaks} name="Dospělé duby" testId="selection-grove-oaks" />
+        </div>
+      </div>
+    );
+  } else if (details.kind === 'sacred') {
+    portrait = (
+      <Portrait icon={SACRED_ICONS[details.type]} name={SACRED_BUILDING_NAMES[details.type]} />
+    );
+    body = <SacredBody details={details} />;
   } else if (details.kind === 'site') {
     portrait = <Portrait icon={details.type} name={DWELLING_NAMES[details.type].nominative} />;
     body = (

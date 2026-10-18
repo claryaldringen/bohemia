@@ -113,6 +113,17 @@ describe('buildVillageView', () => {
   });
 
   it('čerstvá ves: lidé, zásoby, stavba zemnice zakladatelů a pole', () => {
+    const free = (
+      laborManDays: number,
+      unit: { perHa?: boolean; perSquare?: boolean },
+    ): Record<string, unknown> => ({
+      laborManDays,
+      perHa: unit.perHa ?? false,
+      perSquare: unit.perSquare ?? false,
+      upfront: [],
+      blocked: null,
+      affordable: true,
+    });
     const view = buildVillageView(record(), landscape, DAY);
     expect(view).toMatchObject({
       name: 'Libice',
@@ -129,6 +140,7 @@ describe('buildVillageView', () => {
         perHa: false,
         perSquare: false,
         upfront: [{ resource: 'wood', amount: 7, missing: 7 }, noSettlers],
+        blocked: null,
         affordable: false,
       },
       polozemnice: {
@@ -136,11 +148,29 @@ describe('buildVillageView', () => {
         perHa: false,
         perSquare: false,
         upfront: [{ resource: 'wood', amount: 18, missing: 18 }, noSettlers],
+        blocked: null,
         affordable: false,
       },
-      field: { laborManDays: 100, perHa: true, perSquare: false, upfront: [], affordable: true },
-      cemetery: { laborManDays: 10, perHa: false, perSquare: true, upfront: [], affordable: true },
-      orchard: { laborManDays: 80, perHa: true, perSquare: false, upfront: [], affordable: true },
+      field: free(100, { perHa: true }),
+      cemetery: free(10, { perSquare: true }),
+      orchard: free(80, { perHa: true }),
+      // modla a svatyně chtějí dospělé duby – krajina testu stromy nemá (happiness.md)
+      idol: {
+        laborManDays: 30,
+        perHa: false,
+        perSquare: false,
+        upfront: [{ resource: 'oaks', amount: 1, missing: 1 }],
+        blocked: null,
+        affordable: false,
+      },
+      shrine: {
+        laborManDays: 400,
+        perHa: false,
+        perSquare: false,
+        upfront: [{ resource: 'oaks', amount: 3, missing: 3 }],
+        blocked: null,
+        affordable: false,
+      },
     });
     // zakladatelé bydlí na staveništi – domácnost s obydlím přibude s dostavěním zemnice
     expect(view.households).toEqual([]);
@@ -206,6 +236,7 @@ describe('buildVillageView', () => {
         { resource: 'wood', amount: 18, missing: 0 },
         { resource: 'settlers', amount: 1, missing: 0 },
       ],
+      blocked: null,
       affordable: true,
     });
     expect(view.fullHousehold).toBe(true);
@@ -577,6 +608,22 @@ describe('chronicleText', () => {
       dwellingId: null,
       fieldId: null,
     },
+    {
+      day: DAY,
+      kind: 'construction-finished',
+      constructionKind: 'idol',
+      dwellingId: null,
+      fieldId: null,
+    },
+    {
+      day: DAY,
+      kind: 'construction-finished',
+      constructionKind: 'shrine',
+      dwellingId: null,
+      fieldId: null,
+    },
+    { day: DAY, kind: 'sacred-spared', site: 'oak', id: 7 },
+    { day: DAY, kind: 'sacred-spared', site: 'grove', id: 8 },
   ];
 
   it('každá událost má český text', () => {
@@ -765,5 +812,81 @@ describe('sad v pohledu na ves', () => {
         'Libice',
       ),
     ).toBe('Sad je vysazený.');
+  });
+});
+
+describe('štěstí a posvátná místa v pohledu na ves', () => {
+  it('štěstí, ušetřený dub a háj, rozestavěná svatyně – panel, scéna, nabídka staveb', () => {
+    const s = settled();
+    s.happiness = { value: 62.4, deaths: [], toil: [] };
+    s.sacredOaks = [{ id: 7, day: DAY, x: 20, z: 30 }];
+    s.groves = [{ id: 8, day: DAY, x: -40, z: 50, cells: [{ x: 5, y: 11 }], oaks: 14 }];
+    s.sacredBuildings = [
+      { id: 40, kind: 'idol', position: { x: 60, z: 0, rotation: 0 }, builtDay: DAY },
+    ];
+    s.constructions.push({
+      id: 41,
+      kind: 'shrine',
+      startedDay: DAY,
+      cost: 400,
+      done: 100,
+      dwellingType: null,
+      position: { x: 0, z: 90, rotation: 0 },
+      dwellingId: null,
+      fieldId: null,
+      wood: { trees: 3, fromPile: 0, fell: [1, 2, 3].map((id) => ({ id, cost: 2 })), felled: 1 },
+    });
+    const view = buildVillageView(record(s), landscape, DAY);
+    expect(view.happiness.value).toBe(62.4);
+    expect(view.happiness.laborFactor).toBeCloseTo(1 + (0.1 * 12.4) / 50, 9);
+    expect(view.sacred.oaks).toEqual([{ id: 7, happiness: 5 }]);
+    expect(view.sacred.groves).toEqual([{ id: 8, oaks: 14, squares: 1, happiness: 14 }]);
+    expect(view.sacred.buildings).toEqual([
+      { id: 40, kind: 'idol', built: true, happiness: 8, progress: 1, oaksToFell: 0 },
+      { id: 41, kind: 'shrine', built: false, happiness: 25, progress: 0.25, oaksToFell: 2 },
+    ]);
+    expect(view.scene.sacred).toEqual({
+      oaks: [{ id: 7, x: 20, z: 30, growth: 1 }],
+      groves: [
+        {
+          id: 8,
+          x: -40,
+          z: 50,
+          squares: [{ cell: { x: 5, y: 11 }, x: -37.5, z: 52.5, size: 15 }],
+        },
+      ],
+      buildings: [
+        { id: 40, kind: 'idol', position: { x: 60, z: 0, rotation: 0 }, built: true, progress: 1 },
+        {
+          id: 41,
+          kind: 'shrine',
+          position: { x: 0, z: 90, rotation: 0 },
+          built: false,
+          progress: (100 - 6) / (400 - 6),
+        },
+      ],
+    });
+    expect(view.build.shrine).toMatchObject({ affordable: false, blocked: 'Ves už svatyni má.' });
+    expect(view.build.idol.blocked).toBeNull();
+    expect(view.constructions.find((c) => c.id === 41)?.label).toBe('Svatyně');
+    // kontrola umístění v prohlížeči zná modly a svatyně ze scény
+    expect(placementVillageFromScene(view.scene).sacredBuildings).toEqual([
+      { kind: 'idol', position: { x: 60, z: 0, rotation: 0 } },
+      { kind: 'shrine', position: { x: 0, z: 90, rotation: 0 } },
+    ]);
+  });
+
+  it('posvátný dub ve scéně postupně roste podle let od ušetření (jen vzhled)', () => {
+    const s = settled();
+    s.sacredOaks = [{ id: 7, day: DAY - Math.ceil(30 * 365.25), x: 20, z: 30 }];
+    const view = buildVillageView(record(s), landscape, DAY);
+    expect(view.scene.sacred?.oaks[0]?.growth).toBeCloseTo(1.15, 9);
+  });
+
+  it('ves bez posvátných míst je ve scéně nemá', () => {
+    const view = buildVillageView(record(settled()), landscape, DAY);
+    expect(view.scene.sacred).toBeUndefined();
+    expect(view.sacred).toEqual({ oaks: [], groves: [], buildings: [] });
+    expect(view.happiness.value).toBe(50);
   });
 });

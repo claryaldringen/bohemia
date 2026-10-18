@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { login, register, signOut, uniqueEmail, useUniqueClientIp } from './helpers';
+import { login, openGameMenu, register, signOut, uniqueEmail, useUniqueClientIp } from './helpers';
 import { linkFromLastMail } from './mail';
 
 test.beforeEach(async ({ context }) => {
@@ -23,9 +23,12 @@ test('registrace → ověření e-mailu → herní plocha → odhlášení → p
   // Odkaz z e-mailu hráče ověří a rovnou přihlásí.
   await page.goto(await linkFromLastMail(email, /potvrď svůj e-mail/));
   await expect(page).toHaveURL(/\/game$/);
-  // Kdo je přihlášený, prozradí popisek tlačítka Odhlásit v horní liště.
-  await page.getByRole('button', { name: 'Odhlásit' }).hover();
+  // Kdo je přihlášený, prozradí popisek tlačítka Odhlásit v nabídce hry.
+  const menu = await openGameMenu(page);
+  await menu.getByRole('button', { name: 'Odhlásit' }).hover();
   await expect(page.getByText(email)).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(menu).toHaveCount(0);
   await expect(page.getByTestId('game-date')).toHaveText(
     /^\d+\. \p{L}+ \d+ · (jaro|léto|podzim|zima)$/u,
   );

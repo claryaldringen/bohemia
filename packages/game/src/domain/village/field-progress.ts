@@ -262,7 +262,7 @@ const WORK_STEP = 20;
  * k obydlí, nezačatý má podíl 0), připravené (rozrytý drn), díly plánu podle toho, kam došlo
  * kopání, setí a sklizeň jejich plodiny (po sklizni jaře 31. 8. je plán u výmlatu), mladý
  * příloh. Starší příloh (pastvina, louka na seno) se nevrací – vzhled doplní scéna podle data.
- * Podíl práce je zaokrouhlený na dvacetiny.
+ * Podíl práce je po dvacetinách (začatá práce aspoň jedna dvacetina).
  */
 export function fieldPartLooks(state: VillageState, day: number): Map<number, PartView> {
   const views = new Map<number, PartView>();
@@ -282,8 +282,11 @@ export function fieldPartLooks(state: VillageState, day: number): Map<number, Pa
       views.set(part.id, { look: 'young-fallow' });
     }
   }
+  // po dvacetinách; začatá práce aspoň jedna dvacetina (nezačatý díl má 0 – jen vytyčený)
   for (const view of views.values()) {
-    if (view.work !== undefined) view.work = Math.round(view.work * WORK_STEP) / WORK_STEP;
+    if (view.work === undefined || view.work <= 0) continue;
+    const step = Math.round(view.work * WORK_STEP) / WORK_STEP;
+    view.work = Math.min(1, Math.max(1 / WORK_STEP, step));
   }
   return views;
 }

@@ -6,6 +6,7 @@ import { daysUntilHarvest, eatDay } from '../food';
 import { ageYears, foodNeedPerDay, occupants } from '../people';
 import { NO_CRAFTS } from '../productivity';
 import { AGE, CHRONICLE_MAX_EVENTS, DWELLINGS } from '../rules';
+import { villageLaborFactor } from '../happiness';
 import { advanceVillage } from '../simulate';
 import type { ChronicleEvent, Person, VillageState } from '../types';
 import { createPlan, planCrops, planPartIds, taskRemaining, threshLossKg } from '../year-plan';
@@ -554,8 +555,10 @@ describe('advanceVillage – založení vsi', () => {
     expect(s.people.length).toBeGreaterThanOrEqual(4);
     expect(count(s, 'death')).toBe(0);
     expect(count(s, 'household-merged')).toBe(0);
-    // společná práce = síla 2,6 − denní minimum 0,5 − domácí práce 0,9 (jedna domácnost)
-    expect(s.commonLaborHistory.at(-1)).toBeCloseTo(2.6 - 0.5 - 0.3 - 4 * 0.15, 9);
+    // společná práce = síla 2,6 × štěstí na začátku dne (happiness.md) − denní minimum 0,5
+    // − domácí práce 0,9 (jedna domácnost)
+    const factor = villageLaborFactor(advanceVillage(s0, day + 29, null));
+    expect(s.commonLaborHistory.at(-1)).toBeCloseTo(2.6 * factor - 0.5 - 0.3 - 4 * 0.15, 9);
   });
 
   it('stavbu první zemnice a první pole staví zakladatelé společnou prací rovným dílem', () => {

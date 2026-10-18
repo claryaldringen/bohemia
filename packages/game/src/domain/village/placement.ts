@@ -14,10 +14,12 @@ import { fieldSquareSurface, fieldsTouching, partFoundingCost } from './fields';
 import { orchardPlantingCost } from './orchard';
 import {
   cellObstacles,
+  dwellingClearing,
   dwellingObstacles,
   obstacleChangesAt,
   obstacleStatus,
   outcropUnder,
+  polygonObstacles,
   tallyCost,
   type ObstacleChanges,
   type ObstacleTally,
@@ -31,9 +33,33 @@ import {
   DWELLING_GARDEN_M,
   DWELLING_MAX_HEIGHT_DIFF_M,
   FIELD_LIMITS,
+  SACRED_BUILDINGS,
+  SACRED_OAK,
   SURFACE_INCLUDED_OBSTACLES,
 } from './rules';
-import type { DwellingType, FieldSurface, Position, TileCell, VillageState } from './types';
+import {
+  NO_SPARED,
+  SACRED_OAK_RADIUS_M,
+  grovesOfTiles,
+  mergeSpared,
+  sacredBuildingPlots,
+  sacredFootprint,
+  sacredOaksInTile,
+  sacredOaksNear,
+  sacredSitesOf,
+  sparedSacred,
+  sparedWarning,
+  type SacredSites,
+  type SparedSacred,
+} from './sacred';
+import type {
+  DwellingType,
+  FieldSurface,
+  Position,
+  SacredBuildingKind,
+  TileCell,
+  VillageState,
+} from './types';
 import { reservedTrees } from './wood';
 
 // Umisťování obydlí, polí, sadů a pohřebišť (population.md – Umístění obydlí, fields.md –
@@ -79,10 +105,29 @@ export interface PlacementVillage {
    * kládu nedá (forest.md). Bez údaje žádné.
    */
   readonly reservedTrees?: readonly number[];
+  /** Modly a svatyně i rozestavěné (`sacredBuildingPlots`) – zabírají svůj půdorys. Bez údaje žádné. */
+  readonly sacredBuildings?: readonly {
+    readonly kind: SacredBuildingKind;
+    readonly position: Position;
+  }[];
 }
 
 /** Kontrola umístění obydlí s cenou překážek na vyklízené ploše. */
 export interface DwellingPlacementCheck extends PlacementCheck {
+  /** Práce navíc za překážky (člověkodny, tabulka ve fields.md). */
+  obstacleCost: number;
+  /** Překážky, které osadníci při zahájení stavby odstraní. */
+  obstacleIds: number[];
+  /** Dospělé stromy mezi nimi, které nevyhradila jiná stavba – dají klády na hromadu. */
+  clearedTrees: number;
+  /** Kolik překážek kterého druhu na místě je. */
+  obstacleCounts: Partial<Record<ObstacleKind, number>>;
+  /** Posvátné duby a háje na vyklízené ploše – vesničané je nechají stát (happiness.md). */
+  spared: SparedSacred;
+}
+
+/** Kontrola umístění modly nebo svatyně s cenou překážek na půdorysu. */
+export interface SacredPlacementCheck extends PlacementCheck {
   /** Práce navíc za překážky (člověkodny, tabulka ve fields.md). */
   obstacleCost: number;
   /** Překážky, které osadníci při zahájení stavby odstraní. */
@@ -120,6 +165,13 @@ export interface FieldPreview {
    * = nové pole, jedno = rozšíří ho, víc = sloučí je do prvního.
    */
   joinedFields: number[];
+  /**
+   * Čtverce s posvátným dubem (zůstane stát) a čtverce háje (z pole se vyjmou) – scéna je zbarví
+   * oranžově jako varování.
+   */
+  sacredCells: TileCell[];
+  /** Posvátné duby a háje, které vesničané při mýcení nechají stát (happiness.md). */
+  spared: SparedSacred;
   check: PlacementCheck;
 }
 
@@ -138,6 +190,10 @@ export interface OrchardPreview {
   obstacleCounts: Partial<Record<ObstacleKind, number>>;
   /** Čtverce, kam sad nesmí (voda, les, obydlí, pole, hřbitov, jiný sad, moc daleko). */
   blockedCells: TileCell[];
+  /** Čtverce s posvátným dubem a čtverce háje (ze sadu se vyjmou) – oranžově. */
+  sacredCells: TileCell[];
+  /** Posvátné duby a háje, které vesničané při mýcení nechají stát (happiness.md). */
+  spared: SparedSacred;
   check: PlacementCheck;
 }
 
@@ -166,6 +222,10 @@ export interface CemeteryPreview {
   blockedCells: TileCell[];
   /** Čtverce blíž obydlí než 150 m nebo vodě než 100 m – scéna je zbarví oranžově. */
   warningCells: TileCell[];
+  /** Čtverce háje (z hřbitova se vyjmou) – oranžově. */
+  sacredCells: TileCell[];
+  /** Háje, které vesničané nechají stát (happiness.md); čtverec s posvátným dubem hřbitov mít nesmí. */
+  spared: SparedSacred;
   check: PlacementCheck;
 }
 
@@ -286,9 +346,14 @@ function orchardCells(landscape: Landscape, village: PlacementVillage | null): S
   return occupied;
 }
 
-/** Body mřížky po FOOTPRINT_SAMPLE_STEP_M přes otočený půdorys, včetně okrajů. */
+/** Body mřížky po FOOTPRINT_SAMPLE_STEP_M přes otočený půdorys obydlí, včetně okrajů. */
 function footprintSamples(type: DwellingType, position: Position): Point[] {
   const { width, depth } = DWELLING_FOOTPRINT_M[type];
+  return rectangleSamples(width, depth, position);
+}
+
+/** Body mřížky po FOOTPRINT_SAMPLE_STEP_M přes otočený obdélník se středem v `position`. */
+function rectangleSamples(width: number, depth: number, position: Position): Point[] {
   const stepsX = Math.ceil(width / FOOTPRINT_SAMPLE_STEP_M);
   const stepsZ = Math.ceil(depth / FOOTPRINT_SAMPLE_STEP_M);
   const cos = Math.cos(position.rotation);
@@ -385,6 +450,11 @@ function checkFootprintFree(
       return fail('Překrývá se s rozestavěným obydlím.');
     }
   }
+  for (const b of village.sacredBuildings ?? []) {
+    if (overlaps([sacredFootprint(b.kind, b.position)])) {
+      return fail(b.kind === 'idol' ? 'Překrývá se s modlou.' : 'Překrývá se se svatyní.');
+    }
+  }
   const under = plot.flatMap((polygon) => cellsUnderPolygon(landscape, polygon));
   const occupied = occupiedCells(landscape, village);
   if (under.some((i) => occupied.has(i))) return fail('Překrývá se s polem.');
@@ -430,7 +500,13 @@ export function checkDwellingPlacement(
   position: Position,
   obstacles: ObstacleLayer = obstaclesOf(landscape),
 ): DwellingPlacementCheck {
-  const none = { obstacleCost: 0, obstacleIds: [], clearedTrees: 0, obstacleCounts: {} };
+  const none = {
+    obstacleCost: 0,
+    obstacleIds: [],
+    clearedTrees: 0,
+    obstacleCounts: {},
+    spared: NO_SPARED,
+  };
   if (![position.x, position.z, position.rotation].every(Number.isFinite)) {
     return { ...fail('Neplatná poloha obydlí.'), ...none };
   }
@@ -445,7 +521,14 @@ export function checkDwellingPlacement(
   if (plot.some((polygon) => outcropUnder(obstacles, status, polygon))) {
     return { ...fail('Stojí tu skalní výchoz – ten osadníci neodstraní.'), ...none };
   }
-  // překážky v políčkách polí, hřbitovů a sadů odstraní jejich stavba, obydlí je neplatí
+  const sites = sacredSitesOf(obstacles);
+  const sacredProblem = sacredUnder(landscape, obstacles, sites, plot);
+  if (sacredProblem) return { ...fail(sacredProblem), ...none };
+  // překážky v políčkách polí, hřbitovů, sadů a hájů odstraní jejich stavba (háj nikdo), obydlí
+  // je neplatí; posvátný dub na vyklízené ploše zůstane stát
+  const clearing = dwellingClearing(type, position);
+  const clearingTiles = cellsUnderPolygon(landscape, clearing);
+  const groves = grovesOfTiles(sites, clearingTiles);
   const tally = dwellingObstacles(
     obstacles,
     status,
@@ -455,15 +538,46 @@ export function checkDwellingPlacement(
       ...occupiedCells(landscape, village),
       ...cemeteryCells(landscape, village),
       ...orchardCells(landscape, village),
+      ...clearingTiles.filter((tile) => sites.groveByTile.has(tile)),
     ]),
+    sites.protectedTrees,
   );
+  const spared = sparedSacred(sacredOaksNear(sites, obstacles, clearing, 0), groves);
+  const near = nearCemeteryWarning(landscape, village, position);
+  const warning = [near.warning, sparedWarning(spared)].filter(Boolean).join('\n');
   return {
-    ...nearCemeteryWarning(landscape, village, position),
+    ok: true,
+    reason: null,
+    ...(warning ? { warning } : {}),
     obstacleCost: tally.cost,
     obstacleIds: tally.ids,
     clearedTrees: unreservedTrees(village, tally.treeIds),
     obstacleCounts: tally.counts,
+    spared,
   };
+}
+
+/**
+ * Brání stavbě s půdorysem `plot` posvátné místo? Háj se nekácí (žádný čtverec háje pod
+ * půdorysem) a pod korunou posvátného dubu se nestaví (kmen blíž než SACRED_OAK_RADIUS_M).
+ * Vrací důvod česky, nebo null.
+ */
+function sacredUnder(
+  landscape: Landscape,
+  obstacles: ObstacleLayer,
+  sites: SacredSites,
+  plot: readonly (readonly Point[])[],
+): string | null {
+  const tiles = plot.flatMap((polygon) => cellsUnderPolygon(landscape, polygon));
+  if (tiles.some((tile) => sites.groveByTile.has(tile))) {
+    return 'Roste tu posvátný dubový háj – ten vesničané nevykácejí.';
+  }
+  if (
+    plot.some((polygon) => sacredOaksNear(sites, obstacles, polygon, SACRED_OAK_RADIUS_M).length)
+  ) {
+    return 'Stojí tu posvátný dub – ten vesničané nepokácí.';
+  }
+  return null;
 }
 
 /** Kolik z dospělých stromů `treeIds` nevyhradila žádná stavba (ty dají klády z mýcení). */
@@ -481,6 +595,7 @@ export function placementVillageOf(state: VillageState, day: number): PlacementV
     ...state,
     obstacleChanges: obstacleChangesAt(state, day),
     reservedTrees: [...reservedTrees(state)],
+    sacredBuildings: sacredBuildingPlots(state),
   };
 }
 
@@ -592,7 +707,7 @@ function dwellingCells(
   return new Set(footprints.flatMap((f) => cellsUnderPolygon(landscape, f)));
 }
 
-/** Co brání čtverci stavby: voda, les, obydlí, pole, pohřebiště, sad. */
+/** Co brání čtverci stavby: voda, les, obydlí, pole, pohřebiště, sad, modla nebo svatyně. */
 interface SquareFlags {
   water: boolean;
   forest: boolean;
@@ -600,6 +715,16 @@ interface SquareFlags {
   field: boolean;
   cemetery: boolean;
   orchard: boolean;
+  sacred: boolean;
+}
+
+/** Políčka pod modlami a svatyněmi vsi (i rozestavěnými). */
+function sacredBuildingCells(landscape: Landscape, village: PlacementVillage | null): Set<number> {
+  return new Set(
+    (village?.sacredBuildings ?? []).flatMap((b) =>
+      cellsUnderPolygon(landscape, sacredFootprint(b.kind, b.position)),
+    ),
+  );
 }
 
 /** Kontrola jednotlivých čtverců proti krajině a vsi (zabraná políčka se spočítají jednou). */
@@ -612,6 +737,7 @@ function squareFlags(
   const cemeteries = cemeteryCells(landscape, village);
   const orchards = orchardCells(landscape, village);
   const underDwellings = dwellingCells(landscape, village, dwellingPositions);
+  const underSacred = sacredBuildingCells(landscape, village);
   return (cell) => {
     const index = cellIndex(landscape, cell);
     const surface = surfaceAt(landscape, cell.x, cell.y);
@@ -622,6 +748,7 @@ function squareFlags(
       field: fields.has(index),
       cemetery: cemeteries.has(index),
       orchard: orchards.has(index),
+      sacred: underSacred.has(index),
     };
   };
 }
@@ -673,18 +800,61 @@ interface BuildSquare {
   obstacleCost: number;
 }
 
+/** Posvátná místa ve výběru čtverců: čtverce hájů se vyjmou, posvátné duby zůstanou stát. */
+interface SacredSelection {
+  /** Výběr bez čtverců hájů. */
+  cells: TileCell[];
+  /** Čtverce hájů a čtverce s posvátným dubem (oranžově v náhledu). */
+  sacredCells: TileCell[];
+  /** Háje, kterých se výběr dotkl, a posvátné duby na zbylých čtvercích. */
+  spared: SparedSacred;
+}
+
+/** Rozdělí výběr čtverců podle posvátných míst vrstvy (happiness.md). */
+function sacredSelection(
+  landscape: Landscape,
+  sites: SacredSites,
+  cells: readonly TileCell[],
+): SacredSelection {
+  const kept: TileCell[] = [];
+  const sacredCells: TileCell[] = [];
+  const groveTiles: number[] = [];
+  const oaks = [];
+  for (const cell of cells) {
+    const index = cellIndex(landscape, cell);
+    if (sites.groveByTile.has(index)) {
+      groveTiles.push(index);
+      sacredCells.push(cell);
+      continue;
+    }
+    kept.push(cell);
+    const here = sacredOaksInTile(sites, index);
+    if (here.length > 0) sacredCells.push(cell);
+    oaks.push(...here);
+  }
+  return {
+    cells: kept,
+    sacredCells,
+    spared: sparedSacred(
+      [...oaks].sort((a, b) => a.id - b.id),
+      grovesOfTiles(sites, groveTiles),
+    ),
+  };
+}
+
 /**
  * Společná kontrola čtverců pole a sadu (staví se stejně – orchard.md): u každého čtverce, co mu
- * brání (voda, obydlí, pole, hřbitov, sad, dál než 800 m; sadu i les – zakázané čtverce do
- * náhledu), a čtverce, kde stavba smí stát – sad jen louka, pole i křoviny a les
+ * brání (voda, obydlí, pole, hřbitov, sad, modla, svatyně, dál než 800 m; sadu i les – zakázané
+ * čtverce do náhledu), a čtverce, kde stavba smí stát – sad jen louka, pole i křoviny a les
  * (`fieldSurfaces`) – s povrchem, plochou bez skalních výchozů (nejvýš MAX_OUTCROP_SHARE
- * čtverce), vzdáleností k nejbližšímu z `dwellingPositions` a překážkami z vrstvy bez toho, co
- * ves už odstranila.
+ * čtverce) a bez plochy pod korunou posvátných dubů, vzdáleností k nejbližšímu
+ * z `dwellingPositions` a překážkami z vrstvy bez toho, co ves už odstranila. Posvátný dub
+ * zůstane stát (nepočítá se mezi překážky), čtverce hájů se z výběru vyjmou (happiness.md).
  */
 function buildSquares(
   landscape: Landscape,
   village: PlacementVillage | null,
-  cells: readonly TileCell[],
+  selected: readonly TileCell[],
   dwellingPositions: Position[],
   obstacles: ObstacleLayer,
   fieldSurfaces: boolean,
@@ -693,9 +863,13 @@ function buildSquares(
   problems: SquareFlags & { far: boolean };
   blockedCells: TileCell[];
   obstacleCounts: Partial<Record<ObstacleKind, number>>;
+  sacred: SacredSelection;
 } {
   const status = obstacleStatus(village?.obstacleChanges);
   const flagsOf = squareFlags(landscape, village, dwellingPositions);
+  const sites = sacredSitesOf(obstacles);
+  const sacred = sacredSelection(landscape, sites, selected);
+  const cells = sacred.cells;
   const cellArea = landscape.cellSizeM * landscape.cellSizeM;
   const problems: SquareFlags & { far: boolean } = {
     water: false,
@@ -704,6 +878,7 @@ function buildSquares(
     field: false,
     cemetery: false,
     orchard: false,
+    sacred: false,
     far: false,
   };
   const squares: BuildSquare[] = [];
@@ -723,24 +898,28 @@ function buildSquares(
     if (blocked) blockedCells.push(cell);
     const land = surfaceAt(landscape, cell.x, cell.y);
     if (land === 'water' || (!fieldSurfaces && land !== 'meadow')) continue;
-    const tally = cellObstacles(obstacles, status, cell);
+    const index = cellIndex(landscape, cell);
+    // posvátný dub zůstane stát – není mezi překážkami a plocha pod korunou se nepočítá
+    const tally = cellObstacles(obstacles, status, cell, sites.protectedTrees);
     for (const [kind, count] of Object.entries(tally.counts) as [ObstacleKind, number][]) {
       obstacleCounts[kind] = (obstacleCounts[kind] ?? 0) + count;
     }
     const surface: FieldSurface = fieldSurfaces
       ? (fieldSquareSurface(land, tally.counts.shrub ?? 0, cellArea, NO_CRAFTS.tools) ?? 'meadow')
       : 'meadow';
+    const unusable =
+      tally.outcropAreaM2 + sacredOaksInTile(sites, index).length * SACRED_OAK.crownM2;
     squares.push({
       cell,
-      index: cellIndex(landscape, cell),
+      index,
       surface,
-      areaM2: cellArea - Math.min(tally.outcropAreaM2, cellArea * MAX_OUTCROP_SHARE),
+      areaM2: cellArea - Math.min(unusable, cellArea * MAX_OUTCROP_SHARE),
       distanceM,
       tally,
       obstacleCost: tallyCost(tally, SURFACE_INCLUDED_OBSTACLES[surface]),
     });
   }
-  return { squares, problems, blockedCells, obstacleCounts };
+  return { squares, problems, blockedCells, obstacleCounts, sacred };
 }
 
 /** Políčka lesa krajiny (indexy) – spočítají se jednou pro každou krajinu. */
@@ -841,10 +1020,12 @@ export function fieldPartsFromCells(
       clearedTrees: 0,
       blockedCells: [],
       joinedFields: [],
+      sacredCells: [],
+      spared: NO_SPARED,
       check: fail(shape.reason),
     };
   }
-  const { squares, problems, blockedCells, obstacleCounts } = buildSquares(
+  const { squares, problems, blockedCells, obstacleCounts, sacred } = buildSquares(
     landscape,
     village,
     shape.cells,
@@ -889,7 +1070,9 @@ export function fieldPartsFromCells(
     [problems.field, () => 'Pole se překrývá s jiným polem.'],
     [problems.cemetery, () => 'Pole se překrývá s hřbitovem.'],
     [problems.orchard, () => 'Pole se překrývá se sadem.'],
+    [problems.sacred, () => 'Pole se překrývá s posvátným místem.'],
     [problems.far, () => `Pole je dál než ${FIELD_LIMITS.maxDistanceM} m od nejbližšího obydlí.`],
+    [sacred.cells.length === 0, () => 'Roste tu posvátný dubový háj – ten vesničané nevykácejí.'],
     [
       !isConnected(landscape, shape.cells),
       () => 'Čtverce pole musí tvořit jeden celek – sousedit stranou.',
@@ -914,8 +1097,15 @@ export function fieldPartsFromCells(
     clearedTrees: parts.reduce((sum, p) => sum + (p.trees ?? 0), 0),
     blockedCells,
     joinedFields,
-    check: failed ? fail(failed[1]()) : OK,
+    sacredCells: sacred.sacredCells,
+    spared: sacred.spared,
+    check: failed ? fail(failed[1]()) : withWarning(sparedWarning(sacred.spared)),
   };
+}
+
+/** Prošlá kontrola s varováním (bez varování OK). */
+function withWarning(warning: string | undefined): PlacementCheck {
+  return warning ? { ok: true, reason: null, warning } : OK;
 }
 
 /**
@@ -943,11 +1133,13 @@ export function orchardPartsFromCells(
       obstacleCost: 0,
       obstacleCounts: {},
       blockedCells: [],
+      sacredCells: [],
+      spared: NO_SPARED,
       check: fail(shape.reason),
     };
   }
   const meadow = buildSquares(landscape, village, shape.cells, dwellingPositions, obstacles, false);
-  const { problems, blockedCells, obstacleCounts } = meadow;
+  const { problems, blockedCells, obstacleCounts, sacred } = meadow;
   const squares: OrchardSquareInput[] = meadow.squares.map((square) => ({
     cell: square.cell,
     areaM2: square.areaM2,
@@ -963,7 +1155,9 @@ export function orchardPartsFromCells(
     [problems.field, 'Sad se překrývá s polem.'],
     [problems.cemetery, 'Sad se překrývá s hřbitovem.'],
     [problems.orchard, 'Sad se překrývá s jiným sadem.'],
+    [problems.sacred, 'Sad se překrývá s posvátným místem.'],
     [problems.far, `Sad je dál než ${FIELD_LIMITS.maxDistanceM} m od nejbližšího obydlí.`],
+    [sacred.cells.length === 0, 'Roste tu posvátný dubový háj – ten vesničané nevykácejí.'],
     [
       !isConnected(landscape, shape.cells),
       'Čtverce sadu musí tvořit jeden celek – sousedit stranou.',
@@ -981,7 +1175,9 @@ export function orchardPartsFromCells(
     obstacleCost: squares.reduce((sum, s) => sum + s.obstacleCost, 0),
     obstacleCounts,
     blockedCells,
-    check: failed ? fail(failed[1]) : OK,
+    sacredCells: sacred.sacredCells,
+    spared: sacred.spared,
+    check: failed ? fail(failed[1]) : withWarning(sparedWarning(sacred.spared)),
   };
 }
 
@@ -1029,21 +1225,29 @@ export function cemeteryPartsFromCells(
       extendsCemetery: false,
       blockedCells: [],
       warningCells: [],
+      sacredCells: [],
+      spared: NO_SPARED,
       check: fail(shape.reason),
     };
   }
 
   const flagsOf = squareFlags(landscape, village, dwellingPositions);
   const status = obstacleStatus(village?.obstacleChanges);
+  const sites = sacredSitesOf(obstacles);
+  // čtverce háje se z hřbitova vyjmou; hroby jdou v pevné mřížce, proto čtverec s posvátným
+  // dubem hřbitov mít nesmí (jako výchoz) – dub zůstane stát
+  const sacred = sacredSelection(landscape, sites, shape.cells);
   const size = landscape.cellSizeM;
-  const problems: SquareFlags & { outcrop: boolean } = {
+  const problems: SquareFlags & { outcrop: boolean; oak: boolean } = {
     water: false,
     forest: false,
     dwelling: false,
     field: false,
     cemetery: false,
     orchard: false,
+    sacred: false,
     outcrop: false,
+    oak: false,
   };
   const squares: CemeterySquareInput[] = [];
   const blockedCells: TileCell[] = [];
@@ -1051,10 +1255,11 @@ export function cemeteryPartsFromCells(
   const obstacleCounts: Partial<Record<ObstacleKind, number>> = {};
   let nearestDwellingM = Infinity;
   let nearestWaterM = Infinity;
-  for (const cell of shape.cells) {
+  for (const cell of sacred.cells) {
     const flags = {
       ...flagsOf(cell),
       outcrop: outcropUnder(obstacles, status, cellCorners(landscape, cell)),
+      oak: sacredOaksInTile(sites, cellIndex(landscape, cell)).length > 0,
     };
     let blocked = false;
     for (const key of Object.keys(flags) as (keyof typeof flags)[]) {
@@ -1064,7 +1269,7 @@ export function cemeteryPartsFromCells(
     }
     if (blocked) blockedCells.push(cell);
     if (flags.water || flags.forest) continue;
-    const tally = cellObstacles(obstacles, status, cell);
+    const tally = cellObstacles(obstacles, status, cell, sites.protectedTrees);
     for (const [kind, count] of Object.entries(tally.counts) as [ObstacleKind, number][]) {
       obstacleCounts[kind] = (obstacleCounts[kind] ?? 0) + count;
     }
@@ -1099,7 +1304,10 @@ export function cemeteryPartsFromCells(
     [problems.field, 'Hřbitov se překrývá s polem.'],
     [problems.cemetery, 'Hřbitov se překrývá s jiným hřbitovem.'],
     [problems.orchard, 'Hřbitov se překrývá se sadem.'],
+    [problems.sacred, 'Hřbitov se překrývá s posvátným místem.'],
     [problems.outcrop, 'Stojí tu skalní výchoz – ten osadníci neodstraní.'],
+    [problems.oak, 'Stojí tu posvátný dub – mezi hroby ho vesničané nenechají.'],
+    [sacred.cells.length === 0, 'Roste tu posvátný dubový háj – ten vesničané nevykácejí.'],
     [touching.length > 1, 'Hřbitov smí navazovat jen na jeden hřbitov.'],
     [
       !isConnected(landscape, [...shape.cells, ...extended]),
@@ -1111,7 +1319,13 @@ export function cemeteryPartsFromCells(
     ],
   ];
   const failed = checks.find(([broken]) => broken);
-  const warning = squares.length > 0 ? cemeteryWarning(nearestDwellingM, nearestWaterM) : undefined;
+  const groves: SparedSacred = { oaks: [], groves: sacred.spared.groves };
+  const warning = [
+    squares.length > 0 ? cemeteryWarning(nearestDwellingM, nearestWaterM) : undefined,
+    sparedWarning(groves),
+  ]
+    .filter(Boolean)
+    .join('\n');
   return {
     cells: shape.cells,
     squares,
@@ -1122,6 +1336,92 @@ export function cemeteryPartsFromCells(
     extendsCemetery: touching.length === 1,
     blockedCells,
     warningCells,
-    check: failed ? fail(failed[1]) : warning ? { ok: true, reason: null, warning } : OK,
+    sacredCells: sacred.sacredCells.filter((c) => sites.groveByTile.has(cellIndex(landscape, c))),
+    spared: groves,
+    check: failed ? fail(failed[1]) : withWarning(warning || undefined),
   };
+}
+
+/** Názvy posvátných staveb (důvody kontroly umístění). */
+const SACRED_NAMES: Record<SacredBuildingKind, string> = { idol: 'Modla', shrine: 'Svatyně' };
+
+/** Půdorys modly nebo svatyně v krajině, na louce, a u svatyně dost rovný. */
+function checkSacredTerrain(
+  landscape: Landscape,
+  kind: SacredBuildingKind,
+  samples: readonly Point[],
+): PlacementCheck {
+  const name = SACRED_NAMES[kind];
+  const limit = SACRED_BUILDINGS[kind].maxHeightDiffM;
+  let lowest = Infinity;
+  let highest = -Infinity;
+  let offMeadow = false;
+  for (const [x, z] of samples) {
+    const tile = tileOfWorldPoint(landscape, x, z);
+    if (!tile) return fail(`${name} musí stát uvnitř krajiny sídla.`);
+    const surface = surfaceAt(landscape, tile.x, tile.y);
+    if (surface === 'water') return fail(`${name} nemůže stát ve vodě.`);
+    if (surface !== 'meadow') offMeadow = true;
+    if (limit === null) continue;
+    const height = heightAtWorld(landscape, x, z);
+    lowest = Math.min(lowest, height);
+    highest = Math.max(highest, height);
+  }
+  if (offMeadow) return fail(`${name} jde stavět jen na louce.`);
+  if (limit !== null && highest - lowest > limit) {
+    return fail(
+      `Země je tu příliš nerovná – rozdíl ${formatNumber(highest - lowest, 1)} m, ` +
+        `nejvýš ${formatNumber(limit, 1)} m.`,
+    );
+  }
+  return OK;
+}
+
+/**
+ * Smí modla nebo svatyně stát na místě (happiness.md)? Půdorys (modla 4 × 4 m, svatyně 30 × 30 m)
+ * celý na louce, u svatyně převýšení nejvýš 1 m; nepřekrývá obydlí, pole, hřbitovy, sady, jiné
+ * modly ani svatyni; žádný skalní výchoz, čtverec háje ani posvátný dub (pod korunou); svatyně
+ * jedna na ves. Ostatní překážky na půdorysu osadníci odstraní – cena po kusech podle tabulky ve
+ * fields.md, dospělé stromy dají klády. `obstacles` = vrstva překážek krajiny.
+ */
+export function checkSacredBuildingPlacement(
+  landscape: Landscape,
+  village: PlacementVillage | null,
+  kind: SacredBuildingKind,
+  position: Position,
+  obstacles: ObstacleLayer = obstaclesOf(landscape),
+): SacredPlacementCheck {
+  const none = { obstacleCost: 0, obstacleIds: [], clearedTrees: 0, obstacleCounts: {} };
+  if (![position.x, position.z, position.rotation].every(Number.isFinite)) {
+    return { ...fail(`Neplatná poloha – ${SACRED_NAMES[kind].toLowerCase()}.`), ...none };
+  }
+  if (kind === 'shrine' && (village?.sacredBuildings ?? []).some((b) => b.kind === 'shrine')) {
+    return { ...fail('Ves už svatyni má – svatyně je jedna na ves.'), ...none };
+  }
+  const size = SACRED_BUILDINGS[kind].footprintM;
+  const terrain = checkSacredTerrain(landscape, kind, rectangleSamples(size, size, position));
+  if (!terrain.ok) return { ...terrain, ...none };
+  const footprint = sacredFootprint(kind, position);
+  const free = checkFootprintFree(landscape, village, [footprint]);
+  if (!free.ok) return { ...free, ...none };
+  const status = obstacleStatus(village?.obstacleChanges);
+  if (outcropUnder(obstacles, status, footprint)) {
+    return { ...fail('Stojí tu skalní výchoz – ten osadníci neodstraní.'), ...none };
+  }
+  const sites = sacredSitesOf(obstacles);
+  const sacredProblem = sacredUnder(landscape, obstacles, sites, [footprint]);
+  if (sacredProblem) return { ...fail(sacredProblem), ...none };
+  const tally = polygonObstacles(obstacles, status, footprint, new Set(), sites.protectedTrees);
+  return {
+    ...OK,
+    obstacleCost: tally.cost,
+    obstacleIds: tally.ids,
+    clearedTrees: unreservedTrees(village, tally.treeIds),
+    obstacleCounts: tally.counts,
+  };
+}
+
+/** Ušetřená místa obou kontrol (obydlí a první pole při založení vsi). */
+export function sparedOf(...checks: readonly { spared: SparedSacred }[]): SparedSacred {
+  return mergeSpared(...checks.map((c) => c.spared));
 }

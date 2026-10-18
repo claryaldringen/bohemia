@@ -11,6 +11,7 @@ import {
 } from './dwellings';
 import { endOfSeason, expectedNetKg, sowingOrder } from './fields';
 import { daysUntilAppleRot, eatMeal } from './food';
+import { isToilDay, updateHappiness, villageLaborFactor, windowEndDay } from './happiness';
 import { recordClearedObstacles } from './obstacles';
 import { allocateDay, type LaborTaskName } from './labor';
 import { laborDay, type ConstructionWork } from './labor-report';
@@ -32,6 +33,7 @@ import {
   CHRONICLE_MAX_EVENTS,
   COMMON_LABOR_HISTORY_DAYS,
   CROP_ORDER,
+  CROP_WINDOWS,
   FOOD_NEED_KG_PER_YEAR,
   FOREST_BONUS,
   HARVEST_DAY,
@@ -148,7 +150,7 @@ function simulateDay(state: VillageState, day: number, obstacles: ObstacleLayer 
   if (date.month >= PLANNING_DAY.month || date.month <= LAST_JOIN_MONTH) {
     joinFinishedParts(state, day);
   }
-  work(state, day);
+  const toil = work(state, day);
   finishConstructions(state, day);
   decideRebuilds(state, day, obstacles);
   occupyEmptyDwellings(state, day);
@@ -160,7 +162,10 @@ function simulateDay(state: VillageState, day: number, obstacles: ObstacleLayer 
     satiation,
     inLuckyYears(state.foundedDay, day),
   );
-  state.chronicle.push(...populationDay(state, day, satiation));
+  const events = populationDay(state, day, satiation);
+  state.chronicle.push(...events);
+  // štěstí na konci dne – hlad, úmrtí, přeplněnost, dřina, zásoby a posvátná místa (happiness.md)
+  updateHappiness(state, day, { satiation, events, toil });
   if (state.people.length === 0) {
     // zemřel poslední člověk – ves vymřela, dál se nesimuluje (ani sklizeň dne)
     state.extinctDay = day;
@@ -257,7 +262,9 @@ const SOW_AFTER_DIG_DAYS = 1;
  * a celý podzim (září–listopad), jaro (březen–duben), červenec a srpen (sklizně).
  */
 function sowingCapacity(state: VillageState, day: number): SowingCapacity {
-  const capacity = state.people.reduce((sum, p) => sum + laborPerDay(p, day), 0);
+  // práci násobí štěstí vsi (happiness.md)
+  const capacity =
+    state.people.reduce((sum, p) => sum + laborPerDay(p, day), 0) * villageLaborFactor(state);
   const dailyMin = dailyMinPerHousehold(NO_CRAFTS.pottery) * householdCount(state);
   const free = Math.max(0, capacity - dailyMin) * PEAK_CAPACITY_SHARE;
   const days = (segments: Parameters<typeof windowDaysLeft>[1], sowing = false): number =>
@@ -313,6 +320,7 @@ function householdCount(state: VillageState): number {
 /** Polní úloha dne: práce plodiny, kterou dostane, a konec jejího okna pro pořadí. */
 interface FieldTaskEntry {
   name: TaskName;
+  crop: Crop;
   remaining: number;
   work: CropWork;
   end: number;
@@ -331,7 +339,7 @@ function fieldTasks(state: VillageState, day: number): FieldTaskEntry[] {
     const end = taskWindowEnd(name, month, crop);
     if (end === null) return;
     const rank = CROP_ORDER.indexOf(crop) * TASK_ORDER.length + TASK_ORDER.indexOf(name);
-    entries.push({ name, remaining: taskRemaining(work, name), work, end, rank });
+    entries.push({ name, crop, remaining: taskRemaining(work, name), work, end, rank });
   };
   if (state.plan !== null) {
     for (const { crop, work } of planCrops(state.plan)) {
@@ -349,9 +357,10 @@ function fieldTasks(state: VillageState, day: number): FieldTaskEntry[] {
 /**
  * Krok 3: rozdělení práce vsi. Polní úlohy obou plodin (`fieldTasks`), sezónní práce v sadech
  * podle konce svého okna (sklizeň jablek po ozimu, před podzimním kopáním jaře, péče až po
- * výmlatu); opravy obydlí poměrně k potřebě; společná práce do staveb.
+ * výmlatu); opravy obydlí poměrně k potřebě; společná práce do staveb. Veškerou práci násobí
+ * štěstí (happiness.md). Vrací, jestli ves dnes nestíhá polní práce v období (dřina).
  */
-function work(state: VillageState, day: number): void {
+function work(state: VillageState, day: number): boolean {
   const owned = fieldTasks(state, day);
   const tasks: { name: LaborTaskName; remaining: number }[] = owned.map(({ name, remaining }) => ({
     name,
@@ -373,6 +382,7 @@ function work(state: VillageState, day: number): void {
     domesticBacklog: state.domesticBacklog,
     potteryCoverage: NO_CRAFTS.pottery,
     fuelExtra: fuelExtraPerDay(state),
+    productivity: villageLaborFactor(state),
   });
 
   // polní práce dne – i odkud kam došla (rozdělení práce po dílech pro postavy, labor-report.ts)
@@ -397,6 +407,13 @@ function work(state: VillageState, day: number): void {
   if (state.commonLaborHistory.length > COMMON_LABOR_HISTORY_DAYS) {
     state.commonLaborHistory.splice(0, state.commonLaborHistory.length - COMMON_LABOR_HISTORY_DAYS);
   }
+  // dřina: stihne ves dnešním tempem polní práce obou plodin do konce jejich oken?
+  const pace = fieldWork.reduce((sum, task) => sum + task.amount, 0);
+  const seasonTasks = owned.map((task) => ({
+    remaining: taskRemaining(task.work, task.name),
+    endDay: windowEndDay(CROP_WINDOWS[task.crop][task.name], day) ?? day,
+  }));
+  return isToilDay(seasonTasks, pace, day);
 }
 
 /**
@@ -572,6 +589,19 @@ function finishConstructions(state: VillageState, day: number): void {
     }
     if (c.kind === 'cemetery') {
       finishCemetery(state, day, c);
+      state.chronicle.push(finishedEvent(day, c, null));
+      continue;
+    }
+    if (c.kind === 'idol' || c.kind === 'shrine') {
+      // dostavěná modla nebo svatyně – přidává štěstí (happiness.md)
+      if (c.position !== null) {
+        (state.sacredBuildings ??= []).push({
+          id: c.id,
+          kind: c.kind,
+          position: { ...c.position },
+          builtDay: day,
+        });
+      }
       state.chronicle.push(finishedEvent(day, c, null));
       continue;
     }

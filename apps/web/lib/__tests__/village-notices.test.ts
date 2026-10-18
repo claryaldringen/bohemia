@@ -15,17 +15,62 @@ const view = (overrides: Partial<VillageView> = {}): VillageView => ({
   commonLaborPerDay: 1,
   fullHousehold: false,
   build: {
-    zemnice: { laborManDays: 60, perHa: false, perSquare: false, upfront: [], affordable: true },
+    zemnice: {
+      laborManDays: 60,
+      perHa: false,
+      perSquare: false,
+      upfront: [],
+      blocked: null,
+      affordable: true,
+    },
     polozemnice: {
       laborManDays: 220,
       perHa: false,
       perSquare: false,
       upfront: [],
+      blocked: null,
       affordable: true,
     },
-    field: { laborManDays: 100, perHa: true, perSquare: false, upfront: [], affordable: true },
-    cemetery: { laborManDays: 10, perHa: false, perSquare: true, upfront: [], affordable: true },
-    orchard: { laborManDays: 80, perHa: true, perSquare: false, upfront: [], affordable: true },
+    field: {
+      laborManDays: 100,
+      perHa: true,
+      perSquare: false,
+      upfront: [],
+      blocked: null,
+      affordable: true,
+    },
+    cemetery: {
+      laborManDays: 10,
+      perHa: false,
+      perSquare: true,
+      upfront: [],
+      blocked: null,
+      affordable: true,
+    },
+    orchard: {
+      laborManDays: 80,
+      perHa: true,
+      perSquare: false,
+      upfront: [],
+      blocked: null,
+      affordable: true,
+    },
+    idol: {
+      laborManDays: 30,
+      perHa: false,
+      perSquare: false,
+      upfront: [],
+      blocked: null,
+      affordable: true,
+    },
+    shrine: {
+      laborManDays: 400,
+      perHa: false,
+      perSquare: false,
+      upfront: [],
+      blocked: null,
+      affordable: true,
+    },
   },
   constructions: [],
   fields: [],
@@ -34,6 +79,8 @@ const view = (overrides: Partial<VillageView> = {}): VillageView => ({
   hungry: false,
   starving: false,
   constructionsStalled: false,
+  happiness: { value: 50, target: 50, laborFactor: 1 },
+  sacred: { oaks: [], groves: [], buildings: [] },
   extinct: null,
   gameOver: false,
   scene: { dwellings: [], fields: [] },
@@ -119,5 +166,24 @@ describe('hřbitov je plný', () => {
     expect(villageNotices(view({ cemeteries: [cemetery(true, 0)] }))[0]?.text).toBe(
       'Hřbitov je plný',
     );
+  });
+});
+
+describe('newNotices – posvátná místa', () => {
+  it('přibude posvátný dub nebo háj – fakt jednou, při prvním načtení nic', () => {
+    const before = view();
+    const after = view({
+      sacred: {
+        oaks: [{ id: 7, happiness: 5 }],
+        groves: [{ id: 9, oaks: 12, squares: 9, happiness: 13 }],
+        buildings: [],
+      },
+    });
+    expect(newNotices(null, after)).toEqual([]);
+    expect(newNotices(before, after)).toEqual([
+      { kind: 'sacred-oak', tone: 'info', text: 'Vesničané ušetřili posvátný dub' },
+      { kind: 'sacred-grove', tone: 'info', text: 'Vesničané ušetřili dubový háj' },
+    ]);
+    expect(newNotices(after, after)).toEqual([]);
   });
 });

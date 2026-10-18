@@ -11,16 +11,35 @@ import { Matrix, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { CreateGround } from '@babylonjs/core/Meshes/Builders/groundBuilder';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { Scene } from '@babylonjs/core/scene';
-import { SHOWCASE_BUILDINGS, SHOWCASE_GROUNDS, showcaseGrounds } from './building-showcase-layout';
-import { SUN_DIRECTION } from './constants';
+import {
+  SHOWCASE_BUILDINGS,
+  SHOWCASE_DECOR,
+  SHOWCASE_GROUNDS,
+  showcaseGrounds,
+  showcaseHayMeadows,
+  showcaseMeadowDay,
+  showcasePloughField,
+  type ShowcaseDecorModel,
+} from './building-showcase-layout';
+import { SUN_DIRECTION, WATER_FPS } from './constants';
 import { createEngine, type RendererName } from './create-engine';
 import { GARDEN_MODEL_URL, eaveTufts, gardenInstance, type TuftModel } from './dwelling-decor';
 import { applyGammaFog } from './gamma-fog';
-import { addInstancedModel, loadMergedModel, loadModelParts } from './instanced-model';
+import {
+  addInstancedModel,
+  instanceMatrices,
+  loadMergedModel,
+  loadModelParts,
+  type ModelInstance,
+} from './instanced-model';
+import { TREE_MODELS, type TreeModel } from './obstacle-scenery';
 import { PitCuts, applyPitCut } from './pit-cut';
+import { ploughPath } from './plough-team';
+import { PloughTeams } from './plough-team-renderer';
 import { ShowcaseSites } from './showcase-sites';
 import { addSunShadows, type SunShadows } from './sun-shadows';
-import { CONSTRUCTION_BASE } from './village-construction';
+import { prepareTreeMaterial } from './trees';
+import { CONSTRUCTION_BASE, type ConstructionKind } from './village-construction';
 import { VillageRenderer } from './village-renderer';
 
 /** Úhel kamery od svislice ve hře (BETA v camera.ts) – výchozí pohled vývojové stránky. */
@@ -35,19 +54,42 @@ const AMBIENT = new Color3(0.38, 0.38, 0.36);
 const PLANT_AMBIENT = new Color3(0.45, 0.48, 0.45);
 const TUFT_TINT = new Color3(0.56, 0.86, 0.4);
 const TUFT_MODELS: readonly TuftModel[] = ['grass-tuft-1', 'grass-tuft-2'];
-/** Díly staveniště: obydlí a jejich rekvizity, řemesla (+ kameny a hlína), uhlíř a milíř. */
+/**
+ * Díly staveniště: obydlí a jejich rekvizity, řemesla (+ kameny a hlína), uhlíř a milíř,
+ * modla a svatyně.
+ */
 const CONSTRUCTION_URLS = [
   '/models/dwellings/construction.glb',
   '/models/crafts/construction.glb',
   '/models/crafts/construction-moss.glb',
+  '/models/sacred/idol-construction.glb',
+  '/models/sacred/shrine-construction.glb',
 ];
+
+/** Pata modelu: obydlí a dílny o kousek zapuštěné, posvátná místa leží na terénu (mají vlastní zem). */
+function modelBaseY(kind: ConstructionKind): number {
+  return kind === 'modla' || kind === 'svatyne' ? 0 : BASE_Y;
+}
+
+/** Strom z lesa podle jména souboru (oak-large-1.glb → oak-large-1), jinak undefined. */
+function treeModelOf(url: string): TreeModel | undefined {
+  const name = url.slice(url.lastIndexOf('/') + 1).replace(/\.glb$/, '');
+  return TREE_MODELS.find((model) => model === name);
+}
+
+function decorInstance(m: ShowcaseDecorModel): ModelInstance {
+  return { x: m.x, y: 0, z: m.z, rotationY: m.rotation, scale: m.scale };
+}
 
 /**
  * VÝVOJOVÝ NÁHLED – jen pro /dev/buildings: stavby vedle sebe na rovné louce se světlem hry
  * (slunce, obloha, opar a kontrast jako LandscapeScene), jámy, trsy trávy u okapu a zahrádka
- * polozemnice jako ve vsi, stíny od slunce. Za stavbami pole, hřbitov a sad – kreslí je herní
- * `VillageRenderer` podle `showcaseGrounds`. Kamera se otáčí levým tlačítkem, posouvá pravým,
- * kolečko přibližuje. Kreslí se jen při změně pohledu.
+ * polozemnice jako ve vsi, stíny od slunce. Za stavbami pole, hřbitov, sad a louka na seno –
+ * kreslí je herní `VillageRenderer` podle `showcaseGrounds`; vpravo posvátný dub s obětinami
+ * a dubový háj s kameny (`SHOWCASE_DECOR`, bez staveniště); vlevo orá spřežení volů s rádlem
+ * (`PloughTeams`). Kamera se otáčí levým tlačítkem, posouvá pravým, kolečko přibližuje.
+ * Kreslí se jen při změně pohledu – výjimka je spřežení v záběru (WATER_FPS jako voda,
+ * při omezeném pohybu stojí).
  */
 export class BuildingShowcase {
   private readonly resizeObserver: ResizeObserver;
@@ -65,6 +107,18 @@ export class BuildingShowcase {
   /** Hotové modely a trsy trávy – při stavbě skryté. */
   private readonly finished: Mesh[] = [];
   private readonly tufts: Mesh[] = [];
+  /** Spřežení volů s rádlem (ukázka „Orání“). */
+  private teams: PloughTeams | null = null;
+  /** Poslední snímek animace spřežení (ms) – nejvýš WATER_FPS za sekundu. */
+  private lastAnimation = 0;
+  /** Při omezeném pohybu stojí – stačí ho jednou postavit. */
+  private frozenWritten = false;
+  /** Kamera jede za spřežením. */
+  private following = false;
+  private readonly reducedMotion =
+    typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      ? window.matchMedia('(prefers-reduced-motion: reduce)')
+      : null;
 
   private constructor(
     private readonly engine: AbstractEngine,
@@ -132,9 +186,11 @@ export class BuildingShowcase {
     return showcase;
   }
 
-  /** Kamera na stavbu (id ze SHOWCASE_BUILDINGS nebo SHOWCASE_GROUNDS). */
+  /** Kamera na stavbu (id ze SHOWCASE_BUILDINGS, SHOWCASE_GROUNDS nebo SHOWCASE_DECOR). */
   focus(id: string): void {
-    const target = [...SHOWCASE_BUILDINGS, ...SHOWCASE_GROUNDS].find((b) => b.id === id);
+    const target = [...SHOWCASE_BUILDINGS, ...SHOWCASE_GROUNDS, ...SHOWCASE_DECOR].find(
+      (b) => b.id === id,
+    );
     if (!target) return;
     this.setView(target.focus);
   }
@@ -154,12 +210,27 @@ export class BuildingShowcase {
     this.camera.beta = GAME_BETA;
   }
 
+  /** Kamera na spřežení (střed mezi jhem a rádlem); `radius` = vzdálenost kamery (m). */
+  focusTeam(radius = 16): void {
+    const center = this.teams?.center();
+    if (!center) return;
+    this.setView({ x: center.x, z: center.z, radius });
+  }
+
+  /** Kamera jede za spřežením (zapnuto / vypnuto); vrátí nový stav. */
+  followTeam(on: boolean): boolean {
+    this.following = on && this.teams !== null;
+    if (this.following) this.focusTeam(this.camera.radius > 60 ? 24 : this.camera.radius);
+    return this.following;
+  }
+
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
     this.resizeObserver.disconnect();
     this.sites?.dispose();
     this.grounds?.dispose();
+    this.teams?.dispose();
     this.camera.detachControl();
     this.engine.stopRenderLoop();
     this.scene.dispose();
@@ -205,6 +276,11 @@ export class BuildingShowcase {
       const garden = gardenInstance(m.kind, m, () => 0);
       return garden ? [garden] : [];
     });
+    // dekorace podle souboru: stromy jako v lese, obětiny, kameny háje po uzlech
+    const decor = new Map<string, ShowcaseDecorModel[]>();
+    for (const m of SHOWCASE_DECOR.flatMap((g) => g.models)) {
+      decor.set(m.url, [...(decor.get(m.url) ?? []), m]);
+    }
     await Promise.all([
       ...models.map(async (m, i) => {
         try {
@@ -215,7 +291,7 @@ export class BuildingShowcase {
             prepareModelMaterial,
           );
           if (!mesh) return;
-          mesh.position.set(m.x, BASE_Y, m.z);
+          mesh.position.set(m.x, modelBaseY(m.kind), m.z);
           mesh.rotation.y = m.rotation;
           casters.push(mesh);
           this.finished.push(mesh);
@@ -262,6 +338,44 @@ export class BuildingShowcase {
           console.warn('Model zahrádky se nepodařilo načíst.', error);
         }
       })(),
+      ...[...decor].map(async ([url, list], i) => {
+        try {
+          if (list.some((m) => m.part !== undefined)) {
+            const loaded = await loadModelParts(
+              scene,
+              url,
+              'showcase-decor-',
+              prepareModelMaterial,
+            );
+            for (const [name, mesh] of loaded ?? []) {
+              const mine = list.filter((m) => m.part === name);
+              if (mine.length === 0) {
+                mesh.dispose();
+                continue;
+              }
+              mesh.thinInstanceSetBuffer(
+                'matrix',
+                instanceMatrices(mine.map(decorInstance)),
+                16,
+                true,
+              );
+              casters.push(mesh);
+            }
+            return;
+          }
+          const tree = list[0]?.tree ? treeModelOf(url) : undefined;
+          const mesh = await addInstancedModel(
+            scene,
+            url,
+            `showcase-decor-${i}`,
+            list.map(decorInstance),
+            tree ? (material) => prepareTreeMaterial(tree, material) : prepareModelMaterial,
+          );
+          if (mesh) casters.push(mesh);
+        } catch (error) {
+          console.warn(`Dekoraci ${url} se nepodařilo načíst.`, error);
+        }
+      }),
       ...CONSTRUCTION_URLS.map(async (url) => {
         try {
           const loaded = await loadModelParts(scene, url, 'showcase-site-', prepareModelMaterial);
@@ -276,7 +390,7 @@ export class BuildingShowcase {
       }),
     ]);
     if (this.disposed) return;
-    this.sites = new ShowcaseSites(scene, models, parts, pitCuts, BASE_Y);
+    this.sites = new ShowcaseSites(scene, models, parts, pitCuts, BASE_Y, modelBaseY);
     this.grounds = new VillageRenderer(scene, {
       groundHeight: () => 0,
       decalHeight: () => 0,
@@ -293,7 +407,16 @@ export class BuildingShowcase {
       pitCuts: new PitCuts(),
       sunDirection: SUN_DIRECTION,
     });
+    this.grounds.setHayMeadows(showcaseHayMeadows());
+    this.grounds.setSeason(showcaseMeadowDay(this.progress), 0);
     this.grounds.update(showcaseGrounds(this.progress).village);
+    this.teams = new PloughTeams(scene, {
+      baseUrl: '/models/plough/',
+      groundHeight: () => 0,
+      prepareMaterial: prepareModelMaterial,
+      onLoaded: () => this.burst(600),
+    });
+    this.teams.setPaths([ploughPath(showcasePloughField())]);
     this.shadows = addSunShadows(sun, { casters, receivers: [ground], extentM: GROUND_SIZE.width });
     this.applyProgress();
     await scene.whenReadyAsync();
@@ -309,19 +432,46 @@ export class BuildingShowcase {
     for (const mesh of this.finished) mesh.setEnabled(built);
     for (const mesh of this.tufts) mesh.setEnabled(built);
     this.sites.update(this.progress);
+    this.grounds?.setSeason(showcaseMeadowDay(this.progress), 0);
     this.grounds?.update(showcaseGrounds(this.progress).village);
     this.shadows?.refresh();
     this.burst(400);
   }
 
-  /** Kreslí jen při změně pohledu (a chvíli po načtení, než se dokončí shadery a textury). */
+  /**
+   * Kreslí jen při změně pohledu (a chvíli po načtení, než se dokončí shadery a textury) –
+   * výjimka je spřežení v záběru: hýbe se samo, nejvýš WATER_FPS snímků za sekundu.
+   */
   private frame(): void {
+    const now = performance.now();
+    let animated = false;
+    if (this.teams) {
+      if (this.reducedMotion?.matches) {
+        // omezený pohyb: spřežení stojí uprostřed první řady
+        if (!this.frozenWritten && this.teams.animate(0, null, true)) {
+          this.frozenWritten = true;
+          animated = true;
+        }
+      } else if (now - this.lastAnimation >= 1000 / WATER_FPS) {
+        this.frozenWritten = false;
+        // skutečný čas (epoch ms) jako zvířata – stejný okamžik = stejná póza
+        const camera = this.following ? null : this.camera;
+        if (this.teams.animate(Date.now(), camera)) {
+          this.lastAnimation = now;
+          animated = true;
+        }
+      }
+      if (this.following) {
+        const center = this.teams.center();
+        if (center) this.camera.target.set(center.x, 0, center.z);
+      }
+    }
     this.camera.update();
     const view = this.camera.getViewMatrix(true);
     const changed = !this.hasView || !view.equals(this.lastView);
     this.lastView.copyFrom(view);
     this.hasView = true;
-    if (!changed && performance.now() > this.burstUntil) return;
+    if (!changed && !animated && now > this.burstUntil) return;
     this.scene.render(false);
   }
 

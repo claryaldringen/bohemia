@@ -1,10 +1,16 @@
 import { TOTAL_GAME_DAYS } from '../calendar';
 import type { ObstacleLayer } from '../landscape';
 import { cemeteryFoundingCost, touchingCemeteries, villageCemeteries } from './cemetery';
-import { buildAffordability, dwellingLaborManDays, payUpfront, type BuildKind } from './costs';
+import {
+  buildAffordability,
+  dwellingLaborManDays,
+  payUpfront,
+  sacredLaborManDays,
+  type BuildKind,
+} from './costs';
 import { isVillageExtinct } from './extinction';
 import { fieldsTouching, partFoundingCost } from './fields';
-import { recordClearedObstacles } from './obstacles';
+import { obstacleChangesAt, recordClearedObstacles } from './obstacles';
 import { orchardPlantingCost, villageOrchards } from './orchard';
 import { ageGroup } from './people';
 import { NO_CRAFTS } from './productivity';
@@ -15,6 +21,7 @@ import {
   START_STORES_MONTHS,
   dwellingBuildLabor,
 } from './rules';
+import { hasShrine, recordSpared, validateSpared, type SparedSacred } from './sacred';
 import type {
   CemeterySquare,
   DwellingType,
@@ -22,10 +29,19 @@ import type {
   OrchardSquare,
   Person,
   Position,
+  SacredBuildingKind,
   TileCell,
   VillageState,
 } from './types';
-import { planDwellingWood, takeWood, type WoodPlan } from './wood';
+import {
+  addLogs,
+  claimedObstacles,
+  logsFromClearedTrees,
+  planDwellingWood,
+  planSacredWood,
+  takeWood,
+  type WoodPlan,
+} from './wood';
 
 const DAYS_PER_YEAR = 365.25; // věk se počítá po 365,25 dne
 const MONTHS_PER_YEAR = 12;
@@ -47,6 +63,8 @@ export type FieldInput = {
   parts: PartInput[];
   /** @deprecated Obrys z prvního prototypu – nová pole se skládají ze čtverců (dílů). */
   outline?: [number, number][];
+  /** Posvátné duby a háje, které vesničané při mýcení nechají stát (happiness.md). */
+  sacred?: SparedSacred;
 };
 
 /**
@@ -64,6 +82,8 @@ export type CemeteryInput = {
   squares: CemeterySquareInput[];
   /** Strana čtverce – políčka krajiny (m). */
   squareSizeM: number;
+  /** Háje, které vesničané nechají stát (happiness.md). */
+  sacred?: SparedSacred;
 };
 
 /**
@@ -78,7 +98,11 @@ export type OrchardSquareInput = Pick<OrchardSquare, 'cell' | 'areaM2' | 'distan
   trees?: number;
 };
 
-export type OrchardInput = { squares: OrchardSquareInput[] };
+export type OrchardInput = {
+  squares: OrchardSquareInput[];
+  /** Posvátné duby a háje, které vesničané při mýcení nechají stát (happiness.md). */
+  sacred?: SparedSacred;
+};
 
 /** Den akce musí být celé číslo uvnitř světa; jinak RangeError. */
 function validateDay(day: number): void {
@@ -162,6 +186,7 @@ function validateField(field: FieldInput, joinedAreaM2 = 0): void {
   if (total < FIELD_LIMITS.minAreaM2) {
     throw new RangeError(`Pole musí mít aspoň ${FIELD_LIMITS.minAreaM2} m².`);
   }
+  if (field.sacred) validateSpared(field.sacred);
 }
 
 /**
@@ -262,6 +287,7 @@ function addField(state: VillageState, day: number, field: FieldInput): void {
     dwellingId: null,
     fieldId,
   });
+  if (field.sacred) recordSpared(state, field.sacred, day);
 }
 
 /**
@@ -299,6 +325,8 @@ export function foundVillage(input: {
   obstacles?: ObstacleLayer;
   /** Vzdálenost první zemnice k nejbližšímu okraji lesa (m) – palivo (forest.md). */
   forestDistanceM?: number;
+  /** Posvátné duby a háje na vyklízené ploše první zemnice – zůstanou stát (happiness.md). */
+  dwellingSpared?: SparedSacred;
 }): VillageState {
   const { seed, day, dwellingPosition, firstField } = input;
   const dwellingObstacleIds = input.dwellingObstacleIds ?? [];
@@ -311,6 +339,7 @@ export function foundVillage(input: {
   validateTrees(clearedTrees);
   if (input.forestDistanceM !== undefined) validateForestDistance(input.forestDistanceM);
   if (firstField) validateField(firstField);
+  if (input.dwellingSpared) validateSpared(input.dwellingSpared);
   const householdId = 1;
   const people: Person[] = START_AGES.map((age, i) => ({
     id: householdId + 1 + i,
@@ -363,6 +392,7 @@ export function foundVillage(input: {
   const zemnice = state.constructions[0]!;
   zemnice.wood = takeWood(state, plan);
   zemnice.cost = dwellingLaborManDays('zemnice', dwellingObstacleCost, plan);
+  if (input.dwellingSpared) recordSpared(state, input.dwellingSpared, day);
   return state;
 }
 
@@ -387,6 +417,8 @@ export interface DwellingSiteOptions {
   clearedTrees?: number;
   /** Vzdálenost obydlí k nejbližšímu okraji lesa (m) – palivo. */
   forestDistanceM?: number;
+  /** Posvátné duby a háje na vyklízené ploše – zůstanou stát (happiness.md). */
+  sacred?: SparedSacred;
 }
 
 /**
@@ -419,6 +451,7 @@ export function startNewDwelling(
   validateObstacleIds(obstacleIds);
   validateTrees(site.clearedTrees ?? 0);
   if (site.forestDistanceM !== undefined) validateForestDistance(site.forestDistanceM);
+  if (site.sacred) validateSpared(site.sacred);
   requireAffordable(state, type, site.obstacles);
   const plan: WoodPlan = planDwellingWood(state, type, position, day, {
     ...(site.obstacles ? { obstacles: site.obstacles } : {}),
@@ -443,6 +476,7 @@ export function startNewDwelling(
     wood,
     ...(site.forestDistanceM === undefined ? {} : { forestDistanceM: site.forestDistanceM }),
   });
+  if (site.sacred) recordSpared(next, site.sacred, day);
   return next;
 }
 
@@ -496,6 +530,7 @@ function validateCemetery(input: CemeteryInput): void {
   }
   if (cells.size !== input.squares.length) throw new RangeError('Čtverce hřbitova se opakují.');
   validateObstacleIds(input.squares.flatMap((s) => s.obstacleIds ?? []));
+  if (input.sacred) validateSpared(input.sacred);
 }
 
 /**
@@ -576,6 +611,7 @@ export function foundCemetery(
     fieldId: null,
     cemeteryId,
   });
+  if (input.sacred) recordSpared(next, input.sacred, day);
   return next;
 }
 
@@ -602,6 +638,7 @@ function validateOrchard(input: OrchardInput): void {
   }
   if (cells.size !== input.squares.length) throw new RangeError('Čtverce sadu se opakují.');
   validateObstacleIds(input.squares.flatMap((s) => s.obstacleIds ?? []));
+  if (input.sacred) validateSpared(input.sacred);
 }
 
 /**
@@ -650,6 +687,72 @@ export function foundOrchard(state: VillageState, day: number, input: OrchardInp
     dwellingId: null,
     fieldId: null,
     orchardId,
+  });
+  if (input.sacred) recordSpared(next, input.sacred, day);
+  return next;
+}
+
+/** Staveniště modly nebo svatyně – duby ke kácení a stromy z půdorysu (happiness.md). */
+export interface SacredSiteOptions {
+  /**
+   * Vrstva překážek krajiny – duby ke kácení (nejbližší dospělé duby ke staveništi). Bez ní (jen
+   * testy) se duby kácí bez polohy za cenu blízkého lesa.
+   */
+  obstacles?: ObstacleLayer;
+  /** Dospělé stromy mezi `obstacleIds` – osadníci je skácí na hromadu klád. */
+  clearedTrees?: number;
+}
+
+/**
+ * Zahájí stavbu dřevěné modly nebo svatyně (happiness.md) – stavba ze společné práce vsi po
+ * fázích, osadníci nejsou potřeba. Předem chce dospělé duby: vyhradí nejbližší dospělé duby ke
+ * staveništi (ne posvátné) a skácí je jako první část práce. Překážky na půdorysu (`obstacleIds`,
+ * cena v `obstacleCost`) osadníci odstraní hned, dospělé stromy z něj dají klády. Svatyně je
+ * jedna na ves. RangeError, když ves nemá duby, už svatyni má nebo je vstup neplatný.
+ *
+ * Konvence dne (jako u `startNewDwelling`): akce se volá na ves dopočítanou do dne `day` a patří
+ * na konec toho dne. Den před `state.lastDay` → RangeError.
+ */
+export function startSacredBuilding(
+  state: VillageState,
+  day: number,
+  kind: SacredBuildingKind,
+  position: Position,
+  obstacleCost: number,
+  obstacleIds: readonly number[] = [],
+  site: SacredSiteOptions = {},
+): VillageState {
+  validateActionDay(state, day);
+  validatePosition(position);
+  validateObstacleCost(obstacleCost);
+  validateObstacleIds(obstacleIds);
+  validateTrees(site.clearedTrees ?? 0);
+  if (kind === 'shrine' && hasShrine(state)) {
+    throw new RangeError('Ves už svatyni má – svatyně je jedna na ves.');
+  }
+  requireAffordable(state, kind, site.obstacles);
+  const plan = planSacredWood(
+    kind,
+    position,
+    { changes: () => obstacleChangesAt(state, day), claimed: () => claimedObstacles(state) },
+    { obstacles: site.obstacles ?? null, clearedIds: obstacleIds },
+  );
+  if (plan.missing > 0) throw new RangeError('Na stavbu ves nemá dospělé duby ke kácení.');
+  const next = structuredClone(state);
+  payUpfront(next, kind);
+  recordClearedObstacles(next, obstacleIds, day);
+  addLogs(next, logsFromClearedTrees(site.clearedTrees ?? 0));
+  next.constructions.push({
+    id: next.nextId++,
+    kind,
+    startedDay: day,
+    cost: sacredLaborManDays(kind, obstacleCost, plan),
+    done: 0,
+    dwellingType: null,
+    position: { ...position },
+    dwellingId: null,
+    fieldId: null,
+    wood: takeWood(next, plan),
   });
   return next;
 }

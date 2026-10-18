@@ -34,6 +34,7 @@ import {
   LOG_ROT_PER_YEAR,
   dwellingBuildLabor,
 } from '../rules';
+import { sacredSitesOf } from '../sacred';
 import { advanceVillage } from '../simulate';
 import { summarizeVillage } from '../summary';
 import type { Person, VillageState } from '../types';
@@ -62,7 +63,7 @@ const SITE = { x: 0, z: 0, rotation: 0 };
 const tree = (id: number, x: number, z: number): ObstaclePlacement => ({
   id,
   kind: 'tree',
-  look: 'oak-1',
+  look: 'beech-1',
   x,
   z,
   rotation: 0,
@@ -100,6 +101,7 @@ function fullVillage(day = DAY): VillageState {
 describe('nejbližší dospělé stromy', () => {
   const real = generateLandscape(3);
   const layer = obstaclesOf(real);
+  const sacred = sacredSitesOf(layer).protectedTrees;
 
   it('hledání po políčkách dá totéž co projití celé vrstvy (i s vyloučenými stromy)', () => {
     for (const [x, z, count] of [
@@ -108,7 +110,8 @@ describe('nejbližší dospělé stromy', () => {
       [-300, 250, 30],
       [900, 900, 5],
     ] as const) {
-      const all = matureTreesByDistance(layer, NO_OBSTACLE_CHANGES, { x, z });
+      // posvátné duby a stromy hájů se pro stavby nekácí (happiness.md)
+      const all = matureTreesByDistance(layer, NO_OBSTACLE_CHANGES, { x, z }, { exclude: sacred });
       const exclude = new Set(all.slice(0, 3).map((t) => t.id));
       expect(nearestMatureTrees(layer, NO_OBSTACLE_CHANGES, { x, z }, count)).toEqual(
         all.slice(0, count),
@@ -121,7 +124,10 @@ describe('nejbližší dospělé stromy', () => {
 
   it('počet stromů ke skácení (mezipaměť vrstvy + změny vsi) sedí s projitím celé vrstvy', () => {
     const s = fullVillage();
-    const near = matureTreesByDistance(layer, NO_OBSTACLE_CHANGES, SITE, { limit: 10 });
+    const near = matureTreesByDistance(layer, NO_OBSTACLE_CHANGES, SITE, {
+      limit: 10,
+      exclude: sacred,
+    });
     const stone = Array.from({ length: layer.count }, (_, i) => i).find(
       (i) => obstacleKind(layer, i) === 'stone',
     )!;
@@ -170,11 +176,17 @@ describe('nejbližší dospělé stromy', () => {
     const status = obstacleStatus(changes);
     const claimed = new Set([near[4]!.id, near[0]!.id, near[5]!.id]);
     let brute = 0;
+    let sacredStanding = 0;
     for (let i = 0; i < layer.count; i++) {
-      if (status.kindOf(layer, i) === 'tree' && !claimed.has(layer.id[i]!)) brute++;
+      if (status.kindOf(layer, i) !== 'tree') continue;
+      // posvátné duby a stromy hájů se pro stavby nekácí (happiness.md)
+      if (sacred.has(layer.id[i]!)) sacredStanding++;
+      else if (!claimed.has(layer.id[i]!)) brute++;
     }
     expect(availableTrees(layer, s, DAY)).toBe(brute);
-    expect(availableTrees(layer, s, DAY)).toBe(countMatureTrees(layer, changes) - 2);
+    expect(availableTrees(layer, s, DAY)).toBe(
+      countMatureTrees(layer, changes) - 2 - sacredStanding,
+    );
   });
 
   it('když stromů není dost, vrátí všechny; pokácené a odstraněné vynechá', () => {

@@ -40,7 +40,11 @@ export function placeCemetery(
         return { ok: false, reason: preview.check.reason ?? 'Sem hřbitov nepatří.' };
       }
       // akce patří do dne, do kterého je ves dopočítaná – dnešek, nebo „budoucí“ den vsi
-      const cemetery = { squares: preview.squares, squareSizeM: input.landscape.cellSizeM };
+      const cemetery = {
+        squares: preview.squares,
+        squareSizeM: input.landscape.cellSizeM,
+        sacred: preview.spared,
+      };
       return { ok: true, state: foundCemetery(state, state.lastDay, cemetery) };
     },
   );

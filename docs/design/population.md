@@ -5,7 +5,7 @@ obydlí a společná pole (Martin) a odemčení nového obydlí – hráč stav�
 oprava čísel podle rešerše (Martin – úmrtnost dospělých, porody od 16 let, životnost zemnice;
 [rešerše](research/2026-10-17-zemedelstvi-populace.md)). 18. 10. 2026 Martin změnil pravidlo
 hladu: lidé umírají hlady a ves může vymřít; komu vymřou všechny vsi, ten začíná znovu (viz Hlad
-a vymření).
+a vymření). Týž den: začít znovu jde i sám z nabídky hry (Martin).
 Implementace jádra: `packages/game/src/domain/village/`.
 
 ## Proč
@@ -177,6 +177,13 @@ jich bude moci mít více), tak pro něj hra končí – musí začínat znovu.�
   vsi, roky jejího života a jediné tlačítko **Začít znovu**. To staré sídlo i s vymřelou vsí
   odloží do archivu a hráč dostane **nové sídelní sídlo s novou krajinou** – zakládá ves od
   první zemnice jako nový hráč (návrh Clauda; vazalství a rod se vyřeší s jejich mechanikami).
+- **Začít znovu z nabídky** (Martin, 18. 10. 2026: „Měl bych mít k dispozici menu, ve kterém
+  bych mohl restartovat hru.“): nabídka hry jako v 0 A.D. (tlačítko vpravo v horní liště, F10)
+  má **Začít znovu**, **Odhlásit** a **Zpět do hry**. Začít znovu jde i se živou vsí – po
+  potvrzení v nabídce („Ves i rod zaniknou, začneš v nové krajině.“) jde sídlo i s živou vsí do
+  archivu (ves se dál nedopočítává) a hráč dostane nové sídelní sídlo s novou krajinou jako po
+  konci hry. Dokud ves není (zakládání), není co začínat znovu. Opakované i souběžné potvrzení
+  založí jediné nové sídlo; o všem rozhoduje server (návrh Clauda).
 
 ### Nové obydlí (rozhoduje hráč)
 
@@ -391,6 +398,7 @@ pravidla → první verze hladu (1 − nasycení za den, hájení bez stropu) �
 | Nahromaděný hlad, prahy 20 / 12 dní, smrt bez jídla do 60 / 45 dní           | návrh Clauda                               |
 | Hlad přibývá pod 90 % přídělu, od 90 % ubývá; v hájení den pod prahem        | návrh Clauda                               |
 | Restart: staré sídlo do archivu, nové sídelní sídlo s novou krajinou         | návrh Clauda                               |
+| Začít znovu jde i se živou vsí – z nabídky hry (F10), po potvrzení           | Martin (18. 10. 2026)                      |
 | Podoba hájení: dospělí neumírají, poloviční dětská úmrtnost                  | návrh Clauda                               |
 | Kapacity 6 / 8, ceny 60 / 220 člověkodní (roční období / rok), životnosti    | návrh Clauda                               |
 | Porodnost, úmrtnost, opravy až polovina příspěvku domácnosti                 | návrh Clauda                               |

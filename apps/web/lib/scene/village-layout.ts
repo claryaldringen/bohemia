@@ -1,14 +1,8 @@
-// Čistá geometrie vsi pro scénu (bez Babylonu): půdorysy, mnohoúhelníky, obtisky na terénu
-// a vzhled dílů pole podle stavu (geometrie polí po čtvercích je ve field-cells.ts). Souřadnice
-// světa scény v metrech (x, z).
-import {
-  DWELLING_CLEARING_M,
-  type DwellingType,
-  type PartStage,
-  type Position,
-} from '@bohemia/game';
+// Čistá geometrie vsi pro scénu (bez Babylonu): půdorysy, mnohoúhelníky a obtisky na terénu
+// (geometrie polí po čtvercích je ve field-cells.ts, vzhled dílů pole ve field-look.ts).
+// Souřadnice světa scény v metrech (x, z).
+import { DWELLING_CLEARING_M, type DwellingType, type Position } from '@bohemia/game';
 import { cellsBounds, cellsContain } from './field-cells';
-import type { FieldLook } from '../village-view';
 import type { SceneField } from './village-types';
 
 export type Point = [number, number];
@@ -196,127 +190,6 @@ export function stripSegments(
     segments.push(strip);
   }
   return segments;
-}
-
-// --- Vzhled dílů pole ---
-
-export type FieldTexture = 'grass-dirt' | 'mud' | 'grass' | 'grass-lush' | 'grass-dry';
-
-/**
- * Vzhled oseté části podle růstu obilí: zelené obilí, zralé (zlaté) obilí, strniště po sklizni.
- * Posílá ho vývojový náhled staveb; hra posílá vzhled dílu `look` (`fieldPartViewLook`).
- */
-export type CropLook = 'growing' | 'ripe' | 'stubble';
-
-export interface PartLook {
-  /** Textura terénu (apps/web/public/textures/terrain/<texture>.jpg). */
-  texture: FieldTexture;
-  /** Násobek barvy textury (lineární RGB). */
-  tint: [number, number, number];
-  /** Krytí obtisku 0–1 – louka a mladé porosty prosvítají terénem. */
-  alpha: number;
-  /** Řádky přes díl (brázdy / vzešlé obilí), nebo null. */
-  rows: { color: [number, number, number]; alpha: number } | null;
-}
-
-/**
- * Vzhled dílu pole podle stavu: zakládané pole = rozrytý drn, připravené = holá zem s brázdami,
- * oseté = zem s řádky vzcházejícího obilí (s `crop` podle stavu obilí), mladý úhor = zaplevelená
- * zem, pak pastvina (nálet na přílohu nebude – pase se).
- */
-export function partLook(stage: PartStage, crop?: CropLook): PartLook {
-  if (stage === 'sown' && crop) return cropLook(crop);
-  switch (stage) {
-    case 'founding':
-      return { texture: 'grass-dirt', tint: [0.92, 0.8, 0.66], alpha: 0.95, rows: null };
-    case 'ready':
-      return {
-        texture: 'mud',
-        tint: [1.02, 0.86, 0.68],
-        alpha: 1,
-        rows: { color: [0.32, 0.24, 0.17], alpha: 0.55 },
-      };
-    case 'sown':
-      return {
-        texture: 'mud',
-        tint: [0.95, 0.84, 0.68],
-        alpha: 1,
-        rows: { color: [0.38, 0.56, 0.2], alpha: 0.75 },
-      };
-    case 'young-fallow':
-      return { texture: 'grass-dirt', tint: [0.95, 1, 0.78], alpha: 0.9, rows: null };
-    case 'meadow':
-      return { texture: 'grass', tint: [1.05, 1.05, 0.9], alpha: 0.5, rows: null };
-  }
-}
-
-function cropLook(crop: CropLook): PartLook {
-  switch (crop) {
-    case 'growing':
-      return {
-        texture: 'grass-lush',
-        tint: [0.86, 0.98, 0.6],
-        alpha: 1,
-        rows: { color: [0.16, 0.27, 0.08], alpha: 0.6 },
-      };
-    case 'ripe':
-      return {
-        texture: 'grass-dry',
-        tint: [1.2, 1.0, 0.6],
-        alpha: 1,
-        rows: { color: [0.5, 0.38, 0.18], alpha: 0.5 },
-      };
-    case 'stubble':
-      return {
-        texture: 'grass-dry',
-        tint: [0.98, 0.86, 0.66],
-        alpha: 1,
-        rows: { color: [0.4, 0.33, 0.22], alpha: 0.55 },
-      };
-  }
-}
-
-/**
- * Vzhled dílu pro dnešní kreslení polí podle `look` od herního jádra (fields.md – Postup práce po
- * čtvercích) – dočasně na stávajících texturách, než přijde vzhled polí podle 0 A.D.; bez `look`
- * podle stadia a `crop` (vývojový náhled staveb). Rozpracovaný díl se kreslí podle hotové části.
- */
-export function fieldPartViewLook(part: {
-  stage: PartStage;
-  look?: FieldLook;
-  crop?: CropLook;
-}): PartLook {
-  switch (part.look) {
-    case undefined:
-      return partLook(part.stage, part.crop);
-    case 'bare':
-      return partLook('founding');
-    case 'plowed':
-      return partLook('ready');
-    case 'sown':
-      return {
-        texture: 'mud',
-        tint: [0.97, 0.85, 0.68],
-        alpha: 1,
-        rows: { color: [0.3, 0.24, 0.17], alpha: 0.35 },
-      };
-    case 'sprouted':
-      return partLook('sown');
-    case 'green':
-      return cropLook('growing');
-    case 'ripe':
-      return cropLook('ripe');
-    case 'harvesting':
-    case 'stubble':
-      return cropLook('stubble');
-    case 'young-fallow':
-      return partLook('young-fallow');
-    case 'pasture':
-    case 'meadow':
-    case 'mown':
-    case 'haystacks':
-      return partLook('meadow');
-  }
 }
 
 // --- Skrytí stromů a kamenů pod stavbami a poli ---

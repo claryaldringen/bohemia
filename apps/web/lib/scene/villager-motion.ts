@@ -114,6 +114,38 @@ export function stand(
   return (_t, _herds, out) => set(out, x, z, hx, hz, clip, pace);
 }
 
+/**
+ * Přechod na nové místo práce (Martin: když je čtverec hotový, panáček dojde na další): od času
+ * `startS` jde postava rovně z (fromX, fromZ) rychlostí `speed` tam, kde ji v čase příchodu
+ * čeká póza `next`, a odtud pokračuje podle ní. Cíl se dopočítá dvakrát (práce v řadě se mezitím
+ * posune), zbylý skok je pod krok řady.
+ */
+export function walkThen(
+  fromX: number,
+  fromZ: number,
+  next: PoseFn,
+  startS: number,
+  speed: number,
+): PoseFn {
+  const probe = createVillagerPose();
+  const v = Math.max(0.1, speed);
+  next(startS, [], probe);
+  let arrive = startS + Math.hypot(probe.x - fromX, probe.z - fromZ) / v;
+  next(arrive, [], probe);
+  arrive = startS + Math.hypot(probe.x - fromX, probe.z - fromZ) / v;
+  next(arrive, [], probe);
+  const toX = probe.x;
+  const toZ = probe.z;
+  const length = Math.hypot(toX - fromX, toZ - fromZ);
+  const hx = length > 1e-6 ? (toX - fromX) / length : 0;
+  const hz = length > 1e-6 ? (toZ - fromZ) / length : 1;
+  return (t, herds, out) => {
+    if (t >= arrive || length < 1e-6) return next(t, herds, out);
+    const d = Math.max(0, t - startS) * v;
+    return set(out, fromX + hx * d, fromZ + hz * d, hx, hz, 'walk');
+  };
+}
+
 /** Úsek řady na čtverci: od (ax, az) do (bx, bz). */
 export interface Lane {
   ax: number;

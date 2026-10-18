@@ -1,9 +1,16 @@
-import type { Crop, DwellingType, FieldSurface, PartStage } from '@bohemia/game';
+import {
+  sacredBuildingHappiness,
+  type Crop,
+  type DwellingType,
+  type FieldSurface,
+  type PartStage,
+  type SacredBuildingKind,
+} from '@bohemia/game';
 import type { VillageTarget } from './scene/village-picking';
 import type { SceneVillage, VillageView } from './village-view';
 
-// Co ukáže panel výběru (dole uprostřed, jako v 0 A.D.) o vybraném obydlí, poli, hřbitovu nebo
-// sadu.
+// Co ukáže panel výběru (dole uprostřed, jako v 0 A.D.) o vybraném obydlí, poli, hřbitovu,
+// sadu nebo posvátném místě (posvátný dub, dubový háj, modla, svatyně – happiness.md).
 // Čistý modul – data z pohledu na ves a scény vsi.
 
 export type SelectionDetails =
@@ -81,6 +88,31 @@ export type SelectionDetails =
       planting: number | null;
       /** Výsadba čeká na okno (jaro, podzim). */
       plantingWaits: boolean;
+    }
+  | {
+      kind: 'sacred-oak';
+      id: number;
+      /** Kolik dub sám přidává štěstí (stropy vsi platí zvlášť). */
+      happiness: number;
+    }
+  | {
+      kind: 'grove';
+      id: number;
+      /** Dospělé duby háje (v okruhu 25 m). */
+      oaks: number;
+      /** Kolik háj sám přidává štěstí. */
+      happiness: number;
+    }
+  | {
+      kind: 'sacred';
+      id: number;
+      type: SacredBuildingKind;
+      /** Kolik stavba přidá štěstí (hotová přidává, rozestavěná až po dostavění). */
+      happiness: number;
+      /** Stavba (průběh celé stavby i s kácením dubů 0–1); hotová null. */
+      building: number | null;
+      /** Kolik dubů stavba ještě musí skácet. */
+      oaksToFell: number;
     };
 
 /** Pořadí stadií dílů v panelu pole – od zakládání po příloh (pastvinu). */
@@ -179,6 +211,17 @@ export function selectionDetails(
       building: cemetery.built && cemetery.progress >= 1 ? null : cemetery.progress,
     };
   }
+  if (target.kind === 'sacred-oak') {
+    const oak = view?.sacred.oaks.find((o) => o.id === target.id);
+    return oak ? { kind: 'sacred-oak', id: oak.id, happiness: oak.happiness } : null;
+  }
+  if (target.kind === 'grove') {
+    const grove = view?.sacred.groves.find((g) => g.id === target.id);
+    return grove
+      ? { kind: 'grove', id: grove.id, oaks: grove.oaks, happiness: grove.happiness }
+      : null;
+  }
+  if (target.kind === 'sacred') return sacredDetails(view, scene, target.id);
   if (target.kind === 'orchard') {
     const orchard = view?.orchards.find((o) => o.id === target.id);
     if (!orchard) return null;
@@ -217,5 +260,37 @@ export function selectionDetails(
     ashParts: field.ashParts,
     ashBonus: field.ashBonus,
     founding: founding ? founding.progress : null,
+  };
+}
+
+/**
+ * Modla nebo svatyně – z pohledu na ves, staveniště čekající na server (jen ve scéně) s nulovým
+ * průběhem.
+ */
+function sacredDetails(
+  view: VillageView | null,
+  scene: SceneVillage,
+  id: number,
+): SelectionDetails | null {
+  const building = view?.sacred.buildings.find((b) => b.id === id);
+  if (building) {
+    return {
+      kind: 'sacred',
+      id,
+      type: building.kind,
+      happiness: building.happiness,
+      building: building.built ? null : building.progress,
+      oaksToFell: building.built ? 0 : building.oaksToFell,
+    };
+  }
+  const site = scene.sacred?.buildings.find((b) => b.id === id);
+  if (!site) return null;
+  return {
+    kind: 'sacred',
+    id,
+    type: site.kind,
+    happiness: sacredBuildingHappiness(site.kind),
+    building: site.built ? null : site.progress,
+    oaksToFell: 0,
   };
 }

@@ -23,6 +23,7 @@ import type { DwellingType, ObstacleChange, Position, TileCell, VillageState } f
 // natrvalo i s pařezy, pokácené stromy nechají pařez a z náletu znovu dorostou.
 
 const DAYS_PER_YEAR = 365.25;
+const NO_IDS: ReadonlySet<number> = new Set();
 
 /** Změny překážek v daný den – pro scénu, kontroly umístění a výběr stromů ke kácení. */
 export interface ObstacleChanges {
@@ -154,16 +155,19 @@ export function tallyCost(tally: ObstacleTally, included: readonly ObstacleKind[
 
 /**
  * Překážky na čtverci pole, sadu nebo hřbitova (pata v políčku). Odstraní se všechny (kromě
- * skalních výchozů); kolik z nich se platí po kusech, rozhoduje povrch čtverce – na lesním
- * čtverci pole platí sazba za hektar a stromy jsou v ceně (fields.md – Co je překážka, `tallyCost`).
+ * skalních výchozů a stromů z `keep` – posvátné duby zůstanou stát, happiness.md); kolik z nich
+ * se platí po kusech, rozhoduje povrch čtverce – na lesním čtverci pole platí sazba za hektar
+ * a stromy jsou v ceně (fields.md – Co je překážka, `tallyCost`).
  */
 export function cellObstacles(
   layer: ObstacleLayer,
   status: ObstacleStatus,
   cell: TileCell,
+  keep: ReadonlySet<number> = NO_IDS,
 ): ObstacleTally {
   const tally = emptyTally();
   for (const index of obstaclesInTile(layer, cell.x, cell.y)) {
+    if (keep.has(layer.id[index]!)) continue;
     const kind = status.kindOf(layer, index);
     if (kind !== null) addToTally(tally, layer, index, kind);
   }
@@ -205,7 +209,7 @@ function obstaclesInPolygon(layer: ObstacleLayer, polygon: readonly Point[]): nu
 /**
  * Překážky na vyklízené ploše obydlí – platí se po kusech (i v lese, fields.md). Překážky
  * v políčkách `fieldTiles` (index y × size + x) patří polím – odstraní je založení dílu, obydlí
- * je neplatí.
+ * je neplatí. Stromy z `keep` (posvátné duby, happiness.md) zůstanou stát.
  */
 export function dwellingObstacles(
   layer: ObstacleLayer,
@@ -213,13 +217,29 @@ export function dwellingObstacles(
   type: DwellingType,
   position: Position,
   fieldTiles: ReadonlySet<number> = new Set(),
+  keep: ReadonlySet<number> = NO_IDS,
+): ObstacleTally {
+  return polygonObstacles(layer, status, dwellingClearing(type, position), fieldTiles, keep);
+}
+
+/**
+ * Překážky, jejichž pata leží v mnohoúhelníku (vyklízená plocha stavby) – platí se po kusech,
+ * bez překážek v políčkách `skipTiles` (index y × size + x) a stromů z `keep`.
+ */
+export function polygonObstacles(
+  layer: ObstacleLayer,
+  status: ObstacleStatus,
+  polygon: readonly Point[],
+  skipTiles: ReadonlySet<number> = new Set(),
+  keep: ReadonlySet<number> = NO_IDS,
 ): ObstacleTally {
   const tally = emptyTally();
   const half = (layer.size * layer.cellSizeM) / 2;
   const tileOf = (v: number): number =>
     Math.min(layer.size - 1, Math.max(0, Math.floor((v + half) / layer.cellSizeM)));
-  for (const index of obstaclesInPolygon(layer, dwellingClearing(type, position))) {
-    if (fieldTiles.has(tileOf(layer.z[index]!) * layer.size + tileOf(layer.x[index]!))) continue;
+  for (const index of obstaclesInPolygon(layer, polygon)) {
+    if (skipTiles.has(tileOf(layer.z[index]!) * layer.size + tileOf(layer.x[index]!))) continue;
+    if (keep.has(layer.id[index]!)) continue;
     const kind = status.kindOf(layer, index);
     if (kind !== null) addToTally(tally, layer, index, kind);
   }
@@ -286,13 +306,19 @@ export function matureTreesByDistance(
   layer: ObstacleLayer,
   changes: ObstacleChanges,
   from: { x: number; z: number },
-  options: { limit?: number; maxDistanceM?: number } = {},
+  options: {
+    limit?: number;
+    maxDistanceM?: number;
+    /** Stromy, které se nekácí (posvátné duby a háje – `sacredSitesOf(...).protectedTrees`). */
+    exclude?: ReadonlySet<number>;
+  } = {},
 ): TreeAtDistance[] {
   const status = obstacleStatus(changes);
   const maxDistance = options.maxDistanceM ?? Infinity;
+  const exclude = options.exclude ?? NO_IDS;
   const trees: TreeAtDistance[] = [];
   for (let i = 0; i < layer.count; i++) {
-    if (status.kindOf(layer, i) !== 'tree') continue;
+    if (status.kindOf(layer, i) !== 'tree' || exclude.has(layer.id[i]!)) continue;
     const x = layer.x[i]!;
     const z = layer.z[i]!;
     const distanceM = length2(x - from.x, z - from.z);

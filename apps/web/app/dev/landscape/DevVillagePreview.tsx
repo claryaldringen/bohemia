@@ -10,12 +10,15 @@ import {
   NO_OBSTACLE_CHANGES,
   cemeteryPartsFromCells,
   checkDwellingPlacement,
+  checkSacredBuildingPlacement,
   fieldPartsFromCells,
   matureTreesByDistance,
   obstaclesOf,
   orchardPartsFromCells,
+  sacredSitesOf,
   surfaceAt,
   type DwellingType,
+  type SacredBuildingKind,
   type Landscape,
   type ObstacleChanges,
   type PartStage,
@@ -26,10 +29,11 @@ import {
 import { GameView } from '@/components/game/GameView';
 import { CursorReason } from '@/components/game/hud/CursorReason';
 import { Minimap } from '@/components/game/hud/Minimap';
-import { dwellingPlacementCost } from '@/lib/build-items';
+import { dwellingPlacementCost, sacredPlacementCost } from '@/lib/build-items';
 import { decodeLandscape, type LandscapeTransfer } from '@/lib/landscape-transfer';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
 import { CEMETERY_PHASES } from '@/lib/scene/cemetery-layout';
+import { FIELD_LOOKS, FIELD_LOOK_LABELS, type FieldLook } from '@/lib/scene/field-look';
 import {
   PLANTING_PHASES,
   TREE_GROWTH_YEARS,
@@ -38,6 +42,7 @@ import {
 } from '@/lib/scene/orchard-layout';
 import { tileAt, tileCenter } from '@/lib/scene/tile-at';
 import { CONSTRUCTION_PHASES, constructionPhase } from '@/lib/scene/village-construction';
+import { SACRED_SITE_KIND } from '@/lib/scene/sacred-layout';
 import { REFERENCE_DAY, dateOfDayOfYear } from '@/lib/scene/season-look';
 import type {
   SquaresPreview,
@@ -46,8 +51,9 @@ import type {
   SceneField,
 } from '@/lib/scene/village-types';
 import { formatCells, formatHa, formatManDays, plural } from '@/lib/village-format';
+import { SACRED_OAK_GROWTH } from '@/lib/sacred-look';
 import { demoLabor } from './dev-labor';
-import { placementVillageFromScene, type SceneVillage } from '@/lib/village-view';
+import { placementVillageFromScene, type SceneSacred, type SceneVillage } from '@/lib/village-view';
 
 const STAGES: PartStage[] = ['founding', 'ready', 'sown', 'young-fallow', 'meadow'];
 const SEASON_NAMES = { spring: 'jaro', summer: 'léto', autumn: 'podzim', winter: 'zima' } as const;
@@ -58,6 +64,8 @@ const buttonClass =
 
 type DevCemetery = NonNullable<SceneVillage['cemeteries']>[number];
 type DevOrchard = NonNullable<SceneVillage['orchards']>[number];
+type DevSacredBuilding = SceneSacred['buildings'][number];
+const SACRED_NAMES: Record<SacredBuildingKind, string> = { idol: 'Modla', shrine: 'Svatyně' };
 
 interface DevWindow extends Window {
   __bohemiaDev?: {
@@ -69,13 +77,32 @@ interface DevWindow extends Window {
     addField: (cells: TileCell[]) => void;
     /** Pokácí `count` dospělých stromů nejblíž bodu (pařezy). */
     fellTrees: (count: number, near?: { x: number; z: number }) => void;
+    /** Modly a svatyně (i staveniště) – snímky z Playwrightu. */
+    setSacredBuildings: (buildings: DevSacredBuilding[]) => void;
+    /**
+     * Vymýtí les kolem nejbližšího háje a posvátného dubu – kam se podívat. `grown` – duby jako
+     * 60 let po ušetření (o 30 % větší).
+     */
+    clearSacred: (grown?: boolean) => {
+      grove: { x: number; z: number } | null;
+      oak: { x: number; z: number } | null;
+    };
   };
 }
 
 interface DevField {
   id: number;
   parts: { cell: TileCell; x: number; z: number; size: number }[];
+  /**
+   * Ukázka polí: vzhled celého pole (rozpracovaný díl s `work`), nebo `staked` – vytyčené pole
+   * před zakládáním. Bez údaje podle přepínače dílů.
+   */
+  sample?: { look: FieldLook | null; work?: number; before?: FieldLook };
 }
+
+/** Vzhled polí na vývojové stránce: podle stadia dílů (a období), nebo jeden vzhled pro všechny. */
+type LookMode = 'stage' | FieldLook;
+const LOOK_MODES: LookMode[] = ['stage', ...FIELD_LOOKS];
 
 export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer }): ReactElement {
   const decoded = useMemo(() => decodeLandscape(landscape), [landscape]);
@@ -84,8 +111,13 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   const [fields, setFields] = useState<DevField[]>([]);
   const [cemeteries, setCemeteries] = useState<DevCemetery[]>([]);
   const [orchards, setOrchards] = useState<DevOrchard[]>([]);
+  // posvátná místa (happiness.md): ušetřené duby a háje, modly a svatyně
+  const [sacredOaks, setSacredOaks] = useState<SceneSacred['oaks']>([]);
+  const [groves, setGroves] = useState<SceneSacred['groves']>([]);
+  const [sacredBuildings, setSacredBuildings] = useState<DevSacredBuilding[]>([]);
   const [stage, setStage] = useState(0);
   const [mixed, setMixed] = useState(true);
+  const [lookMode, setLookMode] = useState<LookMode>('stage');
   const [placing, setPlacing] = useState<string | null>(null);
   const [preview, setPreview] = useState<PlacementPreview | null>(null);
   const [smokeAlways, setSmokeAlways] = useState(false);
@@ -104,15 +136,15 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
       dwellings,
       fields: fields.map((field): SceneField => ({
         id: field.id,
-        parts: field.parts.map((part, i) => ({
-          ...part,
-          stage: STAGES[(stage + (mixed ? i : 0)) % STAGES.length]!,
-        })),
+        parts: field.parts.map((part, i) => devPart(field, part, i, { stage, mixed, lookMode })),
       })),
       cemeteries,
       orchards,
       woodLogs,
       obstacles,
+      ...(sacredOaks.length > 0 || groves.length > 0 || sacredBuildings.length > 0
+        ? { sacred: { oaks: sacredOaks, groves, buildings: sacredBuildings } }
+        : {}),
     };
     if (!people) return base;
     // kácí se u nejbližších stromů k prvnímu staveništi (jako vyhrazené stromy stavby)
@@ -137,10 +169,14 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     orchards,
     stage,
     mixed,
+    lookMode,
     woodLogs,
     obstacles,
     people,
     seasonDay,
+    sacredOaks,
+    groves,
+    sacredBuildings,
   ]);
 
   useEffect(() => {
@@ -199,10 +235,86 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     }));
   };
 
+  /**
+   * Mýcení lesa s posvátným dubem a hájem: najde nejbližší háj a posvátný dub (vrstva překážek)
+   * k místu vsi a založí pole na čtvercích kolem nich – jádro háj z pole vyjme a dub nechá stát,
+   * ušetřená místa se ukážou s obětinami a kameny. Vrátí, kde jsou (pro kameru).
+   */
+  const clearSacred = (
+    grown = false,
+  ): {
+    grove: { x: number; z: number } | null;
+    oak: { x: number; z: number } | null;
+  } => {
+    const sites = sacredSitesOf(obstaclesOf(decoded));
+    const site = tileCenter(decoded, decoded.villageSite.x, decoded.villageSite.y);
+    const distance = (p: { x: number; z: number }): number =>
+      Math.hypot(p.x - site.worldX, p.z - site.worldZ);
+    const grove = [...sites.groves].sort((a, b) => distance(a) - distance(b))[0] ?? null;
+    const oak = [...sites.oaks].sort((a, b) => distance(a) - distance(b))[0] ?? null;
+    const ring = (cells: readonly TileCell[], reach: number): TileCell[] => {
+      const out = new Map<string, TileCell>();
+      for (const c of cells) {
+        for (let dy = -reach; dy <= reach; dy++) {
+          for (let dx = -reach; dx <= reach; dx++) {
+            const cell = { x: c.x + dx, y: c.y + dy };
+            if (cell.x < 0 || cell.y < 0 || cell.x >= decoded.size || cell.y >= decoded.size)
+              continue;
+            out.set(`${cell.x},${cell.y}`, cell);
+          }
+        }
+      }
+      return [...out.values()].filter((c) => surfaceAt(decoded, c.x, c.y) !== 'water');
+    };
+    const oakCell = oak
+      ? {
+          x: Math.floor((oak.x + (decoded.size * decoded.cellSizeM) / 2) / decoded.cellSizeM),
+          y: Math.floor((oak.z + (decoded.size * decoded.cellSizeM) / 2) / decoded.cellSizeM),
+        }
+      : null;
+    const cells = [...(grove ? ring(grove.cells, 2) : []), ...(oakCell ? ring([oakCell], 1) : [])];
+    const preview = fieldPartsFromCells(
+      decoded,
+      placementVillageFromScene(village),
+      cells,
+      devDwellingPositions(decoded, village),
+    );
+    const cleared = preview.parts.flatMap((part) => part.obstacleIds ?? []);
+    setObstacles((changes) => ({
+      ...changes,
+      removed: [...new Set([...changes.removed, ...cleared])].sort((a, b) => a - b),
+    }));
+    const partCells = preview.parts.flatMap((part) => (part.cell ? [part.cell] : []));
+    if (partCells.length > 0) {
+      const id = nextId.current++;
+      setFields((list) => [...list, { id, parts: fieldParts(decoded, partCells) }]);
+    }
+    setSacredOaks((list) => [
+      ...list.filter((o) => !preview.spared.oaks.some((s) => s.id === o.id)),
+      ...preview.spared.oaks.map((o) => ({
+        ...o,
+        growth: grown ? 1 + SACRED_OAK_GROWTH.extra : 1,
+      })),
+    ]);
+    setGroves((list) => [
+      ...list.filter((g) => !preview.spared.groves.some((s) => s.id === g.id)),
+      ...preview.spared.groves.map((g) => ({
+        id: g.id,
+        x: g.x,
+        z: g.z,
+        squares: fieldParts(decoded, g.cells),
+      })),
+    ]);
+    return {
+      grove: grove ? { x: grove.x, z: grove.z } : null,
+      oak: oak ? { x: oak.x, z: oak.z } : null,
+    };
+  };
+
   // Přístup ke scéně a vsi pro snímky z Playwrightu (jen tato vývojová stránka).
-  const devActions = useRef({ addField, fellTrees });
+  const devActions = useRef({ addField, fellTrees, clearSacred });
   useEffect(() => {
-    devActions.current = { addField, fellTrees };
+    devActions.current = { addField, fellTrees, clearSacred };
   });
   useEffect(() => {
     if (!scene) return;
@@ -214,6 +326,8 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
       setOrchards,
       addField: (cells) => devActions.current.addField(cells),
       fellTrees: (count, near) => devActions.current.fellTrees(count, near),
+      setSacredBuildings,
+      clearSacred: (grown) => devActions.current.clearSacred(grown),
     };
     return () => {
       delete devWindow.__bohemiaDev;
@@ -265,6 +379,76 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         },
       },
     );
+  };
+
+  /** Modla nebo svatyně se skutečnou kontrolou a cenou z herního jádra (staví se po fázích). */
+  const placeSacred = (kind: SacredBuildingKind): void => {
+    if (!scene) return;
+    setPlacing(SACRED_NAMES[kind]);
+    scene.startPlacement(
+      {
+        kind: 'sacred',
+        type: kind,
+        check: (position) => {
+          const placementVillage = placementVillageFromScene(village);
+          const layer = obstaclesOf(decoded);
+          const check = checkSacredBuildingPlacement(
+            decoded,
+            placementVillage,
+            kind,
+            position,
+            layer,
+          );
+          return {
+            ...check,
+            cost: check.ok
+              ? sacredPlacementCost(placementVillage, kind, position, check, layer)
+              : null,
+          };
+        },
+      },
+      {
+        ...handlers,
+        onConfirm: (result) => {
+          handlers.onCancel();
+          if (result.kind !== 'sacred') return;
+          const id = nextId.current++;
+          setSacredBuildings((list) => [
+            ...list,
+            { id, kind: result.type, position: result.position, built: false, progress: 0 },
+          ]);
+        },
+      },
+    );
+  };
+
+  /**
+   * Modly a svatyně ve všech fázích stavby vedle sebe u místa vsi (vytyčení při 0 %, pak
+   * středy fází) a hotové na konci řady.
+   */
+  const showSacred = (): void => {
+    scene?.cancelPlacement();
+    const site = tileCenter(decoded, decoded.villageSite.x, decoded.villageSite.y);
+    const list: DevSacredBuilding[] = [];
+    (['idol', 'shrine'] as const).forEach((kind, row) => {
+      const phases = CONSTRUCTION_PHASES[SACRED_SITE_KIND[kind]];
+      const stops = [0, ...phases.slice(1).map((p) => (p.from + p.to) / 2), 1];
+      const spacing = kind === 'idol' ? 7 : 34;
+      stops.forEach((progress, i) => {
+        const x = site.worldX + (i - (stops.length - 1) / 2) * spacing;
+        const z = site.worldZ + (row === 0 ? 12 : 40);
+        const tile = tileAt(decoded, x, z);
+        if (!tile || surfaceAt(decoded, tile.x, tile.y) === 'water') return;
+        list.push({
+          id: nextId.current++,
+          kind,
+          position: { x, z, rotation: Math.PI },
+          built: progress >= 1,
+          progress,
+        });
+      });
+    });
+    setSacredBuildings(list);
   };
 
   const placeField = (): void => {
@@ -462,6 +646,13 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         }),
       })),
     );
+    setSacredBuildings((list) =>
+      list.map((b) => {
+        if (b.built) return b;
+        const progress = next(b.progress);
+        return { ...b, progress, built: progress >= 1 };
+      }),
+    );
   };
 
   /** Pohřbí do hotových hřbitovů dalších `count` mrtvých (nejvýš do zaplnění). */
@@ -524,6 +715,77 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
       },
     ]);
     setCemeteries(list);
+  };
+
+  /**
+   * Ukázka polí: obydlí u místa vsi a vedle sebe pole 2 × 2 čtverce v každém vzhledu – vytyčené,
+   * zakládané (rozpracovaný čtverec), zorané, oseté, vzcházející, zelené, zralé, žeň s panáky,
+   * strniště, mladý úhor, pastvina a louka na seno (tráva, seč, stohy – řádky sena, kupky
+   * a stohy podle období). Rozpracované díly mají práci napůl.
+   */
+  const showFields = (): void => {
+    scene?.cancelPlacement();
+    const { x: sx, y: sy } = decoded.villageSite;
+    const samples: NonNullable<DevField['sample']>[] = [
+      { look: null },
+      { look: 'bare', work: 0.5 },
+      { look: 'plowed', work: 0.5, before: 'stubble' },
+      { look: 'sown' },
+      { look: 'sprouted' },
+      { look: 'green' },
+      { look: 'ripe' },
+      { look: 'harvesting', work: 0.5, before: 'ripe' },
+      { look: 'stubble' },
+      { look: 'young-fallow' },
+      { look: 'pasture' },
+      { look: 'meadow' },
+      { look: 'mown', work: 0.5, before: 'meadow' },
+      { look: 'haystacks' },
+    ];
+    const list: DevField[] = [];
+    const cleared: number[] = [];
+    samples.forEach((sample, i) => {
+      const row = Math.floor(i / 6);
+      const col = i % 6;
+      const cells: TileCell[] = [];
+      for (let dy = 0; dy < 2; dy++)
+        for (let dx = 0; dx < 2; dx++)
+          cells.push({ x: sx - 9 + col * 3 + dx, y: sy + 2 + row * 3 + dy });
+      const parts = fieldParts(decoded, cells);
+      if (parts.length < cells.length) return;
+      const preview = fieldPartsFromCells(decoded, placementVillageFromScene(village), cells, [
+        {
+          x: tileCenter(decoded, sx, sy).worldX,
+          z: tileCenter(decoded, sx, sy).worldZ,
+          rotation: 0,
+        },
+      ]);
+      if (sample.look !== null)
+        cleared.push(...preview.parts.flatMap((part) => part.obstacleIds ?? []));
+      list.push({ id: nextId.current++, parts, sample });
+    });
+    const site = tileCenter(decoded, sx, sy);
+    setDwellings([
+      {
+        id: nextId.current++,
+        type: 'polozemnice',
+        position: { x: site.worldX, z: site.worldZ - 10, rotation: 0 },
+        built: true,
+        progress: 1,
+      },
+      {
+        id: nextId.current++,
+        type: 'zemnice',
+        position: { x: site.worldX + 12, z: site.worldZ - 12, rotation: 0.4 },
+        built: true,
+        progress: 1,
+      },
+    ]);
+    setObstacles((changes) => ({
+      ...changes,
+      removed: [...new Set([...changes.removed, ...cleared])].sort((a, b) => a - b),
+    }));
+    setFields(list);
   };
 
   /** Řada stavenišť ve všech fázích vedle sebe u místa vsi (a hotové obydlí na konci). */
@@ -590,6 +852,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   };
 
   const firstSite = dwellings.find((d) => !d.built);
+  const firstSacredSite = sacredBuildings.find((b) => !b.built);
   const plantingSquare = orchards.flatMap((o) => o.squares).find((s) => s.planting < 1);
   const seasonDate = dateOfDayOfYear(seasonDay ?? REFERENCE_DAY);
 
@@ -656,6 +919,49 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
             {constructionPhase(firstSite.type, firstSite.progress).label}
           </span>
         )}
+        <button className={buttonClass} disabled={!scene} onClick={() => placeSacred('idol')}>
+          Modla
+        </button>
+        <button className={buttonClass} disabled={!scene} onClick={() => placeSacred('shrine')}>
+          Svatyně
+        </button>
+        <button className={buttonClass} disabled={!scene} onClick={showSacred}>
+          Ukázka svatyní
+        </button>
+        <button
+          className={buttonClass}
+          disabled={!scene}
+          onClick={() => {
+            const at = clearSacred();
+            const target = at.grove ?? at.oak;
+            if (target) scene?.moveCameraTo(target.x, target.z);
+          }}
+        >
+          Mýtit les s posvátným dubem / hájem
+        </button>
+        <button
+          className={buttonClass}
+          disabled={!scene}
+          onClick={() =>
+            setSacredOaks((list) =>
+              list.map((o) => ({
+                ...o,
+                growth: (o.growth ?? 1) > 1 ? 1 : 1 + SACRED_OAK_GROWTH.extra,
+              })),
+            )
+          }
+        >
+          Posvátné duby +60 let
+        </button>
+        {firstSacredSite && (
+          <span data-testid="dev-sacred-phase">
+            {SACRED_NAMES[firstSacredSite.kind]} {Math.round(firstSacredSite.progress * 100)} % ·{' '}
+            {
+              constructionPhase(SACRED_SITE_KIND[firstSacredSite.kind], firstSacredSite.progress)
+                .label
+            }
+          </span>
+        )}
         <button className={buttonClass} disabled={!scene} onClick={showPhases}>
           Ukázka fází
         </button>
@@ -684,6 +990,18 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         </label>
         <button className={buttonClass} onClick={() => setStage((s) => (s + 1) % STAGES.length)}>
           Díly: {STAGES[stage]}
+        </button>
+        <button
+          className={buttonClass}
+          data-testid="dev-field-look"
+          onClick={() =>
+            setLookMode((mode) => LOOK_MODES[(LOOK_MODES.indexOf(mode) + 1) % LOOK_MODES.length]!)
+          }
+        >
+          Vzhled: {lookMode === 'stage' ? 'podle stadia a období' : FIELD_LOOK_LABELS[lookMode]}
+        </button>
+        <button className={buttonClass} disabled={!scene} onClick={showFields}>
+          Ukázka polí
         </button>
         <label className="flex items-center gap-1">
           <input type="checkbox" checked={mixed} onChange={(e) => setMixed(e.target.checked)} />
@@ -730,6 +1048,9 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
             setFields([]);
             setCemeteries([]);
             setOrchards([]);
+            setSacredOaks([]);
+            setGroves([]);
+            setSacredBuildings([]);
             setObstacles(NO_OBSTACLE_CHANGES);
           }}
         >
@@ -824,4 +1145,51 @@ function fieldParts(l: Landscape, cells: TileCell[]): DevField['parts'] {
       const c = tileCenter(l, cell.x, cell.y);
       return { cell, x: c.worldX, z: c.worldZ, size: l.cellSizeM };
     });
+}
+
+/**
+ * Díl pole vývojové vsi: ukázkové pole má svůj vzhled (rozpracovaný díl je ten nejblíž, ostatní
+ * hotové), jinak stadium z přepínače dílů a vzhled z přepínače vzhledu (podle stadia ho odhadne
+ * scéna z data – přehrání roku projde orbu, setí, růst, žeň a strniště).
+ */
+function devPart(
+  field: DevField,
+  part: DevField['parts'][number],
+  index: number,
+  options: { stage: number; mixed: boolean; lookMode: LookMode },
+): SceneField['parts'][number] {
+  const sample = field.sample;
+  if (sample) {
+    if (sample.look === null)
+      return { ...part, id: index + 1, stage: 'founding', look: 'bare', work: 0 };
+    const stage =
+      sample.look === 'bare'
+        ? 'founding'
+        : sample.look === 'young-fallow'
+          ? 'young-fallow'
+          : ['pasture', 'meadow', 'mown', 'haystacks'].includes(sample.look)
+            ? 'meadow'
+            : 'sown';
+    // rozpracovaný je první díl, ostatní mají vzhled celé
+    const work = sample.work !== undefined ? (index === 0 ? sample.work : 1) : undefined;
+    return {
+      ...part,
+      id: index + 1,
+      stage: stage === 'founding' && work === 1 ? 'ready' : stage,
+      look: sample.look,
+      ...(work !== undefined ? { work } : {}),
+      ...(sample.before ? { before: sample.before } : {}),
+    };
+  }
+  const stage = STAGES[(options.stage + (options.mixed ? index : 0)) % STAGES.length]!;
+  if (options.lookMode === 'stage') {
+    // zakládaný díl: první rozpracovaný, ostatní jen vytyčené
+    return stage === 'founding'
+      ? { ...part, id: index + 1, stage, work: index === 0 ? 0.5 : 0 }
+      : { ...part, id: index + 1, stage };
+  }
+  const look = options.mixed
+    ? FIELD_LOOKS[(FIELD_LOOKS.indexOf(options.lookMode) + index) % FIELD_LOOKS.length]!
+    : options.lookMode;
+  return { ...part, id: index + 1, stage, look };
 }

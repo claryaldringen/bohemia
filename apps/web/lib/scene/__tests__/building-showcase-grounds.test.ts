@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CEMETERY } from '@bohemia/game';
+import type { SceneFieldPart } from '../../village-view';
+import { FIELD_LOOKS } from '../field-look';
 import {
   FIELD_SHOWCASE_PHASES,
   ORCHARD_SHOWCASE_PHASES,
@@ -25,18 +27,28 @@ describe('pole, hřbitov a sad na vývojové stránce staveb', () => {
     for (const s of squares) expect(s.z - s.size / 2).toBeGreaterThan(back);
   });
 
-  it('pole: zakládání po čtvercích, brázdy, osev, zelené a zralé obilí, strniště', () => {
-    const stages = (p: number): string[] =>
-      showcaseGrounds(p).village.fields[0]!.parts.map((part) => part.crop ?? part.stage);
-    expect(new Set(stages(0))).toEqual(new Set(['founding']));
-    expect(new Set(stages(0.2))).toEqual(new Set(['founding', 'ready']));
-    expect(new Set(stages(0.4))).toEqual(new Set(['ready']));
-    expect(new Set(stages(0.55))).toEqual(new Set(['ready', 'sown']));
-    expect(new Set(stages(0.7))).toEqual(new Set(['growing']));
-    expect(new Set(stages(0.85))).toEqual(new Set(['ripe']));
-    expect(new Set(stages(1))).toEqual(new Set(['stubble']));
-    expect(showcaseGrounds(0.7).labels.field).toMatch(/ve hře zatím ne/);
-    expect(showcaseGrounds(0.4).labels.field).not.toMatch(/ve hře zatím ne/);
+  it('pole projde všechny vzhledy – práce jde po čtvercích, rozpracovaný je vždy jen jeden', () => {
+    const parts = (p: number): SceneFieldPart[] => showcaseGrounds(p).village.fields[0]!.parts;
+    const looks = new Set<string>();
+    for (let p = 0; p <= 1; p += 0.005) {
+      for (const part of parts(p)) if (part.look && (part.work ?? 1) > 0) looks.add(part.look);
+      const working = parts(p).filter(
+        (part) => part.work !== undefined && part.work > 0 && part.work < 1,
+      );
+      expect(working.length).toBeLessThanOrEqual(1);
+    }
+    expect([...looks].sort()).toEqual([...FIELD_LOOKS].sort());
+    // na začátku jen vytyčené pole (zakládá se, práce 0)
+    expect(parts(0).every((part) => part.stage === 'founding' && part.work === 0)).toBe(true);
+    expect(showcaseGrounds(0).labels.field).toMatch(/vytyčení/);
+    expect(showcaseGrounds(0.6).labels.field).toMatch(/žeň/);
+  });
+
+  it('louka na seno: tráva, seč, kupky a stohy souběžně s loukou na poli', () => {
+    expect(showcaseGrounds(0.5).labels.meadow).toMatch(/louka/);
+    expect(showcaseGrounds(0.89).labels.meadow).toMatch(/seč/);
+    expect(showcaseGrounds(0.93).labels.meadow).toMatch(/kupk/);
+    expect(showcaseGrounds(0.98).labels.meadow).toMatch(/stohy/);
   });
 
   it('hřbitov: založení ve fázích, pak přibývají hroby až do plného hřbitova', () => {

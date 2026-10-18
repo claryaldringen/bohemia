@@ -15,6 +15,22 @@ const scene: SceneVillage = {
     },
   ],
   fields: [{ id: 5, parts: [] }],
+  sacred: {
+    oaks: [{ id: 700, x: 40, z: 40 }],
+    groves: [{ id: 800, x: -100, z: 60, squares: [] }],
+    buildings: [
+      { id: 40, kind: 'idol', position: { x: 10, z: 30, rotation: 0 }, built: true, progress: 1 },
+      {
+        id: 41,
+        kind: 'shrine',
+        position: { x: 80, z: 0, rotation: 0 },
+        built: false,
+        progress: 0.2,
+      },
+      // staveniště čeká na odpověď serveru – je jen ve scéně
+      { id: -1, kind: 'idol', position: { x: 0, z: 50, rotation: 0 }, built: false, progress: 0 },
+    ],
+  },
 };
 
 const view = {
@@ -116,6 +132,14 @@ const view = {
       plantingWaits: true,
     },
   ],
+  sacred: {
+    oaks: [{ id: 700, happiness: 5 }],
+    groves: [{ id: 800, oaks: 11, squares: 9, happiness: 12 }],
+    buildings: [
+      { id: 40, kind: 'idol', built: true, happiness: 8, progress: 1, oaksToFell: 0 },
+      { id: 41, kind: 'shrine', built: false, happiness: 25, progress: 0.35, oaksToFell: 2 },
+    ],
+  },
 } as unknown as VillageView;
 
 describe('selectionDetails', () => {
@@ -234,5 +258,51 @@ describe('selectionDetails – sad', () => {
       plantingWaits: true,
     });
     expect(selectionDetails(view, scene, { kind: 'orchard', id: 99 })).toBeNull();
+  });
+});
+
+describe('selectionDetails – posvátná místa', () => {
+  it('posvátný dub a háj: kolik přidávají štěstí, háj i počet dubů', () => {
+    expect(selectionDetails(view, scene, { kind: 'sacred-oak', id: 700 })).toEqual({
+      kind: 'sacred-oak',
+      id: 700,
+      happiness: 5,
+    });
+    expect(selectionDetails(view, scene, { kind: 'grove', id: 800 })).toEqual({
+      kind: 'grove',
+      id: 800,
+      oaks: 11,
+      happiness: 12,
+    });
+    expect(selectionDetails(view, scene, { kind: 'sacred-oak', id: 1 })).toBeNull();
+    expect(selectionDetails(view, scene, { kind: 'grove', id: 1 })).toBeNull();
+  });
+
+  it('modla hotová, svatyně ve stavbě s průběhem i kácením, staveniště jen ve scéně', () => {
+    expect(selectionDetails(view, scene, { kind: 'sacred', id: 40 })).toEqual({
+      kind: 'sacred',
+      id: 40,
+      type: 'idol',
+      happiness: 8,
+      building: null,
+      oaksToFell: 0,
+    });
+    expect(selectionDetails(view, scene, { kind: 'sacred', id: 41 })).toEqual({
+      kind: 'sacred',
+      id: 41,
+      type: 'shrine',
+      happiness: 25,
+      building: 0.35,
+      oaksToFell: 2,
+    });
+    expect(selectionDetails(view, scene, { kind: 'sacred', id: -1 })).toEqual({
+      kind: 'sacred',
+      id: -1,
+      type: 'idol',
+      happiness: 8,
+      building: 0,
+      oaksToFell: 0,
+    });
+    expect(selectionDetails(view, scene, { kind: 'sacred', id: 99 })).toBeNull();
   });
 });

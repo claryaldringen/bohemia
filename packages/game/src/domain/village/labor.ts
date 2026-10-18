@@ -16,6 +16,11 @@ export interface DayAllocationInput {
   potteryCoverage: number;
   /** Práce navíc na palivu za den – ves daleko od lesa (forest.md – Palivo); bez údaje 0. */
   fuelExtra?: number;
+  /**
+   * Násobek veškeré práce vsi – štěstí (happiness.md – Účinek na práci) krát ostatní meze
+   * produktivity; bez údaje 1.
+   */
+  productivity?: number;
 }
 
 export interface DayAllocation {
@@ -34,7 +39,7 @@ export interface DayAllocation {
  * domácí výroba → společná práce.
  */
 export function allocateDay(input: DayAllocationInput): DayAllocation {
-  let left = Math.max(0, input.capacity);
+  let left = Math.max(0, input.capacity * (input.productivity ?? 1));
   const take = (wanted: number): number => {
     const amount = Math.max(0, Math.min(wanted, left));
     left -= amount;

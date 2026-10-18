@@ -27,6 +27,9 @@ function checkResult(mode: PlacementMode, result: PlacementResult): PlacementChe
     return mode.check(result.position);
   }
   if (mode.kind === 'squares' && result.kind === 'squares') return mode.preview(result.cells).check;
+  if (mode.kind === 'sacred' && result.kind === 'sacred' && result.type === mode.type) {
+    return mode.check(result.position);
+  }
   return { ok: false, reason: 'Teď se umisťuje něco jiného.' };
 }
 

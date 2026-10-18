@@ -8,6 +8,7 @@ import {
   mergeDecalGrids,
   rectangleCells,
   rowDirection,
+  touchingSquares,
   type CellSquare,
 } from '../field-cells';
 import { decalGrid } from '../village-layout';
@@ -169,5 +170,25 @@ describe('mergeDecalGrids', () => {
     expect([...grid.indices.slice(6)]).toEqual([...b.indices].map((i) => i + 4));
     expect(grid.alphas[4]).toBe(0.5);
     expect([...colors.slice(12, 15)]).toEqual([0, 1, 0]);
+  });
+});
+
+describe('touchingSquares – sousední pole bez švu', () => {
+  it('vrátí čtverce jiných polí, které se dotýkají stranou nebo rohem; vzdálené ne', () => {
+    const own = [square(0, 0), square(1, 0)];
+    const others = [square(2, 0), square(2, 1), square(3, 0), square(0, 2), square(1, 0)];
+    expect(touchingSquares(own, others)).toEqual([square(2, 0), square(2, 1)]);
+  });
+
+  it('s čtverci souseda je okraj na společné straně plný – měkne jen do louky', () => {
+    const own = [square(0, 0)];
+    const neighbour = touchingSquares(own, [square(1, 0)]);
+    const alone = cellsCoverage(own, 2);
+    const joined = cellsCoverage([...own, ...neighbour], 2);
+    // u společné strany (x = 9,9) sám čtverec mizí, se sousedem ne
+    expect(alone(9.9, 5)).toBeLessThan(0.1);
+    expect(joined(9.9, 5)).toBe(1);
+    // u volné strany měkne pořád
+    expect(joined(0.1, 5)).toBeLessThan(0.1);
   });
 });

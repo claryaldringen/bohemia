@@ -1,6 +1,7 @@
 import {
   DWELLING_FOOTPRINT_M,
   SURFACE_CODES,
+  dateOfDayIndex,
   type DwellingType,
   type ForestField,
   type Landscape,
@@ -8,8 +9,10 @@ import {
   type Relief,
 } from '@bohemia/game';
 import { inGarden } from './dwelling-decor';
+import { grazeablePart } from './field-look';
 import { PIT_SHAPES } from './dwelling-pit';
 import { hash01 } from './smoke-schedule';
+import type { SceneFieldPart } from '../village-view';
 import type { StreamCenterline } from './stream-geometry';
 import { tileAt } from './tile-at';
 import { localToWorld } from './village-layout';
@@ -29,9 +32,40 @@ export interface LivestockVillage {
     built: boolean;
     inhabited?: boolean;
   }[];
-  fields: readonly { parts: readonly { x: number; z: number; size: number }[] }[];
+  /**
+   * Díly polí – stadium a vzhled (field-look.ts) rozhodnou, jestli se na dílu pase (úhor:
+   * Martin – na úhoru se pasou ovce, kozy a krávy); bez nich je díl osetý.
+   */
+  fields: readonly {
+    parts: readonly {
+      x: number;
+      z: number;
+      size: number;
+      stage?: SceneFieldPart['stage'];
+      look?: SceneFieldPart['look'];
+      work?: number;
+    }[];
+  }[];
   cemeteries?: readonly { squares: readonly { x: number; z: number; size: number }[] }[];
   orchards?: readonly { squares: readonly { x: number; z: number; size: number }[] }[];
+  /** Herní den (rozdělení práce) – na louce na seno se pase jen po seči. Bez něj se tam nepase. */
+  labor?: { day: number };
+}
+
+/** Den v roce pro pastvu na dílech pole (z rozdělení práce vsi), nebo undefined. */
+export function grazingDay(village: Pick<LivestockVillage, 'labor'>): number | undefined {
+  return village.labor ? dateOfDayIndex(village.labor.day).dayOfYear : undefined;
+}
+
+/** Díl pole, kde se dnes pase (úhor, otava po seči) – stadium bez údaje = osetý díl. */
+export function grazedPart(
+  part: LivestockVillage['fields'][number]['parts'][number],
+  dayOfYear: number | undefined,
+): boolean {
+  return (
+    part.stage !== undefined &&
+    grazeablePart({ stage: part.stage, look: part.look, work: part.work }, dayOfYear)
+  );
 }
 
 /** Terén pro zvířata (bez vsi). */
@@ -186,8 +220,10 @@ export function chickenPoint(
 
 /** Pole, hřbitovy, sady a obydlí vsi jako překážky pro stáda a slepice. */
 interface Obstacles {
-  /** Na poli, hřbitově nebo v sadu (čtverec rozšířený o `margin`). */
+  /** Na poli, hřbitově nebo v sadu (čtverec rozšířený o `margin`) – úhor, kde se pase, ne. */
   onCrop(x: number, z: number, margin: number): boolean;
+  /** Na úhoru, kde se pase (v některém jeho čtverci – sousední čtverce úhoru se spojí). */
+  onPasture(x: number, z: number): boolean;
   /** Na hřbitově (čtverec rozšířený o `margin`). */
   onCemetery(x: number, z: number, margin: number): boolean;
   /** Blíž než `gap` k některému obydlí nebo staveništi. */
@@ -201,7 +237,12 @@ interface Obstacles {
 function obstacles(village: LivestockVillage): Obstacles {
   const graves = (village.cemeteries ?? []).flatMap((c) => c.squares);
   const orchards = (village.orchards ?? []).flatMap((o) => o.squares);
-  const squares = [...village.fields.flatMap((f) => f.parts), ...graves, ...orchards];
+  const parts = village.fields.flatMap((f) => f.parts);
+  // úhor se pase (stadium bez údaje = osetý díl – starší data)
+  const day = grazingDay(village);
+  const grazed = parts.filter((p) => grazedPart(p, day));
+  const sown = parts.filter((p) => !grazed.includes(p));
+  const squares = [...sown, ...graves, ...orchards];
   const inSquare =
     (list: readonly { x: number; z: number; size: number }[]) =>
     (x: number, z: number, margin: number): boolean =>
@@ -213,8 +254,10 @@ function obstacles(village: LivestockVillage): Obstacles {
     position: d.position,
     box: chickenBox(d.type),
   }));
+  const onGrazed = inSquare(grazed);
   return {
     onCrop: inSquare(squares),
+    onPasture: (x, z) => onGrazed(x, z, 0),
     onCemetery: inSquare(graves),
     nearDwelling: (x, z, gap) =>
       houses.some((h) => Math.hypot(x - h.position.x, z - h.position.z) < gap),
@@ -237,8 +280,9 @@ function obstacles(village: LivestockVillage): Obstacles {
 /**
  * Domácí zvířata vsi: slepice u každého hotového obydlí, na každou domácnost tři ovce, koza
  * a dvě prasata, na dvě domácnosti kráva. Ovce s kozami (stádo na pět domácností) a krávy se
- * pasou na loukách do pár set metrů od vsi, prasata v lese u okraje do 150 m. `seed` míchá
- * krajinu, aby se stáda v každé vsi pásla jinde.
+ * pasou přednostně na úhoru vsi (mladý úhor i pastvina – stěhují se mezi jeho čtverci, nikdy na
+ * osetý díl), bez úhoru na loukách do pár set metrů od vsi, prasata v lese u okraje do 150 m.
+ * `seed` míchá krajinu, aby se stáda v každé vsi pásla jinde.
  */
 export function planLivestock(
   village: LivestockVillage,
@@ -261,10 +305,14 @@ export function planLivestock(
 
   const herds: Herd[] = [];
   const starts: { x: number; z: number }[] = [];
+  // louka, nebo úhor, kde se pase (i na vymýceném lese – schůdná zem); od osetých dílů,
+  // hřbitovů a sadů odstup
   const meadow = (x: number, z: number, margin: number): boolean =>
-    ground.pasture(x, z) &&
+    (ground.pasture(x, z) || (blocked.onPasture(x, z) && ground.walkable(x, z))) &&
     !blocked.onCrop(x, z, margin) &&
     !blocked.nearDwelling(x, z, HERD_DWELLING_GAP_M);
+  // Martin: na úhoru se pasou ovce, kozy a krávy s pasáčkem – stádo se pase přednostně tam
+  const fallow = (x: number, z: number): boolean => blocked.onPasture(x, z);
   const forest = (x: number, z: number, margin: number): boolean =>
     ground.forestEdge(x, z) &&
     !blocked.onCrop(x, z, margin) &&
@@ -278,7 +326,17 @@ export function planLivestock(
       ...repeat('sheep', share * PER_HOUSEHOLD.sheep),
       ...repeat('goat', share * PER_HOUSEHOLD.goat),
     ] as LivestockSpecies[];
-    const herd = buildHerd('flock', animals, center, meadow, PASTURE_REACH_M, starts, seed, k);
+    const herd = buildHerd(
+      'flock',
+      animals,
+      center,
+      meadow,
+      PASTURE_REACH_M,
+      starts,
+      seed,
+      k,
+      fallow,
+    );
     if (herd) herds.push(herd);
   }
   // Krávy: jedna na dvě domácnosti, stáda nejvýš po šesti.
@@ -286,7 +344,17 @@ export function planLivestock(
   const cattle = Math.ceil(cows / COWS_PER_HERD);
   for (let k = 0; k < cattle; k++) {
     const animals = repeat('cow', shareOf(cows, cattle, k)) as LivestockSpecies[];
-    const herd = buildHerd('cattle', animals, center, meadow, PASTURE_REACH_M, starts, seed, k);
+    const herd = buildHerd(
+      'cattle',
+      animals,
+      center,
+      meadow,
+      PASTURE_REACH_M,
+      starts,
+      seed,
+      k,
+      fallow,
+    );
     if (herd) herds.push(herd);
   }
   // Prasata: v lese u okraje do 150 m od vsi (když tam les není, o kus dál).
@@ -411,6 +479,7 @@ function buildHerd(
   starts: { x: number; z: number }[],
   seed: number,
   index: number,
+  prefer?: (x: number, z: number) => boolean,
 ): Herd | null {
   if (species.length === 0) return null;
   const herdSeed = (seed * 13 + index * 977 + kind.length * 31337) | 0;
@@ -427,7 +496,7 @@ function buildHerd(
   };
   const jitterX = hash01(herdSeed, 1, 71) * SPOT_GRID_M;
   const jitterZ = hash01(herdSeed, 2, 71) * SPOT_GRID_M;
-  const candidates: { x: number; z: number; d: number }[] = [];
+  const all: { x: number; z: number; d: number }[] = [];
   const cells = Math.ceil(reach / SPOT_GRID_M);
   for (let gz = -cells; gz <= cells; gz++) {
     for (let gx = -cells; gx <= cells; gx++) {
@@ -435,15 +504,19 @@ function buildHerd(
       const z = center.z + gz * SPOT_GRID_M + jitterZ - SPOT_GRID_M / 2;
       const d = Math.hypot(x - center.x, z - center.z);
       if (d > reach || !fits(x, z)) continue;
-      candidates.push({ x, z, d });
+      all.push({ x, z, d });
     }
   }
-  if (candidates.length === 0) return null;
-  candidates.sort((a, b) => a.d - b.d);
+  if (all.length === 0) return null;
+  all.sort((a, b) => a.d - b.d);
+  // Úhor má přednost (pastviny jen na něm), když se na něj stádo vejde a jiné stádo ho ještě
+  // nezabralo; jinak louka.
+  const free = (c: { x: number; z: number }): boolean =>
+    starts.every((s) => Math.hypot(s.x - c.x, s.z - c.z) >= HERD_START_GAP_M);
+  const fallow = prefer ? all.filter((c) => prefer(c.x, c.z)) : [];
+  const candidates = fallow.some(free) ? fallow : all;
   // Start: nejbližší pastvina ke vsi, kterou ještě nezabralo jiné stádo.
-  const startIndex = candidates.findIndex((c) =>
-    starts.every((s) => Math.hypot(s.x - c.x, s.z - c.z) >= HERD_START_GAP_M),
-  );
+  const startIndex = candidates.findIndex(free);
   const start = startIndex >= 0 ? startIndex : 0;
   starts.push(candidates[start]!);
 
