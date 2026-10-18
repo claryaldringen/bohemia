@@ -1,6 +1,6 @@
 # Štěstí obyvatel a posvátná místa
 
-Stav: návrh k 18. 10. 2026, čeká na schválení. Implementace zatím není.
+Stav: schváleno 18. 10. 2026 (Martin: „Ano, takhle je to dobré“). Implementace zatím není.
 
 ## Proč
 
