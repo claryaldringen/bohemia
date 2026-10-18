@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { TOTAL_GAME_DAYS, dayIndexOf } from '../../calendar';
 import { foundField, foundVillage, startNewDwelling } from '../actions';
 import type { PartInput } from '../actions';
-import { daysUntilHarvest, eatDay } from '../food';
+import { daysUntilSlaughter, eatDiet } from '../diet';
+import { daysUntilHarvest } from '../food';
+import { LIVESTOCK, villageChickens } from '../livestock';
 import { ageYears, foodNeedPerDay, occupants } from '../people';
 import { NO_CRAFTS } from '../productivity';
 import { AGE, CHRONICLE_MAX_EVENTS, DWELLINGS } from '../rules';
@@ -408,7 +410,18 @@ describe('advanceVillage – roční plán a sklizeň', () => {
     threshing.harvestedKg = 500;
     s0.threshingFromPlan = threshing;
     const need = s0.people.reduce((sum, p) => sum + foodNeedPerDay(p, day), 0);
-    const eaten = eatDay(s0.storesKg, need, daysUntilHarvest(day), NO_CRAFTS.pottery).storesKg;
+    // jídlo dne i s vejci, která slepice ten den snesly (diet.md)
+    const eggs = (villageChickens(s0) * LIVESTOCK.eggsKgPerHen) / 365;
+    const eaten = eatDiet({
+      grainKg: s0.storesKg,
+      meatKg: (s0.meatKg ?? 0) + eggs,
+      fruitKg: 0,
+      needPerDay: need,
+      daysToHarvest: daysUntilHarvest(day),
+      daysToRot: 0,
+      daysToSlaughter: daysUntilSlaughter(day),
+      potteryCoverage: NO_CRAFTS.pottery,
+    }).grainKg;
     expect(threshLossKg(threshing, 500)).toBeCloseTo(250, 9);
 
     const s = advanceVillage(s0, day, null);

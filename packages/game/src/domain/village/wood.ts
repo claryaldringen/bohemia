@@ -339,7 +339,19 @@ export function planDwellingWoodFrom(
   source: WoodSource,
   options: WoodPlanOptions = {},
 ): WoodPlan {
-  const need = DWELLING_TREES[type];
+  return planWoodFrom(DWELLING_TREES[type], position, source, options);
+}
+
+/**
+ * Plán `need` stromů dřeva stavby u `position` (obydlí, ohrada, rádlo – oxen.md): nejdřív celé
+ * klády z hromady, zbytek nejbližší stojící dospělé stromy, které nepatří jiné stavbě.
+ */
+export function planWoodFrom(
+  need: number,
+  position: { x: number; z: number },
+  source: WoodSource,
+  options: WoodPlanOptions = {},
+): WoodPlan {
   const clearedTrees = options.clearedTrees ?? 0;
   const pile = wholeLogs(source.logs + logsFromClearedTrees(clearedTrees));
   const fromPile = Math.min(need, pile);

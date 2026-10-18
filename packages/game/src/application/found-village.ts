@@ -6,6 +6,7 @@ import {
   fieldPartsFromCells,
   forestEdgeDistanceM,
   foundVillage,
+  withLivestockLand,
   normalizeVillageName,
   type FieldInput,
   type PlacementVillage,
@@ -84,7 +85,8 @@ export async function foundVillageForSettlement(
     forestDistanceM: forestEdgeDistanceM(input.landscape, input.dwelling.x, input.dwelling.z),
     dwellingSpared: dwelling.spared,
   });
-  const state = advanceVillage(founded, input.today, obstacles);
+  // louka a les do 600 m od první zemnice – pastva a žaludy výchozího stáda (diet.md)
+  const state = advanceVillage(withLivestockLand(founded, input.landscape), input.today, obstacles);
   const created = await deps.villages.create(
     input.settlementId,
     normalizeVillageName(input.name),

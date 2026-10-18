@@ -3,10 +3,11 @@ import type { DayAllocation, LaborTaskName } from './labor';
 import { villageOrchards } from './orchard';
 import { NO_CRAFTS, withinBounds } from './productivity';
 import { HARVEST_WORK_PER_HA } from './rules';
+import { mowingPartsWorked } from './hay';
 import type {
   Construction,
   CropWork,
-  TaskName,
+  HayMowing,
   LaborActivity,
   LaborDay,
   LaborShare,
@@ -16,7 +17,7 @@ import type {
 } from './types';
 import { woodFellingCost } from './wood';
 import { partsWorked, type PartTask } from './field-progress';
-import { planPartIds } from './year-plan';
+import { planPartIds, type CropTask } from './year-plan';
 
 // Rozdělení práce posledního odsimulovaného dne po činnostech a místech – jen pro zobrazení
 // (postavy ve scéně, villagers.md). Vzniká v kroku práce simulace ze stejného rozdělení, které
@@ -32,7 +33,7 @@ export interface ConstructionWork {
 
 /** Polní úloha dne: práce plodiny a kolik z ní bylo hotové před a po dnešní práci (člověkodny). */
 export interface FieldTaskWork {
-  task: TaskName;
+  task: CropTask;
   work: CropWork;
   before: number;
   after: number;
@@ -46,6 +47,8 @@ export interface DayWork {
   /** Opravy po obydlích (poměrně k potřebě). */
   repairs: { dwellingId: number; manDays: number }[];
   constructions: ConstructionWork[];
+  /** Seč sena dne – kolik bylo posečeno před a po dnešní práci (oxen.md). */
+  mowing?: { mowing: HayMowing; before: number; after: number };
 }
 
 /** Kolik kácených stromů jedné stavby rozdělení ukáže. */
@@ -96,6 +99,10 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
     }
   }
   add('thresh', { kind: 'village' }, allocation.tasks.thresh);
+  for (const share of mowingShares(state, work)) {
+    add('mow', { kind: 'field', id: share.fieldId, parts: share.parts }, share.manDays);
+  }
+  add('slaughter', { kind: 'village' }, allocation.tasks.slaughter);
   const orchards = orchardAreas(state);
   for (const task of ['orchard-care', 'orchard-harvest'] as const) {
     for (const { id, share } of orchards) {
@@ -157,6 +164,24 @@ function fieldShares(
       if (!share.parts.includes(part.id)) share.parts.push(part.id);
       shares.set(key, share);
     }
+  }
+  return [...shares.values()];
+}
+
+/** Seč dne po polích na díly, přes které dnes postoupila (podíl podle úseku dílu). */
+function mowingShares(
+  state: VillageState,
+  work: DayWork,
+): { fieldId: number; manDays: number; parts: number[] }[] {
+  const day = work.mowing;
+  if (!day || day.after - day.before <= 0) return [];
+  const partsById = new Map(state.parts.map((p) => [p.id, p]));
+  const shares = new Map<number, { fieldId: number; manDays: number; parts: number[] }>();
+  for (const part of mowingPartsWorked(day.mowing, partsById, day.before, day.after)) {
+    const share = shares.get(part.fieldId) ?? { fieldId: part.fieldId, manDays: 0, parts: [] };
+    share.manDays += (day.after - day.before) * part.share;
+    share.parts.push(part.id);
+    shares.set(part.fieldId, share);
   }
   return [...shares.values()];
 }
@@ -242,6 +267,10 @@ function constructionShares(work: ConstructionWork): LaborShare[] {
           },
         ];
   }
+  if (c.kind === 'pen' || c.kind === 'ard') {
+    if (c.penId === null || c.penId === undefined) return [];
+    return penShares(work, { kind: 'pen', id: c.penId });
+  }
   if (c.kind === 'cemetery') {
     return c.cemeteryId === null || c.cemeteryId === undefined
       ? []
@@ -260,6 +289,19 @@ function constructionShares(work: ConstructionWork): LaborShare[] {
         : { kind: 'dwelling', id: c.dwellingId }
       : { kind: 'site', id: c.id };
   if (place === null) return [];
+  return penShares(work, place, 'build');
+}
+
+/**
+ * Práce stavby se dřevem po místech: nejdřív kácení jejích stromů (forest.md), zbytek na místě
+ * stavby – obydlí a staveniště (`build`), ohrada a rádlo (`pen`).
+ */
+function penShares(
+  work: ConstructionWork,
+  place: LaborTarget,
+  activity: LaborActivity = 'pen',
+): LaborShare[] {
+  const c = work.construction;
   const felling = woodFellingCost(c.wood);
   const fellWork = Math.max(
     0,
@@ -275,7 +317,7 @@ function constructionShares(work: ConstructionWork): LaborShare[] {
     });
   }
   if (work.manDays - fellWork > 0) {
-    shares.push({ activity: 'build', target: place, manDays: work.manDays - fellWork });
+    shares.push({ activity, target: place, manDays: work.manDays - fellWork });
   }
   return shares;
 }

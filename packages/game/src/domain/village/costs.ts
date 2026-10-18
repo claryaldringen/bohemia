@@ -1,5 +1,6 @@
 import type { ObstacleLayer } from '../landscape';
 import { availableSettlers } from './dwellings';
+import { PEN } from './oxen';
 import { NO_CRAFTS, foundingCostPerHa } from './productivity';
 import {
   CEMETERY,
@@ -21,7 +22,14 @@ import { oakSupply, woodSupply, type WoodPlan } from './wood';
 // hromadě + dospělé stromy sídla, které jde skácet – stavba ho při zahájení vyhradí.
 
 /** Co hráč staví z nabídky staveb. */
-export type BuildKind = DwellingType | 'field' | 'cemetery' | 'orchard' | SacredBuildingKind;
+export type BuildKind =
+  | DwellingType
+  | 'field'
+  | 'cemetery'
+  | 'orchard'
+  | SacredBuildingKind
+  /** Ohrada s přístřeškem (oxen.md) – jeden čtverec louky, dřevo předem, osadníci ne. */
+  | 'pen';
 
 /**
  * Co stavba potřebuje předem: obilí ze zásob, dřevo (stromy – klády z hromady, nebo dospělé
@@ -77,6 +85,8 @@ export const BUILD_COSTS: Record<BuildKind, BuildCost> = {
     perHa: false,
     upfront: { oaks: SACRED_BUILDINGS.shrine.oaks },
   },
+  // oxen.md – Ohrada: 40 člověkodní (i s kácením blízkého lesa) a 6 stromů
+  pen: { laborManDays: PEN.laborManDays, perHa: false, upfront: { wood: PEN.trees } },
 };
 
 /**

@@ -9,6 +9,8 @@ export * from './place-field';
 export * from './place-cemetery';
 export * from './place-orchard';
 export * from './place-sacred';
+export * from './place-pen';
+export * from './train-team';
 export * from './rename-village';
 export * from './restart-game';
 export * from './player-time';

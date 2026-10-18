@@ -2,7 +2,7 @@ import { dateOfDayIndex, isLeapYear } from '../calendar';
 import { expectedNetKg } from './fields';
 import { PLANNING_DAY, type WindowSegment } from './rules';
 import type { CropWork, FieldPart, TaskName, YearPlan } from './types';
-import { emptyTaskRecord, partWork } from './year-plan';
+import { emptyTaskRecord, partWork, ploughRemaining } from './year-plan';
 
 // Kolik ozimu a kolik jaře ves oseje (fields.md – Ozim a jař, Kolik ves oseje). Ves vybírá díly
 // v pořadí přílohové soustavy, dokud nepokryje cíl osevu; každý díl dá do ozimu, pokud ho
@@ -65,6 +65,8 @@ export interface CropChoiceInput {
   allowWinter: boolean;
   day: number;
   toolCoverage: number;
+  /** Ves má spřežení – díly, které rádlo zvládne, orá místo kopání (oxen.md). */
+  plough?: boolean;
 }
 
 /** Prázdná zátěž – jen sklizeň jablek. */
@@ -72,13 +74,14 @@ export function orchardOnlyLoad(orchardAutumn: number): SowingLoad {
   return { orchardAutumn, winter: emptyTaskRecord(), spring: emptyTaskRecord() };
 }
 
-/** Zbytek práce plodiny (potřebné − odvedené po úlohách). */
+/** Zbytek práce plodiny (potřebné − odvedené po úlohách; orba se počítá ke kopání). */
 function remaining(work: CropWork | undefined): Record<TaskName, number> {
   const rest = emptyTaskRecord();
   if (!work) return rest;
   for (const task of Object.keys(rest) as TaskName[]) {
     rest[task] = Math.max(0, work.required[task] - work.done[task]);
   }
+  rest.dig += ploughRemaining(work);
   return rest;
 }
 
@@ -109,8 +112,10 @@ export function chooseCrops(
 
   for (const part of candidates) {
     if (net >= input.targetKg) break;
-    const work = partWork(part, input.day, input.toolCoverage);
-    const autumnWork = work.reclaim + work.dig + work.sow;
+    const work = partWork(part, input.day, input.toolCoverage, input.plough ?? false);
+    // orba rádlem jde do stejných oken jako kopání
+    const tillage = work.dig + work.plough;
+    const autumnWork = work.reclaim + tillage + work.sow;
     if (
       input.allowWinter &&
       winterAutumn + autumnWork <= capacity.autumnWinter + EPSILON &&
@@ -124,7 +129,7 @@ export function chooseCrops(
     }
     // jař: kopání na podzim, kolik ho po ozimu, jablkách a vrácení přílohů zbude, zbytek na jaře
     const reclaim = springReclaim + work.reclaim;
-    const dig = springDig + work.dig;
+    const dig = springDig + tillage;
     const sow = springSow + work.sow;
     const autumnLeft = Math.max(0, capacity.autumn - winterAutumn - reclaim);
     const springNeed = sow + Math.max(0, dig - autumnLeft);
