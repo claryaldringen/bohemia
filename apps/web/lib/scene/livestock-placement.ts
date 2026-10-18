@@ -127,8 +127,6 @@ const PASTURE_FALLOFF_M = { flock: 170, cattle: 190, swine: 90 } as const;
 const HERD_DWELLING_GAP_M = 12;
 const SWINE_DWELLING_GAP_M = 8;
 const HERD_CROP_GAP_M = 1.5;
-/** Šířka pruhu cesty mezi pastvinami po obou stranách (m) – stádo jde při stěhování v hloučku. */
-const PATH_HALF_WIDTH_M = 5;
 /** Starty stád od sebe nejméně (m). */
 const HERD_START_GAP_M = 45;
 
@@ -452,10 +450,10 @@ function buildHerd(
       const t = s / steps;
       const x = a.x + (b.x - a.x) * t;
       const z = a.z + (b.z - a.z) * t;
-      for (const side of [-1, 0, 1]) {
-        if (!suits(x + nx * side * PATH_HALF_WIDTH_M, z + nz * side * PATH_HALF_WIDTH_M, 1)) {
-          return false;
-        }
+      // Stádo jde při stěhování celé – volný musí být pruh v šířce stáda.
+      for (const side of [-1, -0.5, 0, 0.5, 1]) {
+        const offset = side * fitRadius;
+        if (!suits(x + nx * offset, z + nz * offset, 1)) return false;
       }
     }
     return true;

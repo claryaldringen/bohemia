@@ -164,7 +164,8 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   hladiny (`FLOW_CHUNK_M`) a od jaké zimy jsou celé zamrzlé – kreslí se, jen dokud je v záběru
   nezamrzlá voda.
 - **Vývojový náhled** bez přihlášení a databáze: http://localhost:3010/dev/landscape?seed=42
-  (tlačítka předchozí / další / náhodná). V produkci vrací 404.
+  (tlačítka předchozí / další / náhodná, lišta vsi s minimapou – pole jde malovat i do lesa
+  a překážky z něj hned zmizí, „Kácet 20 stromů“). V produkci vrací 404.
 - `?renderer=webgl` vynutí WebGL 2 (test záložní cesty). `HEIGHT_SCALE` v `scene/constants.ts`
   převyšuje terén jen vizuálně. Tamtéž rozsah přiblížení kamery `CAMERA_ZOOM_M` (výchozí 120 m
   a nejblíž 50 m jako v 0 A.D.) – řídí se jím i mix zvuků.
@@ -202,8 +203,13 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
 - **Změny krajiny vsi ve scéně:** `SceneVillage.obstacles` (`removed`, `stumps`, `saplings` –
   id) skryje `InstanceHider` podle id (3D stromy, impostory i dekorace); ozdoby bez id skrývá
   pod stavbami a poli podle tvaru. Na místo pokáceného stromu dá `felled-trees.ts` pařez,
-  po TREE_SAPLING_AFTER_YEARS mladý stromek. Ztmavená tráva pod stromy a stínová mapa terénu
-  se zatím nepřepočítají (fields.md – Krajina sídla a scéna, Stav).
+  po TREE_SAPLING_AFTER_YEARS mladý stromek. **Vymýcený les** (`cleared-forest.ts`, čistý
+  modul): maska po políčkách ze stavu vsi – políčko lesa bez aspoň poloviny dospělých stromů
+  nebo pod založeným dílem pole. Plocha korun nad pasekou zapadne pod zem
+  (`ForestCanopy.setCleared` mění jen výšky vrcholů), ztmavení trávy se přepočítá bez skrytých
+  stromů do modrého kanálu splat textury (`TerrainMaterial.setHiddenTrees` – žádný sampler
+  navíc), stínová mapa se jednou překreslí a minimapa kreslí vykácený les jako paseku. Vše jen
+  při změně (`applyVillage`).
 - **Světlo:** letní slunce a obloha podle 0 A.D., kontrast 1,1. **Stíny od slunce**
   (`sun-shadows.ts`) – stínová mapa 4096 přes celou krajinu se vykreslí jednou; vrhají je meshe
   pojmenované `trees-*`, `impostors-*` a `decor-*` (při přejmenování zachovat prefix).
@@ -240,7 +246,7 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   `tools/audio/ambient.sh` – smyčky mají délku N + 312 ≡ 0 mod 960, viz `loopRegion`).
 - **Zvířata** (podle 0 A.D., jen ozdoba): hejna ryb kroužících v tůních a klidné hluboké vodě,
   hejna vran nad loukami u lesa a jedno káně. Kde jsou, určuje `fauna-placement.ts`, jak se
-  hýbou `fauna-motion.ts` (čisté funkce času, testy); `fauna.ts` je kreslí jako instance (mesh
+  hýbou `fauna-motion.ts` (čisté funkce skutečného času, ne herního – testy); `fauna.ts` je kreslí jako instance (mesh
   `fauna-*` na druh – ne vrhač stínu). Mávání křídel a mrskání ocasem je přechod mezi třemi
   pózami z animací 0 A.D. (morph targety GLB z `tools/blender/fauna_from_0ad.py`) ve vertex
   shaderu (GLSL i WGSL). **Výjimka z kreslení jen při změně jako voda:** hýbou se jen skupiny
@@ -254,10 +260,14 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   ovce s kozami (stádo na 5 domácností) a krávy se pasou na louce do 300 m (ne pole, hřbitov,
   obydlí, voda, skála, prudký svah), prasata na okraji lesa (−7 až +5 m od hranice, hlouběji je
   zakryjí koruny) do 150 m (jinak do 260 m), nejbližší vhodný okraj první – za lesem po otočení
-  kamery zmizí, to nevadí (Martin). Stádo má trasu po sousedních pastvinách a během herních dní
-  se po ní stěhuje tam a zpět (`livestock-motion.ts`, herní den jako dým); po přepočtu vsi
-  zůstane na své pastvině, když ji nová trasa má (`keepRouteSpot`). Zvíře popojde, pase se /
-  zobe / ryje nebo stojí – čisté funkce času, deterministicky. `livestock.ts` (`VillageLivestock`, háček v
+  kamery zmizí, to nevadí (Martin). **Pohyb běží ve skutečném čase, ne v herním** – ve
+  zrychleném světě zvířata „běhala jak na koksu“ (Martin); scéna dosadí epoch ms
+  (`livestockClock`), stejný okamžik = stejná póza. Stádo je na pastvině své trasy (sousední
+  pastviny) 3–9 minut a pak se za pevnou dobu krokem přesune na další, tam a zpět
+  (`livestock-motion.ts`); během přesunu má každé zvíře vlastní čas zastavený (`pausedS`),
+  chůze se nesčítá. Po přepočtu vsi zůstane stádo na své pastvině, když ji nová trasa má
+  (`keepRouteSpot`). Zvíře se desítky sekund pase / zobe / ryje nebo stojí a popojde pár metrů
+  krokem (≈ 0,6–1 m/s) – čisté funkce času, deterministicky. `livestock.ts` (`VillageLivestock`, háček v
   `landscape-scene.ts`) je kreslí jako fauna: mesh `livestock-*` na druh, krok (parabola přes
   dvě pózy) a hlava dolů (třetí morph target) ve vertex shaderu, výška a náklon podle terénu.
   Textury z GLB (dobytek, ryby i ptáci – `loadGeometry` ve `fauna.ts`) se čtou v barvách
@@ -408,7 +418,10 @@ rozhraní částí v
 
 - **Stavby po čtvercích** (pole, hřbitov; políčka krajiny 15 × 15 m, díl = políčko):
   `fieldPartsFromCells` a `cemeteryPartsFromCells` v `placement.ts` (společné kontroly čtverců;
-  u hřbitova navíc `check.warning` a `warningCells`, které neblokují – oranžově), server
+  u hřbitova navíc `check.warning` a `warningCells`, které neblokují – oranžově). Pole smí na
+  louku, do křovin i do lesa – povrch dílu `fieldSquareSurface` (les z krajiny, křoviny = louka
+  s keři za aspoň rozdíl sazeb); sad a hřbitov jen na louku. Obrys výběru při malování
+  prosvítá přes stromy. Server
   actions dostávají `cells` / `fieldCells` (`{ x, y }[]`). Malování ve scéně
   `lib/scene/field-painting.ts` (`FieldPainter`, režim `squares`, logika výběru ve
   `field-cells.ts`) – ovládání v tabulce výše. Obrys pole (`Field.outline`) zůstal jen u starých
@@ -439,8 +452,9 @@ rozhraní částí v
   odstraněných překážek, ≈ 300 ms jednou).
 - **Překážky ve vsi** (`domain/village/obstacles.ts`, fields.md – tabulka překážek): obydlí
   platí překážky na vyklízené ploše (`DWELLING_CLEARING_M` = staveniště scény) po kusech,
-  skalní výchoz pod půdorysem stavbu nedovolí; díl pole platí překážky v políčku (v lese by
-  platila sazba za hektar), výchoz zůstane a plocha pod ním se nepočítá; čtverec hřbitova
+  skalní výchoz pod půdorysem stavbu nedovolí; díl pole platí překážky v políčku jen mimo
+  sazbu povrchu (`tallyCost`, `SURFACE_INCLUDED_OBSTACLES` – v lese stromy a podrost v ceně,
+  v křovinách keře), výchoz zůstane a plocha pod ním se nepočítá; čtverec hřbitova
   platí překážky jako díl pole, ale výchoz ho zablokuje (hroby jdou v pevné mřížce). Kontroly
   (`checkDwellingPlacement`, `fieldPartsFromCells`, `cemeteryPartsFromCells`) berou vrstvu
   výchozím parametrem `obstaclesOf(landscape)` a vrací `obstacleCost` a id; v prohlížeči i na

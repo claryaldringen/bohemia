@@ -137,8 +137,25 @@ function addToTally(
 }
 
 /**
- * Překážky na čtverci pole (pata v políčku). Pole jdou zatím jen na louku; až půjdou do lesa,
- * platí na lesním čtverci sazba za hektar a stromy jsou v ceně (fields.md – Co je překážka).
+ * Cena překážek z `tally` bez druhů `included`, které jsou v sazbě povrchu za hektar (v lese
+ * stromy a podrost, v křovinách keře – SURFACE_INCLUDED_OBSTACLES). Počítá se z počtů po druzích
+ * v pevném pořadí – výsledek nezávisí na pořadí překážek ve vrstvě.
+ */
+export function tallyCost(tally: ObstacleTally, included: readonly ObstacleKind[] = []): number {
+  let cost = 0;
+  for (const [kind, price] of Object.entries(OBSTACLE_COST) as [
+    keyof typeof OBSTACLE_COST,
+    number,
+  ][]) {
+    if (!included.includes(kind)) cost += price * (tally.counts[kind] ?? 0);
+  }
+  return cost;
+}
+
+/**
+ * Překážky na čtverci pole, sadu nebo hřbitova (pata v políčku). Odstraní se všechny (kromě
+ * skalních výchozů); kolik z nich se platí po kusech, rozhoduje povrch čtverce – na lesním
+ * čtverci pole platí sazba za hektar a stromy jsou v ceně (fields.md – Co je překážka, `tallyCost`).
  */
 export function cellObstacles(
   layer: ObstacleLayer,

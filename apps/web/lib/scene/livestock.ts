@@ -10,13 +10,7 @@ import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import type { Scene } from '@babylonjs/core/scene';
-import {
-  OFFICIAL_WORLD,
-  type ForestField,
-  type Landscape,
-  type Relief,
-  type WorldClock,
-} from '@bohemia/game';
+import { type ForestField, type Landscape, type Relief } from '@bohemia/game';
 import { loadGeometry, writeInstanceMatrix, type FaunaGeometry } from './fauna';
 import {
   chickenArea,
@@ -30,6 +24,7 @@ import {
   routeArea,
   type Area,
   type HerdState,
+  livestockClock,
   type LivestockClock,
   type LivestockPose,
 } from './livestock-motion';
@@ -41,7 +36,6 @@ import {
   type LivestockSpecies,
   type LivestockVillage,
 } from './livestock-placement';
-import { gameDayAt, gameDaySeconds } from './smoke-schedule';
 import type { StreamCenterline } from './stream-geometry';
 
 const SPECIES: readonly LivestockSpecies[] = ['sheep', 'goat', 'cow', 'pig', 'chicken'];
@@ -98,7 +92,6 @@ interface Group {
  * až s prvním zvířetem; když se některý nenačte, ten druh chybí (zaloguje se varování).
  */
 export class VillageLivestock {
-  private world: WorldClock = OFFICIAL_WORLD;
   private ground: { grid: LivestockGround; x: number; z: number } | null = null;
   private village: LivestockVillage | null = null;
   private key = '';
@@ -115,11 +108,6 @@ export class VillageLivestock {
     private readonly scene: Scene,
     private readonly env: LivestockEnvironment,
   ) {}
-
-  /** Svět, podle jehož herního dne se stáda stěhují po pastvinách. */
-  setWorldClock(world: WorldClock): void {
-    this.world = world;
-  }
 
   /**
    * Zvířata podle vsi – rozmístění se přepočítá, jen když se změnila obydlí, pole nebo
@@ -176,13 +164,9 @@ export class VillageLivestock {
     this.groups = [];
   }
 
+  /** Skutečný čas, ne herní – ve zrychleném světě se zvířata hýbou stejně klidně. */
   private clock(nowMs: number): LivestockClock {
-    return {
-      // Od začátku světa – menší čísla, stejný okamžik dá vždy stejnou pózu.
-      seconds: (nowMs - this.world.startMs) / 1000,
-      gameDay: gameDayAt(nowMs, this.world),
-      daySeconds: gameDaySeconds(this.world),
-    };
+    return livestockClock(nowMs);
   }
 
   /** Nové rozmístění podle poslední vsi (po změně vsi a po načtení modelů). */

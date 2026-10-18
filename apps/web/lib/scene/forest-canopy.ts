@@ -3,10 +3,12 @@ import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
+import { VertexBuffer } from '@babylonjs/core/Buffers/buffer';
 import type { Scene } from '@babylonjs/core/scene';
 import { createNoise2D } from 'simplex-noise';
 import { HEIGHT_SCALE } from './constants';
 import type { ForestField } from '@bohemia/game';
+import { clearingDistance, type ClearedForest } from './cleared-forest';
 import type { RenderSurface } from './render-surface';
 import { applySeasonCanopy } from './season-materials';
 
@@ -31,14 +33,38 @@ const CANOPY_TEXTURE_URL = '/textures/terrain/canopy.jpg';
 const CANOPY_TEXTURE_REPEAT_M = 48;
 
 /**
+ * U paseky (vymýcené políčko lesa – pole, kácení) plocha korun vystupuje ze země blíž než
+ * u okraje lesa (m od okraje paseky): pás u paseky zakryjí stromy na jejím kraji.
+ */
+const CLEARING_START_M = 4;
+const CLEARING_FULL_M = 16;
+
+/** Plocha korun lesa – po vymýcení části lesa ji jde nad pasekou zanořit pod zem. */
+export interface ForestCanopy {
+  readonly mesh: Mesh;
+  /**
+   * Plocha korun nad vymýceným lesem a kolem něj zapadne pod zem (null = nic vymýcené). Mění
+   * jen výšky vrcholů, síť zůstává. Vrátí true, když se plocha změnila.
+   */
+  setCleared(cleared: ClearedForest | null): boolean;
+}
+
+/** Výška plochy korun nad zemí podle vzdálenosti `t` od hranice (lesa nebo paseky). */
+function canopyAbove(t: number, start: number, full: number, crowns: number): number {
+  const rise = smoothstep(start, full, t);
+  const sink = SINK_M * (1 - smoothstep(start - 4, start, t));
+  return rise * (CANOPY_HEIGHT_M + crowns * CROWN_BUMP_M) - sink;
+}
+
+/**
  * Vnitřek lesa jako souvislá plocha korun (místo tisíců stromů) – zvlněná šumem, k vyhlazené
  * hranici lesa klesá pod zem; okraj zakryjí jednotlivé stromy.
  */
-export function createCanopyMesh(
+export function createForestCanopy(
   scene: Scene,
   surface: RenderSurface,
   field: ForestField,
-): Mesh | null {
+): ForestCanopy | null {
   const n = surface.resolution;
   const bumps = createNoise2D(seededRandom(7));
   const tint = createNoise2D(seededRandom(11));
@@ -49,6 +75,9 @@ export function createCanopyMesh(
     inside[v] = field.distanceAt(x, z);
   }
 
+  // vrcholy plochy: bod sítě, zvlnění korun a výška země – pro přepočet výšek u paseky
+  const grid: number[] = [];
+  const crownsOf: number[] = [];
   const positions: number[] = [];
   const colors: number[] = [];
   const uvs: number[] = [];
@@ -56,11 +85,11 @@ export function createCanopyMesh(
   const vertex = (v: number): number => {
     if (vertexIndex[v]! >= 0) return vertexIndex[v]!;
     const { x, z } = surface.position(v);
-    const rise = smoothstep(CANOPY_START_M, CANOPY_FULL_M, inside[v]!);
-    const sink = SINK_M * (1 - smoothstep(CANOPY_START_M - 4, CANOPY_START_M, inside[v]!));
     const crowns = 0.7 * bumps(x / 24, z / 24) + 0.3 * bumps(x / 9 + 50, z / 9);
-    const above = rise * (CANOPY_HEIGHT_M + crowns * CROWN_BUMP_M) - sink;
+    const above = canopyAbove(inside[v]!, CANOPY_START_M, CANOPY_FULL_M, crowns);
     positions.push(x, surface.heights[v]! * HEIGHT_SCALE + above, z);
+    grid.push(v);
+    crownsOf.push(crowns);
     // Světlejší a tmavší skupiny korun – zakryjí i opakování dlaždice.
     const shade = 0.5 + 0.5 * tint(x / 70, z / 70);
     colors.push(
@@ -94,7 +123,8 @@ export function createCanopyMesh(
   vertexData.colors = colors;
   vertexData.uvs = uvs;
   const mesh = new Mesh('forest-canopy', scene);
-  vertexData.applyToMesh(mesh);
+  // výšky a normály se mění, když ves les vymýtí (setCleared)
+  vertexData.applyToMesh(mesh, true);
 
   const material = new StandardMaterial('forest-canopy-material', scene);
   const leaves = new Texture(CANOPY_TEXTURE_URL, scene);
@@ -106,7 +136,32 @@ export function createCanopyMesh(
   mesh.material = material;
   mesh.isPickable = false;
   mesh.freezeWorldMatrix();
-  return mesh;
+
+  let clearedKey = '';
+  return {
+    mesh,
+    setCleared(cleared) {
+      const key = cleared ? cleared.tiles.join(',') : '';
+      if (key === clearedKey) return false;
+      clearedKey = key;
+      for (let k = 0; k < grid.length; k++) {
+        const v = grid[k]!;
+        const x = positions[k * 3]!;
+        const z = positions[k * 3 + 2]!;
+        const crowns = crownsOf[k]!;
+        const forest = canopyAbove(inside[v]!, CANOPY_START_M, CANOPY_FULL_M, crowns);
+        const distance = cleared ? clearingDistance(cleared, x, z, CLEARING_FULL_M) : Infinity;
+        const clearing = Number.isFinite(distance)
+          ? canopyAbove(distance, CLEARING_START_M, CLEARING_FULL_M, crowns)
+          : Infinity;
+        positions[k * 3 + 1] = surface.heights[v]! * HEIGHT_SCALE + Math.min(forest, clearing);
+      }
+      VertexData.ComputeNormals(positions, indices, normals);
+      mesh.updateVerticesData(VertexBuffer.PositionKind, positions);
+      mesh.updateVerticesData(VertexBuffer.NormalKind, normals);
+      return true;
+    },
+  };
 }
 
 function smoothstep(edge0: number, edge1: number, x: number): number {

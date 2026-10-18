@@ -2,7 +2,10 @@
 
 Stav: schváleno 17. 10. 2026 (Martin). Týž den změna (Martin, po prvním prototypu): **pole se
 staví po čtvercích** – políčkách krajiny 15 × 15 m, jak je obvyklé v realtime strategiích – místo
-volného obrysu. Implementace jádra: `packages/game/src/domain/village/`.
+volného obrysu. Implementace jádra: `packages/game/src/domain/village/`. **Pole v křovinách
+a v lese implementováno 18. 10. 2026:** povrch dílu (`fieldSquareSurface`), sazby povrchu se
+stromy a keři v ceně, klády z mýcení a popel z vymýceného lesa; scéna a minimapa vymýcený les
+přestanou kreslit jako les (viz Krajina sídla a scéna).
 
 ## Proč
 
@@ -94,11 +97,22 @@ všechnu práci vsi a teprve lepší nástroje a osevní systémy (další mecha
   Všechna čísla jsou návrh Clauda. Stejné ceny překážek platí pro umístění obydlí
   ([populace](population.md)) – jedna tabulka pro celou hru.
 
+- **Povrch dílu** (návrh Clauda, implementace 18. 10. 2026): **les** podle krajiny (políčko
+  lesa). **Křoviny** krajina jako povrch nezná – čtverec louky je křovinami, když by jeho keře
+  po kusech stály aspoň tolik, o kolik je sazba křovin dražší než louka (na políčku 15 × 15 m
+  od 5 keřů: keřový lem lesa, keřové ostrůvky – asi 3 % luk). Cena tak s přibývajícími keři
+  plynule roste až po sazbu křovin.
+- **Co je v sazbě povrchu:** v lese stromy i se suchými, padlými kmeny, pařezy a podrostem
+  („stromy v ceně“), v křovinách keře – ty se po kusech neplatí. Po kusech se na lesním čtverci
+  platí jen kameny a balvany, v křovinách i stromy. Odstraní se ale všechno, co na čtverci stojí
+  (kromě skalních výchozů), a dospělé stromy, které nevyhradila stavba obydlí, dají po založení
+  dílu klády ([les a dřevo](forest.md)).
+
 - **Založení je stavba:** dostává společnou práci vsi stejně jako stavby obydlí (rovným dílem
   s ostatními rozestavěnými stavbami – populace). Díly se zpřístupňují postupně, nejbližší
   k obydlím první; hotový díl ves může osít v nejbližším vhodném období (návrh Clauda).
-- Odstraněné stromy a kameny **z krajiny sídla zmizí natrvalo** (Martin). Vykácené dřevo
-  půjde do zásob vsi, až vznikne mechanika dřeva; do té doby se neeviduje.
+- Odstraněné stromy a kameny **z krajiny sídla zmizí natrvalo** (Martin). Dospělé stromy dají
+  klády na hromadu vsi – strom = kláda ([les a dřevo](forest.md) – Mýcení a hromada klád).
 - Hráč může čtverce pole přidat, ubrat nebo pole zrušit. Přidaná plocha se zakládá jako nové pole,
   ubraná nebo zrušená zarůstá.
 
@@ -274,11 +288,18 @@ pořadí (návrh Clauda; nahrazuje pevných 85 % a dělení práce po domácnost
   ([hřbitov](cemetery.md)). Odstraněné překážky zmizí natrvalo: u obydlí (i první zemnice
   při založení vsi) při zahájení stavby, u pole s každým založeným dílem (jak říká Zakládání),
   u hřbitova s dostavěním hřbitova nebo rozšíření. Scéna je
-  skryje bez nového načtení stránky. **Zatím ne:** ztmavená tráva pod stromy, tmavá plocha korun
-  a stínová mapa terénu se po vykácení nepřepočítají (na pasece zůstane tmavší skvrna); zarostlý
-  příloh (les z náletu) ani rušení polí odstraněné překážky nevrací. Cenu překážek kontroly
-  umístění spočítají, rozhraní ji ukáže u kurzoru v celkové práci (ikona práce s číslem –
-  „Co hráč vidí“) a stavba ji zaplatí prací.
+  skryje bez nového načtení stránky. **Zatím ne:** zarostlý příloh (les z náletu) ani rušení
+  polí odstraněné překážky nevrací. Cenu překážek kontroly umístění spočítají, rozhraní ji
+  ukáže u kurzoru v celkové práci (ikona práce s číslem – „Co hráč vidí“) a stavba ji zaplatí
+  prací.
+- **Vymýcený les ve scéně (18. 10. 2026):** kde ves les vykácela nebo vymýtila pro pole, scéna
+  ho přestane kreslit jako les. Maska po políčkách se počítá ze stavu vsi (`cleared-forest.ts`):
+  políčko lesa je vymýcené, když z něj zmizela aspoň polovina dospělých stromů (odstraněné,
+  pařezy, dorůstající nálet), a celé pod založeným dílem pole. Tmavá plocha korun nad pasekou
+  a kolem ní zapadne pod zem, ztmavení trávy pod vykácenými stromy zmizí (i pod jednotlivými
+  pařezy), stínová mapa se jednou překreslí a minimapa ukáže vykácený les jako paseku (les
+  řídne s podílem vykácených stromů). Díly pole ve vymýceném lese mají obtisk pole na běžné
+  trávě; při malování pole přes les prosvítá obrys výběru přes koruny.
 
 ## Ukázka
 
@@ -411,6 +432,7 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 | Úroda podle úrodnosti, práce a včasnosti; zarostlá půda → louka → les                        | návrh Clauda, Martin potvrdil |
 | Díly pole po políčkách krajiny; max 800 m od obydlí, min 0,1 ha                              | návrh Clauda                  |
 | Ceny založení: louka 40, křoviny 150, les 250 člověkodní/ha; tabulka překážek                | návrh Clauda                  |
+| Křoviny = louka, kde keře po kusech stojí aspoň rozdíl sazeb; v lese stromy a podrost v ceně | návrh Clauda                  |
 | Založení jako stavba ze společné práce, díly postupně od obydlí                              | návrh Clauda                  |
 | Ves oseje k 1. 9. potřebu + 15 % (kalibrace z 10 %)                                          | návrh Clauda                  |
 | Příloh se neudržuje a zarůstá; nevybrané díly stárnou až v les                               | návrh Clauda                  |

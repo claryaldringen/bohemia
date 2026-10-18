@@ -11,6 +11,7 @@ import {
   ORCHARD_PLANTING_WINDOWS,
   obstaclesOf,
   partStage,
+  reservedTrees,
   squareBearing,
   summarizeVillage,
   tileCenterWorld,
@@ -21,6 +22,7 @@ import {
   type ConstructionKind,
   type ConstructionSummary,
   type DwellingType,
+  type FieldSurface,
   type Landscape,
   type ObstacleChanges,
   type OrchardSquare,
@@ -42,7 +44,7 @@ import { formatCells, formatHa, formatInteger } from './village-format';
 // Pohled na ves pro panel a scénu (DTO server actions). Čistý modul – smí ho importovat
 // i klient (typy, převod scény na data pro kontrolu umístění).
 
-export type { BuildKind, PartStage, StockResource } from '@bohemia/game';
+export type { BuildKind, FieldSurface, PartStage, StockResource } from '@bohemia/game';
 
 /**
  * Stavba v nabídce staveb: cena a jestli na ni ves má (bez surovin, dřeva nebo lidí k osídlení je
@@ -109,12 +111,18 @@ export interface VillageView {
     /** Kolik stromů stavba ještě musí skácet (obydlí, přestavba – forest.md). */
     treesToFell: number;
   }[];
-  /** Pole pro panel výběru: výměra, průměrná úrodnost a počet dílů podle stadia. */
+  /**
+   * Pole pro panel výběru: výměra, průměrná úrodnost, počet dílů podle stadia a podle povrchu,
+   * na kterém se díly zakládaly (louka, křoviny, les), a kolik dílů má popel z vymýceného lesa.
+   */
   fields: {
     id: number;
     areaM2: number;
     fertility: number;
     stages: Partial<Record<PartStage, number>>;
+    surfaces: Partial<Record<FieldSurface, number>>;
+    /** Díly s bonusem úrodnosti po vymýcení lesa (fields.md – Úroda). */
+    ashParts: number;
   }[];
   /** Hřbitovy v pořadí pohřbívání – kolik místa zbývá (hygienu hráč nevidí – cemetery.md). */
   cemeteries: VillageCemetery[];
@@ -213,6 +221,11 @@ export interface SceneVillage {
    * pokácela (pařez, později nálet) – id z vrstvy. Bez údaje žádné.
    */
   obstacles?: ObstacleChanges;
+  /**
+   * Stromy vyhrazené rozestavěnými stavbami (forest.md) – kontrola umístění v prohlížeči podle
+   * nich počítá klády z mýcení stejně jako server. Bez údaje žádné.
+   */
+  reservedTrees?: number[];
   /** Klády na hromadě v kusech – scéna je složí u obydlí nejblíž lesu. Bez údaje žádné. */
   woodLogs?: number;
 }
@@ -331,12 +344,14 @@ function sceneVillage(
     id: o.id,
     squares: o.squares.map((s) => sceneOrchardSquare(landscape, s, day, state.orchardWork ?? null)),
   }));
+  const reserved = [...reservedTrees(state)].sort((a, b) => a - b);
   return {
     dwellings: [...built, ...sites],
     fields,
     cemeteries,
     ...(orchards.length > 0 ? { orchards } : {}),
     obstacles: obstacleChangesAt(state, day),
+    ...(reserved.length > 0 ? { reservedTrees: reserved } : {}),
     woodLogs: wholeLogs(state.woodLogs ?? 0),
   };
 }
@@ -453,7 +468,10 @@ function buildOptions(state: VillageState, landscape: Landscape): Record<BuildKi
   return Object.fromEntries(entries) as Record<BuildKind, BuildOption>;
 }
 
-/** Pole pro panel výběru – výměra, úrodnost vážená plochou a díly podle stadia. */
+/**
+ * Pole pro panel výběru – výměra, úrodnost vážená plochou, díly podle stadia a povrchu
+ * a díly s popelem z vymýceného lesa.
+ */
 function fieldViews(state: VillageState, day: number): VillageView['fields'] {
   return state.fields.map((f) => {
     const parts = state.parts.filter((p) => p.fieldId === f.id);
@@ -463,11 +481,15 @@ function fieldViews(state: VillageState, day: number): VillageView['fields'] {
         ? parts.reduce((sum, p) => sum + effectiveFertility(p, day) * p.areaM2, 0) / areaM2
         : 0;
     const stages: Partial<Record<PartStage, number>> = {};
+    const surfaces: Partial<Record<FieldSurface, number>> = {};
+    let ashParts = 0;
     for (const p of parts) {
       const stage = partStage(p, day);
       stages[stage] = (stages[stage] ?? 0) + 1;
+      surfaces[p.surface] = (surfaces[p.surface] ?? 0) + 1;
+      if (p.bonusUntilDay !== null && p.bonusUntilDay >= day) ashParts++;
     }
-    return { id: f.id, areaM2, fertility, stages };
+    return { id: f.id, areaM2, fertility, stages, surfaces, ashParts };
   });
 }
 
@@ -545,7 +567,8 @@ export function buildVillageView(
 /**
  * Data pro kontrolu umístění v prohlížeči (`checkDwellingPlacement`, `fieldPartsFromCells`,
  * `cemeteryPartsFromCells`, `orchardPartsFromCells`) ze scény vsi – hotová i rozestavěná obydlí
- * jako obydlí, pole podle čtverců dílů, pohřebiště a sady podle svých čtverců.
+ * jako obydlí, pole podle čtverců dílů, pohřebiště a sady podle svých čtverců, odstraněné
+ * a pokácené překážky a vyhrazené stromy – náhled pak spočítá totéž co server.
  */
 export function placementVillageFromScene(scene: SceneVillage): PlacementVillage {
   return {
@@ -559,5 +582,6 @@ export function placementVillageFromScene(scene: SceneVillage): PlacementVillage
       squares: o.squares.map((s) => ({ cell: s.cell })),
     })),
     ...(scene.obstacles ? { obstacleChanges: scene.obstacles } : {}),
+    ...(scene.reservedTrees ? { reservedTrees: scene.reservedTrees } : {}),
   };
 }

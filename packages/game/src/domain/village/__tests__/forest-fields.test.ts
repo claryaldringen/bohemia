@@ -1,0 +1,360 @@
+import { describe, expect, it } from 'vitest';
+import { dayIndexOf } from '../../calendar';
+import {
+  generateLandscape,
+  obstaclesOf,
+  packObstacles,
+  surfaceAt,
+  tileCenterWorld,
+  type ObstacleLayer,
+  type ObstaclePlacement,
+} from '../../landscape';
+import { foundField, foundVillage, startNewDwelling, type FieldInput } from '../actions';
+import { effectiveFertility, fieldSquareSurface, partFoundingCost } from '../fields';
+import { obstacleChangesAt } from '../obstacles';
+import {
+  cemeteryPartsFromCells,
+  fieldPartsFromCells,
+  orchardPartsFromCells,
+  placementVillageOf,
+  type PlacementVillage,
+} from '../placement';
+import {
+  FERTILITY,
+  FOUNDING_COST_PER_HA,
+  LOG_ROT_PER_YEAR,
+  OBSTACLE_COST,
+  SURFACE_INCLUDED_OBSTACLES,
+} from '../rules';
+import { advanceVillage } from '../simulate';
+import type { Person, Position, TileCell, VillageState } from '../types';
+import { reservedTrees } from '../wood';
+import { block, makeLandscape } from './placement-fixtures';
+import { withBuiltFirstDwelling } from './village-fixtures';
+
+// Pole v křovinách a v lese (fields.md – Založení pole, forest.md – Mýcení a hromada klád).
+// Ruční krajina 16 × 16 políček po 15 m se středem v počátku: políčko (8, 8) = svět 0–15 m,
+// sloupce x ≥ 8 jsou les, ostatní louka.
+
+const landscape = makeLandscape({ surface: (x) => (x >= 8 ? 'forest' : 'meadow') });
+const DAY = dayIndexOf({ year: 600, month: 10, day: 1 });
+const YEAR = 365.25;
+const HOME: Position = { x: -60, z: 0, rotation: 0 };
+const SQUARE_HA = 225 / 10_000;
+
+const LOOKS: Record<ObstaclePlacement['kind'], ObstaclePlacement['look']> = {
+  tree: 'oak-1',
+  youngTree: 'fir-young-1',
+  snag: 'snag-1',
+  fallenTree: 'fallen-1',
+  stump: 'stump',
+  shrub: 'shrub-1',
+  stone: 'stone-1',
+  boulder: 'boulder',
+  outcrop: 'rock-boulder',
+};
+const obstacle = (
+  id: number,
+  kind: ObstaclePlacement['kind'],
+  x: number,
+  z: number,
+): ObstaclePlacement => ({ id, kind, look: LOOKS[kind], x, z, rotation: 0, scale: 1 });
+
+/**
+ * Lesní čtverec (8, 8): dva dospělé stromy, souš, pařez, keř, kámen, padlý kmen a mladý stromek;
+ * lesní čtverec (9, 8): strom a balvan; louka (6, 8): pět keřů a strom (křoviny); louka (7, 8):
+ * čtyři keře (ještě louka).
+ */
+const layer: ObstacleLayer = packObstacles(
+  [
+    obstacle(1, 'tree', 3, 3),
+    obstacle(2, 'tree', 8, 4),
+    obstacle(3, 'snag', 11, 6),
+    obstacle(4, 'stump', 4, 10),
+    obstacle(5, 'shrub', 7, 12),
+    obstacle(6, 'stone', 12, 12),
+    obstacle(7, 'fallenTree', 2, 13),
+    obstacle(8, 'youngTree', 13, 2),
+    obstacle(9, 'tree', 20, 3),
+    obstacle(10, 'boulder', 25, 10),
+    ...[0, 1, 2, 3, 4].map((k) => obstacle(11 + k, 'shrub', -28 + k * 3, 4)),
+    obstacle(16, 'tree', -20, 11),
+    ...[0, 1, 2, 3].map((k) => obstacle(17 + k, 'shrub', -13 + k * 3, 5)),
+  ],
+  16,
+  15,
+);
+const CELLS = block(6, 8, 4, 2);
+
+const preview = (village: PlacementVillage | null = null, cells: TileCell[] = CELLS) =>
+  fieldPartsFromCells(landscape, village, cells, [HOME], layer);
+const partAt = (result: ReturnType<typeof preview>, x: number, y: number) =>
+  result.parts.find((p) => p.cell?.x === x && p.cell.y === y)!;
+
+/** Ves s hotovou zemnicí a dospělými, kteří pole založí, bez staveb. */
+function village(day = DAY): VillageState {
+  const s = withBuiltFirstDwelling(foundVillage({ seed: 11, day, dwellingPosition: HOME }));
+  const adult = (id: number, years: number): Person => ({
+    id,
+    bornDay: day - Math.ceil(years * YEAR),
+    dwellingId: 1,
+  });
+  s.people = [adult(2, 30), adult(3, 28), adult(4, 20), adult(5, 18)];
+  s.constructions = [];
+  s.storesKg = 5000;
+  s.woodLogs = 0;
+  s.lastDay = day;
+  return s;
+}
+
+describe('fieldSquareSurface', () => {
+  it('les podle krajiny, voda není povrch pole', () => {
+    expect(fieldSquareSurface('forest', 0, 225)).toBe('forest');
+    expect(fieldSquareSurface('forest', 9, 225)).toBe('forest');
+    expect(fieldSquareSurface('water', 0, 225)).toBeNull();
+  });
+
+  it('louka je křovinami, když by keře po kusech stály aspoň rozdíl sazeb křovin a louky', () => {
+    // políčko 15 × 15 m: (150 − 40) × 0,0225 = 2,475 čd → od 5 keřů po 0,5 čd
+    expect(fieldSquareSurface('meadow', 0, 225)).toBe('meadow');
+    expect(fieldSquareSurface('meadow', 4, 225)).toBe('meadow');
+    expect(fieldSquareSurface('meadow', 5, 225)).toBe('shrub');
+    // menší plocha – stačí méně keřů
+    expect(fieldSquareSurface('meadow', 3, 100)).toBe('shrub');
+    expect(fieldSquareSurface('meadow', 2, 100)).toBe('meadow');
+  });
+
+  it('cena s přibývajícími keři roste plynule až po sazbu křovin', () => {
+    let previous = 0;
+    for (let shrubs = 0; shrubs <= 12; shrubs++) {
+      const surface = fieldSquareSurface('meadow', shrubs, 225)!;
+      const included = SURFACE_INCLUDED_OBSTACLES[surface].includes('shrub');
+      const cost = partFoundingCost(surface, 225, included ? 0 : shrubs * OBSTACLE_COST.shrub);
+      expect(cost).toBeLessThanOrEqual(FOUNDING_COST_PER_HA.shrub * SQUARE_HA + 1e-9);
+      // skok na sazbu křovin je nanejvýš o pár setin dolů, jinak cena neklesá
+      expect(cost).toBeGreaterThan(previous - 0.05);
+      previous = cost;
+    }
+  });
+});
+
+describe('fieldPartsFromCells – pole v křovinách a v lese', () => {
+  const result = preview();
+
+  it('pole přes louku, křoviny i les projde; povrch dílů podle čtverce', () => {
+    expect(result.check).toEqual({ ok: true, reason: null });
+    expect(result.blockedCells).toEqual([]);
+    expect(result.parts).toHaveLength(8);
+    expect(partAt(result, 6, 8).surface).toBe('shrub');
+    expect(partAt(result, 7, 8).surface).toBe('meadow');
+    expect(partAt(result, 8, 8).surface).toBe('forest');
+    expect(partAt(result, 9, 9).surface).toBe('forest');
+    expect(result.surfaceCounts).toEqual({ meadow: 3, shrub: 1, forest: 4 });
+  });
+
+  it('v lese jsou stromy, souše, pařezy a podrost v sazbě – po kusech jen kameny a balvany', () => {
+    expect(partAt(result, 8, 8).obstacleCost).toBe(OBSTACLE_COST.stone);
+    expect(partAt(result, 9, 8).obstacleCost).toBe(OBSTACLE_COST.boulder);
+    // odstraní se ale všechno, co na čtverci stojí
+    expect(partAt(result, 8, 8).obstacleIds).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+    expect(partAt(result, 9, 8).obstacleIds).toEqual([9, 10]);
+  });
+
+  it('v křovinách jsou keře v sazbě, strom se platí po kusech; louka platí keře po kusech', () => {
+    expect(partAt(result, 6, 8).obstacleCost).toBe(OBSTACLE_COST.tree);
+    expect(partAt(result, 7, 8).obstacleCost).toBe(4 * OBSTACLE_COST.shrub);
+  });
+
+  it('cena založení: louka 40, křoviny 150, les 250 člověkodní na hektar + překážky', () => {
+    const obstacles =
+      OBSTACLE_COST.stone + OBSTACLE_COST.boulder + OBSTACLE_COST.tree + 4 * OBSTACLE_COST.shrub;
+    expect(result.obstacleCost).toBe(obstacles);
+    expect(result.foundingCost).toBeCloseTo((3 * 40 + 150 + 4 * 250) * SQUARE_HA + obstacles, 9);
+  });
+
+  it('dospělé stromy na dílech dají klády – mladý stromek, souš ani pařez ne', () => {
+    expect(partAt(result, 8, 8).trees).toBe(2);
+    expect(partAt(result, 9, 8).trees).toBe(1);
+    expect(partAt(result, 6, 8).trees).toBe(1);
+    expect(partAt(result, 7, 8).trees).toBeUndefined();
+    expect(result.clearedTrees).toBe(4);
+  });
+
+  it('strom vyhrazený stavbou kládu nedá, ale z dílu zmizí a cenu nemění', () => {
+    const reserved = preview({
+      dwellings: [],
+      constructions: [],
+      parts: [],
+      reservedTrees: [1],
+    });
+    expect(partAt(reserved, 8, 8).trees).toBe(1);
+    expect(partAt(reserved, 8, 8).obstacleIds).toContain(1);
+    expect(reserved.foundingCost).toBe(result.foundingCost);
+    expect(reserved.clearedTrees).toBe(3);
+  });
+
+  it('pokácený strom (pařez) v lese kládu nedá a cenu lesa nemění', () => {
+    const felled = preview({
+      dwellings: [],
+      constructions: [],
+      parts: [],
+      obstacleChanges: { removed: [], stumps: [2, 9], saplings: [] },
+    });
+    expect(partAt(felled, 8, 8).trees).toBe(1);
+    expect(partAt(felled, 9, 8).trees).toBeUndefined();
+    expect(felled.foundingCost).toBe(result.foundingCost);
+  });
+
+  it('nezávisí na pořadí čtverců – stejný náhled', () => {
+    expect(preview(null, [...CELLS].reverse())).toEqual(result);
+  });
+
+  it('sad zůstává jen na louce, hřbitov taky', () => {
+    const orchard = orchardPartsFromCells(landscape, null, CELLS, [HOME], layer);
+    expect(orchard.check).toEqual({ ok: false, reason: 'Sad jde zakládat jen na louce.' });
+    expect(orchard.blockedCells.every((c) => c.x >= 8)).toBe(true);
+    expect(orchard.squares.map((s) => s.cell.x).every((x) => x < 8)).toBe(true);
+    // keře na louce platí sad po kusech jako dřív
+    const scrub = orchard.squares.find((s) => s.cell.x === 6 && s.cell.y === 8)!;
+    expect(scrub.obstacleCost).toBe(5 * OBSTACLE_COST.shrub + OBSTACLE_COST.tree);
+    const cemetery = cemeteryPartsFromCells(landscape, null, CELLS, [HOME], layer);
+    expect(cemetery.check.ok).toBe(false);
+    expect(cemetery.check.reason).toMatch(/jen na louce/);
+  });
+});
+
+describe('založení pole v lese', () => {
+  const founded = (): VillageState =>
+    foundField(village(), DAY, { parts: preview(placementVillageOf(village(), DAY)).parts });
+
+  it('po založení: překážky zmizí, klády za dospělé stromy, popel z mýcení +20 na 3 roky', () => {
+    const s = founded();
+    const end = DAY + 2 * 365;
+    const after = advanceVillage(s, end, layer);
+    expect(after.constructions).toEqual([]);
+    expect(after.parts.every((p) => p.state !== 'founding')).toBe(true);
+    const removed = obstacleChangesAt(after, end).removed;
+    for (let id = 1; id <= 20; id++) expect(removed).toContain(id);
+    // 4 klády, hnijí ≈ 4 % ročně
+    expect(after.woodLogs).toBeLessThanOrEqual(4);
+    expect(after.woodLogs).toBeGreaterThan(4 * (1 - 2 * LOG_ROT_PER_YEAR));
+    for (const part of after.parts) {
+      if (part.surface === 'forest') {
+        expect(part.bonusUntilDay).not.toBeNull();
+        expect(part.obstacles).toBeUndefined();
+        expect(part.trees).toBeUndefined();
+      } else {
+        expect(part.bonusUntilDay).toBeNull();
+      }
+    }
+  });
+
+  it('bonus úrodnosti platí 3 roky od založení dílu, nejvýš 100', () => {
+    let s = founded();
+    let day = DAY;
+    // den po dni do založení prvního lesního dílu
+    while (!s.parts.some((p) => p.surface === 'forest' && p.state !== 'founding')) {
+      day++;
+      s = advanceVillage(s, day, layer);
+    }
+    const part = s.parts.find((p) => p.surface === 'forest' && p.state !== 'founding')!;
+    expect(part.bonusUntilDay).toBe(day + FERTILITY.forestBonusYears * 365);
+    expect(effectiveFertility(part, day)).toBe(
+      Math.min(100, part.naturalFertility + FERTILITY.forestBonus),
+    );
+    expect(effectiveFertility(part, part.bonusUntilDay! + 1)).toBe(part.naturalFertility);
+  });
+
+  it('strom vyhrazený obydlím: pole ho odstraní bez klády, stavba ho počítá jako pokácený', () => {
+    const s = village();
+    s.people.push(
+      { id: 6, bornDay: DAY - Math.ceil(22 * YEAR), dwellingId: 1 },
+      { id: 7, bornDay: DAY - Math.ceil(21 * YEAR), dwellingId: 1 },
+    );
+    // 3 klády z hromady a 4 dospělé stromy krajiny – zemnice (7 stromů) vyhradí všechny
+    s.woodLogs = 3;
+    const started = startNewDwelling(s, DAY, 'zemnice', { x: -8, z: -20, rotation: 0 }, 0, [], {
+      obstacles: layer,
+    });
+    expect([...reservedTrees(started)].sort((a, b) => a - b)).toEqual([1, 2, 9, 16]);
+    const field = preview(placementVillageOf(started, DAY));
+    expect(field.check.ok).toBe(true);
+    expect(field.clearedTrees).toBe(0);
+    const withField = foundField(started, DAY, { parts: field.parts });
+    const after = advanceVillage(withField, DAY + 2 * 365, layer);
+    expect(after.constructions).toEqual([]);
+    expect(after.dwellings).toHaveLength(2);
+    // klády nepřibyly – vyhrazené stromy patří stavbě, ta je počítá jako pokácené
+    expect(after.woodLogs).toBe(0);
+  });
+
+  it('po kouscích s JSON mezi nimi dá stejný stav jako jedním voláním', () => {
+    const start = founded();
+    const end = DAY + 4 * 365;
+    const whole = advanceVillage(start, end, layer);
+    const viaJson = (s: VillageState): VillageState =>
+      JSON.parse(JSON.stringify(s)) as VillageState;
+    const steps = [1, 29, 400, 7, 13, 365, 2, 61];
+    let chunked = viaJson(start);
+    for (let i = 0; chunked.lastDay < end; i++) {
+      chunked = viaJson(
+        advanceVillage(chunked, Math.min(end, chunked.lastDay + steps[i % steps.length]!), layer),
+      );
+    }
+    expect(chunked).toEqual(whole);
+    // les se opravdu vymýtil – jinak by shoda nic neznamenala
+    expect(
+      whole.parts.filter((p) => p.surface === 'forest' && p.state !== 'founding'),
+    ).toHaveLength(4);
+  });
+
+  it('první pole vsi smí do lesa (založení vsi)', () => {
+    const field: FieldInput = { parts: preview().parts };
+    const s = foundVillage({ seed: 3, day: DAY, dwellingPosition: HOME, firstField: field });
+    expect(s.parts.filter((p) => p.surface === 'forest')).toHaveLength(4);
+    expect(s.constructions.find((c) => c.kind === 'field')!.cost).toBeCloseTo(
+      preview().foundingCost,
+      9,
+    );
+  });
+});
+
+describe('pole v lese na vygenerované krajině', () => {
+  it('lesní čtverce u vsi: díly se sazbou lesa, klády za stromy, po kusech jen kameny', () => {
+    for (const seed of [1, 2, 3, 4, 5]) {
+      const l = generateLandscape(seed);
+      const obstacles = obstaclesOf(l);
+      const site = l.villageSite;
+      const home = tileCenterWorld(l, site.x, site.y);
+      // nejbližší blok 3 × 2 lesních čtverců k místu vsi
+      let best: TileCell[] | null = null;
+      let bestDistance = Infinity;
+      for (let y = 0; y < l.size - 1; y++) {
+        for (let x = 0; x < l.size - 2; x++) {
+          const cells = block(x, y, 3, 2);
+          if (!cells.every((c) => surfaceAt(l, c.x, c.y) === 'forest')) continue;
+          const d = Math.hypot(x - site.x, y - site.y);
+          if (d < bestDistance) {
+            best = cells;
+            bestDistance = d;
+          }
+        }
+      }
+      expect(best).not.toBeNull();
+      const result = fieldPartsFromCells(
+        l,
+        null,
+        best!,
+        [{ x: home.x, z: home.z, rotation: 0 }],
+        obstacles,
+      );
+      expect(result.check, `seed ${seed}`).toEqual({ ok: true, reason: null });
+      expect(result.surfaceCounts).toEqual({ forest: 6 });
+      expect(result.clearedTrees).toBeGreaterThan(0);
+      const counts = result.obstacleCounts;
+      expect(result.obstacleCost).toBe(
+        (counts.stone ?? 0) * OBSTACLE_COST.stone + (counts.boulder ?? 0) * OBSTACLE_COST.boulder,
+      );
+    }
+  });
+});
