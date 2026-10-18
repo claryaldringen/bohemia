@@ -7,6 +7,7 @@ import {
   forestEdgeDistanceM,
   foundVillage,
   normalizeVillageName,
+  withPlots,
   type FieldInput,
   type PlacementVillage,
   type Position,
@@ -84,7 +85,13 @@ export async function foundVillageForSettlement(
     forestDistanceM: forestEdgeDistanceM(input.landscape, input.dwelling.x, input.dwelling.z),
     dwellingSpared: dwelling.spared,
   });
-  const state = advanceVillage(founded, input.today, obstacles);
+  // nová ves nemá polozemnice bez pozemku – rovnou převedená (`withPlots` ji už nebude měnit)
+  const state = advanceVillage(
+    withPlots(founded, input.landscape, obstacles),
+    input.today,
+    obstacles,
+    input.landscape,
+  );
   const created = await deps.villages.create(
     input.settlementId,
     normalizeVillageName(input.name),

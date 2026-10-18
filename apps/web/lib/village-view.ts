@@ -533,9 +533,11 @@ function sceneVillage(
     ...(d.plot ? { plot: scenePlot(landscape, d.plot) } : {}),
     since: d.builtDay,
   }));
-  // staveniště ukazuje samotnou stavbu – dřevo se kácí v lese, než se začne stavět
+  // staveniště ukazuje samotnou stavbu – dřevo se kácí v lese, než se začne stavět; přestavba
+  // polozemnice bez pozemku stojí na novém pozemku (domácnost zatím bydlí ve starém domě)
   const sites = state.constructions.flatMap((c) => {
-    if (c.kind !== 'dwelling' || c.dwellingType === null || c.position === null) return [];
+    if (c.kind !== 'dwelling' && c.kind !== 'rebuild') return [];
+    if (c.dwellingType === null || c.position === null) return [];
     const progress = constructions.find((s) => s.id === c.id)?.buildProgress ?? 0;
     const plot = c.plot ? { plot: scenePlot(landscape, c.plot) } : {};
     return [

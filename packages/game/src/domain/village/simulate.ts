@@ -1,6 +1,6 @@
 import { TOTAL_GAME_DAYS, dateOfDayIndex, dayIndexOf } from '../calendar';
 import type { CalendarDate } from '../calendar';
-import type { ObstacleLayer } from '../landscape';
+import type { Landscape, ObstacleLayer } from '../landscape';
 import { villageCemeteries } from './cemetery';
 import {
   applyRepairs,
@@ -13,6 +13,7 @@ import { endOfSeason, fallowYears, selectPartsToSow } from './fields';
 import { daysUntilAppleRot, daysUntilHarvest, eatMeal } from './food';
 import { isToilDay, updateHappiness, villageLaborFactor, windowEndDay } from './happiness';
 import { recordClearedObstacles } from './obstacles';
+import { relocationPlot } from './plots';
 import { allocateDay, type LaborTaskName } from './labor';
 import { laborDay, type ConstructionWork } from './labor-report';
 import {
@@ -91,7 +92,9 @@ const SATIATION_EPSILON = 1e-9;
  * kronika se zkrátí na posledních CHRONICLE_MAX_EVENTS událostí – simulace ji nečte).
  * `obstacles` = vrstva překážek krajiny sídla: přestavby podle ní vyhradí stromy ke kácení
  * (forest.md). Povinná – `null` (kácení bez polohy) jen v testech; volající ji musí dávat vždy
- * stejně, jinak výsledek na kouscích závisí.
+ * stejně, jinak výsledek na kouscích závisí. `landscape` = krajina sídla jen pro přestavbu
+ * polozemnice bez pozemku – postaví ji na nejbližším volném políčku (`relocationPlot`); bez ní
+ * (testy, měření) se obydlí přestaví na místě. Také ji volající dává vždy stejně.
  * Vymřelá ves (`extinctDay`) se už nesimuluje – jen se posune `lastDay`; lidé, pole, stavby,
  * zásoby i klády stojí, jak byly v den vymření.
  * RangeError, když `toDay` leží za koncem světa nebo před už odsimulovaným dnem.
@@ -100,6 +103,7 @@ export function advanceVillage(
   state: VillageState,
   toDay: number,
   obstacles: ObstacleLayer | null,
+  landscape: Landscape | null = null,
 ): VillageState {
   if (!Number.isInteger(toDay) || toDay >= TOTAL_GAME_DAYS) {
     throw new RangeError(`Den ${toDay} neleží ve světě (0 až ${TOTAL_GAME_DAYS - 1}).`);
@@ -109,7 +113,7 @@ export function advanceVillage(
   }
   const next = structuredClone(state);
   for (let day = next.lastDay + 1; day <= toDay && !isVillageExtinct(next); day++) {
-    simulateDay(next, day, obstacles);
+    simulateDay(next, day, obstacles, landscape);
   }
   next.lastDay = toDay;
   trimChronicle(next);
@@ -123,7 +127,12 @@ function trimChronicle(state: VillageState): void {
 }
 
 /** Jeden den vsi v pevném pořadí kroků (mutuje stav). */
-function simulateDay(state: VillageState, day: number, obstacles: ObstacleLayer | null): void {
+function simulateDay(
+  state: VillageState,
+  day: number,
+  obstacles: ObstacleLayer | null,
+  landscape: Landscape | null,
+): void {
   const date = dateOfDayIndex(day);
   rotLogs(state);
   // sady: shnilá jablka, konec péče a stárnutí (1. 3.), začátek a konec sklizně a péče
@@ -134,7 +143,7 @@ function simulateDay(state: VillageState, day: number, obstacles: ObstacleLayer 
   }
   const toil = work(state, day);
   finishConstructions(state, day);
-  decideRebuilds(state, day, obstacles);
+  decideRebuilds(state, day, obstacles, landscape);
   occupyEmptyDwellings(state, day);
   const satiation = eat(state, day);
   // nahromaděný hlad se počítá z dnešního jídla – úmrtí dne podle něj (population.md); v hájení
@@ -541,6 +550,12 @@ function finishConstructions(state: VillageState, day: number): void {
         dwelling.type = c.dwellingType;
         dwelling.builtDay = day;
         dwelling.condition = 1;
+        // přestavba na pozemku jinde (polozemnice bez pozemku) – domácnost se přestěhuje
+        if (c.plot && c.position) {
+          dwelling.position = { ...c.position };
+          dwelling.plot = { cell: { ...c.plot.cell }, variant: c.plot.variant };
+          if (c.forestDistanceM !== undefined) dwelling.forestDistanceM = c.forestDistanceM;
+        }
       }
       state.chronicle.push(finishedEvent(day, c, c.dwellingId));
       continue;
@@ -628,9 +643,17 @@ function moveInYoungestPair(state: VillageState, day: number, dwellingId: number
 /**
  * Krok 5: obyvatelé dožilého nebo zchátralého obydlí se rozhodnou ho přestavět. Přestavba bere
  * dřevo jako nová stavba (forest.md): klády z hromady, zbytek vyhradí mezi nejbližšími dospělými
- * stromy k obydlí. Nezastaví ji ani nedostatek dřeva – vezme, co je.
+ * stromy k obydlí. Nezastaví ji ani nedostatek dřeva – vezme, co je. Polozemnice bez pozemku
+ * (i zemnice přestavovaná na polozemnici) se s krajinou staví na nejbližším volném políčku
+ * s pozemkem (`relocationPlot`, Martin 18. 10. 2026): překážky na něm zmizí hned (klády na
+ * hromadu, práce navíc jako u nové stavby), po dostavění se domácnost přestěhuje.
  */
-function decideRebuilds(state: VillageState, day: number, obstacles: ObstacleLayer | null): void {
+function decideRebuilds(
+  state: VillageState,
+  day: number,
+  obstacles: ObstacleLayer | null,
+  landscape: Landscape | null,
+): void {
   const rebuilding = new Set(
     state.constructions.filter((c) => c.kind === 'rebuild').map((c) => c.dwellingId),
   );
@@ -640,16 +663,27 @@ function decideRebuilds(state: VillageState, day: number, obstacles: ObstacleLay
   for (const d of occupiedDwellings(state)) {
     if (rebuilding.has(d.id) || !wantsRebuild(d, day)) continue;
     const type = rebuildType(d.type, averageCommon);
-    const plan = planDwellingWood(state, type, d.position, day, { obstacles });
+    const site =
+      landscape && obstacles && !d.plot
+        ? relocationPlot(state, landscape, obstacles, d, type, day)
+        : null;
+    const plan = planDwellingWood(state, type, site?.position ?? d.position, day, {
+      obstacles,
+      ...(site
+        ? { clearedTrees: site.check.clearedTrees, clearedIds: site.check.obstacleIds }
+        : {}),
+    });
+    if (site) recordClearedObstacles(state, site.check.obstacleIds, day);
     const wood = takeWood(state, plan);
     state.constructions.push({
       id: state.nextId++,
       kind: 'rebuild',
       startedDay: day,
-      cost: dwellingBuildLabor(type) + woodFellingCost(wood),
+      cost: dwellingBuildLabor(type) + (site?.check.obstacleCost ?? 0) + woodFellingCost(wood),
       done: 0,
       dwellingType: type,
-      position: null,
+      position: site ? { ...site.position } : null,
+      ...(site ? { plot: site.plot, forestDistanceM: site.forestDistanceM } : {}),
       dwellingId: d.id,
       fieldId: null,
       wood,

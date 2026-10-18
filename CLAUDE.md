@@ -312,7 +312,10 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   jako čtverec pole) obehnané polským plotem, dům uprostřed nebo v jednom ze 4 rohů (5 variant,
   vchod vždy k brance na přední straně −z, natočení π), ve zbytku záhony a cestička od branky
   ke dveřím. Jádro: `DwellingPlot` (`cell`, `variant`) na obydlí i stavbě (nepovinné – starší
-  polozemnice zůstanou volně bez pozemku), `PLOT_TYPES`, `PLOT_VARIANTS`, `PLOT_HOUSE_OFFSET_M`,
+  polozemnice dostanou pozemek při načtení vsi: `withPlots` v `plots.ts`, jednou – `plotsMigrated`,
+  políčko pod středem domu, když je volné, varianta `nearestPlotVariant`, dům se posune jen do 2 m;
+  na obsazeném políčku až přestavbou na nejbližším volném do 50 m – `relocationPlot`, proto
+  `advanceVillage` dostává krajinu), `PLOT_TYPES`, `PLOT_VARIANTS`, `PLOT_HOUSE_OFFSET_M`,
   `plotHousePosition` a `checkPlotPlacement` v `placement.ts` (louka, bez výchozu, bez
   posvátného dubu a čtverce háje, dům ne pod korunou dubu, nezabrané polem, hřbitovem, sadem ani
   jiným obydlím či pozemkem, rovno jen pod domem, `spared` vždy prázdné; překážky celého

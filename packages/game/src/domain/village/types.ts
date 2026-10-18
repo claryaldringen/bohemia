@@ -354,6 +354,11 @@ export interface VillageState {
   groves?: Grove[];
   /** Hotové modly a svatyně (happiness.md); chybí = žádné. */
   sacredBuildings?: SacredBuilding[];
+  /**
+   * Starší polozemnice už dostaly pozemky (`withPlots`, Martin 18. 10. 2026). Chybí u vsí
+   * uložených před převodem – při načtení se jednou převedou.
+   */
+  plotsMigrated?: true;
 }
 
 /**

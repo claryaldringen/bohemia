@@ -266,6 +266,16 @@ export const PLOT_HOUSE_OFFSET_M: Readonly<Record<PlotVariant, { x: number; z: n
 };
 /** Natočení domu na pozemku – vchod k brance (−z světa). */
 export const PLOT_HOUSE_ROTATION = Math.PI;
+/**
+ * Převod starších polozemnic na pozemky (Martin, 18. 10. 2026 – `withPlots`): dům blíž místu
+ * varianty než tolik metrů se na něj posune, dál zůstane stát, kde je.
+ */
+export const PLOT_SNAP_M = 2;
+/**
+ * Polozemnice bez pozemku dostane při přestavbě nejbližší volné políčko – nejvýš tak daleko od
+ * domu (m, ke středu políčka); dál žádné nehledá a zůstane bez pozemku.
+ */
+export const PLOT_RELOCATION_M = 50;
 // fields.md – Překážka na louce (skalní výchoz se neodstraní, plocha pod ním se nepočítá):
 // poloměr výchozu (m) na jednotku velikosti modelu (modely skal 0 A.D. mají půdorys ≈ 6 m)
 export const OUTCROP_RADIUS_M = 3;
