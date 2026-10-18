@@ -1,5 +1,6 @@
 import { dateOfDayIndex } from '../calendar';
 import { distanceFactor, isWeedFree } from './fields';
+import { partStage } from './summary';
 import type { Crop, CropWork, FieldPart, VillageState } from './types';
 import { planCrops, taskRemaining, taskWindowEnd } from './year-plan';
 
@@ -14,13 +15,35 @@ export type PartTask = 'reclaim' | 'dig' | 'sow' | 'weed' | 'harvest';
 export const PART_TASKS: readonly PartTask[] = ['reclaim', 'dig', 'sow', 'weed', 'harvest'];
 
 /**
- * Viditelný stav osetého dílu (fields.md – Co hráč vidí): `bare` – úloha k němu ještě nedošla
- * (loňské strniště, pastvina), `plowed` – zkopaný, `sown` – zasetý, `sprouted` – vzešlé osení,
- * `growing` – zelené obilí, `ripe` – zralé, nesklizené obilí, `stubble` – strniště po sklizni.
- * Kopání, setí a sklizeň mění stav, až k dílu dojde práce; vzejití a zrání jdou podle kalendáře,
- * sníh přidávají roční období ve scéně.
+ * Co je na dílu pole vidět (fields.md – Co hráč vidí; názvy jako `FieldLook` scény): `bare` –
+ * rozrytý drn (zakládaný a připravený díl, nově založený díl před kopáním), `plowed` – zkopaný,
+ * `sown` – zasetý, `sprouted` – vzešlé osení, `green` – zelené obilí, `ripe` – zralé obilí,
+ * `harvesting` – sklizeno, panáky snopů na poli (do konce sklizně plodiny), `stubble` –
+ * strniště (po sklizni a loňské před kopáním), `young-fallow` – mladý příloh, `pasture` –
+ * spásaný drn přílohu, který se vrací do osevu. Starší příloh (pastvina, seno) scéna doplní
+ * sama podle data.
  */
-export type CropState = 'bare' | 'plowed' | 'sown' | 'sprouted' | 'growing' | 'ripe' | 'stubble';
+export type FieldPartLook =
+  | 'bare'
+  | 'plowed'
+  | 'sown'
+  | 'sprouted'
+  | 'green'
+  | 'ripe'
+  | 'harvesting'
+  | 'stubble'
+  | 'young-fallow'
+  | 'pasture';
+
+/**
+ * Vzhled dílu: `look`, u rozpracovaného dílu (čelo práce) i `work` – kolik práce dnešní úlohy je
+ * na něm hotovo 0–1 (hotová část má `look`) a `before` – vzhled zbytku.
+ */
+export interface PartView {
+  look: FieldPartLook;
+  work?: number;
+  before?: FieldPartLook;
+}
 
 /** Úsek dílu v pořadí úlohy – od–do jako podíl celé práce úlohy (0–1). */
 export interface PartSpan {
@@ -131,15 +154,15 @@ export function fieldFrontiers(state: VillageState, day: number): Map<number, Pa
  * Přirozené stadium zasetého dílu podle kalendáře (měsíc 1–12): v měsíci, kdy setí začíná,
  * zasetý; pak vzešlé osení (ozim přes zimu), od jara zelené obilí, v měsíci sklizně zralé.
  */
-const NATURAL_STAGE: Record<Crop, readonly CropState[]> = {
-  //       led         úno         bře         dub        kvě        čer        čec      srp      zář     říj         lis         pro
+const NATURAL_STAGE: Record<Crop, readonly FieldPartLook[]> = {
+  // leden … prosinec
   winter: [
     'sprouted',
     'sprouted',
     'sprouted',
-    'growing',
-    'growing',
-    'growing',
+    'green',
+    'green',
+    'green',
     'ripe',
     'ripe',
     'sown',
@@ -152,9 +175,9 @@ const NATURAL_STAGE: Record<Crop, readonly CropState[]> = {
     'sprouted',
     'sown',
     'sprouted',
-    'growing',
-    'growing',
-    'growing',
+    'green',
+    'green',
+    'green',
     'ripe',
     'sprouted',
     'sprouted',
@@ -163,49 +186,104 @@ const NATURAL_STAGE: Record<Crop, readonly CropState[]> = {
   ],
 };
 
-/** Díly práce plodiny, ke kterým úloha už celá došla. */
-function reachedIds(
+/** Kolik práce úlohy je na dílu hotovo 0–1; díl, kterého se úloha netýká, null. */
+function shareOn(span: PartSpan | undefined, position: number): number | null {
+  if (!span) return null;
+  return Math.min(1, Math.max(0, (position - span.start) / (span.end - span.start)));
+}
+
+/** Úseky dílů úlohy podle id. */
+function spansById(
   work: CropWork,
   partsById: ReadonlyMap<number, FieldPart>,
   task: PartTask,
   day: number,
-): Set<number> {
-  const position = taskPosition(work, task);
-  return new Set(
-    taskSpans(work, partsById, task, day)
-      .filter((span) => isDone(span, position))
-      .map((span) => span.id),
-  );
+): Map<number, PartSpan> {
+  return new Map(taskSpans(work, partsById, task, day).map((span) => [span.id, span]));
 }
+
+/** Hotovo, nebo rozpracovaný díl s podílem práce. */
+const DONE = 1 - EPSILON;
 
 /**
- * Viditelný stav obilí na osetých dílech v den `day` (viz `CropState`): díl id → stav. Díly plánu
- * podle toho, kam došlo kopání, setí a sklizeň jejich plodiny (po sklizni jaře 31. 8. je plán
- * u výmlatu); osetý díl mimo plán (nemělo by nastat) holá zem.
+ * Vzhled dílů jedné plodiny plánu: sklizeň > setí > kopání (a vrácení přílohu) – co je nejdál,
+ * to je vidět; rozpracovaný díl úlohy má `work` a `before`. Před kopáním je díl, jak ho práce
+ * zastihla: loňské strniště (díl v osevu), drn pastviny (vrací se z přílohu), nebo rozrytý drn
+ * (nově založený díl).
  */
-export function fieldCropStates(state: VillageState, day: number): Map<number, CropState> {
-  const states = new Map<number, CropState>();
-  const plan = state.plan ?? state.threshingFromPlan;
-  const partsById = new Map(state.parts.map((p) => [p.id, p]));
+function cropLooks(
+  crop: Crop,
+  work: CropWork,
+  partsById: ReadonlyMap<number, FieldPart>,
+  day: number,
+  views: Map<number, PartView>,
+): void {
   const month = dateOfDayIndex(day).month;
-  for (const { crop, work } of plan ? planCrops(plan) : []) {
-    const harvested = reachedIds(work, partsById, 'harvest', day);
-    const sown = reachedIds(work, partsById, 'sow', day);
-    const dug = reachedIds(work, partsById, 'dig', day);
-    for (const id of work.partIds) {
-      if (partsById.get(id)?.state !== 'sown') continue;
-      if (work.harvestedKg !== null || harvested.has(id)) states.set(id, 'stubble');
-      else if (sown.has(id)) states.set(id, NATURAL_STAGE[crop][month - 1]!);
-      else states.set(id, dug.has(id) ? 'plowed' : 'bare');
-    }
+  const harvested = work.harvestedKg !== null;
+  const spans = Object.fromEntries(
+    (['reclaim', 'dig', 'sow', 'harvest'] as const).map((task) => [
+      task,
+      { byId: spansById(work, partsById, task, day), at: taskPosition(work, task) },
+    ]),
+  ) as Record<'reclaim' | 'dig' | 'sow' | 'harvest', { byId: Map<number, PartSpan>; at: number }>;
+  const share = (task: keyof typeof spans, id: number): number | null =>
+    shareOn(spans[task].byId.get(id), spans[task].at);
+  const reclaimIds = new Set(work.reclaimIds ?? []);
+  for (const id of work.partIds) {
+    const part = partsById.get(id);
+    if (!part || part.state !== 'sown') continue;
+    const untouched: FieldPartLook = reclaimIds.has(id)
+      ? 'pasture'
+      : part.sownYears > 0
+        ? 'stubble'
+        : 'bare';
+    const harvest = share('harvest', id) ?? 0;
+    const sow = share('sow', id) ?? 0;
+    const dig = Math.max(share('dig', id) ?? 0, share('reclaim', id) ?? 0);
+    let view: PartView;
+    if (harvested) view = { look: 'stubble' };
+    else if (harvest >= DONE) view = { look: 'harvesting' };
+    else if (harvest > EPSILON) view = { look: 'harvesting', work: harvest, before: 'ripe' };
+    else if (sow >= DONE) view = { look: NATURAL_STAGE[crop][month - 1]! };
+    else if (sow > EPSILON) view = { look: 'sown', work: sow, before: 'plowed' };
+    else if (dig >= DONE) view = { look: 'plowed' };
+    else if (dig > EPSILON) view = { look: 'plowed', work: dig, before: untouched };
+    else view = { look: untouched };
+    views.set(id, view);
   }
-  for (const part of state.parts) {
-    if (part.state === 'sown' && !states.has(part.id)) states.set(part.id, 'bare');
-  }
-  return states;
 }
 
-/** Viditelný stav obilí jednoho dílu (viz `fieldCropStates`); mimo osev null. */
-export function partCropState(state: VillageState, part: FieldPart, day: number): CropState | null {
-  return part.state === 'sown' ? (fieldCropStates(state, day).get(part.id) ?? 'bare') : null;
+/** Krok podílu práce rozpracovaného dílu – scéna se nepřestavuje při každém dotazu. */
+const WORK_STEP = 20;
+
+/**
+ * Vzhled dílů pole v den `day` (fields.md – Postup práce po čtvercích): díl id → vzhled.
+ * Zakládané díly (rozrytý drn, rozpracovaný s podílem založení – zakládá se od nejbližšího
+ * k obydlí, nezačatý má podíl 0), připravené (rozrytý drn), díly plánu podle toho, kam došlo
+ * kopání, setí a sklizeň jejich plodiny (po sklizni jaře 31. 8. je plán u výmlatu), mladý
+ * příloh. Starší příloh (pastvina, louka na seno) se nevrací – vzhled doplní scéna podle data.
+ * Podíl práce je zaokrouhlený na dvacetiny.
+ */
+export function fieldPartLooks(state: VillageState, day: number): Map<number, PartView> {
+  const views = new Map<number, PartView>();
+  const partsById = new Map(state.parts.map((p) => [p.id, p]));
+  const plan = state.plan ?? state.threshingFromPlan;
+  for (const { crop, work } of plan ? planCrops(plan) : []) {
+    cropLooks(crop, work, partsById, day, views);
+  }
+  for (const part of state.parts) {
+    if (views.has(part.id)) continue;
+    if (part.state === 'founding') {
+      const work = part.foundingCost > 0 ? part.foundingDone / part.foundingCost : 0;
+      views.set(part.id, { look: 'bare', work: Math.min(1, work) });
+    } else if (part.state === 'ready' || part.state === 'sown') {
+      views.set(part.id, { look: 'bare' });
+    } else if (partStage(part, day) === 'young-fallow') {
+      views.set(part.id, { look: 'young-fallow' });
+    }
+  }
+  for (const view of views.values()) {
+    if (view.work !== undefined) view.work = Math.round(view.work * WORK_STEP) / WORK_STEP;
+  }
+  return views;
 }

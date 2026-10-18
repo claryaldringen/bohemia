@@ -421,12 +421,14 @@ rozhraní částí v
 - **Postup práce po čtvercích** (Martin – fields.md): kopání, setí a sklizeň mění díl, až k němu
   dojde práce. `field-progress.ts` (jen čte): díly plodiny v pořadí `CropWork.partIds` (dávka
   nejblíž obydlím první, při shodě id – řadí `createCropWork`), váha = plocha × vzdálenost;
-  `fieldCropStates` → `CropState` (bare, plowed, sown, sprouted, growing, ripe, stubble;
-  vzejití a zrání podle kalendáře), `fieldFrontiers` (čelo práce úloh dne), `partsWorked`
+  `fieldPartLooks` → vzhled dílu `{ look, work?, before? }` (bare, plowed, sown, sprouted, green,
+  ripe, harvesting, stubble, young-fallow, pasture; vzejití a zrání podle kalendáře; starší
+  příloh bez vzhledu – doplní scéna), `fieldFrontiers` (čelo práce úloh dne), `partsWorked`
   (díly, přes které dnes práce postoupila). Rozdělení práce dne (`labor-report.ts`) dostává
   `fieldWork` (před a po po plodinách) a cílí polní práce na `{ kind: 'field', id, parts }`.
-  Ve scéně díl pole nese `id`, `crop` (web `CropLook` = `CropState`) a `frontier`; postavy
-  (`villager-plan.ts`) pracují na `parts`. Simulace se tím nemění.
+  Ve scéně (`village-view.ts`) je díl `SceneFieldPart` (`id`, `look`, `work`, `before` –
+  `FieldLook`) a podíl práce `SceneLaborShare` s `parts`; postavy (`villager-plan.ts`) pracují na
+  `parts`. Simulace se tím nemění.
 - **Příloh je pastvina** (Martin): 1–2 roky mladý příloh, pak napořád `meadow` (pastvina) –
   nálet, křoviny ani les na přílohu nejsou (`OVERGROWTH_STAGES`), vrácení stojí nejvýš drn louky
   (`RECLAIM_COST_PER_HA`), kronika `part-became-forest` už nevzniká (typ zůstává pro staré

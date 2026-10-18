@@ -378,21 +378,30 @@ Stav: **Martin, 18. 10. 2026:** „Chtěl bych, aby pole neměnilo fáze, které
   zkopané – setí nikdy nepředběhne kopání), sklizeň (jen zasetá) a pletí (bez dílů po vymýceném
   lese – ty se nepletou) a vrácení přílohu (jen díly, které se vracejí s drnem). Simulace se tím
   nemění – úroda se počítá dál za celou plodinu.
-- **Viditelný stav osetého dílu** (`CropState`): **bare** – práce k němu ještě nedošla (loňské
-  strniště, drn pastviny), **plowed** – zkopaný, **sown** – zasetý, **sprouted** – vzešlé osení,
-  **growing** – zelené obilí, **ripe** – zralé, nesklizené obilí, **stubble** – strniště po
-  sklizni. Kopání, setí a sklizeň mění stav, až k dílu dojde práce; **vzejití a zrání jdou podle
-  kalendáře** (ozim: září zasetý, říjen–březen vzešlý, duben–červen zelený, červenec zralý; jař:
-  březen zasetý, duben vzešlý, květen–červenec zelený, srpen zralý), sníh přidávají roční období
-  ve scéně. Nesklizená část zůstane zralá, po konci sklizně (31. 7. ozim, 31. 8. jař) je celá
-  plodina strniště.
+- **Co je na dílu vidět** (`fieldPartLooks` → `FieldLook` scény): **bare** – rozrytý drn
+  (zakládaný díl, připravený, nově založený před kopáním), **plowed** – zkopaný, **sown** –
+  zasetý, **sprouted** – vzešlé osení, **green** – zelené obilí, **ripe** – zralé, nesklizené
+  obilí, **harvesting** – sklizeno, panáky snopů na poli (do konce sklizně plodiny), **stubble** –
+  strniště (po sklizni i loňské před kopáním), **young-fallow** – mladý příloh, **pasture** –
+  drn pastviny, který se vrací do osevu. Kopání (a vrácení přílohu), setí a sklizeň mění vzhled,
+  až k dílu dojde práce; rozpracovaný díl úlohy má podíl hotové práce (`work` 0–1, po
+  dvacetinách) a vzhled zbytku (`before`) – v jedné plodině je rozpracovaný nejvýš jeden díl na
+  úlohu. **Vzejití a zrání jdou podle kalendáře** (ozim: září zasetý, říjen–březen vzešlý,
+  duben–červen zelený, červenec zralý; jař: březen zasetý, duben vzešlý, květen–červenec zelený,
+  srpen zralý), sníh přidávají roční období ve scéně. Nesklizená část zůstane zralá, po konci
+  sklizně (31. 7. ozim, 31. 8. jař) je celá plodina strniště. Zakládaný díl je rozrytý drn
+  s podílem založení (zakládá se od nejbližšího k obydlí, nezačatý má 0 – vytyčený). Starší
+  příloh (pastvina, louka na seno – kosení a stohy) zatím vzhled od jádra nedostává, doplní ho
+  scéna podle data.
 - **Postavy na čelech:** rozdělení práce dne (pro postavy) posílá u polních prací díly, přes které
-  práce ten den postoupila (čelo práce, v pořadí postupu), a postavy pracují na těch čtvercích.
-- **Datový kontrakt pro scénu** (`VillageView.scene`): díl pole má `id`, `stage`, `crop`
-  (`CropState`, jen u osetých dílů) a `frontier` (úlohy – reclaim, dig, sow, weed, harvest –,
-  jejichž čelo je dnes na tomto dílu); cíl polní práce v `scene.labor` je
-  `{ kind: 'field', id, parts }` s id dílů čela. Grafika polí a rozmístění postav na čelech se
-  připravuje zvlášť.
+  práce ten den postoupila (v pořadí postupu, poslední je rozpracovaný), a postavy pracují na
+  těch čtvercích.
+- **Datový kontrakt pro scénu** (`VillageView.scene`): díl pole (`SceneFieldPart`) má `id`,
+  `stage`, `look`, `work` a `before` (`FieldLook` – 13 vzhledů, jádro posílá deset výše; bez
+  `look` scéna odhadne vzhled ze stadia a data); podíl práce (`SceneLaborShare`) má u polních
+  prací `parts` – id dílů čela práce v pořadí postupu – a cíl `{ kind: 'field', id }`;
+  `scene.labor` nese herní den. Grafika polí podle 0 A.D. a rozmístění postav na čelech se
+  připravují zvlášť.
 
 ### Krajina sídla a scéna
 

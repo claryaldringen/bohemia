@@ -56,7 +56,7 @@ import {
   fieldHideShape,
   footprintCorners,
   localToWorld,
-  partLook,
+  fieldPartViewLook,
   polygonBounds,
   smoothstep,
   softCoverage,
@@ -741,7 +741,7 @@ export class VillageRenderer {
         coverage,
       );
       if (grid.indices.length === 0) continue;
-      const look = partLook(part.stage, part.crop);
+      const look = fieldPartViewLook(part);
       const group = groups.get(look.texture) ?? { grids: [], colors: [], alphas: [] };
       group.grids.push(grid);
       group.colors.push(look.tint);

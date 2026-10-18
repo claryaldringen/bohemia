@@ -4,7 +4,13 @@ import {
   type DwellingType,
   type Position,
 } from '@bohemia/game';
-import type { LaborActivity, LaborShare, LaborTarget, SceneVillage } from '../village-view';
+import type {
+  LaborActivity,
+  LaborShare,
+  LaborTarget,
+  SceneLaborShare,
+  SceneVillage,
+} from '../village-view';
 import { cellsBoundary, type CellSquare } from './field-cells';
 import { chickenBox } from './livestock-placement';
 import { orchardTreeSpots } from './orchard-layout';
@@ -517,20 +523,20 @@ function nearestHouse(list: readonly House[], p: Point): House | null {
 
 // --- podle činnosti ------------------------------------------------------------------------
 
-function placer(ctx: Context, share: LaborShare, count: number): Placer {
+function placer(ctx: Context, share: SceneLaborShare, count: number): Placer {
   const t = share.target;
   switch (share.activity) {
     case 'dig':
     case 'reclaim':
-      return t.kind === 'field' ? fieldRows(ctx, t.id, count, 'hoe', t.parts) : none;
+      return t.kind === 'field' ? fieldRows(ctx, t.id, count, 'hoe', share.parts) : none;
     case 'sow':
-      return t.kind === 'field' ? fieldRows(ctx, t.id, count, 'seed', t.parts) : none;
+      return t.kind === 'field' ? fieldRows(ctx, t.id, count, 'seed', share.parts) : none;
     case 'weed':
-      return t.kind === 'field' ? fieldRows(ctx, t.id, count, 'weed', t.parts) : none;
+      return t.kind === 'field' ? fieldRows(ctx, t.id, count, 'weed', share.parts) : none;
     case 'harvest':
-      return t.kind === 'field' ? fieldRows(ctx, t.id, count, 'reap', t.parts) : none;
+      return t.kind === 'field' ? fieldRows(ctx, t.id, count, 'reap', share.parts) : none;
     case 'carry':
-      return t.kind === 'field' ? carriers(ctx, t.id, t.parts) : none;
+      return t.kind === 'field' ? carriers(ctx, t.id, share.parts) : none;
     case 'found-field':
       return t.kind === 'field' ? founding(ctx, t.id, count) : none;
     case 'thresh':

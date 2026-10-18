@@ -3,12 +3,12 @@
 // světa scény v metrech (x, z).
 import {
   DWELLING_CLEARING_M,
-  type CropState,
   type DwellingType,
   type PartStage,
   type Position,
 } from '@bohemia/game';
 import { cellsBounds, cellsContain } from './field-cells';
+import type { FieldLook } from '../village-view';
 import type { SceneField } from './village-types';
 
 export type Point = [number, number];
@@ -203,11 +203,10 @@ export function stripSegments(
 export type FieldTexture = 'grass-dirt' | 'mud' | 'grass' | 'grass-lush' | 'grass-dry';
 
 /**
- * Vzhled osetého dílu podle stavu obilí (`CropState` z jádra – fields.md, Postup práce po
- * čtvercích): holá zem, zkopaná, zasetá, vzešlé osení, zelené a zralé obilí, strniště. Server ho
- * posílá u každého osetého dílu; vývojový náhled staveb jen zelené a zralé obilí a strniště.
+ * Vzhled oseté části podle růstu obilí: zelené obilí, zralé (zlaté) obilí, strniště po sklizni.
+ * Posílá ho vývojový náhled staveb; hra posílá vzhled dílu `look` (`fieldPartViewLook`).
  */
-export type CropLook = CropState;
+export type CropLook = 'growing' | 'ripe' | 'stubble';
 
 export interface PartLook {
   /** Textura terénu (apps/web/public/textures/terrain/<texture>.jpg). */
@@ -253,20 +252,6 @@ export function partLook(stage: PartStage, crop?: CropLook): PartLook {
 
 function cropLook(crop: CropLook): PartLook {
   switch (crop) {
-    case 'bare':
-      // úloha k dílu ještě nedošla – loňské strniště nebo drn pastviny před kopáním
-      return { texture: 'grass-dirt', tint: [0.92, 0.86, 0.7], alpha: 0.95, rows: null };
-    case 'plowed':
-      return partLook('ready');
-    case 'sown':
-      return {
-        texture: 'mud',
-        tint: [0.97, 0.85, 0.68],
-        alpha: 1,
-        rows: { color: [0.3, 0.24, 0.17], alpha: 0.35 },
-      };
-    case 'sprouted':
-      return partLook('sown');
     case 'growing':
       return {
         texture: 'grass-lush',
@@ -288,6 +273,49 @@ function cropLook(crop: CropLook): PartLook {
         alpha: 1,
         rows: { color: [0.4, 0.33, 0.22], alpha: 0.55 },
       };
+  }
+}
+
+/**
+ * Vzhled dílu pro dnešní kreslení polí podle `look` od herního jádra (fields.md – Postup práce po
+ * čtvercích) – dočasně na stávajících texturách, než přijde vzhled polí podle 0 A.D.; bez `look`
+ * podle stadia a `crop` (vývojový náhled staveb). Rozpracovaný díl se kreslí podle hotové části.
+ */
+export function fieldPartViewLook(part: {
+  stage: PartStage;
+  look?: FieldLook;
+  crop?: CropLook;
+}): PartLook {
+  switch (part.look) {
+    case undefined:
+      return partLook(part.stage, part.crop);
+    case 'bare':
+      return partLook('founding');
+    case 'plowed':
+      return partLook('ready');
+    case 'sown':
+      return {
+        texture: 'mud',
+        tint: [0.97, 0.85, 0.68],
+        alpha: 1,
+        rows: { color: [0.3, 0.24, 0.17], alpha: 0.35 },
+      };
+    case 'sprouted':
+      return partLook('sown');
+    case 'green':
+      return cropLook('growing');
+    case 'ripe':
+      return cropLook('ripe');
+    case 'harvesting':
+    case 'stubble':
+      return cropLook('stubble');
+    case 'young-fallow':
+      return partLook('young-fallow');
+    case 'pasture':
+    case 'meadow':
+    case 'mown':
+    case 'haystacks':
+      return partLook('meadow');
   }
 }
 

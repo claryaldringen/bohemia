@@ -2,14 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { foundVillage, type PartInput } from '../actions';
 import {
-  fieldCropStates,
   fieldFrontiers,
+  fieldPartLooks,
   frontierPart,
-  partCropState,
   partsWorked,
   taskPosition,
   taskSpans,
-  type CropState,
+  type FieldPartLook,
 } from '../field-progress';
 import { laborReport } from '../labor-report';
 import { advanceVillage } from '../simulate';
@@ -37,20 +36,14 @@ const village = (): VillageState =>
     firstField: { parts: field(75) },
   });
 const byId = (s: VillageState): Map<number, FieldPart> => new Map(s.parts.map((p) => [p.id, p]));
-/** Stav obilí dílů plodiny v pořadí postupu. */
-const statesInOrder = (s: VillageState, partIds: number[]): CropState[] => {
-  const states = fieldCropStates(s, s.lastDay);
-  return partIds.map((id) => states.get(id)!);
+/** Vzhled dílů plodiny v pořadí postupu (u rozpracovaného dílu hotová část). */
+const statesInOrder = (s: VillageState, partIds: number[]): FieldPartLook[] => {
+  const looks = fieldPartLooks(s, s.lastDay);
+  return partIds.map((id) => looks.get(id)!.look);
 };
-const LEVEL: Record<CropState, number> = {
-  bare: 0,
-  plowed: 1,
-  sown: 2,
-  sprouted: 2,
-  growing: 2,
-  ripe: 2,
-  stubble: 3,
-};
+/** Jak daleko práce na dílu je – v jednom období (podzim, nebo léto). */
+const AUTUMN: Partial<Record<FieldPartLook, number>> = { stubble: 0, plowed: 1, sown: 2 };
+const SUMMER: Partial<Record<FieldPartLook, number>> = { ripe: 0, harvesting: 1 };
 
 describe('pořadí a úseky dílů', () => {
   it('díly plodiny jdou od obydlí, úseky pokryjí celou práci, čelo je první nedokončený', () => {
@@ -74,16 +67,20 @@ describe('postup po čtvercích', () => {
     const s = advanceVillage(village(), at(601, 9, 20), null);
     const winter = s.plan!.winter!;
     const states = statesInOrder(s, winter.partIds);
-    // od obydlí: nejdřív zasetí, pak zkopaní, pak nedotčení – nikdy naopak
-    const levels = states.map((x) => LEVEL[x]);
+    // od obydlí: nejdřív zasetí, pak zkopaní, pak loňské strniště – nikdy naopak
+    const levels = states.map((x) => AUTUMN[x]!);
     expect(levels).toEqual([...levels].sort((a, b) => b - a));
     expect(states).toContain('plowed');
-    expect(states).toContain('bare');
-    const dug = states.filter((x) => x !== 'bare').length / states.length;
+    expect(states).toContain('stubble');
+    const dug = states.filter((x) => x !== 'stubble').length / states.length;
     expect(dug).toBeCloseTo(taskPosition(winter, 'dig'), 1);
-    // čelo kopání ukazuje fieldFrontiers
+    // čelo kopání: fieldFrontiers a rozpracovaný díl s podílem práce a vzhledem zbytku
     const frontier = frontierPart(winter, byId(s), 'dig', s.lastDay)!;
     expect(fieldFrontiers(s, s.lastDay).get(frontier)).toContain('dig');
+    const view = fieldPartLooks(s, s.lastDay).get(frontier)!;
+    expect(view).toMatchObject({ look: 'plowed', before: 'stubble' });
+    expect(view.work).toBeGreaterThanOrEqual(0);
+    expect(view.work).toBeLessThan(1);
   });
 
   it('rozdělení práce dne míří na díly, přes které dnes práce postoupila', () => {
@@ -116,13 +113,31 @@ describe('postup po čtvercích', () => {
     }
   });
 
-  it('sklizeň ozimu v červenci: sklizené díly strniště, nesklizené zůstanou zralé', () => {
+  it('sklizeň ozimu v červenci: sklizené díly s panáky, nesklizené zůstanou zralé', () => {
     const s = advanceVillage(village(), at(602, 7, 10), null);
     const states = statesInOrder(s, s.plan!.winter!.partIds);
-    expect(states).toContain('stubble');
+    expect(states).toContain('harvesting');
     expect(states).toContain('ripe');
-    const levels = states.map((x) => LEVEL[x]);
+    const levels = states.map((x) => SUMMER[x]!);
     expect(levels).toEqual([...levels].sort((a, b) => b - a));
+    // po konci sklizně (31. 7.) je celý ozim strniště
+    const after = advanceVillage(s, at(602, 8, 1), null);
+    expect(new Set(statesInOrder(after, after.plan!.winter!.partIds))).toEqual(
+      new Set(['stubble']),
+    );
+  });
+
+  it('zakládání po dílech: rozrytý drn, rozpracovaný s podílem založení, nezačatý vytyčený', () => {
+    const s = advanceVillage(village(), at(600, 4, 1), null);
+    const looks = fieldPartLooks(s, s.lastDay);
+    const founding = s.parts.filter((p) => p.state === 'founding');
+    expect(founding.length).toBeGreaterThan(0);
+    for (const p of founding) {
+      const view = looks.get(p.id)!;
+      expect(view.look).toBe('bare');
+      expect(view.work).toBeCloseTo(Math.round((p.foundingDone / p.foundingCost) * 20) / 20, 9);
+    }
+    expect(founding.filter((p) => (looks.get(p.id)!.work ?? 0) > 0).length).toBeLessThanOrEqual(1);
   });
 });
 
@@ -132,26 +147,34 @@ describe('přirozená stadia podle kalendáře', () => {
     const winter = s.plan!.winter!.partIds;
     const spring = s.plan!.partIds;
     // 1. 9. se už začíná kopat – nic není zasetého
-    for (const state of statesInOrder(s, winter)) expect(['bare', 'plowed']).toContain(state);
+    for (const state of statesInOrder(s, winter)) expect(['stubble', 'plowed']).toContain(state);
     s = advanceVillage(s, at(601, 9, 30), null);
     expect(statesInOrder(s, winter)).toContain('sown');
     s = advanceVillage(s, at(601, 11, 15), null);
     expect(new Set(statesInOrder(s, winter))).toEqual(new Set(['sprouted']));
     if (spring.length > 0) expect(statesInOrder(s, spring)).not.toContain('sprouted');
     s = advanceVillage(s, at(602, 5, 15), null);
-    expect(new Set(statesInOrder(s, winter))).toEqual(new Set(['growing']));
+    expect(new Set(statesInOrder(s, winter))).toEqual(new Set(['green']));
     s = advanceVillage(s, at(602, 7, 1), null);
     // 1. 7. zraje a hned se začíná žnout od obydlí
     expect(statesInOrder(s, winter)).toContain('ripe');
-    for (const state of statesInOrder(s, winter)) expect(['ripe', 'stubble']).toContain(state);
+    for (const state of statesInOrder(s, winter)) expect(['ripe', 'harvesting']).toContain(state);
     s = advanceVillage(s, at(602, 8, 1), null);
     expect(new Set(statesInOrder(s, winter))).toEqual(new Set(['stubble']));
     if (spring.length > 0) expect(statesInOrder(s, spring)).toContain('ripe');
   });
 
-  it('mimo osev null', () => {
+  it('připravený díl rozrytý drn, mladý příloh, starší příloh (pastvina, seno) doplní scéna', () => {
     const s = village();
-    const ready = { ...s.parts[0]!, state: 'ready' as const };
-    expect(partCropState(s, ready, s.lastDay)).toBeNull();
+    const sept = at(602, 9, 1);
+    s.parts[0]!.state = 'ready';
+    s.parts[1]!.state = 'fallow';
+    s.parts[1]!.fallowSinceDay = at(601, 9, 1);
+    s.parts[2]!.state = 'fallow';
+    s.parts[2]!.fallowSinceDay = at(590, 9, 1);
+    const looks = fieldPartLooks(s, sept);
+    expect(looks.get(s.parts[0]!.id)).toEqual({ look: 'bare' });
+    expect(looks.get(s.parts[1]!.id)).toEqual({ look: 'young-fallow' });
+    expect(looks.has(s.parts[2]!.id)).toBe(false);
   });
 });

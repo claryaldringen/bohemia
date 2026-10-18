@@ -6,8 +6,7 @@ import {
   ageYears,
   dateOfDayIndex,
   effectiveFertility,
-  fieldCropStates,
-  fieldFrontiers,
+  fieldPartLooks,
   forestBonus,
   monthInWindow,
   obstacleChangesAt,
@@ -26,7 +25,6 @@ import {
   type ConstructionKind,
   type ConstructionSummary,
   type Crop,
-  type CropState,
   type DwellingType,
   type FieldSurface,
   type LaborShare,
@@ -35,7 +33,6 @@ import {
   type OrchardSquare,
   type OrchardWork,
   type PartStage,
-  type PartTask,
   type PlacementVillage,
   type Position,
   type StockResource,
@@ -219,23 +216,7 @@ export interface SceneVillage {
    */
   fields: {
     id: number;
-    parts: {
-      /** Id dílu (ve hře vždy; vývojový náhled staveb bez něj) – cíl `parts` v rozdělení práce. */
-      id?: number;
-      cell: TileCell;
-      x: number;
-      z: number;
-      size: number;
-      stage: PartStage;
-      /**
-       * Viditelný stav obilí osetého dílu (`CropState` z jádra – fields.md, Postup práce po
-       * čtvercích): bare, plowed, sown, sprouted, growing, ripe, stubble. Kopání, setí a sklizeň
-       * se mění po čtvercích, jak k nim dojde práce; vzejití a zrání podle kalendáře.
-       */
-      crop?: CropState;
-      /** Úlohy, jejichž čelo práce je dnes na tomto dílu (reclaim, dig, sow, weed, harvest). */
-      frontier?: PartTask[];
-    }[];
+    parts: SceneFieldPart[];
   }[];
   /**
    * Hřbitovy po čtvercích (střed políčka ve světě a strana jako u pole) – průběh stavby
@@ -289,11 +270,76 @@ export interface SceneVillage {
  * Rozdělení práce posledního dne pro postavy: člověkodny po činnostech a místech (na setiny),
  * lidé podle věku (pasáčci, starší u obydlí) a herní den s měsícem (v zimě je venku méně lidí).
  */
+/**
+ * Co je na dílu pole vidět (fields.md – Co hráč vidí): rozrytý drn při zakládání (`bare`),
+ * zorané (`plowed`), zavláčené a oseté (`sown`), vzcházející (`sprouted`), zelené (`green`)
+ * a zralé obilí (`ripe`), žeň s panáky snopů (`harvesting`), strniště (`stubble`). Úhor: mladý
+ * (1–2 roky) je strniště s plevelem, kde se pase (`young-fallow`), spasená pastvina (`pasture`);
+ * úhor ve stadiu louky se kosí na seno (Martin) – vysoká tráva na jaře (`meadow`), posečená
+ * s řádky sena a kupkami (`mown`), otava se stohy, které přes podzim a zimu mizí (`haystacks`).
+ */
+export type FieldLook =
+  | 'bare'
+  | 'plowed'
+  | 'sown'
+  | 'sprouted'
+  | 'green'
+  | 'ripe'
+  | 'harvesting'
+  | 'stubble'
+  | 'young-fallow'
+  | 'pasture'
+  | 'meadow'
+  | 'mown'
+  | 'haystacks';
+
+/**
+ * Díl pole ve scéně – políčko krajiny `cell`, jeho střed (x, z) ve světě, strana políčka `size`
+ * v m a stadium. Vzhled (`look`, `work`, `before`) počítá herní jádro po čtvercích – práce mění
+ * díl, až když k němu dojde (fronta práce: jeden rozpracovaný díl na úlohu; `fieldPartLooks`).
+ * Bez `look` (starší příloh – pastvina a louka na seno) ho scéna odhadne ze stadia a data.
+ */
+export interface SceneFieldPart {
+  /** Id dílu v herním jádru – podle něj postavy najdou díly z fronty práce (`SceneLaborShare.parts`). */
+  id?: number;
+  cell: TileCell;
+  x: number;
+  z: number;
+  size: number;
+  stage: PartStage;
+  /** Co je na dílu vidět; u rozpracovaného dílu vzhled hotové části. */
+  look?: FieldLook;
+  /**
+   * Rozpracovaný díl: kolik práce dnešní úlohy je na něm hotovo 0–1 – hotová část řádků má
+   * `look`, zbytek `before`. Zakládaný díl s 0 je jen vytyčený (kolíky a provázek).
+   */
+  work?: number;
+  /** Vzhled nehotové části rozpracovaného dílu; bez údaje povrch před prací (louka u zakládání). */
+  before?: FieldLook;
+  /**
+   * Vzhled oseté části podle růstu obilí (`CropLook` ve scéně) – posílá jen vývojový náhled
+   * staveb; hra posílá `look`.
+   */
+  crop?: 'growing' | 'ripe' | 'stubble';
+}
+
+/**
+ * Podíl práce dne pro postavy. U polních prací nese díly z fronty práce (`parts` – id dílů
+ * v pořadí postupu, přes které práce ten den došla, poslední je rozpracovaný) – postavy pak
+ * pracují přesně tam; bez nich je scéna odhadne z `work` a vzhledu dílů.
+ */
+export type SceneLaborShare = LaborShare & { parts?: readonly number[] };
+
+/**
+ * Rozdělení práce posledního dne pro postavy: člověkodny po činnostech a místech (na setiny),
+ * lidé podle věku a herní den s měsícem (v zimě je venku méně lidí; podle dne se ve scéně kosí
+ * a pase na úhoru).
+ */
 export interface SceneLabor {
   day: number;
   month: number;
   people: { children: number; adults: number; elders: number };
-  shares: LaborShare[];
+  shares: SceneLaborShare[];
 }
 
 export const CHRONICLE_LENGTH = 8;
@@ -390,22 +436,12 @@ function sceneVillage(
     const progress = constructions.find((s) => s.id === c.id)?.buildProgress ?? 0;
     return [{ id: c.id, type: c.dwellingType, position: c.position, built: false, progress }];
   });
-  const crops = fieldCropStates(state, day);
-  const frontiers = fieldFrontiers(state, day);
+  const looks = fieldPartLooks(state, day);
   const fields = state.fields.map((f) => ({
     id: f.id,
-    parts: state.parts.flatMap((p) => {
+    parts: state.parts.flatMap((p): SceneFieldPart[] => {
       if (p.fieldId !== f.id || p.cell === undefined) return [];
-      const crop = crops.get(p.id);
-      const frontier = frontiers.get(p.id);
-      return [
-        {
-          id: p.id,
-          ...scenePart(landscape, p.cell, partStage(p, day)),
-          ...(crop ? { crop } : {}),
-          ...(frontier ? { frontier } : {}),
-        },
-      ];
+      return [{ id: p.id, ...scenePart(landscape, p.cell, partStage(p, day)), ...looks.get(p.id) }];
     }),
   }));
   const cemeteries = villageCemeteries(state).map((c) => ({
@@ -443,9 +479,15 @@ function sceneVillage(
 function sceneLabor(state: VillageState, people: SceneLabor['people']): SceneLabor | null {
   const labor = laborReport(state);
   if (!labor) return null;
-  const shares = labor.shares.flatMap((share) => {
+  const shares = labor.shares.flatMap((share): SceneLaborShare[] => {
     const manDays = Math.round(share.manDays * 100) / 100;
-    return manDays > 0 ? [{ ...share, manDays }] : [];
+    if (manDays <= 0) return [];
+    // díly čela práce jdou do podílu (`parts`), cíl zůstane pole
+    if (share.target.kind === 'field' && share.target.parts) {
+      const { parts, ...target } = share.target;
+      return [{ ...share, target, manDays, parts }];
+    }
+    return [{ ...share, manDays }];
   });
   return { day: labor.day, month: dateOfDayIndex(labor.day).month, people, shares };
 }
