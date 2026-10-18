@@ -708,7 +708,8 @@ test('domácnosti se stěhují do nových domů – Ctrl + A vybere obydlí, dom
     )
     .toBe('dwellings');
   await expect(panel.getByTestId('selection-households')).toHaveText('2');
-  await expect(panel.getByTestId('leave-village')).toBeDisabled();
+  // odchod do nové vsi už jde (migration.md – fáze 3 a 4), testuje ho vlastní test níž
+  await expect(panel.getByTestId('leave-village')).toBeEnabled();
 
   // Přestěhovat do zemnice: nový dům se umístí za každou domácnost, jeden za druhým.
   await panel.getByTestId('relocate-zemnice').click();
