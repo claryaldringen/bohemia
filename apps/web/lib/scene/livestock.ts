@@ -462,7 +462,7 @@ function mergeAreas(areas: readonly Area[]): Area {
 }
 
 /** Model vystředěný na počátku (fauna_from_0ad.py) postaví nohama na zem: nejnižší bod y = 0. */
-function standOnGround(geometry: FaunaGeometry): FaunaGeometry {
+export function standOnGround(geometry: FaunaGeometry): FaunaGeometry {
   const positions = geometry.vertexData.positions;
   if (!positions) return geometry;
   let low = Infinity;
@@ -478,7 +478,7 @@ function standOnGround(geometry: FaunaGeometry): FaunaGeometry {
  * tři pózy (noha vpředu, stoj, druhá noha vpředu – livestockKeyA/B, stav x), sklonění hlavy
  * lineárně ke třetí klíčové póze (livestockKeyC, stav y).
  */
-class LivestockPlugin extends MaterialPluginBase {
+export class LivestockPlugin extends MaterialPluginBase {
   constructor(material: Material) {
     super(material, 'Livestock', 200, { LIVESTOCK: false });
     this._enable(true);
