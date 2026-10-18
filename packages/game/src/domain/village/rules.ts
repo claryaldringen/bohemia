@@ -225,8 +225,12 @@ export const CROP_ORDER: readonly Crop[] = ['winter', 'spring'];
 // orchard.md – Pravidla (Martin – oprava podle rešerše 17. 10. 2026): výsadba 80 člověkodní/ha
 // (+ překážky jako u pole), péče v zimě 10 člověkodní/ha ročně, sklizeň 8 člověkodní/ha při plné
 // úrodě (při menší úrodě poměrně méně); první jablka 6. rok po výsadbě, úroda lineárně do plné
-// úrody 25. rok, plná do 50. roku, pak lineárně k nule v 60. roce – tehdy se sad vrátí v louku;
-// plná úroda ≈ 3 t jablek/ha ročně
+// úrody 25. rok, plná do 50. roku, pak lineárně k nule v 60. roce – tehdy se čtverec vrátí
+// v louku; plná úroda ≈ 3 t jablek/ha ročně.
+// orchard.md – Obnova sadu (Martin 18. 10. 2026 – vesničané obnovují sami, čísla návrh Clauda):
+// čtverce od 50. roku sadu (`declineAfterYear` – poslední rok plné úrody) vysadí vesničané znovu,
+// za rok sadu nejvýš desetina čtverců (`renewalShareYear`, nahoru, aspoň 1) – za 10 let do konce
+// (50.–59. rok) se tak obnoví celý sad
 export const ORCHARD = {
   plantingPerHa: 80,
   carePerHa: 10,
@@ -236,6 +240,7 @@ export const ORCHARD = {
   fullYieldYear: 25,
   declineAfterYear: 50,
   endYear: 60,
+  renewalShareYear: 0.1,
 } as const;
 // orchard.md – Úroda (jablka mají asi 1/7 výživy obilí na kg: 3 t jablek ≈ 430 kg obilí)
 export const APPLE_FOOD_VALUE = 1 / 7;

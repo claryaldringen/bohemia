@@ -184,11 +184,23 @@ export interface OrchardSquare {
   obstacles?: number[];
   /** Dospělé stromy mezi překážkami – s vyklizením čtverce dají klády na hromadu (forest.md). */
   trees?: number;
+  /**
+   * Obnova (orchard.md – Obnova sadu): id stavby obnovy, do které vesničané čtverec zařadili.
+   * Dokud na něj práce nedojde, stojí staré stromy (`plantedDay` výsadby, ze které rostou);
+   * s první prací se staré stromy skácí a čtverec se sází znovu (`plantedDay` null, výsadba
+   * bez překážek). Po výsadbě údaj zmizí. U ostatních čtverců chybí.
+   */
+  renewal?: number;
 }
 /** Jabloňový sad – souvislá skupina čtverců (orchard.md). */
 export interface Orchard {
   id: number;
   squares: OrchardSquare[];
+  /**
+   * Hospodářský rok sadu (rok jeho jara), ve kterém vesničané naposledy zařadili čtverce do
+   * obnovy – za rok sadu jen jednou (orchard.md – Obnova sadu). Chybí = ještě nikdy.
+   */
+  renewedSeason?: number;
 }
 /** Sezónní práce v sadech celé vsi – sklizeň (září–říjen), nebo péče (prosinec–únor). */
 export interface OrchardWork {
@@ -224,6 +236,11 @@ export interface Construction {
   fieldId: number | null; // field – zakládá díly od nejbližšího
   cemeteryId?: number | null; // cemetery (u starších staveb chybí)
   orchardId?: number | null; // orchard – vysazuje čtverce od nejbližšího (u ostatních chybí)
+  /**
+   * Obnova sadu (orchard.md – Obnova sadu): stavbu založili vesničané sami a sází znovu jen
+   * čtverce s `OrchardSquare.renewal` = id stavby. U výsadby a ostatních staveb chybí.
+   */
+  renewal?: true;
   /** Dřevo obydlí, přestavby, modly a svatyně (forest.md); u starších staveb a polí chybí. */
   wood?: ConstructionWood;
   /** Nové obydlí: vzdálenost k nejbližšímu okraji lesa (m) – obydlí ji po dostavění převezme. */
@@ -319,6 +336,8 @@ export type ChronicleEvent = { day: number } & (
   | { kind: 'apple-harvest'; kg: number }
   /** Sad dosloužil (60. rok) a vrátil se v louku. */
   | { kind: 'orchard-gone'; orchardId: number }
+  /** Vesničané zařadili čtverce starého sadu do obnovy (orchard.md – Obnova sadu). */
+  | { kind: 'orchard-renewal-started'; orchardId: number; squares: number }
   | { kind: 'hunger-began' }
   | { kind: 'hunger-ended' }
   | { kind: 'part-became-forest'; partId: number }
