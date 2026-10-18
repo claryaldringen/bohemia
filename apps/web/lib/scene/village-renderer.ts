@@ -72,6 +72,8 @@ import {
   createStripMesh,
   type HeightFn,
 } from './village-meshes';
+import { StakingPegs, createStringMaterial, createStringMesh, pegInstances } from './staking';
+import { closedLine } from './staking-layout';
 import { applySeasonGround, applySeasonModel, applySeasonSnow } from './season-materials';
 import { VillageSmoke, type SmokeSource } from './village-smoke';
 import type { SceneDwelling, SceneField } from './village-types';
@@ -118,6 +120,8 @@ interface DwellingView {
   shape: HideShape;
   /** Vyhloubená jáma (terén se v ní prořízne), nebo null, dokud se nekope. */
   cut: PitCut | null;
+  /** Kolíky vytyčení (staking.ts), dokud se nezačne kopat. */
+  pegs: ModelInstance[];
 }
 
 interface FieldView {
@@ -168,6 +172,7 @@ export class VillageRenderer {
   private siteKey = '';
   private readonly smoke: VillageSmoke;
   private readonly cemeteries: CemeteryRenderer;
+  private readonly pegs: StakingPegs;
   private readonly orchards: OrchardRenderer;
   private village: SceneVillage = { dwellings: [], fields: [] };
   private disposed = false;
@@ -177,6 +182,7 @@ export class VillageRenderer {
     private readonly context: VillageContext,
   ) {
     this.smoke = new VillageSmoke(scene, SMOKE_TEXTURE_URL);
+    this.pegs = new StakingPegs(scene, (mesh) => context.addShadowCaster(mesh));
     this.cemeteries = new CemeteryRenderer(scene, context);
     this.orchards = new OrchardRenderer(scene, context);
   }
@@ -245,6 +251,7 @@ export class VillageRenderer {
     this.smoke.dispose();
     this.cemeteries.dispose();
     this.orchards.dispose();
+    this.pegs.dispose();
     for (const view of this.dwellings.values()) for (const mesh of view.meshes) mesh.dispose();
     for (const view of this.fields.values()) for (const mesh of view.meshes) mesh.dispose();
     this.dwellings.clear();
@@ -341,6 +348,13 @@ export class VillageRenderer {
         meshes: state ? this.constructionSite(dwelling, state) : this.dwellingGround(dwelling),
         shape: dwellingHideShape(dwelling.type, dwelling.position),
         cut: dug ? { position: dwelling.position, shape: PIT_SHAPES[dwelling.type] } : null,
+        pegs:
+          state && state.outline > 0
+            ? pegInstances(
+                [closedLine(this.pitOutlineWorld(dwelling, 0))],
+                this.context.groundHeight,
+              )
+            : [],
       });
     }
     for (const [id, view] of this.dwellings) {
@@ -350,6 +364,7 @@ export class VillageRenderer {
       changed = true;
     }
     if (changed) {
+      this.pegs.set([...this.dwellings.values()].flatMap((view) => view.pegs));
       const cuts: PitCut[] = [];
       for (const view of this.dwellings.values()) if (view.cut) cuts.push(view.cut);
       this.context.pitCuts.set(cuts);
@@ -654,6 +669,21 @@ export class VillageRenderer {
       );
       line.material = this.layoutMaterial();
       meshes.push(line);
+      // kolíky v rozích a po obvodu a mezi nimi napnutý provázek – vidět hned po zadání stavby
+      let string = this.materials.get('string');
+      if (!string) {
+        string = createStringMaterial(this.scene);
+        this.materials.set('string', string);
+      }
+      meshes.push(
+        createStringMesh(
+          this.scene,
+          `village-string-${d.id}`,
+          [closedLine(this.pitOutlineWorld(d, 0))],
+          this.context.groundHeight,
+          string,
+        ),
+      );
     }
     if (state.pitDepth > 0) meshes.push(this.pitMesh(d, state.pitDepth, state.roofCover, true));
     const spoil = state.props.find((p) => p.prop === 'spoil');
