@@ -265,9 +265,10 @@ test('nový hráč založí ves umístěním zemnice, přejmenuje ji a vybere ze
   await found(page, spots.dwelling);
   const name = page.getByTestId('village-name');
   await expect(name).toHaveText(suggestVillageName(s.seed));
-  await expect(grid.getByRole('button')).toHaveCount(10);
+  await expect(grid.getByRole('button')).toHaveCount(11);
   // Nové obydlí ani dílnu nemá kdo osídlit – zakladatelé si stavějí vlastní zemnici. Hřbitov,
-  // sad, modla ani svatyně lidi nechtějí (modla a svatyně dospělé duby – krajina je má).
+  // sad, modla, svatyně ani ohrada lidi nechtějí (modla a svatyně dospělé duby, ohrada stromy –
+  // krajina je má).
   await expect(grid.getByRole('button', { name: 'Polozemnice' })).toBeDisabled();
   for (const craft of ['Hrnčíř', 'Kovář', 'Uhlíř']) {
     await expect(grid.getByRole('button', { name: craft })).toBeDisabled();
@@ -276,6 +277,7 @@ test('nový hráč založí ves umístěním zemnice, přejmenuje ji a vybere ze
   await expect(grid.getByRole('button', { name: 'Sad' })).toBeEnabled();
   await expect(grid.getByRole('button', { name: 'Modla' })).toBeEnabled();
   await expect(grid.getByRole('button', { name: 'Svatyně' })).toBeEnabled();
+  await expect(grid.getByRole('button', { name: 'Ohrada' })).toBeEnabled();
   // štěstí obyvatel v horní liště (happiness.md) – výchozí kolem 50
   await expect(page.getByTestId('village-happiness')).toHaveText(/^\d+$/);
   expect((await villageState(s.settlementId)).fields).toEqual([]);

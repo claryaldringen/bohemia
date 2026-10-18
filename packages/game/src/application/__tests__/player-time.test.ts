@@ -112,6 +112,14 @@ describe('skipTime', () => {
     expect(village?.state.dwellings.length).toBeGreaterThan(0);
   });
 
+  it('o 10 let posune o 3 650 dní a ves se dopočítá', async () => {
+    const { settlements, villages, offsets, settlementId } = await player();
+    const deps = { settlements, villages, offsets, landscapes };
+    const result = await skipTime(deps, skip({ skip: 'decade' }));
+    expect(result).toEqual({ ok: true, today: WORLD_DAY + 3650, offsetDays: 3650 });
+    expect(villages.records.get(settlementId)?.state.lastDay).toBe(WORLD_DAY + 3650);
+  });
+
   it('posun platí i druhý den – ves se načítá k posunutému dni', async () => {
     const { settlements, villages, offsets, settlementId } = await player();
     await skipTime({ settlements, villages, offsets, landscapes }, skip());

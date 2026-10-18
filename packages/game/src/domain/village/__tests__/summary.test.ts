@@ -77,7 +77,9 @@ describe('summarizeVillage', () => {
     expect(zemnice!.progress).toBeGreaterThan(0);
     expect(zemnice!.progress).toBeLessThan(1);
     expect(summary.storesMonths).toBeCloseTo(18, 0);
-    expect(summary.satiation).toBe(1);
+    // obilí je dost, maso a ovoce zatím ne (jen trocha vajec) – nasycení ≈ 80 % (diet.md)
+    expect(summary.diet.energy).toBe(1);
+    expect(summary.satiation).toBeCloseTo(0.8, 3);
     expect(summary.fullHousehold).toBe(false);
   });
 

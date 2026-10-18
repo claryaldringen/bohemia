@@ -90,9 +90,13 @@ const WOMEN: Record<LaborActivity, number> = {
   harvest: 0.65,
   carry: 0.5,
   thresh: 0.3,
+  plough: 0,
+  mow: 0.3,
+  slaughter: 0.4,
   'orchard-care': 0.3,
   'orchard-harvest': 0.6,
   build: 0.15,
+  pen: 0.15,
   fell: 0.05,
   'found-field': 0.2,
   'orchard-plant': 0.3,
@@ -329,6 +333,7 @@ const CONSTRUCTION_ACTIVITIES: ReadonlySet<LaborActivity> = new Set([
   'found-field',
   'orchard-plant',
   'cemetery',
+  'pen',
 ]);
 
 function isConstructionShare(share: Pick<LaborShare, 'activity'>): boolean {
@@ -490,7 +495,19 @@ function context(
       box: { minX: -half, maxX: half, minZ: -half, maxZ: half },
     };
   });
-  const houses = [...dwellings, ...milirs, ...sacred];
+  // ohrady (oxen.md): oplocený čtverec – lidé stojí za plotem, dovnitř nechodí
+  const pens: House[] = (village.pens ?? []).map((pen) => {
+    const half = pen.size / 2;
+    return {
+      id: pen.id,
+      position: { x: pen.x, z: pen.z, rotation: 0 },
+      built: pen.built,
+      progress: pen.progress,
+      inhabited: false,
+      box: { minX: -half, maxX: half, minZ: -half, maxZ: half },
+    };
+  });
+  const houses = [...dwellings, ...milirs, ...sacred, ...pens];
   const homes = dwellings.filter((h) => h.inhabited);
   const settled = homes.length > 0 ? homes : dwellings.length > 0 ? dwellings : houses;
   const center = {
@@ -695,6 +712,16 @@ function placer(ctx: Context, share: SceneLaborShare, count: number): Placer {
       return t.kind === 'field' ? founding(ctx, share, t.id, count) : none;
     case 'thresh':
       return threshing(ctx, count);
+    case 'plough':
+      // oráč a honáček jsou součástí spřežení (plough-team-renderer.ts)
+      return none;
+    case 'mow':
+      return t.kind === 'field' ? fieldRows(ctx, share, t.id, count, 'reap') : none;
+    case 'slaughter':
+      // porážka a uzení u vsi (diet.md) – na udusané zemi kousek od domů jako výmlat
+      return threshing(ctx, count);
+    case 'pen':
+      return t.kind === 'pen' ? penFence(ctx, t.id) : none;
     case 'orchard-harvest':
     case 'orchard-care':
       return t.kind === 'orchard' ? orchardTrees(ctx, t.id, count) : none;
@@ -704,6 +731,7 @@ function placer(ctx: Context, share: SceneLaborShare, count: number): Placer {
       return t.kind === 'cemetery' ? cemeteryFence(ctx, t.id) : none;
     case 'fell':
       if (t.kind === 'trees') return felling(ctx, t.ids, share.construction !== undefined);
+      if (t.kind === 'pen') return penFence(ctx, t.id);
       return t.kind === 'site' || t.kind === 'dwelling' ? building(ctx, t, 'build') : none;
     case 'build':
       return t.kind === 'site' || t.kind === 'dwelling' ? building(ctx, t, 'build') : none;
@@ -778,6 +806,9 @@ function constructionAnchors(
     for (const sq of (pending.length > 0 ? pending : squares).slice(0, 3)) {
       anchors.push({ at: sq, clip: 'build' });
     }
+  } else if (t.kind === 'pen') {
+    const pen = (ctx.village.pens ?? []).find((p) => p.id === t.id);
+    if (pen) anchors.push({ at: pen, clip: 'build' });
   }
   // dřevo pro stavbu: když u stromů místo není, aspoň u stavby, pro kterou se kácí
   if (share.construction !== undefined) houseAt(share.construction);
@@ -1383,6 +1414,31 @@ function cemeteryFence(ctx: Context, cemeteryId: number): Placer {
   return (i) => {
     const step = Math.max(1, Math.floor(slots.length / 6));
     const slot = slots[(offset + i * step) % slots.length]!;
+    return stand(slot.x, slot.z, slot.hx, slot.hz, i % 3 === 2 ? 'hoe' : 'build');
+  };
+}
+
+/**
+ * Stavba ohrady a výroba rádla (oxen.md): lidé po obvodu čtverce ohrady za plotem čelem
+ * dovnitř – kůly, proplétání a přístřešek; střídavě kolem dokola.
+ */
+function penFence(ctx: Context, penId: number): Placer {
+  const pen = (ctx.village.pens ?? []).find((p) => p.id === penId);
+  if (!pen) return none;
+  const out = pen.size / 2 + HOUSE_MARGIN_M + gap(0.5);
+  const slots: { x: number; z: number; hx: number; hz: number }[] = [];
+  for (const [nx, nz] of PLOT_SIDES) {
+    for (const along of [-0.5, 0, 0.5]) {
+      const x = pen.x + nx * out - nz * along * pen.size * 0.8;
+      const z = pen.z + nz * out + nx * along * pen.size * 0.8;
+      if (free(ctx, x, z)) slots.push({ x, z, hx: -nx, hz: -nz });
+    }
+  }
+  if (slots.length === 0) return none;
+  const offset = Math.floor(hash01(penId, ctx.seed, 96) * slots.length);
+  return (i) => {
+    // sousední lidé na opačných stranách ohrady
+    const slot = slots[(offset + i * 5) % slots.length]!;
     return stand(slot.x, slot.z, slot.hx, slot.hz, i % 3 === 2 ? 'hoe' : 'build');
   };
 }

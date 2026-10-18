@@ -289,6 +289,40 @@ describe('planVillagers – kdo kde je', () => {
     }
   });
 
+  it('stavitelé ohrady stojí za plotem čelem dovnitř, porážka u vsi (oxen.md, diet.md)', () => {
+    const shares: LaborShare[] = [
+      { activity: 'pen', target: { kind: 'pen', id: 60 }, manDays: 3, construction: 61 },
+      { activity: 'slaughter', target: { kind: 'village' }, manDays: 2 },
+    ];
+    const withPen: SceneVillage = {
+      ...village(shares),
+      pens: [
+        {
+          id: 60,
+          cell: { x: -4, y: 1 },
+          x: -52.5,
+          z: 22.5,
+          size: 15,
+          built: false,
+          progress: 0.3,
+          oxen: 0,
+          trainees: 0,
+          cows: 0,
+        },
+      ],
+    };
+    const people = planVillagers(withPen, GROUND, { seed: 3, herds: 0 });
+    const builders = people.filter((p) => p.key.startsWith('pen:'));
+    expect(builders.length).toBeGreaterThan(0);
+    for (const p of builders) {
+      const pose = at(p, 10);
+      const d = Math.max(Math.abs(pose.x + 52.5), Math.abs(pose.z - 22.5));
+      expect(d).toBeGreaterThan(7.5);
+      expect(d).toBeLessThan(11);
+    }
+    expect(people.filter((p) => p.key.startsWith('slaughter:')).length).toBe(2);
+  });
+
   it('pasáček jde za svým stádem; vdané ženy mají šátek, starší šediny', () => {
     const herder = of('herder:')[0]!;
     const pose = at(herder, 50);
@@ -352,6 +386,22 @@ describe('práce na poli po čtvercích – fronta práce', () => {
         expect(onSquare(parts[2]!, pose.x, pose.z)).toBe(true);
       }
     }
+  });
+
+  it('seč sena na dílech z fronty, orbu dělá spřežení (žádné postavy navíc)', () => {
+    const parts = row.map((p, i) => ({ ...p, id: 10 + i, stage: 'meadow' as const }));
+    const v = withField(parts, [
+      { activity: 'mow', target: { kind: 'field', id: 7 }, manDays: 4, parts: [11] },
+      { activity: 'plough', target: { kind: 'field', id: 7 }, manDays: 2, parts: [13] },
+    ]);
+    const people = planVillagers(v, GROUND, { seed: 3, herds: 0 });
+    const mowers = people.filter((p) => p.key.startsWith('mow:'));
+    expect(mowers.length).toBe(4);
+    for (const p of mowers) {
+      const pose = at(p, 20);
+      expect(onSquare(parts[1]!, pose.x, pose.z)).toBe(true);
+    }
+    expect(people.some((p) => p.key.startsWith('plough:'))).toBe(false);
   });
 
   it('bez fronty: na rozpracovaném čtverci stojí řada hned za čarou práce', () => {

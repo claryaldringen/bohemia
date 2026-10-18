@@ -157,6 +157,13 @@ má nějaké meze. Bez řemeslníků ber tu nejhorší hranici, s řemeslníky t
   nemění (vede díly, ne pole). Nejmenší výměru 0,1 ha musí mít pole i s rozšířením – přístavek
   může být menší. Rohem se nenavazuje. Náhled umístění hlásí, které pole čtverce rozšíří nebo
   sloučí (`joinedFields`); staré pole z obrysu (díly bez políček) nenavazuje (návrh Clauda).
+- **Stará navazující pole se sloučí při načtení vsi** (Martin, 18. 10. 2026 – pole založená
+  samostatně dřív, než se navazující čtverce slučovaly, stranou na sebe navazují, ale vybírala
+  se zvlášť): každá souvislá skupina polí, která na sebe navazují stranou (i řetězem přes další
+  pole), se spojí do nejstaršího pole stejně jako při rozšíření – díly i se stavem, rozestavěná
+  založení do jedné stavby, kronika a rozdělení práce dne. Rohem se nenavazuje, pole z obrysu se
+  neslučují. Převod běží při každém načtení bez příznaku „převedeno“ – po sloučení už žádná dvě
+  pole nenavazují, takže další načtení nic nezmění (návrh Clauda).
 
 ### Kolik ves oseje (rozhodují obyvatelé)
 
@@ -336,10 +343,11 @@ pro raný středověk ale nemám – zůstává návrhem Clauda jako dosavadní 
 
 - Čistá úroda jde do **společných zásob vsi** (návrh Clauda – ves drží společné zásoby).
 - **Potřeba jídla z pole** (kg obilí za rok): dospělý 180, starší 140, dítě 100.
-- **Zbytek stravy** (zahrada, sběr, ryby, drobné hospodářství) se zatím nemodeluje a bere se jako
-  pokrytý. Domácí výroba je jen spotřeba práce – její nedodělání nasycení nesnižuje (návrh
-  Clauda). Nasycení tak závisí jen na zásobách obilí, jak čeká [populace](population.md) – se
-  sadem na obilí a jablcích, která se jí přednostně ([sad](orchard.md)).
+- **Zbytek stravy** – maso a ovoce řeší [strava](diet.md) (od 18. 10. 2026: potřeba níže je
+  potřeba energie v kg obilí, maso a ovoce z ní pokryjí část); zahrada, sběr a ryby se zatím
+  nemodelují. Domácí výroba je jen spotřeba práce – její nedodělání nasycení nesnižuje (návrh
+  Clauda). Nasycení počítá [strava](diet.md) – energie (obilí, maso, ovoce) × pestrost; dřív
+  záviselo jen na obilí a jablcích ([sad](orchard.md)).
 - **Ztráty při skladování:** 10 % zásob za rok (myši, plíseň), rozložené rovnoměrně; s hrnčířem
   5 % (meze – dobře utěsněná jáma ztrácí málo, Butser; rozpětí návrh Clauda).
 - **Přídělový systém:** dokud zásoby vystačí do příští sklizně, jí ves dosyta (nasycení 1).
@@ -367,9 +375,9 @@ a krávy, které přirozenou obnovu lesa zastaví. Na loukách se navíc bude se
 - **Starší vsi:** díly, které už ležely v přílohu víc než 2 roky (dřív stadia louka, nálet,
   křoviny, les), jsou teď pastvinou – stadium se počítá z let ladem, takže se změní samo; vrátit
   je stojí drn (rozhodnutí Clauda – Martin o starých dílech nerozhodl).
-- **Pastva a seno:** dobytek zatím mechaniku nemá (krmení, mléko, hnůj) – pastva je jen důvod,
-  proč příloh nezarůstá, a sekání sena na loukách je zatím jen scéna, bez práce a bez sena
-  v zásobách. Až přijde dobytek, seno a pastva dostanou práci i užitek (viz Navazuje).
+- **Pastva a seno** (od 18. 10. 2026 – [strava a dobytek](diet.md), [orání rádlem](oxen.md)):
+  na přílohu se pasou skutečná stáda (nosnost pastvy) a úhor ve fázi louky se seče na seno pro
+  krávy a voly – práce v červnu–červenci a seno v zásobách; mléko a hnůj zatím ne.
 - **Přirozená louka**, která nikdy nebyla polem, zůstává loukou (návrh Clauda – louky se zatím
   nemění).
 - **Ve scéně:** mladý příloh jako zaplevelená zem, pastvina jako tráva. Okolí vsi tak tvoří
@@ -515,8 +523,9 @@ louky – se po opravě podle rešerše přepočítaly; cíle práce na obživu,
   po 95 % let,
 - startovní ves stihne jarní i letní práce s rezervou aspoň 20 %,
 - na typické krajině uživí louky v okolí ≈ 4 domácnosti (krajiny verze 1 jen 2–3); ves, která
-  mýtí les, roste dál (měření běží na syntetické louce 35 ha z doby krajin verze 1 – nové krajiny
-  mají ≈ 60 ha, viz Kolik půdy je),
+  mýtí les, roste dál (od 18. 10. 2026 měří skript vsi na skutečných krajinách sídel verze 2,
+  `--land v1` vrací syntetickou louku 35 ha ze starších měření; sondy pevných domácností běží
+  dál na syntetické louce s úrodností 70),
 - cíle populace platí dál i se skutečným jídlem místo pevných 85 % (první stavba u 90 % vsí
   do ≈ 8 let).
 
@@ -568,6 +577,50 @@ a bez štěstí), v závorce měření 17. 10. výše; pak po sloučení s pastv
   díly v lese nepočítaly) a hráč měření ho dál přidává,
 - startovní a plná domácnost: osev 1,55 a 2,52 ha, na obživu 89 % a 84 % práce beze změny;
   pole plné domácnosti 17,8 ha (**MIMO** cíl ≈ 14 ha – pole teď zahrnuje i staré pastviny).
+
+**Naměřeno na skutečných krajinách – louka motykou, nebo pálením drnu** (`measure-village.ts
+200 60` a `--variant meadow-burn`, 18. 10. 2026, **naměřeno, průběžně 192 z 200 vsí** – běh
+dokončí noc; stejné vsi a krajiny v obou variantách; pravidla ze 18. 10. odpoledne před
+osídlením prázdných domů dospělými dětmi a rychlejším chátráním prázdných obydlí – řemesla ves
+bez dílen nemění). Vsi stojí na skutečných krajinách sídel
+(vrstvy verze 2: do 600 m ≈ 60 ha luk, ≈ 34,5 ha s úrodností ≥ 60, les od ≈ 200 m); hráč
+zakládá čtverce louky, křovin i lesa do 800 m podle úrody za člověkoden prvního oběhu – pořadí
+je v obou variantách stejné. Varianta **pálení drnu** je jen kalibrační přepínač, ne pravidlo:
+založení louky 50 místo 100 člověkodní na hektar (křoviny a les beze změny) a první sezóna osevu
+s úrodností o 20 nižší (návrh Clauda – nerozložený drn a hrubá půda; pálení drnu dávalo
+historicky spíš dobrou první úrodu z popela, −20 je opatrný předpoklad). Vrácení přílohu
+(drn pastviny) stojí v obou variantách 100.
+
+| Hráč staví, 60 let                          | Louka motykou (dnes) | Pálení drnu         |
+| ------------------------------------------- | -------------------- | ------------------- |
+| nasycení ≥ 0,95 celý rok (staví / ne)       | 73,9 % / 97,0 % let  | 77,3 % / 97,3 % let |
+| zásoby po sklizni p10 / medián / p90        | 0,80 / 1,15 / 1,52   | 0,83 / 1,17 / 1,52  |
+| zásoby v pásmu 1–1,5                        | 58 % let             | 61 % let            |
+| na konci domácností / lidí (medián)         | 2 / 9                | 3 / 11              |
+| vymření (staví / jediná domácnost)          | 10,4 % / 13,0 %      | 8,3 % / 12,5 %      |
+| první možnost stavět p50 / p90              | 4,6 / 8,9 roku       | 4,6 / 8,9 roku      |
+| zemnice / polozemnice čerstvě plnou dom.    | 91 / 423 dní         | 77 / 378 dní        |
+| startovní ves: rezerva jaro / léto / podzim | 26 % / 12 % / 1 %    | 17 % / 12 % / 1 %   |
+| pole / osev na domácnost na konci           | 22,7 / 1,69 ha       | 18,9 / 1,73 ha      |
+| založeno louka / křoviny / les (ha na ves)  | 32,1 / 2,6 / 20,1    | 32,2 / 2,6 / 20,4   |
+
+- **Pálení drnu pomůže, ale málo:** o ≈ 3 body víc let bez hladu, o domácnost víc na konci,
+  zemnice o 2 týdny rychleji (zakládání polí bere méně společné práce). Cíl nasycení (95 % let)
+  je stejně daleko – hlad nedělá cena louky, ale to, že pole nestačí růstu vsi a zásoby po
+  sklizni kolísají (viz Rovnováha zásob níže). Rezerva startovní vsi na jaře klesne (první
+  sezóna dílů pálených luk dá méně, ves oseje víc dílů).
+- **Skutečné krajiny vs. syntetická louka:** hráč začne mýtit les už u první domácnosti
+  (medián; nejlepší les s popelem má víc úrody za člověkoden než chudší a vzdálenější louka),
+  za 60 let založí ≈ 32 ha louky a ≈ 20 ha lesa. Vymře ≈ 10 % vsí, kde hráč staví (na
+  syntetické louce 6 %), a 13 % jediných domácností.
+- Rozdíl vymření (20 proti 16 vsím ze 192) je v mezích náhody; nasycení a zásoby jsou párové
+  (stejné vsi), takže jejich rozdíl je spolehlivější.
+
+**Rovnováha zásob** (`village-calculator.ts`, **spočítáno, ne naměřeno**): při ztrátě 10 % zásob
+za rok se zásoby po sklizni ustálí na 10 × sklizeň − 9,49 × potřeba. S osevem na potřebu a 15 %
+navíc (sklizeň 1,15 potřeby) by to bylo 2,0 roční potřeby, s osevem jen na potřebu 0,51 – ves
+proto mezi oběma pravidly přeskakuje a zásoby kolísají přes pásmo. Pásmo 1–1,5 drží sklizeň
+1,05–1,10 roční potřeby.
 
 ## Co hráč vidí
 
@@ -699,3 +752,5 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 | Postavy pracují na dílech čela práce (rozdělení práce dne posílá jejich id)                                                       | návrh Clauda (podle Martina)                    |
 | Navazující pole se počítají jako jedno – rozšíření, víc polí se sloučí do nejstaršího                                             | Martin (18. 10. 2026)                           |
 | Sloučení: díly i se stavem, jedna stavba založení, kronika a práce dne na nejstarší pole; výměra i s rozšířením                   | návrh Clauda                                    |
+| Stará navazující pole se sloučí samy při načtení vsi (do nejstaršího)                                                             | Martin (18. 10. 2026)                           |
+| Převod starých polí bez příznaku „převedeno“ – souvislé skupiny stranou, pole z obrysu ne                                         | návrh Clauda                                    |

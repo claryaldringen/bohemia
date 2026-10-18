@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { foundField, foundVillage, type PartInput } from '../actions';
-import { fieldsTouching } from '../fields';
+import { fieldsTouching, withMergedFields } from '../fields';
 import { fieldPartsFromCells, placementVillageOf } from '../placement';
 import { advanceVillage } from '../simulate';
 import type { TileCell, VillageState } from '../types';
@@ -136,6 +136,144 @@ describe('foundField – navazující pole', () => {
     for (const p of old.parts) delete p.cell;
     const s = foundField(old, DAY, { parts: parts(block(3, 0, 2, 3)) });
     expect(s.fields).toHaveLength(2);
+  });
+});
+
+/**
+ * Ves se samostatnými poli na daných čtvercích (v pořadí id) – jako dřív, než se navazující
+ * čtverce slučovaly: pole se založí daleko od sebe a jejich díly se pak přesunou na svá políčka.
+ */
+function oldFields(...blocks: TileCell[][]): VillageState {
+  let s = village();
+  blocks.forEach((cells, i) => {
+    // díly po 1000 m², ať má i malé pole nejmenší výměru
+    const far = cells.map((c) => ({ x: c.x + 40 * (i + 1), y: c.y }));
+    s = foundField(s, DAY, { parts: parts(far).map((p) => ({ ...p, areaM2: 1000 })) });
+  });
+  blocks.forEach((cells, i) => {
+    const fieldParts = s.parts.filter((p) => p.fieldId === s.fields[i]!.id);
+    fieldParts.forEach((p, j) => (p.cell = { ...cells[j]! }));
+  });
+  return s;
+}
+const fieldConstructions = (s: VillageState): VillageState['constructions'] =>
+  s.constructions.filter((c) => c.kind === 'field');
+
+describe('withMergedFields – stará navazující pole se při načtení sloučí', () => {
+  it('dvě navazující pole se sloučí do nejstaršího i se založením', () => {
+    const s0 = oldFields(block(0, 0, 2, 3), block(2, 0, 2, 3));
+    const [older, newer] = s0.fields.map((f) => f.id) as [number, number];
+    const before = fieldConstructions(s0);
+    expect(before).toHaveLength(2);
+    const s = withMergedFields(s0);
+    expect(s.fields.map((f) => f.id)).toEqual([older]);
+    expect(fieldOf(s, older)).toBe(12);
+    expect(s.parts.some((p) => p.fieldId === newer)).toBe(false);
+    const after = fieldConstructions(s);
+    expect(after).toHaveLength(1);
+    expect(after[0]).toMatchObject({ id: before[0]!.id, fieldId: older });
+    expect(after[0]!.cost).toBeCloseTo(before[0]!.cost + before[1]!.cost, 9);
+    // díly beze změny stavu, jen s novým polem
+    expect(s.parts).toEqual(s0.parts.map((p) => ({ ...p, fieldId: older })));
+    // vstup se nemění
+    expect(s0.fields).toHaveLength(2);
+  });
+
+  it('tři pole spojená řetězem se sloučí do nejstaršího – i když nejstarší leží na kraji', () => {
+    // pole 1 vlevo, pole 2 vpravo, nejmladší pole 3 mezi nimi – 1 a 2 se nedotýkají
+    const s0 = oldFields(block(0, 0, 2, 2), block(4, 0, 2, 2), block(2, 1, 2, 1));
+    const [first] = s0.fields.map((f) => f.id) as [number];
+    const s = withMergedFields(s0);
+    expect(s.fields.map((f) => f.id)).toEqual([first]);
+    expect(fieldOf(s, first)).toBe(4 + 4 + 2);
+    expect(fieldConstructions(s)).toHaveLength(1);
+  });
+
+  it('pole jen rohem se nesloučí – ves se vrátí beze změny (týž objekt)', () => {
+    const s0 = oldFields(block(0, 0, 2, 2), block(2, 2, 2, 2));
+    expect(withMergedFields(s0)).toBe(s0);
+  });
+
+  it('dvě oddělené skupiny navazujících polí – každá do svého nejstaršího', () => {
+    const s0 = oldFields(
+      block(0, 0, 2, 2),
+      block(10, 0, 2, 2),
+      block(2, 0, 1, 2),
+      block(12, 0, 1, 2),
+    );
+    const [a, b] = s0.fields.map((f) => f.id) as [number, number];
+    const s = withMergedFields(s0);
+    expect(s.fields.map((f) => f.id)).toEqual([a, b]);
+    expect(fieldOf(s, a)).toBe(6);
+    expect(fieldOf(s, b)).toBe(6);
+  });
+
+  it('rozestavěná založení se spojí – práce, kronika a rozdělení práce dne na sloučené pole', () => {
+    let s0 = oldFields(block(0, 0, 1, 2), block(1, 0, 3, 3));
+    const [older, newer] = s0.fields.map((f) => f.id) as [number, number];
+    s0 = advanceVillage(s0, DAY + 2, null);
+    const running = fieldConstructions(s0);
+    expect(running).toHaveLength(2);
+    expect(running.every((c) => c.done > 0)).toBe(true);
+    // dokončené založení mladšího pole v kronice (např. dřívější rozšíření)
+    s0.chronicle.push({
+      day: DAY,
+      kind: 'construction-finished',
+      constructionKind: 'field',
+      dwellingId: null,
+      fieldId: newer,
+    });
+    expect(s0.labor?.shares.some((x) => x.target.kind === 'field' && x.target.id === newer)).toBe(
+      true,
+    );
+    const s = withMergedFields(s0);
+    const after = fieldConstructions(s);
+    expect(after).toHaveLength(1);
+    expect(after[0]!.id).toBe(Math.min(...running.map((c) => c.id)));
+    expect(after[0]!.fieldId).toBe(older);
+    expect(after[0]!.done).toBeCloseTo(
+      running.reduce((sum, c) => sum + c.done, 0),
+      9,
+    );
+    expect(s.fields.map((f) => f.id)).toEqual([older]);
+    expect(s.chronicle.at(-1)).toMatchObject({ kind: 'construction-finished', fieldId: older });
+    for (const e of s.chronicle) {
+      if (e.kind === 'construction-finished') expect(e.fieldId).not.toBe(newer);
+    }
+    const ids = new Set(s.constructions.map((c) => c.id));
+    for (const share of s.labor?.shares ?? []) {
+      if (share.target.kind === 'field') expect(share.target.id).toBe(older);
+      if (share.construction !== undefined) expect(ids.has(share.construction)).toBe(true);
+    }
+  });
+
+  it('druhé spuštění nic nezmění (týž objekt); dopočet po kouscích se převodem mezi nimi dá totéž', () => {
+    const s0 = withMergedFields(oldFields(block(0, 0, 2, 3), block(2, 0, 2, 3)));
+    expect(withMergedFields(s0)).toBe(s0);
+    const end = at(602, 2, 1);
+    const whole = advanceVillage(s0, end, null);
+    let chunked = s0;
+    for (const step of [1, 30, 7, 200, 365, 90, 3]) {
+      if (chunked.lastDay >= end) break;
+      const loaded = withMergedFields(JSON.parse(JSON.stringify(chunked)) as VillageState);
+      chunked = advanceVillage(loaded, Math.min(end, loaded.lastDay + step), null);
+    }
+    chunked = advanceVillage(withMergedFields(chunked), end, null);
+    expect(JSON.parse(JSON.stringify(chunked))).toEqual(JSON.parse(JSON.stringify(whole)));
+    expect(whole.fields).toHaveLength(1);
+  });
+
+  it('díly bez políčka (staré pole z obrysu) ani pole s obrysem se neslučují', () => {
+    const noCells = oldFields(block(0, 0, 2, 2), block(2, 0, 2, 2));
+    for (const p of noCells.parts) if (p.fieldId === noCells.fields[1]!.id) delete p.cell;
+    expect(withMergedFields(noCells)).toBe(noCells);
+    const outlined = oldFields(block(0, 0, 2, 2), block(2, 0, 2, 2));
+    outlined.fields[1]!.outline = [
+      [0, 0],
+      [10, 0],
+      [10, 10],
+    ];
+    expect(withMergedFields(outlined)).toBe(outlined);
   });
 });
 

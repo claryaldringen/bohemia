@@ -2,6 +2,7 @@ import type { Landscape } from '../landscape';
 import { villageCemeteries } from './cemetery';
 import { workshopFootprints } from './crafts';
 import { villageOrchards } from './orchard';
+import { villagePens } from './oxen';
 import { cellCorners, dwellingFootprint, dwellingPlot } from './placement';
 import { polygonsOverlap, type Point } from './polygon';
 import { RUIN_YEARS } from './rules';
@@ -64,7 +65,7 @@ export function updateRuins(state: VillageState, day: number, landscape: Landsca
 }
 
 /**
- * Po akci hráče: zbytky jam pod novou stavbou (obydlí, dílna, pole, hřbitov, sad, modla,
+ * Po akci hráče: zbytky jam pod novou stavbou (obydlí, dílna, pole, hřbitov, sad, ohrada, modla,
  * svatyně) zmizí hned – na místo zříceniny jde stavět. Vrátí nový stav, beze změny týž objekt.
  */
 export function withoutBuiltOverRuins(state: VillageState, landscape: Landscape): VillageState {
@@ -135,12 +136,13 @@ function structureShapes(state: VillageState, landscape: Landscape | null): Poin
   return shapes;
 }
 
-/** Políčka staveb po čtvercích – díly polí, čtverce hřbitovů a sadů. */
+/** Políčka staveb po čtvercích – díly polí, čtverce hřbitovů, sadů a ohrady. */
 function squareCells(state: VillageState): TileCell[] {
   return [
     ...state.parts.flatMap((p) => (p.cell ? [p.cell] : [])),
     ...villageCemeteries(state).flatMap((c) => c.squares.map((s) => s.cell)),
     ...villageOrchards(state).flatMap((o) => o.squares.map((s) => s.cell)),
+    ...villagePens(state).map((p) => p.cell),
   ];
 }
 

@@ -5,7 +5,9 @@ obydlí a společná pole (Martin) a odemčení nového obydlí – hráč stav�
 oprava čísel podle rešerše (Martin – úmrtnost dospělých, porody od 16 let, životnost zemnice;
 [rešerše](research/2026-10-17-zemedelstvi-populace.md)). 18. 10. 2026 Martin změnil pravidlo
 hladu: lidé umírají hlady a ves může vymřít; komu vymřou všechny vsi, ten začíná znovu (viz Hlad
-a vymření). Týž den: začít znovu jde i sám z nabídky hry (Martin).
+a vymření). Týž den: začít znovu jde i sám z nabídky hry (Martin) a dospělé děti z přeplněné
+domácnosti osídlí úplně prázdné obydlí (Martin, detaily návrh Clauda – viz Nové obydlí)
+a neobydlené budovy chátrají rychleji (Martin, čísla návrh Clauda).
 Implementace jádra: `packages/game/src/domain/village/`.
 
 ## Proč
@@ -159,7 +161,8 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
   starší) a osamělý dospělý bez dětí se přestěhují do domácnosti s nejvíc volnými místy (smí
   ji i přeplnit) – jinak by domácnost, kde zbyl jeden dospělý, už nikdy neměla děti. Kronika
   to zapíše.
-  Opuštěné obydlí se neopravuje a chátrá; při stavu 0 zanikne a políčko se uvolní.
+  Opuštěné obydlí se neopravuje a chátrá rychleji (zemnice ≈ 5 let, polozemnice ≈ 8 let – viz
+  Nové obydlí); při stavu 0 zanikne a políčko se uvolní.
 
 ### Hlad a vymření
 
@@ -168,8 +171,12 @@ místo aby zemřeli.“ Na návrh Clauda (nahromaděný hlad, smrt do ≈ 2 měs
 zůstává, ochrana posledních dvou dospělých padá): „Ano, když hráči vymřou všechny vesnice (časem
 jich bude moci mít více), tak pro něj hra končí – musí začínat znovu.“ Čísla jsou návrh Clauda.
 
+- **Hladem se umírá z energie, ne z pestrosti** ([strava](diet.md), od 18. 10. 2026): nahromaděný
+  hlad i přirážka úmrtnosti za dnešní hlad počítají s pokrytím energie; nasycení se stravou
+  (energie × pestrost) řídí porody a štěstí. Ves jen s obilím (80 %) se množí pomaleji, ale
+  hladem neumírá.
 - **Nahromaděný hlad** vsi se měří ve **dnech bez jídla**: každý den přibude
-  max(0, 0,9 − nasycení) / 0,9 – den bez jídla je celý den, den o polovičním přídělu ≈ 0,44
+  max(0, 0,9 − energie) / 0,9 – den bez jídla je celý den, den o polovičním přídělu ≈ 0,44
   a při 80 % ≈ 0,11 (mírný nedostatek tělo snese – návrh Clauda, upraveno 18. 10. 2026). Když
   ves jí aspoň z 90 %, hlad ubývá o den denně až k nule – jedna hranice pro přibývání
   i zotavení, žádné pásmo, kde by hlad stál. Víc než 60 dní se nehromadí (dál už to nemá vliv).
@@ -219,9 +226,11 @@ jich bude moci mít více), tak pro něj hra končí – musí začínat znovu.�
 - **Lidé k osídlení** (Martin, 17. 10. 2026: „Také mi to nabízí stavbu obytných budov, i když je
   nemám kým osadit.“): obydlí (zemnice, polozemnice a později řemeslné dílny) jde začít, jen
   když je kým ho osadit. Je to další položka ceny předem ve stejném mechanismu jako suroviny,
-  ne skryté pravidlo: **lidé k osídlení** = domácnosti, ze kterých se může oddělit mladý pár
-  (plná domácnost se 4 dospělými 14–44, viz Po dokončení), minus prázdná obydlí, minus
-  rozestavěná nová obydlí – každé už jeden pár čeká. Obydlí stojí jednu domácnost k osídlení;
+  ne skryté pravidlo: **lidé k osídlení** = možné nové domácnosti – domácnosti, ze kterých se
+  může oddělit mladý pár (plná domácnost se 4 dospělými 14–44, viz Po dokončení), a z ostatních
+  přeplněných domácností každá s aspoň dvěma dospělými dětmi jedna a jednotlivá dospělá děti po
+  dvou (zaokrouhleno dolů, viz Prázdné obydlí) –, minus prázdná obydlí, minus rozestavěná nová
+  obydlí – každé už jednu domácnost čeká. Obydlí stojí jednu domácnost k osídlení;
   stavba ji jen zamluví, nikoho neodebírá. Když lidé k osídlení nejsou, tlačítko obydlí je
   zašedlé, nejde spustit ani zkratkou a v popisku jsou chybějící lidé k osídlení červeně (jako
   v 0 A.D., bez dalšího textu); server stavbu odmítne („Nové obydlí nemá kdo osídlit.“). Pole
@@ -233,14 +242,49 @@ jich bude moci mít více), tak pro něj hra končí – musí začínat znovu.�
   je plná a má aspoň **4 dospělé** 14–44 let (z více takových z nejvíc přeplněné), a založí
   novou domácnost. Děti zůstávají (návrh Clauda). Starší se do čtyř dospělých nepočítají –
   kdyby odešli dva dospělí a zůstali jen starší s dětmi, domácnost by se rozpadla
-  a přestěhovala za nimi. Když podmínku v tu chvíli nesplňuje žádná domácnost, obydlí zůstane
-  **prázdné** – postavené „do zásoby“.
+  a přestěhovala za nimi. Když podmínku v tu chvíli nesplňuje žádná domácnost, osídlí obydlí
+  ještě týž den dospělé děti z přeplněné domácnosti (viz Prázdné obydlí); když ani ty nejsou,
+  zůstane **prázdné** – postavené „do zásoby“.
 - **Prázdné obydlí** obsadí sama první domácnost, která podmínku splní – dva nejmladší dospělí
-  se do něj přestěhují (návrh Clauda). Dokud čeká, neopravuje se a chátrá, ale potřeba oprav
-  roste s věkem: nová zemnice vydrží prázdná ≈ 16 let (s životností 15 let ≈ 14), polozemnice
-  ≈ 26 let.
-- Hráč dostane upozornění, když je domácnost plná a žádné nové obydlí pro ni nečeká (fakt –
-  zároveň s ním se odemkne stavba obydlí).
+  se do něj přestěhují (návrh Clauda).
+- **Dospělé děti z přeplněné domácnosti** (Martin, 18. 10. 2026: „pokud je ve vesnici nějaký dům
+  přelidněný a je v něm ‚dospělé‘ dítě a zároveň je ve vesnici úplně prázdný dům, ať do něj tyhle
+  dospělé děti odejdou a osídlí ho“): když po předchozím pravidle zůstane obydlí **úplně prázdné**
+  (nikdo v něm nebydlí), osídlí ho dospělé děti z **přeplněné** domácnosti (lidí víc než míst).
+  Přeplněná domácnost se 4 dospělými 14–44 splňuje už předchozí pravidlo – nové pomáhá hlavně
+  domácnostem se staršími rodiči, s jedním rodičem nebo se třemi dospělými. Detaily (návrh
+  Clauda):
+  - **Dospělé děti** jsou lidé 14–44 let kromě **dvou nejstarších lidí domácnosti od 14 let
+    výš** – rodičů či hlavy domácnosti (počítají se i starší nad 44; obyvatelé nemají rodičovské
+    vazby ani pohlaví). Odejdou všechny dospělé děti domácnosti, nejvýš kolik má obydlí míst (při
+    přebytku zůstanou nejstarší z nich); rodiče a děti pod 14 zůstanou.
+  - **Dědic u neplodných rodičů** (Martin, 18. 10. 2026: „Pokud už jsou rodiče neplodní, tak ano,
+    má“): když jsou oba rodiče (dva nejstarší lidé domácnosti od 14 let) už mimo plodný věk
+    (45+), **nejstarší dospělé dítě zůstane doma** jako dědic a odejdou jen ostatní – podle
+    pravidel níže (aspoň dva, jinak s protějškem z jiné domácnosti). Rodiče 50 a 47 se dvěma
+    dospělými dětmi tak nikoho nepošlou (mladší čeká na protějšek), se třemi odejdou dva mladší.
+    S aspoň jedním plodným rodičem dědic není.
+  - **Aspoň dva:** jediný člověk by se v obydlí hned rozpadl (Rozpad domácnosti) a druhý den by se
+    stěhoval znovu. Domácnost s jediným dospělým dítětem ho proto pošle s jedním dospělým dítětem
+    jiné takové přeplněné domácnosti (svatba mezi rody) a odejdou spolu; jinak jedno dospělé dítě
+    čeká.
+  - **Zbytek domácnosti se nerozpadne:** domácnost, ve které by po odchodu dospělých dětí zůstali
+    jen starší a děti, je nepošle – rozpad by ji večer přestěhoval jinam a stěhovalo by se tam
+    a zpět (stejná pojistka jako u mladého páru). S dědicem u neplodných rodičů to už nenastane –
+    zůstává jako pojistka.
+  - **Pořadí:** nejdřív mladý pár pro všechna prázdná obydlí, pak dospělé děti pro ta, která
+    zůstala prázdná – obydlí podle id, zdroje od nejvíc přeplněné domácnosti (při shodě starší
+    obydlí), bez náhody. Kronika zapíše založení domácnosti jako u páru.
+- **Prázdné obydlí chátrá rychleji** (Martin, 18. 10. 2026: neobydlené budovy chátrají
+  rychleji): dokud čeká, neopravuje se – stav ubývá o celou potřebu oprav podle stáří – a navíc
+  o pevný díl stavu denně, protože se nevytápí, došky hnijí, dřevo v zemi trouchniví a nikdo
+  nespraví střechu. Nová prázdná **zemnice spadne z plného stavu na nulu za ≈ 5 let**,
+  **polozemnice za ≈ 8 let** (čísla návrh Clauda; složka podle stáří je u nového domu
+  zanedbatelná, staré prázdné obydlí zanikne dřív). Dřív jen bez oprav vydržela zemnice ≈ 16 let
+  a polozemnice ≈ 26 let – déle než obydlený dům do přestavby. Po znovuosídlení se opravy vrací
+  od stavu, který zbyl (stav se nezvedá); rozestavěná přestavba prázdného obydlí se ruší.
+- Hráč dostane upozornění, když je domácnost plná (se 4 dospělými) nebo přeplněná s dospělými
+  dětmi a žádné nové obydlí pro ni nečeká (fakt – zároveň s ním se odemkne stavba obydlí).
 - Když hráč nestaví, přeplněná domácnost žije v těsnu – méně porodů, víc úmrtí, ves přestane
   růst (Martin potvrdil).
 
@@ -249,8 +293,9 @@ jich bude moci mít více), tak pro něj hra končí – musí začínat znovu.�
 - Každé obydlí má **stav** 0–100 % a stárne. Potřeba oprav (člověkodny za rok) roste s věkem
   – zpočátku malá, ke konci životnosti velká (Martin): roční potřeba na konci životnosti
   × (věk / životnost)². S delší životností zemnice (18 let místo 15) se křivka sama roztáhla:
-  na konci života dál 15 člověkodní ročně, za celý život 90 místo 75 a prázdná zemnice
-  chátrá ≈ 16 let místo ≈ 14.
+  na konci života dál 15 člověkodní ročně a za celý život 90 místo 75. Prázdné obydlí chátrá
+  navíc pevným dílem stavu – zemnice ≈ 5 let, polozemnice ≈ 8 let (viz Nové obydlí – Prázdné
+  obydlí chátrá rychleji).
 - Opravy jdou z práce vsi hned po polních pracích ([fields.md](fields.md)), takže stárnoucí
   domy ubírají společnou práci vsi. Když na opravy práce nestačí, stav klesá rychleji.
 - Ke konci životnosti stojí opravy obydlí zhruba polovinu toho, co jeho domácnost přidá do
@@ -275,7 +320,7 @@ jich bude moci mít více), tak pro něj hra končí – musí začínat znovu.�
   (starý dům se zboří), nechá na svém místě zarostlou prohlubeň s kopřivami a pár trámy. Ta
   **≈ 10 let** postupně zarůstá – prohlubeň se zasypává, trámy hnijí, valy se srovnají – a pak
   zmizí. Je to jen vzhled: na místo zříceniny jde stavět a stavba (obydlí, pole, hřbitov, sad,
-  modla, svatyně – i přestavba na novém pozemku) zbytek jámy odstraní. Vsi uložené dřív žádné
+  ohrada, modla, svatyně – i přestavba na novém pozemku) zbytek jámy odstraní. Vsi uložené dřív žádné
   zbytky jam nemají.
 
 ### Kronika
@@ -301,7 +346,9 @@ jich bude moci mít více), tak pro něj hra končí – musí začínat znovu.�
 stovky vsí a ověří cíle:
 
 - první plná domácnost (= první lidé k osídlení, tedy první možnost stavět obydlí; pole jdou
-  kdykoli) přijde u 90 % vsí do **≈ 8 herních let** (≈ 3 skutečné dny) – Martin:
+  kdykoli; od 18. 10. 2026 i dospělé děti z přeplněné domácnosti – skript měří první kladné lidé
+  k osídlení, měření s tím zatím neproběhlo) přijde u 90 % vsí do **≈ 8 herních let** (≈ 3
+  skutečné dny) – Martin:
   „zkusíme to“; hrubá simulace s hájením: medián 3 roky, 90 % do 7, 99 % do 20,
 - čerstvě plná domácnost postaví zemnici zhruba za roční období, polozemnici za herní rok,
 - zemnice se přestavuje typicky po ≈ 18 letech (do opravy podle rešerše ≈ 15), polozemnice po
@@ -465,6 +512,13 @@ pravidla → první verze hladu (1 − nasycení za den, hájení bez stropu) �
 | Startovní dospívající 12 a 13 let zůstávají                                    | Martin (17. 10. 2026)                      |
 | Stěhuje se pár z plné domácnosti se 4 dospělými; dva nejmladší                 | návrh Clauda                               |
 | Rozpad domácnosti, prázdná obydlí čekají na plnou domácnost                    | návrh Clauda                               |
+| Přeplněná domácnost s dospělými dětmi osídlí úplně prázdné obydlí              | Martin (18. 10. 2026)                      |
+| Dospělé děti = 14–44 kromě dvou nejstarších od 14; všechny, nejvýš kapacita    | návrh Clauda                               |
+| Aspoň dva (jednotlivci z různých domácností spolu); zbytek se nesmí rozpadnout | návrh Clauda                               |
+| Nejdřív mladý pár, pak dospělé děti; lidé k osídlení počítají obojí            | návrh Clauda                               |
+| U neplodných rodičů (oba 45+) zůstává nejstarší dospělé dítě doma jako dědic   | Martin (18. 10. 2026)                      |
+| Neobydlené budovy chátrají rychleji                                            | Martin (18. 10. 2026)                      |
+| Prázdná zemnice zanikne za ≈ 5 let, polozemnice za ≈ 8 let (úbytek navíc)      | návrh Clauda                               |
 | Obyvatelé bez jmen a pohlaví, náhoda ze seedu, kronika                         | návrh Clauda                               |
 | Dřevo zatím v ceně práce                                                       | návrh Clauda (dočasné)                     |
 | Polozemnice na pozemku = políčko pole s polským plotem, dům uprostřed / v rohu | Martin, 18. 10. 2026                       |

@@ -17,9 +17,11 @@ import type { StreamCenterline } from './stream-geometry';
 import { tileAt } from './tile-at';
 import { localToWorld } from './village-layout';
 
-// Domácí zvířata jako ozdoba vsi (zatím bez herní mechaniky – Martin): slepice kolem obydlí,
-// ovce s kozami a krávy na loukách, prasata v lese u okraje. Všechno se odvozuje z dat vsi pro
-// scénu a z krajiny, deterministicky – stejná ves = stejná zvířata a stejné pastviny.
+// Domácí zvířata vsi: slepice kolem obydlí, ovce s kozami a krávy na loukách a úhoru, prasata
+// v lese u okraje. Kolik jich je, říká herní jádro (diet.md – skutečná stáda, `livestock`;
+// krávy v zimě v ohradě se nepočítají), kde se pasou, se odvozuje z dat vsi pro scénu
+// a z krajiny, deterministicky – stejná ves = stejná zvířata a stejné pastviny. Bez počtů od
+// jádra (starší data) se stáda odvodí z domácností jako dřív.
 
 export type LivestockSpecies = 'sheep' | 'goat' | 'cow' | 'pig' | 'chicken';
 
@@ -50,8 +52,15 @@ export interface LivestockVillage {
   }[];
   cemeteries?: readonly { squares: readonly { x: number; z: number; size: number }[] }[];
   orchards?: readonly { squares: readonly { x: number; z: number; size: number }[] }[];
+  /** Ohrady (oxen.md) – oplocené čtverce, stáda ani slepice do nich nechodí. */
+  pens?: readonly { x: number; z: number; size: number }[];
   /** Herní den (rozdělení práce) – na louce na seno se pase jen po seči. Bez něj se tam nepase. */
   labor?: { day: number };
+  /**
+   * Skutečné počty stád od herního jádra (diet.md, zaokrouhleně; krávy bez těch v ohradě). Bez
+   * údaje se odvodí z domácností (`PER_HOUSEHOLD`).
+   */
+  livestock?: Readonly<Record<'sheep' | 'goat' | 'pig' | 'cow', number>>;
 }
 
 /** Den v roce pro pastvu na dílech pole (z rozdělení práce vsi), nebo undefined. */
@@ -138,8 +147,8 @@ export function chickensFor(type: DwellingType): number {
 
 /** Na domácnost (obývané obydlí): ovce, kozy, prasata; krávy na dvě domácnosti. */
 export const PER_HOUSEHOLD = { sheep: 3, goat: 1, pig: 2, householdsPerCow: 2 } as const;
-/** Kolik domácností má společné stádo ovcí a koz a nejvýš kolik krav a prasat je v jednom. */
-const HOUSEHOLDS_PER_FLOCK = 5;
+/** Nejvýš kolik ovcí a koz je v jednom stádě a nejvýš kolik krav a prasat. */
+const FLOCK_SIZE = 5 * (PER_HOUSEHOLD.sheep + PER_HOUSEHOLD.goat);
 const COWS_PER_HERD = 6;
 const PIGS_PER_HERD = 8;
 
@@ -248,7 +257,8 @@ function obstacles(village: LivestockVillage): Obstacles {
   const day = grazingDay(village);
   const grazed = parts.filter((p) => grazedPart(p, day));
   const sown = parts.filter((p) => !grazed.includes(p));
-  const squares = [...sown, ...graves, ...orchards];
+  // ohrada je oplocená jako pole – stáda kolem ní, ne skrz (oxen.md)
+  const squares = [...sown, ...graves, ...orchards, ...(village.pens ?? [])];
   const inSquare =
     (list: readonly { x: number; z: number; size: number }[]) =>
     (x: number, z: number, margin: number): boolean =>
@@ -281,13 +291,37 @@ function obstacles(village: LivestockVillage): Obstacles {
     inOtherPlot: (x, z, exceptId, margin) =>
       village.dwellings.some(
         (d) => d.id !== exceptId && d.plot !== undefined && insidePlot(d.plot, x, z, -margin),
+      ) ||
+      (village.pens ?? []).some(
+        (pen) =>
+          Math.abs(x - pen.x) < pen.size / 2 + margin &&
+          Math.abs(z - pen.z) < pen.size / 2 + margin,
       ),
   };
 }
 
+/** Kolik zvířat kterého druhu se pase: od herního jádra, jinak z domácností (starší data). */
+export function herdCounts(
+  village: LivestockVillage,
+): Readonly<Record<'sheep' | 'goat' | 'pig' | 'cow', number>> {
+  if (village.livestock) {
+    const { sheep, goat, pig, cow } = village.livestock;
+    const whole = (n: number): number => Math.max(0, Math.round(n));
+    return { sheep: whole(sheep), goat: whole(goat), pig: whole(pig), cow: whole(cow) };
+  }
+  const households = householdCount(village);
+  return {
+    sheep: households * PER_HOUSEHOLD.sheep,
+    goat: households * PER_HOUSEHOLD.goat,
+    pig: households * PER_HOUSEHOLD.pig,
+    cow: Math.ceil(households / PER_HOUSEHOLD.householdsPerCow),
+  };
+}
+
 /**
- * Domácí zvířata vsi: slepice u každého hotového obydlí, na každou domácnost tři ovce, koza
- * a dvě prasata, na dvě domácnosti kráva. Ovce s kozami (stádo na pět domácností) a krávy se
+ * Domácí zvířata vsi: slepice u každého hotového obydlí, stáda podle skutečných počtů od jádra
+ * (`herdCounts`; bez nich na domácnost tři ovce, koza a dvě prasata, na dvě domácnosti kráva).
+ * Ovce s kozami (stádo na každých 20 kusů – dřív na pět domácností) a krávy se
  * pasou přednostně na úhoru vsi (mladý úhor i pastvina – stěhují se mezi jeho čtverci, nikdy na
  * osetý díl), bez úhoru na loukách do pár set metrů od vsi, prasata v lese u okraje do 150 m.
  * `seed` míchá krajinu, aby se stáda v každé vsi pásla jinde.
@@ -326,13 +360,13 @@ export function planLivestock(
     !blocked.onCrop(x, z, margin) &&
     !blocked.nearDwelling(x, z, SWINE_DWELLING_GAP_M);
 
-  // Ovce s kozami: stádo na pět domácností.
-  const flocks = Math.ceil(households / HOUSEHOLDS_PER_FLOCK);
+  const counts = herdCounts(village);
+  // Ovce s kozami: stádo nejvýš po FLOCK_SIZE kusech (dřív na pět domácností = 20 kusů).
+  const flocks = Math.ceil((counts.sheep + counts.goat) / FLOCK_SIZE);
   for (let k = 0; k < flocks; k++) {
-    const share = shareOf(households, flocks, k);
     const animals = [
-      ...repeat('sheep', share * PER_HOUSEHOLD.sheep),
-      ...repeat('goat', share * PER_HOUSEHOLD.goat),
+      ...repeat('sheep', shareOf(counts.sheep, flocks, k)),
+      ...repeat('goat', shareOf(counts.goat, flocks, k)),
     ] as LivestockSpecies[];
     const herd = buildHerd(
       'flock',
@@ -347,8 +381,8 @@ export function planLivestock(
     );
     if (herd) herds.push(herd);
   }
-  // Krávy: jedna na dvě domácnosti, stáda nejvýš po šesti.
-  const cows = Math.ceil(households / PER_HOUSEHOLD.householdsPerCow);
+  // Krávy: stáda nejvýš po šesti.
+  const cows = counts.cow;
   const cattle = Math.ceil(cows / COWS_PER_HERD);
   for (let k = 0; k < cattle; k++) {
     const animals = repeat('cow', shareOf(cows, cattle, k)) as LivestockSpecies[];
@@ -366,7 +400,7 @@ export function planLivestock(
     if (herd) herds.push(herd);
   }
   // Prasata: v lese u okraje do 150 m od vsi (když tam les není, o kus dál).
-  const pigs = households * PER_HOUSEHOLD.pig;
+  const pigs = counts.pig;
   const swine = Math.ceil(pigs / PIGS_PER_HERD);
   for (let k = 0; k < swine; k++) {
     const animals = repeat('pig', shareOf(pigs, swine, k)) as LivestockSpecies[];
