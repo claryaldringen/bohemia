@@ -563,6 +563,15 @@ export type ChronicleEvent = { day: number } & (
   /** Domácnost se přestěhovala do dostavěného domu – starý dům zůstal prázdný (migration.md). */
   | { kind: 'household-relocated'; fromDwellingId: number; toDwellingId: number }
   /**
+   * Domácnosti odešly založit novou ves (migration.md – Odchod do nové vsi): kolik domácností
+   * a lidí, na novou mapu i se směrem (na téže mapě bez směru).
+   */
+  | { kind: 'households-left'; households: number; people: number; direction?: Direction8 }
+  /** Odešli všichni – ves je opuštěná (migration.md). */
+  | { kind: 'village-abandoned' }
+  /** Lidé vyrazili na novou mapu – dorazí v den `arrivalDay` (migration.md – fáze 4). */
+  | { kind: 'journey-started'; direction: Direction8; arrivalDay: number }
+  /**
    * Sklizeň – plodina, když ves seje ozim i jař (ozim v červenci, jař v srpnu); bez ní jen jař
    * (ves bez ozimu, starší sklizně). `legume` – luštěniny (kg do zásoby luštěnin, ne obilí).
    */
@@ -876,6 +885,44 @@ export interface VillageState {
    * Chybí = žádné.
    */
   goods?: ForeignGoods;
+  /**
+   * Ves je opuštěná (migration.md – Odchod do nové vsi): odešli z ní všichni lidé. Dál se
+   * nesimuluje, obydlí se rozpadají podle dne odchodu (`abandonedVillageAt`). Žijící ves ho nemá.
+   */
+  abandonedDay?: number;
+  /**
+   * Lidé jsou na cestě na novou mapu (migration.md – fáze 4): ves ještě nestojí, nesimuluje se;
+   * po příjezdu hráč umístí první zemnici (`settleJourney`). Založená ves ho nemá.
+   */
+  journey?: VillageJourney;
+  /**
+   * Stavby a změny překážek jiných vsí na téže mapě (migration.md – Vsi na téže mapě) – jen
+   * dočasně při dopočtu a pohledu (`withNeighbours`), neukládá se. Kontroly umístění je znají,
+   * kácení se s nimi nekříží.
+   */
+  neighbours?: NeighbourSnapshot;
+}
+
+/** Cesta lidí na novou mapu – směr, den odchodu a příjezdu (migration.md – fáze 4). */
+export interface VillageJourney {
+  direction: Direction8;
+  departedDay: number;
+  /** Den příjezdu – od něj hráč umisťuje první zemnici. */
+  arrivalDay: number;
+}
+
+/**
+ * Jiné vsi na téže mapě pro jednu ves (migration.md – Vsi na téže mapě): co zabírají (obydlí
+ * a rozestavěná obydlí, posvátné stavby, políčka polí, sadů, hřbitovů, ohrad a lesa vsi) a které
+ * překážky krajiny už odstranily, pokácely nebo si vyhradily.
+ */
+export interface NeighbourSnapshot {
+  dwellings: { type: DwellingType; position: Position; plot?: DwellingPlot; craft?: Craft }[];
+  sacredBuildings: { kind: SacredBuildingKind; position: Position }[];
+  cells: TileCell[];
+  cleared: ObstacleChange[];
+  felled: ObstacleChange[];
+  reserved: number[];
 }
 
 // --- dvorec, zemská stezka a obchod (trade.md) ----------------------------------------------

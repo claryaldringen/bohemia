@@ -63,16 +63,35 @@ export function createSettlementRepository(db: Database): SettlementRepository {
       return existing;
     },
     async create({ worldCell, ...input }): Promise<Settlement | null> {
-      // Atomicky: obsazené políčko mřížky světa hlídá unikátní index – druhý INSERT nic nezmění.
+      // Atomicky: obsazené políčko mřížky hráče hlídá unikátní index – druhý INSERT nic nezmění.
       const [created] = await db
         .insert(settlement)
         .values({ ...input, isSeat: false, gridX: worldCell.x, gridY: worldCell.y })
         .onConflictDoNothing({
-          target: [settlement.gridX, settlement.gridY],
+          target: [settlement.ownerId, settlement.gridX, settlement.gridY],
           where: sql`${settlement.archivedAt} IS NULL`,
         })
         .returning();
       return created ? toSettlement(created) : null;
+    },
+    async assignWorldCell(settlementId, cell): Promise<Settlement | null> {
+      // Jen sídlu bez polohy (podmíněný UPDATE) – souběžná volání ho neposunou dvakrát.
+      await db
+        .update(settlement)
+        .set({ gridX: cell.x, gridY: cell.y })
+        .where(
+          and(
+            eq(settlement.id, settlementId),
+            isNull(settlement.archivedAt),
+            isNull(settlement.gridX),
+          ),
+        );
+      const [row] = await db
+        .select()
+        .from(settlement)
+        .where(and(eq(settlement.id, settlementId), isNull(settlement.archivedAt)))
+        .limit(1);
+      return row ? toSettlement(row) : null;
     },
   };
 }

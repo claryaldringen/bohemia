@@ -59,10 +59,11 @@ export class InMemorySettlements implements SettlementRepository {
     worldCell: WorldCell;
   }): Promise<Settlement | null> {
     await Promise.resolve();
-    // políčko mřížky světa je jedno na celý svět (jako unikátní index v databázi)
+    // políčko mřížky je jedno na hráče (jako unikátní index v databázi)
     const taken = this.settlements.some(
       (s) =>
         !this.archived.has(s.id) &&
+        s.ownerId === input.ownerId &&
         s.worldCell?.x === input.worldCell.x &&
         s.worldCell.y === input.worldCell.y,
     );
@@ -75,5 +76,16 @@ export class InMemorySettlements implements SettlementRepository {
     };
     this.settlements.push(settlement);
     return settlement;
+  }
+
+  async assignWorldCell(settlementId: string, cell: WorldCell): Promise<Settlement | null> {
+    await Promise.resolve();
+    const index = this.settlements.findIndex((s) => s.id === settlementId);
+    const settlement = this.settlements[index];
+    if (!settlement || this.archived.has(settlementId)) return null;
+    if (settlement.worldCell !== null) return settlement;
+    const placed = { ...settlement, worldCell: { x: cell.x, y: cell.y } };
+    this.settlements[index] = placed;
+    return placed;
   }
 }

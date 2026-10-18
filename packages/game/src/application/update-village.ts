@@ -2,7 +2,13 @@ import { obstaclesOf, type Landscape, type ObstacleLayer } from '../domain/lands
 import {
   advanceVillage,
   advanceVillageSteps,
+  isVillageAbandoned,
   isVillageExtinct,
+  isVillageTravelling,
+  neighbourSnapshot,
+  withNeighbours,
+  withoutNeighbours,
+  type NeighbourSnapshot,
   withForestDistances,
   withKinship,
   withLivestockLand,
@@ -109,23 +115,50 @@ export async function updateVillage(
       ),
     );
     // dvorec vojvody – starší ves ho dostane (nejstarší obydlí, trade.md)
-    const current = await advancedToTodayWithPauses(
-      withManor(migrated),
-      today,
-      obstacles,
-      landscape,
-      pause,
-    );
+    const base = withManor(migrated);
+    // jiné vsi na téže mapě – kontroly umístění a kácení o nich vědí (migration.md); přehled se
+    // neukládá
+    const attached = withNeighbours(base, await neighboursOf(villages, record, today));
+    const current = await advancedToTodayWithPauses(attached, today, obstacles, landscape, pause);
     const changed = change(current);
     if (!changed.ok) return changed;
     // na místo zříceniny jde stavět – stavba zbytek jámy odstraní (ruins.ts)
-    const next = withoutBuiltOverRuins(changed.state, landscape);
-    if (next === record.state) return { ok: true, village: record };
+    const stripped = withoutNeighbours(changed.state);
+    const next = withoutBuiltOverRuins(stripped, landscape);
+    const untouched = changed.state === attached && base === record.state && next === stripped;
+    if (next === record.state || untouched) return { ok: true, village: record };
     const saved: VillageRecord | null = await villages.save(villageId, next, record.version);
     if (saved !== null) return { ok: true, village: saved };
   }
   throw new Error(`Ves ${villageId} se nepodařilo uložit – příliš mnoho souběžných změn.`);
 }
+
+/**
+ * Přehled ostatních vsí na mapě (sídle) vsi `record` v den `today`, nebo null, když je na mapě
+ * sama. Ostatní vsi se načtou jen tehdy, když na mapě nějaké jsou (levný otisk napřed).
+ */
+async function neighboursOf(
+  villages: VillageRepository,
+  record: VillageRecord,
+  today: number,
+): Promise<NeighbourSnapshot | null> {
+  const stamps = await villages.stampsOf([record.settlementId]);
+  if (!stamps.some((s) => s.id !== record.id && s.settlementId === record.settlementId)) {
+    return null;
+  }
+  const others = (await villages.listBySettlement(record.settlementId)).filter(
+    (v) => v.id !== record.id,
+  );
+  return neighbourSnapshot(
+    others.map((v) => v.state),
+    today,
+  );
+}
+
+/** Ves je opuštěná – odešli z ní všichni (migration.md). */
+export const VILLAGE_ABANDONED = 'Ves je opuštěná – nikdo v ní nežije.';
+/** Lidé jsou na cestě na novou mapu – ves ještě nestojí (migration.md – fáze 4). */
+export const VILLAGE_TRAVELLING = 'Lidé jsou ještě na cestě – ves zatím nestojí.';
 
 /**
  * Jako `updateVillage`, ale jen pro žijící ves – akce hráče ve vymřelé vsi (dopočítané do dneška)
@@ -138,7 +171,10 @@ export function updateLivingVillage(
   landscape: Landscape,
   change: (state: VillageState) => VillageChange,
 ): Promise<VillageResult> {
-  return updateVillage(villages, villageId, today, landscape, (state) =>
-    isVillageExtinct(state) ? { ok: false, reason: VILLAGE_EXTINCT } : change(state),
-  );
+  return updateVillage(villages, villageId, today, landscape, (state) => {
+    if (isVillageExtinct(state)) return { ok: false, reason: VILLAGE_EXTINCT };
+    if (isVillageAbandoned(state)) return { ok: false, reason: VILLAGE_ABANDONED };
+    if (isVillageTravelling(state)) return { ok: false, reason: VILLAGE_TRAVELLING };
+    return change(state);
+  });
 }

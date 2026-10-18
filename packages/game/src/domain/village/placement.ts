@@ -69,6 +69,7 @@ import type {
   DwellingPlot,
   DwellingType,
   FieldSurface,
+  NeighbourSnapshot,
   PlotVariant,
   Position,
   SacredBuildingKind,
@@ -94,6 +95,17 @@ export interface PlacementCheck {
 }
 
 /** Co z vsi potřebuje kontrola překryvu – VillageState ji splňuje, klient ji složí ze scény. */
+/**
+ * Stavby a půda jiných vsí na téže mapě (migration.md – Vsi na téže mapě): obydlí a rozestavěná
+ * obydlí (s pozemky), modly a svatyně a políčka jejich polí, sadů, hřbitovů, ohrad a lesa.
+ */
+export type ForeignStructures = Readonly<
+  Pick<NeighbourSnapshot, 'dwellings' | 'sacredBuildings' | 'cells'>
+>;
+
+/** Stavba zasahuje na stavbu nebo půdu jiné vsi na téže mapě (migration.md). */
+export const FOREIGN_LAND = 'Tady hospodaří jiná ves.';
+
 export interface PlacementVillage {
   /**
    * Obydlí – na pozemku (`plot`, zabírá celé políčko), nebo volně (jen půdorys; dílna i
@@ -139,6 +151,11 @@ export interface PlacementVillage {
   readonly woods?: readonly { readonly cell: TileCell }[];
   /** Překážky, které ves už odstranila nebo pokácela (`obstacleChangesAt`); bez nich žádné. */
   readonly obstacleChanges?: ObstacleChanges;
+  /**
+   * Stavby a půda jiných vsí na téže mapě – stavět přes ně ani na jejich políčka nejde, pole
+   * na ně nenavazují (migration.md). Bez údaje žádné.
+   */
+  readonly foreign?: ForeignStructures;
   /**
    * Stromy vyhrazené rozestavěnými stavbami (`reservedTrees`) – patří své stavbě, mýcení za ně
    * kládu nedá (forest.md). Bez údaje žádné.
@@ -484,6 +501,27 @@ function penCells(landscape: Landscape, village: PlacementVillage | null): Set<n
   return new Set((village?.pens ?? []).map((pen) => cellIndex(landscape, pen.cell)));
 }
 
+/**
+ * Políčka, která zabírají jiné vsi na téže mapě: jejich pole, sady, hřbitovy, ohrady, les
+ * a pozemky a políčka pod jejich obydlími a posvátnými stavbami (migration.md).
+ */
+function foreignCells(landscape: Landscape, village: PlacementVillage | null): Set<number> {
+  const foreign = village?.foreign;
+  if (!foreign) return new Set();
+  const cells = new Set(foreign.cells.map((c) => cellIndex(landscape, c)));
+  for (const d of foreign.dwellings) {
+    for (const polygon of dwellingPlot(landscape, d)) {
+      for (const index of cellsUnderPolygon(landscape, polygon)) cells.add(index);
+    }
+  }
+  for (const b of foreign.sacredBuildings) {
+    for (const index of cellsUnderPolygon(landscape, sacredFootprint(b.kind, b.position))) {
+      cells.add(index);
+    }
+  }
+  return cells;
+}
+
 /** Políčka lesa vsi (fields.md – Les vsi). */
 function woodCells(landscape: Landscape, village: PlacementVillage | null): Set<number> {
   return new Set((village?.woods ?? []).map((wood) => cellIndex(landscape, wood.cell)));
@@ -596,6 +634,16 @@ function checkFootprintFree(
     }
   }
   const under = plot.flatMap((polygon) => cellsUnderPolygon(landscape, polygon));
+  // stavby a půda jiné vsi na téže mapě (migration.md)
+  const foreign = village.foreign;
+  if (
+    foreign &&
+    (foreign.dwellings.some((d) => overlaps(dwellingPlot(landscape, d))) ||
+      foreign.sacredBuildings.some((b) => overlaps([sacredFootprint(b.kind, b.position)])) ||
+      under.some((i) => foreignCells(landscape, village).has(i)))
+  ) {
+    return fail(FOREIGN_LAND);
+  }
   const occupied = occupiedCells(landscape, village);
   if (!land.fields && under.some((i) => occupied.has(i))) return fail('Překrývá se s polem.');
   const cemeteries = cemeteryCells(landscape, village);
@@ -929,7 +977,9 @@ export function checkPlotPlacement(
   const terrain = checkFootprintTerrain(landscape, footprintSamples(type, position));
   if (!terrain.ok) return { ...terrain, ...none };
   const sites = sacredSitesOf(obstacles);
+  const foreign = foreignCells(landscape, village);
   for (const cell of cells) {
+    if (foreign.has(cellIndex(landscape, cell))) return { ...fail(FOREIGN_LAND), ...none };
     const taken = plotSquareProblem(landscape, village, cell, obstacles, sites, takeLand);
     if (taken) return { ...fail(taken), ...none };
   }
@@ -1192,6 +1242,16 @@ function unreservedTrees(village: PlacementVillage | null, treeIds: readonly num
 export function placementVillageOf(state: VillageState, day: number): PlacementVillage {
   return {
     ...state,
+    // stavby a půda jiných vsí na téže mapě (migration.md – Vsi na téže mapě)
+    ...(state.neighbours
+      ? {
+          foreign: {
+            dwellings: state.neighbours.dwellings,
+            sacredBuildings: state.neighbours.sacredBuildings,
+            cells: state.neighbours.cells,
+          },
+        }
+      : {}),
     obstacleChanges: obstacleChangesAt(state, day),
     reservedTrees: [...reservedTrees(state)],
     sacredBuildings: sacredBuildingPlots(state),
@@ -1331,6 +1391,8 @@ interface SquareFlags {
   orchard: boolean;
   pen: boolean;
   sacred: boolean;
+  /** Stavby a půda jiné vsi na téže mapě (migration.md). */
+  foreign: boolean;
 }
 
 /** Políčka pod modlami a svatyněmi vsi (i rozestavěnými). */
@@ -1355,6 +1417,7 @@ function squareFlags(
   const woods = woodCells(landscape, village);
   const underDwellings = dwellingCells(landscape, village, dwellingPositions);
   const underSacred = sacredBuildingCells(landscape, village);
+  const foreign = foreignCells(landscape, village);
   return (cell) => {
     const index = cellIndex(landscape, cell);
     const surface = surfaceAt(landscape, cell.x, cell.y);
@@ -1368,6 +1431,7 @@ function squareFlags(
       orchard: orchards.has(index),
       pen: pens.has(index),
       sacred: underSacred.has(index),
+      foreign: foreign.has(index),
     };
   };
 }
@@ -1505,6 +1569,7 @@ function buildSquares(
     orchard: false,
     pen: false,
     sacred: false,
+    foreign: false,
     far: false,
   };
   const squares: BuildSquare[] = [];
@@ -1747,6 +1812,7 @@ export function fieldPartsFromCells(
     [problems.orchard, () => 'Pole se překrývá se sadem.'],
     [problems.pen, () => 'Pole se překrývá s ohradou.'],
     [problems.sacred, () => 'Pole se překrývá s posvátným místem.'],
+    [problems.foreign, () => FOREIGN_LAND],
     [problems.far, () => `Pole je dál než ${FIELD_LIMITS.maxDistanceM} m od nejbližšího obydlí.`],
     [sacred.cells.length === 0, () => 'Roste tu posvátný dubový háj – ten vesničané nevykácejí.'],
     [
@@ -1836,6 +1902,7 @@ export function orchardPartsFromCells(
     [problems.orchard, 'Sad se překrývá s jiným sadem.'],
     [problems.pen, 'Sad se překrývá s ohradou.'],
     [problems.sacred, 'Sad se překrývá s posvátným místem.'],
+    [problems.foreign, FOREIGN_LAND],
     [problems.far, `Sad je dál než ${FIELD_LIMITS.maxDistanceM} m od nejbližšího obydlí.`],
     [sacred.cells.length === 0, 'Roste tu posvátný dubový háj – ten vesničané nevykácejí.'],
     [
@@ -1938,6 +2005,7 @@ export function cemeteryPartsFromCells(
     orchard: false,
     pen: false,
     sacred: false,
+    foreign: false,
     outcrop: false,
     oak: false,
   };
@@ -2004,6 +2072,7 @@ export function cemeteryPartsFromCells(
     [problems.orchard, 'Hřbitov se překrývá se sadem.'],
     [problems.pen, 'Hřbitov se překrývá s ohradou.'],
     [problems.sacred, 'Hřbitov se překrývá s posvátným místem.'],
+    [problems.foreign, FOREIGN_LAND],
     [problems.outcrop, 'Stojí tu skalní výchoz – ten osadníci neodstraní.'],
     [problems.oak, 'Stojí tu posvátný dub – mezi hroby ho vesničané nenechají.'],
     [sacred.cells.length === 0, 'Roste tu posvátný dubový háj – ten vesničané nevykácejí.'],

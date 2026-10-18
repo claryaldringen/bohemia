@@ -1,12 +1,18 @@
 export * from './settlements';
 export * from './enter-game';
 export * from './villages';
-export { NO_VILLAGE, VILLAGE_EXTINCT } from './update-village';
+export {
+  NO_VILLAGE,
+  VILLAGE_ABANDONED,
+  VILLAGE_EXTINCT,
+  VILLAGE_TRAVELLING,
+} from './update-village';
 export * from './load-village';
 export * from './village-stamp';
 export * from './found-village';
 export * from './place-dwelling';
 export * from './relocate-household';
+export * from './leave-village';
 export * from './place-workshop';
 export * from './place-field';
 export * from './place-cemetery';

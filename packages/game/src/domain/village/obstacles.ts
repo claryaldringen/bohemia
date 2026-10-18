@@ -116,7 +116,7 @@ export function plantOnStump(state: VillageState, id: number, day: number): bool
 }
 
 type ChangeLists = Pick<VillageState, 'clearedObstacles' | 'felledTrees' | 'roads'> &
-  Partial<Pick<VillageState, 'woods'>>;
+  Partial<Pick<VillageState, 'woods' | 'neighbours'>>;
 
 /**
  * Změny překážek vsi v den `day` (stromy, které už dorostly, mezi změnami nejsou) a stromy
@@ -124,10 +124,14 @@ type ChangeLists = Pick<VillageState, 'clearedObstacles' | 'felledTrees' | 'road
  * lesa vsi je dospělý, mladý stromek, nebo po kácení pařez a pak nálet (mladý stromek).
  */
 export function obstacleChangesAt(state: ChangeLists, day: number): ObstacleChanges {
-  const removed = new Set((state.clearedObstacles ?? []).map((c) => c.id));
+  // paseky a pařezy jiných vsí na téže mapě platí i tady (migration.md – Vsi na téže mapě)
+  const neighbours = state.neighbours;
+  const removed = new Set(
+    [...(state.clearedObstacles ?? []), ...(neighbours?.cleared ?? [])].map((c) => c.id),
+  );
   // u stromu pokáceného víckrát platí poslední kácení (i se sazenicí)
   const lastFelled = new Map<number, ObstacleChange>();
-  for (const f of state.felledTrees ?? []) {
+  for (const f of [...(state.felledTrees ?? []), ...(neighbours?.felled ?? [])]) {
     const known = lastFelled.get(f.id);
     if (!known || f.day >= known.day) lastFelled.set(f.id, f);
   }
