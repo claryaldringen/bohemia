@@ -848,6 +848,14 @@ function RoadBody({
                   {apples.option.blocked}
                 </span>
               )}
+              {!apples.option.blocked && apples.option.warning && (
+                <span
+                  data-testid="road-apples-warning"
+                  className="font-semibold whitespace-pre-line text-[#ffc27a]"
+                >
+                  {apples.option.warning}
+                </span>
+              )}
             </span>
           }
         >

@@ -165,6 +165,26 @@ má nějaké meze. Bez řemeslníků ber tu nejhorší hranici, s řemeslníky t
   dílům zůstane hotová práce; zakládaný díl zmenší úměrně i založení (cena i odvedená práce),
   zakládaný díl pod pozemkem zmizí s ním a jeho překážky odklidí staveniště domu. Pole naopak na
   obydlí nesmí (beze změny). Když dům zanikne, plocha se do pole nevrací.
+- **Pole jako krajina** (Martin, 18. 10. 2026: „Pole by se mělo chovat jako normální krajina.
+  Takže by na něm mělo jít postavit cokoliv kromě jiného pole.“ – spouštěč: ve Vlkově s ≈ 40 ha
+  polí neměly jabloně podél cest kde stát; podrobnosti návrh Clauda): na pole smí **každá stavba
+  kromě jiného pole** a pole ustoupí stejně jako obydlí (předchozí bod):
+  - **sad, hřbitov a ohrada** (po čtvercích) – čtverec pole pod nimi z pole zmizí celý,
+  - **modla a svatyně** (půdorys) – díl se zmenší o průnik půdorysu, pod 20 % políčka zmizí,
+  - **řemeslné dílny** jako obydlí (průnik vyklízené plochy dílny i milíře),
+  - **jabloně a stromy u cest** – každý strom vezme dílu **20 m²** (pod korunou se neorá ani
+    neseje); jabloně kdekoli podél cesty (zadáním výsadby), strom u cesty náletem jen na mezi
+    – jeho místa leží 2,5–4 m od osy cesty, tam se neorá (orané pole by nálet zničilo); bere si
+    půdu, až se uchytí.
+    Úroda a práce úměrně ploše (plán osevu i luštěniny, orba, seč, založení – jako u obydlí),
+    překážky založeného dílu už nejsou, takže je stavba neplatí (stromy u cesty a jabloně na poli
+    ano). Pole **na pole** dál nesmí (jediná výjimka), sad na sad, hřbitov na hřbitov a ostatní
+    překryvy staveb mezi sebou zůstávají zakázané. Les vsi a zarůstání beze změny. Kontrola
+    v prohlížeči i na serveru jsou stejné funkce jádra; u kurzoru oranžově „Pole se zmenší“
+    / „Pole zanikne“, u staveb po čtvercích i čtverce pole oranžově, u jabloní v nabídce na panelu
+    cesty. Kronika: pole ustoupilo sadu, hřbitovu, ohradě, modle, svatyni, jabloním nebo stromům
+    u cesty. Pole leží na krajině pod ním – na čtverci pole v lese (vymýceném) stavby dál nesmí,
+    jako v lese (zatím).
 - **Navazující pole** (Martin, 18. 10. 2026: „Pokud více polí navazuje přímo na sebe, počítají se
   jako jedno.“): čtverce, které stranou navazují na pole, ho **rozšíří** – stejné pole, nové díly
   na konec (jako rozšíření hřbitova); rozestavěné založení pole dostane jejich cenu, u hotového
@@ -995,6 +1015,9 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 | Převod starých polí bez příznaku „převedeno“ – souvislé skupiny stranou, pole z obrysu ne                                         | návrh Clauda                                    |
 | Obydlí jde stavět na pole – pole se zmenší o plochu domu                                                                          | Martin (18. 10. 2026)                           |
 | Pozemek sebere celý díl, obydlí bez pozemku průnik vyklízené plochy, díl pod 20 % zmizí; plán, úroda a založení úměrně            | návrh Clauda                                    |
+| Pole jako krajina – na pole smí cokoli kromě jiného pole                                                                          | Martin (18. 10. 2026)                           |
+| Sad, hřbitov a ohrada vezmou celý čtverec, modla a svatyně průnik půdorysu, jabloň a strom u cesty 20 m²                          | návrh Clauda                                    |
+| Nálet stromů u cest na poli jen na mezi (místa 2,5–4 m od osy); jabloně kdekoli podél cesty                                       | návrh Clauda                                    |
 | Luštěniny jako plodina na poli kvůli bílkovinám (1,6 g/kg zůstává); maso mírně zvyšuje štěstí                                     | Martin (18. 10. 2026)                           |
 | Luštěniny = hrách a čočka, jař se sklizní v červenci; úroda 0,8 obilí, osivo 150 kg/ha, práce a neopletý díl podle rešerše        | návrh Clauda (rešerše)                          |
 | Osev luštěniny úrodnost vrátí o 0,03 (obilí −0,12); ztráta skladováním jako obilí                                                 | návrh Clauda (rešerše)                          |

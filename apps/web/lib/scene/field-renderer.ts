@@ -13,8 +13,8 @@ import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import type { Scene } from '@babylonjs/core/scene';
 import { dateOfDayIndex, type Landscape, type ObstacleLayer } from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
-import { buildingClearings, clearingMask, clearingsKey, clearingsNear } from './building-clearings';
-import { cellsBounds, rowDirection, touchingSquares } from './field-cells';
+import { clearingMask, clearingsKey, clearingsNear, fieldClearings } from './building-clearings';
+import { cellsBounds, cellsContain, rowDirection, touchingSquares } from './field-cells';
 import {
   CROP_KINDS,
   FIELD_TEXTURES,
@@ -343,7 +343,11 @@ export class FieldRenderer {
     const day = this.lookDay();
     let changed = false;
     const seen = new Set<number>();
-    const clearings = buildingClearings(this.village.dwellings);
+    // obydlí, modly, svatyně a stromy u cest na poli – pod nimi pole není
+    const clearings = fieldClearings(
+      this.village,
+      cellsContain(this.village.fields.flatMap((f) => f.parts)),
+    );
     // přirozené louky letošní seče (oxen.md – Seno) se kreslí jako díly pole se vzhledem od
     // jádra – se zápornými id, bez skrývání překážek (stromy a kameny na louce zůstanou)
     const meadows = hayMeadowFields(this.village.hayMeadows ?? []);

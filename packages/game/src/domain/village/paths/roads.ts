@@ -5,6 +5,7 @@ import { createRandom, deriveSeed } from '../../landscape/random';
 import { villageCemeteries } from '../cemetery';
 import { milirCenter } from '../crafts';
 import { HAY_WINTER_MONTHS } from '../hay';
+import { giveWayToBuilding, treeTakenLand } from '../land-taken';
 import { villageHerds } from '../livestock';
 import { obstacleChangesAt, obstacleStatus, type ObstacleChanges } from '../obstacles';
 import { villageOrchards } from '../orchard';
@@ -294,7 +295,7 @@ export function updateRoads(
         a.constructionId !== undefined || (!removed.has(a.id) && roadAppleStage(a, day) !== null),
     );
   }
-  rootTrees(state, roads, day, blocked);
+  rootTrees(state, roads, day, blocked, landscape);
   return events;
 }
 
@@ -825,9 +826,11 @@ function spotsForRoad(roads: VillageRoads, road: Road, context: SpotContext): Ro
 }
 
 /**
- * Stavby vsi, u kterých strom u cesty nevyroste (roads.md – ne ve vsi, na pozemcích, hřbitově,
- * v sadu ani na poli): čtverce dílů polí, sadů, hřbitovů, hájů, ohrad, pozemků a lesa vsi i s okrajem, okolí
- * obydlí, stavenišť a zbytků jam, modly a svatyně, milíře a posvátných dubů. Mimo krajinu taky ne.
+ * Stavby vsi, u kterých strom u cesty nevyroste (roads.md – ne ve vsi, na pozemcích, hřbitově
+ * ani v sadu): čtverce sadů, hřbitovů, hájů, ohrad, pozemků a lesa vsi i s okrajem, okolí
+ * obydlí, stavenišť a zbytků jam, modly a svatyně, milíře a posvátných dubů. Mimo krajinu taky
+ * ne. Na poli ano (fields.md – Pole jako krajina; Martin 18. 10. 2026): strom u cesty i jabloň
+ * stojí 2,5–4 m od osy – na mezi podél cesty, kam se neorá, a dílu vezme TAKEN_LAND_TREE_M2.
  */
 export function plantingBlocker(
   state: VillageState,
@@ -838,7 +841,6 @@ export function plantingBlocker(
   const addTile = (cell: { x: number; y: number }): void => {
     tiles.add(cell.y * size + cell.x);
   };
-  for (const p of state.parts) if (p.cell) addTile(p.cell);
   for (const c of villageCemeteries(state)) for (const s of c.squares) addTile(s.cell);
   for (const o of villageOrchards(state)) for (const s of o.squares) addTile(s.cell);
   for (const g of state.groves ?? []) for (const cell of g.cells) addTile(cell);
@@ -907,14 +909,17 @@ function speciesOf(r: number): RoadTreeSpecies {
  * Uchycení stromů (mutuje): na každém volném místě u cesty starší ROAD_TREES.rootAfterYears, kde
  * nestojí stavba ani jiná cesta, se strom uchytí s pravděpodobností ROAD_TREES.rootChancePerYear –
  * los ze seedu vsi, roku a místa (nezávisí na ostatních místech). Druh a délka života se losují
- * při uchycení.
+ * při uchycení. Strom na mezi u dílu pole vezme dílu TAKEN_LAND_TREE_M2 (fields.md – Pole jako
+ * krajina; `giveWayToBuilding`).
  */
 function rootTrees(
   state: VillageState,
   roads: VillageRoads,
   day: number,
   blocked: (x: number, z: number) => boolean,
+  landscape: Landscape,
 ): void {
+  const rooted: { x: number; z: number }[] = [];
   const year = dateOfDayIndex(day).year;
   const occupied = new Set(roads.trees.map((t) => t.spot));
   const axes = axisDistance(roads.roads.map((r) => r.points));
@@ -943,6 +948,8 @@ function rootTrees(
         diesDay: day + Math.round(years * DAYS_PER_YEAR),
       });
       occupied.add(spot.id);
+      rooted.push({ x: spot.x, z: spot.z });
     }
   }
+  giveWayToBuilding(state, day, treeTakenLand(landscape, state.parts, rooted), 'road-trees');
 }

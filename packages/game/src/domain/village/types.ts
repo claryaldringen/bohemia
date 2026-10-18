@@ -327,6 +327,12 @@ export type ConstructionKind =
   | 'road'
   /** Výsadba jabloní podél pevné cesty `roadIds` (roads.md – Vysazení jabloní). */
   | 'road-apples';
+/**
+ * Co může vzít půdu poli (fields.md – Pole jako krajina; Martin 18. 10. 2026): obydlí (i dílna),
+ * sad, hřbitov, ohrada, modla, svatyně, jabloně u cesty a stromy u cesty – cokoli kromě pole.
+ */
+export type LandTaker =
+  'dwelling' | 'orchard' | 'cemetery' | 'pen' | 'idol' | 'shrine' | 'road-apples' | 'road-trees';
 /** Posvátná stavba, kterou staví hráč (happiness.md). */
 export type SacredBuildingKind = 'idol' | 'shrine';
 export interface Construction {
@@ -504,7 +510,15 @@ export type ChronicleEvent = { day: number } & (
    * Pole nebo sad ustoupil stavbě obydlí (population.md – Obydlí na poli a v sadu): o kolik m² se
    * zmenšil, a jestli tím zanikl (dům sebral poslední čtverec).
    */
-  | { kind: 'land-taken'; land: 'field' | 'orchard'; id: number; areaM2: number; gone: boolean }
+  | {
+      kind: 'land-taken';
+      land: 'field' | 'orchard';
+      id: number;
+      areaM2: number;
+      gone: boolean;
+      /** Co půdu vzalo (fields.md – Pole jako krajina); bez údaje obydlí (starší události). */
+      by?: LandTaker;
+    }
   | { kind: 'hunger-began' }
   | { kind: 'hunger-ended' }
   /**

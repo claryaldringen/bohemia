@@ -14,7 +14,7 @@ import { isVillageExtinct } from './extinction';
 import { startingLivestock } from './livestock';
 import { startPen, startTeamTraining, type PenInput } from './oxen';
 import { fieldsTouching, mergeFields, partFoundingCost } from './fields';
-import { giveWayToDwelling, validateTakenLand, type TakenLand } from './land-taken';
+import { giveWayToBuilding, validateTakenLand, type TakenLand } from './land-taken';
 import { obstacleChangesAt, recordClearedObstacles } from './obstacles';
 import { orchardPlantingCost, villageOrchards } from './orchard';
 import type { Walk } from './paths/walking';
@@ -92,6 +92,11 @@ export type CemeterySquareInput = Omit<CemeterySquare, 'obstacles' | 'trees'> & 
 
 export type CemeteryInput = {
   squares: CemeterySquareInput[];
+  /**
+   * Čtverce polí pod hřbitovem (`takenLand` z kontroly) – z pole zmizí (fields.md – Pole jako
+   * krajina).
+   */
+  takenLand?: readonly TakenLand[];
   /** Strana čtverce – políčka krajiny (m). */
   squareSizeM: number;
   /** Háje, které vesničané nechají stát (happiness.md). */
@@ -112,6 +117,8 @@ export type OrchardSquareInput = Pick<OrchardSquare, 'cell' | 'areaM2' | 'distan
 
 export type OrchardInput = {
   squares: OrchardSquareInput[];
+  /** Čtverce polí pod sadem (`takenLand` z kontroly) – z pole zmizí (fields.md – Pole jako krajina). */
+  takenLand?: readonly TakenLand[];
   /** Posvátné duby a háje, které vesničané při mýcení nechají stát (happiness.md). */
   sacred?: SparedSacred;
 };
@@ -423,7 +430,7 @@ export interface DwellingSiteOptions {
  * blízkého lesa (`dwellingBuildLabor`).
  *
  * Pole a sady pod obydlím (`site.takenLand`) se zmenší, díly a čtverce pod prahem zmizí
- * (`giveWayToDwelling`) – až po plánu dřeva, ať cena sedí s cenou u kurzoru.
+ * (`giveWayToBuilding`) – až po plánu dřeva, ať cena sedí s cenou u kurzoru.
  *
  * Konvence dne (jako u `foundField`): akce se volá na ves dopočítanou do dne `day`
  * (`advanceVillage(state, day)`) a patří na konec toho dne – práci stavba dostane od dne
@@ -566,7 +573,7 @@ function addDwellingSite(
     ...(relocates === null ? {} : { relocates }),
   });
   if (site.sacred) recordSpared(next, site.sacred, day);
-  giveWayToDwelling(next, day, site.takenLand ?? []);
+  giveWayToBuilding(next, day, site.takenLand ?? []);
   return next;
 }
 
@@ -642,7 +649,7 @@ export function startWorkshop(
     ...(site.waterDistanceM === undefined ? {} : { waterDistanceM: site.waterDistanceM }),
   });
   if (site.sacred) recordSpared(next, site.sacred, day);
-  giveWayToDwelling(next, day, site.takenLand ?? []);
+  giveWayToBuilding(next, day, site.takenLand ?? []);
   return next;
 }
 
@@ -716,6 +723,7 @@ export function foundCemetery(
 ): VillageState {
   validateActionDay(state, day);
   validateCemetery(input);
+  validateTakenLand(input.takenLand ?? []);
   const existing = villageCemeteries(state);
   const taken = new Set(existing.flatMap((c) => c.squares.map((s) => `${s.cell.x},${s.cell.y}`)));
   if (input.squares.some((s) => taken.has(`${s.cell.x},${s.cell.y}`))) {
@@ -733,6 +741,8 @@ export function foundCemetery(
   requireAffordable(state, 'cemetery');
   const next = structuredClone(state);
   payUpfront(next, 'cemetery');
+  // čtverce polí pod hřbitovem z pole zmizí (fields.md – Pole jako krajina)
+  giveWayToBuilding(next, day, input.takenLand ?? [], 'cemetery');
   const cemeteries = villageCemeteries(next);
   const square = (
     { cell, x, z, waterDistanceM, obstacleIds, trees }: CemeterySquareInput,
@@ -820,6 +830,7 @@ function validateOrchard(input: OrchardInput): void {
 export function foundOrchard(state: VillageState, day: number, input: OrchardInput): VillageState {
   validateActionDay(state, day);
   validateOrchard(input);
+  validateTakenLand(input.takenLand ?? []);
   const taken = new Set(
     villageOrchards(state).flatMap((o) => o.squares.map((s) => `${s.cell.x},${s.cell.y}`)),
   );
@@ -829,6 +840,8 @@ export function foundOrchard(state: VillageState, day: number, input: OrchardInp
   requireAffordable(state, 'orchard');
   const next = structuredClone(state);
   payUpfront(next, 'orchard');
+  // čtverce polí pod sadem z pole zmizí (fields.md – Pole jako krajina)
+  giveWayToBuilding(next, day, input.takenLand ?? [], 'orchard');
   const orchardId = next.nextId++;
   const squares: OrchardSquare[] = input.squares.map((s) => ({
     cell: { x: s.cell.x, y: s.cell.y },
@@ -869,6 +882,11 @@ export interface SacredSiteOptions {
   clearedTrees?: number;
   /** Chůze k dubům ke kácení po pevných cestách (roads.md); bez ní vzdušná vzdálenost. */
   walk?: Walk;
+  /**
+   * Kusy dílů polí pod půdorysem (`takenLand` z kontroly) – díly se zmenší, pod prahem zmizí
+   * (fields.md – Pole jako krajina).
+   */
+  takenLand?: readonly TakenLand[];
 }
 
 /**
@@ -895,6 +913,7 @@ export function startSacredBuilding(
   validateObstacleCost(obstacleCost);
   validateObstacleIds(obstacleIds);
   validateTrees(site.clearedTrees ?? 0);
+  validateTakenLand(site.takenLand ?? []);
   if (kind === 'shrine' && hasShrine(state)) {
     throw new RangeError('Ves už svatyni má – svatyně je jedna na ves.');
   }
@@ -926,6 +945,8 @@ export function startSacredBuilding(
     fieldId: null,
     wood: takeWood(next, plan),
   });
+  // díly polí pod půdorysem se zmenší (fields.md – Pole jako krajina) – po plánu dřeva
+  giveWayToBuilding(next, day, site.takenLand ?? [], kind);
   return next;
 }
 
@@ -951,11 +972,15 @@ export function foundPen(
   validateObstacleCost(input.obstacleCost);
   validateObstacleIds(input.obstacleIds);
   validateTrees(input.clearedTrees);
+  validateTakenLand(input.takenLand ?? []);
   if ((state.pens ?? []).some((p) => p.cell.x === input.cell.x && p.cell.y === input.cell.y)) {
     throw new RangeError('Na čtverci už ohrada stojí.');
   }
   requireAffordable(state, 'pen', obstacles ?? undefined);
-  return startPen(state, day, input, obstacles, walk);
+  const next = startPen(state, day, input, obstacles, walk);
+  // čtverec pole pod ohradou z pole zmizí (fields.md – Pole jako krajina)
+  giveWayToBuilding(next, day, input.takenLand ?? [], 'pen');
+  return next;
 }
 
 /**
