@@ -1,19 +1,35 @@
 import {
   sacredBuildingHappiness,
+  type Craft,
   type Crop,
   type DwellingType,
   type FieldSurface,
   type HerdSpecies,
   type PartStage,
   type SacredBuildingKind,
+  type WorkshopActivity,
 } from '@bohemia/game';
 import type { VillageTarget } from './scene/village-picking';
-import type { SceneVillage, VillageView } from './village-view';
+import { CRAFT_LOOKS, type SceneVillage, type VillageView } from './village-view';
 
-// Co ukáže panel výběru (dole uprostřed, jako v 0 A.D.) o vybraném obydlí, poli, hřbitovu,
-// sadu, posvátném místě (posvátný dub, dubový háj, modla, svatyně – happiness.md) nebo ohradě
-// (oxen.md – zvířata, spřežení, výcvik a seno; diet.md – stáda vsi).
+// Co ukáže panel výběru (dole uprostřed, jako v 0 A.D.) o vybraném obydlí (i řemeslné dílně –
+// crafts.md), poli, hřbitovu, sadu, posvátném místě (posvátný dub, dubový háj, modla, svatyně –
+// happiness.md) nebo ohradě (oxen.md – zvířata, spřežení, výcvik a seno; diet.md – stáda vsi).
 // Čistý modul – data z pohledu na ves a scény vsi.
+
+/** Řemeslná dílna v panelu výběru – co dělá, kolik vyrobí a zásoba jejího výrobku. */
+export interface SelectionWorkshop {
+  craft: Craft;
+  activity: WorkshopActivity;
+  /** Práce řemeslu za den (člověkodny). */
+  laborPerDay: number;
+  /** Výroba za den, když jsou vstupy (kg). */
+  outputPerDayKg: number;
+  /** Zásoba výrobku ve vsi (kg). */
+  stockKg: number;
+  /** Pokrytí potřeby vsi výrobkem 0–1 (nástroje, keramika); uhlí null. */
+  coverage: number | null;
+}
 
 export type SelectionDetails =
   | {
@@ -33,11 +49,15 @@ export type SelectionDetails =
        * jinak null.
        */
       rebuild: { progress: number; type: DwellingType; treesToFell: number } | null;
+      /** Řemeslná dílna (crafts.md); obyčejné obydlí null. */
+      workshop: SelectionWorkshop | null;
     }
   | {
       kind: 'site';
       id: number;
       type: DwellingType;
+      /** Stavěná řemeslná dílna; obydlí null. */
+      craft: Craft | null;
       /** Průběh celé stavby i s kácením dřeva 0–1. */
       progress: number;
       /** Kolik stromů stavba ještě musí skácet (forest.md). */
@@ -205,6 +225,7 @@ export function selectionDetails(
         kind: 'site',
         id: dwelling.id,
         type: dwelling.type,
+        craft: dwelling.craft ?? null,
         progress: construction?.progress ?? dwelling.progress,
         treesToFell: construction?.treesToFell ?? 0,
       };
@@ -232,6 +253,7 @@ export function selectionDetails(
             treesToFell: rebuild.treesToFell,
           }
         : null,
+      workshop: view ? workshopDetails(view, household.dwellingId) : null,
     };
   }
   if (target.kind === 'cemetery') {
@@ -299,6 +321,27 @@ export function selectionDetails(
     ashParts: field.ashParts,
     ashBonus: field.ashBonus,
     founding: founding ? founding.progress : null,
+  };
+}
+
+/** Řemeslná dílna obydlí `dwellingId` pro panel; obyčejné obydlí null. */
+function workshopDetails(view: VillageView, dwellingId: number): SelectionWorkshop | null {
+  const workshop = view.crafts.workshops.find((w) => w.dwellingId === dwellingId);
+  if (!workshop) return null;
+  const { stock } = CRAFT_LOOKS[workshop.craft].product;
+  const coverage =
+    workshop.craft === 'smith'
+      ? view.crafts.coverage.tools
+      : workshop.craft === 'potter'
+        ? view.crafts.coverage.pottery
+        : null;
+  return {
+    craft: workshop.craft,
+    activity: workshop.activity,
+    laborPerDay: workshop.laborPerDay,
+    outputPerDayKg: workshop.outputPerDayKg,
+    stockKg: view.crafts.stocks[stock],
+    coverage,
   };
 }
 

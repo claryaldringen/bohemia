@@ -7,7 +7,14 @@ import { daysUntilHarvest } from '../food';
 import { LIVESTOCK, villageChickens } from '../livestock';
 import { ageYears, foodNeedPerDay, occupants } from '../people';
 import { NO_CRAFTS } from '../productivity';
-import { AGE, CHRONICLE_MAX_EVENTS, DWELLINGS } from '../rules';
+import {
+  AGE,
+  CHRONICLE_MAX_EVENTS,
+  COMMON_LABOR_HISTORY_DAYS,
+  COMMON_LABOR_YEAR_DAYS,
+  DWELLINGS,
+} from '../rules';
+import { packObstacles } from '../../landscape';
 import { villageLaborFactor } from '../happiness';
 import { advanceVillage } from '../simulate';
 import type { ChronicleEvent, Person, VillageState } from '../types';
@@ -752,6 +759,8 @@ describe('advanceVillage – obydlí', () => {
     const day = at(600, 10, 1);
     const s0 = withBuiltFirstDwelling(found(day));
     s0.dwellings[0]!.builtDay = day - (DWELLINGS.zemnice.lifespanYears + 1) * 365;
+    // za rok společné práce by polozemnici (220 čd) postavila
+    s0.commonLaborYearly = 1;
     const decided = advanceVillage(s0, day, null);
     expect(decided.chronicle).toContainEqual({
       day,
@@ -771,6 +780,54 @@ describe('advanceVillage – obydlí', () => {
     expect(count(s, 'rebuild-decided')).toBe(1);
     expect(s.dwellings[0]).toMatchObject({ type: 'polozemnice' });
     expect(s.dwellings[0]?.builtDay).toBe(finished?.day);
+  });
+});
+
+describe('přestavba na lepší obydlí – roční průměr práce a dřevo (Martin 18. 10. 2026)', () => {
+  /** Dožilá zemnice v zimě: posledních 30 dní ves jen mlátila – společná práce nulová. */
+  function winter(): { s0: VillageState; day: number } {
+    const day = at(600, 1, 15);
+    const s0 = withBuiltFirstDwelling(found(day));
+    s0.dwellings[0]!.builtDay = day - (DWELLINGS.zemnice.lifespanYears + 1) * 365;
+    s0.commonLaborHistory = Array.from({ length: COMMON_LABOR_HISTORY_DAYS }, () => 0);
+    s0.woodLogs = 40;
+    return { s0, day };
+  }
+  const decidedType = (s: VillageState): string | null =>
+    s.constructions.find((c) => c.kind === 'rebuild')?.dwellingType ?? null;
+
+  it('v zimě rozhoduje roční průměr – ves s > 6 čd denně staví polozemnici', () => {
+    const { s0, day } = winter();
+    s0.commonLaborYearly = 6.2;
+    expect(decidedType(advanceVillage(s0, day, null))).toBe('polozemnice');
+    // starší ves bez ročního průměru začne průměrem 30 dní – v zimě zemnice
+    delete s0.commonLaborYearly;
+    expect(decidedType(advanceVillage(s0, day, null))).toBe('zemnice');
+  });
+
+  it('bez dřeva na polozemnici (klády ani stromy ke skácení) se přestaví na zemnici', () => {
+    const { s0, day } = winter();
+    s0.commonLaborYearly = 6.2;
+    s0.woodLogs = 5;
+    const noTrees = packObstacles([], 16, 15);
+    expect(decidedType(advanceVillage(s0, day, noTrees))).toBe('zemnice');
+    s0.woodLogs = 18.4;
+    expect(decidedType(advanceVillage(s0, day, noTrees))).toBe('polozemnice');
+  });
+
+  it('roční průměr se vede den po dni – starší ves začne průměrem 30 dní, na kouscích nezáleží', () => {
+    const start = at(600, 3, 15);
+    const s0 = found(start);
+    s0.commonLaborHistory = [3, 6, 9];
+    const one = advanceVillage(s0, s0.lastDay + 1, null);
+    const common = one.commonLaborHistory.at(-1)!;
+    expect(one.commonLaborYearly).toBeCloseTo(6 + (common - 6) / COMMON_LABOR_YEAR_DAYS, 12);
+    const end = start + 500;
+    const whole = advanceVillage(s0, end, null);
+    let parts = s0;
+    for (const step of [1, 90, 91, 365, 500]) parts = advanceVillage(parts, start + step, null);
+    expect(parts.commonLaborYearly).toBe(whole.commonLaborYearly);
+    expect(parts).toEqual(whole);
   });
 });
 

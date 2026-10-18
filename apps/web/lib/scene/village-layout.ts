@@ -242,7 +242,22 @@ export function dwellingHideShape(d: {
   plot?: PlotArea;
 }): HideShape {
   const corners = dwellingArea(d);
-  return { bounds: polygonBounds(corners), contains: (x, z) => pointInPolygon(corners, x, z) };
+  if (!d.plot) {
+    return { bounds: polygonBounds(corners), contains: (x, z) => pointInPolygon(corners, x, z) };
+  }
+  // pozemek i dům – dům převedené starší polozemnice může z políčka vyčnívat
+  const house = dwellingArea({ type: d.type, position: d.position });
+  const a = polygonBounds(corners);
+  const b = polygonBounds(house);
+  return {
+    bounds: {
+      minX: Math.min(a.minX, b.minX),
+      maxX: Math.max(a.maxX, b.maxX),
+      minZ: Math.min(a.minZ, b.minZ),
+      maxZ: Math.max(a.maxZ, b.maxZ),
+    },
+    contains: (x, z) => pointInPolygon(corners, x, z) || pointInPolygon(house, x, z),
+  };
 }
 
 /** Pole – ve čtvercích jeho dílů (s malým přesahem). */

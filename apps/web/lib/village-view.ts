@@ -1,5 +1,7 @@
 import {
   BUILD_COSTS,
+  CRAFT_NAMES,
+  CRAFT_PRODUCTION,
   ORCHARD_WINDOWS,
   STOCK_RESOURCES,
   affordability,
@@ -22,6 +24,7 @@ import {
   wholeLogs,
   sacredBuildingHappiness,
   HAY_WINTER_MONTHS,
+  foundingCostPerHa,
   type BuildKind,
   type DietDay,
   type HerdSpecies,
@@ -29,6 +32,9 @@ import {
   type ChronicleEvent,
   type ConstructionKind,
   type ConstructionSummary,
+  type Craft,
+  type CraftCoverage,
+  type CraftStocks,
   type Crop,
   type DwellingPlot,
   type DwellingType,
@@ -49,6 +55,7 @@ import {
   type VillageRecord,
   type VillageState,
   type VillageSummary,
+  type WorkshopActivity,
   hasShrine,
   villageCemeteries,
   villageLifespan,
@@ -64,6 +71,7 @@ import { formatCells, formatHa, formatInteger } from './village-format';
 
 export type {
   BuildKind,
+  Craft,
   Crop,
   HerdSpecies,
   FieldSurface,
@@ -73,6 +81,7 @@ export type {
   PartStage,
   SacredBuildingKind,
   StockResource,
+  WorkshopActivity,
 } from '@bohemia/game';
 
 /**
@@ -149,6 +158,33 @@ export interface VillagePen {
 /** Jídlo pro horní lištu a tooltip nasycení (diet.md) – energie, pestrost a podíly na energii. */
 export type VillageDiet = Pick<DietDay, 'energy' | 'diversity' | 'shares'>;
 
+/** Řemeslná dílna pro panel výběru (crafts.md – Co hráč vidí). */
+export interface VillageWorkshop {
+  /** Id obydlí dílny. */
+  dwellingId: number;
+  craft: Craft;
+  /** Co dílna dělala poslední den – vyrábí, kácí, čeká na uhlí / dřevo, nemá kdo, prázdná. */
+  activity: WorkshopActivity;
+  occupants: number;
+  /** Práce řemeslu za den (člověkodny po minimu a domácí výrobě). */
+  laborPerDay: number;
+  /** Výroba za den při této práci, když jsou vstupy (kg výrobku). */
+  outputPerDayKg: number;
+}
+
+/**
+ * Řemesla vsi pro horní lištu a panel výběru: zásoby (kg), potřeba a pokrytí 0–1 (meze
+ * produktivity) a dílny – hotové (`workshops`). Lišta zásoby ukáže, jen když ves řemesla má
+ * (`present` – hotová nebo rozestavěná dílna, nebo něco v zásobě).
+ */
+export interface VillageCrafts {
+  present: boolean;
+  stocks: CraftStocks;
+  needs: { toolsKg: number; potteryKg: number };
+  coverage: CraftCoverage;
+  workshops: VillageWorkshop[];
+}
+
 export interface VillageView {
   name: string;
   dayIndex: number;
@@ -156,6 +192,8 @@ export interface VillageView {
   households: {
     dwellingId: number;
     type: DwellingType;
+    /** Řemeslo dílny (crafts.md); obyčejné obydlí null. */
+    craft: Craft | null;
     occupants: number;
     capacity: number;
     full: boolean;
@@ -181,6 +219,8 @@ export interface VillageView {
   pens: VillagePen[];
   /** Klády na hromadě u vsi v kusech (forest.md). */
   woodLogs: number;
+  /** Řemesla – zásoby uhlí, nástrojů a keramiky, pokrytí a dílny (crafts.md). */
+  crafts: VillageCrafts;
   storesMonths: number;
   satiation: number;
   commonLaborPerDay: number;
@@ -195,6 +235,8 @@ export interface VillageView {
     progress: number;
     /** Typ stavěného obydlí (u přestavby nový typ), u pole null. */
     dwellingType: DwellingType | null;
+    /** Stavěná nebo přestavovaná řemeslná dílna (crafts.md), jinak null. */
+    craft: Craft | null;
     /** Přestavované obydlí (rebuild), jinak null. */
     dwellingId: number | null;
     /** Zakládané pole (field), jinak null. */
@@ -312,13 +354,23 @@ export function scenePlot(landscape: Landscape, plot: DwellingPlot): ScenePlot {
 }
 
 export interface SceneVillage {
-  /** Hotová obydlí (`built: true`, id obydlí) i rozestavěná (`built: false`, id stavby). */
+  /**
+   * Hotová obydlí (`built: true`, id obydlí) i rozestavěná (`built: false`, id stavby); řemeslná
+   * dílna nese řemeslo (`craft` – model dílny, u uhlíře i milíř).
+   */
   dwellings: {
     id: number;
     type: DwellingType;
     position: Position;
     built: boolean;
     progress: number;
+    /** Řemeslná dílna (crafts.md) – `type` je pak obydlí, na kterém stojí. */
+    craft?: Craft;
+    /**
+     * Hotová dílna dnes vyrábí – z pece, výhně nebo milíře stoupá dým (u uhlíře jen při pálení,
+     * ne při kácení). Bez údaje ne.
+     */
+    working?: boolean;
     /** Bydlí v něm někdo – jen z obydlí s obyvateli stoupá dým. Bez údaje = obývané. */
     inhabited?: boolean;
     /**
@@ -388,6 +440,11 @@ export interface SceneVillage {
   labor?: SceneLabor;
   /** Posvátná místa (happiness.md) – bez údaje žádná. */
   sacred?: SceneSacred;
+  /**
+   * Pokrytí nástroji 0–1 (crafts.md) – kontrola umístění pole v prohlížeči podle něj počítá cenu
+   * založení jako server. Bez údaje 0.
+   */
+  toolCoverage?: number;
   /**
    * Stáda na pastvě (diet.md – skutečné počty, zaokrouhleně): ovce, kozy, prasata a krávy mimo
    * ohradu (v zimě stojí krávy v ohradě, když ves nějakou má). Bez údaje se odvodí z domácností.
@@ -512,6 +569,19 @@ export interface SceneLabor {
 
 export const CHRONICLE_LENGTH = 8;
 
+/**
+ * Řemesla v rozhraní (crafts.md): ikona dílny (`public/icons/build/`), výrobek – ikona
+ * (`public/icons/resources/`), název a zásoba ve `CraftStocks`.
+ */
+export const CRAFT_LOOKS: Record<
+  Craft,
+  { icon: string; product: { icon: string; name: string; stock: keyof CraftStocks } }
+> = {
+  potter: { icon: 'hrncir', product: { icon: 'pottery', name: 'Keramika', stock: 'potteryKg' } },
+  smith: { icon: 'kovar', product: { icon: 'tools', name: 'Nástroje', stock: 'toolsKg' } },
+  burner: { icon: 'uhlir', product: { icon: 'charcoal', name: 'Uhlí', stock: 'charcoalKg' } },
+};
+
 /** Názvy obydlí v 1. a 4. pádě. */
 export const DWELLING_NAMES: Record<DwellingType, { nominative: string; accusative: string }> = {
   zemnice: { nominative: 'Zemnice', accusative: 'zemnici' },
@@ -526,7 +596,17 @@ function deathText(group: 'child' | 'adult' | 'elder', hunger: boolean): string 
   return hunger ? 'Jeden ze starších zemřel hlady.' : 'Zemřel jeden ze starších.';
 }
 
-function finishedText(kind: ConstructionKind): string {
+/** Dostavěná řemeslná dílna – kronika (crafts.md). */
+const WORKSHOP_FINISHED: Record<Craft, string> = {
+  potter: 'Dostavěli hrnčířskou dílnu s pecí.',
+  smith: 'Dostavěli kovárnu s výhní.',
+  burner: 'Dostavěli uhlířovu zemnici s milířem.',
+};
+
+function finishedText(kind: ConstructionKind, craft?: Craft): string {
+  if (craft && (kind === 'dwelling' || kind === 'rebuild')) {
+    return kind === 'dwelling' ? WORKSHOP_FINISHED[craft] : 'Dokončili přestavbu dílny.';
+  }
   if (kind === 'dwelling') return 'Dostavěli nové obydlí.';
   if (kind === 'idol') return 'Vztyčili dřevěnou modlu.';
   if (kind === 'shrine') return 'Svatyně je dostavěná – v ohništích hoří oheň.';
@@ -554,7 +634,7 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
     case 'household-merged':
       return 'Zbytek domácnosti se přestěhoval k sousedům.';
     case 'construction-finished':
-      return finishedText(event.constructionKind);
+      return finishedText(event.constructionKind, event.craft);
     case 'rebuild-decided':
       return `Obyvatelé se rozhodli přestavět dožilé obydlí na ${DWELLING_NAMES[event.type].accusative}.`;
     case 'harvest':
@@ -599,6 +679,7 @@ export const SACRED_BUILDING_NAMES: Record<SacredBuildingKind, string> = {
 
 function constructionLabel(c: ConstructionSummary): string {
   if (c.kind === 'field') return `Pole ${formatHa(c.areaM2 ?? 0)}`;
+  if (c.craft && c.kind === 'dwelling') return CRAFT_NAMES[c.craft];
   if (c.kind === 'idol' || c.kind === 'shrine') return SACRED_BUILDING_NAMES[c.kind];
   if (c.kind === 'cemetery') return `Hřbitov (${formatCells(c.squares ?? 0)})`;
   if (c.kind === 'orchard') return `Sad ${formatHa(c.areaM2 ?? 0)}`;
@@ -626,10 +707,16 @@ function sceneVillage(
     inhabited: occupied.has(d.id),
     ...(d.plot ? { plot: scenePlot(landscape, d.plot) } : {}),
     since: d.builtDay,
+    ...(d.workshop ? { craft: d.workshop.craft } : {}),
+    ...(d.workshop && occupied.has(d.id) && d.workshop.activity === 'producing'
+      ? { working: true }
+      : {}),
   }));
-  // staveniště ukazuje samotnou stavbu – dřevo se kácí v lese, než se začne stavět
+  // staveniště ukazuje samotnou stavbu – dřevo se kácí v lese, než se začne stavět; přestavba
+  // polozemnice bez pozemku stojí na novém pozemku (domácnost zatím bydlí ve starém domě)
   const sites = state.constructions.flatMap((c) => {
-    if (c.kind !== 'dwelling' || c.dwellingType === null || c.position === null) return [];
+    if (c.kind !== 'dwelling' && c.kind !== 'rebuild') return [];
+    if (c.dwellingType === null || c.position === null) return [];
     const progress = constructions.find((s) => s.id === c.id)?.buildProgress ?? 0;
     const plot = c.plot ? { plot: scenePlot(landscape, c.plot) } : {};
     return [
@@ -641,6 +728,7 @@ function sceneVillage(
         progress,
         ...plot,
         since: c.startedDay,
+        ...(c.craft ? { craft: c.craft } : {}),
       },
     ];
   });
@@ -689,6 +777,37 @@ function sceneVillage(
     ...(sacred ? { sacred } : {}),
     livestock: { ...herds, cow: Math.max(0, herds.cow - penned) },
     ...(pens.length > 0 ? { pens } : {}),
+    ...(summary.crafts.coverage.tools > 0 ? { toolCoverage: summary.crafts.coverage.tools } : {}),
+  };
+}
+
+/** Výroba dílny za den při práci `labor` (kg) – uhlíř bez kácení, kovář a hrnčíř s přirážkou. */
+function workshopOutputKg(craft: Craft, labor: number, oreFactor: number): number {
+  if (craft === 'burner') return labor * CRAFT_PRODUCTION.charcoalKgPerManDay;
+  if (craft === 'smith') return labor / (CRAFT_PRODUCTION.toolManDaysPerKg * oreFactor);
+  return labor / (CRAFT_PRODUCTION.potteryManDaysPerKg * oreFactor);
+}
+
+/** Řemesla pro lištu a panel výběru. */
+function craftsView(state: VillageState, summary: VillageSummary): VillageCrafts {
+  const { stocks, needs, coverage, workshops } = summary.crafts;
+  const present =
+    workshops.length > 0 ||
+    state.constructions.some((c) => c.craft) ||
+    stocks.charcoalKg + stocks.toolsKg + stocks.potteryKg > 0;
+  return {
+    present,
+    stocks,
+    needs,
+    coverage,
+    workshops: workshops.map((w) => ({
+      dwellingId: w.dwellingId,
+      craft: w.craft,
+      activity: w.activity,
+      occupants: w.occupants,
+      laborPerDay: w.laborPerDay,
+      outputPerDayKg: workshopOutputKg(w.craft, w.laborPerDay, w.oreFactor),
+    })),
   };
 }
 
@@ -939,6 +1058,9 @@ const BUILD_KINDS: readonly BuildKind[] = [
   'orchard',
   'idol',
   'shrine',
+  'potter',
+  'smith',
+  'burner',
   'pen',
 ];
 /** Kolik štěstí přidá modla a svatyně (happiness.md). */
@@ -954,10 +1076,19 @@ const DAYS_PER_YEAR = 365.25;
  * Nabídka staveb: cena z pravidel a co z ceny předem (suroviny, dřevo, lidé k osídlení) ves nemá.
  * Dřevo = klády + dospělé stromy krajiny sídla, které jde skácet (vrstva překážek).
  */
-function buildOptions(state: VillageState, landscape: Landscape): Record<BuildKind, BuildOption> {
+function buildOptions(
+  state: VillageState,
+  landscape: Landscape,
+  coverage: CraftCoverage,
+): Record<BuildKind, BuildOption> {
   const stock = villageStock(state, obstaclesOf(landscape));
   const entries = BUILD_KINDS.map((kind): [BuildKind, BuildOption] => {
-    const cost = BUILD_COSTS[kind];
+    const base = BUILD_COSTS[kind];
+    // založení pole podle pokrytí nástroji (crafts.md – meze produktivity)
+    const cost =
+      kind === 'field'
+        ? { ...base, laborManDays: foundingCostPerHa('meadow', coverage.tools) }
+        : base;
     const { affordable, missing } = affordability(stock, cost.upfront);
     const upfront = STOCK_RESOURCES.flatMap((resource) => {
       const amount = cost.upfront[resource] ?? 0;
@@ -1047,17 +1178,23 @@ export function buildVillageView(
     },
     livestock: summary.livestock,
     woodLogs: wholeLogs(summary.woodLogs),
+    crafts: craftsView(state, summary),
     storesMonths: summary.storesMonths,
     satiation: summary.satiation,
     commonLaborPerDay: summary.commonLaborPerDay,
     fullHousehold: summary.fullHousehold,
-    build: buildOptions(state, landscape),
+    build: buildOptions(state, landscape, summary.crafts.coverage),
     constructions: summary.constructions.map((c) => ({
       id: c.id,
       kind: c.kind,
       label: constructionLabel(c),
       progress: c.progress,
       dwellingType: c.dwellingType,
+      craft:
+        c.craft ??
+        (c.kind === 'rebuild'
+          ? (state.dwellings.find((d) => d.id === c.dwellingId)?.workshop?.craft ?? null)
+          : null),
       dwellingId: c.kind === 'rebuild' ? c.dwellingId : null,
       fieldId: c.kind === 'field' ? c.fieldId : null,
       cemeteryId: c.cemeteryId,
@@ -1136,6 +1273,7 @@ export function placementVillageFromScene(scene: SceneVillage): PlacementVillage
       type: d.type,
       position: d.position,
       ...(d.plot ? { plot: { cell: d.plot.cell, variant: d.plot.variant } } : {}),
+      ...(d.craft ? { workshop: { craft: d.craft } } : {}),
     })),
     constructions: [],
     // pole a plocha dílu (políčko) pro navazující pole – rozšíření a sloučení (fields.md)
@@ -1159,5 +1297,6 @@ export function placementVillageFromScene(scene: SceneVillage): PlacementVillage
           })),
         }
       : {}),
+    ...(scene.toolCoverage ? { toolCoverage: scene.toolCoverage } : {}),
   };
 }

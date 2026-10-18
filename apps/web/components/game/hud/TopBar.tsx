@@ -110,6 +110,35 @@ export function showsHay(view: Pick<VillageView, 'hayKg' | 'pens'>): boolean {
   return Math.round(view.hayKg) > 0 || view.pens.some((pen) => pen.built);
 }
 
+/**
+ * Zásoby výrobků řemeslníků (crafts.md) – uhlí, nástroje a keramika v kg; v popisku nástrojů
+ * a keramiky i pokrytí potřeby vsi (meze produktivity).
+ */
+function CraftStocks({ crafts }: { crafts: VillageView['crafts'] }): ReactElement {
+  const { stocks, coverage } = crafts;
+  return (
+    <>
+      <Resource icon="charcoal" name="Uhlí (kg)" testId="village-charcoal">
+        {formatInteger(stocks.charcoalKg)}
+      </Resource>
+      <Resource
+        icon="tools"
+        name={`Nástroje (kg) – pokrytí potřeby ${formatPercent(coverage.tools)}`}
+        testId="village-tools"
+      >
+        {formatInteger(stocks.toolsKg)}
+      </Resource>
+      <Resource
+        icon="pottery"
+        name={`Keramika (kg) – pokrytí potřeby ${formatPercent(coverage.pottery)}`}
+        testId="village-pottery"
+      >
+        {formatInteger(stocks.potteryKg)}
+      </Resource>
+    </>
+  );
+}
+
 /** Jméno vsi – kliknutím se přepíše na místě, Enter uloží, Esc zruší. */
 function VillageName({
   name,
@@ -268,7 +297,8 @@ export function DevTimeButtons({
 /**
  * Horní lišta jako v 0 A.D.: jméno vsi (klik = přejmenovat), ikony s čísly – lidé, obilí, maso,
  * ovoce (když nějaké je, nebo ves má sad – diet.md), seno (když ves má ohradu nebo seno –
- * oxen.md), pole, klády na hromadě, volná práce, nasycení (barva ikony, v popisku podíly stravy),
+ * oxen.md), pole, klády na hromadě, uhlí, nástroje a keramika (jen ves s řemesly – crafts.md),
+ * volná práce, nasycení (barva ikony, v popisku podíly stravy),
  * štěstí (happiness.md), herní datum (ve vývojovém režimu se šipkami přeskočení času) – a vpravo
  * zvuk a nabídka hry (F10: Začít znovu, Odhlásit).
  */
@@ -338,6 +368,7 @@ export function TopBar({
           <Resource icon="wood" name="Klády na hromadě" testId="village-wood">
             {formatInteger(view.woodLogs)}
           </Resource>
+          {view.crafts.present && <CraftStocks crafts={view.crafts} />}
           <Resource icon="labor" name="Volná práce" testId="village-labor">
             {formatDecimal(Math.max(0, view.commonLaborPerDay), 1)}
           </Resource>

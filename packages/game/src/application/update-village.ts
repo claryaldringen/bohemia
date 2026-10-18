@@ -5,6 +5,7 @@ import {
   withForestDistances,
   withLivestockLand,
   withObstacleClearing,
+  withPlots,
   type VillageState,
 } from '../domain/village';
 import type { VillageRecord, VillageRepository, VillageResult } from './villages';
@@ -21,24 +22,27 @@ export type VillageChange = { ok: true; state: VillageState } | { ok: false; rea
 
 /**
  * Ves dopočítaná do dneška (už dopočítanou ani „budoucí“ nevrací zpět). `obstacles` = vrstva
- * překážek krajiny sídla – přestavby podle ní kácí stromy (forest.md).
+ * překážek krajiny sídla – přestavby podle ní kácí stromy (forest.md); `landscape` = krajina
+ * sídla – přestavba polozemnice bez pozemku ji postaví na volném políčku.
  */
 export function advancedToToday(
   state: VillageState,
   today: number,
   obstacles: ObstacleLayer,
+  landscape: Landscape | null = null,
 ): VillageState {
-  return state.lastDay >= today ? state : advanceVillage(state, today, obstacles);
+  return state.lastDay >= today ? state : advanceVillage(state, today, obstacles, landscape);
 }
 
 /**
  * Načte ves, dopočítá ji do dneška, provede změnu a uloží s kontrolou verze. Při souběhu
  * (verze nesouhlasí) to zkusí znovu nad čerstvým stavem. Nezměněný stav se neukládá.
  * Vsi z doby před vrstvou překážek nejdřív doplní odstraněné překážky (`withObstacleClearing`)
- * a obydlím z doby před palivem vzdálenost k lesu (`withForestDistances`), vsím z doby před
- * dobytkem výchozí stádo a louku a les pro pastvu (`withLivestockLand`) – před dopočtem, aby
- * se s nimi už počítalo; pak se uloží. Ves se dopočítává s vrstvou překážek krajiny sídla
- * (přestavby kácí stromy).
+ * a obydlím z doby před palivem vzdálenost k lesu (`withForestDistances`), polozemnicím z doby
+ * před pozemky pozemek (`withPlots`), vsím z doby před dobytkem výchozí stádo a louku a les pro
+ * pastvu (`withLivestockLand`) – před dopočtem, aby se s nimi už počítalo; pak se uloží. Ves se
+ * dopočítává s vrstvou překážek a krajinou sídla (přestavby kácí stromy, polozemnice bez
+ * pozemku se přestaví na volném políčku).
  */
 export async function updateVillage(
   villages: VillageRepository,
@@ -52,10 +56,14 @@ export async function updateVillage(
     const record = await villages.find(settlementId);
     if (record === null) return { ok: false, reason: NO_VILLAGE };
     const migrated = withLivestockLand(
-      withForestDistances(withObstacleClearing(record.state, obstacles), landscape),
+      withPlots(
+        withForestDistances(withObstacleClearing(record.state, obstacles), landscape),
+        landscape,
+        obstacles,
+      ),
       landscape,
     );
-    const current = advancedToToday(migrated, today, obstacles);
+    const current = advancedToToday(migrated, today, obstacles, landscape);
     const changed = change(current);
     if (!changed.ok) return changed;
     if (changed.state === record.state) return { ok: true, village: record };

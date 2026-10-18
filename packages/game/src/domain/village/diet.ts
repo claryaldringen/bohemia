@@ -1,5 +1,5 @@
 import { dateOfDayIndex, dayIndexOf, isLeapYear } from '../calendar';
-import { daysUntilAppleRot, isAppleRotDay } from './food';
+import { applesSpoiled, daysUntilAppleRot } from './food';
 import { villageApplesKg } from './orchard';
 import { foodNeedPerDay } from './people';
 import { NO_CRAFTS, storageLossPerYear } from './productivity';
@@ -195,7 +195,8 @@ export function villageMeatKg(state: Pick<VillageState, 'meatKg'>): number {
 
 /**
  * Jídlo dne `day` ze stavu na konci předchozího dne – bez změny stavu (stejně jako krok jídla
- * simulace, jen bez vajec dne). 1. 3. ráno ovoce shnije.
+ * simulace, jen bez vajec dne). 1. 3. ráno ovoce shnije, v nádobách později (`potteryCoverage`
+ * – crafts.md).
  */
 export function villageMeal(
   state: VillageState,
@@ -206,10 +207,10 @@ export function villageMeal(
   return eatDiet({
     grainKg: state.storesKg,
     meatKg: villageMeatKg(state),
-    fruitKg: isAppleRotDay(day) ? 0 : villageApplesKg(state),
+    fruitKg: applesSpoiled(day, potteryCoverage) ? 0 : villageApplesKg(state),
     needPerDay: need,
     daysToHarvest: daysUntilFoodHarvest(state.plan, state.parts, day, need),
-    daysToRot: daysUntilAppleRot(day),
+    daysToRot: daysUntilAppleRot(day, potteryCoverage),
     daysToSlaughter: daysUntilSlaughter(day),
     potteryCoverage,
   });

@@ -10,6 +10,7 @@ import {
   placeOrchardForPlayer,
   placePenForPlayer,
   placeSacredForPlayer,
+  placeWorkshopForPlayer,
   renameVillageForPlayer,
   skipTimeForPlayerView,
   trainTeamForPlayer,
@@ -26,6 +27,7 @@ import {
   parsePlaceOrchardInput,
   parsePlacePenInput,
   parsePlaceSacredInput,
+  parsePlaceWorkshopInput,
   parseRenameVillageInput,
   parseRestartGameInput,
   parseSkipTimeInput,
@@ -135,6 +137,18 @@ export async function trainTeam(input: unknown): Promise<VillageActionResult> {
   const parsed = parseTrainTeamInput(input);
   if (parsed === null) return { error: INVALID_INPUT };
   return trainTeamForPlayer(id, parsed);
+}
+
+/**
+ * Stavba řemeslné dílny (crafts.md): `{ craft: 'potter' | 'smith' | 'burner', position:
+ * { x, z, rotation } }`. Server umístění ověří znovu (`checkWorkshopPlacement`).
+ */
+export async function placeWorkshop(input: unknown): Promise<VillageActionResult> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  const parsed = parsePlaceWorkshopInput(input);
+  if (parsed === null) return { error: INVALID_INPUT };
+  return placeWorkshopForPlayer(id, parsed);
 }
 
 /** Přejmenování vsi: `{ name }`. */

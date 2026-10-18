@@ -2,9 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import {
+  CRAFT_BASE,
   shiftWorldClock,
   suggestVillageName,
   type BuildKind,
+  type Craft,
   type DwellingPlot,
   type DwellingType,
   type Position,
@@ -22,6 +24,7 @@ import {
   placeOrchard,
   placePen,
   placeSacred,
+  placeWorkshop,
   renameVillage,
   restartGame,
   skipTime,
@@ -86,11 +89,18 @@ function isVillageView(state: VillageData): state is VillageView {
 }
 
 /**
- * Obydlí, modla nebo svatyně odeslané na server, na jehož odpověď se čeká – ve scéně už stojí
- * jako staveniště (záporné id). Obydlí na pozemku nese i pozemek.
+ * Obydlí, dílna, modla nebo svatyně odeslané na server, na jehož odpověď se čeká – ve scéně už
+ * stojí jako staveniště (záporné id). Obydlí na pozemku nese i pozemek, dílna řemeslo.
  */
 type PendingSite =
-  | { kind: 'dwelling'; id: number; type: DwellingType; position: Position; plot?: ScenePlot }
+  | {
+      kind: 'dwelling';
+      id: number;
+      type: DwellingType;
+      position: Position;
+      plot?: ScenePlot;
+      craft?: Craft;
+    }
   | { kind: 'sacred'; id: number; type: SacredBuildingKind; position: Position };
 
 /** Ves pro scénu: stav ze serveru a stavby, které ještě čekají na odpověď serveru. */
@@ -104,6 +114,7 @@ function withPending(scene: SceneVillage, pending: readonly PendingSite[]): Scen
             type: d.type,
             position: d.position,
             ...(d.plot ? { plot: d.plot } : {}),
+            ...(d.craft ? { craft: d.craft } : {}),
             built: false,
             progress: 0,
             inhabited: false,
@@ -335,6 +346,21 @@ export function VillageGame({
     ).finally(() => setPendingList(pendingRef.current.filter((d) => d.id !== entry.id)));
   };
 
+  /** Zahájí stavbu řemeslné dílny (crafts.md) – staveniště hned ve scéně. */
+  const buildWorkshop = (craft: Craft, position: Position): void => {
+    const entry: PendingSite = {
+      kind: 'dwelling',
+      id: -1 - pendingId.current++,
+      type: CRAFT_BASE[craft],
+      position,
+      craft,
+    };
+    setPendingList([...pendingRef.current, entry]);
+    void runBuildAction(() => placeWorkshop({ craft, position })).finally(() =>
+      setPendingList(pendingRef.current.filter((d) => d.id !== entry.id)),
+    );
+  };
+
   /** Zahájí stavbu modly nebo svatyně (happiness.md) – staveniště hned ve scéně. */
   const buildSacred = (type: SacredBuildingKind, position: Position): void => {
     const entry: PendingSite = { kind: 'sacred', id: -1 - pendingId.current++, type, position };
@@ -389,6 +415,21 @@ export function VillageGame({
       );
       return;
     }
+    if (item.placement === 'workshop') {
+      placement.start(
+        {
+          kind: 'workshop',
+          craft: item.craft,
+          type: item.dwellingType,
+          check: (position) =>
+            item.check(decoded, placementVillage(), position, viewRef.current?.woodLogs ?? 0),
+        },
+        (result) => {
+          if (result.kind === 'workshop') buildWorkshop(result.craft, result.position);
+        },
+      );
+      return;
+    }
     if (item.placement === 'sacred') {
       placement.start(
         {
@@ -431,7 +472,7 @@ export function VillageGame({
   });
   const closeMenu = useCallback((): void => setMenuOpen(false), []);
 
-  // Klávesy rozhraní: F10 otevře nabídku, zkratky staveb (Z, X, C, V, B, N, M, O), Esc zruší
+  // Klávesy rozhraní: F10 otevře nabídku, zkratky staveb (Z, X, C, V, B, N, M, F, G, H, O), Esc zruší
   // výběr.
   // Otevřená nabídka klávesy zachytí dřív (GameMenu) – sem pak nedojdou.
   const placingRef = useRef(placement.active);

@@ -1,11 +1,15 @@
 import {
+  CRAFT_BASE,
   PLOT_TYPES,
   cemeteryPartsFromCells,
   checkDwellingPlacement,
   checkPenPlacement,
   checkPlotPlacement,
   checkSacredBuildingPlacement,
+  checkWorkshopPlacement,
   dwellingLaborManDays,
+  workshopLaborManDays,
+  workshopTrees,
   fieldPartsFromCells,
   NO_OBSTACLE_CHANGES,
   obstaclesOf,
@@ -17,6 +21,7 @@ import {
   PEN,
   sacredLaborManDays,
   type BuildKind,
+  type Craft,
   type DwellingPlacementCheck,
   type DwellingPlot,
   type DwellingType,
@@ -38,7 +43,8 @@ import type { PlacementCost } from './scene/village-types';
 //
 // Zkratky jsou spodní řada levé ruky jako fronta výroby v 0 A.D. (Z X C V B N M) – WASD, Q/E
 // a R patří kameře. Sad [B] staví se jako pole (orchard.md), modla [N] a svatyně [M] půdorysem
-// u kurzoru jako obydlí (happiness.md).
+// u kurzoru jako obydlí (happiness.md). Řemeslné dílny (crafts.md) na volných klávesách
+// prostřední řady – hrnčíř [F], kovář [G], uhlíř [H] – volně u kurzoru jako zemnice.
 
 /**
  * Kontrola stavby po čtvercích: projde? a které čtverce jsou zakázané (červeně); u prošlé
@@ -106,6 +112,19 @@ export type BuildItem =
       placement: 'sacred';
       sacredKind: SacredBuildingKind;
       check(landscape: Landscape, village: PlacementVillage, position: Position): FootprintCheck;
+    })
+  | (BuildItemBase & {
+      /** Řemeslná dílna (crafts.md) – volně u kurzoru jako zemnice, uhlíř i s milířem. */
+      placement: 'workshop';
+      craft: Craft;
+      /** Obydlí, na kterém dílna stojí (půdorys, jáma). */
+      dwellingType: DwellingType;
+      check(
+        landscape: Landscape,
+        village: PlacementVillage,
+        position: Position,
+        woodLogs: number,
+      ): FootprintCheck;
     });
 
 const dwelling = (kind: DwellingType, name: string, hotkeyLabel: string): BuildItem => {
@@ -184,6 +203,66 @@ export function dwellingPlacementCost(
     trees: plan.fell.length,
   };
 }
+
+/**
+ * Cena řemeslné dílny u kurzoru – jako u obydlí (`dwellingPlacementCost`), jen dřevo a práce
+ * dílny (+ 30 %, crafts.md) a překážky i kolem milíře.
+ */
+export function workshopPlacementCost(
+  landscape: Landscape,
+  village: PlacementVillage,
+  craft: Craft,
+  position: Position,
+  check: Pick<DwellingPlacementCheck, 'obstacleCost' | 'obstacleIds' | 'clearedTrees'>,
+  woodLogs: number,
+  obstacles: ObstacleLayer = obstaclesOf(landscape),
+): PlacementCost {
+  const plan = planDwellingWoodFrom(
+    CRAFT_BASE[craft],
+    position,
+    {
+      logs: woodLogs,
+      changes: () => village.obstacleChanges ?? NO_OBSTACLE_CHANGES,
+      claimed: () => new Set(village.reservedTrees ?? []),
+    },
+    {
+      obstacles,
+      clearedTrees: check.clearedTrees,
+      clearedIds: check.obstacleIds,
+      trees: workshopTrees(craft),
+    },
+  );
+  return {
+    laborManDays: workshopLaborManDays(craft, check.obstacleCost, plan),
+    trees: plan.fell.length,
+  };
+}
+
+const workshop = (
+  craft: Craft,
+  name: string,
+  icon: string,
+  hotkeyLabel: string,
+): BuildItem & { placement: 'workshop' } => ({
+  kind: craft,
+  name,
+  icon,
+  hotkey: `Key${hotkeyLabel}`,
+  hotkeyLabel,
+  placement: 'workshop',
+  craft,
+  dwellingType: CRAFT_BASE[craft],
+  check: (landscape, village, position, woodLogs) => {
+    const obstacles = obstaclesOf(landscape);
+    const check = checkWorkshopPlacement(landscape, village, craft, position, obstacles);
+    return {
+      ...check,
+      cost: check.ok
+        ? workshopPlacementCost(landscape, village, craft, position, check, woodLogs, obstacles)
+        : null,
+    };
+  },
+});
 
 /**
  * Cena modly nebo svatyně u kurzoru: práce celkem jako při zahájení stavby (`sacredLaborManDays`
@@ -305,6 +384,9 @@ export const BUILD_ITEMS: readonly BuildItem[] = [
   },
   sacred('idol', 'Modla', 'modla', 'N'),
   sacred('shrine', 'Svatyně', 'svatyne', 'M'),
+  workshop('potter', 'Hrnčíř', 'hrncir', 'F'),
+  workshop('smith', 'Kovář', 'kovar', 'G'),
+  workshop('burner', 'Uhlíř', 'uhlir', 'H'),
   {
     // oxen.md – ohrada s přístřeškem: jeden čtverec louky, staví se jako pole po čtvercích
     kind: 'pen',

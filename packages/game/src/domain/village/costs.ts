@@ -10,8 +10,11 @@ import {
   FELLING_MAN_DAYS_PER_TREE,
   ORCHARD,
   SACRED_BUILDINGS,
+  workshopBuildLabor,
+  workshopCost,
+  workshopTrees,
 } from './rules';
-import type { DwellingType, SacredBuildingKind, VillageState } from './types';
+import type { Craft, DwellingType, SacredBuildingKind, VillageState } from './types';
 import { oakSupply, woodSupply, type WoodPlan } from './wood';
 
 // Ceny staveb a jestli na ně ves má (population.md – Nové obydlí, Odemčení). Práce
@@ -21,15 +24,12 @@ import { oakSupply, woodSupply, type WoodPlan } from './wood';
 // staveb je zašedlé s chybějící částí červeně (jako v 0 A.D.). Dřevo (forest.md): klády na
 // hromadě + dospělé stromy sídla, které jde skácet – stavba ho při zahájení vyhradí.
 
-/** Co hráč staví z nabídky staveb. */
+/**
+ * Co hráč staví z nabídky staveb – obydlí, řemeslné dílny (crafts.md), pole a další stavby,
+ * ohrada s přístřeškem (oxen.md – jeden čtverec louky, dřevo předem, osadníci ne).
+ */
 export type BuildKind =
-  | DwellingType
-  | 'field'
-  | 'cemetery'
-  | 'orchard'
-  | SacredBuildingKind
-  /** Ohrada s přístřeškem (oxen.md) – jeden čtverec louky, dřevo předem, osadníci ne. */
-  | 'pen';
+  DwellingType | Craft | 'field' | 'cemetery' | 'orchard' | SacredBuildingKind | 'pen';
 
 /**
  * Co stavba potřebuje předem: obilí ze zásob, dřevo (stromy – klády z hromady, nebo dospělé
@@ -57,9 +57,18 @@ export interface BuildCost {
   upfront: ResourceAmounts;
 }
 
+/** Cena řemeslné dílny – základní obydlí + 30 % práce i dřeva, domácnost k osídlení. */
+function workshopBuildCost(craft: Craft): BuildCost {
+  return {
+    laborManDays: workshopCost(craft),
+    perHa: false,
+    upfront: { wood: workshopTrees(craft), settlers: 1 },
+  };
+}
+
 /**
- * Ceny staveb – práce se platí postupně (u obydlí i s kácením blízkého lesa); obydlí (a později
- * řemeslné dílny) chtějí dřevo a jednu domácnost k osídlení, pole, sad a hřbitov nic.
+ * Ceny staveb – práce se platí postupně (u obydlí i s kácením blízkého lesa); obydlí a řemeslné
+ * dílny chtějí dřevo a jednu domácnost k osídlení, pole, sad a hřbitov nic.
  */
 export const BUILD_COSTS: Record<BuildKind, BuildCost> = {
   zemnice: {
@@ -72,6 +81,9 @@ export const BUILD_COSTS: Record<BuildKind, BuildCost> = {
     perHa: false,
     upfront: { wood: DWELLING_TREES.polozemnice, settlers: 1 },
   },
+  potter: workshopBuildCost('potter'),
+  smith: workshopBuildCost('smith'),
+  burner: workshopBuildCost('burner'),
   field: { laborManDays: foundingCostPerHa('meadow', NO_CRAFTS.tools), perHa: true, upfront: {} },
   cemetery: { laborManDays: CEMETERY.costPerSquare, perHa: false, perSquare: true, upfront: {} },
   orchard: { laborManDays: ORCHARD.plantingPerHa, perHa: true, upfront: {} },
@@ -121,6 +133,18 @@ export function dwellingLaborManDays(
   wood: Pick<WoodPlan, 'fell'>,
 ): number {
   return dwellingBuildLabor(type) + obstacleCost + wood.fell.reduce((sum, t) => sum + t.cost, 0);
+}
+
+/**
+ * Práce na řemeslné dílně (člověkodny) jako při zahájení stavby (`startWorkshop`): dílna bez
+ * dřeva, překážky na vyklízené ploše (i kolem milíře) a kácení stromů z plánu dřeva.
+ */
+export function workshopLaborManDays(
+  craft: Craft,
+  obstacleCost: number,
+  wood: Pick<WoodPlan, 'fell'>,
+): number {
+  return workshopBuildLabor(craft) + obstacleCost + wood.fell.reduce((sum, t) => sum + t.cost, 0);
 }
 
 /**

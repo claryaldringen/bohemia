@@ -97,7 +97,19 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
   obydlím či pozemkem; rovná zem
   (≤ 0,5 m) se hlídá jen pod domem. Překážky na pozemku platí jako na čtverci pole (všechny kusy
   na políčku), dospělé stromy z něj dají klády (návrh Clauda). Zemnice pozemek nemá a staví se
-  volně; polozemnice postavené dřív zůstanou, kde stojí, bez pozemku.
+  volně.
+- **Polozemnice postavené před pozemky dostanou pozemek** (Martin, 18. 10. 2026): při načtení
+  vsi (jednou, před dopočtem) dostane každá polozemnice bez pozemku – hotová i rozestavěná –
+  políčko, na kterém stojí střed domu, když je volné (žádný díl pole, čtverec hřbitova ani sadu,
+  jiný pozemek či obydlí, posvátný dub, háj, voda ani skalní výchoz). Varianta podle toho, kde na
+  políčku dům stojí (uprostřed, nebo nejbližší roh); dům blíž místu varianty než 2 m se na něj
+  posune, jinak zůstane, kde je, i s natočením – plot se pak u domu přeruší (stěna domu je
+  ohradou) a vede-li vchod ven z ohrazení, pozemek nemá branku. Překážky na políčku zmizí jako
+  u nového pozemku, dospělé stromy nevyhrazené jinou stavbou dají klády (převod práci nestojí).
+  Polozemnice na obsazeném políčku zůstane bez pozemku až do **příští přestavby**: ta ji postaví
+  na nejbližším volném políčku s pozemkem do 50 m od domu (jako novou stavbu – překážky, klády,
+  rovina pod domem), a domácnost se po dostavění přestěhuje; bez volného políčka se přestaví na
+  místě dál bez pozemku. Totéž platí pro zemnici přestavovanou na polozemnici.
 - **Překážky** na místě, např. kameny, osadníci odstraní, ale stavba stojí víc člověkodní
   (Martin). Totéž **v lese** – stromy je třeba skácet a vykopat pařezy. Ceny překážek a mýcení
   jsou jedna tabulka pro celou hru ve [fields.md](fields.md) (návrh Clauda). Kontrola umístění
@@ -252,8 +264,14 @@ jich bude moci mít více), tak pro něj hra končí – musí začínat znovu.�
   klesne na 0, obyvatelé se **sami** rozhodnou dům zbourat a na stejném místě postavit nový
   (Martin). Hráč o tom nerozhoduje.
 - Obyvatelé staví **vždy lepší** obydlí než dosud (zemnice → polozemnice), pokud na to ves má
-  suroviny – jinak stejné (Martin). „Má na to“: společná práce vsi stačí, aby stavba skončila do
-  jednoho roku (návrh Clauda). Typ úplně nové stavby vybírá hráč.
+  suroviny – jinak stejné (Martin). „Má na to“: **roční průměr** denní společné práce vsi stačí,
+  aby stavba skončila do jednoho roku (návrh Clauda), a **dřevo** – klády na hromadě a dospělé
+  stromy, které jde skácet – pokryje stromy lepšího obydlí. Roční průměr je klouzavý
+  (exponenciální, časová konstanta jeden rok), vede se den po dni; starší ves začne průměrem
+  posledních 30 dní. Oprava podle hlášení Martina 18. 10. 2026: dřív se rozhodovalo podle
+  posledních 30 dní, takže v zimě (výmlat) nebo o žních vypadala ves chudá a nejstarší zemnice se
+  přestavěla zase na zemnici, i když ves měla v průměru přes 6 člověkodní společné práce denně.
+  Typ úplně nové stavby vybírá hráč.
 - Během přestavby domácnost bydlí dál (stavba se abstrahuje, starý dům zmizí až s dokončením
   nového – návrh Clauda).
 
@@ -407,6 +425,7 @@ pravidla → první verze hladu (1 − nasycení za den, hájení bez stropu) �
 | Obydlí chátrají, opravy rostou; přestavbu (i na lepší) rozhodují obyvatelé     | Martin                                     |
 | Bez staveb ves přestane růst, ale nerozpadne se (hlad ji ale zabít může)       | návrh Clauda, Martin potvrdil              |
 | Přestavba vždy na lepší obydlí, pokud jsou suroviny; typ nové stavby hráč      | Martin                                     |
+| „Má na to“ podle ročního průměru společné práce a dřeva (ne posledních 30 dní) | Martin – hlášení chyby 18. 10. 2026        |
 | Hájení: prvních 30 herních let vsi přeje štěstí; žádní příchozí z okolí        | Martin                                     |
 | Lidé umírají hlady, ves může vymřít; bez vsí hráč začíná znovu                 | Martin (18. 10. 2026)                      |
 | Nahromaděný hlad, prahy 20 / 12 dní, smrt bez jídla do 60 / 45 dní             | návrh Clauda                               |
@@ -426,4 +445,5 @@ pravidla → první verze hladu (1 − nasycení za den, hájení bez stropu) �
 | Dřevo zatím v ceně práce                                                       | návrh Clauda (dočasné)                     |
 | Polozemnice na pozemku = políčko pole s polským plotem, dům uprostřed / v rohu | Martin, 18. 10. 2026                       |
 | Rohy polského plotu zakulacené; výběr polozemnice označí celý pozemek          | Martin, 18. 10. 2026                       |
+| Starší polozemnice dostanou pozemek při načtení, jinak při přestavbě do 50 m   | Martin, 18. 10. 2026                       |
 | Vchod k brance vpředu, [ a ] přepínají variantu, rovno jen pod domem           | návrh Clauda                               |

@@ -10,6 +10,7 @@ import {
 } from '../landscape';
 import type { CemeterySquareInput, OrchardSquareInput, PartInput } from './actions';
 import { cemeteryFoundingCost, distanceToSquare, touchingCemeteries } from './cemetery';
+import { craftCoverage, milirClearing, workshopFootprints } from './crafts';
 import { fieldSquareSurface, fieldsTouching, partFoundingCost } from './fields';
 import { LIVESTOCK, withLivestock } from './livestock';
 import { orchardPlantingCost } from './orchard';
@@ -21,25 +22,29 @@ import {
   obstacleStatus,
   outcropUnder,
   polygonObstacles,
+  polygonsObstacles,
   tallyCost,
   type ObstacleChanges,
   type ObstacleTally,
 } from './obstacles';
-import { NO_CRAFTS } from './productivity';
 import { polygonsOverlap, rectangleCorners, type Point } from './polygon';
 import {
   CEMETERY,
   CEMETERY_DISTANCE_M,
+  CRAFT_BASE,
   DWELLING_FOOTPRINT_M,
   DWELLING_MAX_HEIGHT_DIFF_M,
   FIELD_LIMITS,
+  MILIR,
   PLOT_HOUSE_OFFSET_M,
   PLOT_HOUSE_ROTATION,
+  PLOT_SNAP_M,
   PLOT_TYPES,
   PLOT_VARIANTS,
   SACRED_BUILDINGS,
   SACRED_OAK,
   SURFACE_INCLUDED_OBSTACLES,
+  WORKSHOP_PORCH_M,
 } from './rules';
 import {
   NO_SPARED,
@@ -57,9 +62,11 @@ import {
   type SparedSacred,
 } from './sacred';
 import type {
+  Craft,
   DwellingPlot,
   DwellingType,
   FieldSurface,
+  PlotVariant,
   Position,
   SacredBuildingKind,
   TileCell,
@@ -85,16 +92,22 @@ export interface PlacementCheck {
 
 /** Co z vsi potřebuje kontrola překryvu – VillageState ji splňuje, klient ji složí ze scény. */
 export interface PlacementVillage {
-  /** Obydlí – na pozemku (`plot`, zabírá celé políčko), nebo volně (jen půdorys). */
+  /**
+   * Obydlí – na pozemku (`plot`, zabírá celé políčko), nebo volně (jen půdorys; dílna i
+   * s přístřeškem a milířem – `workshop`).
+   */
   readonly dwellings: readonly {
     readonly type: DwellingType;
     readonly position: Position;
     readonly plot?: DwellingPlot;
+    readonly workshop?: { readonly craft: Craft };
   }[];
   readonly constructions: readonly {
     readonly dwellingType: DwellingType | null;
     readonly position: Position | null;
     readonly plot?: DwellingPlot;
+    /** Rozestavěná řemeslná dílna (crafts.md). */
+    readonly craft?: Craft;
   }[];
   /**
    * Díly polí – každý zabírá své políčko (díl bez políčka se nepočítá); `fieldId` a `areaM2` pro
@@ -123,6 +136,11 @@ export interface PlacementVillage {
     readonly kind: SacredBuildingKind;
     readonly position: Position;
   }[];
+  /**
+   * Pokrytí nástroji 0–1 (crafts.md) – cena založení pole a povrch čtverce (křoviny) podle mezí
+   * produktivity. Bez údaje 0 (ves bez kováře).
+   */
+  readonly toolCoverage?: number;
 }
 
 /** Kontrola umístění obydlí s cenou překážek na vyklízené ploše. */
@@ -288,19 +306,63 @@ export function plotHousePosition(landscape: Landscape, plot: DwellingPlot): Pos
   return { x: center.x + offset.x, z: center.z + offset.z, rotation: PLOT_HOUSE_ROTATION };
 }
 
-/** Obydlí, jak ho zná kontrola překryvu – na pozemku (`plot`), nebo volně (jen půdorys). */
+/**
+ * Obydlí, jak ho zná kontrola překryvu – na pozemku (`plot`), nebo volně (jen půdorys); řemeslná
+ * dílna s řemeslem (`craft`).
+ */
 interface PlacedDwelling {
   readonly type: DwellingType;
   readonly position: Position;
   readonly plot?: DwellingPlot;
+  readonly craft?: Craft;
 }
 
 /**
- * Co obydlí zabírá: celé políčko pozemku, u volného obydlí (zemnice, starší polozemnice) jen
- * půdorys – nic z toho se nesmí překrývat.
+ * Co obydlí zabírá: celé políčko pozemku i s půdorysem domu (dům převedené starší polozemnice
+ * může z políčka vyčnívat – `withPlots`), u volného obydlí (zemnice, starší polozemnice bez
+ * pozemku) jen půdorys, u dílny půdorys s přístřeškem a milířem (crafts.md) – nic z toho se
+ * nesmí překrývat.
  */
 export function dwellingPlot(landscape: Landscape, d: PlacedDwelling): Point[][] {
-  return d.plot ? [cellCorners(landscape, d.plot.cell)] : [dwellingFootprint(d.type, d.position)];
+  if (d.craft) return workshopFootprints(d.craft, d.position);
+  const footprint = dwellingFootprint(d.type, d.position);
+  return d.plot ? [cellCorners(landscape, d.plot.cell), footprint] : [footprint];
+}
+
+/** Obydlí vsi pro kontrolu překryvu (řemeslo dílny jako `craft`). */
+function placedDwelling(d: PlacementVillage['dwellings'][number]): PlacedDwelling {
+  return {
+    type: d.type,
+    position: d.position,
+    ...(d.plot ? { plot: d.plot } : {}),
+    ...(d.workshop ? { craft: d.workshop.craft } : {}),
+  };
+}
+
+/**
+ * Varianta pozemku podle toho, kde na políčku `cell` dům stojí: ta, jejíž poloha domu je nejblíž
+ * (uprostřed, nebo v rohu, kam se dům zřetelně posunul). `snapped` = poloha domu přesunutá na
+ * místo varianty (natočení zůstane), když je blíž než PLOT_SNAP_M, jinak null – dům zůstane.
+ */
+export function nearestPlotVariant(
+  landscape: Landscape,
+  cell: TileCell,
+  position: Position,
+): { variant: PlotVariant; snapped: Position | null } {
+  let best: { variant: PlotVariant; distance: number; x: number; z: number } | null = null;
+  for (const variant of PLOT_VARIANTS) {
+    const at = plotHousePosition(landscape, { cell, variant });
+    const distance = Math.hypot(at.x - position.x, at.z - position.z);
+    if (!best || distance < best.distance - 1e-9) best = { variant, distance, x: at.x, z: at.z };
+  }
+  const chosen = best!;
+  return {
+    variant: chosen.variant,
+    snapped:
+      chosen.distance <= PLOT_SNAP_M
+        ? { x: chosen.x, z: chosen.z, rotation: position.rotation }
+        : null,
+  };
 }
 
 /** Rohy políčka (čtverce pole) ve světě. */
@@ -386,27 +448,34 @@ function rectangleSamples(width: number, depth: number, position: Position): Poi
   return samples;
 }
 
-/** Půdorys celý v krajině, ne ve vodě, jen na louce a dost rovný. */
-function checkFootprintTerrain(landscape: Landscape, samples: readonly Point[]): PlacementCheck {
+/**
+ * Půdorys celý v krajině, ne ve vodě, jen na louce a dost rovný. `what` = co se staví (důvod
+ * česky – obydlí, nebo milíř uhlíře).
+ */
+function checkFootprintTerrain(
+  landscape: Landscape,
+  samples: readonly Point[],
+  what: 'Obydlí' | 'Milíř' = 'Obydlí',
+): PlacementCheck {
   let lowest = Infinity;
   let highest = -Infinity;
   let offMeadow = false;
   for (const [x, z] of samples) {
     const tile = tileOfWorldPoint(landscape, x, z);
-    if (!tile) return fail('Obydlí musí stát uvnitř krajiny sídla.');
+    if (!tile) return fail(`${what} musí stát uvnitř krajiny sídla.`);
     const surface = surfaceAt(landscape, tile.x, tile.y);
-    if (surface === 'water') return fail('Obydlí nemůže stát ve vodě.');
+    if (surface === 'water') return fail(`${what} nemůže stát ve vodě.`);
     if (surface !== 'meadow') offMeadow = true;
     const height = heightAtWorld(landscape, x, z);
     lowest = Math.min(lowest, height);
     highest = Math.max(highest, height);
   }
-  if (offMeadow) return fail('Obydlí jde zatím stavět jen na louce.');
+  if (offMeadow) return fail(`${what} jde zatím stavět jen na louce.`);
   const difference = highest - lowest;
   if (difference > DWELLING_MAX_HEIGHT_DIFF_M) {
     return fail(
-      `Země je tu příliš nerovná – rozdíl ${formatNumber(difference, 1)} m, ` +
-        `nejvýš ${formatNumber(DWELLING_MAX_HEIGHT_DIFF_M, 1)} m.`,
+      `${what === 'Milíř' ? 'Pod milířem je země' : 'Země je tu'} příliš nerovná – rozdíl ` +
+        `${formatNumber(difference, 1)} m, nejvýš ${formatNumber(DWELLING_MAX_HEIGHT_DIFF_M, 1)} m.`,
     );
   }
   return OK;
@@ -425,7 +494,9 @@ function checkFootprintFree(
   const overlaps = (other: readonly Point[][]): boolean =>
     plot.some((a) => other.some((b) => polygonsOverlap(a, b)));
   for (const d of village.dwellings) {
-    if (overlaps(dwellingPlot(landscape, d))) return fail('Překrývá se s jiným obydlím.');
+    if (overlaps(dwellingPlot(landscape, placedDwelling(d)))) {
+      return fail('Překrývá se s jiným obydlím.');
+    }
   }
   for (const c of village.constructions) {
     if (c.dwellingType === null || c.position === null) continue;
@@ -433,6 +504,7 @@ function checkFootprintFree(
       type: c.dwellingType,
       position: c.position,
       ...(c.plot ? { plot: c.plot } : {}),
+      ...(c.craft ? { craft: c.craft } : {}),
     };
     if (overlaps(dwellingPlot(landscape, site))) {
       return fail('Překrývá se s rozestavěným obydlím.');
@@ -546,6 +618,91 @@ export function checkDwellingPlacement(
   };
 }
 
+/** Těžiště vrcholů mnohoúhelníku (střed obdélníku půdorysu). */
+function centroid(polygon: readonly Point[]): { x: number; z: number } {
+  const x = polygon.reduce((sum, p) => sum + p[0], 0) / polygon.length;
+  const z = polygon.reduce((sum, p) => sum + p[1], 0) / polygon.length;
+  return { x, z };
+}
+
+/**
+ * Smí řemeslná dílna `craft` stát na místě (crafts.md – Budovy)? Umisťuje se volně jako zemnice:
+ * obydlí řemesla (hrnčíř a kovář polozemnice s přístřeškem vpředu, uhlíř zemnice) jako
+ * `checkDwellingPlacement` a u uhlíře navíc milíř kus od zemnice (MILIR) – i pod ním louka, dost
+ * rovná zem, žádný překryv, skalní výchoz ani posvátné místo. Překážky na vyklízené ploše dílny
+ * a v kruhu kolem milíře osadníci odstraní (cena po kusech).
+ */
+export function checkWorkshopPlacement(
+  landscape: Landscape,
+  village: PlacementVillage | null,
+  craft: Craft,
+  position: Position,
+  obstacles: ObstacleLayer = obstaclesOf(landscape),
+): DwellingPlacementCheck {
+  const none = {
+    obstacleCost: 0,
+    obstacleIds: [],
+    clearedTrees: 0,
+    obstacleCounts: {},
+    spared: NO_SPARED,
+  };
+  if (![position.x, position.z, position.rotation].every(Number.isFinite)) {
+    return { ...fail('Neplatná poloha dílny.'), ...none };
+  }
+  const type = CRAFT_BASE[craft];
+  const { width, depth } = DWELLING_FOOTPRINT_M[type];
+  const porch = WORKSHOP_PORCH_M[craft];
+  const footprints = workshopFootprints(craft, position);
+  const house = { ...centroid(footprints[0]!), rotation: position.rotation };
+  const terrain = checkFootprintTerrain(landscape, rectangleSamples(width, depth + porch, house));
+  if (!terrain.ok) return { ...terrain, ...none };
+  const milir = footprints[1];
+  if (milir) {
+    const center = { ...centroid(milir), rotation: position.rotation };
+    const samples = rectangleSamples(MILIR.footprintM, MILIR.footprintM, center);
+    const ground = checkFootprintTerrain(landscape, samples, 'Milíř');
+    if (!ground.ok) return { ...ground, ...none };
+  }
+  const free = checkFootprintFree(landscape, village, footprints);
+  if (!free.ok) return { ...free, ...none };
+  const status = obstacleStatus(village?.obstacleChanges);
+  if (footprints.some((f) => outcropUnder(obstacles, status, f))) {
+    return { ...fail('Stojí tu skalní výchoz – ten osadníci neodstraní.'), ...none };
+  }
+  const sites = sacredSitesOf(obstacles);
+  const sacredProblem = sacredUnder(landscape, obstacles, sites, footprints);
+  if (sacredProblem) return { ...fail(sacredProblem), ...none };
+  const clearings = [dwellingClearing(type, position), ...(milir ? [milirClearing(position)] : [])];
+  const clearingTiles = clearings.flatMap((c) => cellsUnderPolygon(landscape, c));
+  const groves = grovesOfTiles(sites, clearingTiles);
+  const tally = polygonsObstacles(
+    obstacles,
+    status,
+    clearings,
+    new Set([
+      ...occupiedCells(landscape, village),
+      ...cemeteryCells(landscape, village),
+      ...orchardCells(landscape, village),
+      ...clearingTiles.filter((tile) => sites.groveByTile.has(tile)),
+    ]),
+    sites.protectedTrees,
+  );
+  const oaks = clearings.flatMap((c) => sacredOaksNear(sites, obstacles, c, 0));
+  const spared = sparedSacred([...new Map(oaks.map((o) => [o.id, o])).values()], groves);
+  const near = nearCemeteryWarning(landscape, village, position);
+  const warning = [near.warning, sparedWarning(spared)].filter(Boolean).join('\n');
+  return {
+    ok: true,
+    reason: null,
+    ...(warning ? { warning } : {}),
+    obstacleCost: tally.cost,
+    obstacleIds: tally.ids,
+    clearedTrees: unreservedTrees(village, tally.treeIds),
+    obstacleCounts: tally.counts,
+    spared,
+  };
+}
+
 /** Kontrola pozemku obydlí – navíc poloha domu na něm (null, když pozemek neprošel). */
 export interface PlotPlacementCheck extends DwellingPlacementCheck {
   position: Position | null;
@@ -581,45 +738,84 @@ export function checkPlotPlacement(
   if (!PLOT_VARIANTS.includes(plot.variant)) {
     return { ...fail('Neplatné místo domu na pozemku.'), ...none };
   }
-  if (!Number.isInteger(cell.x) || !Number.isInteger(cell.y)) {
-    return { ...fail('Neplatné políčko pozemku.'), ...none };
-  }
-  if (cell.x < 0 || cell.y < 0 || cell.x >= landscape.size || cell.y >= landscape.size) {
-    return { ...fail('Pozemek musí ležet uvnitř krajiny sídla.'), ...none };
-  }
-  const surface = surfaceAt(landscape, cell.x, cell.y);
-  if (surface === 'water') return { ...fail('Pozemek nemůže ležet ve vodě.'), ...none };
-  if (surface !== 'meadow') return { ...fail('Pozemek jde zatím jen na louku.'), ...none };
+  const where = plotCellProblem(landscape, cell);
+  if (where) return { ...fail(where), ...none };
   const position = plotHousePosition(landscape, plot);
   const terrain = checkFootprintTerrain(landscape, footprintSamples(type, position));
   if (!terrain.ok) return { ...terrain, ...none };
-  const square = cellCorners(landscape, cell);
-  const free = checkFootprintFree(landscape, village, [square]);
-  if (!free.ok) return { ...free, ...none };
-  const status = obstacleStatus(village?.obstacleChanges);
-  if (outcropUnder(obstacles, status, square)) {
-    return { ...fail('Na pozemku je skalní výchoz – ten osadníci neodstraní.'), ...none };
-  }
   const sites = sacredSitesOf(obstacles);
-  const index = cellIndex(landscape, cell);
-  if (sites.groveByTile.has(index)) {
-    return { ...fail('Na pozemku roste posvátný dubový háj – ten vesničané nevykácejí.'), ...none };
-  }
-  if (sacredOaksInTile(sites, index).length > 0) {
-    return { ...fail('Na pozemku stojí posvátný dub – ten vesničané nepokácí.'), ...none };
-  }
+  const taken = plotSquareProblem(landscape, village, cell, obstacles, sites);
+  if (taken) return { ...fail(taken), ...none };
   const house = sacredUnder(landscape, obstacles, sites, [dwellingFootprint(type, position)]);
   if (house) return { ...fail(house), ...none };
-  const tally = cellObstacles(obstacles, status, cell, sites.protectedTrees);
+  const tally = plotClearing(landscape, village, cell, obstacles, sites);
   return {
     ...nearCemeteryWarning(landscape, village, position),
+    ...tally,
+    position,
+  };
+}
+
+/** Políčko pozemku v krajině a na louce (ne voda, zatím ani les)? Důvod česky, nebo null. */
+function plotCellProblem(landscape: Landscape, cell: TileCell): string | null {
+  if (!Number.isInteger(cell.x) || !Number.isInteger(cell.y)) return 'Neplatné políčko pozemku.';
+  if (cell.x < 0 || cell.y < 0 || cell.x >= landscape.size || cell.y >= landscape.size) {
+    return 'Pozemek musí ležet uvnitř krajiny sídla.';
+  }
+  const surface = surfaceAt(landscape, cell.x, cell.y);
+  if (surface === 'water') return 'Pozemek nemůže ležet ve vodě.';
+  if (surface !== 'meadow') return 'Pozemek jde zatím jen na louku.';
+  return null;
+}
+
+/**
+ * Zabírá políčko pozemku něco jiného – pole, hřbitov, sad, obydlí či pozemek, modla, svatyně –
+ * nebo je na něm skalní výchoz, posvátný dub či čtverec háje? Důvod česky, nebo null.
+ */
+function plotSquareProblem(
+  landscape: Landscape,
+  village: PlacementVillage | null,
+  cell: TileCell,
+  obstacles: ObstacleLayer,
+  sites: SacredSites,
+): string | null {
+  const square = cellCorners(landscape, cell);
+  const free = checkFootprintFree(landscape, village, [square]);
+  if (!free.ok) return free.reason;
+  const status = obstacleStatus(village?.obstacleChanges);
+  if (outcropUnder(obstacles, status, square)) {
+    return 'Na pozemku je skalní výchoz – ten osadníci neodstraní.';
+  }
+  const index = cellIndex(landscape, cell);
+  if (sites.groveByTile.has(index)) {
+    return 'Na pozemku roste posvátný dubový háj – ten vesničané nevykácejí.';
+  }
+  if (sacredOaksInTile(sites, index).length > 0) {
+    return 'Na pozemku stojí posvátný dub – ten vesničané nepokácí.';
+  }
+  return null;
+}
+
+/**
+ * Překážky na políčku pozemku jako u čtverce pole – všechny kusy kromě posvátných stromů (cena
+ * po kusech, dospělé stromy nevyhrazené jinou stavbou dají klády). Na pozemku posvátné místo
+ * být nesmí, takže není co nechat stát (`spared` prázdné).
+ */
+function plotClearing(
+  landscape: Landscape,
+  village: PlacementVillage | null,
+  cell: TileCell,
+  obstacles: ObstacleLayer,
+  sites: SacredSites,
+): Omit<DwellingPlacementCheck, keyof PlacementCheck> {
+  const status = obstacleStatus(village?.obstacleChanges);
+  const tally = cellObstacles(obstacles, status, cell, sites.protectedTrees);
+  return {
     obstacleCost: tally.cost,
     obstacleIds: tally.ids,
     clearedTrees: unreservedTrees(village, tally.treeIds),
     obstacleCounts: tally.counts,
-    // na pozemku posvátné místo být nesmí – není co nechat stát
     spared: NO_SPARED,
-    position,
   };
 }
 
@@ -693,6 +889,26 @@ export function checkPenPlacement(
 }
 
 /**
+ * Smí políčko `cell` dostat starší polozemnice, která na něm už stojí (převod starých vsí,
+ * `withPlots`)? Jako u nového pozemku: louka, nic jiného ho nezabírá (obydlí samo se do `village`
+ * nedává), bez výchozu a posvátných míst – rovnost pod domem se nehlídá, dům už stojí. Vrátí
+ * překážky na políčku, nebo důvod, proč ne.
+ */
+export function existingPlotSquare(
+  landscape: Landscape,
+  village: PlacementVillage,
+  cell: TileCell,
+  obstacles: ObstacleLayer,
+): PlacementCheck & Partial<Omit<DwellingPlacementCheck, keyof PlacementCheck>> {
+  const sites = sacredSitesOf(obstacles);
+  const problem =
+    plotCellProblem(landscape, cell) ??
+    plotSquareProblem(landscape, village, cell, obstacles, sites);
+  if (problem) return fail(problem);
+  return { ...OK, ...plotClearing(landscape, village, cell, obstacles, sites) };
+}
+
+/**
  * Brání stavbě s půdorysem `plot` posvátné místo? Háj se nekácí (žádný čtverec háje pod
  * půdorysem) a pod korunou posvátného dubu se nestaví (kmen blíž než SACRED_OAK_RADIUS_M).
  * Vrací důvod česky, nebo null.
@@ -731,6 +947,7 @@ export function placementVillageOf(state: VillageState, day: number): PlacementV
     obstacleChanges: obstacleChangesAt(state, day),
     reservedTrees: [...reservedTrees(state)],
     sacredBuildings: sacredBuildingPlots(state),
+    toolCoverage: craftCoverage(state, day).tools,
   };
 }
 
@@ -831,13 +1048,14 @@ function dwellingCells(
   dwellingPositions: Position[],
 ): Set<number> {
   const footprints = [
-    ...(village?.dwellings.flatMap((d) => dwellingPlot(landscape, d)) ?? []),
+    ...(village?.dwellings.flatMap((d) => dwellingPlot(landscape, placedDwelling(d))) ?? []),
     ...(village?.constructions.flatMap((c) =>
       c.dwellingType !== null && c.position !== null
         ? dwellingPlot(landscape, {
             type: c.dwellingType,
             position: c.position,
             ...(c.plot ? { plot: c.plot } : {}),
+            ...(c.craft ? { craft: c.craft } : {}),
           })
         : [],
     ) ?? []),
@@ -1048,7 +1266,8 @@ function buildSquares(
       obstacleCounts[kind] = (obstacleCounts[kind] ?? 0) + count;
     }
     const surface: FieldSurface = fieldSurfaces
-      ? (fieldSquareSurface(land, tally.counts.shrub ?? 0, cellArea, NO_CRAFTS.tools) ?? 'meadow')
+      ? (fieldSquareSurface(land, tally.counts.shrub ?? 0, cellArea, village?.toolCoverage ?? 0) ??
+        'meadow')
       : 'meadow';
     const unusable =
       tally.outcropAreaM2 + sacredOaksInTile(sites, index).length * SACRED_OAK.crownM2;
@@ -1235,7 +1454,8 @@ export function fieldPartsFromCells(
   const averageFertility =
     areaM2 > 0 ? parts.reduce((sum, p) => sum + p.naturalFertility * p.areaM2, 0) / areaM2 : 0;
   const foundingCost = parts.reduce(
-    (sum, p) => sum + partFoundingCost(p.surface, p.areaM2, p.obstacleCost, NO_CRAFTS.tools),
+    (sum, p) =>
+      sum + partFoundingCost(p.surface, p.areaM2, p.obstacleCost, village?.toolCoverage ?? 0),
     0,
   );
   const obstacleCost = parts.reduce((sum, p) => sum + p.obstacleCost, 0);

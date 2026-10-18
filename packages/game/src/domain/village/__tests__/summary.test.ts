@@ -90,6 +90,7 @@ describe('summarizeVillage', () => {
       {
         dwellingId: 1,
         type: 'zemnice',
+        craft: null,
         occupants: 4,
         capacity: 6,
         full: false,

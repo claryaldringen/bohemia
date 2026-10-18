@@ -11,16 +11,21 @@ import {
   gameDayAt,
   gameDaySeconds,
   plumePuffs,
-  smokeStrength,
+  ventSmokeStrength,
   type Puff,
+  type SmokeKind,
 } from './smoke-schedule';
 
-/** Dýmník obydlí ve světě scény; `seed` = id obydlí (vlastní rozvrh ohně). */
+/**
+ * Zdroj dýmu ve světě scény; `seed` = vlastní rozvrh ohně (dýmník obydlí – id obydlí). `kind`
+ * = dýmník obydlí (bez údaje), pec nebo výheň dílny, nebo milíř (smoke-schedule.ts).
+ */
 export interface SmokeSource {
   seed: number;
   x: number;
   y: number;
   z: number;
+  kind?: SmokeKind;
 }
 
 /**
@@ -63,7 +68,7 @@ export class VillageSmoke {
 
   /** Dýmníky hotových obydlí; vrátí true, když se změnily. */
   setSources(sources: readonly SmokeSource[]): boolean {
-    const key = (s: SmokeSource): string => `${s.seed}|${s.x}|${s.y}|${s.z}`;
+    const key = (s: SmokeSource): string => `${s.seed}|${s.x}|${s.y}|${s.z}|${s.kind ?? ''}`;
     if (
       sources.length === this.plumes.length &&
       sources.every((s, i) => key(s) === key(this.plumes[i]!.source))
@@ -122,9 +127,10 @@ export class VillageSmoke {
         if (Vector3.Distance(camera.globalPosition, center) > ANIMATE_RANGE_M) continue;
       }
       const { seed, x, y, z } = plume.source;
+      const kind = plume.source.kind ?? 'hearth';
       const strengthAt = this.always
         ? (): number => 1
-        : (ageS: number): number => smokeStrength(seed, day - ageS / daySeconds);
+        : (ageS: number): number => ventSmokeStrength(kind, seed, day - ageS / daySeconds);
       plumePuffs(seed, timeS, strengthAt, plume.puffs);
       let visible = false;
       plume.puffs.forEach((puff, i) => {

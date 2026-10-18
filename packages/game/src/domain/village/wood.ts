@@ -89,10 +89,13 @@ export function treesToFell(c: Pick<Construction, 'wood'>): number {
 }
 
 /**
- * Stromy vyhrazené rozestavěnými stavbami, které ještě stojí (nepokácené). Patří své stavbě:
- * nepočítají se do klád z mýcení (pole, hřbitov, staveniště) a nekácí je jiná stavba.
+ * Stromy vyhrazené rozestavěnými stavbami, které ještě stojí (nepokácené), a stromy, které právě
+ * kácejí řemeslné dílny (uhlíř, hrnčíř – crafts.md). Patří své stavbě nebo dílně: nepočítají se
+ * do klád z mýcení (pole, hřbitov, staveniště) a nekácí je nikdo jiný.
  */
-export function reservedTrees(state: Pick<VillageState, 'constructions'>): Set<number> {
+export function reservedTrees(
+  state: Pick<VillageState, 'constructions'> & Partial<Pick<VillageState, 'dwellings'>>,
+): Set<number> {
   const reserved = new Set<number>();
   for (const c of state.constructions) {
     if (!c.wood) continue;
@@ -100,6 +103,10 @@ export function reservedTrees(state: Pick<VillageState, 'constructions'>): Set<n
       const id = c.wood.fell[i]!.id;
       if (id !== null) reserved.add(id);
     }
+  }
+  for (const d of state.dwellings ?? []) {
+    const id = d.workshop?.felling?.id;
+    if (id !== undefined && id !== null) reserved.add(id);
   }
   return reserved;
 }
@@ -111,7 +118,8 @@ export function reservedTrees(state: Pick<VillageState, 'constructions'>): Set<n
  * stavba).
  */
 export function claimedObstacles(
-  state: Pick<VillageState, 'constructions' | 'parts' | 'cemeteries' | 'orchards'>,
+  state: Pick<VillageState, 'constructions' | 'parts' | 'cemeteries' | 'orchards'> &
+    Partial<Pick<VillageState, 'dwellings'>>,
 ): Set<number> {
   const claimed = reservedTrees(state);
   for (const part of state.parts) for (const id of part.obstacles ?? []) claimed.add(id);
@@ -288,6 +296,8 @@ export interface WoodPlanOptions {
   clearedTrees?: number;
   /** Překážky vyklízené plochy – osadníci je odstraní i s pařezy, nekácí se pro stavbu. */
   clearedIds?: readonly number[];
+  /** Kolik dřeva (stromů) stavba chce – řemeslná dílna víc (crafts.md); bez údaje podle obydlí. */
+  trees?: number;
 }
 
 /**
@@ -339,7 +349,7 @@ export function planDwellingWoodFrom(
   source: WoodSource,
   options: WoodPlanOptions = {},
 ): WoodPlan {
-  return planWoodFrom(DWELLING_TREES[type], position, source, options);
+  return planWoodFrom(options.trees ?? DWELLING_TREES[type], position, source, options);
 }
 
 /**
@@ -430,7 +440,7 @@ export function planSacredWood(
 }
 
 /** Stojí strom v den `day` – není odstraněný ani pokácený (nebo už dorostl)? */
-function isStanding(state: VillageState, id: number, day: number): boolean {
+export function isTreeStanding(state: VillageState, id: number, day: number): boolean {
   if ((state.clearedObstacles ?? []).some((c) => c.id === id)) return false;
   return !(state.felledTrees ?? []).some(
     (f) => f.id === id && treeRegrowth(f.day, day) !== 'grown',
@@ -452,7 +462,7 @@ export function fellAsWorked(state: VillageState, c: Construction, day: number):
     reached += tree.cost;
     if (i < wood.felled) continue;
     if (c.done + EPSILON < reached) return;
-    if (tree.id !== null && isStanding(state, tree.id, day)) {
+    if (tree.id !== null && isTreeStanding(state, tree.id, day)) {
       state.felledTrees = fellTrees(state, [tree.id], day).felledTrees ?? [];
     }
     wood.felled = i + 1;
@@ -462,9 +472,14 @@ export function fellAsWorked(state: VillageState, c: Construction, day: number):
 /**
  * Práce navíc na palivu za den (forest.md – Palivo): palivová část domácí výroby domácnosti je
  * o 1 % dražší za každých 10 m nad 100 m od jejího obydlí k nejbližšímu okraji lesa.
- * Zakladatelé, kteří bydlí na staveništi první zemnice, se počítají od staveniště.
+ * Zakladatelé, kteří bydlí na staveništi první zemnice, se počítají od staveniště. `include`
+ * vybere domácnosti (id obydlí) – řemeslníci si domácí výrobu dělají sami (crafts.md); bez
+ * údaje všechny.
  */
-export function fuelExtraPerDay(state: VillageState): number {
+export function fuelExtraPerDay(
+  state: VillageState,
+  include: (householdId: number) => boolean = () => true,
+): number {
   // běžný případ (les blízko všech obydlí) bez počítání domácností – volá se každý den
   const far = (distance: number | undefined): boolean => distanceFactor(distance ?? 0) > 1;
   if (
@@ -477,6 +492,7 @@ export function fuelExtraPerDay(state: VillageState): number {
   for (const p of state.people) members.set(p.dwellingId, (members.get(p.dwellingId) ?? 0) + 1);
   let extra = 0;
   for (const [householdId, count] of members) {
+    if (!include(householdId)) continue;
     const distance =
       state.dwellings.find((d) => d.id === householdId)?.forestDistanceM ??
       state.constructions.find((c) => c.kind === 'dwelling' && c.dwellingId === householdId)

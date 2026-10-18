@@ -1,10 +1,10 @@
 // Rozestavění staveb na vývojové stránce /dev/buildings – bez Babylonu (smí i do stránky).
-// Jen pro prohlídku modelů: řemesla a posvátná místa zatím nemají místo ve hře. Za řadou
+// Jen pro prohlídku modelů (řemesla a posvátná místa staví hráč ve vsi). Za řadou
 // staveb pole, hřbitov, sad a louka na seno po čtvercích – jejich fáze podle průběhu stavby
 // (showcaseGrounds); vpravo modla, svatyně, posvátný dub a dubový háj (dekorace bez staveniště);
 // vlevo od pole čtverec, který orá spřežení volů s rádlem (ukázka „Orání“, plough-team.ts),
 // vlevo od zemnice ohrada s přístřeškem (ukázka „Ohrada“, pen-layout.ts).
-import { CEMETERY, PLOT_VARIANTS, type PlotVariant, type TileCell } from '@bohemia/game';
+import { CEMETERY, MILIR, PLOT_VARIANTS, type PlotVariant, type TileCell } from '@bohemia/game';
 import type { FieldLook, SceneFieldPart, SceneVillage } from '../village-view';
 import { CEMETERY_PHASES } from './cemetery-layout';
 import { hayPhase, meadowLook, type HayMeadow } from './hay-meadows';
@@ -16,10 +16,11 @@ import type { ConstructionKind } from './village-construction';
 
 /**
  * Milíř stojí „kus od“ uhlířovy zemnice: odstup v souřadnicích modelu ve scéně (x napříč,
- * z k vchodu) ≈ 9,5 m, doporučeně 8–12 m. Totéž je v `tools/blender/crafts.py` jako
- * MILIR_OFFSET v souřadnicích Blenderu (tam s opačnými znaménky, vchod míří do −y).
+ * z k vchodu) ≈ 9,5 m, doporučeně 8–12 m – pravidlo herního jádra (`MILIR.offset`, crafts.md).
+ * Totéž je v `tools/blender/crafts.py` jako MILIR_OFFSET v souřadnicích Blenderu (tam
+ * s opačnými znaménky, vchod míří do −y).
  */
-export const MILIR_OFFSET_M = { x: -9, z: 3 } as const;
+export const MILIR_OFFSET_M = MILIR.offset;
 
 export interface ShowcaseModel {
   /** Druh stavby – fáze staveniště a jáma (village-construction.ts). */

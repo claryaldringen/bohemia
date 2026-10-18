@@ -1,9 +1,10 @@
 # Řemesla – uhlíř, kovář, hrnčíř
 
-Stav: **schváleno 18. 10. 2026 (Martin)**. Návrh ze 17. 10. 2026 týž den přepracován podle Martina
-(řemeslník na plný úvazek, účinky jako meze produktivity) a podle
-[rešerše](research/2026-10-17-remesla-drevo-sad.md). Implementace zatím není – jádro ale už
-počítá práci a ztráty mezi mezemi s pokrytím 0 (`packages/game/src/domain/village/productivity.ts`).
+Stav: **schváleno 18. 10. 2026 (Martin), implementováno 18. 10. 2026**. Návrh ze 17. 10. 2026 týž
+den přepracován podle Martina (řemeslník na plný úvazek, účinky jako meze produktivity) a podle
+[rešerše](research/2026-10-17-remesla-drevo-sad.md). Jádro: `packages/game/src/domain/village/crafts.ts`
+(výroba, pokrytí, opotřebení, půdorys dílny a milíře), meze v `productivity.ts`, čísla v `rules.ts`;
+co se při implementaci rozhodlo navíc, je v části [Implementace](#implementace).
 
 ## Proč
 
@@ -131,21 +132,61 @@ zatím neřešit – letopočet začátku hry se může posunout.
 - U vybrané dílny: domácnost, co právě dělá (vyrábí / čeká na uhlí), zásoba výrobku.
 - Ve scéně: dým z pece a z milíře, když se pracuje.
 
+## Implementace
+
+Rozhodnutí kontroléru při implementaci (18. 10. 2026) – kde návrh nechával volnost:
+
+- **Dílna = obydlí s řemeslem** (`Dwelling.workshop`): hrnčíř a kovář polozemnice, uhlíř zemnice.
+  Cena **286 člověkodní a 23 stromů** (hrnčíř, kovář) a **78 člověkodní a 9 stromů** (uhlíř) –
+  základní obydlí + 30 %, zaokrouhleno. Umisťuje se volně jako zemnice (bez pozemku); půdorys
+  hrnčíře a kováře je o přístřešek (3,2 m) delší vpředu. **Milíř** se staví spolu se zemnicí
+  uhlíře (jedna stavba, stejný průběh) a stojí 9 m stranou a 3 m vpřed od ní (souřadnice modelu,
+  `MILIR` v `rules.ts`); místo pod ním (6 × 6 m) musí být louka, dost rovná a volná, překážky
+  v kruhu o poloměru 4,6 m osadníci odstraní a zaplatí jako u obydlí.
+- **Celá domácnost dílny pracuje v dílně** – i starší děti a starší pomáhají jako na poli; po
+  denním minimu (meze podle nádob) a domácí výrobě (i palivo dál od lesa) dostane řemeslo
+  všechno, nikdy pole ani společnou práci. **Opravy dílny platí ves** (jako u ostatních obydlí –
+  opravy jdou před domácí výrobou). Do sil vsi pro plán osevu se domácnosti dílen nepočítají.
+- **Výroba den po dni** (na kouscích nezávisí): uhlíř a hrnčíř vyberou nejbližší stojící dospělý
+  strom, který nepatří jiné stavbě ani dílně a není posvátný (vyhradí ho), skácí ho (2 čd + 1 %
+  za 10 m nad 100 m – uhlíř od milíře, hrnčíř od dílny, zůstane pařez) a teprve pak z něj vyrábějí
+  (120 kg uhlí po 10 kg za čd; 500 kg keramiky po 1 čd za kg). Kovář kuje z uhlí ze zásob
+  (dílny pracují v pořadí uhlíř → hrnčíř → kovář, dnešní uhlí jde hned do výhně). Přirážka za rudu
+  a hlínu se měří od políčka dílny k nejbližšímu políčku vody. Uhlí neubývá.
+- **Opotřebení jen toho, co ves používá**: denně 30 % / 365 nástrojů a 40 % / 365 nádob z toho, co
+  je v užívání (nejvýš potřeba) – ves, která potřebu drží pokrytou, ročně nahradí právě 30 % a 40 %
+  (40 pracujících ≈ 36 kg nástrojů); přebytek v zásobě leží.
+- **Pokrytí se počítá na začátku dne ze včerejších zásob** a platí pro všechny meze dne. Práce
+  plánu osevu (polní práce, vracení přílohu) se počítá podle pokrytí v den plánu (1. 9.) a u dílů
+  přidaných do plánu v den přidání – na celý hospodářský rok. Založení pole podle pokrytí v den
+  zahájení stavby (i cena v nabídce a u kurzoru).
+- **Jablka v nádobách poměrně**: den zkažení = 1. 3. + pokrytí nádobami × 61 dní (zaokrouhleno),
+  s plným pokrytím 1. 5.; pokrytí se bere den po dni, jablka shnijí, jakmile den zkažení podle
+  dnešního pokrytí nastal.
+- **Přestavba dílny** zachová řemeslo i typ obydlí (uhlíř se nepřestaví na polozemnici) a stojí
+  jako nová dílna (+ 30 %).
+- **Rozhraní:** v nabídce staveb hrnčíř [F], kovář [G], uhlíř [H]; v horní liště uhlí, nástroje
+  a keramika v kg (jen ves s dílnou nebo zásobou), v popisku pokrytí potřeby. Panel výběru dílny:
+  co dělá (vyrábí, kácí, čeká na uhlí, čeká na dřevo, nemá kdo, prázdná), práce za den, zásoba
+  výrobku a pokrytí. Upozornění „Kovář nemá uhlí“ a „Dílna nemá co kácet“. Ve scéně model dílny
+  po fázích stavby, dým z pece, výhně a milíře, když dílna vyrábí, uhlíř kácí u svého stromu.
+
 ## Rozhodnutí
 
-| Rozhodnutí                                                                                              | Kdo                                        |
-| ------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
-| Uhlíř pálí uhlí pro kováře; kovář dělá nástroje → produktivita práce celé vsi                           | Martin                                     |
-| Hrnčíř zvyšuje produktivitu výroby potravin                                                             | Martin                                     |
-| Dílna je obydlí, řemeslo provozuje domácnost, která v ní bydlí; prázdná nic nevyrábí                    | Martin                                     |
-| Řemeslník nepracuje na poli – ves ho musí uživit z nadvýroby                                            | Martin                                     |
-| Kovář si železo taví sám z bahenní rudy, žádný horník ani obchod                                        | Martin                                     |
-| Vzhled budov (hrnčíř, kovář, uhlíř s milířem)                                                           | Martin                                     |
-| Řemeslník na plný úvazek; přebytek do zásoby, bez vstupu stojí (místo výroby na 2 roky)                 | Martin (17. 10. 2026)                      |
-| Účinky jako meze produktivity – bez řemesel nejhorší mez, s plným pokrytím nejlepší (místo +30 / −15 %) | Martin (17. 10. 2026)                      |
-| 1 kg nástrojů = 10 čd a 50 kg uhlí; keramika 1 strom na 500 kg; strom = velký strom                     | Martin – oprava podle rešerše 17. 10. 2026 |
-| Hrnčíř: ztráty zásob 10 → 5 %, denní minimum 0,5 → 0,45                                                 | Martin – oprava podle rešerše 17. 10. 2026 |
-| Cena dílny +30 %                                                                                        | návrh Clauda                               |
-| Výkony 10 kg uhlí/čd, 120 kg uhlí ze stromu, 1 čd na 1 kg keramiky                                      | návrh Clauda                               |
-| Potřeby: 3 kg nástrojů na pracujícího (−30 %/rok), 5 kg nádob na člověka (−40 %/rok)                    | návrh Clauda                               |
-| Doba (keramika v ruce do 10. st.) se neřeší – letopočet začátku se může posunout                        | Martin (17. 10. 2026)                      |
+| Rozhodnutí                                                                                               | Kdo                                        |
+| -------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| Uhlíř pálí uhlí pro kováře; kovář dělá nástroje → produktivita práce celé vsi                            | Martin                                     |
+| Hrnčíř zvyšuje produktivitu výroby potravin                                                              | Martin                                     |
+| Dílna je obydlí, řemeslo provozuje domácnost, která v ní bydlí; prázdná nic nevyrábí                     | Martin                                     |
+| Řemeslník nepracuje na poli – ves ho musí uživit z nadvýroby                                             | Martin                                     |
+| Kovář si železo taví sám z bahenní rudy, žádný horník ani obchod                                         | Martin                                     |
+| Vzhled budov (hrnčíř, kovář, uhlíř s milířem)                                                            | Martin                                     |
+| Řemeslník na plný úvazek; přebytek do zásoby, bez vstupu stojí (místo výroby na 2 roky)                  | Martin (17. 10. 2026)                      |
+| Účinky jako meze produktivity – bez řemesel nejhorší mez, s plným pokrytím nejlepší (místo +30 / −15 %)  | Martin (17. 10. 2026)                      |
+| 1 kg nástrojů = 10 čd a 50 kg uhlí; keramika 1 strom na 500 kg; strom = velký strom                      | Martin – oprava podle rešerše 17. 10. 2026 |
+| Hrnčíř: ztráty zásob 10 → 5 %, denní minimum 0,5 → 0,45                                                  | Martin – oprava podle rešerše 17. 10. 2026 |
+| Cena dílny +30 %                                                                                         | návrh Clauda                               |
+| Výkony 10 kg uhlí/čd, 120 kg uhlí ze stromu, 1 čd na 1 kg keramiky                                       | návrh Clauda                               |
+| Potřeby: 3 kg nástrojů na pracujícího (−30 %/rok), 5 kg nádob na člověka (−40 %/rok)                     | návrh Clauda                               |
+| Doba (keramika v ruce do 10. st.) se neřeší – letopočet začátku se může posunout                         | Martin (17. 10. 2026)                      |
+| Implementační rozhodnutí (milíř, celá domácnost v dílně, opotřebení, jablka poměrně…) – viz Implementace | kontrolér (18. 10. 2026)                   |

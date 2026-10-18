@@ -6,6 +6,7 @@ import {
   readySquares,
   villageCemeteries,
 } from './cemetery';
+import { craftCoverage, craftNeeds, craftStocks, oreFactor, workshopLabor } from './crafts';
 import { isFull, isOvercrowded, waitingHouseholds } from './dwellings';
 import { fallowYears } from './fields';
 import {
@@ -51,6 +52,9 @@ import {
 import type {
   Construction,
   ConstructionKind,
+  Craft,
+  CraftCoverage,
+  CraftStocks,
   DietDay,
   DwellingType,
   FieldPart,
@@ -59,6 +63,7 @@ import type {
   SacredBuildingKind,
   TileCell,
   VillageState,
+  WorkshopActivity,
 } from './types';
 import { treesToFell, woodFellingCost, woodLogs } from './wood';
 
@@ -73,6 +78,8 @@ export type PartStage = 'founding' | 'ready' | 'sown' | 'young-fallow' | 'meadow
 export interface HouseholdSummary {
   dwellingId: number;
   type: DwellingType;
+  /** Řemeslo dílny (crafts.md); obyčejné obydlí null. */
+  craft: Craft | null;
   occupants: number;
   capacity: number;
   full: boolean;
@@ -84,6 +91,8 @@ export interface ConstructionSummary {
   id: number;
   kind: ConstructionKind;
   dwellingType: DwellingType | null;
+  /** Stavěná řemeslná dílna (crafts.md), jinak null. */
+  craft: Craft | null;
   dwellingId: number | null;
   fieldId: number | null;
   /** Výměra zakládaného pole (m²), u obydlí null. */
@@ -128,6 +137,27 @@ export interface OrchardSummary {
   ageYears: number | null;
   /** Úroda nejbližší sklizně při plné sklizni (kg jablek). */
   expectedYieldKg: number;
+}
+
+/** Řemeslná dílna pro panel výběru (crafts.md – Co hráč vidí). */
+export interface WorkshopSummary {
+  dwellingId: number;
+  craft: Craft;
+  activity: WorkshopActivity;
+  /** Kolik lidí v dílně bydlí. */
+  occupants: number;
+  /** Práce řemeslu za den po minimu a domácí výrobě (člověkodny, se štěstím). */
+  laborPerDay: number;
+  /** Přirážka za rudu nebo hlínu dál od potoka (1 = voda blízko). */
+  oreFactor: number;
+}
+
+/** Řemesla vsi – zásoby, potřeba, pokrytí (meze produktivity) a dílny. */
+export interface CraftsSummary {
+  stocks: CraftStocks;
+  needs: { toolsKg: number; potteryKg: number };
+  coverage: CraftCoverage;
+  workshops: WorkshopSummary[];
 }
 
 /** Štěstí obyvatel pro horní lištu (happiness.md). */
@@ -242,6 +272,8 @@ export interface VillageSummary {
   happiness: HappinessSummary;
   /** Posvátná místa – ušetřené duby a háje, hotové modly a svatyně. */
   sacred: SacredSummary;
+  /** Řemesla – zásoby výrobků, pokrytí potřeby a dílny (crafts.md). */
+  crafts: CraftsSummary;
 }
 
 const DAYS_PER_YEAR = 365;
@@ -277,6 +309,7 @@ function households(state: VillageState, day: number): HouseholdSummary[] {
   return state.dwellings.map((d) => ({
     dwellingId: d.id,
     type: d.type,
+    craft: d.workshop?.craft ?? null,
     occupants: occupants(state, d.id).length,
     capacity: DWELLINGS[d.type].capacity,
     full: isFull(state, d.id, day),
@@ -287,10 +320,12 @@ function households(state: VillageState, day: number): HouseholdSummary[] {
 
 /**
  * Jídlo příštího dne: příděl ze zásob obilí, masa a ovoce do sklizně, se kterou ves počítá
- * (i červencová sklizeň ozimu – stejně jako jídlo v simulaci; 1. 3. ráno ovoce shnije).
+ * (i červencová sklizeň ozimu – stejně jako jídlo v simulaci; 1. 3. ráno ovoce shnije,
+ * v nádobách později – pokrytí nádobami jako simulace příští den).
  */
 function nextDayDiet(state: VillageState, day: number): DietDay {
-  return villageMeal(state, Math.min(day + 1, TOTAL_GAME_DAYS - 1)).diet;
+  const next = Math.min(day + 1, TOTAL_GAME_DAYS - 1);
+  return villageMeal(state, next, craftCoverage(state, next).pottery).diet;
 }
 
 const DAYS_PER_SERVICE_YEAR = 365.25;
@@ -361,6 +396,7 @@ function constructionSummary(state: VillageState, c: Construction): Construction
     id: c.id,
     kind: c.kind,
     dwellingType: c.dwellingType,
+    craft: c.craft ?? null,
     dwellingId: c.dwellingId,
     fieldId: c.fieldId,
     areaM2,
@@ -479,6 +515,36 @@ export function summarizeVillage(state: VillageState, day: number): VillageSumma
     })),
     happiness: happinessSummary(state, day, diet),
     sacred: sacredSummary(state),
+    crafts: craftsSummary(state, day),
+  };
+}
+
+/** Řemesla vsi: zásoby, potřeba a pokrytí, dílny s tím, co dělají (crafts.md – Co hráč vidí). */
+function craftsSummary(state: VillageState, day: number): CraftsSummary {
+  const coverage = craftCoverage(state, day);
+  const productivity = happinessLaborFactor(villageHappiness(state));
+  return {
+    stocks: { ...craftStocks(state) },
+    needs: craftNeeds(state, day),
+    coverage,
+    workshops: state.dwellings.flatMap((d) => {
+      const workshop = d.workshop;
+      if (!workshop) return [];
+      const occupied = occupants(state, d.id).length;
+      return [
+        {
+          dwellingId: d.id,
+          craft: workshop.craft,
+          activity: occupied > 0 ? workshop.activity : 'empty',
+          occupants: occupied,
+          laborPerDay:
+            occupied > 0
+              ? workshopLabor(state, day, d.id, coverage.pottery, productivity).craft
+              : 0,
+          oreFactor: oreFactor(workshop),
+        },
+      ];
+    }),
   };
 }
 

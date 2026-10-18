@@ -1,6 +1,12 @@
 import { dateOfDayIndex, dayIndexOf, isLeapYear } from '../calendar';
 import { storageLossPerYear } from './productivity';
-import { APPLE_FOOD_VALUE, APPLE_ROT_DAY, HARVEST_DAY, WINTER_HARVEST_DAY } from './rules';
+import {
+  APPLE_FOOD_VALUE,
+  APPLE_POTTERY_KEEP_DAY,
+  APPLE_ROT_DAY,
+  HARVEST_DAY,
+  WINTER_HARVEST_DAY,
+} from './rules';
 
 const COMMON_YEAR_DAYS = 365;
 
@@ -46,23 +52,50 @@ export function eatDay(
   return { storesKg: Math.max(0, afterLoss - needPerDayKg * satiation), satiation };
 }
 
+/** Dní od 1. 3. do 1. 5. – o tolik déle vydrží jablka v nádobách (březen a duben, vždy 61). */
+const POTTERY_KEEP_SPAN_DAYS =
+  dayIndexOf({ year: 501, ...APPLE_POTTERY_KEEP_DAY }) -
+  dayIndexOf({ year: 501, ...APPLE_ROT_DAY });
+
 /**
- * Kolik dní ještě jde jíst jablka včetně dneška – do příštího 1. 3., kdy před jídlem shnijí
- * (orchard.md). Jablka jsou jen od sklizně v září do konce února.
+ * O kolik celých dní po 1. 3. jablka vydrží v nádobách (crafts.md – Účinek, orchard.md): plné
+ * pokrytí nádobami do 1. 5., částečné poměrně (pokrytí × 61 dní, zaokrouhleno), bez hrnčíře 0.
  */
-export function daysUntilAppleRot(day: number): number {
-  const { year, month } = dateOfDayIndex(day);
-  if (month < APPLE_ROT_DAY.month) return dayIndexOf({ year, ...APPLE_ROT_DAY }) - day;
+export function appleKeepDays(potteryCoverage: number): number {
+  return Math.round(Math.min(1, Math.max(0, potteryCoverage)) * POTTERY_KEEP_SPAN_DAYS);
+}
+
+/**
+ * Kolik dní ještě jde jíst jablka včetně dneška – do dne, kdy před jídlem shnijí: příštího 1. 3.,
+ * s nádobami až o `appleKeepDays` později (orchard.md, crafts.md). Jablka jsou jen od sklizně
+ * v září do zkažení.
+ */
+export function daysUntilAppleRot(day: number, potteryCoverage = 0): number {
+  const { year } = dateOfDayIndex(day);
+  const keep = appleKeepDays(potteryCoverage);
+  const thisYear = dayIndexOf({ year, ...APPLE_ROT_DAY }) + keep;
+  if (day < thisYear) return thisYear - day;
   // 1. 3. příštího roku – bez dayIndexOf (na podzim 1499 by sahal mimo svět)
   const nextRot =
     dayIndexOf({ year, month: 12, day: 31 }) + 1 + JANUARY_DAYS + (isLeapYear(year + 1) ? 29 : 28);
-  return nextRot - day;
+  return nextRot + keep - day;
 }
 
-/** Shnijí v tento den ráno jablka (1. 3.)? Pak se ten den už nejí. */
-export function isAppleRotDay(day: number): boolean {
-  const { month, day: dayOfMonth } = dateOfDayIndex(day);
-  return month === APPLE_ROT_DAY.month && dayOfMonth === APPLE_ROT_DAY.day;
+/** Shnijí v tento den ráno jablka (1. 3., s nádobami později)? Pak se ten den už nejí. */
+export function isAppleRotDay(day: number, potteryCoverage = 0): boolean {
+  const { year } = dateOfDayIndex(day);
+  return day === dayIndexOf({ year, ...APPLE_ROT_DAY }) + appleKeepDays(potteryCoverage);
+}
+
+/**
+ * Jsou v tento den ráno jablka už zkažená? Od dne zkažení podle dnešního pokrytí nádobami do
+ * 1. 5. včetně – jablka z loňské sklizně tu už nikdo nejí. Pokrytí se mění den po dni, proto
+ * se nehlídá jen jeden den (den zkažení se může posunout před dnešek).
+ */
+export function applesSpoiled(day: number, potteryCoverage = 0): boolean {
+  const { year } = dateOfDayIndex(day);
+  const rot = dayIndexOf({ year, ...APPLE_ROT_DAY });
+  return day >= rot + appleKeepDays(potteryCoverage) && day <= rot + POTTERY_KEEP_SPAN_DAYS;
 }
 
 /** Dní v lednu – 1. 3. příštího roku je 31 + únor dní po Silvestru. */

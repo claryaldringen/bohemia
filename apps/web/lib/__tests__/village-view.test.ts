@@ -171,6 +171,31 @@ describe('buildVillageView', () => {
         blocked: null,
         affordable: false,
       },
+      // řemeslné dílny – obydlí + 30 % práce i dřeva, mladý pár k osídlení (crafts.md)
+      potter: {
+        laborManDays: 286,
+        perHa: false,
+        perSquare: false,
+        upfront: [{ resource: 'wood', amount: 23, missing: 23 }, noSettlers],
+        blocked: null,
+        affordable: false,
+      },
+      smith: {
+        laborManDays: 286,
+        perHa: false,
+        perSquare: false,
+        upfront: [{ resource: 'wood', amount: 23, missing: 23 }, noSettlers],
+        blocked: null,
+        affordable: false,
+      },
+      burner: {
+        laborManDays: 78,
+        perHa: false,
+        perSquare: false,
+        upfront: [{ resource: 'wood', amount: 9, missing: 9 }, noSettlers],
+        blocked: null,
+        affordable: false,
+      },
       // ohrada s přístřeškem (oxen.md) – 40 čd a 6 stromů předem, osadníci ne
       pen: {
         laborManDays: 40,
@@ -192,6 +217,7 @@ describe('buildVillageView', () => {
         label: 'Zemnice',
         progress: 0,
         dwellingType: 'zemnice',
+        craft: null,
         dwellingId: null,
         fieldId: null,
         cemeteryId: null,
@@ -204,6 +230,7 @@ describe('buildVillageView', () => {
         label: 'Pole 0,11 ha',
         progress: 0,
         dwellingType: null,
+        craft: null,
         dwellingId: null,
         fieldId,
         cemeteryId: null,
@@ -264,6 +291,7 @@ describe('buildVillageView', () => {
       {
         dwellingId: 1,
         type: 'zemnice',
+        craft: null,
         occupants: 4,
         capacity: 6,
         full: false,
@@ -303,6 +331,45 @@ describe('buildVillageView', () => {
     const view = buildVillageView(record(s), landscape, DAY);
     expect(view.hungry).toBe(true);
     expect(view.constructionsStalled).toBe(true);
+  });
+
+  it('scéna: přestavba polozemnice na novém pozemku je staveniště tam, starý dům stojí dál', () => {
+    const s = settled();
+    const home = s.dwellings[0]!;
+    home.type = 'polozemnice';
+    s.constructions.push({
+      id: 98,
+      kind: 'rebuild',
+      startedDay: DAY,
+      cost: 220,
+      done: 10,
+      dwellingType: 'polozemnice',
+      position: { x: 7.5, z: 7.5, rotation: Math.PI },
+      plot: { cell: { x: 8, y: 8 }, variant: 'center' },
+      dwellingId: home.id,
+      fieldId: null,
+    });
+    const { scene } = buildVillageView(record(s), landscape, DAY);
+    expect(scene.dwellings.find((d) => d.id === home.id)?.built).toBe(true);
+    const site = scene.dwellings.find((d) => d.id === 98)!;
+    expect(site.built).toBe(false);
+    expect(site.plot?.cell).toEqual({ x: 8, y: 8 });
+    expect(site.position).toEqual({ x: 7.5, z: 7.5, rotation: Math.PI });
+    // přestavba na místě staveniště nemá
+    s.constructions = s.constructions.filter((c) => c.id !== 98);
+    s.constructions.push({
+      id: 97,
+      kind: 'rebuild',
+      startedDay: DAY,
+      cost: 220,
+      done: 10,
+      dwellingType: 'polozemnice',
+      position: null,
+      dwellingId: home.id,
+      fieldId: null,
+    });
+    const inPlace = buildVillageView(record(s), landscape, DAY).scene;
+    expect(inPlace.dwellings.some((d) => d.id === 97)).toBe(false);
   });
 
   it('scéna: obydlí bez obyvatel není obývané', () => {
@@ -352,6 +419,7 @@ describe('buildVillageView', () => {
       label: 'Polozemnice',
       progress: 0.25,
       dwellingType: 'polozemnice',
+      craft: null,
       dwellingId: null,
       fieldId: null,
       cemeteryId: null,

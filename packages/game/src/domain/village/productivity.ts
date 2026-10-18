@@ -8,9 +8,10 @@ import type { Bounds, CraftCoverage, FieldSurface, FieldTask } from './types';
 
 // Meze produktivity (Martin, fields.md – Meze produktivity, crafts.md – Účinek): práce a ztráty
 // s rozpětím v literatuře leží mezi `worst` (ves bez řemesel) a `best` (plně pokrytá potřeba
-// výrobků řemeslníků). Pokrytí přichází parametrem – stav řemesel zatím neexistuje.
+// výrobků řemeslníků). Pokrytí přichází parametrem – ze zásob vsi ho počítá `craftCoverage`
+// (crafts.ts).
 
-/** Řemesla zatím nejsou (crafts.md – návrh) – pokrytí 0, platí horní meze práce a ztrát. */
+/** Ves bez výrobků řemeslníků – pokrytí 0, platí horní meze práce a ztrát. */
 export const NO_CRAFTS: CraftCoverage = { tools: 0, pottery: 0 };
 
 /** Hodnota mezi mezemi podle pokrytí 0–1 (0 = `worst`, 1 = `best`); pokrytí mimo 0–1 se ořízne. */

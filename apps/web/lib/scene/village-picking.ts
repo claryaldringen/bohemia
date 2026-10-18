@@ -1,4 +1,11 @@
-import { DWELLING_FOOTPRINT_M, SACRED_BUILDINGS, type TileCell } from '@bohemia/game';
+import {
+  DWELLING_FOOTPRINT_M,
+  MILIR,
+  SACRED_BUILDINGS,
+  WORKSHOP_PORCH_M,
+  milirPosition,
+  type TileCell,
+} from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
 
 // Výběr obydlí, polí, sadů a hřbitovů kliknutím do scény – čisté funkce bez Babylonu (paprsek
@@ -51,20 +58,33 @@ export function rayAtHeight(ray: Ray, y: number): { x: number; z: number; t: num
   return { x: ray.origin.x + ray.direction.x * t, z: ray.origin.z + ray.direction.z * t, t };
 }
 
-/** Leží bod (x, z) v půdorysu obydlí (natočeném o `rotation`) zvětšeném o `margin`? */
+/**
+ * Leží bod (x, z) v půdorysu obydlí (natočeném o `rotation`) zvětšeném o `margin`? Řemeslná
+ * dílna i s přístřeškem vpředu, u uhlíře i milíř kus od zemnice (crafts.md).
+ */
 export function insideFootprint(
   point: { x: number; z: number },
   dwelling: SceneVillage['dwellings'][number],
   margin = DWELLING_PICK_MARGIN_M,
 ): boolean {
   const { width, depth } = DWELLING_FOOTPRINT_M[dwelling.type];
+  const porch = dwelling.craft ? WORKSHOP_PORCH_M[dwelling.craft] : 0;
   const dx = point.x - dwelling.position.x;
   const dz = point.z - dwelling.position.z;
   // do místních os obydlí: vchod míří do (sin r, cos r) – to je místní +z
   const r = dwelling.position.rotation;
   const localX = dx * Math.cos(r) - dz * Math.sin(r);
   const localZ = dx * Math.sin(r) + dz * Math.cos(r);
-  return Math.abs(localX) <= width / 2 + margin && Math.abs(localZ) <= depth / 2 + margin;
+  if (
+    Math.abs(localX) <= width / 2 + margin &&
+    localZ >= -depth / 2 - margin &&
+    localZ <= depth / 2 + porch + margin
+  ) {
+    return true;
+  }
+  if (dwelling.craft !== 'burner') return false;
+  const milir = milirPosition(dwelling.position);
+  return Math.hypot(point.x - milir.x, point.z - milir.z) <= MILIR.footprintM / 2 + margin;
 }
 
 /** Leží bod (x, z) v půdorysu modly nebo svatyně (natočeném) zvětšeném o `margin`? */
