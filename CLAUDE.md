@@ -743,8 +743,8 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   obydlí po dokončení (`settleNewDwelling`) a prázdné v kroku 6 (`occupyEmptyDwellings`) osídlí
   **rodina ženatého syna** (muž, žena, jejich svobodné děti – `familiesOf` / `leavingFamilies`);
   nejstarší ženatý syn zůstává (dědic), v domě bez rodičů nejstarší ženatý muž. Co zůstane prázdné,
-  osídlí **svobodný nejstarší syn z přeplněného domu** (`loneSonOf`, Martin – „nejstarší dítě může
-  odejít“; od 16 let, bez ženatého dědice a s neplodnou matkou zůstává nejstarší a jde druhý).
+  osídlí **svobodný nejstarší syn z plného domu** (`loneSonOf`, Martin – „nejstarší dítě může
+  odejít“, „ať prázdný dům obsadí i plná domácnost“; od 16 let, bez ženatého dědice a s neplodnou matkou zůstává nejstarší a jde druhý).
   Dcery odcházejí sňatkem. Ne z domácnosti, jejíž zbytek by se rozpadl. **Chátrá jen prázdné
   obydlí** (Martin: „obydlená budova nechátrá – obyvatelé ji opravují“): `decayEmptyDwelling` – bez
   oprav podle stáří a navíc pevný denní podíl, nové zanikne za `DWELLINGS[type].emptyLifespanYears`

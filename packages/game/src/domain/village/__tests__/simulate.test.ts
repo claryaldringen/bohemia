@@ -961,6 +961,45 @@ describe('advanceVillage – obydlí', () => {
     expect(viaJson(chunked)).toEqual(viaJson(whole));
   });
 
+  // Martin, 18. 10. 2026: „ať prázdný dům obsadí i plná domácnost“ – bez příbuzenství z toho
+  // vzniklo stěhování tam a zpět (21letý odešel z plné polozemnice sám a sňatek ho vrátil ke
+  // 40letému „svobodnému“ dědici – 11× za 10 dní). Sourozenci a rodiče se nevezmou.
+  it('plná domácnost neplodných rodičů 53 a 53 se syny 40 a 21 a prázdný dům: nejvýš jedno stěhování za 30 dní', () => {
+    const day = at(600, 10, 1);
+    const moves = (s: VillageState): number =>
+      s.chronicle.filter(
+        (e) =>
+          e.kind === 'household-founded' || e.kind === 'marriage' || e.kind === 'household-merged',
+      ).length;
+    for (const second of ['male', 'female'] as const) {
+      const s0 = kinVillage(
+        day,
+        [
+          ...parents(53, 53),
+          child(20, 40, 'male'),
+          child(21, 21, second),
+          child(22, 12, 'female'),
+          child(23, 9, 'male'),
+          child(24, 6, 'female'),
+          child(25, 3, 'male'),
+        ],
+        [zemnice(50, day)],
+      );
+      s0.dwellings[0]!.type = 'polozemnice'; // 8 lidí na 8 míst – plná, ne přeplněná
+      s0.storesKg = 60_000;
+      const s = advanceVillage(s0, day + 29, null);
+      expect(moves(s)).toBeLessThanOrEqual(1);
+      if (second === 'male') {
+        // dědic (40) zůstává, odejde druhý syn – a zpátky ho nic nevrátí
+        expect(originalOccupants(s, 50)).toEqual([21]);
+        expect(moves(s)).toBe(1);
+      } else {
+        // dcera sama neodchází – prázdný dům počká
+        expect(occupants(s, 50)).toEqual([]);
+      }
+    }
+  });
+
   it('Vlkov (stará ves bez pohlaví): převod udělá páry, 27letý si vezme 19letou a mají děti', () => {
     const day = at(612, 8, 3);
     // stav Martinovy vsi z lokální databáze (3. 8. 612): polozemnice 63, 49, 27, 12, 10, 7

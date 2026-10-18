@@ -288,7 +288,7 @@ jich bude moci mít více), tak pro něj hra končí – musí začínat znovu.�
   nemám kým osadit.“): obydlí (zemnice, polozemnice a později řemeslné dílny) jde začít, jen
   když je kým ho osadit. Je to další položka ceny předem ve stejném mechanismu jako suroviny,
   ne skryté pravidlo: **lidé k osídlení** = možné nové domácnosti – rodiny ženatých synů, které
-  se mohou oddělit, a svobodní nejstarší synové přeplněných domů (viz Po dokončení,
+  se mohou oddělit, a svobodní nejstarší synové plných domů (viz Po dokončení,
   [kinship.md](kinship.md)) –, minus prázdná obydlí, minus rozestavěná nová obydlí – každé už
   jednu domácnost čeká. Obydlí stojí jednu domácnost k osídlení;
   stavba ji jen zamluví, nikoho neodebírá. Když lidé k osídlení nejsou, tlačítko obydlí je
@@ -306,8 +306,9 @@ jich bude moci mít více), tak pro něj hra končí – musí začínat znovu.�
   a děti). Z více rodin jde ta z nejvíc přeplněné domácnosti, v ní nejstarší muž. Když žádná
   rodina odejít nemůže, zůstane obydlí **prázdné** – postavené „do zásoby“.
 - **Prázdné obydlí** obsadí sama první rodina, která se může oddělit; co zůstane prázdné, osídlí
-  **svobodný nejstarší syn z přeplněného domu** (Martin, 18. 10. 2026: „pokud se lidé v domě tísní
-  a je tam nejstarší dítě, nejstarší dítě může odejít do nového domu“) – od 16 let, sám, a ožení se
+  **svobodný nejstarší syn z plného domu** (Martin, 18. 10. 2026: „pokud se lidé v domě tísní a je
+  tam nejstarší dítě, nejstarší dítě může odejít do nového domu“, „ať prázdný dům obsadí i plná
+  domácnost“) – od 16 let, sám, a ožení se
   tam (sňatkem ve vsi nebo z okolí). **Dědic u neplodných rodičů** (Martin, 18. 10. 2026: „Pokud
   už jsou rodiče neplodní, tak ano, má“): když v domě ještě není ženatý syn a matka synů už nemůže
   rodit, zůstává nejstarší syn a odejít smí druhý nejstarší; se ženatým dědicem smí odejít
@@ -326,7 +327,7 @@ jich bude moci mít více), tak pro něj hra končí – musí začínat znovu.�
   nesnižuje (obyvatelé dům opravují – Chátrání a přestavba), ale ani nezvedá – co zbylo, zůstane;
   přestavbu rozhodne stáří. Rozestavěná přestavba prázdného obydlí se ruší.
 - Hráč dostane upozornění „Domácnost je plná“, když na rodinu ženatého syna (nebo svobodného
-  nejstaršího syna z přeplněného domu) nečeká žádné nové obydlí (fakt – zároveň s ním se odemkne
+  nejstaršího syna z plného domu) nečeká žádné nové obydlí (fakt – zároveň s ním se odemkne
   stavba obydlí).
 - Když hráč nestaví, přeplněná domácnost žije v těsnu – méně porodů, víc úmrtí, ves přestane
   růst (Martin potvrdil).
@@ -569,6 +570,7 @@ pravidla → první verze hladu (1 − nasycení za den, hájení bez stropu) �
 | ~~Stěhuje se, komu se dům nerozpadne; jinak do víc míst, mladší; na volné místo~~    | návrh Clauda                               |
 | ~~Svobodní od nejstaršího, protějšek další v pořadí~~; denně v kroku 6               | návrh Clauda                               |
 | Nejstarší dítě z přeplněného domu smí odejít do nového domu samo                     | Martin (18. 10. 2026)                      |
+| Prázdný (i nový) dům obsadí i plná domácnost – svobodný syn i z plného domu          | Martin (18. 10. 2026)                      |
 | Samo jen od 16 let, až po párech; osamělý 16–44 se nerozpadá (svobodný)              | návrh Clauda                               |
 | ~~Svatba nikdy nepřeplní dům~~ – s rodinami do plného domu smí (kinship.md)          | návrh Clauda                               |
 | Příbuzenství a pohlaví – rodiny, sňatky ve vsi a s okolím ([kinship.md](kinship.md)) | Martin (18. 10. 2026)                      |

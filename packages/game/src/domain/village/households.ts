@@ -1,11 +1,11 @@
 // Domácnosti po rodinách (kinship.md – Domácnosti; population.md – Nové obydlí, Martin 17.–18. 10.
 // 2026: „plná domácnost → nová domácnost v novém obydlí“, „Pokud už jsou rodiče neplodní, tak ano,
 // má [nejstarší zůstat]“, „pokud se lidé v domě tísní a je tam nejstarší dítě, nejstarší dítě může
-// odejít do nového domu“; převod na rodiny návrh Clauda). Novou domácnost zakládá ženatý syn se
-// ženou a dětmi, nejstarší ženatý syn zůstává s rodiči (dědic), z přeplněného domu smí odejít
-// i svobodný nejstarší syn; dcery odcházejí sňatkem. Čisté funkce nad stavem vsi, kroky
+// odejít do nového domu“, „ať prázdný dům obsadí i plná domácnost“; převod na rodiny návrh
+// Clauda). Novou domácnost zakládá ženatý syn se ženou a dětmi, nejstarší ženatý syn zůstává
+// s rodiči (dědic), z plného domu smí odejít i svobodný nejstarší syn; dcery odcházejí sňatkem. Čisté funkce nad stavem vsi, kroky
 // `settleNewDwelling` a `occupyEmptyDwellings` stav mění.
-import { isOvercrowded } from './dwellings';
+import { isFull } from './dwellings';
 import { withKinship } from './kinship';
 import { ageYears, canBear, householdBreaksUp, occupants } from './people';
 import { AGE, DWELLINGS } from './rules';
@@ -91,9 +91,10 @@ export function leavingFamilies(state: VillageState, day: number): Family[] {
 }
 
 /**
- * Svobodný syn, který smí z přeplněného domu `dwelling` odejít sám (Martin – „nejstarší dítě může
- * odejít“; kinship.md – Domácnosti): nejstarší svobodný syn od 16 let (matka nebo otec bydlí
- * v domě). Dědic zůstává: když v domě ještě není ženatý syn a rodiče už jsou neplodní (žádná
+ * Svobodný syn, který smí z plného (i přeplněného) domu `dwelling` odejít sám (Martin – „nejstarší
+ * dítě může odejít“, „ať prázdný dům obsadí i plná domácnost“; kinship.md – Domácnosti): nejstarší
+ * svobodný syn od 16 let (matka nebo otec bydlí v domě). Zpátky ho nic nevrátí – sňatkem se stěhuje
+ * žena k muži a sestra ani matka si ho nevezme (blízcí příbuzní). Dědic zůstává: když v domě ještě není ženatý syn a rodiče už jsou neplodní (žádná
  * matka synů v domě nemůže rodit), zůstává nejstarší syn a odejít smí druhý nejstarší (Martin).
  * Jen když se zbytek domácnosti nerozpadne; jinak undefined.
  */
@@ -102,7 +103,7 @@ export function loneSonOf(
   dwelling: Dwelling,
   day: number,
 ): Person | undefined {
-  if (!isOvercrowded(state, dwelling.id, day)) return undefined;
+  if (!isFull(state, dwelling.id, day)) return undefined;
   const members = occupants(state, dwelling.id);
   const sons = members.filter((m) => m.sex === 'male' && parentHere(m, members)).sort(byAge);
   const marriedSon = sons.some((s) => !unmarriedHere(s, members));
@@ -117,7 +118,7 @@ export function loneSonOf(
   return householdBreaksUp(staying, day) ? undefined : candidate;
 }
 
-/** Svobodní synové, kteří smí odejít sami (`loneSonOf`) – od nejvíc přeplněného domu. */
+/** Svobodní synové, kteří smí odejít sami (`loneSonOf`) – od nejvíc přeplněného (plného) domu. */
 export function loneSons(state: VillageState, day: number): Person[] {
   return byCrowding(state).flatMap((d) => {
     const son = loneSonOf(state, d, day);
@@ -149,8 +150,8 @@ export function settleNewDwelling(state: VillageState, day: number, dwellingId: 
 
 /**
  * Krok 6 (kinship.md – Domácnosti): úplně prázdná obydlí (podle id) nejdřív osídlí rodiny ženatých
- * synů (`settleNewDwelling`), co zůstane prázdné, svobodní synové z přeplněných domů
- * (`loneSons`) – až po prvním kole, aby rodina měla přednost.
+ * synů (`settleNewDwelling`), co zůstane prázdné, svobodní synové z plných domů (`loneSons`) – až
+ * po prvním kole, aby rodina měla přednost.
  */
 export function occupyEmptyDwellings(state: VillageState, day: number): void {
   const empty = (): Dwelling[] => {
@@ -166,8 +167,8 @@ export function occupyEmptyDwellings(state: VillageState, day: number): void {
 
 /**
  * Kolik nových domácností může ves založit (kinship.md – Lidé k osídlení): rodiny ženatých synů,
- * které se mohou oddělit, a svobodní nejstarší synové přeplněných domů, ze kterých žádná rodina
- * odejít nemůže.
+ * které se mohou oddělit, a svobodní nejstarší synové plných domů, ze kterých žádná rodina odejít
+ * nemůže.
  */
 export function possibleNewHouseholds(state: VillageState, day: number): number {
   let count = 0;

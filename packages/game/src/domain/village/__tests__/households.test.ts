@@ -96,7 +96,8 @@ describe('svobodný syn smí odejít sám', () => {
     expect(loneSonOf(s, s.dwellings[0]!, DAY)?.id).toBe(21);
   });
 
-  it('z plného, ale ne přeplněného domu nikdo; patnáctiletý také ne; dcery ne', () => {
+  // Martin, 18. 10. 2026: „ať prázdný dům obsadí i plná domácnost“
+  it('i z plného domu (6 lidí v zemnici) – z neplného ne; patnáctiletý ani dcery ne', () => {
     const full = build([
       ...parents(),
       child(20, 19, 'male'),
@@ -104,7 +105,10 @@ describe('svobodný syn smí odejít sám', () => {
       child(22, 6, 'female'),
       child(23, 3, 'male'),
     ]);
-    expect(loneSonOf(full, full.dwellings[0]!, DAY)).toBeUndefined();
+    expect(loneSonOf(full, full.dwellings[0]!, DAY)?.id).toBe(20);
+    expect(availableSettlers(full, DAY)).toBe(1);
+    const roomy = build([...parents(), child(20, 19, 'male'), child(21, 10, 'female')]);
+    expect(loneSonOf(roomy, roomy.dwellings[0]!, DAY)).toBeUndefined();
     const young = crowded(40, [child(20, 15, 'male')]);
     expect(loneSonOf(young, young.dwellings[0]!, DAY)).toBeUndefined();
     const daughters = crowded(40, [child(20, 19, 'female')]);
@@ -113,7 +117,7 @@ describe('svobodný syn smí odejít sám', () => {
 });
 
 describe('lidé k osídlení', () => {
-  it('rodiny ženatých synů a svobodní synové přeplněných domů, minus čekající obydlí', () => {
+  it('rodiny ženatých synů a svobodní synové plných domů, minus čekající obydlí', () => {
     const s = build(
       [
         // dům 1: dědic a mladší ženatý syn – jedna rodina

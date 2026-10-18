@@ -69,11 +69,12 @@ rodiny (návrh Clauda – Martin uvidí):
   čeká prázdný či nový dům. Dnešní „mladý pár“ a „dospělé děti“ jsou teď synové se ženami.
 - **Dědic:** nejstarší ženatý syn zůstává s rodiči (dnešní dědic u neplodných rodičů platí
   obecně – dům dědí nejstarší syn).
-- **Nejstarší dítě smí odejít samo** (Martin): z přeplněného domu smí do prázdného nebo nového
-  domu odejít i **svobodný** nejstarší syn (od 16 let) – a oženit se tam (sňatkem ve vsi nebo
-  z okolí). Dcery odcházejí sňatkem.
-- **Lidé k osídlení** = ženatí synové (a svobodní nejstarší synové přeplněných domů), na které
-  nečeká dům.
+- **Nejstarší dítě smí odejít samo** (Martin): z plného i přeplněného domu (Martin, 18. 10. 2026:
+  „ať prázdný dům obsadí i plná domácnost“) smí do prázdného nebo nového domu odejít i
+  **svobodný** nejstarší syn (od 16 let) – a oženit se tam (sňatkem ve vsi nebo z okolí). Dcery
+  odcházejí sňatkem.
+- **Lidé k osídlení** = ženatí synové (a svobodní nejstarší synové plných domů), na které nečeká
+  dům.
 - **Rozpad domácnosti:** dům bez dospělého muže i ženy 16+ (jen děti, nebo jen starší) se
   přestěhuje k nejbližším příbuzným (syn, dcera, sourozenec), jinak do domu s nejvíc místy.
 
@@ -117,11 +118,13 @@ vsi blízké příbuzné, nebudou chtít útočit):
 - **Vdova s vlastními dětmi do 14 let** se nevdává – zůstává v domě manžela.
 - **Domácnosti:** rodina = muž, žena a jejich svobodné děti z domu. Ženatý syn = muž, jehož matka
   nebo otec bydlí v domě; dědic = nejstarší ženatý syn; v domě bez rodičů zůstává nejstarší
-  ženatý muž a ostatní ženatí (bratři) se oddělí. Svobodný syn smí odejít sám jen z přeplněného
-  domu, od 16 let; když dědic ještě není a matka synů už nemůže rodit, zůstává nejstarší syn
-  (Martinův dědic u neplodných rodičů) a odejde druhý.
+  ženatý muž a ostatní ženatí (bratři) se oddělí. Svobodný syn smí odejít sám jen z plného nebo
+  přeplněného domu (Martin – i plná domácnost), od 16 let; když dědic ještě není a matka synů už
+  nemůže rodit, zůstává nejstarší syn (Martinův dědic u neplodných rodičů) a odejde druhý. Zpátky
+  ho nic nevrátí – sňatkem se stěhuje žena k muži a sestra ani matka si ho nevezme (bez
+  příbuzenství tu vznikalo stěhování tam a zpět – 11× za 10 dní, hlídá test).
 - **Lidé k osídlení:** v každém domě rodiny, které se mohou oddělit, a když žádná není, svobodný
-  syn přeplněného domu.
+  syn plného domu.
 - **Rodokmen** drží zemřelé a odešlé jen jako id a jejich rodiče, a jen dokud jsou rodičem
   někoho žijícího – tak jde poznat prarodiče, strýce i bratrance a stav neroste do nekonečna.
 - **Převod starých vsí** (`withKinship`, při načtení i na začátku dopočtu, bez příznaku – ves
