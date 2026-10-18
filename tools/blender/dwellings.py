@@ -756,17 +756,6 @@ def site_props(part, mat):
     return [basket]
 
 
-def wattle_fence(mat, length=4.0, height=0.9, name="fence"):
-    b = Builder(name)
-    n = 5
-    for i in range(n):
-        x = -length / 2 + length * i / (n - 1)
-        b.beam((x, 0, -0.1), (x, 0, height + 0.12), 0.09)
-    th = 0.06
-    b.box(-length / 2, length / 2, -th / 2, th / 2, 0.08, height, "wattle")
-    return b.build(mat)
-
-
 # ------------------------------------------------------------------ zahrádka polozemnice
 
 # Zahrádka vedle polozemnice (Martin): obdélník ≈ 3,8 × 5 m po pravé straně domu (Blender +x,
@@ -1229,21 +1218,19 @@ def main():
     bpy.ops.wm.read_factory_settings(use_empty=True)
     mat = make_material()
 
-    # hráň polen vedle obydlí už není (Martin: tak vyskládané dřevo tehdy neměli, navíc na dešti)
+    # hráň polen vedle obydlí už není (Martin: tak vyskládané dřevo tehdy neměli, navíc na dešti),
+    # u polozemnice ani samotný kus pleteného plotu vedle domu (Martin) – plot má jen zahrádka
     zp = Parts("f-zemnice")
     build_zemnice(zp)
     zemnice = join(zp.build(mat) + [import_prop("basket-a", 0.42, (-1.55, -3.55, 0.0), mat)], "zemnice")
 
     pp = Parts("f-polozemnice")
     build_polozemnice(pp)
-    f = wattle_fence(mat)
-    f.location = (-3.6, 0.6, 0)
-    f.rotation_euler = (0, 0, math.radians(90))
     p_props = [
         import_prop("basket-a", 0.42, (1.5, -3.0, 0.0), mat),
         import_prop("basket-b", 0.38, (2.0, -2.85, 0.0), mat, 0.6),
     ]
-    polozemnice = join(pp.build(mat) + [f] + p_props, "polozemnice")
+    polozemnice = join(pp.build(mat) + p_props, "polozemnice")
     # zahrádka je samostatný model s počátkem uprostřed (scéna ji položí na terén a nakloní)
     gp = Parts("f-garden")
     build_garden(gp)
