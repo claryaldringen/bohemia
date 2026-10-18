@@ -163,6 +163,42 @@ export const DISTANCE = { freeM: 100, percentPer10M: 1 } as const;
 // o něco lépe než tam, kde není.“): po vyšlapané pěšině se chodí o čtvrtinu rychleji – úsek
 // pěšiny síly s se do vzdálenosti dílu (fields.md – Vzdálenost) počítá (1 − speedup × s) × délka
 export const PATH_WALK = { speedup: 0.25 } as const;
+// roads.md – Dvě vrstvy cest (návrh Clauda, schváleno 18. 10. 2026): pevné cesty se počítají
+// jednou za rok k 1. 11. (po sklizni jablek) z celoroční práce; úsek, kudy se dva roky po sobě
+// chodí aspoň 3× denně (roční průměr), se stane pevnou cestou; vyšlapaná cesta, kudy se 5 let po
+// sobě chodí pod polovinu prahu, zaroste
+export const ROADS = {
+  yearDay: { month: 11, day: 1 },
+  tripsPerDay: 3,
+  years: 2,
+  overgrowYears: 5,
+  overgrowShare: 0.5,
+} as const;
+// roads.md – Stromy u pevných cest (Martin: napřed keř, stojí, dokud samy neodumřou; čísla návrh
+// Clauda): místa po 12–20 m střídavě po stranách 2,5–4 m od osy, stromy nejméně 8 m od sebe;
+// uchycení 10 % ročně na volném místě u cesty starší 5 let; polovina dubů, zbytek jilmy a topoly;
+// keř 8 let, pak mladý strom 30 % velikosti, plná velikost ve 40 letech; kládu při stavbě dá
+// strom od 20 let (mladší je mladý stromek); život topol 60–100, jilm 100–200, dub 200–400 let,
+// pak souš 10 let a pařez 10 let
+export const ROAD_TREES = {
+  spacingM: { from: 12, to: 20 },
+  offsetM: { from: 2.5, to: 4 },
+  gapM: 8,
+  rootAfterYears: 5,
+  rootChancePerYear: 0.1,
+  speciesShare: { oak: 0.5, elm: 0.28 },
+  shrubYears: 8,
+  youngScale: 0.3,
+  fullYears: 40,
+  logFromYears: 20,
+  lifeYears: {
+    poplar: { from: 60, to: 100 },
+    elm: { from: 100, to: 200 },
+    oak: { from: 200, to: 400 },
+  },
+  snagYears: 10,
+  stumpYears: 10,
+} as const;
 // fields.md – Založení pole (nejdál 800 m od obydlí, nejmenší výměra 0,1 ha)
 export const FIELD_LIMITS = { maxDistanceM: 800, minAreaM2: 1000 } as const;
 // fields.md – Práce (denní minimum domácností – meze: s hrnčířem 0,45); population.md – Práce

@@ -9,6 +9,7 @@ import {
   type ObstacleLayer,
 } from '../landscape';
 import { pointInPolygon, type Point } from './polygon';
+import { roadTreeObstacleKind, type RoadTreeObstacleKind } from './road-trees';
 import {
   DWELLING_CLEARING_M,
   OBSTACLE_COST,
@@ -20,7 +21,9 @@ import type { DwellingType, ObstacleChange, Position, TileCell, VillageState } f
 
 // Krajina sídla = vygenerovaná vrstva překážek + změny, které v ní udělali lidé (fields.md –
 // Krajina sídla a scéna, forest.md – Krajina sídla): odstraněné překážky (pole, obydlí) zmizí
-// natrvalo i s pařezy, pokácené stromy nechají pařez a z náletu znovu dorostou.
+// natrvalo i s pařezy, pokácené stromy nechají pařez a z náletu znovu dorostou. Navíc ves do
+// krajiny přidává stromy u pevných cest (roads.md) – překážky nad vrstvou (`added`), které stavba
+// odstraní jako ostatní.
 
 const DAYS_PER_YEAR = 365.25;
 const NO_IDS: ReadonlySet<number> = new Set();
@@ -33,6 +36,19 @@ export interface ObstacleChanges {
   readonly stumps: readonly number[];
   /** Pokácené stromy, které znovu rostou z náletu (mladý stromek). */
   readonly saplings: readonly number[];
+  /**
+   * Překážky, které ves přidala nad vrstvu – stromy u pevných cest (roads.md) v daný den, podle
+   * id. Bez údaje žádné.
+   */
+  readonly added?: readonly AddedObstacle[];
+}
+
+/** Překážka přidaná vsí nad vrstvu (strom u pevné cesty): id, pata (m) a druh v daný den. */
+export interface AddedObstacle {
+  readonly id: number;
+  readonly x: number;
+  readonly z: number;
+  readonly kind: RoadTreeObstacleKind;
 }
 
 export const NO_OBSTACLE_CHANGES: ObstacleChanges = { removed: [], stumps: [], saplings: [] };
@@ -47,9 +63,12 @@ export function treeRegrowth(felledDay: number, day: number): TreeRegrowth {
   return years >= TREE_SAPLING_AFTER_YEARS ? 'sapling' : 'stump';
 }
 
-type ChangeLists = Pick<VillageState, 'clearedObstacles' | 'felledTrees'>;
+type ChangeLists = Pick<VillageState, 'clearedObstacles' | 'felledTrees' | 'roads'>;
 
-/** Změny překážek vsi v den `day` (stromy, které už dorostly, mezi změnami nejsou). */
+/**
+ * Změny překážek vsi v den `day` (stromy, které už dorostly, mezi změnami nejsou) a stromy
+ * u pevných cest, které v ten den stojí a stavba je neodstranila (`added`).
+ */
 export function obstacleChangesAt(state: ChangeLists, day: number): ObstacleChanges {
   const removed = new Set((state.clearedObstacles ?? []).map((c) => c.id));
   // u stromu pokáceného víckrát platí poslední kácení
@@ -66,10 +85,18 @@ export function obstacleChangesAt(state: ChangeLists, day: number): ObstacleChan
     else if (regrowth === 'sapling') saplings.push(id);
   }
   const byId = (a: number, b: number): number => a - b;
+  const added: AddedObstacle[] = [];
+  for (const tree of state.roads?.trees ?? []) {
+    if (removed.has(tree.id)) continue;
+    const kind = roadTreeObstacleKind(tree, day);
+    if (kind !== null) added.push({ id: tree.id, x: tree.x, z: tree.z, kind });
+  }
+  added.sort((a, b) => a.id - b.id);
   return {
     removed: [...removed].sort(byId),
     stumps: stumps.sort(byId),
     saplings: saplings.sort(byId),
+    ...(added.length > 0 ? { added } : {}),
   };
 }
 
@@ -77,6 +104,8 @@ export function obstacleChangesAt(state: ChangeLists, day: number): ObstacleChan
 export interface ObstacleStatus {
   /** Druh překážky teď (pokácený strom = pařez, dorůstající = mladý stromek), odstraněná null. */
   kindOf(layer: ObstacleLayer, index: number): ObstacleKind | null;
+  /** Překážky přidané vsí (stromy u pevných cest) s patou v obdélníku – podle id. */
+  addedIn(minX: number, minZ: number, maxX: number, maxZ: number): readonly AddedObstacle[];
 }
 
 /** Dotazy podle objektu změn – kontrola umístění běží při každém pohybu kurzoru, změny ne. */
@@ -89,6 +118,7 @@ export function obstacleStatus(changes: ObstacleChanges = NO_OBSTACLE_CHANGES): 
   const removed = new Set(changes.removed);
   const stumps = new Set(changes.stumps);
   const saplings = new Set(changes.saplings);
+  const added = changes.added ?? [];
   const status: ObstacleStatus = {
     kindOf(layer, index) {
       const id = layer.id[index]!;
@@ -96,6 +126,12 @@ export function obstacleStatus(changes: ObstacleChanges = NO_OBSTACLE_CHANGES): 
       if (stumps.has(id)) return 'stump';
       if (saplings.has(id)) return 'youngTree';
       return obstacleKind(layer, index);
+    },
+    addedIn(minX, minZ, maxX, maxZ) {
+      if (added.length === 0) return added;
+      return added.filter(
+        (o) => !removed.has(o.id) && o.x >= minX && o.x <= maxX && o.z >= minZ && o.z <= maxZ,
+      );
     },
   };
   statusCache.set(changes, status);
@@ -137,6 +173,29 @@ function addToTally(
   tally.cost += OBSTACLE_COST[kind];
 }
 
+/** Přičte překážku přidanou vsí (strom u pevné cesty – dospělý dá kládu jako strom z vrstvy). */
+function addAddedToTally(tally: ObstacleTally, obstacle: AddedObstacle): void {
+  tally.counts[obstacle.kind] = (tally.counts[obstacle.kind] ?? 0) + 1;
+  tally.ids.push(obstacle.id);
+  if (obstacle.kind === 'tree') tally.treeIds.push(obstacle.id);
+  tally.cost += OBSTACLE_COST[obstacle.kind];
+}
+
+/** Políčko krajiny (index po ose) bodu světa – jako `obstaclesInTile` vrstvy. */
+function tileIndexOf(layer: ObstacleLayer, v: number): number {
+  const half = (layer.size * layer.cellSizeM) / 2;
+  return Math.min(layer.size - 1, Math.max(0, Math.floor((v + half) / layer.cellSizeM)));
+}
+
+/** Přidané překážky (stromy u cest) s patou v mnohoúhelníku. */
+function addedInPolygon(status: ObstacleStatus, polygon: readonly Point[]): AddedObstacle[] {
+  const xs = polygon.map((p) => p[0]);
+  const zs = polygon.map((p) => p[1]);
+  return status
+    .addedIn(Math.min(...xs), Math.min(...zs), Math.max(...xs), Math.max(...zs))
+    .filter((o) => pointInPolygon([o.x, o.z], polygon));
+}
+
 /**
  * Cena překážek z `tally` bez druhů `included`, které jsou v sazbě povrchu za hektar (v lese
  * stromy a podrost, v křovinách keře – SURFACE_INCLUDED_OBSTACLES). Počítá se z počtů po druzích
@@ -170,6 +229,15 @@ export function cellObstacles(
     if (keep.has(layer.id[index]!)) continue;
     const kind = status.kindOf(layer, index);
     if (kind !== null) addToTally(tally, layer, index, kind);
+  }
+  // stromy u pevných cest (roads.md) s patou v políčku
+  const half = (layer.size * layer.cellSizeM) / 2;
+  const x0 = -half + cell.x * layer.cellSizeM;
+  const z0 = -half + cell.y * layer.cellSizeM;
+  for (const o of status.addedIn(x0, z0, x0 + layer.cellSizeM, z0 + layer.cellSizeM)) {
+    if (keep.has(o.id)) continue;
+    if (tileIndexOf(layer, o.x) !== cell.x || tileIndexOf(layer, o.z) !== cell.y) continue;
+    addAddedToTally(tally, o);
   }
   return tally;
 }
@@ -247,6 +315,10 @@ export function polygonObstacles(
     const kind = status.kindOf(layer, index);
     if (kind !== null) addToTally(tally, layer, index, kind);
   }
+  for (const o of addedInPolygon(status, polygon)) {
+    if (skipTiles.has(tileOf(o.z) * layer.size + tileOf(o.x)) || keep.has(o.id)) continue;
+    addAddedToTally(tally, o);
+  }
   return tally;
 }
 
@@ -274,6 +346,15 @@ export function polygonsObstacles(
       if (keep.has(layer.id[index]!)) continue;
       const kind = status.kindOf(layer, index);
       if (kind !== null) addToTally(tally, layer, index, kind);
+    }
+  }
+  const seenAdded = new Set<number>();
+  for (const polygon of polygons) {
+    for (const o of addedInPolygon(status, polygon)) {
+      if (seenAdded.has(o.id)) continue;
+      seenAdded.add(o.id);
+      if (skipTiles.has(tileOf(o.z) * layer.size + tileOf(o.x)) || keep.has(o.id)) continue;
+      addAddedToTally(tally, o);
     }
   }
   return tally;

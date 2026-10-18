@@ -10,6 +10,7 @@ import {
   computePathNetwork,
   pathAgeFactor,
   pathBounds,
+  roadsKey,
   type PathNetwork,
   type PathSquare,
   type PathVillage,
@@ -35,8 +36,8 @@ function square(landscape: Landscape, cell: TileCell): PathSquare {
 
 /**
  * Ves pro pěšiny ze stavu vsi v den `day` – stejná data, jaká dostane scéna (village-view.ts):
- * obydlí i staveniště s pozemky, díly polí podle stadia, sady, hřbitovy, posvátná místa
- * a rozdělení práce posledního dne.
+ * obydlí i staveniště s pozemky, díly polí podle stadia, sady, hřbitovy, posvátná místa,
+ * rozdělení práce posledního dne a pevné cesty (roads.md).
  */
 export function pathVillageOf(state: VillageState, day: number, landscape: Landscape): PathVillage {
   const occupied = new Set(state.people.map((p) => p.dwellingId));
@@ -121,6 +122,7 @@ export function pathVillageOf(state: VillageState, day: number, landscape: Lands
     else people.elders++;
   }
   const changes = obstacleChangesAt(state, day);
+  const roads = state.roads?.roads ?? [];
   return {
     dwellings,
     fields,
@@ -140,6 +142,7 @@ export function pathVillageOf(state: VillageState, day: number, landscape: Lands
         }
       : {}),
     obstacles: changes,
+    ...(roads.length > 0 ? { roads: roads.map((r) => ({ points: r.points })) } : {}),
   };
 }
 
@@ -167,8 +170,8 @@ export function villagePathNetwork(
 
 /**
  * Klíč rozložení vsi pro vzdálenosti chůze: obydlí a staveniště (poloha, pozemek, obyvatelé,
- * stáří spojení po desetinách), díly polí se stadiem, sady, hřbitovy a posvátná místa. Práce
- * dne ani pokácené stromy v něm nejsou – síť se kvůli nim každý den nepřepočítává.
+ * stáří spojení po desetinách), díly polí se stadiem, sady, hřbitovy, posvátná místa a pevné
+ * cesty. Práce dne ani pokácené stromy v něm nejsou – síť se kvůli nim každý den nepřepočítává.
  */
 export function walkLayoutKey(state: VillageState, day: number): string {
   const occupied = new Set(state.people.map((p) => p.dwellingId));
@@ -198,7 +201,17 @@ export function walkLayoutKey(state: VillageState, day: number): string {
     (state.groves ?? []).map((g) => g.id).join(','),
     (state.sacredBuildings ?? []).map((b) => b.id).join(','),
   ].join('|');
-  return JSON.stringify([dwellings, sites, parts, orchards, cemeteries, sacred]);
+  const roads = state.roads?.roads ?? [];
+  return JSON.stringify([
+    dwellings,
+    sites,
+    parts,
+    orchards,
+    cemeteries,
+    sacred,
+    // bez pevných cest prázdné – klíč starších vsí zůstane stejný (nepřepočítává se zbytečně)
+    ...(roads.length > 0 ? [roadsKey(roads)] : []),
+  ]);
 }
 
 /** Polohy obydlí vsi včetně rozestavěných – od nich se měří vzdálenost dílů pole. */

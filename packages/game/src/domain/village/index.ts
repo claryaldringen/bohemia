@@ -50,3 +50,4 @@ export * from './sacred';
 export * from './happiness';
 export * from './crafts';
 export * from './paths';
+export * from './road-trees';

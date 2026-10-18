@@ -25,6 +25,8 @@ export const PATH_WATER_SPOT = 1;
 export const PATH_FOREST_EDGE = 2;
 /** Buňka je brod – mělký úzký potok, kudy se dá přejít. */
 export const PATH_FORD = 4;
+/** Buňka je v lese nebo u jeho okraje (WOODLAND_M) – stromy u pevných cest tu nerostou (roads.md). */
+export const PATH_WOODLAND = 8;
 
 /** Bodů mřížky na políčko (jako síť vykreslení scény – RENDER_SUBDIVISION). */
 export const PATH_GRID_PER_TILE = 4;
@@ -43,6 +45,8 @@ const FORD = { shallow: 0.55, halfWidthM: 2.4 } as const;
 const FOREST_COST = 1.35;
 /** Okraj lesa, kam se chodí pro dřevo: znaménková vzdálenost od hranice (m, záporná v louce). */
 const FOREST_EDGE_M = { from: -4, to: 1 } as const;
+/** Les a jeho okraj pro stromy u cest – znaménková vzdálenost od hranice lesa nad tuto (m). */
+const WOODLAND_M = -6;
 /** U okraje krajiny se nechodí (m). */
 const EDGE_MARGIN_M = 10;
 /** Okno terénu v mezipaměti je o tolik (m) větší než potřebné – ves roste a nepočítá se znovu. */
@@ -83,7 +87,7 @@ export interface PathTerrain {
   window: PathWindow;
   /** Násobek ceny chůze po rovné louce (1); Infinity = neprůchodné (voda, sráz, okraj). */
   cost: Float32Array;
-  /** PATH_WATER_SPOT | PATH_FOREST_EDGE | PATH_FORD. */
+  /** PATH_WATER_SPOT | PATH_FOREST_EDGE | PATH_FORD | PATH_WOODLAND. */
   flags: Uint8Array;
 }
 
@@ -207,6 +211,7 @@ export function buildPathTerrain(l: Landscape, window: PathWindow): PathTerrain 
       if (forest >= FOREST_EDGE_M.from && forest <= FOREST_EDGE_M.to) {
         flags[c] = flags[c]! | PATH_FOREST_EDGE;
       }
+      if (forest > WOODLAND_M) flags[c] = flags[c]! | PATH_WOODLAND;
       cost[c] = k;
     }
   }

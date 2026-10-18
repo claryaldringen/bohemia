@@ -16,6 +16,7 @@ import { endOfSeason, expectedNetKg, sowingOrder } from './fields';
 import { daysUntilAppleRot, eatMeal } from './food';
 import { isToilDay, updateHappiness, villageLaborFactor, windowEndDay } from './happiness';
 import { recordClearedObstacles } from './obstacles';
+import { roadsDay } from './paths/roads';
 import { refreshWalkDistances } from './paths/village';
 import { relocationPlot } from './plots';
 import { allocateDay, type LaborTaskName } from './labor';
@@ -203,6 +204,8 @@ function simulateDay(
   if (isOn(date, WINTER_HARVEST_DAY)) harvestWinter(state, day);
   if (isOn(date, HARVEST_DAY)) harvest(state, day);
   if (isOn(date, THRESH_END_DAY)) endThreshing(state);
+  // pevné cesty (roads.md): práce dne do ročního součtu, 1. 11. roční kontrola cest a stromů
+  roadsDay(state, day, landscape, obstacles);
 }
 
 function isOn(date: CalendarDate, target: DayOfYear): boolean {

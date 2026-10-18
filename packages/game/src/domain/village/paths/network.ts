@@ -21,8 +21,9 @@ import { PATH_FOREST_EDGE, PATH_WATER_SPOT, type PathTerrain } from './terrain';
 // kousek navíc, ať zavedená místa pěšinu mají.
 // Trasy hledá Dijkstra na hrubé mřížce (path-terrain.ts + domy, pole a překážky vsi). Provoz se
 // sčítá po buňkách, z něj síla pěšiny; pak se trasy hledají znovu se slevou na vyšlapané buňky
-// (aktivní chodci) – lidé dají přednost vyšlapané pěšině a trasy se slijí do sítě. Výsledek jsou
-// vyhlazené lomené čáry se silou v bodech.
+// (aktivní chodci) – lidé dají přednost vyšlapané pěšině a trasy se slijí do sítě. Po pevné cestě
+// (roads.md) se jde jako po plné pěšině, takže se k ní trasy stahují. Výsledek jsou vyhlazené
+// lomené čáry se silou v bodech.
 
 /** Bod ve světě (m). */
 export interface PathPoint {
@@ -52,6 +53,8 @@ export interface PathTraffic {
   width: number;
   height: number;
   values: Float32Array;
+  /** Provoz po buňkách bez vyhlazení (cest za den) – podle něj pevné cesty zarůstají (roads.md). */
+  raw: Float32Array;
 }
 
 /** Kam chodí domácnost pro vodu a dřevo – konec její trasy (null = nikam blízko). */
@@ -120,6 +123,8 @@ export interface PathVillage {
   };
   /** Odstraněné a pokácené překážky (počty – klíč sítě). */
   obstacles?: Pick<ObstacleChanges, 'removed' | 'stumps'>;
+  /** Pevné cesty (roads.md) – po nich se jde jako po plné pěšině. Bez údaje žádné. */
+  roads?: readonly { points: readonly PathPoint[] }[];
 }
 
 export interface PathNetworkInput {
@@ -141,6 +146,8 @@ const PASSES = 2;
 const PATH_DISCOUNT = 0.5;
 /** Kupa milíře uhlíře (crafts.py MILIR_R) – pěšina ji obejde. */
 const MILIR_RADIUS_M = 2.3;
+/** Pevná cesta (roads.md): sleva jako po plné pěšině – trasy se k ní stahují. */
+const ROAD_STRENGTH = 1;
 /**
  * Provoz v cestách za den: pod `min` se pěšina nevyšlape (jednotlivé cesty nekreslí), od `full`
  * je plná; mezi tím síla roste s odmocninou provozu (pomalu – přesná aritmetika místo logaritmu).
@@ -316,7 +323,27 @@ export function pathNetworkKey(village: PathVillage): string {
   const obstacles = village.obstacles
     ? `${village.obstacles.removed.length},${village.obstacles.stumps.length}`
     : '';
-  return JSON.stringify([dwellings, fields, orchards, cemeteries, sacred, labor, obstacles]);
+  return JSON.stringify([
+    dwellings,
+    fields,
+    orchards,
+    cemeteries,
+    sacred,
+    labor,
+    obstacles,
+    roadsKey(village.roads),
+  ]);
+}
+
+/** Klíč pevných cest – počet bodů a konce každé osy (osa se jinak nemění). */
+export function roadsKey(roads: PathVillage['roads']): string {
+  return (roads ?? [])
+    .map((r) => {
+      const a = r.points[0];
+      const b = r.points[r.points.length - 1];
+      return a && b ? `${r.points.length}:${a.x},${a.z}:${b.x},${b.z}` : '';
+    })
+    .join(';');
 }
 
 function ageBucket(days: number): number {
@@ -650,6 +677,34 @@ function cellsAround(grid: Grid, p: PathPoint, radius: number): number[] {
     if (near >= 0) out.push(near);
   }
   return out;
+}
+
+/**
+ * Buňky pevných cest (síla ROAD_STRENGTH, jinak 0) – osy se projdou po třetinách buňky a označí
+ * se nejbližší buňka, takže cesta je souvislá řada buněk. Bez cest null.
+ */
+function roadCells(grid: Grid, roads: PathVillage['roads']): Float32Array | null {
+  if (!roads || roads.length === 0) return null;
+  const fixed = new Float32Array(grid.width * grid.height);
+  const step = grid.cellM / 3;
+  const mark = (x: number, z: number): void => {
+    const i = Math.round((x - grid.originX) / grid.cellM);
+    const j = Math.round((z - grid.originZ) / grid.cellM);
+    if (i < 0 || j < 0 || i >= grid.width || j >= grid.height) return;
+    const c = j * grid.width + i;
+    if (Number.isFinite(grid.base[c]!)) fixed[c] = ROAD_STRENGTH;
+  };
+  for (const road of roads) {
+    const pts = road.points;
+    if (pts.length === 1) mark(pts[0]!.x, pts[0]!.z);
+    for (let k = 1; k < pts.length; k++) {
+      const a = pts[k - 1]!;
+      const b = pts[k]!;
+      const n = Math.max(1, Math.ceil(length2(b.x - a.x, b.z - a.z) / step));
+      for (let s = 0; s <= n; s++) mark(a.x + ((b.x - a.x) * s) / n, a.z + ((b.z - a.z) * s) / n);
+    }
+  }
+  return fixed;
 }
 
 // --- cesty -----------------------------------------------------------------------------------
@@ -1461,6 +1516,7 @@ export function computePathNetwork(input: PathNetworkInput): PathNetwork {
       width: grid.width,
       height: grid.height,
       values: new Float32Array(all),
+      raw: new Float32Array(all),
     },
     errands: new Map(),
     trips: 0,
@@ -1483,11 +1539,18 @@ export function computePathNetwork(input: PathNetworkInput): PathNetwork {
     heap: new PathHeap(),
     sinks: new Uint8Array(all),
   };
+  // pevné cesty: od začátku jako plná pěšina (sleva), síla buňky nikdy pod ni neklesne
+  const fixed = roadCells(grid, v.roads);
   const costs: PassCosts = {
     base: grid.base,
-    previous: new Float32Array(all),
+    previous: fixed ? new Float32Array(fixed) : new Float32Array(all),
     cost: new Float32Array(grid.base),
   };
+  if (fixed) {
+    for (let c = 0; c < all; c++) {
+      if (fixed[c]! > 0) costs.cost[c] = grid.base[c]! * (1 - PATH_DISCOUNT * fixed[c]!);
+    }
+  }
   let result: Traffic = {
     cells: new Float32Array(all),
     edges: new Float32Array(all * 4),
@@ -1499,7 +1562,7 @@ export function computePathNetwork(input: PathNetworkInput): PathNetwork {
   for (let pass = 0; pass < PASSES; pass++) {
     if (pass > 0) {
       for (let c = 0; c < all; c++) {
-        const s = pathStrength(smooth[c]!);
+        const s = fixed ? Math.max(fixed[c]!, pathStrength(smooth[c]!)) : pathStrength(smooth[c]!);
         costs.previous[c] = s;
         costs.cost[c] = s > 0 ? grid.base[c]! * (1 - PATH_DISCOUNT * s) : grid.base[c]!;
       }
@@ -1510,7 +1573,7 @@ export function computePathNetwork(input: PathNetworkInput): PathNetwork {
   }
   return {
     lines: extractLines(grid, result, new Map(homes.map((h) => [h.gate, h.gatePoint]))),
-    traffic: { ...empty.traffic, values: smooth },
+    traffic: { ...empty.traffic, values: smooth, raw: result.cells },
     errands,
     trips: result.trips,
   };

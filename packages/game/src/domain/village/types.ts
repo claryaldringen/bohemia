@@ -330,6 +330,10 @@ export type ChronicleEvent = { day: number } & (
   | { kind: 'part-became-forest'; partId: number }
   /** Vesničané při mýcení ušetřili posvátný dub nebo dubový háj (happiness.md) – id místa. */
   | { kind: 'sacred-spared'; site: 'oak' | 'grove'; id: number }
+  /** Z dlouhodobého provozu vznikla pevná cesta (roads.md) – id úseku. */
+  | { kind: 'road-formed'; roadId: number }
+  /** Nepoužívaná vyšlapaná cesta zarostla (roads.md – Zarůstání) – id úseku. */
+  | { kind: 'road-overgrown'; roadId: number }
   | {
       kind: 'cemetery-full';
       cemeteryId: number;
@@ -486,6 +490,95 @@ export interface VillageState {
    * (`FieldPart.walkDistanceM`). Chybí, dokud se nespočítaly (starší vsi, simulace bez krajiny).
    */
   walkLayoutKey?: string;
+  /**
+   * Pevné cesty, stromy u nich a roční součty práce (roads.md). Chybí u vsí uložených před nimi
+   * a ve vsích simulovaných bez krajiny (kalibrace, testy) – začnou při prvním dopočtu s krajinou.
+   */
+  roads?: VillageRoads;
+}
+
+// --- pevné cesty (roads.md) ------------------------------------------------------------------
+
+/** Bod osy pevné cesty ve světě (m, na centimetry). */
+export interface RoadPoint {
+  x: number;
+  z: number;
+}
+
+/**
+ * Stupeň pevné cesty (roads.md – Vylepšení cesty): vyšlapaná (vznikne sama), upravená a hať
+ * s lávkou (staví hráč – zatím jen vyšlapaná).
+ */
+export type RoadGrade = 'trodden' | 'improved' | 'causeway';
+
+/** Místo na strom u pevné cesty – určené jednou při vzniku cesty (roads.md – Stromy). */
+export interface RoadTreeSpot {
+  id: number;
+  x: number;
+  z: number;
+}
+
+/**
+ * Pevná cesta – úsek mezi rozcestími a konci (roads.md – Dvě vrstvy cest): osa se uloží při
+ * vzniku a od té doby se nehýbe (jen se při napojení nové cesty rozdělí na dva úseky).
+ */
+export interface Road {
+  id: number;
+  /** Osa – lomená čára ve světě (m, na cm); rozcestí sdílejí bod. */
+  points: RoadPoint[];
+  /** Herní den vzniku (rozdělený úsek ho zdědí). */
+  bornDay: number;
+  grade: RoadGrade;
+  /**
+   * Provoz posledních let (cest za den – roční průměr, nejnovější poslední; nejvýš
+   * ROADS.overgrowYears) – podle něj vyšlapaná cesta zaroste.
+   */
+  traffic: number[];
+  spots: RoadTreeSpot[];
+}
+
+/** Druh stromu u cesty (roads.md – Druhy): dub, jilm, topol. */
+export type RoadTreeSpecies = 'oak' | 'elm' | 'poplar';
+
+/**
+ * Strom u pevné cesty (roads.md – Stromy u pevných cest) – herní data: uchytil se na místě
+ * `spot` a stojí tam do smrti; keř, strom, souš a pařez se odvozují ze dne (`roadTreeLook`). Id
+ * leží nad rozsahem vrstvy překážek (ROAD_TREE_ID_BASE) – stavba přes strom ho odstraní jako
+ * ostatní překážky (`clearedObstacles`).
+ */
+export interface RoadTree {
+  id: number;
+  spot: number;
+  x: number;
+  z: number;
+  species: RoadTreeSpecies;
+  rootedDay: number;
+  /** Den smrti stářím – pak souš, pařez a místo je zase volné. */
+  diesDay: number;
+}
+
+/** Práce za rok cest na jednom místě (člověkodny celkem) – `field` bez dílů. */
+export interface RoadLaborShare {
+  target: LaborTarget;
+  manDays: number;
+}
+
+/** Pevné cesty vsi (roads.md). */
+export interface VillageRoads {
+  /** Další id úseku, místa a stromu (strom: ROAD_TREE_ID_BASE + id). */
+  nextId: number;
+  roads: Road[];
+  trees: RoadTree[];
+  /**
+   * Úseky roční sítě nad prahem z minulé roční kontroly (osy po ≈ 4 m) – kde se nad prahem chodí
+   * i letos, vznikne pevná cesta.
+   */
+  candidates: RoadPoint[][];
+  /**
+   * Práce od poslední roční kontroly (od 1. 11.) po místech – z rozdělení práce dne. Roční síť
+   * z ní bere průměrné člověkodny na den (`manDays / days`).
+   */
+  labor: { from: number; days: number; shares: RoadLaborShare[] };
 }
 
 /**
