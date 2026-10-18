@@ -6,8 +6,8 @@ import type { VillageView } from './village-view';
 // nebo dubový háj (happiness.md – jen když přibude), kovář nemá uhlí a dílna nemá co kácet
 // (crafts.md), svatba mezi domy (population.md – Sňatky mezi domy, když přibude), podzimní
 // porážka (diet.md), spřežení volů – vycvičené, dosloužilo, vůl uhynul pro nedostatek sena
-// (oxen.md) – a vesničané obnovují starý sad a starý sad dosloužil (orchard.md – Obnova sadu)
-// – nové události kroniky. Vymřelá ves žádná nemá.
+// (oxen.md), vesničané obnovují starý sad a starý sad dosloužil (orchard.md – Obnova sadu)
+// a nevěsta z okolí a dcera vdaná pryč (kinship.md – Sňatky z okolí) – nové události kroniky. Vymřelá ves žádná nemá.
 // Odvozují se z pohledu na ves a ukážou se jednou, když nově vzniknou – jako krátký mizející
 // řádek nahoře uprostřed (jako oznámení v 0 A.D.). Jen fakt, žádná rada.
 
@@ -27,7 +27,9 @@ export type NoticeKind =
   | 'team-retired'
   | 'ox-died'
   | 'orchard-renewal'
-  | 'orchard-gone';
+  | 'orchard-gone'
+  | 'bride-from-outside'
+  | 'married-away';
 
 export interface VillageNotice {
   kind: NoticeKind;
@@ -106,6 +108,12 @@ const CHRONICLE_NOTICES: Partial<
         : 'Podzimní porážka',
   }),
   'team-ready': () => ({ kind: 'team-ready', tone: 'info', text: 'Spřežení je vycvičené' }),
+  'bride-from-outside': () => ({
+    kind: 'bride-from-outside',
+    tone: 'info',
+    text: 'Nevěsta z okolí',
+  }),
+  'married-away': () => ({ kind: 'married-away', tone: 'info', text: 'Dcera se vdala pryč' }),
   'team-retired': () => ({ kind: 'team-retired', tone: 'info', text: 'Spřežení dosloužilo' }),
   'ox-died': () => ({ kind: 'ox-died', tone: 'warn', text: 'Vůl uhynul – chybělo seno' }),
   'orchard-renewal-started': () => ({

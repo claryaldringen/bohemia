@@ -105,3 +105,30 @@ describe('SelectionPanel – posvátný dub a háj', () => {
     expect(html).not.toContain('Stáří');
   });
 });
+
+// Panel obydlí (kinship.md – Co hráč vidí): muži, ženy, děti, starší a manželské páry.
+describe('SelectionPanel – rodiny v obydlí', () => {
+  it('muži, ženy, děti, starší a páry ikonami s čísly', () => {
+    const html = render({
+      kind: 'dwelling',
+      id: 1,
+      type: 'polozemnice',
+      occupants: 8,
+      family: { men: 2, women: 2, boys: 1, girls: 2, elderMen: 0, elderWomen: 1, couples: 2 },
+      capacity: 8,
+      ages: [52, 30, 27, 24, 22, 9, 6, 2],
+      condition: 1,
+      ageYears: 3,
+      full: true,
+      overcrowded: false,
+      rebuild: null,
+      workshop: null,
+    });
+    expect(text(html, 'selection-family-man')).toBe('2');
+    expect(text(html, 'selection-family-woman')).toBe('2');
+    expect(text(html, 'selection-family-child')).toBe('3');
+    expect(text(html, 'selection-family-elder')).toBe('1');
+    expect(text(html, 'selection-family-ring')).toBe('2');
+    expect(html).toContain('/icons/resources/ring.png');
+  });
+});
