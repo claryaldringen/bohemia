@@ -67,7 +67,11 @@ import { createWaterMesh, type WaterSurface } from './water';
 
 type HoverListener = (tile: TileInfo | null) => void;
 /** Kliknutí do scény mimo umisťování: vybrané obydlí / pole, nebo null (zrušit výběr). */
-type SelectListener = (target: VillageTarget | null) => void;
+/**
+ * Výběr kliknutím: co je pod kurzorem a jestli hráč držel Ctrl (Cmd) nebo Shift – přidá / ubere
+ * obydlí z výběru (migration.md – Výběr víc obydlí).
+ */
+type SelectListener = (target: VillageTarget | null, additive: boolean) => void;
 /** Záběr kamery na zemi (4 rohy obrazovky jako body krajiny [x, z]) a natočení kamery. */
 export interface ViewFootprint {
   corners: [number, number][];
@@ -667,7 +671,8 @@ export class LandscapeScene {
 
   /**
    * Kliknutí do scény mimo umisťování (jako v 0 A.D.): levé na obydlí, pole nebo hřbitov ho
-   * vybere, na prázdnou zem a pravé výběr zruší (null). Zvýraznění nastaví až rozhraní
+   * vybere, na prázdnou zem a pravé výběr zruší (null); s Ctrl (Cmd) nebo Shiftem ohlásí
+   * `additive` – rozhraní obydlí přidá k výběru nebo ho ubere. Zvýraznění nastaví až rozhraní
    * (`setSelection`).
    */
   onSelect(listener: SelectListener): () => void {
@@ -810,12 +815,14 @@ export class LandscapeScene {
     if (!down || down.placing || this.placement !== null) return;
     if (isDrag(down, { x: event.offsetX, y: event.offsetY })) return;
     if (event.button === 0 && this.rtsCamera?.leftPressPanned()) return;
-    if (event.button === 0) this.emitSelect(this.pickTarget(event.offsetX, event.offsetY));
-    else if (event.button === 2) this.emitSelect(null);
+    if (event.button === 0) {
+      const additive = event.ctrlKey || event.metaKey || event.shiftKey;
+      this.emitSelect(this.pickTarget(event.offsetX, event.offsetY), additive);
+    } else if (event.button === 2) this.emitSelect(null, false);
   };
 
-  private emitSelect(target: VillageTarget | null): void {
-    for (const listener of this.selectListeners) listener(target);
+  private emitSelect(target: VillageTarget | null, additive: boolean): void {
+    for (const listener of this.selectListeners) listener(target, additive);
   }
 
   /** Obydlí, pole nebo hřbitov pod pixelem plátna (CSS px). */
@@ -878,11 +885,20 @@ export class LandscapeScene {
     if (!village || !this.villageState) return;
     const changed = village.update(this.villageState);
     const changes = this.villageState.obstacles ?? NO_OBSTACLE_CHANGES;
-    const hiddenIds = new Set([...changes.removed, ...changes.stumps, ...changes.saplings]);
+    const sacred = this.villageState.sacred;
+    // uschlý posvátný dub kreslí posvátná místa jako souš, padlý jako padlý kmen – strom zmizí
+    const deadOaks = [
+      ...(sacred?.oaks ?? []).filter((oak) => oak.snag),
+      ...(sacred?.fallenOaks ?? []),
+    ].map((oak) => oak.id);
+    const hiddenIds = new Set([
+      ...changes.removed,
+      ...changes.stumps,
+      ...changes.saplings,
+      ...deadOaks,
+    ]);
     // posvátné duby se postupně zvětší (jen vzhled, mění se nejvýš jednou za herní rok)
-    const growth = new Map(
-      (this.villageState.sacred?.oaks ?? []).map((oak) => [oak.id, oak.growth ?? 1]),
-    );
+    const growth = new Map((sacred?.oaks ?? []).map((oak) => [oak.id, oak.growth ?? 1]));
     const hidden = this.hider.apply(village.hideShapes(), hiddenIds, growth);
     const shaded = this.terrainGround?.setHiddenTrees(hiddenIds) ?? false;
     const clearing =
@@ -894,7 +910,9 @@ export class LandscapeScene {
       this.cleared = clearing;
       for (const listener of this.clearedListeners) listener(clearing);
     }
-    const felled = this.obstacles ? (this.felled?.update(this.obstacles, changes) ?? false) : false;
+    const felled = this.obstacles
+      ? (this.felled?.update(this.obstacles, changes, this.villageState.plantedSaplings) ?? false)
+      : false;
     const logs = this.logPile?.update(this.villageState, changes) ?? false;
     const animals = this.livestock?.update(this.villageState, Date.now()) ?? false;
     const people = this.villagers?.update(this.villageState, Date.now()) ?? false;

@@ -9,14 +9,16 @@ import { villageHerds } from '../livestock';
 import { obstacleChangesAt, obstacleStatus, type ObstacleChanges } from '../obstacles';
 import { villageOrchards } from '../orchard';
 import { villagePens } from '../oxen';
-import { ROAD_TREE_ID_BASE, roadTreeLook } from '../road-trees';
-import { MILIR, ROADS, ROAD_TREES, SACRED_BUILDINGS } from '../rules';
+import { ROAD_TREE_ID_BASE, roadAppleStage, roadTreeLook } from '../road-trees';
+import { MILIR, ROADS, ROAD_APPLES, ROAD_TREES, SACRED_BUILDINGS } from '../rules';
 import type {
   ChronicleEvent,
+  Construction,
   HerdSpecies,
   LaborDay,
   LaborTarget,
   Road,
+  RoadGround,
   RoadPoint,
   RoadTreeSpecies,
   RoadTreeSpot,
@@ -36,6 +38,7 @@ import {
 } from './network';
 import {
   PATH_FORD,
+  PATH_WETLAND,
   PATH_WOODLAND,
   obstaclePosition,
   pathTerrainOf,
@@ -252,10 +255,14 @@ export function updateRoads(
       road.traffic = [...road.traffic, roadTraffic(road.points, network.traffic)].slice(
         -ROADS.overgrowYears,
       );
+      // úseky z doby před mokřinou a brody (fáze 1) si je doplní
+      road.ground ??= roadGroundOf(road.points, terrain);
     }
-    // zarůstání vyšlapané cesty (upravená a hať nezarůstají) – stromy u ní stojí dál
+    // zarůstání vyšlapané cesty (upravená a hať nezarůstají, ani cesta, která se vylepšuje) –
+    // stromy u ní stojí dál
+    const building = roadsInWork(state.constructions);
     roads.roads = roads.roads.filter((road) => {
-      if (!isOvergrown(road)) return true;
+      if (building.has(road.id) || !isOvergrown(road)) return true;
       events.push({ day, kind: 'road-overgrown', roadId: road.id });
       return false;
     });
@@ -266,6 +273,7 @@ export function updateRoads(
       layer: obstacles,
       changes,
       seed: state.seed,
+      split: (from, to) => splitRoadWork(state.constructions, from, to),
     };
     for (const road of formRoads(roads, runs, day, network.traffic, context)) {
       events.push({ day, kind: 'road-formed', roadId: road.id });
@@ -279,8 +287,93 @@ export function updateRoads(
   // stromy: pařez zmizel, nebo strom odstranila stavba – místo je volné
   const removed = new Set(changes.removed);
   roads.trees = roads.trees.filter((t) => !removed.has(t.id) && roadTreeLook(t, day) !== null);
+  // jabloně: zmizí souše po letech a jabloně odstraněné stavbou (rozestavěná výsadba zůstává)
+  if (roads.apples) {
+    roads.apples = roads.apples.filter(
+      (a) =>
+        a.constructionId !== undefined || (!removed.has(a.id) && roadAppleStage(a, day) !== null),
+    );
+  }
   rootTrees(state, roads, day, blocked);
   return events;
+}
+
+/** Úseky, které se právě vylepšují (stavby `road` – roads.md). */
+export function roadsInWork(constructions: readonly Construction[]): Set<number> {
+  return new Set(constructions.flatMap((c) => c.roadIds ?? []));
+}
+
+/** Úsek `from` se rozdělil – stavby na něm patří i novému úseku `to` (mutuje). */
+function splitRoadWork(constructions: Construction[], from: number, to: number): void {
+  for (const c of constructions) {
+    if (c.roadIds?.includes(from)) c.roadIds.push(to);
+  }
+}
+
+/** Krok vzorkování osy pro mokřinu a brody (m), slití mezer (m) a nejkratší mokřina (m). */
+const GROUND_STEP_M = 1;
+const GROUND_GAP_M = 2;
+const GROUND_MIN_WET_M = 2;
+/** Body brodu bližší než tolik metrů jsou jeden brod. */
+const FORD_GAP_M = 4;
+
+/**
+ * Kudy osa vede (roads.md – Vylepšení cesty): úseky v mokřině (rovina podél potoka) a brody přes
+ * potok – po metru osy podle příznaků terénu pěšin; mezery do 2 m se slijí, kratší mokřina se
+ * nepočítá, brod je uprostřed souvislé řady bodů v brodu. Vzdálenosti od začátku osy na dm.
+ */
+export function roadGroundOf(points: readonly RoadPoint[], terrain: PathTerrain): RoadGround {
+  const ground: RoadGround = { wet: [], fords: [] };
+  if (points.length < 2) return ground;
+  const { points: samples } = resample(points, null, GROUND_STEP_M);
+  const at = lengthsAlong(samples);
+  const length = at[at.length - 1]!;
+  const flagAt = (p: RoadPoint): number => {
+    const i = Math.round((p.x - terrain.originX) / terrain.cellM);
+    const j = Math.round((p.z - terrain.originZ) / terrain.cellM);
+    if (i < 0 || j < 0 || i >= terrain.width || j >= terrain.height) return 0;
+    return terrain.flags[j * terrain.width + i]!;
+  };
+  const runs = (flag: number, gap: number): [number, number][] => {
+    const out: [number, number][] = [];
+    samples.forEach((p, k) => {
+      if (!(flagAt(p) & flag)) return;
+      const from = Math.max(0, at[k]! - GROUND_STEP_M / 2);
+      const to = Math.min(length, at[k]! + GROUND_STEP_M / 2);
+      const last = out[out.length - 1];
+      if (last && from - last[1] <= gap) last[1] = to;
+      else out.push([from, to]);
+    });
+    return out;
+  };
+  ground.wet = runs(PATH_WETLAND, GROUND_GAP_M)
+    .filter(([a, b]) => b - a >= GROUND_MIN_WET_M)
+    .map(([a, b]) => [dm(a), dm(b)]);
+  ground.fords = runs(PATH_FORD, FORD_GAP_M).map(([a, b]) => dm((a + b) / 2));
+  return ground;
+}
+
+/** Délka mokřiny na ose (m). */
+export function roadWetM(ground: RoadGround | undefined): number {
+  return (ground?.wet ?? []).reduce((sum, [a, b]) => sum + (b - a), 0);
+}
+
+/** Mokřina a brody na ose od `from` do `to` (m) posunuté na začátek úseku. */
+function groundPart(ground: RoadGround | undefined, from: number, to: number): RoadGround {
+  if (!ground) return { wet: [], fords: [] };
+  return {
+    wet: ground.wet
+      .filter(([a, b]) => b > from && a < to)
+      .map(([a, b]): [number, number] => [dm(Math.max(a, from) - from), dm(Math.min(b, to) - from)])
+      .filter(([a, b]) => b > a),
+    fords: ground.fords.filter((f) => f >= from && f < to).map((f) => dm(f - from)),
+  };
+}
+
+/** Délka osy úseku (m). */
+export function roadLengthM(road: Pick<Road, 'points'>): number {
+  const at = lengthsAlong(road.points);
+  return at[at.length - 1] ?? 0;
 }
 
 /** Vyšlapaná cesta, kudy se ROADS.overgrowYears let po sobě chodí pod polovinou prahu. */
@@ -532,9 +625,9 @@ function formRoad(
 ): Road | null {
   const axis = points.map((p) => ({ x: cm(p.x), z: cm(p.z) }));
   // napojení na pevnou cestu (případné rozdělení cesty v rozcestí) – nejdřív začátek, pak konec
-  const start = joinStart ? joinPoint(roads, axis[0]!) : null;
+  const start = joinStart ? joinPoint(roads, axis[0]!, context) : null;
   if (start) axis.unshift(start);
-  const end = joinEnd ? joinPoint(roads, axis[axis.length - 1]!) : null;
+  const end = joinEnd ? joinPoint(roads, axis[axis.length - 1]!, context) : null;
   if (end) axis.push(end);
   const simple = simplifyPathLine(axis, [], SIMPLIFY_M).points.filter(
     (p, k, all) => k === 0 || p.x !== all[k - 1]!.x || p.z !== all[k - 1]!.z,
@@ -549,6 +642,7 @@ function formRoad(
     grade: 'trodden',
     traffic: [roadTraffic(simple, traffic)],
     spots: [],
+    ground: roadGroundOf(simple, context.terrain),
   };
   roads.roads.push(road);
   // volná místa jiných cest, přes která nová cesta vede, zmizí (stromy na nich stojí dál)
@@ -567,7 +661,7 @@ function formRoad(
  * Bod, kde se konec nové cesty připojí k pevné cestě (do ATTACH_M): u konce pevné cesty do jejího
  * konce, jinak do nejbližšího bodu osy – pevná cesta se tam rozdělí na dva úseky (rozcestí).
  */
-function joinPoint(roads: VillageRoads, from: RoadPoint): RoadPoint | null {
+function joinPoint(roads: VillageRoads, from: RoadPoint, context: SpotContext): RoadPoint | null {
   const hit = nearestOnRoads(roads.roads, from.x, from.z);
   if (!hit || hit.distance > ATTACH_M) return null;
   const road = roads.roads[hit.road]!;
@@ -575,16 +669,20 @@ function joinPoint(roads: VillageRoads, from: RoadPoint): RoadPoint | null {
   const last = road.points[road.points.length - 1]!;
   if (length2(hit.point.x - first.x, hit.point.z - first.z) <= END_SNAP_M) return { ...first };
   if (length2(hit.point.x - last.x, hit.point.z - last.z) <= END_SNAP_M) return { ...last };
-  return splitRoad(roads, hit);
+  return splitRoad(roads, hit, context);
 }
 
 /**
  * Rozdělí pevnou cestu v bodě `hit` na dva úseky (první si nechá id, druhý dostane nové); oba
  * zdědí den vzniku, stupeň a provoz, místa na stromy se rozdělí podle polohy. Vrátí bod rozcestí.
  */
-function splitRoad(roads: VillageRoads, hit: RoadHit): RoadPoint {
+function splitRoad(roads: VillageRoads, hit: RoadHit, context: SpotContext): RoadPoint {
   const road = roads.roads[hit.road]!;
   const at = { x: cm(hit.point.x), z: cm(hit.point.z) };
+  const along = lengthsAlong(road.points);
+  const a = road.points[hit.segment]!;
+  const splitAt = along[hit.segment]! + length2(at.x - a.x, at.z - a.z);
+  const total = along[along.length - 1]!;
   const same = (p: RoadPoint): boolean => p.x === at.x && p.z === at.z;
   const head = road.points.slice(0, hit.segment + 1);
   const tail = road.points.slice(hit.segment + 1);
@@ -599,10 +697,19 @@ function splitRoad(roads: VillageRoads, hit: RoadHit): RoadPoint {
     grade: road.grade,
     traffic: [...road.traffic],
     spots: road.spots.filter((s) => secondAxis(s.x, s.z) < firstAxis(s.x, s.z)),
+    ...(road.ground ? { ground: groundPart(road.ground, splitAt, total) } : {}),
   };
   road.spots = road.spots.filter((s) => secondAxis(s.x, s.z) >= firstAxis(s.x, s.z));
+  // jabloně podél druhé části patří novému úseku (roads.md – Vysazení jabloní)
+  for (const apple of roads.apples ?? []) {
+    if (apple.roadId === road.id && secondAxis(apple.x, apple.z) < firstAxis(apple.x, apple.z)) {
+      apple.roadId = rest.id;
+    }
+  }
+  if (road.ground) road.ground = groundPart(road.ground, 0, splitAt);
   road.points = first;
   roads.roads.splice(hit.road + 1, 0, rest);
+  context.split(road.id, rest.id);
   return at;
 }
 
@@ -616,6 +723,8 @@ interface SpotContext {
   layer: ObstacleLayer | null;
   changes: ObstacleChanges;
   seed: number;
+  /** Úsek se rozdělil – stavby na něm patří i novému úseku. */
+  split: (from: number, to: number) => void;
 }
 
 /**
@@ -623,19 +732,24 @@ interface SpotContext {
  * vlevo a vpravo ROAD_TREES.offsetM od osy, kousek nepravidelně podél, ne blíž END_CLEAR_M ke
  * koncům; kde místo nejde (`canPlant`), zkusí druhou stranu, jinak nic. Místa jsou od sebe
  * aspoň ROAD_TREES.gapM. Deterministicky ze seedu – los v pevném pořadí bez ohledu na to, která
- * místa projdou.
+ * místa projdou. `layout` – rozestupy (výchozí stromy u cest, jabloně ROAD_APPLES).
  */
 export function roadTreeSpots(
   points: readonly RoadPoint[],
   seed: number,
   canPlant: (x: number, z: number) => boolean,
+  layout: {
+    spacingM: { from: number; to: number };
+    offsetM: { from: number; to: number };
+    gapM: number;
+  } = ROAD_TREES,
 ): RoadPoint[] {
   const out: RoadPoint[] = [];
   if (points.length < 2) return out;
   const at = lengthsAlong(points);
   const length = at[at.length - 1]!;
   const random = createRandom(seed);
-  const { spacingM, offsetM, gapM } = ROAD_TREES;
+  const { spacingM, offsetM, gapM } = layout;
   const flip = random.next() < 0.5 ? 1 : 0;
   let next = END_CLEAR_M + random.next() * spacingM.from * 0.5;
   let k = 0;
@@ -712,7 +826,7 @@ function spotsForRoad(roads: VillageRoads, road: Road, context: SpotContext): Ro
 
 /**
  * Stavby vsi, u kterých strom u cesty nevyroste (roads.md – ne ve vsi, na pozemcích, hřbitově,
- * v sadu ani na poli): čtverce dílů polí, sadů, hřbitovů, hájů, ohrad a pozemků i s okrajem, okolí
+ * v sadu ani na poli): čtverce dílů polí, sadů, hřbitovů, hájů, ohrad, pozemků a lesa vsi i s okrajem, okolí
  * obydlí, stavenišť a zbytků jam, modly a svatyně, milíře a posvátných dubů. Mimo krajinu taky ne.
  */
 export function plantingBlocker(
@@ -732,6 +846,8 @@ export function plantingBlocker(
   for (const c of state.constructions) if (c.plot) addTile(c.plot.cell);
   for (const p of villagePens(state)) addTile(p.cell);
   for (const r of state.ruins ?? []) if (r.plot) addTile(r.plot.cell);
+  // les vsi (fields.md – Les vsi) – strom u cesty ani jabloň do něj nepatří, roste tam les
+  for (const w of state.woods ?? []) addTile(w.cell);
   // obydlí, staveniště i zbytky jam po zaniklých obydlích – pořád ves
   const homes = [
     ...state.dwellings.map((d) => d.position),
@@ -802,6 +918,10 @@ function rootTrees(
   const year = dateOfDayIndex(day).year;
   const occupied = new Set(roads.trees.map((t) => t.spot));
   const axes = axisDistance(roads.roads.map((r) => r.points));
+  // u jabloní se strom neuchytí (roads.md – jabloně a stromy u cesty se nepřekrývají)
+  const apples = roads.apples ?? [];
+  const nearApple = (x: number, z: number): boolean =>
+    apples.some((a) => length2(a.x - x, a.z - z) < ROAD_APPLES.treeClearM);
   for (const road of roads.roads) {
     if (day - road.bornDay < ROAD_TREES.rootAfterYears * DAYS_PER_YEAR) continue;
     for (const spot of road.spots) {
@@ -809,6 +929,7 @@ function rootTrees(
       const random = createRandom(deriveSeed(state.seed, `road-tree:${year}:${spot.id}`));
       if (random.next() >= ROAD_TREES.rootChancePerYear) continue;
       if (blocked(spot.x, spot.z) || axes(spot.x, spot.z) < ROAD_CLEAR_M) continue;
+      if (nearApple(spot.x, spot.z)) continue;
       const species = speciesOf(random.next());
       const life = ROAD_TREES.lifeYears[species];
       const years = life.from + random.next() * (life.to - life.from);

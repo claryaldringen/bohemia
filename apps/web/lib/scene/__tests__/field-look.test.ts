@@ -184,5 +184,10 @@ describe('na kterých dílech se pracuje', () => {
     expect(grazeablePart({ stage: 'meadow', look: 'haystacks' }, aug)).toBe(true);
     expect(grazeablePart({ stage: 'meadow', look: 'mown' }, aug)).toBe(false);
     expect(grazeablePart({ stage: 'young-fallow', look: 'plowed' })).toBe(false);
+    // kam stáda nedojdou (nejbližší příloh napřed), ani křoviny a mladý les (fields.md – Zarůstání)
+    expect(grazeablePart({ stage: 'young-fallow', grazed: false })).toBe(false);
+    expect(grazeablePart({ stage: 'young-fallow', grazed: true })).toBe(true);
+    expect(grazeablePart({ stage: 'shrubs', look: 'shrubs' }, aug)).toBe(false);
+    expect(grazeablePart({ stage: 'young-forest' }, aug)).toBe(false);
   });
 });

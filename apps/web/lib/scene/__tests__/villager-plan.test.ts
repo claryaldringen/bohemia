@@ -865,6 +865,61 @@ describe('stavitelé – stavba neroste sama od sebe (Martin)', () => {
   });
 });
 
+describe('jabloně podél cesty – sklizeň, péče a výsadba (roads.md)', () => {
+  it('česáči u plodících jabloní úseku, sazeči u míst, která čekají na výsadbu', () => {
+    const base = village([
+      { activity: 'orchard-harvest', target: { kind: 'road', id: 4 }, manDays: 3 },
+      { activity: 'orchard-plant', target: { kind: 'road', id: 4 }, manDays: 2, construction: 70 },
+    ]);
+    const apple = (id: number, x: number, z: number, stage: 'tree' | 'planting') => ({
+      id,
+      roadId: 4,
+      x,
+      z,
+      stage,
+      growth: stage === 'tree' ? 1 : 0,
+      fruit: stage === 'tree',
+    });
+    const v: SceneVillage = {
+      ...base,
+      roads: [
+        {
+          id: 4,
+          points: [
+            { x: -100, z: 100 },
+            { x: 100, z: 100 },
+          ],
+          grade: 'trodden',
+        },
+      ],
+      roadApples: [
+        apple(1, -60, 103, 'tree'),
+        apple(2, -50, 97, 'tree'),
+        apple(3, -40, 103, 'tree'),
+        apple(4, 40, 97, 'planting'),
+        apple(5, 50, 103, 'planting'),
+      ],
+    };
+    const people = planVillagers(v, GROUND, { seed: 3, herds: 0 });
+    const near = (x: number, z: number, stage: 'tree' | 'planting'): number =>
+      Math.min(
+        ...v.roadApples!.filter((a) => a.stage === stage).map((a) => Math.hypot(a.x - x, a.z - z)),
+      );
+    const pickers = people.filter((p) => p.key.startsWith('orchard-harvest:'));
+    const planters = people.filter((p) => p.key.startsWith('orchard-plant:'));
+    expect(pickers.length).toBe(3);
+    expect(planters.length).toBe(2);
+    for (const p of pickers) {
+      const { x, z } = at(p, 20);
+      expect(near(x, z, 'tree')).toBeLessThan(2);
+    }
+    for (const p of planters) {
+      const { x, z } = at(p, 20);
+      expect(near(x, z, 'planting')).toBeLessThan(2);
+    }
+  });
+});
+
 describe('řemeslníci – práce v dílně (crafts.md)', () => {
   const POTTER = { x: 30, z: -30, rotation: 0 };
   const BURNER = { x: -60, z: 20, rotation: 0.4 };
@@ -932,6 +987,74 @@ describe('řemeslníci – práce v dílně (crafts.md)', () => {
         expect(Math.hypot(x - milir.x, z - milir.z), p.key).toBeGreaterThan(
           MILIR_SHAPE_M.radius - 0.3,
         );
+      }
+    }
+  });
+});
+
+describe('uhlíř – milíř v lese a sázení buků (crafts.md – Uhlíř)', () => {
+  const KILN = { x: -42, z: -60 };
+  function forestVillage(shares: LaborShare[]): SceneVillage {
+    const base = village(shares);
+    return {
+      ...base,
+      dwellings: [...base.dwellings, { ...house(21, -60, 20, 0.4), craft: 'burner' as const }],
+      kilns: [{ id: 21, x: KILN.x, z: KILN.z, stage: 'build', progress: 0.5 }],
+    };
+  }
+
+  it('u lesního milíře stojí uhlíř kolem kupy, ne u dílny', () => {
+    const people = planVillagers(
+      forestVillage([
+        { activity: 'craft', target: { kind: 'kiln', id: 21, x: KILN.x, z: KILN.z }, manDays: 2 },
+      ]),
+      GROUND,
+      { seed: 5, herds: 0 },
+    );
+    const burners = people.filter((p) => p.key.startsWith('craft:kiln-21:'));
+    expect(burners.length).toBe(2);
+    for (const p of burners) {
+      const pose = at(p, 5);
+      const d = Math.hypot(pose.x - KILN.x, pose.z - KILN.z);
+      expect(d).toBeGreaterThan(MILIR_SHAPE_M.radius);
+      expect(d).toBeLessThan(MILIR_SHAPE_M.radius + 3);
+    }
+  });
+
+  it('mladé buky sází u pařezů motykou', () => {
+    const people = planVillagers(
+      forestVillage([
+        { activity: 'plant', target: { kind: 'trees', ids: [501, 502] }, manDays: 1 },
+      ]),
+      GROUND,
+      { seed: 5, herds: 0 },
+    );
+    const planters = people.filter((p) => p.key.startsWith('plant:'));
+    expect(planters.length).toBeGreaterThan(0);
+    for (const p of planters) {
+      const pose = at(p, 5);
+      const stump = Math.min(
+        Math.hypot(pose.x + 40, pose.z + 30),
+        Math.hypot(pose.x + 44, pose.z + 33),
+      );
+      expect(stump).toBeLessThan(3);
+      expect(pose.clip).toBe('hoe');
+    }
+  });
+
+  it('kácení buků u lesního milíře nosí polena k milíři', () => {
+    const people = planVillagers(
+      forestVillage([{ activity: 'fell', target: { kind: 'trees', ids: [501] }, manDays: 4 }]),
+      GROUND,
+      { seed: 3, herds: 0 },
+    );
+    const carriers = people.filter((p) => p.key.startsWith('fell:')).slice(2);
+    expect(carriers.length).toBeGreaterThan(0);
+    // nosiči chodí mezi bukem a milířem – nikdy daleko od nich (dílna je ≈ 85 m od lesa)
+    for (const p of carriers) {
+      for (let t = 0; t < 60; t += 2.3) {
+        const { x, z } = at(p, t);
+        expect(Math.hypot(x - KILN.x, z - KILN.z)).toBeLessThan(45);
       }
     }
   });

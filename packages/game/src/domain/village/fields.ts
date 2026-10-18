@@ -5,13 +5,23 @@ import { foundingCostPerHa, withinBounds } from './productivity';
 import {
   DISTANCE,
   FERTILITY,
+  LEGUMES,
   FOREST_BONUS,
   OBSTACLE_COST,
+  OVERGROWTH_STAGES,
   RECLAIM_COST_PER_HA,
   SEED_KG_PER_HA,
   YIELD_BASE_KG_PER_HA,
+  YOUNG_FALLOW_YEARS,
 } from './rules';
-import type { FieldPart, FieldSurface, TileCell, VillageState } from './types';
+import type {
+  FallowStage,
+  FieldPart,
+  FieldSurface,
+  OvergrowthStage,
+  TileCell,
+  VillageState,
+} from './types';
 
 const M2_PER_HA = 10_000;
 /** Tolerance proti chybám desetinných čísel při porovnání podílů úrodnosti. */
@@ -60,7 +70,7 @@ export function distanceFactor(distanceM: number): number {
 }
 
 /** Celé kalendářní roky od `fallowSinceDay` do `day`; 0, pokud díl nikdy neležel v přílohu. */
-export function fallowYears(part: FieldPart, day: number): number {
+export function fallowYears(part: Pick<FieldPart, 'fallowSinceDay'>, day: number): number {
   if (part.fallowSinceDay === null) return 0;
   const since = dateOfDayIndex(part.fallowSinceDay);
   const now = dateOfDayIndex(day);
@@ -69,10 +79,44 @@ export function fallowYears(part: FieldPart, day: number): number {
   return Math.max(0, now.year - since.year - (beforeAnniversary ? 1 : 0));
 }
 
-/** Cena vrácení hektaru zarostlého dílu v člověkodnech podle let přílohu a pokrytí nástroji. */
-export function reclaimCostPerHa(years: number, toolCoverage: number): number {
-  const step = RECLAIM_COST_PER_HA.find((s) => years <= s.maxYears);
-  return step ? withinBounds(step.cost, toolCoverage) : 0;
+/** Co roste na přílohu po `years` letech bez pastvy a seče (fields.md – Zarůstání). */
+export function overgrowthStage(years: number): OvergrowthStage {
+  let stage: OvergrowthStage = 'meadow';
+  for (const step of OVERGROWTH_STAGES) if (years >= step.fromYears) stage = step.stage;
+  return stage;
+}
+
+/** Roky přílohu bez pastvy a seče (díly mimo příloh a vsi uložené dřív 0). */
+export function partOvergrowthYears(part: Pick<FieldPart, 'overgrowthYears'>): number {
+  return part.overgrowthYears ?? 0;
+}
+
+/**
+ * Zarostl díl křovím nebo lesem (fields.md – Zarůstání)? Pastva ani seč ho pak už nevrátí
+ * a pastvinou ani loukou na seno není.
+ */
+export function isOvergrown(part: Pick<FieldPart, 'state' | 'overgrowthYears'>): boolean {
+  return part.state === 'fallow' && overgrowthStage(partOvergrowthYears(part)) !== 'meadow';
+}
+
+/**
+ * Stadium přílohu v den `day` (fields.md – Zarůstání): křoviny a mladý les podle let bez pastvy
+ * a seče, jinak mladý příloh 1–2 roky ladem a pak louka (pastvina, louka na seno). Díl, který by
+ * byl lesem, z pole vypadne při ročním kroku – do té doby je mladým lesem.
+ */
+export function fallowStage(
+  part: Pick<FieldPart, 'fallowSinceDay' | 'overgrowthYears'>,
+  day: number,
+): FallowStage {
+  const grown = overgrowthStage(partOvergrowthYears(part));
+  if (grown === 'forest') return 'young-forest';
+  if (grown !== 'meadow') return grown;
+  return fallowYears(part, day) <= YOUNG_FALLOW_YEARS ? 'young-fallow' : 'meadow';
+}
+
+/** Cena vrácení hektaru přílohu ve stadiu `stage` v člověkodnech podle pokrytí nástroji. */
+export function reclaimCostPerHa(stage: FallowStage, toolCoverage: number): number {
+  return withinBounds(RECLAIM_COST_PER_HA[stage], toolCoverage);
 }
 
 /**
@@ -109,11 +153,15 @@ export function partFoundingCost(
 
 /**
  * Konec hospodářského roku (1. 9.) pro jeden díl – mění ho na místě: osev vyčerpá úrodnost
- * (pod 70 % jde díl do přílohu), příloh ji obnoví.
+ * (pod 70 % jde díl do přílohu; luštěniny ji naopak trochu vrátí – poutají dusík, fields.md –
+ * Luštěniny), příloh ji obnoví.
  */
 export function endOfSeason(part: FieldPart, day: number): void {
   if (part.state === 'sown') {
-    part.fertilityShare -= FERTILITY.sowDepletion;
+    part.fertilityShare =
+      part.crop === 'legume'
+        ? Math.min(1, part.fertilityShare + LEGUMES.fertilityGain)
+        : part.fertilityShare - FERTILITY.sowDepletion;
     part.sownYears += 1;
     if (part.fertilityShare < FERTILITY.sowableMin - EPSILON) {
       part.state = 'fallow';
@@ -125,7 +173,7 @@ export function endOfSeason(part: FieldPart, day: number): void {
     return;
   }
   if (part.state === 'fallow') {
-    // příloh je pastvina – nezarůstá v les, jen se mu vrací úrodnost
+    // v přílohu se vrací úrodnost; zarůstání počítá roční krok 1. 11. (overgrowth.ts)
     part.fertilityShare = Math.min(1, part.fertilityShare + FERTILITY.fallowRecovery);
   }
 }

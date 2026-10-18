@@ -23,7 +23,6 @@ import { withPlots } from '../plots';
 import { advanceVillage } from '../simulate';
 import { summarizeVillage } from '../summary';
 import type { Craft, Person, VillageState } from '../types';
-import { reservedTrees } from '../wood';
 import { planCrops } from '../year-plan';
 import { makeLandscape } from './placement-fixtures';
 import { withBuiltFirstDwelling } from './village-fixtures';
@@ -171,13 +170,13 @@ describe('řemeslník na plný úvazek (crafts.md – Práce a jídlo)', () => {
   });
 
   it('práce domácnosti dílny nejde na pole ani do společné práce vsi', () => {
-    const withCraft = advanceVillage(withWorkshop(fullVillage(), 'burner'), DAY + 1, null);
-    const empty = withWorkshop(fullVillage(), 'burner');
+    const withCraft = advanceVillage(withWorkshop(fullVillage(), 'potter'), DAY + 1, null);
+    const empty = withWorkshop(fullVillage(), 'potter');
     empty.people = empty.people.filter((p) => p.dwellingId !== WORKSHOP_ID);
     const without = advanceVillage(empty, DAY + 1, null);
     // slepice u dílny krmí ves (péče o zvířata – diet.md), jinak stejně
     expect(withCraft.commonLaborHistory.at(-1)).toBeCloseTo(without.commonLaborHistory.at(-1)!, 2);
-    // uhlíř kácí strom bez polohy (ves bez vrstvy) – práce jde k dílně
+    // hrnčíř kácí strom na palivo bez polohy (ves bez vrstvy) – práce jde k dílně
     const fell = withCraft.labor!.shares.filter((s) => s.activity === 'fell');
     expect(fell).toEqual([
       { activity: 'fell', target: { kind: 'dwelling', id: WORKSHOP_ID }, manDays: 0.9 },
@@ -187,22 +186,6 @@ describe('řemeslník na plný úvazek (crafts.md – Práce a jídlo)', () => {
 });
 
 describe('výroba (crafts.md – Výroba)', () => {
-  it('uhlíř kácí nejbližší dospělý strom a pálí z něj 120 kg uhlí po 10 kg za člověkoden', () => {
-    const s = withWorkshop(fullVillage(), 'burner');
-    craftDays(s, 1, forest);
-    const workshop = s.dwellings.find((d) => d.id === WORKSHOP_ID)!.workshop!;
-    expect(workshop.activity).toBe('felling');
-    const treeId = workshop.felling!.id!;
-    // strom patří dílně – jiná stavba ho nekácí
-    expect(reservedTrees(s).has(treeId)).toBe(true);
-    // 20 dní × 0,9 člověkodne: 2 stromy po 2 čd kácení, zbytek pálení po 10 kg
-    craftDays(s, 19, forest);
-    expect(craftStocks(s).charcoalKg).toBeCloseTo((20 * 0.9 - 2 * 2) * 10, 6);
-    expect(s.felledTrees?.map((f) => f.id)).toContain(treeId);
-    expect(s.felledTrees).toHaveLength(2);
-    expect(workshop.activity).toBe('producing');
-  });
-
   it('kovář kuje z uhlí – 1 kg nástrojů za 10 člověkodní a 50 kg uhlí, bez uhlí stojí', () => {
     const s = withWorkshop(fullVillage(), 'smith');
     s.crafts = { charcoalKg: 1000, toolsKg: 0, potteryKg: 0 };
@@ -238,6 +221,8 @@ describe('výroba (crafts.md – Výroba)', () => {
   it('bez dospělých stromů uhlíř i hrnčíř čekají na dřevo', () => {
     for (const craft of ['burner', 'potter'] as const) {
       const s = withWorkshop(fullVillage(), craft);
+      // uhlíř pálí, jen když ves uhlí potřebuje – pro kováře (crafts.md – Uhlíř)
+      if (craft === 'burner') withWorkshop(s, 'smith', 51, { x: 40, z: 30, rotation: 0 }, 70);
       craftDays(s, 3, noTrees);
       expect(s.dwellings.find((d) => d.id === WORKSHOP_ID)!.workshop!.activity).toBe('no-wood');
       expect(craftStocks(s)).toEqual({ charcoalKg: 0, toolsKg: 0, potteryKg: 0 });
@@ -463,6 +448,8 @@ describe('souhrn řemesel pro panel (crafts.md – Co hráč vidí)', () => {
         occupants: 2,
         laborPerDay: expect.closeTo(0.9, 1),
         oreFactor: 1,
+        kiln: null,
+        toPlant: 0,
       },
     ]);
   });

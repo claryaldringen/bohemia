@@ -1,10 +1,11 @@
 import { obstaclesOf, type Landscape } from '../domain/landscape';
-import { trainTeam, trainingBlock } from '../domain/village';
+import { trainTeam, trainingBlock, villageRoadWalk } from '../domain/village';
 import { updateLivingVillage } from './update-village';
 import type { VillageRepository, VillageResult } from './villages';
 
 export interface TrainTeamInput {
-  settlementId: string;
+  /** Ves (id), ve které hráč jedná – její sídlo dává krajinu `landscape`. */
+  villageId: string;
   landscape: Landscape;
   /** Dnešní herní den (index dne). */
   today: number;
@@ -22,7 +23,7 @@ export function trainTeamInPen(
 ): Promise<VillageResult> {
   return updateLivingVillage(
     deps.villages,
-    input.settlementId,
+    input.villageId,
     input.today,
     input.landscape,
     (state) => {
@@ -30,7 +31,16 @@ export function trainTeamInPen(
       const obstacles = obstaclesOf(input.landscape);
       const block = trainingBlock(state, input.penId, day, obstacles);
       if (block) return { ok: false, reason: block };
-      return { ok: true, state: trainTeam(state, day, input.penId, obstacles) };
+      return {
+        ok: true,
+        state: trainTeam(
+          state,
+          day,
+          input.penId,
+          obstacles,
+          villageRoadWalk(state, input.landscape),
+        ),
+      };
     },
   );
 }

@@ -1,4 +1,4 @@
-import type { Settlement, SettlementRepository } from '../settlements';
+import type { Settlement, SettlementRepository, WorldCell } from '../settlements';
 import type { LayerVersions } from '../../domain/landscape';
 
 /**
@@ -44,6 +44,32 @@ export class InMemorySettlements implements SettlementRepository {
     const settlement: Settlement = {
       id: `settlement-${this.nextId++}`,
       isSeat: true,
+      worldCell: null,
+      createdAt: new Date(0),
+      ...input,
+    };
+    this.settlements.push(settlement);
+    return settlement;
+  }
+
+  async create(input: {
+    ownerId: string;
+    landscapeSeed: number;
+    layerVersions: LayerVersions;
+    worldCell: WorldCell;
+  }): Promise<Settlement | null> {
+    await Promise.resolve();
+    // políčko mřížky světa je jedno na celý svět (jako unikátní index v databázi)
+    const taken = this.settlements.some(
+      (s) =>
+        !this.archived.has(s.id) &&
+        s.worldCell?.x === input.worldCell.x &&
+        s.worldCell.y === input.worldCell.y,
+    );
+    if (taken) return null;
+    const settlement: Settlement = {
+      id: `settlement-${this.nextId++}`,
+      isSeat: false,
       createdAt: new Date(0),
       ...input,
     };

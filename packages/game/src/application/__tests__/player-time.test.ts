@@ -29,6 +29,7 @@ async function player(): Promise<{
   villages: InMemoryVillages;
   offsets: InMemoryTimeOffsets;
   settlementId: string;
+  villageId: string;
 }> {
   const settlements = new InMemorySettlements();
   const villages = new InMemoryVillages();
@@ -49,7 +50,13 @@ async function player(): Promise<{
     },
   );
   if (!founded.ok) throw new Error(founded.reason);
-  return { settlements, villages, offsets: new InMemoryTimeOffsets(), settlementId: seat.id };
+  return {
+    settlements,
+    villages,
+    offsets: new InMemoryTimeOffsets(),
+    settlementId: seat.id,
+    villageId: founded.village.id,
+  };
 }
 
 const skip = (overrides: Partial<SkipTimeInput> = {}): SkipTimeInput => ({
@@ -81,31 +88,31 @@ describe('playerDay a playerTime – dnešní den hráče', () => {
 
 describe('skipTime', () => {
   it('bez vývojového režimu odmítne a nic nezmění', async () => {
-    const { settlements, villages, offsets, settlementId } = await player();
+    const { settlements, villages, offsets, villageId } = await player();
     const result = await skipTime(
       { settlements, villages, offsets, landscapes },
       skip({ devMode: false }),
     );
     expect(result).toEqual({ ok: false, reason: DEV_MODE_ONLY });
     expect(offsets.offsets.size).toBe(0);
-    expect(villages.records.get(settlementId)?.state.lastDay).toBe(WORLD_DAY);
+    expect(villages.records.get(villageId)?.state.lastDay).toBe(WORLD_DAY);
   });
 
   it('o měsíc posune den hráče o 30 dní a dopočítá ves do nového dneška', async () => {
-    const { settlements, villages, offsets, settlementId } = await player();
+    const { settlements, villages, offsets, villageId } = await player();
     const result = await skipTime({ settlements, villages, offsets, landscapes }, skip());
     expect(result).toEqual({ ok: true, today: WORLD_DAY + 30, offsetDays: 30 });
     expect(await offsets.offsetOf(PLAYER)).toBe(30);
-    expect(villages.records.get(settlementId)?.state.lastDay).toBe(WORLD_DAY + 30);
+    expect(villages.records.get(villageId)?.state.lastDay).toBe(WORLD_DAY + 30);
   });
 
   it('o rok posune o 365 dní – posuny se sčítají a ves se dopočítá', async () => {
-    const { settlements, villages, offsets, settlementId } = await player();
+    const { settlements, villages, offsets, villageId } = await player();
     const deps = { settlements, villages, offsets, landscapes };
     await skipTime(deps, skip());
     const result = await skipTime(deps, skip({ skip: 'year' }));
     expect(result).toEqual({ ok: true, today: WORLD_DAY + 395, offsetDays: 395 });
-    const village = villages.records.get(settlementId);
+    const village = villages.records.get(villageId);
     expect(village?.state.lastDay).toBe(WORLD_DAY + 395);
     // ves za rok žije dál – zakladatelé si mezitím zemnici dostavěli
     expect(village?.state.people.length).toBeGreaterThan(0);
@@ -113,21 +120,21 @@ describe('skipTime', () => {
   });
 
   it('o 10 let posune o 3 650 dní a ves se dopočítá', async () => {
-    const { settlements, villages, offsets, settlementId } = await player();
+    const { settlements, villages, offsets, villageId } = await player();
     const deps = { settlements, villages, offsets, landscapes };
     const result = await skipTime(deps, skip({ skip: 'decade' }));
     expect(result).toEqual({ ok: true, today: WORLD_DAY + 3650, offsetDays: 3650 });
-    expect(villages.records.get(settlementId)?.state.lastDay).toBe(WORLD_DAY + 3650);
+    expect(villages.records.get(villageId)?.state.lastDay).toBe(WORLD_DAY + 3650);
   });
 
   it('posun platí i druhý den – ves se načítá k posunutému dni', async () => {
-    const { settlements, villages, offsets, settlementId } = await player();
+    const { settlements, villages, offsets, villageId } = await player();
     await skipTime({ settlements, villages, offsets, landscapes }, skip());
     const tomorrow = await playerTime({ offsets }, { playerId: PLAYER, worldDay: WORLD_DAY + 1 });
     expect(tomorrow.today).toBe(WORLD_DAY + 31);
     const village = await loadVillage(
       { villages },
-      { settlementId, today: tomorrow.today, landscape },
+      { villageId, today: tomorrow.today, landscape },
     );
     expect(village?.state.lastDay).toBe(WORLD_DAY + 31);
   });

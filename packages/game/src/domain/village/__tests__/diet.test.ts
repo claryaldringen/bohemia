@@ -51,6 +51,7 @@ const NONE: Eaten = {
   milkEnergy: 0,
   cheeseKg: 0,
   eggsKg: 0,
+  legumesKg: 0,
 };
 
 describe('nasycení = energie × kvalita z bílkovin a ovoce (diet.md)', () => {
@@ -96,6 +97,7 @@ describe('nasycení = energie × kvalita z bílkovin a ovoce (diet.md)', () => {
       milkEnergy: 0.4,
       cheeseKg: 1,
       eggsKg: 1,
+      legumesKg: 0,
     });
     const protein =
       PROTEIN.perKg.grain + PROTEIN.perKg.meat + PROTEIN.perKg.cheese + PROTEIN.perKg.eggs + 0.07;

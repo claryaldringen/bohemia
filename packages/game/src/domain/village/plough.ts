@@ -1,4 +1,4 @@
-import { fallowYears, reclaimCostPerHa } from './fields';
+import { fallowStage, reclaimCostPerHa } from './fields';
 import { withinBounds } from './productivity';
 import type { Bounds, FieldPart } from './types';
 
@@ -26,5 +26,5 @@ export function ploughWorkPerHa(toolCoverage: number): number {
  * sklizni, mladý příloh a díl, kterému drn rozrušilo založení, rádlo zorá.
  */
 export function isPloughable(part: FieldPart, day: number): boolean {
-  return part.state !== 'fallow' || reclaimCostPerHa(fallowYears(part, day), 0) <= 0;
+  return part.state !== 'fallow' || reclaimCostPerHa(fallowStage(part, day), 0) <= 0;
 }

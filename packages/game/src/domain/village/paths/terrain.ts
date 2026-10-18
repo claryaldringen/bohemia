@@ -12,6 +12,7 @@ import {
 } from '../../landscape';
 import { obstacleStatus, type ObstacleChanges } from '../obstacles';
 import { OUTCROP_RADIUS_M } from '../rules';
+import { isWoodTreeId } from '../woods';
 
 // Terén pro vyšlapané pěšiny (docs/design/paths.md) – cena chůze po buňkách hrubé mřížky kolem
 // vsi. Mřížka sedí na body sítě vykreslení scény (střed políčka + k × čtvrtina políčka, ≈ 3,75 m),
@@ -27,6 +28,14 @@ export const PATH_FOREST_EDGE = 2;
 export const PATH_FORD = 4;
 /** Buňka je v lese nebo u jeho okraje (WOODLAND_M) – stromy u pevných cest tu nerostou (roads.md). */
 export const PATH_WOODLAND = 8;
+/**
+ * Buňka je mokřina – rovina podél potoka (roads.md – Rychlejší chůze): suchá buňka nejvýš
+ * WETLAND.cells buněk od vody se sklonem nejvýš WETLAND.slope. Chodí se tu pomalu (bahno), hať
+ * pomůže.
+ */
+export const PATH_WETLAND = 16;
+/** Buňka je voda – potok (i brod); kdo jde rovně, musí se brodit (roads.md – brod + 30 m). */
+export const PATH_WATER = 32;
 
 /** Bodů mřížky na políčko (jako síť vykreslení scény – RENDER_SUBDIVISION). */
 export const PATH_GRID_PER_TILE = 4;
@@ -47,6 +56,11 @@ const FOREST_COST = 1.35;
 const FOREST_EDGE_M = { from: -4, to: 1 } as const;
 /** Les a jeho okraj pro stromy u cest – znaménková vzdálenost od hranice lesa nad tuto (m). */
 const WOODLAND_M = -6;
+/**
+ * Mokřina (návrh Clauda): rovina (sklon do 0,04 – 4 m na 100 m) do 3 buněk (≈ 11 m) od vody –
+ * podmáčený břeh a niva potoka.
+ */
+const WETLAND = { cells: 3, slope: 0.04 } as const;
 /** U okraje krajiny se nechodí (m). */
 const EDGE_MARGIN_M = 10;
 /** Okno terénu v mezipaměti je o tolik (m) větší než potřebné – ves roste a nepočítá se znovu. */
@@ -87,7 +101,7 @@ export interface PathTerrain {
   window: PathWindow;
   /** Násobek ceny chůze po rovné louce (1); Infinity = neprůchodné (voda, sráz, okraj). */
   cost: Float32Array;
-  /** PATH_WATER_SPOT | PATH_FOREST_EDGE | PATH_FORD | PATH_WOODLAND. */
+  /** PATH_WATER_SPOT | PATH_FOREST_EDGE | PATH_FORD | PATH_WOODLAND | PATH_WETLAND | PATH_WATER. */
   flags: Uint8Array;
 }
 
@@ -136,6 +150,8 @@ export function buildPathTerrain(l: Landscape, window: PathWindow): PathTerrain 
   const cost = new Float32Array(width * height);
   const flags = new Uint8Array(width * height);
   const wet = new Uint8Array(width * height);
+  /** Rovina pro mokřinu (sklon do WETLAND.slope). */
+  const flat = new Uint8Array(width * height);
   const edge = (l.size * l.cellSizeM) / 2 - EDGE_MARGIN_M;
   const stream = l.stream.length >= 2 ? streamCenterline(l) : null;
   const field = buildForestField(l, { remember: false });
@@ -200,6 +216,7 @@ export function buildPathTerrain(l: Landscape, window: PathWindow): PathTerrain 
       const gx = (h(gi + 1, gj) - h(gi - 1, gj)) / (2 * step);
       const gz = (h(gi, gj + 1) - h(gi, gj - 1)) / (2 * step);
       const slope = length2(gx, gz);
+      if (slope <= WETLAND.slope) flat[c] = 1;
       if (slope > SLOPE_MAX) {
         cost[c] = Infinity;
         continue;
@@ -233,6 +250,25 @@ export function buildPathTerrain(l: Landscape, window: PathWindow): PathTerrain 
         }
       }
       if (water) flags[c] = flags[c]! | PATH_WATER_SPOT;
+    }
+  }
+  for (let c = 0; c < width * height; c++) if (wet[c]) flags[c] = flags[c]! | PATH_WATER;
+  // mokřina – suchá rovina kousek od vody
+  const reach = WETLAND.cells;
+  for (let j = 0; j < height; j++) {
+    for (let i = 0; i < width; i++) {
+      const c = j * width + i;
+      if (!wet[c]) continue;
+      for (let dj = -reach; dj <= reach; dj++) {
+        for (let di = -reach; di <= reach; di++) {
+          const ii = i + di;
+          const jj = j + dj;
+          if (ii < 0 || jj < 0 || ii >= width || jj >= height) continue;
+          if (di * di + dj * dj > reach * reach) continue;
+          const n = jj * width + ii;
+          if (!wet[n] && flat[n] && cost[n] !== Infinity) flags[n] = flags[n]! | PATH_WETLAND;
+        }
+      }
     }
   }
   return {
@@ -311,13 +347,7 @@ export function withObstacles(
   const status = obstacleStatus(changes);
   const maxX = originX + (width - 1) * cellM;
   const maxZ = originZ + (height - 1) * cellM;
-  for (const index of obstaclesNear(layer, originX, originZ, maxX, maxZ)) {
-    const kind = status.kindOf(layer, index);
-    if (kind === null) continue;
-    const { radius: unit, extra } = OBSTACLE_COST[kind];
-    const radius = unit * layer.scale[index]!;
-    const x = layer.x[index]!;
-    const z = layer.z[index]!;
+  const add = (x: number, z: number, radius: number, extra: number): void => {
     const reach = Math.max(radius, half);
     const i0 = Math.max(0, Math.ceil((x - reach - originX) / cellM - 1e-6));
     const j0 = Math.max(0, Math.ceil((z - reach - originZ) / cellM - 1e-6));
@@ -332,6 +362,22 @@ export function withObstacles(
         cost[c] = cost[c]! + extra;
       }
     }
+  };
+  for (const index of obstaclesNear(layer, originX, originZ, maxX, maxZ)) {
+    const kind = status.kindOf(layer, index);
+    if (kind === null) continue;
+    const { radius: unit, extra } = OBSTACLE_COST[kind];
+    add(layer.x[index]!, layer.z[index]!, unit * layer.scale[index]!, extra);
+  }
+  // stromy lesa vsi (fields.md – Les vsi) jsou les jako stromy krajiny – pěšina je obchází
+  // (stromy u cest ne – stojí mimo osu cesty, roads.md)
+  for (const o of changes?.added ?? []) {
+    if (!isWoodTreeId(o.id)) continue;
+    if (o.x < originX - half || o.x > maxX + half || o.z < originZ - half || o.z > maxZ + half) {
+      continue;
+    }
+    const { radius, extra } = OBSTACLE_COST[o.kind];
+    add(o.x, o.z, radius, extra);
   }
   return { ...terrain, cost };
 }

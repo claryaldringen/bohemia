@@ -25,15 +25,16 @@ export interface DynastyInput {
 export interface DynastyStatus {
   /** Aktivní sídla hráče. */
   settlements: Settlement[];
-  /** Vsi aktivních sídel (sídla bez vsi chybí), dopočítané do dneška. */
+  /** Všechny vsi aktivních sídel (sídelní první, pak podle založení), dopočítané do dneška. */
   villages: VillageRecord[];
   /** Hráč má vsi a žádná nežije. */
   gameOver: boolean;
 }
 
 /**
- * Stav rodu hráče: všechny vsi jeho aktivních sídel dopočítané do dneška (dopočet se uloží –
- * ves mohla mezitím vymřít). Obecně pro víc vsí; dnes má hráč jedno sídlo s jednou vsí.
+ * Stav rodu hráče: všechny vsi jeho aktivních sídel (sídelní první, na každém sídle v pořadí
+ * založení – migration.md, Víc vsí jednoho hráče) dopočítané do dneška (dopočet se uloží – ves
+ * mohla mezitím vymřít). Hra končí, až vymřou všechny.
  */
 export async function dynastyStatus(
   deps: DynastyDeps,
@@ -42,12 +43,15 @@ export async function dynastyStatus(
   const settlements = await deps.settlements.listActive(input.playerId);
   const villages: VillageRecord[] = [];
   for (const settlement of settlements) {
-    const village = await loadVillage(deps, {
-      settlementId: settlement.id,
-      today: input.today,
-      landscape: settlementLandscape(settlement, deps.landscapes),
-    });
-    if (village) villages.push(village);
+    const landscape = settlementLandscape(settlement, deps.landscapes);
+    for (const stored of await deps.villages.listBySettlement(settlement.id)) {
+      const village = await loadVillage(deps, {
+        villageId: stored.id,
+        today: input.today,
+        landscape,
+      });
+      if (village) villages.push(village);
+    }
   }
   return { settlements, villages, gameOver: isGameOver(villages.map((v) => v.state)) };
 }
@@ -67,7 +71,7 @@ export type RestartGameResult =
   { ok: true; settlement: Settlement; landscape: Landscape } | { ok: false; reason: string };
 
 /**
- * Začít znovu: aktivní sídla hráče i se vsí jdou do archivu a vznikne nové sídelní sídlo
+ * Začít znovu: všechna aktivní sídla hráče i se všemi vsemi jdou do archivu a vznikne nové sídelní sídlo
  * s novým seedem krajiny – pak hráč zakládá ves jako nový (první zemnice). Bez `abandon` jen po
  * konci hry (vymřely všechny vsi), živá ves restart odmítne; s `abandon` (hráč to potvrdil
  * v nabídce) se archivují i živé vsi. Když hráč ještě žádnou ves nemá (ani vymřelou – třeba

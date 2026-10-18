@@ -25,6 +25,15 @@ export function milirPlace(position: Position): Position {
 }
 
 /**
+ * Milíř v lese (crafts.md – Uhlíř): „poloha zemnice“, ke které by milíř se středem `center` patřil
+ * (natočení 0) – funkce milíře (`milirPlace`, `milirCircle`, `craftSpots`, `workshopVents`…)
+ * s ní kreslí a rozestavují lesní milíř stejně jako milíř u dílny.
+ */
+export function forestKilnAnchor(center: { x: number; z: number }): Position {
+  return { x: center.x - MILIR.offset.x, z: center.z - MILIR.offset.z, rotation: 0 };
+}
+
+/**
  * Body na obvodu milíře pro patu modelu (střed a čtyři body na okraji kupy) – milíř stojí na
  * terénu, na svahu se zapustí do nejnižšího místa.
  */
