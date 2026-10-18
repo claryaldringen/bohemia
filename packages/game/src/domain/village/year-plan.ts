@@ -56,13 +56,26 @@ export function partWork(
   return work;
 }
 
+/** Pořadí dílů, ve kterém k nim postupuje práce plodiny. */
+export type WorkOrder = (parts: readonly FieldPart[]) => FieldPart[];
+
+/** Dřívější pořadí práce: nejblíž obydlím první, při shodě podle id. */
+export const nearestFirst: WorkOrder = (parts) =>
+  [...parts].sort((a, b) => a.distanceM - b.distanceM || a.id - b.id);
+
 /**
  * Práce jedné plodiny pro vybrané díly (viz `partWork`). Díly se seřadí, jak k nim práce
- * postupuje – nejblíž obydlím první, při shodě podle id (fields.md – Postup práce po čtvercích).
+ * postupuje (fields.md – Postup práce po čtvercích): ves s hospodářstvími po úsecích od domu ven
+ * (`workOrder` v holdings.ts), jinak nejblíž obydlím první, při shodě podle id.
  */
-export function createCropWork(selected: FieldPart[], day: number, toolCoverage: number): CropWork {
+export function createCropWork(
+  selected: FieldPart[],
+  day: number,
+  toolCoverage: number,
+  order: WorkOrder = nearestFirst,
+): CropWork {
   const required = emptyTaskRecord();
-  const ordered = [...selected].sort((a, b) => a.distanceM - b.distanceM || a.id - b.id);
+  const ordered = order(selected);
   const reclaimIds: number[] = [];
   for (const part of ordered) {
     const work = partWork(part, day, toolCoverage);
@@ -79,8 +92,13 @@ export function createCropWork(selected: FieldPart[], day: number, toolCoverage:
 }
 
 /** Plán prací na rok jen s jaří (tvar plánu z doby před ozimem). */
-export function createPlan(selected: FieldPart[], day: number, toolCoverage: number): YearPlan {
-  return { plannedDay: day, ...createCropWork(selected, day, toolCoverage) };
+export function createPlan(
+  selected: FieldPart[],
+  day: number,
+  toolCoverage: number,
+  order: WorkOrder = nearestFirst,
+): YearPlan {
+  return { plannedDay: day, ...createCropWork(selected, day, toolCoverage, order) };
 }
 
 /** Roční plán s ozimem a jaří (fields.md – Ozim a jař); bez ozimu bez `winter`. */
@@ -88,20 +106,24 @@ export function createYearPlan(
   crops: { winter: FieldPart[]; spring: FieldPart[] },
   day: number,
   toolCoverage: number,
+  order: WorkOrder = nearestFirst,
 ): YearPlan {
-  const plan = createPlan(crops.spring, day, toolCoverage);
-  if (crops.winter.length > 0) plan.winter = createCropWork(crops.winter, day, toolCoverage);
+  const plan = createPlan(crops.spring, day, toolCoverage, order);
+  if (crops.winter.length > 0) {
+    plan.winter = createCropWork(crops.winter, day, toolCoverage, order);
+  }
   return plan;
 }
 
-/** Přidá do práce plodiny další díly (mutuje `work`). */
+/** Přidá do práce plodiny další díly (mutuje `work`) – nová dávka jde na konec. */
 export function addToCropWork(
   work: CropWork,
   added: FieldPart[],
   day: number,
   toolCoverage: number,
+  order: WorkOrder = nearestFirst,
 ): void {
-  const extra = createCropWork(added, day, toolCoverage);
+  const extra = createCropWork(added, day, toolCoverage, order);
   for (const task of TASK_ORDER) work.required[task] += extra.required[task];
   work.partIds.push(...extra.partIds);
   if (extra.reclaimIds) work.reclaimIds = [...(work.reclaimIds ?? []), ...extra.reclaimIds];

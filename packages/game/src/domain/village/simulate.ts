@@ -11,9 +11,10 @@ import {
   wantsRebuild,
   yearlyCommonLabor,
 } from './dwellings';
-import { endOfSeason, expectedNetKg, sowingOrder } from './fields';
+import { endOfSeason, expectedNetKg } from './fields';
 import { daysUntilAppleRot, eatMeal } from './food';
 import { isToilDay, updateHappiness, villageLaborFactor, windowEndDay } from './happiness';
+import { sowingBlocks, villageHoldings, workOrder } from './holdings';
 import { recordClearedObstacles } from './obstacles';
 import { relocationPlot } from './plots';
 import { allocateDay, type LaborTaskName } from './labor';
@@ -203,7 +204,9 @@ function isOn(date: CalendarDate, target: DayOfYear): boolean {
  */
 function planYear(state: VillageState, day: number): void {
   for (const part of state.parts) endOfSeason(part, day);
-  const crops = chooseCrops(sowingOrder(state.parts), {
+  // díly po úsecích hospodářství od domu ven (fields.md – Hospodaření podle polohy domů)
+  const holdings = villageHoldings(state);
+  const crops = chooseCrops(sowingBlocks(state.parts, holdings), {
     targetKg: sowingTarget(state, day),
     startKg: 0,
     capacity: sowingCapacity(state, day),
@@ -213,7 +216,7 @@ function planYear(state: VillageState, day: number): void {
     toolCoverage: NO_CRAFTS.tools,
   });
   // plán vzniká před změnou stavu dílů – vrácení přílohu se počítá jen u dílů v přílohu
-  state.plan = createYearPlan(crops, day, NO_CRAFTS.tools);
+  state.plan = createYearPlan(crops, day, NO_CRAFTS.tools, workOrder(holdings));
   const chosen = new Set([...crops.winter, ...crops.spring].map((p) => p.id));
   for (const part of state.parts) {
     if (chosen.has(part.id) || (part.state !== 'sown' && part.state !== 'ready')) continue;
@@ -241,7 +244,9 @@ function joinFinishedParts(state: VillageState, day: number): void {
   const startKg = state.parts
     .filter((p) => inPlan.has(p.id))
     .reduce((sum, p) => sum + expectedNetKg(p, day), 0);
-  const { spring } = chooseCrops(sowingOrder(ready), {
+  const holdings = villageHoldings(state);
+  // hotové díly (skupina 2 přílohové soustavy) po úsecích hospodářství
+  const { spring } = chooseCrops(sowingBlocks(state.parts, holdings, 2), {
     targetKg: sowingTarget(state, day),
     startKg,
     capacity: sowingCapacity(state, day),
@@ -251,8 +256,9 @@ function joinFinishedParts(state: VillageState, day: number): void {
     toolCoverage: NO_CRAFTS.tools,
   });
   if (spring.length === 0) return;
-  if (plan === null) state.plan = createPlan(spring, day, NO_CRAFTS.tools);
-  else addToCropWork(plan, spring, day, NO_CRAFTS.tools);
+  const order = workOrder(holdings);
+  if (plan === null) state.plan = createPlan(spring, day, NO_CRAFTS.tools, order);
+  else addToCropWork(plan, spring, day, NO_CRAFTS.tools, order);
   sow(spring, day, 'spring');
 }
 
