@@ -1,5 +1,6 @@
 import type { Material } from '@babylonjs/core/Materials/material';
 import { PBRMaterial } from '@babylonjs/core/Materials/PBR/pbrMaterial';
+import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import type { Scene } from '@babylonjs/core/scene';
 import { HEIGHT_SCALE } from './constants';
@@ -34,13 +35,14 @@ const TOWER_TINT = new Color3(0.78, 0.74, 0.7);
 
 /**
  * Dekorace krajiny (rákos, lekníny, vrby, keře, skály a kameny) z instancí modelů. Když se
- * model nenačte, dekorace chybí (zaloguje se varování), krajina se zobrazí dál.
+ * model nenačte, dekorace chybí (zaloguje se varování), krajina se zobrazí dál. Vrátí meshe
+ * dekorací (skrývání pod vsí – InstanceHider).
  */
 export async function addDecorations(
   scene: Scene,
   placements: readonly DecorPlacement[],
   options: { baseUrl: string; groundHeight: (worldX: number, worldZ: number) => number },
-): Promise<void> {
+): Promise<Mesh[]> {
   const results = await Promise.allSettled(
     DECOR_MODELS.map((model) =>
       addInstancedModel(
@@ -66,11 +68,15 @@ export async function addDecorations(
       ),
     ),
   );
+  const meshes: Mesh[] = [];
   for (const result of results) {
     if (result.status === 'rejected') {
       console.warn('Dekoraci krajiny se nepodařilo načíst.', result.reason);
+    } else if (result.value) {
+      meshes.push(result.value);
     }
   }
+  return meshes;
 }
 
 function baseHeight(

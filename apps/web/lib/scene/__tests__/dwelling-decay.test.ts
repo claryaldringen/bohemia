@@ -15,6 +15,7 @@ import {
   ruinPitShape,
 } from '../dwelling-decay';
 import { PIT_SHAPES, insidePit, worldToLocal } from '../dwelling-pit';
+import { decalGrid } from '../village-layout';
 
 const TYPES: readonly DwellingType[] = ['zemnice', 'polozemnice'];
 const POSITION = { x: 12, z: -7, rotation: 0.7 };
@@ -76,9 +77,9 @@ describe('stupně rozpadu obydlí', () => {
       for (const stage of [1, 2, 3] as const) {
         for (const part of decayModelParts(type, stage)) expect(nodes).toContain(part);
       }
-      for (const suffix of ['ruin', 'ruin-late', 'ruin-berms']) {
-        expect(nodes).toContain(`${type}-${suffix}`);
-      }
+      for (const suffix of ['ruin', 'ruin-late']) expect(nodes).toContain(`${type}-${suffix}`);
+      // ploché pruhované „valy“ zbytku jámy už nejsou – val je součástí prohlubně
+      expect(nodes).not.toContain(`${type}-ruin-berms`);
     }
     expect(nodes).toContain('nettle');
     expect(materials).toEqual(
@@ -88,12 +89,11 @@ describe('stupně rozpadu obydlí', () => {
 });
 
 describe('zbytek jámy', () => {
-  it('prohlubeň se zasypává, trámy hnijí, valy se srovnají; kopřivy nejbujnější pár let po zániku', () => {
+  it('prohlubeň se zasypává, trámy hnijí; kopřivy nejbujnější pár let po zániku', () => {
     for (const type of TYPES) {
       const looks = [0, 0.2, 0.5, 0.85, 1].map((g) => ruinLook(type, g));
       for (let i = 1; i < looks.length; i++) {
         expect(looks[i]!.depth).toBeLessThan(looks[i - 1]!.depth);
-        expect(looks[i]!.berms).toBeLessThan(looks[i - 1]!.berms);
       }
       expect(looks[0]!.depth).toBeLessThan(PIT_SHAPES[type].depth);
       expect(looks.map((l) => l.beams)).toEqual(['ruin', 'ruin', 'ruin-late', null, null]);
@@ -115,14 +115,59 @@ describe('zbytek jámy', () => {
     }
   });
 
-  it('síť prohlubně: okraj na terénu, uprostřed dno, nikde nad terénem; kopřivy stojí na ní', () => {
+  /** Trojúhelníky sítě: (p1 − p0) × (p2 − p0) – v Babylonu míří od pozorovatele. */
+  function crossY(positions: ArrayLike<number>, indices: ArrayLike<number>, t: number): number {
+    const p = (k: number): [number, number, number] => {
+      const v = indices[t * 3 + k]!;
+      return [positions[v * 3]!, positions[v * 3 + 1]!, positions[v * 3 + 2]!];
+    };
+    const [a, b, c] = [p(0), p(1), p(2)];
+    const u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+    const w = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+    return u[2]! * w[0]! - u[0]! * w[2]!;
+  }
+
+  it('síť prohlubně má přední stranu nahoru jako terén – shora je vidět (jinak prosvítá obloha)', () => {
+    // terén a obtisky (decalGrid) – stejné dělení čtverce: v Babylonu (b−a)×(c−a) míří dolů
+    const grid = decalGrid({ minX: 0, maxX: 2, minZ: 0, maxZ: 2 }, 1, () => 1);
+    const flat = new Float32Array((grid.positions.length / 2) * 3);
+    for (let v = 0; v < grid.positions.length / 2; v++) {
+      flat[v * 3] = grid.positions[v * 2]!;
+      flat[v * 3 + 2] = grid.positions[v * 2 + 1]!;
+    }
+    for (let t = 0; t < grid.indices.length / 3; t++) {
+      expect(crossY(flat, grid.indices, t)).toBeLessThan(0);
+    }
+    const rim = (x: number, z: number): number => 3 + 0.05 * x - 0.02 * z;
+    for (const type of TYPES) {
+      for (const rotation of [0, 0.7, Math.PI, -2.1]) {
+        const position = { ...POSITION, rotation };
+        const data = ruinHollowData(type, position, {
+          base: 2.9,
+          depth: ruinLook(type, 0).depth,
+          rim,
+          overgrowth: 0.3,
+        });
+        for (let t = 0; t < data.indices.length / 3; t++) {
+          expect(crossY(data.positions, data.indices, t)).toBeLessThan(0);
+        }
+      }
+    }
+  });
+
+  it('síť prohlubně: lem za řezem těsně nad terénem, uvnitř val a dno, žádné NaN; kopřivy na ní', () => {
     const rim = (x: number, z: number): number => 3 + 0.05 * x - 0.02 * z;
     for (const type of TYPES) {
       const base = rim(POSITION.x, POSITION.z) - 0.05;
       const depth = ruinLook(type, 0).depth;
-      const data = ruinHollowData(type, POSITION, { base, depth, rim, overgrowth: 0 });
+      const hollow = { base, depth, rim, overgrowth: 0 };
+      const data = ruinHollowData(type, POSITION, hollow);
       const { halfX, halfZ } = PIT_SHAPES[type];
       let lowest = Infinity;
+      let highest = -Infinity;
+      for (const v of [...data.positions, ...data.uvs, ...data.colors]) {
+        expect(Number.isFinite(v)).toBe(true);
+      }
       for (let v = 0; v < data.positions.length / 3; v++) {
         const [x, y, z] = [
           data.positions[v * 3]!,
@@ -130,23 +175,37 @@ describe('zbytek jámy', () => {
           data.positions[v * 3 + 2]!,
         ];
         const [lx, lz] = worldToLocal(POSITION, x, z);
-        expect(Math.abs(lx)).toBeLessThanOrEqual(halfX + 1e-6);
-        expect(Math.abs(lz)).toBeLessThanOrEqual(halfZ + 1e-6);
-        const edge = Math.abs(Math.abs(lx) - halfX) < 1e-6 || Math.abs(Math.abs(lz) - halfZ) < 1e-6;
-        if (edge) expect(y).toBeCloseTo(rim(x, z) + 0.015, 6);
+        // síť přesahuje řez terénu (obdélník jámy) jen o úzký lem
+        expect(Math.abs(lx)).toBeLessThanOrEqual(halfX + 0.08 + 1e-6);
+        expect(Math.abs(lz)).toBeLessThanOrEqual(halfZ + 0.08 + 1e-6);
+        const inside = Math.abs(lx) < halfX && Math.abs(lz) < halfZ;
+        if (!inside) expect(y).toBeCloseTo(rim(x, z) + 0.015, 6);
         else {
-          expect(y).toBeLessThanOrEqual(rim(x, z) + 1e-9);
-          expect(y).toBeCloseTo(ruinHollowY(type, POSITION, { base, depth, rim }, x, z), 6);
+          // síť je ve Float32 – na desetiny milimetru
+          expect(y).toBeCloseTo(ruinHollowY(type, POSITION, hollow, x, z), 4);
+          // nízký val po okraji – nejvýš pár decimetrů nad terénem
+          expect(y).toBeLessThanOrEqual(rim(x, z) + 0.16 + 1e-9);
+          highest = Math.max(highest, y - rim(x, z));
         }
         lowest = Math.min(lowest, y);
       }
       expect(lowest).toBeCloseTo(base - depth, 1);
+      expect(highest).toBeGreaterThan(0.03);
       expect(data.indices.length % 3).toBe(0);
       expect(Math.max(...data.indices)).toBeLessThan(data.positions.length / 3);
-      // mimo jámu výška terénu
-      expect(ruinHollowY(type, POSITION, { base, depth, rim }, POSITION.x + 20, POSITION.z)).toBe(
+      // mimo jámu výška terénu; zarostlý val se s časem srovná
+      expect(ruinHollowY(type, POSITION, hollow, POSITION.x + 20, POSITION.z)).toBe(
         rim(POSITION.x + 20, POSITION.z),
       );
+      const [ex, ez] = [halfX - 0.4, 0];
+      const c = Math.cos(POSITION.rotation);
+      const s = Math.sin(POSITION.rotation);
+      const bankAt = (overgrowth: number): number => {
+        const x = POSITION.x + ex * c + ez * s;
+        const z = POSITION.z - ex * s + ez * c;
+        return ruinHollowY(type, POSITION, { ...hollow, overgrowth }, x, z) - rim(x, z);
+      };
+      expect(bankAt(1)).toBeLessThan(bankAt(0));
     }
   });
 

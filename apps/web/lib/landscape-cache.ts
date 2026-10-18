@@ -6,7 +6,7 @@ import {
 } from '@bohemia/game';
 
 // Mezipaměť krajin sídel pro server: krajina je čistá funkce seedu a verzí vrstev, ale její
-// generování trvá desítky až stovky ms – a ptá se na ni každá akce i dotaz vsi (každých 5 s).
+// generování trvá desítky až stovky ms – a ptá se na ni každá akce i celý dotaz na ves.
 
 /** Mapa s omezenou velikostí – při přeplnění zahodí nejdéle nepoužitou položku. */
 export class LruCache<K, V> {

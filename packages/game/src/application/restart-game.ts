@@ -3,7 +3,7 @@ import { isGameOver, isVillageExtinct } from '../domain/village';
 import { enterGame, settlementLandscape } from './enter-game';
 import { loadVillage } from './load-village';
 import type { LandscapeSource, SeedSource, Settlement, SettlementRepository } from './settlements';
-import type { VillageRecord, VillageRepository } from './villages';
+import type { Pause, VillageRecord, VillageRepository } from './villages';
 
 // Konec hry a nový začátek (population.md – Hlad a vymření; Martin, 18. 10. 2026: „když hráči
 // vymřou všechny vesnice, tak pro něj hra končí – musí začínat znovu“).
@@ -13,6 +13,8 @@ export interface DynastyDeps {
   villages: VillageRepository;
   /** Krajina uloženého sídla – bez ní se pokaždé vygeneruje znovu. */
   landscapes?: LandscapeSource;
+  /** Přestávky v dlouhém dopočtu vsí (server) – bez nich se dopočítá vcelku. */
+  pause?: Pause;
 }
 
 export interface DynastyInput {

@@ -5,7 +5,6 @@ import { PBRMaterial } from '@babylonjs/core/Materials/PBR/pbrMaterial';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
-import { Matrix, Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import type { Scene } from '@babylonjs/core/scene';
@@ -46,7 +45,6 @@ import { applyGammaFog } from './gamma-fog';
 import { HomesteadRenderer, type PlotView } from './homestead';
 import { plotInward, plotStakingLine } from './homestead-layout';
 import {
-  appendMatrix,
   instanceMatrices,
   loadMergedModel,
   loadModelParts,
@@ -687,7 +685,7 @@ export class VillageRenderer {
 
   /**
    * Zbytky jam po zaniklých obydlích (dwelling-decay.ts): zarostlá prohlubeň se přestaví, jen
-   * když zarostla o další krok (RUIN_LOOK_STEPS). Trámy, valy a kopřivy kreslí `updateDecay`.
+   * když zarostla o další krok (RUIN_LOOK_STEPS). Trámy a kopřivy kreslí `updateDecay`.
    */
   private updateRuins(ruins: readonly SceneRuin[]): boolean {
     let changed = false;
@@ -744,7 +742,7 @@ export class VillageRenderer {
 
   /**
    * Díly rozpadu (decay.glb) v instancích: rozpadlá obydlí podle stupně místo hotového modelu,
-   * kopřivy kolem nich, trámy a valy zbytků jam a kopřivy v nich – přepočítají se, jen když se
+   * kopřivy kolem nich, trámy zbytků jam a kopřivy v nich – přepočítají se, jen když se
    * změnil stupeň některého obydlí nebo krok zarůstání zbytku jámy.
    */
   private updateDecay(): boolean {
@@ -789,22 +787,17 @@ export class VillageRenderer {
         });
       }
     }
-    const berms = new Map<string, number[]>();
     for (const r of ruins) {
       const look = ruinLook(r.type, r.overgrowth);
       const base = this.baseHeight(r);
-      const hollow = { base, depth: look.depth, rim: this.context.decalHeight };
+      const hollow = {
+        base,
+        depth: look.depth,
+        rim: this.context.decalHeight,
+        overgrowth: r.overgrowth,
+      };
       const floor = { x: r.position.x, z: r.position.z, rotationY: r.position.rotation, scale: 1 };
       if (look.beams) push(`${r.type}-${look.beams}`, { ...floor, y: base - look.depth });
-      if (look.berms > 0) {
-        // valy se s časem srovnají – díl se snižuje (měřítko jen na výšku)
-        BERM_SCALE.set(1, look.berms, 1);
-        Quaternion.RotationAxisToRef(Vector3.UpReadOnly, r.position.rotation, BERM_ROTATION);
-        BERM_POSITION.set(r.position.x, base, r.position.z);
-        Matrix.ComposeToRef(BERM_SCALE, BERM_ROTATION, BERM_POSITION, BERM_MATRIX);
-        const name = `${r.type}-ruin-berms`;
-        appendMatrix(berms.get(name) ?? berms.set(name, []).get(name)!, BERM_MATRIX);
-      }
       const nettles = decayNettles(
         r.type,
         r.position,
@@ -818,15 +811,7 @@ export class VillageRenderer {
         push('nettle', { x: n.x, y, z: n.z, rotationY: n.rotationY, scale: n.scale });
       }
     }
-    for (const [name, mesh] of this.decayParts) {
-      const matrices = berms.get(name);
-      if (!matrices) setInstances(mesh, instances.get(name) ?? []);
-      else if (matrices.length === 0) mesh.setEnabled(false);
-      else {
-        mesh.thinInstanceSetBuffer('matrix', Float32Array.from(matrices), 16, true);
-        mesh.setEnabled(true);
-      }
-    }
+    for (const [name, mesh] of this.decayParts) setInstances(mesh, instances.get(name) ?? []);
     return true;
   }
 
@@ -1671,8 +1656,3 @@ function prepareTuftMaterial(material: Material): void {
   // trsy na podzim usychají a přes zimu stojí suché
   applySeasonModel(material, 'grass-tuft');
 }
-
-const BERM_MATRIX = new Matrix();
-const BERM_SCALE = new Vector3();
-const BERM_POSITION = new Vector3();
-const BERM_ROTATION = new Quaternion();

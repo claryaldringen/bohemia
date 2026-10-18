@@ -42,6 +42,7 @@ import { authClient } from '@/lib/auth-client';
 import { buildItem, buildItemForKey } from '@/lib/build-items';
 import { setE2EHook } from '@/lib/e2e-hooks';
 import { opensMenu } from '@/lib/game-menu';
+import { nextPollDelayMs } from '@/lib/village-polling';
 import { decodeLandscape, type LandscapeTransfer } from '@/lib/landscape-transfer';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
 import type { VillageTarget } from '@/lib/scene/village-picking';
@@ -78,7 +79,6 @@ import { TopBar } from './hud/TopBar';
 /** Stav vsi ze serveru: pohled na ves, ještě nezaložená (null), nebo chyba (svět neběží…). */
 export type VillageData = VillageView | null | { error: string };
 
-const POLL_MS = 5000;
 /** Nejvíc řádků oznámení najednou – starší ustoupí novějším. */
 const MAX_NOTICES = 4;
 const CONNECTION_FAILED = 'Spojení se serverem selhalo.';
@@ -163,7 +163,8 @@ function withPending(scene: SceneVillage, pending: readonly PendingSite[]): Scen
  * suroviny, datum), minimapa vlevo dole, panel výběru dole uprostřed, mřížka staveb vpravo dole
  * a mizející oznámení nahoře. Bez průvodce – hráč staví, kdy chce. Dokud ves není, mřížka
  * nabízí jen zemnici: její umístění ves založí (s navrženým jménem). Stav vsi drží server – po
- * každé akci a každých 5 s (jen při viditelném panelu) přijde nový VillageView. Ve vymřelé vsi
+ * každé akci a na začátku každého herního dne (jen při viditelném panelu; beze změny server
+ * odpoví jen „beze změny“) přijde nový VillageView. Ve vymřelé vsi
  * se nestaví; když hráči vymřely všechny vsi, přes zamrzlou scénu je obrazovka porážky
  * s tlačítkem Začít znovu (nové sídlo, stránka se načte znovu). Nabídka hry (tlačítko v liště,
  * F10) nabízí Začít znovu i se živou vsí (po potvrzení) a odhlášení. Ve vývojovém režimu jsou
@@ -304,9 +305,15 @@ export function VillageGame({
   const poll = useCallback(async (): Promise<void> => {
     if (busyRef.current) return;
     const seq = ++requestSeq.current;
-    const result = await getVillageView({ villageId: viewRef.current?.id ?? null });
+    const known = viewRef.current?.stamp;
+    const result = await getVillageView({
+      villageId: viewRef.current?.id ?? null,
+      ...(known ? { known } : {}),
+    });
     if (busyRef.current || seq < appliedSeq.current) return;
     appliedSeq.current = seq;
+    // Od pohledu, který máme, se nic nezměnilo (stejný den i verze vsí) – server nic neposlal.
+    if (result !== null && 'unchanged' in result) return;
     // Ves zmizela nebo leží na jiné mapě (restart hry v jiném panelu) – načíst znovu i s krajinou.
     const lost = viewRef.current !== null && result === null;
     if (lost || (isVillageView(result) && result.settlementId !== settlementId)) {
@@ -318,8 +325,19 @@ export function VillageGame({
       pushNotice({ kind: 'error', tone: 'error', text: result.error });
     } else applyVillage(result);
   }, [applyVillage, pushNotice, settlementId]);
+  // Další dotaz na začátku dalšího herního dne hráče (nejdřív za 5 s, nejpozději za 86 s) – ves
+  // se dopočítává po dnech, akce vracejí čerstvou ves samy.
+  const pollDelay = useCallback(
+    (): number => nextPollDelayMs(viewRef.current?.dayIndex ?? null, clock, Date.now()),
+    [clock],
+  );
   // Dokud ves není, není co obnovovat (založení vrátí pohled samo); po konci hry se nic nemění.
-  usePolling(poll, POLL_MS, village !== null && !gameOver);
+  const pollNow = usePolling(poll, pollDelay, village !== null && !gameOver);
+  // Testovací háček: zeptat se na ves hned (test změnil uloženou ves přímo v databázi).
+  useEffect(() => {
+    setE2EHook('pollVillage', pollNow);
+    return () => setE2EHook('pollVillage', undefined);
+  }, [pollNow]);
 
   /** Akce nad vsí na serveru (ve frontě za předchozími); vrátí chybu pro hráče, nebo null. */
   const runAction = useCallback(

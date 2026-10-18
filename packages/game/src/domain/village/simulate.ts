@@ -180,6 +180,25 @@ export function advanceVillage(
   obstacles: ObstacleLayer | null,
   landscape: Landscape | null = null,
 ): VillageState {
+  const steps = advanceVillageSteps(state, toDay, obstacles, landscape);
+  for (;;) {
+    const step = steps.next();
+    if (step.done) return step.value;
+  }
+}
+
+/**
+ * `advanceVillage` po dnech: po každém odsimulovaném dni se zastaví (vrátí jeho index), aby
+ * volající mohl mezi dny pustit ke slovu jinou práci (server – dlouhý dopočet neblokuje ostatní
+ * požadavky). Výsledek (hodnota po posledním kroku) je stejný jako u `advanceVillage` – je to
+ * tatáž smyčka, stav se klonuje jen jednou. RangeError jako `advanceVillage` (při prvním kroku).
+ */
+export function* advanceVillageSteps(
+  state: VillageState,
+  toDay: number,
+  obstacles: ObstacleLayer | null,
+  landscape: Landscape | null = null,
+): Generator<number, VillageState, void> {
   if (!Number.isInteger(toDay) || toDay >= TOTAL_GAME_DAYS) {
     throw new RangeError(`Den ${toDay} neleží ve světě (0 až ${TOTAL_GAME_DAYS - 1}).`);
   }
@@ -189,6 +208,7 @@ export function advanceVillage(
   const next = cloneState(state);
   for (let day = next.lastDay + 1; day <= toDay && !isVillageExtinct(next); day++) {
     simulateDay(next, day, obstacles, landscape);
+    yield day;
   }
   next.lastDay = toDay;
   trimChronicle(next);

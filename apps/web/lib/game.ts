@@ -6,6 +6,7 @@ import {
   createVillageRepository,
 } from '@bohemia/db';
 import {
+  currentVillageViewStamp,
   dynastyStatus,
   enterGame,
   findPlayerVillage,
@@ -22,6 +23,7 @@ import {
   type TimeOffsetRepository,
   type TimeSkip,
 } from '@bohemia/game';
+import { computePause } from './compute-pause';
 import { getDatabase } from './db';
 import { cachedLandscapes } from './landscape-cache';
 import { currentWorld, gameDayIndex } from './world';
@@ -40,7 +42,7 @@ function seeds(): { nextSeed: () => number } {
 
 /**
  * Composition root: use-case vstupu do hry s Drizzle repozitářem, kryptografickými seedy
- * a mezipamětí krajin (každá akce vsi i dotaz každých 5 s potřebuje krajinu sídla).
+ * a mezipamětí krajin (každá akce vsi i celý dotaz na ves potřebuje krajinu sídla).
  */
 export function enterGameForPlayer(playerId: string): Promise<EnterGameResult> {
   return enterGame(
@@ -98,6 +100,18 @@ export function playerVillage(playerId: string, villageId: string): Promise<Play
   return findPlayerVillage(playerVillagesDeps(), { playerId, villageId });
 }
 
+/**
+ * Otisk pohledu na ves `villageId` hráče v den `today` bez načtení stavů vsí (levné dotazy na
+ * sídla a verze vsí); null, když by dotaz na ves musel vsi dopočítat nebo ves hráči nepatří.
+ */
+export function currentViewStampOfPlayer(
+  playerId: string,
+  villageId: string,
+  today: number,
+): Promise<string | null> {
+  return currentVillageViewStamp(playerVillagesDeps(), { playerId, villageId, today });
+}
+
 /** První ves hráče (sídelní sídlo první); bez vsí null. */
 export function firstVillageOfPlayer(playerId: string): Promise<PlayerVillage | null> {
   return firstPlayerVillage(playerVillagesDeps(), playerId);
@@ -128,6 +142,8 @@ function dynastyDeps(): Parameters<typeof dynastyStatus>[0] {
     settlements: createSettlementRepository(db),
     villages: createVillageRepository(db),
     landscapes,
+    // dlouhý dopočet vsí (přeskok času, restart po dlouhé době) neblokuje ostatní požadavky
+    pause: computePause(),
   };
 }
 
