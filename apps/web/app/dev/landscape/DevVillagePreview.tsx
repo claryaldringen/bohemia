@@ -49,13 +49,7 @@ import { formatCells, formatHa, formatManDays, plural } from '@/lib/village-form
 import { demoLabor } from './dev-labor';
 import { placementVillageFromScene, type SceneVillage } from '@/lib/village-view';
 
-const STAGES: PartStage[] = [
-  'founding',
-  'ready',
-  'sown',
-  'young-fallow',
-  'meadow',
-];
+const STAGES: PartStage[] = ['founding', 'ready', 'sown', 'young-fallow', 'meadow'];
 const SEASON_NAMES = { spring: 'jaro', summer: 'léto', autumn: 'podzim', winter: 'zima' } as const;
 /** „Přehrát rok“ – celý rok za tolik sekund. */
 const YEAR_PLAY_S = 60;

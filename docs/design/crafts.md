@@ -1,7 +1,7 @@
 # Řemesla – uhlíř, kovář, hrnčíř
 
-Stav: návrh k 17. 10. 2026, čeká na schválení. Týž den přepracováno podle Martina (řemeslník na
-plný úvazek, účinky jako meze produktivity) a podle
+Stav: **schváleno 18. 10. 2026 (Martin)**. Návrh ze 17. 10. 2026 týž den přepracován podle Martina
+(řemeslník na plný úvazek, účinky jako meze produktivity) a podle
 [rešerše](research/2026-10-17-remesla-drevo-sad.md). Implementace zatím není – jádro ale už
 počítá práci a ztráty mezi mezemi s pokrytím 0 (`packages/game/src/domain/village/productivity.ts`).
 
@@ -13,8 +13,8 @@ dost silná, aby si řemeslníka dovolila.
 
 ## Cíle, ne-cíle, anti-cíle
 
-- **Cíl:** kovář vyrábí železné nástroje a posouvá **produktivitu práce celé vsi** z horní meze
-  k dolní (Martin).
+- **Cíl:** kovář vyrábí železné nástroje a **zvyšuje produktivitu práce celé vsi** (Martin) –
+  snižuje pracnost od nejhorší meze k nejlepší.
 - **Cíl:** hrnčíř posouvá **produktivitu výroby potravin** – ztráty zásob a denní minimum
   domácností (Martin).
 - **Cíl:** uhlíř pálí dřevo na uhlí pro kováře (Martin).
@@ -30,13 +30,14 @@ dost silná, aby si řemeslníka dovolila.
 Martin (17. 10. 2026): „U řemeslníků uvažuj, že svůj job dělají na fulltime. Ta produktivita má
 nějaké meze. Bez řemeslníků ber tu nejhorší hranici, s řemeslníky tu nejlepší.“
 
-- Každá práce nebo ztráta, kde literatura dává rozpětí, má **horní mez** (ves bez řemesel)
-  a **dolní mez** (plně pokrytá potřeba výrobků řemeslníků). Mezi nimi se hodnota posouvá
-  **lineárně podle pokrytí** 0–1. Kde literatura dává jedno číslo, platí obojí (seznam mezí:
-  [pole a jídlo](fields.md) – Meze produktivity).
+- Každá práce nebo ztráta, kde literatura dává rozpětí, má **nejhorší mez** (nejvíc člověkodní,
+  nejvyšší ztráty – ves bez řemeslníků) a **nejlepší mez** (nejméně člověkodní, nejnižší ztráty –
+  plně pokrytá potřeba výrobků řemeslníků). Řemeslníci **zvyšují produktivitu, tedy snižují
+  pracnost** od nejhorší meze k nejlepší **lineárně podle pokrytí** 0–1. Kde literatura dává
+  jedno číslo, platí obojí (seznam mezí: [pole a jídlo](fields.md) – Meze produktivity).
 - **Pokrytí nástroji** = zásoba nástrojů ÷ potřeba vsi (nejvýš 1), **pokrytí nádobami** totéž
   pro keramiku (potřeby viz Účinek).
-- Bez řemesel (dnes) platí všude horní mez.
+- Bez řemesel (dnes) platí všude nejhorší mez.
 
 ## Budovy
 
@@ -92,9 +93,11 @@ Vzhled podle Martina (modely se připravují v `tools/blender/`):
 
 - **Nástroje:** každý pracující (od 14 let) potřebuje **3 kg nástrojů**, nástroje se opotřebují
   o **30 % ročně** (nedohledáno, návrh Clauda; Karlsson 2015: středověká usedlost ztratila ≈ 1 kg
-  železa ročně jen opotřebením rádla). **Kovář posouvá veškerou práci s mezemi** z horní meze
-  k dolní podle pokrytí nástroji: polní práce na osetý hektar **205 → 120 člověkodní**, založení
-  pole a vracení přílohu (louka 100 → 90, nálet a křoviny 100 → 60, les 250 → 150). Stavby,
+  železa ročně jen opotřebením rádla). **Kovář snižuje pracnost všech prací s mezemi**
+  od nejhorší meze k nejlepší podle pokrytí nástroji: polní práce na osetý hektar **205 → 120
+  člověkodní**, založení pole na louce 100 → 90, na skutečných křovinách 100 → 60 a v lese
+  250 → 150, vracení přílohu 100 → 90 (příloh je pastvina – drn jako louka; nálet ani les na něm
+  nebude, Martin 18. 10. 2026). Stavby,
   kácení a domácí výroba mají zatím jedno číslo (rozpětí nedohledáno) – meze se doplní, až se
   najdou.
 - **Keramika:** každý člověk potřebuje **5 kg nádob**, ročně se **40 %** rozbije (nedohledáno,
@@ -130,19 +133,19 @@ zatím neřešit – letopočet začátku hry se může posunout.
 
 ## Rozhodnutí
 
-| Rozhodnutí                                                                                        | Kdo                                        |
-| ------------------------------------------------------------------------------------------------- | ------------------------------------------ |
-| Uhlíř pálí uhlí pro kováře; kovář dělá nástroje → produktivita práce celé vsi                     | Martin                                     |
-| Hrnčíř zvyšuje produktivitu výroby potravin                                                       | Martin                                     |
-| Dílna je obydlí, řemeslo provozuje domácnost, která v ní bydlí; prázdná nic nevyrábí              | Martin                                     |
-| Řemeslník nepracuje na poli – ves ho musí uživit z nadvýroby                                      | Martin                                     |
-| Kovář si železo taví sám z bahenní rudy, žádný horník ani obchod                                  | Martin                                     |
-| Vzhled budov (hrnčíř, kovář, uhlíř s milířem)                                                     | Martin                                     |
-| Řemeslník na plný úvazek; přebytek do zásoby, bez vstupu stojí (místo výroby na 2 roky)           | Martin (17. 10. 2026)                      |
-| Účinky jako meze produktivity – bez řemesel horní mez, s plným pokrytím dolní (místo +30 / −15 %) | Martin (17. 10. 2026)                      |
-| 1 kg nástrojů = 10 čd a 50 kg uhlí; keramika 1 strom na 500 kg; strom = velký strom               | Martin – oprava podle rešerše 17. 10. 2026 |
-| Hrnčíř: ztráty zásob 10 → 5 %, denní minimum 0,5 → 0,45                                           | Martin – oprava podle rešerše 17. 10. 2026 |
-| Cena dílny +30 %                                                                                  | návrh Clauda                               |
-| Výkony 10 kg uhlí/čd, 120 kg uhlí ze stromu, 1 čd na 1 kg keramiky                                | návrh Clauda                               |
-| Potřeby: 3 kg nástrojů na pracujícího (−30 %/rok), 5 kg nádob na člověka (−40 %/rok)              | návrh Clauda                               |
-| Doba (keramika v ruce do 10. st.) se neřeší – letopočet začátku se může posunout                  | Martin (17. 10. 2026)                      |
+| Rozhodnutí                                                                                              | Kdo                                        |
+| ------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| Uhlíř pálí uhlí pro kováře; kovář dělá nástroje → produktivita práce celé vsi                           | Martin                                     |
+| Hrnčíř zvyšuje produktivitu výroby potravin                                                             | Martin                                     |
+| Dílna je obydlí, řemeslo provozuje domácnost, která v ní bydlí; prázdná nic nevyrábí                    | Martin                                     |
+| Řemeslník nepracuje na poli – ves ho musí uživit z nadvýroby                                            | Martin                                     |
+| Kovář si železo taví sám z bahenní rudy, žádný horník ani obchod                                        | Martin                                     |
+| Vzhled budov (hrnčíř, kovář, uhlíř s milířem)                                                           | Martin                                     |
+| Řemeslník na plný úvazek; přebytek do zásoby, bez vstupu stojí (místo výroby na 2 roky)                 | Martin (17. 10. 2026)                      |
+| Účinky jako meze produktivity – bez řemesel nejhorší mez, s plným pokrytím nejlepší (místo +30 / −15 %) | Martin (17. 10. 2026)                      |
+| 1 kg nástrojů = 10 čd a 50 kg uhlí; keramika 1 strom na 500 kg; strom = velký strom                     | Martin – oprava podle rešerše 17. 10. 2026 |
+| Hrnčíř: ztráty zásob 10 → 5 %, denní minimum 0,5 → 0,45                                                 | Martin – oprava podle rešerše 17. 10. 2026 |
+| Cena dílny +30 %                                                                                        | návrh Clauda                               |
+| Výkony 10 kg uhlí/čd, 120 kg uhlí ze stromu, 1 čd na 1 kg keramiky                                      | návrh Clauda                               |
+| Potřeby: 3 kg nástrojů na pracujícího (−30 %/rok), 5 kg nádob na člověka (−40 %/rok)                    | návrh Clauda                               |
+| Doba (keramika v ruce do 10. st.) se neřeší – letopočet začátku se může posunout                        | Martin (17. 10. 2026)                      |

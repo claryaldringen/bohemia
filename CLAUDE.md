@@ -417,9 +417,20 @@ rozhraní částí v
   (konec okna, ozim před jaří); `allocateDay` vrací i `taskAmounts` po úlohách vstupu (stejný
   název víckrát). Sklizeň ozimu 31. 7. (`harvestWinter`), jaře 31. 8.; příděl počítá do sklizně
   podle `daysUntilFoodHarvest` (31. 7., když ozim podle odhadu uživí srpen). Plán po plodinách
-  prochází `planCrops`, všechny díly `planPartIds`. Viditelný stav obilí dílu (holá
-  zem, osení, zelené, zralé, strniště) dává `partCropState` v `summary.ts` – do scény ho zatím
-  nic neposílá (čeká na vzhled obilí `CropLook`).
+  prochází `planCrops`, všechny díly `planPartIds`.
+- **Postup práce po čtvercích** (Martin – fields.md): kopání, setí a sklizeň mění díl, až k němu
+  dojde práce. `field-progress.ts` (jen čte): díly plodiny v pořadí `CropWork.partIds` (dávka
+  nejblíž obydlím první, při shodě id – řadí `createCropWork`), váha = plocha × vzdálenost;
+  `fieldCropStates` → `CropState` (bare, plowed, sown, sprouted, growing, ripe, stubble;
+  vzejití a zrání podle kalendáře), `fieldFrontiers` (čelo práce úloh dne), `partsWorked`
+  (díly, přes které dnes práce postoupila). Rozdělení práce dne (`labor-report.ts`) dostává
+  `fieldWork` (před a po po plodinách) a cílí polní práce na `{ kind: 'field', id, parts }`.
+  Ve scéně díl pole nese `id`, `crop` (web `CropLook` = `CropState`) a `frontier`; postavy
+  (`villager-plan.ts`) pracují na `parts`. Simulace se tím nemění.
+- **Příloh je pastvina** (Martin): 1–2 roky mladý příloh, pak napořád `meadow` (pastvina) –
+  nálet, křoviny ani les na přílohu nejsou (`OVERGROWTH_STAGES`), vrácení stojí nejvýš drn louky
+  (`RECLAIM_COST_PER_HA`), kronika `part-became-forest` už nevzniká (typ zůstává pro staré
+  kroniky). Seno na loukách je zatím jen scéna.
 - **Hráč staví kdy chce** (Martin) – stavbu smí zablokovat jen **cena předem** (`costs.ts`:
   `BUILD_COSTS`, `buildAffordability`): suroviny ze zásob (dnes žádné) a u obydlí **lidé
   k osídlení** (`settlers` = `availableSettlers` v `dwellings.ts`: domácnosti s párem navíc −
@@ -433,7 +444,9 @@ rozhraní částí v
   text v návrhu. Kalibrace: `measure-village.ts` nasimuluje stovky vsí a vypíše cíle z Kalibrace
   obou dokumentů s OK / MIMO (`200 60` rychlé cíle, `100 1000` vymření do roku 1500).
 - **Meze produktivity** (Martin): čísla s rozpětím v literatuře jsou v `rules.ts` dvojice
-  `{ worst, best }` – bez řemesel `worst`, s plně pokrytou potřebou výrobků řemeslníků `best`.
+  `{ worst, best }` – **nejhorší mez** (nejvíc člověkodní, nejvyšší ztráty – bez řemesel)
+  a **nejlepší mez** (plně pokrytá potřeba výrobků řemeslníků); řemeslníci zvyšují produktivitu
+  = snižují pracnost od `worst` k `best`. V textech nepsat „horní / dolní mez“.
   Hodnotu podle pokrytí 0–1 dávají funkce v `productivity.ts` (`withinBounds`, `fieldWorkPerHa`,
   `storageLossPerYear`…). Řemesla zatím nejsou – volající předávají `NO_CRAFTS` (pokrytí 0);
   stav řemesel nevymýšlet, až vzniknou, pokrytí se spočítá v `simulate.ts`. Zdroje čísel jsou

@@ -124,13 +124,7 @@ describe('stripSegments – mez podél obrysu', () => {
 });
 
 describe('vzhled dílů pole', () => {
-  const stages: PartStage[] = [
-    'founding',
-    'ready',
-    'sown',
-    'young-fallow',
-    'meadow',
-  ];
+  const stages: PartStage[] = ['founding', 'ready', 'sown', 'young-fallow', 'meadow'];
 
   it('každý stav má vlastní vzhled', () => {
     const looks = stages.map((stage) => JSON.stringify(partLook(stage)));
