@@ -17,6 +17,7 @@ import {
   obstaclesOf,
   partStage,
   reservedTrees,
+  ruinOvergrowth,
   squareBearing,
   summarizeVillage,
   tileCenterWorld,
@@ -383,6 +384,24 @@ export interface SceneVillage {
      * domácnosti se vyšlapávají postupně (paths.md). Bez údaje = odjakživa.
      */
     since?: number;
+    /**
+     * Stav hotového obydlí 0–1 (population.md – Chátrání) – podle něj se dům ve scéně rozpadá
+     * (dwelling-decay.ts). Bez údaje = celý (100 %).
+     */
+    condition?: number;
+  }[];
+  /**
+   * Zbytky jam po zaniklých obydlích (population.md – Po zániku): typ, poloha, den zániku
+   * (`since`), u polozemnice pozemek, jak zarostly 0–1 (`overgrowth`). Bez údaje žádné.
+   */
+  ruins?: {
+    id: number;
+    type: DwellingType;
+    position: Position;
+    since: number;
+    overgrowth: number;
+    plot?: ScenePlot;
+    craft?: Craft;
   }[];
   /**
    * Pole po čtvercích – díl = políčko krajiny `cell`, jeho střed (x, z) ve světě, strana
@@ -730,6 +749,8 @@ function sceneVillage(
     inhabited: occupied.has(d.id),
     ...(d.plot ? { plot: scenePlot(landscape, d.plot) } : {}),
     since: d.builtDay,
+    // stav po tisícinách – rozpad ve scéně jde po stupních (dwelling-decay.ts)
+    ...(d.condition < 1 ? { condition: Math.round(d.condition * 1000) / 1000 } : {}),
     ...(d.workshop ? { craft: d.workshop.craft } : {}),
     ...(d.workshop && occupied.has(d.id) && d.workshop.activity === 'producing'
       ? { working: true }
@@ -785,11 +806,21 @@ function sceneVillage(
   const reserved = [...reservedTrees(state)].sort((a, b) => a - b);
   const labor = sceneLabor(state, summary.people);
   const sacred = sceneSacred(state, landscape, day, summary);
+  const ruins = (state.ruins ?? []).map((r) => ({
+    id: r.id,
+    type: r.type,
+    position: r.position,
+    since: r.day,
+    overgrowth: Math.round(ruinOvergrowth(r, day) * 1000) / 1000,
+    ...(r.plot ? { plot: scenePlot(landscape, r.plot) } : {}),
+    ...(r.craft ? { craft: r.craft } : {}),
+  }));
   const pens = scenePens(state, landscape, day, summary);
   const penned = pens.reduce((sum, pen) => sum + pen.cows, 0);
   const herds = summary.livestock.herds;
   return {
     dwellings: [...built, ...sites],
+    ...(ruins.length > 0 ? { ruins } : {}),
     fields,
     cemeteries,
     ...(orchards.length > 0 ? { orchards } : {}),

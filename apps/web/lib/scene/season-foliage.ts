@@ -61,6 +61,10 @@ export function seasonFoliageFor(model: string): SeasonFoliageOptions | null {
   if (model === 'reeds' || model === 'cattails' || /^grass-tuft/.test(model)) {
     return { deciduous: true, autumn: [0.7, 0.62, 0.46], variation: 0.2, minLeaves: 1 };
   }
+  // kopřivy u rozpadlých obydlí (dwelling-decay.ts) – na podzim zhnědnou, přes zimu stojí suché
+  if (model === 'nettle') {
+    return { deciduous: true, autumn: [0.56, 0.46, 0.3], variation: 0.25, minLeaves: 1 };
+  }
   if (model === 'lilies') return { deciduous: true, autumn: [0.55, 0.45, 0.2], variation: 0.3 };
   if (/^(rock|boulder|stone)/.test(model)) return { snowTop: 1 };
   if (/^(fallen|snag|stump|log)/.test(model)) return { snowTop: 0.9 };

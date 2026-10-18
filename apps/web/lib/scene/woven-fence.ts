@@ -3,7 +3,7 @@
 // proplétané větve, liší se nejvýš hustotou (`FenceStyle`). V pleteném plotu se hranaté rohy
 // dělají špatně, proto jsou všechny rohy zakulacené: vnější oblouk o poloměru ≈ 1,25 m s kůly
 // po oblouku, vnitřní roh (tvar L) malý oblouk. Souřadnice světa scény v metrech (x, z).
-import type { Point } from './village-layout';
+import { seededRandom, type Point } from './village-layout';
 
 /** Poloměr zakulacených vnějších rohů (m). */
 export const WOVEN_CORNER_RADIUS_M = 1.25;
@@ -30,6 +30,12 @@ export interface FencePost {
   /** Směr ven z ohrazení (jednotkový) – větve obcházejí kůl střídavě vně a uvnitř. */
   outX: number;
   outZ: number;
+  /**
+   * Rozpadlý plot (`decayFence`): kůl nakřivo – kam se vrchol vychýlí na metr výšky (x, z) –
+   * a o kolik se zabořil / ulomil (m; pahýl).
+   */
+  lean?: { x: number; z: number };
+  sink?: number;
 }
 
 /** Souvislý kus plotu: kůly v pořadí stavby; uzavřený = poslední kůl navazuje na první. */
@@ -341,4 +347,32 @@ export function fenceStage(
 
 function clamp01(v: number): number {
   return Math.min(1, Math.max(0, v));
+}
+
+/**
+ * Rozpadající se plot opuštěného pozemku (population.md – Co hráč vidí: rozpad obydlí), obráceně
+ * než stavba a nepravidelně: s `amount` 0–1 nejdřív vypadávají větve, kůly se kloní, nakonec
+ * z nich zbudou pahýly. Pevně podle `seed` – stejný plot se rozpadá pořád stejně.
+ */
+export function decayFence(stage: FenceStage, amount: number, seed: number): FenceStage {
+  const a = clamp01(amount);
+  if (a <= 0) return stage;
+  const rnd = seededRandom(9_100_000 + seed * 7_919);
+  const posts = stage.posts.map((post): FencePost => {
+    const r = rnd();
+    const angle = rnd() * Math.PI * 2;
+    const tilt = 0.12 + 0.35 * rnd();
+    // pahýl: ulomený nebo zabořený kůl (vrch 0,1–0,4 m nad zemí)
+    if (r < (a - 0.45) * 1.6) return { ...post, sink: 0.6 + 0.3 * rnd() };
+    if (r < a * 0.9) {
+      return { ...post, lean: { x: Math.cos(angle) * tilt * a, z: Math.sin(angle) * tilt * a } };
+    }
+    return post;
+  });
+  // větev drží, jen když stojí oba její kůly (nejsou pahýly) a sama ještě nevypadla
+  const rails = stage.rails.filter(
+    (rail) =>
+      rnd() > a * 1.15 && posts[rail.a]?.sink === undefined && posts[rail.b]?.sink === undefined,
+  );
+  return { posts, rails };
 }

@@ -429,7 +429,7 @@ rozhraní částí v
   vsi je JSON-serializovatelný, funkce vstupní stav nemění. Nové části stavu jsou volitelné
   (`VillageState.cemeteries?`, `orchards?`, `applesKg?`, `orchardWork?`, `starvationDays?`,
   `extinctDay?`, `crafts?`, `Dwelling.workshop?`, `livestock?`, `meatKg?`, `hay?`, `pens?`,
-  `diet?`) – vsi uložené dřív se načtou a beze sadů či dílen se jejich stav nemění.
+  `diet?`, `ruins?`) – vsi uložené dřív se načtou a beze sadů či dílen se jejich stav nemění.
 - **Hlad a vymření** (population.md, Martin 18. 10. 2026): nahromaděný hlad
   `VillageState.starvationDays` (`nextStarvationDays` po jídle dne – pod 90 % přídělu
   přibývá, od 90 % ubývá, čísla `STARVATION` v `rules.ts`) přidá k běžnému riziku úmrtí riziko hladem
@@ -448,6 +448,34 @@ rozhraní částí v
   `restartGame` (bez vstupu po konci hry, `{ abandon: true }` z nabídky) a `hud/DefeatScreen.tsx`
   (Rod vymřel, jméno, roky, Začít znovu → `window.location.reload()` kvůli nové krajině). Scéna:
   neobývaná obydlí nemají dým ani zvířata a hlína u vchodu zarůstá (`ABANDONED_EARTH_ALPHA`).
+- **Rozpad obydlí a zbytek jámy** (population.md – Co hráč vidí, Chátrání a přestavba – Po
+  zániku; Martin 18. 10. 2026): jádro – `ruins.ts`: obydlí, které zchátrá na nulu
+  (`decayEmptyDwellings`), nebo jehož přestavba ho přestěhuje na nový pozemek, zapíše
+  `recordRuins` do `VillageState.ruins` (`DwellingRuin` – id, typ, poloha, pozemek, řemeslo, den
+  zániku); `updateRuins` (krok dne v `simulateDay`) zbytky po `RUIN_YEARS` (10) odebere a zbytky
+  pod stavbou (i rozestavěnou, s krajinou i pod čtverci a pozemky) taky; po akci hráče totéž
+  `withoutBuiltOverRuins` v `updateVillage`. Jen vzhled – simulace ani kontrola umístění
+  zříceniny neznají, na jejich místo jde stavět. Web: `SceneVillage.dwellings[].condition`
+  (jen < 1) a `SceneVillage.ruins` (`overgrowth` 0–1 – `ruinOvergrowth`). Scéna:
+  `dwelling-decay.ts` (čisté funkce, testy) – stupeň podle stavu `decayStage` (≥ 70 % celý, ≥ 45
+  sešlý, ≥ 20 propadá se, pod 20 zřícený – pro každé obydlí, i obydlené), `DECAY_LOOKS` (kryt jámy
+  střechou, hlína u vchodu, dým jen do propadající se střechy, plot a záhony pozemku, kopřivy),
+  `ruinLook` (hloubka prohlubně, trámy `ruin` / `ruin-late`, výška valů, kopřivy – po krocích 5 %),
+  `ruinHollowData` / `ruinHollowY` (zarostlá prohlubeň – síť přes obdélník jámy, řez terénu
+  `ruinPitShape` bez šíje), `decayNettles`. Díly v `models/dwellings/decay.glb` z
+  `tools/blender/dwellings.py` (pátý argument `decay` – ostatní GLB se nepřepíšou; uzly
+  `<typ>-<1|2|3>` konstrukce, `-thatch` vybledlé došky – materiál `decay-faded`, `-moss` zarostlé
+  došky – `decay-moss`, `<typ>-ruin`, `-ruin-late` trámy na dně (počátek = dno), `-ruin-berms`
+  valy (počátek = terén, scéna je snižuje měřítkem na výšku), `nettle` – `decay-nettle`, v zimě
+  suché jako trsy trávy); barvy jsou glTF baseColorFactor, atlas obydlí v GLB jednou. Kreslí
+  `VillageRenderer` (`updateDecay`, `updateRuins`, jámy obydlí i zbytků v `updatePitCuts`):
+  rozpadlé obydlí díly místo hotového modelu (do načtení decay.glb hotový model), mění se jen
+  při změně stupně (`dwellingKey`). Pozemek: `plotStage(…, decay)` – `decayFence` v
+  `woven-fence.ts` (větve vypadávají, kůly nakřivo `lean`, pahýly `sink`, pevně podle seedu)
+  a plevel na záhonech (`PlotWeed`, trs trávy v `HomesteadRenderer`). **Řemeslné dílny se zatím
+  nerozpadají** (`dwellingDecay` jim dává stupeň 0). Náhled: /dev/buildings – tlačítka **Rozpad**
+  (opuštěná zemnice a polozemnice na pozemku, posuvník ▶ Rozpad: stav 100 → 0 %, pak zbytek
+  jámy 10 let) a **Stupně rozpadu** (řada stupňů 0–3 a zbytek jámy) – `showcaseDecay`.
 - **Hřbitov** (`cemetery.ts`, cemetery.md): čtverce s 56 hroby, zemřelý se pohřbí do hotového
   hřbitova s místem nejblíž k obydlím (`bury` v `populationDay`), kronika `cemetery-full`.
   Čtverce navazující stranou na hřbitov ho **rozšíří** (`foundCemetery`: stejné id, čtverce na

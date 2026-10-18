@@ -182,6 +182,9 @@ export const COMMON_LABOR_HISTORY_DAYS = 30;
 // lepší obydlí podle ročního průměru společné práce – klouzavý (exponenciální) průměr s časovou
 // konstantou jednoho roku, aby výmlat v zimě ani žně ves nezchudly
 export const COMMON_LABOR_YEAR_DAYS = 365;
+// population.md – Chátrání a přestavba, Po zániku (Martin 18. 10. 2026, číslo návrh Clauda): zbytek
+// jámy po zaniklém obydlí (zarostlá prohlubeň s kopřivami a pár trámy) zarůstá ≈ 10 let, pak zmizí
+export const RUIN_YEARS = 10;
 // cemetery.md – Pravidla (stavba: vytyčení a ohrazení 10 člověkodní na čtverec; hrob i s uličkami
 // 4 m², na čtverec 15 × 15 m se vejde 56 hrobů)
 export const CEMETERY = { costPerSquare: 10, graveM2: 4, gravesPerSquare: 56 } as const;

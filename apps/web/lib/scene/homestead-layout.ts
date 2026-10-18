@@ -13,6 +13,7 @@ import {
 } from '@bohemia/game';
 import { localToWorld, seededRandom, type Point } from './village-layout';
 import {
+  decayFence,
   fenceStage,
   wovenFence,
   type FenceRun,
@@ -363,28 +364,66 @@ export function insidePlot(square: PlotSquare, x: number, z: number, margin = 0)
   return x > r.minX + margin && x < r.maxX - margin && z > r.minZ + margin && z < r.maxZ - margin;
 }
 
+/** Trs plevele (trávy) na zarostlém záhonu – pata na vršku záhonu `bed`. */
+export interface PlotWeed {
+  x: number;
+  z: number;
+  rotationY: number;
+  scale: number;
+  bed: number;
+}
+
 /** Co z pozemku stojí: plot (kůly a větve), záhony a rostliny (podle průběhu stavby 0–1). */
 export interface PlotStage {
   fence: FenceStage;
   beds: PlotBed[];
   plants: PlotPlant[];
+  /** Plevel na záhonech rozpadajícího se pozemku (jinak prázdné). */
+  weeds: PlotWeed[];
 }
+
+/**
+ * Rozpad pozemku opuštěného nebo chátrajícího obydlí (dwelling-decay.ts): plot 0–1 (`decayFence`),
+ * jak moc záhony zarostly plevelem 0–1 a seed (id obydlí) – rozpadá se pořád stejně.
+ */
+export interface PlotDecay {
+  fence: number;
+  beds: number;
+  seed: number;
+}
+
+/** Trsů plevele na metr záhonu, když je zarostlý celý. */
+const WEEDS_PER_M = 2.6;
 
 /**
  * Pozemek podle průběhu: kůly se zatloukají po obvodu od branky (`posts`), až stojí všechny,
  * proplétají se větve zdola nahoru (`rails` – podíl výšek), nakonec záhony se zeleninou jeden po
- * druhém (`beds`).
+ * druhém (`beds`). S rozpadem (`decay`) plot padá, zelenina mizí a záhony zarůstají plevelem.
  */
 export function plotStage(
   layout: HomesteadLayout,
   progress: { posts: number; rails: number; beds: number },
+  decay?: PlotDecay,
 ): PlotStage {
   const bedCount = Math.round(layout.beds.length * clamp01(progress.beds));
-  return {
-    fence: fenceStage(layout.fence, PLOT_FENCE, progress),
-    beds: layout.beds.slice(0, bedCount),
-    plants: layout.plants.filter((plant) => plant.bed < bedCount),
-  };
+  const fence = fenceStage(layout.fence, PLOT_FENCE, progress);
+  const beds = layout.beds.slice(0, bedCount);
+  const plants = layout.plants.filter((plant) => plant.bed < bedCount);
+  if (!decay || (decay.fence <= 0 && decay.beds <= 0)) return { fence, beds, plants, weeds: [] };
+  const overgrown = clamp01(decay.beds);
+  const rnd = seededRandom(5_300_000 + decay.seed * 6_151);
+  // nikdo nesází – zelenina mizí, záhony zarůstají trávou
+  const kept = plants.filter(() => rnd() >= overgrown * 0.95);
+  const weeds = beds.flatMap((bed, i): PlotWeed[] =>
+    Array.from({ length: Math.round(bed.length * WEEDS_PER_M * overgrown) }, () => ({
+      x: bed.x + (rnd() - 0.5) * (bed.length - 0.2),
+      z: bed.z + (rnd() - 0.5) * (BED_WIDTH_M - 0.25),
+      rotationY: rnd() * Math.PI * 2,
+      scale: 0.9 + 0.6 * rnd(),
+      bed: i,
+    })),
+  );
+  return { fence: decayFence(fence, decay.fence, decay.seed), beds, plants: kept, weeds };
 }
 
 function clamp01(v: number): number {
