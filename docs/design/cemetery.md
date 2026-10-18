@@ -51,8 +51,10 @@ další rozhodnutí o místě v krajině – vedle obydlí a polí.
 - V nabídce staveb **Hřbitov** (cena za čtverec), umisťování po čtvercích jako pole; během
   umisťování varování, když je místo moc blízko obydlí nebo vody (důvod v bublině).
 - V panelu vsi u pohřebiště **kolik místa zbývá** (hroby a odhad na kolik let) – ne hygiena.
-- Ve scéně ohrazené pohřebiště; podle doby by mohlo vypadat jinak – v 6.–8. století žárové hroby
-  a mohylky, od 9. století kostrové hroby (nápad na později).
+- Ve scéně pohřebiště ohrazené nízkým pleteným plotem – stejný druh plotu jako polský plot kolem
+  pozemku polozemnice, jen s hustším pletivem; rohy zakulacené (vnitřní roh tvaru L malým
+  obloukem), branka k vsi (Martin). Podle doby by mohlo vypadat jinak – v 6.–8. století žárové
+  hroby a mohylky, od 9. století kostrové hroby (nápad na později).
 
 ## Naměřeno
 
@@ -72,3 +74,4 @@ nasycení ≥ 0,95 u ní 97,6 % let místo 98,2 %. Čísla se neladila.
 | Žádný ukazatel hygieny, jen vliv na populaci                                          | Martin                        |
 | Po čtvercích jako pole; vzdálenosti 150 / 50 m od obydlí a 100 / 30 m od vody         | návrh Clauda, Martin potvrdil |
 | Hrob 4 m², hroby se neopakují; extra úmrtnost 0,3 / 0,5; hájení chrání; 10 čd/čtverec | návrh Clauda, Martin potvrdil |
+| Plot hřbitova = pletený plot jako polský plot (hustší), rohy zakulacené               | Martin, 18. 10. 2026          |

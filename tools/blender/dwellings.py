@@ -13,16 +13,18 @@ míří vchod do +Z. Jámu se šíjí a schody kreslí scéna (apps/web/lib/scen
 rozměry musí sedět s DOOR, *_RAMP a půdorysy jam tady); modely mají jen štíty, ostění dveří
 a sloupy, které do jámy sahají. Střecha přečnívá před oba štíty o GABLE_OVERHANG.
 
-Výstup: zemnice.glb, polozemnice.glb (hotová obydlí), homestead.glb (díly pozemku polozemnice:
-kůl, kůl branky, kus proplétané větve, záhon a rostliny – rozmístí je a na terén postaví scéna,
-apps/web/lib/scene/homestead-layout.ts a homestead.ts) a construction.glb – díly staveniště
+Výstup: zemnice.glb, polozemnice.glb (hotová obydlí), woven-fence.glb (díly pleteného plotu
+pozemku polozemnice i hřbitova: kůl, kůl branky, kus proplétané větve – rozmístí je scéna,
+apps/web/lib/scene/woven-fence.ts a woven-fence-renderer.ts), homestead.glb (záhon a rostliny
+pozemku – apps/web/lib/scene/homestead-layout.ts a homestead.ts) a construction.glb – díly staveniště
 po fázích (uzly „zemnice-…“, „polozemnice-…“: kolíky, sloupy, krov, latě, výplet, srub, řady
 došků zdola nahoru, hřeben, valy) a rekvizity („site-…“); kdy se který díl ukáže, určuje
 apps/web/lib/scene/village-construction.ts (plot a záhony pozemku tam mají vlastní fáze).
 Hráň polen ani samostatný kus plotu vedle obydlí nejsou (Martin). Polozemnice stojí na pozemku
 velkém jako políčko pole (15 × 15 m) obehnaném polským plotem – řidší kůly a vodorovně
 proplétané větve, zakulacené rohy (Martin: hranaté rohy se v polském plotu dělají špatně),
-branka proti vchodu – a ve zbytku jsou záhony (zelí, řepa, cibule, kopr).
+branka proti vchodu – a ve zbytku jsou záhony (zelí, řepa, cibule, kopr). Proutěný plot hřbitova
+je týž pletený plot ze stejných dílů, jen s hustším pletivem (Martin).
 
 Celý postup (art = <0ad>/binaries/data/mods/public/art, PNG z DDS viz atlas.py):
   python3 -I tools/blender/atlas.py <celt_struct_1.png> <celt_struct.png> \
@@ -289,13 +291,22 @@ class Builder:
         return obj
 
 
-def make_material():
-    mat = bpy.data.materials.new("dwelling-atlas")
+def make_material(scale=1):
+    """Materiál s atlasem; `scale` < 1 = zmenšená kopie atlasu (uloží se vedle něj) pro drobné
+    díly, jejichž GLB nemá nést celý atlas – kůly a větve pleteného plotu."""
+    mat = bpy.data.materials.new("dwelling-atlas" if scale == 1 else f"dwelling-atlas-{scale}")
     mat.use_backface_culling = True
     nodes = mat.node_tree.nodes
     bsdf = next(n for n in nodes if n.type == "BSDF_PRINCIPLED")
     tex = nodes.new("ShaderNodeTexImage")
-    tex.image = bpy.data.images.load(os.path.join(ATLAS, "atlas.jpg"))
+    image = bpy.data.images.load(os.path.join(ATLAS, "atlas.jpg"), check_existing=False)
+    if scale != 1:
+        w, h = image.size
+        image.scale(max(1, round(w * scale)), max(1, round(h * scale)))
+        image.filepath_raw = os.path.join(ATLAS, f"atlas-{image.size[0]}.jpg")
+        image.file_format = "JPEG"
+        image.save()
+    tex.image = image
     mat.node_tree.links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
     bsdf.inputs["Roughness"].default_value = 1.0
     bsdf.inputs["Specular IOR Level"].default_value = 0.0
@@ -758,9 +769,10 @@ def site_props(part, mat):
 
 # Pozemek polozemnice (Martin, 18. 10. 2026): celé políčko 15 × 15 m obehnané polským plotem se
 # zakulacenými rohy, dům uprostřed nebo v rohu, ve zbytku záhony. Kde co stojí, počítá scéna
-# (apps/web/lib/scene/homestead-layout.ts) – tady jsou jen díly do homestead.glb, každý se
-# v instancích staví na své místo terénu: kůl, vyšší kůl u branky, kus proplétané větve 1 m
-# (scéna ho natáhne od kůlu ke kůlu), záhon 1 × 0,8 m (scéna ho natáhne na délku) a rostliny.
+# (apps/web/lib/scene/homestead-layout.ts, plot woven-fence.ts) – tady jsou jen díly, každý se
+# v instancích staví na své místo terénu. Pletený plot (woven-fence.glb, i pro hřbitov): kůl,
+# vyšší kůl u branky, kus proplétané větve 1 m (scéna ho natáhne od kůlu ke kůlu). Pozemek
+# (homestead.glb): záhon 1 × 0,8 m (scéna ho natáhne na délku) a rostliny.
 # Počátek každého dílu leží na zemi; ve scéně je bod Blenderu (x, y) v osách (−x, −y).
 FENCE_STAKE_TOP = 1.0  # kůl nad zemí (m), u branky 1,22
 FENCE_ROD = 0.05  # průřez větve (m)
@@ -808,9 +820,25 @@ def rod(b, pts, size, mat="beam", salt=0):
         b.poly(ring, mat, out=d, uvm=[(0.0, 0.0), (size / 2, 0.0), (0.0, size / 2)])
 
 
+def woven_fence_parts(mat):
+    """Díly pleteného plotu do woven-fence.glb (polský plot pozemku i plot hřbitova):
+    fence-post, fence-post-gate, fence-rail (1 m podél Blender −x = ve scéně +x od počátku)."""
+    objs = []
+    b = Builder("fence-post")
+    b.beam((0, 0, -0.15), (0.01, 0.01, FENCE_STAKE_TOP), 0.08)
+    objs.append(b.build(mat))
+    b = Builder("fence-post-gate")
+    b.beam((0, 0, -0.15), (0.01, 0.01, 1.22), 0.09)
+    objs.append(b.build(mat))
+    b = Builder("fence-rail")
+    # mírný průvěs uprostřed – větev není pravítko
+    rod(b, [(0, 0, 0), (-0.5, 0, -0.012), (-1, 0, 0)], FENCE_ROD)
+    objs.append(b.build(mat))
+    return objs
+
+
 def homestead_parts(mat):
-    """Díly pozemku do homestead.glb: fence-post, fence-post-gate, fence-rail (1 m podél
-    Blender −x = ve scéně +x od počátku), bed (1 × 0,8 m, délka podél x), plant-cabbage,
+    """Díly pozemku do homestead.glb: bed (1 × 0,8 m, délka podél x), plant-cabbage,
     plant-turnip, plant-onion, plant-dill (pata na vršku záhonu = počátek)."""
     objs = []
 
@@ -818,16 +846,6 @@ def homestead_parts(mat):
         b = Builder(name)
         return b
 
-    b = part("fence-post")
-    b.beam((0, 0, -0.15), (0.01, 0.01, FENCE_STAKE_TOP), 0.08)
-    objs.append(b.build(mat))
-    b = part("fence-post-gate")
-    b.beam((0, 0, -0.15), (0.01, 0.01, 1.22), 0.09)
-    objs.append(b.build(mat))
-    b = part("fence-rail")
-    # mírný průvěs uprostřed – větev není pravítko
-    rod(b, [(0, 0, 0), (-0.5, 0, -0.012), (-1, 0, 0)], FENCE_ROD)
-    objs.append(b.build(mat))
     b = part("bed")
     b._smooth_now = True
     garden_bed(b, -0.5, 0.5, -0.4, 0.4, inset_x=0.04)
@@ -1180,10 +1198,13 @@ def main():
         export([obj], os.path.join(OUT, f"{obj.name}.glb"))
         d = obj.dimensions
         print(f"STAT {obj.name}: {tri_count(obj)} tris, {len(obj.data.materials)} mat, {d.x:.2f} x {d.y:.2f} x {d.z:.2f} m")
-    # díly pozemku polozemnice (plot, záhony, rostliny) – rozmístí je scéna
+    # pletený plot (pozemek i hřbitov) a díly pozemku polozemnice (záhony, rostliny) – rozmístí
+    # je scéna
+    fence_parts = woven_fence_parts(make_material(0.5))
+    export(fence_parts, os.path.join(OUT, "woven-fence.glb"))
     plot_parts = homestead_parts(mat)
     export(plot_parts, os.path.join(OUT, "homestead.glb"))
-    for obj in plot_parts:
+    for obj in fence_parts + plot_parts:
         print(f"PART {obj.name}: {tri_count(obj)} tris")
 
     # staveniště: díly obou obydlí podle fází stavby a rekvizity – jeden GLB, jeden atlas

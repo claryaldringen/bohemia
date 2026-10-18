@@ -72,6 +72,7 @@ import { closedLine } from './staking-layout';
 import { applySeasonGround, applySeasonModel, applySeasonSnow } from './season-materials';
 import { VillageSmoke, type SmokeSource } from './village-smoke';
 import type { SceneDwelling, SceneField } from './village-types';
+import { WovenFenceRenderer } from './woven-fence-renderer';
 
 const MODEL_BASE_URL = '/models/dwellings/';
 const SMOKE_TEXTURE_URL = '/textures/particles/smoke.png';
@@ -158,6 +159,8 @@ export class VillageRenderer {
   private readonly tufts = new Map<TuftModel, Mesh | null>();
   /** Pozemky polozemnic – plot, záhony a cestička (homestead.ts). */
   private readonly plots: HomesteadRenderer;
+  /** Pletené ploty pozemků a hřbitovů (woven-fence-renderer.ts). */
+  private readonly fences: WovenFenceRenderer;
   private readonly materials = new Map<string, Material>();
   private loading: Promise<void> | null = null;
   private builtKey = '';
@@ -178,7 +181,19 @@ export class VillageRenderer {
   ) {
     this.smoke = new VillageSmoke(scene, SMOKE_TEXTURE_URL);
     this.pegs = new StakingPegs(scene, (mesh) => context.addShadowCaster(mesh));
-    this.cemeteries = new CemeteryRenderer(scene, context);
+    this.fences = new WovenFenceRenderer(scene, {
+      height: context.decalHeight,
+      addShadowCaster: (mesh) => context.addShadowCaster(mesh),
+      onAsyncChange: () => context.onAsyncChange(),
+      prepareMaterial: prepareDwellingMaterial,
+    });
+    this.cemeteries = new CemeteryRenderer(scene, {
+      decalHeight: context.decalHeight,
+      groundHeight: context.groundHeight,
+      addShadowCaster: (mesh) => context.addShadowCaster(mesh),
+      requestRender: () => context.requestRender(),
+      fences: this.fences,
+    });
     this.orchards = new OrchardRenderer(scene, context);
     this.plots = new HomesteadRenderer(scene, {
       groundHeight: context.groundHeight,
@@ -187,6 +202,7 @@ export class VillageRenderer {
       onAsyncChange: () => context.onAsyncChange(),
       pathMaterial: () => this.decalMaterial('grass-dirt'),
       prepareMaterial: prepareDwellingMaterial,
+      fences: this.fences,
     });
   }
 
@@ -255,6 +271,7 @@ export class VillageRenderer {
     this.smoke.dispose();
     this.cemeteries.dispose();
     this.plots.dispose();
+    this.fences.dispose();
     this.orchards.dispose();
     this.pegs.dispose();
     for (const view of this.dwellings.values()) for (const mesh of view.meshes) mesh.dispose();

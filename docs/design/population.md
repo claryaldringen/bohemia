@@ -327,7 +327,8 @@ pravidla → první verze hladu (1 − nasycení za den, hájení bez stropu) �
   vyskládané dřevo tehdy lidé neměli, navíc na dešti (Martin). **Polozemnice stojí na
   oploceném pozemku** (Martin, 18. 10. 2026): celé políčko obehnané polským plotem – řidší kůly
   s vodorovně proplétanými větvemi (střídavě před a za kůlem), **rohy zakulacené** (v polském
-  plotu se hranaté rohy dělají špatně – platí pro každý polský plot ve hře), branka proti vchodu
+  plotu se hranaté rohy dělají špatně – platí pro každý pletený plot ve hře, i pro plot hřbitova,
+  který je týž plot, jen hustší), branka proti vchodu
   a od ní cestička ke dveřím; ve zbytku pozemku vyvýšené záhony – zelí, řepa, cibule a kopr.
   Dům uprostřed nebo v rohu (5 variant). Po domě se staví plot (nejdřív kůly, pak se proplétají
   větve) a nakonec záhony; při zadání stavby je vytyčený kolíky a provázkem celý pozemek.

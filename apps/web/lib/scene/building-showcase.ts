@@ -24,6 +24,7 @@ import { addSunShadows, type SunShadows } from './sun-shadows';
 import { CONSTRUCTION_BASE, PLOT_BUILT, constructionState } from './village-construction';
 import { createDecalMaterial } from './village-meshes';
 import { VillageRenderer } from './village-renderer';
+import { WovenFenceRenderer } from './woven-fence-renderer';
 
 /** Úhel kamery od svislice ve hře (BETA v camera.ts) – výchozí pohled vývojové stránky. */
 const GAME_BETA = 0.85;
@@ -63,6 +64,7 @@ export class BuildingShowcase {
   private grounds: VillageRenderer | null = null;
   /** Pozemky polozemnic – plot a záhony po fázích jako ve vsi (homestead.ts). */
   private plots: HomesteadRenderer | null = null;
+  private fences: WovenFenceRenderer | null = null;
   private shadows: SunShadows | null = null;
   /** Vrhače stínu přidané dřív, než vznikne stínová mapa. */
   private readonly pendingCasters: Mesh[] = [];
@@ -165,6 +167,7 @@ export class BuildingShowcase {
     this.sites?.dispose();
     this.grounds?.dispose();
     this.plots?.dispose();
+    this.fences?.dispose();
     this.camera.detachControl();
     this.engine.stopRenderLoop();
     this.scene.dispose();
@@ -281,19 +284,28 @@ export class BuildingShowcase {
       texture: 'grass-dirt',
     });
     applyPitCut(pathMaterial, pitCuts);
+    const addCaster = (mesh: Mesh): void => {
+      if (this.shadows) this.shadows.addCaster(mesh);
+      else casters.push(mesh);
+    };
+    const onAsyncChange = (): void => {
+      this.shadows?.refresh();
+      this.burst(600);
+    };
+    this.fences = new WovenFenceRenderer(scene, {
+      height: () => 0,
+      addShadowCaster: addCaster,
+      onAsyncChange,
+      prepareMaterial: prepareModelMaterial,
+    });
     this.plots = new HomesteadRenderer(scene, {
       groundHeight: () => 0,
       decalHeight: () => 0,
-      addShadowCaster: (mesh) => {
-        if (this.shadows) this.shadows.addCaster(mesh);
-        else casters.push(mesh);
-      },
-      onAsyncChange: () => {
-        this.shadows?.refresh();
-        this.burst(600);
-      },
+      addShadowCaster: addCaster,
+      onAsyncChange,
       pathMaterial: () => pathMaterial,
       prepareMaterial: prepareModelMaterial,
+      fences: this.fences,
     });
     this.shadows = addSunShadows(sun, { casters, receivers: [ground], extentM: GROUND_SIZE.width });
     this.applyProgress();

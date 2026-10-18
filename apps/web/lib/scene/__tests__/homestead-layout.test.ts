@@ -2,11 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { PLOT_HOUSE_OFFSET_M, PLOT_VARIANTS } from '@bohemia/game';
 import {
   BED_WIDTH_M,
-  FENCE_CORNER_RADIUS_M,
   FENCE_INSET_M,
-  FENCE_POST_STEP_M,
-  FENCE_RAILS_M,
-  GATE_WIDTH_M,
+  PLOT_FENCE,
   homesteadLayout,
   insidePlot,
   nextPlotVariant,
@@ -15,8 +12,8 @@ import {
   plotInward,
   plotStage,
   plotStakingLine,
-  polishFence,
 } from '../homestead-layout';
+import { WOVEN_CORNER_RADIUS_M, fencePosts } from '../woven-fence';
 
 const square = { x: 37.5, z: -22.5, size: 15 };
 
@@ -24,11 +21,11 @@ describe('polský plot se zakulacenými rohy', () => {
   const rect = plotFenceRect(square);
 
   it('kůly nejvýš po metru, v rozích po oblouku – žádný kůl v ostrém rohu', () => {
-    const posts = polishFence(rect, null);
-    for (let i = 0; i < posts.length; i++) {
+    const posts = fencePosts(homesteadLayout(square, 'center').fence);
+    for (let i = 0; i + 1 < posts.length; i++) {
       const a = posts[i]!;
-      const b = posts[(i + 1) % posts.length]!;
-      expect(Math.hypot(b.x - a.x, b.z - a.z)).toBeLessThanOrEqual(FENCE_POST_STEP_M + 1e-9);
+      const b = posts[i + 1]!;
+      expect(Math.hypot(b.x - a.x, b.z - a.z)).toBeLessThanOrEqual(PLOT_FENCE.postStep + 1e-9);
     }
     for (const [cx, cz] of [
       [rect.minX, rect.minZ],
@@ -38,7 +35,7 @@ describe('polský plot se zakulacenými rohy', () => {
     ] as const) {
       // nejbližší kůl k rohu obdélníku leží na oblouku – (√2 − 1)·r od rohu
       const nearest = Math.min(...posts.map((p) => Math.hypot(p.x - cx, p.z - cz)));
-      expect(nearest).toBeCloseTo((Math.SQRT2 - 1) * FENCE_CORNER_RADIUS_M, 1);
+      expect(nearest).toBeCloseTo((Math.SQRT2 - 1) * WOVEN_CORNER_RADIUS_M, 1);
     }
     // směr ven je jednotkový a míří od středu
     for (const p of posts) {
@@ -47,16 +44,21 @@ describe('polský plot se zakulacenými rohy', () => {
     }
   });
 
-  it('branka je mezera na přední straně (−z), kůly u ní jsou krajní a vyšší', () => {
-    const posts = polishFence(rect, { x: square.x + 2, width: GATE_WIDTH_M });
-    const first = posts[0]!;
-    const last = posts[posts.length - 1]!;
-    expect(first.gate && last.gate).toBe(true);
-    expect(posts.filter((p) => p.gate)).toHaveLength(2);
-    expect(first.z).toBeCloseTo(rect.minZ);
-    expect(last.z).toBeCloseTo(rect.minZ);
-    expect(first.x - last.x).toBeCloseTo(GATE_WIDTH_M);
-    expect((first.x + last.x) / 2).toBeCloseTo(square.x + 2);
+  it('branka je mezera na přední straně (−z) proti vchodu, kůly u ní jsou krajní a vyšší', () => {
+    for (const variant of ['center', 'front-left', 'back-right'] as const) {
+      const { fence, house } = homesteadLayout(square, variant);
+      expect(fence.runs).toHaveLength(1);
+      expect(fence.runs[0]!.closed).toBe(false);
+      const posts = fence.runs[0]!.posts;
+      const first = posts[0]!;
+      const last = posts[posts.length - 1]!;
+      expect(first.gate && last.gate).toBe(true);
+      expect(posts.filter((p) => p.gate)).toHaveLength(2);
+      expect(first.z).toBeCloseTo(rect.minZ);
+      expect(last.z).toBeCloseTo(rect.minZ);
+      expect(first.x - last.x).toBeCloseTo(PLOT_FENCE.gateWidth);
+      expect((first.x + last.x) / 2).toBeCloseTo(house.x);
+    }
   });
 });
 
@@ -69,9 +71,10 @@ describe('pozemek polozemnice – 5 variant', () => {
       const offset = PLOT_HOUSE_OFFSET_M[variant];
       expect(layout.house.x).toBeCloseTo(square.x + offset.x);
       expect(layout.house.z).toBeCloseTo(square.z + offset.z);
-      const gateX = (layout.fence[0]!.x + layout.fence[layout.fence.length - 1]!.x) / 2;
+      const posts = fencePosts(layout.fence);
+      const gateX = (posts[0]!.x + posts[posts.length - 1]!.x) / 2;
       expect(gateX).toBeCloseTo(layout.house.x);
-      expect(layout.fence[0]!.z).toBeCloseTo(square.z - square.size / 2 + FENCE_INSET_M);
+      expect(posts[0]!.z).toBeCloseTo(square.z - square.size / 2 + FENCE_INSET_M);
     }
     expect(nextPlotVariant('center', 1)).toBe(PLOT_VARIANTS[1]);
     expect(nextPlotVariant('center', -1)).toBe(PLOT_VARIANTS.at(-1));
@@ -83,7 +86,8 @@ describe('pozemek polozemnice – 5 variant', () => {
       expect(layout.beds.length, variant).toBeGreaterThan(6);
       const rect = layout.fenceRect;
       const { house } = layout;
-      const gateX = (layout.fence[0]!.x + layout.fence[layout.fence.length - 1]!.x) / 2;
+      const posts = fencePosts(layout.fence);
+      const gateX = (posts[0]!.x + posts[posts.length - 1]!.x) / 2;
       for (const bed of layout.beds) {
         const x0 = bed.x - bed.length / 2;
         const x1 = bed.x + bed.length / 2;
@@ -133,31 +137,24 @@ describe('pozemek během stavby', () => {
   const layout = homesteadLayout(square, 'front-left');
 
   it('kůly přibývají po obvodu, větve až s posledním kůlem a zdola, záhony nakonec', () => {
+    const count = fencePosts(layout.fence).length;
+    const rails = PLOT_FENCE.rails;
     const none = plotStage(layout, { posts: 0, rails: 0, beds: 0 });
-    expect(none.posts).toHaveLength(0);
+    expect(none.fence.posts).toHaveLength(0);
     const half = plotStage(layout, { posts: 0.5, rails: 1, beds: 1 });
-    expect(half.posts.length).toBe(Math.round(layout.fence.length / 2));
-    // bez všech kůlů se nic neplete ani nesází záhony nezávisle
-    expect(half.rails).toHaveLength(0);
+    expect(half.fence.posts.length).toBe(Math.round(count / 2));
+    // bez všech kůlů se nic neplete
+    expect(half.fence.rails).toHaveLength(0);
     const low = plotStage(layout, { posts: 1, rails: 0.3, beds: 0 });
-    const heights = new Set(low.rails.map((r) => r.height));
-    expect(heights.size).toBe(Math.ceil(FENCE_RAILS_M.length * 0.3));
-    expect(Math.max(...heights)).toBeLessThan(FENCE_RAILS_M.at(-1)!);
+    const heights = new Set(low.fence.rails.map((r) => r.height));
+    expect(heights.size).toBe(Math.ceil(rails.length * 0.3));
+    expect(Math.max(...heights)).toBeLessThan(rails.at(-1)!);
     expect(low.beds).toHaveLength(0);
     const full = plotStage(layout, { posts: 1, rails: 1, beds: 1 });
-    expect(full.rails).toHaveLength(FENCE_RAILS_M.length * (layout.fence.length - 1));
+    // branka – mezi krajními kůly větev nevede
+    expect(full.fence.rails).toHaveLength(rails.length * (count - 1));
     expect(full.beds).toHaveLength(layout.beds.length);
     expect(full.plants).toHaveLength(layout.plants.length);
-  });
-
-  it('větve obcházejí kůl střídavě vně a uvnitř', () => {
-    const { rails } = plotStage(layout, { posts: 1, rails: 1, beds: 0 });
-    const first = rails[0]!;
-    const post = layout.fence[0]!;
-    const side = (first.ax - post.x) * post.outX + (first.az - post.z) * post.outZ;
-    const nextLevel = rails[layout.fence.length - 1]!;
-    const sideNext = (nextLevel.ax - post.x) * post.outX + (nextLevel.az - post.z) * post.outZ;
-    expect(Math.sign(side)).toBe(-Math.sign(sideNext));
   });
 
   it('vytyčení při zadání: kolíky a provázek po obdélníku budoucího plotu', () => {

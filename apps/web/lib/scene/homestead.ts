@@ -1,8 +1,8 @@
-// Pozemky polozemnic ve scéně: polský plot se zakulacenými rohy (kůly a proplétané větve),
-// záhony se zeleninou a vyšlapaná cestička od branky ke dveřím. Rozmístění počítá
-// homestead-layout.ts, díly (kůl, kůl branky, kus větve 1 m, záhon 1 × 0,8 m, rostliny) jsou
-// v models/dwellings/homestead.glb (tools/blender/dwellings.py) a kreslí se v instancích – kůly
-// a záhony stojí každý na svém místě terénu, větve vedou od kůlu ke kůlu i do svahu.
+// Pozemky polozemnic ve scéně: polský plot se zakulacenými rohy (sdílený pletený plot –
+// woven-fence-renderer.ts), záhony se zeleninou a vyšlapaná cestička od branky ke dveřím.
+// Rozmístění počítá homestead-layout.ts, díly záhonu (1 × 0,8 m) a rostlin jsou
+// v models/dwellings/homestead.glb (tools/blender/dwellings.py) a kreslí se v instancích – každý
+// záhon stojí na svém místě terénu.
 import type { Material } from '@babylonjs/core/Materials/material';
 import { Matrix, Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import type { Mesh } from '@babylonjs/core/Meshes/mesh';
@@ -16,9 +16,10 @@ import {
   type HomesteadLayout,
   type PlotSquare,
 } from './homestead-layout';
-import { loadModelParts } from './instanced-model';
+import { appendMatrix, loadModelParts } from './instanced-model';
 import { decalGrid, polygonBounds, softCoverage } from './village-layout';
 import { createDecalMesh, type HeightFn } from './village-meshes';
+import type { WovenFenceRenderer } from './woven-fence-renderer';
 
 export const HOMESTEAD_MODEL_URL = '/models/dwellings/homestead.glb';
 /** Výška vrchu záhonu nad jeho patou (m) – musí sedět s GARDEN_BED_H v dwellings.py. */
@@ -44,13 +45,7 @@ interface PlotEntry {
   path: Mesh | null;
 }
 
-const PARTS = [
-  'fence-post',
-  'fence-post-gate',
-  'fence-rail',
-  'bed',
-  ...PLOT_CROPS.map((crop) => `plant-${crop}`),
-] as const;
+const PARTS = ['bed', ...PLOT_CROPS.map((crop) => `plant-${crop}`)] as const;
 
 export class HomesteadRenderer {
   private readonly entries = new Map<number, PlotEntry>();
@@ -69,6 +64,8 @@ export class HomesteadRenderer {
       pathMaterial(): Material;
       /** Úprava materiálu dílů (opar, roční období) jako u obydlí. */
       prepareMaterial(material: Material): void;
+      /** Sdílené pletené ploty (polský plot pozemku). */
+      fences: WovenFenceRenderer;
     },
   ) {}
 
@@ -97,13 +94,16 @@ export class HomesteadRenderer {
       }
       if (wantsPath && !path) path = this.pathMesh(view.id, layout);
       this.entries.set(view.id, { key, layoutKey, layout, view, path });
+      this.context.fences.set(fenceOwner(view.id), plotStage(layout, p).fence);
     }
     for (const [id, entry] of this.entries) {
       if (seen.has(id)) continue;
       entry.path?.dispose();
       this.entries.delete(id);
+      this.context.fences.set(fenceOwner(id), null);
       changed = true;
     }
+    this.context.fences.commit();
     if (this.entries.size > 0) void this.load();
     if (changed) this.updateInstances();
     return changed;
@@ -111,7 +111,10 @@ export class HomesteadRenderer {
 
   dispose(): void {
     this.disposed = true;
-    for (const entry of this.entries.values()) entry.path?.dispose();
+    for (const [id, entry] of this.entries) {
+      entry.path?.dispose();
+      this.context.fences.set(fenceOwner(id), null);
+    }
     this.entries.clear();
     for (const mesh of this.parts?.values() ?? []) mesh.dispose();
   }
@@ -152,16 +155,6 @@ export class HomesteadRenderer {
     const push = (name: string): number[] => buffers.get(name)!;
     for (const { layout, view } of this.entries.values()) {
       const stage = plotStage(layout, view.progress);
-      for (const post of stage.posts) {
-        compose(matrix, post.x, height(post.x, post.z), post.z, 0, 1, null);
-        appendMatrix(push(post.gate ? 'fence-post-gate' : 'fence-post'), matrix);
-      }
-      for (const rail of stage.rails) {
-        const ay = height(rail.ax, rail.az) + rail.height;
-        const by = height(rail.bx, rail.bz) + rail.height;
-        segment(matrix, rail.ax, ay, rail.az, rail.bx, by, rail.bz);
-        appendMatrix(push('fence-rail'), matrix);
-      }
       const beds = stage.beds.map((bed) => {
         const half = bed.length / 2;
         const hw = BED_WIDTH_M / 2;
@@ -224,6 +217,10 @@ function round(v: number): number {
   return Math.round(v * 100);
 }
 
+function fenceOwner(id: number): string {
+  return `plot-${id}`;
+}
+
 const SCALE = new Vector3();
 const POSITION = new Vector3();
 const ROTATION = new Quaternion();
@@ -252,36 +249,4 @@ function compose(
   SCALE.set(scaleX, scale, scale);
   POSITION.set(x, y, z);
   Matrix.ComposeToRef(SCALE, ROTATION, POSITION, out);
-}
-
-/** Matice kusu větve (díl je 1 m dlouhý podél +x od počátku) z bodu a do bodu b. */
-function segment(
-  out: Matrix,
-  ax: number,
-  ay: number,
-  az: number,
-  bx: number,
-  by: number,
-  bz: number,
-): void {
-  const dx = bx - ax;
-  const dy = by - ay;
-  const dz = bz - az;
-  const horizontal = Math.hypot(dx, dz);
-  const length = Math.hypot(horizontal, dy);
-  // natočení kolem svislé osy (Babylon: +x → (cos θ, 0, −sin θ)), pak náklon kolem osy z
-  Quaternion.RotationYawPitchRollToRef(
-    Math.atan2(-dz, dx),
-    0,
-    Math.atan2(dy, horizontal),
-    ROTATION,
-  );
-  SCALE.set(length, 1, 1);
-  POSITION.set(ax, ay, az);
-  Matrix.ComposeToRef(SCALE, ROTATION, POSITION, out);
-}
-
-function appendMatrix(target: number[], matrix: Matrix): void {
-  const m = matrix.m;
-  for (let i = 0; i < 16; i++) target.push(m[i]!);
 }

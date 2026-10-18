@@ -2,7 +2,7 @@
 // políčko krajiny obehnané polským plotem se zakulacenými rohy, dům uprostřed nebo v rohu
 // (varianta – jádro `PLOT_HOUSE_OFFSET_M`), vchodem k brance na přední straně (−z), cestička od
 // branky ke dveřím a ve zbytku záhony se zeleninou. Souřadnice světa scény v metrech (x, z).
-// Plot je pravidlo pro každý polský plot ve hře: rohy vždy zakulacené (`polishFence`).
+// Polský plot je pletený plot společný s hřbitovem (woven-fence.ts), tady jen jeho hustota.
 import {
   PLOT_HOUSE_OFFSET_M,
   PLOT_HOUSE_ROTATION,
@@ -11,6 +11,13 @@ import {
   type Position,
 } from '@bohemia/game';
 import { seededRandom, type Point } from './village-layout';
+import {
+  fenceStage,
+  wovenFence,
+  type FenceStage,
+  type FenceStyle,
+  type WovenFence,
+} from './woven-fence';
 
 /** Políčko pozemku ve světě – střed a strana (m), jako čtverec pole. */
 export interface PlotSquare {
@@ -29,16 +36,15 @@ export interface Rect {
 
 /** Plot stojí kousek uvnitř políčka (m) – sousední pozemky mají mezi ploty uličku. */
 export const FENCE_INSET_M = 0.5;
-/** Poloměr zakulacených rohů polského plotu (m). */
-export const FENCE_CORNER_RADIUS_M = 1.25;
-/** Nejvyšší rozestup kůlů (m) – po rovných stranách i po oblouku rohů. */
-export const FENCE_POST_STEP_M = 1;
-/** Šířka branky (m) – mezera v plotu proti vchodu. */
-export const GATE_WIDTH_M = 1.3;
-/** Výšky vodorovně proplétaných větví nad zemí (m). */
-export const FENCE_RAILS_M = [0.16, 0.28, 0.4, 0.52, 0.64, 0.76, 0.88] as const;
-/** O kolik větev obchází kůl (m) – střídavě před ním a za ním. */
-export const RAIL_WEAVE_M = 0.065;
+/**
+ * Polský plot pozemku: kůly nejvýš po metru, sedm větví 0,16–0,88 m (řidší než plot hřbitova)
+ * a branka 1,3 m proti vchodu.
+ */
+export const PLOT_FENCE: FenceStyle = {
+  postStep: 1,
+  rails: [0.16, 0.28, 0.4, 0.52, 0.64, 0.76, 0.88],
+  gateWidth: 1.3,
+};
 
 /** Zelenina na záhonech (oblasti atlasu `veg` – tools/blender/dwellings.py). */
 export type PlotCrop = 'cabbage' | 'turnip' | 'onion' | 'dill';
@@ -68,16 +74,6 @@ const HOUSE_RECT_M = { halfX: 3.35, front: 3.5, back: 3.35 } as const;
 const YARD_M = { halfX: 1.9, depth: 1.7 } as const;
 const PATH_HALF_M = 0.75;
 
-export interface FencePost {
-  x: number;
-  z: number;
-  /** Kůl u branky je vyšší. */
-  gate: boolean;
-  /** Směr ven z ohrazení (jednotkový) – větve obcházejí kůl střídavě vně a uvnitř. */
-  outX: number;
-  outZ: number;
-}
-
 export interface PlotBed {
   x: number;
   z: number;
@@ -100,8 +96,8 @@ export interface HomesteadLayout {
   house: Position;
   /** Obdélník plotu (osy kůlů na rovných stranách). */
   fenceRect: Rect;
-  /** Kůly plotu od pravého kůlu branky dokola k levému (otevřená čára). */
-  fence: FencePost[];
+  /** Plot – jeden kus od kůlu branky dokola k druhému. */
+  fence: WovenFence;
   beds: PlotBed[];
   plants: PlotPlant[];
   /** Cestička od branky ke dvorku před dveřmi (obdélník). */
@@ -132,77 +128,17 @@ export function nextPlotVariant(variant: PlotVariant, step: 1 | -1): PlotVariant
   return PLOT_VARIANTS[(((i + step) % n) + n) % n]!;
 }
 
-type Piece =
-  | { kind: 'line'; from: Point; to: Point; out: Point }
-  | { kind: 'arc'; cx: number; cz: number; from: number; to: number };
-
-/**
- * Polský plot kolem obdélníku se zakulacenými rohy (Martin: hranaté rohy se v polském plotu
- * dělají špatně – všechny rohy polského plotu ve hře jsou zakulacené): kůly nejvýš po `step`
- * po rovných stranách i po oblouku rohů o poloměru `radius`. Branka je mezera na přední straně
- * (−z) se středem v `gate.x` – kůly pak jdou od pravého kůlu branky dokola k levému; bez branky
- * je plot uzavřený.
- */
-export function polishFence(
-  rect: Rect,
-  gate: { x: number; width: number } | null,
-  radius = FENCE_CORNER_RADIUS_M,
-  step = FENCE_POST_STEP_M,
-): FencePost[] {
-  const r = Math.min(radius, (rect.maxX - rect.minX) / 2, (rect.maxZ - rect.minZ) / 2);
-  const { minX, maxX, minZ, maxZ } = rect;
-  const gateX = gate
-    ? Math.min(maxX - r - gate.width / 2, Math.max(minX + r + gate.width / 2, gate.x))
-    : 0;
-  const start: Point = gate ? [gateX + gate.width / 2, minZ] : [minX + r, minZ];
-  const end: Point = gate ? [gateX - gate.width / 2, minZ] : start;
-  const pieces: Piece[] = [
-    { kind: 'line', from: start, to: [maxX - r, minZ], out: [0, -1] },
-    { kind: 'arc', cx: maxX - r, cz: minZ + r, from: -Math.PI / 2, to: 0 },
-    { kind: 'line', from: [maxX, minZ + r], to: [maxX, maxZ - r], out: [1, 0] },
-    { kind: 'arc', cx: maxX - r, cz: maxZ - r, from: 0, to: Math.PI / 2 },
-    { kind: 'line', from: [maxX - r, maxZ], to: [minX + r, maxZ], out: [0, 1] },
-    { kind: 'arc', cx: minX + r, cz: maxZ - r, from: Math.PI / 2, to: Math.PI },
-    { kind: 'line', from: [minX, maxZ - r], to: [minX, minZ + r], out: [-1, 0] },
-    { kind: 'arc', cx: minX + r, cz: minZ + r, from: Math.PI, to: (3 * Math.PI) / 2 },
-    { kind: 'line', from: [minX + r, minZ], to: end, out: [0, -1] },
-  ];
-  const posts: FencePost[] = [{ x: start[0], z: start[1], gate: gate !== null, outX: 0, outZ: -1 }];
-  for (const piece of pieces) {
-    const length =
-      piece.kind === 'line'
-        ? Math.hypot(piece.to[0] - piece.from[0], piece.to[1] - piece.from[1])
-        : r * Math.abs(piece.to - piece.from);
-    if (length < 1e-6) continue;
-    const n = Math.max(1, Math.ceil(length / step - 1e-6));
-    for (let i = 1; i <= n; i++) {
-      const t = i / n;
-      if (piece.kind === 'line') {
-        posts.push({
-          x: piece.from[0] + (piece.to[0] - piece.from[0]) * t,
-          z: piece.from[1] + (piece.to[1] - piece.from[1]) * t,
-          gate: false,
-          outX: piece.out[0],
-          outZ: piece.out[1],
-        });
-      } else {
-        const a = piece.from + (piece.to - piece.from) * t;
-        posts.push({
-          x: piece.cx + r * Math.cos(a),
-          z: piece.cz + r * Math.sin(a),
-          gate: false,
-          outX: Math.cos(a),
-          outZ: Math.sin(a),
-        });
-      }
-    }
-  }
-  if (gate) {
-    posts[posts.length - 1]!.gate = true;
-  } else {
-    posts.pop(); // uzavřený plot – poslední kůl je zase první
-  }
-  return posts;
+/** Obdélník plotu jako uzavřená čára (ohrazení vlevo, začíná na přední straně). */
+function rectPath(rect: Rect): { points: Point[]; closed: true } {
+  return {
+    points: [
+      [rect.minX, rect.minZ],
+      [rect.maxX, rect.minZ],
+      [rect.maxX, rect.maxZ],
+      [rect.minX, rect.maxZ],
+    ],
+    closed: true,
+  };
 }
 
 /** Úseky osy x, které z [from, to] zbydou po odečtení `blocked`. */
@@ -236,8 +172,12 @@ export function homesteadLayout(
 ): HomesteadLayout {
   const house = plotHouse(square, variant);
   const fenceRect = plotFenceRect(square);
-  const fence = polishFence(fenceRect, { x: house.x, width: GATE_WIDTH_M });
-  const gateX = (fence[0]!.x + fence[fence.length - 1]!.x) / 2;
+  // branka na přední straně proti vchodu
+  const fence = wovenFence([rectPath(fenceRect)], PLOT_FENCE, {
+    toward: { x: house.x, z: fenceRect.minZ - 1 },
+  });
+  const gatePosts = fence.runs[0]!.posts;
+  const gateX = (gatePosts[0]!.x + gatePosts[gatePosts.length - 1]!.x) / 2;
   const doorZ = house.z - HOUSE_RECT_M.front;
   const exclusions: Rect[] = [
     {
@@ -321,20 +261,9 @@ export function insidePlot(square: PlotSquare, x: number, z: number, margin = 0)
   return x > r.minX + margin && x < r.maxX - margin && z > r.minZ + margin && z < r.maxZ - margin;
 }
 
-/** Úsek proplétané větve mezi dvěma sousedními kůly (konce posunuté vně / dovnitř kůlu). */
-export interface PlotRail {
-  /** Výška větve nad zemí (m). */
-  height: number;
-  ax: number;
-  az: number;
-  bx: number;
-  bz: number;
-}
-
-/** Co z pozemku stojí: kůly, úseky větví, záhony a rostliny (podle průběhu stavby 0–1). */
+/** Co z pozemku stojí: plot (kůly a větve), záhony a rostliny (podle průběhu stavby 0–1). */
 export interface PlotStage {
-  posts: FencePost[];
-  rails: PlotRail[];
+  fence: FenceStage;
   beds: PlotBed[];
   plants: PlotPlant[];
 }
@@ -342,34 +271,15 @@ export interface PlotStage {
 /**
  * Pozemek podle průběhu: kůly se zatloukají po obvodu od branky (`posts`), až stojí všechny,
  * proplétají se větve zdola nahoru (`rails` – podíl výšek), nakonec záhony se zeleninou jeden po
- * druhém (`beds`). Větev obchází kůly střídavě vně a uvnitř – každá výška opačně.
+ * druhém (`beds`).
  */
 export function plotStage(
   layout: HomesteadLayout,
   progress: { posts: number; rails: number; beds: number },
 ): PlotStage {
-  const fence = layout.fence;
-  const posts = fence.slice(0, Math.round(fence.length * clamp01(progress.posts)));
-  const rails: PlotRail[] = [];
-  if (posts.length === fence.length) {
-    const levels = Math.ceil(FENCE_RAILS_M.length * clamp01(progress.rails) - 1e-9);
-    for (let k = 0; k < levels; k++) {
-      const at = (i: number): [number, number] => {
-        const post = fence[i]!;
-        const side = (i + k) % 2 === 0 ? 1 : -1;
-        return [post.x + post.outX * RAIL_WEAVE_M * side, post.z + post.outZ * RAIL_WEAVE_M * side];
-      };
-      for (let i = 0; i + 1 < fence.length; i++) {
-        const [ax, az] = at(i);
-        const [bx, bz] = at(i + 1);
-        rails.push({ height: FENCE_RAILS_M[k]!, ax, az, bx, bz });
-      }
-    }
-  }
   const bedCount = Math.round(layout.beds.length * clamp01(progress.beds));
   return {
-    posts,
-    rails,
+    fence: fenceStage(layout.fence, PLOT_FENCE, progress),
     beds: layout.beds.slice(0, bedCount),
     plants: layout.plants.filter((plant) => plant.bed < bedCount),
   };

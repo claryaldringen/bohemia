@@ -1,16 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { CEMETERY } from '@bohemia/game';
 import {
+  CEMETERY_FENCE,
   CEMETERY_PHASES,
-  FENCE_HEIGHT_M,
   FRESH_GRAVES,
-  GATE_WIDTH_M,
   GRAVE_GRID,
   cemeteryConstruction,
   fenceLayout,
   gravePlacements,
 } from '../cemetery-layout';
 import type { CellSquare } from '../field-cells';
+import { PLOT_FENCE } from '../homestead-layout';
+import { WOVEN_CORNER_RADIUS_M, fencePosts, type FencePost } from '../woven-fence';
 
 const square = (cx: number, cy: number): CellSquare => ({
   cell: { x: cx, y: cy },
@@ -45,51 +46,89 @@ describe('gravePlacements', () => {
   });
 });
 
+const gateKeys = (posts: readonly FencePost[]): string[] =>
+  posts
+    .filter((p) => p.gate)
+    .map((p) => `${p.x.toFixed(2)},${p.z.toFixed(2)}`)
+    .sort();
+
 describe('fenceLayout', () => {
-  it('plot kolem obrysu s brankou na úseku nejblíž k vsi', () => {
+  it('pletený plot kolem obrysu se zakulacenými rohy a brankou nejblíž k vsi', () => {
     // čtverce x −7,5 … 22,5, z −7,5 … 7,5; ves na jihu (−z)
-    const fence = fenceLayout(two, { x: 7.5, z: -100 });
-    expect(fence.corners).toHaveLength(4);
-    const total = fence.runs.reduce((sum, [a, b]) => sum + Math.hypot(b[0] - a[0], b[1] - a[1]), 0);
-    expect(total).toBeCloseTo(2 * (30 + 15) - GATE_WIDTH_M, 6);
-    // branka: mezera na jižní straně (z = −7,5) kolem x = 7,5
-    const south = fence.runs.filter(([a, b]) => a[1] === -7.5 && b[1] === -7.5);
-    expect(south).toHaveLength(2);
-    const gatePosts = fence.posts.filter((p) => p.gate);
-    expect(gatePosts).toHaveLength(2);
-    expect(gatePosts.every((p) => p.z === -7.5 && Math.abs(p.x - 7.5) < GATE_WIDTH_M)).toBe(true);
+    const { fence, outline } = fenceLayout(two, { x: 7.5, z: -100 });
+    expect(outline.length).toBeGreaterThan(0);
+    expect(fence.runs).toHaveLength(1);
+    const posts = fence.runs[0]!.posts;
+    // branka: krajní kůly kusu na jižní straně kolem x = 7,5
+    const first = posts[0]!;
+    const last = posts[posts.length - 1]!;
+    expect(first.gate && last.gate).toBe(true);
+    expect(first.z).toBeCloseTo(-7.5, 9);
+    expect(last.z).toBeCloseTo(-7.5, 9);
+    expect(first.x - last.x).toBeCloseTo(CEMETERY_FENCE.gateWidth, 9);
+    expect((first.x + last.x) / 2).toBeCloseTo(7.5, 9);
+    // rohy zakulacené – kůl uprostřed oblouku, žádný v ostrém rohu
+    for (const [cx, cz] of [
+      [-7.5, -7.5],
+      [22.5, -7.5],
+      [22.5, 7.5],
+      [-7.5, 7.5],
+    ] as const) {
+      const nearest = Math.min(...posts.map((p) => Math.hypot(p.x - cx, p.z - cz)));
+      expect(nearest).toBeCloseTo((Math.SQRT2 - 1) * WOVEN_CORNER_RADIUS_M, 6);
+    }
+    for (let i = 1; i < posts.length; i++) {
+      const a = posts[i - 1]!;
+      const b = posts[i]!;
+      expect(Math.hypot(b.x - a.x, b.z - a.z)).toBeLessThanOrEqual(CEMETERY_FENCE.postStep + 1e-9);
+    }
   });
 
   it('branka zůstane na místě, když se hřbitov rozšíří jinam; rozšíření ve stavbě branku nemá', () => {
     const village = { x: 0, z: -100 };
     const gate = (squares: CellSquare[]): string[] =>
-      fenceLayout(squares, village)
-        .posts.filter((p) => p.gate)
-        .map((p) => `${p.x.toFixed(2)},${p.z.toFixed(2)}`)
-        .sort();
+      gateKeys(fencePosts(fenceLayout(squares, village).fence));
     const before = gate([square(0, 0)]);
     expect(before).toHaveLength(2);
     // rozšíření na sever (+z) a na východ – jižní strana u vsi zůstává
     expect(gate([square(0, 0), square(0, 1), square(1, 0), square(1, 1)])).toEqual(before);
-    expect(fenceLayout([square(0, 1)], village, false).posts.some((p) => p.gate)).toBe(false);
+    const extension = fenceLayout([square(0, 1)], village, { withGate: false });
+    expect(fencePosts(extension.fence).some((p) => p.gate)).toBe(false);
   });
 
-  it('úseky navazují v pořadí obcházení – kůly se zatloukají dokola', () => {
-    const fence = fenceLayout([square(0, 0), square(1, 0), square(1, 1)], null);
-    for (let i = 1; i < fence.posts.length; i++) {
-      const a = fence.posts[i - 1]!;
-      const b = fence.posts[i]!;
-      // sousední kůly – nejvýš rozestup s rezervou (přes roh i branku)
-      expect(Math.hypot(b.x - a.x, b.z - a.z)).toBeLessThan(2.5);
-    }
+  it('rozšíření ve stavbě: plot jen tam, kde ještě není – na starý plot navazuje', () => {
+    const ready = [square(0, 0)];
+    const { fence, outline } = fenceLayout([square(1, 0)], null, {
+      withGate: false,
+      fenced: ready,
+    });
+    // vytyčení obepne celý nový čtverec
+    expect(outline.flat()).toContainEqual([7.5, -7.5]);
+    expect(fence.runs).toHaveLength(1);
+    const { posts, closed } = fence.runs[0]!;
+    expect(closed).toBe(false);
+    // společná strana x = 7,5 bez plotu (kromě koncových kůlů na rozích)
+    const onShared = posts.filter((p) => Math.abs(p.x - 7.5) < 1e-6);
+    expect(onShared).toHaveLength(2);
+    const ends = [posts[0]!, posts[posts.length - 1]!].map((p) => `${p.x},${p.z}`).sort();
+    expect(ends).toEqual(['7.5,-7.5', '7.5,7.5']);
   });
 
-  it('kůly bez opakování v rozích, rozestup kolem 1,4 m', () => {
-    const fence = fenceLayout([square(0, 0)], null);
-    const keys = new Set(fence.posts.map((p) => `${p.x.toFixed(3)},${p.z.toFixed(3)}`));
-    expect(keys.size).toBe(fence.posts.length);
-    expect(fence.posts.length).toBeGreaterThan(38);
-    expect(fence.posts.length).toBeLessThan(48);
+  it('plot kolem tvaru L: vnější rohy zakulacené, vnitřní roh malým obloukem', () => {
+    const ell = [square(0, 0), square(1, 0), square(0, 1)];
+    const posts = fencePosts(fenceLayout(ell, null).fence);
+    // vnitřní roh (7,5; 7,5) – plot ho objede, kůl přímo v něm nestojí
+    const inner = Math.min(...posts.map((p) => Math.hypot(p.x - 7.5, p.z - 7.5)));
+    expect(inner).toBeGreaterThan(0.3);
+    expect(inner).toBeLessThan(0.8);
+    const keys = new Set(posts.map((p) => `${p.x.toFixed(3)},${p.z.toFixed(3)}`));
+    expect(keys.size).toBe(posts.length);
+  });
+
+  it('čtverce dotýkající se jen rohem mají každý svůj obrys', () => {
+    const fence = fenceLayout([square(0, 0), square(1, 1)], null, { withGate: false }).fence;
+    expect(fence.runs).toHaveLength(2);
+    expect(fence.runs.every((run) => run.closed)).toBe(true);
   });
 });
 
@@ -97,19 +136,22 @@ describe('cemeteryConstruction', () => {
   it('fáze navazují: vytyčení, kůly, pletení; hotové = celý plot', () => {
     expect(CEMETERY_PHASES[0].from).toBe(0);
     expect(CEMETERY_PHASES.at(-1)?.to).toBe(1);
-    expect(cemeteryConstruction(0.05, false)).toEqual({ layout: true, posts: 0, wattleHeight: 0 });
+    expect(cemeteryConstruction(0.05, false)).toEqual({ layout: true, posts: 0, rails: 0 });
     const posts = cemeteryConstruction(0.3, false);
     expect(posts.layout).toBe(true);
     expect(posts.posts).toBeCloseTo(0.5, 6);
-    expect(posts.wattleHeight).toBe(0);
+    expect(posts.rails).toBe(0);
     const weaving = cemeteryConstruction(0.7, false);
+    expect(weaving.layout).toBe(false);
     expect(weaving.posts).toBe(1);
-    expect(weaving.wattleHeight).toBeGreaterThan(0);
-    expect(weaving.wattleHeight).toBeLessThan(FENCE_HEIGHT_M);
-    expect(cemeteryConstruction(0.2, true)).toEqual({
-      layout: false,
-      posts: 1,
-      wattleHeight: FENCE_HEIGHT_M,
-    });
+    expect(weaving.rails).toBeGreaterThan(0);
+    expect(weaving.rails).toBeLessThan(1);
+    expect(cemeteryConstruction(0.2, true)).toEqual({ layout: false, posts: 1, rails: 1 });
+  });
+
+  it('plot hřbitova je hustší než polský plot pozemku', () => {
+    expect(CEMETERY_FENCE.rails.length).toBeGreaterThan(PLOT_FENCE.rails.length);
+    expect(CEMETERY_FENCE.postStep).toBeLessThanOrEqual(PLOT_FENCE.postStep);
+    expect(CEMETERY_FENCE.rails.at(-1)).toBeCloseTo(0.8, 9);
   });
 });

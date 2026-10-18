@@ -121,18 +121,15 @@ describe('pozemek polozemnice', () => {
     }
   });
 
-  it('díly pozemku (homestead.glb): kůly, větev, záhon a čtyři druhy zeleniny', () => {
+  it('díly pozemku (homestead.glb): záhon a čtyři druhy zeleniny', () => {
     expect(new Set(glbNodes('dwellings/homestead.glb'))).toEqual(
-      new Set([
-        'fence-post',
-        'fence-post-gate',
-        'fence-rail',
-        'bed',
-        'plant-cabbage',
-        'plant-turnip',
-        'plant-onion',
-        'plant-dill',
-      ]),
+      new Set(['bed', 'plant-cabbage', 'plant-turnip', 'plant-onion', 'plant-dill']),
+    );
+  });
+
+  it('díly pleteného plotu (woven-fence.glb, pozemek i hřbitov): kůly a větev', () => {
+    expect(new Set(glbNodes('dwellings/woven-fence.glb'))).toEqual(
+      new Set(['fence-post', 'fence-post-gate', 'fence-rail']),
     );
   });
 

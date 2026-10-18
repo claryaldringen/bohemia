@@ -314,24 +314,31 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   `plotHousePosition` a `checkPlotPlacement` v `placement.ts` (louka, bez výchozu, nezabrané
   polem, hřbitovem, sadem ani jiným obydlím či pozemkem, rovno jen pod domem; překážky celého
   políčka jako u čtverce pole, stromy dají klády); `dwellingPlot` zabírá celé políčko
-  a `placeDwelling` u polozemnice pozemek vyžaduje (`NO_PLOT`). Scéna: rozmístění bez Babylonu
-  `homestead-layout.ts` (`polishFence` – **všechny rohy polského plotu ve hře jsou zakulacené**,
-  poloměr 1,25 m, kůly po metru i po oblouku; záhony, rostliny, cestička, `plotStage` podle
-  stavby), kreslí `homestead.ts` v instancích z dílů `models/dwellings/homestead.glb` (kůl, kůl
-  branky, kus větve 1 m natažený od kůlu ke kůlu, záhon 1 × 0,8 m natažený na délku, zelí,
-  řepa, cibule, kopr – `homestead_parts` v `dwellings.py`, oblasti atlasu `veg` a `soil`); každý
+  a `placeDwelling` u polozemnice pozemek vyžaduje (`NO_PLOT`). **Pletený plot** je jeden pro
+  celou hru – polský plot pozemku i proutěný plot hřbitova (Martin): `woven-fence.ts` bez
+  Babylonu (`wovenFence` podél čar s ohrazením vlevo – **všechny rohy zakulacené**, vnější
+  poloměr 1,25 m, vnitřní roh tvaru L 0,5 m, kůly nejvýš po kroku i po oblouku, branka na rovném
+  úseku nejblíž k cíli; `fenceStage` – kůly, pak větve zdola, střídavě vně a uvnitř kůlu), hustota
+  je `FenceStyle` (`PLOT_FENCE` 7 větví, `CEMETERY_FENCE` 11 větví a širší branka). Kreslí ho
+  jeden `WovenFenceRenderer` (`woven-fence-renderer.ts`, vlastníci `set` + `commit`) v instancích
+  z `models/dwellings/woven-fence.glb` (kůl, kůl branky, kus větve 1 m natažený od kůlu ke kůlu –
+  `woven_fence_parts` v `dwellings.py`, poloviční atlas). Pozemek: rozmístění bez Babylonu
+  `homestead-layout.ts` (záhony, rostliny, cestička, `plotStage` podle stavby), kreslí
+  `homestead.ts` v instancích z dílů `models/dwellings/homestead.glb` (záhon 1 × 0,8 m natažený
+  na délku, zelí, řepa, cibule, kopr – `homestead_parts`, oblasti atlasu `veg` a `soil`); každý
   díl stojí na terénu sám. Fáze polozemnice po hřebeni: `fence` (kůly, pak větve zdola)
   a `beds` (`ConstructionState.plot`). Umisťování: režim `plot` (políčko pod kurzorem, [ a ]
   přepínají variantu místo otáčení), vytyčení při 0 % kolíky a provázkem kolem pozemku
   (`plotStakingLine`), výběr i kliknutí kamkoli na pozemek označí celé políčko, rekvizity
   staveniště rohového domu se zrcadlí dovnitř (`sitePropPlace`), slepice zůstávají uvnitř
   plotu, cizí ani lidé do pozemku nechodí, hromada klád leží za plotem. Dílny z polozemnice
-  (hrnčíř, kovář) pozemek nemají – stojí volně jako dřív. Proutěný plot hřbitova není polský
-  plot (hustý výplet) – jeho rohy zůstaly. **Hřbitov** (`cemetery-renderer.ts`, geometrie bez Babylonu
-  v `cemetery-layout.ts`): nízký proutěný plot kolem čtverců (kůly v instancích, pletení z vlastní
-  sítě a textury z kódu) s brankou k nejbližšímu hotovému obydlí (při rozšíření jinam zůstane),
-  uvnitř mohylky po hrobech (mřížka 7 × 8 na čtverec, poslední čerstvé z hlíny); založení
-  vytyčení → kůly → pletení, rozšíření ve stavbě má vlastní plot, pak plot obepne celý hřbitov.
+  (hrnčíř, kovář) pozemek nemají – stojí volně jako dřív. **Hřbitov** (`cemetery-renderer.ts`,
+  geometrie bez Babylonu v `cemetery-layout.ts`): nízký pletený plot po obrysu čtverců (sdílený
+  pletený plot, zakulacené rohy) s brankou k nejbližšímu hotovému obydlí (při rozšíření jinam
+  zůstane), uvnitř mohylky po hrobech (mřížka 7 × 8 na čtverec, poslední čerstvé z hlíny);
+  založení vytyčení (kolíky a provázek po ostrém obrysu) → kůly → pletení; rozšíření ve stavbě
+  má vlastní kus plotu bez branky jen tam, kde plot ještě není (na starý jen navazuje), po
+  dokončení plot obepne celý hřbitov.
   **Sad** (`orchard-renderer.ts`, bez Babylonu `orchard-layout.ts`): jabloně z 0 A.D.
   (`models/trees/apple-1…4.glb`, s plody `apple-fruit-1…4.glb` – převod
   `tools/blender/orchard.json`, textura bez plodů `apple_leaves.py`, zralá `apple_ripe.py`)
