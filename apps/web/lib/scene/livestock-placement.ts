@@ -7,6 +7,7 @@ import {
   type Position,
   type Relief,
 } from '@bohemia/game';
+import { inGarden } from './dwelling-decor';
 import { PIT_SHAPES } from './dwelling-pit';
 import { hash01 } from './smoke-schedule';
 import type { StreamCenterline } from './stream-geometry';
@@ -193,6 +194,8 @@ interface Obstacles {
   nearDwelling(x: number, z: number, gap: number): boolean;
   /** V obdélníku slepic jiného obydlí než `exceptId` (s okrajem). */
   inOtherHouse(x: number, z: number, exceptId: number): boolean;
+  /** V zahrádce některého obydlí (s okrajem `margin`) – je oplocená. */
+  inGarden(x: number, z: number, margin: number): boolean;
 }
 
 function obstacles(village: LivestockVillage): Obstacles {
@@ -226,6 +229,8 @@ function obstacles(village: LivestockVillage): Obstacles {
         const lz = dx * s + dz * c;
         return Math.abs(lx) < h.box.halfX + 0.5 && lz > h.box.minZ - 0.5 && lz < h.box.maxZ + 0.5;
       }),
+    inGarden: (x, z, margin) =>
+      village.dwellings.some((d) => inGarden(d.type, d.position, x, z, margin)),
   };
 }
 
@@ -326,6 +331,7 @@ function chickenFlock(
       return (
         ground.walkable(x, z) &&
         !blocked.inOtherHouse(x, z, dwelling.id) &&
+        !blocked.inGarden(x, z, 0.4) &&
         !blocked.onCemetery(x, z, 0.5)
       );
     });

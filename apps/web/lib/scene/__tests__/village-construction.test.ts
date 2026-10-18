@@ -1,4 +1,7 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, it, expect } from 'vitest';
+import { DWELLING_GARDEN_M } from '@bohemia/game';
 import {
   CONSTRUCTION_PHASES,
   SITE_PROPS,
@@ -38,8 +41,10 @@ describe('fáze stavby', () => {
       'thatch',
       'finish',
     ]);
-    // polozemnice místo zahloubených sloupů roubí srub
+    // polozemnice místo zahloubených sloupů roubí srub a nakonec udělá zahrádku
     expect(CONSTRUCTION_PHASES.polozemnice.map((p) => p.id)).toContain('logs');
+    expect(CONSTRUCTION_PHASES.polozemnice.at(-1)!.id).toBe('garden');
+    expect(CONSTRUCTION_PHASES.zemnice.map((p) => p.id)).not.toContain('garden');
     expect(constructionPhase('zemnice', 0).id).toBe('layout');
     expect(constructionPhase('zemnice', 0.2).id).toBe('dig');
     expect(constructionPhase('zemnice', 1).id).toBe('finish');
@@ -90,6 +95,60 @@ describe('díly staveniště', () => {
     expect(at(0.6)).toContain('wattle');
     expect(at(0.7)).toContain('daub');
     expect(at(0.7)).not.toContain('wattle');
+  });
+});
+
+describe('zahrádka polozemnice', () => {
+  /** Jména uzlů s meshem v GLB (JSON blok souboru). */
+  function glbNodes(file: string): string[] {
+    const data = readFileSync(join(__dirname, '../../../public/models', file));
+    const length = data.readUInt32LE(12);
+    const json = JSON.parse(data.subarray(20, 20 + length).toString('utf8')) as {
+      nodes: { name?: string; mesh?: number }[];
+    };
+    return json.nodes.filter((n) => n.mesh !== undefined).map((n) => n.name ?? '');
+  }
+
+  it('každý díl rozvrhu obydlí je v construction.glb obydlí (předpona druhu)', () => {
+    const nodes = new Set(glbNodes('dwellings/construction.glb'));
+    for (const type of TYPES) {
+      for (const part of constructionParts(type)) {
+        expect(nodes.has(`${type}-${part}`), `${type}-${part}`).toBe(true);
+      }
+    }
+  });
+
+  it('až po hřebeni: kůly, proplétaný plot, záhony, zelenina; zemnice ani dílny ji nemají', () => {
+    const order = ['garden-posts', 'garden-rails', 'garden-beds', 'garden-plants'];
+    const from = (part: string): number =>
+      partSchedule('polozemnice').find((r) => r.part === part)!.from;
+    const garden = CONSTRUCTION_PHASES.polozemnice.find((p) => p.id === 'garden')!;
+    const ridge = from('ridge');
+    for (let i = 0; i < order.length; i++) {
+      expect(from(order[i]!)).toBeGreaterThan(ridge);
+      expect(from(order[i]!)).toBeGreaterThanOrEqual(garden.from);
+      if (i > 0) expect(from(order[i]!)).toBeGreaterThan(from(order[i - 1]!));
+    }
+    expect(constructionPhase('polozemnice', garden.from + 0.01).label).toMatch(/zahrádka/);
+    for (const kind of ['zemnice', 'hrncir', 'kovar', 'uhlir'] as const) {
+      expect(constructionParts(kind).some((p) => p.startsWith('garden-'))).toBe(false);
+    }
+  });
+
+  it('hromada hlíny z jámy zmizí do začátku zahrádky – leží na jejím místě', () => {
+    const garden = CONSTRUCTION_PHASES.polozemnice.find((p) => p.id === 'garden')!;
+    const spoil = (p: number): number =>
+      constructionState('polozemnice', p).props.find((x) => x.prop === 'spoil')?.scale ?? 0;
+    expect(spoil(garden.from - 0.06)).toBeGreaterThan(0);
+    expect(spoil(garden.from)).toBe(0);
+    expect(spoil(0.99)).toBe(0);
+    // rekvizity, které na staveništi zůstanou až do konce, nestojí v zahrádce
+    const g = DWELLING_GARDEN_M.polozemnice!;
+    for (const { prop } of constructionState('polozemnice', 0.99).props) {
+      const { x, z } = SITE_PROP_PLACES.polozemnice[prop];
+      const inside = x > g.minX && x < g.maxX && z > g.minZ && z < g.maxZ;
+      expect(inside, prop).toBe(false);
+    }
   });
 });
 

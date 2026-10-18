@@ -17,7 +17,15 @@ import {
 } from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
 import { CemeteryRenderer } from './cemetery-renderer';
-import { EARTH_LAYERS, SMOKE_VENT, earthPatch, eaveTufts, type TuftModel } from './dwelling-decor';
+import {
+  EARTH_LAYERS,
+  GARDEN_MODEL_URL,
+  SMOKE_VENT,
+  earthPatch,
+  eaveTufts,
+  gardenInstance,
+  type TuftModel,
+} from './dwelling-decor';
 import {
   PIT_SHAPES,
   pitMeshData,
@@ -147,6 +155,8 @@ export class VillageRenderer {
   private readonly models = new Map<DwellingType, Mesh | null>();
   private readonly ghosts = new Map<DwellingType, Mesh>();
   private readonly tufts = new Map<TuftModel, Mesh | null>();
+  /** Zahrádka polozemnice – samostatný model položený na terén vedle domu. */
+  private garden: Mesh | null = null;
   private readonly materials = new Map<string, Material>();
   private loading: Promise<void> | null = null;
   private builtKey = '';
@@ -270,6 +280,22 @@ export class VillageRenderer {
           this.models.set(type, null);
         }
       }),
+      (async () => {
+        try {
+          const garden = await loadMergedModel(
+            this.scene,
+            GARDEN_MODEL_URL,
+            'village-garden',
+            prepareDwellingMaterial,
+          );
+          if (!garden) return;
+          garden.setEnabled(false);
+          this.context.addShadowCaster(garden);
+          this.garden = garden;
+        } catch (error) {
+          console.warn('Model zahrádky se nepodařilo načíst.', error);
+        }
+      })(),
       ...TUFT_MODELS.map(async (name) => {
         try {
           const tuft = await loadMergedModel(
@@ -362,14 +388,11 @@ export class VillageRenderer {
       const state = constructionState(d.type, d.progress);
       const base = this.baseHeight(d);
       const rotationY = d.position.rotation;
+      const house = { x: d.position.x, y: base, z: d.position.z, rotationY, scale: 1 };
+      // díly zahrádky stojí na jejím vlastním místě na terénu (gardenInstance)
+      const garden = gardenInstance(d.type, d.position, this.context.groundHeight);
       for (const part of state.parts) {
-        push(`${d.type}-${part}`, {
-          x: d.position.x,
-          y: base,
-          z: d.position.z,
-          rotationY,
-          scale: 1,
-        });
+        push(`${d.type}-${part}`, part.startsWith('garden-') && garden ? garden : house);
       }
       for (const { prop, scale } of state.props) {
         // hromada hlíny je vlastní síť staveniště (leží na terénu, barvy jako jáma)
@@ -437,6 +460,15 @@ export class VillageRenderer {
           scale: 1,
         }));
       setInstances(model, instances);
+    }
+    if (this.garden) {
+      setInstances(
+        this.garden,
+        built.flatMap((d) => {
+          const garden = gardenInstance(d.type, d.position, this.context.groundHeight);
+          return garden ? [garden] : [];
+        }),
+      );
     }
     const tufts = built.flatMap((d) => eaveTufts(d.type, d.position, d.id));
     for (const name of TUFT_MODELS) {
