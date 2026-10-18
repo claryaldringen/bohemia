@@ -161,16 +161,16 @@ odchodu svobodného syna z plného domu):
 
 ## Rozhodnutí
 
-| Rozhodnutí                                                                                | Kdo                                    |
-| ----------------------------------------------------------------------------------------- | -------------------------------------- |
-| Pohlaví, matka, otec, manžel; děti jen manželské páry                                     | Martin                                 |
-| Sňatky z okolí: teď abstraktně, až budou okolní vsi, přes ně (varianta c)                 | Martin                                 |
-| 105 chlapců na 100 dívek; žena plodná 16–44, muž od 16 bez meze; zakladatelé dva páry     | návrh Clauda                           |
-| Blízcí příbuzní do bratranců; žena se stěhuje k muži; věkový rozdíl do ≈ 15 let           | návrh Clauda                           |
-| Z okolí ≈ 30 % ročně pro svobodného muže / ženu od 18 bez možného partnera ve vsi         | návrh Clauda                           |
-| Domácnosti: ženatý syn zakládá, nejstarší syn dědí, svobodný nejstarší syn smí odejít sám | návrh Clauda                           |
-| Nová domácnost a lidé k osídlení jen z plné nebo přeplněné domácnosti                     | podle Martina, rozhodnuto 18. 10. 2026 |
-| Starší vsi: pohlaví a manželé se doplní jednou deterministicky, rodiče neznámí            | návrh Clauda                           |
-| Nevěsta z okolí si pamatuje směr vsi, vdaná pryč zůstane v rodokmenu se směrem (válka)    | návrh Clauda                           |
-| Domácnost drží člověk 16–44; rozpad k příbuzným; vdova s dětmi do 14 se nevdává           | návrh Clauda                           |
-| Svatba nepřeplní dům víc než o jednoho; v hladu nevěsta z okolí nepřijde                  | návrh Clauda                           |
+| Rozhodnutí                                                                                | Kdo                                       |
+| ----------------------------------------------------------------------------------------- | ----------------------------------------- |
+| Pohlaví, matka, otec, manžel; děti jen manželské páry                                     | Martin                                    |
+| Sňatky z okolí: teď abstraktně, až budou okolní vsi, přes ně (varianta c)                 | Martin                                    |
+| 105 chlapců na 100 dívek; žena plodná 16–44, muž od 16 bez meze; zakladatelé dva páry     | návrh Clauda                              |
+| Blízcí příbuzní do bratranců; žena se stěhuje k muži; věkový rozdíl do ≈ 15 let           | návrh Clauda                              |
+| Z okolí ≈ 30 % ročně pro svobodného muže / ženu od 18 bez možného partnera ve vsi         | návrh Clauda                              |
+| Domácnosti: ženatý syn zakládá, nejstarší syn dědí, svobodný nejstarší syn smí odejít sám | návrh Clauda                              |
+| Nová domácnost a lidé k osídlení jen z plné nebo přeplněné domácnosti                     | návrh Clauda (podle Martinových pravidel) |
+| Starší vsi: pohlaví a manželé se doplní jednou deterministicky, rodiče neznámí            | návrh Clauda                              |
+| Nevěsta z okolí si pamatuje směr vsi, vdaná pryč zůstane v rodokmenu se směrem (válka)    | návrh Clauda                              |
+| Domácnost drží člověk 16–44; rozpad k příbuzným; vdova s dětmi do 14 se nevdává           | návrh Clauda                              |
+| Svatba nepřeplní dům víc než o jednoho; v hladu nevěsta z okolí nepřijde                  | návrh Clauda                              |

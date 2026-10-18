@@ -576,7 +576,7 @@ pravidla → první verze hladu (1 − nasycení za den, hájení bez stropu) �
 | ~~Svobodní od nejstaršího, protějšek další v pořadí~~; denně v kroku 6               | návrh Clauda                               |
 | Nejstarší dítě z přeplněného domu smí odejít do nového domu samo                     | Martin (18. 10. 2026)                      |
 | Prázdný (i nový) dům obsadí i plná domácnost – svobodný syn i z plného domu          | Martin (18. 10. 2026)                      |
-| Novou domácnost (i lidi k osídlení) dává jen plná nebo přeplněná domácnost           | podle Martina, rozhodnuto 18. 10. 2026     |
+| Novou domácnost (i lidi k osídlení) dává jen plná nebo přeplněná domácnost           | návrh Clauda (podle Martinových pravidel)  |
 | Samo jen od 16 let, až po párech; osamělý 16–44 se nerozpadá (svobodný)              | návrh Clauda                               |
 | ~~Svatba nikdy nepřeplní dům~~ – s rodinami do plného domu smí (kinship.md)          | návrh Clauda                               |
 | Příbuzenství a pohlaví – rodiny, sňatky ve vsi a s okolím ([kinship.md](kinship.md)) | Martin (18. 10. 2026)                      |
