@@ -100,14 +100,14 @@ export interface RibbonJunction {
 }
 
 /**
- * Plácek rozcestí: od kolika čar je to rozcestí, poloměr jako násobek poloviny šířky nejsilnější
- * přicházející pěšiny (pásy do něj vbíhají a nezúží se), kolik ze síly ostatních pěšin se přičte
+ * Plácek rozcestí: od kolika čar je to rozcestí, poloměr jako násobek šířky nejsilnější přicházející
+ * pěšiny (průměr plácku je víc než dvojnásobek šířky – pásy do něj vbíhají a nezúží se), kolik ze síly ostatních pěšin se přičte
  * k nejsilnější (rozcestí je nejvyšlapanější – sešlapou ho všechny, s mezí 1), počet úseků obvodu
  * a nepravidelnost okraje (podíl poloměru).
  */
 export const JUNCTION = {
   minLines: 3,
-  scale: 1.4,
+  scale: 1.3,
   sumShare: 0.3,
   segments: 20,
   jitter: 0.1,
@@ -248,7 +248,8 @@ function addRibbon(
 }
 
 /**
- * Plácek rozcestí: kruh o poloměru JUNCTION.scale × polovina šířky pěšiny síly plácku, uvnitř
+ * Plácek rozcestí: kruh o poloměru JUNCTION.scale × šířka pěšiny síly plácku (vrstva holé hlíny
+ * podle svého podílu šířky – `widthFactor`), uvnitř
  * plné krytí, k okraji měkký přechod (`softM` vrstvy) – okraj lehce nepravidelný (podle polohy,
  * stejný plácek = stejný tvar).
  */
@@ -263,9 +264,9 @@ function addJunction(
 ): void {
   const { x, z, strength } = junction;
   const width = layer.width.weak + (layer.width.strong - layer.width.weak) * strength;
-  const half = (width / 2) * layer.widthFactor * widthAt(x, z) * JUNCTION.scale;
+  const radius = width * layer.widthFactor * widthAt(x, z) * JUNCTION.scale;
   const alpha = layer.alpha(strength) * alphaAt(x, z);
-  if (half <= 0 || alpha <= 0) return;
+  if (radius <= 0 || alpha <= 0) return;
   const seed = (Math.round(x * 2) * 73856093) ^ (Math.round(z * 2) * 19349663);
   const center = positions.length / 2;
   positions.push(x, z);
@@ -273,7 +274,7 @@ function addJunction(
   const n = JUNCTION.segments;
   for (let k = 0; k < n; k++) {
     const angle = (k / n) * Math.PI * 2;
-    const r = half * (1 + (hash01(seed, k, 63) - 0.5) * 2 * JUNCTION.jitter);
+    const r = radius * (1 + (hash01(seed, k, 63) - 0.5) * 2 * JUNCTION.jitter);
     const cx = Math.cos(angle);
     const cz = Math.sin(angle);
     positions.push(x + cx * r, z + cz * r, x + cx * (r + layer.softM), z + cz * (r + layer.softM));

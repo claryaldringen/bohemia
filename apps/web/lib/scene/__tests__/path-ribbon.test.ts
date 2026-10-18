@@ -146,13 +146,13 @@ describe('rozcestí – udusaný plácek (Martin: „rozcestí by mělo být nej
     for (let k = 0; k < JUNCTION.segments; k++) {
       const v = first + 1 + k * 2;
       const r = Math.hypot(grid.positions[v * 2]!, grid.positions[v * 2 + 1]!);
-      expect(r).toBeGreaterThan((width / 2) * JUNCTION.scale * (1 - JUNCTION.jitter) - 1e-5);
+      expect(r).toBeGreaterThan(width * JUNCTION.scale * (1 - JUNCTION.jitter) - 1e-5);
       expect(grid.alphas[v]).toBeCloseTo(grid.alphas[first]!, 9);
       expect(grid.alphas[v + 1]).toBe(0);
     }
-    // plácek širší než pás nejsilnější pěšiny (bez kolísání)
-    expect((width / 2) * JUNCTION.scale * (1 - JUNCTION.jitter)).toBeGreaterThan(
-      (WORN_LAYER.width.weak + (WORN_LAYER.width.strong - WORN_LAYER.width.weak) * 0.6) / 2,
+    // průměr plácku víc než dvojnásobek šířky nejsilnější pěšiny (i s kolísáním okraje)
+    expect(2 * width * JUNCTION.scale * (1 - JUNCTION.jitter)).toBeGreaterThan(
+      2 * (WORN_LAYER.width.weak + (WORN_LAYER.width.strong - WORN_LAYER.width.weak) * 0.6),
     );
   });
 

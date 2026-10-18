@@ -273,7 +273,7 @@ když odbočka zarostla, a cesty navázané na konec jiné v různých letech.
 - **Vlkov po převodu:** z 23 úseků zbude 11 – jediný uzel se dvěma úseky je hranice upravené
   a vyšlapané cesty, skutečná rozcestí 2 (tři a čtyři úseky), zbytek jsou konce.
 - **Rozcestí ve scéně** (návrh Clauda): kde končí aspoň tři úseky, je plácek udusané hlíny – kruh
-  1,4× širší než přicházející cesta s nepravidelným okrajem, plné síly; vbíhá-li do něj upravená
+  o poloměru 1,3× šířky přicházející cesty s nepravidelným okrajem, plné síly; vbíhá-li do něj upravená
   cesta, je v jejím širším pásu (`roadJunctions` v `road-works-layout.ts`). Totéž rozcestí pěšin
   dne ([paths.md](paths.md)).
 
