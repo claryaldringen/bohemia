@@ -21,6 +21,7 @@ import {
   packObstacles,
   surfaceAt,
   tileCenterWorld,
+  type Landscape,
   type ObstacleLayer,
   type ObstaclePlacement,
 } from '../../src/domain/landscape';
@@ -81,6 +82,11 @@ export interface LandBatch {
 
 export interface CalibrationLand {
   readonly kind: LandKind;
+  /**
+   * Krajina pro simulaci (přestavba polozemnice bez pozemku na volné políčko – `advanceVillage`);
+   * syntetická krajina žádnou nemá (obydlí se přestaví na místě).
+   */
+  readonly landscape: Landscape | null;
   readonly obstacles: ObstacleLayer;
   /** Kde stojí všechna obydlí (poloha bez významu – jen vzdálenosti). */
   readonly position: Position;
@@ -177,6 +183,7 @@ export function syntheticLand(): CalibrationLand {
   const position = { x: 0, z: 0, rotation: 0 };
   return {
     kind: 'v1',
+    landscape: null,
     obstacles,
     position,
     site: { obstacles, forestDistanceM: V1.forestEdgeM },
@@ -276,17 +283,28 @@ export function realLand(seed: number): CalibrationLand {
   const ordered = candidates.map((c) => c.part);
   return {
     kind: 'real',
+    landscape,
     obstacles,
     position,
     site: { obstacles, forestDistanceM: forestEdgeDistanceM(landscape, position.x, position.z) },
     fertilityAt: (cursor) => ordered[cursor]?.naturalFertility ?? 60,
     isForest: (cursor) => ordered[cursor]?.surface === 'forest',
     take: (state, day, cursor, count) => {
-      const chosen = ordered.slice(cursor, cursor + count).flatMap((p) => (p.cell ? [p.cell] : []));
-      if (chosen.length === 0) return null;
+      const slice = ordered.slice(cursor, cursor + count);
+      if (slice.length === 0) return null;
+      // políčka pozemků polozemnic (přestavba na volné políčko) pole nedostane
+      const plots = new Set(
+        [...(state?.dwellings ?? []), ...(state?.constructions ?? [])].flatMap((d) =>
+          d.plot ? [`${d.plot.cell.x},${d.plot.cell.y}`] : [],
+        ),
+      );
+      const chosen = slice.flatMap((p) =>
+        p.cell && !plots.has(`${p.cell.x},${p.cell.y}`) ? [p.cell] : [],
+      );
+      if (chosen.length === 0) return { parts: [], next: cursor + slice.length };
       const village = state ? placementVillageOf(state, day) : null;
       const preview = fieldPartsFromCells(landscape, village, chosen, [position], obstacles);
-      return { parts: preview.parts, next: cursor + chosen.length, sacred: preview.spared };
+      return { parts: preview.parts, next: cursor + slice.length, sacred: preview.spared };
     },
     // políčka hřbitova mimo mřížku krajiny – nepřekryjí čtverce polí
     cemeterySquare: (index) => cemeterySquare(position, index, -10),

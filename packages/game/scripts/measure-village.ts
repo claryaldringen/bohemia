@@ -59,7 +59,6 @@
 import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
 import { TOTAL_GAME_DAYS, dateOfDayIndex, dayIndexOf } from '../src/domain/calendar';
 import type { CalendarDate } from '../src/domain/calendar';
-import type { ObstacleLayer } from '../src/domain/landscape';
 import {
   DWELLINGS,
   FERTILITY,
@@ -485,9 +484,9 @@ function step(
   result: RunResult,
   before: VillageState,
   stop: number,
-  obstacles: ObstacleLayer,
+  land: CalibrationLand,
 ): VillageState {
-  const after = advanceVillage(before, stop, obstacles);
+  const after = advanceVillage(before, stop, land.obstacles, land.landscape);
   const hunger =
     before.hungry || after.hungry || after.chronicle.some((e) => e.kind === 'hunger-began');
   if (!hunger) return after;
@@ -500,7 +499,7 @@ function step(
   let s = before;
   for (let d = before.lastDay + 1; d <= stop; d++) {
     lowerMin(result.minSatiation, harvestYear(d), satiationOn(s, d));
-    s = advanceVillage(s, d, obstacles);
+    s = advanceVillage(s, d, land.obstacles, land.landscape);
   }
   return s;
 }
@@ -622,7 +621,7 @@ function runVillage(start: VillageState, startLand: number, opts: RunOptions): R
     if (opts.pinned) pinPeople(state, state.lastDay + 1, opts.pinned);
     const before = state;
     const stop = nextStop(before.lastDay, opts.endDay, opts.stepDays);
-    let after = step(result, before, stop, opts.land.obstacles);
+    let after = step(result, before, stop, opts.land);
     const events = after.chronicle;
     after.chronicle = []; // kronika patří jen tomuto kroku (stav skriptu, simulace ji nečte)
     const day = after.lastDay;
