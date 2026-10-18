@@ -20,8 +20,11 @@ import {
   FIELD_TEXTURES,
   LOOK_STYLES,
   decalPieces,
+  emptyCrops,
   fieldPlants,
   fieldStaking,
+  lookStyle,
+  partViewsKey,
   patchNoise,
   raggedCoverage,
   type CropKind,
@@ -62,6 +65,8 @@ import {
 type SceneField = SceneVillage['fields'][number];
 
 const MODEL_URL = '/models/fields/';
+/** Uzel hromádky vytrhaného hrachu v crops.glb. */
+const HEAP_NODE = 'pea-heap';
 const WEED_URLS = ['/models/dwellings/grass-tuft-1.glb', '/models/dwellings/grass-tuft-2.glb'];
 /** Bodů sítě obtisku na stranu čtverce – 8 na 15 m sedí na síť terénu (village-renderer.ts). */
 const GRID_PER_CELL = 8;
@@ -108,7 +113,13 @@ const CROP_TINT: Record<CropKind, readonly [number, number, number]> = {
   ripe: [0.96, 0.92, 0.82],
   sprout: [0.78, 0.92, 0.66],
   stubble: [0.92, 0.86, 0.72],
+  'pea-green': [0.66, 0.78, 0.66],
+  'pea-ripe': [0.86, 0.8, 0.7],
 };
+/** Hromádky vytrhaného hrachu (uzel pea-heap v crops.glb) – tón suchých lodyh. */
+const HEAP_TINT: readonly [number, number, number] = [0.98, 0.92, 0.8];
+/** Trsy, které se vlní ve větru (vysoké a husté). */
+const SWAYING_KINDS: readonly CropKind[] = ['ripe', 'green', 'pea-green', 'pea-ripe'];
 const PROP_AMBIENT = new Color3(0.4, 0.4, 0.38);
 /** Panáky ze slámy (světlé, do zlata) a stohy sena (do zelena – seno je sušená tráva). */
 const STRAW_TINT = new Color3(1, 0.94, 0.8);
@@ -180,6 +191,13 @@ export class FieldRenderer {
     count: 0,
     thin: true,
     sink: 0.05,
+  };
+  private readonly heaps: PlantMesh = {
+    mesh: null,
+    instances: [],
+    count: 0,
+    thin: true,
+    sink: 0.04,
   };
   private readonly haystacks: PlantMesh = {
     mesh: null,
@@ -266,7 +284,7 @@ export class FieldRenderer {
   /** Obilí ve větru – jen zralé a zelené v záběru; vrátí true, když se v záběru něco hnulo. */
   animate(nowMs: number, camera: Camera | null): boolean {
     if (this.swayPlugins.length === 0 || this.radius > SWAY_RANGE_M) return false;
-    const visible = (['ripe', 'green'] as const).some((kind) => {
+    const visible = SWAYING_KINDS.some((kind) => {
       const mesh = this.crops.get(kind)?.mesh;
       if (!mesh || !mesh.isEnabled() || mesh.thinInstanceCount === 0) return false;
       return camera ? camera.isInFrustum(mesh) : true;
@@ -294,7 +312,13 @@ export class FieldRenderer {
     for (const view of this.meadowViews.values()) for (const mesh of view.meshes) mesh.dispose();
     this.fields.clear();
     this.meadowViews.clear();
-    for (const plant of [...this.crops.values(), this.stooks, this.haystacks, ...this.weeds]) {
+    for (const plant of [
+      ...this.crops.values(),
+      this.stooks,
+      this.heaps,
+      this.haystacks,
+      ...this.weeds,
+    ]) {
       plant.mesh?.dispose();
     }
     this.pegMesh?.dispose();
@@ -337,7 +361,7 @@ export class FieldRenderer {
       const hay = views.some((v) => v.look && LOOK_STYLES[v.look].hay);
       const key = JSON.stringify([
         field.parts.map((p) => [p.x, p.z, p.size]),
-        views.map((v) => [v.look, v.work === null ? null : workSteps(v.work), v.before, v.staked]),
+        partViewsKey(views),
         villageCenter(this.village, field.parts),
         hay ? day : null,
         neighbours.map((p) => [p.cell.x, p.cell.y]),
@@ -451,7 +475,7 @@ export class FieldRenderer {
     };
     const pieces = decalPieces(views, rows, center);
     for (const piece of pieces) {
-      const style = LOOK_STYLES[piece.look];
+      const style = lookStyle(piece.look, piece.part.crop);
       const step = piece.part.size / GRID_PER_CELL;
       const grid = decalGrid(piece.bounds, step, coverage);
       if (grid.indices.length === 0) continue;
@@ -633,18 +657,15 @@ export class FieldRenderer {
 
   /** Instance trsů, panáků, plevele, kolíků a stohů ze všech polí a luk. */
   private updatePlants(): void {
-    const crops: Record<CropKind, PlantInstance[]> = {
-      green: [],
-      ripe: [],
-      sprout: [],
-      stubble: [],
-    };
+    const crops = emptyCrops();
     const stooks: PlantInstance[] = [];
+    const heaps: PlantInstance[] = [];
     const weeds: PlantInstance[] = [];
     const pegs: Peg[] = [];
     for (const view of this.fields.values()) {
       for (const kind of CROP_KINDS) crops[kind].push(...view.plants.crops[kind]);
       stooks.push(...view.plants.stooks);
+      heaps.push(...view.plants.heaps);
       weeds.push(...view.plants.weeds);
       pegs.push(...view.pegs);
     }
@@ -655,6 +676,7 @@ export class FieldRenderer {
     const needed =
       CROP_KINDS.some((k) => crops[k].length > 0) ||
       stooks.length > 0 ||
+      heaps.length > 0 ||
       weeds.length > 0 ||
       hay.length > 0;
     if (needed) void this.loadModels();
@@ -662,6 +684,7 @@ export class FieldRenderer {
       this.setPlants(this.crops.get(kind)!, crops[kind], CROP_TINT[kind]);
     }
     this.setPlants(this.stooks, stooks);
+    this.setPlants(this.heaps, heaps, HEAP_TINT);
     this.setPlants(this.haystacks, hay);
     // plevel napůl do obou trsů trávy
     this.weeds.forEach((plant, i) =>
@@ -723,6 +746,7 @@ export class FieldRenderer {
       apply(this.crops.get(kind)!, kind === 'sprout' || kind === 'stubble');
     for (const weed of this.weeds) apply(weed, true);
     apply(this.stooks, false);
+    apply(this.heaps, false);
     apply(this.haystacks, false);
     return changed;
   }
@@ -769,7 +793,17 @@ export class FieldRenderer {
             mesh.receiveShadows = true;
             this.crops.get(kind)!.mesh = mesh;
           }
-          for (const [name, mesh] of parts) if (!name.startsWith('crop-')) mesh.dispose();
+          // hromádky vytrhaného hrachu – rekvizita jako panák (vrhá stín)
+          const heap = parts.get(HEAP_NODE);
+          if (heap) {
+            heap.setEnabled(false);
+            heap.receiveShadows = true;
+            this.context.addShadowCaster(heap);
+            this.heaps.mesh = heap;
+          }
+          for (const [name, mesh] of parts) {
+            if (!name.startsWith('crop-') && name !== HEAP_NODE) mesh.dispose();
+          }
         } catch (error) {
           console.warn('Trsy obilí se nepodařilo načíst.', error);
         }

@@ -130,7 +130,7 @@ const view = {
       fertility: 61.4,
       stages: { sown: 6, founding: 4 },
       surfaces: { meadow: 10 },
-      crops: { spring: 2, winter: 4 },
+      crops: { spring: 1, legume: 1, winter: 4 },
       ashParts: 0,
       ashBonus: 0,
     },
@@ -334,9 +334,11 @@ describe('selectionDetails', () => {
         { stage: 'sown', count: 6 },
       ],
       surfaces: [],
+      // pořadí ozim, jař, luštěniny (CROP_ORDER)
       crops: [
         { crop: 'winter', count: 4 },
-        { crop: 'spring', count: 2 },
+        { crop: 'spring', count: 1 },
+        { crop: 'legume', count: 1 },
       ],
       ashParts: 0,
       ashBonus: 0,

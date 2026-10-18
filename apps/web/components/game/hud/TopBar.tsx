@@ -74,6 +74,7 @@ const DIET_SOURCES: readonly {
   name: string;
 }[] = [
   { key: 'grain', icon: 'food', name: 'Obilí' },
+  { key: 'legumes', icon: 'legumes', name: 'Luštěniny' },
   { key: 'meat', icon: 'meat', name: 'Maso' },
   { key: 'dairy', icon: 'cheese', name: 'Mléko a sýr' },
   { key: 'eggs', icon: 'eggs', name: 'Vejce' },
@@ -82,7 +83,8 @@ const DIET_SOURCES: readonly {
 
 /**
  * Tooltip nasycení (diet.md – Co hráč vidí): nasycení, pokrytí energie a bílkovin a podíly obilí,
- * masa, mléka a sýra, vajec a ovoce na energii (ikony a procenta).
+ * luštěnin, masa, mléka a sýra, vajec a ovoce na energii (ikony a procenta; jídlo uložené před
+ * luštěninami je nemá – 0).
  */
 export function SatiationTooltip({ view }: { view: VillageView }): ReactElement {
   return (
@@ -95,11 +97,23 @@ export function SatiationTooltip({ view }: { view: VillageView }): ReactElement 
         {DIET_SOURCES.map(({ key, icon, name }) => (
           <span key={key} data-share={key} className="flex items-center gap-0.5 tabular-nums">
             <img src={`/icons/resources/${icon}.png`} alt={name} width={16} height={16} />
-            {formatPercent(view.diet.shares[key])}
+            {formatPercent(view.diet.shares[key] ?? 0)}
           </span>
         ))}
       </span>
     </span>
+  );
+}
+
+/**
+ * Luštěniny v horní liště (diet.md – Luštěniny) – když jsou v zásobě, ves je letos seje nebo je
+ * dnes jí.
+ */
+export function showsLegumes(view: Pick<VillageView, 'legumesKg' | 'fields' | 'diet'>): boolean {
+  return (
+    view.legumesKg >= 1 ||
+    view.fields.some((f) => (f.crops.legume ?? 0) > 0) ||
+    (view.diet.shares.legumes ?? 0) > 0
   );
 }
 
@@ -332,6 +346,11 @@ export function TopBar({
           <Resource icon="food" name="Obilí" testId="village-stores">
             {formatInteger(view.storesKg)}
           </Resource>
+          {showsLegumes(view) && (
+            <Resource icon="legumes" name="Luštěniny (kg)" testId="village-legumes">
+              {formatInteger(view.legumesKg)}
+            </Resource>
+          )}
           <Resource icon="meat" name="Maso" testId="village-meat">
             {formatInteger(view.meatKg)}
           </Resource>
