@@ -23,14 +23,14 @@ const option = (
 });
 
 const trails = DIRECTIONS.map((d) =>
-  d === 'n'
+  d === 'N'
     ? option(d, {
         blocked: 'Ke kraji mapy tudy cesta nevede – zahrazuje ji voda nebo sráz.',
         lengthM: null,
       })
-    : d === 'e'
+    : d === 'E'
       ? option(d, { status: 'built', progress: 1, blocked: 'Stezka tímto směrem už vede.' })
-      : d === 's'
+      : d === 'S'
         ? option(d, {
             status: 'building',
             progress: 0.4,
@@ -48,17 +48,17 @@ describe('růžice zemských stezek', () => {
 
   it('8 šipek kolem dvorce, sever nahoře', () => {
     for (const d of DIRECTIONS) expect(html).toContain(`data-testid="trail-${d}"`);
-    expect(html.indexOf('trail-nw')).toBeLessThan(html.indexOf('trail-n"'));
+    expect(html.indexOf('trail-NW')).toBeLessThan(html.indexOf('trail-N"'));
     expect(html).toContain('/icons/build/dvorec.png');
   });
 
   it('volný směr jde, zahrazený zašedlý s důvodem, hotový a rozestavěný nejdou', () => {
-    expect(button(html, 'trail-w')).not.toContain('disabled=""');
-    expect(button(html, 'trail-n')).toContain('disabled=""');
+    expect(button(html, 'trail-W')).not.toContain('disabled=""');
+    expect(button(html, 'trail-N')).toContain('disabled=""');
     expect(html).toContain('zahrazuje ji voda nebo sráz');
-    expect(button(html, 'trail-e')).toContain('data-status="built"');
-    expect(button(html, 'trail-e')).toContain('disabled=""');
-    expect(button(html, 'trail-s')).toContain('data-status="building"');
+    expect(button(html, 'trail-E')).toContain('data-status="built"');
+    expect(button(html, 'trail-E')).toContain('disabled=""');
+    expect(button(html, 'trail-S')).toContain('data-status="building"');
     expect(html).toContain('width:40%');
   });
 

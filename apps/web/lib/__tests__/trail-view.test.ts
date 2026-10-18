@@ -63,7 +63,7 @@ const state = {
   trails: [
     {
       id: 7,
-      direction: 's',
+      direction: 'S',
       pieces: [
         { roadId: 2, grade: 'improved', manDays: 10 },
         { roadId: 3, grade: 'improved', manDays: 20 },

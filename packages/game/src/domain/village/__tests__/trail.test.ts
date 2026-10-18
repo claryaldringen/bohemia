@@ -38,18 +38,18 @@ function village(): VillageState {
 describe('trasa stezky ke kraji mapy', () => {
   it('na jih vede ke kraji v rozmezí směru, na sever přes vodu bez brodu nevede', () => {
     const routes = trailRoutes(LANDSCAPE, null, { x: 0, z: -6 }, []);
-    const south = routes.s!;
+    const south = routes.S!;
     expect(south).not.toBeNull();
     const end = south.at(-1)!;
     expect(end.z).toBeLessThan(-(HALF - 10 - 20) + 0.5);
     expect(Math.abs(end.x)).toBeLessThan(Math.abs(end.z));
     expect(south[0]).toEqual({ x: 0, z: -6 });
-    expect(routes.n).toBeNull();
+    expect(routes.N).toBeNull();
     // na severovýchod jen k východnímu kraji pod vodou (širší rozmezí směru)
-    expect(routes.ne!.at(-1)!.x).toBeGreaterThan(HALF - 30.5);
-    expect(routes.ne!.at(-1)!.z).toBeLessThan(75);
-    expect(routes.e).not.toBeNull();
-    expect(routes.e!.at(-1)!.x).toBeGreaterThan(HALF - 30.5);
+    expect(routes.NE!.at(-1)!.x).toBeGreaterThan(HALF - 30.5);
+    expect(routes.NE!.at(-1)!.z).toBeLessThan(75);
+    expect(routes.E).not.toBeNull();
+    expect(routes.E!.at(-1)!.x).toBeGreaterThan(HALF - 30.5);
     // stejný dotaz jde z mezipaměti – stejný objekt
     expect(trailRoutes(LANDSCAPE, null, { x: 0, z: -6 }, [])).toBe(routes);
   });
@@ -66,7 +66,7 @@ describe('trasa stezky ke kraji mapy', () => {
 describe('stavba stezky', () => {
   it('osa se uloží jako pevné cesty, cena = upravená cesta po celé délce', () => {
     const s = village();
-    const plan = planTrail(s, 's', DAY, LANDSCAPE, null);
+    const plan = planTrail(s, 'S', DAY, LANDSCAPE, null);
     expect(plan.ok).toBe(true);
     if (!plan.ok) return;
     expect(plan.pieces.length).toBeGreaterThan(0);
@@ -79,7 +79,7 @@ describe('stavba stezky', () => {
     expect(plan.laborManDays).toBeCloseTo((ROAD_UPGRADES.improvedManDaysPer100M * length) / 100, 0);
     // plán vstupní stav nemění
     expect(s.roads?.roads.length ?? 0).toBe(0);
-    const next = startTrail(s, DAY, 's', LANDSCAPE, null);
+    const next = startTrail(s, DAY, 'S', LANDSCAPE, null);
     expect(next.trails).toHaveLength(1);
     const c = next.constructions.find((x) => x.trail === next.trails![0]!.id)!;
     expect(c.kind).toBe('road');
@@ -89,32 +89,32 @@ describe('stavba stezky', () => {
 
   it('kde už upravená cesta vede, platí se jen zbytek', () => {
     const s = village();
-    const full = planTrail(s, 's', DAY, LANDSCAPE, null);
+    const full = planTrail(s, 'S', DAY, LANDSCAPE, null);
     if (!full.ok) throw new Error('stezka');
     const withRoad = village();
     withRoad.roads = structuredClone(full.state.roads!);
     for (const road of withRoad.roads.roads) road.grade = 'improved';
-    const cheaper = planTrail(withRoad, 's', DAY, LANDSCAPE, null);
+    const cheaper = planTrail(withRoad, 'S', DAY, LANDSCAPE, null);
     if (!cheaper.ok) throw new Error('stezka');
     expect(cheaper.laborManDays).toBeLessThan(full.laborManDays * 0.2);
   });
 
   it('nabídka: 8 směrů, sever zahrazený, hotový a rozestavěný směr s důvodem', () => {
-    const s = startTrail(village(), DAY, 's', LANDSCAPE, null);
+    const s = startTrail(village(), DAY, 'S', LANDSCAPE, null);
     const options = trailOptions(s, DAY, LANDSCAPE, null);
     expect(options.map((o) => o.direction)).toEqual(DIRECTIONS);
     const by = Object.fromEntries(options.map((o) => [o.direction, o]));
-    expect(by.n!.blocked).toBe(TRAIL_BLOCKED);
-    expect(by.s!.status).toBe('building');
-    expect(by.s!.blocked).toBe(TRAIL_BUILDING);
-    expect(by.w!.blocked).toBeNull();
-    expect(by.w!.laborManDays).toBeGreaterThan(0);
-    expect(by.w!.tripDays).toBeGreaterThanOrEqual(3);
-    expect(() => startTrail(s, DAY, 's', LANDSCAPE, null)).toThrow(TRAIL_BUILDING);
+    expect(by.N!.blocked).toBe(TRAIL_BLOCKED);
+    expect(by.S!.status).toBe('building');
+    expect(by.S!.blocked).toBe(TRAIL_BUILDING);
+    expect(by.W!.blocked).toBeNull();
+    expect(by.W!.laborManDays).toBeGreaterThan(0);
+    expect(by.W!.tripDays).toBeGreaterThanOrEqual(3);
+    expect(() => startTrail(s, DAY, 'S', LANDSCAPE, null)).toThrow(TRAIL_BUILDING);
   });
 
   it('staví se po úsecích od vsi ven; hotová stezka je upravená a v kronice', () => {
-    const s = startTrail(village(), DAY, 's', LANDSCAPE, null);
+    const s = startTrail(village(), DAY, 'S', LANDSCAPE, null);
     const trail = s.trails![0]!;
     const c = s.constructions.find((x) => x.trail === trail.id)!;
     const half = trailWorkFront(trail, c, c.cost / 2);
@@ -134,17 +134,17 @@ describe('stavba stezky', () => {
   });
 
   it('dokončení nastaví stupně všem úsekům', () => {
-    const s = startTrail(village(), DAY, 'e', LANDSCAPE, null);
+    const s = startTrail(village(), DAY, 'E', LANDSCAPE, null);
     const c = s.constructions.find((x) => x.trail !== undefined)!;
     const events = finishTrail(s, c, DAY + 3);
     expect(events).toEqual([
-      { day: DAY + 3, kind: 'trail-built', trailId: c.trail, direction: 'e' },
+      { day: DAY + 3, kind: 'trail-built', trailId: c.trail, direction: 'E' },
     ]);
     expect(s.trails![0]!.builtDay).toBe(DAY + 3);
   });
 
   it('nezávisí na kouscích dopočtu', () => {
-    const s = startTrail(village(), DAY, 's', LANDSCAPE, null);
+    const s = startTrail(village(), DAY, 'S', LANDSCAPE, null);
     const end = DAY + 200;
     const whole = advanceVillage(s, end, null, LANDSCAPE);
     let parts = s;

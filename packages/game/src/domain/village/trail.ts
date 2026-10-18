@@ -30,19 +30,19 @@ import type {
 import { claimedObstacles, planWoodFrom, takeWood, woodLogs, type WoodPlan } from './wood';
 
 /** Směry stezek v pořadí šipek (od severu po směru hodin). */
-export const DIRECTIONS: readonly Direction8[] = ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'];
+export const DIRECTIONS: readonly Direction8[] = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
 
 const H = Math.SQRT1_2;
 /** Jednotkový směr ve světě – sever je +z, východ +x (minimapa a kamera – sever nahoře). */
 export const DIRECTION_VECTORS: Readonly<Record<Direction8, { x: number; z: number }>> = {
-  n: { x: 0, z: 1 },
-  ne: { x: H, z: H },
-  e: { x: 1, z: 0 },
-  se: { x: H, z: -H },
-  s: { x: 0, z: -1 },
-  sw: { x: -H, z: -H },
-  w: { x: -1, z: 0 },
-  nw: { x: -H, z: H },
+  N: { x: 0, z: 1 },
+  NE: { x: H, z: H },
+  E: { x: 1, z: 0 },
+  SE: { x: H, z: -H },
+  S: { x: 0, z: -1 },
+  SW: { x: -H, z: -H },
+  W: { x: -1, z: 0 },
+  NW: { x: -H, z: H },
 };
 
 /** U okraje krajiny se nechodí (m) – jako terén pěšin (EDGE_MARGIN_M v paths/terrain.ts). */

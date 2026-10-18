@@ -10,7 +10,7 @@ import { Tooltip } from './Tooltip';
 // ikony, cena v popisku, zašedlé s důvodem červeně.
 
 /** Rozložení růžice 3 × 3 – sever nahoře, uprostřed dvorec. */
-const COMPASS: readonly (Direction8 | null)[] = ['nw', 'n', 'ne', 'w', null, 'e', 'sw', 's', 'se'];
+const COMPASS: readonly (Direction8 | null)[] = ['NW', 'N', 'NE', 'W', null, 'E', 'SW', 'S', 'SE'];
 
 const iconButton = (busy: boolean): string =>
   `hud-inset h-10 w-10 overflow-hidden rounded ${busy ? 'disabled:cursor-wait disabled:opacity-60' : 'disabled:cursor-not-allowed disabled:opacity-45 disabled:grayscale'}`;

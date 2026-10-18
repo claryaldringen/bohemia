@@ -8,7 +8,7 @@ import { NeighbourTrade, TradePanel } from '../TradePanel';
 // souseda ≥ 0, nosiči, dny cesty a práce; výprava na cestě jen s průběhem.
 
 const neighbour = (over: Partial<VillageNeighbour> = {}): VillageNeighbour => ({
-  direction: 's',
+  direction: 'S',
   name: 'Kouřim',
   lengthM: 820,
   tripDays: 5,

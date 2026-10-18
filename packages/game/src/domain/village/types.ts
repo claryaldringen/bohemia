@@ -865,8 +865,11 @@ export interface VillageState {
 
 // --- dvorec, zemská stezka a obchod (trade.md) ----------------------------------------------
 
-/** Osm směrů od vsi ke kraji mapy – sever je +z, východ +x (trade.md – Zemská stezka). */
-export type Direction8 = 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'nw';
+/**
+ * Osm směrů od vsi ke kraji mapy – sever je +z, východ +x (trade.md – Zemská stezka); stejné
+ * směry jako původ nevěst z okolí (`NeighborDirection` – kinship.md).
+ */
+export type Direction8 = NeighborDirection;
 
 /**
  * Úsek zemské stezky – pevná cesta (`Road`), po které stezka vede, na jaký stupeň se při stavbě

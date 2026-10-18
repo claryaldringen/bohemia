@@ -31,7 +31,7 @@ import { withBuiltFirstDwelling } from './village-fixtures';
 const DAY = dayIndexOf({ year: 600, month: 5, day: 1 });
 
 /** Ves s hotovou stezkou na jih a zásobami všeho, co sousedé můžou chtít. */
-function trading(direction: Direction8 = 's'): VillageState {
+function trading(direction: Direction8 = 'S'): VillageState {
   const s = withBuiltFirstDwelling(
     foundVillage({ seed: 11, day: DAY, dwellingPosition: { x: 0, z: 0, rotation: Math.PI } }),
   );
@@ -78,49 +78,49 @@ describe('ocenění a kontrola výměny', () => {
     const s = withBuiltFirstDwelling(
       foundVillage({ seed: 11, day: DAY, dwellingPosition: { x: 0, z: 0, rotation: Math.PI } }),
     );
-    expect(tradeQuote(s, { direction: 's', give: {}, get: {} }, DAY).blocked).toBe(NO_TRAIL);
+    expect(tradeQuote(s, { direction: 'S', give: {}, get: {} }, DAY).blocked).toBe(NO_TRAIL);
   });
 
   it('nosiči po 25 kg, dny podle délky stezky, práce = nosiči × dny', () => {
     const s = trading();
-    const { give, get } = fairOffer(s, 's');
-    const quote = tradeQuote(s, { direction: 's', give, get }, DAY);
+    const { give, get } = fairOffer(s, 'S');
+    const quote = tradeQuote(s, { direction: 'S', give, get }, DAY);
     expect(quote.blocked).toBeNull();
     expect(quote.balance).toBeGreaterThanOrEqual(0);
     expect(quote.days).toBe(trailTripDays(s.trails![0]!.lengthM));
     expect(quote.manDays).toBe(quote.porters * quote.days);
-    const n = neighbourOf(s.seed, 's');
+    const n = neighbourOf(s.seed, 'S');
     const heavy = n.demands.find((g) => g === 'grain' || g === 'legumes' || g === 'meat');
     if (heavy) {
-      const q = tradeQuote(s, { direction: 's', give: { [heavy]: 60 }, get: {} }, DAY);
+      const q = tradeQuote(s, { direction: 'S', give: { [heavy]: 60 }, get: {} }, DAY);
       expect(q.porters).toBe(3);
     }
   });
 
   it('jen sháněné a nabízené zboží, nejvýš zásoby; bilance pro souseda ≥ 0', () => {
     const s = trading();
-    const n = neighbourOf(s.seed, 's');
+    const n = neighbourOf(s.seed, 'S');
     const offered = n.offers[0]!;
     const notWanted = (['grain', 'meat', 'cheese', 'legumes', 'logs'] as TradeGood[]).find(
       (g) => !n.demands.includes(g),
     )!;
-    expect(tradeQuote(s, { direction: 's', give: { [notWanted]: 1 }, get: {} }, DAY).blocked).toBe(
+    expect(tradeQuote(s, { direction: 'S', give: { [notWanted]: 1 }, get: {} }, DAY).blocked).toBe(
       NOT_WANTED,
     );
     const notOffered = n.demands[0]!;
-    expect(tradeQuote(s, { direction: 's', give: {}, get: { [notOffered]: 1 } }, DAY).blocked).toBe(
+    expect(tradeQuote(s, { direction: 'S', give: {}, get: { [notOffered]: 1 } }, DAY).blocked).toBe(
       NOT_OFFERED,
     );
-    const supply = neighbourStock(s, 's', DAY).supply[offered]!;
+    const supply = neighbourStock(s, 'S', DAY).supply[offered]!;
     expect(
-      tradeQuote(s, { direction: 's', give: {}, get: { [offered]: supply + 1 } }, DAY).blocked,
+      tradeQuote(s, { direction: 'S', give: {}, get: { [offered]: supply + 1 } }, DAY).blocked,
     ).toBe(OVER_SUPPLY);
-    expect(tradeQuote(s, { direction: 's', give: {}, get: { [offered]: 1 } }, DAY).blocked).toBe(
+    expect(tradeQuote(s, { direction: 'S', give: {}, get: { [offered]: 1 } }, DAY).blocked).toBe(
       UNFAIR,
     );
     const pay = n.demands[0]!;
     const tooMuch = villageGoodStock(s, pay) + 1;
-    const over = tradeQuote(s, { direction: 's', give: { [pay]: tooMuch }, get: {} }, DAY);
+    const over = tradeQuote(s, { direction: 'S', give: { [pay]: tooMuch }, get: {} }, DAY);
     expect([OVER_STOCK, 'Tolik soused letos nevezme.']).toContain(over.blocked);
   });
 });
@@ -128,23 +128,23 @@ describe('ocenění a kontrola výměny', () => {
 describe('výprava', () => {
   it('zboží odejde, soused ho odepíše; druhá výprava k témuž sousedovi nejde', () => {
     const s = trading();
-    const { give, get } = fairOffer(s, 's');
+    const { give, get } = fairOffer(s, 'S');
     const [pay, amount] = Object.entries(give)[0] as [TradeGood, number];
     const before = villageGoodStock(s, pay);
-    const next = startExpedition(s, DAY, { direction: 's', give, get });
+    const next = startExpedition(s, DAY, { direction: 'S', give, get });
     expect(villageGoodStock(next, pay)).toBe(before - amount);
-    const stock = neighbourStock(next, 's', DAY);
-    expect(stock.demand[pay]).toBe(neighbourOf(s.seed, 's').demand[pay]! - amount);
+    const stock = neighbourStock(next, 'S', DAY);
+    expect(stock.demand[pay]).toBe(neighbourOf(s.seed, 'S').demand[pay]! - amount);
     expect(next.trade!.expeditions).toHaveLength(1);
-    expect(next.chronicle.at(-1)).toMatchObject({ kind: 'trade-departed', direction: 's' });
-    expect(tradeQuote(next, { direction: 's', give, get }, DAY).blocked).toBe(EXPEDITION_AWAY);
-    expect(() => startExpedition(next, DAY, { direction: 's', give, get })).toThrow(
+    expect(next.chronicle.at(-1)).toMatchObject({ kind: 'trade-departed', direction: 'S' });
+    expect(tradeQuote(next, { direction: 'S', give, get }, DAY).blocked).toBe(EXPEDITION_AWAY);
+    expect(() => startExpedition(next, DAY, { direction: 'S', give, get })).toThrow(
       EXPEDITION_AWAY,
     );
   });
 
   it('nosiči berou nejvýš svůj počet za den; zboží dorazí po návratu', () => {
-    const s = startExpedition(trading(), DAY, { direction: 's', ...fairOffer(trading(), 's') });
+    const s = startExpedition(trading(), DAY, { direction: 'S', ...fairOffer(trading(), 'S') });
     const e = s.trade!.expeditions[0]!;
     const work = workExpeditions(s, 100);
     expect(work.used).toBe(Math.min(e.porters, e.cost));
@@ -157,13 +157,13 @@ describe('výprava', () => {
     const [good, amount] = Object.entries(e.get)[0] as [TradeGood, number];
     const before = villageGoodStock(s, good);
     const events = finishExpeditions(s, DAY + 9);
-    expect(events).toEqual([{ day: DAY + 9, kind: 'trade-returned', direction: 's', get: e.get }]);
+    expect(events).toEqual([{ day: DAY + 9, kind: 'trade-returned', direction: 'S', get: e.get }]);
     expect(villageGoodStock(s, good)).toBe(before + amount);
     expect(s.trade!.expeditions).toHaveLength(0);
   });
 
   it('v simulaci se výprava vrátí po dnech cesty a nezávisí na kouscích dopočtu', () => {
-    const s = startExpedition(trading(), DAY, { direction: 's', ...fairOffer(trading(), 's') });
+    const s = startExpedition(trading(), DAY, { direction: 'S', ...fairOffer(trading(), 'S') });
     const days = s.trade!.expeditions[0]!.days;
     const whole = advanceVillage(s, DAY + 40, null, LANDSCAPE);
     const returned = whole.chronicle.find((ev) => ev.kind === 'trade-returned');
@@ -176,7 +176,7 @@ describe('výprava', () => {
   });
 
   it('nosiči jsou v rozdělení práce dne u stezky', () => {
-    const s = startExpedition(trading(), DAY, { direction: 's', ...fairOffer(trading(), 's') });
+    const s = startExpedition(trading(), DAY, { direction: 'S', ...fairOffer(trading(), 'S') });
     const next = advanceVillage(s, DAY + 1, null, LANDSCAPE);
     const share = next.labor!.shares.find((x) => x.activity === 'trade');
     expect(share?.target).toEqual({ kind: 'trail', id: s.trails![0]!.id });

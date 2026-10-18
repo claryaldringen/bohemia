@@ -1105,7 +1105,7 @@ describe('nosiči výpravy po zemské stezce (trade.md)', () => {
       trails: [
         {
           id: 5,
-          direction: 's',
+          direction: 'S',
           points: [
             { x: 0, z: -8 },
             { x: 0, z: -300 },

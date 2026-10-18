@@ -50,14 +50,14 @@ describe('buildTrail', () => {
   it('stezka na jih se začne stavět, na sever nevede, neznámý směr odmítne', async () => {
     const { villages, villageId } = await settled();
     const base = { villageId, landscape: LANDSCAPE, today: TODAY };
-    expect(await buildTrail({ villages }, { ...base, direction: 'n' })).toEqual({
+    expect(await buildTrail({ villages }, { ...base, direction: 'N' })).toEqual({
       ok: false,
       reason: TRAIL_BLOCKED,
     });
     expect(
       await buildTrail({ villages }, { ...base, direction: 'up' as unknown as Direction8 }),
     ).toEqual({ ok: false, reason: UNKNOWN_DIRECTION });
-    const result = await buildTrail({ villages }, { ...base, direction: 's' });
+    const result = await buildTrail({ villages }, { ...base, direction: 'S' });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.village.state.trails).toHaveLength(1);
@@ -69,23 +69,23 @@ describe('sendExpedition', () => {
   it('server výměnu ověří znovu – nevýhodnou odmítne, výhodnou pošle', async () => {
     const { villages, villageId } = await settled();
     const base = { villageId, landscape: LANDSCAPE, today: TODAY };
-    const built = await buildTrail({ villages }, { ...base, direction: 's' });
+    const built = await buildTrail({ villages }, { ...base, direction: 'S' });
     if (!built.ok) throw new Error(built.reason);
     villages.edit(villageId, (state) => {
       state.trails![0]!.builtDay = TODAY;
       state.constructions = state.constructions.filter((c) => c.trail === undefined);
     });
     const state = (await villages.find(villageId))!.state;
-    const n = neighbourOf(state.seed, 's');
+    const n = neighbourOf(state.seed, 'S');
     const want = n.offers[0]!;
     const get = { [want]: 1 } as TradeGoods;
-    expect(await sendExpedition({ villages }, { ...base, direction: 's', give: {}, get })).toEqual({
+    expect(await sendExpedition({ villages }, { ...base, direction: 'S', give: {}, get })).toEqual({
       ok: false,
       reason: UNFAIR,
     });
     const pay = n.demands.find((g) => villageGoodStock(state, g) * sellPrice(g) >= buyPrice(want))!;
     const give = { [pay]: Math.ceil(buyPrice(want) / sellPrice(pay)) } as TradeGoods;
-    const sent = await sendExpedition({ villages }, { ...base, direction: 's', give, get });
+    const sent = await sendExpedition({ villages }, { ...base, direction: 'S', give, get });
     expect(sent.ok).toBe(true);
     if (!sent.ok) return;
     expect(sent.village.state.trade!.expeditions).toHaveLength(1);

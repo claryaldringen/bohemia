@@ -8,14 +8,14 @@ export const DIRECTION_NAMES: Record<
   Direction8,
   { short: string; name: string; arrow: string; from: string }
 > = {
-  n: { short: 'S', name: 'sever', arrow: '↑', from: 'ze severu' },
-  ne: { short: 'SV', name: 'severovýchod', arrow: '↗', from: 'ze severovýchodu' },
-  e: { short: 'V', name: 'východ', arrow: '→', from: 'z východu' },
-  se: { short: 'JV', name: 'jihovýchod', arrow: '↘', from: 'z jihovýchodu' },
-  s: { short: 'J', name: 'jih', arrow: '↓', from: 'z jihu' },
-  sw: { short: 'JZ', name: 'jihozápad', arrow: '↙', from: 'z jihozápadu' },
-  w: { short: 'Z', name: 'západ', arrow: '←', from: 'ze západu' },
-  nw: { short: 'SZ', name: 'severozápad', arrow: '↖', from: 'ze severozápadu' },
+  N: { short: 'S', name: 'sever', arrow: '↑', from: 'ze severu' },
+  NE: { short: 'SV', name: 'severovýchod', arrow: '↗', from: 'ze severovýchodu' },
+  E: { short: 'V', name: 'východ', arrow: '→', from: 'z východu' },
+  SE: { short: 'JV', name: 'jihovýchod', arrow: '↘', from: 'z jihovýchodu' },
+  S: { short: 'J', name: 'jih', arrow: '↓', from: 'z jihu' },
+  SW: { short: 'JZ', name: 'jihozápad', arrow: '↙', from: 'z jihozápadu' },
+  W: { short: 'Z', name: 'západ', arrow: '←', from: 'ze západu' },
+  NW: { short: 'SZ', name: 'severozápad', arrow: '↖', from: 'ze severozápadu' },
 };
 
 /**

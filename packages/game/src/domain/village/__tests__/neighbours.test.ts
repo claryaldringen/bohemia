@@ -16,10 +16,10 @@ import type { VillageState } from '../types';
 
 describe('povaha souseda', () => {
   it('deterministicky ze seedu a směru – jiný směr nebo seed jiný soused', () => {
-    expect(neighbourOf(7, 'n')).toEqual(neighbourOf(7, 'n'));
+    expect(neighbourOf(7, 'N')).toEqual(neighbourOf(7, 'N'));
     const all = DIRECTIONS.map((d) => JSON.stringify(neighbourOf(7, d)));
     expect(new Set(all).size).toBeGreaterThan(4);
-    expect(neighbourOf(8, 'n')).not.toEqual(neighbourOf(7, 'n'));
+    expect(neighbourOf(8, 'N')).not.toEqual(neighbourOf(7, 'N'));
   });
 
   it('2–3 nabízí (aspoň jedno zboží zvenku), 2–3 shání – jen co ves umí, bez překryvu', () => {
@@ -59,16 +59,16 @@ describe('roční zásoby a doplnění 1. 11.', () => {
 
   it('uložený zbytek platí do konce roku obchodu, pak plné zásoby', () => {
     const day = dayIndexOf({ year: 600, month: 12, day: 1 });
-    const fresh = neighbourStock({ seed: 3 }, 's', day);
+    const fresh = neighbourStock({ seed: 3 }, 'S', day);
     expect(fresh.season).toBe(600);
-    expect(fresh.supply).toEqual(neighbourOf(3, 's').supply);
+    expect(fresh.supply).toEqual(neighbourOf(3, 'S').supply);
     const used = { ...fresh, supply: {} };
     const state = { seed: 3, trade: { neighbours: [used], expeditions: [], nextId: 1 } } as Pick<
       VillageState,
       'seed' | 'trade'
     >;
-    expect(neighbourStock(state, 's', day + 100).supply).toEqual({});
+    expect(neighbourStock(state, 'S', day + 100).supply).toEqual({});
     const nextYear = dayIndexOf({ year: 601, month: 11, day: 1 });
-    expect(neighbourStock(state, 's', nextYear).supply).toEqual(neighbourOf(3, 's').supply);
+    expect(neighbourStock(state, 'S', nextYear).supply).toEqual(neighbourOf(3, 'S').supply);
   });
 });
