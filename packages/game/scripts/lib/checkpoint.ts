@@ -43,17 +43,31 @@ interface TaskLine<T> {
  * přerušený uprostřed zápisu) se zahodí. Vrací hotové úlohy podle klíče.
  */
 export function openCheckpoint<T>(path: string, config: Record<string, unknown>): Map<string, T> {
-  const done = new Map<string, T>();
   if (!existsSync(path)) {
     writeFileSync(path, `${encode({ type: 'header', version: VERSION, config })}\n`);
-    return done;
+    return new Map();
   }
-  let text = readFileSync(path, 'utf8');
-  if (!text.endsWith('\n')) {
-    const complete = text.lastIndexOf('\n') + 1;
-    truncateSync(path, Buffer.byteLength(text.slice(0, complete)));
-    text = text.slice(0, complete);
-  }
+  const text = readFileSync(path, 'utf8');
+  const complete = text.lastIndexOf('\n') + 1;
+  if (complete < text.length) truncateSync(path, Buffer.byteLength(text.slice(0, complete)));
+  return parseCheckpoint<T>(text.slice(0, complete), path, config);
+}
+
+/**
+ * Hotové úlohy ze souboru jen ke čtení – soubor nemění, neúplný poslední řádek přeskočí (jde
+ * číst i kontrolní bod běhu, který zrovna běží nebo stojí).
+ */
+export function readCheckpoint<T>(path: string, config: Record<string, unknown>): Map<string, T> {
+  if (!existsSync(path)) throw new Error(`${path} neexistuje.`);
+  const text = readFileSync(path, 'utf8');
+  return parseCheckpoint<T>(text.slice(0, text.lastIndexOf('\n') + 1), path, config);
+}
+
+function parseCheckpoint<T>(
+  text: string,
+  path: string,
+  config: Record<string, unknown>,
+): Map<string, T> {
   const lines = text.split('\n').filter((line) => line.length > 0);
   const header = lines[0] === undefined ? null : decode<HeaderLine>(lines[0]);
   if (header?.type !== 'header' || header.version !== VERSION) {
@@ -64,6 +78,7 @@ export function openCheckpoint<T>(path: string, config: Record<string, unknown>)
       `${path} patří jinému běhu (${encode(header.config)}), teď ${encode(config)} – použij jiný soubor.`,
     );
   }
+  const done = new Map<string, T>();
   for (const line of lines.slice(1)) {
     const task = decode<TaskLine<T>>(line);
     if (task.type === 'task') done.set(task.key, task.result);
@@ -74,9 +89,4 @@ export function openCheckpoint<T>(path: string, config: Record<string, unknown>)
 /** Připíše hotovou úlohu – jeden zápis celého řádku. */
 export function appendCheckpoint<T>(path: string, key: string, result: T): void {
   appendFileSync(path, `${encode({ type: 'task', key, result } satisfies TaskLine<T>)}\n`);
-}
-
-/** Všechny hotové úlohy ze souboru (po doběhnutí – tabulka se počítá ze souboru). */
-export function readCheckpoint<T>(path: string, config: Record<string, unknown>): Map<string, T> {
-  return openCheckpoint<T>(path, config);
 }

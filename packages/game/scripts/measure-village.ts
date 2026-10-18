@@ -17,6 +17,8 @@
 //   --foreground         běžná priorita (jinak nice 19 – běží hlavně, když procesor nepotřebuje
 //                        nic jiného; pozastavit jde i `kill -STOP <pid>`, pokračovat `kill -CONT`)
 //   --eco                navíc jen úsporná jádra (macOS QoS background) – ≈ 6× pomalejší
+//   --report-only        jen tabulka z hotových vsí v --out (nic nepočítá, soubor nemění – jde
+//                        i u běhu, který zrovna běží nebo stojí; neúplný vzorek hlásí)
 //
 // Strategie hráče:
 // - Krajina `real`: obydlí stojí uprostřed místa pro vesnici, les a překážky z vrstvy překážek
@@ -131,10 +133,11 @@ interface Config {
   workers: number;
   foreground: boolean;
   eco: boolean;
+  reportOnly: boolean;
 }
 
 const QUICK_VILLAGES = 50;
-const FLAGS_WITHOUT_VALUE = ['quick', 'foreground', 'eco'];
+const FLAGS_WITHOUT_VALUE = ['quick', 'foreground', 'eco', 'report-only'];
 const FLAGS_WITH_VALUE = ['land', 'variant', 'out', 'workers'];
 
 function parseConfig(argv: readonly string[]): Config {
@@ -175,6 +178,7 @@ function parseConfig(argv: readonly string[]): Config {
     workers: count(flags.get('workers'), defaultWorkers(), '--workers'),
     foreground: flags.has('foreground'),
     eco: flags.has('eco'),
+    reportOnly: flags.has('report-only'),
   };
 }
 
@@ -1431,8 +1435,13 @@ async function main(): Promise<void> {
     ...Array.from({ length: config.villages }, (_, index): Task => ({ kind: 'village', index })),
   ];
   const out = config.out;
-  const done = out ? openCheckpoint<TaskResult>(out, checkpointConfig()) : new Map();
-  const todo = tasks.filter((t) => !done.has(taskKey(t)));
+  if (config.reportOnly && !out) throw new Error('--report-only potřebuje --out soubor.jsonl.');
+  const done = !out
+    ? new Map<string, TaskResult>()
+    : config.reportOnly
+      ? readCheckpoint<TaskResult>(out, checkpointConfig())
+      : openCheckpoint<TaskResult>(out, checkpointConfig());
+  const todo = config.reportOnly ? [] : tasks.filter((t) => !done.has(taskKey(t)));
   let finished = tasks.length - todo.length;
   console.error(
     `Kalibrace: ${tasks.length} úloh, hotovo ${finished}, vláken ${Math.min(config.workers, todo.length)}, ${priority}${out ? `, kontrolní bod ${out}` : ''}`,
@@ -1456,6 +1465,10 @@ async function main(): Promise<void> {
   const probes = Object.fromEntries(
     results.flatMap((r) => (r.kind === 'probe' ? [[r.probe, r.summary]] : [])),
   ) as Record<ProbeName, ProbeSummary>;
+  const missingProbes = (Object.keys(PROBES) as ProbeName[]).filter((p) => !(p in probes));
+  if (missingProbes.length > 0) {
+    throw new Error(`Sondy ještě nedoběhly (${missingProbes.join(', ')}) – tabulka zatím nejde.`);
+  }
   const rows = report(villages, probes);
 
   const width = (key: 'name' | 'target' | 'measured'): number =>
@@ -1470,8 +1483,12 @@ async function main(): Promise<void> {
     config.variant === 'meadow-burn'
       ? 'pálení drnu (louka 50 člověkodní/ha, 1. sezóna −20)'
       : 'pravidla hry';
+  const sample =
+    villages.length < config.villages
+      ? `NEÚPLNÝ – ${villages.length} z ${config.villages} vsí`
+      : `${config.villages} vsí`;
   console.log(
-    `Vzorek: ${config.villages} vsí × ${config.years} let, krok hráče ${STEP_DAYS} dní, ${landText}, ${variantText} (sondy ${PROBE_SEEDS} vsí × ${PROBE_YEARS} let na syntetické louce, ustálený oběh od ${PROBE_FROM_YEAR}. roku)`,
+    `Vzorek: ${sample} × ${config.years} let, krok hráče ${STEP_DAYS} dní, ${landText}, ${variantText} (sondy ${PROBE_SEEDS} vsí × ${PROBE_YEARS} let na syntetické louce, ustálený oběh od ${PROBE_FROM_YEAR}. roku)`,
   );
   console.log(line({ name: 'Cíl', target: 'Spec', measured: 'Naměřeno', status: '–' }));
   for (const r of rows) console.log(line(r));

@@ -561,7 +561,8 @@ rozhraní částí v
   sondy pevných domácností běží vždy na syntetické louce s úrodností 70. Běží na pozadí (nice 19,
   polovina jader, `--workers N`, `--eco` jen úsporná jádra – ≈ 6× pomalejší) a s
   `--out soubor.jsonl` si hotové vsi ukládá – přerušený běh (Ctrl+C) stejný příkaz dokončí, po
-  změně pravidel nový soubor. Varianty pravidel jen pro kalibraci: `--variant meadow-burn` (pálení
+  změně pravidel nový soubor; `--report-only` vypíše tabulku z hotových vsí bez počítání (i u
+  běhu, který stojí). Varianty pravidel jen pro kalibraci: `--variant meadow-burn` (pálení
   drnu). Ustálený stav bez simulace (osev, pole, práce po měsících, špičky, zásoby, dřevo, sad)
   okamžitě: `village-calculator.ts` (jádro `scripts/lib/steady-state.ts`). Kopii stavu na začátku
   `advanceVillage` dělá `cloneState` (`clone.ts` – ručně, stav jsou data jako v JSON) a stavby polí
