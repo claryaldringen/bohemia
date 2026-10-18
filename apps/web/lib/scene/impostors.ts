@@ -1,5 +1,6 @@
 import '@babylonjs/core/Meshes/thinInstanceMesh';
 import type { ArcRotateCamera } from '@babylonjs/core/Cameras/arcRotateCamera';
+import type { AbstractEngine } from '@babylonjs/core/Engines/abstractEngine';
 import { Constants } from '@babylonjs/core/Engines/constants';
 import { Material } from '@babylonjs/core/Materials/material';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
@@ -38,8 +39,10 @@ export interface ImpostorForest {
  * Vnitřek lesa z impostorů: pro každou buňku atlasu (a její zrcadlový obraz) jeden svislý
  * čtverec s instancemi. Čtverce se natáčejí k vodorovnému směru kamery – náklon kamery je pevný
  * a obrázky jsou vyrenderované právě pod ním. Když se atlas nenačte, les zůstane bez impostorů.
- * Zimní atlas se stahuje souběžně a nečeká se na něj; až dorazí, zavolá `onShadowAtlasChange`,
- * pokud ho mezitím chtěly stíny (scéna pak obnoví stínovou mapu a překreslí se).
+ * Zimní atlas je nepovinný: stahuje se souběžně a na připravenost scény nečeká (textura patří
+ * enginu, ne scéně – `whenReadyAsync` na ni nečeká). Až dorazí, zavolá `onWinterAtlas` (scéna se
+ * překreslí, a pokud ho mezitím chtěly stíny, obnoví stínovou mapu); když se nenačte, zůstane
+ * jen letní atlas.
  */
 export async function addImpostors(
   scene: Scene,
@@ -49,9 +52,23 @@ export async function addImpostors(
   onWinterAtlas: (shadowAtlasChanged: boolean) => void = () => undefined,
 ): Promise<ImpostorForest | null> {
   if (placements.length === 0) return null;
-  const winterLoad = loadTexture(scene, IMPOSTOR_ATLAS.winterUrl);
-  const texture = await loadTexture(scene, IMPOSTOR_ATLAS.url);
-  if (scene.isDisposed) return null;
+  const winterLoad = loadTexture(scene.getEngine(), IMPOSTOR_ATLAS.winterUrl).catch(
+    (error: unknown) => {
+      console.warn('Zimní atlas stromů se nepodařilo načíst – les zůstane v zimě listnatý.', error);
+      return null;
+    },
+  );
+  let texture: Texture;
+  try {
+    texture = await loadTexture(scene, IMPOSTOR_ATLAS.url);
+  } catch (error) {
+    void winterLoad.then((winter) => winter?.dispose());
+    throw error;
+  }
+  if (scene.isDisposed) {
+    void winterLoad.then((winter) => winter?.dispose());
+    return null;
+  }
 
   const material = new StandardMaterial('impostor-material', scene);
   material.diffuseTexture = texture;
@@ -75,16 +92,17 @@ export async function addImpostors(
     material.diffuseTexture = atlas;
     return true;
   };
-  winterLoad.then(
-    (winter) => {
-      if (scene.isDisposed) return;
-      winter.hasAlpha = true;
-      atlases.winter = winter;
-      onWinterAtlas(applyShadowAtlas());
-    },
-    (error: unknown) =>
-      console.warn('Zimní atlas stromů se nepodařilo načíst – les zůstane v zimě listnatý.', error),
-  );
+  void winterLoad.then((winter) => {
+    if (!winter) return;
+    if (scene.isDisposed) {
+      winter.dispose();
+      return;
+    }
+    scene.onDisposeObservable.addOnce(() => winter.dispose());
+    winter.hasAlpha = true;
+    atlases.winter = winter;
+    onWinterAtlas(applyShadowAtlas());
+  });
 
   const quads = IMPOSTOR_ATLAS.cells
     .flatMap((cell, index) =>
@@ -183,9 +201,9 @@ function createQuad(
   };
 }
 
-function loadTexture(scene: Scene, url: string): Promise<Texture> {
+function loadTexture(owner: Scene | AbstractEngine, url: string): Promise<Texture> {
   return new Promise((resolve, reject) => {
-    const texture: Texture = new Texture(url, scene, {
+    const texture: Texture = new Texture(url, owner, {
       samplingMode: Constants.TEXTURE_TRILINEAR_SAMPLINGMODE,
       onLoad: () => resolve(texture),
       onError: (message, exception) => {
