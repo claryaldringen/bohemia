@@ -15,6 +15,20 @@ const SELECTION_COLOR = new Color3(1, 0.86, 0.45);
 const DWELLING_RING_MARGIN_M = 1.2;
 /** Kroužek kolem posvátného dubu – kolem kruhu kamenů obětin (m). */
 const OAK_RING_RADIUS_M = 2.6;
+/** Čáry výběru úseku cesty od osy (m) – kousek za okrajem pásu vyšlapané a upravené cesty. */
+const ROAD_RING_M = { trodden: 1.6, improved: 2.2 } as const;
+
+/** Lomená čára posunutá o `d` m kolmo (vlevo kladně) – v bodech zlomu podle průměru směrů. */
+export function offsetLine(points: readonly { x: number; z: number }[], d: number): Point[] {
+  return points.map((p, k) => {
+    const a = points[Math.max(0, k - 1)]!;
+    const b = points[Math.min(points.length - 1, k + 1)]!;
+    const dx = b.x - a.x;
+    const dz = b.z - a.z;
+    const l = Math.hypot(dx, dz) || 1;
+    return [p.x - (dz / l) * d, p.z + (dx / l) * d];
+  });
+}
 
 /** Zvýraznění vybraného obydlí, pole nebo hřbitova – rámeček na zemi (obtisk). */
 export class SelectionHighlight {
@@ -110,6 +124,13 @@ export function targetOutline(village: SceneVillage, target: VillageTarget): Poi
   if (target.kind === 'pen') {
     const pen = village.pens?.find((p) => p.id === target.id);
     return pen ? cellsBoundary([pen]) : [];
+  }
+  if (target.kind === 'road') {
+    const road = village.roads?.find((r) => r.id === target.id);
+    if (!road) return [];
+    // úsek cesty: čáry po obou stranách pásu cesty
+    const half = road.grade === 'trodden' ? ROAD_RING_M.trodden : ROAD_RING_M.improved;
+    return [offsetLine(road.points, half), offsetLine(road.points, -half)];
   }
   const field = village.fields.find((f) => f.id === target.id);
   if (!field || field.parts.length === 0) return [];

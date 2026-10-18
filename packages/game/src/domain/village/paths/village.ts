@@ -19,8 +19,14 @@ import {
   type PathSquare,
   type PathVillage,
 } from './network';
-import { obstaclePosition, pathTerrainOf, pathWindowFor, withObstacles } from './terrain';
-import { walkGraph, walkingDistances } from './walking';
+import {
+  PATH_FOREST_EDGE,
+  obstaclePosition,
+  pathTerrainOf,
+  pathWindowFor,
+  withObstacles,
+} from './terrain';
+import { walkGraph, walkGroundOf, walkingDistances, type WalkGround } from './walking';
 
 // Pěšiny ze stavu vsi (paths.md – Pěšiny a práce): server skládá ves pro pěšiny stejně jako
 // scéna (village-view.ts – SceneVillage), spočítá stejnou síť a z ní vzdálenosti chůze dílů
@@ -174,7 +180,9 @@ export function pathVillageOf(state: VillageState, day: number, landscape: Lands
         }
       : {}),
     obstacles: changes,
-    ...(roads.length > 0 ? { roads: roads.map((r) => ({ points: r.points })) } : {}),
+    ...(roads.length > 0
+      ? { roads: roads.map((r) => ({ id: r.id, points: r.points, grade: r.grade })) }
+      : {}),
     ...(pens.length > 0 ? { pens } : {}),
     ...(state.livestock ? { livestock: pastureLivestock(state, day) } : {}),
   };
@@ -265,9 +273,12 @@ function dwellingOrigins(state: VillageState): Position[] {
 }
 
 /**
- * Vzdálenosti chůze dílů pole po pěšinách (`FieldPart.walkDistanceM`, mutuje stav): přepočítá
- * je, jen když se od posledního výpočtu změnilo rozložení vsi (`walkLayoutKey`). Vzdálenost
- * dílu je nejvýš jeho přímá vzdálenost (`distanceM`) – pěšina práci jen zlevní.
+ * Vzdálenosti chůze po pěšinách a pevných cestách (mutuje stav – paths.md, roads.md – Rychlejší
+ * chůze): díly pole (`FieldPart.walkDistanceM`) a čtverce sadů (`OrchardSquare.walkDistanceM`)
+ * z nejbližšího obydlí, palivo z obydlí k nejbližšímu okraji lesa (`Dwelling.forestWalkM`).
+ * Přepočítá je, jen když se od posledního výpočtu změnilo rozložení vsi (`walkLayoutKey` – i pevné
+ * cesty a jejich stupeň, takže i po dokončení vylepšení). Chůze rovně počítá mokřinu a brody
+ * (`walkGroundOf`) – pole za potokem bez cesty zdraží, s hatí a lávkou zlevní.
  */
 export function refreshWalkDistances(
   state: VillageState,
@@ -278,18 +289,73 @@ export function refreshWalkDistances(
   const key = walkLayoutKey(state, day);
   if (state.walkLayoutKey === key) return;
   state.walkLayoutKey = key;
-  const parts = state.parts.filter((p) => p.cell !== undefined);
-  const network = parts.length > 0 ? villagePathNetwork(state, day, landscape, obstacles) : null;
+  const network = villagePathNetwork(state, day, landscape, obstacles);
   if (!network) {
     for (const p of state.parts) delete p.walkDistanceM;
+    for (const o of villageOrchards(state)) for (const s of o.squares) delete s.walkDistanceM;
+    for (const d of state.dwellings) delete d.forestWalkM;
     return;
   }
+  const ground = walkGroundOf(landscape);
+  const graph = walkGraph(network.lines, { roads: state.roads?.roads ?? [], ground });
   const origins = dwellingOrigins(state);
-  const targets = parts.map((p) => tileCenterWorld(landscape, p.cell!.x, p.cell!.y));
-  const walks = walkingDistances(walkGraph(network.lines), origins, targets);
+  const rounded = (walk: number): number => Math.floor(walk * WALK_ROUNDING) / WALK_ROUNDING;
+  const parts = state.parts.filter((p) => p.cell !== undefined);
+  const squares = villageOrchards(state).flatMap((o) => o.squares);
+  const targets = [...parts.map((p) => p.cell!), ...squares.map((s) => s.cell)].map((cell) =>
+    tileCenterWorld(landscape, cell.x, cell.y),
+  );
+  const walks = targets.length > 0 ? walkingDistances(graph, origins, targets, ground) : [];
   parts.forEach((p, k) => {
-    // dolů na desetiny – zaokrouhlení nesmí vzdálenost prodloužit nad přímou
-    const walk = Math.min(p.distanceM, walks[k]!);
-    p.walkDistanceM = Math.floor(walk * WALK_ROUNDING) / WALK_ROUNDING;
+    p.walkDistanceM = rounded(walks[k]!);
   });
+  squares.forEach((s, k) => {
+    s.walkDistanceM = rounded(walks[parts.length + k]!);
+  });
+  // palivo: z každého obydlí k nejbližšímu okraji lesa (vzdušnou čarou) chůzí
+  const edges = forestEdges(ground);
+  for (const d of state.dwellings) {
+    const edge = nearestPoint(edges, d.position);
+    if (!edge) {
+      delete d.forestWalkM;
+      continue;
+    }
+    d.forestWalkM = rounded(walkingDistances(graph, [d.position], [edge], ground)[0]!);
+  }
+}
+
+const edgesCache = new WeakMap<WalkGround, { x: number; z: number }[]>();
+
+/** Body okraje lesa (kam se chodí pro dřevo – PATH_FOREST_EDGE) v okně půdy pro chůzi. */
+function forestEdges(ground: WalkGround): { x: number; z: number }[] {
+  const cached = edgesCache.get(ground);
+  if (cached) return cached;
+  const t = ground.terrain;
+  const out: { x: number; z: number }[] = [];
+  for (let j = 0; j < t.height; j++) {
+    for (let i = 0; i < t.width; i++) {
+      if (t.flags[j * t.width + i]! & PATH_FOREST_EDGE) {
+        out.push({ x: t.originX + i * t.cellM, z: t.originZ + j * t.cellM });
+      }
+    }
+  }
+  edgesCache.set(ground, out);
+  return out;
+}
+
+/** Nejbližší bod vzdušnou čarou (při shodě první); bez bodů null. */
+function nearestPoint(
+  points: readonly { x: number; z: number }[],
+  from: { x: number; z: number },
+): { x: number; z: number } | null {
+  let best: { x: number; z: number } | null = null;
+  let bestD = Infinity;
+  for (const p of points) {
+    const d = (p.x - from.x) * (p.x - from.x) + (p.z - from.z) * (p.z - from.z);
+    if (d < bestD) {
+      best = p;
+      bestD = d;
+    }
+  }
+  return best;
 }

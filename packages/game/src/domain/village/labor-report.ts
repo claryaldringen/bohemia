@@ -293,6 +293,11 @@ function constructionShares(work: ConstructionWork): LaborShare[] {
     if (c.penId === null || c.penId === undefined) return [];
     return penShares(work, { kind: 'pen', id: c.penId });
   }
+  if (c.kind === 'road') {
+    // vylepšení pevné cesty (roads.md) – kácení dřeva hatě, pak práce na úseku
+    const roadId = c.roadIds?.[0];
+    return roadId === undefined ? [] : penShares(work, { kind: 'road', id: roadId }, 'build');
+  }
   if (c.kind === 'cemetery') {
     return c.cemeteryId === null || c.cemeteryId === undefined
       ? []

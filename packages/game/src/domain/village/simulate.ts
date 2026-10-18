@@ -28,6 +28,8 @@ import { ableTeams, finishPen, ploughCapacityPerDay } from './oxen';
 import { recordClearedObstacles } from './obstacles';
 import { roadsDay } from './paths/roads';
 import { refreshWalkDistances } from './paths/village';
+import { roadWalk, walkGroundOf } from './paths/walking';
+import { finishRoadUpgrade } from './road-upgrades';
 import { relocationPlot } from './plots';
 import { allocateDay, type LaborTaskName } from './labor';
 import { laborDay, type ConstructionWork } from './labor-report';
@@ -776,6 +778,12 @@ function finishConstructions(state: VillageState, day: number): void {
       state.chronicle.push(finishedEvent(day, c, null));
       continue;
     }
+    if (c.kind === 'road') {
+      // vylepšená pevná cesta – rychlejší chůze (roads.md); vzdálenosti chůze se přepočítají
+      finishRoadUpgrade(state, c);
+      state.chronicle.push(finishedEvent(day, c, null));
+      continue;
+    }
     if (c.kind === 'pen' || c.kind === 'ard') {
       // dostavěná ohrada přijme dobytek, hotové rádlo čeká na vycvičené voly (oxen.md)
       if (c.kind === 'pen' && c.penId !== null && c.penId !== undefined) {
@@ -931,8 +939,11 @@ function decideRebuilds(
       landscape && obstacles && !d.plot && !craft
         ? relocationPlot(state, landscape, obstacles, d, type, day)
         : null;
+    // kácení chůzí po pevných cestách (roads.md) – jen s krajinou
+    const walk = landscape ? roadWalk(state.roads?.roads ?? [], walkGroundOf(landscape)) : null;
     const plan = planDwellingWood(state, type, site?.position ?? d.position, day, {
       obstacles,
+      ...(walk ? { walk } : {}),
       ...(craft ? { trees: workshopTrees(craft) } : {}),
       ...(site
         ? { clearedTrees: site.check.clearedTrees, clearedIds: site.check.obstacleIds }

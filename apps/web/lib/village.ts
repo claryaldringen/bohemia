@@ -14,6 +14,7 @@ import {
   placeWorkshop,
   renameVillage,
   trainTeamInPen,
+  upgradeRoad,
   type Craft,
   type DwellingPlot,
   type DwellingType,
@@ -275,6 +276,26 @@ export async function trainTeamForPlayer(
       landscape: ctx.landscape,
       today: ctx.day,
       penId: input.penId,
+    },
+  );
+  return toActionResult(result, ctx.landscape, ctx.day);
+}
+
+/** Vylepšení pevné cesty (roads.md – Vylepšení cesty): upravená cesta, nebo hať a lávka. */
+export async function upgradeRoadForPlayer(
+  playerId: string,
+  input: { roadId: number; upgrade: 'improved' | 'causeway' },
+): Promise<VillageActionResult> {
+  const ctx = await context(playerId);
+  if (!ctx.ok) return { error: ctx.error };
+  const result = await upgradeRoad(
+    { villages: villages() },
+    {
+      settlementId: ctx.settlementId,
+      landscape: ctx.landscape,
+      today: ctx.day,
+      roadId: input.roadId,
+      upgrade: input.upgrade,
     },
   );
   return toActionResult(result, ctx.landscape, ctx.day);

@@ -64,7 +64,7 @@ import {
   type SimulatedPart,
 } from './dev-holdings';
 import { demoLabor } from './dev-labor';
-import { demoRoad } from './dev-road';
+import { DEMO_ROAD_STAGES, demoRoad, demoRoadStage } from './dev-road';
 import {
   placementVillageFromScene,
   scenePlot,
@@ -159,6 +159,8 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   const [pathInfo, setPathInfo] = useState('');
   // ukázka pevné cesty se stromy v různém stáří (roads.md, dev-road.ts)
   const [road, setRoad] = useState<Pick<SceneVillage, 'roads' | 'roadTrees'> | null>(null);
+  // stupeň vylepšení ukázkových cest (dev-road.ts – DEMO_ROAD_STAGES)
+  const [roadStage, setRoadStage] = useState(0);
   // hospodaření podle polohy domů (fields.md): obrysy úseků a vzorec polí ze simulace jádra
   const [holdingsOn, setHoldingsOn] = useState(false);
   const [simulated, setSimulated] = useState<Map<string, SimulatedPart> | null>(null);
@@ -178,7 +180,9 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
       orchards,
       woodLogs,
       obstacles,
-      ...(road ?? {}),
+      ...(road
+        ? { roads: demoRoadStage(road.roads ?? [], roadStage), roadTrees: road.roadTrees ?? [] }
+        : {}),
       ...(sacredOaks.length > 0 || groves.length > 0 || sacredBuildings.length > 0
         ? { sacred: { oaks: sacredOaks, groves, buildings: sacredBuildings } }
         : {}),
@@ -221,6 +225,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     sacredBuildings,
     pathAge,
     road,
+    roadStage,
     simulated,
   ]);
 
@@ -1164,6 +1169,16 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         >
           {road ? 'Cesta ✓' : 'Cesta'}
         </button>
+        {road && (
+          <button
+            className={buttonClass}
+            onClick={() => setRoadStage((s) => (s + 1) % DEMO_ROAD_STAGES.length)}
+            title="Stupeň vylepšení ukázkových cest (s rozestavěnými fázemi)"
+            data-testid="dev-road-stage"
+          >
+            Cesta: {DEMO_ROAD_STAGES[roadStage]!.label}
+          </button>
+        )}
         <button
           className={buttonClass}
           disabled={!scene}

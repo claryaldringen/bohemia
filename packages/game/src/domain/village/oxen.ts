@@ -6,6 +6,7 @@ import { PLOUGH_HA_PER_DAY, ploughWorkPerHa } from './plough';
 import { fieldWorkPerHa } from './productivity';
 import { FELLING_MAN_DAYS_PER_TREE } from './rules';
 import type { ChronicleEvent, CropWork, FieldPart, Pen, TileCell, VillageState } from './types';
+import type { Walk } from './paths/walking';
 import { addLogs, claimedObstacles, planWoodFrom, takeWood, woodLogs, type WoodPlan } from './wood';
 import { partWeight, planCrops } from './year-plan';
 
@@ -231,6 +232,7 @@ function penWood(
   obstacles: ObstacleLayer | null,
   clearedIds: readonly number[] = [],
   clearedTrees = 0,
+  walk?: Walk,
 ): WoodPlan {
   return planWoodFrom(
     trees,
@@ -240,7 +242,7 @@ function penWood(
       changes: () => obstacleChangesAt(state, day),
       claimed: () => claimedObstacles(state),
     },
-    { obstacles, clearedIds, clearedTrees },
+    { obstacles, clearedIds, clearedTrees, ...(walk ? { walk } : {}) },
   );
 }
 
@@ -277,6 +279,7 @@ export function startTeamTraining(
   day: number,
   penId: number,
   obstacles: ObstacleLayer | null,
+  walk?: Walk,
 ): VillageState {
   const block = trainingBlock(state, penId, day, obstacles);
   if (block) throw new RangeError(block);
@@ -285,7 +288,7 @@ export function startTeamTraining(
   const livestock = ensureLivestock(next);
   livestock.herds.cow = Math.max(0, livestock.herds.cow - OXEN.teamSize);
   pen.training = { startDay: day };
-  const wood = takeWood(next, penWood(next, ARD.trees, pen, day, obstacles));
+  const wood = takeWood(next, penWood(next, ARD.trees, pen, day, obstacles, [], 0, walk));
   next.constructions.push({
     id: next.nextId++,
     kind: 'ard',
@@ -331,8 +334,18 @@ export function planPenWood(
   input: Pick<PenInput, 'x' | 'z' | 'obstacleIds' | 'clearedTrees'>,
   day: number,
   obstacles: ObstacleLayer | null,
+  walk?: Walk,
 ): WoodPlan {
-  return penWood(state, PEN.trees, input, day, obstacles, input.obstacleIds, input.clearedTrees);
+  return penWood(
+    state,
+    PEN.trees,
+    input,
+    day,
+    obstacles,
+    input.obstacleIds,
+    input.clearedTrees,
+    walk,
+  );
 }
 
 /**
@@ -346,8 +359,9 @@ export function startPen(
   day: number,
   input: PenInput,
   obstacles: ObstacleLayer | null,
+  walk?: Walk,
 ): VillageState {
-  const plan = planPenWood(state, input, day, obstacles);
+  const plan = planPenWood(state, input, day, obstacles, walk);
   if (plan.missing > 0) throw new RangeError('Na ohradu chybí dřevo – klády ani stromy nestačí.');
   const next = structuredClone(state);
   recordClearedObstacles(next, input.obstacleIds, day);

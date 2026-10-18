@@ -1,14 +1,20 @@
 // VÝVOJOVÝ NÁSTROJ – ukázka pevné cesty se stromy v různém stáří na /dev/landscape (bez
 // databáze a simulace). Skutečné pevné cesty a stromy u nich počítá herní jádro jednou za rok
 // (roads.md, paths/roads.ts) – tady jen jedna cesta od vsi přes louku, místa na stromy ze stejné
-// funkce jádra a na nich stromy po řadě v každém stadiu (keř, mladý, plný strom, souš, pařez).
+// funkce jádra a na nich stromy po řadě v každém stadiu (keř, mladý, plný strom, souš, pařez);
+// druhá cesta vede k nejbližšímu brodu přes potok (mokřina a brod z terénu jádra) a obě jdou
+// přepnout po stupních vylepšení (`DEMO_ROAD_STAGES`).
 import {
+  PATH_FORD,
   ROAD_TREE_ID_BASE,
+  roadGroundOf,
   roadTreeSpots,
+  walkGroundOf,
   surfaceAt,
   tileCenterWorld,
   tileOfWorldPoint,
   type Landscape,
+  type RoadGrade,
   type RoadTreeSpecies,
 } from '@bohemia/game';
 import type { SceneRoad, SceneRoadTree } from '@/lib/village-view';
@@ -62,6 +68,7 @@ export function demoRoad(l: Landscape): { roads: SceneRoad[]; trees: SceneRoadTr
       points = candidate;
     }
   }
+  const ground = walkGroundOf(l).terrain;
   const spots = roadTreeSpots(points, 7, meadow);
   const trees = spots.map((p, k): SceneRoadTree => ({
     id: ROAD_TREE_ID_BASE + k,
@@ -70,5 +77,59 @@ export function demoRoad(l: Landscape): { roads: SceneRoad[]; trees: SceneRoadTr
     species: DEMO_SPECIES[k % DEMO_SPECIES.length]!,
     ...DEMO_STAGES[k % DEMO_STAGES.length]!,
   }));
-  return { roads: [{ id: 1, points, grade: 'trodden' }], trees };
+  const roads: SceneRoad[] = [
+    { id: 1, points, grade: 'trodden', ground: roadGroundOf(points, ground) },
+  ];
+  // cesta k nejbližšímu brodu a kus za něj – mokřina a brod pro hať a lávku
+  let ford: { x: number; z: number } | null = null;
+  let fordD = Infinity;
+  for (let j = 0; j < ground.height; j++) {
+    for (let i = 0; i < ground.width; i++) {
+      if (!(ground.flags[j * ground.width + i]! & PATH_FORD)) continue;
+      const x = ground.originX + i * ground.cellM;
+      const z = ground.originZ + j * ground.cellM;
+      const d = Math.hypot(x - center.x, z - center.z);
+      if (d < fordD) {
+        fordD = d;
+        ford = { x, z };
+      }
+    }
+  }
+  if (ford && fordD > 20) {
+    const dx = (ford.x - center.x) / fordD;
+    const dz = (ford.z - center.z) / fordD;
+    const start = Math.min(30, fordD / 2);
+    const axis = [0, 0.5, 1].map((t) => {
+      const along = start + (fordD + 30 - start) * t;
+      return {
+        x: Math.round((center.x + dx * along) * 100) / 100,
+        z: Math.round((center.z + dz * along) * 100) / 100,
+      };
+    });
+    roads.push({ id: 2, points: axis, grade: 'trodden', ground: roadGroundOf(axis, ground) });
+  }
+  return { roads, trees };
+}
+
+/** Stupně ukázky: vyšlapaná, úprava rozestavěná, upravená, hať rozestavěná, hať a lávka. */
+export const DEMO_ROAD_STAGES: readonly {
+  label: string;
+  grade: RoadGrade;
+  upgrade?: { grade: RoadGrade; progress: number };
+}[] = [
+  { label: 'vyšlapaná', grade: 'trodden' },
+  { label: 'úprava 40 %', grade: 'trodden', upgrade: { grade: 'improved', progress: 0.4 } },
+  { label: 'upravená', grade: 'improved' },
+  { label: 'hať 50 %', grade: 'improved', upgrade: { grade: 'causeway', progress: 0.5 } },
+  { label: 'hať a lávka', grade: 'causeway' },
+];
+
+/** Ukázkové cesty ve stupni `stage` (index v DEMO_ROAD_STAGES). */
+export function demoRoadStage(roads: readonly SceneRoad[], stage: number): SceneRoad[] {
+  const s = DEMO_ROAD_STAGES[stage % DEMO_ROAD_STAGES.length]!;
+  return roads.map((r) => {
+    const { upgrade: _old, ...rest } = r;
+    void _old;
+    return { ...rest, grade: s.grade, ...(s.upgrade ? { upgrade: s.upgrade } : {}) };
+  });
 }

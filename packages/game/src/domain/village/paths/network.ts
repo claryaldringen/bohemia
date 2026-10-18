@@ -7,6 +7,7 @@ import type {
   Craft,
   DwellingType,
   HerdSpecies,
+  RoadGrade,
   LaborTarget,
   Position,
   SacredBuildingKind,
@@ -125,7 +126,7 @@ export interface PathVillage {
   /** Odstraněné a pokácené překážky (počty – klíč sítě). */
   obstacles?: Pick<ObstacleChanges, 'removed' | 'stumps'>;
   /** Pevné cesty (roads.md) – po nich se jde jako po plné pěšině. Bez údaje žádné. */
-  roads?: readonly { points: readonly PathPoint[] }[];
+  roads?: readonly { id?: number; points: readonly PathPoint[]; grade?: RoadGrade }[];
   /**
    * Ohrady (oxen.md) – čtverec jako díl pole a jestli je hotová: plot obchází, k ohradě se chodí
    * krmit dobytek. Bez údaje žádné.
@@ -366,6 +367,26 @@ export function pathNetworkKey(village: PathVillage): string {
   ]);
 }
 
+/** Bod v polovině lomené čáry. */
+function middleOf(points: readonly PathPoint[]): PathPoint {
+  let total = 0;
+  for (let k = 1; k < points.length; k++) {
+    total += length2(points[k]!.x - points[k - 1]!.x, points[k]!.z - points[k - 1]!.z);
+  }
+  let along = 0;
+  for (let k = 1; k < points.length; k++) {
+    const a = points[k - 1]!;
+    const b = points[k]!;
+    const length = length2(b.x - a.x, b.z - a.z);
+    if (length > 0 && along + length >= total / 2) {
+      const u = (total / 2 - along) / length;
+      return { x: a.x + (b.x - a.x) * u, z: a.z + (b.z - a.z) * u };
+    }
+    along += length;
+  }
+  return points[0]!;
+}
+
 /** Kolik stád se pase (ovce s kozami, krávy – PASTURE); prasata ne. */
 export function pastureHerds(livestock: PathVillage['livestock']): number {
   const whole = (n: number | undefined): number => Math.max(0, Math.round(n ?? 0));
@@ -375,13 +396,13 @@ export function pastureHerds(livestock: PathVillage['livestock']): number {
   );
 }
 
-/** Klíč pevných cest – počet bodů a konce každé osy (osa se jinak nemění). */
+/** Klíč pevných cest – počet bodů, konce každé osy (osa se jinak nemění) a stupeň. */
 export function roadsKey(roads: PathVillage['roads']): string {
   return (roads ?? [])
     .map((r) => {
       const a = r.points[0];
       const b = r.points[r.points.length - 1];
-      return a && b ? `${r.points.length}:${a.x},${a.z}:${b.x},${b.z}` : '';
+      return a && b ? `${r.points.length}:${a.x},${a.z}:${b.x},${b.z}:${r.grade ?? ''}` : '';
     })
     .join(';');
 }
@@ -898,6 +919,12 @@ function tripGroups(
     if (weights.every((w) => w <= 0)) return;
     groups.push({ sources, weights, maxCost: groupReach(grid, sources, homes) });
   });
+  // vylepšení pevné cesty (roads.md) – nosí se k polovině úseku
+  for (const road of v.roads ?? []) {
+    if (road.id === undefined || road.points.length === 0) continue;
+    const trips = work(`road:${road.id}`);
+    if (trips > 0) target(cellsAround(grid, middleOf(road.points), 3), trips);
+  }
   // ohrada: krmení a napájení dobytka, stavba a rádlo (práce dne na ohradě)
   for (const pen of v.pens ?? []) {
     const base = pen.built ? BASE_TRIPS.pen : BASE_TRIPS.site;

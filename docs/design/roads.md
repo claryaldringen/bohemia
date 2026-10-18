@@ -1,8 +1,9 @@
 # Pevné cesty – stromy podél nich a vylepšení
 
 Stav: schváleno 18. 10. 2026 (Martin: „Ano, spusť to takhle“). **Fáze 1 hotová** (18. 10. 2026 –
-pevné cesty a stromy u nich, viz [Fáze 1 – jak je postavená](#fáze-1--jak-je-postavená)); výběr,
-vylepšení a rychlejší chůze (fáze 2) a jabloně (fáze 3) zatím ne. Navazuje na
+pevné cesty a stromy u nich, viz [Fáze 1 – jak je postavená](#fáze-1--jak-je-postavená)),
+**fáze 2 hotová** (výběr, vylepšení a rychlejší chůze – [Fáze 2](#fáze-2--jak-je-postavená));
+jabloně (fáze 3) zatím ne. Navazuje na
 [vyšlapané pěšiny](paths.md) (jen vzhled) a nahrazuje v nich stromy podél pěšin.
 
 ## Proč
@@ -119,6 +120,7 @@ společné práce vsi; stromy bere jako obydlí (klády z hromady, pak nejbliž�
 | Vzdálenost práce chůzí místo vzdušnou čarou, mokřina ×2, brod +30 m                      | návrh Clauda |
 | Fáze 1 – rok cest, porovnání s loňskem, připojení a dělení úseků, provoz cesty (níž)     | návrh Clauda |
 | Fáze 1 – místa na stromy, strom jako překážka (kláda od 20 let), cesta přes pole zůstává | návrh Clauda |
+| Fáze 2 – mokřina, výběr, ceny bez přirážky, okno chůze, kácení chůzí po pevných cestách  | návrh Clauda |
 
 ## Fáze 1 – jak je postavená
 
@@ -166,11 +168,51 @@ Návrh Clauda (detaily, které návrh výš nechal otevřené – 18. 10. 2026):
   s krajinou ≈ 0,55 s (bez krajiny 0,15 s – rozdíl jsou pěšiny dne i pevné cesty). Stav pevných
   cest ≈ 3 kB.
 
+## Fáze 2 – jak je postavená
+
+Návrh Clauda (18. 10. 2026):
+
+- **Mokřina** = suchá rovina (sklon nejvýš 0,04) do 3 buněk terénu pěšin (≈ 11 m) od vody –
+  podmáčený břeh a niva potoka. **Brod** = mělký úzký úsek potoka (průchozí voda – paths.md).
+  Kde úsek vede mokřinou a přes brody, se určí z krajiny při vzniku úseku (starší úseky si to
+  doplní při roční kontrole); rozdělení úseku rozdělí i mokřinu a brody.
+- **Výběr:** kliknutí do 2,5 m od osy vybere úsek (po obydlí, posvátných místech, pozemku
+  a ohradě, před polem); zvýrazní se čarami po obou stranách pásu. Panel: portrét stupně, délka,
+  stáří, stromy u úseku, mokřina a brody, průběh rozestavěného vylepšení a tlačítka vylepšení
+  (ikony, v popisku název, práce a dřevo; zašedlé s důvodem červeně – „Nejdřív je potřeba cestu
+  upravit.“, „Cesta se už vylepšuje.“, „Na hať a lávku chybí dřevo.“).
+- **Ceny** podle tabulky výš: upravená cesta 15 čd na 100 m délky úseku (bez přirážky za
+  vzdálenost – pracuje se na cestě), hať 1 strom a 2 čd na 2 m mokřiny (stromy nahoru na celé),
+  lávka 4 stromy a 15 čd na brod; dřevo jako obydlí – celé klády z hromady, zbytek nejbližší
+  dospělé stromy k polovině úseku (kácení v ceně). Hať a lávka se nabízí, jen když úsek vede
+  mokřinou nebo přes brod, a jde až po upravené cestě.
+- **Vylepšení je stavba** ze společné práce (lidé pracují podél úseku u čela práce); úsek během
+  stavby nezaroste; když se rozdělí, stavba platí pro oba kusy. Po dokončení dostane úsek nový
+  stupeň a kronika „Cesta je vylepšená – chodí se po ní rychleji.“
+- **Chůze** (walking.ts – jediné místo výpočtu): po pevné cestě podle stupně (vyšlapaná 1,2×,
+  upravená i hať a lávka 1,5×), mokřinou 0,5× (po hati 1,5×), brod + 30 m (po lávce nic);
+  mokřina a brod platí i pro chůzi rovně mimo cestu a po pěšinách dne. Okno terénu pro chůzi je
+  pevné – 1,4 × 1,4 km kolem místa vsi (stejné na serveru i v prohlížeči).
+- **Vzdálenost práce chůzí:** díly pole a čtverce sadu z nejbližšího obydlí po pěšinách
+  a pevných cestách, palivo z obydlí k nejbližšímu okraji lesa, kácení dřeva staveb od stavby ke
+  stromu po pevných cestách (bez pěšin dne – cena u kurzoru tak sedí se serverem). Přepočítá se
+  se změnou rozložení vsi – pevné cesty a jejich stupeň jsou v klíči, takže hned po vylepšení
+  a po roční kontrole. Bez krajiny (kalibrace) vzdušnou čarou jako dřív.
+- **Příklad:** pole 400 m od vsi, kam se jde 300 m po cestě přes 20 m mokřiny a brod a 100 m
+  rovně: bez cesty 450 m chůze (+35 % práce), vyšlapaná cesta ≈ 403 m (+30 %), upravená ≈ 357 m
+  (+26 %), s hatí a lávkou 300 m (+20 %).
+- **Scéna:** upravená cesta je pás 2,6 m s udusanou hlínou skoro po celé šířce, strouha 1,75 m
+  vlevo od osy (přes brod ne), kameny v mokřině a u brodu hustě, jinde řídce; hať jsou kmeny
+  napříč po 0,24 m, lávka 5,2 m ze tří kmenů na prazích a kůlech se zábradlím (modely
+  `tools/blender/roads.py`). Rozestavěné vylepšení: vytyčení kolíky a provázkem od zadání
+  (Martin), úprava roste od začátku úseku, kmeny hatě se kladou po mokřině podle průběhu, lávka
+  nejdřív kůly a prahy (od 25 %), celá od 90 %. Ikony `cesta`, `cesta-upravena`, `hat`.
+
 ## Na stavitelích
 
 - Výpočet sítě je v herním jádru (`domain/village/paths/`), volá ho simulace (roční síť) i scéna
   (pěšiny dne) – herní logika jednou. Pevné cesty: `paths/roads.ts`, stromy `road-trees.ts`.
 - Stav vsi má pevné cesty, jejich stromy a roční součty práce po místech; staré vsi začnou bez
   pevných cest (vzniknou do dvou let). Jabloně přibudou s fází 3.
-- Pořadí implementace: (1) pevné cesty a stromy – **hotovo**, (2) výběr, vylepšení a chůze,
-  (3) jabloně.
+- Pořadí implementace: (1) pevné cesty a stromy – **hotovo**, (2) výběr, vylepšení a chůze –
+  **hotovo**, (3) jabloně.

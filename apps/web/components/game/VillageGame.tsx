@@ -29,6 +29,7 @@ import {
   restartGame,
   skipTime,
   trainTeam,
+  upgradeRoad,
 } from '@/app/game/actions';
 import { usePlacement } from '@/hooks/use-placement';
 import { usePolling } from '@/hooks/use-polling';
@@ -584,6 +585,7 @@ export function VillageGame({
       <SelectionPanel
         details={selectionDetails(view, sceneVillage, current)}
         onTrainTeam={(penId) => runBuildAction(() => trainTeam({ penId }))}
+        onUpgradeRoad={(roadId, upgrade) => runBuildAction(() => upgradeRoad({ roadId, upgrade }))}
       />
       <BuildGrid
         options={options}

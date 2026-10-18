@@ -21,10 +21,13 @@ import {
 import {
   CRAFT_LOOKS,
   DWELLING_NAMES,
+  ROAD_GRADE_NAMES,
+  ROAD_UPGRADE_NAMES,
   SACRED_BUILDING_NAMES,
   type Craft,
   type WorkshopActivity,
 } from '@/lib/village-view';
+import type { RoadGrade, RoadUpgrade } from '@bohemia/game';
 import { Tooltip } from './Tooltip';
 
 function Portrait({ icon, name }: { icon: string; name: string }): ReactElement {
@@ -556,6 +559,119 @@ function PenBody({
   );
 }
 
+/** Portréty stupňů cesty a ikony tlačítek vylepšení (`/icons/build/<ikona>.png`). */
+export const ROAD_GRADE_ICONS: Record<RoadGrade, string> = {
+  trodden: 'cesta',
+  improved: 'cesta-upravena',
+  causeway: 'hat',
+};
+
+/**
+ * Pevná cesta (roads.md – Co hráč vidí): délka, stáří, stromy u ní, mokřina a brody; rozestavěné
+ * vylepšení průběh; tlačítka vylepšení (ikony, cena v popisku jako v 0 A.D.) – když nejde,
+ * zašedlé s důvodem červeně.
+ */
+function RoadBody({
+  details,
+  onUpgrade,
+}: {
+  details: Extract<SelectionDetails, { kind: 'road' }>;
+  onUpgrade?: (roadId: number, upgrade: RoadUpgrade) => Promise<void>;
+}): ReactElement {
+  const [busy, setBusy] = useState(false);
+  const run = (upgrade: RoadUpgrade): void => {
+    if (!onUpgrade || busy) return;
+    setBusy(true);
+    void onUpgrade(details.id, upgrade).finally(() => setBusy(false));
+  };
+  return (
+    <div className="flex min-w-0 flex-col gap-1.5">
+      <div className="flex items-center gap-3">
+        <Tooltip content="Délka" placement="above">
+          <span
+            data-testid="selection-length"
+            tabIndex={0}
+            className="text-sm font-semibold tabular-nums"
+          >
+            {formatInteger(details.lengthM)} m
+          </span>
+        </Tooltip>
+        <Stat icon="date" name="Stáří (roky)" testId="selection-road-age">
+          {details.ageYears}
+        </Stat>
+        <Oaks count={details.trees} name="Stromy u cesty" testId="selection-road-trees" />
+        {(details.wetM > 0 || details.fords > 0) && (
+          <Tooltip content="Mokřina a brody" placement="above">
+            <span
+              data-testid="selection-wet"
+              tabIndex={0}
+              className="text-xs font-semibold tabular-nums"
+            >
+              {formatInteger(details.wetM)} m · {details.fords}×
+            </span>
+          </Tooltip>
+        )}
+      </div>
+      {details.building && (
+        <div className="flex items-center gap-1.5">
+          <Bar value={details.building.progress} name="Vylepšení" testId="selection-progress" />
+          {details.building.treesToFell > 0 && <WoodToFell trees={details.building.treesToFell} />}
+        </div>
+      )}
+      {details.upgrades.length > 0 && (
+        <div className="flex items-center gap-1.5">
+          {details.upgrades.map((option) => (
+            <Tooltip
+              key={option.upgrade}
+              placement="above"
+              content={
+                <span className="flex flex-col gap-0.5">
+                  <span>{ROAD_UPGRADE_NAMES[option.upgrade]}</span>
+                  <span className="flex items-center gap-2 tabular-nums">
+                    <span className="flex items-center gap-1">
+                      <img src="/icons/resources/labor.png" alt="" width={16} height={16} />
+                      {formatDecimal(option.laborManDays, 0)}
+                    </span>
+                    {option.trees > 0 && (
+                      <span className="flex items-center gap-1">
+                        <img src="/icons/resources/wood.png" alt="" width={16} height={16} />
+                        {option.trees}
+                      </span>
+                    )}
+                  </span>
+                  {option.blocked && (
+                    <span data-testid="road-upgrade-blocked" className="font-semibold text-red-400">
+                      {option.blocked}
+                    </span>
+                  )}
+                </span>
+              }
+            >
+              <button
+                type="button"
+                data-testid={`road-upgrade-${option.upgrade}`}
+                aria-label={ROAD_UPGRADE_NAMES[option.upgrade]}
+                disabled={option.blocked !== null || busy || !onUpgrade}
+                aria-busy={busy}
+                onClick={() => run(option.upgrade)}
+                className={`hud-inset h-10 w-10 overflow-hidden rounded ${busy ? 'disabled:cursor-wait disabled:opacity-60' : 'disabled:cursor-not-allowed disabled:opacity-45 disabled:grayscale'}`}
+              >
+                <img
+                  src={`/icons/build/${ROAD_GRADE_ICONS[option.upgrade]}.png`}
+                  alt=""
+                  width={40}
+                  height={40}
+                  className="h-full w-full"
+                />
+              </button>
+            </Tooltip>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const SACRED_ICONS: Record<Extract<SelectionDetails, { kind: 'sacred' }>['type'], string> = {
   idol: 'modla',
   shrine: 'svatyne',
@@ -598,20 +714,29 @@ function SacredBody({
  * a průběh založení / rozšíření; sad: výměra, stáří, úroda příští sklizně a průběh výsadby;
  * posvátný dub, háj, modla a svatyně: kolik přidávají štěstí (háj i počet dubů), rozestavěná
  * modla a svatyně průběh stavby a duby ke skácení; ohrada: zvířata, seno, stáda, spřežení
- * a výcvik (`onTrainTeam` – akce „Vycvičit spřežení“).
+ * a výcvik (`onTrainTeam` – akce „Vycvičit spřežení“); pevná cesta: délka, stáří, stromy,
+ * vylepšení (`onUpgradeRoad`).
  */
 export function SelectionPanel({
   details,
   onTrainTeam,
+  onUpgradeRoad,
 }: {
   details: SelectionDetails | null;
   /** Zadá v ohradě výcvik spřežení (server action) – hotovo, až se vrátí. */
   onTrainTeam?: (penId: number) => Promise<void>;
+  /** Zadá vylepšení pevné cesty (server action) – hotovo, až se vrátí. */
+  onUpgradeRoad?: (roadId: number, upgrade: RoadUpgrade) => Promise<void>;
 }): ReactElement | null {
   if (!details) return null;
   let portrait: ReactElement;
   let body: ReactElement;
-  if (details.kind === 'pen') {
+  if (details.kind === 'road') {
+    portrait = (
+      <Portrait icon={ROAD_GRADE_ICONS[details.grade]} name={ROAD_GRADE_NAMES[details.grade]} />
+    );
+    body = <RoadBody key={details.id} details={details} onUpgrade={onUpgradeRoad} />;
+  } else if (details.kind === 'pen') {
     portrait = <Portrait icon="ohrada" name="Ohrada" />;
     body = <PenBody key={details.id} details={details} onTrainTeam={onTrainTeam} />;
   } else if (details.kind === 'field') {

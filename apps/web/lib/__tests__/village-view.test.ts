@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ROAD_TREE_ID_BASE,
   advanceVillage,
+  startRoadUpgrade,
   checkDwellingPlacement,
   dayIndexOf,
   fieldPartsFromCells,
@@ -1171,6 +1172,23 @@ describe('pevné cesty v pohledu na ves (roads.md)', () => {
       'snag',
       'stump',
     ]);
+  });
+
+  it('panel cesty: stupeň, délka, stromy, vylepšení s cenou; rozestavěné ve scéně s průběhem', () => {
+    const s = withRoads();
+    const view = buildVillageView(record(s), landscape, DAY);
+    const road = view.roads[0]!;
+    expect(road).toMatchObject({ id: 1, grade: 'trodden', lengthM: 80, building: null });
+    // stromy se počítají jen na místech úseku – tenhle úsek místa nemá
+    expect(road.trees).toBe(0);
+    expect(road.upgrades.map((u) => u.upgrade)).toEqual(['improved']);
+    expect(road.upgrades[0]!.laborManDays).toBe(12);
+    const started = startRoadUpgrade(s, DAY, 1, 'improved', null);
+    const building = buildVillageView(record(started), landscape, DAY);
+    expect(building.roads[0]!.building).toMatchObject({ grade: 'improved', progress: 0 });
+    expect(building.roads[0]!.upgrades[0]!.blocked).toMatch(/vylepšuje/);
+    expect(building.scene.roads![0]!.upgrade).toEqual({ grade: 'improved', progress: 0 });
+    expect(building.constructions.at(-1)!.label).toBe('Úprava cesty');
   });
 
   it('ves bez pevných cest je ve scéně nemá', () => {

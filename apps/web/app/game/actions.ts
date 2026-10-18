@@ -14,6 +14,7 @@ import {
   renameVillageForPlayer,
   skipTimeForPlayerView,
   trainTeamForPlayer,
+  upgradeRoadForPlayer,
   villageViewForPlayer,
   type TimeSkipResult,
   type VillageActionResult,
@@ -32,6 +33,7 @@ import {
   parseRestartGameInput,
   parseSkipTimeInput,
   parseTrainTeamInput,
+  parseUpgradeRoadInput,
 } from '@/lib/village-input';
 
 // Server actions vsi. Každá je veřejný POST endpoint: přihlášení ze session, vstup ověřený
@@ -137,6 +139,18 @@ export async function trainTeam(input: unknown): Promise<VillageActionResult> {
   const parsed = parseTrainTeamInput(input);
   if (parsed === null) return { error: INVALID_INPUT };
   return trainTeamForPlayer(id, parsed);
+}
+
+/**
+ * Vylepšení pevné cesty (roads.md): `{ roadId, upgrade: 'improved' | 'causeway' }` – server ho
+ * ověří znovu (`roadUpgradeOptions`).
+ */
+export async function upgradeRoad(input: unknown): Promise<VillageActionResult> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  const parsed = parseUpgradeRoadInput(input);
+  if (parsed === null) return { error: INVALID_INPUT };
+  return upgradeRoadForPlayer(id, parsed);
 }
 
 /**

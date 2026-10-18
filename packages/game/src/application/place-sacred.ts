@@ -1,5 +1,6 @@
 import { obstaclesOf, type Landscape } from '../domain/landscape';
 import {
+  villageRoadWalk,
   buildAffordability,
   checkSacredBuildingPlacement,
   hasShrine,
@@ -65,7 +66,11 @@ export function placeSacredBuilding(
             { ...input.position },
             check.obstacleCost,
             check.obstacleIds,
-            { obstacles, clearedTrees: check.clearedTrees },
+            {
+              obstacles,
+              clearedTrees: check.clearedTrees,
+              walk: villageRoadWalk(state, input.landscape),
+            },
           ),
         };
       } catch (error) {

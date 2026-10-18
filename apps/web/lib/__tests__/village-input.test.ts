@@ -10,6 +10,7 @@ import {
   parseRestartGameInput,
   parsePosition,
   parseSkipTimeInput,
+  parseUpgradeRoadInput,
 } from '../village-input';
 
 describe('ověření vstupu server actions vsi', () => {
@@ -145,5 +146,19 @@ describe('vstup stavby řemeslné dílny', () => {
       parsePlaceWorkshopInput({ craft: 'potter', position: { x: 1, z: 2, rotation: Infinity } }),
     ).toBeNull();
     expect(parsePlaceWorkshopInput('potter')).toBeNull();
+  });
+});
+
+describe('parseUpgradeRoadInput', () => {
+  it('úsek a vylepšení – jen upravená cesta nebo hať a lávka', () => {
+    expect(parseUpgradeRoadInput({ roadId: 4, upgrade: 'improved' })).toEqual({
+      roadId: 4,
+      upgrade: 'improved',
+    });
+    expect(parseUpgradeRoadInput({ roadId: 4, upgrade: 'causeway' })?.upgrade).toBe('causeway');
+    expect(parseUpgradeRoadInput({ roadId: 4, upgrade: 'trodden' })).toBeNull();
+    expect(parseUpgradeRoadInput({ roadId: 0, upgrade: 'improved' })).toBeNull();
+    expect(parseUpgradeRoadInput({ roadId: 1.5, upgrade: 'improved' })).toBeNull();
+    expect(parseUpgradeRoadInput(null)).toBeNull();
   });
 });

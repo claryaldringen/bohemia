@@ -43,6 +43,12 @@ export interface Dwelling {
    */
   forestDistanceM?: number;
   /**
+   * Chůze z obydlí k nejbližšímu okraji lesa (m – po pěšinách a pevných cestách, mokřina ×2, brod
+   * + 30 m; roads.md – Rychlejší chůze) – palivo (forest.md) ho bere místo `forestDistanceM`.
+   * Počítá se jen s krajinou; u starších obydlí chybí do prvního přepočtu.
+   */
+  forestWalkM?: number;
+  /**
    * Řemeslná dílna (crafts.md) – řemeslo patří budově: provozuje ho domácnost, která v ní bydlí,
    * prázdná dílna nic nevyrábí. Obyčejné obydlí ji nemá.
    */
@@ -178,6 +184,11 @@ export interface OrchardSquare {
   areaM2: number;
   /** Vzdálenost středu čtverce od nejbližšího obydlí při založení (m) – práce v sadu dražší. */
   distanceM: number;
+  /**
+   * Chůze z nejbližšího obydlí po pěšinách a pevných cestách (m – roads.md, jako díl pole); bez
+   * krajiny (kalibrace) chybí – práce se počítá z `distanceM`.
+   */
+  walkDistanceM?: number;
   /** Výsadba: člověkodny (80/ha + překážky) a kolik je hotovo. */
   plantingCost: number;
   plantingDone: number;
@@ -228,7 +239,9 @@ export type ConstructionKind =
   /** Ohrada s přístřeškem (oxen.md) – čtverec v `penId`. */
   | 'pen'
   /** Rádlo pro výcvik spřežení v ohradě `penId` (oxen.md – 1 strom a 5 člověkodní). */
-  | 'ard';
+  | 'ard'
+  /** Vylepšení pevné cesty `roadIds` na stupeň `roadGrade` (roads.md – Vylepšení cesty). */
+  | 'road';
 /** Posvátná stavba, kterou staví hráč (happiness.md). */
 export type SacredBuildingKind = 'idol' | 'shrine';
 export interface Construction {
@@ -253,6 +266,12 @@ export interface Construction {
   renewal?: true;
   /** Ohrada – stavba ohrady a rádlo pro její spřežení (oxen.md); u ostatních chybí. */
   penId?: number | null;
+  /**
+   * Vylepšení pevné cesty (roads.md): úseky (rozdělení úseku přidá i nový) a stupeň, na který se
+   * vylepšují; u ostatních staveb chybí.
+   */
+  roadIds?: number[];
+  roadGrade?: RoadGrade;
   /** Dřevo obydlí, přestavby, modly a svatyně (forest.md); u starších staveb a polí chybí. */
   wood?: ConstructionWood;
   /** Nové obydlí: vzdálenost k nejbližšímu okraji lesa (m) – obydlí ji po dostavění převezme. */
@@ -459,6 +478,8 @@ export type LaborTarget =
   | { kind: 'cemetery'; id: number }
   /** Ohrada (id) – stavba, rádlo. */
   | { kind: 'pen'; id: number }
+  /** Pevná cesta (id úseku) – vylepšení (roads.md). */
+  | { kind: 'road'; id: number }
   /** Stromy z vrstvy překážek, které se pro stavbu právě kácejí. */
   | { kind: 'trees'; ids: number[] }
   /** Ves celkově – výmlat, domácí práce, nevyužitá společná práce. */
@@ -625,6 +646,17 @@ export interface Road {
    */
   traffic: number[];
   spots: RoadTreeSpot[];
+  /**
+   * Kudy úsek vede (roads.md – Vylepšení cesty): mokřinou (úseky osy od–do v m) a přes brody
+   * (polohy na ose v m). Určí se z krajiny při vzniku (u starších úseků při roční kontrole).
+   */
+  ground?: RoadGround;
+}
+
+/** Mokřina a brody na ose úseku – vzdálenosti od začátku osy (m, na decimetry). */
+export interface RoadGround {
+  wet: [number, number][];
+  fords: number[];
 }
 
 /** Druh stromu u cesty (roads.md – Druhy): dub, jilm, topol. */

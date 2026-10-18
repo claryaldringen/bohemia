@@ -64,17 +64,21 @@ Stav: Martin 18. 10. 2026 („Tam, kde bude vyšlapaná cesta, ať se chodí o n
 není.“), čísla návrh Clauda.
 
 - **Po vyšlapané pěšině se chodí o čtvrtinu rychleji** (podle síly pěšiny – plná pěšina 25 %,
-  slabá úměrně méně; `PATH_WALK` v `rules.ts`).
+  slabá úměrně méně; `PATH_WALK` v `rules.ts`). Po pevné cestě podle stupně, mokřina a brody –
+  [roads.md](roads.md) – Rychlejší chůze.
 - **Vzdálenost dílu pole pro práci** (fields.md – Vzdálenost) se měří chůzí z nejbližšího
   obydlí: rovně, nebo rovně k pěšině, po ní (úsek se počítá 0,75–1 × délka podle síly) a rovně
-  od ní na díl – kratší z obou. **Nikdy víc než přímá vzdálenost** – pěšina práci jen zlevní.
+  od ní na díl – kratší z obou. Pěšina práci jen zlevní – nikdy víc než chůze rovně; chůze rovně
+  ale počítá mokřinu a brody ([roads.md](roads.md)), takže díl za potokem může být dál než
+  vzdušnou čarou. Stejně se měří čtverce sadu a palivo (obydlí → okraj lesa).
 - **Kdy se přepočítá:** když se změní rozložení vsi – nové obydlí nebo staveniště, nová pole
   a díly, změna stadia dílu (osev, úhor), sady, hřbitovy, posvátná místa, kdo kde bydlí a stáří
   spojení (nová pěšina se vyšlapává dva roky). Simulace to kontroluje den po dni, výsledek tak
   nezávisí na tom, po jakých kouscích se ves dopočítá. Do sítě jde i práce posledního dne (kam
   ves chodí), ale kvůli ní samotné se nepřepočítává.
-- **Uložení:** vzdálenost chůze každého dílu (`walkDistanceM`); vsi uložené dřív si ji spočítají
-  při prvním dopočítání s krajinou. Kalibrace (bez krajiny) počítá dál s přímou vzdáleností.
+- **Uložení:** vzdálenost chůze každého dílu a čtverce sadu (`walkDistanceM`) a obydlí k okraji
+  lesa (`forestWalkM`); vsi uložené dřív si je spočítají při prvním dopočítání s krajinou.
+  Kalibrace (bez krajiny) počítá dál s přímou vzdáleností.
 - Server i prohlížeč počítají stejnou funkcí – pěšiny ve scéně jsou tytéž, po kterých se
   počítá práce (v prohlížeči z dnešní práce dne, na serveru z rozložení při poslední změně).
 
@@ -84,7 +88,7 @@ není.“), čísla návrh Clauda.
   obydlí jako by stála odjakživa); opuštěná pěšina hned zmizí, nezarůstá postupně. Pamatují si ji
   až pevné cesty ([roads.md](roads.md)) – vznikají z celoročního provozu a zarůstají za 5 let.
 - Ke hromadě klád se pěšina nekreslí (její místo zná jen scéna).
-- Sady zatím počítají přímou vzdálenost (zrychlení po pěšině jen u polí).
 - Stáří pole server zatím neposílá – nově zakládané pole má pěšinu napoloviční.
-- Brody jsou jen mělké úzké úseky potoka; lávky a mosty nejsou.
+- Brody jsou jen mělké úzké úseky potoka; lávku staví hráč na pevné cestě ([roads.md](roads.md)),
+  mosty pro vozy nejsou.
 - Pěšina sama nic neodstraní (keře a kameny na ní stojí dál – jen se jim vyhne).

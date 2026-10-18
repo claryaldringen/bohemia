@@ -210,6 +210,22 @@ export const ROAD_TREES = {
   snagYears: 10,
   stumpYears: 10,
 } as const;
+// roads.md – Vylepšení cesty (návrh Clauda, schváleno 18. 10. 2026): upravená cesta 15 člověkodní
+// na 100 m; hať 1 strom a 2 člověkodny na 2 m mokřiny; lávka přes brod 4 stromy a 15 člověkodní
+export const ROAD_UPGRADES = {
+  improvedManDaysPer100M: 15,
+  causewayPer2M: { trees: 1, manDays: 2 },
+  footbridge: { trees: 4, manDays: 15 },
+} as const;
+// roads.md – Rychlejší chůze (návrh Clauda, schváleno): rychlost chůze proti louce – vyšlapaná
+// cesta 1,2×, upravená 1,5× (hať a lávka jen přes mokřinu a brod, jinde jako upravená); mokřina
+// 0,5× (bahno), po hati 1,5×; brod + 30 m (zout se, přebrodit), po lávce bez zdržení
+export const ROAD_WALK = {
+  speed: { trodden: 1.2, improved: 1.5, causeway: 1.5 },
+  wetSpeed: 0.5,
+  causewayWetSpeed: 1.5,
+  fordExtraM: 30,
+} as const;
 // fields.md – Založení pole (nejdál 800 m od obydlí, nejmenší výměra 0,1 ha)
 export const FIELD_LIMITS = { maxDistanceM: 800, minAreaM2: 1000 } as const;
 // fields.md – Práce (denní minimum domácností – meze: s hrnčířem 0,45); population.md – Práce

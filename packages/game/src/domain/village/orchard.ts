@@ -144,6 +144,16 @@ export function squareBearing(square: OrchardSquare, day: number): boolean {
 }
 
 /**
+ * Vzdálenost čtverce sadu pro práci (m): chůze po pěšinách a pevných cestách (`walkDistanceM` –
+ * roads.md), bez ní (kalibrace, starší sady) vzdálenost od obydlí při založení.
+ */
+export function squareWalkDistance(
+  square: Pick<OrchardSquare, 'distanceM' | 'walkDistanceM'>,
+): number {
+  return square.walkDistanceM ?? square.distanceM;
+}
+
+/**
  * Práce na sklizni čtverce (člověkodny): 8 na hektar při plné úrodě, při menší úrodě poměrně
  * méně; dražší se vzdáleností od obydlí jako polní práce (fields.md – Vzdálenost).
  */
@@ -151,13 +161,15 @@ export function squareHarvestWork(square: OrchardSquare, day: number): number {
   if (square.plantedDay === null) return 0;
   const share = orchardYieldShare(orchardYear(square.plantedDay, day));
   const ha = square.areaM2 / M2_PER_HA;
-  return ORCHARD.harvestPerHa * ha * share * distanceFactor(square.distanceM);
+  return ORCHARD.harvestPerHa * ha * share * distanceFactor(squareWalkDistance(square));
 }
 
 /** Péče o vysazený čtverec za zimu (člověkodny): 10 na hektar, dražší se vzdáleností. */
 export function squareCareWork(square: OrchardSquare): number {
   if (square.plantedDay === null) return 0;
-  return ORCHARD.carePerHa * (square.areaM2 / M2_PER_HA) * distanceFactor(square.distanceM);
+  return (
+    ORCHARD.carePerHa * (square.areaM2 / M2_PER_HA) * distanceFactor(squareWalkDistance(square))
+  );
 }
 
 /** Plocha sadu (m²). */
