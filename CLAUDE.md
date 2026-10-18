@@ -668,6 +668,15 @@ rozhraní částí v
   na vrchol nepřidávat, patří do textury. Klipy se střídají střihem (VAT prolínat neumí). Hýbou
   se jen v záběru (`WATER_FPS`), při omezeném pohybu stojí. Ve vývojovém náhledu tlačítko
   **Lidé** (ukázkové rozdělení práce podle měsíce – `app/dev/landscape/dev-labor.ts`).
+- **Spřežení volů s rádlem** (zatím jen ukázka **Orání** na `/dev/buildings`, mechanika přijde
+  později): voli a oráč z `people_from_0ad.py` s `tools/blender/plough-team.json` – vůl
+  `cattle_male_c` (srst přebarvená, maska srsti), oráč = muž s klipy `plough` (předklon + ruce
+  dvoukloubovou IK na rukojeti, „pose“ v JSON) a `lead` (honáček s provazem); rádlo, jho, oj
+  a provaz `tools/blender/plough.py` (malý atlas vyříznutý z atlasu obydlí). Rozestavění
+  a pohyb `plough-team.ts` (čisté funkce času: dráha přes čtverec – řady, obraty na souvrati,
+  návrat; rádlo za jhem na tětivě oje, na souvrati nadzvednuté, oráč u rukojeti), kreslení
+  `plough-team-renderer.ts` (VAT jako lidé + pevné díly v instancích). Rozměry rádla a jha musí
+  sedět s `TEAM_PARTS` (hlídá test).
 - **e2e:** testy běží v běžícím pomalém světě (2000–2200). Kliknutí do scény při umisťování
   nahrazuje háček `window.__bohemiaE2E.confirmPlacement`, kam kliknout myší pro výběr řekne
   `projectToScreen` (`lib/e2e-hooks.ts`) – existují jen v buildu s `NEXT_PUBLIC_E2E_HOOKS=1`

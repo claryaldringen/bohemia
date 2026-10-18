@@ -2,8 +2,8 @@
 
 // VÝVOJOVÝ NÁSTROJ – jen pro /dev/buildings (v produkci stránka vrací 404): prohlídka modelů
 // staveb bez přihlášení a databáze, i stavba po fázích (posuvník a přehrání) – obydlí, řemesla,
-// modla a svatyně, za nimi pole, hřbitov a sad, vpravo posvátný dub a dubový háj. Řemesla
-// a posvátná místa zatím nejsou ve hře – jen modely.
+// modla a svatyně, za nimi pole, hřbitov a sad, vpravo posvátný dub a dubový háj, vlevo orá
+// spřežení volů s rádlem. Řemesla, posvátná místa ani orba volů zatím nejsou ve hře – jen modely.
 import { useEffect, useRef, useState, type ReactElement } from 'react';
 import {
   MILIR_OFFSET_M,
@@ -42,6 +42,7 @@ export function BuildingShowcaseView(): ReactElement {
   const [failed, setFailed] = useState(false);
   const [progress, setProgress] = useState(1);
   const [playing, setPlaying] = useState(false);
+  const [following, setFollowing] = useState(false);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -137,6 +138,27 @@ export function BuildingShowcaseView(): ReactElement {
           type="button"
           className={buttonClass}
           disabled={!showcase}
+          onClick={() => {
+            setFollowing(false);
+            showcase?.followTeam(false);
+            showcase?.focusTeam();
+          }}
+        >
+          Spřežení zblízka
+        </button>
+        <button
+          type="button"
+          className={buttonClass}
+          disabled={!showcase}
+          aria-pressed={following}
+          onClick={() => setFollowing(showcase?.followTeam(!following) ?? false)}
+        >
+          {following ? 'Nesledovat spřežení' : 'Sledovat spřežení'}
+        </button>
+        <button
+          type="button"
+          className={buttonClass}
+          disabled={!showcase}
           onClick={() => showcase?.gameView()}
         >
           Herní náklon
@@ -180,7 +202,8 @@ export function BuildingShowcaseView(): ReactElement {
       </section>
       <p className="fixed bottom-0 left-0 z-10 rounded-tr bg-stone-100/80 px-4 py-2 text-xs text-stone-600 backdrop-blur dark:bg-stone-950/70 dark:text-stone-400">
         Levé tlačítko otáčí, pravé posouvá, kolečko přibližuje. Milíř stojí {distance} m od uhlířovy
-        zemnice (doporučeno 8–12 m, vpředu stranou). Řemesla a posvátná místa zatím nejsou ve hře.
+        zemnice (doporučeno 8–12 m, vpředu stranou). Řemesla, posvátná místa ani orba volů zatím
+        nejsou ve hře.
       </p>
       {failed && (
         <div className="fixed inset-0 flex items-center justify-center px-4">

@@ -22,7 +22,7 @@ import type { TileInfo } from '../tile-info';
 import { AmbientSound } from './ambient-sound';
 import { createRtsCamera, type RtsCamera } from './camera';
 import { isDrag } from './camera-input';
-import { HEIGHT_SCALE, SUN_DIRECTION } from './constants';
+import { HEIGHT_SCALE, SUN_DIRECTION, WATER_FPS } from './constants';
 import { createEngine, type RendererName } from './create-engine';
 import { decorPlacements } from './decor-placement';
 import { addDecorations } from './decorations';
@@ -70,10 +70,6 @@ type ViewListener = (view: ViewFootprint) => void;
 type ClearedListener = (cleared: ClearedForest | null) => void;
 
 /** 3D scéna krajiny – obyčejná třída bez Reactu (adaptér zobrazení). */
-/**
- * Snímků za sekundu animace vody (vlnky po proudu) a zvířat; kamera v pohybu kreslí rychleji.
- */
-const WATER_FPS = 30;
 /**
  * Roční období: jak často (ms) se podívá na herní datum a od jaké změny vzhledu (season-look.ts)
  * scénu překreslí. Datum se mění jednou za herní den (≈ 86 s), změna za den je pár procent.

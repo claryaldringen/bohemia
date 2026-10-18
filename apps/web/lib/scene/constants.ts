@@ -8,3 +8,8 @@ export const SUN_DIRECTION = { x: -0.8, y: -0.6, z: -0.35 } as const;
  * šla přehlédnout celá krajina (1,9 km). Podle rozsahu se řídí i mix zvuků (`ambient-mix.ts`).
  */
 export const CAMERA_ZOOM_M = { min: 50, default: 120, max: 1400 } as const;
+/**
+ * Snímků za sekundu animace vody (vlnky po proudu), zvířat, lidí a spřežení – výjimka
+ * z kreslení jen při změně, dokud je to v záběru; kamera v pohybu kreslí rychleji.
+ */
+export const WATER_FPS = 30;
