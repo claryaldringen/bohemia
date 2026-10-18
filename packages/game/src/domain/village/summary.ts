@@ -64,6 +64,7 @@ import type {
   TileCell,
   VillageState,
   WorkshopActivity,
+  RoadGrade,
 } from './types';
 import { treesToFell, woodFellingCost, woodLogs } from './wood';
 
@@ -108,6 +109,12 @@ export interface ConstructionSummary {
   buildProgress: number;
   /** Kolik stromů stavba ještě musí skácet (forest.md). */
   treesToFell: number;
+  /**
+   * Vylepšení pevné cesty a výsadba jabloní u ní – úseky a stupeň, na který se vylepšují
+   * (roads.md); jinak null.
+   */
+  roadIds: number[] | null;
+  roadGrade: RoadGrade | null;
 }
 
 /** Pohřebiště pro panel – kolik místa zbývá (hygienu hráč nevidí – cemetery.md). */
@@ -424,6 +431,8 @@ function constructionSummary(state: VillageState, c: Construction): Construction
     progress: c.cost > 0 ? Math.min(1, c.done / c.cost) : 1,
     buildProgress: buildProgress(c),
     treesToFell: treesToFell(c),
+    roadIds: c.kind === 'road' || c.kind === 'road-apples' ? [...(c.roadIds ?? [])] : null,
+    roadGrade: c.kind === 'road' ? (c.roadGrade ?? null) : null,
   };
 }
 

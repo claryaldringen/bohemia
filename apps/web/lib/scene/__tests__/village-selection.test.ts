@@ -55,13 +55,16 @@ describe('nextSelection', () => {
     expect(nextSelection(one, { kind: 'dwelling', id: 1 }, true)).toBeNull();
   });
 
-  it('s modifikátorem prázdná zem výběr nechá, jiný cíl než obydlí vybere sám', () => {
+  it('s modifikátorem prázdná zem ani cesta či pole vybraná obydlí nezruší', () => {
     const two = { kind: 'dwellings', ids: [1, 2] } as const;
     expect(nextSelection(two, null, true)).toBe(two);
-    expect(nextSelection(two, { kind: 'cemetery', id: 7 }, true)).toEqual({
-      kind: 'cemetery',
-      id: 7,
-    });
+    expect(nextSelection(two, { kind: 'road', id: 7 }, true)).toBe(two);
+    expect(nextSelection(two, { kind: 'cemetery', id: 7 }, true)).toBe(two);
+    const one = { kind: 'dwelling', id: 1 } as const;
+    expect(nextSelection(one, { kind: 'road', id: 7 }, true)).toBe(one);
+    // bez vybraných obydlí se cesta vybere sama, bez modifikátoru vždy
+    expect(nextSelection(null, { kind: 'road', id: 7 }, true)).toEqual({ kind: 'road', id: 7 });
+    expect(nextSelection(two, { kind: 'road', id: 7 }, false)).toEqual({ kind: 'road', id: 7 });
     // k poli se obydlí přidat nedá – vybere se obydlí samo
     expect(nextSelection({ kind: 'field', id: 5 }, { kind: 'dwelling', id: 2 }, true)).toEqual({
       kind: 'dwelling',

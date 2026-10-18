@@ -15,7 +15,9 @@ import {
   placeWorkshop,
   relocateHousehold,
   renameVillage,
+  plantApplesAlongRoad,
   trainTeamInPen,
+  upgradeRoad,
   type Craft,
   type DwellingPlot,
   type DwellingType,
@@ -382,6 +384,40 @@ export function trainTeamForPlayer(
         today: ctx.day,
         penId: input.penId,
       },
+    ),
+  );
+}
+
+/** Vylepšení pevné cesty (roads.md – Vylepšení cesty): upravená cesta, nebo hať a lávka. */
+export function upgradeRoadForPlayer(
+  playerId: string,
+  villageId: string,
+  input: { roadId: number; upgrade: 'improved' | 'causeway' },
+): Promise<VillageActionResult> {
+  return actOn(playerId, villageId, (ctx) =>
+    upgradeRoad(
+      { villages: villages() },
+      {
+        villageId: ctx.villageId,
+        landscape: ctx.landscape,
+        today: ctx.day,
+        roadId: input.roadId,
+        upgrade: input.upgrade,
+      },
+    ),
+  );
+}
+
+/** Výsadba jabloní podél pevné cesty (roads.md – Vysazení jabloní). */
+export function plantRoadApplesForPlayer(
+  playerId: string,
+  villageId: string,
+  input: { roadId: number },
+): Promise<VillageActionResult> {
+  return actOn(playerId, villageId, (ctx) =>
+    plantApplesAlongRoad(
+      { villages: villages() },
+      { villageId: ctx.villageId, landscape: ctx.landscape, today: ctx.day, roadId: input.roadId },
     ),
   );
 }

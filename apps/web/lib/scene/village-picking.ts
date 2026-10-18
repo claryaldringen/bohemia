@@ -28,7 +28,9 @@ export type VillageTarget =
   | { kind: 'grove'; id: number }
   | { kind: 'sacred'; id: number }
   /** Ohrada (id ohrady – hotová i rozestavěná, oxen.md). */
-  | { kind: 'pen'; id: number };
+  | { kind: 'pen'; id: number }
+  /** Úsek pevné cesty (id úseku – roads.md). */
+  | { kind: 'road'; id: number };
 
 export interface Vec3 {
   x: number;
@@ -49,6 +51,8 @@ const DWELLING_PICK_STEP_M = 0.5;
 const DWELLING_PICK_MARGIN_M = 1;
 /** Výška modly a svatyně pro výběr paprskem (m) – modla ≈ 2,9 m, svatyně s modlou ≈ 4,4 m. */
 const SACRED_PICK_HEIGHT_M = { idol: 3, shrine: 4.5 } as const;
+/** Úsek pevné cesty: zásah do tolika metrů od osy (pás cesty a kousek vedle). */
+export const ROAD_PICK_M = 2.5;
 /** Posvátný dub: zásah do `radius` od kmene, od země do koruny (m). */
 export const SACRED_OAK_PICK = { radiusM: 4, heightM: 12, stepM: 1 } as const;
 
@@ -108,8 +112,9 @@ export function insideSacredFootprint(
 /**
  * Co je pod kurzorem: obydlí, které paprsek protne od země do výšky střechy (nejbližší ke
  * kameře), pak modla nebo svatyně (paprsek přes půdorys do výšky modly), posvátný dub (paprsek
- * do 4 m od kmene od země do koruny), jinak obydlí, jehož pozemek (políčko), ohrada, pole,
- * hřbitov, sad nebo dubový háj leží pod bodem terénu `ground`; null = prázdná zem.
+ * do 4 m od kmene od země do koruny), jinak obydlí, jehož pozemek (políčko) nebo ohrada leží pod
+ * bodem terénu `ground`, úsek pevné cesty do ROAD_PICK_M od osy, pak pole, hřbitov, sad nebo
+ * dubový háj pod bodem; null = prázdná zem.
  */
 export function pickVillageTarget(
   village: SceneVillage,
@@ -164,6 +169,8 @@ export function pickVillageTarget(
   if (owner) return { kind: 'dwelling', id: owner.id };
   const pen = (village.pens ?? []).find((p) => p.cell.x === cell.x && p.cell.y === cell.y);
   if (pen) return { kind: 'pen', id: pen.id };
+  const road = nearestRoad(village, options.ground, ROAD_PICK_M);
+  if (road !== null) return { kind: 'road', id: road };
   const field = village.fields.find((f) =>
     f.parts.some((p) => p.cell.x === cell.x && p.cell.y === cell.y),
   );
@@ -180,6 +187,39 @@ export function pickVillageTarget(
     g.squares.some((s) => s.cell.x === cell.x && s.cell.y === cell.y),
   );
   return grove ? { kind: 'grove', id: grove.id } : null;
+}
+
+/** Vzdálenost bodu od lomené čáry (m). */
+export function distanceToPolyline(
+  point: { x: number; z: number },
+  points: readonly { x: number; z: number }[],
+): number {
+  let best = Infinity;
+  for (let k = 1; k < points.length; k++) {
+    const a = points[k - 1]!;
+    const b = points[k]!;
+    const dx = b.x - a.x;
+    const dz = b.z - a.z;
+    const l2 = dx * dx + dz * dz;
+    const t =
+      l2 > 0 ? Math.min(1, Math.max(0, ((point.x - a.x) * dx + (point.z - a.z) * dz) / l2)) : 0;
+    best = Math.min(best, Math.hypot(point.x - (a.x + dx * t), point.z - (a.z + dz * t)));
+  }
+  return best;
+}
+
+/** Úsek pevné cesty nejblíž bodu do `reach` m od osy (id), jinak null. */
+export function nearestRoad(
+  village: SceneVillage,
+  point: { x: number; z: number },
+  reach: number,
+): number | null {
+  let best: { id: number; d: number } | null = null;
+  for (const road of village.roads ?? []) {
+    const d = distanceToPolyline(point, road.points);
+    if (d <= reach && (best === null || d < best.d)) best = { id: road.id, d };
+  }
+  return best?.id ?? null;
 }
 
 /** Existuje vybraný cíl ve vsi (po obnovení stavu mohl zaniknout)? Víc obydlí – aspoň jedno. */
@@ -201,5 +241,6 @@ export function targetExists(village: SceneVillage, target: VillageTarget): bool
     return (village.sacred?.buildings ?? []).some((b) => b.id === target.id);
   }
   if (target.kind === 'pen') return (village.pens ?? []).some((p) => p.id === target.id);
+  if (target.kind === 'road') return (village.roads ?? []).some((r) => r.id === target.id);
   return village.fields.some((f) => f.id === target.id);
 }

@@ -15,9 +15,11 @@ import {
   placeSacredForPlayer,
   placeWorkshopForPlayer,
   relocateHouseholdForPlayer,
+  plantRoadApplesForPlayer,
   renameVillageForPlayer,
   skipTimeForPlayerView,
   trainTeamForPlayer,
+  upgradeRoadForPlayer,
   villageViewForPlayer,
   type TimeSkipResult,
   type VillageActionResult,
@@ -34,11 +36,13 @@ import {
   parsePlaceSacredInput,
   parsePlaceWorkshopInput,
   parseRelocateHouseholdInput,
+  parsePlantRoadApplesInput,
   parseRenameVillageInput,
   parseRestartGameInput,
   parseSkipTimeInput,
   parseTrainTeamInput,
   villageIdOf,
+  parseUpgradeRoadInput,
 } from '@/lib/village-input';
 
 // Server actions vsi. Každá je veřejný POST endpoint: přihlášení ze session, vstup ověřený
@@ -192,6 +196,23 @@ export async function placePen(input: unknown): Promise<VillageActionResult> {
 /** Výcvik spřežení v ohradě (oxen.md – „Vycvičit spřežení“): `{ villageId, penId }`. */
 export async function trainTeam(input: unknown): Promise<VillageActionResult> {
   return villageAction(input, parseTrainTeamInput, trainTeamForPlayer);
+}
+
+/**
+/**
+ * Vylepšení pevné cesty (roads.md): `{ villageId, roadId, upgrade: 'improved' | 'causeway' }` –
+ * server ho ověří znovu (`roadUpgradeOptions`).
+ */
+export async function upgradeRoad(input: unknown): Promise<VillageActionResult> {
+  return villageAction(input, parseUpgradeRoadInput, upgradeRoadForPlayer);
+}
+
+/**
+ * Výsadba jabloní podél pevné cesty (roads.md – Vysazení jabloní): `{ villageId, roadId }` –
+ * server ji ověří znovu (`roadApplesOption`).
+ */
+export async function plantRoadApples(input: unknown): Promise<VillageActionResult> {
+  return villageAction(input, parsePlantRoadApplesInput, plantRoadApplesForPlayer);
 }
 
 /**

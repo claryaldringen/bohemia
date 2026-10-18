@@ -22,8 +22,9 @@ export function dwellingsTarget(ids: readonly number[]): VillageTarget | null {
 /**
  * Nový výběr po kliknutí do scény: bez modifikátoru vybere, co je pod kurzorem (prázdná zem
  * výběr zruší). S Ctrl / Shift (`additive`) přidá obydlí k vybraným obydlím, nebo ho z výběru
- * ubere, když už vybrané je; prázdná zem výběr nechá. Cokoli jiného než obydlí vybere samo
- * (víc najednou jde vybrat jen obydlí).
+ * ubere, když už vybrané je; prázdná zem výběr nechá. Jiný cíl než obydlí (úsek cesty mezi
+ * domy, pole…) vybraná obydlí nezruší – klik vedle domu výběr nerozbije; když obydlí vybraná
+ * nejsou, vybere se sám (víc najednou jde vybrat jen obydlí).
  */
 export function nextSelection(
   current: VillageTarget | null,
@@ -32,8 +33,8 @@ export function nextSelection(
 ): VillageTarget | null {
   if (!additive) return picked;
   if (picked === null) return current;
-  if (picked.kind !== 'dwelling') return picked;
   const ids = selectedDwellingIds(current);
+  if (picked.kind !== 'dwelling') return ids.length > 0 ? current : picked;
   return ids.includes(picked.id)
     ? dwellingsTarget(ids.filter((id) => id !== picked.id))
     : dwellingsTarget([...ids, picked.id]);

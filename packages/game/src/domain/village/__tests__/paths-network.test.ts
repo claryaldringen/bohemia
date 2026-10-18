@@ -205,19 +205,89 @@ describe('computePathNetwork – pěšiny vsi', () => {
     expect(computePathNetwork({ village: old, terrain }).lines.length).toBeGreaterThan(0);
   });
 
-  it('ves se dvěma domácnostmi má pěšinu ke hřbitovu (návštěvy hrobů)', () => {
+  it('návštěvy hřbitova podle lidí – dvě domácnosti po 4 lidech mají pěšinu ke hřbitovu', () => {
     // domy daleko od sebe – každá domácnost chodí ke hřbitovu svou cestou, trasy se neslijí
     const cemetery = { id: 7, squares: [part(-7.5, -67.5), part(7.5, -67.5)] };
+    const people = (adults: number) => ({ children: 0, adults, elders: 0 });
     const v = village({
       dwellings: [house(1, -40, 0), house(2, 40, 0)],
       cemeteries: [cemetery],
-      labor: { day: 4000, month: 6, people: { children: 2, adults: 4, elders: 1 }, shares: [] },
+      labor: { day: 4000, month: 6, people: people(8), shares: [] },
     });
     const network = computePathNetwork({ village: v, terrain });
-    expect(samples(network).some((p) => p.z < -50 && Math.abs(p.x) < 25)).toBe(true);
+    const near = (p: { x: number; z: number }): boolean => p.z < -50 && Math.abs(p.x) < 25;
+    expect(samples(network).some(near)).toBe(true);
     // bez hřbitova tam pěšina nevede
     const none = computePathNetwork({ village: { ...v, cemeteries: [] }, terrain });
-    expect(samples(none).some((p) => p.z < -50 && Math.abs(p.x) < 25)).toBe(false);
+    expect(samples(none).some(near)).toBe(false);
+    // víc lidí – víc návštěv a silnější pěšina ke hřbitovu
+    const traffic = (adults: number): number => {
+      const t = computePathNetwork({
+        village: { ...v, labor: { ...v.labor!, people: people(adults) } },
+        terrain,
+      }).traffic;
+      let sum = 0;
+      for (let j = 0; j < t.height; j++) {
+        for (let i = 0; i < t.width; i++) {
+          if (near({ x: t.originX + i * t.cellM, z: t.originZ + j * t.cellM })) {
+            sum += t.raw[j * t.width + i]!;
+          }
+        }
+      }
+      return sum;
+    };
+    expect(traffic(20)).toBeGreaterThan(traffic(8) * 2);
+  });
+
+  it('k posvátným místům jen k nejbližšímu – vzdálená skupina model bez pěšiny', () => {
+    const idol = (id: number, x: number, z: number) => ({
+      id,
+      kind: 'idol' as const,
+      position: { x, z, rotation: 0 },
+      built: true,
+    });
+    const v = village({
+      dwellings: [house(1, -60, 0), house(2, 60, 0)],
+      labor: { day: 4000, month: 6, people: { children: 0, adults: 8, elders: 0 }, shares: [] },
+      sacred: {
+        oaks: [],
+        groves: [],
+        // každá domácnost má modlu za domem, skupina model daleko u lesa
+        buildings: [idol(1, -60, -40), idol(2, 60, -40), idol(3, -120, -120), idol(4, -110, -125)],
+      },
+    });
+    const traffic = computePathNetwork({ village: v, terrain }).traffic;
+    const near = (x: number, z: number, r: number): number => {
+      let sum = 0;
+      for (let j = 0; j < traffic.height; j++) {
+        for (let i = 0; i < traffic.width; i++) {
+          const cx = traffic.originX + i * traffic.cellM;
+          const cz = traffic.originZ + j * traffic.cellM;
+          if (Math.hypot(cx - x, cz - z) <= r) sum += traffic.raw[j * traffic.width + i]!;
+        }
+      }
+      return sum;
+    };
+    // k modle za domem se chodí, mezi domy (k modle souseda) ne, ke vzdálené skupině nikdo
+    expect(near(-60, -30, 6)).toBeGreaterThan(0);
+    expect(near(60, -30, 6)).toBeGreaterThan(0);
+    expect(near(0, -40, 15)).toBe(0);
+    expect(near(-115, -115, 12)).toBe(0);
+  });
+
+  it('víc hřbitovů – každá domácnost chodí k nejbližšímu', () => {
+    const west = { id: 7, squares: [part(-82.5, -67.5)] };
+    const east = { id: 8, squares: [part(82.5, -67.5)] };
+    const v = village({
+      dwellings: [house(1, -60, 0), house(2, 60, 0)],
+      cemeteries: [west, east],
+      labor: { day: 4000, month: 6, people: { children: 0, adults: 8, elders: 0 }, shares: [] },
+    });
+    const pts = samples(computePathNetwork({ village: v, terrain }));
+    expect(pts.some((p) => p.z < -50 && p.x < -60)).toBe(true);
+    expect(pts.some((p) => p.z < -50 && p.x > 60)).toBe(true);
+    // nikdo nechodí přes celou ves k vzdálenějšímu hřbitovu
+    expect(pts.some((p) => p.z < -50 && Math.abs(p.x) < 20)).toBe(false);
   });
 
   it('zrušený cíl vypadne', () => {

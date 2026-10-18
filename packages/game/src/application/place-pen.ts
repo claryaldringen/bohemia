@@ -1,5 +1,6 @@
 import { obstaclesOf, type Landscape } from '../domain/landscape';
 import {
+  villageRoadWalk,
   buildAffordability,
   checkPenPlacement,
   foundPen,
@@ -62,6 +63,7 @@ export function placePen(
               clearedTrees: check.clearedTrees,
             },
             obstacles,
+            villageRoadWalk(state, input.landscape),
           ),
         };
       } catch (error) {

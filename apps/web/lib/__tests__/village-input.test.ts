@@ -14,6 +14,8 @@ import {
   parseRelocateHouseholdInput,
   parseVillageId,
   villageIdOf,
+  parsePlantRoadApplesInput,
+  parseUpgradeRoadInput,
 } from '../village-input';
 
 describe('ověření vstupu server actions vsi', () => {
@@ -193,5 +195,30 @@ describe('vstupy víc vsí a přestěhování (migration.md)', () => {
     expect(parseCancelRelocationInput({ constructionId: -1 })).toBeNull();
     expect(parseCancelRelocationInput({ constructionId: '12' })).toBeNull();
     expect(parseCancelRelocationInput(undefined)).toBeNull();
+  });
+});
+
+describe('parseUpgradeRoadInput', () => {
+  it('úsek a vylepšení – jen upravená cesta nebo hať a lávka', () => {
+    expect(parseUpgradeRoadInput({ roadId: 4, upgrade: 'improved' })).toEqual({
+      roadId: 4,
+      upgrade: 'improved',
+    });
+    expect(parseUpgradeRoadInput({ roadId: 4, upgrade: 'causeway' })?.upgrade).toBe('causeway');
+    expect(parseUpgradeRoadInput({ roadId: 4, upgrade: 'trodden' })).toBeNull();
+    expect(parseUpgradeRoadInput({ roadId: 0, upgrade: 'improved' })).toBeNull();
+    expect(parseUpgradeRoadInput({ roadId: 1.5, upgrade: 'improved' })).toBeNull();
+    expect(parseUpgradeRoadInput(null)).toBeNull();
+  });
+});
+
+describe('parsePlantRoadApplesInput', () => {
+  it('úsek cesty – kladné celé číslo, nic jiného', () => {
+    expect(parsePlantRoadApplesInput({ roadId: 4 })).toEqual({ roadId: 4 });
+    expect(parsePlantRoadApplesInput({ roadId: 4, extra: 1 })).toEqual({ roadId: 4 });
+    expect(parsePlantRoadApplesInput({ roadId: 0 })).toBeNull();
+    expect(parsePlantRoadApplesInput({ roadId: 1.5 })).toBeNull();
+    expect(parsePlantRoadApplesInput({ roadId: '4' })).toBeNull();
+    expect(parsePlantRoadApplesInput(null)).toBeNull();
   });
 });

@@ -865,6 +865,61 @@ describe('stavitelé – stavba neroste sama od sebe (Martin)', () => {
   });
 });
 
+describe('jabloně podél cesty – sklizeň, péče a výsadba (roads.md)', () => {
+  it('česáči u plodících jabloní úseku, sazeči u míst, která čekají na výsadbu', () => {
+    const base = village([
+      { activity: 'orchard-harvest', target: { kind: 'road', id: 4 }, manDays: 3 },
+      { activity: 'orchard-plant', target: { kind: 'road', id: 4 }, manDays: 2, construction: 70 },
+    ]);
+    const apple = (id: number, x: number, z: number, stage: 'tree' | 'planting') => ({
+      id,
+      roadId: 4,
+      x,
+      z,
+      stage,
+      growth: stage === 'tree' ? 1 : 0,
+      fruit: stage === 'tree',
+    });
+    const v: SceneVillage = {
+      ...base,
+      roads: [
+        {
+          id: 4,
+          points: [
+            { x: -100, z: 100 },
+            { x: 100, z: 100 },
+          ],
+          grade: 'trodden',
+        },
+      ],
+      roadApples: [
+        apple(1, -60, 103, 'tree'),
+        apple(2, -50, 97, 'tree'),
+        apple(3, -40, 103, 'tree'),
+        apple(4, 40, 97, 'planting'),
+        apple(5, 50, 103, 'planting'),
+      ],
+    };
+    const people = planVillagers(v, GROUND, { seed: 3, herds: 0 });
+    const near = (x: number, z: number, stage: 'tree' | 'planting'): number =>
+      Math.min(
+        ...v.roadApples!.filter((a) => a.stage === stage).map((a) => Math.hypot(a.x - x, a.z - z)),
+      );
+    const pickers = people.filter((p) => p.key.startsWith('orchard-harvest:'));
+    const planters = people.filter((p) => p.key.startsWith('orchard-plant:'));
+    expect(pickers.length).toBe(3);
+    expect(planters.length).toBe(2);
+    for (const p of pickers) {
+      const { x, z } = at(p, 20);
+      expect(near(x, z, 'tree')).toBeLessThan(2);
+    }
+    for (const p of planters) {
+      const { x, z } = at(p, 20);
+      expect(near(x, z, 'planting')).toBeLessThan(2);
+    }
+  });
+});
+
 describe('řemeslníci – práce v dílně (crafts.md)', () => {
   const POTTER = { x: 30, z: -30, rotation: 0 };
   const BURNER = { x: -60, z: 20, rotation: 0.4 };

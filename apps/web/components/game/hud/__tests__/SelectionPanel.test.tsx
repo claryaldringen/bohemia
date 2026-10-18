@@ -85,6 +85,22 @@ describe('SelectionPanel – ohrada', () => {
     expect(text(html, 'selection-team-left')).toBe('2');
   });
 
+  it('zbývající služba spřežení a dny výcviku mají ikonu přesýpacích hodin', () => {
+    const html = render(
+      pen({ training: { progress: 0.4, daysLeft: 438 }, team: { ageYears: 8, yearsLeft: 2 } }),
+    );
+    const icons = html.match(/src="\/icons\/resources\/hourglass\.png"/g) ?? [];
+    expect(icons).toHaveLength(2);
+  });
+
+  it('spřežení slouží dlouho – výcvik náhrady zašedlý s důvodem', () => {
+    const html = render(
+      pen({ team: { ageYears: 1, yearsLeft: 9 }, trainBlocked: 'Spřežení slouží ještě 9 let.' }),
+    );
+    expect(trainButton(html)).toContain(' disabled=""');
+    expect(text(html, 'train-blocked')).toBe('Spřežení slouží ještě 9 let.');
+  });
+
   it('rozestavěná ohrada jen průběh stavby', () => {
     const html = render(pen({ built: false, progress: 0.45 }));
     expect(html).toContain('aria-valuenow="45"');

@@ -154,7 +154,8 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
   v popisku práce a dřevo, chybějící červeně). U víc domácností se nové domy umisťují postupně
   – po umístění jednoho hned běží umisťování dalšího (jako Shift + klik), Esc zbytek zruší.
 - **Výběr víc obydlí:** Ctrl (Cmd) / Shift + klik obydlí přidá nebo ubere, na prázdné zemi
-  výběr nechá, jiný cíl než obydlí vybere sám (víc najednou jde vybrat jen obydlí). Ctrl + A
+  výběr nechá, jiný cíl než obydlí (úsek cesty mezi domy, pole) vybraná obydlí nezruší – bez
+  vybraných obydlí se vybere sám (víc najednou jde vybrat jen obydlí). Ctrl + A
   vybere jen hotová obydlí – na staveništi ještě nikdo nebydlí; při umisťování nic.
 - **Pohled na ves dopočítá všechny vsi hráče** (přepínač ukazuje aktuální lidi, konec hry až po
   vymření všech) – při desítkách vsí to bude chtít lehčí seznam bez dopočtu.

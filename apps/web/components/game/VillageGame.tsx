@@ -27,12 +27,14 @@ import {
   placePen,
   placeSacred,
   placeWorkshop,
+  plantRoadApples,
   relocateHousehold,
   renameVillage,
   restartGame,
   selectVillage,
   skipTime,
   trainTeam,
+  upgradeRoad,
 } from '@/app/game/actions';
 import { usePlacement } from '@/hooks/use-placement';
 import { usePolling } from '@/hooks/use-polling';
@@ -758,6 +760,18 @@ export function VillageGame({
           const villageId = viewRef.current?.id;
           return villageId
             ? runBuildAction(() => cancelRelocation({ villageId, constructionId }))
+            : Promise.resolve();
+        }}
+        onUpgradeRoad={(roadId, upgrade) => {
+          const villageId = viewRef.current?.id;
+          return villageId
+            ? runBuildAction(() => upgradeRoad({ villageId, roadId, upgrade }))
+            : Promise.resolve();
+        }}
+        onPlantRoadApples={(roadId) => {
+          const villageId = viewRef.current?.id;
+          return villageId
+            ? runBuildAction(() => plantRoadApples({ villageId, roadId }))
             : Promise.resolve();
         }}
       />
