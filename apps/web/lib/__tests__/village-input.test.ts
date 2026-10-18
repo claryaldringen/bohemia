@@ -102,9 +102,10 @@ describe('ověření vstupu server actions vsi', () => {
     expect(parseRestartGameInput(true)).toBeNull();
   });
 
-  it('přeskočení času: jen měsíc, nebo rok', () => {
+  it('přeskočení času: jen měsíc, rok, nebo 10 let', () => {
     expect(parseSkipTimeInput({ skip: 'month' })).toEqual({ skip: 'month' });
     expect(parseSkipTimeInput({ skip: 'year', days: 9999 })).toEqual({ skip: 'year' });
+    expect(parseSkipTimeInput({ skip: 'decade' })).toEqual({ skip: 'decade' });
     expect(parseSkipTimeInput({ skip: 'century' })).toBeNull();
     expect(parseSkipTimeInput({ days: 30 })).toBeNull();
     expect(parseSkipTimeInput('month')).toBeNull();
