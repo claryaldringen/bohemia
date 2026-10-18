@@ -181,16 +181,11 @@ const NEIGHBOUR_TRIPS = 0.5;
 const NEIGHBOURS = 2;
 /** Cest za den na člověkoden práce dne na místě (tam a zpět = jedna cesta). */
 const TRIPS_PER_MAN_DAY = 1;
-/**
- * Zavedená místa – cest za den celé vsi navíc k práci dne (pěšina nezaroste mezi pracemi). Hroby
- * předků se navštěvují často (raní Slované – obětiny, hostiny za mrtvé; návrh Clauda) – i ves se
- * dvěma domácnostmi má ke hřbitovu pěšinu.
- */
+/** Zavedená místa – cest za den celé vsi navíc k práci dne (pěšina nezaroste mezi pracemi). */
 const BASE_TRIPS = {
   field: 1.6,
   fallow: 0.4,
   orchard: 0.8,
-  cemetery: 1.5,
   site: 0.6,
   sacred: 0.6,
   pen: 0.8,
@@ -202,6 +197,12 @@ const BASE_TRIPS = {
  */
 const PASTURE = { flockHeads: 20, cattleHeads: 6, tripsPerHerd: 1 } as const;
 const AFTERMATH_MONTHS: readonly number[] = [8, 9, 10, 11];
+/**
+ * Návštěvy hrobů předků (Martin schválil, návrh Clauda – raní Slované je navštěvovali pravidelně:
+ * obětiny, hostiny za mrtvé): cest za den na člověka domácnosti, každá domácnost k nejbližšímu
+ * hřbitovu (ves se 7 lidmi ≈ 1 cesta denně, se 40 lidmi ≈ 6).
+ */
+const CEMETERY_VISITS_PER_PERSON = 0.15;
 /** Lidí na domácnost bez rozdělení práce (ves uložená dřív). */
 const DEFAULT_HOUSEHOLD = 5;
 /** Menší cesta za den se nehledá. */
@@ -868,9 +869,33 @@ function tripGroups(
   for (const orchard of v.orchards ?? []) {
     target(squaresTarget(orchard.squares), BASE_TRIPS.orchard + work(`orchard:${orchard.id}`));
   }
-  for (const cemetery of v.cemeteries ?? []) {
-    target(squaresTarget(cemetery.squares), BASE_TRIPS.cemetery + work(`cemetery:${cemetery.id}`));
-  }
+  // hřbitov: návštěvy hrobů podle lidí v domácnosti (k nejbližšímu hřbitovu) a práce dne
+  const cemeteries = v.cemeteries ?? [];
+  const nearestCemetery = homes.map((h) => {
+    let best = -1;
+    let bestD = Infinity;
+    cemeteries.forEach((cemetery, k) => {
+      for (const s of cemetery.squares) {
+        const d = length2(s.x - h.x, s.z - h.z);
+        if (d < bestD) {
+          best = k;
+          bestD = d;
+        }
+      }
+    });
+    return best;
+  });
+  cemeteries.forEach((cemetery, k) => {
+    const sources = squaresTarget(cemetery.squares);
+    if (sources.length === 0) return;
+    const builders = shareWeights(homes, work(`cemetery:${cemetery.id}`));
+    const weights = homes.map(
+      (h, i) =>
+        builders[i]! + (nearestCemetery[i] === k ? CEMETERY_VISITS_PER_PERSON * h.size * h.age : 0),
+    );
+    if (weights.every((w) => w <= 0)) return;
+    groups.push({ sources, weights, maxCost: groupReach(grid, sources, homes) });
+  });
   // ohrada: krmení a napájení dobytka, stavba a rádlo (práce dne na ohradě)
   for (const pen of v.pens ?? []) {
     const base = pen.built ? BASE_TRIPS.pen : BASE_TRIPS.site;
