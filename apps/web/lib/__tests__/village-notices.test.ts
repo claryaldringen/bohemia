@@ -297,6 +297,20 @@ describe('newNotices – porážka a spřežení (diet.md, oxen.md)', () => {
     expect(newNotices(null, after)).toEqual([]);
   });
 
+  it('nevěsta z okolí a dcera vdaná pryč – fakt (kinship.md)', () => {
+    const after = view({
+      dayIndex: 1003,
+      chronicle: [
+        entry(1002, 'married-away', 'Dcera se vdala do sousední vsi.'),
+        entry(1001, 'bride-from-outside', 'Muž si přivedl nevěstu ze sousední vsi.'),
+      ],
+    });
+    expect(newNotices(view({ dayIndex: 1000 }), after)).toEqual([
+      { kind: 'bride-from-outside', tone: 'info', text: 'Nevěsta z okolí' },
+      { kind: 'married-away', tone: 'info', text: 'Dcera se vdala pryč' },
+    ]);
+  });
+
   it('posvátný dub uschl a posvátná souš padla – fakt', () => {
     const after = view({
       dayIndex: 1003,

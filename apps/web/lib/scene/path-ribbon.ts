@@ -6,8 +6,10 @@ import { smoothstep, type DecalGrid } from './village-layout';
 // Pás vyšlapané pěšiny jako obtisk na terénu (docs/design/paths.md): po ose pěšiny průřez ze
 // čtyř bodů – měkký okraj (krytí 0), vyšlapaný střed, měkký okraj. Šířka a krytí podle síly,
 // osa se lehce vlní a šířka trochu kolísá (pěšina není podle pravítka), volné konce (brána,
-// pole, břeh) se vytrácejí. Výsledek je síť pro createDecalMesh (village-meshes.ts) – výšky,
-// normály a UV doplní ta. Čisté funkce, bez Babylonu.
+// pole, břeh) se vytrácejí. Rozcestí (konec aspoň tří čar v jednom bodě) je udusaný plácek –
+// nejvyšlapanější místo pěšin (Martin), kruh širší než nejsilnější přicházející pěšina, do kterého
+// pásy plynule vbíhají. Výsledek je síť pro createDecalMesh (village-meshes.ts) – výšky, normály
+// a UV doplní ta. Čisté funkce, bez Babylonu.
 
 /** Vrstva pásu: šířka (m) slabé a silné pěšiny, měkký okraj, krytí a od jaké síly se kreslí. */
 export interface RibbonLayer {
@@ -90,21 +92,80 @@ function lineSeed(line: PathLine): number {
   );
 }
 
+/** Rozcestí – bod, kde končí aspoň JUNCTION.minLines čar, a síla plácku 0–1. */
+export interface RibbonJunction {
+  x: number;
+  z: number;
+  strength: number;
+}
+
+/**
+ * Plácek rozcestí: od kolika čar je to rozcestí, poloměr jako násobek šířky nejsilnější přicházející
+ * pěšiny (průměr plácku je víc než dvojnásobek šířky – pásy do něj vbíhají a nezúží se), kolik ze síly ostatních pěšin se přičte
+ * k nejsilnější (rozcestí je nejvyšlapanější – sešlapou ho všechny, s mezí 1), počet úseků obvodu
+ * a nepravidelnost okraje (podíl poloměru).
+ */
+export const JUNCTION = {
+  minLines: 3,
+  scale: 1.3,
+  sumShare: 0.3,
+  segments: 20,
+  jitter: 0.1,
+} as const;
+
+/** Klíč bodu na cm – konce čar v rozcestí sdílejí bod. */
+function pointKey(p: { x: number; z: number }): string {
+  return `${Math.round(p.x * 100)},${Math.round(p.z * 100)}`;
+}
+
+/**
+ * Rozcestí čar: body, kde končí aspoň JUNCTION.minLines čar (konce se stejným bodem na cm). Síla
+ * plácku = nejsilnější přicházející pěšina + JUNCTION.sumShare ze síly ostatních, nejvýš 1.
+ * Pořadí podle prvního výskytu – deterministicky.
+ */
+export function ribbonJunctions(lines: readonly PathLine[]): RibbonJunction[] {
+  const nodes = new Map<string, { x: number; z: number; strengths: number[] }>();
+  const add = (p: { x: number; z: number }, strength: number): void => {
+    const key = pointKey(p);
+    const node = nodes.get(key) ?? { x: p.x, z: p.z, strengths: [] };
+    node.strengths.push(strength);
+    nodes.set(key, node);
+  };
+  for (const line of lines) {
+    if (line.points.length < 2) continue;
+    add(line.points[0]!, line.strength[0] ?? 0);
+    add(line.points[line.points.length - 1]!, line.strength[line.strength.length - 1] ?? 0);
+  }
+  const out: RibbonJunction[] = [];
+  for (const node of nodes.values()) {
+    if (node.strengths.length < JUNCTION.minLines) continue;
+    const max = Math.max(...node.strengths);
+    const rest = node.strengths.reduce((sum, v) => sum + v, 0) - max;
+    out.push({ x: node.x, z: node.z, strength: Math.min(1, max + JUNCTION.sumShare * rest) });
+  }
+  return out;
+}
+
 /**
  * Pás všech pěšin jedné vrstvy jako síť obtisku (pozice x, z po dvojicích, krytí, indexy).
  * `widthAt` – násobek šířky v bodě (přes osetý díl jen úzká stopa), bez něj plná; `alphaAt` –
- * násobek krytí v bodě (pěšina dne se ztrácí v pevné cestě), bez něj plné.
+ * násobek krytí v bodě (pěšina dne se ztrácí v pevné cestě), bez něj plné. `junctions` –
+ * plácky rozcestí (bez nich z konců čar – `ribbonJunctions`).
  */
 export function pathRibbons(
   lines: readonly PathLine[],
   layer: RibbonLayer,
   widthAt: (x: number, z: number) => number = () => 1,
   alphaAt: (x: number, z: number) => number = () => 1,
+  junctions: readonly RibbonJunction[] = ribbonJunctions(lines),
 ): DecalGrid {
   const positions: number[] = [];
   const alphas: number[] = [];
   const indices: number[] = [];
   for (const line of lines) addRibbon(line, layer, widthAt, alphaAt, positions, alphas, indices);
+  for (const junction of junctions) {
+    addJunction(junction, layer, widthAt, alphaAt, positions, alphas, indices);
+  }
   return {
     positions: Float32Array.from(positions),
     alphas: Float32Array.from(alphas),
@@ -183,6 +244,46 @@ function addRibbon(
       }
     }
     previous = base;
+  }
+}
+
+/**
+ * Plácek rozcestí: kruh o poloměru JUNCTION.scale × šířka pěšiny síly plácku (vrstva holé hlíny
+ * podle svého podílu šířky – `widthFactor`), uvnitř
+ * plné krytí, k okraji měkký přechod (`softM` vrstvy) – okraj lehce nepravidelný (podle polohy,
+ * stejný plácek = stejný tvar).
+ */
+function addJunction(
+  junction: RibbonJunction,
+  layer: RibbonLayer,
+  widthAt: (x: number, z: number) => number,
+  alphaAt: (x: number, z: number) => number,
+  positions: number[],
+  alphas: number[],
+  indices: number[],
+): void {
+  const { x, z, strength } = junction;
+  const width = layer.width.weak + (layer.width.strong - layer.width.weak) * strength;
+  const radius = width * layer.widthFactor * widthAt(x, z) * JUNCTION.scale;
+  const alpha = layer.alpha(strength) * alphaAt(x, z);
+  if (radius <= 0 || alpha <= 0) return;
+  const seed = (Math.round(x * 2) * 73856093) ^ (Math.round(z * 2) * 19349663);
+  const center = positions.length / 2;
+  positions.push(x, z);
+  alphas.push(alpha);
+  const n = JUNCTION.segments;
+  for (let k = 0; k < n; k++) {
+    const angle = (k / n) * Math.PI * 2;
+    const r = radius * (1 + (hash01(seed, k, 63) - 0.5) * 2 * JUNCTION.jitter);
+    const cx = Math.cos(angle);
+    const cz = Math.sin(angle);
+    positions.push(x + cx * r, z + cz * r, x + cx * (r + layer.softM), z + cz * (r + layer.softM));
+    alphas.push(alpha, 0);
+  }
+  for (let k = 0; k < n; k++) {
+    const inner = center + 1 + k * 2;
+    const next = center + 1 + ((k + 1) % n) * 2;
+    indices.push(center, inner, next, inner, inner + 1, next, next, inner + 1, next + 1);
   }
 }
 

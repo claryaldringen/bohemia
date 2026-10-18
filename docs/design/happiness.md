@@ -160,6 +160,9 @@ Každé místo přidá k cílovému štěstí; posvátná místa dohromady nejv�
   v sobě má kácení blízkého dubu jako cena obydlí (stavba 30 − 2 člověkodny + kácení podle
   vzdálenosti). Překážky na půdorysu se platí po kusech a dospělé stromy z nich dají klády.
   Rovinu modla nepotřebuje (rozhodnutí kontroléru – „kamkoli na louku“).
+- **Na pole** smí modla i svatyně (Martin, 18. 10. 2026 – [fields.md](fields.md), Pole jako
+  krajina): díly pod půdorysem se zmenší o průnik (pod 20 % políčka zmizí), překážky založených
+  dílů stavba neplatí; u kurzoru oranžově „Pole se zmenší“.
 
 ### Svatyně (staví hráč – nejvyšší úroveň)
 
@@ -230,3 +233,4 @@ Každé místo přidá k cílovému štěstí; posvátná místa dohromady nejv�
 | Délka života 800 + 1200 × Beta(2, 4) let (≈ 81 % 800–1400), uschne v létě               | návrh Clauda                              |
 | Posvátná souš +1, stojí 50–100 let, pak padne – padlý kmen už není posvátný dub         | návrh Clauda                              |
 | Místo padlé souše zůstává chráněné (ochrana jen z vrstvy překážek, žádný nový stav)     | rozhodnutí Clauda                         |
+| Modla a svatyně smí na pole – díly se zmenší o průnik půdorysu                          | Martin (18. 10. 2026)                     |

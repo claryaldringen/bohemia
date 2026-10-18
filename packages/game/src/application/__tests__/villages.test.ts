@@ -70,15 +70,25 @@ async function foundedVillages(): Promise<InMemoryVillages> {
 
 /**
  * Zemnice zakladatelů dostavěná a domácnost v ní plná dospělých (6 lidí, z toho 6 dospělých) –
- * může se z ní oddělit mladý pár. Na hromadě leží 40 klád (ruční krajina testů nemá stromy).
+ * může se z ní oddělit rodina nepříbuzného manželského páru (kinship.md – Domácnosti). Na hromadě
+ * leží 40 klád (ruční krajina testů nemá stromy).
  */
 function makeFullHousehold(state: VillageState): void {
   Object.assign(state, withBuiltFirstDwelling(state));
   const day = state.lastDay;
   state.people.forEach((p) => (p.bornDay = Math.min(p.bornDay, day - Math.ceil(16 * YEAR))));
-  for (const [i, age] of [20, 22].entries()) {
-    state.people.push({ id: 900 + i, bornDay: day - Math.ceil(age * YEAR), dwellingId: 1 });
+  // nepříbuzný manželský pár (kinship.md) – rodina, která se může oddělit; děti zakladatelů jsou
+  // oba chlapci, ať se mezi sebou nevezmou
+  for (const [i, age] of [22, 20].entries()) {
+    state.people.push({
+      id: 900 + i,
+      bornDay: day - Math.ceil(age * YEAR),
+      dwellingId: 1,
+      sex: i === 0 ? 'male' : 'female',
+      spouseId: i === 0 ? 901 : 900,
+    });
   }
+  for (const p of state.people) if (p.id !== 901 && p.spouseId === undefined) p.sex = 'male';
   state.woodLogs = 40;
 }
 
@@ -380,6 +390,7 @@ describe('placeDwelling', () => {
       id: fieldId,
       areaM2: 225,
       gone: false,
+      by: 'dwelling',
     });
   });
 
@@ -570,19 +581,31 @@ describe('placeCemetery', () => {
     });
   });
 
-  it('pohřebiště přes pole nebo ve vodě odmítne a ves nezmění', async () => {
+  it('pohřebiště ve vodě odmítne a ves nezmění; na poli projde – čtverec z pole zmizí', async () => {
     const villages = await foundedVillages();
-    const overField = await placeCemetery(
-      { villages },
-      { villageId: VID, landscape, today: TODAY + 1, cells: block(9, 9, 2, 1) },
-    );
-    expect(overField).toEqual({ ok: false, reason: 'Hřbitov se překrývá s polem.' });
     const inWater = await placeCemetery(
       { villages },
       { villageId: VID, landscape, today: TODAY + 1, cells: block(14, 2, 2, 1) },
     );
     expect(inWater).toEqual({ ok: false, reason: 'Hřbitov nesmí zasahovat do vody.' });
     expect(villages.records.get(VID)?.version).toBe(1);
+    // čtverec (9, 9) patří prvnímu poli (fields.md – Pole jako krajina)
+    const overField = await placeCemetery(
+      { villages },
+      { villageId: VID, landscape, today: TODAY + 1, cells: block(9, 9, 2, 1) },
+    );
+    expect(overField.ok).toBe(true);
+    if (!overField.ok) return;
+    const { state } = overField.village;
+    expect(state.parts.some((p) => p.cell?.x === 9 && p.cell.y === 9)).toBe(false);
+    expect(state.cemeteries?.[0]?.squares.map((q) => q.cell)).toEqual(block(9, 9, 2, 1));
+    expect(state.chronicle.at(-1)).toMatchObject({
+      kind: 'land-taken',
+      land: 'field',
+      areaM2: 225,
+      gone: false,
+      by: 'cemetery',
+    });
   });
 
   it('čtverce navazující na hřbitov ho rozšíří – stejné id, nová stavba', async () => {
@@ -641,13 +664,8 @@ describe('placeOrchard', () => {
     expect(state.constructions.at(-1)?.cost).toBeCloseTo(4 * 1.8);
   });
 
-  it('sad přes pole, ve vodě nebo přes jiný sad odmítne a ves nezmění', async () => {
+  it('sad ve vodě nebo přes jiný sad odmítne a ves nezmění; na poli projde', async () => {
     const villages = await foundedVillages();
-    const overField = await placeOrchard(
-      { villages },
-      { villageId: VID, landscape, today: TODAY + 1, cells: block(9, 9, 2, 1) },
-    );
-    expect(overField).toEqual({ ok: false, reason: 'Sad se překrývá s polem.' });
     const inWater = await placeOrchard(
       { villages },
       { villageId: VID, landscape, today: TODAY + 1, cells: block(14, 2, 2, 1) },
@@ -669,6 +687,17 @@ describe('placeOrchard', () => {
       { villageId: VID, landscape, today: TODAY + 1, cells: block(11, 7, 2, 2) },
     );
     expect(fieldOver).toEqual({ ok: false, reason: 'Pole se překrývá se sadem.' });
+    // sad na čtverci prvního pole (9, 9) – čtverec z pole zmizí (fields.md – Pole jako krajina)
+    const overField = await placeOrchard(
+      { villages },
+      { villageId: VID, landscape, today: TODAY + 1, cells: block(9, 9, 1, 1) },
+    );
+    expect(overField.ok).toBe(true);
+    if (!overField.ok) return;
+    const { state } = overField.village;
+    expect(state.parts.some((p) => p.cell?.x === 9 && p.cell.y === 9)).toBe(false);
+    expect(state.orchards?.at(-1)?.squares.map((q) => q.cell)).toEqual([{ x: 9, y: 9 }]);
+    expect(state.chronicle.at(-1)).toMatchObject({ kind: 'land-taken', by: 'orchard' });
   });
 
   it('bez vsi sad založit nejde', async () => {

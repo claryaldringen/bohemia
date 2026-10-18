@@ -1,5 +1,5 @@
 import { useState, type ReactElement, type ReactNode } from 'react';
-import { CRAFT_NAMES, type DwellingType } from '@bohemia/game';
+import { CRAFT_NAMES, type DwellingType, type FamilyCounts } from '@bohemia/game';
 import { PART_COLORS, SURFACE_COLORS } from '@/lib/minimap';
 import {
   CROP_LABELS,
@@ -156,6 +156,9 @@ function dwellingPortrait(type: DwellingType, craft: Craft | null): ReactElement
  * Co dílna dělá – ikona (výrobek, dřevo, uhlí, lidé) s červeným tónem, když stojí, a popisek
  * v tooltipu; u výroby kolik kg za den.
  */
+/** Čeho má ves dost, když řemeslník pomáhá vsi (2. pád). */
+const ENOUGH: Record<Craft, string> = { burner: 'Uhlí', smith: 'Nástrojů', potter: 'Keramiky' };
+
 function activityLook(workshop: SelectionWorkshop): {
   icon: string;
   name: string;
@@ -181,14 +184,18 @@ function activityLook(workshop: SelectionWorkshop): {
     burning: { icon: 'charcoal', name: 'Pálí milíř – hlídá ve dne i v noci', value: percent },
     drawing: { icon: 'charcoal', name: 'Vytahuje uhlí z milíře', value: percent },
     planting: { icon: 'labor', name: 'Sází mladé buky na pařezy', value: `${workshop.toPlant}` },
-    resting: { icon: 'people', name: 'Uhlí je dost – pomáhá vsi', value: '–' },
-    'no-charcoal': { icon: 'charcoal', name: 'Čeká na uhlí', value: '0' },
+    resting: {
+      icon: 'people',
+      name: `${ENOUGH[workshop.craft]} je dost na rok – pomáhá vsi na poli a se stavbami`,
+      value: '–',
+    },
+    'no-charcoal': { icon: 'charcoal', name: 'Čeká na uhlí – zatím pomáhá vsi', value: '0' },
     'no-wood': {
       icon: 'wood',
       name:
         workshop.craft === 'burner'
-          ? 'Čeká na dřevo – nejsou dospělé buky'
-          : 'Čeká na dřevo – není co kácet',
+          ? 'Čeká na dřevo – nejsou dospělé buky, zatím pomáhá vsi'
+          : 'Čeká na dřevo – není co kácet, zatím pomáhá vsi',
       value: '0',
     },
     idle: { icon: 'labor', name: 'Nemá kdo pracovat', value: '0' },
@@ -277,6 +284,7 @@ function DwellingBody({
           {details.ageYears}
         </Stat>
       </div>
+      <FamilyRow family={details.family} />
       <ul data-testid="selection-ages" aria-label="Věk obyvatel" className="flex flex-wrap gap-1">
         {details.ages.map((age, i) => (
           <li
@@ -345,6 +353,34 @@ function DwellingsBody({
         )}
         <LeaveButton />
       </div>
+    </div>
+  );
+}
+
+/**
+ * Rodiny v obydlí (kinship.md – Co hráč vidí): muži, ženy, děti, starší a manželské páry – ikony
+ * s čísly, bez slov (rozhraní jako v 0 A.D.).
+ */
+function FamilyRow({ family }: { family: FamilyCounts }): ReactElement {
+  const items: { icon: string; name: string; value: number }[] = [
+    { icon: 'man', name: 'Muži', value: family.men },
+    { icon: 'woman', name: 'Ženy', value: family.women },
+    { icon: 'child', name: 'Děti', value: family.boys + family.girls },
+    { icon: 'elder', name: 'Starší', value: family.elderMen + family.elderWomen },
+    { icon: 'ring', name: 'Manželské páry', value: family.couples },
+  ];
+  return (
+    <div data-testid="selection-family" className="flex flex-wrap items-center gap-x-3 gap-y-1">
+      {items.map((item) => (
+        <Stat
+          key={item.icon}
+          icon={item.icon}
+          name={item.name}
+          testId={`selection-family-${item.icon}`}
+        >
+          {item.value}
+        </Stat>
+      ))}
     </div>
   );
 }
@@ -883,6 +919,14 @@ function RoadBody({
               {apples.option.blocked && (
                 <span data-testid="road-apples-blocked" className="font-semibold text-red-400">
                   {apples.option.blocked}
+                </span>
+              )}
+              {!apples.option.blocked && apples.option.warning && (
+                <span
+                  data-testid="road-apples-warning"
+                  className="font-semibold whitespace-pre-line text-[#ffc27a]"
+                >
+                  {apples.option.warning}
                 </span>
               )}
             </span>

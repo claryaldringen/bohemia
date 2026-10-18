@@ -6,6 +6,13 @@ export interface Position {
   z: number;
   rotation: number;
 } // svět, m; ověřuje plán 3
+/** Pohlaví člověka (kinship.md). */
+export type Sex = 'male' | 'female';
+/**
+ * Směr k sousední vsi (war.md – Svět: mřížka map, 8 sousedů): sever, severovýchod, východ,
+ * jihovýchod, jih, jihozápad, západ, severozápad.
+ */
+export type NeighborDirection = 'N' | 'NE' | 'E' | 'SE' | 'S' | 'SW' | 'W' | 'NW';
 export interface Person {
   id: number;
   bornDay: number;
@@ -14,6 +21,44 @@ export interface Person {
    * staveništi), obydlí s tím id vznikne až s dokončením.
    */
   dwellingId: number;
+  /**
+   * Pohlaví (kinship.md). U vsí uložených před příbuzenstvím chybí – doplní ho jednou
+   * `withKinship`.
+   */
+  sex?: Sex;
+  /** Matka a otec (id) – chybí, když jsou neznámí (zakladatelé, lidé z okolí, starší vsi). */
+  motherId?: number;
+  fatherId?: number;
+  /** Manžel / manželka (id žijícího člověka ve vsi); svobodný, vdovec a vdova ho nemají. */
+  spouseId?: number;
+  /**
+   * Ze které sousední vsi člověk přišel – nevěsta z okolí (kinship.md, war.md – příbuzní
+   * v cílové vsi); narození ve vsi ho nemají.
+   */
+  origin?: NeighborDirection;
+}
+/**
+ * Dcera, která se vdala pryč (kinship.md – Sňatky z okolí): jen záznam v rodokmenu, nesimuluje se –
+ * id, pohlaví, den narození, rodiče a směr vsi, kam odešla (war.md – muži s příbuznými v cílové
+ * vsi útočit nechtějí). Ves ho drží, jen dokud ve vsi žije její rodič, sourozenec nebo dítě.
+ */
+export interface Emigrant {
+  id: number;
+  sex: Sex;
+  bornDay: number;
+  direction: NeighborDirection;
+  motherId?: number;
+  fatherId?: number;
+}
+/**
+ * Zemřelý nebo odešlý předek v rodokmenu (kinship.md – Příbuzenství): jen id a jeho rodiče, aby
+ * šli poznat prarodiče, strýcové a bratranci žijících. Ves ho drží, jen dokud je rodičem
+ * někoho žijícího.
+ */
+export interface Ancestor {
+  id: number;
+  motherId?: number;
+  fatherId?: number;
 }
 /**
  * Kde na pozemku stojí dům: uprostřed, nebo v jednom ze čtyř rohů (population.md – Umístění
@@ -332,6 +377,12 @@ export type ConstructionKind =
   | 'road'
   /** Výsadba jabloní podél pevné cesty `roadIds` (roads.md – Vysazení jabloní). */
   | 'road-apples';
+/**
+ * Co může vzít půdu poli (fields.md – Pole jako krajina; Martin 18. 10. 2026): obydlí (i dílna),
+ * sad, hřbitov, ohrada, modla, svatyně, jabloně u cesty a stromy u cesty – cokoli kromě pole.
+ */
+export type LandTaker =
+  'dwelling' | 'orchard' | 'cemetery' | 'pen' | 'idol' | 'shrine' | 'road-apples' | 'road-trees';
 /** Posvátná stavba, kterou staví hráč (happiness.md). */
 export type SacredBuildingKind = 'idol' | 'shrine';
 export interface Construction {
@@ -469,8 +520,15 @@ export type ChronicleEvent = { day: number } & (
   | { kind: 'village-extinct' }
   | { kind: 'household-founded'; dwellingId: number }
   | { kind: 'household-merged'; fromDwellingId: number; toDwellingId: number }
-  /** Sňatek mezi domy (population.md) – svobodný z domu `from` se přestěhoval k protějšku. */
+  /**
+   * Svatba ve vsi (kinship.md – Sňatky) – nevěsta z domu `from` se přestěhovala k muži do domu
+   * `to` (ze stejného domu from = to).
+   */
   | { kind: 'marriage'; fromDwellingId: number; toDwellingId: number }
+  /** Muž z domu `dwellingId` si přivedl nevěstu z okolí (kinship.md – Sňatky z okolí). */
+  | { kind: 'bride-from-outside'; dwellingId: number }
+  /** Dcera z domu `dwellingId` se vdala pryč – odešla ze vsi (kinship.md – Sňatky z okolí). */
+  | { kind: 'married-away'; dwellingId: number }
   | {
       kind: 'construction-finished';
       constructionKind: ConstructionKind;
@@ -509,7 +567,15 @@ export type ChronicleEvent = { day: number } & (
    * Pole nebo sad ustoupil stavbě obydlí (population.md – Obydlí na poli a v sadu): o kolik m² se
    * zmenšil, a jestli tím zanikl (dům sebral poslední čtverec).
    */
-  | { kind: 'land-taken'; land: 'field' | 'orchard'; id: number; areaM2: number; gone: boolean }
+  | {
+      kind: 'land-taken';
+      land: 'field' | 'orchard';
+      id: number;
+      areaM2: number;
+      gone: boolean;
+      /** Co půdu vzalo (fields.md – Pole jako krajina); bez údaje obydlí (starší události). */
+      by?: LandTaker;
+    }
   | { kind: 'hunger-began' }
   | { kind: 'hunger-ended' }
   /**
@@ -733,13 +799,25 @@ export interface VillageState {
    * Starší polozemnice už dostaly pozemky (`withPlots`, Martin 18. 10. 2026). Chybí u vsí
    * uložených před převodem – při načtení se jednou převedou.
    */
+  /**
+   * Zemřelí a odešlí rodiče žijících (kinship.md – Příbuzenství) – jen pro poznání blízkých
+   * příbuzných. U vsí uložených před příbuzenstvím chybí (= žádní).
+   */
+  ancestors?: Ancestor[];
+  /** Dcery, které se vdaly pryč – záznam se směrem jejich nové vsi (kinship.md); chybí = žádné. */
+  emigrants?: Emigrant[];
   plotsMigrated?: true;
   /**
-   * Otisk klíče rozložení vsi (`walkLayoutHash`), pro které se naposledy spočítaly vzdálenosti
-   * chůze dílů po pěšinách (`FieldPart.walkDistanceM`). Chybí, dokud se nespočítaly (starší vsi,
-   * simulace bez krajiny); vsi uložené do 18. 10. 2026 mají celý klíč – při dopočtu se převede.
+   * Otisk rozložení vsi (`walkLayoutKey` se stadii `walkStages`), pro které se naposledy spočítaly
+   * vzdálenosti chůze po pěšinách (`FieldPart.walkDistanceM`…). Chybí, dokud se nespočítaly
+   * (starší vsi, simulace bez krajiny); klíč z doby před měsíčními stadii se jednou přepočítá.
    */
   walkLayoutKey?: string;
+  /**
+   * Otisk stadií dílů a pastvy úhoru (`walkStageKey`) z posledního 1. dne v měsíci – do klíče
+   * chůze se stadia promítají jen jednou za měsíc (Martin, 18. 10. 2026). Chybí jako výše.
+   */
+  walkStages?: string;
   /**
    * Pevné cesty, stromy u nich a roční součty práce (roads.md). Chybí u vsí uložených před nimi
    * a ve vsích simulovaných bez krajiny (kalibrace, testy) – začnou při prvním dopočtu s krajinou.

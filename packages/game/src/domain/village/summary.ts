@@ -8,7 +8,9 @@ import {
   villageCemeteries,
 } from './cemetery';
 import { craftCoverage, craftNeeds, craftStocks, oreFactor, workshopLabor } from './crafts';
-import { isFull, isOvercrowded, waitingHouseholds } from './dwellings';
+import { isFull, isOvercrowded } from './dwellings';
+import { waitingHouseholds } from './households';
+import { familyCounts, type FamilyCounts } from './kinship';
 import { fallowStage } from './fields';
 import {
   happinessFactors,
@@ -86,6 +88,8 @@ export interface HouseholdSummary {
   /** Řemeslo dílny (crafts.md); obyčejné obydlí null. */
   craft: Craft | null;
   occupants: number;
+  /** Muži, ženy, děti, starší a manželské páry domácnosti (kinship.md – panel obydlí). */
+  family: FamilyCounts;
   capacity: number;
   full: boolean;
   overcrowded: boolean;
@@ -253,6 +257,8 @@ export interface PenSummary {
 
 export interface VillageSummary {
   people: { children: number; adults: number; elders: number };
+  /** Muži, ženy, děti, starší a páry celé vsi (kinship.md) – i pohlaví postav ve scéně. */
+  family: FamilyCounts;
   households: HouseholdSummary[];
   storesKg: number;
   /** Zásoby jablek (kg) – jí se před obilím, 1. 3. shnijí. */
@@ -349,6 +355,7 @@ function households(state: VillageState, day: number): HouseholdSummary[] {
     type: d.type,
     craft: d.workshop?.craft ?? null,
     occupants: occupants(state, d.id).length,
+    family: familyCounts(occupants(state, d.id), day),
     capacity: DWELLINGS[d.type].capacity,
     full: isFull(state, d.id, day),
     overcrowded: isOvercrowded(state, d.id, day),
@@ -533,6 +540,7 @@ export function summarizeVillage(
   const starvationDays = state.starvationDays ?? 0;
   return {
     people: peopleByGroup(state, day),
+    family: familyCounts(state.people, day),
     households: households(state, day),
     storesKg: state.storesKg,
     applesKg: villageApplesKg(state),

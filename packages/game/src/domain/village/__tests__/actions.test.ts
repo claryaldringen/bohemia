@@ -155,9 +155,10 @@ describe('foundVillage', () => {
 describe('startNewDwelling', () => {
   const sixPeople = (): VillageState => {
     const s = withBuiltFirstDwelling(start());
+    // nepříbuzný manželský pár navíc – rodina, která se může oddělit (kinship.md)
     const extra: Person[] = [
-      { id: 100, bornDay: DAY - 20 * 365.25, dwellingId: 1 },
-      { id: 101, bornDay: DAY - 20 * 365.25, dwellingId: 1 },
+      { id: 100, bornDay: DAY - 20 * 365.25, dwellingId: 1, sex: 'male', spouseId: 101 },
+      { id: 101, bornDay: DAY - 20 * 365.25, dwellingId: 1, sex: 'female', spouseId: 100 },
     ];
     s.dwellings[0]!.id = 1;
     s.people.forEach((p) => (p.dwellingId = 1));

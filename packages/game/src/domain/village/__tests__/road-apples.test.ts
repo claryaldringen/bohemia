@@ -1,15 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { obstaclesOf } from '../../landscape';
-import { foundVillage } from '../actions';
+import { foundField, foundVillage, type PartInput } from '../actions';
 import { obstacleChangesAt } from '../obstacles';
 import { roadAppleHarvestWork, roadAppleYieldKg, roadApplePlantingWork } from '../orchard';
 import { updateRoads } from '../paths/roads';
 import { roadAppleSpots, roadApplesNeed, roadApplesOption, startRoadApples } from '../road-apples';
 import { ROAD_TREE_ID_BASE, roadAppleObstacleKind, roadAppleStage } from '../road-trees';
-import { ROAD_APPLES } from '../rules';
+import { ROAD_APPLES, TAKEN_LAND_TREE_M2 } from '../rules';
 import { advanceVillage } from '../simulate';
-import type { Dwelling, Person, Road, RoadApple, VillageState } from '../types';
+import type { Dwelling, Person, Road, RoadApple, TileCell, VillageState } from '../types';
+import { block } from './placement-fixtures';
 import { LANDSCAPE } from './paths-fixtures';
 import { withBuiltFirstDwelling } from './village-fixtures';
 
@@ -189,5 +190,61 @@ describe('jabloně podél cesty – úroda, život, překážka', () => {
     s.roads!.apples = [apple({ x: 0, z: -117 })];
     for (let year = 600; year < 640; year++) updateRoads(s, at(year, 11, 1), LANDSCAPE, null);
     expect(s.roads!.trees.filter((t) => t.spot === 7)).toEqual([]);
+  });
+});
+
+describe('jabloně a stromy u cesty na poli (fields.md – Pole jako krajina)', () => {
+  // pole podél úseku: čtverce x 6–9 (svět −60 … 0), řádky 1–2 (z −135 … −105) – cesta po z = −120
+  const fieldParts = (cells: TileCell[]): PartInput[] =>
+    cells.map((cell) => ({
+      areaM2: 225,
+      distanceM: 120,
+      naturalFertility: 60,
+      surface: 'meadow',
+      obstacleCost: 0,
+      cell,
+    }));
+  const withField = (): VillageState => {
+    const s = village();
+    return foundField(s, s.lastDay, { parts: fieldParts(block(6, 1, 4, 2)) });
+  };
+  const onField = (p: { x: number; z: number }): boolean => p.x >= -60 && p.x < 0;
+  const partArea = (s: VillageState, x: number, z: number): number | undefined =>
+    s.parts.find(
+      (q) => q.cell?.x === Math.floor((x + 150) / 15) && q.cell.y === Math.floor((z + 150) / 15),
+    )?.areaM2;
+
+  it('jabloně smí na pole – každá vezme dílu 20 m², nabídka varuje „Pole se zmenší“', () => {
+    const s = withField();
+    const spots = roadAppleSpots(s, 5, DAY, LANDSCAPE, LAYER);
+    const fieldSpots = spots.filter(onField);
+    expect(fieldSpots.length).toBeGreaterThan(3);
+    expect(roadApplesOption(s, 5, DAY, LANDSCAPE, LAYER)!.warning).toBe('Pole se zmenší');
+    const started = startRoadApples(s, DAY, 5, LANDSCAPE, LAYER);
+    const lost =
+      s.parts.reduce((sum, p) => sum + p.areaM2, 0) -
+      started.parts.reduce((sum, p) => sum + p.areaM2, 0);
+    expect(lost).toBeCloseTo(fieldSpots.length * TAKEN_LAND_TREE_M2, 9);
+    expect(started.chronicle.at(-1)).toMatchObject({
+      kind: 'land-taken',
+      land: 'field',
+      by: 'road-apples',
+      gone: false,
+    });
+    // jabloně mimo pole poli nic neberou
+    expect(roadApplesOption(village(), 5, DAY, LANDSCAPE, LAYER)!.warning).toBeNull();
+  });
+
+  it('strom u cesty se uchytí i na mezi u pole – vezme dílu 20 m²', () => {
+    const s = withField();
+    s.roads!.roads[0]!.spots = [{ id: 7, x: -30, z: -117 }];
+    const before = partArea(s, -30, -117)!;
+    let year = 600;
+    while (!s.roads!.trees.some((t) => t.spot === 7) && year < 700) {
+      updateRoads(s, at(year++, 11, 1), LANDSCAPE, null);
+    }
+    expect(s.roads!.trees.some((t) => t.spot === 7)).toBe(true);
+    expect(partArea(s, -30, -117)).toBeCloseTo(before - TAKEN_LAND_TREE_M2, 9);
+    expect(s.chronicle.at(-1)).toMatchObject({ kind: 'land-taken', by: 'road-trees' });
   });
 });

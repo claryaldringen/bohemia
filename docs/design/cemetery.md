@@ -29,7 +29,9 @@ další rozhodnutí o místě v krajině – vedle obydlí a polí.
 ## Pravidla
 
 - **Stavba:** hráč pohřebiště zakládá **po čtvercích** jako pole – políčka krajiny 15 × 15 m
-  (návrh Clauda, Martin potvrdil). Nesmí ležet ve vodě, na obydlí ani na poli. Založení stojí
+  (návrh Clauda, Martin potvrdil). Nesmí ležet ve vodě ani na obydlí. **Na pole smí**
+  (Martin, 18. 10. 2026 – [fields.md](fields.md), Pole jako krajina): čtverec pole pod hřbitovem
+  z pole zmizí, překážky dílu hřbitov neplatí; u kurzoru oranžově „Pole se zmenší“. Založení stojí
   práci jako stavba ze společné práce vsi: vytyčení a ohrazení **10 člověkodní na čtverec**
   (návrh Clauda) + překážky jako u polí.
 - **Velikost:** každý pohřbený zabere **4 m²** i s uličkami – na čtverec se vejde 56 hrobů
@@ -82,3 +84,4 @@ nasycení ≥ 0,95 u ní 97,6 % let místo 98,2 %. Čísla se neladila.
 | Po čtvercích jako pole; vzdálenosti 150 / 50 m od obydlí a 100 / 30 m od vody         | návrh Clauda, Martin potvrdil |
 | Hrob 4 m², hroby se neopakují; extra úmrtnost 0,3 / 0,5; hájení chrání; 10 čd/čtverec | návrh Clauda, Martin potvrdil |
 | Plot hřbitova = pletený plot jako polský plot (hustší), rohy zakulacené               | Martin, 18. 10. 2026          |
+| Hřbitov smí na pole – čtverec pole pod ním z pole zmizí                               | Martin, 18. 10. 2026          |

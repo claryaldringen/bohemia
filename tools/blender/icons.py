@@ -26,7 +26,10 @@ suroviny řemesel (crafts.md) –, overgrowth (zarůstání – keře a mladá b
 zšedlý rozštípnutý kůl s prasklinou a mechem) a abandoned (opuštěná stavba – padlý kůl
 v kopřivách z `apps/web/public/models/dwellings/decay.glb`, abandonment.md) a zvířata stád do panelu
 ohrady – sheep, goat, pig, cow, chicken
-(modely `apps/web/public/models/fauna/`) a ox (vůl ze spřežení `apps/web/public/models/plough/ox.glb`).
+(modely `apps/web/public/models/fauna/`) a ox (vůl ze spřežení `apps/web/public/models/plough/ox.glb`)
+a rodiny do panelu obydlí (kinship.md) – man, woman, child (chlapec a dívka), elder (starší s holí
+a šedinami; vesničané z `apps/web/public/models/people/`) a ring (bronzový prsten – manželské
+páry).
 Bez druhého argumentu vše, jinak čárkami oddělený výběr (např. `pole,hrbitov,food`).
 
 Postup: portréty staveb a ikony `food`, `wood`, `labor`, `satiation`, `date`, `apples` se vyrenderují v Cycles
@@ -64,6 +67,7 @@ PEN = os.path.join(ROOT, "apps/web/public/models/pen")
 PLOUGH = os.path.join(ROOT, "apps/web/public/models/plough")
 FAUNA = os.path.join(ROOT, "apps/web/public/models/fauna")
 FIELDS = os.path.join(ROOT, "apps/web/public/models/fields")
+PEOPLE = os.path.join(ROOT, "apps/web/public/models/people")
 ROADS = os.path.join(ROOT, "apps/web/public/models/roads")
 TEX = os.path.join(ROOT, "apps/web/public/textures/terrain")
 TMP = tempfile.mkdtemp(prefix="bohemia-icons-")
@@ -1717,6 +1721,117 @@ BUILD = {
     "hat": lambda: icon_road("hat"),
     "jablone": icon_jablone,
 }
+
+# ------------------------------------------------------------- rodiny ----
+# Ikony panelu obydlí (kinship.md – Co hráč vidí): muž, žena, děti, starší a prsten (manželské
+# páry). Postavy jsou vesničané hry (`apps/web/public/models/people/`, z 0 A.D.) v klidové pózy
+# ze snímku klipu `idle`.
+
+
+def place_person(name, loc=(0.0, 0.0, 0.0), scale=1.0, turn=-20.0, frame=12):
+    """Vesničan `man` / `woman` stojící v pozici `loc`: klip idle na snímku `frame`, natočený."""
+    before = set(bpy.data.objects)
+    bpy.ops.import_scene.gltf(filepath=f"{PEOPLE}/{name}.glb")
+    new = [o for o in bpy.data.objects if o not in before]
+    helpers = [o for o in new if o.name.startswith("Icosphere")]
+    new = [o for o in new if o not in helpers]
+    for o in helpers:
+        bpy.data.objects.remove(o, do_unlink=True)
+    rig = next(o for o in new if o.type == "ARMATURE")
+    idle = next(a for a in bpy.data.actions if a.name.startswith("idle"))
+    if rig.animation_data is None:
+        rig.animation_data_create()
+    rig.animation_data.action = idle
+    bpy.context.scene.frame_set(frame)
+    # importér glTF už kostru natočil z Y-up do Z-up – posun, otočení a měřítko se k tomu přidají
+    place = Matrix.Translation(Vector(loc)) @ Matrix.Rotation(math.radians(turn), 4, "Z")
+    rig.matrix_world = place @ Matrix.Scale(scale, 4) @ rig.matrix_world
+    bpy.context.view_layer.update()
+    return [o for o in new if o.type == "MESH"]
+
+
+def grey_hair(objs, amount=0.55):
+    """Starší: šediny – barva textury se smíchá s šedou (celá postava trochu vybledne)."""
+    for o in objs:
+        for m in o.data.materials:
+            nt = m.node_tree
+            b = next(n for n in nt.nodes if n.type == "BSDF_PRINCIPLED")
+            link = next((l for l in nt.links if l.to_socket == b.inputs["Base Color"]), None)
+            if link is None:
+                continue
+            mx = nt.nodes.new("ShaderNodeMix")
+            mx.data_type, mx.blend_type = "RGBA", "MIX"
+            mx.inputs["Factor"].default_value = amount
+            mx.inputs[7].default_value = (0.62, 0.6, 0.57, 1)
+            nt.links.new(link.from_socket, mx.inputs[6])
+            nt.links.new(mx.outputs[2], b.inputs["Base Color"])
+
+
+def box_points(meshes, z_from=0.0, z_to=1.0):
+    """Rohy kvádru kolem postav, jen pásmo výšky z_from–z_to (podíl výšky) – výřez portrétu."""
+    pts = world_points(meshes)
+    xs, ys, zs = [p.x for p in pts], [p.y for p in pts], [p.z for p in pts]
+    lo, hi = min(zs), max(zs)
+    z0, z1 = lo + (hi - lo) * z_from, lo + (hi - lo) * z_to
+    return [Vector((x, y, z)) for x in (min(xs), max(xs)) for y in (min(ys), max(ys)) for z in (z0, z1)]
+
+
+def bust_icon(meshes):
+    """Portrét – hlava a ramena jako ikona obyvatel 0 A.D."""
+    sun(az=-40, el=40, strength=4.4)
+    camera(box_points(meshes, 0.62, 1.0), az=12, el=6, margin=1.0)
+
+
+def icon_man():
+    bust_icon(place_person("man"))
+
+
+def icon_woman():
+    bust_icon(place_person("woman"))
+
+
+def icon_child():
+    """Děti: malá postava (vesničan zmenšený na dětskou výšku) u matky, matka jen do pasu."""
+    kid = place_person("man", loc=(-0.3, -0.25, 0), scale=0.55, turn=-15)
+    mother = place_person("woman", loc=(0.22, 0.05, 0), turn=-25)
+    sun(az=-40, el=40, strength=4.4)
+    pts = world_points(kid)
+    top = max(p.z for p in pts)
+    frame = [p for p in box_points(kid + mother) if p.z <= top] + [Vector((p.x, p.y, top * 1.08)) for p in pts]
+    camera(frame, az=12, el=6, margin=1.02, shift=(0.0, 0.02))
+
+
+def icon_elder():
+    """Starší: portrét muže se šedinami (vybledlá barva) a hůl u ramene."""
+    meshes = place_person("man", turn=-25, frame=40)
+    grey_hair(meshes)
+    bm = bmesh.new()
+    cyl(bm, (0.3, -0.24, 0.0), (0.34, -0.22, 1.62), 0.024, 0.02)
+    stick = to_obj(bm, "hul", mat("hul", (0.32, 0.2, 0.11), rough=0.7))
+    sun(az=-40, el=40, strength=4.4)
+    camera(box_points(meshes, 0.62, 1.0), az=12, el=6, margin=1.0)
+    del stick
+
+
+def icon_ring():
+    """Manželské páry: bronzový prsten s rytým páskem, mírně nakloněný."""
+    bpy.ops.mesh.primitive_torus_add(major_radius=1.0, minor_radius=0.16, major_segments=96, minor_segments=24)
+    ring = bpy.context.active_object
+    bronze = bpy.data.materials.new("bronz")
+    bronze.use_nodes = True
+    b = next(n for n in bronze.node_tree.nodes if n.type == "BSDF_PRINCIPLED")
+    b.inputs["Base Color"].default_value = (0.78, 0.52, 0.22, 1)
+    b.inputs["Metallic"].default_value = 1.0
+    b.inputs["Roughness"].default_value = 0.32
+    ring.data.materials.append(bronze)
+    bpy.ops.object.shade_smooth()
+    ring.rotation_euler = (math.radians(62), 0, math.radians(18))
+    ring.scale = (1, 1, 1.35)
+    bpy.context.view_layer.update()
+    sun(az=-50, el=48, strength=4.4)
+    camera(world_points([ring]), az=0, el=20, margin=1.12)
+
+
 RESOURCES = {
     "food": icon_food,
     "wood": icon_wood,
@@ -1745,6 +1860,11 @@ RESOURCES = {
     "overgrowth": icon_overgrowth,
     "condition": icon_condition,
     "abandoned": icon_abandoned,
+    "man": icon_man,
+    "woman": icon_woman,
+    "child": icon_child,
+    "elder": icon_elder,
+    "ring": icon_ring,
 }
 
 

@@ -165,6 +165,26 @@ má nějaké meze. Bez řemeslníků ber tu nejhorší hranici, s řemeslníky t
   dílům zůstane hotová práce; zakládaný díl zmenší úměrně i založení (cena i odvedená práce),
   zakládaný díl pod pozemkem zmizí s ním a jeho překážky odklidí staveniště domu. Pole naopak na
   obydlí nesmí (beze změny). Když dům zanikne, plocha se do pole nevrací.
+- **Pole jako krajina** (Martin, 18. 10. 2026: „Pole by se mělo chovat jako normální krajina.
+  Takže by na něm mělo jít postavit cokoliv kromě jiného pole.“ – spouštěč: ve Vlkově s ≈ 40 ha
+  polí neměly jabloně podél cest kde stát; podrobnosti návrh Clauda): na pole smí **každá stavba
+  kromě jiného pole** a pole ustoupí stejně jako obydlí (předchozí bod):
+  - **sad, hřbitov a ohrada** (po čtvercích) – čtverec pole pod nimi z pole zmizí celý,
+  - **modla a svatyně** (půdorys) – díl se zmenší o průnik půdorysu, pod 20 % políčka zmizí,
+  - **řemeslné dílny** jako obydlí (průnik vyklízené plochy dílny i milíře),
+  - **jabloně a stromy u cest** – každý strom vezme dílu **20 m²** (pod korunou se neorá ani
+    neseje); jabloně kdekoli podél cesty (zadáním výsadby), strom u cesty náletem jen na mezi
+    – jeho místa leží 2,5–4 m od osy cesty, tam se neorá (orané pole by nálet zničilo); bere si
+    půdu, až se uchytí.
+    Úroda a práce úměrně ploše (plán osevu i luštěniny, orba, seč, založení – jako u obydlí),
+    překážky založeného dílu už nejsou, takže je stavba neplatí (stromy u cesty a jabloně na poli
+    ano). Pole **na pole** dál nesmí (jediná výjimka), sad na sad, hřbitov na hřbitov a ostatní
+    překryvy staveb mezi sebou zůstávají zakázané. Les vsi a zarůstání beze změny. Kontrola
+    v prohlížeči i na serveru jsou stejné funkce jádra; u kurzoru oranžově „Pole se zmenší“
+    / „Pole zanikne“, u staveb po čtvercích i čtverce pole oranžově, u jabloní v nabídce na panelu
+    cesty. Kronika: pole ustoupilo sadu, hřbitovu, ohradě, modle, svatyni, jabloním nebo stromům
+    u cesty. Pole leží na krajině pod ním – na čtverci pole v lese (vymýceném) stavby dál nesmí,
+    jako v lese (zatím).
 - **Navazující pole** (Martin, 18. 10. 2026: „Pokud více polí navazuje přímo na sebe, počítají se
   jako jedno.“): čtverce, které stranou navazují na pole, ho **rozšíří** – stejné pole, nové díly
   na konec (jako rozšíření hřbitova); rozestavěné založení pole dostane jejich cenu, u hotového
@@ -277,6 +297,9 @@ První sezónu po vymýcení lesa se díl **neplete** (viz Úroda).
   Mokřina se počítá dvojnásobně (po hati 1,5× rychleji než louka), brod + 30 m (po lávce bez
   zdržení) – i rovně mimo cestu, takže pole za potokem bez cesty zdraží, s hatí a lávkou zlevní.
   Stejně se měří vzdálenost čtverce sadu (orchard.md). Bez krajiny (kalibrace) vzdušnou čarou.
+  **Chůze se přepočítává měsíčně** (Martin, 18. 10. 2026): hned po změně rozložení vsi (obydlí,
+  nové díly a čtverce, cesty, ohrady, sady, hřbitov, stáda), změny stadií dílů (osev, úhor,
+  pastva) se do ní promítnou až 1. dne dalšího měsíce (paths.md – Pěšiny a práce).
 - **Včasnost:** co se v období nestihne, propadá: nezasetý díl se ten rok nesklidí, neopletý
   dá nižší úrodu, nesklizená úroda shnije na poli, nevymlácené do konce února se zkazí (návrh
   Clauda; přesné podíly doladí kalibrace).
@@ -793,8 +816,7 @@ a bez štěstí), v závorce měření 17. 10. výše; pak po sloučení s pastv
   pole plné domácnosti 17,8 ha (**MIMO** cíl ≈ 14 ha – pole teď zahrnuje i staré pastviny).
 
 **Naměřeno na skutečných krajinách – louka motykou, nebo pálením drnu** (`measure-village.ts
-200 60` a `--variant meadow-burn`, 18. 10. 2026, **naměřeno, průběžně 192 z 200 vsí** – běh
-dokončí noc; stejné vsi a krajiny v obou variantách; pravidla ze 18. 10. odpoledne před
+200 60` a `--variant meadow-burn`, 18. 10. 2026, **naměřeno na 200 vsích**; stejné vsi a krajiny v obou variantách; pravidla ze 18. 10. odpoledne před
 osídlením prázdných domů dospělými dětmi a rychlejším chátráním prázdných obydlí – řemesla ves
 bez dílen nemění). Vsi stojí na skutečných krajinách sídel
 (vrstvy verze 2: do 600 m ≈ 60 ha luk, ≈ 34,5 ha s úrodností ≥ 60, les od ≈ 200 m); hráč
@@ -807,18 +829,18 @@ historicky spíš dobrou první úrodu z popela, −20 je opatrný předpoklad).
 
 | Hráč staví, 60 let                          | Louka motykou (dnes) | Pálení drnu         |
 | ------------------------------------------- | -------------------- | ------------------- |
-| nasycení ≥ 0,95 celý rok (staví / ne)       | 73,9 % / 97,0 % let  | 77,3 % / 97,3 % let |
-| zásoby po sklizni p10 / medián / p90        | 0,80 / 1,15 / 1,52   | 0,83 / 1,17 / 1,52  |
-| zásoby v pásmu 1–1,5                        | 58 % let             | 61 % let            |
-| na konci domácností / lidí (medián)         | 2 / 9                | 3 / 11              |
-| vymření (staví / jediná domácnost)          | 10,4 % / 13,0 %      | 8,3 % / 12,5 %      |
+| nasycení ≥ 0,95 celý rok (staví / ne)       | 74,1 % / 96,9 % let  | 77,2 % / 97,2 % let |
+| zásoby po sklizni p10 / medián / p90        | 0,80 / 1,15 / 1,52   | 0,83 / 1,17 / 1,51  |
+| zásoby v pásmu 1–1,5                        | 58 % let             | 62 % let            |
+| na konci domácností / lidí (medián)         | 2 / 9                | 2 / 11              |
+| vymření (staví / jediná domácnost)          | 10,5 % / 13,0 %      | 8,5 % / 12,0 %      |
 | první možnost stavět p50 / p90              | 4,6 / 8,9 roku       | 4,6 / 8,9 roku      |
 | zemnice / polozemnice čerstvě plnou dom.    | 91 / 423 dní         | 77 / 378 dní        |
 | startovní ves: rezerva jaro / léto / podzim | 26 % / 12 % / 1 %    | 17 % / 12 % / 1 %   |
-| pole / osev na domácnost na konci           | 22,7 / 1,69 ha       | 18,9 / 1,73 ha      |
-| založeno louka / křoviny / les (ha na ves)  | 32,1 / 2,6 / 20,1    | 32,2 / 2,6 / 20,4   |
+| pole / osev na domácnost na konci           | 22,6 / 1,69 ha       | 19,0 / 1,75 ha      |
+| založeno louka / křoviny / les (ha na ves)  | 32,0 / 2,6 / 20,3    | 32,2 / 2,6 / 20,5   |
 
-- **Pálení drnu pomůže, ale málo:** o ≈ 3 body víc let bez hladu, o domácnost víc na konci,
+- **Pálení drnu pomůže, ale málo:** o ≈ 3 body víc let bez hladu, o 2 lidi víc na konci,
   zemnice o 2 týdny rychleji (zakládání polí bere méně společné práce). Cíl nasycení (95 % let)
   je stejně daleko – hlad nedělá cena louky, ale to, že pole nestačí růstu vsi a zásoby po
   sklizni kolísají (viz Rovnováha zásob níže). Rezerva startovní vsi na jaře klesne (první
@@ -827,7 +849,7 @@ historicky spíš dobrou první úrodu z popela, −20 je opatrný předpoklad).
   (medián; nejlepší les s popelem má víc úrody za člověkoden než chudší a vzdálenější louka),
   za 60 let založí ≈ 32 ha louky a ≈ 20 ha lesa. Vymře ≈ 10 % vsí, kde hráč staví (na
   syntetické louce 6 %), a 13 % jediných domácností.
-- Rozdíl vymření (20 proti 16 vsím ze 192) je v mezích náhody; nasycení a zásoby jsou párové
+- Rozdíl vymření (21 proti 17 vsím z 200) je v mezích náhody; nasycení a zásoby jsou párové
   (stejné vsi), takže jejich rozdíl je spolehlivější.
 
 **Rovnováha zásob** (`village-calculator.ts`, **spočítáno, ne naměřeno**): při ztrátě 10 % zásob
@@ -995,6 +1017,9 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 | Převod starých polí bez příznaku „převedeno“ – souvislé skupiny stranou, pole z obrysu ne                                         | návrh Clauda                                    |
 | Obydlí jde stavět na pole – pole se zmenší o plochu domu                                                                          | Martin (18. 10. 2026)                           |
 | Pozemek sebere celý díl, obydlí bez pozemku průnik vyklízené plochy, díl pod 20 % zmizí; plán, úroda a založení úměrně            | návrh Clauda                                    |
+| Pole jako krajina – na pole smí cokoli kromě jiného pole                                                                          | Martin (18. 10. 2026)                           |
+| Sad, hřbitov a ohrada vezmou celý čtverec, modla a svatyně průnik půdorysu, jabloň a strom u cesty 20 m²                          | návrh Clauda                                    |
+| Nálet stromů u cest na poli jen na mezi (místa 2,5–4 m od osy); jabloně kdekoli podél cesty                                       | návrh Clauda                                    |
 | Luštěniny jako plodina na poli kvůli bílkovinám (1,6 g/kg zůstává); maso mírně zvyšuje štěstí                                     | Martin (18. 10. 2026)                           |
 | Luštěniny = hrách a čočka, jař se sklizní v červenci; úroda 0,8 obilí, osivo 150 kg/ha, práce a neopletý díl podle rešerše        | návrh Clauda (rešerše)                          |
 | Osev luštěniny úrodnost vrátí o 0,03 (obilí −0,12); ztráta skladováním jako obilí                                                 | návrh Clauda (rešerše)                          |

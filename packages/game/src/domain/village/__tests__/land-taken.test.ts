@@ -12,7 +12,7 @@ import {
 import { distanceFactor } from '../fields';
 import { fieldPartLooks, frontierPart } from '../field-progress';
 import { HAY, planMowing } from '../hay';
-import { giveWayToDwelling, landLeftM2, type TakenLand } from '../land-taken';
+import { giveWayToBuilding, landLeftM2, type TakenLand } from '../land-taken';
 import { squareHarvestWork, squareYieldKg, villageOrchards } from '../orchard';
 import {
   checkDwellingPlacement,
@@ -103,7 +103,7 @@ describe('landLeftM2 – práh', () => {
   });
 });
 
-describe('giveWayToDwelling – díl pole v plánu osevu', () => {
+describe('giveWayToBuilding – díl pole v plánu osevu', () => {
   const autumn = (): VillageState => advanceVillage(village(), at(600, 9, 2), null);
 
   it('pozemek na čtverci: díl zmizí z pole, z plánu i z fronty práce – ostatní díly beze změny', () => {
@@ -117,7 +117,7 @@ describe('giveWayToDwelling – díl pole v plánu osevu', () => {
       const s = structuredClone(base);
       const part = partOf(s, id)!;
       const before = fieldPartLooks(s, day);
-      giveWayToDwelling(s, day, [whole(part.cell!)]);
+      giveWayToBuilding(s, day, [whole(part.cell!)]);
       expect(partOf(s, id)).toBeUndefined();
       expect(planPartIds(s.plan!)).not.toContain(id);
       const after = fieldPartLooks(s, day);
@@ -131,7 +131,15 @@ describe('giveWayToDwelling – díl pole v plánu osevu', () => {
         );
       }
       expect(landEvents(s)).toEqual([
-        { day, kind: 'land-taken', land: 'field', id: part.fieldId, areaM2: CELL, gone: false },
+        {
+          day,
+          kind: 'land-taken',
+          land: 'field',
+          id: part.fieldId,
+          areaM2: CELL,
+          gone: false,
+          by: 'dwelling',
+        },
       ]);
     }
   });
@@ -149,7 +157,7 @@ describe('giveWayToDwelling – díl pole v plánu osevu', () => {
     const partKg = (id: number): number => expectedWinterKg(work, [partOf(s, id)!], day);
     expect(partKg(a)).toBeGreaterThan(0);
     const next = structuredClone(s);
-    giveWayToDwelling(next, day, [
+    giveWayToBuilding(next, day, [
       { cell: partOf(s, a)!.cell!, areaM2: 100, cellAreaM2: CELL },
       { cell: partOf(s, b)!.cell!, areaM2: 190, cellAreaM2: CELL },
     ]);
@@ -172,6 +180,7 @@ describe('giveWayToDwelling – díl pole v plánu osevu', () => {
         id: partOf(s, a)!.fieldId,
         areaM2: 325,
         gone: false,
+        by: 'dwelling',
       },
     ]);
   });
@@ -182,14 +191,14 @@ describe('giveWayToDwelling – díl pole v plánu osevu', () => {
     const work: CropWork = structuredClone(s.plan!.winter!);
     expect(work.harvestedKg).not.toBeNull();
     const id = work.partIds[3]!;
-    giveWayToDwelling(s, day, [whole(partOf(s, id)!.cell!)]);
+    giveWayToBuilding(s, day, [whole(partOf(s, id)!.cell!)]);
     expect(s.plan!.winter!.required).toEqual(work.required);
     expect(s.plan!.winter!.done).toEqual(work.done);
     expect(s.plan!.winter!.partIds).toEqual(work.partIds.filter((x) => x !== id));
   });
 });
 
-describe('giveWayToDwelling – orba rádlem a seč sena', () => {
+describe('giveWayToBuilding – orba rádlem a seč sena', () => {
   it('díl oraný i kopaný (vrácený motyce): orba i kopání zbylých dílů zůstanou, kde byly', () => {
     const base = advanceVillage(village(), at(600, 9, 2), null);
     const day = base.lastDay;
@@ -212,7 +221,7 @@ describe('giveWayToDwelling – orba rádlem a seč sena', () => {
     for (const id of [ploughed, dug]) {
       const s = structuredClone(base);
       const before = fieldPartLooks(s, day);
-      giveWayToDwelling(s, day, [whole(partOf(s, id)!.cell!)]);
+      giveWayToBuilding(s, day, [whole(partOf(s, id)!.cell!)]);
       const after = fieldPartLooks(s, day);
       const rest = ids.filter((x) => x !== id);
       for (const other of rest) expect(after.get(other)).toEqual(before.get(other));
@@ -245,7 +254,7 @@ describe('giveWayToDwelling – orba rádlem a seč sena', () => {
     const [gone, half] = [mowing.partIds[0]!, mowing.partIds[6]!];
     const before = fieldPartLooks(s, day);
     const yieldKg = mowing.yieldKg;
-    giveWayToDwelling(s, day, [
+    giveWayToBuilding(s, day, [
       whole(partOf(s, gone)!.cell!),
       { cell: partOf(s, half)!.cell!, areaM2: CELL / 2, cellAreaM2: CELL },
     ]);
@@ -262,7 +271,7 @@ describe('giveWayToDwelling – orba rádlem a seč sena', () => {
   });
 });
 
-describe('giveWayToDwelling – zakládané pole', () => {
+describe('giveWayToBuilding – zakládané pole', () => {
   const founding = (): VillageState => {
     const v = withBuiltFirstDwelling(
       foundVillage({ seed: 3, day: FOUNDED, dwellingPosition: { x: 0, z: 0, rotation: 0 } }),
@@ -273,7 +282,7 @@ describe('giveWayToDwelling – zakládané pole', () => {
   it('poslední čtverec – pole zanikne i se stavbou založení', () => {
     const s = founding();
     const cells = s.parts.map((p) => p.cell!);
-    giveWayToDwelling(s, FOUNDED, cells.map(whole));
+    giveWayToBuilding(s, FOUNDED, cells.map(whole));
     expect(s.parts).toEqual([]);
     expect(s.fields).toEqual([]);
     expect(s.constructions.some((c) => c.kind === 'field')).toBe(false);
@@ -288,7 +297,7 @@ describe('giveWayToDwelling – zakládané pole', () => {
     waiting.obstacles = [501, 502];
     waiting.trees = 2;
     const before = structuredClone({ c, started, waiting, logs: s.woodLogs ?? 0 });
-    giveWayToDwelling(s, s.lastDay, [
+    giveWayToBuilding(s, s.lastDay, [
       { cell: started.cell!, areaM2: CELL / 2, cellAreaM2: CELL },
       whole(waiting.cell!),
     ]);
@@ -308,7 +317,7 @@ describe('giveWayToDwelling – zakládané pole', () => {
   });
 });
 
-describe('giveWayToDwelling – sad', () => {
+describe('giveWayToBuilding – sad', () => {
   const squares = (cells: TileCell[]): OrchardSquareInput[] =>
     cells.map((cell, i) => ({ cell, areaM2: CELL, distanceM: 60 + i, obstacleCost: 0 }));
   const base = (): VillageState =>
@@ -319,11 +328,11 @@ describe('giveWayToDwelling – sad', () => {
   it('pozemek na čtverci sad zmenší, na posledním čtverci sad zanikne i se stavbou výsadby', () => {
     const s = foundOrchard(base(), FOUNDED, { squares: squares(block(2, 5, 2, 1)) });
     const orchardId = villageOrchards(s)[0]!.id;
-    giveWayToDwelling(s, FOUNDED, [whole({ x: 2, y: 5 })]);
+    giveWayToBuilding(s, FOUNDED, [whole({ x: 2, y: 5 })]);
     expect(villageOrchards(s)[0]!.squares.map((q) => q.cell)).toEqual([{ x: 3, y: 5 }]);
     const c = s.constructions.find((x) => x.kind === 'orchard')!;
     expect(c.cost).toBeCloseTo(villageOrchards(s)[0]!.squares[0]!.plantingCost, 9);
-    giveWayToDwelling(s, FOUNDED, [whole({ x: 3, y: 5 })]);
+    giveWayToBuilding(s, FOUNDED, [whole({ x: 3, y: 5 })]);
     expect(villageOrchards(s)).toEqual([]);
     expect(s.constructions.some((x) => x.kind === 'orchard')).toBe(false);
     expect(landEvents(s)).toEqual([
@@ -334,6 +343,7 @@ describe('giveWayToDwelling – sad', () => {
         id: orchardId,
         areaM2: CELL,
         gone: false,
+        by: 'dwelling',
       },
       {
         day: FOUNDED,
@@ -342,6 +352,7 @@ describe('giveWayToDwelling – sad', () => {
         id: orchardId,
         areaM2: CELL,
         gone: true,
+        by: 'dwelling',
       },
     ]);
   });
@@ -358,7 +369,7 @@ describe('giveWayToDwelling – sad', () => {
     const required = 2 * squareHarvestWork(square, day);
     const yieldKg = 2 * squareYieldKg(square, day);
     s.orchardWork = { task: 'harvest', required, done: required / 2, yieldKg };
-    giveWayToDwelling(s, day, [{ cell: square.cell, areaM2: CELL / 2, cellAreaM2: CELL }]);
+    giveWayToBuilding(s, day, [{ cell: square.cell, areaM2: CELL / 2, cellAreaM2: CELL }]);
     expect(villageOrchards(s)[0]!.squares[0]!.areaM2).toBeCloseTo(CELL / 2, 9);
     expect(s.orchardWork.required).toBeCloseTo(required * 0.75, 9);
     expect(s.orchardWork.done).toBeCloseTo(required * 0.375, 9);

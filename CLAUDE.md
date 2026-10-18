@@ -576,7 +576,8 @@ rozhraní částí v
   ukáže jen hroby (obsazené / všechny) a na kolik let (`CemeterySummary.yearsLeft` z úmrtí
   v kronice).
 - **Sad** (`orchard.ts`, orchard.md): staví se po čtvercích jako pole (`orchardPartsFromCells`,
-  sad, pole a hřbitov se nepřekrývají, obydlí do sadu smí – Obydlí na poli a v sadu). Výsadba je
+  sad a hřbitov se nepřekrývají, na pole sad smí – Pole jako krajina, obydlí do sadu smí –
+  Obydlí na poli a v sadu). Výsadba je
   stavba ze společné práce jen v oknech
   jara a podzimu (`orchardPlantingNeed` mimo okna 0), čtverec dostane `plantedDay`. Rok sadu
   začíná 1. 3. (`orchardYear`), úroda `orchardYieldShare`. Sezónní práce celé vsi
@@ -606,8 +607,13 @@ rozhraní částí v
   `checkWorkshopPlacement` (volně jako zemnice; půdorys `workshopFootprints` i s přístřeškem
   a u uhlíře s milířem kus od zemnice – `MILIR`, `milirPosition`; `PlacementVillage.dwellings`
   nese `workshop.craft`, ať se do milíře nestaví). Domácnosti obývaných dílen (`craftHouseholds`)
-  pracují jen v dílně (`workshopLabor`, `workCrafts` v kroku práce – mimo `allocateDay`, do sil
-  plánu osevu se nepočítají); uhlíř a hrnčíř kácejí strom po stromu (`Workshop.felling` je
+  pracují v dílně (`workshopLabor`, `workCrafts` v kroku práce – mimo `allocateDay`, do sil
+  plánu osevu se nepočítají), jen dokud je co dělat: **podle potřeby** (Martin 18. 10. 2026 –
+  volný čas na poli) kovář a hrnčíř vyrábějí do zásoby `craftTargets` (potřeba + opotřebení za
+  rok), uhlíř do zásoby uhlí na rok spotřeby kovářů (`smithsCharcoalPerYear` – opotřebení
+  a chybějící zásoba nástrojů); s plnou zásobou nebo bez vstupu je dílna v `restingCrafters`
+  (na začátku kroku práce, hodnota `resting` / `no-charcoal` / `no-wood`) a její domácnost
+  pracuje v `allocateDay` se vsí (`craftHouseholds(state, resting)`); uhlíř a hrnčíř kácejí strom po stromu (`Workshop.felling` je
   vyhrazený – `reservedTrees` / `claimedObstacles` ho znají), zásoby `VillageState.crafts`
   (kg uhlí, nástrojů, keramiky; opotřebení `wearCraftStocks` jen v užívání). **Pokrytí**
   `craftCoverage` se spočítá na začátku dne a jde všude, kde platí meze (plán osevu, přidané díly,
@@ -626,8 +632,7 @@ rozhraní částí v
   vzdušně). Na pařezy sází mladé buky (`Workshop.toPlant`, `plantOnStump` → `ObstacleChange.planted`; `felledTreeStage` – sazenice
   dospěje za `BEECH_PLANTING.matureYears`, bez sazenice nálet jako dřív; `saplingGrowth`). Pálí
   jen do zásoby na rok spotřeby kovářů (`charcoalShortfallKg`, `smithsCharcoalPerYear`); bez
-  milíře a sázení odpočívá (`restingBurners` – v kroku práce před `allocateDay`, jeho domácnost
-  pracuje se vsí: `craftHouseholds(state, resting)`). Starší dílna uhlíře se převede
+  milíře a sázení odpočívá (`restingCrafters`, viz výš). Starší dílna uhlíře se převede
   (`migrateBurner`). Rozdělení práce: `fell` u buků (i příprava dřeva), `craft` u milíře – v lese
   cíl `{ kind: 'kiln', id, x, z }`, `plant` u pařezů. Web: `VillageWorkshop.kiln` / `toPlant`,
   `SceneVillage.kilns` (lesní milíře – fáze, průběh) a `plantedSaplings` (velikost mladých buků);
@@ -684,13 +689,13 @@ rozhraní částí v
   z obrysu ne; Martin) – stejným `mergeFields`, bez příznaku „převedeno“ (idempotentní a levné).
 - **Obydlí na poli a v sadu** (population.md – Obydlí na poli a v sadu; Martin 18. 10. 2026:
   „Pole a sad se prostě zmenší o plochu domu“): `checkDwellingPlacement`, `checkPlotPlacement`
-  a `checkWorkshopPlacement` pole a sad nezakazují (`checkFootprintFree(…, takeLand)`, hřbitov
-  dál ano) a vrací `takenLand` (`TakenLand` – políčko, zabraná plocha, plocha políčka): pozemek
+  a `checkWorkshopPlacement` pole a sad nezakazují (`checkFootprintFree(…, DWELLING_LAND)`,
+  hřbitov dál ano) a vrací `takenLand` (`TakenLand` – políčko, zabraná plocha, plocha políčka): pozemek
   celé políčko, obydlí bez pozemku průnik vyklízené plochy (`freeDwellingClearings`, `coveredArea`
   v `polygon.ts`) s každým čtvercem; u kurzoru `check.warning` „Pole se zmenší“ / „Pole zanikne“
   (u sadu „Sad …“). Překážky na čtvercích polí a sadů obydlí neplatí (patří jim). Use-case předá
   `takenLand` do `startNewDwelling` / `startWorkshop` (`site.takenLand`) a ty po plánu dřeva
-  zavolají `giveWayToDwelling` (`land-taken.ts`): díl / čtverec se zmenší, pod
+  zavolají `giveWayToBuilding` (`land-taken.ts`): díl / čtverec se zmenší, pod
   `TAKEN_LAND_MIN_SHARE` (20 %) políčka zmizí (`landLeftM2`); plán osevu i orba rádlem
   (`CropWork.plough` – váhy oraných a kopaných dílů) ubere jeho podíl práce podle `taskSpans`
   (ostatním dílům zůstane hotová práce, sklizená plodina beze změny), seč sena (`hay.mowing`)
@@ -699,6 +704,24 @@ rozhraní částí v
   nevysazený čtverec předá překážky a klády; pole / sad bez čtverců zanikne i se stavbou; kronika
   `land-taken`. Scéna: `building-clearings.ts` – pod vyklízenou plochou obydlí `FieldRenderer`
   nekreslí obtisk ani trsy (`clearingMask` násobí krytí) a `orchardTreeSpots` vynechá jabloně.
+- **Pole jako krajina** (fields.md – Pole jako krajina; Martin 18. 10. 2026: „Pole by se mělo
+  chovat jako normální krajina. Takže by na něm mělo jít postavit cokoliv kromě jiného pole.“):
+  pole ustoupí každé stavbě kromě pole – `giveWayToBuilding(state, day, takenLand, by)`
+  (`LandTaker`; sad ustupuje jen obydlí, kronika `land-taken` s `by`). Sad a hřbitov
+  (`buildSquares` / `cemeteryPartsFromCells` – příznak `field` neblokuje, čtverec na poli
+  `onField`), ohrada (`checkPenPlacement`) a modla se svatyní (`checkSacredBuildingPlacement`,
+  `checkFootprintFree(…, FIELD_LAND)`) vrací `takenLand` (čtverce celé, modla průnik půdorysu)
+  a varování; překážky vrstvy na čtvercích polí patří poli (`cellObstacles(…, { layerOwned })`,
+  `skipTiles` v `polygonObstacles` přeskakuje jen vrstvu – stromy u cest a jabloně se platí
+  vždy). Akce `foundOrchard`, `foundCemetery` (`takenLand` ve vstupu), `foundPen`
+  (`PenInput.takenLand`, ústup až ve `foundPen` – oxen.ts nesmí importovat land-taken, cyklus
+  přes `costs.ts`), `startSacredBuilding` (`site.takenLand`). Jabloně a stromy u cest smí na pole
+  (`plantingBlocker` díly polí nezná): `treeTakenLand` – TAKEN_LAND_TREE_M2 (20 m²) za strom na
+  čtverci pole; jabloně při `startRoadApples`, strom u cesty při uchycení (`rootTrees`, jen
+  nové cesty mají místa i na polích – místa se určují jednou). `RoadApplesOption.warning`
+  (`landTakenWarning`) – v popisku „Vysadit jabloně“ oranžově. Scéna: `fieldClearings` (obydlí,
+  modly, svatyně a kruh 20 m² pod stromy na poli) maskuje pole, `build-items` dá čtverce polí
+  pod sadem, hřbitovem a ohradou do `warningCells`.
 - **Zarůstání přílohu** (fields.md – Zarůstání, Les vsi; Martin 18. 10. 2026: „Ano udělej to
   tak“ – nepasený a nesečený příloh zarůstá, les z pole vypadne; čísla návrh Clauda podle rešerše
   `research/2026-10-18-overgrowth.md`): 1–2 roky mladý příloh, pak louka (pastvina, louka na
@@ -802,11 +825,42 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   (`field-progress.ts`), rozdělení práce posílá činnosti `plough`, `mow`, `slaughter`, `pen`.
 - **Hráč staví kdy chce** (Martin) – stavbu smí zablokovat jen **cena předem** (`costs.ts`:
   `BUILD_COSTS`, `buildAffordability`): suroviny ze zásob (dnes žádné) a u obydlí **lidé
-  k osídlení** (`settlers` = `availableSettlers` v `dwellings.ts`: možné nové domácnosti
+  k osídlení** (`settlers` = `availableSettlers` v `households.ts`: možné nové domácnosti
   `possibleNewHouseholds` − prázdná − rozestavěná nová obydlí); pole a hřbitov lidi nechtějí.
   Tlačítko je pak zašedlé, zkratka nic nespustí, v popisku chybějící část červeně; server odmítne
   (`NO_SETTLERS`, `CANNOT_AFFORD`). `waitingHouseholds` (upozornění „Domácnost je plná“) =
   kladní lidé k osídlení.
+- **Příbuzenství a pohlaví** ([kinship.md](docs/design/kinship.md), Martin 18. 10. 2026;
+  `kinship.ts`): `Person.sex`, `motherId`, `fatherId`, `spouseId`, u nevěsty z okolí `origin`
+  (směr sousední vsi – válka); zemřelí a odešlí rodiče žijících v `VillageState.ancestors` (id
+  a rodiče, jen dokud jsou rodičem někoho žijícího – `removePeople`), dcery vdané pryč
+  v `emigrants` (se směrem). `areCloseKin` (do bratranců), `hasCloseKinIn` (příbuzní ve vsi ve
+  směru – war.md), `familyCounts` (muži, ženy, děti, starší, páry – panel obydlí a pohlaví postav).
+  Staré vsi převede `withKinship` (v `updateVillage` i na začátku `advanceVillage`, bez příznaku –
+  ves, kde mají všichni pohlaví, se nemění; `availableSettlers` počítá na převedené).
+  **Porody** (`population.ts`) jen manželským párům: žena 16–44 s manželem od 16 let v témže domě,
+  chlapec `BOY_SHARE` (105/205). **Domácnost drží člověk 16–44** (`householdBreaksUp` v `people.ts`;
+  osamělý 16–44 zůstává), rozpadlá jde k příbuzným (syn, dcera, sourozenec), jinak do domu
+  s nejvíc místy.
+- **Osídlení obydlí** (`households.ts`; population.md – Nové obydlí, kinship.md – Domácnosti): nové
+  obydlí po dokončení (`settleNewDwelling`) a prázdné v kroku 6 (`occupyEmptyDwellings`) osídlí
+  **rodina ženatého syna** (muž, žena, jejich svobodné děti – `familiesOf` / `leavingFamilies`);
+  nejstarší ženatý syn zůstává (dědic), v domě bez rodičů nejstarší ženatý muž. Co zůstane prázdné,
+  osídlí **svobodný nejstarší syn z plného domu** (`loneSonOf`, Martin – „nejstarší dítě může
+  odejít“, „ať prázdný dům obsadí i plná domácnost“; od 16 let, bez ženatého dědice a s neplodnou matkou zůstává nejstarší a jde druhý).
+  Dcery odcházejí sňatkem. Ne z domácnosti, jejíž zbytek by se rozpadl. **Chátrá jen prázdné
+  obydlí** (Martin: „obydlená budova nechátrá – obyvatelé ji opravují“): `decayEmptyDwelling` – bez
+  oprav podle stáří a navíc pevný denní podíl, nové zanikne za `DWELLINGS[type].emptyLifespanYears`
+  (zemnice 5, polozemnice 8 let). Obydlené stav neztrácí – opravy podle stáří (`repairNeedPerDay`)
+  dál berou práci vsi, nedodělek se jen neudělá; přestavbu rozhoduje jen stáří (`wantsRebuild`).
+- **Sňatky** (`marriage.ts`, kinship.md – Sňatky; Martin, varianta c): svobodný = muž od 16 / žena
+  16–44 bez manžela (vdova s dětmi do 14 ne – `isSingle`); v kroku 6 po osídlení obydlí se berou
+  nepříbuzní muž a žena s rozdílem do `MARRIAGE.maxAgeGapYears` (od nejstaršího, nejbližší věkem –
+  `bestMatch`), **žena se stěhuje k muži** (`canWed`: její dům se nesmí rozpadnout, ženichův nesmí
+  být přeplněný). Kdo nemá s kým, tomu okolí s 30 % ročně (`MARRIAGE.outsidePerYear`, los ze seedu
+  a dne): muži od 18 nevěsta 16–22 s `origin` (ne v hladu, ne do přeplněného domu), žena od 18 se
+  vdá pryč (záznam v `emigrants`). Kronika `marriage`, `bride-from-outside`, `married-away`;
+  upozornění „Svatba“ (`VillageView.lastMarriageDay`), „Nevěsta z okolí“, „Dcera se vdala pryč“.
 - **Přestěhování domácnosti** ([migration.md](docs/design/migration.md), fáze 1): akce
   `startRelocation` (`actions.ts`) = nová stavba obydlí (`kind: 'dwelling'`) s
   `Construction.relocates` = id domácnosti – dřevo, pozemek polozemnice, překážky a cena jako
@@ -831,26 +885,6 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   `foundAnotherVillage` = další ves téhož sídla nejméně `NEW_VILLAGE_MIN_DISTANCE_M` (300 m)
   od staveb ostatních (`villages-apart.ts`). Vsi na jedné mapě o sobě zatím nevědí (scéna kreslí
   jen vybranou ves, kontroly umístění neznají stavby druhé vsi) – řeší fáze 3.
-- **Osídlení prázdného obydlí** (population.md – Prázdné obydlí): nové obydlí po dokončení
-  a prázdné obydlí v kroku 6 (`occupyEmptyDwellings`) nejdřív zabere mladý pár z plné domácnosti
-  se 4 dospělými 14–44 (`qualifyingDwellings`, `moveInYoungestPair`); co zůstane úplně prázdné,
-  osídlí **dospělé děti z přeplněné domácnosti** (Martin, 18. 10. 2026; `adultChildrenSettlers`):
-  lidé 14–44 kromě `HOUSEHOLD_HEADS` (2) nejstarších od 14 let, u neplodných rodičů (oba 45+)
-  i kromě nejstaršího dospělého dítěte – dědice (`householdHeir`, Martin), všichni z jedné
-  domácnosti, nebo dva jednotlivci z různých, a když pár není, **nejstarší dítě samo** (Martin,
-  od 16 let – `canLeaveAlone`); ne z domácnosti, jejíž zbytek by se rozpadl (`householdBreaksUp`
-  v `people.ts` – osamělý člověk 16–44 se nerozpadá, je svobodný). Možné nové domácnosti =
-  kvalifikované + ostatní přeplněné s aspoň dvěma dospělými dětmi + jednotlivci po dvou + poslední
-  jednotlivec sám (`possibleNewHouseholds`). **Chátrá jen prázdné obydlí** (Martin: „obydlená
-  budova nechátrá – obyvatelé ji opravují“): `decayEmptyDwelling` – bez oprav podle stáří a navíc
-  pevný denní podíl, nové zanikne za `DWELLINGS[type].emptyLifespanYears` (zemnice 5, polozemnice
-  8 let). Obydlené stav neztrácí – opravy podle stáří (`repairNeedPerDay`) dál berou práci vsi,
-  nedodělek se jen neudělá; přestavbu rozhoduje jen stáří (`wantsRebuild`).
-- **Sňatky mezi domy** (population.md, Martin 18. 10. 2026; `marriage.ts`): svobodný = jediný
-  člověk 16–44 v domácnosti (`singles`, od nejstaršího); dva svobodní z různých domů se vezmou
-  v kroku 6 po obsazení prázdných obydlí (`arrangeMarriages`). Stěhuje se ten, komu se dům
-  nerozpadne, jinak do domu s víc volnými místy, při shodě mladší; jen do domu s volným místem
-  – svatba dům nepřeplní, jinak by se nejstarší dítě stěhovalo tam a zpět (`marriageMove`). Kronika `marriage`, upozornění „Svatba“ (`VillageView.lastMarriageDay`).
 - **Determinismus:** simulace jde den po dni v pevném pořadí kroků (`simulate.ts`), náhoda dne
   je ze seedu vsi a indexu dne – výsledek nezávisí na tom, po jakých kouscích se ves dopočítá.
 - **Dopočet po kouscích na serveru:** `advanceVillageSteps` je `advanceVillage` po dnech
@@ -1068,7 +1102,7 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   bez kácení (`buildProgress`).
 - **Upozornění** (`lib/village-notices.ts`): plná domácnost (fakt), lidé umírají hlady, hlad,
   stojící stavby, plný hřbitov (žádný hotový nemá volný hrob), vesničané ušetřili posvátný dub
-  / dubový háj a svatba mezi domy (fakt, když přibude – svatba podle
+  / dubový háj, svatba, nevěsta z okolí a dcera vdaná pryč (fakt, když přibude – svatba podle
   `VillageView.lastMarriageDay`), podzimní porážka, spřežení vycvičené / dosloužilo, vůl
   uhynul, vesničané obnovují starý sad a starý sad dosloužil (nové události kroniky –
   `VillageView.chronicle[].kind`, `CHRONICLE_NOTICES`) – nově vzniklé jako krátký mizející
@@ -1099,7 +1133,9 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   a odnos podle `HARVEST_WORK_PER_HA`; do scény jde jako `SceneVillage.labor` (člověkodny na
   setiny, lidé podle věku, měsíc). Scéna: `villager-plan.ts` (čisté funkce, testy) převede
   člověkodny na postavy (jedna na pracujícího, nejvýš `MAX_WORKERS` = 60, po skupinách až 4
-  v činnosti – `shareCounts`; domácí práce a nečinní venku jen z části, v zimě méně; **každá
+  v činnosti – `shareCounts`; muž nebo žena podle podílu činnosti posunutého podílem žen ve vsi –
+  `figureSexes` a `womenChance` ze `SceneLabor.people`, kinship.md; domácí práce a nečinní venku
+  jen z části, v zimě méně; **každá
   stavba s dnešní prací má aspoň jednoho člověka** – `LaborShare.construction` z jádra,
   `withBuilderAtEachConstruction`, náhradní místo `builderNearby`) a rozestaví
   je (postavy stylizovaně o 20 % větší – `FIGURE_SCALE`, rozestupy s nimi): řady na polích
@@ -1150,17 +1186,20 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   `PathVillage` splňuje `SceneVillage`), `walking.ts` (`walkGraph`, `walkingDistances` – vzdálenost chůze, po pěšině
   `PATH_WALK` rychleji, nikdy víc než rovně – čistá funkce pro každého, kdo měří cestu na pole)
   a `village.ts` (`pathVillageOf` ze stavu vsi jako scéna i s pevnými cestami, `refreshWalkDistances`
-  – den po dni v `simulateDay` při změně `walkLayoutKey` (i pevné cesty), jen s krajinou; ve stavu
-  je jen otisk klíče `walkLayoutHash` (celý klíč z vsí uložených dřív se beze změny rozložení jen
-  převede); `villagePathNetwork` si pamatuje poslední síť po krajinách (otisk `pathVillageOf`) –
+  – den po dni v `simulateDay` při změně `walkLayoutKey` (i pevné cesty), jen s krajinou;
+  **stadia dílů a pastva úhoru (`walkStageKey`) se do klíče promítají jen 1. dne v měsíci**
+  (Martin, 18. 10. 2026 – osev postupuje po dílech a síť se přepočítávala každých pár dní; otisk
+  stadií z posledního 1. dne je ve stavu `walkStages`), strukturální změny hned; ve stavu jen
+  otisky `walkLayoutHash`; `villagePathNetwork` si pamatuje poslední síť po krajinách (otisk `pathVillageOf`) –
   seč luk ve stejný den po přepočtu chůze síť nepočítá znovu →
   `FieldPart.walkDistanceM`, práce přes `partWalkDistance` v `year-plan.ts` (`partWork`, `partWeight`),
   `field-progress.ts` a seči `hay.ts`).
   Scéna `path-renderer.ts` (`VillagePaths` v `LandscapeScene`: přepočet jen při změně
   `pathNetworkKey`, odloženě) – obtisky `paths-worn` / `paths-earth` z `path-ribbon.ts` **nad**
   obtisky polí a vsi (alphaIndex 3 / 3,5, lift 0,05 / 0,055, zOffset −3,5 / −4; přes osetý díl
-  úzká stopa; v pevné cestě se pěšina dne ztrácí – `roadFade`), sníh přes `applySeasonGround`
-  (0,55 – stopa prosvítá). Pěšiny dne stromy nemají (stromy jsou jen u pevných cest – níž).
+  úzká stopa; v pevné cestě se pěšina dne ztrácí – `roadFade`; rozcestí – konec aspoň tří čar –
+  je udusaný plácek `ribbonJunctions` / `JUNCTION`, u pevných cest `roadJunctions`), sníh přes
+  `applySeasonGround` (0,55 – stopa prosvítá). Pěšiny dne stromy nemají (stromy jsou jen u pevných cest – níž).
   Postavy: `path-router.ts` (trasa s tempem úseků) → `VillagerPaths.route` →
   `route(points, pace)` – `shuttle` jde po pěšině rychleji. Vývojová stránka: tlačítka
   **Pěšiny**, **Cesta** (ukázka pevné cesty se stromy v každém stadiu – `dev-road.ts`), **Provoz**
@@ -1179,8 +1218,11 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   `traffic.raw` po ose) a zarůstání vyšlapané cesty (5 let pod polovinou prahu) → nové cesty
   z úseků nad prahem (`ROADS.tripsPerDay`), které leží i na loňských (`MATCH_M`) a nevedou po
   pevné cestě; konec se připojí k pevné cestě a ta se v rozcestí rozdělí (`splitRoad`) – osa se
-  jinak nikdy nemění → místa na stromy (`roadTreeSpots`, `plantingBlocker` – ne ve vsi, na
-  čtvercích, v lese, ve vodě, u překážek krajiny) → konec pařezů a stromy odstraněné stavbou →
+  jinak nikdy nemění → **falešná rozcestí** (uzel jen se dvěma úseky stejného stupně, bez
+  rozdílného vylepšení) se spojí (`mergeRoadChains` – i po dokončení vylepšení ve
+  `finishConstructions`, starší vsi při načtení `withMergedRoads` v `updateVillage`; id a den
+  vzniku staršího, roads.md – Úseky a rozcestí) → místa na stromy (`roadTreeSpots`, `plantingBlocker` – ne ve vsi, na
+  čtvercích staveb (pole ano – Pole jako krajina), v lese, ve vodě, u překážek krajiny) → konec pařezů a stromy odstraněné stavbou →
   uchycení (10 % ročně, los ze seedu vsi, roku a místa). Čísla v `rules.ts` (`ROADS`,
   `ROAD_TREES`). Stadium stromu jen ze dne (`road-trees.ts`: `roadTreeLook` – keř, strom
   s velikostí, souš, pařez; `roadTreeObstacleKind`). **Strom u cesty je překážka stavby:**
@@ -1224,8 +1266,8 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
 - **Jabloně podél pevné cesty** ([roads.md](docs/design/roads.md) – fáze 3): `VillageRoads.apples`
   (`RoadApple` – místo, úsek, `distanceM` vzdušnou čarou, `plantedDay` null = čeká na výsadbu,
   `constructionId`). `road-apples.ts`: `roadAppleSpots` (po 10 m střídavě – `roadTreeSpots`
-  s rozestupy `ROAD_APPLES`, mimo stavby, les, vodu, osy cest, překážky, stromy u cest a jiné
-  jabloně), `roadApplesOption` (počet, práce, důvod česky), `startRoadApples` → stavba
+  s rozestupy `ROAD_APPLES`, mimo stavby (pole ano – jabloň mu vezme 20 m², `treeTakenLand`),
+  les, vodu, osy cest, překážky, stromy u cest a jiné jabloně), `roadApplesOption` (počet, práce, důvod česky), `startRoadApples` → stavba
   `kind: 'road-apples'` s `roadIds`; práce jen v oknech výsadby (`roadApplesNeed`, kroky
   `workRoadApples` / `finishRoadApples` se neexportují). Úroda a práce jako sad na strom
   (`roadAppleYieldKg`, `roadAppleHarvestWork`, `roadAppleCareWork`, `roadApplePlantingWork`

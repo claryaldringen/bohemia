@@ -99,16 +99,18 @@ describe('sad', () => {
   };
   const item = buildItem('orchard');
 
-  it('maluje se po čtvercích jako pole – i jeden čtverec, ne přes pole ani obydlí', () => {
+  it('maluje se po čtvercích jako pole – i jeden čtverec, ne přes obydlí; pole jen varuje', () => {
     if (item.placement !== 'squares') throw new Error('Sad se maluje po čtvercích.');
     expect(item.icon).toBe('sad');
     expect(item.check(landscape, village, [{ x: 18, y: 18 }]).check).toEqual({
       ok: true,
       reason: null,
     });
+    // na pole sad smí (fields.md – Pole jako krajina) – čtverec pole oranžově, u kurzoru varování
     const over = item.check(landscape, village, [{ x: 20, y: 20 }]);
-    expect(over.check.reason).toBe('Sad se překrývá s polem.');
-    expect(over.blockedCells).toEqual([{ x: 20, y: 20 }]);
+    expect(over.check).toMatchObject({ ok: true, warning: 'Pole se zmenší' });
+    expect(over.blockedCells).toEqual([]);
+    expect(over.warningCells).toEqual([{ x: 20, y: 20 }]);
     expect(item.check(landscape, village, [{ x: 16, y: 16 }]).check.reason).toBe(
       'Sad se překrývá s obydlím.',
     );

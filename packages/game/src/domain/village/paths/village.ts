@@ -283,8 +283,10 @@ function computeVillageNetwork(
 
 /**
  * Klíč rozložení vsi pro vzdálenosti chůze: obydlí a staveniště (poloha, pozemek, obyvatelé,
- * stáří spojení po desetinách), díly polí se stadiem, sady, hřbitovy, posvátná místa, pevné
- * cesty, ohrady a počet stád na pastvě. Práce dne ani pokácené stromy v něm nejsou – síť se kvůli nim každý den nepřepočítává.
+ * stáří spojení po desetinách), díly polí (políčka – bez stadia), sady, hřbitovy, posvátná místa,
+ * pevné cesty, ohrady, les vsi a počet stád na pastvě. Práce dne ani pokácené stromy v něm nejsou
+ * – síť se kvůli nim každý den nepřepočítává. Stadia dílů a pastva úhoru jsou zvlášť
+ * (`walkStageKey`) – promítají se nejvýš jednou za měsíc (Martin, 18. 10. 2026).
  */
 export function walkLayoutKey(state: VillageState, day: number): string {
   const occupied = new Set(state.people.map((p) => p.dwellingId));
@@ -300,11 +302,7 @@ export function walkLayoutKey(state: VillageState, day: number): string {
       ? [`${c.id}:${c.kind}${c.craft ? `/${c.craft}` : ''}:${at(c.position)}:${age(c.startedDay)}`]
       : [],
   );
-  const grazed = pastureGrazedParts(state, day);
-  const parts = state.parts.map(
-    (p) =>
-      `${p.id}:${p.cell ? `${p.cell.x},${p.cell.y}` : ''}:${partStage(p, day)}${isGrazeableFallow(p) && !grazed.has(p.id) ? ':-' : ''}`,
-  );
+  const parts = state.parts.map((p) => `${p.id}:${p.cell ? `${p.cell.x},${p.cell.y}` : ''}`);
   const woods = villageWoods(state).map((w) => `${w.cell.x},${w.cell.y}`);
   const orchards = villageOrchards(state).map(
     (o) => `${o.id}:${o.squares.map((s) => `${s.cell.x},${s.cell.y}`).join(';')}`,
@@ -340,6 +338,20 @@ export function walkLayoutKey(state: VillageState, day: number): string {
 }
 
 /**
+ * Stadia dílů pole pro vzdálenosti chůze (paths.md, fields.md – Vzdálenost): stadium a jestli se
+ * na úhoru pase. Osev a zakládání postupují po dílech den po dni – síť by se jinak přepočítávala
+ * každých pár dní; do klíče chůze se proto promítají jen 1. dne v měsíci (`refreshWalkDistances`).
+ */
+export function walkStageKey(state: VillageState, day: number): string {
+  const grazed = pastureGrazedParts(state, day);
+  return state.parts
+    .map(
+      (p) => `${p.id}:${partStage(p, day)}${isGrazeableFallow(p) && !grazed.has(p.id) ? ':-' : ''}`,
+    )
+    .join(';');
+}
+
+/**
  * Otisk klíče rozložení (`walkLayoutKey`) – ve stavu vsi se drží jen on (16 šestnáctkových
  * číslic, dvě nezávislé 32bitové FNV-1a), ne celý klíč (u Vlkova 37 kB). Shoda otisků = shoda
  * klíčů (náhodná shoda 1 : 2^64).
@@ -353,14 +365,6 @@ export function walkLayoutHash(key: string): string {
     b = Math.imul(b ^ c, 0x01000193) ^ (b >>> 15);
   }
   return `${(a >>> 0).toString(16).padStart(8, '0')}${(b >>> 0).toString(16).padStart(8, '0')}`;
-}
-
-/**
- * Otisk rozložení uložený ve stavu – vsi uložené před otisky (do 18. 10. 2026) mají celý klíč
- * (JSON pole), ten se porovná přes svůj otisk.
- */
-function storedLayoutHash(stored: string | undefined): string | undefined {
-  return stored !== undefined && stored.startsWith('[') ? walkLayoutHash(stored) : stored;
 }
 
 /** Polohy obydlí vsi včetně rozestavěných – od nich se měří vzdálenost dílů pole. */
@@ -400,9 +404,10 @@ export function walkDistancesTo(
  * chůze): díly pole (`FieldPart.walkDistanceM`) a čtverce sadů (`OrchardSquare.walkDistanceM`)
  * z nejbližšího obydlí, palivo z obydlí k nejbližšímu okraji lesa (`Dwelling.forestWalkM`).
  * Přepočítá je, jen když se od posledního výpočtu změnilo rozložení vsi (`walkLayoutKey` – i pevné
- * cesty a jejich stupeň, takže i po dokončení vylepšení; ve stavu jen otisk `walkLayoutHash`,
- * celý klíč uložený dřív se beze změny rozložení jen převede na otisk). Chůze rovně počítá
- * mokřinu a brody (`walkGroundOf`) – pole za potokem bez cesty zdraží, s hatí a lávkou zlevní.
+ * cesty a jejich stupeň, takže i po dokončení vylepšení) nebo stadia dílů (`walkStageKey`), ta ale
+ * jen 1. dne v měsíci (Martin – chůze se přepočítává měsíčně; otisk stadií z posledního 1. dne je
+ * ve stavu `walkStages`, ve stavu jen otisky `walkLayoutHash`). Chůze rovně počítá mokřinu a brody
+ * (`walkGroundOf`) – pole za potokem bez cesty zdraží, s hatí a lávkou zlevní.
  */
 export function refreshWalkDistances(
   state: VillageState,
@@ -410,8 +415,12 @@ export function refreshWalkDistances(
   landscape: Landscape,
   obstacles: ObstacleLayer | null,
 ): void {
-  const key = walkLayoutHash(walkLayoutKey(state, day));
-  const unchanged = storedLayoutHash(state.walkLayoutKey) === key;
+  // stadia dílů jen 1. dne v měsíci (a poprvé) – jinak platí otisk z posledního 1. dne
+  if (state.walkStages === undefined || dateOfDayIndex(day).day === 1) {
+    state.walkStages = walkLayoutHash(walkStageKey(state, day));
+  }
+  const key = walkLayoutHash(`${walkLayoutKey(state, day)}|${state.walkStages}`);
+  const unchanged = state.walkLayoutKey === key;
   state.walkLayoutKey = key;
   if (unchanged) return;
   const network = villagePathNetwork(state, day, landscape, obstacles);
