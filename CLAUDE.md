@@ -79,7 +79,7 @@ packages/game/       herní jádro
   src/domain/        pravidla – calendar.ts, landscape/ (generování krajiny po vrstvách)
     village/         simulace vsi – lidé, obydlí, pole, jídlo a práce den po dni
   src/application/   use-casy a porty (enterGame, SettlementRepository, SeedSource)
-  scripts/           vývojové nástroje (measure-landscapes.ts, measure-village.ts)
+  scripts/           vývojové nástroje (measure-landscapes.ts, measure-village.ts, village-calculator.ts)
 packages/db/         Drizzle schéma, klient, migrace a adaptéry portů (src/adapters/)
 docs/design/         herní design – vize + dokument pro každou mechaniku, rešerše v research/
 ```
@@ -534,7 +534,18 @@ rozhraní částí v
   je ze seedu vsi a indexu dne – výsledek nezávisí na tom, po jakých kouscích se ves dopočítá.
 - **Čísla** pravidel jsou jen v `rules.ts` (u každého odkaz na sekci návrhu); změna čísla = i
   text v návrhu. Kalibrace: `measure-village.ts` nasimuluje stovky vsí a vypíše cíle z Kalibrace
-  obou dokumentů s OK / MIMO (`200 60` rychlé cíle, `100 1000` vymření do roku 1500).
+  obou dokumentů s OK / MIMO (`--quick` = 50 vsí na denní ladění, `200 60` závěrečné ověření,
+  `100 1000` vymření do roku 1500). Vsi stojí na skutečných krajinách sídel (`--land real`,
+  vrstvy `CURRENT_LAYER_VERSIONS`; hráč zakládá čtverce podle úrody za člověkoden –
+  `scripts/lib/calibration-land.ts`), `--land v1` je syntetická louka 35 ha ze starších měření;
+  sondy pevných domácností běží vždy na syntetické louce s úrodností 70. Běží na pozadí (nice 19,
+  polovina jader, `--workers N`, `--eco` jen úsporná jádra – ≈ 6× pomalejší) a s
+  `--out soubor.jsonl` si hotové vsi ukládá – přerušený běh (Ctrl+C) stejný příkaz dokončí, po
+  změně pravidel nový soubor. Varianty pravidel jen pro kalibraci: `--variant meadow-burn` (pálení
+  drnu). Ustálený stav bez simulace (osev, pole, práce po měsících, špičky, zásoby, dřevo, sad)
+  okamžitě: `village-calculator.ts` (jádro `scripts/lib/steady-state.ts`). Kopii stavu na začátku
+  `advanceVillage` dělá `cloneState` (`clone.ts` – ručně, stav jsou data jako v JSON) a stavby polí
+  hledají zakládané díly v indexu po polích – obojí kvůli rychlosti, výsledky stejné.
 - **Meze produktivity** (Martin): čísla s rozpětím v literatuře jsou v `rules.ts` dvojice
   `{ worst, best }` – **nejhorší mez** (nejvíc člověkodní, nejvyšší ztráty – bez řemesel)
   a **nejlepší mez** (plně pokrytá potřeba výrobků řemeslníků); řemeslníci zvyšují produktivitu
@@ -651,8 +662,8 @@ rozhraní částí v
   u kurzoru; `nearestMatureTrees` – hledá po políčkách) a kácí je jako
   první část práce stavby (`fellAsWorked` → pařezy). Simulace proto povinně dostává vrstvu
   překážek (`advanceVillage(state, day, obstacles)`; `null` = kácení bez polohy jen v testech),
-  use-casy krajinu (`updateVillage`, `loadVillage`, `renameVillage`); kalibrace má syntetický
-  les. Vyhrazený strom patří své stavbě: mýcení za něj kládu nedá (`reservedTrees`
+  use-casy krajinu (`updateVillage`, `loadVillage`, `renameVillage`); kalibrace les skutečné
+  krajiny (`--land v1` syntetický). Vyhrazený strom patří své stavbě: mýcení za něj kládu nedá (`reservedTrees`
   v `PlacementVillage`) a stromy zakládaných dílů a čtverců hřbitova obydlí nevyhradí
   (`claimedObstacles`). Mýcení (díly polí, čtverce hřbitova, staveniště) dá kládu za dospělý
   strom (`trees` u dílu / čtverce). Dřevo je surovina předem (`villageStock` s vrstvou překážek:
@@ -767,7 +778,10 @@ npm run format:check  # npm run format = oprava
 npm run db:generate   # nová migrace po změně schématu v packages/db/src/schema
 npm run db:seed-dev   # vývojový účet v lokální DB bez registrace
 npx tsx packages/game/scripts/measure-landscapes.ts 500   # měření generátoru krajiny (+ initial = verze 1)
-npx tsx packages/game/scripts/measure-village.ts 200 60   # kalibrace simulace vsi
+npx tsx packages/game/scripts/measure-village.ts --quick --out quick.jsonl   # kalibrace vsi (50 vsí)
+npx tsx packages/game/scripts/measure-village.ts 200 60 --out base.jsonl     # závěrečné ověření
+npx tsx packages/game/scripts/measure-village.ts 200 60 --variant meadow-burn --out burn.jsonl
+npx tsx packages/game/scripts/village-calculator.ts --preset full --fertility 56   # ustálený stav
 ```
 
 Všechny příkazy jdou přes Turborepo do jednotlivých workspaces. Před commitem musí projít

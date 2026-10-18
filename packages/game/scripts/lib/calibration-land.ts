@@ -290,21 +290,23 @@ export function realLand(seed: number): CalibrationLand {
     fertilityAt: (cursor) => ordered[cursor]?.naturalFertility ?? 60,
     isForest: (cursor) => ordered[cursor]?.surface === 'forest',
     take: (state, day, cursor, count) => {
-      const slice = ordered.slice(cursor, cursor + count);
-      if (slice.length === 0) return null;
-      // políčka pozemků polozemnic (přestavba na volné políčko) pole nedostane
+      if (cursor >= ordered.length) return null;
+      // políčka pozemků polozemnic (přestavba na volné políčko) pole nedostane – přeskočí se
       const plots = new Set(
         [...(state?.dwellings ?? []), ...(state?.constructions ?? [])].flatMap((d) =>
           d.plot ? [`${d.plot.cell.x},${d.plot.cell.y}`] : [],
         ),
       );
-      const chosen = slice.flatMap((p) =>
-        p.cell && !plots.has(`${p.cell.x},${p.cell.y}`) ? [p.cell] : [],
-      );
-      if (chosen.length === 0) return { parts: [], next: cursor + slice.length };
+      const chosen: TileCell[] = [];
+      let next = cursor;
+      while (chosen.length < count && next < ordered.length) {
+        const cell = ordered[next++]?.cell;
+        if (cell && !plots.has(`${cell.x},${cell.y}`)) chosen.push(cell);
+      }
+      if (chosen.length === 0) return null;
       const village = state ? placementVillageOf(state, day) : null;
       const preview = fieldPartsFromCells(landscape, village, chosen, [position], obstacles);
-      return { parts: preview.parts, next: cursor + slice.length, sacred: preview.spared };
+      return { parts: preview.parts, next, sacred: preview.spared };
     },
     // políčka hřbitova mimo mřížku krajiny – nepřekryjí čtverce polí
     cemeterySquare: (index) => cemeterySquare(position, index, -10),
