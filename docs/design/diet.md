@@ -116,6 +116,24 @@ Rozhodnutí kontroléru tam, kde návrh nedává číslo nebo postup (Martin je 
   ročně na slepici, každý den do zásoby masa.
 - **Scéna:** stáda na pastvě podle skutečných počtů, v zimě krávy v ohradě (když ves nějakou má).
 
+## Naměřeno (18. 10. 2026)
+
+`measure-village.ts 200 60` se stravou a stády (hráč skriptu ohrady ani dílny nestaví – orba
+a řemesla nepůsobí; měřeno před sloučením s řemesly). Cíle hladu měří energii, v závorce měření
+po sloučení s `feat/landscape` bez stravy (fields.md – Naměřeno):
+
+- **nasycení se stravou** (energie × pestrost): medián 0,94 (p10 0,87), maso medián 21 % energie
+  (ves bez staveb 34 %), ovoce 0 % (sad skript nesází) – stáda dají maso od první porážky,
+- **energie ≥ 0,95 celý rok, hráč staví:** 97,0 % let (74,3 %) – **OK**; bez staveb 99,7 %,
+- **zásoby po sklizni:** p10 1,16, medián 2,13, p90 3,32 (0,81 / 1,15 / 1,51) – **MIMO** pásmo
+  1–1,5: maso nahradí část obilí, ale ves dál oseje podle potřeby obilí (cíl osevu stravu nezná –
+  k doladění),
+- **po 60 letech (hráč staví):** medián 4 domácnosti a 19 lidí (2 a 10), vymřelo 0,5 % vsí (6 %),
+- **práce na obživu:** startovní ves 89,8 %, plná domácnost 85,9 % (89 % a 84 %) – porážka a uzení
+  přidají trochu práce,
+- **štěstí** (informace): medián 46,5 (hráč staví), 39,9 (bez staveb); porody při nasycení 0,94
+  jdou z 98 %.
+
 ## Co hráč vidí
 
 - V horní liště **obilí, maso, ovoce** (ikony + čísla) a nasycení; tooltip nasycení ukáže
