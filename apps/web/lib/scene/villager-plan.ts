@@ -5,11 +5,13 @@ import {
   type Craft,
   type DwellingType,
   type Position,
+  type TileCell,
 } from '@bohemia/game';
 import type {
   LaborActivity,
   LaborShare,
   LaborTarget,
+  SceneFieldPart,
   SceneLaborShare,
   SceneVillage,
 } from '../village-view';
@@ -94,6 +96,8 @@ const WOMEN: Record<LaborActivity, number> = {
   plough: 0,
   mow: 0.3,
   slaughter: 0.4,
+  milking: 0.9,
+  'animal-care': 0.4,
   'orchard-care': 0.3,
   'orchard-harvest': 0.6,
   build: 0.15,
@@ -659,6 +663,10 @@ function villager(who: Identity, pose: PoseFn, hair: HairLook): PlannedVillager 
 function targetKey(target: LaborTarget): string {
   if (target.kind === 'village') return 'village';
   if (target.kind === 'trees') return `trees-${target.ids[0] ?? 0}`;
+  if (target.kind === 'meadow') {
+    const first = target.cells[0];
+    return first ? `meadow-${first.x}-${first.y}` : 'meadow';
+  }
   return `${target.kind}-${target.id}`;
 }
 
@@ -720,7 +728,14 @@ function placer(ctx: Context, share: SceneLaborShare, count: number): Placer {
       // oráč a honáček jsou součástí spřežení (plough-team-renderer.ts)
       return none;
     case 'mow':
+      if (t.kind === 'meadow') return meadowRows(ctx, t.cells, count);
       return t.kind === 'field' ? fieldRows(ctx, share, t.id, count, 'reap') : none;
+    case 'milking':
+      // dojení u domů – ženy u dojných zvířat vedle obydlí (diet.md)
+      return milkers(ctx);
+    case 'animal-care':
+      // v zimě u ohrady (krmení, voda, kydání), jinak u domů (prasata, slepice)
+      return t.kind === 'pen' ? penFence(ctx, t.id) : domestic(ctx);
     case 'slaughter':
       // porážka a uzení u vsi (diet.md) – na udusané zemi kousek od domů jako výmlat
       return threshing(ctx, count);
@@ -856,6 +871,67 @@ function workedSquares(ctx: Context, share: SceneLaborShare, work: FieldWork): P
     Math.floor(ctx.day / CREW_MOVE_DAYS) +
     Math.floor(hash01(fieldId, ctx.seed, 92) * worked.length);
   return worked.map((_, i) => worked[(start + i) % worked.length]!);
+}
+
+/**
+ * Seč přirozené louky (oxen.md – Seno): řady sekáčů na políčkách louky, přes která dnes seč
+ * postoupila (`cells` od jádra) – jako řady na poli, vzhled a rozpracovanost z
+ * `SceneVillage.hayMeadows`. Řádky sena vedou podél x, seče se od strany blíž vsi.
+ */
+function meadowRows(ctx: Context, cells: readonly TileCell[], count: number): Placer {
+  const meadows = ctx.village.hayMeadows ?? [];
+  const views: PartView[] = cells.flatMap((cell, order) => {
+    const m = meadows.find((h) => h.cell.x === cell.x && h.cell.y === cell.y);
+    if (!m) return [];
+    const part: SceneFieldPart = {
+      cell: { x: m.cell.x, y: m.cell.y },
+      x: m.x,
+      z: m.z,
+      size: m.size,
+      stage: 'meadow',
+      look: m.look,
+    };
+    const work = m.work !== undefined && m.work < 1 ? m.work : null;
+    return [
+      {
+        part,
+        look: m.look,
+        work,
+        before: work !== null ? (m.before ?? null) : null,
+        staked: false,
+        order,
+      },
+    ];
+  });
+  if (views.length === 0) return none;
+  const work: FieldWork = { views, rows: [1, 0], center: villageCenter(ctx.village) };
+  return (i, who) => {
+    const crew = Math.floor(i / CREW);
+    const member = i % CREW;
+    const size = Math.min(CREW, count - crew * CREW);
+    const view = views[crew % views.length]!;
+    return frontierRow(ctx, work, view, member, size, 'reap', who, false);
+  };
+}
+
+/**
+ * Dojení (diet.md – Práce se zvířaty): ženy u bočních stěn obydlí, sehnuté k dojnému zvířeti
+ * (klip pletí – dojení animace nemá), po domech dokola.
+ */
+function milkers(ctx: Context): Placer {
+  const homes = [...ctx.homes].sort((a, b) => a.id - b.id);
+  return (i) => {
+    const home = homes[i % homes.length];
+    if (!home) return null;
+    const turn = Math.floor(i / homes.length);
+    const side = turn % 2 === 0 ? 1 : -1;
+    const edge = side > 0 ? home.box.maxX + gap(1.8) : home.box.minX - gap(1.8);
+    const p = worldPoint(home.position, edge, home.box.minZ * 0.2 - turn * gap(0.8));
+    const spot = nearestFree(ctx, p.x, p.z, 2);
+    if (!spot) return null;
+    const toward = unit(home.position.x - spot.x, home.position.z - spot.z);
+    return stand(spot.x, spot.z, -toward.z * side, toward.x * side, 'weed');
+  };
 }
 
 /**

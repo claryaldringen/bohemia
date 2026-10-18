@@ -1,25 +1,31 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { foundVillage } from '../actions';
+import { DAIRY, daysUntilMilking } from '../dairy';
 import {
   DIET,
+  PROTEIN,
   daysUntilSlaughter,
-  dietDiversity,
   dietOf,
+  dietQuality,
   eatDiet,
   fruitEnergy,
   meatEnergy,
   type DietInput,
+  type Eaten,
 } from '../diet';
 import { NO_CRAFTS } from '../productivity';
 import { advanceVillage } from '../simulate';
 import { withBuiltFirstDwelling } from './village-fixtures';
 
-// Strava (diet.md): energie × pestrost, podíly a stropy, ovoce přednostně, hlad jen z energie.
+// Strava (diet.md): energie × kvalita z bílkovin a ovoce, stropy, ovoce, mléko a sýr, hlad jen
+// z energie.
 
 const at = (year: number, month: number, day: number): number => dayIndexOf({ year, month, day });
 /** Potřeba energie 10 kg obilí za den – podíly v kg jsou pak desetiny. */
 const NEED = 10;
+/** Potřeba bílkovin k NEED – dospělí (180 kg obilí ročně, 60 kg × 1,6 g na den). */
+const PROTEIN_NEED = (NEED / (180 / 365)) * ((PROTEIN.bodyKg.adult * PROTEIN.gPerKgBody) / 1000);
 
 function input(over: Partial<DietInput>): DietInput {
   return {
@@ -27,6 +33,7 @@ function input(over: Partial<DietInput>): DietInput {
     meatKg: 0,
     fruitKg: 0,
     needPerDay: NEED,
+    proteinNeedPerDay: PROTEIN_NEED,
     daysToHarvest: 100,
     daysToRot: 0,
     daysToSlaughter: 100,
@@ -35,29 +42,65 @@ function input(over: Partial<DietInput>): DietInput {
   };
 }
 
-describe('nasycení = energie × pestrost (tabulka z diet.md)', () => {
-  const grain = (share: number): number => share * NEED;
-  const meat = (share: number): number => (share * NEED) / DIET.meatEnergy;
-  const fruit = (share: number): number => share * NEED * 7;
+const NONE: Eaten = {
+  grainKg: 0,
+  meatKg: 0,
+  fruitKg: 0,
+  milkL: 0,
+  milkProteinKg: 0,
+  milkEnergy: 0,
+  cheeseKg: 0,
+  eggsKg: 0,
+};
 
-  it('jen obilí 80 %, obilí + maso 94 %, obilí + ovoce 86 %, všechno 100 %', () => {
-    expect(dietOf(NEED, grain(1), 0, 0).satiation).toBeCloseTo(0.8, 9);
-    expect(dietOf(NEED, grain(0.8), meat(0.2), 0).satiation).toBeCloseTo(0.94, 9);
-    expect(dietOf(NEED, grain(0.95), 0, fruit(0.05)).satiation).toBeCloseTo(0.86, 9);
-    expect(dietOf(NEED, grain(0.75), meat(0.2), fruit(0.05)).satiation).toBeCloseTo(1, 9);
+describe('nasycení = energie × kvalita z bílkovin a ovoce (diet.md)', () => {
+  it('samo obilí ≈ 80 % (bílkoviny z obilí jen ≈ polovina potřeby), s bílkovinami 94 %, s ovocem 100 %', () => {
+    const grainOnly = dietOf(NEED, PROTEIN_NEED, { ...NONE, grainKg: NEED });
+    expect(grainOnly.energy).toBeCloseTo(1, 9);
+    expect(grainOnly.protein).toBeGreaterThan(0.45);
+    expect(grainOnly.protein).toBeLessThan(0.65);
+    expect(grainOnly.satiation).toBeGreaterThan(0.76);
+    expect(grainOnly.satiation).toBeLessThan(0.84);
+    const meatKg = 9.5; // bílkoviny z obilí ≈ polovina – zbytek z masa ≈ u stropu 40 % energie
+    const withMeat = dietOf(NEED, PROTEIN_NEED, {
+      ...NONE,
+      grainKg: NEED - meatEnergy(meatKg),
+      meatKg,
+    });
+    expect(withMeat.protein).toBe(1);
+    expect(withMeat.satiation).toBeCloseTo(DIET.quality.base + DIET.quality.protein, 9);
+    const fruitKg = (DIET.fruitShare * NEED) / fruitEnergy(1);
+    const all = dietOf(NEED, PROTEIN_NEED, {
+      ...NONE,
+      grainKg: NEED - meatEnergy(meatKg) - fruitEnergy(fruitKg),
+      meatKg,
+      fruitKg,
+    });
+    expect(all.satiation).toBeCloseTo(1, 9);
   });
 
-  it('pestrost 0,80 + 0,14 × pokrytí masa + 0,06 × pokrytí ovoce, pokrytí nejvýš 1', () => {
-    expect(dietDiversity(0, 0)).toBeCloseTo(0.8, 9);
-    expect(dietDiversity(0.5, 0.5)).toBeCloseTo(0.9, 9);
-    expect(dietDiversity(3, 2)).toBeCloseTo(1, 9);
-    // polovina masa (10 % energie) – pestrost 0,87
-    expect(dietOf(NEED, grain(0.9), meat(0.1), 0).diversity).toBeCloseTo(0.87, 9);
+  it('kvalita 0,60 + 0,34 × pokrytí bílkovin + 0,06 × pokrytí ovoce, nejvýš 1', () => {
+    expect(dietQuality(0, 0)).toBeCloseTo(0.6, 9);
+    expect(dietQuality(0.5, 0)).toBeCloseTo(0.77, 9);
+    expect(dietQuality(1, 1)).toBeCloseTo(1, 9);
+    expect(dietQuality(3, 3)).toBeCloseTo(1, 9);
   });
 
-  it('energie masa 0,6 a ovoce 1/7 kg obilí na kg', () => {
-    expect(meatEnergy(10)).toBeCloseTo(6, 9);
-    expect(fruitEnergy(7)).toBeCloseTo(1, 9);
+  it('bílkoviny ze všech zdrojů – obilí, maso, sýr, mléko, vejce', () => {
+    const d = dietOf(NEED, 1, {
+      grainKg: 1,
+      meatKg: 1,
+      fruitKg: 0,
+      milkL: 2,
+      milkProteinKg: 0.07,
+      milkEnergy: 0.4,
+      cheeseKg: 1,
+      eggsKg: 1,
+    });
+    const protein =
+      PROTEIN.perKg.grain + PROTEIN.perKg.meat + PROTEIN.perKg.cheese + PROTEIN.perKg.eggs + 0.07;
+    expect(d.protein).toBeCloseTo(Math.min(1, protein), 9);
+    expect(d.shares.dairy).toBeCloseTo((0.4 + DAIRY.cheeseEnergy) / NEED, 9);
   });
 });
 
@@ -68,7 +111,7 @@ describe('eatDiet – příděl', () => {
     expect(meal.diet.shares.fruit).toBeCloseTo(DIET.caps.fruit, 9);
     expect(meal.diet.shares.grain).toBeCloseTo(1 - DIET.caps.meat - DIET.caps.fruit, 9);
     expect(meal.diet.energy).toBeCloseTo(1, 9);
-    expect(meal.diet.satiation).toBeCloseTo(1, 9);
+    expect(meal.diet.satiation).toBeCloseTo(dietQuality(meal.diet.protein, 1), 9);
   });
 
   it('ovoce rovným dílem do zkažení, maso rovným dílem do porážky', () => {
@@ -97,6 +140,40 @@ describe('eatDiet – příděl', () => {
     const meal = eatDiet(input({ grainKg, meatKg, potteryCoverage: 1 }));
     expect(meal.diet.energy).toBeCloseTo(0.6, 2);
     expect(meal.outlook).toBeCloseTo(meal.diet.energy, 2);
+  });
+
+  it('čerstvé mléko se pije do stropu mléka a sýra, zbytek se zpracuje na sýr', () => {
+    const milkL = 1000;
+    const meal = eatDiet(
+      input({
+        milkL,
+        milkProteinKg: milkL * DAIRY.proteinPerL.cow,
+        milkEnergy: milkL * DAIRY.energyPerL.cow,
+      }),
+    );
+    expect(meal.diet.shares.dairy).toBeCloseTo(DIET.caps.dairy, 9);
+    const drunk = (DIET.caps.dairy * NEED) / DAIRY.energyPerL.cow;
+    // kravské mléko: z 10 l kilogram sýra (75 % bílkovin mléka, sýr 25 %)
+    expect(meal.cheeseMadeKg).toBeCloseTo(
+      ((milkL - drunk) * DAIRY.proteinPerL.cow * DAIRY.cheeseProteinKept) / DAIRY.cheeseProtein,
+      9,
+    );
+    expect((milkL - drunk) / meal.cheeseMadeKg).toBeCloseTo(10.1, 1);
+    expect(meal.cheeseKg).toBeCloseTo(meal.cheeseMadeKg, 9);
+    // mléko přidá bílkoviny k obilí
+    expect(meal.diet.protein).toBeGreaterThan(eatDiet(input({})).diet.protein + 0.1);
+  });
+
+  it('sýr rovným dílem do příštího dojení, s mlékem nejvýš strop', () => {
+    const cheeseKg = 100;
+    const meal = eatDiet(input({ cheeseKg, daysToMilking: 50 }));
+    const keep = (1 - DAIRY.cheeseLossPerYear) ** (1 / 365);
+    expect(meal.diet.shares.dairy).toBeCloseTo(
+      (((cheeseKg * keep) / 50) * DAIRY.cheeseEnergy) / NEED,
+      9,
+    );
+    expect(daysUntilMilking(at(601, 4, 30))).toBe(1);
+    expect(daysUntilMilking(at(601, 5, 1))).toBe(365);
   });
 
   it('bez lidí nikdo nejí – plné nasycení, zásoby jen ztrácejí', () => {
@@ -133,9 +210,9 @@ describe('simulace – hlad jen z energie', () => {
     };
     const end = advanceVillage(s, at(601, 3, 1), null);
     expect(end.diet!.energy).toBeCloseTo(1, 9);
-    // vejce slepic dají kousek masa – pestrost těsně nad 0,8
-    expect(end.diet!.satiation).toBeGreaterThan(0.8);
-    expect(end.diet!.satiation).toBeLessThan(0.82);
+    // bílkoviny jen z obilí a vajec slepic – nasycení kolem 0,8
+    expect(end.diet!.satiation).toBeGreaterThan(0.77);
+    expect(end.diet!.satiation).toBeLessThan(0.86);
     expect(end.starvationDays ?? 0).toBe(0);
     expect(end.hungry).toBe(false);
   });

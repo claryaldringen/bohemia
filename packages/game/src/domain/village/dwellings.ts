@@ -220,7 +220,11 @@ export function repairNeedPerDay(dwelling: Dwelling, day: number): number {
   return (spec.repairAtEndOfLifePerYear * ratio ** 2) / DAYS_PER_COST_YEAR;
 }
 
-/** Nedodělek oprav (potřeba − odvedená práce) ubírá stav o nedodělek / cena, nejméně na 0. */
+/**
+ * Nedodělek oprav (potřeba − odvedená práce) ubírá stav o nedodělek / cena, nejméně na 0. Jen pro
+ * prázdné obydlí (`decayEmptyDwelling` – neopravuje ho nikdo): obydlený dům stav drží, jeho
+ * obyvatelé ho opravují (Martin, 18. 10. 2026 – population.md, Chátrání a přestavba).
+ */
 export function applyRepairs(dwelling: Dwelling, workDone: number, need: number): void {
   const shortfall = need - workDone;
   if (shortfall <= 0) return;
@@ -232,7 +236,7 @@ export function applyRepairs(dwelling: Dwelling, workDone: number, need: number)
  * potřebu oprav podle stáří (`repairNeedPerDay`) – a navíc o pevný denní podíl, protože se
  * nevytápí, došky hnijí, dřevo v zemi trouchniví a nikdo nespraví střechu (Martin, 18. 10. 2026):
  * nové prázdné obydlí spadne z plného stavu na nulu zhruba za `emptyLifespanYears`. Stav nikdy
- * neklesne pod 0; po znovuosídlení se opravy vrací od stavu, který zbyl (nezvedá se).
+ * neklesne pod 0; po znovuosídlení stav dál neklesá (obyvatelé dům opravují), ale ani se nezvedá.
  */
 export function decayEmptyDwelling(dwelling: Dwelling, day: number): void {
   applyRepairs(dwelling, 0, repairNeedPerDay(dwelling, day));
@@ -240,12 +244,12 @@ export function decayEmptyDwelling(dwelling: Dwelling, day: number): void {
   dwelling.condition = Math.max(0, dwelling.condition - perDay);
 }
 
-/** Obyvatelé chtějí přestavět: obydlí dožilo, nebo je na nule. */
+/**
+ * Obyvatelé chtějí přestavět: obydlí dožilo (životnost). Rozhoduje jen stáří – obydlený dům
+ * nechátrá, na nulu spadne jen prázdný (ten zanikne).
+ */
 export function wantsRebuild(dwelling: Dwelling, day: number): boolean {
-  return (
-    fractionalAge(dwelling, day) >= DWELLINGS[dwelling.type].lifespanYears ||
-    dwelling.condition <= 0
-  );
+  return fractionalAge(dwelling, day) >= DWELLINGS[dwelling.type].lifespanYears;
 }
 
 /**

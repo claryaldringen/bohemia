@@ -10,10 +10,12 @@ import {
   foundVillage,
   generateLandscape,
   groveAgeYears,
+  oakAgeHappiness,
   obstaclesOf,
   placementVillageOf,
   reservedTrees,
-  sacredOakAgeYears,
+  sacredOakLife,
+  sacredOakNow,
   sacredSitesOf,
   startRelocation,
   surfaceAt,
@@ -30,6 +32,7 @@ import {
   buildVillageView,
   chronicleText,
   placementVillageFromScene,
+  type VillageView,
 } from '../village-view';
 
 const DAY = dayIndexOf({ year: 503, month: 4, day: 12 });
@@ -1055,7 +1058,8 @@ describe('štěstí a posvátná místa v pohledu na ves', () => {
     expect(view.happiness.value).toBe(62.4);
     expect(view.happiness.laborFactor).toBeCloseTo(1 + (0.1 * 12.4) / 50, 9);
     // ruční krajina bez vrstvy překážek – stáří dubů neznámé
-    expect(view.sacred.oaks).toEqual([{ id: 7, happiness: 5, ageYears: null }]);
+    // bez vrstvy se dub počítá jako nejmladší (+1)
+    expect(view.sacred.oaks).toEqual([{ id: 7, happiness: 1, ageYears: null, snag: false }]);
     expect(view.sacred.groves).toEqual([
       { id: 8, oaks: 14, squares: 1, happiness: 14, ageYears: null },
     ]);
@@ -1111,11 +1115,54 @@ describe('štěstí a posvátná místa v pohledu na ves', () => {
     s.groves = [{ id: grove.id, day: DAY, x: grove.x, z: grove.z, cells: grove.cells, oaks: 9 }];
     const view = buildVillageView(record(s), real, DAY);
     const layer = obstaclesOf(real);
-    expect(view.sacred.oaks[0]?.ageYears).toBe(sacredOakAgeYears(layer, oak.id, DAY));
+    expect(view.sacred.oaks[0]?.ageYears).toBe(sacredOakNow(layer, oak.id, DAY).ageYears);
     expect(view.sacred.groves[0]?.ageYears).toBe(groveAgeYears(layer, grove, DAY));
     // k 1. 1. 500 je posvátný dub starý 150–400 let, v roce 503 o 3 roky víc
     expect(view.sacred.oaks[0]?.ageYears).toBeGreaterThanOrEqual(153);
     expect(view.sacred.oaks[0]?.ageYears).toBeLessThanOrEqual(403);
+  });
+
+  it('posvátný dub uschne: panel souš se stářím a +1, scéna souš; padlá souš z panelu zmizí', () => {
+    const real = generateLandscape(5);
+    const layer = obstaclesOf(real);
+    const oak = sacredSitesOf(layer).oaks.find((o) => {
+      const life = sacredOakLife(layer, o.id);
+      return life?.diesDay != null && life.fallsDay != null;
+    })!;
+    const life = sacredOakLife(layer, oak.id)!;
+    const died = life.diesDay!;
+    const fell = life.fallsDay!;
+    const s = settled();
+    s.sacredOaks = [{ id: oak.id, day: DAY, x: oak.x, z: oak.z }];
+    const at = (day: number): VillageView => buildVillageView(record(s), real, day);
+    const span = life.lifespanYears;
+    expect(at(died - 1).sacred.oaks).toEqual([
+      { id: oak.id, happiness: oakAgeHappiness(span), ageYears: span, snag: false },
+    ]);
+    expect(at(died - 1).scene.sacred?.oaks[0]?.snag).toBeUndefined();
+    // souš: stáří, kdy uschla, štěstí 1, ve scéně souš s velikostí dubu – od uschnutí neroste
+    const snag = at(died);
+    expect(snag.sacred.oaks).toEqual([{ id: oak.id, happiness: 1, ageYears: span, snag: true }]);
+    expect(snag.happiness.target).toBeGreaterThan(0);
+    const sceneOak = snag.scene.sacred?.oaks[0];
+    expect(sceneOak).toMatchObject({ id: oak.id, snag: true, sizeM: life.sizeM });
+    expect(at(fell - 1).scene.sacred?.oaks[0]?.growth).toBe(sceneOak?.growth);
+    // padlá souš: už není posvátný dub – v panelu ani mezi duby scény, leží padlý kmen
+    const fallen = at(fell);
+    expect(fallen.sacred.oaks).toEqual([]);
+    expect(fallen.scene.sacred?.oaks).toEqual([]);
+    expect(fallen.scene.sacred?.fallenOaks).toEqual([
+      { id: oak.id, x: oak.x, z: oak.z, growth: sceneOak?.growth, sizeM: life.sizeM },
+    ]);
+  });
+
+  it('kronika: posvátný dub uschl, posvátná souš padla', () => {
+    expect(chronicleText({ day: 0, kind: 'sacred-oak-died', id: 1 }, 'Libice')).toBe(
+      'Posvátný dub stářím uschl – zůstala posvátná souš.',
+    );
+    expect(chronicleText({ day: 0, kind: 'sacred-snag-fell', id: 1 }, 'Libice')).toBe(
+      'Posvátná souš padla.',
+    );
   });
 
   it('ves bez posvátných míst je ve scéně nemá', () => {

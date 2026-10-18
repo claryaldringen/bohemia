@@ -24,8 +24,15 @@ const view = (overrides: Partial<VillageView> = {}): VillageView => ({
   storesKg: 800,
   applesKg: 0,
   meatKg: 0,
+  cheeseKg: 0,
+  milkLPerDay: 0,
   hayKg: 0,
-  diet: { energy: 1, diversity: 0.8, shares: { grain: 1, meat: 0, fruit: 0 } },
+  diet: {
+    energy: 1,
+    protein: 0.55,
+    diversity: 0.8,
+    shares: { grain: 1, meat: 0, dairy: 0, eggs: 0, fruit: 0 },
+  },
   livestock: {
     herds: { sheep: 3, goat: 1, pig: 2, cow: 1 },
     chickens: 2,
@@ -34,6 +41,8 @@ const view = (overrides: Partial<VillageView> = {}): VillageView => ({
     grazingHa: 1.8,
     pigForestHa: 30,
     meatNeedKg: 187,
+    milkLPerDay: 0,
+    milkLPerYear: 0,
   },
   pens: [],
   woodLogs: 0,
@@ -233,7 +242,7 @@ describe('newNotices – posvátná místa', () => {
     const before = view();
     const after = view({
       sacred: {
-        oaks: [{ id: 7, happiness: 5, ageYears: 310 }],
+        oaks: [{ id: 7, happiness: 5, ageYears: 310, snag: false }],
         groves: [{ id: 9, oaks: 12, squares: 9, happiness: 13, ageYears: 240 }],
         buildings: [],
       },
@@ -281,6 +290,20 @@ describe('newNotices – porážka a spřežení (diet.md, oxen.md)', () => {
     // stejný pohled podruhé nic, první načtení nic
     expect(newNotices(after, after)).toEqual([]);
     expect(newNotices(null, after)).toEqual([]);
+  });
+
+  it('posvátný dub uschl a posvátná souš padla – fakt', () => {
+    const after = view({
+      dayIndex: 1003,
+      chronicle: [
+        entry(1002, 'sacred-snag-fell', 'Posvátná souš padla.'),
+        entry(1001, 'sacred-oak-died', 'Posvátný dub stářím uschl – zůstala posvátná souš.'),
+      ],
+    });
+    expect(newNotices(view(), after)).toEqual([
+      { kind: 'sacred-oak-died', tone: 'warn', text: 'Posvátný dub uschl' },
+      { kind: 'sacred-snag-fell', tone: 'warn', text: 'Posvátná souš padla' },
+    ]);
   });
 
   it('spřežení dosloužilo – fakt', () => {

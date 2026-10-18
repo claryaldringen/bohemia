@@ -4,7 +4,7 @@ import type { DayAllocation, LaborTaskName } from './labor';
 import { villageOrchards } from './orchard';
 import { NO_CRAFTS, withinBounds } from './productivity';
 import { HARVEST_WORK_PER_HA } from './rules';
-import { mowingPartsWorked } from './hay';
+import { mowingSquaresWorked } from './hay';
 import type {
   Construction,
   CropWork,
@@ -105,10 +105,16 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
     }
   }
   add('thresh', { kind: 'village' }, allocation.tasks.thresh);
-  for (const share of mowingShares(state, work)) {
-    add('mow', { kind: 'field', id: share.fieldId, parts: share.parts }, share.manDays);
-  }
+  for (const share of mowingShares(state, work)) add('mow', share.target, share.manDays);
   add('slaughter', { kind: 'village' }, allocation.tasks.slaughter);
+  // dojení u domů, zimní péče o krávy a voly u ohrady (když ves nějakou má – diet.md)
+  const pen = (state.pens ?? []).find((p) => p.builtDay !== null);
+  add('milking', { kind: 'village' }, allocation.tasks.milking);
+  add(
+    'animal-care',
+    pen ? { kind: 'pen', id: pen.id } : { kind: 'village' },
+    allocation.tasks['animal-care'],
+  );
   const orchards = orchardAreas(state);
   for (const task of ['orchard-care', 'orchard-harvest'] as const) {
     for (const { id, share } of orchards) {
@@ -190,22 +196,39 @@ function fieldShares(
   return [...shares.values()];
 }
 
-/** Seč dne po polích na díly, přes které dnes postoupila (podíl podle úseku dílu). */
+/**
+ * Seč dne na louky, přes které dnes postoupila: díly úhoru po polích, přirozené louky zvlášť
+ * (podíl podle úseku louky).
+ */
 function mowingShares(
   state: VillageState,
   work: DayWork,
-): { fieldId: number; manDays: number; parts: number[] }[] {
+): { target: LaborTarget; manDays: number }[] {
   const day = work.mowing;
   if (!day || day.after - day.before <= 0) return [];
   const partsById = new Map(state.parts.map((p) => [p.id, p]));
-  const shares = new Map<number, { fieldId: number; manDays: number; parts: number[] }>();
-  for (const part of mowingPartsWorked(day.mowing, partsById, day.before, day.after)) {
-    const share = shares.get(part.fieldId) ?? { fieldId: part.fieldId, manDays: 0, parts: [] };
-    share.manDays += (day.after - day.before) * part.share;
-    share.parts.push(part.id);
-    shares.set(part.fieldId, share);
+  const fields = new Map<number, { manDays: number; parts: number[] }>();
+  const meadow = { manDays: 0, cells: [] as { x: number; y: number }[] };
+  for (const sq of mowingSquaresWorked(day.mowing, partsById, day.before, day.after)) {
+    const manDays = (day.after - day.before) * sq.share;
+    if (sq.partId !== undefined && sq.fieldId !== undefined) {
+      const share = fields.get(sq.fieldId) ?? { manDays: 0, parts: [] };
+      share.manDays += manDays;
+      share.parts.push(sq.partId);
+      fields.set(sq.fieldId, share);
+    } else if (sq.cell) {
+      meadow.manDays += manDays;
+      meadow.cells.push(sq.cell);
+    }
   }
-  return [...shares.values()];
+  const shares: { target: LaborTarget; manDays: number }[] = [...fields].map(([id, share]) => ({
+    target: { kind: 'field', id, parts: share.parts },
+    manDays: share.manDays,
+  }));
+  if (meadow.cells.length > 0) {
+    shares.push({ target: { kind: 'meadow', cells: meadow.cells }, manDays: meadow.manDays });
+  }
+  return shares;
 }
 
 /**

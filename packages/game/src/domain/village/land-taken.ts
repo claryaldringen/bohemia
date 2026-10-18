@@ -233,7 +233,7 @@ function shrinkInMowing(state: VillageState, part: FieldPart, share: number): vo
   const mowing = state.hay?.mowing;
   if (!mowing || !mowing.partIds.includes(part.id)) return;
   const partsById = new Map(state.parts.map((p) => [p.id, p]));
-  const span = mowingSpans(mowing, partsById).find((s) => s.id === part.id);
+  const span = mowingSpans(mowing, partsById).find((s) => s.partId === part.id);
   if (!span) return;
   const position = mowingPosition(mowing);
   const doneOnPart =
@@ -244,14 +244,24 @@ function shrinkInMowing(state: VillageState, part: FieldPart, share: number): vo
   );
   mowing.done = Math.max(0, Math.min(mowing.required, mowing.done - share * doneOnPart));
   mowing.yieldKg = Math.max(0, mowing.yieldKg - (share * part.areaM2 * HAY.yieldKgPerHa) / 10_000);
+  // louka v pořadí seče (s přirozenými loukami) nese plochu z plánu – ubude jí stejný podíl
+  for (const square of mowing.squares ?? []) {
+    if (square.partId === part.id) square.areaM2 *= 1 - share;
+  }
 }
 
-/** Odebraný díl zmizí ze seče; seč bez dílů se zruší. */
+/** Odebraný díl zmizí ze seče; seč bez luk se zruší. */
 function dropFromMowing(state: VillageState, partId: number): void {
   const hay = state.hay;
   if (!hay?.mowing) return;
   hay.mowing.partIds = hay.mowing.partIds.filter((id) => id !== partId);
-  if (hay.mowing.partIds.length === 0) hay.mowing = null;
+  if (hay.mowing.squares) {
+    hay.mowing.squares = hay.mowing.squares.filter((sq) => sq.partId !== partId);
+  }
+  // seč bez luk se zruší (přirozené louky zůstávají)
+  if (hay.mowing.partIds.length === 0 && (hay.mowing.squares?.length ?? 0) === 0) {
+    hay.mowing = null;
+  }
 }
 
 /** Zakládaný díl: založení se zmenší úměrně – cena i odvedená práce dílu i stavby pole. */

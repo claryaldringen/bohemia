@@ -17,8 +17,8 @@ A po vyšlapané pěšině se chodí lépe – cesta na vzdálené pole po ní s
 
 - **Pěšiny spojují místa, kam lidé chodí každý den:** od brány domu pro vodu k potoku, pro
   dřevo k okraji lesa, na pole, do sadu, ke hřbitovu, k posvátným dubům, hájům, modle a svatyni,
-  k hromadě klád, na staveniště, k ohradě (krmení dobytka) a k sousedům; pasáci ženou stáda na
-  úhor.
+  k hromadě klád, na staveniště, k ohradě (krmení dobytka), v době seče na přirozené louky
+  (oxen.md – Seno) a k sousedům; pasáci ženou stáda na úhor.
 - **Kolik se kam chodí:** voda podle lidí v domácnosti, dřevo na domácnost (v zimní půlce roku
   víc), na pole, do sadu a na stavby podle dnešní práce (rozdělení práce dne z jádra, jeden
   člověkoden = jedna cesta) a k zavedeným místům trochu navíc, ať pěšina mezi pracemi nezaroste.

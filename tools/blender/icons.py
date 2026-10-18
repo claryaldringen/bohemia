@@ -7,11 +7,14 @@ Celé jedním příkazem z kořene repa (Blender 5, ImageMagick `magick`, intern
 Výstup (128 × 128 PNG, průhledné rohy) – `build/` zemnice, polozemnice, pole, hrbitov,
 hrncir, kovar, uhlir (řemeslné dílny z `apps/web/public/models/crafts/`, uhlíř s milířem), sad
 (jabloňový sad), modla, svatyne (posvátná místa z `apps/web/public/models/sacred/`), dub
-(posvátný dub s obětinami), haj (dubový háj s kameny) a ohrada (přístřešek, žlab a branka
+(posvátný dub s obětinami), sous (posvátná souš – uschlý dub z `apps/web/public/models/decor/`
+s obětinami), haj (dubový háj s kameny) a ohrada (přístřešek, žlab a branka
 z `apps/web/public/models/pen/`, kráva ze stáda vsi, stoh sena) – portréty do panelu výběru;
 (64 × 64 PNG) – `resources/` people, food, wood, labor, satiation, date, apples, happiness
 (štěstí – plamen ohniště nad zkříženými poleny v kruhu kamenů), hay (seno – kupka sena
 z `apps/web/public/models/fields/haystack.glb`), meat (maso – uzená kýta s kostí a provázkem),
+cheese (mléko a sýr – bochník sýra s vykrojeným klínem a hrouda tvarohu), eggs (vejce v hnízdě
+ze slámy),
 ozim (osení pod sněhem), jar (klasy jarního ječmene), charcoal (hromádka dřevěného uhlí), tools
 (kovaná sekera zkřížená se srpem) a pottery (dva hrnce pražského typu, větší s vlnovkou) –
 suroviny řemesel (crafts.md) – a zvířata stád do panelu ohrady – sheep, goat, pig, cow, chicken
@@ -48,6 +51,7 @@ MODELS = os.path.join(ROOT, "apps/web/public/models/dwellings")
 CRAFTS = os.path.join(ROOT, "apps/web/public/models/crafts")
 SACRED = os.path.join(ROOT, "apps/web/public/models/sacred")
 TREES = os.path.join(ROOT, "apps/web/public/models/trees")
+DECOR = os.path.join(ROOT, "apps/web/public/models/decor")
 PEN = os.path.join(ROOT, "apps/web/public/models/pen")
 PLOUGH = os.path.join(ROOT, "apps/web/public/models/plough")
 FAUNA = os.path.join(ROOT, "apps/web/public/models/fauna")
@@ -519,6 +523,16 @@ def icon_dub():
     ground(16, mat("g", tex=f"{TEX}/grass-lush.jpg", scale=0.12, tint=(0.8, 0.85, 0.65)), z=0.0, fade=0.65)
     sun(az=-50, el=46)
     camera([Vector((-4.0, -3.0, 0)), Vector((4.0, 2.5, 0)), Vector((0, 0, 8.5))], az=24, el=16, margin=1.0)
+
+
+def icon_sous():
+    """Posvátná souš: uschlý dub (souš dubu z dekorací 0 A.D.), u paty obětiny jako u dubu."""
+    objs = place_model("snag-oak", folder=DECOR) + place_model("oak-offerings", folder=SACRED)
+    for o in objs[:1]:
+        o.rotation_euler = (0, 0, 0.9)
+    ground(16, mat("g", tex=f"{TEX}/grass-lush.jpg", scale=0.12, tint=(0.8, 0.85, 0.65)), z=0.0, fade=0.65)
+    sun(az=-50, el=46)
+    camera([Vector((-4.0, -3.0, 0)), Vector((4.0, 2.5, 0)), Vector((0, 0, 9.5))], az=24, el=16, margin=1.0)
 
 
 def icon_haj():
@@ -1038,6 +1052,99 @@ def icon_meat():
     return True
 
 
+def sector(bm, r, h, a0, a1, segs=40, bevel=0.06):
+    """Výseč válce (bochník sýra s vykrojeným klínem): poloměr r, výška h, úhly a0–a1 (rad).
+    Horní a spodní hrana pláště je trochu sražená – kůrka bochníku není ostrá. Vrací rohy řezů
+    (střed dole, střed nahoře, okraj a0 dole, nahoře, okraj a1 dole, nahoře)."""
+    rings = []
+    for z, rr in ((0.0, r - bevel), (bevel, r), (h - bevel, r), (h, r - bevel)):
+        ring = []
+        for i in range(segs + 1):
+            a = a0 + (a1 - a0) * i / segs
+            ring.append(bm.verts.new((math.cos(a) * rr, math.sin(a) * rr, z)))
+        rings.append(ring)
+    for lo, hi in zip(rings, rings[1:]):
+        for i in range(segs):
+            bm.faces.new((lo[i], lo[i + 1], hi[i + 1], hi[i]))
+    c0, c1 = bm.verts.new((0, 0, 0)), bm.verts.new((0, 0, h))
+    for i in range(segs):
+        bm.faces.new((c0, rings[0][i + 1], rings[0][i]))
+        bm.faces.new((c1, rings[3][i], rings[3][i + 1]))
+    # řezy: od osy k plášti na obou koncích výseče
+    for end in (0, segs):
+        side = [c0] + [ring[end] for ring in rings] + [c1]
+        bm.faces.new(side if end == segs else side[::-1])
+    return rings
+
+
+def icon_cheese():
+    """Mléko a sýr: bochník sýra s vykrojeným klínem, klín vedle a hrouda tvarohu na prkénku."""
+    rng = random.Random(31)
+    wheel, wedge, curd, board = bmesh.new(), bmesh.new(), bmesh.new(), bmesh.new()
+    cut = math.radians(52)
+    sector(wheel, 0.82, 0.42, cut / 2, 2 * math.pi - cut / 2)
+    sector(wedge, 0.8, 0.4, -cut / 2, cut / 2, segs=10)
+    bmesh.ops.rotate(wedge, verts=wedge.verts, cent=(0, 0, 0), matrix=Euler((0, 0, math.radians(18))).to_matrix())
+    bmesh.ops.translate(wedge, verts=wedge.verts, vec=(0.42, -0.62, 0.05))
+    lumpy(curd, (-0.62, -0.62, 0.2), (0.34, 0.3, 0.2), rng, seg=20, rings=12, amp=0.22)
+    cyl(board, (0, -0.2, -0.06), (0, -0.2, 0.0), 1.32, 1.32, 48)
+    for bm in (wheel, wedge):
+        bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    rind = mat("rind", (0.78, 0.55, 0.22), 0.55, noise=18, bump=0.3)
+    paste = mat("paste", (0.95, 0.86, 0.6), 0.6, noise=30, bump=0.15)
+    objs = [
+        to_obj(wheel, "wheel", rind, smooth=False),
+        to_obj(wedge, "wedge", paste, smooth=False),
+        to_obj(curd, "curd", mat("curd", (0.97, 0.96, 0.9), 0.75, noise=40, bump=0.4)),
+        to_obj(board, "board", mat("board", (0.5, 0.33, 0.18), 0.8, noise=12, bump=0.2), smooth=False),
+    ]
+    # řez bochníku světlejší (sýrové těsto) – druhý materiál na plochách řezu (normála ve vodorovné
+    # rovině, ne na plášti)
+    me = objs[0].data
+    me.materials.append(paste)
+    for poly in me.polygons:
+        n, c = poly.normal, poly.center
+        radial = Vector((c.x, c.y, 0))
+        if abs(n.z) < 0.5 and radial.length > 1e-6 and abs(n.dot(radial.normalized())) < 0.3:
+            poly.material_index = 1
+    sun(az=-40, el=48, strength=4.2)
+    camera(world_points(objs[:3]), az=0, el=30, margin=1.08)
+    return True
+
+
+def egg(bm, centre, r, tilt=(0, 0, 0)):
+    """Vejce: koule protažená nahoru, horní konec užší."""
+    sp = bmesh.ops.create_uvsphere(bm, u_segments=24, v_segments=16, radius=1.0)
+    m = Euler(tilt).to_matrix()
+    for v in sp["verts"]:
+        x, y, z = v.co
+        k = 1 - 0.18 * max(0.0, z)
+        v.co = Vector(centre) + m @ Vector((x * r * k, y * r * k, z * r * 1.3))
+
+
+def icon_eggs():
+    """Vejce: tři vejce v hnízdě ze slámy."""
+    rng = random.Random(17)
+    eggs, straw = bmesh.new(), bmesh.new()
+    egg(eggs, (-0.28, 0.08, 0.36), 0.3, (0.2, -0.35, 0))
+    egg(eggs, (0.3, 0.12, 0.36), 0.3, (-0.25, 0.3, 0))
+    egg(eggs, (0.02, -0.32, 0.34), 0.3, (0.55, 0.1, 0))
+    for i in range(140):
+        a = rng.uniform(0, 2 * math.pi)
+        rr = rng.uniform(0.55, 0.95)
+        z = rng.uniform(0.02, 0.3) * (rr - 0.4)
+        p0 = Vector((math.cos(a) * rr, math.sin(a) * rr, z))
+        d = Vector((-math.sin(a), math.cos(a), rng.uniform(-0.15, 0.25))) * rng.uniform(0.35, 0.6)
+        cyl(straw, p0 - d / 2, p0 + d / 2, 0.018, 0.012, 5)
+    objs = [
+        to_obj(eggs, "eggs", mat("shell", (0.86, 0.72, 0.55), 0.5, noise=26, bump=0.1)),
+        to_obj(straw, "straw", mat("straw", (0.82, 0.66, 0.32), 0.8, noise=20)),
+    ]
+    sun(az=-45, el=50, strength=4.2)
+    camera(world_points(objs), az=0, el=34, margin=1.04)
+    return True
+
+
 def icon_animal(name, folder=FAUNA, tint=None, turn=-115):
     """Zvíře stáda (model z `models/fauna/`, vůl ze spřežení `models/plough/`) z boku ve 3/4:
     morph targety pózy (krok, pastva) vypnuté – stojí; pomocná koule v GLB vola pryč."""
@@ -1278,6 +1385,7 @@ BUILD = {
     "modla": icon_modla,
     "svatyne": icon_svatyne,
     "dub": icon_dub,
+    "sous": icon_sous,
     "haj": icon_haj,
     "ohrada": icon_ohrada,
 }
@@ -1291,6 +1399,8 @@ RESOURCES = {
     "happiness": icon_happiness,
     "hay": icon_hay,
     "meat": icon_meat,
+    "cheese": icon_cheese,
+    "eggs": icon_eggs,
     "sheep": lambda: icon_animal("sheep"),
     "goat": lambda: icon_animal("goat"),
     "pig": lambda: icon_animal("pig"),

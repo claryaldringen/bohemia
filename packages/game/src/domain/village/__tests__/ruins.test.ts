@@ -3,7 +3,7 @@ import { dayIndexOf } from '../../calendar';
 import { packObstacles } from '../../landscape';
 import { foundVillage } from '../actions';
 import { withPlots } from '../plots';
-import { RUIN_YEARS } from '../rules';
+import { DWELLINGS, RUIN_YEARS } from '../rules';
 import { recordRuins, ruinOvergrowth, updateRuins, withoutBuiltOverRuins } from '../ruins';
 import { advanceVillage } from '../simulate';
 import type { DwellingRuin, FieldPart, Position, VillageState } from '../types';
@@ -193,7 +193,7 @@ describe('zbytek jámy po zaniklém obydlí', () => {
     const home = s.dwellings[0]!;
     home.type = 'polozemnice';
     home.position = { x: 7.5, z: 7.5, rotation: 0 };
-    home.condition = 0; // na nule – hned se přestaví
+    home.builtDay = DAY - (DWELLINGS.polozemnice.lifespanYears + 1) * 366; // dožila – hned se přestaví
     s.dwellings.push({
       id: s.nextId++,
       type: 'zemnice',

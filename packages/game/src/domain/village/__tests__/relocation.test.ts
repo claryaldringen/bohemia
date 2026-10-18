@@ -9,7 +9,7 @@ import {
   relocationBlock,
   relocationOf,
 } from '../relocation';
-import { DWELLING_TREES } from '../rules';
+import { DWELLINGS, DWELLING_TREES } from '../rules';
 import { advanceVillage } from '../simulate';
 import type { VillageState } from '../types';
 import { withBuiltFirstDwelling } from './village-fixtures';
@@ -153,7 +153,8 @@ describe('dostavěné přestěhování', () => {
   it('domácnost, která se stěhuje, starý dům nepřestavuje', () => {
     const s = settled();
     const id = household(s);
-    s.dwellings[0]!.condition = 0; // dožilý dům – obyvatelé by ho jinak hned přestavěli
+    // dožilý dům (rozhoduje stáří) – obyvatelé by ho jinak hned přestavěli
+    s.dwellings[0]!.builtDay = DAY - Math.ceil((DWELLINGS.zemnice.lifespanYears + 1) * 365.25);
     const rebuilt = advanceVillage(s, DAY + 1, null);
     expect(rebuilt.constructions.some((c) => c.kind === 'rebuild')).toBe(true);
     const relocating = advanceVillage(

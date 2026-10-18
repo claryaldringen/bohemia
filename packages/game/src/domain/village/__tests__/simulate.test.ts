@@ -4,7 +4,8 @@ import { foundField, foundVillage, startNewDwelling } from '../actions';
 import type { PartInput } from '../actions';
 import { daysUntilSlaughter, eatDiet } from '../diet';
 import { daysUntilHarvest } from '../food';
-import { LIVESTOCK, villageChickens } from '../livestock';
+import { animalCareNeed } from '../dairy';
+import { LIVESTOCK, villageChickens, villageHerds } from '../livestock';
 import { ageYears, foodNeedPerDay, occupants } from '../people';
 import { NO_CRAFTS } from '../productivity';
 import {
@@ -421,7 +422,8 @@ describe('advanceVillage – roční plán a sklizeň', () => {
     const eggs = (villageChickens(s0) * LIVESTOCK.eggsKgPerHen) / 365;
     const eaten = eatDiet({
       grainKg: s0.storesKg,
-      meatKg: (s0.meatKg ?? 0) + eggs,
+      meatKg: s0.meatKg ?? 0,
+      eggsKg: eggs,
       fruitKg: 0,
       needPerDay: need,
       daysToHarvest: daysUntilHarvest(day),
@@ -576,9 +578,15 @@ describe('advanceVillage – založení vsi', () => {
     expect(count(s, 'death')).toBe(0);
     expect(count(s, 'household-merged')).toBe(0);
     // společná práce = síla 2,6 × štěstí na začátku dne (happiness.md) − denní minimum 0,5
-    // − domácí práce 0,9 (jedna domácnost)
-    const factor = villageLaborFactor(advanceVillage(s0, day + 29, null));
-    expect(s.commonLaborHistory.at(-1)).toBeCloseTo(2.6 * factor - 0.5 - 0.3 - 4 * 0.15, 9);
+    // − práce se zvířaty (dojení krávy v říjnu, prasata, slepice – diet.md) − domácí práce 0,9
+    // (jedna domácnost)
+    const before = advanceVillage(s0, day + 29, null);
+    const factor = villageLaborFactor(before);
+    const animals = animalCareNeed(villageHerds(before), 0, villageChickens(before), day + 30);
+    expect(s.commonLaborHistory.at(-1)).toBeCloseTo(
+      2.6 * factor - 0.5 - animals.milking - animals.care - 0.3 - 4 * 0.15,
+      9,
+    );
   });
 
   it('stavbu první zemnice a první pole staví zakladatelé společnou prací rovným dílem', () => {
@@ -985,6 +993,54 @@ describe('advanceVillage – obydlí', () => {
     }
     chunked = advanceVillage(chunked, end, null);
     expect(viaJson(chunked)).toEqual(viaJson(whole));
+  });
+
+  /** Práce na opravách posledního dne (rozdělení práce dne). */
+  const repairLabor = (s: VillageState): number =>
+    (s.labor?.shares ?? [])
+      .filter((share) => share.activity === 'repair')
+      .reduce((sum, share) => sum + share.manDays, 0);
+
+  it('obydlený dům nechátrá ani bez práce na opravy, prázdný vedle něj chátrá (Martin)', () => {
+    const day = at(600, 10, 1);
+    const s0 = withoutFields(day);
+    // stará zemnice s vysokou potřebou oprav, v ní jen malé děti – na opravy nikdo nepracuje
+    const home = s0.dwellings[0]!;
+    home.builtDay = day - 17 * 365;
+    home.condition = 0.6;
+    s0.people = [3, 4, 2].map((years, i) => ({ ...adultOfAge(200 + i, years, day) }));
+    s0.dwellings.push({
+      id: 50,
+      type: 'zemnice',
+      builtDay: day - 17 * 365,
+      condition: 1,
+      position: POSITION,
+    });
+    const s = advanceVillage(s0, day + 200, null);
+    expect(s.dwellings.find((d) => d.id === home.id)?.condition).toBe(0.6);
+    expect(repairLabor(s)).toBe(0);
+    expect(s.dwellings.find((d) => d.id === 50)!.condition).toBeLessThan(0.95);
+  });
+
+  it('starý obydlený dům stav drží – opravy podle stáří dál berou práci vsi', () => {
+    const day = at(600, 10, 1);
+    const s0 = withoutFields(day);
+    s0.dwellings[0]!.builtDay = day - 17 * 365;
+    const s = advanceVillage(s0, day + 120, null);
+    expect(s.dwellings[0]!.condition).toBe(1);
+    expect(repairLabor(s)).toBeGreaterThan(0);
+  });
+
+  it('obydlený dům na nule po dřívějším chátrání se nepřestavuje – rozhoduje stáří', () => {
+    const day = at(600, 10, 1);
+    const young = withoutFields(day);
+    young.dwellings[0]!.condition = 0;
+    const kept = advanceVillage(young, day + 30, null);
+    expect(count(kept, 'rebuild-decided')).toBe(0);
+    expect(kept.dwellings[0]!.condition).toBe(0);
+    const old = withoutFields(day);
+    old.dwellings[0]!.builtDay = day - (DWELLINGS.zemnice.lifespanYears + 1) * 365;
+    expect(count(advanceVillage(old, day, null), 'rebuild-decided')).toBe(1);
   });
 
   it('prázdné obydlí chátrá a na nule zanikne', () => {

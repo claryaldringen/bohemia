@@ -188,7 +188,10 @@ const view = {
     },
   ],
   sacred: {
-    oaks: [{ id: 700, happiness: 5, ageYears: 312 }],
+    oaks: [
+      { id: 700, happiness: 5, ageYears: 312, snag: false },
+      { id: 701, happiness: 1, ageYears: 1180, snag: true },
+    ],
     groves: [{ id: 800, oaks: 11, squares: 9, happiness: 12, ageYears: 254 }],
     buildings: [
       { id: 40, kind: 'idol', built: true, happiness: 8, progress: 1, oaksToFell: 0 },
@@ -204,6 +207,8 @@ const view = {
     grazingHa: 8.4,
     pigForestHa: 30,
     meatNeedKg: 560,
+    milkLPerDay: 14.2,
+    milkLPerYear: 2900,
   },
   pens: [
     {
@@ -404,6 +409,14 @@ describe('selectionDetails – posvátná místa', () => {
       id: 700,
       happiness: 5,
       ageYears: 312,
+      snag: false,
+    });
+    expect(selectionDetails(view, scene, { kind: 'sacred-oak', id: 701 })).toEqual({
+      kind: 'sacred-oak',
+      id: 701,
+      happiness: 1,
+      ageYears: 1180,
+      snag: true,
     });
     expect(selectionDetails(view, scene, { kind: 'grove', id: 800 })).toEqual({
       kind: 'grove',
@@ -456,6 +469,7 @@ describe('selectionDetails – posvátná místa', () => {
       chickens: 6,
       pastureHa: 41.5,
       grazingHa: 8.4,
+      milkLPerDay: 14.2,
       team: { ageYears: 3, yearsLeft: 7 },
       training: null,
       hayKg: 3200,

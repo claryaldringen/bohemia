@@ -1,6 +1,9 @@
 # Válka – nájezd na sousední ves
 
-Stav: návrh k 18. 10. 2026, čeká na schválení. Implementace zatím není.
+Stav: schváleno 18. 10. 2026 (Martin: „Je to dobré, ale uděláme ještě jednu drobnou změnu“ –
+dobrovolníci a rozkaz, viz níže). Implementace zatím není – čeká na [příbuzenství](kinship.md),
+mřížku map ze [stěhování](migration.md) a skutečné vsi NPC vojvodů (dnes jen soused bez simulace
+pro [obchod](trade.md)).
 
 ## Proč
 
@@ -13,6 +16,10 @@ k panství.
 
 - **Cíl:** hráč vezme ze vsi **libovolný počet mužů** a vtrhne do sousední vsi; práce doma se
   **úměrně zpomalí** (Martin).
+- **Cíl:** hráč nejdřív **ohlásí záměr** („zaútočíme na Horní Dolní“) a přihlásí se
+  **dobrovolníci**; kdo má v cílové vsi příbuzné, chtít nebude. Ostatním může hráč **nařídit** –
+  ale nucení muži mají malou motivaci, nízkou bojovou hodnotu a dezertují (Martin: „Můžu si tak,
+  lidově řečeno, nasrat do bot.“).
 - **Cíl:** padlí muži mohou ves ekonomicky položit až k vymření (Martin).
 - **Cíl:** **kovárna** dává mužům bonus v boji (Martin).
 - **Cíl:** útočníci postupují **dům od domu**; osamělé domy se neubrání, **sevřená ves** se
@@ -47,10 +54,29 @@ k panství.
   místa potoka).
 - Vojsko si nese **jídlo na cestu** (obilí, maso) – bez něj se po 3 dnech vrací (návrh Clauda).
 
+## Dobrovolníci a rozkaz (Martin)
+
+- **Ohlášení záměru:** hráč ve dvorci vojvody zvolí cílovou ves („zaútočíme na Horní Dolní“).
+  Každý muž 16–44 (s [příbuzenstvím](kinship.md) jen muži) se rozhodne:
+  - **má v cílové vsi blízké příbuzné** (rodiče, sourozence, děti, ženu odtamtud nebo její
+    rodinu – ženy z okolí si pamatují, ze které vsi přišly, dcery, kam se vdaly) → **nechce**
+    (Martin);
+  - jinak se přihlásí s pravděpodobností podle štěstí vsi a kořisti: ≈ 30 % + 0,5 % za bod
+    štěstí nad 50, ves s hladem víc (kořist), čerstvě vdovská domácnost méně (návrh Clauda).
+- **Dobrovolníci** mají plnou bojovou hodnotu (síla 1 × kovárna × štěstí – níže).
+- **Rozkaz:** ostatním mužům hráč může nařídit, aby šli. **Nucení muži** (návrh Clauda):
+  - bojová hodnota **× 0,5** (× 0,3, když mají v cílové vsi příbuzné),
+  - **dezerce:** každý den výpravy ≈ 5 % (s příbuznými v cíli ≈ 15 %), že uteče domů; dezertér
+    s příbuznými v cílové vsi může **varovat** cíl (ves se o útoku dozví dřív),
+  - ve střetu se nuceným hůř drží řada: když skupina útočníků prohrává, nucení utečou první,
+  - doma: nařídit muži útok na jeho příbuzné sníží **štěstí vsi** (≈ −5 na rok za každého
+    takového muže – návrh Clauda).
+- Hráč vidí před výpravou počet dobrovolníků a ochotných / neochotných (ikony + čísla), ne jména.
+
 ## Vojsko
 
-- Hráč vybere počet mužů (14–44 let) posuvníkem; ves bez nich ztratí jejich práci (úměrně –
-  Martin). Ženy, děti a starší zůstávají.
+- Hráč vybere počet mužů posuvníkem – nejdřív dobrovolníci, pak nařízení (výše); ves bez nich
+  ztratí jejich práci (úměrně – Martin). Ženy, děti a starší zůstávají.
 - **Síla muže** = 1 × (1 + **0,5** s kovárnou a plným pokrytím nástroji – železné sekery a hroty –
   návrh Clauda) × štěstí vsi (0,8–1,1 jako práce – návrh Clauda).
 - Vojsko je ve scéně vidět – postavy mužů jdou krajinou (modely postav už jsou). Hráč jim velí
@@ -93,11 +119,24 @@ k panství.
   připojit ves).
 - Zprávy: výprava vyrazila, dorazila, střet (ikony + čísla padlých), kořist, návrat.
 
+## Navazuje (doplněno 18. 10. 2026)
+
+- **Mřížka map** a cesta na sousední mapu je společná se [stěhováním](migration.md) – staví se
+  jednou pro obojí.
+- **Zemská stezka** ([obchod](trade.md)) zrychlí přesun vojska (chůze po pevné cestě –
+  [roads.md](roads.md)); bez stezky se jde krajinou.
+- **Soused bez simulace** z obchodu se pro válku musí stát **skutečnou vsí NPC vojvody** (lidé,
+  domy, zásoby – stejná simulace jako ves hráče); do té doby válka nejde.
+- **Dvorec vojvody** je sídlo hráče i NPC vojvody – po porážce se dvorec poraženého stane sídlem
+  vazala.
+
 ## Rozhodnutí
 
 | Rozhodnutí                                                                                      | Kdo          |
 | ----------------------------------------------------------------------------------------------- | ------------ |
 | Libovolný počet mužů, práce doma úměrně zpomalí; padlí mohou ves položit                        | Martin       |
+| Ohlášení záměru → dobrovolníci; s příbuznými v cíli nechtějí; rozkaz = malá motivace, dezerce   | Martin       |
+| Ochota 30 % + štěstí; nucení × 0,5 (× 0,3), dezerce 5 / 15 % denně, varování, štěstí −5         | návrh Clauda |
 | Kovárna = bonus v boji                                                                          | Martin       |
 | Postup dům od domu; sevřené domy se brání společně, samoty ne                                   | Martin       |
 | Obránci: bránit / vzdát / utéct do lesa; vzdaný dům pobít nebo odvést                           | Martin       |
