@@ -117,22 +117,18 @@ export const FIELD_WORK_PER_HA: Record<FieldTask, Bounds> = {
   },
   thresh: { worst: 15, best: 10 },
 };
-// fields.md – Práce (vrácení přílohu podle stáří zarůstání – meze; víc než 15 let = les)
-export const RECLAIM_COST_PER_HA: readonly { maxYears: number; cost: Bounds }[] = [
-  { maxYears: 2, cost: { worst: 0, best: 0 } },
-  { maxYears: 5, cost: { worst: 100, best: 90 } },
-  { maxYears: 10, cost: { worst: 100, best: 60 } },
-  { maxYears: 15, cost: { worst: 100, best: 60 } },
-  { maxYears: Infinity, cost: { worst: 250, best: 150 } },
-];
-// fields.md – Zarůstání (víc než 15 let přílohu: z dílu je les)
-export const FOREST_AFTER_YEARS = 16;
 // fields.md – Založení pole (povrch dílu za hektar – meze)
 export const FOUNDING_COST_PER_HA: Record<FieldSurface, Bounds> = {
   meadow: { worst: 100, best: 90 },
   shrub: { worst: 100, best: 60 },
   forest: { worst: 250, best: 150 },
 };
+// fields.md – Práce, Zarůstání (Martin, 18. 10. 2026 – na přílohu se pase, nálet nebude): vrácení
+// přílohu do osevu – 1–2 roky bez práce navíc, pak drn pastviny jako založení na louce (meze)
+export const RECLAIM_COST_PER_HA: readonly { maxYears: number; cost: Bounds }[] = [
+  { maxYears: 2, cost: { worst: 0, best: 0 } },
+  { maxYears: Infinity, cost: FOUNDING_COST_PER_HA.meadow },
+];
 // fields.md – Založení pole (sazba povrchu za hektar v sobě má, co povrch tvoří: v lese stromy
 // i se suchými, padlými a pařezy a podrost – „stromy v ceně“, v křovinách keře; po kusech se
 // na takovém čtverci platí jen ostatní překážky – kameny, balvany, v křovinách i stromy)
@@ -316,11 +312,9 @@ export const FUEL_DOMESTIC_SHARE = 1 / 3;
 export function dwellingBuildLabor(type: DwellingType): number {
   return DWELLINGS[type].cost - DWELLING_TREES[type] * FELLING_MAN_DAYS_PER_TREE;
 }
-// fields.md – Zarůstání (stadia přílohu podle celých let bez péče; víc než 15 let = les)
+// fields.md – Zarůstání (Martin, 18. 10. 2026: na přílohu se pasou ovce, kozy a krávy – nálet
+// nebude): mladý příloh 1–2 roky, pak napořád spásaná pastvina (stadium `meadow`)
 export const OVERGROWTH_STAGES = [
   { maxYears: 2, stage: 'young-fallow' },
-  { maxYears: 5, stage: 'meadow' },
-  { maxYears: 10, stage: 'young-growth' },
-  { maxYears: 15, stage: 'shrub' },
-  { maxYears: Infinity, stage: 'forest' },
+  { maxYears: Infinity, stage: 'meadow' },
 ] as const;

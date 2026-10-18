@@ -6,6 +6,8 @@ import {
   ageYears,
   dateOfDayIndex,
   effectiveFertility,
+  fieldCropStates,
+  fieldFrontiers,
   forestBonus,
   monthInWindow,
   obstacleChangesAt,
@@ -24,6 +26,7 @@ import {
   type ConstructionKind,
   type ConstructionSummary,
   type Crop,
+  type CropState,
   type DwellingType,
   type FieldSurface,
   type LaborShare,
@@ -32,6 +35,7 @@ import {
   type OrchardSquare,
   type OrchardWork,
   type PartStage,
+  type PartTask,
   type PlacementVillage,
   type Position,
   type StockResource,
@@ -216,16 +220,21 @@ export interface SceneVillage {
   fields: {
     id: number;
     parts: {
+      /** Id dílu (ve hře vždy; vývojový náhled staveb bez něj) – cíl `parts` v rozdělení práce. */
+      id?: number;
       cell: TileCell;
       x: number;
       z: number;
       size: number;
       stage: PartStage;
       /**
-       * Vzhled oseté části podle růstu obilí (`CropLook` ve scéně) – zatím ho posílá jen
-       * vývojový náhled staveb, server ne (oseté pole se kreslí jako vzcházející obilí).
+       * Viditelný stav obilí osetého dílu (`CropState` z jádra – fields.md, Postup práce po
+       * čtvercích): bare, plowed, sown, sprouted, growing, ripe, stubble. Kopání, setí a sklizeň
+       * se mění po čtvercích, jak k nim dojde práce; vzejití a zrání podle kalendáře.
        */
-      crop?: 'growing' | 'ripe' | 'stubble';
+      crop?: CropState;
+      /** Úlohy, jejichž čelo práce je dnes na tomto dílu (reclaim, dig, sow, weed, harvest). */
+      frontier?: PartTask[];
     }[];
   }[];
   /**
@@ -381,13 +390,23 @@ function sceneVillage(
     const progress = constructions.find((s) => s.id === c.id)?.buildProgress ?? 0;
     return [{ id: c.id, type: c.dwellingType, position: c.position, built: false, progress }];
   });
+  const crops = fieldCropStates(state, day);
+  const frontiers = fieldFrontiers(state, day);
   const fields = state.fields.map((f) => ({
     id: f.id,
-    parts: state.parts.flatMap((p) =>
-      p.fieldId === f.id && p.cell !== undefined
-        ? [scenePart(landscape, p.cell, partStage(p, day))]
-        : [],
-    ),
+    parts: state.parts.flatMap((p) => {
+      if (p.fieldId !== f.id || p.cell === undefined) return [];
+      const crop = crops.get(p.id);
+      const frontier = frontiers.get(p.id);
+      return [
+        {
+          id: p.id,
+          ...scenePart(landscape, p.cell, partStage(p, day)),
+          ...(crop ? { crop } : {}),
+          ...(frontier ? { frontier } : {}),
+        },
+      ];
+    }),
   }));
   const cemeteries = villageCemeteries(state).map((c) => ({
     id: c.id,

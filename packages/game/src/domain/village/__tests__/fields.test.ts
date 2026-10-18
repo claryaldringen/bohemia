@@ -11,7 +11,6 @@ import {
   isWeedFree,
   partFoundingCost,
   reclaimCostPerHa,
-  returnsFromForest,
   selectPartsToSow,
 } from '../fields';
 import { NO_CRAFTS } from '../productivity';
@@ -80,19 +79,6 @@ describe('vymýcený les (Rösch a kol. 2017)', () => {
     expect(isWeedFree(part(), 500)).toBe(false);
   });
 
-  it('příloh starší 15 let se vrací z lesa, patnáctiletý ještě ne', () => {
-    const since = sept(600);
-    expect(returnsFromForest(part({ state: 'fallow', fallowSinceDay: since }), sept(616))).toBe(
-      true,
-    );
-    expect(returnsFromForest(part({ state: 'fallow', fallowSinceDay: since }), sept(615))).toBe(
-      false,
-    );
-    expect(returnsFromForest(part({ state: 'sown', fallowSinceDay: since }), sept(616))).toBe(
-      false,
-    );
-  });
-
   it('po fázi osevu jde díl do přílohu bez bonusu', () => {
     const p = part({ state: 'sown', fertilityShare: 0.76, sownYears: 2, bonusUntilDay: sept(601) });
     endOfSeason(p, sept(600));
@@ -102,20 +88,19 @@ describe('vymýcený les (Rösch a kol. 2017)', () => {
 });
 
 describe('náklady', () => {
-  it('cena vrácení přílohu podle stáří zarůstání – bez řemesel horní mez', () => {
+  it('vrácení přílohu: 1–2 roky nic, pak drn pastviny jako louka – bez řemesel horní mez', () => {
     const cost = (years: number): number => reclaimCostPerHa(years, NO_CRAFTS.tools);
     expect(cost(1)).toBe(0);
-    expect(cost(4)).toBe(100);
-    expect(cost(7)).toBe(100);
+    expect(cost(2)).toBe(0);
+    expect(cost(3)).toBe(100);
     expect(cost(13)).toBe(100);
-    expect(cost(16)).toBe(250);
+    // na přílohu se pase – nezaroste náletem ani lesem, dražší už nebude
+    expect(cost(40)).toBe(100);
   });
-  it('s plným pokrytím nástroji dolní mez: louka 90, nálet a křoviny 60, les 150', () => {
+  it('s plným pokrytím nástroji dolní mez louky 90', () => {
     expect(reclaimCostPerHa(4, 1)).toBe(90);
-    expect(reclaimCostPerHa(7, 1)).toBe(60);
-    expect(reclaimCostPerHa(13, 1)).toBe(60);
-    expect(reclaimCostPerHa(16, 1)).toBe(150);
-    expect(reclaimCostPerHa(16, 0.5)).toBe(200);
+    expect(reclaimCostPerHa(16, 1)).toBe(90);
+    expect(reclaimCostPerHa(16, 0.5)).toBe(95);
   });
   it('cena založení dílu = povrch × hektary + překážky', () => {
     expect(partFoundingCost('shrub', 5000, 12, NO_CRAFTS.tools)).toBeCloseTo(100 * 0.5 + 12, 9);
@@ -148,11 +133,11 @@ describe('přílohová soustava', () => {
     expect(p.sownYears).toBe(0);
   });
 
-  it('z 0,64 dosáhne příloh 0,95 po 13 letech, po 12 ne – ještě před lesem (15 let)', () => {
+  it('z 0,64 dosáhne příloh 0,95 po 13 letech, po 12 ne', () => {
     const p = part({ state: 'fallow', fertilityShare: 0.64, fallowSinceDay: sept(600) });
     for (let i = 1; i <= 12; i++) endOfSeason(p, sept(600 + i));
     expect(p.fertilityShare).toBeLessThan(0.95);
-    expect(endOfSeason(p, sept(613))).toBeNull();
+    endOfSeason(p, sept(613));
     expect(p.fertilityShare).toBeGreaterThanOrEqual(0.95 - 1e-9);
   });
 
@@ -181,20 +166,14 @@ describe('přílohová soustava', () => {
     endOfSeason(p, sept(601));
     expect(p.fertilityShare).toBe(1);
     const r = part({ state: 'ready' });
-    expect(endOfSeason(r, sept(601))).toBeNull();
-    expect(r.fertilityShare).toBe(1);
+    endOfSeason(r, sept(601));
+    expect(r).toEqual(part({ state: 'ready' }));
   });
 
-  it('zalesnění se ohlásí právě jednou, v 16. roce příloh', () => {
+  it('příloh zůstává pastvinou – ani po 20 letech nezaroste v les (Martin, 18. 10. 2026)', () => {
     const p = part({ id: 7, state: 'fallow', fertilityShare: 1, fallowSinceDay: sept(600) });
-    const events = [];
-    for (let i = 1; i <= 20; i++) {
-      const e = endOfSeason(p, sept(600 + i));
-      if (e) events.push({ e, i });
-    }
-    expect(events).toHaveLength(1);
-    expect(events[0]?.i).toBe(16);
-    expect(events[0]?.e).toEqual({ day: sept(616), kind: 'part-became-forest', partId: 7 });
+    for (let i = 1; i <= 20; i++) endOfSeason(p, sept(600 + i));
+    expect(p).toMatchObject({ state: 'fallow', fallowSinceDay: sept(600), fertilityShare: 1 });
   });
 });
 

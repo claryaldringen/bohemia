@@ -55,9 +55,6 @@ const STAGES: PartStage[] = [
   'sown',
   'young-fallow',
   'meadow',
-  'young-growth',
-  'shrub',
-  'forest',
 ];
 const SEASON_NAMES = { spring: 'jaro', summer: 'léto', autumn: 'podzim', winter: 'zima' } as const;
 /** „Přehrát rok“ – celý rok za tolik sekund. */

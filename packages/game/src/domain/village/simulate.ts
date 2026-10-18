@@ -9,7 +9,7 @@ import {
   repairNeedPerDay,
   wantsRebuild,
 } from './dwellings';
-import { endOfSeason, expectedNetKg, returnsFromForest, sowingOrder } from './fields';
+import { endOfSeason, expectedNetKg, sowingOrder } from './fields';
 import { daysUntilAppleRot, eatMeal } from './food';
 import { recordClearedObstacles } from './obstacles';
 import { allocateDay, type LaborTaskName } from './labor';
@@ -185,10 +185,7 @@ function isOn(date: CalendarDate, target: DayOfYear): boolean {
  * oseje ozimem a co jaří (fields.md – Ozim a jař).
  */
 function planYear(state: VillageState, day: number): void {
-  for (const part of state.parts) {
-    const event = endOfSeason(part, day);
-    if (event) state.chronicle.push(event);
-  }
+  for (const part of state.parts) endOfSeason(part, day);
   const crops = chooseCrops(sowingOrder(state.parts), {
     targetKg: sowingTarget(state, day),
     startKg: 0,
@@ -285,14 +282,10 @@ function forestBonusUntil(day: number): number {
   return day + FOREST_BONUS.windowYears * DAYS_PER_BONUS_YEAR;
 }
 
-/**
- * Vybrané díly se osejí plodinou `crop`; příloh starší 15 let se vrací z lesa a dostane bonus
- * úrodnosti.
- */
+/** Vybrané díly se osejí plodinou `crop` (příloh se vrací do osevu). */
 function sow(parts: FieldPart[], day: number, crop: Crop): void {
   for (const part of parts) {
     if (part.state === 'fallow') {
-      if (returnsFromForest(part, day)) part.bonusUntilDay = forestBonusUntil(day);
       part.fallowSinceDay = null;
       part.sownYears = 0;
     }
@@ -382,12 +375,12 @@ function work(state: VillageState, day: number): void {
     fuelExtra: fuelExtraPerDay(state),
   });
 
-  owned.forEach((task, i) => {
+  // polní práce dne – i odkud kam došla (rozdělení práce po dílech pro postavy, labor-report.ts)
+  const fieldWork = owned.map((task, i) => {
     const amount = allocation.taskAmounts[orchard && i >= orchardAt ? i + 1 : i] ?? 0;
-    task.work.done[task.name] = Math.min(
-      task.work.required[task.name],
-      task.work.done[task.name] + amount,
-    );
+    const before = task.work.done[task.name];
+    task.work.done[task.name] = Math.min(task.work.required[task.name], before + amount);
+    return { task: task.name, work: task.work, before, after: task.work.done[task.name], amount };
   });
   if (orchard) workOrchards(state, allocation.taskAmounts[orchardAt] ?? 0);
   const repairs = households.map((d, i) => {
@@ -399,7 +392,7 @@ function work(state: VillageState, day: number): void {
   decayEmptyDwellings(state, day, new Set(households.map((d) => d.id)));
   state.domesticBacklog = allocation.domesticBacklog;
   const constructions = build(state, day, allocation.common);
-  state.labor = laborDay(state, day, { allocation, repairs, constructions });
+  state.labor = laborDay(state, day, { allocation, fieldWork, repairs, constructions });
   state.commonLaborHistory.push(allocation.common);
   if (state.commonLaborHistory.length > COMMON_LABOR_HISTORY_DAYS) {
     state.commonLaborHistory.splice(0, state.commonLaborHistory.length - COMMON_LABOR_HISTORY_DAYS);

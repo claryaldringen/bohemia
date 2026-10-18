@@ -4,14 +4,13 @@ import { foundingCostPerHa, withinBounds } from './productivity';
 import {
   DISTANCE,
   FERTILITY,
-  FOREST_AFTER_YEARS,
   FOREST_BONUS,
   OBSTACLE_COST,
   RECLAIM_COST_PER_HA,
   SEED_KG_PER_HA,
   YIELD_BASE_KG_PER_HA,
 } from './rules';
-import type { ChronicleEvent, FieldPart, FieldSurface } from './types';
+import type { FieldPart, FieldSurface } from './types';
 
 const M2_PER_HA = 10_000;
 /** Tolerance proti chybám desetinných čísel při porovnání podílů úrodnosti. */
@@ -34,11 +33,6 @@ export function forestBonus(part: FieldPart, day: number): number {
 /** První sezóna po vymýcení lesa – vypálená půda je bez plevele, díl se neplete. */
 export function isWeedFree(part: FieldPart, day: number): boolean {
   return inClearingWindow(part, day) && part.sownYears === 0;
-}
-
-/** Příloh starší 15 let je les – osev ho nejdřív vymýtí (s bonusem jako vymýcený les). */
-export function returnsFromForest(part: FieldPart, day: number): boolean {
-  return part.state === 'fallow' && fallowYears(part, day) >= FOREST_AFTER_YEARS;
 }
 
 /** Úrodnost dílu v daný den: přirozená × podíl + bonus po vymýcení lesa, nejvýš 100. */
@@ -105,10 +99,10 @@ export function partFoundingCost(
 }
 
 /**
- * Konec hospodářského roku (1. 9.) pro jeden díl – mění ho na místě.
- * Vrací událost, pokud se díl právě změnil v les.
+ * Konec hospodářského roku (1. 9.) pro jeden díl – mění ho na místě: osev vyčerpá úrodnost
+ * (pod 70 % jde díl do přílohu), příloh ji obnoví.
  */
-export function endOfSeason(part: FieldPart, day: number): ChronicleEvent | null {
+export function endOfSeason(part: FieldPart, day: number): void {
   if (part.state === 'sown') {
     part.fertilityShare -= FERTILITY.sowDepletion;
     part.sownYears += 1;
@@ -119,15 +113,12 @@ export function endOfSeason(part: FieldPart, day: number): ChronicleEvent | null
       part.bonusUntilDay = null; // fáze osevu skončila – popel z vymýcení už nepůsobí
       delete part.crop;
     }
-    return null;
+    return;
   }
   if (part.state === 'fallow') {
+    // příloh je pastvina – nezarůstá v les, jen se mu vrací úrodnost
     part.fertilityShare = Math.min(1, part.fertilityShare + FERTILITY.fallowRecovery);
-    if (fallowYears(part, day) === FOREST_AFTER_YEARS) {
-      return { day, kind: 'part-became-forest', partId: part.id };
-    }
   }
-  return null;
 }
 
 /**

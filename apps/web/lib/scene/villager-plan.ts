@@ -522,15 +522,15 @@ function placer(ctx: Context, share: LaborShare, count: number): Placer {
   switch (share.activity) {
     case 'dig':
     case 'reclaim':
-      return t.kind === 'field' ? fieldRows(ctx, t.id, count, 'hoe') : none;
+      return t.kind === 'field' ? fieldRows(ctx, t.id, count, 'hoe', t.parts) : none;
     case 'sow':
-      return t.kind === 'field' ? fieldRows(ctx, t.id, count, 'seed') : none;
+      return t.kind === 'field' ? fieldRows(ctx, t.id, count, 'seed', t.parts) : none;
     case 'weed':
-      return t.kind === 'field' ? fieldRows(ctx, t.id, count, 'weed') : none;
+      return t.kind === 'field' ? fieldRows(ctx, t.id, count, 'weed', t.parts) : none;
     case 'harvest':
-      return t.kind === 'field' ? fieldRows(ctx, t.id, count, 'reap') : none;
+      return t.kind === 'field' ? fieldRows(ctx, t.id, count, 'reap', t.parts) : none;
     case 'carry':
-      return t.kind === 'field' ? carriers(ctx, t.id) : none;
+      return t.kind === 'field' ? carriers(ctx, t.id, t.parts) : none;
     case 'found-field':
       return t.kind === 'field' ? founding(ctx, t.id, count) : none;
     case 'thresh':
@@ -586,9 +586,32 @@ function fieldSquares(ctx: Context, fieldId: number, stage: 'sown' | 'founding')
   return sorted.map((_, i) => sorted[(start + i) % sorted.length]!);
 }
 
+/**
+ * Čtverce, na kterých se dnes pracuje: díly `parts` z rozdělení práce (čelo práce po čtvercích –
+ * fields.md), jinak osévané díly pole jako dřív.
+ */
+function workSquares(
+  ctx: Context,
+  fieldId: number,
+  parts: readonly number[] | undefined,
+): Square[] {
+  if (parts && parts.length > 0) {
+    const field = ctx.village.fields.find((f) => f.id === fieldId);
+    const squares = parts.flatMap((id) => field?.parts.find((p) => p.id === id) ?? []);
+    if (squares.length > 0) return squares;
+  }
+  return fieldSquares(ctx, fieldId, 'sown');
+}
+
 /** Řady na čtvercích pole – po CREW lidech na čtverec, `clip` podle člena řady. */
-function fieldRows(ctx: Context, fieldId: number, count: number, clip: VillagerClip): Placer {
-  return crewRows(ctx, fieldSquares(ctx, fieldId, 'sown'), count, () => clip);
+function fieldRows(
+  ctx: Context,
+  fieldId: number,
+  count: number,
+  clip: VillagerClip,
+  parts?: readonly number[],
+): Placer {
+  return crewRows(ctx, workSquares(ctx, fieldId, parts), count, () => clip);
 }
 
 function crewRows(
@@ -672,8 +695,8 @@ function freeLane(
  * Nosiči úrody: od obydlí nejblíž čtverci, kde se žne, a s nůší zpět. Když trasa nevede po
  * suchu, žne nosič taky.
  */
-function carriers(ctx: Context, fieldId: number): Placer {
-  const squares = fieldSquares(ctx, fieldId, 'sown');
+function carriers(ctx: Context, fieldId: number, parts?: readonly number[]): Placer {
+  const squares = workSquares(ctx, fieldId, parts);
   if (squares.length === 0) return none;
   return (i, who) => {
     const square = squares[Math.floor(i / 2) % squares.length]!;

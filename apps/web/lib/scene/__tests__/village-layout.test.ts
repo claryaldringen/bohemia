@@ -130,9 +130,6 @@ describe('vzhled dílů pole', () => {
     'sown',
     'young-fallow',
     'meadow',
-    'young-growth',
-    'shrub',
-    'forest',
   ];
 
   it('každý stav má vlastní vzhled', () => {
@@ -140,15 +137,13 @@ describe('vzhled dílů pole', () => {
     expect(new Set(looks).size).toBe(stages.length);
   });
 
-  it('holá zem s brázdami, oseté se zelenými řádky, zarůstání je čím dál tmavší zeleň', () => {
+  it('holá zem s brázdami, oseté se zelenými řádky, příloh jako tráva pastviny', () => {
     expect(partLook('ready').texture).toBe('mud');
     expect(partLook('ready').rows).not.toBeNull();
     const sown = partLook('sown').rows!;
     expect(sown.color[1]).toBeGreaterThan(sown.color[0]);
     expect(partLook('founding').rows).toBeNull();
-    const brightness = (stage: PartStage): number => partLook(stage).tint.reduce((a, b) => a + b);
-    expect(brightness('young-growth')).toBeGreaterThan(brightness('shrub'));
-    expect(brightness('shrub')).toBeGreaterThan(brightness('forest'));
+    expect(partLook('meadow').texture).toBe('grass');
   });
 
   it('osetý díl podle růstu obilí: zelené, zralé (zlatavé) a strniště; jinde se růst nebere', () => {

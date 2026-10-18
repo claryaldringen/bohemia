@@ -83,16 +83,13 @@ export type SelectionDetails =
       plantingWaits: boolean;
     };
 
-/** Pořadí stadií dílů v panelu pole – od zakládání po zarůstání. */
+/** Pořadí stadií dílů v panelu pole – od zakládání po příloh (pastvinu). */
 export const PART_STAGE_ORDER: readonly PartStage[] = [
   'founding',
   'ready',
   'sown',
   'young-fallow',
   'meadow',
-  'young-growth',
-  'shrub',
-  'forest',
 ];
 
 /** Pořadí plodin v panelu pole – ozim (sklízí se dřív), jař. */
@@ -118,10 +115,7 @@ export const PART_STAGE_NAMES: Record<PartStage, string> = {
   ready: 'Připraveno k osevu',
   sown: 'Oseto',
   'young-fallow': 'Mladý příloh',
-  meadow: 'Příloh – louka',
-  'young-growth': 'Příloh – nálet',
-  shrub: 'Příloh – křoviny',
-  forest: 'Příloh – les',
+  meadow: 'Příloh – pastvina',
 };
 
 /** Údaje o vybraném cíli, nebo null (nic nevybráno, cíl zanikl, ves ještě není). */

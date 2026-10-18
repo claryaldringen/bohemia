@@ -193,7 +193,14 @@ export interface CraftCoverage {
 export type OrchardTaskName = 'orchard-care' | 'orchard-harvest';
 /** Práce jedné plodiny v ročním plánu – díly, potřebné a odvedené člověkodny po úlohách. */
 export interface CropWork {
+  /**
+   * Díly plodiny v pořadí, ve kterém k nim práce postupuje (fields.md – Postup práce po
+   * čtvercích): každá dávka dílů (plán k 1. 9., přidané hotové díly) nejblíž obydlím první, při
+   * shodě podle id; přidané dávky na konec.
+   */
   partIds: number[];
+  /** Díly, které se letos vracejí z přílohu s prací navíc (v pořadí `partIds`); chybí = žádné. */
+  reclaimIds?: number[];
   required: Record<TaskName, number>;
   done: Record<TaskName, number>;
   harvestedKg: number | null; // čistá úroda ze sklizně (pro ztrátu nevymláceného 1. 3.)
@@ -272,8 +279,11 @@ export type LaborActivity =
 
 /** Kde se práce dělá. */
 export type LaborTarget =
-  /** Pole (id) – osévané díly plánu, zakládané díly. */
-  | { kind: 'field'; id: number }
+  /**
+   * Pole (id) – osévané díly plánu, zakládané díly. U polních prací `parts` = díly pole, přes
+   * které dnes práce postoupila (čelo práce, v pořadí postupu); bez nich celé pole.
+   */
+  | { kind: 'field'; id: number; parts?: number[] }
   /** Hotové obydlí (id) – opravy, přestavba. */
   | { kind: 'dwelling'; id: number }
   /** Staveniště nového obydlí – id stavby. */

@@ -6,7 +6,6 @@ import {
   grossYieldPerHa,
   isWeedFree,
   reclaimCostPerHa,
-  returnsFromForest,
 } from './fields';
 import { daysUntilHarvest, daysUntilWinterHarvest } from './food';
 import { fieldWorkPerHa } from './productivity';
@@ -36,8 +35,7 @@ export function emptyTaskRecord(): Record<TaskName, number> {
 
 /**
  * Člověkodny prací jednoho dílu za rok podle sazeb (meze podle pokrytí nástroji) a vzdálenosti.
- * První sezónu po vymýcení lesa se díl neplete – čerstvě vymýcený i příloh, který se letos vrací
- * z lesa; příloh stojí navíc vrácení podle let zarůstání.
+ * První sezónu po vymýcení lesa se díl neplete; příloh stojí navíc vrácení podle let ladem.
  */
 export function partWork(
   part: FieldPart,
@@ -47,7 +45,7 @@ export function partWork(
   const work = emptyTaskRecord();
   const ha = part.areaM2 / M2_PER_HA;
   const factor = distanceFactor(part.distanceM);
-  const weedFree = isWeedFree(part, day) || returnsFromForest(part, day);
+  const weedFree = isWeedFree(part, day);
   for (const task of RATE_TASKS) {
     if (task === 'weed' && weedFree) continue;
     work[task] = ha * fieldWorkPerHa(task, toolCoverage) * factor;
@@ -58,15 +56,22 @@ export function partWork(
   return work;
 }
 
-/** Práce jedné plodiny pro vybrané díly (viz `partWork`). */
+/**
+ * Práce jedné plodiny pro vybrané díly (viz `partWork`). Díly se seřadí, jak k nim práce
+ * postupuje – nejblíž obydlím první, při shodě podle id (fields.md – Postup práce po čtvercích).
+ */
 export function createCropWork(selected: FieldPart[], day: number, toolCoverage: number): CropWork {
   const required = emptyTaskRecord();
-  for (const part of selected) {
+  const ordered = [...selected].sort((a, b) => a.distanceM - b.distanceM || a.id - b.id);
+  const reclaimIds: number[] = [];
+  for (const part of ordered) {
     const work = partWork(part, day, toolCoverage);
     for (const task of TASK_ORDER) required[task] += work[task];
+    if (work.reclaim > 0) reclaimIds.push(part.id);
   }
   return {
-    partIds: selected.map((p) => p.id),
+    partIds: ordered.map((p) => p.id),
+    ...(reclaimIds.length > 0 ? { reclaimIds } : {}),
     required,
     done: emptyTaskRecord(),
     harvestedKg: null,
@@ -99,6 +104,7 @@ export function addToCropWork(
   const extra = createCropWork(added, day, toolCoverage);
   for (const task of TASK_ORDER) work.required[task] += extra.required[task];
   work.partIds.push(...extra.partIds);
+  if (extra.reclaimIds) work.reclaimIds = [...(work.reclaimIds ?? []), ...extra.reclaimIds];
 }
 
 /** Práce plánu po plodinách v pořadí ozim, jař (ozim jen, když ho plán má). */

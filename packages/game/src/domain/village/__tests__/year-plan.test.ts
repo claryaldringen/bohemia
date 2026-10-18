@@ -73,14 +73,15 @@ describe('createPlan', () => {
     expect(plan.required.reclaim).toBeCloseTo(100);
     expect(plan.partIds).toEqual([1, 2]);
   });
-  it('první sezónu po vymýcení lesa se neplete – čerstvě vymýcený díl i příloh z lesa', () => {
+  it('první sezónu po vymýcení lesa se neplete; starý příloh je pastvina – drn, plete se', () => {
     const cleared = part({ id: 2, bonusUntilDay: day + 1000 });
-    const fromForest = part({ id: 3, state: 'fallow', fallowSinceDay: at(500, 9, 1) });
+    const oldFallow = part({ id: 3, state: 'fallow', fallowSinceDay: at(500, 9, 1) });
     expect(createPlan([part(), cleared], day).required.weed).toBeCloseTo(30);
     expect(createPlan([cleared], day).required).toMatchObject({ weed: 0, dig: 100, harvest: 50 });
-    const forest = createPlan([fromForest], at(516, 9, 1)).required;
-    expect(forest.weed).toBe(0);
-    expect(forest.reclaim).toBeCloseTo(250);
+    const pasture = createPlan([oldFallow], at(516, 9, 1));
+    expect(pasture.required.weed).toBeCloseTo(30);
+    expect(pasture.required.reclaim).toBeCloseTo(100);
+    expect(pasture.reclaimIds).toEqual([3]);
     // druhá sezóna po vymýcení se už plete
     expect(createPlan([{ ...cleared, sownYears: 1 }], day).required.weed).toBeCloseTo(30);
   });

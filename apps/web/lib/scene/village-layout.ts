@@ -3,6 +3,7 @@
 // světa scény v metrech (x, z).
 import {
   DWELLING_CLEARING_M,
+  type CropState,
   type DwellingType,
   type PartStage,
   type Position,
@@ -202,11 +203,11 @@ export function stripSegments(
 export type FieldTexture = 'grass-dirt' | 'mud' | 'grass' | 'grass-lush' | 'grass-dry';
 
 /**
- * Vzhled oseté části podle růstu obilí: zelené obilí, zralé (zlaté) obilí, strniště po sklizni.
- * Zatím ho posílá jen vývojový náhled staveb – pole podle ročního období (fields.md – Co hráč
- * vidí) ve hře ještě není, oseté pole se kreslí jako vzcházející obilí.
+ * Vzhled osetého dílu podle stavu obilí (`CropState` z jádra – fields.md, Postup práce po
+ * čtvercích): holá zem, zkopaná, zasetá, vzešlé osení, zelené a zralé obilí, strniště. Server ho
+ * posílá u každého osetého dílu; vývojový náhled staveb jen zelené a zralé obilí a strniště.
  */
-export type CropLook = 'growing' | 'ripe' | 'stubble';
+export type CropLook = CropState;
 
 export interface PartLook {
   /** Textura terénu (apps/web/public/textures/terrain/<texture>.jpg). */
@@ -221,9 +222,8 @@ export interface PartLook {
 
 /**
  * Vzhled dílu pole podle stavu: zakládané pole = rozrytý drn, připravené = holá zem s brázdami,
- * oseté = zem s řádky zeleného obilí (s `crop` zelené / zralé obilí nebo strniště), mladý úhor
- * = zaplevelená zem, pak čím dál hrubší zeleň (louka, mladý porost, křoviny) až po tmavou zeleň
- * lesa.
+ * oseté = zem s řádky vzcházejícího obilí (s `crop` podle stavu obilí), mladý úhor = zaplevelená
+ * zem, pak pastvina (nálet na přílohu nebude – pase se).
  */
 export function partLook(stage: PartStage, crop?: CropLook): PartLook {
   if (stage === 'sown' && crop) return cropLook(crop);
@@ -248,17 +248,25 @@ export function partLook(stage: PartStage, crop?: CropLook): PartLook {
       return { texture: 'grass-dirt', tint: [0.95, 1, 0.78], alpha: 0.9, rows: null };
     case 'meadow':
       return { texture: 'grass', tint: [1.05, 1.05, 0.9], alpha: 0.5, rows: null };
-    case 'young-growth':
-      return { texture: 'grass-lush', tint: [0.78, 0.92, 0.66], alpha: 0.8, rows: null };
-    case 'shrub':
-      return { texture: 'grass-lush', tint: [0.58, 0.74, 0.48], alpha: 0.9, rows: null };
-    case 'forest':
-      return { texture: 'grass-lush', tint: [0.34, 0.48, 0.3], alpha: 0.95, rows: null };
   }
 }
 
 function cropLook(crop: CropLook): PartLook {
   switch (crop) {
+    case 'bare':
+      // úloha k dílu ještě nedošla – loňské strniště nebo drn pastviny před kopáním
+      return { texture: 'grass-dirt', tint: [0.92, 0.86, 0.7], alpha: 0.95, rows: null };
+    case 'plowed':
+      return partLook('ready');
+    case 'sown':
+      return {
+        texture: 'mud',
+        tint: [0.97, 0.85, 0.68],
+        alpha: 1,
+        rows: { color: [0.3, 0.24, 0.17], alpha: 0.35 },
+      };
+    case 'sprouted':
+      return partLook('sown');
     case 'growing':
       return {
         texture: 'grass-lush',

@@ -109,8 +109,10 @@ describe('laborReport – rozdělení práce dne', () => {
     const reap = of(labor.shares, 'harvest');
     const carry = of(labor.shares, 'carry');
     expect(reap).toHaveLength(1);
-    expect(reap[0]!.target).toEqual({ kind: 'field', id: fieldId });
-    expect(carry[0]!.target).toEqual({ kind: 'field', id: fieldId });
+    // čelo sklizně – díly pole, přes které dnes sklizeň postoupila
+    expect(reap[0]!.target).toMatchObject({ kind: 'field', id: fieldId });
+    expect(reap[0]!.target.kind === 'field' && reap[0]!.target.parts?.length).toBeGreaterThan(0);
+    expect(carry[0]!.target).toEqual(reap[0]!.target);
     expect(reap[0]!.manDays / carry[0]!.manDays).toBeCloseTo(
       HARVEST_WORK_PER_HA.reap.worst / HARVEST_WORK_PER_HA.carry.worst,
       2,

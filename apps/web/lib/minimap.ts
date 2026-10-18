@@ -24,16 +24,13 @@ const COLORS = {
   rock: [138, 130, 116],
 } as const satisfies Record<string, Rgb>;
 
-/** Barvy dílů pole podle stadia – zakládané hnědé, oseté žlutozelené, přílohy zarůstají. */
+/** Barvy dílů pole podle stadia – zakládané hnědé, oseté žlutozelené, příloh jako pastvina. */
 export const PART_COLORS: Record<PartStage, Rgb> = {
   founding: [150, 112, 70],
   ready: [128, 92, 56],
   sown: [196, 176, 84],
   'young-fallow': [150, 150, 84],
   meadow: [134, 150, 82],
-  'young-growth': [104, 128, 66],
-  shrub: [84, 108, 56],
-  forest: [56, 86, 46],
 };
 
 /** Povrch, na kterém se díl pole zakládal (panel pole) – louka, křoviny, les jako na minimapě. */

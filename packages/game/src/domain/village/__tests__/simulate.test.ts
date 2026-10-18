@@ -5,7 +5,7 @@ import type { PartInput } from '../actions';
 import { daysUntilHarvest, eatDay } from '../food';
 import { ageYears, foodNeedPerDay, occupants } from '../people';
 import { NO_CRAFTS } from '../productivity';
-import { AGE, CHRONICLE_MAX_EVENTS, DWELLINGS, FOREST_BONUS } from '../rules';
+import { AGE, CHRONICLE_MAX_EVENTS, DWELLINGS } from '../rules';
 import { advanceVillage } from '../simulate';
 import type { ChronicleEvent, Person, VillageState } from '../types';
 import { createPlan, planCrops, planPartIds, taskRemaining, threshLossKg } from '../year-plan';
@@ -330,25 +330,28 @@ describe('advanceVillage – roční plán a sklizeň', () => {
     return { s: advanceVillage(start, day, null), day };
   }
 
-  it('1. 9. příloh 16 let (víc než 15) se vrací z lesa: mýcení v plánu a bonus úrodnosti', () => {
-    const { s, day } = returningFallow(604);
+  it('1. 9. příloh 16 let se vrací jako pastvina: drn v plánu, bez bonusu, plete se', () => {
+    // na přílohu se pase – nezaroste v les, vrátit ho stojí drn jako louka (Martin, 18. 10. 2026)
+    const { s } = returningFallow(604);
     const crops = planCrops(s.plan!);
     expect(planPartIds(s.plan!).length).toBeGreaterThan(0);
-    expect(crops.reduce((sum, { work }) => sum + work.required.reclaim, 0)).toBeGreaterThan(0);
+    const ha = (work: (typeof crops)[number]['work']): number =>
+      work.partIds.reduce((sum, id) => sum + s.parts.find((p) => p.id === id)!.areaM2, 0) / 10_000;
+    for (const { work } of crops) {
+      if (work.partIds.length === 0) continue;
+      expect(work.required.reclaim).toBeGreaterThanOrEqual(100 * ha(work) - 1e-6);
+      expect(work.required.reclaim).toBeLessThan(100 * ha(work) * 1.1);
+      expect(work.required.weed).toBeGreaterThan(0);
+      expect(work.reclaimIds).toEqual(work.partIds);
+    }
     for (const id of planPartIds(s.plan!)) {
       const part = s.parts.find((p) => p.id === id);
-      expect(part).toMatchObject({
-        state: 'sown',
-        fallowSinceDay: null,
-        sownYears: 0,
-        bonusUntilDay: day + FOREST_BONUS.windowYears * 365,
-      });
+      expect(part).toMatchObject({ state: 'sown', fallowSinceDay: null, bonusUntilDay: null });
     }
-    // první sezónu po vymýcení se neplete
-    for (const { work } of crops) expect(work.required.weed).toBe(0);
+    expect(s.chronicle.some((e) => e.kind === 'part-became-forest')).toBe(false);
   });
 
-  it('1. 9. příloh přesně 15 let ještě není les: vrátí se bez bonusu úrodnosti', () => {
+  it('1. 9. příloh 15 let: vrátí se bez bonusu úrodnosti', () => {
     const { s } = returningFallow(605);
     const crops = planCrops(s.plan!);
     expect(planPartIds(s.plan!).length).toBeGreaterThan(0);

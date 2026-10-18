@@ -315,13 +315,32 @@ describe('buildVillageView', () => {
       treesToFell: 0,
     });
     expect(scene.fields).toHaveLength(1);
+    const ids = s.parts.map((p) => p.id);
     expect(scene.fields[0]?.parts).toEqual([
-      { cell: { x: 8, y: 8 }, x: 7.5, z: 7.5, size: 15, stage: 'founding' },
-      { cell: { x: 9, y: 8 }, x: 22.5, z: 7.5, size: 15, stage: 'founding' },
-      { cell: { x: 10, y: 8 }, x: 37.5, z: 7.5, size: 15, stage: 'founding' },
-      { cell: { x: 11, y: 8 }, x: 52.5, z: 7.5, size: 15, stage: 'founding' },
-      { cell: { x: 12, y: 8 }, x: 67.5, z: 7.5, size: 15, stage: 'founding' },
+      { id: ids[0], cell: { x: 8, y: 8 }, x: 7.5, z: 7.5, size: 15, stage: 'founding' },
+      { id: ids[1], cell: { x: 9, y: 8 }, x: 22.5, z: 7.5, size: 15, stage: 'founding' },
+      { id: ids[2], cell: { x: 10, y: 8 }, x: 37.5, z: 7.5, size: 15, stage: 'founding' },
+      { id: ids[3], cell: { x: 11, y: 8 }, x: 52.5, z: 7.5, size: 15, stage: 'founding' },
+      { id: ids[4], cell: { x: 12, y: 8 }, x: 67.5, z: 7.5, size: 15, stage: 'founding' },
     ]);
+  });
+
+  it('osetá pole po čtvercích: stav obilí, čelo práce a rozdělení práce na dílech čela', () => {
+    // ves s 5 díly dopočtená do podzimního kopání ozimu (1. 9. 504 – plán s ozimem)
+    const day = dayIndexOf({ year: 504, month: 9, day: 3 });
+    const s = advanceVillage(settled(), day, null);
+    const scene = buildVillageView(record(s), landscape, day).scene;
+    const parts = scene.fields[0]!.parts;
+    const sown = parts.filter((p) => p.stage === 'sown');
+    expect(sown.length).toBeGreaterThan(0);
+    for (const p of sown) expect(['bare', 'plowed', 'sown']).toContain(p.crop);
+    const frontier = parts.filter((p) => p.frontier?.includes('dig'));
+    expect(frontier).toHaveLength(1);
+    const dig = scene.labor?.shares.find((x) => x.activity === 'dig');
+    expect(dig?.target).toMatchObject({ kind: 'field', id: scene.fields[0]!.id });
+    const targetParts = dig?.target.kind === 'field' ? (dig.target.parts ?? []) : [];
+    expect(targetParts.length).toBeGreaterThan(0);
+    for (const id of targetParts) expect(parts.map((p) => p.id)).toContain(id);
   });
 
   it('staveniště ve scéně ukazuje stavbu bez kácení, panel celý průběh a stromy ke skácení', () => {

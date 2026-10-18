@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { foundVillage, startNewDwelling, type PartInput } from '../actions';
 import { advanceVillage } from '../simulate';
-import { STALL_DAYS, partCropState, partStage, summarizeVillage } from '../summary';
+import { STALL_DAYS, partStage, summarizeVillage } from '../summary';
 import type { FieldPart, Person, VillageState } from '../types';
 import { withBuiltFirstDwelling } from './village-fixtures';
 
@@ -54,60 +54,14 @@ describe('partStage', () => {
     expect(partStage(fallowPart(null, 'sown'), DAY)).toBe('sown');
   });
 
-  it('příloh zarůstá podle let: mladý příloh, louka, nálet, křoviny, les', () => {
+  it('příloh: mladý příloh 1–2 roky, pak napořád pastvina (nálet nebude – pase se)', () => {
     const since = dayIndexOf({ year: 600, month: 9, day: 1 });
     const after = (years: number): number => dayIndexOf({ year: 600 + years, month: 9, day: 1 });
     expect(partStage(fallowPart(since), since)).toBe('young-fallow');
     expect(partStage(fallowPart(since), after(2))).toBe('young-fallow');
     expect(partStage(fallowPart(since), after(3))).toBe('meadow');
-    expect(partStage(fallowPart(since), after(6))).toBe('young-growth');
-    expect(partStage(fallowPart(since), after(11))).toBe('shrub');
-    expect(partStage(fallowPart(since), after(15))).toBe('shrub');
-    expect(partStage(fallowPart(since), after(16))).toBe('forest');
-  });
-});
-
-describe('partCropState (fields.md – Ozim a jař)', () => {
-  const at = (year: number, month: number, day: number): number => dayIndexOf({ year, month, day });
-  /** Ves s polem 75 dílů od jara 600 – od 1. 9. 601 s ozimem i jaří. */
-  const village = (): VillageState =>
-    foundVillage({
-      seed: 42,
-      day: at(600, 3, 15),
-      dwellingPosition: { x: 0, z: 0, rotation: 0 },
-      firstField: { parts: Array.from({ length: 75 }, () => parts(1)[0]!) },
-    });
-  const states = (s: VillageState, day: number): Record<string, number> => {
-    const counts: Record<string, number> = {};
-    for (const p of s.parts) {
-      const state = `${p.crop ?? '-'}:${partCropState(s, p, day) ?? 'none'}`;
-      counts[state] = (counts[state] ?? 0) + 1;
-    }
-    return counts;
-  };
-
-  it('ozim vzejde na podzim, zezelená na jaře, zraje v červenci; jař zraje v srpnu', () => {
-    let s = advanceVillage(village(), at(601, 9, 1), null);
-    const winter = s.plan!.winter!.partIds.length;
-    const spring = s.plan!.partIds.length;
-    expect(states(s, s.lastDay)['winter:bare']).toBe(winter);
-    s = advanceVillage(s, at(601, 11, 15), null);
-    expect(states(s, s.lastDay)['winter:sprouted']).toBeGreaterThan(winter * 0.95);
-    if (spring > 0) expect(states(s, s.lastDay)['spring:bare']).toBe(spring);
-    s = advanceVillage(s, at(602, 5, 15), null);
-    expect(states(s, s.lastDay)['winter:green']).toBe(winter);
-    s = advanceVillage(s, at(602, 7, 1), null);
-    expect(states(s, s.lastDay)['winter:ripe']).toBeGreaterThan(0);
-    s = advanceVillage(s, at(602, 8, 1), null);
-    expect(states(s, s.lastDay)['winter:stubble']).toBe(winter);
-    if (spring > 0) expect(states(s, s.lastDay)['spring:ripe']).toBeGreaterThan(0);
-    s = advanceVillage(s, at(602, 8, 31), null);
-    expect(states(s, s.lastDay)['winter:stubble']).toBe(winter);
-  });
-
-  it('mimo osev null', () => {
-    expect(partCropState(found(), fallowPart(null, 'ready'), DAY)).toBeNull();
-    expect(partCropState(found(), fallowPart(DAY), DAY)).toBeNull();
+    expect(partStage(fallowPart(since), after(16))).toBe('meadow');
+    expect(partStage(fallowPart(since), after(40))).toBe('meadow');
   });
 });
 

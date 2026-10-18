@@ -1,4 +1,4 @@
-import { TOTAL_GAME_DAYS, dateOfDayIndex } from '../calendar';
+import { TOTAL_GAME_DAYS } from '../calendar';
 import {
   burialOrder,
   cemeteryCapacity,
@@ -18,17 +18,10 @@ import {
 } from './orchard';
 import { ageGroup, foodNeedPerDay, occupants } from './people';
 import { NO_CRAFTS } from './productivity';
-import {
-  CHRONICLE_MAX_EVENTS,
-  CROP_WINDOWS,
-  DWELLINGS,
-  OVERGROWTH_STAGES,
-  STARVATION,
-} from './rules';
+import { CHRONICLE_MAX_EVENTS, DWELLINGS, OVERGROWTH_STAGES, STARVATION } from './rules';
 import type {
   Construction,
   ConstructionKind,
-  Crop,
   DwellingType,
   FieldPart,
   VillageState,
@@ -38,9 +31,11 @@ import { daysUntilFoodHarvest } from './year-plan';
 
 // Souhrn vsi pro panel hráče a scénu – jen čte stav, nic nemění.
 
-/** Stadium dílu pro scénu: zakládá se, připravený, osetý, nebo příloh podle let zarůstání. */
-export type PartStage =
-  'founding' | 'ready' | 'sown' | 'young-fallow' | 'meadow' | 'young-growth' | 'shrub' | 'forest';
+/**
+ * Stadium dílu pro scénu: zakládá se, připravený, osetý, nebo příloh – mladý příloh 1–2 roky,
+ * pak napořád spásaná pastvina `meadow` (fields.md – Zarůstání; nálet nebude).
+ */
+export type PartStage = 'founding' | 'ready' | 'sown' | 'young-fallow' | 'meadow';
 
 export interface HouseholdSummary {
   dwellingId: number;
@@ -154,46 +149,11 @@ const NO_LABOR = 0.01;
 /** Od kolika dnů nahromaděného hladu lidé umírají hlady – nejnižší práh věkových skupin. */
 const STARVING_FROM_DAYS = Math.min(...Object.values(STARVATION.threshold));
 
-/** Stadium dílu v daný den; příloh podle celých let zarůstání (fields.md – Zarůstání). */
+/** Stadium dílu v daný den; příloh podle celých let ladem (fields.md – Zarůstání). */
 export function partStage(part: FieldPart, day: number): PartStage {
   if (part.state !== 'fallow') return part.state;
   const years = fallowYears(part, day);
-  return OVERGROWTH_STAGES.find((s) => years <= s.maxYears)?.stage ?? 'forest';
-}
-
-/**
- * Viditelný stav obilí na osetém dílu (fields.md – Ozim a jař, Co hráč vidí): holá zem (zkopáno,
- * ještě nezaseto), vzešlé osení, zelené obilí, zralé obilí, strniště. Sníh přidávají roční období
- * ve scéně.
- */
-export type CropState = 'bare' | 'sprouted' | 'green' | 'ripe' | 'stubble';
-
-/** Od kterého měsíce je zaseté obilí plně zelené (ozim po zimě, jař po jarním vzejití). */
-const CROP_GREEN_FROM_MONTH: Record<Crop, number> = { winter: 4, spring: 5 };
-
-/**
- * Stav obilí dílu v den `day` podle simulace: plodina dílu, jak daleko je setí a sklizeň jeho
- * plodiny a den v roce; mimo osev null. Plán práci nevede po dílech – díly plodiny se berou
- * v pořadí plánu (nejbližší první), takže při podílu setí 0,5 je zaseta první polovina.
- */
-export function partCropState(state: VillageState, part: FieldPart, day: number): CropState | null {
-  if (part.state !== 'sown') return null;
-  const crop = part.crop ?? 'spring';
-  // 31. 8. po sklizni jaře je plán už u výmlatu – do plánu 1. 9. strniště
-  const plan = state.plan ?? state.threshingFromPlan;
-  const work = plan ? (crop === 'winter' ? plan.winter : plan) : undefined;
-  const index = work ? work.partIds.indexOf(part.id) : -1;
-  if (!work || index < 0) return 'bare';
-  const position = (index + 0.5) / work.partIds.length;
-  const share = (task: 'sow' | 'harvest'): number =>
-    work.required[task] > 0 ? work.done[task] / work.required[task] : 0;
-  if (work.harvestedKg !== null || share('harvest') >= position) return 'stubble';
-  if (share('sow') < position) return 'bare';
-  const month = dateOfDayIndex(day).month;
-  if (CROP_WINDOWS[crop].harvest.some(([from, to]) => month >= from && month <= to)) return 'ripe';
-  const green =
-    month >= CROP_GREEN_FROM_MONTH[crop] && month < (CROP_WINDOWS[crop].harvest[0]?.[0] ?? 13);
-  return green ? 'green' : 'sprouted';
+  return OVERGROWTH_STAGES.find((s) => years <= s.maxYears)?.stage ?? 'meadow';
 }
 
 function peopleByGroup(state: VillageState, day: number): VillageSummary['people'] {

@@ -46,7 +46,6 @@ import {
   FERTILITY,
   FIELD_LIMITS,
   FOOD_NEED_KG_PER_YEAR,
-  FOREST_AFTER_YEARS,
   HARVEST_DAY,
   NO_CRAFTS,
   PLANNING_DAY,
@@ -63,7 +62,6 @@ import {
   daysUntilFoodHarvest,
   eatDay,
   eatMeal,
-  fallowYears,
   foodNeedPerDay,
   foundCemetery,
   foundField,
@@ -128,6 +126,8 @@ function rotationYears(): { sown: number; fallow: number } {
 const ROTATION = rotationYears();
 /** Pole na celý oběh ÷ osev (fields.md – Přílohová soustava; dnes 16 / 3 ≈ 5,3). */
 const ROTATION_FACTOR = (ROTATION.sown + ROTATION.fallow) / ROTATION.sown;
+/** Příloh delší než běžný oběh (pastvina, kterou ves nepotřebuje) – měří přebytečné pole. */
+const LONG_IDLE_YEARS = 16;
 // Krok hráče: týden, v dlouhých bězích (vymření) 4 týdny. Společná práce se čte z historie
 // posledních 30 dní, krok proto nesmí být delší.
 const STEP_DAYS = config.years > 100 ? 28 : 7;
@@ -314,8 +314,6 @@ interface RunResult {
   labor: Map<number, LaborYear>;
   plans: PlanRecord[];
   partStates: Map<number, string>; // díl → stav k 1. 9. každého roku (S oseto, F příloh, R jinak)
-  forestParts: Set<number>;
-  firstForestYears: number | null;
   meadowGoneHouseholds: number | null;
   landGoneYear: number | null; // první rok sklizně, kdy hráč už neměl kde založit pole
   extinctDay: number | null;
@@ -453,8 +451,6 @@ function emptyResult(): RunResult {
     labor: new Map(),
     plans: [],
     partStates: new Map(),
-    forestParts: new Set(),
-    firstForestYears: null,
     meadowGoneHouseholds: null,
     landGoneYear: null,
     extinctDay: null,
@@ -563,7 +559,7 @@ function recordPlan(result: RunResult, after: VillageState, pinned: boolean): vo
   result.plans.push({
     year,
     sownHa,
-    fieldHa: area((p) => p.state !== 'fallow' || fallowYears(p, day) < FOREST_AFTER_YEARS),
+    fieldHa: area(() => true),
     reserves: NO_RESERVES,
     finished: false,
   });
@@ -642,9 +638,6 @@ function runVillage(start: VillageState, startLand: number, opts: RunOptions): R
         const ageYears = (e.day - dwelling.builtDay) / DAYS_PER_YEAR;
         const lifespan = DWELLINGS[dwelling.type].lifespanYears;
         result.rebuilds.push({ type: dwelling.type, ageYears, early: ageYears < lifespan - 1e-6 });
-      } else if (e.kind === 'part-became-forest') {
-        result.forestParts.add(e.partId);
-        result.firstForestYears ??= (e.day - start.foundedDay) / DAYS_PER_YEAR;
       } else if (e.kind === 'apple-harvest') {
         result.appleHarvests.set(dateOfDayIndex(e.day).year, e.kg);
       }
@@ -792,8 +785,8 @@ interface ProbeSummary {
   finished: number;
   sownRuns: number[];
   fallowRuns: number[];
-  forestShare: number;
-  firstForestYears: number | null;
+  /** Podíl dílů, které aspoň LONG_IDLE_YEARS let v kuse ležely ladem (pastvina bez osevu). */
+  idleShare: number;
 }
 
 type Task = { kind: 'village'; index: number } | { kind: 'probe'; probe: ProbeName };
@@ -896,7 +889,6 @@ function runProbe(name: ProbeName): TaskResult {
       }
     }
   }
-  const firstForest = results.map((r) => r.firstForestYears).filter((v) => v !== null);
   const summary: ProbeSummary = {
     sownHa: quantile(
       plans.map((p) => p.sownHa),
@@ -918,10 +910,15 @@ function runProbe(name: ProbeName): TaskResult {
     finished: share(withReserves.map((p) => p.finished)),
     sownRuns,
     fallowRuns,
-    forestShare:
-      results.reduce((sum, r) => sum + r.forestParts.size, 0) /
-      results.reduce((sum, r) => sum + r.partStates.size, 0),
-    firstForestYears: firstForest.length > 0 ? Math.min(...firstForest) : null,
+    idleShare:
+      results.reduce(
+        (sum, r) =>
+          sum +
+          [...r.partStates.values()].filter((marks) =>
+            (marks.match(/F+/g) ?? []).some((run) => run.length >= LONG_IDLE_YEARS),
+          ).length,
+        0,
+      ) / results.reduce((sum, r) => sum + r.partStates.size, 0),
   };
   const replays = results.reduce((sum, r) => sum + r.replays, 0);
   return { kind: 'probe', probe: name, summary, ms: performance.now() - t0, replays };
@@ -1135,14 +1132,10 @@ function report(villages: VillageResult[], probes: Record<ProbeName, ProbeSummar
     ),
   );
   row(
-    'Pole o polovinu větší: nadbytek zaroste v les',
-    '≈ 1/3 plochy, les po 15 letech',
-    `les ${pct(oversize.forestShare)} plochy, první za ${fmt(oversize.firstForestYears ?? NaN)} let od založení`,
-    ok(
-      oversize.forestShare >= 0.2 &&
-        oversize.forestShare <= 0.45 &&
-        (oversize.firstForestYears ?? 0) >= 15,
-    ),
+    'Pole o polovinu větší: nadbytek leží jako pastvina',
+    `≈ 1/3 plochy ladem ≥ ${LONG_IDLE_YEARS} let v kuse`,
+    `${pct(oversize.idleShare)} dílů ladem aspoň ${LONG_IDLE_YEARS} let v kuse`,
+    ok(oversize.idleShare >= 0.2 && oversize.idleShare <= 0.45),
   );
 
   // zásoby a nasycení hráče, který staví – jen roky, kdy ještě bylo kde založit pole
