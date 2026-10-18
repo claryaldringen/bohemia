@@ -2,6 +2,7 @@ import { TOTAL_GAME_DAYS, dateOfDayIndex } from '../calendar';
 import type { CalendarDate } from '../calendar';
 import type { ObstacleLayer } from '../landscape';
 import { villageCemeteries } from './cemetery';
+import { cloneState } from './clone';
 import {
   applyRepairs,
   qualifyingDwellings,
@@ -125,7 +126,7 @@ export function advanceVillage(
   if (toDay < state.lastDay) {
     throw new RangeError(`Ves je dopočítaná do dne ${state.lastDay}, nelze zpět na ${toDay}.`);
   }
-  const next = structuredClone(state);
+  const next = cloneState(state);
   for (let day = next.lastDay + 1; day <= toDay && !isVillageExtinct(next); day++) {
     simulateDay(next, day, obstacles);
   }
@@ -467,14 +468,39 @@ function decayEmptyDwellings(state: VillageState, day: number, occupied: Set<num
  * Kolik práce stavbě dnes chybí; pole = zbývající zakládání jeho nehotových dílů, sad =
  * zbývající výsadba (jen v oknech výsadby – mimo ně stavba čeká).
  */
-function constructionNeed(state: VillageState, c: Construction, day: number): number {
+function constructionNeed(
+  state: VillageState,
+  c: Construction,
+  day: number,
+  founding: FoundingIndex,
+): number {
   if (c.kind === 'orchard') return orchardPlantingNeed(state, c, day);
   if (c.kind !== 'field') return Math.max(0, c.cost - c.done);
-  return foundingParts(state, c).reduce((sum, p) => sum + (p.foundingCost - p.foundingDone), 0);
+  return foundingParts(founding, c).reduce((sum, p) => sum + (p.foundingCost - p.foundingDone), 0);
 }
 
-function foundingParts(state: VillageState, c: Construction): FieldPart[] {
-  return state.parts.filter((p) => p.fieldId === c.fieldId && p.state === 'founding');
+/**
+ * Zakládané díly po polích (v pořadí dílů ve stavu) – jeden průchod díly na krok místo průchodu
+ * na každou stavbu pole (s tisíci dílů to byla třetina času simulace). Bez stavby pole prázdné.
+ */
+type FoundingIndex = ReadonlyMap<number, readonly FieldPart[]>;
+
+function foundingIndex(state: VillageState): FoundingIndex {
+  const byField = new Map<number, FieldPart[]>();
+  if (!state.constructions.some((c) => c.kind === 'field')) return byField;
+  for (const p of state.parts) {
+    if (p.state !== 'founding') continue;
+    const list = byField.get(p.fieldId);
+    if (list) list.push(p);
+    else byField.set(p.fieldId, [p]);
+  }
+  return byField;
+}
+
+/** Zakládané díly stavby pole – stav znovu, protože založení mění díl na připravený. */
+function foundingParts(founding: FoundingIndex, c: Construction): FieldPart[] {
+  if (c.fieldId === null) return [];
+  return (founding.get(c.fieldId) ?? []).filter((p) => p.state === 'founding');
 }
 
 /**
@@ -483,8 +509,9 @@ function foundingParts(state: VillageState, c: Construction): FieldPart[] {
  * Vrátí, kolik práce šlo do které stavby (rozdělení práce dne pro scénu – labor-report.ts).
  */
 function build(state: VillageState, day: number, common: number): ConstructionWork[] {
+  const founding = foundingIndex(state);
   let active = state.constructions
-    .map((c) => ({ c, need: constructionNeed(state, c, day) }))
+    .map((c) => ({ c, need: constructionNeed(state, c, day, founding) }))
     .filter((x) => x.need > 0);
   const invested: ConstructionWork[] = [];
   const put = (c: Construction, amount: number, completes: boolean): void => {
@@ -494,7 +521,7 @@ function build(state: VillageState, day: number, common: number): ConstructionWo
       doneBefore: c.done,
       felledBefore: c.wood?.felled ?? 0,
     });
-    invest(state, day, c, amount, completes);
+    invest(state, day, c, amount, completes, founding);
   };
   let left = common;
   while (active.length > 0 && left > 0) {
@@ -520,6 +547,7 @@ function invest(
   c: Construction,
   amount: number,
   completes: boolean,
+  founding: FoundingIndex,
 ): void {
   if (c.kind === 'orchard') {
     plantOrchard(state, day, c, amount, completes);
@@ -532,7 +560,7 @@ function invest(
     return;
   }
   // pole zakládá díly od nejbližšího k obydlí; přebytek dne teče do dalšího dílu
-  const parts = foundingParts(state, c).sort((a, b) => a.distanceM - b.distanceM || a.id - b.id);
+  const parts = foundingParts(founding, c).sort((a, b) => a.distanceM - b.distanceM || a.id - b.id);
   let left = amount;
   let used = 0;
   for (const part of parts) {
@@ -565,8 +593,8 @@ function invest(
 
 // --- stavby a domácnosti ------------------------------------------------------------------
 
-function isFinished(state: VillageState, c: Construction): boolean {
-  if (c.kind === 'field') return foundingParts(state, c).length === 0;
+function isFinished(state: VillageState, c: Construction, founding: FoundingIndex): boolean {
+  if (c.kind === 'field') return foundingParts(founding, c).length === 0;
   if (c.kind === 'orchard') return isOrchardPlanted(state, c);
   return c.done >= c.cost;
 }
@@ -578,8 +606,9 @@ function isFinished(state: VillageState, c: Construction): boolean {
  */
 function finishConstructions(state: VillageState, day: number): void {
   const unfinished: Construction[] = [];
+  const founding = foundingIndex(state);
   for (const c of state.constructions) {
-    if (!isFinished(state, c)) {
+    if (!isFinished(state, c, founding)) {
       unfinished.push(c);
       continue;
     }
