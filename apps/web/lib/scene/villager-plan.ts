@@ -728,8 +728,10 @@ function placer(ctx: Context, share: SceneLaborShare, count: number): Placer {
       return t.kind === 'pen' ? penFence(ctx, t.id) : none;
     case 'orchard-harvest':
     case 'orchard-care':
+      if (t.kind === 'road') return roadApples(ctx, t.id, count, 'tree');
       return t.kind === 'orchard' ? orchardTrees(ctx, t.id, count) : none;
     case 'orchard-plant':
+      if (t.kind === 'road') return roadApples(ctx, t.id, count, 'planting');
       return t.kind === 'orchard' ? orchardPlanting(ctx, t.id, count) : none;
     case 'cemetery':
       return t.kind === 'cemetery' ? cemeteryFence(ctx, t.id) : none;
@@ -1389,6 +1391,30 @@ function orchardPlanting(ctx: Context, orchardId: number, count: number): Placer
     .filter((s) => s.planting < 1)
     .sort((a, b) => b.planting - a.planting || distance(a) - distance(b));
   return crewRows(ctx, squares, count, () => 'hoe');
+}
+
+/**
+ * Jabloně podél pevné cesty (roads.md – Vysazení jabloní): sklizeň a péče u stromů (`tree`),
+ * výsadba u míst, která na ni čekají (`planting` – okopávají jámu). Po skupinách se přesouvají
+ * po řadě jako v sadu.
+ */
+function roadApples(
+  ctx: Context,
+  roadId: number,
+  count: number,
+  stage: 'tree' | 'planting',
+): Placer {
+  const trees = (ctx.village.roadApples ?? []).filter(
+    (a) => a.roadId === roadId && a.stage === stage,
+  );
+  if (trees.length === 0) return none;
+  const start = Math.floor(ctx.day / CREW_MOVE_DAYS) * count;
+  return (i, who) => {
+    const tree = trees[(start + i) % trees.length]!;
+    return stage === 'tree'
+      ? atTree(ctx, tree, who, 'fruit', gap(1.3))
+      : atTree(ctx, tree, who, 'hoe', gap(0.9));
+  };
 }
 
 /**

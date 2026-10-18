@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { SelectionDetails } from '@/lib/selection-details';
 import { SelectionPanel } from '../SelectionPanel';
 
-// Panel pevné cesty (roads.md – Co hráč vidí): stupeň, délka, stáří, stromy a vylepšení.
+// Panel pevné cesty (roads.md – Co hráč vidí): stupeň, délka, stáří, stromy, vylepšení a jabloně.
 
 const road = (
   over: Partial<Extract<SelectionDetails, { kind: 'road' }>> = {},
@@ -27,16 +27,28 @@ const road = (
       blocked: 'Nejdřív je potřeba cestu upravit.',
     },
   ],
+  apples: {
+    trees: 0,
+    bearing: 0,
+    planting: null,
+    option: { trees: 22, laborManDays: 9.8, blocked: null },
+  },
   ...over,
 });
 
 const render = (details: SelectionDetails): string =>
   renderToStaticMarkup(
-    <SelectionPanel details={details} onUpgradeRoad={() => Promise.resolve()} />,
+    <SelectionPanel
+      details={details}
+      onUpgradeRoad={() => Promise.resolve()}
+      onPlantRoadApples={() => Promise.resolve()}
+    />,
   );
 
 const button = (html: string, upgrade: string): string | undefined =>
   new RegExp(`<button[^>]*data-testid="road-upgrade-${upgrade}"[^>]*>`).exec(html)?.[0];
+const plantButton = (html: string): string | undefined =>
+  /<button[^>]*data-testid="road-plant-apples"[^>]*>/.exec(html)?.[0];
 
 describe('SelectionPanel – pevná cesta', () => {
   it('portrét stupně, délka, stáří, stromy a mokřina s brody', () => {
@@ -65,5 +77,41 @@ describe('SelectionPanel – pevná cesta', () => {
     const done = render(road({ grade: 'causeway', upgrades: [] }));
     expect(done).toContain('/icons/build/hat.png');
     expect(done).not.toContain('road-upgrade-');
+  });
+
+  it('Vysadit jabloně – ikona, cena v popisku; bez volného místa zašedlé s důvodem', () => {
+    const html = render(road());
+    expect(plantButton(html)).not.toContain('disabled=""');
+    expect(html).toContain('/icons/build/jablone.png');
+    expect(html).not.toContain('selection-road-apples');
+    const full = render(
+      road({
+        apples: {
+          trees: 18,
+          bearing: 12,
+          planting: null,
+          option: { trees: 0, laborManDays: 0, blocked: 'Podél cesty není volné místo.' },
+        },
+      }),
+    );
+    expect(plantButton(full)).toContain('disabled=""');
+    expect(full).toContain('Podél cesty není volné místo.');
+    expect(full).toMatch(/data-testid="selection-road-apples"[^>]*>18 \(12\)</);
+  });
+
+  it('rozestavěná výsadba jabloní ukáže průběh', () => {
+    const html = render(
+      road({
+        apples: {
+          trees: 0,
+          bearing: 0,
+          planting: { trees: 20, progress: 0.25, waits: true },
+          option: { trees: 0, laborManDays: 0, blocked: 'Jabloně se tu už sázejí.' },
+        },
+      }),
+    );
+    expect(html).toContain('data-testid="selection-apples-progress"');
+    expect(html).toContain('data-testid="selection-apples-waits"');
+    expect(plantButton(html)).toContain('disabled=""');
   });
 });

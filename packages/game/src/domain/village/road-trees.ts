@@ -1,5 +1,5 @@
-import { ROAD_TREES } from './rules';
-import type { RoadTree } from './types';
+import { ORCHARD, ROAD_APPLES, ROAD_TREES } from './rules';
+import type { RoadApple, RoadTree } from './types';
 
 // Stromy u pevných cest (roads.md – Stromy u pevných cest): strom se uchytí na místě u cesty
 // a roste z keře (Martin – napřed keř), po smrti stářím zbude souš a pak pařez. Vše se odvozuje
@@ -68,4 +68,33 @@ export function roadTreeObstacleKind(
 /** Je to id stromu u cesty (ne překážky z vrstvy)? */
 export function isRoadTreeId(id: number): boolean {
   return id >= ROAD_TREE_ID_BASE;
+}
+
+/** Stadium jabloně u cesty: čeká na výsadbu, strom, souš (roads.md – Vysazení jabloní). */
+export type RoadAppleStage = 'planting' | 'tree' | 'snag';
+
+/**
+ * Stadium jabloně v den `day`: před výsadbou `planting`, pak strom do konce života sadu
+ * (ORCHARD.endYear let), souš ROAD_APPLES.snagYears let; pak zmizí (null) a místo je volné.
+ */
+export function roadAppleStage(
+  apple: Pick<RoadApple, 'plantedDay'>,
+  day: number,
+): RoadAppleStage | null {
+  if (apple.plantedDay === null) return 'planting';
+  const years = (day - apple.plantedDay) / DAYS_PER_YEAR;
+  if (years < ORCHARD.endYear) return 'tree';
+  return years < ORCHARD.endYear + ROAD_APPLES.snagYears ? 'snag' : null;
+}
+
+/** Druh překážky jabloně (mladá do ROAD_APPLES.logFromYears, pak strom s kládou, souš). */
+export function roadAppleObstacleKind(
+  apple: Pick<RoadApple, 'plantedDay'>,
+  day: number,
+): RoadTreeObstacleKind | null {
+  const stage = roadAppleStage(apple, day);
+  if (stage === null || stage === 'planting') return null;
+  if (stage === 'snag') return 'snag';
+  const years = (day - apple.plantedDay!) / DAYS_PER_YEAR;
+  return years < ROAD_APPLES.logFromYears ? 'youngTree' : 'tree';
 }

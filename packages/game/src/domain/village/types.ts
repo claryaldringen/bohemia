@@ -241,7 +241,9 @@ export type ConstructionKind =
   /** Rádlo pro výcvik spřežení v ohradě `penId` (oxen.md – 1 strom a 5 člověkodní). */
   | 'ard'
   /** Vylepšení pevné cesty `roadIds` na stupeň `roadGrade` (roads.md – Vylepšení cesty). */
-  | 'road';
+  | 'road'
+  /** Výsadba jabloní podél pevné cesty `roadIds` (roads.md – Vysazení jabloní). */
+  | 'road-apples';
 /** Posvátná stavba, kterou staví hráč (happiness.md). */
 export type SacredBuildingKind = 'idol' | 'shrine';
 export interface Construction {
@@ -701,6 +703,27 @@ export interface VillageRoads {
    * z ní bere průměrné člověkodny na den (`manDays / days`).
    */
   labor: { from: number; days: number; shares: RoadLaborShare[] };
+  /** Jabloně vysazené hráčem podél úseků (roads.md – Vysazení jabloní); chybí = žádné. */
+  apples?: RoadApple[];
+}
+
+/**
+ * Jabloň u pevné cesty (roads.md – Vysazení jabloní): jako strom sadu – výsadba v oknech jara
+ * a podzimu, plody od 6. roku, život ≈ 60 let, pak souš. Id leží v rozsahu stromů u cest
+ * (ROAD_TREE_ID_BASE) – stavba přes jabloň ji odstraní jako ostatní překážky.
+ */
+export interface RoadApple {
+  id: number;
+  /** Úsek, podél kterého hráč jabloně vysadil. */
+  roadId: number;
+  x: number;
+  z: number;
+  /** Vzdálenost od nejbližšího obydlí při zadání (m) – péče a sklizeň dražší jako v sadu. */
+  distanceM: number;
+  /** Den výsadby; dokud čeká na výsadbu, null. */
+  plantedDay: number | null;
+  /** Stavba výsadby, dokud se sází; pak chybí. */
+  constructionId?: number;
 }
 
 /**

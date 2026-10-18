@@ -9,6 +9,7 @@ import {
   ORCHARD_PLANTING_WINDOWS,
   ORCHARD_SEASON,
   ORCHARD_WINDOWS,
+  ROAD_APPLES,
   type WindowSegment,
 } from './rules';
 import type {
@@ -18,6 +19,7 @@ import type {
   OrchardSquare,
   OrchardTaskName,
   OrchardWork,
+  RoadApple,
   VillageState,
 } from './types';
 
@@ -170,6 +172,53 @@ export function squareCareWork(square: OrchardSquare): number {
   return (
     ORCHARD.carePerHa * (square.areaM2 / M2_PER_HA) * distanceFactor(squareWalkDistance(square))
   );
+}
+
+// --- jabloně u pevných cest (roads.md – Vysazení jabloní) – jako sad na strom ----------------
+
+/** Plocha sadu na jednu jabloň (m²) – ≈ 180 stromů na hektar. */
+const ROAD_APPLE_AREA_HA = 1 / ROAD_APPLES.treesPerHa;
+
+/** Žije jabloň (vysazená, ještě ne souš) v den `day`? */
+function appleAlive(apple: RoadApple, day: number): boolean {
+  return apple.plantedDay !== null && (day - apple.plantedDay) / DAYS_PER_YEAR < ORCHARD.endYear;
+}
+
+/** Podíl plné úrody jabloně v hospodářském roce dne `day` (jako čtverec sadu). */
+function roadAppleShare(apple: RoadApple, day: number): number {
+  if (!appleAlive(apple, day)) return 0;
+  return orchardYieldShare(orchardYear(apple.plantedDay!, day));
+}
+
+/** Plodí jabloň v hospodářském roce dne `day` (od 6. roku po výsadbu do konce života)? */
+export function roadAppleBearing(apple: RoadApple, day: number): boolean {
+  return roadAppleShare(apple, day) > 0;
+}
+
+/** Úroda jabloně při plné sklizni (kg) – ≈ 17 kg při plné úrodě. */
+export function roadAppleYieldKg(apple: RoadApple, day: number): number {
+  return ORCHARD.fullYieldKgPerHa * ROAD_APPLE_AREA_HA * roadAppleShare(apple, day);
+}
+
+/** Sklizeň jabloně (člověkodny) – jako sad na strom, dražší se vzdáleností od obydlí. */
+export function roadAppleHarvestWork(apple: RoadApple, day: number): number {
+  return (
+    ORCHARD.harvestPerHa *
+    ROAD_APPLE_AREA_HA *
+    roadAppleShare(apple, day) *
+    distanceFactor(apple.distanceM)
+  );
+}
+
+/** Péče o jabloň za zimu (člověkodny) – jako sad na strom. */
+export function roadAppleCareWork(apple: RoadApple, day: number): number {
+  if (!appleAlive(apple, day)) return 0;
+  return ORCHARD.carePerHa * ROAD_APPLE_AREA_HA * distanceFactor(apple.distanceM);
+}
+
+/** Výsadba jedné jabloně (člověkodny) – 80 čd na hektar ≈ 0,45 čd na strom. */
+export function roadApplePlantingWork(): number {
+  return ORCHARD.plantingPerHa * ROAD_APPLE_AREA_HA;
 }
 
 /** Plocha sadu (m²). */
@@ -363,14 +412,28 @@ export function orchardSeasonDay(
   return events;
 }
 
-/** Rozběhne sezónní práci ve všech sadech; bez potřebné práce žádnou. */
+/**
+ * Rozběhne sezónní práci ve všech sadech i u jabloní podél pevných cest (roads.md – jabloně jako
+ * sad na strom); bez potřebné práce žádnou.
+ */
 function startWork(state: VillageState, day: number, task: OrchardWork['task']): void {
   const squares = villageOrchards(state).flatMap((o) => o.squares);
-  const required = squares.reduce(
-    (sum, s) => sum + (task === 'harvest' ? squareHarvestWork(s, day) : squareCareWork(s)),
-    0,
-  );
-  const yieldKg = task === 'harvest' ? squares.reduce((s, q) => s + squareYieldKg(q, day), 0) : 0;
+  const apples = state.roads?.apples ?? [];
+  const required =
+    squares.reduce(
+      (sum, s) => sum + (task === 'harvest' ? squareHarvestWork(s, day) : squareCareWork(s)),
+      0,
+    ) +
+    apples.reduce(
+      (sum, a) =>
+        sum + (task === 'harvest' ? roadAppleHarvestWork(a, day) : roadAppleCareWork(a, day)),
+      0,
+    );
+  const yieldKg =
+    task === 'harvest'
+      ? squares.reduce((s, q) => s + squareYieldKg(q, day), 0) +
+        apples.reduce((s, a) => s + roadAppleYieldKg(a, day), 0)
+      : 0;
   if (required > 0) state.orchardWork = { task, required, done: 0, yieldKg };
   // ves bez sadů (i uložená před jejich zavedením) stav nemění
   else if (state.orchardWork !== undefined) state.orchardWork = null;

@@ -1,5 +1,5 @@
 import type { PathLine, RoadGrade } from '@bohemia/game';
-import type { SceneRoad } from '../village-view';
+import type { SceneRoad, SceneRoadApple } from '../village-view';
 import { hash01 } from './smoke-schedule';
 import type { Point } from './village-layout';
 
@@ -329,6 +329,59 @@ export function stakingLines(roads: readonly SceneRoad[]): Point[][] {
     }
   }
   return out;
+}
+
+/**
+ * Vytyčení výsadby jabloní u cesty (Martin – u všech staveb hned od zadání kolíky a provázkem):
+ * po každé straně úseku provázek přes místa jabloní, které na výsadbu teprve čekají, kolík na
+ * každém místě (`pegs`). Jediná jabloň na straně má jen kolík.
+ */
+export function appleStaking(
+  roads: readonly SceneRoad[],
+  apples: readonly SceneRoadApple[],
+): { lines: Point[][]; pegs: Point[] } {
+  const lines: Point[][] = [];
+  const pegs: Point[] = [];
+  for (const road of roads) {
+    const pending = apples.filter((a) => a.roadId === road.id && a.stage === 'planting');
+    if (pending.length === 0 || road.points.length < 2) continue;
+    const at = lengthsAlong(road.points);
+    const sides = new Map<number, { d: number; p: Point }[]>();
+    for (const a of pending) {
+      // nejbližší místo na ose – vzdálenost od začátku a strana (vlevo +1, vpravo −1)
+      let best = { dist: Infinity, d: 0, side: 1 };
+      for (let k = 1; k < road.points.length; k++) {
+        const p = road.points[k - 1]!;
+        const q = road.points[k]!;
+        const dx = q.x - p.x;
+        const dz = q.z - p.z;
+        const l2 = dx * dx + dz * dz || 1;
+        const u = Math.min(1, Math.max(0, ((a.x - p.x) * dx + (a.z - p.z) * dz) / l2));
+        const dist = Math.hypot(a.x - (p.x + dx * u), a.z - (p.z + dz * u));
+        if (dist < best.dist) {
+          const cross = dx * (a.z - p.z) - dz * (a.x - p.x);
+          best = { dist, d: at[k - 1]! + Math.sqrt(l2) * u, side: cross >= 0 ? 1 : -1 };
+        }
+      }
+      const list = sides.get(best.side) ?? [];
+      list.push({ d: best.d, p: [a.x, a.z] });
+      sides.set(best.side, list);
+      pegs.push([a.x, a.z]);
+    }
+    for (const side of [1, -1]) {
+      const list = (sides.get(side) ?? []).sort((a, b) => a.d - b.d);
+      if (list.length >= 2) lines.push(list.map((e) => e.p));
+    }
+  }
+  return { lines, pegs };
+}
+
+/** Klíč vytyčení jabloní – mění se jen s místy, která čekají na výsadbu. */
+export function appleStakingKey(apples: readonly SceneRoadApple[]): string {
+  return apples
+    .filter((a) => a.stage === 'planting')
+    .map((a) => a.id)
+    .join(',');
 }
 
 /** Klíč vzhledu vylepšení – přestaví se jen při změně stupně, průběhu (po setinách) a os. */

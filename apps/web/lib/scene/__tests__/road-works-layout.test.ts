@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import type { SceneRoad } from '../../village-view';
+import type { SceneRoad, SceneRoadApple } from '../../village-view';
 import {
   BRIDGE_LENGTH_M,
   DITCH,
   LOG_SPACING_M,
+  appleStaking,
+  appleStakingKey,
   axisPart,
   bridgePieces,
   ditchLines,
@@ -117,6 +119,37 @@ describe('vylepšené cesty ve scéně (road-works-layout)', () => {
     expect(roadWorksKey([road({ upgrade: { grade: 'improved', progress: 0.302 } })])).toBe(a);
     expect(roadWorksKey([road({ upgrade: { grade: 'improved', progress: 0.33 } })])).not.toBe(a);
     expect(roadWorksKey([road({ grade: 'improved' })])).not.toBe(roadWorksKey([road()]));
+  });
+});
+
+describe('vytyčení výsadby jabloní u cesty', () => {
+  const apple = (id: number, x: number, z: number, stage: SceneRoadApple['stage'] = 'planting') =>
+    ({ id, roadId: 3, x, z, stage, growth: 0, fruit: false }) satisfies SceneRoadApple;
+
+  it('kolík na každém čekajícím místě, provázek po každé straně podél osy', () => {
+    const apples = [
+      apple(1, 30, 3),
+      apple(2, 10, 3),
+      apple(3, 20, -3),
+      apple(4, 40, -3),
+      apple(5, 50, 3, 'tree'),
+    ];
+    const { lines, pegs } = appleStaking([road()], apples);
+    expect(pegs).toHaveLength(4);
+    expect(lines).toHaveLength(2);
+    // seřazené podél osy
+    expect(lines[0]).toEqual([
+      [10, 3],
+      [30, 3],
+    ]);
+    expect(lines[1]).toEqual([
+      [20, -3],
+      [40, -3],
+    ]);
+    // jediné místo na straně – jen kolík
+    expect(appleStaking([road()], [apple(1, 30, 3)]).lines).toEqual([]);
+    expect(appleStakingKey(apples)).toBe('1,2,3,4');
+    expect(appleStaking([road()], [apple(5, 50, 3, 'tree')])).toEqual({ lines: [], pegs: [] });
   });
 });
 

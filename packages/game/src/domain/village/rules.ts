@@ -217,6 +217,19 @@ export const ROAD_UPGRADES = {
   causewayPer2M: { trees: 1, manDays: 2 },
   footbridge: { trees: 4, manDays: 15 },
 } as const;
+// roads.md – Vysazení jabloní (Martin; čísla návrh Clauda): podél úseku po obou stranách po 10 m
+// střídavě (2,6–3,4 m od osy), jabloně nejméně 8 m od sebe a 6 m od stromu u cesty; jako sad na
+// strom – ≈ 180 stromů na hektar (výsadba 80 čd/ha ≈ 0,45 čd na strom, péče a sklizeň jako v sadu,
+// plná úroda ≈ 17 kg na strom), plody od 6. roku, život ≈ 60 let; souš pak stojí 10 let
+export const ROAD_APPLES = {
+  spacingM: 10,
+  offsetM: { from: 2.6, to: 3.4 },
+  gapM: 8,
+  treeClearM: 6,
+  treesPerHa: 180,
+  snagYears: 10,
+  logFromYears: 20,
+} as const;
 // roads.md – Rychlejší chůze (návrh Clauda, schváleno): rychlost chůze proti louce – vyšlapaná
 // cesta 1,2×, upravená 1,5× (hať a lávka jen přes mokřinu a brod, jinde jako upravená); mokřina
 // 0,5× (bahno), po hati 1,5×; brod + 30 m (zout se, přebrodit), po lávce bez zdržení

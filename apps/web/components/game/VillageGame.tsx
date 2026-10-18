@@ -25,6 +25,7 @@ import {
   placePen,
   placeSacred,
   placeWorkshop,
+  plantRoadApples,
   renameVillage,
   restartGame,
   skipTime,
@@ -586,6 +587,7 @@ export function VillageGame({
         details={selectionDetails(view, sceneVillage, current)}
         onTrainTeam={(penId) => runBuildAction(() => trainTeam({ penId }))}
         onUpgradeRoad={(roadId, upgrade) => runBuildAction(() => upgradeRoad({ roadId, upgrade }))}
+        onPlantRoadApples={(roadId) => runBuildAction(() => plantRoadApples({ roadId }))}
       />
       <BuildGrid
         options={options}

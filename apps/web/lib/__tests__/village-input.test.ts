@@ -10,6 +10,7 @@ import {
   parseRestartGameInput,
   parsePosition,
   parseSkipTimeInput,
+  parsePlantRoadApplesInput,
   parseUpgradeRoadInput,
 } from '../village-input';
 
@@ -160,5 +161,16 @@ describe('parseUpgradeRoadInput', () => {
     expect(parseUpgradeRoadInput({ roadId: 0, upgrade: 'improved' })).toBeNull();
     expect(parseUpgradeRoadInput({ roadId: 1.5, upgrade: 'improved' })).toBeNull();
     expect(parseUpgradeRoadInput(null)).toBeNull();
+  });
+});
+
+describe('parsePlantRoadApplesInput', () => {
+  it('úsek cesty – kladné celé číslo, nic jiného', () => {
+    expect(parsePlantRoadApplesInput({ roadId: 4 })).toEqual({ roadId: 4 });
+    expect(parsePlantRoadApplesInput({ roadId: 4, extra: 1 })).toEqual({ roadId: 4 });
+    expect(parsePlantRoadApplesInput({ roadId: 0 })).toBeNull();
+    expect(parsePlantRoadApplesInput({ roadId: 1.5 })).toBeNull();
+    expect(parsePlantRoadApplesInput({ roadId: '4' })).toBeNull();
+    expect(parsePlantRoadApplesInput(null)).toBeNull();
   });
 });

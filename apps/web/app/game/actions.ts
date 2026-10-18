@@ -11,6 +11,7 @@ import {
   placePenForPlayer,
   placeSacredForPlayer,
   placeWorkshopForPlayer,
+  plantRoadApplesForPlayer,
   renameVillageForPlayer,
   skipTimeForPlayerView,
   trainTeamForPlayer,
@@ -29,6 +30,7 @@ import {
   parsePlacePenInput,
   parsePlaceSacredInput,
   parsePlaceWorkshopInput,
+  parsePlantRoadApplesInput,
   parseRenameVillageInput,
   parseRestartGameInput,
   parseSkipTimeInput,
@@ -151,6 +153,18 @@ export async function upgradeRoad(input: unknown): Promise<VillageActionResult> 
   const parsed = parseUpgradeRoadInput(input);
   if (parsed === null) return { error: INVALID_INPUT };
   return upgradeRoadForPlayer(id, parsed);
+}
+
+/**
+ * Výsadba jabloní podél pevné cesty (roads.md – Vysazení jabloní): `{ roadId }` – server ji ověří
+ * znovu (`roadApplesOption`).
+ */
+export async function plantRoadApples(input: unknown): Promise<VillageActionResult> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  const parsed = parsePlantRoadApplesInput(input);
+  if (parsed === null) return { error: INVALID_INPUT };
+  return plantRoadApplesForPlayer(id, parsed);
 }
 
 /**

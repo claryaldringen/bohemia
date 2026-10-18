@@ -3,7 +3,7 @@ import { PBRMaterial } from '@babylonjs/core/Materials/PBR/pbrMaterial';
 import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 import type { Scene } from '@babylonjs/core/scene';
 import type { PathLine } from '@bohemia/game';
-import type { SceneRoad } from '../village-view';
+import type { SceneRoad, SceneRoadApple } from '../village-view';
 import { applyGammaFog } from './gamma-fog';
 import { instanceMatrices, loadMergedModel, type ModelInstance } from './instanced-model';
 import {
@@ -16,6 +16,8 @@ import {
   type RibbonLayer,
 } from './path-ribbon';
 import {
+  appleStaking,
+  appleStakingKey,
   bridgePieces,
   ditchLines,
   logPieces,
@@ -30,8 +32,9 @@ import { StakingPegs, createStringMaterial, createStringMesh, pegInstances } fro
 import { createDecalMesh, type HeightFn } from './village-meshes';
 
 // Díly vylepšených pevných cest ve scéně (docs/design/roads.md): kameny upravené cesty, kmeny
-// hatě, lávky přes brody (modely z tools/blender/roads.py v instancích) a vytyčení rozestavěného
-// vylepšení. Kde co leží, počítá road-works-layout.ts z dat vsi; přestaví se jen při změně dat.
+// hatě, lávky přes brody (modely z tools/blender/roads.py v instancích), vytyčení rozestavěného
+// vylepšení a výsadby jabloní. Kde co leží, počítá road-works-layout.ts z dat vsi; přestaví se
+// jen při změně dat.
 
 type RoadModel = 'road-log' | 'road-stone' | 'road-bridge' | 'road-bridge-posts';
 const MODELS: readonly RoadModel[] = ['road-log', 'road-stone', 'road-bridge', 'road-bridge-posts'];
@@ -60,6 +63,8 @@ export class RoadWorks {
   private stringMesh: Mesh | null = null;
   private stringMaterial: Material | null = null;
   private lines: ReturnType<typeof stakingLines> = [];
+  /** Kolíky míst jabloní, které čekají na výsadbu. */
+  private applePegs: ReturnType<typeof appleStaking>['pegs'] = [];
   private visible = true;
   private disposed = false;
 
@@ -70,8 +75,8 @@ export class RoadWorks {
     this.pegs = new StakingPegs(scene, (mesh) => env.addShadowCaster(mesh));
   }
 
-  update(roads: readonly SceneRoad[]): void {
-    const key = roadWorksKey(roads);
+  update(roads: readonly SceneRoad[], apples: readonly SceneRoadApple[] = []): void {
+    const key = `${roadWorksKey(roads)}|${appleStakingKey(apples)}`;
     if (key === this.key) return;
     this.key = key;
     const h = this.env.groundHeight;
@@ -101,10 +106,13 @@ export class RoadWorks {
       ],
     ]);
     for (const model of MODELS) this.showModel(model);
-    // vytyčení rozestavěného vylepšení – kolíky a provázek
-    const lines = stakingLines(roads);
-    this.lines = lines;
-    this.pegs.set(this.visible ? pegInstances(lines, h) : []);
+    // vytyčení rozestavěného vylepšení a výsadby jabloní – kolíky a provázek
+    const apple = appleStaking(roads, apples);
+    this.lines = stakingLines(roads);
+    this.applePegs = apple.pegs;
+    // provázek i přes místa jabloní – kolíky jen na místech (ne po 3 m)
+    const lines = [...this.lines, ...apple.lines];
+    this.pegs.set(this.visible ? this.pegInstances() : []);
     this.stringMesh?.dispose();
     this.stringMesh = null;
     if (lines.length > 0) {
@@ -124,7 +132,7 @@ export class RoadWorks {
   setVisible(visible: boolean): void {
     this.visible = visible;
     this.stringMesh?.setEnabled(visible);
-    this.pegs.set(visible ? pegInstances(this.lines, this.env.groundHeight) : []);
+    this.pegs.set(visible ? this.pegInstances() : []);
     for (const model of MODELS) this.showModel(model);
   }
 
@@ -135,6 +143,18 @@ export class RoadWorks {
     this.stringMaterial?.dispose();
     for (const model of this.models.values()) void model.then((mesh) => mesh?.dispose());
     this.models.clear();
+  }
+
+  /** Kolíky podél čar vytyčení a na místech jabloní (jeden kolík na místo). */
+  private pegInstances(): ModelInstance[] {
+    const h = this.env.groundHeight;
+    return [
+      ...pegInstances(this.lines, h),
+      ...pegInstances(
+        this.applePegs.map((p) => [p, p]),
+        h,
+      ),
+    ];
   }
 
   private showModel(model: RoadModel): void {

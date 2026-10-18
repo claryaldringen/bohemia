@@ -143,6 +143,13 @@ export function parseUpgradeRoadInput(
   return { roadId: roadId as number, upgrade };
 }
 
+/** Vstup výsadby jabloní podél pevné cesty `{ roadId }` (roads.md), jinak null. */
+export function parsePlantRoadApplesInput(value: unknown): { roadId: number } | null {
+  if (!isRecord(value)) return null;
+  const { roadId } = value;
+  return Number.isInteger(roadId) && (roadId as number) > 0 ? { roadId: roadId as number } : null;
+}
+
 /** Vstup stavby modly nebo svatyně `{ kind, position }`, jinak null. */
 export function parsePlaceSacredInput(
   value: unknown,

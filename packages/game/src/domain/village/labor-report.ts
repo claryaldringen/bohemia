@@ -3,7 +3,7 @@ import { isVillageExtinct } from './extinction';
 import type { DayAllocation, LaborTaskName } from './labor';
 import { villageOrchards } from './orchard';
 import { NO_CRAFTS, withinBounds } from './productivity';
-import { HARVEST_WORK_PER_HA } from './rules';
+import { HARVEST_WORK_PER_HA, ROAD_APPLES } from './rules';
 import { mowingPartsWorked } from './hay';
 import type {
   Construction,
@@ -19,6 +19,9 @@ import type {
 import { woodFellingCost } from './wood';
 import { partsWorked, type PartTask } from './field-progress';
 import { planPartIds, type CropTask } from './year-plan';
+
+/** Hektar v m² – plocha sadu na jabloň u cesty. */
+const M2_PER_HA = 10_000;
 
 // Rozdělení práce posledního odsimulovaného dne po činnostech a místech – jen pro zobrazení
 // (postavy ve scéně, villagers.md). Vzniká v kroku práce simulace ze stejného rozdělení, které
@@ -111,8 +114,8 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
   add('slaughter', { kind: 'village' }, allocation.tasks.slaughter);
   const orchards = orchardAreas(state);
   for (const task of ['orchard-care', 'orchard-harvest'] as const) {
-    for (const { id, share } of orchards) {
-      add(task, { kind: 'orchard', id }, allocation.tasks[task] * share);
+    for (const { target, share } of orchards) {
+      add(task, target, allocation.tasks[task] * share);
     }
   }
 
@@ -249,15 +252,25 @@ function planFieldAreas(state: VillageState): { id: number; share: number }[] {
   return shares;
 }
 
-/** Sady s vysazenými čtverci a jejich podíl na vysazené ploše. */
-function orchardAreas(state: VillageState): { id: number; share: number }[] {
-  const areas = villageOrchards(state).map((o) => ({
-    id: o.id,
+/**
+ * Sady s vysazenými čtverci a úseky cest s vysazenými jabloněmi (roads.md – jabloň jako sad na
+ * strom, ≈ 1/180 ha) a jejich podíl na vysazené ploše.
+ */
+function orchardAreas(state: VillageState): { target: LaborTarget; share: number }[] {
+  const areas: { target: LaborTarget; area: number }[] = villageOrchards(state).map((o) => ({
+    target: { kind: 'orchard', id: o.id },
     area: o.squares.reduce((sum, s) => sum + (s.plantedDay !== null ? s.areaM2 : 0), 0),
   }));
+  const perApple = M2_PER_HA / ROAD_APPLES.treesPerHa;
+  const byRoad = new Map<number, number>();
+  for (const apple of state.roads?.apples ?? []) {
+    if (apple.plantedDay === null) continue;
+    byRoad.set(apple.roadId, (byRoad.get(apple.roadId) ?? 0) + perApple);
+  }
+  for (const [id, area] of byRoad) areas.push({ target: { kind: 'road', id }, area });
   const total = areas.reduce((sum, a) => sum + a.area, 0);
   if (total <= 0) return [];
-  return areas.filter((a) => a.area > 0).map((a) => ({ id: a.id, share: a.area / total }));
+  return areas.filter((a) => a.area > 0).map((a) => ({ target: a.target, share: a.area / total }));
 }
 
 /**
@@ -292,6 +305,18 @@ function constructionShares(work: ConstructionWork): LaborShare[] {
   if (c.kind === 'pen' || c.kind === 'ard') {
     if (c.penId === null || c.penId === undefined) return [];
     return penShares(work, { kind: 'pen', id: c.penId });
+  }
+  if (c.kind === 'road-apples') {
+    const roadId = c.roadIds?.[0];
+    return roadId === undefined
+      ? []
+      : [
+          {
+            activity: 'orchard-plant',
+            target: { kind: 'road', id: roadId },
+            manDays: work.manDays,
+          },
+        ];
   }
   if (c.kind === 'road') {
     // vylepšení pevné cesty (roads.md) – kácení dřeva hatě, pak práce na úseku

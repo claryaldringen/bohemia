@@ -567,16 +567,18 @@ export const ROAD_GRADE_ICONS: Record<RoadGrade, string> = {
 };
 
 /**
- * Pevná cesta (roads.md – Co hráč vidí): délka, stáří, stromy u ní, mokřina a brody; rozestavěné
- * vylepšení průběh; tlačítka vylepšení (ikony, cena v popisku jako v 0 A.D.) – když nejde,
- * zašedlé s důvodem červeně.
+ * Pevná cesta (roads.md – Co hráč vidí): délka, stáří, stromy u ní, jabloně (z nich plodící),
+ * mokřina a brody; rozestavěné vylepšení a výsadba jabloní průběh; tlačítka vylepšení a „Vysadit
+ * jabloně“ (ikony, cena v popisku jako v 0 A.D.) – když nejde, zašedlé s důvodem červeně.
  */
 function RoadBody({
   details,
   onUpgrade,
+  onPlantApples,
 }: {
   details: Extract<SelectionDetails, { kind: 'road' }>;
   onUpgrade?: (roadId: number, upgrade: RoadUpgrade) => Promise<void>;
+  onPlantApples?: (roadId: number) => Promise<void>;
 }): ReactElement {
   const [busy, setBusy] = useState(false);
   const run = (upgrade: RoadUpgrade): void => {
@@ -584,6 +586,12 @@ function RoadBody({
     setBusy(true);
     void onUpgrade(details.id, upgrade).finally(() => setBusy(false));
   };
+  const plant = (): void => {
+    if (!onPlantApples || busy) return;
+    setBusy(true);
+    void onPlantApples(details.id).finally(() => setBusy(false));
+  };
+  const { apples } = details;
   return (
     <div className="flex min-w-0 flex-col gap-1.5">
       <div className="flex items-center gap-3">
@@ -600,6 +608,12 @@ function RoadBody({
           {details.ageYears}
         </Stat>
         <Oaks count={details.trees} name="Stromy u cesty" testId="selection-road-trees" />
+        {apples.trees > 0 && (
+          <Stat icon="apples" name="Jabloně (plodí)" testId="selection-road-apples">
+            {apples.trees}
+            {apples.bearing < apples.trees ? ` (${apples.bearing})` : ''}
+          </Stat>
+        )}
         {(details.wetM > 0 || details.fords > 0) && (
           <Tooltip content="Mokřina a brody" placement="above">
             <span
@@ -618,56 +632,118 @@ function RoadBody({
           {details.building.treesToFell > 0 && <WoodToFell trees={details.building.treesToFell} />}
         </div>
       )}
-      {details.upgrades.length > 0 && (
+      {apples.planting && (
         <div className="flex items-center gap-1.5">
-          {details.upgrades.map((option) => (
-            <Tooltip
-              key={option.upgrade}
-              placement="above"
-              content={
-                <span className="flex flex-col gap-0.5">
-                  <span>{ROAD_UPGRADE_NAMES[option.upgrade]}</span>
-                  <span className="flex items-center gap-2 tabular-nums">
-                    <span className="flex items-center gap-1">
-                      <img src="/icons/resources/labor.png" alt="" width={16} height={16} />
-                      {formatDecimal(option.laborManDays, 0)}
-                    </span>
-                    {option.trees > 0 && (
-                      <span className="flex items-center gap-1">
-                        <img src="/icons/resources/wood.png" alt="" width={16} height={16} />
-                        {option.trees}
-                      </span>
-                    )}
+          <Bar
+            value={apples.planting.progress}
+            name="Výsadba jabloní"
+            testId="selection-apples-progress"
+          />
+          {apples.planting.waits && (
+            <Tooltip content="Sází se na jaře a na podzim" placement="above">
+              <img
+                data-testid="selection-apples-waits"
+                src="/icons/resources/date.png"
+                alt="Sází se na jaře a na podzim"
+                width={18}
+                height={18}
+                tabIndex={0}
+              />
+            </Tooltip>
+          )}
+        </div>
+      )}
+      <div className="flex items-center gap-1.5">
+        {details.upgrades.map((option) => (
+          <Tooltip
+            key={option.upgrade}
+            placement="above"
+            content={
+              <span className="flex flex-col gap-0.5">
+                <span>{ROAD_UPGRADE_NAMES[option.upgrade]}</span>
+                <span className="flex items-center gap-2 tabular-nums">
+                  <span className="flex items-center gap-1">
+                    <img src="/icons/resources/labor.png" alt="" width={16} height={16} />
+                    {formatDecimal(option.laborManDays, 0)}
                   </span>
-                  {option.blocked && (
-                    <span data-testid="road-upgrade-blocked" className="font-semibold text-red-400">
-                      {option.blocked}
+                  {option.trees > 0 && (
+                    <span className="flex items-center gap-1">
+                      <img src="/icons/resources/wood.png" alt="" width={16} height={16} />
+                      {option.trees}
                     </span>
                   )}
                 </span>
-              }
+                {option.blocked && (
+                  <span data-testid="road-upgrade-blocked" className="font-semibold text-red-400">
+                    {option.blocked}
+                  </span>
+                )}
+              </span>
+            }
+          >
+            <button
+              type="button"
+              data-testid={`road-upgrade-${option.upgrade}`}
+              aria-label={ROAD_UPGRADE_NAMES[option.upgrade]}
+              disabled={option.blocked !== null || busy || !onUpgrade}
+              aria-busy={busy}
+              onClick={() => run(option.upgrade)}
+              className={`hud-inset h-10 w-10 overflow-hidden rounded ${busy ? 'disabled:cursor-wait disabled:opacity-60' : 'disabled:cursor-not-allowed disabled:opacity-45 disabled:grayscale'}`}
             >
-              <button
-                type="button"
-                data-testid={`road-upgrade-${option.upgrade}`}
-                aria-label={ROAD_UPGRADE_NAMES[option.upgrade]}
-                disabled={option.blocked !== null || busy || !onUpgrade}
-                aria-busy={busy}
-                onClick={() => run(option.upgrade)}
-                className={`hud-inset h-10 w-10 overflow-hidden rounded ${busy ? 'disabled:cursor-wait disabled:opacity-60' : 'disabled:cursor-not-allowed disabled:opacity-45 disabled:grayscale'}`}
-              >
-                <img
-                  src={`/icons/build/${ROAD_GRADE_ICONS[option.upgrade]}.png`}
-                  alt=""
-                  width={40}
-                  height={40}
-                  className="h-full w-full"
-                />
-              </button>
-            </Tooltip>
-          ))}
-        </div>
-      )}
+              <img
+                src={`/icons/build/${ROAD_GRADE_ICONS[option.upgrade]}.png`}
+                alt=""
+                width={40}
+                height={40}
+                className="h-full w-full"
+              />
+            </button>
+          </Tooltip>
+        ))}
+        <Tooltip
+          placement="above"
+          content={
+            <span className="flex flex-col gap-0.5">
+              <span>Vysadit jabloně</span>
+              <span className="flex items-center gap-2 tabular-nums">
+                <span className="flex items-center gap-1">
+                  <img src="/icons/resources/labor.png" alt="" width={16} height={16} />
+                  {formatDecimal(apples.option.laborManDays, 0)}
+                </span>
+                {apples.option.trees > 0 && (
+                  <span className="flex items-center gap-1">
+                    <img src="/icons/resources/apples.png" alt="" width={16} height={16} />
+                    {apples.option.trees}
+                  </span>
+                )}
+              </span>
+              {apples.option.blocked && (
+                <span data-testid="road-apples-blocked" className="font-semibold text-red-400">
+                  {apples.option.blocked}
+                </span>
+              )}
+            </span>
+          }
+        >
+          <button
+            type="button"
+            data-testid="road-plant-apples"
+            aria-label="Vysadit jabloně"
+            disabled={apples.option.blocked !== null || busy || !onPlantApples}
+            aria-busy={busy}
+            onClick={plant}
+            className={`hud-inset h-10 w-10 overflow-hidden rounded ${busy ? 'disabled:cursor-wait disabled:opacity-60' : 'disabled:cursor-not-allowed disabled:opacity-45 disabled:grayscale'}`}
+          >
+            <img
+              src="/icons/build/jablone.png"
+              alt=""
+              width={40}
+              height={40}
+              className="h-full w-full"
+            />
+          </button>
+        </Tooltip>
+      </div>
     </div>
   );
 }
@@ -715,18 +791,21 @@ function SacredBody({
  * posvátný dub, háj, modla a svatyně: kolik přidávají štěstí (háj i počet dubů), rozestavěná
  * modla a svatyně průběh stavby a duby ke skácení; ohrada: zvířata, seno, stáda, spřežení
  * a výcvik (`onTrainTeam` – akce „Vycvičit spřežení“); pevná cesta: délka, stáří, stromy,
- * vylepšení (`onUpgradeRoad`).
+ * vylepšení (`onUpgradeRoad`) a výsadba jabloní (`onPlantRoadApples`).
  */
 export function SelectionPanel({
   details,
   onTrainTeam,
   onUpgradeRoad,
+  onPlantRoadApples,
 }: {
   details: SelectionDetails | null;
   /** Zadá v ohradě výcvik spřežení (server action) – hotovo, až se vrátí. */
   onTrainTeam?: (penId: number) => Promise<void>;
   /** Zadá vylepšení pevné cesty (server action) – hotovo, až se vrátí. */
   onUpgradeRoad?: (roadId: number, upgrade: RoadUpgrade) => Promise<void>;
+  /** Zadá výsadbu jabloní podél pevné cesty (server action) – hotovo, až se vrátí. */
+  onPlantRoadApples?: (roadId: number) => Promise<void>;
 }): ReactElement | null {
   if (!details) return null;
   let portrait: ReactElement;
@@ -735,7 +814,14 @@ export function SelectionPanel({
     portrait = (
       <Portrait icon={ROAD_GRADE_ICONS[details.grade]} name={ROAD_GRADE_NAMES[details.grade]} />
     );
-    body = <RoadBody key={details.id} details={details} onUpgrade={onUpgradeRoad} />;
+    body = (
+      <RoadBody
+        key={details.id}
+        details={details}
+        onUpgrade={onUpgradeRoad}
+        onPlantApples={onPlantRoadApples}
+      />
+    );
   } else if (details.kind === 'pen') {
     portrait = <Portrait icon="ohrada" name="Ohrada" />;
     body = <PenBody key={details.id} details={details} onTrainTeam={onTrainTeam} />;

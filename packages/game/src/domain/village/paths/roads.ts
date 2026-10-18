@@ -9,8 +9,8 @@ import { villageHerds } from '../livestock';
 import { obstacleChangesAt, obstacleStatus, type ObstacleChanges } from '../obstacles';
 import { villageOrchards } from '../orchard';
 import { villagePens } from '../oxen';
-import { ROAD_TREE_ID_BASE, roadTreeLook } from '../road-trees';
-import { MILIR, ROADS, ROAD_TREES, SACRED_BUILDINGS } from '../rules';
+import { ROAD_TREE_ID_BASE, roadAppleStage, roadTreeLook } from '../road-trees';
+import { MILIR, ROADS, ROAD_APPLES, ROAD_TREES, SACRED_BUILDINGS } from '../rules';
 import type {
   ChronicleEvent,
   Construction,
@@ -271,6 +271,13 @@ export function updateRoads(
   // stromy: pařez zmizel, nebo strom odstranila stavba – místo je volné
   const removed = new Set(changes.removed);
   roads.trees = roads.trees.filter((t) => !removed.has(t.id) && roadTreeLook(t, day) !== null);
+  // jabloně: zmizí souše po letech a jabloně odstraněné stavbou (rozestavěná výsadba zůstává)
+  if (roads.apples) {
+    roads.apples = roads.apples.filter(
+      (a) =>
+        a.constructionId !== undefined || (!removed.has(a.id) && roadAppleStage(a, day) !== null),
+    );
+  }
   rootTrees(state, roads, day, blocked);
   return events;
 }
@@ -677,6 +684,12 @@ function splitRoad(roads: VillageRoads, hit: RoadHit, context: SpotContext): Roa
     ...(road.ground ? { ground: groundPart(road.ground, splitAt, total) } : {}),
   };
   road.spots = road.spots.filter((s) => secondAxis(s.x, s.z) >= firstAxis(s.x, s.z));
+  // jabloně podél druhé části patří novému úseku (roads.md – Vysazení jabloní)
+  for (const apple of roads.apples ?? []) {
+    if (apple.roadId === road.id && secondAxis(apple.x, apple.z) < firstAxis(apple.x, apple.z)) {
+      apple.roadId = rest.id;
+    }
+  }
   if (road.ground) road.ground = groundPart(road.ground, 0, splitAt);
   road.points = first;
   roads.roads.splice(hit.road + 1, 0, rest);
@@ -703,19 +716,24 @@ interface SpotContext {
  * vlevo a vpravo ROAD_TREES.offsetM od osy, kousek nepravidelně podél, ne blíž END_CLEAR_M ke
  * koncům; kde místo nejde (`canPlant`), zkusí druhou stranu, jinak nic. Místa jsou od sebe
  * aspoň ROAD_TREES.gapM. Deterministicky ze seedu – los v pevném pořadí bez ohledu na to, která
- * místa projdou.
+ * místa projdou. `layout` – rozestupy (výchozí stromy u cest, jabloně ROAD_APPLES).
  */
 export function roadTreeSpots(
   points: readonly RoadPoint[],
   seed: number,
   canPlant: (x: number, z: number) => boolean,
+  layout: {
+    spacingM: { from: number; to: number };
+    offsetM: { from: number; to: number };
+    gapM: number;
+  } = ROAD_TREES,
 ): RoadPoint[] {
   const out: RoadPoint[] = [];
   if (points.length < 2) return out;
   const at = lengthsAlong(points);
   const length = at[at.length - 1]!;
   const random = createRandom(seed);
-  const { spacingM, offsetM, gapM } = ROAD_TREES;
+  const { spacingM, offsetM, gapM } = layout;
   const flip = random.next() < 0.5 ? 1 : 0;
   let next = END_CLEAR_M + random.next() * spacingM.from * 0.5;
   let k = 0;
@@ -882,6 +900,10 @@ function rootTrees(
   const year = dateOfDayIndex(day).year;
   const occupied = new Set(roads.trees.map((t) => t.spot));
   const axes = axisDistance(roads.roads.map((r) => r.points));
+  // u jabloní se strom neuchytí (roads.md – jabloně a stromy u cesty se nepřekrývají)
+  const apples = roads.apples ?? [];
+  const nearApple = (x: number, z: number): boolean =>
+    apples.some((a) => length2(a.x - x, a.z - z) < ROAD_APPLES.treeClearM);
   for (const road of roads.roads) {
     if (day - road.bornDay < ROAD_TREES.rootAfterYears * DAYS_PER_YEAR) continue;
     for (const spot of road.spots) {
@@ -889,6 +911,7 @@ function rootTrees(
       const random = createRandom(deriveSeed(state.seed, `road-tree:${year}:${spot.id}`));
       if (random.next() >= ROAD_TREES.rootChancePerYear) continue;
       if (blocked(spot.x, spot.z) || axes(spot.x, spot.z) < ROAD_CLEAR_M) continue;
+      if (nearApple(spot.x, spot.z)) continue;
       const species = speciesOf(random.next());
       const life = ROAD_TREES.lifeYears[species];
       const years = life.from + random.next() * (life.to - life.from);

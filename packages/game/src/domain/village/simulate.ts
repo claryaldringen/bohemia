@@ -29,6 +29,7 @@ import { recordClearedObstacles } from './obstacles';
 import { roadsDay } from './paths/roads';
 import { refreshWalkDistances } from './paths/village';
 import { roadWalk, walkGroundOf } from './paths/walking';
+import { finishRoadApples, workRoadApples, roadApplesNeed } from './road-apples';
 import { finishRoadUpgrade } from './road-upgrades';
 import { relocationPlot } from './plots';
 import { allocateDay, type LaborTaskName } from './labor';
@@ -630,6 +631,8 @@ function constructionNeed(
   founding: FoundingIndex,
 ): number {
   if (c.kind === 'orchard') return orchardPlantingNeed(state, c, day);
+  // jabloně u cesty se sázejí jen v oknech jara a podzimu (roads.md)
+  if (c.kind === 'road-apples') return roadApplesNeed(c, day);
   if (c.kind !== 'field') return Math.max(0, c.cost - c.done);
   return foundingParts(founding, c).reduce((sum, p) => sum + (p.foundingCost - p.foundingDone), 0);
 }
@@ -708,6 +711,10 @@ function invest(
     plantOrchard(state, day, c, amount, completes);
     return;
   }
+  if (c.kind === 'road-apples') {
+    workRoadApples(state, day, c, amount, completes);
+    return;
+  }
   if (c.kind !== 'field') {
     c.done = completes ? c.cost : Math.min(c.cost, c.done + amount);
     // dřevo se kácí jako první část práce stavby (forest.md)
@@ -781,6 +788,12 @@ function finishConstructions(state: VillageState, day: number): void {
     if (c.kind === 'road') {
       // vylepšená pevná cesta – rychlejší chůze (roads.md); vzdálenosti chůze se přepočítají
       finishRoadUpgrade(state, c);
+      state.chronicle.push(finishedEvent(day, c, null));
+      continue;
+    }
+    if (c.kind === 'road-apples') {
+      // jabloně podél cesty vysazené – péče a sklizeň se sady (roads.md)
+      finishRoadApples(state, c, day);
       state.chronicle.push(finishedEvent(day, c, null));
       continue;
     }

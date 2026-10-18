@@ -12,7 +12,7 @@ import {
   type WorkshopActivity,
 } from '@bohemia/game';
 import type { VillageTarget } from './scene/village-picking';
-import { CRAFT_LOOKS, type SceneVillage, type VillageView } from './village-view';
+import { CRAFT_LOOKS, type SceneVillage, type VillageRoad, type VillageView } from './village-view';
 
 // Co ukáže panel výběru (dole uprostřed, jako v 0 A.D.) o vybraném obydlí (i řemeslné dílně –
 // crafts.md), poli, hřbitovu, sadu, posvátném místě (posvátný dub, dubový háj, modla, svatyně –
@@ -178,6 +178,8 @@ export type SelectionDetails =
       building: { grade: RoadGrade; progress: number; treesToFell: number } | null;
       /** Vylepšení, která úsek nabízí – cena a proč teď nejde. */
       upgrades: RoadUpgradeOption[];
+      /** Jabloně podél úseku a „Vysadit jabloně“ (roads.md – Vysazení jabloní). */
+      apples: VillageRoad['apples'];
     };
 
 /** Pořadí stád v panelu ohrady (diet.md – Dobytek). */

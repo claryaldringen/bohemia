@@ -3,9 +3,12 @@
 // (roads.md, paths/roads.ts) – tady jen jedna cesta od vsi přes louku, místa na stromy ze stejné
 // funkce jádra a na nich stromy po řadě v každém stadiu (keř, mladý, plný strom, souš, pařez);
 // druhá cesta vede k nejbližšímu brodu přes potok (mokřina a brod z terénu jádra) a obě jdou
-// přepnout po stupních vylepšení (`DEMO_ROAD_STAGES`).
+// přepnout po stupních vylepšení (`DEMO_ROAD_STAGES`). Podél druhé cesty (bez ní podél první)
+// stojí jabloně po 10 m na místech z funkce jádra – přepínají se stadia (`DEMO_APPLE_STAGES`:
+// vytyčení, mladé u kůlu, plodící, souše).
 import {
   PATH_FORD,
+  ROAD_APPLES,
   ROAD_TREE_ID_BASE,
   roadGroundOf,
   roadTreeSpots,
@@ -17,7 +20,7 @@ import {
   type RoadGrade,
   type RoadTreeSpecies,
 } from '@bohemia/game';
-import type { SceneRoad, SceneRoadTree } from '@/lib/village-view';
+import type { SceneRoad, SceneRoadApple, SceneRoadTree } from '@/lib/village-view';
 
 /** Stadia stromů na ukázce po řadě (keř malý a velký, strom mladý, poloviční a plný, souš, pařez). */
 const DEMO_STAGES: Pick<SceneRoadTree, 'stage' | 'growth'>[] = [
@@ -40,7 +43,11 @@ const BEND_M = 14;
  * Ukázková pevná cesta od vsi přes louku – ze směrů kolem vsi ten, kde vede nejvíc po louce
  * (ne přes vodu a les) – a stromy na místech u ní v každém stadiu.
  */
-export function demoRoad(l: Landscape): { roads: SceneRoad[]; trees: SceneRoadTree[] } {
+export function demoRoad(l: Landscape): {
+  roads: SceneRoad[];
+  trees: SceneRoadTree[];
+  apples: SceneRoadApple[];
+} {
   const center = tileCenterWorld(l, l.villageSite.x, l.villageSite.y);
   const meadow = (x: number, z: number): boolean => {
     const tile = tileOfWorldPoint(l, x, z);
@@ -108,7 +115,59 @@ export function demoRoad(l: Landscape): { roads: SceneRoad[]; trees: SceneRoadTr
     });
     roads.push({ id: 2, points: axis, grade: 'trodden', ground: roadGroundOf(axis, ground) });
   }
-  return { roads, trees };
+  // jabloně podél poslední cesty – místa po 10 m jako v jádru (roads.md – Vysazení jabloní),
+  // ne ve vodě, v lese ani u stromů první cesty
+  const appleRoad = roads[roads.length - 1]!;
+  const dry = (x: number, z: number): boolean => {
+    const i = Math.round((x - ground.originX) / ground.cellM);
+    const j = Math.round((z - ground.originZ) / ground.cellM);
+    if (i < 0 || j < 0 || i >= ground.width || j >= ground.height) return false;
+    const c = j * ground.width + i;
+    return Number.isFinite(ground.cost[c]!) && !(ground.flags[c]! & PATH_FORD) && meadow(x, z);
+  };
+  const appleSpots = roadTreeSpots(
+    appleRoad.points,
+    11,
+    (x, z) =>
+      dry(x, z) && !trees.some((t) => Math.hypot(t.x - x, t.z - z) < ROAD_APPLES.treeClearM),
+    {
+      spacingM: { from: ROAD_APPLES.spacingM, to: ROAD_APPLES.spacingM },
+      offsetM: ROAD_APPLES.offsetM,
+      gapM: ROAD_APPLES.gapM,
+    },
+  );
+  const apples = appleSpots.map((p, k): SceneRoadApple => ({
+    id: ROAD_TREE_ID_BASE + 500 + k,
+    roadId: appleRoad.id,
+    x: p.x,
+    z: p.z,
+    stage: 'planting',
+    growth: 0,
+    fruit: false,
+  }));
+  return { roads, trees, apples };
+}
+
+/** Stadia jabloní ukázky: žádné, vytyčení, mladé u kůlu, plodící s jablky, staré, souše. */
+export const DEMO_APPLE_STAGES: readonly {
+  label: string;
+  apple?: Pick<SceneRoadApple, 'stage' | 'growth' | 'fruit'>;
+}[] = [
+  { label: 'žádné' },
+  { label: 'vytyčení', apple: { stage: 'planting', growth: 0, fruit: false } },
+  { label: 'mladé', apple: { stage: 'tree', growth: 0.4, fruit: false } },
+  { label: 's jablky', apple: { stage: 'tree', growth: 1, fruit: true } },
+  { label: 'bez jablek', apple: { stage: 'tree', growth: 1, fruit: false } },
+  { label: 'souše', apple: { stage: 'snag', growth: 1, fruit: false } },
+];
+
+/** Jabloně ukázky ve stadiu `stage` (index v DEMO_APPLE_STAGES). */
+export function demoApplesStage(
+  apples: readonly SceneRoadApple[],
+  stage: number,
+): SceneRoadApple[] {
+  const s = DEMO_APPLE_STAGES[stage % DEMO_APPLE_STAGES.length]!;
+  return s.apple ? apples.map((a) => ({ ...a, ...s.apple })) : [];
 }
 
 /** Stupně ukázky: vyšlapaná, úprava rozestavěná, upravená, hať rozestavěná, hať a lávka. */
