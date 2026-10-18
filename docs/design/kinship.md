@@ -137,6 +137,23 @@ vsi blízké příbuzné, nebudou chtít útočit):
   27letý svobodný s dětmi. Odhad na 30 let (bez vrstvy překážek): 19 lidí, 20 porodů, 13 úmrtí,
   3 svatby ve vsi, 2 nevěsty z okolí, 2 dcery vdané pryč (bez příbuzenství 17 lidí, 17 porodů).
 
+## Kalibrace
+
+`measure-village.ts 30 60` (18. 10. 2026, bez příbuzenství → s ním; měřeno ještě před povolením
+odchodu svobodného syna z plného domu):
+
+- první možnost stavět: medián 5,0 → 4,0 roku, p90 10,1 → 4,0 (jedna ves z 30 za 60 let lidi
+  k osídlení nedostala); zemnice čerstvě plnou domácností 164 → 99 dní, polozemnice 579 → 408 –
+  obojí teď v cíli,
+- ves, kde hráč staví: vymření 0 → 1 z 30 vsí za 60 let, na konci domácností medián 4 → 3, lidí
+  19 → 17,
+- jediná domácnost bez staveb: vymření 0 → 3 z 30 (medián po 51 letech), žijící mají medián 7
+  lidí (5) – sourozenci se už nevezmou, rod závisí na nevěstách z okolí,
+- nasycení beze změny (≥ 0,95 v 99,7 % let), společná práce domácnosti 14 → 23 člověkodní ročně.
+- Rychlé srovnání 30 vsí × 60 let se syntetickým polem a hráčem, který staví (skript mimo repo):
+  porodů medián 17 → 23, vymřelých 13 → 1 z 30 – bez příbuzenství tam „páry“ z libovolných lidí
+  stěhováním rozbíjely domácnosti.
+
 ## Rozhodnutí
 
 | Rozhodnutí                                                                                | Kdo          |
