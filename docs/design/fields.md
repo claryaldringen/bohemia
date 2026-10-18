@@ -476,9 +476,9 @@ s úrodností 70 do 100 m od obydlí (po opravě podle rešerše, v závorce dř
 - práce v ustáleném oběhu (měření): osev a vrácení přílohů ≈ 340 člověkodní (300), denní
   minimum ≈ 185, domácí výroba ≈ 330, dohromady ≈ 850, tedy **≈ 90 %** (86 %) z ≈ 950
   člověkodní, které ves za rok má – společné práce zbývá ≈ 10 % (14 %),
-- špičky: na jaře (polovina kopání na podzim) potřebuje skoro všechnu práci, která zbývá po
-  denním minimu (v nejhorším roce zbude ≈ 2 %), v létě při sklizni ≈ 80 % (dřív na jaře i v létě
-  asi dvě třetiny) – kopání 100 člověkodní na hektar dělá z jara úzké hrdlo.
+- špičky: bez ozimu (polovina kopání na podzim) potřebovalo jaro skoro všechnu práci, která
+  zbývá po denním minimu (v nejhorším roce zbylo ≈ 2 %); s ozimem a podzimním kopáním zbude na
+  jaře ≈ 26 % a úzkým hrdlem je podzim (září–říjen, ozim) – viz Ozim a jař a Naměřeno.
 
 Plná domácnost (4 dospělí a 2 malé děti) potřebuje s rezervou ≈ 1 060 kg, tedy osev ≈ 2,6 ha
 a v ustáleném oběhu pole ≈ 14 ha (9); na obživu jí padne ≈ 84 % práce (79 %). Na přirozené
@@ -546,6 +546,27 @@ zkopané, plete a sklízí se jen zasetá část.
   mezi 1 a 1,5 roční potřeby jen v ≈ 62 % let (79 %) – **MIMO**,
 - pole na domácnost po 60 letech (hráč staví, nové měření): medián ≈ 12,7 ha pole a ≈ 1,9 ha
   osevu, pole ≈ 6,6× osevu (hráč drží navíc přílohy, které ještě nejdou osít).
+
+**Naměřeno s ozimem a jaří** (`measure-village.ts 200 60`, 18. 10. 2026; čísla se neladila).
+Nejdřív jen ozim a podzimní kopání nad čísly z rešerše (krajiny verze 1, bez hladu, který zabíjí,
+a bez štěstí), v závorce měření 17. 10. výše; pak po sloučení s pastvinou na přílohu, prací po
+čtvercích, navazujícími poli a s `feat/landscape` (hlad zabíjí, štěstí násobí práci):
+
+- **ozim na osevu** medián 54 % plochy (p10 46 %, p90 75 %) – podzim (září–říjen) ves vytíží
+  skoro celý (rezerva startovní vsi 2 %, po sloučení 1 %),
+- **špičky startovní vsi:** jaro 27 % (2 %), léto 12 % (19 % – ozim a jař se sklízejí každá
+  v jednom měsíci), pletí 55 %, vše stihne v 99 % let (96 %); po sloučení jaro 26 %, léto 12 % –
+  **MIMO** jen léto (cíl ≥ 20 %),
+- **nasycení ≥ 0,95, hráč staví:** 81,6 % let (69 %), bez staveb 95,4 % (93 %); po sloučení
+  74,3 % a 95,3 % – stále **MIMO** (cíl 95 %),
+- **zásoby po sklizni:** p10 0,85 / medián 1,24 / p90 1,57, v pásmu 63 % let (0,79 / 1,20 /
+  1,54, 62 %); po sloučení 0,81 / 1,15 / 1,51, 59 % – **MIMO**,
+- **po 60 letech (hráč staví):** medián 4 domácnosti a 19 lidí, pole 12,4 ha a osev 1,8 ha na
+  domácnost (6,5×); po sloučení 2 domácnosti a 10 lidí (vymřelo 6 % vsí – hlad teď zabíjí), pole
+  22,6 ha na domácnost (13×) – příloh už nezaroste v les, takže se do pole počítá celý (dřív se
+  díly v lese nepočítaly) a hráč měření ho dál přidává,
+- startovní a plná domácnost: osev 1,55 a 2,52 ha, na obživu 89 % a 84 % práce beze změny;
+  pole plné domácnosti 17,8 ha (**MIMO** cíl ≈ 14 ha – pole teď zahrnuje i staré pastviny).
 
 ## Co hráč vidí
 
