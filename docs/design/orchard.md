@@ -54,8 +54,10 @@ rozhoduje, kolik louky a práce dá do jistoty na dlouho dopředu místo obilí 
     stromy; jde až po výmlatu. Nedodělaná péče zatím nic nezhorší – je to jen práce.
   - **sklizeň** v září–říjnu **8 člověkodní/ha** při plné úrodě, při menší úrodě poměrně méně
     (návrh Clauda; dřív 25: setřesení a ruční sběr ≈ 1 člověkoden na 300–500 kg – Degenbeck
-    2020); jde před podzimním kopáním (okno končí dřív). Jablka přibývají do zásob postupně, jak
-    se sklízí; co se do konce října nestihne, spadne a shnije (úroda × podíl sklizené práce).
+    2020); jde před podzimními pracemi v poli – před ozimem (při stejném konci okna jablka
+    první, ozim dostane zbytek podzimu, se kterým plán osevu počítá) i před kopáním jaře (okno
+    končí dřív). Jablka přibývají do zásob postupně, jak se sklízí; co se do konce října
+    nestihne, spadne a shnije (úroda × podíl sklizené práce).
 - **Jídlo:** sklizená jablka jdou do zásob vsi zvlášť a **jí se přednostně** před obilím; co
   zbude k **1. 3.** (ráno), shnije. Přídělový systém (fields.md) počítá jen s jablky, která se
   stihnou sníst do konce února: když jídlo do sklizně nevystačí, dělí se rovně – a když jablek

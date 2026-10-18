@@ -7,7 +7,9 @@ volného obrysu. Týž den **oprava čísel podle rešerše** (Martin: „Ano, z
 Implementace jádra: `packages/game/src/domain/village/`. **Pole v křovinách a v lese
 implementováno 18. 10. 2026:** povrch dílu (`fieldSquareSurface`), sazby povrchu se stromy
 a keři v ceně, klády z mýcení a popel z vymýceného lesa; scéna a minimapa vymýcený les
-přestanou kreslit jako les (viz Krajina sídla a scéna).
+přestanou kreslit jako les (viz Krajina sídla a scéna). **Ozim a jař s podzimním kopáním
+(18. 10. 2026)** – návrh Clauda, Martin schválil směr; implementováno (`sowing.ts`,
+`year-plan.ts`), viz Ozim a jař.
 
 ## Proč
 
@@ -147,10 +149,11 @@ má nějaké meze. Bez řemeslníků ber tu nejhorší hranici, s řemeslníky t
   pokryla **roční potřebu všech obyvatel a 15 % navíc** (rezerva na ztráty při skladování
   a růst rodiny během roku – kalibrace), ale:
   - nejvýš kolik je dílů, které smí osít (viz Přílohová soustava),
-  - nejvýš kolik její práce stihne ve špičkách (jaro, léto – viz Práce; počítá se všechna
-    práce po denním minimu – kalibrace z 80 %),
+  - nejvýš kolik její práce stihne ve špičkách (podzim, jaro, červenec a srpen – viz Ozim a jař;
+    počítá se všechna práce po denním minimu – kalibrace z 80 %),
   - když mají zásoby víc než 1,5 roční potřeby, jen potřebu bez rezervy.
-- Které díly oseje, určuje pořadí v Přílohové soustavě.
+- Které díly oseje, určuje pořadí v Přílohové soustavě; čím je oseje (ozim, nebo jař), rozhodne
+  ves zároveň (viz Ozim a jař).
 
 ### Přílohová soustava – co se oseje a co leží ladem
 
@@ -207,15 +210,17 @@ podle rešerše, dřív 200 – kopání 80, výmlat 30). Zatím jen motyky; **r
 (Martin)** – rádlo by zpracování půdy zkrátilo na ≈ 5–15 člověkodní na hektar, drn ale dál chce
 motyku nebo oheň (Semjonov 1974).
 
-| Práce                      | Kdy (kalendář)                           | Člověkodny / ha | Zdroj                 |
-| -------------------------- | ---------------------------------------- | --------------- | --------------------- |
-| kopání motykou             | podzim (září–listopad) nebo březen–duben | 100 (50)        | Semjonov 1974         |
-| setí a zahrabání           | březen–duben                             | 10              | nedohledáno           |
-| pletí                      | květen–červen                            | 30 (15)         | FAO                   |
-| sklizeň srpem a vázání     | červenec–srpen                           | 30 (15)         | Halstead a Jones 1989 |
-| odnos úrody v nůších       | červenec–srpen                           | 20              | nedohledáno           |
-| výmlat cepem a převívání   | listopad–únor                            | 15 (10)         | Clark 2007 (EB 1911)  |
-| **celkem na osetý hektar** |                                          | **205 (120)**   |                       |
+| Práce                      | Kdy – ozim    | Kdy – jař                                   | Člověkodny / ha | Zdroj                 |
+| -------------------------- | ------------- | ------------------------------------------- | --------------- | --------------------- |
+| kopání motykou             | září–říjen    | podzim (září–listopad), zbytek březen–duben | 100 (50)        | Semjonov 1974         |
+| setí a zahrabání           | září–říjen    | březen–duben                                | 10              | nedohledáno           |
+| pletí                      | květen–červen | květen–červen                               | 30 (15)         | FAO                   |
+| sklizeň srpem a vázání     | červenec      | srpen                                       | 30 (15)         | Halstead a Jones 1989 |
+| odnos úrody v nůších       | červenec      | srpen                                       | 20              | nedohledáno           |
+| výmlat cepem a převívání   | listopad–únor | listopad–únor                               | 15 (10)         | Clark 2007 (EB 1911)  |
+| **celkem na osetý hektar** |               |                                             | **205 (120)**   |                       |
+
+Ozim a jař se liší jen kalendářem (viz Ozim a jař) – sazby práce, osivo a úroda jsou stejné.
 
 První sezónu po vymýcení lesa se díl **neplete** (viz Úroda).
 
@@ -236,6 +241,60 @@ První sezónu po vymýcení lesa se díl **neplete** (viz Úroda).
   vypálí se) 100 (60), 11–15 let (husté křoviny) 100 (60), víc než 15 let (les) 250 (150) jako
   mýcení (Semjonov 1974, Rösch a kol. 2017). V běžném oběhu se příloh vrací po 13 letech
   (křoviny), tedy za 100 na hektar.
+
+### Ozim a jař
+
+Stav: **návrh Clauda, Martin schválil směr 18. 10. 2026** (Martin: „Klidně můžeš už teď
+zapracovat mechaniku s ozimí, pokud to odpovídá praxi ranného středověku.“). Řeší jarní úzké
+hrdlo práce – po opravě podle rešerše stojí kopání 100 člověkodní na hektar a na jaře práce
+sotva stačila na osev (viz Naměřeno).
+
+**Odpovídá to praxi?** Ano, s výhradou pravidelnosti. Raně středověké vsi v Čechách a okolí
+pěstovaly vedle sebe ozimé obilí (žito, nahou pšenici) a jarní (ječmen, proso): v Březně je
+v poslední fázi (do konce 9. st.) víc žita – ozimu – i ječmene (Pleinerová 2000, cit. Szymański
+2002, s. 400), v Žatci v 9.–10. st. převládá nahá pšenice a od 11. st. prudce přibývá žita
+a plevelů ozimů, což autoři čtou jako intenzivnější, trojpolní hospodaření (Kočár a kol. 2010),
+v kultuře pražského typu na Ukrajině vede ječmen, pak žito a nahá pšenice, proso je 1/10–1/6
+(Gorbaněnko 2017). Pokus s žďářením ve Forchtenbergu počítá práci na ozimou pšenici (Rösch
+a kol. 2017). Pravidelné střídání ozimu, jaře a úhoru (trojpolí) přichází až později –
+v přílohové soustavě ves seje obojí volně (podle výtahu z literatury se u časně středověkých
+Slovanů střídání ozimů, jařin a úhoru vyskytovalo, ale ne pravidelně – Beranová; přesné místo
+jsem neověřil). Podzimní zpracování půdy je u ozimu nutnost (seje se na podzim); u jaře je
+podzimní kopání tradiční praxe (mráz rozdrobí hroudy, půda zadrží zimní vláhu), přímý doklad
+pro raný středověk ale nemám – zůstává návrhem Clauda jako dosavadní okno kopání září–listopad.
+
+- **Dvě plodiny** (zatím bez druhů – „ozim“ je žito a pšenice, „jař“ ječmen):
+  - **ozim** – vrácení přílohu, kopání a setí v **září–říjnu**, sklizeň v **červenci**, výmlat
+    v zimě (listopad–únor),
+  - **jař** – kopání na podzim (**září–listopad**), co se nestihne, v **březnu–dubnu**; setí
+    v **březnu–dubnu**, sklizeň v **srpnu**, výmlat v zimě.
+  - Pletí obou v **květnu–červnu**. Stejné osivo (175 kg/ha), stejná úroda i sazby práce;
+    vymrzání ozimu zatím ne (přijde s počasím).
+- **Podzimní kopání:** díly v osevu se kopou na podzim (září–listopad); na jaře se kope jen to,
+  co podzim nestihl – nahrazuje pevné dělení „polovina kopání na jaře“. Na podzim ves kope
+  nejdřív ozim (musí být zasetý do konce října), pak jař.
+- **Ves rozhodne k 1. 9.** při plánu osevu (viz Kolik ves oseje): díly bere v pořadí přílohové
+  soustavy, dokud nepokryje cíl osevu (potřeba + rezerva, beze změny), a každý dá do **ozimu**,
+  pokud podzimní práce stihne jeho vrácení z přílohu, kopání a setí do konce října (po sklizni
+  jablek – ta jde v září–říjnu první, viz [sad](orchard.md)) a jeho sklizeň v červenci; jinak do
+  **jaře**, pokud se jař vejde do zbytku podzimu (kopání), do jarní práce (setí a kopání, které
+  podzim nestihl) a do srpnové sklizně. Co se nevejde nikam, ves letos neoseje. Seje se, co je
+  zkopané do včerejška, proto plán v oknech setí (podzim ozimu, jaro) počítá s jedním dnem
+  méně – zaseje se i pruh zkopaný poslední den. Sklizeň obilí v modelu končí 31. 8., takže do
+  podzimní práce nic nepřetéká.
+- **Díly hotové po 1. 9.** (do konce dubna) jdou do plánu jako jař, pokud se vejdou do zbývající
+  práce – počítají se jen dny, které z oken ještě zbývají, a práce, kterou plán ještě má.
+- **Jídlo:** sklizeň ozimu jde do zásob **31. 7.** (po jídle dne), jaře 31. 8. Přídělový systém
+  počítá do 31. 7., když ozim podle odhadu (zasetá plocha – do konce října celá –, plná sklizeň,
+  pletí, kolik je hotové) uživí ves od 1. 8. do 31. 8.; jinak do 31. 8.
+- **Díly nesou plodinu**; vyčerpání úrodnosti a příloh se počítají po dílech beze změny. Starší
+  vsi (díly bez plodiny, plán bez ozimu) dopočítají dál – díl bez plodiny je jař.
+- **Ve scéně** ozim na podzim vzejde a přes zimu zůstává zelený (sníh přidávají roční období),
+  zraje v červenci; jař leží přes zimu jako zkopaná zem, zezelená na jaře a zraje v srpnu. Stav
+  obilí (holá zem, vzešlé osení, zelené a zralé obilí, strniště) odvozuje jádro ze simulace
+  (`partCropState` – setí a sklizeň postupují v pořadí dílů plánu); do scény se dostane
+  s vzhledem obilí, který se připravuje jinde.
+- **Panel pole** ukazuje oseté díly podle plodiny (ikona ozimu a jaře s počtem dílů).
 
 ### Úroda
 
@@ -273,6 +332,8 @@ První sezónu po vymýcení lesa se díl **neplete** (viz Úroda).
 - **Přídělový systém:** dokud zásoby vystačí do příští sklizně, jí ves dosyta (nasycení 1).
   Když nevystačí, obyvatelé rozdělí to, co zbývá, rovnoměrně do sklizně – nasycení je podíl
   zásob a potřeby do sklizně (návrh Clauda). Ves tak hladoví postupně, ne ze dne na den.
+  Příští sklizní je **sklizeň ozimu 31. 7.**, když ji ves čeká a podle odhadu uživí ves v srpnu
+  do sklizně jaře; jinak sklizeň jaře 31. 8. (viz Ozim a jař).
 - **Start:** osadníci přinesli zásoby a osivo na **18 měsíců** potřeby (návrh Clauda) – ves
   přežije i založení těsně po jarním setí.
 - **Hlad ves nezničí** (návrh Clauda, podle anti-cíle populace): hlad tlumí porody a zvyšuje
@@ -435,13 +496,14 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 - **Zakládání:** pole se zakládá jako stavba – hotové díly se postupně zbarví, stromy
   a kameny z nich zmizí.
 - **Panel pole** (výběr kliknutím): výměra, úrodnost, kolik dílů se zakládá, je oseto a leží
-  v přílohu podle stadia (mladý příloh, louka, nálet, křoviny, les) – ikony a čísla. Očekávaná
-  úroda a jestli práce stačí – později.
+  v přílohu podle stadia (mladý příloh, louka, nálet, křoviny, les) – ikony a čísla; oseté díly
+  podle plodiny (ozim, jař). Očekávaná úroda a jestli práce stačí – později.
 - **Horní lišta:** zásoby obilí, volná společná práce za den, nasycení (barva ikony).
 - **Ve scéně:** pole na terénu podle ročního období – oraniště (jaro), zelené a zlaté obilí,
   strniště, přílohy v různém stadiu zarůstání (tráva, vyšší tráva, keře, nálet mladých
   stromků) – kolem vsi pestrá mozaika, hranice pole (mez). 3D a textury jsou samostatný úkol.
-- **Kronika:** založení pole, sklizeň (kolik), hlad, díl pole zarostl v les.
+- **Kronika:** založení pole, sklizeň (kolik – ves s ozimem i jaří zvlášť sklizeň ozimu a jaře),
+  hlad, díl pole zarostl v les.
 
 ## Navazuje
 
@@ -455,8 +517,9 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
   dobytka). Každý krok uvolní půdu i práci.
 - **Počasí** – dobré a špatné roky úrody (Martin: náhoda až s počasím); hájení se pak rozšíří
   i na neúrodu.
-- **Druhy plodin** (ozim a jař, proso, luštěniny), **zvířata, seno a pastva**, **les a dřevo**
-  (využití vykáceného dřeva), zahrady a rybolov.
+- **Druhy plodin** (ozim a jař už jsou – viz Ozim a jař; dál žito a pšenice zvlášť, proso
+  s osivem 10–25 kg/ha, luštěniny), vymrzání ozimu s počasím, **zvířata, seno a pastva**,
+  **les a dřevo** (využití vykáceného dřeva), zahrady a rybolov.
 
 ## Na stavitelovi
 
@@ -470,44 +533,50 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 
 ## Rozhodnutí
 
-| Rozhodnutí                                                                                                               | Kdo                                           |
-| ------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------- |
-| Pole = celá zemědělská půda; obdělává se jen část, zbytek ladem podle středověkých systémů                               | Martin                                        |
-| Zpočátku jen ruční práce; příliš velké pole ves neobdělá a část zarůstá                                                  | Martin                                        |
-| Pole jsou samostatná a společná pro celou ves; zakládá je hráč zvlášť                                                    | Martin                                        |
-| Pole se vyznačí volným obrysem na zemi; jde i do lesa, překážky prodraží založení                                        | Martin                                        |
-| Změna: pole se staví po čtvercích – políčkách krajiny (místo volného obrysu)                                             | Martin                                        |
-| Ves se zakládá zemnicí; pole přidá hráč, kdy chce (dřív zemnicí a prvním polem)                                          | Martin (17. 10. 2026)                         |
-| Odstraněné stromy a kameny zmizí natrvalo; dřevo do zásob až s mechanikou dřeva                                          | Martin                                        |
-| Hráč určuje, kde pole jsou a jak velká; kolik se oseje, rozhoduje ves podle potřeby                                      | návrh Clauda, Martin potvrdil                 |
-| Ležení ladem obnovuje úrodnost, osev ji vyčerpává; systém se časem zlepšuje                                              | návrh Clauda, Martin potvrdil                 |
-| Pole nahradí 85 %; nástroje a systémy uvolní práci                                                                       | návrh Clauda, Martin potvrdil                 |
-| Práce podle ročních období, sklizeň do zásob → nasycení                                                                  | návrh Clauda, Martin potvrdil                 |
-| Úroda podle úrodnosti, práce a včasnosti; zarostlá půda → louka → les                                                    | návrh Clauda, Martin potvrdil                 |
-| Díly pole po políčkách krajiny; max 800 m od obydlí, min 0,1 ha                                                          | návrh Clauda                                  |
-| ~~Ceny založení: louka 40, křoviny 150, les 250 člověkodní/ha~~; tabulka překážek                                        | návrh Clauda                                  |
-| Křoviny = louka, kde keře po kusech stojí aspoň rozdíl sazeb; v lese stromy a podrost v ceně                             | návrh Clauda                                  |
-| Založení jako stavba ze společné práce, díly postupně od obydlí                                                          | návrh Clauda                                  |
-| Ves oseje k 1. 9. potřebu + 15 % (kalibrace z 10 %)                                                                      | návrh Clauda                                  |
-| Příloh se neudržuje a zarůstá; nevybrané díly stárnou až v les                                                           | návrh Clauda                                  |
-| Práce za celou ves: pořadí, denní minimum, domácí výroba (jen práce, přenos max 60 dní)                                  | návrh Clauda                                  |
-| ~~Práce 200 člověkodní/ha~~, výnos 760 kg × úrodnost, osivo 175 kg, potřeba 180/140/100                                  | návrh Clauda                                  |
-| ~~Vymýcený les +20 úrodnosti na 3 roky~~; vzdálenost +1 % / 10 m                                                         | návrh Clauda                                  |
-| Společné zásoby vsi, ztráty 10 %, přídělový systém, start se zásobami na 18 měsíců                                       | návrh Clauda                                  |
-| Přirozená louka nezarůstá; les z náletu ve scéně jako mladé stromky                                                      | návrh Clauda                                  |
-| Překážky jako verzovaná vrstva krajiny v `packages/game`; co je překážka a za kolik                                      | návrh Clauda                                  |
-| Hlad ves zmenší, ale nezničí; hájení chrání i před hladem                                                                | návrh Clauda                                  |
-| Výchozí osevní systém: přílohová soustava raných Slovanů                                                                 | Martin                                        |
-| Úroda zatím bez náhody – dobré a špatné roky až s počasím (pak hájení i na neúrodu)                                      | Martin                                        |
-| Přílohová soustava: osev do 70 % úrodnosti (≈ 3 roky), příloh do 95 % (~~≈ 7 let~~), pořadí dílů                         | návrh Clauda                                  |
-| ~~Vrácení přílohu podle stadia: louka 40, nálet 60, křoviny 150, les 250 člověkodní/ha~~                                 | návrh Clauda                                  |
-| Jedno obilí                                                                                                              | návrh Clauda                                  |
-| Ovládání (čtverce na mřížce, panely, vzhled) – ladí se na prototypu                                                      | návrh Clauda                                  |
-| Meze produktivity: čísla s rozpětím mají horní mez (bez řemesel) a dolní (s řemesly)                                     | Martin (17. 10. 2026)                         |
-| Zatím jen motyky; rádlo a voli později                                                                                   | Martin (17. 10. 2026)                         |
-| Polní práce 205 (s řemesly 120) člověkodní/ha: kopání 100 (50), pletí 30 (15), sklizeň 30 (15), výmlat 15 (10)           | Martin – oprava podle rešerše 17. 10. 2026    |
-| Založení a vrácení přílohu: louka 100 (90), nálet a křoviny 100 (60), les 250 (150) člověkodní/ha                        | Martin – oprava podle rešerše 17. 10. 2026    |
-| Obnova v přílohu 2,5 % za rok – příloh 13 let, pole ≈ 5,3× osevu (rozhodnutí: 2 %, viz Přílohová soustava – k potvrzení) | Martin – oprava podle rešerše 17. 10. 2026    |
-| Vymýcený les +40 / +20 / 0 úrodnosti podle sezóny osevu, první sezónu bez pletí – i u dílů pole v lese                   | Martin – oprava podle rešerše 17. 10. 2026    |
-| Hrnčíř: ztráty zásob 10 → 5 %, denní minimum 0,5 → 0,45 (rozpětí návrh Clauda)                                           | Martin – oprava podle rešerše 17. 10. 2026    |
-| Křoviny bez řemesel stejně drahé jako louka – povrchem křovin je čtverec s jakýmkoli keřem (keře v ceně)                 | sloučení větví 18. 10. 2026 (z čísel rešerše) |
+| Rozhodnutí                                                                                                                        | Kdo                                             |
+| --------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| Pole = celá zemědělská půda; obdělává se jen část, zbytek ladem podle středověkých systémů                                        | Martin                                          |
+| Zpočátku jen ruční práce; příliš velké pole ves neobdělá a část zarůstá                                                           | Martin                                          |
+| Pole jsou samostatná a společná pro celou ves; zakládá je hráč zvlášť                                                             | Martin                                          |
+| Pole se vyznačí volným obrysem na zemi; jde i do lesa, překážky prodraží založení                                                 | Martin                                          |
+| Změna: pole se staví po čtvercích – políčkách krajiny (místo volného obrysu)                                                      | Martin                                          |
+| Ves se zakládá zemnicí; pole přidá hráč, kdy chce (dřív zemnicí a prvním polem)                                                   | Martin (17. 10. 2026)                           |
+| Odstraněné stromy a kameny zmizí natrvalo; dřevo do zásob až s mechanikou dřeva                                                   | Martin                                          |
+| Hráč určuje, kde pole jsou a jak velká; kolik se oseje, rozhoduje ves podle potřeby                                               | návrh Clauda, Martin potvrdil                   |
+| Ležení ladem obnovuje úrodnost, osev ji vyčerpává; systém se časem zlepšuje                                                       | návrh Clauda, Martin potvrdil                   |
+| Pole nahradí 85 %; nástroje a systémy uvolní práci                                                                                | návrh Clauda, Martin potvrdil                   |
+| Práce podle ročních období, sklizeň do zásob → nasycení                                                                           | návrh Clauda, Martin potvrdil                   |
+| Úroda podle úrodnosti, práce a včasnosti; zarostlá půda → louka → les                                                             | návrh Clauda, Martin potvrdil                   |
+| Díly pole po políčkách krajiny; max 800 m od obydlí, min 0,1 ha                                                                   | návrh Clauda                                    |
+| ~~Ceny založení: louka 40, křoviny 150, les 250 člověkodní/ha~~; tabulka překážek                                                 | návrh Clauda                                    |
+| Křoviny = louka, kde keře po kusech stojí aspoň rozdíl sazeb; v lese stromy a podrost v ceně                                      | návrh Clauda                                    |
+| Založení jako stavba ze společné práce, díly postupně od obydlí                                                                   | návrh Clauda                                    |
+| Ves oseje k 1. 9. potřebu + 15 % (kalibrace z 10 %)                                                                               | návrh Clauda                                    |
+| Příloh se neudržuje a zarůstá; nevybrané díly stárnou až v les                                                                    | návrh Clauda                                    |
+| Práce za celou ves: pořadí, denní minimum, domácí výroba (jen práce, přenos max 60 dní)                                           | návrh Clauda                                    |
+| ~~Práce 200 člověkodní/ha~~, výnos 760 kg × úrodnost, osivo 175 kg, potřeba 180/140/100                                           | návrh Clauda                                    |
+| ~~Vymýcený les +20 úrodnosti na 3 roky~~; vzdálenost +1 % / 10 m                                                                  | návrh Clauda                                    |
+| Společné zásoby vsi, ztráty 10 %, přídělový systém, start se zásobami na 18 měsíců                                                | návrh Clauda                                    |
+| Přirozená louka nezarůstá; les z náletu ve scéně jako mladé stromky                                                               | návrh Clauda                                    |
+| Překážky jako verzovaná vrstva krajiny v `packages/game`; co je překážka a za kolik                                               | návrh Clauda                                    |
+| Hlad ves zmenší, ale nezničí; hájení chrání i před hladem                                                                         | návrh Clauda                                    |
+| Výchozí osevní systém: přílohová soustava raných Slovanů                                                                          | Martin                                          |
+| Úroda zatím bez náhody – dobré a špatné roky až s počasím (pak hájení i na neúrodu)                                               | Martin                                          |
+| Přílohová soustava: osev do 70 % úrodnosti (≈ 3 roky), příloh do 95 % (~~≈ 7 let~~), pořadí dílů                                  | návrh Clauda                                    |
+| ~~Vrácení přílohu podle stadia: louka 40, nálet 60, křoviny 150, les 250 člověkodní/ha~~                                          | návrh Clauda                                    |
+| ~~Jedno obilí~~                                                                                                                   | návrh Clauda                                    |
+| Ovládání (čtverce na mřížce, panely, vzhled) – ladí se na prototypu                                                               | návrh Clauda                                    |
+| Meze produktivity: čísla s rozpětím mají horní mez (bez řemesel) a dolní (s řemesly)                                              | Martin (17. 10. 2026)                           |
+| Zatím jen motyky; rádlo a voli později                                                                                            | Martin (17. 10. 2026)                           |
+| Polní práce 205 (s řemesly 120) člověkodní/ha: kopání 100 (50), pletí 30 (15), sklizeň 30 (15), výmlat 15 (10)                    | Martin – oprava podle rešerše 17. 10. 2026      |
+| Založení a vrácení přílohu: louka 100 (90), nálet a křoviny 100 (60), les 250 (150) člověkodní/ha                                 | Martin – oprava podle rešerše 17. 10. 2026      |
+| Obnova v přílohu 2,5 % za rok – příloh 13 let, pole ≈ 5,3× osevu (rozhodnutí: 2 %, viz Přílohová soustava – k potvrzení)          | Martin – oprava podle rešerše 17. 10. 2026      |
+| Vymýcený les +40 / +20 / 0 úrodnosti podle sezóny osevu, první sezónu bez pletí – i u dílů pole v lese                            | Martin – oprava podle rešerše 17. 10. 2026      |
+| Hrnčíř: ztráty zásob 10 → 5 %, denní minimum 0,5 → 0,45 (rozpětí návrh Clauda)                                                    | Martin – oprava podle rešerše 17. 10. 2026      |
+| Křoviny bez řemesel stejně drahé jako louka – povrchem křovin je čtverec s jakýmkoli keřem (keře v ceně)                          | sloučení větví 18. 10. 2026 (z čísel rešerše)   |
+| Ozim a jař: ozim kopán a set v září–říjnu, sklizeň v červenci; jař kopán na podzim (zbytek na jaře), set na jaře, sklizeň v srpnu | návrh Clauda, Martin schválil směr 18. 10. 2026 |
+| Podzimní kopání přednostně, na jaře jen zbytek (místo poloviny kopání na jaře)                                                    | návrh Clauda, Martin schválil směr 18. 10. 2026 |
+| Ves k 1. 9. oseje ozimem, kolik podzim stihne (po sklizni jablek), zbytek jaří ve stropech jara a srpna                           | návrh Clauda, Martin schválil směr 18. 10. 2026 |
+| Stejné osivo a úroda, pletí v květnu–červnu, výmlat v zimě; vymrzání až s počasím                                                 | návrh Clauda, Martin schválil směr 18. 10. 2026 |
+| Sklizeň ozimu do zásob 31. 7.; příděl počítá s ní, když uživí srpen                                                               | návrh Clauda, Martin schválil směr 18. 10. 2026 |
+| Díly hotové po 1. 9. jdou do jaře; sklizeň jablek před ozimem                                                                     | návrh Clauda                                    |
