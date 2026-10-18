@@ -427,8 +427,8 @@ rozhraní částí v
   `startWorkshop`, `foundField`, `foundCemetery`, `foundOrchard`, `foundPen` a `trainTeam`. Stav
   vsi je JSON-serializovatelný, funkce vstupní stav nemění. Nové části stavu jsou volitelné
   (`VillageState.cemeteries?`, `orchards?`, `applesKg?`, `orchardWork?`, `starvationDays?`,
-  `extinctDay?`, `crafts?`, `Dwelling.workshop?`, `livestock?`, `meatKg?`, `hay?`, `pens?`,
-  `diet?`) – vsi uložené dřív se načtou a beze sadů či dílen se jejich stav nemění.
+  `extinctDay?`, `crafts?`, `Dwelling.workshop?`, `livestock?`, `meatKg?`, `cheeseKg?`, `hay?`,
+  `pens?`, `diet?`) – vsi uložené dřív se načtou a beze sadů či dílen se jejich stav nemění.
 - **Hlad a vymření** (population.md, Martin 18. 10. 2026): nahromaděný hlad
   `VillageState.starvationDays` (`nextStarvationDays` po jídle dne – pod 90 % přídělu
   přibývá, od 90 % ubývá, čísla `STARVATION` v `rules.ts`) přidá k běžnému riziku úmrtí riziko hladem
@@ -521,7 +521,8 @@ rozhraní částí v
 - **Příloh je pastvina** (Martin): 1–2 roky mladý příloh, pak napořád `meadow` (pastvina) –
   nálet, křoviny ani les na přílohu nejsou (`OVERGROWTH_STAGES`), vrácení stojí nejvýš drn louky
   (`RECLAIM_COST_PER_HA`), kronika `part-became-forest` už nevzniká (typ zůstává pro staré
-  kroniky). Na přílohu se pasou stáda a úhor ve fázi louky se seče na seno (oxen.md).
+  kroniky). Na přílohu se pasou stáda a úhor ve fázi louky se seče na seno (oxen.md) – spolu
+  s přirozenými loukami do 600 m.
 - **Štěstí a posvátná místa** ([happiness.md](docs/design/happiness.md), `happiness.ts`,
   `sacred.ts`): štěstí 0–100 (`VillageState.happiness` – hodnota, úmrtí posledního roku, dny dřiny
   posledních 60 dní; chybí = 50) se den po dni posouvá o denní podíl k cíli
@@ -549,14 +550,23 @@ rozhraní částí v
   (`oakSupply`). Use-case `placeSacredBuilding` (`NO_OAKS`, `SHRINE_EXISTS`), server action
   `placeSacred`. Štěstí z míst `sacredHappiness` (stropy počtu a +40).
 - **Strava a dobytek** ([diet.md](docs/design/diet.md)): jídlo dne `eatDiet` / `villageMeal`
-  (`diet.ts`) – ovoce (jablka; v rozhraní „ovoce“) rovným dílem do zkažení 1. 3., maso rovným
-  dílem do porážky 1. 11., obilí dorovná; stropy ovoce 25 % a maso 40 % potřeby energie
-  (`DIET`). `VillageState.diet` nese jídlo posledního dne (energie, pestrost, nasycení = energie
-  × pestrost, podíly). **Hlad z energie:** `nextStarvationDays` a přirážka úmrtnosti dostávají
+  (`diet.ts`) – ovoce (jablka; v rozhraní „ovoce“) rovným dílem do zkažení 1. 3., čerstvé mléko
+  a vejce, maso rovným dílem do porážky 1. 11., sýr do 1. 5. (`daysUntilMilking`), obilí
+  dorovná; stropy ovoce 25 %, maso 40 %, mléko a sýr 30 % potřeby energie (`DIET`).
+  **Bílkoviny** (Martin 18. 10. 2026): 1,6 g na kg tělesné váhy (`PROTEIN`, `proteinNeedPerDay`
+  – 20 / 60 / 58 kg), nasycení = energie × kvalita (`dietQuality` = 0,6 + 0,34 × bílkoviny +
+  0,06 × ovoce; jen obilí ≈ 80 %). **Mléko a sýr** (`dairy.ts`): dojí se 40 % skotu a 50 % ovcí
+  a koz v době dojení (`dailyMilk`, `DAIRY`), nevypité mléko → sýr (`cheeseFromMilk`,
+  `VillageState.cheeseKg`, ztráta 15 %/rok). **Práce se zvířaty** (`animalCareNeed`,
+  `ANIMAL_CARE`): úlohy `milking` a `animal-care` jdou v `allocateDay` hned po denním minimu
+  (činnosti `milking`, `animal-care` v rozdělení práce), pasení bez práce. `VillageState.diet`
+  nese jídlo posledního dne (energie, bílkoviny, kvalita, nasycení, podíly obilí / maso / mléko
+  / vejce / ovoce). **Hlad z energie:** `nextStarvationDays` a přirážka úmrtnosti dostávají
   energii, porody a štěstí nasycení (`populationDay(state, day, satiation, energy)`, ovoce
   štěstí +5 – `HappinessFactors.fruit`). Stáda `VillageState.livestock` (`livestock.ts`: počty
   s podílem kusu, mláďata 1. 4., porážka 1. 11. – nad nosnost a nejvýš polovina mláďat na maso,
-  chovný pár zůstane; nosnost pastvy `pastureHa`, lesa `pigForestHa` a sena; vejce denně;
+  chovný pár zůstane; potřeba masa z chybějících bílkovin `meatNeedPerYear` / `proteinBudget`,
+  „ves chová, kolik potřebuje“ podle chovných kusů; nosnost pastvy `pastureHa`, lesa `pigForestHa` a sena; vejce denně;
   `meatKg` se uzí 20 %/rok). Louka a les do 600 m pro pastvu jsou z krajiny ve stavu
   (`LivestockState.land`) – doplní je `withLivestockLand` (založení vsi i migrace v
   `updateVillage`); bez nich výchozí `LIVESTOCK.defaultLand`. Den hospodářství `husbandryDay`
@@ -566,7 +576,8 @@ rozhraní částí v
   je čtverec louky, stavba se dřevem jako obydlí; `trainTeam` (use-case `trainTeamInPen`,
   `trainingBlock` = důvod pro tlačítko) vezme 2 telata ze stáda a postaví rádlo (stavba `'ard'`);
   po 2 letech `Pen.team`, po 10 letech na maso. Seno `VillageState.hay` (seč 1. 6. z úhoru ve
-  fázi louky – `planMowing`, sezónní úloha `mow`; zimní krmení, pokrytí volů `oxenHayCoverage`
+  fázi louky a přirozených luk do 600 m od obydlí – `planMowing` s krajinou, `HayMowing.squares`,
+  od nejbližší, jen kolik je třeba; sezónní úloha `mow`, vzhled políček `hayMeadowLooks`; zimní krmení, pokrytí volů `oxenHayCoverage`
   k 1. 3.). **Orba:** plán s vycvičeným spřežením dá díly bez drnu (`isPloughable`) do
   `CropWork.plough` (jejich kopání v `required.dig` není); úloha `plough` v oknech kopání, nejvýš
   `ploughCapacityPerDay`; setí jde za `tilledShare`; `returnPloughToHoe` vrátí díly motyce
@@ -622,9 +633,10 @@ rozhraní částí v
   odvozené odtud a z `@bohemia/game` – nedefinovat je znovu ve scéně.
 - **Rozhraní jako v 0 A.D., bez popisků a průvodce** (Martin): `components/game/VillageGame.tsx`
   skládá `hud/` – `TopBar` (jméno vsi, klik = přejmenovat; ikony s čísly: lidé, obilí, maso,
-  ovoce (jablka) jen když jsou nebo je sad, seno s ohradou, klády, uhlí / nástroje / keramika
-  jen ves s řemesly, volná práce, nasycení (barva ikony podle energie – hlad, tooltip nasycení
-  s podíly obilí / maso / ovoce), štěstí, datum; zvuk a tlačítko nabídky),
+  sýr (ikona `cheese`, v popisku mléko za den) když je mléko nebo sýr, ovoce (jablka) jen když
+  jsou nebo je sad, seno s ohradou, klády, uhlí / nástroje / keramika jen ves s řemesly, volná
+  práce, nasycení (barva ikony podle energie – hlad, tooltip nasycení s energií, bílkovinami
+  a podíly obilí / maso / mléko a sýr / vejce / ovoce), štěstí, datum; zvuk a tlačítko nabídky),
   `GameMenu` (nabídka hry jako v 0 A.D. pod lištou vpravo, F10 – smí mít slova: Začít znovu,
   Odhlásit s e-mailem v popisku, Zpět do hry; Začít znovu se živou vsí jen po potvrzení v panelu,
   bez dialogů prohlížeče, při zakládání vsi zamčené; otevření zruší umisťování i výběr, klávesy
@@ -713,8 +725,10 @@ rozhraní částí v
   úhoru a louce, seno – řádky, kupky a stohy (`haystack.glb`) přes podzim a zimu postupně mizí
   (`hay-meadows.ts`: `hayPhase`, `stackStands`); kolíky a provázek kolem vytyčeného pole
   (Martin: hned po zadání, `fieldStaking`). Rozmístění trsů a panáků je v `field-crops.ts`
-  (čisté funkce, deterministicky po políčkách). **Louky na seno** (`chooseHayMeadows`) jsou jen
-  ve vývojové ukázce – ve vsi vypnuté, seno dávají jen díly úhoru (oxen.md). Den pro
+  (čisté funkce, deterministicky po políčkách). **Louky na seno** ve vsi jsou data – políčka
+  přirozených luk v seči (`SceneVillage.hayMeadows`, `hayMeadowFields` je kreslí jako pole
+  se vzhledem `meadow` / `mown` / `haystacks`, postavy sečou po čele práce); dekorativní
+  `chooseHayMeadows` jen ve vývojové ukázce (oxen.md). Den pro
   odhad a seno: herní den rozdělení práce, jinak roční období scény (`setSeason`).
   Assety z `tools/blender/fields.py` (postup v hlavičce). Vývojové stránky: /dev/buildings
   projde posuvníkem všechny vzhledy pole i louku na seno, /dev/landscape tlačítka „Vzhled“

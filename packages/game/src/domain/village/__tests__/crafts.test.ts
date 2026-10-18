@@ -175,7 +175,8 @@ describe('řemeslník na plný úvazek (crafts.md – Práce a jídlo)', () => {
     const empty = withWorkshop(fullVillage(), 'burner');
     empty.people = empty.people.filter((p) => p.dwellingId !== WORKSHOP_ID);
     const without = advanceVillage(empty, DAY + 1, null);
-    expect(withCraft.commonLaborHistory.at(-1)).toBeCloseTo(without.commonLaborHistory.at(-1)!, 6);
+    // slepice u dílny krmí ves (péče o zvířata – diet.md), jinak stejně
+    expect(withCraft.commonLaborHistory.at(-1)).toBeCloseTo(without.commonLaborHistory.at(-1)!, 2);
     // uhlíř kácí strom bez polohy (ves bez vrstvy) – práce jde k dílně
     const fell = withCraft.labor!.shares.filter((s) => s.activity === 'fell');
     expect(fell).toEqual([

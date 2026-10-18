@@ -16,6 +16,7 @@ const pen = (over: Partial<Extract<SelectionDetails, { kind: 'pen' }>> = {}): Se
   chickens: 6,
   pastureHa: 41.5,
   grazingHa: 8.4,
+  milkLPerDay: 0,
   team: null,
   training: null,
   hayKg: 3200,
@@ -43,6 +44,9 @@ describe('SelectionPanel – ohrada', () => {
     expect(text(html, 'selection-herd-sheep')).toBe('9');
     expect(text(html, 'selection-herd-chicken')).toBe('6');
     expect(text(html, 'selection-pasture')).toBe('8,4/41,5 ha');
+    // mimo dobu dojení se mléko neukazuje
+    expect(text(html, 'selection-milk')).toBeUndefined();
+    expect(text(render(pen({ milkLPerDay: 14.2 })), 'selection-milk')).toBe('14');
   });
 
   it('výcvik jde – tlačítko „Vycvičit spřežení“ je aktivní', () => {

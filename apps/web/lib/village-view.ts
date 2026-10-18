@@ -9,6 +9,7 @@ import {
   dateOfDayIndex,
   effectiveFertility,
   fieldPartLooks,
+  hayMeadowLooks,
   forestBonus,
   monthInWindow,
   obstacleChangesAt,
@@ -156,7 +157,7 @@ export interface VillagePen {
 }
 
 /** Jídlo pro horní lištu a tooltip nasycení (diet.md) – energie, pestrost a podíly na energii. */
-export type VillageDiet = Pick<DietDay, 'energy' | 'diversity' | 'shares'>;
+export type VillageDiet = Pick<DietDay, 'energy' | 'protein' | 'diversity' | 'shares'>;
 
 /** Řemeslná dílna pro panel výběru (crafts.md – Co hráč vidí). */
 export interface VillageWorkshop {
@@ -207,7 +208,10 @@ export interface VillageView {
   storesKg: number;
   /** Zásoby ovoce – jablek (kg; v rozhraní „ovoce“ – diet.md). */
   applesKg: number;
-  /** Zásoba masa (kg) – uzené maso a vejce (diet.md). */
+  /** Zásoba sýra (kg) a mléko dne (l, když se podojí všechny dojné samice – diet.md). */
+  cheeseKg: number;
+  milkLPerDay: number;
+  /** Zásoba masa (kg) – uzené a sušené (diet.md). */
   meatKg: number;
   /** Zásoba sena (kg) – horní lišta ho ukáže, když ves má ohradu nebo seno (oxen.md). */
   hayKg: number;
@@ -452,6 +456,23 @@ export interface SceneVillage {
   livestock?: Record<HerdSpecies, number>;
   /** Ohrady (oxen.md) – čtverec, stavba a zvířata v ní. Bez údaje žádné. */
   pens?: ScenePen[];
+  /**
+   * Přirozené louky letošní seče (oxen.md – Seno; ozdobné louky na seno nahradila data):
+   * políčko, střed a strana jako u dílu pole a vzhled `meadow` / `mown` / `haystacks` (rozpracované
+   * s `work` a `before`). Bez údaje žádné.
+   */
+  hayMeadows?: SceneHayMeadow[];
+}
+
+/** Políčko přirozené louky v seči pro scénu. */
+export interface SceneHayMeadow {
+  cell: TileCell;
+  x: number;
+  z: number;
+  size: number;
+  look: FieldLook;
+  work?: number;
+  before?: FieldLook;
 }
 
 /**
@@ -763,6 +784,18 @@ function sceneVillage(
   const labor = sceneLabor(state, summary.people);
   const sacred = sceneSacred(state, landscape, day, summary);
   const pens = scenePens(state, landscape, day, summary);
+  const hayMeadows = hayMeadowLooks(state, day).map((view): SceneHayMeadow => {
+    const center = tileCenterWorld(landscape, view.cell.x, view.cell.y);
+    return {
+      cell: { x: view.cell.x, y: view.cell.y },
+      x: center.x,
+      z: center.z,
+      size: landscape.cellSizeM,
+      look: view.look,
+      ...(view.work === undefined ? {} : { work: view.work }),
+      ...(view.before === undefined ? {} : { before: view.before }),
+    };
+  });
   const penned = pens.reduce((sum, pen) => sum + pen.cows, 0);
   const herds = summary.livestock.herds;
   return {
@@ -776,6 +809,7 @@ function sceneVillage(
     ...(labor ? { labor } : {}),
     ...(sacred ? { sacred } : {}),
     livestock: { ...herds, cow: Math.max(0, herds.cow - penned) },
+    ...(hayMeadows.length > 0 ? { hayMeadows } : {}),
     ...(pens.length > 0 ? { pens } : {}),
     ...(summary.crafts.coverage.tools > 0 ? { toolCoverage: summary.crafts.coverage.tools } : {}),
   };
@@ -1170,9 +1204,12 @@ export function buildVillageView(
     storesKg: summary.storesKg,
     applesKg: summary.applesKg,
     meatKg: summary.meatKg,
+    cheeseKg: summary.cheeseKg,
+    milkLPerDay: summary.livestock.milkLPerDay,
     hayKg: summary.hayKg,
     diet: {
       energy: summary.diet.energy,
+      protein: summary.diet.protein,
       diversity: summary.diet.diversity,
       shares: summary.diet.shares,
     },

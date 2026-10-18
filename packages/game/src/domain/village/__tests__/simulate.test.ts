@@ -4,7 +4,8 @@ import { foundField, foundVillage, startNewDwelling } from '../actions';
 import type { PartInput } from '../actions';
 import { daysUntilSlaughter, eatDiet } from '../diet';
 import { daysUntilHarvest } from '../food';
-import { LIVESTOCK, villageChickens } from '../livestock';
+import { animalCareNeed } from '../dairy';
+import { LIVESTOCK, villageChickens, villageHerds } from '../livestock';
 import { ageYears, foodNeedPerDay, occupants } from '../people';
 import { NO_CRAFTS } from '../productivity';
 import {
@@ -421,7 +422,8 @@ describe('advanceVillage – roční plán a sklizeň', () => {
     const eggs = (villageChickens(s0) * LIVESTOCK.eggsKgPerHen) / 365;
     const eaten = eatDiet({
       grainKg: s0.storesKg,
-      meatKg: (s0.meatKg ?? 0) + eggs,
+      meatKg: s0.meatKg ?? 0,
+      eggsKg: eggs,
       fruitKg: 0,
       needPerDay: need,
       daysToHarvest: daysUntilHarvest(day),
@@ -576,9 +578,15 @@ describe('advanceVillage – založení vsi', () => {
     expect(count(s, 'death')).toBe(0);
     expect(count(s, 'household-merged')).toBe(0);
     // společná práce = síla 2,6 × štěstí na začátku dne (happiness.md) − denní minimum 0,5
-    // − domácí práce 0,9 (jedna domácnost)
-    const factor = villageLaborFactor(advanceVillage(s0, day + 29, null));
-    expect(s.commonLaborHistory.at(-1)).toBeCloseTo(2.6 * factor - 0.5 - 0.3 - 4 * 0.15, 9);
+    // − práce se zvířaty (dojení krávy v říjnu, prasata, slepice – diet.md) − domácí práce 0,9
+    // (jedna domácnost)
+    const before = advanceVillage(s0, day + 29, null);
+    const factor = villageLaborFactor(before);
+    const animals = animalCareNeed(villageHerds(before), 0, villageChickens(before), day + 30);
+    expect(s.commonLaborHistory.at(-1)).toBeCloseTo(
+      2.6 * factor - 0.5 - animals.milking - animals.care - 0.3 - 4 * 0.15,
+      9,
+    );
   });
 
   it('stavbu první zemnice a první pole staví zakladatelé společnou prací rovným dílem', () => {

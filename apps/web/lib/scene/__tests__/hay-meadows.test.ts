@@ -5,6 +5,7 @@ import { dayOfYearFromDate } from '../field-look';
 import {
   aftermathGrazing,
   chooseHayMeadows,
+  hayMeadowFields,
   hayPhase,
   meadowHay,
   meadowLook,
@@ -151,5 +152,37 @@ describe('louky na seno – kde', () => {
     expect(aftermathGrazing(dayOfYearFromDate(8, 10))).toBe(true);
     expect(aftermathGrazing(dayOfYearFromDate(11, 20))).toBe(true);
     expect(aftermathGrazing(dayOfYearFromDate(1, 20))).toBe(false);
+  });
+});
+
+describe('hayMeadowFields – přirozené louky seče z dat (oxen.md – Seno)', () => {
+  const meadow = (x: number, y: number, look: 'meadow' | 'mown' | 'haystacks', work?: number) => ({
+    cell: { x, y },
+    x: x * 15 + 7.5,
+    z: y * 15 + 7.5,
+    size: 15,
+    look,
+    ...(work === undefined ? {} : { work, before: 'meadow' as const }),
+  });
+
+  it('souvislé skupiny políček jako díly se zápornými id a vzhledem od jádra', () => {
+    const fields = hayMeadowFields([
+      meadow(5, 5, 'mown', 0.4),
+      meadow(1, 1, 'haystacks'),
+      meadow(6, 5, 'meadow'),
+      meadow(2, 1, 'haystacks'),
+    ]);
+    expect(fields.map((f) => f.id)).toEqual([-1, -2]);
+    expect(fields[0]!.parts.map((p) => p.cell)).toEqual([
+      { x: 1, y: 1 },
+      { x: 2, y: 1 },
+    ]);
+    const mown = fields[1]!.parts.find((p) => p.cell.x === 5)!;
+    expect(mown).toMatchObject({ stage: 'meadow', look: 'mown', work: 0.4, before: 'meadow' });
+    expect(fields[1]!.parts.find((p) => p.cell.x === 6)!.work).toBeUndefined();
+  });
+
+  it('bez luk žádná', () => {
+    expect(hayMeadowFields([])).toEqual([]);
   });
 });

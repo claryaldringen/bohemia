@@ -475,6 +475,11 @@ function PenBody({
         <Stat icon="hay" name="Seno" testId="selection-hay">
           {formatTons(details.hayKg)}
         </Stat>
+        {details.milkLPerDay > 0 && (
+          <Stat icon="cheese" name="Mléko stád (l/den)" testId="selection-milk">
+            {formatInteger(details.milkLPerDay)}
+          </Stat>
+        )}
       </div>
       <ul aria-label="Stáda vsi" className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
         {HERD_ORDER.map((species) => (

@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { foundVillage } from '../actions';
-import { fieldPartLooks } from '../field-progress';
+import { fieldPartLooks, hayMeadowLooks } from '../field-progress';
 import { HAY, feedHay, isHayMeadow, mow, oxenHayCoverage, planMowing } from '../hay';
 import { advanceVillage } from '../simulate';
 import type { FieldPart, VillageState } from '../types';
+import { makeLandscape } from './placement-fixtures';
 import { withBuiltFirstDwelling } from './village-fixtures';
 
 // Seno (oxen.md – Seno): seč úhoru ve fázi louky podle potřeby stáda, zásoba a zimní krmení.
@@ -99,5 +100,40 @@ describe('simulace – seno za rok', () => {
     expect(fieldPartLooks(summer, summer.lastDay).get(2)?.look).toBe('haystacks');
     const spring = advanceVillage(summer, at(601, 4, 1), null);
     expect(spring.hay!.kg).toBeLessThan(summer.hay!.kg);
+  });
+});
+
+describe('seno ze všech luk', () => {
+  it('s krajinou se seče i přirozená louka do 600 m od obydlí – nejbližší napřed', () => {
+    const day = at(600, 6, 1);
+    const s = village(day);
+    // obydlí uprostřed krajiny 16 × 16 políček po 15 m, louka všude kromě lesa vlevo
+    s.dwellings[0]!.position = { x: 0, z: 0, rotation: 0 };
+    s.parts = [meadow(1, 400)];
+    const landscape = makeLandscape({ surface: (x) => (x < 4 ? 'forest' : 'meadow') });
+    const mowing = planMowing(s, day, 2, landscape)!;
+    // 3 t sena = 2 ha ≈ 89 políček přirozené louky nejblíž obydlí (díl úhoru je dál)
+    expect(mowing.squares!.length).toBeGreaterThan(80);
+    expect(mowing.squares![0]!.cell).toBeDefined();
+    expect(mowing.squares!.every((sq) => sq.partId === undefined)).toBe(true);
+    const distances = mowing.squares!.map((sq) => sq.distanceM);
+    expect([...distances].sort((a, b) => a - b)).toEqual(distances);
+    // žádné políčko lesa ani pod obydlím
+    expect(mowing.squares!.some((sq) => (sq.cell?.x ?? 99) < 4)).toBe(false);
+    expect(mowing.yieldKg).toBeGreaterThanOrEqual(3000);
+  });
+
+  it('posečená přirozená louka má vzhled seče, stohy od poloviny července', () => {
+    const s = village(at(600, 5, 30));
+    s.dwellings[0]!.position = { x: 0, z: 0, rotation: 0 };
+    s.livestock!.herds.cow = 1;
+    const landscape = makeLandscape();
+    const june = advanceVillage(s, at(600, 6, 10), null, landscape);
+    const looks = hayMeadowLooks(june, june.lastDay);
+    expect(looks.length).toBeGreaterThan(0);
+    expect(looks.some((v) => v.look === 'mown')).toBe(true);
+    const august = advanceVillage(june, at(600, 8, 1), null, landscape);
+    expect(hayMeadowLooks(august, august.lastDay).every((v) => v.look === 'haystacks')).toBe(true);
+    expect(august.hay!.kg).toBeGreaterThan(1000);
   });
 });

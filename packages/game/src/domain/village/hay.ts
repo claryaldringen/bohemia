@@ -1,12 +1,14 @@
 import { dateOfDayIndex } from '../calendar';
+import { surfaceAt, tileCenterWorld, tileOfWorldPoint, type Landscape } from '../landscape';
 import { distanceFactor, fallowYears } from './fields';
 import { OVERGROWTH_STAGES, type WindowSegment } from './rules';
-import type { FieldPart, HayMowing, HayState, VillageState } from './types';
+import type { FieldPart, HayMowing, HaySquare, HayState, TileCell, VillageState } from './types';
 
 // Seno (oxen.md – Seno, diet.md – Dobytek): krávy a voli přes zimu (listopad–březen) sežerou
 // ≈ 1,5 t sena na kus. Seno dává úhor ve fázi louky (≈ 1,5 t/ha); ves seče jen tolik, kolik
-// stádo na zimu potřebuje – v červnu–červenci po dílech od obydlí jako polní práce (6 člověkodní
-// na hektar). Louky na seno kolem vsi jsou zatím jen vzhled scény – seno dávají jen díly úhoru.
+// stádo na zimu potřebuje – v červnu–červenci po loukách od obydlí jako polní práce (6 člověkodní
+// na hektar). Seče se úhor ve fázi louky i přirozené louky krajiny do 600 m od vsi (Martin
+// 18. 10. 2026: „měly by jít posekat všechny louky“), nejbližší napřed.
 
 /**
  * oxen.md – Seno (návrh Clauda, Martin schválil): 1,5 t sena na kus za zimu (≈ 10 kg denně
@@ -27,6 +29,9 @@ export const MOWING_DAY = { month: 6, day: 1 } as const;
 export const HAY_WINTER_MONTHS: readonly number[] = [11, 12, 1, 2, 3];
 
 const M2_PER_HA = 10_000;
+/** Přirozené louky se sečou do této vzdálenosti od nejbližšího obydlí (m) – jako pastva. */
+export const HAY_REACH_M = 600;
+
 /** Mladý příloh (1–2 roky) není louka na seno – seno dává až pastvina (fields.md – Příloh). */
 const YOUNG_FALLOW_YEARS = OVERGROWTH_STAGES[0].maxYears;
 /** Tolerance proti chybám desetinných čísel. */
@@ -47,32 +52,96 @@ export function isHayMeadow(part: FieldPart, day: number): boolean {
   return part.state === 'fallow' && fallowYears(part, day) > YOUNG_FALLOW_YEARS;
 }
 
-/** Váha dílu v seči – jeho práce (plocha × příplatek za vzdálenost), jako u polních prací. */
-function mowWeight(part: FieldPart): number {
-  return (part.areaM2 / M2_PER_HA) * distanceFactor(part.distanceM);
+/** Váha louky v seči – její práce (plocha × příplatek za vzdálenost), jako u polních prací. */
+function mowWeight(square: { areaM2: number; distanceM: number }): number {
+  return (square.areaM2 / M2_PER_HA) * distanceFactor(square.distanceM);
+}
+
+/**
+ * Políčka přirozené louky do HAY_REACH_M od nejbližšího obydlí, která nezabírá pole, sad,
+ * hřbitov, pozemek, ohrada ani obydlí (oxen.md – Seno). Bez krajiny nebo obydlí žádná.
+ */
+function naturalMeadows(state: VillageState, landscape: Landscape | null): HaySquare[] {
+  if (!landscape) return [];
+  const houses = [
+    ...state.dwellings.map((d) => d.position),
+    ...state.constructions.flatMap((c) =>
+      c.dwellingType !== null && c.position !== null ? [c.position] : [],
+    ),
+  ];
+  if (houses.length === 0) return [];
+  const key = (c: TileCell): number => c.y * landscape.size + c.x;
+  const taken = new Set<number>();
+  for (const part of state.parts) if (part.cell) taken.add(key(part.cell));
+  for (const o of state.orchards ?? []) for (const sq of o.squares) taken.add(key(sq.cell));
+  for (const c of state.cemeteries ?? []) for (const sq of c.squares) taken.add(key(sq.cell));
+  for (const pen of state.pens ?? []) taken.add(key(pen.cell));
+  for (const d of state.dwellings) if (d.plot) taken.add(key(d.plot.cell));
+  for (const c of state.constructions) if (c.plot) taken.add(key(c.plot.cell));
+  for (const h of houses) {
+    const tile = tileOfWorldPoint(landscape, h.x, h.z);
+    if (tile) taken.add(key(tile));
+  }
+  const reach = Math.ceil(HAY_REACH_M / landscape.cellSizeM) + 1;
+  const tiles = houses.flatMap((h) => {
+    const t = tileOfWorldPoint(landscape, h.x, h.z);
+    return t ? [t] : [];
+  });
+  const minX = Math.max(0, Math.min(...tiles.map((t) => t.x)) - reach);
+  const maxX = Math.min(landscape.size - 1, Math.max(...tiles.map((t) => t.x)) + reach);
+  const minY = Math.max(0, Math.min(...tiles.map((t) => t.y)) - reach);
+  const maxY = Math.min(landscape.size - 1, Math.max(...tiles.map((t) => t.y)) + reach);
+  const area = landscape.cellSizeM * landscape.cellSizeM;
+  const squares: HaySquare[] = [];
+  for (let y = minY; y <= maxY; y++) {
+    for (let x = minX; x <= maxX; x++) {
+      if (taken.has(y * landscape.size + x) || surfaceAt(landscape, x, y) !== 'meadow') continue;
+      const c = tileCenterWorld(landscape, x, y);
+      let distanceM = Infinity;
+      for (const h of houses) distanceM = Math.min(distanceM, Math.hypot(h.x - c.x, h.z - c.z));
+      if (distanceM <= HAY_REACH_M) squares.push({ cell: { x, y }, areaM2: area, distanceM });
+    }
+  }
+  return squares;
 }
 
 /**
  * Plán seče (1. 6.): seno, které stádo na zimu potřebuje (`heads` kusů dobytka × 1,5 t) bez
- * zásoby, z dílů úhoru ve fázi louky od nejbližšího k obydlí, dokud úroda sena potřebu nepokryje.
- * Bez potřeby nebo bez luk null.
+ * zásoby, z luk od nejbližší k obydlí – dílů úhoru ve fázi louky a s krajinou i přirozených luk
+ * (`naturalMeadows`) –, dokud úroda sena potřebu nepokryje. Bez potřeby nebo bez luk null.
  */
-export function planMowing(state: VillageState, day: number, heads: number): HayMowing | null {
+export function planMowing(
+  state: VillageState,
+  day: number,
+  heads: number,
+  landscape: Landscape | null = null,
+): HayMowing | null {
   const need = heads * HAY.perHeadKg - villageHayKg(state);
   if (need <= EPSILON) return null;
-  const meadows = state.parts
-    .filter((p) => isHayMeadow(p, day))
-    .sort((a, b) => a.distanceM - b.distanceM || a.id - b.id);
-  const partIds: number[] = [];
+  const candidates: HaySquare[] = [
+    ...state.parts
+      .filter((p) => isHayMeadow(p, day))
+      .map((p): HaySquare => ({ partId: p.id, areaM2: p.areaM2, distanceM: p.distanceM })),
+    ...naturalMeadows(state, landscape),
+  ].sort(
+    (a, b) =>
+      a.distanceM - b.distanceM ||
+      (a.partId ?? Infinity) - (b.partId ?? Infinity) ||
+      (a.cell?.y ?? 0) - (b.cell?.y ?? 0) ||
+      (a.cell?.x ?? 0) - (b.cell?.x ?? 0),
+  );
+  const squares: HaySquare[] = [];
   let required = 0;
   let yieldKg = 0;
-  for (const part of meadows) {
+  for (const square of candidates) {
     if (yieldKg >= need - EPSILON) break;
-    partIds.push(part.id);
-    required += mowWeight(part) * HAY.mowManDaysPerHa;
-    yieldKg += (part.areaM2 / M2_PER_HA) * HAY.yieldKgPerHa;
+    squares.push(square);
+    required += mowWeight(square) * HAY.mowManDaysPerHa;
+    yieldKg += (square.areaM2 / M2_PER_HA) * HAY.yieldKgPerHa;
   }
-  return partIds.length > 0 ? { partIds, required, done: 0, yieldKg } : null;
+  if (squares.length === 0) return null;
+  const partIds = squares.flatMap((sq) => (sq.partId === undefined ? [] : [sq.partId]));
+  return { partIds, squares, required, done: 0, yieldKg };
 }
 
 /** Leží měsíc dne v okně sečení? */
@@ -103,43 +172,70 @@ export function mowingPosition(mowing: HayMowing, done = mowing.done): number {
   return mowing.required > 0 ? Math.min(1, done / mowing.required) : 1;
 }
 
-/** Úseky dílů seče v pořadí (od–do jako podíl celé práce). */
+/** Úsek louky v seči – díl úhoru (`partId`, `fieldId`), nebo políčko přirozené louky. */
+export interface MowSpan {
+  partId?: number;
+  fieldId?: number;
+  cell?: TileCell;
+  start: number;
+  end: number;
+}
+
+/** Louky seče v pořadí – seče uložené před přirozenými loukami mají jen díly. */
+function mowingSquares(mowing: HayMowing, partsById: ReadonlyMap<number, FieldPart>): HaySquare[] {
+  if (mowing.squares) return mowing.squares;
+  return mowing.partIds.flatMap((id) => {
+    const part = partsById.get(id);
+    return part ? [{ partId: id, areaM2: part.areaM2, distanceM: part.distanceM }] : [];
+  });
+}
+
+/** Úseky luk seče v pořadí (od–do jako podíl celé práce); díl, který už není, vypadne. */
 export function mowingSpans(
   mowing: HayMowing,
   partsById: ReadonlyMap<number, FieldPart>,
-): { id: number; fieldId: number; start: number; end: number }[] {
-  const weighted = mowing.partIds.flatMap((id) => {
-    const part = partsById.get(id);
-    return part ? [{ part, weight: mowWeight(part) }] : [];
-  });
+): MowSpan[] {
+  const weighted = mowingSquares(mowing, partsById).flatMap(
+    (square): { square: HaySquare; fieldId: number | undefined; weight: number }[] => {
+      if (square.partId !== undefined) {
+        const part = partsById.get(square.partId);
+        return part ? [{ square, fieldId: part.fieldId, weight: mowWeight(square) }] : [];
+      }
+      return [{ square, fieldId: undefined, weight: mowWeight(square) }];
+    },
+  );
   const total = weighted.reduce((sum, w) => sum + w.weight, 0);
   let start = 0;
-  return weighted.map(({ part, weight }) => {
+  return weighted.map(({ square, fieldId, weight }) => {
     const end = total > 0 ? start + weight / total : 1;
-    const span = { id: part.id, fieldId: part.fieldId, start, end };
+    const span: MowSpan = {
+      ...(square.partId === undefined ? {} : { partId: square.partId }),
+      ...(fieldId === undefined ? {} : { fieldId }),
+      ...(square.cell ? { cell: { x: square.cell.x, y: square.cell.y } } : {}),
+      start,
+      end,
+    };
     start = end;
     return span;
   });
 }
 
 /**
- * Díly, přes které dnes seč postoupila (z `before` do `after` člověkodní), s podílem dnešní
+ * Louky, přes které dnes seč postoupila (z `before` do `after` člověkodní), s podílem dnešní
  * práce – pro postavy (labor-report.ts).
  */
-export function mowingPartsWorked(
+export function mowingSquaresWorked(
   mowing: HayMowing,
   partsById: ReadonlyMap<number, FieldPart>,
   before: number,
   after: number,
-): { id: number; fieldId: number; share: number }[] {
+): (MowSpan & { share: number })[] {
   const from = mowingPosition(mowing, before);
   const to = mowingPosition(mowing, after);
   if (to - from <= EPSILON) return [];
   return mowingSpans(mowing, partsById).flatMap((span) => {
     const overlap = Math.min(to, span.end) - Math.max(from, span.start);
-    return overlap > EPSILON
-      ? [{ id: span.id, fieldId: span.fieldId, share: overlap / (to - from) }]
-      : [];
+    return overlap > EPSILON ? [{ ...span, share: overlap / (to - from) }] : [];
   });
 }
 

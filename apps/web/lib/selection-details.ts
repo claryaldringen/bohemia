@@ -152,6 +152,8 @@ export type SelectionDetails =
       /** Pastva vsi a kolik ji stáda spásají (ha). */
       pastureHa: number;
       grazingHa: number;
+      /** Mléko stád dnes (l, v době dojení – diet.md). */
+      milkLPerDay: number;
       /** Vycvičené spřežení – stáří a kolik let ještě slouží; bez spřežení null. */
       team: { ageYears: number; yearsLeft: number } | null;
       /** Výcvik spřežení – průběh 0–1 a zbývající dny; bez výcviku null. */
@@ -392,6 +394,7 @@ function penDetails(view: VillageView | null, id: number): SelectionDetails | nu
     chickens: view.livestock.chickens,
     pastureHa: view.livestock.pastureHa,
     grazingHa: view.livestock.grazingHa,
+    milkLPerDay: view.livestock.milkLPerDay,
     team: pen.team,
     training: pen.training,
     hayKg: view.hayKg,

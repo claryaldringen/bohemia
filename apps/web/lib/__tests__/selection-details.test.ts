@@ -185,6 +185,8 @@ const view = {
     grazingHa: 8.4,
     pigForestHa: 30,
     meatNeedKg: 560,
+    milkLPerDay: 14.2,
+    milkLPerYear: 2900,
   },
   pens: [
     {
@@ -405,6 +407,7 @@ describe('selectionDetails – posvátná místa', () => {
       chickens: 6,
       pastureHa: 41.5,
       grazingHa: 8.4,
+      milkLPerDay: 14.2,
       team: { ageYears: 3, yearsLeft: 7 },
       training: null,
       hayKg: 3200,

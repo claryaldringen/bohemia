@@ -234,8 +234,8 @@ export class VillageRenderer {
     this.sacred = new SacredRenderer(scene, context);
     this.fields = new FieldRenderer(scene, context);
     if (context.landscape) this.fields.setLandscape(context.landscape, null);
-    // louky na seno kolem vsi byly jen vzhled – seno teď dává jen úhor ve fázi louky (oxen.md),
-    // jehož seč posílá herní jádro po dílech
+    // ozdobné louky na seno vypnuté – seč úhoru i přirozených luk posílá herní jádro po dílech
+    // a políčkách (`SceneVillage.hayMeadows` – oxen.md, Seno)
     this.fields.setHayMeadows([]);
     this.pens = new PenRenderer(scene, {
       groundHeight: context.groundHeight,

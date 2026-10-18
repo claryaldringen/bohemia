@@ -274,7 +274,12 @@ function laborByTarget(village: SceneVillage): [string, number][] {
   for (const share of village.labor?.shares ?? []) {
     const t = share.target;
     if (t.kind === 'village') continue;
-    const key = t.kind === 'trees' ? `trees:${t.ids.join('.')}` : `${t.kind}:${t.id}`;
+    const key =
+      t.kind === 'trees'
+        ? `trees:${t.ids.join('.')}`
+        : t.kind === 'meadow'
+          ? `meadow:${t.cells.map((c) => `${c.x}.${c.y}`).join('_')}`
+          : `${t.kind}:${t.id}`;
     sums.set(key, (sums.get(key) ?? 0) + share.manDays);
   }
   return [...sums.entries()]

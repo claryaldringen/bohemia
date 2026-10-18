@@ -16,9 +16,11 @@ import {
   villageHappiness,
   type HappinessFactors,
 } from './happiness';
+import { dailyMilk, villageCheeseKg, yearlyMilk } from './dairy';
 import { villageMeal, villageMeatKg } from './diet';
 import { villageHayKg } from './hay';
 import {
+  dailyEggsKg,
   grazingDemandHa,
   meatNeedPerYear,
   pastureHa,
@@ -200,8 +202,11 @@ export interface LivestockSummary {
   grazingHa: number;
   /** Les pro prasata (ha, 1 ha na prase). */
   pigForestHa: number;
-  /** Roční potřeba masa vsi (kg). */
+  /** Roční potřeba masa vsi (kg) – bílkoviny, které chybí po obilí, mléku a vejcích. */
   meatNeedKg: number;
+  /** Mléko dnes (l, když se podojí všechny dojné samice) a za rok. */
+  milkLPerDay: number;
+  milkLPerYear: number;
 }
 
 /** Ohrada pro panel výběru a scénu (oxen.md – Co hráč vidí). */
@@ -235,6 +240,8 @@ export interface VillageSummary {
   diet: DietDay;
   /** Zásoba masa (kg). */
   meatKg: number;
+  /** Zásoba sýra (kg). */
+  cheeseKg: number;
   /** Zásoba sena (kg). */
   hayKg: number;
   /** Dobytek – stáda, slepice, voli a nosnost. */
@@ -325,7 +332,10 @@ function households(state: VillageState, day: number): HouseholdSummary[] {
  */
 function nextDayDiet(state: VillageState, day: number): DietDay {
   const next = Math.min(day + 1, TOTAL_GAME_DAYS - 1);
-  return villageMeal(state, next, craftCoverage(state, next).pottery).diet;
+  return villageMeal(state, next, craftCoverage(state, next).pottery, {
+    milk: dailyMilk(villageHerds(state), next),
+    eggsKg: dailyEggsKg(state),
+  }).diet;
 }
 
 const DAYS_PER_SERVICE_YEAR = 365.25;
@@ -378,6 +388,8 @@ function livestockSummary(state: VillageState, day: number): LivestockSummary {
     grazingHa: grazingDemandHa(herds, oxen),
     pigForestHa: pigForestHa(state),
     meatNeedKg: meatNeedPerYear(state, day),
+    milkLPerDay: dailyMilk(herds, day).liters,
+    milkLPerYear: yearlyMilk(herds).liters,
   };
 }
 
@@ -492,6 +504,7 @@ export function summarizeVillage(state: VillageState, day: number): VillageSumma
     satiation: diet.satiation,
     diet,
     meatKg: villageMeatKg(state),
+    cheeseKg: villageCheeseKg(state),
     hayKg: villageHayKg(state),
     livestock: livestockSummary(state, day),
     pens: penSummaries(state, day),
