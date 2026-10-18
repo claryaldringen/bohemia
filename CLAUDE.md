@@ -372,10 +372,12 @@ rozhraní částí v
   doménové akce ji odmítnou. **Konec hry** (`extinction.ts`: `isGameOver` – hráč má vsi a žádná
   nežije, obecně pro víc vsí): use-case `dynastyStatus` (vsi aktivních sídel dopočítané do
   dneška) a `restartGame` (archivuje aktivní sídla přes `SettlementRepository.archive`, pak
-  `enterGame` založí nové sídelní sídlo s novým seedem; se živou vsí `DYNASTY_ALIVE`, bez vsi
-  vrátí sídlo beze změny). Akce ve vymřelé vsi odmítá `updateLivingVillage` (`VILLAGE_EXTINCT`),
-  přejmenování taky. Web: `VillageView.extinct` / `gameOver` / `starving` (konec hry zjistí
-  `lib/village.ts` jen u vymřelé vsi), server action `restartGame` a `hud/DefeatScreen.tsx`
+  `enterGame` založí nové sídelní sídlo s novým seedem; se živou vsí `DYNASTY_ALIVE`,
+  s `abandon: true` – nabídka hry, Martin 18. 10. 2026 – archivuje i živé vsi; bez vsi vrátí
+  sídlo beze změny, takže opakovaný i souběžný restart založí jediné sídlo). Akce ve vymřelé vsi odmítá
+  `updateLivingVillage` (`VILLAGE_EXTINCT`), přejmenování taky. Web: `VillageView.extinct` /
+  `gameOver` / `starving` (konec hry zjistí `lib/village.ts` jen u vymřelé vsi), server action
+  `restartGame` (bez vstupu po konci hry, `{ abandon: true }` z nabídky) a `hud/DefeatScreen.tsx`
   (Rod vymřel, jméno, roky, Začít znovu → `window.location.reload()` kvůli nové krajině). Scéna:
   neobývaná obydlí nemají dým ani zvířata a hlína u vchodu zarůstá (`ABANDONED_EARTH_ALPHA`).
 - **Hřbitov** (`cemetery.ts`, cemetery.md): čtverce s 56 hroby, zemřelý se pohřbí do hotového
@@ -414,12 +416,17 @@ rozhraní částí v
   obou dokumentů s OK / MIMO (`200 60` rychlé cíle, `100 1000` vymření do roku 1500).
 - **Web:** server actions `app/game/actions.ts` (`getVillageView`, `foundVillage`, `placeDwelling`,
   `placeField`, `placeCemetery`, `placeOrchard`, `renameVillage` → `VillageView` / `null` /
-  `{ error }`; `restartGame` → `{ ok: true }` / `{ error }`),
+  `{ error }`; `restartGame(input?)` → `{ ok: true }` / `{ error }`),
   composition root `lib/village.ts`, `lib/village-view.ts` (DTO, smí i do prohlížeče). Typy pro scénu jsou
   odvozené odtud a z `@bohemia/game` – nedefinovat je znovu ve scéně.
 - **Rozhraní jako v 0 A.D., bez popisků a průvodce** (Martin): `components/game/VillageGame.tsx`
   skládá `hud/` – `TopBar` (jméno vsi, klik = přejmenovat; ikony s čísly: lidé, obilí, jablka
-  jen když jsou, volná práce, nasycení barvou ikony, datum; zvuk a odhlášení), `Minimap` (vlevo dole, `lib/minimap.ts`,
+  jen když jsou, volná práce, nasycení barvou ikony, datum; zvuk a tlačítko nabídky),
+  `GameMenu` (nabídka hry jako v 0 A.D. pod lištou vpravo, F10 – smí mít slova: Začít znovu,
+  Odhlásit s e-mailem v popisku, Zpět do hry; Začít znovu se živou vsí jen po potvrzení v panelu,
+  bez dialogů prohlížeče, při zakládání vsi zamčené; otevření zruší umisťování i výběr, klávesy
+  hry zachytí na `window` ve fázi capture, Esc zavře – z potvrzení vrátí –, klik mimo panel zavře
+  a do krajiny nedojde; po konci hry se neotevře; logika kláves v `lib/game-menu.ts`), `Minimap` (vlevo dole, `lib/minimap.ts`,
   klik / tažení přesune pohled), `SelectionPanel` (dole uprostřed, jen při výběru,
   `lib/selection-details.ts`), `BuildGrid` (vpravo dole), `NoticeLines` (mizející řádky nahoře),
   `CursorReason` (jde s kurzorem při umisťování: u prošlého umístění **cena ikonami s čísly** –
@@ -429,7 +436,9 @@ rozhraní částí v
   zahájení stavby; pod ní oranžově `check.warning`, které stavbu neblokuje – hřbitov blízko
   obydlí nebo vody, obydlí blízko hřbitova; když umístění nejde, místo ceny krátký červený
   důvod). Kromě důvodu a varování u kurzoru žádná slova ani souhrny. Popisky = `hud/Tooltip.tsx`, jeden krátký
-  název (u staveb i cena). Vzhled panelů: třídy `hud-*` v `app/globals.css`. Ikony
+  název (u staveb i cena). Vzhled panelů: třídy `hud-*` v `app/globals.css` (tlačítko se slovy
+  `hud-button`). Komponenty se testují statickým renderem (`react-dom/server`, JSX převádí
+  `vitest.config.ts`) – panel bez stavu zvlášť (`GameMenuPanel`). Ikony
   `public/icons/build/` a `public/icons/resources/`. Panely, nad kterými se krajina neposouvá
   okrajem okna, mají `data-hud-block`.
 - **Katalog staveb** `lib/build-items.ts` (název, ikona, zkratka, umístění `footprint` /
@@ -453,11 +462,13 @@ rozhraní částí v
   | prostřední tažení      | posouvá                                       | posouvá                         | posouvá                            |
   | pravé tlačítko         | zruší výběr                                   | zruší                           | zruší malování                     |
   | Esc                    | zruší výběr                                   | zruší                           | zruší tah, pak malování            |
+  | F10                    | otevře nabídku hry, zruší výběr               | otevře nabídku, zruší           | otevře nabídku, zruší malování     |
   | další                  |                                               | `[` / `]` otáčí, Enter postaví  | Backspace / Ctrl+Z vrátí, Enter    |
 
   Vždy: WASD / šipky a kurzor u okraje okna posouvají, kolečko i rozevření prstů na trackpadu
   (Ctrl + kolečko, v Safari `gesturechange`) přibližují, Q/E otáčí, R vrátí pohled na ves
-  (`setCameraHome`). Zkratky staveb Z zemnice, X polozemnice, C pole, V hřbitov. Rozhraní
+  (`setCameraHome`). Zkratky staveb Z zemnice, X polozemnice, C pole, V hřbitov. V otevřené
+  nabídce hry žádná klávesa hry neběží – F10 nebo Esc ji zavře (Tab jen po jejích položkách). Rozhraní
   obydlí hned ukáže jako staveniště a akce posílá na server za sebou (fronta v `VillageGame`).
 
 - **Stavby po čtvercích** (pole, hřbitov; políčka krajiny 15 × 15 m, díl = políčko):

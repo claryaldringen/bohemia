@@ -18,7 +18,7 @@ import {
 } from '@bohemia/game';
 import type { PlacementResult } from '../lib/scene/village-types';
 import { TEST_DATABASE_URL } from '../playwright.config';
-import { registerAndEnterGame, useUniqueClientIp } from './helpers';
+import { openGameMenu, registerAndEnterGame, useUniqueClientIp } from './helpers';
 
 // Ves projde celou cestou hráče (rozhraní jako v 0 A.D., server actions, scéna) – jen kliknutí
 // do 3D scény při umisťování nahrazuje testovací háček `window.__bohemiaE2E.confirmPlacement`
@@ -522,4 +522,64 @@ test('když ves vymře, hra skončí obrazovkou porážky – Začít znovu dá 
   expect(
     await query('SELECT 1 FROM village WHERE settlement_id = $1', [fresh.settlementId]),
   ).toEqual([]);
+});
+
+test('nabídka hry (F10) zruší umisťování a Začít znovu se živou vsí po potvrzení dá nové sídlo', async ({
+  page,
+}) => {
+  const { email, seat: s } = await newPlayer(page, 'nabidka');
+  await found(page, villageSpots(s.landscape).dwelling);
+  const grid = page.getByTestId('build-grid');
+  const field = grid.getByRole('button', { name: 'Pole' });
+  const menu = page.getByRole('dialog', { name: 'Nabídka' });
+
+  // F10 otevře nabídku jako v 0 A.D. – rozběhnuté umisťování skončí, zkratky staveb neběží.
+  await field.click();
+  await expect(field).toHaveAttribute('aria-pressed', 'true');
+  await page.keyboard.press('F10');
+  await expect(menu).toBeVisible();
+  await expect(field).toHaveAttribute('aria-pressed', 'false');
+  await page.keyboard.press('c');
+  await expect(field).toHaveAttribute('aria-pressed', 'false');
+  // Esc nabídku zavře, tlačítko v liště ji otevře znovu.
+  await page.keyboard.press('Escape');
+  await expect(menu).toHaveCount(0);
+  await openGameMenu(page);
+
+  // Se živou vsí jen po potvrzení v panelu – Zrušit vrátí k položkám a nic se nestane.
+  await menu.getByRole('button', { name: 'Začít znovu' }).click();
+  await expect(menu.getByText('Ves i rod zaniknou, začneš v nové krajině.')).toBeVisible();
+  await menu.getByRole('button', { name: 'Zrušit' }).click();
+  await expect(menu.getByRole('button', { name: 'Odhlásit' })).toBeVisible();
+  expect((await seat(email)).settlementId).toBe(s.settlementId);
+
+  await menu.getByRole('button', { name: 'Začít znovu' }).click();
+  const reloaded = page.waitForEvent('framenavigated', { timeout: 30_000 });
+  await menu.getByRole('button', { name: 'Začít znovu' }).click();
+  await reloaded;
+  // Nové sídlo s novou krajinou: zase jen zemnice k založení vsi, bez jména a bez nabídky.
+  await expect(readyScene(page)).toBeVisible({ timeout: 60_000 });
+  await expect(menu).toHaveCount(0);
+  await expect(grid.getByRole('button')).toHaveCount(1);
+  await expect(grid.getByRole('button', { name: 'Zemnice' })).toBeVisible();
+  await expect(page.getByTestId('village-name')).toHaveCount(0);
+
+  const fresh = await seat(email);
+  expect(fresh.settlementId).not.toBe(s.settlementId);
+  const [old] = await query<{ archived: boolean; is_seat: boolean }>(
+    'SELECT archived_at IS NOT NULL AS archived, is_seat FROM settlement WHERE id = $1',
+    [s.settlementId],
+  );
+  expect(old).toEqual({ archived: true, is_seat: false });
+  // opuštěná ves zůstala v archivu, jak byla – nevymřela, jen se dál nedopočítává
+  const abandoned = await villageState(s.settlementId);
+  expect(abandoned.extinctDay).toBeUndefined();
+  expect(abandoned.people.length).toBeGreaterThan(0);
+  expect(
+    await query('SELECT 1 FROM village WHERE settlement_id = $1', [fresh.settlementId]),
+  ).toEqual([]);
+
+  // Bez vsi není co začínat znovu – položka je zamčená.
+  await page.keyboard.press('F10');
+  await expect(menu.getByRole('button', { name: 'Začít znovu' })).toBeDisabled();
 });

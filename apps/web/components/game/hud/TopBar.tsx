@@ -7,8 +7,8 @@ import {
   getWorldState,
   type WorldClock,
 } from '@bohemia/game';
-import { authClient } from '@/lib/auth-client';
 import { formatWorldState } from '@/lib/game-date';
+import { MENU_HOTKEY } from '@/lib/game-menu';
 import { formatDecimal, formatInteger, formatPercent } from '@/lib/village-format';
 import type { VillageView } from '@/lib/village-view';
 import { Tooltip } from './Tooltip';
@@ -135,12 +135,17 @@ function IconButton({
   label,
   tooltip,
   pressed,
+  expanded,
+  keyshortcuts,
   onClick,
   children,
 }: {
   label: string;
   tooltip: ReactNode;
   pressed?: boolean;
+  /** Tlačítko otevírá panel (nabídka) – je otevřený? */
+  expanded?: boolean;
+  keyshortcuts?: string;
   onClick: () => void;
   children: ReactNode;
 }): ReactElement {
@@ -151,8 +156,11 @@ function IconButton({
         data-hud-block
         aria-label={label}
         aria-pressed={pressed}
+        aria-haspopup={expanded === undefined ? undefined : 'dialog'}
+        aria-expanded={expanded}
+        aria-keyshortcuts={keyshortcuts}
         onClick={onClick}
-        className="flex h-8 w-8 items-center justify-center rounded text-[#d8c39a] hover:bg-white/5 hover:text-[#ffe9b8] focus-visible:outline-2 focus-visible:outline-[#f3cf86]"
+        className="flex h-8 w-8 items-center justify-center rounded text-[#d8c39a] hover:bg-white/5 hover:text-[#ffe9b8] focus-visible:outline-2 focus-visible:outline-[#f3cf86] aria-expanded:bg-white/10 aria-expanded:text-[#ffe9b8]"
       >
         {children}
       </button>
@@ -163,24 +171,26 @@ function IconButton({
 /**
  * Horní lišta jako v 0 A.D.: jméno vsi (klik = přejmenovat), ikony s čísly – lidé, obilí,
  * jablka (jen když nějaká jsou), klády na hromadě, volná práce, nasycení (jen barva ikony),
- * herní datum – a vpravo zvuk a odhlášení.
+ * herní datum – a vpravo zvuk a nabídka hry (F10: Začít znovu, Odhlásit).
  */
 export function TopBar({
   view,
   world,
   initialNowMs,
-  email,
   soundOn,
   onToggleSound,
+  menuOpen,
+  onToggleMenu,
   onRename,
 }: {
   view: VillageView | null;
   world: WorldClock;
   /** Čas serveru při renderu – první render v prohlížeči tak sedí s HTML ze serveru. */
   initialNowMs: number;
-  email: string;
   soundOn: boolean;
   onToggleSound: () => void;
+  menuOpen: boolean;
+  onToggleMenu: () => void;
   onRename: (name: string) => Promise<string | null>;
 }): ReactElement {
   const [nowMs, setNowMs] = useState(initialNowMs);
@@ -262,11 +272,15 @@ export function TopBar({
           </svg>
         </IconButton>
         <IconButton
-          label="Odhlásit"
-          tooltip={<span className="whitespace-nowrap">Odhlásit · {email}</span>}
-          onClick={() => {
-            void authClient.signOut().then(() => window.location.assign('/'));
-          }}
+          label="Nabídka"
+          tooltip={
+            <span className="whitespace-nowrap">
+              Nabídka <span className="text-[#bfa77a]">[{MENU_HOTKEY}]</span>
+            </span>
+          }
+          expanded={menuOpen}
+          keyshortcuts={MENU_HOTKEY}
+          onClick={onToggleMenu}
         >
           <svg
             aria-hidden="true"
@@ -276,11 +290,8 @@ export function TopBar({
             stroke="currentColor"
             strokeWidth={1.8}
             strokeLinecap="round"
-            strokeLinejoin="round"
           >
-            <path d="M14 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4" />
-            <path d="M10 8l-4 4 4 4" />
-            <path d="M6 12h10" />
+            <path d="M5 7h14M5 12h14M5 17h14" />
           </svg>
         </IconButton>
       </div>

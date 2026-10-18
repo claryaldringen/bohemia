@@ -91,3 +91,14 @@ export function parsePlaceCemeteryInput(value: unknown): { cells: TileCell[] } |
 export function parsePlaceOrchardInput(value: unknown): { cells: TileCell[] } | null {
   return parsePlaceFieldInput(value);
 }
+
+/**
+ * Vstup restartu hry: bez vstupu (obrazovka porážky) = jen po konci hry, `{ abandon: true }`
+ * (nabídka hry) = i se živou vsí. Jiný tvar → null.
+ */
+export function parseRestartGameInput(value: unknown): { abandon: boolean } | null {
+  if (value === undefined) return { abandon: false };
+  if (!isRecord(value)) return null;
+  if (value.abandon === undefined) return { abandon: false };
+  return typeof value.abandon === 'boolean' ? { abandon: value.abandon } : null;
+}

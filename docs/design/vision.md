@@ -54,6 +54,7 @@ ne jeden pán.
 | Les a dřevo: palivo sbírají vesničané, kácí se na stavby, klády z mýcení ([forest.md](forest.md))                   | Martin, čísla návrh Clauda    |
 | Jabloňový sad: staví se po čtvercích jako pole, plodí od 6. roku ([orchard.md](orchard.md))                         | Martin, čísla návrh Clauda    |
 | Hlad zabíjí, ves může vymřít; komu vymřou všechny vsi, začíná znovu ([population.md](population.md))                | Martin, čísla návrh Clauda    |
+| Nabídka hry (F10): začít znovu jde i se živou vsí, po potvrzení ([population.md](population.md))                    | Martin                        |
 | Hexagonální architektura (porty a adaptéry), hranice hlídá ESLint                                                   | návrh Clauda, Martin schválil |
 | UI česky, kód anglicky                                                                                              | návrh Clauda                  |
 | Herní čas jako čistá funkce skutečného času, pravidla v `packages/game`, server je autorita                         | návrh Clauda                  |
@@ -69,7 +70,8 @@ Mechaniky probereme postupně. Zatím nerozhodnuto:
 4. **Povinnosti pána a vazala** – odvody, vojenská služba, ochrana.
 5. **Smrt, dědictví a nástupnictví** – co když rod vymře? Co když hráč dlouho není online a
    mezitím uběhnou generace? (Zčásti rozhodnuto: když hráči vymřou všechny vesnice, hra pro něj
-   končí a začíná znovu – Martin, 18. 10. 2026, [populace](population.md).)
+   končí a začíná znovu; začít znovu může i sám z nabídky hry – Martin, 18. 10. 2026,
+   [populace](population.md).)
 6. **Hospodářství a stavby** – suroviny, obyvatelstvo, postup vesnice → hradiště → tvrz → hrad
    → město.
 7. **Prestiž** – jak vzniká a k čemu slouží.

@@ -5,6 +5,7 @@ import {
   parsePlaceDwellingInput,
   parsePlaceFieldInput,
   parseRenameVillageInput,
+  parseRestartGameInput,
   parsePosition,
 } from '../village-input';
 
@@ -68,5 +69,16 @@ describe('ověření vstupu server actions vsi', () => {
     expect(parsePlaceDwellingInput({ type: 'hrad', position: dwelling })).toBeNull();
     expect(parsePlaceFieldInput({ cells })).toEqual({ cells });
     expect(parsePlaceFieldInput({})).toBeNull();
+  });
+
+  it('restart hry: bez vstupu jen po konci hry, { abandon: true } i se živou vsí', () => {
+    expect(parseRestartGameInput(undefined)).toEqual({ abandon: false });
+    expect(parseRestartGameInput({})).toEqual({ abandon: false });
+    expect(parseRestartGameInput({ abandon: true })).toEqual({ abandon: true });
+    expect(parseRestartGameInput({ abandon: false })).toEqual({ abandon: false });
+    expect(parseRestartGameInput({ abandon: 'true' })).toBeNull();
+    expect(parseRestartGameInput({ abandon: 1 })).toBeNull();
+    expect(parseRestartGameInput(null)).toBeNull();
+    expect(parseRestartGameInput(true)).toBeNull();
   });
 });

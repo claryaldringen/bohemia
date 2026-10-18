@@ -20,6 +20,7 @@ import {
   parsePlaceFieldInput,
   parsePlaceOrchardInput,
   parseRenameVillageInput,
+  parseRestartGameInput,
 } from '@/lib/village-input';
 
 // Server actions vsi. Každá je veřejný POST endpoint: přihlášení ze session, vstup ověřený
@@ -101,12 +102,15 @@ export async function renameVillage(input: unknown): Promise<VillageActionResult
 }
 
 /**
- * Začít znovu po konci hry (vymřely všechny vsi): nové sídlo s novou krajinou. Bez vstupu –
- * jestli hra opravdu skončila, ověří use-case. Po úspěchu klient načte stránku znovu.
+ * Začít znovu – nové sídlo s novou krajinou. Bez vstupu (obrazovka porážky) jen po konci hry
+ * (vymřely všechny vsi – ověří use-case); `{ abandon: true }` (potvrzení v nabídce hry) i se
+ * živou vsí, která i s rodem zanikne. Po úspěchu klient načte stránku znovu.
  */
-export async function restartGame(): Promise<{ ok: true } | { error: string }> {
+export async function restartGame(input?: unknown): Promise<{ ok: true } | { error: string }> {
   const id = await playerId();
   if (id === null) return { error: NOT_SIGNED_IN };
-  const result = await restartGameForPlayer(id);
+  const parsed = parseRestartGameInput(input);
+  if (parsed === null) return { error: INVALID_INPUT };
+  const result = await restartGameForPlayer(id, parsed);
   return result.ok ? { ok: true } : { error: result.error };
 }

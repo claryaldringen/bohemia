@@ -44,17 +44,19 @@ export async function isGameOverForPlayer(playerId: string, today: number): Prom
 }
 
 /**
- * Začít znovu po konci hry (use-case `restartGame`): staré sídlo jde do archivu, hráč dostane
- * nové s novou krajinou a zakládá ves od první zemnice. Chyba česky pro hráče.
+ * Začít znovu (use-case `restartGame`): staré sídlo jde do archivu, hráč dostane nové s novou
+ * krajinou a zakládá ves od první zemnice. Bez `abandon` jen po konci hry (obrazovka porážky),
+ * s `abandon` i se živou vsí (potvrzení v nabídce hry). Chyba česky pro hráče.
  */
 export async function restartGameForPlayer(
   playerId: string,
+  options: { abandon: boolean } = { abandon: false },
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const today = gameDayIndex(Date.now(), currentWorld());
   if (!today.ok) return today;
   const result = await restartGame(
     { ...dynastyDeps(), seeds: seeds() },
-    { playerId, today: today.day },
+    { playerId, today: today.day, abandon: options.abandon },
   );
   return result.ok ? { ok: true } : { ok: false, error: result.reason };
 }
