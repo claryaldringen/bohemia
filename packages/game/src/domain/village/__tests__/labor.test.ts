@@ -55,6 +55,19 @@ describe('allocateDay', () => {
     expect(r.domesticBacklog).toBeCloseTo(DOMESTIC_FOR_4);
     expect(sum(r)).toBeCloseTo(2.6);
   });
+  it('stejná úloha dvou plodin: práce po úlohách vstupu v jejich pořadí', () => {
+    const r = allocateDay({
+      ...base,
+      tasks: [
+        { name: 'dig', remaining: 1.5 },
+        { name: 'orchard-harvest', remaining: 0.2 },
+        { name: 'dig', remaining: 5 },
+      ],
+    });
+    expect(r.taskAmounts.map((a) => Number(a.toFixed(6)))).toEqual([1.5, 0.2, 0.4]);
+    expect(r.tasks.dig).toBeCloseTo(1.9);
+    expect(sum(r)).toBeCloseTo(2.6);
+  });
   it('práce v sadu jde mezi polní úlohy v daném pořadí', () => {
     const r = allocateDay({
       ...base,

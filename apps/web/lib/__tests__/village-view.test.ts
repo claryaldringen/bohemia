@@ -76,6 +76,21 @@ const record = (s: VillageState = state()): VillageRecord => ({
 });
 
 describe('buildVillageView', () => {
+  it('pole: oseté díly podle plodiny – ozim, jař (díl bez plodiny je jař)', () => {
+    const s = settled();
+    s.parts.forEach((p, i) => {
+      p.foundingDone = p.foundingCost;
+      p.state = 'sown';
+      if (i < 3) p.crop = 'winter';
+      else if (i === 3) p.crop = 'spring';
+    });
+    s.constructions = s.constructions.filter((c) => c.kind !== 'field');
+    expect(buildVillageView(record(s), landscape, DAY).fields[0]?.crops).toEqual({
+      winter: 3,
+      spring: 2,
+    });
+  });
+
   it('čerstvá ves: lidé, zásoby, stavba zemnice zakladatelů a pole', () => {
     const view = buildVillageView(record(), landscape, DAY);
     expect(view).toMatchObject({
@@ -144,7 +159,9 @@ describe('buildVillageView', () => {
         fertility: 50,
         stages: { founding: 5 },
         surfaces: { meadow: 5 },
+        crops: {},
         ashParts: 0,
+        ashBonus: 0,
       },
     ]);
     expect(view.hungry).toBe(false);
@@ -515,6 +532,12 @@ describe('chronicleText', () => {
   it('sklizeň s tisíci a přestavba ve 4. pádě', () => {
     expect(chronicleText({ day: DAY, kind: 'harvest', kg: 1250 }, 'X')).toBe(
       'Sklizeň: 1 250 kg obilí.',
+    );
+    expect(chronicleText({ day: DAY, kind: 'harvest', kg: 900, crop: 'winter' }, 'X')).toBe(
+      'Sklizeň ozimu: 900 kg obilí.',
+    );
+    expect(chronicleText({ day: DAY, kind: 'harvest', kg: 90, crop: 'spring' }, 'X')).toBe(
+      'Sklizeň jaře: 90 kg obilí.',
     );
     expect(
       chronicleText({ day: DAY, kind: 'rebuild-decided', dwellingId: 1, type: 'polozemnice' }, 'X'),

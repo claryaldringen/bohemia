@@ -1,4 +1,4 @@
-import { TOTAL_GAME_DAYS } from '../calendar';
+import { TOTAL_GAME_DAYS, dateOfDayIndex } from '../calendar';
 import {
   burialOrder,
   cemeteryCapacity,
@@ -8,7 +8,7 @@ import {
 } from './cemetery';
 import { isFull, isOvercrowded, waitingHouseholds } from './dwellings';
 import { fallowYears } from './fields';
-import { daysUntilAppleRot, daysUntilHarvest, eatMeal, isAppleRotDay } from './food';
+import { daysUntilAppleRot, eatMeal, isAppleRotDay } from './food';
 import {
   orchardAgeYears,
   orchardAreaM2,
@@ -18,15 +18,17 @@ import {
 } from './orchard';
 import { ageGroup, foodNeedPerDay, occupants } from './people';
 import { NO_CRAFTS } from './productivity';
-import { CHRONICLE_MAX_EVENTS, DWELLINGS, OVERGROWTH_STAGES } from './rules';
+import { CHRONICLE_MAX_EVENTS, CROP_WINDOWS, DWELLINGS, OVERGROWTH_STAGES } from './rules';
 import type {
   Construction,
   ConstructionKind,
+  Crop,
   DwellingType,
   FieldPart,
   VillageState,
 } from './types';
 import { treesToFell, woodFellingCost, woodLogs } from './wood';
+import { daysUntilFoodHarvest } from './year-plan';
 
 // Souhrn vsi pro panel hráče a scénu – jen čte stav, nic nemění.
 
@@ -142,6 +144,41 @@ export function partStage(part: FieldPart, day: number): PartStage {
   return OVERGROWTH_STAGES.find((s) => years <= s.maxYears)?.stage ?? 'forest';
 }
 
+/**
+ * Viditelný stav obilí na osetém dílu (fields.md – Ozim a jař, Co hráč vidí): holá zem (zkopáno,
+ * ještě nezaseto), vzešlé osení, zelené obilí, zralé obilí, strniště. Sníh přidávají roční období
+ * ve scéně.
+ */
+export type CropState = 'bare' | 'sprouted' | 'green' | 'ripe' | 'stubble';
+
+/** Od kterého měsíce je zaseté obilí plně zelené (ozim po zimě, jař po jarním vzejití). */
+const CROP_GREEN_FROM_MONTH: Record<Crop, number> = { winter: 4, spring: 5 };
+
+/**
+ * Stav obilí dílu v den `day` podle simulace: plodina dílu, jak daleko je setí a sklizeň jeho
+ * plodiny a den v roce; mimo osev null. Plán práci nevede po dílech – díly plodiny se berou
+ * v pořadí plánu (nejbližší první), takže při podílu setí 0,5 je zaseta první polovina.
+ */
+export function partCropState(state: VillageState, part: FieldPart, day: number): CropState | null {
+  if (part.state !== 'sown') return null;
+  const crop = part.crop ?? 'spring';
+  // 31. 8. po sklizni jaře je plán už u výmlatu – do plánu 1. 9. strniště
+  const plan = state.plan ?? state.threshingFromPlan;
+  const work = plan ? (crop === 'winter' ? plan.winter : plan) : undefined;
+  const index = work ? work.partIds.indexOf(part.id) : -1;
+  if (!work || index < 0) return 'bare';
+  const position = (index + 0.5) / work.partIds.length;
+  const share = (task: 'sow' | 'harvest'): number =>
+    work.required[task] > 0 ? work.done[task] / work.required[task] : 0;
+  if (work.harvestedKg !== null || share('harvest') >= position) return 'stubble';
+  if (share('sow') < position) return 'bare';
+  const month = dateOfDayIndex(day).month;
+  if (CROP_WINDOWS[crop].harvest.some(([from, to]) => month >= from && month <= to)) return 'ripe';
+  const green =
+    month >= CROP_GREEN_FROM_MONTH[crop] && month < (CROP_WINDOWS[crop].harvest[0]?.[0] ?? 13);
+  return green ? 'green' : 'sprouted';
+}
+
 function peopleByGroup(state: VillageState, day: number): VillageSummary['people'] {
   const people = { children: 0, adults: 0, elders: 0 };
   for (const person of state.people) {
@@ -166,8 +203,8 @@ function households(state: VillageState, day: number): HouseholdSummary[] {
 }
 
 /**
- * Nasycení příštího dne: příděl ze zásob obilí a jablek do sklizně (stejně jako eatMeal
- * v simulaci; 1. 3. ráno jablka shnijí).
+ * Nasycení příštího dne: příděl ze zásob obilí a jablek do sklizně, se kterou ves počítá
+ * (i červencová sklizeň ozimu – stejně jako eatMeal v simulaci; 1. 3. ráno jablka shnijí).
  */
 function nextDaySatiation(state: VillageState, day: number, needPerDay: number): number {
   if (needPerDay <= 0) return 1;
@@ -177,7 +214,7 @@ function nextDaySatiation(state: VillageState, day: number, needPerDay: number):
     state.storesKg,
     apples,
     needPerDay,
-    daysUntilHarvest(next),
+    daysUntilFoodHarvest(state.plan, state.parts, next, needPerDay),
     daysUntilAppleRot(next),
     NO_CRAFTS.pottery,
   ).satiation;

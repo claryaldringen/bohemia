@@ -483,13 +483,17 @@ describe('advanceVillage – sad', () => {
     expect(march.orchardWork ?? null).toBeNull();
   });
 
-  it('sklizeň jablek má přednost před podzimním kopáním (dřívější konec okna)', () => {
+  it('sklizeň jablek má přednost před podzimními pracemi v poli (i ozimem)', () => {
     const base = village(at(601, 8, 31));
     const s = withOrchard(base, 400, at(570, 4, 1)); // 9 ha – sklizeň ≈ 72 člověkodní
     const day = advanceVillage(s, at(601, 9, 2), null);
     expect(day.orchardWork!.done).toBeGreaterThan(1);
-    expect(day.plan?.done.dig ?? 0).toBe(0);
-    expect(day.plan?.done.reclaim ?? 0).toBe(0);
+    // i před ozimem – jablka se sklízejí první, ozim dostane zbytek podzimu
+    expect(day.plan?.winter).toBeDefined();
+    for (const work of [day.plan, day.plan?.winter]) {
+      expect(work?.done.dig ?? 0).toBe(0);
+      expect(work?.done.reclaim ?? 0).toBe(0);
+    }
   });
 
   it('hlad hlásí hned, když obilí po zkažení jablek (1. 3.) nevystačí – ne až 1. 3.', () => {

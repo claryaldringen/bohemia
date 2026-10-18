@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { TOTAL_GAME_DAYS, dayIndexOf } from '../../calendar';
-import { daysUntilHarvest, eatDay } from '../food';
+import { daysUntilHarvest, daysUntilWinterHarvest, eatDay } from '../food';
 import { NO_CRAFTS } from '../productivity';
 
 const day = (year: number, month: number, d: number): number => dayIndexOf({ year, month, day: d });
@@ -65,5 +65,14 @@ describe('daysUntilHarvest', () => {
     expect(daysUntilHarvest(day(1499, 9, 1))).toBe(366);
     expect(daysUntilHarvest(TOTAL_GAME_DAYS - 1)).toBe(245);
     expect(daysUntilHarvest(day(1499, 8, 31))).toBe(1);
+  });
+});
+
+describe('daysUntilWinterHarvest (ozim – fields.md, Ozim a jař)', () => {
+  it('31. 7. je poslední den; od 1. 8. do příštího července', () => {
+    expect(daysUntilWinterHarvest(day(600, 7, 31))).toBe(1);
+    expect(daysUntilWinterHarvest(day(600, 8, 1))).toBe(365);
+    expect(daysUntilWinterHarvest(day(600, 9, 1))).toBe(daysUntilHarvest(day(600, 9, 1)) - 31);
+    expect(daysUntilWinterHarvest(day(1499, 9, 1))).toBe(335);
   });
 });

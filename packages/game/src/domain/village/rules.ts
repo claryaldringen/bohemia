@@ -1,5 +1,5 @@
 import type { ObstacleKind } from '../landscape';
-import type { Bounds, DwellingType, FieldSurface, FieldTask, TaskName } from './types';
+import type { Bounds, Crop, DwellingType, FieldSurface, FieldTask, TaskName } from './types';
 
 // Meze produktivity (Martin, oprava podle rešerše 17. 10. 2026 – docs/design/research/): práce
 // a ztráty, pro které literatura dává rozpětí, mají dvojici { worst, best }. Ves bez řemesel
@@ -65,7 +65,6 @@ export const SOW_RESERVE = 0.15;
 export const STORES_HIGH_YEARS = 1.5;
 // fields.md – Kolik ves oseje (návrh Clauda)
 export const PEAK_CAPACITY_SHARE = 1; // ve špičce smí jít na pole všechna práce po denním minimu (kalibrace z 0,8)
-export const SPRING_DIG_SHARE = 0.5; // polovina kopání připadne na jaro (zbytek na podzim)
 // fields.md – Úroda (hrubá úroda na hektar podle úrodnosti)
 export const YIELD_BASE_KG_PER_HA = 760; // × (0,4 + 0,6 × úrodnost / 100)
 // fields.md – Úroda (osivo na hektar)
@@ -151,7 +150,8 @@ export const HYGIENE_DEATH_EXTRA = { child: 0.5, adult: 0.3, elder: 0.3 } as con
 // population.md – Kronika (ves drží posledních 500 událostí, starší se zahazují)
 export const CHRONICLE_MAX_EVENTS = 500;
 
-// fields.md – Práce, tabulka Kdy (okna prací v měsících včetně; kopání, které se na podzim nestihne, pokračuje v březnu–dubnu)
+// fields.md – Práce, tabulka Kdy, a Ozim a jař (okna prací v měsících včetně). WINDOWS = jař:
+// kopá se na podzim, co se nestihne, v březnu–dubnu; seje se na jaře, sklízí v srpnu.
 export const WINDOWS: Record<TaskName, readonly WindowSegment[]> = {
   reclaim: [[9, 11]],
   dig: [
@@ -160,12 +160,33 @@ export const WINDOWS: Record<TaskName, readonly WindowSegment[]> = {
   ],
   sow: [[3, 4]],
   weed: [[5, 6]],
-  harvest: [[7, 8]],
+  harvest: [[8, 8]],
   thresh: [
     [11, 12],
     [1, 2],
   ],
 };
+// fields.md – Ozim a jař (návrh Clauda, Martin schválil směr 18. 10. 2026): ozim se vrací
+// z přílohu, kope a seje v září–říjnu, plete v květnu–červnu jako jař, sklízí v červenci
+// a mlátí v zimě
+export const WINTER_WINDOWS: Record<TaskName, readonly WindowSegment[]> = {
+  reclaim: [[9, 10]],
+  dig: [[9, 10]],
+  sow: [[9, 10]],
+  weed: [[5, 6]],
+  harvest: [[7, 7]],
+  thresh: [
+    [11, 12],
+    [1, 2],
+  ],
+};
+/** Okna prací podle plodiny (fields.md – Ozim a jař). */
+export const CROP_WINDOWS: Record<Crop, Record<TaskName, readonly WindowSegment[]>> = {
+  winter: WINTER_WINDOWS,
+  spring: WINDOWS,
+};
+/** Pořadí plodin při shodě konce okna – ozim (sklízí se dřív) první. */
+export const CROP_ORDER: readonly Crop[] = ['winter', 'spring'];
 // orchard.md – Pravidla (Martin – oprava podle rešerše 17. 10. 2026): výsadba 80 člověkodní/ha
 // (+ překážky jako u pole), péče v zimě 10 člověkodní/ha ročně, sklizeň 8 člověkodní/ha při plné
 // úrodě (při menší úrodě poměrně méně); první jablka 6. rok po výsadbě, úroda lineárně do plné
@@ -200,10 +221,12 @@ export const APPLE_ROT_DAY = { month: 3, day: 1 } as const;
 // výsadba je 1. rokem sadu hned, podzimní (od září) až od příštího jara
 export const ORCHARD_SEASON = { startMonth: 3, autumnPlantingFromMonth: 9 } as const;
 
-// fields.md – Kolik ves oseje (k 1. září), Práce a Včasnost (sklizeň do konce srpna, výmlat do
-// konce února). Musí souhlasit s WINDOWS: sklizeň je poslední den okna harvest, plán den po ní,
-// konec výmlatu den po konci okna thresh (hlídá rules.test.ts).
+// fields.md – Kolik ves oseje (k 1. září), Práce a Včasnost (sklizeň jaře do konce srpna, ozimu
+// do konce července, výmlat do konce února). Musí souhlasit s okny: sklizeň je poslední den okna
+// harvest své plodiny, plán den po sklizni jaře, konec výmlatu den po konci okna thresh (hlídá
+// rules.test.ts).
 export const HARVEST_DAY = { month: 8, day: 31 } as const;
+export const WINTER_HARVEST_DAY = { month: 7, day: 31 } as const;
 export const PLANNING_DAY = { month: 9, day: 1 } as const;
 export const THRESH_END_DAY = { month: 3, day: 1 } as const;
 

@@ -117,6 +117,7 @@ export function endOfSeason(part: FieldPart, day: number): ChronicleEvent | null
       part.fallowSinceDay = day;
       part.sownYears = 0;
       part.bonusUntilDay = null; // fáze osevu skončila – popel z vymýcení už nepůsobí
+      delete part.crop;
     }
     return null;
   }
@@ -130,16 +131,10 @@ export function endOfSeason(part: FieldPart, day: number): ChronicleEvent | null
 }
 
 /**
- * Vybere díly k osevu v pořadí ze spec: osetý (≥ 0,7), připravený, příloh ≥ 0,95
- * (nejmladší první), příloh ≥ 0,7 (nejúrodnější první). Přidává, dokud očekávaná čistá
- * úroda nepokryje cíl, a nepřekročí `maxHa`. Díly nemění.
+ * Díly, které smí ves osít, v pořadí ze spec: osetý (≥ 0,7), připravený, příloh ≥ 0,95
+ * (nejmladší první), příloh ≥ 0,7 (nejúrodnější první). Díly nemění.
  */
-export function selectPartsToSow(
-  parts: FieldPart[],
-  targetKg: number,
-  maxHa: number,
-  day: number,
-): FieldPart[] {
+export function sowingOrder(parts: FieldPart[]): FieldPart[] {
   const sowable = (p: FieldPart): boolean => p.fertilityShare >= FERTILITY.sowableMin - EPSILON;
   const full = (p: FieldPart): boolean => p.fertilityShare >= FERTILITY.fallowReady - EPSILON;
   const since = (p: FieldPart): number => p.fallowSinceDay ?? -Infinity;
@@ -153,17 +148,36 @@ export function selectPartsToSow(
   const group4 = parts
     .filter((p) => p.state === 'fallow' && sowable(p) && !full(p))
     .sort((a, b) => b.fertilityShare - a.fertilityShare || byDistance(a, b));
+  return [...group1, ...group2, ...group3, ...group4];
+}
 
+/** Očekávaná čistá úroda dílu (kg) při plné a včasné práci – jak ji odhaduje ves při osevu. */
+export function expectedNetKg(part: FieldPart, day: number): number {
+  return (
+    (grossYieldPerHa(effectiveFertility(part, day)) - SEED_KG_PER_HA) * (part.areaM2 / M2_PER_HA)
+  );
+}
+
+/**
+ * Vybere díly k osevu v pořadí `sowingOrder`. Přidává, dokud očekávaná čistá úroda nepokryje
+ * cíl, a nepřekročí `maxHa`. Díly nemění.
+ */
+export function selectPartsToSow(
+  parts: FieldPart[],
+  targetKg: number,
+  maxHa: number,
+  day: number,
+): FieldPart[] {
   const chosen: FieldPart[] = [];
   let net = 0;
   let ha = 0;
-  for (const p of [...group1, ...group2, ...group3, ...group4]) {
+  for (const p of sowingOrder(parts)) {
     if (net >= targetKg) break;
     const partHa = p.areaM2 / M2_PER_HA;
     if (ha + partHa > maxHa + EPSILON) break;
     chosen.push(p);
     ha += partHa;
-    net += (grossYieldPerHa(effectiveFertility(p, day)) - SEED_KG_PER_HA) * partHa;
+    net += expectedNetKg(p, day);
   }
   return chosen;
 }

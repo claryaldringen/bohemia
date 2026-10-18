@@ -6,6 +6,7 @@ import {
   ageYears,
   dateOfDayIndex,
   effectiveFertility,
+  forestBonus,
   monthInWindow,
   obstacleChangesAt,
   ORCHARD_PLANTING_WINDOWS,
@@ -21,6 +22,7 @@ import {
   type ChronicleEvent,
   type ConstructionKind,
   type ConstructionSummary,
+  type Crop,
   type DwellingType,
   type FieldSurface,
   type Landscape,
@@ -44,7 +46,7 @@ import { formatCells, formatHa, formatInteger } from './village-format';
 // Pohled na ves pro panel a scénu (DTO server actions). Čistý modul – smí ho importovat
 // i klient (typy, převod scény na data pro kontrolu umístění).
 
-export type { BuildKind, FieldSurface, PartStage, StockResource } from '@bohemia/game';
+export type { BuildKind, Crop, FieldSurface, PartStage, StockResource } from '@bohemia/game';
 
 /**
  * Stavba v nabídce staveb: cena a jestli na ni ves má (bez surovin, dřeva nebo lidí k osídlení je
@@ -113,7 +115,8 @@ export interface VillageView {
   }[];
   /**
    * Pole pro panel výběru: výměra, průměrná úrodnost, počet dílů podle stadia a podle povrchu,
-   * na kterém se díly zakládaly (louka, křoviny, les), a kolik dílů má popel z vymýceného lesa.
+   * na kterém se díly zakládaly (louka, křoviny, les), oseté díly podle plodiny (ozim, jař)
+   * a kolik dílů má popel z vymýceného lesa.
    */
   fields: {
     id: number;
@@ -121,8 +124,12 @@ export interface VillageView {
     fertility: number;
     stages: Partial<Record<PartStage, number>>;
     surfaces: Partial<Record<FieldSurface, number>>;
-    /** Díly s bonusem úrodnosti po vymýcení lesa (fields.md – Úroda). */
+    /** Oseté díly podle plodiny (fields.md – Ozim a jař); díl bez plodiny je jař. */
+    crops: Partial<Record<Crop, number>>;
+    /** Díly v okně bonusu úrodnosti po vymýcení lesa (fields.md – Úroda). */
     ashParts: number;
+    /** Nejvyšší letošní bonus úrodnosti z popela (+40 první sezónu osevu, +20 druhou), jinak 0. */
+    ashBonus: number;
   }[];
   /** Hřbitovy v pořadí pohřbívání – kolik místa zbývá (hygienu hráč nevidí – cemetery.md). */
   cemeteries: VillageCemetery[];
@@ -270,7 +277,7 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
     case 'rebuild-decided':
       return `Obyvatelé se rozhodli přestavět dožilé obydlí na ${DWELLING_NAMES[event.type].accusative}.`;
     case 'harvest':
-      return `Sklizeň: ${formatInteger(event.kg)} kg obilí.`;
+      return `${HARVEST_NAMES[event.crop ?? 'any']}: ${formatInteger(event.kg)} kg obilí.`;
     case 'apple-harvest':
       return `Sklizeň jablek: ${formatInteger(event.kg)} kg.`;
     case 'orchard-gone':
@@ -434,6 +441,13 @@ function chronicle(state: VillageState, name: string): VillageView['chronicle'] 
     }));
 }
 
+/** Kronika sklizní podle plodiny (fields.md – Ozim a jař); bez plodiny ves seje jen jař. */
+const HARVEST_NAMES: Record<Crop | 'any', string> = {
+  winter: 'Sklizeň ozimu',
+  spring: 'Sklizeň jaře',
+  any: 'Sklizeň',
+};
+
 const BUILD_KINDS: readonly BuildKind[] = [
   'zemnice',
   'polozemnice',
@@ -469,7 +483,7 @@ function buildOptions(state: VillageState, landscape: Landscape): Record<BuildKi
 }
 
 /**
- * Pole pro panel výběru – výměra, úrodnost vážená plochou, díly podle stadia a povrchu
+ * Pole pro panel výběru – výměra, úrodnost vážená plochou, díly podle stadia, povrchu a plodiny
  * a díly s popelem z vymýceného lesa.
  */
 function fieldViews(state: VillageState, day: number): VillageView['fields'] {
@@ -482,14 +496,21 @@ function fieldViews(state: VillageState, day: number): VillageView['fields'] {
         : 0;
     const stages: Partial<Record<PartStage, number>> = {};
     const surfaces: Partial<Record<FieldSurface, number>> = {};
+    const crops: Partial<Record<Crop, number>> = {};
     let ashParts = 0;
+    let ashBonus = 0;
     for (const p of parts) {
       const stage = partStage(p, day);
       stages[stage] = (stages[stage] ?? 0) + 1;
       surfaces[p.surface] = (surfaces[p.surface] ?? 0) + 1;
+      if (p.state === 'sown') {
+        const crop = p.crop ?? 'spring';
+        crops[crop] = (crops[crop] ?? 0) + 1;
+      }
       if (p.bonusUntilDay !== null && p.bonusUntilDay >= day) ashParts++;
+      ashBonus = Math.max(ashBonus, forestBonus(p, day));
     }
-    return { id: f.id, areaM2, fertility, stages, surfaces, ashParts };
+    return { id: f.id, areaM2, fertility, stages, surfaces, crops, ashParts, ashBonus };
   });
 }
 

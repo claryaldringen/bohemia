@@ -1,19 +1,28 @@
 import { dateOfDayIndex, dayIndexOf, isLeapYear } from '../calendar';
 import { storageLossPerYear } from './productivity';
-import { APPLE_FOOD_VALUE, APPLE_ROT_DAY, HARVEST_DAY } from './rules';
+import { APPLE_FOOD_VALUE, APPLE_ROT_DAY, HARVEST_DAY, WINTER_HARVEST_DAY } from './rules';
 
 const COMMON_YEAR_DAYS = 365;
 
-/** Dní do konce sklizňového dne 31. 8. včetně dneška (31. 8. → 1, 1. 9. → celý rok). */
-export function daysUntilHarvest(day: number): number {
+/** Dní do konce dne `target` (měsíc a den po únoru) včetně dneška; po něm do příštího roku. */
+function daysUntilYearly(day: number, target: { month: number; day: number }): number {
   const { year, month, day: dayOfMonth } = dateOfDayIndex(day);
-  const passed =
-    month > HARVEST_DAY.month || (month === HARVEST_DAY.month && dayOfMonth > HARVEST_DAY.day);
-  const harvest = dayIndexOf({ year, ...HARVEST_DAY });
-  // Příští sklizeň je o rok dál, s přestupným únorem příštího roku o den víc. Bez dayIndexOf –
+  const passed = month > target.month || (month === target.month && dayOfMonth > target.day);
+  const thisYear = dayIndexOf({ year, ...target });
+  // Příští termín je o rok dál, s přestupným únorem příštího roku o den víc. Bez dayIndexOf –
   // na podzim 1499 by sahal na rok 1500, který už ve světě není.
-  const next = passed ? harvest + COMMON_YEAR_DAYS + (isLeapYear(year + 1) ? 1 : 0) : harvest;
+  const next = passed ? thisYear + COMMON_YEAR_DAYS + (isLeapYear(year + 1) ? 1 : 0) : thisYear;
   return next - day + 1;
+}
+
+/** Dní do konce sklizňového dne jaře 31. 8. včetně dneška (31. 8. → 1, 1. 9. → celý rok). */
+export function daysUntilHarvest(day: number): number {
+  return daysUntilYearly(day, HARVEST_DAY);
+}
+
+/** Dní do konce sklizně ozimu 31. 7. včetně dneška (31. 7. → 1, 1. 8. → skoro rok). */
+export function daysUntilWinterHarvest(day: number): number {
+  return daysUntilYearly(day, WINTER_HARVEST_DAY);
 }
 
 /**

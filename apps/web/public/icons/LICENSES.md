@@ -25,3 +25,5 @@ pod stejnou licencí. Licence se týká jen těchto souborů, ne zbytku hry Bohe
 | `resources/satiation.png` | vlastní render – hliněná miska s chlebem (model ve skriptu)                                                                                                          |
 | `resources/date.png`      | vlastní render – slunce (model ve skriptu); `time_small.png` z 0 A.D. (16 px) nepoužita                                                                              |
 | `resources/apples.png`    | vlastní render – tři jablka s lístkem (model ve skriptu)                                                                                                             |
+| `resources/ozim.png`      | vlastní render – zelené osení z hroudy se sněhem (model ve skriptu)                                                                                                  |
+| `resources/jar.png`       | vlastní render – klasy jarního ječmene s osinami (model ve skriptu)                                                                                                  |

@@ -6,6 +6,7 @@ export * from './food';
 export * from './dwellings';
 export * from './fields';
 export * from './year-plan';
+export * from './sowing';
 export * from './labor';
 export * from './population';
 export * from './cemetery';

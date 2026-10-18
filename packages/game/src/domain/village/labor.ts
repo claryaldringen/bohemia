@@ -21,6 +21,8 @@ export interface DayAllocationInput {
 export interface DayAllocation {
   dailyMin: number;
   tasks: Record<LaborTaskName, number>;
+  /** Práce pro jednotlivé úlohy vstupu v jejich pořadí (stejný název může být víckrát – plodiny). */
+  taskAmounts: number[];
   repairs: number;
   domestic: number;
   domesticBacklog: number;
@@ -49,7 +51,11 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
     'orchard-care': 0,
     'orchard-harvest': 0,
   };
-  for (const task of input.tasks) tasks[task.name] += take(task.remaining);
+  const taskAmounts = input.tasks.map((task) => {
+    const amount = take(task.remaining);
+    tasks[task.name] += amount;
+    return amount;
+  });
   const repairs = take(input.repairNeed);
   const todayNeed =
     DOMESTIC.perHousehold * input.households +
@@ -60,5 +66,5 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
     0,
     Math.min(DOMESTIC.backlogMaxDays * todayNeed, input.domesticBacklog + todayNeed - domestic),
   );
-  return { dailyMin, tasks, repairs, domestic, domesticBacklog, common: left };
+  return { dailyMin, tasks, taskAmounts, repairs, domestic, domesticBacklog, common: left };
 }

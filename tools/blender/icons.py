@@ -6,7 +6,8 @@ Celé jedním příkazem z kořene repa (Blender 5, ImageMagick `magick`, intern
 
 Výstup (128 × 128 PNG, průhledné rohy) – `build/` zemnice, polozemnice, pole, hrbitov,
 hrncir, kovar, uhlir (řemeslné dílny z `apps/web/public/models/crafts/`, uhlíř s milířem), sad
-(jabloňový sad); (64 × 64 PNG) – `resources/` people, food, wood, labor, satiation, date, apples.
+(jabloňový sad); (64 × 64 PNG) – `resources/` people, food, wood, labor, satiation, date, apples,
+ozim (osení pod sněhem), jar (klasy jarního ječmene).
 Bez druhého argumentu vše, jinak čárkami oddělený výběr (např. `pole,hrbitov,food`).
 
 Postup: portréty staveb a ikony `food`, `wood`, `labor`, `satiation`, `date`, `apples` se vyrenderují v Cycles
@@ -627,6 +628,72 @@ def icon_date():
     return True
 
 
+def blade(bm, base, direction, length, width, bend, seg=6):
+    """Úzký zahnutý list trávy / osení: pásek od `base` ve směru `direction`, ohnutý dolů o `bend`."""
+    d = Vector(direction).normalized()
+    side = Vector((-d.y, d.x, 0)).normalized() if abs(d.z) < 0.999 else Vector((1, 0, 0))
+    left, right = [], []
+    for i in range(seg + 1):
+        t = i / seg
+        p = Vector(base) + d * (length * t) + Vector((0, 0, -bend * t * t))
+        w = width * (1 - t) ** 0.7
+        left.append(bm.verts.new(p + side * w))
+        right.append(bm.verts.new(p - side * w))
+    for i in range(seg):
+        bm.faces.new((left[i], right[i], right[i + 1], left[i + 1]))
+
+
+def icon_ozim():
+    """Ozim: hustý chomáč zeleného osení z tmavé hroudy, poprášené sněhem – přezimuje na poli."""
+    rng = random.Random(5)
+    clod, leaves, snow = bmesh.new(), bmesh.new(), bmesh.new()
+    lumpy(clod, (0, 0, -0.16), (0.8, 0.62, 0.24), rng, 20, 10, amp=0.25)
+    for k in range(30):
+        a = rng.uniform(0, 2 * math.pi)
+        r = rng.uniform(0.0, 0.38) ** 0.8
+        base = Vector((math.cos(a) * r, math.sin(a) * r * 0.8, 0.03))
+        tilt = rng.uniform(0.15, 0.6)
+        out = Vector((math.cos(a + rng.uniform(-0.5, 0.5)), math.sin(a + rng.uniform(-0.5, 0.5)), 0))
+        blade(leaves, base, out * tilt + Vector((0, 0, 1)), rng.uniform(0.7, 1.1), 0.06,
+              rng.uniform(0.1, 0.3))
+    for k in range(6):
+        a = k * 2 * math.pi / 6 + rng.uniform(-0.3, 0.3)
+        r = rng.uniform(0.5, 0.7)
+        lumpy(snow, (math.cos(a) * r, math.sin(a) * r * 0.72, 0.03),
+              (rng.uniform(0.16, 0.26), rng.uniform(0.1, 0.16), 0.035), rng, 12, 6, amp=0.35)
+    to_obj(clod, "clod", mat("soil", (0.28, 0.18, 0.11), 0.95, noise=30, bump=0.5))
+    to_obj(leaves, "blades", mat("sprout", (0.2, 0.5, 0.13), 0.55, noise=20))
+    to_obj(snow, "snow", mat("snow", (0.93, 0.96, 1.0), 0.45))
+    sun(az=-45, el=48, strength=4.0)
+    camera([Vector((-0.85, -0.7, -0.35)), Vector((0.85, 0.7, 1.05))], az=12, el=24, margin=1.02)
+    return True
+
+
+def icon_jar():
+    """Jař: tři klasy jarního ječmene s dlouhými osinami, ještě nazelenalé – zaseto na jaře."""
+    stems, ears, awns = bmesh.new(), bmesh.new(), bmesh.new()
+    for i, (x, lean) in enumerate(((-0.3, -0.4), (0.0, 0.08), (0.3, 0.45))):
+        base = Vector((x * 0.35, 0, -0.8))
+        top = Vector((x + lean * 0.3, 0, 0.45 - abs(lean) * 0.2))
+        cyl(stems, base, top, 0.04, 0.03, 6)
+        # klas se sklání ve směru náklonu
+        d = Vector((lean * 0.9 + (0.2 if i == 1 else 0.0), 0, 1.0 - abs(lean) * 0.5)).normalized()
+        for k in range(7):
+            c = top + d * (0.07 + 0.085 * k)
+            side = 1 if k % 2 == 0 else -1
+            off = Vector((d.z, 0, -d.x)) * 0.055 * side
+            ax = d.to_track_quat("Z", "Y").to_euler()
+            blob(ears, ((c + off)[:], tuple(ax)), (0.068, 0.068, 0.11), 8, 5)
+            tip = c + off + d * 0.09
+            cyl(awns, tip, tip + d * 0.6 + off * 2.4, 0.015, 0.0, 3)
+    to_obj(stems, "stems", mat("stem", (0.5, 0.62, 0.24), 0.7))
+    to_obj(ears, "ears", mat("ear", (0.62, 0.72, 0.28), 0.55, noise=25))
+    to_obj(awns, "awns", mat("awn", (0.74, 0.76, 0.36), 0.6))
+    sun(az=-40, el=46, strength=4.2)
+    camera([Vector((-0.8, -0.2, -0.8)), Vector((0.8, 0.2, 1.2))], az=0, el=10, margin=1.0)
+    return True
+
+
 def apple(bm, centre, r, tilt=(0, 0, 0)):
     """Jablko: koule rozšířená nahoře, s důlky u stopky a u kalichu; vrací vrchol důlku (stopka)."""
     sp = bmesh.ops.create_uvsphere(bm, u_segments=32, v_segments=18, radius=1.0)
@@ -710,6 +777,8 @@ RESOURCES = {
     "satiation": icon_satiation,
     "date": icon_date,
     "apples": icon_apples,
+    "ozim": icon_ozim,
+    "jar": icon_jar,
 }
 
 

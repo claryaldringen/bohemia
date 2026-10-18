@@ -28,6 +28,12 @@ export interface Dwelling {
   forestDistanceM?: number;
 }
 export type PartState = 'founding' | 'ready' | 'sown' | 'fallow';
+/**
+ * Plodina osetého dílu (fields.md – Ozim a jař): **ozim** (`winter` – žito a pšenice, kopá se
+ * a seje na podzim, sklízí v červenci) a **jař** (`spring` – ječmen, kopá se na podzim nebo na
+ * jaře, seje na jaře, sklízí v srpnu).
+ */
+export type Crop = 'winter' | 'spring';
 /** Políčko krajiny – sloupec x a řádek y mřížky. */
 export interface TileCell {
   x: number;
@@ -43,6 +49,8 @@ export interface FieldPart {
   bonusUntilDay: number | null; // do kdy platí bonus vymýceného lesa (FOREST_BONUS)
   state: PartState;
   sownYears: number; // kolik let v řadě oseto
+  /** Co je na osetém dílu zaseto; chybí u dílů mimo osev a u starších vsí (= jař). */
+  crop?: Crop;
   fallowSinceDay: number | null; // od kdy leží v přílohu
   foundingCost: number; // člověkodny (povrch × plocha + překážky)
   foundingDone: number;
@@ -183,12 +191,20 @@ export interface CraftCoverage {
 }
 /** Sezónní práce v sadech (orchard.md) – v rozdělení práce vedle polních prací. */
 export type OrchardTaskName = 'orchard-care' | 'orchard-harvest';
-export interface YearPlan {
-  plannedDay: number;
+/** Práce jedné plodiny v ročním plánu – díly, potřebné a odvedené člověkodny po úlohách. */
+export interface CropWork {
   partIds: number[];
   required: Record<TaskName, number>;
   done: Record<TaskName, number>;
-  harvestedKg: number | null; // čistá úroda sklizená 31. 8. (pro ztrátu nevymláceného 1. 3.)
+  harvestedKg: number | null; // čistá úroda ze sklizně (pro ztrátu nevymláceného 1. 3.)
+}
+/**
+ * Roční plán osevu (k 1. 9.): na nejvyšší úrovni jař (tvar plánu z doby před ozimem), ozim
+ * zvlášť v `winter` – chybí u plánů bez ozimu (i u starších vsí).
+ */
+export interface YearPlan extends CropWork {
+  plannedDay: number;
+  winter?: CropWork;
 }
 export type ChronicleEvent = { day: number } & (
   | { kind: 'village-founded' }
@@ -203,7 +219,11 @@ export type ChronicleEvent = { day: number } & (
       fieldId: number | null;
     }
   | { kind: 'rebuild-decided'; dwellingId: number; type: DwellingType }
-  | { kind: 'harvest'; kg: number }
+  /**
+   * Sklizeň obilí – plodina, když ves seje ozim i jař (ozim v červenci, jař v srpnu); bez ní jen
+   * jař (ves bez ozimu, starší sklizně).
+   */
+  | { kind: 'harvest'; kg: number; crop?: Crop }
   /** Konec sklizně jablek (1. 11.) – kolik kg se sklidilo. */
   | { kind: 'apple-harvest'; kg: number }
   /** Sad dosloužil (60. rok) a vrátil se v louku. */
