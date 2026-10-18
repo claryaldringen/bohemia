@@ -13,7 +13,7 @@ import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import type { Scene } from '@babylonjs/core/scene';
 import { dateOfDayIndex, type Landscape, type ObstacleLayer } from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
-import { cellsBoundary, rowDirection } from './field-cells';
+import { rowDirection, touchingSquares } from './field-cells';
 import {
   CROP_KINDS,
   FIELD_TEXTURES,
@@ -69,10 +69,7 @@ const MEADOW_EDGE_SOFT_M = 3;
 /** Sníh na obtiscích pole – část barvy zimou prosvítá (jako cesty a vyšlapaná hlína). */
 const FIELD_SNOW = 0.85;
 /** Výška obtisků nad terénem (m) – navzájem v pořadí, aby se nepraly o hloubku. */
-const LIFT = { base: 0.03, patches: 0.04, swaths: 0.045, outline: 0.06, layout: 0.065 };
-/** Mez kolem pole – tenký pás suché trávy podél hranice čtverců (m) a jeho krytí. */
-const OUTLINE_WIDTH_M = 0.2;
-const OUTLINE_ALPHA = 0.55;
+const LIFT = { base: 0.03, patches: 0.04, swaths: 0.045, layout: 0.065 };
 /** Provázek vytyčení: výška nad zemí a tloušťka (m); světlá čára naražené trávy pod ním. */
 const STRING_HEIGHT_M = 0.5;
 const STRING_THICKNESS_M = 0.035;
@@ -152,7 +149,8 @@ interface PlantMesh {
 /**
  * Pole ve scéně podle 0 A.D. (fields.md – Co hráč vidí): díly jako obtisky na terénu (zem
  * s měkkými brázdami, osetá zem, porost shora, strniště, úhor, pastvina) s měkkým nepravidelným
- * okrajem a tenkou mezí, obilí jako 3D trsy v řádcích (thin instances – jeden mesh na druh,
+ * okrajem bez meze (sousední pole na sebe navazují bez švu), obilí jako 3D trsy v řádcích (thin
+ * instances – jeden mesh na druh,
  * z dálky řídnou), panáky snopů na žni, plevel v úhoru, kolíky a provázek kolem vytyčeného pole
  * a louky na seno kolem vsi (posečené řádky, kupky, stohy). Vzhled dílů je z field-look.ts,
  * rozmístění z field-crops.ts a hay-meadows.ts. `update` přestaví jen pole, která se změnila.
@@ -316,6 +314,11 @@ export class FieldRenderer {
     for (const field of this.village.fields) {
       seen.add(field.id);
       const views = fieldPartViews(field, { dayOfYear: day, village: this.village });
+      // čtverce sousedních polí – kde pole navazují, okraj se netlumí (bez švu mezi poli)
+      const neighbours = touchingSquares(
+        field.parts,
+        this.village.fields.flatMap((f) => (f.id === field.id ? [] : f.parts)),
+      );
       // louka na seno se mění po dnech (řádky, kupky, stohy, které přes zimu mizí)
       const hay = views.some((v) => v.look && LOOK_STYLES[v.look].hay);
       const key = JSON.stringify([
@@ -323,6 +326,7 @@ export class FieldRenderer {
         views.map((v) => [v.look, v.work === null ? null : workSteps(v.work), v.before, v.staked]),
         villageCenter(this.village, field.parts),
         hay ? day : null,
+        neighbours.map((p) => [p.cell.x, p.cell.y]),
       ]);
       const current = this.fields.get(field.id);
       if (current?.key === key) continue;
@@ -330,7 +334,7 @@ export class FieldRenderer {
       if (current) for (const mesh of current.meshes) mesh.dispose();
       const rows = rowDirection(field.parts);
       const center = villageCenter(this.village, field.parts);
-      const coverage = raggedCoverage(field.parts, EDGE_SOFT_M);
+      const coverage = raggedCoverage([...field.parts, ...neighbours], EDGE_SOFT_M);
       const staking = fieldStaking(views);
       this.fields.set(field.id, {
         key,
@@ -403,8 +407,9 @@ export class FieldRenderer {
   }
 
   /**
-   * Obtisky pole: kusy dílů podle vzhledu (jeden mesh na texturu a vrstvu – podklad a skvrny),
-   * mez podél hranice čtverců a u vytyčeného pole provázek s čarou naražené trávy.
+   * Obtisky pole: kusy dílů podle vzhledu (jeden mesh na texturu a vrstvu – podklad a skvrny)
+   * s měkkým nepravidelným okrajem do louky (bez meze – Martin: „Pole mají nějakou divnou
+   * hranici. Můžeš ji zrušit?“) a u vytyčeného pole provázek s čarou naražené trávy.
    */
   private fieldMeshes(
     field: SceneField,
@@ -485,18 +490,6 @@ export class FieldRenderer {
         .filter((grid) => grid.indices.length > 0);
       if (swathGrids.length > 0) meshes.push(this.swathMesh(`field-${field.id}`, swathGrids, rows));
     }
-    const outline = createStripMesh(
-      this.scene,
-      `village-outline-${field.id}`,
-      cellsBoundary(field.parts).flatMap((line) =>
-        stripSegments(line, false, OUTLINE_WIDTH_M, 1.5),
-      ),
-      this.context.decalHeight,
-      LIFT.outline,
-    );
-    outline.material = this.flatMaterial('outline', new Color3(0.56, 0.53, 0.38), -4);
-    outline.material.alpha = OUTLINE_ALPHA;
-    meshes.push(outline);
     if (stakingLines.length > 0) {
       const line = createStripMesh(
         this.scene,

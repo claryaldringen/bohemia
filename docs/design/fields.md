@@ -403,7 +403,8 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
   vytyčení ztratí.
 - **Ve scéně** (podle 0 A.D., Martin: tvrdé pruhy brázd a vzcházejícího obilí byly „hnusné“):
   zem s měkkými brázdami (textura pole z 0 A.D.) natočenými podél delší strany pole, okraj
-  pole měkký a nepravidelný, kolem tenká mez. Obilí jsou 3D trsy v řádcích (pšenice z 0 A.D.),
+  pole měkký a nepravidelný, bez meze (Martin 18. 10. 2026: „Pole mají nějakou divnou hranici.
+  Můžeš ji zrušit?“); sousední pole na sebe navazují bez švu. Obilí jsou 3D trsy v řádcích (pšenice z 0 A.D.),
   které rostou: oseto (zavláčená tmavá zem) → vzchází (řídké nízké zelené trsy v řádcích) →
   zelené obilí (husté, z dálky zelené pole) → zralé zlaté obilí, které se lehce vlní ve větru →
   žeň (sklizená část se strništěm a panáky snopů, zbytek zralý) → strniště. Úhor: mladý úhor

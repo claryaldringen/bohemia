@@ -209,6 +209,27 @@ export function cellsCoverage(
   };
 }
 
+/**
+ * Čtverce z `others`, které se čtverců `own` dotýkají stranou nebo rohem (8-sousedství) – pro
+ * měkký okraj pole: kde pole navazuje na jiné pole, okraj se netlumí a pole na sebe plynule
+ * navážou (bez švu).
+ */
+export function touchingSquares<T extends CellSquare>(
+  own: readonly CellSquare[],
+  others: readonly T[],
+): T[] {
+  const mine = new Set(own.map((s) => key(s.cell.x, s.cell.y)));
+  return others.filter((o) => {
+    if (mine.has(key(o.cell.x, o.cell.y))) return false;
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        if (mine.has(key(o.cell.x + dx, o.cell.y + dy))) return true;
+      }
+    }
+    return false;
+  });
+}
+
 /** Obdélník kolem čtverců ve světě (s okrajem `marginM`). */
 export function cellsBounds(squares: readonly CellSquare[], marginM = 0): Bounds {
   const bounds = { minX: Infinity, maxX: -Infinity, minZ: Infinity, maxZ: -Infinity };
