@@ -1,4 +1,5 @@
 import '@babylonjs/core/Culling/ray';
+import type { Camera } from '@babylonjs/core/Cameras/camera';
 import type { AbstractEngine } from '@babylonjs/core/Engines/abstractEngine';
 import { DirectionalLight } from '@babylonjs/core/Lights/directionalLight';
 import { HemisphericLight } from '@babylonjs/core/Lights/hemisphericLight';
@@ -38,6 +39,7 @@ import { ScenePerf } from './scene-perf';
 import { addImpostors, type ImpostorForest } from './impostors';
 import { obstacleScenery } from './obstacle-scenery';
 import { createTerrainMesh, type TerrainMesh } from './terrain-mesh';
+import { loopStep, nextTick, tickDue } from './render-loop';
 import { buildRenderSurface } from './render-surface';
 import { terrainMeshHeight } from './drape';
 import { InstanceHider } from './instance-hider';
@@ -118,8 +120,16 @@ export class LandscapeScene {
   private water: WaterSurface | null = null;
   /** Ozdobné ryby a ptáci – hýbou se jako voda, dokud jsou v záběru. */
   private fauna: Fauna | null = null;
-  /** Poslední snímek animace vody (ms) – voda se překresluje nejvýš WATER_FPS za sekundu. */
-  private lastWaterFrame = 0;
+  /**
+   * Poslední takt animací a dokreslování (ms) – voda, zvířata a lidé se překreslují nejvýš
+   * WATER_FPS za sekundu a stejně často se kontroluje, jestli se v záběru něco hýbe.
+   */
+  private lastAnimationTick = Number.NEGATIVE_INFINITY;
+  /** Smyčka kreslení (requestAnimationFrame) a čas jejího posledního průchodu. */
+  private loopHandle = 0;
+  private lastLoopAt: number | null = null;
+  /** WebGL ztratil kontext – do obnovení se nekreslí (jako ve smyčce Babylonu). */
+  private contextLost = false;
   /**
    * Systémové „omezit pohyb“ – voda pak stojí a scéna se kreslí jen při změně. Hodnota se mění
    * živě (MediaQueryList). Zapínají ho i e2e testy: bezhlavý prohlížeč kreslí softwarově
@@ -453,7 +463,7 @@ export class LandscapeScene {
     });
     if (this.season) this.ambient.setSeason({ ...this.season.sound, ice: this.season.ice });
     this.renderBurst(1500);
-    this.engine.runRenderLoop(() => this.frame());
+    this.startLoop();
   }
 
   /** Zapne nebo vypne zvuky krajiny – volat přímo z kliknutí (prohlížeč pustí zvuk po gestu). */
@@ -734,7 +744,8 @@ export class LandscapeScene {
     this.ambient?.dispose();
     this.rtsCamera?.dispose();
     this.perf?.dispose();
-    this.engine.stopRenderLoop();
+    if (this.loopHandle !== 0) cancelAnimationFrame(this.loopHandle);
+    this.loopHandle = 0;
     this.scene.dispose();
     this.engine.dispose();
   }
@@ -895,42 +906,52 @@ export class LandscapeScene {
   }
 
   /**
+   * Vlastní smyčka místo `engine.runRenderLoop`: ta otevírá a uzavírá snímek enginu
+   * (`beginFrame` / `endFrame`) při každém snímku displeje, i když se nic nekreslí – WebGPU pak
+   * pokaždé odešle příkazy (`flushFramebuffer`). Tady vzniká snímek enginu jen při kreslení.
+   */
+  private startLoop(): void {
+    this.engine.onContextLostObservable.add(() => {
+      this.contextLost = true;
+    });
+    this.engine.onContextRestoredObservable.add(() => {
+      this.contextLost = false;
+      this.renderBurst(300);
+    });
+    const tick = (): void => {
+      this.loopHandle = 0;
+      if (this.disposed) return;
+      this.frame();
+      if (!this.disposed) this.loopHandle = requestAnimationFrame(tick);
+    };
+    this.loopHandle = requestAnimationFrame(tick);
+  }
+
+  /**
    * Krajina je statická – kreslí se jen při změně pohledu nebo velikosti okna. Šetří to
-   * výkon i baterii (tisíce stromů) a nezahlcuje prohlížeč bez grafické karty.
+   * výkon i baterii (tisíce stromů) a nezahlcuje prohlížeč bez grafické karty. Animace
+   * a dokreslování po načtení (`renderBurst`) jdou v taktu WATER_FPS, ne s displejem; pohyb
+   * kamery se kreslí s displejem.
    */
   private frame(): void {
     const camera = this.rtsCamera;
     if (!camera) return;
     const now = performance.now();
+    const step = loopStep(now, this.lastLoopAt);
+    this.lastLoopAt = now;
     this.perf?.loop(now);
     if (now >= this.seasonCheckAt) this.updateSeason(false);
-    if (now < this.renderBurstUntil) this.needsRender = true;
-    // Voda teče a zvířata se hýbou sama – výjimka z kreslení jen při změně, dokud jsou v záběru.
-    const moving = !this.reducedMotion?.matches;
-    if (moving && now - this.lastWaterFrame >= 1000 / WATER_FPS) {
-      let animated = false;
-      // zamrzlá voda neteče – v záběru jen led a stojí, nepřekresluje se
-      if (this.water?.flowsInView(camera.camera)) {
-        this.water.animate(now / 1000);
-        animated = true;
-      }
-      if (this.fauna?.animate(now / 1000, camera.camera)) animated = true;
-      // dým z obydlí – rozvrh ohně podle herního dne, proto skutečný čas
-      if (this.village?.animateSmoke(Date.now(), camera.camera)) animated = true;
-      // domácí zvířata – skutečný čas (epoch ms), ne herní: stejný okamžik = stejná póza
-      if (this.livestock?.animate(Date.now(), camera.camera)) animated = true;
-      // lidé ve vsi – skutečný čas jako zvířata
-      if (this.villagers?.animate(Date.now(), camera.camera)) animated = true;
-      // voli a krávy v ohradách a spřežení na poli (oxen.md) – skutečný čas jako zvířata
-      if (this.village?.animateOxen(Date.now(), camera.camera)) animated = true;
-      // obilí ve větru – jen zralé a zelené v záběru
-      if (this.village?.animateFields(Date.now(), camera.camera)) animated = true;
-      if (animated) {
-        this.lastWaterFrame = now;
+    const fps = WATER_FPS;
+    if (tickDue(now, this.lastAnimationTick, fps)) {
+      // takt se posouvá při každé kontrole – kontroly animací nejvýš WATER_FPS za sekundu
+      this.lastAnimationTick = nextTick(now, this.lastAnimationTick, fps);
+      if (now < this.renderBurstUntil) this.needsRender = true;
+      // Voda teče a zvířata se hýbou sama – výjimka z kreslení jen při změně, dokud jsou v záběru.
+      if (!this.reducedMotion?.matches && this.animate(now, camera.camera)) {
         this.needsRender = true;
       }
     }
-    if (camera.update(this.engine.getDeltaTime() / 1000)) {
+    if (camera.update(step)) {
       this.needsRender = true;
       // obilí z dálky řídne (trsy), pole pak nese obtisk porostu
       this.village?.setView(camera.camera.radius);
@@ -945,10 +966,35 @@ export class LandscapeScene {
     }
     this.pickHoveredTile();
     this.placement?.tick(now);
-    if (!this.needsRender) return;
+    if (!this.needsRender || this.contextLost || this.engine.isDisposed) return;
     this.needsRender = false;
+    this.engine.beginFrame();
     this.scene.render(false);
+    this.engine.endFrame();
     this.perf?.frameDrawn(now);
+  }
+
+  /** Voda, ryby a ptáci, dým, zvířata, lidé, voli a obilí – true, když se něco v záběru hnulo. */
+  private animate(now: number, camera: Camera): boolean {
+    let animated = false;
+    // zamrzlá voda neteče – v záběru jen led a stojí, nepřekresluje se
+    if (this.water?.flowsInView(camera)) {
+      this.water.animate(now / 1000);
+      animated = true;
+    }
+    if (this.fauna?.animate(now / 1000, camera)) animated = true;
+    // dým z obydlí – rozvrh ohně podle herního dne, proto skutečný čas
+    const epochMs = Date.now();
+    if (this.village?.animateSmoke(epochMs, camera)) animated = true;
+    // domácí zvířata – skutečný čas (epoch ms), ne herní: stejný okamžik = stejná póza
+    if (this.livestock?.animate(epochMs, camera)) animated = true;
+    // lidé ve vsi – skutečný čas jako zvířata
+    if (this.villagers?.animate(epochMs, camera)) animated = true;
+    // voli a krávy v ohradách a spřežení na poli (oxen.md) – skutečný čas jako zvířata
+    if (this.village?.animateOxen(epochMs, camera)) animated = true;
+    // obilí ve větru – jen zralé a zelené v záběru
+    if (this.village?.animateFields(epochMs, camera)) animated = true;
+    return animated;
   }
 
   /** Plynulost animací (snímků za sekundu) – při omezeném pohybu stojí. */
@@ -1026,8 +1072,9 @@ export class LandscapeScene {
   }
 
   /**
-   * Chvíli kreslit každý snímek: WebGL kompiluje shadery paralelně a první snímky po načtení
-   * nebo změně velikosti nemusí obsahovat vše – bez toho by na obrazovce zůstal neúplný obraz.
+   * Chvíli kreslit v taktu animací (WATER_FPS): WebGL kompiluje shadery paralelně a první snímky
+   * po načtení nebo změně velikosti nemusí obsahovat vše – bez toho by na obrazovce zůstal
+   * neúplný obraz. Hned teď se kreslí vždy.
    */
   private renderBurst(durationMs: number): void {
     this.renderBurstUntil = Math.max(this.renderBurstUntil, performance.now() + durationMs);
