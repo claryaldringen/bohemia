@@ -92,6 +92,7 @@ import {
 import { StakingPegs, createStringMaterial, createStringMesh, pegInstances } from './staking';
 import { closedLine } from './staking-layout';
 import { applySeasonGround, applySeasonModel, applySeasonSnow } from './season-materials';
+import { WildGrowthRenderer } from './wild-growth-renderer';
 import { VillageSmoke, type SmokeSource } from './village-smoke';
 import type { SceneDwelling, SceneRuin } from './village-types';
 import {
@@ -227,6 +228,8 @@ export class VillageRenderer {
   private readonly orchards: OrchardRenderer;
   private readonly sacred: SacredRenderer;
   private readonly fields: FieldRenderer;
+  /** Keře a stromky na zarůstajícím přílohu a les vsi (fields.md – Zarůstání). */
+  private readonly wild: WildGrowthRenderer;
   /** Ohrady s přístřeškem, zvířata v nich a spřežení na poli (oxen.md – village-pens.ts). */
   private readonly pens: PenRenderer;
   private readonly penAnimals: PenAnimals;
@@ -267,6 +270,11 @@ export class VillageRenderer {
     });
     this.sacred = new SacredRenderer(scene, context);
     this.fields = new FieldRenderer(scene, context);
+    this.wild = new WildGrowthRenderer(scene, {
+      groundHeight: context.groundHeight,
+      addShadowCaster: (mesh) => context.addShadowCaster(mesh),
+      onAsyncChange: () => context.onAsyncChange(),
+    });
     if (context.landscape) this.fields.setLandscape(context.landscape, null);
     // louky na seno kolem vsi byly jen vzhled – seno teď dává jen úhor ve fázi louky (oxen.md),
     // jehož seč posílá herní jádro po dílech
@@ -300,6 +308,7 @@ export class VillageRenderer {
     const ruins = this.updateRuins(village.ruins ?? []);
     if (dwellings || ruins) this.updatePitCuts();
     const fields = this.fields.update(village);
+    const wild = this.wild.update(village);
     const cemeteries = this.cemeteries.update(village.cemeteries ?? [], village.dwellings);
     const orchards = this.orchards.update(
       village.orchards ?? [],
@@ -316,6 +325,7 @@ export class VillageRenderer {
       dwellings ||
       ruins ||
       fields ||
+      wild ||
       cemeteries ||
       orchards ||
       plots ||
@@ -496,6 +506,7 @@ export class VillageRenderer {
     this.teams.dispose();
     this.pegs.dispose();
     this.fields.dispose();
+    this.wild.dispose();
     for (const view of this.dwellings.values()) for (const mesh of view.meshes) mesh.dispose();
     this.dwellings.clear();
     for (const view of this.ruins.values()) for (const mesh of view.meshes) mesh.dispose();

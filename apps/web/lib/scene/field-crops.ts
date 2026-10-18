@@ -200,7 +200,34 @@ export const LOOK_STYLES: Record<FieldLook, LookStyle> = {
     hay: true,
     weeds: 0,
   },
+  // zarůstající příloh (fields.md – Zarůstání): obtisk pole zmizí (alfa 0 – nekreslí se), zůstane
+  // tráva louky z terénu; keře a stromky kreslí wild-growth-renderer.ts
+  shrubs: {
+    texture: 'grass',
+    tint: [1, 1, 1],
+    alpha: 0,
+    patches: null,
+    crop: null,
+    stooks: false,
+    hay: false,
+    weeds: 0,
+  },
+  'young-forest': {
+    texture: 'grass',
+    tint: [1, 1, 1],
+    alpha: 0,
+    patches: null,
+    crop: null,
+    stooks: false,
+    hay: false,
+    weeds: 0,
+  },
 };
+
+/** Zarůstá díl křovinami nebo mladým lesem – bez obtisku pole (fields.md – Zarůstání)? */
+export function isWildStage(stage: string): boolean {
+  return stage === 'shrubs' || stage === 'young-forest';
+}
 
 /** Kus obtisku: obdélník ve světě se vzhledem (celý díl, nebo jeho hotová či nehotová část). */
 export interface DecalPiece {

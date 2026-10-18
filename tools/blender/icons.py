@@ -14,6 +14,8 @@ z `apps/web/public/models/pen/`, kráva ze stáda vsi, stoh sena) – portréty 
 z `apps/web/public/models/fields/haystack.glb`), meat (maso – uzená kýta s kostí a provázkem),
 ozim (osení pod sněhem), jar (klasy jarního ječmene), charcoal (hromádka dřevěného uhlí), tools
 (kovaná sekera zkřížená se srpem) a pottery (dva hrnce pražského typu, větší s vlnovkou) –
+suroviny řemesel (crafts.md) –, overgrowth (zarůstání – keře a mladá bříza z modelů krajiny
+`apps/web/public/models/decor/` a `trees/`, fields.md – Zarůstání)
 suroviny řemesel (crafts.md) – a zvířata stád do panelu ohrady – sheep, goat, pig, cow, chicken
 (modely `apps/web/public/models/fauna/`) a ox (vůl ze spřežení `apps/web/public/models/plough/ox.glb`).
 Bez druhého argumentu vše, jinak čárkami oddělený výběr (např. `pole,hrbitov,food`).
@@ -52,6 +54,7 @@ PEN = os.path.join(ROOT, "apps/web/public/models/pen")
 PLOUGH = os.path.join(ROOT, "apps/web/public/models/plough")
 FAUNA = os.path.join(ROOT, "apps/web/public/models/fauna")
 FIELDS = os.path.join(ROOT, "apps/web/public/models/fields")
+DECOR = os.path.join(ROOT, "apps/web/public/models/decor")
 TEX = os.path.join(ROOT, "apps/web/public/textures/terrain")
 TMP = tempfile.mkdtemp(prefix="bohemia-icons-")
 RES = 256
@@ -968,6 +971,25 @@ def icon_hay():
     return True
 
 
+def icon_overgrowth():
+    """Zarůstání přílohu: keře (trnka, šípek) a mladá bříza – modely krajiny, jako ve scéně."""
+    objs = []
+    for (name, folder, loc, rot, scale) in (
+        ("birch-1", TREES, (0.3, 1.2, 0), 0.6, 0.42),
+        ("shrub-3", DECOR, (-1.3, -0.6, 0), 1.2, 0.9),
+        ("shrub-5", DECOR, (1.2, -0.9, 0), 2.6, 0.75),
+    ):
+        for o in place_model(name, folder=folder):
+            o.location = Vector(loc)
+            o.rotation_euler = (0, 0, rot)
+            o.scale = (scale, scale, scale)
+            objs.append(o)
+    bpy.context.view_layer.update()
+    sun(az=-50, el=46, strength=4.0)
+    camera(world_points(objs), az=20, el=14, margin=1.04)
+    return True
+
+
 def icon_apples():
     """Tři červená jablka se stopkou, jedno s lístkem."""
     skin, stems, leaf = bmesh.new(), bmesh.new(), bmesh.new()
@@ -1302,6 +1324,7 @@ RESOURCES = {
     "charcoal": icon_charcoal,
     "tools": icon_tools,
     "pottery": icon_pottery,
+    "overgrowth": icon_overgrowth,
 }
 
 

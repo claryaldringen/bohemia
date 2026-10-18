@@ -81,6 +81,8 @@ export type SelectionDetails =
       ashParts: number;
       /** Nejvyšší letošní bonus úrodnosti z popela (+40 první sezónu, +20 druhou), jinak 0. */
       ashBonus: number;
+      /** Kolik z pole zarůstá (m² – fields.md, Zarůstání); 0 = nic. */
+      overgrowingM2: number;
       /** Zakládání pole (průběh 0–1), hotové null. */
       founding: number | null;
     }
@@ -180,6 +182,8 @@ export const PART_STAGE_ORDER: readonly PartStage[] = [
   'sown',
   'young-fallow',
   'meadow',
+  'shrubs',
+  'young-forest',
 ];
 
 /** Pořadí plodin v panelu pole – ozim (sklízí se dřív), jař. */
@@ -206,6 +210,8 @@ export const PART_STAGE_NAMES: Record<PartStage, string> = {
   sown: 'Oseto',
   'young-fallow': 'Mladý příloh',
   meadow: 'Příloh – pastvina',
+  shrubs: 'Příloh zarostlý křovinami',
+  'young-forest': 'Příloh zarostlý mladým lesem',
 };
 
 /** Údaje o vybraném cíli, nebo null (nic nevybráno, cíl zanikl, ves ještě není). */
@@ -320,6 +326,7 @@ export function selectionDetails(
     }),
     ashParts: field.ashParts,
     ashBonus: field.ashBonus,
+    overgrowingM2: field.overgrowingM2,
     founding: founding ? founding.progress : null,
   };
 }

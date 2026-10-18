@@ -97,6 +97,54 @@ describe('buildVillageView – práce vsi pro postavy', () => {
   });
 });
 
+describe('buildVillageView – zarůstání (fields.md)', () => {
+  it('díly přílohu: roky bez pastvy, kde se pase, zarůstající plocha; les vsi se stromy', () => {
+    const s = settled();
+    s.constructions = s.constructions.filter((c) => c.kind !== 'field');
+    s.parts.forEach((p, i) => {
+      p.foundingDone = p.foundingCost;
+      p.state = 'fallow';
+      p.fallowSinceDay = DAY - 10 * 365;
+      p.distanceM = 50 + i;
+      p.areaM2 = 1000;
+      if (i === 3) p.overgrowthYears = 2;
+      if (i === 4) p.overgrowthYears = 7;
+    });
+    // jedna ovce spase 0,2 ha – dva nejbližší díly po 0,1 ha
+    s.livestock = {
+      herds: { sheep: 0, goat: 0, pig: 0, cow: 0 },
+      young: { sheep: 0, goat: 0, pig: 0, cow: 0 },
+    };
+    s.livestock.herds.sheep = 1;
+    const center = tileCenterWorld(landscape, 3, 3);
+    s.woods = [
+      {
+        cell: { x: 3, y: 3 },
+        x: center.x,
+        z: center.z,
+        areaM2: 225,
+        surface: 'meadow',
+        day: DAY - 400,
+      },
+    ];
+    const view = buildVillageView(record(s), landscape, DAY);
+    const scene = view.scene.fields[0]!.parts;
+    expect(scene.map((p) => p.stage)).toEqual(['meadow', 'meadow', 'meadow', 'meadow', 'shrubs']);
+    expect(scene.map((p) => p.overgrowth)).toEqual([undefined, undefined, undefined, 2, 7]);
+    // křoviny se nepasou
+    expect(scene.map((p) => p.grazed)).toEqual([true, true, false, false, undefined]);
+    expect(scene[4]!.look).toBe('shrubs');
+    expect(view.fields[0]!.overgrowingM2).toBe(2000);
+    expect(view.fields[0]!.stages).toEqual({ meadow: 4, shrubs: 1 });
+    expect(view.scene.woods).toEqual([
+      { cell: { x: 3, y: 3 }, x: center.x, z: center.z, size: 15, surface: 'meadow', age: 31 },
+    ]);
+    const woodTrees = (view.scene.obstacles?.added ?? []).filter((o) => o.id >= 2 ** 31);
+    expect(woodTrees).toHaveLength(5);
+    expect(placementVillageFromScene(view.scene).woods).toEqual([{ cell: { x: 3, y: 3 } }]);
+  });
+});
+
 describe('buildVillageView', () => {
   it('pole: oseté díly podle plodiny – ozim, jař (díl bez plodiny je jař)', () => {
     const s = settled();
@@ -250,6 +298,7 @@ describe('buildVillageView', () => {
         crops: {},
         ashParts: 0,
         ashBonus: 0,
+        overgrowingM2: 0,
       },
     ]);
     expect(view.hungry).toBe(false);
@@ -725,6 +774,8 @@ describe('chronicleText', () => {
     { day: DAY, kind: 'hunger-began' },
     { day: DAY, kind: 'hunger-ended' },
     { day: DAY, kind: 'part-became-forest', partId: 4 },
+    { day: DAY, kind: 'part-became-forest', partId: 4, fieldId: 2, parts: 3, gone: false },
+    { day: DAY, kind: 'part-became-forest', partId: 4, fieldId: 2, parts: 1, gone: true },
     { day: DAY, kind: 'cemetery-full', cemeteryId: 5, othersFree: true },
     { day: DAY, kind: 'cemetery-full', cemeteryId: 5, othersFree: false },
     { day: DAY, kind: 'cemetery-full', cemeteryId: 5, othersFree: false, othersBuilding: true },
@@ -772,6 +823,19 @@ describe('chronicleText', () => {
     expect(
       chronicleText({ day: DAY, kind: 'rebuild-decided', dwellingId: 1, type: 'polozemnice' }, 'X'),
     ).toBe('Obyvatelé se rozhodli přestavět dožilé obydlí na polozemnici.');
+  });
+});
+
+describe('kronika – zarůstání (fields.md)', () => {
+  it('díl nebo pole zarostlo lesem a vypadlo z pole', () => {
+    const forest = (parts: number, gone: boolean): string =>
+      chronicleText(
+        { day: DAY, kind: 'part-became-forest', partId: 1, fieldId: 2, parts, gone },
+        'X',
+      );
+    expect(forest(1, false)).toBe('Nepasený díl pole zarostl lesem – pole se zmenšilo.');
+    expect(forest(3, false)).toBe('Nepasené pole zarostlo lesem – ubylo 3 čtverce.');
+    expect(forest(2, true)).toBe('Nepasené pole zarostlo lesem a zaniklo.');
   });
 });
 

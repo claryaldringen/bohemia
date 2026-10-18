@@ -27,7 +27,8 @@ export type NoticeKind =
   | 'team-retired'
   | 'ox-died'
   | 'orchard-renewal'
-  | 'orchard-gone';
+  | 'orchard-gone'
+  | 'part-forest';
 
 export interface VillageNotice {
   kind: NoticeKind;
@@ -89,8 +90,8 @@ export function newNotices(previous: VillageView | null, next: VillageView): Vil
 }
 
 /**
- * Události kroniky, které se ohlásí jako fakt (diet.md, oxen.md, orchard.md – Obnova sadu) – nejvýš
- * jednou za druh.
+ * Události kroniky, které se ohlásí jako fakt (diet.md, oxen.md, orchard.md – Obnova sadu,
+ * fields.md – Zarůstání) – nejvýš jednou za druh.
  */
 type ChronicleEntry = VillageView['chronicle'][number];
 
@@ -114,6 +115,12 @@ const CHRONICLE_NOTICES: Partial<
     text: 'Vesničané obnovují starý sad',
   }),
   'orchard-gone': () => ({ kind: 'orchard-gone', tone: 'warn', text: 'Starý sad dosloužil' }),
+  // nepasený příloh zarostl lesem a vypadl z pole (fields.md – Zarůstání)
+  'part-became-forest': () => ({
+    kind: 'part-forest',
+    tone: 'warn',
+    text: 'Nepasené pole zarostlo lesem',
+  }),
 };
 
 /** Nové události kroniky od předchozího pohledu (den po něm), které se ohlásí jako fakt. */
