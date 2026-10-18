@@ -2,7 +2,7 @@ import { dateOfDayIndex, isLeapYear } from '../calendar';
 import { expectedNetKg } from './fields';
 import { PLANNING_DAY, type WindowSegment } from './rules';
 import type { CropWork, FieldPart, TaskName, YearPlan } from './types';
-import { emptyTaskRecord, partWork } from './year-plan';
+import { emptyTaskRecord, partWork, ploughRemaining, type PartWork } from './year-plan';
 
 // Kolik ozimu a kolik jaře ves oseje (fields.md – Ozim a jař, Kolik ves oseje). Ves vybírá díly
 // v pořadí přílohové soustavy, dokud nepokryje cíl osevu; každý díl dá do ozimu, pokud ho
@@ -65,6 +65,8 @@ export interface CropChoiceInput {
   allowWinter: boolean;
   day: number;
   toolCoverage: number;
+  /** Ves má spřežení – díly, které rádlo zvládne, orá místo kopání (oxen.md). */
+  plough?: boolean;
 }
 
 /** Prázdná zátěž – jen sklizeň jablek. */
@@ -72,13 +74,14 @@ export function orchardOnlyLoad(orchardAutumn: number): SowingLoad {
   return { orchardAutumn, winter: emptyTaskRecord(), spring: emptyTaskRecord() };
 }
 
-/** Zbytek práce plodiny (potřebné − odvedené po úlohách). */
+/** Zbytek práce plodiny (potřebné − odvedené po úlohách; orba se počítá ke kopání). */
 function remaining(work: CropWork | undefined): Record<TaskName, number> {
   const rest = emptyTaskRecord();
   if (!work) return rest;
   for (const task of Object.keys(rest) as TaskName[]) {
     rest[task] = Math.max(0, work.required[task] - work.done[task]);
   }
+  rest.dig += ploughRemaining(work);
   return rest;
 }
 
@@ -97,14 +100,18 @@ interface CropLoad {
   august: number;
 }
 
+/**
+ * Podzimní práce ozimu – vrácení přílohu, zpracování půdy (kopání, nebo orba rádlem – stejná
+ * okna) a setí; sčítá se ve stejném pořadí jako dřív, ať ves bez hospodářství vyjde bit po bitu.
+ */
+function autumnWork(work: PartWork): number {
+  return work.reclaim + (work.dig + work.plough) + work.sow;
+}
+
 /** Ozim pojme práci `work` – podzim (vrácení, kopání, setí) i červencová sklizeň. */
-function fitsWinter(
-  load: CropLoad,
-  work: Record<TaskName, number>,
-  capacity: SowingCapacity,
-): boolean {
+function fitsWinter(load: CropLoad, work: PartWork, capacity: SowingCapacity): boolean {
   return (
-    load.winterAutumn + work.reclaim + work.dig + work.sow <= capacity.autumnWinter + EPSILON &&
+    load.winterAutumn + autumnWork(work) <= capacity.autumnWinter + EPSILON &&
     load.july + work.harvest <= capacity.july + EPSILON
   );
 }
@@ -113,13 +120,10 @@ function fitsWinter(
  * Jař pojme práci `work`: kopání na podzim, kolik ho po ozimu, jablkách a vrácení přílohů zbude,
  * zbytek na jaře se setím, a srpnová sklizeň.
  */
-function fitsSpring(
-  load: CropLoad,
-  work: Record<TaskName, number>,
-  capacity: SowingCapacity,
-): boolean {
+function fitsSpring(load: CropLoad, work: PartWork, capacity: SowingCapacity): boolean {
   const reclaim = load.springReclaim + work.reclaim;
-  const dig = load.springDig + work.dig;
+  // orba rádlem jde do stejných oken jako kopání
+  const dig = load.springDig + (work.dig + work.plough);
   const sow = load.springSow + work.sow;
   const autumnLeft = Math.max(0, capacity.autumn - load.winterAutumn - reclaim);
   const springNeed = sow + Math.max(0, dig - autumnLeft);
@@ -129,14 +133,14 @@ function fitsSpring(
   );
 }
 
-function addWinter(load: CropLoad, work: Record<TaskName, number>): void {
-  load.winterAutumn += work.reclaim + work.dig + work.sow;
+function addWinter(load: CropLoad, work: PartWork): void {
+  load.winterAutumn += autumnWork(work);
   load.july += work.harvest;
 }
 
-function addSpring(load: CropLoad, work: Record<TaskName, number>): void {
+function addSpring(load: CropLoad, work: PartWork): void {
   load.springReclaim += work.reclaim;
-  load.springDig += work.dig;
+  load.springDig += work.dig + work.plough;
   load.springSow += work.sow;
   load.august += work.harvest;
 }
@@ -169,8 +173,8 @@ export function chooseCrops(
     august: planned.spring.harvest,
   };
   let net = input.startKg;
-  const workOf = (part: FieldPart): Record<TaskName, number> =>
-    partWork(part, input.day, input.toolCoverage);
+  const workOf = (part: FieldPart): PartWork =>
+    partWork(part, input.day, input.toolCoverage, input.plough ?? false);
 
   for (const block of blocks) {
     if (net >= input.targetKg) break;
@@ -183,9 +187,9 @@ export function chooseCrops(
       blockNet += expectedNetKg(part, input.day);
     }
     const works = needed.map(workOf);
-    const total = emptyTaskRecord();
+    const total: PartWork = { ...emptyTaskRecord(), plough: 0 };
     for (const work of works) {
-      for (const task of Object.keys(total) as TaskName[]) total[task] += work[task];
+      for (const task of Object.keys(total) as (keyof PartWork)[]) total[task] += work[task];
     }
     if (input.allowWinter && fitsWinter(load, total, capacity)) {
       winter.push(...needed);

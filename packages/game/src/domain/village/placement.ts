@@ -12,6 +12,7 @@ import type { CemeterySquareInput, OrchardSquareInput, PartInput } from './actio
 import { cemeteryFoundingCost, distanceToSquare, touchingCemeteries } from './cemetery';
 import { craftCoverage, milirClearing, workshopFootprints } from './crafts';
 import { fieldSquareSurface, fieldsTouching, partFoundingCost } from './fields';
+import { LIVESTOCK, withLivestock } from './livestock';
 import { orchardPlantingCost } from './orchard';
 import {
   cellObstacles,
@@ -121,6 +122,8 @@ export interface PlacementVillage {
   readonly cemeteries?: readonly { readonly squares: readonly { readonly cell: TileCell }[] }[];
   /** Jabloňové sady – zabírají políčka svých čtverců (bez údaje žádné). */
   readonly orchards?: readonly { readonly squares: readonly { readonly cell: TileCell }[] }[];
+  /** Ohrady (i rozestavěné) – každá zabírá své políčko (bez údaje žádné – oxen.md). */
+  readonly pens?: readonly { readonly cell: TileCell }[];
   /** Překážky, které ves už odstranila nebo pokácela (`obstacleChangesAt`); bez nich žádné. */
   readonly obstacleChanges?: ObstacleChanges;
   /**
@@ -417,6 +420,11 @@ function orchardCells(landscape: Landscape, village: PlacementVillage | null): S
   return occupied;
 }
 
+/** Políčka, která už zabírají ohrady vsi. */
+function penCells(landscape: Landscape, village: PlacementVillage | null): Set<number> {
+  return new Set((village?.pens ?? []).map((pen) => cellIndex(landscape, pen.cell)));
+}
+
 /** Body mřížky po FOOTPRINT_SAMPLE_STEP_M přes otočený půdorys obydlí, včetně okrajů. */
 function footprintSamples(type: DwellingType, position: Position): Point[] {
   const { width, depth } = DWELLING_FOOTPRINT_M[type];
@@ -514,6 +522,8 @@ function checkFootprintFree(
   if (under.some((i) => cemeteries.has(i))) return fail('Překrývá se s hřbitovem.');
   const orchards = orchardCells(landscape, village);
   if (under.some((i) => orchards.has(i))) return fail('Překrývá se se sadem.');
+  const pens = penCells(landscape, village);
+  if (under.some((i) => pens.has(i))) return fail('Překrývá se s ohradou.');
   return OK;
 }
 
@@ -588,6 +598,7 @@ export function checkDwellingPlacement(
       ...occupiedCells(landscape, village),
       ...cemeteryCells(landscape, village),
       ...orchardCells(landscape, village),
+      ...penCells(landscape, village),
       ...clearingTiles.filter((tile) => sites.groveByTile.has(tile)),
     ]),
     sites.protectedTrees,
@@ -808,6 +819,75 @@ function plotClearing(
   };
 }
 
+/** Kontrola ohrady (oxen.md) – cena překážek a střed čtverce (prošlá kontrola). */
+export interface PenPlacementCheck extends PlacementCheck {
+  obstacleCost: number;
+  obstacleIds: number[];
+  clearedTrees: number;
+  obstacleCounts: Partial<Record<ObstacleKind, number>>;
+  /** Střed čtverce ve světě (m). */
+  x: number;
+  z: number;
+}
+
+/**
+ * Smí na políčku `cell` stát ohrada s přístřeškem (oxen.md – stavba po čtvercích jako pozemek
+ * polozemnice)? Celé políčko louky (ne voda, zatím ani les), bez skalního výchozu, posvátného dubu
+ * a háje, nezabrané polem, hřbitovem, sadem, obydlím, pozemkem, jinou ohradou ani modlou. Překážky
+ * platí jako u čtverce pole – všechny kusy na políčku (dospělé stromy nevyhrazené jinou stavbou
+ * dají klády).
+ */
+export function checkPenPlacement(
+  landscape: Landscape,
+  village: PlacementVillage | null,
+  cell: TileCell,
+  obstacles: ObstacleLayer = obstaclesOf(landscape),
+): PenPlacementCheck {
+  const none = {
+    obstacleCost: 0,
+    obstacleIds: [],
+    clearedTrees: 0,
+    obstacleCounts: {},
+    x: 0,
+    z: 0,
+  };
+  if (!Number.isInteger(cell.x) || !Number.isInteger(cell.y)) {
+    return { ...fail('Neplatné políčko ohrady.'), ...none };
+  }
+  if (cell.x < 0 || cell.y < 0 || cell.x >= landscape.size || cell.y >= landscape.size) {
+    return { ...fail('Ohrada musí ležet uvnitř krajiny sídla.'), ...none };
+  }
+  const surface = surfaceAt(landscape, cell.x, cell.y);
+  if (surface === 'water') return { ...fail('Ohrada nemůže stát ve vodě.'), ...none };
+  if (surface !== 'meadow') return { ...fail('Ohrada jde zatím jen na louku.'), ...none };
+  const center = tileCenterWorld(landscape, cell.x, cell.y);
+  const square = cellCorners(landscape, cell);
+  const free = checkFootprintFree(landscape, village, [square]);
+  if (!free.ok) return { ...free, ...none, x: center.x, z: center.z };
+  const status = obstacleStatus(village?.obstacleChanges);
+  if (outcropUnder(obstacles, status, square)) {
+    return { ...fail('Stojí tu skalní výchoz – ten osadníci neodstraní.'), ...none };
+  }
+  const sites = sacredSitesOf(obstacles);
+  const index = cellIndex(landscape, cell);
+  if (sites.groveByTile.has(index)) {
+    return { ...fail('Roste tu posvátný dubový háj – ten vesničané nevykácejí.'), ...none };
+  }
+  if (sacredOaksInTile(sites, index).length > 0) {
+    return { ...fail('Stojí tu posvátný dub – ten vesničané nepokácí.'), ...none };
+  }
+  const tally = cellObstacles(obstacles, status, cell, sites.protectedTrees);
+  return {
+    ...OK,
+    obstacleCost: tally.cost,
+    obstacleIds: tally.ids,
+    clearedTrees: unreservedTrees(village, tally.treeIds),
+    obstacleCounts: tally.counts,
+    x: center.x,
+    z: center.z,
+  };
+}
+
 /**
  * Smí políčko `cell` dostat starší polozemnice, která na něm už stojí (převod starých vsí,
  * `withPlots`)? Jako u nového pozemku: louka, nic jiného ho nezabírá (obydlí samo se do `village`
@@ -984,7 +1064,7 @@ function dwellingCells(
   return new Set(footprints.flatMap((f) => cellsUnderPolygon(landscape, f)));
 }
 
-/** Co brání čtverci stavby: voda, les, obydlí, pole, pohřebiště, sad, modla nebo svatyně. */
+/** Co brání čtverci stavby: voda, les, obydlí, pole, pohřebiště, sad, ohrada, modla, svatyně. */
 interface SquareFlags {
   water: boolean;
   forest: boolean;
@@ -992,6 +1072,7 @@ interface SquareFlags {
   field: boolean;
   cemetery: boolean;
   orchard: boolean;
+  pen: boolean;
   sacred: boolean;
 }
 
@@ -1013,6 +1094,7 @@ function squareFlags(
   const fields = occupiedCells(landscape, village);
   const cemeteries = cemeteryCells(landscape, village);
   const orchards = orchardCells(landscape, village);
+  const pens = penCells(landscape, village);
   const underDwellings = dwellingCells(landscape, village, dwellingPositions);
   const underSacred = sacredBuildingCells(landscape, village);
   return (cell) => {
@@ -1025,6 +1107,7 @@ function squareFlags(
       field: fields.has(index),
       cemetery: cemeteries.has(index),
       orchard: orchards.has(index),
+      pen: pens.has(index),
       sacred: underSacred.has(index),
     };
   };
@@ -1155,6 +1238,7 @@ function buildSquares(
     field: false,
     cemetery: false,
     orchard: false,
+    pen: false,
     sacred: false,
     far: false,
   };
@@ -1259,6 +1343,46 @@ export function withForestDistances(state: VillageState, landscape: Landscape): 
   return next;
 }
 
+/**
+ * Louka a les (ha) do LIVESTOCK.reachM od bodu (x, z) – pastva a žaludy dobytka (diet.md).
+ * Políčka se počítají celá podle středu.
+ */
+export function livestockLandAt(
+  landscape: Landscape,
+  x: number,
+  z: number,
+): { meadowHa: number; forestHa: number } {
+  const cellHa = (landscape.cellSizeM * landscape.cellSizeM) / M2_PER_HA;
+  const reach2 = LIVESTOCK.reachM * LIVESTOCK.reachM;
+  let meadow = 0;
+  let forest = 0;
+  for (let y = 0; y < landscape.size; y++) {
+    for (let cx = 0; cx < landscape.size; cx++) {
+      const center = tileCenterWorld(landscape, cx, y);
+      const dx = center.x - x;
+      const dz = center.z - z;
+      if (dx * dx + dz * dz > reach2) continue;
+      const surface = surfaceAt(landscape, cx, y);
+      if (surface === 'meadow') meadow++;
+      else if (surface === 'forest') forest++;
+    }
+  }
+  return { meadowHa: meadow * cellHa, forestHa: forest * cellHa };
+}
+
+/**
+ * Doplní vsi uložené před dobytkem výchozí stádo a krajinu pro pastvu (louka a les do 600 m od
+ * první zemnice nebo jejího staveniště – `livestockLandAt`). Nic nechybí – vrátí týž stav.
+ */
+export function withLivestockLand(state: VillageState, landscape: Landscape): VillageState {
+  if (state.livestock?.land) return state;
+  const origin =
+    state.dwellings[0]?.position ??
+    state.constructions.find((c) => c.kind === 'dwelling' && c.position !== null)?.position;
+  if (!origin) return state;
+  return withLivestock(state, livestockLandAt(landscape, origin.x, origin.z));
+}
+
 /** Stromy dílu nebo čtverce pro klády z mýcení – bez stromů se údaj vynechá. */
 function withTrees(trees: number): { trees?: number } {
   return trees > 0 ? { trees } : {};
@@ -1349,6 +1473,7 @@ export function fieldPartsFromCells(
     [problems.field, () => 'Pole se překrývá s jiným polem.'],
     [problems.cemetery, () => 'Pole se překrývá s hřbitovem.'],
     [problems.orchard, () => 'Pole se překrývá se sadem.'],
+    [problems.pen, () => 'Pole se překrývá s ohradou.'],
     [problems.sacred, () => 'Pole se překrývá s posvátným místem.'],
     [problems.far, () => `Pole je dál než ${FIELD_LIMITS.maxDistanceM} m od nejbližšího obydlí.`],
     [sacred.cells.length === 0, () => 'Roste tu posvátný dubový háj – ten vesničané nevykácejí.'],
@@ -1434,6 +1559,7 @@ export function orchardPartsFromCells(
     [problems.field, 'Sad se překrývá s polem.'],
     [problems.cemetery, 'Sad se překrývá s hřbitovem.'],
     [problems.orchard, 'Sad se překrývá s jiným sadem.'],
+    [problems.pen, 'Sad se překrývá s ohradou.'],
     [problems.sacred, 'Sad se překrývá s posvátným místem.'],
     [problems.far, `Sad je dál než ${FIELD_LIMITS.maxDistanceM} m od nejbližšího obydlí.`],
     [sacred.cells.length === 0, 'Roste tu posvátný dubový háj – ten vesničané nevykácejí.'],
@@ -1524,6 +1650,7 @@ export function cemeteryPartsFromCells(
     field: false,
     cemetery: false,
     orchard: false,
+    pen: false,
     sacred: false,
     outcrop: false,
     oak: false,
@@ -1583,6 +1710,7 @@ export function cemeteryPartsFromCells(
     [problems.field, 'Hřbitov se překrývá s polem.'],
     [problems.cemetery, 'Hřbitov se překrývá s jiným hřbitovem.'],
     [problems.orchard, 'Hřbitov se překrývá se sadem.'],
+    [problems.pen, 'Hřbitov se překrývá s ohradou.'],
     [problems.sacred, 'Hřbitov se překrývá s posvátným místem.'],
     [problems.outcrop, 'Stojí tu skalní výchoz – ten osadníci neodstraní.'],
     [problems.oak, 'Stojí tu posvátný dub – mezi hroby ho vesničané nenechají.'],

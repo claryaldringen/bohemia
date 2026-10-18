@@ -116,6 +116,22 @@ export function parsePlaceOrchardInput(value: unknown): { cells: TileCell[] } | 
   return parsePlaceFieldInput(value);
 }
 
+/**
+ * Vstup stavby ohrady `{ cells }` – jeden čtverec (staví se jako pole po čtvercích), jinak null.
+ * Víc čtverců odmítne až kontrola umístění s důvodem pro hráče.
+ */
+export function parsePlacePenInput(value: unknown): { cells: TileCell[] } | null {
+  const input = parsePlaceFieldInput(value);
+  return input !== null && input.cells.length > 0 ? input : null;
+}
+
+/** Vstup výcviku spřežení `{ penId }` – kladné celé číslo, jinak null. */
+export function parseTrainTeamInput(value: unknown): { penId: number } | null {
+  if (!isRecord(value)) return null;
+  const { penId } = value;
+  return Number.isInteger(penId) && (penId as number) > 0 ? { penId: penId as number } : null;
+}
+
 /** Vstup stavby modly nebo svatyně `{ kind, position }`, jinak null. */
 export function parsePlaceSacredInput(
   value: unknown,

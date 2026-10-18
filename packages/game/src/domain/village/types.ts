@@ -206,7 +206,11 @@ export type ConstructionKind =
   | 'cemetery'
   | 'orchard'
   /** Dřevěná modla a svatyně (happiness.md) – stavba se polohou v `position`. */
-  | SacredBuildingKind;
+  | SacredBuildingKind
+  /** Ohrada s přístřeškem (oxen.md) – čtverec v `penId`. */
+  | 'pen'
+  /** Rádlo pro výcvik spřežení v ohradě `penId` (oxen.md – 1 strom a 5 člověkodní). */
+  | 'ard';
 /** Posvátná stavba, kterou staví hráč (happiness.md). */
 export type SacredBuildingKind = 'idol' | 'shrine';
 export interface Construction {
@@ -224,6 +228,8 @@ export interface Construction {
   fieldId: number | null; // field – zakládá díly od nejbližšího
   cemeteryId?: number | null; // cemetery (u starších staveb chybí)
   orchardId?: number | null; // orchard – vysazuje čtverce od nejbližšího (u ostatních chybí)
+  /** Ohrada – stavba ohrady a rádlo pro její spřežení (oxen.md); u ostatních chybí. */
+  penId?: number | null;
   /** Dřevo obydlí, přestavby, modly a svatyně (forest.md); u starších staveb a polí chybí. */
   wood?: ConstructionWood;
   /** Nové obydlí: vzdálenost k nejbližšímu okraji lesa (m) – obydlí ji po dostavění převezme. */
@@ -283,6 +289,28 @@ export interface CropWork {
   required: Record<TaskName, number>;
   done: Record<TaskName, number>;
   harvestedKg: number | null; // čistá úroda ze sklizně (pro ztrátu nevymláceného 1. 3.)
+  /**
+   * Orba rádlem (oxen.md – Účinek na práci): díly, které místo motyky orá spřežení. Jejich
+   * kopání v `required.dig` není. Chybí = ves letos neorá (i plány starších vsí).
+   */
+  plough?: PloughWork;
+}
+/**
+ * Orba jedné plodiny: díly pro spřežení v pořadí orby, potřebné a odvedené člověkodny a váhy
+ * (plocha × vzdálenost) oraných dílů a dílů kopaných motykou – setí jde za obojím. Díly vrácené
+ * motyce (vůl uhynul, spřežení dosloužilo, slabí voli po zimě bez sena) se kopou na konci řady
+ * kopání (`returned`).
+ */
+export interface PloughWork {
+  partIds: number[];
+  required: number;
+  done: number;
+  /** Váha oraných dílů (ha × příplatek za vzdálenost). */
+  weight: number;
+  /** Váha dílů kopaných motykou (i vrácených). */
+  digWeight: number;
+  /** Díly vrácené motyce – kopou se po ostatních dílech plodiny. */
+  returned?: number[];
 }
 /**
  * Roční plán osevu (k 1. 9.): na nejvyšší úrovni jař (tvar plánu z doby před ozimem), ozim
@@ -317,6 +345,14 @@ export type ChronicleEvent = { day: number } & (
   | { kind: 'harvest'; kg: number; crop?: Crop }
   /** Konec sklizně jablek (1. 11.) – kolik kg se sklidilo. */
   | { kind: 'apple-harvest'; kg: number }
+  /** Podzimní porážka (diet.md – 1. 11.): kolik kg masa a kolik kusů kterého druhu. */
+  | { kind: 'slaughter'; kg: number; animals: Partial<Record<HerdSpecies, number>> }
+  /** Spřežení volů v ohradě je vycvičené a orá (oxen.md). */
+  | { kind: 'team-ready'; penId: number }
+  /** Spřežení dosloužilo – voli zestárli (oxen.md, ≈ 10 let), šli na maso. */
+  | { kind: 'team-retired'; penId: number }
+  /** Přes zimu chybělo přes polovinu sena – vůl uhynul, spřežení (nebo výcvik) se rozpadlo. */
+  | { kind: 'ox-died'; penId: number; training: boolean }
   /** Sad dosloužil (60. rok) a vrátil se v louku. */
   | { kind: 'orchard-gone'; orchardId: number }
   | { kind: 'hunger-began' }
@@ -344,11 +380,19 @@ export type LaborActivity =
   | 'harvest'
   | 'carry'
   | 'thresh'
+  /** Orba rádlem – oráč a honáček se spřežením (oxen.md). */
+  | 'plough'
+  /** Sečení, sušení a stohování sena (oxen.md – Seno). */
+  | 'mow'
+  /** Porážka a uzení masa (diet.md). */
+  | 'slaughter'
   /** Sezónní práce v sadech (orchard.md). */
   | 'orchard-care'
   | 'orchard-harvest'
   /** Společná práce do staveb: stavba obydlí, kácení jeho dřeva, zakládání pole, výsadba sadu, hřbitov. */
   | 'build'
+  /** Stavba ohrady a výroba rádla (oxen.md). */
+  | 'pen'
   | 'fell'
   | 'found-field'
   | 'orchard-plant'
@@ -377,6 +421,8 @@ export type LaborTarget =
   | { kind: 'orchard'; id: number }
   /** Hřbitov (id) – zakládání a rozšíření. */
   | { kind: 'cemetery'; id: number }
+  /** Ohrada (id) – stavba, rádlo. */
+  | { kind: 'pen'; id: number }
   /** Stromy z vrstvy překážek, které se pro stavbu právě kácejí. */
   | { kind: 'trees'; ids: number[] }
   /** Ves celkově – výmlat, domácí práce, nevyužitá společná práce. */
@@ -467,6 +513,19 @@ export interface VillageState {
   groves?: Grove[];
   /** Hotové modly a svatyně (happiness.md); chybí = žádné. */
   sacredBuildings?: SacredBuilding[];
+  /**
+   * Dobytek (diet.md – Dobytek): stáda ovcí, koz, prasat a krav. U vsí uložených před dobytkem
+   * chybí – výchozí stádo z domácností doplní `withLivestock` (nebo první dopočítaný den).
+   */
+  livestock?: LivestockState;
+  /** Zásoba masa (kg) – uzené a sušené, vejce (diet.md). Chybí = žádná. */
+  meatKg?: number;
+  /** Seno (oxen.md – Seno): zásoba, sečení a zima. Chybí = žádné. */
+  hay?: HayState;
+  /** Ohrady s přístřeškem (oxen.md); chybí = žádné. */
+  pens?: Pen[];
+  /** Jídlo posledního odsimulovaného dne – energie, pestrost a podíly (jen pro zobrazení). */
+  diet?: DietDay;
   /** Zásoby výrobků řemeslníků (crafts.md) – u vsí uložených před řemesly chybí (= 0). */
   crafts?: CraftStocks;
   /**
@@ -474,6 +533,78 @@ export interface VillageState {
    * uložených před převodem – při načtení se jednou převedou.
    */
   plotsMigrated?: true;
+}
+
+/** Druh stáda (diet.md – Dobytek); slepice patří k obydlím, voli k ohradám. */
+export type HerdSpecies = 'sheep' | 'goat' | 'pig' | 'cow';
+
+/**
+ * Stáda vsi (diet.md – Dobytek). Počty mohou být neceločíselné – mláďata a porážka se počítají
+ * podílem stáda; panel a scéna je zaokrouhlí.
+ */
+export interface LivestockState {
+  herds: Record<HerdSpecies, number>;
+  /** Mláďata letošního jara (přibyla 1. 4.) – z nich ves v listopadu bere maso navíc. */
+  young: Record<HerdSpecies, number>;
+  /**
+   * Louka a les (ha) do LIVESTOCK.reachM od vsi podle krajiny (simulace krajinu nemá) – pastva
+   * a žaludy. Bez údaje výchozí hodnoty typické krajiny (LIVESTOCK.defaultLand).
+   */
+  land?: { meadowHa: number; forestHa: number };
+  /** Porážka a uzení (listopad) – potřebné a odvedené člověkodny; chybí = žádná. */
+  slaughterWork?: { required: number; done: number } | null;
+}
+
+/** Seno (oxen.md – Seno): zásoba, letošní seč a zima. */
+export interface HayState {
+  kg: number;
+  /** Sečení (červen–červenec) – díly úhoru ve fázi louky v pořadí seče; null = letos se neseče. */
+  mowing: HayMowing | null;
+  /**
+   * Zima (listopad–březen): kolik sena voli potřebovali a dostali do včerejška – pokrytí rozhodne
+   * o jarní orbě a úhynu (oxen.md). Chybí mimo zimu.
+   */
+  winter?: { oxenNeedKg: number; oxenEatenKg: number };
+}
+
+/** Seč jednoho léta – díly, potřebné a odvedené člověkodny a seno při plné seči (kg). */
+export interface HayMowing {
+  partIds: number[];
+  required: number;
+  done: number;
+  yieldKg: number;
+}
+
+/**
+ * Ohrada s přístřeškem (oxen.md) – čtverec 15 × 15 m, spřežení volů a výcvik nového. Stavba
+ * a rádlo jsou stavby (`Construction.penId`).
+ */
+export interface Pen {
+  id: number;
+  cell: TileCell;
+  /** Střed čtverce ve světě (m). */
+  x: number;
+  z: number;
+  /** Den dostavění; dokud se staví, null. */
+  builtDay: number | null;
+  /** Vycvičené spřežení (2 voli) – den, kdy začalo orat; úhyn vola ho rozpadne. */
+  team: { readyDay: number } | null;
+  /** Výcvik dvou telat – den zadání (spřežení za OXEN.trainingYears let a s hotovým rádlem). */
+  training: { startDay: number } | null;
+  /** Překážky na čtverci (id z vrstvy) – zmizí se zahájením stavby. */
+  obstacles?: number[];
+}
+
+/** Jídlo jednoho dne (diet.md) – energie a pestrost proti potřebě, podíly zdrojů na energii. */
+export interface DietDay {
+  /** Pokrytí energie 0–1 (obilí + maso × 0,6 + ovoce / 7 proti potřebě). */
+  energy: number;
+  /** Pestrost 0,8–1 (0,80 + 0,14 × pokrytí masa + 0,06 × pokrytí ovoce). */
+  diversity: number;
+  /** Nasycení = energie × pestrost. */
+  satiation: number;
+  /** Podíly na potřebě energie 0–1 – obilí, maso, ovoce. */
+  shares: { grain: number; meat: number; fruit: number };
 }
 
 /**

@@ -13,8 +13,8 @@ import type { SceneVillage } from '../village-view';
 
 /**
  * Co je ve vsi vybrané: obydlí (hotové i rozestavěné – id ze scény vsi), pole, hřbitov, sad,
- * posvátný dub (id stromu), dubový háj (id středového dubu), nebo modla či svatyně (id stavby –
- * hotová i rozestavěná, happiness.md).
+ * posvátný dub (id stromu), dubový háj (id středového dubu), modla či svatyně (id stavby –
+ * hotová i rozestavěná, happiness.md), nebo ohrada (id ohrady – oxen.md).
  */
 export type VillageTarget =
   | { kind: 'dwelling'; id: number }
@@ -23,7 +23,9 @@ export type VillageTarget =
   | { kind: 'orchard'; id: number }
   | { kind: 'sacred-oak'; id: number }
   | { kind: 'grove'; id: number }
-  | { kind: 'sacred'; id: number };
+  | { kind: 'sacred'; id: number }
+  /** Ohrada (id ohrady – hotová i rozestavěná, oxen.md). */
+  | { kind: 'pen'; id: number };
 
 export interface Vec3 {
   x: number;
@@ -103,8 +105,8 @@ export function insideSacredFootprint(
 /**
  * Co je pod kurzorem: obydlí, které paprsek protne od země do výšky střechy (nejbližší ke
  * kameře), pak modla nebo svatyně (paprsek přes půdorys do výšky modly), posvátný dub (paprsek
- * do 4 m od kmene od země do koruny), jinak obydlí, jehož pozemek (políčko), pole, hřbitov, sad
- * nebo dubový háj leží pod bodem terénu `ground`; null = prázdná zem.
+ * do 4 m od kmene od země do koruny), jinak obydlí, jehož pozemek (políčko), ohrada, pole,
+ * hřbitov, sad nebo dubový háj leží pod bodem terénu `ground`; null = prázdná zem.
  */
 export function pickVillageTarget(
   village: SceneVillage,
@@ -157,6 +159,8 @@ export function pickVillageTarget(
     (d) => d.plot?.cell.x === cell.x && d.plot.cell.y === cell.y,
   );
   if (owner) return { kind: 'dwelling', id: owner.id };
+  const pen = (village.pens ?? []).find((p) => p.cell.x === cell.x && p.cell.y === cell.y);
+  if (pen) return { kind: 'pen', id: pen.id };
   const field = village.fields.find((f) =>
     f.parts.some((p) => p.cell.x === cell.x && p.cell.y === cell.y),
   );
@@ -190,5 +194,6 @@ export function targetExists(village: SceneVillage, target: VillageTarget): bool
   if (target.kind === 'sacred') {
     return (village.sacred?.buildings ?? []).some((b) => b.id === target.id);
   }
+  if (target.kind === 'pen') return (village.pens ?? []).some((p) => p.id === target.id);
   return village.fields.some((f) => f.id === target.id);
 }

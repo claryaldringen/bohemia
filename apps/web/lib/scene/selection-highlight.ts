@@ -63,7 +63,7 @@ export class SelectionHighlight {
 /**
  * Obrys cíle jako lomené čáry: celý pozemek obydlí (polozemnice – políčko), rámeček kolem
  * půdorysu volného obydlí, modly nebo svatyně, kroužek kolem posvátného dubu, nebo mez kolem
- * čtverců pole, hřbitova, sadu či háje.
+ * čtverců pole, hřbitova, sadu, háje či ohrady.
  */
 export function targetOutline(village: SceneVillage, target: VillageTarget): Point[][] {
   if (target.kind === 'sacred') {
@@ -106,6 +106,10 @@ export function targetOutline(village: SceneVillage, target: VillageTarget): Poi
   if (target.kind === 'orchard') {
     const orchard = village.orchards?.find((o) => o.id === target.id);
     return orchard ? cellsBoundary(orchard.squares) : [];
+  }
+  if (target.kind === 'pen') {
+    const pen = village.pens?.find((p) => p.id === target.id);
+    return pen ? cellsBoundary([pen]) : [];
   }
   const field = village.fields.find((f) => f.id === target.id);
   if (!field || field.parts.length === 0) return [];

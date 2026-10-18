@@ -503,7 +503,10 @@ describe('advanceVillage – sad', () => {
     s.hungry = false;
     const next = advanceVillage(s, at(601, 10, 2), null);
     const summary = summarizeVillage(next, next.lastDay);
-    expect(summary.satiation).toBe(1); // dnes se jí dosyta jablky
+    // ovoce smí pokrýt nejvýš čtvrtinu energie (diet.md) – samo nenasytí; obilí se šetří na
+    // dobu po zkažení jablek
+    expect(next.diet!.shares.fruit).toBeCloseTo(0.25, 9);
+    expect(summary.diet.energy).toBeLessThan(1);
     expect(next.hungry).toBe(true);
     expect(summary.hungry).toBe(true);
     expect(events(next, 'hunger-began').at(-1)?.day).toBe(at(601, 10, 2));

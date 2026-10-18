@@ -176,6 +176,38 @@ const view = {
       { id: 41, kind: 'shrine', built: false, happiness: 25, progress: 0.35, oaksToFell: 2 },
     ],
   },
+  hayKg: 3200,
+  livestock: {
+    herds: { sheep: 9, goat: 3, pig: 7, cow: 4 },
+    chickens: 6,
+    oxen: 2,
+    pastureHa: 41.5,
+    grazingHa: 8.4,
+    pigForestHa: 30,
+    meatNeedKg: 560,
+  },
+  pens: [
+    {
+      id: 90,
+      built: true,
+      progress: 1,
+      team: { ageYears: 3, yearsLeft: 7 },
+      training: null,
+      trainBlocked: 'Na výcvik chybí telata – stádo potřebuje aspoň 3 krávy.',
+      cows: 4,
+      oxen: 2,
+    },
+    {
+      id: 91,
+      built: false,
+      progress: 0.45,
+      team: null,
+      training: null,
+      trainBlocked: 'Ohrada se ještě staví.',
+      cows: 0,
+      oxen: 0,
+    },
+  ],
 } as unknown as VillageView;
 
 describe('selectionDetails', () => {
@@ -359,5 +391,31 @@ describe('selectionDetails – posvátná místa', () => {
       oaksToFell: 0,
     });
     expect(selectionDetails(view, scene, { kind: 'sacred', id: 99 })).toBeNull();
+  });
+
+  it('ohrada: zvířata, seno, stáda vsi s pastvou, spřežení a důvod, proč výcvik nejde', () => {
+    expect(selectionDetails(view, scene, { kind: 'pen', id: 90 })).toEqual({
+      kind: 'pen',
+      id: 90,
+      built: true,
+      progress: 1,
+      oxen: 2,
+      cows: 4,
+      herds: { sheep: 9, goat: 3, pig: 7, cow: 4 },
+      chickens: 6,
+      pastureHa: 41.5,
+      grazingHa: 8.4,
+      team: { ageYears: 3, yearsLeft: 7 },
+      training: null,
+      hayKg: 3200,
+      trainBlocked: 'Na výcvik chybí telata – stádo potřebuje aspoň 3 krávy.',
+    });
+    expect(selectionDetails(view, scene, { kind: 'pen', id: 91 })).toMatchObject({
+      kind: 'pen',
+      built: false,
+      progress: 0.45,
+    });
+    expect(selectionDetails(view, scene, { kind: 'pen', id: 99 })).toBeNull();
+    expect(selectionDetails(null, scene, { kind: 'pen', id: 90 })).toBeNull();
   });
 });
