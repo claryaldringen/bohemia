@@ -298,17 +298,28 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   Staveniště jde po fázích (`village-construction.ts`, ≥ 8 fází, průběh 0–1) z dílů
   `construction.glb` v instancích. U obydlí **není hráň polen** (Martin: tak vyskládané dřevo
   tehdy neměli, navíc na dešti) ani samostatný kus pleteného plotu vedle polozemnice (Martin).
-  **Zahrádka polozemnice** (Martin): samostatný model `models/dwellings/garden.glb` (počátek
-  uprostřed zahrádky; `build_garden` v `dwellings.py`) po straně domu – polský plot (řidší kůly, vodorovně proplétané větve, mezera branky u domu)
-  a čtyři záhony (zelí, řepa, cibule, kopr; oblasti atlasu `veg` a `soil`). Scéna ji klade zvlášť
-  na terén a nakloní podle svahu (`gardenInstance` v `dwelling-decor.ts` – jinak by na svahu
-  s převýšením 3× visela i přes metr); díly staveniště `polozemnice-garden-*` se kladou stejně,
-  fáze `garden` je poslední (kůly → proplétání → záhony → zelenina). Obdélník zahrádky je
-  v jádru (`DWELLING_GARDEN_M`, `dwellingGarden` / `dwellingPlot` v `placement.ts`): musí na
-  louku, nesmí na obydlí, pole, hřbitov, sad ani výchoz, leží na vyklízené ploše
-  (`DWELLING_CLEARING_M` polozemnice minX −7,9); duch při umisťování ukazuje její obrys,
-  slepice do ní nechodí (`inGarden`). Rozměry musí sedět s `GARDEN` v `dwellings.py` (hlídá test
-  podle `garden.glb`). **Hřbitov** (`cemetery-renderer.ts`, geometrie bez Babylonu
+  **Pozemek polozemnice** (Martin, 18. 10. 2026): celé políčko krajiny (15 × 15 m, v mřížce
+  jako čtverec pole) obehnané polským plotem, dům uprostřed nebo v jednom ze 4 rohů (5 variant,
+  vchod vždy k brance na přední straně −z, natočení π), ve zbytku záhony a cestička od branky
+  ke dveřím. Jádro: `DwellingPlot` (`cell`, `variant`) na obydlí i stavbě (nepovinné – starší
+  polozemnice zůstanou volně bez pozemku), `PLOT_TYPES`, `PLOT_VARIANTS`, `PLOT_HOUSE_OFFSET_M`,
+  `plotHousePosition` a `checkPlotPlacement` v `placement.ts` (louka, bez výchozu, nezabrané
+  polem, hřbitovem, sadem ani jiným obydlím či pozemkem, rovno jen pod domem; překážky celého
+  políčka jako u čtverce pole, stromy dají klády); `dwellingPlot` zabírá celé políčko
+  a `placeDwelling` u polozemnice pozemek vyžaduje (`NO_PLOT`). Scéna: rozmístění bez Babylonu
+  `homestead-layout.ts` (`polishFence` – **všechny rohy polského plotu ve hře jsou zakulacené**,
+  poloměr 1,25 m, kůly po metru i po oblouku; záhony, rostliny, cestička, `plotStage` podle
+  stavby), kreslí `homestead.ts` v instancích z dílů `models/dwellings/homestead.glb` (kůl, kůl
+  branky, kus větve 1 m natažený od kůlu ke kůlu, záhon 1 × 0,8 m natažený na délku, zelí,
+  řepa, cibule, kopr – `homestead_parts` v `dwellings.py`, oblasti atlasu `veg` a `soil`); každý
+  díl stojí na terénu sám. Fáze polozemnice po hřebeni: `fence` (kůly, pak větve zdola)
+  a `beds` (`ConstructionState.plot`). Umisťování: režim `plot` (políčko pod kurzorem, [ a ]
+  přepínají variantu místo otáčení), vytyčení při 0 % kolíky a provázkem kolem pozemku
+  (`plotStakingLine`), výběr i kliknutí kamkoli na pozemek označí celé políčko, rekvizity
+  staveniště rohového domu se zrcadlí dovnitř (`sitePropPlace`), slepice zůstávají uvnitř
+  plotu, cizí ani lidé do pozemku nechodí, hromada klád leží za plotem. Dílny z polozemnice
+  (hrnčíř, kovář) pozemek nemají – stojí volně jako dřív. Proutěný plot hřbitova není polský
+  plot (hustý výplet) – jeho rohy zůstaly. **Hřbitov** (`cemetery-renderer.ts`, geometrie bez Babylonu
   v `cemetery-layout.ts`): nízký proutěný plot kolem čtverců (kůly v instancích, pletení z vlastní
   sítě a textury z kódu) s brankou k nejbližšímu hotovému obydlí (při rozšíření jinam zůstane),
   uvnitř mohylky po hrobech (mřížka 7 × 8 na čtverec, poslední čerstvé z hlíny); založení

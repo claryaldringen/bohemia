@@ -81,11 +81,15 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
   ne po políčkách. Výchozí: rozdíl výšky terénu pod půdorysem nejvýš 0,5 m; zemnice má půdorys
   zhruba 4 × 4 m, polozemnice 5 × 5 m (návrh Clauda).
 - Obydlí nesmí stát ve vodě ani se překrývat s jiným obydlím nebo polem (návrh Clauda).
-- **K polozemnici patří zahrádka** po straně domu (≈ 4 × 5 m i s plotem, Martin – viz Co hráč
-  vidí). Hráč ji při umisťování vidí jako světlejší obrys vedle půdorysu. Platí pro ni totéž co
-  pro půdorys – musí ležet na louce (ne ve vodě, zatím ani v lese), nesmí na jiné obydlí,
-  zahrádku, pole, hřbitov, sad ani skalní výchoz a ani ona pak pod pole nebo jiné obydlí nepustí;
-  **rovná být nemusí** – ve scéně se nakloní podle svahu (návrh Clauda). Zemnice zahrádku nemá.
+- **Polozemnice stojí na pozemku velkém jako jedno políčko pole** (Martin, 18. 10. 2026):
+  15 × 15 m v mřížce políček jako čtverec pole, celý obehnaný polským plotem. Dům stojí
+  **uprostřed, nebo v jednom ze čtyř rohů** – 5 variant jednoho stavení (Martin); hráč je při
+  umisťování přepíná klávesami [ a ] (místo otáčení), vchod míří vždy k brance na přední straně
+  pozemku (návrh Clauda). Pozemek musí být volná louka – ne voda, zatím ani les, bez skalního
+  výchozu, nezabraný polem, hřbitovem, sadem ani jiným obydlím či pozemkem; rovná zem
+  (≤ 0,5 m) se hlídá jen pod domem. Překážky na pozemku platí jako na čtverci pole (všechny kusy
+  na políčku), dospělé stromy z něj dají klády (návrh Clauda). Zemnice pozemek nemá a staví se
+  volně; polozemnice postavené dřív zůstanou, kde stojí, bez pozemku.
 - **Překážky** na místě, např. kameny, osadníci odstraní, ale stavba stojí víc člověkodní
   (Martin). Totéž **v lese** – stromy je třeba skácet a vykopat pařezy. Ceny překážek a mýcení
   jsou jedna tabulka pro celou hru ve [fields.md](fields.md) (návrh Clauda). Kontrola umístění
@@ -320,12 +324,15 @@ pravidla → první verze hladu (1 − nasycení za den, hájení bez stropu) �
   víc fází** (vytyčení, sejmutí drnu, kopání jámy, sloupy, krokve, stěny, mazanice, došky, kozy
   a dýmník); ze zemnic **občas stoupá dým**; střecha je **předsazená vepředu i vzadu**, aby zakryla
   vchod svažující se do jámy (Martin). **Vedle obydlí není vyskládaná hráň polen** – tak
-  vyskládané dřevo tehdy lidé neměli, navíc na dešti (Martin). **Součástí polozemnice je malá
-  zahrádka obehnaná polským plotem** (Martin): po straně domu, ne před vchodem, ≈ 4 × 5 m, plot
-  z řidších kůlů s vodorovně proplétanými větvemi (střídavě před a za kůlem – lehčí hrazení než
-  pletený plot), u domu mezera branky; uvnitř ulička a čtyři vyvýšené záhony – zelí, řepa,
-  cibule a bylinky (kopr). Staví se jako poslední fáze polozemnice (kůly → proplétaný plot →
-  záhony → zelenina); slepice do ní nechodí. Stavby
+  vyskládané dřevo tehdy lidé neměli, navíc na dešti (Martin). **Polozemnice stojí na
+  oploceném pozemku** (Martin, 18. 10. 2026): celé políčko obehnané polským plotem – řidší kůly
+  s vodorovně proplétanými větvemi (střídavě před a za kůlem), **rohy zakulacené** (v polském
+  plotu se hranaté rohy dělají špatně – platí pro každý polský plot ve hře), branka proti vchodu
+  a od ní cestička ke dveřím; ve zbytku pozemku vyvýšené záhony – zelí, řepa, cibule a kopr.
+  Dům uprostřed nebo v rohu (5 variant). Po domě se staví plot (nejdřív kůly, pak se proplétají
+  větve) a nakonec záhony; při zadání stavby je vytyčený kolíky a provázkem celý pozemek.
+  Vybraná polozemnice označí celý pozemek, ne jen stavbu (Martin). Slepice zůstávají uvnitř
+  plotu, cizí zvířata ani lidé do pozemku nechodí. Stavby
   z módu Millennium A.D. (ruské sruby, severské domy) se nepoužijí – jiná doba či region
   a nejistá licence (Martin); nanejvýš jako předloha tvarů pro pozdější roubené chalupy.
 - Rozhraní jako v 0 A.D. (Martin, 17. 10. 2026: „Ovládací prvky a layout udělej jako u 0AD.
@@ -354,33 +361,36 @@ pravidla → první verze hladu (1 − nasycení za den, hájení bez stropu) �
 
 ## Rozhodnutí
 
-| Rozhodnutí                                                                   | Kdo                           |
-| ---------------------------------------------------------------------------- | ----------------------------- |
-| Ves jako zásobárna aktiv: jídlo, voda, dřevo a hlavně lidé / člověkohodiny   | Martin                        |
-| Start: 4 lidé v jedné zemnici, hráč vybere místo                             | Martin                        |
-| První zemnici si osadníci postaví sami, průběh stavby je vidět               | Martin (17. 10. 2026)         |
-| Dost jídla → populace roste; cílem je efektivní výroba jídla                 | Martin                        |
-| Obydlí zatím zemnice a polozemnice                                           | Martin                        |
-| Obydlí se umisťuje volně (půdorys) na dost rovné zemi; překážky a les zdraží | Martin                        |
-| Pole jsou samostatná a společná pro celou ves                                | Martin                        |
-| Vlastní modely obydlí: omazané stěny, slámové došky; Millennium A.D. ne      | Martin                        |
-| Nová obydlí vždy staví hráč; plná domácnost → nová domácnost v novém obydlí  | Martin                        |
-| Hráč staví kdy chce (bez odemčení plnou domácností), ves zakládá zemnicí     | Martin (17. 10. 2026)         |
-| Odemčení surovinami předem – bez nich je tlačítko stavby zašedlé             | Martin (17. 10. 2026)         |
-| Obydlí jen, když je kým ho osadit (lidé k osídlení jako cena předem)         | Martin (17. 10. 2026)         |
-| Obydlí chátrají, opravy rostou; přestavbu (i na lepší) rozhodují obyvatelé   | Martin                        |
-| Bez staveb ves přestane růst, ale nerozpadne se (hlad ji ale zabít může)     | návrh Clauda, Martin potvrdil |
-| Přestavba vždy na lepší obydlí, pokud jsou suroviny; typ nové stavby hráč    | Martin                        |
-| Hájení: prvních 30 herních let vsi přeje štěstí; žádní příchozí z okolí      | Martin                        |
-| Lidé umírají hlady, ves může vymřít; bez vsí hráč začíná znovu               | Martin (18. 10. 2026)         |
-| Nahromaděný hlad, prahy 20 / 12 dní, smrt bez jídla do 60 / 45 dní           | návrh Clauda                  |
-| Hlad přibývá pod 90 % přídělu, od 90 % ubývá; v hájení den pod prahem        | návrh Clauda                  |
-| Restart: staré sídlo do archivu, nové sídelní sídlo s novou krajinou         | návrh Clauda                  |
-| Začít znovu jde i se živou vsí – z nabídky hry (F10), po potvrzení           | Martin (18. 10. 2026)         |
-| Podoba hájení: dospělí neumírají, poloviční dětská úmrtnost                  | návrh Clauda                  |
-| Kapacity 6 / 8, ceny 60 / 220 člověkodní (roční období / rok), životnosti    | návrh Clauda                  |
-| Porodnost, úmrtnost, opravy až polovina příspěvku domácnosti                 | návrh Clauda                  |
-| Stěhuje se pár z plné domácnosti se 4 dospělými; dva nejmladší               | návrh Clauda                  |
-| Rozpad domácnosti, prázdná obydlí čekají na plnou domácnost                  | návrh Clauda                  |
-| Obyvatelé bez jmen a pohlaví, náhoda ze seedu, kronika                       | návrh Clauda                  |
-| Dřevo zatím v ceně práce                                                     | návrh Clauda (dočasné)        |
+| Rozhodnutí                                                                     | Kdo                           |
+| ------------------------------------------------------------------------------ | ----------------------------- |
+| Ves jako zásobárna aktiv: jídlo, voda, dřevo a hlavně lidé / člověkohodiny     | Martin                        |
+| Start: 4 lidé v jedné zemnici, hráč vybere místo                               | Martin                        |
+| První zemnici si osadníci postaví sami, průběh stavby je vidět                 | Martin (17. 10. 2026)         |
+| Dost jídla → populace roste; cílem je efektivní výroba jídla                   | Martin                        |
+| Obydlí zatím zemnice a polozemnice                                             | Martin                        |
+| Obydlí se umisťuje volně (půdorys) na dost rovné zemi; překážky a les zdraží   | Martin                        |
+| Pole jsou samostatná a společná pro celou ves                                  | Martin                        |
+| Vlastní modely obydlí: omazané stěny, slámové došky; Millennium A.D. ne        | Martin                        |
+| Nová obydlí vždy staví hráč; plná domácnost → nová domácnost v novém obydlí    | Martin                        |
+| Hráč staví kdy chce (bez odemčení plnou domácností), ves zakládá zemnicí       | Martin (17. 10. 2026)         |
+| Odemčení surovinami předem – bez nich je tlačítko stavby zašedlé               | Martin (17. 10. 2026)         |
+| Obydlí jen, když je kým ho osadit (lidé k osídlení jako cena předem)           | Martin (17. 10. 2026)         |
+| Obydlí chátrají, opravy rostou; přestavbu (i na lepší) rozhodují obyvatelé     | Martin                        |
+| Bez staveb ves přestane růst, ale nerozpadne se (hlad ji ale zabít může)       | návrh Clauda, Martin potvrdil |
+| Přestavba vždy na lepší obydlí, pokud jsou suroviny; typ nové stavby hráč      | Martin                        |
+| Hájení: prvních 30 herních let vsi přeje štěstí; žádní příchozí z okolí        | Martin                        |
+| Lidé umírají hlady, ves může vymřít; bez vsí hráč začíná znovu                 | Martin (18. 10. 2026)         |
+| Nahromaděný hlad, prahy 20 / 12 dní, smrt bez jídla do 60 / 45 dní             | návrh Clauda                  |
+| Hlad přibývá pod 90 % přídělu, od 90 % ubývá; v hájení den pod prahem          | návrh Clauda                  |
+| Restart: staré sídlo do archivu, nové sídelní sídlo s novou krajinou           | návrh Clauda                  |
+| Začít znovu jde i se živou vsí – z nabídky hry (F10), po potvrzení             | Martin (18. 10. 2026)         |
+| Podoba hájení: dospělí neumírají, poloviční dětská úmrtnost                    | návrh Clauda                  |
+| Kapacity 6 / 8, ceny 60 / 220 člověkodní (roční období / rok), životnosti      | návrh Clauda                  |
+| Porodnost, úmrtnost, opravy až polovina příspěvku domácnosti                   | návrh Clauda                  |
+| Stěhuje se pár z plné domácnosti se 4 dospělými; dva nejmladší                 | návrh Clauda                  |
+| Rozpad domácnosti, prázdná obydlí čekají na plnou domácnost                    | návrh Clauda                  |
+| Obyvatelé bez jmen a pohlaví, náhoda ze seedu, kronika                         | návrh Clauda                  |
+| Dřevo zatím v ceně práce                                                       | návrh Clauda (dočasné)        |
+| Polozemnice na pozemku = políčko pole s polským plotem, dům uprostřed / v rohu | Martin, 18. 10. 2026          |
+| Rohy polského plotu zakulacené; výběr polozemnice označí celý pozemek          | Martin, 18. 10. 2026          |
+| Vchod k brance vpředu, [ a ] přepínají variantu, rovno jen pod domem           | návrh Clauda                  |
