@@ -118,8 +118,14 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
 
 - **Generování** (`packages/game/src/domain/landscape/`): `generateLandscape(seed, versions)` –
   vrstvy terén a voda → vegetace → úrodnost, každá s vlastním seedem (`deriveSeed`) a verzí.
-  Pásmo srovnatelnosti hlídá `checkBand` (konstanty v `band.ts`) a testy na 300 seedech. Po
-  změně generátoru pusť `measure-landscapes` a zkontroluj podíl krajin na první pokus a čas.
+  Pásmo srovnatelnosti hlídá `checkBand(landscape, versions)` (pásmo podle verzí – `bandFor`,
+  `BAND_V1` / `BAND_V2` v `band.ts`) a testy na 300 seedech. Po změně generátoru pusť
+  `measure-landscapes` a zkontroluj podíl krajin na první pokus, čas a louky do 600 m od vsi.
+- **Verze vrstev:** nová sídla `CURRENT_LAYER_VERSIONS` (vegetace a úrodnost 2 – víc kvalitní
+  louky kolem vsi, 18. 10. 2026), sídla založená dřív `INITIAL_LAYER_VERSIONS` (vše 1). Stará
+  verze se generuje dál beze změny (`vegetationV1`, `byWaterDistance`) – zlatý otisk krajiny
+  (`generate.test.ts`) i vrstvy překážek (`obstacles.test.ts`) hlídá obě verze. Původní
+  krajinu ukáže `/dev/landscape?seed=…&layers=initial`.
 - **Uložené sídlo nese seed přijatého pokusu** a jeho krajina se generuje přes
   `generateLandscapeAttempt` bez kontroly pásma. Změna pásma (`band.ts`) proto platí jen pro nová
   sídla. **Po ostrém spuštění** se existující vrstva nesmí změnit (přepsala by krajiny hráčů) –
@@ -165,8 +171,8 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   hladiny (`FLOW_CHUNK_M`) a od jaké zimy jsou celé zamrzlé – kreslí se, jen dokud je v záběru
   nezamrzlá voda.
 - **Vývojový náhled** bez přihlášení a databáze: http://localhost:3010/dev/landscape?seed=42
-  (tlačítka předchozí / další / náhodná, lišta vsi s minimapou – pole jde malovat i do lesa
-  a překážky z něj hned zmizí, „Kácet 20 stromů“). V produkci vrací 404.
+  (tlačítka předchozí / další / náhodná / původní vrstvy, lišta vsi s minimapou – pole jde
+  malovat i do lesa a překážky z něj hned zmizí, „Kácet 20 stromů“). V produkci vrací 404.
 - `?renderer=webgl` vynutí WebGL 2 (test záložní cesty). `HEIGHT_SCALE` v `scene/constants.ts`
   převyšuje terén jen vizuálně. Tamtéž rozsah přiblížení kamery `CAMERA_ZOOM_M` (výchozí 120 m
   a nejblíž 50 m jako v 0 A.D.) – řídí se jím i mix zvuků.
@@ -553,7 +559,7 @@ npm run test:e2e      # Playwright – build + next start na :3011 proti DB bohe
 npm run format:check  # npm run format = oprava
 npm run db:generate   # nová migrace po změně schématu v packages/db/src/schema
 npm run db:seed-dev   # vývojový účet v lokální DB bez registrace
-npx tsx packages/game/scripts/measure-landscapes.ts 500   # měření generátoru krajiny
+npx tsx packages/game/scripts/measure-landscapes.ts 500   # měření generátoru krajiny (+ initial = verze 1)
 npx tsx packages/game/scripts/measure-village.ts 200 60   # kalibrace simulace vsi
 ```
 

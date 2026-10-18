@@ -12,7 +12,7 @@ import {
 } from '../obstacles/query';
 import { OBSTACLE_SOURCES, obstacleId, type ObstacleLayer } from '../obstacles/types';
 import { transferPrecision } from '../quantize';
-import type { Landscape } from '../types';
+import { INITIAL_LAYER_VERSIONS, type Landscape, type LayerVersions } from '../types';
 import { tileOfWorldPoint } from '../world';
 
 const landscape = generateLandscape(11);
@@ -123,12 +123,24 @@ describe('vrstva překážek verze 1 – zlatý otisk', () => {
   // test spadne, změnilo se něco, na čem vrstva stojí (rozmisťovače, pole lesa, osa potoka,
   // tvar terénu, det-math, generátor krajiny, simplex-noise…). Před spuštěním stačí otisk
   // vědomě přepsat; po spuštění je potřeba nová verze vrstvy a v1 zachovat.
+  // Vrstva vychází z krajiny, takže má otisk pro každou kombinaci verzí ostatních vrstev.
   it.each([
     [1, '66989:537aa60a'],
     [42, '66959:75f4c88b'],
     [123, '70442:f720e62c'],
-  ])('seed %i', (seed, expected) => {
-    expect(layerHash(generateObstacles(generateLandscape(seed)))).toBe(expected);
+  ])('krajina z původních vrstev (do 18. 10. 2026), seed %i', (seed, expected) => {
+    const l = generateLandscape(seed, INITIAL_LAYER_VERSIONS);
+    expect(layerHash(generateObstacles(l))).toBe(expected);
+  });
+
+  const MORE_MEADOW: LayerVersions = { terrain: 1, vegetation: 2, fertility: 2, obstacles: 1 };
+  it.each([
+    [1, '64810:0c014c68'],
+    [42, '64114:62e79722'],
+    [123, '66651:2c475d8e'],
+  ])('krajina s víc loukami (vegetace a úrodnost 2), seed %i', (seed, expected) => {
+    const l = generateLandscape(seed, MORE_MEADOW);
+    expect(layerHash(generateObstacles(l))).toBe(expected);
   });
 });
 

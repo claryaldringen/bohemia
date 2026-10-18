@@ -1,10 +1,18 @@
 import { beforeAll, describe, it, expect } from 'vitest';
-import { FERTILE_CELLS } from '../band';
-import { generateLandscape } from '../generate';
-import { SURFACE_CODES, type Landscape, type LayerVersions } from '../types';
+import { BAND_V2, bandFor, checkBand } from '../band';
+import { generateAcceptedLandscape, generateLandscape } from '../generate';
+import {
+  CURRENT_LAYER_VERSIONS,
+  INITIAL_LAYER_VERSIONS,
+  SURFACE_CODES,
+  type Landscape,
+  type LayerVersions,
+} from '../types';
 import {
   fertileCellCount,
+  landscapeHash,
   largestVillageSite,
+  meadowNearSite,
   reliefM,
   share,
   waterTouchesOppositeEdges,
@@ -21,7 +29,7 @@ const eachLandscape = (check: (l: Landscape, seed: number) => void): void => {
   landscapes.forEach((l, seed) => check(l, seed));
 };
 
-describe('generateLandscape – pásmo srovnatelnosti na 300 krajinách', () => {
+describe('generateLandscape – pásmo srovnatelnosti na 300 krajinách (verze 2)', () => {
   it('každá krajina má potok od okraje k okraji', () => {
     eachLandscape((l, seed) => {
       const water = l.surface.map((v) => (v === SURFACE_CODES.water ? 1 : 0));
@@ -37,11 +45,22 @@ describe('generateLandscape – pásmo srovnatelnosti na 300 krajinách', () => 
     });
   });
 
-  it('místo pro vesnici má 400–1 200 políček', () => {
+  it('místo pro vesnici má 600–1 400 políček', () => {
     eachLandscape((l, seed) => {
       const site = largestVillageSite(l);
-      expect(site, `seed ${seed}`).toBeGreaterThanOrEqual(400);
-      expect(site, `seed ${seed}`).toBeLessThanOrEqual(1200);
+      expect(site, `seed ${seed}`).toBeGreaterThanOrEqual(600);
+      expect(site, `seed ${seed}`).toBeLessThanOrEqual(1400);
+    });
+  });
+
+  it('do 600 m od vsi leží 56–64 ha louky, z toho 29–40 ha s úrodností ≥ 60', () => {
+    eachLandscape((l, seed) => {
+      const meadow = meadowNearSite(l, 40) * 0.0225;
+      const good = meadowNearSite(l, 40, 60) * 0.0225;
+      expect(meadow, `seed ${seed}`).toBeGreaterThanOrEqual(56);
+      expect(meadow, `seed ${seed}`).toBeLessThanOrEqual(64);
+      expect(good, `seed ${seed}`).toBeGreaterThanOrEqual(29);
+      expect(good, `seed ${seed}`).toBeLessThanOrEqual(40.5);
     });
   });
 
@@ -55,8 +74,8 @@ describe('generateLandscape – pásmo srovnatelnosti na 300 krajinách', () => 
   it('celková úrodná plocha leží v pásmu', () => {
     eachLandscape((l, seed) => {
       const fertile = fertileCellCount(l.fertility);
-      expect(fertile, `seed ${seed}`).toBeGreaterThanOrEqual(FERTILE_CELLS[0]);
-      expect(fertile, `seed ${seed}`).toBeLessThanOrEqual(FERTILE_CELLS[1]);
+      expect(fertile, `seed ${seed}`).toBeGreaterThanOrEqual(BAND_V2.fertileCells[0]);
+      expect(fertile, `seed ${seed}`).toBeLessThanOrEqual(BAND_V2.fertileCells[1]);
     });
   });
 
@@ -86,6 +105,15 @@ describe('generateLandscape', () => {
   it('neznámá verze vrstvy vyhodí RangeError', () => {
     const versions = { terrain: 2, vegetation: 1, fertility: 1 } as unknown as LayerVersions;
     expect(() => generateLandscape(1, versions)).toThrow(RangeError);
+    const vegetation3 = { terrain: 1, vegetation: 3, fertility: 2 } as unknown as LayerVersions;
+    expect(() => generateLandscape(1, vegetation3)).toThrow(RangeError);
+  });
+
+  it('pásmo je jen pro vegetaci a úrodnost stejné verze', () => {
+    expect(bandFor(INITIAL_LAYER_VERSIONS)).not.toBe(bandFor(CURRENT_LAYER_VERSIONS));
+    const mixed: LayerVersions = { terrain: 1, vegetation: 2, fertility: 1 };
+    expect(() => bandFor(mixed)).toThrow(RangeError);
+    expect(() => generateLandscape(1, mixed)).toThrow(RangeError);
   });
 
   it('má rozměr 128 × 128 a políčko 15 m', () => {
@@ -93,5 +121,47 @@ describe('generateLandscape', () => {
     expect(l.size).toBe(128);
     expect(l.cellSizeM).toBe(15);
     expect(l.fertility).toHaveLength(128 * 128);
+  });
+});
+
+/**
+ * Zlatý otisk krajin: verze vrstev uložených sídel se po ostrém spuštění nesmí změnit ani
+ * o bit (přepsala by krajiny hráčů). Verze 1 má otisky z doby před verzí 2 – kdyby spadly,
+ * změnila se původní krajina (i u Martinova sídla). Před spuštěním se dá otisk nejnovější
+ * verze vědomě přepsat; po spuštění je potřeba nová verze vrstvy.
+ */
+describe('verze vrstev – zlatý otisk krajiny', () => {
+  it.each([
+    [1, 1, '0b76b6b6'],
+    [42, 42, '04ebf1c1'],
+    [123, 123, 'e8827a26'],
+    [50, 51, '91561e91'],
+  ])('verze 1, seed %i (přijatý pokus %i)', (seed, acceptedSeed, expected) => {
+    const accepted = generateAcceptedLandscape(seed, INITIAL_LAYER_VERSIONS);
+    expect(accepted.seed).toBe(acceptedSeed);
+    expect(landscapeHash(accepted.landscape)).toBe(expected);
+  });
+
+  const V2: LayerVersions = { terrain: 1, vegetation: 2, fertility: 2, obstacles: 1 };
+  it.each([
+    [1, 1, '49256383'],
+    [42, 42, 'd62c3d7a'],
+    [123, 123, '22066e5f'],
+    [14, 15, '26bd1903'],
+  ])('verze 2, seed %i (přijatý pokus %i)', (seed, acceptedSeed, expected) => {
+    const accepted = generateAcceptedLandscape(seed, V2);
+    expect(accepted.seed).toBe(acceptedSeed);
+    expect(landscapeHash(accepted.landscape)).toBe(expected);
+  });
+
+  it('verze 1 padne do svého pásma a terén mají obě verze stejný', () => {
+    for (const seed of [1, 42, 123]) {
+      const v1 = generateLandscape(seed, INITIAL_LAYER_VERSIONS);
+      const v2 = generateLandscape(seed, CURRENT_LAYER_VERSIONS);
+      expect(checkBand(v1, INITIAL_LAYER_VERSIONS).ok).toBe(true);
+      expect(v2.heights).toEqual(v1.heights);
+      expect(v2.stream).toEqual(v1.stream);
+      expect(meadowNearSite(v2, 40)).toBeGreaterThan(meadowNearSite(v1, 40) * 1.4);
+    }
   });
 });
