@@ -25,7 +25,10 @@ ozim (osení pod sněhem), jar (klasy jarního ječmene), charcoal (hromádka d�
 (kovaná sekera zkřížená se srpem) a pottery (dva hrnce pražského typu, větší s vlnovkou) –
 suroviny řemesel (crafts.md) –, overgrowth (zarůstání – keře a mladá bříza z modelů krajiny
 `apps/web/public/models/decor/` a `trees/`, fields.md – Zarůstání), zboží zvenku (trade.md) – salt
-(homole soli), iron (železné hřivny), honey (hrnec medu s pláství), furs (kožešiny) – a zvířata stád do panelu
+(homole soli), iron (železné hřivny), honey (hrnec medu s pláství), furs (kožešiny) –
+condition (stav stavby –
+zšedlý rozštípnutý kůl s prasklinou a mechem) a abandoned (opuštěná stavba – padlý kůl
+v kopřivách z `apps/web/public/models/dwellings/decay.glb`, abandonment.md) a zvířata stád do panelu
 ohrady – sheep, goat, pig, cow, chicken
 (modely `apps/web/public/models/fauna/`) a ox (vůl ze spřežení `apps/web/public/models/plough/ox.glb`)
 a rodiny do panelu obydlí (kinship.md) – man, woman, child (chlapec a dívka), elder (starší s holí
@@ -1087,6 +1090,61 @@ def icon_overgrowth():
     return True
 
 
+def icon_condition():
+    """Stav stavby (abandonment.md – panel výběru): zšedlý tesaný kůl rozštípnutý nahoře,
+    s prasklinou a mechem u paty."""
+    wood, crack, moss = bmesh.new(), bmesh.new(), bmesh.new()
+    cyl(wood, (0, 0, -0.1), (0.02, 0, 1.45), 0.24, 0.22, seg=6)
+    cyl(wood, (0.08, 0.0, 1.4), (0.13, 0.02, 1.86), 0.11, 0.05, seg=5)
+    cyl(wood, (-0.08, 0.0, 1.4), (-0.14, -0.02, 1.68), 0.1, 0.05, seg=5)
+    # prasklina – tmavý zub po přední straně od rozštípnutého vršku dolů
+    for (z0, x0), (z1, x1) in zip([(1.5, 0.0), (1.1, 0.05), (0.75, -0.02), (0.45, 0.03)], [(1.1, 0.05), (0.75, -0.02), (0.45, 0.03), (0.3, 0.0)]):
+        cyl(crack, (x0, -0.232, z0), (x1, -0.232, z1), 0.028, 0.022, seg=4)
+    rng = random.Random(5)
+    for i in range(7):
+        a = rng.uniform(0, 6.28)
+        blob(moss, ((math.cos(a) * 0.24, math.sin(a) * 0.24, rng.uniform(0.0, 0.25)), (0, 0, a)), (0.16, 0.1, 0.1), 8, 5)
+    blob(moss, ((0.05, -0.05, 1.42), (0, 0, 0.4)), (0.14, 0.12, 0.05), 8, 5)
+    to_obj(wood, "post", mat("post", (0.46, 0.43, 0.38), 0.95, noise=18, bump=0.5), smooth=False)
+    to_obj(crack, "crack", mat("crack", (0.08, 0.06, 0.05), 1.0), smooth=False)
+    to_obj(moss, "moss", mat("moss", (0.26, 0.4, 0.12), 1.0, noise=30))
+    sun(az=-45, el=40, strength=4.2)
+    camera([Vector((-0.4, -0.4, -0.1)), Vector((0.4, 0.4, 1.9))], az=20, el=12, margin=1.04)
+    return True
+
+
+def icon_abandoned():
+    """Opuštěno (abandonment.md – panel výběru): zšedlý padlý kůl zarůstající kopřivami
+    a trávou – kopřivy z modelu rozpadu obydlí (models/dwellings/decay.glb)."""
+    log, grass = bmesh.new(), bmesh.new()
+    cyl(log, (-0.9, 0.1, 0.16), (0.85, -0.15, 0.13), 0.17, 0.15, seg=8)
+    rng = random.Random(11)
+    for i in range(26):
+        x, y = rng.uniform(-1.0, 1.0), rng.uniform(-0.5, 0.45)
+        h = rng.uniform(0.25, 0.55)
+        cyl(grass, (x, y, 0), (x + rng.uniform(-0.12, 0.12), y + rng.uniform(-0.1, 0.1), h), 0.025, 0.0, seg=3)
+    to_obj(log, "log", mat("log", (0.44, 0.42, 0.37), 0.95, noise=18, bump=0.5), smooth=False)
+    to_obj(grass, "grass", mat("grass", (0.3, 0.46, 0.16), 1.0, noise=22), smooth=False)
+    before = set(bpy.data.objects)
+    bpy.ops.import_scene.gltf(filepath=f"{MODELS}/decay.glb")
+    nettles = []
+    for o in [o for o in bpy.data.objects if o not in before]:
+        if o.type == "MESH" and o.name.startswith("nettle"):
+            nettles.append(o)
+        elif o.type == "MESH":
+            bpy.data.objects.remove(o)
+    for k, (x, y, sc, rot) in enumerate(((0.45, 0.2, 1.25, 0.3), (-0.55, -0.15, 1.0, 1.7))):
+        o = nettles[0] if k == 0 else nettles[0].copy()
+        if k:
+            bpy.context.collection.objects.link(o)
+        o.location = (x, y, 0)
+        o.scale = (sc, sc, sc)
+        o.rotation_euler = (0, 0, rot)
+    sun(az=-45, el=42, strength=4.2)
+    camera([Vector((-1.0, -0.6, 0)), Vector((1.0, 0.6, 1.0))], az=15, el=22, margin=1.0)
+    return True
+
+
 def icon_apples():
     """Tři červená jablka se stopkou, jedno s lístkem."""
     skin, stems, leaf = bmesh.new(), bmesh.new(), bmesh.new()
@@ -1955,6 +2013,8 @@ RESOURCES = {
     "iron": icon_iron,
     "honey": icon_honey,
     "furs": icon_furs,
+    "condition": icon_condition,
+    "abandoned": icon_abandoned,
     "man": icon_man,
     "woman": icon_woman,
     "child": icon_child,

@@ -39,6 +39,18 @@ Výstup (apps/web/public/models/sacred):
   grove-stones.glb  kameny na okraj dubového háje pro instance – uzly stone-a (vysoký hraniční
               kámen ≈ 1 m), stone-b (nízký balvan), altar (plochý kámen na třech podpěrách
               s miskou a popelem); každý uzel má počátek u své paty (všechny v bodě 0)
+  sacred-decay.glb  díly rozpadu opuštěné modly a svatyně (docs/design/abandonment.md – jen se
+              čtvrtým argumentem „decay“, ostatní GLB se tím nepřepíšou); počátek jako hotové
+              modely, barvy materiálů jsou glTF baseColorFactor (atlas × odstín):
+              idol-weathered (zšedlé dřevo modly – „decay-weathered“) a idol-weathered-moss
+              (mech u paty a na čepici – „decay-moss“), idol-ground-overgrown (udusaný kruh
+              zarostlý trávou – „decay-grass“), idol-stones-scattered (klínové kameny rozvalené),
+              idol-fallen a idol-fallen-moss (modla zlomená u země leží na zemi tváří vzhůru),
+              idol-stump (shnilý pahýl kůlu); totéž pro modlu svatyně (×1,55 na dlažbě):
+              shrine-idol-weathered, -weathered-moss, -fallen, -fallen-moss, -stump;
+              shrine-fires-cold (vyhaslá ohniště – popel, kameny, sesunutá ohořelá polena bez
+              uhlíků), shrine-ground-overgrown (plocha a příkop s valem – scéna je potáhne trávou
+              terénu) a shrine-paving-overgrown (dlažba v trávě – „decay-grass“). Který díl kdy, určuje apps/web/lib/scene/structure-decay.ts.
 Kdy se který díl staveniště ukáže, určuje apps/web/lib/scene/village-construction.ts (fáze
 „modla“ a „svatyne“); hotové modely jsou tytéž díly spojené (bez dílů jen pro staveniště).
 Obětiny u dubu a kameny háje mají atlas zmenšený na polovinu (drobné dekorace).
@@ -50,6 +62,9 @@ Celý postup (craft_atlas.py viz hlavička crafts.py – atlas řemesel z textur
       /tmp/sacred-atlas
   blender -b --factory-startup --python tools/blender/sacred.py -- \
       /tmp/sacred-atlas apps/web/public/models/sacred -
+  # jen díly rozpadu (sacred-decay.glb), náhledy do /tmp/sacred-decay:
+  blender -b --factory-startup --python tools/blender/sacred.py -- \
+      /tmp/sacred-atlas apps/web/public/models/sacred /tmp/sacred-decay decay
 Ikony (modla, svatyne, dub, haj, štěstí): tools/blender/icons.py.
 """
 import math
@@ -67,6 +82,8 @@ _DASH = sys.argv.index("--")
 _ARGS = sys.argv[_DASH + 1 :]
 SACRED_ATLAS, OUT_DIR = _ARGS[0], _ARGS[1]
 RENDER_DIR = _ARGS[2] if len(_ARGS) > 2 else "-"
+# čtvrtý argument „decay“ = jen díly rozpadu (sacred-decay.glb), ostatní GLB se nepřepisují
+DECAY_ONLY = len(_ARGS) > 3 and _ARGS[3] == "decay"
 # dwellings.py čte při importu (atlas, koše z 0 A.D., výstup, náhledy) – koše tu nejsou potřeba
 sys.argv = sys.argv[: _DASH + 1] + [SACRED_ATLAS, "-", OUT_DIR, RENDER_DIR]
 sys.dont_write_bytecode = True  # žádné __pycache__ v tools/blender
@@ -822,6 +839,182 @@ def main():
         preview_finished(idol, shrine, oak, grove)
 
 
+# ------------------------------------------------------------------ rozpad (abandonment.md)
+
+# Opuštěná modla a svatyně chátrají (docs/design/abandonment.md – Martin 18. 10. 2026): zšedlé
+# dřevo s mechem, rozvalené klínové kameny, zarostlý udusaný kruh, modla zlomená u země leží na
+# zemi u shnilého pahýlu; svatyni vyhasnou ohniště a plocha s příkopem zarůstá. Náklon stojící
+# modly a zapadání zbytků do trávy dělá scéna (apps/web/lib/scene/structure-decay.ts).
+DECAY_TINTS = {
+    "decay-weathered": (0.7, 0.71, 0.64),  # zšedlé, ošlehané dřevo
+    "decay-moss": (0.46, 0.6, 0.3),  # mech a lišejník (jako došky obydlí – dwellings.py)
+    "decay-grass": (0.62, 0.74, 0.44),  # udusaná hlína a dlažba zarostlé trávou
+}
+IDOL_BREAK = 0.3  # modla se zlomí v prstenci 0,3 m nad zemí (shnilá pata – idol_column zs)
+
+
+def decay_polys(builders):
+    """Plochy Builderů (body, uv atlasu, hladkost) – kopie vrcholů (dwellings._polys)."""
+    return [poly for b in builders for poly in D._polys(b)]
+
+
+def is_mossy(pts, z_base, scale, salt):
+    """Mech na modle: u paty (vlhko od země) a na horních plochách čepice, skvrnitě."""
+    c = D._center(pts)
+    n = D._normal(pts)
+    rel = (c.z - z_base) / scale
+    blot = D._blot(3.0 * c.x + 1.1 * rel, 3.0 * c.y - 0.7 * rel, salt)
+    if rel < 0.55:
+        return blot > 0.38 + 0.5 * rel
+    return n.z > 0.45 and blot > 0.45
+
+
+def weathered_idol(src, name, z_base, scale, salt):
+    """Zšedlá modla a mech na ní: (dřevo, mech) – Buildery se stejnými plochami jako `src`."""
+    wood, moss = SB(name), SB(f"{name}-moss")
+    for pts, uv, sm in decay_polys([src]):
+        D._put(moss if is_mossy(pts, z_base, scale, salt) else wood, pts, uv, sm)
+    return wood, moss
+
+
+def fallen_idol(src, name, z_base, scale, heading, salt):
+    """Modla zlomená v IDOL_BREAK leží na zemi tváří vzhůru ve směru `heading` (úhel od −Y po
+    směru +X) – nad zlomem z `src` (dřevo, mech), pod zlomem pahýl se zubem zlomu."""
+    wood, moss = SB(name), SB(f"{name}-moss")
+    stump = SB(name.replace("-fallen", "-stump"))
+    brk = z_base + IDOL_BREAK * scale
+    d = Vector((math.sin(heading), -math.cos(heading), 0.0))  # směr pádu
+    side = Vector((-d.y, d.x, 0.0))
+    rest = IDOL_R * scale * 0.9  # osa ležící modly nad zemí (lehce zapadlá)
+    start = d * (IDOL_R * scale * 1.2)  # zlom leží kousek od pahýlu
+    for pts, uv, sm in decay_polys([src]):
+        c = D._center(pts)
+        if c.z < brk:
+            D._put(stump, pts, uv, sm)
+            continue
+        # tvář (−Y modelu) míří nahoru: x → bok, −y → nahoru, výška nad zlomem → podél pádu
+        moved = [start + d * (p.z - brk) + side * p.x + Vector((0, 0, rest - p.y)) for p in pts]
+        # mech ve skvrnách po celé modle, souvisle na spodní straně u země
+        mossy = D._blot(2.2 * c.x + 0.8 * c.z, 2.2 * c.y, salt + 3) > 0.56 or c.y > 0.1 * scale
+        D._put(moss if mossy else wood, moved, uv, sm)
+    # zub zlomu na pahýlu: nízký nepravidelný jehlan shnilého dřeva nad prstencem zlomu
+    r = IDOL_R * scale
+    n = 9
+    ring = [Vector((r * 0.98 * math.cos(2 * math.pi * k / n), r * 0.98 * math.sin(2 * math.pi * k / n), brk)) for k in range(n)]
+    for k in range(n):
+        a, b = ring[k], ring[(k + 1) % n]
+        tip = Vector((0.25 * r * math.cos(2.1 * k), 0.25 * r * math.sin(2.1 * k), brk + (0.06 + 0.1 * D._rand(k, salt)) * scale))
+        uv = [
+            (0.111 + 0.05 * math.cos(2 * math.pi * k / n), 0.05 * math.sin(2 * math.pi * k / n)),
+            (0.111 + 0.05 * math.cos(2 * math.pi * (k + 1) / n), 0.05 * math.sin(2 * math.pi * (k + 1) / n)),
+            (0.111, 0.0),
+        ]
+        stump.poly([a, b, tip], "logends", out=(a + b) / 2 - Vector((0, 0, brk - 0.3)), uvm=uv)
+    return wood, moss, stump
+
+
+def scattered_stones(b, c, scale=1.0, z_base=0.0, count=8, seed=40):
+    """Klínové kameny vyvalené od shnilé paty – dál od kůlu, nakřivo, napůl v zemi."""
+    for i in range(count):
+        a = 2 * math.pi * (i + 0.6 * seeded(seed + i)) / count
+        d = (0.55 + 0.6 * seeded(seed + 20 + i)) * scale
+        s = (0.09 + 0.06 * seeded(seed + 40 + i)) * scale
+        z0 = z_base - 0.04 - 0.05 * seeded(seed + 60 + i)
+        rock(b, (c[0] + d * math.sin(a), c[1] - d * math.cos(a)), s * 1.2, s, s * 0.8, seed + i, yaw=a + 1.3, z0=z0)
+
+
+def build_fire_cold(b, k, seed=700):
+    """Vyhaslé ohniště ve výběžku k: popel, kruh kamenů (pár vyvalených), ohořelá polena
+    sesunutá na zem – bez žhavých uhlíků."""
+    a = math.pi / N_PETALS + k * 2 * math.pi / N_PETALS
+    c = ring_point(a, R_FIRE, Z_BOT)
+    cx, cy = c.x, c.y
+    C.disc(b, (cx, cy), 0.7, Z_BOT + 0.006, "ash", seg=14)
+    for i in range(10):
+        t = 2 * math.pi * (i + 0.3 * seeded(seed + k * 20 + i)) / 10
+        s = 0.11 + 0.05 * seeded(seed + k * 20 + 10 + i)
+        out = 0.6 + (0.35 if seeded(seed + k * 20 + 30 + i) > 0.7 else 0.0)
+        rock(b, (cx + out * math.cos(t), cy + out * math.sin(t)), s * 1.2, s, s * 0.85, seed + k * 20 + i, yaw=t, z0=Z_BOT - 0.05)
+    for i in range(3):
+        t = a + i * 1.1 + 0.4 * seeded(seed + k * 7 + i)
+        dx, dy = 0.36 * math.cos(t), 0.36 * math.sin(t)
+        r = 0.045 + 0.015 * seeded(seed + k * 9 + i)
+        z = Z_BOT + r * 0.8
+        round_log(b, (cx - dx, cy - dy, z), (cx + dx, cy + dy, z), r, seed + k * 11 + i, n=6, mat="charred", end="charcoal")
+
+
+def decay_main():
+    """Jen díly rozpadu modly a svatyně → sacred-decay.glb (ostatní GLB zůstanou beze změny)."""
+    os.makedirs(OUT_DIR, exist_ok=True)
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    mat = C.material("sacred-atlas", "atlas.jpg")
+    mats = {name: D.tinted_material(mat, name, tint) for name, tint in DECAY_TINTS.items()}
+    objs = []
+
+    def out(builder, material):
+        if builder.faces:
+            objs.append(weld(builder.build(material)))
+
+    # modla na návsi
+    ip = Parts("src-idol")
+    build_idol(ip)
+    wood, moss = weathered_idol(ip.builders["idol"], "idol-weathered", 0.0, 1.0, 5)
+    out(wood, mats["decay-weathered"])
+    out(moss, mats["decay-moss"])
+    ground = SB("idol-ground-overgrown")
+    for pts, uv, sm in decay_polys([ip.builders["ground"]]):
+        D._put(ground, pts, uv, sm)
+    out(ground, mats["decay-grass"])
+    stones = SB("idol-stones-scattered")
+    scattered_stones(stones, (0.0, 0.0), 1.0, IDOL_GROUND_TOP, seed=41)
+    out(stones, mat)
+    fwood, fmoss, stump = fallen_idol(ip.builders["idol"], "idol-fallen", 0.0, 1.0, math.radians(205), 9)
+    out(fwood, mats["decay-weathered"])
+    out(fmoss, mats["decay-moss"])
+    out(stump, mats["decay-weathered"])
+
+    # svatyně: modla ×1,55 na dlažbě, ohniště, plocha s příkopem
+    sp = Parts("src-shrine")
+    build_shrine(sp)
+    z_base = Z_TOP + 0.06
+    wood, moss = weathered_idol(sp.builders["idol"], "shrine-idol-weathered", z_base, IDOL_SHRINE_SCALE, 7)
+    out(wood, mats["decay-weathered"])
+    out(moss, mats["decay-moss"])
+    fwood, fmoss, stump = fallen_idol(sp.builders["idol"], "shrine-idol-fallen", z_base, IDOL_SHRINE_SCALE, math.radians(140), 13)
+    out(fwood, mats["decay-weathered"])
+    out(fmoss, mats["decay-moss"])
+    out(stump, mats["decay-weathered"])
+    fires = SB("shrine-fires-cold")
+    for k in range(N_PETALS):
+        build_fire_cold(fires, k)
+    out(fires, mat)
+    # plocha a příkop s valem zarostlé (scéna jim dá trávu terénu po světových souřadnicích –
+    # sacred-renderer.ts; tady jen zelenější mapa země), dlažba zarostlá mechem a trávou
+    grown = SB("shrine-ground-overgrown")
+    keys = ["platform-2"] + [f"ditch-{k + 1}" for k in range(N_PETALS)]
+    for pts, uv, sm in decay_polys([sp.builders[k] for k in keys]):
+        D._put(grown, pts, uv, sm)
+    out(grown, mats["decay-grass"])
+    paving = SB("shrine-paving-overgrown")
+    for pts, uv, sm in decay_polys([sp.builders["paving"]]):
+        D._put(paving, pts, uv, sm)
+    out(paving, mats["decay-grass"])
+
+    C.export_parts(objs, os.path.join(OUT_DIR, "sacred-decay.glb"))
+    if RENDER_DIR != "-":
+        preview_decay(objs)
+
+
+def preview_decay(objs):
+    """Náhledy rozpadu: modla zšedlá a padlá, svatyně s vyhaslými ohništi a zarostlá."""
+    setup_preview()
+    by = {o.name: o for o in objs}
+    show([by[k] for k in ("idol-ground-overgrown", "idol-stones-scattered", "idol-weathered", "idol-weathered-moss")], "idol_decay_weathered", (2.6, -7.5, 4.2), (0, 0, 1.0), lens=35)
+    show([by[k] for k in ("idol-ground-overgrown", "idol-stones-scattered", "idol-fallen", "idol-fallen-moss", "idol-stump")], "idol_decay_fallen", game_cam((0, 0, 0.3), 14), (0, 0, 0.3), lens=40)
+    show([by[k] for k in ("shrine-ground-overgrown", "shrine-paving-overgrown", "shrine-fires-cold", "shrine-idol-weathered", "shrine-idol-weathered-moss")], "shrine_decay_weathered", game_cam((0, 0, 0), 52), (0, 0, 0), lens=38)
+    show([by[k] for k in ("shrine-ground-overgrown", "shrine-paving-overgrown", "shrine-idol-fallen", "shrine-idol-fallen-moss", "shrine-idol-stump")], "shrine_decay_fallen", (6.0, -13.0, 6.5), (0, 0, 0.8), lens=35)
+
+
 # ------------------------------------------------------------------ náhledy (jen pro kontrolu)
 
 # Herní kamera: ≈ 49° od svislice (BETA v apps/web/lib/scene/camera.ts)
@@ -895,4 +1088,7 @@ def preview_finished(idol, shrine, oak, grove):
 
 
 if __name__ == "__main__":
-    main()
+    if DECAY_ONLY:
+        decay_main()
+    else:
+        main()

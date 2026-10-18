@@ -28,6 +28,7 @@ licencí CC BY-SA 3.0. Licence se týká jen těchto souborů, ne zbytku hry Boh
 | `shrine-construction.glb` | díly staveniště svatyně – stejné zdroje jako `idol.glb`                                                                                                                                                                                           |
 | `oak-offerings.glb`       | kameny, pahýl větve se stužkami a misky u paty dubu – stejný atlas zmenšený na polovinu                                                                                                                                                           |
 | `grove-stones.glb`        | hraniční kameny a kamenný oltář háje – stejný atlas zmenšený na polovinu                                                                                                                                                                          |
+| `sacred-decay.glb`        | díly rozpadu opuštěné modly a svatyně (zšedlá a padlá modla s mechem, pahýl, rozvalené kameny, vyhaslá ohniště, zarostlá plocha a dlažba) – stejné zdroje jako `idol.glb`, barvy jen přenásobené (glTF baseColorFactor)                           |
 
 Stromy, ke kterým obětiny a kameny patří (posvátný dub, duby háje), jsou modely z
 `../trees/` (`oak-large-*.glb`, licence v `../LICENSES.md`).

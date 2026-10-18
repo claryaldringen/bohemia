@@ -175,6 +175,9 @@ Každé místo přidá k cílovému štěstí; posvátná místa dohromady nejv�
 - Ve scéně z ohnišť občas stoupá dým (jako z obydlí).
 - Implementace jako u modly (3 nejbližší dospělé duby); svatyně hotová i rozestavěná blokuje
   další – v nabídce staveb je pak zašedlá s důvodem „Ves už svatyni má.“
+- **Opuštěná modla a svatyně chátrají** ([abandonment.md](abandonment.md), Martin 18. 10. 2026):
+  ke které za rok nevedla žádná cesta, ta chátrá – modla padne za ≈ 20 let, svatyně za ≈ 30.
+  Štěstí dává, dokud stojí; padlá modla leží jako zbytek, ze svatyně zbude zarostlý příkop.
 
 ## Co hráč vidí
 

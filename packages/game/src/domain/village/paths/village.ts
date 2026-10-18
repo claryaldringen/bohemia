@@ -1,4 +1,5 @@
 import { dateOfDayIndex } from '../../calendar';
+import { stockedPenIds } from '../abandonment';
 import { tileCenterWorld, type Landscape, type ObstacleLayer } from '../../landscape';
 import { villageCemeteries } from '../cemetery';
 import { HAY_WINTER_MONTHS } from '../hay';
@@ -205,6 +206,8 @@ export function pathVillageOf(state: VillageState, day: number, landscape: Lands
   const hayMeadows = (state.hay?.mowing?.squares ?? []).flatMap((sq) =>
     sq.cell ? [square(landscape, sq.cell)] : [],
   );
+  // do ohrady bez zvířat se krmit nechodí (abandonment.md)
+  const stocked = stockedPenIds(state);
   const pens = villagePens(state).map((p) => ({
     id: p.id,
     cell: { x: p.cell.x, y: p.cell.y },
@@ -212,6 +215,7 @@ export function pathVillageOf(state: VillageState, day: number, landscape: Lands
     z: p.z,
     size: landscape.cellSizeM,
     built: p.builtDay !== null,
+    ...(p.builtDay !== null && !stocked.has(p.id) ? { stocked: false } : {}),
   }));
   return {
     dwellings,
@@ -326,8 +330,10 @@ export function walkLayoutKey(state: VillageState, day: number): string {
     (state.sacredBuildings ?? []).map((b) => b.id).join(','),
   ].join('|');
   const roads = state.roads?.roads ?? [];
+  const stocked = stockedPenIds(state);
   const pens = villagePens(state).map(
-    (p) => `${p.id}:${p.cell.x},${p.cell.y}:${p.builtDay === null ? 0 : 1}`,
+    (p) =>
+      `${p.id}:${p.cell.x},${p.cell.y}:${p.builtDay === null ? 0 : 1}${p.builtDay !== null && !stocked.has(p.id) ? ':-' : ''}`,
   );
   const herds = state.livestock ? pastureHerds(pastureLivestock(state, day)) : 0;
   return JSON.stringify([

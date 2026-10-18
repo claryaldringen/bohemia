@@ -314,6 +314,11 @@ export interface Cemetery {
   graves: number;
   /** Den dokončení (vytyčení a ohrazení); dokud se zakládá, null. */
   builtDay: number | null;
+  /**
+   * Chátrání pleteného plotu (abandonment.md): ke hřbitovu, kam nikdo nechodí, plot chátrá
+   * a rozpadne se – hroby zůstávají a pohřbívá se dál. Chybí = celý plot.
+   */
+  fenceWear?: StructureWear;
 }
 /**
  * Čtverec jabloňového sadu – políčko krajiny (orchard.md). Sází se jako stavba ze společné práce
@@ -619,6 +624,11 @@ export type ChronicleEvent = { day: number } & (
   | { kind: 'trade-departed'; direction: Direction8; give: TradeGoods }
   /** Výprava se vrátila – co přinesla (trade.md – Obchod). */
   | { kind: 'trade-returned'; direction: Direction8; get: TradeGoods }
+  /**
+   * Opuštěná stavba, ke které léta nikdo nechodil, se rozpadla (abandonment.md): modla padla,
+   * svatyně se rozpadla, plot hřbitova se rozpadl, ohrada se rozpadla – id stavby.
+   */
+  | { kind: 'structure-fell'; structure: AbandonedStructure; id: number }
   | {
       kind: 'cemetery-full';
       cemeteryId: number;
@@ -804,6 +814,11 @@ export interface VillageState {
   hay?: HayState;
   /** Ohrady s přístřeškem (oxen.md); chybí = žádné. */
   pens?: Pen[];
+  /**
+   * Zbytky padlých model a svatyní (abandonment.md – Následky) – zarůstají a zmizí. Chybí =
+   * žádné (i u vsí uložených před chátráním staveb).
+   */
+  sacredRuins?: SacredRuin[];
   /** Jídlo posledního odsimulovaného dne – energie, pestrost a podíly (jen pro zobrazení). */
   diet?: DietDay;
   /** Zásoby výrobků řemeslníků (crafts.md) – u vsí uložených před řemesly chybí (= 0). */
@@ -1180,6 +1195,8 @@ export interface Pen {
   training: { startDay: number } | null;
   /** Překážky na čtverci (id z vrstvy) – zmizí se zahájením stavby. */
   obstacles?: number[];
+  /** Chátrání ohrady bez zvířat, kam nikdo nechodí (abandonment.md); chybí = celá. */
+  wear?: StructureWear;
 }
 
 /**
@@ -1253,6 +1270,39 @@ export interface SacredBuilding {
   kind: SacredBuildingKind;
   position: Position;
   builtDay: number;
+  /** Chátrání opuštěné stavby (abandonment.md); chybí = celá. */
+  wear?: StructureWear;
+}
+
+/**
+ * Stavby, které chátrají, když k nim léta nikdo nechodí (abandonment.md): modla, svatyně, plot
+ * hřbitova a ohrada.
+ */
+export type AbandonedStructure = 'idol' | 'shrine' | 'cemetery-fence' | 'pen';
+
+/**
+ * Chátrání stavby (abandonment.md – Chátrání): stav 0–1 a od kdy je stavba opuštěná. Opuštěná
+ * stavba ztrácí stav rovnoměrně (`ABANDONMENT.fallYears` od plného stavu do pádu); když se k ní
+ * lidé znovu začnou chodit, `abandonedDay` zmizí a stav zůstane, jaký byl (nezvedá se).
+ */
+export interface StructureWear {
+  /** Stav 0–1 v den `abandonedDay` (opuštěná stavba), jinak trvale. */
+  condition: number;
+  /** Den roční kontroly cest, která zjistila, že sem nikdo nechodí; chybí = navštěvovaná. */
+  abandonedDay?: number;
+}
+
+/**
+ * Zbytek padlé modly nebo svatyně (abandonment.md – Následky): padlá modla na zemi, ze svatyně
+ * zarůstající příkop. Jen vzhled – zarůstá `ABANDONMENT.remnantYears` let a zmizí, stavba přes něj
+ * ho odstraní.
+ */
+export interface SacredRuin {
+  id: number;
+  kind: SacredBuildingKind;
+  position: Position;
+  /** Den pádu – od něj zbytek zarůstá. */
+  day: number;
 }
 
 /** Změna krajiny sídla nad vygenerovanou vrstvou překážek – id překážky a den. */

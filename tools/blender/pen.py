@@ -3,7 +3,7 @@ na sloupech s pultovou doškovou střechou a pletenou zadní stěnou, žlab z vy
 jesle se senem a branka ze žerdí – díly z atlasu obydlí a řemesel, jeden materiál.
 
 blender -b --factory-startup --python tools/blender/pen.py -- \
-    <craft_atlas_dir> <art> apps/web/public/models/pen <render_dir|->
+    <craft_atlas_dir> <art> apps/web/public/models/pen <render_dir|-> [decay]
 
 craft_atlas_dir: výstup tools/blender/craft_atlas.py (atlas.jpg + atlas.json – atlas obydlí
 rozšířený o řemesla, postup v hlavičce crafts.py). art: <0ad>/binaries/data/mods/public/art –
@@ -35,8 +35,13 @@ Výstup (apps/web/public/models/pen):
                         rafters-1…5, laths, wattle-1, wattle-2, thatch-1…9 (zdola od zadního
                         okapu), binding (svázaný přední okraj), rack, hay, trough-log (kmen
                         před vydlabáním), trough, gate a rekvizity timber, rods, straw.
-Kdy se který díl ukáže, určuje apps/web/lib/scene/pen-layout.ts (PEN_PHASES); pletený plot je
-společný (woven-fence.glb z dwellings.py), seno ve stohu je kupka z fields.py.
+  pen-decay.glb         díly rozpadu opuštěné ohrady (docs/design/abandonment.md – jen s pátým
+                        argumentem „decay“, pen.glb a pen-construction.glb se tím nepřepíšou):
+                        shelter-1…3 (+ -thatch, -moss), rack-empty, rack-fallen, trough-dry,
+                        gate-fallen – podrobně v sekci „rozpad“ níže.
+Kdy se který díl ukáže, určuje apps/web/lib/scene/pen-layout.ts (PEN_PHASES), rozpad
+apps/web/lib/scene/structure-decay.ts; pletený plot je společný (woven-fence.glb z dwellings.py),
+seno ve stohu je kupka z fields.py.
 """
 import json
 import math
@@ -49,6 +54,8 @@ import numpy as np
 
 args = sys.argv[sys.argv.index("--") + 1 :]
 CRAFT_ATLAS, ART, OUT_DIR, RENDER_DIR = args[0], args[1], args[2], args[3] if len(args) > 3 else "-"
+# pátý argument „decay“ = jen díly rozpadu (pen-decay.glb), ostatní GLB se nepřepisují
+DECAY_ONLY = len(args) > 4 and args[4] == "decay"
 
 # oblast sena ve volném místě atlasu řemesel (pod pásy obydlí, vpravo od keramiky)
 HAY_REGION = {"x0": 912, "x1": 1016, "r0": 1819, "r1": 1923}
@@ -444,6 +451,234 @@ def build_props(part):
             b.poly([(x, y, z) for x, z in ring], "thatch_edge", out=out, uvm=[(x - xc, 0.25 + (z - zc)) for x, z in ring])
 
 
+# ------------------------------------------------------------------ rozpad (abandonment.md)
+
+# Opuštěná ohrada bez zvířat chátrá (docs/design/abandonment.md – Martin 18. 10. 2026): stupně
+# podle stavu ohrady jako u obydlí (dwellings.py – rozpad obydlí), který kdy, určuje scéna
+# (apps/web/lib/scene/structure-decay.ts – penDecayParts):
+#   1 sešlá (70–45 %)     došky vybledlé, místy díry, mech; jesle bez sena, žlab bez vody
+#   2 propadá se (45–20)  střecha prověšená a nakřivo, velké díry, část latí pryč, branka spadlá
+#   3 rozpadlá (20–0 %)   stojí zadní sloupy a jeden přední, zadní vaznice, dvě krokve opřené
+#                         o zem, zbytky došků v trávě; jesle se sesuly
+# Uzly pen-decay.glb (počátky jako díly pen.glb): shelter-<1|2|3> (konstrukce – „pen-atlas“),
+# shelter-<1|2>-thatch (vybledlé došky – „pen-decay-faded“), shelter-<1|2|3>-moss (mech, zbytky
+# došků – „pen-decay-moss“), rack-empty a rack-fallen (jesle bez sena / sesunuté), trough-dry
+# (žlab bez vody), gate-fallen (branka na zemi) – materiál „pen-decay-weathered-low“. Barvy jsou
+# glTF baseColorFactor (atlas × odstín – dwellings.tinted_material).
+PEN_DECAY_TINTS = {
+    "pen-decay-faded": (0.66, 0.63, 0.56),  # vybledlé, zašedlé došky (jako obydlí)
+    "pen-decay-moss": (0.46, 0.6, 0.3),  # mech a zetlelá sláma
+    "pen-decay-weathered-low": (0.74, 0.74, 0.68),  # zšedlé žerdě, žlab a branka
+}
+
+
+def pen_sag(amount, lean):
+    """Prověšená pultová střecha: uprostřed délky klesne o `amount` (víc u přední hrany, kde
+    střecha nesedí na zdi), celá se nakloní do strany (`lean` m ve výšce přední hrany)."""
+
+    def f(p):
+        along = max(0.0, 1 - (p.x / HALF_LEN) ** 2)
+        front = min(1.0, max(0.0, (Y_BACK - p.y) / (Y_BACK - Y_FRONT)))
+        h = max(0.0, p.z) / Z_RIDGE
+        return Vector((p.x + lean * h, p.y, p.z - amount * along * (0.35 + 0.65 * front)))
+
+    return f
+
+
+def lean_post(polys, foot, angle, heading):
+    """Sloup nakloněný kolem paty `foot` o `angle` ve směru `heading` (rad v rovině xy)."""
+    d = Vector((math.cos(heading), math.sin(heading), 0.0))
+    c, s = math.cos(angle), math.sin(angle)
+    out = []
+    for pts, uv, sm in polys:
+        moved = []
+        for p in pts:
+            r = p - foot
+            along = r.dot(d)
+            flat = r - d * along
+            z = flat.z
+            flat.z = 0.0
+            moved.append(foot + flat + d * (along * c + z * s) + Vector((0, 0, z * c - along * s)))
+        out.append((moved, uv, sm))
+    return out
+
+
+def shelter_decay(stage):
+    """Díly stupně `stage` (1–3) přístřešku: (konstrukce, došky, mech) – Buildery."""
+    src = D.Parts("src")
+    build_shelter(src)
+    parts = src.builders
+    main = D.Builder(f"shelter-{stage}")
+    thatch = D.Builder(f"shelter-{stage}-thatch")
+    moss = D.Builder(f"shelter-{stage}-moss")
+    salt = 5 * stage + 3
+    deform = {1: None, 2: pen_sag(0.38, 0.22), 3: None}[stage]
+    hole = {1: 0.84, 2: 0.66}.get(stage)
+    moss_level = {1: 0.68, 2: 0.58, 3: 0.0}[stage]
+
+    def missing(c):
+        bias = 0.1 * D._rand(int(97 * (c.x + 3.1 * c.y + 11)), salt)
+        if stage == 2:
+            bias += 0.25 * max(0.0, 1 - abs(c.x) / HALF_LEN)
+        return D._blot(0.6 * c.x, 0.6 * c.y, salt) + bias > hole
+
+    if stage < 3:
+        roof = [k for k in parts if k.startswith("thatch-")] + ([] if stage == 2 else ["binding"])
+        for key in roof:
+            for pts, uv, sm in D._polys(parts[key]):
+                # dílky ≈ 0,5 m – díry jsou skvrny, ne celé řady došků
+                for p, u in D._subdivide(pts, uv):
+                    if missing(D._center(p)):
+                        continue
+                    q = [deform(v) for v in p] if deform else p
+                    D._put(moss if D._mossy(q, salt, moss_level) else thatch, q, u, sm)
+        frame = [k for k in parts if k == "laths" or k.startswith("rafters")]
+        for key in frame:
+            for i, beam in enumerate(D._beams(parts[key])):
+                drop = {1: 0.0, 2: 0.3 if key == "laths" else 0.1}[stage]
+                if D._rand(sum(ord(ch) for ch in key) * 31 + i, salt) < drop:
+                    continue
+                D._copy(main, beam, deform, D.DECAY_STEP if deform else None)
+        for key in ("posts", "plates"):
+            D._copy(main, D._polys(parts[key]), deform, D.DECAY_STEP if deform else None)
+        walls = ["wattle-1", "wattle-2"]
+        for key in walls:
+            polys = D._polys(parts[key])
+            if stage == 2 and key == "wattle-2":
+                polys = [poly for k, poly in enumerate(polys) if D._rand(k, salt + 7) > 0.5]
+            D._copy(main, polys)
+        return main, thatch, moss
+
+    # stupeň 3: zadní sloupy a jeden přední stojí (nakřivo), zadní vaznice, dvě krokve opřené
+    # o zem, zbytek výpletu u země, zbytky došků v trávě
+    posts = D._beams(parts["posts"])
+    # pořadí v frame(): pro každý sloup (sx −1, 0, 1) přední sloup, 2 rozsochy, zadní sloup
+    for sx in range(3):
+        front, fork_a, fork_b, back = posts[sx * 4 : sx * 4 + 4]
+        x = (sx - 1) * POST_X
+        D._copy(main, lean_post(back, Vector((x, POST_Y, 0.0)), 0.08 + 0.05 * sx, 1.9 + 0.4 * sx))
+        if sx == 2:
+            D._copy(main, lean_post(front + fork_a + fork_b, Vector((x, -POST_Y, 0.0)), 0.32, -2.2))
+    plates = D._beams(parts["plates"])
+    D._copy(main, lean_post(plates[1], Vector((0.0, POST_Y, 0.0)), 0.05, 1.6))
+    # přední vaznice spadla na zem před přístřešek
+    for pts, uv, sm in plates[0]:
+        D._put(main, [Vector((p.x * 0.96, p.y - 0.5, p.z - (z_under(-POST_Y) - 0.26) + 0.04 + 0.05 * p.x / HALF_LEN)) for p in pts], uv, sm)
+    # dvě krokve od zadní vaznice šikmo na zem před přístřeškem
+    rafters = [D._beams(parts[f"rafters-{k}"])[0] for k in (2, 4)]
+    for k, beam in enumerate(rafters):
+        for pts, uv, sm in beam:
+            moved = []
+            for p in pts:
+                t = (Y_BACK - p.y) / (Y_BACK - Y_FRONT)
+                z_back = z_under(POST_Y) - 0.2
+                moved.append(Vector((p.x + 0.3 * (k - 0.5) * t, p.y - 0.35 * t, z_back * (1 - t) + 0.06 + (p.z - z_under(p.y) + 0.06))))
+            D._put(main, moved, uv, sm)
+    D._copy(main, [poly for k, poly in enumerate(D._polys(parts["wattle-1"])) if D._rand(k, salt) > 0.35])
+    # zbytky došků: řady došků slehlé na zem (z 6 cm), jen ve skvrnách, všechno mech
+    for key in [k for k in parts if k.startswith("thatch-")][:4]:
+        for pts, uv, sm in D._polys(parts[key]):
+            c = D._center(pts)
+            if D._blot(0.7 * c.x, 0.7 * c.y, salt + 1) < 0.6:
+                continue
+            D._put(moss, [Vector((p.x, p.y + 0.2, 0.04 + 0.12 * (p.z - c.z + 0.3))) for p in pts], uv, sm)
+    return main, thatch, moss
+
+
+def rack_decay(fallen):
+    """Jesle bez sena (stojí, zšedlé), nebo sesunuté dopředu na zem."""
+    rack, hay = D.Builder("tmp-rack"), D.Builder("tmp-hay")
+    build_rack(rack, hay)
+    out = D.Builder("rack-fallen" if fallen else "rack-empty")
+    if not fallen:
+        D._copy(out, D._polys(rack))
+        return out
+    # překlopené kolem přední paty (y −0,12) dopředu o ≈ 65°, nic pod zem
+    ang = math.radians(65)
+    c, s = math.cos(ang), math.sin(ang)
+    for pts, uv, sm in D._polys(rack):
+        moved = []
+        for p in pts:
+            y, z = p.y + 0.12, p.z
+            moved.append(Vector((p.x, -0.12 + y * c - z * s, max(0.03, y * s + z * c))))
+        D._put(out, moved, uv, sm)
+    return out
+
+
+def trough_dry():
+    """Žlab bez vody (poslední plocha build_trough je hladina)."""
+    b = D.Builder("tmp-trough")
+    build_trough(b)
+    out = D.Builder("trough-dry")
+    D._copy(out, D._polys(b)[:-1])
+    return out
+
+
+def gate_fallen():
+    """Branka spadlá na zem před mezeru v plotu (žerdě naplocho, kousek natočené)."""
+    b = D.Builder("tmp-gate")
+    build_gate(b)
+    out = D.Builder("gate-fallen")
+    yaw = 0.22
+    cy, sy = math.cos(yaw), math.sin(yaw)
+    for pts, uv, sm in D._polys(b):
+        moved = []
+        for p in pts:
+            x, y = p.x, -0.15 - p.z * 0.95
+            moved.append(Vector((x * cy - y * sy, x * sy + y * cy, 0.05 + (p.y + 0.09) * 0.8)))
+        D._put(out, moved, uv, sm)
+    return out
+
+
+def decay_main():
+    """Jen díly rozpadu ohrady → pen-decay.glb (pen.glb a pen-construction.glb se nepřepíšou)."""
+    mat = D.make_material(0.5)
+    mat.name = "pen-atlas"
+    mats = {name: D.tinted_material(mat, name, tint) for name, tint in PEN_DECAY_TINTS.items()}
+    os.makedirs(OUT_DIR, exist_ok=True)
+    objs = []
+
+    def out(builder, material):
+        if builder.faces:
+            objs.append(builder.build(material))
+
+    for stage in (1, 2, 3):
+        main, thatch, moss = shelter_decay(stage)
+        out(main, mat)
+        out(thatch, mats["pen-decay-faded"])
+        out(moss, mats["pen-decay-moss"])
+    weathered = mats["pen-decay-weathered-low"]
+    out(rack_decay(False), weathered)
+    out(rack_decay(True), weathered)
+    out(trough_dry(), weathered)
+    out(gate_fallen(), weathered)
+    D.export(objs, os.path.join(OUT_DIR, "pen-decay.glb"))
+    for obj in objs:
+        print(f"PART {obj.name}: {D.tri_count(obj)} tris")
+    if RENDER_DIR != "-":
+        preview_decay(objs)
+
+
+def preview_decay(objs):
+    """Náhledy rozpadu: každý stupeň přístřešku s jeslemi, žlabem a brankou."""
+    terrain = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "apps", "web", "public", "textures", "terrain")
+    D.setup_world(os.path.join(terrain, "grass.jpg"))
+    os.makedirs(RENDER_DIR, exist_ok=True)
+    by = {o.name: o for o in objs}
+    for name in ("rack-empty", "rack-fallen"):
+        by[name].location = (-0.6, 1.05, 0)
+    by["trough-dry"].location = (3.4, -1.0, 0)
+    by["trough-dry"].rotation_euler = (0, 0, math.pi / 2)
+    by["gate-fallen"].location = (0.5, -5.0, 0)
+    for stage in (1, 2, 3):
+        shown = [by[n] for n in (f"shelter-{stage}", f"shelter-{stage}-thatch", f"shelter-{stage}-moss") if n in by]
+        shown += [by["rack-fallen" if stage == 3 else "rack-empty"], by["trough-dry"]]
+        if stage > 1:
+            shown.append(by["gate-fallen"])
+        D.render(shown, os.path.join(RENDER_DIR, f"pen_decay_{stage}.png"), (-6.5, -11.0, 6.0), (0.3, -0.8, 1.0), size=(1000, 700))
+        D.render(shown, os.path.join(RENDER_DIR, f"pen_decay_{stage}_game.png"), (0, 14.0, 14.5), (0.2, 0.8, 0.5), size=(1000, 700))
+
+
 # ------------------------------------------------------------------ hlavní
 
 
@@ -511,4 +746,7 @@ def main():
         preview(finished, RENDER_DIR)
 
 
-main()
+if DECAY_ONLY:
+    decay_main()
+else:
+    main()

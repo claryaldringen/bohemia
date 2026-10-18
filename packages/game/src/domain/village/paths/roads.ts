@@ -117,20 +117,27 @@ function isRoadYearDay(day: number): boolean {
  * Krok dne pro pevné cesty (mutuje stav – volá simulace na konci dne): 1. 11. roční kontrola
  * (`updateRoads`) a nový rok cest, pak práce dne do ročního součtu. Bez krajiny (kalibrace, testy)
  * nic – pevné cesty se počítají jen s krajinou sídla. Vsi bez pevných cest (starší) začnou sčítat.
+ * Vrátí provoz roční sítě ke stavbám (`PathNetwork.visits` – opuštěné stavby, abandonment.md)
+ * v den roční kontroly; ves bez obydlí prázdný, jiné dny (a bez krajiny) null.
  */
 export function roadsDay(
   state: VillageState,
   day: number,
   landscape: Landscape | null,
   obstacles: ObstacleLayer | null,
-): void {
-  if (!landscape) return;
+): ReadonlyMap<string, number> | null {
+  if (!landscape) return null;
   const roads = (state.roads ??= emptyRoads(day));
+  let visits: ReadonlyMap<string, number> | null = null;
   if (isRoadYearDay(day) && roads.labor.from < day) {
-    state.chronicle.push(...updateRoads(state, day, landscape, obstacles));
+    const changes = obstacleChangesAt(state, day);
+    const annual = annualPathNetwork(state, day, landscape, obstacles, changes);
+    state.chronicle.push(...updateRoads(state, day, landscape, obstacles, { annual, changes }));
+    visits = annual?.network.visits ?? new Map<string, number>();
     roads.labor = { from: day, days: 0, shares: [] };
   }
   addRoadLabor(roads, state.labor, day);
+  return visits;
 }
 
 /** Klíč místa práce (pole bez dílů; seč přirozených luk za rok jedno místo). */
@@ -179,7 +186,7 @@ export function addRoadLabor(roads: VillageRoads, labor: LaborDay | undefined, d
 }
 
 /** Síť z celoroční práce a terén, ze kterého vznikla; ves bez obydlí null. */
-interface AnnualNetwork {
+export interface AnnualNetwork {
   network: PathNetwork;
   terrain: PathTerrain;
 }
@@ -241,16 +248,21 @@ export function annualPathNetwork(
  * Roční kontrola pevných cest v den `day` (1. 11.; mutuje stav): provoz cest za uplynulý rok,
  * zarůstání, nové pevné cesty z úseků nad prahem i loni, letošní úseky nad prahem na příští rok
  * a stromy u cest (konec pařezů, odstraněné stavbou, uchycení nových). Vrátí události kroniky.
+ * `precomputed` – roční síť a změny překážek, které už volající spočítal ze stejného stavu
+ * (`roadsDay` – provoz ke stavbám z téže sítě).
  */
 export function updateRoads(
   state: VillageState,
   day: number,
   landscape: Landscape,
   obstacles: ObstacleLayer | null,
+  precomputed?: { annual: AnnualNetwork | null; changes: ObstacleChanges },
 ): ChronicleEvent[] {
   const roads = (state.roads ??= emptyRoads(day));
-  const changes = obstacleChangesAt(state, day);
-  const annual = annualPathNetwork(state, day, landscape, obstacles, changes);
+  const changes = precomputed?.changes ?? obstacleChangesAt(state, day);
+  const annual = precomputed
+    ? precomputed.annual
+    : annualPathNetwork(state, day, landscape, obstacles, changes);
   const events: ChronicleEvent[] = [];
   const blocked = plantingBlocker(state, landscape);
   if (annual) {

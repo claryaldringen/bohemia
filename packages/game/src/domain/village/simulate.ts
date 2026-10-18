@@ -1,6 +1,7 @@
 import { TOTAL_GAME_DAYS, dateOfDayIndex } from '../calendar';
 import type { CalendarDate } from '../calendar';
 import type { Landscape, ObstacleLayer } from '../landscape';
+import { abandonmentCheck, abandonmentDay } from './abandonment';
 import { villageCemeteries } from './cemetery';
 import { cloneState } from './clone';
 import {
@@ -295,7 +296,11 @@ function simulateDay(
   if (isOn(date, HARVEST_DAY)) harvest(state, day);
   if (isOn(date, THRESH_END_DAY)) endThreshing(state);
   // pevné cesty (roads.md): práce dne do ročního součtu, 1. 11. roční kontrola cest a stromů
-  roadsDay(state, day, landscape, obstacles);
+  const visits = roadsDay(state, day, landscape, obstacles);
+  // opuštěné stavby (abandonment.md): 1. 11. podle provozu roční sítě začnou nebo přestanou
+  // chátrat, každý den spadnou ty, jejichž stav došel na nulu
+  if (visits) abandonmentCheck(state, day, visits);
+  state.chronicle.push(...abandonmentDay(state, day, landscape));
 }
 
 function isOn(date: CalendarDate, target: DayOfYear): boolean {

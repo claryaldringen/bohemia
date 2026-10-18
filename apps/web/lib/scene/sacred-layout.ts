@@ -5,6 +5,7 @@
 // u obydlí (`localToWorld`: x napříč, z k předku – modla a obětiny se dívají do +z).
 import { SACRED_BUILDINGS, type Position, type SacredBuildingKind } from '@bohemia/game';
 import type { SceneSacred } from '../village-view';
+import { decayStage } from './dwelling-decay';
 import { cellsBoundary, cellsContain, type CellSquare } from './field-cells';
 import { hash01 } from './smoke-schedule';
 import { ROUND_SITE_M, SHRINE_PETALS, type SacredKind } from './village-construction';
@@ -25,6 +26,8 @@ export const SACRED_MODELS = {
   shrineConstruction: 'shrine-construction.glb',
   oakOfferings: 'oak-offerings.glb',
   groveStones: 'grove-stones.glb',
+  /** Díly rozpadu opuštěné modly a svatyně (abandonment.md – structure-decay.ts). */
+  decay: 'sacred-decay.glb',
 } as const;
 
 /** Poloměr ohnišť – uprostřed výběžku příkopu (sacred.py – R_FIRE = (R_IN + R_TIP) / 2). */
@@ -230,7 +233,15 @@ export function sacredFootprintCorners(kind: SacredBuildingKind, position: Posit
 /** Co z posvátné stavby rozhoduje o vzhledu – průběh po 2 % jako u obydlí. */
 export function sacredBuildingKey(b: SceneSacred['buildings'][number]): string {
   const p = b.position;
-  return [b.kind, p.x, p.z, p.rotation, b.built, b.built ? '' : Math.round(b.progress * 50)].join(
-    '|',
-  );
+  return [
+    b.kind,
+    p.x,
+    p.z,
+    p.rotation,
+    b.built,
+    b.built ? '' : Math.round(b.progress * 50),
+    // rozpad opuštěné stavby jen po stupních (abandonment.md – structure-decay.ts)
+    b.built ? decayStage(b.condition) : '',
+    b.abandoned ? 'a' : '',
+  ].join('|');
 }

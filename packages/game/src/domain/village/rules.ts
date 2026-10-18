@@ -863,3 +863,14 @@ export const FOREIGN_GOODS = {
 // 1,2 kg železa (opal), 3 člověkodny a 10 kg uhlí na 1 kg nástrojů místo rudy a tavení (10 čd
 // a 50 kg uhlí); železo bere přednostně
 export const IRON_SMITHING = { ironKgPerKg: 1.2, manDaysPerKg: 3, charcoalKgPerKg: 10 } as const;
+// abandonment.md – Chátrání (Martin 18. 10. 2026: „stavby, kam nikdo nechodí, budou postupně
+// chátrat a rozpadnou se“; čísla návrh Clauda podle rešerše research/2026-10-18-abandonment.md):
+// opuštěná stavba spadne za `fallYears` let od plného stavu – modla (dubový kůl Ø 0,5 m v zemi)
+// 20, svatyně (kůl ×1,55) 30, pletený plot hřbitova 10, ohrada bez zvířat (přístřešek s došky,
+// pletený plot) 10; zbytek padlé modly leží 10 let, zarostlý příkop svatyně 20 let. Stavba
+// dokončená za poslední rok opuštěná není – lidé k ní chodili stavět.
+export const ABANDONMENT = {
+  fallYears: { idol: 20, shrine: 30, 'cemetery-fence': 10, pen: 10 },
+  remnantYears: { idol: 10, shrine: 20 },
+  graceDays: 365,
+} as const;

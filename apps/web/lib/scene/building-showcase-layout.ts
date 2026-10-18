@@ -7,6 +7,7 @@
 // obydlí – opuštěná zemnice a polozemnice podle posuvníku stavu a řada všech stupňů rozpadu
 // (showcaseDecay, dwelling-decay.ts).
 import {
+  ABANDONMENT,
   CEMETERY,
   MILIR,
   PLOT_VARIANTS,
@@ -19,6 +20,7 @@ import type { FieldLook, SceneFieldPart, SceneRoad, SceneVillage } from '../vill
 import { CEMETERY_PHASES } from './cemetery-layout';
 import { DECAY_LABELS, DECAY_STAGES, decayStage, type DecayStage } from './dwelling-decay';
 import { hayPhase, meadowLook, type HayMeadow } from './hay-meadows';
+import { STRUCTURE_STAGE_LABELS } from './structure-decay';
 import { plotHouse } from './homestead-layout';
 import { TREE_GROWTH_YEARS, treeGrowth } from './orchard-layout';
 import { penFacing, type Direction, type PenSquare } from './pen-layout';
@@ -677,13 +679,19 @@ export function showcaseGrounds(progress: number): {
 // --- Rozpad obydlí (population.md – Co hráč vidí, Chátrání a přestavba) ---
 
 export interface ShowcaseDecayTarget {
-  id: 'rozpad' | 'stupne';
+  id: 'rozpad' | 'stupne' | 'rozpad-staveb';
   label: string;
   focus: { x: number; z: number; radius: number };
 }
 
 /** Řada s posuvníkem (zemnice a polozemnice na pozemku) a řada všech stupňů za ní (z). */
 const DECAY_ROW_Z = -52;
+/**
+ * Opuštěné stavby (abandonment.md) za ukázkou cest: modla, svatyně, hřbitov a ohrada – stejný
+ * posuvník rozpadu jako obydlí (stav 100 → 0 %, pak zbytek modly a příkop svatyně zarůstají).
+ */
+const STRUCTURES_Z = -152;
+const STRUCTURES_X = { idol: -40, shrine: -8, cemetery: 26, pen: 46 } as const;
 const STAGES_ROW_Z = { zemnice: -70, polozemnice: -84 } as const;
 const DECAY_PAIR_X = { zemnice: -14, polozemnice: 2 } as const;
 const STAGES_X0 = -24;
@@ -695,6 +703,11 @@ export const SHOWCASE_DECAY: readonly ShowcaseDecayTarget[] = [
     id: 'stupne',
     label: 'Stupně rozpadu',
     focus: { x: STAGES_X0 + 2 * STAGES_STEP, z: -79, radius: 48 },
+  },
+  {
+    id: 'rozpad-staveb',
+    label: 'Rozpad staveb',
+    focus: { x: 4, z: STRUCTURES_Z, radius: 78 },
   },
 ];
 
@@ -721,6 +734,21 @@ export function decayLabel(t: number): string {
   return at.overgrowth >= 1
     ? 'zbytek jámy zarostl a zmizel'
     : `zbytek jámy – ${years} ${years === 1 ? 'rok' : years >= 2 && years <= 4 ? 'roky' : 'let'} po zániku, zarůstá`;
+}
+
+/**
+ * Popisek posuvníku pro opuštěné stavby (abandonment.md): stav a stupeň modly, svatyně, plotu
+ * hřbitova a ohrady, po pádu jak zarůstá padlá modla a příkop svatyně.
+ */
+export function structureDecayLabel(t: number): string {
+  const at = decayAt(t);
+  if ('condition' in at) {
+    return `stav ${Math.round(at.condition * 100)} % – ${STRUCTURE_STAGE_LABELS[decayStage(at.condition)]}`;
+  }
+  if (at.overgrowth >= 1) return 'zbytky zarostly a zmizely';
+  const idol = Math.round(at.overgrowth * ABANDONMENT.remnantYears.idol);
+  const shrine = Math.round(at.overgrowth * ABANDONMENT.remnantYears.shrine);
+  return `padlá modla ${idol} / příkop svatyně ${shrine} let po pádu, plot hřbitova rozpadlý, ohrada zmizela`;
 }
 
 /** Stav ukázky každého stupně (uprostřed jeho rozpětí) a zbytek jámy ve třetině zarůstání. */
@@ -795,7 +823,86 @@ export function showcaseDecay(t: number): SceneVillage {
       overgrowth: STAGES_RUIN_OVERGROWTH,
     });
   }
-  return { dwellings, fields: [], ruins };
+  return { dwellings, fields: [], ruins, ...showcaseAbandoned(at) };
+}
+
+/**
+ * Opuštěná modla, svatyně, hřbitov a ohrada na ukázce rozpadu (abandonment.md – Co hráč vidí):
+ * stav podle posuvníku, po pádu zbytek padlé modly a zarůstající příkop svatyně; plot hřbitova
+ * zůstane rozpadlý, ohrada zmizí.
+ */
+function showcaseAbandoned(
+  at: { condition: number } | { overgrowth: number },
+): Pick<SceneVillage, 'sacred' | 'cemeteries' | 'pens'> {
+  const z = STRUCTURES_Z;
+  const position = (x: number): { x: number; z: number; rotation: number } => ({
+    x,
+    z,
+    rotation: FACING,
+  });
+  const square = (
+    x: number,
+  ): { cell: { x: number; y: number }; x: number; z: number; size: number } => ({
+    cell: { x: Math.round(x / 15), y: 40 },
+    x,
+    z,
+    size: 15,
+  });
+  const standing = 'condition' in at;
+  const condition = standing ? at.condition : 0;
+  const sacred: NonNullable<SceneVillage['sacred']> = {
+    oaks: [],
+    groves: [],
+    buildings: standing
+      ? (['idol', 'shrine'] as const).map((kind, k) => ({
+          id: 9201 + k,
+          kind,
+          position: position(STRUCTURES_X[kind]),
+          built: true,
+          progress: 1,
+          ...(condition < 1 ? { condition: Math.floor(condition * 100) / 100 } : {}),
+          abandoned: true as const,
+        }))
+      : [],
+    ...(standing || at.overgrowth >= 1
+      ? {}
+      : {
+          ruins: (['idol', 'shrine'] as const).map((kind, k) => ({
+            id: 9201 + k,
+            kind,
+            position: position(STRUCTURES_X[kind]),
+            overgrowth: Math.floor(at.overgrowth * 20) / 20,
+          })),
+        }),
+  };
+  return {
+    sacred,
+    cemeteries: [
+      {
+        id: 9301,
+        squares: [square(STRUCTURES_X.cemetery)],
+        built: true,
+        progress: 1,
+        graves: 34,
+        ...(condition < 1 ? { fence: Math.floor(condition * 100) / 100 } : {}),
+      },
+    ],
+    pens: standing
+      ? [
+          {
+            id: 9401,
+            ...square(STRUCTURES_X.pen),
+            built: true,
+            progress: 1,
+            oxen: 0,
+            trainees: 0,
+            cows: 0,
+            ...(condition < 1 ? { condition: Math.floor(condition * 100) / 100 } : {}),
+            stocked: false as const,
+          },
+        ]
+      : [],
+  };
 }
 
 // --- pevné cesty (roads.md – Vylepšení cesty) ------------------------------------------------

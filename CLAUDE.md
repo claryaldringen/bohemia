@@ -433,6 +433,19 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   u staveniště (`villager-plan.ts`) a jabloně sadu se vyhnou koruně posvátného dubu. Vývojový
   náhled má tlačítka Modla, Svatyně, Ukázka svatyní a „Mýtit les s posvátným dubem / hájem“;
   náhled staveb (/dev/buildings) kreslí modlu a svatyni po fázích svým potrubím.
+  **Rozpad opuštěné modly a svatyně** (abandonment.md, `structure-decay.ts` – čisté funkce,
+  testy): stupeň `structureDecayStage` jako u obydlí (≥ 70 / 45 / 20 %), díly `sacredDecayParts`
+  – celá navštěvovaná = hotový model, opuštěné svatyni vyhasnou ohniště hned (díly staveniště
+  a `shrine-fires-cold`, bez dýmu), sešlá zšedlá modla s mechem bez obětin, nakloněná a rozpadlá
+  se kloní (`sacredLean` – ≈ 12° a 28°, směr podle id; `leanPoint` posune vrcholy před položením
+  na terén) a zarůstá; zbytek `sacredRuinParts` (padlá modla u pahýlu zapadá do trávy, příkop
+  svatyně se srovná – `heightScale`). Díly `models/sacred/sacred-decay.glb` z `sacred.py` (čtvrtý
+  argument `decay`; načtou se až s první chátrající stavbou, do té doby nejbližší díly
+  staveniště – `DECAY_SUBSTITUTES`); zarostlá plocha a příkop svatyně dostanou ve scéně trávu
+  terénu po světových souřadnicích (`overgrow`). Plot opuštěného hřbitova a ohrady `decayFence`
+  podle `fenceDecayAmount` (po dvacetinách), mohylky zarůstají a slehnou se s ním. Náhled:
+  /dev/buildings tlačítko **Rozpad staveb** (modla, svatyně, hřbitov, ohrada – stejný posuvník
+  ▶ Rozpad jako obydlí, `showcaseAbandoned`).
 - **Řemeslné dílny** (ve hře od 18. 10. 2026, pravidla v [docs/design/crafts.md](docs/design/crafts.md),
   jádro a rozhraní viz Ves – Řemesla): `public/models/crafts/`
   hrnčíř a kovář (polozemnice s přístřeškem o `PORCH` 3,6 m vpředu, pod ním pec / výheň
@@ -480,6 +493,7 @@ rozhraní částí v
   `extinctDay?`, `crafts?`, `Dwelling.workshop?`, `livestock?`, `meatKg?`, `cheeseKg?`,
   `legumesKg?`, `hay?`, `pens?`, `diet?`, `ruins?`, `woods?`, `FieldPart.overgrowthYears?`,
   `manorId?`, `trails?`, `trade?`, `goods?`, `DwellingPlot.yard?`, `Construction.trail?`) – vsi
+  `sacredRuins?`, `SacredBuilding.wear?`, `Cemetery.fenceWear?`, `Pen.wear?`) – vsi
   uložené dřív se načtou a beze sadů či dílen se jejich stav nemění.
 - **Hlad a vymření** (population.md, Martin 18. 10. 2026): nahromaděný hlad
   `VillageState.starvationDays` (`nextStarvationDays` po jídle dne – pod 90 % přídělu
@@ -530,6 +544,32 @@ rozhraní částí v
   nerozpadají** (`dwellingDecay` jim dává stupeň 0). Náhled: /dev/buildings – tlačítka **Rozpad**
   (opuštěná zemnice a polozemnice na pozemku, posuvník ▶ Rozpad: stav 100 → 0 %, pak zbytek
   jámy 10 let) a **Stupně rozpadu** (řada stupňů 0–3 a zbytek jámy) – `showcaseDecay`.
+- **Opuštěné stavby chátrají** ([abandonment.md](docs/design/abandonment.md), Martin 18. 10. 2026:
+  „Jo ty stavby, kam nikdo nechodí, budou postupně chátrat a rozpadnou se“; čísla podle rešerše
+  `research/2026-10-18-abandonment.md`): `abandonment.ts`. **Opuštěná** = stavba, ke které podle
+  roční sítě cest (1. 11., stejná `computePathNetwork` jako pevné cesty) za rok nevedla žádná
+  cesta – síť vrací provoz ke stavbám `PathNetwork.visits` (klíč `visitKey` – `idol:<id>`,
+  `shrine:<id>`, `cemetery:<id>`, `pen:<id>`; jen domácnosti, ke kterým se trasa našla; k modle,
+  svatyni a hřbitovu chodí každá domácnost jen k nejbližšímu). `roadsDay` ho vrátí v den roční
+  kontroly (jinak a bez krajiny null – kalibrace nic neopouští) a `simulateDay` zavolá
+  `abandonmentCheck` (začne / přestane chátrat; dokončená za poslední rok – `graceDays` – ne;
+  ohrada se zvířaty – `stockedPenIds`: spřežení, výcvik, zimní krávy rovným dílem jako ve
+  scéně – nikdy) a každý den `abandonmentDay` (pád, zbytky). Do ohrady bez zvířat se nechodí
+  krmit (`PathVillage.pens[].stocked: false` – `pathVillageOf`, `ScenePen.stocked`, i v klíčích
+  sítě). Stav `StructureWear` (`condition` ke dni `abandonedDay`; bez dne zastavené chátrání –
+  stav se nezvedá) na `SacredBuilding.wear`, `Cemetery.fenceWear`, `Pen.wear`; stav dne
+  `structureCondition`, den pádu `structureFallDay`. Spadne za `ABANDONMENT.fallYears` (modla
+  20, svatyně 30, plot hřbitova 10, ohrada 10 let) → kronika `structure-fell` (`structure`,
+  `id`; upozornění „Modla padla“ / „Svatyně se rozpadla“ / „Plot hřbitova se rozpadl“ / „Ohrada se
+  rozpadla“): modla a svatyně zmizí ze `sacredBuildings` (štěstí jen ze stojících, svatyni jde
+  postavit znovu) a zůstane `VillageState.sacredRuins` (`sacredRuinOvergrowth`, modla 10,
+  příkop 20 let – `remnantYears`, pod stavbou zmizí), u hřbitova jen plot (`fenceWear`
+  `{ condition: 0 }`, pohřbívá se dál, oprava plotu zatím žádná), ohrada zmizí; ohrada, do
+  které se vrátila zvířata, chátrat přestane hned (nejméně 1 %). Web: `VillageSacred.buildings`,
+  `VillagePen` a `VillageCemetery` nesou `condition` / `fenceCondition` a `abandoned` (panel –
+  `Wear`: ikona `resources/condition` s %, ikona `resources/abandoned`), scéna
+  `SceneSacred.buildings[].condition` / `abandoned`, `SceneSacred.ruins`, `ScenePen.condition`,
+  `SceneVillage.cemeteries[].fence` (jen pod 1, po setinách).
 - **Hřbitov** (`cemetery.ts`, cemetery.md): čtverce s 56 hroby, zemřelý se pohřbí do hotového
   hřbitova s místem nejblíž k obydlím (`bury` v `populationDay`), kronika `cemetery-full`.
   Čtverce navazující stranou na hřbitov ho **rozšíří** (`foundCemetery`: stejné id, čtverce na
@@ -1148,7 +1188,8 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   (`nearest.ts` – bit po bitu jako průchod všemi díly, zlatý otisk sítě v `paths-nearest.test.ts`);
   síla `pathStrength` (odmocnina provozu), stáří obydlí →
   `pathAgeFactor`; vyhlazené čáry se sílou a stářím v bodech, provoz po buňkách `traffic.raw`;
-  `annual: true` = roční provoz; `PathVillage` splňuje `SceneVillage`), `walking.ts` (`walkGraph`, `walkingDistances` – vzdálenost chůze, po pěšině
+  `annual: true` = roční provoz; provoz ke stavbám `visits` – opuštěné stavby, abandonment.md;
+  `PathVillage` splňuje `SceneVillage`), `walking.ts` (`walkGraph`, `walkingDistances` – vzdálenost chůze, po pěšině
   `PATH_WALK` rychleji, nikdy víc než rovně – čistá funkce pro každého, kdo měří cestu na pole)
   a `village.ts` (`pathVillageOf` ze stavu vsi jako scéna i s pevnými cestami, `refreshWalkDistances`
   – den po dni v `simulateDay` při změně `walkLayoutKey` (i pevné cesty), jen s krajinou;
@@ -1313,6 +1354,11 @@ směr)` – stálá povaha (2–3 nabízí, aspoň jedno zboží zvenku, 2–3 s
   fáze stavby a póza zvířat `pen-layout.ts` (čisté funkce, testy – branka na straně ke vsi,
   přístřešek v zadním rohu naproti; `SHELTER_M` musí sedět s rozměry v `pen.py`), kreslení
   `pen-renderer.ts`, voli (VAT klip `idle`) a kráva `pen-animals.ts`. Na stránce přepínač **Zima**.
+  **Rozpad opuštěné ohrady** (abandonment.md): `PenView.condition` → `penDecayParts` (sešlá:
+  vybledlé děravé došky s mechem, prázdné jesle, žlab bez vody; propadlá: prověšená střecha,
+  spadlá branka; rozpadlá: sloupy a krokve) z `models/pen/pen-decay.glb` (`pen.py`, pátý
+  argument `decay`; místo dílu `penDecayPlace`), bláto mizí (`PEN_MUD_BY_STAGE`), stoh jen
+  u celé, plot `decayFence`.
 - **e2e:** testy běží v běžícím pomalém světě (2000–2200). Kliknutí do scény při umisťování
   nahrazuje háček `window.__bohemiaE2E.confirmPlacement`, kam kliknout myší pro výběr řekne
   `projectToScreen` (`lib/e2e-hooks.ts`) – existují jen v buildu s `NEXT_PUBLIC_E2E_HOOKS=1`

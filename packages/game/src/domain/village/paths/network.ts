@@ -74,6 +74,12 @@ export interface PathNetwork {
   errands: ReadonlyMap<number, PathErrands>;
   /** Tras (domácnost × cíl) v posledním kole. */
   trips: number;
+  /**
+   * Kolik cest za den vede k jednotlivým stavbám (abandonment.md – opuštěná stavba): klíč
+   * `<druh>:<id>` (`idol`, `shrine`, `cemetery`, `pen`), cesty za den z posledního kola – jen
+   * domácnosti, ke kterým se trasa našla. Stavba, která v mapě chybí, nemá žádný provoz.
+   */
+  visits: ReadonlyMap<string, number>;
 }
 
 /** Čtverec stavby po políčkách (díl pole, čtverec sadu, hřbitova, háje) – střed a strana (m). */
@@ -140,9 +146,10 @@ export interface PathVillage {
   roads?: readonly { id?: number; points: readonly PathPoint[]; grade?: RoadGrade }[];
   /**
    * Ohrady (oxen.md) – čtverec jako díl pole a jestli je hotová: plot obchází, k ohradě se chodí
-   * krmit dobytek. Bez údaje žádné.
+   * krmit dobytek. `stocked: false` – hotová ohrada bez zvířat (abandonment.md): krmit se tam
+   * nechodí, jen za prací dne. Bez údaje žádné (u ohrady bez `stocked` se zvířaty).
    */
-  pens?: readonly (PathSquare & { id: number; built: boolean })[];
+  pens?: readonly (PathSquare & { id: number; built: boolean; stocked?: boolean })[];
   /**
    * Stáda na pastvě (diet.md – kusy po druzích, krávy v zimě v ohradě nepočítané): pasáček je
    * denně vyžene na úhor. Bez údaje žádná.
@@ -403,7 +410,7 @@ export function pathNetworkKey(village: PathVillage): string {
     ? `${village.obstacles.removed.length},${village.obstacles.stumps.length}`
     : '';
   const pens = (village.pens ?? []).map(
-    (p) => `${p.id}:${p.cell.x},${p.cell.y}:${p.built ? 1 : 0}`,
+    (p) => `${p.id}:${p.cell.x},${p.cell.y}:${p.built ? 1 : 0}${p.stocked === false ? ':-' : ''}`,
   );
   return JSON.stringify([
     dwellings,
@@ -874,6 +881,8 @@ interface TripGroup {
   reach?: number[];
   /** Místo, ke kterému domácnost došla v prvním kole – směr pro A* dalších hledání. */
   goals?: number[];
+  /** Stavba, jejíž provoz se počítá do `PathNetwork.visits` (`<druh>:<id>`). */
+  visit?: string;
 }
 
 function households(
@@ -932,12 +941,13 @@ function tripGroups(
   const labor = new Map(laborByTarget(v));
   const work = (key: string): number => (labor.get(key) ?? 0) * TRIPS_PER_MAN_DAY;
 
-  const target = (sources: number[], trips: number, targetAge = 1): void => {
+  const target = (sources: number[], trips: number, targetAge = 1, visit?: string): void => {
     if (sources.length === 0 || trips <= 0) return;
     groups.push({
       sources,
       weights: shareWeights(homes, trips, targetAge),
       maxCost: groupReach(grid, sources, homes),
+      ...(visit ? { visit } : {}),
     });
   };
   const squaresTarget = (squares: readonly Square[]): number[] => {
@@ -982,7 +992,12 @@ function tripGroups(
         builders[i]! + (nearestCemetery[i] === k ? CEMETERY_VISITS_PER_PERSON * h.size * h.age : 0),
     );
     if (weights.every((w) => w <= 0)) return;
-    groups.push({ sources, weights, maxCost: groupReach(grid, sources, homes) });
+    groups.push({
+      sources,
+      weights,
+      maxCost: groupReach(grid, sources, homes),
+      visit: `cemetery:${cemetery.id}`,
+    });
   });
   // vylepšení pevné cesty (roads.md) – nosí se k polovině úseku
   for (const road of v.roads ?? []) {
@@ -990,10 +1005,11 @@ function tripGroups(
     const trips = work(`road:${road.id}`);
     if (trips > 0) target(cellsAround(grid, middleOf(road.points), 3), trips);
   }
-  // ohrada: krmení a napájení dobytka, stavba a rádlo (práce dne na ohradě)
+  // ohrada: krmení a napájení dobytka, stavba a rádlo (práce dne na ohradě); do ohrady bez
+  // zvířat se krmit nechodí (abandonment.md)
   for (const pen of v.pens ?? []) {
-    const base = pen.built ? BASE_TRIPS.pen : BASE_TRIPS.site;
-    target(squaresTarget([pen]), base + work(`pen:${pen.id}`));
+    const base = pen.built ? (pen.stocked === false ? 0 : BASE_TRIPS.pen) : BASE_TRIPS.site;
+    target(squaresTarget([pen]), base + work(`pen:${pen.id}`), 1, `pen:${pen.id}`);
   }
   // stáda na pastvu – na úhor vsi (louka na seno až po seči; v roční síti obojí)
   const herds = pastureHerds(v.livestock);
@@ -1044,7 +1060,9 @@ function tripGroups(
   }
   // posvátná místa: každá domácnost chodí jen k nejbližšímu místu každého druhu (posvátný dub,
   // háj, modla, svatyně – Martin); rozestavěná modla a svatyně jsou staveniště (práce dne)
-  const visit = (places: readonly { sources: number[]; at: readonly PathPoint[] }[]): void => {
+  const visit = (
+    places: readonly { sources: number[]; at: readonly PathPoint[]; visit?: string }[],
+  ): void => {
     if (places.length === 0) return;
     const nearest = nearestOfKind(
       homes,
@@ -1058,6 +1076,7 @@ function tripGroups(
         sources: place.sources,
         weights: own,
         maxCost: groupReach(grid, place.sources, homes),
+        ...(place.visit ? { visit: place.visit } : {}),
       });
     });
   };
@@ -1085,6 +1104,7 @@ function tripGroups(
             SACRED_BUILDINGS[b.kind].footprintM / 2 + grid.cellM,
           ),
           at: [b.position],
+          visit: `${b.kind}:${b.id}`,
         })),
     );
   }
@@ -1784,6 +1804,7 @@ export function computePathNetwork(input: PathNetworkInput): PathNetwork {
     },
     errands: new Map(),
     trips: 0,
+    visits: new Map(),
   };
   const homes = households(v, grid, buildings);
   if (homes.length === 0) return empty;
@@ -1840,7 +1861,22 @@ export function computePathNetwork(input: PathNetworkInput): PathNetwork {
     traffic: { ...empty.traffic, values: smooth, raw: result.cells },
     errands,
     trips: result.trips,
+    visits: visitsOf(groups),
   };
+}
+
+/**
+ * Provoz ke stavbám (`TripGroup.visit`) z posledního kola: kolo vynuluje váhy domácností, ke
+ * kterým se trasa nenašla, takže zbylé váhy nad MIN_TRIP jsou cesty, které opravdu vedly.
+ */
+function visitsOf(groups: readonly TripGroup[]): Map<string, number> {
+  const visits = new Map<string, number>();
+  for (const group of groups) {
+    if (!group.visit) continue;
+    const trips = group.weights.reduce((sum, w) => (w >= MIN_TRIP ? sum + w : sum), 0);
+    if (trips > 0) visits.set(group.visit, (visits.get(group.visit) ?? 0) + trips);
+  }
+  return visits;
 }
 
 // --- osy pěšin -------------------------------------------------------------------------------

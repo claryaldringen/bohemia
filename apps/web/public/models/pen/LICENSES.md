@@ -17,6 +17,7 @@ Bohemia.
 | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `pen.glb`              | atlas obydlí a řemesel: došky, proutí výpletu a čela trámů z `textures/skins/structural/celt_struct_1.dds`, kůra trámů z `textures/skins/structural/celt_struct.dds` (výřezy viz `../dwellings/LICENSES.md`), voda procedurální (`craft_atlas.py`); seno `textures/skins/props/wrld_hay_a.dds` (sušší a tmavší) |
 | `pen-construction.glb` | díly staveniště (sloupy, vaznice, krokve, latě, výplet, řady došků, jesle, kmen, žlab, branka) a rekvizity (hráň žerdí, svazky prutů, snopy slámy) – stejné zdroje jako `pen.glb`                                                                                                                               |
+| `pen-decay.glb`        | díly rozpadu opuštěné ohrady (vybledlé a děravé došky s mechem, prověšená a zřícená konstrukce, jesle bez sena, žlab bez vody, spadlá branka) – stejné zdroje jako `pen.glb`, barvy jen přenásobené (glTF baseColorFactor)                                                                                      |
 
 Pletený plot ohrady je sdílený `../dwellings/woven-fence.glb`, stoh sena `../fields/haystack.glb`,
 voli `../plough/ox.glb` a kráva `../fauna/cow.glb` – licence u nich.
