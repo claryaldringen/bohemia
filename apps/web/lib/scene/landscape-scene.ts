@@ -1,4 +1,5 @@
 import '@babylonjs/core/Culling/ray';
+import { Ray as PickingRay } from '@babylonjs/core/Culling/ray.core';
 import type { Camera } from '@babylonjs/core/Cameras/camera';
 import type { AbstractEngine } from '@babylonjs/core/Engines/abstractEngine';
 import { DirectionalLight } from '@babylonjs/core/Lights/directionalLight';
@@ -191,6 +192,8 @@ export class LandscapeScene {
   private bareShadows = false;
   /** Vnitřek lesa – v zimě vrhá stín ze zimního atlasu (holé koruny). */
   private impostorForest: ImpostorForest | null = null;
+  /** Paprsek pro pick terénu pod kurzorem (bez alokace při každém pohybu myši). */
+  private readonly pickRay = PickingRay.Zero();
   /** Vývojový ukazatel výkonu (jen /dev/landscape – `enablePerfStats`). */
   private perf: ScenePerf | null = null;
 
@@ -924,12 +927,15 @@ export class LandscapeScene {
 
   /** Bod terénu pod pixelem plátna (CSS px) jako [x, z], nebo null mimo krajinu. */
   private pickGround(x: number, y: number): [number, number] | null {
-    const terrain = this.terrain;
-    if (!terrain || !this.landscape) return null;
+    const ground = this.terrainGround;
+    const camera = this.rtsCamera?.camera;
+    if (!ground || !camera || !this.landscape) return null;
     const started = this.perf ? performance.now() : 0;
-    const pick = this.scene.pick(x, y, (mesh) => mesh === terrain);
+    // Stejný paprsek jako `scene.pick` a stejné trojúhelníky, jen po výškové síti – jen políčka
+    // pod paprskem místo celé sítě terénu (terrain-pick.ts).
+    this.scene.createPickingRayToRef(x, y, Matrix.Identity(), this.pickRay, camera, false);
+    const point = ground.pick(this.pickRay);
     this.perf?.pick(performance.now() - started);
-    const point = pick?.hit ? pick.pickedPoint : null;
     if (!point || !tileAt(this.landscape, point.x, point.z)) return null;
     return [point.x, point.z];
   }
