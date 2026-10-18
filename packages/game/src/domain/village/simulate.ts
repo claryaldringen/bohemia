@@ -517,10 +517,12 @@ function invest(
   // pole zakládá díly od nejbližšího k obydlí; přebytek dne teče do dalšího dílu
   const parts = foundingParts(state, c).sort((a, b) => a.distanceM - b.distanceM || a.id - b.id);
   let left = amount;
+  let used = 0;
   for (const part of parts) {
     const need = part.foundingCost - part.foundingDone;
     if (completes || left >= need) {
       left -= need;
+      used += need;
       part.foundingDone = part.foundingCost;
       part.state = 'ready';
       if (part.surface === 'forest') part.bonusUntilDay = forestBonusUntil(day);
@@ -536,12 +538,12 @@ function invest(
       }
     } else {
       part.foundingDone += left;
+      used += left;
       break;
     }
   }
-  c.done = state.parts
-    .filter((p) => p.fieldId === c.fieldId)
-    .reduce((sum, p) => sum + p.foundingDone, 0);
+  // průběh stavby jen z jejích dílů – pole mohlo mít díly založené dřív (rozšíření, sloučení)
+  c.done = Math.min(c.cost, c.done + used);
 }
 
 // --- stavby a domácnosti ------------------------------------------------------------------

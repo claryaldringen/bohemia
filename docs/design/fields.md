@@ -144,8 +144,18 @@ má nějaké meze. Bez řemeslníků ber tu nejhorší hranici, s řemeslníky t
   k obydlím první; hotový díl ves může osít v nejbližším vhodném období (návrh Clauda).
 - Odstraněné stromy a kameny **z krajiny sídla zmizí natrvalo** (Martin). Dospělé stromy dají
   klády na hromadu vsi – strom = kláda ([les a dřevo](forest.md) – Mýcení a hromada klád).
-- Hráč může čtverce pole přidat, ubrat nebo pole zrušit. Přidaná plocha se zakládá jako nové pole,
-  ubraná nebo zrušená leží ladem (pastvina).
+- Hráč může čtverce pole přidat, ubrat nebo pole zrušit. Přidaná plocha se zakládá (jako nové
+  pole, nebo rozšíření – viz Navazující pole), ubraná nebo zrušená leží ladem (pastvina).
+- **Navazující pole** (Martin, 18. 10. 2026: „Pokud více polí navazuje přímo na sebe, počítají se
+  jako jedno.“): čtverce, které stranou navazují na pole, ho **rozšíří** – stejné pole, nové díly
+  na konec (jako rozšíření hřbitova); rozestavěné založení pole dostane jejich cenu, u hotového
+  pole vznikne nová stavba se založením jen nových dílů. Navazují-li čtverce na **víc polí**,
+  pole se **sloučí do nejstaršího** (nejmenší id): díly i s jejich stavem (úrodnost, osev,
+  příloh, plodina) přejdou do něj, rozestavěná založení se spojí do jedné stavby (nejstarší,
+  s cenou a prací všech), kronika a rozdělení práce dne odkazují na sloučené pole; plán osevu se
+  nemění (vede díly, ne pole). Nejmenší výměru 0,1 ha musí mít pole i s rozšířením – přístavek
+  může být menší. Rohem se nenavazuje. Náhled umístění hlásí, které pole čtverce rozšíří nebo
+  sloučí (`joinedFields`); staré pole z obrysu (díly bez políček) nenavazuje (návrh Clauda).
 
 ### Kolik ves oseje (rozhodují obyvatelé)
 
@@ -644,3 +654,5 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 | Fáze závislé na člověku (kopání, setí, sklizeň) se mění po čtvercích, až k nim dojde práce                                        | Martin (18. 10. 2026)                           |
 | Pořadí dílů nejblíž obydlím první (při shodě id), váha = práce dílu; vzejití a zrání podle kalendáře                              | návrh Clauda                                    |
 | Postavy pracují na dílech čela práce (rozdělení práce dne posílá jejich id)                                                       | návrh Clauda (podle Martina)                    |
+| Navazující pole se počítají jako jedno – rozšíření, víc polí se sloučí do nejstaršího                                             | Martin (18. 10. 2026)                           |
+| Sloučení: díly i se stavem, jedna stavba založení, kronika a práce dne na nejstarší pole; výměra i s rozšířením                   | návrh Clauda                                    |

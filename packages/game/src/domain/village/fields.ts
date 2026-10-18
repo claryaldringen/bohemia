@@ -10,7 +10,7 @@ import {
   SEED_KG_PER_HA,
   YIELD_BASE_KG_PER_HA,
 } from './rules';
-import type { FieldPart, FieldSurface } from './types';
+import type { FieldPart, FieldSurface, TileCell } from './types';
 
 const M2_PER_HA = 10_000;
 /** Tolerance proti chybám desetinných čísel při porovnání podílů úrodnosti. */
@@ -171,4 +171,28 @@ export function selectPartsToSow(
     net += expectedNetKg(p, day);
   }
   return chosen;
+}
+
+/** Políčka sdílejí stranu. */
+function sharesEdge(a: TileCell, b: TileCell): boolean {
+  return Math.abs(a.x - b.x) + Math.abs(a.y - b.y) === 1;
+}
+
+/**
+ * Pole, na která čtverce navazují stranou (fields.md – Navazující pole; Martin, 18. 10. 2026:
+ * „Pokud více polí navazuje přímo na sebe, počítají se jako jedno.“): id polí od nejstaršího
+ * (nejmenší id). Žádné = nové pole, jedno = čtverce ho rozšíří, víc = pole se sloučí do
+ * nejstaršího. Díly bez políčka (staré pole z obrysu) nenavazují.
+ */
+export function fieldsTouching(
+  parts: readonly { readonly cell?: TileCell; readonly fieldId?: number }[],
+  cells: readonly TileCell[],
+): number[] {
+  const ids = new Set<number>();
+  for (const part of parts) {
+    if (part.cell === undefined || part.fieldId === undefined || ids.has(part.fieldId)) continue;
+    const cell = part.cell;
+    if (cells.some((c) => sharesEdge(c, cell))) ids.add(part.fieldId);
+  }
+  return [...ids].sort((a, b) => a - b);
 }

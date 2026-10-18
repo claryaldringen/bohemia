@@ -731,7 +731,10 @@ export function placementVillageFromScene(scene: SceneVillage): PlacementVillage
   return {
     dwellings: scene.dwellings.map((d) => ({ type: d.type, position: d.position })),
     constructions: [],
-    parts: scene.fields.flatMap((f) => f.parts.map((p) => ({ cell: p.cell }))),
+    // pole a plocha dílu (políčko) pro navazující pole – rozšíření a sloučení (fields.md)
+    parts: scene.fields.flatMap((f) =>
+      f.parts.map((p) => ({ cell: p.cell, fieldId: f.id, areaM2: p.size * p.size })),
+    ),
     cemeteries: (scene.cemeteries ?? []).map((c) => ({
       squares: c.squares.map((s) => ({ cell: s.cell })),
     })),

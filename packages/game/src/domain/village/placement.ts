@@ -10,7 +10,7 @@ import {
 } from '../landscape';
 import type { CemeterySquareInput, OrchardSquareInput, PartInput } from './actions';
 import { cemeteryFoundingCost, distanceToSquare, touchingCemeteries } from './cemetery';
-import { fieldSquareSurface, partFoundingCost } from './fields';
+import { fieldSquareSurface, fieldsTouching, partFoundingCost } from './fields';
 import { orchardPlantingCost } from './orchard';
 import {
   cellObstacles,
@@ -59,8 +59,15 @@ export interface PlacementVillage {
     readonly dwellingType: DwellingType | null;
     readonly position: Position | null;
   }[];
-  /** Díly polí – každý zabírá své políčko (díl bez políčka se nepočítá). */
-  readonly parts: readonly { readonly cell?: TileCell }[];
+  /**
+   * Díly polí – každý zabírá své políčko (díl bez políčka se nepočítá); `fieldId` a `areaM2` pro
+   * navazující pole (bez plochy se počítá celé políčko).
+   */
+  readonly parts: readonly {
+    readonly cell?: TileCell;
+    readonly fieldId?: number;
+    readonly areaM2?: number;
+  }[];
   /** Pohřebiště – zabírají políčka svých čtverců (bez údaje žádná). */
   readonly cemeteries?: readonly { readonly squares: readonly { readonly cell: TileCell }[] }[];
   /** Jabloňové sady – zabírají políčka svých čtverců (bez údaje žádné). */
@@ -108,6 +115,11 @@ export interface FieldPreview {
   clearedTrees: number;
   /** Čtverce, kam pole nesmí (voda, obydlí, jiné pole, moc daleko) – scéna je zčervená. */
   blockedCells: TileCell[];
+  /**
+   * Pole, na která čtverce navazují stranou, od nejstaršího (fields.md – Navazující pole): prázdné
+   * = nové pole, jedno = rozšíří ho, víc = sloučí je do prvního.
+   */
+  joinedFields: number[];
   check: PlacementCheck;
 }
 
@@ -828,6 +840,7 @@ export function fieldPartsFromCells(
       surfaceCounts: {},
       clearedTrees: 0,
       blockedCells: [],
+      joinedFields: [],
       check: fail(shape.reason),
     };
   }
@@ -862,7 +875,14 @@ export function fieldPartsFromCells(
     0,
   );
   const obstacleCost = parts.reduce((sum, p) => sum + p.obstacleCost, 0);
-  const minCells = Math.ceil(FIELD_LIMITS.minAreaM2 / (landscape.cellSizeM * landscape.cellSizeM));
+  const cellArea = landscape.cellSizeM * landscape.cellSizeM;
+  const minCells = Math.ceil(FIELD_LIMITS.minAreaM2 / cellArea);
+  // čtverce navazující na pole ho rozšíří (víc polí sloučí) – nejmenší výměru má mít pole celé
+  const joinedFields = fieldsTouching(village?.parts ?? [], shape.cells);
+  const joined = new Set(joinedFields);
+  const joinedAreaM2 = (village?.parts ?? [])
+    .filter((p) => p.fieldId !== undefined && joined.has(p.fieldId))
+    .reduce((sum, p) => sum + (p.areaM2 ?? cellArea), 0);
   const checks: [boolean, () => string][] = [
     [problems.water, () => 'Pole nesmí zasahovat do vody.'],
     [problems.dwelling, () => 'Pole se překrývá s obydlím.'],
@@ -875,7 +895,7 @@ export function fieldPartsFromCells(
       () => 'Čtverce pole musí tvořit jeden celek – sousedit stranou.',
     ],
     [
-      areaM2 < FIELD_LIMITS.minAreaM2,
+      areaM2 + joinedAreaM2 < FIELD_LIMITS.minAreaM2,
       () =>
         `Pole musí mít aspoň ${formatNumber(FIELD_LIMITS.minAreaM2 / M2_PER_HA, 1)} ha, ` +
         `tedy ${minCells} čtverců (teď ${shape.cells.length}).`,
@@ -893,6 +913,7 @@ export function fieldPartsFromCells(
     surfaceCounts,
     clearedTrees: parts.reduce((sum, p) => sum + (p.trees ?? 0), 0),
     blockedCells,
+    joinedFields,
     check: failed ? fail(failed[1]()) : OK,
   };
 }
