@@ -244,9 +244,29 @@ function penWood(
   );
 }
 
+/** Roky česky: 1 rok, 2–4 roky, 5 a víc let. */
+function yearsCs(n: number): string {
+  if (n === 1) return '1 rok';
+  return n >= 2 && n <= 4 ? `${n} roky` : `${n} let`;
+}
+
+/**
+ * Kdy smí ohrada se spřežením začít cvičit náhradu (oxen.md – Spřežení, Martin 18. 10. 2026):
+ * až v posledních OXEN.trainingYears letech služby, aby nový pár byl hotový, když starý doslouží.
+ * Spřežení slouží ještě (celé roky jako v panelu ohrady), nebo null – výcvik už jde.
+ */
+export function serviceYearsBeforeTraining(pen: Pen, day: number): number | null {
+  if (!pen.team) return null;
+  const served = day - pen.team.readyDay;
+  if (served >= (OXEN.serviceYears - OXEN.trainingYears) * DAYS_PER_YEAR - EPSILON) return null;
+  return OXEN.serviceYears - Math.floor(served / DAYS_PER_YEAR);
+}
+
 /**
  * Proč v ohradě nejde začít výcvik spřežení (česky), nebo null: ohrada stojí, nic se v ní necvičí,
- * stádo má aspoň 3 krávy (dvě telata) a na rádlo je strom (kláda, nebo strom ke kácení).
+ * vycvičené spřežení je v posledních 2 letech služby (náhrada naváže, když starý pár doslouží –
+ * Martin; kdo chce dvě spřežení, postaví druhou ohradu), stádo má aspoň 3 krávy (dvě telata)
+ * a na rádlo je strom (kláda, nebo strom ke kácení).
  */
 export function trainingBlock(
   state: VillageState,
@@ -258,6 +278,8 @@ export function trainingBlock(
   if (!pen) return 'Ohrada neexistuje.';
   if (pen.builtDay === null) return 'Ohrada se ještě staví.';
   if (pen.training) return 'Spřežení se už cvičí.';
+  const serving = serviceYearsBeforeTraining(pen, day);
+  if (serving !== null) return `Spřežení slouží ještě ${yearsCs(serving)}.`;
   if ((state.livestock?.herds.cow ?? 0) < OXEN.minCows - EPSILON) {
     return `Na výcvik chybí telata – stádo potřebuje aspoň ${OXEN.minCows} krávy.`;
   }

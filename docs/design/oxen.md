@@ -44,6 +44,11 @@ půdy na seno. Dobytek, dosud jen ozdoba, se tím poprvé zapojí do hry.
   kováře se orá rychleji – viz Účinek.
 - Spřežení slouží **≈ 10 let**, pak voli zestárnou a je třeba vycvičit nové (návrh Clauda) – ohrada
   s chovnými kravami tak cvičí další pár včas, když to hráč zadá.
+- **Náhradu jde cvičit jen v posledních 2 letech služby** (Martin, 18. 10. 2026 – předtím se
+  v jeho vsi začal cvičit nový pár po roce služby a nový pár pak starý tříletý bez varování
+  vyřadil na maso): výcvik začne nejdřív 8 let po vycvičení současného spřežení, takže náhrada je
+  hotová, právě když starý pár doslouží. Dřív tlačítko zašedne s důvodem „Spřežení slouží ještě
+  X let.“ Kdo chce dvě spřežení, postaví druhou ohradu.
 
 ## Seno
 
@@ -81,8 +86,11 @@ Rozhodnutí kontroléru tam, kde návrh nedává postup (Martin je může změni
   Osadníci nejsou potřeba. Ohrady blokují ostatní stavby po čtvercích jako pole.
 - **Výcvik:** dvě telata ze stáda krav – ves musí mít **aspoň 3 krávy** (chovná kráva zůstane).
   Rádlo je stavba ze společné práce: 5 člověkodní a strom (kláda z hromady, nebo strom ke kácení
-  u ohrady). Spřežení orá, až uplynou 2 roky výcviku **a** je hotové rádlo. Nové spřežení
-  vystřídá staré (staré jde na maso); spřežení starší 10 let zestárne a jde na maso (2 × 120 kg).
+  u ohrady). Spřežení orá, až uplynou 2 roky výcviku **a** je hotové rádlo. Ohrada se spřežením
+  smí cvičit náhradu až v posledních 2 letech jeho služby (`trainingBlock` –
+  `serviceYearsBeforeTraining`); nové spřežení vystřídá staré (staré jde na maso), spřežení
+  starší 10 let zestárne a jde na maso (2 × 120 kg) – náhrada zadaná hned, jak smí, naváže týž
+  den.
 - **Seno:** 1. 6. ves naplánuje seč – seno pro krávy a voly na zimu (≈ 1,5 t na kus, ohrada bez
   spřežení a výcviku počítá se dvěma voly – výcvik jde zadat kdykoli) bez zásoby, z dílů úhoru ve
   fázi louky a z přirozených luk do 600 m od nejbližší k obydlí – vzdálenost je **chůze po
@@ -113,7 +121,9 @@ Rozhodnutí kontroléru tam, kde návrh nedává postup (Martin je může změni
 ## Co hráč vidí
 
 - V nabídce staveb **ohrada** (název a cena v tooltipu).
-- V panelu ohrady: zvířata (ikony + čísla), průběh cvičení spřežení, zásoba sena na zimu.
+- V panelu ohrady: zvířata (ikony + čísla), průběh cvičení spřežení, zásoba sena na zimu; kolik
+  let spřežení ještě slouží a kolik dní výcviku zbývá – ikona přesýpacích hodin (Martin: slunce
+  nebylo srozumitelné).
 - V horní liště **seno** (ikona + číslo), když ves má dobytek v ohradě.
 - Ve scéně: ohrada s přístřeškem, v zimě voli a krávy v ohradě, stohy sena, na jaře spřežení orá
   pole čtverec po čtverci.
@@ -128,6 +138,8 @@ Rozhodnutí kontroléru tam, kde návrh nedává postup (Martin je může změni
 | Seno 1,5 t na vola za zimu, louka 1,5 t/ha, sečení 6 čd/ha; bez sena slabší orba / úhyn     | návrh Clauda                  |
 | Orba 10 → 6 čd/ha místo kopání 100 → 50; drn rádlo nezvládne; spřežení ≈ 0,3 ha/den         | návrh Clauda (rešerše)        |
 | Výcvik z aspoň 3 krav; rádlo jako stavba; seč 1. 6. pro krávy a 2 voly na ohradu            | rozhodnutí kontroléru         |
+| Náhrada spřežení jen v posledních 2 letech služby; dvě spřežení = druhá ohrada              | Martin (18. 10. 2026)         |
+| Zbývající služba a dny výcviku s ikonou přesýpacích hodin (místo slunce)                    | Martin (18. 10. 2026)         |
 | Pokrytí sena k 1. 3.; vracení orby motyce po celých dílech                                  | rozhodnutí kontroléru         |
 | Seno ze všech luk – přirozené louky i úhor ve fázi louky, od nejbližší, jen kolik je třeba  | Martin (18. 10. 2026)         |
 | Přirozené louky do 600 m od obydlí; louky na seno ve scéně z dat                            | návrh Clauda                  |

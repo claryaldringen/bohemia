@@ -528,7 +528,7 @@ function PenBody({
           <Stat icon="ox" name="Spřežení – stáří (roky)" testId="selection-team-age">
             {details.team.ageYears}
           </Stat>
-          <Stat icon="date" name="Spřežení – slouží ještě (roky)" testId="selection-team-left">
+          <Stat icon="hourglass" name="Spřežení – slouží ještě (roky)" testId="selection-team-left">
             {details.team.yearsLeft}
           </Stat>
         </div>
@@ -540,7 +540,7 @@ function PenBody({
             name="Výcvik spřežení"
             testId="selection-training"
           />
-          <Stat icon="date" name="Výcvik – zbývá dní" testId="selection-training-days">
+          <Stat icon="hourglass" name="Výcvik – zbývá dní" testId="selection-training-days">
             {formatInteger(details.training.daysLeft)}
           </Stat>
         </div>
