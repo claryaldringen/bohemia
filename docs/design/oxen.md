@@ -1,6 +1,6 @@
 # Orání rádlem – voli, ohrada, seno
 
-Stav: návrh k 18. 10. 2026, čeká na schválení. Implementace zatím není (modely spřežení, rádla
+Stav: schváleno 18. 10. 2026 (Martin: „Takhle je to ok“). Implementace zatím není (modely spřežení, rádla
 a oráče jsou hotové – `tools/blender/plough.py`, ukázka na `/dev/buildings`).
 
 ## Proč
