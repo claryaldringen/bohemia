@@ -11,9 +11,19 @@ export interface Settlement {
   createdAt: Date;
 }
 
-/** Port: úložiště sídel. */
+/**
+ * Port: úložiště sídel. Sídla hráče jsou aktivní, dokud je restart hry neodloží do archivu
+ * (population.md – Hlad a vymření); archivovaná sídla repozitář nevrací.
+ */
 export interface SettlementRepository {
   findSeat(ownerId: string): Promise<Settlement | null>;
+  /** Aktivní sídla hráče – sídelní první, pak podle založení. */
+  listActive(ownerId: string): Promise<Settlement[]>;
+  /**
+   * Odloží sídlo do archivu (restart hry): přestane být aktivní i sídelní, data zůstanou.
+   * True, když ho archivovalo tohle volání; už archivované nebo neznámé → false.
+   */
+  archive(settlementId: string): Promise<boolean>;
   /** Atomicky založí sídelní sídlo hráče; když už existuje, vrátí existující beze změny. */
   createSeat(input: {
     ownerId: string;

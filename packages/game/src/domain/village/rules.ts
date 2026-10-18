@@ -42,6 +42,19 @@ export const LUCKY_YEARS = 30;
 export const LUCKY_CHILD_DEATH_FACTOR = 0.5;
 // population.md – Růst populace (hlad tlumí porody a zvyšuje úmrtnost); fields.md – Zásoby a nasycení
 export const HUNGER = { birthsStopAt: 0.5, birthsFullAt: 0.95, deathExtraAtZero: 3 } as const;
+// population.md – Hlad a vymření (Martin, 18. 10. 2026): nahromaděný hlad vsi ve „dnech bez
+// jídla“ – za den přibude 1 − nasycení, při nasycení ≥ recoverAt ubude recoveryPerDay (do nuly),
+// víc než maxDays nemá vliv. Denní riziko úmrtí hladem je 0 do prahu `threshold` a pak strmě
+// roste ((hlad − práh) / (jistá smrt − práh))^curve až k jistotě v `certainDeath` – bez jídla
+// vymřou do 60 dní všichni (děti a starší do 45).
+export const STARVATION = {
+  recoverAt: 0.95,
+  recoveryPerDay: 1,
+  maxDays: 60,
+  threshold: { child: 12, adult: 20, elder: 12 },
+  certainDeath: { child: 45, adult: 60, elder: 45 },
+  curve: 3,
+} as const;
 // population.md – Nové obydlí (do nového obydlí se stěhuje pár z domácnosti s aspoň 4 dospělými)
 export const NEW_HOUSEHOLD_MIN_ADULTS = 4;
 // fields.md – Zásoby a nasycení (roční potřeba jídla podle věku)

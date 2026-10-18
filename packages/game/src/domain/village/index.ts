@@ -7,6 +7,7 @@ export * from './fields';
 export * from './year-plan';
 export * from './labor';
 export * from './population';
+export * from './extinction';
 export * from './cemetery';
 // sady – jen čisté funkce; kroky simulace (výsadba, práce a sezóna sadů) zůstávají uvnitř
 export {

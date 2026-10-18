@@ -98,6 +98,8 @@ const TURF_MARGIN_M = 0.35;
 /** Ušlapaná tráva kolem staveniště: o kolik menší než místo pro stavbu a jak měkký okraj (m). */
 const TRAMPLED_INSET_M = 0.6;
 const TRAMPLED_SOFT_M = 2.2;
+/** Krytí vyšlapané hlíny u opuštěného obydlí – zarůstá trávou (vymřelá ves, prázdné obydlí). */
+const ABANDONED_EARTH_ALPHA = 0.4;
 /** Hromada hlíny z jámy v plné velikosti (m) – většina hlíny jde nakonec na valy. */
 const SPOIL_HEAP_M = { rx: 1.7, rz: 1.2, height: 0.72 };
 
@@ -474,6 +476,9 @@ export class VillageRenderer {
 
   /** Vyšlapaná hlína před vchodem: širší prošlapaná tráva, uvnitř holá udusaná hlína. */
   private dwellingGround(d: SceneDwelling): Mesh[] {
+    // opuštěné obydlí (nikdo v něm nebydlí – vymřelá ves, prázdné obydlí) zarůstá trávou:
+    // vyšlapaná a udusaná hlína se nikdo neobnovuje
+    const alpha = d.inhabited === false ? ABANDONED_EARTH_ALPHA : 1;
     const worn = createDecalMesh(
       this.scene,
       `village-worn-${d.id}`,
@@ -483,6 +488,7 @@ export class VillageRenderer {
         smoothHeight: this.context.groundHeight,
         lift: LIFT.worn,
         color: [1, 0.96, 0.88],
+        alpha,
         uv: 20,
       },
     );
@@ -498,6 +504,7 @@ export class VillageRenderer {
         lift: LIFT.earth,
         // šedavá hlína z terénu do teplejší hnědé (udusaná hlína u dveří)
         color: [1.05, 0.9, 0.74],
+        alpha,
         uv: 14,
       },
     );
@@ -897,9 +904,9 @@ export class VillageRenderer {
 function dwellingKey(d: SceneDwelling): string {
   const p = d.position;
   // Průběh stavby po 2 % – sloupy nerostou plynule, ale ani se nepřestavují při každém dotazu.
-  return [d.type, p.x, p.z, p.rotation, d.built, d.built ? '' : Math.round(d.progress * 50)].join(
-    '|',
-  );
+  // Hotové obydlí se přestaví, když se vylidní nebo zase zabydlí (hlína u vchodu zarůstá).
+  const look = d.built ? (d.inhabited === false ? 'empty' : '') : Math.round(d.progress * 50);
+  return [d.type, p.x, p.z, p.rotation, d.built, look].join('|');
 }
 
 /** Nastaví instance meshe; bez instancí ho vypne (jinak by se vykreslil samotný model v počátku). */
