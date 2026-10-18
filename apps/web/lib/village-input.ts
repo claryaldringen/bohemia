@@ -1,7 +1,12 @@
 import {
   CRAFTS,
+  DIRECTIONS,
   PLOT_VARIANTS,
+  TRADE_GOOD_VALUES,
   type Craft,
+  type Direction8,
+  type TradeGood,
+  type TradeGoods,
   type DwellingPlot,
   type BuildableDwellingType,
   type Position,
@@ -141,6 +146,45 @@ export function parseUpgradeRoadInput(
   if (!Number.isInteger(roadId) || (roadId as number) <= 0) return null;
   if (upgrade !== 'improved' && upgrade !== 'causeway') return null;
   return { roadId: roadId as number, upgrade };
+}
+
+/** Nejvíc zboží jednoho druhu, které server v nabídce obchodu vůbec přijme. */
+const MAX_RAW_TRADE_AMOUNT = 1_000_000;
+
+/** Směr stezky (trade.md – 8 směrů), jinak null. */
+export function parseDirection(value: unknown): Direction8 | null {
+  return DIRECTIONS.find((d) => d === value) ?? null;
+}
+
+/** Vstup stavby zemské stezky `{ direction }` (trade.md), jinak null. */
+export function parseBuildTrailInput(value: unknown): { direction: Direction8 } | null {
+  if (!isRecord(value)) return null;
+  const direction = parseDirection(value.direction);
+  return direction ? { direction } : null;
+}
+
+/** Zboží `{ druh: množství }` – známé druhy, celá nezáporná čísla, jinak null. */
+export function parseTradeGoods(value: unknown): TradeGoods | null {
+  if (!isRecord(value)) return null;
+  const goods: TradeGoods = {};
+  for (const [key, amount] of Object.entries(value)) {
+    if (!(key in TRADE_GOOD_VALUES)) return null;
+    if (!Number.isInteger(amount) || (amount as number) < 0) return null;
+    if ((amount as number) > MAX_RAW_TRADE_AMOUNT) return null;
+    if ((amount as number) > 0) goods[key as TradeGood] = amount as number;
+  }
+  return goods;
+}
+
+/** Vstup výpravy k sousedovi `{ direction, give, get }` (trade.md – Obchod), jinak null. */
+export function parseSendExpeditionInput(
+  value: unknown,
+): { direction: Direction8; give: TradeGoods; get: TradeGoods } | null {
+  if (!isRecord(value)) return null;
+  const direction = parseDirection(value.direction);
+  const give = parseTradeGoods(value.give);
+  const get = parseTradeGoods(value.get);
+  return direction && give && get ? { direction, give, get } : null;
 }
 
 /** Vstup výsadby jabloní podél pevné cesty `{ roadId }` (roads.md), jinak null. */

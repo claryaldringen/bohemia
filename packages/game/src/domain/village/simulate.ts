@@ -76,6 +76,7 @@ import { inLuckyYears, nextStarvationDays, populationDay } from './population';
 import { dailyMinPerHousehold } from './productivity';
 import { moveRelocatedHousehold, relocatingHouseholds } from './relocation';
 import { keepManor, villageManorId } from './manor';
+import { finishTrail, trailsDay } from './trail';
 import { recordRuins, updateRuins } from './ruins';
 import {
   CHRONICLE_MAX_EVENTS,
@@ -252,6 +253,8 @@ function simulateDay(
   const { toil, milking } = work(state, day, obstacles, coverage, landscape);
   // nástroje a nádoby v užívání se opotřebí (crafts.md – Účinek)
   wearCraftStocks(state, day);
+  // zemské stezky – dostavěné úseky od vsi ven hned vylepšené (trade.md)
+  trailsDay(state);
   finishConstructions(state, day);
   // dvorec vojvody – po zániku dvorce nejstarší obydlí, starší ves dvorec dostane (trade.md)
   keepManor(state);
@@ -917,6 +920,11 @@ function finishConstructions(state: VillageState, day: number): void {
     if (c.kind === 'cemetery') {
       finishCemetery(state, day, c);
       state.chronicle.push(finishedEvent(day, c, null));
+      continue;
+    }
+    if (c.kind === 'road' && c.trail !== undefined) {
+      // dostavěná zemská stezka – obchod se sousedem (trade.md)
+      state.chronicle.push(...finishTrail(state, c, day));
       continue;
     }
     if (c.kind === 'road') {

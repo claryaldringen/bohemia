@@ -27,7 +27,8 @@ import {
   type Craft,
   type WorkshopActivity,
 } from '@/lib/village-view';
-import type { RoadGrade, RoadUpgrade } from '@bohemia/game';
+import type { Direction8, RoadGrade, RoadUpgrade } from '@bohemia/game';
+import { ManorUpgrades } from './ManorPanel';
 import {
   CancelRelocationButton,
   LeaveButton,
@@ -228,13 +229,24 @@ interface RelocationActions {
   onCancelRelocation?: (constructionId: number) => Promise<void>;
 }
 
+/** Vylepšení vsi z dvorce vojvody (trade.md) – zemská stezka a obchod. */
+interface ManorActions {
+  /** Zadá stavbu zemské stezky do směru (server action) – hotovo, až se vrátí. */
+  onBuildTrail?: (direction: Direction8) => Promise<void>;
+  /** Obsah panelu obchodu (TradePanel) – `close` ho zavře. */
+  trade?: (close: () => void) => ReactNode;
+}
+
 function DwellingBody({
   details,
   onRelocate,
   onCancelRelocation,
+  onBuildTrail,
+  trade,
 }: {
   details: Extract<SelectionDetails, { kind: 'dwelling' }>;
-} & RelocationActions): ReactElement {
+} & RelocationActions &
+  ManorActions): ReactElement {
   const tone = details.overcrowded ? 'text-red-400' : details.full ? 'text-[#f3cf86]' : '';
   return (
     <div className="flex min-w-0 flex-col gap-1.5">
@@ -272,6 +284,9 @@ function DwellingBody({
           progress={details.relocation.progress}
           onCancel={onCancelRelocation}
         />
+      )}
+      {details.manor && (
+        <ManorUpgrades manor={details.manor} onBuildTrail={onBuildTrail} trade={trade} />
       )}
       {details.relocate && (
         <div className="flex items-center gap-2">
@@ -935,6 +950,8 @@ export function SelectionPanel({
   onCancelRelocation,
   onUpgradeRoad,
   onPlantRoadApples,
+  onBuildTrail,
+  trade,
 }: {
   details: SelectionDetails | null;
   /** Zadá v ohradě výcvik spřežení (server action) – hotovo, až se vrátí. */
@@ -943,7 +960,8 @@ export function SelectionPanel({
   onUpgradeRoad?: (roadId: number, upgrade: RoadUpgrade) => Promise<void>;
   /** Zadá výsadbu jabloní podél pevné cesty (server action) – hotovo, až se vrátí. */
   onPlantRoadApples?: (roadId: number) => Promise<void>;
-} & RelocationActions): ReactElement | null {
+} & RelocationActions &
+  ManorActions): ReactElement | null {
   if (!details) return null;
   let portrait: ReactElement;
   let body: ReactElement;
@@ -1032,6 +1050,8 @@ export function SelectionPanel({
         details={details}
         onRelocate={onRelocate}
         onCancelRelocation={onCancelRelocation}
+        onBuildTrail={onBuildTrail}
+        trade={trade}
       />
     );
   }

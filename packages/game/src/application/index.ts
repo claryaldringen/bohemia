@@ -15,6 +15,7 @@ export * from './place-sacred';
 export * from './place-pen';
 export * from './train-team';
 export * from './upgrade-road';
+export * from './build-trail';
 export * from './plant-road-apples';
 export * from './rename-village';
 export * from './restart-game';

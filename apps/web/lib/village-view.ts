@@ -101,6 +101,7 @@ import {
   type HouseholdRelocation,
 } from './relocation-view';
 import { manorView, type VillageManor } from './manor-view';
+import { sceneTrails, trailRoadWork } from './trail-view';
 import { DIRECTION_NAMES, goodsText } from './trade-names';
 import { formatCells, formatHa, formatInteger } from './village-format';
 import type { VillageListItem } from './village-list';
@@ -1195,11 +1196,25 @@ function sceneVillage(
 
 /** Pevné cesty vsi pro scénu (roads.md) – i s rozestavěným vylepšením. */
 export function sceneRoads(
-  state: Pick<VillageState, 'roads'>,
+  state: Pick<VillageState, 'roads'> & Partial<Pick<VillageState, 'trails' | 'constructions'>>,
   constructions: readonly ConstructionSummary[] = [],
 ): SceneRoad[] {
+  // zemské stezky (trade.md) se staví po úsecích – průběh každého úseku zvlášť
+  const trailWork = trailRoadWork({
+    trails: state.trails ?? [],
+    constructions: state.constructions ?? [],
+  });
+  const trailRoads = new Set(
+    (state.constructions ?? []).flatMap((c) => (c.trail !== undefined ? (c.roadIds ?? []) : [])),
+  );
   return (state.roads?.roads ?? []).map((r) => {
-    const work = constructions.find((c) => c.kind === 'road' && c.roadIds?.includes(r.id));
+    const onTrail = trailWork.get(r.id);
+    // dostavěný úsek rozestavěné stezky už stavbu nemá
+    const work = onTrail
+      ? { roadGrade: onTrail.grade, buildProgress: onTrail.progress }
+      : trailRoads.has(r.id)
+        ? undefined
+        : constructions.find((c) => c.kind === 'road' && c.roadIds?.includes(r.id));
     return {
       id: r.id,
       points: r.points.map((p) => ({ x: p.x, z: p.z })),
@@ -1923,7 +1938,7 @@ export function buildVillageView(
     }),
     pens: penViews(state, day, summary),
     roads: roadViews(state, landscape, day, summary),
-    scene: sceneVillage(state, landscape, day, summary),
+    scene: { ...sceneVillage(state, landscape, day, summary), trails: sceneTrails(state) },
     chronicle: chronicle(state, name),
     lastMarriageDay: lastMarriageDay(state),
     manor: manorView(state, landscape, day),

@@ -16,6 +16,7 @@ import type {
   VillageState,
   YearPlan,
 } from './types';
+import { trailWorkRoad } from './trail';
 import { woodFellingCost } from './wood';
 import { partsWorked, type PartTask } from './field-progress';
 import { planPartIds, type CropTask } from './year-plan';
@@ -157,7 +158,7 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
   let invested = 0;
   for (const c of work.constructions) {
     invested += c.manDays;
-    for (const share of constructionShares(c)) {
+    for (const share of constructionShares(c, state)) {
       add(share.activity, share.target, share.manDays, c.construction.id);
     }
   }
@@ -309,7 +310,7 @@ function orchardAreas(state: VillageState): { target: LaborTarget; share: number
  * u stromů, které ještě stojí (nebo u posledního skáceného, když dnes kácení skončilo), zbytek
  * se staví na staveništi / u obydlí. Pole, sad a hřbitov se dělají na svém místě.
  */
-function constructionShares(work: ConstructionWork): LaborShare[] {
+function constructionShares(work: ConstructionWork, state: VillageState): LaborShare[] {
   const c = work.construction;
   if (c.kind === 'field') {
     return c.fieldId === null
@@ -350,8 +351,9 @@ function constructionShares(work: ConstructionWork): LaborShare[] {
         ];
   }
   if (c.kind === 'road') {
-    // vylepšení pevné cesty (roads.md) – kácení dřeva hatě, pak práce na úseku
-    const roadId = c.roadIds?.[0];
+    // vylepšení pevné cesty (roads.md) – kácení dřeva hatě, pak práce na úseku; zemská stezka
+    // (trade.md) na úseku, kam stavba od vsi ven došla
+    const roadId = (c.trail !== undefined ? trailWorkRoad(state, c) : null) ?? c.roadIds?.[0];
     return roadId === undefined ? [] : penShares(work, { kind: 'road', id: roadId }, 'build');
   }
   if (c.kind === 'cemetery') {

@@ -18,10 +18,12 @@ import {
   plantApplesAlongRoad,
   trainTeamInPen,
   upgradeRoad,
+  buildTrail,
   villageViewStamp,
   type Craft,
   type DwellingPlot,
   type BuildableDwellingType,
+  type Direction8,
   type Landscape,
   type Position,
   type SacredBuildingKind,
@@ -453,6 +455,25 @@ export function plantRoadApplesForPlayer(
     plantApplesAlongRoad(
       { villages: villages() },
       { villageId: ctx.villageId, landscape: ctx.landscape, today: ctx.day, roadId: input.roadId },
+    ),
+  );
+}
+
+/** Zemská stezka ke kraji mapy z dvorce vojvody (trade.md – Zemská stezka). */
+export function buildTrailForPlayer(
+  playerId: string,
+  villageId: string,
+  input: { direction: Direction8 },
+): Promise<VillageActionResult> {
+  return actOn(playerId, villageId, (ctx) =>
+    buildTrail(
+      { villages: villages() },
+      {
+        villageId: ctx.villageId,
+        landscape: ctx.landscape,
+        today: ctx.day,
+        direction: input.direction,
+      },
     ),
   );
 }

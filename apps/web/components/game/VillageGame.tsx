@@ -17,6 +17,7 @@ import {
   type WorldClock,
 } from '@bohemia/game';
 import {
+  buildTrail,
   cancelRelocation,
   foundDevVillage,
   foundVillage,
@@ -798,6 +799,12 @@ export function VillageGame({
           const villageId = viewRef.current?.id;
           return villageId
             ? runBuildAction(() => plantRoadApples({ villageId, roadId }))
+            : Promise.resolve();
+        }}
+        onBuildTrail={(direction) => {
+          const villageId = viewRef.current?.id;
+          return villageId
+            ? runBuildAction(() => buildTrail({ villageId, direction }))
             : Promise.resolve();
         }}
       />
