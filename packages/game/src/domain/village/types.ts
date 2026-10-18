@@ -42,6 +42,54 @@ export interface Dwelling {
    * krajinu nemá); prodražuje palivo (forest.md – Palivo). U starších obydlí chybí (= les blízko).
    */
   forestDistanceM?: number;
+  /**
+   * Řemeslná dílna (crafts.md) – řemeslo patří budově: provozuje ho domácnost, která v ní bydlí,
+   * prázdná dílna nic nevyrábí. Obyčejné obydlí ji nemá.
+   */
+  workshop?: Workshop;
+}
+/** Řemeslo dílny (crafts.md): hrnčíř, kovář, uhlíř. */
+export type Craft = 'potter' | 'smith' | 'burner';
+/**
+ * Co dílna dělala poslední odsimulovaný den (crafts.md – Co hráč vidí): vyrábí, kácí dřevo na
+ * uhlí nebo palivo, čeká na uhlí (kovář), čeká na dřevo (uhlíř a hrnčíř – není co kácet), nemá
+ * kdo pracovat (domácnost bez práce po minimu a domácí výrobě), nebo je prázdná.
+ */
+export type WorkshopActivity =
+  'producing' | 'felling' | 'no-charcoal' | 'no-wood' | 'idle' | 'empty';
+/**
+ * Strom, který dílna kácí (uhlíř na uhlí, hrnčíř na palivo pece – forest.md, kácení): id z vrstvy
+ * překážek (null = kácení bez polohy – ves bez vrstvy, jen testy), práce za skácení a dovoz
+ * (člověkodny, i se vzdáleností) a kolik je hotovo. Strom je od výběru vyhrazený.
+ */
+export interface WorkshopFelling {
+  id: number | null;
+  cost: number;
+  done: number;
+}
+/** Řemeslná dílna obydlí (crafts.md). */
+export interface Workshop {
+  craft: Craft;
+  /**
+   * Vzdálenost dílny k potoku (m) – ruda a hlína dál od vody stojí víc práce (+1 % za 10 m nad
+   * 100 m); z krajiny při zahájení stavby, bez údaje voda blízko.
+   */
+  waterDistanceM?: number;
+  /** Strom, který dílna právě kácí (uhlíř, hrnčíř); jinak null. */
+  felling: WorkshopFelling | null;
+  /** Kolik výrobku ještě dá skácené dřevo – uhlíř kg uhlí, hrnčíř kg vypálené keramiky. */
+  fuelKg: number;
+  /** Co dílna dělala poslední odsimulovaný den (panel výběru, dým ve scéně). */
+  activity: WorkshopActivity;
+}
+/**
+ * Zásoby výrobků řemeslníků (crafts.md, kg): uhlí pro kováře, nástroje a keramika. Co ves
+ * nespotřebuje, zůstane v zásobě.
+ */
+export interface CraftStocks {
+  charcoalKg: number;
+  toolsKg: number;
+  potteryKg: number;
 }
 export type PartState = 'founding' | 'ready' | 'sown' | 'fallow';
 /**
@@ -180,6 +228,10 @@ export interface Construction {
   wood?: ConstructionWood;
   /** Nové obydlí: vzdálenost k nejbližšímu okraji lesa (m) – obydlí ji po dostavění převezme. */
   forestDistanceM?: number;
+  /** Nová řemeslná dílna (crafts.md) – obydlí po dostavění převezme řemeslo; jinak chybí. */
+  craft?: Craft;
+  /** Nová dílna: vzdálenost k potoku (m) – dílna ji po dostavění převezme. */
+  waterDistanceM?: number;
 }
 /**
  * Dřevo stavby (forest.md – Stavby a kácení): kolik ho stavba spotřebuje, kolik klád vzala při
@@ -254,6 +306,8 @@ export type ChronicleEvent = { day: number } & (
       constructionKind: ConstructionKind;
       dwellingId: number | null;
       fieldId: number | null;
+      /** Dostavěná řemeslná dílna (crafts.md); u ostatních staveb chybí. */
+      craft?: Craft;
     }
   | { kind: 'rebuild-decided'; dwellingId: number; type: DwellingType }
   /**
@@ -301,6 +355,8 @@ export type LaborActivity =
   | 'cemetery'
   /** Opravy obydlí (population.md). */
   | 'repair'
+  /** Řemeslník v dílně (crafts.md) – výroba uhlí, nástrojů nebo keramiky. */
+  | 'craft'
   /** Denní minimum domácností a domácí výroba (fields.md – Práce, body 1 a 4). */
   | 'domestic'
   /** Společná práce, na kterou nezbyla žádná stavba (propadla). */
@@ -313,7 +369,7 @@ export type LaborTarget =
    * které dnes práce postoupila (čelo práce, v pořadí postupu); bez nich celé pole.
    */
   | { kind: 'field'; id: number; parts?: number[] }
-  /** Hotové obydlí (id) – opravy, přestavba. */
+  /** Hotové obydlí (id) – opravy, přestavba, práce řemeslníka v dílně. */
   | { kind: 'dwelling'; id: number }
   /** Staveniště nového obydlí – id stavby. */
   | { kind: 'site'; id: number }
@@ -405,6 +461,8 @@ export interface VillageState {
   groves?: Grove[];
   /** Hotové modly a svatyně (happiness.md); chybí = žádné. */
   sacredBuildings?: SacredBuilding[];
+  /** Zásoby výrobků řemeslníků (crafts.md) – u vsí uložených před řemesly chybí (= 0). */
+  crafts?: CraftStocks;
 }
 
 /**
