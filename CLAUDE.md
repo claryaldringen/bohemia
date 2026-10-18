@@ -469,13 +469,15 @@ rozhraní částí v
   sešlý, ≥ 20 propadá se, pod 20 zřícený); rozpadá se jen prázdné obydlí (`dwellingDecayStage` –
   obydlené je vždy celé, i znovu osídlený zchátralý dům), `DECAY_LOOKS` (kryt jámy střechou, hlína
   u vchodu, plot a záhony pozemku, kopřivy),
-  `ruinLook` (hloubka prohlubně, trámy `ruin` / `ruin-late`, výška valů, kopřivy – po krocích 5 %),
-  `ruinHollowData` / `ruinHollowY` (zarostlá prohlubeň – síť přes obdélník jámy, řez terénu
-  `ruinPitShape` bez šíje), `decayNettles`. Díly v `models/dwellings/decay.glb` z
+  `ruinLook` (hloubka prohlubně, trámy `ruin` / `ruin-late`, kopřivy – po krocích 5 %),
+  `ruinHollowData` / `ruinHollowY` (zarostlá prohlubeň – síť přes obdélník jámy s úzkým lemem za
+  řezem terénu `ruinPitShape` bez šíje – jinak na okraji prosvítá obloha –, uvnitř nízký zarostlý
+  val po okraji, který se s časem srovná; přední strana nahoru jako terén – hlídá test),
+  `decayNettles`. Díly v `models/dwellings/decay.glb` z
   `tools/blender/dwellings.py` (pátý argument `decay` – ostatní GLB se nepřepíšou; uzly
   `<typ>-<1|2|3>` konstrukce, `-thatch` vybledlé došky – materiál `decay-faded`, `-moss` zarostlé
-  došky – `decay-moss`, `<typ>-ruin`, `-ruin-late` trámy na dně (počátek = dno), `-ruin-berms`
-  valy (počátek = terén, scéna je snižuje měřítkem na výšku), `nettle` – `decay-nettle`, v zimě
+  došky – `decay-moss`, `<typ>-ruin`, `-ruin-late` trámy na dně (počátek = dno), `nettle` –
+  `decay-nettle`, v zimě
   suché jako trsy trávy); barvy jsou glTF baseColorFactor, atlas obydlí v GLB jednou. Kreslí
   `VillageRenderer` (`updateDecay`, `updateRuins`, jámy obydlí i zbytků v `updatePitCuts`):
   rozpadlé obydlí díly místo hotového modelu (do načtení decay.glb hotový model), mění se jen
