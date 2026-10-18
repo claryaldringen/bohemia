@@ -7,8 +7,9 @@ oprava čísel podle rešerše (Martin – úmrtnost dospělých, porody od 16 l
 hladu: lidé umírají hlady a ves může vymřít; komu vymřou všechny vsi, ten začíná znovu (viz Hlad
 a vymření). Týž den: začít znovu jde i sám z nabídky hry (Martin) a dospělé děti z přeplněné
 domácnosti osídlí úplně prázdné obydlí (Martin, detaily návrh Clauda – viz Nové obydlí)
-a neobydlené budovy chátrají rychleji (Martin, čísla návrh Clauda) a svobodní z různých domů se
-berou (Martin, detaily návrh Clauda – viz Sňatky mezi domy).
+a neobydlené budovy chátrají rychleji (Martin, čísla návrh Clauda), svobodní z různých domů se
+berou (Martin, detaily návrh Clauda – viz Sňatky mezi domy) a nejstarší dítě z přeplněného domu
+smí odejít samo (Martin, výklad návrh Clauda – viz Nové obydlí).
 Implementace jádra: `packages/game/src/domain/village/`.
 
 ## Proč
@@ -198,9 +199,11 @@ zmenší o plochu domu“. Podrobnosti jsou návrh Clauda:
   mají srovnatelný start. Po hájení už nikoho zvlášť nechrání – ani poslední dva dospělé
   (do 18. 10. 2026 je hlad nezvyšoval).
 - **Rozpad domácnosti** (návrh Clauda): domácnost bez dospělého 14–44 let (jen děti nebo
-  starší) a osamělý dospělý bez dětí se přestěhují do domácnosti s nejvíc volnými místy (smí
-  ji i přeplnit) – jinak by domácnost, kde zbyl jeden dospělý, už nikdy neměla děti. Kronika
-  to zapíše.
+  starší) a osamělý člověk mimo plodný věk (14–15 let) se přestěhují do domácnosti s nejvíc
+  volnými místy (smí ji i přeplnit). Kronika to zapíše. **Osamělý člověk 16–44 zůstává** – je
+  svobodný a protějšek mu přivede sňatek mezi domy (návrh Clauda k Martinovu „nejstarší dítě
+  může odejít“, 18. 10. 2026; dřív se stěhoval taky, aby domácnost, kde zbyl jeden dospělý,
+  nezůstala bez dětí).
   Opuštěné obydlí se neopravuje a chátrá rychleji (zemnice ≈ 5 let, polozemnice ≈ 8 let – viz
   Nové obydlí); při stavu 0 zanikne a políčko se uvolní.
 
@@ -218,9 +221,11 @@ skončí a ves vymírala (za 15 let 11 úmrtí a 6 porodů). Detaily jsou návrh
   rozpad zbytek večer přestěhoval a rozpad vsi by se rozjel. Když by se nerozpadla ani jedna,
   stěhuje se do domu s víc volnými místy (kapacita − lidé), při shodě se stěhuje mladší. Když by
   se rozpadly obě, nestěhuje se nikdo – počkají.
-- **Místo:** do přeplněného domu se nestěhuje; plný dům smí – po svatbě je o jednoho přes
-  kapacitu. Bez svatby by pár nebyl vůbec; přeplněný dům pak řeší dospělé děti do prázdného
-  obydlí a upozornění „Domácnost je plná“ (viz Nové obydlí).
+- **Místo:** stěhuje se jen do domu s volným místem – **svatba dům nikdy nepřeplní** (návrh
+  Clauda, 18. 10. 2026; den předtím směl i plný dům o jednoho přes kapacitu). S tím, že nejstarší
+  dítě smí z přeplněného domu odejít samo (Nové obydlí), by se jinak stěhovalo tam a zpět: dítě
+  odejde, svatba ho s rodičem, který doma zůstal jediný 16–44 a odejít nesmí, vrátí do teď
+  plného domu, ten je znovu přeplněný a dítě odejde zas – každý den.
 - **Kdo s kým:** svobodní od nejstaršího – nejdřív ten, komu se plodný věk krátí – a každý si
   vezme dalšího svobodného v tomtéž pořadí (nejbližšího věkem mezi zbylými), se kterým svatba
   jde. Jeden sňatek na člověka denně; svatby se rozhodují každý den po obsazení prázdných obydlí
@@ -294,8 +299,9 @@ jich bude moci mít více), tak pro něj hra končí – musí začínat znovu.�
   když je kým ho osadit. Je to další položka ceny předem ve stejném mechanismu jako suroviny,
   ne skryté pravidlo: **lidé k osídlení** = možné nové domácnosti – domácnosti, ze kterých se
   může oddělit mladý pár (plná domácnost se 4 dospělými 14–44, viz Po dokončení), a z ostatních
-  přeplněných domácností každá s aspoň dvěma dospělými dětmi jedna a jednotlivá dospělá děti po
-  dvou (zaokrouhleno dolů, viz Prázdné obydlí) –, minus prázdná obydlí, minus rozestavěná nová
+  přeplněných domácností každá s aspoň dvěma dospělými dětmi jedna, jednotlivá dospělá děti po
+  dvou a poslední jednotlivec bez páru sám, je-li mu 16–44 (viz Prázdné obydlí) –, minus prázdná
+  obydlí, minus rozestavěná nová
   obydlí – každé už jednu domácnost čeká. Obydlí stojí jednu domácnost k osídlení;
   stavba ji jen zamluví, nikoho neodebírá. Když lidé k osídlení nejsou, tlačítko obydlí je
   zašedlé, nejde spustit ani zkratkou a v popisku jsou chybějící lidé k osídlení červeně (jako
@@ -330,10 +336,15 @@ jich bude moci mít více), tak pro něj hra končí – musí začínat znovu.�
     pravidel níže (aspoň dva, jinak s protějškem z jiné domácnosti). Rodiče 50 a 47 se dvěma
     dospělými dětmi tak nikoho nepošlou (mladší čeká na protějšek), se třemi odejdou dva mladší.
     S aspoň jedním plodným rodičem dědic není.
-  - **Aspoň dva:** jediný člověk by se v obydlí hned rozpadl (Rozpad domácnosti) a druhý den by se
-    stěhoval znovu. Domácnost s jediným dospělým dítětem ho proto pošle s jedním dospělým dítětem
-    jiné takové přeplněné domácnosti (svatba mezi rody) a odejdou spolu; jinak jedno dospělé dítě
-    čeká.
+  - **Nejdřív po dvou:** domácnost s jediným dospělým dítětem ho pošle s jedním dospělým dítětem
+    jiné takové přeplněné domácnosti (svatba mezi rody) a odejdou spolu.
+  - **Nejstarší dítě smí odejít samo** (Martin, 18. 10. 2026: „pokud se lidé v domě tísní a je tam
+    nejstarší dítě, nejstarší dítě může odejít do nového domu“; výklad návrh Clauda): když pár
+    není, odejde z první přeplněné domácnosti (v pořadí níže) její jediné odcházející dospělé dítě
+    samo – nejstarší dospělé dítě, u neplodných rodičů druhé nejstarší (nejstarší je dědic). Jen od
+    16 let: osamělý člověk 16–44 se nerozpadá (je svobodný a sňatek mezi domy mu přivede
+    protějšek), mladší by se v prázdném domě hned rozpadl a stěhoval by se zpátky. Pořadí pravidel:
+    mladý pár ze 4 dospělých, dospělé děti po dvou či s protějškem, teprve pak jednotlivec.
   - **Zbytek domácnosti se nerozpadne:** domácnost, ve které by po odchodu dospělých dětí zůstali
     jen starší a děti, je nepošle – rozpad by ji večer přestěhoval jinam a stěhovalo by se tam
     a zpět (stejná pojistka jako u mladého páru). S dědicem u neplodných rodičů to už nenastane –
@@ -585,8 +596,11 @@ pravidla → první verze hladu (1 − nasycení za den, hájení bez stropu) �
 | Nejdřív mladý pár, pak dospělé děti; lidé k osídlení počítají obojí            | návrh Clauda                               |
 | U neplodných rodičů (oba 45+) zůstává nejstarší dospělé dítě doma jako dědic   | Martin (18. 10. 2026)                      |
 | Sňatky mezi domy – svobodní 16–44 ze dvou domů se vezmou                       | Martin (18. 10. 2026)                      |
-| Stěhuje se, komu se dům nerozpadne; jinak do víc míst, mladší; ne do přeplněna | návrh Clauda                               |
+| Stěhuje se, komu se dům nerozpadne; jinak do víc míst, mladší; na volné místo  | návrh Clauda                               |
 | Svobodní od nejstaršího, protějšek další v pořadí; denně v kroku 6             | návrh Clauda                               |
+| Nejstarší dítě z přeplněného domu smí odejít do nového domu samo               | Martin (18. 10. 2026)                      |
+| Samo jen od 16 let, až po párech; osamělý 16–44 se nerozpadá (svobodný)        | návrh Clauda                               |
+| Svatba nikdy nepřeplní dům (dřív plný dům o jednoho přes) – bez stěhování zpět | návrh Clauda                               |
 | Neobydlené budovy chátrají rychleji                                            | Martin (18. 10. 2026)                      |
 | Prázdná zemnice zanikne za ≈ 5 let, polozemnice za ≈ 8 let (úbytek navíc)      | návrh Clauda                               |
 | Obyvatelé bez jmen a pohlaví, náhoda ze seedu, kronika                         | návrh Clauda                               |

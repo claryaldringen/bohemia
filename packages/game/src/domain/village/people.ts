@@ -45,13 +45,16 @@ export function isFertile(person: Person, day: number): boolean {
 }
 
 /**
- * Dojde k rozpadu domácnosti? Nikdo 14–44 let (jen děti nebo starší), nebo jediný člověk
- * a nikdo jiný (population.md – Rozpad domácnosti).
+ * Dojde k rozpadu domácnosti? Nikdo 14–44 let (jen děti nebo starší), nebo jediný člověk mimo
+ * plodný věk (population.md – Rozpad domácnosti). Jediný člověk 16–44 se nerozpadá – je svobodný
+ * a protějšek mu přivede sňatek mezi domy (Martin, 18. 10. 2026 – nejstarší dítě smí odejít samo).
  */
 export function householdBreaksUp(members: readonly Person[], day: number): boolean {
   if (members.length === 0) return false;
   const adults = members.filter((p) => isAdult(p, day)).length;
-  return adults === 0 || members.length === 1;
+  if (adults === 0) return true;
+  const [only] = members;
+  return members.length === 1 && only !== undefined && !isFertile(only, day);
 }
 
 /** Obyvatelé obydlí seřazení podle id. */
