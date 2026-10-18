@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { PLOT_HOUSE_OFFSET_M, PLOT_VARIANTS } from '@bohemia/game';
+import { DWELLING_FOOTPRINT_M, PLOT_HOUSE_OFFSET_M, PLOT_VARIANTS } from '@bohemia/game';
 import {
   BED_WIDTH_M,
   FENCE_INSET_M,
@@ -130,6 +130,58 @@ describe('pozemek polozemnice – 5 variant', () => {
     expect(insidePlot(square, square.x, square.z)).toBe(true);
     expect(insidePlot(square, square.x + 7.2, square.z)).toBe(false);
     expect(insidePlot(square, square.x + 6.8, square.z, 0.5)).toBe(false);
+  });
+});
+
+describe('převedená starší polozemnice – dům mimo místo varianty', () => {
+  const rect = plotFenceRect(square);
+  const half = DWELLING_FOOTPRINT_M.polozemnice.width / 2;
+  const noPostInHouse = (layout: ReturnType<typeof homesteadLayout>): void => {
+    const { house } = layout;
+    for (const p of fencePosts(layout.fence)) {
+      const inHouse = Math.abs(p.x - house.x) < half && Math.abs(p.z - house.z) < half;
+      expect(inHouse, `${p.x},${p.z}`).toBe(false);
+    }
+  };
+
+  it('dům přes plot vchodem dovnitř: plot se v domě přeruší, branka na straně, kam míří vchod', () => {
+    // dům u východního okraje políčka, vchodem na západ (−x) do pozemku
+    const house = { x: square.x + 6.4, z: square.z + 0.5, rotation: -Math.PI / 2 };
+    const layout = homesteadLayout(square, 'front-right', 0, house);
+    expect(layout.house).toEqual(house);
+    noPostInHouse(layout);
+    expect(layout.fence.runs.length).toBeGreaterThan(1);
+    const gate = fencePosts(layout.fence).filter((p) => p.gate);
+    expect(gate).toHaveLength(2);
+    for (const p of gate) expect(p.x).toBeCloseTo(rect.minX);
+    // záhony se domu vyhnou, cestička vede od branky k vchodu
+    for (const bed of layout.beds) {
+      const overHouse =
+        bed.x + bed.length / 2 > house.x - 3.5 &&
+        bed.x - bed.length / 2 < house.x + 3.35 &&
+        bed.z + BED_WIDTH_M / 2 > house.z - 3.35 &&
+        bed.z - BED_WIDTH_M / 2 < house.z + 3.35;
+      expect(overHouse, `${bed.x},${bed.z}`).toBe(false);
+    }
+    expect(layout.beds.length).toBeGreaterThan(4);
+    expect(Math.min(...layout.path!.map(([x]) => x))).toBeLessThan(rect.minX);
+  });
+
+  it('dům přes plot vchodem ven: bez branky a cestičky, plot končí u stěn domu', () => {
+    const house = { x: square.x + 6.4, z: square.z + 0.5, rotation: Math.PI / 2 };
+    const layout = homesteadLayout(square, 'front-right', 0, house);
+    noPostInHouse(layout);
+    expect(fencePosts(layout.fence).some((p) => p.gate)).toBe(false);
+    expect(layout.fence.runs.every((run) => !run.closed)).toBe(true);
+    expect(layout.path).toBeNull();
+  });
+
+  it('dům na místě varianty dá stejný pozemek jako bez skutečné polohy', () => {
+    for (const variant of PLOT_VARIANTS) {
+      expect(homesteadLayout(square, variant, 2, plotHouse(square, variant))).toEqual(
+        homesteadLayout(square, variant, 2),
+      );
+    }
   });
 });
 

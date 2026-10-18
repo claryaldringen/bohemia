@@ -7,7 +7,7 @@ import type { Material } from '@babylonjs/core/Materials/material';
 import { Matrix, Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 import type { Scene } from '@babylonjs/core/scene';
-import type { PlotVariant } from '@bohemia/game';
+import type { PlotVariant, Position } from '@bohemia/game';
 import {
   BED_WIDTH_M,
   PLOT_CROPS,
@@ -17,7 +17,7 @@ import {
   type PlotSquare,
 } from './homestead-layout';
 import { appendMatrix, loadModelParts } from './instanced-model';
-import { decalGrid, polygonBounds, softCoverage } from './village-layout';
+import { decalGrid, polygonBounds, softCoverage, type Point } from './village-layout';
 import { createDecalMesh, type HeightFn } from './village-meshes';
 import type { WovenFenceRenderer } from './woven-fence-renderer';
 
@@ -35,6 +35,8 @@ export interface PlotView {
   square: PlotSquare;
   variant: PlotVariant;
   progress: { posts: number; rails: number; beds: number };
+  /** Skutečná poloha domu – převedená starší polozemnice může stát mimo místo varianty. */
+  house?: Position;
 }
 
 interface PlotEntry {
@@ -75,7 +77,10 @@ export class HomesteadRenderer {
     const seen = new Set<number>();
     for (const view of plots) {
       seen.add(view.id);
-      const layoutKey = `${view.square.x},${view.square.z},${view.square.size},${view.variant}`;
+      const h = view.house;
+      const layoutKey = `${view.square.x},${view.square.z},${view.square.size},${view.variant}${
+        h ? `|${h.x},${h.z},${h.rotation}` : ''
+      }`;
       const p = view.progress;
       const key = `${layoutKey}|${round(p.posts)}|${round(p.rails)}|${round(p.beds)}`;
       const current = this.entries.get(view.id);
@@ -84,7 +89,7 @@ export class HomesteadRenderer {
       const layout =
         current?.layoutKey === layoutKey
           ? current.layout
-          : homesteadLayout(view.square, view.variant, view.id);
+          : homesteadLayout(view.square, view.variant, view.id, view.house);
       // cestička až s hotovým plotem (branka)
       const wantsPath = p.rails >= 1;
       let path = current?.layoutKey === layoutKey ? current.path : null;
@@ -92,7 +97,7 @@ export class HomesteadRenderer {
         current.path.dispose();
         path = null;
       }
-      if (wantsPath && !path) path = this.pathMesh(view.id, layout);
+      if (wantsPath && !path && layout.path) path = this.pathMesh(view.id, layout.path);
       this.entries.set(view.id, { key, layoutKey, layout, view, path });
       this.context.fences.set(fenceOwner(view.id), plotStage(layout, p).fence);
     }
@@ -187,8 +192,8 @@ export class HomesteadRenderer {
   }
 
   /** Vyšlapaná tráva od branky ke dvorku před dveřmi. */
-  private pathMesh(id: number, layout: HomesteadLayout): Mesh {
-    const b = polygonBounds(layout.path);
+  private pathMesh(id: number, polygon: Point[]): Mesh {
+    const b = polygonBounds(polygon);
     const pad = PATH_SOFT_M;
     const mesh = createDecalMesh(
       this.scene,
@@ -196,7 +201,7 @@ export class HomesteadRenderer {
       decalGrid(
         { minX: b.minX - pad, maxX: b.maxX + pad, minZ: b.minZ - pad, maxZ: b.maxZ + pad },
         0.3,
-        softCoverage(layout.path, PATH_SOFT_M),
+        softCoverage(polygon, PATH_SOFT_M),
       ),
       {
         height: this.context.decalHeight,

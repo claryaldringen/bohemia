@@ -166,6 +166,10 @@ export const DAILY_MIN_PER_HOUSEHOLD: Bounds = { worst: 0.5, best: 0.45 };
 export const DOMESTIC = { perHousehold: 0.3, perPerson: 0.15, backlogMaxDays: 60 } as const;
 // population.md – Nové obydlí (společná práce za posledních 30 dní pro „má na to“)
 export const COMMON_LABOR_HISTORY_DAYS = 30;
+// population.md – Chátrání a přestavba (oprava podle hlášení Martina 18. 10. 2026): přestavba na
+// lepší obydlí podle ročního průměru společné práce – klouzavý (exponenciální) průměr s časovou
+// konstantou jednoho roku, aby výmlat v zimě ani žně ves nezchudly
+export const COMMON_LABOR_YEAR_DAYS = 365;
 // cemetery.md – Pravidla (stavba: vytyčení a ohrazení 10 člověkodní na čtverec; hrob i s uličkami
 // 4 m², na čtverec 15 × 15 m se vejde 56 hrobů)
 export const CEMETERY = { costPerSquare: 10, graveM2: 4, gravesPerSquare: 56 } as const;
@@ -314,6 +318,16 @@ export const PLOT_HOUSE_OFFSET_M: Readonly<Record<PlotVariant, { x: number; z: n
 };
 /** Natočení domu na pozemku – vchod k brance (−z světa). */
 export const PLOT_HOUSE_ROTATION = Math.PI;
+/**
+ * Převod starších polozemnic na pozemky (Martin, 18. 10. 2026 – `withPlots`): dům blíž místu
+ * varianty než tolik metrů se na něj posune, dál zůstane stát, kde je.
+ */
+export const PLOT_SNAP_M = 2;
+/**
+ * Polozemnice bez pozemku dostane při přestavbě nejbližší volné políčko – nejvýš tak daleko od
+ * domu (m, ke středu políčka); dál žádné nehledá a zůstane bez pozemku.
+ */
+export const PLOT_RELOCATION_M = 50;
 // fields.md – Překážka na louce (skalní výchoz se neodstraní, plocha pod ním se nepočítá):
 // poloměr výchozu (m) na jednotku velikosti modelu (modely skal 0 A.D. mají půdorys ≈ 6 m)
 export const OUTCROP_RADIUS_M = 3;

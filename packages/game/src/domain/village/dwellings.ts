@@ -1,5 +1,11 @@
 import { isAdult, occupants } from './people';
-import { BETTER_DWELLING, DWELLINGS, NEW_HOUSEHOLD_MIN_ADULTS } from './rules';
+import {
+  BETTER_DWELLING,
+  COMMON_LABOR_YEAR_DAYS,
+  DWELLINGS,
+  DWELLING_TREES,
+  NEW_HOUSEHOLD_MIN_ADULTS,
+} from './rules';
 import type { Dwelling, DwellingType, VillageState } from './types';
 
 const DAYS_PER_YEAR = 365.25; // věk obydlí v (neceločíselných) letech
@@ -92,8 +98,34 @@ export function wantsRebuild(dwelling: Dwelling, day: number): boolean {
   );
 }
 
-/** Lepší obydlí, když průměrná společná práce za rok pokryje jeho cenu, jinak stejný typ. */
-export function rebuildType(current: DwellingType, averageCommonLaborPerDay: number): DwellingType {
+/**
+ * Lepší obydlí, když na něj ves má suroviny (population.md – Chátrání a přestavba): roční průměr
+ * denní společné práce (`yearlyCommonLabor`) za rok pokryje jeho cenu a klády na hromadě se
+ * stromy, které jde skácet (`wood`), stačí na jeho dřevo. Jinak stejný typ.
+ */
+export function rebuildType(
+  current: DwellingType,
+  yearlyCommonLaborPerDay: number,
+  wood: number,
+): DwellingType {
   const better = BETTER_DWELLING[current];
-  return averageCommonLaborPerDay * DAYS_PER_COST_YEAR >= DWELLINGS[better].cost ? better : current;
+  const labor = yearlyCommonLaborPerDay * DAYS_PER_COST_YEAR >= DWELLINGS[better].cost;
+  return labor && wood >= DWELLING_TREES[better] ? better : current;
+}
+
+/**
+ * Roční průměr denní společné práce vsi; starší ves bez něj – průměr posledních 30 dní
+ * (`commonLaborHistory`).
+ */
+export function yearlyCommonLabor(
+  state: Pick<VillageState, 'commonLaborYearly' | 'commonLaborHistory'>,
+): number {
+  if (state.commonLaborYearly !== undefined) return state.commonLaborYearly;
+  const history = state.commonLaborHistory;
+  return history.length > 0 ? history.reduce((s, v) => s + v, 0) / history.length : 0;
+}
+
+/** Roční průměr po dni se společnou prací `common` (exponenciální, konstanta jeden rok). */
+export function nextYearlyCommonLabor(previous: number, common: number): number {
+  return previous + (common - previous) / COMMON_LABOR_YEAR_DAYS;
 }
