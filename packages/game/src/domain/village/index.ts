@@ -10,6 +10,7 @@ export * from './plough';
 export * from './oxen';
 export { hayHeads } from './husbandry';
 export * from './dwellings';
+export * from './relocation';
 export * from './fields';
 export * from './holdings';
 export * from './year-plan';

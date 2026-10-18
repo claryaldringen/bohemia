@@ -261,6 +261,12 @@ export interface Construction {
   craft?: Craft;
   /** Nová dílna: vzdálenost k potoku (m) – dílna ji po dostavění převezme. */
   waterDistanceM?: number;
+  /**
+   * Přestěhování domácnosti (migration.md): id domácnosti (= id jejího obydlí), která si nové
+   * obydlí staví a po dostavění se do něj přestěhuje – starý dům zůstane prázdný. Jen u stavby
+   * `dwelling`, u ostatních staveb chybí.
+   */
+  relocates?: number;
 }
 /**
  * Dřevo stavby (forest.md – Stavby a kácení): kolik ho stavba spotřebuje, kolik klád vzala při
@@ -363,6 +369,12 @@ export type ChronicleEvent = { day: number } & (
       craft?: Craft;
     }
   | { kind: 'rebuild-decided'; dwellingId: number; type: DwellingType }
+  /** Domácnost obydlí `dwellingId` si začala stavět nový dům typu `type` (migration.md). */
+  | { kind: 'relocation-started'; dwellingId: number; type: DwellingType }
+  /** Hráč zrušil rozestavěné přestěhování domácnosti `dwellingId` (migration.md). */
+  | { kind: 'relocation-cancelled'; dwellingId: number }
+  /** Domácnost se přestěhovala do dostavěného domu – starý dům zůstal prázdný (migration.md). */
+  | { kind: 'household-relocated'; fromDwellingId: number; toDwellingId: number }
   /**
    * Sklizeň obilí – plodina, když ves seje ozim i jař (ozim v červenci, jař v srpnu); bez ní jen
    * jař (ves bez ozimu, starší sklizně).

@@ -188,12 +188,14 @@ export function possibleNewHouseholds(state: VillageState, day: number): number 
  * Lidé k osídlení nového obydlí (population.md – Odemčení, Lidé k osídlení): možné nové
  * domácnosti (`possibleNewHouseholds` – mladý pár z plné domácnosti se 4 dospělými, dospělé děti
  * z přeplněné domácnosti), minus prázdná obydlí a rozestavěná nová obydlí – každé už jednu
- * domácnost čeká. První zemnice zakladatelů (stavba s `dwellingId`) nikoho nečeká, zakladatelé ji
- * osídlí sami. Může vyjít záporně (obydlí postavená do zásoby).
+ * domácnost čeká. První zemnice zakladatelů (stavba s `dwellingId`) ani nový dům stěhující se
+ * domácnosti (`relocates`, migration.md) nikoho nečeká – osídlí je sami. Může vyjít záporně
+ * (obydlí postavená do zásoby).
  */
 export function availableSettlers(state: VillageState, day: number): number {
+  // přestěhování (migration.md) nikoho nečeká – domácnost, která se do něj nastěhuje, už je
   const building = state.constructions.filter(
-    (c) => c.kind === 'dwelling' && c.dwellingId === null,
+    (c) => c.kind === 'dwelling' && c.dwellingId === null && c.relocates === undefined,
   ).length;
   const empty = state.dwellings.filter((d) => occupants(state, d.id).length === 0).length;
   return possibleNewHouseholds(state, day) - building - empty;

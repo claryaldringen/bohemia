@@ -45,6 +45,7 @@ import { ageGroup, householdBreaksUp, isAdult, laborPerDay, occupants } from './
 import { isVillageExtinct } from './extinction';
 import { inLuckyYears, nextStarvationDays, populationDay } from './population';
 import { dailyMinPerHousehold } from './productivity';
+import { moveRelocatedHousehold, relocatingHouseholds } from './relocation';
 import { recordRuins, updateRuins } from './ruins';
 import {
   CHRONICLE_MAX_EVENTS,
@@ -830,7 +831,9 @@ function finishConstructions(state: VillageState, day: number): void {
     };
     state.dwellings.push(dwelling);
     state.chronicle.push(finishedEvent(day, c, dwelling.id));
-    if (c.dwellingId === null) moveInYoungestPair(state, day, dwelling.id);
+    // přestěhování: domácnost se přestěhuje do nového domu, starý zůstane prázdný (migration.md)
+    if (c.relocates !== undefined) moveRelocatedHousehold(state, day, c, dwelling.id);
+    else if (c.dwellingId === null) moveInYoungestPair(state, day, dwelling.id);
   }
   state.constructions = unfinished;
 }
@@ -917,6 +920,8 @@ function decideRebuilds(
   const rebuilding = new Set(
     state.constructions.filter((c) => c.kind === 'rebuild').map((c) => c.dwellingId),
   );
+  // domácnost, která si staví nový dům, starý nepřestavuje (migration.md)
+  for (const household of relocatingHouseholds(state)) rebuilding.add(household);
   // „má na to“ podle ročního průměru – v zimě (výmlat) ani o žních ves nezchudne (Martin)
   const yearlyCommon = yearlyCommonLabor(state);
   for (const d of occupiedDwellings(state)) {
