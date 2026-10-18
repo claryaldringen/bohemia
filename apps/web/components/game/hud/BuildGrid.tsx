@@ -7,7 +7,7 @@ import type { BuildOption, StockResource } from '@/lib/village-view';
 import { Tooltip } from './Tooltip';
 
 /** Kolik slotů má mřížka staveb (jako příkazový panel 0 A.D.) – prázdné jsou prohlubně. */
-const GRID_SLOTS = 8;
+const GRID_SLOTS = 12;
 
 /** Ikony surovin předem – cesta k obrázku v `public/icons/`, jednotka a název. */
 const RESOURCE_ICONS: Record<StockResource, { src: string; unit: string; name: string }> = {

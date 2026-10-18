@@ -10,7 +10,9 @@ import {
   placeField,
   placeOrchard,
   placeSacredBuilding,
+  placeWorkshop,
   renameVillage,
+  type Craft,
   type DwellingPlot,
   type DwellingType,
   type EnterGameResult,
@@ -206,6 +208,19 @@ export async function placeSacredForPlayer(
   const ctx = await context(playerId);
   if (!ctx.ok) return { error: ctx.error };
   const result = await placeSacredBuilding(
+    { villages: villages() },
+    { settlementId: ctx.settlementId, landscape: ctx.landscape, today: ctx.day, ...input },
+  );
+  return toActionResult(result, ctx.landscape, ctx.day);
+}
+
+export async function placeWorkshopForPlayer(
+  playerId: string,
+  input: { craft: Craft; position: Position },
+): Promise<VillageActionResult> {
+  const ctx = await context(playerId);
+  if (!ctx.ok) return { error: ctx.error };
+  const result = await placeWorkshop(
     { villages: villages() },
     { settlementId: ctx.settlementId, landscape: ctx.landscape, today: ctx.day, ...input },
   );

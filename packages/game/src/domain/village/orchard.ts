@@ -1,10 +1,10 @@
 import { dateOfDayIndex } from '../calendar';
 import type { CalendarDate } from '../calendar';
 import { distanceFactor } from './fields';
+import { applesSpoiled } from './food';
 import { recordClearedObstacles } from './obstacles';
 import { addLogs, logsFromClearedTrees } from './wood';
 import {
-  APPLE_ROT_DAY,
   ORCHARD,
   ORCHARD_PLANTING_WINDOWS,
   ORCHARD_SEASON,
@@ -271,14 +271,19 @@ export function harvestedApplesKg(work: OrchardWork): number {
 const SEASON_START: DayOfYear = { month: ORCHARD_SEASON.startMonth, day: 1 };
 
 /**
- * Začátek dne v sadech (mutuje stav, před prací a jídlem dne). 1. 3.: nesnědená jablka shnijí,
- * péče končí a čtverce v 60. roce sadu se vrátí v louku. 1. 9.: sklizeň (práce podle úrody).
- * 1. 11.: konec sklizně – nesklizená jablka spadla a shnila. 1. 12.: péče o vysazené stromy.
+ * Začátek dne v sadech (mutuje stav, před prací a jídlem dne). 1. 3.: nesnědená jablka shnijí
+ * (v nádobách později – `applesSpoiled` podle pokrytí nádobami, crafts.md), péče končí
+ * a čtverce v 60. roce sadu se vrátí v louku. 1. 9.: sklizeň (práce podle úrody). 1. 11.: konec
+ * sklizně – nesklizená jablka spadla a shnila. 1. 12.: péče o vysazené stromy.
  */
-export function orchardSeasonDay(state: VillageState, day: number): ChronicleEvent[] {
+export function orchardSeasonDay(
+  state: VillageState,
+  day: number,
+  potteryCoverage = 0,
+): ChronicleEvent[] {
   const date = dateOfDayIndex(day);
   const events: ChronicleEvent[] = [];
-  if (isOn(date, APPLE_ROT_DAY)) rotApples(state);
+  if (applesSpoiled(day, potteryCoverage)) rotApples(state);
   if (isOn(date, CARE_SEASON.end) && state.orchardWork?.task === 'care') state.orchardWork = null;
   if (isOn(date, SEASON_START)) events.push(...retireOrchards(state, day));
   if (isOn(date, HARVEST_SEASON.end) && state.orchardWork?.task === 'harvest') {
@@ -317,7 +322,7 @@ export function workOrchards(state: VillageState, amount: number): void {
   if (gained > 0) state.applesKg = villageApplesKg(state) + gained;
 }
 
-/** 1. 3.: jablka, která se nesnědla, shnila (mutuje stav). */
+/** 1. 3. (v nádobách později): jablka, která se nesnědla, shnila (mutuje stav). */
 function rotApples(state: VillageState): void {
   if (state.applesKg !== undefined) state.applesKg = 0;
 }

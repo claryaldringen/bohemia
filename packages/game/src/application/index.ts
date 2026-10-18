@@ -5,6 +5,7 @@ export { NO_VILLAGE, VILLAGE_EXTINCT } from './update-village';
 export * from './load-village';
 export * from './found-village';
 export * from './place-dwelling';
+export * from './place-workshop';
 export * from './place-field';
 export * from './place-cemetery';
 export * from './place-orchard';

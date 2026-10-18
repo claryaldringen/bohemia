@@ -175,6 +175,10 @@ export function cellObstacles(
 }
 
 /** Bod v souřadnicích modelu obydlí (x napříč, z k vchodu) → svět (natočení jako rotation.y). */
+export function buildingLocalToWorld(position: Position, lx: number, lz: number): Point {
+  return localToWorld(position, lx, lz);
+}
+
 function localToWorld(position: Position, lx: number, lz: number): Point {
   // deterministicky – kontrola v prohlížeči a na serveru musí najít tytéž překážky
   const cos = detCos(position.rotation);
@@ -242,6 +246,35 @@ export function polygonObstacles(
     if (keep.has(layer.id[index]!)) continue;
     const kind = status.kindOf(layer, index);
     if (kind !== null) addToTally(tally, layer, index, kind);
+  }
+  return tally;
+}
+
+/**
+ * Překážky ve více mnohoúhelnících (dílna a kruh milíře – crafts.md) – jako `polygonObstacles`,
+ * ale překážka, která leží ve víc z nich, se počítá jednou.
+ */
+export function polygonsObstacles(
+  layer: ObstacleLayer,
+  status: ObstacleStatus,
+  polygons: readonly (readonly Point[])[],
+  skipTiles: ReadonlySet<number> = new Set(),
+  keep: ReadonlySet<number> = NO_IDS,
+): ObstacleTally {
+  const tally = emptyTally();
+  const seen = new Set<number>();
+  const half = (layer.size * layer.cellSizeM) / 2;
+  const tileOf = (v: number): number =>
+    Math.min(layer.size - 1, Math.max(0, Math.floor((v + half) / layer.cellSizeM)));
+  for (const polygon of polygons) {
+    for (const index of obstaclesInPolygon(layer, polygon)) {
+      if (seen.has(index)) continue;
+      seen.add(index);
+      if (skipTiles.has(tileOf(layer.z[index]!) * layer.size + tileOf(layer.x[index]!))) continue;
+      if (keep.has(layer.id[index]!)) continue;
+      const kind = status.kindOf(layer, index);
+      if (kind !== null) addToTally(tally, layer, index, kind);
+    }
   }
   return tally;
 }
