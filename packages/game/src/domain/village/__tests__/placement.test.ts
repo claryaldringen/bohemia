@@ -546,7 +546,7 @@ describe('cemeteryPartsFromCells', () => {
     expect(both.check.warning).toBe('Blízko obydlí (30 m)\nBlízko vody (30 m)');
   });
 
-  it('voda, les, obydlí, pole a jiný hřbitov blokují; zakázané čtverce do náhledu', () => {
+  it('voda, les, obydlí a jiný hřbitov blokují; zakázané čtverce do náhledu; pole ne', () => {
     const village: PlacementVillage = {
       dwellings: [{ type: 'zemnice', position: at(0, 0) }],
       constructions: [],
@@ -558,11 +558,13 @@ describe('cemeteryPartsFromCells', () => {
     expect(check(block(30, 5, 2, 1))).toBe('Hřbitov nesmí zasahovat do vody.');
     expect(check(block(1, 1, 2, 1))).toMatch(/jen na louce/);
     expect(check(block(15, 15, 2, 2))).toBe('Hřbitov se překrývá s obydlím.');
-    expect(check(block(19, 20, 2, 1))).toBe('Hřbitov se překrývá s polem.');
     expect(check(block(11, 20, 2, 1))).toBe('Hřbitov se překrývá s jiným hřbitovem.');
-    expect(
-      cemeteryPartsFromCells(landscape, village, block(19, 20, 2, 1), home).blockedCells,
-    ).toEqual([{ x: 20, y: 20 }]);
+    // na pole smí (fields.md – Pole jako krajina) – čtverec pole z pole zmizí, oranžově varuje
+    const onField = cemeteryPartsFromCells(landscape, village, block(19, 20, 2, 1), home);
+    expect(onField.check.ok).toBe(true);
+    expect(onField.blockedCells).toEqual([]);
+    expect(onField.takenLand).toEqual([{ cell: { x: 20, y: 20 }, areaM2: 225, cellAreaM2: 225 }]);
+    expect(onField.check.warning).toContain('Pole se zmenší');
     const water = cemeteryPartsFromCells(landscape, village, block(30, 5, 2, 1), home);
     expect(water.squares.map((s) => s.cell)).toEqual([{ x: 30, y: 5 }]);
   });

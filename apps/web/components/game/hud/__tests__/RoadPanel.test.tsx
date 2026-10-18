@@ -31,7 +31,7 @@ const road = (
     trees: 0,
     bearing: 0,
     planting: null,
-    option: { trees: 22, laborManDays: 9.8, blocked: null },
+    option: { trees: 22, laborManDays: 9.8, blocked: null, warning: null },
   },
   ...over,
 });
@@ -90,13 +90,33 @@ describe('SelectionPanel – pevná cesta', () => {
           trees: 18,
           bearing: 12,
           planting: null,
-          option: { trees: 0, laborManDays: 0, blocked: 'Podél cesty není volné místo.' },
+          option: {
+            trees: 0,
+            laborManDays: 0,
+            blocked: 'Podél cesty není volné místo.',
+            warning: null,
+          },
         },
       }),
     );
     expect(plantButton(full)).toContain('disabled=""');
     expect(full).toContain('Podél cesty není volné místo.');
     expect(full).toMatch(/data-testid="selection-road-apples"[^>]*>18 \(12\)</);
+  });
+
+  it('jabloně na poli: v popisku oranžově, že se pole zmenší (sázet jde)', () => {
+    const html = render(
+      road({
+        apples: {
+          trees: 0,
+          bearing: 0,
+          planting: null,
+          option: { trees: 6, laborManDays: 2.7, blocked: null, warning: 'Pole se zmenší' },
+        },
+      }),
+    );
+    expect(html).toMatch(/data-testid="road-apples-warning"[^>]*>Pole se zmenší</);
+    expect(plantButton(html)).not.toContain('disabled=""');
   });
 
   it('rozestavěná výsadba jabloní ukáže průběh', () => {
@@ -106,7 +126,12 @@ describe('SelectionPanel – pevná cesta', () => {
           trees: 0,
           bearing: 0,
           planting: { trees: 20, progress: 0.25, waits: true },
-          option: { trees: 0, laborManDays: 0, blocked: 'Jabloně se tu už sázejí.' },
+          option: {
+            trees: 0,
+            laborManDays: 0,
+            blocked: 'Jabloně se tu už sázejí.',
+            warning: null,
+          },
         },
       }),
     );

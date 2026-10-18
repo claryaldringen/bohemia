@@ -1,9 +1,17 @@
-// Obydlí na poli a v sadu (population.md – Obydlí na poli a v sadu): obydlí bez pozemku sebere
-// z dílu pole a čtverce sadu svou vyklízenou plochu (staveniště s hromadou hlíny, u dílny i kruh
-// milíře) – herní jádro díl o ni zmenší, scéna pod ní nekreslí obilí, obtisk pole ani jabloně.
-// Pozemek bere celé políčko, takže díl či čtverec pod ním v datech vsi už není. Čistý modul bez
+// Obydlí na poli a v sadu (population.md – Obydlí na poli a v sadu) a pole jako krajina
+// (fields.md): obydlí bez pozemku sebere z dílu pole a čtverce sadu svou vyklízenou plochu
+// (staveniště s hromadou hlíny, u dílny i kruh milíře), modla a svatyně svůj půdorys, jabloň
+// a strom u cesty plochu pod korunou (TAKEN_LAND_TREE_M2) – herní jádro díl o ni zmenší, scéna pod
+// ní nekreslí obilí ani obtisk pole (pod obydlím ani jabloně sadu). Stavby po čtvercích
+// a pozemek berou celé políčko, takže díl pod nimi v datech vsi už není. Čistý modul bez
 // Babylonu, souřadnice světa scény v metrech.
-import { freeDwellingClearings, pointInPolygon, type Point } from '@bohemia/game';
+import {
+  TAKEN_LAND_TREE_M2,
+  freeDwellingClearings,
+  pointInPolygon,
+  sacredFootprint,
+  type Point,
+} from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
 
 type SceneDwelling = SceneVillage['dwellings'][number];
@@ -17,19 +25,55 @@ export interface Clearing {
   maxZ: number;
 }
 
+function clearingOf(polygon: readonly Point[]): Clearing {
+  return {
+    polygon,
+    minX: Math.min(...polygon.map((p) => p[0])),
+    maxX: Math.max(...polygon.map((p) => p[0])),
+    minZ: Math.min(...polygon.map((p) => p[1])),
+    maxZ: Math.max(...polygon.map((p) => p[1])),
+  };
+}
+
 /** Vyklízené plochy hotových i rozestavěných obydlí bez pozemku (stejné jako v jádru). */
 export function buildingClearings(dwellings: readonly SceneDwelling[]): Clearing[] {
   return dwellings.flatMap((d) =>
-    d.plot
-      ? []
-      : freeDwellingClearings(d.type, d.position, d.craft).map((polygon) => ({
-          polygon,
-          minX: Math.min(...polygon.map((p) => p[0])),
-          maxX: Math.max(...polygon.map((p) => p[0])),
-          minZ: Math.min(...polygon.map((p) => p[1])),
-          maxZ: Math.max(...polygon.map((p) => p[1])),
-        })),
+    d.plot ? [] : freeDwellingClearings(d.type, d.position, d.craft).map(clearingOf),
   );
+}
+
+/** Poloměr plochy pod korunou stromu (m) – kruh o ploše TAKEN_LAND_TREE_M2. */
+export const TREE_LAND_RADIUS_M = Math.sqrt(TAKEN_LAND_TREE_M2 / Math.PI);
+/** Kruh pod korunou jako pravidelný mnohoúhelník (stran). */
+const TREE_SIDES = 12;
+
+/** Plocha pod korunou stromu – mnohoúhelník kolem kmene. */
+function treeLand(x: number, z: number): Clearing {
+  return clearingOf(
+    Array.from({ length: TREE_SIDES }, (_, i): Point => {
+      const angle = (2 * Math.PI * i) / TREE_SIDES;
+      return [x + TREE_LAND_RADIUS_M * Math.cos(angle), z + TREE_LAND_RADIUS_M * Math.sin(angle)];
+    }),
+  );
+}
+
+/**
+ * Co pole pod sebou nekreslí (fields.md – Pole jako krajina): vyklízené plochy obydlí, půdorysy
+ * model a svatyní a plocha pod korunou jabloní a stromů u cest (i čekajících na výsadbu), které
+ * stojí na poli (`onField` – kmen na čtverci pole; strom vedle pole poli nic nebere).
+ */
+export function fieldClearings(
+  village: Pick<SceneVillage, 'dwellings' | 'sacred' | 'roadTrees' | 'roadApples'>,
+  onField: (x: number, z: number) => boolean,
+): Clearing[] {
+  const trees = [...(village.roadTrees ?? []), ...(village.roadApples ?? [])];
+  return [
+    ...buildingClearings(village.dwellings),
+    ...(village.sacred?.buildings ?? []).map((b) =>
+      clearingOf(sacredFootprint(b.kind, b.position)),
+    ),
+    ...trees.filter((t) => onField(t.x, t.z)).map((t) => treeLand(t.x, t.z)),
+  ];
 }
 
 /** Plochy, které zasahují do obdélníku (i do `marginM` od něj). */

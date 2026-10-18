@@ -467,6 +467,12 @@ export const PLOT_SNAP_M = 2;
  */
 export const TAKEN_LAND_MIN_SHARE = 0.2;
 /**
+ * fields.md – Pole jako krajina (Martin, 18. 10. 2026: „Pole by se mělo chovat jako normální
+ * krajina. Takže by na něm mělo jít postavit cokoliv kromě jiného pole.“; číslo návrh Clauda):
+ * jabloň nebo strom u cesty vezme dílu pole tolik m² – pod korunou (≈ 5 m) se neorá ani neseje.
+ */
+export const TAKEN_LAND_TREE_M2 = 20;
+/**
  * Polozemnice bez pozemku dostane při přestavbě nejbližší volné políčko – nejvýš tak daleko od
  * domu (m, ke středu políčka); dál žádné nehledá a zůstane bez pozemku.
  */

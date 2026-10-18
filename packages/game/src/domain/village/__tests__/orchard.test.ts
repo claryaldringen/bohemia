@@ -251,7 +251,7 @@ describe('orchardPartsFromCells – staví se jako pole', () => {
     expect(orchardPartsFromCells(landscape, null, [{ x: 18, y: 18 }], home).check.ok).toBe(true);
   });
 
-  it('voda, les, obydlí, pole, hřbitov, jiný sad a vzdálenost blokují', () => {
+  it('voda, les, obydlí, hřbitov, jiný sad a vzdálenost blokují; pole ne', () => {
     const village: PlacementVillage = {
       dwellings: [{ type: 'zemnice', position: { x: 0, z: 0, rotation: 0 } }],
       constructions: [],
@@ -264,7 +264,6 @@ describe('orchardPartsFromCells – staví se jako pole', () => {
     expect(check(block(30, 5, 2, 1))).toBe('Sad nesmí zasahovat do vody.');
     expect(check(block(1, 1, 2, 1))).toMatch(/jen na louce/);
     expect(check(block(15, 15, 2, 2))).toBe('Sad se překrývá s obydlím.');
-    expect(check(block(19, 20, 2, 1))).toBe('Sad se překrývá s polem.');
     expect(check(block(11, 20, 2, 1))).toBe('Sad se překrývá s hřbitovem.');
     expect(check(block(6, 20, 2, 1))).toBe('Sad se překrývá s jiným sadem.');
     expect(check(block(18, 18, 1, 1), [{ x: 1000, z: 1000, rotation: 0 }])).toBe(
@@ -273,9 +272,11 @@ describe('orchardPartsFromCells – staví se jako pole', () => {
     expect(check([...block(18, 18, 1, 1), ...block(20, 18, 1, 1)])).toBe(
       'Čtverce sadu musí tvořit jeden celek – sousedit stranou.',
     );
-    expect(
-      orchardPartsFromCells(landscape, village, block(19, 20, 2, 1), home).blockedCells,
-    ).toEqual([{ x: 20, y: 20 }]);
+    // na pole smí (fields.md – Pole jako krajina) – čtverec pole z pole zmizí
+    const onField = orchardPartsFromCells(landscape, village, block(19, 20, 2, 1), home);
+    expect(onField.check).toMatchObject({ ok: true, warning: 'Pole se zmenší' });
+    expect(onField.blockedCells).toEqual([]);
+    expect(onField.takenLand).toEqual([{ cell: { x: 20, y: 20 }, areaM2: 225, cellAreaM2: 225 }]);
     expect(orchardPartsFromCells(landscape, EMPTY, [{ x: 1.5, y: 2 }], home).check.reason).toBe(
       'Neplatné čtverce sadu.',
     );

@@ -25,6 +25,7 @@ import {
   tileCenterWorld,
   villageDwellingPositions,
   type ChronicleEvent,
+  type LandTaker,
   type Landscape,
   type PartInput,
   type VillageRecord,
@@ -1077,6 +1078,20 @@ describe('sad v pohledu na ves', () => {
     expect(taken('field', true)).toBe('Pole ustoupilo stavbě obydlí a zaniklo.');
     expect(taken('orchard', false)).toBe('Sad ustoupil stavbě obydlí – zmenšil se o 1 234 m².');
     expect(taken('orchard', true)).toBe('Sad ustoupil stavbě obydlí a zanikl.');
+  });
+
+  it('kronika: pole ustoupilo i ostatním stavbám (pole jako krajina)', () => {
+    const by = (taker: LandTaker, gone = false): string =>
+      chronicleText(
+        { day: 0, kind: 'land-taken', land: 'field', id: 3, areaM2: 20, gone, by: taker },
+        'Libice',
+      );
+    expect(by('orchard', true)).toBe('Pole ustoupilo sadu a zaniklo.');
+    expect(by('cemetery', true)).toBe('Pole ustoupilo hřbitovu a zaniklo.');
+    expect(by('pen')).toBe('Pole ustoupilo ohradě – zmenšilo se o 20 m².');
+    expect(by('shrine')).toBe('Pole ustoupilo svatyni – zmenšilo se o 20 m².');
+    expect(by('road-apples')).toBe('Pole ustoupilo jabloním u cesty – zmenšilo se o 20 m².');
+    expect(by('road-trees')).toBe('Pole ustoupilo stromům u cesty – zmenšilo se o 20 m².');
   });
 
   it('kronika: sklizeň jablek a dosloužilý sad', () => {

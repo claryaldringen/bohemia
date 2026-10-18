@@ -338,6 +338,11 @@ export interface PenInput {
   obstacleIds: readonly number[];
   /** Dospělé stromy mezi nimi – dají klády na hromadu. */
   clearedTrees: number;
+  /**
+   * Čtverec pole pod ohradou (`takenLand` z kontroly) – z pole zmizí (fields.md – Pole jako
+   * krajina; `foundPen`).
+   */
+  takenLand?: readonly { cell: TileCell; areaM2: number; cellAreaM2: number }[];
 }
 
 /** Práce na ohradě bez dřeva – cena ohrady minus kácení jejích stromů u blízkého lesa. */

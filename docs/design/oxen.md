@@ -80,8 +80,9 @@ půdy na seno. Dobytek, dosud jen ozdoba, se tím poprvé zapojí do hry.
 Rozhodnutí kontroléru tam, kde návrh nedává postup (Martin je může změnit):
 
 - **Ohrada** se staví jako pozemek polozemnice – jeden čtverec louky (ne voda, les, skalní
-  výchoz, posvátné místo ani zabrané políčko), v nabídce staveb zkratka O. Cena jako u obydlí:
-  40 člověkodní v sobě mají kácení 6 stromů u blízkého lesa – stavba vezme klády z hromady,
+  výchoz, posvátné místo ani zabrané políčko – čtverec pole ano: z pole zmizí,
+  Martin 18. 10. 2026 – [fields.md](fields.md), Pole jako krajina), v nabídce staveb zkratka O.
+  Cena jako u obydlí: 40 člověkodní v sobě mají kácení 6 stromů u blízkého lesa – stavba vezme klády z hromady,
   zbytek stromů vyhradí a skácí (dál než 100 m dráž), překážky na čtverci zaplatí prací navíc.
   Osadníci nejsou potřeba. Ohrady blokují ostatní stavby po čtvercích jako pole.
 - **Výcvik:** dvě telata ze stáda krav – ves musí mít **aspoň 3 krávy** (chovná kráva zůstane).
@@ -144,3 +145,4 @@ Rozhodnutí kontroléru tam, kde návrh nedává postup (Martin je může změni
 | Pokrytí sena k 1. 3.; vracení orby motyce po celých dílech                                  | rozhodnutí kontroléru         |
 | Seno ze všech luk – přirozené louky i úhor ve fázi louky, od nejbližší, jen kolik je třeba  | Martin (18. 10. 2026)         |
 | Přirozené louky do 600 m od obydlí; louky na seno ve scéně z dat                            | návrh Clauda                  |
+| Ohrada smí na pole – čtverec pole pod ní z pole zmizí                                       | Martin (18. 10. 2026)         |

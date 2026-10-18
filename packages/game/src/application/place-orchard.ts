@@ -45,7 +45,12 @@ export function placeOrchard(
       if (!orchard.check.ok)
         return { ok: false, reason: orchard.check.reason ?? 'Sem sad nepatří.' };
       // akce patří do dne, do kterého je ves dopočítaná – dnešek, nebo „budoucí“ den vsi
-      const squares = { squares: orchard.squares, sacred: orchard.spared };
+      // čtverce polí pod sadem z pole zmizí (fields.md – Pole jako krajina)
+      const squares = {
+        squares: orchard.squares,
+        sacred: orchard.spared,
+        takenLand: orchard.takenLand,
+      };
       return { ok: true, state: foundOrchard(state, state.lastDay, squares) };
     },
   );

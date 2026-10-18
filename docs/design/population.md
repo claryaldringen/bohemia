@@ -143,6 +143,9 @@ zmenší o plochu domu“. Podrobnosti jsou návrh Clauda:
   plochy se na dílu překrývají, mu ten kus uberou dvakrát – zjednodušení).
 - **Hřbitov** dál ne (hroby). Ostatní kontroly obydlí platí beze změny – posvátný dub a háj,
   skalní výchoz, rovná zem pod domem, jiná obydlí a pozemky.
+- **I ostatní stavby** smí na pole (Martin, 18. 10. 2026 – [fields.md](fields.md), Pole jako
+  krajina: „cokoliv kromě jiného pole“): sad, hřbitov, ohrada, modla, svatyně, jabloně a stromy
+  u cest – pole ustoupí stejným pravidlem. Do sadu smí dál jen obydlí.
 - **Úroda a práce** jdou s plochou: díl odebraný z pole zmizí i z ročního plánu osevu a z pořadí
   práce (i z orby rádlem a ze seče sena na úhoru – [oxen.md](oxen.md)), zmenšený díl dá úměrně
   menší úrodu i seno a chce úměrně méně práce; ostatním dílům zůstane, co na nich bylo hotové
