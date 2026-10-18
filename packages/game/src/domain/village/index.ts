@@ -5,6 +5,7 @@ export * from './people';
 export * from './food';
 export * from './diet';
 export * from './dairy';
+export * from './legumes';
 export * from './livestock';
 export * from './hay';
 export * from './plough';

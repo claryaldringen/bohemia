@@ -77,7 +77,10 @@ export type SelectionDetails =
        * prázdné, když je celé pole na louce.
        */
       surfaces: { surface: FieldSurface; count: number }[];
-      /** Oseté díly podle plodiny v pořadí CROP_ORDER (jen nenulové – fields.md, Ozim a jař). */
+      /**
+       * Oseté díly podle plodiny v pořadí CROP_ORDER (jen nenulové – fields.md, Ozim a jař,
+       * Luštěniny).
+       */
       crops: { crop: Crop; count: number }[];
       /** Díly s popelem z vymýceného lesa (fields.md – Úroda). */
       ashParts: number;
@@ -213,13 +216,17 @@ export const PART_STAGE_ORDER: readonly PartStage[] = [
   'meadow',
 ];
 
-/** Pořadí plodin v panelu pole – ozim (sklízí se dřív), jař. */
-export const CROP_ORDER: readonly Crop[] = ['winter', 'spring'];
+/** Pořadí plodin v panelu pole – ozim (sklízí se dřív), jař, luštěniny. */
+export const CROP_ORDER: readonly Crop[] = ['winter', 'spring', 'legume'];
 
 /** Popisky plodin a ikony (`/icons/resources/<ikona>.png`). */
 export const CROP_LABELS: Record<Crop, { name: string; icon: string }> = {
   winter: { name: 'Ozim – žito a pšenice, zasetá na podzim, sklizeň v červenci', icon: 'ozim' },
   spring: { name: 'Jař – ječmen, zasetý na jaře, sklizeň v srpnu', icon: 'jar' },
+  legume: {
+    name: 'Luštěniny – hrách a čočka, zaseté na jaře, sklizeň v červenci',
+    icon: 'legumes',
+  },
 };
 
 /** Pořadí povrchů v panelu pole – od louky po les. */

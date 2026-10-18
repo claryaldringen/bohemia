@@ -2,9 +2,10 @@ import {
   DAILY_MIN_PER_HOUSEHOLD,
   FIELD_WORK_PER_HA,
   FOUNDING_COST_PER_HA,
+  LEGUME_WORK_PER_HA,
   STORAGE_LOSS_PER_YEAR,
 } from './rules';
-import type { Bounds, CraftCoverage, FieldSurface, FieldTask } from './types';
+import type { Bounds, CraftCoverage, Crop, FieldSurface, FieldTask } from './types';
 
 // Meze produktivity (Martin, fields.md – Meze produktivity, crafts.md – Účinek): práce a ztráty
 // s rozpětím v literatuře leží mezi `worst` (ves bez řemesel) a `best` (plně pokrytá potřeba
@@ -20,9 +21,16 @@ export function withinBounds(bounds: Bounds, coverage: number): number {
   return bounds.worst + (bounds.best - bounds.worst) * share;
 }
 
-/** Člověkodny polní práce na osetý hektar podle pokrytí nástroji. */
-export function fieldWorkPerHa(task: FieldTask, toolCoverage: number): number {
-  return withinBounds(FIELD_WORK_PER_HA[task], toolCoverage);
+/** Člověkodny polní práce na osetý hektar podle pokrytí nástroji (luštěniny – vlastní sazby). */
+export function fieldWorkPerHa(
+  task: FieldTask,
+  toolCoverage: number,
+  crop: Crop = 'spring',
+): number {
+  return withinBounds(
+    (crop === 'legume' ? LEGUME_WORK_PER_HA : FIELD_WORK_PER_HA)[task],
+    toolCoverage,
+  );
 }
 
 /** Člověkodny založení hektaru pole podle povrchu a pokrytí nástroji. */

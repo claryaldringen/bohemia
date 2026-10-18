@@ -9,6 +9,8 @@ import {
   decalPieces,
   fieldPlants,
   fieldStaking,
+  lookStyle,
+  partViewsKey,
   patchNoise,
   raggedCoverage,
 } from '../field-crops';
@@ -148,6 +150,56 @@ describe('trsy obilí, panáky a plevel', () => {
     const pasture = fieldPlants([view(p, 'pasture')], ROWS, CENTER, all);
     expect(pasture.weeds).toHaveLength(0);
     expect(CROP_KINDS.every((k) => pasture.crops[k].length === 0)).toBe(true);
+  });
+});
+
+describe('luštěniny (fields.md – Luštěniny)', () => {
+  const legume = (cx: number, cy: number): SceneFieldPart => ({ ...part(cx, cy), crop: 'legume' });
+
+  it('zelený a zralý hrách místo obilí – nižší trsy, jiný tón porostu', () => {
+    const p = legume(0, 0);
+    const green = fieldPlants([view(p, 'green')], ROWS, CENTER, all);
+    expect(green.crops['pea-green'].length).toBeGreaterThan(0);
+    expect(green.crops.green).toHaveLength(0);
+    const ripe = fieldPlants([view(p, 'ripe')], ROWS, CENTER, all);
+    expect(ripe.crops['pea-ripe'].length).toBeGreaterThan(0);
+    expect(ripe.crops.ripe).toHaveLength(0);
+    for (const c of ripe.crops['pea-ripe']) expect(c.height).toBeLessThan(0.6);
+    expect(lookStyle('green', 'legume').tint).not.toEqual(LOOK_STYLES.green.tint);
+    // obilí beze změny
+    expect(lookStyle('green')).toBe(LOOK_STYLES.green);
+    expect(fieldPlants([view(part(0, 0), 'green')], ROWS, CENTER, all).crops.green.length).toBe(
+      green.crops['pea-green'].length,
+    );
+  });
+
+  it('klíč dílů se změní s plodinou – pole s luštěninami se přestaví', () => {
+    const key = (p: SceneFieldPart): string => JSON.stringify(partViewsKey([view(p, 'green')]));
+    expect(key(legume(0, 0))).not.toBe(key(part(0, 0)));
+    expect(key(legume(0, 0))).toBe(key(legume(0, 0)));
+  });
+
+  it('sklizeň: hromádky vytrhaného hrachu místo panáků, jen na sklizené části', () => {
+    const p = legume(0, 0);
+    const frame = workFrame(p, ROWS, CENTER);
+    const plants = fieldPlants(
+      [view(p, 'harvesting', { work: 0.5, before: 'ripe' })],
+      ROWS,
+      CENTER,
+      all,
+    );
+    expect(plants.stooks).toHaveLength(0);
+    expect(plants.heaps.length).toBeGreaterThan(0);
+    for (const h of plants.heaps) expect(workAt(frame, p, h.x, h.z)).toBeLessThan(0.5);
+    for (const c of plants.crops['pea-ripe'])
+      expect(workAt(frame, p, c.x, c.z)).toBeGreaterThanOrEqual(0.5);
+    // hromádky jsou hustší než panáky obilí
+    const cereal = fieldPlants([view(part(0, 0), 'harvesting')], ROWS, CENTER, all);
+    const heaps = fieldPlants([view(p, 'harvesting')], ROWS, CENTER, all);
+    expect(heaps.heaps.length).toBeGreaterThan(cereal.stooks.length);
+    expect(cereal.heaps).toHaveLength(0);
+    // po vytrhání skoro holá zem – zbytků míň než strniště obilí
+    expect(heaps.crops.stubble.length).toBeLessThan(cereal.crops.stubble.length);
   });
 });
 

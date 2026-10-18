@@ -4,6 +4,7 @@ import type { SceneFieldPart } from '../../village-view';
 import { FIELD_LOOKS } from '../field-look';
 import {
   FIELD_SHOWCASE_PHASES,
+  LEGUME_SHOWCASE_PHASES,
   ORCHARD_SHOWCASE_PHASES,
   SHOWCASE_BUILDINGS,
   SHOWCASE_GROUNDS,
@@ -12,7 +13,7 @@ import {
 
 describe('pole, hřbitov a sad na vývojové stránce staveb', () => {
   it('fáze navazují na sebe a pokryjí průběh 0–1', () => {
-    for (const phases of [FIELD_SHOWCASE_PHASES, ORCHARD_SHOWCASE_PHASES]) {
+    for (const phases of [FIELD_SHOWCASE_PHASES, LEGUME_SHOWCASE_PHASES, ORCHARD_SHOWCASE_PHASES]) {
       expect(phases[0]!.from).toBe(0);
       expect(phases.at(-1)!.to).toBe(1);
       for (let i = 1; i < phases.length; i++) expect(phases[i]!.from).toBe(phases[i - 1]!.to);
@@ -42,6 +43,24 @@ describe('pole, hřbitov a sad na vývojové stránce staveb', () => {
     expect(parts(0).every((part) => part.stage === 'founding' && part.work === 0)).toBe(true);
     expect(showcaseGrounds(0).labels.field).toMatch(/vytyčení/);
     expect(showcaseGrounds(0.6).labels.field).toMatch(/žeň/);
+  });
+
+  it('pole s luštěninami: osev, zelený a zralý hrách, sklizeň po čtvercích, holá zem', () => {
+    const parts = (p: number): SceneFieldPart[] =>
+      showcaseGrounds(p).village.fields.find((f) => f.id === 3)!.parts;
+    const looks = new Set<string>();
+    for (let p = 0; p <= 1; p += 0.005) {
+      expect(parts(p).every((part) => part.crop === 'legume' && part.stage === 'sown')).toBe(true);
+      for (const part of parts(p)) if (part.look && (part.work ?? 1) > 0) looks.add(part.look);
+      const working = parts(p).filter(
+        (part) => part.work !== undefined && part.work > 0 && part.work < 1,
+      );
+      expect(working.length).toBeLessThanOrEqual(1);
+    }
+    expect([...looks].sort()).toEqual(
+      ['plowed', 'sown', 'sprouted', 'green', 'ripe', 'harvesting', 'stubble'].sort(),
+    );
+    expect(showcaseGrounds(0.7).labels.legumes).toMatch(/hromádkách/);
   });
 
   it('louka na seno: tráva, seč, kupky a stohy souběžně s loukou na poli', () => {

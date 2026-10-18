@@ -298,13 +298,55 @@ export const WINTER_WINDOWS: Record<TaskName, readonly WindowSegment[]> = {
     [1, 2],
   ],
 };
-/** Okna prací podle plodiny (fields.md – Ozim a jař). */
+// fields.md – Luštěniny (rešerše 2026-10-18-legumes.md): luštěniny jsou jař – kopou se na podzim
+// nebo na jaře, sejí v březnu–dubnu, pletou v květnu–červnu, sklízejí (trhají) v červenci a mlátí
+// v zimě jako obilí
+export const LEGUME_WINDOWS: Record<TaskName, readonly WindowSegment[]> = {
+  ...WINDOWS,
+  harvest: [[7, 7]],
+};
+/** Okna prací podle plodiny (fields.md – Ozim a jař, Luštěniny). */
 export const CROP_WINDOWS: Record<Crop, Record<TaskName, readonly WindowSegment[]>> = {
   winter: WINTER_WINDOWS,
   spring: WINDOWS,
+  legume: LEGUME_WINDOWS,
 };
-/** Pořadí plodin při shodě konce okna – ozim (sklízí se dřív) první. */
-export const CROP_ORDER: readonly Crop[] = ['winter', 'spring'];
+/** Pořadí plodin při shodě konce okna – ozim (sklízí se dřív) první, luštěniny před jaří. */
+export const CROP_ORDER: readonly Crop[] = ['winter', 'legume', 'spring'];
+/**
+ * diet.md a fields.md – Luštěniny (Martin 18. 10. 2026: bílkoviny 1,6 g/kg zůstávají, přidají se
+ * luštěniny; čísla rešerše 2026-10-18-legumes.md, odhady návrh Clauda): hrách a čočka jako jedna
+ * plodina – hrubá úroda jako 0,8 úrody obilí při stejné úrodnosti (≈ 600 kg/ha při plné), osivo
+ * 150 kg/ha, 22 % bílkovin, energie jako obilí (3 400 kcal/kg); ztráta skladováním jako obilí
+ * (STORAGE_LOSS_PER_YEAR – zrnokaz se ve skladu nemnoží); neopletý díl dá 50 % (obilí 60 %);
+ * osev úrodnost neubere, ale vrátí 0,03 (`fertilityGain` – poutá dusík, ≈ rok přílohu); strop
+ * podílu energie z luštěnin ve stravě 25 % (dospělý ≈ 45 kg ročně).
+ */
+export const LEGUMES = {
+  yieldShare: 0.8,
+  seedKgPerHa: 150,
+  protein: 0.22,
+  energy: 1,
+  unweededYield: 0.5,
+  fertilityGain: 0.03,
+  energyCap: 0.25,
+} as const;
+// fields.md – Luštěniny (rešerše: hrách hůř snáší plevel a okopával se, žeň luštěnin stála ≈ 1,2×
+// víc než žeň obilí, výmlat na objem 0,6–0,8× pšenice) – člověkodny na osetý hektar, meze
+export const LEGUME_HARVEST_WORK_PER_HA: Record<'reap' | 'carry', Bounds> = {
+  reap: { worst: 35, best: 20 },
+  carry: { worst: 20, best: 20 },
+};
+export const LEGUME_WORK_PER_HA: Record<FieldTask, Bounds> = {
+  dig: FIELD_WORK_PER_HA.dig,
+  sow: FIELD_WORK_PER_HA.sow,
+  weed: { worst: 40, best: 20 },
+  harvest: {
+    worst: LEGUME_HARVEST_WORK_PER_HA.reap.worst + LEGUME_HARVEST_WORK_PER_HA.carry.worst,
+    best: LEGUME_HARVEST_WORK_PER_HA.reap.best + LEGUME_HARVEST_WORK_PER_HA.carry.best,
+  },
+  thresh: { worst: 10, best: 6 },
+};
 // orchard.md – Pravidla (Martin – oprava podle rešerše 17. 10. 2026): výsadba 80 člověkodní/ha
 // (+ překážky jako u pole), péče v zimě 10 člověkodní/ha ročně, sklizeň 8 člověkodní/ha při plné
 // úrodě (při menší úrodě poměrně méně); první jablka 6. rok po výsadbě, úroda lineárně do plné

@@ -278,7 +278,7 @@ const SQUARE_M = 15;
 /** Roh čtverce (0, 0) – za řadou staveb, aby pole, hřbitov a sad nic nezakrývaly. */
 const GROUND_ORIGIN = { x: -55, z: 18 };
 
-export type ShowcaseGroundId = 'field' | 'cemetery' | 'orchard' | 'meadow' | 'plowing';
+export type ShowcaseGroundId = 'field' | 'cemetery' | 'orchard' | 'meadow' | 'plowing' | 'legumes';
 
 export interface ShowcaseGround {
   id: ShowcaseGroundId;
@@ -324,6 +324,8 @@ export const SHOWCASE_GROUNDS: readonly ShowcaseGround[] = [
   ground('meadow', 'Louka na seno', 10, 0, 3, 2),
   // vlevo od pole ob čtverec – spřežení se na souvratích otáčí za okrajem pole
   ground('plowing', 'Orání', -2, 0, 1, 1),
+  // za polem ob řadu – pole s luštěninami (hrách – fields.md, Luštěniny)
+  ground('legumes', 'Luštěniny', 0, 3, 3, 2),
 ];
 
 /**
@@ -405,7 +407,49 @@ export const FIELD_SHOWCASE_PHASES: readonly (ShowcasePhase & {
   },
   { label: 'seno v kupkách', from: 0.92, to: 0.95, look: 'mown' },
   { label: 'stohy – přes zimu se zkrmí', from: 0.95, to: 1, look: 'haystacks' },
-]; /** Hřbitov: do poloviny založení (fáze `CEMETERY_PHASES`), pak přibývají hroby. */
+];
+
+/**
+ * Pole s luštěninami (fields.md – Luštěniny): kopání a setí po čtvercích, vzcházející, zelený
+ * kvetoucí a zralý hrách, sklizeň po čtvercích (hrách se vytrhá a suší v hromádkách) a skoro
+ * holá zem po sklizni.
+ */
+export const LEGUME_SHOWCASE_PHASES: readonly (ShowcasePhase & {
+  look: FieldLook | null;
+  before?: FieldLook;
+  frontier?: boolean;
+})[] = [
+  {
+    label: 'kopání – brázdy po čtvercích',
+    from: 0,
+    to: 0.12,
+    look: 'plowed',
+    before: 'stubble',
+    frontier: true,
+  },
+  {
+    label: 'setí hrachu po čtvercích',
+    from: 0.12,
+    to: 0.26,
+    look: 'sown',
+    before: 'plowed',
+    frontier: true,
+  },
+  { label: 'vzchází hrách', from: 0.26, to: 0.36, look: 'sprouted' },
+  { label: 'zelený hrách kvete', from: 0.36, to: 0.52, look: 'green' },
+  { label: 'zralý hrách', from: 0.52, to: 0.64, look: 'ripe' },
+  {
+    label: 'sklizeň po čtvercích – hrách se trhá a suší v hromádkách',
+    from: 0.64,
+    to: 0.82,
+    look: 'harvesting',
+    before: 'ripe',
+    frontier: true,
+  },
+  { label: 'po sklizni – skoro holá zem', from: 0.82, to: 1, look: 'stubble' },
+];
+
+/** Hřbitov: do poloviny založení (fáze `CEMETERY_PHASES`), pak přibývají hroby. */
 const CEMETERY_FOUNDED_AT = 0.5;
 /** Sad: vytyčení, kůly, sazenice (výsadba jako ve hře), mladé stromky rostou, plodící sad. */
 export const ORCHARD_SHOWCASE_PHASES: readonly ShowcasePhase[] = [
@@ -432,8 +476,9 @@ function fieldPart(
   index: number,
   count: number,
   p: number,
+  phases: typeof FIELD_SHOWCASE_PHASES = FIELD_SHOWCASE_PHASES,
 ): Omit<SceneFieldPart, 'cell' | 'x' | 'z' | 'size'> {
-  const phase = phaseAt(FIELD_SHOWCASE_PHASES, p);
+  const phase = phaseAt(phases, p);
   const founding = phase.look === null || phase.look === 'bare';
   const stage = founding
     ? 'founding'
@@ -547,6 +592,15 @@ export function showcaseGrounds(progress: number): {
       ? `${growing.label} – ${Math.min(TREE_GROWTH_YEARS, Math.floor(age) + 1)}. rok`
       : orchardPhase.label;
 
+  // pole s luštěninami – osetý hrách prochází rokem jako pole obilí
+  const legumeSquares = of('legumes').squares;
+  const legumes = legumeSquares.map((square, i): SceneFieldPart => ({
+    ...square,
+    ...fieldPart(i, legumeSquares.length, p, LEGUME_SHOWCASE_PHASES),
+    id: 100 + i,
+    crop: 'legume',
+  }));
+
   // orané pole: brázdy (vzhled po orbě), stále – nezávisí na průběhu
   const plowing = of('plowing').squares.map((square): SceneFieldPart => ({
     ...square,
@@ -560,6 +614,7 @@ export function showcaseGrounds(progress: number): {
       fields: [
         { id: 1, parts },
         { id: 2, parts: plowing },
+        { id: 3, parts: legumes },
       ],
       cemeteries: [{ id: 1, squares: cemetery, built, progress: built ? 1 : founding, graves }],
       orchards: [
@@ -580,6 +635,7 @@ export function showcaseGrounds(progress: number): {
       orchard: orchardLabel,
       meadow: hayLabel,
       plowing: PLOWING_LABEL,
+      legumes: phaseAt(LEGUME_SHOWCASE_PHASES, p).label,
     },
   };
 }

@@ -211,6 +211,20 @@ const NATURAL_STAGE: Record<Crop, readonly FieldPartLook[]> = {
     'sprouted',
     'sprouted',
     'sprouted',
+  ], // luštěniny: seje se na jaře, v květnu–červnu kvetou zelené, v červenci zralé (sklizeň)
+  legume: [
+    'sprouted',
+    'sprouted',
+    'sown',
+    'sprouted',
+    'green',
+    'green',
+    'ripe',
+    'ripe',
+    'sprouted',
+    'sprouted',
+    'sprouted',
+    'sprouted',
   ],
 };
 

@@ -17,7 +17,7 @@ panelu výběru;
 (štěstí – plamen ohniště nad zkříženými poleny v kruhu kamenů), hay (seno – kupka sena
 z `apps/web/public/models/fields/haystack.glb`), meat (maso – uzená kýta s kostí a provázkem),
 cheese (mléko a sýr – bochník sýra s vykrojeným klínem a hrouda tvarohu), eggs (vejce v hnízdě
-ze slámy),
+ze slámy), legumes (luštěniny – hromádka suchého hrachu a čočky, otevřený lusk s hrášky),
 ozim (osení pod sněhem), jar (klasy jarního ječmene), charcoal (hromádka dřevěného uhlí), tools
 (kovaná sekera zkřížená se srpem) a pottery (dva hrnce pražského typu, větší s vlnovkou) –
 suroviny řemesel (crafts.md) – a zvířata stád do panelu ohrady – sheep, goat, pig, cow, chicken
@@ -1221,6 +1221,80 @@ def icon_eggs():
     return True
 
 
+def pea_pod(bm, centre, length, width, angle, open_pod, rng, peas=None):
+    """Lusk hrachu: protáhlý, mírně prohnutý elipsoid se špičkou na obou koncích; otevřený
+    lusk je jen spodní polovina (lodička) a hrášky v ní leží v řadě (`peas` – bmesh hrášků)."""
+    sp = bmesh.ops.create_uvsphere(bm, u_segments=32, v_segments=14, radius=1.0)
+    rot = Euler((0, 0, angle)).to_matrix()
+    drop = []
+    for v in sp["verts"]:
+        x, y, z = v.co
+        if open_pod and z > 0.05:
+            drop.append(v)
+            continue
+        taper = (1 - abs(x) ** 2.2) ** 0.5
+        bend = 0.18 * (1 - x * x)  # lusk je prohnutý do oblouku
+        v.co = Vector(centre) + rot @ Vector((x * length / 2, y * width * taper + bend * width, z * width * 0.8 * taper))
+    if drop:
+        bmesh.ops.delete(bm, geom=drop, context="VERTS")
+    if open_pod and peas is not None:
+        n = 6
+        for i in range(n):
+            t = -0.68 + 1.36 * i / (n - 1)
+            taper = (1 - abs(t) ** 2.2) ** 0.5
+            r = width * 0.62 * taper
+            p = Vector(centre) + rot @ Vector((t * length / 2, 0.18 * (1 - t * t) * width, r * 0.15))
+            blob(peas, (p, (0, 0, rng.uniform(0, 3))), (r, r, r * 0.95), 14, 9)
+
+
+def icon_legumes():
+    """Luštěniny: hromádka suchého hrachu a čočky, před ní otevřený lusk s hrášky a zavřený lusk."""
+    rng = random.Random(23)
+    peas, lentils, pods, pod_peas = bmesh.new(), bmesh.new(), bmesh.new(), bmesh.new()
+    placed = []
+
+    def free(p, r):
+        return all((p - q).length >= (r + rq) * 0.92 for q, rq in placed)
+
+    # hromádka – kužel: hrášky a čočka po povrchu kužele (vnitřek není vidět), bez překryvu
+    R, H = 0.78, 0.62
+    for _ in range(9000):
+        if len(placed) > 150:
+            break
+        a = rng.uniform(0, 2 * math.pi)
+        rr = R * math.sqrt(rng.random())
+        z = H * (1 - rr / R) * rng.uniform(0.86, 1.0)
+        lentil = 0.5 < a < 2.9 and rng.random() < 0.75  # čočka na zadní straně hromádky
+        r = 0.095 if lentil else 0.11
+        p = Vector((math.cos(a) * rr + 0.22, math.sin(a) * rr + 0.32, z + r * 0.6))
+        if not free(p, r):
+            continue
+        placed.append((p, r))
+        tilt = (rng.uniform(-0.6, 0.6), rng.uniform(-0.6, 0.6), rng.uniform(0, 3))
+        if lentil:
+            blob(lentils, (p, tilt), (r * 1.15, r * 1.15, r * 0.42), 16, 8)
+        else:
+            blob(peas, (p, tilt), (r, r * 0.96, r * 0.92), 14, 9)
+    # jádro hromádky – mezi zrny není vidět skrz (tmavší jako stín mezi zrny)
+    core = bmesh.new()
+    cyl(core, (0.22, 0.32, 0.0), (0.22, 0.32, H * 0.97), R * 0.93, 0.04, 40)
+    pea_pod(pods, (-0.3, -0.7, 0.12), 1.4, 0.24, math.radians(12), True, rng, pod_peas)
+    pea_pod(pods, (0.62, -0.92, 0.1), 1.15, 0.2, math.radians(-28), False, rng)
+    objs = [
+        to_obj(peas, "peas", mat("dry_pea", (0.56, 0.54, 0.16), 0.5, noise=30, bump=0.15)),
+        to_obj(lentils, "lentils", mat("lentil", (0.5, 0.22, 0.08), 0.45, noise=34, bump=0.1)),
+        to_obj(pods, "pods", mat("pod", (0.24, 0.44, 0.08), 0.55, noise=16, bump=0.2)),
+        to_obj(pod_peas, "pod_peas", mat("green_pea", (0.3, 0.54, 0.1), 0.4, noise=20)),
+        to_obj(core, "core", mat("heap_core", (0.3, 0.26, 0.08), 0.9, noise=40), smooth=False),
+    ]
+    for o in objs[2:3]:
+        # tenká stěna otevřeného lusku vidět z obou stran
+        o.data.materials[0].use_backface_culling = False
+    sun(az=-40, el=50, strength=3.6)
+    camera(world_points(objs), az=0, el=34, margin=1.04)
+    return True
+
+
 def icon_animal(name, folder=FAUNA, tint=None, turn=-115):
     """Zvíře stáda (model z `models/fauna/`, vůl ze spřežení `models/plough/`) z boku ve 3/4:
     morph targety pózy (krok, pastva) vypnuté – stojí; pomocná koule v GLB vola pryč."""
@@ -1481,6 +1555,7 @@ RESOURCES = {
     "meat": icon_meat,
     "cheese": icon_cheese,
     "eggs": icon_eggs,
+    "legumes": icon_legumes,
     "sheep": lambda: icon_animal("sheep"),
     "goat": lambda: icon_animal("goat"),
     "pig": lambda: icon_animal("pig"),

@@ -1,6 +1,6 @@
 import { TOTAL_GAME_DAYS, dateOfDayIndex, dayIndexOf } from '../calendar';
 import type { ObstacleLayer } from '../landscape';
-import { DIET } from './diet';
+import { DIET, meatHappiness } from './diet';
 import { isOvercrowded } from './dwellings';
 import { foodNeedPerDay } from './people';
 import {
@@ -61,17 +61,27 @@ export interface HappinessFactors {
   stores: number;
   /** Lidé jedí ovoce – sladké, +5 (diet.md). */
   fruit: number;
+  /** Lidé jedí maso – až +3 podle podílu energie z masa (diet.md – Luštěniny, Martin). */
+  meat: number;
   /** Posvátná místa – nejvýš +40. */
   sacred: number;
 }
 
 /**
- * Cílové štěstí = 50 + posvátná místa + zásoby + ovoce − hlad − úmrtí − přeplněnost − dřina
+ * Cílové štěstí = 50 + posvátná místa + zásoby + ovoce + maso − hlad − úmrtí − přeplněnost − dřina
  * (0–100).
  */
 export function happinessTarget(f: HappinessFactors): number {
   const value =
-    HAPPINESS.base + f.sacred + f.stores + f.fruit - f.hunger - f.deaths - f.crowding - f.toil;
+    HAPPINESS.base +
+    f.sacred +
+    f.stores +
+    f.fruit +
+    f.meat -
+    f.hunger -
+    f.deaths -
+    f.crowding -
+    f.toil;
   return Math.min(HAPPINESS.max, Math.max(HAPPINESS.min, value));
 }
 
@@ -115,9 +125,9 @@ export function hasGoodStores(state: VillageState, day: number): boolean {
 }
 
 /**
- * Složky cílového štěstí vsi v den `day` při nasycení `satiation`; `fruit` – lidé dnes jedí ovoce
- * (diet.md); `obstacles` – vrstva překážek krajiny (stáří a život posvátných dubů – bez ní se
- * počítají jako nejmladší).
+ * Složky cílového štěstí vsi v den `day` při nasycení `satiation`; `fruit` – lidé dnes jedí ovoce,
+ * `meatShare` – podíl energie dne z masa (diet.md); `obstacles` – vrstva překážek krajiny (stáří
+ * a život posvátných dubů – bez ní se počítají jako nejmladší).
  */
 export function happinessFactors(
   state: VillageState,
@@ -125,6 +135,7 @@ export function happinessFactors(
   satiation: number,
   fruit = false,
   obstacles: ObstacleLayer | null = null,
+  meatShare = 0,
 ): HappinessFactors {
   const memory = state.happiness;
   return {
@@ -134,6 +145,7 @@ export function happinessFactors(
     toil: toilPenalty(memory?.toil ?? []),
     stores: hasGoodStores(state, day) ? HAPPINESS_BONUS.stores : 0,
     fruit: fruit ? DIET.fruitHappiness : 0,
+    meat: meatHappiness(meatShare),
     sacred: sacredHappiness(state, day, obstacles),
   };
 }
@@ -160,6 +172,7 @@ export function updateHappiness(
     fruit?: boolean;
     /** Vrstva překážek – stáří a život posvátných dubů (bez ní nejmladší). */
     obstacles?: ObstacleLayer | null;
+    meatShare?: number;
   },
 ): void {
   const memory: HappinessState = state.happiness ?? {
@@ -173,7 +186,14 @@ export function updateHappiness(
   const toil = [...memory.toil, input.toil ? 1 : 0].slice(-HAPPINESS_PENALTY.toilWindowDays);
   state.happiness = { value: memory.value, deaths, toil };
   const target = happinessTarget(
-    happinessFactors(state, day, input.satiation, input.fruit ?? false, input.obstacles ?? null),
+    happinessFactors(
+      state,
+      day,
+      input.satiation,
+      input.fruit ?? false,
+      input.obstacles ?? null,
+      input.meatShare ?? 0,
+    ),
   );
   state.happiness.value = memory.value + (target - memory.value) * DAILY_SHARE;
 }
