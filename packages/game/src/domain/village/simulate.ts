@@ -7,7 +7,7 @@ import {
   craftCoverage,
   craftHouseholds,
   newWorkshop,
-  restingBurners,
+  restingCrafters,
   wearCraftStocks,
   workCrafts,
 } from './crafts';
@@ -604,8 +604,9 @@ function work(
   const repairNeeds = households.map((d) => repairNeedPerDay(d, day));
   const repairNeed = repairNeeds.reduce((sum, n) => sum + n, 0);
   const productivity = villageLaborFactor(state);
-  // uhlíř s plnou zásobou uhlí dnes pracuje se vsí (crafts.md – Uhlíř)
-  const resting = restingBurners(state, day, coverage, productivity);
+  // řemeslník, který dnes nemá v dílně co dělat (plná zásoba, chybí vstup), pracuje se vsí
+  // (crafts.md – Podle potřeby)
+  const resting = restingCrafters(state, day, coverage, productivity, obstacles);
   const crafts = craftHouseholds(state, resting);
   const villagers =
     crafts.size > 0 ? state.people.filter((p) => !crafts.has(p.dwellingId)) : state.people;
