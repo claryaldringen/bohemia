@@ -1,0 +1,150 @@
+import type { PathLine } from './path-network';
+import { hash01 } from './smoke-schedule';
+import { smoothstep, type DecalGrid } from './village-layout';
+
+// Pás vyšlapané pěšiny jako obtisk na terénu (docs/design/paths.md): po ose pěšiny průřez ze
+// čtyř bodů – měkký okraj (krytí 0), vyšlapaný střed, měkký okraj. Šířka a krytí podle síly,
+// osa se lehce vlní a šířka trochu kolísá (pěšina není podle pravítka), volné konce (brána,
+// pole, břeh) se vytrácejí. Výsledek je síť pro createDecalMesh (village-meshes.ts) – výšky,
+// normály a UV doplní ta. Čisté funkce, bez Babylonu.
+
+/** Vrstva pásu: šířka (m) slabé a silné pěšiny, měkký okraj, krytí a od jaké síly se kreslí. */
+export interface RibbonLayer {
+  width: { weak: number; strong: number };
+  softM: number;
+  /** Krytí středu podle síly 0–1. */
+  alpha(strength: number): number;
+  /** Šířka pásu jako násobek šířky pěšiny (jádro holé hlíny je užší). */
+  widthFactor: number;
+}
+
+/** Prošlapaná tráva – široký měkký pás (0,8–1,5 m podle síly). */
+export const WORN_LAYER: RibbonLayer = {
+  width: { weak: 0.8, strong: 1.5 },
+  softM: 0.55,
+  alpha: (s) => (s <= 0 ? 0 : 0.35 + 0.55 * s),
+  widthFactor: 1,
+};
+
+/** Holá udusaná hlína uprostřed silné pěšiny. */
+export const EARTH_LAYER: RibbonLayer = {
+  width: { weak: 0.8, strong: 1.5 },
+  softM: 0.35,
+  alpha: (s) => 0.85 * smoothstep(0.4, 0.95, s),
+  widthFactor: 0.5,
+};
+
+/** Krok průřezů podél osy (m). */
+const STEP_M = 0.9;
+/** Jak moc se osa vlní do stran (m) a na jakou délku vlny (m). */
+const WOBBLE_M = 0.35;
+const WOBBLE_WAVE_M = 9;
+/** Kolísání šířky (podíl). */
+const WIDTH_JITTER = 0.18;
+/** Volný konec se vytrácí na takové délce (m); vlnění osy u konců mizí na takové délce. */
+const END_FADE_M = 3;
+const WOBBLE_FADE_M = 4;
+
+/** Hladký šum 0–1 podél osy (hodnotový šum s plynulým přechodem). */
+function noise1(seed: number, t: number): number {
+  const k = Math.floor(t);
+  const f = t - k;
+  const u = f * f * (3 - 2 * f);
+  return hash01(seed, k, 61) * (1 - u) + hash01(seed, k + 1, 61) * u;
+}
+
+/** Seed pěšiny ze souřadnic jejích konců – stejná pěšina = stejné vlnění. */
+function lineSeed(line: PathLine): number {
+  const a = line.points[0]!;
+  const b = line.points[line.points.length - 1]!;
+  return (
+    (Math.round(a.x * 2) * 73856093) ^
+    (Math.round(a.z * 2) * 19349663) ^
+    (Math.round(b.x * 2) * 83492791) ^
+    Math.round(b.z * 2)
+  );
+}
+
+/** Pás všech pěšin jedné vrstvy jako síť obtisku (pozice x, z po dvojicích, krytí, indexy). */
+export function pathRibbons(lines: readonly PathLine[], layer: RibbonLayer): DecalGrid {
+  const positions: number[] = [];
+  const alphas: number[] = [];
+  const indices: number[] = [];
+  for (const line of lines) addRibbon(line, layer, positions, alphas, indices);
+  return {
+    positions: Float32Array.from(positions),
+    alphas: Float32Array.from(alphas),
+    indices: Uint32Array.from(indices),
+  };
+}
+
+function addRibbon(
+  line: PathLine,
+  layer: RibbonLayer,
+  positions: number[],
+  alphas: number[],
+  indices: number[],
+): void {
+  const pts = line.points;
+  if (pts.length < 2) return;
+  const at = [0];
+  for (let k = 1; k < pts.length; k++) {
+    at.push(at[k - 1]! + Math.hypot(pts[k]!.x - pts[k - 1]!.x, pts[k]!.z - pts[k - 1]!.z));
+  }
+  const length = at[at.length - 1]!;
+  if (length < 0.5) return;
+  const seed = lineSeed(line);
+  const steps = Math.max(1, Math.ceil(length / STEP_M));
+  let segment = 1;
+  let previous = -1;
+  for (let k = 0; k <= steps; k++) {
+    const d = (k / steps) * length;
+    while (segment < pts.length - 1 && at[segment]! < d) segment++;
+    const a = pts[segment - 1]!;
+    const b = pts[segment]!;
+    const span = Math.max(1e-6, at[segment]! - at[segment - 1]!);
+    const u = Math.min(1, Math.max(0, (d - at[segment - 1]!) / span));
+    const strength =
+      line.strength[segment - 1]! + (line.strength[segment]! - line.strength[segment - 1]!) * u;
+    // směr osy: průměr sousedních úseků v bodech zlomu (pás se v ohybu nezkroutí)
+    let tx = (b.x - a.x) / span;
+    let tz = (b.z - a.z) / span;
+    if (u === 1 && segment < pts.length - 1) {
+      const c = pts[segment + 1]!;
+      const l = Math.max(1e-6, Math.hypot(c.x - b.x, c.z - b.z));
+      tx += (c.x - b.x) / l;
+      tz += (c.z - b.z) / l;
+      const n = Math.max(1e-6, Math.hypot(tx, tz));
+      tx /= n;
+      tz /= n;
+    }
+    const nx = -tz;
+    const nz = tx;
+    const ends = smoothstep(0, WOBBLE_FADE_M, d) * smoothstep(0, WOBBLE_FADE_M, length - d);
+    const wobble = (noise1(seed, d / WOBBLE_WAVE_M) - 0.5) * 2 * WOBBLE_M * ends;
+    const cx = a.x + (b.x - a.x) * u + nx * wobble;
+    const cz = a.z + (b.z - a.z) * u + nz * wobble;
+    const width = layer.width.weak + (layer.width.strong - layer.width.weak) * strength;
+    const half =
+      (width / 2) *
+      layer.widthFactor *
+      (1 + (noise1(seed + 17, d / (WOBBLE_WAVE_M * 0.6)) - 0.5) * 2 * WIDTH_JITTER);
+    const fadeStart = line.openStart ? smoothstep(0, END_FADE_M, d) : 1;
+    const fadeEnd = line.openEnd ? smoothstep(0, END_FADE_M, length - d) : 1;
+    const alpha = layer.alpha(strength) * fadeStart * fadeEnd;
+    const offsets = [-(half + layer.softM), -half * 0.35, half * 0.35, half + layer.softM];
+    const base = positions.length / 2;
+    for (let i = 0; i < 4; i++) {
+      positions.push(cx + nx * offsets[i]!, cz + nz * offsets[i]!);
+      alphas.push(i === 0 || i === 3 ? 0 : alpha);
+    }
+    if (previous >= 0) {
+      for (let i = 0; i < 3; i++) {
+        const p = previous + i;
+        const q = base + i;
+        indices.push(p, q, p + 1, p + 1, q, q + 1);
+      }
+    }
+    previous = base;
+  }
+}

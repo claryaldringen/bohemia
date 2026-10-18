@@ -26,6 +26,7 @@ import {
   type ConstructionKind,
   type ConstructionSummary,
   type Crop,
+  type DwellingPlot,
   type DwellingType,
   type FieldSurface,
   type LaborShare,
@@ -35,6 +36,7 @@ import {
   type OrchardWork,
   type PartStage,
   type PlacementVillage,
+  type PlotVariant,
   type Position,
   type SacredBuildingKind,
   type StockResource,
@@ -244,6 +246,27 @@ export interface VillageOrchard {
   plantingWaits: boolean;
 }
 
+/** Pozemek obydlí ve scéně – políčko se středem a stranou jako čtverec pole a varianta. */
+export interface ScenePlot {
+  cell: TileCell;
+  x: number;
+  z: number;
+  size: number;
+  variant: PlotVariant;
+}
+
+/** Pozemek obydlí ze stavu vsi pro scénu (střed políčka ve světě). */
+export function scenePlot(landscape: Landscape, plot: DwellingPlot): ScenePlot {
+  const center = tileCenterWorld(landscape, plot.cell.x, plot.cell.y);
+  return {
+    cell: { x: plot.cell.x, y: plot.cell.y },
+    x: center.x,
+    z: center.z,
+    size: landscape.cellSizeM,
+    variant: plot.variant,
+  };
+}
+
 export interface SceneVillage {
   /** Hotová obydlí (`built: true`, id obydlí) i rozestavěná (`built: false`, id stavby). */
   dwellings: {
@@ -254,6 +277,16 @@ export interface SceneVillage {
     progress: number;
     /** Bydlí v něm někdo – jen z obydlí s obyvateli stoupá dým. Bez údaje = obývané. */
     inhabited?: boolean;
+    /**
+     * Pozemek (polozemnice) – políčko krajiny, jeho střed (x, z) ve světě, strana v m a varianta
+     * (kde na něm dům stojí). Volná obydlí (zemnice, starší polozemnice) ho nemají.
+     */
+    plot?: ScenePlot;
+    /**
+     * Herní den, od kdy obydlí stojí (hotové – dostavění, staveniště – zahájení stavby): pěšiny
+     * domácnosti se vyšlapávají postupně (paths.md). Bez údaje = odjakživa.
+     */
+    since?: number;
   }[];
   /**
    * Pole po čtvercích – díl = políčko krajiny `cell`, jeho střed (x, z) ve světě, strana
@@ -508,12 +541,25 @@ function sceneVillage(
     built: true,
     progress: 1,
     inhabited: occupied.has(d.id),
+    ...(d.plot ? { plot: scenePlot(landscape, d.plot) } : {}),
+    since: d.builtDay,
   }));
   // staveniště ukazuje samotnou stavbu – dřevo se kácí v lese, než se začne stavět
   const sites = state.constructions.flatMap((c) => {
     if (c.kind !== 'dwelling' || c.dwellingType === null || c.position === null) return [];
     const progress = constructions.find((s) => s.id === c.id)?.buildProgress ?? 0;
-    return [{ id: c.id, type: c.dwellingType, position: c.position, built: false, progress }];
+    const plot = c.plot ? { plot: scenePlot(landscape, c.plot) } : {};
+    return [
+      {
+        id: c.id,
+        type: c.dwellingType,
+        position: c.position,
+        built: false,
+        progress,
+        ...plot,
+        since: c.startedDay,
+      },
+    ];
   });
   const looks = fieldPartLooks(state, day);
   const fields = state.fields.map((f) => ({
@@ -640,14 +686,16 @@ function sacredView(summary: VillageSummary): VillageSacred {
   };
 }
 
-/** Rozdělení práce posledního dne pro postavy – člověkodny na setiny, nulové podíly pryč. */
+/** Rozdělení práce posledního dne pro postavy – člověkodny na setiny (drobné podíly 0,01). */
 function sceneLabor(state: VillageState, people: SceneLabor['people']): SceneLabor | null {
   const labor = laborReport(state);
   if (!labor) return null;
+  // na setiny, ale nic, co dnes práci dostalo, nezmizí – i drobná práce na stavbě je stavba,
+  // která roste, a u ní má někdo stát (villagers.md); díly čela polní práce jdou do podílu
+  // (`parts`), cíl zůstane pole
   const shares = labor.shares.flatMap((share): SceneLaborShare[] => {
-    const manDays = Math.round(share.manDays * 100) / 100;
-    if (manDays <= 0) return [];
-    // díly čela práce jdou do podílu (`parts`), cíl zůstane pole
+    if (share.manDays <= 0) return [];
+    const manDays = Math.max(0.01, Math.round(share.manDays * 100) / 100);
     if (share.target.kind === 'field' && share.target.parts) {
       const { parts, ...target } = share.target;
       return [{ ...share, target, manDays, parts }];
@@ -927,7 +975,11 @@ export function buildVillageView(
  */
 export function placementVillageFromScene(scene: SceneVillage): PlacementVillage {
   return {
-    dwellings: scene.dwellings.map((d) => ({ type: d.type, position: d.position })),
+    dwellings: scene.dwellings.map((d) => ({
+      type: d.type,
+      position: d.position,
+      ...(d.plot ? { plot: { cell: d.plot.cell, variant: d.plot.variant } } : {}),
+    })),
     constructions: [],
     // pole a plocha dílu (políčko) pro navazující pole – rozšíření a sloučení (fields.md)
     parts: scene.fields.flatMap((f) =>

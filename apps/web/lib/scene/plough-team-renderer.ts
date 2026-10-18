@@ -50,7 +50,7 @@ const FROZEN_T = 17;
 const PARTS = ['ard', 'yoke', 'pole', 'rope'] as const;
 type PartName = (typeof PARTS)[number];
 /** Vzhled na instanci (villagerLook): barva srsti / oděvu a kód vlasů (0 = přirozené). */
-const OX_LOOKS: readonly (readonly [number, number, number])[] = [
+export const OX_LOOKS: readonly (readonly [number, number, number])[] = [
   [1.04, 0.98, 0.9],
   [0.74, 0.69, 0.64],
 ];
@@ -72,7 +72,8 @@ export interface PloughTeamsEnvironment {
   onLoaded(): void;
 }
 
-interface BakedKind {
+/** Postava z GLB s kostrou v instancích (VAT) – mesh, animace a buffery instancí. */
+export interface BakedKind {
   mesh: Mesh;
   manager: BakedVertexAnimationManager;
   clips: Map<string, { start: number; end: number }>;
@@ -313,11 +314,13 @@ export class PloughTeams {
         loadModelParts(this.scene, `${base}ard.glb`, 'plough-', this.env.prepareMaterial),
       ]);
       if (this.disposed || this.scene.isDisposed) return;
-      if (ox.status === 'fulfilled' && ox.value) this.ox = this.createKind('ox', ox.value);
-      else
+      if (ox.status === 'fulfilled' && ox.value) {
+        this.ox = createBakedFigure(this.scene, 'plough-ox', ox.value);
+      } else {
         console.warn('Model vola se nepodařilo načíst.', ox.status === 'rejected' ? ox.reason : '');
+      }
       if (man.status === 'fulfilled' && man.value) {
-        this.man = this.createKind('plowman', man.value);
+        this.man = createBakedFigure(this.scene, 'plough-plowman', man.value);
       } else {
         console.warn(
           'Model oráče se nepodařilo načíst.',
@@ -339,7 +342,7 @@ export class PloughTeams {
           parts.status === 'rejected' ? parts.reason : '',
         );
       }
-      this.shadow = this.createShadow();
+      this.shadow = createBlobShadow(this.scene, 'plough-shadow', SHADOW_OPACITY);
       this.allocate();
       if (this.count > 0) {
         this.write(villagerSeconds(Date.now()), false);
@@ -348,106 +351,10 @@ export class PloughTeams {
     })();
     return this.loading;
   }
-
-  private createKind(
-    name: string,
-    model: NonNullable<Awaited<ReturnType<typeof loadBakedModel>>>,
-  ): BakedKind {
-    // Jméno mimo předpony vrhačů stínů – stínová mapa je statická (spřežení má vlastní stín).
-    const mesh = new Mesh(`plough-${name}`, this.scene);
-    model.vertexData.applyToMesh(mesh);
-    mesh.setVerticesData(VertexBuffer.MatricesIndicesKind, model.matricesIndices, false, 4);
-    mesh.setVerticesData(VertexBuffer.MatricesWeightsKind, model.matricesWeights, false, 4);
-    // Kostra jen kvůli definicím shaderu (skinning) – matice kostí čte shader z VAT textury.
-    const skeleton = new Skeleton(`plough-${name}-skeleton`, `plough-${name}`, this.scene);
-    for (let i = 0; i < model.boneCount; i++) new Bone(`b${i}`, skeleton);
-    mesh.skeleton = skeleton;
-    mesh.numBoneInfluencers = 4;
-    mesh.isPickable = false;
-    mesh.alwaysSelectAsActiveMesh = true;
-    const vat = RawTexture.CreateRGBATexture(
-      model.vat,
-      (model.boneCount + 1) * 4,
-      model.frames,
-      this.scene,
-      false,
-      false,
-      Texture.NEAREST_NEAREST,
-      Constants.TEXTURETYPE_FLOAT,
-    );
-    vat.name = `plough-${name}-vat`;
-    const manager = new BakedVertexAnimationManager(this.scene);
-    manager.texture = vat;
-    mesh.bakedVertexAnimationManager = manager;
-    const material = new StandardMaterial(`plough-${name}-material`, this.scene);
-    // bez mipmap jako u lidí a zvířat – ostrůvky atlasu na tmavém pozadí by z dálky ztmavly
-    model.texture?.updateSamplingMode(Constants.TEXTURE_BILINEAR_SAMPLINGMODE);
-    material.diffuseTexture = model.texture;
-    material.specularColor = Color3.Black();
-    material.backFaceCulling = false;
-    material.twoSidedLighting = true;
-    model.mask?.updateSamplingMode(Constants.TEXTURE_BILINEAR_SAMPLINGMODE);
-    new VillagerPlugin(material, model.texture?.gammaSpace === false, model.mask);
-    mesh.material = material;
-    return {
-      mesh,
-      manager,
-      clips: model.clips,
-      matrices: new Float32Array(16),
-      settings: new Float32Array(4),
-      looks: new Float32Array(4),
-    };
-  }
-
-  /** Měkký stín – čtverec s průhlednou elipsou (kruh roztažený maticí instance). */
-  private createShadow(): { mesh: Mesh; matrices: Float32Array } {
-    const mesh = new Mesh('plough-shadow', this.scene);
-    const data = new VertexData();
-    data.positions = [-0.5, 0, -0.5, 0.5, 0, -0.5, 0.5, 0, 0.5, -0.5, 0, 0.5];
-    data.normals = [0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0];
-    data.uvs = [0, 0, 1, 0, 1, 1, 0, 1];
-    data.indices = [0, 2, 1, 0, 3, 2];
-    data.applyToMesh(mesh);
-    mesh.isPickable = false;
-    mesh.alwaysSelectAsActiveMesh = true;
-    // po obtiscích vsi a polí (alphaIndex 1–2), jako stíny lidí
-    mesh.alphaIndex = 5;
-    const size = 64;
-    const pixels = new Uint8Array(size * size * 4);
-    for (let j = 0; j < size; j++) {
-      for (let i = 0; i < size; i++) {
-        const r = Math.hypot((i + 0.5) / size - 0.5, (j + 0.5) / size - 0.5) * 2;
-        const a = Math.max(0, 1 - r);
-        pixels[(j * size + i) * 4 + 3] = Math.round(255 * SHADOW_OPACITY * a * a * (3 - 2 * a));
-      }
-    }
-    const texture = RawTexture.CreateRGBATexture(
-      pixels,
-      size,
-      size,
-      this.scene,
-      false,
-      false,
-      Texture.BILINEAR_SAMPLINGMODE,
-    );
-    texture.hasAlpha = true;
-    texture.name = 'plough-shadow';
-    const material = new StandardMaterial('plough-shadow-material', this.scene);
-    material.diffuseColor = Color3.Black();
-    material.specularColor = Color3.Black();
-    material.emissiveColor = Color3.Black();
-    material.disableLighting = true;
-    material.opacityTexture = texture;
-    material.disableDepthWrite = true;
-    material.backFaceCulling = false;
-    material.zOffset = -2;
-    mesh.material = material;
-    return { mesh, matrices: new Float32Array(16) };
-  }
 }
 
 /** Instance postavy: poloha, natočení, měřítko a klip (fáze `phase` 0–1 kvůli rozladění). */
-function writeFigure(
+export function writeFigure(
   kind: BakedKind,
   slot: number,
   pose: FigurePose,
@@ -482,4 +389,112 @@ function writeFigure(
   kind.settings[s + 1] = clip.end;
   kind.settings[s + 2] = phase * length;
   kind.settings[s + 3] = frozen ? 0 : BAKE_FPS * pose.pace;
+}
+
+/** Model postavy z `loadBakedModel` (GLB s kostrou, animace zapečené do VAT). */
+export type BakedFigureModel = NonNullable<Awaited<ReturnType<typeof loadBakedModel>>>;
+
+/**
+ * Mesh postavy pro instance: geometrie s váhami kostí, VAT textura animací a materiál postav
+ * (VillagerPlugin – barva srsti / oděvu na instanci). `name` je předpona meshe, kostry,
+ * textury a materiálu – mimo předpony vrhačů stínů (stínová mapa je statická, postavy mají
+ * vlastní měkký stín).
+ */
+export function createBakedFigure(scene: Scene, name: string, model: BakedFigureModel): BakedKind {
+  const mesh = new Mesh(name, scene);
+  model.vertexData.applyToMesh(mesh);
+  mesh.setVerticesData(VertexBuffer.MatricesIndicesKind, model.matricesIndices, false, 4);
+  mesh.setVerticesData(VertexBuffer.MatricesWeightsKind, model.matricesWeights, false, 4);
+  // Kostra jen kvůli definicím shaderu (skinning) – matice kostí čte shader z VAT textury.
+  const skeleton = new Skeleton(`${name}-skeleton`, name, scene);
+  for (let i = 0; i < model.boneCount; i++) new Bone(`b${i}`, skeleton);
+  mesh.skeleton = skeleton;
+  mesh.numBoneInfluencers = 4;
+  mesh.isPickable = false;
+  mesh.alwaysSelectAsActiveMesh = true;
+  const vat = RawTexture.CreateRGBATexture(
+    model.vat,
+    (model.boneCount + 1) * 4,
+    model.frames,
+    scene,
+    false,
+    false,
+    Texture.NEAREST_NEAREST,
+    Constants.TEXTURETYPE_FLOAT,
+  );
+  vat.name = `${name}-vat`;
+  const manager = new BakedVertexAnimationManager(scene);
+  manager.texture = vat;
+  mesh.bakedVertexAnimationManager = manager;
+  const material = new StandardMaterial(`${name}-material`, scene);
+  // bez mipmap jako u lidí a zvířat – ostrůvky atlasu na tmavém pozadí by z dálky ztmavly
+  model.texture?.updateSamplingMode(Constants.TEXTURE_BILINEAR_SAMPLINGMODE);
+  material.diffuseTexture = model.texture;
+  material.specularColor = Color3.Black();
+  material.backFaceCulling = false;
+  material.twoSidedLighting = true;
+  model.mask?.updateSamplingMode(Constants.TEXTURE_BILINEAR_SAMPLINGMODE);
+  new VillagerPlugin(material, model.texture?.gammaSpace === false, model.mask);
+  mesh.material = material;
+  return {
+    mesh,
+    manager,
+    clips: model.clips,
+    matrices: new Float32Array(16),
+    settings: new Float32Array(4),
+    looks: new Float32Array(4),
+  };
+}
+
+/**
+ * Měkký stín pod postavou nebo zvířetem – čtverec s průhlednou elipsou (kruh roztažený maticí
+ * instance), krytí uprostřed `opacity`. Kreslí se po obtiscích vsi a polí.
+ */
+export function createBlobShadow(
+  scene: Scene,
+  name: string,
+  opacity: number,
+): { mesh: Mesh; matrices: Float32Array } {
+  const mesh = new Mesh(name, scene);
+  const data = new VertexData();
+  data.positions = [-0.5, 0, -0.5, 0.5, 0, -0.5, 0.5, 0, 0.5, -0.5, 0, 0.5];
+  data.normals = [0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0];
+  data.uvs = [0, 0, 1, 0, 1, 1, 0, 1];
+  data.indices = [0, 2, 1, 0, 3, 2];
+  data.applyToMesh(mesh);
+  mesh.isPickable = false;
+  mesh.alwaysSelectAsActiveMesh = true;
+  // po obtiscích vsi a polí (alphaIndex 1–2), jako stíny lidí
+  mesh.alphaIndex = 5;
+  const size = 64;
+  const pixels = new Uint8Array(size * size * 4);
+  for (let j = 0; j < size; j++) {
+    for (let i = 0; i < size; i++) {
+      const r = Math.hypot((i + 0.5) / size - 0.5, (j + 0.5) / size - 0.5) * 2;
+      const a = Math.max(0, 1 - r);
+      pixels[(j * size + i) * 4 + 3] = Math.round(255 * opacity * a * a * (3 - 2 * a));
+    }
+  }
+  const texture = RawTexture.CreateRGBATexture(
+    pixels,
+    size,
+    size,
+    scene,
+    false,
+    false,
+    Texture.BILINEAR_SAMPLINGMODE,
+  );
+  texture.hasAlpha = true;
+  texture.name = name;
+  const material = new StandardMaterial(`${name}-material`, scene);
+  material.diffuseColor = Color3.Black();
+  material.specularColor = Color3.Black();
+  material.emissiveColor = Color3.Black();
+  material.disableLighting = true;
+  material.opacityTexture = texture;
+  material.disableDepthWrite = true;
+  material.backFaceCulling = false;
+  material.zOffset = -2;
+  mesh.material = material;
+  return { mesh, matrices: new Float32Array(16) };
 }

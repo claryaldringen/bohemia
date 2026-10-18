@@ -15,6 +15,7 @@ import {
   SHOWCASE_BUILDINGS,
   SHOWCASE_DECOR,
   SHOWCASE_GROUNDS,
+  SHOWCASE_PEN,
   showcaseGrounds,
   showcaseHayMeadows,
   showcaseMeadowDay,
@@ -23,7 +24,8 @@ import {
 } from './building-showcase-layout';
 import { SUN_DIRECTION, WATER_FPS } from './constants';
 import { createEngine, type RendererName } from './create-engine';
-import { GARDEN_MODEL_URL, eaveTufts, gardenInstance, type TuftModel } from './dwelling-decor';
+import { eaveTufts, type TuftModel } from './dwelling-decor';
+import { HomesteadRenderer, type PlotView } from './homestead';
 import { applyGammaFog } from './gamma-fog';
 import {
   addInstancedModel,
@@ -33,14 +35,30 @@ import {
   type ModelInstance,
 } from './instanced-model';
 import { TREE_MODELS, type TreeModel } from './obstacle-scenery';
+import { PenAnimals } from './pen-animals';
+import { PenRenderer } from './pen-renderer';
 import { PitCuts, applyPitCut } from './pit-cut';
 import { ploughPath } from './plough-team';
 import { PloughTeams } from './plough-team-renderer';
+import { REFERENCE_DAY, seasonLook, type SeasonLight } from './season-look';
+import {
+  applySeasonGround,
+  applySeasonModel,
+  applySeasonSnow,
+  setSeasonShaderState,
+} from './season-materials';
 import { ShowcaseSites } from './showcase-sites';
 import { addSunShadows, type SunShadows } from './sun-shadows';
 import { prepareTreeMaterial } from './trees';
-import { CONSTRUCTION_BASE, type ConstructionKind } from './village-construction';
+import {
+  CONSTRUCTION_BASE,
+  PLOT_BUILT,
+  constructionState,
+  type ConstructionKind,
+} from './village-construction';
+import { createDecalMaterial } from './village-meshes';
 import { VillageRenderer } from './village-renderer';
+import { WovenFenceRenderer } from './woven-fence-renderer';
 
 /** Úhel kamery od svislice ve hře (BETA v camera.ts) – výchozí pohled vývojové stránky. */
 const GAME_BETA = 0.85;
@@ -49,6 +67,19 @@ const BASE_Y = -0.05;
 /** Rovná louka kolem staveb (m) a délka opakování textury trávy jako v terénu (m). */
 const GROUND_SIZE = { width: 400, depth: 400 };
 const GRASS_REPEAT_M = 65;
+/** Zimní den ukázky (konec ledna – souvislý sníh, holé stromy). */
+const WINTER_DAY = 30;
+/** Světlo ukázky v létě (jako LandscapeScene) – v zimě ho nahradí světlo období. */
+const SUMMER_LIGHT: SeasonLight = {
+  sunIntensity: 1.05,
+  sunColor: [1.03, 0.98, 0.88],
+  skyIntensity: 0.5,
+  skyColor: [0.93, 0.96, 1.05],
+  groundColor: [0.32, 0.3, 0.26],
+  clearColor: [0.63, 0.75, 0.85],
+  fogColor: [0.68, 0.77, 0.86],
+  fogDensity: 0.00032,
+};
 /** Okolní světlo modelů a trsů trávy jako ve vsi (village-renderer.ts). */
 const AMBIENT = new Color3(0.38, 0.38, 0.36);
 const PLANT_AMBIENT = new Color3(0.45, 0.48, 0.45);
@@ -83,13 +114,15 @@ function decorInstance(m: ShowcaseDecorModel): ModelInstance {
 
 /**
  * VÝVOJOVÝ NÁHLED – jen pro /dev/buildings: stavby vedle sebe na rovné louce se světlem hry
- * (slunce, obloha, opar a kontrast jako LandscapeScene), jámy, trsy trávy u okapu a zahrádka
+ * (slunce, obloha, opar a kontrast jako LandscapeScene), jámy, trsy trávy u okapu a pozemky
  * polozemnice jako ve vsi, stíny od slunce. Za stavbami pole, hřbitov, sad a louka na seno –
  * kreslí je herní `VillageRenderer` podle `showcaseGrounds`; vpravo posvátný dub s obětinami
  * a dubový háj s kameny (`SHOWCASE_DECOR`, bez staveniště); vlevo orá spřežení volů s rádlem
- * (`PloughTeams`). Kamera se otáčí levým tlačítkem, posouvá pravým, kolečko přibližuje.
- * Kreslí se jen při změně pohledu – výjimka je spřežení v záběru (WATER_FPS jako voda,
- * při omezeném pohybu stojí).
+ * (`PloughTeams`) a vedle zemnice stojí ohrada s přístřeškem, dvěma voly a krávou
+ * (`PenRenderer`, `PenAnimals`). `setWinter` přepne světlo a uniformy období na zimu (sníh na
+ * střechách a louce). Kamera se otáčí levým tlačítkem, posouvá pravým, kolečko přibližuje.
+ * Kreslí se jen při změně pohledu – výjimka je spřežení a zvířata v ohradě v záběru
+ * (WATER_FPS jako voda, při omezeném pohybu stojí).
  */
 export class BuildingShowcase {
   private readonly resizeObserver: ResizeObserver;
@@ -101,6 +134,9 @@ export class BuildingShowcase {
   private sites: ShowcaseSites | null = null;
   /** Pole, hřbitov a sad – herní renderer vsi bez obydlí. */
   private grounds: VillageRenderer | null = null;
+  /** Pozemky polozemnic – plot a záhony po fázích jako ve vsi (homestead.ts). */
+  private plots: HomesteadRenderer | null = null;
+  private fences: WovenFenceRenderer | null = null;
   private shadows: SunShadows | null = null;
   /** Vrhače stínu přidané dřív, než vznikne stínová mapa. */
   private readonly pendingCasters: Mesh[] = [];
@@ -109,12 +145,20 @@ export class BuildingShowcase {
   private readonly tufts: Mesh[] = [];
   /** Spřežení volů s rádlem (ukázka „Orání“). */
   private teams: PloughTeams | null = null;
+  /** Ohrada s přístřeškem a zvířata v ní (ukázka „Ohrada“). */
+  private pens: PenRenderer | null = null;
+  private penAnimals: PenAnimals | null = null;
+  /** Zimní vzhled (sníh na střechách a louce) – jinak léto. */
+  private winter = false;
   /** Poslední snímek animace spřežení (ms) – nejvýš WATER_FPS za sekundu. */
   private lastAnimation = 0;
   /** Při omezeném pohybu stojí – stačí ho jednou postavit. */
   private frozenWritten = false;
   /** Kamera jede za spřežením. */
   private following = false;
+  /** Poslední snímek zvířat v ohradě (ms) a jejich stálá póza při omezeném pohybu. */
+  private lastPenAnimation = 0;
+  private penFrozen = false;
   private readonly reducedMotion =
     typeof window !== 'undefined' && typeof window.matchMedia === 'function'
       ? window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -141,24 +185,24 @@ export class BuildingShowcase {
     const { engine, renderer } = await createEngine(canvas, options.renderer ?? 'auto');
     const scene = new Scene(engine);
     // světlo, opar a úprava obrazu jako LandscapeScene.create
-    scene.clearColor = new Color4(0.63, 0.75, 0.85, 1);
+    scene.clearColor = new Color4(...SUMMER_LIGHT.clearColor, 1);
     scene.ambientColor = new Color3(1, 1, 1);
     scene.fogMode = Scene.FOGMODE_EXP2;
-    scene.fogDensity = 0.00032;
-    scene.fogColor = new Color3(0.68, 0.77, 0.86);
+    scene.fogDensity = SUMMER_LIGHT.fogDensity;
+    scene.fogColor = new Color3(...SUMMER_LIGHT.fogColor);
     scene.imageProcessingConfiguration.contrast = 1.1;
     scene.skipPointerMovePicking = true;
     const sky = new HemisphericLight('sky', new Vector3(0.2, 1, 0.1), scene);
-    sky.intensity = 0.5;
-    sky.diffuse = new Color3(0.93, 0.96, 1.05);
-    sky.groundColor = new Color3(0.32, 0.3, 0.26);
+    sky.intensity = SUMMER_LIGHT.skyIntensity;
+    sky.diffuse = new Color3(...SUMMER_LIGHT.skyColor);
+    sky.groundColor = new Color3(...SUMMER_LIGHT.groundColor);
     const sun = new DirectionalLight(
       'sun',
       new Vector3(SUN_DIRECTION.x, SUN_DIRECTION.y, SUN_DIRECTION.z),
       scene,
     );
-    sun.intensity = 1.05;
-    sun.diffuse = new Color3(1.03, 0.98, 0.88);
+    sun.intensity = SUMMER_LIGHT.sunIntensity;
+    sun.diffuse = new Color3(...SUMMER_LIGHT.sunColor);
 
     const start = SHOWCASE_BUILDINGS.find((b) => b.id === 'hrncir')?.focus;
     const camera = new ArcRotateCamera(
@@ -186,11 +230,14 @@ export class BuildingShowcase {
     return showcase;
   }
 
-  /** Kamera na stavbu (id ze SHOWCASE_BUILDINGS, SHOWCASE_GROUNDS nebo SHOWCASE_DECOR). */
+  /** Kamera na stavbu (id ze SHOWCASE_BUILDINGS, SHOWCASE_GROUNDS, SHOWCASE_DECOR nebo SHOWCASE_PEN). */
   focus(id: string): void {
-    const target = [...SHOWCASE_BUILDINGS, ...SHOWCASE_GROUNDS, ...SHOWCASE_DECOR].find(
-      (b) => b.id === id,
-    );
+    const target = [
+      ...SHOWCASE_BUILDINGS,
+      ...SHOWCASE_GROUNDS,
+      ...SHOWCASE_DECOR,
+      SHOWCASE_PEN,
+    ].find((b) => b.id === id);
     if (!target) return;
     this.setView(target.focus);
   }
@@ -217,6 +264,37 @@ export class BuildingShowcase {
     this.setView({ x: center.x, z: center.z, radius });
   }
 
+  /**
+   * Zimní vzhled (zapnuto / vypnuto): světlo, opar a uniformy období jako ve hře v zimě (sníh
+   * na střechách, stozích a louce, nízké trsy pod sněhem). Vrátí nový stav.
+   */
+  setWinter(on: boolean): boolean {
+    this.winter = on;
+    const look = seasonLook(on ? WINTER_DAY : REFERENCE_DAY);
+    const light: SeasonLight = on ? look.light : SUMMER_LIGHT;
+    const scene = this.scene;
+    const sun = scene.getLightByName('sun');
+    if (sun instanceof DirectionalLight) {
+      sun.intensity = light.sunIntensity;
+      sun.diffuse.set(...light.sunColor);
+    }
+    const sky = scene.getLightByName('sky');
+    if (sky instanceof HemisphericLight) {
+      sky.intensity = light.skyIntensity;
+      sky.diffuse.set(...light.skyColor);
+      sky.groundColor.set(...light.groundColor);
+    }
+    scene.clearColor.set(...light.clearColor, 1);
+    scene.fogColor.set(...light.fogColor);
+    scene.fogDensity = light.fogDensity;
+    setSeasonShaderState(scene, look);
+    // pole a louky: nízké trsy pod sněhem zmizí
+    this.grounds?.setSeason(showcaseMeadowDay(this.progress), this.snow());
+    this.shadows?.refresh();
+    this.burst(600);
+    return this.winter;
+  }
+
   /** Kamera jede za spřežením (zapnuto / vypnuto); vrátí nový stav. */
   followTeam(on: boolean): boolean {
     this.following = on && this.teams !== null;
@@ -230,7 +308,11 @@ export class BuildingShowcase {
     this.resizeObserver.disconnect();
     this.sites?.dispose();
     this.grounds?.dispose();
+    this.plots?.dispose();
+    this.fences?.dispose();
     this.teams?.dispose();
+    this.pens?.dispose();
+    this.penAnimals?.dispose();
     this.camera.detachControl();
     this.engine.stopRenderLoop();
     this.scene.dispose();
@@ -266,16 +348,12 @@ export class BuildingShowcase {
     grass.anisotropicFilteringLevel = 8;
     grassMaterial.diffuseTexture = grass;
     applyPitCut(grassMaterial, pitCuts);
+    // v zimě zasněžená louka (vzor sněhu jako na terénu)
+    applySeasonGround(grassMaterial);
     ground.material = grassMaterial;
 
     const casters = this.pendingCasters;
     const parts = new Map<string, Mesh>();
-    // zahrádka polozemnice vedle domu (zemnice ani dílny ji nemají)
-    const gardens = models.flatMap((m) => {
-      if (m.kind !== 'zemnice' && m.kind !== 'polozemnice') return [];
-      const garden = gardenInstance(m.kind, m, () => 0);
-      return garden ? [garden] : [];
-    });
     // dekorace podle souboru: stromy jako v lese, obětiny, kameny háje po uzlech
     const decor = new Map<string, ShowcaseDecorModel[]>();
     for (const m of SHOWCASE_DECOR.flatMap((g) => g.models)) {
@@ -322,22 +400,6 @@ export class BuildingShowcase {
           console.warn('Trsy trávy se nepodařilo načíst.', error);
         }
       }),
-      (async () => {
-        try {
-          const mesh = await addInstancedModel(
-            scene,
-            GARDEN_MODEL_URL,
-            'showcase-garden',
-            gardens,
-            prepareModelMaterial,
-          );
-          if (!mesh) return;
-          casters.push(mesh);
-          this.finished.push(mesh);
-        } catch (error) {
-          console.warn('Model zahrádky se nepodařilo načíst.', error);
-        }
-      })(),
       ...[...decor].map(async ([url, list], i) => {
         try {
           if (list.some((m) => m.part !== undefined)) {
@@ -408,8 +470,36 @@ export class BuildingShowcase {
       sunDirection: SUN_DIRECTION,
     });
     this.grounds.setHayMeadows(showcaseHayMeadows());
-    this.grounds.setSeason(showcaseMeadowDay(this.progress), 0);
+    this.grounds.setSeason(showcaseMeadowDay(this.progress), this.snow());
     this.grounds.update(showcaseGrounds(this.progress).village);
+    const pathMaterial = createDecalMaterial(scene, 'showcase-plot-path', {
+      texture: 'grass-dirt',
+    });
+    applyPitCut(pathMaterial, pitCuts);
+    applySeasonGround(pathMaterial, 0.85);
+    const addCaster = (mesh: Mesh): void => {
+      if (this.shadows) this.shadows.addCaster(mesh);
+      else casters.push(mesh);
+    };
+    const onAsyncChange = (): void => {
+      this.shadows?.refresh();
+      this.burst(600);
+    };
+    this.fences = new WovenFenceRenderer(scene, {
+      height: () => 0,
+      addShadowCaster: addCaster,
+      onAsyncChange,
+      prepareMaterial: prepareModelMaterial,
+    });
+    this.plots = new HomesteadRenderer(scene, {
+      groundHeight: () => 0,
+      decalHeight: () => 0,
+      addShadowCaster: addCaster,
+      onAsyncChange,
+      pathMaterial: () => pathMaterial,
+      prepareMaterial: prepareModelMaterial,
+      fences: this.fences,
+    });
     this.teams = new PloughTeams(scene, {
       baseUrl: '/models/plough/',
       groundHeight: () => 0,
@@ -417,6 +507,22 @@ export class BuildingShowcase {
       onLoaded: () => this.burst(600),
     });
     this.teams.setPaths([ploughPath(showcasePloughField())]);
+    const mudMaterial = createDecalMaterial(scene, 'showcase-pen-mud', { texture: 'mud' });
+    // ušlapaný sníh v ohradě – bláto pod ním prosvítá
+    applySeasonGround(mudMaterial, 0.45);
+    this.pens = new PenRenderer(scene, {
+      groundHeight: () => 0,
+      decalHeight: () => 0,
+      addShadowCaster: addCaster,
+      onAsyncChange,
+      prepareMaterial: prepareModelMaterial,
+      mudMaterial: () => mudMaterial,
+      fences: this.fences,
+    });
+    this.penAnimals = new PenAnimals(scene, {
+      groundHeight: () => 0,
+      onLoaded: () => this.burst(600),
+    });
     this.shadows = addSunShadows(sun, { casters, receivers: [ground], extentM: GROUND_SIZE.width });
     this.applyProgress();
     await scene.whenReadyAsync();
@@ -432,10 +538,35 @@ export class BuildingShowcase {
     for (const mesh of this.finished) mesh.setEnabled(built);
     for (const mesh of this.tufts) mesh.setEnabled(built);
     this.sites.update(this.progress);
-    this.grounds?.setSeason(showcaseMeadowDay(this.progress), 0);
+    this.grounds?.setSeason(showcaseMeadowDay(this.progress), this.snow());
     this.grounds?.update(showcaseGrounds(this.progress).village);
+    this.plots?.update(this.plotViews());
+    this.pens?.update([
+      {
+        id: 1,
+        square: SHOWCASE_PEN.square,
+        facing: SHOWCASE_PEN.facing,
+        progress: this.progress,
+      },
+    ]);
+    this.penAnimals?.set(this.pens?.builtLayouts().flatMap((layout) => layout.animals) ?? []);
     this.shadows?.refresh();
     this.burst(400);
+  }
+
+  /** Sněhová pokrývka ukázky (0 v létě). */
+  private snow(): number {
+    return this.winter ? seasonLook(WINTER_DAY).snow : 0;
+  }
+
+  /** Pozemky polozemnic při průběhu stavby (hotové celé, staveniště podle fáze plotu). */
+  private plotViews(): PlotView[] {
+    return SHOWCASE_BUILDINGS.flatMap((b) => b.models).flatMap((m, i) => {
+      if (!m.plot) return [];
+      const progress =
+        this.progress >= 1 ? PLOT_BUILT : constructionState(m.kind, this.progress).plot;
+      return [{ id: i + 1, square: m.plot, variant: m.plot.variant, progress }];
+    });
   }
 
   /**
@@ -466,6 +597,20 @@ export class BuildingShowcase {
         if (center) this.camera.target.set(center.x, 0, center.z);
       }
     }
+    if (this.penAnimals) {
+      if (this.reducedMotion?.matches) {
+        if (!this.penFrozen && this.penAnimals.animate(0, null, true)) {
+          this.penFrozen = true;
+          animated = true;
+        }
+      } else if (now - this.lastPenAnimation >= 1000 / WATER_FPS) {
+        this.penFrozen = false;
+        if (this.penAnimals.animate(Date.now(), this.camera)) {
+          this.lastPenAnimation = now;
+          animated = true;
+        }
+      }
+    }
     this.camera.update();
     const view = this.camera.getViewMatrix(true);
     const changed = !this.hasView || !view.equals(this.lastView);
@@ -487,6 +632,8 @@ function prepareModelMaterial(material: Material): void {
   material.metallic = 0;
   material.ambientColor = AMBIENT;
   if (material.albedoTexture) material.albedoTexture.anisotropicFilteringLevel = 8;
+  // v zimě sníh na střechách a plochách obrácených nahoru (jako obydlí ve vsi)
+  applySeasonSnow(material);
 }
 
 function prepareTuftMaterial(material: Material): void {
@@ -499,4 +646,6 @@ function prepareTuftMaterial(material: Material): void {
   material.directIntensity = 0.75;
   material.albedoColor = TUFT_TINT;
   if (material.albedoTexture) material.albedoTexture.anisotropicFilteringLevel = 8;
+  // trsy na podzim usychají a přes zimu stojí suché (jako ve vsi)
+  applySeasonModel(material, 'grass-tuft');
 }

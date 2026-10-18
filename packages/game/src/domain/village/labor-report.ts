@@ -68,9 +68,20 @@ const FIELD_ACTIVITIES: readonly LaborTaskName[] = ['reclaim', 'dig', 'sow', 'we
  */
 export function laborDay(state: VillageState, day: number, work: DayWork): LaborDay {
   const shares: LaborShare[] = [];
-  const add = (activity: LaborActivity, target: LaborTarget, manDays: number): void => {
+  const add = (
+    activity: LaborActivity,
+    target: LaborTarget,
+    manDays: number,
+    construction?: number,
+  ): void => {
     const rounded = Math.round(manDays * 1000) / 1000;
-    if (rounded >= MIN_MAN_DAYS) shares.push({ activity, target, manDays: rounded });
+    if (rounded < MIN_MAN_DAYS) return;
+    shares.push({
+      activity,
+      target,
+      manDays: rounded,
+      ...(construction === undefined ? {} : { construction }),
+    });
   };
   const { allocation } = work;
 
@@ -100,7 +111,9 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
   let invested = 0;
   for (const c of work.constructions) {
     invested += c.manDays;
-    for (const share of constructionShares(c)) add(share.activity, share.target, share.manDays);
+    for (const share of constructionShares(c)) {
+      add(share.activity, share.target, share.manDays, c.construction.id);
+    }
   }
   add('idle', { kind: 'village' }, allocation.common - invested);
   return { day, shares };

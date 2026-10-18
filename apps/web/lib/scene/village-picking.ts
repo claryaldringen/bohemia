@@ -83,8 +83,8 @@ export function insideSacredFootprint(
 /**
  * Co je pod kurzorem: obydlí, které paprsek protne od země do výšky střechy (nejbližší ke
  * kameře), pak modla nebo svatyně (paprsek přes půdorys do výšky modly), posvátný dub (paprsek
- * do 4 m od kmene od země do koruny), jinak pole, hřbitov, sad nebo dubový háj, jehož čtverec
- * leží pod bodem terénu `ground`; null = prázdná zem.
+ * do 4 m od kmene od země do koruny), jinak obydlí, jehož pozemek (políčko), pole, hřbitov, sad
+ * nebo dubový háj leží pod bodem terénu `ground`; null = prázdná zem.
  */
 export function pickVillageTarget(
   village: SceneVillage,
@@ -133,6 +133,10 @@ export function pickVillageTarget(
   if (!options.ground) return null;
   const cell = options.cellOf(options.ground.x, options.ground.z);
   if (!cell) return null;
+  const owner = village.dwellings.find(
+    (d) => d.plot?.cell.x === cell.x && d.plot.cell.y === cell.y,
+  );
+  if (owner) return { kind: 'dwelling', id: owner.id };
   const field = village.fields.find((f) =>
     f.parts.some((p) => p.cell.x === cell.x && p.cell.y === cell.y),
   );

@@ -69,6 +69,23 @@ describe('ověření vstupu server actions vsi', () => {
       position: dwelling,
     });
     expect(parsePlaceDwellingInput({ type: 'hrad', position: dwelling })).toBeNull();
+    // pozemek polozemnice: celočíselné políčko a známá varianta (přebytečné klíče zahodí)
+    const plot = { cell: { x: 4, y: 7, z: 1 }, variant: 'back-left' };
+    expect(parsePlaceDwellingInput({ type: 'polozemnice', position: dwelling, plot })).toEqual({
+      type: 'polozemnice',
+      position: dwelling,
+      plot: { cell: { x: 4, y: 7 }, variant: 'back-left' },
+    });
+    for (const bad of [
+      { cell: { x: 4.5, y: 7 }, variant: 'center' },
+      { cell: { x: 4, y: 7 }, variant: 'middle' },
+      { variant: 'center' },
+      'center',
+    ]) {
+      expect(
+        parsePlaceDwellingInput({ type: 'polozemnice', position: dwelling, plot: bad }),
+      ).toBeNull();
+    }
     expect(parsePlaceFieldInput({ cells })).toEqual({ cells });
     expect(parsePlaceFieldInput({})).toBeNull();
   });

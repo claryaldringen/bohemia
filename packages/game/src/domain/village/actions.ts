@@ -17,6 +17,7 @@ import { NO_CRAFTS } from './productivity';
 import {
   FIELD_LIMITS,
   FOOD_NEED_KG_PER_YEAR,
+  PLOT_VARIANTS,
   START_AGES,
   START_STORES_MONTHS,
   dwellingBuildLabor,
@@ -24,6 +25,7 @@ import {
 import { hasShrine, recordSpared, validateSpared, type SparedSacred } from './sacred';
 import type {
   CemeterySquare,
+  DwellingPlot,
   DwellingType,
   FieldSurface,
   OrchardSquare,
@@ -128,6 +130,14 @@ function validatePosition(position: Position): void {
   if (![position.x, position.z, position.rotation].every(Number.isFinite)) {
     throw new RangeError('Poloha obydlí musí mít konečné souřadnice a natočení.');
   }
+}
+
+/** Pozemek: celočíselné políčko a známá varianta; jinak RangeError. */
+function validatePlot(plot: DwellingPlot): void {
+  if (!Number.isInteger(plot.cell.x) || !Number.isInteger(plot.cell.y)) {
+    throw new RangeError('Políčko pozemku musí mít celočíselné souřadnice.');
+  }
+  if (!PLOT_VARIANTS.includes(plot.variant)) throw new RangeError('Neznámá varianta pozemku.');
 }
 
 /** Cena překážek musí být konečná a nezáporná; jinak RangeError. */
@@ -417,6 +427,8 @@ export interface DwellingSiteOptions {
   clearedTrees?: number;
   /** Vzdálenost obydlí k nejbližšímu okraji lesa (m) – palivo. */
   forestDistanceM?: number;
+  /** Pozemek obydlí (`checkPlotPlacement`) – `position` je pak poloha domu na něm. */
+  plot?: DwellingPlot;
   /** Posvátné duby a háje na vyklízené ploše – zůstanou stát (happiness.md). */
   sacred?: SparedSacred;
 }
@@ -451,6 +463,7 @@ export function startNewDwelling(
   validateObstacleIds(obstacleIds);
   validateTrees(site.clearedTrees ?? 0);
   if (site.forestDistanceM !== undefined) validateForestDistance(site.forestDistanceM);
+  if (site.plot) validatePlot(site.plot);
   if (site.sacred) validateSpared(site.sacred);
   requireAffordable(state, type, site.obstacles);
   const plan: WoodPlan = planDwellingWood(state, type, position, day, {
@@ -471,6 +484,7 @@ export function startNewDwelling(
     done: 0,
     dwellingType: type,
     position,
+    ...(site.plot ? { plot: { cell: { ...site.plot.cell }, variant: site.plot.variant } } : {}),
     dwellingId: null,
     fieldId: null,
     wood,

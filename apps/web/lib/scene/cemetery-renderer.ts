@@ -1,6 +1,5 @@
 import type { Material } from '@babylonjs/core/Materials/material';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
-import { RawTexture } from '@babylonjs/core/Materials/Textures/rawTexture';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
@@ -8,7 +7,7 @@ import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import type { Scene } from '@babylonjs/core/scene';
 import type { SceneVillage } from '../village-view';
 import {
-  FENCE_HEIGHT_M,
+  CEMETERY_FENCE,
   cemeteryConstruction,
   fenceLayout,
   gravePlacements,
@@ -20,19 +19,12 @@ import { instanceMatrices, type ModelInstance } from './instanced-model';
 import { StakingPegs, createStringMaterial, createStringMesh, pegInstances } from './staking';
 import { seededRandom, stripSegments, type HideShape, type Point } from './village-layout';
 import { createStripMesh, type HeightFn } from './village-meshes';
+import { fenceStage } from './woven-fence';
+import type { WovenFenceRenderer } from './woven-fence-renderer';
 
 type SceneCemetery = NonNullable<SceneVillage['cemeteries']>[number];
 type SceneDwelling = SceneVillage['dwellings'][number];
 
-/** Kůl plotu: průřez (m) a délka – část je zatlučená v zemi, nad plotem kus přečnívá. */
-const POST_SIZE_M = 0.09;
-const POST_LENGTH_M = FENCE_HEIGHT_M + 0.3;
-const POST_SINK_M = 0.12;
-/** Kůly branky jsou vyšší (uniformní měřítko kůlu). */
-const GATE_POST_SCALE = 1.25;
-/** Plot leží o kousek v zemi, aby na svahu nevisel; body pletení po nejvýš 0,7 m. */
-const WATTLE_SINK_M = 0.06;
-const WATTLE_STEP_M = 0.7;
 /** Mohylka: poloměr a výška (m), dělení sítě. */
 const MOUND_RADIUS_M = 0.9;
 const MOUND_HEIGHT_M = 0.45;
@@ -42,15 +34,15 @@ const MOUND_RINGS = 5;
 const LAYOUT_LIFT_M = 0.06;
 /** Kolik metrů kolem čtverců se skryjí stromy a kameny krajiny. */
 const HIDE_MARGIN_M = 1.5;
-/** Okolní světlo z oblohy (scene.ambientColor je bílá) – svislý plot by byl jinak skoro černý. */
+/** Okolní světlo z oblohy (scene.ambientColor je bílá) – mohylky by byly jinak příliš tmavé. */
 const AMBIENT = new Color3(0.42, 0.42, 0.4);
 
 interface CemeteryView {
   key: string;
   meshes: Mesh[];
   shape: HideShape;
-  /** Instance kůlů, kolíků a mohylek tohoto pohřebiště (sdílené meshe). */
-  posts: ModelInstance[];
+  /** Vlastníci plotů tohoto pohřebiště ve sdílených pletených plotech. */
+  fences: string[];
   /** Kolíky vytyčení (staking.ts) – stojí, dokud se nezačnou zatloukat kůly. */
   pegs: ModelInstance[];
   grassMounds: ModelInstance[];
@@ -58,15 +50,15 @@ interface CemeteryView {
 }
 
 /**
- * Pohřebiště ve scéně (cemetery.md – Co hráč vidí): nízký proutěný plot kolem čtverců s brankou
- * k nejbližšímu obydlí, uvnitř hliněné mohylky po hrobech (čerstvé z holé hlíny, starší zarostlé
- * travou). Založení po fázích: čára vytyčení s kolíky, zatloukání kůlů, pletení plotu zdola.
- * Kůly a mohylky jsou sdílené meshe v instancích, pletení je vlastní síť každého pohřebiště.
+ * Pohřebiště ve scéně (cemetery.md – Co hráč vidí): nízký proutěný plot se zakulacenými rohy
+ * kolem čtverců s brankou k nejbližšímu obydlí, uvnitř hliněné mohylky po hrobech (čerstvé
+ * z holé hlíny, starší zarostlé travou). Založení po fázích: čára vytyčení s kolíky, zatloukání
+ * kůlů, pletení plotu zdola. Plot je sdílený pletený plot (woven-fence-renderer.ts), mohylky
+ * sdílené meshe v instancích.
  */
 export class CemeteryRenderer {
   private readonly views = new Map<number, CemeteryView>();
   private readonly materials = new Map<string, Material>();
-  private postMesh: Mesh | null = null;
   private readonly pegs: StakingPegs;
   private grassMoundMesh: Mesh | null = null;
   private earthMoundMesh: Mesh | null = null;
@@ -80,6 +72,8 @@ export class CemeteryRenderer {
       groundHeight: HeightFn;
       addShadowCaster(mesh: Mesh): void;
       requestRender(): void;
+      /** Sdílené pletené ploty (plot hřbitova). */
+      fences: WovenFenceRenderer;
     },
   ) {
     this.pegs = new StakingPegs(scene, (mesh) => context.addShadowCaster(mesh));
@@ -96,12 +90,12 @@ export class CemeteryRenderer {
       const current = this.views.get(cemetery.id);
       if (current?.key === key) continue;
       changed = true;
-      if (current) for (const mesh of current.meshes) mesh.dispose();
+      if (current) this.release(current);
       this.views.set(cemetery.id, this.build(cemetery, gate, key));
     }
     for (const [id, view] of this.views) {
       if (seen.has(id)) continue;
-      for (const mesh of view.meshes) mesh.dispose();
+      this.release(view);
       this.views.delete(id);
       changed = true;
     }
@@ -115,18 +109,24 @@ export class CemeteryRenderer {
   }
 
   dispose(): void {
-    for (const view of this.views.values()) for (const mesh of view.meshes) mesh.dispose();
+    for (const view of this.views.values()) this.release(view);
+    this.context.fences.commit();
     this.views.clear();
-    this.postMesh?.dispose();
     this.pegs.dispose();
     this.grassMoundMesh?.dispose();
     this.earthMoundMesh?.dispose();
   }
 
+  /** Zruší sítě pohřebiště a jeho ploty ze sdílených pletených plotů. */
+  private release(view: CemeteryView): void {
+    for (const mesh of view.meshes) mesh.dispose();
+    for (const owner of view.fences) this.context.fences.set(owner, null);
+  }
+
   /**
    * Hřbitov: nehotový celý ve fázích založení; hotový s plotem kolem hotových čtverců
-   * a mohylkami, rozšíření ve stavbě má vlastní plot ve fázích (bez branky), po dokončení se
-   * plot obepne kolem všech čtverců.
+   * a mohylkami, rozšíření ve stavbě má vlastní kus plotu ve fázích (bez branky, na starý plot
+   * jen navazuje), po dokončení se plot obepne kolem všech čtverců.
    */
   private build(cemetery: SceneCemetery, gate: Point | null, key: string): CemeteryView {
     const squares: CellSquare[] = cemetery.squares;
@@ -150,7 +150,7 @@ export class CemeteryRenderer {
       }
       if (pending.length > 0) {
         fences.push({
-          fence: fenceLayout(pending, null, false),
+          fence: fenceLayout(pending, null, { withGate: false, fenced: ready }),
           state: cemeteryConstruction(cemetery.progress, false),
           key: 'extension',
         });
@@ -158,25 +158,16 @@ export class CemeteryRenderer {
     }
 
     const meshes: Mesh[] = [];
-    const posts: ModelInstance[] = [];
+    const owners: string[] = [];
     const pegs: ModelInstance[] = [];
     const height = this.context.decalHeight;
     for (const { fence, state, key: part } of fences) {
       const name = `${cemetery.id}-${part}`;
       if (state.layout) meshes.push(this.layoutMesh(name, fence));
-      if (state.wattleHeight > 0) meshes.push(this.wattleMesh(name, fence, state.wattleHeight));
-      if (state.posts > 0) {
-        const count = Math.round(fence.posts.length * state.posts);
-        for (const post of fence.posts.slice(0, count)) {
-          posts.push({
-            x: post.x,
-            y: height(post.x, post.z) - POST_SINK_M,
-            z: post.z,
-            rotationY: 0,
-            scale: post.gate ? GATE_POST_SCALE : 1,
-          });
-        }
-      } else if (state.layout) {
+      const owner = `cemetery-${name}`;
+      owners.push(owner);
+      this.context.fences.set(owner, fenceStage(fence.fence, CEMETERY_FENCE, state));
+      if (state.posts <= 0 && state.layout) {
         // od zadání po zatlučení kůlů: kolíky a napnutý provázek po obvodu (i u rozšíření)
         pegs.push(...pegInstances(fence.outline, this.context.groundHeight));
         meshes.push(
@@ -219,20 +210,18 @@ export class CemeteryRenderer {
       bounds: cellsBounds(squares, HIDE_MARGIN_M),
       contains: cellsContain(squares, HIDE_MARGIN_M),
     };
-    return { key, meshes, shape, posts, pegs, grassMounds, earthMounds };
+    return { key, meshes, shape, fences: owners, pegs, grassMounds, earthMounds };
   }
 
-  /** Sdílené meshe kůlů a mohylek dostanou instance všech pohřebišť. */
+  /** Sdílené meshe kolíků a mohylek dostanou instance všech pohřebišť, ploty se přepíšou. */
   private updateInstances(): void {
+    this.context.fences.commit();
     const views = [...this.views.values()];
-    const posts = views.flatMap((v) => v.posts);
     const grass = views.flatMap((v) => v.grassMounds);
     this.pegs.set(views.flatMap((v) => v.pegs));
     const earth = views.flatMap((v) => v.earthMounds);
-    if (posts.length > 0) this.postMesh ??= this.createPostMesh();
     if (grass.length > 0) this.grassMoundMesh ??= this.createMoundMesh('grass');
     if (earth.length > 0) this.earthMoundMesh ??= this.createMoundMesh('earth');
-    if (this.postMesh) setInstances(this.postMesh, posts);
     if (this.grassMoundMesh) setInstances(this.grassMoundMesh, grass);
     if (this.earthMoundMesh) setInstances(this.earthMoundMesh, earth);
   }
@@ -254,101 +243,6 @@ export class CemeteryRenderer {
       m.backFaceCulling = false;
       return m;
     });
-    return mesh;
-  }
-
-  /** Pletený plot – svislé pásy podél úseků do výšky `top`, položené na terén. */
-  private wattleMesh(id: string, fence: FenceLayout, top: number): Mesh {
-    const positions: number[] = [];
-    const normals: number[] = [];
-    const uvs: number[] = [];
-    const indices: number[] = [];
-    const height = this.context.decalHeight;
-    for (const [a, b] of fence.runs) {
-      const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
-      if (length < 1e-6) continue;
-      const nx = -(b[1] - a[1]) / length;
-      const nz = (b[0] - a[0]) / length;
-      const steps = Math.max(1, Math.ceil(length / WATTLE_STEP_M));
-      const base = positions.length / 3;
-      for (let s = 0; s <= steps; s++) {
-        const t = s / steps;
-        const x = a[0] + (b[0] - a[0]) * t;
-        const z = a[1] + (b[1] - a[1]) * t;
-        const ground = height(x, z);
-        positions.push(x, ground - WATTLE_SINK_M, z, x, ground + top, z);
-        normals.push(nx, 0, nz, nx, 0, nz);
-        // textura: 1 m na šířku, výška plotu na výšku – pruty přibývají zdola
-        const u = t * length;
-        uvs.push(u, 0, u, (top + WATTLE_SINK_M) / (FENCE_HEIGHT_M + WATTLE_SINK_M));
-      }
-      for (let s = 0; s < steps; s++) {
-        const i = base + s * 2;
-        indices.push(i, i + 1, i + 2, i + 1, i + 3, i + 2);
-      }
-    }
-    const data = new VertexData();
-    data.positions = positions;
-    data.normals = normals;
-    data.uvs = uvs;
-    data.indices = indices;
-    const mesh = new Mesh(`village-cemetery-fence-${id}`, this.scene);
-    data.applyToMesh(mesh);
-    mesh.material = this.material('wattle', () => this.createWattleMaterial());
-    mesh.isPickable = false;
-    mesh.receiveShadows = true;
-    this.context.addShadowCaster(mesh);
-    return mesh;
-  }
-
-  /** Kůl: hranol se špičatějším vrškem, pata v počátku. */
-  private createPostMesh(): Mesh {
-    const h = POST_SIZE_M / 2;
-    const top = POST_LENGTH_M;
-    const square = (r: number): Point[] => [
-      [-r, -r],
-      [r, -r],
-      [r, r],
-      [-r, r],
-    ];
-    const positions: number[] = [];
-    const indices: number[] = [];
-    const bottom = square(h);
-    const upper = square(h * 0.8);
-    for (let k = 0; k < 4; k++) {
-      const [ax, az] = bottom[k]!;
-      const [bx, bz] = bottom[(k + 1) % 4]!;
-      const [cx, cz] = upper[(k + 1) % 4]!;
-      const [dx, dz] = upper[k]!;
-      const i = positions.length / 3;
-      positions.push(ax, 0, az, bx, 0, bz, cx, top, cz, dx, top, dz);
-      indices.push(i, i + 2, i + 1, i, i + 3, i + 2);
-    }
-    // seříznutý vršek
-    const i = positions.length / 3;
-    for (const [x, z] of upper) positions.push(x, top, z);
-    positions.push(0, top + 0.05, 0);
-    for (let k = 0; k < 4; k++) indices.push(i + k, i + 4, i + ((k + 1) % 4));
-    const normals = new Float32Array(positions.length);
-    VertexData.ComputeNormals(positions, indices, normals);
-    const data = new VertexData();
-    data.positions = positions;
-    data.normals = normals;
-    data.indices = indices;
-    const mesh = new Mesh('village-cemetery-posts', this.scene);
-    data.applyToMesh(mesh);
-    mesh.material = this.material('post', () => {
-      const m = new StandardMaterial('village-cemetery-post', this.scene);
-      m.diffuseColor = new Color3(0.46, 0.37, 0.27);
-      m.ambientColor = AMBIENT;
-      m.specularColor = Color3.Black();
-      m.backFaceCulling = false;
-      m.twoSidedLighting = true;
-      return m;
-    });
-    mesh.isPickable = false;
-    mesh.receiveShadows = true;
-    this.context.addShadowCaster(mesh);
     return mesh;
   }
 
@@ -416,52 +310,6 @@ export class CemeteryRenderer {
     mesh.receiveShadows = true;
     this.context.addShadowCaster(mesh);
     return mesh;
-  }
-
-  /** Proutí: vodorovné pruty kolem kůlů střídavě vpředu a vzadu (textura z kódu). */
-  private createWattleMaterial(): Material {
-    const material = new StandardMaterial('village-cemetery-wattle', this.scene);
-    material.specularColor = Color3.Black();
-    material.ambientColor = AMBIENT;
-    material.backFaceCulling = false;
-    material.twoSidedLighting = true;
-    const width = 64;
-    const height = 64;
-    const rods = 9;
-    const data = new Uint8Array(width * height * 4);
-    const random = seededRandom(5);
-    const shade = Array.from({ length: rods }, () => 0.8 + random() * 0.35);
-    for (let y = 0; y < height; y++) {
-      const v = (y / height) * rods;
-      const rod = Math.floor(v);
-      const across = v - rod; // 0–1 přes prut
-      for (let x = 0; x < width; x++) {
-        // prut se vine kolem kůlů po ≈ ⅓ m – střídavě světlejší (vpředu) a tmavší (vzadu)
-        const weave = 0.82 + 0.18 * Math.sin(((x / width) * 3 + (rod % 2) * 0.5) * Math.PI * 2);
-        const round = Math.sin(across * Math.PI) ** 0.6;
-        const light = (shade[rod] ?? 1) * weave * (0.45 + 0.55 * round);
-        const i = (y * width + x) * 4;
-        // suché lískové a vrbové proutí – šedohnědé
-        data[i] = Math.round(Math.min(255, 178 * light));
-        data[i + 1] = Math.round(Math.min(255, 150 * light));
-        data[i + 2] = Math.round(Math.min(255, 112 * light));
-        data[i + 3] = 255;
-      }
-    }
-    const texture = RawTexture.CreateRGBATexture(
-      data,
-      width,
-      height,
-      this.scene,
-      true,
-      false,
-      Texture.TRILINEAR_SAMPLINGMODE,
-    );
-    texture.name = 'village-cemetery-wattle-texture';
-    texture.wrapU = Texture.WRAP_ADDRESSMODE;
-    texture.wrapV = Texture.CLAMP_ADDRESSMODE;
-    material.diffuseTexture = texture;
-    return material;
   }
 
   private material(key: string, create: () => Material): Material {

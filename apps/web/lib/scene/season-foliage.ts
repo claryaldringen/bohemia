@@ -69,14 +69,14 @@ export function seasonFoliageFor(model: string): SeasonFoliageOptions | null {
 
 /**
  * Mesh listnáčů podle jména (`trees-<model>`, `decor-<model>`, `orchard-<model>` – jabloně sadu,
- * `impostors-<buňka atlasu>`) – v zimě nesmí vrhat stín plného listí: 3D listnáče se vyřadí
+ * `pathside-<model>` – stromy podél pěšin, `impostors-<buňka atlasu>`) – v zimě nesmí vrhat stín plného listí: 3D listnáče se vyřadí
  * ze stínové mapy, impostory vrhají stín ze zimního atlasu (landscape-scene.ts).
  */
 export function isDeciduousMesh(name: string): boolean {
   const impostor = /^impostors-(\d+)/.exec(name);
   const model = impostor
     ? IMPOSTOR_ATLAS.cells[Number(impostor[1])]?.model
-    : /^(?:trees|decor|orchard)-(.+)$/.exec(name)?.[1];
+    : /^(?:trees|decor|orchard|pathside)-(.+)$/.exec(name)?.[1];
   if (!model) return false;
   const foliage = seasonFoliageFor(model);
   return (foliage?.deciduous ?? false) && (foliage?.minLeaves ?? 0) < 1;

@@ -200,15 +200,48 @@ export interface HideShape {
   contains(x: number, z: number): boolean;
 }
 
-/** Obydlí nebo staveniště – obdélník kolem modelu i s hlínou před vchodem. */
-export function dwellingHideShape(type: DwellingType, position: Position): HideShape {
-  const c = DWELLING_CLEARANCE_M[type];
-  const corners = [
-    localToWorld(position, c.minX, c.minZ),
-    localToWorld(position, c.maxX, c.minZ),
-    localToWorld(position, c.maxX, c.maxZ),
-    localToWorld(position, c.minX, c.maxZ),
+/** Pozemek obydlí ve scéně – střed políčka a strana (jako `ScenePlot` ve village-view.ts). */
+interface PlotArea {
+  x: number;
+  z: number;
+  size: number;
+}
+
+/**
+ * Místo obydlí ve scéně (rohy po obvodu): celé políčko pozemku, nebo u volného obydlí
+ * obdélník kolem modelu i s hlínou před vchodem (`DWELLING_CLEARANCE_M`).
+ */
+export function dwellingArea(d: {
+  type: DwellingType;
+  position: Position;
+  plot?: PlotArea;
+}): Point[] {
+  if (d.plot) {
+    const h = d.plot.size / 2;
+    const { x, z } = d.plot;
+    return [
+      [x - h, z - h],
+      [x + h, z - h],
+      [x + h, z + h],
+      [x - h, z + h],
+    ];
+  }
+  const c = DWELLING_CLEARANCE_M[d.type];
+  return [
+    localToWorld(d.position, c.minX, c.minZ),
+    localToWorld(d.position, c.maxX, c.minZ),
+    localToWorld(d.position, c.maxX, c.maxZ),
+    localToWorld(d.position, c.minX, c.maxZ),
   ];
+}
+
+/** Obydlí nebo staveniště – jeho místo (pozemek, nebo obdélník kolem modelu). */
+export function dwellingHideShape(d: {
+  type: DwellingType;
+  position: Position;
+  plot?: PlotArea;
+}): HideShape {
+  const corners = dwellingArea(d);
   return { bounds: polygonBounds(corners), contains: (x, z) => pointInPolygon(corners, x, z) };
 }
 

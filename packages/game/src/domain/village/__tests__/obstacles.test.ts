@@ -22,6 +22,7 @@ import {
 import {
   cemeteryPartsFromCells,
   checkDwellingPlacement,
+  checkPlotPlacement,
   fieldPartsFromCells,
   placementVillageOf,
   type PlacementVillage,
@@ -182,6 +183,32 @@ describe('checkDwellingPlacement – překážky na vyklízené ploše', () => {
     const changes = { removed: [100], stumps: [], saplings: [] };
     const check = checkDwellingPlacement(landscape, village(changes), 'zemnice', at(3, -2), layer);
     expect(check.obstacleIds).toEqual([]);
+  });
+});
+
+describe('checkPlotPlacement – překážky na pozemku jako na čtverci pole', () => {
+  const plot = (x: number, y: number) => ({ cell: { x, y }, variant: 'center' as const });
+
+  it('pozemek platí všechny překážky políčka po kusech, dospělé stromy dají klády', () => {
+    const check = checkPlotPlacement(landscape, village(), 'polozemnice', plot(8, 8), layer);
+    expect(check.ok).toBe(true);
+    expect(check.obstacleIds.sort()).toEqual([100, 101]);
+    expect(check.obstacleCost).toBe(OBSTACLE_COST.tree + OBSTACLE_COST.stone);
+    expect(check.clearedTrees).toBe(1);
+    // strom vyhrazený jinou stavbou se platí, ale klády nedá
+    const reserved = { ...village(), reservedTrees: [100] };
+    expect(
+      checkPlotPlacement(landscape, reserved, 'polozemnice', plot(8, 8), layer).clearedTrees,
+    ).toBe(0);
+  });
+
+  it('skalní výchoz pozemek zablokuje, odstraněná překážka se neplatí', () => {
+    const rock = checkPlotPlacement(landscape, village(), 'polozemnice', plot(8, 9), layer);
+    expect(rock.ok).toBe(false);
+    expect(rock.reason).toMatch(/výchoz/);
+    const cleared = village({ ...NO_OBSTACLE_CHANGES, removed: [100] });
+    const check = checkPlotPlacement(landscape, cleared, 'polozemnice', plot(8, 8), layer);
+    expect(check.obstacleIds).toEqual([101]);
   });
 });
 

@@ -1,5 +1,13 @@
 import type { ObstacleKind } from '../landscape';
-import type { Bounds, Crop, DwellingType, FieldSurface, FieldTask, TaskName } from './types';
+import type {
+  Bounds,
+  Crop,
+  DwellingType,
+  FieldSurface,
+  FieldTask,
+  PlotVariant,
+  TaskName,
+} from './types';
 
 // Meze produktivity (Martin, oprava podle rešerše 17. 10. 2026 – docs/design/research/): práce
 // a ztráty, pro které literatura dává rozpětí, mají dvojici { worst, best }. Ves bez řemesel
@@ -266,26 +274,46 @@ export const DWELLING_FOOTPRINT_M: Record<DwellingType, { width: number; depth: 
 export const DWELLING_MAX_HEIGHT_DIFF_M = 0.5;
 // population.md – Umístění obydlí (překážky na místě osadníci odstraní), fields.md – Co je
 // překážka (obydlí: kusy na ploše ≈ 10 × 10 m kolem půdorysu). Plocha v souřadnicích modelu
-// (x napříč, z k vchodu, m) – staveniště s hromadou hlíny a střecha předsazená před štíty,
-// u polozemnice i zahrádka po straně (−x modelu, plot do x ≈ −7,35 – GARDEN
-// v tools/blender/dwellings.py); scéna podle ní kreslí staveniště (DWELLING_CLEARANCE_M).
+// (x napříč, z k vchodu, m) – staveniště s hromadou hlíny a střecha předsazená před štíty;
+// scéna podle ní kreslí staveniště (DWELLING_CLEARANCE_M). Obydlí na pozemku (PLOT_TYPES)
+// vyklízí místo toho celé políčko pozemku – jako čtverec pole.
 export const DWELLING_CLEARING_M: Record<
   DwellingType,
   { minX: number; maxX: number; minZ: number; maxZ: number }
 > = {
   zemnice: { minX: -4.8, maxX: 4.8, minZ: -4.4, maxZ: 7.5 },
-  polozemnice: { minX: -7.9, maxX: 5.1, minZ: -4.7, maxZ: 7.5 },
+  polozemnice: { minX: -5.1, maxX: 5.1, minZ: -4.7, maxZ: 7.5 },
 };
-// population.md – Co hráč vidí (polozemnice se zahrádkou, Martin): zahrádka obehnaná plotem
-// po straně polozemnice – obdélník v souřadnicích modelu (x napříč, z k vchodu, m) i s plotem;
-// zemnice zahrádku nemá. Musí sedět s GARDEN v tools/blender/dwellings.py (Blender x = −x,
-// y = −z). Leží na vyklízené ploše (DWELLING_CLEARING_M), nesmí do vody, lesa, pole ani na jiné
-// obydlí; rovná být nemusí – ve scéně se nakloní podle terénu.
-export const DWELLING_GARDEN_M: Partial<
-  Record<DwellingType, { minX: number; maxX: number; minZ: number; maxZ: number }>
-> = {
-  polozemnice: { minX: -7.35, maxX: -3.35, minZ: -3.4, maxZ: 1.8 },
+// population.md – Umístění obydlí (Martin, 18. 10. 2026): polozemnice stojí na pozemku velkém
+// jako jedno políčko pole (15 × 15 m, v mřížce políček), obehnaném polským plotem; dům uprostřed
+// nebo v jednom ze čtyř rohů (5 variant), vchodem vždy k brance na přední straně (−z světa,
+// natočení π), zbytek pozemku jsou záhony. Zemnice pozemek nemá (volná poloha).
+export const PLOT_TYPES: Readonly<Record<DwellingType, boolean>> = {
+  zemnice: false,
+  polozemnice: true,
 };
+/** Pořadí variant při přepínání klávesami [ a ]. */
+export const PLOT_VARIANTS: readonly PlotVariant[] = [
+  'center',
+  'back-left',
+  'back-right',
+  'front-right',
+  'front-left',
+];
+/**
+ * Střed domu od středu pozemku (m, osy světa): v rozích tak, aby dům i se střechou, valy a trsy
+ * trávy u okapu zůstal uvnitř plotu (plot ≈ 0,5 m od okraje políčka) a před vchodem rohového domu
+ * vpředu zbyla cestička k brance.
+ */
+export const PLOT_HOUSE_OFFSET_M: Readonly<Record<PlotVariant, { x: number; z: number }>> = {
+  center: { x: 0, z: 0 },
+  'back-left': { x: -3.3, z: 3.2 },
+  'back-right': { x: 3.3, z: 3.2 },
+  'front-right': { x: 3.3, z: -2.3 },
+  'front-left': { x: -3.3, z: -2.3 },
+};
+/** Natočení domu na pozemku – vchod k brance (−z světa). */
+export const PLOT_HOUSE_ROTATION = Math.PI;
 // fields.md – Překážka na louce (skalní výchoz se neodstraní, plocha pod ním se nepočítá):
 // poloměr výchozu (m) na jednotku velikosti modelu (modely skal 0 A.D. mají půdorys ≈ 6 m)
 export const OUTCROP_RADIUS_M = 3;

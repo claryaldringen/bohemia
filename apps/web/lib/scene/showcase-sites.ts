@@ -7,7 +7,7 @@ import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import type { Scene } from '@babylonjs/core/scene';
 import type { ShowcaseModel } from './building-showcase-layout';
 import { SUN_DIRECTION } from './constants';
-import { gardenInstance } from './dwelling-decor';
+import { plotInward, plotStakingLine } from './homestead-layout';
 import {
   PIT_SHAPES,
   pitMeshData,
@@ -18,11 +18,13 @@ import {
 } from './dwelling-pit';
 import { instanceMatrices, type ModelInstance } from './instanced-model';
 import { applyPitCut, type PitCuts } from './pit-cut';
+import { StakingPegs, createStringMaterial, createStringMesh, pegInstances } from './staking';
+import { closedLine } from './staking-layout';
 import {
   CONSTRUCTION_BASE,
   ROUND_SITE_M,
-  SITE_PROP_PLACES,
   constructionState,
+  sitePropPlace,
   type ConstructionKind,
   type ConstructionState,
 } from './village-construction';
@@ -80,11 +82,24 @@ interface SiteView {
   key: string;
   meshes: Mesh[];
   cut: PitCut | null;
+  /** Kolíky vytyčení (jako ve vsi – staking.ts), dokud se nezačne kopat. */
+  pegs: ModelInstance[];
+}
+
+/** Směr dovnitř pozemku v osách modelu – rekvizity rohového domu se zrcadlí dovnitř. */
+function inwardOf(model: ShowcaseModel): { x: number; z: number } | undefined {
+  return model.plot ? plotInward(model.plot.variant) : undefined;
+}
+
+/** Čára vytyčení: kolem pozemku (po budoucím plotu), u volné stavby kolem jámy se šíjí. */
+function stakingLine(model: ShowcaseModel, pit: Point[]): Point[] {
+  return model.plot ? plotStakingLine(model.plot) : closedLine(pit);
 }
 
 export class ShowcaseSites {
   private readonly views: SiteView[];
   private readonly materials = new Map<string, Material>();
+  private readonly stakes: StakingPegs;
 
   constructor(
     private readonly scene: Scene,
@@ -96,7 +111,8 @@ export class ShowcaseSites {
     /** Pata dílů staveniště podle druhu (posvátná místa leží na terénu). */
     private readonly partBaseY: (kind: ConstructionKind) => number = () => baseY,
   ) {
-    this.views = models.map((model) => ({ model, key: '', meshes: [], cut: null }));
+    this.views = models.map((model) => ({ model, key: '', meshes: [], cut: null, pegs: [] }));
+    this.stakes = new StakingPegs(scene);
   }
 
   /** Staveniště při průběhu `progress` (1 = hotové stavby – jen jámy). */
@@ -118,15 +134,10 @@ export class ShowcaseSites {
           rotationY: model.rotation,
           scale: 1,
         };
-        // díly zahrádky polozemnice stojí na jejím místě vedle domu (jako ve vsi)
-        const garden =
-          model.kind === 'polozemnice' ? gardenInstance(model.kind, model, () => 0) : null;
-        for (const part of state.parts) {
-          push(`${model.kind}-${part}`, part.startsWith('garden-') && garden ? garden : house);
-        }
+        for (const part of state.parts) push(`${model.kind}-${part}`, house);
         for (const { prop, scale } of state.props) {
           if (prop === 'spoil') continue; // hromadu hlíny kreslí síť staveniště
-          const place = SITE_PROP_PLACES[model.kind][prop];
+          const place = sitePropPlace(model.kind, prop, inwardOf(model));
           const [x, z] = localToWorld(model, place.x, place.z);
           push(`site-${prop}`, {
             x,
@@ -154,10 +165,12 @@ export class ShowcaseSites {
       mesh.setEnabled(true);
     }
     this.pitCuts.set(this.views.flatMap((v) => (v.cut ? [v.cut] : [])));
+    this.stakes.set(this.views.flatMap((v) => v.pegs));
   }
 
   dispose(): void {
     for (const view of this.views) for (const mesh of view.meshes) mesh.dispose();
+    this.stakes.dispose();
   }
 
   /** Jáma, obtisky staveniště a hromada hlíny jednoho modelu (null = hotová stavba). */
@@ -166,17 +179,25 @@ export class ShowcaseSites {
     const base = CONSTRUCTION_BASE[model.kind];
     const meshes: Mesh[] = [];
     view.cut = null;
+    view.pegs = [];
     if (state && state.trampled > 0) meshes.push(this.trampled(model, state.trampled));
     if (base !== null) {
       const shape = PIT_SHAPES[base];
       const depth = state ? state.pitDepth : shape.depth;
       if (state && state.turf > 0) meshes.push(this.turf(model, state.turf));
       if (state && state.outline > 0) {
+        const pit = pitOutline(shape, 0).map(([x, z]) => localToWorld(model, x, z));
+        meshes.push(this.outline(model, pit));
+        // kolíky a provázek – u pozemku kolem celého políčka
+        const line = stakingLine(model, pit);
+        view.pegs = pegInstances([line], () => 0);
+        let string = this.materials.get('string');
+        if (!string) {
+          string = createStringMaterial(this.scene);
+          this.materials.set('string', string);
+        }
         meshes.push(
-          this.outline(
-            model,
-            pitOutline(shape, 0).map(([x, z]) => localToWorld(model, x, z)),
-          ),
+          createStringMesh(this.scene, `showcase-string-${model.kind}`, [line], () => 0, string),
         );
       }
       if (depth > 0) {
@@ -207,6 +228,15 @@ export class ShowcaseSites {
         const a = (2 * Math.PI * i) / n;
         return [model.x + r * Math.cos(a), model.z + r * Math.sin(a)];
       });
+    } else if (model.plot) {
+      const h = model.plot.size / 2 - TRAMPLED_INSET_M - TRAMPLED_SOFT_M / 2;
+      const { x, z } = model.plot;
+      area = [
+        [x - h, z - h],
+        [x + h, z - h],
+        [x + h, z + h],
+        [x - h, z + h],
+      ];
     } else {
       const c = DWELLING_CLEARANCE_M[base];
       const porch = model.kind === 'hrncir' || model.kind === 'kovar' ? PORCH_EXTRA_M : 0;
@@ -307,7 +337,7 @@ export class ShowcaseSites {
 
   /** Hromada hlíny z jámy – roste s kopáním, ubývá na valy. */
   private spoil(model: ShowcaseModel, scale: number): Mesh {
-    const place = SITE_PROP_PLACES[model.kind].spoil;
+    const place = sitePropPlace(model.kind, 'spoil', inwardOf(model));
     const [x, z] = localToWorld(model, place.x, place.z);
     const data = spoilHeapData({
       seed: model.x + model.z * 7,

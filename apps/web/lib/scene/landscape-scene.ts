@@ -40,6 +40,7 @@ import { terrainMeshHeight } from './drape';
 import { InstanceHider } from './instance-hider';
 import { VillageLivestock } from './livestock';
 import { VillageVillagers } from './villagers';
+import { VillagePaths, type PathStats } from './path-renderer';
 import { PitCuts, applyPitCut } from './pit-cut';
 import { seasonDayAt, seasonLook, seasonLookDistance, type SeasonLook } from './season-look';
 import { isDeciduousMesh } from './season-foliage';
@@ -48,6 +49,7 @@ import { SHADOW_DARKNESS, addSunShadows, type SunShadows } from './sun-shadows';
 import { tileAt, tileCenter } from './tile-at';
 import { addTrees } from './trees';
 import { FieldPainter } from './field-painting';
+import { PlacementOutlines } from './placement-outlines-view';
 import { SelectionHighlight } from './selection-highlight';
 import { pickVillageTarget, rayAtHeight, type Ray, type VillageTarget } from './village-picking';
 import { PlacementController, type ActivePlacement } from './village-placement';
@@ -96,6 +98,8 @@ export class LandscapeScene {
   private readonly downs = new Map<number, { x: number; y: number; placing: boolean }>();
   private selection: VillageTarget | null = null;
   private highlight: SelectionHighlight | null = null;
+  /** Hranice stávajících objektů – jen při malování pole, sadu a hřbitova. */
+  private outlines: PlacementOutlines | null = null;
   private groundHeight: ((x: number, z: number) => number) | null = null;
   private readonly resizeObserver: ResizeObserver;
   private landscape: Landscape | null = null;
@@ -145,6 +149,8 @@ export class LandscapeScene {
   private livestock: VillageLivestock | null = null;
   /** Lidé ve vsi – kde ves dnes pracuje (rozdělení práce dne, villagers.md). */
   private villagers: VillageVillagers | null = null;
+  /** Vyšlapané pěšiny vsi (paths.md) – lidé po nich chodí. */
+  private paths: VillagePaths | null = null;
   /** Poslední stav vsi od rozhraní – vykreslí se, jakmile je krajina hotová. */
   private villageState: SceneVillage | null = null;
   private placement: ActivePlacement | null = null;
@@ -244,6 +250,13 @@ export class LandscapeScene {
       this.village.setSeason(this.seasonDayOfYear(), this.season.snow);
     }
     this.village.setSmokeAlways(this.smokeAlways);
+    this.outlines = new PlacementOutlines(
+      this.scene,
+      (x, z) => terrainMeshHeight(surface, x, z),
+      () => {
+        this.needsRender = true;
+      },
+    );
     this.highlight = new SelectionHighlight(this.scene, (x, z) => terrainMeshHeight(surface, x, z));
     await report('forest', 0.4);
     if (this.disposed) return;
@@ -302,6 +315,28 @@ export class LandscapeScene {
       baseUrl: '/models/people/',
       herds: (nowMs) => this.livestock?.herdViews(nowMs) ?? [],
       onLoaded: () => this.renderWhenReady(),
+    });
+    // Vyšlapané pěšiny – síť se počítá z vsi a krajiny (odloženě), lidé po ní chodí.
+    this.paths?.dispose();
+    this.paths = new VillagePaths(this.scene, {
+      landscape,
+      surface,
+      field,
+      layer: obstacles,
+      decalHeight: (x, z) => terrainMeshHeight(surface, x, z),
+      groundHeight,
+      pitCuts: this.pitCuts,
+      addShadowCaster: (mesh) => this.addVillageCaster(mesh),
+      onChange: () => {
+        this.villagers?.setPaths(this.paths?.paths() ?? null, Date.now());
+        this.shadows?.refresh();
+        this.renderWhenReady();
+      },
+      requestRender: () => this.renderWhenReady(),
+      refreshShadows: () => {
+        this.shadows?.refresh();
+        this.renderWhenReady();
+      },
     });
     // Ozdobná zvířata podle 0 A.D.: hejna ryb v tůních, kroužící vrány a káně.
     const fauna = {
@@ -445,11 +480,17 @@ export class LandscapeScene {
     };
     const controlled: PlacementHandlers = {
       onConfirm: (result, keepPlacing) => {
-        if (!keepPlacing && this.placement === controller) this.placement = null;
+        if (!keepPlacing && this.placement === controller) {
+          this.placement = null;
+          this.outlines?.hide();
+        }
         handlers.onConfirm(result, keepPlacing);
       },
       onCancel: () => {
-        if (this.placement === controller) this.placement = null;
+        if (this.placement === controller) {
+          this.placement = null;
+          this.outlines?.hide();
+        }
         handlers.onCancel();
       },
       onPreview: handlers.onPreview ? (preview) => handlers.onPreview?.(preview) : undefined,
@@ -475,6 +516,12 @@ export class LandscapeScene {
               pickGround: (x, y) => this.pickGround(x, y),
               decalHeight: (x, z) => village.decalHeight(x, z),
               cameraAlpha: () => camera.camera.alpha,
+              cellAt: (x, z) => {
+                const cell = tileAt(landscape, x, z);
+                if (!cell) return null;
+                const center = tileCenter(landscape, cell.x, cell.y);
+                return { cell, x: center.worldX, z: center.worldZ, size: landscape.cellSizeM };
+              },
               ghostModel: (type) => village.ghostModel(type),
               baseHeight: (type, position) =>
                 type === 'idol' || type === 'shrine'
@@ -486,6 +533,8 @@ export class LandscapeScene {
             controlled,
           );
     this.placement = controller;
+    if (mode.kind === 'squares') this.outlines?.show(this.villageState);
+    else this.outlines?.hide();
     if (mode.kind !== 'squares') {
       // Model ducha se načte (jednou) a pak naskočí pod kurzorem.
       const models = mode.kind === 'sacred' ? village.loadSacredModels() : village.loadModels();
@@ -514,6 +563,21 @@ export class LandscapeScene {
   setSeasonDay(day: number | null): void {
     this.seasonDay = day;
     this.updateSeason(true);
+  }
+
+  /** Vývojová volba: vyšlapané pěšiny (a stromy podél nich) vidět / skrýt. */
+  setPathsVisible(visible: boolean): void {
+    this.paths?.setVisible(visible);
+  }
+
+  /** Vývojová volba: teplotní mapa provozu na pěšinách (cest za den). */
+  setPathHeatmap(enabled: boolean): void {
+    this.paths?.setHeatmap(enabled);
+  }
+
+  /** Čísla posledního výpočtu pěšin (doba, buňky, trasy, pěšiny, stromy); bez výpočtu null. */
+  pathStats(): PathStats | null {
+    return this.paths?.stats ?? null;
   }
 
   /** Vývojová volba: dým ze všech hotových obydlí pořád (kontrola vzhledu dýmu). */
@@ -616,11 +680,13 @@ export class LandscapeScene {
     this.viewListeners.clear();
     this.clearedListeners.clear();
     this.highlight?.dispose();
+    this.outlines?.dispose();
     this.placement?.dispose();
     this.placement = null;
     this.village?.dispose();
     this.livestock?.dispose();
     this.villagers?.dispose();
+    this.paths?.dispose();
     this.resizeObserver.disconnect();
     this.canvas.removeEventListener('pointermove', this.onPointerMove);
     this.canvas.removeEventListener('pointerleave', this.onPointerLeave);
@@ -748,9 +814,14 @@ export class LandscapeScene {
     const logs = this.logPile?.update(this.villageState, changes) ?? false;
     const animals = this.livestock?.update(this.villageState, Date.now()) ?? false;
     const people = this.villagers?.update(this.villageState, Date.now()) ?? false;
+    // pěšiny se přepočítají odloženě a překreslí samy (onChange)
+    this.paths?.update(this.villageState);
     // Rozhraní posílá stav vsi opakovaně (dotaz každých pár sekund) – beze změny nic.
     // Vybrané pole mohlo změnit čtverce (zarůstání), vybrané obydlí zaniknout.
-    if (changed) this.highlight?.show(this.villageState, this.selection);
+    if (changed) {
+      this.highlight?.show(this.villageState, this.selection);
+      this.outlines?.update(this.villageState);
+    }
     if (!changed && !hidden && !shaded && !cleared && !felled && !logs && !animals && !people) {
       return;
     }

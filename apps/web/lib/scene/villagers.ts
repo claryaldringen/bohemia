@@ -46,6 +46,7 @@ import {
   type HairLook,
   type PlannedVillager,
   type VillagerGround,
+  type VillagerPaths,
 } from './villager-plan';
 
 const KINDS: readonly VillagerKind[] = ['woman', 'man'];
@@ -124,6 +125,8 @@ export class VillageVillagers {
   private readonly pose = createVillagerPose();
   private readonly bounds = new BoundingInfo(Vector3.Zero(), Vector3.Zero());
   private readonly matrix = new Matrix();
+  /** Vyšlapané pěšiny – nosiči a pochůzky pro vodu a dřevo vedou po nich (paths.md). */
+  private paths: VillagerPaths | null = null;
   private disposed = false;
 
   constructor(
@@ -143,6 +146,16 @@ export class VillageVillagers {
     this.key = key;
     if (village.labor && village.labor.shares.length > 0) void this.load();
     return this.rebuild(nowMs);
+  }
+
+  /**
+   * Nové pěšiny (path-renderer.ts) – lidé se rozmístí znovu, ať chodí po nich. Vrátí true, když je
+   * co překreslit.
+   */
+  setPaths(paths: VillagerPaths | null, nowMs: number): boolean {
+    if (this.disposed || paths === this.paths) return false;
+    this.paths = paths;
+    return this.village ? this.rebuild(nowMs) : false;
   }
 
   /** Posune lidi na okamžik `nowMs`; vrátí true, když se v záběru něco pohnulo. */
@@ -299,6 +312,7 @@ export class VillageVillagers {
     this.people = planVillagers(village, ground, {
       seed: villageSeed(village),
       herds: herds.length,
+      paths: this.paths,
     })
       .filter((p) => this.models?.has(p.kind))
       .map((p) => {

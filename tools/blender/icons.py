@@ -7,10 +7,12 @@ Celé jedním příkazem z kořene repa (Blender 5, ImageMagick `magick`, intern
 Výstup (128 × 128 PNG, průhledné rohy) – `build/` zemnice, polozemnice, pole, hrbitov,
 hrncir, kovar, uhlir (řemeslné dílny z `apps/web/public/models/crafts/`, uhlíř s milířem), sad
 (jabloňový sad), modla, svatyne (posvátná místa z `apps/web/public/models/sacred/`), dub
-(posvátný dub s obětinami) a haj (dubový háj s kameny) – portréty do panelu výběru;
+(posvátný dub s obětinami), haj (dubový háj s kameny) a ohrada (přístřešek, žlab a branka
+z `apps/web/public/models/pen/`, kráva ze stáda vsi, stoh sena) – portréty do panelu výběru;
 (64 × 64 PNG) – `resources/` people, food, wood, labor, satiation, date, apples, happiness
-(štěstí – plamen ohniště nad zkříženými poleny v kruhu kamenů), ozim (osení pod sněhem), jar
-(klasy jarního ječmene).
+(štěstí – plamen ohniště nad zkříženými poleny v kruhu kamenů), hay (seno – kupka sena
+z `apps/web/public/models/fields/haystack.glb`), ozim (osení pod sněhem) a jar (klasy jarního
+ječmene).
 Bez druhého argumentu vše, jinak čárkami oddělený výběr (např. `pole,hrbitov,food`).
 
 Postup: portréty staveb a ikony `food`, `wood`, `labor`, `satiation`, `date`, `apples` se vyrenderují v Cycles
@@ -43,6 +45,9 @@ MODELS = os.path.join(ROOT, "apps/web/public/models/dwellings")
 CRAFTS = os.path.join(ROOT, "apps/web/public/models/crafts")
 SACRED = os.path.join(ROOT, "apps/web/public/models/sacred")
 TREES = os.path.join(ROOT, "apps/web/public/models/trees")
+PEN = os.path.join(ROOT, "apps/web/public/models/pen")
+FAUNA = os.path.join(ROOT, "apps/web/public/models/fauna")
+FIELDS = os.path.join(ROOT, "apps/web/public/models/fields")
 TEX = os.path.join(ROOT, "apps/web/public/textures/terrain")
 TMP = tempfile.mkdtemp(prefix="bohemia-icons-")
 RES = 256
@@ -529,6 +534,110 @@ def icon_haj():
     camera([Vector((-10, -8, 0)), Vector((10, 10, 0)), Vector((0, 0, 15))], az=18, el=26, margin=0.96)
 
 
+def place_root(objs, loc, rot=0.0, scale=1.0):
+    """Posune importovaný model za kořen (u modelu s kostrou je to armatura, ne mesh)."""
+    roots = set()
+    for o in objs:
+        while o.parent is not None:
+            o = o.parent
+        roots.add(o)
+    for o in roots:
+        o.location = Vector(loc)
+        o.rotation_mode = "XYZ"
+        o.rotation_euler = (0, 0, rot)
+        o.scale = (scale, scale, scale)
+
+
+def tint_imported(objs, rgb):
+    """Barevný tón importovaného materiálu (Base Color × rgb) – seno jako ve scéně (HAY_TINT)."""
+    for o in objs:
+        for m in o.data.materials:
+            nt = m.node_tree
+            b = next(n for n in nt.nodes if n.type == "BSDF_PRINCIPLED")
+            link = next((l for l in nt.links if l.to_socket == b.inputs["Base Color"]), None)
+            if link is None:
+                continue
+            mx = nt.nodes.new("ShaderNodeMix")
+            mx.data_type, mx.blend_type = "RGBA", "MULTIPLY"
+            mx.inputs["Factor"].default_value = 1.0
+            mx.inputs[7].default_value = (*rgb, 1)
+            nt.links.new(link.from_socket, mx.inputs[6])
+            nt.links.new(mx.outputs[2], b.inputs["Base Color"])
+
+
+def rounded_path(x0, y0, x1, y1, r, step):
+    """Body po obvodu obdélníku se zakulacenými rohy (proti směru hodinových ručiček)."""
+    corners = [(x1 - r, y0 + r, -math.pi / 2), (x1 - r, y1 - r, 0.0), (x0 + r, y1 - r, math.pi / 2), (x0 + r, y0 + r, math.pi)]
+    pts = []
+    for k, (cx, cy, a0) in enumerate(corners):
+        n = max(2, round(r * math.pi / 2 / step))
+        pts += [(cx + r * math.cos(a0 + math.pi / 2 * i / n), cy + r * math.sin(a0 + math.pi / 2 * i / n)) for i in range(n + 1)]
+        nx, ny, _ = corners[(k + 1) % 4]
+        ex, ey = cx + r * math.cos(a0 + math.pi / 2), cy + r * math.sin(a0 + math.pi / 2)
+        sx, sy = nx + r * math.cos(corners[(k + 1) % 4][2]), ny + r * math.sin(corners[(k + 1) % 4][2])
+        L = math.hypot(sx - ex, sy - ey)
+        m = max(1, round(L / step))
+        pts += [(ex + (sx - ex) * i / m, ey + (sy - ey) * i / m) for i in range(1, m)]
+    return pts
+
+
+def icon_ohrada():
+    """Ohrada: pletený plot se zakulacenými rohy a brankou ze žerdí, v zadním rohu přístřešek
+    s doškovou střechou a jeslemi, u žlabu kráva, stoh sena; uvnitř ušlapaná zem."""
+    parts = {o.name.split(".")[0]: o for o in place_model("pen", folder=PEN)}
+    place_root([parts["shelter"]], (-1.0, 1.55, 0))
+    place_root([parts["hay-rack"]], (-1.8, 2.73, 0))
+    place_root([parts["trough"]], (2.7, 0.4, 0), rot=math.pi / 2)
+    place_root([parts["gate"]], (0.4, -3.3, 0))
+    # kráva ze stáda vsi (model bez kostry) – v malé ikoně čitelnější než vůl s kostrou
+    cow = place_model("cow", folder=FAUNA)
+    place_root(cow, (1.2, 0.5, 0), rot=math.pi / 2, scale=1.25)
+    for o in cow:  # model je vystředěný – postavit nohama na zem
+        low = min((o.matrix_world @ Vector(c)).z for c in o.bound_box)
+        o.location.z -= low
+    hay = place_model("haystack", folder=FIELDS)
+    place_root(hay, (2.3, 2.85, 0), scale=0.38)
+    tint_imported(hay, (0.95, 0.82, 0.52))
+    ground(8.0, mat("g", tex=f"{TEX}/grass-dirt.jpg", scale=0.22, tint=(0.8, 0.78, 0.6)), z=0.0, fade=0.62)
+    # ušlapaná zem uvnitř ohrady
+    bm = bmesh.new()
+    path = rounded_path(-3.75, -3.15, 3.75, 3.75, 0.9, 0.3)
+    bm.faces.new([bm.verts.new((x, y, 0.01)) for x, y in path])
+    to_obj(bm, "mud", mat("mud", tex=f"{TEX}/mud.jpg", scale=0.35, tint=(1.0, 0.85, 0.68)), smooth=False)
+    # pletený plot: kůly a vodorovně proplétané větve, v přední straně mezera branky
+    posts, rods = bmesh.new(), bmesh.new()
+    path = rounded_path(-3.9, -3.3, 3.9, 3.9, 1.0, 0.25)
+
+    def gap(x, y):
+        return abs(y + 3.3) < 0.05 and abs(x - 0.4) < 0.8
+
+    for i, (x, y) in enumerate(path):
+        if i % 2 == 0 and not gap(x, y):
+            gate_post = abs(y + 3.3) < 0.05 and abs(abs(x - 0.4) - 0.85) < 0.2
+            cyl(posts, (x, y, -0.05), (x, y, 1.22 if gate_post else 1.02), 0.065, 0.05, 6)
+    for lv in range(8):
+        z = 0.14 + lv * 0.11
+        run = []
+        for i, (x, y) in enumerate(path + path[:1]):
+            if gap(x, y):
+                for a, b in zip(run, run[1:]):
+                    cyl(rods, a, b, 0.035, 0.035, 5)
+                run = []
+                continue
+            j = (i + 1) % len(path)
+            dx, dy = path[j][0] - x, path[j][1] - y
+            ln = math.hypot(dx, dy) or 1
+            off = 0.055 * math.sin((i / 2.0) * math.pi + (lv % 2) * math.pi)
+            run.append((x - dy / ln * off, y + dx / ln * off, z))
+        for a, b in zip(run, run[1:]):
+            cyl(rods, a, b, 0.035, 0.035, 5)
+    to_obj(posts, "posts", mat("wood", (0.42, 0.29, 0.17), 0.9, noise=25, bump=0.3))
+    to_obj(rods, "rods", mat("wicker", (0.5, 0.36, 0.2), 0.9, noise=60, bump=0.5))
+    sun(az=-55, el=44)
+    pts = [Vector((-4.0, -3.4, 0)), Vector((4.0, 4.0, 0)), Vector((-4.0, 4.0, 0)), Vector((4.0, -3.4, 0))]
+    camera(pts + [Vector((-1.0, -0.2, 2.9))], az=20, el=40, margin=1.05, shift=(0, 0.01))
+
+
 # --------------------------------------------------------------- suroviny ----
 
 
@@ -846,6 +955,15 @@ def icon_happiness():
     return True
 
 
+def icon_hay():
+    """Seno: kupka sena kolem tyče (model stohu z polí), sušší tón jako ve scéně."""
+    hay = place_model("haystack", folder=FIELDS)
+    tint_imported(hay, (1.08, 0.86, 0.42))
+    sun(az=-50, el=46, strength=4.0)
+    camera([Vector((-1.8, -1.8, 0)), Vector((1.8, 1.8, 3.3))], az=10, el=14, margin=1.04)
+    return True
+
+
 def icon_apples():
     """Tři červená jablka se stopkou, jedno s lístkem."""
     skin, stems, leaf = bmesh.new(), bmesh.new(), bmesh.new()
@@ -878,6 +996,7 @@ BUILD = {
     "svatyne": icon_svatyne,
     "dub": icon_dub,
     "haj": icon_haj,
+    "ohrada": icon_ohrada,
 }
 RESOURCES = {
     "food": icon_food,
@@ -887,6 +1006,7 @@ RESOURCES = {
     "date": icon_date,
     "apples": icon_apples,
     "happiness": icon_happiness,
+    "hay": icon_hay,
     "ozim": icon_ozim,
     "jar": icon_jar,
 }

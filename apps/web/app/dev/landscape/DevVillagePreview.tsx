@@ -8,8 +8,10 @@ import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import {
   CEMETERY,
   NO_OBSTACLE_CHANGES,
+  PLOT_TYPES,
   cemeteryPartsFromCells,
   checkDwellingPlacement,
+  checkPlotPlacement,
   checkSacredBuildingPlacement,
   fieldPartsFromCells,
   matureTreesByDistance,
@@ -53,10 +55,17 @@ import type {
 import { formatCells, formatHa, formatManDays, plural } from '@/lib/village-format';
 import { SACRED_OAK_GROWTH } from '@/lib/sacred-look';
 import { demoLabor } from './dev-labor';
-import { placementVillageFromScene, type SceneSacred, type SceneVillage } from '@/lib/village-view';
+import {
+  placementVillageFromScene,
+  scenePlot,
+  type SceneSacred,
+  type SceneVillage,
+} from '@/lib/village-view';
 
 const STAGES: PartStage[] = ['founding', 'ready', 'sown', 'young-fallow', 'meadow'];
 const SEASON_NAMES = { spring: 'jaro', summer: 'léto', autumn: 'podzim', winter: 'zima' } as const;
+/** Stáří obydlí pro pěšiny na vývojové stránce (let; null = odjakživa). */
+const PATH_AGES: (number | null)[] = [null, 0.5, 1, 2, 8, 20, 40];
 /** „Přehrát rok“ – celý rok za tolik sekund. */
 const YEAR_PLAY_S = 60;
 const buttonClass =
@@ -70,6 +79,8 @@ const SACRED_NAMES: Record<SacredBuildingKind, string> = { idol: 'Modla', shrine
 interface DevWindow extends Window {
   __bohemiaDev?: {
     scene: LandscapeScene;
+    /** Ves, jak ji právě kreslí scéna (snímky z Playwrightu – výběr, kamera). */
+    village: () => SceneVillage;
     setDwellings: (dwellings: SceneDwelling[]) => void;
     setCemeteries: (cemeteries: DevCemetery[]) => void;
     setOrchards: (orchards: DevOrchard[]) => void;
@@ -129,6 +140,11 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   const [playingYear, setPlayingYear] = useState(false);
   // lidé ve vsi – ukázkové rozdělení práce podle měsíce (dev-labor.ts)
   const [people, setPeople] = useState(false);
+  // vyšlapané pěšiny (paths.md): vidět, teplotní mapa provozu a stáří obydlí (s „Lidé“)
+  const [paths, setPaths] = useState(true);
+  const [heatmap, setHeatmap] = useState(false);
+  const [pathAge, setPathAge] = useState<number | null>(null);
+  const [pathInfo, setPathInfo] = useState('');
   const nextId = useRef(1);
 
   const village = useMemo<SceneVillage>(() => {
@@ -160,7 +176,12 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
       day,
       trees.map((t) => t.id),
     );
-    return { ...base, labor };
+    // stáří vsi pro pěšiny: obydlí stojí `pathAge` let (bez volby odjakživa)
+    const aged =
+      pathAge === null
+        ? base.dwellings
+        : base.dwellings.map((d) => ({ ...d, since: day - Math.round(pathAge * 365.25) }));
+    return { ...base, dwellings: aged, labor };
   }, [
     decoded,
     dwellings,
@@ -177,11 +198,35 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     sacredOaks,
     groves,
     sacredBuildings,
+    pathAge,
   ]);
 
   useEffect(() => {
     scene?.setVillage(village);
   }, [scene, village]);
+
+  useEffect(() => {
+    scene?.setPathsVisible(paths);
+  }, [scene, paths]);
+
+  useEffect(() => {
+    scene?.setPathHeatmap(heatmap);
+  }, [scene, heatmap]);
+
+  // čísla posledního výpočtu pěšin (přepočítají se odloženě po změně vsi)
+  useEffect(() => {
+    if (!scene) return;
+    const timer = setInterval(() => {
+      const stats = scene.pathStats();
+      setPathInfo(
+        stats
+          ? `${stats.lines} úseků · ${stats.trips} tras · ${stats.trees} stromů · ${stats.ms.toFixed(0)} ms` +
+              (stats.terrainMs > 0 ? ` (+ terén ${stats.terrainMs.toFixed(0)} ms)` : '')
+          : '',
+      );
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [scene]);
 
   useEffect(() => {
     scene?.setSmokeAlways(smokeAlways);
@@ -312,15 +357,16 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   };
 
   // Přístup ke scéně a vsi pro snímky z Playwrightu (jen tato vývojová stránka).
-  const devActions = useRef({ addField, fellTrees, clearSacred });
+  const devActions = useRef({ addField, fellTrees, clearSacred, village });
   useEffect(() => {
-    devActions.current = { addField, fellTrees, clearSacred };
+    devActions.current = { addField, fellTrees, clearSacred, village };
   });
   useEffect(() => {
     if (!scene) return;
     const devWindow = window as DevWindow;
     devWindow.__bohemiaDev = {
       scene,
+      village: () => devActions.current.village,
       setDwellings,
       setCemeteries,
       setOrchards,
@@ -345,6 +391,45 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   const placeDwelling = (type: DwellingType): void => {
     if (!scene) return;
     setPlacing(type === 'zemnice' ? 'Zemnice' : 'Polozemnice');
+    if (PLOT_TYPES[type]) {
+      // polozemnice na pozemku – kontrola i cena jako ve hře (herní jádro), [ a ] = varianty
+      scene.startPlacement(
+        {
+          kind: 'plot',
+          type,
+          check: (plot) => {
+            const placementVillage = placementVillageFromScene(village);
+            const check = checkPlotPlacement(decoded, placementVillage, type, plot);
+            const cost =
+              check.ok && check.position
+                ? dwellingPlacementCost(
+                    decoded,
+                    placementVillage,
+                    type,
+                    check.position,
+                    check,
+                    woodLogs,
+                  )
+                : null;
+            return { ...check, cost };
+          },
+        },
+        {
+          ...handlers,
+          onConfirm: (result) => {
+            handlers.onCancel();
+            if (result.kind !== 'dwelling' || !result.plot) return;
+            const id = nextId.current++;
+            const plot = scenePlot(decoded, result.plot);
+            setDwellings((list) => [
+              ...list,
+              { id, type: result.type, position: result.position, built: false, progress: 0, plot },
+            ]);
+          },
+        },
+      );
+      return;
+    }
     scene.startPlacement(
       {
         kind: 'dwelling',
@@ -796,10 +881,27 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     (['zemnice', 'polozemnice'] as const).forEach((type, row) => {
       const phases = CONSTRUCTION_PHASES[type];
       const stops = [...phases.map((p) => (p.from + p.to) / 2), 1];
-      // polozemnice má po straně zahrádku – řada je řidší
-      const spacing = type === 'polozemnice' ? 13 : 10.5;
       stops.forEach((progress, i) => {
-        const x = site.worldX + (i - (stops.length - 1) / 2) * spacing;
+        if (PLOT_TYPES[type]) {
+          // polozemnice na pozemcích – políčka vedle sebe za řadou zemnic, dům uprostřed
+          const cell = {
+            x: decoded.villageSite.x + i - Math.floor(stops.length / 2),
+            y: decoded.villageSite.y + 2,
+          };
+          if (cell.x < 0 || cell.x >= decoded.size || cell.y >= decoded.size) return;
+          if (surfaceAt(decoded, cell.x, cell.y) === 'water') return;
+          const plot = scenePlot(decoded, { cell, variant: 'center' });
+          list.push({
+            id: nextId.current++,
+            type,
+            position: { x: plot.x, z: plot.z, rotation: Math.PI },
+            built: progress >= 1,
+            progress,
+            plot,
+          });
+          return;
+        }
+        const x = site.worldX + (i - (stops.length - 1) / 2) * 10.5;
         const z = site.worldZ + row * 14;
         const tile = tileAt(decoded, x, z);
         if (!tile || surfaceAt(decoded, tile.x, tile.y) === 'water') return;
@@ -973,6 +1075,38 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         >
           {people ? 'Lidé ✓' : 'Lidé'}
         </button>
+        <button
+          className={buttonClass}
+          disabled={!scene}
+          onClick={() => setPaths((on) => !on)}
+          data-testid="dev-paths"
+        >
+          {paths ? 'Pěšiny ✓' : 'Pěšiny'}
+        </button>
+        <button
+          className={buttonClass}
+          disabled={!scene}
+          onClick={() => setHeatmap((on) => !on)}
+          data-testid="dev-path-heatmap"
+        >
+          {heatmap ? 'Provoz ✓' : 'Provoz'}
+        </button>
+        <button
+          className={buttonClass}
+          title="Stáří obydlí pro pěšiny (jen s „Lidé“ – den práce)"
+          onClick={() =>
+            setPathAge((age) => PATH_AGES[(PATH_AGES.indexOf(age) + 1) % PATH_AGES.length]!)
+          }
+          data-testid="dev-path-age"
+        >
+          Stáří:{' '}
+          {pathAge === null
+            ? 'odjakživa'
+            : pathAge < 1
+              ? 'půl roku'
+              : `${pathAge} ${plural(pathAge, 'rok', 'roky', 'let')}`}
+        </button>
+        {pathInfo && <span data-testid="dev-path-info">{pathInfo}</span>}
         <button className={buttonClass} onClick={() => setWoodLogs((n) => Math.max(0, n - 10))}>
           Klády −10
         </button>
