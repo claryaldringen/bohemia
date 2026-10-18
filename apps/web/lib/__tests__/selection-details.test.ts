@@ -52,7 +52,24 @@ const view = {
       fieldId: 5,
     },
   ],
-  fields: [{ id: 5, areaM2: 2250, fertility: 61.4, stages: { sown: 6, founding: 4 } }],
+  fields: [
+    {
+      id: 5,
+      areaM2: 2250,
+      fertility: 61.4,
+      stages: { sown: 6, founding: 4 },
+      surfaces: { meadow: 10 },
+      ashParts: 0,
+    },
+    {
+      id: 6,
+      areaM2: 1350,
+      fertility: 80,
+      stages: { ready: 6 },
+      surfaces: { forest: 4, meadow: 1, shrub: 1 },
+      ashParts: 4,
+    },
+  ],
   cemeteries: [
     {
       id: 30,
@@ -147,7 +164,23 @@ describe('selectionDetails', () => {
         { stage: 'founding', count: 4 },
         { stage: 'sown', count: 6 },
       ],
+      surfaces: [],
+      ashParts: 0,
       founding: 0.25,
+    });
+  });
+
+  it('pole z vymýceného lesa: díly podle povrchu v pořadí louka, křoviny, les a popel', () => {
+    const details = selectionDetails(view, scene, { kind: 'field', id: 6 });
+    expect(details).toMatchObject({
+      kind: 'field',
+      surfaces: [
+        { surface: 'meadow', count: 1 },
+        { surface: 'shrub', count: 1 },
+        { surface: 'forest', count: 4 },
+      ],
+      ashParts: 4,
+      founding: null,
     });
   });
 });

@@ -1,7 +1,17 @@
 import type { ReactElement, ReactNode } from 'react';
-import { PART_COLORS } from '@/lib/minimap';
-import { PART_STAGE_NAMES, type SelectionDetails } from '@/lib/selection-details';
-import { formatHa, formatInteger, formatPercent, formatYearsShort } from '@/lib/village-format';
+import { PART_COLORS, SURFACE_COLORS } from '@/lib/minimap';
+import {
+  FIELD_SURFACE_NAMES,
+  PART_STAGE_NAMES,
+  type SelectionDetails,
+} from '@/lib/selection-details';
+import {
+  formatHa,
+  formatInteger,
+  formatPercent,
+  formatYearsShort,
+  plural,
+} from '@/lib/village-format';
 import { DWELLING_NAMES } from '@/lib/village-view';
 import { Tooltip } from './Tooltip';
 
@@ -141,6 +151,20 @@ function FieldBody({
         <Stat icon="food" name="Úrodnost" testId="selection-fertility">
           {Math.round(details.fertility)}
         </Stat>
+        {details.ashParts > 0 && (
+          <Tooltip
+            content={`Popel z vymýceného lesa – úrodnost +20 na 3 roky (${details.ashParts} ${plural(details.ashParts, 'díl', 'díly', 'dílů')})`}
+            placement="above"
+          >
+            <span
+              data-testid="selection-ash"
+              tabIndex={0}
+              className="text-xs font-semibold text-amber-300 tabular-nums"
+            >
+              +20
+            </span>
+          </Tooltip>
+        )}
       </div>
       <ul aria-label="Díly pole" className="flex flex-wrap gap-1.5">
         {details.stages.map(({ stage, count }) => (
@@ -162,6 +186,28 @@ function FieldBody({
           </li>
         ))}
       </ul>
+      {details.surfaces.length > 0 && (
+        <ul aria-label="Povrch dílů při založení" className="flex flex-wrap gap-1.5">
+          {details.surfaces.map(({ surface, count }) => (
+            <li key={surface}>
+              <Tooltip content={FIELD_SURFACE_NAMES[surface]} placement="above">
+                <span
+                  data-surface={surface}
+                  tabIndex={0}
+                  className="flex items-center gap-1 text-xs tabular-nums"
+                >
+                  <span
+                    aria-hidden
+                    className="inline-block h-3 w-3 rounded-full border border-black/50"
+                    style={{ background: `rgb(${SURFACE_COLORS[surface].join(' ')})` }}
+                  />
+                  {count}
+                </span>
+              </Tooltip>
+            </li>
+          ))}
+        </ul>
+      )}
       {details.founding !== null && <Bar value={details.founding} name="Založení" />}
     </div>
   );

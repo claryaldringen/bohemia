@@ -1,3 +1,4 @@
+import { Constants } from '@babylonjs/core/Engines/constants';
 import { RawTexture } from '@babylonjs/core/Materials/Textures/rawTexture';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import type { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
@@ -33,6 +34,11 @@ const DECAL_POINTS_PER_CELL = 4;
 const GRID_TEXTURE_PX = 128;
 const FILL_ALPHA = 0.4;
 const ERASE_ALPHA = 0.3;
+/**
+ * Obrys výběru prosvítá přes stromy (pole jde i do lesa – fields.md): druhý obrys bez testu
+ * hloubky, průsvitný – čtverce pod korunami jsou vidět.
+ */
+const XRAY_ALPHA = 0.55;
 const COLORS = {
   ok: [0.3, 0.85, 0.35],
   bad: [0.92, 0.24, 0.18],
@@ -93,6 +99,8 @@ export class FieldPainter {
   private cursorMeshes: Mesh[] = [];
   private readonly fillMaterial: StandardMaterial;
   private readonly lineMaterials: Record<Look, StandardMaterial>;
+  /** Obrys výběru přes stromy – bez testu hloubky (XRAY_ALPHA). */
+  private readonly xrayMaterials: Record<Look, StandardMaterial>;
   private readonly gridMaterial: StandardMaterial;
   private readonly gridTexture: RawTexture;
   private done = false;
@@ -118,6 +126,22 @@ export class FieldPainter {
       draw: line('draw'),
       erase: line('erase'),
       warn: line('warn'),
+    };
+    const xray = (look: Look): StandardMaterial => {
+      const material = createDecalMaterial(scene, `field-paint-xray-${look}`, {
+        emissive: new Color3(...COLORS[look]),
+      });
+      material.alpha = XRAY_ALPHA;
+      material.depthFunction = Constants.ALWAYS;
+      material.disableDepthWrite = true;
+      return material;
+    };
+    this.xrayMaterials = {
+      ok: xray('ok'),
+      bad: xray('bad'),
+      draw: xray('draw'),
+      erase: xray('erase'),
+      warn: xray('warn'),
     };
     this.gridTexture = createGridTexture(scene);
     this.gridMaterial = createDecalMaterial(scene, 'field-paint-grid', {
@@ -197,7 +221,12 @@ export class FieldPainter {
     canvas.style.cursor = '';
     disposeAll(this.selectionMeshes);
     disposeAll(this.cursorMeshes);
-    for (const m of [this.fillMaterial, this.gridMaterial, ...Object.values(this.lineMaterials)]) {
+    for (const m of [
+      this.fillMaterial,
+      this.gridMaterial,
+      ...Object.values(this.lineMaterials),
+      ...Object.values(this.xrayMaterials),
+    ]) {
       m.dispose();
     }
     this.gridTexture.dispose();
@@ -369,9 +398,12 @@ export class FieldPainter {
     if (fills.length > 0) this.selectionMeshes.push(this.fillMesh(fills));
     if (squares.length > 0) {
       const look: Look = ok ? 'ok' : blocked.size > 0 ? 'bad' : 'draw';
-      this.selectionMeshes.push(
-        this.lineMesh('field-paint-outline', cellsBoundary(squares), look, 0.35),
-      );
+      const boundary = cellsBoundary(squares);
+      this.selectionMeshes.push(this.lineMesh('field-paint-outline', boundary, look, 0.35));
+      const xray = this.lineMesh('field-paint-xray', boundary, look, 0.35);
+      xray.material = this.xrayMaterials[look];
+      xray.alphaIndex = 12;
+      this.selectionMeshes.push(xray);
     }
     if (stroke && (stroke.dragged || !sameCell(stroke.start, stroke.end))) {
       const look: Look = stroke.mode === 'remove' ? 'bad' : 'erase';

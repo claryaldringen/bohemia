@@ -1,10 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import {
+  advanceVillage,
   checkDwellingPlacement,
   dayIndexOf,
+  fieldPartsFromCells,
   foundCemetery,
   foundOrchard,
   foundVillage,
+  generateLandscape,
+  obstaclesOf,
+  placementVillageOf,
+  reservedTrees,
+  surfaceAt,
+  tileCenterWorld,
+  villageDwellingPositions,
   type ChronicleEvent,
   type Landscape,
   type PartInput,
@@ -129,7 +138,14 @@ describe('buildVillageView', () => {
     ]);
     expect(view.woodLogs).toBe(0);
     expect(view.fields).toEqual([
-      { id: fieldId, areaM2: 5 * 225, fertility: 50, stages: { founding: 5 } },
+      {
+        id: fieldId,
+        areaM2: 5 * 225,
+        fertility: 50,
+        stages: { founding: 5 },
+        surfaces: { meadow: 5 },
+        ashParts: 0,
+      },
     ]);
     expect(view.hungry).toBe(false);
     expect(view.constructionsStalled).toBe(false);
@@ -320,6 +336,67 @@ describe('buildVillageView', () => {
     // strom 11 je pokácený přes 30 let – roste z náletu
     expect(scene.obstacles).toEqual({ removed: [7], stumps: [9], saplings: [11] });
     expect(placementVillageFromScene(scene).obstacleChanges).toEqual(scene.obstacles);
+  });
+
+  it('pole přes les: náhled v prohlížeči ze scény spočítá totéž co server', () => {
+    const real = generateLandscape(5);
+    const layer = obstaclesOf(real);
+    const site = tileCenterWorld(real, real.villageSite.x, real.villageSite.y);
+    const founded = foundVillage({
+      seed: 3,
+      day: DAY,
+      dwellingPosition: { x: site.x, z: site.z, rotation: 0 },
+      obstacles: layer,
+    });
+    // zakladatelé kácejí na zemnici – den, kdy jsou pařezy i stromy ještě vyhrazené
+    let s = founded;
+    while (!(s.felledTrees?.length && reservedTrees(s).size > 0) && s.lastDay < DAY + 60) {
+      s = advanceVillage(s, s.lastDay + 1, layer);
+    }
+    expect(reservedTrees(s).size).toBeGreaterThan(0);
+    expect(s.felledTrees?.length).toBeGreaterThan(0);
+    // čtverce od místa vsi k nejbližšímu lesu a kus do lesa
+    const { x: sx, y: sy } = real.villageSite;
+    let best: { x: number; y: number } | null = null;
+    for (let y = 0; y < real.size; y++) {
+      for (let x = 0; x < real.size; x++) {
+        if (surfaceAt(real, x, y) !== 'forest') continue;
+        if (!best || Math.hypot(x - sx, y - sy) < Math.hypot(best.x - sx, best.y - sy)) {
+          best = { x, y };
+        }
+      }
+    }
+    // a čtverce kolem stromu vyhrazeného zemnicí (klády za něj nedá ani náhled v prohlížeči)
+    const reservedId = [...reservedTrees(s)][0]!;
+    const index = layer.id.indexOf(reservedId);
+    const half = (real.size * real.cellSizeM) / 2;
+    const reservedTile = {
+      x: Math.floor((layer.x[index]! + half) / real.cellSizeM),
+      y: Math.floor((layer.z[index]! + half) / real.cellSizeM),
+    };
+    const around = (c: { x: number; y: number }): { x: number; y: number }[] =>
+      [-2, -1, 0, 1, 2].flatMap((dy) =>
+        [-2, -1, 0, 1, 2].map((dx) => ({ x: c.x + dx, y: c.y + dy })),
+      );
+    const cells = [...around(best!), ...around(reservedTile)];
+    const view = buildVillageView(record(s), real, s.lastDay);
+    const client = fieldPartsFromCells(
+      real,
+      placementVillageFromScene(view.scene),
+      cells,
+      view.scene.dwellings.map((d) => d.position),
+      layer,
+    );
+    const server = fieldPartsFromCells(
+      real,
+      placementVillageOf(s, s.lastDay),
+      cells,
+      villageDwellingPositions(s),
+      layer,
+    );
+    expect(client.surfaceCounts.forest).toBeGreaterThan(0);
+    expect(client.parts.flatMap((p) => p.obstacleIds ?? [])).toContain(reservedId);
+    expect(client).toEqual(server);
   });
 
   it('kronika: nejnovější první, s datem „12. dubna 503“, nejvýš CHRONICLE_LENGTH událostí', () => {
