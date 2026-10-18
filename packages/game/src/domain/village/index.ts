@@ -41,6 +41,7 @@ export * from './simulate';
 export * from './polygon';
 export * from './placement';
 export * from './plots';
+export * from './ruins';
 export * from './obstacles';
 export * from './summary';
 export * from './names';

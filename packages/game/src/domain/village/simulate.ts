@@ -33,6 +33,7 @@ import { ageGroup, foodNeedPerDay, isAdult, laborPerDay, occupants } from './peo
 import { isVillageExtinct } from './extinction';
 import { householdBreaksUp, inLuckyYears, nextStarvationDays, populationDay } from './population';
 import { dailyMinPerHousehold } from './productivity';
+import { recordRuins, updateRuins } from './ruins';
 import {
   CHRONICLE_MAX_EVENTS,
   COMMON_LABOR_HISTORY_DAYS,
@@ -176,6 +177,8 @@ function simulateDay(
   finishConstructions(state, day);
   decideRebuilds(state, day, obstacles, landscape);
   occupyEmptyDwellings(state, day);
+  // zbytky jam po zaniklých obydlích zarůstají, pod novou stavbou zmizí (ruins.ts)
+  updateRuins(state, day, landscape);
   const satiation = eat(state, day, coverage);
   // nahromaděný hlad se počítá z dnešního jídla – úmrtí dne podle něj (population.md); v hájení
   // zůstává pod prahem, aby po něm lidé umírali postupně
@@ -507,6 +510,12 @@ function decayEmptyDwellings(state: VillageState, day: number, occupied: Set<num
     if (d.condition <= 0) gone.add(d.id);
   }
   if (gone.size === 0) return;
+  // na místě zaniklého obydlí zůstane zbytek jámy (ruins.ts)
+  recordRuins(
+    state,
+    state.dwellings.filter((d) => gone.has(d.id)),
+    day,
+  );
   state.dwellings = state.dwellings.filter((d) => !gone.has(d.id));
 }
 
@@ -656,6 +665,8 @@ function finishConstructions(state: VillageState, day: number): void {
     if (c.kind === 'rebuild') {
       const dwelling = state.dwellings.find((d) => d.id === c.dwellingId);
       if (dwelling) {
+        // přestavba jinde: starý dům se zboří – na jeho místě zůstane zbytek jámy (ruins.ts)
+        if (c.plot && c.position) recordRuins(state, [dwelling], day);
         dwelling.type = c.dwellingType;
         dwelling.builtDay = day;
         dwelling.condition = 1;

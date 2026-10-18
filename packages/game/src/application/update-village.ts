@@ -5,6 +5,7 @@ import {
   withForestDistances,
   withObstacleClearing,
   withPlots,
+  withoutBuiltOverRuins,
   type VillageState,
 } from '../domain/village';
 import type { VillageRecord, VillageRepository, VillageResult } from './villages';
@@ -40,7 +41,8 @@ export function advancedToToday(
  * a obydlím z doby před palivem vzdálenost k lesu (`withForestDistances`), polozemnicím z doby
  * před pozemky pozemek (`withPlots`) – před dopočtem, aby se s nimi už počítalo; pak se uloží.
  * Ves se dopočítává s vrstvou překážek a krajinou sídla (přestavby kácí stromy, polozemnice bez
- * pozemku se přestaví na volném políčku).
+ * pozemku se přestaví na volném políčku). Zbytky jam po zaniklých obydlích pod novou stavbou po
+ * změně zmizí (`withoutBuiltOverRuins`).
  */
 export async function updateVillage(
   villages: VillageRepository,
@@ -61,12 +63,10 @@ export async function updateVillage(
     const current = advancedToToday(migrated, today, obstacles, landscape);
     const changed = change(current);
     if (!changed.ok) return changed;
-    if (changed.state === record.state) return { ok: true, village: record };
-    const saved: VillageRecord | null = await villages.save(
-      settlementId,
-      changed.state,
-      record.version,
-    );
+    // na místo zříceniny jde stavět – stavba zbytek jámy odstraní (ruins.ts)
+    const next = withoutBuiltOverRuins(changed.state, landscape);
+    if (next === record.state) return { ok: true, village: record };
+    const saved: VillageRecord | null = await villages.save(settlementId, next, record.version);
     if (saved !== null) return { ok: true, village: saved };
   }
   throw new Error(`Ves sídla ${settlementId} se nepodařilo uložit – příliš mnoho souběžných změn.`);

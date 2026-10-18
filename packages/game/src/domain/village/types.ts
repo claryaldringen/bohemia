@@ -474,6 +474,26 @@ export interface VillageState {
    * uložených před převodem – při načtení se jednou převedou.
    */
   plotsMigrated?: true;
+  /**
+   * Zbytky jam po zaniklých obydlích (population.md – Chátrání a přestavba, Po zániku) – zarůstají
+   * RUIN_YEARS let, pak zmizí (ruins.ts). Chybí = žádné (i u vsí uložených před nimi).
+   */
+  ruins?: DwellingRuin[];
+}
+
+/**
+ * Zbytek jámy po zaniklém obydlí: zarostlá prohlubeň s kopřivami a pár trámy (population.md –
+ * Po zániku). Poloha, typ, pozemek a řemeslo zaniklého obydlí (jen pro vzhled) a den zániku; id =
+ * id zaniklého obydlí. Na místo zříceniny jde stavět – stavba ji odstraní.
+ */
+export interface DwellingRuin {
+  id: number;
+  type: DwellingType;
+  position: Position;
+  plot?: DwellingPlot;
+  craft?: Craft;
+  /** Den zániku obydlí – od něj jáma zarůstá. */
+  day: number;
 }
 
 /**
