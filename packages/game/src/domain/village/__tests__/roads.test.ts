@@ -4,7 +4,7 @@ import { obstaclesOf } from '../../landscape';
 import { foundField, foundVillage, startNewDwelling } from '../actions';
 import { cellObstacles, obstacleChangesAt, obstacleStatus } from '../obstacles';
 import { computePathNetwork, pastureHerds, type PathVillage } from '../paths/network';
-import { plantingBlocker, roadTreeSpots, updateRoads } from '../paths/roads';
+import { addRoadLabor, plantingBlocker, roadTreeSpots, updateRoads } from '../paths/roads';
 import { pastureLivestock, pathVillageOf } from '../paths/village';
 import {
   checkDwellingPlacement,
@@ -21,7 +21,16 @@ import {
 } from '../road-trees';
 import { ROADS, ROAD_TREES } from '../rules';
 import { advanceVillage } from '../simulate';
-import type { Dwelling, Person, Road, RoadTree, VillageState } from '../types';
+import type {
+  Dwelling,
+  LaborDay,
+  Person,
+  Road,
+  RoadTree,
+  TileCell,
+  VillageRoads,
+  VillageState,
+} from '../types';
 import { LANDSCAPE, house, part, pathTestTerrain } from './paths-fixtures';
 import { withBuiltFirstDwelling } from './village-fixtures';
 
@@ -399,6 +408,60 @@ describe('strom u cesty jako překážka stavby', () => {
     const next = advanceVillage(later, Y1 + 2, LAYER, LANDSCAPE);
     expect(next.roads!.trees.some((t) => t.id === tree.id)).toBe(false);
   }, 60_000);
+});
+
+describe('práce za rok cest (addRoadLabor)', () => {
+  it('seč přirozených luk se sčítá jako jedno místo se všemi políčky (oxen.md – Seno)', () => {
+    const roads: VillageRoads = {
+      nextId: 1,
+      roads: [],
+      trees: [],
+      candidates: [],
+      labor: { from: 0, days: 0, shares: [] },
+    };
+    const day = (d: number, cells: TileCell[], manDays: number): LaborDay => ({
+      day: d,
+      shares: [{ activity: 'mow', target: { kind: 'meadow', cells }, manDays }],
+    });
+    addRoadLabor(
+      roads,
+      day(
+        1,
+        [
+          { x: 5, y: 2 },
+          { x: 4, y: 2 },
+        ],
+        3,
+      ),
+      1,
+    );
+    addRoadLabor(
+      roads,
+      day(
+        2,
+        [
+          { x: 4, y: 2 },
+          { x: 3, y: 1 },
+        ],
+        2,
+      ),
+      2,
+    );
+    expect(roads.labor.days).toBe(2);
+    expect(roads.labor.shares).toEqual([
+      {
+        target: {
+          kind: 'meadow',
+          cells: [
+            { x: 3, y: 1 },
+            { x: 4, y: 2 },
+            { x: 5, y: 2 },
+          ],
+        },
+        manDays: 5,
+      },
+    ]);
+  });
 });
 
 describe('pevné cesty v simulaci', () => {

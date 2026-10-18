@@ -16,6 +16,7 @@ import {
   pathBounds,
   roadsKey,
   type PathNetwork,
+  type PathPoint,
   type PathSquare,
   type PathVillage,
 } from './network';
@@ -153,6 +154,10 @@ export function pathVillageOf(state: VillageState, day: number, landscape: Lands
   }
   const changes = obstacleChangesAt(state, day);
   const roads = state.roads?.roads ?? [];
+  // přirozené louky letošní seče (oxen.md – Seno) – k políčkům, kde se dnes seče, vede pěšina
+  const hayMeadows = (state.hay?.mowing?.squares ?? []).flatMap((sq) =>
+    sq.cell ? [square(landscape, sq.cell)] : [],
+  );
   const pens = villagePens(state).map((p) => ({
     id: p.id,
     cell: { x: p.cell.x, y: p.cell.y },
@@ -185,6 +190,7 @@ export function pathVillageOf(state: VillageState, day: number, landscape: Lands
       : {}),
     ...(pens.length > 0 ? { pens } : {}),
     ...(state.livestock ? { livestock: pastureLivestock(state, day) } : {}),
+    ...(hayMeadows.length > 0 ? { hayMeadows } : {}),
   };
 }
 
@@ -270,6 +276,28 @@ function dwellingOrigins(state: VillageState): Position[] {
       c.dwellingType !== null && c.position !== null ? [c.position] : [],
     ),
   ];
+}
+
+/**
+ * Vzdálenosti chůze z obydlí vsi k bodům `targets` (m, paths.md – Pěšiny a práce) – stejná síť
+ * a stejné měření jako u dílů pole: po pěšinách a pevných cestách podle stupně, rovně s mokřinou
+ * a brody (`walking.ts`). Bez sítě (ves bez obydlí) null. Seč přirozených luk (hay.ts –
+ * `planMowing`) podle ní řadí louky.
+ */
+export function walkDistancesTo(
+  state: VillageState,
+  day: number,
+  landscape: Landscape,
+  obstacles: ObstacleLayer | null,
+  targets: readonly PathPoint[],
+): number[] | null {
+  const network = villagePathNetwork(state, day, landscape, obstacles);
+  if (!network) return null;
+  const ground = walkGroundOf(landscape);
+  const graph = walkGraph(network.lines, { roads: state.roads?.roads ?? [], ground });
+  return walkingDistances(graph, dwellingOrigins(state), targets, ground).map(
+    (walk) => Math.floor(walk * WALK_ROUNDING) / WALK_ROUNDING,
+  );
 }
 
 /**

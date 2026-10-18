@@ -1,4 +1,5 @@
 import { TOTAL_GAME_DAYS } from '../calendar';
+import type { ObstacleLayer } from '../landscape';
 import {
   burialOrder,
   cemeteryCapacity,
@@ -16,9 +17,11 @@ import {
   villageHappiness,
   type HappinessFactors,
 } from './happiness';
+import { dailyMilk, villageCheeseKg, yearlyMilk } from './dairy';
 import { villageMeal, villageMeatKg } from './diet';
 import { villageHayKg } from './hay';
 import {
+  dailyEggsKg,
   grazingDemandHa,
   meatNeedPerYear,
   pastureHa,
@@ -35,13 +38,7 @@ import {
   villageOrchards,
 } from './orchard';
 import { ageGroup, foodNeedPerDay, occupants } from './people';
-import {
-  CHRONICLE_MAX_EVENTS,
-  DWELLINGS,
-  OVERGROWTH_STAGES,
-  SACRED_OAK,
-  STARVATION,
-} from './rules';
+import { CHRONICLE_MAX_EVENTS, DWELLINGS, OVERGROWTH_STAGES, STARVATION } from './rules';
 import {
   groveHappiness,
   sacredBuildingHappiness,
@@ -49,6 +46,7 @@ import {
   villageSacredBuildings,
   villageSacredOaks,
 } from './sacred';
+import { sacredOakNow, type SacredOakNow } from './sacred-life';
 import type {
   Construction,
   ConstructionKind,
@@ -181,8 +179,11 @@ export interface HappinessSummary {
 
 /** Posvátná místa vsi pro panel výběru a scénu – i kolik které přidává (bez stropů). */
 export interface SacredSummary {
-  /** Ušetřené posvátné duby – `day` = den ušetření (dub pak ve scéně postupně roste). */
-  oaks: { id: number; day: number; x: number; z: number; happiness: number }[];
+  /**
+   * Ušetřené posvátné duby – `day` = den ušetření (dub pak ve scéně postupně roste), stadium,
+   * stáří, štěstí, velikost a den uschnutí v den souhrnu (`SacredOakNow`).
+   */
+  oaks: ({ id: number; day: number; x: number; z: number } & SacredOakNow)[];
   groves: {
     id: number;
     x: number;
@@ -207,8 +208,11 @@ export interface LivestockSummary {
   grazingHa: number;
   /** Les pro prasata (ha, 1 ha na prase). */
   pigForestHa: number;
-  /** Roční potřeba masa vsi (kg). */
+  /** Roční potřeba masa vsi (kg) – bílkoviny, které chybí po obilí, mléku a vejcích. */
   meatNeedKg: number;
+  /** Mléko dnes (l, když se podojí všechny dojné samice) a za rok. */
+  milkLPerDay: number;
+  milkLPerYear: number;
 }
 
 /** Ohrada pro panel výběru a scénu (oxen.md – Co hráč vidí). */
@@ -242,6 +246,8 @@ export interface VillageSummary {
   diet: DietDay;
   /** Zásoba masa (kg). */
   meatKg: number;
+  /** Zásoba sýra (kg). */
+  cheeseKg: number;
   /** Zásoba sena (kg). */
   hayKg: number;
   /** Dobytek – stáda, slepice, voli a nosnost. */
@@ -332,7 +338,10 @@ function households(state: VillageState, day: number): HouseholdSummary[] {
  */
 function nextDayDiet(state: VillageState, day: number): DietDay {
   const next = Math.min(day + 1, TOTAL_GAME_DAYS - 1);
-  return villageMeal(state, next, craftCoverage(state, next).pottery).diet;
+  return villageMeal(state, next, craftCoverage(state, next).pottery, {
+    milk: dailyMilk(villageHerds(state), next),
+    eggsKg: dailyEggsKg(state),
+  }).diet;
 }
 
 const DAYS_PER_SERVICE_YEAR = 365.25;
@@ -385,6 +394,8 @@ function livestockSummary(state: VillageState, day: number): LivestockSummary {
     grazingHa: grazingDemandHa(herds, oxen),
     pigForestHa: pigForestHa(state),
     meatNeedKg: meatNeedPerYear(state, day),
+    milkLPerDay: dailyMilk(herds, day).liters,
+    milkLPerYear: yearlyMilk(herds).liters,
   };
 }
 
@@ -484,7 +495,11 @@ function stalled(state: VillageState): boolean {
 }
 
 /** Souhrn vsi v den `day` (stav má být dopočítaný do tohoto dne). */
-export function summarizeVillage(state: VillageState, day: number): VillageSummary {
+export function summarizeVillage(
+  state: VillageState,
+  day: number,
+  obstacles: ObstacleLayer | null = null,
+): VillageSummary {
   const needPerDay = state.people.reduce((sum, p) => sum + foodNeedPerDay(p, day), 0);
   const diet = nextDayDiet(state, day);
   const history = state.commonLaborHistory;
@@ -501,6 +516,7 @@ export function summarizeVillage(state: VillageState, day: number): VillageSumma
     satiation: diet.satiation,
     diet,
     meatKg: villageMeatKg(state),
+    cheeseKg: villageCheeseKg(state),
     hayKg: villageHayKg(state),
     livestock: livestockSummary(state, day),
     pens: penSummaries(state, day),
@@ -522,8 +538,8 @@ export function summarizeVillage(state: VillageState, day: number): VillageSumma
       ageYears: orchardAgeYears(o, day),
       expectedYieldKg: orchardExpectedYieldKg(o, day),
     })),
-    happiness: happinessSummary(state, day, diet),
-    sacred: sacredSummary(state),
+    happiness: happinessSummary(state, day, diet, obstacles),
+    sacred: sacredSummary(state, day, obstacles),
     crafts: craftsSummary(state, day),
   };
 }
@@ -558,9 +574,14 @@ function craftsSummary(state: VillageState, day: number): CraftsSummary {
 }
 
 /** Štěstí, jeho cíl a složky (cíl při jídle příštího dne). */
-function happinessSummary(state: VillageState, day: number, diet: DietDay): HappinessSummary {
+function happinessSummary(
+  state: VillageState,
+  day: number,
+  diet: DietDay,
+  obstacles: ObstacleLayer | null,
+): HappinessSummary {
   const value = villageHappiness(state);
-  const factors = happinessFactors(state, day, diet.satiation, diet.shares.fruit > 0);
+  const factors = happinessFactors(state, day, diet.satiation, diet.shares.fruit > 0, obstacles);
   return {
     value,
     target: happinessTarget(factors),
@@ -569,15 +590,22 @@ function happinessSummary(state: VillageState, day: number, diet: DietDay): Happ
   };
 }
 
-/** Posvátná místa vsi a kolik které samo přidává (stropy počtu a součtu platí pro ves). */
-function sacredSummary(state: VillageState): SacredSummary {
+/**
+ * Posvátná místa vsi a kolik které samo přidává (stropy počtu a součtu platí pro ves); duby se
+ * stadiem a stářím v den `day` (`sacredOakNow`).
+ */
+function sacredSummary(
+  state: VillageState,
+  day: number,
+  obstacles: ObstacleLayer | null,
+): SacredSummary {
   return {
     oaks: villageSacredOaks(state).map((o) => ({
       id: o.id,
       day: o.day,
       x: o.x,
       z: o.z,
-      happiness: SACRED_OAK.happiness,
+      ...sacredOakNow(obstacles, o.id, day),
     })),
     groves: villageGroves(state).map((g) => ({
       id: g.id,

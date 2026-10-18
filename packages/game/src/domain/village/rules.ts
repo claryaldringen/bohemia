@@ -486,9 +486,39 @@ export const HAPPINESS_BONUS = { storesYears: 1, stores: 5, sacredMax: 40 } as c
 // se násobí – štěstí 0 → × 0,8, 50 → × 1, 100 → × 1,1, mezi tím lineárně
 export const HAPPINESS_LABOR = { atMin: 0.8, atBase: 1, atMax: 1.1 } as const;
 
-// happiness.md – Posvátná místa: posvátný dub +5 (nejvýš 3 duby), dubový háj +10 a +1 za každé
-// 2 duby nad 6, nejvýš +15 za háj (nejvýš 2 háje); pod korunou dubu na poli se neoseje ≈ 50 m²
-export const SACRED_OAK = { happiness: 5, counted: 3, crownM2: 50 } as const;
+// happiness.md – Posvátná místa: posvátný dub podle stáří (`SACRED_OAK_HAPPINESS`, nejvýš 3 duby
+// – ty, které přidávají nejvíc), dubový háj +10 a +1 za každé 2 duby nad 6, nejvýš +15 za háj
+// (nejvýš 2 háje); pod korunou dubu na poli se neoseje ≈ 50 m²
+export const SACRED_OAK = { counted: 3, crownM2: 50 } as const;
+// happiness.md – Posvátný dub – stáří a štěstí (Martin 18. 10. 2026: „čím jsou starší, tím víc
+// štěstí přidávají. Nejmladší 1, nejstarší 10.“): živý dub stáří `youngYears` přidá `young`,
+// stáří `oldYears` (nejvyšší možná délka života) `old`; mezi tím podle logaritmu stáří, na celé
+// body (návrh Clauda – každé zdvojnásobení stáří přidá stejně, ≈ 2,4 bodu: 200 let 2, 400 let 4,
+// 600 let 6, 1000 let 8, 1400 let 9; lineárně by 200 a 600 let dalo 1 a 3). Posvátná souš
+// (uschlý dub) přidá `snag` (návrh Clauda), padlá souš nic.
+export const SACRED_OAK_HAPPINESS = {
+  youngYears: 150,
+  oldYears: 2000,
+  young: 1,
+  old: 10,
+  snag: 1,
+} as const;
+// happiness.md – Posvátný dub – délka života (Martin 18. 10. 2026: „mohou stářím uschnout, ale ať
+// je to variabilní … ať se ty nejstarší mohly dožít až 2000 let“; rozdělení návrh Clauda):
+// délka života = `minYears` + (`maxYears` − `minYears`) × B, kde B je `rank`. nejmenší z `draws`
+// náhodných čísel (rozdělení Beta(2, 4)) – ≈ 81 % dubů se dožije 800–1400 let (nejčastěji
+// ≈ 1100, průměr 1200), ≈ 19 % déle, přes 1700 let ≈ 1,6 % a 2000 let nikdo nepřekročí. Uschne
+// v létě, když přijde sucho (některý z `death.days` dní od 1. `death.month` – červen až srpen);
+// souš stojí `snagYears` let (rovnoměrně) a padne v kterýkoli den roku. Náhoda je z id a polohy
+// dubu ve vrstvě – stejný dub má stejný život v každé vsi.
+export const SACRED_OAK_LIFE = {
+  minYears: 800,
+  maxYears: 2000,
+  draws: 5,
+  rank: 2,
+  death: { month: 6, days: 92 },
+  snagYears: [50, 100],
+} as const;
 export const GROVE = {
   minOaks: 6,
   radiusM: 25,
@@ -515,6 +545,14 @@ export const OAK_MODEL_HEIGHT_M: Record<string, number> = {
   'oak-large-2': 17.33,
   'oak-large-3': 22.09,
 };
+// happiness.md – Co hráč vidí (stáří posvátného dubu – Martin 18. 10. 2026, rozpětí návrh
+// Clauda): stáří dubu ke dni začátku světa (1. 1. 500) lineárně podle jeho velikosti (výška
+// modelu × měřítko) – nejmenší posvátný dub (`minSizeM` ≈ práh horní třetiny dubů vrstvy, na
+// skutečných krajinách 17,65–17,76 m) `minYears`, největší (`maxSizeM` = oak-large-3 × 1,2)
+// `maxYears`, mimo rozpětí oříznuté; k tomu herní roky od začátku světa. 150 let ≈ mohutný
+// dospělý solitérní dub (obvod ≈ 3 m), od 400 let je dub „starobylý“ (Woodland Trust – Ancient
+// Tree Inventory, průvodce dubem; dub běžně žije ≈ 600 let, výjimečně 1000).
+export const OAK_AGE = { minSizeM: 17.7, maxSizeM: 26.5, minYears: 150, maxYears: 400 } as const;
 // happiness.md – Dubový háj (definice – rozhodnutí kontroléru při implementaci, 18. 10. 2026):
 // les vrstvy překážek je z třetiny dubový, takže aspoň 6 dubů v okruhu 25 m má skoro každé
 // místo lesa – háj je proto místo, kde duby převažují: aspoň `GROVE.minOaks` dospělých dubů

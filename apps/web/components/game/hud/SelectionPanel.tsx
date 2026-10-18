@@ -432,6 +432,19 @@ function Oaks({
   );
 }
 
+/**
+ * Stáří posvátného dubu (háj: nejstaršího dubu) – ikona data a roky jako u obydlí a sadu;
+ * neznámé se neukáže.
+ */
+function OakAge({ years }: { years: number | null }): ReactElement | null {
+  if (years === null) return null;
+  return (
+    <Stat icon="date" name="Stáří (roky)" testId="selection-age">
+      {formatInteger(years)}
+    </Stat>
+  );
+}
+
 /** Seno v tunách s jedním desetinným místem – „3,0 t“. */
 function formatTons(kg: number): string {
   return `${formatDecimal(Math.max(0, kg) / 1000, 1)} t`;
@@ -478,6 +491,11 @@ function PenBody({
         <Stat icon="hay" name="Seno" testId="selection-hay">
           {formatTons(details.hayKg)}
         </Stat>
+        {details.milkLPerDay > 0 && (
+          <Stat icon="cheese" name="Mléko stád (l/den)" testId="selection-milk">
+            {formatInteger(details.milkLPerDay)}
+          </Stat>
+        )}
       </div>
       <ul aria-label="Stáda vsi" className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
         {HERD_ORDER.map((species) => (
@@ -835,10 +853,17 @@ export function SelectionPanel({
     portrait = <Portrait icon="sad" name="Sad" />;
     body = <OrchardBody details={details} />;
   } else if (details.kind === 'sacred-oak') {
-    portrait = <Portrait icon="dub" name="Posvátný dub" />;
+    portrait = details.snag ? (
+      <Portrait icon="sous" name="Posvátná souš" />
+    ) : (
+      <Portrait icon="dub" name="Posvátný dub" />
+    );
     body = (
       <div className="flex flex-col justify-center gap-1.5">
-        <HappinessGain value={details.happiness} />
+        <div className="flex items-center gap-3">
+          <HappinessGain value={details.happiness} />
+          <OakAge years={details.ageYears} />
+        </div>
       </div>
     );
   } else if (details.kind === 'grove') {
@@ -848,6 +873,7 @@ export function SelectionPanel({
         <div className="flex items-center gap-3">
           <HappinessGain value={details.happiness} />
           <Oaks count={details.oaks} name="Dospělé duby" testId="selection-grove-oaks" />
+          <OakAge years={details.ageYears} />
         </div>
       </div>
     );

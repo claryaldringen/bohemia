@@ -413,6 +413,10 @@ export type ChronicleEvent = { day: number } & (
   | { kind: 'part-became-forest'; partId: number }
   /** Vesničané při mýcení ušetřili posvátný dub nebo dubový háj (happiness.md) – id místa. */
   | { kind: 'sacred-spared'; site: 'oak' | 'grove'; id: number }
+  /** Ušetřený posvátný dub stářím uschl – zůstala posvátná souš (happiness.md) – id dubu. */
+  | { kind: 'sacred-oak-died'; id: number }
+  /** Posvátná souš padla – místo už není posvátný dub (happiness.md) – id dubu. */
+  | { kind: 'sacred-snag-fell'; id: number }
   /** Z dlouhodobého provozu vznikla pevná cesta (roads.md) – id úseku. */
   | { kind: 'road-formed'; roadId: number }
   /** Nepoužívaná vyšlapaná cesta zarostla (roads.md – Zarůstání) – id úseku. */
@@ -443,6 +447,10 @@ export type LaborActivity =
   | 'mow'
   /** Porážka a uzení masa (diet.md). */
   | 'slaughter'
+  /** Dojení a zpracování mléka na sýr (diet.md – Práce se zvířaty). */
+  | 'milking'
+  /** Péče o zvířata – zimní krmení, voda a kydání krav a volů, prasata a slepice. */
+  | 'animal-care'
   /** Sezónní práce v sadech (orchard.md). */
   | 'orchard-care'
   | 'orchard-harvest'
@@ -478,10 +486,12 @@ export type LaborTarget =
   | { kind: 'orchard'; id: number }
   /** Hřbitov (id) – zakládání a rozšíření. */
   | { kind: 'cemetery'; id: number }
-  /** Ohrada (id) – stavba, rádlo. */
+  /** Ohrada (id) – stavba, rádlo, péče o krávy a voly v zimě. */
   | { kind: 'pen'; id: number }
-  /** Pevná cesta (id úseku) – vylepšení (roads.md). */
+  /** Pevná cesta (id úseku) – vylepšení a jabloně podél ní (roads.md). */
   | { kind: 'road'; id: number }
+  /** Přirozená louka – políčka, na kterých se dnes seče seno (oxen.md – Seno). */
+  | { kind: 'meadow'; cells: TileCell[] }
   /** Stromy z vrstvy překážek, které se pro stavbu právě kácejí. */
   | { kind: 'trees'; ids: number[] }
   /** Ves celkově – výmlat, domácí práce, nevyužitá společná práce. */
@@ -578,8 +588,10 @@ export interface VillageState {
    * chybí – výchozí stádo z domácností doplní `withLivestock` (nebo první dopočítaný den).
    */
   livestock?: LivestockState;
-  /** Zásoba masa (kg) – uzené a sušené, vejce (diet.md). Chybí = žádná. */
+  /** Zásoba masa (kg) – uzené a sušené (diet.md). Chybí = žádná. */
   meatKg?: number;
+  /** Zásoba sýra (kg) – z mléka, které se nevypije čerstvé (diet.md). Chybí = žádná. */
+  cheeseKg?: number;
   /** Seno (oxen.md – Seno): zásoba, sečení a zima. Chybí = žádné. */
   hay?: HayState;
   /** Ohrady s přístřeškem (oxen.md); chybí = žádné. */
@@ -773,12 +785,29 @@ export interface HayState {
   winter?: { oxenNeedKg: number; oxenEatenKg: number };
 }
 
-/** Seč jednoho léta – díly, potřebné a odvedené člověkodny a seno při plné seči (kg). */
+/**
+ * Seč jednoho léta – díly úhoru (`partIds`) a v pořadí seče i čtverce přirozených luk
+ * (`squares`; bez nich jen díly), potřebné a odvedené člověkodny a seno při plné seči (kg).
+ */
 export interface HayMowing {
   partIds: number[];
+  /** Louky v pořadí seče (od obydlí) – díl úhoru (`partId`), nebo políčko přirozené louky. */
+  squares?: HaySquare[];
   required: number;
   done: number;
   yieldKg: number;
+}
+
+/** Louka v seči: díl úhoru ve fázi louky, nebo políčko přirozené louky krajiny (oxen.md – Seno). */
+export interface HaySquare {
+  partId?: number;
+  cell?: TileCell;
+  areaM2: number;
+  /**
+   * Vzdálenost chůze z nejbližšího obydlí po pěšinách při plánu seče (m, paths.md – Pěšiny
+   * a práce; díl `partWalkDistance`, políčko ke středu); bez pěšin přímá.
+   */
+  distanceM: number;
 }
 
 /**
@@ -801,16 +830,21 @@ export interface Pen {
   obstacles?: number[];
 }
 
-/** Jídlo jednoho dne (diet.md) – energie a pestrost proti potřebě, podíly zdrojů na energii. */
+/**
+ * Jídlo jednoho dne (diet.md) – energie a bílkoviny proti potřebě, kvalita stravy a podíly zdrojů
+ * na energii.
+ */
 export interface DietDay {
-  /** Pokrytí energie 0–1 (obilí + maso × 0,6 + ovoce / 7 proti potřebě). */
+  /** Pokrytí energie 0–1 (obilí, maso, mléko a sýr, vejce, ovoce v obilních ekvivalentech). */
   energy: number;
-  /** Pestrost 0,8–1 (0,80 + 0,14 × pokrytí masa + 0,06 × pokrytí ovoce). */
+  /** Pokrytí bílkovin 0–1 (1,6 g na kg tělesné váhy – Martin). */
+  protein: number;
+  /** Kvalita stravy 0,6–1 z bílkovin a ovoce (`dietQuality`). */
   diversity: number;
-  /** Nasycení = energie × pestrost. */
+  /** Nasycení = energie × kvalita stravy. */
   satiation: number;
-  /** Podíly na potřebě energie 0–1 – obilí, maso, ovoce. */
-  shares: { grain: number; meat: number; fruit: number };
+  /** Podíly na potřebě energie 0–1 – obilí, maso, mléko a sýr, vejce, ovoce. */
+  shares: { grain: number; meat: number; dairy: number; eggs: number; fruit: number };
 }
 
 /**

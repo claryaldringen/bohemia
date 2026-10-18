@@ -103,6 +103,17 @@ export function pathWalkLength(length: number, strength: number): number {
   return length * (1 - PATH_WALK.speedup * Math.min(1, Math.max(0, strength)));
 }
 
+/**
+ * Nejmenší podíl přímé vzdálenosti, na který chůze může klesnout – nejrychlejší chůze (plná
+ * pěšina, pevná cesta podle stupně, hať): chůze z A do B je nejméně přímá vzdálenost × tento
+ * podíl. Kdo měří jen kandidáty v dosahu (seč luk – hay.ts), podle něj odhadne, co měřit.
+ */
+export const FASTEST_WALK_SHARE = Math.min(
+  1 - PATH_WALK.speedup,
+  ...Object.values(ROAD_WALK.speed).map((speed) => 1 / speed),
+  1 / ROAD_WALK.causewayWetSpeed,
+);
+
 /** Rychlost chůze po pevné cestě proti louce – podle stupně a mokřiny. */
 export function roadWalkSpeed(grade: RoadGrade, wet: boolean): number {
   if (!wet) return ROAD_WALK.speed[grade];

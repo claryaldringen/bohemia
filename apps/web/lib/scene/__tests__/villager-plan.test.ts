@@ -323,6 +323,48 @@ describe('planVillagers – kdo kde je', () => {
     expect(people.filter((p) => p.key.startsWith('slaughter:')).length).toBe(2);
   });
 
+  it('dojí ženy u domů, v zimě se o krávy a voly stará někdo u ohrady (diet.md)', () => {
+    const shares: LaborShare[] = [
+      { activity: 'milking', target: { kind: 'village' }, manDays: 2 },
+      { activity: 'animal-care', target: { kind: 'pen', id: 60 }, manDays: 1 },
+    ];
+    const v: SceneVillage = {
+      ...village(shares),
+      pens: [
+        {
+          id: 60,
+          cell: { x: -4, y: 1 },
+          x: -52.5,
+          z: 22.5,
+          size: 15,
+          built: true,
+          progress: 1,
+          oxen: 2,
+          trainees: 0,
+          cows: 1,
+        },
+      ],
+    };
+    const people = planVillagers(v, GROUND, { seed: 3, herds: 0 });
+    const milkers = people.filter((p) => p.key.startsWith('milking:'));
+    expect(milkers.length).toBe(2);
+    for (const p of milkers) {
+      const pose = at(p, 10);
+      expect(inHouse(v, pose.x, pose.z)).toBe(false);
+      // u některého domu
+      const near = v.dwellings.some(
+        (d) => d.built && Math.hypot(pose.x - d.position.x, pose.z - d.position.z) < 9,
+      );
+      expect(near).toBe(true);
+    }
+    const carers = people.filter((p) => p.key.startsWith('animal-care:'));
+    expect(carers.length).toBe(1);
+    const pose = at(carers[0]!, 10);
+    const d = Math.max(Math.abs(pose.x + 52.5), Math.abs(pose.z - 22.5));
+    expect(d).toBeGreaterThan(7.5);
+    expect(d).toBeLessThan(11);
+  });
+
   it('pasáček jde za svým stádem; vdané ženy mají šátek, starší šediny', () => {
     const herder = of('herder:')[0]!;
     const pose = at(herder, 50);
@@ -402,6 +444,31 @@ describe('práce na poli po čtvercích – fronta práce', () => {
       expect(onSquare(parts[1]!, pose.x, pose.z)).toBe(true);
     }
     expect(people.some((p) => p.key.startsWith('plough:'))).toBe(false);
+  });
+
+  it('seč přirozené louky: řady sekáčů na políčkách louky z fronty od jádra (oxen.md)', () => {
+    const meadow = (cx: number, cy: number, look: 'meadow' | 'mown', work?: number) => ({
+      cell: { x: cx, y: cy },
+      x: cx * 15 + 7.5,
+      z: cy * 15 + 7.5,
+      size: 15,
+      look,
+      ...(work === undefined ? {} : { work, before: 'meadow' as const }),
+    });
+    const v: SceneVillage = {
+      ...withField(row, [
+        { activity: 'mow', target: { kind: 'meadow', cells: [{ x: -6, y: -1 }] }, manDays: 4 },
+      ]),
+      hayMeadows: [meadow(-6, -1, 'mown', 0.5), meadow(-5, -1, 'meadow')],
+    };
+    const mowers = planVillagers(v, GROUND, { seed: 3, herds: 0 }).filter((p) =>
+      p.key.startsWith('mow:'),
+    );
+    expect(mowers.length).toBe(4);
+    for (const p of mowers) {
+      const pose = at(p, 20);
+      expect(onSquare(v.hayMeadows![0]!, pose.x, pose.z)).toBe(true);
+    }
   });
 
   it('bez fronty: na rozpracovaném čtverci stojí řada hned za čarou práce', () => {

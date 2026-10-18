@@ -141,6 +141,42 @@ describe('computePathNetwork – pěšiny vsi', () => {
     expect(nearField(busy)).toBeGreaterThan(nearField(idle));
   });
 
+  it('k přirozené louce, kde se dnes seče, vede pěšina (oxen.md – Seno)', () => {
+    // louka na východ od vsi – bez seče tam nikdo nechodí
+    const meadow = part(82.5, -37.5);
+    const hayMeadows = [{ cell: meadow.cell, x: meadow.x, z: meadow.z, size: meadow.size }];
+    const reaches = (network: PathNetwork): boolean =>
+      samples(network).some((p) => p.x > 70 && p.x < 95 && p.z > -50 && p.z < -25);
+    const idle = computePathNetwork({ village: village({ hayMeadows }), terrain });
+    const mowing = computePathNetwork({
+      village: village({
+        hayMeadows,
+        labor: {
+          day: 4000,
+          month: 6,
+          people: { children: 4, adults: 8, elders: 2 },
+          shares: [{ target: { kind: 'meadow', cells: [meadow.cell] }, manDays: 6 }],
+        },
+      }),
+      terrain,
+    });
+    expect(reaches(idle)).toBe(false);
+    expect(reaches(mowing)).toBe(true);
+    // políčko, které ves mezi loukami seče nezná, pěšinu nedostane
+    const unknown = computePathNetwork({
+      village: village({
+        labor: {
+          day: 4000,
+          month: 6,
+          people: { children: 4, adults: 8, elders: 2 },
+          shares: [{ target: { kind: 'meadow', cells: [meadow.cell] }, manDays: 6 }],
+        },
+      }),
+      terrain,
+    });
+    expect(reaches(unknown)).toBe(false);
+  });
+
   it('trasy se slévají – sousedé chodí k vodě i pro dřevo po společné pěšině', () => {
     const network = computePathNetwork({ village: village(), terrain });
     const key = (p: { x: number; z: number } | null): string => (p ? `${p.x},${p.z}` : '');

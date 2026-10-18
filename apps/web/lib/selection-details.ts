@@ -118,6 +118,13 @@ export type SelectionDetails =
       id: number;
       /** Kolik dub sám přidává štěstí (stropy vsi platí zvlášť). */
       happiness: number;
+      /**
+       * Stáří dubu v celých letech (podle velikosti, roste s herním časem; souš – stáří, kdy
+       * uschla); neznámé null.
+       */
+      ageYears: number | null;
+      /** Dub stářím uschl – stojí posvátná souš. */
+      snag: boolean;
     }
   | {
       kind: 'grove';
@@ -126,6 +133,8 @@ export type SelectionDetails =
       oaks: number;
       /** Kolik háj sám přidává štěstí. */
       happiness: number;
+      /** Stáří nejstaršího dubu háje v celých letech; neznámé null. */
+      ageYears: number | null;
     }
   | {
       kind: 'sacred';
@@ -154,6 +163,8 @@ export type SelectionDetails =
       /** Pastva vsi a kolik ji stáda spásají (ha). */
       pastureHa: number;
       grazingHa: number;
+      /** Mléko stád dnes (l, v době dojení – diet.md). */
+      milkLPerDay: number;
       /** Vycvičené spřežení – stáří a kolik let ještě slouží; bez spřežení null. */
       team: { ageYears: number; yearsLeft: number } | null;
       /** Výcvik spřežení – průběh 0–1 a zbývající dny; bez výcviku null. */
@@ -293,12 +304,26 @@ export function selectionDetails(
   }
   if (target.kind === 'sacred-oak') {
     const oak = view?.sacred.oaks.find((o) => o.id === target.id);
-    return oak ? { kind: 'sacred-oak', id: oak.id, happiness: oak.happiness } : null;
+    return oak
+      ? {
+          kind: 'sacred-oak',
+          id: oak.id,
+          happiness: oak.happiness,
+          ageYears: oak.ageYears,
+          snag: oak.snag,
+        }
+      : null;
   }
   if (target.kind === 'grove') {
     const grove = view?.sacred.groves.find((g) => g.id === target.id);
     return grove
-      ? { kind: 'grove', id: grove.id, oaks: grove.oaks, happiness: grove.happiness }
+      ? {
+          kind: 'grove',
+          id: grove.id,
+          oaks: grove.oaks,
+          happiness: grove.happiness,
+          ageYears: grove.ageYears,
+        }
       : null;
   }
   if (target.kind === 'sacred') return sacredDetails(view, scene, target.id);
@@ -416,6 +441,7 @@ function penDetails(view: VillageView | null, id: number): SelectionDetails | nu
     chickens: view.livestock.chickens,
     pastureHa: view.livestock.pastureHa,
     grazingHa: view.livestock.grazingHa,
+    milkLPerDay: view.livestock.milkLPerDay,
     team: pen.team,
     training: pen.training,
     hayKg: view.hayKg,

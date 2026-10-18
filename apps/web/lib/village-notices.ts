@@ -6,8 +6,8 @@ import type { VillageView } from './village-view';
 // nebo dubový háj (happiness.md – jen když přibude), kovář nemá uhlí a dílna nemá co kácet
 // (crafts.md), svatba mezi domy (population.md – Sňatky mezi domy, když přibude), podzimní
 // porážka (diet.md), spřežení volů – vycvičené, dosloužilo, vůl uhynul pro nedostatek sena
-// (oxen.md) – a vesničané obnovují starý sad a starý sad dosloužil (orchard.md – Obnova sadu)
-// – nové události kroniky. Vymřelá ves žádná nemá.
+// (oxen.md) –, vesničané obnovují starý sad a starý sad dosloužil (orchard.md – Obnova sadu)
+// a posvátný dub uschl a posvátná souš padla (happiness.md) – nové události kroniky. Vymřelá ves žádná nemá.
 // Odvozují se z pohledu na ves a ukážou se jednou, když nově vzniknou – jako krátký mizející
 // řádek nahoře uprostřed (jako oznámení v 0 A.D.). Jen fakt, žádná rada.
 
@@ -21,6 +21,8 @@ export type NoticeKind =
   | 'no-wood'
   | 'sacred-oak'
   | 'sacred-grove'
+  | 'sacred-oak-died'
+  | 'sacred-snag-fell'
   | 'marriage'
   | 'slaughter'
   | 'team-ready'
@@ -114,6 +116,17 @@ const CHRONICLE_NOTICES: Partial<
     text: 'Vesničané obnovují starý sad',
   }),
   'orchard-gone': () => ({ kind: 'orchard-gone', tone: 'warn', text: 'Starý sad dosloužil' }),
+  // posvátný dub stářím uschl, posvátná souš padla (happiness.md – Posvátný dub)
+  'sacred-oak-died': () => ({
+    kind: 'sacred-oak-died',
+    tone: 'warn',
+    text: 'Posvátný dub uschl',
+  }),
+  'sacred-snag-fell': () => ({
+    kind: 'sacred-snag-fell',
+    tone: 'warn',
+    text: 'Posvátná souš padla',
+  }),
 };
 
 /** Nové události kroniky od předchozího pohledu (den po něm), které se ohlásí jako fakt. */

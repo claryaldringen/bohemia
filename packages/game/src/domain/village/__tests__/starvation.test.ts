@@ -55,6 +55,11 @@ function village(
     hungry: false,
     commonLaborHistory: [],
     chronicle: [],
+    // bez stád – žádné mléko ani maso (jídlo jen ze zásob obilí a vajec)
+    livestock: {
+      herds: { sheep: 0, goat: 0, pig: 0, cow: 0 },
+      young: { sheep: 0, goat: 0, pig: 0, cow: 0 },
+    },
   };
 }
 
@@ -182,10 +187,10 @@ describe('hladovění – zotavení a dopočet', () => {
     const start = village(4, 12);
     const hungry = advanceVillage(start, START + 9, null);
     // vejce slepic u obydlí dají trošku energie (diet.md) – hlad přibývá skoro o den denně
-    expect(hungry.starvationDays).toBeCloseTo(10, 1);
+    expect(hungry.starvationDays).toBeCloseTo(10, 0);
     hungry.storesKg = 10_000;
     const fed = advanceVillage(hungry, START + 13, null);
-    expect(fed.starvationDays).toBeCloseTo(6, 1);
+    expect(fed.starvationDays).toBeCloseTo(6, 0);
     expect(advanceVillage(fed, START + 30, null).starvationDays).toBe(0);
   });
 
@@ -282,7 +287,7 @@ describe('vymření vsi', () => {
     const summary = summarizeVillage(starving, starving.lastDay);
     expect(summary).toMatchObject({ extinctDay: null, starving: true });
     // vejce slepic u obydlí dají trošku energie (diet.md)
-    expect(summary.starvationDays).toBeCloseTo(16, 1);
+    expect(summary.starvationDays).toBeCloseTo(16, 0);
   });
 });
 

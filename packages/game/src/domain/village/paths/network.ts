@@ -137,6 +137,11 @@ export interface PathVillage {
    * denně vyžene na úhor. Bez údaje žádná.
    */
   livestock?: Readonly<Partial<Record<HerdSpecies, number>>>;
+  /**
+   * Přirozené louky letošní seče (oxen.md – Seno) – políčka; pěšina vede k těm, kde se dnes seče
+   * (práce `meadow` v rozdělení práce). Bez údaje žádné.
+   */
+  hayMeadows?: readonly PathSquare[];
 }
 
 export interface PathNetworkInput {
@@ -284,6 +289,7 @@ export function pathBounds(
   for (const g of village.sacred?.groves ?? []) add(g.x, g.z);
   for (const b of village.sacred?.buildings ?? []) add(b.position.x, b.position.z);
   for (const p of village.pens ?? []) add(p.x, p.z);
+  for (const m of mowedMeadows(village)) add(m.x, m.z);
   const clampX = (x: number): number =>
     Math.min(cx + MAX_WINDOW_HALF_M, Math.max(cx - MAX_WINDOW_HALF_M, x));
   const clampZ = (z: number): number =>
@@ -296,6 +302,26 @@ export function pathBounds(
     maxX: up(clampX(Math.max(...xs) + PATH_REACH_M)),
     maxZ: up(clampZ(Math.max(...zs) + PATH_REACH_M)),
   };
+}
+
+/**
+ * Políčka přirozených luk, kde ves seče (práce `meadow` v rozdělení práce – v roční síti za rok),
+ * podle `hayMeadows`; políčko, které ves nezná, vypadne.
+ */
+function mowedMeadows(village: PathVillage): PathSquare[] {
+  const meadows = village.hayMeadows ?? [];
+  if (meadows.length === 0) return [];
+  const byCell = new Map(meadows.map((m) => [`${m.cell.x},${m.cell.y}`, m]));
+  const out = new Map<string, PathSquare>();
+  for (const share of village.labor?.shares ?? []) {
+    if (share.target.kind !== 'meadow' || share.manDays <= 0) continue;
+    for (const c of share.target.cells) {
+      const key = `${c.x},${c.y}`;
+      const m = byCell.get(key);
+      if (m) out.set(key, m);
+    }
+  }
+  return [...out.values()];
 }
 
 /** Síla pěšiny 0–1 z provozu (cest za den); pod prahem 0. */
@@ -417,7 +443,12 @@ function laborByTarget(village: PathVillage): [string, number][] {
   for (const share of village.labor?.shares ?? []) {
     const t = share.target;
     if (t.kind === 'village') continue;
-    const key = t.kind === 'trees' ? `trees:${t.ids.join('.')}` : `${t.kind}:${t.id}`;
+    const key =
+      t.kind === 'trees'
+        ? `trees:${t.ids.join('.')}`
+        : t.kind === 'meadow'
+          ? `meadow:${t.cells.map((c) => `${c.x}.${c.y}`).join('_')}`
+          : `${t.kind}:${t.id}`;
     // na setiny jako ve scéně (village-view.ts) – server i prohlížeč pak sečtou totéž
     sums.set(key, (sums.get(key) ?? 0) + Math.round(share.manDays * 100) / 100);
   }
@@ -950,6 +981,18 @@ function tripGroups(
     } else {
       const repair = work(`dwelling:${d.id}`);
       if (repair > 0) target(cellsAround(grid, gateOf(b), 2.5), repair);
+    }
+  }
+  // seč přirozených luk (oxen.md – Seno): k políčkům, kde se dnes seče, chodí sekáči
+  if (v.hayMeadows && v.hayMeadows.length > 0) {
+    const byCell = new Map(v.hayMeadows.map((m) => [`${m.cell.x},${m.cell.y}`, m]));
+    for (const t of v.labor?.shares ?? []) {
+      if (t.target.kind !== 'meadow') continue;
+      const squares = t.target.cells.flatMap((c) => {
+        const m = byCell.get(`${c.x},${c.y}`);
+        return m ? [m] : [];
+      });
+      target(squaresTarget(squares), t.manDays * TRIPS_PER_MAN_DAY);
     }
   }
   for (const t of v.labor?.shares ?? []) {

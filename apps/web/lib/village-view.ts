@@ -9,11 +9,13 @@ import {
   dateOfDayIndex,
   effectiveFertility,
   fieldPartLooks,
+  hayMeadowLooks,
   forestBonus,
   monthInWindow,
   obstacleChangesAt,
   ORCHARD_PLANTING_WINDOWS,
   laborReport,
+  groveAgeYears,
   obstaclesOf,
   partStage,
   reservedTrees,
@@ -50,6 +52,7 @@ import {
   type LaborShare,
   type Landscape,
   type ObstacleChanges,
+  type ObstacleLayer,
   type OrchardSquare,
   type OrchardWork,
   type PartStage,
@@ -135,11 +138,19 @@ export interface VillageHappiness {
 
 /**
  * Posvátná místa pro panel výběru – kolik které samo přidává štěstí (stropy počtu a součtu platí
- * pro celou ves) a u modly a svatyně průběh stavby.
+ * pro celou ves), stáří dubu (háj: jeho nejstaršího dubu – `oakAgeYears`, celé roky; strom mimo
+ * vrstvu null) a u modly a svatyně průběh stavby.
  */
 export interface VillageSacred {
-  oaks: { id: number; happiness: number }[];
-  groves: { id: number; oaks: number; squares: number; happiness: number }[];
+  /** Živé posvátné duby a posvátné souše (`snag`) – padlá souš už posvátným dubem není. */
+  oaks: { id: number; happiness: number; ageYears: number | null; snag: boolean }[];
+  groves: {
+    id: number;
+    oaks: number;
+    squares: number;
+    happiness: number;
+    ageYears: number | null;
+  }[];
   /**
    * Modly a svatyně – hotové (`built`, id stavby, která je postavila) i rozestavěné (id stavby):
    * průběh celé stavby i s kácením dubů 0–1 a kolik dubů ještě musí skácet.
@@ -216,7 +227,7 @@ export const ROAD_UPGRADE_NAMES: Record<RoadUpgrade, string> = {
 };
 
 /** Jídlo pro horní lištu a tooltip nasycení (diet.md) – energie, pestrost a podíly na energii. */
-export type VillageDiet = Pick<DietDay, 'energy' | 'diversity' | 'shares'>;
+export type VillageDiet = Pick<DietDay, 'energy' | 'protein' | 'diversity' | 'shares'>;
 
 /** Řemeslná dílna pro panel výběru (crafts.md – Co hráč vidí). */
 export interface VillageWorkshop {
@@ -267,7 +278,10 @@ export interface VillageView {
   storesKg: number;
   /** Zásoby ovoce – jablek (kg; v rozhraní „ovoce“ – diet.md). */
   applesKg: number;
-  /** Zásoba masa (kg) – uzené maso a vejce (diet.md). */
+  /** Zásoba sýra (kg) a mléko dne (l, když se podojí všechny dojné samice – diet.md). */
+  cheeseKg: number;
+  milkLPerDay: number;
+  /** Zásoba masa (kg) – uzené a sušené (diet.md). */
   meatKg: number;
   /** Zásoba sena (kg) – horní lišta ho ukáže, když ves má ohradu nebo seno (oxen.md). */
   hayKg: number;
@@ -556,6 +570,23 @@ export interface SceneVillage {
   livestock?: Record<HerdSpecies, number>;
   /** Ohrady (oxen.md) – čtverec, stavba a zvířata v ní. Bez údaje žádné. */
   pens?: ScenePen[];
+  /**
+   * Přirozené louky letošní seče (oxen.md – Seno; ozdobné louky na seno nahradila data):
+   * políčko, střed a strana jako u dílu pole a vzhled `meadow` / `mown` / `haystacks` (rozpracované
+   * s `work` a `before`). Bez údaje žádné.
+   */
+  hayMeadows?: SceneHayMeadow[];
+}
+
+/** Políčko přirozené louky v seči pro scénu. */
+export interface SceneHayMeadow {
+  cell: TileCell;
+  x: number;
+  z: number;
+  size: number;
+  look: FieldLook;
+  work?: number;
+  before?: FieldLook;
 }
 
 /**
@@ -597,17 +628,35 @@ export interface SceneRoadApple {
 }
 
 /**
+ * Posvátný dub ve scéně: id stromu z vrstvy překážek a kmen. `growth` = násobek velikosti dubu
+ * (a obětin u kmene) – ušetřené duby se postupně zvětší (`sacredOakGrowth`, jen vzhled; souš od
+ * uschnutí už neroste); bez údaje 1. `snag` – dub uschl, místo stromu stojí posvátná souš
+ * (obětiny u ní zůstávají). `sizeM` – velikost dubu (výška modelu × měřítko) pro souš a padlý
+ * kmen; bez údaje odhad.
+ */
+export interface SceneSacredOak {
+  id: number;
+  x: number;
+  z: number;
+  growth?: number;
+  snag?: true;
+  sizeM?: number;
+}
+
+/**
  * Posvátná místa pro scénu: ušetřené posvátné duby (id stromu z vrstvy překážek a kmen – obětiny
  * u kmene), dubové háje (id středového dubu, střed a čtverce s jejich středy a stranou – kamenný
  * kruh a obětiny na okraji) a modly a svatyně (hotové i rozestavěné – id stavby; `progress` je
  * průběh samotné stavby bez kácení dubů 0–1 pro fáze staveniště, vytyčení je vidět od 0).
  */
 export interface SceneSacred {
+  /** Živé posvátné duby a posvátné souše. */
+  oaks: SceneSacredOak[];
   /**
-   * `growth` = násobek velikosti dubu (a obětin u kmene) – ušetřené duby se postupně zvětší
-   * (`sacredOakGrowth`, jen vzhled); bez údaje 1.
+   * Padlé posvátné souše (happiness.md – Posvátný dub): místo už není posvátný dub – strom se
+   * skryje a leží padlý kmen. Bez údaje žádné.
    */
-  oaks: { id: number; x: number; z: number; growth?: number }[];
+  fallenOaks?: SceneSacredOak[];
   groves: {
     id: number;
     x: number;
@@ -807,6 +856,10 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       return event.site === 'oak'
         ? 'Vesničané ušetřili posvátný dub.'
         : 'Vesničané ušetřili dubový háj.';
+    case 'sacred-oak-died':
+      return 'Posvátný dub stářím uschl – zůstala posvátná souš.';
+    case 'sacred-snag-fell':
+      return 'Posvátná souš padla.';
     case 'road-formed':
       return 'Kudy se chodí léta, vyšlapala se pevná cesta.';
     case 'road-overgrown':
@@ -928,6 +981,18 @@ function sceneVillage(
     ...(r.craft ? { craft: r.craft } : {}),
   }));
   const pens = scenePens(state, landscape, day, summary);
+  const hayMeadows = hayMeadowLooks(state, day).map((view): SceneHayMeadow => {
+    const center = tileCenterWorld(landscape, view.cell.x, view.cell.y);
+    return {
+      cell: { x: view.cell.x, y: view.cell.y },
+      x: center.x,
+      z: center.z,
+      size: landscape.cellSizeM,
+      look: view.look,
+      ...(view.work === undefined ? {} : { work: view.work }),
+      ...(view.before === undefined ? {} : { before: view.before }),
+    };
+  });
   const penned = pens.reduce((sum, pen) => sum + pen.cows, 0);
   const herds = summary.livestock.herds;
   return {
@@ -942,6 +1007,7 @@ function sceneVillage(
     ...(labor ? { labor } : {}),
     ...(sacred ? { sacred } : {}),
     livestock: { ...herds, cow: Math.max(0, herds.cow - penned) },
+    ...(hayMeadows.length > 0 ? { hayMeadows } : {}),
     ...(pens.length > 0 ? { pens } : {}),
     ...(summary.crafts.coverage.tools > 0 ? { toolCoverage: summary.crafts.coverage.tools } : {}),
     ...(roads.length > 0 ? { roads } : {}),
@@ -1179,8 +1245,19 @@ function sceneSacred(
   ];
   const { oaks, groves } = summary.sacred;
   if (oaks.length === 0 && groves.length === 0 && buildings.length === 0) return null;
+  // souš a padlý kmen mají velikost dubu v den uschnutí
+  const sceneOak = (o: (typeof oaks)[number]): SceneSacredOak => ({
+    id: o.id,
+    x: o.x,
+    z: o.z,
+    growth: sacredOakGrowth(o.day, o.diedDay ?? day),
+    ...(o.stage === 'snag' ? { snag: true as const } : {}),
+    ...(o.stage !== 'alive' && o.sizeM !== null ? { sizeM: o.sizeM } : {}),
+  });
+  const fallen = oaks.filter((o) => o.stage === 'fallen').map(sceneOak);
   return {
-    oaks: oaks.map((o) => ({ id: o.id, x: o.x, z: o.z, growth: sacredOakGrowth(o.day, day) })),
+    oaks: oaks.filter((o) => o.stage !== 'fallen').map(sceneOak),
+    ...(fallen.length > 0 ? { fallenOaks: fallen } : {}),
     groves: groves.map((g) => ({
       id: g.id,
       x: g.x,
@@ -1199,8 +1276,11 @@ function sceneSacred(
   };
 }
 
-/** Posvátná místa pro panel výběru – kolik které přidává, u staveb průběh. */
-function sacredView(summary: VillageSummary): VillageSacred {
+/**
+ * Posvátná místa pro panel výběru – kolik které přidává, stáří dubů (souš: stáří, kdy uschla;
+ * háj: nejstarší dub podle vrstvy překážek), u staveb průběh. Padlá souš už posvátným dubem není.
+ */
+function sacredView(summary: VillageSummary, obstacles: ObstacleLayer, day: number): VillageSacred {
   const sites = summary.constructions.flatMap((c) =>
     c.kind === 'idol' || c.kind === 'shrine'
       ? [
@@ -1216,12 +1296,17 @@ function sacredView(summary: VillageSummary): VillageSacred {
       : [],
   );
   return {
-    oaks: summary.sacred.oaks.map((o) => ({ id: o.id, happiness: o.happiness })),
+    oaks: summary.sacred.oaks.flatMap((o) =>
+      o.stage === 'fallen'
+        ? []
+        : [{ id: o.id, happiness: o.happiness, ageYears: o.ageYears, snag: o.stage === 'snag' }],
+    ),
     groves: summary.sacred.groves.map((g) => ({
       id: g.id,
       oaks: g.oaks,
       squares: g.cells.length,
       happiness: g.happiness,
+      ageYears: groveAgeYears(obstacles, g, day),
     })),
     buildings: [
       ...summary.sacred.buildings.map((b) => ({
@@ -1471,7 +1556,8 @@ export function buildVillageView(
   gameOver = false,
 ): VillageView {
   const { state, name } = record;
-  const summary = summarizeVillage(state, day);
+  const obstacles = obstaclesOf(landscape);
+  const summary = summarizeVillage(state, day, obstacles);
   return {
     name,
     dayIndex: day,
@@ -1490,9 +1576,12 @@ export function buildVillageView(
     storesKg: summary.storesKg,
     applesKg: summary.applesKg,
     meatKg: summary.meatKg,
+    cheeseKg: summary.cheeseKg,
+    milkLPerDay: summary.livestock.milkLPerDay,
     hayKg: summary.hayKg,
     diet: {
       energy: summary.diet.energy,
+      protein: summary.diet.protein,
       diversity: summary.diet.diversity,
       shares: summary.diet.shares,
     },
@@ -1530,7 +1619,7 @@ export function buildVillageView(
       target: summary.happiness.target,
       laborFactor: summary.happiness.laborFactor,
     },
-    sacred: sacredView(summary),
+    sacred: sacredView(summary, obstacles, day),
     extinct: villageLifespan(state),
     gameOver,
     cemeteries: summary.cemeteries.map((c) => {

@@ -4,7 +4,7 @@ import { packObstacles, type ObstacleLayer, type ObstaclePlacement } from '../..
 import { foundVillage } from '../actions';
 import { nearestPlotVariant, plotHousePosition } from '../placement';
 import { relocationPlot, withPlots } from '../plots';
-import { PLOT_RELOCATION_M, PLOT_SNAP_M } from '../rules';
+import { DWELLINGS, PLOT_RELOCATION_M, PLOT_SNAP_M } from '../rules';
 import { advanceVillage } from '../simulate';
 import type { Dwelling, Position, VillageState } from '../types';
 import { logsFromClearedTrees } from '../wood';
@@ -243,7 +243,7 @@ describe('přestavba polozemnice bez pozemku', () => {
     const home = s.dwellings[0]!;
     home.type = 'polozemnice';
     home.position = { x: 7.5, z: 7.5, rotation: 0 };
-    home.condition = 0; // na nule – hned se přestaví
+    home.builtDay = DAY - (DWELLINGS.polozemnice.lifespanYears + 1) * 366; // dožila – hned se přestaví
     addDwelling(s, { x: 12.5, z: 12.5, rotation: 0 }, 'zemnice');
     return { s: withPlots(s, landscape, EMPTY), id: home.id };
   }

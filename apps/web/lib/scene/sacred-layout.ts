@@ -92,6 +92,56 @@ export function oakOfferingRotation(id: number): number {
   return hash01(id, 7, 31) * Math.PI * 2;
 }
 
+/**
+ * Uschlý a padlý posvátný dub (happiness.md – Posvátný dub): souš dubu a padlý kmen – modely
+ * dekorací z 0 A.D. (`public/models/decor/`, licence tamtéž).
+ */
+export const DEAD_OAK_MODELS = { snag: 'snag-oak', fallen: 'fallen-1' } as const;
+/** Výška modelu souše dubu a délka padlého kmene s větvemi (m, z GLB). */
+const SNAG_MODEL_HEIGHT_M = 13.13;
+const FALLEN_MODEL_LENGTH_M = 14.4;
+/** Souš je nižší než živý dub – koruna se rozpadá (podíl výšky dubu). */
+const SNAG_HEIGHT_SHARE = 0.75;
+/** Padlý kmen s větvemi leží na délku takového podílu výšky dubu. */
+const FALLEN_LENGTH_SHARE = 0.7;
+/** Velikost dubu, když ji scéna nedostane (střední posvátný dub, m). */
+const DEFAULT_OAK_SIZE_M = 20;
+
+/** Souš nebo padlý kmen ve světě – pata, natočení a násobek velikosti modelu. */
+export interface DeadOakInstance {
+  x: number;
+  z: number;
+  rotationY: number;
+  scale: number;
+}
+
+type DeadOak = SceneSacred['oaks'][number];
+
+/** Výška dubu v den uschnutí (velikost × zvětšení od ušetření). */
+function deadOakHeightM(oak: DeadOak): number {
+  return (oak.sizeM ?? DEFAULT_OAK_SIZE_M) * (oak.growth ?? 1);
+}
+
+/** Posvátná souš na místě dubu – o čtvrtinu nižší než dub, natočená podle id. */
+export function sacredSnagInstance(oak: DeadOak): DeadOakInstance {
+  return {
+    x: oak.x,
+    z: oak.z,
+    rotationY: hash01(oak.id, 8, 31) * Math.PI * 2,
+    scale: (deadOakHeightM(oak) * SNAG_HEIGHT_SHARE) / SNAG_MODEL_HEIGHT_M,
+  };
+}
+
+/** Padlý kmen padlé posvátné souše – leží přes místo dubu, natočený podle id. */
+export function fallenOakInstance(oak: DeadOak): DeadOakInstance {
+  return {
+    x: oak.x,
+    z: oak.z,
+    rotationY: hash01(oak.id, 9, 31) * Math.PI * 2,
+    scale: (deadOakHeightM(oak) * FALLEN_LENGTH_SHARE) / FALLEN_MODEL_LENGTH_M,
+  };
+}
+
 /** Kámen na okraji háje (uzel grove-stones.glb) – pata ve světě, natočení a velikost. */
 export interface GroveStone {
   model: 'stone-a' | 'stone-b' | 'altar';

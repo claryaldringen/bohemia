@@ -22,6 +22,7 @@ import type {
   RoadPoint,
   RoadTreeSpecies,
   RoadTreeSpot,
+  TileCell,
   VillageRoads,
   VillageState,
 } from '../types';
@@ -128,10 +129,18 @@ export function roadsDay(
   addRoadLabor(roads, state.labor, day);
 }
 
-/** Klíč místa práce (pole bez dílů). */
+/** Klíč místa práce (pole bez dílů; seč přirozených luk za rok jedno místo). */
 function laborKey(target: LaborTarget): string {
   if (target.kind === 'trees') return `trees:${target.ids.join('.')}`;
+  if (target.kind === 'meadow') return 'meadow';
   return target.kind === 'village' ? 'village' : `${target.kind}:${target.id}`;
+}
+
+/** Políčka luk bez opakování, po řádcích. */
+function mergeCells(a: readonly TileCell[], b: readonly TileCell[]): TileCell[] {
+  const cells = new Map<string, TileCell>();
+  for (const c of [...a, ...b]) cells.set(`${c.x},${c.y}`, { x: c.x, y: c.y });
+  return [...cells.values()].sort((p, q) => p.y - q.y || p.x - q.x);
 }
 
 /** Práce dne `day` (rozdělení práce vsi) do součtu roku cest (mutuje). */
@@ -144,14 +153,21 @@ export function addRoadLabor(roads: VillageRoads, labor: LaborDay | undefined, d
     const key = laborKey(share.target);
     const at = index.get(key);
     if (at !== undefined) {
-      roads.labor.shares[at]!.manDays += share.manDays;
+      const sum = roads.labor.shares[at]!;
+      sum.manDays += share.manDays;
+      // seč za rok: všechna políčka luk, kde se sekalo (pěšina vede k nejbližšímu)
+      if (sum.target.kind === 'meadow' && share.target.kind === 'meadow') {
+        sum.target = { kind: 'meadow', cells: mergeCells(sum.target.cells, share.target.cells) };
+      }
     } else {
       const target: LaborTarget =
         share.target.kind === 'field'
           ? { kind: 'field', id: share.target.id }
           : share.target.kind === 'trees'
             ? { kind: 'trees', ids: [...share.target.ids] }
-            : { ...share.target };
+            : share.target.kind === 'meadow'
+              ? { kind: 'meadow', cells: mergeCells([], share.target.cells) }
+              : { ...share.target };
       index.set(key, roads.labor.shares.length);
       roads.labor.shares.push({ target, manDays: share.manDays });
     }
