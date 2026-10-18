@@ -243,6 +243,7 @@ export class PlacementController implements ActivePlacement {
       check,
       label: DWELLING_NAMES[mode.type],
       screen: this.screen,
+      cost: check.ok ? (check.cost ?? null) : null,
     });
   }
 

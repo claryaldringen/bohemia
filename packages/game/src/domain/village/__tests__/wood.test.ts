@@ -9,7 +9,7 @@ import {
   type ObstaclePlacement,
 } from '../../landscape';
 import { foundCemetery, foundField, foundVillage, startNewDwelling } from '../actions';
-import { villageStock } from '../costs';
+import { dwellingLaborManDays, villageStock } from '../costs';
 import { allocateDay } from '../labor';
 import {
   countMatureTrees,
@@ -37,11 +37,13 @@ import { summarizeVillage } from '../summary';
 import type { Person, VillageState } from '../types';
 import {
   availableTrees,
+  claimedObstacles,
   fellAsWorked,
   fellingCost,
   fuelExtraPerDay,
   nearestMatureTrees,
   planDwellingWood,
+  planDwellingWoodFrom,
   reservedTrees,
   treesToFell,
   wholeLogs,
@@ -279,6 +281,66 @@ describe('plán dřeva obydlí', () => {
     const c = built.constructions.at(-1)!;
     expect(c.cost).toBe(dwellingBuildLabor('zemnice') + 4);
     expect(built.woodLogs).toBe(0);
+  });
+
+  it('plán z pohledu na ves (prohlížeč při umisťování) dá totéž co ze stavu vsi', () => {
+    const s = fullVillage();
+    s.woodLogs = 2.6;
+    s.clearedObstacles = [{ id: 30, day: DAY }];
+    const options = { obstacles: forest, clearedTrees: 1, clearedIds: [5] };
+    const position = { x: 20, z: 10 };
+    const fromState = planDwellingWood(s, 'polozemnice', position, DAY, options);
+    const fromView = planDwellingWoodFrom(
+      'polozemnice',
+      position,
+      {
+        logs: wholeLogs(s.woodLogs), // VillageView.woodLogs – celé kusy
+        changes: () => obstacleChangesAt(s, DAY),
+        claimed: () => claimedObstacles(s),
+      },
+      options,
+    );
+    expect(fromView).toEqual(fromState);
+    expect(fromView.fell.map((t) => t.id)).not.toContain(30);
+  });
+
+  it('práce na obydlí z plánu dřeva = cena zahájené stavby i první zemnice', () => {
+    const s = fullVillage();
+    s.woodLogs = 3;
+    const position = { x: 40, z: 0, rotation: 0 };
+    const plan = planDwellingWood(s, 'zemnice', position, DAY, { obstacles: forest });
+    expect(plan.fell).toHaveLength(4);
+    const labor = dwellingLaborManDays('zemnice', 6.5, plan);
+    expect(labor).toBeCloseTo(
+      dwellingBuildLabor('zemnice') +
+        6.5 +
+        woodFellingCost({
+          trees: 4,
+          fromPile: 3,
+          fell: plan.fell,
+          felled: 0,
+        }),
+      12,
+    );
+    const built = startNewDwelling(s, DAY, 'zemnice', position, 6.5, [], { obstacles: forest });
+    expect(built.constructions.at(-1)!.cost).toBe(labor);
+    // dost klád – kácení nic nestojí
+    expect(dwellingLaborManDays('zemnice', 0, { fell: [] })).toBe(dwellingBuildLabor('zemnice'));
+
+    const founded = foundVillage({
+      seed: 5,
+      day: DAY,
+      dwellingPosition: position,
+      dwellingObstacleCost: 4,
+      obstacles: forest,
+    });
+    const foundingPlan = planDwellingWoodFrom(
+      'zemnice',
+      position,
+      { logs: 0, changes: () => NO_OBSTACLE_CHANGES, claimed: () => new Set() },
+      { obstacles: forest },
+    );
+    expect(founded.constructions[0]!.cost).toBe(dwellingLaborManDays('zemnice', 4, foundingPlan));
   });
 
   it('u blízkého lesa stojí obydlí práci jako dřív (cena obydlí obsahuje kácení)', () => {

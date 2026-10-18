@@ -18,7 +18,7 @@ import { REFERENCE_DAY, seasonLook, type Rgb, type SeasonLook } from './season-l
 
 /**
  * Parametry období pro shadery: A = (sníh, suchá tráva, svěží tráva, mladé listí),
- * B = (listí, podzimní barvy, květy).
+ * B = (listí, podzimní barvy, květy, led na vodě).
  */
 interface SeasonShaderState {
   a: [number, number, number, number];
@@ -31,7 +31,7 @@ const REFERENCE_STATE = shaderState(seasonLook(REFERENCE_DAY));
 function shaderState(look: SeasonLook): SeasonShaderState {
   return {
     a: [look.snow, look.grassDry, look.grassFresh, look.leafFresh],
-    b: [look.leaves, look.leafAutumn, look.blossom, 0],
+    b: [look.leaves, look.leafAutumn, look.blossom, look.ice],
   };
 }
 

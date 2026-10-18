@@ -161,7 +161,9 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   (animace, voda, roční období), musí nastavit `needsRender`. **Výjimka: voda teče** (Martin) –
   dokud je hladina v záběru, scéna se překresluje `WATER_FPS` (30) za sekundu; vlnky plují po
   proudu (`water.ts`, rychlost proudu odvozuje osa potoka v jádru ze spádu a šířky potoka,
-  kalnost a podloží `scene/stream-geometry.ts`).
+  kalnost a podloží `scene/stream-geometry.ts`). Zamrzlá voda neteče: `flowsInView` zná čtverce
+  hladiny (`FLOW_CHUNK_M`) a od jaké zimy jsou celé zamrzlé – kreslí se, jen dokud je v záběru
+  nezamrzlá voda.
 - **Vývojový náhled** bez přihlášení a databáze: http://localhost:3010/dev/landscape?seed=42
   (tlačítka předchozí / další / náhodná, lišta vsi s minimapou – pole jde malovat i do lesa
   a překážky z něj hned zmizí, „Kácet 20 stromů“). V produkci vrací 404.
@@ -215,7 +217,7 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   (`sun-shadows.ts`) – stínová mapa 4096 přes celou krajinu se vykreslí jednou; vrhají je meshe
   pojmenované `trees-*`, `impostors-*` a `decor-*` (při přejmenování zachovat prefix).
 - **Roční období** (jen vzhled, žádná pravidla): `season-look.ts` (čisté funkce, testy) z dne
-  v roce spočítá sníh, suchou / svěží trávu, množství, podzimní barvu a mladost listí, květy,
+  v roce spočítá sníh, led na vodě, suchou / svěží trávu, množství, podzimní barvu a mladost listí, květy,
   světlo, opar, vodu a zvuky – plynulé přechody 2–5 týdnů, **léto (`REFERENCE_DAY`) je
   výchozí vzhled a nesmí se měnit**. `LandscapeScene.updateSeason` se jednou za sekundu podívá
   na herní datum (celé dny, svět mimo běh = léto) a jen při znatelné změně nastaví světlo,
@@ -230,10 +232,16 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   pixelech na holý obrázek, smrk se sněhem na zasněžený; podzim barví letní obrázek. Plocha
   korun s opadem po skvrnách mizí – v zimě je pod holými stromy vidět zasněžená zem (u kmenů
   místy prosvítá, stín stromů slabší). Nový model stromu nebo keře = záznam v
-  `seasonFoliageFor`. Stínová mapa listí nezná – pod 30 % listí 3D listnáče (`isDeciduousMesh`)
-  ze stínové mapy vypadnou a impostory dostanou do `diffuseTexture` zimní atlas (stín kmenů
-  a větví), mapa se překreslí jednou. Vývojový náhled má posuvník dne v roce a „přehrát rok“
-  (`setSeasonDay`).
+  `seasonFoliageFor`. **Led** (`water-ice.ts`, čisté funkce, testy): jde za sněhem – v prosinci
+  zamrzá stojatá a pomalá voda (tůně, klidné úseky; rychlost proudu jako ve shaderu vody)
+  a okraje u břehů, kde proud slábne, rychlý proud zůstane otevřený s ledem podél břehů;
+  v březnu roztaje. Shader hladiny počítá totéž (konstanty odsud, led v uniformě `seasonB.w`,
+  šum procedurální): na ledu stojí vlnky, leží sníh se skvrnami holého ledu. Ryby pod ledem
+  zmizí a nehýbou se (`Fauna.setIce`, `FishSchool.iceFlow`), potok je pod ledem tišší
+  (`frozenShare` v `ambient-mix.ts`). Stínová mapa listí nezná – pod 30 % listí 3D listnáče
+  (`isDeciduousMesh`) ze stínové mapy vypadnou a impostory dostanou do `diffuseTexture` zimní
+  atlas (stín kmenů a větví), mapa se překreslí jednou. Vývojový náhled má posuvník dne v roce
+  a „přehrát rok“ (`setSeasonDay`).
 - **Ukazatel načítání:** `setLandscape(landscape, onProgress)` hlásí kroky přípravy a mezi
   náročnými kroky pustí prohlížeč překreslit; `GameView` ukazuje `SceneLoading`.
 - **Zvuky** (podle 0 A.D.): `ambient-mix.ts` (čisté funkce, testy) spočítá z cíle a přiblížení
@@ -270,9 +278,10 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   krokem (≈ 0,6–1 m/s) – čisté funkce času, deterministicky. `livestock.ts` (`VillageLivestock`, háček v
   `landscape-scene.ts`) je kreslí jako fauna: mesh `livestock-*` na druh, krok (parabola přes
   dvě pózy) a hlava dolů (třetí morph target) ve vertex shaderu, výška a náklon podle terénu.
-  Textura z GLB se čte jako sRGB – StandardMaterial ji převádí zpět (`LIVESTOCK_GAMMA`), jinak
-  jsou zvířata tmavá. **Známá vada:** ryby a ptáci (`fauna.ts`) ten převod nemají, jsou proto
-  tmavší, než by měli být – barvy ryb jsou na tom vyladěné, zatím se nechávají. Modely v `fauna.json` (ovce, koza, kráva, prase, slepice) jsou ve
+  Textury z GLB (dobytek, ryby i ptáci – `loadGeometry` ve `fauna.ts`) se čtou v barvách
+  obrazovky (glTF bez sRGB bufferů) a StandardMaterial je kreslí bez převodu jako 0 A.D. – se
+  sRGB čtením by GPU barvy převedlo do lineárních a zvířata by ztmavla (WebGPU i WebGL 2).
+  Modely v `fauna.json` (ovce, koza, kráva, prase, slepice) jsou ve
   skutečné velikosti, ve scéně stylizovaně větší (`SCALE`). Terén pro zvířata je rastr 4 m
   kolem vsi (`livestockGround`) – přepočet jen při změně obydlí, polí nebo hřbitovů.
 - **Ves** (`village-renderer.ts`): obydlí stojí nad skutečnou jámou – terén a obtisky se v ní
@@ -393,8 +402,13 @@ rozhraní částí v
   jen když jsou, volná práce, nasycení barvou ikony, datum; zvuk a odhlášení), `Minimap` (vlevo dole, `lib/minimap.ts`,
   klik / tažení přesune pohled), `SelectionPanel` (dole uprostřed, jen při výběru,
   `lib/selection-details.ts`), `BuildGrid` (vpravo dole), `NoticeLines` (mizející řádky nahoře),
-  `CursorReason` (důvod, proč umístění nejde; oranžově `check.warning`, které stavbu
-  neblokuje – hřbitov blízko obydlí nebo vody, obydlí blízko hřbitova). Popisky = `hud/Tooltip.tsx`, jeden krátký
+  `CursorReason` (jde s kurzorem při umisťování: u prošlého umístění **cena ikonami s čísly** –
+  práce celkem v člověkodnech i s překážkami, u obydlí i s kácením, a ikona stromů s počtem
+  stromů ke kácení, když nestačí klády – `PlacementCost` z `lib/build-items.ts`, obydlí přes
+  `dwellingPlacementCost` = `planDwellingWoodFrom` + `dwellingLaborManDays` z jádra jako při
+  zahájení stavby; pod ní oranžově `check.warning`, které stavbu neblokuje – hřbitov blízko
+  obydlí nebo vody, obydlí blízko hřbitova; když umístění nejde, místo ceny krátký červený
+  důvod). Kromě důvodu a varování u kurzoru žádná slova ani souhrny. Popisky = `hud/Tooltip.tsx`, jeden krátký
   název (u staveb i cena). Vzhled panelů: třídy `hud-*` v `app/globals.css`. Ikony
   `public/icons/build/` a `public/icons/resources/`. Panely, nad kterými se krajina neposouvá
   okrajem okna, mají `data-hud-block`.
@@ -439,7 +453,8 @@ rozhraní částí v
 - **Les a dřevo** ([forest.md](docs/design/forest.md), `domain/village/wood.ts`): klády na hromadě
   (`woodLogs`, staré vsi 0, hnijí 4 % ročně), obydlí, první zemnice i přestavby berou dřevo
   (`DWELLING_TREES` 7 / 18) nejdřív z hromady, zbytek vyhradí při zahájení mezi nejbližšími
-  dospělými stromy (`planDwellingWood`, `nearestMatureTrees` – hledá po políčkách) a kácí je jako
+  dospělými stromy (`planDwellingWood`, bez stavu vsi `planDwellingWoodFrom` s `WoodSource` – cena
+  u kurzoru; `nearestMatureTrees` – hledá po políčkách) a kácí je jako
   první část práce stavby (`fellAsWorked` → pařezy). Simulace proto povinně dostává vrstvu
   překážek (`advanceVillage(state, day, obstacles)`; `null` = kácení bez polohy jen v testech),
   use-casy krajinu (`updateVillage`, `loadVillage`, `renameVillage`); kalibrace má syntetický

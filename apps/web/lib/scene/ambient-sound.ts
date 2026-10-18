@@ -183,7 +183,10 @@ export class AmbientSound {
     }, VIEW_UPDATE_MS);
   }
 
-  /** Roční období – ptáci a vítr v listí (ambient-mix.ts); mix se přepočítá pro poslední pohled. */
+  /**
+   * Roční období – ptáci, vítr v listí a led na potoce (ambient-mix.ts); mix se přepočítá pro
+   * poslední pohled.
+   */
   setSeason(season: AmbientSeason): void {
     if (this.disposed) return;
     this.season = season;

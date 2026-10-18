@@ -83,8 +83,9 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
 - **Překážky** na místě, např. kameny, osadníci odstraní, ale stavba stojí víc člověkodní
   (Martin). Totéž **v lese** – stromy je třeba skácet a vykopat pařezy. Ceny překážek a mýcení
   jsou jedna tabulka pro celou hru ve [fields.md](fields.md) (návrh Clauda). Kontrola umístění
-  cenu spočítá už při umisťování; rozhraní ji zatím neukazuje (u kurzoru jen důvod, proč stavba
-  nejde – fields.md, Krajina sídla a scéna, Stav).
+  cenu spočítá už při umisťování a rozhraní ji ukáže u kurzoru ikonami s čísly: práce celkem
+  (stavba, překážky a kácení dřeva, které nedá hromada klád) a počet stromů ke kácení; když
+  obydlí na místo nejde, místo ceny krátký červený důvod (fields.md – Co hráč vidí).
 - Odstraněné kameny a stromy z krajiny sídla zmizí natrvalo – krajina sídla je vygenerovaná
   krajina plus změny, které v ní udělali lidé (návrh Clauda).
 

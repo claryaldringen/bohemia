@@ -9,6 +9,7 @@ import {
   type StreamSample,
 } from './stream-geometry';
 import { tileAt } from './tile-at';
+import { iceFlowSpeed } from './water-ice';
 
 // Ryby a ptáci jsou jen ozdoba krajiny (podle 0 A.D.: fauna/fish*, fauna/crow_circle, hawk) –
 // žádná herní mechanika. Rozmístění je deterministické: stejná krajina = stejná zvířata.
@@ -42,6 +43,11 @@ export interface FishSchool {
   speedMps: number;
   /** Do jaké hloubky je ve vodě vidět (m) – průzračnost jako u hladiny (stream-geometry.ts). */
   visibilityM: number;
+  /**
+   * Rychlost proudu ve středu dráhy pro led (`iceFlowSpeed` z water-ice.ts) – pod zamrzlou
+   * hladinou ryby nejsou vidět.
+   */
+  iceFlow: number;
   /** Číslo hejna pro náhodu v pohybu (skoky). */
   seed: number;
   fish: FishMember[];
@@ -227,6 +233,7 @@ export function fishSchools(surface: RenderSurface): FishSchool[] {
       turn: hash(k, 3, 302) < 0.5 ? 1 : -1,
       speedMps: between(FISH_SPEED_MPS, hash(k, 4, 302)),
       visibilityM: waterVisibilityM(waterClarity(near)),
+      iceFlow: iceFlowSpeed(near.speed, near.bankDistance),
       seed: k,
       fish,
     });

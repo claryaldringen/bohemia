@@ -19,6 +19,7 @@ describe('vzhled ročního období', () => {
     const summer = seasonLook(REFERENCE_DAY);
     expect(summer).toMatchObject({
       snow: 0,
+      ice: 0,
       grassDry: 0,
       grassFresh: 0,
       leaves: 1,
@@ -42,6 +43,7 @@ describe('vzhled ročního období', () => {
   it('v zimě leží sníh, listnáče jsou holé, ptáci skoro mlčí', () => {
     const winter = seasonLook(MID_WINTER);
     expect(winter.snow).toBe(1);
+    expect(winter.ice).toBe(1);
     expect(winter.leaves).toBe(0);
     expect(winter.grassDry).toBeGreaterThan(0.8);
     expect(winter.sound.birds).toBeLessThan(0.5);
@@ -51,6 +53,7 @@ describe('vzhled ročního období', () => {
   it('na jaře je tráva svěží, listí raší a keře kvetou; sníh roztál', () => {
     const spring = seasonLook(MID_SPRING);
     expect(spring.snow).toBe(0);
+    expect(spring.ice).toBe(0);
     expect(spring.grassFresh).toBeGreaterThan(0.9);
     expect(spring.leafFresh).toBe(1);
     expect(spring.leaves).toBeGreaterThan(0.5);
@@ -61,6 +64,7 @@ describe('vzhled ročního období', () => {
   it('na podzim je listí zbarvené a ještě na stromech, tráva usychá', () => {
     const autumn = seasonLook(MID_AUTUMN);
     expect(autumn.snow).toBe(0);
+    expect(autumn.ice).toBe(0);
     expect(autumn.leafAutumn).toBeGreaterThan(0.95);
     expect(autumn.leaves).toBe(1);
     expect(autumn.grassDry).toBeGreaterThan(0.3);
@@ -85,6 +89,7 @@ describe('vzhled ročního období', () => {
       const look = seasonLook(day);
       for (const value of [
         look.snow,
+        look.ice,
         look.grassDry,
         look.grassFresh,
         look.leaves,
@@ -97,6 +102,22 @@ describe('vzhled ročního období', () => {
       }
       expect(look.light.fogDensity).toBeGreaterThan(0);
     }
+  });
+
+  it('voda zamrzá v prosinci za sněhem a roztaje v březnu, až sníh skoro zmizí', () => {
+    // 1. 12. = 335, 25. 12. = 359, 1. 3. = 60, 31. 3. = 90 (nepřestupný rok)
+    expect(seasonLook(334).ice).toBe(0);
+    expect(seasonLook(359).ice).toBe(1);
+    expect(seasonLook(60).ice).toBe(1);
+    expect(seasonLook(90).ice).toBe(0);
+    for (let day = 324; day <= 359; day += 0.5) {
+      expect(seasonLook(day).ice).toBeLessThanOrEqual(seasonLook(day).snow);
+    }
+    for (let day = 51; day <= 84; day += 0.5) {
+      expect(seasonLook(day).ice).toBeGreaterThanOrEqual(seasonLook(day).snow);
+    }
+    // změna ledu se pozná a překreslí
+    expect(seasonLookDistance(seasonLook(345), seasonLook(346))).toBeGreaterThan(0.002);
   });
 
   it('neplatný den se kreslí jako léto', () => {
