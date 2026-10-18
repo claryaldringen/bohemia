@@ -625,6 +625,17 @@ describe('buildVillageView', () => {
     expect(long.chronicle[0]?.day).toBe(DAY + 20);
     expect(long.chronicle[0]?.dateLabel).toBe('2. května 503');
   });
+
+  it('den poslední svatby mezi domy (upozornění „Svatba“), bez svatby null', () => {
+    const s = state();
+    expect(buildVillageView(record(s), landscape, DAY).lastMarriageDay).toBeNull();
+    s.chronicle.push(
+      { day: DAY + 1, kind: 'marriage', fromDwellingId: 2, toDwellingId: 1 },
+      { day: DAY + 3, kind: 'marriage', fromDwellingId: 3, toDwellingId: 1 },
+      { day: DAY + 4, kind: 'birth' },
+    );
+    expect(buildVillageView(record(s), landscape, DAY + 4).lastMarriageDay).toBe(DAY + 3);
+  });
 });
 
 describe('hřbitov v pohledu na ves', () => {
@@ -700,6 +711,7 @@ describe('chronicleText', () => {
     { day: DAY, kind: 'village-extinct' },
     { day: DAY, kind: 'household-founded', dwellingId: 2 },
     { day: DAY, kind: 'household-merged', fromDwellingId: 2, toDwellingId: 1 },
+    { day: DAY, kind: 'marriage', fromDwellingId: 2, toDwellingId: 1 },
     {
       day: DAY,
       kind: 'construction-finished',

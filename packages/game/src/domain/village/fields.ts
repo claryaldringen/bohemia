@@ -1,5 +1,6 @@
 import { dateOfDayIndex } from '../calendar';
 import type { Surface } from '../landscape';
+import { cloneState } from './clone';
 import { foundingCostPerHa, withinBounds } from './productivity';
 import {
   DISTANCE,
@@ -302,7 +303,7 @@ export function withMergedFields(state: VillageState): VillageState {
     if (r !== id) groups.set(r, [...(groups.get(r) ?? []), id]);
   }
   if (groups.size === 0) return state;
-  const next = structuredClone(state);
+  const next = cloneState(state);
   for (const [into, others] of [...groups].sort(([a], [b]) => a - b)) {
     mergeFields(next, into, others);
   }

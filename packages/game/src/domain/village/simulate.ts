@@ -23,6 +23,7 @@ import { MOWING_WINDOWS, mow, mowingRemaining } from './hay';
 import { sowingBlocks, villageHoldings, workOrder } from './holdings';
 import { husbandryDay } from './husbandry';
 import { SLAUGHTER_MONTH, slaughterRemaining, workSlaughter } from './livestock';
+import { arrangeMarriages } from './marriage';
 import { ableTeams, finishPen, ploughCapacityPerDay } from './oxen';
 import { recordClearedObstacles } from './obstacles';
 import { relocationPlot } from './plots';
@@ -194,6 +195,8 @@ function simulateDay(
   occupyEmptyDwellings(state, day);
   // zbytky jam po zaniklých obydlích zarůstají, pod novou stavbou zmizí (ruins.ts)
   updateRuins(state, day, landscape);
+  // sňatky mezi domy – svobodní ve dvou domech se vezmou (population.md – Sňatky mezi domy)
+  state.chronicle.push(...arrangeMarriages(state, day));
   const { satiation, energy, fruit } = eat(state, day, coverage);
   // nahromaděný hlad se počítá z dnešní energie (hladem se umírá z energie, ne z pestrosti –
   // diet.md) – úmrtí dne podle něj (population.md); v hájení zůstává pod prahem, aby po něm lidé
