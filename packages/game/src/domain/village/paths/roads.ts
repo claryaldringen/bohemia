@@ -280,8 +280,13 @@ export function updateRoads(
     for (const road of formRoads(roads, runs, day, network.traffic, context)) {
       events.push({ day, kind: 'road-formed', roadId: road.id });
     }
-    // falešná rozcestí (odbočka zarostla, nová cesta navázala na konec jiné) – úseky se spojí
+    // díry: volný konec kus od jiného úseku (ne u brány ani cíle) se k němu napojí; falešná
+    // rozcestí (odbočka zarostla, nová cesta navázala na konec jiné) – úseky se spojí
+    const termini = networkTermini(network.lines);
+    joinRoadGaps(roads, termini, context);
     mergeRoadChains(roads, state.constructions);
+    markRoadEnds(roads, termini);
+    roads.endsChecked = true;
     roads.candidates = runs.map((run) =>
       resample(run, null, CANDIDATE_STEP_M).points.map((p) => ({ x: dm(p.x), z: dm(p.z) })),
     );
@@ -711,6 +716,11 @@ function splitRoad(roads: VillageRoads, hit: RoadHit, context: SpotContext): Roa
     }
   }
   if (road.ground) road.ground = groundPart(road.ground, 0, splitAt);
+  // rozcestí uprostřed – vnitřní konce nejsou volné
+  if (road.openEnds) {
+    rest.openEnds = [false, road.openEnds[1]];
+    road.openEnds = [road.openEnds[0], false];
+  }
   road.points = first;
   roads.roads.splice(hit.road + 1, 0, rest);
   context.split(road.id, rest.id);
@@ -872,6 +882,19 @@ function joinRoads(
         ? joinedGround(otherGround, road.ground, lengthOther)
         : joinedGround(road.ground, otherGround, lengthKeep)
       : undefined;
+  // volné konce spojeného úseku – vnější konce obou (bez údaje u některého bez údaje)
+  const otherOpen = other.openEnds
+    ? gone.atStart === keep.atStart
+      ? ([other.openEnds[1], other.openEnds[0]] as [boolean, boolean])
+      : other.openEnds
+    : undefined;
+  if (road.openEnds && otherOpen) {
+    road.openEnds = keep.atStart
+      ? [otherOpen[0], road.openEnds[1]]
+      : [road.openEnds[0], otherOpen[1]];
+  } else {
+    delete road.openEnds;
+  }
   road.traffic = joinedTraffic(road, other, lengthKeep, lengthOther);
   road.points = points.map((p) => ({ x: p.x, z: p.z }));
   road.spots = [...road.spots, ...other.spots];
@@ -883,6 +906,184 @@ function joinRoads(
     c.roadIds = [...new Set(c.roadIds.map((id) => (id === other.id ? road.id : id)))];
   }
   roads.roads = roads.roads.filter((r) => r !== other);
+}
+
+// --- díry mezi úseky ----------------------------------------------------------------------------
+
+/**
+ * Volný konec úseku se k jinému úseku napojí, když je od jeho osy nebo konce nejvýš tak daleko
+ * (m) – díry po přimknutí trasy kus vedle nebo po úseku, kde provoz na chvíli klesl pod práh
+ * (Vlkov: 5,3 m mezi úseky v polích, 11,6 m u brány domu).
+ */
+const JOIN_GAP_M = 12;
+/**
+ * Konec úseku je skutečný volný konec (brána domu, cíl – pole, voda, les –, slepý konec), když
+ * do tolika metrů (m) končí čára roční sítě – trasa tam nepokračuje. Jinde pokračuje (díra).
+ */
+const TERMINUS_M = 6;
+
+/** Volné konce čar roční sítě (brány domů, cíle a slepé konce) – kde trasy končí. */
+function networkTermini(lines: readonly PathLine[]): RoadPoint[] {
+  const out: RoadPoint[] = [];
+  for (const line of lines) {
+    if (line.points.length < 2) continue;
+    if (line.openStart) out.push(line.points[0]!);
+    if (line.openEnd) out.push(line.points[line.points.length - 1]!);
+  }
+  return out;
+}
+
+function isTerminus(p: RoadPoint, termini: readonly RoadPoint[]): boolean {
+  return termini.some((t) => length2(t.x - p.x, t.z - p.z) <= TERMINUS_M);
+}
+
+/** Kolik konců úseků je v bodě (klíč na cm). */
+function endDegrees(roads: readonly Road[]): Map<string, number> {
+  const count = new Map<string, number>();
+  for (const road of roads) {
+    if (road.points.length < 2) continue;
+    for (const p of [road.points[0]!, road.points[road.points.length - 1]!]) {
+      const key = endKey(p);
+      count.set(key, (count.get(key) ?? 0) + 1);
+    }
+  }
+  return count;
+}
+
+/**
+ * První díra (v pořadí úseků): volný konec úseku (žádný jiný úsek v něm nekončí), který není
+ * skutečným koncem trasy (`termini`), a nejbližší bod jiného úseku do JOIN_GAP_M; jinak null.
+ */
+function firstGap(
+  roads: VillageRoads,
+  termini: readonly RoadPoint[],
+): { road: Road; atStart: boolean; hit: RoadHit } | null {
+  const degrees = endDegrees(roads.roads);
+  for (const road of roads.roads) {
+    if (road.points.length < 2) continue;
+    for (const atStart of [true, false]) {
+      const p = atStart ? road.points[0]! : road.points[road.points.length - 1]!;
+      if ((degrees.get(endKey(p)) ?? 0) !== 1 || isTerminus(p, termini)) continue;
+      const others = roads.roads.map((r) => (r === road ? { ...r, points: [] } : r));
+      const hit = nearestOnRoads(others, p.x, p.z);
+      if (hit && hit.distance <= JOIN_GAP_M) return { road, atStart, hit };
+    }
+  }
+  return null;
+}
+
+/**
+ * Díry mezi úseky se zacelí (mutuje – roads.md, Úseky a rozcestí): volný konec úseku, který není
+ * u brány domu ani u cíle (trasa roční sítě tudy pokračuje – `termini`) a leží do JOIN_GAP_M od
+ * jiného úseku, se k němu napojí spojovacím kusem osy – do jeho konce (blíž než END_SNAP_M), jinak
+ * do nejbližšího bodu osy, kde se ten úsek rozdělí (rozcestí). Uzel je pak společný – falešné
+ * rozcestí spojí `mergeRoadChains`. Mokřina a brody napojeného úseku se určí znovu z terénu.
+ * Vrátí, jestli něco napojil.
+ */
+function joinRoadGaps(
+  roads: VillageRoads,
+  termini: readonly RoadPoint[],
+  context: SpotContext,
+): boolean {
+  let joined = false;
+  for (let guard = roads.roads.length * 2; guard > 0; guard--) {
+    const gap = firstGap(roads, termini);
+    if (!gap) break;
+    const other = roads.roads[gap.hit.road]!;
+    const first = other.points[0]!;
+    const last = other.points[other.points.length - 1]!;
+    const near = (q: RoadPoint): boolean =>
+      length2(gap.hit.point.x - q.x, gap.hit.point.z - q.z) <= END_SNAP_M;
+    const at = near(first)
+      ? { ...first }
+      : near(last)
+        ? { ...last }
+        : splitRoad(roads, gap.hit, context);
+    const { road } = gap;
+    road.points = gap.atStart ? [at, ...road.points] : [...road.points, at];
+    road.ground = roadGroundOf(road.points, context.terrain);
+    joined = true;
+  }
+  return joined;
+}
+
+/**
+ * Které konce úseků jsou skutečné volné konce (`Road.openEnds` – pás cesty se tam ve scéně
+ * vytrácí): konec, ve kterém nekončí jiný úsek, u brány domu nebo cíle (`termini`). Konec, kde
+ * trasa pokračuje pěšinou dne, a rozcestí volné nejsou (mutuje).
+ */
+function markRoadEnds(roads: VillageRoads, termini: readonly RoadPoint[]): void {
+  const degrees = endDegrees(roads.roads);
+  const open = (p: RoadPoint): boolean =>
+    (degrees.get(endKey(p)) ?? 0) === 1 && isTerminus(p, termini);
+  for (const road of roads.roads) {
+    if (road.points.length < 2) continue;
+    road.openEnds = [open(road.points[0]!), open(road.points[road.points.length - 1]!)];
+  }
+}
+
+/**
+ * Zacelí díry a spojí falešná rozcestí na samotných úsecích (vývojová ukázka a testy – bez stavu
+ * vsi): `termini` – skutečné konce tras (brány, cíle), `terrain` – terén pro mokřinu a brody
+ * napojených úseků. Vrátí nové úseky s volnými konci (`openEnds`), vstup nemění.
+ */
+export function joinedRoadsOf(
+  list: readonly Road[],
+  termini: readonly RoadPoint[],
+  terrain: PathTerrain,
+): Road[] {
+  const roads: VillageRoads = {
+    nextId: list.reduce((max, r) => Math.max(max, r.id), 0) + 1,
+    roads: cloneState([...list]),
+    trees: [],
+    candidates: [],
+    labor: { from: 0, days: 0, shares: [] },
+  };
+  joinRoadGaps(roads, termini, {
+    terrain,
+    blocked: () => false,
+    layer: null,
+    changes: { removed: [], stumps: [], saplings: [] },
+    seed: 0,
+    split: () => undefined,
+  });
+  mergeRoadChains(roads, []);
+  markRoadEnds(roads, termini);
+  return roads.roads;
+}
+
+/**
+ * Starší ves z doby před zacelováním děr (bez `VillageRoads.endsChecked`) – při načtení se díry
+ * zacelí a určí se volné konce jako v roční kontrole (roční síť z práce od poslední kontroly).
+ * Jednou: pak to dělá roční kontrola sama a stav nese příznak – bez cest i s příznakem vrátí týž
+ * objekt (nic se neukládá).
+ */
+export function withJoinedRoads(
+  state: VillageState,
+  landscape: Landscape,
+  obstacles: ObstacleLayer | null,
+): VillageState {
+  if (!state.roads || state.roads.endsChecked || state.roads.roads.length === 0) return state;
+  const next = cloneState(state);
+  const roads = next.roads!;
+  const day = next.lastDay;
+  const changes = obstacleChangesAt(next, day);
+  const annual = annualPathNetwork(next, day, landscape, obstacles, changes);
+  if (annual) {
+    const termini = networkTermini(annual.network.lines);
+    joinRoadGaps(roads, termini, {
+      terrain: annual.terrain,
+      blocked: plantingBlocker(next, landscape),
+      layer: obstacles,
+      changes,
+      seed: next.seed,
+      split: (from, to) => splitRoadWork(next.constructions, from, to),
+    });
+    mergeRoadChains(roads, next.constructions);
+    markRoadEnds(roads, termini);
+  }
+  roads.endsChecked = true;
+  return next;
 }
 
 // --- místa na stromy a uchycení ---------------------------------------------------------------

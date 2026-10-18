@@ -799,6 +799,12 @@ export interface Road {
    * (polohy na ose v m). Určí se z krajiny při vzniku (u starších úseků při roční kontrole).
    */
   ground?: RoadGround;
+  /**
+   * Skutečné volné konce [začátek, konec] – brána domu, cíl (pole, voda, les) –, kde se pás cesty
+   * ve scéně vytrácí; konec, kde trasa pokračuje pěšinou dne, a rozcestí ne. Určí roční kontrola;
+   * chybí = podle napojení na jiný úsek.
+   */
+  openEnds?: [boolean, boolean];
 }
 
 /** Mokřina a brody na ose úseku – vzdálenosti od začátku osy (m, na decimetry). */
@@ -851,6 +857,11 @@ export interface VillageRoads {
   labor: { from: number; days: number; shares: RoadLaborShare[] };
   /** Jabloně vysazené hráčem podél úseků (roads.md – Vysazení jabloní); chybí = žádné. */
   apples?: RoadApple[];
+  /**
+   * Díry mezi úseky zacelené a volné konce určené (roads.md – Úseky a rozcestí) – roční kontrolou
+   * nebo převodem starší vsi při načtení (`withJoinedRoads`); chybí = ještě ne.
+   */
+  endsChecked?: true;
 }
 
 /**

@@ -17,8 +17,12 @@ import {
   surfaceAt,
   tileCenterWorld,
   tileOfWorldPoint,
+  joinedRoadsOf,
   type Landscape,
+  type PathTerrain,
+  type Road,
   type RoadGrade,
+  type RoadPoint,
   type RoadTreeSpecies,
 } from '@bohemia/game';
 import type { SceneRoad, SceneRoadApple, SceneRoadTree } from '@/lib/village-view';
@@ -100,10 +104,23 @@ export function demoRoad(l: Landscape): {
   }));
   const head = points.slice(0, mid + 1);
   const tail = points.slice(mid);
+  // za koncem odbočky po díře 5 m další kus cesty (díra mezi úseky – `demoRoadGap`)
+  const tx = (node.x - prev.x) / len;
+  const tz = (node.z - prev.z) / len;
+  const tip = branch[branch.length - 1]!;
+  const before = branch[branch.length - 2]!;
+  const bl = Math.hypot(tip.x - before.x, tip.z - before.z) || 1;
+  const ux = (tip.x - before.x) / bl;
+  const uz = (tip.z - before.z) / bl;
+  const beyond = [5, 25, 45].map((d, k) => ({
+    x: Math.round((tip.x + ux * d + tx * k * 3) * 100) / 100,
+    z: Math.round((tip.z + uz * d + tz * k * 3) * 100) / 100,
+  }));
   const roads: SceneRoad[] = [
     { id: 1, points: head, grade: 'trodden', ground: roadGroundOf(head, ground) },
     { id: 3, points: tail, grade: 'trodden', ground: roadGroundOf(tail, ground) },
     { id: 4, points: branch, grade: 'trodden', ground: roadGroundOf(branch, ground) },
+    { id: 5, points: beyond, grade: 'trodden', ground: roadGroundOf(beyond, ground) },
   ];
   // cesta k nejbližšímu brodu a kus za něj – mokřina a brod pro hať a lávku
   let ford: { x: number; z: number } | null = null;
@@ -209,4 +226,37 @@ export function demoRoadStage(roads: readonly SceneRoad[], stage: number): Scene
     void _old;
     return { ...rest, grade: s.grade, ...(s.upgrade ? { upgrade: s.upgrade } : {}) };
   });
+}
+
+/**
+ * Díra mezi úseky ukázky (roads.md – Úseky a rozcestí): `closed` – zacelená stejnou funkcí jádra
+ * jako v roční kontrole (`joinedRoadsOf`; skutečné konce tras = volné konce daleko od jiných
+ * úseků), jinak jak byla (oba konce u díry se vytrácejí).
+ */
+export function demoRoadGap(
+  roads: readonly SceneRoad[],
+  closed: boolean,
+  terrain: PathTerrain,
+): SceneRoad[] {
+  if (!closed) return [...roads];
+  const ends = roads.flatMap((r) =>
+    r.points.length < 2 ? [] : [r.points[0]!, r.points[r.points.length - 1]!],
+  );
+  const near = (p: RoadPoint, own: SceneRoad): boolean =>
+    roads.some((r) => r !== own && r.points.some((q) => Math.hypot(q.x - p.x, q.z - p.z) <= 12));
+  const termini = roads.flatMap((r) =>
+    [r.points[0]!, r.points[r.points.length - 1]!].filter(
+      (p) => !near(p, r) && ends.filter((q) => q.x === p.x && q.z === p.z).length === 1,
+    ),
+  );
+  const full: Road[] = roads.map((r) => ({ ...r, bornDay: r.id, traffic: [], spots: [] }));
+  return joinedRoadsOf(full, termini, terrain).map(
+    ({ id, points, grade, ground, openEnds }): SceneRoad => ({
+      id,
+      points,
+      grade,
+      ...(ground ? { ground } : {}),
+      ...(openEnds ? { openEnds } : {}),
+    }),
+  );
 }

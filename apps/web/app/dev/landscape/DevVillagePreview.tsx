@@ -19,6 +19,7 @@ import {
   orchardPartsFromCells,
   sacredSitesOf,
   surfaceAt,
+  walkGroundOf,
   type DwellingType,
   type SacredBuildingKind,
   type Landscape,
@@ -71,6 +72,7 @@ import {
   DEMO_ROAD_STAGES,
   demoApplesStage,
   demoRoad,
+  demoRoadGap,
   demoRoadStage,
 } from './dev-road';
 import {
@@ -172,6 +174,8 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   // stupeň vylepšení ukázkových cest (dev-road.ts – DEMO_ROAD_STAGES) a stadium jabloní u cesty
   const [roadStage, setRoadStage] = useState(0);
   const [appleStage, setAppleStage] = useState(0);
+  // díra mezi úseky ukázky – zacelená jádrem jako v roční kontrole, nebo jak byla (dev-road.ts)
+  const [gapClosed, setGapClosed] = useState(true);
   // ukázka zarůstání přílohu a lesa vsi (fields.md – Zarůstání, dev-overgrowth.ts)
   const [overgrowth, setOvergrowth] = useState<OvergrowthDemo | null>(null);
   // hospodaření podle polohy domů (fields.md): obrysy úseků a vzorec polí ze simulace jádra
@@ -207,7 +211,10 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
       ...(overgrowth && overgrowth.woods.length > 0 ? { woods: overgrowth.woods } : {}),
       ...(road
         ? {
-            roads: demoRoadStage(road.roads ?? [], roadStage),
+            roads: demoRoadStage(
+              demoRoadGap(road.roads ?? [], gapClosed, walkGroundOf(decoded).terrain),
+              roadStage,
+            ),
             roadTrees: road.roadTrees ?? [],
             roadApples: demoApplesStage(road.roadApples ?? [], appleStage),
           }
@@ -256,6 +263,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     road,
     roadStage,
     appleStage,
+    gapClosed,
     simulated,
     overgrowth,
   ]);
@@ -1231,6 +1239,16 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
             data-testid="dev-road-apples"
           >
             Jabloně: {DEMO_APPLE_STAGES[appleStage]!.label}
+          </button>
+        )}
+        {road && (
+          <button
+            className={buttonClass}
+            onClick={() => setGapClosed((on) => !on)}
+            title="Díra 5 m mezi úseky za odbočkou – zacelená jádrem (roční kontrola), nebo jak byla"
+            data-testid="dev-road-gap"
+          >
+            Díra: {gapClosed ? 'zacelená' : 'otevřená'}
           </button>
         )}
         <button

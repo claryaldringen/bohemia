@@ -707,7 +707,7 @@ export interface ScenePen {
  * Pevná cesta pro scénu (roads.md): osa, stupeň, mokřina a brody na ose a rozestavěné
  * vylepšení (na jaký stupeň a průběh samotné stavby bez kácení 0–1 – fáze staveniště).
  */
-export type SceneRoad = Pick<Road, 'id' | 'points' | 'grade' | 'ground'> & {
+export type SceneRoad = Pick<Road, 'id' | 'points' | 'grade' | 'ground' | 'openEnds'> & {
   upgrade?: { grade: RoadGrade; progress: number };
 };
 /** Strom u pevné cesty pro scénu – poloha, druh a vzhled v den pohledu (`roadTreeLook`). */
@@ -1196,6 +1196,8 @@ export function sceneRoads(
             },
           }
         : {}),
+      // skutečné volné konce (brána, cíl) – jen tam se pás cesty vytrácí
+      ...(r.openEnds ? { openEnds: [r.openEnds[0], r.openEnds[1]] as [boolean, boolean] } : {}),
       ...(work?.roadGrade
         ? {
             upgrade: {

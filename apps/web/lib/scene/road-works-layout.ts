@@ -97,7 +97,9 @@ function shownGrade(road: SceneRoad, d: number): RoadGrade {
 
 /**
  * Pásy cest pro obtisk: vyšlapané (plně vyšlapaná pěšina) a upravené (širší) – rozestavěná
- * úprava je upravená od začátku úseku do průběhu stavby, dál vyšlapaná. Volný konec se vytrácí.
+ * úprava je upravená od začátku úseku do průběhu stavby, dál vyšlapaná. Vytrácí se jen skutečný
+ * volný konec (brána domu, cíl – `SceneRoad.openEnds`), ne konec, kde navazuje jiný úsek nebo
+ * pěšina dne.
  */
 export function roadBands(roads: readonly SceneRoad[]): {
   trodden: PathLine[];
@@ -110,6 +112,13 @@ export function roadBands(roads: readonly SceneRoad[]): {
       (q, i) =>
         Math.floor(i / 2) !== own && q !== undefined && Math.hypot(q.x - p.x, q.z - p.z) <= 0.5,
     );
+  // volný konec – brána domu nebo cíl (jádro: `openEnds`); bez údaje každý konec, kde nekončí
+  // jiný úsek. Kde navazuje jiný úsek nebo pokračuje pěšina dne, pás se nevytrácí.
+  const isOpen = (road: SceneRoad, k: number, end: 0 | 1): boolean => {
+    const p = end === 0 ? road.points[0] : road.points[road.points.length - 1];
+    if (joined(p, k)) return false;
+    return road.openEnds ? road.openEnds[end] : true;
+  };
   const out = { trodden: [] as PathLine[], improved: [] as PathLine[] };
   roads.forEach((road, k) => {
     if (road.points.length < 2) return;
@@ -132,8 +141,8 @@ export function roadBands(roads: readonly SceneRoad[]): {
         points,
         strength: points.map(() => 1),
         years: points.map(() => 0),
-        openStart: piece.from < 1e-6 && !joined(road.points[0], k),
-        openEnd: piece.to > length - 1e-6 && !joined(road.points[road.points.length - 1], k),
+        openStart: piece.from < 1e-6 && isOpen(road, k, 0),
+        openEnd: piece.to > length - 1e-6 && isOpen(road, k, 1),
       };
       (piece.improved ? out.improved : out.trodden).push(line);
     }

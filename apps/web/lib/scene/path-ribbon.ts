@@ -297,22 +297,32 @@ const ROAD_FADE_M = { hidden: 1.4, full: 3.2 } as const;
 
 /**
  * Krytí pěšiny dne u pevné cesty: u osy cesty 0, od ROAD_FADE_M.full plné – pěšina, která vede
- * po cestě, se v ní ztratí a objeví se, kde z ní odbočí. Bez cest null (plné všude).
+ * po cestě, se v ní ztratí a objeví se, kde z ní odbočí. Za koncem úseku (za jeho prvním
+ * a posledním bodem) se neskrývá – pěšina, která z konce cesty pokračuje, na ni navazuje bez
+ * mezery (Martin). Bez cest null (plné všude).
  */
 export function roadFade(
   roads: readonly SceneRoad[],
 ): ((x: number, z: number) => number) | undefined {
   const segments = roads.flatMap((r) =>
-    r.points.slice(1).map((b, k) => [r.points[k]!, b] as const),
+    r.points.slice(1).map((b, k) => ({
+      a: r.points[k]!,
+      b,
+      first: k === 0,
+      last: k === r.points.length - 2,
+    })),
   );
   if (segments.length === 0) return undefined;
   return (x, z) => {
     let best = Infinity;
-    for (const [a, b] of segments) {
+    for (const { a, b, first, last } of segments) {
       const dx = b.x - a.x;
       const dz = b.z - a.z;
       const l2 = dx * dx + dz * dz;
-      const t = l2 > 0 ? Math.min(1, Math.max(0, ((x - a.x) * dx + (z - a.z) * dz) / l2)) : 0;
+      const raw = l2 > 0 ? ((x - a.x) * dx + (z - a.z) * dz) / l2 : 0;
+      // za koncem úseku pěšina dne pokračuje
+      if ((first && raw < 0) || (last && raw > 1)) continue;
+      const t = Math.min(1, Math.max(0, raw));
       best = Math.min(best, Math.hypot(x - (a.x + dx * t), z - (a.z + dz * t)));
       if (best <= ROAD_FADE_M.hidden) return 0;
     }

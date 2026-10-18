@@ -1165,7 +1165,11 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   jinak nikdy nemění → **falešná rozcestí** (uzel jen se dvěma úseky stejného stupně, bez
   rozdílného vylepšení) se spojí (`mergeRoadChains` – i po dokončení vylepšení ve
   `finishConstructions`, starší vsi při načtení `withMergedRoads` v `updateVillage`; id a den
-  vzniku staršího, roads.md – Úseky a rozcestí) → místa na stromy (`roadTreeSpots`, `plantingBlocker` – ne ve vsi, na
+  vzniku staršího, roads.md – Úseky a rozcestí) → **díry** (volný konec do 12 m od jiného
+  úseku, který není u konce trasy roční sítě – brány, cíle) se napojí (`joinRoadGaps`, starší
+  vsi jednou při načtení `withJoinedRoads` s příznakem `endsChecked`) a určí se skutečné volné
+  konce `Road.openEnds` (jen tam se pás cesty ve scéně vytrácí; pěšina dne se za koncem úseku
+  neskrývá – `roadFade`) → místa na stromy (`roadTreeSpots`, `plantingBlocker` – ne ve vsi, na
   čtvercích staveb (pole ano – Pole jako krajina), v lese, ve vodě, u překážek krajiny) → konec pařezů a stromy odstraněné stavbou →
   uchycení (10 % ročně, los ze seedu vsi, roku a místa). Čísla v `rules.ts` (`ROADS`,
   `ROAD_TREES`). Stadium stromu jen ze dne (`road-trees.ts`: `roadTreeLook` – keř, strom

@@ -106,6 +106,30 @@ describe('pevné cesty z dat (roads.md)', () => {
     expect(along.alphas[1 + 4 * 5]).toBe(0);
     expect(Math.max(...along.alphas)).toBeGreaterThan(0.5);
   });
+
+  it('pás se vytrácí jen na skutečném volném konci (brána, cíl), ne kde pokračuje pěšina dne', () => {
+    // začátek u brány (volný), konec v louce, kde trasa pokračuje pěšinou dne
+    const [band] = roadBands([{ ...a, openEnds: [true, false] }]).trodden;
+    expect(band!.openStart).toBe(true);
+    expect(band!.openEnd).toBe(false);
+    // bez údaje jádra jako dřív – volný je každý konec, kde nekončí jiný úsek
+    const [old] = roadBands([a]).trodden;
+    expect([old!.openStart, old!.openEnd]).toEqual([true, true]);
+    // rozcestí volné není, ani když o něm jádro tvrdí opak
+    const [first] = roadBands([{ ...a, openEnds: [true, true] }, b]).trodden;
+    expect(first!.openEnd).toBe(false);
+  });
+
+  it('za koncem cesty se pěšina dne neskrývá – navazuje na cestu bez mezery', () => {
+    const fade = roadFade([a])!;
+    // u osy uvnitř úseku skrytá, kousek za koncem (x = 41, 0) a před začátkem plná
+    expect(fade(39.5, 0)).toBe(0);
+    expect(fade(41, 0)).toBe(1);
+    expect(fade(-1, 0.2)).toBe(1);
+    // v rozcestí pokrývá druhý úsek
+    const both = roadFade([a, b])!;
+    expect(both(40, 1)).toBe(0);
+  });
 });
 
 describe('rozcestí – udusaný plácek (Martin: „rozcestí by mělo být nejvyšlapanější plochou“)', () => {

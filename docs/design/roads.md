@@ -289,6 +289,23 @@ když odbočka zarostla, a cesty navázané na konec jiné v různých letech.
   o poloměru 1,3× šířky přicházející cesty s nepravidelným okrajem, plné síly; vbíhá-li do něj upravená
   cesta, je v jejím širším pásu (`roadJunctions` v `road-works-layout.ts`). Totéž rozcestí pěšin
   dne ([paths.md](paths.md)).
+- **Díry mezi úseky** (Martin, 18. 10. 2026: pevná cesta má uprostřed mezeru – dva úseky na
+  sebe navazují, ale konce se nepotkají; návrh Clauda): volný konec úseku, ve kterém nekončí jiný
+  úsek a který není **skutečným koncem trasy** (do 6 m od něj nekončí čára roční sítě – brána
+  domu, cíl: pole, voda, les), se napojí k jinému úseku do 12 m – do jeho konce (blíž než 4 m),
+  jinak do nejbližšího bodu osy, kde se ten úsek rozdělí (rozcestí). Uzel je pak společný,
+  falešné rozcestí se spojí. Díry vznikaly, kde provoz na pár metrů klesl pod práh, a cesta se
+  tam rozpadla na dva úseky. Kdy: v roční kontrole a jednou při načtení starší vsi
+  (`withJoinedRoads`, příznak `VillageRoads.endsChecked` – převod počítá roční síť jednou,
+  ≈ 0,4 s).
+- **Vlkov po zacelení:** z 10 úseků zbude 8 – díra 5,3 m v polích (úseky 43 a 85) a 11,6 m
+  u vsi (upravená cesta 4 končila kus před branou domu, odkud vede upravená cesta 5) se zacelí
+  a úseky se spojí. Volné konce zbudou 4 – brány tří domů a cíl v polích. Konce u vsi
+  vzdálené 7–23 m od jiných úseků jsou brány domů (do 6 m od konce trasy) – zůstanou.
+- **Volné konce ve scéně:** úsek nese `Road.openEnds` (určí roční kontrola) – pás cesty se
+  vytrácí jen na skutečném volném konci (brána, cíl), ne kde navazuje jiný úsek nebo kde trasa
+  pokračuje pěšinou dne. Pěšina dne se za koncem úseku neskrývá (`roadFade`) – navazuje na cestu
+  bez mezery. Ukázka na `/dev/landscape` (Cesta → **Díra: zacelená / otevřená**).
 
 ## Na stavitelích
 
