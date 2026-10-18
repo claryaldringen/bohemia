@@ -228,6 +228,8 @@ export interface VillageView {
   milkLPerDay: number;
   /** Zásoba masa (kg) – uzené a sušené (diet.md). */
   meatKg: number;
+  /** Zásoba luštěnin (kg – hrách a čočka; diet.md – Luštěniny). */
+  legumesKg: number;
   /** Zásoba sena (kg) – horní lišta ho ukáže, když ves má ohradu nebo seno (oxen.md). */
   hayKg: number;
   /** Jídlo příštího dne – energie, pestrost a podíly obilí, masa a ovoce (tooltip nasycení). */
@@ -624,6 +626,11 @@ export interface SceneFieldPart {
   work?: number;
   /** Vzhled nehotové části rozpracovaného dílu; bez údaje povrch před prací (louka u zakládání). */
   before?: FieldLook;
+  /**
+   * Plodina osetého dílu, když to není obilí – `legume` (hrách a čočka – fields.md,
+   * Luštěniny): zelené, zralé a sklizené luštěniny vypadají jinak než obilí. Bez údaje obilí.
+   */
+  crop?: 'legume';
 }
 
 /**
@@ -730,7 +737,7 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
     case 'rebuild-decided':
       return `Obyvatelé se rozhodli přestavět dožilé obydlí na ${DWELLING_NAMES[event.type].accusative}.`;
     case 'harvest':
-      return `${HARVEST_NAMES[event.crop ?? 'any']}: ${formatInteger(event.kg)} kg obilí.`;
+      return `${HARVEST_NAMES[event.crop ?? 'any']}: ${formatInteger(event.kg)} kg ${event.crop === 'legume' ? 'luštěnin' : 'obilí'}.`;
     case 'apple-harvest':
       return `Sklizeň ovoce: ${formatInteger(event.kg)} kg.`;
     case 'slaughter':
@@ -840,7 +847,13 @@ function sceneVillage(
     // vzhled po čtvercích z jádra (fieldPartLooks); bez něj (starší příloh) odhad scény
     parts: state.parts.flatMap((p): SceneFieldPart[] =>
       p.fieldId === f.id && p.cell !== undefined
-        ? [{ ...scenePart(landscape, p, p.cell, partStage(p, day)), ...looks.get(p.id) }]
+        ? [
+            {
+              ...scenePart(landscape, p, p.cell, partStage(p, day)),
+              ...looks.get(p.id),
+              ...(p.state === 'sown' && p.crop === 'legume' ? { crop: 'legume' as const } : {}),
+            },
+          ]
         : [],
     ),
   }));
@@ -1226,6 +1239,7 @@ function chronicle(state: VillageState, name: string): VillageView['chronicle'] 
 const HARVEST_NAMES: Record<Crop | 'any', string> = {
   winter: 'Sklizeň ozimu',
   spring: 'Sklizeň jaře',
+  legume: 'Sklizeň luštěnin',
   any: 'Sklizeň',
 };
 
@@ -1349,6 +1363,7 @@ export function buildVillageView(
     storesKg: summary.storesKg,
     applesKg: summary.applesKg,
     meatKg: summary.meatKg,
+    legumesKg: summary.legumesKg,
     cheeseKg: summary.cheeseKg,
     milkLPerDay: summary.livestock.milkLPerDay,
     hayKg: summary.hayKg,
