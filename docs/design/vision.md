@@ -55,6 +55,7 @@ ne jeden pán.
 | Jabloňový sad: staví se po čtvercích jako pole, plodí od 6. roku ([orchard.md](orchard.md))                         | Martin, čísla návrh Clauda    |
 | Štěstí obyvatel a posvátná místa – duby, háje, modla, svatyně ([happiness.md](happiness.md))                        | Martin, čísla návrh Clauda    |
 | Orání rádlem – voli z vlastních telat, ohrada s přístřeškem, seno ([oxen.md](oxen.md))                              | Martin, čísla návrh Clauda    |
+| Strava z obilí, masa a ovoce; dobytek jako zdroj masa ([diet.md](diet.md))                                          | Martin, čísla návrh Clauda    |
 | Hlad zabíjí, ves může vymřít; komu vymřou všechny vsi, začíná znovu ([population.md](population.md))                | Martin, čísla návrh Clauda    |
 | Nabídka hry (F10): začít znovu jde i se živou vsí, po potvrzení ([population.md](population.md))                    | Martin                        |
 | Hexagonální architektura (porty a adaptéry), hranice hlídá ESLint                                                   | návrh Clauda, Martin schválil |
