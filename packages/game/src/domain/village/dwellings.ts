@@ -1,4 +1,4 @@
-import { ageGroup, householdBreaksUp, isAdult, occupants } from './people';
+import { ageGroup, householdBreaksUp, isAdult, isFertile, occupants } from './people';
 import {
   BETTER_DWELLING,
   COMMON_LABOR_YEAR_DAYS,
@@ -133,11 +133,23 @@ export function adultChildrenSources(
 }
 
 /**
+ * Smí jediné odcházející dospělé dítě odejít samo? Jen od 16 let (`isFertile`) – mladší by se
+ * v prázdném obydlí hned rozpadl (`householdBreaksUp`), svobodný 16–44 zůstane a vezme se.
+ */
+function canLeaveAlone(source: AdultChildrenSource, day: number): boolean {
+  const [child] = source.children;
+  return source.children.length === 1 && child !== undefined && isFertile(child, day);
+}
+
+/**
  * Kdo osídlí úplně prázdné obydlí s kapacitou `capacity`, když ho nezabral mladý pár z plné
  * domácnosti se 4 dospělými (population.md – Prázdné obydlí, návrh Clauda): dospělé děti první
  * přeplněné domácnosti v pořadí `adultChildrenSources`, která jich má aspoň dvě. Domácnost s jediným
- * dospělým dítětem ho pošle s jedním dospělým dítětem jiné takové domácnosti (první v pořadí) –
- * jediný člověk by se v novém obydlí hned rozpadl. Nikdo (prázdné pole), když takoví lidé nejsou.
+ * dospělým dítětem ho pošle s jedním dospělým dítětem jiné takové domácnosti (první v pořadí).
+ * Když pár není, odejde samo nejstarší dospělé dítě první takové domácnosti (Martin, 18. 10. 2026:
+ * „pokud se lidé v domě tísní a je tam nejstarší dítě, nejstarší dítě může odejít do nového domu“)
+ * – u neplodných rodičů druhé nejstarší, nejstarší je dědic –, jen od 16 let (`canLeaveAlone`).
+ * Nikdo (prázdné pole), když takoví lidé nejsou.
  */
 export function adultChildrenSettlers(
   state: VillageState,
@@ -151,21 +163,25 @@ export function adultChildrenSettlers(
     const partner = sources.find((other) => other !== source && single(other));
     if (partner) return [...source.children, ...partner.children];
   }
-  return [];
+  return sources.find((s) => canLeaveAlone(s, day))?.children ?? [];
 }
 
 /**
  * Kolik nových domácností může ves založit (population.md – Lidé k osídlení): domácnosti, ze
  * kterých se může oddělit mladý pár (`qualifyingDwellings`), plus z ostatních přeplněných
- * domácností každá s aspoň dvěma dospělými dětmi jedna domácnost a jednotlivá dospělá děti po
- * dvou (zaokrouhleno dolů – `adultChildrenSources`).
+ * domácností každá s aspoň dvěma dospělými dětmi jedna domácnost, jednotlivá dospělá děti po
+ * dvou (`adultChildrenSources`) a poslední jednotlivec bez páru sám, smí-li odejít sám
+ * (`canLeaveAlone`) – v tomtéž pořadí, v jakém je simulace stěhuje (`adultChildrenSettlers`).
  */
 export function possibleNewHouseholds(state: VillageState, day: number): number {
   const qualifying = new Set(qualifyingDwellings(state, day).map((d) => d.id));
   const others = adultChildrenSources(state, day).filter((s) => !qualifying.has(s.dwelling.id));
   const families = others.filter((s) => s.children.length >= NEW_HOUSEHOLD_MIN_PEOPLE).length;
-  const singles = others.length - families;
-  return qualifying.size + families + Math.floor(singles / NEW_HOUSEHOLD_MIN_PEOPLE);
+  const singles = others.filter((s) => s.children.length < NEW_HOUSEHOLD_MIN_PEOPLE);
+  const pairs = Math.floor(singles.length / NEW_HOUSEHOLD_MIN_PEOPLE);
+  const last = singles.length % NEW_HOUSEHOLD_MIN_PEOPLE === 1 ? singles.at(-1) : undefined;
+  const alone = last !== undefined && canLeaveAlone(last, day) ? 1 : 0;
+  return qualifying.size + families + pairs + alone;
 }
 
 /**
