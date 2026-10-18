@@ -42,6 +42,8 @@ import { obstacleScenery } from './obstacle-scenery';
 import { createTerrainMesh, type TerrainMesh } from './terrain-mesh';
 import { animationFps, loopStep, nextTick, tickDue } from './render-loop';
 import { buildRenderSurface } from './render-surface';
+import { chunkGrid } from './scenery-chunks';
+import { SceneryCulling } from './scenery-culling';
 import { terrainMeshHeight } from './drape';
 import { InstanceHider } from './instance-hider';
 import { VillageLivestock } from './livestock';
@@ -166,7 +168,14 @@ export class LandscapeScene {
   /** Vrhače stínu vsi, které vznikly dřív než stínová mapa. */
   private readonly pendingCasters: Mesh[] = [];
   /** Stromy, keře a kameny krajiny, které ves odstranila nebo vykácela (a ozdoby pod stavbami). */
-  private readonly hider = new InstanceHider();
+  private readonly hider = new InstanceHider((mesh, matrices, hidden, colors) =>
+    this.culling?.setInstances(mesh, matrices, hidden, colors),
+  );
+  /**
+   * Ořez stromů, dekorací, impostorů, lesa vsi, pařezů a stromů u cest podle záběru po čtvercích
+   * (scenery-culling.ts) – kamera kreslí jen instance čtverců v záběru, stínová mapa všechny.
+   */
+  private culling: SceneryCulling | null = null;
   /** Vrstva překážek krajiny (herní data – stejná jako na serveru). */
   private obstacles: ObstacleLayer | null = null;
   /** Pařezy a nálet po pokácených stromech. */
@@ -260,6 +269,9 @@ export class LandscapeScene {
   ): Promise<void> {
     if (this.disposed) return;
     this.landscape = landscape;
+    // dřív než první modely – zařadí každý mesh s nehybnými instancemi, i les vsi a pařezy
+    this.culling?.dispose();
+    this.culling = new SceneryCulling(this.scene, chunkGrid(landscape.size * landscape.cellSizeM));
     const report = async (step: SceneStep, done: number): Promise<void> => {
       onProgress({ step, done });
       await nextPaint();
@@ -404,9 +416,20 @@ export class LandscapeScene {
     let loaded = 0;
     const counted = <T>(promise: Promise<T>): Promise<T> =>
       promise.finally(() => onProgress({ step: 'models', done: 0.6 + 0.075 * ++loaded }));
+    // stromy, dekorace a impostory krajiny – jen ty skrývá InstanceHider (les vsi ne)
+    const sceneryMeshes: Mesh[] = [];
+    const collect = (meshes: Mesh[]): void => {
+      sceneryMeshes.push(...meshes);
+    };
     await Promise.all([
-      counted(addTrees(this.scene, trees, { baseUrl: '/models/trees/', groundHeight })),
-      counted(addDecorations(this.scene, decor, { baseUrl: '/models/decor/', groundHeight })),
+      counted(
+        addTrees(this.scene, trees, { baseUrl: '/models/trees/', groundHeight }).then(collect),
+      ),
+      counted(
+        addDecorations(this.scene, decor, { baseUrl: '/models/decor/', groundHeight }).then(
+          collect,
+        ),
+      ),
       counted(
         addImpostors(
           this.scene,
@@ -420,6 +443,7 @@ export class LandscapeScene {
         ).then(
           (forest) => {
             this.impostorForest = forest;
+            if (forest) collect(forest.meshes);
           },
           (error) =>
             console.warn(
@@ -439,11 +463,7 @@ export class LandscapeScene {
     ]);
     if (this.disposed) return;
     // Odstraněné a vykácené překážky se skryjí podle id, ozdoby pod stavbami podle polohy paty.
-    this.hider.track(
-      this.scene.meshes.filter(
-        (mesh): mesh is Mesh => mesh instanceof Mesh && /^(trees|decor|impostors)-/.test(mesh.name),
-      ),
-    );
+    this.hider.track(sceneryMeshes);
     const sun = this.scene.getLightByName('sun');
     if (sun instanceof DirectionalLight) {
       this.shadows = addSunShadows(sun, {
@@ -753,6 +773,7 @@ export class LandscapeScene {
     this.placement?.dispose();
     this.placement = null;
     this.village?.dispose();
+    this.culling?.dispose();
     this.livestock?.dispose();
     this.villagers?.dispose();
     this.paths?.dispose();

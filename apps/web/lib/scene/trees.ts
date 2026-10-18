@@ -29,18 +29,19 @@ const FOLIAGE_AMBIENT = new Color3(0.36, 0.38, 0.34);
 /**
  * Les z instancí modelů – jeden mesh na model. Modely jsou v metrech s kořenem u paty kmene.
  * Když se model nenačte, les zůstane bez stromů (zaloguje se varování), krajina se zobrazí dál.
+ * Vrátí meshe stromů (skrývání vykácených – InstanceHider).
  */
 export async function addTrees(
   scene: Scene,
   placements: readonly TreePlacement[],
   options: { baseUrl: string; groundHeight: (worldX: number, worldZ: number) => number },
-): Promise<void> {
+): Promise<Mesh[]> {
   const results = await Promise.allSettled(
     TREE_MODELS.map(async (model) => {
       const trees = placements.filter((tree) => tree.model === model);
-      if (trees.length === 0) return;
+      if (trees.length === 0) return null;
       const container = await LoadAssetContainerAsync(`${options.baseUrl}${model}.glb`, scene);
-      if (scene.isDisposed) return;
+      if (scene.isDisposed) return null;
       container.addAllToScene();
       for (const material of container.materials) prepareTreeMaterial(model, material);
 
@@ -49,7 +50,7 @@ export async function addTrees(
       );
       const tree = Mesh.MergeMeshes(parts, true, true, undefined, false, true);
       for (const mesh of container.meshes) if (mesh !== tree && !mesh.isDisposed()) mesh.dispose();
-      if (!tree) return;
+      if (!tree) return null;
       tree.name = `trees-${model}`;
       tree.isPickable = false;
 
@@ -65,13 +66,18 @@ export async function addTrees(
         matrix.copyToArray(matrices, i * 16);
       });
       setStaticInstances(tree, matrices, { ids: instanceIds(trees) });
+      return tree;
     }),
   );
+  const meshes: Mesh[] = [];
   for (const result of results) {
     if (result.status === 'rejected') {
       console.warn('Model stromu se nepodařilo načíst – les zůstane bez stromů.', result.reason);
+    } else if (result.value) {
+      meshes.push(result.value);
     }
   }
+  return meshes;
 }
 
 /** Materiál 3D stromu – tón a světlo laděné k impostorům vnitřku lesa (viz konstanty nahoře). */

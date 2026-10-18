@@ -235,9 +235,25 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   (`decor-placement.ts`: rákos, orobinec, lekníny, kmeny v potoce – zůstávají ve scéně). Modely
   načítá `instanced-model.ts` (thin instances, s id překážek), převod z 0 A.D. přes
   `tools/blender/decor.json`.
+- **Ořez podle záběru po čtvercích** (`scenery-chunks.ts` čisté funkce, `scenery-culling.ts`
+  adaptér): krajina 16 × 16 čtverců po ≈ 120 m (`SCENERY_CHUNKS`). Každý mesh s nehybnými
+  instancemi (`setStaticInstances`, jméno `trees-` / `decor-` / `impostors-` / `felled-` /
+  `pathside-` – `CULLED_MESHES`; i les vsi, pařezy a stromy u cest, které se mění) dostane klon
+  pro kameru `view-<jméno>` (sdílí geometrii i materiál – roční období platí dál), do jehož
+  bufferu se před snímkem nakopírují jen instance čtverců, jejichž obal je v záběru; draw cally
+  zůstanou (jeden na model), ve výchozím pohledu ≈ 3 % trojúhelníků (0,3 M místo 10 M). Původní
+  mesh se všemi instancemi kreslí **jen stínová mapa** (`SHADOW_ONLY_LAYER` – kamera ho
+  přeskočí, stínový generátor vrstvy nekontroluje), takže stíny jsou jako dřív. Nový renderer
+  instancí stromů a keřů: instance přes `setStaticInstances` (ne `thinInstanceSetBuffer`)
+  a jméno s předponou z `CULLED_MESHES`, vypínat zdroj (`setEnabled`) – klon ho následuje.
+  Impostory mají obal přes všechna natočení (`localBounds`). Měření bez prohlížeče:
+  `npx tsx apps/web/scripts/measure-scenery-culling.ts` (8 × 8 dá 4,8 %, 32 × 32 1 % – ale
+  dražší testy obalů při oddálené kameře).
 - **Změny krajiny vsi ve scéně:** `SceneVillage.obstacles` (`removed`, `stumps`, `saplings` –
-  id) skryje `InstanceHider` podle id (3D stromy, impostory i dekorace); ozdoby bez id skrývá
-  pod stavbami a poli podle tvaru. Na místo pokáceného stromu dá `felled-trees.ts` pařez,
+  id) skryje `InstanceHider` podle id (3D stromy, impostory i dekorace krajiny – jen meshe
+  z `addTrees` / `addDecorations` / `addImpostors`, ne les vsi); ozdoby bez id skrývá pod
+  stavbami a poli podle tvaru. Skrytí jde do zdroje (stín) i přes `onApply` do ořezu (klon
+  kamery). Na místo pokáceného stromu dá `felled-trees.ts` pařez,
   po TREE_SAPLING_AFTER_YEARS mladý stromek. **Vymýcený les** (`cleared-forest.ts`, čistý
   modul): maska po políčkách ze stavu vsi – políčko lesa bez aspoň poloviny dospělých stromů
   nebo pod založeným dílem pole. Plocha korun nad pasekou zapadne pod zem
@@ -1178,6 +1194,7 @@ npx tsx packages/game/scripts/measure-village.ts --quick --out quick.jsonl   # k
 npx tsx packages/game/scripts/measure-village.ts 200 60 --out base.jsonl     # závěrečné ověření
 npx tsx packages/game/scripts/measure-village.ts 200 60 --variant meadow-burn --out burn.jsonl
 npx tsx packages/game/scripts/village-calculator.ts --preset full --fertility 56   # ustálený stav
+npx tsx apps/web/scripts/measure-scenery-culling.ts   # trojúhelníky a draw cally s ořezem po čtvercích
 ```
 
 Všechny příkazy jdou přes Turborepo do jednotlivých workspaces. Před commitem musí projít

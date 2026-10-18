@@ -25,7 +25,7 @@ import {
 import type { SceneRoad, SceneVillage } from '../village-view';
 import type { DecorModel } from './decor-placement';
 import { prepareDecorMaterial } from './decorations';
-import { loadMergedModel, type ModelInstance } from './instanced-model';
+import { loadMergedModel, setStaticInstances, type ModelInstance } from './instanced-model';
 import { hasStake } from './orchard-layout';
 import {
   TREE_STAKE,
@@ -422,7 +422,8 @@ export class VillagePaths {
           );
           matrix.copyToArray(matrices, i * 16);
         });
-        m.thinInstanceSetBuffer('matrix', matrices, 16, true);
+        // nehybné instance – ořez podle záběru (scenery-culling.ts) je kreslí jen v záběru
+        setStaticInstances(m, matrices);
         m.setEnabled(this.visible);
         this.env.refreshShadows();
       });
