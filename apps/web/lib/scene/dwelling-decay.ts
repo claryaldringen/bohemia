@@ -2,7 +2,8 @@
 // dům postupně staví, tak starý a opuštěný dům se musí postupně rozpadat“): stupeň podle stavu
 // obydlí, co který stupeň ukáže (díly z models/dwellings/decay.glb – tools/blender/dwellings.py,
 // jáma, hlína u vchodu, plot a záhony pozemku, kopřivy) a zbytek jámy po zániku obydlí, který
-// RUIN_YEARS let zarůstá. Stupně platí pro každé obydlí – i obydlené, kterému nestačí opravy.
+// RUIN_YEARS let zarůstá. Rozpadá se jen prázdné obydlí – obydlený dům obyvatelé opravují (Martin
+// 18. 10. 2026: „obydlená budova nechátrá – obyvatelé ji opravují. Chátrá jenom prázdná.“).
 // Souřadnice modelu jako `localToWorld` (x napříč, z k vchodu).
 import type { DwellingType, Position } from '@bohemia/game';
 import { PIT_SHAPES, type PitShape } from './dwelling-pit';
@@ -34,14 +35,26 @@ export function decayStage(condition: number | undefined): DecayStage {
   return 3;
 }
 
+/**
+ * Stupeň rozpadu hotového obydlí ve scéně: rozpadá se jen prázdné (`inhabited: false`) – obydlené
+ * je vždy celé, i když mu po dřívějším chátrání zbyl nízký stav (obyvatelé ho opravují, Martin).
+ * Řemeslné dílny (`craft`) zatím zůstávají celé – díly rozpadu mají jen obydlí.
+ */
+export function dwellingDecayStage(d: {
+  condition?: number;
+  inhabited?: boolean;
+  craft?: string;
+}): DecayStage {
+  if (d.craft || d.inhabited !== false) return 0;
+  return decayStage(d.condition);
+}
+
 /** Co stupeň rozpadu ukáže kromě dílů modelu. */
 export interface DecayLook {
   /** Jak moc kryje jámu střecha 0–1 (tma uvnitř – dwelling-pit.ts). */
   roofCover: number;
-  /** Krytí vyšlapané hlíny u vchodu, když v obydlí někdo bydlí (prázdné zarůstá víc). */
+  /** Násobek krytí vyšlapané hlíny u vchodu – u prázdného obydlí s rozpadem zarůstá dál. */
   earth: number;
-  /** Z obývaného obydlí stoupá dým (ze zřícené střechy už ne). */
-  smoke: boolean;
   /** Rozpad plotu pozemku 0–1 (0 = celý). */
   fence: number;
   /** Jak moc záhony pozemku zarostly plevelem 0–1. */
@@ -51,11 +64,11 @@ export interface DecayLook {
 }
 
 export const DECAY_LOOKS: Record<DecayStage, DecayLook> = {
-  0: { roofCover: 1, earth: 1, smoke: true, fence: 0, beds: 0, nettles: 0 },
-  1: { roofCover: 0.92, earth: 1, smoke: true, fence: 0, beds: 0, nettles: 0 },
+  0: { roofCover: 1, earth: 1, fence: 0, beds: 0, nettles: 0 },
+  1: { roofCover: 0.92, earth: 1, fence: 0, beds: 0, nettles: 0 },
   // od propadající se střechy padá i plot a záhony zarůstají (Martin)
-  2: { roofCover: 0.55, earth: 0.75, smoke: true, fence: 0.45, beds: 0.55, nettles: 3 },
-  3: { roofCover: 0.2, earth: 0.35, smoke: false, fence: 0.85, beds: 1, nettles: 6 },
+  2: { roofCover: 0.55, earth: 0.75, fence: 0.45, beds: 0.55, nettles: 3 },
+  3: { roofCover: 0.2, earth: 0.35, fence: 0.85, beds: 1, nettles: 6 },
 };
 
 /**

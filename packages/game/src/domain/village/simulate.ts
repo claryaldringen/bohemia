@@ -6,7 +6,6 @@ import { cloneState } from './clone';
 import { craftCoverage, craftHouseholds, newWorkshop, wearCraftStocks, workCrafts } from './crafts';
 import {
   adultChildrenSettlers,
-  applyRepairs,
   decayEmptyDwelling,
   nextYearlyCommonLabor,
   qualifyingDwellings,
@@ -476,8 +475,9 @@ interface DayTask {
 
 /**
  * Krok 3: rozdělení práce vsi. Polní úlohy obou plodin a orba (`fieldTasks`), sezónní práce
- * v sadech, seč sena a porážka podle konce svého okna; opravy obydlí poměrně k potřebě; společná
- * práce do staveb. Veškerou práci násobí štěstí (happiness.md). Domácnosti obývaných dílen
+ * v sadech, seč sena a porážka podle konce svého okna; opravy obydlí poměrně k potřebě (obydlený
+ * dům stav drží i s nedodělkem oprav – chátrá jen prázdný, population.md); společná práce do
+ * staveb. Veškerou práci násobí štěstí (happiness.md). Domácnosti obývaných dílen
  * pracují zvlášť – jen v dílně (crafts.md, `workCrafts`); opravy jejich obydlí platí ves. Práce
  * se zvířaty (dojení, zimní péče, prasata a slepice – diet.md) jde hned po denním minimu – zvířata
  * nepočkají. Vrací, jestli ves dnes nestíhá polní práce v období (dřina), a jaký podíl dojných
@@ -588,10 +588,11 @@ function work(
       workOrchards(state, amount);
     }
   });
+  // opravy berou práci vsi podle potřeby; obydlený dům stav neztrácí ani s nedodělkem (Martin:
+  // „obydlená budova nechátrá – obyvatelé ji opravují. Chátrá jenom prázdná.“)
   const repairs = households.map((d, i) => {
     const need = repairNeeds[i] ?? 0;
     const manDays = repairNeed > 0 ? (allocation.repairs * need) / repairNeed : 0;
-    applyRepairs(d, manDays, need);
     return { dwellingId: d.id, manDays };
   });
   decayEmptyDwellings(state, day, new Set(households.map((d) => d.id)));
@@ -948,7 +949,8 @@ function moveInYoungestPair(state: VillageState, day: number, dwellingId: number
 }
 
 /**
- * Krok 5: obyvatelé dožilého nebo zchátralého obydlí se rozhodnou ho přestavět. Přestavba bere
+ * Krok 5: obyvatelé dožilého obydlí se rozhodnou ho přestavět (rozhoduje stáří – obydlený dům
+ * nechátrá). Přestavba bere
  * dřevo jako nová stavba (forest.md): klády z hromady, zbytek vyhradí mezi nejbližšími dospělými
  * stromy k obydlí. Nezastaví ji ani nedostatek dřeva – vezme, co je. Polozemnice bez pozemku
  * (i zemnice přestavovaná na polozemnici) se s krajinou staví na nejbližším volném políčku
