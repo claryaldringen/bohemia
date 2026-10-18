@@ -51,6 +51,7 @@ import type {
   SceneField,
 } from '@/lib/scene/village-types';
 import { formatCells, formatHa, formatManDays, plural } from '@/lib/village-format';
+import { SACRED_OAK_GROWTH } from '@/lib/sacred-look';
 import { demoLabor } from './dev-labor';
 import { placementVillageFromScene, type SceneSacred, type SceneVillage } from '@/lib/village-view';
 
@@ -87,8 +88,11 @@ interface DevWindow extends Window {
     fellTrees: (count: number, near?: { x: number; z: number }) => void;
     /** Modly a svatyně (i staveniště) – snímky z Playwrightu. */
     setSacredBuildings: (buildings: DevSacredBuilding[]) => void;
-    /** Vymýtí les kolem nejbližšího háje a posvátného dubu – kam se podívat. */
-    clearSacred: () => {
+    /**
+     * Vymýtí les kolem nejbližšího háje a posvátného dubu – kam se podívat. `grown` – duby jako
+     * 60 let po ušetření (o 30 % větší).
+     */
+    clearSacred: (grown?: boolean) => {
       grove: { x: number; z: number } | null;
       oak: { x: number; z: number } | null;
     };
@@ -245,7 +249,9 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
    * k místu vsi a založí pole na čtvercích kolem nich – jádro háj z pole vyjme a dub nechá stát,
    * ušetřená místa se ukážou s obětinami a kameny. Vrátí, kde jsou (pro kameru).
    */
-  const clearSacred = (): {
+  const clearSacred = (
+    grown = false,
+  ): {
     grove: { x: number; z: number } | null;
     oak: { x: number; z: number } | null;
   } => {
@@ -294,7 +300,10 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     }
     setSacredOaks((list) => [
       ...list.filter((o) => !preview.spared.oaks.some((s) => s.id === o.id)),
-      ...preview.spared.oaks,
+      ...preview.spared.oaks.map((o) => ({
+        ...o,
+        growth: grown ? 1 + SACRED_OAK_GROWTH.extra : 1,
+      })),
     ]);
     setGroves((list) => [
       ...list.filter((g) => !preview.spared.groves.some((s) => s.id === g.id)),
@@ -327,7 +336,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
       addField: (cells) => devActions.current.addField(cells),
       fellTrees: (count, near) => devActions.current.fellTrees(count, near),
       setSacredBuildings,
-      clearSacred: () => devActions.current.clearSacred(),
+      clearSacred: (grown) => devActions.current.clearSacred(grown),
     };
     return () => {
       delete devWindow.__bohemiaDev;
@@ -938,6 +947,20 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
           }}
         >
           Mýtit les s posvátným dubem / hájem
+        </button>
+        <button
+          className={buttonClass}
+          disabled={!scene}
+          onClick={() =>
+            setSacredOaks((list) =>
+              list.map((o) => ({
+                ...o,
+                growth: (o.growth ?? 1) > 1 ? 1 : 1 + SACRED_OAK_GROWTH.extra,
+              })),
+            )
+          }
+        >
+          Posvátné duby +60 let
         </button>
         {firstSacredSite && (
           <span data-testid="dev-sacred-phase">

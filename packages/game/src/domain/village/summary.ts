@@ -130,7 +130,8 @@ export interface HappinessSummary {
 
 /** Posvátná místa vsi pro panel výběru a scénu – i kolik které přidává (bez stropů). */
 export interface SacredSummary {
-  oaks: { id: number; x: number; z: number; happiness: number }[];
+  /** Ušetřené posvátné duby – `day` = den ušetření (dub pak ve scéně postupně roste). */
+  oaks: { id: number; day: number; x: number; z: number; happiness: number }[];
   groves: {
     id: number;
     x: number;
@@ -393,6 +394,7 @@ function sacredSummary(state: VillageState): SacredSummary {
   return {
     oaks: villageSacredOaks(state).map((o) => ({
       id: o.id,
+      day: o.day,
       x: o.x,
       z: o.z,
       happiness: SACRED_OAK.happiness,

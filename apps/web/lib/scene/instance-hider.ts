@@ -13,8 +13,9 @@ interface Tracked extends StaticInstances {
 /**
  * Skrývá instance stromů, keřů a kamenů (thin instances). Překážky z vrstvy překážek (instance
  * s id) zmizí, když je ves odstranila nebo vykácela – podle id ze stavu vsi, stejně jako je
- * počítá server. Ozdoby bez id (rákos u pole) zmizí pod stavbami a poli podle tvaru. Pamatuje
- * si původní instance, takže jde skrytí kdykoli vrátit.
+ * počítá server. Ozdoby bez id (rákos u pole) zmizí pod stavbami a poli podle tvaru. Vybrané
+ * překážky jde i zvětšit (posvátné duby postupně rostou – `scales`). Pamatuje si původní
+ * instance, takže jde skrytí i zvětšení kdykoli vrátit.
  */
 export class InstanceHider {
   private readonly tracked: Tracked[] = [];
@@ -35,10 +36,15 @@ export class InstanceHider {
   }
 
   /**
-   * Skryje překážky s id v `hiddenIds` a ozdoby bez id v oblastech `shapes`, ostatní vrátí.
-   * Vrátí true, když se něco změnilo.
+   * Skryje překážky s id v `hiddenIds` a ozdoby bez id v oblastech `shapes`, ostatní vrátí;
+   * překážky s id v `scales` zvětší kolem paty (násobek velikosti). Vrátí true, když se něco
+   * změnilo.
    */
-  apply(shapes: readonly HideShape[], hiddenIds: ReadonlySet<number>): boolean {
+  apply(
+    shapes: readonly HideShape[],
+    hiddenIds: ReadonlySet<number>,
+    scales: ReadonlyMap<number, number> = NO_SCALES,
+  ): boolean {
     let changed = false;
     for (const t of this.tracked) {
       if (t.mesh.isDisposed()) continue;
@@ -47,7 +53,8 @@ export class InstanceHider {
       mask.forEach((hide, i) => {
         if (hide) hiddenIndices.push(i);
       });
-      const signature = hiddenIndices.join(',');
+      const scaled = t.ids ? scaledInstances(t.ids, scales) : [];
+      const signature = `${hiddenIndices.join(',')}|${scaled.map(([i, s]) => `${i}:${s}`).join(',')}`;
       if (signature === t.hidden) continue;
       t.hidden = signature;
       changed = true;
@@ -57,12 +64,44 @@ export class InstanceHider {
         t.mesh.setEnabled(false);
         continue;
       }
-      t.mesh.thinInstanceSetBuffer('matrix', keepVisible(t.matrices, mask, 16), 16, true);
+      const matrices = scaled.length > 0 ? scaledMatrices(t.matrices, scaled) : t.matrices;
+      t.mesh.thinInstanceSetBuffer('matrix', keepVisible(matrices, mask, 16), 16, true);
       if (t.colors) t.mesh.thinInstanceSetBuffer('color', keepVisible(t.colors, mask, 4), 4, true);
       t.mesh.setEnabled(true);
     }
     return changed;
   }
+}
+
+const NO_SCALES: ReadonlyMap<number, number> = new Map();
+
+/** Instance se zvětšením: [index, násobek] (jen násobky různé od 1). */
+function scaledInstances(
+  ids: Uint32Array,
+  scales: ReadonlyMap<number, number>,
+): [number, number][] {
+  if (scales.size === 0) return [];
+  const out: [number, number][] = [];
+  for (let i = 0; i < ids.length; i++) {
+    const scale = scales.get(ids[i]!);
+    if (scale !== undefined && scale !== 1) out.push([i, scale]);
+  }
+  return out;
+}
+
+/**
+ * Kopie matic instancí se zvětšenými instancemi – násobí se jen otočení a měřítko (prvních 3 × 3),
+ * posun zůstane, takže instance roste kolem své paty (počátek modelu stromu je u paty kmene).
+ */
+export function scaledMatrices(
+  matrices: Float32Array,
+  scaled: readonly [number, number][],
+): Float32Array {
+  const out = matrices.slice();
+  for (const [i, scale] of scaled) {
+    for (const k of [0, 1, 2, 4, 5, 6, 8, 9, 10]) out[i * 16 + k]! *= scale;
+  }
+  return out;
 }
 
 /** 1 = instance s id ze skrytých. */

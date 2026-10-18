@@ -47,6 +47,7 @@ import {
 } from '@bohemia/game';
 import { formatGameDate } from './game-date';
 import { fruitVisible, treeGrowth } from './orchard-look';
+import { sacredOakGrowth } from './sacred-look';
 import { formatCells, formatHa, formatInteger } from './village-format';
 
 // Pohled na ves pro panel a scénu (DTO server actions). Čistý modul – smí ho importovat
@@ -310,7 +311,11 @@ export interface SceneVillage {
  * průběh samotné stavby bez kácení dubů 0–1 pro fáze staveniště, vytyčení je vidět od 0).
  */
 export interface SceneSacred {
-  oaks: { id: number; x: number; z: number }[];
+  /**
+   * `growth` = násobek velikosti dubu (a obětin u kmene) – ušetřené duby se postupně zvětší
+   * (`sacredOakGrowth`, jen vzhled); bez údaje 1.
+   */
+  oaks: { id: number; x: number; z: number; growth?: number }[];
   groves: {
     id: number;
     x: number;
@@ -526,7 +531,7 @@ function sceneVillage(
   }));
   const reserved = [...reservedTrees(state)].sort((a, b) => a - b);
   const labor = sceneLabor(state, summary.people);
-  const sacred = sceneSacred(state, landscape, summary);
+  const sacred = sceneSacred(state, landscape, day, summary);
   return {
     dwellings: [...built, ...sites],
     fields,
@@ -544,6 +549,7 @@ function sceneVillage(
 function sceneSacred(
   state: VillageState,
   landscape: Landscape,
+  day: number,
   summary: VillageSummary,
 ): SceneSacred | null {
   const sites = state.constructions.flatMap((c) => {
@@ -564,7 +570,7 @@ function sceneSacred(
   const { oaks, groves } = summary.sacred;
   if (oaks.length === 0 && groves.length === 0 && buildings.length === 0) return null;
   return {
-    oaks: oaks.map((o) => ({ id: o.id, x: o.x, z: o.z })),
+    oaks: oaks.map((o) => ({ id: o.id, x: o.x, z: o.z, growth: sacredOakGrowth(o.day, day) })),
     groves: groves.map((g) => ({
       id: g.id,
       x: g.x,

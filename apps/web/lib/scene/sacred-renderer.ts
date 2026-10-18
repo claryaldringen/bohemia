@@ -318,7 +318,8 @@ export class SacredRenderer {
         y: h(oak.x, oak.z) - 0.03,
         z: oak.z,
         rotationY: oakOfferingRotation(oak.id),
-        scale: 1,
+        // kruh kamenů a stužky rostou s kmenem (posvátný dub se postupně zvětší)
+        scale: oak.growth ?? 1,
       });
     }
     const toward = villageCenter(sacred);
@@ -534,7 +535,7 @@ function villageCenter(sacred: SceneSacred | null): { x: number; z: number } | n
 function sacredKey(sacred: SceneSacred | null): string {
   if (!sacred) return '';
   return [
-    sacred.oaks.map((o) => `${o.id},${o.x},${o.z}`).join(';'),
+    sacred.oaks.map((o) => `${o.id},${o.x},${o.z},${o.growth ?? 1}`).join(';'),
     sacred.groves
       .map((g) => `${g.id}:${g.squares.map((s) => `${s.cell.x},${s.cell.y}`).join(',')}`)
       .join(';'),

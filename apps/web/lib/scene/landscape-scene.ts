@@ -733,7 +733,11 @@ export class LandscapeScene {
     const changed = village.update(this.villageState);
     const changes = this.villageState.obstacles ?? NO_OBSTACLE_CHANGES;
     const hiddenIds = new Set([...changes.removed, ...changes.stumps, ...changes.saplings]);
-    const hidden = this.hider.apply(village.hideShapes(), hiddenIds);
+    // posvátné duby se postupně zvětší (jen vzhled, mění se nejvýš jednou za herní rok)
+    const growth = new Map(
+      (this.villageState.sacred?.oaks ?? []).map((oak) => [oak.id, oak.growth ?? 1]),
+    );
+    const hidden = this.hider.apply(village.hideShapes(), hiddenIds, growth);
     const shaded = this.terrainGround?.setHiddenTrees(hiddenIds) ?? false;
     const clearing =
       this.obstacles && this.landscape

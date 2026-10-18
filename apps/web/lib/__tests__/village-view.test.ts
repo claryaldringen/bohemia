@@ -829,7 +829,7 @@ describe('štěstí a posvátná místa v pohledu na ves', () => {
       { id: 41, kind: 'shrine', built: false, happiness: 25, progress: 0.25, oaksToFell: 2 },
     ]);
     expect(view.scene.sacred).toEqual({
-      oaks: [{ id: 7, x: 20, z: 30 }],
+      oaks: [{ id: 7, x: 20, z: 30, growth: 1 }],
       groves: [
         {
           id: 8,
@@ -857,6 +857,13 @@ describe('štěstí a posvátná místa v pohledu na ves', () => {
       { kind: 'idol', position: { x: 60, z: 0, rotation: 0 } },
       { kind: 'shrine', position: { x: 0, z: 90, rotation: 0 } },
     ]);
+  });
+
+  it('posvátný dub ve scéně postupně roste podle let od ušetření (jen vzhled)', () => {
+    const s = settled();
+    s.sacredOaks = [{ id: 7, day: DAY - Math.ceil(30 * 365.25), x: 20, z: 30 }];
+    const view = buildVillageView(record(s), landscape, DAY);
+    expect(view.scene.sacred?.oaks[0]?.growth).toBeCloseTo(1.15, 9);
   });
 
   it('ves bez posvátných míst je ve scéně nemá', () => {
