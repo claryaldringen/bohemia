@@ -85,7 +85,9 @@ k lesu stojí práci a mýcení pro pole dá klády na stavby.
   zase dospělý strom, který jde kácet (Martin, oprava podle rešerše; dřív dospělý za 30 let:
   pařeziny se těžily ve věku 7–40 let – Kadavý a Kneifl 2016, kmen na srub nebo do milíře roste
   podle odhadu rešerše 60–100 let) – okraj lesa u vsi tak řídne a ustupuje, ale nezmizí navždy.
-- Řemesla později spotřebují dřevo stejnou cestou (Martin).
+- Řemesla spotřebují dřevo stejnou cestou (Martin): hrnčíř kácí na palivo pece, uhlíř jen buky
+  do milíře a na jejich pařezy **sází mladé buky** – sazenice je hned mladý stromek a za 60 let
+  dospělý buk ([řemesla](crafts.md) – Uhlíř, 18. 10. 2026).
 
 ### Mýcení a hromada klád
 
