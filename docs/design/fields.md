@@ -281,7 +281,8 @@ pořadí (návrh Clauda; nahrazuje pevných 85 % a dělení práce po domácnost
   a jestli ji scéna kreslí 3D modelem, nebo obrázkem (vnitřek lesa). Vrstvu generuje server
   i prohlížeč stejnou funkcí ze stejných dat (deterministicky, ověřeno testem), nepřenáší se.
   Ceny podle tabulky výše počítá `placement.ts` z překážek, které na místě opravdu stojí:
-  obydlí platí kusy na vyklízené ploše kolem půdorysu (staveniště ≈ 10 × 12 m), díl pole kusy
+  obydlí platí kusy na vyklízené ploše kolem půdorysu (staveniště ≈ 10 × 12 m, u polozemnice
+  i se zahrádkou ≈ 13 × 12 m), díl pole kusy
   v políčku; skalní výchoz pod obydlím stavbu nedovolí, v poli zůstane a plocha pod ním (kruh
   o poloměru 3 m × velikost skály) se do dílu nepočítá. Čtverec hřbitova platí překážky jako
   díl pole; skalní výchoz ho zablokuje, protože hroby jdou na čtverec v pevné mřížce
@@ -387,6 +388,9 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 - **Ve scéně:** pole na terénu podle ročního období – oraniště (jaro), zelené a zlaté obilí,
   strniště, přílohy v různém stadiu zarůstání (tráva, vyšší tráva, keře, nálet mladých
   stromků) – kolem vsi pestrá mozaika, hranice pole (mez). 3D a textury jsou samostatný úkol.
+  **Stav:** scéna umí vzhled zeleného a zralého obilí a strniště (`CropLook`), zatím ho ale
+  ukazuje jen vývojový náhled staveb (/dev/buildings) – kdy který díl dozrává a kdy je strniště,
+  server zatím neposílá.
 - **Kronika:** založení pole, sklizeň (kolik), hlad, díl pole zarostl v les.
 
 ## Navazuje

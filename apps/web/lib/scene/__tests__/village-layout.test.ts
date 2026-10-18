@@ -150,6 +150,17 @@ describe('vzhled dílů pole', () => {
     expect(brightness('young-growth')).toBeGreaterThan(brightness('shrub'));
     expect(brightness('shrub')).toBeGreaterThan(brightness('forest'));
   });
+
+  it('osetý díl podle růstu obilí: zelené, zralé (zlatavé) a strniště; jinde se růst nebere', () => {
+    const crops = (['growing', 'ripe', 'stubble'] as const).map((crop) => partLook('sown', crop));
+    const looks = new Set([partLook('sown'), ...crops].map((look) => JSON.stringify(look)));
+    expect(looks.size).toBe(4);
+    const [growing, ripe] = crops;
+    expect(growing!.tint[1]).toBeGreaterThan(growing!.tint[0]);
+    expect(ripe!.tint[0]).toBeGreaterThan(ripe!.tint[2]);
+    for (const crop of crops) expect(crop.rows).not.toBeNull();
+    expect(partLook('ready', 'ripe')).toEqual(partLook('ready'));
+  });
 });
 
 describe('skrytí stromů a kamenů pod vsí', () => {

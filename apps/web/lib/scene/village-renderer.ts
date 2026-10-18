@@ -734,7 +734,7 @@ export class VillageRenderer {
         coverage,
       );
       if (grid.indices.length === 0) continue;
-      const look = partLook(part.stage);
+      const look = partLook(part.stage, part.crop);
       const group = groups.get(look.texture) ?? { grids: [], colors: [], alphas: [] };
       group.grids.push(grid);
       group.colors.push(look.tint);
