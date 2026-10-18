@@ -154,6 +154,16 @@ export class VillageLivestock {
     return moved;
   }
 
+  /** SPIKE (lidé): střed, poloměr a stěhování stád v okamžiku `nowMs` – pro pasáčka. */
+  herdViews(nowMs: number): (HerdState & { kind: Herd['kind']; radiusM: number })[] {
+    const clock = this.clock(nowMs);
+    return this.herds.map((herd) => ({
+      ...herdState(herd, clock, createHerdState()),
+      kind: herd.kind,
+      radiusM: herd.radiusM,
+    }));
+  }
+
   dispose(): void {
     this.disposed = true;
     for (const kind of this.kinds.values()) {
