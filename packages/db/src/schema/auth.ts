@@ -15,6 +15,7 @@ export const user = pgTable('user', {
     .$onUpdate(() => /* @__PURE__ */ new Date())
     .notNull(),
   language: text('language').default('cs').notNull(),
+  devMode: boolean('dev_mode').default(false).notNull(),
 });
 
 export const session = pgTable(

@@ -9,7 +9,9 @@ import {
   placeFieldForPlayer,
   placeOrchardForPlayer,
   renameVillageForPlayer,
+  skipTimeForPlayerView,
   villageViewForPlayer,
+  type TimeSkipResult,
   type VillageActionResult,
   type VillageView,
 } from '@/lib/village';
@@ -21,6 +23,7 @@ import {
   parsePlaceOrchardInput,
   parseRenameVillageInput,
   parseRestartGameInput,
+  parseSkipTimeInput,
 } from '@/lib/village-input';
 
 // Server actions vsi. Každá je veřejný POST endpoint: přihlášení ze session, vstup ověřený
@@ -113,4 +116,17 @@ export async function restartGame(input?: unknown): Promise<{ ok: true } | { err
   if (parsed === null) return { error: INVALID_INPUT };
   const result = await restartGameForPlayer(id, parsed);
   return result.ok ? { ok: true } : { error: result.error };
+}
+
+/**
+ * Vývojový režim: přeskočí čas hráče o měsíc, nebo rok – `{ skip: 'month' | 'year' }`. Jen pro
+ * účet s `devMode` (příznak účtu – klient ho nastavit nemůže; bez něj use-case odmítne). Vrátí
+ * ves dopočítanou do nového dneška a nový posun času pro hodiny v prohlížeči.
+ */
+export async function skipTime(input: unknown): Promise<TimeSkipResult> {
+  const session = await getSession();
+  if (!session) return { error: NOT_SIGNED_IN };
+  const parsed = parseSkipTimeInput(input);
+  if (parsed === null) return { error: INVALID_INPUT };
+  return skipTimeForPlayerView(session.user.id, session.user.devMode === true, parsed.skip);
 }
