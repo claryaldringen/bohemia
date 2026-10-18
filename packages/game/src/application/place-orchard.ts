@@ -5,6 +5,7 @@ import {
   orchardPartsFromCells,
   placementVillageOf,
   villageDwellingPositions,
+  type SquareGrid,
   type TileCell,
 } from '../domain/village';
 import { CANNOT_AFFORD } from './place-dwelling';
@@ -17,8 +18,10 @@ export interface PlaceOrchardInput {
   landscape: Landscape;
   /** Dnešní herní den (index dne). */
   today: number;
-  /** Čtverce sadu – políčka krajiny. */
+  /** Čtverce sadu – políčka krajiny, u natočeného sadu čtverce v jeho mřížce `grid`. */
   cells: TileCell[];
+  /** Natočená mřížka sadu (fields.md – Natočené stavby); bez ní mřížka krajiny. */
+  grid?: SquareGrid;
 }
 
 /**
@@ -41,7 +44,14 @@ export function placeOrchard(
       }
       const positions = villageDwellingPositions(state);
       const village = placementVillageOf(state, state.lastDay);
-      const orchard = orchardPartsFromCells(input.landscape, village, input.cells, positions);
+      const orchard = orchardPartsFromCells(
+        input.landscape,
+        village,
+        input.cells,
+        positions,
+        undefined,
+        input.grid,
+      );
       if (!orchard.check.ok)
         return { ok: false, reason: orchard.check.reason ?? 'Sem sad nepatří.' };
       // akce patří do dne, do kterého je ves dopočítaná – dnešek, nebo „budoucí“ den vsi
@@ -50,6 +60,7 @@ export function placeOrchard(
         squares: orchard.squares,
         sacred: orchard.spared,
         takenLand: orchard.takenLand,
+        ...(orchard.grid ? { grid: orchard.grid } : {}),
       };
       return { ok: true, state: foundOrchard(state, state.lastDay, squares) };
     },

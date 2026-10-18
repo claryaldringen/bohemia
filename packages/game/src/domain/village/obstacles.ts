@@ -290,25 +290,51 @@ export function tallyCost(tally: ObstacleTally, included: readonly ObstacleKind[
 }
 
 /**
+ * Kde překážky patří jiné stavbě: políčka krajiny (index y × size + x), nebo test bodu (pata
+ * překážky a její políčko) – i natočené čtverce polí a sadů (fields.md – Natočené stavby).
+ */
+export type OwnedLand = ReadonlySet<number> | ((x: number, z: number, tile: number) => boolean);
+
+/** Patří bod (políčko `tile`) jiné stavbě? */
+function owns(owned: OwnedLand, x: number, z: number, tile: number): boolean {
+  return typeof owned === 'function' ? owned(x, z, tile) : owned.has(tile);
+}
+
+/**
  * Překážky na čtverci pole, sadu nebo hřbitova (pata v políčku). Odstraní se všechny (kromě
  * skalních výchozů a stromů z `keep` – posvátné duby zůstanou stát, happiness.md); kolik z nich
  * se platí po kusech, rozhoduje povrch čtverce – na lesním čtverci pole platí sazba za hektar
  * a stromy jsou v ceně (fields.md – Co je překážka, `tallyCost`). `layerOwned` – překážky vrstvy
  * na čtverci patří jiné stavbě (dílu pole – fields.md, Pole jako krajina): z vrstvy se počítají
- * jen skalní výchozy, stromy u cest a jabloně (přidané vsí) ano.
+ * jen skalní výchozy, stromy u cest a jabloně (přidané vsí) ano; test bodu = jen překážky
+ * vrstvy s patou tam, kde platí (natočené pole zabírá kus políčka). `owned` – všechny překážky
+ * (i přidané vsí) s patou tam, kde test platí, patří jiné stavbě (pozemek na poli).
  */
 export function cellObstacles(
   layer: ObstacleLayer,
   status: ObstacleStatus,
   cell: TileCell,
   keep: ReadonlySet<number> = NO_IDS,
-  options: { layerOwned?: boolean } = {},
+  options: {
+    layerOwned?: boolean | ((x: number, z: number) => boolean);
+    owned?: (x: number, z: number) => boolean;
+  } = {},
 ): ObstacleTally {
   const tally = emptyTally();
+  const layerOwned = options.layerOwned;
   for (const index of obstaclesInTile(layer, cell.x, cell.y)) {
     if (keep.has(layer.id[index]!)) continue;
     const kind = status.kindOf(layer, index);
-    if (kind === null || (options.layerOwned && kind !== 'outcrop')) continue;
+    if (kind === null) continue;
+    const x = layer.x[index]!;
+    const z = layer.z[index]!;
+    if (options.owned?.(x, z)) continue;
+    if (
+      kind !== 'outcrop' &&
+      (layerOwned === true || (typeof layerOwned === 'function' && layerOwned(x, z)))
+    ) {
+      continue;
+    }
     addToTally(tally, layer, index, kind);
   }
   // stromy u pevných cest (roads.md) s patou v políčku
@@ -318,6 +344,40 @@ export function cellObstacles(
   for (const o of status.addedIn(x0, z0, x0 + layer.cellSizeM, z0 + layer.cellSizeM)) {
     if (keep.has(o.id)) continue;
     if (tileIndexOf(layer, o.x) !== cell.x || tileIndexOf(layer, o.z) !== cell.y) continue;
+    if (options.owned?.(o.x, o.z)) continue;
+    addAddedToTally(tally, o);
+  }
+  return tally;
+}
+
+/**
+ * Překážky v natočeném čtverci stavby (pata v mnohoúhelníku `corners` – fields.md, Natočené
+ * stavby) jako `cellObstacles` u políčka: `layerOwned` – překážky vrstvy (bez výchozů) s patou
+ * tam, kde test platí, patří jiné stavbě; `owned` – všechny (i přidané vsí).
+ */
+export function squareObstacles(
+  layer: ObstacleLayer,
+  status: ObstacleStatus,
+  corners: readonly Point[],
+  keep: ReadonlySet<number> = NO_IDS,
+  options: {
+    layerOwned?: (x: number, z: number) => boolean;
+    owned?: (x: number, z: number) => boolean;
+  } = {},
+): ObstacleTally {
+  const tally = emptyTally();
+  for (const index of obstaclesInPolygon(layer, corners)) {
+    if (keep.has(layer.id[index]!)) continue;
+    const kind = status.kindOf(layer, index);
+    if (kind === null) continue;
+    const x = layer.x[index]!;
+    const z = layer.z[index]!;
+    if (options.owned?.(x, z)) continue;
+    if (kind !== 'outcrop' && options.layerOwned?.(x, z)) continue;
+    addToTally(tally, layer, index, kind);
+  }
+  for (const o of addedInPolygon(status, corners)) {
+    if (keep.has(o.id) || options.owned?.(o.x, o.z)) continue;
     addAddedToTally(tally, o);
   }
   return tally;
@@ -369,7 +429,7 @@ export function dwellingObstacles(
   status: ObstacleStatus,
   type: DwellingType,
   position: Position,
-  fieldTiles: ReadonlySet<number> = new Set(),
+  fieldTiles: OwnedLand = new Set(),
   keep: ReadonlySet<number> = NO_IDS,
 ): ObstacleTally {
   return polygonObstacles(layer, status, dwellingClearing(type, position), fieldTiles, keep);
@@ -385,7 +445,7 @@ export function polygonObstacles(
   layer: ObstacleLayer,
   status: ObstacleStatus,
   polygon: readonly Point[],
-  skipTiles: ReadonlySet<number> = new Set(),
+  skipTiles: OwnedLand = new Set(),
   keep: ReadonlySet<number> = NO_IDS,
 ): ObstacleTally {
   const tally = emptyTally();
@@ -393,7 +453,9 @@ export function polygonObstacles(
   const tileOf = (v: number): number =>
     Math.min(layer.size - 1, Math.max(0, Math.floor((v + half) / layer.cellSizeM)));
   for (const index of obstaclesInPolygon(layer, polygon)) {
-    if (skipTiles.has(tileOf(layer.z[index]!) * layer.size + tileOf(layer.x[index]!))) continue;
+    const x = layer.x[index]!;
+    const z = layer.z[index]!;
+    if (owns(skipTiles, x, z, tileOf(z) * layer.size + tileOf(x))) continue;
     if (keep.has(layer.id[index]!)) continue;
     const kind = status.kindOf(layer, index);
     if (kind !== null) addToTally(tally, layer, index, kind);
@@ -413,7 +475,7 @@ export function polygonsObstacles(
   layer: ObstacleLayer,
   status: ObstacleStatus,
   polygons: readonly (readonly Point[])[],
-  skipTiles: ReadonlySet<number> = new Set(),
+  skipTiles: OwnedLand = new Set(),
   keep: ReadonlySet<number> = NO_IDS,
 ): ObstacleTally {
   const tally = emptyTally();
@@ -425,7 +487,9 @@ export function polygonsObstacles(
     for (const index of obstaclesInPolygon(layer, polygon)) {
       if (seen.has(index)) continue;
       seen.add(index);
-      if (skipTiles.has(tileOf(layer.z[index]!) * layer.size + tileOf(layer.x[index]!))) continue;
+      const x = layer.x[index]!;
+      const z = layer.z[index]!;
+      if (owns(skipTiles, x, z, tileOf(z) * layer.size + tileOf(x))) continue;
       if (keep.has(layer.id[index]!)) continue;
       const kind = status.kindOf(layer, index);
       if (kind !== null) addToTally(tally, layer, index, kind);

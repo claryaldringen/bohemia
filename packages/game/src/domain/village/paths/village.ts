@@ -10,7 +10,16 @@ import { grazedPartIds, isGrazeableFallow } from '../overgrowth';
 import { villageOxen, villagePens } from '../oxen';
 import { ageGroup } from '../people';
 import { partStage } from '../summary';
-import type { HerdSpecies, Position, TileCell, VillageState } from '../types';
+import { gridKey, squareCenter } from '../square-grid';
+import { fieldGrids } from '../squares';
+import type {
+  DwellingPlot,
+  HerdSpecies,
+  Position,
+  SquareGrid,
+  TileCell,
+  VillageState,
+} from '../types';
 import { villageWoods } from '../woods';
 import {
   computePathNetwork,
@@ -42,8 +51,21 @@ const DAYS_PER_YEAR = 365.25;
 /** Vzdálenost chůze se ukládá na desetiny metru. */
 const WALK_ROUNDING = 10;
 
-/** Čtverec ze středu políčka (díl pole, čtverec sadu a háje). */
-function square(landscape: Landscape, cell: TileCell): PathSquare {
+/**
+ * Čtverec ze středu políčka (díl pole, čtverec sadu a háje) – u natočené stavby (fields.md –
+ * Natočené stavby) čtverec její mřížky `grid` se středem a natočením.
+ */
+function square(landscape: Landscape, cell: TileCell, grid?: SquareGrid): PathSquare {
+  if (grid) {
+    const c = squareCenter(landscape, grid, cell);
+    return {
+      cell: { x: cell.x, y: cell.y },
+      x: c.x,
+      z: c.z,
+      size: landscape.cellSizeM,
+      rotation: grid.rotation,
+    };
+  }
   const c = tileCenterWorld(landscape, cell.x, cell.y);
   return { cell: { x: cell.x, y: cell.y }, x: c.x, z: c.z, size: landscape.cellSizeM };
 }
@@ -96,7 +118,7 @@ export function pastureGrazedParts(
 export function pathVillageOf(state: VillageState, day: number, landscape: Landscape): PathVillage {
   const occupied = new Set(state.people.map((p) => p.dwellingId));
   const plotOf = (
-    plot: { cell: TileCell; yard?: TileCell } | undefined,
+    plot: DwellingPlot | undefined,
   ):
     | {
         plot: {
@@ -104,11 +126,24 @@ export function pathVillageOf(state: VillageState, day: number, landscape: Lands
           x: number;
           z: number;
           size: number;
+          rotation?: number;
           yard?: { x: number; z: number };
         };
       }
     | object => {
     if (!plot) return {};
+    // natočený pozemek (fields.md – Natočené stavby): střed a natočení čtverce
+    if (plot.square && !plot.yard) {
+      return {
+        plot: {
+          cell: { x: plot.cell.x, y: plot.cell.y },
+          x: plot.square.x,
+          z: plot.square.z,
+          size: landscape.cellSizeM,
+          rotation: plot.square.rotation,
+        },
+      };
+    }
     // dvorec vojvody (trade.md) – pozemek i se dvorem
     const yard = plot.yard ? tileCenterWorld(landscape, plot.yard.x, plot.yard.y) : null;
     return { plot: { ...square(landscape, plot.cell), ...(yard ? { yard } : {}) } };
@@ -147,7 +182,7 @@ export function pathVillageOf(state: VillageState, day: number, landscape: Lands
       p.fieldId === f.id && p.cell !== undefined
         ? [
             {
-              ...square(landscape, p.cell),
+              ...square(landscape, p.cell, f.grid),
               stage: partStage(p, day),
               ...(isGrazeableFallow(p) ? { grazed: grazed.has(p.id) } : {}),
             },
@@ -156,12 +191,12 @@ export function pathVillageOf(state: VillageState, day: number, landscape: Lands
     ),
   }));
   const woods = villageWoods(state).map((w) => ({
-    ...square(landscape, w.cell),
+    ...square(landscape, w.cell, w.grid),
     surface: w.surface,
   }));
   const orchards = villageOrchards(state).map((o) => ({
     id: o.id,
-    squares: o.squares.map((s) => square(landscape, s.cell)),
+    squares: o.squares.map((s) => square(landscape, s.cell, o.grid)),
   }));
   const cemeteries = villageCemeteries(state).map((c) => ({
     id: c.id,
@@ -309,17 +344,23 @@ export function walkLayoutKey(state: VillageState, day: number): string {
   const at = (p: Position): string => `${p.x},${p.z},${p.rotation}`;
   const dwellings = state.dwellings.map(
     (d) =>
-      `${d.id}:${d.type}${d.workshop ? `/${d.workshop.craft}` : ''}:${at(d.position)}:${d.plot ? `${d.plot.cell.x},${d.plot.cell.y}${d.plot.yard ? `+${d.plot.yard.x},${d.plot.yard.y}` : ''}` : ''}:${occupied.has(d.id) ? 1 : 0}:${age(d.builtDay)}`,
+      `${d.id}:${d.type}${d.workshop ? `/${d.workshop.craft}` : ''}:${at(d.position)}:${d.plot ? `${d.plot.cell.x},${d.plot.cell.y}${d.plot.yard ? `+${d.plot.yard.x},${d.plot.yard.y}` : ''}${d.plot.square ? `@${d.plot.square.x},${d.plot.square.z},${d.plot.square.rotation}` : ''}` : ''}:${occupied.has(d.id) ? 1 : 0}:${age(d.builtDay)}`,
   );
   const sites = state.constructions.flatMap((c) =>
     c.position !== null && (c.kind === 'dwelling' || c.kind === 'idol' || c.kind === 'shrine')
       ? [`${c.id}:${c.kind}${c.craft ? `/${c.craft}` : ''}:${at(c.position)}:${age(c.startedDay)}`]
       : [],
   );
-  const parts = state.parts.map((p) => `${p.id}:${p.cell ? `${p.cell.x},${p.cell.y}` : ''}`);
-  const woods = villageWoods(state).map((w) => `${w.cell.x},${w.cell.y}`);
+  // natočená pole, sady a les z nich nesou mřížku (fields.md – Natočené stavby) – klíč starých
+  // vsí se nemění
+  const grids = fieldGrids(state);
+  const turned = (grid: SquareGrid | undefined): string => (grid ? `@${gridKey(grid)}` : '');
+  const parts = state.parts.map(
+    (p) => `${p.id}:${p.cell ? `${p.cell.x},${p.cell.y}${turned(grids.get(p.fieldId))}` : ''}`,
+  );
+  const woods = villageWoods(state).map((w) => `${w.cell.x},${w.cell.y}${turned(w.grid)}`);
   const orchards = villageOrchards(state).map(
-    (o) => `${o.id}:${o.squares.map((s) => `${s.cell.x},${s.cell.y}`).join(';')}`,
+    (o) => `${o.id}${turned(o.grid)}:${o.squares.map((s) => `${s.cell.x},${s.cell.y}`).join(';')}`,
   );
   const cemeteries = villageCemeteries(state).map(
     (c) => `${c.id}:${c.squares.map((s) => `${s.cell.x},${s.cell.y}`).join(';')}`,
@@ -449,10 +490,14 @@ export function refreshWalkDistances(
   const origins = dwellingOrigins(state);
   const rounded = (walk: number): number => Math.floor(walk * WALK_ROUNDING) / WALK_ROUNDING;
   const parts = state.parts.filter((p) => p.cell !== undefined);
-  const squares = villageOrchards(state).flatMap((o) => o.squares);
-  const targets = [...parts.map((p) => p.cell!), ...squares.map((s) => s.cell)].map((cell) =>
-    tileCenterWorld(landscape, cell.x, cell.y),
-  );
+  const grids = fieldGrids(state);
+  const orchards = villageOrchards(state);
+  const squares = orchards.flatMap((o) => o.squares);
+  // středy čtverců – natočená pole a sady ve své mřížce (fields.md – Natočené stavby)
+  const targets = [
+    ...parts.map((p) => squareCenter(landscape, grids.get(p.fieldId), p.cell!)),
+    ...orchards.flatMap((o) => o.squares.map((s) => squareCenter(landscape, o.grid, s.cell))),
+  ];
   const walks = targets.length > 0 ? walkingDistances(graph, origins, targets, ground) : [];
   parts.forEach((p, k) => {
     p.walkDistanceM = rounded(walks[k]!);

@@ -1,7 +1,8 @@
 import { obstaclesOf, tileCenterWorld, type Landscape, type ObstacleLayer } from '../landscape';
 import { checkDwellingPlacement } from './placement';
 import { NEW_VILLAGE_MIN_DISTANCE_M } from './rules';
-import type { Position, VillageState } from './types';
+import { fieldGrids } from './squares';
+import type { Position, SquareGrid, VillageState } from './types';
 
 // Víc vsí na téže mapě (migration.md – Odchod do nové vsi, Víc vsí jednoho hráče): nová ves stojí
 // nejméně NEW_VILLAGE_MIN_DISTANCE_M od staveb jiných vsí. Vsi na jedné mapě o sobě jinak zatím
@@ -15,23 +16,27 @@ export interface VillagePoint {
 
 /**
  * Stavby vsi jako body ve světě: obydlí, staveniště, posvátné stavby, čtverce polí, hřbitovů,
- * sadů a ohrad (střed políčka – `cellCenter` převede políčko na bod).
+ * sadů a ohrad (střed čtverce – `cellCenter` převede čtverec na bod; natočené pole a sad předají
+ * i svou mřížku – fields.md, Natočené stavby).
  */
 export function villagePoints(
   state: VillageState,
-  cellCenter: (x: number, y: number) => VillagePoint,
+  cellCenter: (x: number, y: number, grid?: SquareGrid) => VillagePoint,
 ): VillagePoint[] {
+  const grids = fieldGrids(state);
   const points: VillagePoint[] = [];
   for (const d of state.dwellings) points.push({ x: d.position.x, z: d.position.z });
   for (const c of state.constructions) {
     if (c.position) points.push({ x: c.position.x, z: c.position.z });
   }
   for (const b of state.sacredBuildings ?? []) points.push({ x: b.position.x, z: b.position.z });
-  for (const p of state.parts) if (p.cell) points.push(cellCenter(p.cell.x, p.cell.y));
+  for (const p of state.parts) {
+    if (p.cell) points.push(cellCenter(p.cell.x, p.cell.y, grids.get(p.fieldId)));
+  }
   for (const c of state.cemeteries ?? [])
     for (const s of c.squares) points.push({ x: s.x, z: s.z });
   for (const o of state.orchards ?? []) {
-    for (const s of o.squares) points.push(cellCenter(s.cell.x, s.cell.y));
+    for (const s of o.squares) points.push(cellCenter(s.cell.x, s.cell.y, o.grid));
   }
   for (const pen of state.pens ?? []) points.push({ x: pen.x, z: pen.z });
   return points;

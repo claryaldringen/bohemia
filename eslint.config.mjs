@@ -79,6 +79,8 @@ const DETERMINISTIC_LAYER_FILES = [
   'packages/game/src/domain/landscape/world.ts',
   // vyšlapané pěšiny – síť počítá server (vzdálenost chůze na pole) i prohlížeč (vzhled)
   'packages/game/src/domain/village/paths/**/*.ts',
+  // natočené stavby – mřížky čtverců (fields.md – Natočené stavby) jdou do sítě pěšin
+  'packages/game/src/domain/village/square-grid.ts',
 ];
 
 export default defineConfig(

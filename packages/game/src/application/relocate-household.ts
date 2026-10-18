@@ -3,6 +3,7 @@ import {
   PLOT_TYPES,
   cancelRelocation,
   checkDwellingPlacement,
+  canonicalPlot,
   checkPlotPlacement,
   forestEdgeDistanceM,
   placementVillageOf,
@@ -14,7 +15,7 @@ import {
   type Position,
   type RelocationBlock,
 } from '../domain/village';
-import { NO_PLOT, NO_WOOD } from './place-dwelling';
+import { BAD_PLOT, NO_PLOT, NO_WOOD } from './place-dwelling';
 import { updateLivingVillage } from './update-village';
 import type { VillageRepository, VillageResult } from './villages';
 
@@ -67,8 +68,13 @@ export function relocateHousehold(
         return { ok: false, reason: NO_WOOD };
       }
       const village = placementVillageOf(state, day);
-      const plot = PLOT_TYPES[input.type] ? input.plot : undefined;
-      if (PLOT_TYPES[input.type] && !plot) return { ok: false, reason: NO_PLOT };
+      // natočený pozemek v ukládané podobě (střed na cm, natočení po 15°)
+      const plot =
+        PLOT_TYPES[input.type] && input.plot
+          ? canonicalPlot(input.landscape, input.plot)
+          : undefined;
+      if (PLOT_TYPES[input.type] && !input.plot) return { ok: false, reason: NO_PLOT };
+      if (plot === null) return { ok: false, reason: BAD_PLOT };
       const plotCheck = plot
         ? checkPlotPlacement(input.landscape, village, input.type, plot, obstacles)
         : null;

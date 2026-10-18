@@ -120,6 +120,9 @@ export function copyPlot(plot: DwellingPlot): DwellingPlot {
     cell: { x: plot.cell.x, y: plot.cell.y },
     variant: plot.variant,
     ...(plot.yard ? { yard: { x: plot.yard.x, y: plot.yard.y } } : {}),
+    ...(plot.square
+      ? { square: { x: plot.square.x, z: plot.square.z, rotation: plot.square.rotation } }
+      : {}),
   };
 }
 

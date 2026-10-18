@@ -4,6 +4,7 @@ import {
   PLOT_TYPES,
   buildAffordability,
   checkDwellingPlacement,
+  canonicalPlot,
   checkPlotPlacement,
   forestEdgeDistanceM,
   placementVillageOf,
@@ -36,6 +37,8 @@ export const NO_SETTLERS = 'Nové obydlí nemá kdo osídlit.';
 export const NO_WOOD = 'Na stavbu chybí dřevo – klády ani stromy ke kácení nestačí.';
 /** Polozemnice se staví na pozemku – políčku krajiny (population.md – Umístění obydlí). */
 export const NO_PLOT = 'Polozemnice potřebuje pozemek – celé políčko.';
+/** Pozemek s neplatným natočením (jen po 15°) nebo natočený dvorec. */
+export const BAD_PLOT = 'Neplatné natočení pozemku.';
 
 /**
  * Hráč zahájí stavbu nového obydlí – kdykoli, když je kým ho osadit a ves má suroviny a dřevo
@@ -62,8 +65,13 @@ export function placeDwelling(
       }
       const village = placementVillageOf(state, day);
       // obydlí na pozemku: poloha domu podle pozemku (klientská poloha se nebere)
-      const plot = PLOT_TYPES[input.type] ? input.plot : undefined;
-      if (PLOT_TYPES[input.type] && !plot) return { ok: false, reason: NO_PLOT };
+      // natočený pozemek v ukládané podobě (střed na cm, natočení po 15°)
+      const plot =
+        PLOT_TYPES[input.type] && input.plot
+          ? canonicalPlot(input.landscape, input.plot)
+          : undefined;
+      if (PLOT_TYPES[input.type] && !input.plot) return { ok: false, reason: NO_PLOT };
+      if (plot === null) return { ok: false, reason: BAD_PLOT };
       const plotCheck = plot
         ? checkPlotPlacement(input.landscape, village, input.type, plot, obstacles)
         : null;

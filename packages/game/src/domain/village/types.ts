@@ -78,8 +78,16 @@ export type PlotVariant = 'center' | 'back-left' | 'back-right' | 'front-right' 
  * Polozemnice postavené dřív pozemek nemají (volná poloha bez plotu).
  */
 export interface DwellingPlot {
+  /** Políčko pozemku; u natočeného pozemku (`square`) políčko pod jeho středem. */
   cell: TileCell;
   variant: PlotVariant;
+  /**
+   * Natočený pozemek (Martin 18. 10. 2026 – „všechny stavby by měly jít natáčet po 15 stupních“,
+   * varianta a: natočí se celý pozemek): čtverec o straně políčka se středem (x, z) ve světě (m)
+   * natočený o `rotation` (rad, násobek 15°) – „vpředu“ s brankou je −z pozemku. Chybí = pozemek
+   * je políčko `cell` bez natočení (pozemky z doby před natáčením). Dvorec (`yard`) ho nemá.
+   */
+  square?: PlotSquare;
   /**
    * Dvorec vojvody (trade.md): druhé políčko pozemku – dvůr sousedící stranou s políčkem domu
    * `cell`. Dům stojí uprostřed `cell` vchodem ke dvoru (varianta `center`), brána je na
@@ -223,6 +231,23 @@ export interface TileCell {
   x: number;
   y: number;
 }
+/**
+ * Vlastní mřížka stavby po čtvercích (fields.md – Natočené stavby, návrh Clauda 18. 10. 2026):
+ * čtverce o straně políčka krajiny, střed čtverce (0, 0) ve světě (x, z – m) a natočení
+ * `rotation` (rad, násobek 15° mezi 15° a 75° – čtverec otočený o 90° je zase týž čtverec).
+ * Čtverce stavby jsou pak `TileCell` v této mřížce. Chybí = mřížka krajiny (čtverec = políčko).
+ */
+export interface SquareGrid {
+  x: number;
+  z: number;
+  rotation: number;
+}
+/** Natočený čtverec o straně políčka – střed ve světě (m) a natočení (rad, násobek 15°). */
+export interface PlotSquare {
+  x: number;
+  z: number;
+  rotation: number;
+}
 export interface FieldPart {
   id: number;
   fieldId: number;
@@ -239,7 +264,11 @@ export interface FieldPart {
   foundingCost: number; // člověkodny (povrch × plocha + překážky)
   foundingDone: number;
   surface: FieldSurface; // povrch při založení
-  cell?: TileCell; // políčko krajiny = čtverec pole, který díl zabírá
+  /**
+   * Čtverec pole, který díl zabírá – políčko krajiny, u natočeného pole čtverec v mřížce pole
+   * (`Field.grid`).
+   */
+  cell?: TileCell;
   /** Překážky na čtverci (id z vrstvy překážek) – zmizí z krajiny, až osadníci díl založí. */
   obstacles?: number[];
   /** Dospělé stromy mezi překážkami – po založení dílu dají klády na hromadu (forest.md). */
@@ -263,8 +292,10 @@ export interface FieldPart {
  * pole na čtverci ho vymýtí jako les. Prasatům je lesem, stádům pastvinou už není.
  */
 export interface VillageWood {
-  /** Políčko krajiny (čtverec dílu). */
+  /** Čtverec dílu – políčko krajiny, u lesa z natočeného pole čtverec v jeho mřížce (`grid`). */
   cell: TileCell;
+  /** Mřížka pole, ze kterého les vyrostl (natočené pole); chybí = mřížka krajiny. */
+  grid?: SquareGrid;
   /**
    * Střed políčka ve světě (m) – stromy lesa stojí kolem něj (`woodTreeSpots`). Chybí ve vsi
    * simulované bez krajiny (testy) – les pak stromy nemá.
@@ -281,6 +312,11 @@ export interface VillageWood {
 /** Pole – jeho čtverce jsou políčka jeho dílů (`FieldPart.cell`). */
 export interface Field {
   id: number;
+  /**
+   * Vlastní natočená mřížka pole (fields.md – Natočené stavby): díly jsou čtverce v ní. Chybí =
+   * mřížka krajiny (díl = políčko) – všechna pole z doby před natáčením.
+   */
+  grid?: SquareGrid;
   /** @deprecated Obrys z prvního prototypu (pole se kreslila volným obrysem) – jen staré vsi. */
   outline?: [number, number][];
 }
@@ -359,6 +395,11 @@ export interface OrchardSquare {
 export interface Orchard {
   id: number;
   squares: OrchardSquare[];
+  /**
+   * Vlastní natočená mřížka sadu (fields.md – Natočené stavby): čtverce jsou v ní. Chybí =
+   * mřížka krajiny (čtverec = políčko).
+   */
+  grid?: SquareGrid;
   /**
    * Hospodářský rok sadu (rok jeho jara), ve kterém vesničané naposledy zařadili čtverce do
    * obnovy – za rok sadu jen jednou (orchard.md – Obnova sadu). Chybí = ještě nikdy.

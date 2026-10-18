@@ -8,7 +8,8 @@ import {
 } from '../landscape';
 import { distanceFactor, fallowStage, partWalkDistance } from './fields';
 import { FASTEST_WALK_SHARE } from './paths/walking';
-import { plotCells } from './plot-cells';
+import { plotShapes } from './plot-cells';
+import { tilesUnder, villageLandSquares } from './squares';
 import type { WindowSegment } from './rules';
 import type { FieldPart, HayMowing, HaySquare, HayState, TileCell, VillageState } from './types';
 
@@ -101,16 +102,18 @@ function naturalMeadows(
   if (houses.length === 0) return [];
   const key = (c: TileCell): number => c.y * landscape.size + c.x;
   const taken = new Set<number>();
-  for (const part of state.parts) if (part.cell) taken.add(key(part.cell));
-  for (const o of state.orchards ?? []) for (const sq of o.squares) taken.add(key(sq.cell));
-  for (const c of state.cemeteries ?? []) for (const sq of c.squares) taken.add(key(sq.cell));
-  for (const pen of state.pens ?? []) taken.add(key(pen.cell));
-  for (const d of state.dwellings)
-    for (const cell of d.plot ? plotCells(d.plot) : []) taken.add(key(cell));
-  for (const c of state.constructions)
-    for (const cell of c.plot ? plotCells(c.plot) : []) taken.add(key(cell));
-  // les vsi už louka není (fields.md – Les vsi)
-  for (const w of state.woods ?? []) taken.add(key(w.cell));
+  // čtverce polí, sadů, hřbitovů, ohrad a lesa vsi – natočené (fields.md – Natočené stavby)
+  // zaberou každé políčko, do kterého zasahují; les vsi už louka není (fields.md – Les vsi)
+  for (const square of villageLandSquares(landscape, state)) {
+    for (const tile of tilesUnder(landscape, square.corners, square.tile)) taken.add(tile);
+  }
+  for (const plot of [...state.dwellings, ...state.constructions].flatMap((d) =>
+    d.plot ? [d.plot] : [],
+  )) {
+    for (const shape of plotShapes(landscape, plot)) {
+      for (const tile of tilesUnder(landscape, shape.corners, shape.tile)) taken.add(tile);
+    }
+  }
   for (const h of houses) {
     const tile = tileOfWorldPoint(landscape, h.x, h.z);
     if (tile) taken.add(key(tile));

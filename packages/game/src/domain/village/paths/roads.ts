@@ -11,12 +11,14 @@ import { villageHerds } from '../livestock';
 import { obstacleChangesAt, obstacleStatus, type ObstacleChanges } from '../obstacles';
 import { villageOrchards } from '../orchard';
 import { villagePens } from '../oxen';
-import { plotCells } from '../plot-cells';
+import { plotShapes } from '../plot-cells';
+import { plotSquareTile, rotationCosSin, squareCenter } from '../square-grid';
 import { ROAD_TREE_ID_BASE, roadAppleStage, roadTreeLook } from '../road-trees';
 import { MILIR, ROADS, ROAD_APPLES, ROAD_TREES, SACRED_BUILDINGS } from '../rules';
 import type {
   ChronicleEvent,
   Construction,
+  DwellingPlot,
   HerdSpecies,
   LaborDay,
   LaborTarget,
@@ -25,6 +27,7 @@ import type {
   RoadPoint,
   RoadTreeSpecies,
   RoadTreeSpot,
+  SquareGrid,
   TileCell,
   Trail,
   VillageRoads,
@@ -1545,18 +1548,44 @@ export function plantingBlocker(
   const addTile = (cell: { x: number; y: number }): void => {
     tiles.add(cell.y * size + cell.x);
   };
+  // natočené čtverce (fields.md – Natočené stavby): střed a osy čtverce
+  const turned: { x: number; z: number; c: number; s: number }[] = [];
+  const addSquare = (grid: SquareGrid | undefined, cell: { x: number; y: number }): void => {
+    if (!grid) {
+      addTile(cell);
+      return;
+    }
+    const center = squareCenter(landscape, grid, cell);
+    const [c, sn] = rotationCosSin(grid.rotation);
+    turned.push({ x: center.x, z: center.z, c, s: sn });
+  };
+  const addPlot = (plot: DwellingPlot | undefined): void => {
+    if (!plot) return;
+    if (plot.square && !plot.yard && plotSquareTile(landscape, plot.square) === null) {
+      const [c, sn] = rotationCosSin(plot.square.rotation);
+      turned.push({ x: plot.square.x, z: plot.square.z, c, s: sn });
+      return;
+    }
+    for (const shape of plotShapes(landscape, plot)) {
+      if (shape.tile !== null) tiles.add(shape.tile);
+    }
+  };
   for (const c of villageCemeteries(state)) for (const s of c.squares) addTile(s.cell);
-  for (const o of villageOrchards(state)) for (const s of o.squares) addTile(s.cell);
+  for (const o of villageOrchards(state)) for (const s of o.squares) addSquare(o.grid, s.cell);
   for (const g of state.groves ?? []) for (const cell of g.cells) addTile(cell);
-  for (const d of state.dwellings)
-    for (const cell of d.plot ? plotCells(d.plot) : []) addTile(cell);
-  for (const c of state.constructions)
-    for (const cell of c.plot ? plotCells(c.plot) : []) addTile(cell);
+  for (const d of state.dwellings) addPlot(d.plot);
+  for (const c of state.constructions) addPlot(c.plot);
   for (const p of villagePens(state)) addTile(p.cell);
-  for (const r of state.ruins ?? [])
-    for (const cell of r.plot ? plotCells(r.plot) : []) addTile(cell);
+  for (const r of state.ruins ?? []) addPlot(r.plot);
   // les vsi (fields.md – Les vsi) – strom u cesty ani jabloň do něj nepatří, roste tam les
-  for (const w of state.woods ?? []) addTile(w.cell);
+  for (const w of state.woods ?? []) addSquare(w.grid, w.cell);
+  const reach = landscape.cellSizeM / 2 + SQUARE_MARGIN_M;
+  const inTurned = (x: number, z: number): boolean =>
+    turned.some((t) => {
+      const dx = x - t.x;
+      const dz = z - t.z;
+      return Math.abs(dx * t.c - dz * t.s) < reach && Math.abs(dx * t.s + dz * t.c) < reach;
+    });
   // obydlí, staveniště i zbytky jam po zaniklých obydlích – pořád ves
   const homes = [
     ...state.dwellings.map((d) => d.position),
@@ -1597,6 +1626,7 @@ export function plantingBlocker(
       const tile = tileOfWorldPoint(landscape, x + dx, z + dz);
       if (!tile || tiles.has(tile.y * size + tile.x)) return true;
     }
+    if (turned.length > 0 && inTurned(x, z)) return true;
     if (homes.some((h) => length2(h.x - x, h.z - z) < HOMESTEAD_M)) return true;
     if (sacred.some((b) => Math.abs(b.x - x) < b.half && Math.abs(b.z - z) < b.half)) return true;
     const milirReach = MILIR.clearingRadiusM + MILIR_MARGIN_M;
@@ -1658,7 +1688,7 @@ function rootTrees(
       rooted.push({ x: spot.x, z: spot.z });
     }
   }
-  giveWayToBuilding(state, day, treeTakenLand(landscape, state.parts, rooted), 'road-trees');
+  giveWayToBuilding(state, day, treeTakenLand(landscape, state, rooted), 'road-trees');
 }
 
 // --- zemská stezka (trade.md – Zemská stezka) -------------------------------------------------

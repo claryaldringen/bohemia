@@ -1,5 +1,7 @@
+import { CELL_SIZE_M, LANDSCAPE_SIZE } from '../landscape';
 import { OVERGROWTH_STAGES, VILLAGE_WOOD } from './rules';
-import type { TileCell, VillageState, VillageWood } from './types';
+import { GRID_TURNS, rotationCosSin, rotationTurn, sameGrid } from './square-grid';
+import type { SquareGrid, TileCell, VillageState, VillageWood } from './types';
 
 // Les vsi (fields.md – Zarůstání, Les vsi): čtverec pole, který zarostl lesem a z pole vypadl.
 // Les dál roste a jeho stromy jsou herní data jako stromy u pevných cest (roads.md) – překážky
@@ -27,9 +29,48 @@ const DAYS_PER_YEAR = 365.25;
 /** Les vypadne z pole ve stáří, kdy díl zarostl lesem (OVERGROWTH_STAGES – 30 let). */
 const FOREST_FROM_YEARS = OVERGROWTH_STAGES.find((s) => s.stage === 'forest')?.fromYears ?? 30;
 
-/** Id stromu `k` lesa vsi na políčku `cell`. */
+/** Id stromu `k` lesa vsi na políčku `cell` (u lesa z natočeného pole buňka z `woodIdCell`). */
 export function woodTreeId(cell: TileCell, k: number): number {
   return WOOD_TREE_ID_BASE + (cell.y * CELL_STRIDE + cell.x) * TREES_PER_CELL + k;
+}
+
+/** Les vsi pro id a místa stromů: čtverec, střed, plocha a natočení (natočené pole). */
+export type WoodPlace = Pick<VillageWood, 'cell' | 'x' | 'z' | 'areaM2'> & {
+  grid?: SquareGrid;
+  rotation?: number;
+};
+
+/** Buňka id lesa z natočeného pole (m) – středy natočených čtverců jsou od sebe aspoň 15 m. */
+const ROTATED_ID_CELL_M = CELL_SIZE_M / 2;
+/** Řádky id pro les z natočeného pole začínají tady – les na políčku jich má nejvýš 4096 / 2. */
+const ROTATED_ID_ROW = CELL_STRIDE / 2;
+
+/** Natočení lesa (z mřížky natočeného pole) – 0, když leží v mřížce krajiny. */
+function woodRotation(wood: Pick<WoodPlace, 'grid' | 'rotation'>): number {
+  return wood.rotation ?? wood.grid?.rotation ?? 0;
+}
+
+/** Leží les natočeně (ne v mřížce krajiny)? */
+function isRotatedWood(wood: Pick<WoodPlace, 'grid' | 'rotation'>): boolean {
+  const turn = rotationTurn(woodRotation(wood));
+  return turn !== null && turn % GRID_TURNS !== 0;
+}
+
+/**
+ * Políčko pro id stromů lesa vsi: les na políčku krajiny jeho políčko; les z natočeného pole
+ * (fields.md – Natočené stavby) buňka 7,5 m pod svým středem v horní polovině řádků id – středy
+ * nepřekrývajících se čtverců jsou od sebe aspoň 15 m, do jedné buňky nepadnou dva. Bez středu
+ * (ves bez krajiny) jeho čtverec.
+ */
+export function woodIdCell(
+  wood: Pick<WoodPlace, 'cell' | 'x' | 'z' | 'grid' | 'rotation'>,
+): TileCell {
+  if (!isRotatedWood(wood) || wood.x === undefined || wood.z === undefined) return wood.cell;
+  const half = (LANDSCAPE_SIZE * CELL_SIZE_M) / 2;
+  return {
+    x: Math.floor((wood.x + half) / ROTATED_ID_CELL_M),
+    y: ROTATED_ID_ROW + Math.floor((wood.z + half) / ROTATED_ID_CELL_M),
+  };
 }
 
 /** Je to id stromu lesa vsi (ne překážky z vrstvy ani stromu u cesty)? */
@@ -95,27 +136,38 @@ export interface WoodTreeSpot {
  * v pořadí podle hashe, v každé strom posunutý z jejího středu. Prvních `woodTreeCount` míst –
  * dospělé stromy jsou na prvních místech. Bez polohy lesa žádná.
  */
-export function woodTreeSpots(
-  wood: Pick<VillageWood, 'cell' | 'x' | 'z' | 'areaM2'>,
-): WoodTreeSpot[] {
+export function woodTreeSpots(wood: WoodPlace): WoodTreeSpot[] {
   if (wood.x === undefined || wood.z === undefined) return [];
   const side = Math.sqrt(wood.areaM2);
   const step = side / GRID;
+  const id = woodIdCell(wood);
   const cells = Array.from({ length: GRID * GRID }, (_, i) => i).sort(
-    (a, b) => hash01(wood.cell.x, wood.cell.y, a) - hash01(wood.cell.x, wood.cell.y, b) || a - b,
+    (a, b) => hash01(id.x, id.y, a) - hash01(id.x, id.y, b) || a - b,
   );
   const count = woodTreeCount(wood);
+  // les z natočeného pole stojí v natočeném čtverci (fields.md – Natočené stavby)
+  const rotated = isRotatedWood(wood);
+  const [c, s] = rotated ? rotationCosSin(woodRotation(wood)) : [1, 0];
   const spots: WoodTreeSpot[] = [];
   for (let k = 0; k < count; k++) {
     const cell = cells[k]!;
     const gx = cell % GRID;
     const gz = (cell - gx) / GRID;
-    const jx = (hash01(wood.cell.x, wood.cell.y, 100 + k) - 0.5) * JITTER;
-    const jz = (hash01(wood.cell.x, wood.cell.y, 200 + k) - 0.5) * JITTER;
-    const x = wood.x - side / 2 + (gx + 0.5 + jx) * step;
-    const z = wood.z - side / 2 + (gz + 0.5 + jz) * step;
+    const jx = (hash01(id.x, id.y, 100 + k) - 0.5) * JITTER;
+    const jz = (hash01(id.x, id.y, 200 + k) - 0.5) * JITTER;
+    let x: number;
+    let z: number;
+    if (rotated) {
+      const lx = -side / 2 + (gx + 0.5 + jx) * step;
+      const lz = -side / 2 + (gz + 0.5 + jz) * step;
+      x = wood.x + lx * c + lz * s;
+      z = wood.z - lx * s + lz * c;
+    } else {
+      x = wood.x - side / 2 + (gx + 0.5 + jx) * step;
+      z = wood.z - side / 2 + (gz + 0.5 + jz) * step;
+    }
     spots.push({
-      id: woodTreeId(wood.cell, k),
+      id: woodTreeId(id, k),
       k,
       x: Math.round(x * 100) / 100,
       z: Math.round(z * 100) / 100,
@@ -129,26 +181,32 @@ export function villageWoods(state: Pick<VillageState, 'woods'>): readonly Villa
   return state.woods ?? [];
 }
 
-/** Les vsi na políčku, nebo undefined. */
+/** Les vsi na čtverci `cell` mřížky `grid` (bez ní políčko krajiny), nebo undefined. */
 export function woodAt(
   state: Pick<VillageState, 'woods'>,
   cell: TileCell,
+  grid?: SquareGrid,
 ): VillageWood | undefined {
-  return villageWoods(state).find((w) => w.cell.x === cell.x && w.cell.y === cell.y);
+  return villageWoods(state).find(
+    (w) => w.cell.x === cell.x && w.cell.y === cell.y && sameGrid(w.grid, grid),
+  );
 }
 
 /**
- * Les vsi na políčku zmizí (mutuje stav – pole ho vymýtilo, fields.md – Les vsi): s ním i záznamy
- * o jeho odstraněných a pokácených stromech (kdyby čtverec zase zarostl, les začne znovu).
+ * Les vsi na čtverci zmizí (mutuje stav – pole ho vymýtilo, fields.md – Les vsi): s ním i záznamy
+ * o jeho odstraněných a pokácených stromech (kdyby čtverec zase zarostl, les začne znovu). Čtverec
+ * v mřížce `grid` natočeného pole (bez ní políčko krajiny).
  */
-export function clearWoodAt(state: VillageState, cell: TileCell): void {
-  if (!woodAt(state, cell)) return;
-  state.woods = villageWoods(state).filter((w) => w.cell.x !== cell.x || w.cell.y !== cell.y);
+export function clearWoodAt(state: VillageState, cell: TileCell, grid?: SquareGrid): void {
+  const wood = woodAt(state, cell, grid);
+  if (!wood) return;
+  state.woods = villageWoods(state).filter((w) => w !== wood);
   if (state.woods.length === 0) delete state.woods;
+  const idCell = woodIdCell(wood);
   const onCell = (id: number): boolean => {
     if (!isWoodTreeId(id)) return false;
     const tree = woodTreeOf(id).cell;
-    return tree.x === cell.x && tree.y === cell.y;
+    return tree.x === idCell.x && tree.y === idCell.y;
   };
   if (state.clearedObstacles) {
     state.clearedObstacles = state.clearedObstacles.filter((c) => !onCell(c.id));

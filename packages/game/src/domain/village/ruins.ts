@@ -1,14 +1,12 @@
 import type { Landscape } from '../landscape';
-import { villageCemeteries } from './cemetery';
 import { workshopFootprints } from './crafts';
-import { villageOrchards } from './orchard';
-import { villagePens } from './oxen';
-import { cellCorners, dwellingFootprint, dwellingPlot } from './placement';
+import { dwellingFootprint, dwellingPlot } from './placement';
 import { copyPlot } from './plots';
 import { polygonsOverlap, type Point } from './polygon';
 import { RUIN_YEARS } from './rules';
 import { sacredBuildingPlots, sacredFootprint } from './sacred';
-import type { Dwelling, DwellingRuin, TileCell, VillageState } from './types';
+import { PolygonIndex, villageLandSquares, type LandSquare } from './squares';
+import type { Dwelling, DwellingRuin, VillageState } from './types';
 
 // Zbytky jam po zaniklých obydlích (population.md – Chátrání a přestavba, Po zániku – Martin
 // 18. 10. 2026): obydlí, které zchátrá na nulu (prázdné), nebo se jeho domácnost přestěhuje na
@@ -85,16 +83,20 @@ function builtOverRuins(state: VillageState, landscape: Landscape | null): Set<D
   const ruins = state.ruins ?? [];
   if (ruins.length === 0) return covered;
   const shapes = structureShapes(state, landscape);
-  const cells = landscape ? squareCells(state) : [];
+  // čtverce polí, sadů, hřbitovů a ohrad (i natočené – fields.md, Natočené stavby) až na dotaz
+  let squares: PolygonIndex<LandSquare> | null = null;
   for (const ruin of ruins) {
     const footprint = dwellingFootprint(ruin.type, ruin.position);
     if (shapes.some((shape) => polygonsOverlap(shape, footprint))) {
       covered.add(ruin);
       continue;
     }
-    if (!landscape || cells.length === 0) continue;
-    const under = cellsUnder(landscape, footprint);
-    if (cells.some((c) => under.has(cellKey(c)))) covered.add(ruin);
+    if (!landscape) continue;
+    squares ??= new PolygonIndex(
+      landscape,
+      villageLandSquares(landscape, state, ['field', 'orchard', 'cemetery', 'pen']),
+    );
+    if (squares.overlapping(footprint).length > 0) covered.add(ruin);
   }
   return covered;
 }
@@ -135,34 +137,4 @@ function structureShapes(state: VillageState, landscape: Landscape | null): Poin
   }
   for (const b of sacredBuildingPlots(state)) shapes.push(sacredFootprint(b.kind, b.position));
   return shapes;
-}
-
-/** Políčka staveb po čtvercích – díly polí, čtverce hřbitovů, sadů a ohrady. */
-function squareCells(state: VillageState): TileCell[] {
-  return [
-    ...state.parts.flatMap((p) => (p.cell ? [p.cell] : [])),
-    ...villageCemeteries(state).flatMap((c) => c.squares.map((s) => s.cell)),
-    ...villageOrchards(state).flatMap((o) => o.squares.map((s) => s.cell)),
-    ...villagePens(state).map((p) => p.cell),
-  ];
-}
-
-function cellKey(cell: TileCell): string {
-  return `${cell.x},${cell.y}`;
-}
-
-/** Políčka, jejichž vnitřek se překrývá s mnohoúhelníkem (dotyk hranou překryv není). */
-function cellsUnder(landscape: Landscape, polygon: readonly Point[]): Set<string> {
-  const half = (landscape.size * landscape.cellSizeM) / 2;
-  const toTile = (v: number): number =>
-    Math.min(landscape.size - 1, Math.max(0, Math.floor((v + half) / landscape.cellSizeM)));
-  const xs = polygon.map((p) => p[0]);
-  const zs = polygon.map((p) => p[1]);
-  const out = new Set<string>();
-  for (let y = toTile(Math.min(...zs)); y <= toTile(Math.max(...zs)); y++) {
-    for (let x = toTile(Math.min(...xs)); x <= toTile(Math.max(...xs)); x++) {
-      if (polygonsOverlap(cellCorners(landscape, { x, y }), polygon)) out.add(cellKey({ x, y }));
-    }
-  }
-  return out;
 }

@@ -1,10 +1,11 @@
-import { obstaclesOf, tileCenterWorld, type Landscape } from '../domain/landscape';
+import { obstaclesOf, type Landscape } from '../domain/landscape';
 import {
   NEW_VILLAGE_MIN_DISTANCE_M,
   advanceVillage,
   checkDwellingPlacement,
   checkVillageName,
   distanceToVillages,
+  squareCenter,
   villagePoints,
   fieldPartsFromCells,
   forestEdgeDistanceM,
@@ -15,6 +16,7 @@ import {
   type FieldInput,
   type PlacementVillage,
   type Position,
+  type SquareGrid,
   type TileCell,
   type VillagePoint,
   type VillageState,
@@ -66,7 +68,8 @@ export async function foundAnotherVillage(
 ): Promise<VillageResult> {
   const others = await deps.villages.listBySettlement(input.settlementId);
   if (others.length === 0) return foundVillageForSettlement(deps, input);
-  const cellCenter = (x: number, y: number): VillagePoint => tileCenterWorld(input.landscape, x, y);
+  const cellCenter = (x: number, y: number, grid?: SquareGrid): VillagePoint =>
+    squareCenter(input.landscape, grid, { x, y });
   const points = others.flatMap((v) => villagePoints(v.state, cellCenter));
   if (distanceToVillages(input.dwelling, points) < NEW_VILLAGE_MIN_DISTANCE_M) {
     return { ok: false, reason: TOO_CLOSE_TO_VILLAGE };

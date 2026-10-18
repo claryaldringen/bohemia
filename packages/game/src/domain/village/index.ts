@@ -62,6 +62,8 @@ export * from './polygon';
 export * from './placement';
 export * from './plots';
 export * from './plot-cells';
+export * from './square-grid';
+export * from './squares';
 export { TAKEN_LAND_EPSILON_M2, landLeftM2, type TakenLand } from './land-taken';
 export * from './ruins';
 // opuštěné stavby – čisté funkce stavu; kroky simulace (roční kontrola, pád) zůstávají uvnitř

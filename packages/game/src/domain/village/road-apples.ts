@@ -143,7 +143,7 @@ export function roadApplesOption(
   }
   const spots = roadAppleSpots(state, roadId, day, landscape, obstacles);
   const trees = spots.length;
-  const taken = treeTakenLand(landscape, state.parts, spots);
+  const taken = treeTakenLand(landscape, state, spots);
   const cellAreaM2 = landscape.cellSizeM * landscape.cellSizeM;
   return {
     trees,
@@ -206,7 +206,7 @@ export function startRoadApples(
     fieldId: null,
     roadIds: [roadId],
   });
-  giveWayToBuilding(next, day, treeTakenLand(landscape, next.parts, apples), 'road-apples');
+  giveWayToBuilding(next, day, treeTakenLand(landscape, next, apples), 'road-apples');
   return next;
 }
 

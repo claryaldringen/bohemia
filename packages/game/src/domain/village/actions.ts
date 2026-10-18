@@ -14,6 +14,8 @@ import { isVillageExtinct } from './extinction';
 import { startingLivestock } from './livestock';
 import { startPen, startTeamTraining, type PenInput } from './oxen';
 import { fieldsTouching, mergeFields, partFoundingCost } from './fields';
+import { normalizeGrid, rotationTurn, squareKey } from './square-grid';
+import { fieldGrids } from './squares';
 import { giveWayToBuilding, validateTakenLand, type TakenLand } from './land-taken';
 import { obstacleChangesAt, recordClearedObstacles } from './obstacles';
 import { orchardPlantingCost, villageOrchards } from './orchard';
@@ -44,6 +46,7 @@ import type {
   Person,
   Position,
   SacredBuildingKind,
+  SquareGrid,
   TileCell,
   VillageState,
 } from './types';
@@ -75,6 +78,11 @@ export type PartInput = {
 
 export type FieldInput = {
   parts: PartInput[];
+  /**
+   * Natočená mřížka pole (fields.md – Natočené stavby) – čtverce dílů jsou v ní; bez ní mřížka
+   * krajiny. Rozšiřuje se jen pole v téže mřížce.
+   */
+  grid?: SquareGrid;
   /** @deprecated Obrys z prvního prototypu – nová pole se skládají ze čtverců (dílů). */
   outline?: [number, number][];
   /** Posvátné duby a háje, které vesničané při mýcení nechají stát (happiness.md). */
@@ -119,6 +127,8 @@ export type OrchardSquareInput = Pick<OrchardSquare, 'cell' | 'areaM2' | 'distan
 
 export type OrchardInput = {
   squares: OrchardSquareInput[];
+  /** Natočená mřížka sadu (fields.md – Natočené stavby); bez ní mřížka krajiny. */
+  grid?: SquareGrid;
   /** Čtverce polí pod sadem (`takenLand` z kontroly) – z pole zmizí (fields.md – Pole jako krajina). */
   takenLand?: readonly TakenLand[];
   /** Posvátné duby a háje, které vesničané při mýcení nechají stát (happiness.md). */
@@ -151,12 +161,29 @@ function validatePosition(position: Position): void {
   }
 }
 
-/** Pozemek: celočíselné políčko a známá varianta; jinak RangeError. */
+/**
+ * Pozemek: celočíselné políčko, známá varianta a u natočeného pozemku konečný střed s natočením
+ * po 15° (dvorec natočený být nemůže); jinak RangeError.
+ */
 function validatePlot(plot: DwellingPlot): void {
   if (!Number.isInteger(plot.cell.x) || !Number.isInteger(plot.cell.y)) {
     throw new RangeError('Políčko pozemku musí mít celočíselné souřadnice.');
   }
   if (!PLOT_VARIANTS.includes(plot.variant)) throw new RangeError('Neznámá varianta pozemku.');
+  if (plot.square) {
+    const { x, z, rotation } = plot.square;
+    if (!Number.isFinite(x) || !Number.isFinite(z) || rotationTurn(rotation) === null) {
+      throw new RangeError('Natočený pozemek musí mít konečný střed a natočení po 15°.');
+    }
+    if (plot.yard) throw new RangeError('Pozemek dvorce se nenatáčí.');
+  }
+}
+
+/** Natočená mřížka stavby po čtvercích musí být platná (po 15°, 15–75°); jinak RangeError. */
+function validateGrid(grid: SquareGrid | undefined): void {
+  if (grid && !normalizeGrid(grid)) {
+    throw new RangeError('Mřížka stavby musí mít konečný počátek a natočení po 15° (15–75°).');
+  }
 }
 
 /** Cena překážek musí být konečná a nezáporná; jinak RangeError. */
@@ -193,6 +220,7 @@ function validateObstacleIds(ids: readonly number[]): void {
  */
 function validateField(field: FieldInput, joinedAreaM2 = 0): void {
   if (field.parts.length === 0) throw new RangeError('Pole musí mít aspoň jeden díl.');
+  validateGrid(field.grid);
   for (const part of field.parts) {
     if (!Number.isFinite(part.areaM2) || part.areaM2 <= 0) {
       throw new RangeError('Plocha dílu musí být kladná a konečná.');
@@ -225,14 +253,18 @@ function validateField(field: FieldInput, joinedAreaM2 = 0): void {
  * nejstaršího (Martin – fields.md, Navazující pole). Jinak vznikne nové pole.
  */
 function addField(state: VillageState, day: number, field: FieldInput): void {
+  const grid = field.grid ? (normalizeGrid(field.grid) ?? undefined) : undefined;
+  // navazuje se jen ve stejné mřížce (fields.md – Natočené stavby)
   const joined = fieldsTouching(
     state.parts,
     field.parts.flatMap((p) => (p.cell ? [p.cell] : [])),
+    grid,
+    fieldGrids(state),
   );
   const extended = joined[0];
   if (extended !== undefined && joined.length > 1) mergeFields(state, extended, joined.slice(1));
   const fieldId = extended ?? state.nextId++;
-  if (extended === undefined) state.fields.push({ id: fieldId });
+  if (extended === undefined) state.fields.push({ id: fieldId, ...(grid ? { grid } : {}) });
   // založení podle dnešního pokrytí nástroji (crafts.md – meze produktivity)
   const tools = craftCoverage(state, day).tools;
   let cost = 0;
@@ -675,10 +707,13 @@ export function startWorkshop(
  */
 export function foundField(state: VillageState, day: number, field: FieldInput): VillageState {
   validateActionDay(state, day);
+  validateGrid(field.grid);
   const joined = new Set(
     fieldsTouching(
       state.parts,
       field.parts.flatMap((p) => (p.cell ? [p.cell] : [])),
+      field.grid ? (normalizeGrid(field.grid) ?? undefined) : undefined,
+      fieldGrids(state),
     ),
   );
   validateField(
@@ -806,6 +841,7 @@ export function foundCemetery(
 /** Ověří vstup sadu; jinak RangeError (čísla, která nejsou konečná, by stav otrávila). */
 function validateOrchard(input: OrchardInput): void {
   if (input.squares.length === 0) throw new RangeError('Sad musí mít aspoň jeden čtverec.');
+  validateGrid(input.grid);
   const cells = new Set<string>();
   for (const square of input.squares) {
     if (!Number.isInteger(square.cell.x) || !Number.isInteger(square.cell.y)) {
@@ -843,10 +879,11 @@ export function foundOrchard(state: VillageState, day: number, input: OrchardInp
   validateActionDay(state, day);
   validateOrchard(input);
   validateTakenLand(input.takenLand ?? []);
+  const grid = input.grid ? (normalizeGrid(input.grid) ?? undefined) : undefined;
   const taken = new Set(
-    villageOrchards(state).flatMap((o) => o.squares.map((s) => `${s.cell.x},${s.cell.y}`)),
+    villageOrchards(state).flatMap((o) => o.squares.map((s) => squareKey(o.grid, s.cell))),
   );
-  if (input.squares.some((s) => taken.has(`${s.cell.x},${s.cell.y}`))) {
+  if (input.squares.some((s) => taken.has(squareKey(grid, s.cell)))) {
     throw new RangeError('Čtverec už patří sadu.');
   }
   requireAffordable(state, 'orchard');
@@ -865,7 +902,7 @@ export function foundOrchard(state: VillageState, day: number, input: OrchardInp
     ...(s.obstacleIds?.length ? { obstacles: [...s.obstacleIds] } : {}),
     ...(s.trees ? { trees: s.trees } : {}),
   }));
-  next.orchards = [...villageOrchards(next), { id: orchardId, squares }];
+  next.orchards = [...villageOrchards(next), { id: orchardId, squares, ...(grid ? { grid } : {}) }];
   next.applesKg ??= 0;
   next.constructions.push({
     id: next.nextId++,

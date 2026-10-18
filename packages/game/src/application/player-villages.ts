@@ -1,5 +1,10 @@
-import { obstaclesOf, tileCenterWorld } from '../domain/landscape';
-import { freeVillageSite, suggestVillageName, villagePoints } from '../domain/village';
+import { obstaclesOf } from '../domain/landscape';
+import {
+  freeVillageSite,
+  squareCenter,
+  suggestVillageName,
+  villagePoints,
+} from '../domain/village';
 import { settlementLandscape } from './enter-game';
 import { foundAnotherVillage } from './found-village';
 import type { LandscapeSource, SeedSource, Settlement, SettlementRepository } from './settlements';
@@ -85,7 +90,7 @@ export async function foundDevVillage(
   const landscape = settlementLandscape(found.settlement, deps.landscapes);
   const others = await deps.villages.listBySettlement(found.settlement.id);
   const points = others.flatMap((v) =>
-    villagePoints(v.state, (x, y) => tileCenterWorld(landscape, x, y)),
+    villagePoints(v.state, (x, y, grid) => squareCenter(landscape, grid, { x, y })),
   );
   const site = freeVillageSite(landscape, points, obstaclesOf(landscape));
   if (!site) return { ok: false, reason: NO_ROOM_FOR_VILLAGE };

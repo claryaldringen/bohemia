@@ -129,6 +129,7 @@ import {
   woodFellingCost,
   woodSupply,
 } from './wood';
+import { fieldGridOf } from './squares';
 import { clearWoodAt, woodMatureShare, woodTreesOnArea } from './woods';
 import {
   TASK_ORDER,
@@ -892,7 +893,7 @@ function invest(
         delete part.trees;
       }
       // pole vymýtilo les vsi na čtverci (fields.md – Les vsi) – stromy zmizely s překážkami
-      if (part.cell) clearWoodAt(state, part.cell);
+      if (part.cell) clearWoodAt(state, part.cell, fieldGridOf(state, part.fieldId));
     } else {
       part.foundingDone += left;
       used += left;

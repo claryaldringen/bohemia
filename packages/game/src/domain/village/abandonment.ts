@@ -1,8 +1,11 @@
-import { tileCenterWorld, type Landscape } from '../landscape';
+import type { Landscape } from '../landscape';
 import { villageCemeteries } from './cemetery';
 import { villageHerds } from './livestock';
 import { villagePens } from './oxen';
-import { cellCorners, dwellingFootprint } from './placement';
+import { dwellingFootprint } from './placement';
+import { plotShapes } from './plot-cells';
+import { pointsBounds, squareCenter, squareCorners } from './square-grid';
+import { fieldGrids } from './squares';
 import { polygonsOverlap, type Point } from './polygon';
 import { ABANDONMENT, SACRED_BUILDINGS } from './rules';
 import { sacredBuildingPlots, sacredFootprint } from './sacred';
@@ -10,10 +13,12 @@ import type {
   AbandonedStructure,
   ChronicleEvent,
   Dwelling,
+  DwellingPlot,
   Pen,
   Position,
   SacredBuildingKind,
   SacredRuin,
+  SquareGrid,
   StructureWear,
   TileCell,
   VillageState,
@@ -263,17 +268,27 @@ function withoutBuiltOver(
   }
   if (landscape) {
     const reach = (landscape.cellSizeM * Math.SQRT2) / 2;
-    const cell = (c: TileCell | undefined): void => {
+    // čtverce staveb i natočené (fields.md – Natočené stavby) – střed a rohy v mřížce stavby
+    const cell = (c: TileCell | undefined, grid?: SquareGrid): void => {
       if (!c) return;
-      const center = tileCenterWorld(landscape, c.x, c.y);
-      if (near(center.x, center.z, reach)) shapes.push(cellCorners(landscape, c));
+      const center = squareCenter(landscape, grid, c);
+      if (near(center.x, center.z, reach)) shapes.push(squareCorners(landscape, grid, c));
     };
-    for (const p of state.parts) cell(p.cell);
+    const grids = fieldGrids(state);
+    for (const p of state.parts) cell(p.cell, grids.get(p.fieldId));
     for (const c of villageCemeteries(state)) for (const q of c.squares) cell(q.cell);
-    for (const o of state.orchards ?? []) for (const q of o.squares) cell(q.cell);
+    for (const o of state.orchards ?? []) for (const q of o.squares) cell(q.cell, o.grid);
     for (const p of villagePens(state)) cell(p.cell);
-    for (const d of state.dwellings) cell(d.plot?.cell);
-    for (const c of state.constructions) cell(c.plot?.cell);
+    const plot = (p: DwellingPlot | undefined): void => {
+      if (!p) return;
+      // jen čtverec domu (dvůr dvorce zbytky nepřekrývá – jako dřív)
+      for (const shape of plotShapes(landscape, p).slice(0, 1)) {
+        const [minX, minZ, maxX, maxZ] = pointsBounds(shape.corners);
+        if (near((minX + maxX) / 2, (minZ + maxZ) / 2, reach)) shapes.push([...shape.corners]);
+      }
+    };
+    for (const d of state.dwellings) plot(d.plot);
+    for (const c of state.constructions) plot(c.plot);
   }
   if (shapes.length === 0) return ruins;
   return ruins.filter((_, k) => !shapes.some((shape) => polygonsOverlap(shape, footprints[k]!)));

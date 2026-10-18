@@ -2,6 +2,8 @@ import { tileOfWorldPoint, type Landscape } from '../landscape';
 import { PART_TASKS, taskPosition, taskSpans, type PartTask } from './field-progress';
 import { HAY, mowingPosition, mowingSpans } from './hay';
 import { recordClearedObstacles } from './obstacles';
+import { normalizeGrid, squareKey } from './square-grid';
+import { PolygonIndex, villageLandSquares, type LandSquare, type SquaresVillage } from './squares';
 import { squareCareWork, squareHarvestWork, squareYieldKg } from './orchard';
 import { TAKEN_LAND_MIN_SHARE, TAKEN_LAND_TREE_M2 } from './rules';
 import type {
@@ -10,6 +12,7 @@ import type {
   FieldPart,
   LandTaker,
   OrchardSquare,
+  SquareGrid,
   TileCell,
   VillageState,
   YearPlan,
@@ -29,9 +32,14 @@ import { partWeight, planCrops } from './year-plan';
 // založení, výsadba, sezónní práce v sadech). Pole a sad, kterým nezbyl žádný čtverec, zaniknou;
 // zbytek zůstává jedním polem / sadem, i když se tím rozpadne na nesouvislé části.
 
-/** Kus čtverce pole nebo sadu, který stavba sebere – plocha (m²) z políčka `cellAreaM2`. */
+/**
+ * Kus čtverce pole nebo sadu, který stavba sebere – plocha (m²) z políčka `cellAreaM2`. Čtverec
+ * natočeného pole či sadu (fields.md – Natočené stavby) nese mřížku stavby `grid` – `cell` je
+ * pak čtverec v ní.
+ */
 export interface TakenLand {
   cell: TileCell;
+  grid?: SquareGrid;
   areaM2: number;
   cellAreaM2: number;
 }
@@ -56,47 +64,63 @@ export function validateTakenLand(taken: readonly TakenLand[]): void {
     if (!Number.isInteger(t.cell.x) || !Number.isInteger(t.cell.y)) {
       throw new RangeError('Políčko zabrané stavbou musí mít celočíselné souřadnice.');
     }
+    if (t.grid && !normalizeGrid(t.grid)) {
+      throw new RangeError('Mřížka zabraného čtverce musí být natočená po 15°.');
+    }
     if (!Number.isFinite(t.areaM2) || t.areaM2 < 0) {
       throw new RangeError('Plocha zabraná stavbou musí být nezáporná a konečná.');
     }
     if (!Number.isFinite(t.cellAreaM2) || t.cellAreaM2 <= 0) {
       throw new RangeError('Plocha políčka musí být kladná a konečná.');
     }
-    cells.add(`${t.cell.x},${t.cell.y}`);
+    cells.add(takenKey(t));
   }
   if (cells.size !== taken.length) throw new RangeError('Políčko zabrané stavbou se opakuje.');
 }
 
 /**
  * Kolik půdy vezmou polím stromy na místech `points` (jabloně a stromy u cesty – fields.md, Pole
- * jako krajina): každý strom na políčku dílu pole TAKEN_LAND_TREE_M2 (pod korunou se neorá),
- * nejvýš celé políčko. Stromy mimo pole nic neberou. Po řádcích políček.
+ * jako krajina): každý strom na čtverci dílu pole TAKEN_LAND_TREE_M2 (pod korunou se neorá),
+ * nejvýš celý čtverec. Stromy mimo pole nic neberou. Po řádcích políček, čtverce natočených polí
+ * (fields.md – Natočené stavby) nakonec.
  */
 export function treeTakenLand(
   landscape: Landscape,
-  parts: readonly Pick<FieldPart, 'cell'>[],
+  village: Pick<SquaresVillage, 'parts' | 'fields'>,
   points: readonly { x: number; z: number }[],
 ): TakenLand[] {
-  const size = landscape.size;
   const cellAreaM2 = landscape.cellSizeM * landscape.cellSizeM;
-  const fields = new Set(parts.flatMap((p) => (p.cell ? [p.cell.y * size + p.cell.x] : [])));
-  const trees = new Map<number, number>();
+  const index = new PolygonIndex(landscape, villageLandSquares(landscape, village, ['field']));
+  const trees = new Map<string, { square: LandSquare; count: number }>();
   for (const { x, z } of points) {
-    const tile = tileOfWorldPoint(landscape, x, z);
-    if (!tile) continue;
-    const index = tile.y * size + tile.x;
-    if (fields.has(index)) trees.set(index, (trees.get(index) ?? 0) + 1);
+    if (!tileOfWorldPoint(landscape, x, z)) continue;
+    const square = index.containing(x, z)[0];
+    if (!square) continue;
+    const key = squareKey(square.grid, square.cell);
+    const known = trees.get(key);
+    if (known) known.count++;
+    else trees.set(key, { square, count: 1 });
   }
-  return [...trees]
-    .sort((a, b) => a[0] - b[0])
-    .map(([index, count]) => ({
-      cell: { x: index % size, y: Math.floor(index / size) },
+  return [...trees.values()]
+    .sort((a, b) => {
+      const ta = a.square.tile;
+      const tb = b.square.tile;
+      if ((ta === null) !== (tb === null)) return ta === null ? 1 : -1;
+      if (ta !== null && tb !== null) return ta - tb;
+      const ka = squareKey(a.square.grid, a.square.cell);
+      const kb = squareKey(b.square.grid, b.square.cell);
+      return ka < kb ? -1 : ka > kb ? 1 : 0;
+    })
+    .map(({ square, count }) => ({
+      cell: { x: square.cell.x, y: square.cell.y },
+      ...(square.grid ? { grid: square.grid } : {}),
       areaM2: Math.min(cellAreaM2, count * TAKEN_LAND_TREE_M2),
       cellAreaM2,
     }));
 }
 
-const cellKey = (cell: TileCell): string => `${cell.x},${cell.y}`;
+/** Klíč zabraného kusu – čtverec v mřížce stavby (bez mřížky políčko krajiny). */
+const takenKey = (t: Pick<TakenLand, 'cell' | 'grid'>): string => squareKey(t.grid, t.cell);
 
 /**
  * Varování, že stavba sebere půdu poli nebo sadu (neblokuje – u kurzoru oranžově, u jabloní
@@ -106,12 +130,14 @@ const cellKey = (cell: TileCell): string => `${cell.x},${cell.y}`;
  */
 export function landTakenWarning(
   village: {
+    readonly fields?: readonly { readonly id: number; readonly grid?: SquareGrid }[];
     readonly parts: readonly {
       readonly cell?: TileCell;
       readonly fieldId?: number;
       readonly areaM2?: number;
     }[];
     readonly orchards?: readonly {
+      readonly grid?: SquareGrid;
       readonly squares: readonly { readonly cell: TileCell; readonly areaM2?: number }[];
     }[];
   },
@@ -119,15 +145,21 @@ export function landTakenWarning(
   cellAreaM2: number,
 ): string | undefined {
   if (taken.length === 0) return undefined;
-  const byCell = new Map(taken.map((t) => [cellKey(t.cell), t]));
-  const leftOf = (cell: TileCell | undefined, areaM2: number | undefined): number | null => {
-    const t = cell ? byCell.get(cellKey(cell)) : undefined;
+  const byCell = new Map(taken.map((t) => [takenKey(t), t]));
+  const grids = new Map((village.fields ?? []).map((f) => [f.id, f.grid]));
+  const leftOf = (
+    cell: TileCell | undefined,
+    grid: SquareGrid | undefined,
+    areaM2: number | undefined,
+  ): number | null => {
+    const t = cell ? byCell.get(squareKey(grid, cell)) : undefined;
     return t ? landLeftM2(areaM2 ?? cellAreaM2, t.areaM2, t.cellAreaM2) : null;
   };
   const fields = new Map<number, { hit: boolean; alive: boolean }>();
   let looseHit = false;
   for (const part of village.parts) {
-    const left = leftOf(part.cell, part.areaM2);
+    const grid = part.fieldId === undefined ? undefined : grids.get(part.fieldId);
+    const left = leftOf(part.cell, grid, part.areaM2);
     if (part.fieldId === undefined) {
       looseHit ||= left !== null;
       continue;
@@ -139,7 +171,7 @@ export function landTakenWarning(
   }
   const hitFields = [...fields.values()].filter((f) => f.hit);
   const orchards = (village.orchards ?? []).flatMap((orchard) => {
-    const lefts = orchard.squares.map((s) => leftOf(s.cell, s.areaM2));
+    const lefts = orchard.squares.map((s) => leftOf(s.cell, orchard.grid, s.areaM2));
     if (lefts.every((l) => l === null)) return [];
     return [lefts.some((l) => l === null || l > 0)];
   });
@@ -176,7 +208,7 @@ export function giveWayToBuilding(
   by: LandTaker = 'dwelling',
 ): void {
   if (taken.length === 0) return;
-  const byCell = new Map(taken.map((t) => [cellKey(t.cell), t]));
+  const byCell = new Map(taken.map((t) => [takenKey(t), t]));
   const fieldLoss = shrinkParts(state, day, byCell);
   // sad ustupuje jen obydlí (population.md) – ostatní stavby na sad nesmí
   const orchardLoss = by === 'dwelling' ? shrinkOrchards(state, day, byCell) : new Map();
@@ -201,8 +233,9 @@ function shrinkParts(
 ): Map<number, number> {
   const loss = new Map<number, number>();
   const removed = new Set<number>();
+  const grids = new Map(state.fields.map((f) => [f.id, f.grid]));
   for (const part of state.parts) {
-    const t = part.cell ? byCell.get(cellKey(part.cell)) : undefined;
+    const t = part.cell ? byCell.get(squareKey(grids.get(part.fieldId), part.cell)) : undefined;
     if (!t) continue;
     const left = landLeftM2(part.areaM2, t.areaM2, t.cellAreaM2);
     const lost = part.areaM2 - left;
@@ -418,7 +451,7 @@ function shrinkOrchards(
   for (const orchard of state.orchards) {
     const kept: OrchardSquare[] = [];
     for (const square of orchard.squares) {
-      const t = byCell.get(cellKey(square.cell));
+      const t = byCell.get(squareKey(orchard.grid, square.cell));
       const left = t ? landLeftM2(square.areaM2, t.areaM2, t.cellAreaM2) : square.areaM2;
       const lost = square.areaM2 - left;
       if (lost <= EPSILON) {

@@ -1,5 +1,6 @@
 import { detCos, detSin, length2 } from '../../landscape';
 import { milirPosition } from '../crafts';
+import { rotatedSquareCorners, rotationCosSin, rotationTurn } from '../square-grid';
 import { DWELLING_CLEARING_M, SACRED_BUILDINGS } from '../rules';
 import type { ObstacleChanges } from '../obstacles';
 import type { PartStage } from '../summary';
@@ -84,12 +85,17 @@ export interface PathNetwork {
   visits: ReadonlyMap<string, number>;
 }
 
-/** Čtverec stavby po políčkách (díl pole, čtverec sadu, hřbitova, háje) – střed a strana (m). */
+/**
+ * Čtverec stavby po políčkách (díl pole, čtverec sadu, hřbitova, háje) – střed a strana (m);
+ * čtverec natočené stavby (fields.md – Natočené stavby) i natočení `rotation` (rad, po 15°) a
+ * `cell` je pak čtverec v mřížce stavby. Čtverce jedné stavby leží ve stejné mřížce.
+ */
 export interface PathSquare {
   cell: TileCell;
   x: number;
   z: number;
   size: number;
+  rotation?: number;
 }
 
 /**
@@ -112,7 +118,15 @@ export interface PathVillage {
     since?: number;
     craft?: Craft;
     /** `yard` – dvůr dvorce vojvody (trade.md): střed druhého políčka pozemku. */
-    plot?: { cell: TileCell; x: number; z: number; size: number; yard?: { x: number; z: number } };
+    plot?: {
+      cell: TileCell;
+      x: number;
+      z: number;
+      size: number;
+      /** Natočený pozemek (rad, po 15°) – střed (x, z) pak není střed políčka. */
+      rotation?: number;
+      yard?: { x: number; z: number };
+    };
   }[];
   /**
    * Pole – díly se stadiem; `grazed` u přílohu ve fázi louky = pasou se na něm stáda (fields.md –
@@ -354,6 +368,16 @@ function mowedMeadows(village: PathVillage): PathSquare[] {
   return [...out.values()];
 }
 
+/**
+ * Klíč čtverce do klíče sítě: políčko, u natočeného čtverce (fields.md – Natočené stavby) i střed
+ * a natočení (souřadnice v různých mřížkách se mohou shodovat).
+ */
+function squareKeyOf(s: Square): string {
+  return s.rotation === undefined
+    ? `${s.cell.x},${s.cell.y}`
+    : `${s.cell.x},${s.cell.y}@${s.x.toFixed(2)},${s.z.toFixed(2)},${s.rotation.toFixed(3)}`;
+}
+
 /** Síla pěšiny 0–1 z provozu (cest za den); pod prahem 0. */
 export function pathStrength(trips: number): number {
   if (trips < PATH_TRAFFIC.min) return 0;
@@ -378,18 +402,22 @@ export function pathNetworkKey(village: PathVillage): string {
         ? `${ageBucket(day - d.since)}/${Math.floor(Math.min(YEARS_KEY_MAX, (day - d.since) / DAYS_PER_YEAR) / YEARS_STEP)}`
         : '';
     const yard = d.plot?.yard ? `+${d.plot.yard.x},${d.plot.yard.z}` : '';
-    const plot = d.plot ? `${d.plot.cell.x},${d.plot.cell.y}${yard}` : '';
+    const turned =
+      d.plot?.rotation !== undefined
+        ? `@${d.plot.x.toFixed(2)},${d.plot.z.toFixed(2)},${d.plot.rotation.toFixed(3)}`
+        : '';
+    const plot = d.plot ? `${d.plot.cell.x},${d.plot.cell.y}${yard}${turned}` : '';
     return `${d.id}:${d.type}${d.craft ? `/${d.craft}` : ''}:${d.built ? 1 : 0}:${d.inhabited === false ? 0 : 1}:${age}:${plot}:${d.position.x.toFixed(1)},${d.position.z.toFixed(1)},${d.position.rotation.toFixed(2)}`;
   });
   const fields = village.fields.map(
     (f) =>
-      `${f.id}:${f.parts.map((p) => `${p.cell.x},${p.cell.y},${p.stage}${p.grazed === false ? ',-' : ''}`).join(';')}`,
+      `${f.id}:${f.parts.map((p) => `${squareKeyOf(p)},${p.stage}${p.grazed === false ? ',-' : ''}`).join(';')}`,
   );
   const woods = (village.woods ?? []).map(
-    (w) => `${w.cell.x},${w.cell.y}${w.surface === 'forest' ? 'f' : ''}`,
+    (w) => `${squareKeyOf(w)}${w.surface === 'forest' ? 'f' : ''}`,
   );
   const orchards = (village.orchards ?? []).map(
-    (o) => `${o.id}:${o.squares.map((s) => `${s.cell.x},${s.cell.y}`).join(';')}`,
+    (o) => `${o.id}:${o.squares.map((s) => squareKeyOf(s)).join(';')}`,
   );
   const cemeteries = (village.cemeteries ?? []).map(
     (c) => `${c.id}:${c.squares.map((s) => `${s.cell.x},${s.cell.y}`).join(';')}`,
@@ -543,6 +571,7 @@ interface Square {
   x: number;
   z: number;
   size: number;
+  rotation?: number;
 }
 
 /** Číselný klíč políčka (celá čísla do ±2^20 – krajina je o řády menší). */
@@ -563,19 +592,35 @@ function squareCells(grid: Grid, squares: readonly Square[]): { inside: number[]
   const tiles = new Set(squares.map((s) => tileKey(s.cell.x, s.cell.y)));
   const left = first.x - first.size / 2;
   const top = first.z - first.size / 2;
-  const inUnion = (x: number, z: number): boolean =>
-    tiles.has(
-      tileKey(
-        first.cell.x + Math.floor((x - left) / first.size),
-        first.cell.y + Math.floor((z - top) / first.size),
-      ),
-    );
+  // natočená stavba (fields.md – Natočené stavby): bod do souřadnic její mřížky
+  const turn = first.rotation === undefined ? 0 : (rotationTurn(first.rotation) ?? 0);
+  const [c, sn] = rotationCosSin(first.rotation ?? 0);
+  const inUnion =
+    turn === 0
+      ? (x: number, z: number): boolean =>
+          tiles.has(
+            tileKey(
+              first.cell.x + Math.floor((x - left) / first.size),
+              first.cell.y + Math.floor((z - top) / first.size),
+            ),
+          )
+      : (x: number, z: number): boolean => {
+          const dx = x - first.x;
+          const dz = z - first.z;
+          const lx = (dx * c - dz * sn) / first.size;
+          const lz = (dx * sn + dz * c) / first.size;
+          return tiles.has(
+            tileKey(first.cell.x + Math.floor(lx + 0.5), first.cell.y + Math.floor(lz + 0.5)),
+          );
+        };
+  // obdélník kolem natočeného čtverce je větší (|cos| + |sin| násobek)
+  const spread = turn === 0 ? 1 : Math.abs(c) + Math.abs(sn);
   const seen = new Set<number>();
   const inside: number[] = [];
   const edge: number[] = [];
   const probe = 0.2;
   for (const s of squares) {
-    const half = s.size / 2;
+    const half = (s.size / 2) * spread;
     cellsIn(grid, s.x - half, s.z - half, s.x + half, s.z + half, (c, x, z) => {
       if (seen.has(c)) return;
       seen.add(c);
@@ -677,7 +722,13 @@ function sitePathBox(type: DwellingType): PathBox {
 /** Oplocený pozemek v osách domu (jako `plotBox` postav ve scéně) – u dvorce i se dvorem. */
 function plotPathBox(
   position: Position,
-  plot: { x: number; z: number; size: number; yard?: { x: number; z: number } },
+  plot: {
+    x: number;
+    z: number;
+    size: number;
+    rotation?: number;
+    yard?: { x: number; z: number };
+  },
 ): PathBox {
   const h = plot.size / 2;
   const c = detCos(position.rotation);
@@ -686,12 +737,17 @@ function plotPathBox(
   const maxX = Math.max(plot.x, plot.yard?.x ?? plot.x) + h;
   const minZ = Math.min(plot.z, plot.yard?.z ?? plot.z) - h;
   const maxZ = Math.max(plot.z, plot.yard?.z ?? plot.z) + h;
-  const local = [
-    [minX, minZ],
-    [maxX, minZ],
-    [maxX, maxZ],
-    [minX, maxZ],
-  ].map(([x, z]) => {
+  // natočený pozemek (fields.md – Natočené stavby): rohy natočeného čtverce
+  const corners: readonly (readonly [number, number])[] =
+    plot.rotation !== undefined && !plot.yard
+      ? rotatedSquareCorners(plot.x, plot.z, plot.size, plot.rotation)
+      : [
+          [minX, minZ],
+          [maxX, minZ],
+          [maxX, maxZ],
+          [minX, maxZ],
+        ];
+  const local = corners.map(([x, z]) => {
     const dx = x! - position.x;
     const dz = z! - position.z;
     return [dx * c - dz * s, dx * s + dz * c] as const;

@@ -5,6 +5,7 @@ import {
   foundField,
   placementVillageOf,
   villageDwellingPositions,
+  type SquareGrid,
   type TileCell,
 } from '../domain/village';
 import { CANNOT_AFFORD } from './place-dwelling';
@@ -17,8 +18,10 @@ export interface PlaceFieldInput {
   landscape: Landscape;
   /** Dnešní herní den (index dne). */
   today: number;
-  /** Čtverce pole – políčka krajiny. */
+  /** Čtverce pole – políčka krajiny, u natočeného pole čtverce v jeho mřížce `grid`. */
   cells: TileCell[];
+  /** Natočená mřížka pole (fields.md – Natočené stavby); bez ní mřížka krajiny. */
+  grid?: SquareGrid;
 }
 
 /** Hráč založí nové pole ze čtverců (ves se nejdřív dopočítá do dneška). */
@@ -36,11 +39,22 @@ export function placeField(
         return { ok: false, reason: CANNOT_AFFORD };
       const positions = villageDwellingPositions(state);
       const village = placementVillageOf(state, state.lastDay);
-      const field = fieldPartsFromCells(input.landscape, village, input.cells, positions);
+      const field = fieldPartsFromCells(
+        input.landscape,
+        village,
+        input.cells,
+        positions,
+        undefined,
+        input.grid,
+      );
       if (!field.check.ok) return { ok: false, reason: field.check.reason ?? 'Sem pole nepatří.' };
       // akce patří do dne, do kterého je ves dopočítaná – dnešek, nebo „budoucí“ den vsi
       // posvátné duby a háje vesničané při mýcení nechají stát (happiness.md)
-      const fieldInput = { parts: field.parts, sacred: field.spared };
+      const fieldInput = {
+        parts: field.parts,
+        sacred: field.spared,
+        ...(field.grid ? { grid: field.grid } : {}),
+      };
       return { ok: true, state: foundField(state, state.lastDay, fieldInput) };
     },
   );

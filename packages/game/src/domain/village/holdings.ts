@@ -1,6 +1,8 @@
 import { CELL_SIZE_M, LANDSCAPE_SIZE } from '../landscape';
 import { sowingGroup, sowingOrder, type SowingGroup } from './fields';
-import type { FieldPart, TileCell, VillageState } from './types';
+import { gridKey, squareCenter } from './square-grid';
+import { fieldGrids } from './squares';
+import type { FieldPart, SquareGrid, TileCell, VillageState } from './types';
 import { nearestFirst, type WorkOrder } from './year-plan';
 
 // Hospodaření podle polohy domů (fields.md – Hospodaření podle polohy domů; Martin, 18. 10. 2026:
@@ -27,10 +29,14 @@ export interface HoldingHouse {
   position: { x: number; z: number };
 }
 
-/** Díl pro rozdělení: id, políčko (bez něj díl k hospodářství nepatří) a vzdálenost (staré díly). */
+/**
+ * Díl pro rozdělení: id, políčko (bez něj díl k hospodářství nepatří), mřížka natočeného pole
+ * (`grid` – fields.md, Natočené stavby; políčko je pak čtverec v ní) a vzdálenost (staré díly).
+ */
 export interface HoldingPartInput {
   id: number;
   cell?: TileCell;
+  grid?: SquareGrid;
   distanceM?: number;
 }
 
@@ -66,10 +72,12 @@ const EPSILON = 1e-9;
 /** Úrodnost se v klíčích porovnává na miliontiny (přičítání po 0,025 nese chyby). */
 const SHARE_PRECISION = 1e6;
 
-/** Střed políčka ve světě (m) – krajina sídla má pevnou velikost (landscape/world.ts). */
-function cellCenter(cell: TileCell): { x: number; z: number } {
-  const half = (LANDSCAPE_SIZE * CELL_SIZE_M) / 2;
-  return { x: -half + (cell.x + 0.5) * CELL_SIZE_M, z: -half + (cell.y + 0.5) * CELL_SIZE_M };
+/** Krajina sídla má pevnou velikost (landscape/world.ts). */
+const GEOMETRY = { size: LANDSCAPE_SIZE, cellSizeM: CELL_SIZE_M } as const;
+
+/** Střed čtverce dílu ve světě (m) – políčko krajiny, u natočeného pole čtverec v jeho mřížce. */
+function cellCenter(cell: TileCell, grid?: SquareGrid): { x: number; z: number } {
+  return squareCenter(GEOMETRY, grid, cell);
 }
 
 /**
@@ -102,7 +110,16 @@ export function villageHoldings(state: VillageState): FieldHoldings {
   const key = `${state.parts.length}|${houses.map((h) => `${h.id}:${h.position.x}:${h.position.z}`).join(',')}`;
   const cached = holdingsCache.get(state.parts);
   if (cached?.key === key) return cached.holdings;
-  const holdings = fieldHoldings(houses, state.parts);
+  // díly natočených polí nesou mřížku pole (fields.md – Natočené stavby)
+  const grids = fieldGrids(state);
+  const parts =
+    grids.size === 0
+      ? state.parts
+      : state.parts.map((p) => {
+          const grid = grids.get(p.fieldId);
+          return grid ? { ...p, grid } : p;
+        });
+  const holdings = fieldHoldings(houses, parts);
   holdingsCache.set(state.parts, { key, holdings });
   return holdings;
 }
@@ -110,6 +127,8 @@ export function villageHoldings(state: VillageState): FieldHoldings {
 interface PlacedCell {
   id: number;
   cell: TileCell;
+  /** Klíč mřížky pole – sousedí jen čtverce téže mřížky (prázdný = mřížka krajiny). */
+  grid: string;
   r: number;
   theta: number;
 }
@@ -135,7 +154,7 @@ export function fieldHoldings(
       loose.push(part);
       continue;
     }
-    const c = cellCenter(part.cell);
+    const c = cellCenter(part.cell, part.grid);
     let best: HoldingHouse = sortedHouses[0]!;
     let bestR = Infinity;
     for (const house of sortedHouses) {
@@ -147,7 +166,7 @@ export function fieldHoldings(
     }
     const theta = Math.atan2(c.z - best.position.z, c.x - best.position.x);
     const list = byHouse.get(best.id) ?? [];
-    list.push({ id: part.id, cell: part.cell, r: bestR, theta });
+    list.push({ id: part.id, cell: part.cell, grid: gridKey(part.grid), r: bestR, theta });
     byHouse.set(best.id, list);
   }
 
@@ -273,8 +292,9 @@ function smoothLanes(
   lanes: readonly number[],
   fixed: readonly number[],
 ): number[] {
-  const cellKey = (x: number, y: number): number => y * CELL_KEY_STRIDE + x;
-  const index = new Map(cells.map((c, i) => [cellKey(c.cell.x, c.cell.y), i]));
+  const cellKey = (x: number, y: number, grid: string): string =>
+    `${grid}|${y * CELL_KEY_STRIDE + x}`;
+  const index = new Map(cells.map((c, i) => [cellKey(c.cell.x, c.cell.y, c.grid), i]));
   const keep = new Set(fixed);
   return cells.map((c, i) => {
     const own = lanes[i]!;
@@ -282,7 +302,7 @@ function smoothLanes(
     const votes = new Map<number, number>();
     for (let dy = -1; dy <= 1; dy++) {
       for (let dx = -1; dx <= 1; dx++) {
-        const j = index.get(cellKey(c.cell.x + dx, c.cell.y + dy));
+        const j = index.get(cellKey(c.cell.x + dx, c.cell.y + dy, c.grid));
         if (j === undefined) continue;
         votes.set(lanes[j]!, (votes.get(lanes[j]!) ?? 0) + 1);
       }

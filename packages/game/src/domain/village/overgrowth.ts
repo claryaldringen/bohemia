@@ -4,6 +4,8 @@ import { mownPartIds } from './hay';
 import { grazingDemandHa, villageHerds } from './livestock';
 import { villageOxen } from './oxen';
 import { OVERGROWTH } from './rules';
+import { copyGrid, squareCenter } from './square-grid';
+import { fieldGridOf } from './squares';
 import type { ChronicleEvent, FieldPart, VillageState, VillageWood } from './types';
 
 // Zarůstání přílohu (fields.md – Zarůstání; Martin, 18. 10. 2026: „Ano udělej to tak“ –
@@ -126,9 +128,16 @@ function dropForestParts(
   const woods: VillageWood[] = [...(state.woods ?? [])];
   for (const part of forest) {
     if (!part.cell) continue;
-    const center = geometry ? cellCenter(geometry, part.cell.x, part.cell.y) : null;
+    // les z natočeného pole leží v jeho mřížce (fields.md – Natočené stavby)
+    const grid = fieldGridOf(state, part.fieldId);
+    const center = geometry
+      ? grid
+        ? squareCenter(geometry, grid, part.cell)
+        : cellCenter(geometry, part.cell.x, part.cell.y)
+      : null;
     woods.push({
       cell: { x: part.cell.x, y: part.cell.y },
+      ...(grid ? { grid: copyGrid(grid) } : {}),
       ...(center ? { x: center.x, z: center.z } : {}),
       areaM2: part.areaM2,
       surface: part.surface,

@@ -2,6 +2,7 @@ import { dateOfDayIndex } from '../calendar';
 import type { Surface } from '../landscape';
 import { cloneState } from './clone';
 import { foundingCostPerHa, withinBounds } from './productivity';
+import { gridKey, sameGrid } from './square-grid';
 import {
   DISTANCE,
   FERTILITY,
@@ -19,6 +20,7 @@ import type {
   FieldPart,
   FieldSurface,
   OvergrowthStage,
+  SquareGrid,
   TileCell,
   VillageState,
 } from './types';
@@ -249,15 +251,25 @@ function sharesEdge(a: TileCell, b: TileCell): boolean {
  * Pole, na která čtverce navazují stranou (fields.md – Navazující pole; Martin, 18. 10. 2026:
  * „Pokud více polí navazuje přímo na sebe, počítají se jako jedno.“): id polí od nejstaršího
  * (nejmenší id). Žádné = nové pole, jedno = čtverce ho rozšíří, víc = pole se sloučí do
- * nejstaršího. Díly bez políčka (staré pole z obrysu) nenavazují.
+ * nejstaršího. Díly bez políčka (staré pole z obrysu) nenavazují. Navazuje se jen ve stejné
+ * mřížce (fields.md – Natočené stavby): čtverce v mřížce `grid` (bez ní mřížka krajiny) a pole
+ * s mřížkou z `grids` (pole, které v mapě není, leží v mřížce krajiny).
  */
 export function fieldsTouching(
   parts: readonly { readonly cell?: TileCell; readonly fieldId?: number }[],
   cells: readonly TileCell[],
+  grid?: SquareGrid,
+  grids: ReadonlyMap<number, SquareGrid> = new Map(),
 ): number[] {
   const ids = new Set<number>();
+  const skipped = new Set<number>();
   for (const part of parts) {
     if (part.cell === undefined || part.fieldId === undefined || ids.has(part.fieldId)) continue;
+    if (skipped.has(part.fieldId)) continue;
+    if (!sameGrid(grids.get(part.fieldId), grid)) {
+      skipped.add(part.fieldId);
+      continue;
+    }
     const cell = part.cell;
     if (cells.some((c) => sharesEdge(c, cell))) ids.add(part.fieldId);
   }
@@ -309,9 +321,9 @@ export function mergeFields(state: VillageState, into: number, others: readonly 
   }
 }
 
-/** Klíč políčka pro mapy. */
-function cellKey(x: number, y: number): string {
-  return `${x},${y}`;
+/** Klíč čtverce pro mapy (i s mřížkou pole – prázdná = mřížka krajiny). */
+function cellKey(x: number, y: number, grid = ''): string {
+  return `${grid}|${x},${y}`;
 }
 
 /**
@@ -336,16 +348,22 @@ export function withMergedFields(state: VillageState): VillageState {
     for (let up = parent.get(r); up !== undefined && up !== r; up = parent.get(r)) r = up;
     return r;
   };
+  // navazuje se jen ve stejné mřížce (fields.md – Natočené stavby) – klíč čtverce i s mřížkou pole
+  const grids = new Map(state.fields.map((f) => [f.id, gridKey(f.grid)]));
   const byCell = new Map<string, number>();
-  const cells: { x: number; y: number; fieldId: number }[] = [];
+  const cells: { x: number; y: number; fieldId: number; grid: string }[] = [];
   for (const part of state.parts) {
     if (part.cell === undefined || !eligible.has(part.fieldId)) continue;
-    byCell.set(cellKey(part.cell.x, part.cell.y), part.fieldId);
-    cells.push({ x: part.cell.x, y: part.cell.y, fieldId: part.fieldId });
+    const grid = grids.get(part.fieldId) ?? '';
+    byCell.set(cellKey(part.cell.x, part.cell.y, grid), part.fieldId);
+    cells.push({ x: part.cell.x, y: part.cell.y, fieldId: part.fieldId, grid });
   }
-  for (const { x, y, fieldId } of cells) {
+  for (const { x, y, fieldId, grid } of cells) {
     // stačí soused vpravo a dole – každá dvojice stranou se tak potká jednou
-    for (const other of [byCell.get(cellKey(x + 1, y)), byCell.get(cellKey(x, y + 1))]) {
+    for (const other of [
+      byCell.get(cellKey(x + 1, y, grid)),
+      byCell.get(cellKey(x, y + 1, grid)),
+    ]) {
       if (other === undefined || other === fieldId) continue;
       const a = root(fieldId);
       const b = root(other);

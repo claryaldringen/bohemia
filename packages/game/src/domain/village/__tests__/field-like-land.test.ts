@@ -260,7 +260,7 @@ describe('kontrola umístění – stavby na poli', () => {
   });
 
   it('strom u cesty na poli vezme dílu 20 m², vedle pole nic', () => {
-    const taken = treeTakenLand(landscape, field.parts, [
+    const taken = treeTakenLand(landscape, field, [
       { x: 3, z: 3 },
       { x: 4, z: 9 },
       { x: 20, z: 3 },
