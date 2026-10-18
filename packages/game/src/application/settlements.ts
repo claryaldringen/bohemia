@@ -1,6 +1,15 @@
 import type { Landscape, LayerVersions } from '../domain/landscape';
 
-/** Sídlo (aglomerace) hráče – každé má vlastní krajinu ze seedu. */
+/** Políčko mřížky světa – sloupec x a řádek y (war.md – Svět, sousední mapy). */
+export interface WorldCell {
+  x: number;
+  y: number;
+}
+
+/**
+ * Sídlo (aglomerace) hráče – mapa s vlastní krajinou ze seedu. Na jedné mapě může stát víc vsí
+ * hráče (migration.md – Víc vsí jednoho hráče).
+ */
 export interface Settlement {
   id: string;
   ownerId: string;
@@ -8,6 +17,11 @@ export interface Settlement {
   isSeat: boolean;
   landscapeSeed: number;
   layerVersions: LayerVersions;
+  /**
+   * Poloha mapy v mřížce světa (odchod na novou mapu vedle staré – migration.md, fáze 4);
+   * sídelní sídla z doby před mřížkou ji nemají (null).
+   */
+  worldCell: WorldCell | null;
   createdAt: Date;
 }
 
@@ -30,6 +44,16 @@ export interface SettlementRepository {
     landscapeSeed: number;
     layerVersions: LayerVersions;
   }): Promise<Settlement>;
+  /**
+   * Založí další (nesídelní) sídlo hráče – novou mapu na políčku mřížky světa (odchod na novou
+   * mapu, migration.md). Políčko je nejvýš jedno aktivní na celý svět – obsazené → null.
+   */
+  create(input: {
+    ownerId: string;
+    landscapeSeed: number;
+    layerVersions: LayerVersions;
+    worldCell: WorldCell;
+  }): Promise<Settlement | null>;
 }
 
 /** Port: zdroj nových seedů krajiny – náhoda přichází zvenku, doména je deterministická. */

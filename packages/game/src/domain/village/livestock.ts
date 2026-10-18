@@ -1,9 +1,11 @@
 import { dateOfDayIndex } from '../calendar';
 import { yearlyMilk } from './dairy';
 import { PROTEIN, proteinNeedPerDay } from './diet';
+import { isOvergrown } from './fields';
 import { HAY } from './hay';
+import { legumeSupplyPerYear } from './legumes';
 import { ageGroup } from './people';
-import { FOOD_NEED_KG_PER_YEAR } from './rules';
+import { FOOD_NEED_KG_PER_YEAR, LEGUMES } from './rules';
 import type {
   ChronicleEvent,
   DwellingType,
@@ -157,19 +159,21 @@ export function villageChickens(state: Pick<VillageState, 'people' | 'dwellings'
 
 /**
  * Pastva (ha) pro ovce, kozy, krávy a voly: louka do 600 m bez toho, co zabírají pole mimo
- * příloh, sady, hřbitovy, pozemky a ohrady, plus příloh na vymýceném lese (pase se na celém
- * přílohu – mladém i pastvině, po seči i na louce na seno).
+ * příloh, příloh zarostlý křovím a mladým lesem, les vsi, sady, hřbitovy, pozemky a ohrady, plus
+ * příloh na vymýceném lese (pase se na celém přílohu ve fázi louky – mladém i pastvině, po seči
+ * i na louce na seno; fields.md – Zarůstání).
  */
 export function pastureHa(state: VillageState): number {
   let used = 0;
   let clearedFallow = 0;
   for (const part of state.parts) {
-    if (part.state === 'fallow') {
+    if (part.state === 'fallow' && !isOvergrown(part)) {
       if (part.surface === 'forest') clearedFallow += part.areaM2;
     } else if (part.surface !== 'forest') {
       used += part.areaM2;
     }
   }
+  for (const wood of state.woods ?? []) if (wood.surface !== 'forest') used += wood.areaM2;
   for (const orchard of state.orchards ?? []) {
     for (const square of orchard.squares) used += square.areaM2;
   }
@@ -182,12 +186,18 @@ export function pastureHa(state: VillageState): number {
   return meadow + clearedFallow / M2_PER_HA;
 }
 
-/** Les pro prasata (ha): les do 600 m bez dílů polí, které ves v lese založila. */
+/**
+ * Les pro prasata (ha): les do 600 m bez dílů polí, které ves v lese založila, a s lesem vsi na
+ * bývalé louce (les vsi na vymýceném lese už mezi díly není – je zase lesem; fields.md – Les vsi).
+ */
 export function pigForestHa(state: VillageState): number {
   const cleared = state.parts
     .filter((p) => p.surface === 'forest' && p.state !== 'founding')
     .reduce((sum, p) => sum + p.areaM2, 0);
-  return Math.max(0, livestockLand(state).forestHa - cleared / M2_PER_HA);
+  const grown = (state.woods ?? [])
+    .filter((w) => w.surface !== 'forest')
+    .reduce((sum, w) => sum + w.areaM2, 0);
+  return Math.max(0, livestockLand(state).forestHa - cleared / M2_PER_HA) + grown / M2_PER_HA;
 }
 
 /** Pastva, kterou stáda (a `oxen` volů) spásají (ha). */
@@ -201,17 +211,40 @@ export function grazingDemandHa(herds: Record<HerdSpecies, number>, oxen: number
   );
 }
 
-/** Roční bilance bílkovin vsi (kg): potřeba a co dá obilí, mléko stád a vejce. */
+/**
+ * Roční bilance bílkovin vsi (kg): potřeba a co dá obilí, mléko stád, vejce a luštěniny
+ * (`legumes` – o kolik víc bílkovin dají luštěniny než obilí se stejnou energií, které nahradí).
+ */
 export interface ProteinBudget {
   need: number;
   grain: number;
   milk: number;
   eggs: number;
+  legumes: number;
 }
 
-/** Roční bilance bílkovin vsi se stády `herds` (bez údaje dnešní stáda). */
+/** Vesnice pro bilanci bílkovin. */
+type ProteinVillage = Pick<VillageState, 'people' | 'dwellings' | 'livestock' | 'legumesKg'>;
+
+/** O kolik víc bílkovin (kg) dá kg luštěnin než obilí se stejnou energií. */
+const LEGUME_PROTEIN_GAIN = LEGUMES.protein - PROTEIN.perKg.grain * LEGUMES.energy;
+
+/** Roční potřeba energie vsi (kg obilí). */
+function yearlyEnergyNeed(state: Pick<VillageState, 'people'>, day: number): number {
+  return state.people.reduce((sum, p) => sum + FOOD_NEED_KG_PER_YEAR[ageGroup(p, day)], 0);
+}
+
+/** Nejvýš tolik luštěnin (kg) sní ves za rok – strop podílu energie (diet.md – Luštěniny). */
+function legumeCapPerYear(state: Pick<VillageState, 'people'>, day: number): number {
+  return (LEGUMES.energyCap * yearlyEnergyNeed(state, day)) / LEGUMES.energy;
+}
+
+/**
+ * Roční bilance bílkovin vsi se stády `herds` (bez údaje dnešní stáda). Luštěniny podle zásoby
+ * (rovným dílem do příští sklizně, přepočteno na rok, nejvýš strop) – vsi bez luštěnin 0.
+ */
 export function proteinBudget(
-  state: Pick<VillageState, 'people' | 'dwellings' | 'livestock'>,
+  state: ProteinVillage,
   day: number,
   herds: Record<HerdSpecies, number> = villageHerds(state),
 ): ProteinBudget {
@@ -222,25 +255,45 @@ export function proteinBudget(
     grain +=
       FOOD_NEED_KG_PER_YEAR[ageGroup(p, day)] * LIVESTOCK.grainEnergyShare * PROTEIN.perKg.grain;
   }
+  const legumeKg = Math.min(
+    legumeSupplyPerYear(state, day, DAYS_PER_YEAR),
+    legumeCapPerYear(state, day),
+  );
   return {
     need,
     grain,
     milk: yearlyMilk(herds).proteinKg * LIVESTOCK.milkProteinKept,
     eggs: villageChickens(state) * LIVESTOCK.eggsKgPerHen * PROTEIN.perKg.eggs,
+    legumes: legumeKg * LEGUME_PROTEIN_GAIN,
   };
 }
 
 /**
- * Roční potřeba masa vsi (kg) – bílkoviny, které chybí po obilí, mléku stád a vejcích (diet.md –
- * Bílkoviny), v mase.
+ * Kolik luštěnin ves chce sníst za rok (kg – diet.md, Luštěniny): bílkoviny, které chybí po obilí,
+ * mléku stád a vejcích, v luštěninách místo obilí, nejvýš strop podílu energie. Podle toho ves
+ * oseje díly luštěninami (plán osevu k 1. 9.).
  */
-export function meatNeedPerYear(
-  state: Pick<VillageState, 'people' | 'dwellings' | 'livestock'>,
+export function legumeNeedPerYear(
+  state: ProteinVillage,
   day: number,
   herds?: Record<HerdSpecies, number>,
 ): number {
   const b = proteinBudget(state, day, herds);
-  return Math.max(0, b.need - b.grain - b.milk - b.eggs) / PROTEIN.perKg.meat;
+  const missing = Math.max(0, b.need - b.grain - b.milk - b.eggs);
+  return Math.min(missing / LEGUME_PROTEIN_GAIN, legumeCapPerYear(state, day));
+}
+
+/**
+ * Roční potřeba masa vsi (kg) – bílkoviny, které chybí po obilí, mléku stád, vejcích
+ * a luštěninách (diet.md – Bílkoviny, Luštěniny), v mase.
+ */
+export function meatNeedPerYear(
+  state: ProteinVillage,
+  day: number,
+  herds?: Record<HerdSpecies, number>,
+): number {
+  const b = proteinBudget(state, day, herds);
+  return Math.max(0, b.need - b.grain - b.milk - b.eggs - b.legumes) / PROTEIN.perKg.meat;
 }
 
 /** Přidá maso z porážky a práci na porážce a uzení (mutuje stav). */

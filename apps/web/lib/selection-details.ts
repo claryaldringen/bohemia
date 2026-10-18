@@ -7,11 +7,20 @@ import {
   type FieldSurface,
   type HerdSpecies,
   type PartStage,
+  type RoadGrade,
+  type RoadUpgradeOption,
   type SacredBuildingKind,
   type WorkshopActivity,
 } from '@bohemia/game';
+import type { HouseholdRelocation } from './relocation-view';
 import type { VillageTarget } from './scene/village-picking';
-import { CRAFT_LOOKS, type SceneVillage, type VillageView } from './village-view';
+import {
+  CRAFT_LOOKS,
+  type BuildOption,
+  type SceneVillage,
+  type VillageRoad,
+  type VillageView,
+} from './village-view';
 
 // Co ukáže panel výběru (dole uprostřed, jako v 0 A.D.) o vybraném obydlí (i řemeslné dílně –
 // crafts.md), poli, hřbitovu, sadu, posvátném místě (posvátný dub, dubový háj, modla, svatyně –
@@ -30,6 +39,13 @@ export interface SelectionWorkshop {
   stockKg: number;
   /** Pokrytí potřeby vsi výrobkem 0–1 (nástroje, keramika); uhlí null. */
   coverage: number | null;
+  /**
+   * Uhlíř: rozdělaný milíř – fáze, buky (připravené / v dávce), průběh fáze 0–1, v lese
+   * (crafts.md – Uhlíř); jinak null.
+   */
+  kiln: VillageView['crafts']['workshops'][number]['kiln'];
+  /** Uhlíř: pařezy buků, na které ještě zasadí mladý buk. */
+  toPlant: number;
 }
 
 export type SelectionDetails =
@@ -54,6 +70,23 @@ export type SelectionDetails =
       rebuild: { progress: number; type: DwellingType; treesToFell: number } | null;
       /** Řemeslná dílna (crafts.md); obyčejné obydlí null. */
       workshop: SelectionWorkshop | null;
+      /** Domácnost si staví nový dům (migration.md – Přestěhování domácnosti); jinak null. */
+      relocation: HouseholdRelocation | null;
+      /** Přestěhovat domácnost – cena nového domu; když teď nejde (staví, přestavuje…), null. */
+      relocate: Record<DwellingType, BuildOption> | null;
+    }
+  | {
+      /** Víc vybraných obydlí (Ctrl/Shift + klik, Ctrl + A – migration.md). */
+      kind: 'dwellings';
+      ids: readonly number[];
+      /** Domácnosti ve vybraných obydlích (obydlí s lidmi). */
+      households: number;
+      /** Lidé ve vybraných obydlích. */
+      people: number;
+      /** Domácnosti, které se teď můžou přestěhovat (id obydlí) – Přestěhovat je umístí postupně. */
+      relocatable: readonly number[];
+      /** Cena nového domu jedné domácnosti. */
+      relocate: Record<DwellingType, BuildOption> | null;
     }
   | {
       kind: 'site';
@@ -65,6 +98,8 @@ export type SelectionDetails =
       progress: number;
       /** Kolik stromů stavba ještě musí skácet (forest.md). */
       treesToFell: number;
+      /** Nový dům stěhující se domácnosti (id jejího obydlí) – jde zrušit; jinak null. */
+      relocates: number | null;
     }
   | {
       kind: 'field';
@@ -78,12 +113,17 @@ export type SelectionDetails =
        * prázdné, když je celé pole na louce.
        */
       surfaces: { surface: FieldSurface; count: number }[];
-      /** Oseté díly podle plodiny v pořadí CROP_ORDER (jen nenulové – fields.md, Ozim a jař). */
+      /**
+       * Oseté díly podle plodiny v pořadí CROP_ORDER (jen nenulové – fields.md, Ozim a jař,
+       * Luštěniny).
+       */
       crops: { crop: Crop; count: number }[];
       /** Díly s popelem z vymýceného lesa (fields.md – Úroda). */
       ashParts: number;
       /** Nejvyšší letošní bonus úrodnosti z popela (+40 první sezónu, +20 druhou), jinak 0. */
       ashBonus: number;
+      /** Kolik z pole zarůstá (m² – fields.md, Zarůstání); 0 = nic. */
+      overgrowingM2: number;
       /** Zakládání pole (průběh 0–1), hotové null. */
       founding: number | null;
     }
@@ -119,8 +159,13 @@ export type SelectionDetails =
       id: number;
       /** Kolik dub sám přidává štěstí (stropy vsi platí zvlášť). */
       happiness: number;
-      /** Stáří dubu v celých letech (podle velikosti, roste s herním časem); neznámé null. */
+      /**
+       * Stáří dubu v celých letech (podle velikosti, roste s herním časem; souš – stáří, kdy
+       * uschla); neznámé null.
+       */
       ageYears: number | null;
+      /** Dub stářím uschl – stojí posvátná souš. */
+      snag: boolean;
     }
   | {
       kind: 'grove';
@@ -169,6 +214,24 @@ export type SelectionDetails =
       hayKg: number;
       /** Proč teď nejde začít výcvik (česky), nebo null. */
       trainBlocked: string | null;
+    }
+  | {
+      kind: 'road';
+      id: number;
+      grade: RoadGrade;
+      lengthM: number;
+      ageYears: number;
+      /** Stojící stromy u úseku. */
+      trees: number;
+      /** Mokřina na ose (m) a brody – kde se hodí hať a lávka. */
+      wetM: number;
+      fords: number;
+      /** Rozestavěné vylepšení (stupeň, průběh 0–1, stromy ke skácení); jinak null. */
+      building: { grade: RoadGrade; progress: number; treesToFell: number } | null;
+      /** Vylepšení, která úsek nabízí – cena a proč teď nejde. */
+      upgrades: RoadUpgradeOption[];
+      /** Jabloně podél úseku a „Vysadit jabloně“ (roads.md – Vysazení jabloní). */
+      apples: VillageRoad['apples'];
     };
 
 /** Pořadí stád v panelu ohrady (diet.md – Dobytek). */
@@ -189,15 +252,21 @@ export const PART_STAGE_ORDER: readonly PartStage[] = [
   'sown',
   'young-fallow',
   'meadow',
+  'shrubs',
+  'young-forest',
 ];
 
-/** Pořadí plodin v panelu pole – ozim (sklízí se dřív), jař. */
-export const CROP_ORDER: readonly Crop[] = ['winter', 'spring'];
+/** Pořadí plodin v panelu pole – ozim (sklízí se dřív), jař, luštěniny. */
+export const CROP_ORDER: readonly Crop[] = ['winter', 'spring', 'legume'];
 
 /** Popisky plodin a ikony (`/icons/resources/<ikona>.png`). */
 export const CROP_LABELS: Record<Crop, { name: string; icon: string }> = {
   winter: { name: 'Ozim – žito a pšenice, zasetá na podzim, sklizeň v červenci', icon: 'ozim' },
   spring: { name: 'Jař – ječmen, zasetý na jaře, sklizeň v srpnu', icon: 'jar' },
+  legume: {
+    name: 'Luštěniny – hrách a čočka, zaseté na jaře, sklizeň v červenci',
+    icon: 'legumes',
+  },
 };
 
 /** Pořadí povrchů v panelu pole – od louky po les. */
@@ -215,6 +284,8 @@ export const PART_STAGE_NAMES: Record<PartStage, string> = {
   sown: 'Oseto',
   'young-fallow': 'Mladý příloh',
   meadow: 'Příloh – pastvina',
+  shrubs: 'Příloh zarostlý křovinami',
+  'young-forest': 'Příloh zarostlý mladým lesem',
 };
 
 /** Údaje o vybraném cíli, nebo null (nic nevybráno, cíl zanikl, ves ještě není). */
@@ -224,6 +295,7 @@ export function selectionDetails(
   target: VillageTarget | null,
 ): SelectionDetails | null {
   if (!target) return null;
+  if (target.kind === 'dwellings') return dwellingsDetails(view, scene, target.ids);
   if (target.kind === 'dwelling') {
     const dwelling = scene.dwellings.find((d) => d.id === target.id);
     if (!dwelling) return null;
@@ -237,6 +309,7 @@ export function selectionDetails(
         craft: dwelling.craft ?? null,
         progress: construction?.progress ?? dwelling.progress,
         treesToFell: construction?.treesToFell ?? 0,
+        relocates: construction?.relocates ?? null,
       };
     }
     const household = view?.households.find((h) => h.dwellingId === target.id);
@@ -264,6 +337,8 @@ export function selectionDetails(
           }
         : null,
       workshop: view ? workshopDetails(view, household.dwellingId) : null,
+      relocation: household.relocation,
+      relocate: view && household.relocationBlock === null ? view.relocation : null,
     };
   }
   if (target.kind === 'cemetery') {
@@ -284,7 +359,13 @@ export function selectionDetails(
   if (target.kind === 'sacred-oak') {
     const oak = view?.sacred.oaks.find((o) => o.id === target.id);
     return oak
-      ? { kind: 'sacred-oak', id: oak.id, happiness: oak.happiness, ageYears: oak.ageYears }
+      ? {
+          kind: 'sacred-oak',
+          id: oak.id,
+          happiness: oak.happiness,
+          ageYears: oak.ageYears,
+          snag: oak.snag,
+        }
       : null;
   }
   if (target.kind === 'grove') {
@@ -301,6 +382,10 @@ export function selectionDetails(
   }
   if (target.kind === 'sacred') return sacredDetails(view, scene, target.id);
   if (target.kind === 'pen') return penDetails(view, target.id);
+  if (target.kind === 'road') {
+    const road = view?.roads.find((r) => r.id === target.id);
+    return road ? { kind: 'road', ...road } : null;
+  }
   if (target.kind === 'orchard') {
     const orchard = view?.orchards.find((o) => o.id === target.id);
     if (!orchard) return null;
@@ -338,7 +423,34 @@ export function selectionDetails(
     }),
     ashParts: field.ashParts,
     ashBonus: field.ashBonus,
+    overgrowingM2: field.overgrowingM2,
     founding: founding ? founding.progress : null,
+  };
+}
+
+/**
+ * Víc vybraných obydlí: domácnosti a lidé v nich a které domácnosti se můžou přestěhovat (jen
+ * hotová obydlí s lidmi, které si nový dům nestaví ani nepřestavují). Žádné hotové → null.
+ */
+function dwellingsDetails(
+  view: VillageView | null,
+  scene: SceneVillage,
+  ids: readonly number[],
+): SelectionDetails | null {
+  const present = ids.filter((id) => scene.dwellings.some((d) => d.id === id));
+  if (present.length === 0) return null;
+  const households = (view?.households ?? []).filter((h) => present.includes(h.dwellingId));
+  const inhabited = households.filter((h) => h.occupants > 0);
+  const relocatable = present.filter((id) =>
+    households.some((h) => h.dwellingId === id && h.relocationBlock === null),
+  );
+  return {
+    kind: 'dwellings',
+    ids: present,
+    households: inhabited.length,
+    people: inhabited.reduce((sum, h) => sum + h.occupants, 0),
+    relocatable,
+    relocate: view && relocatable.length > 0 ? view.relocation : null,
   };
 }
 
@@ -360,6 +472,8 @@ function workshopDetails(view: VillageView, dwellingId: number): SelectionWorksh
     outputPerDayKg: workshop.outputPerDayKg,
     stockKg: view.crafts.stocks[stock],
     coverage,
+    kiln: workshop.kiln,
+    toPlant: workshop.toPlant,
   };
 }
 

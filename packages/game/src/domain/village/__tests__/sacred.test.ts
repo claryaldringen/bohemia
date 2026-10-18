@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dayIndexOf } from '../../calendar';
+import { dateOfDayIndex, dayIndexOf } from '../../calendar';
 import {
   CURRENT_LAYER_VERSIONS,
   generateLandscape,
@@ -23,17 +23,29 @@ import {
   orchardPartsFromCells,
   placementVillageOf,
 } from '../placement';
-import { OAK_AGE, OAK_MODEL_HEIGHT_M, SACRED_BUILDINGS, SACRED_OAK } from '../rules';
 import {
-  groveAgeYears,
+  OAK_AGE,
+  OAK_MODEL_HEIGHT_M,
+  SACRED_BUILDINGS,
+  SACRED_OAK,
+  SACRED_OAK_LIFE,
+} from '../rules';
+import {
   groveHappiness,
-  oakAgeYears,
   sacredHappiness,
-  sacredOakAgeYears,
   sacredSitesOf,
   villageGroves,
   villageSacredOaks,
 } from '../sacred';
+import {
+  groveAgeYears,
+  oakAgeHappiness,
+  oakAgeYears,
+  sacredOakEvents,
+  sacredOakLife,
+  sacredOakNow,
+  sacredOakStage,
+} from '../sacred-life';
 import { advanceVillage } from '../simulate';
 import type { Grove, Position, SacredOak, VillageState } from '../types';
 import { fellingCost, isOak, planSacredWood } from '../wood';
@@ -172,13 +184,21 @@ describe('stáří dubů – podle velikosti a herního času', () => {
     expect(oakAgeYears(size, dayIndexOf({ year: 1499, month: 12, day: 31 }))).toBe(atStart + 999);
   });
 
-  it('posvátný dub vrstvy: stáří z jeho velikosti; jiný strom nebo neznámé id null', () => {
+  it('posvátný dub vrstvy: stáří z jeho velikosti; jiný strom nebo neznámé id bez stáří', () => {
     // oak-large-1 × 1,2 = 24,84 m → 150 + 250 × (24,84 − 17,7) / 8,8 ≈ 353 let k 1. 1. 500
-    expect(sacredOakAgeYears(layer, BIG_OAK, START)).toBe(353);
-    expect(sacredOakAgeYears(layer, BIG_OAK, DAY)).toBe(453);
-    expect(sacredOakAgeYears(layer, 500, DAY)).toBeNull(); // kámen
-    expect(sacredOakAgeYears(layer, 101, DAY)).toBeNull(); // buk
-    expect(sacredOakAgeYears(layer, 99_999, DAY)).toBeNull();
+    expect(sacredOakNow(layer, BIG_OAK, START).ageYears).toBe(353);
+    expect(sacredOakNow(layer, BIG_OAK, DAY).ageYears).toBe(453);
+    expect(sacredOakLife(layer, 500)).toBeNull(); // kámen
+    expect(sacredOakLife(layer, 101)).toBeNull(); // buk
+    expect(sacredOakLife(layer, 99_999)).toBeNull();
+    // bez vrstvy (ruční krajina) nejmladší živý dub bez známého stáří
+    expect(sacredOakNow(null, BIG_OAK, DAY)).toEqual({
+      stage: 'alive',
+      ageYears: null,
+      happiness: 1,
+      sizeM: null,
+      diedDay: null,
+    });
   });
 
   it('háj: stáří nejstaršího dubu v okruhu háje; bez dubů null', () => {
@@ -191,23 +211,149 @@ describe('stáří dubů – podle velikosti a herního času', () => {
   it('skutečná krajina: posvátné duby 150–400 let k začátku světa, deterministicky', () => {
     const land = generateLandscape(5, CURRENT_LAYER_VERSIONS);
     const real = obstaclesOf(land);
-    const ages = sacredSitesOf(real).oaks.map((o) => sacredOakAgeYears(real, o.id, START)!);
+    const ages = sacredSitesOf(real).oaks.map((o) => sacredOakNow(real, o.id, START).ageYears!);
     expect(Math.min(...ages)).toBeGreaterThanOrEqual(150);
     expect(Math.min(...ages)).toBeLessThan(160);
     expect(Math.max(...ages)).toBeLessThanOrEqual(400);
     expect(Math.max(...ages)).toBeGreaterThan(300);
-    // stejný dub = stejné stáří i z nově vygenerované vrstvy (jiný objekt)
+    // stejný dub = stejné stáří i život z nově vygenerované vrstvy (jiný objekt)
     const again = obstaclesOf(generateLandscape(5, CURRENT_LAYER_VERSIONS));
-    const first = sacredSitesOf(real).oaks[0]!;
-    expect(sacredOakAgeYears(again, first.id, DAY)).toBe(sacredOakAgeYears(real, first.id, DAY));
-    expect(sacredOakAgeYears(real, first.id, START)).toBe(
-      oakAgeYears(sizeOf(real, first.id), START),
-    );
+    for (const oak of sacredSitesOf(real).oaks.slice(0, 10)) {
+      expect(sacredOakLife(again, oak.id)).toEqual(sacredOakLife(real, oak.id));
+      expect(sacredOakLife(real, oak.id)!.ageAtStart).toBe(oakAgeYears(sizeOf(real, oak.id), 0));
+    }
     for (const grove of sacredSitesOf(real).groves) {
       const age = groveAgeYears(real, grove, START)!;
       expect(age).toBeGreaterThanOrEqual(150);
       expect(age).toBeLessThanOrEqual(400);
     }
+  });
+});
+
+describe('štěstí z posvátného dubu podle stáří', () => {
+  it('150 let 1, 2000 let 10, mezi tím podle logaritmu stáří – 200 a 600 let je znát', () => {
+    expect(oakAgeHappiness(150)).toBe(1);
+    expect(oakAgeHappiness(200)).toBe(2);
+    expect(oakAgeHappiness(400)).toBe(4);
+    expect(oakAgeHappiness(600)).toBe(6);
+    expect(oakAgeHappiness(1000)).toBe(8);
+    expect(oakAgeHappiness(1400)).toBe(9);
+    expect(oakAgeHappiness(2000)).toBe(10);
+    // mimo rozpětí oříznuté
+    expect(oakAgeHappiness(100)).toBe(1);
+    expect(oakAgeHappiness(3000)).toBe(10);
+  });
+
+  it('s věkem nikdy neubývá', () => {
+    let last = oakAgeHappiness(150);
+    for (let age = 151; age <= 2000; age++) {
+      const value = oakAgeHappiness(age);
+      expect(value).toBeGreaterThanOrEqual(last);
+      last = value;
+    }
+  });
+});
+
+describe('život posvátného dubu – uschne, souš stojí a padne', () => {
+  // mnoho osamělých dubů po 40 m – rozdělení délky života
+  const many = packObstacles(
+    Array.from({ length: 2000 }, (_, i) =>
+      tree(i + 1, 'oak-large-1', -980 + (i % 50) * 40, -980 + Math.floor(i / 50) * 40),
+    ),
+    140,
+    15,
+  );
+  const lives = Array.from({ length: 2000 }, (_, i) => sacredOakLife(many, i + 1)!);
+
+  it('délka života 800–2000 let: většina 800–1400, málokterý přes 1700', () => {
+    const spans = lives.map((l) => l.lifespanYears);
+    expect(Math.min(...spans)).toBeGreaterThanOrEqual(SACRED_OAK_LIFE.minYears);
+    expect(Math.max(...spans)).toBeLessThanOrEqual(SACRED_OAK_LIFE.maxYears);
+    expect(Math.max(...spans)).toBeGreaterThan(1650);
+    const share = (test: (v: number) => boolean): number =>
+      spans.filter(test).length / spans.length;
+    expect(share((v) => v <= 1400)).toBeGreaterThan(0.76);
+    expect(share((v) => v <= 1400)).toBeLessThan(0.86);
+    expect(share((v) => v > 1700)).toBeLessThan(0.04);
+    const mean = spans.reduce((sum, v) => sum + v, 0) / spans.length;
+    expect(mean).toBeGreaterThan(1150);
+    expect(mean).toBeLessThan(1250);
+  });
+
+  it('uschne v létě ve věku délky života, souš padne za 50–100 let', () => {
+    for (const life of lives) {
+      if (life.diesDay === null) continue;
+      const died = dateOfDayIndex(life.diesDay);
+      expect(died.month).toBeGreaterThanOrEqual(6);
+      expect(died.month).toBeLessThanOrEqual(8);
+      expect(life.ageAtStart + died.year - 500).toBe(life.lifespanYears);
+      if (life.fallsDay === null) continue;
+      const years = dateOfDayIndex(life.fallsDay).year - died.year;
+      expect(years).toBeGreaterThanOrEqual(50);
+      expect(years).toBeLessThanOrEqual(100);
+    }
+    // duby 150 let s délkou života nad 1149 let se konce světa nedožijí smrti
+    expect(lives.some((l) => l.diesDay === null)).toBe(true);
+    expect(lives.some((l) => l.diesDay !== null && l.fallsDay !== null)).toBe(true);
+  });
+
+  it('stadium, stáří a štěstí podle dne: živý dub, souš (1), padlá souš (nic)', () => {
+    const life = sacredOakLife(layer, BIG_OAK)!;
+    // oak-large-1 × 1,2: 353 let k roku 500, dožije se 1175 let – uschne 24. 6. 1322, padne 1376
+    expect(life.lifespanYears).toBe(1175);
+    const died = life.diesDay!;
+    const fell = life.fallsDay!;
+    expect(dateOfDayIndex(died)).toMatchObject({ year: 1322, month: 6, day: 24 });
+    expect(dateOfDayIndex(fell).year).toBe(1376);
+    expect(sacredOakNow(layer, BIG_OAK, died - 1)).toMatchObject({
+      stage: 'alive',
+      ageYears: 1175,
+      happiness: oakAgeHappiness(1175),
+      diedDay: null,
+    });
+    expect(sacredOakNow(layer, BIG_OAK, died)).toEqual({
+      stage: 'snag',
+      ageYears: 1175,
+      happiness: 1,
+      sizeM: life.sizeM,
+      diedDay: died,
+    });
+    expect(sacredOakNow(layer, BIG_OAK, fell - 1).stage).toBe('snag');
+    expect(sacredOakNow(layer, BIG_OAK, fell)).toMatchObject({ stage: 'fallen', happiness: 0 });
+    expect(sacredOakStage(life, DAY)).toBe('alive');
+  });
+
+  it('kronika: dub uschl a souš padla – jednou, v den podle dubu; simulace je zapíše', () => {
+    const life = sacredOakLife(layer, BIG_OAK)!;
+    const spared: SacredOak[] = [{ id: BIG_OAK, day: DAY, x: 7.5, z: 7.5 }];
+    expect(sacredOakEvents(spared, layer, life.diesDay!)).toEqual([
+      { day: life.diesDay, kind: 'sacred-oak-died', id: BIG_OAK },
+    ]);
+    expect(sacredOakEvents(spared, layer, life.fallsDay!)).toEqual([
+      { day: life.fallsDay, kind: 'sacred-snag-fell', id: BIG_OAK },
+    ]);
+    expect(sacredOakEvents(spared, layer, life.diesDay! + 1)).toEqual([]);
+    expect(sacredOakEvents(spared, null, life.diesDay!)).toEqual([]);
+    // ves s ušetřeným dubem dopočítaná přes den uschnutí – po kouscích i najednou stejně
+    const s = foundVillage({
+      seed: 3,
+      day: life.diesDay! - 3,
+      dwellingPosition: HOME,
+      obstacles: layer,
+    });
+    s.sacredOaks = [{ id: BIG_OAK, day: s.foundedDay, x: 7.5, z: 7.5 }];
+    const whole = advanceVillage(s, life.diesDay! + 2, layer);
+    const pieces = advanceVillage(
+      advanceVillage(s, life.diesDay!, layer),
+      life.diesDay! + 2,
+      layer,
+    );
+    const died = (v: VillageState): unknown[] =>
+      v.chronicle.filter((e) => e.kind === 'sacred-oak-died');
+    expect(died(whole)).toEqual([{ day: life.diesDay, kind: 'sacred-oak-died', id: BIG_OAK }]);
+    expect(died(pieces)).toEqual(died(whole));
+    // štěstí z dubu: souš přidá 1
+    expect(sacredHappiness(whole, whole.lastDay, layer)).toBe(1);
   });
 });
 
@@ -232,29 +378,52 @@ describe('štěstí z posvátných míst', () => {
   });
 
   it('duby nejvýš 3, háje nejvýš 2 nejlepší, modly nejvýš 2, svatyně – dohromady nejvýš +40', () => {
-    expect(sacredHappiness({ sacredOaks: [oak(1), oak(2), oak(3), oak(4)] })).toBe(15);
-    expect(sacredHappiness({ groves: [grove(1, 6), grove(2, 16), grove(3, 10)] })).toBe(27);
+    // bez vrstvy překážek se dub počítá jako nejmladší (+1)
+    expect(sacredHappiness({ sacredOaks: [oak(1), oak(2), oak(3), oak(4)] }, DAY, null)).toBe(3);
+    expect(sacredHappiness({ groves: [grove(1, 6), grove(2, 16), grove(3, 10)] }, DAY, null)).toBe(
+      27,
+    );
     const idol = (id: number): NonNullable<VillageState['sacredBuildings']>[number] => ({
       id,
       kind: 'idol',
       position: HOME,
       builtDay: DAY,
     });
-    expect(sacredHappiness({ sacredBuildings: [idol(1), idol(2), idol(3)] })).toBe(16);
+    expect(sacredHappiness({ sacredBuildings: [idol(1), idol(2), idol(3)] }, DAY, null)).toBe(16);
     expect(
-      sacredHappiness({
-        sacredOaks: [oak(1)],
-        sacredBuildings: [idol(1), { ...idol(2), kind: 'shrine' }],
-      }),
-    ).toBe(5 + 8 + 25);
+      sacredHappiness(
+        {
+          sacredOaks: [{ ...oak(BIG_OAK), x: 7.5, z: 7.5 }],
+          sacredBuildings: [idol(1), { ...idol(2), kind: 'shrine' }],
+        },
+        DAY,
+        layer,
+      ),
+    ).toBe(5 + 8 + 25); // dub 453 let = 5
     expect(
-      sacredHappiness({
-        sacredOaks: [oak(1), oak(2)],
-        groves: [grove(1, 16)],
-        sacredBuildings: [{ ...idol(2), kind: 'shrine' }],
-      }),
-    ).toBe(40);
-    expect(sacredHappiness({})).toBe(0);
+      sacredHappiness(
+        {
+          sacredOaks: [oak(1), oak(2)],
+          groves: [grove(1, 16)],
+          sacredBuildings: [{ ...idol(2), kind: 'shrine' }],
+        },
+        DAY,
+        null,
+      ),
+    ).toBe(40); // 2 + 15 + 25 = 42 → strop +40
+    expect(sacredHappiness({}, DAY, null)).toBe(0);
+  });
+
+  it('počítají se 3 duby, které přidávají nejvíc – stáří rozhoduje, souš přidá 1', () => {
+    const life = sacredOakLife(layer, BIG_OAK)!;
+    const big = { ...oak(BIG_OAK), x: 7.5, z: 7.5 };
+    const young = [oak(900), oak(901), oak(902)]; // bez dubu ve vrstvě – po 1
+    expect(sacredHappiness({ sacredOaks: [...young, big] }, DAY, layer)).toBe(5 + 1 + 1);
+    expect(sacredHappiness({ sacredOaks: [big] }, life.diesDay! - 1, layer)).toBe(
+      oakAgeHappiness(1175),
+    );
+    expect(sacredHappiness({ sacredOaks: [big] }, life.diesDay!, layer)).toBe(1);
+    expect(sacredHappiness({ sacredOaks: [big] }, life.fallsDay!, layer)).toBe(0);
   });
 });
 
@@ -471,7 +640,7 @@ describe('modla a svatyně', () => {
       expect.objectContaining({ id: c.id, kind: 'idol', position }),
     ]);
     expect(obstacleChangesAt(built, built.lastDay).stumps).toContain(oakId);
-    expect(sacredHappiness(built)).toBe(SACRED_BUILDINGS.idol.happiness);
+    expect(sacredHappiness(built, built.lastDay, layer)).toBe(SACRED_BUILDINGS.idol.happiness);
     expect(built.chronicle).toContainEqual(
       expect.objectContaining({ kind: 'construction-finished', constructionKind: 'idol' }),
     );

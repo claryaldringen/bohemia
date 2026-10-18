@@ -5,7 +5,8 @@ import { NO_VILLAGE, VILLAGE_EXTINCT } from './update-village';
 import type { VillageRepository, VillageResult } from './villages';
 
 export interface RenameVillageInput {
-  settlementId: string;
+  /** Ves (id), ve které hráč jedná – její sídlo dává krajinu `landscape`. */
+  villageId: string;
   /** Dnešní herní den (index dne) – ves se vrací dopočítaná do dneška. */
   today: number;
   name: string;
@@ -27,7 +28,7 @@ export async function renameVillage(
   if (current === null) return { ok: false, reason: NO_VILLAGE };
   if (isVillageExtinct(current.state)) return { ok: false, reason: VILLAGE_EXTINCT };
   const name = normalizeVillageName(input.name);
-  const renamed = await deps.villages.rename(input.settlementId, name);
+  const renamed = await deps.villages.rename(input.villageId, name);
   if (!renamed) return { ok: false, reason: NO_VILLAGE };
   return { ok: true, village: { ...current, name } };
 }

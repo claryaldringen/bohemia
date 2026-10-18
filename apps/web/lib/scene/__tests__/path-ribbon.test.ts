@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { PathLine } from '@bohemia/game';
-import { EARTH_LAYER, WORN_LAYER, pathRibbons, roadFade, roadLines } from '../path-ribbon';
+import { EARTH_LAYER, WORN_LAYER, pathRibbons, roadFade } from '../path-ribbon';
+import { roadBands } from '../road-works-layout';
 
 const line = (strength: number, open = true): PathLine => ({
   points: [
@@ -73,7 +74,7 @@ describe('pevné cesty z dat (roads.md)', () => {
   ]);
 
   it('cesta je plně vyšlapaná pěšina, volný konec se vytrácí, v rozcestí ne', () => {
-    const [first, second] = roadLines([a, b]);
+    const [first, second] = roadBands([a, b]).trodden;
     expect(first!.points).toEqual(a.points);
     expect(first!.strength.every((s) => s === 1)).toBe(true);
     expect(first!.openStart).toBe(true);
@@ -81,8 +82,8 @@ describe('pevné cesty z dat (roads.md)', () => {
     expect(second!.openStart).toBe(false);
     expect(second!.openEnd).toBe(true);
     // stejná data = stejný pás (kreslí se stabilně, ne podle pěšin dne)
-    expect(pathRibbons(roadLines([a, b]), EARTH_LAYER)).toEqual(
-      pathRibbons(roadLines([a, b]), EARTH_LAYER),
+    expect(pathRibbons(roadBands([a, b]).trodden, EARTH_LAYER)).toEqual(
+      pathRibbons(roadBands([a, b]).trodden, EARTH_LAYER),
     );
   });
 

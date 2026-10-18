@@ -343,7 +343,14 @@ interface RunResult {
   /** Štěstí obyvatel na konci každého kroku (happiness.md) – jen informace. */
   happiness: number[];
   /** Jídlo posledního dne každého kroku (diet.md) – nasycení a podíly masa a ovoce. */
-  diet: { satiation: number; protein: number; meat: number; dairy: number; fruit: number }[];
+  diet: {
+    satiation: number;
+    protein: number;
+    meat: number;
+    dairy: number;
+    fruit: number;
+    legumes: number;
+  }[];
   /** Založená pole podle povrchu (ha) – i první pole při založení vsi. */
   foundedHa: Record<FieldSurface, number>;
 }
@@ -643,6 +650,7 @@ function runVillage(start: VillageState, startLand: number, opts: RunOptions): R
           meat: after.diet.shares.meat,
           dairy: after.diet.shares.dairy,
           fruit: after.diet.shares.fruit,
+          legumes: after.diet.shares.legumes ?? 0,
         });
       }
     }
@@ -1081,7 +1089,7 @@ function report(villages: VillageResult[], probes: Record<ProbeName, ProbeSummar
     row(
       `Strava – nasycení se stravou (${label})`,
       'informace – energie × kvalita z bílkovin (jen obilí ≈ 0,8)',
-      `kroky: medián ${fmt(quantile(satiation, 0.5), 2)} | p10 ${fmt(quantile(satiation, 0.1), 2)} | bílkoviny medián ${pct(median((d) => d.protein))} | energie z masa ${pct(median((d) => d.meat))}, mléka a sýra ${pct(median((d) => d.dairy))}, ovoce ${pct(median((d) => d.fruit))}`,
+      `kroky: medián ${fmt(quantile(satiation, 0.5), 2)} | p10 ${fmt(quantile(satiation, 0.1), 2)} | bílkoviny medián ${pct(median((d) => d.protein))} | energie z masa ${pct(median((d) => d.meat))}, mléka a sýra ${pct(median((d) => d.dairy))}, luštěnin ${pct(median((d) => d.legumes))}, ovoce ${pct(median((d) => d.fruit))}`,
       'info',
     );
   }

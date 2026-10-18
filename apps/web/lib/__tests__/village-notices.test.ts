@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { newNotices, villageNotices } from '../village-notices';
+import { newNotices, otherVillageNotices, villageNotices } from '../village-notices';
+import type { VillageListItem } from '../village-list';
 import type { VillageView } from '../village-view';
 
 const workshop = (laborManDays: number): VillageView['build']['potter'] => ({
@@ -12,13 +13,18 @@ const workshop = (laborManDays: number): VillageView['build']['potter'] => ({
 });
 
 const view = (overrides: Partial<VillageView> = {}): VillageView => ({
+  id: 'v-1',
+  settlementId: 's-1',
   name: 'Libice',
+  villages: [],
+  relocation: { zemnice: workshop(60), polozemnice: workshop(220) },
   dayIndex: 1000,
   people: { children: 2, adults: 2, elders: 0 },
   households: [],
   storesKg: 800,
   applesKg: 0,
   meatKg: 0,
+  legumesKg: 0,
   cheeseKg: 0,
   milkLPerDay: 0,
   hayKg: 0,
@@ -36,10 +42,12 @@ const view = (overrides: Partial<VillageView> = {}): VillageView => ({
     grazingHa: 1.8,
     pigForestHa: 30,
     meatNeedKg: 187,
+    legumeNeedKg: 0,
     milkLPerDay: 0,
     milkLPerYear: 0,
   },
   pens: [],
+  roads: [],
   woodLogs: 0,
   crafts: {
     present: false,
@@ -237,7 +245,7 @@ describe('newNotices – posvátná místa', () => {
     const before = view();
     const after = view({
       sacred: {
-        oaks: [{ id: 7, happiness: 5, ageYears: 310 }],
+        oaks: [{ id: 7, happiness: 5, ageYears: 310, snag: false }],
         groves: [{ id: 9, oaks: 12, squares: 9, happiness: 13, ageYears: 240 }],
         buildings: [],
       },
@@ -301,6 +309,20 @@ describe('newNotices – porážka a spřežení (diet.md, oxen.md)', () => {
     ]);
   });
 
+  it('posvátný dub uschl a posvátná souš padla – fakt', () => {
+    const after = view({
+      dayIndex: 1003,
+      chronicle: [
+        entry(1002, 'sacred-snag-fell', 'Posvátná souš padla.'),
+        entry(1001, 'sacred-oak-died', 'Posvátný dub stářím uschl – zůstala posvátná souš.'),
+      ],
+    });
+    expect(newNotices(view(), after)).toEqual([
+      { kind: 'sacred-oak-died', tone: 'warn', text: 'Posvátný dub uschl' },
+      { kind: 'sacred-snag-fell', tone: 'warn', text: 'Posvátná souš padla' },
+    ]);
+  });
+
   it('spřežení dosloužilo – fakt', () => {
     const after = view({
       dayIndex: 1003,
@@ -321,6 +343,8 @@ describe('villageNotices – řemesla (crafts.md)', () => {
       occupants: 2,
       laborPerDay: 0.9,
       outputPerDayKg: 0.09,
+      kiln: null,
+      toPlant: 0,
     });
     const crafts = (activities: VillageView['crafts']['workshops'][number]['activity'][]) => ({
       ...view().crafts,
@@ -361,5 +385,66 @@ describe('newNotices – obnova a konec sadu (orchard.md – Obnova sadu)', () =
     expect(newNotices(view({ dayIndex: 1300 }), after)).toEqual([
       { kind: 'orchard-gone', tone: 'warn', text: 'Starý sad dosloužil' },
     ]);
+  });
+});
+
+describe('newNotices – nepasené pole zarostlo lesem (fields.md – Zarůstání)', () => {
+  it('krátký řádek jednou, i když zarostlo víc polí', () => {
+    const entry = (day: number): VillageView['chronicle'][number] => ({
+      day,
+      kind: 'part-became-forest',
+      dateLabel: '',
+      text: '',
+    });
+    const after = view({ dayIndex: 1400, chronicle: [entry(1366), entry(1366)] });
+    expect(newNotices(view({ dayIndex: 1300 }), after)).toEqual([
+      { kind: 'part-forest', tone: 'warn', text: 'Nepasené pole zarostlo lesem' },
+    ]);
+  });
+});
+
+describe('upozornění z jiných vsí (migration.md)', () => {
+  const item = (overrides: Partial<VillageListItem> = {}): VillageListItem => ({
+    id: 'v-2',
+    settlementId: 's-1',
+    name: 'Budeč',
+    people: 5,
+    extinct: false,
+    hungry: false,
+    starving: false,
+    ...overrides,
+  });
+  const self = item({ id: 'v-1', name: 'Libice' });
+
+  it('hlad, vymírání hladem a vymření jiné vsi – jednou, se jménem vsi', () => {
+    const before = view({ villages: [self, item()] });
+    const hungry = view({ villages: [self, item({ hungry: true })] });
+    expect(newNotices(before, hungry)).toEqual([
+      { kind: 'other-hungry', tone: 'warn', text: 'Budeč: ves hladoví' },
+    ]);
+    expect(newNotices(hungry, hungry)).toEqual([]);
+    const starving = view({ villages: [self, item({ hungry: true, starving: true })] });
+    expect(otherVillageNotices(hungry, starving)).toEqual([
+      { kind: 'other-starving', tone: 'warn', text: 'Budeč: lidé umírají hlady' },
+    ]);
+    const extinct = view({ villages: [self, item({ extinct: true, people: 0 })] });
+    expect(otherVillageNotices(starving, extinct)).toEqual([
+      { kind: 'other-extinct', tone: 'warn', text: 'Budeč: ves vymřela' },
+    ]);
+  });
+
+  it('vlastní ves ani nově přibylá ves upozornění z jiné vsi nedají', () => {
+    const before = view({ villages: [self] });
+    const after = view({
+      hungry: true,
+      villages: [{ ...self, hungry: true }, item({ hungry: true })],
+    });
+    expect(otherVillageNotices(before, after)).toEqual([]);
+  });
+
+  it('po přepnutí na jinou ves žádná nová upozornění', () => {
+    const libice = view({ villages: [self, item()] });
+    const budec = view({ id: 'v-2', name: 'Budeč', hungry: true, villages: [self, item()] });
+    expect(newNotices(libice, budec)).toEqual([]);
   });
 });

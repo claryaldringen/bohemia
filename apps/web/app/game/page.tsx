@@ -1,26 +1,30 @@
 import { redirect } from 'next/navigation';
 import type { ReactElement } from 'react';
 import { VillageGame } from '@/components/game/VillageGame';
-import { enterGameForPlayer, playerToday } from '@/lib/game';
+import { gameEntryForPlayer, playerToday } from '@/lib/game';
 import { encodeLandscape } from '@/lib/landscape-transfer';
 import { getSession } from '@/lib/session';
-import { villageViewForSeat } from '@/lib/village';
+import { villageViewForEntry } from '@/lib/village';
+import { selectedVillageId } from '@/lib/village-cookie';
 import { currentWorld } from '@/lib/world';
 
 export default async function GamePage(): Promise<ReactElement> {
   const session = await getSession();
   if (!session) redirect('/login');
-  const [seat, today] = await Promise.all([
-    enterGameForPlayer(session.user.id),
+  // vybraná ves z přepínače (cookie) – když hráči nepatří, otevře se jeho první ves
+  const preferred = await selectedVillageId();
+  const [entry, today] = await Promise.all([
+    gameEntryForPlayer(session.user.id, preferred),
     playerToday(session.user.id),
   ]);
-  const village = await villageViewForSeat(seat, today);
+  const village = await villageViewForEntry(entry, today);
 
   return (
     <main className="h-screen overflow-hidden select-none">
       <VillageGame
-        landscape={encodeLandscape(seat.landscape)}
-        seed={seat.settlement.landscapeSeed}
+        landscape={encodeLandscape(entry.landscape)}
+        seed={entry.settlement.landscapeSeed}
+        settlementId={entry.settlement.id}
         initialVillage={village}
         world={currentWorld()}
         timeOffsetDays={today.ok ? today.offsetDays : 0}

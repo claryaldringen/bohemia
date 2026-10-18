@@ -132,6 +132,24 @@ export function parseTrainTeamInput(value: unknown): { penId: number } | null {
   return Number.isInteger(penId) && (penId as number) > 0 ? { penId: penId as number } : null;
 }
 
+/** Vstup vylepšení pevné cesty `{ roadId, upgrade }` (roads.md), jinak null. */
+export function parseUpgradeRoadInput(
+  value: unknown,
+): { roadId: number; upgrade: 'improved' | 'causeway' } | null {
+  if (!isRecord(value)) return null;
+  const { roadId, upgrade } = value;
+  if (!Number.isInteger(roadId) || (roadId as number) <= 0) return null;
+  if (upgrade !== 'improved' && upgrade !== 'causeway') return null;
+  return { roadId: roadId as number, upgrade };
+}
+
+/** Vstup výsadby jabloní podél pevné cesty `{ roadId }` (roads.md), jinak null. */
+export function parsePlantRoadApplesInput(value: unknown): { roadId: number } | null {
+  if (!isRecord(value)) return null;
+  const { roadId } = value;
+  return Number.isInteger(roadId) && (roadId as number) > 0 ? { roadId: roadId as number } : null;
+}
+
 /** Vstup stavby modly nebo svatyně `{ kind, position }`, jinak null. */
 export function parsePlaceSacredInput(
   value: unknown,
@@ -168,4 +186,44 @@ export function parseSkipTimeInput(value: unknown): { skip: TimeSkip } | null {
   if (!isRecord(value)) return null;
   const skip = TIME_SKIPS.find((s) => s === value.skip);
   return skip === undefined ? null : { skip };
+}
+
+/** Id vsi – UUID z databáze (jiný řetězec do dotazu vůbec nepustíme), jinak null. */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function parseVillageId(value: unknown): string | null {
+  return typeof value === 'string' && UUID.test(value) ? value.toLowerCase() : null;
+}
+
+/**
+ * Id vsi, ve které hráč jedná – každý vstup akce nad vsí ho nese jako `villageId` (migration.md –
+ * Víc vsí jednoho hráče); chybí nebo je neplatné → null.
+ */
+export function villageIdOf(input: unknown): string | null {
+  return isRecord(input) ? parseVillageId(input.villageId) : null;
+}
+
+/** Kladné celé číslo (id obydlí, stavby), jinak null. */
+function parsePositiveInt(value: unknown): number | null {
+  return Number.isInteger(value) && (value as number) > 0 ? (value as number) : null;
+}
+
+/**
+ * Vstup přestěhování domácnosti `{ dwellingId, type, position, plot? }` – nový dům jako stavba
+ * obydlí (migration.md), jinak null.
+ */
+export function parseRelocateHouseholdInput(
+  value: unknown,
+): { dwellingId: number; type: DwellingType; position: Position; plot?: DwellingPlot } | null {
+  if (!isRecord(value)) return null;
+  const dwellingId = parsePositiveInt(value.dwellingId);
+  const dwelling = parsePlaceDwellingInput(value);
+  return dwellingId !== null && dwelling !== null ? { dwellingId, ...dwelling } : null;
+}
+
+/** Vstup zrušení přestěhování `{ constructionId }`, jinak null. */
+export function parseCancelRelocationInput(value: unknown): { constructionId: number } | null {
+  if (!isRecord(value)) return null;
+  const constructionId = parsePositiveInt(value.constructionId);
+  return constructionId !== null ? { constructionId } : null;
 }

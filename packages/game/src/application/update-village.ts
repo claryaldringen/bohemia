@@ -52,14 +52,14 @@ export function advancedToToday(
  */
 export async function updateVillage(
   villages: VillageRepository,
-  settlementId: string,
+  villageId: string,
   today: number,
   landscape: Landscape,
   change: (state: VillageState) => VillageChange,
 ): Promise<VillageResult> {
   const obstacles = obstaclesOf(landscape);
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-    const record = await villages.find(settlementId);
+    const record = await villages.find(villageId);
     if (record === null) return { ok: false, reason: NO_VILLAGE };
     const migrated = withKinship(
       withLivestockLand(
@@ -79,10 +79,10 @@ export async function updateVillage(
     // na místo zříceniny jde stavět – stavba zbytek jámy odstraní (ruins.ts)
     const next = withoutBuiltOverRuins(changed.state, landscape);
     if (next === record.state) return { ok: true, village: record };
-    const saved: VillageRecord | null = await villages.save(settlementId, next, record.version);
+    const saved: VillageRecord | null = await villages.save(villageId, next, record.version);
     if (saved !== null) return { ok: true, village: saved };
   }
-  throw new Error(`Ves sídla ${settlementId} se nepodařilo uložit – příliš mnoho souběžných změn.`);
+  throw new Error(`Ves ${villageId} se nepodařilo uložit – příliš mnoho souběžných změn.`);
 }
 
 /**
@@ -91,12 +91,12 @@ export async function updateVillage(
  */
 export function updateLivingVillage(
   villages: VillageRepository,
-  settlementId: string,
+  villageId: string,
   today: number,
   landscape: Landscape,
   change: (state: VillageState) => VillageChange,
 ): Promise<VillageResult> {
-  return updateVillage(villages, settlementId, today, landscape, (state) =>
+  return updateVillage(villages, villageId, today, landscape, (state) =>
     isVillageExtinct(state) ? { ok: false, reason: VILLAGE_EXTINCT } : change(state),
   );
 }

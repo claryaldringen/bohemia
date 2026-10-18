@@ -6,8 +6,9 @@ import {
   tileOfWorldPoint,
   type Landscape,
 } from '../landscape';
-import { distanceFactor, fallowYears, partWalkDistance } from './fields';
-import { OVERGROWTH_STAGES, PATH_WALK, type WindowSegment } from './rules';
+import { distanceFactor, fallowStage, partWalkDistance } from './fields';
+import { FASTEST_WALK_SHARE } from './paths/walking';
+import type { WindowSegment } from './rules';
 import type { FieldPart, HayMowing, HaySquare, HayState, TileCell, VillageState } from './types';
 
 // Seno (oxen.md – Seno, diet.md – Dobytek): krávy a voli přes zimu (listopad–březen) sežerou
@@ -38,8 +39,6 @@ const M2_PER_HA = 10_000;
 /** Přirozené louky se sečou do této vzdálenosti od nejbližšího obydlí (m) – jako pastva. */
 export const HAY_REACH_M = 600;
 
-/** Mladý příloh (1–2 roky) není louka na seno – seno dává až pastvina (fields.md – Příloh). */
-const YOUNG_FALLOW_YEARS = OVERGROWTH_STAGES[0].maxYears;
 /** Tolerance proti chybám desetinných čísel. */
 const EPSILON = 1e-9;
 
@@ -53,9 +52,12 @@ export function villageHay(state: Pick<VillageState, 'hay'>): HayState {
   return state.hay ?? { kg: 0, mowing: null };
 }
 
-/** Díl je úhor ve fázi louky – seče se na seno (příloh starší než mladý). */
+/**
+ * Díl je úhor ve fázi louky – seče se na seno: příloh starší než mladý (1–2 roky) a ještě
+ * nezarostlý křovím ani lesem (fields.md – Příloh a pastva, Zarůstání).
+ */
 export function isHayMeadow(part: FieldPart, day: number): boolean {
-  return part.state === 'fallow' && fallowYears(part, day) > YOUNG_FALLOW_YEARS;
+  return part.state === 'fallow' && fallowStage(part, day) === 'meadow';
 }
 
 /**
@@ -81,7 +83,7 @@ export type MeadowWalk = (targets: readonly { x: number; z: number }[]) => numbe
 
 /**
  * Políčka přirozené louky do HAY_REACH_M od nejbližšího obydlí, která nezabírá pole, sad,
- * hřbitov, pozemek, ohrada ani obydlí (oxen.md – Seno), s přímou vzdáleností od obydlí. Bez
+ * hřbitov, pozemek, ohrada, obydlí ani les vsi (oxen.md – Seno), s přímou vzdáleností od obydlí. Bez
  * krajiny nebo obydlí žádná.
  */
 function naturalMeadows(
@@ -104,6 +106,8 @@ function naturalMeadows(
   for (const pen of state.pens ?? []) taken.add(key(pen.cell));
   for (const d of state.dwellings) if (d.plot) taken.add(key(d.plot.cell));
   for (const c of state.constructions) if (c.plot) taken.add(key(c.plot.cell));
+  // les vsi už louka není (fields.md – Les vsi)
+  for (const w of state.woods ?? []) taken.add(key(w.cell));
   for (const h of houses) {
     const tile = tileOfWorldPoint(landscape, h.x, h.z);
     if (tile) taken.add(key(tile));
@@ -154,9 +158,11 @@ function coverDistance(sorted: readonly HaySquare[], need: number): number {
 }
 
 /**
- * Vzdálenosti chůze přirozených luk po pěšinách (mutuje `meadows`): chůze je nejvýš přímá
- * vzdálenost a nejméně (1 − PATH_WALK.speedup) × přímá – louky, které i rovně leží dál než
- * vzdálenost pokrytí potřeby ÷ (1 − speedup), se do seče nedostanou a síť je neměří.
+ * Vzdálenosti chůze přirozených luk (mutuje `meadows`) – po pěšinách a pevných cestách jako díly
+ * pole (paths/walking.ts; přes mokřinu a brod i dál než rovně). Měří se jen louky, které můžou
+ * ležet v dosahu pokrytí potřeby: chůze je nejméně FASTEST_WALK_SHARE × přímá vzdálenost, takže
+ * louka, která leží rovně dál než dosah ÷ ten podíl, se do seče nedostane. Když změřené louky
+ * dosah prodlouží, dorovnají se další (nejvýš pár kol).
  */
 function walkMeadows(
   meadows: (HaySquare & { x: number; z: number })[],
@@ -164,15 +170,24 @@ function walkMeadows(
   need: number,
   walk: MeadowWalk,
 ): void {
-  const reach = coverDistance([...parts, ...meadows].sort(byDistance), need);
-  const near = meadows.filter((m) => m.distanceM * (1 - PATH_WALK.speedup) <= reach);
-  if (near.length === 0) return;
-  const walks = walk(near);
-  if (!walks) return;
-  near.forEach((m, k) => {
-    m.distanceM = Math.min(m.distanceM, walks[k] ?? Infinity);
-  });
+  const measured = new Set<HaySquare>();
+  for (let round = 0; round < WALK_ROUNDS; round++) {
+    const reach = coverDistance([...parts, ...meadows].sort(byDistance), need);
+    const near = meadows.filter(
+      (m) => !measured.has(m) && m.distanceM * FASTEST_WALK_SHARE <= reach,
+    );
+    if (near.length === 0) return;
+    const walks = walk(near);
+    if (!walks) return;
+    near.forEach((m, k) => {
+      measured.add(m);
+      m.distanceM = walks[k] ?? m.distanceM;
+    });
+  }
 }
+
+/** Nejvýš tolik kol měření luk – další kolo jen, když chůze prodloužila dosah seče. */
+const WALK_ROUNDS = 3;
 
 /**
  * Plán seče (1. 6.): seno, které stádo na zimu potřebuje (`heads` kusů dobytka × 1,5 t) bez
@@ -215,6 +230,22 @@ export function planMowing(
   if (squares.length === 0) return null;
   const partIds = squares.flatMap((sq) => (sq.partId === undefined ? [] : [sq.partId]));
   return { partIds, squares, required, done: 0, yieldKg };
+}
+
+/**
+ * Díly přílohu, které se letos posekly (fields.md – Zarůstání): díly letošní seče, ke kterým
+ * došla práce (i rozpracovaný). Bez seče žádné.
+ */
+export function mownPartIds(state: Pick<VillageState, 'hay' | 'parts'>): Set<number> {
+  const mowing = state.hay?.mowing;
+  if (!mowing) return new Set();
+  const position = mowingPosition(mowing);
+  const partsById = new Map(state.parts.map((p) => [p.id, p]));
+  return new Set(
+    mowingSpans(mowing, partsById)
+      .filter((span) => span.partId !== undefined && span.start + EPSILON < position)
+      .map((span) => span.partId!),
+  );
 }
 
 /** Leží měsíc dne v okně sečení? */

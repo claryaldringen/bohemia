@@ -41,7 +41,10 @@ k lesu stojí práci a mýcení pro pole dá klády na stavby.
 - Sběr paliva se prodraží, když je ves daleko od lesa: palivová část domácí výroby (návrh Clauda:
   třetina) je o 1 % dražší za každých 10 m nad 100 m od obydlí k nejbližšímu okraji lesa – stejně
   jako vzdálenost u polí. Počítá se po domácnostech, okraj lesa = nejbližší lesní políčko
-  krajiny (vzdálenost se uloží při zahájení stavby obydlí – návrh Clauda).
+  krajiny (vzdálenost se uloží při zahájení stavby obydlí – návrh Clauda). S krajinou se měří
+  **chůzí** k nejbližšímu okraji lesa – po pěšinách a pevných cestách, mokřina ×2, brod + 30 m
+  ([roads.md](roads.md) – Rychlejší chůze); přepočítá se se změnou rozložení vsi (i po vylepšení
+  cesty).
 
 ### Stavby a kácení
 
@@ -59,7 +62,9 @@ k lesu stojí práci a mýcení pro pole dá klády na stavby.
 - **Kácení** (Martin: vesničané sami, nejbližší vhodný les): pokácí se nejbližší **dospělé**
   stromy ke staveništi – ne mladé stromky, souše ani padlé kmeny (návrh Clauda). Skácení
   a dovoz stojí **2 člověkodny za strom** a zdraží se o 1 % za každých 10 m nad 100 m od
-  staveniště (Martin – oprava podle rešerše; sedí – FAO 1987, sekera a ruční doprava). Je to
+  staveniště (Martin – oprava podle rešerše; sedí – FAO 1987, sekera a ruční doprava). Vzdálenost
+  ke stromu se měří chůzí po pevných cestách s mokřinou a brody ([roads.md](roads.md) – návrh
+  Clauda; pěšiny dne ne, ať cena u kurzoru sedí se serverem). Je to
   součást stavby – dostává společnou práci vsi jako ostatní stavby ([populace](population.md)).
   U blízkého lesa vychází cena staveb jako dřív: cena obydlí (60 / 220 čd) v sobě kácení
   blízkého lesa má, samotná stavba je o 7 × 2 / 18 × 2 čd levnější; klády z hromady ji zlevní,
@@ -85,7 +90,9 @@ k lesu stojí práci a mýcení pro pole dá klády na stavby.
   zase dospělý strom, který jde kácet (Martin, oprava podle rešerše; dřív dospělý za 30 let:
   pařeziny se těžily ve věku 7–40 let – Kadavý a Kneifl 2016, kmen na srub nebo do milíře roste
   podle odhadu rešerše 60–100 let) – okraj lesa u vsi tak řídne a ustupuje, ale nezmizí navždy.
-- Řemesla později spotřebují dřevo stejnou cestou (Martin).
+- Řemesla spotřebují dřevo stejnou cestou (Martin): hrnčíř kácí na palivo pece, uhlíř jen buky
+  do milíře a na jejich pařezy **sází mladé buky** – sazenice je hned mladý stromek a za 60 let
+  dospělý buk ([řemesla](crafts.md) – Uhlíř, 18. 10. 2026).
 
 ### Mýcení a hromada klád
 

@@ -181,13 +181,14 @@ export function possibleNewHouseholds(state: VillageState, day: number): number 
 /**
  * Lidé k osídlení nového obydlí (population.md – Odemčení, Lidé k osídlení): možné nové
  * domácnosti (`possibleNewHouseholds`) minus prázdná obydlí a rozestavěná nová obydlí – na každé
- * už jedna domácnost čeká. První zemnice zakladatelů (stavba s `dwellingId`) nikoho nečeká,
- * zakladatelé ji osídlí sami. Může vyjít záporně (obydlí postavená do zásoby). Ves z doby před
- * příbuzenstvím se počítá po doplnění pohlaví a manželů (`withKinship`).
+ * už jedna domácnost čeká. První zemnice zakladatelů (stavba s `dwellingId`) ani nový dům stěhující
+ * se domácnosti (`relocates`, migration.md) nikoho nečeká – osídlí je sami. Může vyjít záporně
+ * (obydlí postavená do zásoby). Ves z doby před příbuzenstvím se počítá po doplnění pohlaví
+ * a manželů (`withKinship`).
  */
 export function availableSettlers(state: VillageState, day: number): number {
   const building = state.constructions.filter(
-    (c) => c.kind === 'dwelling' && c.dwellingId === null,
+    (c) => c.kind === 'dwelling' && c.dwellingId === null && c.relocates === undefined,
   ).length;
   const empty = state.dwellings.filter((d) => occupants(state, d.id).length === 0).length;
   // ves z doby před příbuzenstvím se počítá, jako by už měla pohlaví a manžele (`withKinship`)
