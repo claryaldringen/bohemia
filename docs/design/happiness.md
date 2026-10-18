@@ -25,7 +25,7 @@ Slovanů: posvátné duby, dubové háje, dřevěné modly a nakonec svatyni jak
 ## Štěstí
 
 - Číslo **0–100**, výchozí **50** (návrh Clauda). Hráč ho vidí v horní liště (ikona + číslo).
-- **Cílová hodnota** = 50 + posvátná místa + dobré zásoby − hlad − úmrtí − přeplněnost − dřina,
+- **Cílová hodnota** = 50 + posvátná místa + dobré zásoby + ovoce − hlad − úmrtí − přeplněnost − dřina,
   oříznutá na 0–100. Skutečné štěstí se k cíli **posouvá pomalu** – o 10 % rozdílu za měsíc (návrh
   Clauda), takže jedna špatná zima ves nezlomí a jedna socha ji hned nespasí.
 - **Co ubírá** (návrh Clauda, doladí se hraním):
@@ -37,7 +37,10 @@ Slovanů: posvátné duby, dubové háje, dřevěné modly a nakonec svatyni jak
     běží, dnešním tempem nedodělala do konce jejich oken – úlohy se řadí podle konce okna
     a zbývající práce se sčítá (co končí dřív, musí být hotové dřív). Plná práce ve špičce, která
     se stihne, dřinou není.
-- **Co přidává:** posvátná místa (níže), dobré zásoby (zásoby na víc než rok) **+5**.
+- **Co přidává:** posvátná místa (níže), dobré zásoby (zásoby na víc než rok) **+5**, ovoce
+  **+5** – dokud lidé jedí ovoce, je sladké (Martin – [strava](diet.md), od 18. 10. 2026).
+- **Hlad** počítá s nasycením se stravou (energie × pestrost – [strava](diet.md)): ves jen
+  s obilím je nasycená na 80 % a ubere si tak ≈ 4 body.
 - **Účinek na práci** (Martin – „nechme to tak, doladíme později“): veškerá práce vsi se násobí
   - štěstí 0 → **× 0,8**, štěstí 50 → **× 1**, štěstí 100 → **× 1,1** (mezi tím lineárně).
   - Násobí se s mezemi produktivity od řemeslníků ([řemesla](crafts.md) – zatím nejsou).

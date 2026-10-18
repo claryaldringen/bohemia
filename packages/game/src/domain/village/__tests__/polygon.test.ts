@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  clipToConvex,
+  coveredArea,
   pointInPolygon,
   polygonArea,
   polygonsOverlap,
@@ -97,5 +99,27 @@ describe('rectangleCorners', () => {
     expect(Math.max(...xs) - Math.min(...xs)).toBeCloseTo(6);
     expect(Math.max(...zs) - Math.min(...zs)).toBeCloseTo(4);
     expect(polygonArea(corners)).toBeCloseTo(24);
+  });
+});
+
+describe('clipToConvex a coveredArea – kolik plochy stavba sebere čtverci', () => {
+  it('průnik obdélníků bez ohledu na obíhání; bez průniku prázdný', () => {
+    expect(polygonArea(clipToConvex(square(0, 0, 10), square(5, 5, 10)))).toBeCloseTo(25, 9);
+    expect(
+      polygonArea(clipToConvex([...square(0, 0, 10)].reverse(), square(5, -5, 10))),
+    ).toBeCloseTo(25, 9);
+    expect(clipToConvex(square(0, 0, 10), square(20, 20, 5))).toEqual([]);
+    // natočený čtverec uvnitř celý
+    const turned = rectangleCorners(5, 5, 4, 4, 0.7);
+    expect(polygonArea(clipToConvex(turned, square(0, 0, 10)))).toBeCloseTo(16, 9);
+  });
+
+  it('sjednocení dvou ploch ve čtverci se nepočítá dvakrát; dotyk hranou nic', () => {
+    const cell = square(0, 0, 15);
+    expect(coveredArea([square(-5, -5, 10)], cell)).toBeCloseTo(25, 9);
+    // dvě plochy 10 × 10 přes sebe o 5 × 10 – sjednocení 150, ve čtverci 15 × 15 jen 15 × 10
+    expect(coveredArea([square(0, 0, 10), square(5, 0, 10)], cell)).toBeCloseTo(150, 9);
+    expect(coveredArea([square(10, 0, 10), square(5, 0, 10)], cell)).toBeCloseTo(100, 9);
+    expect(coveredArea([square(15, 0, 10)], cell)).toBeCloseTo(0, 9);
   });
 });

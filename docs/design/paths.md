@@ -17,15 +17,19 @@ A po vyšlapané pěšině se chodí lépe – cesta na vzdálené pole po ní s
 
 - **Pěšiny spojují místa, kam lidé chodí každý den:** od brány domu pro vodu k potoku, pro
   dřevo k okraji lesa, na pole, do sadu, ke hřbitovu, k posvátným dubům, hájům, modle a svatyni,
-  k hromadě klád, na staveniště a k sousedům.
+  k hromadě klád, na staveniště, k ohradě (krmení dobytka) a k sousedům; pasáci ženou stáda na
+  úhor.
 - **Kolik se kam chodí:** voda podle lidí v domácnosti, dřevo na domácnost (v zimní půlce roku
   víc), na pole, do sadu a na stavby podle dnešní práce (rozdělení práce dne z jádra, jeden
   člověkoden = jedna cesta) a k zavedeným místům trochu navíc, ať pěšina mezi pracemi nezaroste.
   Daleko (voda, les) se chodí méně často – pěšina tam vznikne, až když se cesty víc domácností
-  slijí.
+  slijí. Ohrada (oxen.md) má k práci dne trochu navíc jako zavedené místo. Stáda (diet.md – ovce
+  s kozami po 20 kusech, krávy po 6, jako ve scéně) se denně vyženou na úhor a zpět – jedna cesta
+  na stádo: mladý úhor vždy, louka na seno až po seči (srpen–listopad); v zimě stojí krávy
+  v ohradě, prasata jdou do lesa (návrh Clauda).
 - **Kudy:** lidé obcházejí prudké svahy, vodu (kromě mělkých brodů), domy se zahrádkami,
-  kmeny, keře, balvany a skály, přes oseté pole nechodí (jdou po jeho okraji), přes úhor a louku
-  ano, lesem neradi.
+  kmeny, keře, balvany a skály, plot ohrady a hřbitova, přes oseté pole nechodí (jdou po jeho
+  okraji), přes úhor a louku ano, lesem neradi.
 - **Slévání:** vyšlapaná pěšina je pohodlnější (až o polovinu), takže kdo jde po ní, jde i kus
   oklikou – trasy sousedů se slijí do společné pěšiny a vznikne síť. Po **pevné cestě**
   ([roads.md](roads.md)) se jde jako po plné pěšině, takže se k ní pěšiny dne stahují; kde vedou

@@ -22,6 +22,9 @@ import type { SceneVillage } from '../village-view';
  */
 export type SceneDwelling = SceneVillage['dwellings'][number];
 
+/** Zbytek jámy po zaniklém obydlí – zarůstá podle `overgrowth` 0–1 (dwelling-decay.ts). */
+export type SceneRuin = NonNullable<SceneVillage['ruins']>[number];
+
 /** Pole ve scéně – díly po čtvercích (políčkách krajiny). */
 export type SceneField = SceneVillage['fields'][number];
 

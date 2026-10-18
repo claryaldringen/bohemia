@@ -222,6 +222,9 @@ export const COMMON_LABOR_HISTORY_DAYS = 30;
 // lepší obydlí podle ročního průměru společné práce – klouzavý (exponenciální) průměr s časovou
 // konstantou jednoho roku, aby výmlat v zimě ani žně ves nezchudly
 export const COMMON_LABOR_YEAR_DAYS = 365;
+// population.md – Chátrání a přestavba, Po zániku (Martin 18. 10. 2026, číslo návrh Clauda): zbytek
+// jámy po zaniklém obydlí (zarostlá prohlubeň s kopřivami a pár trámy) zarůstá ≈ 10 let, pak zmizí
+export const RUIN_YEARS = 10;
 // cemetery.md – Pravidla (stavba: vytyčení a ohrazení 10 člověkodní na čtverec; hrob i s uličkami
 // 4 m², na čtverec 15 × 15 m se vejde 56 hrobů)
 export const CEMETERY = { costPerSquare: 10, graveM2: 4, gravesPerSquare: 56 } as const;
@@ -276,8 +279,12 @@ export const CROP_ORDER: readonly Crop[] = ['winter', 'spring'];
 // orchard.md – Pravidla (Martin – oprava podle rešerše 17. 10. 2026): výsadba 80 člověkodní/ha
 // (+ překážky jako u pole), péče v zimě 10 člověkodní/ha ročně, sklizeň 8 člověkodní/ha při plné
 // úrodě (při menší úrodě poměrně méně); první jablka 6. rok po výsadbě, úroda lineárně do plné
-// úrody 25. rok, plná do 50. roku, pak lineárně k nule v 60. roce – tehdy se sad vrátí v louku;
-// plná úroda ≈ 3 t jablek/ha ročně
+// úrody 25. rok, plná do 50. roku, pak lineárně k nule v 60. roce – tehdy se čtverec vrátí
+// v louku; plná úroda ≈ 3 t jablek/ha ročně.
+// orchard.md – Obnova sadu (Martin 18. 10. 2026 – vesničané obnovují sami, čísla návrh Clauda):
+// čtverce od 50. roku sadu (`declineAfterYear` – poslední rok plné úrody) vysadí vesničané znovu,
+// za rok sadu nejvýš desetina čtverců (`renewalShareYear`, nahoru, aspoň 1) – za 10 let do konce
+// (50.–59. rok) se tak obnoví celý sad
 export const ORCHARD = {
   plantingPerHa: 80,
   carePerHa: 10,
@@ -287,6 +294,7 @@ export const ORCHARD = {
   fullYieldYear: 25,
   declineAfterYear: 50,
   endYear: 60,
+  renewalShareYear: 0.1,
 } as const;
 // orchard.md – Úroda (jablka mají asi 1/7 výživy obilí na kg: 3 t jablek ≈ 430 kg obilí)
 export const APPLE_FOOD_VALUE = 1 / 7;
@@ -375,6 +383,12 @@ export const PLOT_HOUSE_ROTATION = Math.PI;
  * varianty než tolik metrů se na něj posune, dál zůstane stát, kde je.
  */
 export const PLOT_SNAP_M = 2;
+/**
+ * population.md – Obydlí na poli a v sadu (Martin, 18. 10. 2026: „Pole a sad se prostě zmenší
+ * o plochu domu“; práh návrh Clauda): díl pole nebo čtverec sadu, kterému po stavbě obydlí zbude
+ * méně než tento podíl políčka, zmizí celý – zbytek u domu by nikdo neobdělával.
+ */
+export const TAKEN_LAND_MIN_SHARE = 0.2;
 /**
  * Polozemnice bez pozemku dostane při přestavbě nejbližší volné políčko – nejvýš tak daleko od
  * domu (m, ke středu políčka); dál žádné nehledá a zůstane bez pozemku.

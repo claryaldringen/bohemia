@@ -3,9 +3,11 @@ import {
   advanceVillage,
   isVillageExtinct,
   withForestDistances,
+  withLivestockLand,
   withMergedFields,
   withObstacleClearing,
   withPlots,
+  withoutBuiltOverRuins,
   type VillageState,
 } from '../domain/village';
 import type { VillageRecord, VillageRepository, VillageResult } from './villages';
@@ -39,10 +41,12 @@ export function advancedToToday(
  * (verze nesouhlasí) to zkusí znovu nad čerstvým stavem. Nezměněný stav se neukládá.
  * Vsi z doby před vrstvou překážek nejdřív doplní odstraněné překážky (`withObstacleClearing`)
  * a obydlím z doby před palivem vzdálenost k lesu (`withForestDistances`), polozemnicím z doby
- * před pozemky pozemek (`withPlots`) a stará navazující pole se sloučí (`withMergedFields`) – před
- * dopočtem, aby se s nimi už počítalo; pak se uloží.
+ * před pozemky pozemek (`withPlots`), stará navazující pole se sloučí (`withMergedFields`) a vsím
+ * z doby před dobytkem se doplní výchozí stádo a louka a les pro pastvu (`withLivestockLand`) –
+ * před dopočtem, aby se s nimi už počítalo; pak se uloží.
  * Ves se dopočítává s vrstvou překážek a krajinou sídla (přestavby kácí stromy, polozemnice bez
- * pozemku se přestaví na volném políčku).
+ * pozemku se přestaví na volném políčku). Zbytky jam po zaniklých obydlích pod novou stavbou po
+ * změně zmizí (`withoutBuiltOverRuins`).
  */
 export async function updateVillage(
   villages: VillageRepository,
@@ -55,22 +59,23 @@ export async function updateVillage(
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     const record = await villages.find(settlementId);
     if (record === null) return { ok: false, reason: NO_VILLAGE };
-    const migrated = withMergedFields(
-      withPlots(
-        withForestDistances(withObstacleClearing(record.state, obstacles), landscape),
-        landscape,
-        obstacles,
+    const migrated = withLivestockLand(
+      withMergedFields(
+        withPlots(
+          withForestDistances(withObstacleClearing(record.state, obstacles), landscape),
+          landscape,
+          obstacles,
+        ),
       ),
+      landscape,
     );
     const current = advancedToToday(migrated, today, obstacles, landscape);
     const changed = change(current);
     if (!changed.ok) return changed;
-    if (changed.state === record.state) return { ok: true, village: record };
-    const saved: VillageRecord | null = await villages.save(
-      settlementId,
-      changed.state,
-      record.version,
-    );
+    // na místo zříceniny jde stavět – stavba zbytek jámy odstraní (ruins.ts)
+    const next = withoutBuiltOverRuins(changed.state, landscape);
+    if (next === record.state) return { ok: true, village: record };
+    const saved: VillageRecord | null = await villages.save(settlementId, next, record.version);
     if (saved !== null) return { ok: true, village: saved };
   }
   throw new Error(`Ves sídla ${settlementId} se nepodařilo uložit – příliš mnoho souběžných změn.`);

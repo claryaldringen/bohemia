@@ -128,7 +128,8 @@ Návrh Clauda (detaily, které návrh výš nechal otevřené – 18. 10. 2026):
   hřbitovy, kácení stromů pro stavby; práce „ve vsi“ ne) a roční síť bere průměr na den. Součty
   jsou ve stavu vsi, takže nezávisí na tom, po jakých kouscích se ves dopočítá.
 - **Práh a „dva roky po sobě“:** roční síť se počítá stejnou funkcí jako pěšiny dne (voda, dřevo
-  podle průměru roku, sousedé, práce). Úsek osy, kde je síla aspoň síla 3 cest za den (≈ 0,55), je
+  podle průměru roku, sousedé, práce, ohrady, stáda na pastvě – krávy, které v zimě stojí
+  v ohradě, poměrně k měsícům pastvy). Úsek osy, kde je síla aspoň síla 3 cest za den (≈ 0,55), je
   letos nad prahem; pevná cesta vznikne z bodů, které leží do 6 m od loňského úseku nad prahem
   a nevedou po pevné cestě (do 5 m od její osy – tam jde trasa po cestě). Kratší úsek než 15 m
   cestou není. Osa se uloží na centimetry a zjednoduší (0,25 m).
@@ -147,15 +148,16 @@ Návrh Clauda (detaily, které návrh výš nechal otevřené – 18. 10. 2026):
   a vpravo 2,5–4 m od osy, ne do 6 m od konců úseku, ne do 2,2 m od osy jiné cesty, aspoň 8 m od
   jiných míst a stromů, ne v lese a do 6 m od jeho okraje, ne ve vodě, v brodu ani na srázu, ne
   do 2,5 m od překážky krajiny (kmen, keř, kámen), ne na dílu pole, v sadu, na hřbitově, v háji
-  ani na pozemku (ani 1,5 m kolem), ne do 16 m od obydlí a staveniště, ne u modly a svatyně
-  (+ 3 m), milíře a posvátného dubu (6 m). Volné místo, přes které později povede nová cesta,
+  ani na pozemku a v ohradě (ani 1,5 m kolem), ne do 16 m od obydlí, staveniště a zbytku jámy
+  (i na jeho pozemku), ne u modly a svatyně (+ 3 m), milíře a posvátného dubu (6 m). Volné místo, přes které později povede nová cesta,
   zmizí; na místě pod pozdější stavbou se strom neuchytí.
 - **Uchycení:** los z seedu vsi, roku a místa – nezávisí na ostatních místech. Druh: dub 50 %,
   jilm 28 %, topol 22 % (jako stromy podél pěšin). Délka života los v rozmezí druhu.
 - **Strom jako překážka stavby:** keř je keř, strom do 20 let mladý stromek (bez klády), od 20 let
   dospělý strom (kláda na hromadu), pak souš a pařez – ceny podle tabulky překážek (fields.md).
   Stromy u cest mají id nad rozsahem vrstvy překážek; stavba je odstraní jako ostatní překážky
-  (cena u kurzoru je stejná v prohlížeči i na serveru). Strom odstraněný stavbou a pařez po
+  (cena u kurzoru je stejná v prohlížeči i na serveru) – i obydlí na poli (strom na zakládaném
+  dílu, který obydlí zabere, odklidí stavba obydlí s kládou). Strom odstraněný stavbou a pařez po
   20 letech od smrti zmizí ze stavu při roční kontrole.
 - **Cesta přes pole:** když hráč postaví pole přes pevnou cestu, cesta zůstává (kreslí se dál
   a po ní se chodí) – zrušení cesty stavbou může přijít s fází 2.

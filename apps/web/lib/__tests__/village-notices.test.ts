@@ -18,6 +18,19 @@ const view = (overrides: Partial<VillageView> = {}): VillageView => ({
   households: [],
   storesKg: 800,
   applesKg: 0,
+  meatKg: 0,
+  hayKg: 0,
+  diet: { energy: 1, diversity: 0.8, shares: { grain: 1, meat: 0, fruit: 0 } },
+  livestock: {
+    herds: { sheep: 3, goat: 1, pig: 2, cow: 1 },
+    chickens: 2,
+    oxen: 0,
+    pastureHa: 50,
+    grazingHa: 1.8,
+    pigForestHa: 30,
+    meatNeedKg: 187,
+  },
+  pens: [],
   woodLogs: 0,
   crafts: {
     present: false,
@@ -90,6 +103,14 @@ const view = (overrides: Partial<VillageView> = {}): VillageView => ({
     potter: workshop(286),
     smith: workshop(286),
     burner: workshop(78),
+    pen: {
+      laborManDays: 40,
+      perHa: false,
+      perSquare: false,
+      upfront: [{ resource: 'wood', amount: 6, missing: 0 }],
+      blocked: null,
+      affordable: true,
+    },
   },
   constructions: [],
   fields: [],
@@ -104,6 +125,7 @@ const view = (overrides: Partial<VillageView> = {}): VillageView => ({
   gameOver: false,
   scene: { dwellings: [], fields: [] },
   chronicle: [],
+  lastMarriageDay: null,
   ...overrides,
 });
 
@@ -159,6 +181,19 @@ describe('newNotices', () => {
   it('první pohled na ves nic neohlásí', () => {
     expect(newNotices(null, view({ hungry: true }))).toEqual([]);
   });
+
+  it('svatba mezi domy – krátký fakt, jen když od minulého pohledu přibude', () => {
+    const before = view({ lastMarriageDay: 900 });
+    expect(newNotices(view(), before)).toEqual([
+      { kind: 'marriage', tone: 'info', text: 'Svatba' },
+    ]);
+    expect(newNotices(before, view({ lastMarriageDay: 900 }))).toEqual([]);
+    expect(newNotices(before, view({ lastMarriageDay: 990 })).map((n) => n.kind)).toEqual([
+      'marriage',
+    ]);
+    // trvalé upozornění to není
+    expect(villageNotices(view({ lastMarriageDay: 990 }))).toEqual([]);
+  });
 });
 
 describe('hřbitov je plný', () => {
@@ -207,6 +242,53 @@ describe('newNotices – posvátná místa', () => {
   });
 });
 
+describe('newNotices – porážka a spřežení (diet.md, oxen.md)', () => {
+  const entry = (
+    day: number,
+    kind: VillageView['chronicle'][number]['kind'],
+    text: string,
+    kg?: number,
+  ): VillageView['chronicle'][number] => ({
+    day,
+    kind,
+    dateLabel: '',
+    text,
+    ...(kg === undefined ? {} : { kg }),
+  });
+
+  it('nové události kroniky od minulého pohledu – fakt jednou za druh, v pořadí, jak se staly', () => {
+    const before = view({ dayIndex: 1000 });
+    const after = view({
+      dayIndex: 1010,
+      chronicle: [
+        entry(1009, 'ox-died', 'Přes zimu chybělo seno – vůl uhynul a spřežení se rozpadlo.'),
+        entry(1008, 'ox-died', 'Přes zimu chybělo seno – tele ve výcviku uhynulo.'),
+        entry(1005, 'slaughter', 'Podzimní porážka: 1 250 kg masa.', 1250),
+        entry(1002, 'team-ready', 'Spřežení volů je vycvičené – orá rádlem.'),
+        entry(1000, 'team-retired', 'Spřežení dosloužilo – voli zestárli a šli na maso.'),
+      ],
+    });
+    expect(newNotices(before, after)).toEqual([
+      { kind: 'team-ready', tone: 'info', text: 'Spřežení je vycvičené' },
+      { kind: 'slaughter', tone: 'info', text: 'Podzimní porážka – 1 250 kg masa' },
+      { kind: 'ox-died', tone: 'warn', text: 'Vůl uhynul – chybělo seno' },
+    ]);
+    // stejný pohled podruhé nic, první načtení nic
+    expect(newNotices(after, after)).toEqual([]);
+    expect(newNotices(null, after)).toEqual([]);
+  });
+
+  it('spřežení dosloužilo – fakt', () => {
+    const after = view({
+      dayIndex: 1003,
+      chronicle: [entry(1001, 'team-retired', 'Spřežení dosloužilo.')],
+    });
+    expect(newNotices(view(), after)).toEqual([
+      { kind: 'team-retired', tone: 'info', text: 'Spřežení dosloužilo' },
+    ]);
+  });
+});
+
 describe('villageNotices – řemesla (crafts.md)', () => {
   it('kovář bez uhlí a dílna bez stromů – krátký fakt', () => {
     const workshop = (activity: VillageView['crafts']['workshops'][number]['activity']) => ({
@@ -226,6 +308,35 @@ describe('villageNotices – řemesla (crafts.md)', () => {
     expect(villageNotices(view({ crafts: crafts(['no-charcoal', 'no-wood']) }))).toEqual([
       { kind: 'no-charcoal', tone: 'warn', text: 'Kovář nemá uhlí' },
       { kind: 'no-wood', tone: 'warn', text: 'Dílna nemá co kácet' },
+    ]);
+  });
+});
+
+describe('newNotices – obnova a konec sadu (orchard.md – Obnova sadu)', () => {
+  const entry = (
+    day: number,
+    kind: 'orchard-renewal-started' | 'orchard-gone',
+  ): VillageView['chronicle'][number] => ({ day, kind, dateLabel: '', text: '' });
+
+  it('vesničané začali obnovovat starý sad – fakt jednou, při prvním načtení nic', () => {
+    const before = view({ dayIndex: 1000 });
+    const after = view({ dayIndex: 1003, chronicle: [entry(1001, 'orchard-renewal-started')] });
+    expect(newNotices(null, after)).toEqual([]);
+    expect(newNotices(before, after)).toEqual([
+      { kind: 'orchard-renewal', tone: 'info', text: 'Vesničané obnovují starý sad' },
+    ]);
+    expect(newNotices(after, after)).toEqual([]);
+    // trvalá upozornění se o sadu nezmiňují
+    expect(villageNotices(after)).toEqual([]);
+  });
+
+  it('starý sad dosloužil – krátký řádek', () => {
+    const after = view({
+      dayIndex: 1400,
+      chronicle: [entry(1366, 'orchard-gone'), entry(1001, 'orchard-renewal-started')],
+    });
+    expect(newNotices(view({ dayIndex: 1300 }), after)).toEqual([
+      { kind: 'orchard-gone', tone: 'warn', text: 'Starý sad dosloužil' },
     ]);
   });
 });

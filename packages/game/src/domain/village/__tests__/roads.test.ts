@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { obstaclesOf } from '../../landscape';
-import { foundField, foundVillage } from '../actions';
+import { foundField, foundVillage, startNewDwelling } from '../actions';
 import { cellObstacles, obstacleChangesAt, obstacleStatus } from '../obstacles';
-import { computePathNetwork, type PathVillage } from '../paths/network';
-import { roadTreeSpots, updateRoads } from '../paths/roads';
+import { computePathNetwork, pastureHerds, type PathVillage } from '../paths/network';
+import { plantingBlocker, roadTreeSpots, updateRoads } from '../paths/roads';
+import { pastureLivestock, pathVillageOf } from '../paths/village';
 import {
   checkDwellingPlacement,
+  checkPlotPlacement,
   fieldPartsFromCells,
   placementVillageOf,
   villageDwellingPositions,
@@ -20,7 +22,7 @@ import {
 import { ROADS, ROAD_TREES } from '../rules';
 import { advanceVillage } from '../simulate';
 import type { Dwelling, Person, Road, RoadTree, VillageState } from '../types';
-import { LANDSCAPE, house, pathTestTerrain } from './paths-fixtures';
+import { LANDSCAPE, house, part, pathTestTerrain } from './paths-fixtures';
 import { withBuiltFirstDwelling } from './village-fixtures';
 
 const YEAR = 365.25;
@@ -461,4 +463,174 @@ describe('pevné cesty v simulaci', () => {
     }
     expect(chunked).toEqual(json(whole));
   }, 60_000);
+});
+
+describe('pevné cesty a pěšiny s ohradami, pastvou, domy na polích a zbytky jam', () => {
+  const terrain = pathTestTerrain();
+  const base: PathVillage = {
+    dwellings: [house(1, 0, 0), house(2, 14, 4), house(3, -13, 5)],
+    fields: [],
+    labor: { day: 4000, month: 6, people: { children: 4, adults: 8, elders: 2 }, shares: [] },
+  };
+  /** Body os pěšin uvnitř čtverce (bez okraje `margin`). */
+  const inside = (v: PathVillage, x: number, z: number, margin: number): number =>
+    computePathNetwork({ village: v, terrain })
+      .lines.flatMap((l) => dense(l.points))
+      .filter((p) => Math.abs(p.x - x) < 7.5 - margin && Math.abs(p.z - z) < 7.5 - margin).length;
+
+  it('ohrada je překážka (plot) i cíl – pěšina vede k ní, ne skrz', () => {
+    // čtverec ohrady (8, 11) přímo mezi domy a vodou
+    const pen = { ...part(-22.5, 22.5, 'meadow'), id: 70, built: true };
+    const through = inside(base, -22.5, 22.5, 2);
+    const fenced = inside({ ...base, pens: [pen] }, -22.5, 22.5, 2);
+    expect(fenced).toBeLessThanOrEqual(through);
+    expect(fenced).toBe(0);
+    // k ohradě se chodí (krmení dobytka) – pěšina končí u ní
+    const far = { ...part(52.5, -67.5, 'meadow'), id: 71, built: true };
+    const net = computePathNetwork({ village: { ...base, pens: [far] }, terrain });
+    const near = net.lines
+      .flatMap((l) => dense(l.points))
+      .some((p) => Math.abs(p.x - 52.5) < 9 && Math.abs(p.z + 67.5) < 9);
+    expect(near).toBe(true);
+  });
+
+  it('stáda se pasou na úhoru – pasáci k němu vyšlapou pěšinu', () => {
+    const fallow = [part(97.5, -52.5, 'young-fallow'), part(112.5, -52.5, 'young-fallow')];
+    const v: PathVillage = { ...base, fields: [{ id: 5, parts: fallow }] };
+    const toFallow = (village: PathVillage): number =>
+      computePathNetwork({ village, terrain }).traffic.raw.reduce((a, b) => a + b, 0);
+    expect(pastureHerds({ sheep: 30, goat: 8, cow: 7, pig: 12 })).toBe(4);
+    expect(pastureHerds(undefined)).toBe(0);
+    const without = toFallow(v);
+    const withHerds = toFallow({ ...v, livestock: { sheep: 30, goat: 8, cow: 7, pig: 12 } });
+    expect(withHerds).toBeGreaterThan(without * 1.2);
+  });
+
+  it('stáda ze stavu vsi jako ve scéně – v zimě krávy v hotové ohradě', () => {
+    const s = village();
+    s.livestock = {
+      herds: { sheep: 20.4, goat: 4, pig: 6, cow: 5.6 },
+      young: { sheep: 0, goat: 0, pig: 0, cow: 0 },
+    };
+    const summer = dayIndexOf({ year: 600, month: 6, day: 1 });
+    const winter = dayIndexOf({ year: 601, month: 1, day: 10 });
+    expect(pastureLivestock(s, winter)).toEqual({ sheep: 20, goat: 4, pig: 6, cow: 6 });
+    s.pens = [
+      {
+        id: 80,
+        cell: { x: 4, y: 4 },
+        x: -82.5,
+        z: -82.5,
+        builtDay: summer,
+        team: null,
+        training: null,
+      },
+    ];
+    expect(pastureLivestock(s, winter).cow).toBe(0);
+    expect(pastureLivestock(s, summer).cow).toBe(6);
+    const v = pathVillageOf(s, summer, LANDSCAPE);
+    expect(v.pens).toEqual([
+      { id: 80, cell: { x: 4, y: 4 }, x: -82.5, z: -82.5, size: 15, built: true },
+    ]);
+    expect(v.livestock).toEqual({ sheep: 20, goat: 4, pig: 6, cow: 6 });
+  });
+
+  it('strom u cesty nevyroste u ohrady, u zbytku jámy ani na jeho pozemku', () => {
+    const s = village();
+    const free = plantingBlocker(s, LANDSCAPE);
+    // (−82,5; −82,5) ohrada, (60, −60) zbytek jámy s pozemkem (12, 5)
+    expect(free(-82.5, -82.5)).toBe(false);
+    expect(free(60, -60)).toBe(false);
+    expect(free(37.5, -67.5)).toBe(false);
+    s.pens = [
+      {
+        id: 80,
+        cell: { x: 4, y: 4 },
+        x: -82.5,
+        z: -82.5,
+        builtDay: null,
+        team: null,
+        training: null,
+      },
+    ];
+    s.ruins = [
+      {
+        id: 9,
+        type: 'polozemnice',
+        position: { x: 60, z: -60, rotation: 0 },
+        plot: { cell: { x: 12, y: 5 }, variant: 'center' },
+        day: s.lastDay - 100,
+      },
+    ];
+    const blocked = plantingBlocker(s, LANDSCAPE);
+    expect(blocked(-82.5, -82.5)).toBe(true);
+    expect(blocked(60, -60)).toBe(true);
+    expect(blocked(37.5, -67.5)).toBe(true);
+    expect(blocked(-37.5, -112.5)).toBe(false);
+  });
+
+  it('dům na poli: strom u cesty na zakládaném dílu odklidí stavba obydlí (kláda)', () => {
+    const s = village();
+    for (const d of s.dwellings) d.builtDay = s.lastDay - 2 * 365;
+    // plná domácnost – mladý pár se může oddělit do nového obydlí
+    s.people.push(
+      ...[0, 1, 2, 3].map((k) => ({
+        id: 90 + k,
+        bornDay: s.lastDay - (19 + k) * 365,
+        dwellingId: 1,
+      })),
+    );
+    const day = s.lastDay;
+    const tree: RoadTree = {
+      id: ROAD_TREE_ID_BASE + 77,
+      spot: 9999,
+      x: -7.5,
+      z: -97.5,
+      species: 'oak',
+      rootedDay: day - 50 * 365,
+      diesDay: day + 200 * 365,
+    };
+    s.roads = {
+      nextId: 1,
+      roads: [],
+      trees: [tree],
+      candidates: [],
+      labor: { from: day, days: 0, shares: [] },
+    };
+    const cells = [7, 8, 9, 10, 11].map((x) => ({ x, y: 3 }));
+    const fieldVillage = placementVillageOf(s, day);
+    const preview = fieldPartsFromCells(
+      LANDSCAPE,
+      fieldVillage,
+      cells,
+      villageDwellingPositions(fieldVillage),
+      LAYER,
+    );
+    const withField = foundField(s, day, { parts: preview.parts });
+    const pending = withField.parts.find((p) => p.cell?.x === 9)!;
+    expect(pending.obstacles).toEqual([tree.id]);
+    const plot = { cell: { x: 9, y: 3 }, variant: 'center' as const };
+    const check = checkPlotPlacement(
+      LANDSCAPE,
+      placementVillageOf(withField, day),
+      'polozemnice',
+      plot,
+      LAYER,
+    );
+    expect(check.ok).toBe(true);
+    expect(check.takenLand.map((t) => t.cell)).toEqual([plot.cell]);
+    const built = startNewDwelling(
+      withField,
+      day,
+      'polozemnice',
+      check.position!,
+      check.obstacleCost,
+      check.obstacleIds,
+      { plot, takenLand: check.takenLand, clearedTrees: check.clearedTrees },
+    );
+    expect(built.parts.some((p) => p.cell?.x === 9 && p.cell.y === 3)).toBe(false);
+    expect(built.clearedObstacles!.map((c) => c.id)).toContain(tree.id);
+    expect(obstacleChangesAt(built, day).added ?? []).toEqual([]);
+    expect(built.woodLogs ?? 0).toBeGreaterThanOrEqual(1);
+  });
 });

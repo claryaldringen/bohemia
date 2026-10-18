@@ -4,14 +4,18 @@
 // staveb bez přihlášení a databáze, i stavba po fázích (posuvník a přehrání) – obydlí, řemesla,
 // modla a svatyně, za nimi pole, hřbitov a sad, vpravo posvátný dub a dubový háj, vlevo orá
 // spřežení volů s rádlem a vedle zemnice ohrada s přístřeškem (voli a kráva). Orba volů ani
-// ohrada zatím nejsou ve hře – jen modely. Přepínač zimy ukáže sníh.
+// ohrada zatím nejsou ve hře – jen modely. Přepínač zimy ukáže sníh. Před pozemky rozpad obydlí:
+// posuvník stavu opuštěné zemnice a polozemnice 100 → 0 % a zbytek jámy po zániku, za nimi řada
+// všech stupňů rozpadu.
 import { useEffect, useRef, useState, type ReactElement } from 'react';
 import {
   MILIR_OFFSET_M,
   SHOWCASE_BUILDINGS,
+  SHOWCASE_DECAY,
   SHOWCASE_DECOR,
   SHOWCASE_GROUNDS,
   SHOWCASE_PEN,
+  decayLabel,
   showcaseGrounds,
 } from '@/lib/scene/building-showcase-layout';
 import { penPhase } from '@/lib/scene/pen-layout';
@@ -20,6 +24,8 @@ import { constructionPhase, type ConstructionKind } from '@/lib/scene/village-co
 
 /** Jak dlouho trvá přehrání celé stavby od 0 do 100 % (s). */
 const BUILD_SECONDS = 40;
+/** Jak dlouho trvá přehrání rozpadu – od celého domu po zarostlý zbytek jámy (s). */
+const DECAY_SECONDS = 40;
 const KIND_LABELS: Record<ConstructionKind, string> = {
   zemnice: 'Zemnice',
   polozemnice: 'Polozemnice',
@@ -47,6 +53,8 @@ export function BuildingShowcaseView(): ReactElement {
   const [playing, setPlaying] = useState(false);
   const [following, setFollowing] = useState(false);
   const [winter, setWinter] = useState(false);
+  const [decay, setDecay] = useState(0);
+  const [decaying, setDecaying] = useState(false);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -110,6 +118,34 @@ export function BuildingShowcaseView(): ReactElement {
     if (playing && progress >= 1) setPlaying(false);
   }, [playing, progress]);
 
+  useEffect(() => {
+    showcase?.setDecay(decay);
+  }, [showcase, decay]);
+
+  // přehrání rozpadu: od celého domu po zarostlý zbytek jámy
+  useEffect(() => {
+    if (!decaying) return;
+    let frame = 0;
+    let last = performance.now();
+    const step = (now: number): void => {
+      const dt = (now - last) / 1000;
+      last = now;
+      setDecay((t) => Math.min(1, t + dt / DECAY_SECONDS));
+      frame = requestAnimationFrame(step);
+    };
+    frame = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(frame);
+  }, [decaying]);
+
+  useEffect(() => {
+    if (decaying && decay >= 1) setDecaying(false);
+  }, [decaying, decay]);
+
+  const toggleDecay = (): void => {
+    if (!decaying && decay >= 1) setDecay(0);
+    setDecaying(!decaying);
+  };
+
   const togglePlay = (): void => {
     if (!playing && progress >= 1) setProgress(0);
     setPlaying(!playing);
@@ -127,19 +163,23 @@ export function BuildingShowcaseView(): ReactElement {
         <span className="mr-2 font-serif text-lg text-stone-900 dark:text-stone-100">
           Náhled staveb
         </span>
-        {[...SHOWCASE_BUILDINGS, ...SHOWCASE_GROUNDS, ...SHOWCASE_DECOR, SHOWCASE_PEN].map(
-          (target) => (
-            <button
-              key={target.id}
-              type="button"
-              className={buttonClass}
-              disabled={!showcase}
-              onClick={() => showcase?.focus(target.id)}
-            >
-              {target.label}
-            </button>
-          ),
-        )}
+        {[
+          ...SHOWCASE_BUILDINGS,
+          ...SHOWCASE_GROUNDS,
+          ...SHOWCASE_DECOR,
+          SHOWCASE_PEN,
+          ...SHOWCASE_DECAY,
+        ].map((target) => (
+          <button
+            key={target.id}
+            type="button"
+            className={buttonClass}
+            disabled={!showcase}
+            onClick={() => showcase?.focus(target.id)}
+          >
+            {target.label}
+          </button>
+        ))}
         <button
           type="button"
           className={buttonClass}
@@ -218,6 +258,29 @@ export function BuildingShowcaseView(): ReactElement {
             </li>
           ))}
         </ul>
+        <div className="mt-2 flex items-center gap-2 border-t border-stone-300 pt-2 dark:border-stone-700">
+          <button type="button" className={buttonClass} disabled={!showcase} onClick={toggleDecay}>
+            {decaying ? '❚❚ Pauza' : '▶ Rozpad'}
+          </button>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            step={0.5}
+            value={Math.round(decay * 200) / 2}
+            disabled={!showcase}
+            aria-label="Rozpad obydlí"
+            className="min-w-0 flex-1 accent-stone-700"
+            onChange={(event) => {
+              setDecaying(false);
+              setDecay(Number(event.target.value) / 100);
+            }}
+          />
+        </div>
+        <p className="mt-1 text-xs">
+          <span className="text-stone-900 dark:text-stone-100">Opuštěná obydlí:</span>{' '}
+          {decayLabel(decay)}
+        </p>
       </section>
       <p className="fixed bottom-0 left-0 z-10 rounded-tr bg-stone-100/80 px-4 py-2 text-xs text-stone-600 backdrop-blur dark:bg-stone-950/70 dark:text-stone-400">
         Levé tlačítko otáčí, pravé posouvá, kolečko přibližuje. Milíř stojí {distance} m od uhlířovy

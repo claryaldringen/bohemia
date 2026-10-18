@@ -51,6 +51,7 @@ import { tileAt, tileCenter } from './tile-at';
 import { addTrees } from './trees';
 import { FieldPainter } from './field-painting';
 import { PlacementOutlines } from './placement-outlines-view';
+import { HoldingsOverlay, type HoldingsOverlaySector } from './holdings-overlay';
 import { SelectionHighlight } from './selection-highlight';
 import { pickVillageTarget, rayAtHeight, type Ray, type VillageTarget } from './village-picking';
 import { PlacementController, type ActivePlacement } from './village-placement';
@@ -99,6 +100,9 @@ export class LandscapeScene {
   private readonly downs = new Map<number, { x: number; y: number; placing: boolean }>();
   private selection: VillageTarget | null = null;
   private highlight: SelectionHighlight | null = null;
+  /** Vývojový překryv úseků hospodářství (fields.md – Hospodaření podle polohy domů). */
+  private holdings: HoldingsOverlay | null = null;
+  private holdingSectors: readonly HoldingsOverlaySector[] | null = null;
   /** Hranice stávajících objektů – jen při malování pole, sadu a hřbitova. */
   private outlines: PlacementOutlines | null = null;
   private groundHeight: ((x: number, z: number) => number) | null = null;
@@ -259,6 +263,8 @@ export class LandscapeScene {
       },
     );
     this.highlight = new SelectionHighlight(this.scene, (x, z) => terrainMeshHeight(surface, x, z));
+    this.holdings = new HoldingsOverlay(this.scene, (x, z) => terrainMeshHeight(surface, x, z));
+    this.holdings.show(this.holdingSectors);
     await report('forest', 0.4);
     if (this.disposed) return;
     // Stromy, keře a kameny jsou herní data – vrstva překážek z herního jádra, stejná jako na
@@ -585,6 +591,13 @@ export class LandscapeScene {
     this.paths?.setHeatmap(enabled);
   }
 
+  /** Vývojová volba: obrysy úseků hospodářství v barvách domů (null = skrýt). */
+  setHoldingsOverlay(sectors: readonly HoldingsOverlaySector[] | null): void {
+    this.holdingSectors = sectors;
+    this.holdings?.show(sectors);
+    this.renderWhenReady();
+  }
+
   /** Čísla posledního výpočtu pěšin (doba, buňky, trasy, pěšiny, cesty, stromy); bez výpočtu null. */
   pathStats(): PathStats | null {
     return this.paths?.stats ?? null;
@@ -690,6 +703,7 @@ export class LandscapeScene {
     this.viewListeners.clear();
     this.clearedListeners.clear();
     this.highlight?.dispose();
+    this.holdings?.dispose();
     this.outlines?.dispose();
     this.placement?.dispose();
     this.placement = null;
@@ -888,6 +902,8 @@ export class LandscapeScene {
       if (this.livestock?.animate(Date.now(), camera.camera)) animated = true;
       // lidé ve vsi – skutečný čas jako zvířata
       if (this.villagers?.animate(Date.now(), camera.camera)) animated = true;
+      // voli a krávy v ohradách a spřežení na poli (oxen.md) – skutečný čas jako zvířata
+      if (this.village?.animateOxen(Date.now(), camera.camera)) animated = true;
       // obilí ve větru – jen zralé a zelené v záběru
       if (this.village?.animateFields(Date.now(), camera.camera)) animated = true;
       if (animated) {

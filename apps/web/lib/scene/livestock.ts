@@ -31,6 +31,7 @@ import {
 import {
   grazedPart,
   grazingDay,
+  herdCounts,
   livestockGround,
   planLivestock,
   type Herd,
@@ -86,7 +87,7 @@ interface Group {
 }
 
 /**
- * Domácí zvířata vsi (ozdoba, bez herní mechaniky): slepice kolem hotových obydlí, ovce
+ * Domácí zvířata vsi (skutečná stáda – diet.md): slepice kolem hotových obydlí, ovce
  * s kozami a krávy na loukách, prasata v lese u okraje (livestock-placement.ts). Modely z 0 A.D.
  * jako u ryb a ptáků (fauna.ts) – každý druh jeden mesh s instancemi, krok a sklonění hlavy
  * jsou přechody mezi klíčovými pózami ve vertex shaderu. Kde zvíře je a co dělá, je čistá
@@ -443,8 +444,12 @@ function villageKey(village: LivestockVillage): string {
   const squares = [
     ...(village.cemeteries ?? []).flatMap((c) => c.squares),
     ...(village.orchards ?? []).flatMap((o) => o.squares),
+    ...(village.pens ?? []),
   ].map((s) => `${s.x.toFixed(1)},${s.z.toFixed(1)}`);
-  return `${dwellings.join(';')}|${parts.join(';')}|${squares.join(';')}`;
+  // skutečné počty stád (diet.md) – narození, porážka a krávy v ohradě přeplánují stáda
+  const counts = herdCounts(village);
+  const herds = `${counts.sheep},${counts.goat},${counts.pig},${counts.cow}`;
+  return `${dwellings.join(';')}|${parts.join(';')}|${squares.join(';')}|${herds}`;
 }
 
 /** Náhoda zvířat podle krajiny – v každé vsi se stáda pasou jinde. */

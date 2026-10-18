@@ -1,7 +1,8 @@
 // Jabloňový sad ve scéně bez Babylonu (orchard.md – Co hráč vidí): jabloně v pravidelných
 // řadách přes celý sad (mimo skalní výchozy), výsadba po fázích (vytyčení řad → kůly →
-// sazenice). Velikost stromků a jablka počítá server (`lib/orchard-look.ts`). Souřadnice světa
-// scény v metrech (x, z), čtverce jako u pole (field-cells.ts).
+// sazenice) – i obnova starého sadu po čtvercích (Obnova sadu). Velikost stromků a jablka počítá
+// server po čtvercích (`lib/orchard-look.ts`). Souřadnice světa scény v metrech (x, z), čtverce
+// jako u pole (field-cells.ts).
 import type { CellSquare } from './field-cells';
 import { seededRandom, type Point } from './village-layout';
 
@@ -56,11 +57,13 @@ export interface OrchardTreeSpot {
  * rozházení), natočení, velikost a varianta modelu deterministicky podle políčka (strom stojí
  * pořád stejně). Pořadí po řadách (z, pak x) – v tomto pořadí se sází. Místo ve skalním výchozu
  * (`outcrops`, i z vedlejšího políčka) zůstane prázdné – strom se neodsouvá, řada zůstane rovná
- * (jádro plochu pod výchozem do sadu nepočítá).
+ * (jádro plochu pod výchozem do sadu nepočítá). Stejně místo pod obydlím (`built` – vyklízená
+ * plocha obydlí, kterou jádro ze čtverce odečetlo – population.md, Obydlí na poli a v sadu).
  */
 export function orchardTreeSpots(
   square: CellSquare,
   outcrops: readonly Outcrop[] = [],
+  built: (x: number, z: number) => boolean = () => false,
 ): OrchardTreeSpot[] {
   const random = seededRandom(square.cell.x * 73_856_093 + square.cell.y * 19_349_663 + 7);
   const step = square.size / TREES_PER_SIDE;
@@ -74,9 +77,10 @@ export function orchardTreeSpots(
         scale: 1 + (random() - 0.5) * 2 * SCALE_JITTER,
         variant: Math.floor(random() * APPLE_VARIANTS) % APPLE_VARIANTS,
       };
-      const blocked = outcrops.some(
-        (o) => Math.hypot(spot.x - o.x, spot.z - o.z) < o.radius + OUTCROP_CLEARANCE_M,
-      );
+      const blocked =
+        outcrops.some(
+          (o) => Math.hypot(spot.x - o.x, spot.z - o.z) < o.radius + OUTCROP_CLEARANCE_M,
+        ) || built(spot.x, spot.z);
       if (!blocked) spots.push(spot);
     }
   }
@@ -98,6 +102,19 @@ export function orchardRowLines(squares: readonly CellSquare[]): Point[][] {
       ];
     });
   });
+}
+
+/**
+ * Čtverce sadu, které se vytyčují kolíky a provázkem: při výsadbě celý sad, dokud se nedosází;
+ * při obnově (orchard.md – Obnova sadu) jen čtverce, které se sázejí znovu – staré stromy
+ * zbytku sadu stojí dál. Vysazený sad nic.
+ */
+export function stakedSquares<T extends { planting: number; renewal?: true }>(
+  squares: readonly T[],
+): T[] {
+  const planting = squares.filter((s) => s.planting < 1);
+  if (planting.length === 0) return [];
+  return planting.some((s) => s.renewal) ? planting.filter((s) => s.renewal) : [...squares];
 }
 
 /** Co z výsadby čtverce stojí: kolik míst má kůl a kolik už sazenici (počty stromů). */

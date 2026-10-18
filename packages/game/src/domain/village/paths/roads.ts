@@ -4,12 +4,16 @@ import type { ObstacleLayer } from '../../landscape';
 import { createRandom, deriveSeed } from '../../landscape/random';
 import { villageCemeteries } from '../cemetery';
 import { milirCenter } from '../crafts';
+import { HAY_WINTER_MONTHS } from '../hay';
+import { villageHerds } from '../livestock';
 import { obstacleChangesAt, obstacleStatus, type ObstacleChanges } from '../obstacles';
 import { villageOrchards } from '../orchard';
+import { villagePens } from '../oxen';
 import { ROAD_TREE_ID_BASE, roadTreeLook } from '../road-trees';
 import { MILIR, ROADS, ROAD_TREES, SACRED_BUILDINGS } from '../rules';
 import type {
   ChronicleEvent,
+  HerdSpecies,
   LaborDay,
   LaborTarget,
   Road,
@@ -158,8 +162,25 @@ interface AnnualNetwork {
 }
 
 /**
+ * Stáda na pastvě v průměru roku: krávy, které v zimě stojí v ohradě (ves má hotovou ohradu), se
+ * pasou jen mimo zimu – poměrně k měsícům.
+ */
+function annualPasture(state: VillageState): Record<HerdSpecies, number> {
+  const herds = villageHerds(state);
+  const penned = villagePens(state).some((p) => p.builtDay !== null);
+  const grazing = penned ? (12 - HAY_WINTER_MONTHS.length) / 12 : 1;
+  return {
+    sheep: Math.round(herds.sheep),
+    goat: Math.round(herds.goat),
+    pig: Math.round(herds.pig),
+    cow: Math.round(herds.cow * grazing),
+  };
+}
+
+/**
  * Roční síť (roads.md): ves v den `day` s průměrnými člověkodny na den za rok cest (místo práce
- * dne), dřevo podle průměru roku a sleva za pevné cesty – stejná funkce jako pěšiny dne.
+ * dne), dřevo podle průměru roku, stáda na pastvě v průměru roku a sleva za pevné cesty – stejná
+ * funkce jako pěšiny dne.
  */
 export function annualPathNetwork(
   state: VillageState,
@@ -175,7 +196,11 @@ export function annualPathNetwork(
     target: s.target,
     manDays: s.manDays / days,
   }));
-  const village: PathVillage = base.labor ? { ...base, labor: { ...base.labor, shares } } : base;
+  const village: PathVillage = {
+    ...base,
+    ...(base.labor ? { labor: { ...base.labor, shares } } : {}),
+    ...(state.livestock ? { livestock: annualPasture(state) } : {}),
+  };
   const bounds = pathBounds(village);
   if (!bounds) return null;
   const window = pathTerrainOf(landscape, pathWindowFor(landscape, bounds));
@@ -671,8 +696,8 @@ function spotsForRoad(roads: VillageRoads, road: Road, context: SpotContext): Ro
 
 /**
  * Stavby vsi, u kterých strom u cesty nevyroste (roads.md – ne ve vsi, na pozemcích, hřbitově,
- * v sadu ani na poli): čtverce dílů polí, sadů, hřbitovů, hájů a pozemků i s okrajem, okolí obydlí
- * a stavenišť, modly a svatyně, milíře a posvátných dubů. Mimo krajinu taky ne.
+ * v sadu ani na poli): čtverce dílů polí, sadů, hřbitovů, hájů, ohrad a pozemků i s okrajem, okolí
+ * obydlí, stavenišť a zbytků jam, modly a svatyně, milíře a posvátných dubů. Mimo krajinu taky ne.
  */
 export function plantingBlocker(
   state: VillageState,
@@ -689,11 +714,15 @@ export function plantingBlocker(
   for (const g of state.groves ?? []) for (const cell of g.cells) addTile(cell);
   for (const d of state.dwellings) if (d.plot) addTile(d.plot.cell);
   for (const c of state.constructions) if (c.plot) addTile(c.plot.cell);
+  for (const p of villagePens(state)) addTile(p.cell);
+  for (const r of state.ruins ?? []) if (r.plot) addTile(r.plot.cell);
+  // obydlí, staveniště i zbytky jam po zaniklých obydlích – pořád ves
   const homes = [
     ...state.dwellings.map((d) => d.position),
     ...state.constructions.flatMap((c) =>
       c.dwellingType !== null && c.position !== null ? [c.position] : [],
     ),
+    ...(state.ruins ?? []).map((r) => r.position),
   ];
   const sacred = [
     ...(state.sacredBuildings ?? []).map((b) => ({ kind: b.kind, position: b.position })),

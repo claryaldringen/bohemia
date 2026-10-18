@@ -6,6 +6,7 @@ import {
   fieldPartsFromCells,
   forestEdgeDistanceM,
   foundVillage,
+  withLivestockLand,
   normalizeVillageName,
   withPlots,
   type FieldInput,
@@ -85,9 +86,10 @@ export async function foundVillageForSettlement(
     forestDistanceM: forestEdgeDistanceM(input.landscape, input.dwelling.x, input.dwelling.z),
     dwellingSpared: dwelling.spared,
   });
-  // nová ves nemá polozemnice bez pozemku – rovnou převedená (`withPlots` ji už nebude měnit)
+  // nová ves nemá polozemnice bez pozemku – rovnou převedená (`withPlots` ji už nebude měnit);
+  // louka a les do 600 m od první zemnice – pastva a žaludy výchozího stáda (diet.md)
   const state = advanceVillage(
-    withPlots(founded, input.landscape, obstacles),
+    withLivestockLand(withPlots(founded, input.landscape, obstacles), input.landscape),
     input.today,
     obstacles,
     input.landscape,

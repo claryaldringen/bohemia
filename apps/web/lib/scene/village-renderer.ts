@@ -5,6 +5,7 @@ import { PBRMaterial } from '@babylonjs/core/Materials/PBR/pbrMaterial';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
+import { Matrix, Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import type { Scene } from '@babylonjs/core/scene';
@@ -17,7 +18,19 @@ import {
   type WorldClock,
 } from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
+import { buildingClearings } from './building-clearings';
 import { CemeteryRenderer } from './cemetery-renderer';
+import {
+  DECAY_LOOKS,
+  decayModelParts,
+  decayNettles,
+  decayStage,
+  ruinHollowData,
+  ruinHollowY,
+  ruinLook,
+  ruinPitShape,
+  type DecayStage,
+} from './dwelling-decay';
 import { EARTH_LAYERS, SMOKE_VENT, earthPatch, eaveTufts, type TuftModel } from './dwelling-decor';
 import {
   PIT_SHAPES,
@@ -33,12 +46,19 @@ import { applyGammaFog } from './gamma-fog';
 import { HomesteadRenderer, type PlotView } from './homestead';
 import { plotInward, plotStakingLine } from './homestead-layout';
 import {
+  appendMatrix,
   instanceMatrices,
   loadMergedModel,
   loadModelParts,
   type ModelInstance,
 } from './instanced-model';
 import { OrchardRenderer } from './orchard-renderer';
+import { PenAnimals } from './pen-animals';
+import { penAnimalsFor } from './pen-layout';
+import { PenRenderer } from './pen-renderer';
+import { ploughPath } from './plough-team';
+import { PloughTeams } from './plough-team-renderer';
+import { penHerds, ploughFields, scenePenViews } from './village-pens';
 import { SACRED_SITE_KIND, sacredBuildingKey } from './sacred-layout';
 import { SacredRenderer } from './sacred-renderer';
 import { applyPitCut, type PitCuts } from './pit-cut';
@@ -73,7 +93,7 @@ import { StakingPegs, createStringMaterial, createStringMesh, pegInstances } fro
 import { closedLine } from './staking-layout';
 import { applySeasonGround, applySeasonModel, applySeasonSnow } from './season-materials';
 import { VillageSmoke, type SmokeSource } from './village-smoke';
-import type { SceneDwelling } from './village-types';
+import type { SceneDwelling, SceneRuin } from './village-types';
 import {
   CRAFT_MODEL,
   milirCircle,
@@ -123,6 +143,10 @@ const TRAMPLED_SOFT_M = 2.2;
 const ABANDONED_EARTH_ALPHA = 0.4;
 /** Hromada hlíny z jámy v plné velikosti (m) – většina hlíny jde nakonec na valy. */
 const SPOIL_HEAP_M = { rx: 1.7, rz: 1.2, height: 0.72 };
+/** Díly rozpadu obydlí, zbytku jámy a kopřivy (tools/blender/dwellings.py – rozpad obydlí). */
+const DECAY_MODEL_URL = `${MODEL_BASE_URL}decay.glb`;
+/** Kopřivy usychají a přes zimu stojí jako trsy trávy (season-foliage.ts). */
+const NETTLE_MATERIAL = 'decay-nettle';
 
 interface DwellingView {
   key: string;
@@ -134,6 +158,15 @@ interface DwellingView {
   cut: PitCut | null;
   /** Kolíky vytyčení (staking.ts), dokud se nezačne kopat. */
   pegs: ModelInstance[];
+}
+
+/** Zbytek jámy po zaniklém obydlí: zarostlá prohlubeň (síť) a řez terénu. */
+interface RuinView {
+  key: string;
+  ruin: SceneRuin;
+  meshes: Mesh[];
+  cut: PitCut;
+  shape: HideShape;
 }
 
 interface VillageContext {
@@ -182,12 +215,23 @@ export class VillageRenderer {
   private readonly siteParts = new Map<string, Mesh>();
   private siteLoading: Promise<void> | null = null;
   private siteKey = '';
+  /** Díly rozpadu z decay.glb podle jména uzlu (zemnice-2-thatch, polozemnice-ruin, nettle…). */
+  private readonly decayParts = new Map<string, Mesh>();
+  private decayLoading: Promise<void> | null = null;
+  private decayKey = '';
+  /** Zbytky jam po zaniklých obydlích (klíč = id a den zániku). */
+  private readonly ruins = new Map<string, RuinView>();
   private readonly smoke: VillageSmoke;
   private readonly cemeteries: CemeteryRenderer;
   private readonly pegs: StakingPegs;
   private readonly orchards: OrchardRenderer;
   private readonly sacred: SacredRenderer;
   private readonly fields: FieldRenderer;
+  /** Ohrady s přístřeškem, zvířata v nich a spřežení na poli (oxen.md – village-pens.ts). */
+  private readonly pens: PenRenderer;
+  private readonly penAnimals: PenAnimals;
+  private readonly teams: PloughTeams;
+  private teamsKey = '';
   private village: SceneVillage = { dwellings: [], fields: [] };
   private disposed = false;
 
@@ -218,11 +262,34 @@ export class VillageRenderer {
       onAsyncChange: () => context.onAsyncChange(),
       pathMaterial: () => this.decalMaterial('grass-dirt'),
       prepareMaterial: prepareDwellingMaterial,
+      prepareWeedMaterial: prepareTuftMaterial,
       fences: this.fences,
     });
     this.sacred = new SacredRenderer(scene, context);
     this.fields = new FieldRenderer(scene, context);
     if (context.landscape) this.fields.setLandscape(context.landscape, null);
+    // louky na seno kolem vsi byly jen vzhled – seno teď dává jen úhor ve fázi louky (oxen.md),
+    // jehož seč posílá herní jádro po dílech
+    this.fields.setHayMeadows([]);
+    this.pens = new PenRenderer(scene, {
+      groundHeight: context.groundHeight,
+      decalHeight: context.decalHeight,
+      addShadowCaster: (mesh) => context.addShadowCaster(mesh),
+      onAsyncChange: () => context.onAsyncChange(),
+      prepareMaterial: prepareDwellingMaterial,
+      mudMaterial: () => this.decalMaterial('mud'),
+      fences: this.fences,
+    });
+    this.penAnimals = new PenAnimals(scene, {
+      groundHeight: context.groundHeight,
+      onLoaded: () => context.requestRender(),
+    });
+    this.teams = new PloughTeams(scene, {
+      baseUrl: '/models/plough/',
+      groundHeight: context.groundHeight,
+      prepareMaterial: prepareDwellingMaterial,
+      onLoaded: () => context.requestRender(),
+    });
   }
 
   /** Vrátí true, když se ve scéně něco změnilo (je co překreslit). */
@@ -230,17 +297,71 @@ export class VillageRenderer {
     if (this.disposed) return false;
     this.village = village;
     const dwellings = this.updateDwellings(village.dwellings);
+    const ruins = this.updateRuins(village.ruins ?? []);
+    if (dwellings || ruins) this.updatePitCuts();
     const fields = this.fields.update(village);
     const cemeteries = this.cemeteries.update(village.cemeteries ?? [], village.dwellings);
-    const orchards = this.orchards.update(village.orchards ?? []);
+    const orchards = this.orchards.update(
+      village.orchards ?? [],
+      buildingClearings(village.dwellings),
+    );
     const plots = this.plots.update(plotViews(village.dwellings));
     const sacred = this.sacred.update(village.sacred);
+    const pens = this.updatePens(village);
     const models = this.updateModels();
     const sites = this.updateConstruction();
+    const decay = this.updateDecay();
     const smoke = this.updateSmokeSources();
     return (
-      dwellings || fields || cemeteries || orchards || plots || sacred || models || sites || smoke
+      dwellings ||
+      ruins ||
+      fields ||
+      cemeteries ||
+      orchards ||
+      plots ||
+      sacred ||
+      pens ||
+      models ||
+      sites ||
+      decay ||
+      smoke
     );
+  }
+
+  /**
+   * Ohrady (stavba po fázích), zvířata v nich a spřežení na čele orby (oxen.md). Vrátí true, když
+   * se něco změnilo.
+   */
+  private updatePens(village: SceneVillage): boolean {
+    const pens = this.pens.update(scenePenViews(village));
+    const herds = penHerds(village);
+    const animals = this.penAnimals.set(
+      this.pens.builtPens().flatMap(({ id, layout }) => {
+        const herd = herds.get(id);
+        return herd ? penAnimalsFor(layout, herd) : [];
+      }),
+    );
+    const fields = ploughFields(village);
+    const key = fields.map((f) => `${f.x},${f.z},${f.size},${f.dirX},${f.dirZ}`).join(';');
+    let teams = false;
+    if (key !== this.teamsKey) {
+      this.teamsKey = key;
+      this.teams.setPaths(fields.map((f) => ploughPath(f)));
+      // stálá póza hned – při omezeném pohybu zůstane, jinak ji hned přepíše animace
+      this.teams.animate(0, null, true);
+      teams = true;
+    }
+    return pens || animals || teams;
+  }
+
+  /**
+   * Posune zvířata v ohradách a spřežení na poli na okamžik `nowMs` (jen v záběru kamery; bez
+   * kamery všechno). Vrátí true, když je co překreslit.
+   */
+  animateOxen(nowMs: number, camera: Camera | null): boolean {
+    const animals = this.penAnimals.animate(nowMs, camera);
+    const teams = this.teams.animate(nowMs, camera);
+    return animals || teams;
   }
 
   /**
@@ -301,6 +422,7 @@ export class VillageRenderer {
   hideShapes(): HideShape[] {
     const shapes: HideShape[] = [];
     for (const view of this.dwellings.values()) shapes.push(...view.shapes);
+    for (const view of this.ruins.values()) shapes.push(view.shape);
     shapes.push(...this.fields.hideShapes());
     shapes.push(...this.cemeteries.hideShapes());
     shapes.push(...this.orchards.hideShapes());
@@ -365,13 +487,19 @@ export class VillageRenderer {
     this.smoke.dispose();
     this.cemeteries.dispose();
     this.plots.dispose();
+    // ohrady uvolní své ploty – před sdílenými ploty
+    this.pens.dispose();
     this.fences.dispose();
     this.orchards.dispose();
     this.sacred.dispose();
+    this.penAnimals.dispose();
+    this.teams.dispose();
     this.pegs.dispose();
     this.fields.dispose();
     for (const view of this.dwellings.values()) for (const mesh of view.meshes) mesh.dispose();
     this.dwellings.clear();
+    for (const view of this.ruins.values()) for (const mesh of view.meshes) mesh.dispose();
+    this.ruins.clear();
   }
 
   /** Načte jeden hotový model (obydlí, dílna, milíř) i s duchem pro umisťování. */
@@ -476,19 +604,197 @@ export class VillageRenderer {
       this.dwellings.delete(id);
       changed = true;
     }
-    if (changed) {
-      this.pegs.set([...this.dwellings.values()].flatMap((view) => view.pegs));
-      const cuts: PitCut[] = [];
-      for (const view of this.dwellings.values()) if (view.cut) cuts.push(view.cut);
-      this.context.pitCuts.set(cuts);
+    if (changed) this.pegs.set([...this.dwellings.values()].flatMap((view) => view.pegs));
+    return changed;
+  }
+
+  /** Jámy obydlí a zbytků jam prořezávané do terénu (pit-cut.ts). */
+  private updatePitCuts(): void {
+    const cuts: PitCut[] = [];
+    for (const view of this.dwellings.values()) if (view.cut) cuts.push(view.cut);
+    for (const view of this.ruins.values()) cuts.push(view.cut);
+    this.context.pitCuts.set(cuts);
+  }
+
+  /**
+   * Zbytky jam po zaniklých obydlích (dwelling-decay.ts): zarostlá prohlubeň se přestaví, jen
+   * když zarostla o další krok (RUIN_LOOK_STEPS). Trámy, valy a kopřivy kreslí `updateDecay`.
+   */
+  private updateRuins(ruins: readonly SceneRuin[]): boolean {
+    let changed = false;
+    const seen = new Set<string>();
+    for (const ruin of ruins) {
+      const id = ruinId(ruin);
+      seen.add(id);
+      const key = ruinKey(ruin);
+      const current = this.ruins.get(id);
+      if (current?.key === key) continue;
+      changed = true;
+      if (current) for (const mesh of current.meshes) mesh.dispose();
+      this.ruins.set(id, {
+        key,
+        ruin,
+        meshes: [this.ruinHollow(ruin)],
+        cut: { position: ruin.position, shape: ruinPitShape(ruin.type) },
+        shape: dwellingHideShape({ type: ruin.type, position: ruin.position }),
+      });
+    }
+    for (const [id, view] of this.ruins) {
+      if (seen.has(id)) continue;
+      for (const mesh of view.meshes) mesh.dispose();
+      this.ruins.delete(id);
+      changed = true;
     }
     return changed;
+  }
+
+  /** Zarostlá prohlubeň zbytku jámy – tráva z terénu, dole tmavší (barvy ve vrcholech). */
+  private ruinHollow(ruin: SceneRuin): Mesh {
+    const look = ruinLook(ruin.type, ruin.overgrowth);
+    const data = ruinHollowData(ruin.type, ruin.position, {
+      base: this.baseHeight(ruin),
+      depth: look.depth,
+      rim: this.context.decalHeight,
+      overgrowth: ruin.overgrowth,
+    });
+    const vertexData = new VertexData();
+    vertexData.positions = data.positions;
+    vertexData.uvs = data.uvs;
+    vertexData.colors = data.colors;
+    vertexData.indices = data.indices;
+    const normals = new Float32Array(data.positions.length);
+    VertexData.ComputeNormals(data.positions, data.indices, normals);
+    vertexData.normals = normals;
+    const mesh = new Mesh(`village-ruin-${ruinId(ruin)}`, this.scene);
+    vertexData.applyToMesh(mesh);
+    mesh.material = this.ruinMaterial();
+    mesh.isPickable = false;
+    mesh.receiveShadows = true;
+    return mesh;
+  }
+
+  /**
+   * Díly rozpadu (decay.glb) v instancích: rozpadlá obydlí podle stupně místo hotového modelu,
+   * kopřivy kolem nich, trámy a valy zbytků jam a kopřivy v nich – přepočítají se, jen když se
+   * změnil stupeň některého obydlí nebo krok zarůstání zbytku jámy.
+   */
+  private updateDecay(): boolean {
+    const decayed = this.village.dwellings.filter((d) => d.built && dwellingDecay(d) > 0);
+    const ruins = this.village.ruins ?? [];
+    const key = [...decayed.map(dwellingKey), ...ruins.map(ruinKey)].join(';');
+    if (key === this.decayKey) return false;
+    if (decayed.length > 0 || ruins.length > 0) void this.loadDecay();
+    if (!this.decayLoading) return false;
+    this.decayKey = key;
+    const instances = new Map<string, ModelInstance[]>();
+    const push = (name: string, instance: ModelInstance): void => {
+      const list = instances.get(name);
+      if (list) list.push(instance);
+      else instances.set(name, [instance]);
+    };
+    const ground = this.context.groundHeight;
+    for (const d of decayed) {
+      const stage = dwellingDecay(d);
+      const house = {
+        x: d.position.x,
+        y: this.baseHeight(d),
+        z: d.position.z,
+        rotationY: d.position.rotation,
+        scale: 1,
+      };
+      for (const part of decayModelParts(d.type, stage)) push(part, house);
+      for (const n of decayNettles(
+        d.type,
+        d.position,
+        d.id,
+        DECAY_LOOKS[stage].nettles,
+        1,
+        'house',
+      )) {
+        push('nettle', {
+          x: n.x,
+          y: ground(n.x, n.z) - 0.03,
+          z: n.z,
+          rotationY: n.rotationY,
+          scale: n.scale,
+        });
+      }
+    }
+    const berms = new Map<string, number[]>();
+    for (const r of ruins) {
+      const look = ruinLook(r.type, r.overgrowth);
+      const base = this.baseHeight(r);
+      const hollow = { base, depth: look.depth, rim: this.context.decalHeight };
+      const floor = { x: r.position.x, z: r.position.z, rotationY: r.position.rotation, scale: 1 };
+      if (look.beams) push(`${r.type}-${look.beams}`, { ...floor, y: base - look.depth });
+      if (look.berms > 0) {
+        // valy se s časem srovnají – díl se snižuje (měřítko jen na výšku)
+        BERM_SCALE.set(1, look.berms, 1);
+        Quaternion.RotationAxisToRef(Vector3.UpReadOnly, r.position.rotation, BERM_ROTATION);
+        BERM_POSITION.set(r.position.x, base, r.position.z);
+        Matrix.ComposeToRef(BERM_SCALE, BERM_ROTATION, BERM_POSITION, BERM_MATRIX);
+        const name = `${r.type}-ruin-berms`;
+        appendMatrix(berms.get(name) ?? berms.set(name, []).get(name)!, BERM_MATRIX);
+      }
+      const nettles = decayNettles(
+        r.type,
+        r.position,
+        r.id * 31 + r.since,
+        look.nettles.count,
+        look.nettles.scale,
+        'pit',
+      );
+      for (const n of nettles) {
+        const y = ruinHollowY(r.type, r.position, hollow, n.x, n.z) - 0.03;
+        push('nettle', { x: n.x, y, z: n.z, rotationY: n.rotationY, scale: n.scale });
+      }
+    }
+    for (const [name, mesh] of this.decayParts) {
+      const matrices = berms.get(name);
+      if (!matrices) setInstances(mesh, instances.get(name) ?? []);
+      else if (matrices.length === 0) mesh.setEnabled(false);
+      else {
+        mesh.thinInstanceSetBuffer('matrix', Float32Array.from(matrices), 16, true);
+        mesh.setEnabled(true);
+      }
+    }
+    return true;
+  }
+
+  /** Načte díly rozpadu (jednou); po načtení se rozpadlá obydlí a zbytky jam překreslí. */
+  private loadDecay(): Promise<void> {
+    this.decayLoading ??= (async () => {
+      try {
+        const parts = await loadModelParts(
+          this.scene,
+          DECAY_MODEL_URL,
+          'village-decay-',
+          prepareDecayMaterial,
+        );
+        if (!parts) return;
+        for (const [name, mesh] of parts) {
+          mesh.setEnabled(false);
+          mesh.receiveShadows = true;
+          this.context.addShadowCaster(mesh);
+          this.decayParts.set(name, mesh);
+        }
+      } catch (error) {
+        console.warn('Díly rozpadu obydlí se nepodařilo načíst.', error);
+      }
+      if (this.disposed) return;
+      this.decayKey = '';
+      this.builtKey = '';
+      this.updateModels();
+      this.updateDecay();
+      this.context.onAsyncChange();
+    })();
+    return this.decayLoading;
   }
 
   /** Dýmníky hotových obývaných obydlí, pece, výhně a milíře pracujících dílen pro dým. */
   private updateSmokeSources(): boolean {
     const sources: SmokeSource[] = this.village.dwellings
-      .filter((d) => d.built && d.inhabited !== false)
+      .filter((d) => d.built && d.inhabited !== false && DECAY_LOOKS[dwellingDecay(d)].smoke)
       .map((d) => {
         const vent = SMOKE_VENT[d.type];
         const [x, z] = localToWorld(d.position, 0, vent.z);
@@ -681,7 +987,10 @@ export class VillageRenderer {
       if (list) list.push(instance);
       else instances.set(model, [instance]);
     };
+    // rozpadlé obydlí kreslí díly rozpadu (updateDecay) – hotový model jen do jejich načtení
+    const decayReady = this.decayParts.size > 0;
     for (const d of built) {
+      if (decayReady && dwellingDecay(d) > 0) continue;
       push(d.craft ? CRAFT_MODEL[d.craft] : d.type, {
         x: d.position.x,
         y: this.baseHeight(d),
@@ -739,8 +1048,9 @@ export class VillageRenderer {
   /** Vyšlapaná hlína před vchodem: širší prošlapaná tráva, uvnitř holá udusaná hlína. */
   private dwellingGround(d: SceneDwelling): Mesh[] {
     // opuštěné obydlí (nikdo v něm nebydlí – vymřelá ves, prázdné obydlí) zarůstá trávou:
-    // vyšlapaná a udusaná hlína se nikdo neobnovuje
-    const alpha = d.inhabited === false ? ABANDONED_EARTH_ALPHA : 1;
+    // vyšlapaná a udusaná hlína se nikdo neobnovuje; s rozpadem domu zarůstá dál
+    const look = DECAY_LOOKS[dwellingDecay(d)];
+    const alpha = (d.inhabited === false ? ABANDONED_EARTH_ALPHA : 1) * look.earth;
     const worn = createDecalMesh(
       this.scene,
       `village-worn-${d.id}`,
@@ -773,7 +1083,8 @@ export class VillageRenderer {
     earth.material = this.decalMaterial('mud', -3);
     earth.alphaIndex = 2;
     const { depth } = PIT_SHAPES[d.type];
-    return [worn, earth, this.pitMesh(d, depth, 1, false)];
+    // děravou a zřícenou střechou do jámy svítí slunce
+    return [worn, earth, this.pitMesh(d, depth, look.roofCover, false)];
   }
 
   /** Jáma se šíjí a schody (stěny po okraj terénu, dno, stupně) – terén v ní prořízne pit-cut. */
@@ -1034,6 +1345,26 @@ export class VillageRenderer {
     return material;
   }
 
+  /**
+   * Tráva zarostlé prohlubně: textura trávy z terénu, barvy nesou vrcholy; usychá a v zimě ji
+   * zasype sníh jako terén. Leží v řezu terénu – sama se neprořezává.
+   */
+  private ruinMaterial(): Material {
+    let material = this.materials.get('ruin');
+    if (!material) {
+      const standard = new StandardMaterial('village-ruin', this.scene);
+      standard.specularColor = Color3.Black();
+      const texture = new Texture('/textures/terrain/grass.jpg', this.scene);
+      texture.anisotropicFilteringLevel = 8;
+      if (!texture.isReady()) texture.onLoadObservable.addOnce(() => this.context.requestRender());
+      standard.diffuseTexture = texture;
+      applySeasonGround(standard);
+      material = standard;
+      this.materials.set('ruin', material);
+    }
+    return material;
+  }
+
   /** Světlá čára vytyčení (vápno / naražená tráva po provázku). */
   private layoutMaterial(): Material {
     let material = this.materials.get('layout');
@@ -1055,8 +1386,35 @@ function plotViews(dwellings: readonly SceneDwelling[]): PlotView[] {
   return dwellings.flatMap((d) => {
     if (!d.plot) return [];
     const progress = d.built ? PLOT_BUILT : constructionState(d.type, d.progress).plot;
-    return [{ id: d.id, square: d.plot, variant: d.plot.variant, progress, house: d.position }];
+    // pozemek rozpadajícího se obydlí: plot padá, záhony zarůstají (dwelling-decay.ts)
+    const look = DECAY_LOOKS[d.built ? dwellingDecay(d) : 0];
+    const decay =
+      look.fence > 0 || look.beds > 0
+        ? { decay: { fence: look.fence, beds: look.beds, seed: d.id } }
+        : {};
+    return [
+      { id: d.id, square: d.plot, variant: d.plot.variant, progress, house: d.position, ...decay },
+    ];
   });
+}
+
+/**
+ * Stupeň rozpadu hotového obydlí (dwelling-decay.ts); řemeslné dílny zatím zůstávají celé –
+ * díly rozpadu mají jen obydlí.
+ */
+function dwellingDecay(d: Pick<SceneDwelling, 'condition' | 'craft'>): DecayStage {
+  return d.craft ? 0 : decayStage(d.condition);
+}
+
+/** Zbytek jámy ve scéně: id zaniklého obydlí a den zániku (obydlí se může přestěhovat znovu). */
+function ruinId(r: SceneRuin): string {
+  return `${r.id}@${r.since}`;
+}
+
+/** Klíč vzhledu zbytku jámy – mění se jen po krocích zarůstání (RUIN_LOOK_STEPS). */
+function ruinKey(r: SceneRuin): string {
+  const p = r.position;
+  return [ruinId(r), r.type, p.x, p.z, p.rotation, Math.round(r.overgrowth * 20)].join('|');
 }
 
 /** Druh staveniště (fáze, díly): obydlí, nebo model řemeslné dílny. */
@@ -1097,7 +1455,10 @@ function dwellingKey(d: SceneDwelling): string {
   const p = d.position;
   // Průběh stavby po 2 % – sloupy nerostou plynule, ale ani se nepřestavují při každém dotazu.
   // Hotové obydlí se přestaví, když se vylidní nebo zase zabydlí (hlína u vchodu zarůstá).
-  const look = d.built ? (d.inhabited === false ? 'empty' : '') : Math.round(d.progress * 50);
+  // Rozpad po stupních (dwelling-decay.ts) – dům se přestaví jen při změně stupně.
+  const look = d.built
+    ? `${d.inhabited === false ? 'empty' : ''}${dwellingDecay(d)}`
+    : Math.round(d.progress * 50);
   return [d.type, d.craft ?? '', p.x, p.z, p.rotation, d.built, look].join('|');
 }
 
@@ -1122,6 +1483,22 @@ function prepareDwellingMaterial(material: Material): void {
   applySeasonSnow(material);
 }
 
+/** Materiály decay.glb: obydlí (sníh na střechách), kopřivy jako trsy trávy (usychají). */
+function prepareDecayMaterial(material: Material): void {
+  if (material.name !== NETTLE_MATERIAL) {
+    prepareDwellingMaterial(material);
+    return;
+  }
+  if (!(material instanceof PBRMaterial)) return;
+  applyGammaFog(material);
+  material.roughness = 1;
+  material.metallic = 0;
+  material.ambientColor = PLANT_AMBIENT;
+  material.directIntensity = 0.8;
+  if (material.albedoTexture) material.albedoTexture.anisotropicFilteringLevel = 8;
+  applySeasonModel(material, 'nettle');
+}
+
 function prepareTuftMaterial(material: Material): void {
   if (!(material instanceof PBRMaterial)) return;
   applyGammaFog(material);
@@ -1135,3 +1512,8 @@ function prepareTuftMaterial(material: Material): void {
   // trsy na podzim usychají a přes zimu stojí suché
   applySeasonModel(material, 'grass-tuft');
 }
+
+const BERM_MATRIX = new Matrix();
+const BERM_SCALE = new Vector3();
+const BERM_POSITION = new Vector3();
+const BERM_ROTATION = new Quaternion();

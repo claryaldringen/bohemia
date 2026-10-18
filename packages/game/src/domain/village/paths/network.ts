@@ -6,6 +6,7 @@ import type { PartStage } from '../summary';
 import type {
   Craft,
   DwellingType,
+  HerdSpecies,
   LaborTarget,
   Position,
   SacredBuildingKind,
@@ -125,6 +126,16 @@ export interface PathVillage {
   obstacles?: Pick<ObstacleChanges, 'removed' | 'stumps'>;
   /** Pevné cesty (roads.md) – po nich se jde jako po plné pěšině. Bez údaje žádné. */
   roads?: readonly { points: readonly PathPoint[] }[];
+  /**
+   * Ohrady (oxen.md) – čtverec jako díl pole a jestli je hotová: plot obchází, k ohradě se chodí
+   * krmit dobytek. Bez údaje žádné.
+   */
+  pens?: readonly (PathSquare & { id: number; built: boolean })[];
+  /**
+   * Stáda na pastvě (diet.md – kusy po druzích, krávy v zimě v ohradě nepočítané): pasáček je
+   * denně vyžene na úhor. Bez údaje žádná.
+   */
+  livestock?: Readonly<Partial<Record<HerdSpecies, number>>>;
 }
 
 export interface PathNetworkInput {
@@ -178,7 +189,15 @@ const BASE_TRIPS = {
   cemetery: 0.7,
   site: 0.6,
   sacred: 0.6,
+  pen: 0.8,
 } as const;
+/**
+ * Stáda na pastvě (diet.md, jako scéna – livestock-placement.ts): ovce s kozami po 20 kusech,
+ * krávy po 6; pasáček vyžene každé stádo jednou denně na úhor a zpět (jedna cesta). Mladý úhor se
+ * pase vždy, louka na seno až po seči (srpen–listopad); prasata jdou do lesa (cesty pro dřevo).
+ */
+const PASTURE = { flockHeads: 20, cattleHeads: 6, tripsPerHerd: 1 } as const;
+const AFTERMATH_MONTHS: readonly number[] = [8, 9, 10, 11];
 /** Lidí na domácnost bez rozdělení práce (ves uložená dřív). */
 const DEFAULT_HOUSEHOLD = 5;
 /** Menší cesta za den se nehledá. */
@@ -201,9 +220,10 @@ const STAGE_COST: Record<PartStage, number> = {
   'young-fallow': 1.1,
   meadow: 1.25,
 };
-/** Sad (pod jabloněmi, okopané kmeny) a hřbitov (plot, hroby). */
+/** Sad (pod jabloněmi, okopané kmeny), hřbitov (plot, hroby) a ohrada (plot ze žerdí). */
 const ORCHARD_COST = 1.6;
 const CEMETERY_COST = 15;
+const PEN_COST = 15;
 /** Svatyně – ohrazený posvátný okrsek (modla stojí na malém půdorysu – neprůchodná). */
 const SHRINE_COST = 2.5;
 /** Okraj domu, kam pěšina nesmí (m). */
@@ -257,6 +277,7 @@ export function pathBounds(
   for (const o of village.sacred?.oaks ?? []) add(o.x, o.z);
   for (const g of village.sacred?.groves ?? []) add(g.x, g.z);
   for (const b of village.sacred?.buildings ?? []) add(b.position.x, b.position.z);
+  for (const p of village.pens ?? []) add(p.x, p.z);
   const clampX = (x: number): number =>
     Math.min(cx + MAX_WINDOW_HALF_M, Math.max(cx - MAX_WINDOW_HALF_M, x));
   const clampZ = (z: number): number =>
@@ -323,6 +344,9 @@ export function pathNetworkKey(village: PathVillage): string {
   const obstacles = village.obstacles
     ? `${village.obstacles.removed.length},${village.obstacles.stumps.length}`
     : '';
+  const pens = (village.pens ?? []).map(
+    (p) => `${p.id}:${p.cell.x},${p.cell.y}:${p.built ? 1 : 0}`,
+  );
   return JSON.stringify([
     dwellings,
     fields,
@@ -332,7 +356,18 @@ export function pathNetworkKey(village: PathVillage): string {
     labor,
     obstacles,
     roadsKey(village.roads),
+    pens,
+    pastureHerds(village.livestock),
   ]);
+}
+
+/** Kolik stád se pase (ovce s kozami, krávy – PASTURE); prasata ne. */
+export function pastureHerds(livestock: PathVillage['livestock']): number {
+  const whole = (n: number | undefined): number => Math.max(0, Math.round(n ?? 0));
+  const flock = whole(livestock?.sheep) + whole(livestock?.goat);
+  return (
+    Math.ceil(flock / PASTURE.flockHeads) + Math.ceil(whole(livestock?.cow) / PASTURE.cattleHeads)
+  );
 }
 
 /** Klíč pevných cest – počet bodů a konce každé osy (osa se jinak nemění). */
@@ -600,6 +635,12 @@ function villageGrid(input: PathNetworkInput, buildings: readonly Building[]): G
       grid.village[c] = 1;
     }
   }
+  for (const pen of v.pens ?? []) {
+    for (const c of squareCells(grid, [pen]).inside) {
+      grid.base[c] = grid.base[c]! * PEN_COST;
+      grid.village[c] = 1;
+    }
+  }
   for (const b of v.sacred?.buildings ?? []) {
     if (b.kind !== 'shrine') continue;
     const half = SACRED_BUILDINGS.shrine.footprintM / 2;
@@ -825,6 +866,22 @@ function tripGroups(
   }
   for (const cemetery of v.cemeteries ?? []) {
     target(squaresTarget(cemetery.squares), BASE_TRIPS.cemetery + work(`cemetery:${cemetery.id}`));
+  }
+  // ohrada: krmení a napájení dobytka, stavba a rádlo (práce dne na ohradě)
+  for (const pen of v.pens ?? []) {
+    const base = pen.built ? BASE_TRIPS.pen : BASE_TRIPS.site;
+    target(squaresTarget([pen]), base + work(`pen:${pen.id}`));
+  }
+  // stáda na pastvu – na úhor vsi (louka na seno až po seči; v roční síti obojí)
+  const herds = pastureHerds(v.livestock);
+  if (herds > 0) {
+    const aftermath = input.annual || AFTERMATH_MONTHS.includes(v.labor?.month ?? 6);
+    const pasture = v.fields.flatMap((f) =>
+      f.parts.filter((p) => p.stage === 'young-fallow' || (aftermath && p.stage === 'meadow')),
+    );
+    if (pasture.length > 0) {
+      target(squaresTarget(pasture), herds * PASTURE.tripsPerHerd);
+    }
   }
   // staveniště nových obydlí – nosí se k jejich čelu
   for (const d of v.dwellings) {

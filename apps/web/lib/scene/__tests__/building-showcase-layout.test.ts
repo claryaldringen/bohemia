@@ -1,11 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import {
+  DECAY_HOUSE_SHARE,
   MILIR_OFFSET_M,
   SHOWCASE_BUILDINGS,
   SHOWCASE_GROUNDS,
   SHOWCASE_PEN,
+  decayAt,
+  decayLabel,
+  showcaseDecay,
   showcasePloughField,
 } from '../building-showcase-layout';
+import { decayStage } from '../dwelling-decay';
 
 describe('SHOWCASE_BUILDINGS', () => {
   it('milíř stojí „kus od“ uhlířovy zemnice – 8 až 12 m', () => {
@@ -73,5 +78,44 @@ describe('SHOWCASE_BUILDINGS', () => {
     );
     expect(nearest.x).toBe(SHOWCASE_PEN.toward.x);
     expect(nearest.z).toBe(SHOWCASE_PEN.toward.z);
+  });
+});
+
+describe('ukázka rozpadu obydlí', () => {
+  it('posuvník: stav opuštěného obydlí 100 → 0 %, pak zbytek jámy zarůstá', () => {
+    expect(decayAt(0)).toEqual({ condition: 1 });
+    expect(decayAt(DECAY_HOUSE_SHARE / 2)).toEqual({ condition: 0.5 });
+    expect(decayAt(DECAY_HOUSE_SHARE)).toEqual({ overgrowth: 0 });
+    expect(decayAt(1)).toEqual({ overgrowth: 1 });
+    expect(decayLabel(0)).toMatch(/^stav 100 % – celý dům/);
+    expect(decayLabel(DECAY_HOUSE_SHARE + 0.2)).toMatch(/^zbytek jámy – 5 let po zániku/);
+    expect(decayLabel(1)).toMatch(/zmizel/);
+  });
+
+  it('dvojice podle posuvníku a řada všech stupňů se zbytky jam, nic se nepřekrývá', () => {
+    const start = showcaseDecay(0);
+    const pair = start.dwellings.filter((d) => d.id < 9100);
+    expect(pair.map((d) => d.type)).toEqual(['zemnice', 'polozemnice']);
+    expect(pair[1]!.plot).toBeDefined();
+    expect(pair.every((d) => d.inhabited === false)).toBe(true);
+    const row = start.dwellings.filter((d) => d.id >= 9100);
+    expect(row.map((d) => decayStage(d.condition))).toEqual([0, 1, 2, 3, 0, 1, 2, 3]);
+    expect(start.ruins).toHaveLength(2);
+    const later = showcaseDecay(DECAY_HOUSE_SHARE + 0.1);
+    expect(later.dwellings.filter((d) => d.id < 9100)).toEqual([]);
+    expect(later.ruins!.filter((r) => r.id < 9100).map((r) => r.type)).toEqual([
+      'zemnice',
+      'polozemnice',
+    ]);
+    expect(showcaseDecay(1).ruins).toHaveLength(2);
+    const spots = [...start.dwellings, ...start.ruins!].map((d) => d.position);
+    for (let i = 0; i < spots.length; i++) {
+      for (let j = i + 1; j < spots.length; j++) {
+        const gap = Math.hypot(spots[i]!.x - spots[j]!.x, spots[i]!.z - spots[j]!.z);
+        expect(gap).toBeGreaterThan(9);
+      }
+    }
+    // mimo ostatní stavby ukázky (řada staveb z = 0, pozemky z = −26)
+    for (const p of spots) expect(p.z).toBeLessThan(-40);
   });
 });

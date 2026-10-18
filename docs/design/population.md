@@ -7,7 +7,8 @@ oprava čísel podle rešerše (Martin – úmrtnost dospělých, porody od 16 l
 hladu: lidé umírají hlady a ves může vymřít; komu vymřou všechny vsi, ten začíná znovu (viz Hlad
 a vymření). Týž den: začít znovu jde i sám z nabídky hry (Martin) a dospělé děti z přeplněné
 domácnosti osídlí úplně prázdné obydlí (Martin, detaily návrh Clauda – viz Nové obydlí)
-a neobydlené budovy chátrají rychleji (Martin, čísla návrh Clauda).
+a neobydlené budovy chátrají rychleji (Martin, čísla návrh Clauda) a svobodní z různých domů se
+berou (Martin, detaily návrh Clauda – viz Sňatky mezi domy).
 Implementace jádra: `packages/game/src/domain/village/`.
 
 ## Proč
@@ -31,8 +32,8 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
 - **Cíl:** práce (člověkodny) je společná měna vsi – stavby a opravy ji spotřebují a zbytek
   půjde později do veřejných projektů.
 - **Ne-cíl (teď):** jiné stavby než obydlí, výroba jídla a pole (vlastní dokument, viz
-  Navazuje), těžba dřeva, voda, jednotliví lidé se jmény, sňatky mezi vesnicemi, rod hráče,
-  více vesnic. **Příchozí z okolí zatím ne** – narušilo by to budoucí mechaniky (Martin).
+  Navazuje), těžba dřeva, voda, jednotliví lidé se jmény, sňatky mezi vesnicemi (uvnitř vsi
+  se berou – viz Sňatky mezi domy), rod hráče, více vesnic. **Příchozí z okolí zatím ne** – narušilo by to budoucí mechaniky (Martin).
 - **Anti-cíl:** ves, která se bez hráče rozpadne nebo vymře jen proto, že hráč pár dní nebyl
   online. Nestavění zpomalí růst, ale neruinuje ves. Pole obdělávají osadníci sami – ves, která
   má dost polí, bez hráče nehladoví. Hlad ji zabít může (Martin, 18. 10. 2026 – Hlad a vymření).
@@ -88,15 +89,16 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
 - Hráč vidí **půdorys** obydlí a umístí ho volně, kamkoli, kde je **země dost rovná** (Martin) –
   ne po políčkách. Výchozí: rozdíl výšky terénu pod půdorysem nejvýš 0,5 m; zemnice má půdorys
   zhruba 4 × 4 m, polozemnice 5 × 5 m (návrh Clauda).
-- Obydlí nesmí stát ve vodě ani se překrývat s jiným obydlím nebo polem (návrh Clauda).
+- Obydlí nesmí stát ve vodě ani se překrývat s jiným obydlím nebo hřbitovem (návrh Clauda). Na
+  pole a do sadu smí – pole a sad se zmenší (Martin, 18. 10. 2026 – viz Obydlí na poli a v sadu).
 - **Polozemnice stojí na pozemku velkém jako jedno políčko pole** (Martin, 18. 10. 2026):
   15 × 15 m v mřížce políček jako čtverec pole, celý obehnaný polským plotem. Dům stojí
   **uprostřed, nebo v jednom ze čtyř rohů** – 5 variant jednoho stavení (Martin); hráč je při
   umisťování přepíná klávesami [ a ] (místo otáčení), vchod míří vždy k brance na přední straně
   pozemku (návrh Clauda). Pozemek musí být volná louka – ne voda, zatím ani les, bez skalního
   výchozu, bez posvátného dubu a čtverce dubového háje (dům ani pod korunou dubu ze sousedství –
-  jako u obydlí, [happiness.md](happiness.md)), nezabraný polem, hřbitovem, sadem ani jiným
-  obydlím či pozemkem; rovná zem
+  jako u obydlí, [happiness.md](happiness.md)), nezabraný hřbitovem ani jiným obydlím či
+  pozemkem – čtverec pole nebo sadu smí (viz Obydlí na poli a v sadu); rovná zem
   (≤ 0,5 m) se hlídá jen pod domem. Překážky na pozemku platí jako na čtverci pole (všechny kusy
   na políčku), dospělé stromy z něj dají klády (návrh Clauda). Zemnice pozemek nemá a staví se
   volně.
@@ -111,7 +113,9 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
   Polozemnice na obsazeném políčku zůstane bez pozemku až do **příští přestavby**: ta ji postaví
   na nejbližším volném políčku s pozemkem do 50 m od domu (jako novou stavbu – překážky, klády,
   rovina pod domem), a domácnost se po dostavění přestěhuje; bez volného políčka se přestaví na
-  místě dál bez pozemku. Totéž platí pro zemnici přestavovanou na polozemnici.
+  místě dál bez pozemku. Totéž platí pro zemnici přestavovanou na polozemnici. Volné políčko je
+  i bez pole a sadu – obyvatelé si pozemek na poli ani v sadu sami nevezmou, to rozhoduje jen
+  hráč (návrh Clauda).
 - **Překážky** na místě, např. kameny, osadníci odstraní, ale stavba stojí víc člověkodní
   (Martin). Totéž **v lese** – stromy je třeba skácet a vykopat pařezy. Ceny překážek a mýcení
   jsou jedna tabulka pro celou hru ve [fields.md](fields.md) (návrh Clauda). Kontrola umístění
@@ -120,6 +124,41 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
   obydlí na místo nejde, místo ceny krátký červený důvod (fields.md – Co hráč vidí).
 - Odstraněné kameny a stromy z krajiny sídla zmizí natrvalo – krajina sídla je vygenerovaná
   krajina plus změny, které v ní udělali lidé (návrh Clauda).
+
+### Obydlí na poli a v sadu
+
+Martin (18. 10. 2026): „domy by měly jít stavět na polích a v sadech. Pole a sad se prostě
+zmenší o plochu domu“. Podrobnosti jsou návrh Clauda:
+
+- **Polozemnice s pozemkem** smí na čtverec pole i sadu (pozemek je celé políčko ve stejné
+  mřížce). Díl pole nebo čtverec sadu pod pozemkem z pole či sadu **zmizí** – pole či sad se
+  o čtverec zmenší; byl-li to poslední čtverec, pole či sad zanikne. Zbytek zůstane jedním polem či
+  sadem, i kdyby se tím rozpadl na nesouvislé části – nic se nedělí.
+- **Zemnice a další obydlí bez pozemku** (i řemeslné dílny) smí přes díly polí a čtverce sadu.
+  Každý dotčený díl či čtverec se **zmenší o průnik vyklízené plochy obydlí** (staveniště
+  s hromadou hlíny a předsazenou střechou, u uhlíře i kruh kolem milíře) se svým čtvercem. Díl,
+  kterému zbude **méně než 20 % políčka** (45 m²), zmizí celý – zbytek u domu by nikdo
+  neobdělával. Plocha se odečítá z průniku s každým domem zvlášť (dva domy, jejichž vyklízené
+  plochy se na dílu překrývají, mu ten kus uberou dvakrát – zjednodušení).
+- **Hřbitov** dál ne (hroby). Ostatní kontroly obydlí platí beze změny – posvátný dub a háj,
+  skalní výchoz, rovná zem pod domem, jiná obydlí a pozemky.
+- **Úroda a práce** jdou s plochou: díl odebraný z pole zmizí i z ročního plánu osevu a z pořadí
+  práce (i z orby rádlem a ze seče sena na úhoru – [oxen.md](oxen.md)), zmenšený díl dá úměrně
+  menší úrodu i seno a chce úměrně méně práce; ostatním dílům zůstane, co na nich bylo hotové
+  (čelo práce i seče se nepohne). Sklizená plodina (úroda už je v zásobách) se
+  nemění. Rozestavěné založení pole se zmenší úměrně (cena i odvedená práce), zakládaný díl pod
+  pozemkem zmizí s ním. Čtverec sadu dá úměrně méně jablek a sezónní práce (sklizeň, péče)
+  i výsadby; jabloně pod domem ve scéně chybí, stejně tak obilí pod vyklízenou plochou.
+- **Překážky** na založeném dílu a vysazeném čtverci už nejsou – obydlí tam mýcení neplatí, cena
+  u kurzoru to ukazuje (stejné funkce jako na serveru). Zakládaný díl či nevysazený čtverec, který
+  dům sebere celý, předá své překážky staveništi domu – odklidí se s ním bez práce navíc,
+  dospělé stromy dají klády.
+- **Při umisťování** je u kurzoru oranžové varování „Pole se zmenší“ (nebo „Pole zanikne“, když
+  mu dům sebere poslední díl), u sadu „Sad se zmenší“ / „Sad zanikne“ – stavbu neblokuje.
+- **Kronika:** pole či sad ustoupil stavbě obydlí (o kolik m², nebo zanikl). Upozornění
+  v rozhraní není.
+- Když dům později zanikne (chátrání), plocha se do pole ani sadu sama nevrací. Zemnice při
+  založení vsi se chová stejně – ves tehdy pole ani sad ještě nemá.
 
 ### Práce
 
@@ -133,7 +172,8 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
 
 ### Růst populace
 
-- **Porody:** každý pár (dva lidé **16–44 let** v jedné domácnosti) má zhruba jedno dítě za
+- **Porody:** každý pár (dva lidé **16–44 let** v jedné domácnosti – svobodní z různých domů se
+  vezmou, viz Sňatky mezi domy) má zhruba jedno dítě za
   3 roky (intervaly mezi porody 24–39 měsíců – Macfarlane 2002). Porody od 16 let jsou oprava
   podle rešerše (dřív od 14 – plodnost od 14 je optimistická); pro práci, odemčení nového obydlí
   a rozpad domácnosti je dospělý dál od 14. Hlad porody tlumí až zastaví, přeplněnost je
@@ -164,6 +204,32 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
   Opuštěné obydlí se neopravuje a chátrá rychleji (zemnice ≈ 5 let, polozemnice ≈ 8 let – viz
   Nové obydlí); při stavu 0 zanikne a políčko se uvolní.
 
+### Sňatky mezi domy
+
+Martin, 18. 10. 2026: „Ano, přidej sňatky mezi domy“. Proč: porody potřebují pár v jednom domě.
+Ve Vlkově (rok 612) žilo 10 lidí – polozemnice 63, 49, 27, 12, 10, 6 a zemnice 42, 19, 2, 1;
+27letý a 19letý, každý v jiném domě, by se nikdy nedali dohromady, jediný pár (42 a 19) za pár let
+skončí a ves vymírala (za 15 let 11 úmrtí a 6 porodů). Detaily jsou návrh Clauda.
+
+- **Svobodný** je člověk 16–44 let, který je ve své domácnosti jediný takový – nemá v domě
+  protějšek (obyvatelé nemají pohlaví, pár jsou dva lidé 16–44). Když jsou ve dvou různých
+  domácnostech dva svobodní, **vezmou se**: jeden se přestěhuje k druhému a vznikne pár.
+- **Kdo se stěhuje:** ten, jehož domácnost se odchodem nerozpadne (Rozpad domácnosti) – jinak by
+  rozpad zbytek večer přestěhoval a rozpad vsi by se rozjel. Když by se nerozpadla ani jedna,
+  stěhuje se do domu s víc volnými místy (kapacita − lidé), při shodě se stěhuje mladší. Když by
+  se rozpadly obě, nestěhuje se nikdo – počkají.
+- **Místo:** do přeplněného domu se nestěhuje; plný dům smí – po svatbě je o jednoho přes
+  kapacitu. Bez svatby by pár nebyl vůbec; přeplněný dům pak řeší dospělé děti do prázdného
+  obydlí a upozornění „Domácnost je plná“ (viz Nové obydlí).
+- **Kdo s kým:** svobodní od nejstaršího – nejdřív ten, komu se plodný věk krátí – a každý si
+  vezme dalšího svobodného v tomtéž pořadí (nejbližšího věkem mezi zbylými), se kterým svatba
+  jde. Jeden sňatek na člověka denně; svatby se rozhodují každý den po obsazení prázdných obydlí
+  (krok simulace 6), bez náhody, takže nezávisí na tom, po jakých kouscích se ves dopočítá.
+- Kronika zapíše **svatbu** (z kterého domu do kterého), rozhraní ukáže krátký mizející řádek
+  „Svatba“ (fakt, bez rady). Lidé k osídlení se nemění – svatba novou domácnost nezakládá.
+- **S okolními vsemi** se lidé budou brát i odjinud (přivdat, přiženit) – zatím ne, až přijdou
+  sousední vsi (ne-cíl, viz Cíle).
+
 ### Hlad a vymření
 
 Martin, 18. 10. 2026: „Koukám do hry, jídlo došlo, nasycení 0 %, ale lidé si furt vesele žijí
@@ -171,8 +237,12 @@ místo aby zemřeli.“ Na návrh Clauda (nahromaděný hlad, smrt do ≈ 2 měs
 zůstává, ochrana posledních dvou dospělých padá): „Ano, když hráči vymřou všechny vesnice (časem
 jich bude moci mít více), tak pro něj hra končí – musí začínat znovu.“ Čísla jsou návrh Clauda.
 
+- **Hladem se umírá z energie, ne z pestrosti** ([strava](diet.md), od 18. 10. 2026): nahromaděný
+  hlad i přirážka úmrtnosti za dnešní hlad počítají s pokrytím energie; nasycení se stravou
+  (energie × pestrost) řídí porody a štěstí. Ves jen s obilím (80 %) se množí pomaleji, ale
+  hladem neumírá.
 - **Nahromaděný hlad** vsi se měří ve **dnech bez jídla**: každý den přibude
-  max(0, 0,9 − nasycení) / 0,9 – den bez jídla je celý den, den o polovičním přídělu ≈ 0,44
+  max(0, 0,9 − energie) / 0,9 – den bez jídla je celý den, den o polovičním přídělu ≈ 0,44
   a při 80 % ≈ 0,11 (mírný nedostatek tělo snese – návrh Clauda, upraveno 18. 10. 2026). Když
   ves jí aspoň z 90 %, hlad ubývá o den denně až k nule – jedna hranice pro přibývání
   i zotavení, žádné pásmo, kde by hlad stál. Víc než 60 dní se nehromadí (dál už to nemá vliv).
@@ -311,11 +381,19 @@ jich bude moci mít více), tak pro něj hra končí – musí začínat znovu.�
   Typ úplně nové stavby vybírá hráč.
 - Během přestavby domácnost bydlí dál (stavba se abstrahuje, starý dům zmizí až s dokončením
   nového – návrh Clauda).
+- **Po zániku – zbytek jámy** (Martin, 18. 10. 2026; podoba a čísla návrh Clauda): obydlí, které
+  zchátrá na nulu (prázdné), nebo jehož domácnost se při přestavbě přestěhuje na nový pozemek
+  (starý dům se zboří), nechá na svém místě zarostlou prohlubeň s kopřivami a pár trámy. Ta
+  **≈ 10 let** postupně zarůstá – prohlubeň se zasypává, trámy hnijí, valy se srovnají – a pak
+  zmizí. Je to jen vzhled: na místo zříceniny jde stavět a stavba (obydlí, pole, hřbitov, sad,
+  ohrada, modla, svatyně – i přestavba na novém pozemku) zbytek jámy odstraní. Vsi uložené dřív žádné
+  zbytky jam nemají.
 
 ### Kronika
 
 - Ves vede kroniku událostí s herním datem: narození, úmrtí (dítě / dospělý / starší, hladem
-  zvlášť), založení domácnosti, dokončení stavby, rozhodnutí obyvatel o přestavbě a vymření vsi.
+  zvlášť), založení domácnosti, svatba mezi domy, dokončení stavby, rozhodnutí obyvatel
+  o přestavbě a vymření vsi.
   Po návratu ji hráč uvidí jako první.
 - Kronika drží **posledních 500 událostí**, starší se zahazují (návrh Clauda – stav vsi za
   1000 let jinak roste bez konce; simulace kroniku nečte, takže na průběh vsi to nemá vliv).
@@ -421,13 +499,34 @@ pravidla → první verze hladu (1 − nasycení za den, hájení bez stropu) �
   plotu, cizí zvířata ani lidé do pozemku nechodí. Stavby
   z módu Millennium A.D. (ruské sruby, severské domy) se nepoužijí – jiná doba či region
   a nejistá licence (Martin); nanejvýš jako předloha tvarů pro pozdější roubené chalupy.
+- **Dům se viditelně rozpadá** (Martin, 18. 10. 2026: „domy by měly mít různé stavy destrukce –
+  jako se nový dům postupně staví, tak starý a opuštěný dům se musí postupně rozpadat“; stupně
+  a podoba návrh Clauda). Stupeň podle stavu obydlí platí pro **každé** obydlí – i obydlené,
+  kterému nestačí opravy (jako poškozené budovy v 0 A.D.); obydlené s dostatkem oprav zůstává
+  celé:
+  1. **100–70 %** – celý dům (u prázdného bez dýmu, vchod zarůstá).
+  2. **70–45 % – sešlý:** došky prořídlé a vybledlé, místy díry, mech a tráva na střeše, omítka
+     místy opadaná (vidět výplet, u polozemnice trámy srubu).
+  3. **45–20 % – propadá se:** část došků pryč, vidět latě a krokve, hřeben prověšený a nakřivo;
+     u polozemnice padá i plot pozemku (chybí větve, kůly nakřivo) a záhony zarůstají plevelem,
+     kolem domu kopřivy.
+  4. **20–0 % – zřícený:** střecha spadlá do jámy, trčí krokve a sloupy, stěny rozpadlé (ze štítů
+     zemnice nízké pahýly, ze srubu polozemnice spodní řady trámů); z plotu zbyly pahýly, záhony
+     zarostlé, ze zřícené střechy už nestoupá dým.
+  5. **Po zániku – zbytek jámy:** zarostlá prohlubeň s kopřivami, pár trámy a nízkými valy, ≈ 10
+     let postupně zarůstá a pak zmizí (Chátrání a přestavba – Po zániku).
+
+  Řemeslné dílny (hrnčíř, kovář, uhlíř) zatím zůstávají celé – jejich díly rozpadu přijdou
+  později (stojí na tvarech obydlí, ale přístřešek, pec, výheň a milíř potřebují vlastní).
+  Kronika ani upozornění kvůli rozpadu nic nového nehlásí.
+
 - Rozhraní jako v 0 A.D. (Martin, 17. 10. 2026: „Ovládací prvky a layout udělej jako u 0AD.
   Odstraň všechny popisky – hráč nepotřebuje průvodce. Nevoď hráče za ručičku.“): horní lišta
   se jménem vsi a ikonami s čísly (lidé, obilí, volná práce, nasycení, datum), minimapa, panel
   vybraného obydlí (obyvatelé s věkem, stav, stáří, průběh stavby) a mřížka staveb. Žádný
   průvodce ani nápovědy.
-- Krátké mizející upozornění, že je domácnost plná, že ves hladoví a že lidé umírají hlady
-  (fakt, ne rada).
+- Krátké mizející upozornění, že je domácnost plná, že ves hladoví, že lidé umírají hlady a že
+  byla svatba (fakt, ne rada).
 - Obrazovka porážky, když hráči vymřou všechny vsi (Hlad a vymření).
 - Kronika zůstává v datech vsi, v rozhraní zatím není.
 
@@ -485,6 +584,9 @@ pravidla → první verze hladu (1 − nasycení za den, hájení bez stropu) �
 | Aspoň dva (jednotlivci z různých domácností spolu); zbytek se nesmí rozpadnout | návrh Clauda                               |
 | Nejdřív mladý pár, pak dospělé děti; lidé k osídlení počítají obojí            | návrh Clauda                               |
 | U neplodných rodičů (oba 45+) zůstává nejstarší dospělé dítě doma jako dědic   | Martin (18. 10. 2026)                      |
+| Sňatky mezi domy – svobodní 16–44 ze dvou domů se vezmou                       | Martin (18. 10. 2026)                      |
+| Stěhuje se, komu se dům nerozpadne; jinak do víc míst, mladší; ne do přeplněna | návrh Clauda                               |
+| Svobodní od nejstaršího, protějšek další v pořadí; denně v kroku 6             | návrh Clauda                               |
 | Neobydlené budovy chátrají rychleji                                            | Martin (18. 10. 2026)                      |
 | Prázdná zemnice zanikne za ≈ 5 let, polozemnice za ≈ 8 let (úbytek navíc)      | návrh Clauda                               |
 | Obyvatelé bez jmen a pohlaví, náhoda ze seedu, kronika                         | návrh Clauda                               |
@@ -493,3 +595,11 @@ pravidla → první verze hladu (1 − nasycení za den, hájení bez stropu) �
 | Rohy polského plotu zakulacené; výběr polozemnice označí celý pozemek          | Martin, 18. 10. 2026                       |
 | Starší polozemnice dostanou pozemek při načtení, jinak při přestavbě do 50 m   | Martin, 18. 10. 2026                       |
 | Vchod k brance vpředu, [ a ] přepínají variantu, rovno jen pod domem           | návrh Clauda                               |
+| Obydlí jde stavět na pole a do sadu – pole a sad se zmenší o plochu domu       | Martin, 18. 10. 2026                       |
+| Pozemek bere celý čtverec, obydlí bez pozemku průnik vyklízené plochy          | návrh Clauda                               |
+| Díl či čtverec pod 20 % políčka zmizí; zbytek pole či sadu se nedělí           | návrh Clauda                               |
+| Úroda, práce a založení úměrně ploše; plocha se po zániku domu nevrací         | návrh Clauda                               |
+| Přestavba obyvatel si pozemek na poli ani v sadu nevezme; hřbitov dál ne       | návrh Clauda                               |
+| Dům se viditelně rozpadá, jako se staví – stupně podle stavu, i obydlený       | Martin, 18. 10. 2026                       |
+| Stupně 70 / 45 / 20 %, jejich podoba; plot a záhony od propadající se střechy  | návrh Clauda                               |
+| Zbytek jámy po zaniklém obydlí ≈ 10 let zarůstá; stavba přes něj ho odstraní   | návrh Clauda                               |

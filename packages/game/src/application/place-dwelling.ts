@@ -86,6 +86,8 @@ export function placeDwelling(
             forestDistanceM: forestEdgeDistanceM(input.landscape, position.x, position.z),
             ...(plot ? { plot } : {}),
             sacred: check.spared,
+            // pole a sady pod obydlím se o zabranou plochu zmenší
+            takenLand: check.takenLand,
           },
         ),
       };

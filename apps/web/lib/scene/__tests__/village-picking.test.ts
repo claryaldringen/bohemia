@@ -277,3 +277,38 @@ describe('pickVillageTarget – posvátná místa', () => {
     expect(targetExists(village, { kind: 'sacred', id: 701 })).toBe(false);
   });
 });
+
+describe('výběr ohrady (oxen.md)', () => {
+  const withPen: SceneVillage = {
+    ...village,
+    pens: [
+      {
+        id: 21,
+        cell: { x: 1, y: 2 },
+        x: 22.5,
+        z: 37.5,
+        size: CELL,
+        built: true,
+        progress: 1,
+        oxen: 2,
+        trainees: 0,
+        cows: 0,
+      },
+    ],
+  };
+
+  it('klik na čtverec ohrady ji vybere, obrys je čtverec ohrady', () => {
+    const target = pickVillageTarget(withPen, rayTo(22, 38), {
+      ground: { x: 22, z: 38 },
+      groundHeight: flat,
+      cellOf,
+    });
+    expect(target).toEqual({ kind: 'pen', id: 21 });
+    expect(targetExists(withPen, { kind: 'pen', id: 21 })).toBe(true);
+    expect(targetExists(village, { kind: 'pen', id: 21 })).toBe(false);
+    const outline = targetOutline(withPen, { kind: 'pen', id: 21 });
+    const xs = outline.flat().map((p) => p[0]);
+    expect(Math.min(...xs)).toBeCloseTo(15, 9);
+    expect(Math.max(...xs)).toBeCloseTo(30, 9);
+  });
+});

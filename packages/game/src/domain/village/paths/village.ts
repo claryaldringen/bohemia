@@ -1,14 +1,18 @@
 import { dateOfDayIndex } from '../../calendar';
 import { tileCenterWorld, type Landscape, type ObstacleLayer } from '../../landscape';
 import { villageCemeteries } from '../cemetery';
+import { HAY_WINTER_MONTHS } from '../hay';
+import { villageHerds } from '../livestock';
 import { obstacleChangesAt } from '../obstacles';
 import { villageOrchards } from '../orchard';
+import { villagePens } from '../oxen';
 import { ageGroup } from '../people';
 import { partStage } from '../summary';
-import type { Position, TileCell, VillageState } from '../types';
+import type { HerdSpecies, Position, TileCell, VillageState } from '../types';
 import {
   computePathNetwork,
   pathAgeFactor,
+  pastureHerds,
   pathBounds,
   roadsKey,
   type PathNetwork,
@@ -32,6 +36,26 @@ const WALK_ROUNDING = 10;
 function square(landscape: Landscape, cell: TileCell): PathSquare {
   const c = tileCenterWorld(landscape, cell.x, cell.y);
   return { cell: { x: cell.x, y: cell.y }, x: c.x, z: c.z, size: landscape.cellSizeM };
+}
+
+/**
+ * Stáda na pastvě v den `day` jako ve scéně (village-view.ts – `SceneVillage.livestock`): kusy
+ * zaokrouhleně, v zimě (listopad–březen) stojí krávy v ohradě, když ves hotovou ohradu má.
+ */
+export function pastureLivestock(
+  state: Pick<VillageState, 'livestock' | 'pens'>,
+  day: number,
+): Record<HerdSpecies, number> {
+  const herds = villageHerds(state);
+  const penned =
+    HAY_WINTER_MONTHS.includes(dateOfDayIndex(day).month) &&
+    villagePens(state).some((p) => p.builtDay !== null);
+  return {
+    sheep: Math.round(herds.sheep),
+    goat: Math.round(herds.goat),
+    pig: Math.round(herds.pig),
+    cow: penned ? 0 : Math.round(herds.cow),
+  };
 }
 
 /**
@@ -123,6 +147,14 @@ export function pathVillageOf(state: VillageState, day: number, landscape: Lands
   }
   const changes = obstacleChangesAt(state, day);
   const roads = state.roads?.roads ?? [];
+  const pens = villagePens(state).map((p) => ({
+    id: p.id,
+    cell: { x: p.cell.x, y: p.cell.y },
+    x: p.x,
+    z: p.z,
+    size: landscape.cellSizeM,
+    built: p.builtDay !== null,
+  }));
   return {
     dwellings,
     fields,
@@ -143,6 +175,8 @@ export function pathVillageOf(state: VillageState, day: number, landscape: Lands
       : {}),
     obstacles: changes,
     ...(roads.length > 0 ? { roads: roads.map((r) => ({ points: r.points })) } : {}),
+    ...(pens.length > 0 ? { pens } : {}),
+    ...(state.livestock ? { livestock: pastureLivestock(state, day) } : {}),
   };
 }
 
@@ -170,8 +204,8 @@ export function villagePathNetwork(
 
 /**
  * Klíč rozložení vsi pro vzdálenosti chůze: obydlí a staveniště (poloha, pozemek, obyvatelé,
- * stáří spojení po desetinách), díly polí se stadiem, sady, hřbitovy, posvátná místa a pevné
- * cesty. Práce dne ani pokácené stromy v něm nejsou – síť se kvůli nim každý den nepřepočítává.
+ * stáří spojení po desetinách), díly polí se stadiem, sady, hřbitovy, posvátná místa, pevné
+ * cesty, ohrady a počet stád na pastvě. Práce dne ani pokácené stromy v něm nejsou – síť se kvůli nim každý den nepřepočítává.
  */
 export function walkLayoutKey(state: VillageState, day: number): string {
   const occupied = new Set(state.people.map((p) => p.dwellingId));
@@ -202,6 +236,10 @@ export function walkLayoutKey(state: VillageState, day: number): string {
     (state.sacredBuildings ?? []).map((b) => b.id).join(','),
   ].join('|');
   const roads = state.roads?.roads ?? [];
+  const pens = villagePens(state).map(
+    (p) => `${p.id}:${p.cell.x},${p.cell.y}:${p.builtDay === null ? 0 : 1}`,
+  );
+  const herds = state.livestock ? pastureHerds(pastureLivestock(state, day)) : 0;
   return JSON.stringify([
     dwellings,
     sites,
@@ -209,8 +247,10 @@ export function walkLayoutKey(state: VillageState, day: number): string {
     orchards,
     cemeteries,
     sacred,
-    // bez pevných cest prázdné – klíč starších vsí zůstane stejný (nepřepočítává se zbytečně)
+    // bez pevných cest, ohrad a stád prázdné – klíč starších vsí zůstane stejný
     ...(roads.length > 0 ? [roadsKey(roads)] : []),
+    ...(pens.length > 0 ? [pens] : []),
+    ...(herds > 0 ? [herds] : []),
   ]);
 }
 

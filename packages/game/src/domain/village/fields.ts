@@ -1,5 +1,6 @@
 import { dateOfDayIndex } from '../calendar';
 import type { Surface } from '../landscape';
+import { cloneState } from './clone';
 import { foundingCostPerHa, withinBounds } from './productivity';
 import {
   DISTANCE,
@@ -130,23 +131,33 @@ export function endOfSeason(part: FieldPart, day: number): void {
 }
 
 /**
+ * Skupina dílu v pořadí přílohové soustavy (fields.md – Přílohová soustava): 1 osévaný díl, který
+ * smí dál (≥ 0,7), 2 čerstvě založený (připravený), 3 příloh zotavený aspoň na 0,95, 4 příloh
+ * 0,7–0,95; jiný díl (zakládaný, vyčerpaný příloh) null.
+ */
+export type SowingGroup = 1 | 2 | 3 | 4;
+export function sowingGroup(p: FieldPart): SowingGroup | null {
+  const sowable = p.fertilityShare >= FERTILITY.sowableMin - EPSILON;
+  if (p.state === 'sown') return sowable ? 1 : null;
+  if (p.state === 'ready') return 2;
+  if (p.state !== 'fallow' || !sowable) return null;
+  return p.fertilityShare >= FERTILITY.fallowReady - EPSILON ? 3 : 4;
+}
+
+/**
  * Díly, které smí ves osít, v pořadí ze spec: osetý (≥ 0,7), připravený, příloh ≥ 0,95
- * (nejmladší první), příloh ≥ 0,7 (nejúrodnější první). Díly nemění.
+ * (nejmladší první), příloh ≥ 0,7 (nejúrodnější první). Díly nemění. Ves s hospodářstvími bere
+ * díly po úsecích (`sowingBlocks` v holdings.ts).
  */
 export function sowingOrder(parts: FieldPart[]): FieldPart[] {
-  const sowable = (p: FieldPart): boolean => p.fertilityShare >= FERTILITY.sowableMin - EPSILON;
-  const full = (p: FieldPart): boolean => p.fertilityShare >= FERTILITY.fallowReady - EPSILON;
   const since = (p: FieldPart): number => p.fallowSinceDay ?? -Infinity;
-
   const byDistance = (a: FieldPart, b: FieldPart): number => a.distanceM - b.distanceM;
-  const group1 = parts.filter((p) => p.state === 'sown' && sowable(p)).sort(byDistance);
-  const group2 = parts.filter((p) => p.state === 'ready').sort(byDistance);
-  const group3 = parts
-    .filter((p) => p.state === 'fallow' && full(p))
-    .sort((a, b) => since(b) - since(a) || byDistance(a, b));
-  const group4 = parts
-    .filter((p) => p.state === 'fallow' && sowable(p) && !full(p))
-    .sort((a, b) => b.fertilityShare - a.fertilityShare || byDistance(a, b));
+  const inGroup = (group: SowingGroup): FieldPart[] =>
+    parts.filter((p) => sowingGroup(p) === group);
+  const group1 = inGroup(1).sort(byDistance);
+  const group2 = inGroup(2).sort(byDistance);
+  const group3 = inGroup(3).sort((a, b) => since(b) - since(a) || byDistance(a, b));
+  const group4 = inGroup(4).sort((a, b) => b.fertilityShare - a.fertilityShare || byDistance(a, b));
   return [...group1, ...group2, ...group3, ...group4];
 }
 
@@ -300,7 +311,7 @@ export function withMergedFields(state: VillageState): VillageState {
     if (r !== id) groups.set(r, [...(groups.get(r) ?? []), id]);
   }
   if (groups.size === 0) return state;
-  const next = structuredClone(state);
+  const next = cloneState(state);
   for (const [into, others] of [...groups].sort(([a], [b]) => a - b)) {
     mergeFields(next, into, others);
   }

@@ -3,6 +3,7 @@ import {
   PLOT_TYPES,
   cemeteryPartsFromCells,
   checkDwellingPlacement,
+  checkPenPlacement,
   checkPlotPlacement,
   checkSacredBuildingPlacement,
   checkWorkshopPlacement,
@@ -13,8 +14,11 @@ import {
   NO_OBSTACLE_CHANGES,
   obstaclesOf,
   orchardPartsFromCells,
+  penLaborManDays,
   planDwellingWoodFrom,
   planSacredWood,
+  planWoodFrom,
+  PEN,
   sacredLaborManDays,
   type BuildKind,
   type Craft,
@@ -383,7 +387,62 @@ export const BUILD_ITEMS: readonly BuildItem[] = [
   workshop('potter', 'Hrnčíř', 'hrncir', 'F'),
   workshop('smith', 'Kovář', 'kovar', 'G'),
   workshop('burner', 'Uhlíř', 'uhlir', 'H'),
+  {
+    // oxen.md – ohrada s přístřeškem: jeden čtverec louky, staví se jako pole po čtvercích
+    kind: 'pen',
+    name: 'Ohrada',
+    icon: 'ohrada',
+    hotkey: 'KeyO',
+    hotkeyLabel: 'O',
+    placement: 'squares',
+    check: (landscape, village, cells) => {
+      const [cell, ...rest] = cells;
+      if (!cell) return { check: { ok: false, reason: null }, blockedCells: [], cost: null };
+      if (rest.length > 0) {
+        return {
+          check: { ok: false, reason: 'Ohrada je jeden čtverec.' },
+          blockedCells: rest,
+          cost: null,
+        };
+      }
+      const check = checkPenPlacement(landscape, village, cell);
+      return {
+        check,
+        blockedCells: check.ok ? [] : [cell],
+        cost: check.ok ? penPlacementCost(village, check) : null,
+      };
+    },
+  },
 ];
+
+/**
+ * Cena ohrady u kurzoru: práce jako při zahájení stavby (`penLaborManDays` – stavba, překážky
+ * a kácení) – dřevo z klád na hromadě nezná (VillageView je ukazuje jen v kusech), proto počítá,
+ * jako by se kácelo u ohrady všech 6 stromů bez klád; stromy ke kácení ukáže 0 (cena dřeva je
+ * v nabídce staveb).
+ */
+function penPlacementCost(
+  village: PlacementVillage,
+  check: {
+    obstacleCost: number;
+    obstacleIds: number[];
+    clearedTrees: number;
+    x: number;
+    z: number;
+  },
+): PlacementCost {
+  const plan = planWoodFrom(
+    PEN.trees,
+    { x: check.x, z: check.z },
+    {
+      logs: 0,
+      changes: () => village.obstacleChanges ?? NO_OBSTACLE_CHANGES,
+      claimed: () => new Set(village.reservedTrees ?? []),
+    },
+    { clearedIds: check.obstacleIds, clearedTrees: check.clearedTrees },
+  );
+  return { laborManDays: penLaborManDays(check.obstacleCost, plan), trees: 0 };
+}
 
 /** Stavba podle druhu. */
 export function buildItem(kind: BuildKind): BuildItem {

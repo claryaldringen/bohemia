@@ -132,7 +132,7 @@ function* around(x: number, z: number, maxR: number): Generator<Position> {
 
 /**
  * Místo pro první zemnici u místa vsi, pole 3 × 2 čtverce (0,135 ha) vedle ní a pozemek pro
- * polozemnici (celé políčko, dům uprostřed), který nepřekáží ani jednomu.
+ * polozemnici (celé políčko, dům uprostřed), který nepřekáží ani jednomu (ani poli nic nevezme).
  */
 function villageSpots(l: Landscape): {
   dwelling: Position;
@@ -167,7 +167,8 @@ function villageSpots(l: Landscape): {
               variant: 'center',
             };
             const check = checkPlotPlacement(l, village, 'polozemnice', plot);
-            if (check.ok && check.position) {
+            // pozemek smí i na pole (zmenší ho) – test chce pole celé
+            if (check.ok && check.position && check.takenLand.length === 0) {
               return { dwelling, cells, second: { position: check.position, plot } };
             }
           }
@@ -265,9 +266,10 @@ test('nový hráč založí ves umístěním zemnice, přejmenuje ji a vybere ze
   await found(page, spots.dwelling);
   const name = page.getByTestId('village-name');
   await expect(name).toHaveText(suggestVillageName(s.seed));
-  await expect(grid.getByRole('button')).toHaveCount(10);
+  await expect(grid.getByRole('button')).toHaveCount(11);
   // Nové obydlí ani dílnu nemá kdo osídlit – zakladatelé si stavějí vlastní zemnici. Hřbitov,
-  // sad, modla ani svatyně lidi nechtějí (modla a svatyně dospělé duby – krajina je má).
+  // sad, modla, svatyně ani ohrada lidi nechtějí (modla a svatyně dospělé duby, ohrada stromy –
+  // krajina je má).
   await expect(grid.getByRole('button', { name: 'Polozemnice' })).toBeDisabled();
   for (const craft of ['Hrnčíř', 'Kovář', 'Uhlíř']) {
     await expect(grid.getByRole('button', { name: craft })).toBeDisabled();
@@ -276,6 +278,7 @@ test('nový hráč založí ves umístěním zemnice, přejmenuje ji a vybere ze
   await expect(grid.getByRole('button', { name: 'Sad' })).toBeEnabled();
   await expect(grid.getByRole('button', { name: 'Modla' })).toBeEnabled();
   await expect(grid.getByRole('button', { name: 'Svatyně' })).toBeEnabled();
+  await expect(grid.getByRole('button', { name: 'Ohrada' })).toBeEnabled();
   // štěstí obyvatel v horní liště (happiness.md) – výchozí kolem 50
   await expect(page.getByTestId('village-happiness')).toHaveText(/^\d+$/);
   expect((await villageState(s.settlementId)).fields).toEqual([]);
