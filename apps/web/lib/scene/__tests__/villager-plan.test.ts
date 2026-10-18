@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { LaborShare, SceneLaborShare, SceneVillage } from '../../village-view';
 import { chickenBox } from '../livestock-placement';
 import { localToWorld } from '../village-layout';
+import { MILIR_SHAPE_M, milirPlace } from '../workshop-layout';
 import { createVillagerPose, walkThen, type HerdView, type VillagerPose } from '../villager-motion';
 import {
   FIGURE_SCALE,
@@ -743,6 +744,78 @@ describe('stavitelé – stavba neroste sama od sebe (Martin)', () => {
       expect(inPlot(x, z)).toBe(true);
       // u plotu – blíž okraji pozemku než 2,5 m
       expect(7.5 - Math.max(Math.abs(x - 62), Math.abs(z + 8))).toBeLessThan(2.5);
+    }
+  });
+});
+
+describe('řemeslníci – práce v dílně (crafts.md)', () => {
+  const POTTER = { x: 30, z: -30, rotation: 0 };
+  const BURNER = { x: -60, z: 20, rotation: 0.4 };
+  function craftVillage(shares: LaborShare[]): SceneVillage {
+    const base = village(shares);
+    return {
+      ...base,
+      dwellings: [
+        ...base.dwellings,
+        { ...house(20, POTTER.x, POTTER.z, 0, true, 'polozemnice'), craft: 'potter' as const },
+        { ...house(21, BURNER.x, BURNER.z, BURNER.rotation), craft: 'burner' as const },
+      ],
+    };
+  }
+  const shares: LaborShare[] = [
+    { activity: 'craft', target: { kind: 'dwelling', id: 20 }, manDays: 2 },
+    { activity: 'craft', target: { kind: 'dwelling', id: 21 }, manDays: 2 },
+    { activity: 'fell', target: { kind: 'trees', ids: [501] }, manDays: 1 },
+  ];
+  const v = craftVillage(shares);
+  const people = planVillagers(v, GROUND, { seed: 5, herds: 0 });
+
+  it('hrnčíř pracuje u své dílny, uhlíř kolem milíře čelem k němu', () => {
+    const potters = people.filter((p) => p.key.startsWith('craft:dwelling-20:'));
+    expect(potters.length).toBe(2);
+    for (const p of potters) {
+      const pose = at(p, 5);
+      expect(Math.hypot(pose.x - POTTER.x, pose.z - POTTER.z)).toBeLessThan(7);
+    }
+    const milir = milirPlace(BURNER);
+    const burners = people.filter((p) => p.key.startsWith('craft:dwelling-21:'));
+    expect(burners.length).toBe(2);
+    for (const p of burners) {
+      const pose = at(p, 5);
+      const d = Math.hypot(pose.x - milir.x, pose.z - milir.z);
+      expect(d).toBeGreaterThan(MILIR_SHAPE_M.radius);
+      expect(d).toBeLessThan(MILIR_SHAPE_M.radius + 3);
+      expect(
+        pose.headingX * (milir.x - pose.x) + pose.headingZ * (milir.z - pose.z),
+      ).toBeGreaterThan(0);
+    }
+  });
+
+  it('kácení dílny (bez stavby) – u vyhrazeného stromu', () => {
+    const fellers = people.filter((p) => p.key.startsWith('fell:'));
+    expect(fellers.length).toBeGreaterThan(0);
+    const pose = at(fellers[0]!, 5);
+    expect(Math.hypot(pose.x + 40, pose.z + 30)).toBeLessThan(3);
+  });
+
+  it('do kupy milíře nikdo nevstoupí', () => {
+    const milir = milirPlace(BURNER);
+    const all = planVillagers(
+      craftVillage([
+        ...SHARES,
+        ...shares,
+        { activity: 'idle', target: { kind: 'village' }, manDays: 6 },
+      ]),
+      GROUND,
+      { seed: 9, herds: 0 },
+    );
+    for (const p of all.filter((x) => !x.key.startsWith('herder:'))) {
+      for (let t = 0; t < 120; t += 3.1) {
+        const { x, z } = at(p, t);
+        expect(Math.hypot(x - milir.x, z - milir.z), p.key).toBeGreaterThan(
+          MILIR_SHAPE_M.radius - 0.3,
+        );
+      }
     }
   });
 });

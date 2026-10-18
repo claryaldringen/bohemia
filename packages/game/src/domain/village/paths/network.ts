@@ -1,8 +1,16 @@
 import { detCos, detSin, length2 } from '../../landscape';
+import { milirPosition } from '../crafts';
 import { DWELLING_CLEARING_M, SACRED_BUILDINGS } from '../rules';
 import type { ObstacleChanges } from '../obstacles';
 import type { PartStage } from '../summary';
-import type { DwellingType, LaborTarget, Position, SacredBuildingKind, TileCell } from '../types';
+import type {
+  Craft,
+  DwellingType,
+  LaborTarget,
+  Position,
+  SacredBuildingKind,
+  TileCell,
+} from '../types';
 import { PATH_FOREST_EDGE, PATH_WATER_SPOT, type PathTerrain } from './terrain';
 
 // Vyšlapané pěšiny (docs/design/paths.md). Čistá deterministická funkce vsi a terénu – počítá ji
@@ -77,7 +85,8 @@ export interface PathVillage {
   /**
    * Hotová obydlí (id obydlí) i staveniště (id stavby). `inhabited` – bydlí v něm někdo (bez
    * údaje ano), `since` – herní den, od kdy stojí (dostavění / zahájení stavby; bez údaje
-   * odjakživa), `plot` – pozemek polozemnice (střed políčka a strana).
+   * odjakživa), `plot` – pozemek polozemnice (střed políčka a strana), `craft` – řemeslná dílna
+   * (u uhlíře stojí kus od zemnice milíř – crafts.md).
    */
   dwellings: readonly {
     id: number;
@@ -86,6 +95,7 @@ export interface PathVillage {
     built: boolean;
     inhabited?: boolean;
     since?: number;
+    craft?: Craft;
     plot?: { cell: TileCell; x: number; z: number; size: number };
   }[];
   fields: readonly { id: number; parts: readonly (PathSquare & { stage: PartStage })[] }[];
@@ -129,6 +139,8 @@ export interface PathNetworkInput {
 const PASSES = 2;
 /** Vyšlapaná buňka stojí (1 − PATH_DISCOUNT × síla) – po silné pěšině se jde i oklikou. */
 const PATH_DISCOUNT = 0.5;
+/** Kupa milíře uhlíře (crafts.py MILIR_R) – pěšina ji obejde. */
+const MILIR_RADIUS_M = 2.3;
 /**
  * Provoz v cestách za den: pod `min` se pěšina nevyšlape (jednotlivé cesty nekreslí), od `full`
  * je plná; mezi tím síla roste s odmocninou provozu (pomalu – přesná aritmetika místo logaritmu).
@@ -276,7 +288,7 @@ export function pathNetworkKey(village: PathVillage): string {
         ? `${ageBucket(day - d.since)}/${Math.floor(Math.min(YEARS_KEY_MAX, (day - d.since) / DAYS_PER_YEAR) / YEARS_STEP)}`
         : '';
     const plot = d.plot ? `${d.plot.cell.x},${d.plot.cell.y}` : '';
-    return `${d.id}:${d.type}:${d.built ? 1 : 0}:${d.inhabited === false ? 0 : 1}:${age}:${plot}:${d.position.x.toFixed(1)},${d.position.z.toFixed(1)},${d.position.rotation.toFixed(2)}`;
+    return `${d.id}:${d.type}${d.craft ? `/${d.craft}` : ''}:${d.built ? 1 : 0}:${d.inhabited === false ? 0 : 1}:${age}:${plot}:${d.position.x.toFixed(1)},${d.position.z.toFixed(1)},${d.position.rotation.toFixed(2)}`;
   });
   const fields = village.fields.map(
     (f) => `${f.id}:${f.parts.map((p) => `${p.cell.x},${p.cell.y},${p.stage}`).join(';')}`,
@@ -1421,6 +1433,15 @@ export function computePathNetwork(input: PathNetworkInput): PathNetwork {
     buildings.set(d.id, { position: d.position, box: dwellingBox(d) });
   }
   const obstaclesOnly: Building[] = [...buildings.values()];
+  // milíř uhlíře kus od zemnice – pěšina ho obejde (crafts.md)
+  for (const d of v.dwellings) {
+    if (d.craft !== 'burner') continue;
+    const half = MILIR_RADIUS_M;
+    obstaclesOnly.push({
+      position: milirPosition(d.position),
+      box: { minX: -half, maxX: half, minZ: -half, maxZ: half },
+    });
+  }
   for (const b of v.sacred?.buildings ?? []) {
     if (b.kind !== 'idol') continue;
     const half = SACRED_BUILDINGS.idol.footprintM / 2;

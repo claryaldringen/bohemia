@@ -1,19 +1,28 @@
 import type { ReactElement, ReactNode } from 'react';
+import { CRAFT_NAMES, type DwellingType } from '@bohemia/game';
 import { PART_COLORS, SURFACE_COLORS } from '@/lib/minimap';
 import {
   CROP_LABELS,
   FIELD_SURFACE_NAMES,
   PART_STAGE_NAMES,
   type SelectionDetails,
+  type SelectionWorkshop,
 } from '@/lib/selection-details';
 import {
+  formatDecimal,
   formatHa,
   formatInteger,
   formatPercent,
   formatYearsShort,
   plural,
 } from '@/lib/village-format';
-import { DWELLING_NAMES, SACRED_BUILDING_NAMES } from '@/lib/village-view';
+import {
+  CRAFT_LOOKS,
+  DWELLING_NAMES,
+  SACRED_BUILDING_NAMES,
+  type Craft,
+  type WorkshopActivity,
+} from '@/lib/village-view';
 import { Tooltip } from './Tooltip';
 
 function Portrait({ icon, name }: { icon: string; name: string }): ReactElement {
@@ -88,6 +97,75 @@ function Bar({
   );
 }
 
+/** Portrét a název obydlí, nebo dílny řemesla. */
+function dwellingPortrait(type: DwellingType, craft: Craft | null): ReactElement {
+  return craft ? (
+    <Portrait icon={CRAFT_LOOKS[craft].icon} name={CRAFT_NAMES[craft]} />
+  ) : (
+    <Portrait icon={type} name={DWELLING_NAMES[type].nominative} />
+  );
+}
+
+/**
+ * Co dílna dělá – ikona (výrobek, dřevo, uhlí, lidé) s červeným tónem, když stojí, a popisek
+ * v tooltipu; u výroby kolik kg za den.
+ */
+function activityLook(workshop: SelectionWorkshop): {
+  icon: string;
+  name: string;
+  value: string;
+  stalled: boolean;
+} {
+  const product = CRAFT_LOOKS[workshop.craft].product;
+  const perDay = `${formatDecimal(workshop.outputPerDayKg, 1)} kg/den`;
+  const looks: Record<WorkshopActivity, { icon: string; name: string; value: string }> = {
+    producing: {
+      icon: product.icon,
+      name: `Vyrábí – ${product.name.toLowerCase()}`,
+      value: perDay,
+    },
+    felling: { icon: 'wood', name: 'Kácí dřevo', value: perDay },
+    'no-charcoal': { icon: 'charcoal', name: 'Čeká na uhlí', value: '0' },
+    'no-wood': { icon: 'wood', name: 'Čeká na dřevo – není co kácet', value: '0' },
+    idle: { icon: 'labor', name: 'Nemá kdo pracovat', value: '0' },
+    empty: { icon: 'people', name: 'Prázdná – nikdo tu nebydlí', value: '0' },
+  };
+  const look = looks[workshop.activity];
+  const stalled = workshop.activity !== 'producing' && workshop.activity !== 'felling';
+  return { ...look, stalled };
+}
+
+/** Dílna v panelu výběru: co dělá, práce za den, zásoba výrobku (a pokrytí potřeby vsi). */
+function WorkshopRow({ workshop }: { workshop: SelectionWorkshop }): ReactElement {
+  const activity = activityLook(workshop);
+  const product = CRAFT_LOOKS[workshop.craft].product;
+  return (
+    <div
+      data-testid="selection-workshop"
+      data-activity={workshop.activity}
+      className="flex flex-wrap items-center gap-x-3 gap-y-1"
+    >
+      <Stat icon={activity.icon} name={activity.name} testId="selection-workshop-activity">
+        <span className={activity.stalled ? 'text-red-400' : ''}>{activity.value}</span>
+      </Stat>
+      <Stat icon="labor" name="Práce v dílně za den" testId="selection-workshop-labor">
+        {formatDecimal(workshop.laborPerDay, 1)}
+      </Stat>
+      <Stat
+        icon={product.icon}
+        name={
+          workshop.coverage === null
+            ? `${product.name} v zásobě (kg)`
+            : `${product.name} v zásobě (kg) – pokrytí potřeby vsi ${formatPercent(workshop.coverage)}`
+        }
+        testId="selection-workshop-stock"
+      >
+        {formatInteger(workshop.stockKg)}
+      </Stat>
+    </div>
+  );
+}
+
 function DwellingBody({
   details,
 }: {
@@ -96,6 +174,7 @@ function DwellingBody({
   const tone = details.overcrowded ? 'text-red-400' : details.full ? 'text-[#f3cf86]' : '';
   return (
     <div className="flex min-w-0 flex-col gap-1.5">
+      {details.workshop && <WorkshopRow workshop={details.workshop} />}
       <div className="flex items-center gap-3">
         <Stat icon="people" name="Obyvatelé" testId="selection-occupants">
           <span className={tone}>
@@ -384,7 +463,8 @@ function SacredBody({
 /**
  * Panel výběru dole uprostřed (jako v 0 A.D.) – jen když je něco vybrané: portrét, typ
  * a ikony s čísly. Obydlí: obyvatelé, věk obyvatel, stav, stáří (u přestavby i stromy ke
- * skácení); staveniště: průběh stavby a stromy, které ještě musí skácet;
+ * skácení), dílna navíc co dělá, práci za den a zásobu výrobku (crafts.md); staveniště: průběh
+ * stavby a stromy, které ještě musí skácet;
  * pole: výměra, úrodnost, díly podle stadia; hřbitov: hroby, na kolik let místo vystačí
  * a průběh založení / rozšíření; sad: výměra, stáří, úroda příští sklizně a průběh výsadby;
  * posvátný dub, háj, modla a svatyně: kolik přidávají štěstí (háj i počet dubů), rozestavěná
@@ -430,7 +510,7 @@ export function SelectionPanel({
     );
     body = <SacredBody details={details} />;
   } else if (details.kind === 'site') {
-    portrait = <Portrait icon={details.type} name={DWELLING_NAMES[details.type].nominative} />;
+    portrait = dwellingPortrait(details.type, details.craft);
     body = (
       <div className="flex flex-col justify-center gap-1.5">
         <div className="flex items-center gap-3">
@@ -443,7 +523,7 @@ export function SelectionPanel({
       </div>
     );
   } else {
-    portrait = <Portrait icon={details.type} name={DWELLING_NAMES[details.type].nominative} />;
+    portrait = dwellingPortrait(details.type, details.workshop?.craft ?? null);
     body = <DwellingBody details={details} />;
   }
   return (

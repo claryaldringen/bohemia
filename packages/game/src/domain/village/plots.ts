@@ -44,7 +44,8 @@ function clearPlot(
 }
 
 /**
- * Starší ves (bez `plotsMigrated`): každá polozemnice – hotová i rozestavěná – bez pozemku
+ * Starší ves (bez `plotsMigrated`): každá polozemnice – hotová i rozestavěná, kromě řemeslných
+ * dílen (crafts.md – stojí volně) – bez pozemku
  * dostane políčko, na kterém stojí střed domu, když je volné (pole, hřbitov, sad, jiný pozemek
  * či obydlí, posvátný dub, háj, voda ani výchoz na něm nejsou). Varianta podle toho, kde na
  * políčku dům stojí (`nearestPlotVariant`); blíž místu varianty než PLOT_SNAP_M se dům na něj
@@ -79,17 +80,22 @@ export function withPlots(
     const { variant, snapped } = nearestPlotVariant(landscape, cell, position);
     return { plot: { cell, variant }, position: snapped ?? position };
   };
-  const needsPlot = (type: DwellingType | null, plot?: DwellingPlot): boolean =>
-    type !== null && PLOT_TYPES[type] && !plot;
+  // řemeslné dílny (crafts.md) stojí volně bez pozemku – i ty na polozemnici
+  const needsPlot = (type: DwellingType | null, plot?: DwellingPlot, craft?: unknown): boolean =>
+    type !== null && PLOT_TYPES[type] && !plot && craft === undefined;
   for (const d of [...next.dwellings].sort((a, b) => a.id - b.id)) {
-    if (!needsPlot(d.type, d.plot)) continue;
+    if (!needsPlot(d.type, d.plot, d.workshop)) continue;
     const site = assign(d.position, { dwellingId: d.id });
     if (!site) continue;
     d.plot = site.plot;
     d.position = site.position;
   }
   for (const c of [...next.constructions].sort((a, b) => a.id - b.id)) {
-    if (c.kind !== 'dwelling' || c.position === null || !needsPlot(c.dwellingType, c.plot)) {
+    if (
+      c.kind !== 'dwelling' ||
+      c.position === null ||
+      !needsPlot(c.dwellingType, c.plot, c.craft)
+    ) {
       continue;
     }
     const site = assign(c.position, { constructionId: c.id });

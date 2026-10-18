@@ -382,12 +382,12 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   u staveniště (`villager-plan.ts`) a jabloně sadu se vyhnou koruně posvátného dubu. Vývojový
   náhled má tlačítka Modla, Svatyně, Ukázka svatyní a „Mýtit les s posvátným dubem / hájem“;
   náhled staveb (/dev/buildings) kreslí modlu a svatyni po fázích svým potrubím.
-- **Řemeslné dílny – zatím jen modely** (pravidla v [docs/design/crafts.md](docs/design/crafts.md)
-  čekají na schválení, do hry, jádra ani panelu staveb nepatří): `public/models/crafts/`
+- **Řemeslné dílny** (ve hře od 18. 10. 2026, pravidla v [docs/design/crafts.md](docs/design/crafts.md),
+  jádro a rozhraní viz Ves – Řemesla): `public/models/crafts/`
   hrnčíř a kovář (polozemnice s přístřeškem o `PORCH` 3,6 m vpředu, pod ním pec / výheň
   s kovadlinou), uhlíř (zemnice s mechovou střechou) a samostatný milíř ≈ 9,5 m od ní
-  (`MILIR_OFFSET` v `tools/blender/crafts.py` = `MILIR_OFFSET_M` v
-  `lib/scene/building-showcase-layout.ts`). Tvary bere `crafts.py` z `dwellings.py` (ten má proto
+  (`MILIR_OFFSET` v `tools/blender/crafts.py` = `MILIR.offset` v `rules.ts` jádra – podle něj
+  stojí milíř i ve hře). Tvary bere `crafts.py` z `dwellings.py` (ten má proto
   `if __name__ == "__main__"`), sedí do jam obydlí (hrnčíř, kovář = polozemnice, uhlíř = zemnice).
   Atlas: `tools/blender/craft_atlas.py` (atlas obydlí + pec, kámen, zem milíře, uhlí…; varianta
   `atlas-moss.jpg` s mechem místo slámy). Postup v hlavičce `crafts.py`, ikony `icons.py hrncir,kovar,uhlir`.
@@ -412,8 +412,8 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
 ## Ves (hratelný prototyp)
 
 Pravidla v [docs/design/population.md](docs/design/population.md),
-[docs/design/fields.md](docs/design/fields.md), [docs/design/cemetery.md](docs/design/cemetery.md)
-a [docs/design/orchard.md](docs/design/orchard.md),
+[docs/design/fields.md](docs/design/fields.md), [docs/design/cemetery.md](docs/design/cemetery.md),
+[docs/design/orchard.md](docs/design/orchard.md) a [docs/design/crafts.md](docs/design/crafts.md),
 rozhraní částí v
 [docs/superpowers/plans/2026-10-17-village-slice.md](docs/superpowers/plans/2026-10-17-village-slice.md).
 
@@ -422,10 +422,11 @@ rozhraní částí v
   Ves se dopočítá při každém načtení a akci (worker zatím není).
 - **API jádra:** `foundVillage` (4 lidé, zásoby, stavba první zemnice, volitelně první pole),
   `advanceVillage(state, toDay)` (dopočítá ves do dne včetně) a akce hráče `startNewDwelling`,
-  `foundField`, `foundCemetery` a `foundOrchard`. Stav vsi je JSON-serializovatelný, funkce
-  vstupní stav nemění. Nové části stavu jsou volitelné (`VillageState.cemeteries?`,
-  `orchards?`, `applesKg?`, `orchardWork?`, `starvationDays?`, `extinctDay?`) – vsi uložené
-  dřív se načtou a beze sadů se jejich stav nemění.
+  `startWorkshop`, `foundField`, `foundCemetery` a `foundOrchard`. Stav vsi je
+  JSON-serializovatelný, funkce vstupní stav nemění. Nové části stavu jsou volitelné
+  (`VillageState.cemeteries?`, `orchards?`, `applesKg?`, `orchardWork?`, `starvationDays?`,
+  `extinctDay?`, `crafts?`, `Dwelling.workshop?`) – vsi uložené dřív se načtou a beze sadů či
+  dílen se jejich stav nemění.
 - **Hlad a vymření** (population.md, Martin 18. 10. 2026): nahromaděný hlad
   `VillageState.starvationDays` (`nextStarvationDays` po jídle dne – pod 90 % přídělu
   přibývá, od 90 % ubývá, čísla `STARVATION` v `rules.ts`) přidá k běžnému riziku úmrtí riziko hladem
@@ -466,6 +467,25 @@ rozhraní částí v
   stavbou) dají klády jako u pole; nevyklizené čtverce sadu jsou v `claimedObstacles`. Kroky
   simulace sadů (`plantOrchard`, `workOrchards`, `orchardSeasonDay`) se z `@bohemia/game`
   neexportují.
+- **Řemesla** (`crafts.ts`, crafts.md): dílna = obydlí s `Dwelling.workshop` (řemeslo
+  `Craft` = `potter` / `smith` / `burner` patří budově; hrnčíř a kovář polozemnice, uhlíř
+  zemnice – `CRAFT_BASE`), stavba je `kind: 'dwelling'` s `craft` (cena `workshopCost` /
+  `workshopTrees` – obydlí + 30 %), akce `startWorkshop`, use-case `placeWorkshop`, umístění
+  `checkWorkshopPlacement` (volně jako zemnice; půdorys `workshopFootprints` i s přístřeškem
+  a u uhlíře s milířem kus od zemnice – `MILIR`, `milirPosition`; `PlacementVillage.dwellings`
+  nese `workshop.craft`, ať se do milíře nestaví). Domácnosti obývaných dílen (`craftHouseholds`)
+  pracují jen v dílně (`workshopLabor`, `workCrafts` v kroku práce – mimo `allocateDay`, do sil
+  plánu osevu se nepočítají); uhlíř a hrnčíř kácejí strom po stromu (`Workshop.felling` je
+  vyhrazený – `reservedTrees` / `claimedObstacles` ho znají), zásoby `VillageState.crafts`
+  (kg uhlí, nástrojů, keramiky; opotřebení `wearCraftStocks` jen v užívání). **Pokrytí**
+  `craftCoverage` se spočítá na začátku dne a jde všude, kde platí meze (plán osevu, přidané díly,
+  založení pole – i `PlacementVillage.toolCoverage` pro náhled –, denní minimum, ztráty zásob,
+  jablka v nádobách `applesSpoiled` / `appleKeepDays`). Rozdělení práce dne má `craft` (u dílny)
+  a `fell` u stromu dílny. Web: `VillageView.crafts` (zásoby, pokrytí, dílny s `activity`),
+  `households[].craft`, `SceneVillage.dwellings[].craft` / `working`, server action
+  `placeWorkshop`, mřížka staveb hrnčíř [F], kovář [G], uhlíř [H] (`placement: 'workshop'`),
+  lišta uhlí / nástroje / keramika (jen ves s dílnou), panel výběru dílny, upozornění
+  `no-charcoal` / `no-wood`.
 - **Ozim a jař** (fields.md – Ozim a jař): roční plán (`YearPlan`) nese práci jaře nahoře (tvar
   plánu z doby před ozimem) a ozimu v `winter?` (`CropWork`); díly osevu mají `crop?` (chybí =
   jař). Okna prací po plodinách `CROP_WINDOWS` (`WINDOWS` = jař, `WINTER_WINDOWS`) v `rules.ts`.
@@ -540,17 +560,18 @@ rozhraní částí v
   a **nejlepší mez** (plně pokrytá potřeba výrobků řemeslníků); řemeslníci zvyšují produktivitu
   = snižují pracnost od `worst` k `best`. V textech nepsat „horní / dolní mez“.
   Hodnotu podle pokrytí 0–1 dávají funkce v `productivity.ts` (`withinBounds`, `fieldWorkPerHa`,
-  `storageLossPerYear`…). Řemesla zatím nejsou – volající předávají `NO_CRAFTS` (pokrytí 0);
-  stav řemesel nevymýšlet, až vzniknou, pokrytí se spočítá v `simulate.ts`. Zdroje čísel jsou
-  v rešerších `docs/design/research/`.
+  `storageLossPerYear`…). Pokrytí počítá `craftCoverage` (crafts.ts) ze zásob vsi na začátku
+  dne v `simulate.ts`; `NO_CRAFTS` (pokrytí 0) jen pro ves bez řemesel a testy. Zdroje čísel
+  jsou v rešerších `docs/design/research/`.
 - **Web:** server actions `app/game/actions.ts` (`getVillageView`, `foundVillage`, `placeDwelling`,
-  `placeField`, `placeCemetery`, `placeOrchard`, `renameVillage` → `VillageView` / `null` /
+  `placeWorkshop`, `placeField`, `placeCemetery`, `placeOrchard`, `renameVillage` → `VillageView` / `null` /
   `{ error }`; `restartGame(input?)` → `{ ok: true }` / `{ error }`),
   composition root `lib/village.ts`, `lib/village-view.ts` (DTO, smí i do prohlížeče). Typy pro scénu jsou
   odvozené odtud a z `@bohemia/game` – nedefinovat je znovu ve scéně.
 - **Rozhraní jako v 0 A.D., bez popisků a průvodce** (Martin): `components/game/VillageGame.tsx`
   skládá `hud/` – `TopBar` (jméno vsi, klik = přejmenovat; ikony s čísly: lidé, obilí, jablka
-  jen když jsou, volná práce, nasycení barvou ikony, štěstí, datum; zvuk a tlačítko nabídky),
+  jen když jsou, klády, uhlí / nástroje / keramika jen ves s řemesly, volná práce, nasycení
+  barvou ikony, štěstí, datum; zvuk a tlačítko nabídky),
   `GameMenu` (nabídka hry jako v 0 A.D. pod lištou vpravo, F10 – smí mít slova: Začít znovu,
   Odhlásit s e-mailem v popisku, Zpět do hry; Začít znovu se živou vsí jen po potvrzení v panelu,
   bez dialogů prohlížeče, při zakládání vsi zamčené; otevření zruší umisťování i výběr, klávesy
@@ -572,7 +593,7 @@ rozhraní částí v
   `public/icons/build/` a `public/icons/resources/`. Panely, nad kterými se krajina neposouvá
   okrajem okna, mají `data-hud-block`.
 - **Katalog staveb** `lib/build-items.ts` (název, ikona, zkratka, umístění `footprint` /
-  `squares` / `sacred`, kontrola) – nová stavba = záznam tam, cena v `BUILD_COSTS` a server action
+  `plot` / `squares` / `sacred` / `workshop`, kontrola) – nová stavba = záznam tam, cena v `BUILD_COSTS` a server action
   v `SUBMIT_SQUARES` (`VillageGame`); mřížka, zkratky i malování po čtvercích se nemění. Stavba,
   kterou nejde zahájit z jiného důvodu než surovin (druhá svatyně), má v `BuildOption.blocked`
   důvod – v popisku červeně. Panel výběru umí i posvátný dub, háj, modlu a svatyni (ikona,

@@ -14,6 +14,7 @@ import {
   obstaclesOf,
   surfaceAt,
   tileOfWorldPoint,
+  type DwellingType,
   type Landscape,
   type ObstacleLayer,
   type WorldClock,
@@ -522,10 +523,15 @@ export class LandscapeScene {
                 return { cell, x: center.worldX, z: center.worldZ, size: landscape.cellSizeM };
               },
               ghostModel: (type) => village.ghostModel(type),
-              baseHeight: (type, position) =>
-                type === 'idol' || type === 'shrine'
-                  ? village.sacredBaseHeight(type, position)
-                  : village.baseHeight({ type, position }),
+              baseHeight: (type, position) => {
+                if (type === 'idol' || type === 'shrine') {
+                  return village.sacredBaseHeight(type, position);
+                }
+                // milíř uhlíře se měří u svého místa – `position` je poloha zemnice
+                if (type === 'milir') return village.milirBaseHeight(position);
+                const base = mode.kind === 'workshop' ? mode.type : null;
+                return village.baseHeight({ type: base ?? (type as DwellingType), position });
+              },
               requestRender,
             },
             mode,
@@ -536,7 +542,12 @@ export class LandscapeScene {
     else this.outlines?.hide();
     if (mode.kind !== 'squares') {
       // Model ducha se načte (jednou) a pak naskočí pod kurzorem.
-      const models = mode.kind === 'sacred' ? village.loadSacredModels() : village.loadModels();
+      const models =
+        mode.kind === 'sacred'
+          ? village.loadSacredModels()
+          : mode.kind === 'workshop'
+            ? Promise.all([village.loadModels(), village.loadCraftModels()])
+            : village.loadModels();
       void models.then(() => {
         if (this.placement === controller) this.pointerMoved = this.pointerInside;
       });

@@ -53,6 +53,7 @@ export function pathVillageOf(state: VillageState, day: number, landscape: Lands
       inhabited: occupied.has(d.id),
       since: d.builtDay,
       ...plotOf(d.plot),
+      ...(d.workshop ? { craft: d.workshop.craft } : {}),
     })),
     ...state.constructions.flatMap((c) =>
       c.kind === 'dwelling' && c.dwellingType !== null && c.position !== null
@@ -64,6 +65,7 @@ export function pathVillageOf(state: VillageState, day: number, landscape: Lands
               built: false,
               since: c.startedDay,
               ...plotOf(c.plot),
+              ...(c.craft ? { craft: c.craft } : {}),
             },
           ]
         : [],
@@ -175,11 +177,11 @@ export function walkLayoutKey(state: VillageState, day: number): string {
   const at = (p: Position): string => `${p.x},${p.z},${p.rotation}`;
   const dwellings = state.dwellings.map(
     (d) =>
-      `${d.id}:${d.type}:${at(d.position)}:${d.plot ? `${d.plot.cell.x},${d.plot.cell.y}` : ''}:${occupied.has(d.id) ? 1 : 0}:${age(d.builtDay)}`,
+      `${d.id}:${d.type}${d.workshop ? `/${d.workshop.craft}` : ''}:${at(d.position)}:${d.plot ? `${d.plot.cell.x},${d.plot.cell.y}` : ''}:${occupied.has(d.id) ? 1 : 0}:${age(d.builtDay)}`,
   );
   const sites = state.constructions.flatMap((c) =>
     c.position !== null && (c.kind === 'dwelling' || c.kind === 'idol' || c.kind === 'shrine')
-      ? [`${c.id}:${c.kind}:${at(c.position)}:${age(c.startedDay)}`]
+      ? [`${c.id}:${c.kind}${c.craft ? `/${c.craft}` : ''}:${at(c.position)}:${age(c.startedDay)}`]
       : [],
   );
   const parts = state.parts.map(

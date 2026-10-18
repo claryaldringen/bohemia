@@ -33,6 +33,7 @@ import { placeCemetery } from '../place-cemetery';
 import { NO_PLOT, NO_SETTLERS, NO_WOOD, placeDwelling } from '../place-dwelling';
 import { placeField } from '../place-field';
 import { placeOrchard } from '../place-orchard';
+import { UNKNOWN_CRAFT, placeWorkshop } from '../place-workshop';
 import { placeSacredBuilding, SHRINE_EXISTS } from '../place-sacred';
 import { renameVillage } from '../rename-village';
 import type { SeedSource } from '../settlements';
@@ -329,6 +330,32 @@ describe('placeDwelling', () => {
     // den dopočtu do dneška klády trochu nahnily (4 % ročně)
     expect(result.village.state.woodLogs).toBeCloseTo(40 - 7, 1);
     expect(result.village.state.woodLogs).toBeLessThan(40 - 7);
+  });
+});
+
+describe('placeWorkshop', () => {
+  it('dílna se staví jako obydlí – chce mladý pár, místo pro milíř a změří vodu', async () => {
+    const villages = await foundedVillages();
+    const deps = { villages };
+    const base = { settlementId: ID, landscape, today: TODAY + 1 };
+    const fresh = await placeWorkshop(deps, { ...base, craft: 'burner', position: at(-80, -50) });
+    expect(fresh).toEqual({ ok: false, reason: NO_SETTLERS });
+    villages.edit(ID, makeFullHousehold);
+    const unknown = await placeWorkshop(deps, {
+      ...base,
+      craft: 'weaver' as never,
+      position: at(-80, -50),
+    });
+    expect(unknown).toEqual({ ok: false, reason: UNKNOWN_CRAFT });
+    // milíř (−9, +3 m od zemnice) by stál na prvním poli
+    const onField = await placeWorkshop(deps, { ...base, craft: 'burner', position: at(36, 0) });
+    expect(onField.ok).toBe(false);
+    const result = await placeWorkshop(deps, { ...base, craft: 'burner', position: at(-80, -50) });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const site = result.village.state.constructions.find((c) => c.craft === 'burner');
+    expect(site).toMatchObject({ kind: 'dwelling', dwellingType: 'zemnice', dwellingId: null });
+    expect(site?.waterDistanceM).toBeGreaterThan(100);
   });
 });
 

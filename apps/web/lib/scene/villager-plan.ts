@@ -2,6 +2,7 @@ import {
   DWELLING_CLEARING_M,
   SACRED_BUILDINGS,
   dateOfDayIndex,
+  type Craft,
   type DwellingType,
   type Position,
 } from '@bohemia/game';
@@ -40,6 +41,7 @@ import {
   type VillagerClip,
   type VillagerKind,
 } from './villager-motion';
+import { MILIR_SHAPE_M, craftSpots, milirPlace } from './workshop-layout';
 
 // Postavy ve vsi (docs/design/villagers.md): kdo kde je a co dělá, jako čistá funkce vsi pro
 // scénu – z rozdělení práce posledního dne (herní jádro, labor-report.ts), ne z vlastních
@@ -96,6 +98,7 @@ const WOMEN: Record<LaborActivity, number> = {
   'orchard-plant': 0.3,
   cemetery: 0.2,
   repair: 0.2,
+  craft: 0.25,
   domestic: 0.85,
   idle: 0.5,
 };
@@ -214,7 +217,12 @@ interface House {
    */
   own?: Box;
   plot?: { x: number; z: number; size: number };
+  /** Řemeslná dílna (crafts.md) – řemeslníci stojí u pece, výhně nebo milíře. */
+  craft?: Craft;
 }
+
+/** Id překážky „milíř“ v seznamu staveb – kladná id jsou obydlí, malá záporná čekající stavby. */
+const MILIR_ID_OFFSET = -1_000_000;
 
 interface Point {
   x: number;
@@ -305,11 +313,12 @@ export function shareCounts(
     max,
   );
   const counts = shares.map(() => 0);
-  activities.forEach(([, members], g) => {
+  activities.forEach(([activity, members], g) => {
     const split = crewSplit(
       members.map((i) => shares[i]!.manDays),
       totals[g] ?? 0,
-      CREW,
+      // řemeslníci pracují každý ve své dílně – žádné skupiny po čtyřech (crafts.md)
+      activity === 'craft' ? 1 : CREW,
     );
     members.forEach((i, k) => (counts[i] = split[k] ?? 0));
   });
@@ -455,7 +464,23 @@ function context(
     ...(d.plot
       ? { own: houseBox(d.type), plot: { x: d.plot.x, z: d.plot.z, size: d.plot.size } }
       : {}),
+    ...(d.craft ? { craft: d.craft } : {}),
   }));
+  // milíř uhlíře – lidé ho obcházejí (do kupy se nevstupuje), řemeslníci stojí kolem něj
+  const milirs: House[] = village.dwellings.flatMap((d) => {
+    if (d.craft !== 'burner') return [];
+    const half = MILIR_SHAPE_M.radius;
+    return [
+      {
+        id: MILIR_ID_OFFSET - d.id,
+        position: milirPlace(d.position),
+        built: true,
+        progress: 1,
+        inhabited: false,
+        box: { minX: -half, maxX: half, minZ: -half, maxZ: half },
+      },
+    ];
+  });
   // modla a svatyně: stavitelé stojí kolem půdorysu, hotové lidé obcházejí (happiness.md)
   const sacred: House[] = (village.sacred?.buildings ?? []).map((b) => {
     const half = SACRED_BUILDINGS[b.kind].footprintM / 2;
@@ -468,7 +493,7 @@ function context(
       box: { minX: -half, maxX: half, minZ: -half, maxZ: half },
     };
   });
-  const houses = [...dwellings, ...sacred];
+  const houses = [...dwellings, ...milirs, ...sacred];
   const homes = dwellings.filter((h) => h.inhabited);
   const settled = homes.length > 0 ? homes : dwellings.length > 0 ? dwellings : houses;
   const center = {
@@ -681,12 +706,14 @@ function placer(ctx: Context, share: SceneLaborShare, count: number): Placer {
     case 'cemetery':
       return t.kind === 'cemetery' ? cemeteryFence(ctx, t.id) : none;
     case 'fell':
-      if (t.kind === 'trees') return felling(ctx, t.ids);
+      if (t.kind === 'trees') return felling(ctx, t.ids, share.construction !== undefined);
       return t.kind === 'site' || t.kind === 'dwelling' ? building(ctx, t, 'build') : none;
     case 'build':
       return t.kind === 'site' || t.kind === 'dwelling' ? building(ctx, t, 'build') : none;
     case 'repair':
       return t.kind === 'dwelling' ? building(ctx, t, 'build') : none;
+    case 'craft':
+      return t.kind === 'dwelling' ? craftsmen(ctx, t.id) : none;
     case 'domestic':
       return domestic(ctx);
     case 'idle':
@@ -1041,15 +1068,18 @@ function atTree(
 
 /**
  * Kácení dřeva stavby: dva lidé u každého vyhrazeného stromu, ostatní nosí dřevo ke stavbě
- * (nejbližší staveniště, jinak obydlí).
+ * (nejbližší staveniště, jinak obydlí). Kácení řemeslné dílny (`forConstruction` false – uhlíř
+ * na milíř, hrnčíř na palivo pece, crafts.md) nosí dřevo k nejbližší dílně, která kácí.
  */
-function felling(ctx: Context, ids: readonly number[]): Placer {
+function felling(ctx: Context, ids: readonly number[], forConstruction = true): Placer {
   const trees = ids.flatMap((id) => {
     const p = ctx.ground.tree(id);
     return p ? [p] : [];
   });
   if (trees.length === 0) return none;
-  const sites = ctx.houses.filter((h) => !h.built);
+  const sites = forConstruction
+    ? ctx.houses.filter((h) => !h.built)
+    : ctx.houses.filter((h) => h.built && (h.craft === 'burner' || h.craft === 'potter'));
   return (i, who) => {
     const tree = trees[i % trees.length]!;
     if (i < trees.length * 2) {
@@ -1072,6 +1102,32 @@ function felling(ctx: Context, ids: readonly number[]): Placer {
       restS: 2,
       phase: who.phase,
     });
+  };
+}
+
+/**
+ * Řemeslníci v dílně (crafts.md): hrnčíř u kruhu a pece, kovář u kovadliny a měchů, uhlíř kolem
+ * milíře s hrabicí – místa z workshop-layout.ts, postavy se po nich střídají; místo, kde
+ * nejde stát (voda, jiný dům), nahradí nejbližší volné.
+ */
+function craftsmen(ctx: Context, dwellingId: number): Placer {
+  const house = ctx.houses.find((h) => h.id === dwellingId && h.built && h.craft);
+  if (!house?.craft) return none;
+  const spots = craftSpots(house.craft, house.position);
+  // pod přístřeškem dílny smí stát její řemeslníci (dům bez přístřešku je v `box`)
+  const ok = (x: number, z: number): boolean =>
+    ctx.ground.walkable(x, z) &&
+    !ctx.houses.some(
+      (h) => h !== house && h.id !== MILIR_ID_OFFSET - house.id && inBox(h, x, z, 0),
+    );
+  return (i) => {
+    const spot = spots[i % spots.length]!;
+    const ring = Math.floor(i / spots.length);
+    const x = spot.x - spot.hx * ring * gap(0.8);
+    const z = spot.z - spot.hz * ring * gap(0.8);
+    if (ok(x, z)) return stand(x, z, spot.hx, spot.hz, spot.clip);
+    const near = nearestFree(ctx, x, z, 4);
+    return near ? stand(near.x, near.z, spot.hx, spot.hz, spot.clip) : null;
   };
 }
 
