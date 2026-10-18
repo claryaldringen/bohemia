@@ -7,7 +7,8 @@ import { Tooltip } from './Tooltip';
 /** Co v nabídce právě běží na serveru – tlačítka jsou pak zamčená. */
 export type GameMenuBusy = 'restart' | 'signOut' | null;
 
-export const RESTART_WARNING = 'Ves i rod zaniknou, začneš v nové krajině.';
+/** Varování před Začít znovu se živou vsí (nezlomitelná mezera – „v“ nezůstane na konci řádku). */
+export const RESTART_WARNING = 'Ves i rod zaniknou, začneš v\u00a0nové krajině.';
 
 function MenuButton({
   onClick,
@@ -28,7 +29,7 @@ function MenuButton({
       onClick={onClick}
       disabled={disabled}
       autoFocus={autoFocus}
-      className={`hud-button w-full px-4 py-1.5 font-serif text-base ${busy ? 'disabled:cursor-wait disabled:opacity-60' : 'disabled:cursor-not-allowed disabled:opacity-45 disabled:grayscale'}`}
+      className={`hud-button w-full px-3 py-1.5 font-serif text-base whitespace-nowrap ${busy ? 'disabled:cursor-wait disabled:opacity-60' : 'disabled:cursor-not-allowed disabled:opacity-45 disabled:grayscale'}`}
     >
       {children}
     </button>
@@ -78,7 +79,7 @@ export function GameMenuPanel({
       aria-label="Nabídka"
       aria-describedby={step === 'confirm' ? 'game-menu-warning' : undefined}
       tabIndex={-1}
-      className="hud-panel fixed top-12 right-2 z-40 w-64 max-w-[calc(100vw-1rem)] p-3 outline-none"
+      className="hud-panel fixed top-12 right-2 z-40 w-72 max-w-[calc(100vw-1rem)] p-3 outline-none"
     >
       {step === 'main' ? (
         <div className="flex flex-col gap-2">
@@ -104,7 +105,7 @@ export function GameMenuPanel({
           <p
             id="game-menu-warning"
             data-testid="game-menu-warning"
-            className="px-1 text-center font-serif text-[0.95rem] leading-snug text-[#f0c987]"
+            className="px-1 text-center font-serif text-[0.95rem] leading-snug text-balance text-[#f0c987]"
           >
             {RESTART_WARNING}
           </p>
