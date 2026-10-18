@@ -475,6 +475,12 @@ export class LandscapeScene {
               pickGround: (x, y) => this.pickGround(x, y),
               decalHeight: (x, z) => village.decalHeight(x, z),
               cameraAlpha: () => camera.camera.alpha,
+              cellAt: (x, z) => {
+                const cell = tileAt(landscape, x, z);
+                if (!cell) return null;
+                const center = tileCenter(landscape, cell.x, cell.y);
+                return { cell, x: center.worldX, z: center.worldZ, size: landscape.cellSizeM };
+              },
               ghostModel: (type) => village.ghostModel(type),
               baseHeight: (d) => village.baseHeight(d),
               requestRender,
@@ -483,7 +489,7 @@ export class LandscapeScene {
             controlled,
           );
     this.placement = controller;
-    if (mode.kind === 'dwelling') {
+    if (mode.kind !== 'squares') {
       // Model ducha se načte (jednou) a pak naskočí pod kurzorem.
       void village.loadModels().then(() => {
         if (this.placement === controller) this.pointerMoved = this.pointerInside;

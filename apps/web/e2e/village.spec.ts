@@ -3,12 +3,14 @@ import { Client } from 'pg';
 import {
   cemeteryPartsFromCells,
   checkDwellingPlacement,
+  checkPlotPlacement,
   fieldPartsFromCells,
   generateLandscapeAttempt,
   orchardPartsFromCells,
   suggestVillageName,
   tileCenterWorld,
   tileOfWorldPoint,
+  type DwellingPlot,
   type Landscape,
   type LayerVersions,
   type PlacementVillage,
@@ -129,10 +131,14 @@ function* around(x: number, z: number, maxR: number): Generator<Position> {
 }
 
 /**
- * Místo pro první zemnici u místa vsi, pole 3 × 2 čtverce (0,135 ha) vedle ní a místo pro
- * polozemnici, které nepřekáží ani jednomu.
+ * Místo pro první zemnici u místa vsi, pole 3 × 2 čtverce (0,135 ha) vedle ní a pozemek pro
+ * polozemnici (celé políčko, dům uprostřed), který nepřekáží ani jednomu.
  */
-function villageSpots(l: Landscape): { dwelling: Position; cells: TileCell[]; second: Position } {
+function villageSpots(l: Landscape): {
+  dwelling: Position;
+  cells: TileCell[];
+  second: { position: Position; plot: DwellingPlot };
+} {
   const site = tileCenterWorld(l, l.villageSite.x, l.villageSite.y);
   for (const dwelling of around(site.x, site.z, 240)) {
     if (!checkDwellingPlacement(l, null, 'zemnice', dwelling).ok) continue;
@@ -152,9 +158,19 @@ function villageSpots(l: Landscape): { dwelling: Position; cells: TileCell[]; se
       };
       if (!fieldPartsFromCells(l, withHouse, cells, [dwelling]).check.ok) continue;
       const village: PlacementVillage = { ...withHouse, parts: cells.map((cell) => ({ cell })) };
-      for (const second of around(dwelling.x, dwelling.z, 120)) {
-        if (checkDwellingPlacement(l, village, 'polozemnice', second).ok) {
-          return { dwelling, cells, second };
+      for (let r = 1; r <= 8; r++) {
+        for (let dy = -r; dy <= r; dy++) {
+          for (let dx = -r; dx <= r; dx++) {
+            if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+            const plot: DwellingPlot = {
+              cell: { x: tile.x + dx, y: tile.y + dy },
+              variant: 'center',
+            };
+            const check = checkPlotPlacement(l, village, 'polozemnice', plot);
+            if (check.ok && check.position) {
+              return { dwelling, cells, second: { position: check.position, plot } };
+            }
+          }
         }
       }
     }
@@ -357,7 +373,12 @@ test('obydlí jde stavět, jen když je kým ho osadit – pole kdykoli', async 
   await expect(polozemnice).toBeEnabled({ timeout: 20_000 });
   await polozemnice.click();
   await expect(polozemnice).toHaveAttribute('aria-pressed', 'true');
-  await confirmPlacement(page, { kind: 'dwelling', type: 'polozemnice', position: spots.second });
+  await confirmPlacement(page, {
+    kind: 'dwelling',
+    type: 'polozemnice',
+    position: spots.second.position,
+    plot: spots.second.plot,
+  });
   await expect
     .poll(async () => {
       const state = await villageState(s.settlementId);

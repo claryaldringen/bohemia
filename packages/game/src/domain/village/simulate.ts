@@ -525,6 +525,7 @@ function finishConstructions(state: VillageState, day: number): void {
       builtDay: day,
       condition: 1,
       position: { ...c.position },
+      ...(c.plot ? { plot: { cell: { ...c.plot.cell }, variant: c.plot.variant } } : {}),
       ...(c.forestDistanceM === undefined ? {} : { forestDistanceM: c.forestDistanceM }),
     };
     state.dwellings.push(dwelling);

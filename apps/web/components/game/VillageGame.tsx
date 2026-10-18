@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } 
 import {
   suggestVillageName,
   type BuildKind,
+  type DwellingPlot,
   type DwellingType,
   type Position,
   type TileCell,
@@ -28,12 +29,15 @@ import { opensMenu } from '@/lib/game-menu';
 import { decodeLandscape, type LandscapeTransfer } from '@/lib/landscape-transfer';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
 import { targetExists, type VillageTarget } from '@/lib/scene/village-picking';
+import type { PlacementResult } from '@/lib/scene/village-types';
 import { selectionDetails } from '@/lib/selection-details';
 import { useSoundPreference } from './SoundToggle';
 import { newNotices } from '@/lib/village-notices';
 import {
   placementVillageFromScene,
+  scenePlot,
   type BuildOption,
+  type ScenePlot,
   type SceneVillage,
   type VillageView,
 } from '@/lib/village-view';
@@ -78,6 +82,7 @@ interface PendingDwelling {
   id: number;
   type: DwellingType;
   position: Position;
+  plot?: ScenePlot;
 }
 
 /** Ves pro scénu: stav ze serveru a obydlí, která ještě čekají na odpověď serveru. */
@@ -265,14 +270,22 @@ export function VillageGame({
     setPending(list);
   };
 
-  /** Postaví obydlí – první zemnice ves založí (osadníci si ji postaví), další jsou stavby. */
-  const buildDwelling = (type: DwellingType, position: Position): void => {
-    const entry: PendingDwelling = { id: -1 - pendingId.current++, type, position };
+  /**
+   * Postaví obydlí – první zemnice ves založí (osadníci si ji postaví), další jsou stavby;
+   * polozemnice na pozemku (`plot`).
+   */
+  const buildDwelling = (type: DwellingType, position: Position, plot?: DwellingPlot): void => {
+    const entry: PendingDwelling = {
+      id: -1 - pendingId.current++,
+      type,
+      position,
+      ...(plot ? { plot: scenePlot(decoded, plot) } : {}),
+    };
     setPendingList([...pendingRef.current, entry]);
     void runBuildAction(() =>
       viewRef.current === null
         ? foundVillage({ name: suggestVillageName(seed), dwelling: position })
-        : placeDwelling({ type, position }),
+        : placeDwelling({ type, position, ...(plot ? { plot } : {}) }),
     ).finally(() => setPendingList(pendingRef.current.filter((d) => d.id !== entry.id)));
   };
 
@@ -306,6 +319,21 @@ export function VillageGame({
       );
       return;
     }
+    const onDwelling = (result: PlacementResult): void => {
+      if (result.kind === 'dwelling') buildDwelling(result.type, result.position, result.plot);
+    };
+    if (item.placement === 'plot') {
+      placement.start(
+        {
+          kind: 'plot',
+          type: item.dwellingType,
+          check: (plot) =>
+            item.check(decoded, placementVillage(), plot, viewRef.current?.woodLogs ?? 0),
+        },
+        onDwelling,
+      );
+      return;
+    }
     placement.start(
       {
         kind: 'dwelling',
@@ -313,9 +341,7 @@ export function VillageGame({
         check: (position) =>
           item.check(decoded, placementVillage(), position, viewRef.current?.woodLogs ?? 0),
       },
-      (result) => {
-        if (result.kind === 'dwelling') buildDwelling(result.type, result.position);
-      },
+      onDwelling,
     );
   };
   const startBuildRef = useRef(startBuild);

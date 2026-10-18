@@ -59,13 +59,15 @@ export class SelectionHighlight {
 }
 
 /**
- * Obrys cíle jako lomené čáry: rámeček kolem půdorysu obydlí, nebo mez kolem čtverců pole,
- * hřbitova či sadu.
+ * Obrys cíle jako lomené čáry: celý pozemek obydlí (polozemnice – políčko), rámeček kolem
+ * půdorysu volného obydlí, nebo mez kolem čtverců pole, hřbitova či sadu.
  */
-function targetOutline(village: SceneVillage, target: VillageTarget): Point[][] {
+export function targetOutline(village: SceneVillage, target: VillageTarget): Point[][] {
   if (target.kind === 'dwelling') {
     const dwelling = village.dwellings.find((d) => d.id === target.id);
     if (!dwelling) return [];
+    // Martin: vybrané obydlí na pozemku označí celý pozemek, ne jen stavbu
+    if (dwelling.plot) return cellsBoundary([dwelling.plot]);
     const { width, depth } = DWELLING_FOOTPRINT_M[dwelling.type];
     const corners = footprintCorners(
       dwelling.position,

@@ -4,13 +4,16 @@ import { generateLandscape, obstaclesOf, tileCenterWorld } from '../../domain/la
 import {
   advanceVillage,
   checkDwellingPlacement,
+  checkPlotPlacement,
   DWELLING_TREES,
   dwellingBuildLabor,
   fellingCost,
   matureTreesByDistance,
   obstacleChangesAt,
   placementVillageOf,
+  plotHousePosition,
   woodFellingCost,
+  type DwellingPlot,
   type Position,
   type VillageState,
 } from '../../domain/village';
@@ -19,7 +22,7 @@ import { withBuiltFirstDwelling } from '../../domain/village/__tests__/village-f
 import { foundVillageForSettlement, type FoundVillageInput } from '../found-village';
 import { loadVillage } from '../load-village';
 import { placeCemetery } from '../place-cemetery';
-import { NO_SETTLERS, NO_WOOD, placeDwelling } from '../place-dwelling';
+import { NO_PLOT, NO_SETTLERS, NO_WOOD, placeDwelling } from '../place-dwelling';
 import { placeField } from '../place-field';
 import { placeOrchard } from '../place-orchard';
 import { renameVillage } from '../rename-village';
@@ -194,6 +197,7 @@ describe('placeDwelling', () => {
       ...base,
       type: 'polozemnice',
       position: at(-80, -80),
+      plot: { cell: { x: 2, y: 2 }, variant: 'center' },
     });
     expect(second).toEqual({ ok: false, reason: NO_SETTLERS });
     expect(villages.records.get(ID)?.version).toBe(version);
@@ -203,9 +207,11 @@ describe('placeDwelling', () => {
     const villages = await foundedVillages();
     villages.edit(ID, makeFullHousehold);
     const today = TODAY + 2;
+    // políčko (2, 4) = svět x −90 … −75, z −60 … −45; klientská poloha se nebere
+    const plot: DwellingPlot = { cell: { x: 2, y: 4 }, variant: 'front-left' };
     const result = await placeDwelling(
       { villages },
-      { settlementId: ID, landscape, today, type: 'polozemnice', position: at(-80, -50) },
+      { settlementId: ID, landscape, today, type: 'polozemnice', position: at(0, 0), plot },
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -216,8 +222,38 @@ describe('placeDwelling', () => {
       startedDay: today,
       done: 0,
       dwellingId: null,
+      plot,
     });
-    expect(site?.position).toEqual(at(-80, -50));
+    expect(site?.position).toEqual(plotHousePosition(landscape, plot));
+    // po dostavění obydlí pozemek převezme
+    const built = advanceVillage(result.village.state, today + 3 * 365, null);
+    expect(built.dwellings.find((d) => d.type === 'polozemnice')?.plot).toEqual(plot);
+  });
+
+  it('polozemnice bez pozemku ani na zabraném políčku neprojde, zemnice pozemek nebere', async () => {
+    const villages = await foundedVillages();
+    villages.edit(ID, makeFullHousehold);
+    const base = { settlementId: ID, landscape, today: TODAY + 1, position: at(-80, -50) };
+    const deps = { villages };
+    const noPlot = await placeDwelling(deps, { ...base, type: 'polozemnice' });
+    expect(noPlot).toEqual({ ok: false, reason: NO_PLOT });
+    // políčko (7, 7) patří prvnímu poli
+    const inField = await placeDwelling(deps, {
+      ...base,
+      type: 'polozemnice',
+      plot: { cell: { x: 7, y: 7 }, variant: 'center' },
+    });
+    expect(inField).toEqual({ ok: false, reason: 'Překrývá se s polem.' });
+    const zemnice = await placeDwelling(deps, {
+      ...base,
+      type: 'zemnice',
+      plot: { cell: { x: 2, y: 4 }, variant: 'center' },
+    });
+    expect(zemnice.ok).toBe(true);
+    if (!zemnice.ok) return;
+    const site = zemnice.village.state.constructions.at(-1)!;
+    expect(site.position).toEqual(at(-80, -50));
+    expect(site.plot).toBeUndefined();
   });
 
   it('obydlí přes zemnici nebo pole odmítne', async () => {
@@ -509,6 +545,23 @@ describe('překážky krajiny ve vsi (vrstva překážek)', () => {
   };
   const spot = spotWithObstacles();
   const expected = checkDwellingPlacement(real, null, 'zemnice', spot);
+  /** Pozemek polozemnice u vsi s překážkami na políčku (stromy, keře, kameny…). */
+  const plotWithObstacles = (village: Parameters<typeof checkPlotPlacement>[1]): DwellingPlot => {
+    for (let r = 1; r < 20; r++) {
+      for (let dy = -r; dy <= r; dy++) {
+        for (let dx = -r; dx <= r; dx++) {
+          if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+          const plot: DwellingPlot = {
+            cell: { x: real.villageSite.x + dx, y: real.villageSite.y + dy },
+            variant: 'center',
+          };
+          const check = checkPlotPlacement(real, village, 'polozemnice', plot);
+          if (check.ok && check.obstacleIds.length > 0) return plot;
+        }
+      }
+    }
+    throw new Error('Žádný pozemek s překážkami.');
+  };
 
   it('založení vsi odstraní překážky při zahájení stavby první zemnice a zaplatí je prací', async () => {
     const villages = new InMemoryVillages();
@@ -548,20 +601,30 @@ describe('překážky krajiny ve vsi (vrstva překážek)', () => {
       state.woodLogs = 0;
     });
     const before = villages.records.get(ID)!.state;
+    const placement = placementVillageOf(before, TODAY + 1);
+    const plot = plotWithObstacles(placement);
     const result = await placeDwelling(
       { villages },
-      { settlementId: ID, landscape: real, today: TODAY + 1, type: 'polozemnice', position: spot },
+      {
+        settlementId: ID,
+        landscape: real,
+        today: TODAY + 1,
+        type: 'polozemnice',
+        position: at(0, 0),
+        plot,
+      },
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     const state = result.village.state;
     const construction = state.constructions.at(-1)!;
-    const check = checkDwellingPlacement(
-      real,
-      placementVillageOf(before, TODAY + 1),
-      'polozemnice',
-      spot,
-    );
+    const check = checkPlotPlacement(real, placement, 'polozemnice', plot);
+    const spot = check.position!;
+    expect(construction.position).toEqual(spot);
+    // pozemek platí překážky celého políčka a odstraní je hned při zahájení stavby
+    expect(check.obstacleIds.length).toBeGreaterThan(0);
+    const cleared = state.clearedObstacles!.map((c) => c.id);
+    for (const id of check.obstacleIds) expect(cleared).toContain(id);
     const siteTrees = check.obstacleCounts.tree ?? 0;
     // stromy jiných staveb (první zemnice) jsou vyhrazené – vyloučit je
     const reserved = new Set(

@@ -13,18 +13,16 @@ míří vchod do +Z. Jámu se šíjí a schody kreslí scéna (apps/web/lib/scen
 rozměry musí sedět s DOOR, *_RAMP a půdorysy jam tady); modely mají jen štíty, ostění dveří
 a sloupy, které do jámy sahají. Střecha přečnívá před oba štíty o GABLE_OVERHANG.
 
-Výstup: zemnice.glb, polozemnice.glb (hotová obydlí), garden.glb (zahrádka polozemnice – počátek
-uprostřed zahrádky, scéna ji staví vedle domu na terén zvlášť a nakloní podle svahu) a
-construction.glb – díly staveniště
+Výstup: zemnice.glb, polozemnice.glb (hotová obydlí), homestead.glb (díly pozemku polozemnice:
+kůl, kůl branky, kus proplétané větve, záhon a rostliny – rozmístí je a na terén postaví scéna,
+apps/web/lib/scene/homestead-layout.ts a homestead.ts) a construction.glb – díly staveniště
 po fázích (uzly „zemnice-…“, „polozemnice-…“: kolíky, sloupy, krov, latě, výplet, srub, řady
-došků zdola nahoru, hřeben, valy, u polozemnice nakonec zahrádka garden-posts / garden-rails /
-garden-beds / garden-plants) a rekvizity („site-…“); kdy se který díl ukáže, určuje
-apps/web/lib/scene/village-construction.ts. Hráň polen vedle obydlí není (Martin: tak
-vyskládané dřevo tehdy neměli, navíc na dešti). K polozemnici patří po pravé straně
-(Blender +x) zahrádka ≈ 3,8 × 5 m obehnaná polským plotem – řidší kůly a vodorovně proplétané
-větve, u domu mezera branky – se čtyřmi záhony (zelí, řepa, cibule, kopr); řemeslné dílny
-z polozemnice ji nemají (build_garden volá jen main). Rozměry v GARDEN musí sedět
-s DWELLING_GARDEN_M v packages/game/src/domain/village/rules.ts (hlídá test podle garden.glb).
+došků zdola nahoru, hřeben, valy) a rekvizity („site-…“); kdy se který díl ukáže, určuje
+apps/web/lib/scene/village-construction.ts (plot a záhony pozemku tam mají vlastní fáze).
+Hráň polen ani samostatný kus plotu vedle obydlí nejsou (Martin). Polozemnice stojí na pozemku
+velkém jako políčko pole (15 × 15 m) obehnaném polským plotem – řidší kůly a vodorovně
+proplétané větve, zakulacené rohy (Martin: hranaté rohy se v polském plotu dělají špatně),
+branka proti vchodu – a ve zbytku jsou záhony (zelí, řepa, cibule, kopr).
 
 Celý postup (art = <0ad>/binaries/data/mods/public/art, PNG z DDS viz atlas.py):
   python3 -I tools/blender/atlas.py <celt_struct_1.png> <celt_struct.png> \
@@ -756,28 +754,16 @@ def site_props(part, mat):
     return [basket]
 
 
-# ------------------------------------------------------------------ zahrádka polozemnice
+# ------------------------------------------------------------------ pozemek polozemnice
 
-# Zahrádka vedle polozemnice (Martin): obdélník ≈ 3,8 × 5 m po pravé straně domu (Blender +x,
-# ve scéně −x modelu) za trsy trávy u okapu, ne před vchodem ani na vyšlapané hlíně. Plot má
-# u domu, kousek za předním rohem, mezeru (branku). Vyklízená plocha obydlí (DWELLING_CLEARING_M
-# v packages/game/src/domain/village/rules.ts) ji musí pokrýt – minX polozemnice ≤ −(GARDEN x1 + okraj).
-GARDEN = {"x0": 3.45, "x1": 7.25, "y0": -1.7, "y1": 3.3}
-GARDEN_GATE = (-1.35, -0.55)  # mezera v plotu u domu (y od–do na straně x0)
-GARDEN_STAKE_STEP = 1.0  # rozestup kůlů (m) – řidší než u pleteného plotu
-GARDEN_RODS = (0.16, 0.28, 0.4, 0.52, 0.64, 0.76, 0.88)  # výšky proplétaných větví (m)
-GARDEN_STAKE_TOP = 1.0
-# střed zahrádky = počátek modelu garden.glb a dílů garden-* v construction.glb; ve scéně (souřadnice
-# modelu, vchod do +z) je to (−x, −y) – střed DWELLING_GARDEN_M polozemnice v rules.ts
-GARDEN_CENTER = ((GARDEN["x0"] + GARDEN["x1"]) / 2, (GARDEN["y0"] + GARDEN["y1"]) / 2)
-
-
-def garden_origin(objs):
-    """Posune díly zahrádky tak, aby počátek ležel v jejím středu (transformaci zapeče join /
-    export staveniště)."""
-    for o in objs:
-        o.location = (-GARDEN_CENTER[0], -GARDEN_CENTER[1], 0)
-    return objs
+# Pozemek polozemnice (Martin, 18. 10. 2026): celé políčko 15 × 15 m obehnané polským plotem se
+# zakulacenými rohy, dům uprostřed nebo v rohu, ve zbytku záhony. Kde co stojí, počítá scéna
+# (apps/web/lib/scene/homestead-layout.ts) – tady jsou jen díly do homestead.glb, každý se
+# v instancích staví na své místo terénu: kůl, vyšší kůl u branky, kus proplétané větve 1 m
+# (scéna ho natáhne od kůlu ke kůlu), záhon 1 × 0,8 m (scéna ho natáhne na délku) a rostliny.
+# Počátek každého dílu leží na zemi; ve scéně je bod Blenderu (x, y) v osách (−x, −y).
+FENCE_STAKE_TOP = 1.0  # kůl nad zemí (m), u branky 1,22
+FENCE_ROD = 0.05  # průřez větve (m)
 
 
 def _rand(i, salt=0):
@@ -822,99 +808,55 @@ def rod(b, pts, size, mat="beam", salt=0):
         b.poly(ring, mat, out=d, uvm=[(0.0, 0.0), (size / 2, 0.0), (0.0, size / 2)])
 
 
-def garden_stakes():
-    """Kůly plotu po obvodu zahrádky v pořadí obcházení – od branky podél domu dozadu, kolem
-    a zpět k brance. Vrací [(x, y, směr ven (nx, ny), u_branky)]."""
-    g = GARDEN
-    corners = [(g["x0"], GARDEN_GATE[1]), (g["x0"], g["y1"]), (g["x1"], g["y1"]), (g["x1"], g["y0"]), (g["x0"], g["y0"]), (g["x0"], GARDEN_GATE[0])]
-    out = []
-    for (ax, ay), (bx, by) in zip(corners, corners[1:]):
-        length = math.hypot(bx - ax, by - ay)
-        n = max(1, round(length / GARDEN_STAKE_STEP))
-        for i in range(n + (1 if (bx, by) == corners[-1] else 0)):
-            t = i / n
-            out.append([ax + (bx - ax) * t, ay + (by - ay) * t])
-    cx, cy = (g["x0"] + g["x1"]) / 2, (g["y0"] + g["y1"]) / 2
-    res = []
-    for i, (x, y) in enumerate(out):
-        # směr ven: kolmo ke straně (v rozích úhlopříčně)
-        nx = (1 if abs(x - g["x1"]) < 1e-6 else -1 if abs(x - g["x0"]) < 1e-6 else 0)
-        ny = (1 if abs(y - g["y1"]) < 1e-6 else -1 if abs(y - g["y0"]) < 1e-6 else 0)
-        if nx == 0 and ny == 0:
-            nx, ny = x - cx, y - cy
-        ln = math.hypot(nx, ny)
-        gate = i == 0 or i == len(out) - 1
-        res.append((x, y, (nx / ln, ny / ln), gate))
-    return res
+def homestead_parts(mat):
+    """Díly pozemku do homestead.glb: fence-post, fence-post-gate, fence-rail (1 m podél
+    Blender −x = ve scéně +x od počátku), bed (1 × 0,8 m, délka podél x), plant-cabbage,
+    plant-turnip, plant-onion, plant-dill (pata na vršku záhonu = počátek)."""
+    objs = []
 
+    def part(name):
+        b = Builder(name)
+        return b
 
-def build_garden(part):
-    """Zahrádka polozemnice obehnaná polským plotem: řidší kůly a mezi nimi vodorovně
-    proplétané větve (střídavě před a za kůlem – lehčí hrazení než pletený plot), u domu mezera
-    branky s vyššími kůly. Uvnitř podél plotu u domu ulička a napříč čtyři vyvýšené záhony:
-    zelí, řepa, cibule a bylinky (kopr). Díly pro staveniště: garden-posts (kůly),
-    garden-rails (proplétání), garden-beds (záhony), garden-plants (zelenina)."""
-    stakes = garden_stakes()
-    b = part("garden-posts")
-    for i, (x, y, _, gate) in enumerate(stakes):
-        top = (1.22 if gate else GARDEN_STAKE_TOP) + 0.08 * (_rand(i, 1) - 0.5)
-        lean = 0.03 * (_rand(i, 2) - 0.5)
-        b.beam((x, y, -0.15), (x + lean, y + lean, top), 0.08)
-    b = part("garden-rails")
-    for k, z in enumerate(GARDEN_RODS):
-        pts = []
-        for i, (x, y, (nx, ny), _) in enumerate(stakes):
-            side = 1 if (i + k) % 2 == 0 else -1
-            off = 0.065 * side
-            sag = 0.025 * (_rand(i * 7 + k, 3) - 0.5)
-            pts.append((x + nx * off, y + ny * off, z + sag))
-        rod(b, pts, 0.05, salt=k)
-    # záhony napříč (podél x), ulička podél plotu u domu
-    g = GARDEN
-    bx0, bx1 = g["x0"] + 0.75, g["x1"] - 0.3
-    beds = [(-1.45, -0.65, "cabbage"), (-0.3, 0.5, "turnip"), (0.85, 1.65, "onion"), (2.0, 2.8, "herb")]
-    b = part("garden-beds")
+    b = part("fence-post")
+    b.beam((0, 0, -0.15), (0.01, 0.01, FENCE_STAKE_TOP), 0.08)
+    objs.append(b.build(mat))
+    b = part("fence-post-gate")
+    b.beam((0, 0, -0.15), (0.01, 0.01, 1.22), 0.09)
+    objs.append(b.build(mat))
+    b = part("fence-rail")
+    # mírný průvěs uprostřed – větev není pravítko
+    rod(b, [(0, 0, 0), (-0.5, 0, -0.012), (-1, 0, 0)], FENCE_ROD)
+    objs.append(b.build(mat))
+    b = part("bed")
     b._smooth_now = True
-    for y0, y1, _ in beds:
-        garden_bed(b, bx0, bx1, y0, y1)
+    garden_bed(b, -0.5, 0.5, -0.4, 0.4, inset_x=0.04)
     b._smooth_now = False
-    b = part("garden-plants")
-    b._smooth_now = True
-    zt = GARDEN_BED_H
-    for j, (y0, y1, kind) in enumerate(beds):
-        rows = (y0 + 0.24, y1 - 0.24)
-        if kind == "onion":
-            rows = (y0 + 0.18, (y0 + y1) / 2, y1 - 0.18)
-        step = {"cabbage": 0.46, "turnip": 0.34, "onion": 0.24, "herb": 0.36}[kind]
-        for r, yr in enumerate(rows):
-            x = bx0 + 0.2 + (step / 2 if r % 2 else 0)
-            i = 0
-            while x < bx1 - 0.15:
-                seed = j * 100 + r * 30 + i
-                px = x + 0.05 * (_rand(seed, 4) - 0.5)
-                py = yr + 0.05 * (_rand(seed, 5) - 0.5)
-                s = 0.85 + 0.3 * _rand(seed, 6)
-                if kind == "cabbage":
-                    cabbage(b, px, py, zt, s, seed)
-                elif kind == "turnip":
-                    leafy_tuft(b, px, py, zt, s, seed, 5, 0.19, 0.13, 0.065)
-                elif kind == "onion":
-                    onion(b, px, py, zt, s, seed)
-                else:
-                    herb_bush(b, px, py, zt, s, seed)
-                x += step
-                i += 1
-    b._smooth_now = False
+    objs.append(b.build(mat))
+    plants = {
+        "plant-cabbage": lambda b: cabbage(b, 0, 0, 0, 1, 3),
+        "plant-turnip": lambda b: leafy_tuft(b, 0, 0, 0, 1, 5, 5, 0.19, 0.13, 0.065),
+        "plant-onion": lambda b: onion(b, 0, 0, 0, 1, 7),
+        "plant-dill": lambda b: herb_bush(b, 0, 0, 0, 1, 11),
+    }
+    for name, build in plants.items():
+        b = part(name)
+        b._smooth_now = True
+        build(b)
+        b._smooth_now = False
+        objs.append(b.build(mat))
+    return objs
 
 
-GARDEN_BED_H = 0.12  # výška záhonu nad terénem (m)
+GARDEN_BED_H = 0.12  # výška záhonu nad terénem (m) – BED_TOP_M v apps/web/lib/scene/homestead.ts
 
 
-def garden_bed(b, x0, x1, y0, y1):
-    """Vyvýšený záhon: plochý vršek zkypřené hlíny, šikmé boky (u paty tráva jako na valu)."""
+def garden_bed(b, x0, x1, y0, y1, inset_x=0.1):
+    """Vyvýšený záhon: plochý vršek zkypřené hlíny, šikmé boky (u paty tráva jako na valu).
+    `inset_x` = sklon čel (scéna záhon natahuje podél x, čela se natáhnou s ním)."""
     h, inset = GARDEN_BED_H, 0.1
     o = [(x0, y0, -0.03), (x1, y0, -0.03), (x1, y1, -0.03), (x0, y1, -0.03)]
-    t = [(x0 + inset, y0 + inset, h), (x1 - inset, y0 + inset, h), (x1 - inset, y1 - inset, h), (x0 + inset, y1 - inset, h)]
+    t = [(x0 + inset_x, y0 + inset, h), (x1 - inset_x, y0 + inset, h), (x1 - inset_x, y1 - inset, h), (x0 + inset_x, y1 - inset, h)]
     b.poly(t, "soil", out=(0, 0, 1), uvm=[(0, 0), (1, 0), (1, 1), (0, 1)])
     slope_v = math.hypot(inset, h + 0.03)
     for i in range(4):
@@ -1231,29 +1173,27 @@ def main():
         import_prop("basket-b", 0.38, (2.0, -2.85, 0.0), mat, 0.6),
     ]
     polozemnice = join(pp.build(mat) + p_props, "polozemnice")
-    # zahrádka je samostatný model s počátkem uprostřed (scéna ji položí na terén a nakloní)
-    gp = Parts("f-garden")
-    build_garden(gp)
-    garden = join(garden_origin(gp.build(mat)), "garden")
 
     os.makedirs(OUT, exist_ok=True)
-    for obj in (zemnice, polozemnice, garden):
+    for obj in (zemnice, polozemnice):
         obj.location = (0, 0, 0)
         export([obj], os.path.join(OUT, f"{obj.name}.glb"))
         d = obj.dimensions
         print(f"STAT {obj.name}: {tri_count(obj)} tris, {len(obj.data.materials)} mat, {d.x:.2f} x {d.y:.2f} x {d.z:.2f} m")
+    # díly pozemku polozemnice (plot, záhony, rostliny) – rozmístí je scéna
+    plot_parts = homestead_parts(mat)
+    export(plot_parts, os.path.join(OUT, "homestead.glb"))
+    for obj in plot_parts:
+        print(f"PART {obj.name}: {tri_count(obj)} tris")
 
     # staveniště: díly obou obydlí podle fází stavby a rekvizity – jeden GLB, jeden atlas
     zs = Parts("zemnice")
     build_zemnice(zs, stages=True)
     ps = Parts("polozemnice")
     build_polozemnice(ps, stages=True)
-    build_garden(ps)  # zahrádka až nakonec (village-construction.ts – fáze „garden“)
     sp = Parts("site")
     extra = site_props(sp, mat)
-    house = ps.build(mat)
-    garden_origin([o for o in house if o.name.startswith("polozemnice-garden-")])
-    stage_objs = zs.build(mat) + house + sp.build(mat) + extra
+    stage_objs = zs.build(mat) + ps.build(mat) + sp.build(mat) + extra
     bpy.ops.object.select_all(action="DESELECT")
     for obj in stage_objs:
         obj.select_set(True)
@@ -1276,20 +1216,13 @@ def main():
             render([obj], os.path.join(RENDER, f"{obj.name}_side.png"), (15.0, -2.5, 4.2), (0, -0.3, 1.0), lens=35)
             render([obj], os.path.join(RENDER, f"{obj.name}_back.png"), (9.5, 9.0, 6.0), (0, 0, 0.8))
             render([obj], os.path.join(RENDER, f"{obj.name}_close.png"), (-2.4, -8.6, 3.9), (0.05, -2.7, 0.0), size=(1200, 900), lens=30)
-            if obj is polozemnice:
-                gx, gy = GARDEN_CENTER
-                garden.location = (gx, gy, 0)
-                both = [obj, garden]
-                render(both, os.path.join(RENDER, "polozemnice_garden.png"), (gx + 1.5, -9.5, 4.2), (gx - 0.5, 0.6, 0.2), size=(1200, 900), lens=32)
-                render(both, os.path.join(RENDER, "polozemnice_game.png"), (2.5, -15.5, 14.0), (2.5, 0.3, 0.3), size=(1200, 900), lens=40)
             for o in extra:
                 bpy.data.objects.remove(o)
         bpy.data.objects["ground"].hide_render = False
         # obě vedle sebe z herního úhlu (≈ 49° od svislice)
-        zemnice.location = (-6.0, 0, 0)
-        polozemnice.location = (3.0, 0, 0)
-        garden.location = (3.0 + GARDEN_CENTER[0], GARDEN_CENTER[1], 0)
-        render([zemnice, polozemnice, garden], os.path.join(RENDER, "both_game_angle.png"), (0, -24, 21.5), (0, 0, 0.5), size=(1600, 900))
+        zemnice.location = (-4.5, 0, 0)
+        polozemnice.location = (4.5, 0, 0)
+        render([zemnice, polozemnice], os.path.join(RENDER, "both_game_angle.png"), (0, -24, 21.5), (0, 0, 0.5), size=(1600, 900))
 
 
 # crafts.py importuje tvary obydlí (Builder, thatch_roof, build_*) – jen při spuštění skriptu

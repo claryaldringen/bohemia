@@ -5,10 +5,14 @@ import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 import type { Scene } from '@babylonjs/core/scene';
 import {
   DWELLING_FOOTPRINT_M,
-  dwellingGarden,
+  type DwellingPlot,
+  type PlacementCheck,
   type DwellingType,
+  type PlotVariant,
   type Position,
+  type TileCell,
 } from '@bohemia/game';
+import { nextPlotVariant, plotHouse, type PlotSquare } from './homestead-layout';
 import {
   decalGrid,
   footprintCorners,
@@ -24,7 +28,13 @@ import {
   createStripMesh,
   type HeightFn,
 } from './village-meshes';
-import type { PlacementHandlers, PlacementMode, SceneDwelling } from './village-types';
+import type {
+  PlacementCost,
+  PlacementHandlers,
+  PlacementMode,
+  PlacementResult,
+  SceneDwelling,
+} from './village-types';
 
 /** Krok otáčení obydlí klávesami [ a ] (jako otáčení budovy v 0 A.D.). */
 const ROTATE_STEP = Math.PI / 12;
@@ -52,7 +62,15 @@ export interface ActivePlacement {
   dispose(): void;
 }
 
-type DwellingMode = Extract<PlacementMode, { kind: 'dwelling' }>;
+type DwellingMode = Extract<PlacementMode, { kind: 'dwelling' | 'plot' }>;
+/** Česky pojmenované varianty pozemku pro bublinu u kurzoru. */
+const VARIANT_NAMES: Record<PlotVariant, string> = {
+  center: 'dům uprostřed',
+  'back-left': 'dům vzadu vlevo',
+  'back-right': 'dům vzadu vpravo',
+  'front-right': 'dům vpředu vpravo',
+  'front-left': 'dům vpředu vlevo',
+};
 
 export interface PlacementContext {
   scene: Scene;
@@ -62,6 +80,8 @@ export interface PlacementContext {
   decalHeight: HeightFn;
   /** Natočení kamery (alpha) – obydlí se poprvé natočí vchodem ke kameře. */
   cameraAlpha(): number;
+  /** Políčko krajiny pod bodem (pozemek) se středem a stranou, nebo null mimo krajinu. */
+  cellAt(x: number, z: number): (PlotSquare & { cell: TileCell }) | null;
   ghostModel(type: DwellingType): Mesh | null;
   baseHeight(d: Pick<SceneDwelling, 'type' | 'position'>): number;
   requestRender(): void;
@@ -69,8 +89,10 @@ export interface PlacementContext {
 
 /**
  * Umisťování obydlí jako v 0 A.D.: duch u kurzoru, levé kliknutí postaví, se Shiftem postaví
- * a umisťuje dál další kus; pravé kliknutí nebo Esc zruší. Klávesy [ a ] otáčejí obydlím,
- * Enter postaví pod kurzorem. Kurzor nad terénem dodává scéna jednou za snímek (`setCursor`).
+ * a umisťuje dál další kus; pravé kliknutí nebo Esc zruší. Klávesy [ a ] otáčejí volným obydlím
+ * (zemnice), u obydlí na pozemku (polozemnice – celé políčko pod kurzorem) přepínají variantu,
+ * kde na pozemku dům stojí. Enter postaví pod kurzorem. Kurzor nad terénem dodává scéna jednou
+ * za snímek (`setCursor`).
  */
 export class PlacementController implements ActivePlacement {
   private readonly ghost: Mesh[] = [];
@@ -79,6 +101,7 @@ export class PlacementController implements ActivePlacement {
   private cursor: Point | null = null;
   private screen: { x: number; y: number } | null = null;
   private rotation: number;
+  private variant: PlotVariant = 'center';
   private downs = new Map<number, { x: number; y: number }>();
   private model: Mesh | null = null;
   private done = false;
@@ -172,7 +195,9 @@ export class PlacementController implements ActivePlacement {
     }
     if (event.code === 'BracketLeft' || event.code === 'BracketRight') {
       event.preventDefault();
-      this.rotation += event.code === 'BracketRight' ? ROTATE_STEP : -ROTATE_STEP;
+      const step = event.code === 'BracketRight' ? 1 : -1;
+      if (this.mode.kind === 'plot') this.variant = nextPlotVariant(this.variant, step);
+      else this.rotation += step * ROTATE_STEP;
       this.refresh();
     } else if (event.code === 'Enter' || event.code === 'NumpadEnter') {
       event.preventDefault();
@@ -185,19 +210,38 @@ export class PlacementController implements ActivePlacement {
    * běží dál a duch se hned ověří znovu (rozhraní už zná právě postavené obydlí).
    */
   private place(point: Point, keepPlacing: boolean): void {
-    const position = this.position(point);
-    if (!this.mode.check(position).ok) {
+    const result = this.result(point);
+    if (!result) {
       this.refresh();
       return;
     }
-    const type = this.mode.type;
     if (keepPlacing) {
-      this.handlers.onConfirm({ kind: 'dwelling', type, position }, true);
+      this.handlers.onConfirm(result, true);
       this.refresh();
       return;
     }
     this.dispose();
-    this.handlers.onConfirm({ kind: 'dwelling', type, position });
+    this.handlers.onConfirm(result);
+  }
+
+  /** Prošlé umístění na bodě terénu, nebo null (neprošlo / mimo krajinu). */
+  private result(point: Point): PlacementResult | null {
+    const mode = this.mode;
+    if (mode.kind === 'plot') {
+      const plot = this.plot(point);
+      if (!plot) return null;
+      const check = mode.check(plot);
+      if (!check.ok || !check.position) return null;
+      return { kind: 'dwelling', type: mode.type, position: check.position, plot };
+    }
+    const position = this.position(point);
+    return mode.check(position).ok ? { kind: 'dwelling', type: mode.type, position } : null;
+  }
+
+  /** Pozemek pod bodem: políčko krajiny a vybraná varianta (null mimo krajinu). */
+  private plot(point: Point): DwellingPlot | null {
+    const square = this.context.cellAt(point[0], point[1]);
+    return square ? { cell: square.cell, variant: this.variant } : null;
   }
 
   private position(point: Point): Position {
@@ -219,8 +263,35 @@ export class PlacementController implements ActivePlacement {
       this.handlers.onPreview?.(null);
       return;
     }
-    const position = this.position(this.cursor);
-    const check = mode.check(position);
+    let position: Position;
+    let check: PlacementCheck & { cost?: PlacementCost | null };
+    let label = DWELLING_NAMES[mode.type];
+    if (mode.kind === 'plot') {
+      const square = this.context.cellAt(this.cursor[0], this.cursor[1]);
+      if (!square) {
+        this.model?.setEnabled(false);
+        this.handlers.onPreview?.(null);
+        return;
+      }
+      const plotCheck = mode.check({ cell: square.cell, variant: this.variant });
+      check = plotCheck;
+      position = plotCheck.position ?? plotHouse(square, this.variant);
+      label = `${label} – ${VARIANT_NAMES[this.variant]}`;
+      // celý pozemek (políčko) – světlejší plocha s obrysem
+      const h = square.size / 2;
+      const corners: Point[] = [
+        [square.x - h, square.z - h],
+        [square.x + h, square.z - h],
+        [square.x + h, square.z + h],
+        [square.x - h, square.z + h],
+      ];
+      const look = check.ok ? 'ok' : 'bad';
+      this.addFill(corners, look, 0.18);
+      this.addStrip(stripSegments(corners, true, 0.2, 1), look);
+    } else {
+      position = this.position(this.cursor);
+      check = mode.check(position);
+    }
     const look = check.ok ? 'ok' : 'bad';
     const { width, depth } = DWELLING_FOOTPRINT_M[mode.type];
     const corners = footprintCorners(position, width, depth);
@@ -231,12 +302,6 @@ export class PlacementController implements ActivePlacement {
     const left = localToWorld(position, -0.7, depth / 2 + 0.5);
     const right = localToWorld(position, 0.7, depth / 2 + 0.5);
     this.addFill([left, tip, right], look, 0.85, 0.1);
-    // zahrádka polozemnice – světlejší obrys vedle domu (patří k obydlí, nesmí na pole ani do vody)
-    const garden = dwellingGarden(mode.type, position)?.map(([x, z]): Point => [x, z]);
-    if (garden) {
-      this.addFill(garden, look, 0.18);
-      this.addStrip(stripSegments(garden, true, 0.12, 1), look);
-    }
     if (this.model) {
       this.model.position.set(
         position.x,
@@ -252,7 +317,7 @@ export class PlacementController implements ActivePlacement {
     }
     this.handlers.onPreview?.({
       check,
-      label: DWELLING_NAMES[mode.type],
+      label,
       screen: this.screen,
       cost: check.ok ? (check.cost ?? null) : null,
     });

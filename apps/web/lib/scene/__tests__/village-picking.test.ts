@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SceneVillage } from '../../village-view';
+import { targetOutline } from '../selection-highlight';
 import {
   insideFootprint,
   pickVillageTarget,
@@ -157,5 +158,56 @@ describe('sad', () => {
     expect(target).toEqual({ kind: 'orchard', id: 50 });
     expect(targetExists(withOrchard, { kind: 'orchard', id: 50 })).toBe(true);
     expect(targetExists(village, { kind: 'orchard', id: 50 })).toBe(false);
+  });
+});
+
+describe('pozemek polozemnice', () => {
+  // políčko (4, 2) = svět x 60 … 75, z 30 … 45; dům vzadu vlevo
+  const plot = {
+    cell: { x: 4, y: 2 },
+    x: 67.5,
+    z: 37.5,
+    size: CELL,
+    variant: 'back-left' as const,
+  };
+  const withPlot: SceneVillage = {
+    ...village,
+    dwellings: [
+      ...village.dwellings,
+      {
+        id: 9,
+        type: 'polozemnice',
+        position: { x: 64.2, z: 40.7, rotation: Math.PI },
+        built: true,
+        progress: 1,
+        plot,
+      },
+    ],
+  };
+
+  it('kliknutí kamkoli na pozemek (záhony, branka) vybere obydlí', () => {
+    const pick = (x: number, z: number): ReturnType<typeof pickVillageTarget> =>
+      pickVillageTarget(withPlot, rayTo(x, z), {
+        ground: { x, z },
+        groundHeight: flat,
+        cellOf,
+      });
+    expect(pick(72, 32)).toEqual({ kind: 'dwelling', id: 9 });
+    expect(pick(61, 31)).toEqual({ kind: 'dwelling', id: 9 });
+    // vedlejší políčko je prázdné
+    expect(pick(80, 32)).toBeNull();
+  });
+
+  it('výběr obydlí na pozemku označí celé políčko, volné obydlí jen rámeček kolem domu', () => {
+    const ring = targetOutline(withPlot, { kind: 'dwelling', id: 9 }).flat();
+    const xs = ring.map(([x]) => x);
+    const zs = ring.map(([, z]) => z);
+    expect(Math.min(...xs)).toBe(60);
+    expect(Math.max(...xs)).toBe(75);
+    expect(Math.min(...zs)).toBe(30);
+    expect(Math.max(...zs)).toBe(45);
+    const [house] = targetOutline(withPlot, { kind: 'dwelling', id: 1 });
+    const hx = house!.map(([x]) => x);
+    expect(Math.max(...hx) - Math.min(...hx)).toBeLessThan(8);
   });
 });

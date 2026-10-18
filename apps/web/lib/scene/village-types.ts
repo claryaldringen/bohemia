@@ -5,7 +5,7 @@
 //
 // Position.rotation = natočení kolem svislé osy v radiánech jako `mesh.rotation.y` v Babylonu:
 // 0 = vchod míří do +Z, π/2 do +X (vchod míří do směru (sin r, cos r) v osách x, z).
-import type { DwellingType, PlacementCheck, Position, TileCell } from '@bohemia/game';
+import type { DwellingPlot, DwellingType, PlacementCheck, Position, TileCell } from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
 
 /**
@@ -46,8 +46,10 @@ export interface SquaresPreview {
 }
 
 /**
- * Co hráč právě umisťuje a jak scéna ověří, jestli to jde: obydlí půdorysem (duch u kurzoru),
- * nebo stavbu po čtvercích políček (pole a další stavby malované jako pole).
+ * Co hráč právě umisťuje a jak scéna ověří, jestli to jde: volné obydlí půdorysem (zemnice –
+ * duch u kurzoru, klávesy [ a ] otáčejí), obydlí na pozemku (polozemnice – políčko pod kurzorem,
+ * [ a ] přepínají variantu, kde na něm dům stojí), nebo stavbu po čtvercích políček (pole a další
+ * stavby malované jako pole).
  */
 export type PlacementMode =
   | {
@@ -56,11 +58,23 @@ export type PlacementMode =
       /** Kontrola místa, u prošlého umístění i s cenou. */
       check(position: Position): PlacementCheck & { cost?: PlacementCost | null };
     }
+  | {
+      kind: 'plot';
+      type: DwellingType;
+      /** Kontrola pozemku, u prošlého i s cenou; poloha domu na něm (null = neprošel). */
+      check(plot: DwellingPlot): PlacementCheck & {
+        cost?: PlacementCost | null;
+        position: Position | null;
+      };
+    }
   | { kind: 'squares'; preview(cells: TileCell[]): SquaresPreview };
 
-/** Potvrzené umístění – scéna ho ohlásí jen tehdy, když kontrola prošla. */
+/**
+ * Potvrzené umístění – scéna ho ohlásí jen tehdy, když kontrola prošla. Obydlí na pozemku nese
+ * i pozemek (`plot`) – `position` je pak poloha domu na něm.
+ */
 export type PlacementResult =
-  | { kind: 'dwelling'; type: DwellingType; position: Position }
+  | { kind: 'dwelling'; type: DwellingType; position: Position; plot?: DwellingPlot }
   | { kind: 'squares'; cells: TileCell[] };
 
 /**

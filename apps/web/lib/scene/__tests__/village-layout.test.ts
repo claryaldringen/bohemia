@@ -166,7 +166,7 @@ describe('vzhled dílů pole', () => {
 describe('skrytí stromů a kamenů pod vsí', () => {
   it('pod obydlím a v poli se skryjí, jinde zůstanou', () => {
     const shapes = [
-      dwellingHideShape('zemnice', { x: 100, z: 100, rotation: 0 }),
+      dwellingHideShape({ type: 'zemnice', position: { x: 100, z: 100, rotation: 0 } }),
       fieldHideShape({
         id: 1,
         parts: [

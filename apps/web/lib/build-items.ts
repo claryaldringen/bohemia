@@ -1,6 +1,8 @@
 import {
+  PLOT_TYPES,
   cemeteryPartsFromCells,
   checkDwellingPlacement,
+  checkPlotPlacement,
   dwellingLaborManDays,
   fieldPartsFromCells,
   NO_OBSTACLE_CHANGES,
@@ -9,6 +11,7 @@ import {
   planDwellingWoodFrom,
   type BuildKind,
   type DwellingPlacementCheck,
+  type DwellingPlot,
   type DwellingType,
   type Landscape,
   type ObstacleLayer,
@@ -42,6 +45,8 @@ export interface SquaresCheck {
 
 /** Kontrola obydlí: projde? a u prošlého umístění cena (práce a stromy ke kácení). */
 export type FootprintCheck = PlacementCheck & { cost: PlacementCost | null };
+/** Kontrola obydlí na pozemku – navíc poloha domu na něm (null = pozemek neprošel). */
+export type PlotCheck = FootprintCheck & { position: Position | null };
 
 interface BuildItemBase {
   kind: BuildKind;
@@ -54,7 +59,8 @@ interface BuildItemBase {
 }
 
 /**
- * Stavba v mřížce staveb. `footprint` = půdorys u kurzoru (duch obydlí, otáčí se), `squares` =
+ * Stavba v mřížce staveb. `footprint` = půdorys u kurzoru (duch obydlí, otáčí se), `plot` =
+ * pozemek na políčku pod kurzorem (polozemnice – varianty, kde na něm dům stojí), `squares` =
  * malování po čtvercích políček jako pole.
  */
 export type BuildItem =
@@ -71,32 +77,55 @@ export type BuildItem =
       ): FootprintCheck;
     })
   | (BuildItemBase & {
+      placement: 'plot';
+      /** Model ducha domu. */
+      dwellingType: DwellingType;
+      check(
+        landscape: Landscape,
+        village: PlacementVillage,
+        plot: DwellingPlot,
+        woodLogs: number,
+      ): PlotCheck;
+    })
+  | (BuildItemBase & {
       placement: 'squares';
       check(landscape: Landscape, village: PlacementVillage, cells: TileCell[]): SquaresCheck;
     });
 
-const dwelling = (
-  kind: DwellingType,
-  name: string,
-  hotkeyLabel: string,
-): BuildItem & { placement: 'footprint' } => ({
-  kind,
-  name,
-  icon: kind,
-  hotkey: `Key${hotkeyLabel}`,
-  hotkeyLabel,
-  placement: 'footprint',
-  dwellingType: kind,
-  check: (landscape, village, position, woodLogs) => {
-    const check = checkDwellingPlacement(landscape, village, kind, position);
+const dwelling = (kind: DwellingType, name: string, hotkeyLabel: string): BuildItem => {
+  const base = { kind, name, icon: kind, hotkey: `Key${hotkeyLabel}`, hotkeyLabel };
+  if (PLOT_TYPES[kind]) {
     return {
-      ...check,
-      cost: check.ok
-        ? dwellingPlacementCost(landscape, village, kind, position, check, woodLogs)
-        : null,
+      ...base,
+      placement: 'plot',
+      dwellingType: kind,
+      check: (landscape, village, plot, woodLogs) => {
+        const check = checkPlotPlacement(landscape, village, kind, plot);
+        return {
+          ...check,
+          cost:
+            check.ok && check.position
+              ? dwellingPlacementCost(landscape, village, kind, check.position, check, woodLogs)
+              : null,
+        };
+      },
     };
-  },
-});
+  }
+  return {
+    ...base,
+    placement: 'footprint',
+    dwellingType: kind,
+    check: (landscape, village, position, woodLogs) => {
+      const check = checkDwellingPlacement(landscape, village, kind, position);
+      return {
+        ...check,
+        cost: check.ok
+          ? dwellingPlacementCost(landscape, village, kind, position, check, woodLogs)
+          : null,
+      };
+    },
+  };
+};
 
 /** Cena prošlé stavby po čtvercích – jen práce (pole, sad ani hřbitov nechtějí dřevo). */
 const squaresCost = (check: PlacementCheck, laborManDays: number): PlacementCost | null =>

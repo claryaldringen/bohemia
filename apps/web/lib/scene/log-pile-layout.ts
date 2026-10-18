@@ -18,7 +18,7 @@ import {
   type Point,
 } from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
-import { localToWorld } from './village-layout';
+import { dwellingArea, localToWorld } from './village-layout';
 
 /** Kláda – délka a poloměr (m): kmen velkého stromu přeřezaný na délku srubu. */
 export const LOG_LENGTH_M = 4.2;
@@ -99,6 +99,34 @@ export function logPileLayout(count: number): LogPlacement[] {
   return logs;
 }
 
+/**
+ * Jak daleko od středu domu sahá pozemek v místních osách domu: vpravo (+x), vlevo (−x)
+ * a dozadu (−z) – hromada klád leží za plotem.
+ */
+function plotReach(
+  position: { x: number; z: number; rotation: number },
+  plot: { x: number; z: number; size: number },
+): { right: number; left: number; back: number } {
+  const h = plot.size / 2;
+  const c = Math.cos(position.rotation);
+  const s = Math.sin(position.rotation);
+  const local = [
+    [plot.x - h, plot.z - h],
+    [plot.x + h, plot.z - h],
+    [plot.x + h, plot.z + h],
+    [plot.x - h, plot.z + h],
+  ].map(([x, z]) => {
+    const dx = x! - position.x;
+    const dz = z! - position.z;
+    return [dx * c - dz * s, dx * s + dz * c] as const;
+  });
+  return {
+    right: Math.max(...local.map((p) => p[0])),
+    left: -Math.min(...local.map((p) => p[0])),
+    back: -Math.min(...local.map((p) => p[1])),
+  };
+}
+
 /** Místní (lx, lz) hromady na místě `site` → svět. */
 export function pileToWorld(site: LogPileSite, lx: number, lz: number): Point {
   return localToWorld({ x: site.x, z: site.z, rotation: site.rotation }, lx, lz);
@@ -129,14 +157,23 @@ export function logPileSite(
     }
   }
   const footprint = DWELLING_FOOTPRINT_M[home.type];
-  const side = footprint.width / 2 + SITE_GAP_M + PILE_DEPTH_M / 2;
-  const behind = -footprint.depth / 2 - SITE_GAP_M - PILE_DEPTH_M / 2;
+  // obydlí na pozemku: hromada za plotem (místní osy domu – pozemek je kolem něj souměrně
+  // jen u varianty uprostřed, proto od okraje políčka, ne od stěny)
+  const reach = home.plot
+    ? plotReach(home.position, home.plot)
+    : {
+        right: footprint.width / 2,
+        left: footprint.width / 2,
+        back: footprint.depth / 2,
+      };
+  const side = (half: number): number => half + SITE_GAP_M + PILE_DEPTH_M / 2;
+  const behind = -reach.back - SITE_GAP_M - PILE_DEPTH_M / 2;
   // hranice podél boční stěny (klády od ní kolmo ven), nebo za obydlím podél zadní stěny
   const candidates: { lx: number; lz: number; turn: number }[] = [];
   for (const extra of [0, 3, 7]) {
     candidates.push(
-      { lx: side + extra, lz: 0, turn: Math.PI / 2 },
-      { lx: -side - extra, lz: 0, turn: Math.PI / 2 },
+      { lx: side(reach.right) + extra, lz: 0, turn: Math.PI / 2 },
+      { lx: -side(reach.left) - extra, lz: 0, turn: Math.PI / 2 },
       { lx: 0, lz: behind - extra, turn: 0 },
     );
   }
@@ -167,8 +204,10 @@ function isFree(
     if (taken.has(`${tile.x},${tile.y}`)) return false;
   }
   for (const d of village.dwellings) {
-    if (d.id === homeId) continue;
-    if (polygonsOverlap(corners, dwellingClearing(d.type, d.position))) return false;
+    // vlastní pozemek je oplocený a plný záhonů – hromada leží za plotem
+    if (d.id === homeId && !d.plot) continue;
+    const area = d.plot ? dwellingArea(d) : dwellingClearing(d.type, d.position);
+    if (polygonsOverlap(corners, area)) return false;
   }
   const margin = rectangleCorners(
     site.x,

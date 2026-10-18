@@ -26,6 +26,9 @@ function checkResult(mode: PlacementMode, result: PlacementResult): PlacementChe
   if (mode.kind === 'dwelling' && result.kind === 'dwelling' && result.type === mode.type) {
     return mode.check(result.position);
   }
+  if (mode.kind === 'plot' && result.kind === 'dwelling' && result.type === mode.type) {
+    return result.plot ? mode.check(result.plot) : { ok: false, reason: 'Chybí pozemek.' };
+  }
   if (mode.kind === 'squares' && result.kind === 'squares') return mode.preview(result.cells).check;
   return { ok: false, reason: 'Teď se umisťuje něco jiného.' };
 }

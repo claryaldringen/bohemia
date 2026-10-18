@@ -50,7 +50,10 @@ export async function foundVillage(input: unknown): Promise<VillageActionResult>
   return foundVillageForPlayer(id, parsed);
 }
 
-/** Stavba nového obydlí: `{ type: 'zemnice' | 'polozemnice', position: { x, z, rotation } }`. */
+/**
+ * Stavba nového obydlí: `{ type: 'zemnice' | 'polozemnice', position: { x, z, rotation },
+ * plot?: { cell: { x, y }, variant } }` – polozemnice na pozemku (poloha domu podle něj).
+ */
 export async function placeDwelling(input: unknown): Promise<VillageActionResult> {
   const id = await playerId();
   if (id === null) return { error: NOT_SIGNED_IN };

@@ -14,13 +14,15 @@ import { Scene } from '@babylonjs/core/scene';
 import { SHOWCASE_BUILDINGS, SHOWCASE_GROUNDS, showcaseGrounds } from './building-showcase-layout';
 import { SUN_DIRECTION } from './constants';
 import { createEngine, type RendererName } from './create-engine';
-import { GARDEN_MODEL_URL, eaveTufts, gardenInstance, type TuftModel } from './dwelling-decor';
+import { eaveTufts, type TuftModel } from './dwelling-decor';
+import { HomesteadRenderer, type PlotView } from './homestead';
 import { applyGammaFog } from './gamma-fog';
 import { addInstancedModel, loadMergedModel, loadModelParts } from './instanced-model';
 import { PitCuts, applyPitCut } from './pit-cut';
 import { ShowcaseSites } from './showcase-sites';
 import { addSunShadows, type SunShadows } from './sun-shadows';
-import { CONSTRUCTION_BASE } from './village-construction';
+import { CONSTRUCTION_BASE, PLOT_BUILT, constructionState } from './village-construction';
+import { createDecalMaterial } from './village-meshes';
 import { VillageRenderer } from './village-renderer';
 
 /** Úhel kamery od svislice ve hře (BETA v camera.ts) – výchozí pohled vývojové stránky. */
@@ -59,6 +61,8 @@ export class BuildingShowcase {
   private sites: ShowcaseSites | null = null;
   /** Pole, hřbitov a sad – herní renderer vsi bez obydlí. */
   private grounds: VillageRenderer | null = null;
+  /** Pozemky polozemnic – plot a záhony po fázích jako ve vsi (homestead.ts). */
+  private plots: HomesteadRenderer | null = null;
   private shadows: SunShadows | null = null;
   /** Vrhače stínu přidané dřív, než vznikne stínová mapa. */
   private readonly pendingCasters: Mesh[] = [];
@@ -160,6 +164,7 @@ export class BuildingShowcase {
     this.resizeObserver.disconnect();
     this.sites?.dispose();
     this.grounds?.dispose();
+    this.plots?.dispose();
     this.camera.detachControl();
     this.engine.stopRenderLoop();
     this.scene.dispose();
@@ -199,12 +204,6 @@ export class BuildingShowcase {
 
     const casters = this.pendingCasters;
     const parts = new Map<string, Mesh>();
-    // zahrádka polozemnice vedle domu (zemnice ani dílny ji nemají)
-    const gardens = models.flatMap((m) => {
-      if (m.kind !== 'zemnice' && m.kind !== 'polozemnice') return [];
-      const garden = gardenInstance(m.kind, m, () => 0);
-      return garden ? [garden] : [];
-    });
     await Promise.all([
       ...models.map(async (m, i) => {
         try {
@@ -246,22 +245,6 @@ export class BuildingShowcase {
           console.warn('Trsy trávy se nepodařilo načíst.', error);
         }
       }),
-      (async () => {
-        try {
-          const mesh = await addInstancedModel(
-            scene,
-            GARDEN_MODEL_URL,
-            'showcase-garden',
-            gardens,
-            prepareModelMaterial,
-          );
-          if (!mesh) return;
-          casters.push(mesh);
-          this.finished.push(mesh);
-        } catch (error) {
-          console.warn('Model zahrádky se nepodařilo načíst.', error);
-        }
-      })(),
       ...CONSTRUCTION_URLS.map(async (url) => {
         try {
           const loaded = await loadModelParts(scene, url, 'showcase-site-', prepareModelMaterial);
@@ -294,6 +277,24 @@ export class BuildingShowcase {
       sunDirection: SUN_DIRECTION,
     });
     this.grounds.update(showcaseGrounds(this.progress).village);
+    const pathMaterial = createDecalMaterial(scene, 'showcase-plot-path', {
+      texture: 'grass-dirt',
+    });
+    applyPitCut(pathMaterial, pitCuts);
+    this.plots = new HomesteadRenderer(scene, {
+      groundHeight: () => 0,
+      decalHeight: () => 0,
+      addShadowCaster: (mesh) => {
+        if (this.shadows) this.shadows.addCaster(mesh);
+        else casters.push(mesh);
+      },
+      onAsyncChange: () => {
+        this.shadows?.refresh();
+        this.burst(600);
+      },
+      pathMaterial: () => pathMaterial,
+      prepareMaterial: prepareModelMaterial,
+    });
     this.shadows = addSunShadows(sun, { casters, receivers: [ground], extentM: GROUND_SIZE.width });
     this.applyProgress();
     await scene.whenReadyAsync();
@@ -310,8 +311,19 @@ export class BuildingShowcase {
     for (const mesh of this.tufts) mesh.setEnabled(built);
     this.sites.update(this.progress);
     this.grounds?.update(showcaseGrounds(this.progress).village);
+    this.plots?.update(this.plotViews());
     this.shadows?.refresh();
     this.burst(400);
+  }
+
+  /** Pozemky polozemnic při průběhu stavby (hotové celé, staveniště podle fáze plotu). */
+  private plotViews(): PlotView[] {
+    return SHOWCASE_BUILDINGS.flatMap((b) => b.models).flatMap((m, i) => {
+      if (!m.plot) return [];
+      const progress =
+        this.progress >= 1 ? PLOT_BUILT : constructionState(m.kind, this.progress).plot;
+      return [{ id: i + 1, square: m.plot, variant: m.plot.variant, progress }];
+    });
   }
 
   /** Kreslí jen při změně pohledu (a chvíli po načtení, než se dokončí shadery a textury). */

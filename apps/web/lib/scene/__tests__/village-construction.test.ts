@@ -1,9 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, it, expect } from 'vitest';
-import { DWELLING_GARDEN_M } from '@bohemia/game';
+import { PLOT_HOUSE_OFFSET_M, PLOT_VARIANTS } from '@bohemia/game';
+import { plotInward } from '../homestead-layout';
 import {
   CONSTRUCTION_PHASES,
+  PLOT_BUILT,
   SITE_PROPS,
   SITE_PROP_PLACES,
   THATCH_COURSES,
@@ -11,6 +13,7 @@ import {
   constructionPhase,
   constructionState,
   partSchedule,
+  sitePropPlace,
 } from '../village-construction';
 import { DWELLING_CLEARANCE_M } from '../village-layout';
 import type { DwellingType } from '@bohemia/game';
@@ -41,10 +44,10 @@ describe('fáze stavby', () => {
       'thatch',
       'finish',
     ]);
-    // polozemnice místo zahloubených sloupů roubí srub a nakonec udělá zahrádku
+    // polozemnice místo zahloubených sloupů roubí srub a nakonec ohradí pozemek a udělá záhony
     expect(CONSTRUCTION_PHASES.polozemnice.map((p) => p.id)).toContain('logs');
-    expect(CONSTRUCTION_PHASES.polozemnice.at(-1)!.id).toBe('garden');
-    expect(CONSTRUCTION_PHASES.zemnice.map((p) => p.id)).not.toContain('garden');
+    expect(CONSTRUCTION_PHASES.polozemnice.at(-1)!.id).toBe('beds');
+    expect(CONSTRUCTION_PHASES.zemnice.map((p) => p.id)).not.toContain('fence');
     expect(constructionPhase('zemnice', 0).id).toBe('layout');
     expect(constructionPhase('zemnice', 0.2).id).toBe('dig');
     expect(constructionPhase('zemnice', 1).id).toBe('finish');
@@ -98,7 +101,7 @@ describe('díly staveniště', () => {
   });
 });
 
-describe('zahrádka polozemnice', () => {
+describe('pozemek polozemnice', () => {
   /** Jména uzlů s meshem v GLB (JSON blok souboru). */
   function glbNodes(file: string): string[] {
     const data = readFileSync(join(__dirname, '../../../public/models', file));
@@ -118,36 +121,67 @@ describe('zahrádka polozemnice', () => {
     }
   });
 
-  it('až po hřebeni: kůly, proplétaný plot, záhony, zelenina; zemnice ani dílny ji nemají', () => {
-    const order = ['garden-posts', 'garden-rails', 'garden-beds', 'garden-plants'];
-    const from = (part: string): number =>
-      partSchedule('polozemnice').find((r) => r.part === part)!.from;
-    const garden = CONSTRUCTION_PHASES.polozemnice.find((p) => p.id === 'garden')!;
-    const ridge = from('ridge');
-    for (let i = 0; i < order.length; i++) {
-      expect(from(order[i]!)).toBeGreaterThan(ridge);
-      expect(from(order[i]!)).toBeGreaterThanOrEqual(garden.from);
-      if (i > 0) expect(from(order[i]!)).toBeGreaterThan(from(order[i - 1]!));
-    }
-    expect(constructionPhase('polozemnice', garden.from + 0.01).label).toMatch(/zahrádka/);
+  it('díly pozemku (homestead.glb): kůly, větev, záhon a čtyři druhy zeleniny', () => {
+    expect(new Set(glbNodes('dwellings/homestead.glb'))).toEqual(
+      new Set([
+        'fence-post',
+        'fence-post-gate',
+        'fence-rail',
+        'bed',
+        'plant-cabbage',
+        'plant-turnip',
+        'plant-onion',
+        'plant-dill',
+      ]),
+    );
+  });
+
+  it('po hřebeni plot (nejdřív kůly, pak větve zdola), nakonec záhony; zemnice ani dílny ne', () => {
+    const ids = CONSTRUCTION_PHASES.polozemnice.map((p) => p.id);
+    expect(ids.slice(-3)).toEqual(['finish', 'fence', 'beds']);
+    const plot = (p: number) => constructionState('polozemnice', p).plot;
+    const fence = CONSTRUCTION_PHASES.polozemnice.find((p) => p.id === 'fence')!;
+    const beds = CONSTRUCTION_PHASES.polozemnice.find((p) => p.id === 'beds')!;
+    expect(plot(fence.from - 0.01)).toEqual({ posts: 0, rails: 0, beds: 0 });
+    const early = plot(fence.from + (fence.to - fence.from) * 0.25);
+    expect(early.posts).toBeGreaterThan(0);
+    expect(early.rails).toBe(0);
+    const late = plot(fence.from + (fence.to - fence.from) * 0.75);
+    expect(late.posts).toBe(1);
+    expect(late.rails).toBeGreaterThan(0);
+    expect(late.beds).toBe(0);
+    expect(plot((beds.from + beds.to) / 2).beds).toBeGreaterThan(0);
+    expect(plot(1)).toEqual(PLOT_BUILT);
+    expect(constructionPhase('polozemnice', fence.from + 0.01).label).toMatch(/plot/);
     for (const kind of ['zemnice', 'hrncir', 'kovar', 'uhlir'] as const) {
-      expect(constructionParts(kind).some((p) => p.startsWith('garden-'))).toBe(false);
+      expect(CONSTRUCTION_PHASES[kind].map((p) => p.id)).not.toContain('fence');
+      expect(constructionState(kind, 0.99).plot).toEqual({ posts: 0, rails: 0, beds: 0 });
     }
   });
 
-  it('hromada hlíny z jámy zmizí do začátku zahrádky – leží na jejím místě', () => {
-    const garden = CONSTRUCTION_PHASES.polozemnice.find((p) => p.id === 'garden')!;
+  it('hromada hlíny z jámy zmizí do začátku plotu – na pozemku pak rostou záhony', () => {
+    const fence = CONSTRUCTION_PHASES.polozemnice.find((p) => p.id === 'fence')!;
     const spoil = (p: number): number =>
       constructionState('polozemnice', p).props.find((x) => x.prop === 'spoil')?.scale ?? 0;
-    expect(spoil(garden.from - 0.06)).toBeGreaterThan(0);
-    expect(spoil(garden.from)).toBe(0);
+    expect(spoil(fence.from - 0.04)).toBeGreaterThan(0);
+    expect(spoil(fence.from)).toBe(0);
     expect(spoil(0.99)).toBe(0);
-    // rekvizity, které na staveništi zůstanou až do konce, nestojí v zahrádce
-    const g = DWELLING_GARDEN_M.polozemnice!;
-    for (const { prop } of constructionState('polozemnice', 0.99).props) {
-      const { x, z } = SITE_PROP_PLACES.polozemnice[prop];
-      const inside = x > g.minX && x < g.maxX && z > g.minZ && z < g.maxZ;
-      expect(inside, prop).toBe(false);
+  });
+
+  it('rekvizity rohového domu se zrcadlí dovnitř pozemku, u domu uprostřed zůstanou', () => {
+    for (const variant of PLOT_VARIANTS) {
+      const inward = plotInward(variant);
+      for (const prop of SITE_PROPS) {
+        const place = sitePropPlace('polozemnice', prop, inward);
+        const original = SITE_PROP_PLACES.polozemnice[prop];
+        if (inward.x !== 0 && original.x !== 0) expect(Math.sign(place.x)).toBe(inward.x);
+        if (inward.z !== 0 && original.z !== 0) expect(Math.sign(place.z)).toBe(inward.z);
+        if (variant === 'center') expect(place).toEqual(original);
+        // rekvizita leží uvnitř políčka pozemku (dům natočený o π: svět = −model)
+        const offset = PLOT_HOUSE_OFFSET_M[variant];
+        expect(Math.abs(offset.x - place.x), `${variant} ${prop}`).toBeLessThan(7.5);
+        expect(Math.abs(offset.z - place.z), `${variant} ${prop}`).toBeLessThan(7.5);
+      }
     }
   });
 });

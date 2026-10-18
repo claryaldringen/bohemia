@@ -7,8 +7,8 @@ import {
   type Position,
   type Relief,
 } from '@bohemia/game';
-import { inGarden } from './dwelling-decor';
 import { PIT_SHAPES } from './dwelling-pit';
+import { insidePlot, type PlotSquare } from './homestead-layout';
 import { hash01 } from './smoke-schedule';
 import type { StreamCenterline } from './stream-geometry';
 import { tileAt } from './tile-at';
@@ -28,6 +28,8 @@ export interface LivestockVillage {
     position: Position;
     built: boolean;
     inhabited?: boolean;
+    /** Pozemek (polozemnice) – slepice zůstávají uvnitř plotu, cizí do něj nechodí. */
+    plot?: PlotSquare;
   }[];
   fields: readonly { parts: readonly { x: number; z: number; size: number }[] }[];
   cemeteries?: readonly { squares: readonly { x: number; z: number; size: number }[] }[];
@@ -109,6 +111,10 @@ const PIGS_PER_HERD = 8;
 
 /** Slepice: odstup od domu (m) a kolik úhlů kolem domu se zkouší. */
 const CHICKEN_REACH_M = { from: 0.4, to: 4.5 };
+/** Na pozemku slepice nechodí dál než k plotu – i dům uprostřed jim nechá místo dokola. */
+const PLOT_CHICKEN_REACH_M = { from: 0.4, to: 2.5 };
+/** Odstup slepic od plotu pozemku (m). */
+const PLOT_FENCE_GAP_M = 0.35;
 const CHICKEN_ARC_SAMPLES = 32;
 /** Nejmenší volný oblouk (počet vzorků), ve kterém slepice ještě chodí. */
 const CHICKEN_MIN_ARC = 4;
@@ -195,7 +201,8 @@ interface Obstacles {
   /** V obdélníku slepic jiného obydlí než `exceptId` (s okrajem). */
   inOtherHouse(x: number, z: number, exceptId: number): boolean;
   /** V zahrádce některého obydlí (s okrajem `margin`) – je oplocená. */
-  inGarden(x: number, z: number, margin: number): boolean;
+  /** Na cizím pozemku (s okrajem `margin`) – je oplocený. */
+  inOtherPlot(x: number, z: number, exceptId: number, margin: number): boolean;
 }
 
 function obstacles(village: LivestockVillage): Obstacles {
@@ -229,8 +236,10 @@ function obstacles(village: LivestockVillage): Obstacles {
         const lz = dx * s + dz * c;
         return Math.abs(lx) < h.box.halfX + 0.5 && lz > h.box.minZ - 0.5 && lz < h.box.maxZ + 0.5;
       }),
-    inGarden: (x, z, margin) =>
-      village.dwellings.some((d) => inGarden(d.type, d.position, x, z, margin)),
+    inOtherPlot: (x, z, exceptId, margin) =>
+      village.dwellings.some(
+        (d) => d.id !== exceptId && d.plot !== undefined && insidePlot(d.plot, x, z, -margin),
+      ),
   };
 }
 
@@ -322,16 +331,20 @@ function chickenFlock(
 ): ChickenFlock | null {
   const count = chickensFor(dwelling.type);
   const base = { position: dwelling.position, box: chickenBox(dwelling.type) };
+  // na pozemku jen uvnitř plotu (kratší odstup od domu)
+  const plot = dwelling.plot;
+  const reach = plot ? PLOT_CHICKEN_REACH_M : CHICKEN_REACH_M;
   // Které úhly kolem domu jsou volné – celý paprsek od domu až po největší odstup.
   const free = Array.from({ length: CHICKEN_ARC_SAMPLES }, (_, i) => {
     const theta = (i / CHICKEN_ARC_SAMPLES) * Math.PI * 2;
-    return [CHICKEN_REACH_M.from, 2.4, CHICKEN_REACH_M.to].every((d) => {
+    return [reach.from, (reach.from + reach.to) / 2, reach.to].every((d) => {
       const [x, z] = chickenPoint(base, theta, d);
       // Na kraj pole slepice zajdou, na hřbitov ne.
       return (
         ground.walkable(x, z) &&
         !blocked.inOtherHouse(x, z, dwelling.id) &&
-        !blocked.inGarden(x, z, 0.4) &&
+        !blocked.inOtherPlot(x, z, dwelling.id, 0.4) &&
+        (!plot || insidePlot(plot, x, z, PLOT_FENCE_GAP_M)) &&
         !blocked.onCemetery(x, z, 0.5)
       );
     });
@@ -346,7 +359,7 @@ function chickenFlock(
     ...base,
     seed: flockSeed,
     arc: range,
-    reachM: CHICKEN_REACH_M,
+    reachM: reach,
     chickens: Array.from({ length: count }, (_, i) => {
       const s = (flockSeed * 31 + i * 101) | 0;
       const t = (i + 0.5 * hash01(s, 1, 61)) / count;

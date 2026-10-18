@@ -56,8 +56,8 @@ export function insideFootprint(
 
 /**
  * Co je pod kurzorem: obydlí, které paprsek protne od země do výšky střechy (nejbližší ke
- * kameře), jinak pole, hřbitov nebo sad, jehož čtverec leží pod bodem terénu `ground`; null =
- * prázdná zem.
+ * kameře), jinak obydlí, jehož pozemek (políčko), pole, hřbitov nebo sad leží pod bodem terénu
+ * `ground`; null = prázdná zem.
  */
 export function pickVillageTarget(
   village: SceneVillage,
@@ -83,6 +83,10 @@ export function pickVillageTarget(
   if (!options.ground) return null;
   const cell = options.cellOf(options.ground.x, options.ground.z);
   if (!cell) return null;
+  const owner = village.dwellings.find(
+    (d) => d.plot?.cell.x === cell.x && d.plot.cell.y === cell.y,
+  );
+  if (owner) return { kind: 'dwelling', id: owner.id };
   const field = village.fields.find((f) =>
     f.parts.some((p) => p.cell.x === cell.x && p.cell.y === cell.y),
   );
