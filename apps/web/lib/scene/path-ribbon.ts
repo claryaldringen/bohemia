@@ -1,4 +1,5 @@
 import type { PathLine } from '@bohemia/game';
+import type { SceneRoad } from '../village-view';
 import { hash01 } from './smoke-schedule';
 import { smoothstep, type DecalGrid } from './village-layout';
 
@@ -70,17 +71,19 @@ function lineSeed(line: PathLine): number {
 
 /**
  * Pás všech pěšin jedné vrstvy jako síť obtisku (pozice x, z po dvojicích, krytí, indexy).
- * `widthAt` – násobek šířky v bodě (přes osetý díl jen úzká stopa), bez něj plná.
+ * `widthAt` – násobek šířky v bodě (přes osetý díl jen úzká stopa), bez něj plná; `alphaAt` –
+ * násobek krytí v bodě (pěšina dne se ztrácí v pevné cestě), bez něj plné.
  */
 export function pathRibbons(
   lines: readonly PathLine[],
   layer: RibbonLayer,
   widthAt: (x: number, z: number) => number = () => 1,
+  alphaAt: (x: number, z: number) => number = () => 1,
 ): DecalGrid {
   const positions: number[] = [];
   const alphas: number[] = [];
   const indices: number[] = [];
-  for (const line of lines) addRibbon(line, layer, widthAt, positions, alphas, indices);
+  for (const line of lines) addRibbon(line, layer, widthAt, alphaAt, positions, alphas, indices);
   return {
     positions: Float32Array.from(positions),
     alphas: Float32Array.from(alphas),
@@ -92,6 +95,7 @@ function addRibbon(
   line: PathLine,
   layer: RibbonLayer,
   widthAt: (x: number, z: number) => number,
+  alphaAt: (x: number, z: number) => number,
   positions: number[],
   alphas: number[],
   indices: number[],
@@ -143,7 +147,7 @@ function addRibbon(
       (1 + (noise1(seed + 17, d / (WOBBLE_WAVE_M * 0.6)) - 0.5) * 2 * WIDTH_JITTER);
     const fadeStart = line.openStart ? smoothstep(0, END_FADE_M, d) : 1;
     const fadeEnd = line.openEnd ? smoothstep(0, END_FADE_M, length - d) : 1;
-    const alpha = layer.alpha(strength) * fadeStart * fadeEnd;
+    const alpha = layer.alpha(strength) * fadeStart * fadeEnd * alphaAt(cx, cz);
     const offsets = [-(half + layer.softM), -half * 0.35, half * 0.35, half + layer.softM];
     const base = positions.length / 2;
     for (let i = 0; i < 4; i++) {
@@ -159,4 +163,67 @@ function addRibbon(
     }
     previous = base;
   }
+}
+
+// --- pevné cesty (roads.md) ------------------------------------------------------------------
+
+/**
+ * Pěšina dne se v pevné cestě ztrácí: do `hidden` m od osy cesty se nekreslí, od `full` m plně
+ * (trasy vedou po buňkách sítě – osa pěšiny je od osy cesty až o půl buňky vedle).
+ */
+const ROAD_FADE_M = { hidden: 1.4, full: 3.2 } as const;
+/** Pevná cesta (vyšlapaná) se kreslí jako plně vyšlapaná pěšina (síla 0–1). */
+const ROAD_STRENGTH = 1;
+/** Konec pevné cesty, u kterého nekončí jiná cesta, se vytrácí (volný konec – brána, pole). */
+const ROAD_JOIN_M = 0.5;
+
+/** Pevné cesty jako pěšiny pro obtisk: plně vyšlapané, volný konec se vytrácí. */
+export function roadLines(roads: readonly SceneRoad[]): PathLine[] {
+  const ends = roads.flatMap((r) => [r.points[0], r.points[r.points.length - 1]]);
+  const joined = (p: { x: number; z: number } | undefined, own: number): boolean =>
+    p !== undefined &&
+    ends.some(
+      (q, i) =>
+        Math.floor(i / 2) !== own &&
+        q !== undefined &&
+        Math.hypot(q.x - p.x, q.z - p.z) <= ROAD_JOIN_M,
+    );
+  // napojení doprostřed jiné cesty se v datech vždy rozdělí – stačí porovnat konce
+  return roads
+    .filter((r) => r.points.length >= 2)
+    .map((r) => {
+      const k = roads.indexOf(r);
+      return {
+        points: r.points,
+        strength: r.points.map(() => ROAD_STRENGTH),
+        years: r.points.map(() => 0),
+        openStart: !joined(r.points[0], k),
+        openEnd: !joined(r.points[r.points.length - 1], k),
+      };
+    });
+}
+
+/**
+ * Krytí pěšiny dne u pevné cesty: u osy cesty 0, od ROAD_FADE_M.full plné – pěšina, která vede
+ * po cestě, se v ní ztratí a objeví se, kde z ní odbočí. Bez cest null (plné všude).
+ */
+export function roadFade(
+  roads: readonly SceneRoad[],
+): ((x: number, z: number) => number) | undefined {
+  const segments = roads.flatMap((r) =>
+    r.points.slice(1).map((b, k) => [r.points[k]!, b] as const),
+  );
+  if (segments.length === 0) return undefined;
+  return (x, z) => {
+    let best = Infinity;
+    for (const [a, b] of segments) {
+      const dx = b.x - a.x;
+      const dz = b.z - a.z;
+      const l2 = dx * dx + dz * dz;
+      const t = l2 > 0 ? Math.min(1, Math.max(0, ((x - a.x) * dx + (z - a.z) * dz) / l2)) : 0;
+      best = Math.min(best, Math.hypot(x - (a.x + dx * t), z - (a.z + dz * t)));
+      if (best <= ROAD_FADE_M.hidden) return 0;
+    }
+    return Math.min(1, (best - ROAD_FADE_M.hidden) / (ROAD_FADE_M.full - ROAD_FADE_M.hidden));
+  };
 }

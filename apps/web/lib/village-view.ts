@@ -17,6 +17,7 @@ import {
   obstaclesOf,
   partStage,
   reservedTrees,
+  roadTreeLook,
   squareBearing,
   summarizeVillage,
   tileCenterWorld,
@@ -44,6 +45,9 @@ import {
   type PlacementVillage,
   type PlotVariant,
   type Position,
+  type Road,
+  type RoadTree,
+  type RoadTreeLook,
   type SacredBuildingKind,
   type StockResource,
   type TileCell,
@@ -401,7 +405,22 @@ export interface SceneVillage {
    * založení jako server. Bez údaje 0.
    */
   toolCoverage?: number;
+  /**
+   * Pevné cesty (roads.md) – úseky mezi rozcestími: osa a stupeň. Kreslí se stále stejně (ne
+   * podle pěšin dne) a pěšiny dne se k nim stahují. Bez údaje žádné.
+   */
+  roads?: SceneRoad[];
+  /**
+   * Stromy u pevných cest (roads.md) – stadium (keř, strom, souš, pařez) a velikost 0–1 v den
+   * pohledu. Bez údaje žádné.
+   */
+  roadTrees?: SceneRoadTree[];
 }
+
+/** Pevná cesta pro scénu (roads.md). */
+export type SceneRoad = Pick<Road, 'id' | 'points' | 'grade'>;
+/** Strom u pevné cesty pro scénu – poloha, druh a vzhled v den pohledu (`roadTreeLook`). */
+export type SceneRoadTree = Pick<RoadTree, 'id' | 'x' | 'z' | 'species'> & RoadTreeLook;
 
 /**
  * Posvátná místa pro scénu: ušetřené posvátné duby (id stromu z vrstvy překážek a kmen – obětiny
@@ -582,6 +601,10 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       return event.site === 'oak'
         ? 'Vesničané ušetřili posvátný dub.'
         : 'Vesničané ušetřili dubový háj.';
+    case 'road-formed':
+      return 'Kudy se chodí léta, vyšlapala se pevná cesta.';
+    case 'road-overgrown':
+      return 'Nepoužívaná cesta zarostla.';
     case 'cemetery-full':
       if (event.othersFree) return 'Jeden z hřbitovů se zaplnil – pohřbívá se do dalšího.';
       // staví se jiný hřbitov nebo rozšíření – bude kam pohřbívat
@@ -679,18 +702,53 @@ function sceneVillage(
   const reserved = [...reservedTrees(state)].sort((a, b) => a - b);
   const labor = sceneLabor(state, summary.people);
   const sacred = sceneSacred(state, landscape, day, summary);
+  const obstacles = obstacleChangesAt(state, day);
+  const roads = sceneRoads(state);
+  const roadTrees = sceneRoadTrees(state, day, obstacles);
   return {
     dwellings: [...built, ...sites],
     fields,
     cemeteries,
     ...(orchards.length > 0 ? { orchards } : {}),
-    obstacles: obstacleChangesAt(state, day),
+    obstacles,
     ...(reserved.length > 0 ? { reservedTrees: reserved } : {}),
     woodLogs: wholeLogs(state.woodLogs ?? 0),
     ...(labor ? { labor } : {}),
     ...(sacred ? { sacred } : {}),
     ...(summary.crafts.coverage.tools > 0 ? { toolCoverage: summary.crafts.coverage.tools } : {}),
+    ...(roads.length > 0 ? { roads } : {}),
+    ...(roadTrees.length > 0 ? { roadTrees } : {}),
   };
+}
+
+/** Pevné cesty vsi pro scénu (roads.md). */
+export function sceneRoads(state: Pick<VillageState, 'roads'>): SceneRoad[] {
+  return (state.roads?.roads ?? []).map((r) => ({
+    id: r.id,
+    points: r.points.map((p) => ({ x: p.x, z: p.z })),
+    grade: r.grade,
+  }));
+}
+
+/** Velikost stromu u cesty ve scéně po dvacetinách – strom se překreslí jen po znatelném přírůstku. */
+const ROAD_TREE_GROWTH_STEPS = 20;
+
+/**
+ * Stromy u pevných cest pro scénu v den `day` (roads.md) – bez stromů, které odstranila stavba
+ * a které už zmizely; velikost po dvacetinách (scéna se mění jen občas).
+ */
+export function sceneRoadTrees(
+  state: Pick<VillageState, 'roads'>,
+  day: number,
+  obstacles: ObstacleChanges,
+): SceneRoadTree[] {
+  const removed = new Set(obstacles.removed);
+  return (state.roads?.trees ?? []).flatMap((t): SceneRoadTree[] => {
+    const look = roadTreeLook(t, day);
+    if (look === null || removed.has(t.id)) return [];
+    const growth = Math.round(look.growth * ROAD_TREE_GROWTH_STEPS) / ROAD_TREE_GROWTH_STEPS;
+    return [{ id: t.id, x: t.x, z: t.z, species: t.species, stage: look.stage, growth }];
+  });
 }
 
 /** Výroba dílny za den při práci `labor` (kg) – uhlíř bez kácení, kovář a hrnčíř s přirážkou. */

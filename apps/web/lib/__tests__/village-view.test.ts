@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  ROAD_TREE_ID_BASE,
   advanceVillage,
   checkDwellingPlacement,
   dayIndexOf,
@@ -696,6 +697,8 @@ describe('chronicleText', () => {
     },
     { day: DAY, kind: 'sacred-spared', site: 'oak', id: 7 },
     { day: DAY, kind: 'sacred-spared', site: 'grove', id: 8 },
+    { day: DAY, kind: 'road-formed', roadId: 3 },
+    { day: DAY, kind: 'road-overgrown', roadId: 3 },
   ];
 
   it('každá událost má český text', () => {
@@ -960,5 +963,89 @@ describe('štěstí a posvátná místa v pohledu na ves', () => {
     expect(view.scene.sacred).toBeUndefined();
     expect(view.sacred).toEqual({ oaks: [], groves: [], buildings: [] });
     expect(view.happiness.value).toBe(50);
+  });
+});
+
+describe('pevné cesty v pohledu na ves (roads.md)', () => {
+  const YEAR = 365.25;
+  const withRoads = (): VillageState => {
+    const s = settled();
+    const tree = (id: number, years: number, life = 100) => ({
+      id: ROAD_TREE_ID_BASE + id,
+      spot: id,
+      x: 20 + id * 10,
+      z: 3,
+      species: 'elm' as const,
+      rootedDay: DAY - Math.round(years * YEAR),
+      diesDay: DAY - Math.round(years * YEAR) + Math.round(life * YEAR),
+    });
+    s.roads = {
+      nextId: 20,
+      roads: [
+        {
+          id: 1,
+          points: [
+            { x: 0, z: 0 },
+            { x: 80, z: 0 },
+          ],
+          bornDay: DAY - 3000,
+          grade: 'trodden',
+          traffic: [4.5],
+          spots: [],
+        },
+      ],
+      // keř, mladý strom, plný strom, souš, pařez, zmizelý pařez, strom odstraněný stavbou
+      trees: [tree(1, 3), tree(2, 12), tree(3, 60), tree(4, 105), tree(5, 115), tree(6, 130)],
+      candidates: [],
+      labor: { from: DAY - 10, days: 10, shares: [] },
+    };
+    s.roads.trees.push(tree(7, 50));
+    s.clearedObstacles = [{ id: ROAD_TREE_ID_BASE + 7, day: DAY - 5 }];
+    return s;
+  };
+
+  it('scéna dostane osy cest a stromy ve stadiu podle dne (velikost po dvacetinách)', () => {
+    const view = buildVillageView(record(withRoads()), landscape, DAY);
+    expect(view.scene.roads).toEqual([
+      {
+        id: 1,
+        points: [
+          { x: 0, z: 0 },
+          { x: 80, z: 0 },
+        ],
+        grade: 'trodden',
+      },
+    ]);
+    const trees = view.scene.roadTrees!;
+    expect(trees.map((t) => [t.id - ROAD_TREE_ID_BASE, t.stage])).toEqual([
+      [1, 'shrub'],
+      [2, 'tree'],
+      [3, 'tree'],
+      [4, 'snag'],
+      [5, 'stump'],
+    ]);
+    for (const t of trees) expect(Math.round(t.growth * 20)).toBeCloseTo(t.growth * 20, 9);
+    expect(trees[2]!.growth).toBe(1);
+    expect(trees[1]!.growth).toBeLessThan(0.5);
+  });
+
+  it('stromy u cest jsou překážky i pro kontrolu umístění v prohlížeči', () => {
+    const s = withRoads();
+    const view = buildVillageView(record(s), landscape, DAY);
+    const fromScene = placementVillageFromScene(view.scene).obstacleChanges!;
+    expect(fromScene.added).toEqual(placementVillageOf(s, DAY).obstacleChanges!.added);
+    expect(fromScene.added!.map((o) => o.kind)).toEqual([
+      'shrub',
+      'youngTree',
+      'tree',
+      'snag',
+      'stump',
+    ]);
+  });
+
+  it('ves bez pevných cest je ve scéně nemá', () => {
+    const view = buildVillageView(record(settled()), landscape, DAY);
+    expect(view.scene.roads).toBeUndefined();
+    expect(view.scene.roadTrees).toBeUndefined();
   });
 });

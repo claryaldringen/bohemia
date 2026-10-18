@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { PathLine } from '@bohemia/game';
-import { EARTH_LAYER, WORN_LAYER, pathRibbons } from '../path-ribbon';
+import { EARTH_LAYER, WORN_LAYER, pathRibbons, roadFade, roadLines } from '../path-ribbon';
 
 const line = (strength: number, open = true): PathLine => ({
   points: [
@@ -54,5 +54,48 @@ describe('pathRibbons – pás pěšiny', () => {
 
   it('stejná pěšina = stejný pás (vlnění ze souřadnic konců)', () => {
     expect(pathRibbons([line(0.6)], WORN_LAYER)).toEqual(pathRibbons([line(0.6)], WORN_LAYER));
+  });
+});
+
+describe('pevné cesty z dat (roads.md)', () => {
+  const road = (id: number, points: { x: number; z: number }[]) => ({
+    id,
+    points,
+    grade: 'trodden' as const,
+  });
+  const a = road(1, [
+    { x: 0, z: 0 },
+    { x: 40, z: 0 },
+  ]);
+  const b = road(2, [
+    { x: 40, z: 0 },
+    { x: 40, z: 30 },
+  ]);
+
+  it('cesta je plně vyšlapaná pěšina, volný konec se vytrácí, v rozcestí ne', () => {
+    const [first, second] = roadLines([a, b]);
+    expect(first!.points).toEqual(a.points);
+    expect(first!.strength.every((s) => s === 1)).toBe(true);
+    expect(first!.openStart).toBe(true);
+    expect(first!.openEnd).toBe(false);
+    expect(second!.openStart).toBe(false);
+    expect(second!.openEnd).toBe(true);
+    // stejná data = stejný pás (kreslí se stabilně, ne podle pěšin dne)
+    expect(pathRibbons(roadLines([a, b]), EARTH_LAYER)).toEqual(
+      pathRibbons(roadLines([a, b]), EARTH_LAYER),
+    );
+  });
+
+  it('pěšina dne se u osy cesty ztrácí, dál od ní je plná', () => {
+    expect(roadFade([])).toBeUndefined();
+    const fade = roadFade([a, b])!;
+    expect(fade(20, 0.5)).toBe(0);
+    expect(fade(20, 2.3)).toBeGreaterThan(0);
+    expect(fade(20, 2.3)).toBeLessThan(1);
+    expect(fade(20, 10)).toBe(1);
+    const along = pathRibbons([line(0.6)], WORN_LAYER, () => 1, fade);
+    // pěšina po ose cesty (z = 0) až k x = 20 zmizí, za ohybem se objeví
+    expect(along.alphas[1 + 4 * 5]).toBe(0);
+    expect(Math.max(...along.alphas)).toBeGreaterThan(0.5);
   });
 });

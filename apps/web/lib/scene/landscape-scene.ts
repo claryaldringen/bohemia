@@ -317,11 +317,11 @@ export class LandscapeScene {
       herds: (nowMs) => this.livestock?.herdViews(nowMs) ?? [],
       onLoaded: () => this.renderWhenReady(),
     });
-    // Vyšlapané pěšiny – síť se počítá z vsi a krajiny (odloženě), lidé po ní chodí.
+    // Vyšlapané pěšiny – síť se počítá z vsi a krajiny (odloženě), lidé po ní chodí; pevné cesty
+    // a stromy u nich z dat vsi (roads.md).
     this.paths?.dispose();
     this.paths = new VillagePaths(this.scene, {
       landscape,
-      field,
       layer: obstacles,
       decalHeight: (x, z) => terrainMeshHeight(surface, x, z),
       groundHeight,
@@ -575,7 +575,7 @@ export class LandscapeScene {
     this.updateSeason(true);
   }
 
-  /** Vývojová volba: vyšlapané pěšiny (a stromy podél nich) vidět / skrýt. */
+  /** Vývojová volba: vyšlapané pěšiny a pevné cesty (i se stromy u nich) vidět / skrýt. */
   setPathsVisible(visible: boolean): void {
     this.paths?.setVisible(visible);
   }
@@ -585,7 +585,7 @@ export class LandscapeScene {
     this.paths?.setHeatmap(enabled);
   }
 
-  /** Čísla posledního výpočtu pěšin (doba, buňky, trasy, pěšiny, stromy); bez výpočtu null. */
+  /** Čísla posledního výpočtu pěšin (doba, buňky, trasy, pěšiny, cesty, stromy); bez výpočtu null. */
   pathStats(): PathStats | null {
     return this.paths?.stats ?? null;
   }

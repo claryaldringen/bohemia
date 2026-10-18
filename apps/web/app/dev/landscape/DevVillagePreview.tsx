@@ -55,6 +55,7 @@ import type {
 import { formatCells, formatHa, formatManDays, plural } from '@/lib/village-format';
 import { SACRED_OAK_GROWTH } from '@/lib/sacred-look';
 import { demoLabor } from './dev-labor';
+import { demoRoad } from './dev-road';
 import {
   placementVillageFromScene,
   scenePlot,
@@ -145,6 +146,8 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   const [heatmap, setHeatmap] = useState(false);
   const [pathAge, setPathAge] = useState<number | null>(null);
   const [pathInfo, setPathInfo] = useState('');
+  // ukázka pevné cesty se stromy v různém stáří (roads.md, dev-road.ts)
+  const [road, setRoad] = useState<Pick<SceneVillage, 'roads' | 'roadTrees'> | null>(null);
   const nextId = useRef(1);
 
   const village = useMemo<SceneVillage>(() => {
@@ -158,6 +161,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
       orchards,
       woodLogs,
       obstacles,
+      ...(road ?? {}),
       ...(sacredOaks.length > 0 || groves.length > 0 || sacredBuildings.length > 0
         ? { sacred: { oaks: sacredOaks, groves, buildings: sacredBuildings } }
         : {}),
@@ -199,6 +203,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     groves,
     sacredBuildings,
     pathAge,
+    road,
   ]);
 
   useEffect(() => {
@@ -220,7 +225,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
       const stats = scene.pathStats();
       setPathInfo(
         stats
-          ? `${stats.lines} úseků · ${stats.trips} tras · ${stats.trees} stromů · ${stats.ms.toFixed(0)} ms` +
+          ? `${stats.lines} úseků · ${stats.trips} tras · ${stats.roads} cest · ${stats.trees} stromů · ${stats.ms.toFixed(0)} ms` +
               (stats.terrainMs > 0 ? ` (+ terén ${stats.terrainMs.toFixed(0)} ms)` : '')
           : '',
       );
@@ -953,6 +958,19 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     setPeople((on) => !on);
   };
 
+  /** Ukázka pevné cesty se stromy (keř, mladý a plný strom, souš, pařez) – kamera k ní. */
+  const toggleRoad = (): void => {
+    if (road) {
+      setRoad(null);
+      return;
+    }
+    const demo = demoRoad(decoded);
+    setRoad({ roads: demo.roads, roadTrees: demo.trees });
+    const points = demo.roads[0]!.points;
+    const middle = points[Math.floor(points.length / 2)]!;
+    scene?.moveCameraTo(middle.x, middle.z);
+  };
+
   const firstSite = dwellings.find((d) => !d.built);
   const firstSacredSite = sacredBuildings.find((b) => !b.built);
   const plantingSquare = orchards.flatMap((o) => o.squares).find((s) => s.planting < 1);
@@ -1082,6 +1100,15 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
           data-testid="dev-paths"
         >
           {paths ? 'Pěšiny ✓' : 'Pěšiny'}
+        </button>
+        <button
+          className={buttonClass}
+          disabled={!scene}
+          onClick={toggleRoad}
+          title="Ukázka pevné cesty se stromy v každém stadiu (keř, mladý, plný, souš, pařez)"
+          data-testid="dev-road"
+        >
+          {road ? 'Cesta ✓' : 'Cesta'}
         </button>
         <button
           className={buttonClass}
