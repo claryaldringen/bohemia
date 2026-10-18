@@ -73,7 +73,7 @@ apps/web/            Next.js – úvodní stránka, registrace, přihlášení, 
   hooks/             React hooky (umisťování staveb ve scéně, dotazování na ves)
   lib/               serverová a pomocná logika (auth, session, db, game a village – composition root)
   lib/scene/         3D scéna krajiny v Babylonu – čisté TS třídy bez Reactu
-  public/models/     modely stromů, dekorací a zvířat a atlas impostorů z 0 A.D. (licence v LICENSES.md)
+  public/models/     modely stromů, dekorací, zvířat a lidí a atlas impostorů z 0 A.D. (licence v LICENSES.md)
   e2e/               Playwright testy (proti produkčnímu buildu a databázi bohemia_test)
 packages/game/       herní jádro
   src/domain/        pravidla – calendar.ts, landscape/ (generování krajiny po vrstvách)
@@ -246,7 +246,8 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   vykreslování 1) – hloubku pod kalnou hladinou dělá jejich průhlednost.
 - **Domácí zvířata** (Martin, zatím jen oživení – mechanika později): slepice u hotových obydlí
   (zemnice 2, polozemnice 3 – `chickensFor`, řemesla později podle základního typu), na
-  obývané obydlí 3 ovce, koza a 2 prasata, kráva na dvě domácnosti; pasáci nejsou.
+  obývané obydlí 3 ovce, koza a 2 prasata, kráva na dvě domácnosti; u stád jsou pasáčci z postav
+  (Postavy níž – `herdViews`).
   `livestock-placement.ts` je odvodí z dat vsi pro scénu (`SceneVillage`, i nepovinné
   `cemeteries`) a krajiny: slepice obcházejí dům mimo obdélník domu se šíjí (`chickenBox`),
   ovce s kozami (stádo na 5 domácností) a krávy se pasou na louce do 300 m (ne pole, hřbitov,
@@ -449,6 +450,29 @@ rozhraní částí v
   (`TREE_REGROWTH_YEARS`). Pomocníci pro les a dřevo: `matureTreesByDistance`, `fellTrees`,
   `treeRegrowth`, `countMatureTrees`, `obstacleChangesAt`. Vsi z doby před vrstvou si
   odstraněné překážky doplní při načtení s krajinou (`withObstacleClearing` v `updateVillage`).
+- **Postavy – lidé ve vsi** ([docs/design/villagers.md](docs/design/villagers.md), jen zobrazení,
+  žádná pravidla): ukazují, kde ves dnes pracuje. Jádro: krok práce simulace uloží rozdělení
+  práce dne po činnostech a místech (`labor-report.ts`, `VillageState.labor` – JSON, simulace ho
+  nečte, na kouscích nezávisí; vsi uložené dřív ho mají od dalšího dne), sklizeň se dělí na žeň
+  a odnos podle `HARVEST_WORK_PER_HA`; do scény jde jako `SceneVillage.labor` (člověkodny na
+  setiny, lidé podle věku, měsíc). Scéna: `villager-plan.ts` (čisté funkce, testy) převede
+  člověkodny na postavy (jedna na pracujícího, nejvýš `MAX_WORKERS` = 60, po skupinách až 4
+  v činnosti – `shareCounts`; domácí práce a nečinní venku jen z části, v zimě méně) a rozestaví
+  je: řady na polích, nosiči polem ↔ obydlí (`walkRoute` obchází domy), stavitelé za
+  staveništěm (`siteBox` = vyklízená plocha), dřevorubci u vyhrazených stromů, sad, obvod
+  hřbitova, výmlat u vsi, ženy u vchodu, starší (šediny) u domů a děti u stád (`herdViews`
+  ze zvířat). Nikdo nestojí ve vodě (rastr schůdné země sdílený se zvířaty – `groundFor`),
+  v domě se šíjí ani na hrobech. Pohyb `villager-motion.ts` – čisté funkce skutečného času
+  jako u zvířat. Kreslení `villagers.ts`: GLB z `tools/blender/people_from_0ad.py`
+  (`people.json` – klipy z 0 A.D., rotace klíčů jako int16, maska látky a vlasů jako
+  occlusionTexture), animace zapečené do textury matic kostí (Babylon VAT) a postavy jako thin
+  instances – mesh `villagers-woman` / `villagers-man` (klip, fáze, tempo na instanci,
+  `villagerLook` = barva oděvu a kód vlasů: šátek, šediny) + měkký kruhový stín
+  `villagers-shadow` (alphaIndex 5 – po obtiscích vsi). **WebGPU má limit 8 vertex bufferů**
+  a postava jich má právě 8 (pozice, normála, uv, kosti 2×, matice, VAT, look) – další atribut
+  na vrchol nepřidávat, patří do textury. Klipy se střídají střihem (VAT prolínat neumí). Hýbou
+  se jen v záběru (`WATER_FPS`), při omezeném pohybu stojí. Ve vývojovém náhledu tlačítko
+  **Lidé** (ukázkové rozdělení práce podle měsíce – `app/dev/landscape/dev-labor.ts`).
 - **e2e:** testy běží v běžícím pomalém světě (2000–2200). Kliknutí do scény při umisťování
   nahrazuje háček `window.__bohemiaE2E.confirmPlacement`, kam kliknout myší pro výběr řekne
   `projectToScreen` (`lib/e2e-hooks.ts`) – existují jen v buildu s `NEXT_PUBLIC_E2E_HOOKS=1`
