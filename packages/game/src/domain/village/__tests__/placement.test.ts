@@ -240,17 +240,18 @@ describe('fieldPartsFromCells – co pole nesmí', () => {
     ]);
   });
 
-  it('pole v lese zatím neprojde – lesní čtverce nejsou díly', () => {
+  it('pole smí i do lesa – lesní čtverce jsou díly se sazbou lesa', () => {
     const l = makeLandscape({ surface: (x) => (x >= 8 ? 'forest' : 'meadow') });
     const result = fieldPartsFromCells(l, null, block(5, 6, 4, 2), home);
-    expect(result.check.ok).toBe(false);
-    expect(result.check.reason).toMatch(/jen na louce/);
-    expect(result.parts.every((p) => p.cell !== undefined && p.cell.x < 8)).toBe(true);
-    expect(result.areaM2).toBe(6 * 225);
-    expect(result.blockedCells).toEqual([
+    expect(result.check).toEqual({ ok: true, reason: null });
+    expect(result.blockedCells).toEqual([]);
+    expect(result.areaM2).toBe(8 * 225);
+    expect(result.parts.filter((p) => p.surface === 'forest').map((p) => p.cell)).toEqual([
       { x: 8, y: 6 },
       { x: 8, y: 7 },
     ]);
+    expect(result.surfaceCounts).toEqual({ meadow: 6, forest: 2 });
+    expect(result.foundingCost).toBeCloseTo(40 * 6 * 0.0225 + 250 * 2 * 0.0225);
   });
 
   it('pole se nesmí překrývat s jiným polem, sousedit s ním smí', () => {
