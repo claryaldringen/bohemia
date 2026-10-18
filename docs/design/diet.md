@@ -1,6 +1,6 @@
 # Strava a dobytek – obilí, maso, ovoce
 
-Stav: návrh k 18. 10. 2026, čeká na schválení. Implementace zatím není.
+Stav: schváleno 18. 10. 2026 (Martin: „Ano“). Implementace zatím není.
 
 ## Proč
 
