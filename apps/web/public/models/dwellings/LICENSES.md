@@ -1,6 +1,6 @@
 # Licence modelů obydlí
 
-Tvary obydlí (zemnice, polozemnice, plot z proutí, zahrádka s polským plotem a zeleninou) jsou
+Tvary obydlí (zemnice, polozemnice, zahrádka s polským plotem a zeleninou) jsou
 vymodelované procedurálně
 skriptem Blenderu `tools/blender/dwellings.py` (atlas textur `tools/blender/atlas.py`, postup
 v hlavičce `dwellings.py`). Textury, koše a trsy trávy pocházejí ze hry **0 A.D.** – autor

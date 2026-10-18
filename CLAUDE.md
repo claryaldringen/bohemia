@@ -297,9 +297,9 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   okraje ve vrcholech). Rozměry jam a šíje musí sedět s `tools/blender/dwellings.py`.
   Staveniště jde po fázích (`village-construction.ts`, ≥ 8 fází, průběh 0–1) z dílů
   `construction.glb` v instancích. U obydlí **není hráň polen** (Martin: tak vyskládané dřevo
-  tehdy neměli, navíc na dešti). **Zahrádka polozemnice** (Martin): samostatný model
-  `models/dwellings/garden.glb` (počátek uprostřed zahrádky; `build_garden` v `dwellings.py`)
-  po straně domu – polský plot (řidší kůly, vodorovně proplétané větve, mezera branky u domu)
+  tehdy neměli, navíc na dešti) ani samostatný kus pleteného plotu vedle polozemnice (Martin).
+  **Zahrádka polozemnice** (Martin): samostatný model `models/dwellings/garden.glb` (počátek
+  uprostřed zahrádky; `build_garden` v `dwellings.py`) po straně domu – polský plot (řidší kůly, vodorovně proplétané větve, mezera branky u domu)
   a čtyři záhony (zelí, řepa, cibule, kopr; oblasti atlasu `veg` a `soil`). Scéna ji klade zvlášť
   na terén a nakloní podle svahu (`gardenInstance` v `dwelling-decor.ts` – jinak by na svahu
   s převýšením 3× visela i přes metr); díly staveniště `polozemnice-garden-*` se kladou stejně,
@@ -338,7 +338,7 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   (`ConstructionKind` = obydlí + `CraftKind`; dílny na fázích svého obydlí + přístřešek, pec /
   výheň, dílna, uhlíř mech místo došků, milíř zvlášť), díly v `public/models/crafts/construction.glb`
   a `construction-moss.glb` (předpona druhu). Obydlí se tím nezměnila.
-  Dílny bez hráně polen: hrnčíř a kovář mají místo dílu `wood` díl `yard` (plot a koše), uhlíř
+  Dílny bez hráně polen: hrnčíř a kovář mají místo dílu `wood` díl `yard` (koše), uhlíř
   volnou hromadu polen na milíř (`log_heap` v `crafts.py`).
   **Náhled všech staveb** bez databáze: http://localhost:3010/dev/buildings (`building-showcase.ts`,
   staveniště `showcase-sites.ts`, posuvník a přehrání stavby; v produkci 404). Za řadou staveb

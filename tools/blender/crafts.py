@@ -18,11 +18,11 @@ Výstup (apps/web/public/models/crafts):
               nejnižší řady došků přístřešku chybí – okap je výš a pod střechu je vidět), pod ní
               hrnčířská pec (hliněná kopule na kamenném podstavci, topeniště se žárem vpředu,
               průduch nahoře), prkno se sušícími se hrnci, vypálené hrnce, hrouda hlíny,
-              hrnčířský kruh; vedle plot z proutí a koš (díl „yard“) – hráně polen nejsou
-              (Martin: tak vyskládané dřevo tehdy neměli, navíc na dešti)
+              hrnčířský kruh; před dílnou koš (díl „yard“) – hráně polen ani kus pleteného
+              plotu vedle domu nejsou (Martin: tak vyskládané dřevo tehdy neměli, navíc na dešti)
   kovar.glb   tentýž přístřešek, pod ním výheň (zvýšené ohniště z kamenů a hlíny se žhavým uhlím,
               hliněná zadní stěna, dvojitý měch s dmyšnou), kovadlina na špalku, kladivo,
-              kleště, hromada uhlí, koryto s vodou; plot z proutí a koše (díl „yard“)
+              kleště, hromada uhlí, koryto s vodou; koše (díl „yard“)
   uhlir.glb   zemnice se střechou krytou mechem (stejný tvar, atlas-moss.jpg), volná hromada
               polen na milíř (polena po povrchu nízké kupy, ne vyskládaná hráň), koše s uhlím
   milir.glb   milíř – samostatný model: kupa polen pod hlínou a drny, dole věnec polen, průduchy,
@@ -518,12 +518,6 @@ def potter_wheel(b, c):
     pot(b, c, 0.22, 0.11, "clay", z0=0.52, seg=10)
 
 
-def placed(obj, loc, rot_deg=0.0):
-    obj.location = loc
-    obj.rotation_euler = (0, 0, math.radians(rot_deg))
-    return obj
-
-
 def build_hrncir(mat, stages=False):
     """Hrnčíř: díly (Parts) a rekvizity z jiných modelů po klíčích dílů (polena, plot, koš)."""
     part = Parts("hrncir")
@@ -547,11 +541,9 @@ def build_hrncir(mat, stages=False):
     with b.smooth_mode():
         lathe(b, (-0.58, -3.48), [(0.22, 0.06), (0.2, 0.14), (0.12, 0.22), (0.0, 0.24)], "clay", seg=10, wobble=lambda r, z, a: (r * (1 + 0.1 * math.sin(3 * a + 1)), z))
     potter_wheel(part("wheel"), (-0.55, -4.45))
-    # dvorek: plot z proutí a koš (hráně polen tu nejsou – Martin: tak vyskládané dřevo tehdy
-    # neměli, navíc na dešti)
+    # dvorek: koš (hráně polen ani kus pleteného plotu vedle domu tu nejsou – Martin)
     extras = {
         "yard": [
-            placed(D.wattle_fence(mat), (-3.6, 0.6, 0), 90),
             D.import_prop("basket-b", 0.38, (-1.75, -2.75, 0.0), mat, 0.6),
         ]
     }
@@ -632,7 +624,6 @@ def build_kovar(mat, stages=False):
         lathe(cb, (-1.75, -3.0), [(0.2, 0.3), (0.12, 0.36), (0.0, 0.38)], "charcoal", seg=10)
     extras = {
         "yard": [
-            placed(D.wattle_fence(mat), (-3.6, 0.6, 0), 90),
             D.import_prop("basket-a", 0.42, (-1.75, -3.0, 0.0), mat),
             cb.build(mat),
         ]
