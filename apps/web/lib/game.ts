@@ -6,6 +6,7 @@ import {
   createVillageRepository,
 } from '@bohemia/db';
 import {
+  currentVillageViewStamp,
   dynastyStatus,
   enterGame,
   findPlayerVillage,
@@ -41,7 +42,7 @@ function seeds(): { nextSeed: () => number } {
 
 /**
  * Composition root: use-case vstupu do hry s Drizzle repozitářem, kryptografickými seedy
- * a mezipamětí krajin (každá akce vsi i dotaz každých 5 s potřebuje krajinu sídla).
+ * a mezipamětí krajin (každá akce vsi i celý dotaz na ves potřebuje krajinu sídla).
  */
 export function enterGameForPlayer(playerId: string): Promise<EnterGameResult> {
   return enterGame(
@@ -97,6 +98,18 @@ function playerVillagesDeps(): Parameters<typeof findPlayerVillage>[0] {
 /** Ves `villageId`, když patří hráči (její sídlo je mezi jeho aktivními sídly); jinak null. */
 export function playerVillage(playerId: string, villageId: string): Promise<PlayerVillage | null> {
   return findPlayerVillage(playerVillagesDeps(), { playerId, villageId });
+}
+
+/**
+ * Otisk pohledu na ves `villageId` hráče v den `today` bez načtení stavů vsí (levné dotazy na
+ * sídla a verze vsí); null, když by dotaz na ves musel vsi dopočítat nebo ves hráči nepatří.
+ */
+export function currentViewStampOfPlayer(
+  playerId: string,
+  villageId: string,
+  today: number,
+): Promise<string | null> {
+  return currentVillageViewStamp(playerVillagesDeps(), { playerId, villageId, today });
 }
 
 /** První ves hráče (sídelní sídlo první); bez vsí null. */

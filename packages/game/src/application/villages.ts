@@ -12,6 +12,18 @@ export interface VillageRecord {
   version: number;
 }
 
+/**
+ * Co se o vsi dá zjistit bez načtení stavu: id, sídlo, jméno, verze a do kterého dne je
+ * dopočítaná (`state.lastDay`) – dotazování na ves podle toho pozná, že se nic nezměnilo.
+ */
+export interface VillageStamp {
+  id: string;
+  settlementId: string;
+  name: string;
+  version: number;
+  lastDay: number;
+}
+
 /** Port: úložiště vsí. Sídlo (mapa) může mít víc vsí, každá má vlastní id. */
 export interface VillageRepository {
   find(villageId: string): Promise<VillageRecord | null>;
@@ -36,6 +48,8 @@ export interface VillageRepository {
   ): Promise<VillageRecord | null>;
   /** Přejmenuje ves (stav ani verzi nemění); false = ves neexistuje. */
   rename(villageId: string, name: string): Promise<boolean>;
+  /** Otisky všech vsí sídel `settlementIds` – bez načtení stavu (levný dotaz). */
+  stampsOf(settlementIds: readonly string[]): Promise<VillageStamp[]>;
 }
 
 /**
