@@ -510,9 +510,12 @@ rozhraní částí v
   `parts`. Simulace se tím nemění.
 - **Navazující pole** (Martin): `foundField` – čtverce navazující stranou na pole ho rozšíří
   (`fieldsTouching` ve `fields.ts`, stejné id, rozestavěné založení dostane cenu, jinak nová stavba
-  pole), na víc polí je sloučí do nejstaršího (`mergeFields` v `actions.ts`: díly, stavby
-  založení, kronika, `labor`). Průběh stavby pole se počítá jen z jejích dílů (`invest`). Náhled
-  (`fieldPartsFromCells`) vrací `joinedFields` a nejmenší výměru měří i s navazujícím polem.
+  pole), na víc polí je sloučí do nejstaršího (`mergeFields` ve `fields.ts`: díly, stavby
+  založení, kronika, `labor` – cíl i stavba). Průběh stavby pole se počítá jen z jejích dílů
+  (`invest`). Náhled (`fieldPartsFromCells`) vrací `joinedFields` a nejmenší výměru měří i
+  s navazujícím polem. **Stará navazující pole** (založená samostatně dřív) sloučí při načtení
+  vsi `withMergedFields` v `updateVillage` (souvislé skupiny stranou do nejmenšího id, pole
+  z obrysu ne; Martin) – stejným `mergeFields`, bez příznaku „převedeno“ (idempotentní a levné).
 - **Příloh je pastvina** (Martin): 1–2 roky mladý příloh, pak napořád `meadow` (pastvina) –
   nálet, křoviny ani les na přílohu nejsou (`OVERGROWTH_STAGES`), vrácení stojí nejvýš drn louky
   (`RECLAIM_COST_PER_HA`), kronika `part-became-forest` už nevzniká (typ zůstává pro staré
@@ -545,11 +548,22 @@ rozhraní částí v
   `placeSacred`. Štěstí z míst `sacredHappiness` (stropy počtu a +40).
 - **Hráč staví kdy chce** (Martin) – stavbu smí zablokovat jen **cena předem** (`costs.ts`:
   `BUILD_COSTS`, `buildAffordability`): suroviny ze zásob (dnes žádné) a u obydlí **lidé
-  k osídlení** (`settlers` = `availableSettlers` v `dwellings.ts`: domácnosti s párem navíc −
-  prázdná − rozestavěná nová obydlí); pole a hřbitov lidi nechtějí. Tlačítko je pak zašedlé,
-  zkratka nic nespustí, v popisku chybějící část červeně; server odmítne (`NO_SETTLERS`,
-  `CANNOT_AFFORD`). `waitingHouseholds` (upozornění „Domácnost je plná“) = kladní lidé
-  k osídlení.
+  k osídlení** (`settlers` = `availableSettlers` v `dwellings.ts`: možné nové domácnosti
+  `possibleNewHouseholds` − prázdná − rozestavěná nová obydlí); pole a hřbitov lidi nechtějí.
+  Tlačítko je pak zašedlé, zkratka nic nespustí, v popisku chybějící část červeně; server odmítne
+  (`NO_SETTLERS`, `CANNOT_AFFORD`). `waitingHouseholds` (upozornění „Domácnost je plná“) =
+  kladní lidé k osídlení.
+- **Osídlení prázdného obydlí** (population.md – Prázdné obydlí): nové obydlí po dokončení
+  a prázdné obydlí v kroku 6 (`occupyEmptyDwellings`) nejdřív zabere mladý pár z plné domácnosti
+  se 4 dospělými 14–44 (`qualifyingDwellings`, `moveInYoungestPair`); co zůstane úplně prázdné,
+  osídlí **dospělé děti z přeplněné domácnosti** (Martin, 18. 10. 2026; `adultChildrenSettlers`):
+  lidé 14–44 kromě `HOUSEHOLD_HEADS` (2) nejstarších od 14 let, u neplodných rodičů (oba 45+)
+  i kromě nejstaršího dospělého dítěte – dědice (`householdHeir`, Martin), všichni z jedné
+  domácnosti, nebo dva jednotlivci z různých (jediný člověk by se rozpadl), a ne z domácnosti,
+  jejíž zbytek by se rozpadl (`householdBreaksUp`, v `people.ts`). Možné nové domácnosti = kvalifikované + ostatní
+  přeplněné s aspoň dvěma dospělými dětmi + jednotlivci po dvou. **Prázdné obydlí chátrá
+  rychleji** (Martin): `decayEmptyDwelling` – bez oprav podle stáří a navíc pevný denní podíl,
+  nové zanikne za `DWELLINGS[type].emptyLifespanYears` (zemnice 5, polozemnice 8 let).
 - **Determinismus:** simulace jde den po dni v pevném pořadí kroků (`simulate.ts`), náhoda dne
   je ze seedu vsi a indexu dne – výsledek nezávisí na tom, po jakých kouscích se ves dopočítá.
 - **Čísla** pravidel jsou jen v `rules.ts` (u každého odkaz na sekci návrhu); změna čísla = i

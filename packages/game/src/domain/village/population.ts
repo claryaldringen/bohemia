@@ -1,7 +1,7 @@
 import { createRandom, deriveSeed } from '../landscape/random';
 import { bury, hygieneDeathFactor, villageHygiene } from './cemetery';
 import { isOvercrowded } from './dwellings';
-import { ageGroup, isAdult, isFertile, occupants } from './people';
+import { ageGroup, householdBreaksUp, isFertile, occupants } from './people';
 import {
   ADULT_DEATHS_PER_YEAR,
   BIRTHS_PER_PAIR_PER_YEAR,
@@ -139,16 +139,6 @@ export function deathChances(
 export function deathChancePerDay(person: Person, ctx: DeathContext): number {
   const { base, starvation } = deathChances(person, ctx);
   return Math.min(1, base + starvation);
-}
-
-/**
- * Dojde k rozpadu domácnosti? Nikdo 14–44 let (jen děti nebo starší), nebo jediný člověk
- * a nikdo jiný.
- */
-export function householdBreaksUp(members: Person[], day: number): boolean {
-  if (members.length === 0) return false;
-  const adults = members.filter((p) => isAdult(p, day)).length;
-  return adults === 0 || members.length === 1;
 }
 
 /** Rozpadlé domácnosti se přestěhují do obydlí s nejvíc volnými místy (při shodě nižší id). */

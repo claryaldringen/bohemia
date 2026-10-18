@@ -5,7 +5,9 @@ import { villageCemeteries } from './cemetery';
 import { cloneState } from './clone';
 import { craftCoverage, craftHouseholds, newWorkshop, wearCraftStocks, workCrafts } from './crafts';
 import {
+  adultChildrenSettlers,
   applyRepairs,
+  decayEmptyDwelling,
   nextYearlyCommonLabor,
   qualifyingDwellings,
   rebuildType,
@@ -30,15 +32,23 @@ import {
   villageApplesKg,
   workOrchards,
 } from './orchard';
-import { ageGroup, foodNeedPerDay, isAdult, laborPerDay, occupants } from './people';
+import {
+  ageGroup,
+  foodNeedPerDay,
+  householdBreaksUp,
+  isAdult,
+  laborPerDay,
+  occupants,
+} from './people';
 import { isVillageExtinct } from './extinction';
-import { householdBreaksUp, inLuckyYears, nextStarvationDays, populationDay } from './population';
+import { inLuckyYears, nextStarvationDays, populationDay } from './population';
 import { dailyMinPerHousehold } from './productivity';
 import {
   CHRONICLE_MAX_EVENTS,
   COMMON_LABOR_HISTORY_DAYS,
   CROP_ORDER,
   CROP_WINDOWS,
+  DWELLINGS,
   FOOD_NEED_KG_PER_YEAR,
   FOREST_BONUS,
   HARVEST_DAY,
@@ -493,7 +503,7 @@ function orchardTask(
 /**
  * Opuštěná obydlí se neopravují ani nepřestavují: rozestavěná přestavba prázdného obydlí se
  * opustí (nebere společnou práci, klády, které vzala z hromady, se na ni vrátí, vyhrazené stromy
- * se uvolní), obydlí chátrá a na nule zanikne.
+ * se uvolní), obydlí chátrá rychleji než obydlené (`decayEmptyDwelling`) a na nule zanikne.
  */
 function decayEmptyDwellings(state: VillageState, day: number, occupied: Set<number>): void {
   state.constructions = state.constructions.filter((c) => {
@@ -504,7 +514,7 @@ function decayEmptyDwellings(state: VillageState, day: number, occupied: Set<num
   const gone = new Set<number>();
   for (const d of state.dwellings) {
     if (occupied.has(d.id)) continue;
-    applyRepairs(d, 0, repairNeedPerDay(d, day));
+    decayEmptyDwelling(d, day);
     if (d.condition <= 0) gone.add(d.id);
   }
   if (gone.size === 0) return;
@@ -649,7 +659,8 @@ function isFinished(state: VillageState, c: Construction, founding: FoundingInde
 /**
  * Krok 4: dokončené stavby – nové obydlí, přestavěné obydlí, založené pole, vysazený sad
  * a pohřebiště. První zemnice dostane id domácnosti zakladatelů (`dwellingId` stavby) – ti už
- * v ní bydlí, nikdo se nestěhuje. Do jiného nového obydlí se stěhuje mladý pár.
+ * v ní bydlí, nikdo se nestěhuje. Do jiného nového obydlí se stěhuje mladý pár; když žádný není,
+ * osídlí ho ještě týž den dospělé děti z přeplněné domácnosti (krok 6).
  */
 function finishConstructions(state: VillageState, day: number): void {
   const unfinished: Construction[] = [];
@@ -843,13 +854,30 @@ function decideRebuilds(
 }
 
 /**
- * Krok 6: prázdné obydlí obsadí první domácnost, která splňuje podmínku nového obydlí a má dva
- * lidi 14–44.
+ * Krok 6 (population.md – Prázdné obydlí): úplně prázdná obydlí (podle id) nejdřív obsadí mladý
+ * pár z domácnosti, která splňuje podmínku nového obydlí (`moveInYoungestPair`, beze změny). Co
+ * zůstane prázdné, osídlí dospělé děti z přeplněné domácnosti (`moveInAdultChildren`, návrh
+ * Clauda) – až po prvním kole, aby se nová domácnost dospělých dětí týž den znovu nedělila.
  */
 function occupyEmptyDwellings(state: VillageState, day: number): void {
-  const occupied = new Set(state.people.map((p) => p.dwellingId));
-  const empty = state.dwellings.filter((d) => !occupied.has(d.id)).sort((a, b) => a.id - b.id);
-  for (const d of empty) moveInYoungestPair(state, day, d.id);
+  const empty = (): Dwelling[] => {
+    const occupied = new Set(state.people.map((p) => p.dwellingId));
+    return state.dwellings.filter((d) => !occupied.has(d.id)).sort((a, b) => a.id - b.id);
+  };
+  for (const d of empty()) moveInYoungestPair(state, day, d.id);
+  for (const d of empty()) moveInAdultChildren(state, day, d);
+}
+
+/**
+ * Dospělé děti z přeplněné domácnosti (`adultChildrenSettlers` – všechny z jedné domácnosti,
+ * nebo dvě jednotlivá z různých) se přestěhují do prázdného obydlí `dwelling` a založí v něm
+ * domácnost; nikdo, když takoví lidé nejsou.
+ */
+function moveInAdultChildren(state: VillageState, day: number, dwelling: Dwelling): void {
+  const movers = adultChildrenSettlers(state, day, DWELLINGS[dwelling.type].capacity);
+  if (movers.length === 0) return;
+  for (const p of movers) p.dwellingId = dwelling.id;
+  state.chronicle.push({ day, kind: 'household-founded', dwellingId: dwelling.id });
 }
 
 // --- sklizeň a jídlo --------------------------------------------------------------------

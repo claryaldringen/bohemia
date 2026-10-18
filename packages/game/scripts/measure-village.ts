@@ -76,6 +76,7 @@ import {
   advanceVillage,
   villageHappiness,
   ageGroup,
+  availableSettlers,
   buildAffordability,
   cemeteryCapacity,
   dailyMinPerHousehold,
@@ -94,7 +95,6 @@ import {
   laborPerDay,
   planCrops,
   planPartIds,
-  qualifyingDwellings,
   repairNeedPerDay,
   startNewDwelling,
   threshLossKg,
@@ -703,7 +703,8 @@ function runVillage(start: VillageState, startLand: number, opts: RunOptions): R
     }
 
     // stavby hráče
-    if (result.firstBuildDay === null && qualifyingDwellings(after, day).length > 0) {
+    // první lidé k osídlení – i dospělé děti z přeplněné domácnosti (population.md)
+    if (result.firstBuildDay === null && availableSettlers(after, day) > 0) {
       result.firstBuildDay = day;
       if (
         opts.forkPolozemnice &&

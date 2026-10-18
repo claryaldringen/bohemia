@@ -3,6 +3,7 @@ import {
   advanceVillage,
   isVillageExtinct,
   withForestDistances,
+  withMergedFields,
   withObstacleClearing,
   withPlots,
   type VillageState,
@@ -38,7 +39,8 @@ export function advancedToToday(
  * (verze nesouhlasí) to zkusí znovu nad čerstvým stavem. Nezměněný stav se neukládá.
  * Vsi z doby před vrstvou překážek nejdřív doplní odstraněné překážky (`withObstacleClearing`)
  * a obydlím z doby před palivem vzdálenost k lesu (`withForestDistances`), polozemnicím z doby
- * před pozemky pozemek (`withPlots`) – před dopočtem, aby se s nimi už počítalo; pak se uloží.
+ * před pozemky pozemek (`withPlots`) a stará navazující pole se sloučí (`withMergedFields`) – před
+ * dopočtem, aby se s nimi už počítalo; pak se uloží.
  * Ves se dopočítává s vrstvou překážek a krajinou sídla (přestavby kácí stromy, polozemnice bez
  * pozemku se přestaví na volném políčku).
  */
@@ -53,10 +55,12 @@ export async function updateVillage(
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     const record = await villages.find(settlementId);
     if (record === null) return { ok: false, reason: NO_VILLAGE };
-    const migrated = withPlots(
-      withForestDistances(withObstacleClearing(record.state, obstacles), landscape),
-      landscape,
-      obstacles,
+    const migrated = withMergedFields(
+      withPlots(
+        withForestDistances(withObstacleClearing(record.state, obstacles), landscape),
+        landscape,
+        obstacles,
+      ),
     );
     const current = advancedToToday(migrated, today, obstacles, landscape);
     const changed = change(current);
