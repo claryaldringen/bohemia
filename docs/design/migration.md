@@ -1,6 +1,8 @@
 # Stěhování – domácnost na nové místo, odchod do nové vsi
 
-Stav: schváleno 18. 10. 2026 (Martin: „Ano, takhle je to dobré, spusť to“). Implementace zatím není.
+Stav: schváleno 18. 10. 2026 (Martin: „Ano, takhle je to dobré, spusť to“). Fáze 1 (přestěhování
+domácnosti, výběr víc obydlí) a 2 (víc vsí, přepínač) jsou hotové; fáze 3 a 4 (odchod do nové vsi)
+čekají – viz Na stavitelích.
 
 ## Proč
 
@@ -95,6 +97,9 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
 | Nová ves ≥ 300 m od staré na téže mapě; nová mapa vedle staré v mřížce, cesta 1–3 dny       | návrh Clauda |
 | S sebou 25 kg jídla na člověka od 7 let a poměrný díl stád; klády a výrobky zůstanou        | návrh Clauda |
 | Přepínač vsí jménem v horní liště; upozornění z jiných vsí se jménem                         | návrh Clauda |
+| Víc vsí na mapě = víc vsí sídla (ves má vlastní id), nová mapa = sídlo s polohou v mřížce   | návrh Clauda |
+| Vybraná ves v cookie; ves na téže mapě se přepne na místě, na jiné mapě novým načtením      | návrh Clauda |
+| Typ nového domu dvěma tlačítky v panelu (zemnice, polozemnice); Ctrl + A jen hotová obydlí  | návrh Clauda |
 
 ## Na stavitelích
 
@@ -103,3 +108,68 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
   nová mapa = nové sídlo s polohou v mřížce světa (sloupec a řádek).
 - Pořadí: (1) přestěhování domácnosti a výběr víc obydlí, (2) víc vsí a přepínač, (3) odchod na
   stejnou mapu, (4) odchod na novou mapu s mřížkou světa.
+
+### Stav fází
+
+1. **Přestěhování domácnosti a výběr víc obydlí – hotovo.** Jádro `relocation.ts` a akce
+   `startRelocation` / `cancelRelocation` (`actions.ts`), use-casy `relocate-household.ts`, panel
+   výběru (`RelocationControls.tsx`), výběr víc obydlí `village-selection.ts`.
+2. **Víc vsí a přepínač – hotovo.** Migrace `0005_multi_village`, use-casy podle id vsi,
+   `player-villages.ts`, přepínač `VillageSwitcher.tsx`, vývojová druhá ves na téže mapě.
+3. Odchod na stejnou mapu – čeká.
+4. Odchod na novou mapu s mřížkou světa – čeká.
+
+### Rozhodnutí fází 1 a 2 (návrh Clauda)
+
+- **Schéma – nejmenší změna:** ves dostala vlastní `id` (UUID, primární klíč), `settlement_id`
+  zůstal jen cizím klíčem s indexem – víc vsí na téže mapě je víc vsí jednoho sídla (krajina,
+  seed a verze vrstev patří sídlu, nekopírují se do vsí). Nová mapa je nové sídlo hráče
+  (`is_seat` false) se sloupci `grid_x` (sloupec) a `grid_y` (řádek) mřížky světa; na políčku
+  leží nejvýš jedno aktivní sídlo (unikátní index přes všechny hráče – svět je jeden, war.md).
+  Sídelní sídla z doby před mřížkou polohu nemají (null). Nesahal jsem na vazalství ani na
+  oddělenou tabulku map – sídlo už mapou je.
+- **První ves sídla** se zakládá atomicky (`create` zamkne řádek sídla), další přidává `add` –
+  souběžná založení první zemnice dál založí jedinou ves.
+- **Akce podle id vsi:** každá server action nese `villageId` a server ověří, že ves leží
+  v aktivním sídle hráče (`findPlayerVillage`). Konec hry a restart už šly přes všechna sídla;
+  `dynastyStatus` teď prochází i všechny vsi každého sídla.
+- **Výběr vsi se pamatuje v cookie** (ne v query parametru): adresa zůstane `/game`, výběr vydrží
+  i po zavření prohlížeče a cizí nebo archivovaná ves se tiše vrátí na první ves hráče. Ves na
+  téže mapě se přepne bez nového načtení scény (pohled skočí na ni), ves na jiné mapě načte
+  stránku znovu s její krajinou.
+- **Přepínač:** klik na jméno otevře seznam vsí (jméno a lidé, vymřelá zašedlá), přejmenování
+  dvojklikem na jméno nebo tužkou vedle něj. Upozornění z jiné vsi: hlad, umírání hladem
+  a vymření – řádek „Jméno: text“, jen když nově vznikne.
+- **Přestěhování je běžná stavba obydlí** s vazbou na domácnost (`relocates`), ne nový druh
+  stavby – staveniště, stavitelé, rozdělení práce a scéna fungují beze změny. Nový dům dostane
+  nové id, po dostavění se do něj přestěhují všichni z domácnosti (`Person.dwellingId`), starý
+  dům zůstane prázdný se svým id (dým, zvířata a slepice jdou za obyvateli samy).
+- Domácnost, která si staví nový dům, **starý nepřestavuje** a druhé stěhování nezačne;
+  přestavovaný dům se stěhovat nemůže. Zanikne-li domácnost během stavby (vymře, sloučí se
+  k sousedům), nový dům zůstane prázdný a osídlí ho jako každé prázdné obydlí.
+- **Zrušení** vrátí na hromadu klády vzaté z hromady i už skácené stromy; odvedená práce
+  a odstraněné překážky staveniště propadnou.
+- **Typ nového domu** volí hráč dvěma tlačítky v panelu výběru (ikona zemnice a polozemnice,
+  v popisku práce a dřevo, chybějící červeně). U víc domácností se nové domy umisťují postupně
+  – po umístění jednoho hned běží umisťování dalšího (jako Shift + klik), Esc zbytek zruší.
+- **Výběr víc obydlí:** Ctrl (Cmd) / Shift + klik obydlí přidá nebo ubere, na prázdné zemi
+  výběr nechá, jiný cíl než obydlí vybere sám (víc najednou jde vybrat jen obydlí). Ctrl + A
+  vybere jen hotová obydlí – na staveništi ještě nikdo nebydlí; při umisťování nic.
+- **Pohled na ves dopočítá všechny vsi hráče** (přepínač ukazuje aktuální lidi, konec hry až po
+  vymření všech) – při desítkách vsí to bude chtít lehčí seznam bez dopočtu.
+- **Vývojová druhá ves** (dev mód, tlačítko vedle šipek času): nová ves se 4 lidmi na
+  nejbližším volném místě k místu vsi krajiny, nejméně 300 m od staveb ostatních vsí – jen pro
+  vyzkoušení přepínače, lidé ze staré vsi neodcházejí.
+
+### Připraveno pro fáze 3 a 4
+
+- `foundAnotherVillage` (další ves téhož sídla, první zemnice nejméně 300 m od staveb ostatních
+  – `villages-apart.ts`, `NEW_VILLAGE_MIN_DISTANCE_M`) – fáze 3 doplní umístění první zemnice
+  hráčem, přesun vybraných domácností a jídla s sebou a kroniku „ves opuštěna“.
+- `SettlementRepository.create` s polohou v mřížce (políčko jedno na svět) – fáze 4 ještě musí
+  přidělit polohu sídelnímu sídlu (dnes null) při prvním odchodu a vybrat sousední políčko
+  podle směru.
+- Tlačítko **Odejít** je v panelu výběru (jednoho i víc obydlí) zatím zašedlé.
+- **Otevřené pro fázi 3:** vsi na téže mapě o sobě nevědí – scéna kreslí jen vybranou ves,
+  kontroly umístění neznají stavby druhé vsi a obě můžou kácet tytéž stromy (vrstva překážek je
+  krajiny, změny má každá ves zvlášť). Do odchodu na stejnou mapu je drží od sebe jen 300 m.

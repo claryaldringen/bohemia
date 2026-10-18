@@ -129,9 +129,38 @@ export function LeaveButton(): ReactElement {
 }
 
 /**
- * Rozestavěné stěhování: průběh stavby nového domu a tlačítko Zrušit (dřevo se vrátí na
- * hromadu). Dokud server nezrušení nepotvrdí, tlačítko čeká.
+ * Zrušit rozestavěné stěhování – stavba nového domu zmizí, dřevo se vrátí na hromadu. Dokud server
+ * zrušení nepotvrdí, tlačítko čeká.
  */
+export function CancelRelocationButton({
+  constructionId,
+  onCancel,
+}: {
+  constructionId: number;
+  onCancel?: (constructionId: number) => Promise<void>;
+}): ReactElement {
+  const [busy, setBusy] = useState(false);
+  return (
+    <Tooltip content="Zrušit stěhování – dřevo se vrátí na hromadu" placement="above">
+      <button
+        type="button"
+        data-testid="cancel-relocation"
+        disabled={busy || !onCancel}
+        aria-busy={busy}
+        onClick={() => {
+          if (!onCancel || busy) return;
+          setBusy(true);
+          void onCancel(constructionId).finally(() => setBusy(false));
+        }}
+        className="hud-button px-2 py-0.5 font-serif text-sm whitespace-nowrap disabled:cursor-wait disabled:opacity-60"
+      >
+        Zrušit
+      </button>
+    </Tooltip>
+  );
+}
+
+/** Rozestavěné stěhování u starého domu: průběh stavby nového domu a tlačítko Zrušit. */
 export function RelocationProgress({
   constructionId,
   progress,
@@ -141,7 +170,6 @@ export function RelocationProgress({
   progress: number;
   onCancel?: (constructionId: number) => Promise<void>;
 }): ReactElement {
-  const [busy, setBusy] = useState(false);
   const percent = Math.round(Math.min(1, Math.max(0, progress)) * 100);
   return (
     <div data-testid="selection-relocation" className="flex items-center gap-2">
@@ -158,20 +186,7 @@ export function RelocationProgress({
           <span style={{ width: `${percent}%` }} />
         </span>
       </Tooltip>
-      <button
-        type="button"
-        data-testid="cancel-relocation"
-        disabled={busy || !onCancel}
-        aria-busy={busy}
-        onClick={() => {
-          if (!onCancel || busy) return;
-          setBusy(true);
-          void onCancel(constructionId).finally(() => setBusy(false));
-        }}
-        className="hud-button px-2 py-0.5 font-serif text-sm whitespace-nowrap disabled:cursor-wait disabled:opacity-60"
-      >
-        Zrušit
-      </button>
+      <CancelRelocationButton constructionId={constructionId} onCancel={onCancel} />
     </div>
   );
 }

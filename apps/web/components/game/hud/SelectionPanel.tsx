@@ -25,7 +25,12 @@ import {
   type Craft,
   type WorkshopActivity,
 } from '@/lib/village-view';
-import { LeaveButton, RelocateButtons, RelocationProgress } from './RelocationControls';
+import {
+  CancelRelocationButton,
+  LeaveButton,
+  RelocateButtons,
+  RelocationProgress,
+} from './RelocationControls';
 import { Tooltip } from './Tooltip';
 
 function Portrait({ icon, name }: { icon: string; name: string }): ReactElement {
@@ -740,11 +745,7 @@ export function SelectionPanel({
         </div>
         <Bar value={details.progress} name="Stavba" testId="selection-progress" />
         {details.relocates !== null && (
-          <RelocationProgress
-            constructionId={details.id}
-            progress={details.progress}
-            onCancel={onCancelRelocation}
-          />
+          <CancelRelocationButton constructionId={details.id} onCancel={onCancelRelocation} />
         )}
       </div>
     );

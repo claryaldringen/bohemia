@@ -113,7 +113,11 @@ Auth vzniká líně přes `getAuth()` – `next build` stránky jen importuje a 
   (tabulka `player_time_offset`, port `TimeOffsetRepository`) a dopočítá jeho vsi. Dnešní den
   hráče je vždy `playerToday` z `lib/game.ts` (den světa + posun, nejvýš 31. 12. 1499) – nikdy
   `gameDayIndex` přímo; prohlížeč dostane posun se stránkou a hodiny posune `shiftWorldClock`
-  (datum v liště, roční období a dým ve scéně). Posun jen roste, platí i bez `devMode`.
+  (datum v liště, roční období a dým ve scéně). Posun jen roste, platí i bez `devMode`. Vedle
+  šipek je i tlačítko **Druhá ves na téže mapě** (server action `foundDevVillage` → use-case
+  `foundDevVillage`, bez `devMode` odmítne) – jen pro vyzkoušení přepínače vsí, dokud odchod do
+  nové vsi (migration.md, fáze 3 a 4) není: nová ves se 4 lidmi na nejbližším volném místě
+  aspoň 300 m od ostatních (`freeVillageSite`), lidé ze staré vsi neodcházejí.
 - **Hlášky Better Auth** se překládají v `lib/auth-errors.ts` – nové chybové kódy doplnit tam.
 - **Změna polí uživatele** (`user.additionalFields` v `lib/auth.ts`) → upravit i
   `packages/db/src/schema/auth.ts` a vygenerovat migraci.
@@ -648,6 +652,30 @@ rozhraní částí v
   Tlačítko je pak zašedlé, zkratka nic nespustí, v popisku chybějící část červeně; server odmítne
   (`NO_SETTLERS`, `CANNOT_AFFORD`). `waitingHouseholds` (upozornění „Domácnost je plná“) =
   kladní lidé k osídlení.
+- **Přestěhování domácnosti** ([migration.md](docs/design/migration.md), fáze 1): akce
+  `startRelocation` (`actions.ts`) = nová stavba obydlí (`kind: 'dwelling'`) s
+  `Construction.relocates` = id domácnosti – dřevo, pozemek polozemnice, překážky a cena jako
+  `startNewDwelling`, jen **bez lidí k osídlení** (`relocationAffordability` v `relocation.ts`;
+  `availableSettlers` přestěhování nepočítá). Domácnost, která si staví nový dům, starý
+  nepřestavuje (`relocatingHouseholds` v `decideRebuilds`) a znovu se stěhovat nemůže
+  (`relocationBlock`: prázdné obydlí, už se stěhuje, přestavuje). Po dostavění se obyvatelé
+  přestěhují (`moveRelocatedHousehold` ve `finishConstructions`, kronika `household-relocated`),
+  starý dům zůstane prázdný – dál ho řeší běžná pravidla (osídlení, chátrání, rozpad, zbytek
+  jámy). `cancelRelocation` stavbu zruší, klády z hromady i skácené stromy vrátí na hromadu
+  (`returnConstructionWood`). Use-casy `relocateHousehold` a `cancelHouseholdRelocation`
+  (`relocate-household.ts`, důvody česky `RELOCATION_BLOCKED`, `NO_RELOCATION`).
+- **Víc vsí jednoho hráče** (migration.md, fáze 2): sídlo (`settlement`) = mapa s krajinou,
+  na jedné mapě může být víc vsí (`village.id` je primární klíč, `settlement_id` jen cizí klíč);
+  nová mapa = nové sídlo s polohou v mřížce světa (`settlement.grid_x` / `grid_y`, port
+  `Settlement.worldCell`, `SettlementRepository.create` – políčko nejvýš jedno aktivní na svět).
+  Port `VillageRepository` jde podle id vsi (`find`, `save`, `rename`), `listBySettlement`,
+  `create` (první ves sídla – atomicky, zámek řádku sídla) a `add` (další ves). Use-casy berou
+  `villageId`; `findPlayerVillage` ověří, že ves patří hráči (sídlo mezi jeho aktivními),
+  `firstPlayerVillage` = výchozí ves (sídelní sídlo první). `dynastyStatus` projde všechny vsi
+  všech aktivních sídel (konec hry až po vymření všech), `restartGame` archivuje všechna sídla.
+  `foundAnotherVillage` = další ves téhož sídla nejméně `NEW_VILLAGE_MIN_DISTANCE_M` (300 m)
+  od staveb ostatních (`villages-apart.ts`). Vsi na jedné mapě o sobě zatím nevědí (scéna kreslí
+  jen vybranou ves, kontroly umístění neznají stavby druhé vsi) – řeší fáze 3.
 - **Osídlení prázdného obydlí** (population.md – Prázdné obydlí): nové obydlí po dokončení
   a prázdné obydlí v kroku 6 (`occupyEmptyDwellings`) nejdřív zabere mladý pár z plné domácnosti
   se 4 dospělými 14–44 (`qualifyingDwellings`, `moveInYoungestPair`); co zůstane úplně prázdné,
@@ -691,13 +719,25 @@ rozhraní částí v
   `storageLossPerYear`…). Pokrytí počítá `craftCoverage` (crafts.ts) ze zásob vsi na začátku
   dne v `simulate.ts`; `NO_CRAFTS` (pokrytí 0) jen pro ves bez řemesel a testy. Zdroje čísel
   jsou v rešerších `docs/design/research/`.
-- **Web:** server actions `app/game/actions.ts` (`getVillageView`, `foundVillage`, `placeDwelling`,
-  `placeWorkshop`, `placeField`, `placeCemetery`, `placeOrchard`, `renameVillage` → `VillageView` / `null` /
-  `{ error }`; `restartGame(input?)` → `{ ok: true }` / `{ error }`),
-  composition root `lib/village.ts`, `lib/village-view.ts` (DTO, smí i do prohlížeče). Typy pro scénu jsou
-  odvozené odtud a z `@bohemia/game` – nedefinovat je znovu ve scéně.
+- **Web:** server actions `app/game/actions.ts` (`getVillageView`, `selectVillage`, `foundVillage`,
+  `foundDevVillage`, `placeDwelling`, `relocateHousehold`, `cancelRelocation`, `placeWorkshop`,
+  `placeField`, `placeCemetery`, `placeOrchard`, `placeSacred`, `placePen`, `trainTeam`,
+  `renameVillage` → `VillageView` / `null` / `{ error }`; `restartGame(input?)` → `{ ok: true }` /
+  `{ error }`). **Každá akce nad vsí nese `villageId`** (UUID – `villageIdOf` v
+  `lib/village-input.ts`) a server ověří, že ves patří hráči (`context` v `lib/village.ts` →
+  `findPlayerVillage`); `getVillageView({ villageId: null })` = první ves hráče (zakládá-li ves,
+  null), založení první vsi jde na sídelní sídlo. Composition root `lib/village.ts` (pohled na ves
+  dopočítá všechny vsi hráče – přepínač a konec hry), `lib/village-view.ts` (DTO, smí i do
+  prohlížeče – `id`, `settlementId`, `villages` pro přepínač, `relocation` cena nového domu bez
+  lidí k osídlení), `lib/village-list.ts`, `lib/relocation-view.ts`. Vybraná ves se pamatuje
+  v cookie (`lib/village-cookie.ts`, nastaví ji `selectVillage` a `foundDevVillage`); stránka
+  /game ji otevře přes `gameEntryForPlayer` (`lib/game.ts`), cizí nebo archivovaná ves → první ves
+  hráče. Typy pro scénu jsou odvozené odtud a z `@bohemia/game` – nedefinovat je znovu ve scéně.
 - **Rozhraní jako v 0 A.D., bez popisků a průvodce** (Martin): `components/game/VillageGame.tsx`
-  skládá `hud/` – `TopBar` (jméno vsi, klik = přejmenovat; ikony s čísly: lidé, obilí, maso,
+  skládá `hud/` – `TopBar` (jméno vsi = přepínač vsí `hud/VillageSwitcher.tsx` – klik otevře
+  seznam vsí hráče se jménem a lidmi, klik na ves ji přepne – ves na téže mapě na místě, na jiné
+  mapě novým načtením stránky; přejmenování dvojklikem nebo tužkou; upozornění z jiné vsi
+  krátkým řádkem se jménem vsi – `otherVillageNotices`; ikony s čísly: lidé, obilí, maso,
   ovoce (jablka) jen když jsou nebo je sad, seno s ohradou, klády, uhlí / nástroje / keramika
   jen ves s řemesly, volná práce, nasycení (barva ikony podle energie – hlad, tooltip nasycení
   s podíly obilí / maso / ovoce), štěstí, datum; zvuk a tlačítko nabídky),
@@ -707,7 +747,10 @@ rozhraní částí v
   hry zachytí na `window` ve fázi capture, Esc zavře – z potvrzení vrátí –, klik mimo panel zavře
   a do krajiny nedojde; po konci hry se neotevře; logika kláves v `lib/game-menu.ts`), `Minimap` (vlevo dole, `lib/minimap.ts`,
   klik / tažení přesune pohled), `SelectionPanel` (dole uprostřed, jen při výběru,
-  `lib/selection-details.ts`), `BuildGrid` (vpravo dole), `NoticeLines` (mizející řádky nahoře),
+  `lib/selection-details.ts`; u obydlí a víc vybraných obydlí – počet domácností a lidí –
+  tlačítka Přestěhovat po typu nového domu a Odejít, zatím zašedlé, a průběh stěhování se
+  Zrušit – `hud/RelocationControls.tsx`; u víc domácností se nové domy umisťují postupně, po
+  umístění jednoho hned další jako Shift + klik), `BuildGrid` (vpravo dole), `NoticeLines` (mizející řádky nahoře),
   `CursorReason` (jde s kurzorem při umisťování: u prošlého umístění **cena ikonami s čísly** –
   práce celkem v člověkodnech i s překážkami, u obydlí i s kácením, a ikona stromů s počtem
   stromů ke kácení, když nestačí klády, u modly a svatyně ikona dubu s počtem dubů ke kácení –
@@ -736,13 +779,16 @@ rozhraní částí v
   nestojí (`householdCount` v `simulate.ts`, porody po domácnostech). Starší uložené vsi se
   zemnicí od založení se dopočítají beze změny.
 - **Ovládání (jako 0 A.D., hraje se i na trackpadu):** výběr `village-picking.ts` (rámeček
-  `selection-highlight.ts`), kamera `camera.ts` (čisté funkce `camera-input.ts`,
+  `selection-highlight.ts`, výběr víc obydlí `village-selection.ts` – `VillageTarget`
+  `dwellings`), kamera `camera.ts` (čisté funkce `camera-input.ts`,
   `edge-scroll.ts`). Kliknutí = do 6 px pohybu (`CLICK_SLOP_PX`), delší tah je tah.
 
   | Vstup                  | Nic se neumisťuje                             | Obydlí (`village-placement.ts`) | Po čtvercích (`field-painting.ts`) |
   | ---------------------- | --------------------------------------------- | ------------------------------- | ---------------------------------- |
   | levé kliknutí          | vybere obydlí / pole / hřbitov, na zemi zruší | postaví, Shift + klik staví dál | přepne čtverec                     |
   | levé tažení            | posouvá krajinu (uchopená mapa)               | –                               | přidá obdélník, s Ctrl (Cmd) ubere |
+  | Ctrl / Shift + klik    | přidá obydlí k výběru, vybrané ubere          | Shift + klik staví dál          | Ctrl (Cmd) + klik čtverec ubere    |
+  | Ctrl (Cmd) + A         | vybere všechna hotová obydlí vsi              | –                               | –                                  |
   | mezerník + levé tažení | posouvá                                       | posouvá                         | posouvá                            |
   | prostřední tažení      | posouvá                                       | posouvá                         | posouvá                            |
   | pravé tlačítko         | zruší výběr                                   | zruší                           | zruší malování                     |
@@ -752,7 +798,8 @@ rozhraní částí v
 
   Vždy: WASD / šipky a kurzor u okraje okna posouvají, kolečko i rozevření prstů na trackpadu
   (Ctrl + kolečko, v Safari `gesturechange`) přibližují, Q/E otáčí, R vrátí pohled na ves
-  (`setCameraHome`). Zkratky staveb Z zemnice, X polozemnice, C pole, V hřbitov, B sad,
+  (`setCameraHome`). Ctrl ve výběru obydlí platí i jako Cmd; Ctrl + A při umisťování nic
+  nevybere. Zkratky staveb Z zemnice, X polozemnice, C pole, V hřbitov, B sad,
   N modla, M svatyně, O ohrada (modla a svatyně se umisťují půdorysem jako obydlí – `PlacementMode`
   `sacred`). V otevřené nabídce hry žádná klávesa hry neběží – F10 nebo Esc ji zavře (Tab jen
   po jejích položkách). Rozhraní

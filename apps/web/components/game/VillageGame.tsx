@@ -282,7 +282,7 @@ export function VillageGame({
       ),
     [scene],
   );
-  const current = presentTarget(sceneVillage, selected);
+  const current = useMemo(() => presentTarget(sceneVillage, selected), [sceneVillage, selected]);
   const sceneVillageRef = useRef(sceneVillage);
   useEffect(() => {
     sceneVillageRef.current = sceneVillage;

@@ -108,8 +108,9 @@ describe('createVillageRepository', () => {
     expect(await villages.listBySettlement(UNKNOWN)).toEqual([]);
   });
 
-  it('find neznámé vsi vrátí null', async () => {
+  it('find neznámé vsi i řetězce, který není UUID, vrátí null', async () => {
     expect(await villages.find(UNKNOWN)).toBeNull();
+    expect(await villages.find('village-1')).toBeNull();
   });
 
   it('save s aktuální verzí uloží stav a zvýší verzi, se starou verzí vrátí null', async () => {

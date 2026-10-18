@@ -5,6 +5,8 @@ import { settlement, village } from '../schema';
 
 type VillageRow = typeof village.$inferSelect;
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 function toRecord(row: VillageRow): VillageRecord {
   return {
     id: row.id,
@@ -22,6 +24,8 @@ function toRecord(row: VillageRow): VillageRecord {
 export function createVillageRepository(db: Database): VillageRepository {
   return {
     async find(villageId): Promise<VillageRecord | null> {
+      // id vsi přichází i zvenku (cookie, vstup akce) – jiný řetězec než UUID by dotaz shodil
+      if (!UUID.test(villageId)) return null;
       const [row] = await db.select().from(village).where(eq(village.id, villageId)).limit(1);
       return row ? toRecord(row) : null;
     },
