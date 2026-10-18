@@ -1,7 +1,8 @@
 // Jabloňový sad ve scéně bez Babylonu (orchard.md – Co hráč vidí): jabloně v pravidelných
 // řadách přes celý sad (mimo skalní výchozy), výsadba po fázích (vytyčení řad → kůly →
-// sazenice). Velikost stromků a jablka počítá server (`lib/orchard-look.ts`). Souřadnice světa
-// scény v metrech (x, z), čtverce jako u pole (field-cells.ts).
+// sazenice) – i obnova starého sadu po čtvercích (Obnova sadu). Velikost stromků a jablka počítá
+// server po čtvercích (`lib/orchard-look.ts`). Souřadnice světa scény v metrech (x, z), čtverce
+// jako u pole (field-cells.ts).
 import type { CellSquare } from './field-cells';
 import { seededRandom, type Point } from './village-layout';
 
@@ -98,6 +99,19 @@ export function orchardRowLines(squares: readonly CellSquare[]): Point[][] {
       ];
     });
   });
+}
+
+/**
+ * Čtverce sadu, které se vytyčují kolíky a provázkem: při výsadbě celý sad, dokud se nedosází;
+ * při obnově (orchard.md – Obnova sadu) jen čtverce, které se sázejí znovu – staré stromy
+ * zbytku sadu stojí dál. Vysazený sad nic.
+ */
+export function stakedSquares<T extends { planting: number; renewal?: true }>(
+  squares: readonly T[],
+): T[] {
+  const planting = squares.filter((s) => s.planting < 1);
+  if (planting.length === 0) return [];
+  return planting.some((s) => s.renewal) ? planting.filter((s) => s.renewal) : [...squares];
 }
 
 /** Co z výsadby čtverce stojí: kolik míst má kůl a kolik už sazenici (počty stromů). */

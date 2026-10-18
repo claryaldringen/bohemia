@@ -25,6 +25,7 @@ import {
   orchardRowLines,
   orchardTreeSpots,
   plantingProgress,
+  stakedSquares,
   type Outcrop,
 } from './orchard-layout';
 import { StakingPegs, createStringMaterial, createStringMesh, pegInstances } from './staking';
@@ -59,8 +60,9 @@ const STAKE_AMBIENT = new Color3(0.42, 0.42, 0.4);
  * u kůlu, plodící sad má od srpna do sklizně na stromech jablka (model s plody). Výsadba po
  * fázích: světlé čáry vytyčení kolem sadu a podél řad, kůly, pak sazenice po řadách (překážky
  * z čtverce jádro odstraní, jakmile se na něm začne pracovat); na skalním výchozu z vrstvy
- * překážek strom chybí. Modely jsou v instancích
- * (jeden mesh na variantu a plody), načtou se až s prvním sadem.
+ * překážek strom chybí. Obnova starého sadu (Obnova sadu) jde po čtvercích stejnými fázemi
+ * – vytyčené jsou jen obnovované čtverce, velikost stromů a jablka jsou po čtvercích. Modely
+ * jsou v instancích (jeden mesh na variantu a plody), načtou se až s prvním sadem.
  */
 export class OrchardRenderer {
   private key = '';
@@ -220,19 +222,21 @@ export class OrchardRenderer {
   }
 
   /**
-   * Čáry vytyčení sadů, které se sázejí – stávající se nechají, nová se postaví jen pro sad se
-   * změněnými čtverci (velikost stromů a jablka se mění častěji než čtverce).
+   * Čáry vytyčení sadů, které se sázejí (při obnově jen obnovované čtverce – `stakedSquares`) –
+   * stávající se nechají, nová se postaví jen pro sad se změněnými vytyčenými čtverci (velikost
+   * stromů a jablka se mění častěji než čtverce).
    */
   private updateLayouts(orchards: readonly SceneOrchard[]): void {
     const keep = new Set<number>();
     for (const orchard of orchards) {
-      if (orchard.squares.length === 0 || orchard.squares.every((s) => s.planting >= 1)) continue;
+      const staked = stakedSquares(orchard.squares);
+      if (staked.length === 0) continue;
       keep.add(orchard.id);
-      const cells = orchard.squares.map((s) => `${s.cell.x},${s.cell.y}`).join(';');
+      const cells = staked.map((s) => `${s.cell.x},${s.cell.y}`).join(';');
       const current = this.layouts.get(orchard.id);
       if (current?.cells === cells) continue;
       for (const mesh of current?.meshes ?? []) mesh.dispose();
-      this.layouts.set(orchard.id, { cells, ...this.layoutParts(orchard) });
+      this.layouts.set(orchard.id, { cells, ...this.layoutParts(orchard.id, staked) });
     }
     for (const [id, layout] of this.layouts) {
       if (keep.has(id)) continue;
@@ -269,9 +273,12 @@ export class OrchardRenderer {
    * Světlé čáry vytyčení (provázek, naražená tráva) – po obrysu sadu a podél řad stromů, jen
    * během výsadby.
    */
-  private layoutParts(orchard: SceneOrchard): { meshes: Mesh[]; pegs: ModelInstance[] } {
-    const boundary = cellsBoundary(orchard.squares);
-    const rows = orchardRowLines(orchard.squares);
+  private layoutParts(
+    id: number,
+    squares: readonly SceneOrchardSquare[],
+  ): { meshes: Mesh[]; pegs: ModelInstance[] } {
+    const boundary = cellsBoundary(squares);
+    const rows = orchardRowLines(squares);
     // kolíky po obvodu sadu a na koncích řad, provázek mezi nimi (vidět od zadání, tj. od 0 %)
     const pegs = [
       ...pegInstances(boundary, this.context.groundHeight),
@@ -280,12 +287,12 @@ export class OrchardRenderer {
     this.stringMaterial ??= createStringMaterial(this.scene);
     const string = createStringMesh(
       this.scene,
-      `village-orchard-string-${orchard.id}`,
+      `village-orchard-string-${id}`,
       [...boundary, ...rows],
       this.context.groundHeight,
       this.stringMaterial,
     );
-    return { meshes: [this.layoutMesh(boundary, rows, orchard.id), string], pegs };
+    return { meshes: [this.layoutMesh(boundary, rows, id), string], pegs };
   }
 
   private layoutMesh(boundary: Point[][], rows: Point[][], id: number): Mesh {
@@ -351,7 +358,7 @@ export class OrchardRenderer {
   }
 }
 
-/** Co z sadů rozhoduje o vzhledu – čtverce, výsadba, velikost stromů a jablka. */
+/** Co z sadů rozhoduje o vzhledu – čtverce, výsadba (i obnova), velikost stromů a jablka. */
 function orchardsKey(orchards: readonly SceneOrchard[]): string {
   return orchards
     .map(
@@ -360,7 +367,8 @@ function orchardsKey(orchards: readonly SceneOrchard[]): string {
         o.squares
           .map(
             (s) =>
-              `${s.cell.x},${s.cell.y},${Math.round(s.planting * 50)},${s.growth},${s.fruit ? 1 : 0}`,
+              `${s.cell.x},${s.cell.y},${Math.round(s.planting * 50)},${s.growth},` +
+              `${s.fruit ? 1 : 0}${s.renewal ? 'r' : ''}`,
           )
           .join(';'),
     )

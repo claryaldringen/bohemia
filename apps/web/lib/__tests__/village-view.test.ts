@@ -865,6 +865,79 @@ describe('sad v pohledu na ves', () => {
     expect(june.scene.orchards?.[0]?.squares[0]?.fruit).toBe(false);
   });
 
+  it('obnova: velikost stromů a jablka po čtvercích, vytyčený jen obnovovaný čtverec', () => {
+    const s = withOrchard();
+    s.constructions = s.constructions.filter((c) => c.kind !== 'orchard');
+    const [old, renewed] = s.orchards![0]!.squares;
+    old!.plantedDay = dayIndexOf({ year: 507, month: 4, day: 1 });
+    old!.plantingDone = old!.plantingCost;
+    // obnovený čtverec – vysazený znovu na jaře 558
+    renewed!.plantedDay = dayIndexOf({ year: 558, month: 4, day: 1 });
+    renewed!.plantingDone = renewed!.plantingCost;
+    const august = dayIndexOf({ year: 560, month: 8, day: 10 });
+    s.lastDay = august;
+    const view = buildVillageView(record(s), landscape, august);
+    const [oldScene, renewedScene] = view.scene.orchards![0]!.squares;
+    // starý čtverec (54. rok sadu) má plné stromy s jablky, obnovený mladé stromky bez jablek
+    expect(oldScene).toMatchObject({ planting: 1, growth: 1, fruit: true });
+    expect(renewedScene).toMatchObject({ planting: 1, fruit: false });
+    expect(renewedScene!.growth).toBeGreaterThan(0.3);
+    expect(renewedScene!.growth).toBeLessThan(0.5);
+    expect(renewedScene).not.toHaveProperty('renewal');
+    // stáří sadu = průměr čtverců vážený plochou ((53,4 + 2,4) / 2)
+    expect(view.orchards[0]!.ageYears).toBe(27);
+
+    // obnova běží: staré stromy na čtverci skácené, sází se znovu (kůly → sazenice)
+    renewed!.plantedDay = null;
+    renewed!.plantingCost = 1.8;
+    renewed!.plantingDone = 0.9;
+    renewed!.renewal = 99;
+    s.constructions.push({
+      id: 99,
+      kind: 'orchard',
+      startedDay: august - 3,
+      cost: 1.8,
+      done: 0.9,
+      dwellingType: null,
+      position: null,
+      dwellingId: null,
+      fieldId: null,
+      orchardId: s.orchards![0]!.id,
+      renewal: true,
+    });
+    const renewing = buildVillageView(record(s), landscape, august);
+    expect(renewing.scene.orchards![0]!.squares[1]).toMatchObject({
+      planting: 0.5,
+      growth: 0,
+      fruit: false,
+      renewal: true,
+    });
+    expect(renewing.scene.orchards![0]!.squares[0]).not.toHaveProperty('renewal');
+    expect(renewing.orchards[0]).toMatchObject({ planting: 0.5, ageYears: 53 });
+  });
+
+  it('kronika obnovy a den poslední obnovy a konce sadu pro upozornění', () => {
+    const s = withOrchard();
+    const orchardId = s.orchards![0]!.id;
+    expect(buildVillageView(record(s), landscape, DAY).orchardEvents).toEqual({
+      renewalStarted: null,
+      gone: null,
+    });
+    s.chronicle.push(
+      { day: DAY - 400, kind: 'orchard-renewal-started', orchardId, squares: 4 },
+      { day: DAY - 30, kind: 'orchard-renewal-started', orchardId, squares: 1 },
+      { day: DAY - 20, kind: 'orchard-gone', orchardId: 1 },
+      { day: DAY - 10, kind: 'birth' },
+    );
+    expect(buildVillageView(record(s), landscape, DAY).orchardEvents).toEqual({
+      renewalStarted: DAY - 30,
+      gone: DAY - 20,
+    });
+    expect(
+      chronicleText({ day: 0, kind: 'orchard-renewal-started', orchardId, squares: 4 }, 'Libice'),
+    ).toBe('Vesničané obnovují starý sad – znovu vysadí 4 čtverce.');
+  });
+
   it('kronika: sklizeň jablek a dosloužilý sad', () => {
     expect(chronicleText({ day: 0, kind: 'apple-harvest', kg: 1234 }, 'Libice')).toBe(
       'Sklizeň jablek: 1 234 kg.',

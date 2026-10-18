@@ -3,7 +3,8 @@ import type { VillageView } from './village-view';
 // Upozornění vsi (population.md – Co hráč vidí): plná domácnost, ves hladoví, lidé umírají hlady
 // (Hlad a vymření), stavby stojí, hřbitov je plný (cemetery.md), vesničané ušetřili posvátný dub
 // nebo dubový háj (happiness.md – jen když přibude), kovář nemá uhlí a dílna nemá co kácet
-// (crafts.md). Vymřelá ves žádná nemá.
+// (crafts.md), vesničané obnovují starý sad a starý sad dosloužil (orchard.md – Obnova sadu – jen
+// když v kronice přibude). Vymřelá ves žádná nemá.
 // Odvozují se z pohledu na ves a ukážou se jednou, když nově vzniknou – jako krátký mizející
 // řádek nahoře uprostřed (jako oznámení v 0 A.D.). Jen fakt, žádná rada.
 
@@ -16,7 +17,9 @@ export type NoticeKind =
   | 'no-charcoal'
   | 'no-wood'
   | 'sacred-oak'
-  | 'sacred-grove';
+  | 'sacred-grove'
+  | 'orchard-renewal'
+  | 'orchard-gone';
 
 export interface VillageNotice {
   kind: NoticeKind;
@@ -67,5 +70,18 @@ export function newNotices(previous: VillageView | null, next: VillageView): Vil
   if (next.sacred.groves.length > previous.sacred.groves.length) {
     notices.push({ kind: 'sacred-grove', tone: 'info', text: 'Vesničané ušetřili dubový háj' });
   }
+  // obnova a konec sadu – fakt, když v kronice přibude novější událost (orchard.md)
+  const orchards = { before: previous.orchardEvents, after: next.orchardEvents };
+  if (isNewer(orchards.before.renewalStarted, orchards.after.renewalStarted)) {
+    notices.push({ kind: 'orchard-renewal', tone: 'info', text: 'Vesničané obnovují starý sad' });
+  }
+  if (isNewer(orchards.before.gone, orchards.after.gone)) {
+    notices.push({ kind: 'orchard-gone', tone: 'warn', text: 'Starý sad dosloužil' });
+  }
   return notices;
+}
+
+/** Je den události v novějším pohledu pozdější než v předchozím (nebo tam žádná nebyla)? */
+function isNewer(before: number | null, after: number | null): boolean {
+  return after !== null && (before === null || after > before);
 }

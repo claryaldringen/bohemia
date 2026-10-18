@@ -255,6 +255,11 @@ export interface VillageView {
   scene: SceneVillage;
   /** Posledních CHRONICLE_LENGTH událostí, nejnovější první. */
   chronicle: { day: number; dateLabel: string; text: string }[];
+  /**
+   * Den poslední události kroniky „vesničané začali obnovovat starý sad“ a „starý sad dosloužil“
+   * (orchard.md – Obnova sadu); bez ní null. Upozornění se ukáže, když přibude novější.
+   */
+  orchardEvents: { renewalStarted: number | null; gone: number | null };
 }
 
 /** Hřbitov pro panel výběru – čísla, žádné věty (rozhraní jako v 0 A.D.). */
@@ -363,7 +368,9 @@ export interface SceneVillage {
   /**
    * Jabloňové sady po čtvercích (střed políčka ve světě a strana jako u pole): průběh výsadby
    * čtverce 0–1, velikost stromů 0–1 (mladé stromky rostou – orchard-look.ts) a jestli na
-   * stromech visí jablka (pozdní léto a podzim, než se sklidí). Bez údaje žádné.
+   * stromech visí jablka (pozdní léto a podzim, než se sklidí). Velikost a jablka jsou po
+   * čtvercích – obnovený čtverec má mladé stromky, zbytek sadu staré (orchard.md – Obnova sadu).
+   * Bez údaje žádné.
    */
   orchards?: {
     id: number;
@@ -375,6 +382,11 @@ export interface SceneVillage {
       planting: number;
       growth: number;
       fruit: boolean;
+      /**
+       * Čtverec obnovy, který se sází znovu (staré stromy jsou skácené) – vytyčuje se jen on,
+       * ne celý sad. U ostatních čtverců chybí.
+       */
+      renewal?: true;
     }[];
   }[];
   /**
@@ -572,6 +584,8 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       return `Sklizeň jablek: ${formatInteger(event.kg)} kg.`;
     case 'orchard-gone':
       return 'Starý sad dosloužil a zarostl loukou.';
+    case 'orchard-renewal-started':
+      return `Vesničané obnovují starý sad – znovu vysadí ${formatCells(event.squares)}.`;
     case 'hunger-began':
       return 'Ve vsi začal hlad – zásoby nevystačí do sklizně.';
     case 'hunger-ended':
@@ -859,6 +873,8 @@ function sceneOrchardSquare(
     planting,
     growth,
     fruit,
+    // obnova: staré stromy skácené, čtverec se sází znovu (orchard.md – Obnova sadu)
+    ...(square.renewal !== undefined && planted === null ? { renewal: true as const } : {}),
   };
 }
 
@@ -905,6 +921,15 @@ function scenePart(
     scene.work = done > 0 ? Math.min(1, Math.max(1 / FOUNDING_WORK_STEP, step)) : 0;
   }
   return scene;
+}
+
+/** Den poslední události kroniky daného druhu; bez ní null. */
+function lastEventDay(state: VillageState, kind: ChronicleEvent['kind']): number | null {
+  for (let i = state.chronicle.length - 1; i >= 0; i--) {
+    const event = state.chronicle[i]!;
+    if (event.kind === kind) return event.day;
+  }
+  return null;
 }
 
 function chronicle(state: VillageState, name: string): VillageView['chronicle'] {
@@ -1101,6 +1126,10 @@ export function buildVillageView(
     }),
     scene: sceneVillage(state, landscape, day, summary),
     chronicle: chronicle(state, name),
+    orchardEvents: {
+      renewalStarted: lastEventDay(state, 'orchard-renewal-started'),
+      gone: lastEventDay(state, 'orchard-gone'),
+    },
   };
 }
 

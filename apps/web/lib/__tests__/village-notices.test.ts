@@ -104,6 +104,7 @@ const view = (overrides: Partial<VillageView> = {}): VillageView => ({
   gameOver: false,
   scene: { dwellings: [], fields: [] },
   chronicle: [],
+  orchardEvents: { renewalStarted: null, gone: null },
   ...overrides,
 });
 
@@ -227,5 +228,38 @@ describe('villageNotices – řemesla (crafts.md)', () => {
       { kind: 'no-charcoal', tone: 'warn', text: 'Kovář nemá uhlí' },
       { kind: 'no-wood', tone: 'warn', text: 'Dílna nemá co kácet' },
     ]);
+  });
+});
+
+describe('newNotices – obnova a konec sadu (orchard.md – Obnova sadu)', () => {
+  const orchardEvents = (
+    renewalStarted: number | null,
+    gone: number | null,
+  ): Pick<VillageView, 'orchardEvents'> => ({ orchardEvents: { renewalStarted, gone } });
+
+  it('vesničané začali obnovovat starý sad – fakt jednou, při prvním načtení nic', () => {
+    const before = view();
+    const after = view(orchardEvents(36_403, null));
+    expect(newNotices(null, after)).toEqual([]);
+    expect(newNotices(before, after)).toEqual([
+      { kind: 'orchard-renewal', tone: 'info', text: 'Vesničané obnovují starý sad' },
+    ]);
+    expect(newNotices(after, after)).toEqual([]);
+    // další obnova o rok později se ohlásí znovu
+    expect(newNotices(after, view(orchardEvents(36_768, null))).map((n) => n.kind)).toEqual([
+      'orchard-renewal',
+    ]);
+  });
+
+  it('starý sad dosloužil – krátký řádek, i když kronika starší události zapomněla', () => {
+    const before = view(orchardEvents(36_403, 36_000));
+    const after = view(orchardEvents(36_403, 36_585));
+    expect(newNotices(before, after)).toEqual([
+      { kind: 'orchard-gone', tone: 'warn', text: 'Starý sad dosloužil' },
+    ]);
+    // zkrácená kronika (událost vypadla) nic neohlásí
+    expect(newNotices(after, view(orchardEvents(null, null)))).toEqual([]);
+    // trvalá upozornění se o sadu nezmiňují
+    expect(villageNotices(after)).toEqual([]);
   });
 });
