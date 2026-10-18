@@ -1,4 +1,5 @@
 import { TOTAL_GAME_DAYS, dateOfDayIndex, dayIndexOf } from '../calendar';
+import type { ObstacleLayer } from '../landscape';
 import { DIET } from './diet';
 import { isOvercrowded } from './dwellings';
 import { foodNeedPerDay } from './people';
@@ -115,13 +116,15 @@ export function hasGoodStores(state: VillageState, day: number): boolean {
 
 /**
  * Složky cílového štěstí vsi v den `day` při nasycení `satiation`; `fruit` – lidé dnes jedí ovoce
- * (diet.md).
+ * (diet.md); `obstacles` – vrstva překážek krajiny (stáří a život posvátných dubů – bez ní se
+ * počítají jako nejmladší).
  */
 export function happinessFactors(
   state: VillageState,
   day: number,
   satiation: number,
   fruit = false,
+  obstacles: ObstacleLayer | null = null,
 ): HappinessFactors {
   const memory = state.happiness;
   return {
@@ -131,7 +134,7 @@ export function happinessFactors(
     toil: toilPenalty(memory?.toil ?? []),
     stores: hasGoodStores(state, day) ? HAPPINESS_BONUS.stores : 0,
     fruit: fruit ? DIET.fruitHappiness : 0,
-    sacred: sacredHappiness(state),
+    sacred: sacredHappiness(state, day, obstacles),
   };
 }
 
@@ -150,7 +153,14 @@ function deathPoints(events: readonly ChronicleEvent[]): { day: number; points: 
 export function updateHappiness(
   state: VillageState,
   day: number,
-  input: { satiation: number; events: readonly ChronicleEvent[]; toil: boolean; fruit?: boolean },
+  input: {
+    satiation: number;
+    events: readonly ChronicleEvent[];
+    toil: boolean;
+    fruit?: boolean;
+    /** Vrstva překážek – stáří a život posvátných dubů (bez ní nejmladší). */
+    obstacles?: ObstacleLayer | null;
+  },
 ): void {
   const memory: HappinessState = state.happiness ?? {
     value: HAPPINESS.start,
@@ -163,7 +173,7 @@ export function updateHappiness(
   const toil = [...memory.toil, input.toil ? 1 : 0].slice(-HAPPINESS_PENALTY.toilWindowDays);
   state.happiness = { value: memory.value, deaths, toil };
   const target = happinessTarget(
-    happinessFactors(state, day, input.satiation, input.fruit ?? false),
+    happinessFactors(state, day, input.satiation, input.fruit ?? false, input.obstacles ?? null),
   );
   state.happiness.value = memory.value + (target - memory.value) * DAILY_SHARE;
 }

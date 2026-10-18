@@ -74,7 +74,52 @@ Každé místo přidá k cílovému štěstí; posvátná místa dohromady nejv�
     s událostí kroniky a upozorněním; u kurzoru je oranžové varování „Posvátný dub zůstane
     stát“.
 - Dub se tím **stane stavbou** – jde vybrat a ve scéně má u kmene drobné obětiny (kameny, stužky).
-  Přidá **+5** štěstí, započítají se nejvýš **3** duby.
+- **Čím starší dub, tím víc štěstí** (Martin 18. 10. 2026: „Posvátné duby – čím jsou starší, tím
+  víc štěstí přidávají. Nejmladší 1, nejstarší 10.“): živý dub stáří **150 let přidá +1**,
+  **2000 let +10** (nejvyšší možné stáří, viz níže). Mezi tím podle **logaritmu stáří**, na celé
+  body (návrh Clauda): každé zdvojnásobení stáří přidá stejně (≈ 2,4 bodu) – 200 let +2, 300 let
+  +3, 400 let +4, 600 let +6, 800 let +7, 1000 let +8, 1400 let +9. Lineárně by 200 a 600 let
+  dalo +1 a +3 a mladé duby by skoro nic neznamenaly; logaritmus dává znát i rozdíl v prvních
+  stoletích, kdy je většina dubů mladá (150–400 let), a ke konci světa (≈ 1100–1400 let) už
+  přidává pomalu. Stáří se počítá jako v panelu (Co hráč vidí), štěstí se mění jen přelomem
+  herního roku nebo uschnutím.
+- **Započítají se nejvýš 3 duby – ty, které přidávají nejvíc** (návrh Clauda; dřív 3 duby po +5).
+  Stropy počtu (3 duby) i součtu (+40) zůstávají: na začátku světa dají tři duby +3 až +12
+  (dřív +15), kolem roku 1000 (duby ≈ 600–900 let) ≈ +20, ke konci světa ≈ +25. Ves, která má
+  i háje a modly, strop +40 dosáhne i bez dubů – stáří dubů tak rozhoduje hlavně ve vsi bez hájů
+  a svatyně (ve Vlkově 18. 10. 2026: duby 6 + 6 + 5 = 17, dřív 15, háje 30, modly 16 – strop
+  +40 před i po, cílové štěstí 82,5 beze změny). Kdyby měly staré duby znát i tam, šlo by strop
+  zvednout (např. +50) – rozhodne Martin.
+- **Dub stářím uschne** (Martin 18. 10. 2026: „Ano, mohou stářím uschnout, ale ať je to
+  variabilní. Posvátné stromy se obecně mají dobře – mají dost prostoru a světla, lidé je mohou
+  zalévat, když je sucho. Takže to udělej tak, aby se ty nejstarší mohly dožít až 2000 let.“).
+  Návrh Clauda:
+  - **Délka života** každého posvátného dubu = 800 + 1200 × B let, kde B je druhé nejmenší
+    z pěti náhodných čísel (rozdělení Beta(2, 4)): ≈ **81 % dubů se dožije 800–1400 let**
+    (nejčastěji ≈ 1100, průměr 1200), ≈ 19 % déle, přes 1700 let ≈ 1,6 % a **2000 let nikdo
+    nepřekročí**. Nejkratší život 800 let je dvakrát běžný věk dubu (≈ 600 let) – posvátný dub
+    má prostor, světlo a péči.
+  - Náhoda je ze seedu z id a polohy dubu ve vrstvě překážek – **stejný dub má stejný život
+    v každé vsi**, nic se neukládá; vše je čistá funkce dne hráče.
+  - Dub uschne **v létě** (červen–srpen, kdy přijde sucho) roku, kdy jeho stáří dosáhne délky
+    života. Zůstane **posvátná souš** (model souše dubu, obětiny u ní zůstávají): jde vybrat,
+    v panelu ukáže stáří, ve kterém uschla, a přidá **+1** (návrh Clauda – lidé k ní dál chodí).
+  - Souš stojí **50–100 let** (rovnoměrně, návrh Clauda) a pak **padne** v kterýkoli den roku:
+    zůstane padlý kmen, obětiny zmizí a místo už není posvátný dub – nejde vybrat a nic
+    nepřidává. Na místo se dál nestaví a souš ani kmen se nekácí – ochrana místa plyne jen
+    z vrstvy překážek (rozhodnutí Clauda: bez toho by se stav vsi musel pamatovat).
+  - Posvátné duby žijí 150–400 let k roku 500, takže do roku 1500 může dub zestárnout nejvýš na
+    ≈ 1400 let – 2000 je horní mez, které se ve světě nedožije nikdo. Na 20 krajinách
+    (2506 posvátných dubů) do roku 1500 **uschne ≈ 59 %** a souš padne u ≈ 47 %; do roku 1100
+    uschne 2,4 %, do 1300 ≈ 26 %, medián uschnutí je rok 1323 – duby usychají hlavně v poslední
+    třetině světa.
+  - Kronika: „Posvátný dub stářím uschl – zůstala posvátná souš.“ a „Posvátná souš padla.“;
+    nahoře krátký mizející řádek (fakt) „Posvátný dub uschl“ / „Posvátná souš padla“.
+  - Ušetří-li ves dub, který už podle svého života uschl, je to souš; už padlý dub se do panelu
+    ani scény nedostane.
+  - **Háj se nemění** – jeho duby jsou lesní duby bez délky života (usychají jen posvátné
+    solitérní duby, které do háje nepatří), háj tak zůstává hájem, dokud ho podmínka (≥ 6 dubů
+    v 25 m s převahou dubů) drží – a ta plyne z vrstvy překážek.
 - **Posvátné duby se postupně zvětší** (Martin 18. 10. 2026: „lidé jim udělají prostor a ty stromy
   tak budou moci víc růst“) – jen vzhled, pravidla se nemění: velikost × (1 + 0,3 × min(1, roky
   od ušetření / 60)) (návrh Clauda), po celých herních letech (stínová mapa se překreslí nejvýš
@@ -131,18 +176,23 @@ Každé místo přidá k cílovému štěstí; posvátná místa dohromady nejv�
 - V horní liště ikona štěstí s číslem (tooltip „Štěstí“).
 - V nabídce staveb **modla** a **svatyně** (název + cena v tooltipu).
 - Posvátné duby a háje se objeví samy, když se kolem mýtí – jdou vybrat; panel výběru ukáže,
-  kolik přidávají (ikona štěstí + číslo).
+  kolik přidávají (ikona štěstí + číslo). Uschlý dub má v panelu portrét **posvátné souše**
+  (ikona `sous` – uschlý dub s obětinami) se stářím, ve kterém uschl, a +1; padlá souš vybrat
+  nejde.
 - **Stáří posvátného dubu** (Martin 18. 10. 2026: „pokud označím posvátný dub, chtěl bych vidět
   jeho stáří“): panel výběru ukáže ikonu data s počtem let (popisek „Stáří (roky)“ jako u obydlí
   a sadu). Stáří plyne jen z dubu – z jeho velikosti (výška modelu × měřítko): k 1. 1. 500 má
   nejmenší posvátný dub (≈ 17,7 m, práh horní třetiny dubů) **150 let** a největší (≈ 26,5 m)
   **400 let**, mezi tím lineárně (návrh Clauda); k tomu herní roky od začátku světa do dneška
-  hráče. Stejný dub má tedy stejné stáří v každé vsi a stárne s herním časem (na konci světa
-  ≈ 1150–1400 let). Rozpětí: 150 let ≈ mohutný dospělý solitérní dub (obvod ≈ 3 m), od 400 let
+  hráče. Stejný dub má tedy stejné stáří v každé vsi a stárne s herním časem (kdo se dožije
+  konce světa, má ≈ 1150–1400 let); uschlý dub ukáže stáří, ve kterém uschl. Rozpětí: 150 let ≈ mohutný dospělý solitérní dub (obvod ≈ 3 m), od 400 let
   je dub „starobylý“ (Woodland Trust, Ancient Tree Inventory – dub běžně žije ≈ 600 let,
   výjimečně 1000). U **háje** panel ukáže stáří jeho nejstaršího dubu (největší dospělý dub
   v okruhu 25 m od středu, stejný výpočet – rozhodnutí Clauda).
-- Upozornění (fakt): „Vesničané ušetřili posvátný dub“ / „… dubový háj“.
+- Upozornění (fakt): „Vesničané ušetřili posvátný dub“ / „… dubový háj“, „Posvátný dub uschl“,
+  „Posvátná souš padla“.
+- Ve scéně stojí místo uschlého dubu souš (o čtvrtinu nižší než dub v den uschnutí), padlá souš
+  je padlý kmen přes místo dubu (modely dekorací 0 A.D.).
 
 ## Navazuje
 
@@ -151,20 +201,27 @@ Každé místo přidá k cílovému štěstí; posvátná místa dohromady nejv�
 
 ## Rozhodnutí
 
-| Rozhodnutí                                                                             | Kdo                                       |
-| -------------------------------------------------------------------------------------- | ----------------------------------------- |
-| Štěstí obyvatel ovlivňuje produktivitu práce; zvyšují ho sakrální stavby               | Martin                                    |
-| Snižuje ho hlad, úmrtí, přeplněnost a dřina                                            | návrh Clauda, Martin potvrdil             |
-| Štěstí 0 → práce × 0,8, 50 → × 1, 100 → × 1,1                                          | návrh Clauda, Martin potvrdil (doladí se) |
-| Velké solitérní duby a dubové háje vesničané při mýcení nechají; stanou se stavbou     | Martin                                    |
-| Dřevěná modla; svatyně podle Perynu jako nejvyšší úroveň                               | Martin                                    |
-| Čísla (výchozí 50, posun 10 %/měsíc, příspěvky a stropy, ceny, rozměry, definice háje) | návrh Clauda                              |
-| Posvátný dub: velikost = výška modelu × měřítko, mimo les = ≤ 5 stromů do 15 m         | rozhodnutí kontroléru (implementace)      |
-| Háj: k 6 dubům v 25 m i převaha dubů ≥ 65 % (les je z třetiny dubový)                  | rozhodnutí kontroléru (implementace)      |
-| Den dřiny = ves dnešním tempem nestihne běžící polní práce do konce jejich oken        | rozhodnutí kontroléru (implementace)      |
-| Hřbitov na čtverec s posvátným dubem nesmí (pevná mřížka hrobů)                        | Martin potvrdil 18. 10. 2026              |
-| Ušetření dubu a háje se zapíše už při zahájení stavby (při vytyčení)                   | Martin potvrdil 18. 10. 2026              |
-| Modla nepotřebuje rovinu                                                               | rozhodnutí kontroléru (implementace)      |
-| Posvátné duby se postupně zvětší – o 30 % za 60 let od ušetření (jen vzhled)           | Martin; čísla návrh Clauda                |
-| Panel posvátného dubu ukáže jeho stáří; 150–400 let k roku 500 podle velikosti         | Martin; rozpětí návrh Clauda              |
-| Panel háje ukáže stáří jeho nejstaršího dubu                                           | návrh Clauda                              |
+| Rozhodnutí                                                                              | Kdo                                       |
+| --------------------------------------------------------------------------------------- | ----------------------------------------- |
+| Štěstí obyvatel ovlivňuje produktivitu práce; zvyšují ho sakrální stavby                | Martin                                    |
+| Snižuje ho hlad, úmrtí, přeplněnost a dřina                                             | návrh Clauda, Martin potvrdil             |
+| Štěstí 0 → práce × 0,8, 50 → × 1, 100 → × 1,1                                           | návrh Clauda, Martin potvrdil (doladí se) |
+| Velké solitérní duby a dubové háje vesničané při mýcení nechají; stanou se stavbou      | Martin                                    |
+| Dřevěná modla; svatyně podle Perynu jako nejvyšší úroveň                                | Martin                                    |
+| Čísla (výchozí 50, posun 10 %/měsíc, příspěvky a stropy, ceny, rozměry, definice háje)  | návrh Clauda                              |
+| Posvátný dub: velikost = výška modelu × měřítko, mimo les = ≤ 5 stromů do 15 m          | rozhodnutí kontroléru (implementace)      |
+| Háj: k 6 dubům v 25 m i převaha dubů ≥ 65 % (les je z třetiny dubový)                   | rozhodnutí kontroléru (implementace)      |
+| Den dřiny = ves dnešním tempem nestihne běžící polní práce do konce jejich oken         | rozhodnutí kontroléru (implementace)      |
+| Hřbitov na čtverec s posvátným dubem nesmí (pevná mřížka hrobů)                         | Martin potvrdil 18. 10. 2026              |
+| Ušetření dubu a háje se zapíše už při zahájení stavby (při vytyčení)                    | Martin potvrdil 18. 10. 2026              |
+| Modla nepotřebuje rovinu                                                                | rozhodnutí kontroléru (implementace)      |
+| Posvátné duby se postupně zvětší – o 30 % za 60 let od ušetření (jen vzhled)            | Martin; čísla návrh Clauda                |
+| Panel posvátného dubu ukáže jeho stáří; 150–400 let k roku 500 podle velikosti          | Martin; rozpětí návrh Clauda              |
+| Panel háje ukáže stáří jeho nejstaršího dubu                                            | návrh Clauda                              |
+| Posvátný dub přidá štěstí podle stáří – nejmladší (150 let) 1, nejstarší (2000 let) 10  | Martin                                    |
+| Mezi tím podle logaritmu stáří na celé body; počítají se 3 duby, které přidávají nejvíc | návrh Clauda                              |
+| Stropy 3 duby a +40 dohromady zůstávají                                                 | návrh Clauda (Martin může zvednout)       |
+| Posvátné duby stářím usychají, variabilně, nejstarší se mohou dožít až 2000 let         | Martin                                    |
+| Délka života 800 + 1200 × Beta(2, 4) let (≈ 81 % 800–1400), uschne v létě               | návrh Clauda                              |
+| Posvátná souš +1, stojí 50–100 let, pak padne – padlý kmen už není posvátný dub         | návrh Clauda                              |
+| Místo padlé souše zůstává chráněné (ochrana jen z vrstvy překážek, žádný nový stav)     | rozhodnutí Clauda                         |

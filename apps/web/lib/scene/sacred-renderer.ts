@@ -10,22 +10,28 @@ import type { Scene } from '@babylonjs/core/scene';
 import type { Position, SacredBuildingKind } from '@bohemia/game';
 import type { SceneSacred } from '../village-view';
 import { applyGammaFog } from './gamma-fog';
+import type { DecorModel } from './decor-placement';
+import { prepareDecorMaterial } from './decorations';
 import {
   instanceMatrices,
+  loadMergedModel,
   loadMergedModelWithNodes,
   loadModelParts,
   type ModelInstance,
 } from './instanced-model';
 import { fallbackGeometry } from './sacred-fallback';
 import {
+  DEAD_OAK_MODELS,
   SACRED_MODELS,
   SACRED_MODEL_BASE_URL,
   SACRED_SITE_KIND,
   SHRINE_SMOKE_LIFT_M,
+  fallenOakInstance,
   groveStones,
   oakOfferingRotation,
   sacredBuildingKey,
   sacredFootprintCorners,
+  sacredSnagInstance,
   shrineFiresWorld,
 } from './sacred-layout';
 import { applySeasonGround, applySeasonSnow } from './season-materials';
@@ -50,9 +56,16 @@ import {
 
 type SceneSacredBuilding = SceneSacred['buildings'][number];
 
-/** Drobné modely v instancích – obětiny u dubu a kameny háje. */
-type DecorKey = 'oak-offerings' | 'stone-a' | 'stone-b' | 'altar';
-const DECOR_KEYS: readonly DecorKey[] = ['oak-offerings', 'stone-a', 'stone-b', 'altar'];
+/** Modely v instancích – obětiny u dubu, kameny háje, posvátná souš a padlý kmen. */
+type DecorKey = 'oak-offerings' | 'stone-a' | 'stone-b' | 'altar' | 'oak-snag' | 'oak-fallen';
+const DECOR_KEYS: readonly DecorKey[] = [
+  'oak-offerings',
+  'stone-a',
+  'stone-b',
+  'altar',
+  'oak-snag',
+  'oak-fallen',
+];
 const AMBIENT = new Color3(0.38, 0.38, 0.36);
 /** Duch stavby je o kousek zapuštěný – žádný okraj nevisí nad terénem (m). */
 const SINK_M = 0.04;
@@ -88,8 +101,10 @@ interface BuildingView {
 
 /**
  * Posvátná místa ve scéně (happiness.md – Co hráč vidí): u kmene ušetřeného posvátného dubu
- * obětiny (kameny, stužky, miska), na okraji dubového háje kamenný kruh hraničních kamenů
- * a oltář ke vsi (obojí v instancích), modla a svatyně jako modely (z ohnišť svatyně občas
+ * obětiny (kameny, stužky, miska) – u uschlého dubu stojí místo stromu posvátná souš (obětiny
+ * zůstávají), padlá souš je padlý kmen bez obětin (souš a kmen jsou dekorace z public/models/
+ * decor/) –, na okraji dubového háje kamenný kruh hraničních kamenů a oltář ke vsi (vše
+ * v instancích), modla a svatyně jako modely (z ohnišť svatyně občas
  * dým – `smokeSources`) a jejich staveniště po fázích (sacred-layout.ts) z dílů
  * {idol,shrine}-construction.glb – vytyčení kolíky a provázkem je vidět hned od zadání stavby.
  * Modla a svatyně (i díly staveniště) se kladou na terén: každý vrchol modelu se posune o výšku
@@ -223,7 +238,23 @@ export class SacredRenderer {
         console.warn(`Díly ${file} se nepodařilo načíst – náhradní tvary.`, error);
       }
     };
+    // souš a padlý kmen jsou dekorace krajiny (materiál a roční období jako dekorace)
+    const decor = async (key: DecorKey, model: DecorModel): Promise<void> => {
+      try {
+        const mesh = await loadMergedModel(
+          this.scene,
+          `/models/decor/${model}.glb`,
+          `village-sacred-${key}`,
+          (material) => prepareDecorMaterial(model, material),
+        );
+        if (mesh) this.templates.set(key, this.prepareTemplate(mesh));
+      } catch (error) {
+        console.warn(`Model ${model} se nepodařilo načíst.`, error);
+      }
+    };
     await Promise.all([
+      decor('oak-snag', DEAD_OAK_MODELS.snag),
+      decor('oak-fallen', DEAD_OAK_MODELS.fallen),
       merged('idol', SACRED_MODELS.idol),
       merged('shrine', SACRED_MODELS.shrine),
       merged('oak-offerings', SACRED_MODELS.oakOfferings),
@@ -321,6 +352,15 @@ export class SacredRenderer {
         // kruh kamenů a stužky rostou s kmenem (posvátný dub se postupně zvětší)
         scale: oak.growth ?? 1,
       });
+      // uschlý dub: na jeho místě stojí posvátná souš (strom skryje scéna podle id)
+      if (oak.snag) {
+        const snag = sacredSnagInstance(oak);
+        push('oak-snag', { ...snag, y: h(snag.x, snag.z) - 0.05 });
+      }
+    }
+    for (const oak of sacred?.fallenOaks ?? []) {
+      const fallen = fallenOakInstance(oak);
+      push('oak-fallen', { ...fallen, y: h(fallen.x, fallen.z) - 0.05 });
     }
     const toward = villageCenter(sacred);
     for (const grove of sacred?.groves ?? []) {
@@ -515,7 +555,12 @@ function fireSpotsOf(nodes: ReadonlyMap<string, { x: number; z: number }>): Poin
 }
 
 function hasContent(sacred: SceneSacred): boolean {
-  return sacred.oaks.length > 0 || sacred.groves.length > 0 || sacred.buildings.length > 0;
+  return (
+    sacred.oaks.length > 0 ||
+    (sacred.fallenOaks?.length ?? 0) > 0 ||
+    sacred.groves.length > 0 ||
+    sacred.buildings.length > 0
+  );
 }
 
 /**
@@ -535,7 +580,10 @@ function villageCenter(sacred: SceneSacred | null): { x: number; z: number } | n
 function sacredKey(sacred: SceneSacred | null): string {
   if (!sacred) return '';
   return [
-    sacred.oaks.map((o) => `${o.id},${o.x},${o.z},${o.growth ?? 1}`).join(';'),
+    sacred.oaks
+      .map((o) => `${o.id},${o.x},${o.z},${o.growth ?? 1},${o.snag ? 's' : ''}${o.sizeM ?? ''}`)
+      .join(';'),
+    (sacred.fallenOaks ?? []).map((o) => `${o.id},${o.growth ?? 1},${o.sizeM ?? ''}`).join(';'),
     sacred.groves
       .map((g) => `${g.id}:${g.squares.map((s) => `${s.cell.x},${s.cell.y}`).join(',')}`)
       .join(';'),
