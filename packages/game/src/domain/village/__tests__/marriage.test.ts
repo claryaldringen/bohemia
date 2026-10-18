@@ -84,7 +84,7 @@ describe('kdo se při sňatku stěhuje', () => {
     expect(marriageMove(even, DAY, person(even, 11), person(even, 21))?.mover.id).toBe(21);
   });
 
-  it('rozpadly by se obě domácnosti – nikdo; do přeplněného domu se nestěhuje', () => {
+  it('rozpadly by se obě domácnosti – nikdo; do plného ani přeplněného domu se nestěhuje', () => {
     const both = village(
       [...household(10, [50, 30, 5], 1), ...household(20, [48, 20, 3], 2)],
       [dwelling(1), dwelling(2)],
@@ -96,12 +96,18 @@ describe('kdo se při sňatku stěhuje', () => {
       [dwelling(1), dwelling(2)],
     );
     expect(marriageMove(crowded, DAY, person(crowded, 11), person(crowded, 21))).toBeNull();
-    // plná zemnice ještě smí – po sňatku je o jednoho přes kapacitu
+    // ani do plné – svatba dům nepřeplní (jinak by se nejstarší dítě stěhovalo tam a zpět)
     const full = village(
       [...household(10, [50, 30, 15, 5], 1), ...household(20, [48, 20, 7, 6, 5, 3], 2)],
       [dwelling(1), dwelling(2)],
     );
-    expect(marriageMove(full, DAY, person(full, 11), person(full, 21))).toMatchObject({
+    expect(marriageMove(full, DAY, person(full, 11), person(full, 21))).toBeNull();
+    // s jedním volným místem ano
+    const room = village(
+      [...household(10, [50, 30, 15, 5], 1), ...household(20, [48, 20, 7, 6, 5], 2)],
+      [dwelling(1), dwelling(2)],
+    );
+    expect(marriageMove(room, DAY, person(room, 11), person(room, 21))).toMatchObject({
       mover: { id: 11 },
       to: { id: 2 },
     });
