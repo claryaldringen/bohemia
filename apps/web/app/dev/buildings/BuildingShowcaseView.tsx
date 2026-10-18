@@ -3,15 +3,18 @@
 // VÝVOJOVÝ NÁSTROJ – jen pro /dev/buildings (v produkci stránka vrací 404): prohlídka modelů
 // staveb bez přihlášení a databáze, i stavba po fázích (posuvník a přehrání) – obydlí, řemesla,
 // modla a svatyně, za nimi pole, hřbitov a sad, vpravo posvátný dub a dubový háj, vlevo orá
-// spřežení volů s rádlem. Řemesla, posvátná místa ani orba volů zatím nejsou ve hře – jen modely.
+// spřežení volů s rádlem a vedle zemnice ohrada s přístřeškem (voli a kráva). Řemesla, posvátná
+// místa, orba volů ani ohrada zatím nejsou ve hře – jen modely. Přepínač zimy ukáže sníh.
 import { useEffect, useRef, useState, type ReactElement } from 'react';
 import {
   MILIR_OFFSET_M,
   SHOWCASE_BUILDINGS,
   SHOWCASE_DECOR,
   SHOWCASE_GROUNDS,
+  SHOWCASE_PEN,
   showcaseGrounds,
 } from '@/lib/scene/building-showcase-layout';
+import { penPhase } from '@/lib/scene/pen-layout';
 import type { BuildingShowcase } from '@/lib/scene/building-showcase';
 import { constructionPhase, type ConstructionKind } from '@/lib/scene/village-construction';
 
@@ -43,6 +46,7 @@ export function BuildingShowcaseView(): ReactElement {
   const [progress, setProgress] = useState(1);
   const [playing, setPlaying] = useState(false);
   const [following, setFollowing] = useState(false);
+  const [winter, setWinter] = useState(false);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -123,17 +127,19 @@ export function BuildingShowcaseView(): ReactElement {
         <span className="mr-2 font-serif text-lg text-stone-900 dark:text-stone-100">
           Náhled staveb
         </span>
-        {[...SHOWCASE_BUILDINGS, ...SHOWCASE_GROUNDS, ...SHOWCASE_DECOR].map((target) => (
-          <button
-            key={target.id}
-            type="button"
-            className={buttonClass}
-            disabled={!showcase}
-            onClick={() => showcase?.focus(target.id)}
-          >
-            {target.label}
-          </button>
-        ))}
+        {[...SHOWCASE_BUILDINGS, ...SHOWCASE_GROUNDS, ...SHOWCASE_DECOR, SHOWCASE_PEN].map(
+          (target) => (
+            <button
+              key={target.id}
+              type="button"
+              className={buttonClass}
+              disabled={!showcase}
+              onClick={() => showcase?.focus(target.id)}
+            >
+              {target.label}
+            </button>
+          ),
+        )}
         <button
           type="button"
           className={buttonClass}
@@ -162,6 +168,15 @@ export function BuildingShowcaseView(): ReactElement {
           onClick={() => showcase?.gameView()}
         >
           Herní náklon
+        </button>
+        <button
+          type="button"
+          className={buttonClass}
+          disabled={!showcase}
+          aria-pressed={winter}
+          onClick={() => setWinter(showcase?.setWinter(!winter) ?? false)}
+        >
+          {winter ? 'Léto' : 'Zima'}
         </button>
       </nav>
       <section className="fixed top-0 right-0 z-10 w-80 max-w-full rounded-bl bg-stone-100/80 px-4 py-2 text-sm text-stone-600 backdrop-blur dark:bg-stone-950/70 dark:text-stone-400">
@@ -192,6 +207,10 @@ export function BuildingShowcaseView(): ReactElement {
               {progress >= 1 ? 'hotovo' : constructionPhase(kind, progress).label}
             </li>
           ))}
+          <li>
+            <span className="text-stone-900 dark:text-stone-100">{SHOWCASE_PEN.label}:</span>{' '}
+            {progress >= 1 ? 'hotovo – dva voli a kráva' : penPhase(progress).label}
+          </li>
           {SHOWCASE_GROUNDS.map((ground) => (
             <li key={ground.id}>
               <span className="text-stone-900 dark:text-stone-100">{ground.label}:</span>{' '}
@@ -202,8 +221,8 @@ export function BuildingShowcaseView(): ReactElement {
       </section>
       <p className="fixed bottom-0 left-0 z-10 rounded-tr bg-stone-100/80 px-4 py-2 text-xs text-stone-600 backdrop-blur dark:bg-stone-950/70 dark:text-stone-400">
         Levé tlačítko otáčí, pravé posouvá, kolečko přibližuje. Milíř stojí {distance} m od uhlířovy
-        zemnice (doporučeno 8–12 m, vpředu stranou). Řemesla, posvátná místa ani orba volů zatím
-        nejsou ve hře.
+        zemnice (doporučeno 8–12 m, vpředu stranou). Řemesla, posvátná místa, orba volů ani ohrada
+        zatím nejsou ve hře.
       </p>
       {failed && (
         <div className="fixed inset-0 flex items-center justify-center px-4">
