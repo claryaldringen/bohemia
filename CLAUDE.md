@@ -242,11 +242,14 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   adaptér): krajina 16 × 16 čtverců po ≈ 120 m (`SCENERY_CHUNKS`). Každý mesh s nehybnými
   instancemi (`setStaticInstances`, jméno `trees-` / `decor-` / `impostors-` / `felled-` /
   `pathside-` – `CULLED_MESHES`; i les vsi, pařezy a stromy u cest, které se mění) dostane klon
-  pro kameru `view-<jméno>` (sdílí geometrii i materiál – roční období platí dál), do jehož
+  pro kameru `view-<jméno>` (sdílí materiál – roční období platí dál –, ale má **vlastní kopii
+  geometrie**: Babylon drží buffery thin instances na geometrii, sdílená by kreslila buffer
+  zdroje; změny vrcholů zdroje – natáčení impostorů – se do kopie přenesou), do jehož
   bufferu se před snímkem nakopírují jen instance čtverců, jejichž obal je v záběru; draw cally
   zůstanou (jeden na model), ve výchozím pohledu ≈ 3 % trojúhelníků (0,3 M místo 10 M). Původní
   mesh se všemi instancemi kreslí **jen stínová mapa** (`SHADOW_ONLY_LAYER` – kamera ho
-  přeskočí, stínový generátor vrstvy nekontroluje), takže stíny jsou jako dřív. Nový renderer
+  přeskočí, stínový generátor vrstvy nekontroluje), takže stíny jsou jako dřív. Obaly čtverců
+  se pro ořez převádějí světovou maticí meshe (`transformBounds` – i mesh pod rodičem). Nový renderer
   instancí stromů a keřů: instance přes `setStaticInstances` (ne `thinInstanceSetBuffer`)
   a jméno s předponou z `CULLED_MESHES`, vypínat zdroj (`setEnabled`) – klon ho následuje.
   Impostory mají obal přes všechna natočení (`localBounds`). Měření bez prohlížeče:

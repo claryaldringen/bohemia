@@ -12,6 +12,7 @@ import {
   chunkIndexOf,
   chunkOrder,
   compactChunks,
+  transformBounds,
   type LocalBounds,
 } from '../scenery-chunks';
 
@@ -163,5 +164,37 @@ describe('compactChunks – instance viditelných čtverců', () => {
     expected.forEach((i, n) => {
       expect([...out.slice(n * 16, n * 16 + 16)]).toEqual([...matrices.slice(i * 16, i * 16 + 16)]);
     });
+  });
+});
+
+describe('transformBounds – obaly čtverců do světa maticí meshe', () => {
+  it('stejný kvádr jako 8 rohů převedených světovou maticí (zrcadlení os glTF, převýšení)', () => {
+    const world = Matrix.Compose(
+      new Vector3(1, 3, -1),
+      Quaternion.RotationAxis(Vector3.Up(), Math.PI),
+      new Vector3(40, 2, -25),
+    );
+    const bounds = Float32Array.from([
+      -10,
+      0,
+      5,
+      30,
+      18,
+      40,
+      Infinity,
+      Infinity,
+      Infinity,
+      -Infinity,
+      -Infinity,
+      -Infinity,
+    ]);
+    const out = transformBounds(bounds, world.m);
+    const box = new BoundingBox(new Vector3(-10, 0, 5), new Vector3(30, 18, 40), world);
+    [...box.minimumWorld.asArray(), ...box.maximumWorld.asArray()].forEach((v, i) =>
+      expect(out[i]).toBeCloseTo(v, 4),
+    );
+    // prázdný čtverec zůstane prázdný
+    expect(out[6]).toBe(Infinity);
+    expect(out[9]).toBe(-Infinity);
   });
 });

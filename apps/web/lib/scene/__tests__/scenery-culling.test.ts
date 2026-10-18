@@ -6,11 +6,13 @@ import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Frustum } from '@babylonjs/core/Maths/math.frustum';
 import { Matrix, Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { CreateBox } from '@babylonjs/core/Meshes/Builders/boxBuilder';
+import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { Scene } from '@babylonjs/core/scene';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { DirectionalLight } from '@babylonjs/core/Lights/directionalLight';
 import { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGenerator';
+import { HEIGHT_SCALE } from '../constants';
 import { InstanceHider } from '../instance-hider';
 import { addSunShadows } from '../sun-shadows';
 import { setStaticInstances } from '../instanced-model';
@@ -102,11 +104,81 @@ describe('SceneryCulling – ořez po čtvercích', () => {
     expect(source.layerMask).toBe(SHADOW_ONLY_LAYER);
     expect(source.layerMask & camera.layerMask).toBe(0);
     expect(view.layerMask & camera.layerMask).not.toBe(0);
-    // stejný materiál (roční období) i geometrie
+    // stejný materiál (roční období), stejné vrcholy, ale vlastní geometrie
     expect(view.material).toBe(source.material);
-    expect(view.geometry).toBe(source.geometry);
+    expect(view.geometry).not.toBe(source.geometry);
+    expect(Array.from(view.getVerticesData('position')!)).toEqual(
+      Array.from(source.getVerticesData('position')!),
+    );
     // zdroj má dál všechny instance (stínová mapa přes celou krajinu)
     expect(source.thinInstanceCount).toBe(COUNT);
+  });
+
+  it('buffery instancí klonu a zdroje jsou na GPU oddělené (Babylon je drží na geometrii)', () => {
+    const matrices = treeMatrices(COUNT);
+    const source = tree('trees-oak-1', matrices);
+    culling.update(camera);
+    const view = culling.viewOf(source)!;
+    expect(view.thinInstanceCount).toBeGreaterThan(0);
+    expect(view.thinInstanceCount).toBeLessThan(COUNT);
+    // každý z nich kreslí svůj buffer – klon jen instance v záběru, zdroj všechny; dřív sdílená
+    // geometrie vázala buffer zdroje i ke klonu (klon kreslil prvních N instancí odjinud)
+    const ownBuffer = (mesh: Mesh): unknown =>
+      (
+        mesh as unknown as {
+          _thinInstanceDataStorage: { matrixBuffer: { getBuffer(): unknown } };
+        }
+      )._thinInstanceDataStorage.matrixBuffer.getBuffer();
+    const viewWorld = view.getVertexBuffer('world0')!;
+    const sourceWorld = source.getVertexBuffer('world0')!;
+    expect(viewWorld.getBuffer()).toBe(ownBuffer(view));
+    expect(sourceWorld.getBuffer()).toBe(ownBuffer(source));
+    expect(viewWorld.getBuffer()).not.toBe(sourceWorld.getBuffer());
+    // skrytí ve zdroji (nový buffer zdroje) buffer klonu nepřepíše
+    source.thinInstanceSetBuffer('matrix', matrices.slice(0, 32), 16, true);
+    expect(view.getVertexBuffer('world0')!.getBuffer()).toBe(ownBuffer(view));
+    expect(drawn(view).length).toBe(view.thinInstanceCount);
+  });
+
+  it('změny vrcholů zdroje (impostory se natáčejí ke kameře) se přenesou do klonu', () => {
+    const source = tree('impostors-0');
+    const view = culling.viewOf(source)!;
+    source.markVerticesDataAsUpdatable('position', true);
+    view.markVerticesDataAsUpdatable('position', true);
+    const moved = Float32Array.from(source.getVerticesData('position')!, (v, i) => v + (i % 3));
+    source.updateVerticesData('position', moved, false, false);
+    expect([...view.getVerticesData('position')!]).toEqual([...moved]);
+  });
+
+  it('mesh pod rodičem se zrcadlením os (glTF __root__) a převýšením: ořez ve světových souřadnicích', () => {
+    const matrices = treeMatrices(COUNT, 7);
+    const root = new TransformNode('__root__', scene);
+    root.rotationQuaternion = Quaternion.RotationAxis(Vector3.Up(), Math.PI);
+    root.scaling = new Vector3(1, HEIGHT_SCALE, -1);
+    root.position.set(40, 0, -25);
+    const mesh = CreateBox('trees-pine-1', { width: 2, height: 10, depth: 2 }, scene);
+    mesh.bakeTransformIntoVertices(Matrix.Translation(0, 5, 0));
+    mesh.parent = root;
+    setStaticInstances(mesh, matrices);
+    culling.update(camera);
+    const view = culling.viewOf(mesh)!;
+    const world = mesh.computeWorldMatrix(true);
+    const planes = Frustum.GetPlanes(camera.getViewMatrix().multiply(camera.getProjectionMatrix()));
+    const local = new BoundingBox(new Vector3(-1, 0, -1), new Vector3(1, 10, 1));
+    const inView = all(matrices, (i) => {
+      const box = new BoundingBox(
+        local.minimum,
+        local.maximum,
+        Matrix.FromArray(matrices, i * 16).multiply(world),
+      );
+      return !BoundingBox.IsInFrustum(box.vectorsWorld, planes);
+    });
+    expect(inView.length).toBeGreaterThan(0);
+    const got = new Set(drawn(view));
+    for (const instance of inView) expect(got.has(instance)).toBe(true);
+    expect(got.size).toBeLessThan(COUNT / 5);
+    // obal klonu pro Babylon je ve světě tam, kde jsou instance v záběru
+    expect(view.isInFrustum(planes)).toBe(true);
   });
 
   it('stínová mapa má zdroj se všemi instancemi a vrstvy nekontroluje – ořez kamery ji neovlivní', () => {
