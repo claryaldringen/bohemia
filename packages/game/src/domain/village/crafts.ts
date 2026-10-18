@@ -26,7 +26,13 @@ import type {
   WorkshopActivity,
   WorkshopFelling,
 } from './types';
-import { burnerRests, charcoalShortfallKg, smithCharcoalPerYear, workBurner } from './charcoal';
+import {
+  burnerRests,
+  charcoalShortfallKg,
+  inPlantingWindow,
+  smithCharcoalPerYear,
+  workBurner,
+} from './charcoal';
 import { villageRoadWalk } from './paths/walking';
 import {
   availableTrees,
@@ -141,12 +147,12 @@ export function newWorkshop(craft: Craft, waterDistanceM?: number): Workshop {
 
 /**
  * Obydlí s dílnou, ve kterých někdo bydlí (id) – jejich domácnosti pracují jen v dílně
- * (crafts.md – Práce a jídlo); prázdná dílna se nepočítá, uhlíř, který dnes odpočívá od milíře
- * (`resting` – `restingBurners`), taky ne – pracuje se vsí.
+ * (crafts.md – Práce a jídlo); prázdná dílna se nepočítá, řemeslník, který dnes nemá v dílně co
+ * dělat (`resting` – `restingCrafters`), taky ne – pracuje se vsí.
  */
 export function craftHouseholds(
   state: Pick<VillageState, 'dwellings' | 'people'>,
-  resting: ReadonlySet<number> = new Set(),
+  resting: { has(id: number): boolean } = new Set<number>(),
 ): Set<number> {
   const households = new Set<number>();
   if (!state.dwellings.some((d) => d.workshop)) return households;
@@ -166,8 +172,27 @@ function occupiedWorkshops(state: VillageState, craft: Craft): Dwelling[] {
 }
 
 /**
- * Kolik uhlí ročně spálí kováři vsi při dnešní práci (kg) – podle toho uhlíř pálí jen do zásoby
- * na rok (crafts.md – Uhlíř).
+ * Zásoba, do které řemeslníci vyrábějí (kg, crafts.md – Podle potřeby, návrh Clauda): potřeba vsi
+ * a k ní opotřebení za CRAFT_NEEDS.reserveYears – nástroje potřeba × 1,3, keramika × 1,4. Ves
+ * s takovou zásobou má potřebu pokrytou i za rok, kdy se část opotřebí.
+ */
+export function craftTargets(
+  state: Pick<VillageState, 'people'>,
+  day: number,
+): { toolsKg: number; potteryKg: number } {
+  const needs = craftNeeds(state, day);
+  return {
+    toolsKg: needs.toolsKg * (1 + CRAFT_NEEDS.toolWearPerYear * CRAFT_NEEDS.reserveYears),
+    potteryKg:
+      needs.potteryKg * (1 + CRAFT_NEEDS.potteryBreakagePerYear * CRAFT_NEEDS.reserveYears),
+  };
+}
+
+/**
+ * Kolik uhlí ročně kováři vsi spálí (kg) – podle toho uhlíř pálí jen do zásoby na rok
+ * (crafts.md – Uhlíř): nástroje, které ves za rok opotřebí, a co chybí do zásoby (`craftTargets`),
+ * po 50 kg uhlí na kg – nejvýš kolik kováři při dnešní práci vykovají za rok na plný úvazek.
+ * Bez kováře 0.
  */
 export function smithsCharcoalPerYear(
   state: VillageState,
@@ -175,28 +200,58 @@ export function smithsCharcoalPerYear(
   coverage: CraftCoverage,
   productivity = 1,
 ): number {
-  return smithCharcoalPerYear(
-    occupiedWorkshops(state, 'smith').map((d) => ({
+  const smiths = occupiedWorkshops(state, 'smith');
+  if (smiths.length === 0) return 0;
+  const fullTime = smithCharcoalPerYear(
+    smiths.map((d) => ({
       labor: workshopLabor(state, day, d.id, coverage.pottery, productivity).craft,
       oreFactor: oreFactor(d.workshop!),
     })),
   );
+  const needs = craftNeeds(state, day);
+  const missing = Math.max(0, craftTargets(state, day).toolsKg - craftStocks(state).toolsKg);
+  const toolsPerYear = needs.toolsKg * CRAFT_NEEDS.toolWearPerYear + missing;
+  return Math.min(fullTime, toolsPerYear * CRAFT_PRODUCTION.toolCharcoalKgPerKg);
 }
 
 /**
- * Uhlíři, kteří dnes od milíře odpočívají a pracují se vsí (id obydlí, crafts.md – Uhlíř): nemají
- * rozdělaný milíř, není kdy a kam sázet a ves má uhlí do zásoby na rok spotřeby kovářů – i s uhlím,
- * které nový milíř uhlíře před nimi (v pořadí id) dá.
+ * Řemeslníci, kteří dnes nemají v dílně co dělat, a jejich domácnost proto pracuje se vsí jako
+ * ostatní (id obydlí; crafts.md – Podle potřeby, Martin 18. 10. 2026: „pokud uhlíř a kovář budou
+ * mít volný čas, ať pracují na poli jako zbytek vesnice“):
+ * - kovář, když zásoba nástrojů dosáhla `craftTargets`, nebo nemá uhlí,
+ * - hrnčíř, když zásoba keramiky dosáhla `craftTargets`, nebo nemá palivo ani z čeho kácet,
+ * - uhlíř, když nemá rozdělaný milíř, není kdy a kam sázet a ves má uhlí do zásoby na rok
+ *   spotřeby kovářů (i s uhlím nového milíře uhlíře před ním v pořadí id), nebo nejsou buky.
+ * Rozhoduje se na začátku dne ze včerejších zásob; hodnota = co dílna dnes ukáže (`resting` –
+ * plná zásoba, `no-charcoal` / `no-wood` – chybí vstup, upozornění pro hráče). `obstacles` =
+ * vrstva překážek (dřevo hrnčíře a buky uhlíře); bez ní (null – jen testy) dřeva neomezeně.
  */
-export function restingBurners(
+export function restingCrafters(
   state: VillageState,
   day: number,
   coverage: CraftCoverage,
   productivity = 1,
-): Set<number> {
-  const resting = new Set<number>();
-  // běžná ves bez uhlíře – bez procházení lidí (volá se každý den)
-  if (!state.dwellings.some((d) => d.workshop?.craft === 'burner')) return resting;
+  obstacles: ObstacleLayer | null = null,
+): Map<number, WorkshopActivity> {
+  const resting = new Map<number, WorkshopActivity>();
+  // běžná ves bez dílen – bez procházení lidí (volá se každý den)
+  if (!state.dwellings.some((d) => d.workshop)) return resting;
+  const stocks = craftStocks(state);
+  const targets = craftTargets(state, day);
+  for (const d of occupiedWorkshops(state, 'smith')) {
+    if (stocks.toolsKg >= targets.toolsKg) resting.set(d.id, 'resting');
+    else if (stocks.charcoalKg <= 0) resting.set(d.id, 'no-charcoal');
+  }
+  for (const d of occupiedWorkshops(state, 'potter')) {
+    const workshop = d.workshop!;
+    const noWood =
+      workshop.fuelKg <= 0 &&
+      workshop.felling === null &&
+      obstacles !== null &&
+      availableTrees(obstacles, state, day) <= 0;
+    if (stocks.potteryKg >= targets.potteryKg) resting.set(d.id, 'resting');
+    else if (noWood) resting.set(d.id, 'no-wood');
+  }
   const burners = occupiedWorkshops(state, 'burner');
   if (burners.length === 0) return resting;
   let shortfall = charcoalShortfallKg(
@@ -205,10 +260,15 @@ export function restingBurners(
   );
   for (const d of burners) {
     const workshop = d.workshop!;
-    if (burnerRests(workshop, day, shortfall)) resting.add(d.id);
+    if (burnerRests(workshop, day, shortfall)) resting.set(d.id, 'resting');
     else if (!workshop.kiln && shortfall > 0) {
+      const noBeeches =
+        !(inPlantingWindow(day) && (workshop.toPlant?.length ?? 0) > 0) &&
+        obstacles !== null &&
+        availableTrees(obstacles, state, day, 'beeches') <= 0;
+      if (noBeeches) resting.set(d.id, 'no-wood');
       // začne nový milíř – další uhlíř počítá s jeho uhlím
-      shortfall -= CHARCOAL_KILN.trees * CRAFT_PRODUCTION.charcoalKgPerTree;
+      else shortfall -= CHARCOAL_KILN.trees * CRAFT_PRODUCTION.charcoalKgPerTree;
     }
   }
   return resting;
@@ -407,8 +467,8 @@ function workshopOrder(a: Dwelling, b: Dwelling): number {
  * Krok práce řemeslníků (mutuje stav): každá obývaná dílna dá řemeslu práci své domácnosti po
  * minimu a domácí výrobě (`workshopLabor`) – uhlíř pálí buky v milířích a sází mladé buky
  * (charcoal.ts), hrnčíř kácí na palivo a vypaluje nádoby, kovář kuje z uhlí ze zásob. Prázdná
- * dílna nic nevyrábí, odpočívající uhlíř (`resting` – spočítá ho volající před rozdělením práce
- * vsi) pracuje se vsí. Vrací, kam práce šla (rozdělení práce dne pro scénu).
+ * dílna nic nevyrábí, řemeslník bez práce v dílně (`resting` – spočítá ho volající před
+ * rozdělením práce vsi) pracuje se vsí. Vrací, kam práce šla (rozdělení práce dne pro scénu).
  */
 export function workCrafts(
   state: VillageState,
@@ -416,7 +476,13 @@ export function workCrafts(
   obstacles: ObstacleLayer | null,
   coverage: CraftCoverage,
   productivity = 1,
-  resting: ReadonlySet<number> = restingBurners(state, day, coverage, productivity),
+  resting: ReadonlyMap<number, WorkshopActivity> = restingCrafters(
+    state,
+    day,
+    coverage,
+    productivity,
+    obstacles,
+  ),
   landscape: Landscape | null = null,
 ): WorkshopDay[] {
   const workshops = state.dwellings.filter((d) => d.workshop).sort(workshopOrder);
@@ -433,9 +499,10 @@ export function workCrafts(
       workshop.activity = 'empty';
       continue;
     }
-    if (resting.has(dwelling.id)) {
-      // uhlí je dost – domácnost uhlíře dnes pracuje se vsí (crafts.md – Uhlíř)
-      workshop.activity = 'resting';
+    const free = resting.get(dwelling.id);
+    if (free) {
+      // výrobků je dost (nebo chybí vstup) – domácnost dnes pracuje se vsí (crafts.md)
+      workshop.activity = free;
       continue;
     }
     const labor = workshopLabor(state, day, dwelling.id, coverage.pottery, productivity);

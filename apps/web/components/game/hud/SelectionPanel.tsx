@@ -121,6 +121,9 @@ function dwellingPortrait(type: DwellingType, craft: Craft | null): ReactElement
  * Co dílna dělá – ikona (výrobek, dřevo, uhlí, lidé) s červeným tónem, když stojí, a popisek
  * v tooltipu; u výroby kolik kg za den.
  */
+/** Čeho má ves dost, když řemeslník pomáhá vsi (2. pád). */
+const ENOUGH: Record<Craft, string> = { burner: 'Uhlí', smith: 'Nástrojů', potter: 'Keramiky' };
+
 function activityLook(workshop: SelectionWorkshop): {
   icon: string;
   name: string;
@@ -146,14 +149,18 @@ function activityLook(workshop: SelectionWorkshop): {
     burning: { icon: 'charcoal', name: 'Pálí milíř – hlídá ve dne i v noci', value: percent },
     drawing: { icon: 'charcoal', name: 'Vytahuje uhlí z milíře', value: percent },
     planting: { icon: 'labor', name: 'Sází mladé buky na pařezy', value: `${workshop.toPlant}` },
-    resting: { icon: 'people', name: 'Uhlí je dost – pomáhá vsi', value: '–' },
-    'no-charcoal': { icon: 'charcoal', name: 'Čeká na uhlí', value: '0' },
+    resting: {
+      icon: 'people',
+      name: `${ENOUGH[workshop.craft]} je dost na rok – pomáhá vsi na poli a se stavbami`,
+      value: '–',
+    },
+    'no-charcoal': { icon: 'charcoal', name: 'Čeká na uhlí – zatím pomáhá vsi', value: '0' },
     'no-wood': {
       icon: 'wood',
       name:
         workshop.craft === 'burner'
-          ? 'Čeká na dřevo – nejsou dospělé buky'
-          : 'Čeká na dřevo – není co kácet',
+          ? 'Čeká na dřevo – nejsou dospělé buky, zatím pomáhá vsi'
+          : 'Čeká na dřevo – není co kácet, zatím pomáhá vsi',
       value: '0',
     },
     idle: { icon: 'labor', name: 'Nemá kdo pracovat', value: '0' },
