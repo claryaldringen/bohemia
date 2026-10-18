@@ -87,11 +87,9 @@ export function existingOutlines(village: SceneVillage): OutlineGroup[] {
   const byKind = new Map<OutlineKind, Point[][]>();
   for (const [kind, target] of targets) {
     const raw = targetOutline(village, target);
-    // Pole, sad a hřbitov i háj vrací úsečky ze čtverců – spojit do čar; ostatní už jsou čáry.
-    const lines =
-      kind === 'field' || kind === 'orchard' || kind === 'cemetery' || target.kind === 'grove'
-        ? chainSegments(raw)
-        : raw;
+    // Mez ze čtverců (pole, sad, hřbitov, háj, pozemek polozemnice) jsou úsečky – spojit do čar;
+    // rámeček obydlí a kruh dubu už jsou celé čáry.
+    const lines = raw.length > 0 && raw.every((l) => l.length === 2) ? chainSegments(raw) : raw;
     if (lines.length === 0) continue;
     byKind.set(kind, [...(byKind.get(kind) ?? []), ...lines]);
   }

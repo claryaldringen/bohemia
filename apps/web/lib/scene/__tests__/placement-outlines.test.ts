@@ -69,6 +69,26 @@ describe('existingOutlines', () => {
     expect(groups.find((g) => g.kind === 'field')!.lines).toHaveLength(1);
   });
 
+  it('polozemnice s pozemkem má obrys celého pozemku jako jednu smyčku', () => {
+    const plotVillage = {
+      dwellings: [
+        {
+          id: 3,
+          type: 'polozemnice',
+          position: { x: 50, z: 50, rotation: 0 },
+          built: true,
+          plot: { ...part(2, 2), variant: 0 },
+        },
+      ],
+      fields: [],
+    } as unknown as SceneVillage;
+    const lines = existingOutlines(plotVillage)[0]!.lines;
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toHaveLength(5);
+    expect(lines[0]).toContainEqual([20, 20]);
+    expect(lines[0]).toContainEqual([30, 30]);
+  });
+
   it('prázdná ves nemá žádné obrysy', () => {
     expect(existingOutlines({ dwellings: [], fields: [] } as unknown as SceneVillage)).toEqual([]);
   });
