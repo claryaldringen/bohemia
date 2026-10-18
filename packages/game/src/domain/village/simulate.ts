@@ -230,6 +230,12 @@ function sowingTarget(state: VillageState, day: number): number {
 }
 
 /**
+ * Seje se, co je zkopané do včerejška (TASK_ORDER) – v okně setí proto plán počítá s jedním dnem
+ * méně, aby se zasel i pruh zkopaný poslední den kopání.
+ */
+const SOW_AFTER_DIG_DAYS = 1;
+
+/**
  * Volná práce vsi ve špičkách polních prací od dneška do konce hospodářského roku: všechna
  * práce po denním minimu (PEAK_CAPACITY_SHARE) krát dny oken – podzim pro ozim (září–říjen)
  * a celý podzim (září–listopad), jaro (březen–duben), červenec a srpen (sklizně).
@@ -238,12 +244,12 @@ function sowingCapacity(state: VillageState, day: number): SowingCapacity {
   const capacity = state.people.reduce((sum, p) => sum + laborPerDay(p, day), 0);
   const dailyMin = dailyMinPerHousehold(NO_CRAFTS.pottery) * householdCount(state);
   const free = Math.max(0, capacity - dailyMin) * PEAK_CAPACITY_SHARE;
-  const days = (segments: Parameters<typeof windowDaysLeft>[1]): number =>
-    free * windowDaysLeft(day, segments);
+  const days = (segments: Parameters<typeof windowDaysLeft>[1], sowing = false): number =>
+    free * Math.max(0, windowDaysLeft(day, segments) - (sowing ? SOW_AFTER_DIG_DAYS : 0));
   return {
-    autumnWinter: days(WINTER_WINDOWS.sow),
+    autumnWinter: days(WINTER_WINDOWS.sow, true),
     autumn: days(WINDOWS.reclaim),
-    spring: days(WINDOWS.sow),
+    spring: days(WINDOWS.sow, true),
     july: days(WINTER_WINDOWS.harvest),
     august: days(WINDOWS.harvest),
   };

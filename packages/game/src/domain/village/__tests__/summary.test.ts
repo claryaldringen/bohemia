@@ -95,8 +95,7 @@ describe('partCropState (fields.md – Ozim a jař)', () => {
     expect(states(s, s.lastDay)['winter:sprouted']).toBeGreaterThan(winter * 0.95);
     if (spring > 0) expect(states(s, s.lastDay)['spring:bare']).toBe(spring);
     s = advanceVillage(s, at(602, 5, 15), null);
-    // pruh zkopaný poslední den setí zůstal nezasetý – holá zem
-    expect(states(s, s.lastDay)['winter:green']).toBeGreaterThan(winter * 0.95);
+    expect(states(s, s.lastDay)['winter:green']).toBe(winter);
     s = advanceVillage(s, at(602, 7, 1), null);
     expect(states(s, s.lastDay)['winter:ripe']).toBeGreaterThan(0);
     s = advanceVillage(s, at(602, 8, 1), null);

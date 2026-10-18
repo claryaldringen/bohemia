@@ -513,7 +513,11 @@ function addLabor(result: RunResult, after: VillageState, days: number): void {
 }
 
 /** 31. 8. po sklizni: zásoby v ročních potřebách a u sond rezervy práce letošního plánu. */
-function recordHarvest(result: RunResult, after: VillageState, pinned: boolean): void {
+function recordHarvest(
+  result: RunResult,
+  after: VillageState,
+  pinned: readonly number[] | null,
+): void {
   const day = after.lastDay;
   const { year } = dateOfDayIndex(day);
   const need = annualNeed(after.people, day + 1);
@@ -521,8 +525,12 @@ function recordHarvest(result: RunResult, after: VillageState, pinned: boolean):
   const plan = after.threshingFromPlan;
   const record = result.plans.find((p) => p.year === year);
   if (!plan || !pinned || !record) return;
-  const capacity = after.people.reduce((sum, p) => sum + laborPerDay(p, day), 0);
-  const free = capacity - dailyMinPerHousehold(NO_CRAFTS.pottery) * occupiedCount(after);
+  // práce sondy z pevného složení – úmrtí v posledním kroku před sklizní by rezervu zkreslilo
+  // (lidé sondy se doplní až na začátku dalšího kroku); sonda bydlí v jedné domácnosti
+  const probe = { ...after, people: [] as Person[] };
+  pinPeople(probe, day, pinned);
+  const capacity = probe.people.reduce((sum, p) => sum + laborPerDay(p, day), 0);
+  const free = capacity - dailyMinPerHousehold(NO_CRAFTS.pottery);
   const windowDays = (from: number, to: number, y = year): number =>
     dayIndexOf({ year: y, month: to + 1, day: 1 }) - dayIndexOf({ year: y, month: from, day: 1 });
   const spring = plan.required;
@@ -662,7 +670,7 @@ function runVillage(start: VillageState, startLand: number, opts: RunOptions): R
     if (isOn(dateOfDayIndex(day + 1), THRESH_END_DAY) && after.plan) {
       result.autumnDig.set(date.year, after.plan.done.dig);
     }
-    if (isOn(date, HARVEST_DAY)) recordHarvest(result, after, opts.pinned !== null);
+    if (isOn(date, HARVEST_DAY)) recordHarvest(result, after, opts.pinned);
     if (isOn(date, PLANNING_DAY)) {
       recordPlan(result, after, opts.pinned !== null);
       if (opts.foundFields) {

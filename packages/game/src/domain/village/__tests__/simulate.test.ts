@@ -774,8 +774,8 @@ describe('advanceVillage – ozim a jař (fields.md – Ozim a jař)', () => {
     const autumn = advanceVillage(settled(), at(601, 10, 31), null);
     const winter = autumn.plan!.winter!;
     expect(winter.done.dig).toBeCloseTo(winter.required.dig, 6);
-    // plán vytíží podzim do posledního dne – nezasetý zůstane nanejvýš pruh posledního dne
-    expect(winter.done.sow).toBeGreaterThan(winter.required.sow * 0.97);
+    // plán nechá poslední den okna na zasetí pruhu zkopaného den předtím
+    expect(winter.done.sow).toBeCloseTo(winter.required.sow, 6);
     const november = advanceVillage(autumn, at(601, 11, 30), null);
     expect(november.plan!.winter!.done.sow).toBe(winter.done.sow); // po okně se už neseje
     if (november.plan!.required.dig > 0) expect(november.plan!.done.dig).toBeGreaterThan(0);
