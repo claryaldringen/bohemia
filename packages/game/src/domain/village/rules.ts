@@ -1,6 +1,7 @@
 import type { ObstacleKind } from '../landscape';
 import type {
   Bounds,
+  Craft,
   Crop,
   DwellingType,
   FieldSurface,
@@ -13,8 +14,8 @@ import type {
 // a ztráty, pro které literatura dává rozpětí, mají dvojici { worst, best }. Ves bez řemesel
 // platí `worst`, s plně pokrytou potřebou výrobků řemeslníků `best`, mezi tím lineárně podle
 // pokrytí (productivity.ts). Kovář posouvá práci (nástroje), hrnčíř ztráty zásob a denní
-// minimum (nádoby). Kde literatura dává jedno číslo, platí obojí. Řemesla zatím nejsou –
-// volající předávají pokrytí 0 (NO_CRAFTS), tedy `worst`.
+// minimum (nádoby). Kde literatura dává jedno číslo, platí obojí. Pokrytí počítá ze zásob
+// výrobků `craftCoverage` (crafts.ts); ves bez řemesel má pokrytí 0 (NO_CRAFTS), tedy `worst`.
 
 /** Úsek okna prací – od měsíce do měsíce včetně (1–12). */
 export type WindowSegment = readonly [number, number];
@@ -449,3 +450,66 @@ export const SACRED_BUILDINGS = {
     maxHeightDiffM: 1,
   },
 } as const;
+
+// crafts.md – Budovy (Martin; +30 % návrh Clauda): dílna je obydlí – hrnčíř a kovář stojí na
+// polozemnici, uhlíř na zemnici – a stojí jako základní obydlí + 30 % práce i dřeva za pec, výheň
+// nebo milíř. Umisťuje se volně jako zemnice (bez pozemku).
+export const CRAFT_BASE: Readonly<Record<Craft, DwellingType>> = {
+  potter: 'polozemnice',
+  smith: 'polozemnice',
+  burner: 'zemnice',
+};
+export const WORKSHOP_EXTRA = 0.3;
+/** Pořadí řemesel – nabídka staveb a výroba dne (uhlíř první, jeho uhlí může kovář hned použít). */
+export const CRAFTS: readonly Craft[] = ['burner', 'potter', 'smith'];
+// crafts.md – Výroba: uhlíř 10 kg uhlí za člověkoden, ze stromu 120 kg; kovář 1 kg nástrojů za
+// 10 člověkodní a 50 kg uhlí; hrnčíř 1 kg keramiky za člověkoden a 1 strom paliva na 500 kg.
+// Ruda a hlína dál od vody: +1 % za 10 m nad 100 m od dílny k potoku (DISTANCE jako u polí).
+export const CRAFT_PRODUCTION = {
+  charcoalKgPerManDay: 10,
+  charcoalKgPerTree: 120,
+  toolManDaysPerKg: 10,
+  toolCharcoalKgPerKg: 50,
+  potteryManDaysPerKg: 1,
+  potteryKgPerTree: 500,
+} as const;
+// crafts.md – Účinek (návrh Clauda): každý pracující od 14 let potřebuje 3 kg nástrojů, nástroje
+// v užívání se opotřebují o 30 % ročně; každý člověk potřebuje 5 kg nádob, ročně se jich 40 %
+// rozbije. Opotřebení a rozbití se týká jen toho, co ves používá (nejvýš potřeba) – přebytek
+// v zásobě leží (Martin: přebytky později pro obchod).
+export const CRAFT_NEEDS = {
+  toolsKgPerWorker: 3,
+  toolWearPerYear: 0.3,
+  potteryKgPerPerson: 5,
+  potteryBreakagePerYear: 0.4,
+} as const;
+// crafts.md – Budovy (Martin): milíř stojí kus od uhlířovy zemnice – odstup v souřadnicích modelu
+// (x napříč, z k vchodu, m; totéž MILIR_OFFSET v tools/blender/crafts.py) a čtvercový půdorys
+// pro kontrolu místa (kruh milíře Ø ≈ 5,3 m), vyklízí se kruh ušlapané trávy (poloměr m)
+export const MILIR = { offset: { x: -9, z: 3 }, footprintM: 6, clearingRadiusM: 4.6 } as const;
+// crafts.md – Budovy: přístřešek hrnčíře a kováře sahá před půdorys polozemnice o tolik (m) –
+// půdorys dílny je o něj delší (vpředu, +z modelu; přední okraj přístřešku 5,7 m od středu,
+// tools/blender/crafts.py PZ_O + PORCH)
+export const WORKSHOP_PORCH_M: Readonly<Record<Craft, number>> = {
+  potter: 3.2,
+  smith: 3.2,
+  burner: 0,
+};
+// crafts.md – Účinek, orchard.md: jablka v nádobách vydrží do 1. 5. místo 1. 3. – s plným pokrytím
+// nádobami; při částečném se den zkažení posouvá poměrně (pokrytí × dny od 1. 3. do 1. 5.)
+export const APPLE_POTTERY_KEEP_DAY = { month: 5, day: 1 } as const;
+
+/** Práce na řemeslné dílně celkem (u blízkého lesa) – základní obydlí + 30 % (crafts.md). */
+export function workshopCost(craft: Craft): number {
+  return Math.round(DWELLINGS[CRAFT_BASE[craft]].cost * (1 + WORKSHOP_EXTRA));
+}
+
+/** Dřevo řemeslné dílny (stromy) – základní obydlí + 30 % (crafts.md, forest.md). */
+export function workshopTrees(craft: Craft): number {
+  return Math.round(DWELLING_TREES[CRAFT_BASE[craft]] * (1 + WORKSHOP_EXTRA));
+}
+
+/** Práce na dílně bez dřeva – cena dílny minus kácení jejích stromů u blízkého lesa. */
+export function workshopBuildLabor(craft: Craft): number {
+  return workshopCost(craft) - workshopTrees(craft) * FELLING_MAN_DAYS_PER_TREE;
+}

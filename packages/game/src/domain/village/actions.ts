@@ -6,25 +6,30 @@ import {
   dwellingLaborManDays,
   payUpfront,
   sacredLaborManDays,
+  workshopLaborManDays,
   type BuildKind,
 } from './costs';
+import { craftCoverage } from './crafts';
 import { isVillageExtinct } from './extinction';
 import { fieldsTouching, partFoundingCost } from './fields';
 import { obstacleChangesAt, recordClearedObstacles } from './obstacles';
 import { orchardPlantingCost, villageOrchards } from './orchard';
 import { ageGroup } from './people';
-import { NO_CRAFTS } from './productivity';
 import {
+  CRAFTS,
+  CRAFT_BASE,
   FIELD_LIMITS,
   FOOD_NEED_KG_PER_YEAR,
   PLOT_VARIANTS,
   START_AGES,
   START_STORES_MONTHS,
   dwellingBuildLabor,
+  workshopTrees,
 } from './rules';
 import { hasShrine, recordSpared, validateSpared, type SparedSacred } from './sacred';
 import type {
   CemeterySquare,
+  Craft,
   DwellingPlot,
   DwellingType,
   FieldSurface,
@@ -253,14 +258,11 @@ function addField(state: VillageState, day: number, field: FieldInput): void {
   if (extended !== undefined && joined.length > 1) mergeFields(state, extended, joined.slice(1));
   const fieldId = extended ?? state.nextId++;
   if (extended === undefined) state.fields.push({ id: fieldId });
+  // založení podle dnešního pokrytí nástroji (crafts.md – meze produktivity)
+  const tools = craftCoverage(state, day).tools;
   let cost = 0;
   for (const input of field.parts) {
-    const foundingCost = partFoundingCost(
-      input.surface,
-      input.areaM2,
-      input.obstacleCost,
-      NO_CRAFTS.tools,
-    );
+    const foundingCost = partFoundingCost(input.surface, input.areaM2, input.obstacleCost, tools);
     cost += foundingCost;
     state.parts.push({
       id: state.nextId++,
@@ -489,6 +491,78 @@ export function startNewDwelling(
     fieldId: null,
     wood,
     ...(site.forestDistanceM === undefined ? {} : { forestDistanceM: site.forestDistanceM }),
+  });
+  if (site.sacred) recordSpared(next, site.sacred, day);
+  return next;
+}
+
+/** Staveniště řemeslné dílny – jako obydlí bez pozemku, navíc vzdálenost k potoku (crafts.md). */
+export interface WorkshopSiteOptions extends Omit<DwellingSiteOptions, 'plot'> {
+  /** Vzdálenost dílny k potoku (m) – ruda a hlína dál od vody stojí víc práce. */
+  waterDistanceM?: number;
+}
+
+/**
+ * Zahájí stavbu řemeslné dílny `craft` (crafts.md – Budovy): obydlí řemesla (hrnčíř a kovář
+ * polozemnice, uhlíř zemnice s milířem) se staví volně jako zemnice a stojí o 30 % víc práce
+ * i dřeva; nastěhuje se do ní mladý pár jako do nového obydlí. Překážky na vyklízené ploše (i kolem
+ * milíře – `obstacleIds`, cena v `obstacleCost`) osadníci odstraní hned, dospělé stromy z ní
+ * dají klády. Dřevo jako u obydlí – klády z hromady, zbytek nejbližší dospělé stromy. RangeError,
+ * když ves nemá dřevo, lidi k osídlení nebo je vstup neplatný.
+ *
+ * Konvence dne (jako u `startNewDwelling`): akce se volá na ves dopočítanou do dne `day` a patří
+ * na konec toho dne. Den před `state.lastDay` → RangeError.
+ */
+export function startWorkshop(
+  state: VillageState,
+  day: number,
+  craft: Craft,
+  position: Position,
+  obstacleCost: number,
+  obstacleIds: readonly number[] = [],
+  site: WorkshopSiteOptions = {},
+): VillageState {
+  validateActionDay(state, day);
+  if (!CRAFTS.includes(craft)) throw new RangeError('Neznámé řemeslo.');
+  validatePosition(position);
+  validateObstacleCost(obstacleCost);
+  validateObstacleIds(obstacleIds);
+  validateTrees(site.clearedTrees ?? 0);
+  if (site.forestDistanceM !== undefined) validateForestDistance(site.forestDistanceM);
+  if (
+    site.waterDistanceM !== undefined &&
+    !(site.waterDistanceM >= 0 && Number.isFinite(site.waterDistanceM))
+  ) {
+    throw new RangeError('Vzdálenost k potoku musí být nezáporná a konečná.');
+  }
+  if (site.sacred) validateSpared(site.sacred);
+  requireAffordable(state, craft, site.obstacles);
+  const type = CRAFT_BASE[craft];
+  const plan = planDwellingWood(state, type, position, day, {
+    ...(site.obstacles ? { obstacles: site.obstacles } : {}),
+    clearedTrees: site.clearedTrees ?? 0,
+    clearedIds: obstacleIds,
+    trees: workshopTrees(craft),
+  });
+  if (plan.missing > 0) throw new RangeError('Na stavbu ves nemá dřevo – není z čeho kácet.');
+  const next = structuredClone(state);
+  payUpfront(next, craft);
+  recordClearedObstacles(next, obstacleIds, day);
+  const wood = takeWood(next, plan);
+  next.constructions.push({
+    id: next.nextId++,
+    kind: 'dwelling',
+    startedDay: day,
+    cost: workshopLaborManDays(craft, obstacleCost, plan),
+    done: 0,
+    dwellingType: type,
+    position: { ...position },
+    dwellingId: null,
+    fieldId: null,
+    wood,
+    ...(site.forestDistanceM === undefined ? {} : { forestDistanceM: site.forestDistanceM }),
+    craft,
+    ...(site.waterDistanceM === undefined ? {} : { waterDistanceM: site.waterDistanceM }),
   });
   if (site.sacred) recordSpared(next, site.sacred, day);
   return next;

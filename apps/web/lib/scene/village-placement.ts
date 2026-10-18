@@ -4,8 +4,11 @@ import { Color3 } from '@babylonjs/core/Maths/math.color';
 import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 import type { Scene } from '@babylonjs/core/scene';
 import {
+  CRAFT_NAMES,
   DWELLING_FOOTPRINT_M,
   SACRED_BUILDINGS,
+  WORKSHOP_PORCH_M,
+  workshopFootprints,
   type DwellingPlot,
   type PlacementCheck,
   type DwellingType,
@@ -37,6 +40,7 @@ import type {
   PlacementMode,
   PlacementResult,
 } from './village-types';
+import { CRAFT_MODEL, milirPlace, type WorkshopModel } from './workshop-layout';
 
 /** Krok otáčení obydlí klávesami [ a ] (jako otáčení budovy v 0 A.D.). */
 const ROTATE_STEP = Math.PI / 12;
@@ -66,12 +70,20 @@ export interface ActivePlacement {
   dispose(): void;
 }
 
-/** Stavba s půdorysem u kurzoru – obydlí (volně nebo na pozemku), modla či svatyně (happiness.md). */
-type FootprintMode = Extract<PlacementMode, { kind: 'dwelling' | 'plot' | 'sacred' }>;
-type FootprintType = FootprintMode['type'];
+/**
+ * Stavba s půdorysem u kurzoru – obydlí (volně nebo na pozemku), řemeslná dílna (crafts.md),
+ * modla či svatyně (happiness.md).
+ */
+type FootprintMode = Extract<PlacementMode, { kind: 'dwelling' | 'plot' | 'sacred' | 'workshop' }>;
+/** Model ducha: obydlí, dílna nebo milíř uhlíře, modla či svatyně. */
+export type GhostType = DwellingType | SacredBuildingKind | WorkshopModel | 'milir';
 
-/** Šířka a hloubka půdorysu stavby (m). */
+/** Šířka a hloubka půdorysu stavby (m); dílna s přístřeškem (vpředu delší). */
 function footprintSize(mode: FootprintMode): { width: number; depth: number } {
+  if (mode.kind === 'workshop') {
+    const { width, depth } = DWELLING_FOOTPRINT_M[mode.type];
+    return { width, depth: depth + WORKSHOP_PORCH_M[mode.craft] };
+  }
   if (mode.kind !== 'sacred') return DWELLING_FOOTPRINT_M[mode.type];
   const size = SACRED_BUILDINGS[mode.type].footprintM;
   return { width: size, depth: size };
@@ -95,9 +107,9 @@ export interface PlacementContext {
   cameraAlpha(): number;
   /** Políčko krajiny pod bodem (pozemek) se středem a stranou, nebo null mimo krajinu. */
   cellAt(x: number, z: number): (PlotSquare & { cell: TileCell }) | null;
-  ghostModel(type: FootprintType): Mesh | null;
-  /** Pata modelu stavby na místě (obydlí, modla, svatyně). */
-  baseHeight(type: FootprintType, position: Position): number;
+  ghostModel(type: GhostType): Mesh | null;
+  /** Pata modelu stavby na místě (obydlí, dílna, milíř, modla, svatyně). */
+  baseHeight(type: GhostType, position: Position): number;
   requestRender(): void;
 }
 
@@ -118,6 +130,8 @@ export class PlacementController implements ActivePlacement {
   private variant: PlotVariant = 'center';
   private downs = new Map<number, { x: number; y: number }>();
   private model: Mesh | null = null;
+  /** Druhý duch – milíř uhlíře kus od zemnice. */
+  private milir: Mesh | null = null;
   private done = false;
 
   constructor(
@@ -177,6 +191,7 @@ export class PlacementController implements ActivePlacement {
     this.context.canvas.style.cursor = '';
     this.clearGhost();
     this.model?.setEnabled(false);
+    this.milir?.setEnabled(false);
     for (const m of [...Object.values(this.materials), ...Object.values(this.fillMaterials)])
       m.dispose();
     this.handlers.onPreview?.(null);
@@ -250,6 +265,7 @@ export class PlacementController implements ActivePlacement {
     }
     const position = this.position(point);
     if (!mode.check(position).ok) return null;
+    if (mode.kind === 'workshop') return { kind: 'workshop', craft: mode.craft, position };
     return mode.kind === 'sacred'
       ? { kind: 'sacred', type: mode.type, position }
       : { kind: 'dwelling', type: mode.type, position };
@@ -274,15 +290,20 @@ export class PlacementController implements ActivePlacement {
   }
 
   private refreshDwelling(mode: FootprintMode): void {
-    this.model ??= this.context.ghostModel(mode.type);
+    const ghostType: GhostType = mode.kind === 'workshop' ? CRAFT_MODEL[mode.craft] : mode.type;
+    this.model ??= this.context.ghostModel(ghostType);
+    if (mode.kind === 'workshop' && mode.craft === 'burner') {
+      this.milir ??= this.context.ghostModel('milir');
+    }
     if (!this.cursor) {
       this.model?.setEnabled(false);
+      this.milir?.setEnabled(false);
       this.handlers.onPreview?.(null);
       return;
     }
     let position: Position;
     let check: PlacementCheck & { cost?: PlacementCost | null };
-    let label = FOOTPRINT_NAMES[mode.type];
+    let label = mode.kind === 'workshop' ? CRAFT_NAMES[mode.craft] : FOOTPRINT_NAMES[mode.type];
     if (mode.kind === 'plot') {
       const square = this.context.cellAt(this.cursor[0], this.cursor[1]);
       if (!square) {
@@ -311,13 +332,23 @@ export class PlacementController implements ActivePlacement {
     }
     const look = check.ok ? 'ok' : 'bad';
     const { width, depth } = footprintSize(mode);
-    const corners = footprintCorners(position, width, depth);
-    this.addFill(corners, look, 0.35);
-    this.addStrip(stripSegments(corners, true, 0.2, 1), look);
-    // Šipka před vchodem – kam bude obydlí otevřené.
-    const tip = localToWorld(position, 0, depth / 2 + 1.6);
-    const left = localToWorld(position, -0.7, depth / 2 + 0.5);
-    const right = localToWorld(position, 0.7, depth / 2 + 0.5);
+    // dílna: půdorys s přístřeškem vpředu a u uhlíře i čtverec milíře (herní jádro)
+    const outlines =
+      mode.kind === 'workshop'
+        ? workshopFootprints(mode.craft, position).map((polygon) =>
+            polygon.map(([x, z]): Point => [x, z]),
+          )
+        : [footprintCorners(position, width, depth)];
+    for (const corners of outlines) {
+      this.addFill(corners, look, 0.35);
+      this.addStrip(stripSegments(corners, true, 0.2, 1), look);
+    }
+    // Šipka před vchodem – kam bude obydlí otevřené (dílna: před přístřeškem).
+    const front =
+      mode.kind === 'workshop' ? depth - DWELLING_FOOTPRINT_M[mode.type].depth / 2 : depth / 2;
+    const tip = localToWorld(position, 0, front + 1.6);
+    const left = localToWorld(position, -0.7, front + 0.5);
+    const right = localToWorld(position, 0.7, front + 0.5);
     this.addFill([left, tip, right], look, 0.85, 0.1);
     // modla a svatyně: obrys vytyčení (kruh, u svatyně i okvětí příkopu)
     if (mode.kind === 'sacred') {
@@ -327,13 +358,15 @@ export class PlacementController implements ActivePlacement {
       }
     }
     if (this.model) {
-      this.model.position.set(position.x, this.context.baseHeight(mode.type, position), position.z);
+      this.model.position.set(position.x, this.context.baseHeight(ghostType, position), position.z);
       this.model.rotation.set(0, position.rotation, 0);
-      this.model.visibility = GHOST_VISIBILITY;
-      this.model.renderOverlay = true;
-      this.model.overlayColor = check.ok ? OK_COLOR : BAD_COLOR;
-      this.model.overlayAlpha = 0.35;
-      this.model.setEnabled(true);
+      showGhost(this.model, check.ok);
+    }
+    if (this.milir) {
+      const milir = milirPlace(position);
+      this.milir.position.set(milir.x, this.context.baseHeight('milir', position), milir.z);
+      this.milir.rotation.set(0, milir.rotation, 0);
+      showGhost(this.milir, check.ok);
     }
     this.handlers.onPreview?.({
       check,
@@ -384,6 +417,15 @@ export class PlacementController implements ActivePlacement {
     for (const mesh of this.ghost) mesh.dispose();
     this.ghost.length = 0;
   }
+}
+
+/** Průhledný duch modelu zbarvený podle kontroly (zeleně prošlo, červeně ne). */
+function showGhost(mesh: Mesh, ok: boolean): void {
+  mesh.visibility = GHOST_VISIBILITY;
+  mesh.renderOverlay = true;
+  mesh.overlayColor = ok ? OK_COLOR : BAD_COLOR;
+  mesh.overlayAlpha = 0.35;
+  mesh.setEnabled(true);
 }
 
 function normalizeAngle(angle: number): number {

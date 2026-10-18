@@ -14,17 +14,19 @@ function buttons(pending: TimeSkip | null): { label: string; disabled: boolean; 
 }
 
 describe('DevTimeButtons', () => {
-  it('nabízí přeskočení o měsíc a o rok', () => {
+  it('nabízí přeskočení o měsíc, o rok a o 10 let', () => {
     expect(buttons(null)).toEqual([
       { label: '+1 měsíc', disabled: false, busy: false },
       { label: '+1 rok', disabled: false, busy: false },
+      { label: '+10 let', disabled: false, busy: false },
     ]);
   });
 
-  it('dokud server přeskočení nedokončí, obě tlačítka čekají', () => {
+  it('dokud server přeskočení nedokončí, všechna tlačítka čekají', () => {
     expect(buttons('year')).toEqual([
       { label: '+1 měsíc', disabled: true, busy: false },
       { label: '+1 rok', disabled: true, busy: true },
+      { label: '+10 let', disabled: true, busy: false },
     ]);
   });
 });

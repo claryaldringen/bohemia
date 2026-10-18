@@ -1,5 +1,7 @@
 import {
+  CRAFTS,
   PLOT_VARIANTS,
+  type Craft,
   type DwellingPlot,
   type DwellingType,
   type Position,
@@ -16,7 +18,7 @@ const MAX_RAW_FIELD_CELLS = 5000;
 const MAX_RAW_NAME_LENGTH = 200;
 const DWELLING_TYPES: readonly DwellingType[] = ['zemnice', 'polozemnice'];
 const SACRED_KINDS: readonly SacredBuildingKind[] = ['idol', 'shrine'];
-const TIME_SKIPS: readonly TimeSkip[] = ['month', 'year'];
+const TIME_SKIPS: readonly TimeSkip[] = ['month', 'year', 'decade'];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -124,6 +126,16 @@ export function parsePlaceSacredInput(
   return kind !== null && position !== null ? { kind, position } : null;
 }
 
+/** Vstup stavby řemeslné dílny `{ craft, position }`, jinak null. */
+export function parsePlaceWorkshopInput(
+  value: unknown,
+): { craft: Craft; position: Position } | null {
+  if (!isRecord(value)) return null;
+  const craft = CRAFTS.find((c) => c === value.craft) ?? null;
+  const position = parsePosition(value.position);
+  return craft !== null && position !== null ? { craft, position } : null;
+}
+
 /**
  * Vstup restartu hry: bez vstupu (obrazovka porážky) = jen po konci hry, `{ abandon: true }`
  * (nabídka hry) = i se živou vsí. Jiný tvar → null.
@@ -135,7 +147,7 @@ export function parseRestartGameInput(value: unknown): { abandon: boolean } | nu
   return typeof value.abandon === 'boolean' ? { abandon: value.abandon } : null;
 }
 
-/** Vstup přeskočení času (vývojový režim) `{ skip: 'month' | 'year' }`, jinak null. */
+/** Vstup přeskočení času (vývojový režim) `{ skip: 'month' | 'year' | 'decade' }`, jinak null. */
 export function parseSkipTimeInput(value: unknown): { skip: TimeSkip } | null {
   if (!isRecord(value)) return null;
   const skip = TIME_SKIPS.find((s) => s === value.skip);

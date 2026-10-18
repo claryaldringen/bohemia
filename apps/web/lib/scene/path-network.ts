@@ -2,6 +2,7 @@ import { SACRED_BUILDINGS, type DwellingType, type PartStage, type Position } fr
 import type { SceneVillage } from '../village-view';
 import { PATH_FOREST_EDGE, PATH_WATER_SPOT, type PathTerrain } from './path-terrain';
 import { localToWorld } from './village-layout';
+import { MILIR_SHAPE_M, milirPlace } from './workshop-layout';
 import { houseBox, plotBox, siteBox } from './villager-plan';
 
 // Vyšlapané pěšiny (docs/design/paths.md) – jen vzhled, žádná pravidla. Čistá deterministická
@@ -223,7 +224,7 @@ export function pathNetworkKey(village: SceneVillage): string {
         ? `${ageBucket(day - d.since)}/${Math.floor(Math.min(YEARS_KEY_MAX, (day - d.since) / DAYS_PER_YEAR) / YEARS_STEP)}`
         : '';
     const plot = d.plot ? `${d.plot.cell.x},${d.plot.cell.y}` : '';
-    return `${d.id}:${d.type}:${d.built ? 1 : 0}:${d.inhabited === false ? 0 : 1}:${age}:${plot}:${d.position.x.toFixed(1)},${d.position.z.toFixed(1)},${d.position.rotation.toFixed(2)}`;
+    return `${d.id}:${d.type}${d.craft ? `/${d.craft}` : ''}:${d.built ? 1 : 0}:${d.inhabited === false ? 0 : 1}:${age}:${plot}:${d.position.x.toFixed(1)},${d.position.z.toFixed(1)},${d.position.rotation.toFixed(2)}`;
   });
   const fields = village.fields.map(
     (f) => `${f.id}:${f.parts.map((p) => `${p.cell.x},${p.cell.y},${p.stage}`).join(';')}`,
@@ -1309,6 +1310,15 @@ export function computePathNetwork(input: PathNetworkInput): PathNetwork {
     buildings.set(d.id, { position: d.position, box: dwellingBox(d) });
   }
   const obstaclesOnly: Building[] = [...buildings.values()];
+  // milíř uhlíře kus od zemnice – pěšina ho obejde (crafts.md)
+  for (const d of v.dwellings) {
+    if (d.craft !== 'burner') continue;
+    const half = MILIR_SHAPE_M.radius;
+    obstaclesOnly.push({
+      position: milirPlace(d.position),
+      box: { minX: -half, maxX: half, minZ: -half, maxZ: half },
+    });
+  }
   for (const b of v.sacred?.buildings ?? []) {
     if (b.kind !== 'idol') continue;
     const half = SACRED_BUILDINGS.idol.footprintM / 2;

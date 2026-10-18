@@ -2,6 +2,15 @@ import { describe, expect, it } from 'vitest';
 import { newNotices, villageNotices } from '../village-notices';
 import type { VillageView } from '../village-view';
 
+const workshop = (laborManDays: number): VillageView['build']['potter'] => ({
+  laborManDays,
+  perHa: false,
+  perSquare: false,
+  upfront: [],
+  blocked: null,
+  affordable: true,
+});
+
 const view = (overrides: Partial<VillageView> = {}): VillageView => ({
   name: 'Libice',
   dayIndex: 1000,
@@ -10,6 +19,13 @@ const view = (overrides: Partial<VillageView> = {}): VillageView => ({
   storesKg: 800,
   applesKg: 0,
   woodLogs: 0,
+  crafts: {
+    present: false,
+    stocks: { charcoalKg: 0, toolsKg: 0, potteryKg: 0 },
+    needs: { toolsKg: 6, potteryKg: 20 },
+    coverage: { tools: 0, pottery: 0 },
+    workshops: [],
+  },
   storesMonths: 17,
   satiation: 1,
   commonLaborPerDay: 1,
@@ -71,6 +87,9 @@ const view = (overrides: Partial<VillageView> = {}): VillageView => ({
       blocked: null,
       affordable: true,
     },
+    potter: workshop(286),
+    smith: workshop(286),
+    burner: workshop(78),
   },
   constructions: [],
   fields: [],
@@ -185,5 +204,28 @@ describe('newNotices – posvátná místa', () => {
       { kind: 'sacred-grove', tone: 'info', text: 'Vesničané ušetřili dubový háj' },
     ]);
     expect(newNotices(after, after)).toEqual([]);
+  });
+});
+
+describe('villageNotices – řemesla (crafts.md)', () => {
+  it('kovář bez uhlí a dílna bez stromů – krátký fakt', () => {
+    const workshop = (activity: VillageView['crafts']['workshops'][number]['activity']) => ({
+      dwellingId: 9,
+      craft: 'smith' as const,
+      activity,
+      occupants: 2,
+      laborPerDay: 0.9,
+      outputPerDayKg: 0.09,
+    });
+    const crafts = (activities: VillageView['crafts']['workshops'][number]['activity'][]) => ({
+      ...view().crafts,
+      present: true,
+      workshops: activities.map(workshop),
+    });
+    expect(villageNotices(view({ crafts: crafts(['producing', 'empty']) }))).toEqual([]);
+    expect(villageNotices(view({ crafts: crafts(['no-charcoal', 'no-wood']) }))).toEqual([
+      { kind: 'no-charcoal', tone: 'warn', text: 'Kovář nemá uhlí' },
+      { kind: 'no-wood', tone: 'warn', text: 'Dílna nemá co kácet' },
+    ]);
   });
 });

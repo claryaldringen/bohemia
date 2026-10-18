@@ -33,6 +33,9 @@ function checkResult(mode: PlacementMode, result: PlacementResult): PlacementChe
   if (mode.kind === 'sacred' && result.kind === 'sacred' && result.type === mode.type) {
     return mode.check(result.position);
   }
+  if (mode.kind === 'workshop' && result.kind === 'workshop' && result.craft === mode.craft) {
+    return mode.check(result.position);
+  }
   return { ok: false, reason: 'Teď se umisťuje něco jiného.' };
 }
 

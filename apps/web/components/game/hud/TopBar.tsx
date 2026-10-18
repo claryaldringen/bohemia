@@ -63,6 +63,35 @@ function Resource({
   );
 }
 
+/**
+ * Zásoby výrobků řemeslníků (crafts.md) – uhlí, nástroje a keramika v kg; v popisku nástrojů
+ * a keramiky i pokrytí potřeby vsi (meze produktivity).
+ */
+function CraftStocks({ crafts }: { crafts: VillageView['crafts'] }): ReactElement {
+  const { stocks, coverage } = crafts;
+  return (
+    <>
+      <Resource icon="charcoal" name="Uhlí (kg)" testId="village-charcoal">
+        {formatInteger(stocks.charcoalKg)}
+      </Resource>
+      <Resource
+        icon="tools"
+        name={`Nástroje (kg) – pokrytí potřeby ${formatPercent(coverage.tools)}`}
+        testId="village-tools"
+      >
+        {formatInteger(stocks.toolsKg)}
+      </Resource>
+      <Resource
+        icon="pottery"
+        name={`Keramika (kg) – pokrytí potřeby ${formatPercent(coverage.pottery)}`}
+        testId="village-pottery"
+      >
+        {formatInteger(stocks.potteryKg)}
+      </Resource>
+    </>
+  );
+}
+
 /** Jméno vsi – kliknutím se přepíše na místě, Enter uloží, Esc zruší. */
 function VillageName({
   name,
@@ -179,15 +208,16 @@ function IconButton({
   );
 }
 
-/** Přeskoky času v liště: popisek a ikona (▶ měsíc, ⏩ rok). */
+/** Přeskoky času v liště: popisek a ikona (▶ měsíc, ⏩ rok, ⏭ 10 let). */
 const TIME_SKIP_BUTTONS: readonly { skip: TimeSkip; label: string; icon: string }[] = [
   { skip: 'month', label: '+1 měsíc', icon: 'M8 5.5v13l10-6.5z' },
   { skip: 'year', label: '+1 rok', icon: 'M3.5 6v12l8.5-6zM12 6v12l8.5-6z' },
+  { skip: 'decade', label: '+10 let', icon: 'M2.5 6v12l7.5-6zM10 6v12l7.5-6zM18.5 6h2.5v12h-2.5z' },
 ];
 
 /**
- * Vývojový režim: dvě šipky vedle data – ▶ přeskočí měsíc (30 herních dní), ⏩ rok. Dokud server
- * přeskočení nedokončí (`pending`), obě tlačítka čekají.
+ * Vývojový režim: tři šipky vedle data – ▶ přeskočí měsíc (30 herních dní), ⏩ rok, ⏭ 10 let.
+ * Dokud server přeskočení nedokončí (`pending`), všechna tlačítka čekají.
  */
 export function DevTimeButtons({
   pending,
@@ -220,7 +250,8 @@ export function DevTimeButtons({
 
 /**
  * Horní lišta jako v 0 A.D.: jméno vsi (klik = přejmenovat), ikony s čísly – lidé, obilí,
- * jablka (jen když nějaká jsou), klády na hromadě, volná práce, nasycení (jen barva ikony),
+ * jablka (jen když nějaká jsou), klády na hromadě, uhlí, nástroje a keramika (jen ves
+ * s řemesly – crafts.md), volná práce, nasycení (jen barva ikony),
  * štěstí (happiness.md), herní datum (ve vývojovém režimu se šipkami přeskočení času) – a vpravo
  * zvuk a nabídka hry (F10: Začít znovu, Odhlásit).
  */
@@ -282,6 +313,7 @@ export function TopBar({
           <Resource icon="wood" name="Klády na hromadě" testId="village-wood">
             {formatInteger(view.woodLogs)}
           </Resource>
+          {view.crafts.present && <CraftStocks crafts={view.crafts} />}
           <Resource icon="labor" name="Volná práce" testId="village-labor">
             {formatDecimal(Math.max(0, view.commonLaborPerDay), 1)}
           </Resource>

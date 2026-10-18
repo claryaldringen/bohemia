@@ -9,6 +9,7 @@ import {
   placeFieldForPlayer,
   placeOrchardForPlayer,
   placeSacredForPlayer,
+  placeWorkshopForPlayer,
   renameVillageForPlayer,
   skipTimeForPlayerView,
   villageViewForPlayer,
@@ -23,6 +24,7 @@ import {
   parsePlaceFieldInput,
   parsePlaceOrchardInput,
   parsePlaceSacredInput,
+  parsePlaceWorkshopInput,
   parseRenameVillageInput,
   parseRestartGameInput,
   parseSkipTimeInput,
@@ -112,6 +114,18 @@ export async function placeSacred(input: unknown): Promise<VillageActionResult> 
   return placeSacredForPlayer(id, parsed);
 }
 
+/**
+ * Stavba řemeslné dílny (crafts.md): `{ craft: 'potter' | 'smith' | 'burner', position:
+ * { x, z, rotation } }`. Server umístění ověří znovu (`checkWorkshopPlacement`).
+ */
+export async function placeWorkshop(input: unknown): Promise<VillageActionResult> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  const parsed = parsePlaceWorkshopInput(input);
+  if (parsed === null) return { error: INVALID_INPUT };
+  return placeWorkshopForPlayer(id, parsed);
+}
+
 /** Přejmenování vsi: `{ name }`. */
 export async function renameVillage(input: unknown): Promise<VillageActionResult> {
   const id = await playerId();
@@ -136,7 +150,8 @@ export async function restartGame(input?: unknown): Promise<{ ok: true } | { err
 }
 
 /**
- * Vývojový režim: přeskočí čas hráče o měsíc, nebo rok – `{ skip: 'month' | 'year' }`. Jen pro
+ * Vývojový režim: přeskočí čas hráče o měsíc, rok, nebo 10 let – `{ skip: 'month' | 'year' |
+ * 'decade' }`. Jen pro
  * účet s `devMode` (příznak účtu – klient ho nastavit nemůže; bez něj use-case odmítne). Vrátí
  * ves dopočítanou do nového dneška a nový posun času pro hodiny v prohlížeči.
  */

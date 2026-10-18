@@ -91,8 +91,9 @@ má nějaké meze. Bez řemeslníků ber tu nejhorší hranici, s řemeslníky t
   literatura dává jedno číslo, platí obojí.
 - **Kovář** (nástroje) snižuje pracnost – polní práce, zakládání polí a vracení přílohu;
   **hrnčíř** (nádoby) ztráty zásob a denní minimum domácností.
-- **Řemesla zatím nejsou**, takže dnes platí všude nejhorší mez. V tabulkách níže je nejlepší
-  mez v závorce („s řemesly“).
+- **Pokrytí** spočítá simulace každý den ze zásob nástrojů a keramiky ([řemesla](crafts.md) –
+  implementováno 18. 10. 2026); ves bez řemesel má pokrytí 0 a platí jí nejhorší mez. V tabulkách
+  níže je nejlepší mez v závorce („s řemesly“).
 
 ### Založení pole (rozhoduje hráč)
 
