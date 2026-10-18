@@ -217,14 +217,25 @@ export const DWELLING_FOOTPRINT_M: Record<DwellingType, { width: number; depth: 
 export const DWELLING_MAX_HEIGHT_DIFF_M = 0.5;
 // population.md – Umístění obydlí (překážky na místě osadníci odstraní), fields.md – Co je
 // překážka (obydlí: kusy na ploše ≈ 10 × 10 m kolem půdorysu). Plocha v souřadnicích modelu
-// (x napříč, z k vchodu, m) – staveniště s hromadou hlíny a střecha předsazená před štíty;
-// scéna podle ní kreslí staveniště (DWELLING_CLEARANCE_M).
+// (x napříč, z k vchodu, m) – staveniště s hromadou hlíny a střecha předsazená před štíty,
+// u polozemnice i zahrádka po straně (−x modelu, plot do x ≈ −7,35 – GARDEN
+// v tools/blender/dwellings.py); scéna podle ní kreslí staveniště (DWELLING_CLEARANCE_M).
 export const DWELLING_CLEARING_M: Record<
   DwellingType,
   { minX: number; maxX: number; minZ: number; maxZ: number }
 > = {
   zemnice: { minX: -4.8, maxX: 4.8, minZ: -4.4, maxZ: 7.5 },
-  polozemnice: { minX: -5.1, maxX: 5.1, minZ: -4.7, maxZ: 7.5 },
+  polozemnice: { minX: -7.9, maxX: 5.1, minZ: -4.7, maxZ: 7.5 },
+};
+// population.md – Co hráč vidí (polozemnice se zahrádkou, Martin): zahrádka obehnaná plotem
+// po straně polozemnice – obdélník v souřadnicích modelu (x napříč, z k vchodu, m) i s plotem;
+// zemnice zahrádku nemá. Musí sedět s GARDEN v tools/blender/dwellings.py (Blender x = −x,
+// y = −z). Leží na vyklízené ploše (DWELLING_CLEARING_M), nesmí do vody, lesa, pole ani na jiné
+// obydlí; rovná být nemusí – ve scéně se nakloní podle terénu.
+export const DWELLING_GARDEN_M: Partial<
+  Record<DwellingType, { minX: number; maxX: number; minZ: number; maxZ: number }>
+> = {
+  polozemnice: { minX: -7.35, maxX: -3.35, minZ: -3.4, maxZ: 1.8 },
 };
 // fields.md – Překážka na louce (skalní výchoz se neodstraní, plocha pod ním se nepočítá):
 // poloměr výchozu (m) na jednotku velikosti modelu (modely skal 0 A.D. mají půdorys ≈ 6 m)

@@ -196,7 +196,18 @@ export interface SceneVillage {
    */
   fields: {
     id: number;
-    parts: { cell: TileCell; x: number; z: number; size: number; stage: PartStage }[];
+    parts: {
+      cell: TileCell;
+      x: number;
+      z: number;
+      size: number;
+      stage: PartStage;
+      /**
+       * Vzhled oseté části podle růstu obilí (`CropLook` ve scéně) – zatím ho posílá jen
+       * vývojový náhled staveb, server ne (oseté pole se kreslí jako vzcházející obilí).
+       */
+      crop?: 'growing' | 'ripe' | 'stubble';
+    }[];
   }[];
   /**
    * Hřbitovy po čtvercích (střed políčka ve světě a strana jako u pole) – průběh stavby

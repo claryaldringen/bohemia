@@ -80,6 +80,11 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
   ne po políčkách. Výchozí: rozdíl výšky terénu pod půdorysem nejvýš 0,5 m; zemnice má půdorys
   zhruba 4 × 4 m, polozemnice 5 × 5 m (návrh Clauda).
 - Obydlí nesmí stát ve vodě ani se překrývat s jiným obydlím nebo polem (návrh Clauda).
+- **K polozemnici patří zahrádka** po straně domu (≈ 4 × 5 m i s plotem, Martin – viz Co hráč
+  vidí). Hráč ji při umisťování vidí jako světlejší obrys vedle půdorysu. Platí pro ni totéž co
+  pro půdorys – musí ležet na louce (ne ve vodě, zatím ani v lese), nesmí na jiné obydlí,
+  zahrádku, pole, hřbitov, sad ani skalní výchoz a ani ona pak pod pole nebo jiné obydlí nepustí;
+  **rovná být nemusí** – ve scéně se nakloní podle svahu (návrh Clauda). Zemnice zahrádku nemá.
 - **Překážky** na místě, např. kameny, osadníci odstraní, ale stavba stojí víc člověkodní
   (Martin). Totéž **v lese** – stromy je třeba skácet a vykopat pařezy. Ceny překážek a mýcení
   jsou jedna tabulka pro celou hru ve [fields.md](fields.md) (návrh Clauda). Kontrola umístění
@@ -306,7 +311,13 @@ pravidla → první verze hladu (1 − nasycení za den, hájení bez stropu) �
   jáma v zemi** (terén se pod ní otevře, vchod sestupuje do jámy), polozemnice mělčí; **stavba má
   víc fází** (vytyčení, sejmutí drnu, kopání jámy, sloupy, krokve, stěny, mazanice, došky, kozy
   a dýmník); ze zemnic **občas stoupá dým**; střecha je **předsazená vepředu i vzadu**, aby zakryla
-  vchod svažující se do jámy (Martin). Stavby
+  vchod svažující se do jámy (Martin). **Vedle obydlí není vyskládaná hráň polen** – tak
+  vyskládané dřevo tehdy lidé neměli, navíc na dešti (Martin). **Součástí polozemnice je malá
+  zahrádka obehnaná polským plotem** (Martin): po straně domu, ne před vchodem, ≈ 4 × 5 m, plot
+  z řidších kůlů s vodorovně proplétanými větvemi (střídavě před a za kůlem – lehčí hrazení než
+  pletený plot), u domu mezera branky; uvnitř ulička a čtyři vyvýšené záhony – zelí, řepa,
+  cibule a bylinky (kopr). Staví se jako poslední fáze polozemnice (kůly → proplétaný plot →
+  záhony → zelenina); slepice do ní nechodí. Stavby
   z módu Millennium A.D. (ruské sruby, severské domy) se nepoužijí – jiná doba či region
   a nejistá licence (Martin); nanejvýš jako předloha tvarů pro pozdější roubené chalupy.
 - Rozhraní jako v 0 A.D. (Martin, 17. 10. 2026: „Ovládací prvky a layout udělej jako u 0AD.

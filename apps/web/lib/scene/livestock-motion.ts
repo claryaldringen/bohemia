@@ -317,9 +317,10 @@ export function chickenPose(
     const t = k * GAIT.chicken.wander;
     const swing = valueNoise(chicken.seed, t, 0);
     if (arc) {
-      const span = arc.to - arc.from;
-      const home = span > 0 ? (chicken.home - arc.from) / span : 0.5;
-      p.x = arc.from + span * clamp01(home + 0.6 * swing);
+      // v širokém oblouku (dům omezuje jen kus kolem – soused, zahrádka) jako dokola: nejvýš
+      // CHICKEN_WANDER_RAD od domova, jinak by obcházela skoro celý dům a utíkala
+      const swingRad = Math.min(CHICKEN_WANDER_RAD, 0.6 * (arc.to - arc.from));
+      p.x = Math.min(arc.to, Math.max(arc.from, chicken.home + swingRad * swing));
     } else {
       p.x = chicken.home + CHICKEN_WANDER_RAD * swing;
     }

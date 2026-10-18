@@ -11,16 +11,17 @@ import { Matrix, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { CreateGround } from '@babylonjs/core/Meshes/Builders/groundBuilder';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { Scene } from '@babylonjs/core/scene';
-import { SHOWCASE_BUILDINGS } from './building-showcase-layout';
+import { SHOWCASE_BUILDINGS, SHOWCASE_GROUNDS, showcaseGrounds } from './building-showcase-layout';
 import { SUN_DIRECTION } from './constants';
 import { createEngine, type RendererName } from './create-engine';
-import { eaveTufts, type TuftModel } from './dwelling-decor';
+import { GARDEN_MODEL_URL, eaveTufts, gardenInstance, type TuftModel } from './dwelling-decor';
 import { applyGammaFog } from './gamma-fog';
 import { addInstancedModel, loadMergedModel, loadModelParts } from './instanced-model';
 import { PitCuts, applyPitCut } from './pit-cut';
 import { ShowcaseSites } from './showcase-sites';
 import { addSunShadows, type SunShadows } from './sun-shadows';
 import { CONSTRUCTION_BASE } from './village-construction';
+import { VillageRenderer } from './village-renderer';
 
 /** Úhel kamery od svislice ve hře (BETA v camera.ts) – výchozí pohled vývojové stránky. */
 const GAME_BETA = 0.85;
@@ -43,9 +44,10 @@ const CONSTRUCTION_URLS = [
 
 /**
  * VÝVOJOVÝ NÁHLED – jen pro /dev/buildings: stavby vedle sebe na rovné louce se světlem hry
- * (slunce, obloha, opar a kontrast jako LandscapeScene), jámy a trsy trávy u okapu jako ve vsi,
- * stíny od slunce. Kamera se otáčí levým tlačítkem, posouvá pravým, kolečko přibližuje.
- * Kreslí se jen při změně pohledu.
+ * (slunce, obloha, opar a kontrast jako LandscapeScene), jámy, trsy trávy u okapu a zahrádka
+ * polozemnice jako ve vsi, stíny od slunce. Za stavbami pole, hřbitov a sad – kreslí je herní
+ * `VillageRenderer` podle `showcaseGrounds`. Kamera se otáčí levým tlačítkem, posouvá pravým,
+ * kolečko přibližuje. Kreslí se jen při změně pohledu.
  */
 export class BuildingShowcase {
   private readonly resizeObserver: ResizeObserver;
@@ -55,7 +57,11 @@ export class BuildingShowcase {
   private disposed = false;
   private progress = 1;
   private sites: ShowcaseSites | null = null;
+  /** Pole, hřbitov a sad – herní renderer vsi bez obydlí. */
+  private grounds: VillageRenderer | null = null;
   private shadows: SunShadows | null = null;
+  /** Vrhače stínu přidané dřív, než vznikne stínová mapa. */
+  private readonly pendingCasters: Mesh[] = [];
   /** Hotové modely a trsy trávy – při stavbě skryté. */
   private readonly finished: Mesh[] = [];
   private readonly tufts: Mesh[] = [];
@@ -126,11 +132,11 @@ export class BuildingShowcase {
     return showcase;
   }
 
-  /** Kamera na stavbu (id ze SHOWCASE_BUILDINGS). */
+  /** Kamera na stavbu (id ze SHOWCASE_BUILDINGS nebo SHOWCASE_GROUNDS). */
   focus(id: string): void {
-    const building = SHOWCASE_BUILDINGS.find((b) => b.id === id);
-    if (!building) return;
-    this.setView(building.focus);
+    const target = [...SHOWCASE_BUILDINGS, ...SHOWCASE_GROUNDS].find((b) => b.id === id);
+    if (!target) return;
+    this.setView(target.focus);
   }
 
   /** Pohled kamery – cíl na zemi, vzdálenost, natočení a náklon (rad); chybějící zůstanou. */
@@ -153,6 +159,7 @@ export class BuildingShowcase {
     this.disposed = true;
     this.resizeObserver.disconnect();
     this.sites?.dispose();
+    this.grounds?.dispose();
     this.camera.detachControl();
     this.engine.stopRenderLoop();
     this.scene.dispose();
@@ -190,8 +197,14 @@ export class BuildingShowcase {
     applyPitCut(grassMaterial, pitCuts);
     ground.material = grassMaterial;
 
-    const casters: Mesh[] = [];
+    const casters = this.pendingCasters;
     const parts = new Map<string, Mesh>();
+    // zahrádka polozemnice vedle domu (zemnice ani dílny ji nemají)
+    const gardens = models.flatMap((m) => {
+      if (m.kind !== 'zemnice' && m.kind !== 'polozemnice') return [];
+      const garden = gardenInstance(m.kind, m, () => 0);
+      return garden ? [garden] : [];
+    });
     await Promise.all([
       ...models.map(async (m, i) => {
         try {
@@ -233,6 +246,22 @@ export class BuildingShowcase {
           console.warn('Trsy trávy se nepodařilo načíst.', error);
         }
       }),
+      (async () => {
+        try {
+          const mesh = await addInstancedModel(
+            scene,
+            GARDEN_MODEL_URL,
+            'showcase-garden',
+            gardens,
+            prepareModelMaterial,
+          );
+          if (!mesh) return;
+          casters.push(mesh);
+          this.finished.push(mesh);
+        } catch (error) {
+          console.warn('Model zahrádky se nepodařilo načíst.', error);
+        }
+      })(),
       ...CONSTRUCTION_URLS.map(async (url) => {
         try {
           const loaded = await loadModelParts(scene, url, 'showcase-site-', prepareModelMaterial);
@@ -248,6 +277,23 @@ export class BuildingShowcase {
     ]);
     if (this.disposed) return;
     this.sites = new ShowcaseSites(scene, models, parts, pitCuts, BASE_Y);
+    this.grounds = new VillageRenderer(scene, {
+      groundHeight: () => 0,
+      decalHeight: () => 0,
+      addShadowCaster: (mesh) => {
+        if (this.shadows) this.shadows.addCaster(mesh);
+        else casters.push(mesh);
+      },
+      onAsyncChange: () => {
+        this.shadows?.refresh();
+        this.burst(600);
+      },
+      requestRender: () => this.burst(300),
+      // jámy obydlí patří staveništím (ShowcaseSites) – pole a hřbitov mají vlastní, prázdné
+      pitCuts: new PitCuts(),
+      sunDirection: SUN_DIRECTION,
+    });
+    this.grounds.update(showcaseGrounds(this.progress).village);
     this.shadows = addSunShadows(sun, { casters, receivers: [ground], extentM: GROUND_SIZE.width });
     this.applyProgress();
     await scene.whenReadyAsync();
@@ -263,6 +309,7 @@ export class BuildingShowcase {
     for (const mesh of this.finished) mesh.setEnabled(built);
     for (const mesh of this.tufts) mesh.setEnabled(built);
     this.sites.update(this.progress);
+    this.grounds?.update(showcaseGrounds(this.progress).village);
     this.shadows?.refresh();
     this.burst(400);
   }
