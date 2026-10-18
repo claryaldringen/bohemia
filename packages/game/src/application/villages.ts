@@ -16,7 +16,8 @@ export interface VillageRepository {
   create(settlementId: string, name: string, state: VillageState): Promise<VillageRecord | null>;
   /**
    * Uloží nový stav, jen když je uložená verze `expectedVersion` (jinak ji mezitím změnil
-   * jiný požadavek) – pak vrátí null a nic nezmění.
+   * jiný požadavek) – pak vrátí null a nic nezmění. Vrácený záznam nese předaný stav (ne kopii
+   * z úložiště) s novou verzí.
    */
   save(
     settlementId: string,
@@ -26,6 +27,13 @@ export interface VillageRepository {
   /** Přejmenuje ves (stav ani verzi nemění); false = sídlo ves nemá. */
   rename(settlementId: string, name: string): Promise<boolean>;
 }
+
+/**
+ * Port: přestávka v dlouhém dopočtu vsi. Use-case se po každém odsimulovaném dni zeptá – slib =
+ * počkat (server mezi tím obslouží jiné požadavky, běží v jednom vlákně), null = hned dál.
+ * Výsledek dopočtu na přestávkách nezávisí.
+ */
+export type Pause = () => Promise<void> | null;
 
 /** Výsledek herní akce nad vsí – ves po akci, nebo důvod odmítnutí česky pro hráče. */
 export type VillageResult = { ok: true; village: VillageRecord } | { ok: false; reason: string };

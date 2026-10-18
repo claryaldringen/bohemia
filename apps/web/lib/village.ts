@@ -23,9 +23,11 @@ import {
   type SacredBuildingKind,
   type TileCell,
   type TimeSkip,
+  type VillageRecord,
   type VillageRepository,
   type VillageResult,
 } from '@bohemia/game';
+import { computePause } from './compute-pause';
 import { getDatabase } from './db';
 import {
   enterGameForPlayer,
@@ -75,16 +77,37 @@ function seatContext({ settlement, landscape }: EnterGameResult, today: PlayerTo
   };
 }
 
+/** Rozběhnuté dopočty vsí podle sídla a dne – souběžné dotazy na tutéž ves počkají na jeden. */
+const loading = new Map<string, Promise<VillageRecord | null>>();
+
+/**
+ * Ves sídla dopočítaná do dneška. Dopočet dělá přestávky (`computePause`), takže mezitím může
+ * přijít další dotaz na tutéž ves (jiný panel, obnovení stránky) – ten nezačne počítat znovu,
+ * ale počká na rozběhnutý.
+ */
+function loadVillageOnce(
+  settlementId: string,
+  day: number,
+  landscape: Landscape,
+): Promise<VillageRecord | null> {
+  const key = `${settlementId}:${day}`;
+  const running = loading.get(key);
+  if (running) return running;
+  const load = loadVillage(
+    { villages: villages(), pause: computePause() },
+    { settlementId, today: day, landscape },
+  ).finally(() => loading.delete(key));
+  loading.set(key, load);
+  return load;
+}
+
 /**
  * Pohled na ves sídla. Konec hry (vymřely všechny vsi hráče) se zjišťuje, jen když vymřela tahle
  * ves – živá ves znamená, že hra pokračuje.
  */
 async function villageView(ctx: Context): Promise<VillageView | null | { error: string }> {
   if (!ctx.ok) return { error: ctx.error };
-  const record = await loadVillage(
-    { villages: villages() },
-    { settlementId: ctx.settlementId, today: ctx.day, landscape: ctx.landscape },
-  );
+  const record = await loadVillageOnce(ctx.settlementId, ctx.day, ctx.landscape);
   if (record === null) return null;
   const gameOver = isVillageExtinct(record.state)
     ? await isGameOverForPlayer(ctx.playerId, ctx.day)

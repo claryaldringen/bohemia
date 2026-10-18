@@ -15,6 +15,7 @@ import {
   type TimeOffsetRepository,
   type TimeSkip,
 } from '@bohemia/game';
+import { computePause } from './compute-pause';
 import { getDatabase } from './db';
 import { cachedLandscapes } from './landscape-cache';
 import { currentWorld, gameDayIndex } from './world';
@@ -67,6 +68,8 @@ function dynastyDeps(): Parameters<typeof dynastyStatus>[0] {
     settlements: createSettlementRepository(db),
     villages: createVillageRepository(db),
     landscapes,
+    // dlouhý dopočet vsí (přeskok času, restart po dlouhé době) neblokuje ostatní požadavky
+    pause: computePause(),
   };
 }
 

@@ -37,12 +37,14 @@ export function createVillageRepository(db: Database): VillageRepository {
     },
 
     async save(settlementId, state, expectedVersion): Promise<VillageRecord | null> {
+      // Zpět jen jméno a verzi – stav (u velké vsi přes 1 MB JSON) má volající v ruce, databáze
+      // by ho jinak celý serializovala a posílala zpátky.
       const [row] = await db
         .update(village)
         .set({ state, version: sql`${village.version} + 1`, updatedAt: sql`now()` })
         .where(and(eq(village.settlementId, settlementId), eq(village.version, expectedVersion)))
-        .returning();
-      return row ? toRecord(row) : null;
+        .returning({ name: village.name, version: village.version });
+      return row ? { settlementId, name: row.name, state, version: row.version } : null;
     },
 
     async rename(settlementId, name): Promise<boolean> {
