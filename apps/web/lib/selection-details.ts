@@ -9,8 +9,9 @@ import {
   type SacredBuildingKind,
   type WorkshopActivity,
 } from '@bohemia/game';
+import type { HouseholdRelocation } from './relocation-view';
 import type { VillageTarget } from './scene/village-picking';
-import { CRAFT_LOOKS, type SceneVillage, type VillageView } from './village-view';
+import { CRAFT_LOOKS, type BuildOption, type SceneVillage, type VillageView } from './village-view';
 
 // Co ukáže panel výběru (dole uprostřed, jako v 0 A.D.) o vybraném obydlí (i řemeslné dílně –
 // crafts.md), poli, hřbitovu, sadu, posvátném místě (posvátný dub, dubový háj, modla, svatyně –
@@ -51,6 +52,23 @@ export type SelectionDetails =
       rebuild: { progress: number; type: DwellingType; treesToFell: number } | null;
       /** Řemeslná dílna (crafts.md); obyčejné obydlí null. */
       workshop: SelectionWorkshop | null;
+      /** Domácnost si staví nový dům (migration.md – Přestěhování domácnosti); jinak null. */
+      relocation: HouseholdRelocation | null;
+      /** Přestěhovat domácnost – cena nového domu; když teď nejde (staví, přestavuje…), null. */
+      relocate: Record<DwellingType, BuildOption> | null;
+    }
+  | {
+      /** Víc vybraných obydlí (Ctrl/Shift + klik, Ctrl + A – migration.md). */
+      kind: 'dwellings';
+      ids: readonly number[];
+      /** Domácnosti ve vybraných obydlích (obydlí s lidmi). */
+      households: number;
+      /** Lidé ve vybraných obydlích. */
+      people: number;
+      /** Domácnosti, které se teď můžou přestěhovat (id obydlí) – Přestěhovat je umístí postupně. */
+      relocatable: readonly number[];
+      /** Cena nového domu jedné domácnosti. */
+      relocate: Record<DwellingType, BuildOption> | null;
     }
   | {
       kind: 'site';
@@ -62,6 +80,8 @@ export type SelectionDetails =
       progress: number;
       /** Kolik stromů stavba ještě musí skácet (forest.md). */
       treesToFell: number;
+      /** Nový dům stěhující se domácnosti (id jejího obydlí) – jde zrušit; jinak null. */
+      relocates: number | null;
     }
   | {
       kind: 'field';
@@ -219,6 +239,7 @@ export function selectionDetails(
   target: VillageTarget | null,
 ): SelectionDetails | null {
   if (!target) return null;
+  if (target.kind === 'dwellings') return dwellingsDetails(view, scene, target.ids);
   if (target.kind === 'dwelling') {
     const dwelling = scene.dwellings.find((d) => d.id === target.id);
     if (!dwelling) return null;
@@ -232,6 +253,7 @@ export function selectionDetails(
         craft: dwelling.craft ?? null,
         progress: construction?.progress ?? dwelling.progress,
         treesToFell: construction?.treesToFell ?? 0,
+        relocates: construction?.relocates ?? null,
       };
     }
     const household = view?.households.find((h) => h.dwellingId === target.id);
@@ -258,6 +280,8 @@ export function selectionDetails(
           }
         : null,
       workshop: view ? workshopDetails(view, household.dwellingId) : null,
+      relocation: household.relocation,
+      relocate: view && household.relocationBlock === null ? view.relocation : null,
     };
   }
   if (target.kind === 'cemetery') {
@@ -333,6 +357,32 @@ export function selectionDetails(
     ashParts: field.ashParts,
     ashBonus: field.ashBonus,
     founding: founding ? founding.progress : null,
+  };
+}
+
+/**
+ * Víc vybraných obydlí: domácnosti a lidé v nich a které domácnosti se můžou přestěhovat (jen
+ * hotová obydlí s lidmi, které si nový dům nestaví ani nepřestavují). Žádné hotové → null.
+ */
+function dwellingsDetails(
+  view: VillageView | null,
+  scene: SceneVillage,
+  ids: readonly number[],
+): SelectionDetails | null {
+  const present = ids.filter((id) => scene.dwellings.some((d) => d.id === id));
+  if (present.length === 0) return null;
+  const households = (view?.households ?? []).filter((h) => present.includes(h.dwellingId));
+  const inhabited = households.filter((h) => h.occupants > 0);
+  const relocatable = present.filter((id) =>
+    households.some((h) => h.dwellingId === id && h.relocationBlock === null),
+  );
+  return {
+    kind: 'dwellings',
+    ids: present,
+    households: inhabited.length,
+    people: inhabited.reduce((sum, h) => sum + h.occupants, 0),
+    relocatable,
+    relocate: view && relocatable.length > 0 ? view.relocation : null,
   };
 }
 

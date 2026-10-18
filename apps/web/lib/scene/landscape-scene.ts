@@ -62,7 +62,11 @@ import { createWaterMesh, type WaterSurface } from './water';
 
 type HoverListener = (tile: TileInfo | null) => void;
 /** Kliknutí do scény mimo umisťování: vybrané obydlí / pole, nebo null (zrušit výběr). */
-type SelectListener = (target: VillageTarget | null) => void;
+/**
+ * Výběr kliknutím: co je pod kurzorem a jestli hráč držel Ctrl (Cmd) nebo Shift – přidá / ubere
+ * obydlí z výběru (migration.md – Výběr víc obydlí).
+ */
+type SelectListener = (target: VillageTarget | null, additive: boolean) => void;
 /** Záběr kamery na zemi (4 rohy obrazovky jako body krajiny [x, z]) a natočení kamery. */
 export interface ViewFootprint {
   corners: [number, number][];
@@ -627,7 +631,8 @@ export class LandscapeScene {
 
   /**
    * Kliknutí do scény mimo umisťování (jako v 0 A.D.): levé na obydlí, pole nebo hřbitov ho
-   * vybere, na prázdnou zem a pravé výběr zruší (null). Zvýraznění nastaví až rozhraní
+   * vybere, na prázdnou zem a pravé výběr zruší (null); s Ctrl (Cmd) nebo Shiftem ohlásí
+   * `additive` – rozhraní obydlí přidá k výběru nebo ho ubere. Zvýraznění nastaví až rozhraní
    * (`setSelection`).
    */
   onSelect(listener: SelectListener): () => void {
@@ -750,12 +755,14 @@ export class LandscapeScene {
     if (!down || down.placing || this.placement !== null) return;
     if (isDrag(down, { x: event.offsetX, y: event.offsetY })) return;
     if (event.button === 0 && this.rtsCamera?.leftPressPanned()) return;
-    if (event.button === 0) this.emitSelect(this.pickTarget(event.offsetX, event.offsetY));
-    else if (event.button === 2) this.emitSelect(null);
+    if (event.button === 0) {
+      const additive = event.ctrlKey || event.metaKey || event.shiftKey;
+      this.emitSelect(this.pickTarget(event.offsetX, event.offsetY), additive);
+    } else if (event.button === 2) this.emitSelect(null, false);
   };
 
-  private emitSelect(target: VillageTarget | null): void {
-    for (const listener of this.selectListeners) listener(target);
+  private emitSelect(target: VillageTarget | null, additive: boolean): void {
+    for (const listener of this.selectListeners) listener(target, additive);
   }
 
   /** Obydlí, pole nebo hřbitov pod pixelem plátna (CSS px). */

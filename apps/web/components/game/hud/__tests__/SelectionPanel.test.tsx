@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import type { SelectionDetails } from '@/lib/selection-details';
+import type { BuildOption } from '@/lib/village-view';
 import { SelectionPanel } from '../SelectionPanel';
 
 // Panel ohrady (oxen.md – Co hráč vidí): zvířata, seno, stáda, spřežení a výcvik. Posvátný dub
@@ -25,7 +26,14 @@ const pen = (over: Partial<Extract<SelectionDetails, { kind: 'pen' }>> = {}): Se
 });
 
 const render = (details: SelectionDetails): string =>
-  renderToStaticMarkup(<SelectionPanel details={details} onTrainTeam={() => Promise.resolve()} />);
+  renderToStaticMarkup(
+    <SelectionPanel
+      details={details}
+      onTrainTeam={() => Promise.resolve()}
+      onRelocate={() => undefined}
+      onCancelRelocation={() => Promise.resolve()}
+    />,
+  );
 
 /** Atributy tlačítka výcviku. */
 const trainButton = (html: string): string | undefined =>
@@ -99,5 +107,111 @@ describe('SelectionPanel – posvátný dub a háj', () => {
     const html = render({ kind: 'sacred-oak', id: 7, happiness: 5, ageYears: null });
     expect(html).not.toContain('selection-age');
     expect(html).not.toContain('Stáří');
+  });
+});
+
+// Přestěhování domácnosti a výběr víc obydlí (migration.md – Co hráč vidí).
+const option = (affordable: boolean, missing = 0): BuildOption => ({
+  laborManDays: 60,
+  perHa: false,
+  perSquare: false,
+  upfront: [{ resource: 'wood', amount: 7, missing }],
+  blocked: null,
+  affordable,
+});
+const relocate = { zemnice: option(true), polozemnice: option(false, 4) };
+
+const dwelling = (
+  over: Partial<Extract<SelectionDetails, { kind: 'dwelling' }>> = {},
+): SelectionDetails => ({
+  kind: 'dwelling',
+  id: 3,
+  type: 'zemnice',
+  occupants: 4,
+  capacity: 6,
+  ages: [30, 28, 6, 2],
+  condition: 0.9,
+  ageYears: 4,
+  full: false,
+  overcrowded: false,
+  rebuild: null,
+  workshop: null,
+  relocation: null,
+  relocate,
+  ...over,
+});
+
+/** Atributy tlačítka s `data-testid`. */
+const button = (html: string, testId: string): string | undefined =>
+  new RegExp(`<button([^>]*data-testid="${testId}"[^>]*)>`).exec(html)?.[1];
+
+describe('SelectionPanel – přestěhování domácnosti', () => {
+  it('obydlí: Přestěhovat do zemnice jde, do polozemnice chybí dřevo, Odejít zašedlé', () => {
+    const html = render(dwelling());
+    expect(html).toContain('aria-label="Přestěhovat"');
+    expect(button(html, 'relocate-zemnice')).not.toContain('disabled');
+    expect(button(html, 'relocate-polozemnice')).toContain('disabled');
+    expect(html).toMatch(/data-resource="wood" data-missing="true"/);
+    expect(button(html, 'leave-village')).toContain('disabled');
+    expect(html).not.toContain('data-testid="selection-relocation"');
+  });
+
+  it('domácnost se stěhuje: průběh nového domu a Zrušit, přestěhovat znovu nejde', () => {
+    const html = render(
+      dwelling({
+        relocate: null,
+        relocation: { constructionId: 12, type: 'polozemnice', progress: 0.35, treesToFell: 3 },
+      }),
+    );
+    expect(html).toContain('data-testid="selection-relocation"');
+    expect(html).toMatch(/aria-label="Stěhování"[^>]*aria-valuenow="35"/);
+    expect(button(html, 'cancel-relocation')).toBeDefined();
+    expect(html).not.toContain('data-testid="relocate-zemnice"');
+  });
+
+  it('staveniště nového domu stěhující se domácnosti jde zrušit, běžné staveniště ne', () => {
+    const site = (relocates: number | null): SelectionDetails => ({
+      kind: 'site',
+      id: 12,
+      type: 'zemnice',
+      craft: null,
+      progress: 0.2,
+      treesToFell: 0,
+      relocates,
+    });
+    expect(button(render(site(3)), 'cancel-relocation')).toBeDefined();
+    expect(button(render(site(null)), 'cancel-relocation')).toBeUndefined();
+  });
+
+  it('víc obydlí: počet domácností a lidí, Přestěhovat pro každou, Odejít zašedlé', () => {
+    const html = render({
+      kind: 'dwellings',
+      ids: [1, 2, 3],
+      households: 3,
+      people: 14,
+      relocatable: [1, 3],
+      relocate,
+    });
+    expect(html).toContain('data-kind="dwellings"');
+    expect(html).toContain('Obydlí (3)');
+    expect(text(html, 'selection-households')).toBe('3');
+    expect(text(html, 'selection-people')).toBe('14');
+    expect(button(html, 'relocate-zemnice')).not.toContain('disabled');
+    // u víc domácností popisek ukáže, kolikrát se dům staví
+    expect(html).toContain('×2');
+    expect(button(html, 'leave-village')).toContain('disabled');
+  });
+
+  it('víc obydlí, žádné se stěhovat nemůže: Přestěhovat chybí', () => {
+    const html = render({
+      kind: 'dwellings',
+      ids: [1, 2],
+      households: 2,
+      people: 9,
+      relocatable: [],
+      relocate: null,
+    });
+    expect(html).not.toContain('data-testid="relocate-zemnice"');
+    expect(button(html, 'leave-village')).toContain('disabled');
   });
 });

@@ -25,6 +25,7 @@ import {
   type Craft,
   type WorkshopActivity,
 } from '@/lib/village-view';
+import { LeaveButton, RelocateButtons, RelocationProgress } from './RelocationControls';
 import { Tooltip } from './Tooltip';
 
 function Portrait({ icon, name }: { icon: string; name: string }): ReactElement {
@@ -168,11 +169,21 @@ function WorkshopRow({ workshop }: { workshop: SelectionWorkshop }): ReactElemen
   );
 }
 
+/** Akce panelu nad obydlími – přestěhování domácnosti a jeho zrušení (migration.md). */
+interface RelocationActions {
+  /** Začne umisťovat nové domy domácností `householdIds` (postupně, jeden za druhým). */
+  onRelocate?: (type: DwellingType, householdIds: readonly number[]) => void;
+  /** Zruší rozestavěné stěhování (stavba nového domu) – hotovo, až se vrátí. */
+  onCancelRelocation?: (constructionId: number) => Promise<void>;
+}
+
 function DwellingBody({
   details,
+  onRelocate,
+  onCancelRelocation,
 }: {
   details: Extract<SelectionDetails, { kind: 'dwelling' }>;
-}): ReactElement {
+} & RelocationActions): ReactElement {
   const tone = details.overcrowded ? 'text-red-400' : details.full ? 'text-[#f3cf86]' : '';
   return (
     <div className="flex min-w-0 flex-col gap-1.5">
@@ -204,6 +215,57 @@ function DwellingBody({
           {details.rebuild.treesToFell > 0 && <WoodToFell trees={details.rebuild.treesToFell} />}
         </div>
       )}
+      {details.relocation && (
+        <RelocationProgress
+          constructionId={details.relocation.constructionId}
+          progress={details.relocation.progress}
+          onCancel={onCancelRelocation}
+        />
+      )}
+      {details.relocate && (
+        <div className="flex items-center gap-2">
+          <RelocateButtons
+            options={details.relocate}
+            households={1}
+            onRelocate={onRelocate ? (type) => onRelocate(type, [details.id]) : undefined}
+          />
+          <LeaveButton />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Víc vybraných obydlí (migration.md – Výběr víc obydlí): kolik domácností a lidí, Přestěhovat
+ * (nový dům postupně každé domácnosti, která se může stěhovat) a Odejít (zatím zašedlé).
+ */
+function DwellingsBody({
+  details,
+  onRelocate,
+}: {
+  details: Extract<SelectionDetails, { kind: 'dwellings' }>;
+} & RelocationActions): ReactElement {
+  return (
+    <div className="flex min-w-0 flex-col justify-center gap-1.5">
+      <div className="flex items-center gap-3">
+        <Stat src="/icons/build/zemnice.png" name="Domácnosti" testId="selection-households">
+          {details.households}
+        </Stat>
+        <Stat icon="people" name="Lidé" testId="selection-people">
+          {details.people}
+        </Stat>
+      </div>
+      <div className="flex items-center gap-2">
+        {details.relocate && (
+          <RelocateButtons
+            options={details.relocate}
+            households={details.relocatable.length}
+            onRelocate={onRelocate ? (type) => onRelocate(type, details.relocatable) : undefined}
+          />
+        )}
+        <LeaveButton />
+      </div>
     </div>
   );
 }
@@ -611,16 +673,20 @@ function SacredBody({
  * a průběh založení / rozšíření; sad: výměra, stáří, úroda příští sklizně a průběh výsadby;
  * posvátný dub, háj, modla a svatyně: kolik přidávají štěstí (háj i počet dubů), rozestavěná
  * modla a svatyně průběh stavby a duby ke skácení; ohrada: zvířata, seno, stáda, spřežení
- * a výcvik (`onTrainTeam` – akce „Vycvičit spřežení“).
+ * a výcvik (`onTrainTeam` – akce „Vycvičit spřežení“). Obydlí a víc vybraných obydlí:
+ * Přestěhovat (`onRelocate`), Odejít (zatím zašedlé) a průběh stěhování se zrušením
+ * (`onCancelRelocation` – migration.md).
  */
 export function SelectionPanel({
   details,
   onTrainTeam,
+  onRelocate,
+  onCancelRelocation,
 }: {
   details: SelectionDetails | null;
   /** Zadá v ohradě výcvik spřežení (server action) – hotovo, až se vrátí. */
   onTrainTeam?: (penId: number) => Promise<void>;
-}): ReactElement | null {
+} & RelocationActions): ReactElement | null {
   if (!details) return null;
   let portrait: ReactElement;
   let body: ReactElement;
@@ -673,11 +739,27 @@ export function SelectionPanel({
           {details.treesToFell > 0 && <WoodToFell trees={details.treesToFell} />}
         </div>
         <Bar value={details.progress} name="Stavba" testId="selection-progress" />
+        {details.relocates !== null && (
+          <RelocationProgress
+            constructionId={details.id}
+            progress={details.progress}
+            onCancel={onCancelRelocation}
+          />
+        )}
       </div>
     );
+  } else if (details.kind === 'dwellings') {
+    portrait = <Portrait icon="zemnice" name={`Obydlí (${details.ids.length})`} />;
+    body = <DwellingsBody details={details} onRelocate={onRelocate} />;
   } else {
     portrait = dwellingPortrait(details.type, details.workshop?.craft ?? null);
-    body = <DwellingBody details={details} />;
+    body = (
+      <DwellingBody
+        details={details}
+        onRelocate={onRelocate}
+        onCancelRelocation={onCancelRelocation}
+      />
+    );
   }
   return (
     <section

@@ -53,6 +53,7 @@ import {
   type PlacementVillage,
   type PlotVariant,
   type Position,
+  type RelocationBlock,
   type Road,
   type RoadTree,
   type RoadTreeLook,
@@ -72,7 +73,14 @@ import {
 import { formatGameDate } from './game-date';
 import { fruitVisible, treeGrowth } from './orchard-look';
 import { sacredOakGrowth } from './sacred-look';
+import {
+  householdRelocation,
+  householdRelocationBlock,
+  relocationOptions,
+  type HouseholdRelocation,
+} from './relocation-view';
 import { formatCells, formatHa, formatInteger } from './village-format';
+import type { VillageListItem } from './village-list';
 
 // Pohled na ves pro panel a scénu (DTO server actions). Čistý modul – smí ho importovat
 // i klient (typy, převod scény na data pro kontrolu umístění).
@@ -201,7 +209,16 @@ export interface VillageCrafts {
 }
 
 export interface VillageView {
+  /** Id vsi – akce i dotazy jdou podle něj (migration.md – Víc vsí jednoho hráče). */
+  id: string;
+  /** Sídlo (mapa), na jehož krajině ves stojí. */
+  settlementId: string;
   name: string;
+  /**
+   * Všechny vsi hráče (i tahle) pro přepínač v horní liště – sídelní první, pak podle založení.
+   * Upozornění z jiných vsí se ukážou krátkým řádkem se jménem vsi.
+   */
+  villages: VillageListItem[];
   dayIndex: number;
   people: { children: number; adults: number; elders: number };
   households: {
@@ -218,6 +235,10 @@ export interface VillageView {
     ages: number[];
     /** Stáří obydlí v celých letech. */
     ageYears: number;
+    /** Domácnost si staví nový dům (migration.md – Přestěhování domácnosti); jinak null. */
+    relocation: HouseholdRelocation | null;
+    /** Proč se domácnost teď přestěhovat nemůže (null = může). */
+    relocationBlock: RelocationBlock | null;
   }[];
   storesKg: number;
   /** Zásoby ovoce – jablek (kg; v rozhraní „ovoce“ – diet.md). */
@@ -243,6 +264,8 @@ export interface VillageView {
   fullHousehold: boolean;
   /** Nabídka staveb – hráč staví kdy chce, předem musí ves mít suroviny a lidi k osídlení. */
   build: Record<BuildKind, BuildOption>;
+  /** Nový dům stěhující se domácnosti – cena bez lidí k osídlení (migration.md). */
+  relocation: Record<DwellingType, BuildOption>;
   constructions: {
     id: number;
     kind: ConstructionKind;
@@ -254,6 +277,8 @@ export interface VillageView {
     craft: Craft | null;
     /** Přestavované obydlí (rebuild), jinak null. */
     dwellingId: number | null;
+    /** Nový dům stěhující se domácnosti – id jejího obydlí (migration.md); jinak null. */
+    relocates: number | null;
     /** Zakládané pole (field), jinak null. */
     fieldId: number | null;
     /** Zakládaný nebo rozšiřovaný hřbitov (cemetery), jinak null. */
@@ -708,6 +733,12 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       return finishedText(event.constructionKind, event.craft);
     case 'rebuild-decided':
       return `Obyvatelé se rozhodli přestavět dožilé obydlí na ${DWELLING_NAMES[event.type].accusative}.`;
+    case 'relocation-started':
+      return `Domácnost si začala stavět novou ${DWELLING_NAMES[event.type].accusative} – přestěhuje se.`;
+    case 'relocation-cancelled':
+      return 'Stěhování domácnosti se zrušilo – zůstává ve starém domě.';
+    case 'household-relocated':
+      return 'Domácnost se přestěhovala do nového domu – starý zůstal prázdný.';
     case 'harvest':
       return `${HARVEST_NAMES[event.crop ?? 'any']}: ${formatInteger(event.kg)} kg obilí.`;
     case 'apple-harvest':
@@ -1285,20 +1316,42 @@ function fieldViews(state: VillageState, day: number): VillageView['fields'] {
   });
 }
 
+/** Co pohled na jednu ves sám neví – zjistí ho vstupní bod přes `dynastyStatus`. */
+export interface VillageViewContext {
+  /** Hráči vymřely všechny vsi (ne jen tahle). */
+  gameOver?: boolean;
+  /** Všechny vsi hráče pro přepínač; bez nich jen tahle ves. */
+  villages?: VillageListItem[];
+}
+
 /**
- * Pohled na ves v den `day` (ves má být dopočítaná do tohoto dne). `gameOver` – hráči vymřely
- * všechny vsi (zjistí ho vstupní bod přes `dynastyStatus`, pohled na jednu ves to neví).
+ * Pohled na ves v den `day` (ves má být dopočítaná do tohoto dne). `context` – konec hry a vsi
+ * hráče pro přepínač (vstupní bod je zná ze všech vsí hráče).
  */
 export function buildVillageView(
   record: VillageRecord,
   landscape: Landscape,
   day: number,
-  gameOver = false,
+  context: VillageViewContext = {},
 ): VillageView {
   const { state, name } = record;
   const summary = summarizeVillage(state, day);
+  const gameOver = context.gameOver ?? false;
   return {
+    id: record.id,
+    settlementId: record.settlementId,
     name,
+    villages: context.villages ?? [
+      {
+        id: record.id,
+        settlementId: record.settlementId,
+        name,
+        people: state.people.length,
+        extinct: state.extinctDay !== undefined,
+        hungry: summary.hungry,
+        starving: summary.starving,
+      },
+    ],
     dayIndex: day,
     people: summary.people,
     households: summary.households.map((h) => {
@@ -1310,6 +1363,8 @@ export function buildVillageView(
           .map((p) => ageYears(p.bornDay, day))
           .sort((a, b) => b - a),
         ageYears: dwelling ? Math.max(0, Math.floor((day - dwelling.builtDay) / DAYS_PER_YEAR)) : 0,
+        relocation: householdRelocation(state, summary.constructions, h.dwellingId),
+        relocationBlock: householdRelocationBlock(state, h.dwellingId),
       };
     }),
     storesKg: summary.storesKg,
@@ -1329,6 +1384,7 @@ export function buildVillageView(
     commonLaborPerDay: summary.commonLaborPerDay,
     fullHousehold: summary.fullHousehold,
     build: buildOptions(state, landscape, summary.crafts.coverage),
+    relocation: relocationOptions(state, landscape),
     constructions: summary.constructions.map((c) => ({
       id: c.id,
       kind: c.kind,
@@ -1341,6 +1397,7 @@ export function buildVillageView(
           ? (state.dwellings.find((d) => d.id === c.dwellingId)?.workshop?.craft ?? null)
           : null),
       dwellingId: c.kind === 'rebuild' ? c.dwellingId : null,
+      relocates: state.constructions.find((x) => x.id === c.id)?.relocates ?? null,
       fieldId: c.kind === 'field' ? c.fieldId : null,
       cemeteryId: c.cemeteryId,
       orchardId: c.orchardId,

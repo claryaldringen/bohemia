@@ -12,12 +12,15 @@ import type { SceneVillage } from '../village-view';
 // z kamery dodá scéna jako čísla).
 
 /**
- * Co je ve vsi vybrané: obydlí (hotové i rozestavěné – id ze scény vsi), pole, hřbitov, sad,
- * posvátný dub (id stromu), dubový háj (id středového dubu), modla či svatyně (id stavby –
- * hotová i rozestavěná, happiness.md), nebo ohrada (id ohrady – oxen.md).
+ * Co je ve vsi vybrané: obydlí (hotové i rozestavěné – id ze scény vsi), víc obydlí najednou
+ * (Ctrl/Shift + klik, Ctrl + A – migration.md; aspoň dvě), pole, hřbitov, sad, posvátný dub (id
+ * stromu), dubový háj (id středového dubu), modla či svatyně (id stavby – hotová i rozestavěná,
+ * happiness.md), nebo ohrada (id ohrady – oxen.md).
  */
 export type VillageTarget =
   | { kind: 'dwelling'; id: number }
+  /** Víc obydlí najednou – id ze scény vsi v pořadí výběru (aspoň dvě). */
+  | { kind: 'dwellings'; ids: readonly number[] }
   | { kind: 'field'; id: number }
   | { kind: 'cemetery'; id: number }
   | { kind: 'orchard'; id: number }
@@ -179,9 +182,12 @@ export function pickVillageTarget(
   return grove ? { kind: 'grove', id: grove.id } : null;
 }
 
-/** Existuje vybraný cíl ve vsi (po obnovení stavu mohl zaniknout)? */
+/** Existuje vybraný cíl ve vsi (po obnovení stavu mohl zaniknout)? Víc obydlí – aspoň jedno. */
 export function targetExists(village: SceneVillage, target: VillageTarget): boolean {
   if (target.kind === 'dwelling') return village.dwellings.some((d) => d.id === target.id);
+  if (target.kind === 'dwellings') {
+    return target.ids.some((id) => village.dwellings.some((d) => d.id === id));
+  }
   if (target.kind === 'cemetery') {
     return (village.cemeteries ?? []).some((c) => c.id === target.id);
   }

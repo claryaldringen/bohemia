@@ -41,6 +41,15 @@ const scene: SceneVillage = {
   },
 };
 
+const RELOCATE_OPTION = {
+  laborManDays: 60,
+  perHa: false,
+  perSquare: false,
+  upfront: [{ resource: 'wood', amount: 7, missing: 0 }],
+  blocked: null,
+  affordable: true,
+};
+
 const view = {
   crafts: {
     present: true,
@@ -69,6 +78,8 @@ const view = {
       condition: 0.8,
       ages: [27, 26, 15, 3],
       ageYears: 2,
+      relocation: null,
+      relocationBlock: null,
     },
     {
       dwellingId: 2,
@@ -81,8 +92,15 @@ const view = {
       condition: 1,
       ages: [24, 22],
       ageYears: 1,
+      // kovářova domácnost si staví nový dům (stavba 9 – migration.md)
+      relocation: { constructionId: 9, type: 'polozemnice', progress: 0.4, treesToFell: 5 },
+      relocationBlock: 'relocating',
     },
   ],
+  relocation: {
+    zemnice: RELOCATE_OPTION,
+    polozemnice: { ...RELOCATE_OPTION, affordable: false },
+  },
   constructions: [
     {
       id: 9,
@@ -91,6 +109,7 @@ const view = {
       progress: 0.4,
       dwellingType: 'polozemnice',
       dwellingId: null,
+      relocates: 2,
       fieldId: null,
       treesToFell: 5,
     },
@@ -231,6 +250,33 @@ describe('selectionDetails', () => {
       overcrowded: false,
       rebuild: null,
       workshop: null,
+      relocation: null,
+      relocate: view.relocation,
+    });
+  });
+
+  it('obydlí, jehož domácnost se stěhuje: průběh stavby nového domu, přestěhovat znovu nejde', () => {
+    expect(selectionDetails(view, scene, { kind: 'dwelling', id: 2 })).toMatchObject({
+      kind: 'dwelling',
+      relocation: { constructionId: 9, progress: 0.4 },
+      relocate: null,
+    });
+  });
+
+  it('víc obydlí: domácnosti, lidé a kdo se může přestěhovat (migration.md)', () => {
+    expect(selectionDetails(view, scene, { kind: 'dwellings', ids: [1, 2, 77] })).toEqual({
+      kind: 'dwellings',
+      ids: [1, 2],
+      households: 2,
+      people: 6,
+      relocatable: [1],
+      relocate: view.relocation,
+    });
+    expect(selectionDetails(view, scene, { kind: 'dwellings', ids: [77, 78] })).toBeNull();
+    // jen stěhující se domácnost – přestěhovat nejde
+    expect(selectionDetails(view, scene, { kind: 'dwellings', ids: [2, 9] })).toMatchObject({
+      relocatable: [],
+      relocate: null,
     });
   });
 
@@ -258,6 +304,8 @@ describe('selectionDetails', () => {
       craft: null,
       progress: 0.4,
       treesToFell: 5,
+      // nový dům kovářovy domácnosti – jde zrušit
+      relocates: 2,
     });
     expect(selectionDetails(null, scene, { kind: 'dwelling', id: 9 })).toEqual({
       kind: 'site',
@@ -266,6 +314,7 @@ describe('selectionDetails', () => {
       craft: null,
       progress: 0.1,
       treesToFell: 0,
+      relocates: null,
     });
   });
 
