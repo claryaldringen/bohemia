@@ -365,7 +365,7 @@ export class LandscapeScene {
         this.canvas.dataset.sound = state;
       },
     });
-    if (this.season) this.ambient.setSeason(this.season.sound);
+    if (this.season) this.ambient.setSeason({ ...this.season.sound, ice: this.season.ice });
     this.renderBurst(1500);
     this.engine.runRenderLoop(() => this.frame());
   }
@@ -720,7 +720,8 @@ export class LandscapeScene {
     const moving = !this.reducedMotion?.matches;
     if (moving && now - this.lastWaterFrame >= 1000 / WATER_FPS) {
       let animated = false;
-      if (this.water && camera.camera.isInFrustum(this.water.mesh)) {
+      // zamrzlá voda neteče – v záběru jen led a stojí, nepřekresluje se
+      if (this.water?.flowsInView(camera.camera)) {
         this.water.animate(now / 1000);
         animated = true;
       }
@@ -803,8 +804,9 @@ export class LandscapeScene {
       this.bareShadows = bare;
       this.shadows.setCastersEnabled(this.deciduousCasters, !bare);
     }
-    this.water?.setSeason(look.water.tint, look.water.sky);
-    this.ambient?.setSeason(look.sound);
+    this.water?.setSeason(look.water.tint, look.water.sky, look.ice);
+    this.fauna?.setIce(look.ice);
+    this.ambient?.setSeason({ ...look.sound, ice: look.ice });
     this.needsRender = true;
   }
 

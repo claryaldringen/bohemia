@@ -49,6 +49,7 @@ const school: FishSchool = {
   turn: -1,
   speedMps: 0.7,
   visibilityM: 1,
+  iceFlow: 0.1,
   seed: 11,
   fish: [
     { phase: 0, radius: 1, depthM: 0.1, scale: 1 },

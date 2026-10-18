@@ -160,7 +160,9 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   (animace, voda, roční období), musí nastavit `needsRender`. **Výjimka: voda teče** (Martin) –
   dokud je hladina v záběru, scéna se překresluje `WATER_FPS` (30) za sekundu; vlnky plují po
   proudu (`water.ts`, rychlost proudu odvozuje osa potoka v jádru ze spádu a šířky potoka,
-  kalnost a podloží `scene/stream-geometry.ts`).
+  kalnost a podloží `scene/stream-geometry.ts`). Zamrzlá voda neteče: `flowsInView` zná čtverce
+  hladiny (`FLOW_CHUNK_M`) a od jaké zimy jsou celé zamrzlé – kreslí se, jen dokud je v záběru
+  nezamrzlá voda.
 - **Vývojový náhled** bez přihlášení a databáze: http://localhost:3010/dev/landscape?seed=42
   (tlačítka předchozí / další / náhodná). V produkci vrací 404.
 - `?renderer=webgl` vynutí WebGL 2 (test záložní cesty). `HEIGHT_SCALE` v `scene/constants.ts`
@@ -206,7 +208,7 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   (`sun-shadows.ts`) – stínová mapa 4096 přes celou krajinu se vykreslí jednou; vrhají je meshe
   pojmenované `trees-*`, `impostors-*` a `decor-*` (při přejmenování zachovat prefix).
 - **Roční období** (jen vzhled, žádná pravidla): `season-look.ts` (čisté funkce, testy) z dne
-  v roce spočítá sníh, suchou / svěží trávu, množství, podzimní barvu a mladost listí, květy,
+  v roce spočítá sníh, led na vodě, suchou / svěží trávu, množství, podzimní barvu a mladost listí, květy,
   světlo, opar, vodu a zvuky – plynulé přechody 2–5 týdnů, **léto (`REFERENCE_DAY`) je
   výchozí vzhled a nesmí se měnit**. `LandscapeScene.updateSeason` se jednou za sekundu podívá
   na herní datum (celé dny, svět mimo běh = léto) a jen při znatelné změně nastaví světlo,
@@ -217,7 +219,13 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   druhy v `season-foliage.ts`: listnáče se barví a opadávají, z koruny zbudou větvičky, kůra
   ztratí zelený tón; jehličí a kameny pod sněhem; rákos stojí suchý; trnka a jabloně kvetou),
   střechy (`applySeasonSnow`), impostory a plocha korun. Nový model stromu nebo keře = záznam
-  v `seasonFoliageFor`. Stínová mapa listí nezná – pod 30 % listí listnáče (`isDeciduousMesh`)
+  v `seasonFoliageFor`. **Led** (`water-ice.ts`, čisté funkce, testy): jde za sněhem – v prosinci
+  zamrzá stojatá a pomalá voda (tůně, klidné úseky; rychlost proudu jako ve shaderu vody)
+  a okraje u břehů, kde proud slábne, rychlý proud zůstane otevřený s ledem podél břehů;
+  v březnu roztaje. Shader hladiny počítá totéž (konstanty odsud, led v uniformě `seasonB.w`,
+  šum procedurální): na ledu stojí vlnky, leží sníh se skvrnami holého ledu. Ryby pod ledem
+  zmizí a nehýbou se (`Fauna.setIce`, `FishSchool.iceFlow`), potok je pod ledem tišší
+  (`frozenShare` v `ambient-mix.ts`). Stínová mapa listí nezná – pod 30 % listí listnáče (`isDeciduousMesh`)
   ze stínové mapy vypadnou (jedno překreslení mapy) a stíny zesvětlí. Vývojový náhled má
   posuvník dne v roce a „přehrát rok“ (`setSeasonDay`).
 - **Ukazatel načítání:** `setLandscape(landscape, onProgress)` hlásí kroky přípravy a mezi

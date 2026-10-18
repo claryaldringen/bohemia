@@ -26,11 +26,17 @@ import {
   type FaunaPose,
 } from './fauna-motion';
 import type { BirdFlock, BirdSpecies, FishSchool } from './fauna-placement';
+import { iceCoverOfFlow } from './water-ice';
 
 /** Ozdobná zvířata krajiny; `animate` je posune na daný čas, jen pokud jsou v záběru. */
 export interface Fauna {
   /** Vrátí true, když se nějaké zvíře v záběru pohnulo (scéna pak musí překreslit). */
   animate(timeSeconds: number, camera: Camera): boolean;
+  /**
+   * Led na vodě 0–1 (season-look.ts): ryby pod zamrzlou hladinou zmizí a nehýbou se (scéna je
+   * kvůli nim nepřekresluje). Vrátí true, když se něco změnilo (scéna pak musí překreslit).
+   */
+  setIce(ice: number): boolean;
 }
 
 type FaunaModel = BirdSpecies | 'fish';
@@ -56,6 +62,10 @@ interface FaunaGroup {
   count: number;
   scales: number[];
   pose(index: number, timeS: number, out: FaunaPose): FaunaPose;
+  /** Rychlost proudu pro led (jen ryby – water-ice.ts); ptáci led neznají. */
+  iceFlow?: number;
+  /** Násobek krytí skupiny 0–1 – pod ledem 0 (skupina se pak ani nehýbe). */
+  visibility: number;
 }
 
 interface Herd {
@@ -92,7 +102,7 @@ export async function addFauna(
   placements: { fish: readonly FishSchool[]; birds: readonly BirdFlock[] },
   options: { baseUrl: string },
 ): Promise<Fauna> {
-  const all: { model: FaunaModel; groups: Omit<FaunaGroup, 'first'>[] }[] = [
+  const all: { model: FaunaModel; groups: Omit<FaunaGroup, 'first' | 'visibility'>[] }[] = [
     {
       model: 'crow',
       groups: placements.birds.filter((f) => f.species === 'crow').map(birdGroup),
@@ -121,13 +131,16 @@ export async function addFauna(
   }
 
   const pose = createPose();
+  /** Čas posledního pohybu – po změně ledu se ryby zapíšou tam, kde zrovna jsou. */
+  let lastTime = 0;
   return {
     animate(timeSeconds: number, camera: Camera): boolean {
+      lastTime = timeSeconds;
       let moved = false;
       for (const herd of herds) {
         let herdMoved = false;
         for (const group of herd.groups) {
-          if (!camera.isInFrustum(group.bounds)) continue;
+          if (group.visibility <= 0 || !camera.isInFrustum(group.bounds)) continue;
           const center = group.bounds.boundingSphere.centerWorld;
           if (Vector3.Distance(camera.globalPosition, center) > ANIMATE_RANGE_M[herd.model]) {
             continue;
@@ -138,6 +151,7 @@ export async function addFauna(
               group.first + i,
               group.pose(i, timeSeconds, pose),
               group.scales[i]!,
+              group.visibility,
             );
           }
           herdMoved = true;
@@ -150,10 +164,42 @@ export async function addFauna(
       }
       return moved;
     },
+    setIce(ice: number): boolean {
+      let changed = false;
+      for (const herd of herds) {
+        let herdChanged = false;
+        for (const group of herd.groups) {
+          if (group.iceFlow === undefined) continue;
+          const visibility = 1 - iceCoverOfFlow(group.iceFlow, ice);
+          const small = Math.abs(visibility - group.visibility) < 0.01;
+          if (visibility === group.visibility || (small && visibility > 0 && visibility < 1)) {
+            continue;
+          }
+          group.visibility = visibility;
+          for (let i = 0; i < group.count; i++) {
+            writeInstance(
+              herd,
+              group.first + i,
+              group.pose(i, lastTime, pose),
+              group.scales[i]!,
+              visibility,
+            );
+          }
+          herdChanged = true;
+        }
+        if (herdChanged) {
+          herd.mesh.thinInstanceBufferUpdated('matrix');
+          herd.mesh.thinInstanceBufferUpdated('faunaState');
+          herd.mesh.isVisible = herd.groups.some((group) => group.visibility > 0);
+          changed = true;
+        }
+      }
+      return changed;
+    },
   };
 }
 
-function birdGroup(flock: BirdFlock): Omit<FaunaGroup, 'first'> {
+function birdGroup(flock: BirdFlock): Omit<FaunaGroup, 'first' | 'visibility'> {
   return {
     bounds: boundingInfo(birdFlockBounds(flock)),
     count: flock.birds.length,
@@ -162,12 +208,13 @@ function birdGroup(flock: BirdFlock): Omit<FaunaGroup, 'first'> {
   };
 }
 
-function fishGroup(school: FishSchool): Omit<FaunaGroup, 'first'> {
+function fishGroup(school: FishSchool): Omit<FaunaGroup, 'first' | 'visibility'> {
   return {
     bounds: boundingInfo(fishSchoolBounds(school)),
     count: school.fish.length,
     scales: school.fish.map((f) => f.scale),
     pose: (index, timeS, out) => fishPose(school, index, timeS, out),
+    iceFlow: school.iceFlow,
   };
 }
 
@@ -287,7 +334,7 @@ function createHerd(
   scene: Scene,
   model: FaunaModel,
   geometry: FaunaGeometry,
-  groups: Omit<FaunaGroup, 'first'>[],
+  groups: Omit<FaunaGroup, 'first' | 'visibility'>[],
 ): Herd {
   // Jméno mimo předpony vrhačů stínů (trees-, impostors-, decor-) – stínová mapa je statická.
   const mesh = new Mesh(`fauna-${model}`, scene);
@@ -323,7 +370,7 @@ function createHerd(
 
   let first = 0;
   const placed: FaunaGroup[] = groups.map((group) => {
-    const withFirst = { ...group, first };
+    const withFirst = { ...group, first, visibility: 1 };
     first += group.count;
     return withFirst;
   });
@@ -338,7 +385,7 @@ function createHerd(
   const pose = createPose();
   for (const group of placed) {
     for (let i = 0; i < group.count; i++) {
-      writeInstance(herd, group.first + i, group.pose(i, 0, pose), group.scales[i]!);
+      writeInstance(herd, group.first + i, group.pose(i, 0, pose), group.scales[i]!, 1);
     }
   }
   mesh.thinInstanceSetBuffer('matrix', herd.matrices, 16, false);
@@ -355,11 +402,20 @@ function createHerd(
   return herd;
 }
 
-/** Zapíše matici instance (poloha, směr, náklon, měřítko) a stav pózy a krytí. */
-function writeInstance(herd: Herd, index: number, pose: FaunaPose, scale: number): void {
+/**
+ * Zapíše matici instance (poloha, směr, náklon, měřítko) a stav pózy a krytí (krytí pózy
+ * × `visibility` skupiny – pod ledem 0).
+ */
+function writeInstance(
+  herd: Herd,
+  index: number,
+  pose: FaunaPose,
+  scale: number,
+  visibility: number,
+): void {
   writeInstanceMatrix(herd.matrices, index, pose, scale);
   herd.states[index * 2] = pose.flap;
-  herd.states[index * 2 + 1] = pose.opacity;
+  herd.states[index * 2 + 1] = pose.opacity * visibility;
 }
 
 /** Poloha, směr a náklon instance – co potřebuje matice (FaunaPose i dobytek). */
