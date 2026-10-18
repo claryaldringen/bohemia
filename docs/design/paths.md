@@ -1,13 +1,12 @@
 # Vyšlapané pěšiny
 
 Stav: Martin schválil 18. 10. 2026 („Ano, takhle to zní dobře. Zkusme to a uvidíme, jak to bude
-vypadat ve hře.“). Stromy podél starých pěšin přes pole – Martin 18. 10. 2026 (v Estonsku
-a Dánsku stál statek uprostřed svých polí a cesta k němu vedla přes pole, obvykle lemovaná
-stromy). **Pěšiny ovlivňují práci** – Martin 18. 10. 2026 („Tam, kde bude vyšlapaná cesta, ať
+vypadat ve hře.“). Stromy podél cest přes pole – Martin 18. 10. 2026 (v Estonsku a Dánsku stál
+statek uprostřed svých polí a cesta k němu vedla přes pole, obvykle lemovaná stromy) – mají od 18. 10. 2026 jen **pevné cesty** ([roads.md](roads.md)), pěšiny dne ne. **Pěšiny ovlivňují práci** – Martin 18. 10. 2026 („Tam, kde bude vyšlapaná cesta, ať
 se chodí o něco lépe než tam, kde není.“). Síť počítá herní jádro
 (`packages/game/src/domain/village/paths/` – `terrain.ts`, `network.ts`, `walking.ts`,
 `village.ts`) stejně na serveru i v prohlížeči; scéna `apps/web/lib/scene/path-renderer.ts`,
-`path-ribbon.ts`, `path-trees.ts`, `path-router.ts`.
+`path-ribbon.ts`, `path-router.ts`. Pevné cesty a stromy u nich: [roads.md](roads.md).
 
 ## Proč
 
@@ -28,7 +27,9 @@ A po vyšlapané pěšině se chodí lépe – cesta na vzdálené pole po ní s
   kmeny, keře, balvany a skály, přes oseté pole nechodí (jdou po jeho okraji), přes úhor a louku
   ano, lesem neradi.
 - **Slévání:** vyšlapaná pěšina je pohodlnější (až o polovinu), takže kdo jde po ní, jde i kus
-  oklikou – trasy sousedů se slijí do společné pěšiny a vznikne síť.
+  oklikou – trasy sousedů se slijí do společné pěšiny a vznikne síť. Po **pevné cestě**
+  ([roads.md](roads.md)) se jde jako po plné pěšině, takže se k ní pěšiny dne stahují; kde vedou
+  po ní, ztratí se v ní (kreslí se jen cesta).
 - **Síla pěšiny** roste s počtem cest za den (pomalu – s odmocninou), jednotlivé cesty nic
   nevyšlapou. Silná pěšina je širší (do 1,9 m) a uprostřed holá udusaná hlína, slabší jen
   prošlapaná tráva s hlínou uprostřed.
@@ -39,11 +40,9 @@ A po vyšlapané pěšině se chodí lépe – cesta na vzdálené pole po ní s
   stromy u cesty bez cesty mátly).
 - **Roční období:** tráva v pěšinách usychá jako louka, v zimě je zasype sníh, ušlapaná stopa
   ve sněhu zřetelně prosvítá.
-- **Stromy podél pěšin:** silná pěšina, kterou se chodí aspoň 5 let, dostane tam, kde vede
-  polní krajinou, řídké stromy (duby, jilmy, topoly po 12–20 m střídavě po stranách, trochu
-  nepravidelně) – jen tam, kde je pěšina vidět, nikdy na pěšině, na dílu pole (osetém ani
-  úhoru – jen podél okraje pole a mimo pole), v plotě, na hřbitově, v sadu ani u domů. Rostou
-  s věkem pěšiny (plné za 35 let). Jsou to jen kulisy, ne překážky simulace.
+- **Stromy podél pěšin** už nejsou – rozmisťovaly se znovu s každou změnou sítě dne a přeskakovaly
+  (rozbor 18. 10. 2026). Nahradily je **stromy u pevných cest** ([roads.md](roads.md)): herní
+  data, která vyrostou z keře, stojí na místě a odumřou stářím.
 - **Lidé chodí po pěšinách:** nosiči z pole, nosiči dřeva ke stavbě a ženy pro vodu a dřevo jdou
   na nejbližší pěšinu, po ní a z ní k cíli; kde pěšina nevede (nebo by byla velká oklika), jdou
   rovnou. Po pěšině jdou viditelně rychleji (a rychleji kráčí).
@@ -71,7 +70,8 @@ není.“), čísla návrh Clauda.
 ## Zjednodušení a co chybí
 
 - Síť si historii nepamatuje: síla je z práce posledního dne a stáří obydlí (u vsí bez stáří
-  obydlí jako by stála odjakživa); opuštěná pěšina hned zmizí, nezarůstá postupně.
+  obydlí jako by stála odjakživa); opuštěná pěšina hned zmizí, nezarůstá postupně. Pamatují si ji
+  až pevné cesty ([roads.md](roads.md)) – vznikají z celoročního provozu a zarůstají za 5 let.
 - Ke hromadě klád se pěšina nekreslí (její místo zná jen scéna).
 - Sady zatím počítají přímou vzdálenost (zrychlení po pěšině jen u polí).
 - Stáří pole server zatím neposílá – nově zakládané pole má pěšinu napoloviční.

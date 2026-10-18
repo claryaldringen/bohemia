@@ -1,6 +1,8 @@
 # Pevné cesty – stromy podél nich a vylepšení
 
-Stav: schváleno 18. 10. 2026 (Martin: „Ano, spusť to takhle“). Implementace zatím není. Navazuje na
+Stav: schváleno 18. 10. 2026 (Martin: „Ano, spusť to takhle“). **Fáze 1 hotová** (18. 10. 2026 –
+pevné cesty a stromy u nich, viz [Fáze 1 – jak je postavená](#fáze-1--jak-je-postavená)); výběr,
+vylepšení a rychlejší chůze (fáze 2) a jabloně (fáze 3) zatím ne. Navazuje na
 [vyšlapané pěšiny](paths.md) (jen vzhled) a nahrazuje v nich stromy podél pěšin.
 
 ## Proč
@@ -68,11 +70,11 @@ Hráč klikne na pevnou cestu – vybere se úsek, v panelu je stupeň, délka, 
 a jabloně a tlačítka vylepšení (ikony, cena v popisku – jako v 0 A.D.). Vylepšení je stavba ze
 společné práce vsi; stromy bere jako obydlí (klády z hromady, pak nejbližší dospělé stromy).
 
-| Stupeň                       | Co se udělá                                                                 | Cena (návrh Clauda)                       | Rychlost chůze (návrh Clauda)               |
-| ---------------------------- | --------------------------------------------------------------------------- | ----------------------------------------- | ------------------------------------------- |
-| 1. **Vyšlapaná cesta**       | vznikne sama                                                                | –                                         | 1,2× proti louce                            |
-| 2. **Upravená cesta**        | vyrovnaná, odvodňovací strouha po straně, kameny do bláta a do brodu        | **15 člověkodní na 100 m**                | 1,5×                                        |
-| 3. **Hať a lávka** (po 2.)   | povalový chodník přes mokřinu, lávka z kmenů přes potok                     | hať **1 strom a 2 čd na 2 m**, lávka **4 stromy a 15 čd** | mokřina 1,5× místo 0,5×; brod bez zdržení |
+| Stupeň                     | Co se udělá                                                          | Cena (návrh Clauda)                                       | Rychlost chůze (návrh Clauda)             |
+| -------------------------- | -------------------------------------------------------------------- | --------------------------------------------------------- | ----------------------------------------- |
+| 1. **Vyšlapaná cesta**     | vznikne sama                                                         | –                                                         | 1,2× proti louce                          |
+| 2. **Upravená cesta**      | vyrovnaná, odvodňovací strouha po straně, kameny do bláta a do brodu | **15 člověkodní na 100 m**                                | 1,5×                                      |
+| 3. **Hať a lávka** (po 2.) | povalový chodník přes mokřinu, lávka z kmenů přes potok              | hať **1 strom a 2 čd na 2 m**, lávka **4 stromy a 15 čd** | mokřina 1,5× místo 0,5×; brod bez zdržení |
 
 - **Stupeň 3** jde jen na úseku, který vede mokřinou (rovina podél potoka) nebo brodí potok –
   jinak se nenabízí.
@@ -105,21 +107,68 @@ společné práce vsi; stromy bere jako obydlí (klády z hromady, pak nejbliž�
 
 ## Rozhodnutí
 
-| Rozhodnutí                                                                                   | Kdo          |
-| -------------------------------------------------------------------------------------------- | ------------ |
-| Stromy jen u pevných cest z pomalé složky; růst od keře; stojí, dokud samy neodumřou         | Martin       |
-| Pevnou cestu hráč vybere kurzorem a vylepší                                                  | Martin       |
-| Tři stupně: vyšlapaná → upravená → hať a lávka; efekt rychlejší chůze                        | Martin       |
-| Nezávislé vylepšení: vysazení jabloní podél cesty                                            | Martin       |
-| Roční síť k 1. 11., práh 3 cesty za den 2 roky, zarůstání vyšlapané po 5 letech              | návrh Clauda |
-| Uchycení 10 %/rok po 5 letech cesty, keř 8 let, plný strom 40 let, životy topol/jilm/dub     | návrh Clauda |
-| Ceny a rychlosti stupňů, jabloně po 10 m jako sad na strom                                   | návrh Clauda |
-| Vzdálenost práce chůzí místo vzdušnou čarou, mokřina ×2, brod +30 m                          | návrh Clauda |
+| Rozhodnutí                                                                               | Kdo          |
+| ---------------------------------------------------------------------------------------- | ------------ |
+| Stromy jen u pevných cest z pomalé složky; růst od keře; stojí, dokud samy neodumřou     | Martin       |
+| Pevnou cestu hráč vybere kurzorem a vylepší                                              | Martin       |
+| Tři stupně: vyšlapaná → upravená → hať a lávka; efekt rychlejší chůze                    | Martin       |
+| Nezávislé vylepšení: vysazení jabloní podél cesty                                        | Martin       |
+| Roční síť k 1. 11., práh 3 cesty za den 2 roky, zarůstání vyšlapané po 5 letech          | návrh Clauda |
+| Uchycení 10 %/rok po 5 letech cesty, keř 8 let, plný strom 40 let, životy topol/jilm/dub | návrh Clauda |
+| Ceny a rychlosti stupňů, jabloně po 10 m jako sad na strom                               | návrh Clauda |
+| Vzdálenost práce chůzí místo vzdušnou čarou, mokřina ×2, brod +30 m                      | návrh Clauda |
+| Fáze 1 – rok cest, porovnání s loňskem, připojení a dělení úseků, provoz cesty (níž)     | návrh Clauda |
+| Fáze 1 – místa na stromy, strom jako překážka (kláda od 20 let), cesta přes pole zůstává | návrh Clauda |
+
+## Fáze 1 – jak je postavená
+
+Návrh Clauda (detaily, které návrh výš nechal otevřené – 18. 10. 2026):
+
+- **Rok cest a roční součty práce:** rok cest běží od jedné roční kontroly k další (1. 11. – 31. 10.). Simulace každý den přičte rozdělení práce dne po místech (pole, staveniště, sady,
+  hřbitovy, kácení stromů pro stavby; práce „ve vsi“ ne) a roční síť bere průměr na den. Součty
+  jsou ve stavu vsi, takže nezávisí na tom, po jakých kouscích se ves dopočítá.
+- **Práh a „dva roky po sobě“:** roční síť se počítá stejnou funkcí jako pěšiny dne (voda, dřevo
+  podle průměru roku, sousedé, práce). Úsek osy, kde je síla aspoň síla 3 cest za den (≈ 0,55), je
+  letos nad prahem; pevná cesta vznikne z bodů, které leží do 6 m od loňského úseku nad prahem
+  a nevedou po pevné cestě (do 5 m od její osy – tam jde trasa po cestě). Kratší úsek než 15 m
+  cestou není. Osa se uloží na centimetry a zjednoduší (0,25 m).
+- **Připojení a úseky:** kde nový úsek navazuje na pevnou cestu, připojí se k ní (do 10 m): blízko
+  jejího konce (4 m) přímo do konce, jinak do nejbližšího bodu osy a pevná cesta se tam
+  **rozdělí** na dva úseky (oba si nechají den vzniku, stupeň, provoz a místa na stromy podle
+  polohy). Body osy se tím nemění – cesta se nehýbe. Rozcestí sdílí přesně stejný bod.
+- **Provoz cesty (zarůstání):** medián provozu roční sítě (cest za den) v bodech osy po 3 m (vždy
+  nejvyšší z buněk kolem bodu – trasa vede po cestě nebo těsně vedle); pamatuje se posledních
+  5 let. Když zaroste úsek mezi dvěma jinými, ty se nespojují (rozcestí zůstane).
+- **Sleva za pevnou cestu** v síti dne i v roční síti: buňky pod osou cesty jako plná pěšina
+  (poloviční cena) – pěšiny dne se k cestě stahují. Ve scéně se pěšina dne v pevné cestě ztrácí
+  (do 1,4 m od osy se nekreslí, od 3,2 m plně), pevná cesta se kreslí z dat jako plně vyšlapaná
+  pěšina, volný konec (brána, pole) se vytrácí.
+- **Místa na stromy** (při vzniku úseku, ze seedu vsi a konců úseku): po 12–20 m střídavě vlevo
+  a vpravo 2,5–4 m od osy, ne do 6 m od konců úseku, ne do 2,2 m od osy jiné cesty, aspoň 8 m od
+  jiných míst a stromů, ne v lese a do 6 m od jeho okraje, ne ve vodě, v brodu ani na srázu, ne
+  do 2,5 m od překážky krajiny (kmen, keř, kámen), ne na dílu pole, v sadu, na hřbitově, v háji
+  ani na pozemku (ani 1,5 m kolem), ne do 16 m od obydlí a staveniště, ne u modly a svatyně
+  (+ 3 m), milíře a posvátného dubu (6 m). Volné místo, přes které později povede nová cesta,
+  zmizí; na místě pod pozdější stavbou se strom neuchytí.
+- **Uchycení:** los z seedu vsi, roku a místa – nezávisí na ostatních místech. Druh: dub 50 %,
+  jilm 28 %, topol 22 % (jako stromy podél pěšin). Délka života los v rozmezí druhu.
+- **Strom jako překážka stavby:** keř je keř, strom do 20 let mladý stromek (bez klády), od 20 let
+  dospělý strom (kláda na hromadu), pak souš a pařez – ceny podle tabulky překážek (fields.md).
+  Stromy u cest mají id nad rozsahem vrstvy překážek; stavba je odstraní jako ostatní překážky
+  (cena u kurzoru je stejná v prohlížeči i na serveru). Strom odstraněný stavbou a pařez po
+  20 letech od smrti zmizí ze stavu při roční kontrole.
+- **Cesta přes pole:** když hráč postaví pole přes pevnou cestu, cesta zůstává (kreslí se dál
+  a po ní se chodí) – zrušení cesty stavbou může přijít s fází 2.
+- **Kronika:** „Kudy se chodí léta, vyšlapala se pevná cesta.“ a „Nepoužívaná cesta zarostla.“
+- **Rychlost:** roční kontrola ≈ 6–8 ms (Node, ves 27 lidí, 6 úseků), přeskok 10 let
+  s krajinou ≈ 0,55 s (bez krajiny 0,15 s – rozdíl jsou pěšiny dne i pevné cesty). Stav pevných
+  cest ≈ 3 kB.
 
 ## Na stavitelích
 
-- Výpočet sítě (dnes `apps/web/lib/scene/path-network.ts`, `path-terrain.ts`) se přesune do
-  herního jádra, ať ho volá simulace (roční síť) i scéna (pěšiny dne) – herní logika jednou.
-- Stav vsi dostane pevné cesty, jejich stromy a jabloně a roční součty práce po místech; staré
-  vsi začnou bez pevných cest (vzniknou do dvou let).
-- Pořadí implementace: (1) pevné cesty a stromy, (2) výběr, vylepšení a chůze, (3) jabloně.
+- Výpočet sítě je v herním jádru (`domain/village/paths/`), volá ho simulace (roční síť) i scéna
+  (pěšiny dne) – herní logika jednou. Pevné cesty: `paths/roads.ts`, stromy `road-trees.ts`.
+- Stav vsi má pevné cesty, jejich stromy a roční součty práce po místech; staré vsi začnou bez
+  pevných cest (vzniknou do dvou let). Jabloně přibudou s fází 3.
+- Pořadí implementace: (1) pevné cesty a stromy – **hotovo**, (2) výběr, vylepšení a chůze,
+  (3) jabloně.

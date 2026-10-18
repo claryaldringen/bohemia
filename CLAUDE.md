@@ -750,20 +750,55 @@ rozhraní částí v
   nezávisí na jejím stavu; `withObstacles` – kmeny, keře, balvany, výchozy), `network.ts`
   (`computePathNetwork(PathVillage)` – cesty domácností pro vodu a dřevo každá zvlášť s napojením
   na pěšinu souseda, do cílů podle práce dne + základ zavedených míst, k sousedům; 2 kola,
-  vyšlapané buňky hned zlevní; síla `pathStrength` (odmocnina provozu), stáří obydlí →
-  `pathAgeFactor`; vyhlazené čáry se sílou a stářím v bodech; `PathVillage` splňuje
-  `SceneVillage`), `walking.ts` (`walkGraph`, `walkingDistances` – vzdálenost chůze, po pěšině
+  vyšlapané buňky hned zlevní; buňky pod pevnou cestou (`PathVillage.roads`) od začátku jako plná
+  pěšina – trasy se k ní stahují; síla `pathStrength` (odmocnina provozu), stáří obydlí →
+  `pathAgeFactor`; vyhlazené čáry se sílou a stářím v bodech, provoz po buňkách `traffic.raw`;
+  `annual: true` = roční provoz; `PathVillage` splňuje `SceneVillage`), `walking.ts` (`walkGraph`, `walkingDistances` – vzdálenost chůze, po pěšině
   `PATH_WALK` rychleji, nikdy víc než rovně – čistá funkce pro každého, kdo měří cestu na pole)
-  a `village.ts` (`pathVillageOf` ze stavu vsi jako scéna, `refreshWalkDistances` – den po dni
-  v `simulateDay` při změně `walkLayoutKey`, jen s krajinou → `FieldPart.walkDistanceM`, práce
-  přes `partWalkDistance` v `year-plan.ts` a `field-progress.ts`). Scéna `path-renderer.ts`
-  (`VillagePaths` v `LandscapeScene`: přepočet jen při změně `pathNetworkKey`, odloženě) –
-  obtisky `paths-worn` / `paths-earth` z `path-ribbon.ts` **nad** obtisky polí a vsi (alphaIndex
-  3 / 3,5, lift 0,05 / 0,055, zOffset −3,5 / −4; přes osetý díl úzká stopa), sníh přes
-  `applySeasonGround` (0,55 – stopa prosvítá); stromy `path-trees.ts` (meshe `pathside-<model>`,
-  nikdy na dílu pole). Postavy: `path-router.ts` (trasa s tempem úseků) →
-  `VillagerPaths.route` → `route(points, pace)` – `shuttle` jde po pěšině rychleji. Vývojová
-  stránka: tlačítka **Pěšiny**, **Provoz** (teplotní mapa) a **Stáří**.
+  a `village.ts` (`pathVillageOf` ze stavu vsi jako scéna i s pevnými cestami, `refreshWalkDistances`
+  – den po dni v `simulateDay` při změně `walkLayoutKey` (i pevné cesty), jen s krajinou →
+  `FieldPart.walkDistanceM`, práce přes `partWalkDistance` v `year-plan.ts` a `field-progress.ts`).
+  Scéna `path-renderer.ts` (`VillagePaths` v `LandscapeScene`: přepočet jen při změně
+  `pathNetworkKey`, odloženě) – obtisky `paths-worn` / `paths-earth` z `path-ribbon.ts` **nad**
+  obtisky polí a vsi (alphaIndex 3 / 3,5, lift 0,05 / 0,055, zOffset −3,5 / −4; přes osetý díl
+  úzká stopa; v pevné cestě se pěšina dne ztrácí – `roadFade`), sníh přes `applySeasonGround`
+  (0,55 – stopa prosvítá). Pěšiny dne stromy nemají (stromy jsou jen u pevných cest – níž).
+  Postavy: `path-router.ts` (trasa s tempem úseků) → `VillagerPaths.route` →
+  `route(points, pace)` – `shuttle` jde po pěšině rychleji. Vývojová stránka: tlačítka
+  **Pěšiny**, **Cesta** (ukázka pevné cesty se stromy v každém stadiu – `dev-road.ts`), **Provoz**
+  (teplotní mapa) a **Stáří**.
+- **Pevné cesty a stromy u nich** ([docs/design/roads.md](docs/design/roads.md) – fáze 1; výběr,
+  vylepšení a chůze podle stupně = fáze 2, jabloně = fáze 3): simulace vsi (server) – modul
+  `domain/village/paths/roads.ts` (deterministická vrstva jako pěšiny), z `simulateDay` jediné
+  volání `roadsDay` na konci dne (jen s krajinou; bez ní – kalibrace – žádné cesty). Stav
+  `VillageState.roads` (volitelný – starší vsi začnou sčítat při prvním dopočtu): úseky `Road`
+  (id, osa na cm, den vzniku, stupeň `RoadGrade` – zatím jen `trodden`, provoz posledních 5 let,
+  místa na stromy `spots` určená jednou při vzniku), stromy `RoadTree` (id od `ROAD_TREE_ID_BASE`
+  nad id vrstvy překážek, místo, poloha, druh, den uchycení a smrti), loňské úseky nad prahem
+  `candidates` a práce roku cest po místech `labor` (od 1. 11., z rozdělení práce dne). Roční
+  kontrola 1. 11. (`updateRoads`): roční síť `annualPathNetwork` (stejná `computePathNetwork`,
+  průměrné člověkodny na den, sleva za pevné cesty) → provoz cest (`roadTraffic` – medián
+  `traffic.raw` po ose) a zarůstání vyšlapané cesty (5 let pod polovinou prahu) → nové cesty
+  z úseků nad prahem (`ROADS.tripsPerDay`), které leží i na loňských (`MATCH_M`) a nevedou po
+  pevné cestě; konec se připojí k pevné cestě a ta se v rozcestí rozdělí (`splitRoad`) – osa se
+  jinak nikdy nemění → místa na stromy (`roadTreeSpots`, `plantingBlocker` – ne ve vsi, na
+  čtvercích, v lese, ve vodě, u překážek krajiny) → konec pařezů a stromy odstraněné stavbou →
+  uchycení (10 % ročně, los ze seedu vsi, roku a místa). Čísla v `rules.ts` (`ROADS`,
+  `ROAD_TREES`). Stadium stromu jen ze dne (`road-trees.ts`: `roadTreeLook` – keř, strom
+  s velikostí, souš, pařez; `roadTreeObstacleKind`). **Strom u cesty je překážka stavby:**
+  `obstacleChangesAt` ho dá do `ObstacleChanges.added`, `obstacleStatus(...).addedIn` a tally
+  funkce (`cellObstacles`, `polygonObstacles`, `polygonsObstacles`) ho počítají jako překážky
+  vrstvy (dospělý strom od 20 let dá kládu, mladší je mladý stromek) – stejná cena u kurzoru
+  v prohlížeči (`placementVillageFromScene` bere `scene.obstacles`) i na serveru; odstraněný se
+  zapíše do `clearedObstacles`. Na dřevo se nekácí (nejsou ve vrstvě – `nearestMatureTrees` je
+  nevidí). Kronika `road-formed`, `road-overgrown`. Web: `SceneVillage.roads` (`SceneRoad`)
+  a `roadTrees` (`SceneRoadTree` – stadium a velikost po dvacetinách z `sceneRoadTrees`), typy
+  odvozené z jádra. Scéna `path-renderer.ts`: pevné cesty z dat (`roadLines` v `path-ribbon.ts`
+  – plně vyšlapaná pěšina `roads-worn` / `roads-earth`, volný konec se vytrácí, přestaví se jen
+  při změně `roadsKey`), stromy z dat (`path-trees.ts`: `roadsideInstance` – keř `shrub-*`
+  z dekorací, strom podle druhu z `ROAD_TREE_MODELS`, souš `snag-*` / `snag-oak`, pařez `stump`;
+  meshe `pathside-<model>` – roční období a stíny jako stromy krajiny; přestaví se jen při změně
+  `roadTreesKey`).
 - **Ohrada s přístřeškem** ([oxen.md](docs/design/oxen.md); zatím jen modely a ukázka
   **Ohrada** na `/dev/buildings`, pravidla ne): přístřešek s pultovou doškovou střechou, jesle,
   žlab a branka ze žerdí z `tools/blender/pen.py` (`models/pen/pen.glb`, díly staveniště
