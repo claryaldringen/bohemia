@@ -297,3 +297,32 @@ describe('villageNotices – řemesla (crafts.md)', () => {
     ]);
   });
 });
+
+describe('newNotices – obnova a konec sadu (orchard.md – Obnova sadu)', () => {
+  const entry = (
+    day: number,
+    kind: 'orchard-renewal-started' | 'orchard-gone',
+  ): VillageView['chronicle'][number] => ({ day, kind, dateLabel: '', text: '' });
+
+  it('vesničané začali obnovovat starý sad – fakt jednou, při prvním načtení nic', () => {
+    const before = view({ dayIndex: 1000 });
+    const after = view({ dayIndex: 1003, chronicle: [entry(1001, 'orchard-renewal-started')] });
+    expect(newNotices(null, after)).toEqual([]);
+    expect(newNotices(before, after)).toEqual([
+      { kind: 'orchard-renewal', tone: 'info', text: 'Vesničané obnovují starý sad' },
+    ]);
+    expect(newNotices(after, after)).toEqual([]);
+    // trvalá upozornění se o sadu nezmiňují
+    expect(villageNotices(after)).toEqual([]);
+  });
+
+  it('starý sad dosloužil – krátký řádek', () => {
+    const after = view({
+      dayIndex: 1400,
+      chronicle: [entry(1366, 'orchard-gone'), entry(1001, 'orchard-renewal-started')],
+    });
+    expect(newNotices(view({ dayIndex: 1300 }), after)).toEqual([
+      { kind: 'orchard-gone', tone: 'warn', text: 'Starý sad dosloužil' },
+    ]);
+  });
+});

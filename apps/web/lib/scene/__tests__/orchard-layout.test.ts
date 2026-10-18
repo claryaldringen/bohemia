@@ -7,6 +7,7 @@ import {
   orchardTreeSpots,
   plantingPhase,
   plantingProgress,
+  stakedSquares,
 } from '../orchard-layout';
 
 const square = { cell: { x: 4, y: 7 }, x: 30, z: -15, size: 15 };
@@ -74,5 +75,24 @@ describe('jabloně ve čtverci', () => {
     expect(plantingProgress(0.25, TREES_PER_SQUARE)).toEqual({ stakes: 2, saplings: 0 });
     expect(plantingPhase(0.2).label).toBe('Kůly');
     expect(plantingPhase(0.8).label).toBe('Sazenice');
+  });
+});
+
+describe('vytyčení sadu – výsadba a obnova (orchard.md – Obnova sadu)', () => {
+  const at = (x: number, planting: number, renewal?: true) => ({
+    cell: { x, y: 0 },
+    planting,
+    ...(renewal ? { renewal } : {}),
+  });
+
+  it('výsadba vytyčí celý sad, dokud se nedosází; vysazený sad nic', () => {
+    const planting = [at(0, 1), at(1, 0.4), at(2, 0)];
+    expect(stakedSquares(planting)).toEqual(planting);
+    expect(stakedSquares([at(0, 1), at(1, 1)])).toEqual([]);
+  });
+
+  it('obnova vytyčí jen čtverce, které se sázejí znovu – staré stromy stojí dál', () => {
+    const renewing = [at(0, 1), at(1, 0.3, true), at(2, 1), at(3, 0, true)];
+    expect(stakedSquares(renewing).map((s) => s.cell.x)).toEqual([1, 3]);
   });
 });

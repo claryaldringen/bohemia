@@ -4,8 +4,9 @@ import type { VillageView } from './village-view';
 // Upozornění vsi (population.md – Co hráč vidí): plná domácnost, ves hladoví, lidé umírají hlady
 // (Hlad a vymření), stavby stojí, hřbitov je plný (cemetery.md), vesničané ušetřili posvátný dub
 // nebo dubový háj (happiness.md – jen když přibude), kovář nemá uhlí a dílna nemá co kácet
-// (crafts.md), podzimní porážka (diet.md) a spřežení volů – vycvičené, dosloužilo, vůl uhynul
-// pro nedostatek sena (oxen.md – nové události kroniky). Vymřelá ves žádná nemá.
+// (crafts.md), podzimní porážka (diet.md), spřežení volů – vycvičené, dosloužilo, vůl uhynul
+// pro nedostatek sena (oxen.md) – a vesničané obnovují starý sad a starý sad dosloužil
+// (orchard.md – Obnova sadu) – nové události kroniky. Vymřelá ves žádná nemá.
 // Odvozují se z pohledu na ves a ukážou se jednou, když nově vzniknou – jako krátký mizející
 // řádek nahoře uprostřed (jako oznámení v 0 A.D.). Jen fakt, žádná rada.
 
@@ -22,7 +23,9 @@ export type NoticeKind =
   | 'slaughter'
   | 'team-ready'
   | 'team-retired'
-  | 'ox-died';
+  | 'ox-died'
+  | 'orchard-renewal'
+  | 'orchard-gone';
 
 export interface VillageNotice {
   kind: NoticeKind;
@@ -77,7 +80,10 @@ export function newNotices(previous: VillageView | null, next: VillageView): Vil
   return notices;
 }
 
-/** Události kroniky, které se ohlásí jako fakt (diet.md, oxen.md) – nejvýš jednou za druh. */
+/**
+ * Události kroniky, které se ohlásí jako fakt (diet.md, oxen.md, orchard.md – Obnova sadu) – nejvýš
+ * jednou za druh.
+ */
 type ChronicleEntry = VillageView['chronicle'][number];
 
 const CHRONICLE_NOTICES: Partial<
@@ -94,6 +100,12 @@ const CHRONICLE_NOTICES: Partial<
   'team-ready': () => ({ kind: 'team-ready', tone: 'info', text: 'Spřežení je vycvičené' }),
   'team-retired': () => ({ kind: 'team-retired', tone: 'info', text: 'Spřežení dosloužilo' }),
   'ox-died': () => ({ kind: 'ox-died', tone: 'warn', text: 'Vůl uhynul – chybělo seno' }),
+  'orchard-renewal-started': () => ({
+    kind: 'orchard-renewal',
+    tone: 'info',
+    text: 'Vesničané obnovují starý sad',
+  }),
+  'orchard-gone': () => ({ kind: 'orchard-gone', tone: 'warn', text: 'Starý sad dosloužil' }),
 };
 
 /** Nové události kroniky od předchozího pohledu (den po něm), které se ohlásí jako fakt. */

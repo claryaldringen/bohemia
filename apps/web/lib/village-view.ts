@@ -407,7 +407,9 @@ export interface SceneVillage {
   /**
    * Jabloňové sady po čtvercích (střed políčka ve světě a strana jako u pole): průběh výsadby
    * čtverce 0–1, velikost stromů 0–1 (mladé stromky rostou – orchard-look.ts) a jestli na
-   * stromech visí jablka (pozdní léto a podzim, než se sklidí). Bez údaje žádné.
+   * stromech visí jablka (pozdní léto a podzim, než se sklidí). Velikost a jablka jsou po
+   * čtvercích – obnovený čtverec má mladé stromky, zbytek sadu staré (orchard.md – Obnova sadu).
+   * Bez údaje žádné.
    */
   orchards?: {
     id: number;
@@ -419,6 +421,11 @@ export interface SceneVillage {
       planting: number;
       growth: number;
       fruit: boolean;
+      /**
+       * Čtverec obnovy, který se sází znovu (staré stromy jsou skácené) – vytyčuje se jen on,
+       * ne celý sad. U ostatních čtverců chybí.
+       */
+      renewal?: true;
     }[];
   }[];
   /**
@@ -653,6 +660,8 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
         : 'Přes zimu chybělo seno – vůl uhynul a spřežení se rozpadlo.';
     case 'orchard-gone':
       return 'Starý sad dosloužil a zarostl loukou.';
+    case 'orchard-renewal-started':
+      return `Vesničané obnovují starý sad – znovu vysadí ${formatCells(event.squares)}.`;
     case 'hunger-began':
       return 'Ve vsi začal hlad – zásoby nevystačí do sklizně.';
     case 'hunger-ended':
@@ -982,6 +991,8 @@ function sceneOrchardSquare(
     planting,
     growth,
     fruit,
+    // obnova: staré stromy skácené, čtverec se sází znovu (orchard.md – Obnova sadu)
+    ...(square.renewal !== undefined && planted === null ? { renewal: true as const } : {}),
   };
 }
 

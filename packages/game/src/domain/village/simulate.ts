@@ -176,7 +176,8 @@ function simulateDay(
   // pokrytí výrobky řemeslníků ze včerejších zásob – meze produktivity celého dne (crafts.md)
   const coverage = craftCoverage(state, day);
   rotLogs(state);
-  // sady: shnilá jablka, konec péče a stárnutí (1. 3.), začátek a konec sklizně a péče
+  // sady: shnilá jablka, konec péče a stárnutí (1. 3.), začátek a konec sklizně a péče, obnova
+  // starých čtverců v oknech výsadby (stavba ze společné práce – dostane práci už dnes)
   state.chronicle.push(...orchardSeasonDay(state, day, coverage.pottery));
   // stáda, seno a ohrady: mláďata, seč, porážka, vejce, zimní krmení, spřežení (diet.md, oxen.md)
   state.chronicle.push(...husbandryDay(state, day, coverage.tools));
@@ -733,8 +734,8 @@ function isFinished(state: VillageState, c: Construction, founding: FoundingInde
 }
 
 /**
- * Krok 4: dokončené stavby – nové obydlí, přestavěné obydlí, založené pole, vysazený sad
- * a pohřebiště. První zemnice dostane id domácnosti zakladatelů (`dwellingId` stavby) – ti už
+ * Krok 4: dokončené stavby – nové obydlí, přestavěné obydlí, založené pole, vysazený (obnovený)
+ * sad a pohřebiště. První zemnice dostane id domácnosti zakladatelů (`dwellingId` stavby) – ti už
  * v ní bydlí, nikdo se nestěhuje. Do jiného nového obydlí se stěhuje mladý pár; když žádný není,
  * osídlí ho ještě týž den dospělé děti z přeplněné domácnosti (krok 6).
  */
@@ -747,7 +748,8 @@ function finishConstructions(state: VillageState, day: number): void {
       continue;
     }
     if (c.kind === 'field' || c.kind === 'orchard') {
-      state.chronicle.push(finishedEvent(day, c, null));
+      // obnova sadu má zápis v kronice při zahájení (orchard.md – Obnova sadu)
+      if (!c.renewal) state.chronicle.push(finishedEvent(day, c, null));
       continue;
     }
     if (c.kind === 'cemetery') {
