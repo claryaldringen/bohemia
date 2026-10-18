@@ -6,7 +6,10 @@ Celé jedním příkazem z kořene repa (Blender 5, ImageMagick `magick`, intern
 
 Výstup (128 × 128 PNG, průhledné rohy) – `build/` zemnice, polozemnice, pole, hrbitov,
 hrncir, kovar, uhlir (řemeslné dílny z `apps/web/public/models/crafts/`, uhlíř s milířem), sad
-(jabloňový sad); (64 × 64 PNG) – `resources/` people, food, wood, labor, satiation, date, apples.
+(jabloňový sad), modla, svatyne (posvátná místa z `apps/web/public/models/sacred/`), dub
+(posvátný dub s obětinami) a haj (dubový háj s kameny) – portréty do panelu výběru;
+(64 × 64 PNG) – `resources/` people, food, wood, labor, satiation, date, apples, happiness
+(štěstí – plamen ohniště nad zkříženými poleny v kruhu kamenů).
 Bez druhého argumentu vše, jinak čárkami oddělený výběr (např. `pole,hrbitov,food`).
 
 Postup: portréty staveb a ikony `food`, `wood`, `labor`, `satiation`, `date`, `apples` se vyrenderují v Cycles
@@ -37,6 +40,8 @@ ONLY = set(args[1].split(",")) if len(args) > 1 and args[1] else None
 ROOT = os.getcwd()
 MODELS = os.path.join(ROOT, "apps/web/public/models/dwellings")
 CRAFTS = os.path.join(ROOT, "apps/web/public/models/crafts")
+SACRED = os.path.join(ROOT, "apps/web/public/models/sacred")
+TREES = os.path.join(ROOT, "apps/web/public/models/trees")
 TEX = os.path.join(ROOT, "apps/web/public/textures/terrain")
 TMP = tempfile.mkdtemp(prefix="bohemia-icons-")
 RES = 256
@@ -473,6 +478,56 @@ def icon_sad():
     camera(world_points(objs), az=16, el=40, margin=1.03)
 
 
+def icon_modla():
+    """Dřevěná modla (tools/blender/sacred.py) zepředu a trochu shora – tváře, čepice, obětiny."""
+    objs = place_model("idol", folder=SACRED)
+    ground(4.2, mat("g", tex=f"{TEX}/grass-dirt.jpg", scale=0.3, tint=(0.8, 0.74, 0.6)), z=-0.01, fade=0.6)
+    sun(az=-25, el=36, strength=4.6)
+    camera([Vector((-1.0, -1.1, 0.0)), Vector((1.0, 0.4, 0.0)), Vector((0, 0, 2.95))], az=14, el=18, margin=1.0, shift=(0, 0.0))
+
+
+def icon_svatyne():
+    """Svatyně podle Perynu shora – osm výběžků příkopu s ohništi, modla uprostřed."""
+    objs = place_model("shrine", folder=SACRED)
+    ground(22, mat("g", tex=f"{TEX}/grass-dirt.jpg", scale=0.08, tint=(0.8, 0.74, 0.6)), z=-0.01, fade=0.7)
+    sun(az=-50, el=50)
+    camera([Vector((-15, -15, 0)), Vector((15, 15, 0)), Vector((15, -15, 0)), Vector((-15, 15, 0)), Vector((0, 0, 4.5))], az=20, el=56, margin=0.92)
+
+
+def oak_tree(name, loc=(0, 0, 0), rot=0.0, scale=1.0):
+    objs = place_model(name, folder=TREES)
+    for o in objs:
+        o.location = Vector(loc)
+        o.rotation_euler = (0, 0, rot)
+        o.scale = (scale, scale, scale)
+    return objs
+
+
+def icon_dub():
+    """Posvátný dub: kmen a spodní větve velkého dubu, u paty kruh kamenů, stužky na pahýlu."""
+    objs = oak_tree("oak-large-1", rot=0.4) + place_model("oak-offerings", folder=SACRED)
+    ground(16, mat("g", tex=f"{TEX}/grass-lush.jpg", scale=0.12, tint=(0.8, 0.85, 0.65)), z=0.0, fade=0.65)
+    sun(az=-50, el=46)
+    camera([Vector((-4.0, -3.0, 0)), Vector((4.0, 2.5, 0)), Vector((0, 0, 8.5))], az=24, el=16, margin=1.0)
+
+
+def icon_haj():
+    """Dubový háj: několik dubů pohromadě, na okraji kamenný oltář a hraniční kameny."""
+    objs = []
+    for (x, y, v, r) in ((-6, 3, 1, 0.3), (-1, 8, 2, 1.6), (5, 5, 3, 2.9), (7, -1, 1, 4.1), (0, 1, 2, 5.3), (-7, 9, 3, 0.9)):
+        objs += oak_tree(f"oak-large-{v}", (x, y, 0), r, 0.75)
+    stones = place_model("grove-stones", folder=SACRED)
+    spots = {"altar": (0.5, -5.5, 0.2), "stone-a": (-4.2, -5.0, 0.4), "stone-b": (4.2, -5.8, 1.0)}
+    for o in stones:
+        x, y, r = spots.get(o.name.split(".")[0], (0, -6, 0))
+        o.location = (x, y, 0)
+        o.rotation_euler = (0, 0, r)
+        o.scale = (2.2, 2.2, 2.2)
+    ground(20, mat("g", tex=f"{TEX}/grass-lush.jpg", scale=0.1, tint=(0.8, 0.85, 0.65)), z=0.0, fade=0.7)
+    sun(az=-50, el=46)
+    camera([Vector((-10, -8, 0)), Vector((10, 10, 0)), Vector((0, 0, 15))], az=18, el=26, margin=0.96)
+
+
 # --------------------------------------------------------------- suroviny ----
 
 
@@ -674,6 +729,56 @@ def apple_skin():
     return m
 
 
+def flame(bm, base, height, radius, tilt=(0.0, 0.0), seg=14, rings=10):
+    """Jazyk plamene: kapka zúžená nahoru do špičky, prohnutá podle tilt."""
+    verts = []
+    for j in range(rings + 1):
+        t = j / rings
+        r = radius * math.sin(math.pi * min(1.0, t * 1.15)) ** 0.7 * (1 - t) ** 0.35 if j < rings else 0.0
+        z = height * t
+        off = Vector((tilt[0] * t * t, tilt[1] * t * t, 0)) * height
+        ring = [bm.verts.new(Vector(base) + off + Vector((math.cos(2 * math.pi * i / seg) * r, math.sin(2 * math.pi * i / seg) * r, z))) for i in range(seg)]
+        verts.append(ring)
+    for a, b in zip(verts, verts[1:]):
+        for i in range(seg):
+            k = (i + 1) % seg
+            bm.faces.new((a[i], a[k], b[k], b[i]))
+    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-5)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+
+
+def glow_mat(name, color, strength):
+    m = mat(name, color, 0.9)
+    b = next(n for n in m.node_tree.nodes if n.type == "BSDF_PRINCIPLED")
+    b.inputs["Emission Color"].default_value = (*color, 1)
+    b.inputs["Emission Strength"].default_value = strength
+    return m
+
+
+def icon_happiness():
+    """Štěstí: plamen ohniště nad zkříženými poleny v kruhu kamenů – teplo domova
+    (snop je jídlo, slunce datum)."""
+    logs, stones, outer, inner = bmesh.new(), bmesh.new(), bmesh.new(), bmesh.new()
+    for k in range(3):
+        a = math.pi * k / 3 + 0.3
+        d = Vector((math.cos(a), math.sin(a), 0))
+        cyl(logs, (-d * 0.62 + Vector((0, 0, 0.1)))[:], (d * 0.62 + Vector((0, 0, 0.1 + 0.06 * k)))[:], 0.11, 0.1, 10)
+    for k in range(9):
+        a = 2 * math.pi * k / 9
+        blob(stones, ((math.cos(a) * 0.82, math.sin(a) * 0.82, 0.06), (0, 0, a)), (0.17, 0.13, 0.12), 10, 6)
+    flame(outer, (0, 0, 0.12), 1.15, 0.36)
+    flame(outer, (0.18, 0.05, 0.1), 0.7, 0.2, tilt=(0.25, 0.05))
+    flame(outer, (-0.17, -0.06, 0.1), 0.78, 0.21, tilt=(-0.22, -0.05))
+    flame(inner, (0, -0.05, 0.12), 0.62, 0.2)
+    to_obj(logs, "logs", mat("log", (0.24, 0.15, 0.08), 0.9, noise=26, bump=0.4))
+    to_obj(stones, "stones", mat("stone", (0.42, 0.41, 0.38), 0.95, noise=18, bump=0.6))
+    to_obj(outer, "flame", glow_mat("flame", (1.0, 0.36, 0.04), 2.2))
+    to_obj(inner, "core", glow_mat("core", (1.0, 0.78, 0.25), 3.5))
+    sun(az=-40, el=50, strength=3.5)
+    camera([Vector((-1.0, -1.0, 0)), Vector((1.0, 1.0, 1.35))], az=0, el=20, margin=1.04)
+    return True
+
+
 def icon_apples():
     """Tři červená jablka se stopkou, jedno s lístkem."""
     skin, stems, leaf = bmesh.new(), bmesh.new(), bmesh.new()
@@ -702,6 +807,10 @@ BUILD = {
     "kovar": lambda: icon_craft("kovar"),
     "uhlir": lambda: icon_craft("uhlir"),
     "sad": icon_sad,
+    "modla": icon_modla,
+    "svatyne": icon_svatyne,
+    "dub": icon_dub,
+    "haj": icon_haj,
 }
 RESOURCES = {
     "food": icon_food,
@@ -710,6 +819,7 @@ RESOURCES = {
     "satiation": icon_satiation,
     "date": icon_date,
     "apples": icon_apples,
+    "happiness": icon_happiness,
 }
 
 
