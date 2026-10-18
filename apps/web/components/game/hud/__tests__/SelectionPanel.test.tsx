@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import type { SelectionDetails } from '@/lib/selection-details';
 import type { BuildOption } from '@/lib/village-view';
+import { JourneyBanner, LeaveCompass } from '../RelocationControls';
 import { SelectionPanel } from '../SelectionPanel';
 
 // Panel ohrady (oxen.md – Co hráč vidí): zvířata, seno, stáda, spřežení a výcvik. Posvátný dub
@@ -164,6 +165,7 @@ describe('SelectionPanel – rodiny v obydlí', () => {
       relocation: null,
       relocate: null,
       manor: null,
+      leave: null,
     });
     expect(text(html, 'selection-family-man')).toBe('2');
     expect(text(html, 'selection-family-woman')).toBe('2');
@@ -204,6 +206,7 @@ const dwelling = (
   relocation: null,
   relocate,
   manor: null,
+  leave: null,
   ...over,
 });
 
@@ -257,6 +260,7 @@ describe('SelectionPanel – přestěhování domácnosti', () => {
       people: 14,
       relocatable: [1, 3],
       relocate,
+      leave: null,
     });
     expect(html).toContain('data-kind="dwellings"');
     expect(html).toContain('Obydlí (3)');
@@ -276,6 +280,7 @@ describe('SelectionPanel – přestěhování domácnosti', () => {
       people: 9,
       relocatable: [],
       relocate: null,
+      leave: null,
     });
     expect(html).not.toContain('data-testid="relocate-zemnice"');
     expect(button(html, 'leave-village')).toContain('disabled');
@@ -355,5 +360,49 @@ describe('SelectionPanel – opuštěné stavby (abandonment.md)', () => {
     const html = render(cemetery);
     expect(html).toContain('Plot – stav');
     expect(html).toMatch(/text-red-400[^>]*>0 %/);
+  });
+});
+
+// Odchod do nové vsi (migration.md – fáze 3 a 4): tlačítko Odejít a růžice odchodu.
+describe('SelectionPanel – odchod do nové vsi', () => {
+  const leave = {
+    households: [3],
+    people: 4,
+    foodKg: 50,
+    directions: [
+      { direction: 'N' as const, days: 2, blocked: null },
+      { direction: 'E' as const, days: 1, blocked: 'Tím směrem leží tvoje ves Budeč.' },
+    ],
+  };
+
+  it('domácnost může odejít – Odejít je aktivní (růžice se otevře klikem)', () => {
+    const html = render(dwelling({ leave }));
+    expect(button(html, 'leave-village')).toBeDefined();
+    expect(button(html, 'leave-village')).not.toContain(' disabled=""');
+    expect(html).not.toContain('data-testid="leave-compass"');
+  });
+
+  it('růžice: na téže mapě a na novou mapu, tam, kde leží vlastní ves, zašedlé s důvodem', () => {
+    const html = renderToStaticMarkup(<LeaveCompass leave={leave} onLeave={() => undefined} />);
+    expect(button(html, 'leave-here')).not.toContain(' disabled=""');
+    expect(button(html, 'leave-N')).not.toContain(' disabled=""');
+    expect(button(html, 'leave-E')).toContain(' disabled=""');
+    expect(html).toContain('Tím směrem leží tvoje ves Budeč.');
+    // v popisku lidé, jídlo s sebou a dny cesty
+    expect(html).toMatch(/Odejít na sever – nová mapa.*>4<.*50 kg.*2 dny/);
+    // směry bez údaje (jen hotové v pohledu) se nekreslí
+    expect(html).not.toContain('data-testid="leave-W"');
+  });
+
+  it('řádek lidí na cestě – kam a kdy dorazí, po příjezdu výzva k zemnici', () => {
+    const travelling = renderToStaticMarkup(
+      <JourneyBanner journey={{ direction: 'S', arrivalDay: 10, arrived: false, daysLeft: 2 }} />,
+    );
+    expect(travelling).toContain('Lidé jsou na cestě na jih – dorazí za 2 dny');
+    const arrived = renderToStaticMarkup(
+      <JourneyBanner journey={{ direction: 'S', arrivalDay: 10, arrived: true, daysLeft: 0 }} />,
+    );
+    expect(arrived).toContain('data-arrived="true"');
+    expect(arrived).toContain('umísti první zemnici');
   });
 });

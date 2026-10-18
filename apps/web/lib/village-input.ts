@@ -8,6 +8,7 @@ import {
   type TradeGood,
   type TradeGoods,
   type DwellingPlot,
+  type LeaveDestination,
   type BuildableDwellingType,
   type Position,
   type SacredBuildingKind,
@@ -273,4 +274,45 @@ export function parseCancelRelocationInput(value: unknown): { constructionId: nu
   if (!isRecord(value)) return null;
   const constructionId = parsePositiveInt(value.constructionId);
   return constructionId !== null ? { constructionId } : null;
+}
+
+/** Nejvíc obydlí v jednom odchodu, které server vůbec přijme. */
+const MAX_LEAVING_DWELLINGS = 200;
+
+/**
+ * Vstup odchodu do nové vsi (migration.md) `{ dwellingIds, destination }` – `destination` je
+ * `{ kind: 'here', dwelling: { x, z, rotation } }` (první zemnice na téže mapě), nebo
+ * `{ kind: 'map', direction }` (nová mapa ve směru); jinak null.
+ */
+export function parseLeaveVillageInput(
+  value: unknown,
+): { dwellingIds: number[]; destination: LeaveDestination } | null {
+  if (!isRecord(value) || !Array.isArray(value.dwellingIds)) return null;
+  if (value.dwellingIds.length === 0 || value.dwellingIds.length > MAX_LEAVING_DWELLINGS) {
+    return null;
+  }
+  const dwellingIds: number[] = [];
+  for (const id of value.dwellingIds) {
+    const parsed = parsePositiveInt(id);
+    if (parsed === null) return null;
+    dwellingIds.push(parsed);
+  }
+  const destination = value.destination;
+  if (!isRecord(destination)) return null;
+  if (destination.kind === 'here') {
+    const dwelling = parsePosition(destination.dwelling);
+    return dwelling ? { dwellingIds, destination: { kind: 'here', dwelling } } : null;
+  }
+  if (destination.kind === 'map') {
+    const direction = parseDirection(destination.direction);
+    return direction ? { dwellingIds, destination: { kind: 'map', direction } } : null;
+  }
+  return null;
+}
+
+/** Vstup založení vsi po příjezdu na novou mapu `{ dwelling: { x, z, rotation } }`, jinak null. */
+export function parseSettleJourneyInput(value: unknown): { dwelling: Position } | null {
+  if (!isRecord(value)) return null;
+  const dwelling = parsePosition(value.dwelling);
+  return dwelling ? { dwelling } : null;
 }

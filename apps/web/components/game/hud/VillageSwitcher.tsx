@@ -9,9 +9,17 @@ import { Tooltip } from './Tooltip';
 // seznam vsí hráče (jméno a lidé), klik na ves ji přepne. Přejmenování dvojklikem na jméno nebo
 // ikonou tužky vedle něj (návrh Clauda) – Enter uloží, Esc zruší.
 
+/** Stav vsi v seznamu – žije, na cestě, opuštěná, vymřelá (pro testy a vzhled). */
+function villageState(village: VillageListItem): string {
+  if (village.extinct) return 'extinct';
+  if (village.abandoned) return 'abandoned';
+  if (village.travelling) return 'travelling';
+  return 'living';
+}
+
 /**
  * Seznam vsí hráče pod jménem vsi: jméno a lidé (ikona s číslem), vybraná ves označená, vymřelá
- * zašedlá. Klik na jinou ves ji přepne.
+ * a opuštěná zašedlá, lidé na cestě s poznámkou (migration.md). Klik na jinou ves ji přepne.
  */
 export function VillageList({
   villages,
@@ -38,14 +46,19 @@ export function VillageList({
             role="option"
             aria-selected={current}
             data-village={village.id}
+            data-state={villageState(village)}
             className="flex"
           >
             <button
               type="button"
               onClick={() => onSelect(village)}
-              className={`flex flex-1 items-center justify-between gap-3 rounded px-2 py-1 text-left hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-[#f3cf86] ${current ? 'bg-white/10 text-[#ffe9b8]' : 'text-[#f3dfb0]'} ${village.extinct ? 'opacity-50' : ''}`}
+              className={`flex flex-1 items-center justify-between gap-3 rounded px-2 py-1 text-left hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-[#f3cf86] ${current ? 'bg-white/10 text-[#ffe9b8]' : 'text-[#f3dfb0]'} ${village.extinct || village.abandoned ? 'opacity-50' : ''}`}
             >
               <span className="truncate font-serif text-base">{village.name}</span>
+              {village.travelling && (
+                <span className="text-xs text-[#bfa77a] italic">na cestě</span>
+              )}
+              {village.abandoned && <span className="text-xs text-[#bfa77a] italic">opuštěná</span>}
               <span className="flex items-center gap-1 text-sm font-semibold tabular-nums">
                 <img src="/icons/resources/people.png" alt="Lidé" width={18} height={18} />
                 <span data-testid="village-list-people">{village.people}</span>

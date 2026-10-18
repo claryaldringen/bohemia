@@ -8,6 +8,7 @@ import {
   villageGoodStock,
   checkDwellingPlacement,
   checkPlotPlacement,
+  freeVillageSite,
   fieldPartsFromCells,
   generateLandscapeAttempt,
   orchardPartsFromCells,
@@ -886,4 +887,166 @@ test('ves postaví ve dvorci zemskou stezku a pošle po ní výpravu k sousedovi
   const sent = await villageState(s.settlementId);
   expect(sent.trade!.expeditions[0]).toMatchObject({ direction, get: { [want]: 1 } });
   expect(sent.chronicle.some((e) => e.kind === 'trade-departed')).toBe(true);
+});
+
+/**
+ * Ves se dvěma domácnostmi – zakladatelé v dostavěné zemnici a mladý pár ve druhé zemnici vedle –
+ * a zásobami; stav jako by ho uložil server.
+ */
+async function twoHouseholds(s: Seat, near: Position): Promise<VillageState> {
+  const state = withBuiltFirstDwelling(await villageState(s.settlementId));
+  const [neighbour] = freeHomes(s.landscape, near, [near], 1);
+  const home = state.nextId++;
+  state.dwellings.push({
+    id: home,
+    type: 'zemnice',
+    builtDay: state.lastDay,
+    condition: 1,
+    position: neighbour!,
+  });
+  const adultBorn = state.lastDay - Math.ceil(20 * 365.25);
+  state.people.push(
+    { id: state.nextId++, bornDay: adultBorn, dwellingId: home, sex: 'male' },
+    { id: state.nextId++, bornDay: adultBorn, dwellingId: home, sex: 'female' },
+  );
+  state.storesKg = 1500;
+  await writeVillageState(s.settlementId, state);
+  return state;
+}
+
+/** Ctrl + A vybere všechna obydlí (jakmile dotaz na ves přinese obě) – panel víc obydlí. */
+async function selectAllDwellings(page: Page): Promise<ReturnType<Page['getByTestId']>> {
+  const panel = page.getByTestId('selection-panel');
+  await expect
+    .poll(
+      async () => {
+        await page.mouse.move(10, 300);
+        await page.keyboard.press('Control+A');
+        return panel.getAttribute('data-kind', { timeout: 1000 }).catch(() => null);
+      },
+      { timeout: 20_000 },
+    )
+    .toBe('dwellings');
+  return panel;
+}
+
+test('lidé odejdou založit novou ves na téže mapě – stará ves zůstane opuštěná', async ({
+  page,
+}) => {
+  const { seat: s } = await newPlayer(page, 'odchod');
+  const spots = villageSpots(s.landscape);
+  await found(page, spots.dwelling);
+  const before = await twoHouseholds(s, spots.dwelling);
+  await pollVillage(page);
+
+  // Všechna obydlí → Odejít → nová ves na téže mapě: hráč umístí první zemnici daleko od staré.
+  const panel = await selectAllDwellings(page);
+  await panel.getByTestId('leave-village').click();
+  await panel.getByTestId('leave-here').click();
+  const site = freeVillageSite(
+    s.landscape,
+    before.dwellings.map((d) => ({ x: d.position.x, z: d.position.z })),
+  );
+  expect(site).not.toBeNull();
+  await confirmPlacement(page, { kind: 'dwelling', type: 'zemnice', position: site! });
+
+  const villages = (): Promise<{ id: string; name: string; state: VillageState }[]> =>
+    query<{ id: string; name: string; state: VillageState }>(
+      'SELECT id, name, state FROM village WHERE settlement_id = $1 ORDER BY created_at, id',
+      [s.settlementId],
+    );
+  await expect.poll(async () => (await villages()).length, { timeout: 30_000 }).toBe(2);
+  const [old, fresh] = await villages();
+  // odešli všichni – stará ves je opuštěná, nová stojí jako staveniště první zemnice
+  expect(old!.state.abandonedDay).toBeDefined();
+  expect(old!.state.people).toEqual([]);
+  expect(fresh!.state.people).toHaveLength(before.people.length);
+  expect(fresh!.state.constructions[0]!.position).toEqual(site);
+  // rozhraní se přepnulo na novou ves, stará je v přepínači opuštěná
+  await expect(page.getByTestId('village-name')).toHaveText(fresh!.name, { timeout: 30_000 });
+  await page.getByTestId('village-name').click();
+  await expect(
+    page.getByTestId('village-list').locator(`[data-village="${old!.id}"]`),
+  ).toHaveAttribute('data-state', 'abandoned');
+});
+
+test('lidé odejdou na novou mapu – po cestě umístí první zemnici', async ({ page }) => {
+  const { email, seat: s } = await newPlayer(page, 'novamapa');
+  const spots = villageSpots(s.landscape);
+  await found(page, spots.dwelling);
+  const before = await twoHouseholds(s, spots.dwelling);
+  await pollVillage(page);
+
+  // Všechna obydlí → Odejít → na východ: nová mapa vedle, lidé jsou na cestě.
+  const panel = await selectAllDwellings(page);
+  await panel.getByTestId('leave-village').click();
+  await panel.getByTestId('leave-E').click();
+  const maps = (): Promise<
+    {
+      id: string;
+      grid_x: number | null;
+      grid_y: number | null;
+      landscape_seed: number;
+      layer_versions: LayerVersions;
+    }[]
+  > =>
+    query(
+      `SELECT s.id, s.grid_x, s.grid_y, s.landscape_seed, s.layer_versions
+         FROM settlement s JOIN "user" u ON u.id = s.owner_id
+        WHERE u.email = $1 AND s.archived_at IS NULL ORDER BY s.created_at`,
+      [email],
+    );
+  await expect.poll(async () => (await maps()).length, { timeout: 30_000 }).toBe(2);
+  const [home, east] = await maps();
+  expect(home).toMatchObject({ id: s.settlementId, grid_x: 0, grid_y: 0 });
+  expect(east).toMatchObject({ grid_x: 1, grid_y: 0 });
+  const [travelling] = await query<{ id: string; name: string; state: VillageState }>(
+    'SELECT id, name, state FROM village WHERE settlement_id = $1',
+    [east!.id],
+  );
+  expect(travelling!.state.journey?.direction).toBe('E');
+  expect(travelling!.state.people).toHaveLength(before.people.length);
+  await expect(
+    page.locator('[data-testid="village-notice"][data-kind="households-left"]'),
+  ).toBeVisible();
+
+  // Přepnutí na ves na cestě načte novou mapu – řádek „na cestě“, stavět se zatím nedá.
+  await page.getByTestId('village-name').click();
+  await page
+    .getByTestId('village-list')
+    .locator(`[data-village="${travelling!.id}"] button`)
+    .click();
+  await expect(readyScene(page)).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByTestId('village-name')).toHaveText(travelling!.name, { timeout: 30_000 });
+  await expect(page.getByTestId('journey-banner')).toHaveAttribute('data-arrived', 'false');
+  await expect(page.getByTestId('build-grid').getByRole('button')).toHaveCount(0);
+
+  // Lidé dorazili (příjezd posunutý na den odchodu) – jediná stavba je první zemnice.
+  const arrived = structuredClone(travelling!.state);
+  arrived.journey!.arrivalDay = arrived.journey!.departedDay;
+  await query('UPDATE village SET state = $2::jsonb, version = version + 1 WHERE id = $1', [
+    travelling!.id,
+    JSON.stringify(arrived),
+  ]);
+  await page.reload();
+  await expect(readyScene(page)).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByTestId('journey-banner')).toHaveAttribute('data-arrived', 'true');
+  const grid = page.getByTestId('build-grid');
+  await expect(grid.getByRole('button')).toHaveCount(1);
+  const land = generateLandscapeAttempt(east!.landscape_seed, east!.layer_versions);
+  const first = villageSpots(land).dwelling;
+  await grid.getByRole('button', { name: 'Zemnice' }).click();
+  await confirmPlacement(page, { kind: 'dwelling', type: 'zemnice', position: first });
+  await expect
+    .poll(
+      async () =>
+        (
+          await query<{ state: VillageState }>('SELECT state FROM village WHERE id = $1', [
+            travelling!.id,
+          ])
+        )[0]!.state.journey,
+      { timeout: 30_000 },
+    )
+    .toBeUndefined();
+  await expect(page.getByTestId('journey-banner')).toHaveCount(0);
 });

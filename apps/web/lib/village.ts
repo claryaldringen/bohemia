@@ -3,6 +3,12 @@ import { createVillageRepository } from '@bohemia/db';
 import {
   NOT_PLAYER_VILLAGE,
   NO_VILLAGE,
+  NO_WORLD_CELL,
+  isVillageTravelling,
+  leaveVillage,
+  neighbourSnapshot,
+  settleJourney,
+  type LeaveDestination,
   cancelHouseholdRelocation,
   foundDevVillage,
   foundVillageForSettlement,
@@ -40,6 +46,7 @@ import {
   currentViewStampOfPlayer,
   dynastyOfPlayer,
   enterGameForPlayer,
+  ownMapsOfPlayer,
   firstVillageOfPlayer,
   gameDeps,
   landscapeOfSettlement,
@@ -49,8 +56,9 @@ import {
   type GameEntry,
   type PlayerToday,
 } from './game';
+import { neighbourScene, ownMapsAround } from './departure-view';
 import { villageListItem } from './village-list';
-import { buildVillageView, type VillageView } from './village-view';
+import { buildVillageView, sceneOfVillage, type VillageView } from './village-view';
 
 // Composition root vsi: dnešní herní den hráče (světové hodiny + jeho posun času), Drizzle
 // repozitář, use-casy a převod na VillageView. Hráč může mít víc vsí (migration.md – Víc vsí
@@ -107,9 +115,24 @@ async function viewOf(
   const listed = status.villages.find((v) => v.id === ctx.villageId);
   const current = listed ?? record;
   if (!current) return { error: NO_VILLAGE };
+  // jiné vsi na téže mapě (migration.md) – jejich stavby a paseky, a vlastní vsi na sousedních
+  // mapách
+  const sameMap = status.villages.filter(
+    (v) => v.settlementId === current.settlementId && v.id !== current.id,
+  );
+  const from = status.settlements.find((s) => s.id === current.settlementId);
   const view = buildVillageView(current, ctx.landscape, ctx.day, {
     gameOver: status.gameOver,
     villages: status.villages.map((v) => villageListItem(v, ctx.day)),
+    neighbours: neighbourSnapshot(
+      sameMap.map((v) => v.state),
+      ctx.day,
+    ),
+    neighbourScenes: sameMap
+      .filter((v) => !isVillageTravelling(v.state))
+      .map((v) => neighbourScene(sceneOfVillage(v.state, ctx.landscape, ctx.day))),
+    ownMaps: ownMapsAround(status.settlements, status.villages, current.settlementId),
+    mapsBlocked: from && from.worldCell === null && !from.isSeat ? NO_WORLD_CELL : null,
   });
   // otisk jen z dopočítaných vsí hráče – stejný spočítá levný dotaz (currentViewStampOfPlayer)
   return listed
@@ -486,7 +509,7 @@ export function sendExpeditionForPlayer(
   villageId: string,
   input: { direction: Direction8; give: TradeGoods; get: TradeGoods },
 ): Promise<VillageActionResult> {
-  return actOn(playerId, villageId, (ctx) =>
+  return actOn(playerId, villageId, async (ctx) =>
     sendExpedition(
       { villages: villages() },
       {
@@ -496,7 +519,55 @@ export function sendExpeditionForPlayer(
         direction: input.direction,
         give: input.give,
         get: input.get,
+        // tím směrem, kde leží vlastní ves, soused bez simulace není (migration.md)
+        ownDirections: Object.keys(
+          await ownMapsOfPlayer(playerId, ctx.settlementId),
+        ) as Direction8[],
       },
     ),
+  );
+}
+
+/**
+ * Odchod do nové vsi (migration.md – fáze 3 a 4): domácnosti obydlí `dwellingIds` odejdou na
+ * téže mapě (vrátí pohled na novou ves) nebo na novou mapu (vrátí pohled na starou ves – lidé
+ * jsou na cestě).
+ */
+export async function leaveVillageForPlayer(
+  playerId: string,
+  villageId: string,
+  input: { dwellingIds: number[]; destination: LeaveDestination },
+): Promise<VillageActionResult> {
+  const ctx = await context(playerId, villageId);
+  if (!ctx.ok) return { error: ctx.error };
+  const result = await leaveVillage(gameDeps(), {
+    playerId,
+    villageId,
+    today: ctx.day,
+    dwellingIds: input.dwellingIds,
+    destination: input.destination,
+  });
+  if (!result.ok) return { error: result.reason };
+  return input.destination.kind === 'here'
+    ? viewOf({ ...ctx, villageId: result.to.id }, result.to)
+    : viewOf(ctx, result.from);
+}
+
+/** Lidé dorazili na novou mapu – první zemnice nové vsi (migration.md – fáze 4). */
+export async function settleJourneyForPlayer(
+  playerId: string,
+  villageId: string,
+  input: { dwelling: Position },
+): Promise<VillageActionResult> {
+  const ctx = await context(playerId, villageId);
+  if (!ctx.ok) return { error: ctx.error };
+  return toActionResult(
+    ctx,
+    await settleJourney(gameDeps(), {
+      playerId,
+      villageId,
+      today: ctx.day,
+      dwelling: input.dwelling,
+    }),
   );
 }
