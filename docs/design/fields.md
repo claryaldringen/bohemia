@@ -391,18 +391,35 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
   (stejně u sadu a hřbitova, u obydlí navíc ikona stromů s počtem stromů ke kácení, když
   nestačí klády), nebo krátký červený důvod, proč pole neprojde. Výměru, úrodnost a stadia
   dílů ukáže panel vybraného pole.
-- **Zakládání:** pole se zakládá jako stavba – hotové díly se postupně zbarví, stromy
-  a kameny z nich zmizí.
+- **Zakládání:** pole se zakládá jako stavba po dílech od obydlí – rozpracovaný díl se rozrývá
+  po řádcích, stromy a kameny z hotového dílu zmizí.
 - **Panel pole** (výběr kliknutím): výměra, úrodnost, kolik dílů se zakládá, je oseto a leží
   v přílohu podle stadia (mladý příloh, louka, nálet, křoviny, les) – ikony a čísla. Očekávaná
   úroda a jestli práce stačí – později.
 - **Horní lišta:** zásoby obilí, volná společná práce za den, nasycení (barva ikony).
-- **Ve scéně:** pole na terénu podle ročního období – oraniště (jaro), zelené a zlaté obilí,
-  strniště, přílohy v různém stadiu zarůstání (tráva, vyšší tráva, keře, nálet mladých
-  stromků) – kolem vsi pestrá mozaika, hranice pole (mez). 3D a textury jsou samostatný úkol.
-  **Stav:** scéna umí vzhled zeleného a zralého obilí a strniště (`CropLook`), zatím ho ale
-  ukazuje jen vývojový náhled staveb (/dev/buildings) – kdy který díl dozrává a kdy je strniště,
-  server zatím neposílá.
+- **Vytyčení:** nově zadané pole je hned vytyčené – kolíky v rozích a po čtvercích a provázek
+  po obrysu dílů, které se ještě zakládají (Martin: „Když někde zadám stavbu, ať se hned vytyčí
+  provázkem a kolíky.“). Čtverec, na kterém osadníci začnou, se rozrývá po řádcích; hotové díly
+  vytyčení ztratí.
+- **Ve scéně** (podle 0 A.D., Martin: tvrdé pruhy brázd a vzcházejícího obilí byly „hnusné“):
+  zem s měkkými brázdami (textura pole z 0 A.D.) natočenými podél delší strany pole, okraj
+  pole měkký a nepravidelný, kolem tenká mez. Obilí jsou 3D trsy v řádcích (pšenice z 0 A.D.),
+  které rostou: oseto (zavláčená tmavá zem) → vzchází (řídké nízké zelené trsy v řádcích) →
+  zelené obilí (husté, z dálky zelené pole) → zralé zlaté obilí, které se lehce vlní ve větru →
+  žeň (sklizená část se strništěm a panáky snopů, zbytek zralý) → strniště. Úhor: mladý úhor
+  (1–2 roky) je strniště s plevelem, kde se pasou ovce, kozy a krávy s pasáčkem (Martin: „Nálety
+  na úhoru nebudou, protože se tam budou pást…“); starší úhor je louka, která se kosí na seno
+  (Martin) – na jaře vysoká kvetoucí tráva, v červnu se seče po dílech (řádky sena), pak kupky
+  a od poloviny července stohy na otavě, které přes podzim a zimu postupně mizí (zkrmují se);
+  na otavě se od srpna do konce listopadu pase. Z dálky trsy řídnou a pole nese barva obtisku.
+  Kolem vsi se navíc seče pár luk na seno (jen vzhled, na dvě domácnosti jedna louka).
+- **Práce po čtvercích** (Martin: „aby pole neměnilo fáze, které jsou závislé na člověku,
+  samovolně“): díl se změní (zoráno, oseto, sklizeno, posečeno), až když k němu práce dojde –
+  rozpracovaný je vždy jeden díl na úlohu a mění se po řádcích od strany blíž vsi; postavy
+  pracují přesně na něm, řada stojí na čáře práce, a když je čtverec hotový, dojdou na další.
+  **Stav:** herní jádro zatím posílá jen stadium dílů a průběh zakládání; vzhled ostatních prací
+  scéna odhaduje z data (fronta po dílech od obydlí). Datový kontrakt pro jádro je
+  `SceneFieldPart.look` / `work` / `before` a `SceneLaborShare.parts` (apps/web/lib/village-view.ts).
 - **Kronika:** založení pole, sklizeň (kolik), hlad, díl pole zarostl v les.
 
 ## Navazuje

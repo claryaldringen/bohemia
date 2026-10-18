@@ -272,8 +272,10 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   (Postavy níž – `herdViews`).
   `livestock-placement.ts` je odvodí z dat vsi pro scénu (`SceneVillage`, i nepovinné
   `cemeteries`) a krajiny: slepice obcházejí dům mimo obdélník domu se šíjí (`chickenBox`),
-  ovce s kozami (stádo na 5 domácností) a krávy se pasou na louce do 300 m (ne pole, hřbitov,
-  obydlí, voda, skála, prudký svah), prasata na okraji lesa (−7 až +5 m od hranice, hlouběji je
+  ovce s kozami (stádo na 5 domácností) a krávy se pasou **přednostně na úhoru vsi** (Martin:
+  na úhoru pasáček se zvířaty – mladý úhor vždy, louka na seno jen po seči na otavě, srpen až
+  listopad: `grazeablePart`, `grazingDay` z rozdělení práce), jinak na louce do 300 m (ne osetý
+  díl, hřbitov, obydlí, voda, skála, prudký svah), prasata na okraji lesa (−7 až +5 m od hranice, hlouběji je
   zakryjí koruny) do 150 m (jinak do 260 m), nejbližší vhodný okraj první – za lesem po otočení
   kamery zmizí, to nevadí (Martin). **Pohyb běží ve skutečném čase, ne v herním** – ve
   zrychleném světě zvířata „běhala jak na koksu“ (Martin); scéna dosadí epoch ms
@@ -477,6 +479,33 @@ rozhraní částí v
   `lib/scene/field-painting.ts` (`FieldPainter`, režim `squares`, logika výběru ve
   `field-cells.ts`) – ovládání v tabulce výše. Obrys pole (`Field.outline`) zůstal jen u starých
   vsí.
+- **Pole ve scéně** (fields.md – Co hráč vidí; podle 0 A.D.): vzhled dílu `FieldLook`
+  (`village-view.ts`: `bare`, `plowed`, `sown`, `sprouted`, `green`, `ripe`, `harvesting`,
+  `stubble`, `young-fallow`, `pasture`, `meadow`, `mown`, `haystacks`) posílá po dílech herní
+  jádro (`SceneFieldPart.look`, rozpracovaný díl `work` 0–1 a `before`, `id`; fronta práce
+  `SceneLaborShare.parts`) – **dokud neposílá, odhadne ho `field-look.ts` ze stadia a data**
+  (`fieldPartViews`, `estimatePart`: zakládaný díl s `work` 0 jen vytyčený, osetý díl prochází
+  rokem po čtvercích od obydlí – kopání, setí, růst, žeň s panáky, strniště; mladý úhor se pase,
+  starší úhor je louka na seno). Práce mění díl, až když k němu dojde: rozpracovaný díl se dělí
+  napříč řádky (po 8 pruzích – `WORK_STEPS`) na hotovou a nehotovou část, práce jde od strany
+  blíž vsi (`workFrame`). Kreslí `field-renderer.ts` (`FieldRenderer` ve `VillageRenderer`):
+  obtisky z textur 0 A.D. (`public/textures/fields/` – zem s měkkými brázdami podél řádků,
+  osetá zem, strniště, porost shora; tráva a kvetoucí louka z terénu) s nepravidelným měkkým
+  okrajem (`raggedCoverage`) a tenkou mezí, skvrny (plevel, prošlapaná místa) druhou vrstvou;
+  obilí jako 3D trsy v řádcích (`crops.glb` – uzly `crop-green|ripe|sprout|stubble`, jeden
+  atlas, thin instances, tón druhu v barvě instance) – z dálky řídnou (`cropDensity`: plné do
+  130 m, k 360 m pětina, od 620 m nic – pole pak nese obtisk), zralé a zelené se vlní ve větru
+  (vertex shader `CropSwayPlugin`, jen v záběru, `WATER_FPS`, při omezeném pohybu stojí), pod
+  sněhem nízké trsy zmizí; panáky (`stook.glb`) na sklizené části, plevel (trsy trávy) na
+  úhoru a louce, seno – řádky, kupky a stohy (`haystack.glb`) přes podzim a zimu postupně mizí
+  (`hay-meadows.ts`: `hayPhase`, `stackStands`); kolíky a provázek kolem vytyčeného pole
+  (Martin: hned po zadání, `fieldStaking`). Rozmístění trsů a panáků je v `field-crops.ts`
+  (čisté funkce, deterministicky po políčkách). Kolem vsi navíc **louky na seno** jen jako
+  scenérie (`chooseHayMeadows` – louka bez stromů a kamenů, na dvě domácnosti jedna). Den pro
+  odhad a seno: herní den rozdělení práce, jinak roční období scény (`setSeason`).
+  Assety z `tools/blender/fields.py` (postup v hlavičce). Vývojové stránky: /dev/buildings
+  projde posuvníkem všechny vzhledy pole i louku na seno, /dev/landscape tlačítka „Vzhled“
+  a „Ukázka polí“ (pole v každém vzhledu; s „Lidé“ postavy na rozpracovaných čtvercích).
 - **Les a dřevo** ([forest.md](docs/design/forest.md), `domain/village/wood.ts`): klády na hromadě
   (`woodLogs`, staré vsi 0, hnijí 4 % ročně), obydlí, první zemnice i přestavby berou dřevo
   (`DWELLING_TREES` 7 / 18) nejdřív z hromady, zbytek vyhradí při zahájení mezi nejbližšími
@@ -523,7 +552,10 @@ rozhraní částí v
   setiny, lidé podle věku, měsíc). Scéna: `villager-plan.ts` (čisté funkce, testy) převede
   člověkodny na postavy (jedna na pracujícího, nejvýš `MAX_WORKERS` = 60, po skupinách až 4
   v činnosti – `shareCounts`; domácí práce a nečinní venku jen z části, v zimě méně) a rozestaví
-  je (postavy stylizovaně o 20 % větší – `FIGURE_SCALE`, rozestupy s nimi): řady na polích,
+  je (postavy stylizovaně o 20 % větší – `FIGURE_SCALE`, rozestupy s nimi): řady na polích
+  přesně na čtvercích, kde se pracuje (Martin – fronta práce `workedParts`: díly z
+  `SceneLaborShare.parts`, jinak rozpracovaný díl a za ním další; řada stojí hned za čarou práce
+  a jde podél řádků), po přeplánování dojde postava na nové místo pěšky (`walkThen`),
   nosiči polem ↔ obydlí (`walkRoute` obchází domy), stavitelé za
   staveništěm (`siteBox` = vyklízená plocha), dřevorubci u vyhrazených stromů, sad, obvod
   hřbitova, výmlat u vsi, ženy u vchodu, starší (šediny) u domů a děti u stád (`herdViews`
