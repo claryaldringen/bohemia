@@ -42,15 +42,19 @@ export const LUCKY_YEARS = 30;
 export const LUCKY_CHILD_DEATH_FACTOR = 0.5;
 // population.md – Růst populace (hlad tlumí porody a zvyšuje úmrtnost); fields.md – Zásoby a nasycení
 export const HUNGER = { birthsStopAt: 0.5, birthsFullAt: 0.95, deathExtraAtZero: 3 } as const;
-// population.md – Hlad a vymření (Martin, 18. 10. 2026): nahromaděný hlad vsi ve „dnech bez
-// jídla“ – za den přibude 1 − nasycení, při nasycení ≥ recoverAt ubude recoveryPerDay (do nuly),
-// víc než maxDays nemá vliv. Denní riziko úmrtí hladem je 0 do prahu `threshold` a pak strmě
-// roste ((hlad − práh) / (jistá smrt − práh))^curve až k jistotě v `certainDeath` – bez jídla
-// vymřou do 60 dní všichni (děti a starší do 45).
+// population.md – Hlad a vymření (Martin, 18. 10. 2026; čísla návrh Clauda): nahromaděný hlad
+// vsi ve „dnech bez jídla“ – za den přibude max(0, growthBelow − nasycení) / growthBelow (bez
+// jídla den, při 80 % ≈ 0,11, od 90 % nic), při nasycení ≥ recoverAt ubude recoveryPerDay (do
+// nuly), víc než maxDays nemá vliv. V hájení má skupina nejvýš práh − luckyMarginDays (dospělí
+// 19, děti a starší 11), aby po jeho konci lidé umírali postupně. Denní riziko úmrtí hladem je 0
+// do prahu `threshold` a pak strmě roste ((hlad − práh) / (jistá smrt − práh))^curve až
+// k jistotě v `certainDeath` – bez jídla vymřou do 60 dní všichni (děti a starší do 45).
 export const STARVATION = {
+  growthBelow: 0.9,
   recoverAt: 0.95,
   recoveryPerDay: 1,
   maxDays: 60,
+  luckyMarginDays: 1,
   threshold: { child: 12, adult: 20, elder: 12 },
   certainDeath: { child: 45, adult: 60, elder: 45 },
   curve: 3,

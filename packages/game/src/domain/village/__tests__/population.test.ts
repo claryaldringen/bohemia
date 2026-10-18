@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  LUCKY_STARVATION_CAP,
   birthChancePerDay,
   deathChancePerDay,
   deathChances,
+  luckyStarvationCap,
   nextStarvationDays,
   populationDay,
   starvationDeathChance,
@@ -123,13 +125,17 @@ describe('deathChancePerDay', () => {
     );
     expect(deathChancePerDay(person(30, day), { ...ctx, day, starvationDays: 60 })).toBe(1);
   });
-  it('hájení chrání dospělé a starší i před smrtí hladem, dětem ji půlí', () => {
+  it('hájení chrání dospělé a starší i před smrtí hladem, dětem drží hlad pod prahem', () => {
     const day = FOUNDED + 5 * YEAR;
     const starving = { ...ctx, day, satiation: 0, starvationDays: 60 };
     expect(deathChancePerDay(person(30, day), starving)).toBe(0);
     expect(deathChancePerDay(person(60, day), starving)).toBe(0);
-    const child = deathChances(person(5, day), { ...starving, starvationDays: 30 });
-    expect(child.starvation).toBeCloseTo(starvationDeathChance('child', 30) * 0.5, 12);
+    const child = deathChances(person(5, day), starving);
+    expect(child.starvation).toBe(0);
+    expect(child.base).toBeGreaterThan(0);
+    // po hájení stejný hlad zabíjí
+    const later = deathChances(person(5, AFTER_LUCK), { ...starving, day: AFTER_LUCK });
+    expect(later.starvation).toBe(1);
   });
   it('dítě v polozemnici umírá méně než v zemnici', () => {
     const day = AFTER_LUCK;
@@ -140,10 +146,13 @@ describe('deathChancePerDay', () => {
 });
 
 describe('nextStarvationDays', () => {
-  it('za den přibude 1 − nasycení', () => {
+  it('za den přibude (0,9 − nasycení) / 0,9 – bez jídla den, od 90 % nic', () => {
     expect(nextStarvationDays(0, 0)).toBe(1);
-    expect(nextStarvationDays(10, 0.5)).toBe(10.5);
-    expect(nextStarvationDays(3, 0.9)).toBeCloseTo(3.1, 12);
+    expect(nextStarvationDays(10, 0.5)).toBeCloseTo(10 + 0.4 / 0.9, 12);
+    expect(nextStarvationDays(3, 0.8)).toBeCloseTo(3 + 0.1 / 0.9, 12);
+    expect(nextStarvationDays(3, 0.9)).toBe(3);
+    // mezi 90 a 95 % hlad nepřibývá ani neubývá
+    expect(nextStarvationDays(3, 0.93)).toBe(3);
   });
   it('při nasycení ≥ 0,95 ubude den až k nule', () => {
     expect(nextStarvationDays(10, 0.95)).toBe(9);
@@ -154,6 +163,18 @@ describe('nextStarvationDays', () => {
   it('víc než maxDays se nehromadí', () => {
     expect(nextStarvationDays(STARVATION.maxDays, 0)).toBe(STARVATION.maxDays);
     expect(nextStarvationDays(STARVATION.maxDays - 0.5, 0)).toBe(STARVATION.maxDays);
+  });
+  it('v hájení hlad zůstane den pod prahem dospělých (19)', () => {
+    expect(luckyStarvationCap('adult')).toBe(19);
+    expect(luckyStarvationCap('child')).toBe(11);
+    expect(luckyStarvationCap('elder')).toBe(11);
+    expect(LUCKY_STARVATION_CAP).toBe(19);
+    expect(nextStarvationDays(18.5, 0, true)).toBe(19);
+    expect(nextStarvationDays(19, 0, true)).toBe(19);
+    // uložený hlad nad stropem (starší stav) se v hájení srovná
+    expect(nextStarvationDays(40, 0, true)).toBe(19);
+    expect(nextStarvationDays(40, 1, true)).toBe(19);
+    expect(nextStarvationDays(19, 1, true)).toBe(18);
   });
 });
 

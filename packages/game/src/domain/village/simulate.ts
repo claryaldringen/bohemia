@@ -25,7 +25,7 @@ import {
 } from './orchard';
 import { ageGroup, foodNeedPerDay, isFertileAdult, laborPerDay, occupants } from './people';
 import { isVillageExtinct } from './extinction';
-import { householdBreaksUp, nextStarvationDays, populationDay } from './population';
+import { householdBreaksUp, inLuckyYears, nextStarvationDays, populationDay } from './population';
 import {
   CHRONICLE_MAX_EVENTS,
   COMMON_LABOR_HISTORY_DAYS,
@@ -135,8 +135,13 @@ function simulateDay(state: VillageState, day: number, obstacles: ObstacleLayer 
   decideRebuilds(state, day, obstacles);
   occupyEmptyDwellings(state, day);
   const satiation = eat(state, day);
-  // nahromaděný hlad se počítá z dnešního jídla – úmrtí dne podle něj (population.md)
-  state.starvationDays = nextStarvationDays(state.starvationDays ?? 0, satiation);
+  // nahromaděný hlad se počítá z dnešního jídla – úmrtí dne podle něj (population.md); v hájení
+  // zůstává pod prahem, aby po něm lidé umírali postupně
+  state.starvationDays = nextStarvationDays(
+    state.starvationDays ?? 0,
+    satiation,
+    inLuckyYears(state.foundedDay, day),
+  );
   state.chronicle.push(...populationDay(state, day, satiation));
   if (state.people.length === 0) {
     // zemřel poslední člověk – ves vymřela, dál se nesimuluje (ani sklizeň dne)

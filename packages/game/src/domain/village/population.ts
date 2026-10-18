@@ -20,6 +20,9 @@ import type { ChronicleEvent, DwellingType, Person, VillageState } from './types
 const DAYS_PER_YEAR = 365.25; // hájení se měří v letech po 365,25 dne
 const DAYS_PER_RISK_YEAR = 365; // roční riziko se na den převádí přes 365 dní
 
+type AgeGroup = 'child' | 'adult' | 'elder';
+const AGE_GROUPS: readonly AgeGroup[] = ['child', 'adult', 'elder'];
+
 /** Vliv hladu na porody: 0 při nasycení ≤ 0,5, lineárně 1 při nasycení ≥ 0,95. */
 function hungerBirthFactor(satiation: number): number {
   const span = HUNGER.birthsFullAt - HUNGER.birthsStopAt;
@@ -35,30 +38,50 @@ export function birthChancePerDay(ctx: { satiation: number; overcrowded: boolean
   );
 }
 
-function baseDeathsPerYear(group: 'child' | 'adult' | 'elder', dwellingType: DwellingType): number {
+function baseDeathsPerYear(group: AgeGroup, dwellingType: DwellingType): number {
   if (group === 'child') return childDeathsPerYear() * DWELLINGS[dwellingType].childDeathFactor;
   return group === 'adult' ? ADULT_DEATHS_PER_YEAR : ELDER_DEATHS_PER_YEAR;
 }
 
+/** Hájení – prvních LUCKY_YEARS herních let od založení vsi (population.md). */
+export function inLuckyYears(foundedDay: number, day: number): boolean {
+  return day - foundedDay < LUCKY_YEARS * DAYS_PER_YEAR;
+}
+
+/**
+ * Nejvýš kolik nahromaděného hladu má skupina v hájení – den pod jejím prahem (dospělí 19, děti
+ * a starší 11), aby po konci hájení lidé umírali postupně, ne všichni hned druhý den.
+ */
+export function luckyStarvationCap(group: AgeGroup): number {
+  return STARVATION.threshold[group] - STARVATION.luckyMarginDays;
+}
+
+/** Strop nahromaděného hladu vsi v hájení – nejvyšší strop skupin (dospělí, 19 dní). */
+export const LUCKY_STARVATION_CAP = Math.max(...AGE_GROUPS.map(luckyStarvationCap));
+
 /**
  * Nahromaděný hlad po dni s nasycením `satiation` (population.md – Hlad a vymření): přibude
- * 1 − nasycení, při nasycení ≥ 0,95 ubude den (do nuly); víc než STARVATION.maxDays nemá vliv.
+ * max(0, 0,9 − nasycení) / 0,9 (bez jídla celý den, od 90 % nic), při nasycení ≥ 0,95 ubude den
+ * (do nuly). Víc než STARVATION.maxDays nemá vliv, v hájení (`lucky`) nejvýš LUCKY_STARVATION_CAP.
  */
-export function nextStarvationDays(starvationDays: number, satiation: number): number {
+export function nextStarvationDays(
+  starvationDays: number,
+  satiation: number,
+  lucky = false,
+): number {
+  const cap = lucky ? LUCKY_STARVATION_CAP : STARVATION.maxDays;
   if (satiation >= STARVATION.recoverAt) {
-    return Math.max(0, starvationDays - STARVATION.recoveryPerDay);
+    return Math.min(cap, Math.max(0, starvationDays - STARVATION.recoveryPerDay));
   }
-  return Math.min(STARVATION.maxDays, starvationDays + (1 - Math.max(0, satiation)));
+  const growth = Math.max(0, STARVATION.growthBelow - satiation) / STARVATION.growthBelow;
+  return Math.min(cap, starvationDays + growth);
 }
 
 /**
  * Denní riziko úmrtí hladem podle nahromaděného hladu a věkové skupiny (bez hájení): 0 do prahu,
  * pak ((hlad − práh) / (jistá smrt − práh))^curve, od hranice jisté smrti 1.
  */
-export function starvationDeathChance(
-  group: 'child' | 'adult' | 'elder',
-  starvationDays: number,
-): number {
+export function starvationDeathChance(group: AgeGroup, starvationDays: number): number {
   const from = STARVATION.threshold[group];
   const to = STARVATION.certainDeath[group];
   if (starvationDays <= from) return 0;
@@ -81,15 +104,16 @@ export interface DeathContext {
 /**
  * Denní riziko úmrtí člověka po částech: `base` – běžné riziko (věk, přeplněnost, dnešní hlad,
  * hygiena), `starvation` – úmrtí hladem z nahromaděného hladu. Hájení chrání dospělé a starší
- * před obojím a dětem obojí půlí.
+ * před obojím, dětem běžné riziko půlí a hlad skupiny drží den pod prahem (`luckyStarvationCap`).
  */
 export function deathChances(
   person: Person,
   ctx: DeathContext,
 ): { base: number; starvation: number } {
   const group = ageGroup(person, ctx.day);
-  const lucky = ctx.day - ctx.foundedDay < LUCKY_YEARS * DAYS_PER_YEAR;
+  const lucky = inLuckyYears(ctx.foundedDay, ctx.day);
   if (lucky && group !== 'child') return { base: 0, starvation: 0 };
+  const deficit = ctx.starvationDays ?? 0;
   const luck = lucky ? LUCKY_CHILD_DEATH_FACTOR : 1;
   const hunger = 1 + HUNGER.deathExtraAtZero * (1 - ctx.satiation);
   const hygiene = lucky ? 1 : hygieneDeathFactor(group, ctx.hygiene ?? 1);
@@ -101,7 +125,10 @@ export function deathChances(
     hygiene;
   return {
     base: 1 - (1 - Math.min(1, yearly)) ** (1 / DAYS_PER_RISK_YEAR),
-    starvation: starvationDeathChance(group, ctx.starvationDays ?? 0) * luck,
+    starvation: starvationDeathChance(
+      group,
+      lucky ? Math.min(deficit, luckyStarvationCap(group)) : deficit,
+    ),
   };
 }
 

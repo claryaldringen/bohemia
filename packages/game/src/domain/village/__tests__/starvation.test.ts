@@ -3,8 +3,9 @@ import { dayIndexOf } from '../../calendar';
 import { foundCemetery, foundField, foundOrchard, startNewDwelling } from '../actions';
 import { isGameOver, isVillageExtinct, villageLifespan } from '../extinction';
 import { daysUntilHarvest } from '../food';
-import { ageGroup, foodNeedPerDay } from '../people';
-import { STARVATION } from '../rules';
+import { foodNeedPerDay } from '../people';
+import { LUCKY_STARVATION_CAP } from '../population';
+import { LUCKY_YEARS, STARVATION } from '../rules';
 import { advanceVillage } from '../simulate';
 import { summarizeVillage } from '../summary';
 import type { ChronicleEvent, Person, VillageState } from '../types';
@@ -95,16 +96,35 @@ describe('hladovění – bez jídla', () => {
     expect(aliveAfterMonth / total).toBeGreaterThan(0.6);
   });
 
-  it('v hájení dospělí ani starší nezemřou ani hladem, děti ano', () => {
+  it('v hájení nikdo nezemře hladem – hlad zůstane den pod prahem dospělých', () => {
     const founded = START - 5 * 366; // pátý rok vsi
     const s = advanceVillage(village(3, 30, MIXED_AGES, founded), START + 199, null);
     const died = deaths(s);
     expect(died.filter((d) => d.group !== 'child')).toEqual([]);
-    expect(s.people.every((p) => ageGroup(p, s.lastDay) !== 'child')).toBe(true);
-    expect(s.people.length).toBeGreaterThan(0);
+    expect(died.filter((d) => d.cause === 'hunger')).toEqual([]);
     expect(s.extinctDay).toBeUndefined();
-    // nahromaděný hlad je omezený – po hájení by nečekal stovky dní na zotavení
-    expect(s.starvationDays).toBe(STARVATION.maxDays);
+    expect(s.starvationDays).toBe(LUCKY_STARVATION_CAP);
+  });
+
+  it('po konci hájení umírají hlady postupně, ne všichni druhý den (30 vsí)', () => {
+    // hájení skončí 50 dní po začátku hladu – hlad je do té doby na stropu 19
+    const luckEnds = START + 50;
+    const founded = luckEnds - Math.ceil(LUCKY_YEARS * YEAR);
+    for (let seed = 1; seed <= 30; seed++) {
+      const start = village(seed, 30, MIXED_AGES, founded);
+      const atEnd = advanceVillage(start, luckEnds - 1, null);
+      expect(atEnd.starvationDays).toBe(LUCKY_STARVATION_CAP);
+      expect(deaths(atEnd).filter((d) => d.cause === 'hunger')).toEqual([]);
+      // první den po hájení: hlad 20 – dospělým ještě nic nehrozí
+      const first = advanceVillage(atEnd, luckEnds, null);
+      expect(deaths(first).some((d) => d.cause === 'hunger' && d.group === 'adult')).toBe(false);
+      // první týden: hlad 20–26, dospělí sotva nad prahem – většina žije
+      const week = advanceVillage(first, luckEnds + 6, null);
+      expect(week.people.length).toBeGreaterThan(atEnd.people.length * 0.7);
+      // hlad dojde k jisté smrti dospělých (60) za 41 dní – pak ves vymře
+      const end = advanceVillage(week, luckEnds + 41, null);
+      expect(end.extinctDay).toBeDefined();
+    }
   });
 });
 
@@ -131,16 +151,16 @@ describe('hladovění – poloviční příděl', () => {
       expect(share).toBeGreaterThan(0.25);
       expect(share).toBeLessThan(0.75);
       expect(end.extinctDay).toBeUndefined();
-      // smrt zvedla příděl zbylým – hlad se zotavil (porody ho pak mohou zase pomalu zvednout)
-      expect(january.starvationDays).toBeLessThanOrEqual(1);
+      // smrt zvedla příděl zbylým nad 90 % – hlad už nepřibývá a dospělým nehrozí
       expect(summarizeVillage(january, january.lastDay).satiation).toBeGreaterThan(0.9);
-      expect(end.starvationDays).toBeLessThan(STARVATION.threshold.child);
-      const lastHungerDeath = Math.max(
-        ...deaths(end)
-          .filter((d) => d.cause === 'hunger')
-          .map((d) => d.day),
-      );
-      expect(end.lastDay - lastHungerDeath).toBeGreaterThan(60);
+      expect(end.starvationDays).toBeLessThanOrEqual((january.starvationDays ?? 0) + 0.5);
+      expect(end.starvationDays).toBeLessThan(STARVATION.threshold.adult);
+      // hladem umírá už jen málokdo (hlad mezi 90 a 95 % přídělu neubývá – může zůstat nad
+      // prahem dětí a starších, než příděl stoupne na 95 %)
+      const lateHunger = deaths(end).filter(
+        (d) => d.cause === 'hunger' && d.day > january.lastDay,
+      ).length;
+      expect(lateHunger).toBeLessThan(0.15 * january.people.length);
     }
   });
 
@@ -149,8 +169,8 @@ describe('hladovění – poloviční příděl', () => {
     const hunger = deaths(end).filter((d) => d.cause === 'hunger');
     const first = Math.min(...hunger.map((d) => daysFromStart(d.day)));
     const last = Math.max(...hunger.map((d) => daysFromStart(d.day)));
-    // při polovičním přídělu hlad přibývá o 0,5 denně – práh dětí 12 dní je za 24 dní
-    expect(first).toBeGreaterThan(24);
+    // při polovičním přídělu hlad přibývá o 0,44 denně – práh dětí 12 dní je za 27 dní
+    expect(first).toBeGreaterThan(27);
     expect(last - first).toBeGreaterThan(21);
   });
 });
@@ -178,8 +198,8 @@ describe('hladovění – zotavení a dopočet', () => {
 
   it('po kouscích s JSON mezi nimi dá stejný stav i s hladem a vymřením', () => {
     const start = village(6, 18);
-    // příděl ≈ 0,16 do sklizně, po prázdné sklizni nic – ves do 60 dní po ní vymře
-    start.storesKg = 0.3 * needPerDay(start, START) * 200;
+    // příděl ≈ 0,05 do sklizně – ves vymře
+    start.storesKg = 0.1 * needPerDay(start, START) * 200;
     const end = START + 500;
     const whole = advanceVillage(start, end, null);
     expect(whole.extinctDay).toBeDefined();

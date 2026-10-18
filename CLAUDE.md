@@ -327,10 +327,11 @@ rozhraní částí v
   `orchards?`, `applesKg?`, `orchardWork?`, `starvationDays?`, `extinctDay?`) – vsi uložené
   dřív se načtou a beze sadů se jejich stav nemění.
 - **Hlad a vymření** (population.md, Martin 18. 10. 2026): nahromaděný hlad
-  `VillageState.starvationDays` (`nextStarvationDays` po jídle dne, čísla `STARVATION`
-  v `rules.ts`) přidá k běžnému riziku úmrtí riziko hladem (`deathChances` → `base` +
-  `starvation`; úmrtí z části hladu má v kronice `cause: 'hunger'`). Hájení chrání dospělé i před
-  hladem, dětem ho půlí; ochrana posledních dvou dospělých už není. Poslední úmrtí → `extinctDay`
+  `VillageState.starvationDays` (`nextStarvationDays` po jídle dne – přibývá až pod 90 %
+  přídělu, čísla `STARVATION` v `rules.ts`) přidá k běžnému riziku úmrtí riziko hladem
+  (`deathChances` → `base` + `starvation`; úmrtí z části hladu má v kronice `cause: 'hunger'`).
+  Hájení chrání dospělé i před hladem a drží hlad den pod prahem skupiny (`luckyStarvationCap`,
+  uložený hlad nejvýš `LUCKY_STARVATION_CAP` = 19); ochrana posledních dvou dospělých už není. Poslední úmrtí → `extinctDay`
   a `village-extinct`; `advanceVillage` vymřelou ves dál nesimuluje (posune jen `lastDay`),
   doménové akce ji odmítnou. **Konec hry** (`extinction.ts`: `isGameOver` – hráč má vsi a žádná
   nežije, obecně pro víc vsí): use-case `dynastyStatus` (vsi aktivních sídel dopočítané do
