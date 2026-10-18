@@ -3,9 +3,23 @@
 blender -b --factory-startup --python tools/blender/people_from_0ad.py -- \
     tools/blender/people.json <0ad>/binaries/data/mods/public/art apps/web/public/models/people
 
-people.json: [{"name", "height_m", "body": {"dae", "texture", "tint", "pattern"?, "flatten"?},
-"props": [{"name", "dae" | "procedural", "point", "texture", "tint"?, "uv"?}],
-"clips": [{"name", "animation", "props": [jména propů viditelných v klipu]}]}]
+people.json: [{"name", "height_m" | "length_m", "body": {"dae", "texture", "tint", "pattern"?,
+"flatten"?, "multiply"?, "coat"?}, "props": [{"name", "dae" | "procedural", "point", "texture",
+"tint"?, "uv"?}], "clips": [{"name", "animation", "props": [jména propů viditelných v klipu],
+"pose"?, "report"?}]}]
+
+Totéž umí i zvířata s kostrou (voli spřežení – tools/blender/plough-team.json): bez propů,
+měřítko podle délky těla („length_m“ – rozsah podél osy pohledu), „multiply“ přebarví texturu
+(béžový dobytek 0 A.D. na hnědého), „coat“ = maska R přes celou srst kromě obdélníků
+[x0, y0, x1, y1] (podíl obrázku, y shora – rohy), scéna pak srst barví na instanci.
+„pose“ upraví klip na místě (z chůze se odvodí chůze za rádlem): „lean“ = [{"bone", "deg"}]
+předklon podstromu kosti kolem její osy napříč tělem (kladný úhel = dopředu), „reach“ =
+{"L"/"R": [stranou vlevo, vpřed, výška] v metrech od paty postavy} – ruce se dvoukloubovou IK
+(rameno – loket – zápěstí, loket ven a dozadu) v každém snímku natáhnou k pevnému bodu
+(rukojeti rádla), nohy dál kráčí. „report“ = jména uzlů, jejichž polohu v klipu (m, souřadnice
+scény: x vlevo postavy, y nahoru, z dopředu) skript vypíše – podle nich sedí rádlo a jho
+k rukám a šíjím (apps/web/lib/scene/plough-team.ts). U každého klipu „walk“ vypíše i rychlost
+chůze při přehrání rychlostí 1 (podle chodidla na zemi).
 
 Na rozdíl od fauna_from_0ad.py se kostra i animace převádějí: GLB má skin (48 kostí bipeda
 0 A.D. + body propů jako další klouby) a každá animace 0 A.D. je jedna animace glTF (klíče
@@ -265,6 +279,15 @@ def box_blur(img, r):
     return img
 
 
+def multiplied(px, multiply):
+    """Přebarvení textury násobením (béžový dobytek na hnědého) – alfa zůstane."""
+    if not multiply:
+        return px
+    out = px.copy()
+    out[..., :3] *= np.array(multiply, np.float32)
+    return out
+
+
 def tinted(px, tint, pattern, flatten=None):
     """Plochy pro barvu hráče (alfa < 1) v barvě `tint` (průměr plochy), vzor ztlumený na
     `pattern` (0 A.D. barvu hráče násobí – šedý kostkovaný vzor by po vynásobení zůstal tmavý).
@@ -303,6 +326,12 @@ def part_masks(px, part):
     h, w = a.shape
     player = (a < 0.99).astype(np.float32)
     zero = np.zeros((h, w), np.float32)
+    if part["kind"] == "body" and "coat" in part:
+        # zvíře: celá srst kromě vynechaných obdélníků (rohy)
+        coat = np.ones((h, w), np.float32)
+        for x0, y0, x1, y1 in part["coat"]:
+            coat[round((1 - y1) * h) : round((1 - y0) * h), round(x0 * w) : round(x1 * w)] = 0
+        return coat, zero
     if part["kind"] == "body":
         cloth = player.copy()
         sat = rgb.max(axis=2) - rgb.min(axis=2)
@@ -345,7 +374,7 @@ def build_atlas(parts, art):
     atlas = np.zeros((height, ATLAS_W, 3), dtype=np.float32)
     mask = np.zeros((height, ATLAS_W, 3), dtype=np.float32)
     for key, part, (sx, sy, w, h) in images:
-        px = load_pixels(os.path.join(art, part["texture"]), w, h)
+        px = multiplied(load_pixels(os.path.join(art, part["texture"]), w, h), part.get("multiply"))
         atlas[sy : sy + h, sx : sx + w] = tinted(px, part.get("tint"), part.get("pattern"), part.get("flatten"))
         cloth, hair = part_masks(px, part)
         mask[sy : sy + h, sx : sx + w, 0] = cloth
@@ -403,6 +432,7 @@ def animation_frames(path):
         if times is None or len(t) > len(times):
             times = t
     frames = []
+    children = {}
     for time in times:
         animated = {}
         for node_id, (t, values) in channels.items():
@@ -413,14 +443,106 @@ def animation_frames(path):
         def walk(node, parent):
             local = animated.get(node.get("id"))
             world = parent @ (local if local is not None else node_matrix(node))
-            worlds[node.get("sid") or node.get("name")] = world
-            for child in node.findall("c:node", NS):
+            key = node.get("sid") or node.get("name")
+            worlds[key] = world
+            kids = node.findall("c:node", NS)
+            children[key] = [k.get("sid") or k.get("name") for k in kids]
+            for child in kids:
                 walk(child, world)
 
         for node in root.findall(".//c:visual_scene/c:node", NS):
             walk(node, fix)
         frames.append(worlds)
-    return times, frames
+    return times, frames, children
+
+
+# --- Úprava pózy klipu (chůze za rádlem) -------------------------------------------------------
+
+
+def subtree(children, name):
+    out, stack = [], [name]
+    while stack:
+        n = stack.pop()
+        out.append(n)
+        stack.extend(children.get(n, []))
+    return out
+
+
+def rotate_subtree(worlds, children, name, rotation, pivot):
+    """Otočí kost i všechno pod ní (světové matice) o `rotation` (3×3) kolem bodu `pivot`."""
+    m = Matrix.Translation(pivot) @ rotation.to_4x4() @ Matrix.Translation(-pivot)
+    for n in subtree(children, name):
+        if n in worlds:
+            worlds[n] = m @ worlds[n]
+
+
+def two_bone_ik(worlds, children, upper, lower, end, target, pole):
+    """Rameno (upper) – loket (lower) – zápěstí (end): loket v rovině ramene, cíle a směru
+    `pole`, zápěstí přesně v cíli (když dosáhne). Ruka si drží natočení vůči předloktí."""
+    s = worlds[upper].to_translation()
+    e = worlds[lower].to_translation()
+    w = worlds[end].to_translation()
+    a, b = (e - s).length, (w - e).length
+    to_target = target - s
+    d = min(max(to_target.length, 1e-4), (a + b) * 0.999)
+    direction = to_target.normalized()
+    cos_a = max(-1.0, min(1.0, (a * a + d * d - b * b) / (2 * a * d)))
+    side = pole - direction * pole.dot(direction)
+    side.normalize()
+    elbow = s + direction * (a * cos_a) + side * (a * math.sqrt(1 - cos_a * cos_a))
+    rotate_subtree(worlds, children, upper, (e - s).rotation_difference(elbow - s).to_matrix(), s)
+    w1 = worlds[end].to_translation()
+    rotate_subtree(worlds, children, lower, (w1 - elbow).rotation_difference(target - elbow).to_matrix(), elbow)
+
+
+def apply_pose(frames, children, pose, unit_m):
+    """Předklon (lean) a ruce k pevnému bodu (reach) v každém snímku klipu – viz docstring."""
+    for worlds in frames:
+        for lean in pose.get("lean", []):
+            bone = lean["bone"]
+            pivot = worlds[bone].to_translation()
+            # postava hledí na −Y, osa X míří vlevo – kladné otočení kolem X = předklon
+            rotation = Matrix.Rotation(math.radians(lean["deg"]), 3, "X")
+            rotate_subtree(worlds, children, bone, rotation, pivot)
+        for side, (left, forward, up) in pose.get("reach", {}).items():
+            target = Vector((left, -forward, up)) / unit_m
+            sign = 1 if side == "L" else -1
+            # loket ven do strany, dozadu a trochu dolů
+            pole = Vector((sign * 0.8, 1.0, -0.4))
+            two_bone_ik(worlds, children, f"arm_{side}", f"forearm_{side}", f"hand_{side}", target, pole)
+
+
+def report_points(clip, frames, names, unit_m):
+    """Poloha uzlů v klipu v metrech – souřadnice scény (x vlevo postavy, y nahoru, z vpřed)."""
+    for name in names:
+        pts = [worlds[name].to_translation() * unit_m for worlds in frames if name in worlds]
+        if not pts:
+            print(f"    {clip}: uzel {name} chybí")
+            continue
+        xs, ys, zs = [p.x for p in pts], [p.z for p in pts], [-p.y for p in pts]
+        print(
+            f"    {clip}: {name} x {sum(xs) / len(xs):+.3f} y {sum(ys) / len(ys):.3f} "
+            f"({min(ys):.3f}–{max(ys):.3f}) z {sum(zs) / len(zs):+.3f} ({min(zs):+.3f}–{max(zs):+.3f})"
+        )
+
+
+def walk_speed(frames, times, unit_m):
+    """Rychlost chůze (m/s) při přehrání rychlostí 1: chodidlo na zemi (nejnižší pětina
+    výšky kroku) jede vůči tělu dozadu stejnou rychlostí, jakou jde postava vpřed."""
+    feet = [n for n in frames[0] if "foot" in n.lower() and "ik" not in n.lower() and "prop" not in n]
+    speeds = []
+    for foot in feet:
+        pts = [worlds[foot].to_translation() * unit_m for worlds in frames]
+        low, high = min(p.z for p in pts), max(p.z for p in pts)
+        v = []
+        for k in range(1, len(pts)):
+            dt = times[k] - times[k - 1]
+            if dt > 0 and max(pts[k].z, pts[k - 1].z) < low + 0.2 * (high - low):
+                # postava hledí na −Y – chodidlo na zemi jede k +Y
+                v.append((pts[k].y - pts[k - 1].y) / dt)
+        if v:
+            speeds.append(sorted(v)[len(v) // 2])
+    return sum(speeds) / len(speeds) if speeds else 0.0
 
 
 # --- GLB -------------------------------------------------------------------------------------
@@ -513,6 +635,17 @@ def convert(spec, art, out_dir):
         parts.append(props[-1])
     atlas, atlas_h, mask = build_atlas(parts, art)
 
+    body_pts = [body["bsm"] @ p for p in body["positions"]]
+    if "length_m" in spec:
+        # zvíře: délka těla podél osy pohledu (Y v 0 A.D.)
+        ys = [p.y for p in body_pts]
+        scale = spec["length_m"] / (max(ys) - min(ys))
+    else:
+        zs = [p.z for p in body_pts]
+        scale = spec["height_m"] / (max(zs) - min(zs))
+    extent = [max(c) - min(c) for c in zip(*[(p.x, p.y, p.z) for p in body_pts])]
+    print(f"  rozměry (m): šířka {extent[0] * scale:.2f}, délka {extent[1] * scale:.2f}, výška {extent[2] * scale:.2f}")
+
     joints = names + [p["joint"] for p in props]
     joint_index = {n: i for i, n in enumerate(joints)}
 
@@ -571,8 +704,6 @@ def convert(spec, art, out_dir):
         print(f"  {part.get('name', 'body')}: uv u[{uvs_seen[0]:.2f},{uvs_seen[1]:.2f}] v[{uvs_seen[2]:.2f},{uvs_seen[3]:.2f}]")
 
     pos = np.array(pos, np.float32)
-    body_z = [(body["bsm"] @ p).z for p in body["positions"]]
-    scale = spec["height_m"] / (max(body_z) - min(body_z))
     # Kořen: 0 A.D. je Z nahoru a postava míří na −Y; glTF je Y nahoru a postava má mířit na +Z
     # (jako ostatní modely scény) – otočení −90° kolem X převede −Y na +Z.
     root_matrix = Matrix.Scale(scale, 4) @ Matrix.Rotation(math.radians(-90), 4, "X")
@@ -622,7 +753,13 @@ def convert(spec, art, out_dir):
     animations = []
     prop_points = {p["joint"]: p for p in props}
     for clip in spec["clips"]:
-        times, frames = animation_frames(os.path.join(art, clip["animation"]))
+        times, frames, children = animation_frames(os.path.join(art, clip["animation"]))
+        if clip.get("pose"):
+            apply_pose(frames, children, clip["pose"], scale)
+        if clip.get("report"):
+            report_points(clip["name"], frames, clip["report"], scale)
+        if clip["name"] == "walk":
+            print(f"    walk: rychlost chůze při přehrání 1× ≈ {walk_speed(frames, times, scale):.2f} m/s")
         visible = set(clip.get("props", []))
         samples = {n: [] for n in joints}
         for worlds_t in frames:
@@ -738,9 +875,10 @@ def convert(spec, art, out_dir):
         f.write(js)
         f.write(struct.pack("<II", len(g.bin), 0x004E4942))
         f.write(g.bin)
+    size = f"délka {spec['length_m']} m" if "length_m" in spec else f"výška {spec['height_m']} m"
     print(
         f"{spec['name']}: {len(idx) // 3} tris, {len(pos)} verts, {len(joints)} kloubů, "
-        f"atlas {ATLAS_W}×{atlas_h}, {os.path.getsize(path) / 1024:.0f} kB, výška {spec['height_m']} m"
+        f"atlas {ATLAS_W}×{atlas_h}, {os.path.getsize(path) / 1024:.0f} kB, {size}"
     )
     return preview
 
