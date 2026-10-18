@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import type { PathLine } from '@bohemia/game';
-import { EARTH_LAYER, WORN_LAYER, pathRibbons, roadFade } from '../path-ribbon';
-import { roadBands } from '../road-works-layout';
+import {
+  EARTH_LAYER,
+  JUNCTION,
+  WORN_LAYER,
+  pathRibbons,
+  ribbonJunctions,
+  roadFade,
+} from '../path-ribbon';
+import { roadBands, roadJunctions } from '../road-works-layout';
 
 const line = (strength: number, open = true): PathLine => ({
   points: [
@@ -98,5 +105,72 @@ describe('pevné cesty z dat (roads.md)', () => {
     // pěšina po ose cesty (z = 0) až k x = 20 zmizí, za ohybem se objeví
     expect(along.alphas[1 + 4 * 5]).toBe(0);
     expect(Math.max(...along.alphas)).toBeGreaterThan(0.5);
+  });
+});
+
+describe('rozcestí – udusaný plácek (Martin: „rozcestí by mělo být nejvyšlapanější plochou“)', () => {
+  /** Čára z rozcestí v počátku do bodu (x, z) se silou `s`. */
+  const arm = (x: number, z: number, s: number): PathLine => ({
+    points: [
+      { x: 0, z: 0 },
+      { x, z },
+    ],
+    strength: [s, s],
+    years: [5, 5],
+    openStart: false,
+    openEnd: true,
+  });
+
+  it('rozcestí je bod se třemi a více konci – síla nejsilnější + díl ostatních, nejvýš 1', () => {
+    expect(ribbonJunctions([arm(20, 0, 0.5), arm(-20, 0, 0.5)])).toEqual([]);
+    const [j] = ribbonJunctions([arm(20, 0, 0.5), arm(-20, 0, 0.3), arm(0, 20, 0.2)]);
+    expect(j).toMatchObject({ x: 0, z: 0 });
+    expect(j!.strength).toBeCloseTo(0.5 + JUNCTION.sumShare * 0.5, 9);
+    const [full] = ribbonJunctions([arm(20, 0, 1), arm(-20, 0, 1), arm(0, 20, 1)]);
+    expect(full!.strength).toBe(1);
+  });
+
+  it('plácek je kruh širší než nejsilnější pěšina – uvnitř kryje plně, okraj měkký', () => {
+    const lines = [arm(20, 0, 0.6), arm(-20, 0, 0.4), arm(0, 20, 0.4)];
+    const plain = pathRibbons(lines, WORN_LAYER, undefined, undefined, []);
+    const grid = pathRibbons(lines, WORN_LAYER);
+    const first = plain.alphas.length;
+    const added = grid.alphas.length - first;
+    expect(added).toBe(1 + JUNCTION.segments * 2);
+    const strength = ribbonJunctions(lines)[0]!.strength;
+    // střed plácku – plné krytí podle síly plácku (víc než nejsilnější pěšina)
+    expect(grid.alphas[first]).toBeCloseTo(WORN_LAYER.alpha(strength), 6);
+    expect(grid.alphas[first]!).toBeGreaterThan(WORN_LAYER.alpha(0.6));
+    const width =
+      WORN_LAYER.width.weak + (WORN_LAYER.width.strong - WORN_LAYER.width.weak) * strength;
+    for (let k = 0; k < JUNCTION.segments; k++) {
+      const v = first + 1 + k * 2;
+      const r = Math.hypot(grid.positions[v * 2]!, grid.positions[v * 2 + 1]!);
+      expect(r).toBeGreaterThan((width / 2) * JUNCTION.scale * (1 - JUNCTION.jitter) - 1e-5);
+      expect(grid.alphas[v]).toBeCloseTo(grid.alphas[first]!, 9);
+      expect(grid.alphas[v + 1]).toBe(0);
+    }
+    // plácek širší než pás nejsilnější pěšiny (bez kolísání)
+    expect((width / 2) * JUNCTION.scale * (1 - JUNCTION.jitter)).toBeGreaterThan(
+      (WORN_LAYER.width.weak + (WORN_LAYER.width.strong - WORN_LAYER.width.weak) * 0.6) / 2,
+    );
+  });
+
+  it('pevné cesty: rozcestí tří úseků, u upravené cesty v pásu upravené', () => {
+    const road = (id: number, x: number, z: number, grade: 'trodden' | 'improved' = 'trodden') => ({
+      id,
+      points: [
+        { x: 0, z: 0 },
+        { x, z },
+      ],
+      grade,
+    });
+    expect(roadJunctions([road(1, 30, 0), road(2, -30, 0)])).toEqual({ trodden: [], improved: [] });
+    expect(roadJunctions([road(1, 30, 0), road(2, -30, 0), road(3, 0, 30)]).trodden).toEqual([
+      { x: 0, z: 0, strength: 1 },
+    ]);
+    const mixed = roadJunctions([road(1, 30, 0, 'improved'), road(2, -30, 0), road(3, 0, 30)]);
+    expect(mixed.improved).toHaveLength(1);
+    expect(mixed.trodden).toEqual([]);
   });
 });

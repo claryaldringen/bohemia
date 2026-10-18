@@ -1039,9 +1039,8 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     }
     const sample = demoRoad(decoded);
     setRoad({ roads: sample.roads, roadTrees: sample.trees, roadApples: sample.apples });
-    const points = sample.roads[0]!.points;
-    const middle = points[Math.floor(points.length / 2)]!;
-    scene?.moveCameraTo(middle.x, middle.z);
+    // kamera k rozcestí uprostřed první cesty
+    scene?.moveCameraTo(sample.focus.x, sample.focus.z);
   };
 
   /**

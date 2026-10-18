@@ -44,7 +44,11 @@ A po vyšlapané pěšině se chodí lépe – cesta na vzdálené pole po ní s
   po ní, ztratí se v ní (kreslí se jen cesta).
 - **Síla pěšiny** roste s počtem cest za den (pomalu – s odmocninou), jednotlivé cesty nic
   nevyšlapou. Silná pěšina je širší (do 1,9 m) a uprostřed holá udusaná hlína, slabší jen
-  prošlapaná tráva s hlínou uprostřed.
+  prošlapaná tráva s hlínou uprostřed. **Rozcestí** (sejdou se aspoň tři pěšiny) je
+  nejvyšlapanější místo (Martin, 18. 10. 2026): udusaný plácek – kruh 1,4× širší než
+  nejsilnější přicházející pěšina, síla té pěšiny + 30 % síly ostatních (nejvýš plná), pásy do
+  něj vbíhají bez zúžení (návrh Clauda; `ribbonJunctions` v `path-ribbon.ts`). Stejně
+  i rozcestí pevných cest ([roads.md](roads.md)).
 - **Objevuje se a mizí:** spojení nového obydlí se vyšlapává dva roky, zrušené místo pěšinu
   ztratí (v prototypu hned). Práce se mění s rokem – pěšina na pole je v žních silnější.
 - **Vidět jsou i v polích:** pěšina se kreslí nad poli – přes úhor a pastvinu jako prošlapaný
