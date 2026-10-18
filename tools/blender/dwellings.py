@@ -1202,7 +1202,6 @@ def setup_world(grass_path):
 #   <typ>-<stupeň>-moss     zarostlé kousky došků (mech, tráva) – „decay-moss“ (atlas × olivová)
 #   <typ>-ruin              trámy a pahýly sloupů na dně prohlubně (počátek = dno uprostřed)
 #   <typ>-ruin-late         totéž o pár let později – míň trámů, nižší pahýl
-#   <typ>-ruin-berms        nízké zarostlé valy kolem prohlubně (počátek = původní terén)
 #   nettle                  trs kopřiv (počátek = zem) – „decay-nettle“
 # Barvy materiálů jsou glTF baseColorFactor (obrázek atlasu je v GLB jen jednou).
 
@@ -1534,18 +1533,9 @@ def _sticking_rafters(b, kind):
         b.beam(a, c, 0.1)
 
 
-def _overgrown_uv(uv):
-    """UV valu přemapované do trávy pásu drnů (zarostlý val): poloha v pásu (od paty valu)
-    se zachová, jen se stáhne do spodní, travnaté části pásu drnů."""
-    row = (1 - uv[1]) * AH
-    src = next((b for b in (BANDS["turf"], BANDS["spoil"]) if b["r0"] - 1 <= row <= b["r1"] + 1), BANDS["turf"])
-    t = min(1.0, max(0.0, (src["r1"] - row) / (src["r1"] - src["r0"])))
-    turf = BANDS["turf"]
-    return (uv[0], 1 - (turf["r1"] - 3 - 0.5 * t * (turf["r1"] - turf["r0"])) / AH)
-
-
 def ruin_parts(kind):
-    """Zbytek jámy: trámy a pahýly sloupů na dně prohlubně (dva stupně) a nízké zarostlé valy."""
+    """Zbytek jámy: trámy a pahýly sloupů na dně prohlubně (dva stupně). Prohlubeň se zarostlým
+    valem po okraji kreslí scéna (apps/web/lib/scene/dwelling-decay.ts – ruinHollowData)."""
     shape = DECAY_SHAPES[kind]
     hx, hy = shape["hx"] - 0.6, shape["hy"] - 0.6
     early, late = Builder(f"{kind}-ruin"), Builder(f"{kind}-ruin-late")
@@ -1563,14 +1553,7 @@ def ruin_parts(kind):
     for i, (x, y) in enumerate(stumps):
         early.beam((x, y, -0.25), (x + 0.03, y + 0.02, 0.45 - 0.15 * i), 0.15)
     late.beam((stumps[0][0], stumps[0][1], -0.25), (stumps[0][0], stumps[0][1], 0.22), 0.14)
-    # valy: tvar valů obydlí, nižší a zarostlé trávou
-    src = Parts("src-ruin")
-    (build_zemnice if kind == "zemnice" else build_polozemnice)(src)
-    berms = Builder(f"{kind}-ruin-berms")
-    berms._smooth_now = True
-    for pts, uv, sm in _polys(src.builders["berms"]):
-        _put(berms, [Vector((p.x, p.y, p.z * 0.6)) for p in pts], [_overgrown_uv(t) for t in uv], sm)
-    return early, late, berms
+    return early, late
 
 
 def nettle_clump(b):
@@ -1619,8 +1602,8 @@ def decay_main():
             objs.append(thatch.build(mats["decay-faded"]))
             if moss.faces:
                 objs.append(moss.build(mats["decay-moss"]))
-        early, late, berms = ruin_parts(kind)
-        objs += [early.build(mat), late.build(mat), berms.build(mat)]
+        early, late = ruin_parts(kind)
+        objs += [early.build(mat), late.build(mat)]
     nettle = Builder("nettle")
     nettle_clump(nettle)
     objs.append(nettle.build(mats["decay-nettle"]))
@@ -1651,7 +1634,7 @@ def render_decay(objs):
         for o in extra:
             bpy.data.objects.remove(o)
         bpy.data.objects["ground"].hide_render = False
-        ruin = [by_name[f"{kind}-ruin"], by_name[f"{kind}-ruin-berms"]]
+        ruin = [by_name[f"{kind}-ruin"]]
         render(ruin, os.path.join(RENDER, f"{kind}-ruin.png"), (-6.5, -9.5, 6.0), (0, 0, 0), size=(900, 640))
     nettle = by_name["nettle"]
     render([nettle], os.path.join(RENDER, "nettle.png"), (-1.6, -2.2, 1.4), (0, 0, 0.4), size=(700, 600))
