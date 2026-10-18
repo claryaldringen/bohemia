@@ -233,9 +233,11 @@ pořadí (návrh Clauda; nahrazuje pevných 85 % a dělení práce po domácnost
   zásob a potřeby do sklizně (návrh Clauda). Ves tak hladoví postupně, ne ze dne na den.
 - **Start:** osadníci přinesli zásoby a osivo na **18 měsíců** potřeby (návrh Clauda) – ves
   přežije i založení těsně po jarním setí.
-- **Hlad ves nezničí** (návrh Clauda, podle anti-cíle populace): hlad tlumí porody a zvyšuje
-  úmrtnost, ale jen dokud se počet lidí nesrovná s tím, co pole a zásoby uživí. Ves se zmenší,
-  ale nevymře, dokud má pole, které obdělává. **Hájení** z populace chrání i před smrtí hladem.
+- **Hlad zabíjí** (Martin, 18. 10. 2026 – dřív „hlad ves nezničí“): hlad tlumí porody a lidé
+  umírají hlady podle nahromaděného hladu, dokud se jejich počet nesrovná s tím, co zásoby
+  uživí – každé úmrtí zvedne příděl ostatním. Bez jídla ves do dvou měsíců vymře a hráč, kterému
+  vymřou všechny vsi, začíná znovu ([populace – Hlad a vymření](population.md)). **Hájení**
+  z populace chrání dospělé i před smrtí hladem.
 
 ### Zarůstání
 
@@ -439,7 +441,8 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 | Společné zásoby vsi, ztráty 10 %, přídělový systém, start se zásobami na 18 měsíců           | návrh Clauda                  |
 | Přirozená louka nezarůstá; les z náletu ve scéně jako mladé stromky                          | návrh Clauda                  |
 | Překážky jako verzovaná vrstva krajiny v `packages/game`; co je překážka a za kolik          | návrh Clauda                  |
-| Hlad ves zmenší, ale nezničí; hájení chrání i před hladem                                    | návrh Clauda                  |
+| Hlad ves zmenší, ale nezničí; hájení chrání i před hladem (do 18. 10. 2026)                  | návrh Clauda                  |
+| Lidé umírají hlady, ves může vymřít ([populace](population.md))                              | Martin (18. 10. 2026)         |
 | Výchozí osevní systém: přílohová soustava raných Slovanů                                     | Martin                        |
 | Úroda zatím bez náhody – dobré a špatné roky až s počasím (pak hájení i na neúrodu)          | Martin                        |
 | Přílohová soustava: osev do 70 % úrodnosti (≈ 3 roky), příloh do 95 % (≈ 7 let), pořadí dílů | návrh Clauda                  |

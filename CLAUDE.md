@@ -125,7 +125,8 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   sídla. **Po ostrém spuštění** se existující vrstva nesmí změnit (přepsala by krajiny hráčů) –
   nová verze vrstvy, nebo nová vrstva.
 - **Use-case** `enterGame` (sídelní sídlo hráče, atomicky přes unikátní index); ve webu
-  `enterGameForPlayer` v `lib/game.ts`. Krajinu generuje server, do prohlížeče jde zakódovaná
+  `enterGameForPlayer` v `lib/game.ts`. Restart hry (`restartGame`, viz Ves – Hlad a vymření)
+  sídla archivuje (`settlement.archived_at`, `is_seat` false) – port vrací jen aktivní sídla. Krajinu generuje server, do prohlížeče jde zakódovaná
   (`lib/landscape-transfer.ts`, přesnost = `transferPrecision`).
 - **Stromy, keře a kameny jsou herní data** – vrstva překážek
   (`packages/game/src/domain/landscape/obstacles/`, fields.md – Překážky jsou herní data):
@@ -323,8 +324,23 @@ rozhraní částí v
   `advanceVillage(state, toDay)` (dopočítá ves do dne včetně) a akce hráče `startNewDwelling`,
   `foundField`, `foundCemetery` a `foundOrchard`. Stav vsi je JSON-serializovatelný, funkce
   vstupní stav nemění. Nové části stavu jsou volitelné (`VillageState.cemeteries?`,
-  `orchards?`, `applesKg?`, `orchardWork?`) – vsi uložené dřív se načtou a beze sadů se jejich
-  stav nemění.
+  `orchards?`, `applesKg?`, `orchardWork?`, `starvationDays?`, `extinctDay?`) – vsi uložené
+  dřív se načtou a beze sadů se jejich stav nemění.
+- **Hlad a vymření** (population.md, Martin 18. 10. 2026): nahromaděný hlad
+  `VillageState.starvationDays` (`nextStarvationDays` po jídle dne, čísla `STARVATION`
+  v `rules.ts`) přidá k běžnému riziku úmrtí riziko hladem (`deathChances` → `base` +
+  `starvation`; úmrtí z části hladu má v kronice `cause: 'hunger'`). Hájení chrání dospělé i před
+  hladem, dětem ho půlí; ochrana posledních dvou dospělých už není. Poslední úmrtí → `extinctDay`
+  a `village-extinct`; `advanceVillage` vymřelou ves dál nesimuluje (posune jen `lastDay`),
+  doménové akce ji odmítnou. **Konec hry** (`extinction.ts`: `isGameOver` – hráč má vsi a žádná
+  nežije, obecně pro víc vsí): use-case `dynastyStatus` (vsi aktivních sídel dopočítané do
+  dneška) a `restartGame` (archivuje aktivní sídla přes `SettlementRepository.archive`, pak
+  `enterGame` založí nové sídelní sídlo s novým seedem; se živou vsí `DYNASTY_ALIVE`, bez vsi
+  vrátí sídlo beze změny). Akce ve vymřelé vsi odmítá `updateLivingVillage` (`VILLAGE_EXTINCT`),
+  přejmenování taky. Web: `VillageView.extinct` / `gameOver` / `starving` (konec hry zjistí
+  `lib/village.ts` jen u vymřelé vsi), server action `restartGame` a `hud/DefeatScreen.tsx`
+  (Rod vymřel, jméno, roky, Začít znovu → `window.location.reload()` kvůli nové krajině). Scéna:
+  neobývaná obydlí nemají dým ani zvířata a hlína u vchodu zarůstá (`ABANDONED_EARTH_ALPHA`).
 - **Hřbitov** (`cemetery.ts`, cemetery.md): čtverce s 56 hroby, zemřelý se pohřbí do hotového
   hřbitova s místem nejblíž k obydlím (`bury` v `populationDay`), kronika `cemetery-full`.
   Čtverce navazující stranou na hřbitov ho **rozšíří** (`foundCemetery`: stejné id, čtverce na
@@ -361,7 +377,7 @@ rozhraní částí v
   obou dokumentů s OK / MIMO (`200 60` rychlé cíle, `100 1000` vymření do roku 1500).
 - **Web:** server actions `app/game/actions.ts` (`getVillageView`, `foundVillage`, `placeDwelling`,
   `placeField`, `placeCemetery`, `placeOrchard`, `renameVillage` → `VillageView` / `null` /
-  `{ error }`),
+  `{ error }`; `restartGame` → `{ ok: true }` / `{ error }`),
   composition root `lib/village.ts`, `lib/village-view.ts` (DTO, smí i do prohlížeče). Typy pro scénu jsou
   odvozené odtud a z `@bohemia/game` – nedefinovat je znovu ve scéně.
 - **Rozhraní jako v 0 A.D., bez popisků a průvodce** (Martin): `components/game/VillageGame.tsx`
@@ -427,9 +443,9 @@ rozhraní částí v
   práce podle `forestDistanceM` obydlí. Scéna: hromada klád `lib/scene/log-pile.ts` (místo
   a hranice v `log-pile-layout.ts`, bez volného místa se nekreslí), staveniště ukazuje průběh
   bez kácení (`buildProgress`).
-- **Upozornění** (`lib/village-notices.ts`): plná domácnost (fakt), hlad, stojící stavby, plný
-  hřbitov (žádný hotový nemá volný hrob) – nově vzniklé jako krátký mizející řádek nahoře,
-  žádný trvalý seznam. Kronika je jen v DTO.
+- **Upozornění** (`lib/village-notices.ts`): plná domácnost (fakt), lidé umírají hlady, hlad,
+  stojící stavby, plný hřbitov (žádný hotový nemá volný hrob) – nově vzniklé jako krátký
+  mizející řádek nahoře, žádný trvalý seznam; vymřelá ves žádná. Kronika je jen v DTO.
 - **Krajina sídla** se na serveru drží v LRU mezipaměti (`lib/landscape-cache.ts`, port
   `LandscapeSource` v `enterGame`) – negeneruje se při každé akci a dotazu. Vrstva překážek
   se generuje až pro stavby (`obstaclesOf`, mezipaměť podle objektu krajiny); dotaz na ves

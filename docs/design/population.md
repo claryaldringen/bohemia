@@ -1,7 +1,8 @@
 # Obyvatelstvo a obydlí vesnice
 
 Stav: schváleno 17. 10. 2026 (Martin: „asi ok, doladíme později“), týž den upraveno umístění
-obydlí a společná pole (Martin) a odemčení nového obydlí – hráč staví, kdy chce (Martin).
+obydlí a společná pole (Martin) a odemčení nového obydlí – hráč staví, kdy chce (Martin). 18. 10. 2026 Martin změnil pravidlo hladu: lidé umírají hlady a ves může vymřít; komu vymřou
+všechny vsi, ten začíná znovu (viz Hlad a vymření).
 Implementace jádra: `packages/game/src/domain/village/`.
 
 ## Proč
@@ -28,7 +29,8 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
   Navazuje), těžba dřeva, voda, jednotliví lidé se jmény, sňatky mezi vesnicemi, rod hráče,
   více vesnic. **Příchozí z okolí zatím ne** – narušilo by to budoucí mechaniky (Martin).
 - **Anti-cíl:** ves, která se bez hráče rozpadne nebo vymře jen proto, že hráč pár dní nebyl
-  online. Nestavění zpomalí růst, ale neruinuje ves.
+  online. Nestavění zpomalí růst, ale neruinuje ves. Pole obdělávají osadníci sami – ves, která
+  má dost polí, bez hráče nehladoví. Hlad ji zabít může (Martin, 18. 10. 2026 – Hlad a vymření).
 - **Anti-cíl:** čísla typu „4,37 člověka“ – lidé jsou celí.
 
 ## Pojmy
@@ -68,8 +70,9 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
   bydlí na staveništi (bez vlivu na úmrtnost), pak se do zemnice nastěhují (návrh Clauda).
 - **První pole není podmínkou založení** (Martin, 17. 10. 2026: „Hráč sám rozhodne kdy a co bude
   stavět, jako v každé RTS.“) – pole jsou samostatná a společná pro celou ves a hráč je zakládá,
-  kdy chce ([fields.md](fields.md)). Ves bez pole žije ze zásob na 18 měsíců a pak hladoví;
-  hájení ji v prvních 30 letech chrání (dospělí neumírají ani hladem).
+  kdy chce ([fields.md](fields.md)). Ves bez pole žije ze zásob na 18 měsíců a pak hladoví –
+  děti umírají hlady; hájení v prvních 30 letech chrání dospělé (neumírají ani hladem), po něm
+  ves bez jídla do dvou měsíců vymře (Hlad a vymření).
 
 ### Umístění obydlí
 
@@ -105,19 +108,53 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
   (+1–2), takže ves bez nových staveb přestane růst, ale nevymře.
 - **Hygiena** (bez ukazatele) zvyšuje úmrtnost, když ves nemá pohřebiště, je plné nebo leží moc
   blízko obydlí či vody – [cemetery.md](cemetery.md) (Martin).
-- **Jídlo** vstupuje jako **nasycení vsi** 0–1 – počítá ho [fields.md](fields.md). Hlad ves
-  zmenší na tolik lidí, kolik pole uživí, ale nezničí ji (návrh Clauda).
+- **Jídlo** vstupuje jako **nasycení vsi** 0–1 – počítá ho [fields.md](fields.md). Dnešní hlad
+  zvýší běžnou úmrtnost, nahromaděný hlad zabíjí – lidé umírají hlady, dokud jich nezbude tolik,
+  kolik zásoby uživí, a bez jídla ves vymře (Hlad a vymření).
 - Porody a úmrtí jsou **jednotlivé náhodné události**, ale opakovatelné: náhoda se odvozuje
   ze seedu světa, vsi a herního data. Stejný stav ve stejný den dá vždy stejný výsledek.
 - Lidé stárnou podle data narození; s věkem přecházejí mezi skupinami.
 - **Hájení:** prvních 30 herních let od založení vsi jí přeje štěstí (Martin) – dospělí
-  neumírají (ani hladem) a dětí umírá polovina oproti běžné úmrtnosti (podoba štěstí je návrh Clauda, doladí
-  se kalibrací). Malá ves tak nevymře hned na začátku a všichni hráči mají srovnatelný start.
+  neumírají (ani hladem) a dětí umírá polovina oproti běžné úmrtnosti (i hladem; podoba štěstí
+  je návrh Clauda, doladí se kalibrací). Malá ves tak nevymře hned na začátku a všichni hráči
+  mají srovnatelný start. Po hájení už nikoho zvlášť nechrání – ani poslední dva dospělé
+  (do 18. 10. 2026 je hlad nezvyšoval).
 - **Rozpad domácnosti** (návrh Clauda): domácnost bez dospělého 14–44 let (jen děti nebo
   starší) a osamělý dospělý bez dětí se přestěhují do domácnosti s nejvíc volnými místy (smí
   ji i přeplnit) – jinak by domácnost, kde zbyl jeden dospělý, už nikdy neměla děti. Kronika
   to zapíše.
   Opuštěné obydlí se neopravuje a chátrá; při stavu 0 zanikne a políčko se uvolní.
+
+### Hlad a vymření
+
+Martin, 18. 10. 2026: „Koukám do hry, jídlo došlo, nasycení 0 %, ale lidé si furt vesele žijí
+místo aby zemřeli.“ Na návrh Clauda (nahromaděný hlad, smrt do ≈ 2 měsíců bez jídla, hájení
+zůstává, ochrana posledních dvou dospělých padá): „Ano, když hráči vymřou všechny vesnice (časem
+jich bude moci mít více), tak pro něj hra končí – musí začínat znovu.“ Čísla jsou návrh Clauda.
+
+- **Nahromaděný hlad** vsi se měří ve **dnech bez jídla**: každý den přibude 1 − nasycení (den
+  o polovičním přídělu = půl dne bez jídla). Když ves jí aspoň z 95 %, hlad ubývá o den denně až
+  k nule. Víc než 60 dní se nehromadí (dál už to nemá vliv – jinak by se ves po hájení
+  zotavovala stovky dní).
+- **Úmrtí hladem:** k běžnému dennímu riziku (věk, přeplněnost, dnešní hlad, hygiena) se přičte
+  riziko z nahromaděného hladu – nula do prahu, pak strmě roste: ((hlad − práh) / (jistá smrt −
+  práh))³. Dospělí: práh 20 dní, jistá smrt 60. Děti a starší: práh 12, jistá smrt 45. Bez jídla
+  tak ze sytosti vymřou všichni do 60 dní, děti a starší do 45 (polovina lidí zhruba za měsíc).
+- **Ves se srovná sama:** příděl se dělí rovně do sklizně ([fields.md](fields.md)), takže
+  každé úmrtí zvedne příděl ostatním. Při polovičním přídělu začnou děti a starší umírat po
+  ≈ 4 týdnech, ves se během dalších ≈ 6 týdnů zmenší na ≈ 40–50 % lidí, zbylí jsou sytí a hlad
+  se zotaví. Mírný nedostatek (80 % přídělu) stojí po ≈ 3 měsících hlavně děti a starší.
+  Porody se zastaví už při nasycení 0,5 (Růst populace).
+- **Hájení** chrání dospělé a starší i před smrtí hladem, dětem riziko hladu půlí.
+- **Vymření:** když zemře poslední člověk, ves **vymřela** – kronika to zapíše a ves se dál
+  nesimuluje: pole, stavby, zásoby i klády zůstanou, jak byly (scéna bez dýmu a zvířat, hlína
+  u obydlí zarůstá). Do vymřelé vsi nejde stavět ani ji přejmenovat (server odmítne „Ves
+  vymřela – nikdo v ní nežije.“).
+- **Konec hry:** komu vymřou všechny vsi (dnes má hráč jednu, pravidlo platí obecně pro víc
+  vsí), tomu hra končí – obrazovka porážky jako v 0 A.D. přes zamrzlou scénu: „Rod vymřel“, jméno
+  vsi, roky jejího života a jediné tlačítko **Začít znovu**. To staré sídlo i s vymřelou vsí
+  odloží do archivu a hráč dostane **nové sídelní sídlo s novou krajinou** – zakládá ves od
+  první zemnice jako nový hráč (návrh Clauda; vazalství a rod se vyřeší s jejich mechanikami).
 
 ### Nové obydlí (rozhoduje hráč)
 
@@ -179,9 +216,9 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
 
 ### Kronika
 
-- Ves vede kroniku událostí s herním datem: narození, úmrtí (dítě / dospělý / starší),
-  založení domácnosti, dokončení stavby, rozhodnutí obyvatel o přestavbě. Po návratu ji hráč
-  uvidí jako první.
+- Ves vede kroniku událostí s herním datem: narození, úmrtí (dítě / dospělý / starší, hladem
+  zvlášť), založení domácnosti, dokončení stavby, rozhodnutí obyvatel o přestavbě a vymření vsi.
+  Po návratu ji hráč uvidí jako první.
 - Kronika drží **posledních 500 událostí**, starší se zahazují (návrh Clauda – stav vsi za
   1000 let jinak roste bez konce; simulace kroniku nečte, takže na průběh vsi to nemá vliv).
 
@@ -236,6 +273,19 @@ zasetá část, odemčení počítá jen dospělé 14–44, rozpad domácnosti s
   medián po ≈ 530 letech) – přestavba na polozemnici jí dá 8 míst a domácnost kolem 8–9 lidí
   je odolná.
 
+**Po zavedení hladovění** (18. 10. 2026, `measure-village.ts 200 60`, bez ladění čísel; před → po):
+
+- bez jídla ze sytosti (syntetické vsi po hájení, 6–150 lidí): polovina mrtvá za ≈ 34 dní,
+  poslední dospělý nejpozději 57. den, poslední dítě nebo starší 43. den; poloviční příděl:
+  přežije ≈ 45 % lidí, úmrtí hladem od ≈ 5. do ≈ 12. týdne, pak je hlad zase nula,
+- první možnost stavět: medián 3,9 → 4,3 roku, p90 7,8 → 9,3 (**MIMO** cíl ≈ 8 let), p99 38 →
+  přes 60 let – mírný nedostatek v prvních letech (příděl ≈ 0,8 do první velké sklizně) zabije
+  startovní děti a první plná domácnost se odloží,
+- vymření do 60 let: ves, kde hráč staví, 0 z 200 → 0 z 200 (na konci domácností medián 6 → 4,
+  lidí 30 → 23); jediná domácnost bez staveb 0,5 % → 6,5 %,
+- nasycení ≥ 0,95 celý rok (hráč staví): 93,8 % → 95,0 % let (OK – hlad ves zmenší),
+- zbytek (stavby, přestavby, pole, oběh, sad) beze změny.
+
 ## Co hráč vidí
 
 - V krajině: umístění první zemnice a dalších obydlí, rozestavěné stavby. **Modely obydlí jsou
@@ -255,7 +305,9 @@ zasetá část, odemčení počítá jen dospělé 14–44, rozpad domácnosti s
   se jménem vsi a ikonami s čísly (lidé, obilí, volná práce, nasycení, datum), minimapa, panel
   vybraného obydlí (obyvatelé s věkem, stav, stáří, průběh stavby) a mřížka staveb. Žádný
   průvodce ani nápovědy.
-- Krátké mizející upozornění, že je domácnost plná (fakt, ne rada).
+- Krátké mizející upozornění, že je domácnost plná, že ves hladoví a že lidé umírají hlady
+  (fakt, ne rada).
+- Obrazovka porážky, když hráči vymřou všechny vsi (Hlad a vymření).
 - Kronika zůstává v datech vsi, v rozhraní zatím není.
 
 ## Navazuje
@@ -289,9 +341,12 @@ zasetá část, odemčení počítá jen dospělé 14–44, rozpad domácnosti s
 | Odemčení surovinami předem – bez nich je tlačítko stavby zašedlé             | Martin (17. 10. 2026)         |
 | Obydlí jen, když je kým ho osadit (lidé k osídlení jako cena předem)         | Martin (17. 10. 2026)         |
 | Obydlí chátrají, opravy rostou; přestavbu (i na lepší) rozhodují obyvatelé   | Martin                        |
-| Bez staveb ves přestane růst, ale nerozpadne se                              | návrh Clauda, Martin potvrdil |
+| Bez staveb ves přestane růst, ale nerozpadne se (hlad ji ale zabít může)     | návrh Clauda, Martin potvrdil |
 | Přestavba vždy na lepší obydlí, pokud jsou suroviny; typ nové stavby hráč    | Martin                        |
 | Hájení: prvních 30 herních let vsi přeje štěstí; žádní příchozí z okolí      | Martin                        |
+| Lidé umírají hlady, ves může vymřít; bez vsí hráč začíná znovu               | Martin (18. 10. 2026)         |
+| Nahromaděný hlad, prahy 20 / 12 dní, smrt bez jídla do 60 / 45 dní           | návrh Clauda                  |
+| Restart: staré sídlo do archivu, nové sídelní sídlo s novou krajinou         | návrh Clauda                  |
 | Podoba hájení: dospělí neumírají, poloviční dětská úmrtnost                  | návrh Clauda                  |
 | Kapacity 6 / 8, ceny 60 / 220 člověkodní (roční období / rok), životnosti    | návrh Clauda                  |
 | Porodnost, úmrtnost, opravy až polovina příspěvku domácnosti                 | návrh Clauda                  |
