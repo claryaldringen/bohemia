@@ -193,7 +193,9 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   jen vyplňuje mezery hluboko v lese. PBR materiály se oparem musí volat `applyGammaFog`
   (`gamma-fog.ts`) – vestavěný opar PBR zešedí zeleň. **Změna náklonu kamery (`BETA`
   v `camera.ts`) nebo modelů stromů = nový render atlasu** (`tools/blender/impostors.py`)
-  a přepis hodnot v `impostor-atlas.ts`.
+  a přepis hodnot v `impostor-atlas.ts` – **letního i zimního** (`impostors.py … winter`:
+  listnáče holé – listí z textur zmizí podle barvy, zbudou kmeny, větve a řídký závoj
+  větviček –, smrky se sněhem; buňky vyjdou stejné, výřez se počítá ze stromu s listím).
 - **Dekorace** (`decorations.ts`): překážky z vrstvy (keře, kameny, skalní výchozy naklopené
   podle svahu, souše, padlé stromy, pařezy, vrby) a ozdoby vody bez herní funkce
   (`decor-placement.ts`: rákos, orobinec, lekníny, kmeny v potoce – zůstávají ve scéně). Modely
@@ -223,10 +225,15 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   (`applySeasonGround`), PBR stromy a dekorace (`applySeasonModel` podle jména modelu –
   druhy v `season-foliage.ts`: listnáče se barví a opadávají, z koruny zbudou větvičky, kůra
   ztratí zelený tón; jehličí a kameny pod sněhem; rákos stojí suchý; trnka a jabloně kvetou),
-  střechy (`applySeasonSnow`), impostory a plocha korun. Nový model stromu nebo keře = záznam
-  v `seasonFoliageFor`. Stínová mapa listí nezná – pod 30 % listí listnáče (`isDeciduousMesh`)
-  ze stínové mapy vypadnou (jedno překreslení mapy) a stíny zesvětlí. Vývojový náhled má
-  posuvník dne v roce a „přehrát rok“ (`setSeasonDay`).
+  střechy (`applySeasonSnow`). Impostory (`applySeasonImpostors`) mají druhý sampler se
+  zimním atlasem (stahuje se souběžně, nečeká se na něj): listnáč s opadem listí přechází po
+  pixelech na holý obrázek, smrk se sněhem na zasněžený; podzim barví letní obrázek. Plocha
+  korun s opadem po skvrnách mizí – v zimě je pod holými stromy vidět zasněžená zem (u kmenů
+  místy prosvítá, stín stromů slabší). Nový model stromu nebo keře = záznam v
+  `seasonFoliageFor`. Stínová mapa listí nezná – pod 30 % listí 3D listnáče (`isDeciduousMesh`)
+  ze stínové mapy vypadnou a impostory dostanou do `diffuseTexture` zimní atlas (stín kmenů
+  a větví), mapa se překreslí jednou. Vývojový náhled má posuvník dne v roce a „přehrát rok“
+  (`setSeasonDay`).
 - **Ukazatel načítání:** `setLandscape(landscape, onProgress)` hlásí kroky přípravy a mezi
   náročnými kroky pustí prohlížeč překreslit; `GameView` ukazuje `SceneLoading`.
 - **Zvuky** (podle 0 A.D.): `ambient-mix.ts` (čisté funkce, testy) spočítá z cíle a přiblížení

@@ -32,7 +32,7 @@ import { FelledTrees } from './felled-trees';
 import { LogPile } from './log-pile';
 import { sameClearing, villageClearedForest, type ClearedForest } from './cleared-forest';
 import { createForestCanopy, type ForestCanopy } from './forest-canopy';
-import { addImpostors } from './impostors';
+import { addImpostors, type ImpostorForest } from './impostors';
 import { obstacleScenery } from './obstacle-scenery';
 import { createTerrainMesh, type TerrainMesh } from './terrain-mesh';
 import { buildRenderSurface } from './render-surface';
@@ -82,8 +82,9 @@ const SEASON_EPSILON = 0.002;
 /** Stíny v zimě – holé listnáče propouštějí světlo (jen uniforma, mapa se nepřekresluje). */
 const WINTER_SHADOW_DARKNESS = 0.6;
 /**
- * Pod tímto množstvím listí (season-look.ts) listnáče nevrhají stín – holá koruna by vrhala
- * stín plného listí (stínová mapa listí nezná). Stínová mapa se překreslí jen při přechodu.
+ * Pod tímto množstvím listí (season-look.ts) 3D listnáče nevrhají stín – holá koruna by vrhala
+ * stín plného listí (stínová mapa listí nezná) – a impostory vrhají stín holých korun ze
+ * zimního atlasu. Stínová mapa se překreslí jen při přechodu.
  */
 const BARE_SHADOW_LEAVES = 0.3;
 
@@ -160,6 +161,8 @@ export class LandscapeScene {
   /** Listnáče ve stínové mapě a jestli jsou zrovna vyřazené (holé). */
   private deciduousCasters: Mesh[] = [];
   private bareShadows = false;
+  /** Vnitřek lesa – v zimě vrhá stín ze zimního atlasu (holé koruny). */
+  private impostorForest: ImpostorForest | null = null;
 
   private constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -318,11 +321,24 @@ export class LandscapeScene {
       counted(addTrees(this.scene, trees, { baseUrl: '/models/trees/', groundHeight })),
       counted(addDecorations(this.scene, decor, { baseUrl: '/models/decor/', groundHeight })),
       counted(
-        addImpostors(this.scene, this.rtsCamera.camera, impostors, groundHeight).catch((error) =>
-          console.warn(
-            'Atlas stromů se nepodařilo načíst – vnitřek lesa zůstane bez stromů.',
-            error,
-          ),
+        addImpostors(
+          this.scene,
+          this.rtsCamera.camera,
+          impostors,
+          groundHeight,
+          (shadowAtlasChanged) => {
+            if (shadowAtlasChanged) this.shadows?.refresh();
+            this.renderWhenReady();
+          },
+        ).then(
+          (forest) => {
+            this.impostorForest = forest;
+          },
+          (error) =>
+            console.warn(
+              'Atlas stromů se nepodařilo načíst – vnitřek lesa zůstane bez stromů.',
+              error,
+            ),
         ),
       ),
       counted(
@@ -355,8 +371,10 @@ export class LandscapeScene {
         extentM: landscape.size * landscape.cellSizeM,
       });
       this.pendingCasters.length = 0;
+      // impostory listnáčů v zimě nevypadnou – vrhají stín ze zimního atlasu (setBareShadows)
       this.deciduousCasters = this.scene.meshes.filter(
-        (mesh): mesh is Mesh => mesh instanceof Mesh && isDeciduousMesh(mesh.name),
+        (mesh): mesh is Mesh =>
+          mesh instanceof Mesh && isDeciduousMesh(mesh.name) && !mesh.name.startsWith('impostors-'),
       );
     }
     this.updateSeason(true);
@@ -785,11 +803,6 @@ export class LandscapeScene {
   }
 
   /**
-   * Roční období podle herního data (nebo vývojového přepínače): když se vzhled znatelně
-   * změnil, nastaví světlo, opar, vodu, stíny, zvuky a uniformy materiálů a scénu jednou
-   * překreslí. Vzhled se mění nejvýš jednou za herní den – žádné kreslení navíc.
-   */
-  /**
    * Vrhač stínu ze vsi (stavby, jabloně sadu – vznikají až po krajině). Listnáče (jabloně) se
    * zařadí mezi holé v zimě, ať nevrhají stín plného listí.
    */
@@ -804,6 +817,11 @@ export class LandscapeScene {
     if (deciduous && this.bareShadows) this.shadows.setCastersEnabled([mesh], false);
   }
 
+  /**
+   * Roční období podle herního data (nebo vývojového přepínače): když se vzhled znatelně
+   * změnil, nastaví světlo, opar, vodu, stíny, zvuky a uniformy materiálů a scénu jednou
+   * překreslí. Vzhled se mění nejvýš jednou za herní den – žádné kreslení navíc.
+   */
   private updateSeason(force: boolean): void {
     this.seasonCheckAt = performance.now() + SEASON_CHECK_MS;
     const day = this.seasonDay ?? seasonDayAt(Date.now(), this.worldClock ?? OFFICIAL_WORLD);
@@ -834,6 +852,8 @@ export class LandscapeScene {
     if (this.shadows && bare !== this.bareShadows) {
       this.bareShadows = bare;
       this.shadows.setCastersEnabled(this.deciduousCasters, !bare);
+      // obnoví i stínovou mapu – setCastersEnabled ji překreslí
+      this.impostorForest?.setBareShadows(bare);
     }
     this.water?.setSeason(look.water.tint, look.water.sky);
     this.ambient?.setSeason(look.sound);
