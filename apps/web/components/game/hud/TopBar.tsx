@@ -255,15 +255,16 @@ function IconButton({
   );
 }
 
-/** Přeskoky času v liště: popisek a ikona (▶ měsíc, ⏩ rok). */
+/** Přeskoky času v liště: popisek a ikona (▶ měsíc, ⏩ rok, ⏭ 10 let). */
 const TIME_SKIP_BUTTONS: readonly { skip: TimeSkip; label: string; icon: string }[] = [
   { skip: 'month', label: '+1 měsíc', icon: 'M8 5.5v13l10-6.5z' },
   { skip: 'year', label: '+1 rok', icon: 'M3.5 6v12l8.5-6zM12 6v12l8.5-6z' },
+  { skip: 'decade', label: '+10 let', icon: 'M2.5 6v12l7.5-6zM10 6v12l7.5-6zM18.5 6h2.5v12h-2.5z' },
 ];
 
 /**
- * Vývojový režim: dvě šipky vedle data – ▶ přeskočí měsíc (30 herních dní), ⏩ rok. Dokud server
- * přeskočení nedokončí (`pending`), obě tlačítka čekají.
+ * Vývojový režim: tři šipky vedle data – ▶ přeskočí měsíc (30 herních dní), ⏩ rok, ⏭ 10 let.
+ * Dokud server přeskočení nedokončí (`pending`), všechna tlačítka čekají.
  */
 export function DevTimeButtons({
   pending,
