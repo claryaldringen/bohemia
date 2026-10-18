@@ -131,7 +131,8 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   sídla. **Po ostrém spuštění** se existující vrstva nesmí změnit (přepsala by krajiny hráčů) –
   nová verze vrstvy, nebo nová vrstva.
 - **Use-case** `enterGame` (sídelní sídlo hráče, atomicky přes unikátní index); ve webu
-  `enterGameForPlayer` v `lib/game.ts`. Krajinu generuje server, do prohlížeče jde zakódovaná
+  `enterGameForPlayer` v `lib/game.ts`. Restart hry (`restartGame`, viz Ves – Hlad a vymření)
+  sídla archivuje (`settlement.archived_at`, `is_seat` false) – port vrací jen aktivní sídla. Krajinu generuje server, do prohlížeče jde zakódovaná
   (`lib/landscape-transfer.ts`, přesnost = `transferPrecision`).
 - **Stromy, keře a kameny jsou herní data** – vrstva překážek
   (`packages/game/src/domain/landscape/obstacles/`, fields.md – Překážky jsou herní data):
@@ -294,7 +295,19 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   už má 15 samplerů), stěny, dno a schody šíje kreslí `dwelling-pit.ts` (ornice, podloží a stín
   okraje ve vrcholech). Rozměry jam a šíje musí sedět s `tools/blender/dwellings.py`.
   Staveniště jde po fázích (`village-construction.ts`, ≥ 8 fází, průběh 0–1) z dílů
-  `construction.glb` v instancích. **Hřbitov** (`cemetery-renderer.ts`, geometrie bez Babylonu
+  `construction.glb` v instancích. U obydlí **není hráň polen** (Martin: tak vyskládané dřevo
+  tehdy neměli, navíc na dešti). **Zahrádka polozemnice** (Martin): samostatný model
+  `models/dwellings/garden.glb` (počátek uprostřed zahrádky; `build_garden` v `dwellings.py`)
+  po straně domu – polský plot (řidší kůly, vodorovně proplétané větve, mezera branky u domu)
+  a čtyři záhony (zelí, řepa, cibule, kopr; oblasti atlasu `veg` a `soil`). Scéna ji klade zvlášť
+  na terén a nakloní podle svahu (`gardenInstance` v `dwelling-decor.ts` – jinak by na svahu
+  s převýšením 3× visela i přes metr); díly staveniště `polozemnice-garden-*` se kladou stejně,
+  fáze `garden` je poslední (kůly → proplétání → záhony → zelenina). Obdélník zahrádky je
+  v jádru (`DWELLING_GARDEN_M`, `dwellingGarden` / `dwellingPlot` v `placement.ts`): musí na
+  louku, nesmí na obydlí, pole, hřbitov, sad ani výchoz, leží na vyklízené ploše
+  (`DWELLING_CLEARING_M` polozemnice minX −7,9); duch při umisťování ukazuje její obrys,
+  slepice do ní nechodí (`inGarden`). Rozměry musí sedět s `GARDEN` v `dwellings.py` (hlídá test
+  podle `garden.glb`). **Hřbitov** (`cemetery-renderer.ts`, geometrie bez Babylonu
   v `cemetery-layout.ts`): nízký proutěný plot kolem čtverců (kůly v instancích, pletení z vlastní
   sítě a textury z kódu) s brankou k nejbližšímu hotovému obydlí (při rozšíření jinam zůstane),
   uvnitř mohylky po hrobech (mřížka 7 × 8 na čtverec, poslední čerstvé z hlíny); založení
@@ -302,8 +315,9 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   **Sad** (`orchard-renderer.ts`, bez Babylonu `orchard-layout.ts`): jabloně z 0 A.D.
   (`models/trees/apple-1…4.glb`, s plody `apple-fruit-1…4.glb` – převod
   `tools/blender/orchard.json`, textura bez plodů `apple_leaves.py`, zralá `apple_ripe.py`)
-  sponem do pětky, 2 na čtverec; výsadba čára vytyčení → kůly → sazenice, mladé stromky u kůlu
-  rostou 12 let, skalní výchozy z vrstvy překážek stromy obejdou. Velikost (`growth`) a jablka
+  v pravidelných řadách (mřížka 7,5 m, 4 na čtverec, řady přes celý sad – Martin); výsadba čáry
+  vytyčení po obrysu a podél řad → kůly → sazenice po řadách, mladé stromky u kůlu
+  rostou 12 let, na skalním výchozu z vrstvy překážek strom chybí. Velikost (`growth`) a jablka
   (`fruit`, srpen až sklizeň) počítá server (`lib/orchard-look.ts`) v `SceneVillage.orchards` –
   háček pro podzim; květ, podzimní listí a holé koruny dodají roční období (`applySeasonModel`
   podle jména `apple*`, meshe `orchard-*` jsou v zimě mezi holými vrhači stínu). Modely se
@@ -323,8 +337,15 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   (`ConstructionKind` = obydlí + `CraftKind`; dílny na fázích svého obydlí + přístřešek, pec /
   výheň, dílna, uhlíř mech místo došků, milíř zvlášť), díly v `public/models/crafts/construction.glb`
   a `construction-moss.glb` (předpona druhu). Obydlí se tím nezměnila.
+  Dílny bez hráně polen: hrnčíř a kovář mají místo dílu `wood` díl `yard` (plot a koše), uhlíř
+  volnou hromadu polen na milíř (`log_heap` v `crafts.py`).
   **Náhled všech staveb** bez databáze: http://localhost:3010/dev/buildings (`building-showcase.ts`,
-  staveniště `showcase-sites.ts`, posuvník a přehrání stavby; v produkci 404).
+  staveniště `showcase-sites.ts`, posuvník a přehrání stavby; v produkci 404). Za řadou staveb
+  pole, hřbitov a sad po čtvercích – kreslí je herní `VillageRenderer` (bez obydlí) podle
+  `showcaseGrounds` v `building-showcase-layout.ts`: pole zakládání → brázdy → osev, pak jen
+  jako náhled zelené a zralé obilí a strniště (`CropLook` / `crop` dílu v `SceneVillage`, server
+  ho zatím neposílá), hřbitov vytyčení → kůly → plot → přibývající mohylky, sad vytyčení → kůly
+  → sazenice → rostoucí stromky → jablka.
 - **Grafika (licence):** CC0, nebo z **0 A.D.** pod **CC BY-SA 3.0** (textury terénu, stromy –
   uvést Wildfire Games, upravené soubory pod stejnou licencí). Zdroj a původní název každého
   souboru do `LICENSE.md` / `LICENSES.md` vedle něj. Převod stromů, atlas impostorů a render
@@ -345,8 +366,24 @@ rozhraní částí v
   `advanceVillage(state, toDay)` (dopočítá ves do dne včetně) a akce hráče `startNewDwelling`,
   `foundField`, `foundCemetery` a `foundOrchard`. Stav vsi je JSON-serializovatelný, funkce
   vstupní stav nemění. Nové části stavu jsou volitelné (`VillageState.cemeteries?`,
-  `orchards?`, `applesKg?`, `orchardWork?`) – vsi uložené dřív se načtou a beze sadů se jejich
-  stav nemění.
+  `orchards?`, `applesKg?`, `orchardWork?`, `starvationDays?`, `extinctDay?`) – vsi uložené
+  dřív se načtou a beze sadů se jejich stav nemění.
+- **Hlad a vymření** (population.md, Martin 18. 10. 2026): nahromaděný hlad
+  `VillageState.starvationDays` (`nextStarvationDays` po jídle dne – pod 90 % přídělu
+  přibývá, od 90 % ubývá, čísla `STARVATION` v `rules.ts`) přidá k běžnému riziku úmrtí riziko hladem
+  (`deathChances` → `base` + `starvation`; úmrtí z části hladu má v kronice `cause: 'hunger'`).
+  Hájení chrání dospělé i před hladem a drží hlad den pod prahem skupiny (`luckyStarvationCap`,
+  uložený hlad nejvýš `LUCKY_STARVATION_CAP` = 19); ochrana posledních dvou dospělých už není. Poslední úmrtí → `extinctDay`
+  a `village-extinct`; `advanceVillage` vymřelou ves dál nesimuluje (posune jen `lastDay`),
+  doménové akce ji odmítnou. **Konec hry** (`extinction.ts`: `isGameOver` – hráč má vsi a žádná
+  nežije, obecně pro víc vsí): use-case `dynastyStatus` (vsi aktivních sídel dopočítané do
+  dneška) a `restartGame` (archivuje aktivní sídla přes `SettlementRepository.archive`, pak
+  `enterGame` založí nové sídelní sídlo s novým seedem; se živou vsí `DYNASTY_ALIVE`, bez vsi
+  vrátí sídlo beze změny). Akce ve vymřelé vsi odmítá `updateLivingVillage` (`VILLAGE_EXTINCT`),
+  přejmenování taky. Web: `VillageView.extinct` / `gameOver` / `starving` (konec hry zjistí
+  `lib/village.ts` jen u vymřelé vsi), server action `restartGame` a `hud/DefeatScreen.tsx`
+  (Rod vymřel, jméno, roky, Začít znovu → `window.location.reload()` kvůli nové krajině). Scéna:
+  neobývaná obydlí nemají dým ani zvířata a hlína u vchodu zarůstá (`ABANDONED_EARTH_ALPHA`).
 - **Hřbitov** (`cemetery.ts`, cemetery.md): čtverce s 56 hroby, zemřelý se pohřbí do hotového
   hřbitova s místem nejblíž k obydlím (`bury` v `populationDay`), kronika `cemetery-full`.
   Čtverce navazující stranou na hřbitov ho **rozšíří** (`foundCemetery`: stejné id, čtverce na
@@ -383,7 +420,7 @@ rozhraní částí v
   obou dokumentů s OK / MIMO (`200 60` rychlé cíle, `100 1000` vymření do roku 1500).
 - **Web:** server actions `app/game/actions.ts` (`getVillageView`, `foundVillage`, `placeDwelling`,
   `placeField`, `placeCemetery`, `placeOrchard`, `renameVillage` → `VillageView` / `null` /
-  `{ error }`),
+  `{ error }`; `restartGame` → `{ ok: true }` / `{ error }`),
   composition root `lib/village.ts`, `lib/village-view.ts` (DTO, smí i do prohlížeče). Typy pro scénu jsou
   odvozené odtud a z `@bohemia/game` – nedefinovat je znovu ve scéně.
 - **Rozhraní jako v 0 A.D., bez popisků a průvodce** (Martin): `components/game/VillageGame.tsx`
@@ -455,9 +492,9 @@ rozhraní částí v
   práce podle `forestDistanceM` obydlí. Scéna: hromada klád `lib/scene/log-pile.ts` (místo
   a hranice v `log-pile-layout.ts`, bez volného místa se nekreslí), staveniště ukazuje průběh
   bez kácení (`buildProgress`).
-- **Upozornění** (`lib/village-notices.ts`): plná domácnost (fakt), hlad, stojící stavby, plný
-  hřbitov (žádný hotový nemá volný hrob) – nově vzniklé jako krátký mizející řádek nahoře,
-  žádný trvalý seznam. Kronika je jen v DTO.
+- **Upozornění** (`lib/village-notices.ts`): plná domácnost (fakt), lidé umírají hlady, hlad,
+  stojící stavby, plný hřbitov (žádný hotový nemá volný hrob) – nově vzniklé jako krátký
+  mizející řádek nahoře, žádný trvalý seznam; vymřelá ves žádná. Kronika je jen v DTO.
 - **Krajina sídla** se na serveru drží v LRU mezipaměti (`lib/landscape-cache.ts`, port
   `LandscapeSource` v `enterGame`) – negeneruje se při každé akci a dotazu. Vrstva překážek
   se generuje až pro stavby (`obstaclesOf`, mezipaměť podle objektu krajiny); dotaz na ves

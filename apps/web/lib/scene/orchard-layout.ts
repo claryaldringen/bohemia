@@ -1,9 +1,9 @@
-// Jabloňový sad ve scéně bez Babylonu (orchard.md – Co hráč vidí): jabloně v řadách po
-// čtvercích (mimo skalní výchozy), výsadba po fázích (kůly → sazenice). Velikost stromků
-// a jablka počítá server (`lib/orchard-look.ts`). Souřadnice světa scény v metrech (x, z),
-// čtverce jako u pole (field-cells.ts).
+// Jabloňový sad ve scéně bez Babylonu (orchard.md – Co hráč vidí): jabloně v pravidelných
+// řadách přes celý sad (mimo skalní výchozy), výsadba po fázích (vytyčení řad → kůly →
+// sazenice). Velikost stromků a jablka počítá server (`lib/orchard-look.ts`). Souřadnice světa
+// scény v metrech (x, z), čtverce jako u pole (field-cells.ts).
 import type { CellSquare } from './field-cells';
-import { seededRandom } from './village-layout';
+import { seededRandom, type Point } from './village-layout';
 
 export {
   SAPLING_GROWTH,
@@ -14,14 +14,14 @@ export {
 } from '../orchard-look';
 
 /**
- * Mřížka míst pro stromy po 7,5 m (2 × 2 na čtverec 15 × 15 m), stromy jen na každém druhém
- * místě do šachovnice (sponem „do pětky“, quincunx): 2 jabloně na čtverec, nejbližší soused
- * ≈ 10,6 m – ≈ 90 vysokokmenů na hektar, koruny dospělých stromů (≈ 6 m) se nedotýkají. Ve
- * větším sadu tak vznikne pravidelný spon přes všechny čtverce.
+ * Spon v pravidelných řadách (Martin, 18. 10. 2026: „Stromy v sadu by měly být zasazené
+ * v pravidelných řadách.“): mřížka po 7,5 m podél os světa, 2 × 2 = 4 jabloně na čtverec
+ * 15 × 15 m, stromy 3,75 m od okraje čtverce – řady tak rovně pokračují přes sousední čtverce
+ * celého sadu (≈ 180 stromů na hektar; úroda se počítá na hektar, na počtu stromů nezávisí).
  */
 export const TREES_PER_SIDE = 2;
-/** Stromů ve čtverci – polovina míst mřížky (šachovnice). */
-export const TREES_PER_SQUARE = (TREES_PER_SIDE * TREES_PER_SIDE) / 2;
+/** Stromů ve čtverci – celá mřížka TREES_PER_SIDE × TREES_PER_SIDE. */
+export const TREES_PER_SQUARE = TREES_PER_SIDE * TREES_PER_SIDE;
 /** Varianty modelu jabloně (apple-1 … apple-4, s plody apple-fruit-1 … apple-fruit-4). */
 export const APPLE_VARIANTS = 4;
 /** Výsadba: do poloviny průběhu se zatloukají kůly, pak se sázejí stromky. */
@@ -29,14 +29,12 @@ export const PLANTING_PHASES = [
   { from: 0, to: 0.5, label: 'Kůly' },
   { from: 0.5, to: 1, label: 'Sazenice' },
 ] as const;
-/** Rozházení stromu v řadě (m) a velikosti (±). */
-const JITTER_M = 0.5;
+/** Drobný rozdíl velikosti stromů (±) – poloha v řadě je přesná. */
 const SCALE_JITTER = 0.08;
-/** Kmen stojí aspoň tolik (m) od okraje skalního výchozu a od okraje čtverce. */
+/** Kmen stojí aspoň tolik (m) od okraje skalního výchozu – jinak tam strom není. */
 const OUTCROP_CLEARANCE_M = 1;
-const EDGE_MARGIN_M = 0.5;
 
-/** Skalní výchoz – střed (m) a poloměr (m); stromy ho obejdou. */
+/** Skalní výchoz – střed (m) a poloměr (m); místo stromu v něm zůstane prázdné. */
 export interface Outcrop {
   x: number;
   z: number;
@@ -54,11 +52,11 @@ export interface OrchardTreeSpot {
 }
 
 /**
- * Místa stromů ve čtverci – šachovnice na mřížce TREES_PER_SIDE × TREES_PER_SIDE s drobným
- * rozházením, natočením, velikostí a variantou modelu (deterministicky podle políčka – strom
- * stojí pořád na stejném místě). Pořadí po řadách – v tomto pořadí se sází. Místo ve skalním
- * výchozu (`outcrops`, i z vedlejšího políčka) se odsune ven z výchozu; když by pak leželo mimo
- * čtverec nebo v jiném výchozu, strom tam není (jádro plochu pod výchozem do sadu nepočítá).
+ * Místa stromů ve čtverci – mřížka TREES_PER_SIDE × TREES_PER_SIDE v rovných řadách (bez
+ * rozházení), natočení, velikost a varianta modelu deterministicky podle políčka (strom stojí
+ * pořád stejně). Pořadí po řadách (z, pak x) – v tomto pořadí se sází. Místo ve skalním výchozu
+ * (`outcrops`, i z vedlejšího políčka) zůstane prázdné – strom se neodsouvá, řada zůstane rovná
+ * (jádro plochu pod výchozem do sadu nepočítá).
  */
 export function orchardTreeSpots(
   square: CellSquare,
@@ -69,41 +67,37 @@ export function orchardTreeSpots(
   const spots: OrchardTreeSpot[] = [];
   for (let row = 0; row < TREES_PER_SIDE; row++) {
     for (let column = 0; column < TREES_PER_SIDE; column++) {
-      // čtverec má sudý počet míst na stranu – šachovnice navazuje přes sousední čtverce
-      if ((row + column) % 2 !== 0) continue;
       const spot = {
-        x: square.x - square.size / 2 + (column + 0.5) * step + (random() - 0.5) * 2 * JITTER_M,
-        z: square.z - square.size / 2 + (row + 0.5) * step + (random() - 0.5) * 2 * JITTER_M,
+        x: square.x - square.size / 2 + (column + 0.5) * step,
+        z: square.z - square.size / 2 + (row + 0.5) * step,
         rotationY: random() * Math.PI * 2,
         scale: 1 + (random() - 0.5) * 2 * SCALE_JITTER,
         variant: Math.floor(random() * APPLE_VARIANTS) % APPLE_VARIANTS,
       };
-      const placed = clearOfOutcrops(square, spot, outcrops);
-      if (placed) spots.push({ ...spot, ...placed });
+      const blocked = outcrops.some(
+        (o) => Math.hypot(spot.x - o.x, spot.z - o.z) < o.radius + OUTCROP_CLEARANCE_M,
+      );
+      if (!blocked) spots.push(spot);
     }
   }
   return spots;
 }
 
-/** Místo stromu mimo skalní výchozy (odsunuté ven z prvního zasaženého), nebo null. */
-function clearOfOutcrops(
-  square: CellSquare,
-  spot: { x: number; z: number },
-  outcrops: readonly Outcrop[],
-): { x: number; z: number } | null {
-  const reach = (o: Outcrop): number => o.radius + OUTCROP_CLEARANCE_M;
-  const hit = outcrops.find((o) => Math.hypot(spot.x - o.x, spot.z - o.z) < reach(o));
-  if (!hit) return spot;
-  const dx = spot.x - hit.x;
-  const dz = spot.z - hit.z;
-  const length = Math.hypot(dx, dz);
-  // přesně ve středu výchozu – odsunout k nejbližšímu okraji čtverce ve směru x
-  const [ux, uz] = length > 1e-6 ? [dx / length, dz / length] : [1, 0];
-  const moved = { x: hit.x + ux * reach(hit), z: hit.z + uz * reach(hit) };
-  const half = square.size / 2 - EDGE_MARGIN_M;
-  const inside = Math.abs(moved.x - square.x) <= half && Math.abs(moved.z - square.z) <= half;
-  const blocked = outcrops.some((o) => Math.hypot(moved.x - o.x, moved.z - o.z) < reach(o) - 1e-9);
-  return inside && !blocked ? moved : null;
+/**
+ * Čáry vytyčení řad sadu: v každém čtverci provázek podél každé řady stromů přes celý čtverec
+ * (osa x) – u sousedních čtverců na sebe navazují v rovnou čáru přes celý sad.
+ */
+export function orchardRowLines(squares: readonly CellSquare[]): Point[][] {
+  return squares.flatMap((square) => {
+    const step = square.size / TREES_PER_SIDE;
+    return Array.from({ length: TREES_PER_SIDE }, (_, row): Point[] => {
+      const z = square.z - square.size / 2 + (row + 0.5) * step;
+      return [
+        [square.x - square.size / 2, z],
+        [square.x + square.size / 2, z],
+      ];
+    });
+  });
 }
 
 /** Co z výsadby čtverce stojí: kolik míst má kůl a kolik už sazenici (počty stromů). */

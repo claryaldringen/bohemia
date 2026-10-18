@@ -50,12 +50,15 @@ async function query<T extends object>(sql: string, params: unknown[]): Promise<
   }
 }
 
-/** Sídlo hráče s krajinou – stejně jako ji generuje server (seed a verze vrstev z databáze). */
+/**
+ * Aktivní sídelní sídlo hráče s krajinou – stejně jako ji generuje server (seed a verze vrstev
+ * z databáze). Sídla archivovaná restartem hry se nepočítají.
+ */
 async function seat(email: string): Promise<Seat> {
   const [row] = await query<{ id: string; landscape_seed: number; layer_versions: LayerVersions }>(
     `SELECT s.id, s.landscape_seed, s.layer_versions
        FROM settlement s JOIN "user" u ON u.id = s.owner_id
-      WHERE u.email = $1`,
+      WHERE u.email = $1 AND s.is_seat AND s.archived_at IS NULL`,
     [email],
   );
   if (!row) throw new Error(`Hráč ${email} nemá sídlo.`);
@@ -470,4 +473,53 @@ test('hráč vysadí sad po čtvercích a vybere ho – panel ukáže výsadbu, 
   await expect(panel.getByTestId('selection-age')).toHaveText(/^(29|30)$/, { timeout: 20_000 });
   await expect(panel.getByTestId('selection-progress')).toHaveCount(0);
   await expect(panel.getByTestId('selection-yield')).not.toHaveText('0');
+});
+
+test('když ves vymře, hra skončí obrazovkou porážky – Začít znovu dá nové sídlo', async ({
+  page,
+}) => {
+  const { email, seat: s } = await newPlayer(page, 'vymreni');
+  await found(page, villageSpots(s.landscape).dwelling);
+  await expect(page.getByTestId('defeat-screen')).toHaveCount(0);
+
+  // Všichni zemřeli – ves vymřelá přímo v uložené vsi (jako by ji tak dopočítal server).
+  const dead = await villageState(s.settlementId);
+  dead.people = [];
+  dead.extinctDay = dead.lastDay;
+  dead.chronicle.push({ day: dead.lastDay, kind: 'village-extinct' });
+  await writeVillageState(s.settlementId, dead);
+  await page.reload();
+
+  const defeat = page.getByTestId('defeat-screen');
+  await expect(defeat).toBeVisible({ timeout: 30_000 });
+  await expect(defeat.getByRole('heading', { name: 'Rod vymřel' })).toBeVisible();
+  await expect(defeat.getByTestId('defeat-village')).toHaveText(suggestVillageName(s.seed));
+  await expect(defeat.getByTestId('defeat-years')).toHaveText('0 let');
+  // vymřelá ves nic nestaví – nabídka staveb je prázdná
+  await expect(page.getByTestId('build-grid').getByRole('button')).toHaveCount(0);
+
+  // Po úspěchu se stránka načte znovu (nová krajina) – čeká se na novou navigaci.
+  const reloaded = page.waitForEvent('framenavigated', { timeout: 30_000 });
+  await defeat.getByRole('button', { name: 'Začít znovu' }).click();
+  await reloaded;
+  // Nové sídlo s novou krajinou: zase jen zemnice k založení vsi, bez jména a porážky.
+  await expect(page.getByTestId('defeat-screen')).toHaveCount(0, { timeout: 30_000 });
+  await expect(readyScene(page)).toBeVisible({ timeout: 60_000 });
+  const grid = page.getByTestId('build-grid');
+  await expect(grid.getByRole('button')).toHaveCount(1);
+  await expect(grid.getByRole('button', { name: 'Zemnice' })).toBeVisible();
+  await expect(page.getByTestId('village-name')).toHaveCount(0);
+
+  const fresh = await seat(email);
+  expect(fresh.settlementId).not.toBe(s.settlementId);
+  const [old] = await query<{ archived: boolean; is_seat: boolean }>(
+    'SELECT archived_at IS NOT NULL AS archived, is_seat FROM settlement WHERE id = $1',
+    [s.settlementId],
+  );
+  expect(old).toEqual({ archived: true, is_seat: false });
+  // vymřelá ves zůstala v archivu u starého sídla
+  expect((await villageState(s.settlementId)).extinctDay).toBe(dead.extinctDay);
+  expect(
+    await query('SELECT 1 FROM village WHERE settlement_id = $1', [fresh.settlementId]),
+  ).toEqual([]);
 });

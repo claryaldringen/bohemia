@@ -2,6 +2,7 @@ import { TOTAL_GAME_DAYS } from '../calendar';
 import type { ObstacleLayer } from '../landscape';
 import { cemeteryFoundingCost, touchingCemeteries, villageCemeteries } from './cemetery';
 import { buildAffordability, dwellingLaborManDays, payUpfront, type BuildKind } from './costs';
+import { isVillageExtinct } from './extinction';
 import { partFoundingCost } from './fields';
 import { recordClearedObstacles } from './obstacles';
 import { orchardPlantingCost, villageOrchards } from './orchard';
@@ -85,8 +86,12 @@ function validateDay(day: number): void {
   }
 }
 
-/** Akce hráče nesmí do minulosti vsi – před den, do kterého je už dopočítaná; jinak RangeError. */
+/**
+ * Akce hráče nesmí do minulosti vsi – před den, do kterého je už dopočítaná – ani do vymřelé vsi;
+ * jinak RangeError.
+ */
 function validateActionDay(state: VillageState, day: number): void {
+  if (isVillageExtinct(state)) throw new RangeError('Ves vymřela – nikdo v ní nežije.');
   validateDay(day);
   if (day < state.lastDay) {
     throw new RangeError(`Ves je dopočítaná do dne ${state.lastDay}, akce v den ${day} nejde.`);

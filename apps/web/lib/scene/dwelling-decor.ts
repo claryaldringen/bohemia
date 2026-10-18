@@ -1,7 +1,8 @@
-// Okolí obydlí bez Babylonu: trsy trávy pod okapem a vyšlapaná hlína před vchodem (podle spiku
-// obydlí). Tvar modelů: tools/blender/dwellings.py – Blender x napříč, y podél hřebene, vchod v −y;
-// ve scéně (glTF) je bod Blenderu (x, y) v souřadnicích modelu (−x, −y), vchod tedy míří do +z.
-import type { DwellingType, Position } from '@bohemia/game';
+// Okolí obydlí bez Babylonu: trsy trávy pod okapem, vyšlapaná hlína před vchodem (podle spiku
+// obydlí) a zahrádka polozemnice na terénu. Tvar modelů: tools/blender/dwellings.py – Blender
+// x napříč, y podél hřebene, vchod v −y; ve scéně (glTF) je bod Blenderu (x, y) v souřadnicích
+// modelu (−x, −y), vchod tedy míří do +z.
+import { DWELLING_GARDEN_M, type DwellingType, type Position } from '@bohemia/game';
 import { localToWorld, seededRandom, smoothstep, type DecalGrid } from './village-layout';
 
 /**
@@ -24,6 +25,102 @@ export const SMOKE_VENT: Record<DwellingType, { y: number; z: number }> = {
   zemnice: { y: 1.85, z: -2.1 },
   polozemnice: { y: 2.85, z: -2.2 },
 };
+
+/** Model zahrádky polozemnice (tools/blender/dwellings.py – počátek uprostřed zahrádky). */
+export const GARDEN_MODEL_URL = '/models/dwellings/garden.glb';
+/** O kolik je zahrádka zapuštěná pod nejnižší bod terénu pod ní (m) – nikde nevisí. */
+const GARDEN_SINK_M = 0.04;
+
+/** Zahrádka obydlí položená na terén: střed, výška paty, natočení a náklon podle svahu. */
+export interface GardenInstance {
+  x: number;
+  y: number;
+  z: number;
+  rotationY: number;
+  scale: number;
+  /** Svislá osa zahrádky – kolmo k rovině proložené terénem pod ní. */
+  up: { x: number; y: number; z: number };
+}
+
+/**
+ * Zahrádka polozemnice (`DWELLING_GARDEN_M`, zemnice žádnou nemá → null): pevný model vedle
+ * domu, který na svahu nesmí viset ani se zabořit – rovina proložená výškou terénu v rozích se
+ * stane jeho podstavou (náklon `up`) a sníží se tak, aby žádný roh ani střed nevisel nad terénem.
+ */
+export function gardenInstance(
+  type: DwellingType,
+  position: Position,
+  height: (x: number, z: number) => number,
+): GardenInstance | null {
+  const g = DWELLING_GARDEN_M[type];
+  if (!g) return null;
+  const cx = (g.minX + g.maxX) / 2;
+  const cz = (g.minZ + g.maxZ) / 2;
+  const hx = (g.maxX - g.minX) / 2;
+  const hz = (g.maxZ - g.minZ) / 2;
+  const sample = (u: number, v: number): number => {
+    const [x, z] = localToWorld(position, cx + u, cz + v);
+    return height(x, z);
+  };
+  const h00 = sample(-hx, -hz);
+  const h10 = sample(hx, -hz);
+  const h11 = sample(hx, hz);
+  const h01 = sample(-hx, hz);
+  const mean = (h00 + h10 + h11 + h01) / 4;
+  // sklon roviny podél os modelu (m na m)
+  const su = (h10 + h11 - h00 - h01) / (4 * hx);
+  const sv = (h01 + h11 - h00 - h10) / (4 * hz);
+  const plane = (u: number, v: number): number => mean + su * u + sv * v;
+  const points: [number, number, number][] = [
+    [-hx, -hz, h00],
+    [hx, -hz, h10],
+    [hx, hz, h11],
+    [-hx, hz, h01],
+    [0, 0, sample(0, 0)],
+    [-hx, 0, sample(-hx, 0)],
+    [hx, 0, sample(hx, 0)],
+    [0, -hz, sample(0, -hz)],
+    [0, hz, sample(0, hz)],
+  ];
+  const above = Math.max(0, ...points.map(([u, v, h]) => plane(u, v) - h));
+  const [x, z] = localToWorld(position, cx, cz);
+  // normála roviny v osách modelu (−su, 1, −sv) → svět (osa x modelu je (cos r, −sin r))
+  const cos = Math.cos(position.rotation);
+  const sin = Math.sin(position.rotation);
+  const nx = -su * cos - sv * sin;
+  const nz = su * sin - sv * cos;
+  const length = Math.hypot(nx, 1, nz);
+  return {
+    x,
+    y: mean - above - GARDEN_SINK_M,
+    z,
+    rotationY: position.rotation,
+    scale: 1,
+    up: { x: nx / length, y: 1 / length, z: nz / length },
+  };
+}
+
+/** Bod v obdélníku zahrádky obydlí (s okrajem `margin`, m) – slepice dovnitř nesmějí. */
+export function inGarden(
+  type: DwellingType,
+  position: Position,
+  x: number,
+  z: number,
+  margin = 0,
+): boolean {
+  const g = DWELLING_GARDEN_M[type];
+  if (!g) return false;
+  const dx = x - position.x;
+  const dz = z - position.z;
+  const cos = Math.cos(position.rotation);
+  const sin = Math.sin(position.rotation);
+  // inverze localToWorld: lx = dx cos − dz sin, lz = dx sin + dz cos
+  const lx = dx * cos - dz * sin;
+  const lz = dx * sin + dz * cos;
+  return (
+    lx > g.minX - margin && lx < g.maxX + margin && lz > g.minZ - margin && lz < g.maxZ + margin
+  );
+}
 
 export type TuftModel = 'grass-tuft-1' | 'grass-tuft-2';
 

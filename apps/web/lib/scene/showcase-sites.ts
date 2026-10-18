@@ -7,6 +7,7 @@ import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import type { Scene } from '@babylonjs/core/scene';
 import type { ShowcaseModel } from './building-showcase-layout';
 import { SUN_DIRECTION } from './constants';
+import { gardenInstance } from './dwelling-decor';
 import {
   PIT_SHAPES,
   pitMeshData,
@@ -103,14 +104,18 @@ export class ShowcaseSites {
       const { model } = view;
       const state = progress >= 1 ? null : constructionState(model.kind, progress);
       if (state) {
+        const house = {
+          x: model.x,
+          y: this.baseY,
+          z: model.z,
+          rotationY: model.rotation,
+          scale: 1,
+        };
+        // díly zahrádky polozemnice stojí na jejím místě vedle domu (jako ve vsi)
+        const garden =
+          model.kind === 'polozemnice' ? gardenInstance(model.kind, model, () => 0) : null;
         for (const part of state.parts) {
-          push(`${model.kind}-${part}`, {
-            x: model.x,
-            y: this.baseY,
-            z: model.z,
-            rotationY: model.rotation,
-            scale: 1,
-          });
+          push(`${model.kind}-${part}`, part.startsWith('garden-') && garden ? garden : house);
         }
         for (const { prop, scale } of state.props) {
           if (prop === 'spoil') continue; // hromadu hlíny kreslí síť staveniště

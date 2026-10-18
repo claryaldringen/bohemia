@@ -32,7 +32,10 @@ const view = (overrides: Partial<VillageView> = {}): VillageView => ({
   cemeteries: [],
   orchards: [],
   hungry: false,
+  starving: false,
   constructionsStalled: false,
+  extinct: null,
+  gameOver: false,
   scene: { dwellings: [], fields: [] },
   chronicle: [],
   ...overrides,
@@ -52,6 +55,20 @@ describe('villageNotices', () => {
       { kind: 'stalled', tone: 'warn', text: 'Stavby stojí' },
       { kind: 'full-household', tone: 'info', text: 'Domácnost je plná' },
     ]);
+  });
+});
+
+describe('villageNotices – hlad a vymření', () => {
+  it('lidé umírají hlady – upozornění před hladem', () => {
+    expect(villageNotices(view({ hungry: true, starving: true, satiation: 0 }))).toEqual([
+      { kind: 'starving', tone: 'warn', text: 'Lidé umírají hlady' },
+      { kind: 'hungry', tone: 'warn', text: 'Ves hladoví' },
+    ]);
+  });
+
+  it('vymřelá ves žádná upozornění nemá', () => {
+    const extinct = { foundedYear: 512, extinctYear: 587, years: 74 };
+    expect(villageNotices(view({ hungry: true, starving: true, extinct }))).toEqual([]);
   });
 });
 

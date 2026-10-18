@@ -199,7 +199,14 @@ export function stripSegments(
 
 // --- Vzhled dílů pole ---
 
-export type FieldTexture = 'grass-dirt' | 'mud' | 'grass' | 'grass-lush';
+export type FieldTexture = 'grass-dirt' | 'mud' | 'grass' | 'grass-lush' | 'grass-dry';
+
+/**
+ * Vzhled oseté části podle růstu obilí: zelené obilí, zralé (zlaté) obilí, strniště po sklizni.
+ * Zatím ho posílá jen vývojový náhled staveb – pole podle ročního období (fields.md – Co hráč
+ * vidí) ve hře ještě není, oseté pole se kreslí jako vzcházející obilí.
+ */
+export type CropLook = 'growing' | 'ripe' | 'stubble';
 
 export interface PartLook {
   /** Textura terénu (apps/web/public/textures/terrain/<texture>.jpg). */
@@ -214,10 +221,12 @@ export interface PartLook {
 
 /**
  * Vzhled dílu pole podle stavu: zakládané pole = rozrytý drn, připravené = holá zem s brázdami,
- * oseté = zem s řádky zeleného obilí, mladý úhor = zaplevelená zem, pak čím dál hrubší zeleň
- * (louka, mladý porost, křoviny) až po tmavou zeleň lesa.
+ * oseté = zem s řádky zeleného obilí (s `crop` zelené / zralé obilí nebo strniště), mladý úhor
+ * = zaplevelená zem, pak čím dál hrubší zeleň (louka, mladý porost, křoviny) až po tmavou zeleň
+ * lesa.
  */
-export function partLook(stage: PartStage): PartLook {
+export function partLook(stage: PartStage, crop?: CropLook): PartLook {
+  if (stage === 'sown' && crop) return cropLook(crop);
   switch (stage) {
     case 'founding':
       return { texture: 'grass-dirt', tint: [0.92, 0.8, 0.66], alpha: 0.95, rows: null };
@@ -245,6 +254,32 @@ export function partLook(stage: PartStage): PartLook {
       return { texture: 'grass-lush', tint: [0.58, 0.74, 0.48], alpha: 0.9, rows: null };
     case 'forest':
       return { texture: 'grass-lush', tint: [0.34, 0.48, 0.3], alpha: 0.95, rows: null };
+  }
+}
+
+function cropLook(crop: CropLook): PartLook {
+  switch (crop) {
+    case 'growing':
+      return {
+        texture: 'grass-lush',
+        tint: [0.86, 0.98, 0.6],
+        alpha: 1,
+        rows: { color: [0.16, 0.27, 0.08], alpha: 0.6 },
+      };
+    case 'ripe':
+      return {
+        texture: 'grass-dry',
+        tint: [1.2, 1.0, 0.6],
+        alpha: 1,
+        rows: { color: [0.5, 0.38, 0.18], alpha: 0.5 },
+      };
+    case 'stubble':
+      return {
+        texture: 'grass-dry',
+        tint: [0.98, 0.86, 0.66],
+        alpha: 1,
+        rows: { color: [0.4, 0.33, 0.22], alpha: 0.55 },
+      };
   }
 }
 

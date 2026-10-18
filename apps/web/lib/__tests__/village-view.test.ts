@@ -482,6 +482,10 @@ describe('chronicleText', () => {
     { day: DAY, kind: 'death', group: 'child' },
     { day: DAY, kind: 'death', group: 'adult' },
     { day: DAY, kind: 'death', group: 'elder' },
+    { day: DAY, kind: 'death', group: 'child', cause: 'hunger' },
+    { day: DAY, kind: 'death', group: 'adult', cause: 'hunger' },
+    { day: DAY, kind: 'death', group: 'elder', cause: 'hunger' },
+    { day: DAY, kind: 'village-extinct' },
     { day: DAY, kind: 'household-founded', dwellingId: 2 },
     { day: DAY, kind: 'household-merged', fromDwellingId: 2, toDwellingId: 1 },
     {
@@ -519,6 +523,38 @@ describe('chronicleText', () => {
     expect(
       chronicleText({ day: DAY, kind: 'rebuild-decided', dwellingId: 1, type: 'polozemnice' }, 'X'),
     ).toBe('Obyvatelé se rozhodli přestavět dožilé obydlí na polozemnici.');
+  });
+});
+
+describe('kronika – hlad a vymření', () => {
+  it('úmrtí hladem a vymření vsi', () => {
+    expect(chronicleText({ day: DAY, kind: 'death', group: 'child', cause: 'hunger' }, 'X')).toBe(
+      'Dítě zemřelo hlady.',
+    );
+    expect(chronicleText({ day: DAY, kind: 'village-extinct' }, 'Libice')).toBe(
+      'Zemřel poslední obyvatel – ves Libice vymřela.',
+    );
+  });
+});
+
+describe('vymřelá ves a konec hry', () => {
+  it('žijící ves: bez vymření, hra pokračuje', () => {
+    const view = buildVillageView(record(), landscape, DAY);
+    expect(view.extinct).toBeNull();
+    expect(view.gameOver).toBe(false);
+    expect(view.starving).toBe(false);
+  });
+
+  it('vymřelá ves: roky založení a vymření, obydlí bez obyvatel (bez dýmu a zvířat)', () => {
+    const s = settled();
+    s.people = [];
+    const extinct = advanceVillage(s, DAY + 1, null);
+    expect(extinct.extinctDay).toBe(DAY); // ves vzniká na začátku dne DAY – první den je DAY
+    const view = buildVillageView(record(extinct), landscape, DAY + 1, true);
+    expect(view.extinct).toEqual({ foundedYear: 503, extinctYear: 503, years: 0 });
+    expect(view.gameOver).toBe(true);
+    expect(view.scene.dwellings.every((d) => d.inhabited === false)).toBe(true);
+    expect(view.chronicle[0]?.text).toBe('Zemřel poslední obyvatel – ves Libice vymřela.');
   });
 });
 

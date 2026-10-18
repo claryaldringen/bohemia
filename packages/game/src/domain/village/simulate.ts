@@ -24,7 +24,8 @@ import {
   workOrchards,
 } from './orchard';
 import { ageGroup, foodNeedPerDay, isFertileAdult, laborPerDay, occupants } from './people';
-import { householdBreaksUp, populationDay } from './population';
+import { isVillageExtinct } from './extinction';
+import { householdBreaksUp, inLuckyYears, nextStarvationDays, populationDay } from './population';
 import {
   CHRONICLE_MAX_EVENTS,
   COMMON_LABOR_HISTORY_DAYS,
@@ -89,6 +90,8 @@ const SATIATION_EPSILON = 1e-9;
  * `obstacles` = vrstva překážek krajiny sídla: přestavby podle ní vyhradí stromy ke kácení
  * (forest.md). Povinná – `null` (kácení bez polohy) jen v testech; volající ji musí dávat vždy
  * stejně, jinak výsledek na kouscích závisí.
+ * Vymřelá ves (`extinctDay`) se už nesimuluje – jen se posune `lastDay`; lidé, pole, stavby,
+ * zásoby i klády stojí, jak byly v den vymření.
  * RangeError, když `toDay` leží za koncem světa nebo před už odsimulovaným dnem.
  */
 export function advanceVillage(
@@ -103,7 +106,9 @@ export function advanceVillage(
     throw new RangeError(`Ves je dopočítaná do dne ${state.lastDay}, nelze zpět na ${toDay}.`);
   }
   const next = structuredClone(state);
-  for (let day = next.lastDay + 1; day <= toDay; day++) simulateDay(next, day, obstacles);
+  for (let day = next.lastDay + 1; day <= toDay && !isVillageExtinct(next); day++) {
+    simulateDay(next, day, obstacles);
+  }
   next.lastDay = toDay;
   trimChronicle(next);
   return next;
@@ -130,7 +135,20 @@ function simulateDay(state: VillageState, day: number, obstacles: ObstacleLayer 
   decideRebuilds(state, day, obstacles);
   occupyEmptyDwellings(state, day);
   const satiation = eat(state, day);
+  // nahromaděný hlad se počítá z dnešního jídla – úmrtí dne podle něj (population.md); v hájení
+  // zůstává pod prahem, aby po něm lidé umírali postupně
+  state.starvationDays = nextStarvationDays(
+    state.starvationDays ?? 0,
+    satiation,
+    inLuckyYears(state.foundedDay, day),
+  );
   state.chronicle.push(...populationDay(state, day, satiation));
+  if (state.people.length === 0) {
+    // zemřel poslední člověk – ves vymřela, dál se nesimuluje (ani sklizeň dne)
+    state.extinctDay = day;
+    state.chronicle.push({ day, kind: 'village-extinct' });
+    return;
+  }
   // Sklizeň a ztráta nevymláceného až po jídle (Ruling 13) – 31. 8. se jí ještě z loňských
   // zásob, jak počítá daysUntilHarvest (31. 8. → 1 den).
   if (isOn(date, HARVEST_DAY)) harvest(state, day);

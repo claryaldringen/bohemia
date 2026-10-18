@@ -1,10 +1,15 @@
 'use client';
 
 // VÝVOJOVÝ NÁSTROJ – jen pro /dev/buildings (v produkci stránka vrací 404): prohlídka modelů
-// staveb bez přihlášení a databáze, i stavba po fázích (posuvník a přehrání). Řemesla zatím
-// nejsou ve hře – jen modely.
+// staveb bez přihlášení a databáze, i stavba po fázích (posuvník a přehrání) – obydlí, řemesla
+// a za nimi pole, hřbitov a sad. Řemesla zatím nejsou ve hře – jen modely.
 import { useEffect, useRef, useState, type ReactElement } from 'react';
-import { MILIR_OFFSET_M, SHOWCASE_BUILDINGS } from '@/lib/scene/building-showcase-layout';
+import {
+  MILIR_OFFSET_M,
+  SHOWCASE_BUILDINGS,
+  SHOWCASE_GROUNDS,
+  showcaseGrounds,
+} from '@/lib/scene/building-showcase-layout';
 import type { BuildingShowcase } from '@/lib/scene/building-showcase';
 import { constructionPhase, type ConstructionKind } from '@/lib/scene/village-construction';
 
@@ -104,6 +109,7 @@ export function BuildingShowcaseView(): ReactElement {
   const distance = Math.hypot(MILIR_OFFSET_M.x, MILIR_OFFSET_M.z).toLocaleString('cs-CZ', {
     maximumFractionDigits: 1,
   });
+  const groundLabels = showcaseGrounds(progress).labels;
 
   return (
     <>
@@ -112,15 +118,15 @@ export function BuildingShowcaseView(): ReactElement {
         <span className="mr-2 font-serif text-lg text-stone-900 dark:text-stone-100">
           Náhled staveb
         </span>
-        {SHOWCASE_BUILDINGS.map((building) => (
+        {[...SHOWCASE_BUILDINGS, ...SHOWCASE_GROUNDS].map((target) => (
           <button
-            key={building.id}
+            key={target.id}
             type="button"
             className={buttonClass}
             disabled={!showcase}
-            onClick={() => showcase?.focus(building.id)}
+            onClick={() => showcase?.focus(target.id)}
           >
-            {building.label}
+            {target.label}
           </button>
         ))}
         <button
@@ -158,6 +164,12 @@ export function BuildingShowcaseView(): ReactElement {
             <li key={kind}>
               <span className="text-stone-900 dark:text-stone-100">{KIND_LABELS[kind]}:</span>{' '}
               {progress >= 1 ? 'hotovo' : constructionPhase(kind, progress).label}
+            </li>
+          ))}
+          {SHOWCASE_GROUNDS.map((ground) => (
+            <li key={ground.id}>
+              <span className="text-stone-900 dark:text-stone-100">{ground.label}:</span>{' '}
+              {groundLabels[ground.id]}
             </li>
           ))}
         </ul>

@@ -17,6 +17,7 @@ import {
   placeField,
   placeOrchard,
   renameVillage,
+  restartGame,
 } from '@/app/game/actions';
 import { usePlacement } from '@/hooks/use-placement';
 import { usePolling } from '@/hooks/use-polling';
@@ -37,6 +38,7 @@ import {
 import { GameView } from './GameView';
 import { BuildGrid } from './hud/BuildGrid';
 import { CursorReason } from './hud/CursorReason';
+import { DefeatScreen } from './hud/DefeatScreen';
 import { Minimap } from './hud/Minimap';
 import { NoticeLines, type NoticeLine } from './hud/NoticeLines';
 import { SelectionPanel } from './hud/SelectionPanel';
@@ -91,7 +93,9 @@ function withPending(scene: SceneVillage, pending: readonly PendingDwelling[]): 
  * suroviny, datum), minimapa vlevo dole, panel výběru dole uprostřed, mřížka staveb vpravo dole
  * a mizející oznámení nahoře. Bez průvodce – hráč staví, kdy chce. Dokud ves není, mřížka
  * nabízí jen zemnici: její umístění ves založí (s navrženým jménem). Stav vsi drží server – po
- * každé akci a každých 5 s (jen při viditelném panelu) přijde nový VillageView.
+ * každé akci a každých 5 s (jen při viditelném panelu) přijde nový VillageView. Ve vymřelé vsi
+ * se nestaví; když hráči vymřely všechny vsi, přes zamrzlou scénu je obrazovka porážky
+ * s tlačítkem Začít znovu (nové sídlo, stránka se načte znovu).
  */
 export function VillageGame({
   landscape,
@@ -123,6 +127,7 @@ export function VillageGame({
   const placement = usePlacement(scene);
   const view = isVillageView(village) ? village : null;
   const villageError = village !== null && 'error' in village ? village.error : null;
+  const gameOver = view?.gameOver === true;
 
   // Pořadí odpovědí: dotaz, který začal dřív než už použitá odpověď, se zahodí.
   const requestSeq = useRef(0);
@@ -203,8 +208,8 @@ export function VillageGame({
       pushNotice({ kind: 'error', tone: 'error', text: result.error });
     } else applyVillage(result);
   }, [applyVillage, pushNotice]);
-  // Dokud ves není, není co obnovovat (založení vrátí pohled samo).
-  usePolling(poll, POLL_MS, village !== null);
+  // Dokud ves není, není co obnovovat (založení vrátí pohled samo); po konci hry se nic nemění.
+  usePolling(poll, POLL_MS, village !== null && !gameOver);
 
   /** Akce nad vsí na serveru (ve frontě za předchozími); vrátí chybu pro hráče, nebo null. */
   const runAction = useCallback(
@@ -263,8 +268,11 @@ export function VillageGame({
     ).finally(() => setPendingList(pendingRef.current.filter((d) => d.id !== entry.id)));
   };
 
+  // vymřelá ves nic nestaví – nabídka staveb je prázdná (i zkratky)
   const options: Partial<Record<BuildKind, BuildOption | null>> = view
-    ? view.build
+    ? view.extinct
+      ? {}
+      : view.build
     : villageError === null
       ? { zemnice: null }
       : {};
@@ -338,6 +346,26 @@ export function VillageGame({
 
   const rename = (name: string): Promise<string | null> => runAction(() => renameVillage({ name }));
 
+  // Ves vymřela uprostřed umisťování – stavba už nejde, umisťování skončí.
+  const extinct = Boolean(view?.extinct);
+  const cancelPlacement = placement.cancel;
+  useEffect(() => {
+    if (extinct) cancelPlacement();
+  }, [extinct, cancelPlacement]);
+
+  /** Začít znovu po konci hry – nové sídlo s novou krajinou, proto se stránka načte znovu. */
+  const restart = async (): Promise<string | null> => {
+    try {
+      const result = await restartGame();
+      if ('error' in result) return result.error;
+      window.location.reload();
+      return null;
+    } catch (error) {
+      console.error('Nový začátek selhal.', error);
+      return CONNECTION_FAILED;
+    }
+  };
+
   return (
     <>
       <GameView landscape={landscape} onSceneReady={setScene} overlays={false} />
@@ -364,6 +392,9 @@ export function VillageGame({
         onExpire={expireNotice}
       />
       <CursorReason preview={placement.active ? placement.preview : null} />
+      {gameOver && view?.extinct && (
+        <DefeatScreen name={view.name} lifespan={view.extinct} onRestart={restart} />
+      )}
     </>
   );
 }

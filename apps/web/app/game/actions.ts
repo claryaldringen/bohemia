@@ -1,5 +1,6 @@
 'use server';
 
+import { restartGameForPlayer } from '@/lib/game';
 import { getSession } from '@/lib/session';
 import {
   foundVillageForPlayer,
@@ -97,4 +98,15 @@ export async function renameVillage(input: unknown): Promise<VillageActionResult
   const parsed = parseRenameVillageInput(input);
   if (parsed === null) return { error: INVALID_INPUT };
   return renameVillageForPlayer(id, parsed);
+}
+
+/**
+ * Začít znovu po konci hry (vymřely všechny vsi): nové sídlo s novou krajinou. Bez vstupu –
+ * jestli hra opravdu skončila, ověří use-case. Po úspěchu klient načte stránku znovu.
+ */
+export async function restartGame(): Promise<{ ok: true } | { error: string }> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  const result = await restartGameForPlayer(id);
+  return result.ok ? { ok: true } : { error: result.error };
 }

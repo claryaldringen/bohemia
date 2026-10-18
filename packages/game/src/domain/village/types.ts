@@ -178,7 +178,10 @@ export interface YearPlan {
 export type ChronicleEvent = { day: number } & (
   | { kind: 'village-founded' }
   | { kind: 'birth' }
-  | { kind: 'death'; group: 'child' | 'adult' | 'elder' }
+  /** `cause: 'hunger'` – zemřel hlady (nahromaděný hlad, population.md); jinak bez údaje. */
+  | { kind: 'death'; group: 'child' | 'adult' | 'elder'; cause?: 'hunger' }
+  /** Zemřel poslední člověk – ves vymřela (population.md – Hlad a vymření). */
+  | { kind: 'village-extinct' }
   | { kind: 'household-founded'; dwellingId: number }
   | { kind: 'household-merged'; fromDwellingId: number; toDwellingId: number }
   | {
@@ -220,6 +223,16 @@ export interface VillageState {
   storesKg: number;
   domesticBacklog: number;
   hungry: boolean;
+  /**
+   * Nahromaděný hlad ve „dnech bez jídla“ (population.md – Hlad a vymření). U vsí uložených
+   * před zavedením hladovění chybí (= 0).
+   */
+  starvationDays?: number;
+  /**
+   * Den, kdy zemřel poslední člověk – ves vymřela a simulace se zastavila (lidé, pole i stavby
+   * stojí). Žijící ves ho nemá.
+   */
+  extinctDay?: number;
   commonLaborHistory: number[]; // společná práce posledních 30 dní (pro „má na to“)
   chronicle: ChronicleEvent[];
   /** Pohřebiště – u vsí uložených před zavedením pohřebišť chybí (= žádné). */

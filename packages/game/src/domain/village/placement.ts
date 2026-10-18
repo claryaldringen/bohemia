@@ -27,6 +27,7 @@ import {
   CEMETERY,
   CEMETERY_DISTANCE_M,
   DWELLING_FOOTPRINT_M,
+  DWELLING_GARDEN_M,
   DWELLING_MAX_HEIGHT_DIFF_M,
   FIELD_LIMITS,
   SURFACE_INCLUDED_OBSTACLES,
@@ -194,6 +195,29 @@ export function dwellingFootprint(type: DwellingType, position: Position): Point
   return rectangleCorners(position.x, position.z, width, depth, position.rotation);
 }
 
+/** Rohy zahrádky obydlí ve světě (`DWELLING_GARDEN_M`), nebo null – zemnice zahrádku nemá. */
+export function dwellingGarden(type: DwellingType, position: Position): Point[] | null {
+  const g = DWELLING_GARDEN_M[type];
+  if (!g) return null;
+  const cx = (g.minX + g.maxX) / 2;
+  const cz = (g.minZ + g.maxZ) / 2;
+  const cos = Math.cos(position.rotation);
+  const sin = Math.sin(position.rotation);
+  return rectangleCorners(
+    position.x + cx * cos + cz * sin,
+    position.z - cx * sin + cz * cos,
+    g.maxX - g.minX,
+    g.maxZ - g.minZ,
+    position.rotation,
+  );
+}
+
+/** Co obydlí zabírá: půdorys a zahrádka (u polozemnice) – nic z toho se nesmí překrývat. */
+export function dwellingPlot(type: DwellingType, position: Position): Point[][] {
+  const garden = dwellingGarden(type, position);
+  return garden ? [dwellingFootprint(type, position), garden] : [dwellingFootprint(type, position)];
+}
+
 /** Rohy políčka (čtverce pole) ve světě. */
 export function cellCorners(landscape: Landscape, cell: TileCell): Point[] {
   const center = tileCenterWorld(landscape, cell.x, cell.y);
@@ -267,6 +291,40 @@ function footprintSamples(type: DwellingType, position: Position): Point[] {
   return samples;
 }
 
+/** Body mřížky po FOOTPRINT_SAMPLE_STEP_M přes zahrádku obydlí (bez zahrádky žádné). */
+function gardenSamples(type: DwellingType, position: Position): Point[] {
+  const corners = dwellingGarden(type, position);
+  if (!corners) return [];
+  const [a, b, , d] = corners as [Point, Point, Point, Point];
+  const stepsU = Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / FOOTPRINT_SAMPLE_STEP_M);
+  const stepsV = Math.ceil(Math.hypot(d[0] - a[0], d[1] - a[1]) / FOOTPRINT_SAMPLE_STEP_M);
+  const samples: Point[] = [];
+  for (let i = 0; i <= stepsU; i++) {
+    for (let j = 0; j <= stepsV; j++) {
+      const u = i / stepsU;
+      const v = j / stepsV;
+      samples.push([
+        a[0] + (b[0] - a[0]) * u + (d[0] - a[0]) * v,
+        a[1] + (b[1] - a[1]) * u + (d[1] - a[1]) * v,
+      ]);
+    }
+  }
+  return samples;
+}
+
+/** Zahrádka celá v krajině a na louce (rovná být nemusí – ve scéně se nakloní podle terénu). */
+function checkGardenTerrain(landscape: Landscape, samples: readonly Point[]): PlacementCheck {
+  let offMeadow = false;
+  for (const [x, z] of samples) {
+    const tile = tileOfWorldPoint(landscape, x, z);
+    if (!tile) return fail('Zahrádka musí ležet uvnitř krajiny sídla.');
+    const surface = surfaceAt(landscape, tile.x, tile.y);
+    if (surface === 'water') return fail('Zahrádka nemůže ležet ve vodě.');
+    if (surface !== 'meadow') offMeadow = true;
+  }
+  return offMeadow ? fail('Zahrádka jde zatím jen na louku.') : OK;
+}
+
 /** Půdorys celý v krajině, ne ve vodě, jen na louce a dost rovný. */
 function checkFootprintTerrain(landscape: Landscape, samples: readonly Point[]): PlacementCheck {
   let lowest = Infinity;
@@ -294,27 +352,27 @@ function checkFootprintTerrain(landscape: Landscape, samples: readonly Point[]):
 }
 
 /**
- * Půdorys se nepřekrývá s obydlím, rozestavěným obydlím ani se čtvercem pole, pohřebiště či
- * sadu.
+ * Půdorys ani zahrádka (`plot`) se nepřekrývají s obydlím či rozestavěným obydlím (i jejich
+ * zahrádkami) ani se čtvercem pole, pohřebiště či sadu.
  */
 function checkFootprintFree(
   landscape: Landscape,
   village: PlacementVillage | null,
-  footprint: Point[],
+  plot: readonly Point[][],
 ): PlacementCheck {
   if (village === null) return OK;
+  const overlaps = (other: readonly Point[][]): boolean =>
+    plot.some((a) => other.some((b) => polygonsOverlap(a, b)));
   for (const d of village.dwellings) {
-    if (polygonsOverlap(footprint, dwellingFootprint(d.type, d.position))) {
-      return fail('Překrývá se s jiným obydlím.');
-    }
+    if (overlaps(dwellingPlot(d.type, d.position))) return fail('Překrývá se s jiným obydlím.');
   }
   for (const c of village.constructions) {
     if (c.dwellingType === null || c.position === null) continue;
-    if (polygonsOverlap(footprint, dwellingFootprint(c.dwellingType, c.position))) {
+    if (overlaps(dwellingPlot(c.dwellingType, c.position))) {
       return fail('Překrývá se s rozestavěným obydlím.');
     }
   }
-  const under = cellsUnderPolygon(landscape, footprint);
+  const under = plot.flatMap((polygon) => cellsUnderPolygon(landscape, polygon));
   const occupied = occupiedCells(landscape, village);
   if (under.some((i) => occupied.has(i))) return fail('Překrývá se s polem.');
   const cemeteries = cemeteryCells(landscape, village);
@@ -347,7 +405,8 @@ function nearCemeteryWarning(
 /**
  * Smí obydlí stát na místě? Rozdíl výšek pod půdorysem nejvýš 0,5 m, všechna políčka pod ním
  * louka (ne voda, zatím ani les), žádný překryv s obydlími, rozestavěnými obydlími, poli,
- * hřbitovy ani se skalním výchozem. Ostatní překážky na vyklízené ploše (`DWELLING_CLEARING_M`)
+ * hřbitovy ani se skalním výchozem. Totéž (kromě rovnosti) platí pro zahrádku polozemnice
+ * (`DWELLING_GARDEN_M`). Ostatní překážky na vyklízené ploše (`DWELLING_CLEARING_M`)
  * osadníci odstraní – cena po kusech podle tabulky ve fields.md. Blíž hřbitovu než 150 m jen
  * varuje (`warning`). `obstacles` = vrstva překážek krajiny.
  */
@@ -364,11 +423,13 @@ export function checkDwellingPlacement(
   }
   const terrain = checkFootprintTerrain(landscape, footprintSamples(type, position));
   if (!terrain.ok) return { ...terrain, ...none };
-  const footprint = dwellingFootprint(type, position);
-  const free = checkFootprintFree(landscape, village, footprint);
+  const garden = checkGardenTerrain(landscape, gardenSamples(type, position));
+  if (!garden.ok) return { ...garden, ...none };
+  const plot = dwellingPlot(type, position);
+  const free = checkFootprintFree(landscape, village, plot);
   if (!free.ok) return { ...free, ...none };
   const status = obstacleStatus(village?.obstacleChanges);
-  if (outcropUnder(obstacles, status, footprint)) {
+  if (plot.some((polygon) => outcropUnder(obstacles, status, polygon))) {
     return { ...fail('Stojí tu skalní výchoz – ten osadníci neodstraní.'), ...none };
   }
   // překážky v políčkách polí, hřbitovů a sadů odstraní jejich stavba, obydlí je neplatí
@@ -497,17 +558,20 @@ function distanceToNearest(landscape: Landscape, cell: TileCell, positions: Posi
   return positions.reduce((best, p) => Math.min(best, Math.hypot(p.x - c.x, p.z - c.z)), Infinity);
 }
 
-/** Políčka pod obydlími vsi i plánovanými (plánované obydlí bez typu – první – je zemnice). */
+/**
+ * Políčka pod obydlími vsi i plánovanými a pod zahrádkami polozemnic (plánované obydlí bez typu
+ * – první – je zemnice).
+ */
 function dwellingCells(
   landscape: Landscape,
   village: PlacementVillage | null,
   dwellingPositions: Position[],
 ): Set<number> {
   const footprints = [
-    ...(village?.dwellings.map((d) => dwellingFootprint(d.type, d.position)) ?? []),
+    ...(village?.dwellings.flatMap((d) => dwellingPlot(d.type, d.position)) ?? []),
     ...(village?.constructions.flatMap((c) =>
       c.dwellingType !== null && c.position !== null
-        ? [dwellingFootprint(c.dwellingType, c.position)]
+        ? dwellingPlot(c.dwellingType, c.position)
         : [],
     ) ?? []),
     ...dwellingPositions.map((p) => dwellingFootprint('zemnice', p)),

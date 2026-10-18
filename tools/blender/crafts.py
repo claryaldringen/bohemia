@@ -18,12 +18,13 @@ Výstup (apps/web/public/models/crafts):
               nejnižší řady došků přístřešku chybí – okap je výš a pod střechu je vidět), pod ní
               hrnčířská pec (hliněná kopule na kamenném podstavci, topeniště se žárem vpředu,
               průduch nahoře), prkno se sušícími se hrnci, vypálené hrnce, hrouda hlíny,
-              hrnčířský kruh, polena na topení
+              hrnčířský kruh; vedle plot z proutí a koš (díl „yard“) – hráně polen nejsou
+              (Martin: tak vyskládané dřevo tehdy neměli, navíc na dešti)
   kovar.glb   tentýž přístřešek, pod ním výheň (zvýšené ohniště z kamenů a hlíny se žhavým uhlím,
               hliněná zadní stěna, dvojitý měch s dmyšnou), kovadlina na špalku, kladivo,
-              kleště, hromada uhlí, koryto s vodou
-  uhlir.glb   zemnice se střechou krytou mechem (stejný tvar, atlas-moss.jpg), hráň polen na
-              milíř, koše s uhlím
+              kleště, hromada uhlí, koryto s vodou; plot z proutí a koše (díl „yard“)
+  uhlir.glb   zemnice se střechou krytou mechem (stejný tvar, atlas-moss.jpg), volná hromada
+              polen na milíř (polena po povrchu nízké kupy, ne vyskládaná hráň), koše s uhlím
   milir.glb   milíř – samostatný model: kupa polen pod hlínou a drny, dole věnec polen, průduchy,
               komín, kolem začernalá zem, žebřík, hrabice, drny a lopata. Stojí „kus od zemnice“:
               doporučený odstup MILIR_OFFSET níže (≈ 10 m, 8–12 m je v pořádku).
@@ -31,8 +32,9 @@ Výstup (apps/web/public/models/crafts):
                          polozemnice, přístřešek porch-posts / porch-rafters-N / porch-laths,
                          došky přes celou délku, pec kiln-base / kiln-dome-1…3 / kiln-mouth,
                          výheň forge-hearth / forge-fire / forge-wall / forge-bellows / anvil,
-                         vybavení dílny) a rekvizity „site-stones“, „site-clay“
-  construction-moss.glb  díly uhlíře (zemnice s řadami mechu, hráň, koše) a milíře („milir-…“:
+                         vybavení dílny, yard) a rekvizity „site-stones“, „site-clay“
+  construction-moss.glb  díly uhlíře (zemnice s řadami mechu, hromada polen „wood“, koše)
+                         a milíře („milir-…“:
                          stakes, pole, ground, ring, stack-1…4, cover-1…3, top, vents, tools)
 Kdy se který díl ukáže, určuje apps/web/lib/scene/village-construction.ts (tabulka fází pro
 každý druh stavby); hotové modely jsou tytéž díly spojené (bez dílů jen pro staveniště).
@@ -545,10 +547,10 @@ def build_hrncir(mat, stages=False):
     with b.smooth_mode():
         lathe(b, (-0.58, -3.48), [(0.22, 0.06), (0.2, 0.14), (0.12, 0.22), (0.0, 0.24)], "clay", seg=10, wobble=lambda r, z, a: (r * (1 + 0.1 * math.sin(3 * a + 1)), z))
     potter_wheel(part("wheel"), (-0.55, -4.45))
+    # dvorek: plot z proutí a koš (hráně polen tu nejsou – Martin: tak vyskládané dřevo tehdy
+    # neměli, navíc na dešti)
     extras = {
-        "wood": [
-            placed(D.firewood_stack(mat, length=1.6, height=0.75, name="kiln-wood"), (2.55, -4.6, 0), 90),
-            placed(D.firewood_stack(mat, length=1.8, height=0.8), (3.15, -0.4, 0), 90),
+        "yard": [
             placed(D.wattle_fence(mat), (-3.6, 0.6, 0), 90),
             D.import_prop("basket-b", 0.38, (-1.75, -2.75, 0.0), mat, 0.6),
         ]
@@ -629,8 +631,7 @@ def build_kovar(mat, stages=False):
     with cb.smooth_mode():
         lathe(cb, (-1.75, -3.0), [(0.2, 0.3), (0.12, 0.36), (0.0, 0.38)], "charcoal", seg=10)
     extras = {
-        "wood": [
-            placed(D.firewood_stack(mat, length=1.8, height=0.8), (3.15, -0.4, 0), 90),
+        "yard": [
             placed(D.wattle_fence(mat), (-3.6, 0.6, 0), 90),
             D.import_prop("basket-a", 0.42, (-1.75, -3.0, 0.0), mat),
             cb.build(mat),
@@ -653,17 +654,74 @@ def coal_basket(mat, name, loc, scale=0.42, rot=0.0):
     return [basket, b.build(mat)]
 
 
+def log(b, a, c, r, seed):
+    """Poleno (kulatina) z bodu a do c: šestiboký hranol, boky kůra (pás beam), čela letokruhy
+    (jedno čelo z pásu logends podle seedu)."""
+    a, c = Vector(a), Vector(c)
+    d = (c - a).normalized()
+    length = (c - a).length
+    side = d.cross(Vector((0, 0, 1)))
+    side = side.normalized() if side.length > 1e-6 else Vector((1, 0, 0))
+    up = side.cross(d).normalized()
+    n = 6
+    ring = [side * (r * math.cos(2 * math.pi * k / n)) + up * (r * math.sin(2 * math.pi * k / n)) for k in range(n)]
+    off = seeded(seed) * D.UPER
+    for k in range(n):
+        k1 = (k + 1) % n
+        v0, v1 = (k / n - 0.5) * 0.3, ((k + 1) / n - 0.5) * 0.3
+        b.poly([a + ring[k], a + ring[k1], c + ring[k1], c + ring[k]], "beam", out=ring[k] + ring[k1], uvm=[(off, v0), (off, v1), (off + length, v1), (off + length, v0)])
+    tile = int(seeded(seed + 17) * 9)
+    uc, k = 0.111 + tile * 0.222, 0.1 / r
+    for e, o in ((a, -d), (c, d)):
+        b.poly([e + q for q in ring], "logends", out=o, uvm=[(uc + q.dot(side) * k, q.dot(up) * k) for q in ring])
+
+
+def log_heap(b, c, rx=0.85, ry=1.3, height=0.72, count=22, seed=3):
+    """Volná hromada polen na milíř (ne vyskládaná hráň – Martin): polena různě dlouhá, natočená
+    převážně podél delší osy hromady, leží po povrchu nízké kupy (výš uprostřed) a pár jich je
+    opřených z boku."""
+    cx, cy = c
+
+    def surface(x, y):
+        q = ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2
+        return height * max(0.0, 1 - q) ** 0.8
+
+    def place(x0, y0, x1, y1, r):
+        z0 = max(surface(x0, y0), 0) + r * 0.75
+        z1 = max(surface(x1, y1), 0) + r * 0.75
+        return (x0, y0, z0), (x1, y1, z1)
+
+    for i in range(count):
+        t = (i + 0.5) / count
+        rr = math.sqrt(t) * 0.85
+        ang = i * 2.39996 + seeded(seed * 31 + i) * 0.6
+        px, py = cx + rr * rx * math.cos(ang), cy + rr * ry * math.sin(ang)
+        yaw = math.radians(90 + (seeded(seed * 7 + i) - 0.5) * 70)
+        length = 0.95 + 0.35 * seeded(seed * 11 + i)
+        r = 0.06 + 0.035 * seeded(seed * 13 + i)
+        dx, dy = math.cos(yaw) * length / 2, math.sin(yaw) * length / 2
+        a, e = place(px - dx, py - dy, px + dx, py + dy, r)
+        log(b, a, e, r, seed * 100 + i)
+    for i, (ang, yaw) in enumerate(((0.3, 20), (2.4, 160), (4.2, 250))):  # opřená z boku
+        px, py = cx + 1.25 * rx * math.cos(ang), cy + 1.1 * ry * math.sin(ang)
+        r = 0.07
+        top = (cx + 0.45 * rx * math.cos(ang), cy + 0.45 * ry * math.sin(ang))
+        log(b, (px, py, r), (top[0], top[1], surface(*top) + r), r, seed * 200 + i)
+
+
 def build_uhlir(mat, stages=False):
-    """Uhlíř: zemnice z dwellings.py (střecha z atlasu s mechem), hráň polen na milíř, koše uhlí."""
+    """Uhlíř: zemnice z dwellings.py (střecha z atlasu s mechem), volná hromada polen na milíř,
+    koše uhlí."""
     part = Parts("uhlir")
     D.build_zemnice(part, stages=stages)
     b = part("tools")
-    b.beam((-2.85, -1.2, -0.05), (-3.0, -0.75, 1.75), 0.045)  # lopata opřená o hráň
-    b.box(-2.98, -2.72, -1.28, -1.22, -0.1, 0.25, "beam")
+    b.beam((-2.62, -1.42, 0.22), (-2.7, -1.3, 1.3), 0.045)  # lopata zapíchnutá u hromady polen
+    b.box(-2.75, -2.49, -1.45, -1.39, -0.1, 0.25, "beam")
+    heap = CB("uhlir-log-heap")
+    log_heap(heap, (-3.55, 0.3))
     extras = {
         "wood": [
-            placed(D.firewood_stack(mat), (3.05, 0.9, 0), 90),
-            placed(D.firewood_stack(mat, length=2.6, depth=0.9, height=1.0, name="milir-wood"), (-3.45, 0.3, 0), 90),
+            heap.build(mat),
             D.import_prop("basket-a", 0.42, (-1.55, -3.55, 0.0), mat),
         ],
         "coal": coal_basket(mat, "coal-1", (1.45, -3.4, 0.0)) + coal_basket(mat, "coal-2", (1.95, -3.15, 0.0), 0.38, 0.5),

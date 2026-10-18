@@ -514,8 +514,10 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     (['zemnice', 'polozemnice'] as const).forEach((type, row) => {
       const phases = CONSTRUCTION_PHASES[type];
       const stops = [...phases.map((p) => (p.from + p.to) / 2), 1];
+      // polozemnice má po straně zahrádku – řada je řidší
+      const spacing = type === 'polozemnice' ? 13 : 10.5;
       stops.forEach((progress, i) => {
-        const x = site.worldX + (i - (stops.length - 1) / 2) * 10.5;
+        const x = site.worldX + (i - (stops.length - 1) / 2) * spacing;
         const z = site.worldZ + row * 14;
         const tile = tileAt(decoded, x, z);
         if (!tile || surfaceAt(decoded, tile.x, tile.y) === 'water') return;

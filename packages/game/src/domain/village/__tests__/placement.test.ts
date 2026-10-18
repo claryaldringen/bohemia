@@ -5,12 +5,19 @@ import {
   MAX_FIELD_CELLS,
   cemeteryPartsFromCells,
   checkDwellingPlacement,
+  dwellingGarden,
+  dwellingPlot,
   fieldPartsFromCells,
   villageDwellingPositions,
   waterDistanceM,
   type PlacementVillage,
 } from '../placement';
-import { DWELLING_FOOTPRINT_M, FIELD_LIMITS } from '../rules';
+import {
+  DWELLING_CLEARING_M,
+  DWELLING_FOOTPRINT_M,
+  DWELLING_GARDEN_M,
+  FIELD_LIMITS,
+} from '../rules';
 import type { Position, TileCell } from '../types';
 import { block, makeLandscape } from './placement-fixtures';
 
@@ -122,6 +129,78 @@ describe('checkDwellingPlacement – překryv', () => {
   it('díl bez políčka (stará data) nic nezabírá', () => {
     const old: PlacementVillage = { ...EMPTY, parts: [{}] };
     expect(checkDwellingPlacement(landscape, old, 'zemnice', at(-40, 50)).ok).toBe(true);
+  });
+});
+
+describe('zahrádka polozemnice', () => {
+  it('leží po straně domu (−x modelu), otáčí se s ním; zemnice zahrádku nemá', () => {
+    const g = DWELLING_GARDEN_M.polozemnice!;
+    expect(DWELLING_GARDEN_M.zemnice).toBeUndefined();
+    expect(dwellingGarden('zemnice', at(0, 0))).toBeNull();
+    // celá mimo půdorys 5 × 5 m, ne před vchodem (+z)
+    expect(g.maxX).toBeLessThan(-DWELLING_FOOTPRINT_M.polozemnice.width / 2);
+    expect(g.maxZ).toBeLessThan(DWELLING_FOOTPRINT_M.polozemnice.depth / 2);
+    const xs = (rotation: number): number[] =>
+      dwellingGarden('polozemnice', at(0, 0, rotation))!.map(([x]) => x);
+    expect(Math.min(...xs(0))).toBeCloseTo(g.minX);
+    expect(Math.max(...xs(0))).toBeCloseTo(g.maxX);
+    // otočená o 180° leží na druhé straně
+    expect(Math.min(...xs(Math.PI))).toBeCloseTo(-g.maxX);
+    expect(dwellingPlot('polozemnice', at(0, 0))).toHaveLength(2);
+    expect(dwellingPlot('zemnice', at(0, 0))).toHaveLength(1);
+  });
+
+  it('vejde se na vyklízenou plochu obydlí', () => {
+    const g = DWELLING_GARDEN_M.polozemnice!;
+    const c = DWELLING_CLEARING_M.polozemnice;
+    expect(g.minX).toBeGreaterThan(c.minX);
+    expect(g.maxX).toBeLessThan(c.maxX);
+    expect(g.minZ).toBeGreaterThan(c.minZ);
+    expect(g.maxZ).toBeLessThan(c.maxZ);
+  });
+
+  it('nesmí do vody ani do lesa – zemnice na stejném místě projde', () => {
+    // půdorys x 1 … 6 v políčku 8, zahrádka x −3,85 … 0,15 zasahuje do políčka 7
+    const water = makeLandscape({ surface: (x) => (x === 7 ? 'water' : 'meadow') });
+    const wet = checkDwellingPlacement(water, null, 'polozemnice', at(3.5, 7.5));
+    expect(wet.ok).toBe(false);
+    expect(wet.reason).toMatch(/Zahrádka.*vod/);
+    expect(checkDwellingPlacement(water, null, 'zemnice', at(3.5, 7.5)).ok).toBe(true);
+    const forest = makeLandscape({ surface: (x) => (x === 7 ? 'forest' : 'meadow') });
+    const shaded = checkDwellingPlacement(forest, null, 'polozemnice', at(3.5, 7.5));
+    expect(shaded.reason).toMatch(/Zahrádka.*louku/);
+    // otočená zahrádkou na druhou stranu projde
+    expect(checkDwellingPlacement(forest, null, 'polozemnice', at(3.5, 7.5, Math.PI)).ok).toBe(
+      true,
+    );
+  });
+
+  it('rovná být nemusí – rozdíl výšek se měří jen pod půdorysem', () => {
+    // půdorys x 8,5 … 13,5 je rovný, zahrádka x 3,65 … 7,65 klesá o ≈ 0,77 m
+    const l = makeLandscape({ height: (x) => (x <= 7 ? 3 : 0) });
+    expect(checkDwellingPlacement(l, null, 'polozemnice', at(11, 7.5)).ok).toBe(true);
+  });
+
+  it('nesmí na jiné obydlí a jiné obydlí ani pole nesmí na ni', () => {
+    const landscape = makeLandscape();
+    const village: PlacementVillage = {
+      ...EMPTY,
+      dwellings: [{ type: 'zemnice', position: at(0, 0) }],
+    };
+    // zahrádka x −1,35 … 2,65 by zasáhla zemnici
+    const onHouse = checkDwellingPlacement(landscape, village, 'polozemnice', at(6, 0));
+    expect(onHouse.ok).toBe(false);
+    expect(onHouse.reason).toMatch(/obydlím/);
+    expect(checkDwellingPlacement(landscape, village, 'polozemnice', at(12, 0)).ok).toBe(true);
+    // zemnice do cizí zahrádky
+    const withGarden: PlacementVillage = {
+      ...EMPTY,
+      dwellings: [{ type: 'polozemnice', position: at(20, 7.5) }],
+    };
+    expect(checkDwellingPlacement(landscape, withGarden, 'zemnice', at(14.5, 7)).ok).toBe(false);
+    // pole přes zahrádku (x 12,65 … 16,65) – čtverec x 0 … 15 je zabraný
+    const field = fieldPartsFromCells(landscape, withGarden, block(4, 8, 5, 1), [at(20, 7.5)]);
+    expect(field.blockedCells).toContainEqual({ x: 8, y: 8 });
   });
 });
 
