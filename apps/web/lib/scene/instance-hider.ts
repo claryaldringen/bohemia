@@ -20,6 +20,20 @@ interface Tracked extends StaticInstances {
 export class InstanceHider {
   private readonly tracked: Tracked[] = [];
 
+  /**
+   * @param onApply po změně instancí meshe: matice (i zvětšené) v původním pořadí a skryté
+   *   (`hidden[i]` = 1, bez skrytých null) – ořez podle záběru (scenery-culling.ts) podle nich
+   *   přestaví buffer kamery.
+   */
+  constructor(
+    private readonly onApply?: (
+      mesh: Mesh,
+      matrices: Float32Array,
+      hidden: Uint8Array | null,
+      colors?: Float32Array,
+    ) => void,
+  ) {}
+
   /** Zaznamená meshe s nehybnými instancemi (`setStaticInstances`) po načtení krajiny. */
   track(meshes: readonly Mesh[]): void {
     for (const mesh of meshes) {
@@ -59,12 +73,13 @@ export class InstanceHider {
       t.hidden = signature;
       changed = true;
       const visible = mask.length - hiddenIndices.length;
+      const matrices = scaled.length > 0 ? scaledMatrices(t.matrices, scaled) : t.matrices;
+      this.onApply?.(t.mesh, matrices, hiddenIndices.length > 0 ? mask : null, t.colors);
       if (visible === 0) {
         // Bez instancí by Babylon vykreslil samotný model v počátku – mesh se jen vypne.
         t.mesh.setEnabled(false);
         continue;
       }
-      const matrices = scaled.length > 0 ? scaledMatrices(t.matrices, scaled) : t.matrices;
       t.mesh.thinInstanceSetBuffer('matrix', keepVisible(matrices, mask, 16), 16, true);
       if (t.colors) t.mesh.thinInstanceSetBuffer('color', keepVisible(t.colors, mask, 4), 4, true);
       t.mesh.setEnabled(true);

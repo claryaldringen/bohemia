@@ -243,8 +243,20 @@ export function pathVillageOf(state: VillageState, day: number, landscape: Lands
 }
 
 /**
+ * Poslední síť spočítaná ze stavu vsi – po krajinách. Vstup sítě je celý v otisku vsi pro pěšiny
+ * (`pathVillageOf` jako JSON – i odstraněné překážky a den), krajina a vrstva překážek se
+ * porovnávají přímo. Seč luk (`walkDistancesTo`) tak ve stejný den po přepočtu vzdáleností chůze
+ * (`refreshWalkDistances`) síť nepočítá znovu, když se mezi tím ves pro pěšiny nezměnila.
+ */
+const lastNetworks = new WeakMap<
+  Landscape,
+  { obstacles: ObstacleLayer | null; input: string; network: PathNetwork | null }
+>();
+
+/**
  * Síť pěšin vsi v den `day` (stejná funkce jako ve scéně). Bez obydlí null. Vrstva překážek
- * přidá kmeny, keře a kameny (bez ní jen terén).
+ * přidá kmeny, keře a kameny (bez ní jen terén). Stejný vstup jako minule = táž síť (sdílený
+ * objekt – volající ji nemění).
  */
 export function villagePathNetwork(
   state: VillageState,
@@ -253,6 +265,21 @@ export function villagePathNetwork(
   obstacles: ObstacleLayer | null,
 ): PathNetwork | null {
   const village = pathVillageOf(state, day, landscape);
+  const input = JSON.stringify(village);
+  const last = lastNetworks.get(landscape);
+  if (last && last.obstacles === obstacles && last.input === input) return last.network;
+  const network = computeVillageNetwork(state, day, landscape, obstacles, village);
+  lastNetworks.set(landscape, { obstacles, input, network });
+  return network;
+}
+
+function computeVillageNetwork(
+  state: VillageState,
+  day: number,
+  landscape: Landscape,
+  obstacles: ObstacleLayer | null,
+  village: PathVillage,
+): PathNetwork | null {
   const bounds = pathBounds(village);
   if (!bounds) return null;
   const base = pathTerrainOf(landscape, pathWindowFor(landscape, bounds));
@@ -320,6 +347,30 @@ export function walkLayoutKey(state: VillageState, day: number): string {
   ]);
 }
 
+/**
+ * Otisk klíče rozložení (`walkLayoutKey`) – ve stavu vsi se drží jen on (16 šestnáctkových
+ * číslic, dvě nezávislé 32bitové FNV-1a), ne celý klíč (u Vlkova 37 kB). Shoda otisků = shoda
+ * klíčů (náhodná shoda 1 : 2^64).
+ */
+export function walkLayoutHash(key: string): string {
+  let a = 0x811c9dc5;
+  let b = 0x9e3779b9;
+  for (let i = 0; i < key.length; i++) {
+    const c = key.charCodeAt(i);
+    a = Math.imul(a ^ c, 0x01000193);
+    b = Math.imul(b ^ c, 0x01000193) ^ (b >>> 15);
+  }
+  return `${(a >>> 0).toString(16).padStart(8, '0')}${(b >>> 0).toString(16).padStart(8, '0')}`;
+}
+
+/**
+ * Otisk rozložení uložený ve stavu – vsi uložené před otisky (do 18. 10. 2026) mají celý klíč
+ * (JSON pole), ten se porovná přes svůj otisk.
+ */
+function storedLayoutHash(stored: string | undefined): string | undefined {
+  return stored !== undefined && stored.startsWith('[') ? walkLayoutHash(stored) : stored;
+}
+
 /** Polohy obydlí vsi včetně rozestavěných – od nich se měří vzdálenost dílů pole. */
 function dwellingOrigins(state: VillageState): Position[] {
   return [
@@ -357,8 +408,9 @@ export function walkDistancesTo(
  * chůze): díly pole (`FieldPart.walkDistanceM`) a čtverce sadů (`OrchardSquare.walkDistanceM`)
  * z nejbližšího obydlí, palivo z obydlí k nejbližšímu okraji lesa (`Dwelling.forestWalkM`).
  * Přepočítá je, jen když se od posledního výpočtu změnilo rozložení vsi (`walkLayoutKey` – i pevné
- * cesty a jejich stupeň, takže i po dokončení vylepšení). Chůze rovně počítá mokřinu a brody
- * (`walkGroundOf`) – pole za potokem bez cesty zdraží, s hatí a lávkou zlevní.
+ * cesty a jejich stupeň, takže i po dokončení vylepšení; ve stavu jen otisk `walkLayoutHash`,
+ * celý klíč uložený dřív se beze změny rozložení jen převede na otisk). Chůze rovně počítá
+ * mokřinu a brody (`walkGroundOf`) – pole za potokem bez cesty zdraží, s hatí a lávkou zlevní.
  */
 export function refreshWalkDistances(
   state: VillageState,
@@ -366,9 +418,10 @@ export function refreshWalkDistances(
   landscape: Landscape,
   obstacles: ObstacleLayer | null,
 ): void {
-  const key = walkLayoutKey(state, day);
-  if (state.walkLayoutKey === key) return;
+  const key = walkLayoutHash(walkLayoutKey(state, day));
+  const unchanged = storedLayoutHash(state.walkLayoutKey) === key;
   state.walkLayoutKey = key;
+  if (unchanged) return;
   const network = villagePathNetwork(state, day, landscape, obstacles);
   if (!network) {
     for (const p of state.parts) delete p.walkDistanceM;

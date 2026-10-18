@@ -165,11 +165,14 @@ export function workOrder(
   center: { x: number; z: number },
 ): SceneFieldPart[] {
   const houses = village.dwellings.map((d) => d.position);
-  const distance = (p: SceneFieldPart): number =>
-    houses.length > 0
-      ? Math.min(...houses.map((h) => Math.hypot(h.x - p.x, h.z - p.z)))
-      : Math.hypot(center.x - p.x, center.z - p.z);
-  return [...parts].sort((a, b) => distance(a) - distance(b) || a.x - b.x || a.z - b.z);
+  // vzdálenost dílu jednou (ne při každém porovnání řazení) – pořadí stejné
+  const distances = new Map<SceneFieldPart, number>();
+  for (const p of parts) {
+    let distance = houses.length > 0 ? Infinity : Math.hypot(center.x - p.x, center.z - p.z);
+    for (const h of houses) distance = Math.min(distance, Math.hypot(h.x - p.x, h.z - p.z));
+    distances.set(p, distance);
+  }
+  return [...parts].sort((a, b) => distances.get(a)! - distances.get(b)! || a.x - b.x || a.z - b.z);
 }
 
 /** Kontext odhadu: den v roce (1–366) a ves (obydlí určí pořadí a směr práce). */
@@ -183,6 +186,34 @@ export interface LookContext {
  * podle něj, ostatní podle odhadu ze stadia a data (`estimatePart`).
  */
 export function fieldPartViews(
+  field: { parts: readonly SceneFieldPart[] },
+  context: LookContext,
+): PartView[] {
+  // stejné díly, obydlí a den (pole a postavy v jednom stavu vsi) – vzhled z mezipaměti
+  const cached = viewsCache.get(field.parts);
+  if (
+    cached &&
+    cached.dwellings === context.village.dwellings &&
+    cached.day === context.dayOfYear
+  ) {
+    return cached.views;
+  }
+  const views = computePartViews(field, context);
+  viewsCache.set(field.parts, {
+    dwellings: context.village.dwellings,
+    day: context.dayOfYear,
+    views,
+  });
+  return views;
+}
+
+/** Vzhled dílů podle pole (pole dílů ze stavu vsi) – výsledek se nemění, jen se čte. */
+const viewsCache = new WeakMap<
+  readonly SceneFieldPart[],
+  { dwellings: LookContext['village']['dwellings']; day: number; views: PartView[] }
+>();
+
+function computePartViews(
   field: { parts: readonly SceneFieldPart[] },
   context: LookContext,
 ): PartView[] {

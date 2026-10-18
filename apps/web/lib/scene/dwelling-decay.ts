@@ -98,8 +98,6 @@ export interface RuinLook {
   depth: number;
   /** Díl s trámy na dně (decay.glb), nebo null – trámy shnily. */
   beams: 'ruin' | 'ruin-late' | null;
-  /** Výška zbytků valů kolem (násobek dílu `<typ>-ruin-berms`, 0 = srovnané). */
-  berms: number;
   /** Trsy kopřiv – kolik a jak velké. */
   nettles: { count: number; scale: number };
 }
@@ -115,7 +113,6 @@ export function ruinLook(type: DwellingType, overgrowth: number): RuinLook {
   return {
     depth,
     beams: g < 0.4 ? 'ruin' : g < 0.8 ? 'ruin-late' : null,
-    berms: 1 - 0.75 * g,
     nettles: { count: g < 0.9 ? 7 : 4, scale },
   };
 }
@@ -151,17 +148,25 @@ export interface RuinHollowData {
 /** Krok sítě prohlubně (m) a délka opakování textury trávy (jako obtisky vsi). */
 const HOLLOW_STEP_M = 0.3;
 const HOLLOW_UV_M = 20;
-/** Okraj prohlubně nad terénem (m) – zakryje škvíru mezi řezem terénu a sítí. */
+/** Lem prohlubně nad terénem (m) – zakryje škvíru mezi řezem terénu a sítí. */
 const HOLLOW_RIM_LIFT_M = 0.015;
+/** Zarostlý val po okraji prohlubně: výška čerstvého zbytku a šířka od okraje dovnitř (m). */
+const HOLLOW_BANK = { height: 0.16, width: 1.0 } as const;
+/**
+ * Lem sítě za okrajem řezu terénu (m) – leží těsně nad terénem a překryje škvíru mezi řezem
+ * a sítí, jinak by na okraji prosvítala obloha.
+ */
+const HOLLOW_LIP_M = 0.08;
 
 /**
- * Výška zarostlé prohlubně v bodě světa (x, z): mimo obdélník jámy terén, uvnitř k prostředku
- * měkce klesá na dno o `depth` pod patou – kopřivy a trámy na dně stojí na ní.
+ * Výška zarostlé prohlubně v bodě světa (x, z): mimo obdélník jámy terén, uvnitř nízký zarostlý
+ * val po okraji (zbytek valů hlíny kolem domu) a k prostředku měkký pokles na dno o `depth` pod
+ * patou – kopřivy na dně i na valu stojí na ní.
  */
 export function ruinHollowY(
   type: DwellingType,
   position: Position,
-  o: Pick<RuinHollowOptions, 'base' | 'depth' | 'rim'>,
+  o: Pick<RuinHollowOptions, 'base' | 'depth' | 'rim' | 'overgrowth'>,
   x: number,
   z: number,
 ): number {
@@ -174,7 +179,7 @@ export function ruinHollowY(
   const lz = dx * s + dz * c;
   const rim = o.rim(x, z);
   if (Math.abs(lx) >= hx || Math.abs(lz) >= hz) return rim;
-  return hollowY(rim, o.base - o.depth, hollowBowl(hx, hz, lx, lz));
+  return hollowSurface(rim, o.base - o.depth, hx, hz, lx, lz, o.overgrowth);
 }
 
 /** Jak hluboko je bod v prohlubni 0–1 (0 na okraji jámy, 1 na dně). */
@@ -183,14 +188,32 @@ function hollowBowl(hx: number, hz: number, lx: number, lz: number): number {
   return smoothstep(0, slump, hx - Math.abs(lx)) * smoothstep(0, slump, hz - Math.abs(lz));
 }
 
-function hollowY(rim: number, floor: number, bowl: number): number {
-  return Math.min(rim, rim + (floor - rim) * bowl);
+/**
+ * Povrch uvnitř jámy: val po okraji (s časem se srovná) a pokles k dnu; dno nikdy nad terénem
+ * (na svahu). Na okraji jámy přesně terén.
+ */
+function hollowSurface(
+  rim: number,
+  floor: number,
+  hx: number,
+  hz: number,
+  lx: number,
+  lz: number,
+  overgrowth: number,
+): number {
+  const edge = Math.max(0, Math.min(hx - Math.abs(lx), hz - Math.abs(lz)));
+  const bank =
+    edge < HOLLOW_BANK.width
+      ? HOLLOW_BANK.height * (1 - 0.7 * overgrowth) * Math.sin((Math.PI * edge) / HOLLOW_BANK.width)
+      : 0;
+  return rim + bank + Math.min(0, floor - rim) * hollowBowl(hx, hz, lx, lz);
 }
 
 /**
- * Zarostlá prohlubeň: síť přes obdélník jámy (řez terénu – `ruinPitShape`), okraj přesně na
- * terénu, k prostředku měkce klesá na dno o `depth` pod patou. Barvy ve vrcholech: dole tmavší
- * a sytější zeleň (vlhko, kopřivy), s časem se srovná s okolní trávou. Normály dopočítá scéna.
+ * Zarostlá prohlubeň: síť přes obdélník jámy (řez terénu – `ruinPitShape`) a kousek za něj (lem
+ * těsně nad terénem), uvnitř nízký val po okraji a k prostředku měkký pokles na dno o `depth`
+ * pod patou (`ruinHollowY`). Barvy ve vrcholech: na okraji tráva beze změny, dole tmavší a sytější
+ * zeleň (vlhko, kopřivy), s časem se srovná s okolní trávou. Přední strana nahoru jako terén. Normály dopočítá scéna.
  */
 export function ruinHollowData(
   type: DwellingType,
@@ -198,25 +221,36 @@ export function ruinHollowData(
   o: RuinHollowOptions,
 ): RuinHollowData {
   const { halfX: hx, halfZ: hz } = PIT_SHAPES[type];
-  const nx = Math.max(2, Math.ceil((2 * hx) / HOLLOW_STEP_M));
-  const nz = Math.max(2, Math.ceil((2 * hz) / HOLLOW_STEP_M));
+  const ex = hx + HOLLOW_LIP_M;
+  const ez = hz + HOLLOW_LIP_M;
+  const nx = Math.max(2, Math.ceil((2 * ex) / HOLLOW_STEP_M));
+  const nz = Math.max(2, Math.ceil((2 * ez) / HOLLOW_STEP_M));
   const floor = o.base - o.depth;
   const positions: number[] = [];
   const uvs: number[] = [];
   const colors: number[] = [];
   for (let j = 0; j <= nz; j++) {
     for (let i = 0; i <= nx; i++) {
-      const lx = -hx + (2 * hx * i) / nx;
-      const lz = -hz + (2 * hz * j) / nz;
+      const lx = -ex + (2 * ex * i) / nx;
+      const lz = -ez + (2 * ez * j) / nz;
       const [x, z] = localToWorld(position, lx, lz);
       const rim = o.rim(x, z);
-      const edge = i === 0 || j === 0 || i === nx || j === nz;
-      const bowl = hollowBowl(hx, hz, lx, lz);
-      const y = edge ? rim + HOLLOW_RIM_LIFT_M : hollowY(rim, floor, bowl);
+      const inside = Math.abs(lx) < hx && Math.abs(lz) < hz;
+      const y = inside
+        ? hollowSurface(rim, floor, hx, hz, lx, lz, o.overgrowth)
+        : rim + HOLLOW_RIM_LIFT_M;
+      const bowl = inside ? hollowBowl(hx, hz, lx, lz) : 0;
       positions.push(x, y, z);
       uvs.push(x / HOLLOW_UV_M, z / HOLLOW_UV_M);
+      // na okraji barva trávy beze změny (navazuje na terén), k dnu tmavší a sytější zeleň
       const shade = 1 - (0.3 - 0.15 * o.overgrowth) * bowl;
-      colors.push(0.84 * shade, 0.95 * shade, 0.74 * shade, 1);
+      const tint = bowl * (1 - 0.5 * o.overgrowth);
+      colors.push(
+        (1 - 0.16 * tint) * shade,
+        (1 - 0.05 * tint) * shade,
+        (1 - 0.26 * tint) * shade,
+        1,
+      );
     }
   }
   const indices: number[] = [];
@@ -226,8 +260,9 @@ export function ruinHollowData(
       const b = a + 1;
       const c = a + nx + 1;
       const d = c + 1;
-      // přední strana nahoru (Babylon: (b−a)×(c−a) míří od pozorovatele, jako terén)
-      indices.push(a, c, b, b, c, d);
+      // přední strana nahoru – stejné pořadí a dělení čtverce jako terén a obtisky (decalGrid):
+      // v Babylonu (b−a)×(c−a) míří od pozorovatele, tady dolů
+      indices.push(a, b, c, b, d, c);
     }
   }
   return {

@@ -10,7 +10,13 @@ export async function createEngine(
   preferred: 'auto' | 'webgl',
 ): Promise<{ engine: AbstractEngine; renderer: RendererName }> {
   if (preferred === 'auto' && (await WebGPUEngine.IsSupportedAsync)) {
-    const engine = new WebGPUEngine(canvas, { antialias: true, adaptToDeviceRatio: true });
+    const engine = new WebGPUEngine(canvas, {
+      antialias: true,
+      adaptToDeviceRatio: true,
+      // Měření GPU snímku ve vývojovém ukazateli výkonu (scene-perf.ts) – bez zapnutého měření
+      // nic nestojí; Babylon si vyžádá jen to, co adaptér umí.
+      deviceDescriptor: { requiredFeatures: ['timestamp-query'] },
+    });
     try {
       await engine.initAsync();
       return { engine, renderer: 'webgpu' };

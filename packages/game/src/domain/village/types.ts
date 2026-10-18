@@ -748,8 +748,9 @@ export interface VillageState {
    */
   plotsMigrated?: true;
   /**
-   * Klíč rozložení vsi, pro které se naposledy spočítaly vzdálenosti chůze dílů po pěšinách
-   * (`FieldPart.walkDistanceM`). Chybí, dokud se nespočítaly (starší vsi, simulace bez krajiny).
+   * Otisk klíče rozložení vsi (`walkLayoutHash`), pro které se naposledy spočítaly vzdálenosti
+   * chůze dílů po pěšinách (`FieldPart.walkDistanceM`). Chybí, dokud se nespočítaly (starší vsi,
+   * simulace bez krajiny); vsi uložené do 18. 10. 2026 mají celý klíč – při dopočtu se převede.
    */
   walkLayoutKey?: string;
   /**

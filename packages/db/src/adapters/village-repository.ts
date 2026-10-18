@@ -1,5 +1,5 @@
-import { and, asc, eq, sql } from 'drizzle-orm';
-import type { VillageRecord, VillageRepository } from '@bohemia/game';
+import { and, asc, eq, inArray, sql } from 'drizzle-orm';
+import type { VillageRecord, VillageRepository, VillageStamp } from '@bohemia/game';
 import type { Database } from '../client';
 import { settlement, village } from '../schema';
 
@@ -73,12 +73,19 @@ export function createVillageRepository(db: Database): VillageRepository {
     },
 
     async save(villageId, state, expectedVersion): Promise<VillageRecord | null> {
+      // Zpět jen identitu, jméno a verzi – stav (u velké vsi přes 1 MB JSON) má volající v ruce,
+      // databáze by ho jinak celý serializovala a posílala zpátky.
       const [row] = await db
         .update(village)
         .set({ state, version: sql`${village.version} + 1`, updatedAt: sql`now()` })
         .where(and(eq(village.id, villageId), eq(village.version, expectedVersion)))
-        .returning();
-      return row ? toRecord(row) : null;
+        .returning({
+          id: village.id,
+          settlementId: village.settlementId,
+          name: village.name,
+          version: village.version,
+        });
+      return row ? { ...row, state } : null;
     },
 
     async rename(villageId, name): Promise<boolean> {
@@ -89,6 +96,21 @@ export function createVillageRepository(db: Database): VillageRepository {
         .where(eq(village.id, villageId))
         .returning({ id: village.id });
       return rows.length > 0;
+    },
+
+    async stampsOf(settlementIds): Promise<VillageStamp[]> {
+      if (settlementIds.length === 0) return [];
+      // Den dopočtu čte Postgres ze stavu sám – stav se nepřenáší ani neparsuje v Node.
+      return db
+        .select({
+          id: village.id,
+          settlementId: village.settlementId,
+          name: village.name,
+          version: village.version,
+          lastDay: sql<number>`(${village.state}->>'lastDay')::int`,
+        })
+        .from(village)
+        .where(inArray(village.settlementId, [...settlementIds]));
     },
   };
 }

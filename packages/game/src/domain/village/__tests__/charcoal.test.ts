@@ -9,7 +9,7 @@ import {
 } from '../../landscape';
 import { foundVillage } from '../actions';
 import { homeKilnCenter, kilnWalkFactor, startKiln } from '../charcoal';
-import { craftStocks, newWorkshop, restingBurners, workCrafts, type WorkshopDay } from '../crafts';
+import { craftStocks, newWorkshop, restingCrafters, workCrafts, type WorkshopDay } from '../crafts';
 import { felledTreeStage, obstacleChangesAt, plantOnStump, saplingGrowth } from '../obstacles';
 import { NO_CRAFTS } from '../productivity';
 import { BEECH_PLANTING, CHARCOAL_KILN, CRAFT_BASE } from '../rules';
@@ -253,7 +253,7 @@ describe('uhlíř – práce po fázích', () => {
 describe('uhlíř – jen kolik je potřeba (návrh Clauda)', () => {
   it('bez kováře uhlí nepálí a pracuje se vsí', () => {
     const s = village(NEAR_FOREST, false);
-    expect(restingBurners(s, DAY + 1, NO_CRAFTS)).toEqual(new Set([BURNER]));
+    expect(restingCrafters(s, DAY + 1, NO_CRAFTS)).toEqual(new Map([[BURNER, 'resting']]));
     const after = advanceVillage(s, DAY + 1, forest);
     expect(burnerOf(after).activity).toBe('resting');
     expect(burnerOf(after).kiln ?? null).toBeNull();
@@ -266,11 +266,12 @@ describe('uhlíř – jen kolik je potřeba (návrh Clauda)', () => {
 
   it('se zásobou na rok spotřeby kováře nový milíř nezačne', () => {
     const s = village();
-    // kovář: 0,9 čd denně → 0,09 kg nástrojů → 4,5 kg uhlí denně, ročně ≈ 1 643 kg
+    // kovář: 0,9 čd denně → 0,09 kg nástrojů → 4,5 kg uhlí denně, ročně ≈ 1 643 kg (ves bez
+    // nástrojů potřebuje víc – uhlíř pálí jen tolik, kolik kovář vykove)
     s.crafts = { charcoalKg: 1700, toolsKg: 0, potteryKg: 0 };
-    expect(restingBurners(s, DAY + 1, NO_CRAFTS).has(BURNER)).toBe(true);
+    expect(restingCrafters(s, DAY + 1, NO_CRAFTS).has(BURNER)).toBe(true);
     s.crafts.charcoalKg = 1500;
-    expect(restingBurners(s, DAY + 1, NO_CRAFTS).has(BURNER)).toBe(false);
+    expect(restingCrafters(s, DAY + 1, NO_CRAFTS).has(BURNER)).toBe(false);
   });
 
   it('rozdělaný milíř dodělá, i když uhlí přibylo', () => {
@@ -278,7 +279,7 @@ describe('uhlíř – jen kolik je potřeba (návrh Clauda)', () => {
     burnerDays(s, 1, forest);
     expect(burnerOf(s).kiln).toBeTruthy();
     s.crafts = { charcoalKg: 10_000, toolsKg: 0, potteryKg: 0 };
-    expect(restingBurners(s, DAY + 2, NO_CRAFTS).has(BURNER)).toBe(false);
+    expect(restingCrafters(s, DAY + 2, NO_CRAFTS).has(BURNER)).toBe(false);
   });
 });
 

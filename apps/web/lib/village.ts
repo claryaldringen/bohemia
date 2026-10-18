@@ -18,6 +18,7 @@ import {
   plantApplesAlongRoad,
   trainTeamInPen,
   upgradeRoad,
+  villageViewStamp,
   type Craft,
   type DwellingPlot,
   type BuildableDwellingType,
@@ -32,6 +33,7 @@ import {
 } from '@bohemia/game';
 import { getDatabase } from './db';
 import {
+  currentViewStampOfPlayer,
   dynastyOfPlayer,
   enterGameForPlayer,
   firstVillageOfPlayer,
@@ -98,12 +100,17 @@ async function viewOf(
   record?: VillageRecord,
 ): Promise<VillageActionResult> {
   const status = await dynastyOfPlayer(ctx.playerId, ctx.day);
-  const current = status.villages.find((v) => v.id === ctx.villageId) ?? record;
+  const listed = status.villages.find((v) => v.id === ctx.villageId);
+  const current = listed ?? record;
   if (!current) return { error: NO_VILLAGE };
-  return buildVillageView(current, ctx.landscape, ctx.day, {
+  const view = buildVillageView(current, ctx.landscape, ctx.day, {
     gameOver: status.gameOver,
     villages: status.villages.map((v) => villageListItem(v, ctx.day)),
   });
+  // otisk jen z dopočítaných vsí hráče – stejný spočítá levný dotaz (currentViewStampOfPlayer)
+  return listed
+    ? { ...view, stamp: villageViewStamp(ctx.villageId, ctx.day, status.villages) }
+    : view;
 }
 
 /** Výsledek use-case jako pohled na ves (s přepínačem vsí), nebo chyba česky. */
@@ -141,6 +148,29 @@ export async function villageViewForPlayer(
   const ctx = await context(playerId, id);
   if (!ctx.ok) return { error: ctx.error };
   return viewOf(ctx);
+}
+
+/** Odpověď dotazu na ves, když se od pohledu, který klient má, nic nezměnilo. */
+export interface VillageUnchanged {
+  unchanged: true;
+}
+
+/**
+ * Dotazování na ves: klient pošle otisk pohledu, který má (`VillageView.stamp`). Když jsou vsi
+ * hráče dopočítané do dneška a otisk sedí (žádná ves nemá novou verzi ani jméno, den je stejný),
+ * vrátí `{ unchanged: true }` – bez načtení stavů vsí (u velké vsi přes 1 MB JSON) a bez
+ * sestavení pohledu. Jinak celý pohled jako `villageViewForPlayer`.
+ */
+export async function villageViewIfChanged(
+  playerId: string,
+  villageId: string,
+  known: string,
+): Promise<VillageView | VillageUnchanged | null | { error: string }> {
+  const today = await playerToday(playerId);
+  if (today.ok && (await currentViewStampOfPlayer(playerId, villageId, today.day)) === known) {
+    return { unchanged: true };
+  }
+  return villageViewForPlayer(playerId, villageId);
 }
 
 /**

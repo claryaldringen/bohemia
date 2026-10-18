@@ -2,16 +2,13 @@
 
 import { useEffect, useState, type ReactElement, type ReactNode } from 'react';
 import { getWorldState, type TimeSkip, type WorldClock } from '@bohemia/game';
-import { formatWorldState } from '@/lib/game-date';
+import { dateRefreshDelay, formatWorldState } from '@/lib/game-date';
 import { MENU_HOTKEY } from '@/lib/game-menu';
 import { formatDecimal, formatHa, formatInteger, formatPercent } from '@/lib/village-format';
 import type { VillageListItem } from '@/lib/village-list';
 import type { VillageView } from '@/lib/village-view';
 import { Tooltip } from './Tooltip';
 import { VillageSwitcher } from './VillageSwitcher';
-
-// Herní den trvá v ostrém světě ≈ 86 s, v zrychlených testovacích světech i zlomek sekundy.
-const DATE_REFRESH_MS = 1000;
 
 /**
  * Stav jídla pro barvu ikony nasycení: syto / hlad / velký hlad. Řídí ho energie (hlad –
@@ -316,10 +313,19 @@ export function TopBar({
   devVillage?: { pending: boolean; onFound: () => void } | null;
 }): ReactElement {
   const [nowMs, setNowMs] = useState(initialNowMs);
+  // Datum se obnoví na začátku dalšího herního dne (ostrý svět ≈ 86 s), ne každou sekundu –
+  // lišta se jinak zbytečně překresluje. Po změně hodin (přeskočení času) hned.
+  const { startMs, endMs } = world;
   useEffect(() => {
-    const timer = setInterval(() => setNowMs(Date.now()), DATE_REFRESH_MS);
-    return () => clearInterval(timer);
-  }, []);
+    const clock = { startMs, endMs };
+    let timer = setTimeout(function tick(): void {
+      const now = Date.now();
+      setNowMs(now);
+      const delay = dateRefreshDelay(now, clock);
+      if (delay !== null) timer = setTimeout(tick, delay);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [startMs, endMs]);
 
   const people = view ? view.people.children + view.people.adults + view.people.elders : 0;
   const satiation = view ? satiationState(view) : 'fed';
