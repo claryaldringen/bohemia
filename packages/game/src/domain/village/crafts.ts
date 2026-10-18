@@ -1,4 +1,4 @@
-import { detCos, detSin, type ObstacleLayer } from '../landscape';
+import { detCos, detSin, type Landscape, type ObstacleLayer } from '../landscape';
 import { distanceFactor } from './fields';
 import { buildingLocalToWorld, fellTrees, obstacleChangesAt } from './obstacles';
 import { ageGroup, laborPerDay } from './people';
@@ -27,6 +27,7 @@ import type {
   WorkshopFelling,
 } from './types';
 import { burnerRests, charcoalShortfallKg, smithCharcoalPerYear, workBurner } from './charcoal';
+import { villageRoadWalk } from './paths/walking';
 import {
   availableTrees,
   claimedObstacles,
@@ -416,6 +417,7 @@ export function workCrafts(
   coverage: CraftCoverage,
   productivity = 1,
   resting: ReadonlySet<number> = restingBurners(state, day, coverage, productivity),
+  landscape: Landscape | null = null,
 ): WorkshopDay[] {
   const workshops = state.dwellings.filter((d) => d.workshop).sort(workshopOrder);
   if (workshops.length === 0) return [];
@@ -438,9 +440,18 @@ export function workCrafts(
     }
     const labor = workshopLabor(state, day, dwelling.id, coverage.pottery, productivity);
     if (workshop.craft === 'burner') {
-      const burner = workBurner(state, dwelling, stocks, labor.craft, day, obstacles, {
-        startNew: charcoalShortfallKg(state, smithsPerYear) > 0,
-      });
+      const burner = workBurner(
+        state,
+        dwelling,
+        stocks,
+        labor.craft,
+        day,
+        obstacles,
+        { startNew: charcoalShortfallKg(state, smithsPerYear) > 0 },
+        // chůze po pevných cestách s půdou krajiny (paths/walking.ts) – graf cest až při výběru
+        // dávky; bez krajiny vzdušně
+        landscape ? (from, targets) => villageRoadWalk(state, landscape)(from, targets) : undefined,
+      );
       workshop.activity = burner.activity;
       days.push({
         dwellingId: dwelling.id,

@@ -11,7 +11,7 @@ import {
 import { daysUntilHarvest, daysUntilWinterHarvest } from './food';
 import { isPloughable, ploughWorkPerHa } from './plough';
 import { fieldWorkPerHa } from './productivity';
-import { CROP_WINDOWS, SEED_KG_PER_HA, UNWEEDED_YIELD, type WindowSegment } from './rules';
+import { CROP_WINDOWS, LEGUMES, SEED_KG_PER_HA, UNWEEDED_YIELD, type WindowSegment } from './rules';
 import type { Crop, CropWork, FieldPart, FieldTask, TaskName, YearPlan } from './types';
 
 const M2_PER_HA = 10_000;
@@ -56,6 +56,7 @@ export function partWork(
   day: number,
   toolCoverage: number,
   plough = false,
+  crop: Crop = 'spring',
 ): PartWork {
   const work: PartWork = { ...emptyTaskRecord(), plough: 0 };
   const ha = part.areaM2 / M2_PER_HA;
@@ -63,7 +64,7 @@ export function partWork(
   const weedFree = isWeedFree(part, day);
   for (const task of RATE_TASKS) {
     if (task === 'weed' && weedFree) continue;
-    work[task] = ha * fieldWorkPerHa(task, toolCoverage) * factor;
+    work[task] = ha * fieldWorkPerHa(task, toolCoverage, crop) * factor;
   }
   if (part.state === 'fallow') {
     work.reclaim = reclaimCostPerHa(fallowYears(part, day), toolCoverage) * ha * factor;
@@ -94,6 +95,7 @@ export function createCropWork(
   toolCoverage: number,
   plough = false,
   order: WorkOrder = nearestFirst,
+  crop: Crop = 'spring',
 ): CropWork {
   const required = emptyTaskRecord();
   const ordered = order(selected);
@@ -103,7 +105,7 @@ export function createCropWork(
   let ploughWeight = 0;
   let digWeight = 0;
   for (const part of ordered) {
-    const work = partWork(part, day, toolCoverage, plough);
+    const work = partWork(part, day, toolCoverage, plough, crop);
     for (const task of TASK_ORDER) required[task] += work[task];
     if (work.reclaim > 0) reclaimIds.push(part.id);
     if (work.plough > 0) {
@@ -145,9 +147,12 @@ export function createPlan(
   return { plannedDay: day, ...createCropWork(selected, day, toolCoverage, plough, order) };
 }
 
-/** Roční plán s ozimem a jaří (fields.md – Ozim a jař); bez ozimu bez `winter`. */
+/**
+ * Roční plán s ozimem, jaří a luštěninami (fields.md – Ozim a jař, Luštěniny); bez ozimu bez
+ * `winter`, bez luštěnin bez `legume`.
+ */
 export function createYearPlan(
-  crops: { winter: FieldPart[]; spring: FieldPart[] },
+  crops: { winter: FieldPart[]; spring: FieldPart[]; legume?: FieldPart[] },
   day: number,
   toolCoverage: number,
   plough = false,
@@ -156,6 +161,9 @@ export function createYearPlan(
   const plan = createPlan(crops.spring, day, toolCoverage, plough, order);
   if (crops.winter.length > 0) {
     plan.winter = createCropWork(crops.winter, day, toolCoverage, plough, order);
+  }
+  if (crops.legume && crops.legume.length > 0) {
+    plan.legume = createCropWork(crops.legume, day, toolCoverage, plough, order, 'legume');
   }
   return plan;
 }
@@ -200,17 +208,21 @@ export function addToCropWork(
   }
 }
 
-/** Práce plánu po plodinách v pořadí ozim, jař (ozim jen, když ho plán má). */
+/**
+ * Práce plánu po plodinách v pořadí ozim, luštěniny, jař (ozim a luštěniny jen, když je plán
+ * má).
+ */
 export function planCrops(plan: YearPlan): { crop: Crop; work: CropWork }[] {
   const crops: { crop: Crop; work: CropWork }[] = [];
   if (plan.winter) crops.push({ crop: 'winter', work: plan.winter });
+  if (plan.legume) crops.push({ crop: 'legume', work: plan.legume });
   crops.push({ crop: 'spring', work: plan });
   return crops;
 }
 
-/** Všechny díly plánu – ozim i jař. */
+/** Všechny díly plánu – ozim, luštěniny i jař. */
 export function planPartIds(plan: YearPlan): number[] {
-  return [...(plan.winter?.partIds ?? []), ...plan.partIds];
+  return [...(plan.winter?.partIds ?? []), ...(plan.legume?.partIds ?? []), ...plan.partIds];
 }
 
 /** Hotový podíl úlohy vůči celé práci plodiny (0–1); úloha bez práce = 1. */
@@ -336,8 +348,24 @@ export function activeTasks(work: CropWork, day: number, crop: Crop = 'spring'):
  * vůči zaseté části (Ruling 17) – částečné setí se tak nepromítne do úrody dvakrát. Díl
  * v první sezóně po vymýcení lesa pletí nepotřebuje, nedodělané pletí ostatních ho nesráží.
  */
-export function harvestKg(work: CropWork, parts: FieldPart[], day: number): number {
-  return cropYieldKg(work, parts, day, planShare(work, 'sow'), workedShare(work, 'harvest'));
+export function harvestKg(
+  work: CropWork,
+  parts: FieldPart[],
+  day: number,
+  crop: Crop = 'spring',
+): number {
+  return cropYieldKg(work, parts, day, planShare(work, 'sow'), workedShare(work, 'harvest'), crop);
+}
+
+/** Hrubá úroda plodiny na hektar při úrodnosti (luštěniny podíl úrody obilí – LEGUMES). */
+export function cropGrossPerHa(crop: Crop, fertility: number): number {
+  const grain = grossYieldPerHa(fertility);
+  return crop === 'legume' ? grain * LEGUMES.yieldShare : grain;
+}
+
+/** Osivo plodiny na hektar (kg). */
+export function cropSeedPerHa(crop: Crop): number {
+  return crop === 'legume' ? LEGUMES.seedKgPerHa : SEED_KG_PER_HA;
 }
 
 function cropYieldKg(
@@ -346,6 +374,7 @@ function cropYieldKg(
   day: number,
   sowFrac: number,
   harvestFrac: number,
+  crop: Crop = 'spring',
 ): number {
   const weedFrac = workedShare(work, 'weed');
   // díly plánu podle id najednou – hledat každý v celém poli by bylo kvadratické
@@ -358,12 +387,13 @@ function cropYieldKg(
     if (!part) continue;
     const ha = part.areaM2 / M2_PER_HA;
     const weeded = isWeedFree(part, day) ? 1 : weedFrac;
+    const unweeded = crop === 'legume' ? LEGUMES.unweededYield : UNWEEDED_YIELD;
     const gross =
-      grossYieldPerHa(effectiveFertility(part, day)) *
+      cropGrossPerHa(crop, effectiveFertility(part, day)) *
       sowFrac *
-      (UNWEEDED_YIELD + (1 - UNWEEDED_YIELD) * weeded) *
+      (unweeded + (1 - unweeded) * weeded) *
       harvestFrac;
-    total += Math.max(0, ha * gross - ha * SEED_KG_PER_HA * sowFrac);
+    total += Math.max(0, ha * gross - ha * cropSeedPerHa(crop) * sowFrac);
   }
   return total;
 }

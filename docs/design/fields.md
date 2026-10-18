@@ -265,8 +265,11 @@ První sezónu po vymýcení lesa se díl **neplete** (viz Úroda).
 - **Vzdálenost:** práce na dílu je o 1 % dražší za každých 10 m nad 100 m od nejbližšího
   obydlí (chůze, nošení v nůších – návrh Clauda). Díl 500 m daleko stojí o 40 % víc práce.
   Vzdálenost se měří chůzí: po vyšlapané pěšině se chodí o čtvrtinu rychleji (podle její síly),
-  úsek po pěšině se tak počítá 0,75–1 × délka, nikdy víc než přímá vzdálenost (paths.md – Pěšiny
-  a práce, Martin 18. 10. 2026).
+  úsek po pěšině se tak počítá 0,75–1 × délka (paths.md – Pěšiny a práce, Martin 18. 10. 2026);
+  po pevné cestě podle stupně – vyšlapaná 1,2×, upravená 1,5× (roads.md – Rychlejší chůze).
+  Mokřina se počítá dvojnásobně (po hati 1,5× rychleji než louka), brod + 30 m (po lávce bez
+  zdržení) – i rovně mimo cestu, takže pole za potokem bez cesty zdraží, s hatí a lávkou zlevní.
+  Stejně se měří vzdálenost čtverce sadu (orchard.md). Bez krajiny (kalibrace) vzdušnou čarou.
 - **Včasnost:** co se v období nestihne, propadá: nezasetý díl se ten rok nesklidí, neopletý
   dá nižší úrodu, nesklizená úroda shnije na poli, nevymlácené do konce února se zkazí (návrh
   Clauda; přesné podíly doladí kalibrace).
@@ -333,6 +336,40 @@ pro raný středověk ale nemám – zůstává návrhem Clauda jako dosavadní 
   zraje v červenci; jař leží přes zimu jako zkopaná zem, zezelená na jaře a zraje v srpnu – po
   čtvercích, jak k nim dojde práce (viz Postup práce po čtvercích).
 - **Panel pole** ukazuje oseté díly podle plodiny (ikona ozimu a jaře s počtem dílů).
+
+### Luštěniny
+
+Stav: **Martin, 18. 10. 2026:** „c) ale maso bude mírně zvyšovat štěstí“ – bílkoviny 1,6 g na kg
+tělesné váhy zůstávají a přidají se luštěniny jako plodina na poli (strava – [diet.md](diet.md),
+Luštěniny). Čísla podle [rešerše](research/2026-10-18-legumes.md), kde chybí, návrh Clauda.
+
+- **Plodina:** hrách a čočka jako jedna plodina „luštěniny“ (v Mikulčicích čočka ≈ 75 % nálezů
+  luštěnin, hrách druhý; bob, vikev a hrachor vzácné – zatím ne). **Jař**: kopání na podzim
+  (září–listopad), co se nestihne, v březnu–dubnu, setí v **březnu–dubnu**, pletí v květnu–červnu,
+  sklizeň (trhání) v **červenci**, výmlat v zimě (listopad–únor). Ozimý hrách až ve 20. století.
+- **Úroda:** 0,8 úrody obilí při stejné úrodnosti (≈ 600 kg/ha při plné, literatura 390–680),
+  osivo **150 kg/ha** (výnos ≈ 1 : 3,3 – středověké účty 3× až 5½× jako obilí). Neopletý díl dá
+  **50 %** (obilí 60 % – čočka plevel snáší nejhůř).
+- **Práce** na hektar (nejhorší / nejlepší mez): kopání 100 / 50 a setí 10 / 10 jako jař, pletí
+  **40 / 20** (obilí 30 / 15 – hrách se okopával dvakrát), sklizeň **35 / 20** + odnos 20 / 20
+  (žeň luštěnin ≈ 1,2× dráž), výmlat **10 / 6** (obilí 15 / 10).
+- **Úrodnost:** osev luštěniny úrodnost dílu neubere (obilí −0,12), ale **vrátí 0,03** – poutá
+  dusík, ≈ rok přílohu (nejvýš plná úrodnost). Opatrná hodnota: dnešní pokusy dávají obilí po
+  luštěnině víc, středověké výnosy z Winchesteru přínos nenašly.
+- **Kolik ves oseje (k 1. 9.):** cíl luštěnin = kolik jich ves chce sníst za rok (bílkoviny, které
+  chybí po obilí, mléku stád a vejcích, nejvýš strop stravy – diet.md) + rezerva 15 % jako
+  u obilí (při zásobě nad 1,5 roku jen potřeba). **Obilí má přednost:** ves nejdřív vybere obilí
+  na celý cíl osevu jako dřív, pak luštěniny dostanou díly toho výběru od domu (díly, které měly
+  luštěniny loni, až nakonec – střídání plodin) a obilí doplní další díly, kolik energie
+  luštěniny dají méně. Když na doplnění nestačí půda nebo práce, smí plán jít na rezervu osevu,
+  ne pod roční potřebu – jinak díl zůstane obilím a luštěnin je méně. Díly hotové během roku
+  jdou jen do jaře (luštěniny až s ročním plánem).
+- **Zásoba luštěnin** (kg): sklizeň **31. 7.** (po jídle dne, jako ozim), nevymlácená část se
+  1. 3. zkazí jako u obilí. Ztráta skladováním jako obilí (10 %, s hrnčířem 5 % ročně – zrnokaz
+     napadá semena na poli, ve skladu se nemnoží). Jí se rovným dílem celý rok do příští sklizně.
+- **Ve scéně** hrách tvoří nízkou hustou rohož – zelený kvetoucí v květnu–červnu, zralý hnědý
+  v červenci; po sklizni místo panáků hromádky vytrhaného hrachu a skoro holá zem. Panel pole
+  ukáže díly luštěnin (ikona a počet).
 
 ### Úroda
 
@@ -868,3 +905,8 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 | Převod starých polí bez příznaku „převedeno“ – souvislé skupiny stranou, pole z obrysu ne                                         | návrh Clauda                                    |
 | Obydlí jde stavět na pole – pole se zmenší o plochu domu                                                                          | Martin (18. 10. 2026)                           |
 | Pozemek sebere celý díl, obydlí bez pozemku průnik vyklízené plochy, díl pod 20 % zmizí; plán, úroda a založení úměrně            | návrh Clauda                                    |
+| Luštěniny jako plodina na poli kvůli bílkovinám (1,6 g/kg zůstává); maso mírně zvyšuje štěstí                                     | Martin (18. 10. 2026)                           |
+| Luštěniny = hrách a čočka, jař se sklizní v červenci; úroda 0,8 obilí, osivo 150 kg/ha, práce a neopletý díl podle rešerše        | návrh Clauda (rešerše)                          |
+| Osev luštěniny úrodnost vrátí o 0,03 (obilí −0,12); ztráta skladováním jako obilí                                                 | návrh Clauda (rešerše)                          |
+| Obilí má přednost: luštěniny na díly výběru od domu, obilí doplní energii, luštěniny smějí jít na rezervu osevu, ne pod potřebu   | návrh Clauda                                    |
+| Střídání: díly s loňskými luštěninami až nakonec; díly hotové během roku jen do jaře                                              | návrh Clauda                                    |

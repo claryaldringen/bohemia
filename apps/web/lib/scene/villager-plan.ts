@@ -760,8 +760,10 @@ function placer(ctx: Context, share: SceneLaborShare, count: number): Placer {
       return t.kind === 'pen' ? penFence(ctx, t.id) : none;
     case 'orchard-harvest':
     case 'orchard-care':
+      if (t.kind === 'road') return roadApples(ctx, t.id, count, 'tree');
       return t.kind === 'orchard' ? orchardTrees(ctx, t.id, count) : none;
     case 'orchard-plant':
+      if (t.kind === 'road') return roadApples(ctx, t.id, count, 'planting');
       return t.kind === 'orchard' ? orchardPlanting(ctx, t.id, count) : none;
     case 'cemetery':
       return t.kind === 'cemetery' ? cemeteryFence(ctx, t.id) : none;
@@ -770,6 +772,7 @@ function placer(ctx: Context, share: SceneLaborShare, count: number): Placer {
       if (t.kind === 'pen') return penFence(ctx, t.id);
       return t.kind === 'site' || t.kind === 'dwelling' ? building(ctx, t, 'build') : none;
     case 'build':
+      if (t.kind === 'road') return roadWork(ctx, t.id);
       return t.kind === 'site' || t.kind === 'dwelling' ? building(ctx, t, 'build') : none;
     case 'repair':
       return t.kind === 'dwelling' ? building(ctx, t, 'build') : none;
@@ -849,6 +852,10 @@ function constructionAnchors(
   } else if (t.kind === 'pen') {
     const pen = (ctx.village.pens ?? []).find((p) => p.id === t.id);
     if (pen) anchors.push({ at: pen, clip: 'build' });
+  } else if (t.kind === 'road') {
+    const road = (ctx.village.roads ?? []).find((r) => r.id === t.id);
+    const middle = road?.points[Math.floor(road.points.length / 2)];
+    if (middle) anchors.push({ at: middle, clip: 'hoe' });
   }
   // dřevo pro stavbu: když u stromů místo není, aspoň u stavby, pro kterou se kácí
   if (share.construction !== undefined) houseAt(share.construction);
@@ -1530,6 +1537,30 @@ function orchardPlanting(ctx: Context, orchardId: number, count: number): Placer
 }
 
 /**
+ * Jabloně podél pevné cesty (roads.md – Vysazení jabloní): sklizeň a péče u stromů (`tree`),
+ * výsadba u míst, která na ni čekají (`planting` – okopávají jámu). Po skupinách se přesouvají
+ * po řadě jako v sadu.
+ */
+function roadApples(
+  ctx: Context,
+  roadId: number,
+  count: number,
+  stage: 'tree' | 'planting',
+): Placer {
+  const trees = (ctx.village.roadApples ?? []).filter(
+    (a) => a.roadId === roadId && a.stage === stage,
+  );
+  if (trees.length === 0) return none;
+  const start = Math.floor(ctx.day / CREW_MOVE_DAYS) * count;
+  return (i, who) => {
+    const tree = trees[(start + i) % trees.length]!;
+    return stage === 'tree'
+      ? atTree(ctx, tree, who, 'fruit', gap(1.3))
+      : atTree(ctx, tree, who, 'hoe', gap(0.9));
+  };
+}
+
+/**
  * Zakládání a rozšíření hřbitova: lidé na vnějším obvodu ohrazovaných čtverců (plot) čelem
  * dovnitř – nikdy uvnitř na hrobech.
  */
@@ -1591,6 +1622,45 @@ function penFence(ctx: Context, penId: number): Placer {
     // sousední lidé na opačných stranách ohrady
     const slot = slots[(offset + i * 5) % slots.length]!;
     return stand(slot.x, slot.z, slot.hx, slot.hz, i % 3 === 2 ? 'hoe' : 'build');
+  };
+}
+
+/**
+ * Vylepšení pevné cesty (roads.md): lidé podél úseku po obou stranách osy – kopou strouhu,
+ * kladou kameny a kmeny hatě (motyka a stavba střídavě), čelem k ose.
+ */
+function roadWork(ctx: Context, roadId: number): Placer {
+  const road = (ctx.village.roads ?? []).find((r) => r.id === roadId);
+  if (!road || road.points.length < 2) return none;
+  const slots: { x: number; z: number; hx: number; hz: number }[] = [];
+  const at = [0];
+  for (let k = 1; k < road.points.length; k++) {
+    const a = road.points[k - 1]!;
+    const b = road.points[k]!;
+    at.push(at[k - 1]! + Math.hypot(b.x - a.x, b.z - a.z));
+  }
+  const length = at[at.length - 1]!;
+  // práce postupuje od začátku úseku – lidé u čela práce, kousek před ním a za ním
+  const front = (road.upgrade?.progress ?? 0) * length;
+  for (let k = 0; k < 12; k++) {
+    const d = Math.min(length, Math.max(0, front + (k - 4) * 3));
+    let seg = 1;
+    while (seg < road.points.length - 1 && at[seg]! < d) seg++;
+    const a = road.points[seg - 1]!;
+    const b = road.points[seg]!;
+    const span = Math.max(1e-6, at[seg]! - at[seg - 1]!);
+    const u = Math.min(1, Math.max(0, (d - at[seg - 1]!) / span));
+    const nx = -(b.z - a.z) / span;
+    const nz = (b.x - a.x) / span;
+    const side = k % 2 === 0 ? 1 : -1;
+    const x = a.x + (b.x - a.x) * u + nx * side * gap(1.6);
+    const z = a.z + (b.z - a.z) * u + nz * side * gap(1.6);
+    if (free(ctx, x, z)) slots.push({ x, z, hx: -nx * side, hz: -nz * side });
+  }
+  if (slots.length === 0) return none;
+  return (i) => {
+    const slot = slots[i % slots.length]!;
+    return stand(slot.x, slot.z, slot.hx, slot.hz, i % 2 === 0 ? 'hoe' : 'build');
   };
 }
 

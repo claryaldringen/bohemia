@@ -23,12 +23,24 @@ import {
 import type { SceneRoad, SceneVillage } from '../village-view';
 import type { DecorModel } from './decor-placement';
 import { prepareDecorMaterial } from './decorations';
-import { loadMergedModel } from './instanced-model';
-import { EARTH_LAYER, WORN_LAYER, pathRibbons, roadFade, roadLines } from './path-ribbon';
+import { loadMergedModel, type ModelInstance } from './instanced-model';
+import { hasStake } from './orchard-layout';
+import {
+  TREE_STAKE,
+  createTreeStakeMesh,
+  prepareAppleMaterial,
+  setInstances,
+} from './orchard-renderer';
+import { EARTH_LAYER, WORN_LAYER, pathRibbons, roadFade, type RibbonLayer } from './path-ribbon';
+import { RoadWorks, roadRibbonMeshes } from './road-works';
+import { roadWorksKey } from './road-works-layout';
 import { pathRouter } from './path-router';
 import {
   ROADSIDE_MODELS,
   isPathTreeModel,
+  isRoadAppleModel,
+  roadAppleInstance,
+  roadApplesKey,
   roadTreesKey,
   roadsideInstance,
   roadsideModelUrl,
@@ -113,12 +125,17 @@ export class VillagePaths {
   /** Pevné cesty (obtisky z dat) a jejich klíč. */
   private roadMeshes: Mesh[] = [];
   private roadKey = '';
+  /** Kameny, hať, lávky a vytyčení vylepšených cest (road-works.ts). */
+  private readonly works: RoadWorks;
   private roads: readonly SceneRoad[] = [];
   private heatmapMesh: Mesh | null = null;
   private readonly materials = new Map<string, Material>();
   private readonly treeModels = new Map<RoadsideModel, Promise<Mesh | null>>();
   private trees: RoadsideInstance[] = [];
   private treeKey = '';
+  /** Kůly u mladých jabloní podél cest (jako v sadu). */
+  private stakes: ModelInstance[] = [];
+  private stakeMesh: Mesh | null = null;
   private visible = true;
   private heatmap = false;
   private disposed = false;
@@ -127,7 +144,14 @@ export class VillagePaths {
   constructor(
     private readonly scene: Scene,
     private readonly env: PathsEnvironment,
-  ) {}
+  ) {
+    this.works = new RoadWorks(scene, {
+      groundHeight: env.groundHeight,
+      addShadowCaster: (mesh) => env.addShadowCaster(mesh),
+      requestRender: () => env.requestRender(),
+      refreshShadows: () => env.refreshShadows(),
+    });
+  }
 
   /**
    * Ves se změnila – pevné cesty a stromy u nich se přestaví hned (jen při změně dat), pěšiny dne
@@ -164,6 +188,8 @@ export class VillagePaths {
   setVisible(visible: boolean): void {
     this.visible = visible;
     for (const mesh of [...this.meshes, ...this.roadMeshes]) mesh.setEnabled(visible);
+    this.works.setVisible(visible);
+    if (this.stakeMesh) setInstances(this.stakeMesh, visible ? this.stakes : []);
     void Promise.all(
       [...this.treeModels.values()].map((model) =>
         model.then((mesh) => mesh?.setEnabled(visible && this.hasTrees(mesh))),
@@ -187,6 +213,8 @@ export class VillagePaths {
     this.roadMeshes = [];
     this.heatmapMesh?.dispose();
     this.heatmapMesh = null;
+    this.works.dispose();
+    this.stakeMesh?.dispose();
     for (const model of this.treeModels.values()) void model.then((mesh) => mesh?.dispose());
     this.treeModels.clear();
   }
@@ -194,28 +222,51 @@ export class VillagePaths {
   /** Pevné cesty a stromy u nich z dat vsi – přestaví se jen při změně. */
   private updateRoads(village: SceneVillage): void {
     const roads = village.roads ?? [];
-    const roadKey = roadsKey(roads);
+    const roadKey = `${roadsKey(roads)}|${roadWorksKey(roads)}`;
     if (roadKey !== this.roadKey) {
       this.roadKey = roadKey;
       this.roads = roads;
       for (const mesh of this.roadMeshes) mesh.dispose();
       this.roadMeshes = [];
-      const lines = roadLines(roads);
-      if (lines.length > 0) {
-        // pevná cesta má stále plnou šířku – kreslí se jen z dat cest (ne podle polí dne)
-        for (const kind of ['worn', 'earth'] as const) {
-          const mesh = this.ribbon(`roads-${kind}`, lines, kind, () => 1);
-          if (mesh.getTotalIndices() > 0) this.roadMeshes.push(mesh);
-          else mesh.dispose();
-        }
-      }
+      // pevná cesta má stále plnou šířku – kreslí se jen z dat cest (ne podle polí dne);
+      // upravená je širší a má po straně strouhu (rozestavěná úprava od začátku úseku)
+      this.roadMeshes = roadRibbonMeshes(this.scene, roads, {
+        height: this.env.decalHeight,
+        smoothHeight: this.env.groundHeight,
+        material: (kind) => this.decalMaterial(kind),
+        lift: { worn: LIFT.worn, earth: LIFT.earth },
+        alphaIndex: ALPHA_INDEX,
+      });
       for (const mesh of this.roadMeshes) mesh.setEnabled(this.visible);
       this.env.requestRender();
     }
-    const treeKey = roadTreesKey(village.roadTrees);
+    // kameny, hať, lávky a vytyčení (i jabloní, které čekají na výsadbu) – při změně dat
+    this.works.update(roads, village.roadApples ?? []);
+    const treeKey = `${roadTreesKey(village.roadTrees)}|${roadApplesKey(village.roadApples)}`;
     if (treeKey !== this.treeKey) {
       this.treeKey = treeKey;
-      this.trees = (village.roadTrees ?? []).map(roadsideInstance);
+      const apples = village.roadApples ?? [];
+      this.trees = [
+        ...(village.roadTrees ?? []).map(roadsideInstance),
+        ...apples.flatMap((a) => {
+          const tree = roadAppleInstance(a);
+          return tree ? [tree] : [];
+        }),
+      ];
+      // mladá jabloň první roky u kůlu jako v sadu
+      const h = this.env.groundHeight;
+      this.stakes = apples
+        .filter((a) => a.stage === 'tree' && hasStake(a.growth))
+        .map((a) => {
+          const x = a.x - TREE_STAKE.offsetM;
+          return { x, y: h(x, a.z) - TREE_STAKE.sinkM, z: a.z, rotationY: 0, scale: 1 };
+        });
+      if (this.stakes.length > 0) {
+        this.stakeMesh ??= createTreeStakeMesh(this.scene, 'pathside-stakes', (mesh) =>
+          this.env.addShadowCaster(mesh),
+        );
+      }
+      if (this.stakeMesh) setInstances(this.stakeMesh, this.visible ? this.stakes : []);
       this.updateTrees();
     }
   }
@@ -303,15 +354,16 @@ export class VillagePaths {
     kind: 'worn' | 'earth',
     widthAt: (x: number, z: number) => number,
     alphaAt?: (x: number, z: number) => number,
+    layer: RibbonLayer = kind === 'worn' ? WORN_LAYER : EARTH_LAYER,
+    color?: [number, number, number],
   ): Mesh {
-    const layer = kind === 'worn' ? WORN_LAYER : EARTH_LAYER;
     const grid = pathRibbons(lines, layer, widthAt, alphaAt);
     const mesh = createDecalMesh(this.scene, name, grid, {
       height: this.env.decalHeight,
       smoothHeight: this.env.groundHeight,
       lift: kind === 'worn' ? LIFT.worn : LIFT.earth,
       // prošlapaná tráva do hněda, holá udusaná hlína tmavší a teplejší (jako u vchodu obydlí)
-      color: kind === 'worn' ? [0.92, 0.84, 0.7] : [0.9, 0.74, 0.58],
+      color: color ?? (kind === 'worn' ? [0.92, 0.84, 0.7] : [0.9, 0.74, 0.58]),
       uv: kind === 'worn' ? 20 : 14,
     });
     mesh.material = this.decalMaterial(kind);
@@ -381,7 +433,9 @@ export class VillagePaths {
       (material) =>
         isPathTreeModel(model)
           ? prepareTreeMaterial(model, material)
-          : prepareDecorMaterial(model satisfies DecorModel, material),
+          : isRoadAppleModel(model)
+            ? prepareAppleMaterial(material, model)
+            : prepareDecorMaterial(model satisfies DecorModel, material),
     ).then(
       (mesh) => {
         if (!mesh) return null;

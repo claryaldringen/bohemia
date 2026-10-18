@@ -133,6 +133,14 @@ sad v 60. roce naráz zmizel – bez upozornění a nikdo ho neobnovil.
   čtverce do obnovy) a „Starý sad dosloužil“. U kurzoru při umisťování obydlí oranžově „Sad se
   zmenší“ (poslední čtverec: „Sad zanikne“).
 
+## Jabloně podél cest
+
+Hráč může vysadit jabloně i podél pevné cesty ([roads.md](roads.md) – Vysazení jabloní, fáze 3):
+po 10 m střídavě po stranách úseku. Každá jabloň je jako sad na strom (1/180 ha) – výsadba
+0,44 čd jen v oknech jara a podzimu, plody od 6. roku, plná úroda ≈ 17 kg od 25. roku, péče
+v zimě a sklizeň v září–říjnu spolu se sady, jablka do stejné zásoby ovoce; po 60 letech souš
+a místo je volné. Ve scéně stejné modely a roční období jako v sadu.
+
 ## Naměřeno
 
 `measure-village.ts 200 60` (18. 10. 2026) – třetí strategie: hráč staví jako dřív a hned po

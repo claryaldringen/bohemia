@@ -113,7 +113,7 @@ const view = {
       fertility: 61.4,
       stages: { sown: 6, founding: 4 },
       surfaces: { meadow: 10 },
-      crops: { spring: 2, winter: 4 },
+      crops: { spring: 1, legume: 1, winter: 4 },
       ashParts: 0,
       ashBonus: 0,
     },
@@ -171,7 +171,10 @@ const view = {
     },
   ],
   sacred: {
-    oaks: [{ id: 700, happiness: 5, ageYears: 312 }],
+    oaks: [
+      { id: 700, happiness: 5, ageYears: 312, snag: false },
+      { id: 701, happiness: 1, ageYears: 1180, snag: true },
+    ],
     groves: [{ id: 800, oaks: 11, squares: 9, happiness: 12, ageYears: 254 }],
     buildings: [
       { id: 40, kind: 'idol', built: true, happiness: 8, progress: 1, oaksToFell: 0 },
@@ -286,9 +289,11 @@ describe('selectionDetails', () => {
         { stage: 'sown', count: 6 },
       ],
       surfaces: [],
+      // pořadí ozim, jař, luštěniny (CROP_ORDER)
       crops: [
         { crop: 'winter', count: 4 },
-        { crop: 'spring', count: 2 },
+        { crop: 'spring', count: 1 },
+        { crop: 'legume', count: 1 },
       ],
       ashParts: 0,
       ashBonus: 0,
@@ -361,6 +366,14 @@ describe('selectionDetails – posvátná místa', () => {
       id: 700,
       happiness: 5,
       ageYears: 312,
+      snag: false,
+    });
+    expect(selectionDetails(view, scene, { kind: 'sacred-oak', id: 701 })).toEqual({
+      kind: 'sacred-oak',
+      id: 701,
+      happiness: 1,
+      ageYears: 1180,
+      snag: true,
     });
     expect(selectionDetails(view, scene, { kind: 'grove', id: 800 })).toEqual({
       kind: 'grove',

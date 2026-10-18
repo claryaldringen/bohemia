@@ -272,13 +272,14 @@ describe('opravy a přestavba', () => {
     expect(d.condition).toBe(0.5);
   });
 
-  it('chce přestavbu po uplynutí životnosti (zemnice 18 let) nebo při nulovém stavu', () => {
+  it('chce přestavbu po uplynutí životnosti (zemnice 18 let) – rozhoduje jen stáří, ne stav', () => {
     const d = dwelling(1);
     expect(DWELLINGS.zemnice.lifespanYears).toBe(18);
     expect(wantsRebuild(d, 18 * YEAR)).toBe(true);
     expect(wantsRebuild(d, 17 * YEAR)).toBe(false);
+    // obydlený dům nechátrá (Martin) – ani zbylý nízký stav po chátrání přestavbu nespustí
     d.condition = 0;
-    expect(wantsRebuild(d, 1)).toBe(true);
+    expect(wantsRebuild(d, 1)).toBe(false);
   });
 
   it('nové prázdné obydlí chátrá rychleji – zemnice zanikne za ≈ 5 let, polozemnice za ≈ 8', () => {

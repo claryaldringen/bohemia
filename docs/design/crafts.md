@@ -121,7 +121,10 @@ z [rešerše uhlířství](research/2026-10-18-charcoal.md).
   vozit, Szabó a kol. 2022): leží-li první buk dávky do **150 m** od milíře u zemnice, pálí
   uhlíř doma a dřevo dováží. Dál staví **milíř v lese** u prvního buku dávky (dávka = buky
   nejblíž k němu) a domů nosí jen uhlí – za chůzi z dílny platí přirážku vzdálenosti (+1 %
-  za 10 m nad 100 m, DISTANCE) na veškerou práci u lesního milíře. Ve scéně se lesní milíř
+  za 10 m nad 100 m, DISTANCE) na veškerou práci u lesního milíře. Chůze k lesnímu milíři
+  i dovoz dřeva k milíři se měří jako kácení staveb – po pevných cestách s půdou (mokřina,
+  brody – `paths/walking.ts`); bez krajiny (kalibrace) vzdušně. Sázení na pařezy vzdušně od
+  dílny. Stromy a jabloně u cest jsou data cest, ne vrstva lesa – uhlíř je nekácí. Ve scéně se lesní milíř
   staví po fázích, při pálení kouří a po vytahání zmizí.
 - **Mýtina roste, uhlíř chodí dál** (Martin): vykácené buky nechají pařezy, další dávka je dál –
   přirážka za vzdálenost roste, až uhlíř přejde k lesním milířům.

@@ -358,8 +358,9 @@ jich bude moci mít více), tak pro něj hra končí – musí začínat znovu.�
   nespraví střechu. Nová prázdná **zemnice spadne z plného stavu na nulu za ≈ 5 let**,
   **polozemnice za ≈ 8 let** (čísla návrh Clauda; složka podle stáří je u nového domu
   zanedbatelná, staré prázdné obydlí zanikne dřív). Dřív jen bez oprav vydržela zemnice ≈ 16 let
-  a polozemnice ≈ 26 let – déle než obydlený dům do přestavby. Po znovuosídlení se opravy vrací
-  od stavu, který zbyl (stav se nezvedá); rozestavěná přestavba prázdného obydlí se ruší.
+  a polozemnice ≈ 26 let – déle než obydlený dům do přestavby. Po znovuosídlení se stav dál
+  nesnižuje (obyvatelé dům opravují – Chátrání a přestavba), ale ani nezvedá – co zbylo, zůstane;
+  přestavbu rozhodne stáří. Rozestavěná přestavba prázdného obydlí se ruší.
 - Hráč dostane upozornění, když je domácnost plná (se 4 dospělými) nebo přeplněná s dospělými
   dětmi a žádné nové obydlí pro ni nečeká (fakt – zároveň s ním se odemkne stavba obydlí).
 - Když hráč nestaví, přeplněná domácnost žije v těsnu – méně porodů, víc úmrtí, ves přestane
@@ -370,17 +371,21 @@ jich bude moci mít více), tak pro něj hra končí – musí začínat znovu.�
 - Každé obydlí má **stav** 0–100 % a stárne. Potřeba oprav (člověkodny za rok) roste s věkem
   – zpočátku malá, ke konci životnosti velká (Martin): roční potřeba na konci životnosti
   × (věk / životnost)². S delší životností zemnice (18 let místo 15) se křivka sama roztáhla:
-  na konci života dál 15 člověkodní ročně a za celý život 90 místo 75. Prázdné obydlí chátrá
-  navíc pevným dílem stavu – zemnice ≈ 5 let, polozemnice ≈ 8 let (viz Nové obydlí – Prázdné
-  obydlí chátrá rychleji).
-- Opravy jdou z práce vsi hned po polních pracích ([fields.md](fields.md)), takže stárnoucí
-  domy ubírají společnou práci vsi. Když na opravy práce nestačí, stav klesá rychleji.
+  na konci života dál 15 člověkodní ročně a za celý život 90 místo 75.
+- **Chátrá jen prázdné obydlí** (Martin, 18. 10. 2026: „obydlená budova nechátrá – obyvatelé ji
+  opravují. Chátrá jenom prázdná.“): obydlené obydlí stav neztrácí. Prázdné se neopravuje – stav
+  ubývá o celou potřebu oprav podle stáří a navíc pevným dílem stavu – zemnice ≈ 5 let,
+  polozemnice ≈ 8 let (viz Nové obydlí – Prázdné obydlí chátrá rychleji).
+- Opravy obydleného domu jdou z práce vsi hned po polních pracích ([fields.md](fields.md)), takže
+  stárnoucí domy ubírají společnou práci vsi. Když na opravy práce nestačí, zbytek se prostě
+  neudělá – stav domu to nesníží a nic se neodkládá na později (návrh Clauda; dřív stav klesal
+  o nedodělek a dům se pak přestavoval dřív).
 - Ke konci životnosti stojí opravy obydlí zhruba polovinu toho, co jeho domácnost přidá do
   společné práce vsi (návrh Clauda) –
   stárnoucí domy citelně ubírají vsi práci.
-- **Přestavba:** když se opravy přestanou vyplácet (typicky kolem konce životnosti) nebo stav
-  klesne na 0, obyvatelé se **sami** rozhodnou dům zbourat a na stejném místě postavit nový
-  (Martin). Hráč o tom nerozhoduje.
+- **Přestavba:** když se opravy přestanou vyplácet – obydlí dožije (životnost), obyvatelé se
+  **sami** rozhodnou dům zbourat a na stejném místě postavit nový (Martin). Rozhoduje jen stáří –
+  obydlený dům na nulu nespadne. Hráč o tom nerozhoduje.
 - Obyvatelé staví **vždy lepší** obydlí než dosud (zemnice → polozemnice), pokud na to ves má
   suroviny – jinak stejné (Martin). „Má na to“: **roční průměr** denní společné práce vsi stačí,
   aby stavba skončila do jednoho roku (návrh Clauda), a **dřevo** – klády na hromadě a dospělé
@@ -512,10 +517,10 @@ pravidla → první verze hladu (1 − nasycení za den, hájení bez stropu) �
   a nejistá licence (Martin); nanejvýš jako předloha tvarů pro pozdější roubené chalupy.
 - **Dům se viditelně rozpadá** (Martin, 18. 10. 2026: „domy by měly mít různé stavy destrukce –
   jako se nový dům postupně staví, tak starý a opuštěný dům se musí postupně rozpadat“; stupně
-  a podoba návrh Clauda). Stupeň podle stavu obydlí platí pro **každé** obydlí – i obydlené,
-  kterému nestačí opravy (jako poškozené budovy v 0 A.D.); obydlené s dostatkem oprav zůstává
-  celé:
-  1. **100–70 %** – celý dům (u prázdného bez dýmu, vchod zarůstá).
+  a podoba návrh Clauda). Rozpadá se jen **prázdné** obydlí podle svého stavu – obydlené je vždy
+  celé (Martin: „obydlená budova nechátrá – obyvatelé ji opravují“), i znovu osídlený zchátralý
+  dům (návrh Clauda):
+  1. **100–70 %** – celý dům (bez dýmu, vchod zarůstá).
   2. **70–45 % – sešlý:** došky prořídlé a vybledlé, místy díry, mech a tráva na střeše, omítka
      místy opadaná (vidět výplet, u polozemnice trámy srubu).
   3. **45–20 % – propadá se:** část došků pryč, vidět latě a krokve, hřeben prověšený a nakřivo;
@@ -523,7 +528,7 @@ pravidla → první verze hladu (1 − nasycení za den, hájení bez stropu) �
      kolem domu kopřivy.
   4. **20–0 % – zřícený:** střecha spadlá do jámy, trčí krokve a sloupy, stěny rozpadlé (ze štítů
      zemnice nízké pahýly, ze srubu polozemnice spodní řady trámů); z plotu zbyly pahýly, záhony
-     zarostlé, ze zřícené střechy už nestoupá dým.
+     zarostlé.
   5. **Po zániku – zbytek jámy:** zarostlá prohlubeň s kopřivami, pár trámy a nízkými valy, ≈ 10
      let postupně zarůstá a pak zmizí (Chátrání a přestavba – Po zániku).
 
@@ -614,6 +619,8 @@ pravidla → první verze hladu (1 − nasycení za den, hájení bez stropu) �
 | Díl či čtverec pod 20 % políčka zmizí; zbytek pole či sadu se nedělí           | návrh Clauda                               |
 | Úroda, práce a založení úměrně ploše; plocha se po zániku domu nevrací         | návrh Clauda                               |
 | Přestavba obyvatel si pozemek na poli ani v sadu nevezme; hřbitov dál ne       | návrh Clauda                               |
-| Dům se viditelně rozpadá, jako se staví – stupně podle stavu, i obydlený       | Martin, 18. 10. 2026                       |
+| Dům se viditelně rozpadá, jako se staví – stupně podle stavu prázdného domu    | Martin, 18. 10. 2026                       |
+| Obydlený dům nechátrá (obyvatelé ho opravují), chátrá jen prázdný              | Martin, 18. 10. 2026                       |
+| Nedodělek oprav obydleného domu se neodkládá; znovu osídlený dům ukázat celý   | návrh Clauda                               |
 | Stupně 70 / 45 / 20 %, jejich podoba; plot a záhony od propadající se střechy  | návrh Clauda                               |
 | Zbytek jámy po zaniklém obydlí ≈ 10 let zarůstá; stavba přes něj ho odstraní   | návrh Clauda                               |

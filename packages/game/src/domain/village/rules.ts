@@ -210,6 +210,35 @@ export const ROAD_TREES = {
   snagYears: 10,
   stumpYears: 10,
 } as const;
+// roads.md – Vylepšení cesty (návrh Clauda, schváleno 18. 10. 2026): upravená cesta 15 člověkodní
+// na 100 m; hať 1 strom a 2 člověkodny na 2 m mokřiny; lávka přes brod 4 stromy a 15 člověkodní
+export const ROAD_UPGRADES = {
+  improvedManDaysPer100M: 15,
+  causewayPer2M: { trees: 1, manDays: 2 },
+  footbridge: { trees: 4, manDays: 15 },
+} as const;
+// roads.md – Vysazení jabloní (Martin; čísla návrh Clauda): podél úseku po obou stranách po 10 m
+// střídavě (2,6–3,4 m od osy), jabloně nejméně 8 m od sebe a 6 m od stromu u cesty; jako sad na
+// strom – ≈ 180 stromů na hektar (výsadba 80 čd/ha ≈ 0,45 čd na strom, péče a sklizeň jako v sadu,
+// plná úroda ≈ 17 kg na strom), plody od 6. roku, život ≈ 60 let; souš pak stojí 10 let
+export const ROAD_APPLES = {
+  spacingM: 10,
+  offsetM: { from: 2.6, to: 3.4 },
+  gapM: 8,
+  treeClearM: 6,
+  treesPerHa: 180,
+  snagYears: 10,
+  logFromYears: 20,
+} as const;
+// roads.md – Rychlejší chůze (návrh Clauda, schváleno): rychlost chůze proti louce – vyšlapaná
+// cesta 1,2×, upravená 1,5× (hať a lávka jen přes mokřinu a brod, jinde jako upravená); mokřina
+// 0,5× (bahno), po hati 1,5×; brod + 30 m (zout se, přebrodit), po lávce bez zdržení
+export const ROAD_WALK = {
+  speed: { trodden: 1.2, improved: 1.5, causeway: 1.5 },
+  wetSpeed: 0.5,
+  causewayWetSpeed: 1.5,
+  fordExtraM: 30,
+} as const;
 // fields.md – Založení pole (nejdál 800 m od obydlí, nejmenší výměra 0,1 ha)
 export const FIELD_LIMITS = { maxDistanceM: 800, minAreaM2: 1000 } as const;
 // fields.md – Práce (denní minimum domácností – meze: s hrnčířem 0,45); population.md – Práce
@@ -269,13 +298,55 @@ export const WINTER_WINDOWS: Record<TaskName, readonly WindowSegment[]> = {
     [1, 2],
   ],
 };
-/** Okna prací podle plodiny (fields.md – Ozim a jař). */
+// fields.md – Luštěniny (rešerše 2026-10-18-legumes.md): luštěniny jsou jař – kopou se na podzim
+// nebo na jaře, sejí v březnu–dubnu, pletou v květnu–červnu, sklízejí (trhají) v červenci a mlátí
+// v zimě jako obilí
+export const LEGUME_WINDOWS: Record<TaskName, readonly WindowSegment[]> = {
+  ...WINDOWS,
+  harvest: [[7, 7]],
+};
+/** Okna prací podle plodiny (fields.md – Ozim a jař, Luštěniny). */
 export const CROP_WINDOWS: Record<Crop, Record<TaskName, readonly WindowSegment[]>> = {
   winter: WINTER_WINDOWS,
   spring: WINDOWS,
+  legume: LEGUME_WINDOWS,
 };
-/** Pořadí plodin při shodě konce okna – ozim (sklízí se dřív) první. */
-export const CROP_ORDER: readonly Crop[] = ['winter', 'spring'];
+/** Pořadí plodin při shodě konce okna – ozim (sklízí se dřív) první, luštěniny před jaří. */
+export const CROP_ORDER: readonly Crop[] = ['winter', 'legume', 'spring'];
+/**
+ * diet.md a fields.md – Luštěniny (Martin 18. 10. 2026: bílkoviny 1,6 g/kg zůstávají, přidají se
+ * luštěniny; čísla rešerše 2026-10-18-legumes.md, odhady návrh Clauda): hrách a čočka jako jedna
+ * plodina – hrubá úroda jako 0,8 úrody obilí při stejné úrodnosti (≈ 600 kg/ha při plné), osivo
+ * 150 kg/ha, 22 % bílkovin, energie jako obilí (3 400 kcal/kg); ztráta skladováním jako obilí
+ * (STORAGE_LOSS_PER_YEAR – zrnokaz se ve skladu nemnoží); neopletý díl dá 50 % (obilí 60 %);
+ * osev úrodnost neubere, ale vrátí 0,03 (`fertilityGain` – poutá dusík, ≈ rok přílohu); strop
+ * podílu energie z luštěnin ve stravě 25 % (dospělý ≈ 45 kg ročně).
+ */
+export const LEGUMES = {
+  yieldShare: 0.8,
+  seedKgPerHa: 150,
+  protein: 0.22,
+  energy: 1,
+  unweededYield: 0.5,
+  fertilityGain: 0.03,
+  energyCap: 0.25,
+} as const;
+// fields.md – Luštěniny (rešerše: hrách hůř snáší plevel a okopával se, žeň luštěnin stála ≈ 1,2×
+// víc než žeň obilí, výmlat na objem 0,6–0,8× pšenice) – člověkodny na osetý hektar, meze
+export const LEGUME_HARVEST_WORK_PER_HA: Record<'reap' | 'carry', Bounds> = {
+  reap: { worst: 35, best: 20 },
+  carry: { worst: 20, best: 20 },
+};
+export const LEGUME_WORK_PER_HA: Record<FieldTask, Bounds> = {
+  dig: FIELD_WORK_PER_HA.dig,
+  sow: FIELD_WORK_PER_HA.sow,
+  weed: { worst: 40, best: 20 },
+  harvest: {
+    worst: LEGUME_HARVEST_WORK_PER_HA.reap.worst + LEGUME_HARVEST_WORK_PER_HA.carry.worst,
+    best: LEGUME_HARVEST_WORK_PER_HA.reap.best + LEGUME_HARVEST_WORK_PER_HA.carry.best,
+  },
+  thresh: { worst: 10, best: 6 },
+};
 // orchard.md – Pravidla (Martin – oprava podle rešerše 17. 10. 2026): výsadba 80 člověkodní/ha
 // (+ překážky jako u pole), péče v zimě 10 člověkodní/ha ročně, sklizeň 8 člověkodní/ha při plné
 // úrodě (při menší úrodě poměrně méně); první jablka 6. rok po výsadbě, úroda lineárně do plné
@@ -457,9 +528,39 @@ export const HAPPINESS_BONUS = { storesYears: 1, stores: 5, sacredMax: 40 } as c
 // se násobí – štěstí 0 → × 0,8, 50 → × 1, 100 → × 1,1, mezi tím lineárně
 export const HAPPINESS_LABOR = { atMin: 0.8, atBase: 1, atMax: 1.1 } as const;
 
-// happiness.md – Posvátná místa: posvátný dub +5 (nejvýš 3 duby), dubový háj +10 a +1 za každé
-// 2 duby nad 6, nejvýš +15 za háj (nejvýš 2 háje); pod korunou dubu na poli se neoseje ≈ 50 m²
-export const SACRED_OAK = { happiness: 5, counted: 3, crownM2: 50 } as const;
+// happiness.md – Posvátná místa: posvátný dub podle stáří (`SACRED_OAK_HAPPINESS`, nejvýš 3 duby
+// – ty, které přidávají nejvíc), dubový háj +10 a +1 za každé 2 duby nad 6, nejvýš +15 za háj
+// (nejvýš 2 háje); pod korunou dubu na poli se neoseje ≈ 50 m²
+export const SACRED_OAK = { counted: 3, crownM2: 50 } as const;
+// happiness.md – Posvátný dub – stáří a štěstí (Martin 18. 10. 2026: „čím jsou starší, tím víc
+// štěstí přidávají. Nejmladší 1, nejstarší 10.“): živý dub stáří `youngYears` přidá `young`,
+// stáří `oldYears` (nejvyšší možná délka života) `old`; mezi tím podle logaritmu stáří, na celé
+// body (návrh Clauda – každé zdvojnásobení stáří přidá stejně, ≈ 2,4 bodu: 200 let 2, 400 let 4,
+// 600 let 6, 1000 let 8, 1400 let 9; lineárně by 200 a 600 let dalo 1 a 3). Posvátná souš
+// (uschlý dub) přidá `snag` (návrh Clauda), padlá souš nic.
+export const SACRED_OAK_HAPPINESS = {
+  youngYears: 150,
+  oldYears: 2000,
+  young: 1,
+  old: 10,
+  snag: 1,
+} as const;
+// happiness.md – Posvátný dub – délka života (Martin 18. 10. 2026: „mohou stářím uschnout, ale ať
+// je to variabilní … ať se ty nejstarší mohly dožít až 2000 let“; rozdělení návrh Clauda):
+// délka života = `minYears` + (`maxYears` − `minYears`) × B, kde B je `rank`. nejmenší z `draws`
+// náhodných čísel (rozdělení Beta(2, 4)) – ≈ 81 % dubů se dožije 800–1400 let (nejčastěji
+// ≈ 1100, průměr 1200), ≈ 19 % déle, přes 1700 let ≈ 1,6 % a 2000 let nikdo nepřekročí. Uschne
+// v létě, když přijde sucho (některý z `death.days` dní od 1. `death.month` – červen až srpen);
+// souš stojí `snagYears` let (rovnoměrně) a padne v kterýkoli den roku. Náhoda je z id a polohy
+// dubu ve vrstvě – stejný dub má stejný život v každé vsi.
+export const SACRED_OAK_LIFE = {
+  minYears: 800,
+  maxYears: 2000,
+  draws: 5,
+  rank: 2,
+  death: { month: 6, days: 92 },
+  snagYears: [50, 100],
+} as const;
 export const GROVE = {
   minOaks: 6,
   radiusM: 25,

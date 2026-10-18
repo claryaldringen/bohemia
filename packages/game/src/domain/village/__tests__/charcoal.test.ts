@@ -16,6 +16,7 @@ import { BEECH_PLANTING, CHARCOAL_KILN, CRAFT_BASE } from '../rules';
 import { advanceVillage } from '../simulate';
 import type { Craft, Person, Position, VillageState } from '../types';
 import { isTreeStanding, nearestMatureTrees, reservedTrees } from '../wood';
+import { makeLandscape } from './placement-fixtures';
 import { withBuiltFirstDwelling } from './village-fixtures';
 
 const at = (year: number, month: number, day: number): number => dayIndexOf({ year, month, day });
@@ -219,6 +220,18 @@ describe('uhlíř – práce po fázích', () => {
     // práce dne jde na kácení prvního buku – efektivně 0,9 / přirážka
     expect(kiln.done).toBeCloseTo(0.9 / factor, 9);
     expect(days[0]!.kilnSite).toEqual(kiln.site);
+  });
+
+  it('s krajinou měří chůzi k lesnímu milíři a dovoz dřeva přes výpočet chůze', () => {
+    const s = village(FAR_FROM_FOREST);
+    const after = advanceVillage(s, DAY + 1, forest, makeLandscape({ size: 128 }));
+    const kiln = burnerOf(after).kiln!;
+    expect(kiln.site).not.toBeNull();
+    const straight = Math.hypot(kiln.site!.x - FAR_FROM_FOREST.x, kiln.site!.z - FAR_FROM_FOREST.z);
+    // na louce bez cest je chůze aspoň vzdušná vzdálenost
+    expect(kiln.walkM).toBeGreaterThanOrEqual(straight - 1e-6);
+    expect(kiln.walkM).toBeLessThan(straight * 1.2);
+    expect(kilnWalkFactor(kiln, FAR_FROM_FOREST)).toBeGreaterThan(1.1);
   });
 
   it('práce u lesního milíře jde do rozdělení práce dne k milíři', () => {

@@ -11,9 +11,11 @@ import {
   placePenForPlayer,
   placeSacredForPlayer,
   placeWorkshopForPlayer,
+  plantRoadApplesForPlayer,
   renameVillageForPlayer,
   skipTimeForPlayerView,
   trainTeamForPlayer,
+  upgradeRoadForPlayer,
   villageViewForPlayer,
   type TimeSkipResult,
   type VillageActionResult,
@@ -28,10 +30,12 @@ import {
   parsePlacePenInput,
   parsePlaceSacredInput,
   parsePlaceWorkshopInput,
+  parsePlantRoadApplesInput,
   parseRenameVillageInput,
   parseRestartGameInput,
   parseSkipTimeInput,
   parseTrainTeamInput,
+  parseUpgradeRoadInput,
 } from '@/lib/village-input';
 
 // Server actions vsi. Každá je veřejný POST endpoint: přihlášení ze session, vstup ověřený
@@ -137,6 +141,30 @@ export async function trainTeam(input: unknown): Promise<VillageActionResult> {
   const parsed = parseTrainTeamInput(input);
   if (parsed === null) return { error: INVALID_INPUT };
   return trainTeamForPlayer(id, parsed);
+}
+
+/**
+ * Vylepšení pevné cesty (roads.md): `{ roadId, upgrade: 'improved' | 'causeway' }` – server ho
+ * ověří znovu (`roadUpgradeOptions`).
+ */
+export async function upgradeRoad(input: unknown): Promise<VillageActionResult> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  const parsed = parseUpgradeRoadInput(input);
+  if (parsed === null) return { error: INVALID_INPUT };
+  return upgradeRoadForPlayer(id, parsed);
+}
+
+/**
+ * Výsadba jabloní podél pevné cesty (roads.md – Vysazení jabloní): `{ roadId }` – server ji ověří
+ * znovu (`roadApplesOption`).
+ */
+export async function plantRoadApples(input: unknown): Promise<VillageActionResult> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  const parsed = parsePlantRoadApplesInput(input);
+  if (parsed === null) return { error: INVALID_INPUT };
+  return plantRoadApplesForPlayer(id, parsed);
 }
 
 /**

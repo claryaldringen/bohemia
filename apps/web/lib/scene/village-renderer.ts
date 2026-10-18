@@ -24,7 +24,7 @@ import {
   DECAY_LOOKS,
   decayModelParts,
   decayNettles,
-  decayStage,
+  dwellingDecayStage,
   ruinHollowData,
   ruinHollowY,
   ruinLook,
@@ -852,7 +852,7 @@ export class VillageRenderer {
   /** Dýmníky hotových obývaných obydlí, pece, výhně a milíře pracujících dílen pro dým. */
   private updateSmokeSources(): boolean {
     const sources: SmokeSource[] = this.village.dwellings
-      .filter((d) => d.built && d.inhabited !== false && DECAY_LOOKS[dwellingDecay(d)].smoke)
+      .filter((d) => d.built && d.inhabited !== false)
       .map((d) => {
         const vent = SMOKE_VENT[d.type];
         const [x, z] = localToWorld(d.position, 0, vent.z);
@@ -1549,12 +1549,9 @@ function plotViews(dwellings: readonly SceneDwelling[]): PlotView[] {
   });
 }
 
-/**
- * Stupeň rozpadu hotového obydlí (dwelling-decay.ts); řemeslné dílny zatím zůstávají celé –
- * díly rozpadu mají jen obydlí.
- */
-function dwellingDecay(d: Pick<SceneDwelling, 'condition' | 'craft'>): DecayStage {
-  return d.craft ? 0 : decayStage(d.condition);
+/** Stupeň rozpadu hotového obydlí – jen prázdné se rozpadá (dwelling-decay.ts). */
+function dwellingDecay(d: Pick<SceneDwelling, 'condition' | 'craft' | 'inhabited'>): DecayStage {
+  return dwellingDecayStage(d);
 }
 
 /** Zbytek jámy ve scéně: id zaniklého obydlí a den zániku (obydlí se může přestěhovat znovu). */

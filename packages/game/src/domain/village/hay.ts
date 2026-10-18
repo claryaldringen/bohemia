@@ -7,7 +7,8 @@ import {
   type Landscape,
 } from '../landscape';
 import { distanceFactor, fallowYears, partWalkDistance } from './fields';
-import { OVERGROWTH_STAGES, PATH_WALK, type WindowSegment } from './rules';
+import { FASTEST_WALK_SHARE } from './paths/walking';
+import { OVERGROWTH_STAGES, type WindowSegment } from './rules';
 import type { FieldPart, HayMowing, HaySquare, HayState, TileCell, VillageState } from './types';
 
 // Seno (oxen.md – Seno, diet.md – Dobytek): krávy a voli přes zimu (listopad–březen) sežerou
@@ -154,9 +155,11 @@ function coverDistance(sorted: readonly HaySquare[], need: number): number {
 }
 
 /**
- * Vzdálenosti chůze přirozených luk po pěšinách (mutuje `meadows`): chůze je nejvýš přímá
- * vzdálenost a nejméně (1 − PATH_WALK.speedup) × přímá – louky, které i rovně leží dál než
- * vzdálenost pokrytí potřeby ÷ (1 − speedup), se do seče nedostanou a síť je neměří.
+ * Vzdálenosti chůze přirozených luk (mutuje `meadows`) – po pěšinách a pevných cestách jako díly
+ * pole (paths/walking.ts; přes mokřinu a brod i dál než rovně). Měří se jen louky, které můžou
+ * ležet v dosahu pokrytí potřeby: chůze je nejméně FASTEST_WALK_SHARE × přímá vzdálenost, takže
+ * louka, která leží rovně dál než dosah ÷ ten podíl, se do seče nedostane. Když změřené louky
+ * dosah prodlouží, dorovnají se další (nejvýš pár kol).
  */
 function walkMeadows(
   meadows: (HaySquare & { x: number; z: number })[],
@@ -164,15 +167,24 @@ function walkMeadows(
   need: number,
   walk: MeadowWalk,
 ): void {
-  const reach = coverDistance([...parts, ...meadows].sort(byDistance), need);
-  const near = meadows.filter((m) => m.distanceM * (1 - PATH_WALK.speedup) <= reach);
-  if (near.length === 0) return;
-  const walks = walk(near);
-  if (!walks) return;
-  near.forEach((m, k) => {
-    m.distanceM = Math.min(m.distanceM, walks[k] ?? Infinity);
-  });
+  const measured = new Set<HaySquare>();
+  for (let round = 0; round < WALK_ROUNDS; round++) {
+    const reach = coverDistance([...parts, ...meadows].sort(byDistance), need);
+    const near = meadows.filter(
+      (m) => !measured.has(m) && m.distanceM * FASTEST_WALK_SHARE <= reach,
+    );
+    if (near.length === 0) return;
+    const walks = walk(near);
+    if (!walks) return;
+    near.forEach((m, k) => {
+      measured.add(m);
+      m.distanceM = walks[k] ?? m.distanceM;
+    });
+  }
 }
+
+/** Nejvýš tolik kol měření luk – další kolo jen, když chůze prodloužila dosah seče. */
+const WALK_ROUNDS = 3;
 
 /**
  * Plán seče (1. 6.): seno, které stádo na zimu potřebuje (`heads` kusů dobytka × 1,5 t) bez

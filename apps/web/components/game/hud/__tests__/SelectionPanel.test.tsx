@@ -77,6 +77,22 @@ describe('SelectionPanel – ohrada', () => {
     expect(text(html, 'selection-team-left')).toBe('2');
   });
 
+  it('zbývající služba spřežení a dny výcviku mají ikonu přesýpacích hodin', () => {
+    const html = render(
+      pen({ training: { progress: 0.4, daysLeft: 438 }, team: { ageYears: 8, yearsLeft: 2 } }),
+    );
+    const icons = html.match(/src="\/icons\/resources\/hourglass\.png"/g) ?? [];
+    expect(icons).toHaveLength(2);
+  });
+
+  it('spřežení slouží dlouho – výcvik náhrady zašedlý s důvodem', () => {
+    const html = render(
+      pen({ team: { ageYears: 1, yearsLeft: 9 }, trainBlocked: 'Spřežení slouží ještě 9 let.' }),
+    );
+    expect(trainButton(html)).toContain(' disabled=""');
+    expect(text(html, 'train-blocked')).toBe('Spřežení slouží ještě 9 let.');
+  });
+
   it('rozestavěná ohrada jen průběh stavby', () => {
     const html = render(pen({ built: false, progress: 0.45 }));
     expect(html).toContain('aria-valuenow="45"');
@@ -86,11 +102,23 @@ describe('SelectionPanel – ohrada', () => {
 
 describe('SelectionPanel – posvátný dub a háj', () => {
   it('posvátný dub: štěstí a stáří ikonou s číslem, popisek jen „Stáří (roky)“', () => {
-    const html = render({ kind: 'sacred-oak', id: 7, happiness: 5, ageYears: 1203 });
+    const html = render({ kind: 'sacred-oak', id: 7, happiness: 5, ageYears: 1203, snag: false });
     expect(html).toContain('>+5<');
     expect(text(html, 'selection-age')).toBe('1 203');
     expect(html).toContain('src="/icons/resources/date.png"');
     expect(html).toContain('Stáří (roky)');
+  });
+
+  it('posvátný dub má portrét dubu, souš portrét souše – jinak stejné stáří a štěstí', () => {
+    const oak = render({ kind: 'sacred-oak', id: 7, happiness: 5, ageYears: 450, snag: false });
+    expect(oak).toContain('src="/icons/build/dub.png"');
+    expect(oak).toContain('Posvátný dub');
+    const snag = render({ kind: 'sacred-oak', id: 7, happiness: 1, ageYears: 1180, snag: true });
+    expect(snag).toContain('src="/icons/build/sous.png"');
+    expect(snag).toContain('Posvátná souš');
+    expect(snag).not.toContain('dub.png');
+    expect(snag).toContain('>+1<');
+    expect(text(snag, 'selection-age')).toBe('1 180');
   });
 
   it('háj: stáří nejstaršího dubu vedle počtu dubů', () => {
@@ -100,8 +128,32 @@ describe('SelectionPanel – posvátný dub a háj', () => {
   });
 
   it('neznámé stáří se neukáže', () => {
-    const html = render({ kind: 'sacred-oak', id: 7, happiness: 5, ageYears: null });
+    const html = render({ kind: 'sacred-oak', id: 7, happiness: 5, ageYears: null, snag: false });
     expect(html).not.toContain('selection-age');
     expect(html).not.toContain('Stáří');
+  });
+});
+
+describe('panel pole – plodiny (fields.md – Luštěniny)', () => {
+  it('oseté díly luštěninami mají vlastní ikonu a počet vedle ozimu a jaře', () => {
+    const html = render({
+      kind: 'field',
+      id: 5,
+      areaM2: 2250,
+      fertility: 70,
+      stages: [{ stage: 'sown', count: 6 }],
+      surfaces: [],
+      crops: [
+        { crop: 'winter', count: 3 },
+        { crop: 'spring', count: 1 },
+        { crop: 'legume', count: 2 },
+      ],
+      ashParts: 0,
+      ashBonus: 0,
+      founding: null,
+    });
+    expect(html).toMatch(/legumes\.png.*data-testid="selection-crop-legume"[^>]*>2</);
+    expect(html).toContain('Luštěniny – hrách a čočka');
+    expect(html).toContain('data-testid="selection-crop-winter"');
   });
 });

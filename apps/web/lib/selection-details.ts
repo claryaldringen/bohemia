@@ -6,11 +6,13 @@ import {
   type FieldSurface,
   type HerdSpecies,
   type PartStage,
+  type RoadGrade,
+  type RoadUpgradeOption,
   type SacredBuildingKind,
   type WorkshopActivity,
 } from '@bohemia/game';
 import type { VillageTarget } from './scene/village-picking';
-import { CRAFT_LOOKS, type SceneVillage, type VillageView } from './village-view';
+import { CRAFT_LOOKS, type SceneVillage, type VillageRoad, type VillageView } from './village-view';
 
 // Co ukáže panel výběru (dole uprostřed, jako v 0 A.D.) o vybraném obydlí (i řemeslné dílně –
 // crafts.md), poli, hřbitovu, sadu, posvátném místě (posvátný dub, dubový háj, modla, svatyně –
@@ -82,7 +84,10 @@ export type SelectionDetails =
        * prázdné, když je celé pole na louce.
        */
       surfaces: { surface: FieldSurface; count: number }[];
-      /** Oseté díly podle plodiny v pořadí CROP_ORDER (jen nenulové – fields.md, Ozim a jař). */
+      /**
+       * Oseté díly podle plodiny v pořadí CROP_ORDER (jen nenulové – fields.md, Ozim a jař,
+       * Luštěniny).
+       */
       crops: { crop: Crop; count: number }[];
       /** Díly s popelem z vymýceného lesa (fields.md – Úroda). */
       ashParts: number;
@@ -123,8 +128,13 @@ export type SelectionDetails =
       id: number;
       /** Kolik dub sám přidává štěstí (stropy vsi platí zvlášť). */
       happiness: number;
-      /** Stáří dubu v celých letech (podle velikosti, roste s herním časem); neznámé null. */
+      /**
+       * Stáří dubu v celých letech (podle velikosti, roste s herním časem; souš – stáří, kdy
+       * uschla); neznámé null.
+       */
       ageYears: number | null;
+      /** Dub stářím uschl – stojí posvátná souš. */
+      snag: boolean;
     }
   | {
       kind: 'grove';
@@ -173,6 +183,24 @@ export type SelectionDetails =
       hayKg: number;
       /** Proč teď nejde začít výcvik (česky), nebo null. */
       trainBlocked: string | null;
+    }
+  | {
+      kind: 'road';
+      id: number;
+      grade: RoadGrade;
+      lengthM: number;
+      ageYears: number;
+      /** Stojící stromy u úseku. */
+      trees: number;
+      /** Mokřina na ose (m) a brody – kde se hodí hať a lávka. */
+      wetM: number;
+      fords: number;
+      /** Rozestavěné vylepšení (stupeň, průběh 0–1, stromy ke skácení); jinak null. */
+      building: { grade: RoadGrade; progress: number; treesToFell: number } | null;
+      /** Vylepšení, která úsek nabízí – cena a proč teď nejde. */
+      upgrades: RoadUpgradeOption[];
+      /** Jabloně podél úseku a „Vysadit jabloně“ (roads.md – Vysazení jabloní). */
+      apples: VillageRoad['apples'];
     };
 
 /** Pořadí stád v panelu ohrady (diet.md – Dobytek). */
@@ -195,13 +223,17 @@ export const PART_STAGE_ORDER: readonly PartStage[] = [
   'meadow',
 ];
 
-/** Pořadí plodin v panelu pole – ozim (sklízí se dřív), jař. */
-export const CROP_ORDER: readonly Crop[] = ['winter', 'spring'];
+/** Pořadí plodin v panelu pole – ozim (sklízí se dřív), jař, luštěniny. */
+export const CROP_ORDER: readonly Crop[] = ['winter', 'spring', 'legume'];
 
 /** Popisky plodin a ikony (`/icons/resources/<ikona>.png`). */
 export const CROP_LABELS: Record<Crop, { name: string; icon: string }> = {
   winter: { name: 'Ozim – žito a pšenice, zasetá na podzim, sklizeň v červenci', icon: 'ozim' },
   spring: { name: 'Jař – ječmen, zasetý na jaře, sklizeň v srpnu', icon: 'jar' },
+  legume: {
+    name: 'Luštěniny – hrách a čočka, zaseté na jaře, sklizeň v červenci',
+    icon: 'legumes',
+  },
 };
 
 /** Pořadí povrchů v panelu pole – od louky po les. */
@@ -287,7 +319,13 @@ export function selectionDetails(
   if (target.kind === 'sacred-oak') {
     const oak = view?.sacred.oaks.find((o) => o.id === target.id);
     return oak
-      ? { kind: 'sacred-oak', id: oak.id, happiness: oak.happiness, ageYears: oak.ageYears }
+      ? {
+          kind: 'sacred-oak',
+          id: oak.id,
+          happiness: oak.happiness,
+          ageYears: oak.ageYears,
+          snag: oak.snag,
+        }
       : null;
   }
   if (target.kind === 'grove') {
@@ -304,6 +342,10 @@ export function selectionDetails(
   }
   if (target.kind === 'sacred') return sacredDetails(view, scene, target.id);
   if (target.kind === 'pen') return penDetails(view, target.id);
+  if (target.kind === 'road') {
+    const road = view?.roads.find((r) => r.id === target.id);
+    return road ? { kind: 'road', ...road } : null;
+  }
   if (target.kind === 'orchard') {
     const orchard = view?.orchards.find((o) => o.id === target.id);
     if (!orchard) return null;

@@ -19,10 +19,12 @@ import type {
   Workshop,
   WorkshopActivity,
 } from './types';
+import type { Walk } from './paths/walking';
 import {
   availableTrees,
   claimedObstacles,
   fellingCost,
+  fellingsOf,
   isBeech,
   isTreeStanding,
   nearestMatureTrees,
@@ -57,8 +59,9 @@ export function kilnYieldKg(kiln: Pick<CharcoalKiln, 'trees'>): number {
  * Násobek práce u milíře za chůzi z dílny (crafts.md – Uhlíř): milíř v lese o 1 % dražší za
  * každých 10 m nad 100 m od dílny (DISTANCE), milíř u dílny 1.
  */
-export function kilnWalkFactor(kiln: Pick<CharcoalKiln, 'site'>, home: Position): number {
-  return kiln.site ? distanceFactor(length2(kiln.site.x - home.x, kiln.site.z - home.z)) : 1;
+export function kilnWalkFactor(kiln: Pick<CharcoalKiln, 'site' | 'walkM'>, home: Position): number {
+  if (!kiln.site) return 1;
+  return distanceFactor(kiln.walkM ?? length2(kiln.site.x - home.x, kiln.site.z - home.z));
 }
 
 /** Je den v okně výsadby (jaro, podzim – jako sad)? */
@@ -78,6 +81,7 @@ export function startKiln(
   dwelling: Pick<Dwelling, 'position'>,
   day: number,
   obstacles: ObstacleLayer | null,
+  walk?: Walk,
 ): CharcoalKiln | null {
   const fresh = (site: CharcoalKiln['site'], trees: CharcoalKiln['trees']): CharcoalKiln => ({
     site,
@@ -109,10 +113,13 @@ export function startKiln(
     claimed,
     isBeech,
   );
-  return fresh(
+  // dovoz dřeva k milíři a chůze z dílny k lesnímu milíři po pevných cestách s půdou (walk)
+  const kiln = fresh(
     site,
-    trees.map((t) => ({ id: t.id, cost: fellingCost(t.distanceM) })),
+    fellingsOf(trees, site ?? home, walk).map((t) => ({ id: t.id, cost: t.cost })),
   );
+  if (site && walk) kiln.walkM = walk(dwelling.position, [site])[0]!;
+  return kiln;
 }
 
 /** Výsledek dne uhlíře pro rozdělení práce dne a panel. */
@@ -165,6 +172,7 @@ export function workBurner(
   day: number,
   obstacles: ObstacleLayer | null,
   plan: BurnerPlan,
+  walk?: Walk,
 ): BurnerDay {
   const workshop = dwelling.workshop!;
   if (workshop.felling || workshop.fuelKg > 0) migrateBurner(workshop, stocks);
@@ -216,7 +224,7 @@ export function workBurner(
     let kiln = workshop.kiln ?? null;
     if (!kiln) {
       if (!plan.startNew || out.producedKg > 0) break;
-      kiln = startKiln(state, dwelling, day, obstacles);
+      kiln = startKiln(state, dwelling, day, obstacles, walk);
       if (!kiln) {
         noWood = true;
         break;

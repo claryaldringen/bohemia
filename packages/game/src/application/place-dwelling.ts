@@ -1,5 +1,6 @@
 import { obstaclesOf, type Landscape } from '../domain/landscape';
 import {
+  villageRoadWalk,
   PLOT_TYPES,
   buildAffordability,
   checkDwellingPlacement,
@@ -88,6 +89,8 @@ export function placeDwelling(
             sacred: check.spared,
             // pole a sady pod obydlím se o zabranou plochu zmenší
             takenLand: check.takenLand,
+            // kácení dřeva chůzí po pevných cestách (roads.md)
+            walk: villageRoadWalk(state, input.landscape),
           },
         ),
       };

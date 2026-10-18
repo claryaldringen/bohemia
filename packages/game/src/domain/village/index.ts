@@ -5,6 +5,7 @@ export * from './people';
 export * from './food';
 export * from './diet';
 export * from './dairy';
+export * from './legumes';
 export * from './livestock';
 export * from './hay';
 export * from './plough';
@@ -37,6 +38,11 @@ export {
   orchardWorkRemaining,
   orchardYear,
   orchardYieldShare,
+  roadAppleBearing,
+  roadAppleCareWork,
+  roadAppleHarvestWork,
+  roadApplePlantingWork,
+  roadAppleYieldKg,
   seasonBounds,
   squareBearing,
   squareCareWork,
@@ -58,8 +64,18 @@ export * from './names';
 export * from './costs';
 export * from './wood';
 export * from './sacred';
+export * from './sacred-life';
 export * from './happiness';
 export * from './crafts';
 export * from './charcoal';
 export * from './paths';
 export * from './road-trees';
+export * from './road-upgrades';
+// jabloně u cest – kroky simulace (práce a dokončení výsadby) zůstávají uvnitř
+export {
+  roadAppleSpots,
+  roadApplesOption,
+  startRoadApples,
+  villageRoadApples,
+  type RoadApplesOption,
+} from './road-apples';
