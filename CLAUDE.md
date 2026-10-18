@@ -521,7 +521,7 @@ rozhraní částí v
   staveništěm (`siteBox` = vyklízená plocha), dřevorubci u vyhrazených stromů, sad, obvod
   hřbitova, výmlat u vsi, ženy u vchodu, starší (šediny) u domů a děti u stád (`herdViews`
   ze zvířat). Nikdo nestojí ve vodě (rastr schůdné země sdílený se zvířaty – `groundFor`),
-  v domě se šíjí ani na hrobech. Pohyb `villager-motion.ts` – čisté funkce skutečného času
+  v domě se šíjí, v zahrádce polozemnice ani na hrobech. Pohyb `villager-motion.ts` – čisté funkce skutečného času
   jako u zvířat. Kreslení `villagers.ts`: GLB z `tools/blender/people_from_0ad.py`
   (`people.json` – klipy z 0 A.D., rotace klíčů jako int16, maska látky a vlasů jako
   occlusionTexture), animace zapečené do textury matic kostí (Babylon VAT) a postavy jako thin

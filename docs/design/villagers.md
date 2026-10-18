@@ -37,7 +37,8 @@ Hráč má vidět, **kde ves dnes pracuje** – kam jde práce lidí, kterou po�
   a děti jako pasáčci – jedno u každého stáda, když ves děti má.
 - **Vzhled:** muži a ženy podle činnosti (jádro pohlaví nezná), oděv nebarvený, hnědý nebo okrový,
   vdané ženy s lněným nebo mořenou barveným šátkem. Pod každou postavou měkký stín.
-- **Nikdo nestojí ve vodě, v domě, v jámě ani na hrobech;** kdo chodí, obchází domy.
+- **Nikdo nestojí ve vodě, v domě, v jámě, v oplocené zahrádce ani na hrobech;** kdo chodí,
+  obchází domy.
 - **Vymřelá ves** (ani lidé, ani práce) – nikdo.
 
 ## Zjednodušení a co chybí
