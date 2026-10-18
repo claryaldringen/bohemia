@@ -45,8 +45,9 @@ Registrace má být co nejkratší.
 
 - **Kdo:** účty s příznakem vývojového režimu. Hráč si ho zapnout nemůže, v rozhraní se
   nepřepíná – nastavuje ho jen skript vývojového účtu (`npm run db:seed-dev`, dnes jen Jarmil).
-- **Šipky vedle data v liště:** ▶ přeskočí **měsíc** (30 herních dní), ⏩ **rok** (365 dní).
-  Dokud server přeskočení nedokončí, obě šipky čekají.
+- **Šipky vedle data v liště:** ▶ přeskočí **měsíc** (30 herních dní), ⏩ **rok** (365 dní),
+  ⏭ **10 let** (3 650 dní – Martin, 18. 10. 2026). Dokud server přeskočení nedokončí, všechny
+  šipky čekají.
 - **Posun času hráče:** přeskočení nehýbe světem, jen hráčem – hráč pak žije o posun napřed
   (dnešní den = den světa + posun). Posun platí pro všechno, co hráč vidí a dělá: dopočet
   a akce vsí, datum v liště, roční období a dým ve scéně. Ves se při přeskočení hned dopočítá

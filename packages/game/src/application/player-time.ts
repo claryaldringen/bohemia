@@ -18,8 +18,8 @@ export interface TimeOffsetRepository {
 /** Poslední herní den světa (31. 12. 1499) – dál posun nesahá. */
 const LAST_DAY = TOTAL_GAME_DAYS - 1;
 
-/** Přeskoky času v dev módu: měsíc (30 herních dní) a rok (365 dní). */
-export const TIME_SKIP_DAYS = { month: 30, year: 365 } as const;
+/** Přeskoky času v dev módu: měsíc (30 herních dní), rok (365 dní) a 10 let (3 650 dní). */
+export const TIME_SKIP_DAYS = { month: 30, year: 365, decade: 3650 } as const;
 export type TimeSkip = keyof typeof TIME_SKIP_DAYS;
 
 export const DEV_MODE_ONLY = 'Přeskakovat čas jde jen ve vývojovém režimu.';
