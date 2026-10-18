@@ -41,6 +41,7 @@ export * from './simulate';
 export * from './polygon';
 export * from './placement';
 export * from './plots';
+export { TAKEN_LAND_EPSILON_M2, landLeftM2, type TakenLand } from './land-taken';
 export * from './obstacles';
 export * from './summary';
 export * from './names';

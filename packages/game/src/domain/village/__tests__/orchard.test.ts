@@ -283,7 +283,7 @@ describe('orchardPartsFromCells – staví se jako pole', () => {
     ).toMatch(/nejvýš/);
   });
 
-  it('sad brání poli, hřbitovu i obydlí', async () => {
+  it('sad brání poli a hřbitovu; obydlí do sadu smí – sad se zmenší', async () => {
     const { checkDwellingPlacement, cemeteryPartsFromCells, fieldPartsFromCells } =
       await import('../placement');
     const small = makeLandscape();
@@ -291,9 +291,13 @@ describe('orchardPartsFromCells – staví se jako pole', () => {
       ...EMPTY,
       orchards: [{ squares: block(4, 10, 2, 1).map((cell) => ({ cell })) }],
     };
-    expect(
-      checkDwellingPlacement(small, village, 'zemnice', { x: -45, z: 38, rotation: 0 }).reason,
-    ).toBe('Překrývá se se sadem.');
+    const dwelling = checkDwellingPlacement(small, village, 'zemnice', {
+      x: -45,
+      z: 38,
+      rotation: 0,
+    });
+    expect(dwelling).toMatchObject({ ok: true, warning: 'Sad se zmenší' });
+    expect(dwelling.takenLand.map((t) => t.cell)).toEqual(block(4, 10, 2, 1));
     expect(fieldPartsFromCells(small, village, block(4, 9, 3, 2), home).check.reason).toBe(
       'Pole se překrývá se sadem.',
     );

@@ -11,6 +11,7 @@ import {
   checkDwellingPlacement,
   checkPlotPlacement,
   checkSacredBuildingPlacement,
+  checkWorkshopPlacement,
   DWELLING_TREES,
   dwellingBuildLabor,
   fellingCost,
@@ -272,13 +273,13 @@ describe('placeDwelling', () => {
     const deps = { villages };
     const noPlot = await placeDwelling(deps, { ...base, type: 'polozemnice' });
     expect(noPlot).toEqual({ ok: false, reason: NO_PLOT });
-    // políčko (7, 7) patří prvnímu poli
-    const inField = await placeDwelling(deps, {
+    // políčko (3, 3) zabírá zemnice zakladatelů (−50, −50)
+    const onHouse = await placeDwelling(deps, {
       ...base,
       type: 'polozemnice',
-      plot: { cell: { x: 7, y: 7 }, variant: 'center' },
+      plot: { cell: { x: 4, y: 4 }, variant: 'center' },
     });
-    expect(inField).toEqual({ ok: false, reason: 'Překrývá se s polem.' });
+    expect(onHouse).toEqual({ ok: false, reason: 'Překrývá se s jiným obydlím.' });
     const zemnice = await placeDwelling(deps, {
       ...base,
       type: 'zemnice',
@@ -291,15 +292,74 @@ describe('placeDwelling', () => {
     expect(site.plot).toBeUndefined();
   });
 
-  it('obydlí přes zemnici nebo pole odmítne', async () => {
+  it('obydlí přes zemnici odmítne', async () => {
     const villages = await foundedVillages();
     const deps = { villages };
     const base = { settlementId: ID, landscape, today: TODAY + 1, type: 'zemnice' as const };
     villages.edit(ID, makeFullHousehold);
     const onHouse = await placeDwelling(deps, { ...base, position: at(-48, -50) });
     expect(onHouse).toEqual({ ok: false, reason: 'Překrývá se s jiným obydlím.' });
-    const inField = await placeDwelling(deps, { ...base, position: at(0, 0) });
-    expect(inField).toEqual({ ok: false, reason: 'Překrývá se s polem.' });
+  });
+
+  it('polozemnice na čtverci pole: díl z pole zmizí, pozemek překážky pole neplatí', async () => {
+    const villages = await foundedVillages();
+    villages.edit(ID, makeFullHousehold);
+    const before = villages.records.get(ID)!.state;
+    const fieldId = before.parts[0]!.fieldId;
+    // políčko (7, 7) patří prvnímu poli
+    const plot: DwellingPlot = { cell: { x: 7, y: 7 }, variant: 'center' };
+    const result = await placeDwelling(
+      { villages },
+      {
+        settlementId: ID,
+        landscape,
+        today: TODAY + 1,
+        type: 'polozemnice',
+        position: at(0, 0),
+        plot,
+      },
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const { state } = result.village;
+    expect(state.parts.some((p) => p.cell?.x === 7 && p.cell.y === 7)).toBe(false);
+    expect(state.parts.filter((p) => p.fieldId === fieldId)).toHaveLength(15);
+    expect(state.constructions.at(-1)).toMatchObject({ dwellingType: 'polozemnice', plot });
+    expect(state.chronicle).toContainEqual({
+      day: TODAY + 1,
+      kind: 'land-taken',
+      land: 'field',
+      id: fieldId,
+      areaM2: 225,
+      gone: false,
+    });
+  });
+
+  it('zemnice přes dva díly pole oba zmenší o průnik vyklízené plochy', async () => {
+    const villages = await foundedVillages();
+    villages.edit(ID, makeFullHousehold);
+    // na hranici políček (7, 7) a (8, 7): vyklízená plocha 9,6 × 11,9 m, z −13,4 … −1,5 m
+    const position = at(0, -9);
+    const check = checkDwellingPlacement(
+      landscape,
+      placementVillageOf(villages.records.get(ID)!.state, TODAY + 1),
+      'zemnice',
+      position,
+    );
+    expect(check.ok).toBe(true);
+    expect(check.warning).toBe('Pole se zmenší');
+    const result = await placeDwelling(
+      { villages },
+      { settlementId: ID, landscape, today: TODAY + 1, type: 'zemnice', position },
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const area = (x: number, y: number): number | undefined =>
+      result.village.state.parts.find((p) => p.cell?.x === x && p.cell.y === y)?.areaM2;
+    // každý díl přijde o půlku vyklízené plochy: 4,8 × 11,9 m
+    expect(area(7, 7)).toBeCloseTo(225 - 4.8 * 11.9, 6);
+    expect(area(8, 7)).toBeCloseTo(225 - 4.8 * 11.9, 6);
+    expect(area(6, 7)).toBe(225);
   });
 
   it('bez dřeva (klády nestačí a krajina nemá stromy) stavbu odmítne česky', async () => {
@@ -347,9 +407,15 @@ describe('placeWorkshop', () => {
       position: at(-80, -50),
     });
     expect(unknown).toEqual({ ok: false, reason: UNKNOWN_CRAFT });
-    // milíř (−9, +3 m od zemnice) by stál na prvním poli
-    const onField = await placeWorkshop(deps, { ...base, craft: 'burner', position: at(36, 0) });
-    expect(onField.ok).toBe(false);
+    // milíř (−9, +3 m od zemnice) by stál na prvním poli – smí, pole se o vyklízenou plochu zmenší
+    const onField = checkWorkshopPlacement(
+      landscape,
+      placementVillageOf(villages.records.get(ID)!.state, TODAY + 1),
+      'burner',
+      at(36, 0),
+    );
+    expect(onField).toMatchObject({ ok: true, warning: 'Pole se zmenší' });
+    expect(onField.takenLand.length).toBeGreaterThan(0);
     const result = await placeWorkshop(deps, { ...base, craft: 'burner', position: at(-80, -50) });
     expect(result.ok).toBe(true);
     if (!result.ok) return;

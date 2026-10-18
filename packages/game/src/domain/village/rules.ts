@@ -325,6 +325,12 @@ export const PLOT_HOUSE_ROTATION = Math.PI;
  */
 export const PLOT_SNAP_M = 2;
 /**
+ * population.md – Obydlí na poli a v sadu (Martin, 18. 10. 2026: „Pole a sad se prostě zmenší
+ * o plochu domu“; práh návrh Clauda): díl pole nebo čtverec sadu, kterému po stavbě obydlí zbude
+ * méně než tento podíl políčka, zmizí celý – zbytek u domu by nikdo neobdělával.
+ */
+export const TAKEN_LAND_MIN_SHARE = 0.2;
+/**
  * Polozemnice bez pozemku dostane při přestavbě nejbližší volné políčko – nejvýš tak daleko od
  * domu (m, ke středu políčka); dál žádné nehledá a zůstane bez pozemku.
  */

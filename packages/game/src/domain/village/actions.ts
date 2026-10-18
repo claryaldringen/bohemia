@@ -12,6 +12,7 @@ import {
 import { craftCoverage } from './crafts';
 import { isVillageExtinct } from './extinction';
 import { fieldsTouching, partFoundingCost } from './fields';
+import { giveWayToDwelling, validateTakenLand, type TakenLand } from './land-taken';
 import { obstacleChangesAt, recordClearedObstacles } from './obstacles';
 import { orchardPlantingCost, villageOrchards } from './orchard';
 import { ageGroup } from './people';
@@ -433,6 +434,11 @@ export interface DwellingSiteOptions {
   plot?: DwellingPlot;
   /** Posvátné duby a háje na vyklízené ploše – zůstanou stát (happiness.md). */
   sacred?: SparedSacred;
+  /**
+   * Kusy čtverců polí a sadů, které obydlí sebere (`takenLand` z kontroly umístění) – pole a sad
+   * se o ně zmenší (population.md – Obydlí na poli a v sadu).
+   */
+  takenLand?: readonly TakenLand[];
 }
 
 /**
@@ -445,6 +451,9 @@ export interface DwellingSiteOptions {
  * mezi nejbližšími dospělými stromy ke staveništi – skácí je jako první část své práce (2 čd za
  * strom, dál než 100 m od staveniště dráž). Práce na samotném obydlí je cena obydlí bez kácení
  * blízkého lesa (`dwellingBuildLabor`).
+ *
+ * Pole a sady pod obydlím (`site.takenLand`) se zmenší, díly a čtverce pod prahem zmizí
+ * (`giveWayToDwelling`) – až po plánu dřeva, ať cena sedí s cenou u kurzoru.
  *
  * Konvence dne (jako u `foundField`): akce se volá na ves dopočítanou do dne `day`
  * (`advanceVillage(state, day)`) a patří na konec toho dne – práci stavba dostane od dne
@@ -467,6 +476,7 @@ export function startNewDwelling(
   if (site.forestDistanceM !== undefined) validateForestDistance(site.forestDistanceM);
   if (site.plot) validatePlot(site.plot);
   if (site.sacred) validateSpared(site.sacred);
+  validateTakenLand(site.takenLand ?? []);
   requireAffordable(state, type, site.obstacles);
   const plan: WoodPlan = planDwellingWood(state, type, position, day, {
     ...(site.obstacles ? { obstacles: site.obstacles } : {}),
@@ -493,6 +503,7 @@ export function startNewDwelling(
     ...(site.forestDistanceM === undefined ? {} : { forestDistanceM: site.forestDistanceM }),
   });
   if (site.sacred) recordSpared(next, site.sacred, day);
+  giveWayToDwelling(next, day, site.takenLand ?? []);
   return next;
 }
 
@@ -507,8 +518,9 @@ export interface WorkshopSiteOptions extends Omit<DwellingSiteOptions, 'plot'> {
  * polozemnice, uhlíř zemnice s milířem) se staví volně jako zemnice a stojí o 30 % víc práce
  * i dřeva; nastěhuje se do ní mladý pár jako do nového obydlí. Překážky na vyklízené ploše (i kolem
  * milíře – `obstacleIds`, cena v `obstacleCost`) osadníci odstraní hned, dospělé stromy z ní
- * dají klády. Dřevo jako u obydlí – klády z hromady, zbytek nejbližší dospělé stromy. RangeError,
- * když ves nemá dřevo, lidi k osídlení nebo je vstup neplatný.
+ * dají klády. Dřevo jako u obydlí – klády z hromady, zbytek nejbližší dospělé stromy. Pole a sady
+ * pod vyklízenou plochou se zmenší jako u obydlí (`site.takenLand`). RangeError, když ves nemá
+ * dřevo, lidi k osídlení nebo je vstup neplatný.
  *
  * Konvence dne (jako u `startNewDwelling`): akce se volá na ves dopočítanou do dne `day` a patří
  * na konec toho dne. Den před `state.lastDay` → RangeError.
@@ -536,6 +548,7 @@ export function startWorkshop(
     throw new RangeError('Vzdálenost k potoku musí být nezáporná a konečná.');
   }
   if (site.sacred) validateSpared(site.sacred);
+  validateTakenLand(site.takenLand ?? []);
   requireAffordable(state, craft, site.obstacles);
   const type = CRAFT_BASE[craft];
   const plan = planDwellingWood(state, type, position, day, {
@@ -565,6 +578,7 @@ export function startWorkshop(
     ...(site.waterDistanceM === undefined ? {} : { waterDistanceM: site.waterDistanceM }),
   });
   if (site.sacred) recordSpared(next, site.sacred, day);
+  giveWayToDwelling(next, day, site.takenLand ?? []);
   return next;
 }
 

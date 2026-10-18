@@ -314,11 +314,12 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   ke dveřím. Jádro: `DwellingPlot` (`cell`, `variant`) na obydlí i stavbě (nepovinné – starší
   polozemnice dostanou pozemek při načtení vsi: `withPlots` v `plots.ts`, jednou – `plotsMigrated`,
   políčko pod středem domu, když je volné, varianta `nearestPlotVariant`, dům se posune jen do 2 m;
-  na obsazeném políčku až přestavbou na nejbližším volném do 50 m – `relocationPlot`, proto
-  `advanceVillage` dostává krajinu), `PLOT_TYPES`, `PLOT_VARIANTS`, `PLOT_HOUSE_OFFSET_M`,
-  `plotHousePosition` a `checkPlotPlacement` v `placement.ts` (louka, bez výchozu, bez
-  posvátného dubu a čtverce háje, dům ne pod korunou dubu, nezabrané polem, hřbitovem, sadem ani
-  jiným obydlím či pozemkem, rovno jen pod domem, `spared` vždy prázdné; překážky celého
+  na obsazeném políčku až přestavbou na nejbližším volném do 50 m – `relocationPlot` (bez polí
+  a sadů – `takeLand: false`), proto `advanceVillage` dostává krajinu), `PLOT_TYPES`,
+  `PLOT_VARIANTS`, `PLOT_HOUSE_OFFSET_M`, `plotHousePosition` a `checkPlotPlacement`
+  v `placement.ts` (louka, bez výchozu, bez posvátného dubu a čtverce háje, dům ne pod korunou
+  dubu, nezabrané hřbitovem ani jiným obydlím či pozemkem – čtverec pole či sadu smí, viz Ves –
+  Obydlí na poli a v sadu –, rovno jen pod domem, `spared` vždy prázdné; překážky celého
   políčka jako u čtverce pole, stromy dají klády); `dwellingPlot` zabírá celé políčko
   a `placeDwelling` u polozemnice pozemek vyžaduje (`NO_PLOT`). **Pletený plot** je jeden pro
   celou hru – polský plot pozemku i proutěný plot hřbitova (Martin): `woven-fence.ts` bez
@@ -456,7 +457,8 @@ rozhraní částí v
   ukáže jen hroby (obsazené / všechny) a na kolik let (`CemeterySummary.yearsLeft` z úmrtí
   v kronice).
 - **Sad** (`orchard.ts`, orchard.md): staví se po čtvercích jako pole (`orchardPartsFromCells`,
-  sad, pole, hřbitov ani obydlí se nepřekrývají). Výsadba je stavba ze společné práce jen v oknech
+  sad, pole a hřbitov se nepřekrývají, obydlí do sadu smí – Obydlí na poli a v sadu). Výsadba je
+  stavba ze společné práce jen v oknech
   jara a podzimu (`orchardPlantingNeed` mimo okna 0), čtverec dostane `plantedDay`. Rok sadu
   začíná 1. 3. (`orchardYear`), úroda `orchardYieldShare`. Sezónní práce celé vsi
   (`VillageState.orchardWork` – sklizeň září–říjen, péče v zimě; `orchardSeasonDay` na začátku
@@ -513,6 +515,21 @@ rozhraní částí v
   pole), na víc polí je sloučí do nejstaršího (`mergeFields` v `actions.ts`: díly, stavby
   založení, kronika, `labor`). Průběh stavby pole se počítá jen z jejích dílů (`invest`). Náhled
   (`fieldPartsFromCells`) vrací `joinedFields` a nejmenší výměru měří i s navazujícím polem.
+- **Obydlí na poli a v sadu** (population.md – Obydlí na poli a v sadu; Martin 18. 10. 2026:
+  „Pole a sad se prostě zmenší o plochu domu“): `checkDwellingPlacement`, `checkPlotPlacement`
+  a `checkWorkshopPlacement` pole a sad nezakazují (`checkFootprintFree(…, takeLand)`, hřbitov
+  dál ano) a vrací `takenLand` (`TakenLand` – políčko, zabraná plocha, plocha políčka): pozemek
+  celé políčko, obydlí bez pozemku průnik vyklízené plochy (`freeDwellingClearings`, `coveredArea`
+  v `polygon.ts`) s každým čtvercem; u kurzoru `check.warning` „Pole se zmenší“ / „Pole zanikne“
+  (u sadu „Sad …“). Překážky na čtvercích polí a sadů obydlí neplatí (patří jim). Use-case předá
+  `takenLand` do `startNewDwelling` / `startWorkshop` (`site.takenLand`) a ty po plánu dřeva
+  zavolají `giveWayToDwelling` (`land-taken.ts`): díl / čtverec se zmenší, pod
+  `TAKEN_LAND_MIN_SHARE` (20 %) políčka zmizí (`landLeftM2`); plán osevu ubere jeho podíl práce
+  podle `taskSpans` (ostatním dílům zůstane hotová práce, sklizená plodina beze změny), založení
+  pole a výsadba úměrně, `orchardWork` úměrně (sklizený podíl zůstane); zmizelý zakládaný díl či
+  nevysazený čtverec předá překážky a klády; pole / sad bez čtverců zanikne i se stavbou; kronika
+  `land-taken`. Scéna: `building-clearings.ts` – pod vyklízenou plochou obydlí `FieldRenderer`
+  nekreslí obtisk ani trsy (`clearingMask` násobí krytí) a `orchardTreeSpots` vynechá jabloně.
 - **Příloh je pastvina** (Martin): 1–2 roky mladý příloh, pak napořád `meadow` (pastvina) –
   nálet, křoviny ani les na přílohu nejsou (`OVERGROWTH_STAGES`), vrácení stojí nejvýš drn louky
   (`RECLAIM_COST_PER_HA`), kronika `part-became-forest` už nevzniká (typ zůstává pro staré
