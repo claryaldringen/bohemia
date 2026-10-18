@@ -13,7 +13,8 @@ import { updateLivingVillage } from './update-village';
 import type { VillageRepository, VillageResult } from './villages';
 
 export interface PlaceSacredBuildingInput {
-  settlementId: string;
+  /** Ves (id), ve které hráč jedná – její sídlo dává krajinu `landscape`. */
+  villageId: string;
   landscape: Landscape;
   /** Dnešní herní den (index dne). */
   today: number;
@@ -37,7 +38,7 @@ export function placeSacredBuilding(
 ): Promise<VillageResult> {
   return updateLivingVillage(
     deps.villages,
-    input.settlementId,
+    input.villageId,
     input.today,
     input.landscape,
     (state) => {

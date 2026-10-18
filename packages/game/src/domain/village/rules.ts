@@ -586,3 +586,7 @@ export function workshopTrees(craft: Craft): number {
 export function workshopBuildLabor(craft: Craft): number {
   return workshopCost(craft) - workshopTrees(craft) * FELLING_MAN_DAYS_PER_TREE;
 }
+
+// migration.md – Odchod do nové vsi (návrh Clauda): první zemnice nové vsi na téže mapě stojí
+// nejméně 300 m od staveb jiných vsí.
+export const NEW_VILLAGE_MIN_DISTANCE_M = 300;
