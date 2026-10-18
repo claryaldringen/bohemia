@@ -232,7 +232,7 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   `tools/audio/ambient.sh` – smyčky mají délku N + 312 ≡ 0 mod 960, viz `loopRegion`).
 - **Zvířata** (podle 0 A.D., jen ozdoba): hejna ryb kroužících v tůních a klidné hluboké vodě,
   hejna vran nad loukami u lesa a jedno káně. Kde jsou, určuje `fauna-placement.ts`, jak se
-  hýbou `fauna-motion.ts` (čisté funkce času, testy); `fauna.ts` je kreslí jako instance (mesh
+  hýbou `fauna-motion.ts` (čisté funkce skutečného času, ne herního – testy); `fauna.ts` je kreslí jako instance (mesh
   `fauna-*` na druh – ne vrhač stínu). Mávání křídel a mrskání ocasem je přechod mezi třemi
   pózami z animací 0 A.D. (morph targety GLB z `tools/blender/fauna_from_0ad.py`) ve vertex
   shaderu (GLSL i WGSL). **Výjimka z kreslení jen při změně jako voda:** hýbou se jen skupiny
@@ -246,10 +246,14 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   ovce s kozami (stádo na 5 domácností) a krávy se pasou na louce do 300 m (ne pole, hřbitov,
   obydlí, voda, skála, prudký svah), prasata na okraji lesa (−7 až +5 m od hranice, hlouběji je
   zakryjí koruny) do 150 m (jinak do 260 m), nejbližší vhodný okraj první – za lesem po otočení
-  kamery zmizí, to nevadí (Martin). Stádo má trasu po sousedních pastvinách a během herních dní
-  se po ní stěhuje tam a zpět (`livestock-motion.ts`, herní den jako dým); po přepočtu vsi
-  zůstane na své pastvině, když ji nová trasa má (`keepRouteSpot`). Zvíře popojde, pase se /
-  zobe / ryje nebo stojí – čisté funkce času, deterministicky. `livestock.ts` (`VillageLivestock`, háček v
+  kamery zmizí, to nevadí (Martin). **Pohyb běží ve skutečném čase, ne v herním** – ve
+  zrychleném světě zvířata „běhala jak na koksu“ (Martin); scéna dosadí epoch ms
+  (`livestockClock`), stejný okamžik = stejná póza. Stádo je na pastvině své trasy (sousední
+  pastviny) 3–9 minut a pak se za pevnou dobu krokem přesune na další, tam a zpět
+  (`livestock-motion.ts`); během přesunu má každé zvíře vlastní čas zastavený (`pausedS`),
+  chůze se nesčítá. Po přepočtu vsi zůstane stádo na své pastvině, když ji nová trasa má
+  (`keepRouteSpot`). Zvíře se desítky sekund pase / zobe / ryje nebo stojí a popojde pár metrů
+  krokem (≈ 0,6–1 m/s) – čisté funkce času, deterministicky. `livestock.ts` (`VillageLivestock`, háček v
   `landscape-scene.ts`) je kreslí jako fauna: mesh `livestock-*` na druh, krok (parabola přes
   dvě pózy) a hlava dolů (třetí morph target) ve vertex shaderu, výška a náklon podle terénu.
   Textura z GLB se čte jako sRGB – StandardMaterial ji převádí zpět (`LIVESTOCK_GAMMA`), jinak
