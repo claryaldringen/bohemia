@@ -297,6 +297,8 @@ describe('buildVillageView', () => {
         type: 'zemnice',
         craft: null,
         occupants: 4,
+        // zakladatelé: manželé 25 let, chlapec 13 a dívka 12 (kinship.md)
+        family: { men: 1, women: 1, boys: 1, girls: 1, elderMen: 0, elderWomen: 0, couples: 1 },
         capacity: 6,
         full: false,
         overcrowded: false,
@@ -716,6 +718,8 @@ describe('chronicleText', () => {
     { day: DAY, kind: 'household-founded', dwellingId: 2 },
     { day: DAY, kind: 'household-merged', fromDwellingId: 2, toDwellingId: 1 },
     { day: DAY, kind: 'marriage', fromDwellingId: 2, toDwellingId: 1 },
+    { day: DAY, kind: 'bride-from-outside', dwellingId: 1 },
+    { day: DAY, kind: 'married-away', dwellingId: 1 },
     {
       day: DAY,
       kind: 'construction-finished',

@@ -93,12 +93,15 @@ describe('summarizeVillage', () => {
         type: 'zemnice',
         craft: null,
         occupants: 4,
+        // zakladatelé: manželé, chlapec a dívka (kinship.md)
+        family: { men: 1, women: 1, boys: 1, girls: 1, elderMen: 0, elderWomen: 0, couples: 1 },
         capacity: 6,
         full: false,
         overcrowded: false,
         condition: expect.closeTo(1, 3),
       },
     ]);
+    expect(summary.family).toEqual(summary.households[0]!.family);
     expect(summary.fullHousehold).toBe(false);
   });
 

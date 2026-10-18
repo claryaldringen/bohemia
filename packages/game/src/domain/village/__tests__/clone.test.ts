@@ -119,3 +119,32 @@ describe('cloneState – stav vsi se zbytkem jámy', () => {
     expect(state.ruins![0]!.plot!.cell.x).toBe(10);
   });
 });
+
+describe('cloneState – příbuzenství (kinship.md)', () => {
+  it('pohlaví, rodiče, manžele, původ, předky a dcery vdané pryč zkopíruje jako structuredClone', () => {
+    const day = dayIndexOf({ year: 600, month: 10, day: 1 });
+    const s = foundVillage({ seed: 3, day, dwellingPosition: { x: -100, z: -20, rotation: 0 } });
+    s.people.push({
+      id: 40,
+      bornDay: day - 6000,
+      dwellingId: 1,
+      sex: 'female',
+      origin: 'SE',
+      motherId: 70,
+      fatherId: 71,
+    });
+    s.ancestors = [{ id: 70, motherId: 80 }];
+    s.emigrants = [
+      { id: 72, sex: 'female', bornDay: day - 7000, direction: 'W', motherId: 70, fatherId: 71 },
+    ];
+    expect(s.people[0]!.spouseId).toBe(s.people[1]!.id);
+    const copy = cloneState(s);
+    expect(copy).toEqual(structuredClone(s));
+    copy.people.at(-1)!.origin = 'N';
+    copy.ancestors![0]!.motherId = 1;
+    copy.emigrants![0]!.direction = 'E';
+    expect(s.people.at(-1)!.origin).toBe('SE');
+    expect(s.ancestors[0]!.motherId).toBe(80);
+    expect(s.emigrants[0]!.direction).toBe('W');
+  });
+});

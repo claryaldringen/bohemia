@@ -56,6 +56,10 @@ export const BETTER_DWELLING: Record<DwellingType, DwellingType> = {
 export const AGE = { olderChild: 7, adult: 14, fertile: 16, elder: 45 } as const;
 export const LABOR_PER_DAY = { olderChild: 0.3, adult: 1, elder: 0.5 } as const;
 export const START_AGES = [25, 25, 13, 12] as const;
+// kinship.md – Pohlaví (návrh Clauda): zakladatelé jsou dva páry – muž a žena 25 let (manželé)
+// a chlapec 13 a dívka 12 let (nepříbuzní, rodiče neznámí – vezmou se, až dorostou); pohlaví
+// v pořadí START_AGES
+export const START_SEXES = ['male', 'female', 'male', 'female'] as const;
 // population.md – Růst populace (porodnost, úmrtnost dětí a dospělých, štěstí)
 export const BIRTHS_PER_PAIR_PER_YEAR = 1 / 3;
 export const CHILD_DEATH_BEFORE_ADULT = 0.4; // → ročně 1 − 0,6^(1/14)
@@ -84,13 +88,22 @@ export const STARVATION = {
   certainDeath: { child: 45, adult: 60, elder: 45 },
   curve: 3,
 } as const;
-// population.md – Nové obydlí (do nového obydlí se stěhuje pár z domácnosti s aspoň 4 dospělými)
-export const NEW_HOUSEHOLD_MIN_ADULTS = 4;
-// population.md – Nové obydlí, Prázdné obydlí (návrh Clauda): dospělé děti = lidé 14–44 kromě
-// dvou nejstarších od 14 let výš (rodiče / hlava domácnosti); nová domácnost má aspoň dva lidi –
-// jediný člověk by se hned rozpadl (Rozpad domácnosti)
-export const HOUSEHOLD_HEADS = 2;
-export const NEW_HOUSEHOLD_MIN_PEOPLE = 2;
+// kinship.md – Pohlaví (návrh Clauda): chlapců se rodí 105 na 100 dívek; rodit může žena 16–44
+// s manželem, muž je plodný od 16 let bez horní meze (AGE.fertile, AGE.elder)
+export const BOY_SHARE = 105 / 205;
+// kinship.md – Sňatky (návrh Clauda): věkový rozdíl snoubenců nejvýš 15 let; z okolí si svobodný
+// muž od 18 let bez možné nevěsty ve vsi přivede ženu 16–22 let s pravděpodobností 30 % ročně,
+// svobodná žena od 18 let bez možného ženicha se s 30 % ročně vdá pryč (Martin – varianta c,
+// čísla návrh Clauda); vdova s dětmi do 14 let (AGE.adult) zůstává v domě manžela a nevdává se
+export const MARRIAGE = {
+  maxAgeGapYears: 15,
+  outsidePerYear: 0.3,
+  outsideFromAge: 18,
+  brideAge: { from: 16, to: 22 },
+} as const;
+// kinship.md – Sňatky z okolí (návrh Clauda, kvůli válce – war.md): nevěsta z okolí si pamatuje,
+// ze které sousední vsi přišla, a dcera, kam se vdala – směr je los z osmi sousedů
+export const NEIGHBOR_DIRECTIONS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'] as const;
 // fields.md – Zásoby a nasycení (roční potřeba jídla podle věku)
 export const FOOD_NEED_KG_PER_YEAR = { child: 100, adult: 180, elder: 140 } as const;
 // fields.md – Zásoby a nasycení (ztráty při skladování – meze: s hrnčířem 5 %, start se zásobami)

@@ -25,6 +25,7 @@ import {
   FOOD_NEED_KG_PER_YEAR,
   PLOT_VARIANTS,
   START_AGES,
+  START_SEXES,
   START_STORES_MONTHS,
   dwellingBuildLabor,
   workshopTrees,
@@ -317,11 +318,19 @@ export function foundVillage(input: {
   if (firstField) validateField(firstField);
   if (input.dwellingSpared) validateSpared(input.dwellingSpared);
   const householdId = 1;
+  // zakladatelé jsou dva páry (kinship.md – Pohlaví): manželé 25 let a chlapec s dívkou, kteří
+  // nejsou příbuzní (rodiče neznámí) – vezmou se, až dorostou
   const people: Person[] = START_AGES.map((age, i) => ({
     id: householdId + 1 + i,
     bornDay: day - Math.ceil(age * DAYS_PER_YEAR),
     dwellingId: householdId,
+    sex: START_SEXES[i] ?? 'male',
   }));
+  const [husband, wife] = people;
+  if (husband && wife) {
+    husband.spouseId = wife.id;
+    wife.spouseId = husband.id;
+  }
   const constructionId = householdId + 1 + people.length;
   const annualNeed = people.reduce((sum, p) => sum + FOOD_NEED_KG_PER_YEAR[ageGroup(p, day)], 0);
   const state: VillageState = {

@@ -1,7 +1,9 @@
 # Příbuzenství a pohlaví – rodiny ve vsi
 
 Stav: schváleno 18. 10. 2026 (Martin: „Pojďme na příbuzenství a pohlaví“, sňatky s okolím
-varianta „c“, návrh celkem „Ano“). Implementace zatím není.
+varianta „c“, návrh celkem „Ano“). Implementováno týž den (`kinship.ts`, `marriage.ts`,
+`households.ts`, `population.ts`) – detaily, které návrh neřešil, jsou v sekci Implementace
+(návrh Clauda).
 
 ## Proč
 
@@ -75,11 +77,62 @@ rodiny (návrh Clauda – Martin uvidí):
 - **Rozpad domácnosti:** dům bez dospělého muže i ženy 16+ (jen děti, nebo jen starší) se
   přestěhuje k nejbližším příbuzným (syn, dcera, sourozenec), jinak do domu s nejvíc místy.
 
+## Příbuzní v sousedních vsích (kvůli válce)
+
+Návrh Clauda kvůli schválené [válce](war.md) (Dobrovolníci a rozkaz – muži, kteří mají v cílové
+vsi blízké příbuzné, nebudou chtít útočit):
+
+- **Nevěsta z okolí si pamatuje, ze které sousední vsi přišla** – jeden z osmi směrů (S, SV, V,
+  JV, J, JZ, Z, SZ – mřížka map z [války](war.md)), los ze seedu vsi a dne.
+- **Dcera, která se vdala pryč, zůstane v rodokmenu** se směrem vsi, kam odešla – jen jako záznam
+  (id, pohlaví, den narození, rodiče, směr), nesimuluje se. Ves ho drží, dokud ve vsi žije její
+  rodič, sourozenec nebo dítě.
+- **Má člověk blízké příbuzné ve vsi ve směru X?** Ano, když odtamtud sám přišel (rodiče
+  a sourozenci tam), když se tam vdal jeho rodič, sourozenec nebo dítě, nebo když odtamtud je jeho
+  manželka / manžel, případně se tam vdal její rodič nebo sourozenec (`hasCloseKinIn`).
+
 ## Co hráč vidí
 
 - Postavy ve scéně podle skutečného pohlaví (muž / žena), děti podle věku.
 - Panel obydlí: muži, ženy, děti a starší (ikony + čísla); páry (ikona prstenu + počet).
 - Upozornění: „Svatba“ (ve vsi), „Nevěsta z okolí“, „Dcera se vdala pryč“ (fakty, krátké řádky).
+
+## Implementace – doplněné detaily (návrh Clauda)
+
+- **Domácnost drží člověk 16–44** (muž nebo žena) – dům bez nikoho takového (jen děti, nebo jen
+  starší) se rozpadne; dřív stačil člověk 14–44. Osamělý člověk 16–44 se nerozpadá – je svobodný
+  a vezme se.
+- **Rozpad k příbuzným:** do domu syna, pak dcery, pak sourozence kohokoli z rozpadlé domácnosti
+  (v každé skupině dům s nejvíc volnými místy), jinak do domu s nejvíc volnými místy.
+- **Svatba ve vsi:** nevěsta se smí přestěhovat, jen když se její domácnost odchodem nerozpadne,
+  a ženichův dům nesmí být přeplněný (po svatbě nejvýš o jednoho přes kapacitu). Ženich se
+  nestěhuje, takže svatba nikoho nevrací do domu, ze kterého odešel – stěhování tam a zpět
+  (rozbor 18. 10. 2026) nevznikne (hlídá test 80 let tří vsí). Párování od nejstaršího
+  svobodného, každý s nejbližším věkem, se kterým svatba jde; jeden sňatek na člověka a den,
+  krok 6 simulace po obsazení prázdných obydlí.
+- **Z okolí:** denní pravděpodobnost odpovídá 30 % ročně; „nemá s kým se vzít“ = ve vsi není
+  nikdo, s kým by svatba dnes šla. Nevěsta z okolí nepřijde do přeplněného domu ani **když ves
+  hladoví** (byla by jen další ústa). Dcera se vdá pryč, jen když se její domácnost odchodem
+  nerozpadne.
+- **Vdova s vlastními dětmi do 14 let** se nevdává – zůstává v domě manžela.
+- **Domácnosti:** rodina = muž, žena a jejich svobodné děti z domu. Ženatý syn = muž, jehož matka
+  nebo otec bydlí v domě; dědic = nejstarší ženatý syn; v domě bez rodičů zůstává nejstarší
+  ženatý muž a ostatní ženatí (bratři) se oddělí. Svobodný syn smí odejít sám jen z přeplněného
+  domu, od 16 let; když dědic ještě není a matka synů už nemůže rodit, zůstává nejstarší syn
+  (Martinův dědic u neplodných rodičů) a odejde druhý.
+- **Lidé k osídlení:** v každém domě rodiny, které se mohou oddělit, a když žádná není, svobodný
+  syn přeplněného domu.
+- **Rodokmen** drží zemřelé a odešlé jen jako id a jejich rodiče, a jen dokud jsou rodičem
+  někoho žijícího – tak jde poznat prarodiče, strýce i bratrance a stav neroste do nekonečna.
+- **Převod starých vsí** (`withKinship`, při načtení i na začátku dopočtu, bez příznaku – ves
+  s pohlavím všech lidí se nemění): v domě od nejstaršího střídavě muž, žena…; manželé = každý
+  muž od 16 let s nejstarší dosud volnou ženou od 16 let v domě, jsou-li od sebe nejvýš 15 let.
+- **Postavy ve scéně:** podíl žen u každé činnosti (dřív pevný) se posune podle podílu žen ve vsi
+  (muži / ženy 14–44, starší, děti); šátek nosí ženy podle podílu vdaných.
+- **Martinova ves Vlkov** (stav 3. 8. 694 z lokální databáze): polozemnice 27, 11, 6, 6, 5, 4
+  a zemnice 47, 45, 24, 21, 13, 4 → převod: v zemnici manželé 47 a 45 a 24 a 21, v polozemnici
+  27letý svobodný s dětmi. Odhad na 30 let (bez vrstvy překážek): 19 lidí, 20 porodů, 13 úmrtí,
+  3 svatby ve vsi, 2 nevěsty z okolí, 2 dcery vdané pryč (bez příbuzenství 17 lidí, 17 porodů).
 
 ## Rozhodnutí
 
@@ -92,3 +145,6 @@ rodiny (návrh Clauda – Martin uvidí):
 | Z okolí ≈ 30 % ročně pro svobodného muže / ženu od 18 bez možného partnera ve vsi         | návrh Clauda |
 | Domácnosti: ženatý syn zakládá, nejstarší syn dědí, svobodný nejstarší syn smí odejít sám | návrh Clauda |
 | Starší vsi: pohlaví a manželé se doplní jednou deterministicky, rodiče neznámí            | návrh Clauda |
+| Nevěsta z okolí si pamatuje směr vsi, vdaná pryč zůstane v rodokmenu se směrem (válka)    | návrh Clauda |
+| Domácnost drží člověk 16–44; rozpad k příbuzným; vdova s dětmi do 14 se nevdává           | návrh Clauda |
+| Svatba nepřeplní dům víc než o jednoho; v hladu nevěsta z okolí nepřijde                  | návrh Clauda |

@@ -5,10 +5,8 @@ import { villageCemeteries } from './cemetery';
 import { cloneState } from './clone';
 import { craftCoverage, craftHouseholds, newWorkshop, wearCraftStocks, workCrafts } from './crafts';
 import {
-  adultChildrenSettlers,
   decayEmptyDwelling,
   nextYearlyCommonLabor,
-  qualifyingDwellings,
   rebuildType,
   repairNeedPerDay,
   wantsRebuild,
@@ -28,6 +26,8 @@ import { daysUntilAppleRot } from './food';
 import { isToilDay, updateHappiness, villageLaborFactor, windowEndDay } from './happiness';
 import { MOWING_WINDOWS, mow, mowingRemaining } from './hay';
 import { sowingBlocks, villageHoldings, workOrder } from './holdings';
+import { occupyEmptyDwellings, settleNewDwelling } from './households';
+import { withKinship } from './kinship';
 import { husbandryDay } from './husbandry';
 import {
   SLAUGHTER_MONTH,
@@ -55,7 +55,7 @@ import {
   villageApplesKg,
   workOrchards,
 } from './orchard';
-import { ageGroup, householdBreaksUp, isAdult, laborPerDay, occupants } from './people';
+import { ageGroup, laborPerDay } from './people';
 import { isVillageExtinct } from './extinction';
 import { inLuckyYears, nextStarvationDays, populationDay } from './population';
 import { dailyMinPerHousehold } from './productivity';
@@ -64,7 +64,6 @@ import {
   CHRONICLE_MAX_EVENTS,
   COMMON_LABOR_HISTORY_DAYS,
   CROP_ORDER,
-  DWELLINGS,
   FOOD_NEED_KG_PER_YEAR,
   FOREST_BONUS,
   HARVEST_DAY,
@@ -168,7 +167,8 @@ export function advanceVillage(
   if (toDay < state.lastDay) {
     throw new RangeError(`Ves je dopočítaná do dne ${state.lastDay}, nelze zpět na ${toDay}.`);
   }
-  const next = cloneState(state);
+  // ves z doby před příbuzenstvím dostane pohlaví a manžele (kinship.md) – jednou, idempotentně
+  const next = cloneState(withKinship(state));
   for (let day = next.lastDay + 1; day <= toDay && !isVillageExtinct(next); day++) {
     simulateDay(next, day, obstacles, landscape);
   }
@@ -879,7 +879,8 @@ function finishConstructions(state: VillageState, day: number): void {
     };
     state.dwellings.push(dwelling);
     state.chronicle.push(finishedEvent(day, c, dwelling.id));
-    if (c.dwellingId === null) moveInYoungestPair(state, day, dwelling.id);
+    // nové obydlí osídlí rodina ženatého syna (kinship.md – Domácnosti)
+    if (c.dwellingId === null) settleNewDwelling(state, day, dwelling.id);
   }
   state.constructions = unfinished;
 }
@@ -922,30 +923,6 @@ function finishedEvent(day: number, c: Construction, dwellingId: number | null):
     fieldId: c.kind === 'field' ? c.fieldId : null,
     ...(c.craft && c.kind === 'dwelling' ? { craft: c.craft } : {}),
   };
-}
-
-/**
- * Dva nejmladší lidé 14–44 z první domácnosti, která splňuje podmínku nového obydlí a dva
- * takové lidi může uvolnit, se přestěhují do obydlí `dwellingId` (při shodě data narození
- * mladší = vyšší id). Domácnosti se zkoušejí v pořadí `qualifyingDwellings`. Pár neodejde, když
- * by se zbytek domácnosti hned rozpadl (zůstali by jen starší a děti) – rozpad by zbytek večer
- * přestěhoval za párem a druhý den by se pár stěhoval znovu. S podmínkou čtyř dospělých 14–44
- * to nenastane; kontrola to hlídá i pro případ, že se podmínka změní.
- */
-function moveInYoungestPair(state: VillageState, day: number, dwellingId: number): void {
-  for (const source of qualifyingDwellings(state, day)) {
-    const members = occupants(state, source.id);
-    const movers = members
-      .filter((p) => isAdult(p, day))
-      .sort((a, b) => b.bornDay - a.bornDay || b.id - a.id)
-      .slice(0, 2);
-    if (movers.length < 2) continue;
-    const staying = members.filter((p) => !movers.includes(p));
-    if (householdBreaksUp(staying, day)) continue;
-    for (const p of movers) p.dwellingId = dwellingId;
-    state.chronicle.push({ day, kind: 'household-founded', dwellingId });
-    return;
-  }
 }
 
 /**
@@ -1008,33 +985,6 @@ function decideRebuilds(
     });
     state.chronicle.push({ day, kind: 'rebuild-decided', dwellingId: d.id, type });
   }
-}
-
-/**
- * Krok 6 (population.md – Prázdné obydlí): úplně prázdná obydlí (podle id) nejdřív obsadí mladý
- * pár z domácnosti, která splňuje podmínku nového obydlí (`moveInYoungestPair`, beze změny). Co
- * zůstane prázdné, osídlí dospělé děti z přeplněné domácnosti (`moveInAdultChildren`, návrh
- * Clauda) – až po prvním kole, aby se nová domácnost dospělých dětí týž den znovu nedělila.
- */
-function occupyEmptyDwellings(state: VillageState, day: number): void {
-  const empty = (): Dwelling[] => {
-    const occupied = new Set(state.people.map((p) => p.dwellingId));
-    return state.dwellings.filter((d) => !occupied.has(d.id)).sort((a, b) => a.id - b.id);
-  };
-  for (const d of empty()) moveInYoungestPair(state, day, d.id);
-  for (const d of empty()) moveInAdultChildren(state, day, d);
-}
-
-/**
- * Dospělé děti z přeplněné domácnosti (`adultChildrenSettlers` – všechny z jedné domácnosti,
- * nebo dvě jednotlivá z různých) se přestěhují do prázdného obydlí `dwelling` a založí v něm
- * domácnost; nikdo, když takoví lidé nejsou.
- */
-function moveInAdultChildren(state: VillageState, day: number, dwelling: Dwelling): void {
-  const movers = adultChildrenSettlers(state, day, DWELLINGS[dwelling.type].capacity);
-  if (movers.length === 0) return;
-  for (const p of movers) p.dwellingId = dwelling.id;
-  state.chronicle.push({ day, kind: 'household-founded', dwellingId: dwelling.id });
 }
 
 // --- sklizeň a jídlo --------------------------------------------------------------------
