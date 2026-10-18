@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest';
 import type { SelectionDetails } from '@/lib/selection-details';
 import { SelectionPanel } from '../SelectionPanel';
 
-// Panel ohrady (oxen.md – Co hráč vidí): zvířata, seno, stáda, spřežení a výcvik.
+// Panel ohrady (oxen.md – Co hráč vidí): zvířata, seno, stáda, spřežení a výcvik. Posvátný dub
+// a háj (happiness.md – Co hráč vidí): štěstí a stáří dubu.
 
 const pen = (over: Partial<Extract<SelectionDetails, { kind: 'pen' }>> = {}): SelectionDetails => ({
   kind: 'pen',
@@ -76,5 +77,27 @@ describe('SelectionPanel – ohrada', () => {
     const html = render(pen({ built: false, progress: 0.45 }));
     expect(html).toContain('aria-valuenow="45"');
     expect(html).not.toContain('selection-oxen');
+  });
+});
+
+describe('SelectionPanel – posvátný dub a háj', () => {
+  it('posvátný dub: štěstí a stáří ikonou s číslem, popisek jen „Stáří (roky)“', () => {
+    const html = render({ kind: 'sacred-oak', id: 7, happiness: 5, ageYears: 1203 });
+    expect(html).toContain('>+5<');
+    expect(text(html, 'selection-age')).toBe('1 203');
+    expect(html).toContain('src="/icons/resources/date.png"');
+    expect(html).toContain('Stáří (roky)');
+  });
+
+  it('háj: stáří nejstaršího dubu vedle počtu dubů', () => {
+    const html = render({ kind: 'grove', id: 8, oaks: 14, happiness: 14, ageYears: 287 });
+    expect(text(html, 'selection-grove-oaks')).toBe('14');
+    expect(text(html, 'selection-age')).toBe('287');
+  });
+
+  it('neznámé stáří se neukáže', () => {
+    const html = render({ kind: 'sacred-oak', id: 7, happiness: 5, ageYears: null });
+    expect(html).not.toContain('selection-age');
+    expect(html).not.toContain('Stáří');
   });
 });

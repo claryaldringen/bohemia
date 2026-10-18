@@ -116,6 +116,8 @@ export type SelectionDetails =
       id: number;
       /** Kolik dub sám přidává štěstí (stropy vsi platí zvlášť). */
       happiness: number;
+      /** Stáří dubu v celých letech (podle velikosti, roste s herním časem); neznámé null. */
+      ageYears: number | null;
     }
   | {
       kind: 'grove';
@@ -124,6 +126,8 @@ export type SelectionDetails =
       oaks: number;
       /** Kolik háj sám přidává štěstí. */
       happiness: number;
+      /** Stáří nejstaršího dubu háje v celých letech; neznámé null. */
+      ageYears: number | null;
     }
   | {
       kind: 'sacred';
@@ -273,12 +277,20 @@ export function selectionDetails(
   }
   if (target.kind === 'sacred-oak') {
     const oak = view?.sacred.oaks.find((o) => o.id === target.id);
-    return oak ? { kind: 'sacred-oak', id: oak.id, happiness: oak.happiness } : null;
+    return oak
+      ? { kind: 'sacred-oak', id: oak.id, happiness: oak.happiness, ageYears: oak.ageYears }
+      : null;
   }
   if (target.kind === 'grove') {
     const grove = view?.sacred.groves.find((g) => g.id === target.id);
     return grove
-      ? { kind: 'grove', id: grove.id, oaks: grove.oaks, happiness: grove.happiness }
+      ? {
+          kind: 'grove',
+          id: grove.id,
+          oaks: grove.oaks,
+          happiness: grove.happiness,
+          ageYears: grove.ageYears,
+        }
       : null;
   }
   if (target.kind === 'sacred') return sacredDetails(view, scene, target.id);

@@ -5,6 +5,7 @@ import {
   generateLandscape,
   obstacleIndex,
   obstacleKind,
+  obstacleLook,
   obstaclesOf,
   packObstacles,
   type ObstacleLayer,
@@ -22,10 +23,13 @@ import {
   orchardPartsFromCells,
   placementVillageOf,
 } from '../placement';
-import { SACRED_BUILDINGS, SACRED_OAK } from '../rules';
+import { OAK_AGE, OAK_MODEL_HEIGHT_M, SACRED_BUILDINGS, SACRED_OAK } from '../rules';
 import {
+  groveAgeYears,
   groveHappiness,
+  oakAgeYears,
   sacredHappiness,
+  sacredOakAgeYears,
   sacredSitesOf,
   villageGroves,
   villageSacredOaks,
@@ -140,6 +144,70 @@ describe('sacredSitesOf – posvátné duby a háje z vrstvy překážek', () =>
     const cells = realSites.groves.flatMap((g) => g.cells.map((c) => `${c.x},${c.y}`));
     expect(new Set(cells).size).toBe(cells.length);
     for (const grove of realSites.groves) expect(grove.oaks).toBeGreaterThanOrEqual(6);
+  });
+});
+
+describe('stáří dubů – podle velikosti a herního času', () => {
+  const START = 0; // 1. 1. 500
+  const sizeOf = (layerIn: ObstacleLayer, id: number): number => {
+    const index = obstacleIndex(layerIn, id);
+    return OAK_MODEL_HEIGHT_M[obstacleLook(layerIn, index)]! * layerIn.scale[index]!;
+  };
+
+  it('k začátku světa: nejmenší posvátný dub 150 let, největší 400, mezi tím lineárně', () => {
+    expect(oakAgeYears(OAK_AGE.minSizeM, START)).toBe(150);
+    expect(oakAgeYears(OAK_AGE.maxSizeM, START)).toBe(400);
+    expect(oakAgeYears((OAK_AGE.minSizeM + OAK_AGE.maxSizeM) / 2, START)).toBe(275);
+    // mimo rozpětí oříznuté
+    expect(oakAgeYears(10, START)).toBe(150);
+    expect(oakAgeYears(40, START)).toBe(400);
+  });
+
+  it('stárne s herním časem – po celých herních letech', () => {
+    const size = 20;
+    const atStart = oakAgeYears(size, START);
+    expect(oakAgeYears(size, dayIndexOf({ year: 500, month: 12, day: 31 }))).toBe(atStart);
+    expect(oakAgeYears(size, dayIndexOf({ year: 501, month: 1, day: 1 }))).toBe(atStart + 1);
+    expect(oakAgeYears(size, DAY)).toBe(atStart + 100);
+    expect(oakAgeYears(size, dayIndexOf({ year: 1499, month: 12, day: 31 }))).toBe(atStart + 999);
+  });
+
+  it('posvátný dub vrstvy: stáří z jeho velikosti; jiný strom nebo neznámé id null', () => {
+    // oak-large-1 × 1,2 = 24,84 m → 150 + 250 × (24,84 − 17,7) / 8,8 ≈ 353 let k 1. 1. 500
+    expect(sacredOakAgeYears(layer, BIG_OAK, START)).toBe(353);
+    expect(sacredOakAgeYears(layer, BIG_OAK, DAY)).toBe(453);
+    expect(sacredOakAgeYears(layer, 500, DAY)).toBeNull(); // kámen
+    expect(sacredOakAgeYears(layer, 101, DAY)).toBeNull(); // buk
+    expect(sacredOakAgeYears(layer, 99_999, DAY)).toBeNull();
+  });
+
+  it('háj: stáří nejstaršího dubu v okruhu háje; bez dubů null', () => {
+    const grove = sacredSitesOf(layer).groves[0]!;
+    // duby háje oak-1 × 1 = 16,95 m – pod rozpětím, tedy 150 let k začátku světa
+    expect(groveAgeYears(layer, grove, DAY)).toBe(250);
+    expect(groveAgeYears(layer, { x: -100, z: -100 }, DAY)).toBeNull();
+  });
+
+  it('skutečná krajina: posvátné duby 150–400 let k začátku světa, deterministicky', () => {
+    const land = generateLandscape(5, CURRENT_LAYER_VERSIONS);
+    const real = obstaclesOf(land);
+    const ages = sacredSitesOf(real).oaks.map((o) => sacredOakAgeYears(real, o.id, START)!);
+    expect(Math.min(...ages)).toBeGreaterThanOrEqual(150);
+    expect(Math.min(...ages)).toBeLessThan(160);
+    expect(Math.max(...ages)).toBeLessThanOrEqual(400);
+    expect(Math.max(...ages)).toBeGreaterThan(300);
+    // stejný dub = stejné stáří i z nově vygenerované vrstvy (jiný objekt)
+    const again = obstaclesOf(generateLandscape(5, CURRENT_LAYER_VERSIONS));
+    const first = sacredSitesOf(real).oaks[0]!;
+    expect(sacredOakAgeYears(again, first.id, DAY)).toBe(sacredOakAgeYears(real, first.id, DAY));
+    expect(sacredOakAgeYears(real, first.id, START)).toBe(
+      oakAgeYears(sizeOf(real, first.id), START),
+    );
+    for (const grove of sacredSitesOf(real).groves) {
+      const age = groveAgeYears(real, grove, START)!;
+      expect(age).toBeGreaterThanOrEqual(150);
+      expect(age).toBeLessThanOrEqual(400);
+    }
   });
 });
 
