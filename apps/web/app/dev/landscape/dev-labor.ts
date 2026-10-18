@@ -50,11 +50,25 @@ export function demoLabor(
       add({ activity: 'orchard-plant', target, manDays: 2 });
     }
   }
-  for (const site of village.dwellings.filter((d) => !d.built)) {
-    add({ activity: 'build', target: { kind: 'site', id: site.id }, manDays: 2 });
+  const sites = village.dwellings.filter((d) => !d.built);
+  for (const site of sites) {
+    const target = { kind: 'site', id: site.id } as const;
+    add({ activity: 'build', target, manDays: 2, construction: site.id });
+  }
+  // modla a svatyně ve stavbě (staveniště má id stavby jako obydlí)
+  for (const sacred of (village.sacred?.buildings ?? []).filter((b) => !b.built)) {
+    const target = { kind: 'site', id: sacred.id } as const;
+    add({ activity: 'build', target, manDays: 1, construction: sacred.id });
   }
   if (fellTrees.length > 0) {
-    add({ activity: 'fell', target: { kind: 'trees', ids: [...fellTrees] }, manDays: 2 });
+    // dřevo pro první staveniště – dřevorubci jsou jeho stavitelé
+    const construction = sites[0]?.id;
+    add({
+      activity: 'fell',
+      target: { kind: 'trees', ids: [...fellTrees] },
+      manDays: 2,
+      ...(construction === undefined ? {} : { construction }),
+    });
   }
   for (const cemetery of village.cemeteries ?? []) {
     if (!cemetery.built || cemetery.squares.some((s) => s.pending)) {

@@ -673,14 +673,17 @@ function sacredView(summary: VillageSummary): VillageSacred {
   };
 }
 
-/** Rozdělení práce posledního dne pro postavy – člověkodny na setiny, nulové podíly pryč. */
+/** Rozdělení práce posledního dne pro postavy – člověkodny na setiny (drobné podíly 0,01). */
 function sceneLabor(state: VillageState, people: SceneLabor['people']): SceneLabor | null {
   const labor = laborReport(state);
   if (!labor) return null;
-  const shares = labor.shares.flatMap((share) => {
-    const manDays = Math.round(share.manDays * 100) / 100;
-    return manDays > 0 ? [{ ...share, manDays }] : [];
-  });
+  // na setiny, ale nic, co dnes práci dostalo, nezmizí – i drobná práce na stavbě je stavba,
+  // která roste, a u ní má někdo stát (villagers.md)
+  const shares = labor.shares.flatMap((share) =>
+    share.manDays > 0
+      ? [{ ...share, manDays: Math.max(0.01, Math.round(share.manDays * 100) / 100) }]
+      : [],
+  );
   return { day: labor.day, month: dateOfDayIndex(labor.day).month, people, shares };
 }
 

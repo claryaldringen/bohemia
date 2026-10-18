@@ -286,6 +286,12 @@ export interface LaborShare {
   target: LaborTarget;
   /** Člověkodny (na tisíciny). */
   manDays: number;
+  /**
+   * Stavba, do které práce šla (stavba i kácení jejího dřeva, zakládání pole, výsadba sadu,
+   * hřbitov) – scéna podle ní ukáže u každé stavby, která dnes dostala práci, aspoň jednoho
+   * člověka. U ostatní práce (a u rozdělení uložených dřív) chybí.
+   */
+  construction?: number;
 }
 
 /** Rozdělení práce jednoho dne – uložené ve stavu vsi (`VillageState.labor`). */
