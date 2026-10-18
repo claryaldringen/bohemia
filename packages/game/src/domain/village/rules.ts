@@ -446,6 +446,14 @@ export const OAK_MODEL_HEIGHT_M: Record<string, number> = {
   'oak-large-2': 17.33,
   'oak-large-3': 22.09,
 };
+// happiness.md – Co hráč vidí (stáří posvátného dubu – Martin 18. 10. 2026, rozpětí návrh
+// Clauda): stáří dubu ke dni začátku světa (1. 1. 500) lineárně podle jeho velikosti (výška
+// modelu × měřítko) – nejmenší posvátný dub (`minSizeM` ≈ práh horní třetiny dubů vrstvy, na
+// skutečných krajinách 17,65–17,76 m) `minYears`, největší (`maxSizeM` = oak-large-3 × 1,2)
+// `maxYears`, mimo rozpětí oříznuté; k tomu herní roky od začátku světa. 150 let ≈ mohutný
+// dospělý solitérní dub (obvod ≈ 3 m), od 400 let je dub „starobylý“ (Woodland Trust – Ancient
+// Tree Inventory, průvodce dubem; dub běžně žije ≈ 600 let, výjimečně 1000).
+export const OAK_AGE = { minSizeM: 17.7, maxSizeM: 26.5, minYears: 150, maxYears: 400 } as const;
 // happiness.md – Dubový háj (definice – rozhodnutí kontroléru při implementaci, 18. 10. 2026):
 // les vrstvy překážek je z třetiny dubový, takže aspoň 6 dubů v okruhu 25 m má skoro každé
 // místo lesa – háj je proto místo, kde duby převažují: aspoň `GROVE.minOaks` dospělých dubů

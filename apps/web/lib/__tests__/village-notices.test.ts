@@ -228,8 +228,8 @@ describe('newNotices – posvátná místa', () => {
     const before = view();
     const after = view({
       sacred: {
-        oaks: [{ id: 7, happiness: 5 }],
-        groves: [{ id: 9, oaks: 12, squares: 9, happiness: 13 }],
+        oaks: [{ id: 7, happiness: 5, ageYears: 310 }],
+        groves: [{ id: 9, oaks: 12, squares: 9, happiness: 13, ageYears: 240 }],
         buildings: [],
       },
     });

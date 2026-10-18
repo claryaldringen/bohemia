@@ -14,6 +14,7 @@ import {
   obstacleChangesAt,
   ORCHARD_PLANTING_WINDOWS,
   laborReport,
+  groveAgeYears,
   obstaclesOf,
   partStage,
   reservedTrees,
@@ -24,6 +25,7 @@ import {
   villageStock,
   wholeLogs,
   sacredBuildingHappiness,
+  sacredOakAgeYears,
   HAY_WINTER_MONTHS,
   foundingCostPerHa,
   type BuildKind,
@@ -43,6 +45,7 @@ import {
   type LaborShare,
   type Landscape,
   type ObstacleChanges,
+  type ObstacleLayer,
   type OrchardSquare,
   type OrchardWork,
   type PartStage,
@@ -120,11 +123,18 @@ export interface VillageHappiness {
 
 /**
  * Posvátná místa pro panel výběru – kolik které samo přidává štěstí (stropy počtu a součtu platí
- * pro celou ves) a u modly a svatyně průběh stavby.
+ * pro celou ves), stáří dubu (háj: jeho nejstaršího dubu – `oakAgeYears`, celé roky; strom mimo
+ * vrstvu null) a u modly a svatyně průběh stavby.
  */
 export interface VillageSacred {
-  oaks: { id: number; happiness: number }[];
-  groves: { id: number; oaks: number; squares: number; happiness: number }[];
+  oaks: { id: number; happiness: number; ageYears: number | null }[];
+  groves: {
+    id: number;
+    oaks: number;
+    squares: number;
+    happiness: number;
+    ageYears: number | null;
+  }[];
   /**
    * Modly a svatyně – hotové (`built`, id stavby, která je postavila) i rozestavěné (id stavby):
    * průběh celé stavby i s kácením dubů 0–1 a kolik dubů ještě musí skácet.
@@ -948,8 +958,11 @@ function sceneSacred(
   };
 }
 
-/** Posvátná místa pro panel výběru – kolik které přidává, u staveb průběh. */
-function sacredView(summary: VillageSummary): VillageSacred {
+/**
+ * Posvátná místa pro panel výběru – kolik které přidává, stáří dubů podle vrstvy překážek, u staveb
+ * průběh.
+ */
+function sacredView(summary: VillageSummary, obstacles: ObstacleLayer, day: number): VillageSacred {
   const sites = summary.constructions.flatMap((c) =>
     c.kind === 'idol' || c.kind === 'shrine'
       ? [
@@ -965,12 +978,17 @@ function sacredView(summary: VillageSummary): VillageSacred {
       : [],
   );
   return {
-    oaks: summary.sacred.oaks.map((o) => ({ id: o.id, happiness: o.happiness })),
+    oaks: summary.sacred.oaks.map((o) => ({
+      id: o.id,
+      happiness: o.happiness,
+      ageYears: sacredOakAgeYears(obstacles, o.id, day),
+    })),
     groves: summary.sacred.groves.map((g) => ({
       id: g.id,
       oaks: g.oaks,
       squares: g.cells.length,
       happiness: g.happiness,
+      ageYears: groveAgeYears(obstacles, g, day),
     })),
     buildings: [
       ...summary.sacred.buildings.map((b) => ({
@@ -1279,7 +1297,7 @@ export function buildVillageView(
       target: summary.happiness.target,
       laborFactor: summary.happiness.laborFactor,
     },
-    sacred: sacredView(summary),
+    sacred: sacredView(summary, obstaclesOf(landscape), day),
     extinct: villageLifespan(state),
     gameOver,
     cemeteries: summary.cemeteries.map((c) => {

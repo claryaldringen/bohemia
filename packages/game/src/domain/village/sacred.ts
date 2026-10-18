@@ -1,8 +1,11 @@
+import { dateOfDayIndex } from '../calendar';
 import {
   length2,
+  obstacleIndex,
   obstacleKind,
   obstacleLook,
   obstaclesInTile,
+  obstaclesNear,
   type ObstacleLayer,
 } from '../landscape';
 import { pointInPolygon, rectangleCorners, type Point } from './polygon';
@@ -10,6 +13,7 @@ import {
   GROVE,
   GROVE_DEFINITION,
   HAPPINESS_BONUS,
+  OAK_AGE,
   OAK_MODEL_HEIGHT_M,
   SACRED_BUILDINGS,
   SACRED_OAK,
@@ -344,6 +348,61 @@ export function sparedWarning(spared: SparedSacred): string | undefined {
     lines.push(`Posvátné duby zůstanou stát (${spared.oaks.length})`);
   if (spared.groves.length > 0) lines.push('Dubový háj zůstane stát');
   return lines.length > 0 ? lines.join('\n') : undefined;
+}
+
+// --- stáří dubů -----------------------------------------------------------------------------
+
+/** Herní rok dne 0 (1. 1. 500). */
+const WORLD_FIRST_YEAR = dateOfDayIndex(0).year;
+
+/** Velikost dospělého dubu na indexu vrstvy (výška modelu × měřítko, m); jiný strom null. */
+function oakSizeAt(layer: ObstacleLayer, index: number): number | null {
+  if (obstacleKind(layer, index) !== 'tree') return null;
+  const height = OAK_MODEL_HEIGHT_M[obstacleLook(layer, index)];
+  return height === undefined ? null : height * layer.scale[index]!;
+}
+
+/**
+ * Stáří dubu velikosti `sizeM` (výška modelu × měřítko) v den `day` v celých letech
+ * (happiness.md – Co hráč vidí): ke dni začátku světa lineárně podle velikosti v rozpětí
+ * `OAK_AGE` (nejmenší posvátný dub 150 let, největší 400, mimo rozpětí oříznuté) + herní roky od
+ * začátku světa. Stejný dub má tak stejné stáří v každé vsi a s herním časem stárne.
+ */
+export function oakAgeYears(sizeM: number, day: number): number {
+  const share = Math.min(
+    1,
+    Math.max(0, (sizeM - OAK_AGE.minSizeM) / (OAK_AGE.maxSizeM - OAK_AGE.minSizeM)),
+  );
+  const atStart = Math.round(OAK_AGE.minYears + share * (OAK_AGE.maxYears - OAK_AGE.minYears));
+  return atStart + Math.max(0, dateOfDayIndex(day).year - WORLD_FIRST_YEAR);
+}
+
+/** Stáří posvátného dubu (id stromu vrstvy) v den `day`; id, které ve vrstvě není dubem, null. */
+export function sacredOakAgeYears(layer: ObstacleLayer, id: number, day: number): number | null {
+  const index = obstacleIndex(layer, id);
+  const size = index < 0 ? null : oakSizeAt(layer, index);
+  return size === null ? null : oakAgeYears(size, day);
+}
+
+/**
+ * Stáří háje v den `day` = stáří jeho nejstaršího (největšího) dospělého dubu v okruhu
+ * `GROVE.radiusM` od středu; bez dubu null.
+ */
+export function groveAgeYears(
+  layer: ObstacleLayer,
+  grove: { x: number; z: number },
+  day: number,
+): number | null {
+  const r = GROVE.radiusM;
+  let largest: number | null = null;
+  for (const i of obstaclesNear(layer, grove.x - r, grove.z - r, grove.x + r, grove.z + r)) {
+    const dx = layer.x[i]! - grove.x;
+    const dz = layer.z[i]! - grove.z;
+    if (dx * dx + dz * dz > r * r) continue;
+    const size = oakSizeAt(layer, i);
+    if (size !== null && (largest === null || size > largest)) largest = size;
+  }
+  return largest === null ? null : oakAgeYears(largest, day);
 }
 
 // --- stav vsi ------------------------------------------------------------------------------

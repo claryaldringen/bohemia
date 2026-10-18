@@ -724,7 +724,9 @@ rozhraní částí v
   v `SUBMIT_SQUARES` (`VillageGame`); mřížka, zkratky i malování po čtvercích se nemění. Stavba,
   kterou nejde zahájit z jiného důvodu než surovin (druhá svatyně), má v `BuildOption.blocked`
   důvod – v popisku červeně. Panel výběru umí i posvátný dub, háj, modlu a svatyni (ikona,
-  kolik přidávají štěstí, průběh stavby a duby ke kácení).
+  kolik přidávají štěstí, průběh stavby a duby ke kácení); u posvátného dubu i jeho stáří
+  (u háje nejstaršího dubu) – `oakAgeYears` v `sacred.ts` z velikosti dubu (150–400 let k roku
+  500, `OAK_AGE`) + herní roky do dneška hráče, ve `VillageSacred` jako `ageYears`.
 - **Založení vsi:** dokud ves není, mřížka nabízí jen zemnici – její umístění ves založí
   s navrženým jménem (`suggestVillageName`). Pole není podmínkou. Zemnici si osadníci teprve
   postaví (stavba s `dwellingId` = id jejich domácnosti; do dostavění bydlí na staveništi, pak
