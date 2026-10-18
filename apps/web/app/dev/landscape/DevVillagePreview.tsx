@@ -41,7 +41,7 @@ import {
 } from '@/lib/scene/orchard-layout';
 import { tileAt, tileCenter } from '@/lib/scene/tile-at';
 import { CONSTRUCTION_PHASES, constructionPhase } from '@/lib/scene/village-construction';
-import { SACRED_PHASES, SACRED_SITE_KIND, sacredPhase } from '@/lib/scene/sacred-layout';
+import { SACRED_SITE_KIND } from '@/lib/scene/sacred-layout';
 import { REFERENCE_DAY, dateOfDayOfYear } from '@/lib/scene/season-look';
 import type {
   SquaresPreview,
@@ -422,7 +422,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     const site = tileCenter(decoded, decoded.villageSite.x, decoded.villageSite.y);
     const list: DevSacredBuilding[] = [];
     (['idol', 'shrine'] as const).forEach((kind, row) => {
-      const phases = SACRED_PHASES[SACRED_SITE_KIND[kind]];
+      const phases = CONSTRUCTION_PHASES[SACRED_SITE_KIND[kind]];
       const stops = [0, ...phases.slice(1).map((p) => (p.from + p.to) / 2), 1];
       const spacing = kind === 'idol' ? 7 : 34;
       stops.forEach((progress, i) => {
@@ -862,7 +862,10 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         {firstSacredSite && (
           <span data-testid="dev-sacred-phase">
             {SACRED_NAMES[firstSacredSite.kind]} {Math.round(firstSacredSite.progress * 100)} % ·{' '}
-            {sacredPhase(SACRED_SITE_KIND[firstSacredSite.kind], firstSacredSite.progress).label}
+            {
+              constructionPhase(SACRED_SITE_KIND[firstSacredSite.kind], firstSacredSite.progress)
+                .label
+            }
           </span>
         )}
         <button className={buttonClass} disabled={!scene} onClick={showPhases}>

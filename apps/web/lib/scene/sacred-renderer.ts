@@ -12,7 +12,7 @@ import type { SceneSacred } from '../village-view';
 import { applyGammaFog } from './gamma-fog';
 import {
   instanceMatrices,
-  loadMergedModel,
+  loadMergedModelWithNodes,
   loadModelParts,
   type ModelInstance,
 } from './instanced-model';
@@ -26,21 +26,27 @@ import {
   oakOfferingRotation,
   sacredBuildingKey,
   sacredFootprintCorners,
-  sacredSiteParts,
-  sacredStakeLines,
   shrineFiresWorld,
 } from './sacred-layout';
-import { applySeasonSnow } from './season-materials';
+import { applySeasonGround, applySeasonSnow } from './season-materials';
+import { ROUND_SITE_M, constructionState, type ConstructionState } from './village-construction';
 import type { SmokeSource } from './village-smoke';
 import {
+  decalGrid,
   localToWorld,
   pointInPolygon,
   polygonBounds,
+  softCoverage,
   stripSegments,
   type HideShape,
   type Point,
 } from './village-layout';
-import { createStripMesh, type HeightFn } from './village-meshes';
+import {
+  createDecalMaterial,
+  createDecalMesh,
+  createStripMesh,
+  type HeightFn,
+} from './village-meshes';
 
 type SceneSacredBuilding = SceneSacred['buildings'][number];
 
@@ -57,8 +63,12 @@ const SINK_M = 0.04;
 const DRAPE_LIFT_M = 0.03;
 /** Dým ohnišť svatyně – seed rozvrhu ohně (jiný než id obydlí). */
 const SHRINE_SMOKE_SEED = 900_000;
-/** Čára vytyčení na zemi (vápno / naražená tráva po provázku) – výška nad terénem (m). */
-const LAYOUT_LIFT_M = 0.06;
+/** Výška obtisků staveniště nad terénem (m) – čára vytyčení a ušlapaná tráva (jako u obydlí). */
+const LIFT = { outline: 0.06, trampled: 0.03 };
+/** Měkký okraj ušlapané trávy (m) – jako u obydlí a v náhledu staveb. */
+const TRAMPLED_SOFT_M = 2.2;
+/** Sníh na ušlapané trávě – jako na obtiscích vsi (village-renderer.ts). */
+const TRAMPLED_SNOW = 0.85;
 
 /** Co renderer potřebuje od vsi – terén, stíny a ohlášení dočtených modelů. */
 export interface SacredContext {
@@ -97,8 +107,10 @@ export class SacredRenderer {
   private readonly buildings = new Map<number, BuildingView>();
   private loading: Promise<void> | null = null;
   private loaded = false;
-  private layout: Mesh | null = null;
   private layoutMaterial: Material | null = null;
+  private trampledMaterial: Material | null = null;
+  /** Ohniště svatyně z uzlů fire-1…8 v shrine.glb (souřadnice modelu); bez nich spočítaná. */
+  private fireSpots: Point[] | undefined;
   private fallbackMaterial: PBRMaterial | null = null;
   private shapes: HideShape[] = [];
   private disposed = false;
@@ -120,7 +132,6 @@ export class SacredRenderer {
       return { bounds: polygonBounds(corners), contains: (x, z) => pointInPolygon(corners, x, z) };
     });
     if (next && hasContent(next)) void this.loadModels();
-    this.updateLayout();
     this.updateDecor();
     this.updateBuildings();
     return true;
@@ -136,7 +147,7 @@ export class SacredRenderer {
     const sources: SmokeSource[] = [];
     for (const b of this.sacred?.buildings ?? []) {
       if (!b.built || b.kind !== 'shrine') continue;
-      shrineFiresWorld(b.position).forEach(([x, z], k) => {
+      shrineFiresWorld(b.position, this.fireSpots).forEach(([x, z], k) => {
         sources.push({
           seed: SHRINE_SMOKE_SEED + b.id * 8 + k,
           x,
@@ -174,22 +185,25 @@ export class SacredRenderer {
     for (const mesh of this.templates.values()) mesh.dispose();
     for (const mesh of this.fallbacks.values()) mesh?.dispose();
     for (const mesh of this.ghosts.values()) mesh.dispose();
-    this.layout?.dispose();
     this.buildings.clear();
     this.templates.clear();
     this.fallbacks.clear();
   }
 
   private async load(): Promise<void> {
+    // modely s jedním meshem se spojí (i s prázdnými uzly ohnišť svatyně); GLB s víc meshi
+    // (kameny háje, díly stavenišť) po dílech – spojení víc meshů pokazí ořez stěn
     const merged = async (key: string, file: string): Promise<void> => {
       try {
-        const model = await loadMergedModel(
+        const loaded = await loadMergedModelWithNodes(
           this.scene,
           `${SACRED_MODEL_BASE_URL}${file}`,
           `village-sacred-${key}`,
           prepareSacredMaterial,
         );
-        if (model) this.templates.set(key, this.prepareTemplate(model));
+        if (!loaded) return;
+        this.templates.set(key, this.prepareTemplate(loaded.model));
+        if (key === 'shrine') this.fireSpots = fireSpotsOf(loaded.nodes);
       } catch (error) {
         console.warn(`Model posvátného místa ${file} se nepodařilo načíst – náhradní tvar.`, error);
       }
@@ -350,20 +364,111 @@ export class SacredRenderer {
     }
   }
 
+  /**
+   * Sítě jedné stavby: hotový model, nebo staveniště podle fáze (village-construction.ts –
+   * díly, čára vytyčení a ušlapaná tráva; rekvizity kreslí ves s rekvizitami obydlí). Obtisky
+   * staveniště jsou vidět hned, i než se dočtou modely – vytyčení od průběhu 0.
+   */
   private buildingMeshes(b: SceneSacredBuilding): Mesh[] {
-    if (!this.loaded) return [];
-    const keys = b.built
-      ? [b.kind]
-      : sacredSiteParts(SACRED_SITE_KIND[b.kind], b.progress).map(
-          (part) => `${SACRED_SITE_KIND[b.kind]}-${part}`,
-        );
-    return keys.flatMap((key) => {
+    const kind = SACRED_SITE_KIND[b.kind];
+    const state = b.built ? null : constructionState(kind, b.progress);
+    const meshes = state ? this.siteDecals(b, state) : [];
+    if (!this.loaded) return meshes;
+    const keys = state ? state.parts.map((part) => `${kind}-${part}`) : [b.kind];
+    for (const key of keys) {
       const template = this.template(key);
-      if (!template) return [];
+      if (!template) continue;
       const mesh = this.draped(template, b.position, `village-sacred-${b.id}-${key}`);
       this.context.addShadowCaster(mesh);
-      return [mesh];
-    });
+      meshes.push(mesh);
+    }
+    return meshes;
+  }
+
+  /**
+   * Obtisky kruhového staveniště (ROUND_SITE_M): ušlapaná tráva uvnitř (u svatyně jen uvnitř
+   * příkopu – jinak by překryla jeho dno) a světlá čára vytyčení po kruhu.
+   */
+  private siteDecals(b: SceneSacredBuilding, state: ConstructionState): Mesh[] {
+    const site = ROUND_SITE_M[SACRED_SITE_KIND[b.kind]];
+    const circle = (radius: number): Point[] => {
+      const n = Math.max(24, Math.round(radius * 5));
+      return Array.from({ length: n }, (_, i): Point => {
+        const a = (2 * Math.PI * i) / n;
+        return [b.position.x + radius * Math.cos(a), b.position.z + radius * Math.sin(a)];
+      });
+    };
+    const meshes: Mesh[] = [];
+    if (state.trampled > 0) {
+      const area = circle(site.trampled - TRAMPLED_SOFT_M / 2);
+      const bounds = polygonBounds(area);
+      const pad = TRAMPLED_SOFT_M;
+      const mesh = createDecalMesh(
+        this.scene,
+        `village-sacred-trampled-${b.id}`,
+        decalGrid(
+          {
+            minX: bounds.minX - pad,
+            maxX: bounds.maxX + pad,
+            minZ: bounds.minZ - pad,
+            maxZ: bounds.maxZ + pad,
+          },
+          0.6,
+          softCoverage(area, TRAMPLED_SOFT_M),
+        ),
+        {
+          height: this.context.decalHeight,
+          smoothHeight: this.context.groundHeight,
+          lift: LIFT.trampled,
+          color: [1, 0.95, 0.86],
+          alpha: state.trampled,
+          uv: 20,
+        },
+      );
+      mesh.material = this.trampledMaterialOnce();
+      mesh.alphaIndex = 1;
+      mesh.isPickable = false;
+      meshes.push(mesh);
+    }
+    if (state.outline > 0) {
+      const mesh = createStripMesh(
+        this.scene,
+        `village-sacred-layout-${b.id}`,
+        stripSegments(circle(site.outline), true, 0.09, 0.5),
+        this.context.decalHeight,
+        LIFT.outline,
+      );
+      mesh.material = this.layoutMaterialOnce();
+      mesh.isPickable = false;
+      meshes.push(mesh);
+    }
+    return meshes;
+  }
+
+  /** Světlá čára vytyčení (vápno / naražená tráva po provázku) – jako u obydlí. */
+  private layoutMaterialOnce(): Material {
+    this.layoutMaterial ??= (() => {
+      const m = new StandardMaterial('village-sacred-layout', this.scene);
+      m.diffuseColor = new Color3(0.8, 0.76, 0.64);
+      m.specularColor = Color3.Black();
+      m.zOffset = -4;
+      m.backFaceCulling = false;
+      return m;
+    })();
+    return this.layoutMaterial;
+  }
+
+  /** Ušlapaná tráva – textura terénu jako vyšlapaná hlína u obydlí, s ročním obdobím. */
+  private trampledMaterialOnce(): Material {
+    this.trampledMaterial ??= (() => {
+      const m = createDecalMaterial(this.scene, 'village-sacred-trampled', {
+        texture: 'grass-dirt',
+        zOffset: -2,
+      });
+      applySeasonGround(m, TRAMPLED_SNOW);
+      return m;
+    })();
+    return this.trampledMaterial;
   }
 
   /**
@@ -372,6 +477,7 @@ export class SacredRenderer {
    */
   private draped(template: Mesh, position: Position, name: string): Mesh {
     const mesh = template.clone(name, null, true, false);
+    mesh.sideOrientation = template.sideOrientation;
     mesh.makeGeometryUnique();
     const source = template.getVerticesData(VertexBuffer.PositionKind);
     if (source) {
@@ -391,42 +497,20 @@ export class SacredRenderer {
     mesh.setEnabled(true);
     return mesh;
   }
+}
 
-  /**
-   * Světlá čára vytyčení na zemi pod kolíky a provázkem – u stavenišť ve fázi vytyčení (od
-   * zadání stavby, i při průběhu 0, i než se dočtou modely).
-   */
-  private updateLayout(): void {
-    this.layout?.dispose();
-    this.layout = null;
-    const lines: Point[][] = [];
-    for (const b of this.sacred?.buildings ?? []) {
-      if (b.built) continue;
-      if (!sacredSiteParts(SACRED_SITE_KIND[b.kind], b.progress).includes('stakes')) continue;
-      for (const line of sacredStakeLines(b.kind)) {
-        lines.push(line.map(([x, z]) => localToWorld(b.position, x, z)));
-      }
-    }
-    if (lines.length === 0) return;
-    const mesh = createStripMesh(
-      this.scene,
-      'village-sacred-layout',
-      lines.flatMap((line) => stripSegments(line, false, 0.09, 0.5)),
-      this.context.decalHeight,
-      LAYOUT_LIFT_M,
-    );
-    this.layoutMaterial ??= (() => {
-      const m = new StandardMaterial('village-sacred-layout', this.scene);
-      m.diffuseColor = new Color3(0.8, 0.76, 0.64);
-      m.specularColor = Color3.Black();
-      m.zOffset = -4;
-      m.backFaceCulling = false;
-      return m;
-    })();
-    mesh.material = this.layoutMaterial;
-    mesh.isPickable = false;
-    this.layout = mesh;
+/**
+ * Ohniště svatyně z prázdných uzlů fire-1…fire-8 modelu (souřadnice modelu ve scéně); když
+ * některý chybí, undefined – použijí se spočítaná (`shrineFireSpots`).
+ */
+function fireSpotsOf(nodes: ReadonlyMap<string, { x: number; z: number }>): Point[] | undefined {
+  const spots: Point[] = [];
+  for (let k = 1; k <= 8; k++) {
+    const node = nodes.get(`fire-${k}`);
+    if (!node) return undefined;
+    spots.push([node.x, node.z]);
   }
+  return spots;
 }
 
 function hasContent(sacred: SceneSacred): boolean {

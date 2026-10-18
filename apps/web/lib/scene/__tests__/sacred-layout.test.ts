@@ -1,78 +1,33 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { fallbackGeometry } from '../sacred-fallback';
 import {
   IDOL_RING_M,
-  SACRED_PHASES,
+  SACRED_SITE_KIND,
   SHRINE_FIRE_RADIUS_M,
   SHRINE_RING_M,
   groveStones,
-  sacredConstructionParts,
-  sacredPhase,
-  sacredSiteParts,
   sacredStakeLines,
   shrineFireSpots,
-  type SacredSiteKind,
 } from '../sacred-layout';
+import { ROUND_SITE_M, constructionParts, constructionState } from '../village-construction';
 
-const KINDS: readonly SacredSiteKind[] = ['modla', 'svatyne'];
-
-describe('fáze staveniště modly a svatyně', () => {
-  it('fáze navazují od 0 do 1', () => {
-    for (const kind of KINDS) {
-      const phases = SACRED_PHASES[kind];
-      expect(phases[0]!.from).toBe(0);
-      expect(phases.at(-1)!.to).toBe(1);
-      for (let i = 1; i < phases.length; i++) expect(phases[i]!.from).toBe(phases[i - 1]!.to);
+describe('staveniště modly a svatyně (fáze z village-construction.ts)', () => {
+  it('hned po zadání (průběh 0) stojí jen kolíky a provázek a světlá čára vytyčení – Martin', () => {
+    for (const kind of ['idol', 'shrine'] as const) {
+      const state = constructionState(SACRED_SITE_KIND[kind], 0);
+      expect(state.parts).toEqual(['stakes']);
+      expect(state.outline).toBe(1);
+      expect(state.phase.id).toBe('layout');
     }
   });
 
-  it('hned po zadání (průběh 0) stojí jen kolíky a provázek – Martin', () => {
-    for (const kind of KINDS) {
-      expect(sacredSiteParts(kind, 0)).toEqual(['stakes']);
-      expect(sacredPhase(kind, 0).id).toBe('layout');
-    }
-  });
-
-  it('modla jde kmen → vztyčení → osekání → řezba, na konci hotová modla s obětinami', () => {
-    expect(sacredSiteParts('modla', 0.25)).toContain('log');
-    expect(sacredSiteParts('modla', 0.4)).toEqual(
-      expect.arrayContaining(['ground', 'post', 'struts']),
-    );
-    expect(sacredSiteParts('modla', 0.6)).toContain('hewn');
-    expect(sacredSiteParts('modla', 0.8)).toContain('carved');
-    const done = sacredSiteParts('modla', 0.999);
-    expect(done).toEqual(
-      expect.arrayContaining(['ground', 'stones', 'idol', 'ribbon', 'offerings']),
-    );
-    expect(done).not.toContain('stakes');
-    expect(done).not.toContain('post');
-  });
-
-  it('svatyně kope příkop výběžek po výběžku, pak plocha, ohniště a modla', () => {
-    const digging = SACRED_PHASES.svatyne.find((p) => p.id === 'dig')!;
-    let previous = 0;
-    for (let p = digging.from; p <= digging.to; p += 0.01) {
-      const ditches = sacredSiteParts('svatyne', p).filter((part) => part.startsWith('ditch-'));
-      expect(ditches.length).toBeGreaterThanOrEqual(previous);
-      previous = ditches.length;
-    }
-    expect(previous).toBe(8);
-    expect(sacredSiteParts('svatyne', 0.3)).toContain('stakes');
-    expect(sacredSiteParts('svatyne', 0.5)).toContain('platform-1');
-    const fires = sacredSiteParts('svatyne', 0.76).filter((part) => part.startsWith('fire-'));
-    expect(fires).toHaveLength(8);
-    expect(sacredSiteParts('svatyne', 0.999)).toEqual(
-      expect.arrayContaining(['platform-2', 'paving', 'idol', 'offerings']),
-    );
-  });
-
-  it('každý díl se někdy ukáže', () => {
-    for (const kind of KINDS) {
-      const seen = new Set<string>();
-      for (let p = 0; p <= 1; p += 0.002)
-        for (const part of sacredSiteParts(kind, p)) seen.add(part);
-      expect([...seen].sort()).toEqual([...new Set(sacredConstructionParts(kind))].sort());
-    }
+  it('vytyčení náhradních tvarů sedí s kruhy staveniště (ROUND_SITE_M)', () => {
+    expect(IDOL_RING_M).toBe(ROUND_SITE_M.modla.outline);
+    expect(SHRINE_RING_M.inner).toBe(ROUND_SITE_M.svatyne.outline);
+    // ušlapaná tráva svatyně jen uvnitř příkopu
+    expect(ROUND_SITE_M.svatyne.trampled).toBeLessThan(SHRINE_RING_M.inner);
   });
 });
 
@@ -85,6 +40,23 @@ describe('ohniště a vytyčení svatyně', () => {
     expect(fires.some(([x]) => Math.abs(x) < 1)).toBe(false);
     const xs = fires.map(([x]) => Math.round(x * 1000)).sort((a, b) => a - b);
     expect(xs).toEqual([...xs].map((x) => -x).sort((a, b) => a - b));
+  });
+
+  it('spočítaná ohniště leží na uzlech fire-1…8 v shrine.glb (osa x z glTF zrcadlená)', () => {
+    const data = readFileSync(join(__dirname, '../../../public/models/sacred/shrine.glb'));
+    const length = data.readUInt32LE(12);
+    const json = JSON.parse(data.subarray(20, 20 + length).toString('utf8')) as {
+      nodes: { name?: string; translation?: [number, number, number] }[];
+    };
+    const spots = shrineFireSpots();
+    for (let k = 1; k <= 8; k++) {
+      const node = json.nodes.find((n) => n.name === `fire-${k}`);
+      expect(node?.translation, `fire-${k}`).toBeDefined();
+      const [x, , z] = node!.translation!;
+      // loader glTF převrací osu: bod (x, z) z glTF je ve scéně (−x, z)
+      expect(spots[k - 1]![0]).toBeCloseTo(-x, 1);
+      expect(spots[k - 1]![1]).toBeCloseTo(z, 1);
+    }
   });
 
   it('modla má kruh, svatyně kruh příkopu a okvětí s hroty a vrcholy výběžků', () => {
@@ -143,8 +115,8 @@ describe('náhradní tvary', () => {
       'stone-a',
       'stone-b',
       'altar',
-      ...sacredConstructionParts('modla').map((p) => `modla-${p}`),
-      ...sacredConstructionParts('svatyne').map((p) => `svatyne-${p}`),
+      ...constructionParts('modla').map((p) => `modla-${p}`),
+      ...constructionParts('svatyne').map((p) => `svatyne-${p}`),
     ];
     for (const key of keys) {
       const geometry = fallbackGeometry(key);

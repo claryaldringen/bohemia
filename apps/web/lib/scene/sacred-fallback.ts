@@ -4,13 +4,8 @@
 // svatyně s plochou, příkopem s osmi výběžky a ohništi, obětiny u dubu, kameny háje a díly
 // staveniště (hlavně vytyčení kolíky a provázkem). Souřadnice modelu jako GLB: x napříč, y nahoru,
 // z k předku, počátek = střed půdorysu na úrovni terénu.
-import {
-  IDOL_RING_M,
-  SHRINE_PETALS,
-  SHRINE_RING_M,
-  sacredStakeLines,
-  shrineFireSpots,
-} from './sacred-layout';
+import { IDOL_RING_M, SHRINE_RING_M, sacredStakeLines, shrineFireSpots } from './sacred-layout';
+import { SHRINE_PETALS } from './village-construction';
 
 type Rgb = readonly [number, number, number];
 type Vec3 = readonly [number, number, number];

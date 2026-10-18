@@ -325,21 +325,29 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   načtou až s prvním sadem.
   Dým z dýmníku (`village-smoke.ts`, sprity) podle rozvrhu ohně za herní den (`smoke-schedule.ts`, deterministicky) – hýbe se jen v záběru, ve stejném
   taktu `WATER_FPS` jako voda, při omezeném pohybu stojí.
-- **Posvátná místa** (happiness.md, `SceneVillage.sacred`): `sacred-renderer.ts` (`SacredRenderer`
+- **Posvátná místa** (happiness.md, `SceneVillage.sacred`; modely `tools/blender/sacred.py`,
+  licence v `public/models/sacred/LICENSES.md`): `sacred-renderer.ts` (`SacredRenderer`
   ve `VillageRenderer`, inkrementálně) kreslí obětiny u kmene ušetřeného posvátného dubu
   (`models/sacred/oak-offerings.glb`, počátek v ose kmene; dub sám se nikdy neskrývá – není
   v `obstacles.removed`), hraniční kameny a oltář na okraji čtverců háje (`grove-stones.glb`,
   uzly `stone-a`, `stone-b`, `altar`), hotovou modlu a svatyni (`idol.glb`, `shrine.glb`, počátek
-  uprostřed půdorysu, předek +Z; vlastní sítě položené na terén + 3 cm) a staveniště z dílů
-  `idol-construction.glb` / `shrine-construction.glb` (uzly `modla-…` / `svatyne-…`, fáze
-  `SACRED_PHASES` v `sacred-layout.ts` – čistý modul s testy). **Vytyčení kolíky a provázkem je
-  vidět hned od průběhu 0** (Martin: „Když někde zadám stavbu, ať se hned vytyčí provázkem
-  a kolíky“). Z osmi ohnišť hotové svatyně občas stoupá dým jako z obydlí (`VillageSmoke`).
-  Nenačtený GLB nahradí tvary z `sacred-fallback.ts` (jedno varování na soubor) – modely dodává
-  `tools/blender/sacred.py`. Duch při umisťování (`PlacementMode` `sacred`), výběr
-  (`village-picking.ts`: obydlí → modla/svatyně → posvátný dub → čtverce), zvýraznění, značky na
-  minimapě (`sacredMinimapMarks`) a stavitelé u staveniště (`villager-plan.ts`). Vývojový náhled
-  má tlačítka Modla, Svatyně, Ukázka svatyní a „Mýtit les s posvátným dubem / hájem“.
+  uprostřed půdorysu, předek +Z) a staveniště z dílů `idol-construction.glb` /
+  `shrine-construction.glb` (uzly `modla-…` / `svatyne-…`). Fáze a díly staveniště jsou jen
+  v `village-construction.ts` (druhy `modla`, `svatyne` – `constructionState`; kružnice
+  vytyčení a ušlapaná tráva podle `ROUND_SITE_M`, u svatyně jen uvnitř příkopu do 9,8 m).
+  **Vytyčení kolíky a provázkem je vidět hned od průběhu 0** (Martin: „Když někde zadám stavbu,
+  ať se hned vytyčí provázkem a kolíky“). Sítě modly a svatyně se kladou na terén po vrcholech
+  (terén + 3 cm) – příkop svatyně tak na svahu nezapadne a terén se neprořezává. Dým stoupá
+  z prázdných uzlů `fire-1…8` hotové svatyně (`loadMergedModelWithNodes`) jako z obydlí
+  (`VillageSmoke`). **GLB s víc meshi načítat po dílech** (`loadModelParts`) – `loadMergedModel`
+  spojením pokazí ořez stěn; oba načítače nastavují i `mesh.sideOrientation` (loader glTF
+  materiálu dílů stranu po načtení vrátí na výchozí a jednostranné plochy by zmizely).
+  Nenačtený GLB nahradí tvary z `sacred-fallback.ts` (jedno varování na soubor). Duch při
+  umisťování (`PlacementMode` `sacred`), výběr (`village-picking.ts`: obydlí → modla/svatyně →
+  posvátný dub → čtverce), zvýraznění, značky na minimapě (`sacredMinimapMarks`), stavitelé
+  u staveniště (`villager-plan.ts`) a jabloně sadu se vyhnou koruně posvátného dubu. Vývojový
+  náhled má tlačítka Modla, Svatyně, Ukázka svatyní a „Mýtit les s posvátným dubem / hájem“;
+  náhled staveb (/dev/buildings) kreslí modlu a svatyni po fázích svým potrubím.
 - **Řemeslné dílny – zatím jen modely** (pravidla v [docs/design/crafts.md](docs/design/crafts.md)
   čekají na schválení, do hry, jádra ani panelu staveb nepatří): `public/models/crafts/`
   hrnčíř a kovář (polozemnice s přístřeškem o `PORCH` 3,6 m vpředu, pod ním pec / výheň

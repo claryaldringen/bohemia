@@ -44,6 +44,7 @@ import {
   type ModelInstance,
 } from './instanced-model';
 import { OrchardRenderer } from './orchard-renderer';
+import { SACRED_SITE_KIND, sacredBuildingKey } from './sacred-layout';
 import { SacredRenderer } from './sacred-renderer';
 import { applyPitCut, type PitCuts } from './pit-cut';
 import {
@@ -398,9 +399,12 @@ export class VillageRenderer {
    */
   private updateConstruction(): boolean {
     const sites = this.village.dwellings.filter((d) => !d.built);
-    const key = sites.map(dwellingKey).join(';');
+    // rekvizity stavenišť modly a svatyně (rýč, koš, drny) jsou díly téhož GLB; hromádka
+    // kamenů (site-stones) je jen v construction.glb řemesel, který ves nenačítá – nekreslí se
+    const sacredSites = (this.village.sacred?.buildings ?? []).filter((b) => !b.built);
+    const key = [...sites.map(dwellingKey), ...sacredSites.map(sacredBuildingKey)].join(';');
     if (key === this.siteKey) return false;
-    if (sites.length > 0) void this.loadConstruction();
+    if (sites.length > 0 || sacredSites.length > 0) void this.loadConstruction();
     if (!this.siteLoading) return false;
     this.siteKey = key;
     const instances = new Map<string, ModelInstance[]>();
@@ -429,6 +433,20 @@ export class VillageRenderer {
           y: this.context.groundHeight(x, z) - 0.02,
           z,
           rotationY: rotationY + place.rotation,
+          scale,
+        });
+      }
+    }
+    for (const b of sacredSites) {
+      const kind = SACRED_SITE_KIND[b.kind];
+      for (const { prop, scale } of constructionState(kind, b.progress).props) {
+        const place = SITE_PROP_PLACES[kind][prop];
+        const [x, z] = localToWorld(b.position, place.x, place.z);
+        push(`site-${prop}`, {
+          x,
+          y: this.context.groundHeight(x, z) - 0.02,
+          z,
+          rotationY: b.position.rotation + place.rotation,
           scale,
         });
       }

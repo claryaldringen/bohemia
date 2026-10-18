@@ -1,17 +1,17 @@
-// Posvátná místa ve scéně bez Babylonu (happiness.md – Co hráč vidí): fáze staveniště modly
-// a svatyně (díly z {idol,shrine}-construction.glb – tools/blender/sacred.py), ohniště svatyně
-// pro dým, kameny na okraji dubového háje a natočení obětin u posvátného dubu. Souřadnice
-// modelu jako u obydlí (`localToWorld`: x napříč, z k předku – modla a obětiny se dívají do +z).
+// Posvátná místa ve scéně bez Babylonu (happiness.md – Co hráč vidí): ohniště svatyně pro dým,
+// čáry vytyčení (náhradní tvary a duch), kameny na okraji dubového háje a natočení obětin
+// u posvátného dubu. Fáze a díly staveniště modly a svatyně jsou jen ve village-construction.ts
+// (druhy „modla“ a „svatyne“ – sedí s {idol,shrine}-construction.glb). Souřadnice modelu jako
+// u obydlí (`localToWorld`: x napříč, z k předku – modla a obětiny se dívají do +z).
 import { SACRED_BUILDINGS, type Position, type SacredBuildingKind } from '@bohemia/game';
 import type { SceneSacred } from '../village-view';
 import { cellsBoundary, cellsContain, type CellSquare } from './field-cells';
 import { hash01 } from './smoke-schedule';
+import { ROUND_SITE_M, SHRINE_PETALS, type SacredKind } from './village-construction';
 import { footprintCorners, localToWorld, type Point } from './village-layout';
 
-/** Druh staveniště v construction.glb – předpona dílů („modla-…“, „svatyne-…“). */
-export type SacredSiteKind = 'modla' | 'svatyne';
-
-export const SACRED_SITE_KIND: Record<SacredBuildingKind, SacredSiteKind> = {
+/** Druh staveniště (village-construction.ts) – předpona dílů v GLB („modla-…“, „svatyne-…“). */
+export const SACRED_SITE_KIND: Record<SacredBuildingKind, SacredKind> = {
   idol: 'modla',
   shrine: 'svatyne',
 };
@@ -27,149 +27,18 @@ export const SACRED_MODELS = {
   groveStones: 'grove-stones.glb',
 } as const;
 
-export type SacredPhaseId =
-  | 'layout'
-  | 'ground'
-  | 'log'
-  | 'raise'
-  | 'hewn'
-  | 'carved'
-  | 'dig'
-  | 'platform'
-  | 'tamp'
-  | 'fires'
-  | 'carve'
-  | 'finish';
-
-export interface SacredPhase {
-  id: SacredPhaseId;
-  /** Popis pro vývojovou lištu (česky). */
-  label: string;
-  from: number;
-  to: number;
-}
-
-/**
- * Fáze stavby modly a svatyně (průběh 0–1 bez kácení dubů, navazují na sebe). Vytyčení
- * (kolíky a provázek) je vidět od chvíle, kdy hráč stavbu zadá – i při průběhu 0, než na ni
- * dojde práce (Martin: „ať se hned vytyčí provázkem a kolíky“).
- * Modla: vytyčení kruhu → udusaný kruh → kmen na podložkách → vztyčení (vzpěry, klínové kameny)
- * → osekání do čtyřhranu → tváře nahrubo → řezba, stužka a obětiny.
- * Svatyně: vytyčení (střed, provaz, kolíky kruhu a okvětí) → příkop výběžek po výběžku → navážka
- * plochy → udusaná plocha → ohniště → vztyčení modly → osekání a řezba → dlažba a obětiny.
- */
-export const SACRED_PHASES: Record<SacredSiteKind, readonly SacredPhase[]> = {
-  modla: [
-    { id: 'layout', label: 'vytyčení kruhu – kolíky a provázek', from: 0, to: 0.08 },
-    { id: 'ground', label: 'udusaný kruh', from: 0.08, to: 0.2 },
-    { id: 'log', label: 'dubový kmen na podložkách', from: 0.2, to: 0.32 },
-    { id: 'raise', label: 'vztyčení kůlu – vzpěry a klínové kameny', from: 0.32, to: 0.48 },
-    { id: 'hewn', label: 'osekání do čtyřhranu', from: 0.48, to: 0.66 },
-    { id: 'carved', label: 'tváře nahrubo', from: 0.66, to: 0.86 },
-    { id: 'finish', label: 'řezba, stužka a obětiny', from: 0.86, to: 1 },
-  ],
-  svatyne: [
-    { id: 'layout', label: 'vytyčení – střed, provaz, kolíky kruhu a okvětí', from: 0, to: 0.05 },
-    { id: 'dig', label: 'příkop výběžek po výběžku s valem', from: 0.05, to: 0.45 },
-    { id: 'platform', label: 'navážka vyvýšené plochy', from: 0.45, to: 0.58 },
-    { id: 'tamp', label: 'udusaná plocha', from: 0.58, to: 0.66 },
-    { id: 'fires', label: 'ohniště ve výběžcích', from: 0.66, to: 0.76 },
-    { id: 'raise', label: 'dubový kmen a vztyčení modly', from: 0.76, to: 0.86 },
-    { id: 'carve', label: 'osekání a řezba modly', from: 0.86, to: 0.95 },
-    { id: 'finish', label: 'kamenná dlažba, stužka a obětiny', from: 0.95, to: 1 },
-  ],
-};
-
-/** Výběžků příkopu a ohnišť svatyně (sacred.py – N_PETALS). */
-export const SHRINE_PETALS = 8;
 /** Poloměr ohnišť – uprostřed výběžku příkopu (sacred.py – R_FIRE = (R_IN + R_TIP) / 2). */
 export const SHRINE_FIRE_RADIUS_M = 12.5;
 /** Vnitřní okraj příkopu, hroty a vrcholy okvětí (sacred.py – R_IN, R_CUSP, R_TIP). */
-export const SHRINE_RING_M = { inner: 11.1, cusp: 12.1, tip: 13.9 } as const;
+export const SHRINE_RING_M = {
+  inner: ROUND_SITE_M.svatyne.outline,
+  cusp: 12.1,
+  tip: 13.9,
+} as const;
 /** Udusaný kruh modly (sacred.py – kruh Ø ≈ 4 m). */
-export const IDOL_RING_M = 2;
+export const IDOL_RING_M = ROUND_SITE_M.modla.outline;
 /** Dým z ohniště stoupá kousek nad dnem příkopu (m). */
 export const SHRINE_SMOKE_LIFT_M = 0.35;
-
-interface PartRule {
-  part: string;
-  from: number;
-  /** Od kdy díl zmizí (kolíky po vytyčení, kmen po vztyčení…). */
-  to?: number;
-}
-
-function phaseOf(kind: SacredSiteKind, id: SacredPhaseId): SacredPhase {
-  return SACRED_PHASES[kind].find((p) => p.id === id) ?? SACRED_PHASES[kind][0]!;
-}
-
-/** Fáze stavby podle průběhu (poslední fáze zahrnuje i 1). */
-export function sacredPhase(kind: SacredSiteKind, progress: number): SacredPhase {
-  const phases = SACRED_PHASES[kind];
-  const p = Math.min(1, Math.max(0, progress));
-  return phases.find((phase) => p < phase.to) ?? phases[phases.length - 1]!;
-}
-
-/** Kdy se který díl staveniště objeví a zmizí (jména dílů bez předpony druhu). */
-export function sacredPartSchedule(kind: SacredSiteKind): PartRule[] {
-  const within = (id: SacredPhaseId, t: number): number => {
-    const p = phaseOf(kind, id);
-    return p.from + (p.to - p.from) * t;
-  };
-  const series = (name: string, count: number, id: SacredPhaseId): PartRule[] =>
-    Array.from({ length: count }, (_, k) => ({
-      part: `${name}-${k + 1}`,
-      from: within(id, 0.05 + (0.85 * k) / Math.max(1, count - 1)),
-    }));
-  if (kind === 'modla') {
-    return [
-      // kolíky a provázek stojí od zadání stavby (průběh 0) do konce dusání kruhu
-      { part: 'stakes', from: 0, to: phaseOf(kind, 'ground').to },
-      { part: 'ground', from: within('ground', 0.3) },
-      { part: 'log', from: within('log', 0.1), to: within('raise', 0.3) },
-      { part: 'struts', from: within('raise', 0.2), to: phaseOf(kind, 'hewn').from },
-      { part: 'post', from: within('raise', 0.3), to: within('hewn', 0.4) },
-      { part: 'stones', from: within('raise', 0.7) },
-      { part: 'hewn', from: within('hewn', 0.4), to: within('carved', 0.4) },
-      { part: 'chips', from: within('hewn', 0.2), to: within('finish', 0.6) },
-      { part: 'carved', from: within('carved', 0.4), to: within('finish', 0.3) },
-      { part: 'idol', from: within('finish', 0.3) },
-      { part: 'ribbon', from: within('finish', 0.6) },
-      { part: 'offerings', from: within('finish', 0.8) },
-    ];
-  }
-  return [
-    // vytyčení kruhu a okvětí stojí od zadání stavby, dokud se kope příkop
-    { part: 'stakes', from: 0, to: phaseOf(kind, 'platform').from },
-    ...series('ditch', SHRINE_PETALS, 'dig'),
-    { part: 'platform-1', from: within('platform', 0.2), to: within('tamp', 0.5) },
-    { part: 'platform-2', from: within('tamp', 0.5) },
-    ...series('fire', SHRINE_PETALS, 'fires'),
-    { part: 'log', from: within('raise', 0.05), to: within('raise', 0.45) },
-    { part: 'struts', from: within('raise', 0.4), to: phaseOf(kind, 'carve').from },
-    { part: 'post', from: within('raise', 0.45), to: within('carve', 0.25) },
-    { part: 'stones', from: within('raise', 0.8) },
-    { part: 'hewn', from: within('carve', 0.25), to: within('carve', 0.55) },
-    { part: 'carved', from: within('carve', 0.55), to: within('carve', 0.9) },
-    { part: 'idol', from: within('carve', 0.9) },
-    { part: 'chips', from: within('carve', 0.1), to: within('finish', 0.4) },
-    { part: 'paving', from: within('finish', 0.2) },
-    { part: 'ribbon', from: within('finish', 0.5) },
-    { part: 'offerings', from: within('finish', 0.75) },
-  ];
-}
-
-/** Všechny díly staveniště daného druhu (jména uzlů v GLB bez předpony). */
-export function sacredConstructionParts(kind: SacredSiteKind): string[] {
-  return sacredPartSchedule(kind).map((rule) => rule.part);
-}
-
-/** Díly, které staveniště ukáže při průběhu `progress` (0–1). */
-export function sacredSiteParts(kind: SacredSiteKind, progress: number): string[] {
-  const p = Math.min(1, Math.max(0, progress));
-  return sacredPartSchedule(kind)
-    .filter((rule) => p >= rule.from && (rule.to === undefined || p < rule.to))
-    .map((rule) => rule.part);
-}
 
 /**
  * Ohniště svatyně v souřadnicích modelu (x napříč, z k předku): uprostřed výběžků příkopu pod
@@ -183,9 +52,15 @@ export function shrineFireSpots(): Point[] {
   });
 }
 
-/** Ohniště svatyně ve světě. */
-export function shrineFiresWorld(position: Position): Point[] {
-  return shrineFireSpots().map(([x, z]) => localToWorld(position, x, z));
+/**
+ * Ohniště svatyně ve světě – z uzlů fire-1…8 modelu (`spots`, souřadnice modelu), bez nich
+ * spočítaná (`shrineFireSpots`).
+ */
+export function shrineFiresWorld(
+  position: Position,
+  spots: readonly Point[] = shrineFireSpots(),
+): Point[] {
+  return spots.map(([x, z]) => localToWorld(position, x, z));
 }
 
 /**
