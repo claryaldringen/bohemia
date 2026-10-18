@@ -322,11 +322,17 @@ a v ustáleném oběhu pole ≈ 9 ha; na obživu jí padne ≈ 79 % práce. Na p
 (průměr luk v okolí vsi) potřebuje osev ≈ 3,4 ha a pole ≈ 11 ha a obživa jí vezme ≈ 90 % práce
 – na chudé půdě ves sotva roste.
 
-**Kolik půdy je:** do 600 m od místa vsi je typicky jen ≈ 35 ha luk s průměrnou úrodností
-≈ 45, z toho ≈ 14 ha s úrodností aspoň 60, skoro vše do 300 m (měření na 60 krajinách).
-S přílohovou soustavou louky uživí jen zhruba **3–4 domácnosti** – mýcení lesa patří k růstu
-vsi od začátku (Martin). Hektar lesa stojí 250 člověkodní a vymýcená půda má 3 roky bonus
-úrodnosti; ves se třemi domácnostmi ho zvládne zhruba za půl roku společné práce.
+**Kolik půdy je** (krajiny nových sídel od 18. 10. 2026 – vegetace a úrodnost 2,
+[krajina](landscape.md)): do 600 m od místa vsi je **≈ 60 ha luk** (p10 59, p90 61,5) s průměrnou
+úrodností ≈ 56, z toho **≈ 34,5 ha s úrodností aspoň 60** (p10 32, p90 38), hlavně lužní louky
+v nivě potoka a roviny u vody; do 300 m je z toho ≈ 25 ha (měření na 500 krajinách,
+`measure-landscapes.ts`). Dřív (verze 1, sídla založená do 18. 10. 2026 si ji nechávají) to
+bylo jen ≈ 36 ha luk s úrodností ≈ 45, z toho ≈ 14 ha úrodných, skoro vše do 300 m.
+Hrubý odhad: s dnešním oběhem (pole ≈ 3,3× osev) uživí louky v okolí zhruba **6 domácností**
+(dřív 3–4), s dlouhým přílohem (≈ 13 let, pole 5–6× osev) zhruba **4** (dřív 2). Mýcení lesa
+dál patří k růstu vsi (Martin – dlouhý příloh, růst mýcením a víc dobré louky). Hektar lesa
+stojí 250 člověkodní a vymýcená půda má 3 roky bonus úrodnosti; ves se třemi domácnostmi ho
+zvládne zhruba za půl roku společné práce.
 
 ## Kalibrace
 
@@ -341,7 +347,8 @@ Měřicí skript (jako u populace) ověří:
 - ves s poli přiměřené velikosti drží zásoby mezi 1 a 1,5 roční potřeby a nasycení ≥ 0,95
   po 95 % let,
 - startovní ves stihne jarní i letní práce s rezervou aspoň 20 %,
-- na typické krajině uživí louky v okolí 3–4 domácnosti; ves, která mýtí les, roste dál,
+- na typické krajině uživí louky v okolí 3–4 domácnosti; ves, která mýtí les, roste dál
+  (syntetická louka 35 ha z doby krajin verze 1 – nové krajiny mají ≈ 60 ha, viz Kolik půdy je),
 - cíle populace platí dál i se skutečným jídlem místo pevných 85 % (první stavba u 90 % vsí
   do ≈ 8 let).
 
