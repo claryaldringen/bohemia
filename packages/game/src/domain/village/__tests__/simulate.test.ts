@@ -883,6 +883,66 @@ describe('advanceVillage – obydlí', () => {
     expect(viaJson(chunked)).toEqual(viaJson(whole));
   });
 
+  // Sňatky mezi domy (population.md; Martin, 18. 10. 2026: „Ano, přidej sňatky mezi domy“).
+  /**
+   * Vlkov (rok 612): zemnice 1 – pár 42 a 19 s malými dětmi, polozemnice 2 – starší 63 a 49,
+   * jediný 27letý a děti. Za tři roky je 42letý starší a 19letý zůstane bez protějšku.
+   */
+  function vlkov(day: number): VillageState {
+    const s = crowdedVillage(day, { 1: [42, 19, 2, 1], 2: [63, 49, 27, 12, 10, 6] });
+    s.dwellings.find((d) => d.id === 2)!.type = 'polozemnice';
+    s.storesKg = 60_000; // bez polí – zásoby na celý test, ať porody netlumí hlad
+    return s;
+  }
+  type MarriageEvent = Extract<ChronicleEvent, { kind: 'marriage' }>;
+  const marriages = (s: VillageState): MarriageEvent[] =>
+    s.chronicle.filter((e): e is MarriageEvent => e.kind === 'marriage');
+
+  it('Vlkov: po třech letech se 27letý přistěhuje k 19letému do zemnice a mají děti', () => {
+    const day = at(612, 3, 1);
+    const s0 = vlkov(day);
+    // dokud má 19letý v domě protějšek (42), svatba není
+    expect(marriages(advanceVillage(s0, day + Math.floor(2.9 * YEAR), null))).toEqual([]);
+    const s = advanceVillage(s0, day + Math.ceil(12 * YEAR), null);
+    const [wedding] = marriages(s);
+    // z polozemnice odejít smí (zůstane patnáctiletý), ze zemnice by zůstal jen starší s dětmi
+    expect(wedding).toMatchObject({ fromDwellingId: 2, toDwellingId: 1 });
+    expect(wedding!.day - day).toBeGreaterThan(2.9 * YEAR);
+    expect(wedding!.day - day).toBeLessThan(3.1 * YEAR);
+    expect(marriages(s)).toHaveLength(1);
+    expect(originalOccupants(s, 1, s0.nextId)).toEqual([100, 101, 102, 103, 202]);
+    // nový pár (19letý a 27letý) má v zemnici děti
+    const born = s.people.filter(
+      (p) => p.id >= s0.nextId && p.bornDay > wedding!.day && p.dwellingId === 1,
+    );
+    expect(born.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('svobodní ve dvou domech, kde by se obě domácnosti rozpadly – nikdo se nestěhuje', () => {
+    const day = at(600, 10, 1);
+    const s0 = crowdedVillage(day, { 1: [50, 30, 5], 2: [48, 20, 3] });
+    const s = advanceVillage(s0, day + 5, null);
+    expect(marriages(s)).toEqual([]);
+    expect(count(s, 'household-merged')).toBe(0);
+    expect(originalOccupants(s, 1, s0.nextId)).toEqual([100, 101, 102]);
+  });
+
+  it('sňatky nezávisí na kouscích dopočtu', () => {
+    const day = at(612, 3, 1);
+    const start = vlkov(day);
+    const end = day + Math.ceil(6 * YEAR);
+    const whole = advanceVillage(start, end, null);
+    expect(marriages(whole)).toHaveLength(1);
+    const viaJson = (s: VillageState): VillageState =>
+      JSON.parse(JSON.stringify(s)) as VillageState;
+    let chunked = viaJson(start);
+    for (const days of [1, 3, 17, 1, 40, 2, 90, 200, 400, 1000]) {
+      chunked = viaJson(advanceVillage(chunked, Math.min(end, chunked.lastDay + days), null));
+    }
+    chunked = advanceVillage(chunked, end, null);
+    expect(viaJson(chunked)).toEqual(viaJson(whole));
+  });
+
   it('prázdné obydlí chátrá a na nule zanikne', () => {
     const day = at(600, 10, 1);
     const s0 = withoutFields(day);

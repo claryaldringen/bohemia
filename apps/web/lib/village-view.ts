@@ -255,6 +255,8 @@ export interface VillageView {
   scene: SceneVillage;
   /** Posledních CHRONICLE_LENGTH událostí, nejnovější první. */
   chronicle: { day: number; dateLabel: string; text: string }[];
+  /** Den poslední svatby mezi domy (population.md – Sňatky mezi domy); žádná null. */
+  lastMarriageDay: number | null;
 }
 
 /** Hřbitov pro panel výběru – čísla, žádné věty (rozhraní jako v 0 A.D.). */
@@ -562,6 +564,8 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       return 'Dva mladí dospělí založili v novém obydlí vlastní domácnost.';
     case 'household-merged':
       return 'Zbytek domácnosti se přestěhoval k sousedům.';
+    case 'marriage':
+      return 'Svatba – jeden ze snoubenců se přestěhoval do domu druhého.';
     case 'construction-finished':
       return finishedText(event.constructionKind, event.craft);
     case 'rebuild-decided':
@@ -907,6 +911,15 @@ function scenePart(
   return scene;
 }
 
+/** Den poslední svatby mezi domy v kronice; žádná null. */
+function lastMarriageDay(state: VillageState): number | null {
+  for (let i = state.chronicle.length - 1; i >= 0; i--) {
+    const event = state.chronicle[i];
+    if (event?.kind === 'marriage') return event.day;
+  }
+  return null;
+}
+
 function chronicle(state: VillageState, name: string): VillageView['chronicle'] {
   return state.chronicle
     .slice(-CHRONICLE_LENGTH)
@@ -1101,6 +1114,7 @@ export function buildVillageView(
     }),
     scene: sceneVillage(state, landscape, day, summary),
     chronicle: chronicle(state, name),
+    lastMarriageDay: lastMarriageDay(state),
   };
 }
 

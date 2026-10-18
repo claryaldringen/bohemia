@@ -3,7 +3,8 @@ import type { VillageView } from './village-view';
 // Upozornění vsi (population.md – Co hráč vidí): plná domácnost, ves hladoví, lidé umírají hlady
 // (Hlad a vymření), stavby stojí, hřbitov je plný (cemetery.md), vesničané ušetřili posvátný dub
 // nebo dubový háj (happiness.md – jen když přibude), kovář nemá uhlí a dílna nemá co kácet
-// (crafts.md). Vymřelá ves žádná nemá.
+// (crafts.md), svatba mezi domy (population.md – Sňatky mezi domy, když přibude). Vymřelá ves
+// žádná nemá.
 // Odvozují se z pohledu na ves a ukážou se jednou, když nově vzniknou – jako krátký mizející
 // řádek nahoře uprostřed (jako oznámení v 0 A.D.). Jen fakt, žádná rada.
 
@@ -16,7 +17,8 @@ export type NoticeKind =
   | 'no-charcoal'
   | 'no-wood'
   | 'sacred-oak'
-  | 'sacred-grove';
+  | 'sacred-grove'
+  | 'marriage';
 
 export interface VillageNotice {
   kind: NoticeKind;
@@ -66,6 +68,11 @@ export function newNotices(previous: VillageView | null, next: VillageView): Vil
   }
   if (next.sacred.groves.length > previous.sacred.groves.length) {
     notices.push({ kind: 'sacred-grove', tone: 'info', text: 'Vesničané ušetřili dubový háj' });
+  }
+  // svatba mezi domy – fakt, když od minulého pohledu přibude (population.md)
+  const married = next.lastMarriageDay;
+  if (!next.extinct && married !== null && married > (previous.lastMarriageDay ?? -Infinity)) {
+    notices.push({ kind: 'marriage', tone: 'info', text: 'Svatba' });
   }
   return notices;
 }

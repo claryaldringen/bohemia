@@ -18,6 +18,7 @@ import {
 import { endOfSeason, expectedNetKg, sowingOrder } from './fields';
 import { daysUntilAppleRot, eatMeal } from './food';
 import { isToilDay, updateHappiness, villageLaborFactor, windowEndDay } from './happiness';
+import { arrangeMarriages } from './marriage';
 import { recordClearedObstacles } from './obstacles';
 import { relocationPlot } from './plots';
 import { allocateDay, type LaborTaskName } from './labor';
@@ -187,6 +188,8 @@ function simulateDay(
   finishConstructions(state, day);
   decideRebuilds(state, day, obstacles, landscape);
   occupyEmptyDwellings(state, day);
+  // sňatky mezi domy – svobodní ve dvou domech se vezmou (population.md – Sňatky mezi domy)
+  state.chronicle.push(...arrangeMarriages(state, day));
   const satiation = eat(state, day, coverage);
   // nahromaděný hlad se počítá z dnešního jídla – úmrtí dne podle něj (population.md); v hájení
   // zůstává pod prahem, aby po něm lidé umírali postupně

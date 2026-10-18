@@ -301,6 +301,8 @@ export type ChronicleEvent = { day: number } & (
   | { kind: 'village-extinct' }
   | { kind: 'household-founded'; dwellingId: number }
   | { kind: 'household-merged'; fromDwellingId: number; toDwellingId: number }
+  /** Sňatek mezi domy (population.md) – svobodný z domu `from` se přestěhoval k protějšku. */
+  | { kind: 'marriage'; fromDwellingId: number; toDwellingId: number }
   | {
       kind: 'construction-finished';
       constructionKind: ConstructionKind;

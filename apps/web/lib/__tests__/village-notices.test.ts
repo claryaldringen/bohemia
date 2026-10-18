@@ -104,6 +104,7 @@ const view = (overrides: Partial<VillageView> = {}): VillageView => ({
   gameOver: false,
   scene: { dwellings: [], fields: [] },
   chronicle: [],
+  lastMarriageDay: null,
   ...overrides,
 });
 
@@ -158,6 +159,19 @@ describe('newNotices', () => {
 
   it('první pohled na ves nic neohlásí', () => {
     expect(newNotices(null, view({ hungry: true }))).toEqual([]);
+  });
+
+  it('svatba mezi domy – krátký fakt, jen když od minulého pohledu přibude', () => {
+    const before = view({ lastMarriageDay: 900 });
+    expect(newNotices(view(), before)).toEqual([
+      { kind: 'marriage', tone: 'info', text: 'Svatba' },
+    ]);
+    expect(newNotices(before, view({ lastMarriageDay: 900 }))).toEqual([]);
+    expect(newNotices(before, view({ lastMarriageDay: 990 })).map((n) => n.kind)).toEqual([
+      'marriage',
+    ]);
+    // trvalé upozornění to není
+    expect(villageNotices(view({ lastMarriageDay: 990 }))).toEqual([]);
   });
 });
 
