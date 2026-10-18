@@ -4,6 +4,7 @@ import {
   chickenBox,
   chickenPoint,
   chickensFor,
+  herdCounts,
   householdCount,
   livestockGround,
   planLivestock,
@@ -61,6 +62,22 @@ describe('planLivestock – kolik zvířat', () => {
     expect(species(plan.herds, 'flock', 'goat')).toBe(7);
     expect(species(plan.herds, 'cattle', 'cow')).toBe(4);
     expect(species(plan.herds, 'swine', 'pig')).toBe(14);
+  });
+
+  it('skutečné počty stád od jádra (diet.md) místo odvození z domácností', () => {
+    const village: LivestockVillage = {
+      ...VILLAGE,
+      livestock: { sheep: 30.4, goat: 6, pig: 3, cow: 0 },
+    };
+    expect(herdCounts(village)).toEqual({ sheep: 30, goat: 6, pig: 3, cow: 0 });
+    const plan = planLivestock(village, GROUND, 7);
+    expect(species(plan.herds, 'flock', 'sheep')).toBe(30);
+    expect(species(plan.herds, 'flock', 'goat')).toBe(6);
+    // stádo nejvýš po 20 kusech – 36 ovcí a koz jsou dvě stáda
+    expect(plan.herds.filter((h) => h.kind === 'flock')).toHaveLength(2);
+    expect(species(plan.herds, 'swine', 'pig')).toBe(3);
+    // krávy v ohradě (v zimě) se nepasou
+    expect(plan.herds.filter((h) => h.kind === 'cattle')).toHaveLength(0);
   });
 
   it('bez obydlí nic, rozmístění je deterministické', () => {

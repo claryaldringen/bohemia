@@ -1,4 +1,5 @@
 import { TOTAL_GAME_DAYS, dateOfDayIndex, dayIndexOf } from '../calendar';
+import { DIET } from './diet';
 import { isOvercrowded } from './dwellings';
 import { foodNeedPerDay } from './people';
 import {
@@ -57,13 +58,19 @@ export interface HappinessFactors {
   toil: number;
   /** Zásoby obilí na víc než rok – +5. */
   stores: number;
+  /** Lidé jedí ovoce – sladké, +5 (diet.md). */
+  fruit: number;
   /** Posvátná místa – nejvýš +40. */
   sacred: number;
 }
 
-/** Cílové štěstí = 50 + posvátná místa + zásoby − hlad − úmrtí − přeplněnost − dřina (0–100). */
+/**
+ * Cílové štěstí = 50 + posvátná místa + zásoby + ovoce − hlad − úmrtí − přeplněnost − dřina
+ * (0–100).
+ */
 export function happinessTarget(f: HappinessFactors): number {
-  const value = HAPPINESS.base + f.sacred + f.stores - f.hunger - f.deaths - f.crowding - f.toil;
+  const value =
+    HAPPINESS.base + f.sacred + f.stores + f.fruit - f.hunger - f.deaths - f.crowding - f.toil;
   return Math.min(HAPPINESS.max, Math.max(HAPPINESS.min, value));
 }
 
@@ -106,11 +113,15 @@ export function hasGoodStores(state: VillageState, day: number): boolean {
   return need > 0 && state.storesKg > need * DAYS_PER_YEAR * HAPPINESS_BONUS.storesYears;
 }
 
-/** Složky cílového štěstí vsi v den `day` při nasycení `satiation`. */
+/**
+ * Složky cílového štěstí vsi v den `day` při nasycení `satiation`; `fruit` – lidé dnes jedí ovoce
+ * (diet.md).
+ */
 export function happinessFactors(
   state: VillageState,
   day: number,
   satiation: number,
+  fruit = false,
 ): HappinessFactors {
   const memory = state.happiness;
   return {
@@ -119,6 +130,7 @@ export function happinessFactors(
     crowding: HAPPINESS_PENALTY.crowdingMax * crowdedShare(state, day),
     toil: toilPenalty(memory?.toil ?? []),
     stores: hasGoodStores(state, day) ? HAPPINESS_BONUS.stores : 0,
+    fruit: fruit ? DIET.fruitHappiness : 0,
     sacred: sacredHappiness(state),
   };
 }
@@ -138,7 +150,7 @@ function deathPoints(events: readonly ChronicleEvent[]): { day: number; points: 
 export function updateHappiness(
   state: VillageState,
   day: number,
-  input: { satiation: number; events: readonly ChronicleEvent[]; toil: boolean },
+  input: { satiation: number; events: readonly ChronicleEvent[]; toil: boolean; fruit?: boolean },
 ): void {
   const memory: HappinessState = state.happiness ?? {
     value: HAPPINESS.start,
@@ -150,7 +162,9 @@ export function updateHappiness(
   );
   const toil = [...memory.toil, input.toil ? 1 : 0].slice(-HAPPINESS_PENALTY.toilWindowDays);
   state.happiness = { value: memory.value, deaths, toil };
-  const target = happinessTarget(happinessFactors(state, day, input.satiation));
+  const target = happinessTarget(
+    happinessFactors(state, day, input.satiation, input.fruit ?? false),
+  );
   state.happiness.value = memory.value + (target - memory.value) * DAILY_SHARE;
 }
 

@@ -196,6 +196,15 @@ describe('buildVillageView', () => {
         blocked: null,
         affordable: false,
       },
+      // ohrada s přístřeškem (oxen.md) – 40 čd a 6 stromů předem, osadníci ne
+      pen: {
+        laborManDays: 40,
+        perHa: false,
+        perSquare: false,
+        upfront: [{ resource: 'wood', amount: 6, missing: 6 }],
+        blocked: null,
+        affordable: false,
+      },
     });
     // zakladatelé bydlí na staveništi – domácnost s obydlím přibude s dostavěním zemnice
     expect(view.households).toEqual([]);
@@ -575,7 +584,12 @@ describe('buildVillageView', () => {
     const s = state();
     const view = buildVillageView(record(s), landscape, DAY);
     expect(view.chronicle).toEqual([
-      { day: DAY, dateLabel: '12. dubna 503', text: 'Osadníci založili ves Libice.' },
+      {
+        day: DAY,
+        kind: 'village-founded',
+        dateLabel: '12. dubna 503',
+        text: 'Osadníci založili ves Libice.',
+      },
     ]);
     s.chronicle.push(
       ...Array.from({ length: 20 }, (_, i) => ({ day: DAY + i + 1, kind: 'birth' as const })),
@@ -883,7 +897,7 @@ describe('sad v pohledu na ves', () => {
 
   it('kronika: sklizeň jablek a dosloužilý sad', () => {
     expect(chronicleText({ day: 0, kind: 'apple-harvest', kg: 1234 }, 'Libice')).toBe(
-      'Sklizeň jablek: 1 234 kg.',
+      'Sklizeň ovoce: 1 234 kg.',
     );
     expect(chronicleText({ day: 0, kind: 'orchard-gone', orchardId: 3 }, 'Libice')).toBe(
       'Starý sad dosloužil a zarostl loukou.',

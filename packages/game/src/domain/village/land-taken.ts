@@ -1,4 +1,5 @@
-import { PART_TASKS, taskPosition, taskSpans } from './field-progress';
+import { PART_TASKS, taskPosition, taskSpans, type PartTask } from './field-progress';
+import { HAY, mowingPosition, mowingSpans } from './hay';
 import { recordClearedObstacles } from './obstacles';
 import { squareCareWork, squareHarvestWork, squareYieldKg } from './orchard';
 import { TAKEN_LAND_MIN_SHARE } from './rules';
@@ -12,16 +13,16 @@ import type {
   YearPlan,
 } from './types';
 import { addLogs, logsFromClearedTrees } from './wood';
-import { planCrops } from './year-plan';
+import { partWeight, planCrops } from './year-plan';
 
 // Pole a sad ustupují stavbě obydlí (population.md – Obydlí na poli a v sadu; Martin, 18. 10.
 // 2026: „domy by měly jít stavět na polích a v sadech. Pole a sad se prostě zmenší o plochu
 // domu“). Kolik ze kterého čtverce obydlí sebere, spočítá kontrola umístění (placement.ts) –
 // pozemek celé políčko, obydlí bez pozemku průnik vyklízené plochy se čtvercem. Odsud se to
 // promítne do stavu vsi: díl pole nebo čtverec sadu se zmenší, pod TAKEN_LAND_MIN_SHARE políčka
-// zmizí celý; s plochou ubude úměrně i úroda a práce (plán osevu, založení, výsadba, sezónní
-// práce v sadech). Pole a sad, kterým nezbyl žádný čtverec, zaniknou; zbytek zůstává jedním
-// polem / sadem, i když se tím rozpadne na nesouvislé části.
+// zmizí celý; s plochou ubude úměrně i úroda a práce (plán osevu i s orbou rádlem, seč sena,
+// založení, výsadba, sezónní práce v sadech). Pole a sad, kterým nezbyl žádný čtverec, zaniknou;
+// zbytek zůstává jedním polem / sadem, i když se tím rozpadne na nesouvislé části.
 
 /** Kus čtverce pole nebo sadu, který stavba obydlí sebere – plocha (m²) z políčka `cellAreaM2`. */
 export interface TakenLand {
@@ -66,9 +67,9 @@ const cellKey = (cell: TileCell): string => `${cell.x},${cell.y}`;
 /**
  * Pole a sady ustoupí stavbě obydlí (mutuje stav – volat na klonu): každý díl pole a čtverec
  * sadu na políčku z `taken` se zmenší o zabranou plochu, pod TAKEN_LAND_MIN_SHARE políčka zmizí
- * celý. S plochou ubude úměrně práce a úroda – plán osevu (`taskSpans` – díl drží svůj podíl
- * hotové práce), rozestavěné založení pole a výsadba sadu (cena i odvedená práce), sezónní
- * práce v sadech a úroda jablek. Zmizelý zakládaný díl nebo nevysazený čtverec předá své
+ * celý. S plochou ubude úměrně práce a úroda – plán osevu i s orbou (`taskSpans` – díl drží
+ * svůj podíl hotové práce), seč sena na úhoru, rozestavěné založení pole a výsadba sadu (cena
+ * i odvedená práce), sezónní práce v sadech a úroda jablek. Zmizelý zakládaný díl nebo nevysazený čtverec předá své
  * překážky stavbě obydlí – odklidí se se staveništěm bez práce navíc a dospělé stromy dají
  * klády. Pole a sad bez čtverců zaniknou i se svou stavbou. Kronika zapíše `land-taken`.
  */
@@ -109,8 +110,9 @@ function shrinkParts(
     const lost = part.areaM2 - left;
     if (lost <= EPSILON) continue;
     const share = left > 0 ? lost / part.areaM2 : 1;
-    // plán a založení podle plochy před zmenšením (váha dílu v pořadí práce)
+    // plán, seč a založení podle plochy před zmenšením (váha dílu v pořadí práce)
     if (state.plan) shrinkInPlan(state, state.plan, part, share, day);
+    shrinkInMowing(state, part, share);
     shrinkFounding(state, part, share);
     loss.set(part.fieldId, (loss.get(part.fieldId) ?? 0) + lost);
     if (left > 0) {
@@ -123,6 +125,7 @@ function shrinkParts(
       if (!plan) continue;
       for (const { work } of planCrops(plan)) dropFromWork(work, new Set([part.id]));
     }
+    dropFromMowing(state, part.id);
     handOverObstacles(state, part, day);
   }
   if (removed.size === 0) return loss;
@@ -143,10 +146,28 @@ function shrinkParts(
   return loss;
 }
 
+/** Potřebná a odvedená práce úlohy plodiny – orba rádlem (oxen.md) vedená zvlášť v `plough`. */
+function taskWork(work: CropWork, task: PartTask): { required: number; done: number } {
+  if (task === 'plough')
+    return { required: work.plough?.required ?? 0, done: work.plough?.done ?? 0 };
+  return { required: work.required[task], done: work.done[task] };
+}
+
+function setTaskWork(work: CropWork, task: PartTask, required: number, done: number): void {
+  if (task !== 'plough') {
+    work.required[task] = required;
+    work.done[task] = done;
+  } else if (work.plough) {
+    work.plough.required = required;
+    work.plough.done = done;
+  }
+}
+
 /**
- * Díl ubere z práce plodiny podíl `share` (mutuje plán): v každé úloze ubude potřebné práce podle
- * jeho váhy a hotové práce, kolik jí na něm bylo – čelo práce i hotové díly ostatních zůstanou
- * tam, kde byly. Výmlat jako sklizeň. Sklizená plodina (úroda už je v zásobách) se nemění.
+ * Díl ubere z práce plodiny podíl `share` (mutuje plán): v každé úloze (i v orbě) ubude potřebné
+ * práce podle jeho váhy a hotové práce, kolik jí na něm bylo – čelo práce i hotové díly ostatních
+ * zůstanou tam, kde byly. Výmlat jako sklizeň; váha oraných či kopaných dílů orby (setí jde za
+ * obojím) ubude o váhu dílu. Sklizená plodina (úroda už je v zásobách) se nemění.
  */
 function shrinkInPlan(
   state: VillageState,
@@ -161,12 +182,22 @@ function shrinkInPlan(
     for (const task of PART_TASKS) {
       const span = taskSpans(work, partsById, task, day).find((s) => s.id === part.id);
       if (!span) continue;
-      const required = work.required[task];
+      const { required, done } = taskWork(work, task);
       const position = taskPosition(work, task);
       const doneOnPart =
         (Math.min(span.end, Math.max(span.start, position)) - span.start) * required;
-      work.required[task] = Math.max(0, required - share * (span.end - span.start) * required);
-      work.done[task] = Math.max(0, work.done[task] - share * doneOnPart);
+      setTaskWork(
+        work,
+        task,
+        Math.max(0, required - share * (span.end - span.start) * required),
+        Math.max(0, done - share * doneOnPart),
+      );
+    }
+    const plough = work.plough;
+    if (plough) {
+      const lost = share * partWeight(part);
+      if (plough.partIds.includes(part.id)) plough.weight = Math.max(0, plough.weight - lost);
+      else plough.digWeight = Math.max(0, plough.digWeight - lost);
     }
     const harvest = taskSpans(work, partsById, 'harvest', day).find((s) => s.id === part.id);
     if (harvest) {
@@ -177,13 +208,50 @@ function shrinkInPlan(
   }
 }
 
-/** Odebrané díly zmizí z pořadí práce plodiny (i z vracených přílohů). */
+/** Odebrané díly zmizí z pořadí práce plodiny (i z vracených přílohů a z orby). */
 function dropFromWork(work: CropWork, removed: ReadonlySet<number>): void {
   work.partIds = work.partIds.filter((id) => !removed.has(id));
+  const plough = work.plough;
+  if (plough) {
+    plough.partIds = plough.partIds.filter((id) => !removed.has(id));
+    const returned = (plough.returned ?? []).filter((id) => !removed.has(id));
+    if (returned.length > 0) plough.returned = returned;
+    else delete plough.returned;
+  }
   if (!work.reclaimIds) return;
   const reclaimIds = work.reclaimIds.filter((id) => !removed.has(id));
   if (reclaimIds.length > 0) work.reclaimIds = reclaimIds;
   else delete work.reclaimIds;
+}
+
+/**
+ * Díl úhoru v letošní seči sena (oxen.md – Seno) ubere podíl `share`: potřebná práce podle jeho
+ * váhy, hotová, kolik jí na něm bylo (čelo seče zůstane), a seno při plné seči podle plochy.
+ * Posečené seno už je v zásobě.
+ */
+function shrinkInMowing(state: VillageState, part: FieldPart, share: number): void {
+  const mowing = state.hay?.mowing;
+  if (!mowing || !mowing.partIds.includes(part.id)) return;
+  const partsById = new Map(state.parts.map((p) => [p.id, p]));
+  const span = mowingSpans(mowing, partsById).find((s) => s.id === part.id);
+  if (!span) return;
+  const position = mowingPosition(mowing);
+  const doneOnPart =
+    (Math.min(span.end, Math.max(span.start, position)) - span.start) * mowing.required;
+  mowing.required = Math.max(
+    0,
+    mowing.required - share * (span.end - span.start) * mowing.required,
+  );
+  mowing.done = Math.max(0, Math.min(mowing.required, mowing.done - share * doneOnPart));
+  mowing.yieldKg = Math.max(0, mowing.yieldKg - (share * part.areaM2 * HAY.yieldKgPerHa) / 10_000);
+}
+
+/** Odebraný díl zmizí ze seče; seč bez dílů se zruší. */
+function dropFromMowing(state: VillageState, partId: number): void {
+  const hay = state.hay;
+  if (!hay?.mowing) return;
+  hay.mowing.partIds = hay.mowing.partIds.filter((id) => id !== partId);
+  if (hay.mowing.partIds.length === 0) hay.mowing = null;
 }
 
 /** Zakládaný díl: založení se zmenší úměrně – cena i odvedená práce dílu i stavby pole. */

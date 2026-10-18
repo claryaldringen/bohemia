@@ -1,9 +1,11 @@
-import type { ReactElement, ReactNode } from 'react';
+import { useState, type ReactElement, type ReactNode } from 'react';
 import { CRAFT_NAMES, type DwellingType } from '@bohemia/game';
 import { PART_COLORS, SURFACE_COLORS } from '@/lib/minimap';
 import {
   CROP_LABELS,
   FIELD_SURFACE_NAMES,
+  HERD_LABELS,
+  HERD_ORDER,
   PART_STAGE_NAMES,
   type SelectionDetails,
   type SelectionWorkshop,
@@ -427,6 +429,133 @@ function Oaks({
   );
 }
 
+/** Seno v tunách s jedním desetinným místem – „3,0 t“. */
+function formatTons(kg: number): string {
+  return `${formatDecimal(Math.max(0, kg) / 1000, 1)} t`;
+}
+
+/**
+ * Ohrada (oxen.md – Co hráč vidí): rozestavěná jen průběh stavby; hotová zvířata v ohradě (voli,
+ * v zimě krávy), seno, stáda vsi s pastvou, spřežení (stáří a kolik let ještě slouží) nebo
+ * průběh výcviku a tlačítko „Vycvičit spřežení“ – když výcvik nejde, zašedlé s důvodem červeně.
+ */
+function PenBody({
+  details,
+  onTrainTeam,
+}: {
+  details: Extract<SelectionDetails, { kind: 'pen' }>;
+  onTrainTeam?: (penId: number) => Promise<void>;
+}): ReactElement {
+  const [busy, setBusy] = useState(false);
+  if (!details.built) {
+    return (
+      <div className="flex flex-col justify-center gap-1.5">
+        <Stat icon="labor" name="Stavba">
+          {formatPercent(details.progress)}
+        </Stat>
+        <Bar value={details.progress} name="Stavba" testId="selection-progress" />
+      </div>
+    );
+  }
+  const blocked = details.trainBlocked;
+  const train = (): void => {
+    if (!onTrainTeam || blocked !== null || busy) return;
+    setBusy(true);
+    void onTrainTeam(details.id).finally(() => setBusy(false));
+  };
+  return (
+    <div className="flex min-w-0 flex-col gap-1.5">
+      <div className="flex items-center gap-3">
+        <Stat icon="ox" name="Voli v ohradě" testId="selection-oxen">
+          {details.oxen}
+        </Stat>
+        <Stat icon="cow" name="Krávy v ohradě" testId="selection-penned-cows">
+          {details.cows}
+        </Stat>
+        <Stat icon="hay" name="Seno" testId="selection-hay">
+          {formatTons(details.hayKg)}
+        </Stat>
+      </div>
+      <ul aria-label="Stáda vsi" className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+        {HERD_ORDER.map((species) => (
+          <li key={species}>
+            <Stat
+              icon={HERD_LABELS[species].icon}
+              name={HERD_LABELS[species].name}
+              testId={`selection-herd-${species}`}
+            >
+              {formatInteger(details.herds[species])}
+            </Stat>
+          </li>
+        ))}
+        <li>
+          <Stat icon="chicken" name="Slepice" testId="selection-herd-chicken">
+            {formatInteger(details.chickens)}
+          </Stat>
+        </li>
+        <li>
+          <Tooltip content="Pastva – spásáno / celkem" placement="above">
+            <span
+              data-testid="selection-pasture"
+              tabIndex={0}
+              className={`text-xs font-semibold tabular-nums ${details.grazingHa > details.pastureHa ? 'text-red-400' : ''}`}
+            >
+              {formatDecimal(details.grazingHa, 1)}/{formatDecimal(details.pastureHa, 1)} ha
+            </span>
+          </Tooltip>
+        </li>
+      </ul>
+      {details.team && (
+        <div className="flex items-center gap-3">
+          <Stat icon="ox" name="Spřežení – stáří (roky)" testId="selection-team-age">
+            {details.team.ageYears}
+          </Stat>
+          <Stat icon="date" name="Spřežení – slouží ještě (roky)" testId="selection-team-left">
+            {details.team.yearsLeft}
+          </Stat>
+        </div>
+      )}
+      {details.training && (
+        <div className="flex items-center gap-1.5">
+          <Bar
+            value={details.training.progress}
+            name="Výcvik spřežení"
+            testId="selection-training"
+          />
+          <Stat icon="date" name="Výcvik – zbývá dní" testId="selection-training-days">
+            {formatInteger(details.training.daysLeft)}
+          </Stat>
+        </div>
+      )}
+      {!details.training && (
+        <Tooltip
+          content={
+            blocked ? (
+              <span data-testid="train-blocked" className="font-semibold text-red-400">
+                {blocked}
+              </span>
+            ) : (
+              'Vycvičit spřežení'
+            )
+          }
+          placement="above"
+        >
+          <button
+            type="button"
+            data-testid="train-team"
+            disabled={blocked !== null || busy || !onTrainTeam}
+            aria-busy={busy}
+            onClick={train}
+            className={`hud-button px-2 py-0.5 font-serif text-sm whitespace-nowrap ${busy ? 'disabled:cursor-wait disabled:opacity-60' : 'disabled:cursor-not-allowed disabled:opacity-45 disabled:grayscale'}`}
+          >
+            Vycvičit spřežení
+          </button>
+        </Tooltip>
+      )}
+    </div>
+  );
+}
+
 const SACRED_ICONS: Record<Extract<SelectionDetails, { kind: 'sacred' }>['type'], string> = {
   idol: 'modla',
   shrine: 'svatyne',
@@ -468,17 +597,24 @@ function SacredBody({
  * pole: výměra, úrodnost, díly podle stadia; hřbitov: hroby, na kolik let místo vystačí
  * a průběh založení / rozšíření; sad: výměra, stáří, úroda příští sklizně a průběh výsadby;
  * posvátný dub, háj, modla a svatyně: kolik přidávají štěstí (háj i počet dubů), rozestavěná
- * modla a svatyně průběh stavby a duby ke skácení.
+ * modla a svatyně průběh stavby a duby ke skácení; ohrada: zvířata, seno, stáda, spřežení
+ * a výcvik (`onTrainTeam` – akce „Vycvičit spřežení“).
  */
 export function SelectionPanel({
   details,
+  onTrainTeam,
 }: {
   details: SelectionDetails | null;
+  /** Zadá v ohradě výcvik spřežení (server action) – hotovo, až se vrátí. */
+  onTrainTeam?: (penId: number) => Promise<void>;
 }): ReactElement | null {
   if (!details) return null;
   let portrait: ReactElement;
   let body: ReactElement;
-  if (details.kind === 'field') {
+  if (details.kind === 'pen') {
+    portrait = <Portrait icon="ohrada" name="Ohrada" />;
+    body = <PenBody key={details.id} details={details} onTrainTeam={onTrainTeam} />;
+  } else if (details.kind === 'field') {
     portrait = <Portrait icon="pole" name="Pole" />;
     body = <FieldBody details={details} />;
   } else if (details.kind === 'cemetery') {

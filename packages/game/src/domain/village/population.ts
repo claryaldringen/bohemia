@@ -1,7 +1,7 @@
 import { createRandom, deriveSeed } from '../landscape/random';
 import { bury, hygieneDeathFactor, villageHygiene } from './cemetery';
 import { isOvercrowded } from './dwellings';
-import { ageGroup, isAdult, isFertile, occupants } from './people';
+import { ageGroup, householdBreaksUp, isFertile, occupants } from './people';
 import {
   ADULT_DEATHS_PER_YEAR,
   BIRTHS_PER_PAIR_PER_YEAR,
@@ -141,16 +141,6 @@ export function deathChancePerDay(person: Person, ctx: DeathContext): number {
   return Math.min(1, base + starvation);
 }
 
-/**
- * Dojde k rozpadu domácnosti? Nikdo 14–44 let (jen děti nebo starší), nebo jediný člověk
- * a nikdo jiný.
- */
-export function householdBreaksUp(members: Person[], day: number): boolean {
-  if (members.length === 0) return false;
-  const adults = members.filter((p) => isAdult(p, day)).length;
-  return adults === 0 || members.length === 1;
-}
-
 /** Rozpadlé domácnosti se přestěhují do obydlí s nejvíc volnými místy (při shodě nižší id). */
 function dissolveHouseholds(state: VillageState, day: number): ChronicleEvent[] {
   const events: ChronicleEvent[] = [];
@@ -177,7 +167,8 @@ function dissolveHouseholds(state: VillageState, day: number): ChronicleEvent[] 
 }
 
 /**
- * Jeden den populace: úmrtí (lidé podle id, každý zemřelý se pohřbí – cemetery.md; zemřel hlady,
+ * Jeden den populace (porody podle nasycení `satiation`, úmrtnost hladem podle energie `energy` –
+ * diet.md): úmrtí (lidé podle id, každý zemřelý se pohřbí – cemetery.md; zemřel hlady,
  * když los padl do části rizika z nahromaděného hladu `state.starvationDays`), porody
  * (domácnosti podle id, jeden pokus na pár), pak rozpad domácností. Hygiena platí podle
  * pohřebišť na začátku dne. Mutuje stav a vrací události dne.
@@ -186,6 +177,7 @@ export function populationDay(
   state: VillageState,
   day: number,
   satiation: number,
+  energy: number = satiation,
 ): ChronicleEvent[] {
   const events: ChronicleEvent[] = [];
   const random = createRandom(deriveSeed(state.seed, 'day:' + day));
@@ -204,7 +196,8 @@ export function populationDay(
     const { base, starvation } = deathChances(person, {
       day,
       foundedDay: state.foundedDay,
-      satiation,
+      // hlad zvyšuje úmrtnost z nedostatku energie, ne z pestrosti stravy (diet.md)
+      satiation: energy,
       overcrowded: crowded.get(person.dwellingId) ?? false,
       dwellingType: typeOf.get(person.dwellingId) ?? 'zemnice',
       hygiene,

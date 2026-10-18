@@ -11,7 +11,9 @@ import {
 } from './costs';
 import { craftCoverage } from './crafts';
 import { isVillageExtinct } from './extinction';
-import { fieldsTouching, partFoundingCost } from './fields';
+import { startingLivestock } from './livestock';
+import { startPen, startTeamTraining, type PenInput } from './oxen';
+import { fieldsTouching, mergeFields, partFoundingCost } from './fields';
 import { giveWayToDwelling, validateTakenLand, type TakenLand } from './land-taken';
 import { obstacleChangesAt, recordClearedObstacles } from './obstacles';
 import { orchardPlantingCost, villageOrchards } from './orchard';
@@ -206,45 +208,6 @@ function validateField(field: FieldInput, joinedAreaM2 = 0): void {
 }
 
 /**
- * Sloučí pole `others` do pole `into` (mutuje stav – fields.md, Navazující pole): díly
- * s nezměněným stavem, rozestavěná založení (jedna stavba – nejstarší, s cenou a prací všech),
- * kronika a rozdělení práce dne odkazují na `into`; sloučená pole zmizí.
- */
-function mergeFields(state: VillageState, into: number, others: readonly number[]): void {
-  const merged = new Set(others);
-  for (const part of state.parts) if (merged.has(part.fieldId)) part.fieldId = into;
-  state.fields = state.fields.filter((f) => !merged.has(f.id));
-  const founding = state.constructions
-    .filter(
-      (c) =>
-        c.kind === 'field' && c.fieldId !== null && (c.fieldId === into || merged.has(c.fieldId)),
-    )
-    .sort((a, b) => a.id - b.id);
-  const kept = founding[0];
-  if (kept) {
-    kept.fieldId = into;
-    for (const c of founding.slice(1)) {
-      kept.cost += c.cost;
-      kept.done += c.done;
-    }
-    const dropped = new Set(founding.slice(1).map((c) => c.id));
-    state.constructions = state.constructions.filter((c) => !dropped.has(c.id));
-  }
-  for (const event of state.chronicle) {
-    if (
-      event.kind === 'construction-finished' &&
-      event.fieldId !== null &&
-      merged.has(event.fieldId)
-    ) {
-      event.fieldId = into;
-    }
-  }
-  for (const share of state.labor?.shares ?? []) {
-    if (share.target.kind === 'field' && merged.has(share.target.id)) share.target.id = into;
-  }
-}
-
-/**
  * Přidá do (již naklonovaného) stavu díly pole ve stavu 'founding' a stavbu pole. Čtverce, které
  * stranou navazují na pole, ho rozšíří (stejné id, díly na konec, rozestavěné založení pole dostane
  * jejich cenu, jinak nová stavba pole); navazují-li na víc polí, ta se nejdřív sloučí do
@@ -394,6 +357,9 @@ export function foundVillage(input: {
     clearedObstacles: dwellingObstacleIds.map((id) => ({ id, day })),
     felledTrees: [],
     woodLogs: 0,
+    // výchozí stádo osadníků (diet.md – Dobytek); krajinu pro pastvu doplní use-case
+    livestock: startingLivestock({ people }),
+    meatKg: 0,
   };
   // pole napřed – stromy na jeho dílech patří poli (klády po založení), zemnice je nekácí
   if (firstField) addField(state, day, firstField);
@@ -857,4 +823,46 @@ export function startSacredBuilding(
     wood: takeWood(next, plan),
   });
   return next;
+}
+
+/**
+ * Zahájí stavbu ohrady s přístřeškem (oxen.md) na čtverci z `checkPenPlacement`. RangeError, když
+ * je den mimo vsi, ves nemá dřevo předem nebo je vstup neplatný. Konvence dne jako u ostatních
+ * staveb – práci stavba dostane od dne `day + 1`.
+ */
+export function foundPen(
+  state: VillageState,
+  day: number,
+  input: PenInput,
+  obstacles: ObstacleLayer | null,
+): VillageState {
+  validateActionDay(state, day);
+  if (!Number.isInteger(input.cell.x) || !Number.isInteger(input.cell.y)) {
+    throw new RangeError('Políčko ohrady musí mít celočíselné souřadnice.');
+  }
+  if (!Number.isFinite(input.x) || !Number.isFinite(input.z)) {
+    throw new RangeError('Střed ohrady musí mít konečné souřadnice.');
+  }
+  validateObstacleCost(input.obstacleCost);
+  validateObstacleIds(input.obstacleIds);
+  validateTrees(input.clearedTrees);
+  if ((state.pens ?? []).some((p) => p.cell.x === input.cell.x && p.cell.y === input.cell.y)) {
+    throw new RangeError('Na čtverci už ohrada stojí.');
+  }
+  requireAffordable(state, 'pen', obstacles ?? undefined);
+  return startPen(state, day, input, obstacles);
+}
+
+/**
+ * Hráč zadá v ohradě výcvik spřežení (oxen.md – „Vycvičit spřežení“). RangeError, když je den
+ * mimo vsi nebo výcvik nejde (`trainingBlock`).
+ */
+export function trainTeam(
+  state: VillageState,
+  day: number,
+  penId: number,
+  obstacles: ObstacleLayer | null,
+): VillageState {
+  validateActionDay(state, day);
+  return startTeamTraining(state, day, penId, obstacles);
 }

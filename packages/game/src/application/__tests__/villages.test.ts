@@ -199,6 +199,24 @@ describe('loadVillage', () => {
     expect(villages.records.get(ID)!.state.dwellings.at(-1)!.plot).toBeDefined();
   });
 
+  it('stará navazující pole se při načtení sloučí do nejstaršího a ves se uloží', async () => {
+    const villages = await foundedVillages();
+    const placed = await placeField(
+      { villages },
+      { settlementId: ID, landscape, today: TODAY, cells: block(11, 6, 3, 4) },
+    );
+    expect(placed.ok).toBe(true);
+    const [older, newer] = (await villages.find(ID))!.state.fields.map((f) => f.id);
+    // dřív samostatné pole hned vedle prvního (x 10–12) – jako před slučováním polí
+    villages.edit(ID, (s) => {
+      for (const p of s.parts) if (p.fieldId === newer && p.cell) p.cell.x -= 1;
+    });
+    const record = await loadVillage({ villages }, { settlementId: ID, today: TODAY, landscape });
+    expect(record!.state.fields.map((f) => f.id)).toEqual([older]);
+    expect(record!.state.parts.every((p) => p.fieldId === older)).toBe(true);
+    expect(villages.records.get(ID)!.state.fields).toHaveLength(1);
+  });
+
   it('při souběžném uložení to zkusí znovu nad čerstvou vsí', async () => {
     const villages = await foundedVillages();
     let interfered = false;

@@ -40,6 +40,12 @@ import {
   type ModelInstance,
 } from './instanced-model';
 import { OrchardRenderer } from './orchard-renderer';
+import { PenAnimals } from './pen-animals';
+import { penAnimalsFor } from './pen-layout';
+import { PenRenderer } from './pen-renderer';
+import { ploughPath } from './plough-team';
+import { PloughTeams } from './plough-team-renderer';
+import { penHerds, ploughFields, scenePenViews } from './village-pens';
 import { SACRED_SITE_KIND, sacredBuildingKey } from './sacred-layout';
 import { SacredRenderer } from './sacred-renderer';
 import { applyPitCut, type PitCuts } from './pit-cut';
@@ -189,6 +195,11 @@ export class VillageRenderer {
   private readonly orchards: OrchardRenderer;
   private readonly sacred: SacredRenderer;
   private readonly fields: FieldRenderer;
+  /** Ohrady s přístřeškem, zvířata v nich a spřežení na poli (oxen.md – village-pens.ts). */
+  private readonly pens: PenRenderer;
+  private readonly penAnimals: PenAnimals;
+  private readonly teams: PloughTeams;
+  private teamsKey = '';
   private village: SceneVillage = { dwellings: [], fields: [] };
   private disposed = false;
 
@@ -224,6 +235,28 @@ export class VillageRenderer {
     this.sacred = new SacredRenderer(scene, context);
     this.fields = new FieldRenderer(scene, context);
     if (context.landscape) this.fields.setLandscape(context.landscape, null);
+    // louky na seno kolem vsi byly jen vzhled – seno teď dává jen úhor ve fázi louky (oxen.md),
+    // jehož seč posílá herní jádro po dílech
+    this.fields.setHayMeadows([]);
+    this.pens = new PenRenderer(scene, {
+      groundHeight: context.groundHeight,
+      decalHeight: context.decalHeight,
+      addShadowCaster: (mesh) => context.addShadowCaster(mesh),
+      onAsyncChange: () => context.onAsyncChange(),
+      prepareMaterial: prepareDwellingMaterial,
+      mudMaterial: () => this.decalMaterial('mud'),
+      fences: this.fences,
+    });
+    this.penAnimals = new PenAnimals(scene, {
+      groundHeight: context.groundHeight,
+      onLoaded: () => context.requestRender(),
+    });
+    this.teams = new PloughTeams(scene, {
+      baseUrl: '/models/plough/',
+      groundHeight: context.groundHeight,
+      prepareMaterial: prepareDwellingMaterial,
+      onLoaded: () => context.requestRender(),
+    });
   }
 
   /** Vrátí true, když se ve scéně něco změnilo (je co překreslit). */
@@ -239,12 +272,58 @@ export class VillageRenderer {
     );
     const plots = this.plots.update(plotViews(village.dwellings));
     const sacred = this.sacred.update(village.sacred);
+    const pens = this.updatePens(village);
     const models = this.updateModels();
     const sites = this.updateConstruction();
     const smoke = this.updateSmokeSources();
     return (
-      dwellings || fields || cemeteries || orchards || plots || sacred || models || sites || smoke
+      dwellings ||
+      fields ||
+      cemeteries ||
+      orchards ||
+      plots ||
+      sacred ||
+      pens ||
+      models ||
+      sites ||
+      smoke
     );
+  }
+
+  /**
+   * Ohrady (stavba po fázích), zvířata v nich a spřežení na čele orby (oxen.md). Vrátí true, když
+   * se něco změnilo.
+   */
+  private updatePens(village: SceneVillage): boolean {
+    const pens = this.pens.update(scenePenViews(village));
+    const herds = penHerds(village);
+    const animals = this.penAnimals.set(
+      this.pens.builtPens().flatMap(({ id, layout }) => {
+        const herd = herds.get(id);
+        return herd ? penAnimalsFor(layout, herd) : [];
+      }),
+    );
+    const fields = ploughFields(village);
+    const key = fields.map((f) => `${f.x},${f.z},${f.size},${f.dirX},${f.dirZ}`).join(';');
+    let teams = false;
+    if (key !== this.teamsKey) {
+      this.teamsKey = key;
+      this.teams.setPaths(fields.map((f) => ploughPath(f)));
+      // stálá póza hned – při omezeném pohybu zůstane, jinak ji hned přepíše animace
+      this.teams.animate(0, null, true);
+      teams = true;
+    }
+    return pens || animals || teams;
+  }
+
+  /**
+   * Posune zvířata v ohradách a spřežení na poli na okamžik `nowMs` (jen v záběru kamery; bez
+   * kamery všechno). Vrátí true, když je co překreslit.
+   */
+  animateOxen(nowMs: number, camera: Camera | null): boolean {
+    const animals = this.penAnimals.animate(nowMs, camera);
+    const teams = this.teams.animate(nowMs, camera);
+    return animals || teams;
   }
 
   /**
@@ -369,9 +448,13 @@ export class VillageRenderer {
     this.smoke.dispose();
     this.cemeteries.dispose();
     this.plots.dispose();
+    // ohrady uvolní své ploty – před sdílenými ploty
+    this.pens.dispose();
     this.fences.dispose();
     this.orchards.dispose();
     this.sacred.dispose();
+    this.penAnimals.dispose();
+    this.teams.dispose();
     this.pegs.dispose();
     this.fields.dispose();
     for (const view of this.dwellings.values()) for (const mesh of view.meshes) mesh.dispose();

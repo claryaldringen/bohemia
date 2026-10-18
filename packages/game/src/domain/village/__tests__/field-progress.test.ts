@@ -164,7 +164,7 @@ describe('přirozená stadia podle kalendáře', () => {
     if (spring.length > 0) expect(statesInOrder(s, spring)).toContain('ripe');
   });
 
-  it('připravený díl rozrytý drn, mladý příloh, starší příloh (pastvina, seno) doplní scéna', () => {
+  it('připravený díl rozrytý drn, mladý příloh, starší příloh bez seče pastvina', () => {
     const s = village();
     const sept = at(602, 9, 1);
     s.parts[0]!.state = 'ready';
@@ -175,6 +175,7 @@ describe('přirozená stadia podle kalendáře', () => {
     const looks = fieldPartLooks(s, sept);
     expect(looks.get(s.parts[0]!.id)).toEqual({ look: 'bare' });
     expect(looks.get(s.parts[1]!.id)).toEqual({ look: 'young-fallow' });
-    expect(looks.has(s.parts[2]!.id)).toBe(false);
+    // starší příloh (louka) se letos neseče – pase se (oxen.md – Seno)
+    expect(looks.get(s.parts[2]!.id)).toEqual({ look: 'pasture' });
   });
 });

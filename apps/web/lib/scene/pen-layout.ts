@@ -1,5 +1,5 @@
-// Ohrada s přístřeškem bez Babylonu (docs/design/oxen.md – zatím jen modely a ukázka, herní
-// pravidla ohrady nejsou): jeden čtverec 15 × 15 m obehnaný pleteným plotem se zakulacenými rohy
+// Ohrada s přístřeškem bez Babylonu (docs/design/oxen.md – staví ji hráč, ve vsi i na ukázce
+// /dev/buildings): jeden čtverec 15 × 15 m obehnaný pleteným plotem se zakulacenými rohy
 // (woven-fence.ts – týž plot jako pozemek polozemnice a hřbitov), branka ze žerdí na straně ke
 // vsi, v zadním rohu přístřešek na sloupech otevřený do ohrady, pod ním jesle se senem, vedle
 // žlab a stoh sena. Všechno deterministicky z čtverce a směru ke vsi. Souřadnice světa scény
@@ -63,7 +63,22 @@ export interface PenAnimal {
   /** Co dělá – pije u žlabu, žere z jeslí, pase se. */
   activity: 'drink' | 'hay' | 'graze';
   seed: number;
+  /** Násobek velikosti – tele ve výcviku je menší (bez údaje 1). */
+  scale?: number;
 }
+
+/** Místo pro zvíře v ohradě (bez druhu) – `penAnimalsFor` na ně rozestaví skutečná zvířata. */
+export type PenSpot = Omit<PenAnimal, 'kind' | 'scale'>;
+
+/** Kolik zvířat v ohradě stojí: voli spřežení, telata ve výcviku a krávy (v zimě). */
+export interface PenHerd {
+  oxen: number;
+  trainees: number;
+  cows: number;
+}
+
+/** Tele ve výcviku je menší než vůl (návrh – jen vzhled). */
+export const TRAINEE_SCALE = 0.8;
 
 /** Rekvizity staveniště ohrady (díly „ohrada-…“ v pen-construction.glb). */
 export type PenProp = 'timber' | 'rods' | 'straw';
@@ -84,7 +99,12 @@ export interface PenLayout {
   trough: Position;
   haystack: Position;
   props: Record<PenProp, Position>;
+  /**
+   * Výchozí zvířata ukázky (dva voli a kráva) – ve vsi `penAnimalsFor` podle skutečného počtu.
+   */
   animals: PenAnimal[];
+  /** Místa pro zvířata v pořadí: u žlabu, u jeslí, na pastvě, pak dál po otevřené části. */
+  spots: PenSpot[];
   /** Obdélník plotu (osy kůlů na rovných stranách). */
   fenceRect: { minX: number; maxX: number; minZ: number; maxZ: number };
 }
@@ -195,23 +215,24 @@ export function penLayout(square: PenSquare, facing: Direction): PenLayout {
   const drink = at(troughAhead + 0.3, troughAside - 1.5);
   const hay = at(-shelterBack + 0.9, shelterAside - RACK_OFFSET_M.inward);
   const graze = at(1.2, -2.6);
-  const animals: PenAnimal[] = [
-    { kind: 'ox', ...drink, heading: headingOf(side), activity: 'drink', seed: seed + 1 },
+  const spots: PenSpot[] = [
+    { ...drink, heading: headingOf(side), activity: 'drink', seed: seed + 1 },
+    { ...hay, heading: headingOf({ x: -front.x, z: -front.z }), activity: 'hay', seed: seed + 2 },
     {
-      kind: 'ox',
-      ...hay,
-      heading: headingOf({ x: -front.x, z: -front.z }),
-      activity: 'hay',
-      seed: seed + 2,
-    },
-    {
-      kind: 'cow',
       ...graze,
       heading: facingRotation + 2.2 + hash01(seed, 3, 44),
       activity: 'graze',
       seed: seed + 3,
     },
+    // další místa v otevřené části ohrady (mimo přístřešek, žlab, stoh a branku) – po ≥ 2,5 m
+    ...EXTRA_SPOTS.map(([ahead, aside], k) => ({
+      ...at(ahead, aside),
+      heading: hash01(seed, k + 10, 45) * Math.PI * 2,
+      activity: 'graze' as const,
+      seed: seed + 4 + k,
+    })),
   ];
+  const animals = penAnimalsFor({ spots }, { oxen: 2, trainees: 0, cows: 1 });
   return {
     square,
     front,
@@ -224,8 +245,45 @@ export function penLayout(square: PenSquare, facing: Direction): PenLayout {
     haystack,
     props,
     animals,
+    spots,
     fenceRect,
   };
+}
+
+/**
+ * Další místa pro zvířata (vpřed ke brance, stranou k přístřešku – m od středu ohrady): otevřená
+ * část ohrady, kde nestojí přístřešek, žlab, stoh ani branka.
+ */
+const EXTRA_SPOTS: readonly (readonly [number, number])[] = [
+  [-1.8, -3.8],
+  [3.2, -0.8],
+  [-3.4, -1.2],
+  [3.6, -4.4],
+  [0.4, -5.4],
+  [-4.6, -4.2],
+  [4.6, 2.2],
+  [1.6, 2.6],
+  [-1.0, 1.0],
+];
+
+/**
+ * Skutečná zvířata ohrady na její místa (oxen.md): nejdřív voli spřežení (u žlabu a jeslí), pak
+ * telata ve výcviku (menší voli), pak krávy (v zimě) – kolik se jich vejde na místa ohrady.
+ */
+export function penAnimalsFor(layout: Pick<PenLayout, 'spots'>, herd: PenHerd): PenAnimal[] {
+  const kinds: { kind: PenAnimalKind; scale?: number }[] = [
+    ...Array.from({ length: Math.max(0, herd.oxen) }, () => ({ kind: 'ox' as const })),
+    ...Array.from({ length: Math.max(0, herd.trainees) }, () => ({
+      kind: 'ox' as const,
+      scale: TRAINEE_SCALE,
+    })),
+    ...Array.from({ length: Math.max(0, herd.cows) }, () => ({ kind: 'cow' as const })),
+  ];
+  return kinds.slice(0, layout.spots.length).map((animal, i) => ({
+    ...layout.spots[i]!,
+    kind: animal.kind,
+    ...(animal.scale === undefined ? {} : { scale: animal.scale }),
+  }));
 }
 
 /** Hotové díly v pen.glb (tools/blender/pen.py). */

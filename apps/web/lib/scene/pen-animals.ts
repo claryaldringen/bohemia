@@ -1,4 +1,4 @@
-// Voli a krávy v ohradách (zatím jen ukázka na /dev/buildings – docs/design/oxen.md): vůl je
+// Voli, telata ve výcviku a krávy v ohradách (docs/design/oxen.md – ve vsi i na /dev/buildings): vůl je
 // model spřežení (models/plough/ox.glb – kostra, klip idle zapečený do VAT jako u lidí), kráva
 // model stáda vsi (models/fauna/cow.glb – sklonění hlavy přechodem mezi pózami jako ve vsi).
 // Kde stojí a co dělají, je čistá funkce času (pen-layout.ts – `penAnimalPose`); zvířata se
@@ -67,7 +67,9 @@ export class PenAnimals {
 
   /** Zvířata ohrad; modely se stáhnou s prvním zvířetem. Vrátí true, když se něco změnilo. */
   set(animals: readonly PenAnimal[]): boolean {
-    const key = animals.map((a) => `${a.kind}:${a.x.toFixed(2)},${a.z.toFixed(2)}`).join(';');
+    const key = animals
+      .map((a) => `${a.kind}:${a.x.toFixed(2)},${a.z.toFixed(2)}:${a.scale ?? 1}`)
+      .join(';');
     if (key === this.key) return false;
     this.key = key;
     this.animals = animals;
@@ -173,7 +175,7 @@ export class PenAnimals {
             this.ox,
             ox,
             { x: pose.x, y, z: pose.z, hx, hz, pace: 1 },
-            TEAM_SCALE,
+            TEAM_SCALE * (animal.scale ?? 1),
             'idle',
             (animal.seed % 7) / 7,
             frozen,
@@ -202,8 +204,9 @@ export class PenAnimals {
         }
         cow++;
       }
-      const size = animal.kind === 'ox' ? SHADOW.ox : SHADOW.cow;
-      this.writeShadow(i, pose.x, y, pose.z, hx, hz, size);
+      const base = animal.kind === 'ox' ? SHADOW.ox : SHADOW.cow;
+      const scale = animal.scale ?? 1;
+      this.writeShadow(i, pose.x, y, pose.z, hx, hz, [base[0] * scale, base[1] * scale]);
     });
     if (this.ox) {
       this.ox.mesh.thinInstanceBufferUpdated('matrix');

@@ -11,6 +11,7 @@ import {
 } from '../actions';
 import { distanceFactor } from '../fields';
 import { fieldPartLooks, frontierPart } from '../field-progress';
+import { HAY, planMowing } from '../hay';
 import { giveWayToDwelling, landLeftM2, type TakenLand } from '../land-taken';
 import { squareHarvestWork, squareYieldKg, villageOrchards } from '../orchard';
 import {
@@ -23,8 +24,15 @@ import { relocationPlot } from '../plots';
 import { TAKEN_LAND_MIN_SHARE } from '../rules';
 import { advanceVillage } from '../simulate';
 import type { ChronicleEvent, CropWork, TileCell, VillageState } from '../types';
+import { returnPloughToHoe } from '../oxen';
 import { logsFromClearedTrees } from '../wood';
-import { expectedWinterKg, planPartIds } from '../year-plan';
+import {
+  createCropWork,
+  expectedWinterKg,
+  partWeight,
+  planPartIds,
+  tilledShare,
+} from '../year-plan';
 import { block, makeLandscape } from './placement-fixtures';
 import { withBuiltFirstDwelling } from './village-fixtures';
 
@@ -178,6 +186,79 @@ describe('giveWayToDwelling – díl pole v plánu osevu', () => {
     expect(s.plan!.winter!.required).toEqual(work.required);
     expect(s.plan!.winter!.done).toEqual(work.done);
     expect(s.plan!.winter!.partIds).toEqual(work.partIds.filter((x) => x !== id));
+  });
+});
+
+describe('giveWayToDwelling – orba rádlem a seč sena', () => {
+  it('díl oraný i kopaný (vrácený motyce): orba i kopání zbylých dílů zůstanou, kde byly', () => {
+    const base = advanceVillage(village(), at(600, 9, 2), null);
+    const day = base.lastDay;
+    const byId = new Map(base.parts.map((p) => [p.id, p]));
+    const ids = base.plan!.winter!.partIds;
+    // ozim orá spřežení, polovinu orby vrátí motyce (vůl uhynul) – oraná i kopaná část
+    const work = createCropWork(
+      ids.map((id) => byId.get(id)!),
+      day,
+      0,
+      true,
+    );
+    returnPloughToHoe(work, byId, 0, 0.5);
+    work.plough!.done = work.plough!.required * 0.4;
+    work.done.dig = work.required.dig * 0.3;
+    work.done.sow = work.required.sow * tilledShare(work) * 0.5;
+    base.plan!.winter = work;
+    const ploughed = work.plough!.partIds[1]!;
+    const dug = work.plough!.returned![0]!;
+    for (const id of [ploughed, dug]) {
+      const s = structuredClone(base);
+      const before = fieldPartLooks(s, day);
+      giveWayToDwelling(s, day, [whole(partOf(s, id)!.cell!)]);
+      const after = fieldPartLooks(s, day);
+      const rest = ids.filter((x) => x !== id);
+      for (const other of rest) expect(after.get(other)).toEqual(before.get(other));
+      const plough = s.plan!.winter!.plough!;
+      expect(plough.partIds).not.toContain(id);
+      expect(plough.returned ?? []).not.toContain(id);
+      // váhy orby a kopání dohromady = váha zbylých dílů; orba úměrná oraným dílům
+      const restWeight = rest.reduce((sum, x) => sum + partWeight(partOf(s, x)!), 0);
+      expect(plough.weight + plough.digWeight).toBeCloseTo(restWeight, 9);
+      expect(plough.required / plough.weight).toBeCloseTo(
+        work.plough!.required / work.plough!.weight,
+        9,
+      );
+    }
+  });
+
+  it('díl úhoru v seči: zmizí ze seče, zmenšenému ubude práce i seno; seč ostatních stojí', () => {
+    const s = advanceVillage(village(), at(600, 9, 2), null);
+    s.plan = null;
+    for (const p of s.parts) {
+      p.state = 'fallow';
+      p.fallowSinceDay = at(595, 9, 1);
+      delete p.crop;
+    }
+    const day = at(601, 6, 20);
+    const mowing = planMowing(s, day, 100)!;
+    expect(mowing.partIds).toHaveLength(12);
+    mowing.done = mowing.required * 0.3;
+    s.hay = { kg: 0, mowing };
+    const [gone, half] = [mowing.partIds[0]!, mowing.partIds[6]!];
+    const before = fieldPartLooks(s, day);
+    const yieldKg = mowing.yieldKg;
+    giveWayToDwelling(s, day, [
+      whole(partOf(s, gone)!.cell!),
+      { cell: partOf(s, half)!.cell!, areaM2: CELL / 2, cellAreaM2: CELL },
+    ]);
+    const after = fieldPartLooks(s, day);
+    const next = s.hay.mowing!;
+    expect(next.partIds).not.toContain(gone);
+    for (const id of next.partIds.filter((x) => x !== half)) {
+      expect(after.get(id)).toEqual(before.get(id));
+    }
+    expect(next.yieldKg).toBeCloseTo(yieldKg - (1.5 * CELL * HAY.yieldKgPerHa) / 10_000, 9);
+    // práce seče zbylých dílů = jejich váha × 6 člověkodní na hektar
+    const weight = next.partIds.reduce((sum, x) => sum + partWeight(partOf(s, x)!), 0);
+    expect(next.required / weight).toBeCloseTo(HAY.mowManDaysPerHa, 9);
   });
 });
 
