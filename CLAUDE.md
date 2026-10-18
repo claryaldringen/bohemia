@@ -649,6 +649,23 @@ rozhraní částí v
   na vrchol nepřidávat, patří do textury. Klipy se střídají střihem (VAT prolínat neumí). Hýbou
   se jen v záběru (`WATER_FPS`), při omezeném pohybu stojí. Ve vývojovém náhledu tlačítko
   **Lidé** (ukázkové rozdělení práce podle měsíce – `app/dev/landscape/dev-labor.ts`).
+- **Vyšlapané pěšiny** ([docs/design/paths.md](docs/design/paths.md), jen vzhled, Martin 18. 10. 2026): síť se počítá v prohlížeči z vsi a krajiny – `path-terrain.ts` (cena chůze po
+  bodech sítě vykreslení ≈ 3,75 m v okně kolem vsi: sklon, voda a brody, les, příznaky břehu
+  a okraje lesa; `withObstacles` přidá kmeny, keře, balvany a výchozy), `path-network.ts`
+  (`computePathNetwork` – čistá deterministická funkce: cesty domácností pro vodu a dřevo
+  (každá zvlášť, A* s napojením na pěšinu souseda), do cílů podle práce dne
+  (`SceneLabor`) + základ zavedených míst, k sousedům; Dijkstra od cíle ke všem branám; 2 kola,
+  vyšlapané buňky zlevní hned – trasy se slijí; síla z provozu `pathStrength`, stáří obydlí
+  `SceneDwelling.since` → `pathAgeFactor`; výstup vyhlazené čáry se sílou a stářím v bodech,
+  pochůzky domácností, provoz pro teplotní mapu; `pathRouter` – trasy po pěšinách pro postavy).
+  Kreslí `path-renderer.ts` (`VillagePaths` v `LandscapeScene`: přepočet jen při změně
+  `pathNetworkKey`, odloženě, nikdy za snímek; ≈ 10–30 ms) – obtisky `paths-worn` (tráva)
+  a `paths-earth` (holá hlína) z `path-ribbon.ts` pod obtisky polí a vsi (alphaIndex 0,2 / 0,4,
+  lift 0,018 / 0,022), sníh přes `applySeasonGround`; stromy podél starých silných pěšin
+  v polní krajině `path-trees.ts` (meshe `pathside-<model>` – listnáče v zimě bez stínu podle
+  `isDeciduousMesh`). Postavy: `VillagerPlanOptions.paths` (`VillagerPaths`) – `walkRoute` jde
+  po pěšině, ženy pro vodu a dřevo na konec pěšiny domácnosti. Vývojová stránka: tlačítka
+  **Pěšiny**, **Provoz** (teplotní mapa) a **Stáří** (stáří obydlí, s „Lidé“), čísla výpočtu.
 - **e2e:** testy běží v běžícím pomalém světě (2000–2200). Kliknutí do scény při umisťování
   nahrazuje háček `window.__bohemiaE2E.confirmPlacement`, kam kliknout myší pro výběr řekne
   `projectToScreen` (`lib/e2e-hooks.ts`) – existují jen v buildu s `NEXT_PUBLIC_E2E_HOOKS=1`
