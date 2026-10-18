@@ -371,6 +371,12 @@ export interface VillageState {
    */
   extinctDay?: number;
   commonLaborHistory: number[]; // společná práce posledních 30 dní (pro „má na to“)
+  /**
+   * Roční průměr denní společné práce (člověkodny za den) – klouzavý exponenciální průměr
+   * s časovou konstantou COMMON_LABOR_YEAR_DAYS; podle něj se obyvatelé rozhodují o přestavbě na
+   * lepší obydlí. U vsí uložených před ním chybí – začne průměrem `commonLaborHistory`.
+   */
+  commonLaborYearly?: number;
   chronicle: ChronicleEvent[];
   /** Pohřebiště – u vsí uložených před zavedením pohřebišť chybí (= žádné). */
   cemeteries?: Cemetery[];

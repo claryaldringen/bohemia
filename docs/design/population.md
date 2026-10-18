@@ -260,8 +260,14 @@ jich bude moci mít více), tak pro něj hra končí – musí začínat znovu.�
   klesne na 0, obyvatelé se **sami** rozhodnou dům zbourat a na stejném místě postavit nový
   (Martin). Hráč o tom nerozhoduje.
 - Obyvatelé staví **vždy lepší** obydlí než dosud (zemnice → polozemnice), pokud na to ves má
-  suroviny – jinak stejné (Martin). „Má na to“: společná práce vsi stačí, aby stavba skončila do
-  jednoho roku (návrh Clauda). Typ úplně nové stavby vybírá hráč.
+  suroviny – jinak stejné (Martin). „Má na to“: **roční průměr** denní společné práce vsi stačí,
+  aby stavba skončila do jednoho roku (návrh Clauda), a **dřevo** – klády na hromadě a dospělé
+  stromy, které jde skácet – pokryje stromy lepšího obydlí. Roční průměr je klouzavý
+  (exponenciální, časová konstanta jeden rok), vede se den po dni; starší ves začne průměrem
+  posledních 30 dní. Oprava podle hlášení Martina 18. 10. 2026: dřív se rozhodovalo podle
+  posledních 30 dní, takže v zimě (výmlat) nebo o žních vypadala ves chudá a nejstarší zemnice se
+  přestavěla zase na zemnici, i když ves měla v průměru přes 6 člověkodní společné práce denně.
+  Typ úplně nové stavby vybírá hráč.
 - Během přestavby domácnost bydlí dál (stavba se abstrahuje, starý dům zmizí až s dokončením
   nového – návrh Clauda).
 
@@ -415,6 +421,7 @@ pravidla → první verze hladu (1 − nasycení za den, hájení bez stropu) �
 | Obydlí chátrají, opravy rostou; přestavbu (i na lepší) rozhodují obyvatelé     | Martin                                     |
 | Bez staveb ves přestane růst, ale nerozpadne se (hlad ji ale zabít může)       | návrh Clauda, Martin potvrdil              |
 | Přestavba vždy na lepší obydlí, pokud jsou suroviny; typ nové stavby hráč      | Martin                                     |
+| „Má na to“ podle ročního průměru společné práce a dřeva (ne posledních 30 dní) | Martin – hlášení chyby 18. 10. 2026        |
 | Hájení: prvních 30 herních let vsi přeje štěstí; žádní příchozí z okolí        | Martin                                     |
 | Lidé umírají hlady, ves může vymřít; bez vsí hráč začíná znovu                 | Martin (18. 10. 2026)                      |
 | Nahromaděný hlad, prahy 20 / 12 dní, smrt bez jídla do 60 / 45 dní             | návrh Clauda                               |

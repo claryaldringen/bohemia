@@ -180,7 +180,9 @@ describe('opravy a přestavba', () => {
   });
 
   it('lepší obydlí, když na něj ves za rok společné práce má', () => {
-    expect(rebuildType('zemnice', 0.7)).toBe('polozemnice');
-    expect(rebuildType('zemnice', 0.5)).toBe('zemnice');
+    expect(rebuildType('zemnice', 0.7, 18)).toBe('polozemnice');
+    expect(rebuildType('zemnice', 0.5, 18)).toBe('zemnice');
+    // dřevo na polozemnici (18 stromů) nestačí – stejný typ
+    expect(rebuildType('zemnice', 0.7, 17)).toBe('zemnice');
   });
 });

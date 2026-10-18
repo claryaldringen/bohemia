@@ -4,10 +4,12 @@ import type { Landscape, ObstacleLayer } from '../landscape';
 import { villageCemeteries } from './cemetery';
 import {
   applyRepairs,
+  nextYearlyCommonLabor,
   qualifyingDwellings,
   rebuildType,
   repairNeedPerDay,
   wantsRebuild,
+  yearlyCommonLabor,
 } from './dwellings';
 import { endOfSeason, expectedNetKg, sowingOrder } from './fields';
 import { daysUntilAppleRot, eatMeal } from './food';
@@ -75,6 +77,7 @@ import {
   rotLogs,
   takeWood,
   woodFellingCost,
+  woodSupply,
 } from './wood';
 import {
   TASK_ORDER,
@@ -412,6 +415,8 @@ function work(state: VillageState, day: number): boolean {
   state.domesticBacklog = allocation.domesticBacklog;
   const constructions = build(state, day, allocation.common);
   state.labor = laborDay(state, day, { allocation, fieldWork, repairs, constructions });
+  // roční průměr (starší ves začne průměrem 30 dní ještě bez dneška) a posledních 30 dní
+  state.commonLaborYearly = nextYearlyCommonLabor(yearlyCommonLabor(state), allocation.common);
   state.commonLaborHistory.push(allocation.common);
   if (state.commonLaborHistory.length > COMMON_LABOR_HISTORY_DAYS) {
     state.commonLaborHistory.splice(0, state.commonLaborHistory.length - COMMON_LABOR_HISTORY_DAYS);
@@ -728,12 +733,12 @@ function decideRebuilds(
   const rebuilding = new Set(
     state.constructions.filter((c) => c.kind === 'rebuild').map((c) => c.dwellingId),
   );
-  const history = state.commonLaborHistory;
-  const averageCommon =
-    history.length > 0 ? history.reduce((s, v) => s + v, 0) / history.length : 0;
+  // „má na to“ podle ročního průměru – v zimě (výmlat) ani o žních ves nezchudne (Martin)
+  const yearlyCommon = yearlyCommonLabor(state);
   for (const d of occupiedDwellings(state)) {
     if (rebuilding.has(d.id) || !wantsRebuild(d, day)) continue;
-    const type = rebuildType(d.type, averageCommon);
+    // dřevo: klády na hromadě a stromy, které jde skácet – po předchozích přestavbách dne
+    const type = rebuildType(d.type, yearlyCommon, woodSupply(state, obstacles, day));
     const site =
       landscape && obstacles && !d.plot
         ? relocationPlot(state, landscape, obstacles, d, type, day)

@@ -166,6 +166,10 @@ export const DAILY_MIN_PER_HOUSEHOLD: Bounds = { worst: 0.5, best: 0.45 };
 export const DOMESTIC = { perHousehold: 0.3, perPerson: 0.15, backlogMaxDays: 60 } as const;
 // population.md – Nové obydlí (společná práce za posledních 30 dní pro „má na to“)
 export const COMMON_LABOR_HISTORY_DAYS = 30;
+// population.md – Chátrání a přestavba (oprava podle hlášení Martina 18. 10. 2026): přestavba na
+// lepší obydlí podle ročního průměru společné práce – klouzavý (exponenciální) průměr s časovou
+// konstantou jednoho roku, aby výmlat v zimě ani žně ves nezchudly
+export const COMMON_LABOR_YEAR_DAYS = 365;
 // cemetery.md – Pravidla (stavba: vytyčení a ohrazení 10 člověkodní na čtverec; hrob i s uličkami
 // 4 m², na čtverec 15 × 15 m se vejde 56 hrobů)
 export const CEMETERY = { costPerSquare: 10, graveM2: 4, gravesPerSquare: 56 } as const;
