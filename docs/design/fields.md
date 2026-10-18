@@ -579,7 +579,9 @@ a bez štěstí), v závorce měření 17. 10. výše; pak po sloučení s pastv
 
 **Naměřeno na skutečných krajinách – louka motykou, nebo pálením drnu** (`measure-village.ts
 200 60` a `--variant meadow-burn`, 18. 10. 2026, **naměřeno, průběžně 192 z 200 vsí** – běh
-dokončí noc; stejné vsi a krajiny v obou variantách). Vsi stojí na skutečných krajinách sídel
+dokončí noc; stejné vsi a krajiny v obou variantách; pravidla ze 18. 10. odpoledne před
+osídlením prázdných domů dospělými dětmi a rychlejším chátráním prázdných obydlí – řemesla ves
+bez dílen nemění). Vsi stojí na skutečných krajinách sídel
 (vrstvy verze 2: do 600 m ≈ 60 ha luk, ≈ 34,5 ha s úrodností ≥ 60, les od ≈ 200 m); hráč
 zakládá čtverce louky, křovin i lesa do 800 m podle úrody za člověkoden prvního oběhu – pořadí
 je v obou variantách stejné. Varianta **pálení drnu** je jen kalibrační přepínač, ne pravidlo:
