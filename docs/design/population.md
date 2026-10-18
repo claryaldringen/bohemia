@@ -156,8 +156,12 @@ místo aby zemřeli.“ Na návrh Clauda (nahromaděný hlad, smrt do ≈ 2 měs
 zůstává, ochrana posledních dvou dospělých padá): „Ano, když hráči vymřou všechny vesnice (časem
 jich bude moci mít více), tak pro něj hra končí – musí začínat znovu.“ Čísla jsou návrh Clauda.
 
+- **Hladem se umírá z energie, ne z pestrosti** ([strava](diet.md), od 18. 10. 2026): nahromaděný
+  hlad i přirážka úmrtnosti za dnešní hlad počítají s pokrytím energie; nasycení se stravou
+  (energie × pestrost) řídí porody a štěstí. Ves jen s obilím (80 %) se množí pomaleji, ale
+  hladem neumírá.
 - **Nahromaděný hlad** vsi se měří ve **dnech bez jídla**: každý den přibude
-  max(0, 0,9 − nasycení) / 0,9 – den bez jídla je celý den, den o polovičním přídělu ≈ 0,44
+  max(0, 0,9 − energie) / 0,9 – den bez jídla je celý den, den o polovičním přídělu ≈ 0,44
   a při 80 % ≈ 0,11 (mírný nedostatek tělo snese – návrh Clauda, upraveno 18. 10. 2026). Když
   ves jí aspoň z 90 %, hlad ubývá o den denně až k nule – jedna hranice pro přibývání
   i zotavení, žádné pásmo, kde by hlad stál. Víc než 60 dní se nehromadí (dál už to nemá vliv).

@@ -274,9 +274,11 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   shaderu (GLSL i WGSL). **Výjimka z kreslení jen při změně jako voda:** hýbou se jen skupiny
   v záběru, sdílejí `WATER_FPS`, při omezeném pohybu stojí. Ryby se kreslí po vodě (skupina
   vykreslování 1) – hloubku pod kalnou hladinou dělá jejich průhlednost.
-- **Domácí zvířata** (Martin, zatím jen oživení – mechanika později): slepice u hotových obydlí
-  (zemnice 2, polozemnice 3 – `chickensFor`, řemesla později podle základního typu), na
-  obývané obydlí 3 ovce, koza a 2 prasata, kráva na dvě domácnosti; u stád jsou pasáčci z postav
+- **Domácí zvířata** (skutečná stáda – diet.md, od 18. 10. 2026): počty ovcí, koz, prasat
+  a krav bere scéna ze `SceneVillage.livestock` (`herdCounts`; krávy v zimě v ohradě nejsou
+  na pastvě, stádo ovcí a koz nejvýš 20 kusů); bez nich se odvodí z domácností jako dřív:
+  slepice u hotových obydlí (zemnice 2, polozemnice 3 – `chickensFor`), na obývané obydlí
+  3 ovce, koza a 2 prasata, kráva na dvě domácnosti; ohrady jsou pro stáda překážka; u stád jsou pasáčci z postav
   (Postavy níž – `herdViews`).
   `livestock-placement.ts` je odvodí z dat vsi pro scénu (`SceneVillage`, i nepovinné
   `cemeteries`) a krajiny: slepice obcházejí dům mimo obdélník domu se šíjí (`chickenBox`),
@@ -419,9 +421,10 @@ rozhraní částí v
   Ves se dopočítá při každém načtení a akci (worker zatím není).
 - **API jádra:** `foundVillage` (4 lidé, zásoby, stavba první zemnice, volitelně první pole),
   `advanceVillage(state, toDay)` (dopočítá ves do dne včetně) a akce hráče `startNewDwelling`,
-  `foundField`, `foundCemetery` a `foundOrchard`. Stav vsi je JSON-serializovatelný, funkce
-  vstupní stav nemění. Nové části stavu jsou volitelné (`VillageState.cemeteries?`,
-  `orchards?`, `applesKg?`, `orchardWork?`, `starvationDays?`, `extinctDay?`) – vsi uložené
+  `foundField`, `foundCemetery`, `foundOrchard`, `foundPen` a `trainTeam`. Stav vsi je
+  JSON-serializovatelný, funkce vstupní stav nemění. Nové části stavu jsou volitelné
+  (`VillageState.cemeteries?`, `orchards?`, `applesKg?`, `orchardWork?`, `starvationDays?`,
+  `extinctDay?`, `livestock?`, `meatKg?`, `hay?`, `pens?`, `diet?`) – vsi uložené
   dřív se načtou a beze sadů se jejich stav nemění.
 - **Hlad a vymření** (population.md, Martin 18. 10. 2026): nahromaděný hlad
   `VillageState.starvationDays` (`nextStarvationDays` po jídle dne – pod 90 % přídělu
@@ -493,7 +496,7 @@ rozhraní částí v
 - **Příloh je pastvina** (Martin): 1–2 roky mladý příloh, pak napořád `meadow` (pastvina) –
   nálet, křoviny ani les na přílohu nejsou (`OVERGROWTH_STAGES`), vrácení stojí nejvýš drn louky
   (`RECLAIM_COST_PER_HA`), kronika `part-became-forest` už nevzniká (typ zůstává pro staré
-  kroniky). Seno na loukách je zatím jen scéna.
+  kroniky). Na přílohu se pasou stáda a úhor ve fázi louky se seče na seno (oxen.md).
 - **Štěstí a posvátná místa** ([happiness.md](docs/design/happiness.md), `happiness.ts`,
   `sacred.ts`): štěstí 0–100 (`VillageState.happiness` – hodnota, úmrtí posledního roku, dny dřiny
   posledních 60 dní; chybí = 50) se den po dni posouvá o denní podíl k cíli
@@ -520,6 +523,30 @@ rozhraní částí v
   dostavění `VillageState.sacredBuildings` (id = id stavby). Surovina předem `oaks`
   (`oakSupply`). Use-case `placeSacredBuilding` (`NO_OAKS`, `SHRINE_EXISTS`), server action
   `placeSacred`. Štěstí z míst `sacredHappiness` (stropy počtu a +40).
+- **Strava a dobytek** ([diet.md](docs/design/diet.md)): jídlo dne `eatDiet` / `villageMeal`
+  (`diet.ts`) – ovoce (jablka; v rozhraní „ovoce“) rovným dílem do zkažení 1. 3., maso rovným
+  dílem do porážky 1. 11., obilí dorovná; stropy ovoce 25 % a maso 40 % potřeby energie
+  (`DIET`). `VillageState.diet` nese jídlo posledního dne (energie, pestrost, nasycení = energie
+  × pestrost, podíly). **Hlad z energie:** `nextStarvationDays` a přirážka úmrtnosti dostávají
+  energii, porody a štěstí nasycení (`populationDay(state, day, satiation, energy)`, ovoce
+  štěstí +5 – `HappinessFactors.fruit`). Stáda `VillageState.livestock` (`livestock.ts`: počty
+  s podílem kusu, mláďata 1. 4., porážka 1. 11. – nad nosnost a nejvýš polovina mláďat na maso,
+  chovný pár zůstane; nosnost pastvy `pastureHa`, lesa `pigForestHa` a sena; vejce denně;
+  `meatKg` se uzí 20 %/rok). Louka a les do 600 m pro pastvu jsou z krajiny ve stavu
+  (`LivestockState.land`) – doplní je `withLivestockLand` (založení vsi i migrace v
+  `updateVillage`); bez nich výchozí `LIVESTOCK.defaultLand`. Den hospodářství `husbandryDay`
+  (`husbandry.ts`) běží před plánem osevu: ohrady, mláďata, plán seče, porážka, vejce, zimní seno.
+- **Ohrada, spřežení a orba rádlem** ([oxen.md](docs/design/oxen.md), `oxen.ts`, `plough.ts`,
+  `hay.ts`): ohrada (`BuildKind` `'pen'`, `checkPenPlacement`, `foundPen`, use-case `placePen`)
+  je čtverec louky, stavba se dřevem jako obydlí; `trainTeam` (use-case `trainTeamInPen`,
+  `trainingBlock` = důvod pro tlačítko) vezme 2 telata ze stáda a postaví rádlo (stavba `'ard'`);
+  po 2 letech `Pen.team`, po 10 letech na maso. Seno `VillageState.hay` (seč 1. 6. z úhoru ve
+  fázi louky – `planMowing`, sezónní úloha `mow`; zimní krmení, pokrytí volů `oxenHayCoverage`
+  k 1. 3.). **Orba:** plán s vycvičeným spřežením dá díly bez drnu (`isPloughable`) do
+  `CropWork.plough` (jejich kopání v `required.dig` není); úloha `plough` v oknech kopání, nejvýš
+  `ploughCapacityPerDay`; setí jde za `tilledShare`; `returnPloughToHoe` vrátí díly motyce
+  (konec řady kopání – `PloughWork.returned`). Postup po dílech zná úlohu `plough`
+  (`field-progress.ts`), rozdělení práce posílá činnosti `plough`, `mow`, `slaughter`, `pen`.
 - **Hráč staví kdy chce** (Martin) – stavbu smí zablokovat jen **cena předem** (`costs.ts`:
   `BUILD_COSTS`, `buildAffordability`): suroviny ze zásob (dnes žádné) a u obydlí **lidé
   k osídlení** (`settlers` = `availableSettlers` v `dwellings.ts`: domácnosti s párem navíc −
@@ -546,8 +573,9 @@ rozhraní částí v
   composition root `lib/village.ts`, `lib/village-view.ts` (DTO, smí i do prohlížeče). Typy pro scénu jsou
   odvozené odtud a z `@bohemia/game` – nedefinovat je znovu ve scéně.
 - **Rozhraní jako v 0 A.D., bez popisků a průvodce** (Martin): `components/game/VillageGame.tsx`
-  skládá `hud/` – `TopBar` (jméno vsi, klik = přejmenovat; ikony s čísly: lidé, obilí, jablka
-  jen když jsou, volná práce, nasycení barvou ikony, štěstí, datum; zvuk a tlačítko nabídky),
+  skládá `hud/` – `TopBar` (jméno vsi, klik = přejmenovat; ikony s čísly: lidé, obilí, maso, ovoce
+  (jablka) jen když jsou nebo je sad, seno s ohradou, volná práce, nasycení (barva ikony podle
+  energie – hlad, tooltip nasycení s podíly obilí / maso / ovoce), štěstí, datum; zvuk a tlačítko nabídky),
   `GameMenu` (nabídka hry jako v 0 A.D. pod lištou vpravo, F10 – smí mít slova: Začít znovu,
   Odhlásit s e-mailem v popisku, Zpět do hry; Začít znovu se živou vsí jen po potvrzení v panelu,
   bez dialogů prohlížeče, při zakládání vsi zamčené; otevření zruší umisťování i výběr, klávesy
@@ -598,7 +626,7 @@ rozhraní částí v
   Vždy: WASD / šipky a kurzor u okraje okna posouvají, kolečko i rozevření prstů na trackpadu
   (Ctrl + kolečko, v Safari `gesturechange`) přibližují, Q/E otáčí, R vrátí pohled na ves
   (`setCameraHome`). Zkratky staveb Z zemnice, X polozemnice, C pole, V hřbitov, B sad,
-  N modla, M svatyně (modla a svatyně se umisťují půdorysem jako obydlí – `PlacementMode`
+  N modla, M svatyně, O ohrada (modla a svatyně se umisťují půdorysem jako obydlí – `PlacementMode`
   `sacred`). V otevřené nabídce hry žádná klávesa hry neběží – F10 nebo Esc ji zavře (Tab jen
   po jejích položkách). Rozhraní
   obydlí hned ukáže jako staveniště a akce posílá na server za sebou (fronta v `VillageGame`).
@@ -620,7 +648,8 @@ rozhraní částí v
   `SceneLaborShare.parts`) – **dokud neposílá, odhadne ho `field-look.ts` ze stadia a data**
   (`fieldPartViews`, `estimatePart`: zakládaný díl s `work` 0 jen vytyčený, osetý díl prochází
   rokem po čtvercích od obydlí – kopání, setí, růst, žeň s panáky, strniště; mladý úhor se pase,
-  starší úhor je louka na seno). Práce mění díl, až když k němu dojde: rozpracovaný díl se dělí
+  starší úhor je louka na seno – od 18. 10. 2026 posílá jádro i vzhled úhoru ve fázi louky:
+  `pasture`, seč `meadow` → `mown` → `haystacks`). Práce mění díl, až když k němu dojde: rozpracovaný díl se dělí
   napříč řádky (po 8 pruzích – `WORK_STEPS`) na hotovou a nehotovou část, práce jde od strany
   blíž vsi (`workFrame`). Kreslí `field-renderer.ts` (`FieldRenderer` ve `VillageRenderer`):
   obtisky z textur 0 A.D. (`public/textures/fields/` – zem s měkkými brázdami podél řádků,
@@ -635,8 +664,8 @@ rozhraní částí v
   úhoru a louce, seno – řádky, kupky a stohy (`haystack.glb`) přes podzim a zimu postupně mizí
   (`hay-meadows.ts`: `hayPhase`, `stackStands`); kolíky a provázek kolem vytyčeného pole
   (Martin: hned po zadání, `fieldStaking`). Rozmístění trsů a panáků je v `field-crops.ts`
-  (čisté funkce, deterministicky po políčkách). Kolem vsi navíc **louky na seno** jen jako
-  scenérie (`chooseHayMeadows` – louka bez stromů a kamenů, na dvě domácnosti jedna). Den pro
+  (čisté funkce, deterministicky po políčkách). **Louky na seno** (`chooseHayMeadows`) jsou jen
+  ve vývojové ukázce – ve vsi vypnuté, seno dávají jen díly úhoru (oxen.md). Den pro
   odhad a seno: herní den rozdělení práce, jinak roční období scény (`setSeason`).
   Assety z `tools/blender/fields.py` (postup v hlavičce). Vývojové stránky: /dev/buildings
   projde posuvníkem všechny vzhledy pole i louku na seno, /dev/landscape tlačítka „Vzhled“
@@ -659,7 +688,8 @@ rozhraní částí v
   bez kácení (`buildProgress`).
 - **Upozornění** (`lib/village-notices.ts`): plná domácnost (fakt), lidé umírají hlady, hlad,
   stojící stavby, plný hřbitov (žádný hotový nemá volný hrob), vesničané ušetřili posvátný dub
-  / dubový háj (fakt, když přibude) – nově vzniklé jako krátký mizející řádek nahoře, žádný
+  / dubový háj (fakt, když přibude), podzimní porážka, spřežení vycvičené / dosloužilo, vůl
+  uhynul (nové události kroniky – `VillageView.chronicle[].kind`) – nově vzniklé jako krátký mizející řádek nahoře, žádný
   trvalý seznam; vymřelá ves žádná. Kronika je jen v DTO.
 - **Krajina sídla** se na serveru drží v LRU mezipaměti (`lib/landscape-cache.ts`, port
   `LandscapeSource` v `enterGame`) – negeneruje se při každé akci a dotazu. Vrstva překážek
@@ -709,8 +739,9 @@ rozhraní částí v
   na vrchol nepřidávat, patří do textury. Klipy se střídají střihem (VAT prolínat neumí). Hýbou
   se jen v záběru (`WATER_FPS`), při omezeném pohybu stojí. Ve vývojovém náhledu tlačítko
   **Lidé** (ukázkové rozdělení práce podle měsíce – `app/dev/landscape/dev-labor.ts`).
-- **Spřežení volů s rádlem** (zatím jen ukázka **Orání** na `/dev/buildings`, mechanika přijde
-  později): voli a oráč z `people_from_0ad.py` s `tools/blender/plough-team.json` – vůl
+- **Spřežení volů s rádlem** (ve vsi orá na prvním dílu čela orby – podíl práce `plough`
+  v `SceneLabor`, 6 řad podél delší strany, kolik ohrad s voly, tolik spřežení; ukázka
+  **Orání** na `/dev/buildings`): voli a oráč z `people_from_0ad.py` s `tools/blender/plough-team.json` – vůl
   `cattle_male_c` (srst přebarvená, maska srsti), oráč = muž s klipy `plough` (předklon + ruce
   dvoukloubovou IK na rukojeti, „pose“ v JSON) a `lead` (honáček s provazem); rádlo, jho, oj
   a provaz `tools/blender/plough.py` (malý atlas vyříznutý z atlasu obydlí). Rozestavění
@@ -735,8 +766,11 @@ rozhraní částí v
   `isDeciduousMesh`). Postavy: `VillagerPlanOptions.paths` (`VillagerPaths`) – `walkRoute` jde
   po pěšině, ženy pro vodu a dřevo na konec pěšiny domácnosti. Vývojová stránka: tlačítka
   **Pěšiny**, **Provoz** (teplotní mapa) a **Stáří** (stáří obydlí, s „Lidé“), čísla výpočtu.
-- **Ohrada s přístřeškem** ([oxen.md](docs/design/oxen.md); zatím jen modely a ukázka
-  **Ohrada** na `/dev/buildings`, pravidla ne): přístřešek s pultovou doškovou střechou, jesle,
+- **Ohrada s přístřeškem** ([oxen.md](docs/design/oxen.md); ve vsi `SceneVillage.pens` –
+  `village-pens.ts` ve `VillageRenderer`: fáze podle `progress`, branka k nejbližšímu obydlí,
+  zvířata `penAnimalsFor` na místa `spots` – voli spřežení (v den orby na poli), telata ve
+  výcviku menší, v zimě krávy; výběr `{ kind: 'pen' }`, panel s tlačítkem „Vycvičit spřežení“;
+  ukázka **Ohrada** na `/dev/buildings`): přístřešek s pultovou doškovou střechou, jesle,
   žlab a branka ze žerdí z `tools/blender/pen.py` (`models/pen/pen.glb`, díly staveniště
   `pen-construction.glb` „ohrada-…“; materiál `…-low` = jen poprašek sněhu – pod střechou
   nesněží), plot je sdílený pletený plot (`PEN_FENCE`), stoh = kupka z polí. Rozmístění,

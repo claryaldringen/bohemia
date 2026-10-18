@@ -1,9 +1,11 @@
 # Orání rádlem – voli, ohrada, seno
 
-Stav: schváleno 18. 10. 2026 (Martin: „Takhle je to ok“). Implementace zatím není (modely spřežení, rádla
-a oráče jsou hotové – `tools/blender/plough.py`; modely ohrady s přístřeškem, žlabem, jeslemi
-a brankou, ikony ohrady a sena – `tools/blender/pen.py`, `icons.py`; obojí ukázka na
-`/dev/buildings`).
+Stav: schváleno 18. 10. 2026 (Martin: „Takhle je to ok“), **implementováno 18. 10. 2026** –
+jádro `domain/village/oxen.ts` (ohrady, spřežení, výcvik, vracení orby motyce), `plough.ts`
+(sazby orby, co rádlo zvládne), `hay.ts` (seč, zásoba, zimní krmení), orba v plánu osevu
+(`year-plan.ts`, `CropWork.plough`); scéna kreslí ohradu, zvířata v ní a spřežení na čele orby
+(modely z `tools/blender/plough.py` a `pen.py`). Rozhodnutí z implementace jsou v části
+Implementace a v tabulce Rozhodnutí jako „rozhodnutí kontroléru“.
 
 ## Proč
 
@@ -67,6 +69,39 @@ půdy na seno. Dobytek, dosud jen ozdoba, se tím poprvé zapojí do hry.
   ohrad a spřežení.
 - Postavičky: na rozpracovaném čtverci orá spřežení (model je hotový) místo řady s motykami.
 
+## Implementace (18. 10. 2026)
+
+Rozhodnutí kontroléru tam, kde návrh nedává postup (Martin je může změnit):
+
+- **Ohrada** se staví jako pozemek polozemnice – jeden čtverec louky (ne voda, les, skalní
+  výchoz, posvátné místo ani zabrané políčko), v nabídce staveb zkratka O. Cena jako u obydlí:
+  40 člověkodní v sobě mají kácení 6 stromů u blízkého lesa – stavba vezme klády z hromady,
+  zbytek stromů vyhradí a skácí (dál než 100 m dráž), překážky na čtverci zaplatí prací navíc.
+  Osadníci nejsou potřeba. Ohrady blokují ostatní stavby po čtvercích jako pole.
+- **Výcvik:** dvě telata ze stáda krav – ves musí mít **aspoň 3 krávy** (chovná kráva zůstane).
+  Rádlo je stavba ze společné práce: 5 člověkodní a strom (kláda z hromady, nebo strom ke kácení
+  u ohrady). Spřežení orá, až uplynou 2 roky výcviku **a** je hotové rádlo. Nové spřežení
+  vystřídá staré (staré jde na maso); spřežení starší 10 let zestárne a jde na maso (2 × 120 kg).
+- **Seno:** 1. 6. ves naplánuje seč – seno pro krávy a voly na zimu (≈ 1,5 t na kus, ohrada bez
+  spřežení a výcviku počítá se dvěma voly – výcvik jde zadat kdykoli) bez zásoby, z dílů úhoru ve
+  fázi louky od nejbližšího k obydlí. Seče se v červnu–červenci po dílech jako polní práce,
+  seno přibývá poměrně k práci. **Louky na seno kolem vsi zůstaly jen ve vývojové ukázce** – ve
+  vsi by klamaly, seno dávají jen díly úhoru (data). V listopadu–březnu žere každý kus ≈ 10 kg
+  denně, voli první.
+- **Pokrytí sena** se rozhodne **1. 3.**: co voli za zimu dostali a co jim ze zásoby zbývá na
+  březen, proti potřebě celé zimy. Pod polovinu jeden vůl (nebo tele ve výcviku) uhyne,
+  spřežení i výcvik se rozpadnou a druhý vůl jde na maso. Mezi polovinou a plným pokrytím vrátí
+  slabí voli motyce podíl zbývající orby (celé díly od konce řady orby).
+- **Co rádlo zorá:** díly bez drnu – díl po sklizni, mladý příloh a díl, kterému drn rozrušilo
+  založení. Díl, který se vrací z přílohu ve fázi pastviny (vrácení stojí práci navíc), kope dál
+  motyka (vrácení i kopání). Plán osevu (1. 9. i díly přidané během roku) dá spřežení díly, které
+  rádlo zvládne, když ves má vycvičené spřežení; setí jde za zkopanou i zoranou částí podle vah
+  dílů. Orba běží v oknech kopání, spřežení zvládnou nejvýš 0,3 ha × sazba orby (člověkodny) za
+  den (obě plodiny dohromady). Když ves přijde o poslední spřežení, zbylou orbu (i rozpracovaný
+  díl) kopou motyky – vrácené díly jdou na konec řady kopání.
+- **Ve scéně** stojí spřežení na čele orby (díl, přes který dnes orba postoupila) a otáčí se na
+  souvratích; voli spřežení jsou jinak v ohradě, telata ve výcviku taky, krávy v zimě.
+
 ## Co hráč vidí
 
 - V nabídce staveb **ohrada** (název a cena v tooltipu).
@@ -84,3 +119,5 @@ půdy na seno. Dobytek, dosud jen ozdoba, se tím poprvé zapojí do hry.
 | Ohrada 1 čtverec, 40 čd + 6 stromů; 1 spřežení na ohradu; spřežení slouží ≈ 10 let          | návrh Clauda                  |
 | Seno 1,5 t na vola za zimu, louka 1,5 t/ha, sečení 6 čd/ha; bez sena slabší orba / úhyn     | návrh Clauda                  |
 | Orba 10 → 6 čd/ha místo kopání 100 → 50; drn rádlo nezvládne; spřežení ≈ 0,3 ha/den         | návrh Clauda (rešerše)        |
+| Výcvik z aspoň 3 krav; rádlo jako stavba; seč 1. 6. pro krávy a 2 voly na ohradu            | rozhodnutí kontroléru         |
+| Pokrytí sena k 1. 3.; vracení orby motyce po celých dílech; louky na seno jen v ukázce      | rozhodnutí kontroléru         |

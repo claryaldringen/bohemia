@@ -335,10 +335,11 @@ pro raný středověk ale nemám – zůstává návrhem Clauda jako dosavadní 
 
 - Čistá úroda jde do **společných zásob vsi** (návrh Clauda – ves drží společné zásoby).
 - **Potřeba jídla z pole** (kg obilí za rok): dospělý 180, starší 140, dítě 100.
-- **Zbytek stravy** (zahrada, sběr, ryby, drobné hospodářství) se zatím nemodeluje a bere se jako
-  pokrytý. Domácí výroba je jen spotřeba práce – její nedodělání nasycení nesnižuje (návrh
-  Clauda). Nasycení tak závisí jen na zásobách obilí, jak čeká [populace](population.md) – se
-  sadem na obilí a jablcích, která se jí přednostně ([sad](orchard.md)).
+- **Zbytek stravy** – maso a ovoce řeší [strava](diet.md) (od 18. 10. 2026: potřeba níže je
+  potřeba energie v kg obilí, maso a ovoce z ní pokryjí část); zahrada, sběr a ryby se zatím
+  nemodelují. Domácí výroba je jen spotřeba práce – její nedodělání nasycení nesnižuje (návrh
+  Clauda). Nasycení počítá [strava](diet.md) – energie (obilí, maso, ovoce) × pestrost; dřív
+  záviselo jen na obilí a jablcích ([sad](orchard.md)).
 - **Ztráty při skladování:** 10 % zásob za rok (myši, plíseň), rozložené rovnoměrně; s hrnčířem
   5 % (meze – dobře utěsněná jáma ztrácí málo, Butser; rozpětí návrh Clauda).
 - **Přídělový systém:** dokud zásoby vystačí do příští sklizně, jí ves dosyta (nasycení 1).
@@ -366,9 +367,9 @@ a krávy, které přirozenou obnovu lesa zastaví. Na loukách se navíc bude se
 - **Starší vsi:** díly, které už ležely v přílohu víc než 2 roky (dřív stadia louka, nálet,
   křoviny, les), jsou teď pastvinou – stadium se počítá z let ladem, takže se změní samo; vrátit
   je stojí drn (rozhodnutí Clauda – Martin o starých dílech nerozhodl).
-- **Pastva a seno:** dobytek zatím mechaniku nemá (krmení, mléko, hnůj) – pastva je jen důvod,
-  proč příloh nezarůstá, a sekání sena na loukách je zatím jen scéna, bez práce a bez sena
-  v zásobách. Až přijde dobytek, seno a pastva dostanou práci i užitek (viz Navazuje).
+- **Pastva a seno** (od 18. 10. 2026 – [strava a dobytek](diet.md), [orání rádlem](oxen.md)):
+  na přílohu se pasou skutečná stáda (nosnost pastvy) a úhor ve fázi louky se seče na seno pro
+  krávy a voly – práce v červnu–červenci a seno v zásobách; mléko a hnůj zatím ne.
 - **Přirozená louka**, která nikdy nebyla polem, zůstává loukou (návrh Clauda – louky se zatím
   nemění).
 - **Ve scéně:** mladý příloh jako zaplevelená zem, pastvina jako tráva. Okolí vsi tak tvoří
