@@ -25,7 +25,9 @@ import { PATH_FOREST_EDGE, PATH_WATER_SPOT, type PathTerrain } from './terrain';
 // kousek navíc, ať zavedená místa pěšinu mají.
 // Trasy hledá Dijkstra na hrubé mřížce (path-terrain.ts + domy, pole a překážky vsi). Provoz se
 // sčítá po buňkách, z něj síla pěšiny; pak se trasy hledají znovu se slevou na vyšlapané buňky
-// (aktivní chodci) – lidé dají přednost vyšlapané pěšině a trasy se slijí do sítě. Po pevné cestě
+// (aktivní chodci) – lidé dají přednost vyšlapané pěšině a trasy se slijí do sítě. Ke společnému
+// cíli (pole, sad, staveniště…) jde každá domácnost zvlášť, nejvytíženější první, a další se
+// k čerstvě vyšlapané pěšině přidá – žádné souběžné pěšiny vedle sebe (Martin). Po pevné cestě
 // (roads.md) se jde jako po plné pěšině, takže se k ní trasy stahují. Výsledek jsou vyhlazené
 // lomené čáry se silou v bodech.
 
@@ -1454,8 +1456,9 @@ function addTrip(
 }
 
 /**
- * Jedno kolo: skupiny od nejvytíženější. Cíl – hledání od buněk cíle ke všem branám, které tam
- * chodí. Pochůzka – v prvním kole od všech míst najednou (každá domácnost dojde k nejbližšímu),
+ * Jedno kolo: skupiny od nejvytíženější. Cíl – jediná domácnost: hledání od buněk cíle k její
+ * bráně; víc domácností: každá zvlášť (A* od cíle k její bráně), nejvytíženější první – další se
+ * k pěšině, kterou ta před ní právě vyšlapala, přidá (souběžné pěšiny nevzniknou). Pochůzka – v prvním kole od všech míst najednou (každá domácnost dojde k nejbližšímu),
  * v dalších každá domácnost zvlášť od brány (cestou se přidá k pěšině souseda). Trasy se
  * přičtou do provozu; u pochůzek si domácnost zapamatuje, kam došla (`ends`).
  */
@@ -1548,18 +1551,31 @@ function routeAll(
       group.reach = reach;
       continue;
     }
-    if (!toGates(group)) continue;
-    group.weights.forEach((w, k) => {
-      if (w < MIN_TRIP) return;
+    const walkers = group.weights
+      .map((w, k) => ({ w, k }))
+      .filter(({ w }) => w >= MIN_TRIP)
+      .sort((a, b) => b.w - a.w || a.k - b.k);
+    if (walkers.length === 1) {
+      // jediná domácnost – jedno hledání od cíle k její bráně
+      if (!toGates(group)) continue;
+    }
+    for (const { w, k } of walkers) {
+      const home = homes[k]!;
+      if (walkers.length > 1) {
+        // víc domácností ke stejnému cíli: každá zvlášť, nejvytíženější první – další se po
+        // čerstvě vyšlapané pěšině přidá k ní (Martin: „Pokud už cesta vede tím směrem, lidé by
+        // měli použít tu, ne si prošlapat vlastní souběžnou.“)
+        const gate = home.gate;
+        search(grid, costs.cost, group.sources, group.maxCost, state, (c) => c === gate, gate);
+      }
       if (!reached(group, k)) {
         // nedosažitelná brána (nebo moc daleko) – další kola ji už nehledají
         group.weights[k] = 0;
-        return;
+        continue;
       }
-      const home = homes[k]!;
       const years = group.years?.[k] ?? home.years;
       addTrip(state, traffic, costs, grid.width, home.gate, w, years);
-    });
+    }
   }
   return traffic;
 }

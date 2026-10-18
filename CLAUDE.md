@@ -1121,7 +1121,9 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   sklon, voda a brody z osy potoka, les; `pathTerrainOf` – výřez z mezipaměti podle krajiny,
   nezávisí na jejím stavu; `withObstacles` – kmeny, keře, balvany, výchozy), `network.ts`
   (`computePathNetwork(PathVillage)` – cesty domácností pro vodu a dřevo každá zvlášť s napojením
-  na pěšinu souseda, do cílů podle práce dne + základ zavedených míst, k sousedům; 2 kola,
+  na pěšinu souseda, do cílů podle práce dne + základ zavedených míst (ke společnému cíli každá
+  domácnost zvlášť A* od cíle k bráně, nejvytíženější první – další se přidá k čerstvě vyšlapané
+  pěšině, souběžné pěšiny nevzniknou), k sousedům; 2 kola,
   vyšlapané buňky hned zlevní; buňky pod pevnou cestou (`PathVillage.roads`) od začátku jako plná
   pěšina – trasy se k ní stahují; ohrady (`pens` – plot jako hřbitov, krmení jako cíl) a stáda na
   pastvě (`livestock` → `pastureHerds`, cesta na stádo denně na úhor; ze stavu `pastureLivestock`
@@ -1165,7 +1167,11 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   jinak nikdy nemění → **falešná rozcestí** (uzel jen se dvěma úseky stejného stupně, bez
   rozdílného vylepšení) se spojí (`mergeRoadChains` – i po dokončení vylepšení ve
   `finishConstructions`, starší vsi při načtení `withMergedRoads` v `updateVillage`; id a den
-  vzniku staršího, roads.md – Úseky a rozcestí) → **díry** (volný konec do 12 m od jiného
+  vzniku staršího, roads.md – Úseky a rozcestí; dva úseky mezi stejnými uzly do okruhu ne,
+  nejrovnější pokračování první) → **souběžné cesty** se nevytvoří (`alongsideRoad` ve
+  `formRoads` – do 12 m stejným směrem) a existující se sloučí (`mergeParallelRoads` – kus
+  slabší cesty souběžný aspoň 25 m se vyřízne, `removeBraids` – copánek mezi stejnými uzly do
+  25 m: zmizí oklika; vše v `tidyRoads`, příznak `parallelsChecked`) → **díry** (volný konec do 12 m od jiného
   úseku, který není u konce trasy roční sítě – brány, cíle) se napojí (`joinRoadGaps`, starší
   vsi jednou při načtení `withJoinedRoads` s příznakem `endsChecked`) a určí se skutečné volné
   konce `Road.openEnds` (jen tam se pás cesty ve scéně vytrácí; pěšina dne se za koncem úseku

@@ -302,6 +302,18 @@ když odbočka zarostla, a cesty navázané na konec jiné v různých letech.
   u vsi (upravená cesta 4 končila kus před branou domu, odkud vede upravená cesta 5) se zacelí
   a úseky se spojí. Volné konce zbudou 4 – brány tří domů a cíl v polích. Konce u vsi
   vzdálené 7–23 m od jiných úseků jsou brány domů (do 6 m od konce trasy) – zůstanou.
+- **Souběžné cesty** (Martin, 18. 10. 2026, Vlkov: dvě cesty 5–19 m od sebe jako copánek,
+  „Takovéto cesty by vůbec neměly existovat.“; návrh Clauda): nová pevná cesta nevznikne tam,
+  kde vede do 12 m od jiné pevné cesty stejným směrem (odchylka do ≈ 37°) – provoz patří té.
+  Existující souběžné cesty se v roční kontrole (a jednou při načtení starší vsi –
+  `VillageRoads.parallelsChecked`) sloučí: z mladší / slabší cesty (nižší stupeň, mladší, méně
+  provozu) se vyřízne kus, který vede souběžně aspoň 25 m; zbytky kratší než 15 m zmizí, delší
+  se napojí ke silnější cestě. **Copánek** – dva úseky mezi stejnými uzly, které se nikde
+  nevzdálí víc než 25 m: zmizí oklika (delší o víc než 5 %, jinak slabší). Stromy u odstraněné
+  cesty stojí dál jako u zarostlé (do 5 m od silnější cesty patří k ní), jabloně patří silnější.
+  Dva úseky mezi stejnými uzly se nespojí do okruhu a při spojování úseků má přednost
+  nejrovnější pokračování. Vlkov: 40 a 83 (copánek mezi stejnými rozcestími, 5–19 m od sebe)
+  se sloučí – po převodu zbude 5 úseků, cesta od vsi k polím je jedna.
 - **Volné konce ve scéně:** úsek nese `Road.openEnds` (určí roční kontrola) – pás cesty se
   vytrácí jen na skutečném volném konci (brána, cíl), ne kde navazuje jiný úsek nebo kde trasa
   pokračuje pěšinou dne. Pěšina dne se za koncem úseku neskrývá (`roadFade`) – navazuje na cestu

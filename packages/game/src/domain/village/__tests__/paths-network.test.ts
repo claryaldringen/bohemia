@@ -9,6 +9,7 @@ import {
   pathStrength,
   simplifyPathLine,
   smoothPathLine,
+  type PathLine,
   type PathNetwork,
   type PathVillage,
 } from '../paths/network';
@@ -339,6 +340,33 @@ describe('computePathNetwork – pěšiny vsi', () => {
     const years = network.lines.flatMap((l) => l.years);
     expect(Math.min(...years)).toBeGreaterThan(5);
     expect(Math.max(...years)).toBeLessThanOrEqual(100);
+  });
+});
+
+describe('žádné souběžné pěšiny (Martin: „lidé by měli použít tu, ne si prošlapat vlastní“)', () => {
+  /** Počet čar sítě, které protínají přímku z = `z`. */
+  const crossing = (lines: readonly PathLine[], z: number): number =>
+    lines.filter((l) => l.points.some((p, k) => k > 0 && (l.points[k - 1]!.z - z) * (p.z - z) <= 0))
+      .length;
+
+  it('dvě domácnosti vedle sebe na pole stejným směrem – jedna pěšina', () => {
+    for (const gap of [12, 16, 24]) {
+      const v: PathVillage = {
+        dwellings: [house(1, 0, 0), house(2, gap, 0)],
+        fields: [{ id: 7, parts: [part(-7.5, -127.5), part(7.5, -127.5)] }],
+        labor: {
+          day: 4000,
+          month: 6,
+          people: { children: 2, adults: 8, elders: 1 },
+          shares: [{ target: { kind: 'field', id: 7 }, manDays: 6 }],
+        },
+      };
+      const net = computePathNetwork({ village: v, terrain });
+      expect(crossing(net.lines, -60), `odstup ${gap} m`).toBe(1);
+      expect(crossing(net.lines, -30), `odstup ${gap} m`).toBe(1);
+      // deterministicky
+      expect(computePathNetwork({ village: v, terrain }).lines).toEqual(net.lines);
+    }
   });
 });
 

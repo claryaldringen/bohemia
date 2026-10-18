@@ -862,6 +862,11 @@ export interface VillageRoads {
    * nebo převodem starší vsi při načtení (`withJoinedRoads`); chybí = ještě ne.
    */
   endsChecked?: true;
+  /**
+   * Souběžné cesty sloučené (roads.md – Úseky a rozcestí) – roční kontrolou nebo převodem starší
+   * vsi při načtení; chybí = ještě ne.
+   */
+  parallelsChecked?: true;
 }
 
 /**

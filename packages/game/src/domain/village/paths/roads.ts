@@ -283,10 +283,7 @@ export function updateRoads(
     // díry: volný konec kus od jiného úseku (ne u brány ani cíle) se k němu napojí; falešná
     // rozcestí (odbočka zarostla, nová cesta navázala na konec jiné) – úseky se spojí
     const termini = networkTermini(network.lines);
-    joinRoadGaps(roads, termini, context);
-    mergeRoadChains(roads, state.constructions);
-    markRoadEnds(roads, termini);
-    roads.endsChecked = true;
+    tidyRoads(roads, state.constructions, termini, context);
     roads.candidates = runs.map((run) =>
       resample(run, null, CANDIDATE_STEP_M).points.map((p) => ({ x: dm(p.x), z: dm(p.z) })),
     );
@@ -597,7 +594,18 @@ function formRoads(
   for (const run of runs) {
     const onRoadAt = axisDistance(roads.roads.map((r) => r.points));
     const confirmed = run.map((p) => lastYear(p.x, p.z) <= MATCH_M);
-    const onRoad = run.map((p) => onRoadAt(p.x, p.z) <= ON_ROAD_M);
+    // po pevné cestě, nebo souběžně s ní (do PARALLEL_M stejným směrem) – provoz patří jí, nová
+    // souběžná cesta nevznikne (Martin)
+    const onRoad = run.map(
+      (p, k) =>
+        onRoadAt(p.x, p.z) <= ON_ROAD_M ||
+        alongsideRoad(
+          roads.roads,
+          p,
+          run[Math.max(0, k - 1)]!,
+          run[Math.min(run.length - 1, k + 1)]!,
+        ),
+    );
     let i = 0;
     while (i < run.length) {
       if (!confirmed[i] || onRoad[i]) {
@@ -797,7 +805,8 @@ function upgradesOf(constructions: readonly Construction[], roadId: number): str
  * vznikl dřív. Různý stupeň zůstane rozdělený (skutečná hranice vylepšení), stejně tak úseky, kde
  * se vylepšuje jen jeden z nich (nebo každý jinou stavbou) – po dokončení se spojí, mají-li
  * stejný stupeň. Stavby na úsecích (výsadba jabloní, společné vylepšení) přejdou na spojený
- * úsek. Uzavřený okruh z jednoho úseku zůstane. Vrátí, jestli něco spojil.
+ * úsek. Uzavřený okruh z jednoho úseku zůstane, dva úseky mezi stejnými uzly se do okruhu
+ * nespojí. Vrátí, jestli něco spojil.
  */
 export function mergeRoadChains(roads: VillageRoads, constructions: Construction[]): boolean {
   let merged = false;
@@ -840,17 +849,34 @@ function chainPair(
       ends.set(key, list);
     }
   }
+  /** Směr osy od konce do úseku (jednotkový). */
+  const away = (end: RoadEnd): RoadPoint => {
+    const pts = end.road.points;
+    const p = end.atStart ? pts[0]! : pts[pts.length - 1]!;
+    const q = end.atStart ? pts[1]! : pts[pts.length - 2]!;
+    const l = length2(q.x - p.x, q.z - p.z) || 1;
+    return { x: (q.x - p.x) / l, z: (q.z - p.z) / l };
+  };
+  // ze všech uzlů nejrovnější pokračování první (kusy jedné cesty před odbočkou k jiné trase –
+  // u okruhu z několika úseků tak zůstane rovná cesta celá), při shodě v pořadí úseků
+  let best: { pair: [RoadEnd, RoadEnd]; turn: number } | null = null;
   for (const road of valid) {
     for (const atStart of [true, false]) {
       const list = ends.get(endKey(endOf(road, atStart)))!;
-      if (list.length !== 2) continue;
+      if (list.length !== 2 || list[0]!.road !== road || list[0]!.atStart !== atStart) continue;
       const [a, b] = list as [RoadEnd, RoadEnd];
       if (a.road === b.road || a.road.grade !== b.road.grade) continue;
+      // dva úseky mezi stejnými uzly (dvě trasy) se nespojí do okruhu – copánek řeší
+      // `removeBraids`, vzdálené trasy zůstanou dvě
+      if (endKey(endOf(a.road, !a.atStart)) === endKey(endOf(b.road, !b.atStart))) continue;
       if (upgradesOf(constructions, a.road.id) !== upgradesOf(constructions, b.road.id)) continue;
-      return [a, b];
+      const da = away(a);
+      const db = away(b);
+      const turn = da.x * db.x + da.z * db.z;
+      if (!best || turn < best.turn - 1e-9) best = { pair: [a, b], turn };
     }
   }
-  return null;
+  return best?.pair ?? null;
 }
 
 /** Spojí dva úseky v jejich společném konci (starší zůstane, mladší zmizí – mutuje). */
@@ -906,6 +932,285 @@ function joinRoads(
     c.roadIds = [...new Set(c.roadIds.map((id) => (id === other.id ? road.id : id)))];
   }
   roads.roads = roads.roads.filter((r) => r !== other);
+}
+
+// --- souběžné cesty -----------------------------------------------------------------------------
+
+/**
+ * Souběžná cesta (Martin: „Pokud už cesta vede tím směrem, lidé by měli použít tu, ne si
+ * prošlapat vlastní souběžnou.“): bod osy do PARALLEL_M od jiné pevné cesty, jejíž směr se od
+ * směru osy liší nejvýš o úhel s kosinem PARALLEL_COS (≈ 37°). Souběžný kus aspoň PARALLEL_MIN_M
+ * dlouhý se z mladší / slabší cesty odstraní.
+ */
+const PARALLEL_M = 12;
+const PARALLEL_COS = 0.8;
+const PARALLEL_MIN_M = 25;
+/** Krok vzorkování osy při hledání souběžných kusů (m). */
+const PARALLEL_STEP_M = 2;
+/**
+ * Copánek: dva úseky mezi stejnými dvěma uzly, které se od sebe nevzdálí víc než tolik (m) –
+ * slabší zmizí (lidé chodí po silnější).
+ */
+const BRAID_M = 25;
+/** Trasa delší o víc než tento násobek je u copánku oklika – zmizí ona. */
+const BRAID_LONGER = 1.05;
+/** Kol úklidu (souběžné kusy → díry → copánky) nejvýš. */
+const TIDY_ROUNDS = 3;
+
+/** Vede bod `p` (směr osy od `before` k `after`) souběžně s některou z cest `roads`? */
+function alongsideRoad(
+  roads: readonly Road[],
+  p: RoadPoint,
+  before: RoadPoint,
+  after: RoadPoint,
+): boolean {
+  const tx = after.x - before.x;
+  const tz = after.z - before.z;
+  const tl = length2(tx, tz);
+  if (tl < 1e-9) return false;
+  for (const road of roads) {
+    for (let k = 1; k < road.points.length; k++) {
+      const a = road.points[k - 1]!;
+      const b = road.points[k]!;
+      if (toSegment(p.x, p.z, a, b).distance > PARALLEL_M) continue;
+      const sx = b.x - a.x;
+      const sz = b.z - a.z;
+      const sl = length2(sx, sz);
+      if (sl < 1e-9) continue;
+      if (Math.abs(tx * sx + tz * sz) / (tl * sl) >= PARALLEL_COS) return true;
+    }
+  }
+  return false;
+}
+
+/** Pořadí síly cest: vyšší stupeň, starší, víc provozu loni, menší id – silnější dřív. */
+function strongerRoad(a: Road, b: Road): number {
+  const grade = (r: Road): number => (r.grade === 'trodden' ? 0 : r.grade === 'improved' ? 1 : 2);
+  return (
+    grade(b) - grade(a) ||
+    a.bornDay - b.bornDay ||
+    (b.traffic[b.traffic.length - 1] ?? 0) - (a.traffic[a.traffic.length - 1] ?? 0) ||
+    a.id - b.id
+  );
+}
+
+/** Nejdelší souběžný kus osy `road` se silnějšími cestami `stronger` (od–do v m); jinak null. */
+function parallelRun(
+  road: Road,
+  stronger: readonly Road[],
+): { from: number; to: number; partner: Road } | null {
+  if (stronger.length === 0) return null;
+  const samples = resample(road.points, null, PARALLEL_STEP_M).points;
+  const at = lengthsAlong(samples);
+  let best: { from: number; to: number; partner: Road } | null = null;
+  let start = -1;
+  let partner: Road | null = null;
+  const close = (end: number): void => {
+    if (start < 0 || !partner) return;
+    const from = at[start]!;
+    const to = at[end]!;
+    if (to - from >= PARALLEL_MIN_M && (!best || to - from > best.to - best.from)) {
+      best = { from, to, partner };
+    }
+  };
+  samples.forEach((p, k) => {
+    const before = samples[Math.max(0, k - 1)]!;
+    const after = samples[Math.min(samples.length - 1, k + 1)]!;
+    const along = stronger.filter((r) => alongsideRoad([r], p, before, after));
+    if (along.length > 0) {
+      if (start < 0) {
+        start = k;
+        partner = along[0]!;
+      }
+      return;
+    }
+    close(k - 1);
+    start = -1;
+    partner = null;
+  });
+  close(samples.length - 1);
+  return best;
+}
+
+/** Kus osy od `from` do `to` m (body zlomu mezi tím, konce na cm). */
+function axisSlice(points: readonly RoadPoint[], from: number, to: number): RoadPoint[] {
+  const at = lengthsAlong(points);
+  const pointAt = (d: number): RoadPoint => {
+    let k = 1;
+    while (k < points.length - 1 && at[k]! < d) k++;
+    const a = points[k - 1]!;
+    const b = points[k]!;
+    const span = at[k]! - at[k - 1]!;
+    const u = span > 1e-9 ? Math.min(1, Math.max(0, (d - at[k - 1]!) / span)) : 0;
+    return { x: cm(a.x + (b.x - a.x) * u), z: cm(a.z + (b.z - a.z) * u) };
+  };
+  const out = [pointAt(from)];
+  points.forEach((p, k) => {
+    if (at[k]! > from + 1e-6 && at[k]! < to - 1e-6) out.push({ x: p.x, z: p.z });
+  });
+  out.push(pointAt(to));
+  return out.filter((p, k, all) => k === 0 || p.x !== all[k - 1]!.x || p.z !== all[k - 1]!.z);
+}
+
+/**
+ * Souběžné pevné cesty se sloučí (mutuje): z mladší / slabší cesty se vyřízne kus, který vede
+ * souběžně se silnější (`parallelRun`) – zbytky kratší než MIN_ROAD_M zmizí, delší zůstanou jako
+ * úseky (první s id cesty, další s novým) a jejich konce u silnější cesty pak napojí
+ * `joinRoadGaps`. Místa na stromy ve vyříznutém kusu: se stromem do ROAD_TREES.offsetM.to + 1 m
+ * od silnější cesty přejdou k ní, ostatní stromy stojí dál bez cesty (jako u zarostlé). Jabloně
+ * vyříznutého kusu patří silnější cestě. Cesty ve stavbě (vylepšení, výsadba) se nemění. Vrátí,
+ * jestli něco sloučil.
+ */
+function mergeParallelRoads(roads: VillageRoads, constructions: readonly Construction[]): boolean {
+  const building = roadsInWork(constructions);
+  let merged = false;
+  for (let guard = roads.roads.length * 2; guard > 0; guard--) {
+    const order = [...roads.roads].sort(strongerRoad);
+    let cut: { road: Road; from: number; to: number; partner: Road } | null = null;
+    // od nejslabší – se silnějšími než ona
+    for (let i = order.length - 1; i > 0 && !cut; i--) {
+      const road = order[i]!;
+      if (building.has(road.id) || road.points.length < 2) continue;
+      const run = parallelRun(road, order.slice(0, i));
+      if (run) cut = { road, ...run };
+    }
+    if (!cut) break;
+    cutRoad(roads, cut.road, cut.from, cut.to, cut.partner);
+    merged = true;
+  }
+  return merged;
+}
+
+/** Vyřízne z úseku `road` kus od `from` do `to` m (souběžný s `partner`) – mutuje. */
+function cutRoad(roads: VillageRoads, road: Road, from: number, to: number, partner: Road): void {
+  const length = roadLengthM(road);
+  const pieces = [
+    { a: 0, b: from },
+    { a: to, b: length },
+  ].filter(({ a, b }) => b - a >= MIN_ROAD_M);
+  const made: Road[] = pieces.map(({ a, b }, k) => {
+    const points = axisSlice(road.points, a, b);
+    return {
+      id: k === 0 ? road.id : roads.nextId++,
+      points,
+      bornDay: road.bornDay,
+      grade: road.grade,
+      traffic: [...road.traffic],
+      spots: [],
+      ...(road.ground ? { ground: groundPart(road.ground, a, b) } : {}),
+    };
+  });
+  // místa na stromy a jabloně k nejbližšímu kusu, ve vyříznutém kusu k silnější cestě
+  const partnerAxis = axisDistance([partner.points]);
+  const axes = made.map((r) => axisDistance([r.points]));
+  const occupied = new Set(roads.trees.map((t) => t.spot));
+  const nearPiece = (x: number, z: number): Road | null => {
+    let best: Road | null = null;
+    let bestD = ROAD_TREES.offsetM.to + 1;
+    made.forEach((r, k) => {
+      const d = axes[k]!(x, z);
+      if (d <= bestD) {
+        best = r;
+        bestD = d;
+      }
+    });
+    return best;
+  };
+  for (const spot of road.spots) {
+    const piece = nearPiece(spot.x, spot.z);
+    if (piece) piece.spots.push(spot);
+    else if (occupied.has(spot.id) && partnerAxis(spot.x, spot.z) <= ROAD_TREES.offsetM.to + 1) {
+      partner.spots.push(spot);
+    }
+  }
+  for (const apple of roads.apples ?? []) {
+    if (apple.roadId !== road.id) continue;
+    apple.roadId = (nearPiece(apple.x, apple.z) ?? partner).id;
+  }
+  const index = roads.roads.indexOf(road);
+  roads.roads.splice(index, 1, ...made);
+}
+
+/**
+ * Která ze dvou tras mezi stejnými uzly zůstane: vyšší stupeň, pak kratší (delší o víc než
+ * BRAID_LONGER je oklika), pak silnější (`strongerRoad`) – ta dřív.
+ */
+function braidOrder(a: Road, b: Road): number {
+  const grade = (r: Road): number => (r.grade === 'trodden' ? 0 : r.grade === 'improved' ? 1 : 2);
+  const la = roadLengthM(a);
+  const lb = roadLengthM(b);
+  const shorter = la > lb * BRAID_LONGER ? 1 : lb > la * BRAID_LONGER ? -1 : 0;
+  return grade(b) - grade(a) || shorter || strongerRoad(a, b);
+}
+
+/**
+ * Copánky se rozpletou (mutuje): dva úseky mezi stejnými dvěma uzly (oba konce společné), slabší
+ * (`braidOrder` – nižší stupeň, oklika) se od silnějšího nikde nevzdálí víc než BRAID_M – slabší
+ * zmizí jako vyříznutý souběžný kus (`cutRoad` – stromy u něj stojí dál, jabloně patří
+ * silnějšímu). Cesty ve stavbě zůstanou. Vrátí, jestli něco odstranil.
+ */
+function removeBraids(roads: VillageRoads, constructions: readonly Construction[]): boolean {
+  const building = roadsInWork(constructions);
+  const endsOf = (r: Road): string =>
+    [endKey(r.points[0]!), endKey(r.points[r.points.length - 1]!)].sort().join('|');
+  let removed = false;
+  for (let guard = roads.roads.length; guard > 0; guard--) {
+    const order = [...roads.roads].filter((r) => r.points.length >= 2).sort(braidOrder);
+    let braid: { weak: Road; strong: Road } | null = null;
+    for (let i = order.length - 1; i > 0 && !braid; i--) {
+      const weak = order[i]!;
+      if (building.has(weak.id)) continue;
+      const key = endsOf(weak);
+      const [a, b] = key.split('|');
+      if (a === b) continue;
+      for (const strong of order.slice(0, i)) {
+        if (endsOf(strong) !== key) continue;
+        const axis = strong.points;
+        const far = resample(weak.points, null, PARALLEL_STEP_M).points.some((p) => {
+          let best = Infinity;
+          for (let k = 1; k < axis.length; k++) {
+            best = Math.min(best, toSegment(p.x, p.z, axis[k - 1]!, axis[k]!).distance);
+          }
+          return best > BRAID_M;
+        });
+        if (!far) {
+          braid = { weak, strong };
+          break;
+        }
+      }
+    }
+    if (!braid) break;
+    cutRoad(roads, braid.weak, 0, roadLengthM(braid.weak), braid.strong);
+    removed = true;
+  }
+  return removed;
+}
+
+/**
+ * Úklid pevných cest po roční kontrole (i převodu starší vsi – mutuje): souběžné cesty se sloučí,
+ * díry se zacelí, falešná rozcestí spojí a určí se skutečné volné konce (roads.md – Úseky
+ * a rozcestí).
+ */
+function tidyRoads(
+  roads: VillageRoads,
+  constructions: Construction[],
+  termini: readonly RoadPoint[],
+  context: SpotContext,
+): void {
+  // po sloučení souběžných kusů a zacelení děr můžou vzniknout copánky – znovu, nejvýš pár kol
+  for (let round = 0; round < TIDY_ROUNDS; round++) {
+    const parallel = mergeParallelRoads(roads, constructions);
+    joinRoadGaps(roads, termini, context);
+    // copánky před spojováním – kusy silnější cesty se po odstranění slabší trasy spojí zpět
+    const braids = removeBraids(roads, constructions);
+    mergeRoadChains(roads, constructions);
+    const more = removeBraids(roads, constructions);
+    if (more) mergeRoadChains(roads, constructions);
+    if (!parallel && !braids && !more) break;
+  }
+  markRoadEnds(roads, termini);
+  roads.endsChecked = true;
+  roads.parallelsChecked = true;
 }
 
 // --- díry mezi úseky ----------------------------------------------------------------------------
@@ -1039,7 +1344,7 @@ export function joinedRoadsOf(
     candidates: [],
     labor: { from: 0, days: 0, shares: [] },
   };
-  joinRoadGaps(roads, termini, {
+  tidyRoads(roads, [], termini, {
     terrain,
     blocked: () => false,
     layer: null,
@@ -1047,13 +1352,12 @@ export function joinedRoadsOf(
     seed: 0,
     split: () => undefined,
   });
-  mergeRoadChains(roads, []);
-  markRoadEnds(roads, termini);
   return roads.roads;
 }
 
 /**
- * Starší ves z doby před zacelováním děr (bez `VillageRoads.endsChecked`) – při načtení se díry
+ * Starší ves z doby před zacelováním děr a slučováním souběžných cest (bez
+ * `VillageRoads.endsChecked` / `parallelsChecked`) – při načtení se souběžné úseky sloučí, díry
  * zacelí a určí se volné konce jako v roční kontrole (roční síť z práce od poslední kontroly).
  * Jednou: pak to dělá roční kontrola sama a stav nese příznak – bez cest i s příznakem vrátí týž
  * objekt (nic se neukládá).
@@ -1063,15 +1367,15 @@ export function withJoinedRoads(
   landscape: Landscape,
   obstacles: ObstacleLayer | null,
 ): VillageState {
-  if (!state.roads || state.roads.endsChecked || state.roads.roads.length === 0) return state;
+  const checked = state.roads?.endsChecked && state.roads.parallelsChecked;
+  if (!state.roads || checked || state.roads.roads.length === 0) return state;
   const next = cloneState(state);
   const roads = next.roads!;
   const day = next.lastDay;
   const changes = obstacleChangesAt(next, day);
   const annual = annualPathNetwork(next, day, landscape, obstacles, changes);
   if (annual) {
-    const termini = networkTermini(annual.network.lines);
-    joinRoadGaps(roads, termini, {
+    tidyRoads(roads, next.constructions, networkTermini(annual.network.lines), {
       terrain: annual.terrain,
       blocked: plantingBlocker(next, landscape),
       layer: obstacles,
@@ -1079,10 +1383,9 @@ export function withJoinedRoads(
       seed: next.seed,
       split: (from, to) => splitRoadWork(next.constructions, from, to),
     });
-    mergeRoadChains(roads, next.constructions);
-    markRoadEnds(roads, termini);
   }
   roads.endsChecked = true;
+  roads.parallelsChecked = true;
   return next;
 }
 

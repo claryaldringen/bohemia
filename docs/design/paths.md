@@ -39,7 +39,12 @@ A po vyšlapané pěšině se chodí lépe – cesta na vzdálené pole po ní s
   kmeny, keře, balvany a skály, plot ohrady a hřbitova, přes oseté pole nechodí (jdou po jeho
   okraji), přes úhor a louku ano, lesem neradi.
 - **Slévání:** vyšlapaná pěšina je pohodlnější (až o polovinu), takže kdo jde po ní, jde i kus
-  oklikou – trasy sousedů se slijí do společné pěšiny a vznikne síť. Po **pevné cestě**
+  oklikou – trasy sousedů se slijí do společné pěšiny a vznikne síť. **Žádné souběžné pěšiny**
+  (Martin, 18. 10. 2026: „Pokud už cesta vede tím směrem, lidé by měli použít tu, ne si prošlapat
+  vlastní souběžnou.“): ke společnému cíli (pole, sad, staveniště…) jde každá domácnost zvlášť,
+  nejvytíženější první, a další se k pěšině, kterou ta před ní právě vyšlapala, přidá – dřív
+  hledalo jedno hledání trasy ke všem branám naráz a dva sousední domy (12–24 m od sebe) měly
+  každý vlastní souběžnou pěšinu na pole. Po **pevné cestě**
   ([roads.md](roads.md)) se jde jako po plné pěšině, takže se k ní pěšiny dne stahují; kde vedou
   po ní, ztratí se v ní (kreslí se jen cesta).
 - **Síla pěšiny** roste s počtem cest za den (pomalu – s odmocninou), jednotlivé cesty nic
