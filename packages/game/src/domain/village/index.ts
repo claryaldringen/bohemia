@@ -60,6 +60,15 @@ export * from './placement';
 export * from './plots';
 export { TAKEN_LAND_EPSILON_M2, landLeftM2, type TakenLand } from './land-taken';
 export * from './ruins';
+// opuštěné stavby – čisté funkce stavu; kroky simulace (roční kontrola, pád) zůstávají uvnitř
+export {
+  isAbandoned,
+  sacredRuinOvergrowth,
+  stockedPenIds,
+  structureCondition,
+  structureFallDay,
+  visitKey,
+} from './abandonment';
 export * from './obstacles';
 export * from './summary';
 export * from './names';

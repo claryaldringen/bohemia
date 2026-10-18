@@ -137,6 +137,10 @@ export type SelectionDetails =
       built: boolean;
       /** Stavba – založení, u hotového rozšíření (průběh 0–1); bez stavby null. */
       building: number | null;
+      /** Stav plotu 0–1 (abandonment.md). */
+      condition: number;
+      /** Nikdo ke hřbitovu nechodí – plot chátrá. */
+      abandoned: boolean;
     }
   | {
       kind: 'orchard';
@@ -184,6 +188,10 @@ export type SelectionDetails =
       building: number | null;
       /** Kolik dubů stavba ještě musí skácet. */
       oaksToFell: number;
+      /** Stav hotové stavby 0–1 (abandonment.md); rozestavěná 1. */
+      condition: number;
+      /** Opuštěná – nikdo k ní nechodí, chátrá. */
+      abandoned: boolean;
     }
   | {
       kind: 'pen';
@@ -211,6 +219,10 @@ export type SelectionDetails =
       hayKg: number;
       /** Proč teď nejde začít výcvik (česky), nebo null. */
       trainBlocked: string | null;
+      /** Stav hotové ohrady 0–1 (abandonment.md). */
+      condition: number;
+      /** Opuštěná – bez zvířat a nikdo k ní nechodí, chátrá. */
+      abandoned: boolean;
     }
   | {
       kind: 'road';
@@ -350,6 +362,8 @@ export function selectionDetails(
       yearsLeft: cemetery.yearsLeft,
       built: cemetery.built,
       building: cemetery.built && cemetery.progress >= 1 ? null : cemetery.progress,
+      condition: cemetery.fenceCondition,
+      abandoned: cemetery.abandoned,
     };
   }
   if (target.kind === 'sacred-oak') {
@@ -491,6 +505,8 @@ function sacredDetails(
       happiness: building.happiness,
       building: building.built ? null : building.progress,
       oaksToFell: building.built ? 0 : building.oaksToFell,
+      condition: building.condition,
+      abandoned: building.abandoned,
     };
   }
   const site = scene.sacred?.buildings.find((b) => b.id === id);
@@ -502,6 +518,8 @@ function sacredDetails(
     happiness: sacredBuildingHappiness(site.kind),
     building: site.built ? null : site.progress,
     oaksToFell: 0,
+    condition: site.condition ?? 1,
+    abandoned: site.abandoned === true,
   };
 }
 
@@ -525,5 +543,7 @@ function penDetails(view: VillageView | null, id: number): SelectionDetails | nu
     training: pen.training,
     hayKg: view.hayKg,
     trainBlocked: pen.trainBlocked,
+    condition: pen.condition,
+    abandoned: pen.abandoned,
   };
 }

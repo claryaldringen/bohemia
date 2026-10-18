@@ -223,6 +223,8 @@ describe('hřbitov je plný', () => {
     graves: 56 - freeGraves,
     freeGraves,
     yearsLeft: null,
+    fenceCondition: 1,
+    abandoned: false,
   });
 
   it('jen když žádný hotový hřbitov nemá volný hrob – bez hřbitova nic', () => {

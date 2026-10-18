@@ -1,3 +1,4 @@
+import type { AbandonedStructure } from '@bohemia/game';
 import { formatInteger } from './village-format';
 import type { VillageView } from './village-view';
 
@@ -7,7 +8,8 @@ import type { VillageView } from './village-view';
 // (crafts.md), svatba mezi domy (population.md – Sňatky mezi domy, když přibude), podzimní
 // porážka (diet.md), spřežení volů – vycvičené, dosloužilo, vůl uhynul pro nedostatek sena
 // (oxen.md) –, vesničané obnovují starý sad a starý sad dosloužil (orchard.md – Obnova sadu)
-// a posvátný dub uschl a posvátná souš padla (happiness.md) – nové události kroniky. Vymřelá ves žádná nemá.
+// a posvátný dub uschl a posvátná souš padla (happiness.md), opuštěná modla padla, svatyně, plot
+// hřbitova či ohrada se rozpadly (abandonment.md) – nové události kroniky. Vymřelá ves žádná nemá.
 // Odvozují se z pohledu na ves a ukážou se jednou, když nově vzniknou – jako krátký mizející
 // řádek nahoře uprostřed (jako oznámení v 0 A.D.). Jen fakt, žádná rada.
 
@@ -31,6 +33,11 @@ export type NoticeKind =
   | 'orchard-renewal'
   | 'orchard-gone'
   | 'part-forest'
+  /** Opuštěná stavba spadla (abandonment.md). */
+  | 'idol-fell'
+  | 'shrine-fell'
+  | 'cemetery-fence-fell'
+  | 'pen-fell'
   /** Upozornění z jiné vsi hráče (migration.md – Víc vsí jednoho hráče). */
   | 'other-hungry'
   | 'other-starving'
@@ -169,6 +176,20 @@ const CHRONICLE_NOTICES: Partial<
     tone: 'warn',
     text: 'Posvátná souš padla',
   }),
+  // opuštěná stavba spadla (abandonment.md) – fakt podle stavby
+  'structure-fell': (entry) => STRUCTURE_FELL_NOTICES[entry.structure ?? 'idol'],
+};
+
+/** Krátké řádky k pádu opuštěné stavby (abandonment.md – Následky). */
+const STRUCTURE_FELL_NOTICES: Record<AbandonedStructure, VillageNotice> = {
+  idol: { kind: 'idol-fell', tone: 'warn', text: 'Modla padla' },
+  shrine: { kind: 'shrine-fell', tone: 'warn', text: 'Svatyně se rozpadla' },
+  'cemetery-fence': {
+    kind: 'cemetery-fence-fell',
+    tone: 'warn',
+    text: 'Plot hřbitova se rozpadl',
+  },
+  pen: { kind: 'pen-fell', tone: 'warn', text: 'Ohrada se rozpadla' },
 };
 
 /** Nové události kroniky od předchozího pohledu (den po něm), které se ohlásí jako fakt. */

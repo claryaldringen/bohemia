@@ -748,3 +748,15 @@ export function workshopBuildLabor(craft: Craft): number {
 // migration.md – Odchod do nové vsi (návrh Clauda): první zemnice nové vsi na téže mapě stojí
 // nejméně 300 m od staveb jiných vsí.
 export const NEW_VILLAGE_MIN_DISTANCE_M = 300;
+
+// abandonment.md – Chátrání (Martin 18. 10. 2026: „stavby, kam nikdo nechodí, budou postupně
+// chátrat a rozpadnou se“; čísla návrh Clauda podle rešerše research/2026-10-18-abandonment.md):
+// opuštěná stavba spadne za `fallYears` let od plného stavu – modla (dubový kůl Ø 0,5 m v zemi)
+// 20, svatyně (kůl ×1,55) 30, pletený plot hřbitova 10, ohrada bez zvířat (přístřešek s došky,
+// pletený plot) 10; zbytek padlé modly leží 10 let, zarostlý příkop svatyně 20 let. Stavba
+// dokončená za poslední rok opuštěná není – lidé k ní chodili stavět.
+export const ABANDONMENT = {
+  fallYears: { idol: 20, shrine: 30, 'cemetery-fence': 10, pen: 10 },
+  remnantYears: { idol: 10, shrine: 20 },
+  graceDays: 365,
+} as const;

@@ -107,6 +107,8 @@ describe('showsHay', () => {
     trainBlocked: null,
     cows: 0,
     oxen: 0,
+    condition: 1,
+    abandoned: false,
   });
 
   it('seno v liště, když ves má hotovou ohradu nebo seno v zásobě', () => {

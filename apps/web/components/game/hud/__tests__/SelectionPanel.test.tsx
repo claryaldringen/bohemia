@@ -23,6 +23,8 @@ const pen = (over: Partial<Extract<SelectionDetails, { kind: 'pen' }>> = {}): Se
   training: null,
   hayKg: 3200,
   trainBlocked: null,
+  condition: 1,
+  abandoned: false,
   ...over,
 });
 
