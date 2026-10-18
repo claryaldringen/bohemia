@@ -5,7 +5,14 @@
 //
 // Position.rotation = natočení kolem svislé osy v radiánech jako `mesh.rotation.y` v Babylonu:
 // 0 = vchod míří do +Z, π/2 do +X (vchod míří do směru (sin r, cos r) v osách x, z).
-import type { DwellingPlot, DwellingType, PlacementCheck, Position, TileCell } from '@bohemia/game';
+import type {
+  DwellingPlot,
+  DwellingType,
+  PlacementCheck,
+  Position,
+  SacredBuildingKind,
+  TileCell,
+} from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
 
 /**
@@ -28,6 +35,8 @@ export type SceneFieldPart = SceneField['parts'][number];
 export interface PlacementCost {
   laborManDays: number;
   trees: number;
+  /** Modla a svatyně: kolik dospělých dubů se pro stavbu skácí (happiness.md). */
+  oaks?: number;
 }
 
 /**
@@ -67,7 +76,13 @@ export type PlacementMode =
         position: Position | null;
       };
     }
-  | { kind: 'squares'; preview(cells: TileCell[]): SquaresPreview };
+  | { kind: 'squares'; preview(cells: TileCell[]): SquaresPreview }
+  | {
+      /** Modla nebo svatyně (happiness.md) – čtvercový půdorys u kurzoru jako obydlí. */
+      kind: 'sacred';
+      type: SacredBuildingKind;
+      check(position: Position): PlacementCheck & { cost?: PlacementCost | null };
+    };
 
 /**
  * Potvrzené umístění – scéna ho ohlásí jen tehdy, když kontrola prošla. Obydlí na pozemku nese
@@ -75,7 +90,8 @@ export type PlacementMode =
  */
 export type PlacementResult =
   | { kind: 'dwelling'; type: DwellingType; position: Position; plot?: DwellingPlot }
-  | { kind: 'squares'; cells: TileCell[] };
+  | { kind: 'squares'; cells: TileCell[] }
+  | { kind: 'sacred'; type: SacredBuildingKind; position: Position };
 
 /**
  * Průběžný stav umisťování pro rozhraní: kontrola, popisek (u pole výměra a cena z `preview`,

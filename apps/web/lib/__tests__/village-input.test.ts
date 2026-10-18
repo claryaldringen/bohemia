@@ -4,6 +4,7 @@ import {
   parseCells,
   parsePlaceDwellingInput,
   parsePlaceFieldInput,
+  parsePlaceSacredInput,
   parseRenameVillageInput,
   parseRestartGameInput,
   parsePosition,
@@ -107,5 +108,21 @@ describe('ověření vstupu server actions vsi', () => {
     expect(parseSkipTimeInput({ days: 30 })).toBeNull();
     expect(parseSkipTimeInput('month')).toBeNull();
     expect(parseSkipTimeInput(undefined)).toBeNull();
+  });
+});
+
+describe('vstup stavby modly a svatyně', () => {
+  it('druh idol / shrine a poloha s konečnými čísly, jinak null', () => {
+    const position = { x: 1, z: 2, rotation: 0.5 };
+    expect(parsePlaceSacredInput({ kind: 'idol', position })).toEqual({ kind: 'idol', position });
+    expect(parsePlaceSacredInput({ kind: 'shrine', position })).toEqual({
+      kind: 'shrine',
+      position,
+    });
+    expect(parsePlaceSacredInput({ kind: 'zemnice', position })).toBeNull();
+    expect(
+      parsePlaceSacredInput({ kind: 'idol', position: { x: 1, z: NaN, rotation: 0 } }),
+    ).toBeNull();
+    expect(parsePlaceSacredInput(null)).toBeNull();
   });
 });

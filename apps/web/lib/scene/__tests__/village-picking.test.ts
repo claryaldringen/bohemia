@@ -211,3 +211,69 @@ describe('pozemek polozemnice', () => {
     expect(Math.max(...hx) - Math.min(...hx)).toBeLessThan(8);
   });
 });
+
+describe('pickVillageTarget – posvátná místa', () => {
+  const sacredVillage: SceneVillage = {
+    ...village,
+    sacred: {
+      oaks: [{ id: 501, x: 100, z: 100 }],
+      groves: [
+        {
+          id: 601,
+          x: 157.5,
+          z: 7.5,
+          squares: [{ cell: { x: 10, y: 0 }, x: 157.5, z: 7.5, size: CELL }],
+        },
+      ],
+      buildings: [
+        {
+          id: 701,
+          kind: 'shrine',
+          position: { x: 0, z: 200, rotation: 0 },
+          built: true,
+          progress: 1,
+        },
+        {
+          id: 702,
+          kind: 'idol',
+          position: { x: 60, z: 60, rotation: 0 },
+          built: false,
+          progress: 0,
+        },
+      ],
+    },
+  };
+  const options = (x: number, z: number) => ({ ground: { x, z }, groundHeight: flat, cellOf });
+
+  it('svatyně a modla podle půdorysu (i staveniště), dub u kmene, háj po čtvercích', () => {
+    expect(pickVillageTarget(sacredVillage, rayTo(10, 205), options(10, 205))).toEqual({
+      kind: 'sacred',
+      id: 701,
+    });
+    expect(pickVillageTarget(sacredVillage, rayTo(61, 60), options(61, 60))).toEqual({
+      kind: 'sacred',
+      id: 702,
+    });
+    expect(pickVillageTarget(sacredVillage, rayTo(102, 101), options(102, 101))).toEqual({
+      kind: 'sacred-oak',
+      id: 501,
+    });
+    expect(pickVillageTarget(sacredVillage, rayTo(160, 5), options(160, 5))).toEqual({
+      kind: 'grove',
+      id: 601,
+    });
+    // daleko od všeho nic, pole zůstává polem
+    expect(pickVillageTarget(sacredVillage, rayTo(120, 140), options(120, 140))).toBeNull();
+    expect(pickVillageTarget(sacredVillage, rayTo(40, 5), options(40, 5))).toEqual({
+      kind: 'field',
+      id: 3,
+    });
+  });
+
+  it('existují jen posvátná místa, která ves má', () => {
+    expect(targetExists(sacredVillage, { kind: 'sacred', id: 702 })).toBe(true);
+    expect(targetExists(sacredVillage, { kind: 'grove', id: 601 })).toBe(true);
+    expect(targetExists(sacredVillage, { kind: 'sacred-oak', id: 999 })).toBe(false);
+    expect(targetExists(village, { kind: 'sacred', id: 701 })).toBe(false);
+  });
+});

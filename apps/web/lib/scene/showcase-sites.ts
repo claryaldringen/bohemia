@@ -22,8 +22,10 @@ import { StakingPegs, createStringMaterial, createStringMesh, pegInstances } fro
 import { closedLine } from './staking-layout';
 import {
   CONSTRUCTION_BASE,
+  ROUND_SITE_M,
   constructionState,
   sitePropPlace,
+  type ConstructionKind,
   type ConstructionState,
 } from './village-construction';
 import {
@@ -40,7 +42,7 @@ import { createDecalMaterial, createDecalMesh, createStripMesh } from './village
 
 /**
  * VÝVOJOVÝ NÁHLED – staveniště na stránce /dev/buildings podle průběhu stavby 0–1: díly
- * z construction.glb obydlí a řemesel v instancích, jámy s hloubkou podle kopání, sejmutý drn,
+ * z construction.glb obydlí, řemesel a posvátných míst v instancích, jámy s hloubkou podle kopání, sejmutý drn,
  * vytyčení, ušlapaná tráva, hromada hlíny a rekvizity – stejné stavy jako ve vsi
  * (village-construction.ts, kreslení podle village-renderer.ts), jen na rovné louce.
  */
@@ -53,9 +55,12 @@ const TRAMPLED_SOFT_M = 2.2;
 const SPOIL_HEAP_M = { rx: 1.7, rz: 1.2, height: 0.72 };
 /** Přístřešek hrnčíře a kováře sahá o tolik dál před obydlí (m) – ušlapaná tráva i před ním. */
 const PORCH_EXTRA_M = 2.6;
-/** Kruh milíře: vytyčení a ušlapaná tráva kolem (m). */
-const MILIR_OUTLINE_R = 2.65;
-const MILIR_TRAMPLED_R = 4.6;
+/** Kruhové staveniště (milíř, modla, svatyně): poloměr vytyčení a ušlapané trávy (m). */
+function roundSite(kind: ConstructionKind): { outline: number; trampled: number } {
+  return kind === 'milir' || kind === 'modla' || kind === 'svatyne'
+    ? ROUND_SITE_M[kind]
+    : ROUND_SITE_M.milir;
+}
 
 /** Klíč stavu – obtisky a jámy se přestaví, jen když se změní (po 1 %). */
 function siteKey(state: ConstructionState | null): string {
@@ -103,6 +108,8 @@ export class ShowcaseSites {
     private readonly parts: ReadonlyMap<string, Mesh>,
     private readonly pitCuts: PitCuts,
     private readonly baseY: number,
+    /** Pata dílů staveniště podle druhu (posvátná místa leží na terénu). */
+    private readonly partBaseY: (kind: ConstructionKind) => number = () => baseY,
   ) {
     this.views = models.map((model) => ({ model, key: '', meshes: [], cut: null, pegs: [] }));
     this.stakes = new StakingPegs(scene);
@@ -122,7 +129,7 @@ export class ShowcaseSites {
       if (state) {
         const house = {
           x: model.x,
-          y: this.baseY,
+          y: this.partBaseY(model.kind),
           z: model.z,
           rotationY: model.rotation,
           scale: 1,
@@ -200,9 +207,11 @@ export class ShowcaseSites {
       const spoil = state?.props.find((p) => p.prop === 'spoil');
       if (spoil) meshes.push(this.spoil(model, spoil.scale));
     } else if (state && state.outline > 0) {
-      const circle: Point[] = Array.from({ length: 32 }, (_, i) => {
-        const a = (2 * Math.PI * i) / 32;
-        return [model.x + MILIR_OUTLINE_R * Math.cos(a), model.z + MILIR_OUTLINE_R * Math.sin(a)];
+      const r = roundSite(model.kind).outline;
+      const n = Math.max(32, Math.round(r * 6));
+      const circle: Point[] = Array.from({ length: n }, (_, i) => {
+        const a = (2 * Math.PI * i) / n;
+        return [model.x + r * Math.cos(a), model.z + r * Math.sin(a)];
       });
       meshes.push(this.outline(model, circle));
     }
@@ -213,9 +222,10 @@ export class ShowcaseSites {
     const base = CONSTRUCTION_BASE[model.kind];
     let area: Point[];
     if (base === null) {
-      area = Array.from({ length: 24 }, (_, i) => {
-        const a = (2 * Math.PI * i) / 24;
-        const r = MILIR_TRAMPLED_R - TRAMPLED_SOFT_M / 2;
+      const r = roundSite(model.kind).trampled - TRAMPLED_SOFT_M / 2;
+      const n = Math.max(24, Math.round(r * 4));
+      area = Array.from({ length: n }, (_, i) => {
+        const a = (2 * Math.PI * i) / n;
         return [model.x + r * Math.cos(a), model.z + r * Math.sin(a)];
       });
     } else if (model.plot) {

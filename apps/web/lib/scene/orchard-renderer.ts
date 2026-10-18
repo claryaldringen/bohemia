@@ -5,7 +5,14 @@ import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import type { Scene } from '@babylonjs/core/scene';
-import { OUTCROP_RADIUS_M, obstacleKind, obstaclesNear, type ObstacleLayer } from '@bohemia/game';
+import {
+  OUTCROP_RADIUS_M,
+  SACRED_OAK_RADIUS_M,
+  obstacleKind,
+  obstaclesNear,
+  sacredSitesOf,
+  type ObstacleLayer,
+} from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
 import { cellsBoundary, cellsBounds, cellsContain } from './field-cells';
 import { applyGammaFog } from './gamma-fog';
@@ -235,14 +242,27 @@ export class OrchardRenderer {
     this.pegs.set([...this.layouts.values()].flatMap((layout) => layout.pegs));
   }
 
-  /** Skalní výchozy, které zasahují do čtverce (i z vedlejších políček); bez vrstvy žádné. */
+  /**
+   * Skalní výchozy, které zasahují do čtverce (i z vedlejších políček), a posvátné duby – pod
+   * korunou dubu (≈ 50 m², happiness.md) jabloň nestojí; bez vrstvy žádné.
+   */
   private outcropsNear(square: SceneOrchardSquare): Outcrop[] {
     const layer = this.obstacles;
     if (!layer) return [];
     const half = square.size / 2 + OUTCROP_SEARCH_M;
-    return obstaclesNear(layer, square.x - half, square.z - half, square.x + half, square.z + half)
+    const outcrops = obstaclesNear(
+      layer,
+      square.x - half,
+      square.z - half,
+      square.x + half,
+      square.z + half,
+    )
       .filter((i) => obstacleKind(layer, i) === 'outcrop')
       .map((i) => ({ x: layer.x[i]!, z: layer.z[i]!, radius: OUTCROP_RADIUS_M * layer.scale[i]! }));
+    const oaks = sacredSitesOf(layer)
+      .oaks.filter((o) => Math.abs(o.x - square.x) <= half && Math.abs(o.z - square.z) <= half)
+      .map((o) => ({ x: o.x, z: o.z, radius: SACRED_OAK_RADIUS_M }));
+    return [...outcrops, ...oaks];
   }
 
   /**

@@ -13,8 +13,10 @@ import {
   CEMETERY_COLOR,
   ORCHARD_COLOR,
   PART_COLORS,
+  SACRED_COLOR,
   minimapImage,
   minimapToWorld,
+  sacredMinimapMarks,
   worldToMinimap,
 } from '@/lib/minimap';
 import type { ClearedForest } from '@/lib/scene/cleared-forest';
@@ -106,6 +108,29 @@ export function Minimap({
         context.fillStyle = `rgb(${r} ${g} ${b} / ${square.planting >= 1 ? 1 : 0.55})`;
         const p = at(square.x, square.z);
         context.fillRect(p.x - cellPx / 2, p.y - cellPx / 2, cellPx + 0.3, cellPx + 0.3);
+      }
+    }
+    // posvátná místa – okrové: háje průsvitně po čtvercích, duby tečkou, modly a svatyně půdorysem
+    {
+      const [r, g, b] = SACRED_COLOR;
+      for (const mark of sacredMinimapMarks(landscape, village.sacred, SIZE_PX)) {
+        if (mark.kind === 'square') {
+          context.fillStyle = `rgb(${r} ${g} ${b} / 0.45)`;
+          const half = mark.size / 2;
+          context.fillRect(mark.x - half, mark.y - half, mark.size + 0.3, mark.size + 0.3);
+        } else if (mark.kind === 'dot') {
+          context.fillStyle = `rgb(${r} ${g} ${b})`;
+          context.beginPath();
+          context.arc(mark.x, mark.y, mark.radius, 0, Math.PI * 2);
+          context.fill();
+        } else {
+          context.fillStyle = mark.built ? `rgb(${r} ${g} ${b})` : `rgb(${r} ${g} ${b} / 0.55)`;
+          context.strokeStyle = '#2a1d10';
+          context.lineWidth = 1;
+          const half = mark.size / 2;
+          context.fillRect(mark.x - half, mark.y - half, mark.size, mark.size);
+          context.strokeRect(mark.x - half, mark.y - half, mark.size, mark.size);
+        }
       }
     }
     // obydlí – světlé čtverečky (rozestavěná průsvitná), jako budovy hráče v 0 A.D.

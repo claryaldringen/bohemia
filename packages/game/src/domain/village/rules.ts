@@ -300,3 +300,92 @@ export const OVERGROWTH_STAGES = [
   { maxYears: 15, stage: 'shrub' },
   { maxYears: Infinity, stage: 'forest' },
 ] as const;
+
+// happiness.md – Štěstí (Martin 18. 10. 2026; čísla návrh Clauda): číslo 0–100, výchozí 50,
+// k cílové hodnotě se posouvá o 10 % rozdílu za měsíc (simulace po dnech: denní podíl tak, aby
+// za 1/12 roku ubylo 10 % rozdílu).
+export const HAPPINESS = {
+  start: 50,
+  min: 0,
+  max: 100,
+  base: 50,
+  monthlyShare: 0.1,
+} as const;
+// happiness.md – Co ubírá: hlad (nasycení pod 0,9 ubere až 40, lineárně k nulovému nasycení),
+// úmrtí za poslední rok (dospělý i starší −3, dítě −5, dohromady nejvýš −20), přeplněnost (podíl
+// lidí v přeplněných domácnostech × 15), dřina (podíl dní za posledních 60, kdy ves nestíhala
+// polní práce v období, × 15)
+export const HAPPINESS_PENALTY = {
+  hungerFrom: 0.9,
+  hungerMax: 40,
+  deathPoints: { child: 5, adult: 3, elder: 3 },
+  deathsMax: 20,
+  deathsWindowDays: 365,
+  crowdingMax: 15,
+  toilMax: 15,
+  toilWindowDays: 60,
+} as const;
+// happiness.md – Co přidává: zásoby na víc než rok +5, posvátná místa dohromady nejvýš +40
+export const HAPPINESS_BONUS = { storesYears: 1, stores: 5, sacredMax: 40 } as const;
+// happiness.md – Účinek na práci (Martin – „nechme to tak, doladíme později“): veškerá práce vsi
+// se násobí – štěstí 0 → × 0,8, 50 → × 1, 100 → × 1,1, mezi tím lineárně
+export const HAPPINESS_LABOR = { atMin: 0.8, atBase: 1, atMax: 1.1 } as const;
+
+// happiness.md – Posvátná místa: posvátný dub +5 (nejvýš 3 duby), dubový háj +10 a +1 za každé
+// 2 duby nad 6, nejvýš +15 za háj (nejvýš 2 háje); pod korunou dubu na poli se neoseje ≈ 50 m²
+export const SACRED_OAK = { happiness: 5, counted: 3, crownM2: 50 } as const;
+export const GROVE = {
+  minOaks: 6,
+  radiusM: 25,
+  happiness: 10,
+  oaksPerPoint: 2,
+  maxHappiness: 15,
+  counted: 2,
+} as const;
+// happiness.md – Posvátný dub (definice – rozhodnutí kontroléru při implementaci, 18. 10. 2026):
+// velký = horní třetina velikosti dospělých dubů vrstvy překážek (velikost = výška modelu ×
+// měřítko, výšky modelů `OAK_MODEL_HEIGHT_M` z GLB); nestojí v souvislém lese = do
+// `solitaryRadiusM` od něj roste nejvýš `solitaryMaxTrees` jiných dospělých stromů (v lese jich
+// bývá 10–20, u osamělých dubů v loukách 0–4).
+export const SACRED_OAK_DEFINITION = {
+  topShare: 1 / 3,
+  solitaryRadiusM: 15,
+  solitaryMaxTrees: 5,
+} as const;
+/** Výška modelů dubů (m, z GLB v `public/models/trees`) – velikost dubu = výška × měřítko. */
+export const OAK_MODEL_HEIGHT_M: Record<string, number> = {
+  'oak-1': 16.95,
+  'oak-2': 15.55,
+  'oak-large-1': 20.7,
+  'oak-large-2': 17.33,
+  'oak-large-3': 22.09,
+};
+// happiness.md – Dubový háj (definice – rozhodnutí kontroléru při implementaci, 18. 10. 2026):
+// les vrstvy překážek je z třetiny dubový, takže aspoň 6 dubů v okruhu 25 m má skoro každé
+// místo lesa – háj je proto místo, kde duby převažují: aspoň `GROVE.minOaks` dospělých dubů
+// v okruhu `GROVE.radiusM` a duby tvoří aspoň `oakShare` dospělých stromů v tom okruhu (≈ 7–12
+// hájů na krajinu, 2–4 do 600 m od vsi). Střed háje je dub v lese (ne osamělý); háje se
+// nepřekrývají (středy aspoň 2 × poloměr od sebe). Čtverce háje = políčka se středem do
+// poloměru od středu háje, na kterých roste aspoň jeden dospělý strom.
+export const GROVE_DEFINITION = { oakShare: 0.65 } as const;
+// happiness.md – Dřevěná modla: půdorys 4 × 4 m na louce, 30 člověkodní a 1 dospělý dub, +8
+// (nejvýš 2 modly); Svatyně: půdorys 30 × 30 m na louce, převýšení nejvýš 1 m, 400 člověkodní
+// a 3 dospělé duby, +25, jedna na ves
+export const SACRED_BUILDINGS = {
+  idol: {
+    footprintM: 4,
+    laborManDays: 30,
+    oaks: 1,
+    happiness: 8,
+    counted: 2,
+    maxHeightDiffM: null,
+  },
+  shrine: {
+    footprintM: 30,
+    laborManDays: 400,
+    oaks: 3,
+    happiness: 25,
+    counted: 1,
+    maxHeightDiffM: 1,
+  },
+} as const;

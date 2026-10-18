@@ -85,6 +85,7 @@ export function placeDwelling(
             clearedTrees: check.obstacleCounts.tree ?? 0,
             forestDistanceM: forestEdgeDistanceM(input.landscape, position.x, position.z),
             ...(plot ? { plot } : {}),
+            sacred: check.spared,
           },
         ),
       };

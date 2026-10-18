@@ -44,7 +44,8 @@ export function placeOrchard(
       if (!orchard.check.ok)
         return { ok: false, reason: orchard.check.reason ?? 'Sem sad nepatří.' };
       // akce patří do dne, do kterého je ves dopočítaná – dnešek, nebo „budoucí“ den vsi
-      return { ok: true, state: foundOrchard(state, state.lastDay, { squares: orchard.squares }) };
+      const squares = { squares: orchard.squares, sacred: orchard.spared };
+      return { ok: true, state: foundOrchard(state, state.lastDay, squares) };
     },
   );
 }

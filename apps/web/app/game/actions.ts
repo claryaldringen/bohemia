@@ -8,6 +8,7 @@ import {
   placeDwellingForPlayer,
   placeFieldForPlayer,
   placeOrchardForPlayer,
+  placeSacredForPlayer,
   renameVillageForPlayer,
   skipTimeForPlayerView,
   villageViewForPlayer,
@@ -21,6 +22,7 @@ import {
   parsePlaceDwellingInput,
   parsePlaceFieldInput,
   parsePlaceOrchardInput,
+  parsePlaceSacredInput,
   parseRenameVillageInput,
   parseRestartGameInput,
   parseSkipTimeInput,
@@ -96,6 +98,18 @@ export async function placeOrchard(input: unknown): Promise<VillageActionResult>
   const parsed = parsePlaceOrchardInput(input);
   if (parsed === null) return { error: INVALID_INPUT };
   return placeOrchardForPlayer(id, parsed);
+}
+
+/**
+ * Stavba dřevěné modly nebo svatyně (happiness.md): `{ kind: 'idol' | 'shrine', position:
+ * { x, z, rotation } }`. Server umístění ověří znovu (`checkSacredBuildingPlacement`).
+ */
+export async function placeSacred(input: unknown): Promise<VillageActionResult> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  const parsed = parsePlaceSacredInput(input);
+  if (parsed === null) return { error: INVALID_INPUT };
+  return placeSacredForPlayer(id, parsed);
 }
 
 /** Přejmenování vsi: `{ name }`. */

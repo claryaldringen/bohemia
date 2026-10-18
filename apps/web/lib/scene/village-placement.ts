@@ -5,14 +5,17 @@ import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 import type { Scene } from '@babylonjs/core/scene';
 import {
   DWELLING_FOOTPRINT_M,
+  SACRED_BUILDINGS,
   type DwellingPlot,
   type PlacementCheck,
   type DwellingType,
   type PlotVariant,
   type Position,
+  type SacredBuildingKind,
   type TileCell,
 } from '@bohemia/game';
 import { nextPlotVariant, plotHouse, type PlotSquare } from './homestead-layout';
+import { sacredStakeLines } from './sacred-layout';
 import {
   decalGrid,
   footprintCorners,
@@ -33,7 +36,6 @@ import type {
   PlacementHandlers,
   PlacementMode,
   PlacementResult,
-  SceneDwelling,
 } from './village-types';
 
 /** Krok otáčení obydlí klávesami [ a ] (jako otáčení budovy v 0 A.D.). */
@@ -43,9 +45,11 @@ const CLICK_SLOP_PX = 6;
 const OK_COLOR = new Color3(0.3, 0.85, 0.35);
 const BAD_COLOR = new Color3(0.92, 0.24, 0.18);
 const GHOST_VISIBILITY = 0.6;
-const DWELLING_NAMES: Record<DwellingType, string> = {
+const FOOTPRINT_NAMES: Record<DwellingType | SacredBuildingKind, string> = {
   zemnice: 'Zemnice',
   polozemnice: 'Polozemnice',
+  idol: 'Modla',
+  shrine: 'Svatyně',
 };
 
 /** Běžící umisťování ve scéně – obydlí (PlacementController) nebo malování pole (FieldPainter). */
@@ -62,7 +66,16 @@ export interface ActivePlacement {
   dispose(): void;
 }
 
-type DwellingMode = Extract<PlacementMode, { kind: 'dwelling' | 'plot' }>;
+/** Stavba s půdorysem u kurzoru – obydlí (volně nebo na pozemku), modla či svatyně (happiness.md). */
+type FootprintMode = Extract<PlacementMode, { kind: 'dwelling' | 'plot' | 'sacred' }>;
+type FootprintType = FootprintMode['type'];
+
+/** Šířka a hloubka půdorysu stavby (m). */
+function footprintSize(mode: FootprintMode): { width: number; depth: number } {
+  if (mode.kind !== 'sacred') return DWELLING_FOOTPRINT_M[mode.type];
+  const size = SACRED_BUILDINGS[mode.type].footprintM;
+  return { width: size, depth: size };
+}
 /** Česky pojmenované varianty pozemku pro bublinu u kurzoru. */
 const VARIANT_NAMES: Record<PlotVariant, string> = {
   center: 'dům uprostřed',
@@ -82,17 +95,18 @@ export interface PlacementContext {
   cameraAlpha(): number;
   /** Políčko krajiny pod bodem (pozemek) se středem a stranou, nebo null mimo krajinu. */
   cellAt(x: number, z: number): (PlotSquare & { cell: TileCell }) | null;
-  ghostModel(type: DwellingType): Mesh | null;
-  baseHeight(d: Pick<SceneDwelling, 'type' | 'position'>): number;
+  ghostModel(type: FootprintType): Mesh | null;
+  /** Pata modelu stavby na místě (obydlí, modla, svatyně). */
+  baseHeight(type: FootprintType, position: Position): number;
   requestRender(): void;
 }
 
 /**
- * Umisťování obydlí jako v 0 A.D.: duch u kurzoru, levé kliknutí postaví, se Shiftem postaví
- * a umisťuje dál další kus; pravé kliknutí nebo Esc zruší. Klávesy [ a ] otáčejí volným obydlím
- * (zemnice), u obydlí na pozemku (polozemnice – celé políčko pod kurzorem) přepínají variantu,
- * kde na pozemku dům stojí. Enter postaví pod kurzorem. Kurzor nad terénem dodává scéna jednou
- * za snímek (`setCursor`).
+ * Umisťování obydlí (a modly či svatyně) jako v 0 A.D.: duch u kurzoru, levé kliknutí postaví,
+ * se Shiftem postaví a umisťuje dál další kus; pravé kliknutí nebo Esc zruší. Klávesy [ a ]
+ * otáčejí stavbou, u obydlí na pozemku (polozemnice – celé políčko pod kurzorem) přepínají
+ * variantu, kde na pozemku dům stojí. Enter postaví pod kurzorem. Kurzor nad terénem dodává
+ * scéna jednou za snímek (`setCursor`).
  */
 export class PlacementController implements ActivePlacement {
   private readonly ghost: Mesh[] = [];
@@ -108,7 +122,7 @@ export class PlacementController implements ActivePlacement {
 
   constructor(
     private readonly context: PlacementContext,
-    readonly mode: DwellingMode,
+    readonly mode: FootprintMode,
     private readonly handlers: PlacementHandlers,
   ) {
     const scene = context.scene;
@@ -235,7 +249,10 @@ export class PlacementController implements ActivePlacement {
       return { kind: 'dwelling', type: mode.type, position: check.position, plot };
     }
     const position = this.position(point);
-    return mode.check(position).ok ? { kind: 'dwelling', type: mode.type, position } : null;
+    if (!mode.check(position).ok) return null;
+    return mode.kind === 'sacred'
+      ? { kind: 'sacred', type: mode.type, position }
+      : { kind: 'dwelling', type: mode.type, position };
   }
 
   /** Pozemek pod bodem: políčko krajiny a vybraná varianta (null mimo krajinu). */
@@ -256,7 +273,7 @@ export class PlacementController implements ActivePlacement {
     this.context.requestRender();
   }
 
-  private refreshDwelling(mode: DwellingMode): void {
+  private refreshDwelling(mode: FootprintMode): void {
     this.model ??= this.context.ghostModel(mode.type);
     if (!this.cursor) {
       this.model?.setEnabled(false);
@@ -265,7 +282,7 @@ export class PlacementController implements ActivePlacement {
     }
     let position: Position;
     let check: PlacementCheck & { cost?: PlacementCost | null };
-    let label = DWELLING_NAMES[mode.type];
+    let label = FOOTPRINT_NAMES[mode.type];
     if (mode.kind === 'plot') {
       const square = this.context.cellAt(this.cursor[0], this.cursor[1]);
       if (!square) {
@@ -293,7 +310,7 @@ export class PlacementController implements ActivePlacement {
       check = mode.check(position);
     }
     const look = check.ok ? 'ok' : 'bad';
-    const { width, depth } = DWELLING_FOOTPRINT_M[mode.type];
+    const { width, depth } = footprintSize(mode);
     const corners = footprintCorners(position, width, depth);
     this.addFill(corners, look, 0.35);
     this.addStrip(stripSegments(corners, true, 0.2, 1), look);
@@ -302,12 +319,15 @@ export class PlacementController implements ActivePlacement {
     const left = localToWorld(position, -0.7, depth / 2 + 0.5);
     const right = localToWorld(position, 0.7, depth / 2 + 0.5);
     this.addFill([left, tip, right], look, 0.85, 0.1);
+    // modla a svatyně: obrys vytyčení (kruh, u svatyně i okvětí příkopu)
+    if (mode.kind === 'sacred') {
+      for (const line of sacredStakeLines(mode.type)) {
+        const world = line.map(([x, z]) => localToWorld(position, x, z));
+        this.addStrip(stripSegments(world, false, 0.12, 1), look);
+      }
+    }
     if (this.model) {
-      this.model.position.set(
-        position.x,
-        this.context.baseHeight({ type: mode.type, position }),
-        position.z,
-      );
+      this.model.position.set(position.x, this.context.baseHeight(mode.type, position), position.z);
       this.model.rotation.set(0, position.rotation, 0);
       this.model.visibility = GHOST_VISIBILITY;
       this.model.renderOverlay = true;

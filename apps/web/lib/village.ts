@@ -9,12 +9,14 @@ import {
   placeDwelling,
   placeField,
   placeOrchard,
+  placeSacredBuilding,
   renameVillage,
   type DwellingPlot,
   type DwellingType,
   type EnterGameResult,
   type Landscape,
   type Position,
+  type SacredBuildingKind,
   type TileCell,
   type TimeSkip,
   type VillageRepository,
@@ -191,6 +193,19 @@ export async function placeOrchardForPlayer(
   const ctx = await context(playerId);
   if (!ctx.ok) return { error: ctx.error };
   const result = await placeOrchard(
+    { villages: villages() },
+    { settlementId: ctx.settlementId, landscape: ctx.landscape, today: ctx.day, ...input },
+  );
+  return toActionResult(result, ctx.landscape, ctx.day);
+}
+
+export async function placeSacredForPlayer(
+  playerId: string,
+  input: { kind: SacredBuildingKind; position: Position },
+): Promise<VillageActionResult> {
+  const ctx = await context(playerId);
+  if (!ctx.ok) return { error: ctx.error };
+  const result = await placeSacredBuilding(
     { villages: villages() },
     { settlementId: ctx.settlementId, landscape: ctx.landscape, today: ctx.day, ...input },
   );

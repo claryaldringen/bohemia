@@ -38,7 +38,9 @@ export function placeField(
       const field = fieldPartsFromCells(input.landscape, village, input.cells, positions);
       if (!field.check.ok) return { ok: false, reason: field.check.reason ?? 'Sem pole nepatří.' };
       // akce patří do dne, do kterého je ves dopočítaná – dnešek, nebo „budoucí“ den vsi
-      return { ok: true, state: foundField(state, state.lastDay, { parts: field.parts }) };
+      // posvátné duby a háje vesničané při mýcení nechají stát (happiness.md)
+      const fieldInput = { parts: field.parts, sacred: field.spared };
+      return { ok: true, state: foundField(state, state.lastDay, fieldInput) };
     },
   );
 }

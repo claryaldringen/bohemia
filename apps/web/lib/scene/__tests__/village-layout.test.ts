@@ -1,5 +1,4 @@
 import { describe, it, expect } from 'vitest';
-import type { PartStage } from '@bohemia/game';
 import {
   decalGrid,
   dwellingHideShape,
@@ -7,7 +6,6 @@ import {
   footprintCorners,
   hiddenMask,
   localToWorld,
-  partLook,
   pointInPolygon,
   polygonArea,
   signedDistance,
@@ -120,46 +118,6 @@ describe('stripSegments – mez podél obrysu', () => {
     expect(segments).toHaveLength(3);
     const [left, right] = segments[0]!;
     expect(Math.hypot(left![0] - right![0], left![1] - right![1])).toBeCloseTo(0.4);
-  });
-});
-
-describe('vzhled dílů pole', () => {
-  const stages: PartStage[] = [
-    'founding',
-    'ready',
-    'sown',
-    'young-fallow',
-    'meadow',
-    'young-growth',
-    'shrub',
-    'forest',
-  ];
-
-  it('každý stav má vlastní vzhled', () => {
-    const looks = stages.map((stage) => JSON.stringify(partLook(stage)));
-    expect(new Set(looks).size).toBe(stages.length);
-  });
-
-  it('holá zem s brázdami, oseté se zelenými řádky, zarůstání je čím dál tmavší zeleň', () => {
-    expect(partLook('ready').texture).toBe('mud');
-    expect(partLook('ready').rows).not.toBeNull();
-    const sown = partLook('sown').rows!;
-    expect(sown.color[1]).toBeGreaterThan(sown.color[0]);
-    expect(partLook('founding').rows).toBeNull();
-    const brightness = (stage: PartStage): number => partLook(stage).tint.reduce((a, b) => a + b);
-    expect(brightness('young-growth')).toBeGreaterThan(brightness('shrub'));
-    expect(brightness('shrub')).toBeGreaterThan(brightness('forest'));
-  });
-
-  it('osetý díl podle růstu obilí: zelené, zralé (zlatavé) a strniště; jinde se růst nebere', () => {
-    const crops = (['growing', 'ripe', 'stubble'] as const).map((crop) => partLook('sown', crop));
-    const looks = new Set([partLook('sown'), ...crops].map((look) => JSON.stringify(look)));
-    expect(looks.size).toBe(4);
-    const [growing, ripe] = crops;
-    expect(growing!.tint[1]).toBeGreaterThan(growing!.tint[0]);
-    expect(ripe!.tint[0]).toBeGreaterThan(ripe!.tint[2]);
-    for (const crop of crops) expect(crop.rows).not.toBeNull();
-    expect(partLook('ready', 'ripe')).toEqual(partLook('ready'));
   });
 });
 

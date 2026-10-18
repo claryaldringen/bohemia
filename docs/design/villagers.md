@@ -39,7 +39,7 @@ Hráč má vidět, **kde ves dnes pracuje** – kam jde práce lidí, kterou po�
   vdané ženy s lněným nebo mořenou barveným šátkem. Pod každou postavou měkký stín. Postavy jsou
   stylizovaně o 20 % větší než skutečná výška (jako domácí zvířata), aby byly z kamery vidět
   (Martin, 18. 10. 2026); rozestupy se zvětšují s nimi.
-- **Nikdo nestojí ve vodě, v domě, v jámě, v oplocené zahrádce ani na hrobech;** kdo chodí,
+- **Nikdo nestojí ve vodě, v domě, v jámě, na oploceném pozemku polozemnice ani na hrobech;** kdo chodí,
   obchází domy.
 - **Vymřelá ves** (ani lidé, ani práce) – nikdo.
 

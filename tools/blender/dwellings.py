@@ -7,7 +7,7 @@ blender -b --factory-startup --python tools/blender/dwellings.py -- \
 props_glb_dir: koše z 0 A.D. (basket-a.glb, basket-b.glb) převedené přes trees_from_0ad.py
 s tools/blender/dwelling-props.json. render_dir: náhledy v Cycles, "-" = bez náhledů.
 atlas_dir: atlas.jpg + atlas.json z tools/blender/atlas.py (pásy opakované v U, plochy ve V uvnitř
-pásu podle metrů; oblasti „veg“ a „soil“ pro zeleninu a záhony zahrádky). Souřadnice Blenderu: Z nahoru, hřeben střechy podél osy Y, vchod na štítu
+pásu podle metrů; oblasti „veg“ a „soil“ pro zeleninu a záhony pozemku). Souřadnice Blenderu: Z nahoru, hřeben střechy podél osy Y, vchod na štítu
 v -Y. Počátek = střed půdorysu na úrovni původního terénu. V glTF (a ve scéně při natočení 0)
 míří vchod do +Z. Jámu se šíjí a schody kreslí scéna (apps/web/lib/scene/dwelling-pit.ts –
 rozměry musí sedět s DOOR, *_RAMP a půdorysy jam tady); modely mají jen štíty, ostění dveří
@@ -1179,7 +1179,7 @@ def main():
     mat = make_material()
 
     # hráň polen vedle obydlí už není (Martin: tak vyskládané dřevo tehdy neměli, navíc na dešti),
-    # u polozemnice ani samotný kus pleteného plotu vedle domu (Martin) – plot má jen zahrádka
+    # u polozemnice ani samotný kus pleteného plotu vedle domu (Martin) – plot má jen pozemek
     zp = Parts("f-zemnice")
     build_zemnice(zp)
     zemnice = join(zp.build(mat) + [import_prop("basket-a", 0.42, (-1.55, -3.55, 0.0), mat)], "zemnice")

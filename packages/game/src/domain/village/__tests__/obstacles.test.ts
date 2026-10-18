@@ -53,7 +53,7 @@ const obstacle = (
 ): ObstaclePlacement => ({
   id,
   kind,
-  look: kind === 'tree' ? 'oak-1' : kind === 'outcrop' ? 'rock-boulder' : 'stone-1',
+  look: kind === 'tree' ? 'beech-1' : kind === 'outcrop' ? 'rock-boulder' : 'stone-1',
   x,
   z,
   rotation: 0,

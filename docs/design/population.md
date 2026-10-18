@@ -86,7 +86,9 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
   **uprostřed, nebo v jednom ze čtyř rohů** – 5 variant jednoho stavení (Martin); hráč je při
   umisťování přepíná klávesami [ a ] (místo otáčení), vchod míří vždy k brance na přední straně
   pozemku (návrh Clauda). Pozemek musí být volná louka – ne voda, zatím ani les, bez skalního
-  výchozu, nezabraný polem, hřbitovem, sadem ani jiným obydlím či pozemkem; rovná zem
+  výchozu, bez posvátného dubu a čtverce dubového háje (dům ani pod korunou dubu ze sousedství –
+  jako u obydlí, [happiness.md](happiness.md)), nezabraný polem, hřbitovem, sadem ani jiným
+  obydlím či pozemkem; rovná zem
   (≤ 0,5 m) se hlídá jen pod domem. Překážky na pozemku platí jako na čtverci pole (všechny kusy
   na políčku), dospělé stromy z něj dají klády (návrh Clauda). Zemnice pozemek nemá a staví se
   volně; polozemnice postavené dřív zůstanou, kde stojí, bez pozemku.

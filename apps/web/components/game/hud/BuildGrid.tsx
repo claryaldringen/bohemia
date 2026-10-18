@@ -9,15 +9,18 @@ import { Tooltip } from './Tooltip';
 /** Kolik slotů má mřížka staveb (jako příkazový panel 0 A.D.) – prázdné jsou prohlubně. */
 const GRID_SLOTS = 8;
 
-const RESOURCE_ICONS: Record<StockResource, { icon: string; unit: string; name: string }> = {
-  grain: { icon: 'food', unit: 'kg', name: 'Obilí' },
-  wood: { icon: 'wood', unit: '', name: 'Dřevo (stromy)' },
-  settlers: { icon: 'people', unit: '', name: 'Lidé k osídlení' },
+/** Ikony surovin předem – cesta k obrázku v `public/icons/`, jednotka a název. */
+const RESOURCE_ICONS: Record<StockResource, { src: string; unit: string; name: string }> = {
+  grain: { src: '/icons/resources/food.png', unit: 'kg', name: 'Obilí' },
+  wood: { src: '/icons/resources/wood.png', unit: '', name: 'Dřevo (stromy)' },
+  oaks: { src: '/icons/build/dub.png', unit: '', name: 'Dospělé duby' },
+  settlers: { src: '/icons/resources/people.png', unit: '', name: 'Lidé k osídlení' },
 };
 
 /**
- * Popisek stavby: název a cena – práce, suroviny a lidé k osídlení předem, chybějící červeně
- * (jako v 0 A.D.).
+ * Popisek stavby: název a cena – práce, suroviny, dospělé duby a lidé k osídlení předem,
+ * chybějící červeně (jako v 0 A.D.); stavbu, která nejde z jiného důvodu (svatyně je jedna na
+ * ves), krátký červený řádek.
  */
 function BuildTooltip({
   item,
@@ -45,7 +48,7 @@ function BuildTooltip({
               className={`flex items-center gap-1 ${cost.missing > 0 ? 'font-semibold text-red-400' : ''}`}
             >
               <img
-                src={`/icons/resources/${RESOURCE_ICONS[cost.resource].icon}.png`}
+                src={RESOURCE_ICONS[cost.resource].src}
                 alt={RESOURCE_ICONS[cost.resource].name}
                 width={16}
                 height={16}
@@ -56,14 +59,19 @@ function BuildTooltip({
           ))}
         </span>
       )}
+      {option?.blocked && (
+        <span data-testid="build-blocked" className="mt-0.5 block font-semibold text-red-400">
+          {option.blocked}
+        </span>
+      )}
     </span>
   );
 }
 
 /**
  * Mřížka staveb vpravo dole (jako v 0 A.D.): čtvercové ikony, klávesová zkratka a cena jen
- * v popisku. Stavba, na kterou ves nemá předem suroviny nebo lidi k osídlení, je zašedlá a nejde
- * spustit (ani zkratkou).
+ * v popisku. Stavba, na kterou ves nemá předem suroviny, duby nebo lidi k osídlení (nebo už
+ * stojí jediná svatyně), je zašedlá a nejde spustit (ani zkratkou).
  */
 export function BuildGrid({
   options,

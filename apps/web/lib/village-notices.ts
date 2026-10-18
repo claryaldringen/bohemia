@@ -1,11 +1,19 @@
 import type { VillageView } from './village-view';
 
 // Upozornění vsi (population.md – Co hráč vidí): plná domácnost, ves hladoví, lidé umírají hlady
-// (Hlad a vymření), stavby stojí, hřbitov je plný (cemetery.md). Vymřelá ves žádná nemá.
+// (Hlad a vymření), stavby stojí, hřbitov je plný (cemetery.md), vesničané ušetřili posvátný dub
+// nebo dubový háj (happiness.md – jen když přibude). Vymřelá ves žádná nemá.
 // Odvozují se z pohledu na ves a ukážou se jednou, když nově vzniknou – jako krátký mizející
 // řádek nahoře uprostřed (jako oznámení v 0 A.D.). Jen fakt, žádná rada.
 
-export type NoticeKind = 'full-household' | 'hungry' | 'starving' | 'stalled' | 'cemetery-full';
+export type NoticeKind =
+  | 'full-household'
+  | 'hungry'
+  | 'starving'
+  | 'stalled'
+  | 'cemetery-full'
+  | 'sacred-oak'
+  | 'sacred-grove';
 
 export interface VillageNotice {
   kind: NoticeKind;
@@ -41,5 +49,13 @@ export function villageNotices(view: VillageView): VillageNotice[] {
 export function newNotices(previous: VillageView | null, next: VillageView): VillageNotice[] {
   if (previous === null) return [];
   const before = new Set(villageNotices(previous).map((n) => n.kind));
-  return villageNotices(next).filter((n) => !before.has(n.kind));
+  const notices = villageNotices(next).filter((n) => !before.has(n.kind));
+  // posvátná místa vznikají jednou – fakt, když přibudou (happiness.md)
+  if (next.sacred.oaks.length > previous.sacred.oaks.length) {
+    notices.push({ kind: 'sacred-oak', tone: 'info', text: 'Vesničané ušetřili posvátný dub' });
+  }
+  if (next.sacred.groves.length > previous.sacred.groves.length) {
+    notices.push({ kind: 'sacred-grove', tone: 'info', text: 'Vesničané ušetřili dubový háj' });
+  }
+  return notices;
 }

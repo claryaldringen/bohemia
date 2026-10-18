@@ -45,6 +45,7 @@ describe('checkDwellingPlacement – terén', () => {
       obstacleIds: [],
       clearedTrees: 0,
       obstacleCounts: {},
+      spared: { oaks: [], groves: [] },
     });
   });
 
@@ -451,7 +452,13 @@ describe('hřbitov brání obydlí i poli', () => {
   it('obydlí blíž hřbitovu než 150 m jen varuje', () => {
     // okraj hřbitova z = 30, obydlí v z = 10 → 20 m od okraje
     // ručně vyrobená krajina nemá překážky
-    const noObstacles = { obstacleCost: 0, obstacleIds: [], clearedTrees: 0, obstacleCounts: {} };
+    const noObstacles = {
+      obstacleCost: 0,
+      obstacleIds: [],
+      clearedTrees: 0,
+      obstacleCounts: {},
+      spared: { oaks: [], groves: [] },
+    };
     expect(checkDwellingPlacement(landscape, village, 'zemnice', at(-45, 10))).toEqual({
       ok: true,
       reason: null,

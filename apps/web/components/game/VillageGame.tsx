@@ -8,6 +8,7 @@ import {
   type DwellingPlot,
   type DwellingType,
   type Position,
+  type SacredBuildingKind,
   type TileCell,
   type TimeSkip,
   type WorldClock,
@@ -19,6 +20,7 @@ import {
   placeDwelling,
   placeField,
   placeOrchard,
+  placeSacred,
   renameVillage,
   restartGame,
   skipTime,
@@ -80,23 +82,49 @@ function isVillageView(state: VillageData): state is VillageView {
   return state !== null && !('error' in state);
 }
 
-/** Obydlí odeslané na server, na jehož odpověď se čeká – ve scéně už stojí jako staveniště. */
-interface PendingDwelling {
-  id: number;
-  type: DwellingType;
-  position: Position;
-  plot?: ScenePlot;
-}
+/**
+ * Obydlí, modla nebo svatyně odeslané na server, na jehož odpověď se čeká – ve scéně už stojí
+ * jako staveniště (záporné id). Obydlí na pozemku nese i pozemek.
+ */
+type PendingSite =
+  | { kind: 'dwelling'; id: number; type: DwellingType; position: Position; plot?: ScenePlot }
+  | { kind: 'sacred'; id: number; type: SacredBuildingKind; position: Position };
 
-/** Ves pro scénu: stav ze serveru a obydlí, která ještě čekají na odpověď serveru. */
-function withPending(scene: SceneVillage, pending: readonly PendingDwelling[]): SceneVillage {
+/** Ves pro scénu: stav ze serveru a stavby, které ještě čekají na odpověď serveru. */
+function withPending(scene: SceneVillage, pending: readonly PendingSite[]): SceneVillage {
   if (pending.length === 0) return scene;
+  const dwellings = pending.flatMap((d) =>
+    d.kind === 'dwelling'
+      ? [
+          {
+            id: d.id,
+            type: d.type,
+            position: d.position,
+            ...(d.plot ? { plot: d.plot } : {}),
+            built: false,
+            progress: 0,
+            inhabited: false,
+          },
+        ]
+      : [],
+  );
+  const sacred = pending.flatMap((d) =>
+    d.kind === 'sacred'
+      ? [{ id: d.id, kind: d.type, position: d.position, built: false, progress: 0 }]
+      : [],
+  );
   return {
     ...scene,
-    dwellings: [
-      ...scene.dwellings,
-      ...pending.map((d) => ({ ...d, built: false, progress: 0, inhabited: false })),
-    ],
+    dwellings: [...scene.dwellings, ...dwellings],
+    ...(sacred.length > 0
+      ? {
+          sacred: {
+            oaks: scene.sacred?.oaks ?? [],
+            groves: scene.sacred?.groves ?? [],
+            buildings: [...(scene.sacred?.buildings ?? []), ...sacred],
+          },
+        }
+      : {}),
   };
 }
 
@@ -139,7 +167,7 @@ export function VillageGame({
   const decoded = useMemo(() => decodeLandscape(landscape), [landscape]);
   const [scene, setScene] = useState<LandscapeScene | null>(null);
   const [village, setVillage] = useState<VillageData>(initialVillage);
-  const [pending, setPending] = useState<PendingDwelling[]>([]);
+  const [pending, setPending] = useState<PendingSite[]>([]);
   const [selected, setSelected] = useState<VillageTarget | null>(null);
   const [placingItem, setPlacingItem] = useState<BuildKind | null>(null);
   const [notices, setNotices] = useState<NoticeLine[]>([]);
@@ -163,7 +191,7 @@ export function VillageGame({
   /** Akce na serveru jdou za sebou (Shift + klik staví víc obydlí rychle po sobě). */
   const queueRef = useRef<Promise<unknown>>(Promise.resolve());
   const viewRef = useRef(view);
-  const pendingRef = useRef<PendingDwelling[]>([]);
+  const pendingRef = useRef<PendingSite[]>([]);
   const pendingId = useRef(0);
   useEffect(() => {
     viewRef.current = view;
@@ -279,7 +307,7 @@ export function VillageGame({
     return placementVillageFromScene(scene);
   }, []);
 
-  const setPendingList = (list: PendingDwelling[]): void => {
+  const setPendingList = (list: PendingSite[]): void => {
     pendingRef.current = list;
     setPending(list);
   };
@@ -289,7 +317,8 @@ export function VillageGame({
    * polozemnice na pozemku (`plot`).
    */
   const buildDwelling = (type: DwellingType, position: Position, plot?: DwellingPlot): void => {
-    const entry: PendingDwelling = {
+    const entry: PendingSite = {
+      kind: 'dwelling',
       id: -1 - pendingId.current++,
       type,
       position,
@@ -301,6 +330,15 @@ export function VillageGame({
         ? foundVillage({ name: suggestVillageName(seed), dwelling: position })
         : placeDwelling({ type, position, ...(plot ? { plot } : {}) }),
     ).finally(() => setPendingList(pendingRef.current.filter((d) => d.id !== entry.id)));
+  };
+
+  /** Zahájí stavbu modly nebo svatyně (happiness.md) – staveniště hned ve scéně. */
+  const buildSacred = (type: SacredBuildingKind, position: Position): void => {
+    const entry: PendingSite = { kind: 'sacred', id: -1 - pendingId.current++, type, position };
+    setPendingList([...pendingRef.current, entry]);
+    void runBuildAction(() => placeSacred({ kind: type, position })).finally(() =>
+      setPendingList(pendingRef.current.filter((d) => d.id !== entry.id)),
+    );
   };
 
   // vymřelá ves nic nestaví – nabídka staveb je prázdná (i zkratky)
@@ -348,6 +386,19 @@ export function VillageGame({
       );
       return;
     }
+    if (item.placement === 'sacred') {
+      placement.start(
+        {
+          kind: 'sacred',
+          type: item.sacredKind,
+          check: (position) => item.check(decoded, placementVillage(), position),
+        },
+        (result) => {
+          if (result.kind === 'sacred') buildSacred(result.type, result.position);
+        },
+      );
+      return;
+    }
     placement.start(
       {
         kind: 'dwelling',
@@ -377,7 +428,8 @@ export function VillageGame({
   });
   const closeMenu = useCallback((): void => setMenuOpen(false), []);
 
-  // Klávesy rozhraní: F10 otevře nabídku, zkratky staveb (Z, X, C, V, B), Esc zruší výběr.
+  // Klávesy rozhraní: F10 otevře nabídku, zkratky staveb (Z, X, C, V, B, N, M), Esc zruší
+  // výběr.
   // Otevřená nabídka klávesy zachytí dřív (GameMenu) – sem pak nedojdou.
   const placingRef = useRef(placement.active);
   useEffect(() => {

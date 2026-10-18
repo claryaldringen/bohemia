@@ -11,6 +11,7 @@ import {
 } from './dwellings';
 import { endOfSeason, fallowYears, selectPartsToSow } from './fields';
 import { daysUntilAppleRot, daysUntilHarvest, eatMeal } from './food';
+import { isToilDay, updateHappiness, villageLaborFactor, windowEndDay } from './happiness';
 import { recordClearedObstacles } from './obstacles';
 import { allocateDay, type LaborTaskName } from './labor';
 import { laborDay, type ConstructionWork } from './labor-report';
@@ -131,7 +132,7 @@ function simulateDay(state: VillageState, day: number, obstacles: ObstacleLayer 
   if (date.month >= PLANNING_DAY.month || date.month <= LAST_JOIN_MONTH) {
     joinFinishedParts(state, day, date.year);
   }
-  work(state, day);
+  const toil = work(state, day);
   finishConstructions(state, day);
   decideRebuilds(state, day, obstacles);
   occupyEmptyDwellings(state, day);
@@ -143,7 +144,10 @@ function simulateDay(state: VillageState, day: number, obstacles: ObstacleLayer 
     satiation,
     inLuckyYears(state.foundedDay, day),
   );
-  state.chronicle.push(...populationDay(state, day, satiation));
+  const events = populationDay(state, day, satiation);
+  state.chronicle.push(...events);
+  // štěstí na konci dne – hlad, úmrtí, přeplněnost, dřina, zásoby a posvátná místa (happiness.md)
+  updateHappiness(state, day, { satiation, events, toil });
   if (state.people.length === 0) {
     // zemřel poslední člověk – ves vymřela, dál se nesimuluje (ani sklizeň dne)
     state.extinctDay = day;
@@ -220,7 +224,8 @@ function sowingLimits(
 ): { targetKg: number; maxHa: number } {
   const need = state.people.reduce((sum, p) => sum + FOOD_NEED_KG_PER_YEAR[ageGroup(p, day)], 0);
   const targetKg = state.storesKg > STORES_HIGH_YEARS * need ? need : need * (1 + SOW_RESERVE);
-  const capacity = state.people.reduce((sum, p) => sum + laborPerDay(p, day), 0);
+  const capacity =
+    state.people.reduce((sum, p) => sum + laborPerDay(p, day), 0) * villageLaborFactor(state);
   const dailyMin = DAILY_MIN_PER_HOUSEHOLD * householdCount(state);
   const free = Math.max(0, capacity - dailyMin) * PEAK_CAPACITY_SHARE;
   const springCap = free * windowDays(year, WINDOWS.sow);
@@ -285,9 +290,10 @@ function householdCount(state: VillageState): number {
  * Krok 3: rozdělení práce vsi. Polní úlohy plánu (bez výmlatu – úroda plánu ještě neroste)
  * a výmlat loňské úrody, sezónní práce v sadech podle konce svého okna (sklizeň jablek před
  * podzimním kopáním, péče až po výmlatu); opravy obydlí poměrně k potřebě; společná práce do
- * staveb.
+ * staveb. Veškerou práci násobí štěstí (happiness.md). Vrací, jestli ves dnes nestíhá polní
+ * práce v období (dřina).
  */
-function work(state: VillageState, day: number): void {
+function work(state: VillageState, day: number): boolean {
   const owned: { name: TaskName; remaining: number; plan: YearPlan }[] = [];
   const plan = state.plan;
   if (plan !== null) {
@@ -323,6 +329,7 @@ function work(state: VillageState, day: number): void {
     repairNeed,
     domesticBacklog: state.domesticBacklog,
     fuelExtra: fuelExtraPerDay(state),
+    productivity: villageLaborFactor(state),
   });
 
   for (const task of owned) {
@@ -344,6 +351,13 @@ function work(state: VillageState, day: number): void {
   if (state.commonLaborHistory.length > COMMON_LABOR_HISTORY_DAYS) {
     state.commonLaborHistory.splice(0, state.commonLaborHistory.length - COMMON_LABOR_HISTORY_DAYS);
   }
+  // dřina: stihne ves dnešním tempem polní práce do konce jejich oken?
+  const pace = owned.reduce((sum, task) => sum + allocation.tasks[task.name], 0);
+  const seasonTasks = owned.map((task) => ({
+    remaining: taskRemaining(task.plan, task.name),
+    endDay: windowEndDay(WINDOWS[task.name], day) ?? day,
+  }));
+  return isToilDay(seasonTasks, pace, day);
 }
 
 /** Sezónní práce v sadech dnes (sklizeň, nebo péče) s koncem okna pro pořadí; jinak null. */
@@ -504,6 +518,19 @@ function finishConstructions(state: VillageState, day: number): void {
     }
     if (c.kind === 'cemetery') {
       finishCemetery(state, day, c);
+      state.chronicle.push(finishedEvent(day, c, null));
+      continue;
+    }
+    if (c.kind === 'idol' || c.kind === 'shrine') {
+      // dostavěná modla nebo svatyně – přidává štěstí (happiness.md)
+      if (c.position !== null) {
+        (state.sacredBuildings ??= []).push({
+          id: c.id,
+          kind: c.kind,
+          position: { ...c.position },
+          builtDay: day,
+        });
+      }
       state.chronicle.push(finishedEvent(day, c, null));
       continue;
     }

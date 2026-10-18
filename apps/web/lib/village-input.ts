@@ -3,6 +3,7 @@ import {
   type DwellingPlot,
   type DwellingType,
   type Position,
+  type SacredBuildingKind,
   type TileCell,
   type TimeSkip,
 } from '@bohemia/game';
@@ -14,6 +15,7 @@ import {
 const MAX_RAW_FIELD_CELLS = 5000;
 const MAX_RAW_NAME_LENGTH = 200;
 const DWELLING_TYPES: readonly DwellingType[] = ['zemnice', 'polozemnice'];
+const SACRED_KINDS: readonly SacredBuildingKind[] = ['idol', 'shrine'];
 const TIME_SKIPS: readonly TimeSkip[] = ['month', 'year'];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -110,6 +112,16 @@ export function parsePlaceCemeteryInput(value: unknown): { cells: TileCell[] } |
 /** Vstup založení sadu `{ cells }` (čtverce jako u pole), jinak null. */
 export function parsePlaceOrchardInput(value: unknown): { cells: TileCell[] } | null {
   return parsePlaceFieldInput(value);
+}
+
+/** Vstup stavby modly nebo svatyně `{ kind, position }`, jinak null. */
+export function parsePlaceSacredInput(
+  value: unknown,
+): { kind: SacredBuildingKind; position: Position } | null {
+  if (!isRecord(value)) return null;
+  const kind = SACRED_KINDS.find((k) => k === value.kind) ?? null;
+  const position = parsePosition(value.position);
+  return kind !== null && position !== null ? { kind, position } : null;
 }
 
 /**

@@ -3,12 +3,15 @@ import {
   cemeteryPartsFromCells,
   checkDwellingPlacement,
   checkPlotPlacement,
+  checkSacredBuildingPlacement,
   dwellingLaborManDays,
   fieldPartsFromCells,
   NO_OBSTACLE_CHANGES,
   obstaclesOf,
   orchardPartsFromCells,
   planDwellingWoodFrom,
+  planSacredWood,
+  sacredLaborManDays,
   type BuildKind,
   type DwellingPlacementCheck,
   type DwellingPlot,
@@ -18,6 +21,8 @@ import {
   type PlacementCheck,
   type PlacementVillage,
   type Position,
+  type SacredBuildingKind,
+  type SacredPlacementCheck,
   type TileCell,
 } from '@bohemia/game';
 import type { PlacementCost } from './scene/village-types';
@@ -28,7 +33,8 @@ import type { PlacementCost } from './scene/village-types';
 // (`BUILD_COSTS`) a server action v `VillageGame` (`SUBMIT`) – rozhraní se nemění.
 //
 // Zkratky jsou spodní řada levé ruky jako fronta výroby v 0 A.D. (Z X C V B N M) – WASD, Q/E
-// a R patří kameře. Sad [B] staví se jako pole (orchard.md).
+// a R patří kameře. Sad [B] staví se jako pole (orchard.md), modla [N] a svatyně [M] půdorysem
+// u kurzoru jako obydlí (happiness.md).
 
 /**
  * Kontrola stavby po čtvercích: projde? a které čtverce jsou zakázané (červeně); u prošlé
@@ -90,6 +96,12 @@ export type BuildItem =
   | (BuildItemBase & {
       placement: 'squares';
       check(landscape: Landscape, village: PlacementVillage, cells: TileCell[]): SquaresCheck;
+    })
+  | (BuildItemBase & {
+      /** Modla nebo svatyně – čtvercový půdorys u kurzoru (otáčí se jako obydlí). */
+      placement: 'sacred';
+      sacredKind: SacredBuildingKind;
+      check(landscape: Landscape, village: PlacementVillage, position: Position): FootprintCheck;
     });
 
 const dwelling = (kind: DwellingType, name: string, hotkeyLabel: string): BuildItem => {
@@ -169,6 +181,57 @@ export function dwellingPlacementCost(
   };
 }
 
+/**
+ * Cena modly nebo svatyně u kurzoru: práce celkem jako při zahájení stavby (`sacredLaborManDays`
+ * – stavba, překážky na půdorysu a kácení dubů) a kolik dubů se skácí – nejbližší dospělé duby
+ * jako na serveru (`planSacredWood`). Duby jiných staveb zná jen server (jako u obydlí).
+ */
+export function sacredPlacementCost(
+  village: PlacementVillage,
+  kind: SacredBuildingKind,
+  position: Position,
+  check: Pick<SacredPlacementCheck, 'obstacleCost' | 'obstacleIds'>,
+  obstacles: ObstacleLayer,
+): PlacementCost {
+  const plan = planSacredWood(
+    kind,
+    position,
+    {
+      changes: () => village.obstacleChanges ?? NO_OBSTACLE_CHANGES,
+      claimed: () => new Set(village.reservedTrees ?? []),
+    },
+    { obstacles, clearedIds: check.obstacleIds },
+  );
+  return {
+    laborManDays: sacredLaborManDays(kind, check.obstacleCost, plan),
+    trees: 0,
+    oaks: plan.fell.length,
+  };
+}
+
+const sacred = (
+  kind: SacredBuildingKind,
+  name: string,
+  icon: string,
+  hotkeyLabel: string,
+): BuildItem & { placement: 'sacred' } => ({
+  kind,
+  name,
+  icon,
+  hotkey: `Key${hotkeyLabel}`,
+  hotkeyLabel,
+  placement: 'sacred',
+  sacredKind: kind,
+  check: (landscape, village, position) => {
+    const obstacles = obstaclesOf(landscape);
+    const check = checkSacredBuildingPlacement(landscape, village, kind, position, obstacles);
+    return {
+      ...check,
+      cost: check.ok ? sacredPlacementCost(village, kind, position, check, obstacles) : null,
+    };
+  },
+});
+
 export const BUILD_ITEMS: readonly BuildItem[] = [
   dwelling('zemnice', 'Zemnice', 'Z'),
   dwelling('polozemnice', 'Polozemnice', 'X'),
@@ -236,6 +299,8 @@ export const BUILD_ITEMS: readonly BuildItem[] = [
       };
     },
   },
+  sacred('idol', 'Modla', 'modla', 'N'),
+  sacred('shrine', 'Svatyně', 'svatyne', 'M'),
 ];
 
 /** Stavba podle druhu. */

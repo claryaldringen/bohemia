@@ -143,7 +143,16 @@ export interface OrchardWork {
   /** Sklizeň: kg jablek při plné sklizni (péče 0). */
   yieldKg: number;
 }
-export type ConstructionKind = 'dwelling' | 'rebuild' | 'field' | 'cemetery' | 'orchard';
+export type ConstructionKind =
+  | 'dwelling'
+  | 'rebuild'
+  | 'field'
+  | 'cemetery'
+  | 'orchard'
+  /** Dřevěná modla a svatyně (happiness.md) – stavba se polohou v `position`. */
+  | SacredBuildingKind;
+/** Posvátná stavba, kterou staví hráč (happiness.md). */
+export type SacredBuildingKind = 'idol' | 'shrine';
 export interface Construction {
   id: number;
   kind: ConstructionKind;
@@ -151,7 +160,7 @@ export interface Construction {
   cost: number;
   done: number;
   dwellingType: DwellingType | null;
-  position: Position | null; // dwelling
+  position: Position | null; // dwelling, idol, shrine
   /** Nové obydlí na pozemku – obydlí ho po dostavění převezme (u volných obydlí chybí). */
   plot?: DwellingPlot;
   /** rebuild: přestavované obydlí; dwelling: domácnost zakladatelů (první zemnice), jinak null. */
@@ -159,7 +168,7 @@ export interface Construction {
   fieldId: number | null; // field – zakládá díly od nejbližšího
   cemeteryId?: number | null; // cemetery (u starších staveb chybí)
   orchardId?: number | null; // orchard – vysazuje čtverce od nejbližšího (u ostatních chybí)
-  /** Dřevo obydlí a přestavby (forest.md); u starších staveb a polí chybí. */
+  /** Dřevo obydlí, přestavby, modly a svatyně (forest.md); u starších staveb a polí chybí. */
   wood?: ConstructionWood;
   /** Nové obydlí: vzdálenost k nejbližšímu okraji lesa (m) – obydlí ji po dostavění převezme. */
   forestDistanceM?: number;
@@ -217,6 +226,8 @@ export type ChronicleEvent = { day: number } & (
   | { kind: 'hunger-began' }
   | { kind: 'hunger-ended' }
   | { kind: 'part-became-forest'; partId: number }
+  /** Vesničané při mýcení ušetřili posvátný dub nebo dubový háj (happiness.md) – id místa. */
+  | { kind: 'sacred-spared'; site: 'oak' | 'grove'; id: number }
   | {
       kind: 'cemetery-full';
       cemeteryId: number;
@@ -335,6 +346,58 @@ export interface VillageState {
    * ho nečte. U vsí uložených před jeho zavedením chybí do prvního dopočítaného dne.
    */
   labor?: LaborDay;
+  /** Štěstí obyvatel (happiness.md) – u vsí uložených před jeho zavedením chybí (= výchozí 50). */
+  happiness?: HappinessState;
+  /** Posvátné duby, které vesničané při mýcení ušetřili (happiness.md); chybí = žádné. */
+  sacredOaks?: SacredOak[];
+  /** Dubové háje, které vesničané při mýcení ušetřili – stavby po čtvercích; chybí = žádné. */
+  groves?: Grove[];
+  /** Hotové modly a svatyně (happiness.md); chybí = žádné. */
+  sacredBuildings?: SacredBuilding[];
+}
+
+/**
+ * Štěstí obyvatel (happiness.md): hodnota 0–100 a paměť pro cílovou hodnotu – úmrtí za poslední
+ * rok a dny dřiny za posledních 60 dní. Simulace ji vede den po dni (na kouscích nezávisí).
+ */
+export interface HappinessState {
+  value: number;
+  /** Úmrtí posledního roku: den a kolik ubírá (dítě 5, dospělý a starší 3). */
+  deaths: { day: number; points: number }[];
+  /**
+   * Dřina posledních dní (nejstarší první, nejvýš HAPPINESS_PENALTY.toilWindowDays): 1 = ves ten
+   * den nestíhala polní práce v období, 0 = stíhala.
+   */
+  toil: number[];
+}
+
+/** Posvátný dub ušetřený při mýcení – id stromu z vrstvy překážek, den a poloha kmene (m). */
+export interface SacredOak {
+  id: number;
+  day: number;
+  x: number;
+  z: number;
+}
+
+/**
+ * Dubový háj ušetřený při mýcení – stavba po čtvercích (happiness.md). Id = id středového dubu
+ * z vrstvy překážek, střed (m), čtverce háje a kolik dospělých dubů v okruhu 25 m roste.
+ */
+export interface Grove {
+  id: number;
+  day: number;
+  x: number;
+  z: number;
+  cells: TileCell[];
+  oaks: number;
+}
+
+/** Hotová dřevěná modla nebo svatyně (happiness.md). */
+export interface SacredBuilding {
+  id: number;
+  kind: SacredBuildingKind;
+  position: Position;
+  builtDay: number;
 }
 
 /** Změna krajiny sídla nad vygenerovanou vrstvou překážek – id překážky a den. */

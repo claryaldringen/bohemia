@@ -1,14 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../domain/calendar';
-import { generateLandscape, obstaclesOf, tileCenterWorld } from '../../domain/landscape';
+import {
+  generateLandscape,
+  obstacleIndex,
+  obstaclesOf,
+  tileCenterWorld,
+} from '../../domain/landscape';
 import {
   advanceVillage,
   checkDwellingPlacement,
   checkPlotPlacement,
+  checkSacredBuildingPlacement,
   DWELLING_TREES,
   dwellingBuildLabor,
   fellingCost,
+  isOak,
   matureTreesByDistance,
+  sacredSitesOf,
   obstacleChangesAt,
   placementVillageOf,
   plotHousePosition,
@@ -25,6 +33,7 @@ import { placeCemetery } from '../place-cemetery';
 import { NO_PLOT, NO_SETTLERS, NO_WOOD, placeDwelling } from '../place-dwelling';
 import { placeField } from '../place-field';
 import { placeOrchard } from '../place-orchard';
+import { placeSacredBuilding, SHRINE_EXISTS } from '../place-sacred';
 import { renameVillage } from '../rename-village';
 import type { SeedSource } from '../settlements';
 import { InMemoryVillages } from './in-memory-villages';
@@ -634,6 +643,8 @@ describe('překážky krajiny ve vsi (vrstva překážek)', () => {
       obstaclesOf(real),
       obstacleChangesAt(before, TODAY + 1),
       spot,
+      // posvátné duby a stromy hájů se pro stavby nekácí (happiness.md)
+      { exclude: sacredSitesOf(obstaclesOf(real)).protectedTrees },
     )
       .filter((t) => !check.obstacleIds.includes(t.id) && !reserved.has(t.id))
       .slice(0, 18 - Math.min(18, siteTrees));
@@ -708,5 +719,113 @@ describe('překážky krajiny ve vsi (vrstva překážek)', () => {
     );
     expect(loaded!.state.constructions[0]!.forestDistanceM).toBeGreaterThanOrEqual(0);
     expect(villages.records.get(ID)!.state.clearedObstacles).toBeDefined();
+  });
+});
+
+describe('posvátná místa (happiness.md)', () => {
+  const real = generateLandscape(3);
+  const layer = obstaclesOf(real);
+  const sites = sacredSitesOf(layer);
+  const site = tileCenterWorld(real, real.villageSite.x, real.villageSite.y);
+  /** První místo u vsi (po spirále), kam stavba smí – kontrola podle `check`. */
+  const spotFor = (check: (p: Position) => boolean, from = 20): Position => {
+    for (let r = from; r < 600; r += 5) {
+      for (let a = 0; a < 64; a++) {
+        const p = at(site.x + r * Math.cos(a / 10), site.z + r * Math.sin(a / 10));
+        if (check(p)) return p;
+      }
+    }
+    throw new Error('Žádné vhodné místo.');
+  };
+  const home = spotFor((p) => checkDwellingPlacement(real, null, 'zemnice', p).ok);
+
+  async function founded(): Promise<InMemoryVillages> {
+    const villages = new InMemoryVillages();
+    await foundVillageForSettlement(
+      { villages, seeds },
+      { settlementId: ID, landscape: real, today: TODAY, name: 'Libice', dwelling: home },
+    );
+    return villages;
+  }
+
+  it('modla: server ověří místo, vyhradí dospělý dub a svatyně je jedna na ves', async () => {
+    const villages = await founded();
+    const state = villages.records.get(ID)!.state;
+    const village = placementVillageOf(state, TODAY);
+    const idolSpot = spotFor(
+      (p) => checkSacredBuildingPlacement(real, village, 'idol', p, layer).ok,
+      40,
+    );
+    const result = await placeSacredBuilding(
+      { villages },
+      { settlementId: ID, landscape: real, today: TODAY, kind: 'idol', position: idolSpot },
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const idol = result.village.state.constructions.at(-1)!;
+    expect(idol.kind).toBe('idol');
+    expect(idol.wood!.fell).toHaveLength(1);
+    const oak = obstacleIndex(layer, idol.wood!.fell[0]!.id!);
+    expect(isOak(layer, oak)).toBe(true);
+    expect(sites.protectedTrees.has(layer.id[oak]!)).toBe(false);
+
+    const shrineVillage = placementVillageOf(result.village.state, TODAY);
+    const shrineSpot = spotFor(
+      (p) => checkSacredBuildingPlacement(real, shrineVillage, 'shrine', p, layer).ok,
+      60,
+    );
+    const shrine = await placeSacredBuilding(
+      { villages },
+      { settlementId: ID, landscape: real, today: TODAY, kind: 'shrine', position: shrineSpot },
+    );
+    expect(shrine.ok).toBe(true);
+    const again = await placeSacredBuilding(
+      { villages },
+      { settlementId: ID, landscape: real, today: TODAY, kind: 'shrine', position: shrineSpot },
+    );
+    expect(again).toEqual({ ok: false, reason: SHRINE_EXISTS });
+    // posvátný dub: stavět na něj nejde (server)
+    const oakSite = sites.oaks[0]!;
+    const onOak = await placeSacredBuilding(
+      { villages },
+      {
+        settlementId: ID,
+        landscape: real,
+        today: TODAY,
+        kind: 'idol',
+        position: at(oakSite.x, oakSite.z),
+      },
+    );
+    expect(onOak.ok).toBe(false);
+  });
+
+  it('pole přes háj: čtverce háje se vyjmou a ves si háj zapamatuje', async () => {
+    const villages = await founded();
+    // háj nejblíž vsi a čtverce kolem něj (3 × 3 kolem prvního čtverce háje)
+    const grove = [...sites.groves].sort(
+      (a, b) => Math.hypot(a.x - home.x, a.z - home.z) - Math.hypot(b.x - home.x, b.z - home.z),
+    )[0]!;
+    const first = grove.cells[0]!;
+    const cells = [-1, 0, 1].flatMap((dy) =>
+      [-1, 0, 1].map((dx) => ({ x: first.x + dx, y: first.y + dy })),
+    );
+    const result = await placeField(
+      { villages },
+      { settlementId: ID, landscape: real, today: TODAY, cells },
+    );
+    if (!result.ok) {
+      // háj může ležet dál než 800 m od vsi – pak stačí, že důvod není o háji
+      expect(result.reason).not.toContain('háj');
+      return;
+    }
+    const state = result.village.state;
+    expect(state.groves?.map((g) => g.id)).toEqual([grove.id]);
+    const groveCells = new Set(grove.cells.map((c) => `${c.x},${c.y}`));
+    expect(state.parts.some((p) => p.cell && groveCells.has(`${p.cell.x},${p.cell.y}`))).toBe(
+      false,
+    );
+    expect(state.chronicle).toContainEqual(
+      expect.objectContaining({ kind: 'sacred-spared', site: 'grove', id: grove.id }),
+    );
   });
 });
