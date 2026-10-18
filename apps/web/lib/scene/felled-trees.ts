@@ -9,7 +9,12 @@ import {
   type TreeLook,
 } from '@bohemia/game';
 import { prepareDecorMaterial } from './decorations';
-import { instanceMatrices, loadMergedModel, type ModelInstance } from './instanced-model';
+import {
+  instanceMatrices,
+  loadMergedModel,
+  setStaticInstances,
+  type ModelInstance,
+} from './instanced-model';
 import { prepareTreeMaterial } from './trees';
 
 /** Model, kterým se kreslí pařez nebo nálet: soubor a příprava materiálu. */
@@ -212,7 +217,8 @@ export class FelledTrees {
       mesh.setEnabled(false);
       return true;
     }
-    mesh.thinInstanceSetBuffer('matrix', instanceMatrices(entry.instances), 16, true);
+    // nehybné instance – ořez podle záběru (scenery-culling.ts) je kreslí jen v záběru
+    setStaticInstances(mesh, instanceMatrices(entry.instances));
     mesh.setEnabled(true);
     return true;
   }

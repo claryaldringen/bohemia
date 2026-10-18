@@ -45,20 +45,45 @@ export interface StaticInstances {
   ids?: Uint32Array;
   /** Barva instance (4 čísla) – impostory. */
   colors?: Float32Array;
+  /**
+   * Obal modelu v jeho souřadnicích [min x, y, z, max x, y, z] pro ořez podle záběru – jen když
+   * se geometrie mění (impostory se natáčejí ke kameře); jinak se spočítá z vrcholů.
+   */
+  localBounds?: readonly [number, number, number, number, number, number];
 }
 
 /** Původní instance nehybných meshů (stromy, dekorace) – pro skrývání pod vsí a kácení. */
 const staticInstances = new WeakMap<Mesh, StaticInstances>();
 
-/** Nastaví meshi nehybné instance a zapamatuje si je (Babylon drží stejná pole). */
+/** Kdo chce vědět o nových nehybných instancích ve scéně (ořez podle záběru). */
+type StaticInstancesListener = (mesh: Mesh, instances: StaticInstances) => void;
+const listeners = new WeakMap<Scene, Set<StaticInstancesListener>>();
+
+/**
+ * Nastaví meshi nehybné instance a zapamatuje si je (Babylon drží stejná pole); jde volat
+ * znovu (instance vsi se mění). Ohlásí je posluchačům scény (`onStaticInstances`).
+ */
 export function setStaticInstances(
   mesh: Mesh,
   matrices: Float32Array,
-  extra: { ids?: Uint32Array; colors?: Float32Array } = {},
+  extra: Omit<StaticInstances, 'matrices'> = {},
 ): void {
   mesh.thinInstanceSetBuffer('matrix', matrices, 16, true);
   if (extra.colors) mesh.thinInstanceSetBuffer('color', extra.colors, 4, true);
-  staticInstances.set(mesh, { matrices, ...extra });
+  const record = { matrices, ...extra };
+  staticInstances.set(mesh, record);
+  for (const listener of listeners.get(mesh.getScene()) ?? []) listener(mesh, record);
+}
+
+/** Posluchač nových nehybných instancí ve scéně; vrátí odhlášení. */
+export function onStaticInstances(scene: Scene, listener: StaticInstancesListener): () => void {
+  let set = listeners.get(scene);
+  if (!set) {
+    set = new Set();
+    listeners.set(scene, set);
+  }
+  set.add(listener);
+  return () => set.delete(listener);
 }
 
 /** Instance z `setStaticInstances`, nebo undefined. */

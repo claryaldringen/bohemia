@@ -691,11 +691,15 @@ export const CRAFT_PRODUCTION = {
 // v užívání se opotřebují o 30 % ročně; každý člověk potřebuje 5 kg nádob, ročně se jich 40 %
 // rozbije. Opotřebení a rozbití se týká jen toho, co ves používá (nejvýš potřeba) – přebytek
 // v zásobě leží (Martin: přebytky později pro obchod).
+// crafts.md – Podle potřeby (návrh Clauda): kovář a hrnčíř vyrábějí jen do zásoby = potřeba vsi
+// + opotřebení za `reserveYears` (nástroje × 1,3, keramika × 1,4); pak jejich domácnost pracuje
+// se vsí (Martin 18. 10. 2026 – volný čas na poli)
 export const CRAFT_NEEDS = {
   toolsKgPerWorker: 3,
   toolWearPerYear: 0.3,
   potteryKgPerPerson: 5,
   potteryBreakagePerYear: 0.4,
+  reserveYears: 1,
 } as const;
 // crafts.md – Uhlíř (Martin 18. 10. 2026 – uhlíř pálí buky, staví milíř, sází mladé buky;
 // čísla podle rešerše 2026-10-18-charcoal.md, rozdělení práce návrh Clauda): milíř = dávka

@@ -63,16 +63,19 @@ Vzhled podle Martina (modely se připravují v `tools/blender/`):
 
 ## Práce a jídlo
 
-- **Řemeslník pracuje na plný úvazek** (Martin): dospělí domácnosti dílny dávají řemeslu všechnu
-  svou práci po denním minimu a domácí výrobě – celý rok, **nikdy na poli** ani ve společné práci
-  vsi. Jedí ze společných zásob jako všichni.
-- **Co ves nespotřebuje, zůstane v zásobě** (Martin) – později pro obchod. Výroba se nezastaví,
-  když je potřeba vsi pokrytá.
-- **Bez vstupu stojí** (Martin): kovář bez uhlí a uhlíř bez dospělých buků nevyrábějí – práce
-  domácnosti propadne, jíst musí dál.
-- **Výjimka – uhlíř s plnou zásobou uhlí** (návrh Clauda, 18. 10. 2026): uhlíř pálí jen do
-  zásoby na rok spotřeby kovářů; s plnou zásobou sází mladé buky, a když není co sázet, pracuje
-  se vsí (část [Uhlíř](#uhlíř--buky-milíř-a-obnova-lesa)).
+- **Řemeslník pracuje v dílně na plný úvazek, dokud je co dělat** (Martin): dospělí domácnosti
+  dílny dávají řemeslu všechnu svou práci po denním minimu a domácí výrobě. Jedí ze společných
+  zásob jako všichni.
+- **Volný čas pracují pro ves** (Martin 18. 10. 2026: „Ano, pokud uhlíř a kovář budou mít volný
+  čas, ať pracují na poli jako zbytek vesnice.“): když řemeslník nemá v dílně co dělat, jeho
+  domácnost ten den pracuje jako ostatní domácnosti – pole, stavby, společná práce vsi (část
+  [Podle potřeby](#podle-potřeby-a-volný-čas)).
+- ~~Co ves nespotřebuje, zůstane v zásobě – výroba se nezastaví, když je potřeba vsi pokrytá~~ –
+  zrušeno (Martin, 18. 10. 2026): řemeslník vyrábí podle potřeby vsi, přebytky prodá až
+  finanční systém.
+- **Bez vstupu nevyrábí** (Martin): kovář bez uhlí a uhlíř nebo hrnčíř bez dřeva nevyrábějí – jejich
+  domácnost má volný čas a pracuje se vsí (výklad Martinova „volného času“ – návrh Clauda;
+  dřív práce propadla), dílna hlásí, na co čeká.
 - ~~Řemeslník vyrábí do zásoby na 2 roky, pak pracuje ve společné práci vsi~~ – zrušeno, řemeslník
   pracuje na plný úvazek (Martin).
 
@@ -136,7 +139,9 @@ z [rešerše uhlířství](research/2026-10-18-charcoal.md).
   dřevo). Pařez, na který nikdo nezasadí, dorůstá z náletu jako dosud (30 let pařez, za 70 let
   strom – [les](forest.md)).
 - **Pálí jen kolik je potřeba** (návrh Clauda): uhlíř začne nový milíř, jen když zásoba uhlí
-  i s rozdělanými milíři nestačí na **rok spotřeby kovářů** (kovář na plný úvazek ≈ 2,2 t ročně).
+  i s rozdělanými milíři nestačí na **rok spotřeby kovářů** – uhlí na nástroje, které ves za rok
+  opotřebí, a na to, co chybí do zásoby nástrojů (nejvýš kolik kovář na plný úvazek vykove,
+  ≈ 2,2 t ročně; ves s 18 pracujícími a plnou zásobou nástrojů ≈ 0,8 t ročně).
   S plnou zásobou sází mladé buky; když není kdy (mimo okna výsadby) ani co sázet, jeho domácnost
   ten den **pracuje se vsí** (pole, stavby). Rozdělaný milíř vždy dodělá. Bez kováře uhlíř
   nepálí.
@@ -144,6 +149,33 @@ z [rešerše uhlířství](research/2026-10-18-charcoal.md).
   buků ročně skácí a zasadí; mýtina (90 % pařezů) roste ≈ 115 m → 190 m za 10 let → 275 m za
   30 let → 345 m za 60 let, lesní milíře od ≈ 7. roku; v 61. roce dospějí první zasazené buky
   a uhlíř se vrátí k dílně (≈ 145 m).
+
+## Podle potřeby a volný čas
+
+Martin (18. 10. 2026): „Ano, pokud uhlíř a kovář budou mít volný čas, ať pracují na poli jako
+zbytek vesnice. Až budeme mít víc vesnic, tak může vyrábět i pro ně – nemusí být kovář v každé
+vesnici. A časem, až bude finanční systém, bude přebytky prodávat.“
+
+- **Kovář a hrnčíř vyrábějí do zásoby na rok** (návrh Clauda): zásoba = potřeba vsi a k ní
+  opotřebení za rok – nástroje **potřeba × 1,3**, keramika **potřeba × 1,4**. S takovou zásobou
+  má ves potřebu pokrytou i po roce opotřebení. Když zásoba dosáhne hranice, řemeslník přestane
+  a jeho domácnost pracuje pro ves; jakmile se zásoba opotřebením nebo růstem vsi sníží, vyrábí
+  dál. Rozhoduje se na začátku dne ze včerejších zásob.
+- **Uhlíř** pálí podle potřeby kovářů (část [Uhlíř](#uhlíř--buky-milíř-a-obnova-lesa)) – s plnou
+  zásobou uhlí sází mladé buky, a když není co sázet, pracuje pro ves.
+- **Volný čas = práce pro ves:** domácnost řemeslníka, který dnes nemá v dílně co dělat (plná
+  zásoba, nebo chybí vstup – uhlí, dřevo), pracuje jako ostatní domácnosti – v rozdělení práce
+  dne je na poli a na stavbách. Do plánu osevu (k 1. 9.) se řemeslníci nepočítají – ves s nimi
+  na polních pracích počítat nemůže, pomáhají navíc.
+- **Kolik ves potřebuje a kolik práce řemeslníci vrátí** (sonda: skutečná krajina sídla, 6 domácností
+  na poli + kovář, hrnčíř, uhlíř po 2 dospělých a 2 dětech – 36 lidí, 18 pracujících, 20 let):
+  nástroje potřeba 54 kg, opotřebení ≈ 16 kg ročně (zásoba drží ≈ 70 kg); keramika 180 kg, rozbije
+  se ≈ 72 kg ročně (zásoba ≈ 255 kg); uhlí ≈ 0,8 t ročně (≈ 7 buků). Kovář je v dílně ≈ 42 % dní
+  a vsi vrátí ≈ 250 čd ročně, hrnčíř ≈ 19 % dní a vrátí ≈ 350 čd, uhlíř ≈ 24 % dní a vrátí
+  ≈ 335 čd – dohromady ≈ 930 čd ročně (≈ 2,5 domácnosti na poli).
+- **Do budoucna (Martin, neimplementováno):** až bude víc vsí, kovář (i ostatní řemeslníci) může
+  vyrábět i pro ostatní vsi hráče – kovář nemusí být v každé vsi; až bude finanční systém, bude
+  přebytky prodávat.
 
 ## Účinek
 
@@ -231,25 +263,29 @@ Rozhodnutí kontroléru při implementaci (18. 10. 2026) – kde návrh necháva
 
 ## Rozhodnutí
 
-| Rozhodnutí                                                                                               | Kdo                                        |
-| -------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
-| Uhlíř pálí uhlí pro kováře; kovář dělá nástroje → produktivita práce celé vsi                            | Martin                                     |
-| Hrnčíř zvyšuje produktivitu výroby potravin                                                              | Martin                                     |
-| Dílna je obydlí, řemeslo provozuje domácnost, která v ní bydlí; prázdná nic nevyrábí                     | Martin                                     |
-| Řemeslník nepracuje na poli – ves ho musí uživit z nadvýroby                                             | Martin                                     |
-| Kovář si železo taví sám z bahenní rudy, žádný horník ani obchod                                         | Martin                                     |
-| Vzhled budov (hrnčíř, kovář, uhlíř s milířem)                                                            | Martin                                     |
-| Řemeslník na plný úvazek; přebytek do zásoby, bez vstupu stojí (místo výroby na 2 roky)                  | Martin (17. 10. 2026)                      |
-| Účinky jako meze produktivity – bez řemesel nejhorší mez, s plným pokrytím nejlepší (místo +30 / −15 %)  | Martin (17. 10. 2026)                      |
-| 1 kg nástrojů = 10 čd a 50 kg uhlí; keramika 1 strom na 500 kg; strom = velký strom                      | Martin – oprava podle rešerše 17. 10. 2026 |
-| Hrnčíř: ztráty zásob 10 → 5 %, denní minimum 0,5 → 0,45                                                  | Martin – oprava podle rešerše 17. 10. 2026 |
-| Cena dílny +30 %                                                                                         | návrh Clauda                               |
-| Výkony 10 kg uhlí/čd, 120 kg uhlí ze stromu, 1 čd na 1 kg keramiky                                       | návrh Clauda                               |
-| Potřeby: 3 kg nástrojů na pracujícího (−30 %/rok), 5 kg nádob na člověka (−40 %/rok)                     | návrh Clauda                               |
-| Doba (keramika v ruce do 10. st.) se neřeší – letopočet začátku se může posunout                         | Martin (17. 10. 2026)                      |
-| Implementační rozhodnutí (milíř, celá domácnost v dílně, opotřebení, jablka poměrně…) – viz Implementace | kontrolér (18. 10. 2026)                   |
-| Uhlíř pálí jen buky, staví milíř, sází mladé buky; mýtina roste a chodí dál                              | Martin (18. 10. 2026)                      |
-| Milíř = 15 buků; práce: kácení 2, příprava 6, stavba 2, pálení 8 dní, vytahání 2 čd/buk                  | návrh Clauda podle rešerše 18. 10. 2026    |
-| Milíř u dílny do 150 m, dál v lese u dávky s přirážkou za chůzi                                          | návrh Clauda podle rešerše 18. 10. 2026    |
-| Sazenice buku 0,1 čd v oknech výsadby, dospělá za 60 let                                                 | návrh Clauda podle rešerše 18. 10. 2026    |
-| Uhlíř pálí jen do zásoby na rok spotřeby kovářů, s plnou zásobou sází nebo pracuje se vsí                | návrh Clauda (18. 10. 2026)                |
+| Rozhodnutí                                                                                               | Kdo                                          |
+| -------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| Uhlíř pálí uhlí pro kováře; kovář dělá nástroje → produktivita práce celé vsi                            | Martin                                       |
+| Hrnčíř zvyšuje produktivitu výroby potravin                                                              | Martin                                       |
+| Dílna je obydlí, řemeslo provozuje domácnost, která v ní bydlí; prázdná nic nevyrábí                     | Martin                                       |
+| Řemeslník nepracuje na poli – ves ho musí uživit z nadvýroby                                             | Martin                                       |
+| Kovář si železo taví sám z bahenní rudy, žádný horník ani obchod                                         | Martin                                       |
+| Vzhled budov (hrnčíř, kovář, uhlíř s milířem)                                                            | Martin                                       |
+| Řemeslník na plný úvazek; přebytek do zásoby, bez vstupu stojí (místo výroby na 2 roky)                  | Martin (17. 10. 2026)                        |
+| Účinky jako meze produktivity – bez řemesel nejhorší mez, s plným pokrytím nejlepší (místo +30 / −15 %)  | Martin (17. 10. 2026)                        |
+| 1 kg nástrojů = 10 čd a 50 kg uhlí; keramika 1 strom na 500 kg; strom = velký strom                      | Martin – oprava podle rešerše 17. 10. 2026   |
+| Hrnčíř: ztráty zásob 10 → 5 %, denní minimum 0,5 → 0,45                                                  | Martin – oprava podle rešerše 17. 10. 2026   |
+| Cena dílny +30 %                                                                                         | návrh Clauda                                 |
+| Výkony 10 kg uhlí/čd, 120 kg uhlí ze stromu, 1 čd na 1 kg keramiky                                       | návrh Clauda                                 |
+| Potřeby: 3 kg nástrojů na pracujícího (−30 %/rok), 5 kg nádob na člověka (−40 %/rok)                     | návrh Clauda                                 |
+| Doba (keramika v ruce do 10. st.) se neřeší – letopočet začátku se může posunout                         | Martin (17. 10. 2026)                        |
+| Implementační rozhodnutí (milíř, celá domácnost v dílně, opotřebení, jablka poměrně…) – viz Implementace | kontrolér (18. 10. 2026)                     |
+| Uhlíř pálí jen buky, staví milíř, sází mladé buky; mýtina roste a chodí dál                              | Martin (18. 10. 2026)                        |
+| Milíř = 15 buků; práce: kácení 2, příprava 6, stavba 2, pálení 8 dní, vytahání 2 čd/buk                  | návrh Clauda podle rešerše 18. 10. 2026      |
+| Milíř u dílny do 150 m, dál v lese u dávky s přirážkou za chůzi                                          | návrh Clauda podle rešerše 18. 10. 2026      |
+| Sazenice buku 0,1 čd v oknech výsadby, dospělá za 60 let                                                 | návrh Clauda podle rešerše 18. 10. 2026      |
+| Uhlíř pálí jen do zásoby na rok spotřeby kovářů, s plnou zásobou sází nebo pracuje se vsí                | návrh Clauda (18. 10. 2026)                  |
+| Řemeslník s volným časem pracuje na poli jako zbytek vsi; vyrábí podle potřeby (místo výroby bez konce)  | Martin (18. 10. 2026)                        |
+| Kovář a hrnčíř vyrábějí do zásoby = potřeba + opotřebení za rok (× 1,3 nástroje, × 1,4 keramika)         | návrh Clauda (18. 10. 2026)                  |
+| Bez vstupu (uhlí, dřevo) má řemeslník volný čas a pracuje se vsí                                         | návrh Clauda – výklad Martina (18. 10. 2026) |
+| Do budoucna: řemeslník vyrábí i pro ostatní vsi hráče, s financemi prodává přebytky                      | Martin (18. 10. 2026)                        |

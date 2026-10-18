@@ -21,8 +21,10 @@ import {
   trainTeamForPlayer,
   upgradeRoadForPlayer,
   villageViewForPlayer,
+  villageViewIfChanged,
   type TimeSkipResult,
   type VillageActionResult,
+  type VillageUnchanged,
   type VillageView,
 } from '@/lib/village';
 import {
@@ -78,20 +80,33 @@ async function villageAction<T>(
  * Ves hráče dopočítaná do dneška: `{ villageId }` – vybraná ves; `{ villageId: null }` (ještě
  * žádnou nezná, zakládá ves) – jeho první ves, nebo null, dokud žádnou nemá. Když vybraná ves
  * hráči už nepatří (restart hry v jiném panelu), vrátí jeho první ves (nebo null) – klient pak
- * načte stránku znovu.
+ * načte stránku znovu. S `known` (otisk pohledu, který klient má – `VillageView.stamp`) vrátí
+ * `{ unchanged: true }`, když se od něj nic nezměnilo.
  */
 export async function getVillageView(
   input: unknown,
-): Promise<VillageView | null | { error: string }> {
+): Promise<VillageView | VillageUnchanged | null | { error: string }> {
   const id = await playerId();
   if (id === null) return { error: NOT_SIGNED_IN };
   const villageId = villageIdOf(input);
   if (villageId === null && !isNullVillage(input)) return { error: INVALID_INPUT };
+  const known = knownStampOf(input);
+  if (villageId !== null && known !== null) {
+    const fresh = await villageViewIfChanged(id, villageId, known);
+    if (fresh === null || !('error' in fresh) || fresh.error !== NOT_PLAYER_VILLAGE) return fresh;
+    return villageViewForPlayer(id, null);
+  }
   const view = await villageViewForPlayer(id, villageId);
   if (villageId !== null && view !== null && 'error' in view && view.error === NOT_PLAYER_VILLAGE) {
     return villageViewForPlayer(id, null);
   }
   return view;
+}
+
+/** Otisk pohledu z dotazu (`known` – 16 šestnáctkových číslic), jinak null. */
+function knownStampOf(input: unknown): string | null {
+  if (typeof input !== 'object' || input === null || !('known' in input)) return null;
+  return typeof input.known === 'string' && /^[0-9a-f]{16}$/.test(input.known) ? input.known : null;
 }
 
 function isNullVillage(input: unknown): boolean {

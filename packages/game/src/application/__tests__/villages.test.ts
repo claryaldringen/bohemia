@@ -170,6 +170,39 @@ describe('loadVillage', () => {
     expect(villages.records.get(VID)?.state.lastDay).toBe(later);
   });
 
+  it('s přestávkami (dlouhý dopočet po dnech) dá stejnou ves jako vcelku', async () => {
+    const whole = await foundedVillages();
+    const paused = await foundedVillages();
+    const later = TODAY + 200;
+    let pauses = 0;
+    let waits = 0;
+    const pause = (): Promise<void> | null => {
+      pauses++;
+      // každý třetí den opravdu počká (jako server po kousku práce)
+      if (pauses % 3 !== 0) return null;
+      waits++;
+      return new Promise((resolve) => setTimeout(resolve, 0));
+    };
+    const a = await loadVillage({ villages: whole }, { villageId: VID, today: later, landscape });
+    const b = await loadVillage(
+      { villages: paused, pause },
+      { villageId: VID, today: later, landscape },
+    );
+    expect(pauses).toBe(200);
+    expect(waits).toBe(66);
+    expect(b).toEqual(a);
+    expect(JSON.stringify(b!.state)).toBe(
+      JSON.stringify(
+        advanceVillage(
+          (await foundedVillages()).records.get(VID)!.state,
+          later,
+          obstaclesOf(landscape),
+          landscape,
+        ),
+      ),
+    );
+  });
+
   it('už dopočítanou ves neukládá znovu', async () => {
     const villages = await foundedVillages();
     const record = await loadVillage({ villages }, { villageId: VID, today: TODAY, landscape });

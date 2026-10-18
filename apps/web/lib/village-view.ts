@@ -284,6 +284,12 @@ export interface VillageCrafts {
 export interface VillageView {
   /** Id vsi – akce i dotazy jdou podle něj (migration.md – Víc vsí jednoho hráče). */
   id: string;
+  /**
+   * Otisk pohledu (`villageViewStamp` – ves, den, jméno a verze všech vsí hráče): klient ho pošle
+   * s dalším dotazem a server při shodě odpoví `{ unchanged: true }` bez načtení vsí. Chybí =
+   * dotaz vždy celý.
+   */
+  stamp?: string;
   /** Sídlo (mapa), na jehož krajině ves stojí. */
   settlementId: string;
   name: string;
