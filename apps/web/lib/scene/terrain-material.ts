@@ -24,6 +24,7 @@ import {
   bindSeasonUniforms,
 } from './season-materials';
 import type { StreamCenterline } from './stream-geometry';
+import { TERRAIN_UV_GLSL, TERRAIN_UV_WGSL, terrainLayersCode } from './terrain-shader';
 
 const TEXTURE_BASE_URL = '/textures/terrain/';
 
@@ -266,12 +267,7 @@ uniform vec4 seasonB;
       return {
         CUSTOM_FRAGMENT_DEFINITIONS: `#ifdef TERRAIN_SPLAT
 ${SAMPLERS.map((name) => `var ${name}Sampler: sampler;\nvar ${name}: texture_2d<f32>;`).join('\n')}
-fn terrainLayerUv(xz: vec2f, repeatM: f32) -> vec2f {
-  return vec2f(xz.x + xz.y, xz.y - xz.x) * 0.70710678 / repeatM;
-}
-fn terrainLayerUv2(xz: vec2f, repeatM: f32) -> vec2f {
-  return vec2f(xz.x * 0.94 - xz.y * 0.34, xz.x * 0.34 + xz.y * 0.94) / (repeatM * 2.3) + vec2f(0.37, 0.71);
-}
+${TERRAIN_UV_WGSL}
 ${SEASON_HELPERS_WGSL}
 #endif`,
         CUSTOM_FRAGMENT_UPDATE_DIFFUSE: `#ifdef TERRAIN_SPLAT
@@ -280,17 +276,7 @@ let splatUv = (terrainXz + uniforms.terrainExtent * 0.5) / uniforms.terrainExten
 let wA = textureSample(splat0, splat0Sampler, splatUv);
 let wB = textureSample(splat1, splat1Sampler, splatUv);
 let wC = textureSample(splat2, splat2Sampler, splatUv);
-var terrainColor = (0.55 * textureSample(layer0, layer0Sampler, terrainLayerUv(terrainXz, uniforms.layerRepeatA.x)).rgb + 0.45 * textureSample(layer0, layer0Sampler, terrainLayerUv2(terrainXz, uniforms.layerRepeatA.x)).rgb) * wA.r;
-terrainColor += (0.55 * textureSample(layer1, layer1Sampler, terrainLayerUv(terrainXz, uniforms.layerRepeatA.y)).rgb + 0.45 * textureSample(layer1, layer1Sampler, terrainLayerUv2(terrainXz, uniforms.layerRepeatA.y)).rgb) * wA.g;
-terrainColor += (0.55 * textureSample(layer2, layer2Sampler, terrainLayerUv(terrainXz, uniforms.layerRepeatA.z)).rgb + 0.45 * textureSample(layer2, layer2Sampler, terrainLayerUv2(terrainXz, uniforms.layerRepeatA.z)).rgb) * wA.b;
-terrainColor += (0.55 * textureSample(layer3, layer3Sampler, terrainLayerUv(terrainXz, uniforms.layerRepeatA.w)).rgb + 0.45 * textureSample(layer3, layer3Sampler, terrainLayerUv2(terrainXz, uniforms.layerRepeatA.w)).rgb) * wA.a;
-terrainColor += (0.55 * textureSample(layer4, layer4Sampler, terrainLayerUv(terrainXz, uniforms.layerRepeatB.x)).rgb + 0.45 * textureSample(layer4, layer4Sampler, terrainLayerUv2(terrainXz, uniforms.layerRepeatB.x)).rgb) * wB.r;
-terrainColor += (0.55 * textureSample(layer5, layer5Sampler, terrainLayerUv(terrainXz, uniforms.layerRepeatB.y)).rgb + 0.45 * textureSample(layer5, layer5Sampler, terrainLayerUv2(terrainXz, uniforms.layerRepeatB.y)).rgb) * wB.g;
-terrainColor += (0.55 * textureSample(layer6, layer6Sampler, terrainLayerUv(terrainXz, uniforms.layerRepeatC.x)).rgb + 0.45 * textureSample(layer6, layer6Sampler, terrainLayerUv2(terrainXz, uniforms.layerRepeatC.x)).rgb) * wC.r;
-terrainColor += (0.55 * textureSample(layer7, layer7Sampler, terrainLayerUv(terrainXz, uniforms.layerRepeatC.y)).rgb + 0.45 * textureSample(layer7, layer7Sampler, terrainLayerUv2(terrainXz, uniforms.layerRepeatC.y)).rgb) * wC.g;
-terrainColor += (0.55 * textureSample(layer8, layer8Sampler, terrainLayerUv(terrainXz, uniforms.layerRepeatB.z)).rgb + 0.45 * textureSample(layer8, layer8Sampler, terrainLayerUv2(terrainXz, uniforms.layerRepeatB.z)).rgb) * wB.a;
-terrainColor += (0.55 * textureSample(layer9, layer9Sampler, terrainLayerUv(terrainXz, uniforms.layerRepeatC.z)).rgb + 0.45 * textureSample(layer9, layer9Sampler, terrainLayerUv2(terrainXz, uniforms.layerRepeatC.z)).rgb) * wC.b;
-terrainColor += (0.55 * textureSample(layer10, layer10Sampler, terrainLayerUv(terrainXz, uniforms.layerRepeatC.w)).rgb + 0.45 * textureSample(layer10, layer10Sampler, terrainLayerUv2(terrainXz, uniforms.layerRepeatC.w)).rgb) * wC.a;
+${terrainLayersCode('wgsl')}
 let terrainTotal = max(wA.r + wA.g + wA.b + wA.a + wB.r + wB.g + wB.a + wC.r + wC.g + wC.b + wC.a, 0.001);
 var groundColor = terrainColor / terrainTotal;
 ${SEASON_GROUND_WGSL}
@@ -301,12 +287,7 @@ baseColor = vec4f(groundColor * (1.0 - 0.5 * wB.b * mix(0.35, 1.0, uniforms.seas
     return {
       CUSTOM_FRAGMENT_DEFINITIONS: `#ifdef TERRAIN_SPLAT
 ${SAMPLERS.map((name) => `uniform sampler2D ${name};`).join('\n')}
-vec2 terrainLayerUv(vec2 xz, float repeatM) {
-  return vec2(xz.x + xz.y, xz.y - xz.x) * 0.70710678 / repeatM;
-}
-vec2 terrainLayerUv2(vec2 xz, float repeatM) {
-  return vec2(xz.x * 0.94 - xz.y * 0.34, xz.x * 0.34 + xz.y * 0.94) / (repeatM * 2.3) + vec2(0.37, 0.71);
-}
+${TERRAIN_UV_GLSL}
 ${SEASON_HELPERS_GLSL}
 #endif`,
       CUSTOM_FRAGMENT_UPDATE_DIFFUSE: `#ifdef TERRAIN_SPLAT
@@ -315,17 +296,7 @@ vec2 splatUv = (terrainXz + terrainExtent * 0.5) / terrainExtent;
 vec4 wA = texture2D(splat0, splatUv);
 vec4 wB = texture2D(splat1, splatUv);
 vec4 wC = texture2D(splat2, splatUv);
-vec3 terrainColor = (0.55 * texture2D(layer0, terrainLayerUv(terrainXz, layerRepeatA.x)).rgb + 0.45 * texture2D(layer0, terrainLayerUv2(terrainXz, layerRepeatA.x)).rgb) * wA.r;
-terrainColor += (0.55 * texture2D(layer1, terrainLayerUv(terrainXz, layerRepeatA.y)).rgb + 0.45 * texture2D(layer1, terrainLayerUv2(terrainXz, layerRepeatA.y)).rgb) * wA.g;
-terrainColor += (0.55 * texture2D(layer2, terrainLayerUv(terrainXz, layerRepeatA.z)).rgb + 0.45 * texture2D(layer2, terrainLayerUv2(terrainXz, layerRepeatA.z)).rgb) * wA.b;
-terrainColor += (0.55 * texture2D(layer3, terrainLayerUv(terrainXz, layerRepeatA.w)).rgb + 0.45 * texture2D(layer3, terrainLayerUv2(terrainXz, layerRepeatA.w)).rgb) * wA.a;
-terrainColor += (0.55 * texture2D(layer4, terrainLayerUv(terrainXz, layerRepeatB.x)).rgb + 0.45 * texture2D(layer4, terrainLayerUv2(terrainXz, layerRepeatB.x)).rgb) * wB.r;
-terrainColor += (0.55 * texture2D(layer5, terrainLayerUv(terrainXz, layerRepeatB.y)).rgb + 0.45 * texture2D(layer5, terrainLayerUv2(terrainXz, layerRepeatB.y)).rgb) * wB.g;
-terrainColor += (0.55 * texture2D(layer6, terrainLayerUv(terrainXz, layerRepeatC.x)).rgb + 0.45 * texture2D(layer6, terrainLayerUv2(terrainXz, layerRepeatC.x)).rgb) * wC.r;
-terrainColor += (0.55 * texture2D(layer7, terrainLayerUv(terrainXz, layerRepeatC.y)).rgb + 0.45 * texture2D(layer7, terrainLayerUv2(terrainXz, layerRepeatC.y)).rgb) * wC.g;
-terrainColor += (0.55 * texture2D(layer8, terrainLayerUv(terrainXz, layerRepeatB.z)).rgb + 0.45 * texture2D(layer8, terrainLayerUv2(terrainXz, layerRepeatB.z)).rgb) * wB.a;
-terrainColor += (0.55 * texture2D(layer9, terrainLayerUv(terrainXz, layerRepeatC.z)).rgb + 0.45 * texture2D(layer9, terrainLayerUv2(terrainXz, layerRepeatC.z)).rgb) * wC.b;
-terrainColor += (0.55 * texture2D(layer10, terrainLayerUv(terrainXz, layerRepeatC.w)).rgb + 0.45 * texture2D(layer10, terrainLayerUv2(terrainXz, layerRepeatC.w)).rgb) * wC.a;
+${terrainLayersCode('glsl')}
 float terrainTotal = max(wA.r + wA.g + wA.b + wA.a + wB.r + wB.g + wB.a + wC.r + wC.g + wC.b + wC.a, 0.001);
 vec3 groundColor = terrainColor / terrainTotal;
 ${SEASON_GROUND_GLSL}
