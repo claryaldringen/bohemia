@@ -122,6 +122,23 @@ export function realTimeOf(date: CalendarDate, world: WorldClock): number {
   return world.startMs + Number((dayIndex * duration + totalDays - 1n) / totalDays);
 }
 
+/**
+ * Hodiny světa posunuté o `days` herních dní dopředu (posun času hráče ve vývojovém režimu):
+ * v každém okamžiku ukážou datum o `days` dní dál a den trvá stejně dlouho. Posun se zaokrouhlí
+ * nahoru na celé ms, takže v poslední ms dne může datum o den předběhnout. Posunutý svět o tolik
+ * dřív i končí.
+ */
+export function shiftWorldClock(world: WorldClock, days: number): WorldClock {
+  if (!Number.isInteger(days) || days < 0) {
+    throw new RangeError(`Posun času musí být celý nezáporný počet dní: ${days}`);
+  }
+  if (days === 0) return world;
+  const duration = BigInt(world.endMs - world.startMs);
+  const totalDays = BigInt(TOTAL_GAME_DAYS);
+  const shiftMs = Number((BigInt(days) * duration + totalDays - 1n) / totalDays);
+  return { startMs: world.startMs - shiftMs, endMs: world.endMs - shiftMs };
+}
+
 function parseInstant(name: string, value: string): number {
   const ms = Date.parse(value);
   if (Number.isNaN(ms)) throw new Error(`${name} není platný okamžik (ISO 8601): ${value}`);
