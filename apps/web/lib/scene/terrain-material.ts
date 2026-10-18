@@ -93,7 +93,8 @@ export function createTerrainMaterial(
  * Roční období na terénu (gama prostor, `groundColor` = smíchaná barva vrstev, váhy wA–wC):
  * tráva (tráva, bujná, kvetoucí, suchá a napůl vyšlapaná) na jaře zesvětlí a zezelená, na
  * podzim usychá ve skvrnách do slámově hnědé; sníh podle šumu, ne na strmých svazích a na dně
- * potoka (štěrk, písek a bahno jsou většinou pod vodou – prosvítaly by bíle).
+ * potoka (štěrk, písek a bahno jsou většinou pod vodou – prosvítaly by bíle); pod stromy místy
+ * prosvítá zem. Stín pod holými korunami je v zimě slabší.
  */
 const SEASON_GROUND_GLSL = `if (seasonA.y > 0.0 || seasonA.z > 0.0) {
   float seasonVeg = clamp((wA.r + wA.g + 0.6 * wA.b + wB.a + wC.b) / terrainTotal, 0.0, 1.0);
@@ -101,7 +102,9 @@ const SEASON_GROUND_GLSL = `if (seasonA.y > 0.0 || seasonA.z > 0.0) {
 }
 if (seasonA.x > 0.0) {
   float seasonBed = clamp((wC.r + wC.g + wB.g) / terrainTotal, 0.0, 1.0);
-  float seasonCover = seasonSnowCover(terrainXz, seasonA.x) * smoothstep(0.55, 0.8, normalW.y) * (1.0 - seasonBed);
+  // pod stromy u kmenů místy prosvítá zem (listí, kořeny)
+  float seasonTrunks = 1.0 - 0.45 * wB.b * smoothstep(0.5, 0.78, seasonNoise(terrainXz * 0.35 + 9.0));
+  float seasonCover = seasonSnowCover(terrainXz, seasonA.x) * smoothstep(0.55, 0.8, normalW.y) * (1.0 - seasonBed) * seasonTrunks;
   groundColor = mix(groundColor, seasonSnowColor(groundColor), seasonCover);
 }`;
 
@@ -111,7 +114,8 @@ const SEASON_GROUND_WGSL = `if (uniforms.seasonA.y > 0.0 || uniforms.seasonA.z >
 }
 if (uniforms.seasonA.x > 0.0) {
   let seasonBed = clamp((wC.r + wC.g + wB.g) / terrainTotal, 0.0, 1.0);
-  let seasonCover = seasonSnowCover(terrainXz, uniforms.seasonA.x) * smoothstep(0.55, 0.8, normalW.y) * (1.0 - seasonBed);
+  let seasonTrunks = 1.0 - 0.45 * wB.b * smoothstep(0.5, 0.78, seasonNoise(terrainXz * 0.35 + 9.0));
+  let seasonCover = seasonSnowCover(terrainXz, uniforms.seasonA.x) * smoothstep(0.55, 0.8, normalW.y) * (1.0 - seasonBed) * seasonTrunks;
   groundColor = mix(groundColor, seasonSnowColor(groundColor), seasonCover);
 }`;
 
@@ -264,7 +268,7 @@ terrainColor += (0.55 * textureSample(layer10, layer10Sampler, terrainLayerUv(te
 let terrainTotal = max(wA.r + wA.g + wA.b + wA.a + wB.r + wB.g + wB.a + wC.r + wC.g + wC.b + wC.a, 0.001);
 var groundColor = terrainColor / terrainTotal;
 ${SEASON_GROUND_WGSL}
-baseColor = vec4f(groundColor * (1.0 - 0.5 * wB.b * mix(0.55, 1.0, uniforms.seasonB.x)), 1.0);
+baseColor = vec4f(groundColor * (1.0 - 0.5 * wB.b * mix(0.35, 1.0, uniforms.seasonB.x)), 1.0);
 #endif`,
       };
     }
@@ -300,7 +304,7 @@ float terrainTotal = max(wA.r + wA.g + wA.b + wA.a + wB.r + wB.g + wB.a + wC.r +
 vec3 groundColor = terrainColor / terrainTotal;
 ${SEASON_GROUND_GLSL}
 // pod holými korunami je v zimě stín slabší
-baseColor = vec4(groundColor * (1.0 - 0.5 * wB.b * mix(0.55, 1.0, seasonB.x)), 1.0);
+baseColor = vec4(groundColor * (1.0 - 0.5 * wB.b * mix(0.35, 1.0, seasonB.x)), 1.0);
 #endif`,
     };
   }
