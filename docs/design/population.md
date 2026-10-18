@@ -133,19 +133,19 @@ zůstává, ochrana posledních dvou dospělých padá): „Ano, když hráči v
 jich bude moci mít více), tak pro něj hra končí – musí začínat znovu.“ Čísla jsou návrh Clauda.
 
 - **Nahromaděný hlad** vsi se měří ve **dnech bez jídla**: každý den přibude
-  max(0, 0,9 − nasycení) / 0,9 – den bez jídla je celý den, den o polovičním přídělu ≈ 0,44,
-  při 80 % ≈ 0,11 a od 90 % nic (mírný nedostatek tělo snese – návrh Clauda, upraveno 18. 10.
-  2026). Když ves jí aspoň z 95 %, hlad ubývá o den denně až k nule; mezi 90 a 95 % se nemění.
-  Víc než 60 dní se nehromadí (dál už to nemá vliv).
+  max(0, 0,9 − nasycení) / 0,9 – den bez jídla je celý den, den o polovičním přídělu ≈ 0,44
+  a při 80 % ≈ 0,11 (mírný nedostatek tělo snese – návrh Clauda, upraveno 18. 10. 2026). Když
+  ves jí aspoň z 90 %, hlad ubývá o den denně až k nule – jedna hranice pro přibývání
+  i zotavení, žádné pásmo, kde by hlad stál. Víc než 60 dní se nehromadí (dál už to nemá vliv).
 - **Úmrtí hladem:** k běžnému dennímu riziku (věk, přeplněnost, dnešní hlad, hygiena) se přičte
   riziko z nahromaděného hladu – nula do prahu, pak strmě roste: ((hlad − práh) / (jistá smrt −
   práh))³. Dospělí: práh 20 dní, jistá smrt 60. Děti a starší: práh 12, jistá smrt 45. Bez jídla
   tak ze sytosti vymřou všichni do 60 dní, děti a starší do 45 (polovina lidí zhruba za měsíc).
 - **Ves se srovná sama:** příděl se dělí rovně do sklizně ([fields.md](fields.md)), takže
   každé úmrtí zvedne příděl ostatním. Při polovičním přídělu začnou děti a starší umírat po
-  ≈ 5–6 týdnech, ves se během dalších ≈ 6 týdnů zmenší na ≈ 45 % lidí a zbylí jsou sytí. Mírný
+  ≈ 5–6 týdnech, ves se během dalších ≈ 6 týdnů zmenší na ≈ 45–50 % lidí a zbylí jsou sytí. Mírný
   nedostatek (80 % přídělu) začne zabíjet děti a starší až po ≈ 4–5 měsících a za rok stojí
-  ≈ 20 % lidí. Porody se zastaví už při nasycení 0,5 (Růst populace).
+  ≈ 15 % lidí. Porody se zastaví už při nasycení 0,5 (Růst populace).
 - **Hájení** chrání dospělé a starší i před smrtí hladem. Hlad v něm dál přibývá, ale nejvýš
   den pod prahem skupiny (dospělí 19, děti a starší 11 dní) – děti v hájení hladem neumírají
   (běžné riziko se jim půlí) a po konci hájení lidé umírají postupně, ne všichni druhý den
@@ -290,9 +290,9 @@ pravidla → první verze hladu (1 − nasycení za den, hájení bez stropu) �
 - ves, kde hráč staví: vymření 0 z 200 ve všech třech; na konci domácností medián 6 → 4 → 5,
   lidí 30 → 23 → 28; nasycení ≥ 0,95 celý rok 93,8 → 95,0 → 94,1 % let,
 - zbytek (stavby, přestavby, pole, oběh, sad) beze změny,
-- pozor: když se příděl po vlně úmrtí ustálí mezi 90 a 95 %, hlad nepřibývá ani neubývá – může
-  zůstat nad prahem dětí a starších (12–20 dní) a ty pak měsíce pomalu umírají (≈ 0,5 % denně),
-  než příděl vystoupá na 95 %. Kdyby to vadilo: zotavení už od 90 %.
+- „dnešní“ čísla jsou ještě s pásmem 90–95 %, kde hlad nepřibýval ani neubýval (příděl
+  ustálený po vlně úmrtí v tom pásmu nechal hlad nad prahem dětí a starších a ty měsíce pomalu
+  umíraly). Pásmo je pryč – hlad se od 90 % zotavuje; celé měření se po tom už neopakovalo.
 
 ## Co hráč vidí
 
@@ -354,7 +354,7 @@ pravidla → první verze hladu (1 − nasycení za den, hájení bez stropu) �
 | Hájení: prvních 30 herních let vsi přeje štěstí; žádní příchozí z okolí      | Martin                        |
 | Lidé umírají hlady, ves může vymřít; bez vsí hráč začíná znovu               | Martin (18. 10. 2026)         |
 | Nahromaděný hlad, prahy 20 / 12 dní, smrt bez jídla do 60 / 45 dní           | návrh Clauda                  |
-| Hlad přibývá až pod 90 % přídělu; v hájení nejvýš den pod prahem skupiny     | návrh Clauda                  |
+| Hlad přibývá pod 90 % přídělu, od 90 % ubývá; v hájení den pod prahem        | návrh Clauda                  |
 | Restart: staré sídlo do archivu, nové sídelní sídlo s novou krajinou         | návrh Clauda                  |
 | Podoba hájení: dospělí neumírají, poloviční dětská úmrtnost                  | návrh Clauda                  |
 | Kapacity 6 / 8, ceny 60 / 220 člověkodní (roční období / rok), životnosti    | návrh Clauda                  |

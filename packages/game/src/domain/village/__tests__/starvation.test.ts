@@ -145,23 +145,25 @@ describe('hladovění – poloviční příděl', () => {
   };
 
   it('ves se zmenší, až jsou zbylí sytí, a přežije (20 vsí)', () => {
+    let recovered = 0;
+    let lateHunger = 0;
     for (let seed = 1; seed <= 20; seed++) {
       const { start, january, end } = halfRation(seed);
       const share = end.people.length / start.people.length;
       expect(share).toBeGreaterThan(0.25);
       expect(share).toBeLessThan(0.75);
       expect(end.extinctDay).toBeUndefined();
-      // smrt zvedla příděl zbylým nad 90 % – hlad už nepřibývá a dospělým nehrozí
-      expect(summarizeVillage(january, january.lastDay).satiation).toBeGreaterThan(0.9);
-      expect(end.starvationDays).toBeLessThanOrEqual((january.starvationDays ?? 0) + 0.5);
-      expect(end.starvationDays).toBeLessThan(STARVATION.threshold.adult);
-      // hladem umírá už jen málokdo (hlad mezi 90 a 95 % přídělu neubývá – může zůstat nad
-      // prahem dětí a starších, než příděl stoupne na 95 %)
-      const lateHunger = deaths(end).filter(
+      // smrt zvedla příděl zbylým k 90 % – hlad se zotavuje (od 90 % o den denně)
+      expect(summarizeVillage(january, january.lastDay).satiation).toBeGreaterThan(0.85);
+      if (january.starvationDays === 0) recovered++;
+      // příděl kolísá kolem 90 % – hlad může zůstat kousek nad prahem dětí, riziko je zanedbatelné
+      expect(end.starvationDays).toBeLessThan(STARVATION.threshold.child + 3);
+      lateHunger += deaths(end).filter(
         (d) => d.cause === 'hunger' && d.day > january.lastDay,
       ).length;
-      expect(lateHunger).toBeLessThan(0.15 * january.people.length);
     }
+    expect(recovered).toBeGreaterThanOrEqual(15);
+    expect(lateHunger).toBeLessThanOrEqual(2);
   });
 
   it('ves se zmenšuje postupně – úmrtí hladem začnou až po týdnech a trvají týdny', () => {

@@ -60,9 +60,9 @@ export function luckyStarvationCap(group: AgeGroup): number {
 export const LUCKY_STARVATION_CAP = Math.max(...AGE_GROUPS.map(luckyStarvationCap));
 
 /**
- * Nahromaděný hlad po dni s nasycením `satiation` (population.md – Hlad a vymření): přibude
- * max(0, 0,9 − nasycení) / 0,9 (bez jídla celý den, od 90 % nic), při nasycení ≥ 0,95 ubude den
- * (do nuly). Víc než STARVATION.maxDays nemá vliv, v hájení (`lucky`) nejvýš LUCKY_STARVATION_CAP.
+ * Nahromaděný hlad po dni s nasycením `satiation` (population.md – Hlad a vymření): pod 0,9
+ * přibude (0,9 − nasycení) / 0,9 (bez jídla celý den), od 0,9 ubude den (do nuly). Víc než
+ * STARVATION.maxDays nemá vliv, v hájení (`lucky`) nejvýš LUCKY_STARVATION_CAP.
  */
 export function nextStarvationDays(
   starvationDays: number,
@@ -70,10 +70,10 @@ export function nextStarvationDays(
   lucky = false,
 ): number {
   const cap = lucky ? LUCKY_STARVATION_CAP : STARVATION.maxDays;
-  if (satiation >= STARVATION.recoverAt) {
+  if (satiation >= STARVATION.fedFrom) {
     return Math.min(cap, Math.max(0, starvationDays - STARVATION.recoveryPerDay));
   }
-  const growth = Math.max(0, STARVATION.growthBelow - satiation) / STARVATION.growthBelow;
+  const growth = (STARVATION.fedFrom - Math.max(0, satiation)) / STARVATION.fedFrom;
   return Math.min(cap, starvationDays + growth);
 }
 

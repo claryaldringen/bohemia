@@ -327,8 +327,8 @@ rozhraní částí v
   `orchards?`, `applesKg?`, `orchardWork?`, `starvationDays?`, `extinctDay?`) – vsi uložené
   dřív se načtou a beze sadů se jejich stav nemění.
 - **Hlad a vymření** (population.md, Martin 18. 10. 2026): nahromaděný hlad
-  `VillageState.starvationDays` (`nextStarvationDays` po jídle dne – přibývá až pod 90 %
-  přídělu, čísla `STARVATION` v `rules.ts`) přidá k běžnému riziku úmrtí riziko hladem
+  `VillageState.starvationDays` (`nextStarvationDays` po jídle dne – pod 90 % přídělu
+  přibývá, od 90 % ubývá, čísla `STARVATION` v `rules.ts`) přidá k běžnému riziku úmrtí riziko hladem
   (`deathChances` → `base` + `starvation`; úmrtí z části hladu má v kronice `cause: 'hunger'`).
   Hájení chrání dospělé i před hladem a drží hlad den pod prahem skupiny (`luckyStarvationCap`,
   uložený hlad nejvýš `LUCKY_STARVATION_CAP` = 19); ochrana posledních dvou dospělých už není. Poslední úmrtí → `extinctDay`

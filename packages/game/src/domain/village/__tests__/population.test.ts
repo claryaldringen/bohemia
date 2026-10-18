@@ -146,15 +146,15 @@ describe('deathChancePerDay', () => {
 });
 
 describe('nextStarvationDays', () => {
-  it('za den přibude (0,9 − nasycení) / 0,9 – bez jídla den, od 90 % nic', () => {
+  it('pod 90 % přibude (0,9 − nasycení) / 0,9 – bez jídla den', () => {
     expect(nextStarvationDays(0, 0)).toBe(1);
     expect(nextStarvationDays(10, 0.5)).toBeCloseTo(10 + 0.4 / 0.9, 12);
     expect(nextStarvationDays(3, 0.8)).toBeCloseTo(3 + 0.1 / 0.9, 12);
-    expect(nextStarvationDays(3, 0.9)).toBe(3);
-    // mezi 90 a 95 % hlad nepřibývá ani neubývá
-    expect(nextStarvationDays(3, 0.93)).toBe(3);
+    expect(nextStarvationDays(3, 0.89)).toBeGreaterThan(3);
   });
-  it('při nasycení ≥ 0,95 ubude den až k nule', () => {
+  it('od 90 % ubude den až k nule – žádné pásmo, kde by hlad stál', () => {
+    expect(nextStarvationDays(3, 0.9)).toBe(2);
+    expect(nextStarvationDays(3, 0.93)).toBe(2);
     expect(nextStarvationDays(10, 0.95)).toBe(9);
     expect(nextStarvationDays(10, 1)).toBe(9);
     expect(nextStarvationDays(0.4, 1)).toBe(0);
