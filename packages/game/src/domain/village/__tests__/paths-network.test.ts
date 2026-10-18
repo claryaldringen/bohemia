@@ -169,6 +169,21 @@ describe('computePathNetwork – pěšiny vsi', () => {
     expect(computePathNetwork({ village: old, terrain }).lines.length).toBeGreaterThan(0);
   });
 
+  it('ves se dvěma domácnostmi má pěšinu ke hřbitovu (návštěvy hrobů)', () => {
+    // domy daleko od sebe – každá domácnost chodí ke hřbitovu svou cestou, trasy se neslijí
+    const cemetery = { id: 7, squares: [part(-7.5, -67.5), part(7.5, -67.5)] };
+    const v = village({
+      dwellings: [house(1, -40, 0), house(2, 40, 0)],
+      cemeteries: [cemetery],
+      labor: { day: 4000, month: 6, people: { children: 2, adults: 4, elders: 1 }, shares: [] },
+    });
+    const network = computePathNetwork({ village: v, terrain });
+    expect(samples(network).some((p) => p.z < -50 && Math.abs(p.x) < 25)).toBe(true);
+    // bez hřbitova tam pěšina nevede
+    const none = computePathNetwork({ village: { ...v, cemeteries: [] }, terrain });
+    expect(samples(none).some((p) => p.z < -50 && Math.abs(p.x) < 25)).toBe(false);
+  });
+
   it('zrušený cíl vypadne', () => {
     const field = { id: 5, parts: [part(67.5, -52.5)] };
     const withField = computePathNetwork({ village: village({ fields: [field] }), terrain });

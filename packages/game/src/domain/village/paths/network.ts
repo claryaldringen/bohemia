@@ -181,12 +181,16 @@ const NEIGHBOUR_TRIPS = 0.5;
 const NEIGHBOURS = 2;
 /** Cest za den na člověkoden práce dne na místě (tam a zpět = jedna cesta). */
 const TRIPS_PER_MAN_DAY = 1;
-/** Zavedená místa – cest za den celé vsi navíc k práci dne (pěšina nezaroste mezi pracemi). */
+/**
+ * Zavedená místa – cest za den celé vsi navíc k práci dne (pěšina nezaroste mezi pracemi). Hroby
+ * předků se navštěvují často (raní Slované – obětiny, hostiny za mrtvé; návrh Clauda) – i ves se
+ * dvěma domácnostmi má ke hřbitovu pěšinu.
+ */
 const BASE_TRIPS = {
   field: 1.6,
   fallow: 0.4,
   orchard: 0.8,
-  cemetery: 0.7,
+  cemetery: 1.5,
   site: 0.6,
   sacred: 0.6,
   pen: 0.8,
