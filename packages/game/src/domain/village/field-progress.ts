@@ -1,5 +1,5 @@
 import { dateOfDayIndex } from '../calendar';
-import { distanceFactor, isWeedFree } from './fields';
+import { distanceFactor, isWeedFree, partWalkDistance } from './fields';
 import { partStage } from './summary';
 import type { Crop, CropWork, FieldPart, VillageState } from './types';
 import { planCrops, taskRemaining, taskWindowEnd } from './year-plan';
@@ -61,7 +61,7 @@ const EPSILON = 1e-9;
 function partWeight(work: CropWork, part: FieldPart, task: PartTask, day: number): number {
   if (task === 'reclaim' && !(work.reclaimIds ?? []).includes(part.id)) return 0;
   if (task === 'weed' && isWeedFree(part, day)) return 0;
-  return (part.areaM2 / M2_PER_HA) * distanceFactor(part.distanceM);
+  return (part.areaM2 / M2_PER_HA) * distanceFactor(partWalkDistance(part));
 }
 
 /** Úseky dílů práce plodiny v úloze v pořadí postupu (díly s nulovou vahou vynechané). */

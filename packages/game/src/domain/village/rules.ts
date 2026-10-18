@@ -158,6 +158,10 @@ export const OBSTACLE_COST = {
 } as const;
 // fields.md – Práce (vzdálenost od obydlí, +1 % za každých 10 m nad 100 m)
 export const DISTANCE = { freeM: 100, percentPer10M: 1 } as const;
+// paths.md – Pěšiny a práce (Martin 18. 10. 2026: „Tam, kde bude vyšlapaná cesta, ať se chodí
+// o něco lépe než tam, kde není.“): po vyšlapané pěšině se chodí o čtvrtinu rychleji – úsek
+// pěšiny síly s se do vzdálenosti dílu (fields.md – Vzdálenost) počítá (1 − speedup × s) × délka
+export const PATH_WALK = { speedup: 0.25 } as const;
 // fields.md – Založení pole (nejdál 800 m od obydlí, nejmenší výměra 0,1 ha)
 export const FIELD_LIMITS = { maxDistanceM: 800, minAreaM2: 1000 } as const;
 // fields.md – Práce (denní minimum domácností – meze: s hrnčířem 0,45); population.md – Práce

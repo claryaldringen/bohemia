@@ -15,6 +15,7 @@ import { endOfSeason, expectedNetKg, sowingOrder } from './fields';
 import { daysUntilAppleRot, eatMeal } from './food';
 import { isToilDay, updateHappiness, villageLaborFactor, windowEndDay } from './happiness';
 import { recordClearedObstacles } from './obstacles';
+import { refreshWalkDistances } from './paths/village';
 import { relocationPlot } from './plots';
 import { allocateDay, type LaborTaskName } from './labor';
 import { laborDay, type ConstructionWork } from './labor-report';
@@ -155,6 +156,9 @@ function simulateDay(
   landscape: Landscape | null,
 ): void {
   const date = dateOfDayIndex(day);
+  // vzdálenosti chůze dílů po pěšinách – jen když se změnilo rozložení vsi (paths.md); bez
+  // krajiny (kalibrace, testy) zůstávají přímé vzdálenosti
+  if (landscape) refreshWalkDistances(state, day, landscape, obstacles);
   rotLogs(state);
   // sady: shnilá jablka, konec péče a stárnutí (1. 3.), začátek a konec sklizně a péče
   state.chronicle.push(...orchardSeasonDay(state, day));

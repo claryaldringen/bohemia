@@ -45,6 +45,14 @@ export function grossYieldPerHa(fertility: number): number {
   return YIELD_BASE_KG_PER_HA * (0.4 + (0.6 * fertility) / 100);
 }
 
+/**
+ * Vzdálenost dílu pro práci (m): chůze po vyšlapaných pěšinách (`walkDistanceM`, paths.md –
+ * Pěšiny a práce), jinak přímá vzdálenost od obydlí (vsi bez krajiny, starší uložené vsi).
+ */
+export function partWalkDistance(part: Pick<FieldPart, 'distanceM' | 'walkDistanceM'>): number {
+  return part.walkDistanceM ?? part.distanceM;
+}
+
 /** Násobek práce podle vzdálenosti od obydlí (+1 % za každých 10 m nad volnou vzdáleností). */
 export function distanceFactor(distanceM: number): number {
   return 1 + ((Math.max(0, distanceM - DISTANCE.freeM) / 10) * DISTANCE.percentPer10M) / 100;

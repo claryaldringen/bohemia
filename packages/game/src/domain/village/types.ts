@@ -76,6 +76,12 @@ export interface FieldPart {
   obstacles?: number[];
   /** Dospělé stromy mezi překážkami – po založení dílu dají klády na hromadu (forest.md). */
   trees?: number;
+  /**
+   * Vzdálenost chůze z nejbližšího obydlí po vyšlapaných pěšinách (m, paths.md – Pěšiny a práce):
+   * po pěšině se chodí rychleji, nikdy víc než `distanceM`. Přepočítá se se změnou rozložení vsi
+   * (`refreshWalkDistances`); chybí u vsí uložených dřív a bez krajiny (= `distanceM`).
+   */
+  walkDistanceM?: number;
 }
 /** Pole – jeho čtverce jsou políčka jeho dílů (`FieldPart.cell`). */
 export interface Field {
@@ -399,8 +405,9 @@ export interface VillageState {
    */
   woodLogs?: number;
   /**
-   * Rozdělení práce posledního odsimulovaného dne (labor-report.ts) – jen pro zobrazení, simulace
-   * ho nečte. U vsí uložených před jeho zavedením chybí do prvního dopočítaného dne.
+   * Rozdělení práce posledního odsimulovaného dne (labor-report.ts) – pro zobrazení; simulace ho
+   * čte jen přes síť pěšin (kam se chodí – vzdálenost chůze dílů, paths.md). U vsí uložených
+   * před jeho zavedením chybí do prvního dopočítaného dne.
    */
   labor?: LaborDay;
   /** Štěstí obyvatel (happiness.md) – u vsí uložených před jeho zavedením chybí (= výchozí 50). */
@@ -416,6 +423,11 @@ export interface VillageState {
    * uložených před převodem – při načtení se jednou převedou.
    */
   plotsMigrated?: true;
+  /**
+   * Klíč rozložení vsi, pro které se naposledy spočítaly vzdálenosti chůze dílů po pěšinách
+   * (`FieldPart.walkDistanceM`). Chybí, dokud se nespočítaly (starší vsi, simulace bez krajiny).
+   */
+  walkLayoutKey?: string;
 }
 
 /**

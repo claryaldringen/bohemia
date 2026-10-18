@@ -1,6 +1,7 @@
 import { dateOfDayIndex } from '../calendar';
 import {
   distanceFactor,
+  partWalkDistance,
   effectiveFertility,
   fallowYears,
   grossYieldPerHa,
@@ -44,7 +45,7 @@ export function partWork(
 ): Record<TaskName, number> {
   const work = emptyTaskRecord();
   const ha = part.areaM2 / M2_PER_HA;
-  const factor = distanceFactor(part.distanceM);
+  const factor = distanceFactor(partWalkDistance(part));
   const weedFree = isWeedFree(part, day);
   for (const task of RATE_TASKS) {
     if (task === 'weed' && weedFree) continue;

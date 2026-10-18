@@ -241,6 +241,9 @@ První sezónu po vymýcení lesa se díl **neplete** (viz Úroda).
 
 - **Vzdálenost:** práce na dílu je o 1 % dražší za každých 10 m nad 100 m od nejbližšího
   obydlí (chůze, nošení v nůších – návrh Clauda). Díl 500 m daleko stojí o 40 % víc práce.
+  Vzdálenost se měří chůzí: po vyšlapané pěšině se chodí o čtvrtinu rychleji (podle její síly),
+  úsek po pěšině se tak počítá 0,75–1 × délka, nikdy víc než přímá vzdálenost (paths.md – Pěšiny
+  a práce, Martin 18. 10. 2026).
 - **Včasnost:** co se v období nestihne, propadá: nezasetý díl se ten rok nesklidí, neopletý
   dá nižší úrodu, nesklizená úroda shnije na poli, nevymlácené do konce února se zkazí (návrh
   Clauda; přesné podíly doladí kalibrace).

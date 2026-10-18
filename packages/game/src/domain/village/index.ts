@@ -48,3 +48,4 @@ export * from './costs';
 export * from './wood';
 export * from './sacred';
 export * from './happiness';
+export * from './paths';

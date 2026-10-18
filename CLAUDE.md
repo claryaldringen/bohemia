@@ -721,23 +721,28 @@ rozhraní částí v
   návrat; rádlo za jhem na tětivě oje, na souvrati nadzvednuté, oráč u rukojeti), kreslení
   `plough-team-renderer.ts` (VAT jako lidé + pevné díly v instancích). Rozměry rádla a jha musí
   sedět s `TEAM_PARTS` (hlídá test).
-- **Vyšlapané pěšiny** ([docs/design/paths.md](docs/design/paths.md), jen vzhled, Martin 18. 10. 2026): síť se počítá v prohlížeči z vsi a krajiny – `path-terrain.ts` (cena chůze po
-  bodech sítě vykreslení ≈ 3,75 m v okně kolem vsi: sklon, voda a brody, les, příznaky břehu
-  a okraje lesa; `withObstacles` přidá kmeny, keře, balvany a výchozy), `path-network.ts`
-  (`computePathNetwork` – čistá deterministická funkce: cesty domácností pro vodu a dřevo
-  (každá zvlášť, A* s napojením na pěšinu souseda), do cílů podle práce dne
-  (`SceneLabor`) + základ zavedených míst, k sousedům; Dijkstra od cíle ke všem branám; 2 kola,
-  vyšlapané buňky zlevní hned – trasy se slijí; síla z provozu `pathStrength`, stáří obydlí
-  `SceneDwelling.since` → `pathAgeFactor`; výstup vyhlazené čáry se sílou a stářím v bodech,
-  pochůzky domácností, provoz pro teplotní mapu; `pathRouter` – trasy po pěšinách pro postavy).
-  Kreslí `path-renderer.ts` (`VillagePaths` v `LandscapeScene`: přepočet jen při změně
-  `pathNetworkKey`, odloženě, nikdy za snímek; ≈ 10–30 ms) – obtisky `paths-worn` (tráva)
-  a `paths-earth` (holá hlína) z `path-ribbon.ts` pod obtisky polí a vsi (alphaIndex 0,2 / 0,4,
-  lift 0,018 / 0,022), sníh přes `applySeasonGround`; stromy podél starých silných pěšin
-  v polní krajině `path-trees.ts` (meshe `pathside-<model>` – listnáče v zimě bez stínu podle
-  `isDeciduousMesh`). Postavy: `VillagerPlanOptions.paths` (`VillagerPaths`) – `walkRoute` jde
-  po pěšině, ženy pro vodu a dřevo na konec pěšiny domácnosti. Vývojová stránka: tlačítka
-  **Pěšiny**, **Provoz** (teplotní mapa) a **Stáří** (stáří obydlí, s „Lidé“), čísla výpočtu.
+- **Vyšlapané pěšiny** ([docs/design/paths.md](docs/design/paths.md), Martin 18. 10. 2026 –
+  i práce): síť počítá herní jádro `domain/village/paths/` stejně na serveru i v prohlížeči
+  (soubory jsou v deterministické vrstvě – ESLint zakazuje Math.sin/cos/hypot/log, `**`; jen
+  det-math). `terrain.ts` (cena chůze po bodech mřížky ≈ 3,75 m z krajiny: bilineární výška,
+  sklon, voda a brody z osy potoka, les; `pathTerrainOf` – výřez z mezipaměti podle krajiny,
+  nezávisí na jejím stavu; `withObstacles` – kmeny, keře, balvany, výchozy), `network.ts`
+  (`computePathNetwork(PathVillage)` – cesty domácností pro vodu a dřevo každá zvlášť s napojením
+  na pěšinu souseda, do cílů podle práce dne + základ zavedených míst, k sousedům; 2 kola,
+  vyšlapané buňky hned zlevní; síla `pathStrength` (odmocnina provozu), stáří obydlí →
+  `pathAgeFactor`; vyhlazené čáry se sílou a stářím v bodech; `PathVillage` splňuje
+  `SceneVillage`), `walking.ts` (`walkGraph`, `walkingDistances` – vzdálenost chůze, po pěšině
+  `PATH_WALK` rychleji, nikdy víc než rovně – čistá funkce pro každého, kdo měří cestu na pole)
+  a `village.ts` (`pathVillageOf` ze stavu vsi jako scéna, `refreshWalkDistances` – den po dni
+  v `simulateDay` při změně `walkLayoutKey`, jen s krajinou → `FieldPart.walkDistanceM`, práce
+  přes `partWalkDistance` v `year-plan.ts` a `field-progress.ts`). Scéna `path-renderer.ts`
+  (`VillagePaths` v `LandscapeScene`: přepočet jen při změně `pathNetworkKey`, odloženě) –
+  obtisky `paths-worn` / `paths-earth` z `path-ribbon.ts` **nad** obtisky polí a vsi (alphaIndex
+  3 / 3,5, lift 0,05 / 0,055, zOffset −3,5 / −4; přes osetý díl úzká stopa), sníh přes
+  `applySeasonGround` (0,55 – stopa prosvítá); stromy `path-trees.ts` (meshe `pathside-<model>`,
+  nikdy na dílu pole). Postavy: `path-router.ts` (trasa s tempem úseků) →
+  `VillagerPaths.route` → `route(points, pace)` – `shuttle` jde po pěšině rychleji. Vývojová
+  stránka: tlačítka **Pěšiny**, **Provoz** (teplotní mapa) a **Stáří**.
 - **Ohrada s přístřeškem** ([oxen.md](docs/design/oxen.md); zatím jen modely a ukázka
   **Ohrada** na `/dev/buildings`, pravidla ne): přístřešek s pultovou doškovou střechou, jesle,
   žlab a branka ze žerdí z `tools/blender/pen.py` (`models/pen/pen.glb`, díly staveniště
