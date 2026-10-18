@@ -79,7 +79,7 @@ packages/game/       herní jádro
   src/domain/        pravidla – calendar.ts, landscape/ (generování krajiny po vrstvách)
     village/         simulace vsi – lidé, obydlí, pole, jídlo a práce den po dni
   src/application/   use-casy a porty (enterGame, SettlementRepository, SeedSource)
-  scripts/           vývojové nástroje (measure-landscapes.ts, measure-village.ts)
+  scripts/           vývojové nástroje (measure-landscapes.ts, measure-village.ts, village-calculator.ts)
 packages/db/         Drizzle schéma, klient, migrace a adaptéry portů (src/adapters/)
 docs/design/         herní design – vize + dokument pro každou mechaniku, rešerše v research/
 ```
@@ -108,7 +108,7 @@ Auth vzniká líně přes `getAuth()` – `next build` stránky jen importuje a 
   Ve vývoji jde přihlásit i samotným jménem (`lib/dev-login.ts` doplní `@bohemia.test`).
 - **Vývojový režim (dev mód):** příznak účtu `devMode` (`user.dev_mode`, Better Auth pole
   s `input: false` – klient ho nenastaví; zapíná ho jen `db:seed-dev`, dnes jen Jarmil). Vedle
-  data v liště jsou dvě šipky – ▶ +1 měsíc (30 dní), ⏩ +1 rok (365 dní). Server action
+  data v liště jsou tři šipky – ▶ +1 měsíc (30 dní), ⏩ +1 rok (365 dní), ⏭ +10 let (3 650 dní). Server action
   `skipTime` → use-case `skipTime` (bez `devMode` odmítne) zvětší **posun času hráče**
   (tabulka `player_time_offset`, port `TimeOffsetRepository`) a dopočítá jeho vsi. Dnešní den
   hráče je vždy `playerToday` z `lib/game.ts` (den světa + posun, nejvýš 31. 12. 1499) – nikdy
@@ -510,9 +510,12 @@ rozhraní částí v
   `parts`. Simulace se tím nemění.
 - **Navazující pole** (Martin): `foundField` – čtverce navazující stranou na pole ho rozšíří
   (`fieldsTouching` ve `fields.ts`, stejné id, rozestavěné založení dostane cenu, jinak nová stavba
-  pole), na víc polí je sloučí do nejstaršího (`mergeFields` v `actions.ts`: díly, stavby
-  založení, kronika, `labor`). Průběh stavby pole se počítá jen z jejích dílů (`invest`). Náhled
-  (`fieldPartsFromCells`) vrací `joinedFields` a nejmenší výměru měří i s navazujícím polem.
+  pole), na víc polí je sloučí do nejstaršího (`mergeFields` ve `fields.ts`: díly, stavby
+  založení, kronika, `labor` – cíl i stavba). Průběh stavby pole se počítá jen z jejích dílů
+  (`invest`). Náhled (`fieldPartsFromCells`) vrací `joinedFields` a nejmenší výměru měří i
+  s navazujícím polem. **Stará navazující pole** (založená samostatně dřív) sloučí při načtení
+  vsi `withMergedFields` v `updateVillage` (souvislé skupiny stranou do nejmenšího id, pole
+  z obrysu ne; Martin) – stejným `mergeFields`, bez příznaku „převedeno“ (idempotentní a levné).
 - **Příloh je pastvina** (Martin): 1–2 roky mladý příloh, pak napořád `meadow` (pastvina) –
   nálet, křoviny ani les na přílohu nejsou (`OVERGROWTH_STAGES`), vrácení stojí nejvýš drn louky
   (`RECLAIM_COST_PER_HA`), kronika `part-became-forest` už nevzniká (typ zůstává pro staré
@@ -545,16 +548,39 @@ rozhraní částí v
   `placeSacred`. Štěstí z míst `sacredHappiness` (stropy počtu a +40).
 - **Hráč staví kdy chce** (Martin) – stavbu smí zablokovat jen **cena předem** (`costs.ts`:
   `BUILD_COSTS`, `buildAffordability`): suroviny ze zásob (dnes žádné) a u obydlí **lidé
-  k osídlení** (`settlers` = `availableSettlers` v `dwellings.ts`: domácnosti s párem navíc −
-  prázdná − rozestavěná nová obydlí); pole a hřbitov lidi nechtějí. Tlačítko je pak zašedlé,
-  zkratka nic nespustí, v popisku chybějící část červeně; server odmítne (`NO_SETTLERS`,
-  `CANNOT_AFFORD`). `waitingHouseholds` (upozornění „Domácnost je plná“) = kladní lidé
-  k osídlení.
+  k osídlení** (`settlers` = `availableSettlers` v `dwellings.ts`: možné nové domácnosti
+  `possibleNewHouseholds` − prázdná − rozestavěná nová obydlí); pole a hřbitov lidi nechtějí.
+  Tlačítko je pak zašedlé, zkratka nic nespustí, v popisku chybějící část červeně; server odmítne
+  (`NO_SETTLERS`, `CANNOT_AFFORD`). `waitingHouseholds` (upozornění „Domácnost je plná“) =
+  kladní lidé k osídlení.
+- **Osídlení prázdného obydlí** (population.md – Prázdné obydlí): nové obydlí po dokončení
+  a prázdné obydlí v kroku 6 (`occupyEmptyDwellings`) nejdřív zabere mladý pár z plné domácnosti
+  se 4 dospělými 14–44 (`qualifyingDwellings`, `moveInYoungestPair`); co zůstane úplně prázdné,
+  osídlí **dospělé děti z přeplněné domácnosti** (Martin, 18. 10. 2026; `adultChildrenSettlers`):
+  lidé 14–44 kromě `HOUSEHOLD_HEADS` (2) nejstarších od 14 let, u neplodných rodičů (oba 45+)
+  i kromě nejstaršího dospělého dítěte – dědice (`householdHeir`, Martin), všichni z jedné
+  domácnosti, nebo dva jednotlivci z různých (jediný člověk by se rozpadl), a ne z domácnosti,
+  jejíž zbytek by se rozpadl (`householdBreaksUp`, v `people.ts`). Možné nové domácnosti = kvalifikované + ostatní
+  přeplněné s aspoň dvěma dospělými dětmi + jednotlivci po dvou. **Prázdné obydlí chátrá
+  rychleji** (Martin): `decayEmptyDwelling` – bez oprav podle stáří a navíc pevný denní podíl,
+  nové zanikne za `DWELLINGS[type].emptyLifespanYears` (zemnice 5, polozemnice 8 let).
 - **Determinismus:** simulace jde den po dni v pevném pořadí kroků (`simulate.ts`), náhoda dne
   je ze seedu vsi a indexu dne – výsledek nezávisí na tom, po jakých kouscích se ves dopočítá.
 - **Čísla** pravidel jsou jen v `rules.ts` (u každého odkaz na sekci návrhu); změna čísla = i
   text v návrhu. Kalibrace: `measure-village.ts` nasimuluje stovky vsí a vypíše cíle z Kalibrace
-  obou dokumentů s OK / MIMO (`200 60` rychlé cíle, `100 1000` vymření do roku 1500).
+  obou dokumentů s OK / MIMO (`--quick` = 50 vsí na denní ladění, `200 60` závěrečné ověření,
+  `100 1000` vymření do roku 1500). Vsi stojí na skutečných krajinách sídel (`--land real`,
+  vrstvy `CURRENT_LAYER_VERSIONS`; hráč zakládá čtverce podle úrody za člověkoden –
+  `scripts/lib/calibration-land.ts`), `--land v1` je syntetická louka 35 ha ze starších měření;
+  sondy pevných domácností běží vždy na syntetické louce s úrodností 70. Běží na pozadí (nice 19,
+  polovina jader, `--workers N`, `--eco` jen úsporná jádra – ≈ 6× pomalejší) a s
+  `--out soubor.jsonl` si hotové vsi ukládá – přerušený běh (Ctrl+C) stejný příkaz dokončí, po
+  změně pravidel nový soubor; `--report-only` vypíše tabulku z hotových vsí bez počítání (i u
+  běhu, který stojí). Varianty pravidel jen pro kalibraci: `--variant meadow-burn` (pálení
+  drnu). Ustálený stav bez simulace (osev, pole, práce po měsících, špičky, zásoby, dřevo, sad)
+  okamžitě: `village-calculator.ts` (jádro `scripts/lib/steady-state.ts`). Kopii stavu na začátku
+  `advanceVillage` dělá `cloneState` (`clone.ts` – ručně, stav jsou data jako v JSON) a stavby polí
+  hledají zakládané díly v indexu po polích – obojí kvůli rychlosti, výsledky stejné.
 - **Meze produktivity** (Martin): čísla s rozpětím v literatuře jsou v `rules.ts` dvojice
   `{ worst, best }` – **nejhorší mez** (nejvíc člověkodní, nejvyšší ztráty – bez řemesel)
   a **nejlepší mez** (plně pokrytá potřeba výrobků řemeslníků); řemeslníci zvyšují produktivitu
@@ -672,8 +698,8 @@ rozhraní částí v
   u kurzoru; `nearestMatureTrees` – hledá po políčkách) a kácí je jako
   první část práce stavby (`fellAsWorked` → pařezy). Simulace proto povinně dostává vrstvu
   překážek (`advanceVillage(state, day, obstacles)`; `null` = kácení bez polohy jen v testech),
-  use-casy krajinu (`updateVillage`, `loadVillage`, `renameVillage`); kalibrace má syntetický
-  les. Vyhrazený strom patří své stavbě: mýcení za něj kládu nedá (`reservedTrees`
+  use-casy krajinu (`updateVillage`, `loadVillage`, `renameVillage`); kalibrace les skutečné
+  krajiny (`--land v1` syntetický). Vyhrazený strom patří své stavbě: mýcení za něj kládu nedá (`reservedTrees`
   v `PlacementVillage`) a stromy zakládaných dílů a čtverců hřbitova obydlí nevyhradí
   (`claimedObstacles`). Mýcení (díly polí, čtverce hřbitova, staveniště) dá kládu za dospělý
   strom (`trees` u dílu / čtverce). Dřevo je surovina předem (`villageStock` s vrstvou překážek:
@@ -828,7 +854,10 @@ npm run format:check  # npm run format = oprava
 npm run db:generate   # nová migrace po změně schématu v packages/db/src/schema
 npm run db:seed-dev   # vývojový účet v lokální DB bez registrace
 npx tsx packages/game/scripts/measure-landscapes.ts 500   # měření generátoru krajiny (+ initial = verze 1)
-npx tsx packages/game/scripts/measure-village.ts 200 60   # kalibrace simulace vsi
+npx tsx packages/game/scripts/measure-village.ts --quick --out quick.jsonl   # kalibrace vsi (50 vsí)
+npx tsx packages/game/scripts/measure-village.ts 200 60 --out base.jsonl     # závěrečné ověření
+npx tsx packages/game/scripts/measure-village.ts 200 60 --variant meadow-burn --out burn.jsonl
+npx tsx packages/game/scripts/village-calculator.ts --preset full --fertility 56   # ustálený stav
 ```
 
 Všechny příkazy jdou přes Turborepo do jednotlivých workspaces. Před commitem musí projít

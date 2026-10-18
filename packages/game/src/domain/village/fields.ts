@@ -10,7 +10,7 @@ import {
   SEED_KG_PER_HA,
   YIELD_BASE_KG_PER_HA,
 } from './rules';
-import type { FieldPart, FieldSurface, TileCell } from './types';
+import type { FieldPart, FieldSurface, TileCell, VillageState } from './types';
 
 const M2_PER_HA = 10_000;
 /** Tolerance proti chybám desetinných čísel při porovnání podílů úrodnosti. */
@@ -203,4 +203,106 @@ export function fieldsTouching(
     if (cells.some((c) => sharesEdge(c, cell))) ids.add(part.fieldId);
   }
   return [...ids].sort((a, b) => a - b);
+}
+
+/**
+ * Sloučí pole `others` do pole `into` (mutuje stav – fields.md, Navazující pole; Martin): díly
+ * s nezměněným stavem (úrodnost, osev, příloh, plodina) přejdou do `into`, rozestavěná založení
+ * se spojí do jedné stavby (nejstarší, s cenou a prací všech) a kronika i rozdělení práce dne
+ * (cíl práce a stavba) odkazují na `into` a jeho stavbu; sloučená pole zmizí. Plán osevu vede
+ * díly, ne pole – nemění se. Jediné místo slučování: akce hráče (`foundField`) i převod starých
+ * navazujících polí při načtení (`withMergedFields`).
+ */
+export function mergeFields(state: VillageState, into: number, others: readonly number[]): void {
+  const merged = new Set(others);
+  for (const part of state.parts) if (merged.has(part.fieldId)) part.fieldId = into;
+  state.fields = state.fields.filter((f) => !merged.has(f.id));
+  const founding = state.constructions
+    .filter(
+      (c) =>
+        c.kind === 'field' && c.fieldId !== null && (c.fieldId === into || merged.has(c.fieldId)),
+    )
+    .sort((a, b) => a.id - b.id);
+  const kept = founding[0];
+  const dropped = new Set(founding.slice(1).map((c) => c.id));
+  if (kept) {
+    kept.fieldId = into;
+    for (const c of founding.slice(1)) {
+      kept.cost += c.cost;
+      kept.done += c.done;
+    }
+    state.constructions = state.constructions.filter((c) => !dropped.has(c.id));
+  }
+  for (const event of state.chronicle) {
+    if (
+      event.kind === 'construction-finished' &&
+      event.fieldId !== null &&
+      merged.has(event.fieldId)
+    ) {
+      event.fieldId = into;
+    }
+  }
+  for (const share of state.labor?.shares ?? []) {
+    if (share.target.kind === 'field' && merged.has(share.target.id)) share.target.id = into;
+    if (kept && share.construction !== undefined && dropped.has(share.construction)) {
+      share.construction = kept.id;
+    }
+  }
+}
+
+/** Klíč políčka pro mapy. */
+function cellKey(x: number, y: number): string {
+  return `${x},${y}`;
+}
+
+/**
+ * Stará navazující pole se sloučí (fields.md – Navazující pole; Martin, 18. 10. 2026): pole, která
+ * vznikla samostatně dřív, než se navazující čtverce začaly slučovat, a stranou na sebe navazují,
+ * se při načtení vsi spojí – každá souvislá skupina polí (sousedství stranou přes všechna pole,
+ * i řetězem) do pole s nejmenším id přes `mergeFields`. Rohem se nenavazuje; díly bez políčka
+ * a pole s obrysem (první prototyp) se neslučují. Ves bez takových polí vrací beze změny (týž
+ * objekt – nic se neukládá).
+ *
+ * Příznak „převedeno“ (jako `plotsMigrated`) převod nepotřebuje: je idempotentní – po sloučení
+ * žádná dvě pole stranou nenavazují a nová navazující pole nevzniknou, protože `foundField` je
+ * slučuje hned – a levný (jeden průchod díly), takže smí běžet při každém načtení. Simulace pole
+ * neslučuje ani políčka dílů nemění, takže po prvním převodu je každý další beze změny a dopočet
+ * po kouscích dá totéž co vcelku.
+ */
+export function withMergedFields(state: VillageState): VillageState {
+  const eligible = new Set(state.fields.filter((f) => f.outline === undefined).map((f) => f.id));
+  const parent = new Map<number, number>();
+  const root = (id: number): number => {
+    let r = id;
+    for (let up = parent.get(r); up !== undefined && up !== r; up = parent.get(r)) r = up;
+    return r;
+  };
+  const byCell = new Map<string, number>();
+  const cells: { x: number; y: number; fieldId: number }[] = [];
+  for (const part of state.parts) {
+    if (part.cell === undefined || !eligible.has(part.fieldId)) continue;
+    byCell.set(cellKey(part.cell.x, part.cell.y), part.fieldId);
+    cells.push({ x: part.cell.x, y: part.cell.y, fieldId: part.fieldId });
+  }
+  for (const { x, y, fieldId } of cells) {
+    // stačí soused vpravo a dole – každá dvojice stranou se tak potká jednou
+    for (const other of [byCell.get(cellKey(x + 1, y)), byCell.get(cellKey(x, y + 1))]) {
+      if (other === undefined || other === fieldId) continue;
+      const a = root(fieldId);
+      const b = root(other);
+      // kořen skupiny je vždy nejmenší id – do něj se slučuje
+      if (a !== b) parent.set(Math.max(a, b), Math.min(a, b));
+    }
+  }
+  const groups = new Map<number, number[]>();
+  for (const id of [...eligible].sort((a, b) => a - b)) {
+    const r = root(id);
+    if (r !== id) groups.set(r, [...(groups.get(r) ?? []), id]);
+  }
+  if (groups.size === 0) return state;
+  const next = structuredClone(state);
+  for (const [into, others] of [...groups].sort(([a], [b]) => a - b)) {
+    mergeFields(next, into, others);
+  }
+  return next;
 }
