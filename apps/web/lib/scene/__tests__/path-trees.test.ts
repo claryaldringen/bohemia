@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { PathLine } from '../path-network';
+import type { PathLine } from '@bohemia/game';
 import { PATH_TREE_YEARS, pathTreeGrowth, pathsideTrees } from '../path-trees';
 
 /** Rovná pěšina podél osy x délky 200 m. */

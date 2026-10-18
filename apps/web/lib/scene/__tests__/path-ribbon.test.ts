@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { PathLine } from '../path-network';
+import type { PathLine } from '@bohemia/game';
 import { EARTH_LAYER, WORN_LAYER, pathRibbons } from '../path-ribbon';
 
 const line = (strength: number, open = true): PathLine => ({

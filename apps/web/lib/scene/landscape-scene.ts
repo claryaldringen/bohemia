@@ -320,7 +320,6 @@ export class LandscapeScene {
     this.paths?.dispose();
     this.paths = new VillagePaths(this.scene, {
       landscape,
-      surface,
       field,
       layer: obstacles,
       decalHeight: (x, z) => terrainMeshHeight(surface, x, z),

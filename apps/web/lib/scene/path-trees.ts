@@ -1,4 +1,4 @@
-import type { PathLine, PathPoint } from './path-network';
+import type { PathLine, PathPoint } from '@bohemia/game';
 import { hash01 } from './smoke-schedule';
 
 // Stromy podél starých pěšin přes pole (docs/design/paths.md – Martin 18. 10. 2026: v Estonsku

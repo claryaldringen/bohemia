@@ -1,4 +1,4 @@
-import type { PathLine } from './path-network';
+import type { PathLine } from '@bohemia/game';
 import { hash01 } from './smoke-schedule';
 import { smoothstep, type DecalGrid } from './village-layout';
 
@@ -18,20 +18,23 @@ export interface RibbonLayer {
   widthFactor: number;
 }
 
-/** Prošlapaná tráva – široký měkký pás (0,8–1,5 m podle síly). */
+/**
+ * Prošlapaná tráva – široký měkký pás (0,9–1,9 m podle síly), z výchozí kamery (120 m) má být
+ * pěšina čitelná (Martin).
+ */
 export const WORN_LAYER: RibbonLayer = {
-  width: { weak: 0.8, strong: 1.5 },
-  softM: 0.55,
-  alpha: (s) => (s <= 0 ? 0 : 0.35 + 0.55 * s),
+  width: { weak: 0.9, strong: 1.9 },
+  softM: 0.6,
+  alpha: (s) => (s <= 0 ? 0 : 0.5 + 0.45 * s),
   widthFactor: 1,
 };
 
-/** Holá udusaná hlína uprostřed silné pěšiny. */
+/** Holá udusaná hlína uprostřed pěšiny – už u středně silné, u silné skoro plná. */
 export const EARTH_LAYER: RibbonLayer = {
-  width: { weak: 0.8, strong: 1.5 },
+  width: { weak: 0.9, strong: 1.9 },
   softM: 0.35,
-  alpha: (s) => 0.85 * smoothstep(0.4, 0.95, s),
-  widthFactor: 0.5,
+  alpha: (s) => 0.95 * smoothstep(0.2, 0.75, s),
+  widthFactor: 0.55,
 };
 
 /** Krok průřezů podél osy (m). */
@@ -65,12 +68,19 @@ function lineSeed(line: PathLine): number {
   );
 }
 
-/** Pás všech pěšin jedné vrstvy jako síť obtisku (pozice x, z po dvojicích, krytí, indexy). */
-export function pathRibbons(lines: readonly PathLine[], layer: RibbonLayer): DecalGrid {
+/**
+ * Pás všech pěšin jedné vrstvy jako síť obtisku (pozice x, z po dvojicích, krytí, indexy).
+ * `widthAt` – násobek šířky v bodě (přes osetý díl jen úzká stopa), bez něj plná.
+ */
+export function pathRibbons(
+  lines: readonly PathLine[],
+  layer: RibbonLayer,
+  widthAt: (x: number, z: number) => number = () => 1,
+): DecalGrid {
   const positions: number[] = [];
   const alphas: number[] = [];
   const indices: number[] = [];
-  for (const line of lines) addRibbon(line, layer, positions, alphas, indices);
+  for (const line of lines) addRibbon(line, layer, widthAt, positions, alphas, indices);
   return {
     positions: Float32Array.from(positions),
     alphas: Float32Array.from(alphas),
@@ -81,6 +91,7 @@ export function pathRibbons(lines: readonly PathLine[], layer: RibbonLayer): Dec
 function addRibbon(
   line: PathLine,
   layer: RibbonLayer,
+  widthAt: (x: number, z: number) => number,
   positions: number[],
   alphas: number[],
   indices: number[],
@@ -128,6 +139,7 @@ function addRibbon(
     const half =
       (width / 2) *
       layer.widthFactor *
+      widthAt(cx, cz) *
       (1 + (noise1(seed + 17, d / (WOBBLE_WAVE_M * 0.6)) - 0.5) * 2 * WIDTH_JITTER);
     const fadeStart = line.openStart ? smoothstep(0, END_FADE_M, d) : 1;
     const fadeEnd = line.openEnd ? smoothstep(0, END_FADE_M, length - d) : 1;

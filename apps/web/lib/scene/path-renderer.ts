@@ -6,73 +6,54 @@ import { Matrix, Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 import type { Scene } from '@babylonjs/core/scene';
 import {
-  OUTCROP_RADIUS_M,
   SACRED_BUILDINGS,
-  obstacleIndex,
-  obstacleStatus,
-  obstaclesNear,
+  computePathNetwork,
+  obstaclePosition,
+  pathBounds,
+  pathNetworkKey,
+  pathTerrainOf,
+  pathWindowFor,
+  withObstacles,
   type ForestField,
   type Landscape,
-  type ObstacleKind,
   type ObstacleLayer,
+  type PathNetwork,
+  type PathTerrain,
 } from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
 import { loadMergedModel } from './instanced-model';
-import { logPileSite } from './log-pile-layout';
-import {
-  computePathNetwork,
-  pathBounds,
-  pathNetworkKey,
-  pathRouter,
-  type PathNetwork,
-} from './path-network';
 import { EARTH_LAYER, WORN_LAYER, pathRibbons } from './path-ribbon';
-import {
-  buildPathTerrain,
-  pathWindowFor,
-  windowContains,
-  withObstacles,
-  type PathTerrain,
-  type PathTerrainSource,
-} from './path-terrain';
+import { pathRouter } from './path-router';
 import { PATH_TREE_MODELS, pathsideTrees, type PathTree, type PathTreeModel } from './path-trees';
 import { applyPitCut, type PitCuts } from './pit-cut';
-import type { RenderSurface } from './render-surface';
 import { applySeasonGround } from './season-materials';
 import { prepareTreeMaterial } from './trees';
 import { decalGrid } from './village-layout';
 import { createDecalMaterial, createDecalMesh, type HeightFn } from './village-meshes';
 import { houseBox, plotBox, siteBox, type VillagerPaths } from './villager-plan';
 
-// Vyšlapané pěšiny ve scéně (docs/design/paths.md): síť se spočítá v prohlížeči z vsi
-// a krajiny (path-network.ts), jen když se změní rozložení vsi nebo místa práce dne – odloženě
-// a nikdy za snímek. Kreslí se jako obtisky na terénu pod poli a obtisky vsi (prošlapaná tráva
-// a holá hlína uprostřed silných pěšin), staré pěšiny přes pole lemují stromy (path-trees.ts).
-// Postavy po pěšinách chodí (`paths()` pro villager-plan.ts).
+// Vyšlapané pěšiny ve scéně (docs/design/paths.md): síť spočítá v prohlížeči stejná funkce
+// herního jádra jako na serveru (`computePathNetwork` – vzdálenost chůze na pole), jen když se
+// změní rozložení vsi nebo místa práce dne – odloženě a nikdy za snímek. Kreslí se jako obtisky
+// nad poli a obtisky vsi (prošlapaná tráva a holá hlína uprostřed silných pěšin; přes osetý díl
+// jen úzká stopa), staré pěšiny v polích lemují stromy (path-trees.ts). Postavy po pěšinách
+// chodí a jdou po nich rychleji (`paths()` pro villager-plan.ts).
 
 /** Po změně vsi se síť přepočítá až po takové pauze (ms) – dotazy na ves chodí za sebou. */
 const RECOMPUTE_DELAY_MS = 250;
-/** Výška obtisků pěšin nad terénem (m) – pod poli a obtisky vsi (0,03). */
-const LIFT = { worn: 0.018, earth: 0.022, heatmap: 0.12 };
-/** Sníh na pěšinách – vyšlapaná pěšina pod sněhem trochu prosvítá. */
-const PATH_SNOW = 0.9;
-/** Brod přes potok: mělký (0–1) a úzký úsek (poloviční šířka v m). */
-const FORD = { shallow: 0.55, halfWidthM: 2.4 };
 /**
- * Překážky krajiny pro pěšiny: poloměr (m na jednotku velikosti, 0 = jen buňka kmene) a cena
- * navíc (Infinity = neprůchodné) – pěšina se kmenům a keřům vyhne, přes balvan a skálu nevede.
+ * Výška obtisků pěšin nad terénem (m) – nad obtisky polí (do 0,045) a vsi (0,03–0,045), aby
+ * pěšina přes úhor a pastvinu nezmizela pod polem (Martin).
  */
-const OBSTACLE_COST: Record<ObstacleKind, { radius: number; extra: number }> = {
-  tree: { radius: 0, extra: 3 },
-  youngTree: { radius: 0, extra: 1.5 },
-  snag: { radius: 0, extra: 2 },
-  fallenTree: { radius: 1.5, extra: 4 },
-  stump: { radius: 0, extra: 0.8 },
-  shrub: { radius: 0, extra: 2.5 },
-  stone: { radius: 0, extra: 1 },
-  boulder: { radius: 1.2, extra: Infinity },
-  outcrop: { radius: OUTCROP_RADIUS_M, extra: Infinity },
-};
+const LIFT = { worn: 0.05, earth: 0.055, heatmap: 0.12 };
+/** Pořadí průhledných obtisků – po polích (1–2) a vsi (1–2), před postavami (5). */
+const ALPHA_INDEX = { worn: 3, earth: 3.5 };
+/** Posun hloubky – vyhraje nad poli (−2 / −3) i v dálce. */
+const Z_OFFSET = { worn: -3.5, earth: -4 };
+/** Sníh na pěšinách – vyšlapaná pěšina pod sněhem zřetelně prosvítá (ušlapaný sníh). */
+const PATH_SNOW = 0.55;
+/** Přes osetý díl (pěšina ho obchází – výjimečně) jen úzká stopa: násobek šířky. */
+const SOWN_WIDTH = 0.45;
 /** Strom podél pěšiny: od lesa (m, znaménková vzdálenost), od domů a plotů, od hřbitova a sadu. */
 const TREE_FOREST_M = -6;
 const TREE_HOUSE_M = 3;
@@ -84,7 +65,6 @@ const TREE_HOMESTEAD_M = 16;
 
 export interface PathsEnvironment {
   landscape: Landscape;
-  surface: RenderSurface;
   field: ForestField;
   layer: ObstacleLayer;
   /** Přesná výška vykresleného terénu (obtisky) a hladký terén (normály, paty stromů). */
@@ -120,7 +100,6 @@ export class VillagePaths {
   private village: SceneVillage | null = null;
   private key = '';
   private timer: ReturnType<typeof setTimeout> | null = null;
-  private terrain: PathTerrain | null = null;
   /** Terén okna s překážkami krajiny – přepočítá se jen s novým oknem nebo změnou překážek. */
   private obstacleTerrain: { key: string; terrain: PathTerrain } | null = null;
   private network: PathNetwork | null = null;
@@ -205,46 +184,33 @@ export class VillagePaths {
       this.show(null, { ms: 0, treesMs: 0, terrainMs: 0, cells: 0, trips: 0, lines: 0, trees: 0 });
       return;
     }
-    const source = this.terrainSource();
-    const window = pathWindowFor(source, bounds);
-    let terrainMs = 0;
-    if (!this.terrain || !windowContains(this.terrain.window, window)) {
-      const t0 = performance.now();
-      this.terrain = buildPathTerrain(source, window);
-      terrainMs = performance.now() - t0;
-    }
+    const landscape = this.env.landscape;
+    const window = pathWindowFor(landscape, bounds);
     const layer = this.env.layer;
     const changes = village.obstacles ?? EMPTY_CHANGES;
     const obstacleKey = [
-      terrain0Key(this.terrain),
+      window.i0,
+      window.j0,
+      window.i1,
+      window.j1,
       changes.removed.length,
       changes.stumps.length,
       changes.saplings.length,
     ].join('|');
+    let terrainMs = 0;
     if (this.obstacleTerrain?.key !== obstacleKey) {
+      // terén z herního jádra (stejně jako na serveru) a k němu překážky krajiny
       const t0 = performance.now();
-      const status = obstacleStatus(village.obstacles);
-      const terrain = withObstacles(this.terrain, (minX, minZ, maxX, maxZ, visit) => {
-        for (const i of obstaclesNear(layer, minX, minZ, maxX, maxZ)) {
-          const kind = status.kindOf(layer, i);
-          if (!kind) continue;
-          const { radius, extra } = OBSTACLE_COST[kind];
-          visit(layer.x[i]!, layer.z[i]!, radius * layer.scale[i]!, extra);
-        }
-      });
+      const terrain = withObstacles(pathTerrainOf(landscape, window), layer, changes);
       this.obstacleTerrain = { key: obstacleKey, terrain };
-      terrainMs += performance.now() - t0;
+      terrainMs = performance.now() - t0;
     }
     const terrain = this.obstacleTerrain.terrain;
     const t0 = performance.now();
     const network = computePathNetwork({
       village,
       terrain,
-      tree: (id) => {
-        const i = obstacleIndex(layer, id);
-        return i >= 0 ? { x: layer.x[i]!, z: layer.z[i]! } : null;
-      },
-      logPile: logPileSite(this.env.landscape, village, layer, village.obstacles ?? EMPTY_CHANGES),
+      tree: (id) => obstaclePosition(layer, id),
     });
     const t1 = performance.now();
     const trees = pathsideTrees(network.lines, {
@@ -293,17 +259,18 @@ export class VillagePaths {
 
   private ribbon(name: string, network: PathNetwork, kind: 'worn' | 'earth'): Mesh {
     const layer = kind === 'worn' ? WORN_LAYER : EARTH_LAYER;
-    const mesh = createDecalMesh(this.scene, name, pathRibbons(network.lines, layer), {
+    const grid = pathRibbons(network.lines, layer, sownWidthOf(this.village));
+    const mesh = createDecalMesh(this.scene, name, grid, {
       height: this.env.decalHeight,
       smoothHeight: this.env.groundHeight,
       lift: kind === 'worn' ? LIFT.worn : LIFT.earth,
-      // prošlapaná tráva do hněda, holá hlína teplejší (jako u vchodu obydlí)
-      color: kind === 'worn' ? [0.98, 0.92, 0.8] : [1.02, 0.88, 0.72],
+      // prošlapaná tráva do hněda, holá udusaná hlína tmavší a teplejší (jako u vchodu obydlí)
+      color: kind === 'worn' ? [0.92, 0.84, 0.7] : [0.9, 0.74, 0.58],
       uv: kind === 'worn' ? 20 : 14,
     });
     mesh.material = this.decalMaterial(kind);
-    // pod obtisky polí a vsi (alphaIndex 1–2) – kreslí se první z průhledných
-    mesh.alphaIndex = kind === 'worn' ? 0.2 : 0.4;
+    // nad obtisky polí a vsi (alphaIndex 1–2) – pěšina přes úhor zůstane vidět
+    mesh.alphaIndex = ALPHA_INDEX[kind];
     return mesh;
   }
 
@@ -312,10 +279,10 @@ export class VillagePaths {
     if (!material) {
       const decal = createDecalMaterial(this.scene, `paths-${kind}`, {
         texture: kind === 'worn' ? 'grass-dirt' : 'mud',
-        zOffset: kind === 'worn' ? -1 : -1.5,
+        zOffset: Z_OFFSET[kind],
       });
       applyPitCut(decal, this.env.pitCuts);
-      // tráva usychá jako terén, v zimě pěšinu zasype sníh (trochu prosvítá)
+      // tráva usychá jako terén, v zimě pěšinu zasype sníh – ušlapaná stopa prosvítá
       applySeasonGround(decal, PATH_SNOW);
       const texture = decal.diffuseTexture;
       if (texture instanceof Texture && !texture.isReady()) {
@@ -431,36 +398,9 @@ export class VillagePaths {
     mesh.alphaIndex = 9;
     this.heatmapMesh = mesh;
   }
-
-  /** Terén pěšin ze sítě vykreslení a pole lesa. */
-  private terrainSource(): PathTerrainSource {
-    const s = this.env.surface;
-    const origin = s.position(0);
-    const field = this.env.field;
-    return {
-      resolution: s.resolution,
-      originX: origin.x,
-      originZ: origin.z,
-      step: s.position(1).x - origin.x,
-      heights: s.heights,
-      waterLevel: s.waterLevel,
-      forestDistance: (x, z) => field.distanceAt(x, z),
-      ford: (x, z) => {
-        const near = s.stream.nearest(x, z);
-        return near.shallow >= FORD.shallow && near.halfWidth <= FORD.halfWidthM;
-      },
-      halfExtent: (this.env.landscape.size * this.env.landscape.cellSizeM) / 2,
-    };
-  }
 }
 
 const EMPTY_CHANGES = { removed: [], stumps: [], saplings: [] };
-
-/** Klíč okna terénu (nové okno = nový terén s překážkami). */
-function terrain0Key(terrain: PathTerrain): string {
-  const w = terrain.window;
-  return `${w.i0},${w.j0},${w.i1},${w.j1}`;
-}
 
 /** Barva teplotní mapy pro provoz (cest za den). */
 export function heatColor(trips: number): [number, number, number] {
@@ -479,6 +419,17 @@ export function heatColor(trips: number): [number, number, number] {
   return [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u, a[2] + (b[2] - a[2]) * u];
 }
 
+/** Šířka pěšiny v bodě: přes osetý díl (zelí, obilí) jen úzká stopa, jinde plná. */
+function sownWidthOf(village: SceneVillage | null): (x: number, z: number) => number {
+  const sown = (village?.fields ?? [])
+    .flatMap((f) => f.parts)
+    .filter((p) => p.stage === 'sown' || p.stage === 'ready' || p.stage === 'founding');
+  return (x, z) =>
+    sown.some((p) => Math.abs(x - p.x) < p.size / 2 && Math.abs(z - p.z) < p.size / 2)
+      ? SOWN_WIDTH
+      : 1;
+}
+
 /** Bod leží na dílu pole nebo nejvýš FIELD_NEAR_M od něj. */
 function nearFieldOf(village: SceneVillage): (x: number, z: number) => boolean {
   const parts = village.fields.flatMap((f) => f.parts);
@@ -491,15 +442,17 @@ function nearFieldOf(village: SceneVillage): (x: number, z: number) => boolean {
 }
 
 /**
- * Smí tu stát strom podél pěšiny: průchodný terén (ne voda, sráz), mimo les, domy se zahrádkami,
- * staveniště, svatyně, hřbitovy a sady.
+ * Smí tu stát strom podél pěšiny: průchodný terén (ne voda, sráz), mimo les, díly polí, domy
+ * s pozemky, staveniště, svatyně, hřbitovy, sady a háje – u pole jen podél jeho okraje.
  */
 function canPlantOf(
   village: SceneVillage,
   terrain: PathTerrain,
   field: ForestField,
 ): (x: number, z: number) => boolean {
+  // nikdy na dílu pole (osetém ani úhoru – Martin), ani na hřbitově, v sadu a v háji
   const squares = [
+    ...village.fields.flatMap((f) => f.parts),
     ...(village.cemeteries ?? []).flatMap((c) => c.squares),
     ...(village.orchards ?? []).flatMap((o) => o.squares),
     ...(village.sacred?.groves ?? []).flatMap((g) => g.squares),
