@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import type { LaborShare, SceneVillage } from '../../village-view';
+import type { LaborShare, SceneLaborShare, SceneVillage } from '../../village-view';
 import { DWELLING_GARDEN_M } from '@bohemia/game';
 import { chickenBox } from '../livestock-placement';
 import { localToWorld } from '../village-layout';
-import { createVillagerPose, type HerdView, type VillagerPose } from '../villager-motion';
+import { createVillagerPose, walkThen, type HerdView, type VillagerPose } from '../villager-motion';
 import {
   FIGURE_SCALE,
   MAX_ELDERS,
@@ -288,6 +288,105 @@ describe('planVillagers – kdo kde je', () => {
     const outside = (list: PlannedVillager[]): number =>
       list.filter((p) => /^(domestic|idle|elder):/.test(p.key)).length;
     expect(outside(winter)).toBeLessThan(outside(summer));
+  });
+});
+
+describe('práce na poli po čtvercích – fronta práce', () => {
+  /** Pole 4 × 1 čtverce východně od vsi (x 30–90 m). */
+  const row = [square(2, 0), square(3, 0), square(4, 0), square(5, 0)];
+  const withField = (
+    parts: SceneVillage['fields'][number]['parts'],
+    shares: SceneLaborShare[],
+    day = 1000,
+  ): SceneVillage => ({
+    ...village([]),
+    fields: [{ id: 7, parts }],
+    labor: { day, month: 7, people: { children: 0, adults: 8, elders: 0 }, shares },
+  });
+  const onSquare = (s: { x: number; z: number; size: number }, x: number, z: number): boolean =>
+    Math.abs(x - s.x) <= s.size / 2 && Math.abs(z - s.z) <= s.size / 2;
+
+  it('žeň přesně na dílech z fronty od herního jádra', () => {
+    const parts = row.map((p, i) => ({ ...p, id: 10 + i }));
+    const v = withField(parts, [
+      { activity: 'harvest', target: { kind: 'field', id: 7 }, manDays: 4, parts: [12] },
+    ]);
+    const reapers = planVillagers(v, GROUND, { seed: 3, herds: 0 }).filter((p) =>
+      p.key.startsWith('harvest:'),
+    );
+    expect(reapers.length).toBe(4);
+    for (const p of reapers) {
+      for (const t of [0, 13, 57]) {
+        const pose = at(p, t);
+        expect(onSquare(parts[2]!, pose.x, pose.z)).toBe(true);
+      }
+    }
+  });
+
+  it('bez fronty: na rozpracovaném čtverci stojí řada hned za čarou práce', () => {
+    const parts = row.map((p, i) =>
+      i === 1
+        ? { ...p, look: 'harvesting' as const, work: 0.5, before: 'ripe' as const }
+        : { ...p, look: i === 0 ? ('harvesting' as const) : ('ripe' as const) },
+    );
+    const v = withField(parts, [
+      { activity: 'harvest', target: { kind: 'field', id: 7 }, manDays: 4 },
+    ]);
+    const reapers = planVillagers(v, GROUND, { seed: 3, herds: 0 }).filter((p) =>
+      p.key.startsWith('harvest:'),
+    );
+    expect(reapers.length).toBe(4);
+    const frontier = parts[1]!;
+    for (const p of reapers) {
+      for (const t of [0, 21, 77]) {
+        const pose = at(p, t);
+        expect(onSquare(frontier, pose.x, pose.z)).toBe(true);
+        // pole leží na +x od vsi, řádky podél x → práce jde napříč v z od strany blíž vsi;
+        // čára práce je v polovině čtverce, řada stojí do 4 m za ní
+        const fromStart = pose.z - (frontier.z - 7.5);
+        expect(fromStart).toBeGreaterThanOrEqual(7.5 - 0.5);
+        expect(fromStart).toBeLessThanOrEqual(7.5 + 4.6);
+      }
+    }
+  });
+
+  it('zakládání: rozpracovaný čtverec, pak nezačaté od obydlí', () => {
+    const parts = row.map((p, i) => ({
+      ...p,
+      stage: 'founding' as const,
+      work: i === 2 ? 0.25 : 0,
+    }));
+    const v = withField(parts, [
+      { activity: 'found-field', target: { kind: 'field', id: 7 }, manDays: 8 },
+    ]);
+    const crews = planVillagers(v, GROUND, { seed: 3, herds: 0 }).filter((p) =>
+      p.key.startsWith('found-field:'),
+    );
+    expect(crews.length).toBe(8);
+    const first = crews.slice(0, 4).map((p) => at(p, 5));
+    for (const pose of first) expect(onSquare(parts[2]!, pose.x, pose.z)).toBe(true);
+    const second = crews.slice(4).map((p) => at(p, 5));
+    for (const pose of second) expect(onSquare(parts[0]!, pose.x, pose.z)).toBe(true);
+  });
+});
+
+describe('walkThen – přechod na další čtverec', () => {
+  it('jde rovně z původního místa a pak pokračuje podle nové pózy', () => {
+    const target = (t: number, _h: readonly HerdView[], out: VillagerPose): VillagerPose => {
+      out.x = 30 + t * 0.1;
+      out.z = 0;
+      out.clip = 'reap';
+      return out;
+    };
+    const pose = walkThen(0, 0, target, 100, 1.5);
+    const start = pose(100, [], createVillagerPose());
+    expect(start.x).toBeCloseTo(0);
+    expect(start.clip).toBe('walk');
+    const mid = pose(110, [], createVillagerPose());
+    expect(mid.x).toBeCloseTo(15);
+    const after = pose(130, [], createVillagerPose());
+    expect(after.clip).toBe('reap');
+    expect(after.x).toBeCloseTo(43);
   });
 });
 

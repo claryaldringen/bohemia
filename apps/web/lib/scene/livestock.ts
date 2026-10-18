@@ -29,6 +29,8 @@ import {
   type LivestockPose,
 } from './livestock-motion';
 import {
+  grazedPart,
+  grazingDay,
   livestockGround,
   planLivestock,
   type Herd,
@@ -432,12 +434,17 @@ function villageKey(village: LivestockVillage): string {
       `${d.id}:${d.type}:${d.built ? 1 : 0}:${d.inhabited === false ? 0 : 1}:` +
       `${d.position.x.toFixed(2)},${d.position.z.toFixed(2)},${d.position.rotation.toFixed(3)}`,
   );
+  // díl pole, na kterém se pase (úhor), stádům nepřekáží – změna stadia přeplánuje pastviny
+  const parts = village.fields
+    .flatMap((f) => f.parts)
+    .map(
+      (p) => `${p.x.toFixed(1)},${p.z.toFixed(1)}${grazedPart(p, grazingDay(village)) ? 'g' : ''}`,
+    );
   const squares = [
-    ...village.fields.flatMap((f) => f.parts),
     ...(village.cemeteries ?? []).flatMap((c) => c.squares),
     ...(village.orchards ?? []).flatMap((o) => o.squares),
   ].map((s) => `${s.x.toFixed(1)},${s.z.toFixed(1)}`);
-  return `${dwellings.join(';')}|${squares.join(';')}`;
+  return `${dwellings.join(';')}|${parts.join(';')}|${squares.join(';')}`;
 }
 
 /** Náhoda zvířat podle krajiny – v každé vsi se stáda pasou jinde. */
