@@ -1,8 +1,8 @@
 # Stěhování – domácnost na nové místo, odchod do nové vsi
 
-Stav: schváleno 18. 10. 2026 (Martin: „Ano, takhle je to dobré, spusť to“). Fáze 1 (přestěhování
-domácnosti, výběr víc obydlí) a 2 (víc vsí, přepínač) jsou hotové; fáze 3 a 4 (odchod do nové vsi)
-čekají – viz Na stavitelích.
+Stav: schváleno 18. 10. 2026 (Martin: „Ano, takhle je to dobré, spusť to“). Hotové všechny čtyři
+fáze – přestěhování domácnosti, výběr víc obydlí, víc vsí s přepínačem, odchod na téže mapě i na
+novou mapu – viz Na stavitelích.
 
 ## Proč
 
@@ -100,6 +100,10 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
 | Víc vsí na mapě = víc vsí sídla (ves má vlastní id), nová mapa = sídlo s polohou v mřížce   | návrh Clauda |
 | Vybraná ves v cookie; ves na téže mapě se přepne na místě, na jiné mapě novým načtením      | návrh Clauda |
 | Typ nového domu dvěma tlačítky v panelu (zemnice, polozemnice); Ctrl + A jen hotová obydlí  | návrh Clauda |
+| Odchod: odejdou celé domácnosti, všichni bydlí na staveništi první zemnice, opuštěná ves se nesimuluje | návrh Clauda |
+| Vsi na téže mapě: přehled cizích staveb, půdy, pasek a vyhrazených stromů při dopočtu – neukládá se | návrh Clauda |
+| Mřížka map každého hráče zvlášť, sídelní sídlo v (0, 0); cesta 1–3 dny podle vzdálenosti ke kraji | návrh Clauda |
+| Vlastní ves v sousední mapě nahradí souseda bez simulace – tím směrem se neodchází ani neobchoduje | návrh Clauda |
 
 ## Na stavitelích
 
@@ -116,8 +120,14 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
    výběru (`RelocationControls.tsx`), výběr víc obydlí `village-selection.ts`.
 2. **Víc vsí a přepínač – hotovo.** Migrace `0005_multi_village`, use-casy podle id vsi,
    `player-villages.ts`, přepínač `VillageSwitcher.tsx`, vývojová druhá ves na téže mapě.
-3. Odchod na stejnou mapu – čeká.
-4. Odchod na novou mapu s mřížkou světa – čeká.
+3. **Odchod na stejnou mapu – hotovo.** Jádro `departure.ts` (`departVillage`, `leavingFood`,
+   `abandonedVillageAt`), vsi na téže mapě `neighbourhood.ts` (`neighbourSnapshot`,
+   `withNeighbours`), use-case `leaveVillage` (`leave-village.ts`), růžice odchodu v panelu
+   (`LeaveControls`, `LeaveCompass` v `RelocationControls.tsx`), stavby jiné vsi ve scéně
+   (`lib/scene/neighbour-villages.ts`).
+4. **Odchod na novou mapu – hotovo.** Mřížka `world-grid.ts`, migrace `0006_grid_per_player`,
+   `SettlementRepository.assignWorldCell`, ves na cestě (`travellingVillage`, `settleJourney`),
+   řádek lidí na cestě (`JourneyBanner`).
 
 ### Rozhodnutí fází 1 a 2 (návrh Clauda)
 
@@ -163,7 +173,60 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
   nejbližším volném místě k místu vsi krajiny, nejméně 300 m od staveb ostatních vsí – jen pro
   vyzkoušení přepínače, lidé ze staré vsi neodcházejí.
 
-### Připraveno pro fáze 3 a 4
+### Rozhodnutí fází 3 a 4 (návrh Clauda)
+
+- **Kdo odchází:** celé domácnosti vybraných obydlí – všichni jejich lidé i s manžely a dětmi.
+  Rodiče, kteří zůstali (nebo zemřeli), jdou s nimi jako předci v rodokmenu nové vsi – na
+  příbuzenství do bratranců stačí rodiče osadníků; dcery vdané pryč, které jsou osadníkům blízké,
+  také. Ve staré vsi zůstanou odešlí v rodokmenu, jsou-li rodičem někoho, kdo zůstal; na novou
+  mapu i jako odešlí ve směru (`emigrants` – war.md, příbuzní ve vsi tím směrem). Manžel, který
+  zůstal v jiném domě, ovdoví. Domácnost, která si staví nový dům, odejít nemůže (nejdřív zrušit
+  stěhování); přestavovaný dům odejít smí – přestavba prázdného domu se sama opustí.
+- **Co si vezmou:** 25 kg na člověka od 7 let, nejvýš poměrný díl zásob podle počtu lidí; když
+  neunesou celý díl, berou ze všech zásob (obilí, maso, sýr, luštěniny, ovoce) stejný podíl.
+  Stáda: poměrný díl ovcí, koz, prasat a krav i letošních mláďat (počty smí být neceločíselné
+  jako všude ve stádech); voli, ohrady, klády, nástroje, keramika a zboží zvenku zůstanou.
+- **Nová ves** začíná jako při založení – všichni osadníci jsou jedna domácnost na staveništi
+  první zemnice (dvorec vojvody), rodiny se rozejdou do dalších domů podle běžných pravidel
+  osídlení, až je hráč postaví. Id lidí zůstanou ze staré vsi (nová ves čísluje za nimi).
+- **Opuštěná ves** (odešli všichni): kronika „ves opuštěna“, dál se nesimuluje (jako vymřelá),
+  akce v ní nejdou. Rozpad bez simulace – pohled spočítá domy ke dni (`abandonedVillageAt`):
+  každé obydlí ztrácí stav podílem prázdného obydlí (`emptyLifespanYears`) ode dne odchodu, na
+  nule se zřítí a zbude jáma, která `RUIN_YEARS` zarůstá; pole leží ladem. Konec hry počítá
+  opuštěnou ves jako mrtvou (hra končí, když žádná ves nežije – ves na cestě žije).
+- **Vsi na téže mapě o sobě vědí** přes přehled (`NeighbourSnapshot`), který se sestaví při
+  každém dopočtu (`updateVillage`) a pohledu z uložených vsí mapy a **neukládá se**: stavby
+  (obydlí, rozestavěná obydlí, modly, svatyně) a políčka (pole, sady, hřbitovy, ohrady, les vsi,
+  pozemky). Kontroly umístění na serveru i v prohlížeči je znají jako cizí půdu („Tady hospodaří
+  jiná ves.“), pole na cizí pole nenavazují. Odstraněné a pokácené překážky druhé vsi platí i tady
+  (paseky ve scéně, kácení je nebere) a stromy, které si vyhradily její stavby, nikdo jiný
+  nekácí. Simulace jedné vsi tak závisí i na tom, kdy se druhá naposledy uložila – výsledek
+  dopočtu po kouscích už není úplně stejný, přijatelné. Vsi se načítají jen tehdy, když na mapě
+  jiná ves je (levný otisk napřed).
+- **Scéna** kreslí stavby jiné vsi s vlastními (id posunutá o 10 000 000 × pořadí vsi) – jen
+  pohled, bez lidí, práce a stád té vsi; vybrat je nejde (klik na ně jako na prázdnou zem).
+  Minimapa je ukazuje taky.
+- **Odchod na téže mapě:** růžice v panelu (uprostřed „nová ves na téže mapě“) → hráč umístí první
+  zemnici – nejméně 300 m od staveb všech vsí mapy (ověří prohlížeč i server dřív, než lidé
+  odejdou) → ves se hned založí a rozhraní se na ni přepne. Jméno navrhne hra.
+- **Mřížka map je zatím každého hráče zvlášť** (unikátní políčko na hráče, ne na svět): sídelní
+  sídlo dostane s prvním odchodem na novou mapu polohu (0, 0), nová mapa leží o políčko vedle ve
+  směru šipky (sever +y, východ +x – jako osa krajiny). Sdílený svět všech hráčů chce návrh, kde
+  noví hráči v mřížce začínají – do té doby mají hráči každý svůj kus světa. Políčko vlastního
+  sídla bez vsí se použije znovu.
+- **Cesta na novou mapu:** 1–3 herní dny podle vzdálenosti od dvorce ke kraji mapy ve směru
+  (každých 400 m den), po hotové zemské stezce tím směrem 1 den. Ves na cestě se nesimuluje (lidé
+  nestárnou ani nejí – pár dní); v přepínači je s poznámkou „na cestě“, po přepnutí se načte nová
+  mapa s řádkem „Lidé jsou na cestě…“. Po příjezdu nabídka staveb ukáže jen zemnici a její
+  umístění ves založí (`settleJourney`).
+- **Sousedé pro obchod:** vlastní ves na sousední mapě nahradí souseda bez simulace v tom směru
+  pro obě vsi – soused tím směrem zmizí z obchodu a výpravu tam server odmítne (obchod mezi
+  vlastními vsemi zatím není – ne-cíl). Růžice odchodu tím směrem je zašedlá se jménem vlastní
+  vsi.
+- **Dvorec na pozemku dvou políček** – prohlížeč při kontrole umístění dvůr dvorce teď zná taky
+  (dřív ho vynechal a stavbu ve dvoře odmítl až server).
+
+### Připraveno pro fáze 3 a 4 (stav po fázi 2)
 
 - `foundAnotherVillage` (další ves téhož sídla, první zemnice nejméně 300 m od staveb ostatních
   – `villages-apart.ts`, `NEW_VILLAGE_MIN_DISTANCE_M`) – fáze 3 doplní umístění první zemnice
@@ -175,3 +238,12 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
 - **Otevřené pro fázi 3:** vsi na téže mapě o sobě nevědí – scéna kreslí jen vybranou ves,
   kontroly umístění neznají stavby druhé vsi a obě můžou kácet tytéž stromy (vrstva překážek je
   krajiny, změny má každá ves zvlášť). Do odchodu na stejnou mapu je drží od sebe jen 300 m.
+  (Vyřešeno ve fázi 3 – viz výše.)
+
+### Otevřené po fázích 3 a 4
+
+- Přesun zásob a lidí mezi vlastními vsemi a obchod s nimi (dnes ne-cíl).
+- Sdílený svět všech hráčů v jedné mřížce (rozmístění nových hráčů, NPC vojvodové na volných
+  políčkách).
+- Lidé při odchodu ve scéně neodcházejí ke kraji mapy ani na místo nové vsi (zatím jen kronika
+  a řádek) – návrh „Co hráč vidí“ to chce.
