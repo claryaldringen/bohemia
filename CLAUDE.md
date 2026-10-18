@@ -1132,9 +1132,11 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   `annual: true` = roční provoz; `PathVillage` splňuje `SceneVillage`), `walking.ts` (`walkGraph`, `walkingDistances` – vzdálenost chůze, po pěšině
   `PATH_WALK` rychleji, nikdy víc než rovně – čistá funkce pro každého, kdo měří cestu na pole)
   a `village.ts` (`pathVillageOf` ze stavu vsi jako scéna i s pevnými cestami, `refreshWalkDistances`
-  – den po dni v `simulateDay` při změně `walkLayoutKey` (i pevné cesty), jen s krajinou; ve stavu
-  je jen otisk klíče `walkLayoutHash` (celý klíč z vsí uložených dřív se beze změny rozložení jen
-  převede); `villagePathNetwork` si pamatuje poslední síť po krajinách (otisk `pathVillageOf`) –
+  – den po dni v `simulateDay` při změně `walkLayoutKey` (i pevné cesty), jen s krajinou;
+  **stadia dílů a pastva úhoru (`walkStageKey`) se do klíče promítají jen 1. dne v měsíci**
+  (Martin, 18. 10. 2026 – osev postupuje po dílech a síť se přepočítávala každých pár dní; otisk
+  stadií z posledního 1. dne je ve stavu `walkStages`), strukturální změny hned; ve stavu jen
+  otisky `walkLayoutHash`; `villagePathNetwork` si pamatuje poslední síť po krajinách (otisk `pathVillageOf`) –
   seč luk ve stejný den po přepočtu chůze síť nepočítá znovu →
   `FieldPart.walkDistanceM`, práce přes `partWalkDistance` v `year-plan.ts` (`partWork`, `partWeight`),
   `field-progress.ts` a seči `hay.ts`).

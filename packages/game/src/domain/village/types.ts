@@ -734,11 +734,16 @@ export interface VillageState {
    */
   plotsMigrated?: true;
   /**
-   * Otisk klíče rozložení vsi (`walkLayoutHash`), pro které se naposledy spočítaly vzdálenosti
-   * chůze dílů po pěšinách (`FieldPart.walkDistanceM`). Chybí, dokud se nespočítaly (starší vsi,
-   * simulace bez krajiny); vsi uložené do 18. 10. 2026 mají celý klíč – při dopočtu se převede.
+   * Otisk rozložení vsi (`walkLayoutKey` se stadii `walkStages`), pro které se naposledy spočítaly
+   * vzdálenosti chůze po pěšinách (`FieldPart.walkDistanceM`…). Chybí, dokud se nespočítaly
+   * (starší vsi, simulace bez krajiny); klíč z doby před měsíčními stadii se jednou přepočítá.
    */
   walkLayoutKey?: string;
+  /**
+   * Otisk stadií dílů a pastvy úhoru (`walkStageKey`) z posledního 1. dne v měsíci – do klíče
+   * chůze se stadia promítají jen jednou za měsíc (Martin, 18. 10. 2026). Chybí jako výše.
+   */
+  walkStages?: string;
   /**
    * Pevné cesty, stromy u nich a roční součty práce (roads.md). Chybí u vsí uložených před nimi
    * a ve vsích simulovaných bez krajiny (kalibrace, testy) – začnou při prvním dopočtu s krajinou.

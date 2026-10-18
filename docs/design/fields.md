@@ -297,6 +297,9 @@ První sezónu po vymýcení lesa se díl **neplete** (viz Úroda).
   Mokřina se počítá dvojnásobně (po hati 1,5× rychleji než louka), brod + 30 m (po lávce bez
   zdržení) – i rovně mimo cestu, takže pole za potokem bez cesty zdraží, s hatí a lávkou zlevní.
   Stejně se měří vzdálenost čtverce sadu (orchard.md). Bez krajiny (kalibrace) vzdušnou čarou.
+  **Chůze se přepočítává měsíčně** (Martin, 18. 10. 2026): hned po změně rozložení vsi (obydlí,
+  nové díly a čtverce, cesty, ohrady, sady, hřbitov, stáda), změny stadií dílů (osev, úhor,
+  pastva) se do ní promítnou až 1. dne dalšího měsíce (paths.md – Pěšiny a práce).
 - **Včasnost:** co se v období nestihne, propadá: nezasetý díl se ten rok nesklidí, neopletý
   dá nižší úrodu, nesklizená úroda shnije na poli, nevymlácené do konce února se zkazí (návrh
   Clauda; přesné podíly doladí kalibrace).
