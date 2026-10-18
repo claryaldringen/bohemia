@@ -1,18 +1,21 @@
-import type { Landscape } from '../landscape';
+import { tileCenterWorld, type Landscape } from '../landscape';
 import { villageCemeteries } from './cemetery';
 import { villageHerds } from './livestock';
 import { villagePens } from './oxen';
 import { cellCorners, dwellingFootprint } from './placement';
 import { polygonsOverlap, type Point } from './polygon';
-import { ABANDONMENT } from './rules';
+import { ABANDONMENT, SACRED_BUILDINGS } from './rules';
 import { sacredBuildingPlots, sacredFootprint } from './sacred';
 import type {
   AbandonedStructure,
   ChronicleEvent,
+  Dwelling,
   Pen,
+  Position,
   SacredBuildingKind,
   SacredRuin,
   StructureWear,
+  TileCell,
   VillageState,
 } from './types';
 
@@ -27,6 +30,8 @@ import type {
 // Bez krajiny (kalibrace, testy) síť cest není a nic se neopouští.
 
 const DAYS_PER_YEAR = 365.25;
+/** Obydlí sahá od středu nejvýš tolik (m) – rychlé vyřazení vzdálených obydlí. */
+const DWELLING_REACH_M = 6;
 /** Ohrada, do které se vrátila zvířata, má stav aspoň tolik – se zvířaty nespadne. */
 const MIN_STOCKED_CONDITION = 0.01;
 
@@ -236,34 +241,42 @@ function withoutBuiltOver(
 ): SacredRuin[] {
   const footprints = ruins.map((r) => sacredFootprint(r.kind, r.position));
   const boxes = footprints.map(boundsOf);
-  const near = (shape: Point[]): boolean => {
-    const b = boundsOf(shape);
-    return boxes.some(
-      (r) => b.minX < r.maxX && b.maxX > r.minX && b.minZ < r.maxZ && b.maxZ > r.minZ,
+  // rychlé vyřazení podle obdélníku kolem bodu (bez skládání mnohoúhelníků) – stav vsi má tisíce
+  // dílů a kontrola běží každý den, dokud nějaký zbytek leží
+  const near = (x: number, z: number, reach: number): boolean =>
+    boxes.some(
+      (b) => x + reach > b.minX && x - reach < b.maxX && z + reach > b.minZ && z - reach < b.maxZ,
     );
+  const shapes: Point[][] = [];
+  const building = (type: Dwelling['type'], position: Position): void => {
+    if (near(position.x, position.z, DWELLING_REACH_M)) {
+      shapes.push(dwellingFootprint(type, position));
+    }
   };
-  const shapes: Point[][] = [
-    ...state.dwellings.map((d) => dwellingFootprint(d.type, d.position)),
-    ...state.constructions.flatMap((c) =>
-      c.position !== null && c.dwellingType !== null
-        ? [dwellingFootprint(c.dwellingType, c.position)]
-        : [],
-    ),
-    ...sacredBuildingPlots(state).map((b) => sacredFootprint(b.kind, b.position)),
-  ];
-  if (landscape) {
-    const cells = [
-      ...state.parts.flatMap((p) => (p.cell ? [p.cell] : [])),
-      ...villageCemeteries(state).flatMap((c) => c.squares.map((s) => s.cell)),
-      ...(state.orchards ?? []).flatMap((o) => o.squares.map((s) => s.cell)),
-      ...villagePens(state).map((p) => p.cell),
-      ...state.dwellings.flatMap((d) => (d.plot ? [d.plot.cell] : [])),
-      ...state.constructions.flatMap((c) => (c.plot ? [c.plot.cell] : [])),
-    ];
-    for (const cell of cells) shapes.push(cellCorners(landscape, cell));
+  for (const d of state.dwellings) building(d.type, d.position);
+  for (const c of state.constructions) {
+    if (c.position !== null && c.dwellingType !== null) building(c.dwellingType, c.position);
   }
-  const close = shapes.filter(near);
-  return ruins.filter((_, k) => !close.some((shape) => polygonsOverlap(shape, footprints[k]!)));
+  for (const b of sacredBuildingPlots(state)) {
+    const half = (SACRED_BUILDINGS[b.kind].footprintM * Math.SQRT2) / 2;
+    if (near(b.position.x, b.position.z, half)) shapes.push(sacredFootprint(b.kind, b.position));
+  }
+  if (landscape) {
+    const reach = (landscape.cellSizeM * Math.SQRT2) / 2;
+    const cell = (c: TileCell | undefined): void => {
+      if (!c) return;
+      const center = tileCenterWorld(landscape, c.x, c.y);
+      if (near(center.x, center.z, reach)) shapes.push(cellCorners(landscape, c));
+    };
+    for (const p of state.parts) cell(p.cell);
+    for (const c of villageCemeteries(state)) for (const q of c.squares) cell(q.cell);
+    for (const o of state.orchards ?? []) for (const q of o.squares) cell(q.cell);
+    for (const p of villagePens(state)) cell(p.cell);
+    for (const d of state.dwellings) cell(d.plot?.cell);
+    for (const c of state.constructions) cell(c.plot?.cell);
+  }
+  if (shapes.length === 0) return ruins;
+  return ruins.filter((_, k) => !shapes.some((shape) => polygonsOverlap(shape, footprints[k]!)));
 }
 
 function boundsOf(points: readonly Point[]): {
