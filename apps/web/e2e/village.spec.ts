@@ -636,7 +636,16 @@ test('nabídka hry (F10) zruší umisťování a Začít znovu se živou vsí po
   await expect(menu.getByRole('button', { name: 'Začít znovu' })).toBeDisabled();
 });
 
-/** Volná místa pro zemnice u bodu (x, z) – každé projde kontrolou s předchozími obydlími. */
+/**
+ * Jak daleko od sebe nová obydlí v testu stojí (m) – blíž by vyšší dům před staveništěm zakryl
+ * kliknutí na staveniště (výběr paprskem bere stavbu nejblíž kameře).
+ */
+const FREE_HOME_SPACING_M = 25;
+
+/**
+ * Volná místa pro zemnice u bodu (x, z) – každé projde kontrolou s předchozími obydlími a stojí
+ * aspoň FREE_HOME_SPACING_M od nich.
+ */
 function freeHomes(
   l: Landscape,
   near: Position,
@@ -645,6 +654,8 @@ function freeHomes(
 ): Position[] {
   const homes: Position[] = [];
   for (const spot of around(near.x, near.z, 240)) {
+    const others = [...taken, ...homes];
+    if (others.some((o) => Math.hypot(o.x - spot.x, o.z - spot.z) < FREE_HOME_SPACING_M)) continue;
     const village: PlacementVillage = {
       dwellings: [...taken, ...homes].map((position) => ({ type: 'zemnice', position })),
       constructions: [],
