@@ -866,25 +866,27 @@ function tripGroups(
     // nově zakládané pole: pěšina se teprve vyšlapává
     target(squaresTarget(field.parts), base + work(`field:${field.id}`), founding ? 0.5 : 1);
   }
-  for (const orchard of v.orchards ?? []) {
-    target(squaresTarget(orchard.squares), BASE_TRIPS.orchard + work(`orchard:${orchard.id}`));
-  }
+  // sad: zavedené místo jen k nejbližšímu sadu, práce dne tam, kde se dnes pracuje
+  const orchards = v.orchards ?? [];
+  const nearestOrchard = nearestOfKind(
+    homes,
+    orchards.map((o) => o.squares),
+  );
+  orchards.forEach((orchard, k) => {
+    const sources = squaresTarget(orchard.squares);
+    if (sources.length === 0) return;
+    const base = shareWeights(homes, BASE_TRIPS.orchard);
+    const builders = shareWeights(homes, work(`orchard:${orchard.id}`));
+    const weights = homes.map((_, i) => builders[i]! + (nearestOrchard[i] === k ? base[i]! : 0));
+    if (weights.every((w) => w < MIN_TRIP)) return;
+    groups.push({ sources, weights, maxCost: groupReach(grid, sources, homes) });
+  });
   // hřbitov: návštěvy hrobů podle lidí v domácnosti (k nejbližšímu hřbitovu) a práce dne
   const cemeteries = v.cemeteries ?? [];
-  const nearestCemetery = homes.map((h) => {
-    let best = -1;
-    let bestD = Infinity;
-    cemeteries.forEach((cemetery, k) => {
-      for (const s of cemetery.squares) {
-        const d = length2(s.x - h.x, s.z - h.z);
-        if (d < bestD) {
-          best = k;
-          bestD = d;
-        }
-      }
-    });
-    return best;
-  });
+  const nearestCemetery = nearestOfKind(
+    homes,
+    cemeteries.map((c) => c.squares),
+  );
   cemeteries.forEach((cemetery, k) => {
     const sources = squaresTarget(cemetery.squares);
     if (sources.length === 0) return;
@@ -932,16 +934,59 @@ function tripGroups(
     const sources = trees.flatMap((p) => cellsAround(grid, p, 2.5));
     target(sources, t.manDays * TRIPS_PER_MAN_DAY);
   }
-  for (const oak of v.sacred?.oaks ?? []) {
-    target(cellsAround(grid, oak, OAK_REACH_M), BASE_TRIPS.sacred);
+  // posvátná místa: každá domácnost chodí jen k nejbližšímu místu každého druhu (posvátný dub,
+  // háj, modla, svatyně – Martin); rozestavěná modla a svatyně jsou staveniště (práce dne)
+  const visit = (places: readonly { sources: number[]; at: readonly PathPoint[] }[]): void => {
+    if (places.length === 0) return;
+    const nearest = nearestOfKind(
+      homes,
+      places.map((p) => p.at),
+    );
+    const weights = shareWeights(homes, BASE_TRIPS.sacred);
+    places.forEach((place, k) => {
+      const own = weights.map((w, i) => (nearest[i] === k ? w : 0));
+      if (place.sources.length === 0 || own.every((w) => w < MIN_TRIP)) return;
+      groups.push({
+        sources: place.sources,
+        weights: own,
+        maxCost: groupReach(grid, place.sources, homes),
+      });
+    });
+  };
+  visit(
+    (v.sacred?.oaks ?? []).map((oak) => ({
+      sources: cellsAround(grid, oak, OAK_REACH_M),
+      at: [oak],
+    })),
+  );
+  visit(
+    (v.sacred?.groves ?? []).map((grove) => ({
+      sources: squaresTarget(grove.squares),
+      at: grove.squares,
+    })),
+  );
+  const sacredBuildings = v.sacred?.buildings ?? [];
+  for (const kind of ['idol', 'shrine'] as const) {
+    visit(
+      sacredBuildings
+        .filter((b) => b.built && b.kind === kind)
+        .map((b) => ({
+          sources: cellsAround(
+            grid,
+            b.position,
+            SACRED_BUILDINGS[b.kind].footprintM / 2 + grid.cellM,
+          ),
+          at: [b.position],
+        })),
+    );
   }
-  for (const grove of v.sacred?.groves ?? []) {
-    target(squaresTarget(grove.squares), BASE_TRIPS.sacred);
-  }
-  for (const b of v.sacred?.buildings ?? []) {
+  for (const b of sacredBuildings) {
+    if (b.built) continue;
     const half = SACRED_BUILDINGS[b.kind].footprintM / 2;
-    const trips = b.built ? BASE_TRIPS.sacred : BASE_TRIPS.site + work(`site:${b.id}`);
-    target(cellsAround(grid, b.position, half + grid.cellM), trips);
+    target(
+      cellsAround(grid, b.position, half + grid.cellM),
+      BASE_TRIPS.site + work(`site:${b.id}`),
+    );
   }
   // sousedé – každá domácnost se dvěma nejbližšími (dvojice jednou)
   const pairs = new Set<string>();
@@ -1024,6 +1069,31 @@ function errandGroups(
     });
   }
   return groups;
+}
+
+/**
+ * Nejbližší místo daného druhu každé domácnosti (index v `places`, −1 = žádné): vzdušnou čarou
+ * od domu k nejbližšímu bodu místa (čtverce, kmene, stavby), při shodě první místo. K zavedeným
+ * místům (posvátná místa, hřbitov, sad) chodí domácnost jen k nejbližšímu (Martin).
+ */
+function nearestOfKind(
+  homes: readonly Household[],
+  places: readonly (readonly PathPoint[])[],
+): number[] {
+  return homes.map((h) => {
+    let best = -1;
+    let bestD = Infinity;
+    places.forEach((points, k) => {
+      for (const p of points) {
+        const d = length2(p.x - h.x, p.z - h.z);
+        if (d < bestD) {
+          best = k;
+          bestD = d;
+        }
+      }
+    });
+    return best;
+  });
 }
 
 /** Nejbližší místo pochůzky každé domácnosti vzdušnou čarou (−1 = žádné) – směr pro A*. */

@@ -25,6 +25,10 @@ A po vyšlapané pěšině se chodí lépe – cesta na vzdálené pole po ní s
   Ke hřbitovu se chodí podle počtu lidí – hroby předků raní Slované navštěvovali pravidelně
   (obětiny, hostiny za mrtvé): 0,15 cesty za den na člověka, každá domácnost k nejbližšímu
   hřbitovu (Martin schválil, návrh Clauda; ves se 7 lidmi ≈ 1 cesta denně, se 40 lidmi ≈ 6).
+  K zavedeným místům – posvátnému dubu, háji, modle, svatyni, hřbitovu a sadu – chodí každá
+  domácnost jen k nejbližšímu místu daného druhu (Martin: lidé chodí jen k nejbližším věcem;
+  nejbližší vzdušnou čarou od domu – návrh Clauda); práce dne (pole, stavby, kácení, práce
+  v sadu) jde tam, kde se dnes pracuje.
   Daleko (voda, les) se chodí méně často – pěšina tam vznikne, až když se cesty víc domácností
   slijí. Ohrada (oxen.md) má k práci dne trochu navíc jako zavedené místo. Stáda (diet.md – ovce
   s kozami po 20 kusech, krávy po 6, jako ve scéně) se denně vyženou na úhor a zpět – jedna cesta

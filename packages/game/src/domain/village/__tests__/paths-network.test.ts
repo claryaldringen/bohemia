@@ -203,6 +203,42 @@ describe('computePathNetwork – pěšiny vsi', () => {
     expect(traffic(20)).toBeGreaterThan(traffic(8) * 2);
   });
 
+  it('k posvátným místům jen k nejbližšímu – vzdálená skupina model bez pěšiny', () => {
+    const idol = (id: number, x: number, z: number) => ({
+      id,
+      kind: 'idol' as const,
+      position: { x, z, rotation: 0 },
+      built: true,
+    });
+    const v = village({
+      dwellings: [house(1, -60, 0), house(2, 60, 0)],
+      labor: { day: 4000, month: 6, people: { children: 0, adults: 8, elders: 0 }, shares: [] },
+      sacred: {
+        oaks: [],
+        groves: [],
+        // každá domácnost má modlu za domem, skupina model daleko u lesa
+        buildings: [idol(1, -60, -40), idol(2, 60, -40), idol(3, -120, -120), idol(4, -110, -125)],
+      },
+    });
+    const traffic = computePathNetwork({ village: v, terrain }).traffic;
+    const near = (x: number, z: number, r: number): number => {
+      let sum = 0;
+      for (let j = 0; j < traffic.height; j++) {
+        for (let i = 0; i < traffic.width; i++) {
+          const cx = traffic.originX + i * traffic.cellM;
+          const cz = traffic.originZ + j * traffic.cellM;
+          if (Math.hypot(cx - x, cz - z) <= r) sum += traffic.raw[j * traffic.width + i]!;
+        }
+      }
+      return sum;
+    };
+    // k modle za domem se chodí, mezi domy (k modle souseda) ne, ke vzdálené skupině nikdo
+    expect(near(-60, -30, 6)).toBeGreaterThan(0);
+    expect(near(60, -30, 6)).toBeGreaterThan(0);
+    expect(near(0, -40, 15)).toBe(0);
+    expect(near(-115, -115, 12)).toBe(0);
+  });
+
   it('víc hřbitovů – každá domácnost chodí k nejbližšímu', () => {
     const west = { id: 7, squares: [part(-82.5, -67.5)] };
     const east = { id: 8, squares: [part(82.5, -67.5)] };
