@@ -247,6 +247,20 @@ describe('roční období', () => {
     expect(winter.streamFast).toBe(summer.streamFast);
   });
 
+  it('pod ledem potok ztichne – peřej zamrzne jen u břehů, je slyšet dál', () => {
+    const view = { x: 0, z: 0, radius: NEAR };
+    const season = { birds: 0.35, birdsong: 0.2, leaves: 0.6 };
+    const open = ambientMix(view, environment(), season);
+    expect(ambientMix(view, environment(), { ...season, ice: 0 })).toEqual(open);
+    const frozen = ambientMix(view, environment(), { ...season, ice: 1 });
+    expect(streamLoudness(frozen)).toBeLessThan(streamLoudness(open) * 0.9);
+    expect(streamLoudness(frozen)).toBeGreaterThan(streamLoudness(open) * 0.5);
+    // zima přibývá – potok tichne plynule
+    const half = ambientMix(view, environment(), { ...season, ice: 0.5 });
+    expect(streamLoudness(half)).toBeLessThanOrEqual(streamLoudness(open));
+    expect(streamLoudness(half)).toBeGreaterThanOrEqual(streamLoudness(frozen));
+  });
+
   it('zesílení (jarní zpěv, podzimní vítr) nepřekročí plnou hlasitost', () => {
     const view = { x: FOREST_EDGE_X + 200, z: 0, radius: NEAR };
     const loud = ambientMix(view, environment(), { birds: 3, birdsong: 3, leaves: 3 });

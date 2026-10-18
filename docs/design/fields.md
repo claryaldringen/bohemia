@@ -289,9 +289,9 @@ pořadí (návrh Clauda; nahrazuje pevných 85 % a dělení práce po domácnost
   při založení vsi) při zahájení stavby, u pole s každým založeným dílem (jak říká Zakládání),
   u hřbitova s dostavěním hřbitova nebo rozšíření. Scéna je
   skryje bez nového načtení stránky. **Zatím ne:** zarostlý příloh (les z náletu) ani rušení
-  polí odstraněné překážky nevrací; cenu překážek rozhraní zatím neukazuje (pravidlo rozhraní:
-  u kurzoru žádné souhrny, jen důvod, proč stavba nejde) – kontroly umístění ji spočítají
-  a stavba ji zaplatí prací.
+  polí odstraněné překážky nevrací. Cenu překážek kontroly umístění spočítají, rozhraní ji
+  ukáže u kurzoru v celkové práci (ikona práce s číslem – „Co hráč vidí“) a stavba ji zaplatí
+  prací.
 - **Vymýcený les ve scéně (18. 10. 2026):** kde ves les vykácela nebo vymýtila pro pole, scéna
   ho přestane kreslit jako les. Maska po políčkách se počítá ze stavu vsi (`cleared-forest.ts`):
   políčko lesa je vymýcené, když z něj zmizela aspoň polovina dospělých stromů (odstraněné,
@@ -383,8 +383,11 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 - **Založení pole:** ikona pole v mřížce staveb (jako v 0 A.D.), hráč tažením označí čtverce na
   mřížce políček (jako v realtime strategiích; Martin), s Ctrl je ubírá. Bez souhrnu
   a nápověd (Martin, 17. 10. 2026: „Odstraň všechny popisky – hráč nepotřebuje průvodce.“):
-  čtverce jsou zelené (pole projde), žluté (ještě ne) a červené (sem pole nesmí), u kurzoru jen
-  krátký důvod, proč pole neprojde. Výměru, úrodnost a stadia dílů ukáže panel vybraného pole.
+  čtverce jsou zelené (pole projde), žluté (ještě ne) a červené (sem pole nesmí). U kurzoru
+  jen ikona práce s číslem – kolik člověkodní založení vybraných čtverců stojí i s překážkami
+  (stejně u sadu a hřbitova, u obydlí navíc ikona stromů s počtem stromů ke kácení, když
+  nestačí klády), nebo krátký červený důvod, proč pole neprojde. Výměru, úrodnost a stadia
+  dílů ukáže panel vybraného pole.
 - **Zakládání:** pole se zakládá jako stavba – hotové díly se postupně zbarví, stromy
   a kameny z nich zmizí.
 - **Panel pole** (výběr kliknutím): výměra, úrodnost, kolik dílů se zakládá, je oseto a leží

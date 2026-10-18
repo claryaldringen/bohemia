@@ -245,6 +245,20 @@ export interface WoodPlanOptions {
 }
 
 /**
+ * Co plán dřeva potřebuje vědět o vsi: klády na hromadě a (líně – jen když je co kácet) změny
+ * překážek v den stavby a stromy, které patří jiným stavbám. Ze stavu vsi to složí
+ * `planDwellingWood`, prohlížeč při umisťování z pohledu na ves (`planDwellingWoodFrom`).
+ */
+export interface WoodSource {
+  /** Klády na hromadě (i necelé – stavba vezme celé kusy). */
+  logs: number;
+  /** Odstraněné, pokácené a dorůstající stromy v den stavby (`obstacleChangesAt`). */
+  changes(): ObstacleChanges;
+  /** Stromy, které patří jiným stavbám (`claimedObstacles`) – kácet se nesmí. */
+  claimed(): Set<number>;
+}
+
+/**
  * Plán dřeva obydlí `type` u staveniště `position` v den `day` (forest.md – Stavby a kácení):
  * nejdřív celé klády z hromady (Martin), zbytek nejbližší stojící dospělé stromy ke staveništi,
  * které nepatří jiné stavbě (`claimedObstacles`). Stav nemění.
@@ -256,9 +270,32 @@ export function planDwellingWood(
   day: number,
   options: WoodPlanOptions = {},
 ): WoodPlan {
+  return planDwellingWoodFrom(
+    type,
+    position,
+    {
+      logs: woodLogs(state),
+      changes: () => obstacleChangesAt(state, day),
+      claimed: () => claimedObstacles(state),
+    },
+    options,
+  );
+}
+
+/**
+ * Plán dřeva obydlí podle `source` místo stavu vsi – stejný výběr jako `planDwellingWood`.
+ * Prohlížeč jím při umisťování spočítá cenu (kolik stromů se skácí a za kolik práce), i když
+ * stav vsi nemá.
+ */
+export function planDwellingWoodFrom(
+  type: DwellingType,
+  position: { x: number; z: number },
+  source: WoodSource,
+  options: WoodPlanOptions = {},
+): WoodPlan {
   const need = DWELLING_TREES[type];
   const clearedTrees = options.clearedTrees ?? 0;
-  const pile = wholeLogs(woodLogs(state) + logsFromClearedTrees(clearedTrees));
+  const pile = wholeLogs(source.logs + logsFromClearedTrees(clearedTrees));
   const fromPile = Math.min(need, pile);
   const toFell = need - fromPile;
   if (toFell === 0) return { clearedTrees, fromPile, fell: [], missing: 0 };
@@ -270,15 +307,9 @@ export function planDwellingWood(
     }));
     return { clearedTrees, fromPile, fell, missing: 0 };
   }
-  const exclude = claimedObstacles(state);
+  const exclude = source.claimed();
   for (const id of options.clearedIds ?? []) exclude.add(id);
-  const trees = nearestMatureTrees(
-    options.obstacles,
-    obstacleChangesAt(state, day),
-    position,
-    toFell,
-    exclude,
-  );
+  const trees = nearestMatureTrees(options.obstacles, source.changes(), position, toFell, exclude);
   const fell = trees.map((t) => ({
     id: t.id,
     distanceM: t.distanceM,

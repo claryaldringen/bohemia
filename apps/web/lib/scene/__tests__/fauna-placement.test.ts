@@ -10,6 +10,7 @@ import {
 } from '../fauna-placement';
 import { buildRenderSurface } from '../render-surface';
 import { tileAt } from '../tile-at';
+import { iceCoverOfFlow, iceFlowSpeed } from '../water-ice';
 
 const SEEDS = [3, 42, 5];
 
@@ -75,6 +76,17 @@ describe.each(SEEDS)('fishSchools (krajina %i)', (seed) => {
         expect(fish.depthM).toBeLessThanOrEqual(0.4);
       }
     }
+  });
+
+  it('pod ledem ryby nejsou vidět – hejno zná proud pro led ve středu dráhy', () => {
+    for (const school of schools) {
+      const near = stream.nearest(school.x, school.z);
+      expect(school.iceFlow).toBe(iceFlowSpeed(near.speed, near.bankDistance));
+      expect(iceCoverOfFlow(school.iceFlow, 0)).toBe(0);
+    }
+    // tůně a klidné úseky v plné zimě zamrznou – aspoň polovina hejn zmizí
+    const hidden = schools.filter((s) => iceCoverOfFlow(s.iceFlow, 1) === 1);
+    expect(hidden.length * 2).toBeGreaterThanOrEqual(schools.length);
   });
 
   it('stejná krajina = stejná hejna', () => {

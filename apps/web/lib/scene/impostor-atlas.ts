@@ -10,10 +10,13 @@ export interface ImpostorCell {
 
 /**
  * Atlas impostorů – stromy vyrenderované pod náklonem kamery (`tools/blender/impostors.py`).
- * Buňky jdou po řádcích odshora. Po novém renderu sem přepsat hodnoty z vygenerovaného JSON.
+ * Buňky jdou po řádcích odshora. Po novém renderu sem přepsat hodnoty z vygenerovaného JSON
+ * (letní i zimní atlas mají buňky stejné – výřez se počítá ze stromu s listím).
  */
 export const IMPOSTOR_ATLAS = {
   url: '/models/trees/impostors.webp',
+  /** Zimní atlas – stejné buňky, listnáče holé, smrky se sněhem (`impostors.py … winter`). */
+  winterUrl: '/models/trees/impostors-winter.webp',
   columns: 4,
   rows: 4,
   /** Náklon kamery nad obzorem (rad), pod kterým jsou stromy vyrenderované. */

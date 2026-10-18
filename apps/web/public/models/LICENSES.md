@@ -57,3 +57,6 @@ listí skriptem `tools/blender/apple_ripe.py` namalovaná nová jablka – víc 
 `impostors.webp` je atlas obrázků lesních stromů `spruce-*`, `oak-1`, `oak-2`, `beech-*`
 a `birch-*` výše, vyrenderovaný skriptem `tools/blender/impostors.py` – odvozené dílo pod
 stejnou licencí CC BY-SA 3.0 (Wildfire Games).
+`impostors-winter.webp` je zimní varianta téhož atlasu (stejný skript s volbou `winter`):
+listí listnáčů je z textur odstraněné podle barvy (zbyly kmeny, větve a větvičky), smrky mají
+domalovaný sníh – odvozené dílo pod stejnou licencí CC BY-SA 3.0 (Wildfire Games).

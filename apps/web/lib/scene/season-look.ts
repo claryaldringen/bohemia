@@ -28,6 +28,11 @@ export interface SeasonSound {
 export interface SeasonLook {
   /** Sněhová pokrývka 0–1: 0 bez sněhu, 1 souvislý sníh (kromě strmých svahů). */
   snow: number;
+  /**
+   * Led na vodě 0–1: kolik je zimy pro vodu (water-ice.ts) – při 1 zamrzne stojatá i pomalá
+   * voda, rychlý proud zůstane otevřený s ledem u břehů.
+   */
+  ice: number;
   /** Tráva: 0 letní, 1 suchá a zimní hnědá. */
   grassDry: number;
   /** Svěží jarní zeleň trávy 0–1. */
@@ -73,6 +78,16 @@ const SNOW: Track = [
   [72, 0],
   [324, 0],
   [344, 1],
+];
+/**
+ * Led na vodě jde za sněhem: zamrzá v prosinci (tůně a okraje první), roztaje v březnu, až sníh
+ * skoro zmizí.
+ */
+const ICE: Track = [
+  [62, 1],
+  [84, 0],
+  [336, 0],
+  [358, 1],
 ];
 /** Tráva: po tání hnědá, v březnu zezelená; od konce srpna usychá, v listopadu zhnědne. */
 const GRASS_DRY: Track = [
@@ -224,6 +239,7 @@ export function seasonLook(day: DayOfYear): SeasonLook {
   };
   return {
     snow: track(SNOW, d),
+    ice: track(ICE, d),
     grassDry: track(GRASS_DRY, d),
     grassFresh: track(GRASS_FRESH, d),
     leaves: track(LEAVES, d),
@@ -265,6 +281,7 @@ export function seasonLookDistance(a: SeasonLook, b: SeasonLook): number {
     for (let i = 0; i < 3; i++) scalar(x[i]!, y[i]!);
   };
   scalar(a.snow, b.snow);
+  scalar(a.ice, b.ice);
   scalar(a.grassDry, b.grassDry);
   scalar(a.grassFresh, b.grassFresh);
   scalar(a.leaves, b.leaves);
