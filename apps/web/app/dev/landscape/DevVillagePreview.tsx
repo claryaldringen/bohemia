@@ -31,6 +31,7 @@ import {
 import { GameView } from '@/components/game/GameView';
 import { CursorReason } from '@/components/game/hud/CursorReason';
 import { Minimap } from '@/components/game/hud/Minimap';
+import { ScenePerfPanel } from '@/components/game/ScenePerfPanel';
 import { dwellingPlacementCost, sacredPlacementCost } from '@/lib/build-items';
 import { decodeLandscape, type LandscapeTransfer } from '@/lib/landscape-transfer';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
@@ -1388,6 +1389,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         )}
       </div>
       <Minimap landscape={decoded} scene={scene} village={village} />
+      <ScenePerfPanel scene={scene} />
       {/* u kurzoru totéž co ve hře – cena ikonami s čísly, nebo důvod, proč to nejde */}
       <CursorReason preview={preview} />
     </>

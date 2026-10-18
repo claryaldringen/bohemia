@@ -2,7 +2,7 @@ import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 import type { Scene } from '@babylonjs/core/scene';
 import type { SceneVillage } from '../village-view';
 import { prepareDecorMaterial } from './decorations';
-import { instanceMatrices, loadMergedModel } from './instanced-model';
+import { instanceMatrices, loadMergedModel, setStaticInstances } from './instanced-model';
 import { prepareTreeMaterial } from './trees';
 import {
   isWildTreeModel,
@@ -129,7 +129,8 @@ export class WildGrowthRenderer {
         scale: p.scale,
       })),
     );
-    mesh.thinInstanceSetBuffer('matrix', matrices, 16, true);
+    // nehybné instance – ořez podle záběru (scenery-culling.ts) je kreslí jen v záběru
+    setStaticInstances(mesh, matrices);
     mesh.setEnabled(true);
     return true;
   }
