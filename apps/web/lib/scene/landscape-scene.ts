@@ -51,7 +51,7 @@ import { PitCuts, applyPitCut } from './pit-cut';
 import { seasonDayAt, seasonLook, seasonLookDistance, type SeasonLook } from './season-look';
 import { isDeciduousMesh } from './season-foliage';
 import { setSeasonShaderState } from './season-materials';
-import { SHADOW_DARKNESS, addSunShadows, type SunShadows } from './sun-shadows';
+import { SHADOW_DARKNESS, addSunShadows, castersChanged, type SunShadows } from './sun-shadows';
 import { tileAt, tileCenter } from './tile-at';
 import { addTrees } from './trees';
 import { FieldPainter } from './field-painting';
@@ -361,9 +361,10 @@ export class LandscapeScene {
       groundHeight,
       pitCuts: this.pitCuts,
       addShadowCaster: (mesh) => this.addVillageCaster(mesh),
+      // nová síť pěšin mění jen obtisky a trasy postav – stromy u cest obnoví stíny samy
+      // (refreshShadows), stínová mapa se kvůli pěšinám nepřekresluje
       onChange: () => {
         this.villagers?.setPaths(this.paths?.paths() ?? null, Date.now());
-        this.shadows?.refresh();
         this.renderWhenReady();
       },
       requestRender: () => this.renderWhenReady(),
@@ -910,7 +911,8 @@ export class LandscapeScene {
     }
     // Dým hned na místě – i při omezeném pohybu, kdy se pak už nehýbe.
     village.animateSmoke(Date.now(), null);
-    this.shadows?.refresh();
+    const scene = { village: changed, hidden, felled, logs, shade: shaded, canopy: cleared };
+    if (castersChanged({ ...scene, animals, people })) this.shadows?.refresh();
     this.renderWhenReady();
   }
 
