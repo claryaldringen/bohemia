@@ -70,8 +70,17 @@ export const FERTILITY = {
   forestBonus: 20,
   forestBonusYears: 3,
 } as const;
-// fields.md – Práce (člověkodny na hektar; sklizeň 30 + odnos 20)
-export const FIELD_WORK_PER_HA = { dig: 80, sow: 10, weed: 30, harvest: 50, thresh: 30 } as const; // sklizeň 30 + odnos 20
+// fields.md – Práce: sklizeň srpem a vázání 30 + odnos úrody v nůších 20 člověkodní na hektar
+// (simulace je počítá jako jednu úlohu sklizně, rozdělení práce pro scénu je dělí – postavy)
+export const HARVEST_WORK_PER_HA = { reap: 30, carry: 20 } as const;
+// fields.md – Práce (člověkodny na hektar)
+export const FIELD_WORK_PER_HA = {
+  dig: 80,
+  sow: 10,
+  weed: 30,
+  harvest: HARVEST_WORK_PER_HA.reap + HARVEST_WORK_PER_HA.carry,
+  thresh: 30,
+} as const;
 // fields.md – Založení pole (vymýcení lesa podle stáří zarůstání)
 export const RECLAIM_COST_PER_HA = [
   { maxYears: 2, cost: 0 },

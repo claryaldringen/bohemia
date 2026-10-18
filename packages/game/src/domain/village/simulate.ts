@@ -13,6 +13,7 @@ import { endOfSeason, fallowYears, selectPartsToSow } from './fields';
 import { daysUntilAppleRot, daysUntilHarvest, eatMeal } from './food';
 import { recordClearedObstacles } from './obstacles';
 import { allocateDay, type LaborTaskName } from './labor';
+import { laborDay, type ConstructionWork } from './labor-report';
 import {
   ORCHARD_TASK_NAMES,
   isOrchardPlanted,
@@ -311,13 +312,16 @@ function work(state: VillageState, day: number): void {
     task.plan.done[task.name] = Math.min(task.plan.required[task.name], done);
   }
   if (orchard) workOrchards(state, allocation.tasks[orchard.name]);
-  households.forEach((d, i) => {
+  const repairs = households.map((d, i) => {
     const need = repairNeeds[i] ?? 0;
-    applyRepairs(d, repairNeed > 0 ? (allocation.repairs * need) / repairNeed : 0, need);
+    const manDays = repairNeed > 0 ? (allocation.repairs * need) / repairNeed : 0;
+    applyRepairs(d, manDays, need);
+    return { dwellingId: d.id, manDays };
   });
   decayEmptyDwellings(state, day, new Set(households.map((d) => d.id)));
   state.domesticBacklog = allocation.domesticBacklog;
-  build(state, day, allocation.common);
+  const constructions = build(state, day, allocation.common);
+  state.labor = laborDay(state, day, { allocation, repairs, constructions });
   state.commonLaborHistory.push(allocation.common);
   if (state.commonLaborHistory.length > COMMON_LABOR_HISTORY_DAYS) {
     state.commonLaborHistory.splice(0, state.commonLaborHistory.length - COMMON_LABOR_HISTORY_DAYS);
@@ -375,25 +379,37 @@ function foundingParts(state: VillageState, c: Construction): FieldPart[] {
 /**
  * Společná práce rovným dílem do rozestavěných staveb: stavba, které stačí méně, si vezme jen
  * to, co potřebuje, a zbytek se znovu rozdělí mezi ostatní; co zbude po všech, propadne.
+ * Vrátí, kolik práce šlo do které stavby (rozdělení práce dne pro scénu – labor-report.ts).
  */
-function build(state: VillageState, day: number, common: number): void {
+function build(state: VillageState, day: number, common: number): ConstructionWork[] {
   let active = state.constructions
     .map((c) => ({ c, need: constructionNeed(state, c, day) }))
     .filter((x) => x.need > 0);
+  const invested: ConstructionWork[] = [];
+  const put = (c: Construction, amount: number, completes: boolean): void => {
+    invested.push({
+      construction: c,
+      manDays: amount,
+      doneBefore: c.done,
+      felledBefore: c.wood?.felled ?? 0,
+    });
+    invest(state, day, c, amount, completes);
+  };
   let left = common;
   while (active.length > 0 && left > 0) {
     const share = left / active.length;
     const saturated = active.filter((x) => x.need <= share);
     if (saturated.length === 0) {
-      for (const x of active) invest(state, day, x.c, share, false);
-      return;
+      for (const x of active) put(x.c, share, false);
+      return invested;
     }
     for (const x of saturated) {
-      invest(state, day, x.c, x.need, true);
+      put(x.c, x.need, true);
       left = Math.max(0, left - x.need);
     }
     active = active.filter((x) => x.need > share);
   }
+  return invested;
 }
 
 /** Vloží práci do stavby; `completes` = dostala vše, co jí chybělo. */

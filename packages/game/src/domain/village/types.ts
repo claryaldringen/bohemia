@@ -205,6 +205,63 @@ export type ChronicleEvent = { day: number } & (
       othersBuilding?: boolean;
     }
 );
+// Rozdělení práce dne po činnostech a místech (labor-report.ts) – jen pro zobrazení postav.
+/** Činnost, na kterou šla práce dne. */
+export type LaborActivity =
+  /** Polní práce plánu (fields.md – Práce); sklizeň srpem a odnos v nůších zvlášť. */
+  | 'reclaim'
+  | 'dig'
+  | 'sow'
+  | 'weed'
+  | 'harvest'
+  | 'carry'
+  | 'thresh'
+  /** Sezónní práce v sadech (orchard.md). */
+  | 'orchard-care'
+  | 'orchard-harvest'
+  /** Společná práce do staveb: stavba obydlí, kácení jeho dřeva, zakládání pole, výsadba sadu, hřbitov. */
+  | 'build'
+  | 'fell'
+  | 'found-field'
+  | 'orchard-plant'
+  | 'cemetery'
+  /** Opravy obydlí (population.md). */
+  | 'repair'
+  /** Denní minimum domácností a domácí výroba (fields.md – Práce, body 1 a 4). */
+  | 'domestic'
+  /** Společná práce, na kterou nezbyla žádná stavba (propadla). */
+  | 'idle';
+
+/** Kde se práce dělá. */
+export type LaborTarget =
+  /** Pole (id) – osévané díly plánu, zakládané díly. */
+  | { kind: 'field'; id: number }
+  /** Hotové obydlí (id) – opravy, přestavba. */
+  | { kind: 'dwelling'; id: number }
+  /** Staveniště nového obydlí – id stavby. */
+  | { kind: 'site'; id: number }
+  /** Sad (id) – výsadba, péče, sklizeň. */
+  | { kind: 'orchard'; id: number }
+  /** Hřbitov (id) – zakládání a rozšíření. */
+  | { kind: 'cemetery'; id: number }
+  /** Stromy z vrstvy překážek, které se pro stavbu právě kácejí. */
+  | { kind: 'trees'; ids: number[] }
+  /** Ves celkově – výmlat, domácí práce, nevyužitá společná práce. */
+  | { kind: 'village' };
+
+export interface LaborShare {
+  activity: LaborActivity;
+  target: LaborTarget;
+  /** Člověkodny (na tisíciny). */
+  manDays: number;
+}
+
+/** Rozdělení práce jednoho dne – uložené ve stavu vsi (`VillageState.labor`). */
+export interface LaborDay {
+  day: number;
+  shares: LaborShare[];
+}
+
 export interface VillageState {
   seed: number;
   foundedDay: number;
@@ -242,6 +299,11 @@ export interface VillageState {
    * berou, hnijí (proto i neceločíselné). U vsí uložených před dřevem chybí (= 0).
    */
   woodLogs?: number;
+  /**
+   * Rozdělení práce posledního odsimulovaného dne (labor-report.ts) – jen pro zobrazení, simulace
+   * ho nečte. U vsí uložených před jeho zavedením chybí do prvního dopočítaného dne.
+   */
+  labor?: LaborDay;
 }
 
 /** Změna krajiny sídla nad vygenerovanou vrstvou překážek – id překážky a den. */
