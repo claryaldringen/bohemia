@@ -496,12 +496,14 @@ describe('buildVillageView', () => {
       rotation: 0,
     });
     expect(onHouse.ok).toBe(false);
+    // na pole obydlí smí – pole se zmenší (population.md – Obydlí na poli a v sadu)
     const inField = checkDwellingPlacement(landscape, village, 'zemnice', {
       x: 30,
       z: 7,
       rotation: 0,
     });
-    expect(inField.reason).toMatch(/polem/);
+    expect(inField).toMatchObject({ ok: true, warning: 'Pole se zmenší' });
+    expect(inField.takenLand.length).toBeGreaterThan(0);
   });
 
   it('scéna nese odstraněné a pokácené překážky – i do kontroly umístění v prohlížeči', () => {
@@ -847,7 +849,12 @@ describe('sad v pohledu na ves', () => {
       plantingWaits: true,
     });
     expect(placementVillageFromScene(view.scene).orchards).toEqual([
-      { squares: [{ cell: { x: 2, y: 2 } }, { cell: { x: 3, y: 2 } }] },
+      {
+        squares: [
+          { cell: { x: 2, y: 2 }, areaM2: 225 },
+          { cell: { x: 3, y: 2 }, areaM2: 225 },
+        ],
+      },
     ]);
   });
 
@@ -939,6 +946,15 @@ describe('sad v pohledu na ves', () => {
       kind: 'orchard-renewal-started',
       text: 'Vesničané obnovují starý sad – znovu vysadí 4 čtverce.',
     });
+  });
+
+  it('kronika: pole a sad ustoupily stavbě obydlí', () => {
+    const taken = (land: 'field' | 'orchard', gone: boolean): string =>
+      chronicleText({ day: 0, kind: 'land-taken', land, id: 3, areaM2: 1234.4, gone }, 'Libice');
+    expect(taken('field', false)).toBe('Pole ustoupilo stavbě obydlí – zmenšilo se o 1 234 m².');
+    expect(taken('field', true)).toBe('Pole ustoupilo stavbě obydlí a zaniklo.');
+    expect(taken('orchard', false)).toBe('Sad ustoupil stavbě obydlí – zmenšil se o 1 234 m².');
+    expect(taken('orchard', true)).toBe('Sad ustoupil stavbě obydlí a zanikl.');
   });
 
   it('kronika: sklizeň jablek a dosloužilý sad', () => {

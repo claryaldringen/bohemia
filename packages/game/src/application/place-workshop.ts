@@ -77,6 +77,8 @@ export function placeWorkshop(
             forestDistanceM: forestEdgeDistanceM(input.landscape, position.x, position.z),
             ...(tile ? { waterDistanceM: waterDistanceM(input.landscape, tile) } : {}),
             sacred: check.spared,
+            // pole a sady pod obydlím se o zabranou plochu zmenší
+            takenLand: check.takenLand,
           },
         ),
       };

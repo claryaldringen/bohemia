@@ -24,9 +24,17 @@ rozhoduje, kolik louky a práce dá do jistoty na dlouho dopředu místo obilí 
 ## Pravidla
 
 - **Stavba** (Martin): po čtvercích jako pole – políčka krajiny 15 × 15 m, jen louka, do 800 m od
-  obydlí, čtverce souvislé, nesmí ležet na obydlí, poli, hřbitově ani jiném sadu (a naopak pole,
-  hřbitov ani obydlí nesmí na sad). Ovládání stejné jako u pole. Nejmenší výměru sad nemá – i jeden
-  čtverec je sad (návrh Clauda).
+  obydlí, čtverce souvislé, nesmí ležet na obydlí, poli, hřbitově ani jiném sadu (a naopak pole
+  ani hřbitov nesmí na sad – obydlí ano, viz Obydlí v sadu). Ovládání stejné jako u pole.
+  Nejmenší výměru sad nemá – i jeden čtverec je sad (návrh Clauda).
+- **Obydlí v sadu** (Martin, 18. 10. 2026: „domy by měly jít stavět na polích a v sadech. Pole
+  a sad se prostě zmenší o plochu domu“; podrobnosti návrh Clauda – [populace](population.md),
+  Obydlí na poli a v sadu): pozemek polozemnice sebere celý čtverec – čtverec ze sadu zmizí,
+  poslední čtverec sad zruší i s rozestavěnou výsadbou; obydlí bez pozemku sebere čtvercům průnik
+  své vyklízené plochy a čtverec pod 20 % políčka zmizí celý. Zbytek zůstane jedním sadem.
+  Zmenšený čtverec dá úměrně méně jablek a chce úměrně méně výsadby, sklizně i péče (rozběhnutá
+  sklizeň si nechá sklizený podíl). Nevysazený čtverec, který dům sebere celý, předá překážky
+  staveništi domu. Když dům zanikne, plocha se do sadu nevrací.
 - **Výsadba:** **80 člověkodní/ha** + překážky jako u pole (tabulka ve
   [fields.md](fields.md); skalní výchoz se neodstraní a plocha pod ním se nepočítá) ze společné
   práce vsi; sází se jen na jaře (březen–duben) nebo na podzim (září–listopad) – okna jako kopání
@@ -111,7 +119,8 @@ sad v 60. roce naráz zmizel – bez upozornění a nikdo ho neobnovil.
   4 stromy na čtverec, řady rovně pokračují přes celý sad; na skalním výchozu strom chybí (řada
   se neodsouvá). Během výsadby čáry vytyčení po obrysu a podél řad, kůly a sazenice po řadách,
   mladé stromky u kůlu rostou do plné velikosti za 12 let (návrh Clauda); plodící sad má od
-  srpna do sklizně na stromech jablka. Úroda se počítá na hektar, na počtu stromů nezávisí.
+  srpna do sklizně na stromech jablka. Úroda se počítá na hektar, na počtu stromů nezávisí. Pod
+  domem v sadu (vyklízená plocha obydlí) jabloň chybí – řada se neodsouvá.
   Velikost stromů a jablka jsou po čtvercích – při obnově se vytyčí jen obnovovaný čtverec, po
   skácení starých stromů na něm přibývají kůly a sazenice jako při výsadbě a mladé stromky
   rostou vedle starých stromů zbytku sadu.
@@ -119,8 +128,10 @@ sad v 60. roce naráz zmizel – bez upozornění a nikdo ho neobnovil.
   úrody nejbližší sklizně (kg jablek), během výsadby i obnovy průběh – a když čeká na okno, ikona
   s popiskem „Sází se na jaře a na podzim“. Horní lišta ukáže jablka vedle obilí, jen když nějaká jsou. Minimapa kreslí sady.
 - Kronika: sad je vysazený, sklizeň jablek (kg), vesničané obnovují starý sad (kolik čtverců
-  vysadí znovu), starý sad dosloužil. Krátký mizející řádek nahoře: „Vesničané obnovují starý
-  sad“ (jednou za rok sadu, když zařadí čtverce do obnovy) a „Starý sad dosloužil“.
+  vysadí znovu), starý sad dosloužil, sad ustoupil stavbě obydlí (o kolik m², nebo zanikl).
+  Krátký mizející řádek nahoře: „Vesničané obnovují starý sad“ (jednou za rok sadu, když zařadí
+  čtverce do obnovy) a „Starý sad dosloužil“. U kurzoru při umisťování obydlí oranžově „Sad se
+  zmenší“ (poslední čtverec: „Sad zanikne“).
 
 ## Naměřeno
 
@@ -154,3 +165,5 @@ Obnova sadu (18. 10. 2026) se zatím neměřila – v 60letém běhu se týká j
 | Obnova od 50. roku, za rok sadu nejvýš desetina čtverců (nahoru, aspoň 1), nejstarší první    | návrh Clauda, Martin schválil směr         |
 | Obnova = výsadba (80 čd/ha, jaro a podzim); staré stromy se kácejí s prací, po sklizni        | návrh Clauda, Martin schválil směr         |
 | Upozornění „Vesničané obnovují starý sad“ a „Starý sad dosloužil“                             | Martin, 18. 10. 2026                       |
+| Obydlí jde stavět do sadu – sad se zmenší o plochu domu                                       | Martin, 18. 10. 2026                       |
+| Pozemek sebere celý čtverec, obydlí bez pozemku průnik; pod 20 % zmizí; jablka a práce úměrně | návrh Clauda                               |

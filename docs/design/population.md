@@ -88,15 +88,16 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
 - Hráč vidí **půdorys** obydlí a umístí ho volně, kamkoli, kde je **země dost rovná** (Martin) –
   ne po políčkách. Výchozí: rozdíl výšky terénu pod půdorysem nejvýš 0,5 m; zemnice má půdorys
   zhruba 4 × 4 m, polozemnice 5 × 5 m (návrh Clauda).
-- Obydlí nesmí stát ve vodě ani se překrývat s jiným obydlím nebo polem (návrh Clauda).
+- Obydlí nesmí stát ve vodě ani se překrývat s jiným obydlím nebo hřbitovem (návrh Clauda). Na
+  pole a do sadu smí – pole a sad se zmenší (Martin, 18. 10. 2026 – viz Obydlí na poli a v sadu).
 - **Polozemnice stojí na pozemku velkém jako jedno políčko pole** (Martin, 18. 10. 2026):
   15 × 15 m v mřížce políček jako čtverec pole, celý obehnaný polským plotem. Dům stojí
   **uprostřed, nebo v jednom ze čtyř rohů** – 5 variant jednoho stavení (Martin); hráč je při
   umisťování přepíná klávesami [ a ] (místo otáčení), vchod míří vždy k brance na přední straně
   pozemku (návrh Clauda). Pozemek musí být volná louka – ne voda, zatím ani les, bez skalního
   výchozu, bez posvátného dubu a čtverce dubového háje (dům ani pod korunou dubu ze sousedství –
-  jako u obydlí, [happiness.md](happiness.md)), nezabraný polem, hřbitovem, sadem ani jiným
-  obydlím či pozemkem; rovná zem
+  jako u obydlí, [happiness.md](happiness.md)), nezabraný hřbitovem ani jiným obydlím či
+  pozemkem – čtverec pole nebo sadu smí (viz Obydlí na poli a v sadu); rovná zem
   (≤ 0,5 m) se hlídá jen pod domem. Překážky na pozemku platí jako na čtverci pole (všechny kusy
   na políčku), dospělé stromy z něj dají klády (návrh Clauda). Zemnice pozemek nemá a staví se
   volně.
@@ -111,7 +112,9 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
   Polozemnice na obsazeném políčku zůstane bez pozemku až do **příští přestavby**: ta ji postaví
   na nejbližším volném políčku s pozemkem do 50 m od domu (jako novou stavbu – překážky, klády,
   rovina pod domem), a domácnost se po dostavění přestěhuje; bez volného políčka se přestaví na
-  místě dál bez pozemku. Totéž platí pro zemnici přestavovanou na polozemnici.
+  místě dál bez pozemku. Totéž platí pro zemnici přestavovanou na polozemnici. Volné políčko je
+  i bez pole a sadu – obyvatelé si pozemek na poli ani v sadu sami nevezmou, to rozhoduje jen
+  hráč (návrh Clauda).
 - **Překážky** na místě, např. kameny, osadníci odstraní, ale stavba stojí víc člověkodní
   (Martin). Totéž **v lese** – stromy je třeba skácet a vykopat pařezy. Ceny překážek a mýcení
   jsou jedna tabulka pro celou hru ve [fields.md](fields.md) (návrh Clauda). Kontrola umístění
@@ -120,6 +123,41 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
   obydlí na místo nejde, místo ceny krátký červený důvod (fields.md – Co hráč vidí).
 - Odstraněné kameny a stromy z krajiny sídla zmizí natrvalo – krajina sídla je vygenerovaná
   krajina plus změny, které v ní udělali lidé (návrh Clauda).
+
+### Obydlí na poli a v sadu
+
+Martin (18. 10. 2026): „domy by měly jít stavět na polích a v sadech. Pole a sad se prostě
+zmenší o plochu domu“. Podrobnosti jsou návrh Clauda:
+
+- **Polozemnice s pozemkem** smí na čtverec pole i sadu (pozemek je celé políčko ve stejné
+  mřížce). Díl pole nebo čtverec sadu pod pozemkem z pole či sadu **zmizí** – pole či sad se
+  o čtverec zmenší; byl-li to poslední čtverec, pole či sad zanikne. Zbytek zůstane jedním polem či
+  sadem, i kdyby se tím rozpadl na nesouvislé části – nic se nedělí.
+- **Zemnice a další obydlí bez pozemku** (i řemeslné dílny) smí přes díly polí a čtverce sadu.
+  Každý dotčený díl či čtverec se **zmenší o průnik vyklízené plochy obydlí** (staveniště
+  s hromadou hlíny a předsazenou střechou, u uhlíře i kruh kolem milíře) se svým čtvercem. Díl,
+  kterému zbude **méně než 20 % políčka** (45 m²), zmizí celý – zbytek u domu by nikdo
+  neobdělával. Plocha se odečítá z průniku s každým domem zvlášť (dva domy, jejichž vyklízené
+  plochy se na dílu překrývají, mu ten kus uberou dvakrát – zjednodušení).
+- **Hřbitov** dál ne (hroby). Ostatní kontroly obydlí platí beze změny – posvátný dub a háj,
+  skalní výchoz, rovná zem pod domem, jiná obydlí a pozemky.
+- **Úroda a práce** jdou s plochou: díl odebraný z pole zmizí i z ročního plánu osevu a z pořadí
+  práce (i z orby rádlem a ze seče sena na úhoru – [oxen.md](oxen.md)), zmenšený díl dá úměrně
+  menší úrodu i seno a chce úměrně méně práce; ostatním dílům zůstane, co na nich bylo hotové
+  (čelo práce i seče se nepohne). Sklizená plodina (úroda už je v zásobách) se
+  nemění. Rozestavěné založení pole se zmenší úměrně (cena i odvedená práce), zakládaný díl pod
+  pozemkem zmizí s ním. Čtverec sadu dá úměrně méně jablek a sezónní práce (sklizeň, péče)
+  i výsadby; jabloně pod domem ve scéně chybí, stejně tak obilí pod vyklízenou plochou.
+- **Překážky** na založeném dílu a vysazeném čtverci už nejsou – obydlí tam mýcení neplatí, cena
+  u kurzoru to ukazuje (stejné funkce jako na serveru). Zakládaný díl či nevysazený čtverec, který
+  dům sebere celý, předá své překážky staveništi domu – odklidí se s ním bez práce navíc,
+  dospělé stromy dají klády.
+- **Při umisťování** je u kurzoru oranžové varování „Pole se zmenší“ (nebo „Pole zanikne“, když
+  mu dům sebere poslední díl), u sadu „Sad se zmenší“ / „Sad zanikne“ – stavbu neblokuje.
+- **Kronika:** pole či sad ustoupil stavbě obydlí (o kolik m², nebo zanikl). Upozornění
+  v rozhraní není.
+- Když dům později zanikne (chátrání), plocha se do pole ani sadu sama nevrací. Zemnice při
+  založení vsi se chová stejně – ves tehdy pole ani sad ještě nemá.
 
 ### Práce
 
@@ -497,3 +535,8 @@ pravidla → první verze hladu (1 − nasycení za den, hájení bez stropu) �
 | Rohy polského plotu zakulacené; výběr polozemnice označí celý pozemek          | Martin, 18. 10. 2026                       |
 | Starší polozemnice dostanou pozemek při načtení, jinak při přestavbě do 50 m   | Martin, 18. 10. 2026                       |
 | Vchod k brance vpředu, [ a ] přepínají variantu, rovno jen pod domem           | návrh Clauda                               |
+| Obydlí jde stavět na pole a do sadu – pole a sad se zmenší o plochu domu       | Martin, 18. 10. 2026                       |
+| Pozemek bere celý čtverec, obydlí bez pozemku průnik vyklízené plochy          | návrh Clauda                               |
+| Díl či čtverec pod 20 % políčka zmizí; zbytek pole či sadu se nedělí           | návrh Clauda                               |
+| Úroda, práce a založení úměrně ploše; plocha se po zániku domu nevrací         | návrh Clauda                               |
+| Přestavba obyvatel si pozemek na poli ani v sadu nevezme; hřbitov dál ne       | návrh Clauda                               |

@@ -13,6 +13,7 @@ import type {
   SceneLaborShare,
   SceneVillage,
 } from '../village-view';
+import { TREE_CLEARANCE_M, buildingClearings, insideClearings } from './building-clearings';
 import { cellsBoundary, rowDirection, type CellSquare } from './field-cells';
 import {
   fieldPartViews,
@@ -1358,7 +1359,11 @@ function openGround(ctx: Context, p: Point, radius: number): boolean {
 function orchardTrees(ctx: Context, orchardId: number, count: number): Placer {
   const orchard = (ctx.village.orchards ?? []).find((o) => o.id === orchardId);
   if (!orchard) return none;
-  const trees = orchard.squares.filter((s) => s.planting >= 1).flatMap((s) => orchardTreeSpots(s));
+  // jabloně pod obydlím na čtverci sadu nejsou (jako ve scéně – orchard-renderer.ts)
+  const built = insideClearings(buildingClearings(ctx.village.dwellings), TREE_CLEARANCE_M);
+  const trees = orchard.squares
+    .filter((s) => s.planting >= 1)
+    .flatMap((s) => orchardTreeSpots(s, [], built));
   if (trees.length === 0) return none;
   const start = Math.floor(ctx.day / CREW_MOVE_DAYS) * count;
   return (i, who) => {

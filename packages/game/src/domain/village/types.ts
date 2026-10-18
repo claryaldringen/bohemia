@@ -374,6 +374,11 @@ export type ChronicleEvent = { day: number } & (
   | { kind: 'orchard-gone'; orchardId: number }
   /** Vesničané zařadili čtverce starého sadu do obnovy (orchard.md – Obnova sadu). */
   | { kind: 'orchard-renewal-started'; orchardId: number; squares: number }
+  /**
+   * Pole nebo sad ustoupil stavbě obydlí (population.md – Obydlí na poli a v sadu): o kolik m² se
+   * zmenšil, a jestli tím zanikl (dům sebral poslední čtverec).
+   */
+  | { kind: 'land-taken'; land: 'field' | 'orchard'; id: number; areaM2: number; gone: boolean }
   | { kind: 'hunger-began' }
   | { kind: 'hunger-ended' }
   | { kind: 'part-became-forest'; partId: number }

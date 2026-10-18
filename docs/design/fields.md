@@ -149,6 +149,15 @@ má nějaké meze. Bez řemeslníků ber tu nejhorší hranici, s řemeslníky t
   klády na hromadu vsi – strom = kláda ([les a dřevo](forest.md) – Mýcení a hromada klád).
 - Hráč může čtverce pole přidat, ubrat nebo pole zrušit. Přidaná plocha se zakládá (jako nové
   pole, nebo rozšíření – viz Navazující pole), ubraná nebo zrušená leží ladem (pastvina).
+- **Obydlí na poli** (Martin, 18. 10. 2026: „domy by měly jít stavět na polích a v sadech. Pole
+  a sad se prostě zmenší o plochu domu“; podrobnosti návrh Clauda – [populace](population.md),
+  Obydlí na poli a v sadu): pozemek polozemnice sebere celý čtverec – díl z pole zmizí, poslední
+  díl pole zruší; obydlí bez pozemku sebere dílům průnik své vyklízené plochy a díl pod 20 %
+  políčka zmizí celý. Zbytek zůstane jedním polem, i když se rozpadne na nesouvislé části. Díl
+  zmizí i z ročního plánu a z pořadí práce, zmenšenému dílu ubude úměrně úrody i práce, ostatním
+  dílům zůstane hotová práce; zakládaný díl zmenší úměrně i založení (cena i odvedená práce),
+  zakládaný díl pod pozemkem zmizí s ním a jeho překážky odklidí staveniště domu. Pole naopak na
+  obydlí nesmí (beze změny). Když dům zanikne, plocha se do pole nevrací.
 - **Navazující pole** (Martin, 18. 10. 2026: „Pokud více polí navazuje přímo na sebe, počítají se
   jako jedno.“): čtverce, které stranou navazují na pole, ho **rozšíří** – stejné pole, nové díly
   na konec (jako rozšíření hřbitova); rozestavěné založení pole dostane jejich cenu, u hotového
@@ -759,7 +768,9 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
   `before` z `fieldPartLooks` – viz Postup práce po čtvercích) a frontu práce
   (`SceneLaborShare.parts`); scéna odhaduje z data jen starší příloh (louka na seno, pastvina).
 - **Kronika:** založení pole, sklizeň (kolik – ves s ozimem i jaří zvlášť sklizeň ozimu a jaře),
-  hlad.
+  hlad, pole ustoupilo stavbě obydlí (o kolik m², nebo zaniklo).
+- **Obydlí na poli:** u kurzoru oranžově „Pole se zmenší“ (poslední díl: „Pole zanikne“), pod
+  vyklízenou plochou domu scéna nekreslí obilí ani obtisk pole.
 
 ## Navazuje
 
@@ -852,3 +863,5 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 | Sloučení: díly i se stavem, jedna stavba založení, kronika a práce dne na nejstarší pole; výměra i s rozšířením                   | návrh Clauda                                    |
 | Stará navazující pole se sloučí samy při načtení vsi (do nejstaršího)                                                             | Martin (18. 10. 2026)                           |
 | Převod starých polí bez příznaku „převedeno“ – souvislé skupiny stranou, pole z obrysu ne                                         | návrh Clauda                                    |
+| Obydlí jde stavět na pole – pole se zmenší o plochu domu                                                                          | Martin (18. 10. 2026)                           |
+| Pozemek sebere celý díl, obydlí bez pozemku průnik vyklízené plochy, díl pod 20 % zmizí; plán, úroda a založení úměrně            | návrh Clauda                                    |
