@@ -272,7 +272,19 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   už má 15 samplerů), stěny, dno a schody šíje kreslí `dwelling-pit.ts` (ornice, podloží a stín
   okraje ve vrcholech). Rozměry jam a šíje musí sedět s `tools/blender/dwellings.py`.
   Staveniště jde po fázích (`village-construction.ts`, ≥ 8 fází, průběh 0–1) z dílů
-  `construction.glb` v instancích. **Hřbitov** (`cemetery-renderer.ts`, geometrie bez Babylonu
+  `construction.glb` v instancích. U obydlí **není hráň polen** (Martin: tak vyskládané dřevo
+  tehdy neměli, navíc na dešti). **Zahrádka polozemnice** (Martin): samostatný model
+  `models/dwellings/garden.glb` (počátek uprostřed zahrádky; `build_garden` v `dwellings.py`)
+  po straně domu – polský plot (řidší kůly, vodorovně proplétané větve, mezera branky u domu)
+  a čtyři záhony (zelí, řepa, cibule, kopr; oblasti atlasu `veg` a `soil`). Scéna ji klade zvlášť
+  na terén a nakloní podle svahu (`gardenInstance` v `dwelling-decor.ts` – jinak by na svahu
+  s převýšením 3× visela i přes metr); díly staveniště `polozemnice-garden-*` se kladou stejně,
+  fáze `garden` je poslední (kůly → proplétání → záhony → zelenina). Obdélník zahrádky je
+  v jádru (`DWELLING_GARDEN_M`, `dwellingGarden` / `dwellingPlot` v `placement.ts`): musí na
+  louku, nesmí na obydlí, pole, hřbitov, sad ani výchoz, leží na vyklízené ploše
+  (`DWELLING_CLEARING_M` polozemnice minX −7,9); duch při umisťování ukazuje její obrys,
+  slepice do ní nechodí (`inGarden`). Rozměry musí sedět s `GARDEN` v `dwellings.py` (hlídá test
+  podle `garden.glb`). **Hřbitov** (`cemetery-renderer.ts`, geometrie bez Babylonu
   v `cemetery-layout.ts`): nízký proutěný plot kolem čtverců (kůly v instancích, pletení z vlastní
   sítě a textury z kódu) s brankou k nejbližšímu hotovému obydlí (při rozšíření jinam zůstane),
   uvnitř mohylky po hrobech (mřížka 7 × 8 na čtverec, poslední čerstvé z hlíny); založení
@@ -280,8 +292,9 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   **Sad** (`orchard-renderer.ts`, bez Babylonu `orchard-layout.ts`): jabloně z 0 A.D.
   (`models/trees/apple-1…4.glb`, s plody `apple-fruit-1…4.glb` – převod
   `tools/blender/orchard.json`, textura bez plodů `apple_leaves.py`, zralá `apple_ripe.py`)
-  sponem do pětky, 2 na čtverec; výsadba čára vytyčení → kůly → sazenice, mladé stromky u kůlu
-  rostou 12 let, skalní výchozy z vrstvy překážek stromy obejdou. Velikost (`growth`) a jablka
+  v pravidelných řadách (mřížka 7,5 m, 4 na čtverec, řady přes celý sad – Martin); výsadba čáry
+  vytyčení po obrysu a podél řad → kůly → sazenice po řadách, mladé stromky u kůlu
+  rostou 12 let, na skalním výchozu z vrstvy překážek strom chybí. Velikost (`growth`) a jablka
   (`fruit`, srpen až sklizeň) počítá server (`lib/orchard-look.ts`) v `SceneVillage.orchards` –
   háček pro podzim; květ, podzimní listí a holé koruny dodají roční období (`applySeasonModel`
   podle jména `apple*`, meshe `orchard-*` jsou v zimě mezi holými vrhači stínu). Modely se
@@ -301,8 +314,15 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   (`ConstructionKind` = obydlí + `CraftKind`; dílny na fázích svého obydlí + přístřešek, pec /
   výheň, dílna, uhlíř mech místo došků, milíř zvlášť), díly v `public/models/crafts/construction.glb`
   a `construction-moss.glb` (předpona druhu). Obydlí se tím nezměnila.
+  Dílny bez hráně polen: hrnčíř a kovář mají místo dílu `wood` díl `yard` (plot a koše), uhlíř
+  volnou hromadu polen na milíř (`log_heap` v `crafts.py`).
   **Náhled všech staveb** bez databáze: http://localhost:3010/dev/buildings (`building-showcase.ts`,
-  staveniště `showcase-sites.ts`, posuvník a přehrání stavby; v produkci 404).
+  staveniště `showcase-sites.ts`, posuvník a přehrání stavby; v produkci 404). Za řadou staveb
+  pole, hřbitov a sad po čtvercích – kreslí je herní `VillageRenderer` (bez obydlí) podle
+  `showcaseGrounds` v `building-showcase-layout.ts`: pole zakládání → brázdy → osev, pak jen
+  jako náhled zelené a zralé obilí a strniště (`CropLook` / `crop` dílu v `SceneVillage`, server
+  ho zatím neposílá), hřbitov vytyčení → kůly → plot → přibývající mohylky, sad vytyčení → kůly
+  → sazenice → rostoucí stromky → jablka.
 - **Grafika (licence):** CC0, nebo z **0 A.D.** pod **CC BY-SA 3.0** (textury terénu, stromy –
   uvést Wildfire Games, upravené soubory pod stejnou licencí). Zdroj a původní název každého
   souboru do `LICENSE.md` / `LICENSES.md` vedle něj. Převod stromů, atlas impostorů a render
