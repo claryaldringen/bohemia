@@ -61,6 +61,7 @@ export function placePen(
               obstacleCost: check.obstacleCost,
               obstacleIds: check.obstacleIds,
               clearedTrees: check.clearedTrees,
+              takenLand: check.takenLand,
             },
             obstacles,
             villageRoadWalk(state, input.landscape),

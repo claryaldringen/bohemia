@@ -293,19 +293,23 @@ export function tallyCost(tally: ObstacleTally, included: readonly ObstacleKind[
  * Překážky na čtverci pole, sadu nebo hřbitova (pata v políčku). Odstraní se všechny (kromě
  * skalních výchozů a stromů z `keep` – posvátné duby zůstanou stát, happiness.md); kolik z nich
  * se platí po kusech, rozhoduje povrch čtverce – na lesním čtverci pole platí sazba za hektar
- * a stromy jsou v ceně (fields.md – Co je překážka, `tallyCost`).
+ * a stromy jsou v ceně (fields.md – Co je překážka, `tallyCost`). `layerOwned` – překážky vrstvy
+ * na čtverci patří jiné stavbě (dílu pole – fields.md, Pole jako krajina): z vrstvy se počítají
+ * jen skalní výchozy, stromy u cest a jabloně (přidané vsí) ano.
  */
 export function cellObstacles(
   layer: ObstacleLayer,
   status: ObstacleStatus,
   cell: TileCell,
   keep: ReadonlySet<number> = NO_IDS,
+  options: { layerOwned?: boolean } = {},
 ): ObstacleTally {
   const tally = emptyTally();
   for (const index of obstaclesInTile(layer, cell.x, cell.y)) {
     if (keep.has(layer.id[index]!)) continue;
     const kind = status.kindOf(layer, index);
-    if (kind !== null) addToTally(tally, layer, index, kind);
+    if (kind === null || (options.layerOwned && kind !== 'outcrop')) continue;
+    addToTally(tally, layer, index, kind);
   }
   // stromy u pevných cest (roads.md) s patou v políčku
   const half = (layer.size * layer.cellSizeM) / 2;
@@ -373,7 +377,9 @@ export function dwellingObstacles(
 
 /**
  * Překážky, jejichž pata leží v mnohoúhelníku (vyklízená plocha stavby) – platí se po kusech,
- * bez překážek v políčkách `skipTiles` (index y × size + x) a stromů z `keep`.
+ * bez překážek vrstvy v políčkách `skipTiles` (index y × size + x – patří poli, hřbitovu, sadu)
+ * a stromů z `keep`. Stromy u cest a jabloně přidané vsí se počítají i tam – smí stát i na poli
+ * (fields.md – Pole jako krajina) a odstraní je až stavba.
  */
 export function polygonObstacles(
   layer: ObstacleLayer,
@@ -393,7 +399,7 @@ export function polygonObstacles(
     if (kind !== null) addToTally(tally, layer, index, kind);
   }
   for (const o of addedInPolygon(status, polygon)) {
-    if (skipTiles.has(tileOf(o.z) * layer.size + tileOf(o.x)) || keep.has(o.id)) continue;
+    if (keep.has(o.id)) continue;
     addAddedToTally(tally, o);
   }
   return tally;
@@ -430,7 +436,7 @@ export function polygonsObstacles(
     for (const o of addedInPolygon(status, polygon)) {
       if (seenAdded.has(o.id)) continue;
       seenAdded.add(o.id);
-      if (skipTiles.has(tileOf(o.z) * layer.size + tileOf(o.x)) || keep.has(o.id)) continue;
+      if (keep.has(o.id)) continue;
       addAddedToTally(tally, o);
     }
   }

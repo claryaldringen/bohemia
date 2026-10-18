@@ -1,5 +1,6 @@
 import type { PathLine, RoadGrade } from '@bohemia/game';
 import type { SceneRoad, SceneRoadApple } from '../village-view';
+import { JUNCTION, type RibbonJunction } from './path-ribbon';
 import { hash01 } from './smoke-schedule';
 import type { Point } from './village-layout';
 
@@ -137,6 +138,38 @@ export function roadBands(roads: readonly SceneRoad[]): {
       (piece.improved ? out.improved : out.trodden).push(line);
     }
   });
+  return out;
+}
+
+/**
+ * Rozcestí pevných cest (roads.md – Co hráč vidí; Martin: „rozcestí by mělo být nejvyšlapanější
+ * plochou“): body, kde končí aspoň tři úseky – plácek plné síly. Patří k upravené cestě, když do
+ * něj upravená část některého úseku vbíhá (je pak širší), jinak k vyšlapané.
+ */
+export function roadJunctions(roads: readonly SceneRoad[]): {
+  trodden: RibbonJunction[];
+  improved: RibbonJunction[];
+} {
+  const nodes = new Map<string, { x: number; z: number; count: number; improved: boolean }>();
+  for (const road of roads) {
+    if (road.points.length < 2) continue;
+    const length = roadLength(road);
+    for (const [p, d] of [
+      [road.points[0]!, 0],
+      [road.points[road.points.length - 1]!, length],
+    ] as const) {
+      const key = `${Math.round(p.x * 100)},${Math.round(p.z * 100)}`;
+      const node = nodes.get(key) ?? { x: p.x, z: p.z, count: 0, improved: false };
+      node.count++;
+      node.improved ||= shownGrade(road, d) !== 'trodden';
+      nodes.set(key, node);
+    }
+  }
+  const out = { trodden: [] as RibbonJunction[], improved: [] as RibbonJunction[] };
+  for (const node of nodes.values()) {
+    if (node.count < JUNCTION.minLines) continue;
+    (node.improved ? out.improved : out.trodden).push({ x: node.x, z: node.z, strength: 1 });
+  }
   return out;
 }
 

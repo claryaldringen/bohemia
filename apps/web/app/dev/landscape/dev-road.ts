@@ -1,10 +1,11 @@
 // VÝVOJOVÝ NÁSTROJ – ukázka pevné cesty se stromy v různém stáří na /dev/landscape (bez
 // databáze a simulace). Skutečné pevné cesty a stromy u nich počítá herní jádro jednou za rok
-// (roads.md, paths/roads.ts) – tady jen jedna cesta od vsi přes louku, místa na stromy ze stejné
+// (roads.md, paths/roads.ts) – tady jedna cesta od vsi přes louku, místa na stromy ze stejné
 // funkce jádra a na nich stromy po řadě v každém stadiu (keř, mladý, plný strom, souš, pařez);
-// druhá cesta vede k nejbližšímu brodu přes potok (mokřina a brod z terénu jádra) a obě jdou
-// přepnout po stupních vylepšení (`DEMO_ROAD_STAGES`). Podél druhé cesty (bez ní podél první)
-// stojí jabloně po 10 m na místech z funkce jádra – přepínají se stadia (`DEMO_APPLE_STAGES`:
+// uprostřed z ní odbočuje krátká cesta (rozcestí tří úseků – udusaný plácek), další cesta vede
+// k nejbližšímu brodu přes potok (mokřina a brod z terénu jádra). Všechny jdou přepnout po
+// stupních vylepšení (`DEMO_ROAD_STAGES`). Podél cesty k brodu (bez ní podél odbočky) stojí
+// jabloně po 10 m na místech z funkce jádra – přepínají se stadia (`DEMO_APPLE_STAGES`:
 // vytyčení, mladé u kůlu, plodící, souše).
 import {
   PATH_FORD,
@@ -47,6 +48,8 @@ export function demoRoad(l: Landscape): {
   roads: SceneRoad[];
   trees: SceneRoadTree[];
   apples: SceneRoadApple[];
+  /** Rozcestí uprostřed první cesty – kam se podívá kamera. */
+  focus: { x: number; z: number };
 } {
   const center = tileCenterWorld(l, l.villageSite.x, l.villageSite.y);
   const meadow = (x: number, z: number): boolean => {
@@ -84,8 +87,23 @@ export function demoRoad(l: Landscape): {
     species: DEMO_SPECIES[k % DEMO_SPECIES.length]!,
     ...DEMO_STAGES[k % DEMO_STAGES.length]!,
   }));
+  // uprostřed cesty odbočka – rozcestí tří úseků (udusaný plácek, roads.md – Úseky a rozcestí)
+  const mid = Math.floor(points.length / 2);
+  const node = points[mid]!;
+  const prev = points[mid - 1]!;
+  const len = Math.hypot(node.x - prev.x, node.z - prev.z) || 1;
+  const nx = -(node.z - prev.z) / len;
+  const nz = (node.x - prev.x) / len;
+  const branch = [0, 25, 50].map((d, k) => ({
+    x: Math.round((node.x + nx * d + ((node.x - prev.x) / len) * k * 6) * 100) / 100,
+    z: Math.round((node.z + nz * d + ((node.z - prev.z) / len) * k * 6) * 100) / 100,
+  }));
+  const head = points.slice(0, mid + 1);
+  const tail = points.slice(mid);
   const roads: SceneRoad[] = [
-    { id: 1, points, grade: 'trodden', ground: roadGroundOf(points, ground) },
+    { id: 1, points: head, grade: 'trodden', ground: roadGroundOf(head, ground) },
+    { id: 3, points: tail, grade: 'trodden', ground: roadGroundOf(tail, ground) },
+    { id: 4, points: branch, grade: 'trodden', ground: roadGroundOf(branch, ground) },
   ];
   // cesta k nejbližšímu brodu a kus za něj – mokřina a brod pro hať a lávku
   let ford: { x: number; z: number } | null = null;
@@ -145,7 +163,7 @@ export function demoRoad(l: Landscape): {
     growth: 0,
     fruit: false,
   }));
-  return { roads, trees, apples };
+  return { roads, trees, apples, focus: { x: node.x, z: node.z } };
 }
 
 /** Stadia jabloní ukázky: žádné, vytyčení, mladé u kůlu, plodící s jablky, staré, souše. */

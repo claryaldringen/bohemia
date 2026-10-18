@@ -4,6 +4,7 @@ import {
   type Crop,
   type BuildableDwellingType,
   type DwellingType,
+  type FamilyCounts,
   type FieldSurface,
   type HerdSpecies,
   type PartStage,
@@ -55,6 +56,8 @@ export type SelectionDetails =
       id: number;
       type: DwellingType;
       occupants: number;
+      /** Muži, ženy, děti, starší a manželské páry (kinship.md – panel obydlí). */
+      family: FamilyCounts;
       capacity: number;
       /** Věk obyvatel v letech, od nejstaršího. */
       ages: number[];
@@ -323,6 +326,7 @@ export function selectionDetails(
       id: household.dwellingId,
       type: household.type,
       occupants: household.occupants,
+      family: household.family,
       capacity: household.capacity,
       ages: household.ages,
       condition: household.condition,

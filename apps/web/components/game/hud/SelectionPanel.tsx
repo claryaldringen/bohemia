@@ -1,5 +1,10 @@
 import { useState, type ReactElement, type ReactNode } from 'react';
-import { CRAFT_NAMES, type BuildableDwellingType, type DwellingType } from '@bohemia/game';
+import {
+  CRAFT_NAMES,
+  type BuildableDwellingType,
+  type DwellingType,
+  type FamilyCounts,
+} from '@bohemia/game';
 import { PART_COLORS, SURFACE_COLORS } from '@/lib/minimap';
 import {
   CROP_LABELS,
@@ -262,6 +267,7 @@ function DwellingBody({
           {details.ageYears}
         </Stat>
       </div>
+      <FamilyRow family={details.family} />
       <ul data-testid="selection-ages" aria-label="Věk obyvatel" className="flex flex-wrap gap-1">
         {details.ages.map((age, i) => (
           <li
@@ -343,6 +349,34 @@ function DwellingsBody({
         )}
         <LeaveButton />
       </div>
+    </div>
+  );
+}
+
+/**
+ * Rodiny v obydlí (kinship.md – Co hráč vidí): muži, ženy, děti, starší a manželské páry – ikony
+ * s čísly, bez slov (rozhraní jako v 0 A.D.).
+ */
+function FamilyRow({ family }: { family: FamilyCounts }): ReactElement {
+  const items: { icon: string; name: string; value: number }[] = [
+    { icon: 'man', name: 'Muži', value: family.men },
+    { icon: 'woman', name: 'Ženy', value: family.women },
+    { icon: 'child', name: 'Děti', value: family.boys + family.girls },
+    { icon: 'elder', name: 'Starší', value: family.elderMen + family.elderWomen },
+    { icon: 'ring', name: 'Manželské páry', value: family.couples },
+  ];
+  return (
+    <div data-testid="selection-family" className="flex flex-wrap items-center gap-x-3 gap-y-1">
+      {items.map((item) => (
+        <Stat
+          key={item.icon}
+          icon={item.icon}
+          name={item.name}
+          testId={`selection-family-${item.icon}`}
+        >
+          {item.value}
+        </Stat>
+      ))}
     </div>
   );
 }
@@ -879,6 +913,14 @@ function RoadBody({
               {apples.option.blocked && (
                 <span data-testid="road-apples-blocked" className="font-semibold text-red-400">
                   {apples.option.blocked}
+                </span>
+              )}
+              {!apples.option.blocked && apples.option.warning && (
+                <span
+                  data-testid="road-apples-warning"
+                  className="font-semibold whitespace-pre-line text-[#ffc27a]"
+                >
+                  {apples.option.warning}
                 </span>
               )}
             </span>

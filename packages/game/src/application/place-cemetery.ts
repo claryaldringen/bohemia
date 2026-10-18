@@ -45,6 +45,8 @@ export function placeCemetery(
         squares: preview.squares,
         squareSizeM: input.landscape.cellSizeM,
         sacred: preview.spared,
+        // čtverce polí pod hřbitovem z pole zmizí (fields.md – Pole jako krajina)
+        takenLand: preview.takenLand,
       };
       return { ok: true, state: foundCemetery(state, state.lastDay, cemetery) };
     },

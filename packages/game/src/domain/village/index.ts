@@ -23,6 +23,8 @@ export * from './field-progress';
 export * from './labor';
 export { LABOR_TREES_SHOWN, laborReport } from './labor-report';
 export * from './population';
+export * from './kinship';
+export * from './households';
 export * from './marriage';
 export * from './extinction';
 export * from './cemetery';

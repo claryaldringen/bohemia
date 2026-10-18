@@ -59,7 +59,8 @@ export function relocationAffordability(
  * Dostavěné přestěhování (krok simulace – dokončené stavby): obyvatelé domácnosti `c.relocates`
  * se přestěhují do nového obydlí `dwellingId` (mutuje stav). Když domácnost mezitím zanikla
  * (vymřela, sloučila se se sousedy), nikdo se nestěhuje – nové obydlí je prázdné a osídlí ho
- * ještě týž den mladý pár nebo dospělé děti jako každé prázdné obydlí.
+ * ještě týž den rodina ženatého syna nebo svobodný syn jako každé prázdné obydlí (kinship.md).
+ * Stěhuje se celá domácnost – manželé i rodiče s dětmi zůstanou spolu.
  */
 export function moveRelocatedHousehold(
   state: VillageState,

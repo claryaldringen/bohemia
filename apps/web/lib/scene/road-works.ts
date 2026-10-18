@@ -13,6 +13,7 @@ import {
   IMPROVED_WORN_LAYER,
   WORN_LAYER,
   pathRibbons,
+  type RibbonJunction,
   type RibbonLayer,
 } from './path-ribbon';
 import {
@@ -22,6 +23,7 @@ import {
   ditchLines,
   logPieces,
   roadBands,
+  roadJunctions,
   roadWorksKey,
   stakingLines,
   stonePieces,
@@ -218,6 +220,8 @@ export function roadRibbonMeshes(
   o: RoadRibbonOptions,
 ): Mesh[] {
   const bands = roadBands(roads);
+  // rozcestí – udusaný plácek v pásu cesty, která do něj vbíhá nejširší
+  const junctions = roadJunctions(roads);
   const ditches: PathLine[] = ditchLines(roads).map((points) => ({
     points,
     strength: points.map(() => 1),
@@ -231,18 +235,33 @@ export function roadRibbonMeshes(
     'worn' | 'earth',
     RibbonLayer,
     [number, number, number],
+    readonly RibbonJunction[],
   ][] = [
-    ['roads-worn', bands.trodden, 'worn', WORN_LAYER, WORN_COLOR],
-    ['roads-earth', bands.trodden, 'earth', EARTH_LAYER, EARTH_COLOR],
-    ['roads-improved-worn', bands.improved, 'worn', IMPROVED_WORN_LAYER, WORN_COLOR],
-    ['roads-improved-earth', bands.improved, 'earth', IMPROVED_EARTH_LAYER, EARTH_COLOR],
+    ['roads-worn', bands.trodden, 'worn', WORN_LAYER, WORN_COLOR, junctions.trodden],
+    ['roads-earth', bands.trodden, 'earth', EARTH_LAYER, EARTH_COLOR, junctions.trodden],
+    [
+      'roads-improved-worn',
+      bands.improved,
+      'worn',
+      IMPROVED_WORN_LAYER,
+      WORN_COLOR,
+      junctions.improved,
+    ],
+    [
+      'roads-improved-earth',
+      bands.improved,
+      'earth',
+      IMPROVED_EARTH_LAYER,
+      EARTH_COLOR,
+      junctions.improved,
+    ],
     // strouha – tmavší vlhké bláto
-    ['roads-ditch', ditches, 'earth', DITCH_LAYER, [0.58, 0.48, 0.38]],
+    ['roads-ditch', ditches, 'earth', DITCH_LAYER, [0.58, 0.48, 0.38], []],
   ];
   const meshes: Mesh[] = [];
-  for (const [name, lines, kind, layer, color] of ribbons) {
-    if (lines.length === 0) continue;
-    const grid = pathRibbons(lines, layer);
+  for (const [name, lines, kind, layer, color, nodes] of ribbons) {
+    if (lines.length === 0 && nodes.length === 0) continue;
+    const grid = pathRibbons(lines, layer, undefined, undefined, nodes);
     if (grid.indices.length === 0) continue;
     const mesh = createDecalMesh(scene, name, grid, {
       height: o.height,

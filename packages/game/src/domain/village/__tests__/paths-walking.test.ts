@@ -9,6 +9,7 @@ import {
   villagePathNetwork,
   walkLayoutHash,
   walkLayoutKey,
+  walkStageKey,
 } from '../paths/village';
 import { pathWalkLength, walkGraph, walkingDistances } from '../paths/walking';
 import { PATH_WALK } from '../rules';
@@ -140,24 +141,34 @@ describe('vzdálenost chůze dílů pole (refreshWalkDistances)', () => {
       expect(p.walkDistanceM!).toBeLessThanOrEqual(p.distanceM);
       expect(distanceFactor(partWalkDistance(p))).toBeLessThanOrEqual(distanceFactor(p.distanceM));
     }
-    // ve stavu jen otisk klíče, ne celý klíč
-    expect(s.walkLayoutKey).toBe(walkLayoutHash(walkLayoutKey(s, DAY + 1)));
+    // ve stavu jen otisky – rozložení se stadii z 1. dne v měsíci (1. 6. = DAY)
+    expect(s.walkStages).toBe(walkLayoutHash(walkStageKey(s, DAY)));
+    expect(s.walkLayoutKey).toBe(walkLayoutHash(`${walkLayoutKey(s, DAY + 1)}|${s.walkStages}`));
     expect(s.walkLayoutKey).toMatch(/^[0-9a-f]{16}$/);
   });
 
-  it('celý klíč uložený dřív se beze změny rozložení jen převede na otisk – bez přepočtu', () => {
+  it('stadia dílů se do chůze promítnou až 1. dne v měsíci, nový díl hned (Martin)', () => {
     const s = advanceVillage(withField(), DAY + 1, null, LANDSCAPE);
-    const part = s.parts.find((p) => p.cell)!;
-    part.walkDistanceM = 1;
-    // ves uložená před otisky: ve stavu celý klíč rozložení
-    s.walkLayoutKey = walkLayoutKey(s, DAY + 2);
+    const [part, other] = s.parts.filter((p) => p.cell);
+    part!.walkDistanceM = 1;
+    const stages = s.walkStages;
+    // díl se v půli měsíce oseje – vzdálenosti chůze zůstanou
+    other!.state = other!.state === 'sown' ? 'ready' : 'sown';
     refreshWalkDistances(s, DAY + 2, LANDSCAPE, null);
-    expect(part.walkDistanceM).toBe(1);
-    expect(s.walkLayoutKey).toBe(walkLayoutHash(walkLayoutKey(s, DAY + 2)));
-    // starý klíč jiného rozložení – přepočet
-    s.walkLayoutKey = '["jiné rozložení"]';
-    refreshWalkDistances(s, DAY + 2, LANDSCAPE, null);
-    expect(part.walkDistanceM).not.toBe(1);
+    expect(part!.walkDistanceM).toBe(1);
+    expect(s.walkStages).toBe(stages);
+    // 1. 7. se stadia promítnou – přepočet
+    const july = dayIndexOf({ year: 600, month: 7, day: 1 });
+    refreshWalkDistances(s, july, LANDSCAPE, null);
+    expect(part!.walkDistanceM).not.toBe(1);
+    expect(s.walkStages).not.toBe(stages);
+    // nový díl pole (strukturální změna) – přepočet hned, i v půli měsíce
+    part!.walkDistanceM = 1;
+    refreshWalkDistances(s, july + 3, LANDSCAPE, null);
+    expect(part!.walkDistanceM).toBe(1);
+    s.parts.push({ ...other!, id: 999, cell: { x: 12, y: 8 } });
+    refreshWalkDistances(s, july + 4, LANDSCAPE, null);
+    expect(part!.walkDistanceM).not.toBe(1);
   });
 
   it('otisk klíče: stejný klíč stejný otisk, drobná změna jiný', () => {

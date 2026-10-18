@@ -71,6 +71,8 @@ export function placeSacredBuilding(
               obstacles,
               clearedTrees: check.clearedTrees,
               walk: villageRoadWalk(state, input.landscape),
+              // díly polí pod půdorysem se zmenší (fields.md – Pole jako krajina)
+              takenLand: check.takenLand,
             },
           ),
         };

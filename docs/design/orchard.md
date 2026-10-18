@@ -24,8 +24,11 @@ rozhoduje, kolik louky a práce dá do jistoty na dlouho dopředu místo obilí 
 ## Pravidla
 
 - **Stavba** (Martin): po čtvercích jako pole – políčka krajiny 15 × 15 m, jen louka, do 800 m od
-  obydlí, čtverce souvislé, nesmí ležet na obydlí, poli, hřbitově ani jiném sadu (a naopak pole
-  ani hřbitov nesmí na sad – obydlí ano, viz Obydlí v sadu). Ovládání stejné jako u pole.
+  obydlí, čtverce souvislé, nesmí ležet na obydlí, hřbitově ani jiném sadu (a naopak pole ani
+  hřbitov nesmí na sad – obydlí ano, viz Obydlí v sadu). **Na pole smí** (Martin, 18. 10. 2026 –
+  [fields.md](fields.md), Pole jako krajina): čtverec pole pod sadem z pole zmizí (úroda, plán
+  a práce pole úměrně), překážky dílu sad neplatí; u kurzoru oranžově „Pole se zmenší“.
+  Ovládání stejné jako u pole.
   Nejmenší výměru sad nemá – i jeden čtverec je sad (návrh Clauda).
 - **Obydlí v sadu** (Martin, 18. 10. 2026: „domy by měly jít stavět na polích a v sadech. Pole
   a sad se prostě zmenší o plochu domu“; podrobnosti návrh Clauda – [populace](population.md),
@@ -175,3 +178,4 @@ Obnova sadu (18. 10. 2026) se zatím neměřila – v 60letém běhu se týká j
 | Upozornění „Vesničané obnovují starý sad“ a „Starý sad dosloužil“                             | Martin, 18. 10. 2026                       |
 | Obydlí jde stavět do sadu – sad se zmenší o plochu domu                                       | Martin, 18. 10. 2026                       |
 | Pozemek sebere celý čtverec, obydlí bez pozemku průnik; pod 20 % zmizí; jablka a práce úměrně | návrh Clauda                               |
+| Sad smí na pole – čtverec pole pod ním z pole zmizí (pole jako krajina)                       | Martin, 18. 10. 2026                       |

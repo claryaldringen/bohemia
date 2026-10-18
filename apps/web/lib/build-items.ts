@@ -372,7 +372,8 @@ export const BUILD_ITEMS: readonly BuildItem[] = [
       return {
         check: result.check,
         blockedCells: result.blockedCells,
-        warningCells: result.warningCells,
+        // čtverce polí, které hřbitov sebere, oranžově (fields.md – Pole jako krajina)
+        warningCells: [...result.warningCells, ...result.takenLand.map((t) => t.cell)],
         cost: squaresCost(result.check, result.foundingCost),
       };
     },
@@ -394,6 +395,8 @@ export const BUILD_ITEMS: readonly BuildItem[] = [
       return {
         check: result.check,
         blockedCells: result.blockedCells,
+        // čtverce polí, které sad sebere, oranžově (fields.md – Pole jako krajina)
+        warningCells: result.takenLand.map((t) => t.cell),
         cost: squaresCost(result.check, result.plantingCost),
       };
     },
@@ -425,6 +428,8 @@ export const BUILD_ITEMS: readonly BuildItem[] = [
       return {
         check,
         blockedCells: check.ok ? [] : [cell],
+        // čtverec pole pod ohradou oranžově (fields.md – Pole jako krajina)
+        warningCells: check.takenLand.map((t) => t.cell),
         cost: check.ok ? penPlacementCost(village, check) : null,
       };
     },

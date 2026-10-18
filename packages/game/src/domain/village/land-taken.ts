@@ -1,12 +1,14 @@
+import { tileOfWorldPoint, type Landscape } from '../landscape';
 import { PART_TASKS, taskPosition, taskSpans, type PartTask } from './field-progress';
 import { HAY, mowingPosition, mowingSpans } from './hay';
 import { recordClearedObstacles } from './obstacles';
 import { squareCareWork, squareHarvestWork, squareYieldKg } from './orchard';
-import { TAKEN_LAND_MIN_SHARE } from './rules';
+import { TAKEN_LAND_MIN_SHARE, TAKEN_LAND_TREE_M2 } from './rules';
 import type {
   ChronicleEvent,
   CropWork,
   FieldPart,
+  LandTaker,
   OrchardSquare,
   TileCell,
   VillageState,
@@ -15,23 +17,26 @@ import type {
 import { addLogs, logsFromClearedTrees } from './wood';
 import { partWeight, planCrops } from './year-plan';
 
-// Pole a sad ustupují stavbě obydlí (population.md – Obydlí na poli a v sadu; Martin, 18. 10.
-// 2026: „domy by měly jít stavět na polích a v sadech. Pole a sad se prostě zmenší o plochu
-// domu“). Kolik ze kterého čtverce obydlí sebere, spočítá kontrola umístění (placement.ts) –
-// pozemek celé políčko, obydlí bez pozemku průnik vyklízené plochy se čtvercem. Odsud se to
-// promítne do stavu vsi: díl pole nebo čtverec sadu se zmenší, pod TAKEN_LAND_MIN_SHARE políčka
-// zmizí celý; s plochou ubude úměrně i úroda a práce (plán osevu i s orbou rádlem, seč sena,
+// Pole a sad ustupují stavbám (population.md – Obydlí na poli a v sadu; Martin, 18. 10. 2026:
+// „domy by měly jít stavět na polích a v sadech. Pole a sad se prostě zmenší o plochu domu“ –
+// a fields.md – Pole jako krajina: „Pole by se mělo chovat jako normální krajina. Takže by na
+// něm mělo jít postavit cokoliv kromě jiného pole.“). Kolik ze kterého čtverce stavba sebere,
+// spočítá kontrola umístění (placement.ts) – stavba po čtvercích a pozemek celé políčko, obydlí
+// bez pozemku, modla a svatyně průnik půdorysu (vyklízené plochy) se čtvercem, jabloň a strom
+// u cesty TAKEN_LAND_TREE_M2 (`treeTakenLand`). Sad ustupuje jen obydlí – ostatní stavby na sad
+// dál nesmí. Odsud se to promítne do stavu vsi: díl pole nebo čtverec sadu se zmenší, pod
+// TAKEN_LAND_MIN_SHARE políčka zmizí celý; s plochou ubude úměrně i úroda a práce (plán osevu i s orbou rádlem, seč sena,
 // založení, výsadba, sezónní práce v sadech). Pole a sad, kterým nezbyl žádný čtverec, zaniknou;
 // zbytek zůstává jedním polem / sadem, i když se tím rozpadne na nesouvislé části.
 
-/** Kus čtverce pole nebo sadu, který stavba obydlí sebere – plocha (m²) z políčka `cellAreaM2`. */
+/** Kus čtverce pole nebo sadu, který stavba sebere – plocha (m²) z políčka `cellAreaM2`. */
 export interface TakenLand {
   cell: TileCell;
   areaM2: number;
   cellAreaM2: number;
 }
 
-/** Plochy pod tuto mez (m²) jsou jen dotyk hranou – obydlí z čtverce nic nebere. */
+/** Plochy pod tuto mez (m²) jsou jen dotyk hranou – stavba z čtverce nic nebere. */
 export const TAKEN_LAND_EPSILON_M2 = 0.01;
 const EPSILON = 1e-9;
 
@@ -49,48 +54,141 @@ export function validateTakenLand(taken: readonly TakenLand[]): void {
   const cells = new Set<string>();
   for (const t of taken) {
     if (!Number.isInteger(t.cell.x) || !Number.isInteger(t.cell.y)) {
-      throw new RangeError('Políčko zabrané obydlím musí mít celočíselné souřadnice.');
+      throw new RangeError('Políčko zabrané stavbou musí mít celočíselné souřadnice.');
     }
     if (!Number.isFinite(t.areaM2) || t.areaM2 < 0) {
-      throw new RangeError('Plocha zabraná obydlím musí být nezáporná a konečná.');
+      throw new RangeError('Plocha zabraná stavbou musí být nezáporná a konečná.');
     }
     if (!Number.isFinite(t.cellAreaM2) || t.cellAreaM2 <= 0) {
       throw new RangeError('Plocha políčka musí být kladná a konečná.');
     }
     cells.add(`${t.cell.x},${t.cell.y}`);
   }
-  if (cells.size !== taken.length) throw new RangeError('Políčko zabrané obydlím se opakuje.');
+  if (cells.size !== taken.length) throw new RangeError('Políčko zabrané stavbou se opakuje.');
+}
+
+/**
+ * Kolik půdy vezmou polím stromy na místech `points` (jabloně a stromy u cesty – fields.md, Pole
+ * jako krajina): každý strom na políčku dílu pole TAKEN_LAND_TREE_M2 (pod korunou se neorá),
+ * nejvýš celé políčko. Stromy mimo pole nic neberou. Po řádcích políček.
+ */
+export function treeTakenLand(
+  landscape: Landscape,
+  parts: readonly Pick<FieldPart, 'cell'>[],
+  points: readonly { x: number; z: number }[],
+): TakenLand[] {
+  const size = landscape.size;
+  const cellAreaM2 = landscape.cellSizeM * landscape.cellSizeM;
+  const fields = new Set(parts.flatMap((p) => (p.cell ? [p.cell.y * size + p.cell.x] : [])));
+  const trees = new Map<number, number>();
+  for (const { x, z } of points) {
+    const tile = tileOfWorldPoint(landscape, x, z);
+    if (!tile) continue;
+    const index = tile.y * size + tile.x;
+    if (fields.has(index)) trees.set(index, (trees.get(index) ?? 0) + 1);
+  }
+  return [...trees]
+    .sort((a, b) => a[0] - b[0])
+    .map(([index, count]) => ({
+      cell: { x: index % size, y: Math.floor(index / size) },
+      areaM2: Math.min(cellAreaM2, count * TAKEN_LAND_TREE_M2),
+      cellAreaM2,
+    }));
 }
 
 const cellKey = (cell: TileCell): string => `${cell.x},${cell.y}`;
 
 /**
- * Pole a sady ustoupí stavbě obydlí (mutuje stav – volat na klonu): každý díl pole a čtverec
- * sadu na políčku z `taken` se zmenší o zabranou plochu, pod TAKEN_LAND_MIN_SHARE políčka zmizí
- * celý. S plochou ubude úměrně práce a úroda – plán osevu i s orbou (`taskSpans` – díl drží
- * svůj podíl hotové práce), seč sena na úhoru, rozestavěné založení pole a výsadba sadu (cena
- * i odvedená práce), sezónní práce v sadech a úroda jablek. Zmizelý zakládaný díl nebo nevysazený čtverec předá své
- * překážky stavbě obydlí – odklidí se se staveništěm bez práce navíc a dospělé stromy dají
- * klády. Pole a sad bez čtverců zaniknou i se svou stavbou. Kronika zapíše `land-taken`.
+ * Varování, že stavba sebere půdu poli nebo sadu (neblokuje – u kurzoru oranžově, u jabloní
+ * u cesty v nabídce): „Pole se zmenší“, nebo „Pole zanikne“, když mu nezbude žádný díl (podle
+ * `landLeftM2`); u sadu totéž. Díly bez plochy mají celé políčko `cellAreaM2`, díly bez pole
+ * (staré vstupy) nezanikají. Bez zabrané půdy undefined.
  */
-export function giveWayToDwelling(
+export function landTakenWarning(
+  village: {
+    readonly parts: readonly {
+      readonly cell?: TileCell;
+      readonly fieldId?: number;
+      readonly areaM2?: number;
+    }[];
+    readonly orchards?: readonly {
+      readonly squares: readonly { readonly cell: TileCell; readonly areaM2?: number }[];
+    }[];
+  },
+  taken: readonly TakenLand[],
+  cellAreaM2: number,
+): string | undefined {
+  if (taken.length === 0) return undefined;
+  const byCell = new Map(taken.map((t) => [cellKey(t.cell), t]));
+  const leftOf = (cell: TileCell | undefined, areaM2: number | undefined): number | null => {
+    const t = cell ? byCell.get(cellKey(cell)) : undefined;
+    return t ? landLeftM2(areaM2 ?? cellAreaM2, t.areaM2, t.cellAreaM2) : null;
+  };
+  const fields = new Map<number, { hit: boolean; alive: boolean }>();
+  let looseHit = false;
+  for (const part of village.parts) {
+    const left = leftOf(part.cell, part.areaM2);
+    if (part.fieldId === undefined) {
+      looseHit ||= left !== null;
+      continue;
+    }
+    const field = fields.get(part.fieldId) ?? { hit: false, alive: false };
+    if (left !== null) field.hit = true;
+    if (left === null || left > 0) field.alive = true;
+    fields.set(part.fieldId, field);
+  }
+  const hitFields = [...fields.values()].filter((f) => f.hit);
+  const orchards = (village.orchards ?? []).flatMap((orchard) => {
+    const lefts = orchard.squares.map((s) => leftOf(s.cell, s.areaM2));
+    if (lefts.every((l) => l === null)) return [];
+    return [lefts.some((l) => l === null || l > 0)];
+  });
+  const lines = [
+    hitFields.length > 0 || looseHit
+      ? hitFields.some((f) => !f.alive)
+        ? 'Pole zanikne'
+        : 'Pole se zmenší'
+      : null,
+    orchards.length > 0
+      ? orchards.some((alive) => !alive)
+        ? 'Sad zanikne'
+        : 'Sad se zmenší'
+      : null,
+  ].filter((line) => line !== null);
+  return lines.length > 0 ? lines.join('\n') : undefined;
+}
+
+/**
+ * Pole (a u obydlí i sady) ustoupí stavbě `by` (mutuje stav – volat na klonu): každý díl pole
+ * a u obydlí i čtverec sadu na políčku z `taken` se zmenší o zabranou plochu, pod
+ * TAKEN_LAND_MIN_SHARE políčka zmizí celý. Sad ustupuje jen obydlí – ostatní stavby na sad
+ * nesmí (nový sad na poli tak o své čtverce nepřijde). S plochou ubude úměrně práce a úroda – plán osevu i s orbou (`taskSpans` – díl drží
+ * svůj podíl hotové práce), seč sena na úhoru, rozestavěné založení pole a výsadba sadu (cena
+ * i odvedená práce), sezónní práce v sadech a úroda jablek. Zmizelý zakládaný díl nebo
+ * nevysazený čtverec předá své překážky stavbě – odklidí se se staveništěm bez práce navíc
+ * a dospělé stromy dají klády. Pole a sad bez čtverců zaniknou i se svou stavbou. Kronika zapíše
+ * `land-taken` (s `by`).
+ */
+export function giveWayToBuilding(
   state: VillageState,
   day: number,
   taken: readonly TakenLand[],
+  by: LandTaker = 'dwelling',
 ): void {
   if (taken.length === 0) return;
   const byCell = new Map(taken.map((t) => [cellKey(t.cell), t]));
   const fieldLoss = shrinkParts(state, day, byCell);
-  const orchardLoss = shrinkOrchards(state, day, byCell);
+  // sad ustupuje jen obydlí (population.md) – ostatní stavby na sad nesmí
+  const orchardLoss = by === 'dwelling' ? shrinkOrchards(state, day, byCell) : new Map();
   const events: ChronicleEvent[] = [];
   for (const [id, areaM2] of [...fieldLoss].sort((a, b) => a[0] - b[0])) {
     const gone = !state.parts.some((p) => p.fieldId === id);
     if (gone) dropField(state, id);
-    events.push({ day, kind: 'land-taken', land: 'field', id, areaM2, gone });
+    events.push({ day, kind: 'land-taken', land: 'field', id, areaM2, gone, by });
   }
   for (const [id, areaM2] of [...orchardLoss].sort((a, b) => a[0] - b[0])) {
     const gone = !(state.orchards ?? []).some((o) => o.id === id);
-    events.push({ day, kind: 'land-taken', land: 'orchard', id, areaM2, gone });
+    events.push({ day, kind: 'land-taken', land: 'orchard', id, areaM2, gone, by });
   }
   state.chronicle.push(...events);
 }
@@ -279,14 +377,22 @@ function shrinkFounding(state: VillageState, part: FieldPart, share: number): vo
 
 /**
  * Překážky zmizelého zakládaného dílu nebo nevysazeného čtverce (dosud patřily jeho stavbě)
- * odklidí stavba obydlí – zmizí natrvalo a dospělé stromy dají klády na hromadu.
+ * odklidí stavba – zmizí natrvalo (co už odklidila sama, se nepíše znovu) a dospělé stromy dají
+ * klády na hromadu.
  */
 function handOverObstacles(
   state: VillageState,
   square: Pick<FieldPart | OrchardSquare, 'obstacles' | 'trees'>,
   day: number,
 ): void {
-  if (square.obstacles) recordClearedObstacles(state, square.obstacles, day);
+  if (square.obstacles) {
+    const cleared = new Set((state.clearedObstacles ?? []).map((o) => o.id));
+    recordClearedObstacles(
+      state,
+      square.obstacles.filter((id) => !cleared.has(id)),
+      day,
+    );
+  }
   if (square.trees) addLogs(state, logsFromClearedTrees(square.trees));
 }
 

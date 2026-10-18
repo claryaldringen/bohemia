@@ -44,7 +44,11 @@ A po vyšlapané pěšině se chodí lépe – cesta na vzdálené pole po ní s
   po ní, ztratí se v ní (kreslí se jen cesta).
 - **Síla pěšiny** roste s počtem cest za den (pomalu – s odmocninou), jednotlivé cesty nic
   nevyšlapou. Silná pěšina je širší (do 1,9 m) a uprostřed holá udusaná hlína, slabší jen
-  prošlapaná tráva s hlínou uprostřed.
+  prošlapaná tráva s hlínou uprostřed. **Rozcestí** (sejdou se aspoň tři pěšiny) je
+  nejvyšlapanější místo (Martin, 18. 10. 2026): udusaný plácek – kruh o poloměru 1,3× šířky
+  nejsilnější přicházející pěšiny (holá hlína uprostřed podle svého podílu šířky), síla té pěšiny + 30 % síly ostatních (nejvýš plná), pásy do
+  něj vbíhají bez zúžení (návrh Clauda; `ribbonJunctions` v `path-ribbon.ts`). Stejně
+  i rozcestí pevných cest ([roads.md](roads.md)).
 - **Objevuje se a mizí:** spojení nového obydlí se vyšlapává dva roky, zrušené místo pěšinu
   ztratí (v prototypu hned). Práce se mění s rokem – pěšina na pole je v žních silnější.
 - **Vidět jsou i v polích:** pěšina se kreslí nad poli – přes úhor a pastvinu jako prošlapaný
@@ -73,10 +77,13 @@ není.“), čísla návrh Clauda.
   ale počítá mokřinu a brody ([roads.md](roads.md)), takže díl za potokem může být dál než
   vzdušnou čarou. Stejně se měří čtverce sadu a palivo (obydlí → okraj lesa).
 - **Kdy se přepočítá:** když se změní rozložení vsi – nové obydlí nebo staveniště, nová pole
-  a díly, změna stadia dílu (osev, úhor), sady, hřbitovy, posvátná místa, kdo kde bydlí a stáří
-  spojení (nová pěšina se vyšlapává dva roky). Simulace to kontroluje den po dni, výsledek tak
-  nezávisí na tom, po jakých kouscích se ves dopočítá. Do sítě jde i práce posledního dne (kam
-  ves chodí), ale kvůli ní samotné se nepřepočítává.
+  a díly, sady, hřbitovy, posvátná místa, pevné cesty, ohrady, stáda, kdo kde bydlí a stáří
+  spojení (nová pěšina se vyšlapává dva roky). **Stadia dílů (osev, úhor, pastva na úhoru) se
+  promítají jen jednou za měsíc – k 1. dni měsíce** (Martin, 18. 10. 2026: chůze se přepočítává
+  měsíčně – osev a zakládání postupují po dílech den po dni a síť se přepočítávala každých pár
+  dní). Simulace to kontroluje den po dni, výsledek tak nezávisí na tom, po jakých kouscích se ves
+  dopočítá. Do sítě jde i práce posledního dne (kam ves chodí) a stadia dílů v den přepočtu, ale
+  kvůli nim samotným se nepřepočítává.
 - **Uložení:** vzdálenost chůze každého dílu a čtverce sadu (`walkDistanceM`) a obydlí k okraji
   lesa (`forestWalkM`); vsi uložené dřív si je spočítají při prvním dopočítání s krajinou.
   Kalibrace (bez krajiny) počítá dál s přímou vzdáleností.

@@ -44,6 +44,8 @@ import {
   type HerdSpecies,
   type LivestockSummary,
   type ChronicleEvent,
+  type LandTaker,
+  type FamilyCounts,
   type ConstructionKind,
   type ConstructionSummary,
   type Craft,
@@ -310,6 +312,8 @@ export interface VillageView {
     /** Řemeslo dílny (crafts.md); obyčejné obydlí null. */
     craft: Craft | null;
     occupants: number;
+    /** Muži, ženy, děti, starší a manželské páry (kinship.md – panel obydlí). */
+    family: FamilyCounts;
     capacity: number;
     full: boolean;
     overcrowded: boolean;
@@ -879,7 +883,11 @@ export type SceneLaborShare = LaborShare & { parts?: readonly number[] };
 export interface SceneLabor {
   day: number;
   month: number;
-  people: { children: number; adults: number; elders: number };
+  /**
+   * Lidé vsi podle věku a – když jsou známí – podle pohlaví (kinship.md): postavy ve scéně jsou
+   * muži a ženy v poměru, jaký ves má (`villager-plan.ts`); bez údaje půl na půl.
+   */
+  people: { children: number; adults: number; elders: number } & Partial<FamilyCounts>;
   shares: SceneLaborShare[];
 }
 
@@ -938,15 +946,33 @@ function finishedText(kind: ConstructionKind, craft?: Craft): string {
 }
 
 /** Pole nebo sad ustoupil stavbě obydlí – kronika (population.md – Obydlí na poli a v sadu). */
-function landTakenText(land: 'field' | 'orchard', areaM2: number, gone: boolean): string {
+/** Komu pole či sad ustoupil (3. pád) – kronika (fields.md – Pole jako krajina). */
+const LAND_TAKERS: Record<LandTaker, string> = {
+  dwelling: 'stavbě obydlí',
+  orchard: 'sadu',
+  cemetery: 'hřbitovu',
+  pen: 'ohradě',
+  idol: 'modle',
+  shrine: 'svatyni',
+  'road-apples': 'jabloním u cesty',
+  'road-trees': 'stromům u cesty',
+};
+
+function landTakenText(
+  land: 'field' | 'orchard',
+  areaM2: number,
+  gone: boolean,
+  by: LandTaker = 'dwelling',
+): string {
+  const who = LAND_TAKERS[by];
   if (land === 'field') {
     return gone
-      ? 'Pole ustoupilo stavbě obydlí a zaniklo.'
-      : `Pole ustoupilo stavbě obydlí – zmenšilo se o ${formatInteger(areaM2)} m².`;
+      ? `Pole ustoupilo ${who} a zaniklo.`
+      : `Pole ustoupilo ${who} – zmenšilo se o ${formatInteger(areaM2)} m².`;
   }
   return gone
-    ? 'Sad ustoupil stavbě obydlí a zanikl.'
-    : `Sad ustoupil stavbě obydlí – zmenšil se o ${formatInteger(areaM2)} m².`;
+    ? `Sad ustoupil ${who} a zanikl.`
+    : `Sad ustoupil ${who} – zmenšil se o ${formatInteger(areaM2)} m².`;
 }
 
 /** Příloh zarostl lesem a vypadl z pole – kronika (fields.md – Zarůstání). */
@@ -969,11 +995,15 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
     case 'village-extinct':
       return `Zemřel poslední obyvatel – ves ${villageName} vymřela.`;
     case 'household-founded':
-      return 'Dva mladí dospělí založili v novém obydlí vlastní domácnost.';
+      return 'V obydlí založila domácnost nová rodina.';
     case 'household-merged':
-      return 'Zbytek domácnosti se přestěhoval k sousedům.';
+      return 'Zbytek domácnosti se přestěhoval k příbuzným nebo sousedům.';
     case 'marriage':
-      return 'Svatba – jeden ze snoubenců se přestěhoval do domu druhého.';
+      return 'Svatba – nevěsta se přestěhovala k ženichovi.';
+    case 'bride-from-outside':
+      return 'Muž si přivedl nevěstu ze sousední vsi.';
+    case 'married-away':
+      return 'Dcera se vdala do sousední vsi.';
     case 'construction-finished':
       return finishedText(event.constructionKind, event.craft);
     case 'rebuild-decided':
@@ -1003,7 +1033,7 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
     case 'orchard-renewal-started':
       return `Vesničané obnovují starý sad – znovu vysadí ${formatCells(event.squares)}.`;
     case 'land-taken':
-      return landTakenText(event.land, event.areaM2, event.gone);
+      return landTakenText(event.land, event.areaM2, event.gone, event.by);
     case 'hunger-began':
       return 'Ve vsi začal hlad – zásoby nevystačí do sklizně.';
     case 'hunger-ended':
@@ -1138,7 +1168,7 @@ function sceneVillage(
     squares: o.squares.map((s) => sceneOrchardSquare(landscape, s, day, state.orchardWork ?? null)),
   }));
   const reserved = [...reservedTrees(state)].sort((a, b) => a - b);
-  const labor = sceneLabor(state, summary.people);
+  const labor = sceneLabor(state, { ...summary.people, ...summary.family });
   const sacred = sceneSacred(state, landscape, day, summary);
   const obstacles = obstacleChangesAt(state, day);
   const roads = sceneRoads(state, summary.constructions);
@@ -1310,6 +1340,7 @@ function roadViews(
           trees: 0,
           laborManDays: 0,
           blocked: null,
+          warning: null,
         },
       },
     };

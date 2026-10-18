@@ -1,6 +1,7 @@
 import { dateOfDayIndex } from '../calendar';
 import { length2, obstaclesNear, type Landscape, type ObstacleLayer } from '../landscape';
 import { deriveSeed } from '../landscape/random';
+import { giveWayToBuilding, landTakenWarning, treeTakenLand } from './land-taken';
 import { obstacleChangesAt, obstacleStatus } from './obstacles';
 import { monthInWindow, roadApplePlantingWork } from './orchard';
 import { plantingBlocker, roadTreeSpots } from './paths/roads';
@@ -40,7 +41,8 @@ function toSegment(x: number, z: number, a: RoadPoint, b: RoadPoint): number {
 
 /**
  * Volná místa na jabloně podél úseku `roadId` v den `day`: po ROAD_APPLES.spacingM střídavě po
- * stranách, na louce a ne v lese ani ve vodě, mimo stavby vsi (`plantingBlocker`), mimo jiné
+ * stranách, na louce i na poli (fields.md – Pole jako krajina) a ne v lese ani ve vodě, mimo
+ * stavby vsi (`plantingBlocker`), mimo jiné
  * cesty, nejméně ROAD_APPLES.treeClearM od stojícího stromu u cesty a ROAD_APPLES.gapM od jiné
  * jabloně, ne u překážky krajiny. Deterministicky ze seedu vsi a úseku.
  */
@@ -110,6 +112,11 @@ export interface RoadApplesOption {
   trees: number;
   laborManDays: number;
   blocked: string | null;
+  /**
+   * Jabloně stojí i na poli a vezmou mu půdu (fields.md – Pole jako krajina) – „Pole se zmenší“
+   * / „Pole zanikne“ (oranžově, neblokuje); jinak null.
+   */
+  warning: string | null;
 }
 
 /** Na desetiny. */
@@ -132,13 +139,17 @@ export function roadApplesOption(
 ): RoadApplesOption | null {
   if (!state.roads?.roads.some((r) => r.id === roadId)) return null;
   if (plantingAt(state, roadId)) {
-    return { trees: 0, laborManDays: 0, blocked: 'Jabloně se tu už sázejí.' };
+    return { trees: 0, laborManDays: 0, blocked: 'Jabloně se tu už sázejí.', warning: null };
   }
-  const trees = roadAppleSpots(state, roadId, day, landscape, obstacles).length;
+  const spots = roadAppleSpots(state, roadId, day, landscape, obstacles);
+  const trees = spots.length;
+  const taken = treeTakenLand(landscape, state.parts, spots);
+  const cellAreaM2 = landscape.cellSizeM * landscape.cellSizeM;
   return {
     trees,
     laborManDays: tenths(trees * roadApplePlantingWork()),
     blocked: trees === 0 ? 'Podél cesty není volné místo.' : null,
+    warning: landTakenWarning(state, taken, cellAreaM2) ?? null,
   };
 }
 
@@ -156,7 +167,8 @@ function nearestDwellingM(state: VillageState, x: number, z: number): number {
 /**
  * Zadá výsadbu jabloní u úseku `roadId` (mutuje kopii – vrátí nový stav): jabloně na volných
  * místech čekají na výsadbu, stavba `road-apples` ze společné práce je vysadí v oknech jara
- * a podzimu. RangeError, když výsadba nejde (`roadApplesOption`).
+ * a podzimu. Jabloň na dílu pole mu vezme TAKEN_LAND_TREE_M2 (fields.md – Pole jako krajina),
+ * hned se zadáním jako ostatní stavby. RangeError, když výsadba nejde (`roadApplesOption`).
  */
 export function startRoadApples(
   state: VillageState,
@@ -194,6 +206,7 @@ export function startRoadApples(
     fieldId: null,
     roadIds: [roadId],
   });
+  giveWayToBuilding(next, day, treeTakenLand(landscape, next.parts, apples), 'road-apples');
   return next;
 }
 
