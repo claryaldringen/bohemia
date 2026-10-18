@@ -26,6 +26,7 @@ import {
   SACRED_BUILDINGS,
 } from './rules';
 import { sacredSitesOf } from './sacred';
+import { isWoodTreeId } from './woods';
 import type {
   Construction,
   ConstructionWood,
@@ -137,12 +138,29 @@ export function isOak(layer: ObstacleLayer, index: number): boolean {
   return OAK_MODEL_HEIGHT_M[obstacleLook(layer, index)] !== undefined;
 }
 
+/** Výchozí výběr stromů – všechny dospělé (i les vsi). */
+const ACCEPT_ALL = (): boolean => true;
+
+/**
+ * Dospělé stromy lesa vsi (fields.md – Les vsi), které v den změn stojí – mezi překážkami
+ * přidanými vsí (`changes.added`), bez stromů z `exclude`.
+ */
+function woodTreesStanding(
+  changes: ObstacleChanges,
+  exclude: ReadonlySet<number>,
+): { id: number; x: number; z: number }[] {
+  return (changes.added ?? []).filter(
+    (o) => o.kind === 'tree' && isWoodTreeId(o.id) && !exclude.has(o.id),
+  );
+}
+
 /**
  * Nejbližší stojící dospělé stromy k bodu (nejbližší první, při shodě menší id) bez stromů
  * z `exclude` a bez posvátných dubů a stromů hájů (ty se pro stavby nekácí – happiness.md) –
  * jako `matureTreesByDistance`, ale hledá po políčkách v rostoucím čtverci, takže neprochází
- * celou vrstvu. `accept` zúží výběr (jen duby pro modlu a svatyni). Když dospělých stromů není
- * dost, vrátí všechny.
+ * celou vrstvu. Patří k nim i dospělé stromy lesa vsi (`changes.added` – fields.md, Les vsi;
+ * jen bez `accept`, duby pro modlu a svatyni rostou jen v lese krajiny). `accept` zúží výběr
+ * (jen duby pro modlu a svatyni). Když dospělých stromů není dost, vrátí všechny.
  */
 export function nearestMatureTrees(
   layer: ObstacleLayer,
@@ -150,9 +168,32 @@ export function nearestMatureTrees(
   from: { x: number; z: number },
   count: number,
   exclude: ReadonlySet<number> = new Set(),
-  accept: (layer: ObstacleLayer, index: number) => boolean = () => true,
+  accept: (layer: ObstacleLayer, index: number) => boolean = ACCEPT_ALL,
 ): TreeAtDistance[] {
   if (count <= 0) return [];
+  const fromLayer = nearestLayerTrees(layer, changes, from, count, exclude, accept);
+  if (accept !== ACCEPT_ALL) return fromLayer;
+  const woods = woodTreesStanding(changes, exclude).map((t) => ({
+    id: t.id,
+    x: t.x,
+    z: t.z,
+    distanceM: length2(t.x - from.x, t.z - from.z),
+  }));
+  if (woods.length === 0) return fromLayer;
+  return [...fromLayer, ...woods]
+    .sort((a, b) => a.distanceM - b.distanceM || a.id - b.id)
+    .slice(0, count);
+}
+
+/** Nejbližší dospělé stromy vrstvy krajiny (`nearestMatureTrees` bez lesa vsi). */
+function nearestLayerTrees(
+  layer: ObstacleLayer,
+  changes: ObstacleChanges,
+  from: { x: number; z: number },
+  count: number,
+  exclude: ReadonlySet<number>,
+  accept: (layer: ObstacleLayer, index: number) => boolean,
+): TreeAtDistance[] {
   const status = obstacleStatus(changes);
   const sacred = sacredSitesOf(layer).protectedTrees;
   const extent = layer.size * layer.cellSizeM;
@@ -230,10 +271,13 @@ export function availableTrees(
       if (counted(index) && obstacleKind(layer, index) === 'tree') count--;
     }
   }
-  for (const id of claimedObstacles(state)) {
+  const claimed = claimedObstacles(state);
+  for (const id of claimed) {
     const index = obstacleIndex(layer, id);
     if (counted(index) && status.kindOf(layer, index) === 'tree') count--;
   }
+  // dospělé stromy lesa vsi (fields.md – Les vsi); duby jen z lesa krajiny
+  if (!oaksOnly) count += woodTreesStanding(changes, claimed).length;
   return Math.max(0, count);
 }
 

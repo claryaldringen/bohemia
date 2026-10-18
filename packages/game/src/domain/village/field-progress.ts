@@ -1,5 +1,5 @@
 import { dateOfDayIndex } from '../calendar';
-import { distanceFactor, isWeedFree, partWalkDistance } from './fields';
+import { distanceFactor, fallowStage, isOvergrown, isWeedFree, partWalkDistance } from './fields';
 import { isHayMeadow, mowingPosition, mowingSpans } from './hay';
 import { partStage } from './summary';
 import type { Crop, CropWork, FieldPart, VillageState } from './types';
@@ -30,7 +30,9 @@ export const PART_TASKS: readonly PartTask[] = [
  * strniště (po sklizni a loňské před kopáním), `young-fallow` – mladý příloh, `pasture` –
  * spásaný drn přílohu, který se vrací do osevu (i pastvina, která se letos neseče). Úhor ve fázi
  * louky, který se seče na seno (oxen.md – Seno): `meadow` – vysoká tráva, `mown` – posečeno,
- * řádky a kupky sena, `haystacks` – stohy na otavě (do jara se zkrmí).
+ * řádky a kupky sena, `haystacks` – stohy na otavě (do jara se zkrmí). Nepasený a nesečený
+ * příloh zarůstá (fields.md – Zarůstání): `shrubs` – křoviny, `young-forest` – mladý les (obtisk
+ * pole zmizí, tráva louky zůstane, rostou keře a stromky).
  */
 export type FieldPartLook =
   | 'bare'
@@ -45,7 +47,9 @@ export type FieldPartLook =
   | 'pasture'
   | 'meadow'
   | 'mown'
-  | 'haystacks';
+  | 'haystacks'
+  | 'shrubs'
+  | 'young-forest';
 
 /**
  * Vzhled dílu: `look`, u rozpracovaného dílu (čelo práce) i `work` – kolik práce dnešní úlohy je
@@ -333,7 +337,7 @@ const WORK_STEP = 20;
  * Zakládané díly (rozrytý drn, rozpracovaný s podílem založení – zakládá se od nejbližšího
  * k obydlí, nezačatý má podíl 0), připravené (rozrytý drn), díly plánu podle toho, kam došlo
  * kopání, setí a sklizeň jejich plodiny (po sklizni jaře 31. 8. je plán u výmlatu), mladý
- * příloh. Starší příloh (pastvina, louka na seno) se nevrací – vzhled doplní scéna podle data.
+ * příloh, zarůstající příloh (křoviny, mladý les) a louka na seno podle seče.
  * Podíl práce je po dvacetinách (začatá práce aspoň jedna dvacetina).
  */
 export function fieldPartLooks(state: VillageState, day: number): Map<number, PartView> {
@@ -351,6 +355,9 @@ export function fieldPartLooks(state: VillageState, day: number): Map<number, Pa
       views.set(part.id, { look: 'bare', work: Math.min(1, work) });
     } else if (part.state === 'ready' || part.state === 'sown') {
       views.set(part.id, { look: 'bare' });
+    } else if (isOvergrown(part)) {
+      // zarůstající příloh (fields.md – Zarůstání) – křoviny a mladý les
+      views.set(part.id, { look: fallowStage(part, day) === 'shrubs' ? 'shrubs' : 'young-forest' });
     } else if (partStage(part, day) === 'young-fallow') {
       views.set(part.id, { look: 'young-fallow' });
     } else if (isHayMeadow(part, day)) {

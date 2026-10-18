@@ -1,5 +1,6 @@
 import { ROAD_TREES } from './rules';
 import type { RoadTree } from './types';
+import { WOOD_TREE_ID_BASE } from './woods';
 
 // Stromy u pevných cest (roads.md – Stromy u pevných cest): strom se uchytí na místě u cesty
 // a roste z keře (Martin – napřed keř), po smrti stářím zbude souš a pak pařez. Vše se odvozuje
@@ -65,7 +66,7 @@ export function roadTreeObstacleKind(
   return age < ROAD_TREES.logFromYears ? 'youngTree' : 'tree';
 }
 
-/** Je to id stromu u cesty (ne překážky z vrstvy)? */
+/** Je to id stromu u cesty (ne překážky z vrstvy ani stromu lesa vsi)? */
 export function isRoadTreeId(id: number): boolean {
-  return id >= ROAD_TREE_ID_BASE;
+  return id >= ROAD_TREE_ID_BASE && id < WOOD_TREE_ID_BASE;
 }

@@ -6,6 +6,7 @@ import type { PartStage } from '../summary';
 import type {
   Craft,
   DwellingType,
+  FieldSurface,
   HerdSpecies,
   LaborTarget,
   Position,
@@ -102,7 +103,15 @@ export interface PathVillage {
     craft?: Craft;
     plot?: { cell: TileCell; x: number; z: number; size: number };
   }[];
-  fields: readonly { id: number; parts: readonly (PathSquare & { stage: PartStage })[] }[];
+  /**
+   * Pole – díly se stadiem; `grazed` u přílohu ve fázi louky = pasou se na něm stáda (fields.md –
+   * Zarůstání, `pastureGrazedParts`): kam stáda nedojdou, tam pasáček nechodí. Bez údaje se pase
+   * na každém přílohu.
+   */
+  fields: readonly {
+    id: number;
+    parts: readonly (PathSquare & { stage: PartStage; grazed?: boolean })[];
+  }[];
   orchards?: readonly { id: number; squares: readonly PathSquare[] }[];
   cemeteries?: readonly { id: number; squares: readonly PathSquare[] }[];
   sacred?: {
@@ -136,6 +145,11 @@ export interface PathVillage {
    * denně vyžene na úhor. Bez údaje žádná.
    */
   livestock?: Readonly<Partial<Record<HerdSpecies, number>>>;
+  /**
+   * Les vsi (fields.md – Les vsi) – čtverce polí zarostlé lesem: na bývalé louce se jde jako
+   * lesem (les na vymýceném lese už terén krajiny zná). Bez údaje žádný.
+   */
+  woods?: readonly (PathSquare & { surface?: FieldSurface })[];
 }
 
 export interface PathNetworkInput {
@@ -223,7 +237,12 @@ const STAGE_COST: Record<PartStage, number> = {
   sown: 12,
   'young-fallow': 1.1,
   meadow: 1.25,
+  // zarůstající příloh (fields.md – Zarůstání): trnité křoviny, houština mladého lesa
+  shrubs: 2.2,
+  'young-forest': 1.8,
 };
+/** Les vsi na bývalé louce – jako les krajiny (terrain.ts – FOREST_COST). */
+const WOOD_COST = 1.35;
 /** Sad (pod jabloněmi, okopané kmeny), hřbitov (plot, hroby) a ohrada (plot ze žerdí). */
 const ORCHARD_COST = 1.6;
 const CEMETERY_COST = 15;
@@ -323,7 +342,11 @@ export function pathNetworkKey(village: PathVillage): string {
     return `${d.id}:${d.type}${d.craft ? `/${d.craft}` : ''}:${d.built ? 1 : 0}:${d.inhabited === false ? 0 : 1}:${age}:${plot}:${d.position.x.toFixed(1)},${d.position.z.toFixed(1)},${d.position.rotation.toFixed(2)}`;
   });
   const fields = village.fields.map(
-    (f) => `${f.id}:${f.parts.map((p) => `${p.cell.x},${p.cell.y},${p.stage}`).join(';')}`,
+    (f) =>
+      `${f.id}:${f.parts.map((p) => `${p.cell.x},${p.cell.y},${p.stage}${p.grazed === false ? ',-' : ''}`).join(';')}`,
+  );
+  const woods = (village.woods ?? []).map(
+    (w) => `${w.cell.x},${w.cell.y}${w.surface === 'forest' ? 'f' : ''}`,
   );
   const orchards = (village.orchards ?? []).map(
     (o) => `${o.id}:${o.squares.map((s) => `${s.cell.x},${s.cell.y}`).join(';')}`,
@@ -362,6 +385,8 @@ export function pathNetworkKey(village: PathVillage): string {
     roadsKey(village.roads),
     pens,
     pastureHerds(village.livestock),
+    // bez lesa vsi prázdné – klíč starších vsí zůstane stejný
+    ...(woods.length > 0 ? [woods] : []),
   ]);
 }
 
@@ -645,6 +670,10 @@ function villageGrid(input: PathNetworkInput, buildings: readonly Building[]): G
       grid.village[c] = 1;
     }
   }
+  const woods = (v.woods ?? []).filter((w) => w.surface !== 'forest');
+  if (woods.length > 0) {
+    for (const c of squareCells(grid, woods).inside) grid.base[c] = grid.base[c]! * WOOD_COST;
+  }
   for (const b of v.sacred?.buildings ?? []) {
     if (b.kind !== 'shrine') continue;
     const half = SACRED_BUILDINGS.shrine.footprintM / 2;
@@ -880,8 +909,12 @@ function tripGroups(
   const herds = pastureHerds(v.livestock);
   if (herds > 0) {
     const aftermath = input.annual || AFTERMATH_MONTHS.includes(v.labor?.month ?? 6);
+    // jen díly, které stáda opravdu spásají (fields.md – Zarůstání – nejbližší příloh napřed)
     const pasture = v.fields.flatMap((f) =>
-      f.parts.filter((p) => p.stage === 'young-fallow' || (aftermath && p.stage === 'meadow')),
+      f.parts.filter(
+        (p) =>
+          p.grazed !== false && (p.stage === 'young-fallow' || (aftermath && p.stage === 'meadow')),
+      ),
     );
     if (pasture.length > 0) {
       target(squaresTarget(pasture), herds * PASTURE.tripsPerHerd);

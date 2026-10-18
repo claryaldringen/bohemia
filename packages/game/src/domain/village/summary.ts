@@ -8,7 +8,7 @@ import {
 } from './cemetery';
 import { craftCoverage, craftNeeds, craftStocks, oreFactor, workshopLabor } from './crafts';
 import { isFull, isOvercrowded, waitingHouseholds } from './dwellings';
-import { fallowYears } from './fields';
+import { fallowStage } from './fields';
 import {
   happinessFactors,
   happinessLaborFactor,
@@ -35,13 +35,7 @@ import {
   villageOrchards,
 } from './orchard';
 import { ageGroup, foodNeedPerDay, occupants } from './people';
-import {
-  CHRONICLE_MAX_EVENTS,
-  DWELLINGS,
-  OVERGROWTH_STAGES,
-  SACRED_OAK,
-  STARVATION,
-} from './rules';
+import { CHRONICLE_MAX_EVENTS, DWELLINGS, SACRED_OAK, STARVATION } from './rules';
 import {
   groveHappiness,
   sacredBuildingHappiness,
@@ -57,6 +51,7 @@ import type {
   CraftStocks,
   DietDay,
   DwellingType,
+  FallowStage,
   FieldPart,
   HerdSpecies,
   Position,
@@ -71,9 +66,10 @@ import { treesToFell, woodFellingCost, woodLogs } from './wood';
 
 /**
  * Stadium dílu pro scénu: zakládá se, připravený, osetý, nebo příloh – mladý příloh 1–2 roky,
- * pak napořád spásaná pastvina `meadow` (fields.md – Zarůstání; nálet nebude).
+ * pak louka (pastvina, louka na seno); nepasený a nesečený příloh zarůstá křovinami a mladým
+ * lesem (fields.md – Zarůstání).
  */
-export type PartStage = 'founding' | 'ready' | 'sown' | 'young-fallow' | 'meadow';
+export type PartStage = 'founding' | 'ready' | 'sown' | FallowStage;
 
 export interface HouseholdSummary {
   dwellingId: number;
@@ -287,11 +283,13 @@ const NO_LABOR = 0.01;
 /** Od kolika dnů nahromaděného hladu lidé umírají hlady – nejnižší práh věkových skupin. */
 const STARVING_FROM_DAYS = Math.min(...Object.values(STARVATION.threshold));
 
-/** Stadium dílu v daný den; příloh podle celých let ladem (fields.md – Zarůstání). */
+/**
+ * Stadium dílu v daný den; příloh podle let ladem a let bez pastvy a seče (`fallowStage` –
+ * fields.md, Zarůstání).
+ */
 export function partStage(part: FieldPart, day: number): PartStage {
   if (part.state !== 'fallow') return part.state;
-  const years = fallowYears(part, day);
-  return OVERGROWTH_STAGES.find((s) => years <= s.maxYears)?.stage ?? 'meadow';
+  return fallowStage(part, day);
 }
 
 function peopleByGroup(state: VillageState, day: number): VillageSummary['people'] {

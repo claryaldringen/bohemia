@@ -61,3 +61,5 @@ export * from './happiness';
 export * from './crafts';
 export * from './paths';
 export * from './road-trees';
+export * from './overgrowth';
+export * from './woods';

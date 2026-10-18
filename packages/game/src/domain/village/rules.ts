@@ -4,8 +4,10 @@ import type {
   Craft,
   Crop,
   DwellingType,
+  FallowStage,
   FieldSurface,
   FieldTask,
+  OvergrowthStage,
   PlotVariant,
   TaskName,
 } from './types';
@@ -143,12 +145,16 @@ export const FOUNDING_COST_PER_HA: Record<FieldSurface, Bounds> = {
   shrub: { worst: 100, best: 60 },
   forest: { worst: 250, best: 150 },
 };
-// fields.md – Práce, Zarůstání (Martin, 18. 10. 2026 – na přílohu se pase, nálet nebude): vrácení
-// přílohu do osevu – 1–2 roky bez práce navíc, pak drn pastviny jako založení na louce (meze)
-export const RECLAIM_COST_PER_HA: readonly { maxYears: number; cost: Bounds }[] = [
-  { maxYears: 2, cost: { worst: 0, best: 0 } },
-  { maxYears: Infinity, cost: FOUNDING_COST_PER_HA.meadow },
-];
+// fields.md – Práce, Zarůstání (Martin, 18. 10. 2026: „Ano udělej to tak“ – nepasený a nesečený
+// příloh zarůstá; čísla návrh Clauda podle rešerše 2026-10-18-overgrowth.md): vrácení přílohu do
+// osevu podle stadia – mladý příloh bez práce navíc, louka drn louky, křoviny jako křoviny,
+// mladý les jako les (meze)
+export const RECLAIM_COST_PER_HA: Readonly<Record<FallowStage, Bounds>> = {
+  'young-fallow': { worst: 0, best: 0 },
+  meadow: FOUNDING_COST_PER_HA.meadow,
+  shrubs: FOUNDING_COST_PER_HA.shrub,
+  'young-forest': FOUNDING_COST_PER_HA.forest,
+};
 // fields.md – Založení pole (sazba povrchu za hektar v sobě má, co povrch tvoří: v lese stromy
 // i se suchými, padlými a pařezy a podrost – „stromy v ceně“, v křovinách keře; po kusech se
 // na takovém čtverci platí jen ostatní překážky – kameny, balvany, v křovinách i stromy)
@@ -420,12 +426,40 @@ export const FUEL_DOMESTIC_SHARE = 1 / 3;
 export function dwellingBuildLabor(type: DwellingType): number {
   return DWELLINGS[type].cost - DWELLING_TREES[type] * FELLING_MAN_DAYS_PER_TREE;
 }
-// fields.md – Zarůstání (Martin, 18. 10. 2026: na přílohu se pasou ovce, kozy a krávy – nálet
-// nebude): mladý příloh 1–2 roky, pak napořád spásaná pastvina (stadium `meadow`)
-export const OVERGROWTH_STAGES = [
-  { maxYears: 2, stage: 'young-fallow' },
-  { maxYears: Infinity, stage: 'meadow' },
-] as const;
+// fields.md – Příloh a pastva: mladý příloh 1–2 roky ladem (plevel a tráva – vrácení bez drnu)
+export const YOUNG_FALLOW_YEARS = 2;
+// fields.md – Zarůstání (Martin, 18. 10. 2026: „Ano udělej to tak“ – nepasený a nesečený příloh
+// zarůstá, les z pole vypadne; čísla návrh Clauda podle rešerše 2026-10-18-overgrowth.md –
+// Jelinčić a kol. 2023: travinné stadium 2–5 let, keře 5–15, osika 15–30, les přes 30; Prach
+// 2023: trnka kolem 15. roku, zapojené dřeviny po ≈ 20 letech): roky bez pastvy a seče → stadium
+// dílu přílohu. Od 30 let je na dílu les a z pole vypadne (les vsi – `VillageState.woods`).
+export const OVERGROWTH_STAGES: readonly {
+  readonly fromYears: number;
+  readonly stage: OvergrowthStage;
+}[] = [
+  { fromYears: 0, stage: 'meadow' },
+  { fromYears: 5, stage: 'shrubs' },
+  { fromYears: 15, stage: 'young-forest' },
+  { fromYears: 30, stage: 'forest' },
+];
+// fields.md – Zarůstání (návrh Clauda): roky bez pastvy a seče se počítají jednou za rok
+// 1. 11. (po pastevní sezóně a seči, před porážkou) a jen dílům, které ležely ladem celé
+// vegetační období od 1. 4.; díl se spásl, když na něj z potřeby pastvy stád připadla aspoň
+// polovina jeho plochy (`fallowGrazing`)
+export const OVERGROWTH = {
+  yearDay: { month: 11, day: 1 },
+  seasonStart: { month: 4, day: 1 },
+  grazedMinShare: 0.5,
+} as const;
+// fields.md – Les vsi (návrh Clauda; forest.md – Les ustupuje): dospělé stromy na lese vsi
+// přibývají od 15 let (osika a bříza mladého lesa) do plné hustoty v 70 letech (jako pokácený
+// strom – TREE_REGROWTH_YEARS); plná hustota 240 stromů na hektar jako les krajiny (≈ 5,5
+// dospělého stromu na políčko vrstvy překážek)
+export const VILLAGE_WOOD = {
+  matureFromYears: 15,
+  fullYears: TREE_REGROWTH_YEARS,
+  treesPerHa: 240,
+} as const;
 
 // happiness.md – Štěstí (Martin 18. 10. 2026; čísla návrh Clauda): číslo 0–100, výchozí 50,
 // k cílové hodnotě se posouvá o 10 % rozdílu za měsíc (simulace po dnech: denní podíl tak, aby

@@ -130,6 +130,11 @@ export interface PlacementVillage {
   }[];
   /** Ohrady (i rozestavěné) – každá zabírá své políčko (bez údaje žádné – oxen.md). */
   readonly pens?: readonly { readonly cell: TileCell }[];
+  /**
+   * Les vsi – čtverce polí zarostlé lesem (fields.md – Les vsi; bez údaje žádný): pole ho vymýtí
+   * jako les (stromy lesa jsou v `obstacleChanges.added`), ostatní stavby jen na louku.
+   */
+  readonly woods?: readonly { readonly cell: TileCell }[];
   /** Překážky, které ves už odstranila nebo pokácela (`obstacleChangesAt`); bez nich žádné. */
   readonly obstacleChanges?: ObstacleChanges;
   /**
@@ -437,6 +442,11 @@ function penCells(landscape: Landscape, village: PlacementVillage | null): Set<n
   return new Set((village?.pens ?? []).map((pen) => cellIndex(landscape, pen.cell)));
 }
 
+/** Políčka lesa vsi (fields.md – Les vsi). */
+function woodCells(landscape: Landscape, village: PlacementVillage | null): Set<number> {
+  return new Set((village?.woods ?? []).map((wood) => cellIndex(landscape, wood.cell)));
+}
+
 /** Body mřížky po FOOTPRINT_SAMPLE_STEP_M přes otočený půdorys obydlí, včetně okrajů. */
 function footprintSamples(type: DwellingType, position: Position): Point[] {
   const { width, depth } = DWELLING_FOOTPRINT_M[type];
@@ -538,6 +548,8 @@ function checkFootprintFree(
   if (!takeLand && under.some((i) => orchards.has(i))) return fail('Překrývá se se sadem.');
   const pens = penCells(landscape, village);
   if (under.some((i) => pens.has(i))) return fail('Překrývá se s ohradou.');
+  const woods = woodCells(landscape, village);
+  if (under.some((i) => woods.has(i))) return fail('Roste tu les – stavět jde zatím jen na louce.');
   return OK;
 }
 
@@ -1265,6 +1277,7 @@ function squareFlags(
   const cemeteries = cemeteryCells(landscape, village);
   const orchards = orchardCells(landscape, village);
   const pens = penCells(landscape, village);
+  const woods = woodCells(landscape, village);
   const underDwellings = dwellingCells(landscape, village, dwellingPositions);
   const underSacred = sacredBuildingCells(landscape, village);
   return (cell) => {
@@ -1272,7 +1285,8 @@ function squareFlags(
     const surface = surfaceAt(landscape, cell.x, cell.y);
     return {
       water: surface === 'water',
-      forest: surface === 'forest',
+      // les krajiny i les vsi (fields.md – Les vsi)
+      forest: surface === 'forest' || woods.has(index),
       dwelling: underDwellings.has(index),
       field: fields.has(index),
       cemetery: cemeteries.has(index),
@@ -1397,6 +1411,7 @@ function buildSquares(
 } {
   const status = obstacleStatus(village?.obstacleChanges);
   const flagsOf = squareFlags(landscape, village, dwellingPositions);
+  const woods = woodCells(landscape, village);
   const sites = sacredSitesOf(obstacles);
   const sacred = sacredSelection(landscape, sites, selected);
   const cells = sacred.cells;
@@ -1427,9 +1442,10 @@ function buildSquares(
       blocked = true;
     }
     if (blocked) blockedCells.push(cell);
-    const land = surfaceAt(landscape, cell.x, cell.y);
-    if (land === 'water' || (!fieldSurfaces && land !== 'meadow')) continue;
     const index = cellIndex(landscape, cell);
+    // les vsi se mýtí jako les krajiny – stromy lesa jsou mezi překážkami (fields.md – Les vsi)
+    const land = woods.has(index) ? 'forest' : surfaceAt(landscape, cell.x, cell.y);
+    if (land === 'water' || (!fieldSurfaces && land !== 'meadow')) continue;
     // posvátný dub zůstane stát – není mezi překážkami a plocha pod korunou se nepočítá
     const tally = cellObstacles(obstacles, status, cell, sites.protectedTrees);
     for (const [kind, count] of Object.entries(tally.counts) as [ObstacleKind, number][]) {
