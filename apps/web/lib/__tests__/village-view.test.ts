@@ -370,6 +370,32 @@ describe('buildVillageView', () => {
     expect(scene.dwellings[0]?.inhabited).toBe(false);
   });
 
+  it('scéna: stav chátrajícího obydlí a zbytky jam po zaniklých obydlích (jak zarostly)', () => {
+    const s = settled();
+    s.dwellings[0]!.condition = 0.4321;
+    const plot = { cell: { x: 9, y: 9 }, variant: 'center' as const };
+    s.ruins = [
+      { id: 7, type: 'polozemnice', position: { x: 10, z: 20, rotation: 0 }, plot, day: DAY - 365 },
+    ];
+    const { scene } = buildVillageView(record(s), landscape, DAY);
+    expect(scene.dwellings[0]?.condition).toBe(0.432);
+    const center = tileCenterWorld(landscape, 9, 9);
+    expect(scene.ruins).toEqual([
+      {
+        id: 7,
+        type: 'polozemnice',
+        position: { x: 10, z: 20, rotation: 0 },
+        since: DAY - 365,
+        overgrowth: 0.1,
+        plot: { cell: { x: 9, y: 9 }, x: center.x, z: center.z, size: 15, variant: 'center' },
+      },
+    ]);
+    // celé obydlí stav neposílá, ves bez zbytků jam je nemá
+    const plain = buildVillageView(record(settled()), landscape, DAY).scene;
+    expect(plain.dwellings[0]).not.toHaveProperty('condition');
+    expect(plain).not.toHaveProperty('ruins');
+  });
+
   it('scéna: obydlí, díly pole ve středech políček a rozestavěné obydlí', () => {
     const s = settled();
     // stavba obydlí rovnou do stavu – pravidla odemčení tu netestujeme

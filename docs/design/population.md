@@ -270,6 +270,13 @@ jich bude moci mít více), tak pro něj hra končí – musí začínat znovu.�
   Typ úplně nové stavby vybírá hráč.
 - Během přestavby domácnost bydlí dál (stavba se abstrahuje, starý dům zmizí až s dokončením
   nového – návrh Clauda).
+- **Po zániku – zbytek jámy** (Martin, 18. 10. 2026; podoba a čísla návrh Clauda): obydlí, které
+  zchátrá na nulu (prázdné), nebo jehož domácnost se při přestavbě přestěhuje na nový pozemek
+  (starý dům se zboří), nechá na svém místě zarostlou prohlubeň s kopřivami a pár trámy. Ta
+  **≈ 10 let** postupně zarůstá – prohlubeň se zasypává, trámy hnijí, valy se srovnají – a pak
+  zmizí. Je to jen vzhled: na místo zříceniny jde stavět a stavba (obydlí, pole, hřbitov, sad,
+  modla, svatyně – i přestavba na novém pozemku) zbytek jámy odstraní. Vsi uložené dřív žádné
+  zbytky jam nemají.
 
 ### Kronika
 
@@ -378,6 +385,27 @@ pravidla → první verze hladu (1 − nasycení za den, hájení bez stropu) �
   plotu, cizí zvířata ani lidé do pozemku nechodí. Stavby
   z módu Millennium A.D. (ruské sruby, severské domy) se nepoužijí – jiná doba či region
   a nejistá licence (Martin); nanejvýš jako předloha tvarů pro pozdější roubené chalupy.
+- **Dům se viditelně rozpadá** (Martin, 18. 10. 2026: „domy by měly mít různé stavy destrukce –
+  jako se nový dům postupně staví, tak starý a opuštěný dům se musí postupně rozpadat“; stupně
+  a podoba návrh Clauda). Stupeň podle stavu obydlí platí pro **každé** obydlí – i obydlené,
+  kterému nestačí opravy (jako poškozené budovy v 0 A.D.); obydlené s dostatkem oprav zůstává
+  celé:
+  1. **100–70 %** – celý dům (u prázdného bez dýmu, vchod zarůstá).
+  2. **70–45 % – sešlý:** došky prořídlé a vybledlé, místy díry, mech a tráva na střeše, omítka
+     místy opadaná (vidět výplet, u polozemnice trámy srubu).
+  3. **45–20 % – propadá se:** část došků pryč, vidět latě a krokve, hřeben prověšený a nakřivo;
+     u polozemnice padá i plot pozemku (chybí větve, kůly nakřivo) a záhony zarůstají plevelem,
+     kolem domu kopřivy.
+  4. **20–0 % – zřícený:** střecha spadlá do jámy, trčí krokve a sloupy, stěny rozpadlé (ze štítů
+     zemnice nízké pahýly, ze srubu polozemnice spodní řady trámů); z plotu zbyly pahýly, záhony
+     zarostlé, ze zřícené střechy už nestoupá dým.
+  5. **Po zániku – zbytek jámy:** zarostlá prohlubeň s kopřivami, pár trámy a nízkými valy, ≈ 10
+     let postupně zarůstá a pak zmizí (Chátrání a přestavba – Po zániku).
+
+  Řemeslné dílny (hrnčíř, kovář, uhlíř) zatím zůstávají celé – jejich díly rozpadu přijdou
+  později (stojí na tvarech obydlí, ale přístřešek, pec, výheň a milíř potřebují vlastní).
+  Kronika ani upozornění kvůli rozpadu nic nového nehlásí.
+
 - Rozhraní jako v 0 A.D. (Martin, 17. 10. 2026: „Ovládací prvky a layout udělej jako u 0AD.
   Odstraň všechny popisky – hráč nepotřebuje průvodce. Nevoď hráče za ručičku.“): horní lišta
   se jménem vsi a ikonami s čísly (lidé, obilí, volná práce, nasycení, datum), minimapa, panel
@@ -443,3 +471,6 @@ pravidla → první verze hladu (1 − nasycení za den, hájení bez stropu) �
 | Rohy polského plotu zakulacené; výběr polozemnice označí celý pozemek          | Martin, 18. 10. 2026                       |
 | Starší polozemnice dostanou pozemek při načtení, jinak při přestavbě do 50 m   | Martin, 18. 10. 2026                       |
 | Vchod k brance vpředu, [ a ] přepínají variantu, rovno jen pod domem           | návrh Clauda                               |
+| Dům se viditelně rozpadá, jako se staví – stupně podle stavu, i obydlený       | Martin, 18. 10. 2026                       |
+| Stupně 70 / 45 / 20 %, jejich podoba; plot a záhony od propadající se střechy  | návrh Clauda                               |
+| Zbytek jámy po zaniklém obydlí ≈ 10 let zarůstá; stavba přes něj ho odstraní   | Martin (zbytek), návrh Clauda (podoba)     |

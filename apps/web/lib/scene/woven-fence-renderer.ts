@@ -57,7 +57,15 @@ export class WovenFenceRenderer {
     };
     const ground = stage.posts.map((post) => this.context.height(post.x, post.z));
     for (const [i, post] of stage.posts.entries()) {
-      Matrix.TranslationToRef(post.x, ground[i]!, post.z, MATRIX);
+      const y = ground[i]! - (post.sink ?? 0);
+      if (post.lean) {
+        // kůl rozpadlého plotu nakřivo (woven-fence.ts – decayFence)
+        UP.set(post.lean.x, 1, post.lean.z).normalize();
+        Quaternion.FromUnitVectorsToRef(Vector3.UpReadOnly, UP, ROTATION);
+        SCALE.set(1, 1, 1);
+        POSITION.set(post.x, y, post.z);
+        Matrix.ComposeToRef(SCALE, ROTATION, POSITION, MATRIX);
+      } else Matrix.TranslationToRef(post.x, y, post.z, MATRIX);
       appendMatrix(buffers[post.gate ? 'fence-post-gate' : 'fence-post'], MATRIX);
     }
     // větev nad terénem u kůlů, mezi kůly rovně (průvěs má díl sám)
@@ -138,6 +146,7 @@ const MATRIX = new Matrix();
 const SCALE = new Vector3();
 const POSITION = new Vector3();
 const ROTATION = new Quaternion();
+const UP = new Vector3();
 
 /** Matice kusu větve (díl je 1 m dlouhý podél +x od počátku) z bodu a do bodu b. */
 function segment(
