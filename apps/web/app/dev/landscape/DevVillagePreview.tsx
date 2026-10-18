@@ -7,17 +7,23 @@
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import {
   CEMETERY,
+  NO_OBSTACLE_CHANGES,
   cemeteryPartsFromCells,
+  fieldPartsFromCells,
+  matureTreesByDistance,
+  obstaclesOf,
   orchardPartsFromCells,
   surfaceAt,
   type DwellingType,
   type Landscape,
+  type ObstacleChanges,
   type PartStage,
   type PlacementCheck,
   type Position,
   type TileCell,
 } from '@bohemia/game';
 import { GameView } from '@/components/game/GameView';
+import { Minimap } from '@/components/game/hud/Minimap';
 import { decodeLandscape, type LandscapeTransfer } from '@/lib/landscape-transfer';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
 import { CEMETERY_PHASES } from '@/lib/scene/cemetery-layout';
@@ -36,7 +42,7 @@ import type {
   SceneDwelling,
   SceneField,
 } from '@/lib/scene/village-types';
-import { formatCells, formatHa, plural } from '@/lib/village-format';
+import { formatCells, formatHa, formatManDays, plural } from '@/lib/village-format';
 import { placementVillageFromScene, type SceneVillage } from '@/lib/village-view';
 
 const STAGES: PartStage[] = [
@@ -64,6 +70,10 @@ interface DevWindow extends Window {
     setDwellings: (dwellings: SceneDwelling[]) => void;
     setCemeteries: (cemeteries: DevCemetery[]) => void;
     setOrchards: (orchards: DevOrchard[]) => void;
+    /** Založí pole na čtvercích (i v lese) – překážky z nich zmizí jako po založení. */
+    addField: (cells: TileCell[]) => void;
+    /** Pokácí `count` dospělých stromů nejblíž bodu (pařezy). */
+    fellTrees: (count: number, near?: { x: number; z: number }) => void;
   };
 }
 
@@ -85,6 +95,8 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   const [preview, setPreview] = useState<PlacementPreview | null>(null);
   const [smokeAlways, setSmokeAlways] = useState(false);
   const [woodLogs, setWoodLogs] = useState(0);
+  // odstraněné a pokácené překážky – pole v lese, kácení (scéna je skryje a les tam nekreslí)
+  const [obstacles, setObstacles] = useState<ObstacleChanges>(NO_OBSTACLE_CHANGES);
   // roční období: den v roce (null = podle herního data) a přehrávání roku
   const [seasonDay, setSeasonDay] = useState<number | null>(null);
   const [playingYear, setPlayingYear] = useState(false);
@@ -103,8 +115,9 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
       cemeteries,
       orchards,
       woodLogs,
+      obstacles,
     }),
-    [dwellings, fields, cemeteries, orchards, stage, mixed, woodLogs],
+    [dwellings, fields, cemeteries, orchards, stage, mixed, woodLogs, obstacles],
   );
 
   useEffect(() => {
@@ -133,11 +146,52 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     return () => cancelAnimationFrame(frame);
   }, [playingYear]);
 
+  /**
+   * Pole na čtvercích – díly i v lese a křovinách; překážky dílů (stromy, keře, kameny) zmizí
+   * hned jako po založení, ať je vidět vymýcený les.
+   */
+  const addField = (cells: TileCell[]): void => {
+    const preview = fieldPartsFromCells(
+      decoded,
+      placementVillageFromScene(village),
+      cells,
+      devDwellingPositions(decoded, village),
+    );
+    const cleared = preview.parts.flatMap((part) => part.obstacleIds ?? []);
+    setObstacles((changes) => ({
+      ...changes,
+      removed: [...new Set([...changes.removed, ...cleared])].sort((a, b) => a - b),
+    }));
+    const id = nextId.current++;
+    setFields((list) => [...list, { id, parts: fieldParts(decoded, cells) }]);
+  };
+
+  /** Pokácí dospělé stromy nejblíž bodu (bez bodu u prvního obydlí nebo místa vsi) – pařezy. */
+  const fellTrees = (count: number, near?: { x: number; z: number }): void => {
+    const from = near ?? devDwellingPositions(decoded, village)[0]!;
+    const trees = matureTreesByDistance(obstaclesOf(decoded), obstacles, from, { limit: count });
+    setObstacles((changes) => ({
+      ...changes,
+      stumps: [...new Set([...changes.stumps, ...trees.map((t) => t.id)])].sort((a, b) => a - b),
+    }));
+  };
+
   // Přístup ke scéně a vsi pro snímky z Playwrightu (jen tato vývojová stránka).
+  const devActions = useRef({ addField, fellTrees });
+  useEffect(() => {
+    devActions.current = { addField, fellTrees };
+  });
   useEffect(() => {
     if (!scene) return;
     const devWindow = window as DevWindow;
-    devWindow.__bohemiaDev = { scene, setDwellings, setCemeteries, setOrchards };
+    devWindow.__bohemiaDev = {
+      scene,
+      setDwellings,
+      setCemeteries,
+      setOrchards,
+      addField: (cells) => devActions.current.addField(cells),
+      fellTrees: (count, near) => devActions.current.fellTrees(count, near),
+    };
     return () => {
       delete devWindow.__bohemiaDev;
     };
@@ -185,8 +239,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         onConfirm: (result) => {
           handlers.onCancel();
           if (result.kind !== 'squares') return;
-          const id = nextId.current++;
-          setFields((list) => [...list, { id, parts: fieldParts(decoded, result.cells) }]);
+          addField(result.cells);
         },
       },
     );
@@ -471,6 +524,9 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         <button className={buttonClass} disabled={!scene} onClick={placeField}>
           Pole
         </button>
+        <button className={buttonClass} onClick={() => fellTrees(20)}>
+          Kácet 20 stromů
+        </button>
         <button className={buttonClass} disabled={!scene} onClick={placeCemetery}>
           Hřbitov
         </button>
@@ -576,6 +632,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
             setFields([]);
             setCemeteries([]);
             setOrchards([]);
+            setObstacles(NO_OBSTACLE_CHANGES);
           }}
         >
           Smazat ves
@@ -593,6 +650,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
           </span>
         )}
       </div>
+      <Minimap landscape={decoded} scene={scene} village={village} />
       {preview?.screen && (
         <div
           className={`pointer-events-none fixed z-10 rounded px-2 py-0.5 text-xs text-white ${preview.check.ok ? 'bg-emerald-700/85' : 'bg-red-700/85'}`}
@@ -625,7 +683,17 @@ function fakeDwellingCheck(l: Landscape, village: SceneVillage, p: Position): Pl
   return { ok: true, reason: null };
 }
 
-/** Zjednodušený náhled pole: čtverce ve vodě a v jiném poli jsou zakázané. */
+/** Obydlí vsi, nebo místo vsi, když žádné není – od nich se měří vzdálenost dílů. */
+function devDwellingPositions(l: Landscape, village: SceneVillage): Position[] {
+  if (village.dwellings.length > 0) return village.dwellings.map((d) => d.position);
+  const site = tileCenter(l, l.villageSite.x, l.villageSite.y);
+  return [{ x: site.worldX, z: site.worldZ, rotation: 0 }];
+}
+
+/**
+ * Zjednodušený náhled pole: čtverce ve vodě a v jiném poli jsou zakázané; cena založení
+ * a povrch dílů (louka, křoviny, les) podle herního jádra.
+ */
 function fakeFieldPreview(l: Landscape, village: SceneVillage, cells: TileCell[]): SquaresPreview {
   const taken = new Set(
     village.fields.flatMap((f) => f.parts.map((p) => `${p.cell.x},${p.cell.y}`)),
@@ -633,7 +701,22 @@ function fakeFieldPreview(l: Landscape, village: SceneVillage, cells: TileCell[]
   const blockedCells = cells.filter(
     (c) => surfaceAt(l, c.x, c.y) === 'water' || taken.has(`${c.x},${c.y}`),
   );
-  const label = `${formatCells(cells.length)} · ${formatHa(cells.length * l.cellSizeM ** 2)}`;
+  const core = fieldPartsFromCells(
+    l,
+    placementVillageFromScene(village),
+    cells,
+    devDwellingPositions(l, village),
+  );
+  const surfaces = (['shrub', 'forest'] as const)
+    .filter((s) => core.surfaceCounts[s])
+    .map((s) => `${s === 'shrub' ? 'křoviny' : 'les'} ${core.surfaceCounts[s]}`);
+  const label = [
+    formatCells(cells.length),
+    formatHa(cells.length * l.cellSizeM ** 2),
+    ...surfaces,
+    formatManDays(core.foundingCost),
+    ...(core.clearedTrees > 0 ? [`${core.clearedTrees} klád`] : []),
+  ].join(' · ');
   const check: PlacementCheck =
     blockedCells.length > 0
       ? { ok: false, reason: 'Ve vodě ani přes jiné pole pole nejde' }

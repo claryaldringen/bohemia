@@ -1,9 +1,11 @@
 import { dateOfDayIndex } from '../calendar';
+import type { Surface } from '../landscape';
 import {
   DISTANCE,
   FERTILITY,
   FOREST_AFTER_YEARS,
   FOUNDING_COST_PER_HA,
+  OBSTACLE_COST,
   RECLAIM_COST_PER_HA,
   SEED_KG_PER_HA,
   YIELD_BASE_KG_PER_HA,
@@ -45,6 +47,25 @@ export function fallowYears(part: FieldPart, day: number): number {
 export function reclaimCostPerHa(years: number): number {
   const step = RECLAIM_COST_PER_HA.find((s) => years <= s.maxYears);
   return step?.cost ?? 0;
+}
+
+/**
+ * Povrch čtverce pole při založení (fields.md – Založení pole): les podle krajiny; čtverec louky
+ * je **křoviny**, když by jeho keře po kusech stály aspoň tolik, o kolik je sazba křovin dražší
+ * než louka (na políčku 15 × 15 m od 5 keřů – keřový lem lesa, keřové ostrůvky; návrh Clauda).
+ * Cena tak s přibývajícími keři plynule roste až po sazbu křovin, keře jsou pak v ceně.
+ * Voda povrch pole není – `null`.
+ */
+export function fieldSquareSurface(
+  surface: Surface,
+  shrubs: number,
+  squareAreaM2: number,
+): FieldSurface | null {
+  if (surface === 'water') return null;
+  if (surface === 'forest') return 'forest';
+  const premium =
+    (FOUNDING_COST_PER_HA.shrub - FOUNDING_COST_PER_HA.meadow) * (squareAreaM2 / M2_PER_HA);
+  return shrubs > 0 && shrubs * OBSTACLE_COST.shrub >= premium - EPSILON ? 'shrub' : 'meadow';
 }
 
 /** Cena založení dílu: povrch × hektary + překážky. */

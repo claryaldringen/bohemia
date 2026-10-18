@@ -7,7 +7,9 @@ stavby, klády z mýcení (pole, hřbitov, staveniště), hnití klád, dřevo j
 (zašedlé tlačítko), palivo podle vzdálenosti k lesu – `packages/game/src/domain/village/wood.ts`;
 v rozhraní klády v horní liště, dřevo v ceně staveb a stromy ke skácení u stavby, ve scéně hromada
 klád a pařezy. Staví na vrstvě překážek (stromy jako herní data, kácení s pařezem a obnovou
-v `obstacles.ts`).
+v `obstacles.ts`). **Pole v lese (18. 10. 2026):** pole jde zakládat i v lese a v křovinách
+([fields.md](fields.md)) – mýcení dá klády za dospělé stromy dílů; scéna a minimapa vykácený
+a vymýcený les přestanou kreslit jako les (`apps/web/lib/scene/cleared-forest.ts`).
 
 ## Proč
 
@@ -99,7 +101,9 @@ k lesu stojí práci a mýcení pro pole dá klády na stavby.
 ## Co hráč vidí
 
 - Ve scéně: ustupující okraj lesa s pařezy, nálet na starých pasekách, hromadu klád u vsi, která
-  ubývá (bez volného místa vedle obydlí se nekreslí – nikdy do vody ani na pole).
+  ubývá (bez volného místa vedle obydlí se nekreslí – nikdy do vody ani na pole). Na pasece se
+  tráva pod vykácenými stromy neztmaví a plocha korun nad vymýceným lesem zapadne pod zem;
+  na minimapě les s podílem vykácených stromů řídne do barvy paseky.
 - V panelu staveb: zašedlé tlačítko, když není z čeho kácet (tooltip s chybějícím dřevem).
 - V horní liště počet klád na hromadě; u rozestavěné stavby a přestavby, kolik stromů ještě zbývá
   skácet.

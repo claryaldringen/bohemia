@@ -7,13 +7,19 @@ import type { ForestGround } from './ground-layers';
 import type { RenderSurface } from './render-surface';
 import { createTerrainMaterial } from './terrain-material';
 
+/** Síť terénu a přepočet ztmavení pod vykácenými stromy (`TerrainMaterial.setHiddenTrees`). */
+export interface TerrainMesh {
+  mesh: Mesh;
+  setHiddenTrees(hidden: ReadonlySet<number>): boolean;
+}
+
 /** Terén z hustší výškové sítě (hladké kopce, vyhloubené koryto), povrch míchá terénní materiál. */
 export function createTerrainMesh(
   scene: Scene,
   l: Landscape,
   surface: RenderSurface,
   forest?: ForestGround,
-): Mesh {
+): TerrainMesh {
   const n = surface.resolution;
   const positions = new Float32Array(n * n * 3);
   for (let v = 0; v < n * n; v++) {
@@ -45,7 +51,8 @@ export function createTerrainMesh(
 
   const mesh = new Mesh('terrain', scene);
   vertexData.applyToMesh(mesh);
-  mesh.material = createTerrainMaterial(scene, l, surface.stream, forest);
+  const material = createTerrainMaterial(scene, l, surface.stream, forest);
+  mesh.material = material.material;
   mesh.freezeWorldMatrix();
-  return mesh;
+  return { mesh, setHiddenTrees: (hidden) => material.setHiddenTrees(hidden) };
 }

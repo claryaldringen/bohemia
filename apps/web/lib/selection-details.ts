@@ -1,4 +1,4 @@
-import type { DwellingType, PartStage } from '@bohemia/game';
+import type { DwellingType, FieldSurface, PartStage } from '@bohemia/game';
 import type { VillageTarget } from './scene/village-picking';
 import type { SceneVillage, VillageView } from './village-view';
 
@@ -41,6 +41,13 @@ export type SelectionDetails =
       fertility: number;
       /** Díly podle stadia v pořadí PART_STAGE_ORDER (jen nenulová). */
       stages: { stage: PartStage; count: number }[];
+      /**
+       * Díly podle povrchu, na kterém se zakládaly, v pořadí FIELD_SURFACE_ORDER (jen nenulové) –
+       * prázdné, když je celé pole na louce.
+       */
+      surfaces: { surface: FieldSurface; count: number }[];
+      /** Díly s popelem z vymýceného lesa (+20 úrodnosti na 3 roky – fields.md). */
+      ashParts: number;
       /** Zakládání pole (průběh 0–1), hotové null. */
       founding: number | null;
     }
@@ -83,6 +90,15 @@ export const PART_STAGE_ORDER: readonly PartStage[] = [
   'shrub',
   'forest',
 ];
+
+/** Pořadí povrchů v panelu pole – od louky po les. */
+export const FIELD_SURFACE_ORDER: readonly FieldSurface[] = ['meadow', 'shrub', 'forest'];
+
+export const FIELD_SURFACE_NAMES: Record<FieldSurface, string> = {
+  meadow: 'Založeno na louce',
+  shrub: 'Založeno v křovinách',
+  forest: 'Založeno v lese',
+};
 
 export const PART_STAGE_NAMES: Record<PartStage, string> = {
   founding: 'Zakládá se',
@@ -181,6 +197,13 @@ export function selectionDetails(
       const count = field.stages[stage] ?? 0;
       return count > 0 ? [{ stage, count }] : [];
     }),
+    surfaces: Object.keys(field.surfaces).some((s) => s !== 'meadow')
+      ? FIELD_SURFACE_ORDER.flatMap((surface) => {
+          const count = field.surfaces[surface] ?? 0;
+          return count > 0 ? [{ surface, count }] : [];
+        })
+      : [],
+    ashParts: field.ashParts,
     founding: founding ? founding.progress : null,
   };
 }

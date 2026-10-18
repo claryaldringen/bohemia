@@ -1,3 +1,4 @@
+import type { ObstacleKind } from '../landscape';
 import type { DwellingType, FieldSurface, TaskName } from './types';
 
 /** Úsek okna prací – od měsíce do měsíce včetně (1–12). */
@@ -86,6 +87,14 @@ export const FOUNDING_COST_PER_HA: Record<FieldSurface, number> = {
   meadow: 40,
   shrub: 150,
   forest: 250,
+};
+// fields.md – Založení pole (sazba povrchu za hektar v sobě má, co povrch tvoří: v lese stromy
+// i se suchými, padlými a pařezy a podrost – „stromy v ceně“, v křovinách keře; po kusech se
+// na takovém čtverci platí jen ostatní překážky – kameny, balvany, v křovinách i stromy)
+export const SURFACE_INCLUDED_OBSTACLES: Record<FieldSurface, readonly ObstacleKind[]> = {
+  meadow: [],
+  shrub: ['shrub'],
+  forest: ['tree', 'youngTree', 'snag', 'fallenTree', 'stump', 'shrub'],
 };
 // fields.md – Založení pole (překážky na díle, práce navíc)
 export const OBSTACLE_COST = {

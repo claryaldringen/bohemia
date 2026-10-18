@@ -10,7 +10,7 @@ import {
 } from '../landscape';
 import type { CemeterySquareInput, OrchardSquareInput, PartInput } from './actions';
 import { cemeteryFoundingCost, distanceToSquare, touchingCemeteries } from './cemetery';
-import { partFoundingCost } from './fields';
+import { fieldSquareSurface, partFoundingCost } from './fields';
 import { orchardPlantingCost } from './orchard';
 import {
   cellObstacles,
@@ -18,6 +18,7 @@ import {
   obstacleChangesAt,
   obstacleStatus,
   outcropUnder,
+  tallyCost,
   type ObstacleChanges,
   type ObstacleTally,
 } from './obstacles';
@@ -28,8 +29,9 @@ import {
   DWELLING_FOOTPRINT_M,
   DWELLING_MAX_HEIGHT_DIFF_M,
   FIELD_LIMITS,
+  SURFACE_INCLUDED_OBSTACLES,
 } from './rules';
-import type { DwellingType, Position, TileCell, VillageState } from './types';
+import type { DwellingType, FieldSurface, Position, TileCell, VillageState } from './types';
 import { reservedTrees } from './wood';
 
 // Umisťování obydlí, polí, sadů a pohřebišť (population.md – Umístění obydlí, fields.md –
@@ -86,16 +88,23 @@ export interface DwellingPlacementCheck extends PlacementCheck {
 export interface FieldPreview {
   /** Vybrané čtverce bez opakování, po řádcích (y, pak x). */
   cells: TileCell[];
-  /** Díly – jeden na každý čtverec louky. */
+  /** Díly – jeden na každý čtverec mimo vodu (louka, křoviny i les). */
   parts: PartInput[];
   areaM2: number;
   averageFertility: number;
   foundingCost: number;
-  /** Z ceny založení práce navíc za překážky (kameny, stromy, keře…). */
+  /**
+   * Z ceny založení práce navíc za překážky, které nejsou v sazbě povrchu (na louce všechny,
+   * v křovinách bez keřů, v lese jen kameny a balvany).
+   */
   obstacleCost: number;
   /** Překážky na čtvercích pole podle druhu (i skalní výchozy, které pole obejde). */
   obstacleCounts: Partial<Record<ObstacleKind, number>>;
-  /** Čtverce, kam pole nesmí (voda, les, obydlí, jiné pole, moc daleko) – scéna je zčervená. */
+  /** Díly podle povrchu – louka, křoviny, les (jen nenulové). */
+  surfaceCounts: Partial<Record<FieldSurface, number>>;
+  /** Dospělé stromy na dílech, které nevyhradila stavba – po založení klády na hromadu. */
+  clearedTrees: number;
+  /** Čtverce, kam pole nesmí (voda, obydlí, jiné pole, moc daleko) – scéna je zčervená. */
   blockedCells: TileCell[];
   check: PlacementCheck;
 }
@@ -572,31 +581,38 @@ export function waterDistanceM(landscape: Landscape, cell: TileCell): number {
   return Number.isFinite(best) ? best : 2 * landscape.size * landscape.cellSizeM;
 }
 
-/** Čtverec louky stavby po čtvercích (pole, sad) – plocha bez skalních výchozů a překážky. */
-interface MeadowSquare {
+/** Čtverec stavby po čtvercích (pole, sad) – povrch, plocha bez skalních výchozů a překážky. */
+interface BuildSquare {
   cell: TileCell;
   /** Index políčka v krajině (y × size + x). */
   index: number;
+  /** Povrch při založení – sad jen louka, pole i křoviny a les (`fieldSquareSurface`). */
+  surface: FieldSurface;
   areaM2: number;
   /** Od středu políčka k nejbližšímu obydlí. */
   distanceM: number;
   tally: ObstacleTally;
+  /** Práce navíc za překážky, které nejsou v sazbě povrchu (`tallyCost`). */
+  obstacleCost: number;
 }
 
 /**
  * Společná kontrola čtverců pole a sadu (staví se stejně – orchard.md): u každého čtverce, co mu
- * brání (voda, les, obydlí, pole, hřbitov, sad, dál než 800 m – zakázané čtverce do náhledu),
- * a čtverce louky s plochou bez skalních výchozů (nejvýš MAX_OUTCROP_SHARE čtverce), vzdáleností
- * k nejbližšímu z `dwellingPositions` a překážkami z vrstvy bez toho, co ves už odstranila.
+ * brání (voda, obydlí, pole, hřbitov, sad, dál než 800 m; sadu i les – zakázané čtverce do
+ * náhledu), a čtverce, kde stavba smí stát – sad jen louka, pole i křoviny a les
+ * (`fieldSurfaces`) – s povrchem, plochou bez skalních výchozů (nejvýš MAX_OUTCROP_SHARE
+ * čtverce), vzdáleností k nejbližšímu z `dwellingPositions` a překážkami z vrstvy bez toho, co
+ * ves už odstranila.
  */
-function meadowSquares(
+function buildSquares(
   landscape: Landscape,
   village: PlacementVillage | null,
   cells: readonly TileCell[],
   dwellingPositions: Position[],
   obstacles: ObstacleLayer,
+  fieldSurfaces: boolean,
 ): {
-  squares: MeadowSquare[];
+  squares: BuildSquare[];
   problems: SquareFlags & { far: boolean };
   blockedCells: TileCell[];
   obstacleCounts: Partial<Record<ObstacleKind, number>>;
@@ -613,12 +629,14 @@ function meadowSquares(
     orchard: false,
     far: false,
   };
-  const squares: MeadowSquare[] = [];
+  const squares: BuildSquare[] = [];
   const blockedCells: TileCell[] = [];
   const obstacleCounts: Partial<Record<ObstacleKind, number>> = {};
   for (const cell of cells) {
     const distanceM = distanceToNearest(landscape, cell, dwellingPositions);
     const flags = { ...flagsOf(cell), far: distanceM > FIELD_LIMITS.maxDistanceM };
+    // pole smí i do lesa (fields.md – Založení pole), sad jen na louku
+    if (fieldSurfaces) flags.forest = false;
     let blocked = false;
     for (const key of Object.keys(flags) as (keyof typeof flags)[]) {
       if (!flags[key]) continue;
@@ -626,17 +644,23 @@ function meadowSquares(
       blocked = true;
     }
     if (blocked) blockedCells.push(cell);
-    if (surfaceAt(landscape, cell.x, cell.y) !== 'meadow') continue;
+    const land = surfaceAt(landscape, cell.x, cell.y);
+    if (land === 'water' || (!fieldSurfaces && land !== 'meadow')) continue;
     const tally = cellObstacles(obstacles, status, cell);
     for (const [kind, count] of Object.entries(tally.counts) as [ObstacleKind, number][]) {
       obstacleCounts[kind] = (obstacleCounts[kind] ?? 0) + count;
     }
+    const surface: FieldSurface = fieldSurfaces
+      ? (fieldSquareSurface(land, tally.counts.shrub ?? 0, cellArea) ?? 'meadow')
+      : 'meadow';
     squares.push({
       cell,
       index: cellIndex(landscape, cell),
+      surface,
       areaM2: cellArea - Math.min(tally.outcropAreaM2, cellArea * MAX_OUTCROP_SHARE),
       distanceM,
       tally,
+      obstacleCost: tallyCost(tally, SURFACE_INCLUDED_OBSTACLES[surface]),
     });
   }
   return { squares, problems, blockedCells, obstacleCounts };
@@ -706,26 +730,18 @@ function withTrees(trees: number): { trees?: number } {
   return trees > 0 ? { trees } : {};
 }
 
-const EMPTY_PREVIEW = {
-  cells: [],
-  parts: [],
-  areaM2: 0,
-  averageFertility: 0,
-  foundingCost: 0,
-  obstacleCost: 0,
-  obstacleCounts: {},
-  blockedCells: [],
-} as const;
-
 /**
- * Pole ze čtverců – políček krajiny (15 × 15 m, díl = celé políčko). Díly jen na louce (les
- * zatím ne). Překážky na čtverci (pata v políčku, z vrstvy `obstacles` bez toho, co ves už
- * odstranila) zvednou cenu dílu podle tabulky ve fields.md a osadníci je odstraní, až díl
- * založí; skalní výchoz zůstane a plocha pod ním se do dílu nepočítá. Vzdálenost dílu = od
- * středu políčka k nejbližšímu z `dwellingPositions`. Kontrola v tomto pořadí: platné čtverce
- * v krajině, ne voda, ne les, nepřekrývá obydlí, jiná pole, pohřebiště ani sady, žádný díl dál než
- * 800 m, čtverce sousedí stranou v jednom celku, aspoň 0,1 ha. Náhled
- * (díly, výměra, zakázané čtverce…) se počítá i při neúspěchu – kromě neplatných čtverců.
+ * Pole ze čtverců – políček krajiny (15 × 15 m, díl = celé políčko). Díly na louce, v křovinách
+ * i v lese (fields.md – Založení pole, Martin); povrch dílu určí `fieldSquareSurface` a cenu
+ * založení sazba povrchu za hektar. Překážky na čtverci (pata v políčku, z vrstvy `obstacles`
+ * bez toho, co ves už odstranila) osadníci odstraní, až díl založí; po kusech zvednou cenu jen
+ * ty, které nejsou v sazbě povrchu (v lese jsou stromy a podrost v ceně, v křovinách keře).
+ * Dospělé stromy, které nevyhradila stavba, dají po založení klády (forest.md). Skalní výchoz
+ * zůstane a plocha pod ním se do dílu nepočítá. Vzdálenost dílu = od středu políčka
+ * k nejbližšímu z `dwellingPositions`. Kontrola v tomto pořadí: platné čtverce v krajině, ne
+ * voda, nepřekrývá obydlí, jiná pole, pohřebiště ani sady, žádný díl dál než 800 m, čtverce
+ * sousedí stranou v jednom celku, aspoň 0,1 ha. Náhled (díly, výměra, zakázané čtverce…) se
+ * počítá i při neúspěchu – kromě neplatných čtverců.
  */
 export function fieldPartsFromCells(
   landscape: Landscape,
@@ -737,31 +753,41 @@ export function fieldPartsFromCells(
   const shape = normalizeCells(landscape, cells, FIELD_KIND);
   if (!shape.ok) {
     return {
-      ...EMPTY_PREVIEW,
       cells: [],
       parts: [],
+      areaM2: 0,
+      averageFertility: 0,
+      foundingCost: 0,
+      obstacleCost: 0,
       obstacleCounts: {},
+      surfaceCounts: {},
+      clearedTrees: 0,
       blockedCells: [],
       check: fail(shape.reason),
     };
   }
-  const { squares, problems, blockedCells, obstacleCounts } = meadowSquares(
+  const { squares, problems, blockedCells, obstacleCounts } = buildSquares(
     landscape,
     village,
     shape.cells,
     dwellingPositions,
     obstacles,
+    true,
   );
-  const parts: PartInput[] = squares.map((square) => ({
-    areaM2: square.areaM2,
-    distanceM: square.distanceM,
-    naturalFertility: landscape.fertility[square.index]!,
-    surface: 'meadow',
-    obstacleCost: square.tally.cost,
-    ...(square.tally.ids.length > 0 ? { obstacleIds: square.tally.ids } : {}),
-    ...withTrees(unreservedTrees(village, square.tally.treeIds)),
-    cell: square.cell,
-  }));
+  const surfaceCounts: Partial<Record<FieldSurface, number>> = {};
+  const parts: PartInput[] = squares.map((square) => {
+    surfaceCounts[square.surface] = (surfaceCounts[square.surface] ?? 0) + 1;
+    return {
+      areaM2: square.areaM2,
+      distanceM: square.distanceM,
+      naturalFertility: landscape.fertility[square.index]!,
+      surface: square.surface,
+      obstacleCost: square.obstacleCost,
+      ...(square.tally.ids.length > 0 ? { obstacleIds: square.tally.ids } : {}),
+      ...withTrees(unreservedTrees(village, square.tally.treeIds)),
+      cell: square.cell,
+    };
+  });
 
   const areaM2 = parts.reduce((sum, p) => sum + p.areaM2, 0);
   const averageFertility =
@@ -774,7 +800,6 @@ export function fieldPartsFromCells(
   const minCells = Math.ceil(FIELD_LIMITS.minAreaM2 / (landscape.cellSizeM * landscape.cellSizeM));
   const checks: [boolean, () => string][] = [
     [problems.water, () => 'Pole nesmí zasahovat do vody.'],
-    [problems.forest, () => 'Pole jde zatím zakládat jen na louce – mýcení lesa přijde později.'],
     [problems.dwelling, () => 'Pole se překrývá s obydlím.'],
     [problems.field, () => 'Pole se překrývá s jiným polem.'],
     [problems.cemetery, () => 'Pole se překrývá s hřbitovem.'],
@@ -800,6 +825,8 @@ export function fieldPartsFromCells(
     foundingCost,
     obstacleCost,
     obstacleCounts,
+    surfaceCounts,
+    clearedTrees: parts.reduce((sum, p) => sum + (p.trees ?? 0), 0),
     blockedCells,
     check: failed ? fail(failed[1]()) : OK,
   };
@@ -833,19 +860,19 @@ export function orchardPartsFromCells(
       check: fail(shape.reason),
     };
   }
-  const meadow = meadowSquares(landscape, village, shape.cells, dwellingPositions, obstacles);
+  const meadow = buildSquares(landscape, village, shape.cells, dwellingPositions, obstacles, false);
   const { problems, blockedCells, obstacleCounts } = meadow;
   const squares: OrchardSquareInput[] = meadow.squares.map((square) => ({
     cell: square.cell,
     areaM2: square.areaM2,
     distanceM: square.distanceM,
-    obstacleCost: square.tally.cost,
+    obstacleCost: square.obstacleCost,
     ...(square.tally.ids.length > 0 ? { obstacleIds: square.tally.ids } : {}),
     ...withTrees(unreservedTrees(village, square.tally.treeIds)),
   }));
   const checks: [boolean, string][] = [
     [problems.water, 'Sad nesmí zasahovat do vody.'],
-    [problems.forest, 'Sad jde zatím zakládat jen na louce – mýcení lesa přijde později.'],
+    [problems.forest, 'Sad jde zakládat jen na louce.'],
     [problems.dwelling, 'Sad se překrývá s obydlím.'],
     [problems.field, 'Sad se překrývá s polem.'],
     [problems.cemetery, 'Sad se překrývá s hřbitovem.'],
@@ -885,7 +912,7 @@ function cemeteryWarning(dwellingM: number, waterM: number): string | undefined 
 
 /**
  * Hřbitov ze čtverců – políček krajiny (cemetery.md – Stavba). Čtverce jen na louce (les
- * zatím ne – jako u polí). Čtverce, které stranou navazují na hřbitov, ho rozšíří
+ * zatím ne – pole už ano). Čtverce, které stranou navazují na hřbitov, ho rozšíří
  * (`extendsCemetery`). Překážky na čtverci (pata v políčku, z vrstvy `obstacles` bez toho, co
  * ves už odstranila) zvednou cenu čtverce podle tabulky ve fields.md a osadníci je odstraní, až
  * hřbitov (rozšíření) dostaví – jako u dílu pole. Skalní výchoz se neodstraní a hroby jdou na
