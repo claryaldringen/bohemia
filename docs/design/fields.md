@@ -157,6 +157,13 @@ má nějaké meze. Bez řemeslníků ber tu nejhorší hranici, s řemeslníky t
   nemění (vede díly, ne pole). Nejmenší výměru 0,1 ha musí mít pole i s rozšířením – přístavek
   může být menší. Rohem se nenavazuje. Náhled umístění hlásí, které pole čtverce rozšíří nebo
   sloučí (`joinedFields`); staré pole z obrysu (díly bez políček) nenavazuje (návrh Clauda).
+- **Stará navazující pole se sloučí při načtení vsi** (Martin, 18. 10. 2026 – pole založená
+  samostatně dřív, než se navazující čtverce slučovaly, stranou na sebe navazují, ale vybírala
+  se zvlášť): každá souvislá skupina polí, která na sebe navazují stranou (i řetězem přes další
+  pole), se spojí do nejstaršího pole stejně jako při rozšíření – díly i se stavem, rozestavěná
+  založení do jedné stavby, kronika a rozdělení práce dne. Rohem se nenavazuje, pole z obrysu se
+  neslučují. Převod běží při každém načtení bez příznaku „převedeno“ – po sloučení už žádná dvě
+  pole nenavazují, takže další načtení nic nezmění (návrh Clauda).
 
 ### Kolik ves oseje (rozhodují obyvatelé)
 
@@ -699,3 +706,5 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 | Postavy pracují na dílech čela práce (rozdělení práce dne posílá jejich id)                                                       | návrh Clauda (podle Martina)                    |
 | Navazující pole se počítají jako jedno – rozšíření, víc polí se sloučí do nejstaršího                                             | Martin (18. 10. 2026)                           |
 | Sloučení: díly i se stavem, jedna stavba založení, kronika a práce dne na nejstarší pole; výměra i s rozšířením                   | návrh Clauda                                    |
+| Stará navazující pole se sloučí samy při načtení vsi (do nejstaršího)                                                             | Martin (18. 10. 2026)                           |
+| Převod starých polí bez příznaku „převedeno“ – souvislé skupiny stranou, pole z obrysu ne                                         | návrh Clauda                                    |

@@ -510,9 +510,12 @@ rozhraní částí v
   `parts`. Simulace se tím nemění.
 - **Navazující pole** (Martin): `foundField` – čtverce navazující stranou na pole ho rozšíří
   (`fieldsTouching` ve `fields.ts`, stejné id, rozestavěné založení dostane cenu, jinak nová stavba
-  pole), na víc polí je sloučí do nejstaršího (`mergeFields` v `actions.ts`: díly, stavby
-  založení, kronika, `labor`). Průběh stavby pole se počítá jen z jejích dílů (`invest`). Náhled
-  (`fieldPartsFromCells`) vrací `joinedFields` a nejmenší výměru měří i s navazujícím polem.
+  pole), na víc polí je sloučí do nejstaršího (`mergeFields` ve `fields.ts`: díly, stavby
+  založení, kronika, `labor` – cíl i stavba). Průběh stavby pole se počítá jen z jejích dílů
+  (`invest`). Náhled (`fieldPartsFromCells`) vrací `joinedFields` a nejmenší výměru měří i
+  s navazujícím polem. **Stará navazující pole** (založená samostatně dřív) sloučí při načtení
+  vsi `withMergedFields` v `updateVillage` (souvislé skupiny stranou do nejmenšího id, pole
+  z obrysu ne; Martin) – stejným `mergeFields`, bez příznaku „převedeno“ (idempotentní a levné).
 - **Příloh je pastvina** (Martin): 1–2 roky mladý příloh, pak napořád `meadow` (pastvina) –
   nálet, křoviny ani les na přílohu nejsou (`OVERGROWTH_STAGES`), vrácení stojí nejvýš drn louky
   (`RECLAIM_COST_PER_HA`), kronika `part-became-forest` už nevzniká (typ zůstává pro staré
