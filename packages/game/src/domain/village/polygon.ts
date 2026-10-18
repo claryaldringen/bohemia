@@ -193,3 +193,36 @@ export function rectangleCorners(
   ];
   return local.map(([lx, lz]) => [x + lx * cos + lz * sin, z - lx * sin + lz * cos]);
 }
+
+/** Vzdálenost bodu od úsečky a–b (m) – jen přesně zaokrouhlované operace. */
+function pointSegmentDistance(p: Point, a: Point, b: Point): number {
+  const dx = b[0] - a[0];
+  const dz = b[1] - a[1];
+  const length2 = dx * dx + dz * dz;
+  const t =
+    length2 === 0
+      ? 0
+      : Math.min(1, Math.max(0, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dz) / length2));
+  const ex = p[0] - (a[0] + t * dx);
+  const ez = p[1] - (a[1] + t * dz);
+  return Math.sqrt(ex * ex + ez * ez);
+}
+
+/**
+ * Nejkratší vzdálenost dvou konvexních mnohoúhelníků (m) – překrývají-li se, 0 (dotyk hranou
+ * dá 0 taky). Jen přesně zaokrouhlované operace.
+ */
+export function convexDistance(a: readonly Point[], b: readonly Point[]): number {
+  if (polygonsOverlap(a, b)) return 0;
+  let best = Infinity;
+  const edges = (from: readonly Point[], to: readonly Point[]): void => {
+    for (const p of from) {
+      for (let j = 0; j < to.length; j++) {
+        best = Math.min(best, pointSegmentDistance(p, at(to, j), at(to, j + 1)));
+      }
+    }
+  };
+  edges(a, b);
+  edges(b, a);
+  return best;
+}

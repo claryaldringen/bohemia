@@ -14,9 +14,9 @@ import { claimedObstacles } from './wood';
 /**
  * Přehled vsí `others` na téže mapě v den `day`: obydlí a rozestavěná obydlí (s pozemky
  * a řemesly), modly a svatyně (i rozestavěné), políčka polí, sadů, hřbitovů, ohrad, lesa vsi
- * a pozemků (natočené čtverce polí, sadů a lesa zvlášť v `squares` – fields.md, Natočené
- * stavby), odstraněné a pokácené překážky a stromy, které si vyhradily jejich stavby. Opuštěná
- * ves zabírá jen to, co z ní ještě stojí (`abandonedVillageAt`); ves na cestě nic. Bez vsí null.
+ * a pozemků (natočené čtverce zvlášť v `squares` – fields.md, Natočené stavby), odstraněné
+ * a pokácené překážky a stromy, které si vyhradily jejich stavby. Opuštěná ves zabírá jen to, co
+ * z ní ještě stojí (`abandonedVillageAt`); ves na cestě nic. Bez vsí null.
  */
 export function neighbourSnapshot(
   others: readonly VillageState[],
@@ -75,9 +75,9 @@ export function neighbourSnapshot(
     }
     const grids = fieldGrids(state);
     for (const p of state.parts) if (p.cell) addCell(p.cell, grids.get(p.fieldId));
-    for (const c of state.cemeteries ?? []) for (const s of c.squares) addCell(s.cell);
+    for (const c of state.cemeteries ?? []) for (const s of c.squares) addCell(s.cell, c.grid);
     for (const o of state.orchards ?? []) for (const s of o.squares) addCell(s.cell, o.grid);
-    for (const pen of state.pens ?? []) addCell(pen.cell);
+    for (const pen of state.pens ?? []) addCell(pen.cell, pen.grid);
     for (const wood of state.woods ?? []) addCell(wood.cell, wood.grid);
     snapshot.cleared.push(...(original.clearedObstacles ?? []).map((c) => ({ ...c })));
     snapshot.felled.push(...(original.felledTrees ?? []).map((f) => ({ ...f })));

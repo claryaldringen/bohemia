@@ -31,10 +31,17 @@ import {
   type ObstacleTally,
 } from './obstacles';
 import { plotShapes, type Shape } from './plot-cells';
-import { coveredArea, polygonsOverlap, rectangleCorners, type Point } from './polygon';
+import {
+  convexDistance,
+  coveredArea,
+  polygonsOverlap,
+  rectangleCorners,
+  type Point,
+} from './polygon';
 import {
   normalizeGrid,
   plotSquareSamples,
+  pointsBounds,
   rotationTurn,
   squareCenter,
   squareCorners,
@@ -165,8 +172,11 @@ export interface PlacementVillage {
     readonly fieldId?: number;
     readonly areaM2?: number;
   }[];
-  /** Pohřebiště – zabírají políčka svých čtverců (bez údaje žádná). */
-  readonly cemeteries?: readonly { readonly squares: readonly { readonly cell: TileCell }[] }[];
+  /** Pohřebiště – zabírají své čtverce (bez údaje žádná; natočený hřbitov ve své mřížce `grid`). */
+  readonly cemeteries?: readonly {
+    readonly grid?: SquareGrid;
+    readonly squares: readonly { readonly cell: TileCell }[];
+  }[];
   /**
    * Jabloňové sady – zabírají své čtverce (bez údaje žádné; natočený sad ve své mřížce `grid`);
    * `areaM2` čtverce pro varování, že sad stavbou obydlí zanikne (bez plochy celé políčko).
@@ -176,8 +186,11 @@ export interface PlacementVillage {
     readonly grid?: SquareGrid;
     readonly squares: readonly { readonly cell: TileCell; readonly areaM2?: number }[];
   }[];
-  /** Ohrady (i rozestavěné) – každá zabírá své políčko (bez údaje žádné – oxen.md). */
-  readonly pens?: readonly { readonly cell: TileCell }[];
+  /**
+   * Ohrady (i rozestavěné) – každá zabírá svůj čtverec (bez údaje žádné – oxen.md; natočená ve své
+   * mřížce `grid`).
+   */
+  readonly pens?: readonly { readonly cell: TileCell; readonly grid?: SquareGrid }[];
   /**
    * Les vsi – čtverce polí zarostlé lesem (fields.md – Les vsi; bez údaje žádný): pole ho vymýtí
    * jako les (stromy lesa jsou v `obstacleChanges.added`), ostatní stavby jen na louku. Les
@@ -320,8 +333,10 @@ export interface OrchardPreview {
  * (`check.warning`), když je moc blízko obydlí nebo vody (hygienu samotnou hráč nevidí).
  */
 export interface CemeteryPreview {
-  /** Vybrané čtverce bez opakování, po řádcích (y, pak x). */
+  /** Vybrané čtverce bez opakování, po řádcích (y, pak x) – v mřížce `grid`. */
   cells: TileCell[];
+  /** Natočená mřížka hřbitova (fields.md – Natočené stavby); bez ní mřížka krajiny. */
+  grid?: SquareGrid;
   /** Čtverce hřbitova – jeden na každý čtverec louky. */
   squares: CemeterySquareInput[];
   /** Kolik hrobů se do nových čtverců vejde. */
@@ -950,11 +965,15 @@ function nearCemeteryWarning(
 ): PlacementCheck {
   let nearest = Infinity;
   for (const cemetery of village?.cemeteries ?? []) {
+    const grid = cemetery.grid;
     for (const { cell } of cemetery.squares) {
-      const center = tileCenterWorld(landscape, cell.x, cell.y);
+      // natočený hřbitov (fields.md – Natočené stavby) – střed a osy čtverce v jeho mřížce
+      const center = grid
+        ? squareCenter(landscape, grid, cell)
+        : tileCenterWorld(landscape, cell.x, cell.y);
       nearest = Math.min(
         nearest,
-        distanceToSquare(position.x, position.z, center, landscape.cellSizeM),
+        distanceToSquare(position.x, position.z, center, landscape.cellSizeM, grid?.rotation),
       );
     }
   }
@@ -1437,6 +1456,7 @@ export function checkPenPlacement(
   village: PlacementVillage | null,
   cell: TileCell,
   obstacles: ObstacleLayer = obstaclesOf(landscape),
+  grid?: SquareGrid,
 ): PenPlacementCheck {
   const none = {
     obstacleCost: 0,
@@ -1450,6 +1470,7 @@ export function checkPenPlacement(
   if (!Number.isInteger(cell.x) || !Number.isInteger(cell.y)) {
     return { ...fail('Neplatné políčko ohrady.'), ...none };
   }
+  if (grid) return checkTurnedPen(landscape, village, cell, obstacles, grid, none);
   if (cell.x < 0 || cell.y < 0 || cell.x >= landscape.size || cell.y >= landscape.size) {
     return { ...fail('Ohrada musí ležet uvnitř krajiny sídla.'), ...none };
   }
@@ -1488,6 +1509,59 @@ export function checkPenPlacement(
     obstacleCounts: tally.counts,
     x: center.x,
     z: center.z,
+    takenLand,
+  };
+}
+
+/**
+ * Natočená ohrada (fields.md – Natočené stavby, oxen.md): čtverec `cell` natočené mřížky `grid`
+ * se stejnými pravidly jako na políčku – krajina pod čtvercem podle bodů vzorkování, překryvy,
+ * výchozy, posvátná místa a překážky podle natočeného čtverce.
+ */
+function checkTurnedPen(
+  landscape: Landscape,
+  village: PlacementVillage | null,
+  cell: TileCell,
+  obstacles: ObstacleLayer,
+  gridInput: SquareGrid,
+  none: Omit<PenPlacementCheck, keyof PlacementCheck>,
+): PenPlacementCheck {
+  const grid = normalizeGrid(gridInput);
+  if (!grid) return { ...fail('Neplatné natočení ohrady.'), ...none };
+  const square = gridSquare(landscape, grid, cell);
+  const ground = squareGround(landscape, square);
+  if (ground.outside) return { ...fail('Ohrada musí ležet uvnitř krajiny sídla.'), ...none };
+  if (ground.water) return { ...fail('Ohrada nemůže stát ve vodě.'), ...none };
+  if (ground.forest) return { ...fail('Ohrada jde zatím jen na louku.'), ...none };
+  const { x, z } = square.center;
+  const free = checkFootprintFree(landscape, village, [square], FIELD_LAND);
+  if (!free.ok) return { ...free, ...none, x, z };
+  const status = obstacleStatus(village?.obstacleChanges);
+  if (outcropUnder(obstacles, status, square.corners)) {
+    return { ...fail('Stojí tu skalní výchoz – ten osadníci neodstraní.'), ...none };
+  }
+  const sites = sacredSitesOf(obstacles);
+  const sacred = sacredInShape(landscape, obstacles, sites, square);
+  if (sacred.groveTiles.length > 0) {
+    return { ...fail('Roste tu posvátný dubový háj – ten vesničané nevykácejí.'), ...none };
+  }
+  if (sacred.oaks.length > 0) {
+    return { ...fail('Stojí tu posvátný dub – ten vesničané nepokácí.'), ...none };
+  }
+  // kusy polí pod ohradou (průnik) z pole zmizí, překážky vrstvy na nich patří poli
+  const takenLand = takenSquareLand(landscape, village, square, ['field']);
+  const onField = takenLand.length > 0 ? ownedAt(landscape, village, ['field']) : null;
+  const tally = squareObstacles(obstacles, status, square.corners, sites.protectedTrees, {
+    ...(onField ? { layerOwned: onField } : {}),
+  });
+  return {
+    ...withWarning(takenLandWarning(landscape, village, takenLand)),
+    obstacleCost: tally.cost,
+    obstacleIds: tally.ids,
+    clearedTrees: unreservedTrees(village, tally.treeIds),
+    obstacleCounts: tally.counts,
+    x,
+    z,
     takenLand,
   };
 }
@@ -1837,6 +1911,29 @@ export function waterDistanceM(landscape: Landscape, cell: TileCell): number {
     const dx = Math.max(0, Math.abs((index % landscape.size) - cell.x) - 1);
     const dy = Math.max(0, Math.abs(Math.floor(index / landscape.size) - cell.y) - 1);
     best = Math.min(best, Math.hypot(dx, dy) * landscape.cellSizeM);
+  }
+  return Number.isFinite(best) ? best : 2 * landscape.size * landscape.cellSizeM;
+}
+
+/**
+ * Vzdálenost natočeného čtverce (rohy `corners` – fields.md, Natočené stavby) od nejbližší vody
+ * (m): nejkratší vzdálenost čtverce od políčka vody (u políčka krajiny `waterDistanceM`). Bez
+ * vody jako `waterDistanceM`.
+ */
+export function squareWaterDistanceM(landscape: Landscape, corners: readonly Point[]): number {
+  const [minX, minZ, maxX, maxZ] = pointsBounds(corners);
+  const half = (landscape.size * landscape.cellSizeM) / 2;
+  const side = landscape.cellSizeM;
+  let best = Infinity;
+  for (const index of waterTiles(landscape)) {
+    const x0 = -half + (index % landscape.size) * side;
+    const z0 = -half + Math.floor(index / landscape.size) * side;
+    // obdélníky čtverce a políčka od sebe – dolní mez, dál se nepočítá
+    const gx = Math.max(0, x0 - maxX, minX - (x0 + side));
+    const gz = Math.max(0, z0 - maxZ, minZ - (z0 + side));
+    if (gx * gx + gz * gz >= best * best) continue;
+    const tile = rectangleCorners(x0 + side / 2, z0 + side / 2, side, side, 0);
+    best = Math.min(best, convexDistance(corners, tile));
   }
   return Number.isFinite(best) ? best : 2 * landscape.size * landscape.cellSizeM;
 }
@@ -2386,8 +2483,14 @@ export function cemeteryPartsFromCells(
   cells: readonly TileCell[],
   dwellingPositions: Position[],
   obstacles: ObstacleLayer = obstaclesOf(landscape),
+  gridInput?: SquareGrid,
 ): CemeteryPreview {
-  const shape = normalizeCells(landscape, cells, CEMETERY_KIND);
+  // natočený hřbitov (fields.md – Natočené stavby): čtverce v jeho mřížce
+  const grid = gridInput ? (normalizeGrid(gridInput) ?? undefined) : undefined;
+  const shape =
+    gridInput && !grid
+      ? { ok: false as const, reason: 'Neplatné natočení hřbitova.' }
+      : normalizeCells(landscape, cells, CEMETERY_KIND, grid);
   if (!shape.ok) {
     return {
       cells: [],
@@ -2417,7 +2520,7 @@ export function cemeteryPartsFromCells(
     landscape,
     obstacles,
     sites,
-    shape.cells.map((cell) => gridSquare(landscape, undefined, cell)),
+    shape.cells.map((cell) => gridSquare(landscape, grid, cell)),
   );
   const size = landscape.cellSizeM;
   const problems: SquareFlags & { outcrop: boolean; oak: boolean } = {
@@ -2455,7 +2558,7 @@ export function cemeteryPartsFromCells(
       // na pole hřbitov smí (fields.md – Pole jako krajina) – čtverec z pole zmizí
       field: false,
       outcrop: outcropUnder(obstacles, status, gridSq.corners),
-      oak: sacredOaksInTile(sites, cellIndex(landscape, cell)).length > 0,
+      oak: sacredInShape(landscape, obstacles, sites, gridSq).oaks.length > 0,
     };
     let blocked = false;
     for (const key of Object.keys(flags) as (keyof typeof flags)[]) {
@@ -2469,18 +2572,21 @@ export function cemeteryPartsFromCells(
     const onField = raw.field;
     if (onField) takenLand.push(...takenSquareLand(landscape, village, gridSq, ['field']));
     const layerOwned = onField && onFieldAt ? onFieldAt : undefined;
-    const tally = cellObstacles(obstacles, status, cell, sites.protectedTrees, {
-      ...(layerOwned ? { layerOwned } : {}),
-    });
+    const owned = layerOwned ? { layerOwned } : {};
+    const tally = grid
+      ? squareObstacles(obstacles, status, gridSq.corners, sites.protectedTrees, owned)
+      : cellObstacles(obstacles, status, cell, sites.protectedTrees, owned);
     for (const [kind, count] of Object.entries(tally.counts) as [ObstacleKind, number][]) {
       obstacleCounts[kind] = (obstacleCounts[kind] ?? 0) + count;
     }
-    const center = tileCenterWorld(landscape, cell.x, cell.y);
+    const center = grid ? gridSq.center : tileCenterWorld(landscape, cell.x, cell.y);
     const square = { cell, x: center.x, z: center.z };
-    const water = waterDistanceM(landscape, cell);
-    // stejná vzdálenost jako v simulaci (cemetery.ts) – od obydlí k okraji čtverce
+    const water = grid
+      ? squareWaterDistanceM(landscape, gridSq.corners)
+      : waterDistanceM(landscape, cell);
+    // stejná vzdálenost jako v simulaci (cemetery.ts) – od obydlí k okraji čtverce (v jeho osách)
     const dwelling = dwellingPositions.reduce(
-      (min, p) => Math.min(min, distanceToSquare(p.x, p.z, square, size)),
+      (min, p) => Math.min(min, distanceToSquare(p.x, p.z, square, size, grid?.rotation)),
       Infinity,
     );
     nearestDwellingM = Math.min(nearestDwellingM, dwelling);
@@ -2497,7 +2603,7 @@ export function cemeteryPartsFromCells(
     });
   }
 
-  const touching = touchingCemeteries(village?.cemeteries ?? [], shape.cells);
+  const touching = touchingCemeteries(village?.cemeteries ?? [], shape.cells, grid);
   const extended = touching.length === 1 ? touching[0]!.squares.map((s) => s.cell) : [];
   const checks: [boolean, string][] = [
     [problems.water, 'Hřbitov nesmí zasahovat do vody.'],
@@ -2530,6 +2636,7 @@ export function cemeteryPartsFromCells(
   );
   return {
     cells: shape.cells,
+    ...(grid ? { grid } : {}),
     squares,
     capacity: squares.length * CEMETERY.gravesPerSquare,
     foundingCost: cemeteryFoundingCost(squares),

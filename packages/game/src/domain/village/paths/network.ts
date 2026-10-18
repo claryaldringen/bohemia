@@ -420,7 +420,7 @@ export function pathNetworkKey(village: PathVillage): string {
     (o) => `${o.id}:${o.squares.map((s) => squareKeyOf(s)).join(';')}`,
   );
   const cemeteries = (village.cemeteries ?? []).map(
-    (c) => `${c.id}:${c.squares.map((s) => `${s.cell.x},${s.cell.y}`).join(';')}`,
+    (c) => `${c.id}:${c.squares.map((s) => squareKeyOf(s)).join(';')}`,
   );
   const sacred = village.sacred
     ? [
@@ -440,7 +440,7 @@ export function pathNetworkKey(village: PathVillage): string {
     ? `${village.obstacles.removed.length},${village.obstacles.stumps.length}`
     : '';
   const pens = (village.pens ?? []).map(
-    (p) => `${p.id}:${p.cell.x},${p.cell.y}:${p.built ? 1 : 0}${p.stocked === false ? ':-' : ''}`,
+    (p) => `${p.id}:${squareKeyOf(p)}:${p.built ? 1 : 0}${p.stocked === false ? ':-' : ''}`,
   );
   return JSON.stringify([
     dwellings,

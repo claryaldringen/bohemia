@@ -916,8 +916,9 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   cestě `travellingVillage` s `VillageState.journey`, dny `travelDays` – 1–3 podle
   `edgeDistanceM` od dvorce, po hotové stezce 1). `settleJourney` po příjezdu založí ves
   (`settlersOf`). **Vsi na téže mapě o sobě vědí:** `neighbourSnapshot` (`neighbourhood.ts`) –
-  stavby a políčka jiných vsí mapy (natočené čtverce polí, sadů a lesa s mřížkou zvlášť
-  v `squares`, natočený pozemek jen jako tvar obydlí – fields.md, Natočené stavby), jejich
+  stavby a políčka jiných vsí mapy (natočené čtverce polí, sadů, hřbitovů, ohrad a lesa
+  s mřížkou zvlášť v `squares`, natočený pozemek jen jako tvar obydlí – fields.md, Natočené
+  stavby), jejich
   odstraněné, pokácené a vyhrazené stromy;
   `updateVillage` ho připojí (`withNeighbours`, jen když na mapě jiná ves je – otisk napřed)
   a před uložením odebere. `obstacleChangesAt` a `reservedTrees` ho započítají (kácení se
@@ -1059,15 +1060,15 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   | pravé tlačítko         | zruší výběr                                   | zruší                           | zruší malování                     |
   | Esc                    | zruší výběr                                   | zruší                           | zruší tah, pak malování            |
   | F10                    | otevře nabídku hry, zruší výběr               | otevře nabídku, zruší           | otevře nabídku, zruší malování     |
-  | `[` / `]`              |                                               | otáčí po 15° (pozemek celý)     | otáčí mřížku po 15° (pole, sad)    |
+  | `[` / `]`              |                                               | otáčí po 15° (pozemek celý)     | otáčí mřížku po 15° (všechny)      |
   | Tab                    |                                               | pozemek: místo domu (varianta)  | –                                  |
   | další                  |                                               | Enter postaví                   | Backspace / Ctrl+Z vrátí, Enter    |
 
   Vždy: WASD / šipky a kurzor u okraje okna posouvají, kolečko i rozevření prstů na trackpadu
   (Ctrl + kolečko, v Safari `gesturechange`) přibližují, Q/E otáčí, R vrátí pohled na ves
-  (`setCameraHome`). Malování pole a sadu: [ a ] jen před prvním čtvercem (pak je mřížka
-  zamčená), nad polem / sadem stejného druhu se malování chytí jeho mřížky (`gridAt`, drží ji
-  i mimo něj – rozšíření), vybrané pole / sad dá mřížku hned (`PlacementMode.squares.grid`);
+  (`setCameraHome`). Malování pole, sadu, hřbitova a ohrady: [ a ] jen před prvním čtvercem
+  (pak je mřížka zamčená), nad stavbou stejného druhu se malování chytí její mřížky (`gridAt`,
+  drží ji i mimo ni – rozšíření), vybraná stavba dá mřížku hned (`PlacementMode.squares.grid`);
   natočená mřížka má čtverec pod kurzorem ve středu políčka. Ctrl ve výběru obydlí platí i jako Cmd; Ctrl / Shift + klik na cestu či
   pole vybraná obydlí nezruší; Ctrl + A při umisťování nic nevybere. Zkratky staveb Z zemnice, X polozemnice, C pole, V hřbitov, B sad,
   N modla, M svatyně, O ohrada (modla a svatyně se umisťují půdorysem jako obydlí – `PlacementMode`
@@ -1095,15 +1096,24 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   `fieldPartsFromCells` / `orchardPartsFromCells` a use-casy `placeField` / `placeOrchard` berou
   `grid`, akce `foundField` / `foundOrchard` mřížku uloží. Hospodaření, síť pěšin (`PathSquare.rotation`,
   `squareCells` v mřížce), louky na seno, stromy u cest, zbytky jam a vzdálenosti vsí znají
-  mřížku. **Hřbitov a ohrada zatím jen v mřížce krajiny.** Scéna: čtverce nesou `rotation`
-  (`SceneFieldPart`, čtverce sadu, `SceneWood`, `ScenePlot`), `field-cells.ts` počítá v „rovném
+  mřížku. **Hřbitov** (Martin 19. 10. 2026) má mřížku `Cemetery.grid` jako pole
+  (`cemeteryPartsFromCells(…, grid)`, `touchingCemeteries` jen ve stejné mřížce, vzdálenost od
+  obydlí v osách čtverce – `distanceToSquare(…, rotation)`, od vody `squareWaterDistanceM`
+  – nejkratší vzdálenost natočeného čtverce od políčka vody), **ohrada** je čtverec natočené
+  mřížky `Pen.grid` (`checkPenPlacement(…, grid)`, střed z mřížky – volný střed jako pozemek
+  zatím ne, rozhodnutí Clauda), use-casy `placeCemetery` / `placePen` a server actions berou
+  `grid`. Scéna: čtverce nesou `rotation`
+  (`SceneFieldPart`, čtverce sadu a hřbitova, `ScenePen`, `SceneWood`, `ScenePlot`), plot
+  a hroby hřbitova v rovném prostoru jeho mřížky (`cemetery-layout.ts`), ohrada celá v osách
+  čtverce (`penLayout` – `turnedLayout`, `penToFlat`, `PenLayout.rotation`), `field-cells.ts` počítá v „rovném
   prostoru“ mřížky (`gridFrame` – `toSpace` / `toWorld`, `inFrame`, `squaresContain`,
   `structureGridAt`, `squareContains`), pole se kreslí v rovném prostoru a otočí do světa
   (`field-space.ts`), jabloně v řadách os sadu, výběr, minimapa, stáda, postavy, vymýcený les
   a plochy pod polem (`fieldClearings`) natočené čtverce znají. `/dev/landscape` tlačítko
-  **Natočené stavby** (pozemek 15°, pole 30°, sad 45°).
-- **Stavby po čtvercích** (pole, hřbitov; políčka krajiny 15 × 15 m, díl = políčko – pole a sad
-  i v natočené mřížce, viz Natočené stavby):
+  **Natočené stavby** (pozemek 15°, pole 30°, sad 45°, hřbitov 60° s hroby, ohrada 15°; hřbitov
+  jde malovat natočeně).
+- **Stavby po čtvercích** (pole, hřbitov; políčka krajiny 15 × 15 m, díl = políčko – pole, sad,
+  hřbitov i ohrada i v natočené mřížce, viz Natočené stavby):
   `fieldPartsFromCells` a `cemeteryPartsFromCells` v `placement.ts` (společné kontroly čtverců;
   u hřbitova navíc `check.warning` a `warningCells`, které neblokují – oranžově). Pole smí na
   louku, do křovin i do lesa – povrch dílu `fieldSquareSurface` (les z krajiny, křoviny = louka

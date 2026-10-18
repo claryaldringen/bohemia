@@ -134,10 +134,11 @@ export function parsePlaceFieldInput(
   return grid ? { cells, grid } : { cells };
 }
 
-/** Vstup založení pohřebiště `{ cells }` (čtverce jako u pole, mřížka krajiny), jinak null. */
-export function parsePlaceCemeteryInput(value: unknown): { cells: TileCell[] } | null {
-  const input = parsePlaceFieldInput(value);
-  return input && !input.grid ? { cells: input.cells } : null;
+/** Vstup založení pohřebiště `{ cells, grid? }` (čtverce jako u pole), jinak null. */
+export function parsePlaceCemeteryInput(
+  value: unknown,
+): { cells: TileCell[]; grid?: SquareGrid } | null {
+  return parsePlaceFieldInput(value);
 }
 
 /** Vstup založení sadu `{ cells, grid? }` (čtverce jako u pole), jinak null. */
@@ -148,12 +149,14 @@ export function parsePlaceOrchardInput(
 }
 
 /**
- * Vstup stavby ohrady `{ cells }` – jeden čtverec v mřížce krajiny (staví se jako pole po
- * čtvercích), jinak null. Víc čtverců odmítne až kontrola umístění s důvodem pro hráče.
+ * Vstup stavby ohrady `{ cells, grid? }` – jeden čtverec (staví se jako pole po čtvercích, i
+ * v natočené mřížce), jinak null. Víc čtverců odmítne až kontrola umístění s důvodem pro hráče.
  */
-export function parsePlacePenInput(value: unknown): { cells: TileCell[] } | null {
+export function parsePlacePenInput(
+  value: unknown,
+): { cells: TileCell[]; grid?: SquareGrid } | null {
   const input = parsePlaceFieldInput(value);
-  return input !== null && !input.grid && input.cells.length > 0 ? { cells: input.cells } : null;
+  return input !== null && input.cells.length > 0 ? input : null;
 }
 
 /** Vstup výcviku spřežení `{ penId }` – kladné celé číslo, jinak null. */

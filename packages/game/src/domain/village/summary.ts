@@ -66,11 +66,13 @@ import type {
   HerdSpecies,
   Position,
   SacredBuildingKind,
+  SquareGrid,
   TileCell,
   VillageState,
   WorkshopActivity,
   RoadGrade,
 } from './types';
+import { copyGrid } from './square-grid';
 import { treesToFell, woodFellingCost, woodLogs } from './wood';
 
 // Souhrn vsi pro panel hráče a scénu – jen čte stav, nic nemění.
@@ -243,7 +245,10 @@ export interface LivestockSummary {
 /** Ohrada pro panel výběru a scénu (oxen.md – Co hráč vidí). */
 export interface PenSummary {
   id: number;
+  /** Čtverec ohrady v mřížce `grid`; bez ní políčko krajiny. */
   cell: TileCell;
+  /** Natočená mřížka ohrady (fields.md – Natočené stavby); bez ní políčko krajiny. */
+  grid?: SquareGrid;
   x: number;
   z: number;
   built: boolean;
@@ -386,6 +391,7 @@ function penSummaries(state: VillageState, day: number): PenSummary[] {
     return {
       id: pen.id,
       cell: { x: pen.cell.x, y: pen.cell.y },
+      ...(pen.grid ? { grid: copyGrid(pen.grid) } : {}),
       x: pen.x,
       z: pen.z,
       built: pen.builtDay !== null,

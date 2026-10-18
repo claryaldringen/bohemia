@@ -18,6 +18,7 @@ import {
   obstaclesOf,
   orchardPartsFromCells,
   ROTATION_STEP,
+  sameGrid,
   rotatedPlot,
   sacredSitesOf,
   squareCenter,
@@ -41,7 +42,7 @@ import { dwellingPlacementCost, sacredPlacementCost } from '@/lib/build-items';
 import { decodeLandscape, type LandscapeTransfer } from '@/lib/landscape-transfer';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
 import { CEMETERY_PHASES } from '@/lib/scene/cemetery-layout';
-import { structureGridAt } from '@/lib/scene/field-cells';
+import { structureGridAt, touchingSquares } from '@/lib/scene/field-cells';
 import { FIELD_LOOKS, FIELD_LOOK_LABELS, type FieldLook } from '@/lib/scene/field-look';
 import {
   PLANTING_PHASES,
@@ -99,6 +100,7 @@ const buttonClass =
   'rounded bg-stone-800 px-2 py-0.5 text-stone-50 hover:bg-stone-700 disabled:opacity-40 dark:bg-stone-200 dark:text-stone-900 dark:hover:bg-stone-300';
 
 type DevCemetery = NonNullable<SceneVillage['cemeteries']>[number];
+type DevPen = NonNullable<SceneVillage['pens']>[number];
 type DevOrchard = NonNullable<SceneVillage['orchards']>[number];
 type DevSacredBuilding = SceneSacred['buildings'][number];
 const SACRED_NAMES: Record<SacredBuildingKind, string> = { idol: 'Modla', shrine: 'Svatyně' };
@@ -151,6 +153,8 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   const [fields, setFields] = useState<DevField[]>([]);
   const [cemeteries, setCemeteries] = useState<DevCemetery[]>([]);
   const [orchards, setOrchards] = useState<DevOrchard[]>([]);
+  // ohrady (oxen.md) – zatím jen ukázka natočené ohrady
+  const [pens, setPens] = useState<DevPen[]>([]);
   // posvátná místa (happiness.md): ušetřené duby a háje, modly a svatyně
   const [sacredOaks, setSacredOaks] = useState<SceneSacred['oaks']>([]);
   const [groves, setGroves] = useState<SceneSacred['groves']>([]);
@@ -206,6 +210,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
       ],
       cemeteries,
       orchards,
+      ...(pens.length > 0 ? { pens } : {}),
       woodLogs,
       obstacles: overgrowth
         ? {
@@ -257,6 +262,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     fields,
     cemeteries,
     orchards,
+    pens,
     stage,
     mixed,
     lookMode,
@@ -358,9 +364,9 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
 
   /**
    * Natočené stavby (Martin 18. 10. 2026 – fields.md, Natočené stavby): u místa vsi natočený
-   * pozemek polozemnice (15°, dům vzadu vlevo), pole v mřížce natočené o 30° a sad o 45° – ve
-   * všech se pak dá malovat dál (malování se chytí jejich mřížky) a pozemky natáčet klávesami
-   * [ a ].
+   * pozemek polozemnice (15°, dům vzadu vlevo), pole v mřížce natočené o 30°, sad o 45°, hřbitov
+   * o 60° s hroby a ohrada o 15° se zvířaty – v polích, sadech a hřbitovech se pak dá malovat
+   * dál (malování se chytí jejich mřížky) a pozemky natáčet klávesami [ a ].
    */
   const showRotated = (): void => {
     scene?.cancelPlacement();
@@ -415,6 +421,41 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
       },
     ]);
     addField(fieldCells, fieldGrid);
+    const cemeteryGrid: SquareGrid = { ...at(-4, -4), rotation: 4 * ROTATION_STEP };
+    setCemeteries([
+      {
+        id: nextId.current++,
+        grid: cemeteryGrid,
+        squares: fieldParts(
+          decoded,
+          [
+            { x: 0, y: 0 },
+            { x: 1, y: 0 },
+          ],
+          cemeteryGrid,
+        ),
+        built: true,
+        progress: 1,
+        graves: 70,
+      },
+    ]);
+    const penGrid: SquareGrid = { ...at(3, -3), rotation: ROTATION_STEP };
+    setPens([
+      {
+        id: nextId.current++,
+        cell: { x: 0, y: 0 },
+        grid: penGrid,
+        x: penGrid.x,
+        z: penGrid.z,
+        size: decoded.cellSizeM,
+        rotation: penGrid.rotation,
+        built: true,
+        progress: 1,
+        oxen: 2,
+        trainees: 0,
+        cows: 1,
+      },
+    ]);
   };
 
   /** Pokácí dospělé stromy nejblíž bodu (bez bodu u prvního obydlí nebo místa vsi) – pařezy. */
@@ -759,12 +800,17 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     scene.startPlacement(
       {
         kind: 'squares',
-        preview: (cells) => {
+        // natočený hřbitov (fields.md – Natočené stavby): [ a ] otáčejí mřížku
+        rotatable: true,
+        gridAt: (x, z) => structureGridAt(cemeteries, x, z),
+        preview: (cells, grid) => {
           const result = cemeteryPartsFromCells(
             decoded,
             placementVillageFromScene(village),
             cells,
             village.dwellings.map((d) => d.position),
+            undefined,
+            grid,
           );
           return {
             check: result.check,
@@ -780,9 +826,24 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         onConfirm: (result) => {
           handlers.onCancel();
           if (result.kind !== 'squares') return;
-          const id = nextId.current++;
-          const squares = fieldParts(decoded, result.cells);
-          setCemeteries((list) => [...list, { id, squares, built: false, progress: 0, graves: 0 }]);
+          const grid = result.grid;
+          const squares = fieldParts(decoded, result.cells, grid);
+          setCemeteries((list) => {
+            // rozšíření hřbitova ve stejné mřížce – čtverce na konec (jako jádro)
+            const extended = list.find(
+              (c) => sameGrid(c.grid, grid) && touchingSquares(c.squares, squares).length > 0,
+            );
+            if (extended) {
+              return list.map((c) =>
+                c === extended ? { ...c, squares: [...c.squares, ...squares] } : c,
+              );
+            }
+            const id = nextId.current++;
+            return [
+              ...list,
+              { id, ...(grid ? { grid } : {}), squares, built: false, progress: 0, graves: 0 },
+            ];
+          });
         },
       },
     );
@@ -1184,6 +1245,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     setFields([]);
     setCemeteries([]);
     setOrchards([]);
+    setPens([]);
     addField(layout.cells);
     setSimulated(simulateHoldings(decoded, layout.dwellings, layout.cells, HOLDINGS_YEARS));
     setHoldingsOn(true);
@@ -1505,6 +1567,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
             setFields([]);
             setCemeteries([]);
             setOrchards([]);
+            setPens([]);
             setSacredOaks([]);
             setGroves([]);
             setSacredBuildings([]);

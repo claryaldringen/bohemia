@@ -1,10 +1,12 @@
 import { BUILD_COSTS } from './costs';
 import { CEMETERY, CEMETERY_DISTANCE_M, HYGIENE_DEATH_EXTRA } from './rules';
+import { rotationCosSin, sameGrid } from './square-grid';
 import type {
   Cemetery,
   CemeterySquare,
   ChronicleEvent,
   Position,
+  SquareGrid,
   TileCell,
   VillageState,
 } from './types';
@@ -54,32 +56,43 @@ export function cemeteryFoundingCost(squares: readonly { obstacleCost: number }[
   return squares.reduce((sum, s) => sum + perSquare + s.obstacleCost, 0);
 }
 
-/** Vzdálenost bodu od čtverce se středem (x, z) a stranou `sizeM` – uvnitř čtverce 0. */
+/**
+ * Vzdálenost bodu od čtverce se středem (x, z) a stranou `sizeM` – uvnitř čtverce 0. Čtverec
+ * natočené mřížky (`rotation` – fields.md, Natočené stavby) se měří v jeho osách; bez natočení
+ * jako dřív.
+ */
 export function distanceToSquare(
   x: number,
   z: number,
   square: { readonly x: number; readonly z: number },
   sizeM: number,
+  rotation?: number,
 ): number {
   const half = sizeM / 2;
-  return Math.hypot(
-    Math.max(0, Math.abs(x - square.x) - half),
-    Math.max(0, Math.abs(z - square.z) - half),
-  );
+  let dx = x - square.x;
+  let dz = z - square.z;
+  if (rotation !== undefined) {
+    const [c, s] = rotationCosSin(rotation);
+    [dx, dz] = [dx * c - dz * s, dx * s + dz * c];
+  }
+  return Math.hypot(Math.max(0, Math.abs(dx) - half), Math.max(0, Math.abs(dz) - half));
 }
 
 /**
  * Vzdálenost pohřebiště od nejbližšího obydlí (m): od středu obydlí k okraji nejbližšího
- * čtverce. Bez obydlí nekonečno.
+ * čtverce (natočeného hřbitova v osách jeho mřížky). Bez obydlí nekonečno.
  */
 export function cemeteryDwellingDistance(
   squares: readonly { readonly x: number; readonly z: number }[],
   sizeM: number,
   dwellings: readonly Position[],
+  grid?: SquareGrid,
 ): number {
   let best = Infinity;
   for (const square of squares) {
-    for (const p of dwellings) best = Math.min(best, distanceToSquare(p.x, p.z, square, sizeM));
+    for (const p of dwellings) {
+      best = Math.min(best, distanceToSquare(p.x, p.z, square, sizeM, grid?.rotation));
+    }
   }
   return best;
 }
@@ -94,11 +107,16 @@ export function hygieneDistanceFactor(distanceM: number, limits: DistanceLimits)
  * (v pořádku od 150 m, nejhorší pod 50 m) × činitel vzdálenosti od vody (100 m / 30 m).
  */
 export function cemeteryHygiene(
-  cemetery: Pick<Cemetery, 'squares' | 'squareSizeM'>,
+  cemetery: Pick<Cemetery, 'squares' | 'squareSizeM' | 'grid'>,
   dwellings: readonly Position[],
 ): number {
   const squares = readySquares(cemetery.squares);
-  const dwelling = cemeteryDwellingDistance(squares, cemetery.squareSizeM, dwellings);
+  const dwelling = cemeteryDwellingDistance(
+    squares,
+    cemetery.squareSizeM,
+    dwellings,
+    cemetery.grid,
+  );
   const water = squares.reduce((min, s) => Math.min(min, s.waterDistanceM), Infinity);
   return (
     hygieneDistanceFactor(dwelling, CEMETERY_DISTANCE_M.dwelling) *
@@ -139,7 +157,7 @@ export function burialOrder(
   return cemeteries
     .map((c) => ({
       c,
-      d: cemeteryDwellingDistance(readySquares(c.squares), c.squareSizeM, dwellings),
+      d: cemeteryDwellingDistance(readySquares(c.squares), c.squareSizeM, dwellings, c.grid),
     }))
     .sort((a, b) => (a.d === b.d ? a.c.id - b.c.id : a.d - b.d))
     .map((x) => x.c);
@@ -172,12 +190,18 @@ function sharesEdge(a: TileCell, b: TileCell): boolean {
 
 /**
  * Hřbitovy, na které čtverce navazují stranou (cemetery.md – rozšíření): jeden = čtverce ho
- * rozšíří, žádný = nový hřbitov. Pořadí podle id.
+ * rozšíří, žádný = nový hřbitov. Navazuje se jen ve stejné mřížce (`grid` – fields.md, Natočené
+ * stavby; bez ní mřížka krajiny). Pořadí podle id.
  */
 export function touchingCemeteries<
-  C extends { readonly squares: readonly { readonly cell: TileCell }[] },
->(cemeteries: readonly C[], cells: readonly TileCell[]): C[] {
-  return cemeteries.filter((c) =>
-    c.squares.some((s) => cells.some((cell) => sharesEdge(s.cell, cell))),
+  C extends {
+    readonly squares: readonly { readonly cell: TileCell }[];
+    readonly grid?: SquareGrid;
+  },
+>(cemeteries: readonly C[], cells: readonly TileCell[], grid?: SquareGrid): C[] {
+  return cemeteries.filter(
+    (c) =>
+      sameGrid(c.grid, grid) &&
+      c.squares.some((s) => cells.some((cell) => sharesEdge(s.cell, cell))),
   );
 }

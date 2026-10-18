@@ -92,8 +92,8 @@ export function plotOfScene(plot: ScenePlot): DwellingPlot {
 /**
  * Stavby a půda jiných vsí na téže mapě pro kontrolu umístění v prohlížeči (`PlacementVillage
  * .foreign`) – obydlí s pozemky (i natočenými), modly a svatyně, políčka polí, sadů, hřbitovů,
- * ohrad a pozemků a natočené čtverce polí a sadů v jejich mřížce (`squares` – fields.md,
- * Natočené stavby). Bez jiných vsí undefined.
+ * ohrad a pozemků a natočené čtverce polí, sadů, hřbitovů a ohrad v jejich mřížce (`squares` –
+ * fields.md, Natočené stavby). Bez jiných vsí undefined.
  */
 export function foreignFromScene(scene: SceneVillage): ForeignStructures | undefined {
   const neighbours = scene.neighbours;
@@ -123,9 +123,9 @@ export function foreignFromScene(scene: SceneVillage): ForeignStructures | undef
       }
     }
     for (const f of n.fields) for (const p of f.parts) add(p.cell, f.grid);
-    for (const c of n.cemeteries ?? []) for (const s of c.squares) cells.push(s.cell);
+    for (const c of n.cemeteries ?? []) for (const s of c.squares) add(s.cell, c.grid);
     for (const o of n.orchards ?? []) for (const s of o.squares) add(s.cell, o.grid);
-    for (const p of n.pens ?? []) cells.push(p.cell);
+    for (const p of n.pens ?? []) add(p.cell, p.grid);
     for (const b of n.sacredBuildings ?? []) {
       sacredBuildings.push({ kind: b.kind, position: b.position });
     }

@@ -28,8 +28,17 @@ půdy na seno. Dobytek, dosud jen ozdoba, se tím poprvé zapojí do hry.
 
 - **Stavba po čtvercích** jako pozemek polozemnice: jeden čtverec 15 × 15 m na louce, obehnaný
   **pleteným plotem se zakulacenými rohy** (Martin), v rohu jednoduchý přístřešek na sloupech
-  s doškovou střechou a žlab; branka (návrh Clauda). Ohrada zatím leží v mřížce krajiny
-  (natáčení plošných staveb má napřed pole a sad – [fields.md](fields.md), Natočené stavby).
+  s doškovou střechou a žlab; branka (návrh Clauda).
+- **Natočená ohrada** (Martin, 19. 10. 2026 – všechny plošné stavby jde natáčet;
+  [fields.md](fields.md), Natočené stavby): ohrada je jeden čtverec mřížky natočené po 15°
+  (návrh Clauda) – [ a ] před umístěním otáčejí mřížku kolem čtverce pod kurzorem, nad jinou
+  ohradou se malování chytí její mřížky. Volný střed jako pozemek polozemnice zatím nemá
+  (rozhodnutí Clauda: potřeboval by vlastní způsob umisťování, natočení kolem středu políčka
+  dává stejnou volnost směru, model dat volný střed unese). Kontroly jako na políčku přes
+  natočený čtverec (krajina pod ním podle bodů vzorkování, výchoz, posvátná místa, překážky
+  s patou ve čtverci, pole v jiné mřížce jen průnik). Ve scéně se branka k nejbližšímu obydlí,
+  přístřešek v zadním rohu, žlab, stoh, zvířata, bláto, vytyčení a rozpad rozmístí v osách
+  ohrady. Staré ohrady leží v mřížce krajiny beze změny.
 - Cena: **40 člověkodní a 6 stromů** (kůly, přístřešek – [les](forest.md)) (návrh Clauda).
 - Jedna ohrada pojme **jedno spřežení** (2 voli) a k tomu chovné krávy a telata (stádo, které dnes
   ve hře je – jedna kráva na 2 domácnosti) (návrh Clauda).

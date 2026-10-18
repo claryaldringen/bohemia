@@ -1570,12 +1570,12 @@ export function plantingBlocker(
       if (shape.tile !== null) tiles.add(shape.tile);
     }
   };
-  for (const c of villageCemeteries(state)) for (const s of c.squares) addTile(s.cell);
+  for (const c of villageCemeteries(state)) for (const s of c.squares) addSquare(c.grid, s.cell);
   for (const o of villageOrchards(state)) for (const s of o.squares) addSquare(o.grid, s.cell);
   for (const g of state.groves ?? []) for (const cell of g.cells) addTile(cell);
   for (const d of state.dwellings) addPlot(d.plot);
   for (const c of state.constructions) addPlot(c.plot);
-  for (const p of villagePens(state)) addTile(p.cell);
+  for (const p of villagePens(state)) addSquare(p.grid, p.cell);
   for (const r of state.ruins ?? []) addPlot(r.plot);
   // les vsi (fields.md – Les vsi) – strom u cesty ani jabloň do něj nepatří, roste tam les
   for (const w of state.woods ?? []) addSquare(w.grid, w.cell);

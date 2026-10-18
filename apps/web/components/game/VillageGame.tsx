@@ -115,12 +115,13 @@ const SUBMIT_SQUARES: Partial<
     (villageId: string, cells: TileCell[], grid?: SquareGrid) => Promise<ActionResult>
   >
 > = {
-  // pole a sad i v natočené mřížce (fields.md – Natočené stavby)
+  // všechny i v natočené mřížce (fields.md – Natočené stavby)
   field: (villageId, cells, grid) => placeField({ villageId, cells, ...(grid ? { grid } : {}) }),
-  cemetery: (villageId, cells) => placeCemetery({ villageId, cells }),
+  cemetery: (villageId, cells, grid) =>
+    placeCemetery({ villageId, cells, ...(grid ? { grid } : {}) }),
   orchard: (villageId, cells, grid) =>
     placeOrchard({ villageId, cells, ...(grid ? { grid } : {}) }),
-  pen: (villageId, cells) => placePen({ villageId, cells }),
+  pen: (villageId, cells, grid) => placePen({ villageId, cells, ...(grid ? { grid } : {}) }),
 };
 
 /**
@@ -144,6 +145,21 @@ function squareStructures(
       id: o.id,
       ...(o.grid ? { grid: o.grid } : {}),
       squares: o.squares,
+    }));
+  }
+  if (kind === 'cemetery') {
+    return (scene.cemeteries ?? []).map((c) => ({
+      id: c.id,
+      ...(c.grid ? { grid: c.grid } : {}),
+      squares: c.squares,
+    }));
+  }
+  if (kind === 'pen') {
+    // ohrada se chytí mřížky jiné ohrady – nová vedle ní leží v řadě
+    return (scene.pens ?? []).map((p) => ({
+      id: p.id,
+      ...(p.grid ? { grid: p.grid } : {}),
+      squares: [p],
     }));
   }
   return [];
@@ -647,7 +663,7 @@ export function VillageGame({
     if (item.placement === 'squares') {
       const submit = SUBMIT_SQUARES[kind];
       if (!submit) throw new Error(`Stavba ${kind} nemá server action.`);
-      // vybrané pole či sad stejného druhu: malování začne v jeho mřížce (rozšíření)
+      // vybraná stavba stejného druhu: malování začne v její mřížce (rozšíření)
       const structures = squareStructures(sceneVillageRef.current, kind);
       const start =
         chosen && chosen.kind === kind

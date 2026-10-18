@@ -252,17 +252,31 @@ Clauda**; implementace v `square-grid.ts` a `squares.ts` (jádro), ve scéně `f
   políčko, do kterého zasahuje natočený čtverec, strom u cesty ani jabloň nestojí v natočeném
   čtverci sadu, pozemku ani lesa vsi; jabloň a strom u cesty na natočeném dílu mu vezmou
   20 m² jako jinde.
-- **Malování:** natáčet jde **pole a sad** – [ a ] před prvním čtvercem otáčejí mřížku po 15°
-  (kolem čtverce pod kurzorem), nad polem či sadem stejného druhu se malování **chytí jeho
-  mřížky** a drží ji i mimo něj (rozšíření); vybrané pole či sad stejného druhu dá mřížku hned.
-  Prvním čtvercem se mřížka zamkne. Mřížka kolem kurzoru i obrysy jsou natočené.
-- **Hřbitov a ohrada zatím leží v mřížce krajiny** (rozhodnutí Clauda – bod 3 zadání: celé
-  natáčení plošných staveb je velké, napřed pole a sad). Kontroly je proti natočeným polím,
-  sadům a pozemkům hlídají skutečnými plochami, takže je lze natočit později stejným modelem
-  (`Cemetery.grid`, ohrada natočený čtverec jako pozemek). Volně stojící stavby (zemnice, dílny,
-  modla, svatyně) se natáčejí po 15° odjakživa; dvorec vojvody hráč nestaví, zůstává v osách.
+- **Malování:** natáčet jde **pole, sad, hřbitov i ohradu** – [ a ] před prvním čtvercem
+  otáčejí mřížku po 15° (kolem čtverce pod kurzorem), nad stavbou stejného druhu se malování
+  **chytí její mřížky** a drží ji i mimo ni (rozšíření); vybraná stavba stejného druhu dá
+  mřížku hned. Prvním čtvercem se mřížka zamkne. Mřížka kolem kurzoru i obrysy jsou natočené.
+- **Hřbitov** (Martin, 19. 10. 2026 – „výslovně i hřbitovy“) má vlastní mřížku `Cemetery.grid`
+  stejně jako pole a sad (návrh Clauda): čtverce v ní, rozšíření jen ve stejné mřížce, hroby
+  7 × 8 v osách čtverce, plot se zakulacenými rohy a vytyčení po natočeném obrysu. Vzdálenost od
+  obydlí (hygiena, pořadí pohřbu, varování) se měří k okraji čtverce v jeho osách, vzdálenost od
+  vody jako nejkratší vzdálenost natočeného čtverce od políčka vody (u políčka krajiny vyjde
+  totéž co dřív) – ukládá se u čtverce při založení jako dřív. Skalní výchoz a posvátný dub
+  v natočeném čtverci hřbitov zablokují, háj se z výběru vyjme. Podrobnosti v
+  [cemetery.md](cemetery.md).
+- **Ohrada** je jeden čtverec natočené mřížky (`Pen.grid`, návrh Clauda): umisťuje se malováním
+  jednoho čtverce jako dřív, takže její střed leží ve středu políčka, kde hráč začne (nebo
+  v mřížce jiné ohrady, nad kterou malování začne). Rozhodnutí Clauda: **volný střed jako
+  u pozemku polozemnice ohrada nedostala** – potřebovala by vlastní způsob umisťování (duch
+  čtverce u kurzoru místo malování); natočení kolem středu políčka dává stejnou volnost směru
+  a model dat volný střed unese (čtverec mřížky s libovolným počátkem), takže jde doplnit bez
+  převodu. Rozmístění ohrady (branka k obydlí, přístřešek v zadním rohu, žlab, stoh, zvířata,
+  bláto, rozpad) se počítá v jejích osách – [oxen.md](oxen.md).
+- Volně stojící stavby (zemnice, dílny, modla, svatyně) se natáčejí po 15° odjakživa; dvorec
+  vojvody hráč nestaví, zůstává v osách.
 - **Jiné vsi na téže mapě** ([stěhování](migration.md) – Vsi na téže mapě): přehled jiných vsí
-  nese natočené čtverce polí, sadů a lesa vsi s jejich mřížkou zvlášť (`squares`), natočený
+  nese natočené čtverce polí, sadů, hřbitovů, ohrad a lesa vsi s jejich mřížkou zvlášť
+  (`squares`), natočený
   pozemek jako tvar obydlí. Cizí půdu blokují kontroly podle skutečné plochy – natočený čtverec
   či pozemek jiné vsi zablokuje jen stavby a čtverce, do kterých opravdu zasahuje; políčka
   v mřížce krajiny a celá políčka pod jejich volnými obydlími a posvátnými stavbami jako dřív
@@ -1093,7 +1107,8 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 | Všechny stavby jde natáčet po 15°, plošné stavby každá ve vlastní natočené mřížce; pozemek se natočí celý, místo domu Tab         | Martin (18. 10. 2026)                           |
 | Mřížka na pole / sad (počátek, natočení 15–75°), čtverce v ní; krajina pod čtvercem 5 × 5 body; překryvy ze skutečných ploch      | návrh Clauda                                    |
 | Navazování jen ve stejné mřížce; stavba přes pole v jiné mřížce mu vezme průnik; les vsi pole vymýtí jen po jeho čtvercích        | návrh Clauda                                    |
-| Hřbitov a ohrada zatím v mřížce krajiny – natočí se později stejným modelem                                                       | rozhodnutí Clauda                               |
+| Hřbitov a ohrada se natáčejí taky – hřbitov ve vlastní mřížce jako pole, ohrada jako čtverec natočené mřížky                      | Martin (19. 10. 2026), návrh Clauda             |
+| Ohrada bez volného středu (malování jednoho čtverce, střed ve středu políčka); model dat volný střed unese                        | rozhodnutí Clauda                               |
 | Luštěniny = hrách a čočka, jař se sklizní v červenci; úroda 0,8 obilí, osivo 150 kg/ha, práce a neopletý díl podle rešerše        | návrh Clauda (rešerše)                          |
 | Osev luštěniny úrodnost vrátí o 0,03 (obilí −0,12); ztráta skladováním jako obilí                                                 | návrh Clauda (rešerše)                          |
 | Obilí má přednost: luštěniny na díly výběru od domu, obilí doplní energii, luštěniny smějí jít na rezervu osevu, ne pod potřebu   | návrh Clauda                                    |

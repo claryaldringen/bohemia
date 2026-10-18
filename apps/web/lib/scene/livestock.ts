@@ -445,7 +445,9 @@ function villageKey(village: LivestockVillage): string {
     ...(village.cemeteries ?? []).flatMap((c) => c.squares),
     ...(village.orchards ?? []).flatMap((o) => o.squares),
     ...(village.pens ?? []),
-  ].map((s) => `${s.x.toFixed(1)},${s.z.toFixed(1)}`);
+  ].map(
+    (s) => `${s.x.toFixed(1)},${s.z.toFixed(1)}${s.rotation ? `@${s.rotation.toFixed(3)}` : ''}`,
+  );
   // skutečné počty stád (diet.md) – narození, porážka a krávy v ohradě přeplánují stáda
   const counts = herdCounts(village);
   const herds = `${counts.sheep},${counts.goat},${counts.pig},${counts.cow}`;

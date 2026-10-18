@@ -5,7 +5,16 @@ import { obstacleChangesAt, recordClearedObstacles } from './obstacles';
 import { PLOUGH_HA_PER_DAY, ploughWorkPerHa } from './plough';
 import { fieldWorkPerHa } from './productivity';
 import { FELLING_MAN_DAYS_PER_TREE } from './rules';
-import type { ChronicleEvent, CropWork, FieldPart, Pen, TileCell, VillageState } from './types';
+import { copyGrid } from './square-grid';
+import type {
+  ChronicleEvent,
+  CropWork,
+  FieldPart,
+  Pen,
+  SquareGrid,
+  TileCell,
+  VillageState,
+} from './types';
 import type { Walk } from './paths/walking';
 import { addLogs, claimedObstacles, planWoodFrom, takeWood, woodLogs, type WoodPlan } from './wood';
 import { partWeight, planCrops } from './year-plan';
@@ -329,7 +338,11 @@ export function startTeamTraining(
 
 /** Ohrada k zahájení – čtverec, jeho střed a překážky na něm (`checkPenPlacement`). */
 export interface PenInput {
+  /** Čtverec ohrady v mřížce `grid`; bez ní políčko krajiny. */
   cell: TileCell;
+  /** Natočená mřížka ohrady (fields.md – Natočené stavby); bez ní mřížka krajiny. */
+  grid?: SquareGrid;
+  /** Střed čtverce ve světě (m). */
   x: number;
   z: number;
   /** Práce navíc za překážky na čtverci (člověkodny). */
@@ -342,7 +355,12 @@ export interface PenInput {
    * Čtverec pole pod ohradou (`takenLand` z kontroly) – z pole zmizí (fields.md – Pole jako
    * krajina; `foundPen`).
    */
-  takenLand?: readonly { cell: TileCell; areaM2: number; cellAreaM2: number }[];
+  takenLand?: readonly {
+    cell: TileCell;
+    grid?: SquareGrid;
+    areaM2: number;
+    cellAreaM2: number;
+  }[];
 }
 
 /** Práce na ohradě bez dřeva – cena ohrady minus kácení jejích stromů u blízkého lesa. */
@@ -397,6 +415,7 @@ export function startPen(
   (next.pens ??= []).push({
     id: penId,
     cell: { x: input.cell.x, y: input.cell.y },
+    ...(input.grid ? { grid: copyGrid(input.grid) } : {}),
     x: input.x,
     z: input.z,
     builtDay: null,

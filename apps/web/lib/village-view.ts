@@ -645,7 +645,17 @@ export interface SceneVillage {
    */
   cemeteries?: {
     id: number;
-    squares: { cell: TileCell; x: number; z: number; size: number; pending?: boolean }[];
+    /** Natočená mřížka hřbitova (fields.md – Natočené stavby); bez údaje mřížka krajiny. */
+    grid?: SquareGrid;
+    squares: {
+      cell: TileCell;
+      x: number;
+      z: number;
+      size: number;
+      /** Natočení čtverce natočeného hřbitova (rad); bez údaje 0. */
+      rotation?: number;
+      pending?: boolean;
+    }[];
     built: boolean;
     progress: number;
     graves: number;
@@ -798,10 +808,15 @@ export interface SceneHayMeadow {
  */
 export interface ScenePen {
   id: number;
+  /** Čtverec ohrady v mřížce `grid`; bez ní políčko krajiny. */
   cell: TileCell;
+  /** Natočená mřížka ohrady (fields.md – Natočené stavby); bez údaje mřížka krajiny. */
+  grid?: SquareGrid;
   x: number;
   z: number;
   size: number;
+  /** Natočení čtverce natočené ohrady (rad); bez údaje 0. */
+  rotation?: number;
   built: boolean;
   progress: number;
   oxen: number;
@@ -1287,11 +1302,13 @@ function sceneVillage(
   const woods = sceneWoods(state, landscape, day);
   const cemeteries = villageCemeteries(state).map((c) => ({
     id: c.id,
+    ...(c.grid ? { grid: c.grid } : {}),
     squares: c.squares.map((s) => ({
       cell: { x: s.cell.x, y: s.cell.y },
       x: s.x,
       z: s.z,
       size: c.squareSizeM,
+      ...(c.grid ? { rotation: c.grid.rotation } : {}),
       ...(s.constructionId === undefined ? {} : { pending: true }),
     })),
     built: c.builtDay !== null,
@@ -1635,6 +1652,7 @@ function scenePens(
     return {
       id: pen.id,
       cell: { x: pen.cell.x, y: pen.cell.y },
+      ...(pen.grid ? { grid: pen.grid, rotation: pen.grid.rotation } : {}),
       x: pen.x,
       z: pen.z,
       size: landscape.cellSizeM,
@@ -2269,6 +2287,7 @@ function scenePlacementVillage(scene: SceneVillage): PlacementVillage {
       })),
     ),
     cemeteries: (scene.cemeteries ?? []).map((c) => ({
+      ...(c.grid ? { grid: c.grid } : {}),
       squares: c.squares.map((s) => ({ cell: s.cell })),
     })),
     // plocha čtverce (políčko) pro varování, že sad stavbou obydlí zanikne
@@ -2276,7 +2295,10 @@ function scenePlacementVillage(scene: SceneVillage): PlacementVillage {
       ...(o.grid ? { grid: o.grid } : {}),
       squares: o.squares.map((s) => ({ cell: s.cell, areaM2: s.size * s.size })),
     })),
-    pens: (scene.pens ?? []).map((pen) => ({ cell: pen.cell })),
+    pens: (scene.pens ?? []).map((pen) => ({
+      cell: pen.cell,
+      ...(pen.grid ? { grid: pen.grid } : {}),
+    })),
     // les vsi – pole ho vymýtí jako les, ostatní stavby na něj nesmí (fields.md – Les vsi)
     ...(scene.woods
       ? {

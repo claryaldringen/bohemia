@@ -205,6 +205,8 @@ export function pathVillageOf(state: VillageState, day: number, landscape: Lands
       x: s.x,
       z: s.z,
       size: c.squareSizeM,
+      // natočený hřbitov (fields.md – Natočené stavby)
+      ...(c.grid ? { rotation: c.grid.rotation } : {}),
     })),
   }));
   const sites = state.constructions.flatMap((c) =>
@@ -249,6 +251,7 @@ export function pathVillageOf(state: VillageState, day: number, landscape: Lands
     x: p.x,
     z: p.z,
     size: landscape.cellSizeM,
+    ...(p.grid ? { rotation: p.grid.rotation } : {}),
     built: p.builtDay !== null,
     ...(p.builtDay !== null && !stocked.has(p.id) ? { stocked: false } : {}),
   }));
@@ -363,7 +366,7 @@ export function walkLayoutKey(state: VillageState, day: number): string {
     (o) => `${o.id}${turned(o.grid)}:${o.squares.map((s) => `${s.cell.x},${s.cell.y}`).join(';')}`,
   );
   const cemeteries = villageCemeteries(state).map(
-    (c) => `${c.id}:${c.squares.map((s) => `${s.cell.x},${s.cell.y}`).join(';')}`,
+    (c) => `${c.id}${turned(c.grid)}:${c.squares.map((s) => `${s.cell.x},${s.cell.y}`).join(';')}`,
   );
   const sacred = [
     (state.sacredOaks ?? []).map((o) => o.id).join(','),
@@ -374,7 +377,7 @@ export function walkLayoutKey(state: VillageState, day: number): string {
   const stocked = stockedPenIds(state);
   const pens = villagePens(state).map(
     (p) =>
-      `${p.id}:${p.cell.x},${p.cell.y}:${p.builtDay === null ? 0 : 1}${p.builtDay !== null && !stocked.has(p.id) ? ':-' : ''}`,
+      `${p.id}:${p.cell.x},${p.cell.y}${turned(p.grid)}:${p.builtDay === null ? 0 : 1}${p.builtDay !== null && !stocked.has(p.id) ? ':-' : ''}`,
   );
   const herds = state.livestock ? pastureHerds(pastureLivestock(state, day)) : 0;
   return JSON.stringify([

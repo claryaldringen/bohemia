@@ -104,6 +104,11 @@ export type CemeterySquareInput = Omit<CemeterySquare, 'obstacles' | 'trees'> & 
 export type CemeteryInput = {
   squares: CemeterySquareInput[];
   /**
+   * Natočená mřížka hřbitova (fields.md – Natočené stavby) – čtverce jsou v ní; bez ní mřížka
+   * krajiny. Rozšiřuje se jen hřbitov v téže mřížce.
+   */
+  grid?: SquareGrid;
+  /**
    * Čtverce polí pod hřbitovem (`takenLand` z kontroly) – z pole zmizí (fields.md – Pole jako
    * krajina).
    */
@@ -755,6 +760,7 @@ export function foundField(state: VillageState, day: number, field: FieldInput):
 /** Ověří vstup hřbitova; jinak RangeError (čísla, která nejsou konečná, by stav otrávila). */
 function validateCemetery(input: CemeteryInput): void {
   if (input.squares.length === 0) throw new RangeError('Hřbitov musí mít aspoň jeden čtverec.');
+  validateGrid(input.grid);
   if (!Number.isFinite(input.squareSizeM) || input.squareSizeM <= 0) {
     throw new RangeError('Strana čtverce hřbitova musí být kladná a konečná.');
   }
@@ -797,13 +803,15 @@ export function foundCemetery(
   validateCemetery(input);
   validateTakenLand(input.takenLand ?? []);
   const existing = villageCemeteries(state);
-  const taken = new Set(existing.flatMap((c) => c.squares.map((s) => `${s.cell.x},${s.cell.y}`)));
-  if (input.squares.some((s) => taken.has(`${s.cell.x},${s.cell.y}`))) {
+  const grid = input.grid ? (normalizeGrid(input.grid) ?? undefined) : undefined;
+  const taken = new Set(existing.flatMap((c) => c.squares.map((s) => squareKey(c.grid, s.cell))));
+  if (input.squares.some((s) => taken.has(squareKey(grid, s.cell)))) {
     throw new RangeError('Čtverec už patří hřbitovu.');
   }
   const touching = touchingCemeteries(
     existing,
     input.squares.map((s) => s.cell),
+    grid,
   );
   if (touching.length > 1) throw new RangeError('Hřbitov smí navazovat jen na jeden hřbitov.');
   const extended = touching[0];
@@ -841,6 +849,7 @@ export function foundCemetery(
     cemeteries.push({
       id: cemeteryId,
       squares: input.squares.map((s) => square(s)),
+      ...(grid ? { grid } : {}),
       squareSizeM: input.squareSizeM,
       graves: 0,
       builtDay: null,
@@ -1047,11 +1056,13 @@ export function foundPen(
   validateObstacleIds(input.obstacleIds);
   validateTrees(input.clearedTrees);
   validateTakenLand(input.takenLand ?? []);
-  if ((state.pens ?? []).some((p) => p.cell.x === input.cell.x && p.cell.y === input.cell.y)) {
+  validateGrid(input.grid);
+  const grid = input.grid ? (normalizeGrid(input.grid) ?? undefined) : undefined;
+  if ((state.pens ?? []).some((p) => squareKey(p.grid, p.cell) === squareKey(grid, input.cell))) {
     throw new RangeError('Na čtverci už ohrada stojí.');
   }
   requireAffordable(state, 'pen', obstacles ?? undefined);
-  const next = startPen(state, day, input, obstacles, walk);
+  const next = startPen(state, day, { ...input, ...(grid ? { grid } : {}) }, obstacles, walk);
   // čtverec pole pod ohradou z pole zmizí (fields.md – Pole jako krajina)
   giveWayToBuilding(next, day, input.takenLand ?? [], 'pen');
   return next;

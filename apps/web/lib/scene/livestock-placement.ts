@@ -53,12 +53,14 @@ export interface LivestockVillage {
       work?: number;
     }[];
   }[];
-  cemeteries?: readonly { squares: readonly { x: number; z: number; size: number }[] }[];
+  cemeteries?: readonly {
+    squares: readonly { x: number; z: number; size: number; rotation?: number }[];
+  }[];
   orchards?: readonly {
     squares: readonly { x: number; z: number; size: number; rotation?: number }[];
   }[];
   /** Ohrady (oxen.md) – oplocené čtverce, stáda ani slepice do nich nechodí. */
-  pens?: readonly { x: number; z: number; size: number }[];
+  pens?: readonly { x: number; z: number; size: number; rotation?: number }[];
   /** Herní den (rozdělení práce) – na louce na seno se pase jen po seči. Bez něj se tam nepase. */
   labor?: { day: number };
   /**
@@ -265,17 +267,16 @@ function obstacles(village: LivestockVillage): Obstacles {
   const sown = parts.filter((p) => !grazedSet.has(p));
   // ohrada je oplocená jako pole – stáda kolem ní, ne skrz (oxen.md)
   const squares = [...sown, ...graves, ...orchards, ...(village.pens ?? [])];
-  const inSquare = squareLookup;
   const houses = village.dwellings.map((d) => ({
     id: d.id,
     position: d.position,
     box: chickenBox(d.type),
   }));
-  const onGrazed = inSquare(grazed);
+  const onGrazed = squareLookup(grazed);
   return {
-    onCrop: inSquare(squares),
+    onCrop: squareLookup(squares),
     onPasture: (x, z) => onGrazed(x, z, 0),
-    onCemetery: inSquare(graves),
+    onCemetery: squareLookup(graves),
     nearDwelling: (x, z, gap) =>
       houses.some((h) => Math.hypot(x - h.position.x, z - h.position.z) < gap),
     inOtherHouse: (x, z, exceptId) =>
@@ -292,12 +293,7 @@ function obstacles(village: LivestockVillage): Obstacles {
     inOtherPlot: (x, z, exceptId, margin) =>
       village.dwellings.some(
         (d) => d.id !== exceptId && d.plot !== undefined && insidePlot(d.plot, x, z, -margin),
-      ) ||
-      (village.pens ?? []).some(
-        (pen) =>
-          Math.abs(x - pen.x) < pen.size / 2 + margin &&
-          Math.abs(z - pen.z) < pen.size / 2 + margin,
-      ),
+      ) || (village.pens ?? []).some((pen) => inSquare(pen, x, z, margin)),
   };
 }
 

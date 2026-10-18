@@ -276,9 +276,9 @@ function withoutBuiltOver(
     };
     const grids = fieldGrids(state);
     for (const p of state.parts) cell(p.cell, grids.get(p.fieldId));
-    for (const c of villageCemeteries(state)) for (const q of c.squares) cell(q.cell);
+    for (const c of villageCemeteries(state)) for (const q of c.squares) cell(q.cell, c.grid);
     for (const o of state.orchards ?? []) for (const q of o.squares) cell(q.cell, o.grid);
-    for (const p of villagePens(state)) cell(p.cell);
+    for (const p of villagePens(state)) cell(p.cell, p.grid);
     const plot = (p: DwellingPlot | undefined): void => {
       if (!p) return;
       // jen čtverec domu (dvůr dvorce zbytky nepřekrývá – jako dřív)

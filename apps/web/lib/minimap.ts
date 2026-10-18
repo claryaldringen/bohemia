@@ -256,7 +256,7 @@ export function drawMinimapVillage(
   for (const cemetery of village.cemeteries ?? []) {
     const [r, g, b] = CEMETERY_COLOR;
     context.fillStyle = `rgb(${r} ${g} ${b} / ${cemetery.built ? 1 : 0.55})`;
-    for (const s of cemetery.squares) square(s.x, s.z);
+    for (const s of cemetery.squares) square(s.x, s.z, s.rotation);
   }
   // sady po čtvercích (čtverce, které se ještě sázejí, průsvitné)
   for (const orchard of village.orchards ?? []) {

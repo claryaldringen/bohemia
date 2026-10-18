@@ -351,7 +351,7 @@ export function placeFieldForPlayer(
 export function placeCemeteryForPlayer(
   playerId: string,
   villageId: string,
-  input: { cells: TileCell[] },
+  input: { cells: TileCell[]; grid?: SquareGrid },
 ): Promise<VillageActionResult> {
   return actOn(playerId, villageId, (ctx) =>
     placeCemetery(
@@ -416,18 +416,25 @@ export function renameVillageForPlayer(
 /** Ohrada je jeden čtverec (oxen.md). */
 export const PEN_ONE_SQUARE = 'Ohrada je jeden čtverec.';
 
-/** Stavba ohrady s přístřeškem (oxen.md) – jeden čtverec louky. */
+/** Stavba ohrady s přístřeškem (oxen.md) – jeden čtverec louky, i natočený (`grid`). */
 export function placePenForPlayer(
   playerId: string,
   villageId: string,
-  input: { cells: TileCell[] },
+  input: { cells: TileCell[]; grid?: SquareGrid },
 ): Promise<VillageActionResult> {
   const [cell, ...rest] = input.cells;
   if (!cell || rest.length > 0) return Promise.resolve({ error: PEN_ONE_SQUARE });
+  const grid = input.grid;
   return actOn(playerId, villageId, (ctx) =>
     placePen(
       { villages: villages() },
-      { villageId: ctx.villageId, landscape: ctx.landscape, today: ctx.day, cell },
+      {
+        villageId: ctx.villageId,
+        landscape: ctx.landscape,
+        today: ctx.day,
+        cell,
+        ...(grid ? { grid } : {}),
+      },
     ),
   );
 }

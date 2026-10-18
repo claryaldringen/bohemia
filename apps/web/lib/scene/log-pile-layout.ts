@@ -201,13 +201,12 @@ function isFree(
   const corners = rectangleCorners(site.x, site.z, PILE_WIDTH_M, PILE_DEPTH_M, site.rotation);
   const taken = new Set<string>();
   // natočené díly (fields.md – Natočené stavby) nejsou políčka – test bodu v jejich osách
-  const turned = village.fields.flatMap((f) => f.parts.filter((p) => isRotatedSquare(p)));
-  for (const f of village.fields) {
-    for (const p of f.parts) if (!isRotatedSquare(p)) taken.add(`${p.cell.x},${p.cell.y}`);
-  }
-  for (const c of village.cemeteries ?? []) {
-    for (const s of c.squares) taken.add(`${s.cell.x},${s.cell.y}`);
-  }
+  const squares = [
+    ...village.fields.flatMap((f) => f.parts),
+    ...(village.cemeteries ?? []).flatMap((c) => c.squares),
+  ];
+  const turned = squares.filter((p) => isRotatedSquare(p));
+  for (const p of squares) if (!isRotatedSquare(p)) taken.add(`${p.cell.x},${p.cell.y}`);
   for (const [x, z] of [...corners, [site.x, site.z] as Point]) {
     const tile = tileOfWorldPoint(landscape, x, z);
     if (!tile || surfaceAt(landscape, tile.x, tile.y) === 'water') return false;

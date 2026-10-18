@@ -5,6 +5,7 @@ import {
   checkPenPlacement,
   foundPen,
   placementVillageOf,
+  type SquareGrid,
   type TileCell,
 } from '../domain/village';
 import { NO_WOOD } from './place-dwelling';
@@ -17,8 +18,10 @@ export interface PlacePenInput {
   landscape: Landscape;
   /** Dnešní herní den (index dne). */
   today: number;
-  /** Políčko krajiny, na kterém ohrada stojí. */
+  /** Čtverec ohrady – políčko krajiny, nebo čtverec natočené mřížky `grid`. */
   cell: TileCell;
+  /** Natočená mřížka ohrady (fields.md – Natočené stavby); bez ní mřížka krajiny. */
+  grid?: SquareGrid;
 }
 
 /**
@@ -46,6 +49,7 @@ export function placePen(
         placementVillageOf(state, day),
         input.cell,
         obstacles,
+        input.grid,
       );
       if (!check.ok) return { ok: false, reason: check.reason ?? 'Sem ohrada nepatří.' };
       try {
@@ -56,6 +60,7 @@ export function placePen(
             day,
             {
               cell: { x: input.cell.x, y: input.cell.y },
+              ...(input.grid ? { grid: input.grid } : {}),
               x: check.x,
               z: check.z,
               obstacleCost: check.obstacleCost,

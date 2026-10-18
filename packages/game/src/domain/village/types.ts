@@ -322,7 +322,9 @@ export interface Field {
 }
 /** Čtverec pohřebiště – políčko krajiny, jeho střed ve světě (m) a vzdálenost od vody. */
 export interface CemeterySquare {
+  /** Čtverec v mřížce hřbitova (`Cemetery.grid`); bez ní políčko krajiny. */
   cell: TileCell;
+  /** Střed čtverce ve světě (m). */
   x: number;
   z: number;
   /** Vzdálenost čtverce od nejbližší vody (m) – z krajiny při založení (simulace krajinu nemá). */
@@ -344,6 +346,11 @@ export interface CemeterySquare {
 export interface Cemetery {
   id: number;
   squares: CemeterySquare[];
+  /**
+   * Natočená mřížka hřbitova (fields.md – Natočené stavby, cemetery.md) – čtverce jsou v ní; bez
+   * ní mřížka krajiny (čtverec = políčko). Rozšíření jde jen v téže mřížce.
+   */
+  grid?: SquareGrid;
   /** Strana čtverce (m) – vzdálenost od obydlí se měří k okraji čtverce. */
   squareSizeM: number;
   /** Obsazené hroby. */
@@ -963,8 +970,9 @@ export interface NeighbourSnapshot {
   /** Políčka krajiny, která zabírají (v mřížce krajiny). */
   cells: TileCell[];
   /**
-   * Čtverce natočených polí, sadů a lesa vsi v jejich mřížce (fields.md – Natočené stavby) –
-   * v `cells` nejsou. Natočené pozemky nese obydlí (`plot.square`). Chybí = žádné.
+   * Čtverce natočených polí, sadů, hřbitovů, ohrad a lesa vsi v jejich mřížce (fields.md –
+   * Natočené stavby) – v `cells` nejsou. Natočené pozemky nese obydlí (`plot.square`). Chybí =
+   * žádné.
    */
   squares?: { cell: TileCell; grid: SquareGrid }[];
   cleared: ObstacleChange[];
@@ -1293,7 +1301,13 @@ export interface HaySquare {
  */
 export interface Pen {
   id: number;
+  /** Čtverec ohrady v její mřížce (`grid`); bez ní políčko krajiny. */
   cell: TileCell;
+  /**
+   * Natočená mřížka ohrady (fields.md – Natočené stavby, oxen.md) – natočený čtverec ohrady je
+   * její čtverec `cell`; bez ní políčko krajiny.
+   */
+  grid?: SquareGrid;
   /** Střed čtverce ve světě (m). */
   x: number;
   z: number;

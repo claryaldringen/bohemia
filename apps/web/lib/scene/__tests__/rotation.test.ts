@@ -11,6 +11,7 @@ import {
   parsePlaceCemeteryInput,
   parsePlaceFieldInput,
   parsePlaceOrchardInput,
+  parsePlacePenInput,
   parsePlot,
 } from '../../village-input';
 import type { SceneVillage } from '../../village-view';
@@ -23,10 +24,20 @@ import {
   touchingSquares,
   type CellSquare,
 } from '../field-cells';
+import { GRAVE_GRID, fenceLayout, gravePlacements } from '../cemetery-layout';
 import { fieldSpace } from '../field-space';
 import { homesteadLayout, insidePlot, plotHouse, plotStakingLine } from '../homestead-layout';
 import { squareLookup } from '../livestock-placement';
+import { foreignFromScene } from '../neighbour-villages';
 import { orchardRowLines, orchardTreeSpots } from '../orchard-layout';
+import {
+  insidePen,
+  penFacing,
+  penLayout,
+  penMudAt,
+  penMudBounds,
+  penStakingLine,
+} from '../pen-layout';
 import { pickVillageTarget, type Ray } from '../village-picking';
 import { decalGrid } from '../village-layout';
 
@@ -217,14 +228,22 @@ describe('výběr a stáda na natočených stavbách', () => {
 });
 
 describe('vstup server actions s natočením', () => {
-  it('pole a sad nesou mřížku, hřbitov a ohrada ne', () => {
+  it('pole, sad, hřbitov i ohrada nesou mřížku', () => {
     const grid = { x: 7.5, z: 7.5, rotation: 0.5 };
     expect(parsePlaceFieldInput({ cells: [{ x: 0, y: -1 }], grid })).toEqual({
       cells: [{ x: 0, y: -1 }],
       grid,
     });
     expect(parsePlaceOrchardInput({ cells: [], grid: { x: 1, z: 'a', rotation: 0 } })).toBeNull();
-    expect(parsePlaceCemeteryInput({ cells: [{ x: 1, y: 1 }], grid })).toBeNull();
+    expect(parsePlaceCemeteryInput({ cells: [{ x: 1, y: 1 }], grid })).toEqual({
+      cells: [{ x: 1, y: 1 }],
+      grid,
+    });
+    expect(parsePlacePenInput({ cells: [{ x: 0, y: 0 }], grid })).toEqual({
+      cells: [{ x: 0, y: 0 }],
+      grid,
+    });
+    expect(parsePlacePenInput({ cells: [], grid })).toBeNull();
     expect(parsePlaceFieldInput({ cells: [{ x: 1, y: 1 }] })).toEqual({ cells: [{ x: 1, y: 1 }] });
   });
 
@@ -241,5 +260,167 @@ describe('vstup server actions s natočením', () => {
       square: { x: 7.5, z: 9, rotation: ROTATION_STEP },
     });
     expect(parsePlot({ cell: { x: 8, y: 8 }, variant: 'center', square: { x: 1 } })).toBeNull();
+  });
+});
+
+describe('natočený hřbitov ve scéně', () => {
+  const squares = [square(G30, { x: 0, y: 0 }), square(G30, { x: 1, y: 0 })];
+  const inUnion = (x: number, z: number, margin: number): boolean =>
+    squares.some((q) => {
+      const [u, v] = local(q, x, z);
+      return Math.max(Math.abs(u!), Math.abs(v!)) <= 7.5 + margin;
+    });
+
+  it('plot vede po obrysu natočených čtverců se zakulacenými rohy, branka míří k obydlí', () => {
+    const [c, sn] = rotationCosSin(G30.rotation);
+    // obydlí 40 m po ose y mřížky (místní +z)
+    const toward = { x: 7.5 + 40 * sn, z: 7.5 + 40 * c };
+    const layout = fenceLayout(squares, toward);
+    const posts = layout.fence.runs.flatMap((run) => run.posts);
+    expect(posts.length).toBeGreaterThan(30);
+    for (const post of posts) {
+      // kůly stojí uvnitř čtverců u jejich obvodu (ne v ose krajiny)
+      expect(inUnion(post.x, post.z, 1e-6)).toBe(true);
+      expect(inUnion(post.x, post.z, -1.5)).toBe(false);
+    }
+    const gate = posts.filter((p) => p.gate);
+    expect(gate).toHaveLength(2);
+    for (const p of gate) expect(local(squares[0]!, p.x, p.z)[1]!).toBeGreaterThan(6);
+    // vytyčení po rozích čtverců z jádra
+    for (const point of layout.outline.flat()) {
+      const corners = [
+        ...squareCorners(GEO, G30, { x: 0, y: 0 }),
+        ...squareCorners(GEO, G30, { x: 1, y: 0 }),
+      ];
+      expect(corners.some(([x, z]) => Math.hypot(x - point[0], z - point[1]) < 1e-9)).toBe(true);
+    }
+  });
+
+  it('hroby stojí po řadách v osách natočených čtverců', () => {
+    const graves = gravePlacements(squares, 70, 3);
+    expect(graves).toHaveLength(70);
+    for (const grave of graves) expect(inUnion(grave.x, grave.z, -0.4)).toBe(true);
+    // první řada prvního čtverce leží podél osy x mřížky (stejné místní v, rostoucí u)
+    const row = graves.slice(0, GRAVE_GRID.columns).map((g) => local(squares[0]!, g.x, g.z));
+    for (const [u, v] of row) {
+      expect(Math.abs(v! - row[0]![1]!)).toBeLessThan(1);
+      expect(u!).toBeGreaterThan(-7.5);
+    }
+    expect(row[GRAVE_GRID.columns - 1]![0]!).toBeGreaterThan(row[0]![0]! + 8);
+  });
+
+  it('nenatočený hřbitov má plot a hroby jako dřív', () => {
+    const aligned: CellSquare[] = [
+      { cell: { x: 8, y: 8 }, x: 7.5, z: 7.5, size: 15 },
+      { cell: { x: 9, y: 8 }, x: 22.5, z: 7.5, size: 15 },
+    ];
+    const layout = fenceLayout(aligned, { x: 0, z: 60 });
+    for (const post of layout.fence.runs.flatMap((run) => run.posts)) {
+      expect(post.z).toBeGreaterThanOrEqual(-1e-9);
+      expect(post.z).toBeLessThanOrEqual(15 + 1e-9);
+    }
+    expect(gravePlacements(aligned, 5, 1)).toEqual(
+      gravePlacements(
+        aligned.map((q) => ({ ...q })),
+        5,
+        1,
+      ),
+    );
+  });
+});
+
+describe('natočená ohrada ve scéně', () => {
+  const pen = { x: 40, z: -12, size: 15, rotation: ROTATION_STEP };
+  const toward = { x: 40, z: 60 };
+
+  it('plot, branka, přístřešek a zvířata v natočeném čtverci; branka k obydlí', () => {
+    const layout = penLayout(pen, penFacing(pen, toward));
+    expect(layout.rotation).toBe(ROTATION_STEP);
+    const posts = layout.fence.runs.flatMap((run) => run.posts);
+    for (const post of posts) {
+      const [u, v] = local(pen, post.x, post.z);
+      expect(Math.max(Math.abs(u!), Math.abs(v!))).toBeLessThan(7.5);
+    }
+    // branka na straně ke vsi (místní +z – obydlí leží dál po ose z)
+    expect(local(pen, layout.gate.x, layout.gate.z)[1]!).toBeGreaterThan(6);
+    // přístřešek v zadním rohu (místní −z), natočený o natočení ohrady víc než v osách
+    const [, shelterV] = local(pen, layout.shelter.x, layout.shelter.z);
+    expect(shelterV!).toBeLessThan(-2);
+    for (const spot of [...layout.spots, ...layout.animals]) {
+      expect(insidePen(layout, spot.x, spot.z)).toBe(true);
+    }
+    // bod za natočeným plotem (v osách krajiny by byl uvnitř)
+    const [c, sn] = rotationCosSin(ROTATION_STEP);
+    const corner = { x: pen.x + 7 * c + 7 * sn, z: pen.z - 7 * sn + 7 * c };
+    expect(insidePen(layout, corner.x, corner.z)).toBe(false);
+    expect(penMudAt(layout, corner.x, corner.z)).toBe(0);
+    // vytyčení po natočeném obdélníku plotu, bláto v obdélníku kolem něj
+    const line = penStakingLine(layout);
+    expect(line).toHaveLength(5);
+    for (const [x, z] of line) {
+      const [u, v] = local(pen, x, z);
+      expect(Math.abs(Math.abs(u!) - Math.abs(v!))).toBeLessThan(1e-9);
+    }
+    const bounds = penMudBounds(layout);
+    for (const [x, z] of line) {
+      expect(x).toBeGreaterThanOrEqual(bounds.minX - 1e-9);
+      expect(x).toBeLessThanOrEqual(bounds.maxX + 1e-9);
+      expect(z).toBeGreaterThanOrEqual(bounds.minZ - 1e-9);
+      expect(z).toBeLessThanOrEqual(bounds.maxZ + 1e-9);
+    }
+  });
+
+  it('ohrada bez natočení se rozmístí jako dřív', () => {
+    const square = { x: 40, z: -12, size: 15 };
+    const { square: _zero, ...zero } = penLayout(
+      { ...square, rotation: 0 },
+      penFacing(square, toward),
+    );
+    const { square: _none, ...none } = penLayout(square, penFacing(square, toward));
+    void _zero;
+    void _none;
+    expect(zero).toEqual(none);
+    expect(penLayout(square, penFacing(square, toward)).rotation).toBeUndefined();
+  });
+});
+
+describe('natočený hřbitov a ohrada jiné vsi', () => {
+  it('cizí půda pro kontrolu umístění nese jejich mřížku', () => {
+    const cemetery = square(G30, { x: 0, y: 0 });
+    const village: SceneVillage = {
+      dwellings: [],
+      fields: [],
+      neighbours: [
+        {
+          dwellings: [],
+          fields: [],
+          cemeteries: [
+            { id: 3, grid: G30, squares: [cemetery], built: true, progress: 1, graves: 0 },
+          ],
+          pens: [
+            {
+              id: 4,
+              cell: { x: 0, y: 0 },
+              grid: G45,
+              x: 7.5,
+              z: 7.5,
+              size: 15,
+              rotation: G45.rotation,
+              built: true,
+              progress: 1,
+              oxen: 0,
+              trainees: 0,
+              cows: 0,
+            },
+          ],
+        },
+      ],
+    };
+    const foreign = foreignFromScene(village)!;
+    expect(foreign.cells).toEqual([]);
+    expect(foreign.squares).toEqual([
+      { cell: { x: 0, y: 0 }, grid: G30 },
+      { cell: { x: 0, y: 0 }, grid: G45 },
+    ]);
   });
 });

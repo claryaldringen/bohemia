@@ -377,20 +377,24 @@ export const BUILD_ITEMS: readonly BuildItem[] = [
     hotkey: 'KeyV',
     hotkeyLabel: 'V',
     placement: 'squares',
-    check: (landscape, village, cells) => {
+    rotatable: true,
+    check: (landscape, village, cells, grid) => {
       const result = cemeteryPartsFromCells(
         landscape,
         village,
         cells,
         village.dwellings.map((d) => d.position),
+        undefined,
+        grid,
       );
       return {
         check: result.check,
         blockedCells: result.blockedCells,
-        // čtverce polí, které hřbitov sebere, oranžově (fields.md – Pole jako krajina)
+        // čtverce polí, které hřbitov sebere, oranžově (fields.md – Pole jako krajina) – jen
+        // čtverce v mřížce hřbitova
         warningCells: [
           ...result.warningCells,
-          ...result.takenLand.filter((t) => !t.grid).map((t) => t.cell),
+          ...result.takenLand.filter((t) => sameGrid(t.grid, result.grid)).map((t) => t.cell),
         ],
         cost: squaresCost(result.check, result.foundingCost),
       };
@@ -438,7 +442,9 @@ export const BUILD_ITEMS: readonly BuildItem[] = [
     hotkey: 'KeyO',
     hotkeyLabel: 'O',
     placement: 'squares',
-    check: (landscape, village, cells) => {
+    // natočená ohrada (fields.md – Natočené stavby): jeden čtverec natočené mřížky
+    rotatable: true,
+    check: (landscape, village, cells, grid) => {
       const [cell, ...rest] = cells;
       if (!cell) return { check: { ok: false, reason: null }, blockedCells: [], cost: null };
       if (rest.length > 0) {
@@ -448,12 +454,12 @@ export const BUILD_ITEMS: readonly BuildItem[] = [
           cost: null,
         };
       }
-      const check = checkPenPlacement(landscape, village, cell);
+      const check = checkPenPlacement(landscape, village, cell, undefined, grid);
       return {
         check,
         blockedCells: check.ok ? [] : [cell],
-        // čtverec pole pod ohradou oranžově (fields.md – Pole jako krajina)
-        warningCells: check.takenLand.filter((t) => !t.grid).map((t) => t.cell),
+        // čtverec pole pod ohradou oranžově (fields.md – Pole jako krajina) – jen ve stejné mřížce
+        warningCells: check.takenLand.filter((t) => sameGrid(t.grid, grid)).map((t) => t.cell),
         cost: check.ok ? penPlacementCost(village, check) : null,
       };
     },

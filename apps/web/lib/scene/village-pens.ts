@@ -23,7 +23,13 @@ export function ploughingToday(village: Pick<SceneVillage, 'labor'>): boolean {
  */
 export function scenePenViews(village: Pick<SceneVillage, 'pens' | 'dwellings'>): PenView[] {
   return (village.pens ?? []).map((pen) => {
-    const square = { x: pen.x, z: pen.z, size: pen.size };
+    // natočená ohrada (fields.md – Natočené stavby) – natočení kolem středu čtverce
+    const square = {
+      x: pen.x,
+      z: pen.z,
+      size: pen.size,
+      ...(pen.rotation !== undefined ? { rotation: pen.rotation } : {}),
+    };
     let target: { x: number; z: number } = { x: pen.x, z: pen.z - 1 };
     let best = Infinity;
     for (const d of village.dwellings) {

@@ -547,7 +547,8 @@ function context(
     const half = pen.size / 2;
     return {
       id: pen.id,
-      position: { x: pen.x, z: pen.z, rotation: 0 },
+      // natočená ohrada (fields.md – Natočené stavby) – čtverec v osách ohrady
+      position: { x: pen.x, z: pen.z, rotation: pen.rotation ?? 0 },
       built: pen.built,
       progress: pen.progress,
       inhabited: false,
@@ -627,9 +628,8 @@ function inBox(h: House, x: number, z: number, margin: number): boolean {
 }
 
 function onGrave(graves: readonly Square[], x: number, z: number): boolean {
-  return graves.some(
-    (g) => Math.abs(x - g.x) < g.size / 2 - 0.2 && Math.abs(z - g.z) < g.size / 2 - 0.2,
-  );
+  // natočený hřbitov (fields.md – Natočené stavby) v osách čtverce
+  return graves.some((g) => inSquare(g, x, z, -0.2));
 }
 
 /** Smí tu postava stát: suchá schůdná zem mimo domy a hroby. */
@@ -1723,9 +1723,7 @@ function cemeteryFence(ctx: Context, cemeteryId: number): Placer {
       for (const side of [1, -1]) {
         const x = mx + n.x * side * gap(0.7);
         const z = mz + n.z * side * gap(0.7);
-        const inside = cemetery.squares.some(
-          (s) => Math.abs(x - s.x) < s.size / 2 && Math.abs(z - s.z) < s.size / 2,
-        );
+        const inside = cemetery.squares.some((s) => inSquare(s, x, z, 0));
         if (inside || !free(ctx, x, z)) continue;
         slots.push({ x, z, hx: -n.x * side, hz: -n.z * side });
         break;
@@ -1750,7 +1748,11 @@ function penFence(ctx: Context, penId: number): Placer {
   if (!pen) return none;
   const out = pen.size / 2 + HOUSE_MARGIN_M + gap(0.5);
   const slots: { x: number; z: number; hx: number; hz: number }[] = [];
-  for (const [nx, nz] of PLOT_SIDES) {
+  // strany v osách ohrady (natočená ohrada – fields.md, Natočené stavby)
+  const [ax, az] = squareAxes(pen);
+  for (const [sx, sz] of PLOT_SIDES) {
+    const nx = ax.x * sx + az.x * sz;
+    const nz = ax.z * sx + az.z * sz;
     for (const along of [-0.5, 0, 0.5]) {
       const x = pen.x + nx * out - nz * along * pen.size * 0.8;
       const z = pen.z + nz * out + nx * along * pen.size * 0.8;

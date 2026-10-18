@@ -101,18 +101,16 @@ export function fieldClearings(
 ): Clearing[] {
   const trees = [...(village.roadTrees ?? []), ...(village.roadApples ?? [])];
   // stavby po čtvercích přes pole v jiné mřížce (natočené – fields.md) zabírají díly jen zčásti:
-  // natočený sad vždy, při natočeném poli i sady, hřbitovy, ohrady a pozemky v mřížce krajiny
+  // natočený sad, hřbitov a ohrada vždy, při natočeném poli i ty v mřížce krajiny a pozemky
   const turnedFields = (village.fields ?? []).some((f) => f.parts.some((p) => turned(p.rotation)));
+  const partly = <T extends { rotation?: number }>(squares: readonly T[]): readonly T[] =>
+    turnedFields || squares.some((sq) => turned(sq.rotation)) ? squares : [];
   const squares = [
-    ...(village.orchards ?? []).flatMap((o) =>
-      turnedFields || o.squares.some((sq) => turned(sq.rotation)) ? o.squares : [],
-    ),
+    ...(village.orchards ?? []).flatMap((o) => partly(o.squares)),
+    ...(village.cemeteries ?? []).flatMap((c) => partly(c.squares)),
+    ...(village.pens ?? []).flatMap((p) => partly([p])),
     ...(turnedFields
-      ? [
-          ...(village.cemeteries ?? []).flatMap((c) => c.squares),
-          ...(village.pens ?? []),
-          ...village.dwellings.flatMap((d) => (d.plot && !turned(d.plot.rotation) ? [d.plot] : [])),
-        ]
+      ? village.dwellings.flatMap((d) => (d.plot && !turned(d.plot.rotation) ? [d.plot] : []))
       : []),
   ];
   return [

@@ -9,9 +9,9 @@ import {
 import type { SquareGrid, TileCell } from './types';
 
 // Čtverce staveb vsi ve světě (fields.md – Natočené stavby): díly polí, čtverce sadů, hřbitovů,
-// ohrady a les vsi – každý se svou mřížkou (natočené pole a sad mají vlastní, ostatní mřížku
-// krajiny). Kontroly umístění, zbytky jam, louky na seno a stromy u cest se ptají, co kde stojí,
-// přes rejstřík po políčkách krajiny (`PolygonIndex`) – u dvou čtverců v mřížce krajiny rozhodne
+// ohrady a les vsi – každý se svou mřížkou (natočené stavby vlastní, ostatní mřížku krajiny).
+// Kontroly umístění, zbytky jam, louky na seno a stromy u cest se ptají, co kde stojí, přes
+// rejstřík po políčkách krajiny (`PolygonIndex`) – u dvou čtverců v mřížce krajiny rozhodne
 // rovnost políček (jako dřív), jinak přesný překryv mnohoúhelníků.
 
 /** Druh stavby po čtvercích. */
@@ -51,9 +51,10 @@ export interface SquaresVillage {
   }[];
   readonly cemeteries?: readonly {
     readonly id?: number;
+    readonly grid?: SquareGrid;
     readonly squares: readonly { readonly cell: TileCell }[];
   }[];
-  readonly pens?: readonly { readonly cell: TileCell }[];
+  readonly pens?: readonly { readonly cell: TileCell; readonly grid?: SquareGrid }[];
   readonly woods?: readonly { readonly cell: TileCell; readonly grid?: SquareGrid }[];
 }
 
@@ -131,12 +132,12 @@ export function villageLandSquares(
   if (want.has('cemetery')) {
     (village.cemeteries ?? []).forEach((c, index) => {
       for (const s of c.squares)
-        out.push(landSquare(geo, 'cemetery', c.id ?? index, undefined, s.cell));
+        out.push(landSquare(geo, 'cemetery', c.id ?? index, c.grid, s.cell));
     });
   }
   if (want.has('pen')) {
     (village.pens ?? []).forEach((p, index) => {
-      out.push(landSquare(geo, 'pen', index, undefined, p.cell));
+      out.push(landSquare(geo, 'pen', index, p.grid, p.cell));
     });
   }
   if (want.has('wood')) {

@@ -364,8 +364,14 @@ function gateTarget(
 
 function cemeteryKey(c: SceneCemetery, gate: Point | null): string {
   const building = !c.built || c.squares.some((s) => s.pending);
+  // natočený hřbitov (fields.md – Natočené stavby) – mřížka podle prvního čtverce
+  const first = c.squares[0];
+  const turned =
+    first?.rotation === undefined
+      ? ''
+      : `@${first.x.toFixed(2)},${first.z.toFixed(2)},${first.rotation.toFixed(3)}`;
   return [
-    c.squares.map((s) => `${s.cell.x},${s.cell.y}${s.pending ? 'p' : ''}`).join(';'),
+    c.squares.map((s) => `${s.cell.x},${s.cell.y}${s.pending ? 'p' : ''}`).join(';') + turned,
     c.built,
     // průběh po 2 % – plot nepřibývá plynule, ale ani se nepřestavuje při každém dotazu
     building ? Math.round(c.progress * 50) : '',

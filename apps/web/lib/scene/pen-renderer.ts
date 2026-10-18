@@ -124,7 +124,14 @@ export class PenRenderer {
     for (const view of pens) {
       seen.add(view.id);
       const { square, facing } = view;
-      const layoutKey = [square.x, square.z, square.size, facing.x, facing.z].join(',');
+      const layoutKey = [
+        square.x,
+        square.z,
+        square.size,
+        facing.x,
+        facing.z,
+        square.rotation ?? 0,
+      ].join(',');
       const stage = penStage(view.progress);
       const decay = stage.built ? structureDecayStage(view.condition) : 0;
       // rozpad plotu po dvacetinách – ohrada se nepřestavuje při každé drobné změně stavu

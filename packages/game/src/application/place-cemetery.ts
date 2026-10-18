@@ -4,6 +4,7 @@ import {
   foundCemetery,
   placementVillageOf,
   villageDwellingPositions,
+  type SquareGrid,
   type TileCell,
 } from '../domain/village';
 import { updateLivingVillage } from './update-village';
@@ -15,8 +16,10 @@ export interface PlaceCemeteryInput {
   landscape: Landscape;
   /** Dnešní herní den (index dne). */
   today: number;
-  /** Čtverce pohřebiště – políčka krajiny. */
+  /** Čtverce pohřebiště – políčka krajiny, nebo čtverce natočené mřížky `grid`. */
   cells: TileCell[];
+  /** Natočená mřížka hřbitova (fields.md – Natočené stavby); bez ní mřížka krajiny. */
+  grid?: SquareGrid;
 }
 
 /**
@@ -36,13 +39,21 @@ export function placeCemetery(
     (state) => {
       const positions = villageDwellingPositions(state);
       const village = placementVillageOf(state, state.lastDay);
-      const preview = cemeteryPartsFromCells(input.landscape, village, input.cells, positions);
+      const preview = cemeteryPartsFromCells(
+        input.landscape,
+        village,
+        input.cells,
+        positions,
+        undefined,
+        input.grid,
+      );
       if (!preview.check.ok) {
         return { ok: false, reason: preview.check.reason ?? 'Sem hřbitov nepatří.' };
       }
       // akce patří do dne, do kterého je ves dopočítaná – dnešek, nebo „budoucí“ den vsi
       const cemetery = {
         squares: preview.squares,
+        ...(preview.grid ? { grid: preview.grid } : {}),
         squareSizeM: input.landscape.cellSizeM,
         sacred: preview.spared,
         // čtverce polí pod hřbitovem z pole zmizí (fields.md – Pole jako krajina)

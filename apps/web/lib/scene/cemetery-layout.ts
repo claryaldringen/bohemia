@@ -2,8 +2,10 @@
 // čtverců s brankou k vsi, hliněné mohylky (žárové hroby 6.–8. století) přibývající, jak se
 // pohřebiště plní, a fáze založení (vytyčení → kůly → pletení plotu). Souřadnice světa scény
 // v metrech (x, z), čtverce jako u pole (field-cells.ts). Plot je pletený plot společný
-// s pozemkem polozemnice (woven-fence.ts) – zakulacené rohy, jen hustší pletivo.
-import { cellsBoundary, type CellSquare } from './field-cells';
+// s pozemkem polozemnice (woven-fence.ts) – zakulacené rohy, jen hustší pletivo. Natočený
+// hřbitov (fields.md – Natočené stavby): obrys a hroby se počítají v „rovném prostoru“ jeho
+// mřížky (field-cells.ts – `GridFrame`) a otočí se do světa; plot se plete už ve světě.
+import { cellsBoundary, gridFrame, type CellSquare, type GridFrame } from './field-cells';
 import { seededRandom, type Point } from './village-layout';
 import { wovenFence, type FencePath, type FenceStyle, type WovenFence } from './woven-fence';
 
@@ -44,6 +46,17 @@ export function gravePlacements(
   graves: number,
   seed: number,
 ): GravePlacement[] {
+  const first = squares[0];
+  if (first?.rotation !== undefined) {
+    // natočený hřbitov: hroby po řadách v osách čtverců, otočené do světa
+    const frame = gridFrame(first);
+    if (frame.rotated) {
+      return gravePlacements(flatSquares(frame, squares), graves, seed).map((grave) => {
+        const [x, z] = frame.toWorld(grave.x, grave.z);
+        return { ...grave, x, z, rotationY: grave.rotationY + first.rotation! };
+      });
+    }
+  }
   const perSquare = GRAVE_GRID.columns * GRAVE_GRID.rows;
   const count = Math.max(0, Math.min(Math.floor(graves), squares.length * perSquare));
   const random = seededRandom(seed * 7919 + 17);
@@ -193,9 +206,29 @@ export function fenceLayout(
   gateToward: { x: number; z: number } | null,
   options: { withGate?: boolean; fenced?: readonly CellSquare[] } = {},
 ): FenceLayout {
-  const paths = outlinePaths(squares, options.fenced ?? []);
+  const fenced = options.fenced ?? [];
+  const first = squares[0];
+  const frame = first?.rotation !== undefined ? gridFrame(first) : null;
+  // natočený hřbitov: obrys v rovném prostoru mřížky, čáry plotu otočené do světa
+  const paths =
+    frame && frame.rotated
+      ? outlinePaths(flatSquares(frame, squares), flatSquares(frame, fenced)).map((path) => ({
+          ...path,
+          points: path.points.map(([x, z]) => frame.toWorld(x, z)),
+        }))
+      : outlinePaths(squares, fenced);
   const gate = options.withGate === false ? null : { toward: gateToward };
   return { fence: wovenFence(paths, CEMETERY_FENCE, gate), outline: cellsBoundary(squares) };
+}
+
+/** Čtverce natočené mřížky v jejím rovném prostoru (bez natočení). */
+function flatSquares(frame: GridFrame, squares: readonly CellSquare[]): CellSquare[] {
+  return squares.map((square) => {
+    const [x, z] = frame.toSpace(square.x, square.z);
+    const { rotation: _turned, ...rest } = square;
+    void _turned;
+    return { ...rest, x, z };
+  });
 }
 
 /** Fáze založení pohřebiště pro vývojovou lištu (průběh 0–1, navazují na sebe). */
