@@ -2172,6 +2172,18 @@ function plotOfScene(plot: ScenePlot): DwellingPlot {
  * a pokácené překážky a vyhrazené stromy – náhled pak spočítá totéž co server.
  */
 export function placementVillageFromScene(scene: SceneVillage): PlacementVillage {
+  // kontrola běží při každém pohybu kurzoru nad stejnou scénou – stejná ves (i rejstřík čtverců
+  // staveb v jádru, který se pamatuje podle seznamů staveb)
+  const cached = placementCache.get(scene);
+  if (cached) return cached;
+  const village = scenePlacementVillage(scene);
+  placementCache.set(scene, village);
+  return village;
+}
+
+const placementCache = new WeakMap<SceneVillage, PlacementVillage>();
+
+function scenePlacementVillage(scene: SceneVillage): PlacementVillage {
   return {
     dwellings: scene.dwellings.map((d) => ({
       type: d.type,

@@ -19,6 +19,7 @@ import {
   type Point,
 } from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
+import { isRotatedSquare, squareContains } from './field-cells';
 import { dwellingArea, localToWorld } from './village-layout';
 
 /** Kláda – délka a poloměr (m): kmen velkého stromu přeřezaný na délku srubu. */
@@ -199,7 +200,11 @@ function isFree(
 ): boolean {
   const corners = rectangleCorners(site.x, site.z, PILE_WIDTH_M, PILE_DEPTH_M, site.rotation);
   const taken = new Set<string>();
-  for (const f of village.fields) for (const p of f.parts) taken.add(`${p.cell.x},${p.cell.y}`);
+  // natočené díly (fields.md – Natočené stavby) nejsou políčka – test bodu v jejich osách
+  const turned = village.fields.flatMap((f) => f.parts.filter((p) => isRotatedSquare(p)));
+  for (const f of village.fields) {
+    for (const p of f.parts) if (!isRotatedSquare(p)) taken.add(`${p.cell.x},${p.cell.y}`);
+  }
   for (const c of village.cemeteries ?? []) {
     for (const s of c.squares) taken.add(`${s.cell.x},${s.cell.y}`);
   }
@@ -207,6 +212,7 @@ function isFree(
     const tile = tileOfWorldPoint(landscape, x, z);
     if (!tile || surfaceAt(landscape, tile.x, tile.y) === 'water') return false;
     if (taken.has(`${tile.x},${tile.y}`)) return false;
+    if (turned.some((p) => squareContains(p, x, z))) return false;
   }
   for (const d of village.dwellings) {
     // vlastní pozemek je oplocený a plný záhonů – hromada leží za plotem

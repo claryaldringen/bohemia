@@ -547,7 +547,24 @@ function cellsUnderPolygon(landscape: Landscape, polygon: readonly Point[]): num
 interface CachedLandIndex {
   landscape: Landscape;
   lists: readonly unknown[];
+  /** Počty čtverců (díly, čtverce sadů a hřbitovů, ohrady, les) – pojistka proti změně na místě. */
+  counts: string;
   index: PolygonIndex<LandSquare>;
+}
+
+/** Počty čtverců staveb vsi – změní se, když stavba čtverec přidá nebo ubere na místě. */
+function squareCounts(village: PlacementVillage | null): string {
+  if (!village) return '';
+  const inner = (list: readonly { squares: readonly unknown[] }[] | undefined): string =>
+    (list ?? []).map((item) => item.squares.length).join(',');
+  return [
+    village.parts.length,
+    inner(village.orchards),
+    inner(village.cemeteries),
+    village.pens?.length ?? 0,
+    village.woods?.length ?? 0,
+    village.fields?.length ?? 0,
+  ].join('|');
 }
 const landIndexCache = new WeakMap<object, CachedLandIndex>();
 const NO_VILLAGE = {};
@@ -572,17 +589,19 @@ function landIndex(
       ]
     : [];
   const key = village?.parts ?? NO_VILLAGE;
+  const counts = squareCounts(village);
   const cached = landIndexCache.get(key);
   if (
     cached &&
     cached.landscape === landscape &&
+    cached.counts === counts &&
     cached.lists.length === lists.length &&
     cached.lists.every((list, i) => list === lists[i])
   ) {
     return cached.index;
   }
   const index = new PolygonIndex(landscape, village ? villageLandSquares(landscape, village) : []);
-  landIndexCache.set(key, { landscape, lists, index });
+  landIndexCache.set(key, { landscape, lists, counts, index });
   return index;
 }
 

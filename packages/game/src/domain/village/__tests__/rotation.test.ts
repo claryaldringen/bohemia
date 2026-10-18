@@ -7,6 +7,8 @@ import { landLeftM2 } from '../land-taken';
 import {
   canonicalPlot,
   cellCorners,
+  cemeteryPartsFromCells,
+  checkDwellingPlacement,
   checkPlotPlacement,
   fieldPartsFromCells,
   orchardPartsFromCells,
@@ -27,7 +29,8 @@ import {
   squareCenter,
   squareCorners,
 } from '../square-grid';
-import type { SquareGrid, TileCell } from '../types';
+import { withMergedFields } from '../fields';
+import type { SquareGrid, TileCell, VillageState } from '../types';
 import { woodTreeSpots } from '../woods';
 import { block, makeLandscape } from './placement-fixtures';
 import { withBuiltFirstDwelling } from './village-fixtures';
@@ -295,6 +298,70 @@ describe('natočené pole a sad – vlastní mřížka', () => {
       grid: preview.grid!,
     });
     expect(next.orchards!.at(-1)!.grid).toEqual(G45);
+  });
+});
+
+describe('pole jako krajina napříč mřížkami', () => {
+  const landscape = makeLandscape();
+  /** Ves s natočeným polem 5 × 2 čtverce v mřížce G30. */
+  function withTurnedField(): VillageState {
+    const start = foundVillage({ seed: 4, day: DAY, dwellingPosition: FAR[0]! });
+    const preview = fieldPartsFromCells(landscape, start, block(0, 0, 5, 2), FAR, EMPTY, G30);
+    return foundField(start, start.lastDay, { parts: preview.parts, grid: G30 });
+  }
+
+  it('zemnice na natočeném poli mu vezme průnik vyklízené plochy (kus s mřížkou pole)', () => {
+    const s = withBuiltFirstDwelling(withTurnedField());
+    const man = s.nextId++;
+    const woman = s.nextId++;
+    s.people.push(
+      { id: man, bornDay: DAY - 9000, dwellingId: 1, sex: 'male', spouseId: woman },
+      { id: woman, bornDay: DAY - 9000, dwellingId: 1, sex: 'female', spouseId: man },
+    );
+    s.woodLogs = 60;
+    const [c, sn] = rotationCosSin(G30.rotation);
+    // střed domu na čtverci (2, 0) natočeného pole
+    const at = { x: 7.5 + 30 * c, z: 7.5 - 30 * sn, rotation: 0 };
+    const check = checkDwellingPlacement(landscape, s, 'zemnice', at, EMPTY);
+    expect(check.ok).toBe(true);
+    expect(check.warning).toContain('Pole se zmenší');
+    expect(check.takenLand.length).toBeGreaterThan(0);
+    for (const t of check.takenLand) expect(t.grid).toEqual(G30);
+    const area = (state: VillageState): number => state.parts.reduce((sum, p) => sum + p.areaM2, 0);
+    const next = startNewDwelling(s, s.lastDay, 'zemnice', at, check.obstacleCost, [], {
+      takenLand: check.takenLand,
+    });
+    expect(area(next)).toBeLessThan(area(s));
+  });
+
+  it('hřbitov v mřížce krajiny přes natočené pole mu vezme jen průnik', () => {
+    const s = withTurnedField();
+    const cemetery = cemeteryPartsFromCells(landscape, s, [{ x: 8, y: 8 }], FAR, EMPTY);
+    expect(cemetery.check.reason).toBeNull();
+    expect(cemetery.takenLand.length).toBeGreaterThan(0);
+    for (const t of cemetery.takenLand) {
+      expect(t.grid).toEqual(G30);
+      expect(t.areaM2).toBeLessThan(CELL);
+    }
+  });
+
+  it('stará navazující pole se slučují jen ve stejné mřížce', () => {
+    const s = withTurnedField();
+    const field = s.fields[0]!;
+    // druhé pole stejné mřížky přiléhá stranou (řada y = 2) – sloučí se
+    const twin = structuredClone(s);
+    twin.fields.push({ id: 900, grid: G30 });
+    for (const cell of block(0, 2, 2, 1)) {
+      twin.parts.push({ ...structuredClone(s.parts[0]!), id: twin.nextId++, fieldId: 900, cell });
+    }
+    expect(withMergedFields(twin).fields.map((f) => f.id)).toEqual([field.id]);
+    // pole v mřížce krajiny se stejnými čísly čtverců (jinde ve světě) se neslučuje
+    const other = structuredClone(s);
+    other.fields.push({ id: 901 });
+    for (const cell of block(0, 2, 2, 1)) {
+      other.parts.push({ ...structuredClone(s.parts[0]!), id: other.nextId++, fieldId: 901, cell });
+    }
+    expect(withMergedFields(other)).toBe(other);
   });
 });
 
