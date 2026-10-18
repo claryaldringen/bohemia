@@ -99,10 +99,19 @@ Rozhodnutí kontroléru tam, kde návrh nedává číslo nebo postup (Martin je 
   a scéna je zaokrouhlí. Výchozí stádo dostane nová ves i ves uložená před dobytkem (z domácností,
   jako dřív ozdoba scény). **Mláďata 1. 4.** (stádo × roční růst).
 - **Nosnost:** pastva = louka do 600 m od první zemnice (z krajiny při založení, simulace krajinu
-  nemá) bez toho, co zabírají pole mimo příloh, sady, hřbitovy, pozemky a ohrady, plus příloh na
-  vymýceném lese (pase se na celém přílohu – mladém, pastvině i po seči); voli mají na pastvě
-  přednost, ovce, kozy a krávy se o zbytek podělí poměrně. Les pro prasata = les do 600 m bez
-  dílů polí založených v lese. Krávy přes zimu jen tolik, kolik uživí seno po volech.
+  nemá) bez toho, co zabírají pole mimo příloh, zarůstající příloh (křoviny, mladý les), les vsi,
+  sady, hřbitovy, pozemky a ohrady, plus příloh na vymýceném lese (pase se na celém přílohu ve
+  fázi louky – mladém, pastvině i po seči); voli mají na pastvě přednost, ovce, kozy a krávy se
+  o zbytek podělí poměrně. Les pro prasata = les do 600 m bez dílů polí založených v lese, s lesem
+  vsi na bývalé louce ([pole – Les vsi](fields.md)). Krávy přes zimu jen tolik, kolik uživí seno
+  po volech.
+- **Pastva po dílech** (18. 10. 2026 – [pole – Zarůstání](fields.md), návrh Clauda): potřeba
+  pastvy stád (≈ 1 ha na krávu a vola, 0,2 ha na ovci a kozu) se rozdělí po dílech přílohu ve
+  fázi louky od nejbližšího k obydlí, každému nejvýš jeho plocha; zbytek se pase na loukách
+  krajiny (ty nezarůstají). Díl, na který připadla aspoň polovina jeho plochy, se spásl – za rok
+  nezaroste. Roční krok zarůstání (1. 11.) bere letní stáda před porážkou; síť pěšin a scéna
+  berou stáda dne (v zimě krávy a voli v ohradě). Když stáda nestačí na celý příloh, vzdálené díly
+  zarůstají, přestanou být pastvinou a nosnost klesne.
 - **Porážka 1. 11.** (ráno, před jídlem): na maso jde, co přeroste nosnost; když zásoba masa
   s vejci na rok nepokryje potřebu, i letošní mláďata – prasata první (nejvíc masa), pak ovce,
   kozy, krávy – ale **nejvýš polovina mláďat** (druhá polovina stádo rozšíří; bez toho by ves
@@ -155,3 +164,4 @@ po sloučení s `feat/landscape` bez stravy (fields.md – Naměřeno):
 | Ovoce do zkažení a maso do porážky rovným dílem; stropy z potřeby energie                     | rozhodnutí kontroléru |
 | Pastva = louka do 600 m bez polí a staveb + příloh; na maso navíc nejvýš polovina mláďat      | rozhodnutí kontroléru |
 | Ves chová, kolik potřebuje – stádo dávající 1,5× potřeby masa neroste (krávy ano)             | rozhodnutí kontroléru |
+| Pastva po dílech přílohu od nejbližšího; zarůstající příloh a les vsi nejsou pastvinou        | návrh Clauda          |
