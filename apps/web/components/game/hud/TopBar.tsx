@@ -9,7 +9,7 @@ import {
 } from '@bohemia/game';
 import { formatWorldState } from '@/lib/game-date';
 import { MENU_HOTKEY } from '@/lib/game-menu';
-import { formatDecimal, formatInteger, formatPercent } from '@/lib/village-format';
+import { formatDecimal, formatHa, formatInteger, formatPercent } from '@/lib/village-format';
 import type { VillageView } from '@/lib/village-view';
 import { Tooltip } from './Tooltip';
 
@@ -221,6 +221,9 @@ export function TopBar({
               {formatInteger(view.applesKg)}
             </Resource>
           )}
+          <Resource icon="fields" name="Pole – celková rozloha" testId="village-fields">
+            {formatHa(view.fields.reduce((sum, f) => sum + f.areaM2, 0))}
+          </Resource>
           <Resource icon="wood" name="Klády na hromadě" testId="village-wood">
             {formatInteger(view.woodLogs)}
           </Resource>
