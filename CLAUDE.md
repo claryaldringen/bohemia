@@ -479,7 +479,8 @@ rozhraní částí v
   prochází `planCrops`, všechny díly `planPartIds`.
 - **Postup práce po čtvercích** (Martin – fields.md): kopání, setí a sklizeň mění díl, až k němu
   dojde práce. `field-progress.ts` (jen čte): díly plodiny v pořadí `CropWork.partIds` (dávka
-  nejblíž obydlím první, při shodě id – řadí `createCropWork`), váha = plocha × vzdálenost;
+  po úsecích hospodářství od domu ven – řadí `createCropWork` s `workOrder`, ves bez hospodářství
+  nejblíž obydlím první, při shodě id), váha = plocha × vzdálenost;
   `fieldPartLooks` → vzhled dílu `{ look, work?, before? }` (bare, plowed, sown, sprouted, green,
   ripe, harvesting, stubble, young-fallow, pasture; vzejití a zrání podle kalendáře; starší
   příloh bez vzhledu – doplní scéna), `fieldFrontiers` (čelo práce úloh dne), `partsWorked`
@@ -488,6 +489,16 @@ rozhraní částí v
   Ve scéně (`village-view.ts`) je díl `SceneFieldPart` (`id`, `look`, `work`, `before` –
   `FieldLook`) a podíl práce `SceneLaborShare` s `parts`; postavy (`villager-plan.ts`) pracují na
   `parts`. Simulace se tím nemění.
+- **Hospodaření podle polohy domů** (Martin – fields.md): `holdings.ts` – díl patří k nejbližšímu
+  domu (vzdušnou čarou; `villageHoldings`/`fieldHoldings`), hospodářství se dělí na úseky od domu
+  (prstence po 15 m, v každém tolik dílů po směru, kolik čtverců má první prstenec – výseče kolem
+  samoty, lány za domy v řadě). Nic se neukládá, vše se odvodí z polohy domů a čtverců. Plán osevu
+  bere `sowingBlocks` (bloky úseku ve skupině přílohové soustavy od domu ven, osev mezi
+  hospodářstvími podle plochy) a `chooseCrops` dává blok celý do ozimu, nebo do jaře; pořadí práce
+  `workOrder`. Ves bez hospodářství (bez domů nebo bez políček – i `measure-village.ts`) jede
+  dřívějším pořadím bit po bitu. Měření `packages/game/scripts/measure-holdings.ts`; na
+  `/dev/landscape` tlačítka „Hospodaření“ (ukázka po 20 letech simulace), „Úseky“ (překryv
+  `HoldingsOverlay`) a „Po 20 letech“.
 - **Navazující pole** (Martin): `foundField` – čtverce navazující stranou na pole ho rozšíří
   (`fieldsTouching` ve `fields.ts`, stejné id, rozestavěné založení dostane cenu, jinak nová stavba
   pole), na víc polí je sloučí do nejstaršího (`mergeFields` v `actions.ts`: díly, stavby
