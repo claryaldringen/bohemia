@@ -730,9 +730,10 @@ rozhraní částí v
   dopočítá všechny vsi hráče – přepínač a konec hry), `lib/village-view.ts` (DTO, smí i do
   prohlížeče – `id`, `settlementId`, `villages` pro přepínač, `relocation` cena nového domu bez
   lidí k osídlení), `lib/village-list.ts`, `lib/relocation-view.ts`. Vybraná ves se pamatuje
-  v cookie (`lib/village-cookie.ts`, nastaví ji `selectVillage` a `foundDevVillage`); stránka
-  /game ji otevře přes `gameEntryForPlayer` (`lib/game.ts`), cizí nebo archivovaná ves → první ves
-  hráče. Typy pro scénu jsou odvozené odtud a z `@bohemia/game` – nedefinovat je znovu ve scéně.
+  v cookie, kterou zapisuje prohlížeč (`lib/village-choice.ts` – zápis cookie v server action by
+  Next.js odpověděl novým vykreslením stránky a novou scénou); stránka /game ji přečte
+  (`lib/village-cookie.ts`) a otevře přes `gameEntryForPlayer` (`lib/game.ts`), cizí nebo
+  archivovaná ves → první ves hráče. Typy pro scénu jsou odvozené odtud a z `@bohemia/game` – nedefinovat je znovu ve scéně.
 - **Rozhraní jako v 0 A.D., bez popisků a průvodce** (Martin): `components/game/VillageGame.tsx`
   skládá `hud/` – `TopBar` (jméno vsi = přepínač vsí `hud/VillageSwitcher.tsx` – klik otevře
   seznam vsí hráče se jménem a lidmi, klik na ves ji přepne – ves na téže mapě na místě, na jiné

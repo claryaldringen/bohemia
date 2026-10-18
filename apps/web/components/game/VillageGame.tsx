@@ -52,6 +52,7 @@ import {
 import type { PlacementMode, PlacementResult } from '@/lib/scene/village-types';
 import { selectionDetails } from '@/lib/selection-details';
 import { useSoundPreference } from './SoundToggle';
+import { rememberVillage } from '@/lib/village-choice';
 import type { VillageListItem } from '@/lib/village-list';
 import { newNotices } from '@/lib/village-notices';
 import {
@@ -612,9 +613,9 @@ export function VillageGame({
   };
 
   /**
-   * Přepne na jinou ves hráče (přepínač v liště). Ves na téže mapě se načte na místě a pohled
-   * skočí na ni; ves na jiné mapě má jinou krajinu – server si ji zapamatuje a stránka se načte
-   * znovu.
+   * Přepne na jinou ves hráče (přepínač v liště) a zapamatuje ji (cookie). Ves na téže mapě se
+   * načte na místě a pohled skočí na ni; ves na jiné mapě má jinou krajinu – stránka se načte
+   * znovu (server ověří, že ves patří hráči).
    */
   const switchVillage = (village: VillageListItem): void => {
     const shown = viewRef.current;
@@ -622,17 +623,17 @@ export function VillageGame({
     cancelPlacement();
     setSelected(null);
     if (village.settlementId !== settlementId) {
-      void selectVillage({ villageId: village.id })
-        .then((result) => {
-          if ('error' in result) pushNotice({ kind: 'error', tone: 'error', text: result.error });
-          else window.location.reload();
-        })
-        .catch(() => pushNotice({ kind: 'error', tone: 'error', text: CONNECTION_FAILED }));
+      rememberVillage(village.id);
+      window.location.reload();
       return;
     }
     void runAction(() => selectVillage({ villageId: village.id })).then((failure) => {
-      if (failure !== null) pushNotice({ kind: 'error', tone: 'error', text: failure });
-      else lookAtVillage();
+      if (failure !== null) {
+        pushNotice({ kind: 'error', tone: 'error', text: failure });
+        return;
+      }
+      rememberVillage(village.id);
+      lookAtVillage();
     });
   };
 
@@ -651,8 +652,13 @@ export function VillageGame({
     setFoundingDevVillage(true);
     void runAction(() => foundDevVillage({ villageId })).then((failure) => {
       setFoundingDevVillage(false);
-      if (failure !== null) pushNotice({ kind: 'error', tone: 'error', text: failure });
-      else lookAtVillage();
+      if (failure !== null) {
+        pushNotice({ kind: 'error', tone: 'error', text: failure });
+        return;
+      }
+      const founded = viewRef.current?.id;
+      if (founded) rememberVillage(founded);
+      lookAtVillage();
     });
   };
 

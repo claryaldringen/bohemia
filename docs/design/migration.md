@@ -134,7 +134,8 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
   v aktivním sídle hráče (`findPlayerVillage`). Konec hry a restart už šly přes všechna sídla;
   `dynastyStatus` teď prochází i všechny vsi každého sídla.
 - **Výběr vsi se pamatuje v cookie** (ne v query parametru): adresa zůstane `/game`, výběr vydrží
-  i po zavření prohlížeče a cizí nebo archivovaná ves se tiše vrátí na první ves hráče. Ves na
+  i po zavření prohlížeče a cizí nebo archivovaná ves se tiše vrátí na první ves hráče. Cookie
+  zapisuje prohlížeč – zápis v server action by Next.js odpověděl novým vykreslením stránky. Ves na
   téže mapě se přepne bez nového načtení scény (pohled skočí na ni), ves na jiné mapě načte
   stránku znovu s její krajinou.
 - **Přepínač:** klik na jméno otevře seznam vsí (jméno a lidé, vymřelá zašedlá), přejmenování

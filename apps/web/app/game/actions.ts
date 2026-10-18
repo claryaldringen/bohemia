@@ -22,7 +22,6 @@ import {
   type VillageActionResult,
   type VillageView,
 } from '@/lib/village';
-import { rememberVillage } from '@/lib/village-cookie';
 import {
   parseCancelRelocationInput,
   parseFoundVillageInput,
@@ -91,8 +90,9 @@ function isNullVillage(input: unknown): boolean {
 }
 
 /**
- * Přepne pohled na jinou ves hráče `{ villageId }` (přepínač v horní liště) a zapamatuje ji – po
- * novém načtení stránky se otevře ona. Ves na jiné mapě si klient načte znovu i s krajinou.
+ * Pohled na jinou ves hráče na téže mapě `{ villageId }` (přepínač v horní liště) – ověří, že ves
+ * patří hráči. Výběr si zapamatuje prohlížeč (cookie – `lib/village-choice.ts`); ves na jiné mapě
+ * si klient otevře novým načtením stránky (jiná krajina).
  */
 export async function selectVillage(input: unknown): Promise<VillageActionResult> {
   const id = await playerId();
@@ -100,9 +100,7 @@ export async function selectVillage(input: unknown): Promise<VillageActionResult
   const villageId = villageIdOf(input);
   if (villageId === null) return { error: INVALID_INPUT };
   const view = await villageViewForPlayer(id, villageId);
-  if (view === null) return { error: INVALID_INPUT };
-  if (!('error' in view)) await rememberVillage(view.id);
-  return view;
+  return view ?? { error: INVALID_INPUT };
 }
 
 /** Založení první vsi: `{ name, dwelling: { x, z, rotation }, fieldCells?: { x, y }[] }`. */
@@ -116,20 +114,14 @@ export async function foundVillage(input: unknown): Promise<VillageActionResult>
 
 /**
  * Vývojový režim: založí druhou ves na mapě vsi `{ villageId }` (jen pro vyzkoušení přepínače vsí
- * – bez lidí ze staré vsi) a přepne na ni. Jen pro účet s `devMode`.
+ * – bez lidí ze staré vsi) a vrátí pohled na ni. Jen pro účet s `devMode`.
  */
 export async function foundDevVillage(input: unknown): Promise<VillageActionResult> {
   const session = await getSession();
   if (!session) return { error: NOT_SIGNED_IN };
   const villageId = villageIdOf(input);
   if (villageId === null) return { error: INVALID_INPUT };
-  const result = await foundDevVillageForPlayer(
-    session.user.id,
-    session.user.devMode === true,
-    villageId,
-  );
-  if (!('error' in result)) await rememberVillage(result.id);
-  return result;
+  return foundDevVillageForPlayer(session.user.id, session.user.devMode === true, villageId);
 }
 
 /**
