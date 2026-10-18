@@ -2,8 +2,9 @@
 
 Stav: schváleno 18. 10. 2026 (Martin: „Ano, takhle je to dobré“), implementováno 18. 10. 2026
 (jádro `domain/village/happiness.ts` a `sacred.ts`, čísla v `rules.ts`). Rozhodnutí z implementace
-(definice dubu a háje, dřina, hřbitov, modla bez roviny) jsou níže v textu a v tabulce Rozhodnutí
-jako „rozhodnutí kontroléru“ – Martin je může změnit.
+(definice dubu a háje, dřina, modla bez roviny) jsou níže v textu a v tabulce Rozhodnutí jako
+„rozhodnutí kontroléru“ – Martin je může změnit; hřbitov u dubu a zápis ušetření při vytyčení
+Martin potvrdil.
 
 ## Proč
 
@@ -63,13 +64,18 @@ Každé místo přidá k cílovému štěstí; posvátná místa dohromady nejv�
   nechají stát** – nepokácí ho a nedá kládu. Čtverec pole se oseje kolem (plocha pod korunou ≈ 50 m²
   se do dílu nepočítá). Pro kácení na stavby se takový dub nebere.
   - Sad se vysadí kolem stejně jako pole (plocha bez koruny). **Hřbitov** na čtverec s posvátným
-    dubem nesmí – hroby jdou v pevné mřížce jako u skalního výchozu (rozhodnutí kontroléru);
-    dub zůstane stát. Obydlí, modla ani svatyně nesmí stát pod korunou (kmen blíž než ≈ 4 m od
+    dubem nesmí – hroby jdou v pevné mřížce jako u skalního výchozu (Martin potvrdil 18. 10. 2026); dub zůstane stát. Obydlí, modla ani svatyně nesmí stát pod korunou (kmen blíž než ≈ 4 m od
     půdorysu); dub na vyklízené ploše obydlí zůstane stát.
-  - Ušetření se zapíše hned při zahájení stavby (vesničané rozhodnou při vytyčení), s událostí
-    kroniky a upozorněním; u kurzoru je oranžové varování „Posvátný dub zůstane stát“.
+  - Ušetření se zapíše hned při zahájení stavby (Martin potvrdil 18. 10. 2026: „Vesničané budou
+    vytyčovat pole a u toho si všimnou, že je někde posvátný dub a začnou ho navštěvovat“),
+    s událostí kroniky a upozorněním; u kurzoru je oranžové varování „Posvátný dub zůstane
+    stát“.
 - Dub se tím **stane stavbou** – jde vybrat a ve scéně má u kmene drobné obětiny (kameny, stužky).
   Přidá **+5** štěstí, započítají se nejvýš **3** duby.
+- **Posvátné duby se postupně zvětší** (Martin 18. 10. 2026: „lidé jim udělají prostor a ty stromy
+  tak budou moci víc růst“) – jen vzhled, pravidla se nemění: velikost × (1 + 0,3 × min(1, roky
+  od ušetření / 60)) (návrh Clauda), po celých herních letech (stínová mapa se překreslí nejvýš
+  jednou za herní rok); kruh obětin roste s kmenem.
 - Hráč dub ochránit nemusí; na posvátný dub se pak nedá stavět ani ho pokácet.
 
 ### Dubový háj (vzniká sám)
@@ -143,4 +149,7 @@ Každé místo přidá k cílovému štěstí; posvátná místa dohromady nejv�
 | Posvátný dub: velikost = výška modelu × měřítko, mimo les = ≤ 5 stromů do 15 m         | rozhodnutí kontroléru (implementace)      |
 | Háj: k 6 dubům v 25 m i převaha dubů ≥ 65 % (les je z třetiny dubový)                  | rozhodnutí kontroléru (implementace)      |
 | Den dřiny = ves dnešním tempem nestihne běžící polní práce do konce jejich oken        | rozhodnutí kontroléru (implementace)      |
-| Hřbitov na čtverec s posvátným dubem nesmí (pevná mřížka hrobů); modla bez roviny      | rozhodnutí kontroléru (implementace)      |
+| Hřbitov na čtverec s posvátným dubem nesmí (pevná mřížka hrobů)                        | Martin potvrdil 18. 10. 2026              |
+| Ušetření dubu a háje se zapíše už při zahájení stavby (při vytyčení)                   | Martin potvrdil 18. 10. 2026              |
+| Modla nepotřebuje rovinu                                                               | rozhodnutí kontroléru (implementace)      |
+| Posvátné duby se postupně zvětší – o 30 % za 60 let od ušetření (jen vzhled)           | Martin; čísla návrh Clauda                |

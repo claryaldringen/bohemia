@@ -339,7 +339,9 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   licence v `public/models/sacred/LICENSES.md`): `sacred-renderer.ts` (`SacredRenderer`
   ve `VillageRenderer`, inkrementálně) kreslí obětiny u kmene ušetřeného posvátného dubu
   (`models/sacred/oak-offerings.glb`, počátek v ose kmene; dub sám se nikdy neskrývá – není
-  v `obstacles.removed`), hraniční kameny a oltář na okraji čtverců háje (`grove-stones.glb`,
+  v `obstacles.removed`; dub i obětiny se postupně zvětší – `SceneSacred.oaks[].growth`
+  z `lib/sacred-look.ts`, jen vzhled, po herních letech, strom zvětší `InstanceHider` přes
+  `scales`), hraniční kameny a oltář na okraji čtverců háje (`grove-stones.glb`,
   uzly `stone-a`, `stone-b`, `altar`), hotovou modlu a svatyni (`idol.glb`, `shrine.glb`, počátek
   uprostřed půdorysu, předek +Z) a staveniště z dílů `idol-construction.glb` /
   `shrine-construction.glb` (uzly `modla-…` / `svatyne-…`). Fáze a díly staveniště jsou jen
@@ -565,7 +567,8 @@ rozhraní částí v
   blíž vsi (`workFrame`). Kreslí `field-renderer.ts` (`FieldRenderer` ve `VillageRenderer`):
   obtisky z textur 0 A.D. (`public/textures/fields/` – zem s měkkými brázdami podél řádků,
   osetá zem, strniště, porost shora; tráva a kvetoucí louka z terénu) s nepravidelným měkkým
-  okrajem (`raggedCoverage`) a tenkou mezí, skvrny (plevel, prošlapaná místa) druhou vrstvou;
+  okrajem (`raggedCoverage`) bez meze (Martin) – kde pole sousedí s jiným polem, okraj se
+  netlumí (`touchingSquares`) a pole navážou bez švu, skvrny (plevel, prošlapaná místa) druhou vrstvou;
   obilí jako 3D trsy v řádcích (`crops.glb` – uzly `crop-green|ripe|sprout|stubble`, jeden
   atlas, thin instances, tón druhu v barvě instance) – z dálky řídnou (`cropDensity`: plné do
   130 m, k 360 m pětina, od 620 m nic – pole pak nese obtisk), zralé a zelené se vlní ve větru
