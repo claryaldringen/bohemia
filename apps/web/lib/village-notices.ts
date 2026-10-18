@@ -1,10 +1,12 @@
+import { formatInteger } from './village-format';
 import type { VillageView } from './village-view';
 
 // Upozornění vsi (population.md – Co hráč vidí): plná domácnost, ves hladoví, lidé umírají hlady
 // (Hlad a vymření), stavby stojí, hřbitov je plný (cemetery.md), vesničané ušetřili posvátný dub
 // nebo dubový háj (happiness.md – jen když přibude), kovář nemá uhlí a dílna nemá co kácet
-// (crafts.md), vesničané obnovují starý sad a starý sad dosloužil (orchard.md – Obnova sadu – jen
-// když v kronice přibude). Vymřelá ves žádná nemá.
+// (crafts.md), podzimní porážka (diet.md), spřežení volů – vycvičené, dosloužilo, vůl uhynul
+// pro nedostatek sena (oxen.md) – a vesničané obnovují starý sad a starý sad dosloužil
+// (orchard.md – Obnova sadu) – nové události kroniky. Vymřelá ves žádná nemá.
 // Odvozují se z pohledu na ves a ukážou se jednou, když nově vzniknou – jako krátký mizející
 // řádek nahoře uprostřed (jako oznámení v 0 A.D.). Jen fakt, žádná rada.
 
@@ -18,6 +20,10 @@ export type NoticeKind =
   | 'no-wood'
   | 'sacred-oak'
   | 'sacred-grove'
+  | 'slaughter'
+  | 'team-ready'
+  | 'team-retired'
+  | 'ox-died'
   | 'orchard-renewal'
   | 'orchard-gone';
 
@@ -70,18 +76,50 @@ export function newNotices(previous: VillageView | null, next: VillageView): Vil
   if (next.sacred.groves.length > previous.sacred.groves.length) {
     notices.push({ kind: 'sacred-grove', tone: 'info', text: 'Vesničané ušetřili dubový háj' });
   }
-  // obnova a konec sadu – fakt, když v kronice přibude novější událost (orchard.md)
-  const orchards = { before: previous.orchardEvents, after: next.orchardEvents };
-  if (isNewer(orchards.before.renewalStarted, orchards.after.renewalStarted)) {
-    notices.push({ kind: 'orchard-renewal', tone: 'info', text: 'Vesničané obnovují starý sad' });
-  }
-  if (isNewer(orchards.before.gone, orchards.after.gone)) {
-    notices.push({ kind: 'orchard-gone', tone: 'warn', text: 'Starý sad dosloužil' });
-  }
+  notices.push(...chronicleNotices(previous, next));
   return notices;
 }
 
-/** Je den události v novějším pohledu pozdější než v předchozím (nebo tam žádná nebyla)? */
-function isNewer(before: number | null, after: number | null): boolean {
-  return after !== null && (before === null || after > before);
+/**
+ * Události kroniky, které se ohlásí jako fakt (diet.md, oxen.md, orchard.md – Obnova sadu) – nejvýš
+ * jednou za druh.
+ */
+type ChronicleEntry = VillageView['chronicle'][number];
+
+const CHRONICLE_NOTICES: Partial<
+  Record<ChronicleEntry['kind'], (entry: ChronicleEntry) => VillageNotice>
+> = {
+  slaughter: (entry) => ({
+    kind: 'slaughter',
+    tone: 'info',
+    text:
+      entry.kg !== undefined
+        ? `Podzimní porážka – ${formatInteger(entry.kg)} kg masa`
+        : 'Podzimní porážka',
+  }),
+  'team-ready': () => ({ kind: 'team-ready', tone: 'info', text: 'Spřežení je vycvičené' }),
+  'team-retired': () => ({ kind: 'team-retired', tone: 'info', text: 'Spřežení dosloužilo' }),
+  'ox-died': () => ({ kind: 'ox-died', tone: 'warn', text: 'Vůl uhynul – chybělo seno' }),
+  'orchard-renewal-started': () => ({
+    kind: 'orchard-renewal',
+    tone: 'info',
+    text: 'Vesničané obnovují starý sad',
+  }),
+  'orchard-gone': () => ({ kind: 'orchard-gone', tone: 'warn', text: 'Starý sad dosloužil' }),
+};
+
+/** Nové události kroniky od předchozího pohledu (den po něm), které se ohlásí jako fakt. */
+function chronicleNotices(previous: VillageView, next: VillageView): VillageNotice[] {
+  if (next.extinct) return [];
+  const seen = new Set<NoticeKind>();
+  const notices: VillageNotice[] = [];
+  // kronika je od nejnovější – ohlásí se v pořadí, jak se staly
+  for (const entry of [...next.chronicle].reverse()) {
+    if (entry.day <= previous.dayIndex) continue;
+    const notice = CHRONICLE_NOTICES[entry.kind]?.(entry);
+    if (!notice || seen.has(notice.kind)) continue;
+    seen.add(notice.kind);
+    notices.push(notice);
+  }
+  return notices;
 }

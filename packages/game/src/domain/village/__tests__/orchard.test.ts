@@ -27,6 +27,7 @@ import {
   ORCHARD,
   OUTCROP_RADIUS_M,
 } from '../rules';
+import { cloneState } from '../clone';
 import { advanceVillage } from '../simulate';
 import { claimedObstacles, woodLogs } from '../wood';
 import { summarizeVillage } from '../summary';
@@ -507,7 +508,10 @@ describe('advanceVillage – sad', () => {
     s.hungry = false;
     const next = advanceVillage(s, at(601, 10, 2), null);
     const summary = summarizeVillage(next, next.lastDay);
-    expect(summary.satiation).toBe(1); // dnes se jí dosyta jablky
+    // ovoce smí pokrýt nejvýš čtvrtinu energie (diet.md) – samo nenasytí; obilí se šetří na
+    // dobu po zkažení jablek
+    expect(next.diet!.shares.fruit).toBeCloseTo(0.25, 9);
+    expect(summary.diet.energy).toBeLessThan(1);
     expect(next.hungry).toBe(true);
     expect(summary.hungry).toBe(true);
     expect(events(next, 'hunger-began').at(-1)?.day).toBe(at(601, 10, 2));
@@ -725,6 +729,22 @@ describe('obnova sadu (orchard.md – Obnova sadu)', () => {
     expect(
       villageOrchards(whole)[0]!.squares.filter((q) => q.plantedDay! >= at(590, 3, 1)),
     ).toHaveLength(6);
+  });
+
+  it('kopie stavu (cloneState) s rozběhnutou obnovou je stejná jako structuredClone', () => {
+    const base = settledVillage(at(598, 8, 1));
+    const day = at(598, 9, 1);
+    const morning = advanceVillage(withOrchard(base, 10, at(543, 4, 1)), day - 1, null);
+    orchardSeasonDay(morning, day);
+    // nová pole stavu: značka obnovy na čtverci, rok poslední obnovy sadu a stavba obnovy
+    const orchard = villageOrchards(morning)[0]!;
+    expect(orchard.renewedSeason).toBe(598);
+    expect(orchard.squares.filter((q) => q.renewal !== undefined)).toHaveLength(1);
+    expect(morning.constructions.some((c) => c.renewal === true)).toBe(true);
+    const copy = cloneState(morning);
+    expect(copy).toEqual(structuredClone(morning));
+    copy.orchards![0]!.renewedSeason = 0;
+    expect(orchard.renewedSeason).toBe(598);
   });
 
   it('panel: stáří sadu je průměr čtverců – obnovou sad mládne', () => {

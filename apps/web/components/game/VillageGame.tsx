@@ -22,11 +22,13 @@ import {
   placeDwelling,
   placeField,
   placeOrchard,
+  placePen,
   placeSacred,
   placeWorkshop,
   renameVillage,
   restartGame,
   skipTime,
+  trainTeam,
 } from '@/app/game/actions';
 import { usePlacement } from '@/hooks/use-placement';
 import { usePolling } from '@/hooks/use-polling';
@@ -79,6 +81,7 @@ const SUBMIT_SQUARES: Partial<Record<BuildKind, (cells: TileCell[]) => Promise<A
   field: (cells) => placeField({ cells }),
   cemetery: (cells) => placeCemetery({ cells }),
   orchard: (cells) => placeOrchard({ cells }),
+  pen: (cells) => placePen({ cells }),
 };
 
 function isVillageView(state: VillageData): state is VillageView {
@@ -469,7 +472,7 @@ export function VillageGame({
   });
   const closeMenu = useCallback((): void => setMenuOpen(false), []);
 
-  // Klávesy rozhraní: F10 otevře nabídku, zkratky staveb (Z, X, C, V, B, N, M, F, G, H), Esc zruší
+  // Klávesy rozhraní: F10 otevře nabídku, zkratky staveb (Z, X, C, V, B, N, M, F, G, H, O), Esc zruší
   // výběr.
   // Otevřená nabídka klávesy zachytí dřív (GameMenu) – sem pak nedojdou.
   const placingRef = useRef(placement.active);
@@ -578,7 +581,10 @@ export function VillageGame({
         devTime={devMode ? { pending: skipping, onSkip: skipTimeBy } : null}
       />
       <Minimap landscape={decoded} scene={scene} village={sceneVillage} />
-      <SelectionPanel details={selectionDetails(view, sceneVillage, current)} />
+      <SelectionPanel
+        details={selectionDetails(view, sceneVillage, current)}
+        onTrainTeam={(penId) => runBuildAction(() => trainTeam({ penId }))}
+      />
       <BuildGrid
         options={options}
         active={placement.active ? placingItem : null}

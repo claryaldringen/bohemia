@@ -196,6 +196,15 @@ describe('buildVillageView', () => {
         blocked: null,
         affordable: false,
       },
+      // ohrada s přístřeškem (oxen.md) – 40 čd a 6 stromů předem, osadníci ne
+      pen: {
+        laborManDays: 40,
+        perHa: false,
+        perSquare: false,
+        upfront: [{ resource: 'wood', amount: 6, missing: 6 }],
+        blocked: null,
+        affordable: false,
+      },
     });
     // zakladatelé bydlí na staveništi – domácnost s obydlím přibude s dostavěním zemnice
     expect(view.households).toEqual([]);
@@ -573,7 +582,12 @@ describe('buildVillageView', () => {
     const s = state();
     const view = buildVillageView(record(s), landscape, DAY);
     expect(view.chronicle).toEqual([
-      { day: DAY, dateLabel: '12. dubna 503', text: 'Osadníci založili ves Libice.' },
+      {
+        day: DAY,
+        kind: 'village-founded',
+        dateLabel: '12. dubna 503',
+        text: 'Osadníci založili ves Libice.',
+      },
     ]);
     s.chronicle.push(
       ...Array.from({ length: 20 }, (_, i) => ({ day: DAY + i + 1, kind: 'birth' as const })),
@@ -916,31 +930,20 @@ describe('sad v pohledu na ves', () => {
     expect(renewing.orchards[0]).toMatchObject({ planting: 0.5, ageYears: 53 });
   });
 
-  it('kronika obnovy a den poslední obnovy a konce sadu pro upozornění', () => {
+  it('kronika obnovy – druh události pro upozornění a text', () => {
     const s = withOrchard();
     const orchardId = s.orchards![0]!.id;
-    expect(buildVillageView(record(s), landscape, DAY).orchardEvents).toEqual({
-      renewalStarted: null,
-      gone: null,
+    s.chronicle.push({ day: DAY - 30, kind: 'orchard-renewal-started', orchardId, squares: 4 });
+    expect(buildVillageView(record(s), landscape, DAY).chronicle[0]).toMatchObject({
+      day: DAY - 30,
+      kind: 'orchard-renewal-started',
+      text: 'Vesničané obnovují starý sad – znovu vysadí 4 čtverce.',
     });
-    s.chronicle.push(
-      { day: DAY - 400, kind: 'orchard-renewal-started', orchardId, squares: 4 },
-      { day: DAY - 30, kind: 'orchard-renewal-started', orchardId, squares: 1 },
-      { day: DAY - 20, kind: 'orchard-gone', orchardId: 1 },
-      { day: DAY - 10, kind: 'birth' },
-    );
-    expect(buildVillageView(record(s), landscape, DAY).orchardEvents).toEqual({
-      renewalStarted: DAY - 30,
-      gone: DAY - 20,
-    });
-    expect(
-      chronicleText({ day: 0, kind: 'orchard-renewal-started', orchardId, squares: 4 }, 'Libice'),
-    ).toBe('Vesničané obnovují starý sad – znovu vysadí 4 čtverce.');
   });
 
   it('kronika: sklizeň jablek a dosloužilý sad', () => {
     expect(chronicleText({ day: 0, kind: 'apple-harvest', kg: 1234 }, 'Libice')).toBe(
-      'Sklizeň jablek: 1 234 kg.',
+      'Sklizeň ovoce: 1 234 kg.',
     );
     expect(chronicleText({ day: 0, kind: 'orchard-gone', orchardId: 3 }, 'Libice')).toBe(
       'Starý sad dosloužil a zarostl loukou.',

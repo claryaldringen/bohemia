@@ -409,6 +409,18 @@ const TASK_LOOKS: Partial<
     queued: (v) => v.look === 'harvesting',
     fallback: (v) => v.part.stage === 'sown',
   },
+  // seč sena na úhoru ve fázi louky (oxen.md – Seno)
+  mow: {
+    after: ['mown'],
+    queued: (v) => v.look === 'meadow',
+    fallback: (v) => isHayStage(v.part.stage),
+  },
+  // orba rádlem (oxen.md) – díly jako u kopání
+  plough: {
+    after: ['plowed'],
+    queued: (v) => v.part.stage === 'sown' && (v.look === 'stubble' || v.look === 'bare'),
+    fallback: (v) => v.part.stage === 'sown' || v.part.stage === 'ready',
+  },
 };
 
 /**

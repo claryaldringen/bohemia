@@ -171,8 +171,12 @@ místo aby zemřeli.“ Na návrh Clauda (nahromaděný hlad, smrt do ≈ 2 měs
 zůstává, ochrana posledních dvou dospělých padá): „Ano, když hráči vymřou všechny vesnice (časem
 jich bude moci mít více), tak pro něj hra končí – musí začínat znovu.“ Čísla jsou návrh Clauda.
 
+- **Hladem se umírá z energie, ne z pestrosti** ([strava](diet.md), od 18. 10. 2026): nahromaděný
+  hlad i přirážka úmrtnosti za dnešní hlad počítají s pokrytím energie; nasycení se stravou
+  (energie × pestrost) řídí porody a štěstí. Ves jen s obilím (80 %) se množí pomaleji, ale
+  hladem neumírá.
 - **Nahromaděný hlad** vsi se měří ve **dnech bez jídla**: každý den přibude
-  max(0, 0,9 − nasycení) / 0,9 – den bez jídla je celý den, den o polovičním přídělu ≈ 0,44
+  max(0, 0,9 − energie) / 0,9 – den bez jídla je celý den, den o polovičním přídělu ≈ 0,44
   a při 80 % ≈ 0,11 (mírný nedostatek tělo snese – návrh Clauda, upraveno 18. 10. 2026). Když
   ves jí aspoň z 90 %, hlad ubývá o den denně až k nule – jedna hranice pro přibývání
   i zotavení, žádné pásmo, kde by hlad stál. Víc než 60 dní se nehromadí (dál už to nemá vliv).
@@ -254,13 +258,20 @@ jich bude moci mít více), tak pro něj hra končí – musí začínat znovu.�
     výš** – rodičů či hlavy domácnosti (počítají se i starší nad 44; obyvatelé nemají rodičovské
     vazby ani pohlaví). Odejdou všechny dospělé děti domácnosti, nejvýš kolik má obydlí míst (při
     přebytku zůstanou nejstarší z nich); rodiče a děti pod 14 zůstanou.
+  - **Dědic u neplodných rodičů** (Martin, 18. 10. 2026: „Pokud už jsou rodiče neplodní, tak ano,
+    má“): když jsou oba rodiče (dva nejstarší lidé domácnosti od 14 let) už mimo plodný věk
+    (45+), **nejstarší dospělé dítě zůstane doma** jako dědic a odejdou jen ostatní – podle
+    pravidel níže (aspoň dva, jinak s protějškem z jiné domácnosti). Rodiče 50 a 47 se dvěma
+    dospělými dětmi tak nikoho nepošlou (mladší čeká na protějšek), se třemi odejdou dva mladší.
+    S aspoň jedním plodným rodičem dědic není.
   - **Aspoň dva:** jediný člověk by se v obydlí hned rozpadl (Rozpad domácnosti) a druhý den by se
     stěhoval znovu. Domácnost s jediným dospělým dítětem ho proto pošle s jedním dospělým dítětem
     jiné takové přeplněné domácnosti (svatba mezi rody) a odejdou spolu; jinak jedno dospělé dítě
     čeká.
   - **Zbytek domácnosti se nerozpadne:** domácnost, ve které by po odchodu dospělých dětí zůstali
     jen starší a děti, je nepošle – rozpad by ji večer přestěhoval jinam a stěhovalo by se tam
-    a zpět (stejná pojistka jako u mladého páru).
+    a zpět (stejná pojistka jako u mladého páru). S dědicem u neplodných rodičů to už nenastane –
+    zůstává jako pojistka.
   - **Pořadí:** nejdřív mladý pár pro všechna prázdná obydlí, pak dospělé děti pro ta, která
     zůstala prázdná – obydlí podle id, zdroje od nejvíc přeplněné domácnosti (při shodě starší
     obydlí), bez náhody. Kronika zapíše založení domácnosti jako u páru.
@@ -477,6 +488,7 @@ pravidla → první verze hladu (1 − nasycení za den, hájení bez stropu) �
 | Dospělé děti = 14–44 kromě dvou nejstarších od 14; všechny, nejvýš kapacita    | návrh Clauda                               |
 | Aspoň dva (jednotlivci z různých domácností spolu); zbytek se nesmí rozpadnout | návrh Clauda                               |
 | Nejdřív mladý pár, pak dospělé děti; lidé k osídlení počítají obojí            | návrh Clauda                               |
+| U neplodných rodičů (oba 45+) zůstává nejstarší dospělé dítě doma jako dědic   | Martin (18. 10. 2026)                      |
 | Neobydlené budovy chátrají rychleji                                            | Martin (18. 10. 2026)                      |
 | Prázdná zemnice zanikne za ≈ 5 let, polozemnice za ≈ 8 let (úbytek navíc)      | návrh Clauda                               |
 | Obyvatelé bez jmen a pohlaví, náhoda ze seedu, kronika                         | návrh Clauda                               |

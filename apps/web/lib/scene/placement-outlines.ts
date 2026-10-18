@@ -1,5 +1,6 @@
 // Obrysy stávajících objektů vsi pro malování po čtvercích (bez Babylonu): při stavbě pole, sadu
-// nebo hřbitova je vidět, kudy vedou hranice polí, sadů, hřbitovů, obydlí a posvátných míst.
+// nebo hřbitova je vidět, kudy vedou hranice polí, sadů, hřbitovů, obydlí, ohrad a posvátných
+// míst.
 // Souřadnice světa scény v metrech (x, z).
 import type { SceneVillage } from '../village-view';
 import { targetOutline } from './selection-highlight';
@@ -70,6 +71,11 @@ export function existingOutlines(village: SceneVillage): OutlineGroup[] {
     ...village.dwellings.map((d): [OutlineKind, VillageTarget] => [
       'dwelling',
       { kind: 'dwelling', id: d.id },
+    ]),
+    // ohrada je oplocená stavba jako pozemek obydlí – stejná barva obrysu
+    ...(village.pens ?? []).map((p): [OutlineKind, VillageTarget] => [
+      'dwelling',
+      { kind: 'pen', id: p.id },
     ]),
     ...(village.sacred?.buildings ?? []).map((b): [OutlineKind, VillageTarget] => [
       'sacred',

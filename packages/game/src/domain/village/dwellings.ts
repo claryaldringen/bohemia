@@ -52,22 +52,38 @@ export function qualifyingDwellings(state: VillageState, day: number): Dwelling[
     .sort((a, b) => crowding(state, b) - crowding(state, a) || a.id - b.id);
 }
 
+/** Rodiče / hlava domácnosti: HOUSEHOLD_HEADS nejstarších lidí od 14 let výš (i starší nad 44). */
+function householdHeads(members: readonly Person[], day: number): Person[] {
+  return members
+    .filter((p) => ageGroup(p, day) !== 'child')
+    .sort((a, b) => a.bornDay - b.bornDay || a.id - b.id)
+    .slice(0, HOUSEHOLD_HEADS);
+}
+
 /**
  * Dospělé děti domácnosti (population.md – Prázdné obydlí, návrh Clauda): lidé 14–44 let kromě
  * HOUSEHOLD_HEADS nejstarších lidí domácnosti od 14 let výš (rodiče, hlava domácnosti – počítají
  * se i starší nad 44). Od nejmladšího; při shodě data narození je mladší vyšší id.
  */
 export function adultChildren(members: readonly Person[], day: number): Person[] {
-  const heads = new Set(
-    members
-      .filter((p) => ageGroup(p, day) !== 'child')
-      .sort((a, b) => a.bornDay - b.bornDay || a.id - b.id)
-      .slice(0, HOUSEHOLD_HEADS)
-      .map((p) => p.id),
-  );
+  const heads = new Set(householdHeads(members, day).map((p) => p.id));
   return members
     .filter((p) => isAdult(p, day) && !heads.has(p.id))
     .sort((a, b) => b.bornDay - a.bornDay || b.id - a.id);
+}
+
+/**
+ * Dědic domácnosti (population.md – Prázdné obydlí; Martin, 18. 10. 2026: „Pokud už jsou rodiče
+ * neplodní, tak ano, má“): když jsou oba rodiče (`householdHeads`) už mimo plodný věk (45+),
+ * zůstane doma nejstarší dospělé dítě – do nového obydlí neodejde. S aspoň jedním plodným
+ * rodičem dědic není (null).
+ */
+export function householdHeir(members: readonly Person[], day: number): Person | null {
+  const heads = householdHeads(members, day);
+  if (heads.length < HOUSEHOLD_HEADS || heads.some((p) => ageGroup(p, day) !== 'elder')) {
+    return null;
+  }
+  return adultChildren(members, day).at(-1) ?? null;
 }
 
 /** Přeplněná domácnost a její dospělé děti, které z ní můžou odejít do prázdného obydlí. */
@@ -80,11 +96,12 @@ export interface AdultChildrenSource {
 /**
  * Přeplněné domácnosti (lidí víc než míst), ze kterých můžou dospělé děti odejít osídlit úplně
  * prázdné obydlí (population.md – Prázdné obydlí, návrh Clauda): od nejvíc přeplněné, při shodě
- * podle id obydlí. Odejdou všechny dospělé děti (`adultChildren`), nejvýš `capacity` – při
- * přebytku zůstanou nejstarší z nich; rodiče a děti pod 14 zůstanou. Domácnost bez dospělých
- * dětí a domácnost, jejíž zbytek by se po jejich odchodu rozpadl (`householdBreaksUp` – zůstali
- * by jen starší a děti; rozpad by je večer přestěhoval jinam a stěhovalo by se tam a zpět), tu
- * nejsou.
+ * podle id obydlí. Odejdou všechny dospělé děti (`adultChildren`) kromě dědice u neplodných
+ * rodičů (`householdHeir`, Martin), nejvýš `capacity` – při přebytku zůstanou nejstarší z nich;
+ * rodiče a děti pod 14 zůstanou. Domácnost bez odcházejících dospělých dětí a domácnost, jejíž
+ * zbytek by se po jejich odchodu rozpadl (`householdBreaksUp` – rozpad by zbytek večer
+ * přestěhoval jinam a stěhovalo by se tam a zpět; s dědicem ani s plodným rodičem to nenastane,
+ * pojistka zůstává), tu nejsou.
  */
 export function adultChildrenSources(
   state: VillageState,
@@ -96,7 +113,10 @@ export function adultChildrenSources(
     const extra = crowding(state, dwelling);
     if (extra <= 0) continue;
     const members = occupants(state, dwelling.id);
-    const children = adultChildren(members, day).slice(0, capacity);
+    const heir = householdHeir(members, day);
+    const children = adultChildren(members, day)
+      .filter((p) => p !== heir)
+      .slice(0, capacity);
     if (children.length === 0) continue;
     if (
       householdBreaksUp(

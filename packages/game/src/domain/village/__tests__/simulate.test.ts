@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { TOTAL_GAME_DAYS, dayIndexOf } from '../../calendar';
 import { foundField, foundVillage, startNewDwelling } from '../actions';
 import type { PartInput } from '../actions';
-import { daysUntilHarvest, eatDay } from '../food';
+import { daysUntilSlaughter, eatDiet } from '../diet';
+import { daysUntilHarvest } from '../food';
+import { LIVESTOCK, villageChickens } from '../livestock';
 import { ageYears, foodNeedPerDay, occupants } from '../people';
 import { NO_CRAFTS } from '../productivity';
 import {
@@ -415,7 +417,18 @@ describe('advanceVillage – roční plán a sklizeň', () => {
     threshing.harvestedKg = 500;
     s0.threshingFromPlan = threshing;
     const need = s0.people.reduce((sum, p) => sum + foodNeedPerDay(p, day), 0);
-    const eaten = eatDay(s0.storesKg, need, daysUntilHarvest(day), NO_CRAFTS.pottery).storesKg;
+    // jídlo dne i s vejci, která slepice ten den snesly (diet.md)
+    const eggs = (villageChickens(s0) * LIVESTOCK.eggsKgPerHen) / 365;
+    const eaten = eatDiet({
+      grainKg: s0.storesKg,
+      meatKg: (s0.meatKg ?? 0) + eggs,
+      fruitKg: 0,
+      needPerDay: need,
+      daysToHarvest: daysUntilHarvest(day),
+      daysToRot: 0,
+      daysToSlaughter: daysUntilSlaughter(day),
+      potteryCoverage: NO_CRAFTS.pottery,
+    }).grainKg;
     expect(threshLossKg(threshing, 500)).toBeCloseTo(250, 9);
 
     const s = advanceVillage(s0, day, null);
@@ -811,20 +824,34 @@ describe('advanceVillage – obydlí', () => {
     expect(count(s, 'household-founded')).toBe(1);
   });
 
-  it('domácnost, jejíž zbytek by se rozpadl, ani plná nepřeplněná domácnost dospělé děti nepošle', () => {
+  it('neplodní rodiče (50 a 47) se dvěma dospělými dětmi – nikdo neodejde, dědic zůstane', () => {
     const day = at(600, 10, 1);
-    // rodiče starší: zůstali by jen starší a děti – rozpad by je přestěhoval za dětmi
-    const elders = crowdedVillage(day, { 1: [50, 48, 20, 18, 8, 5, 2] });
+    // nejstarší dospělé dítě zůstane doma (Martin), mladší by šlo samo – čeká na protějšek
+    const elders = crowdedVillage(day, { 1: [50, 47, 20, 18, 8, 5, 2] });
     elders.dwellings.push(emptyZemnice(50, day));
-    const s1 = advanceVillage(elders, day + 5, null);
-    expect(count(s1, 'household-founded')).toBe(0);
-    expect(count(s1, 'household-merged')).toBe(0);
-    expect(occupants(s1, 50)).toEqual([]);
+    const s = advanceVillage(elders, day + 5, null);
+    expect(count(s, 'household-founded')).toBe(0);
+    expect(count(s, 'household-merged')).toBe(0);
+    expect(occupants(s, 50)).toEqual([]);
+  });
+
+  it('neplodní rodiče (50 a 47) se třemi dospělými dětmi – dva mladší odejdou, nejstarší zůstane', () => {
+    const day = at(600, 10, 1);
+    const s0 = crowdedVillage(day, { 1: [50, 47, 22, 20, 18, 5, 2] });
+    s0.dwellings.push(emptyZemnice(50, day));
+    const s = advanceVillage(s0, day, null);
+    expect(originalOccupants(s, 50, s0.nextId)).toEqual([103, 104]);
+    expect(originalOccupants(s, 1, s0.nextId)).toEqual([100, 101, 102, 105, 106]);
+    expect(count(s, 'household-merged')).toBe(0);
+  });
+
+  it('plná nepřeplněná domácnost dospělé děti nepošle', () => {
+    const day = at(600, 10, 1);
     // plná (6 lidí v zemnici), ale ne přeplněná – bez čtyř dospělých 14–44
     const full = crowdedVillage(day, { 1: [46, 40, 17, 15, 8, 5] });
     full.dwellings.push(emptyZemnice(50, day));
-    const s2 = advanceVillage(full, day, null);
-    expect(occupants(s2, 50)).toEqual([]);
+    const s = advanceVillage(full, day, null);
+    expect(occupants(s, 50)).toEqual([]);
   });
 
   it('nové obydlí jde postavit pro dospělé děti a po dokončení ho týž den osídlí', () => {

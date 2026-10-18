@@ -59,9 +59,12 @@ rozhoduje, kolik louky a práce dá do jistoty na dlouho dopředu místo obilí 
     první, ozim dostane zbytek podzimu, se kterým plán osevu počítá) i před kopáním jaře (okno
     končí dřív). Jablka přibývají do zásob postupně, jak se sklízí; co se do konce října
     nestihne, spadne a shnije (úroda × podíl sklizené práce).
-- **Jídlo:** sklizená jablka jdou do zásob vsi zvlášť a **jí se přednostně** před obilím; co
-  zbude k **1. 3.** (ráno), shnije – s nádobami od hrnčíře později, s plným pokrytím až 1. 5.
-  ([řemesla](crafts.md) – den zkažení se posouvá poměrně k pokrytí nádobami). Přídělový systém (fields.md) počítá jen s jablky, která se
+- **Jídlo:** od 18. 10. 2026 podle [stravy](diet.md) – jablka jsou v rozhraní **ovoce**, jí se
+  přednostně rovným dílem do zkažení, ale pokryjí nejvýš čtvrtinu energie (samo ovoce nenasytí)
+  a přidají štěstí +5. Původní pravidlo: sklizená jablka jdou do zásob vsi zvlášť a **jí se
+  přednostně** před obilím; co zbude k **1. 3.** (ráno), shnije – s nádobami od hrnčíře později,
+  s plným pokrytím až 1. 5. ([řemesla](crafts.md) – den zkažení se posouvá poměrně k pokrytí
+  nádobami). Přídělový systém (fields.md) počítá jen s jablky, která se
   stihnou sníst do konce února: když jídlo do sklizně nevystačí, dělí se rovně – a když jablek
   je víc, než se při rovném přídělu stihne sníst, jí se do zkažení jen jablka (nejvýš dosyta)
   a obilí zůstane na dobu po nich (návrh Clauda). Hlad (upozornění a kronika) začíná, jakmile
