@@ -4,6 +4,7 @@ import {
   CURRENT_LAYER_VERSIONS,
   generateLandscape,
   generateLandscapeAttempt,
+  INITIAL_LAYER_VERSIONS,
 } from '../../domain/landscape';
 import { enterGame } from '../enter-game';
 import type { LandscapeSource, SeedSource } from '../settlements';
@@ -66,7 +67,8 @@ describe('enterGame', () => {
   // Seed, jehož první pokus nepadne do pásma – generátor pro něj zkouší další pokusy.
   const seedNeedingRetry = (): number => {
     for (let seed = 0; seed < 2000; seed++) {
-      if (!checkBand(generateLandscapeAttempt(seed, CURRENT_LAYER_VERSIONS)).ok) return seed;
+      const versions = CURRENT_LAYER_VERSIONS;
+      if (!checkBand(generateLandscapeAttempt(seed, versions), versions).ok) return seed;
     }
     throw new Error('Žádný seed s opakovaným pokusem – test nemá co ověřit.');
   };
@@ -80,7 +82,10 @@ describe('enterGame', () => {
     );
     expect(settlement.landscapeSeed).not.toBe(drawn);
     expect(
-      checkBand(generateLandscapeAttempt(settlement.landscapeSeed, CURRENT_LAYER_VERSIONS)).ok,
+      checkBand(
+        generateLandscapeAttempt(settlement.landscapeSeed, CURRENT_LAYER_VERSIONS),
+        CURRENT_LAYER_VERSIONS,
+      ).ok,
     ).toBe(true);
     expect(landscape).toEqual(generateLandscape(drawn));
   }, 30_000);
@@ -97,6 +102,20 @@ describe('enterGame', () => {
     expect(landscape).toEqual(generateLandscapeAttempt(stored, CURRENT_LAYER_VERSIONS));
     expect(landscape.heights).not.toEqual(generateLandscape(stored).heights);
   }, 30_000);
+
+  it('sídlo založené s původními verzemi vrstev si nechá původní krajinu', async () => {
+    const settlements = new InMemorySettlements();
+    await settlements.createSeat({
+      ownerId: 'hrac-1',
+      landscapeSeed: 7,
+      layerVersions: INITIAL_LAYER_VERSIONS,
+    });
+    const { landscape } = await enterGame({ settlements, seeds: seedsFrom(1) }, 'hrac-1');
+    expect(landscape).toEqual(generateLandscapeAttempt(7, INITIAL_LAYER_VERSIONS));
+    expect(landscape.surface).not.toEqual(
+      generateLandscapeAttempt(7, CURRENT_LAYER_VERSIONS).surface,
+    );
+  });
 
   it('různí hráči dostanou různá sídla', async () => {
     const deps = { settlements: new InMemorySettlements(), seeds: seedsFrom(1, 2) };

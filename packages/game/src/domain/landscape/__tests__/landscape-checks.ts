@@ -180,3 +180,44 @@ export function streamClimbM(heights: Float32Array, water: Uint8Array, size: num
   }
   return climb;
 }
+
+/** Políčka louky do radius políček (střed od středu) od místa pro vesnici, s úrodností ≥ minFertility. */
+export function meadowNearSite(
+  l: {
+    size: number;
+    surface: Uint8Array;
+    fertility: Uint8Array;
+    villageSite: { x: number; y: number };
+  },
+  radius: number,
+  minFertility = 0,
+): number {
+  let count = 0;
+  for (let y = 0; y < l.size; y++) {
+    for (let x = 0; x < l.size; x++) {
+      const i = y * l.size + x;
+      const dx = x - l.villageSite.x;
+      const dy = y - l.villageSite.y;
+      if (dx * dx + dy * dy > radius * radius) continue;
+      if (l.surface[i] === MEADOW_CODE && l.fertility[i]! >= minFertility) count++;
+    }
+  }
+  return count;
+}
+
+/** Otisk krajiny (FNV-1a přes výšky, povrch, úrodnost a místo pro vesnici) – hlídá, že se nezmění. */
+export function landscapeHash(l: {
+  heights: Float32Array;
+  surface: Uint8Array;
+  fertility: Uint8Array;
+  villageSite: { x: number; y: number };
+}): string {
+  let h = 0x811c9dc5;
+  for (const column of [l.heights, l.surface, l.fertility]) {
+    const bytes = new Uint8Array(column.buffer, column.byteOffset, column.byteLength);
+    for (let i = 0; i < bytes.length; i++) h = Math.imul(h ^ bytes[i]!, 0x01000193);
+  }
+  h = Math.imul(h ^ l.villageSite.x, 0x01000193);
+  h = Math.imul(h ^ l.villageSite.y, 0x01000193);
+  return (h >>> 0).toString(16).padStart(8, '0');
+}

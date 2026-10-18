@@ -5,7 +5,16 @@ export {
   generateLandscapeAttempt,
   MAX_ATTEMPTS,
 } from './generate';
-export { checkBand, measureLandscape, type LandscapeMetrics } from './band';
+export {
+  BAND_V1,
+  BAND_V2,
+  bandFor,
+  checkBand,
+  measureLandscape,
+  NEAR_SITE_RADIUS_CELLS,
+  type Band,
+  type LandscapeMetrics,
+} from './band';
 export { heightAtWorld, sampleTilesAtWorld, tileCenterWorld, tileOfWorldPoint } from './world';
 export { transferPrecision } from './quantize';
 export { detAtan2, detCos, detSin, length2 } from './det-math';

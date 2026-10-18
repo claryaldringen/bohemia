@@ -7,6 +7,14 @@ import { generateVegetation } from './vegetation';
 
 export const MAX_ATTEMPTS = 16;
 
+/** Verze, které generátor umí, po vrstvách. */
+const KNOWN_VERSIONS: { readonly [K in keyof LayerVersions]-?: readonly LayerVersions[K][] } = {
+  terrain: [1],
+  vegetation: [1, 2],
+  fertility: [1, 2],
+  obstacles: [1],
+};
+
 /**
  * Krajina pro nové sídlo: první pokus (seed, seed+1, …), který padne do pásma srovnatelnosti.
  * Vrací i seed přijatého pokusu – ten se ukládá u sídla, aby krajinu ukotvil i při pozdějším
@@ -17,12 +25,15 @@ export function generateAcceptedLandscape(
   versions: LayerVersions = CURRENT_LAYER_VERSIONS,
 ): { seed: number; landscape: Landscape } {
   for (const [layer, version] of Object.entries(versions)) {
-    if (version !== 1) throw new RangeError(`Neznámá verze vrstvy ${layer}: ${String(version)}`);
+    const known = KNOWN_VERSIONS[layer as keyof LayerVersions] as readonly unknown[] | undefined;
+    if (!known?.includes(version)) {
+      throw new RangeError(`Neznámá verze vrstvy ${layer}: ${String(version)}`);
+    }
   }
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     const attemptSeed = (seed + attempt) >>> 0;
     const landscape = generateLandscapeAttempt(attemptSeed, versions);
-    if (checkBand(landscape).ok) return { seed: attemptSeed, landscape };
+    if (checkBand(landscape, versions).ok) return { seed: attemptSeed, landscape };
   }
   throw new Error(`Krajina pro seed ${seed} nesplnila pásmo ani na ${MAX_ATTEMPTS} pokusů.`);
 }
