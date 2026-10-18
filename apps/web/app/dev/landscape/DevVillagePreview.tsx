@@ -9,6 +9,7 @@ import {
   CEMETERY,
   NO_OBSTACLE_CHANGES,
   cemeteryPartsFromCells,
+  checkDwellingPlacement,
   fieldPartsFromCells,
   matureTreesByDistance,
   obstaclesOf,
@@ -23,7 +24,9 @@ import {
   type TileCell,
 } from '@bohemia/game';
 import { GameView } from '@/components/game/GameView';
+import { CursorReason } from '@/components/game/hud/CursorReason';
 import { Minimap } from '@/components/game/hud/Minimap';
+import { dwellingPlacementCost } from '@/lib/build-items';
 import { decodeLandscape, type LandscapeTransfer } from '@/lib/landscape-transfer';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
 import { CEMETERY_PHASES } from '@/lib/scene/cemetery-layout';
@@ -43,6 +46,7 @@ import type {
   SceneField,
 } from '@/lib/scene/village-types';
 import { formatCells, formatHa, formatManDays, plural } from '@/lib/village-format';
+import { demoLabor } from './dev-labor';
 import { placementVillageFromScene, type SceneVillage } from '@/lib/village-view';
 
 const STAGES: PartStage[] = [
@@ -100,10 +104,12 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   // roční období: den v roce (null = podle herního data) a přehrávání roku
   const [seasonDay, setSeasonDay] = useState<number | null>(null);
   const [playingYear, setPlayingYear] = useState(false);
+  // lidé ve vsi – ukázkové rozdělení práce podle měsíce (dev-labor.ts)
+  const [people, setPeople] = useState(false);
   const nextId = useRef(1);
 
-  const village = useMemo<SceneVillage>(
-    () => ({
+  const village = useMemo<SceneVillage>(() => {
+    const base: SceneVillage = {
       dwellings,
       fields: fields.map((field): SceneField => ({
         id: field.id,
@@ -116,9 +122,35 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
       orchards,
       woodLogs,
       obstacles,
-    }),
-    [dwellings, fields, cemeteries, orchards, stage, mixed, woodLogs, obstacles],
-  );
+    };
+    if (!people) return base;
+    // kácí se u nejbližších stromů k prvnímu staveništi (jako vyhrazené stromy stavby)
+    const site = dwellings.find((d) => !d.built);
+    const trees = site
+      ? matureTreesByDistance(obstaclesOf(decoded), obstacles, site.position, { limit: 3 })
+      : [];
+    const day = Math.floor(seasonDay ?? REFERENCE_DAY);
+    const month = dateOfDayOfYear(day).month;
+    const labor = demoLabor(
+      base,
+      month,
+      day,
+      trees.map((t) => t.id),
+    );
+    return { ...base, labor };
+  }, [
+    decoded,
+    dwellings,
+    fields,
+    cemeteries,
+    orchards,
+    stage,
+    mixed,
+    woodLogs,
+    obstacles,
+    people,
+    seasonDay,
+  ]);
 
   useEffect(() => {
     scene?.setVillage(village);
@@ -212,7 +244,22 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
       {
         kind: 'dwelling',
         type,
-        check: (position) => fakeDwellingCheck(decoded, village, position),
+        check: (position) => {
+          const check = fakeDwellingCheck(decoded, village, position);
+          if (!check.ok) return { ...check, cost: null };
+          // cena jako ve hře – překážky a dřevo podle skutečné vrstvy překážek a klád
+          const placementVillage = placementVillageFromScene(village);
+          const real = checkDwellingPlacement(decoded, placementVillage, type, position);
+          const cost = dwellingPlacementCost(
+            decoded,
+            placementVillage,
+            type,
+            position,
+            real,
+            woodLogs,
+          );
+          return { ...check, cost };
+        },
       },
       {
         ...handlers,
@@ -233,7 +280,20 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     if (!scene) return;
     setPlacing('Pole');
     scene.startPlacement(
-      { kind: 'squares', preview: (cells) => fakeFieldPreview(decoded, village, cells) },
+      {
+        kind: 'squares',
+        preview: (cells) => {
+          const preview = fakeFieldPreview(decoded, village, cells);
+          if (!preview.check.ok) return preview;
+          const real = fieldPartsFromCells(
+            decoded,
+            placementVillageFromScene(village),
+            cells,
+            village.dwellings.map((d) => d.position),
+          );
+          return { ...preview, cost: { laborManDays: real.foundingCost, trees: 0 } };
+        },
+      },
       {
         ...handlers,
         onConfirm: (result) => {
@@ -264,6 +324,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
             label: `${formatCells(cells.length)} · ${result.capacity} ${plural(result.capacity, 'hrob', 'hroby', 'hrobů')}`,
             blockedCells: result.blockedCells,
             warningCells: result.warningCells,
+            cost: result.check.ok ? { laborManDays: result.foundingCost, trees: 0 } : null,
           };
         },
       },
@@ -298,6 +359,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
             check: result.check,
             label: `${formatCells(cells.length)} · ${formatHa(result.areaM2)}`,
             blockedCells: result.blockedCells,
+            cost: result.check.ok ? { laborManDays: result.plantingCost, trees: 0 } : null,
           };
         },
       },
@@ -481,8 +543,10 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     (['zemnice', 'polozemnice'] as const).forEach((type, row) => {
       const phases = CONSTRUCTION_PHASES[type];
       const stops = [...phases.map((p) => (p.from + p.to) / 2), 1];
+      // polozemnice má po straně zahrádku – řada je řidší
+      const spacing = type === 'polozemnice' ? 13 : 10.5;
       stops.forEach((progress, i) => {
-        const x = site.worldX + (i - (stops.length - 1) / 2) * 10.5;
+        const x = site.worldX + (i - (stops.length - 1) / 2) * spacing;
         const z = site.worldZ + row * 14;
         const tile = tileAt(decoded, x, z);
         if (!tile || surfaceAt(decoded, tile.x, tile.y) === 'water') return;
@@ -497,6 +561,41 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
       });
     });
     setDwellings(list);
+  };
+
+  /**
+   * Lidé ve vsi (ukázkové rozdělení práce). Prázdná ves dostane ukázku – šest hotových obydlí kolem místa vsi a pole
+   * 3 × 2 čtverce vedle (s osetými díly), ať mají lidé kde pracovat a ovce kde se pást.
+   */
+  const togglePeople = (): void => {
+    if (!people && !dwellings.some((d) => d.built)) {
+      scene?.cancelPlacement();
+      const { x: sx, y: sy } = decoded.villageSite;
+      const site = tileCenter(decoded, sx, sy);
+      const list: SceneDwelling[] = [];
+      for (let i = 0; i < 6; i++) {
+        const angle = (i / 6) * Math.PI * 2 + 0.4;
+        const x = site.worldX + Math.cos(angle) * 13;
+        const z = site.worldZ + Math.sin(angle) * 13;
+        const tile = tileAt(decoded, x, z);
+        if (!tile || surfaceAt(decoded, tile.x, tile.y) === 'water') continue;
+        list.push({
+          id: nextId.current++,
+          type: i % 3 === 0 ? 'polozemnice' : 'zemnice',
+          position: { x, z, rotation: angle + Math.PI },
+          built: true,
+          progress: 1,
+        });
+      }
+      setDwellings(list);
+      const cells: TileCell[] = [];
+      for (let dy = 0; dy < 2; dy++)
+        for (let dx = 0; dx < 3; dx++) cells.push({ x: sx + 3 + dx, y: sy - 1 + dy });
+      addField(cells.filter((c) => surfaceAt(decoded, c.x, c.y) !== 'water'));
+      setMixed(false);
+      setStage(STAGES.indexOf('sown'));
+    }
+    setPeople((on) => !on);
   };
 
   const firstSite = dwellings.find((d) => !d.built);
@@ -568,6 +667,14 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         )}
         <button className={buttonClass} disabled={!scene} onClick={showPhases}>
           Ukázka fází
+        </button>
+        <button
+          className={buttonClass}
+          disabled={!scene}
+          onClick={togglePeople}
+          data-testid="dev-people"
+        >
+          {people ? 'Lidé ✓' : 'Lidé'}
         </button>
         <button className={buttonClass} onClick={() => setWoodLogs((n) => Math.max(0, n - 10))}>
           Klády −10
@@ -651,14 +758,8 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         )}
       </div>
       <Minimap landscape={decoded} scene={scene} village={village} />
-      {preview?.screen && (
-        <div
-          className={`pointer-events-none fixed z-10 rounded px-2 py-0.5 text-xs text-white ${preview.check.ok ? 'bg-emerald-700/85' : 'bg-red-700/85'}`}
-          style={{ left: preview.screen.x + 16, top: preview.screen.y + 16 }}
-        >
-          {previewText(preview)}
-        </div>
-      )}
+      {/* u kurzoru totéž co ve hře – cena ikonami s čísly, nebo důvod, proč to nejde */}
+      <CursorReason preview={preview} />
     </>
   );
 }

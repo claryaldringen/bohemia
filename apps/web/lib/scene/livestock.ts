@@ -154,6 +154,26 @@ export class VillageLivestock {
     return moved;
   }
 
+  /** Střed, poloměr a stěhování stád v okamžiku `nowMs` – pasáčci (villagers.ts). */
+  herdViews(nowMs: number): (HerdState & { kind: Herd['kind']; radiusM: number })[] {
+    const clock = this.clock(nowMs);
+    return this.herds.map((herd) => ({
+      ...herdState(herd, clock, createHerdState()),
+      kind: herd.kind,
+      radiusM: herd.radiusM,
+    }));
+  }
+
+  /**
+   * Terén kolem vsi (rastr schůdné země, luk a okraje lesa) – sdílí ho postavy, aby se drahé
+   * dotazy na potok a les nepočítaly dvakrát. Bez obydlí null.
+   */
+  groundFor(village: LivestockVillage): LivestockGround | null {
+    const built = village.dwellings.filter((d) => d.built);
+    const around = built.length > 0 ? built : village.dwellings;
+    return around.length > 0 ? this.groundAround(around) : null;
+  }
+
   dispose(): void {
     this.disposed = true;
     for (const kind of this.kinds.values()) {
@@ -331,9 +351,8 @@ export class VillageLivestock {
     // Uši, ocasy a hřebínky jsou jednoduché plochy – kreslí se z obou stran.
     material.backFaceCulling = false;
     material.twoSidedLighting = true;
-    // Textura z GLB se čte jako sRGB (GPU ji převede do lineárních barev, gammaSpace false) –
-    // StandardMaterial s ní počítá jako s barvou na obrazovce, zvíře by bylo tmavé.
-    new LivestockPlugin(material, geometry.texture?.gammaSpace === false);
+    // Textura se čte v barvách obrazovky (`loadGeometry`) – StandardMaterial ji bere tak, jak je.
+    new LivestockPlugin(material);
     mesh.material = material;
     return {
       mesh,
@@ -450,21 +469,16 @@ function standOnGround(geometry: FaunaGeometry): FaunaGeometry {
 /**
  * Pózy dobytka ve vertex shaderu (GLSL i WGSL) nad StandardMaterialem: krok je parabola přes
  * tři pózy (noha vpředu, stoj, druhá noha vpředu – livestockKeyA/B, stav x), sklonění hlavy
- * lineárně ke třetí klíčové póze (livestockKeyC, stav y). Lineárně čtenou texturu převede
- * zpět do barev obrazovky (LIVESTOCK_GAMMA).
+ * lineárně ke třetí klíčové póze (livestockKeyC, stav y).
  */
 class LivestockPlugin extends MaterialPluginBase {
-  constructor(
-    material: Material,
-    private readonly linearTexture: boolean,
-  ) {
-    super(material, 'Livestock', 200, { LIVESTOCK: false, LIVESTOCK_GAMMA: false });
+  constructor(material: Material) {
+    super(material, 'Livestock', 200, { LIVESTOCK: false });
     this._enable(true);
   }
 
   override prepareDefines(defines: Record<string, unknown>): void {
     defines['LIVESTOCK'] = true;
-    defines['LIVESTOCK_GAMMA'] = this.linearTexture;
   }
 
   override getClassName(): string {
@@ -484,17 +498,6 @@ class LivestockPlugin extends MaterialPluginBase {
     shaderLanguage: ShaderLanguage = ShaderLanguage.GLSL,
   ): Record<string, string> | null {
     const wgsl = shaderLanguage === ShaderLanguage.WGSL;
-    if (shaderType === 'fragment') {
-      return {
-        CUSTOM_FRAGMENT_UPDATE_DIFFUSE: wgsl
-          ? `#ifdef LIVESTOCK_GAMMA
-baseColor = vec4f(pow(baseColor.rgb, vec3f(1.0 / 2.2)), baseColor.a);
-#endif`
-          : `#ifdef LIVESTOCK_GAMMA
-baseColor.rgb = pow(baseColor.rgb, vec3(1.0 / 2.2));
-#endif`,
-      };
-    }
     if (shaderType !== 'vertex') return null;
     return wgsl
       ? {

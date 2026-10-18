@@ -1,19 +1,62 @@
 import { distanceToMask, maxStep } from './grid';
-import { SURFACE_CODES, type Landscape } from './types';
+import { SURFACE_CODES, type Landscape, type LayerVersions } from './types';
 
 // Pásmo srovnatelnosti startovních krajin (docs/design/landscape.md).
-export const FOREST_SHARE: readonly [number, number] = [0.55, 0.7];
-export const VILLAGE_SITE_CELLS: readonly [number, number] = [400, 1200];
 export const VILLAGE_SITE_MIN_FERTILITY = 60;
 export const VILLAGE_SITE_MAX_WATER_DISTANCE_CELLS = 20;
-export const RELIEF_M: readonly [number, number] = [10, 40];
 export const FLAT_MAX_STEP_M = 1.0;
+/** Okolí vsi, kde hospodaří – 600 m (40 políček) od místa pro vesnici (fields.md). */
+export const NEAR_SITE_RADIUS_CELLS = 40;
+
+/** Meze pásma – každá krajina musí do všech padnout (dolní i horní mez). */
+export interface Band {
+  forestShare: readonly [number, number];
+  /** Místo pro vesnici: největší souvislá rovinatá úrodná louka do 300 m od vody (políčka). */
+  villageSiteCells: readonly [number, number];
+  reliefM: readonly [number, number];
+  /** Políčka s úrodností ≥ 60 v celé krajině. */
+  fertileCells: readonly [number, number];
+  /** Louka do 600 m od místa pro vesnici (políčka); null = verze bez požadavku. */
+  nearMeadowCells: readonly [number, number] | null;
+  /** Z toho s úrodností ≥ 60 (políčka); null = verze bez požadavku. */
+  nearGoodMeadowCells: readonly [number, number] | null;
+}
+
 /**
- * Počet políček s úrodností ≥ 60 – nastaveno podle měření (scripts/measure-landscapes.ts):
- * p5 a p95 z 500 seedů s rezervou ~150. Zvlněnější terén (16. 10. 2026) má víc svahů, a proto
- * méně úrodné půdy než původní 3800–5200.
+ * Pásmo verze 1 (vegetace i úrodnost 1). Úrodná políčka podle měření
+ * (scripts/measure-landscapes.ts): p5 a p95 z 500 seedů s rezervou ~150. Zvlněnější terén
+ * (16. 10. 2026) má víc svahů, a proto méně úrodné půdy než původní 3800–5200.
  */
-export const FERTILE_CELLS: readonly [number, number] = [3600, 4850];
+export const BAND_V1: Band = {
+  forestShare: [0.55, 0.7],
+  villageSiteCells: [400, 1200],
+  reliefM: [10, 40],
+  fertileCells: [3600, 4850],
+  nearMeadowCells: null,
+  nearGoodMeadowCells: null,
+};
+
+/**
+ * Pásmo verze 2 (vegetace i úrodnost 2, Martin – víc kvalitní louky, 18. 10. 2026): do 600 m
+ * od vsi ≈ 60 ha louky, z toho ≈ 30 ha s úrodností ≥ 60. Meze podle měření na 500 seedech.
+ */
+export const BAND_V2: Band = {
+  forestShare: [0.55, 0.7],
+  villageSiteCells: [600, 1400],
+  reliefM: [10, 40],
+  fertileCells: [2550, 3800],
+  nearMeadowCells: [2500, 2850],
+  nearGoodMeadowCells: [1300, 1800],
+};
+
+/** Pásmo pro verze vrstev – vegetace a úrodnost musí mít stejnou verzi. */
+export function bandFor(versions: LayerVersions): Band {
+  if (versions.vegetation === 1 && versions.fertility === 1) return BAND_V1;
+  if (versions.vegetation === 2 && versions.fertility === 2) return BAND_V2;
+  throw new RangeError(
+    `Pásmo pro vegetaci ${String(versions.vegetation)} a úrodnost ${String(versions.fertility)} není.`,
+  );
+}
 
 export interface LandscapeMetrics {
   waterSpansEdges: boolean;
@@ -21,6 +64,10 @@ export interface LandscapeMetrics {
   villageSiteCells: number;
   reliefM: number;
   fertileCells: number;
+  /** Louka do 600 m od místa pro vesnici (políčka). */
+  nearMeadowCells: number;
+  /** Louka do 600 m od místa pro vesnici s úrodností ≥ 60 (políčka). */
+  nearGoodMeadowCells: number;
 }
 
 export function measureLandscape(l: Landscape): LandscapeMetrics {
@@ -39,9 +86,16 @@ export function measureLandscape(l: Landscape): LandscapeMetrics {
 
   const waterDistance = distanceToMask(water, size);
   const site = new Uint8Array(size * size);
+  let nearMeadowCells = 0;
+  let nearGoodMeadowCells = 0;
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
       const i = y * size + x;
+      const near = Math.hypot(x - l.villageSite.x, y - l.villageSite.y) <= NEAR_SITE_RADIUS_CELLS;
+      if (near && l.surface[i] === SURFACE_CODES.meadow) {
+        nearMeadowCells++;
+        if (l.fertility[i]! >= VILLAGE_SITE_MIN_FERTILITY) nearGoodMeadowCells++;
+      }
       site[i] =
         l.surface[i] === SURFACE_CODES.meadow &&
         l.fertility[i]! >= VILLAGE_SITE_MIN_FERTILITY &&
@@ -58,19 +112,28 @@ export function measureLandscape(l: Landscape): LandscapeMetrics {
     villageSiteCells: largestComponent(site, size),
     reliefM: max - min,
     fertileCells,
+    nearMeadowCells,
+    nearGoodMeadowCells,
   };
 }
 
-export function checkBand(l: Landscape): { ok: boolean; failures: string[] } {
+/** Padne krajina do pásma srovnatelnosti verzí, ze kterých vznikla? */
+export function checkBand(
+  l: Landscape,
+  versions: LayerVersions,
+): { ok: boolean; failures: string[] } {
+  const band = bandFor(versions);
   const m = measureLandscape(l);
-  const within = (value: number, [low, high]: readonly [number, number]): boolean =>
-    value >= low && value <= high;
+  const within = (value: number, range: readonly [number, number] | null): boolean =>
+    range === null || (value >= range[0] && value <= range[1]);
   const failures = [
     !m.waterSpansEdges && 'water-edges',
-    !within(m.forestShare, FOREST_SHARE) && 'forest-share',
-    !within(m.villageSiteCells, VILLAGE_SITE_CELLS) && 'village-site',
-    !within(m.reliefM, RELIEF_M) && 'relief',
-    !within(m.fertileCells, FERTILE_CELLS) && 'fertile-cells',
+    !within(m.forestShare, band.forestShare) && 'forest-share',
+    !within(m.villageSiteCells, band.villageSiteCells) && 'village-site',
+    !within(m.reliefM, band.reliefM) && 'relief',
+    !within(m.fertileCells, band.fertileCells) && 'fertile-cells',
+    !within(m.nearMeadowCells, band.nearMeadowCells) && 'near-meadow',
+    !within(m.nearGoodMeadowCells, band.nearGoodMeadowCells) && 'near-good-meadow',
   ].filter((failure): failure is string => failure !== false);
   return { ok: failures.length === 0, failures };
 }

@@ -1,9 +1,9 @@
 import type { ObstacleLayer } from '../landscape';
 import { availableSettlers } from './dwellings';
 import { NO_CRAFTS, foundingCostPerHa } from './productivity';
-import { CEMETERY, DWELLING_TREES, DWELLINGS, ORCHARD } from './rules';
+import { CEMETERY, DWELLING_TREES, DWELLINGS, ORCHARD, dwellingBuildLabor } from './rules';
 import type { DwellingType, VillageState } from './types';
-import { woodSupply } from './wood';
+import { woodSupply, type WoodPlan } from './wood';
 
 // Ceny staveb a jestli na ně ves má (population.md – Nové obydlí, Odemčení). Práce
 // (člověkodny) se platí postupně ze společné práce vsi během stavby – na tu ves „má“ vždy.
@@ -60,6 +60,19 @@ export const BUILD_COSTS: Record<BuildKind, BuildCost> = {
   cemetery: { laborManDays: CEMETERY.costPerSquare, perHa: false, perSquare: true, upfront: {} },
   orchard: { laborManDays: ORCHARD.plantingPerHa, perHa: true, upfront: {} },
 };
+
+/**
+ * Práce na obydlí (člověkodny) jako při zahájení stavby (`startNewDwelling`, `foundVillage`):
+ * stavba bez dřeva, překážky na vyklízené ploše (`obstacleCost`) a kácení stromů z plánu dřeva
+ * (`planDwellingWood`) – klády z hromady práci nestojí. Rozhraní ji ukáže při umisťování.
+ */
+export function dwellingLaborManDays(
+  type: DwellingType,
+  obstacleCost: number,
+  wood: Pick<WoodPlan, 'fell'>,
+): number {
+  return dwellingBuildLabor(type) + obstacleCost + wood.fell.reduce((sum, t) => sum + t.cost, 0);
+}
 
 /**
  * Co ves má předem k dispozici – zásoby, dřevo a lidé k osídlení (ves dopočítaná do `lastDay`).

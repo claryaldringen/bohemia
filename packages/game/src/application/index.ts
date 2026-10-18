@@ -1,7 +1,7 @@
 export * from './settlements';
 export * from './enter-game';
 export * from './villages';
-export { NO_VILLAGE } from './update-village';
+export { NO_VILLAGE, VILLAGE_EXTINCT } from './update-village';
 export * from './load-village';
 export * from './found-village';
 export * from './place-dwelling';
@@ -9,3 +9,4 @@ export * from './place-field';
 export * from './place-cemetery';
 export * from './place-orchard';
 export * from './rename-village';
+export * from './restart-game';

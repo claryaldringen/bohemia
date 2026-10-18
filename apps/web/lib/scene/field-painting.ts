@@ -439,6 +439,7 @@ export class FieldPainter {
       check: preview?.check ?? { ok: false, reason: null },
       label: preview?.label ?? '',
       screen: this.screen,
+      cost: preview?.check.ok ? (preview.cost ?? null) : null,
     });
   }
 

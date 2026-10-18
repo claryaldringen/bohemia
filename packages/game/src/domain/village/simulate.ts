@@ -13,6 +13,7 @@ import { endOfSeason, expectedNetKg, returnsFromForest, sowingOrder } from './fi
 import { daysUntilAppleRot, eatMeal } from './food';
 import { recordClearedObstacles } from './obstacles';
 import { allocateDay, type LaborTaskName } from './labor';
+import { laborDay, type ConstructionWork } from './labor-report';
 import {
   ORCHARD_TASK_NAMES,
   isOrchardPlanted,
@@ -24,7 +25,8 @@ import {
   workOrchards,
 } from './orchard';
 import { ageGroup, foodNeedPerDay, isAdult, laborPerDay, occupants } from './people';
-import { householdBreaksUp, populationDay } from './population';
+import { isVillageExtinct } from './extinction';
+import { householdBreaksUp, inLuckyYears, nextStarvationDays, populationDay } from './population';
 import { NO_CRAFTS, dailyMinPerHousehold } from './productivity';
 import {
   CHRONICLE_MAX_EVENTS,
@@ -106,6 +108,8 @@ const SATIATION_EPSILON = 1e-9;
  * `obstacles` = vrstva překážek krajiny sídla: přestavby podle ní vyhradí stromy ke kácení
  * (forest.md). Povinná – `null` (kácení bez polohy) jen v testech; volající ji musí dávat vždy
  * stejně, jinak výsledek na kouscích závisí.
+ * Vymřelá ves (`extinctDay`) se už nesimuluje – jen se posune `lastDay`; lidé, pole, stavby,
+ * zásoby i klády stojí, jak byly v den vymření.
  * RangeError, když `toDay` leží za koncem světa nebo před už odsimulovaným dnem.
  */
 export function advanceVillage(
@@ -120,7 +124,9 @@ export function advanceVillage(
     throw new RangeError(`Ves je dopočítaná do dne ${state.lastDay}, nelze zpět na ${toDay}.`);
   }
   const next = structuredClone(state);
-  for (let day = next.lastDay + 1; day <= toDay; day++) simulateDay(next, day, obstacles);
+  for (let day = next.lastDay + 1; day <= toDay && !isVillageExtinct(next); day++) {
+    simulateDay(next, day, obstacles);
+  }
   next.lastDay = toDay;
   trimChronicle(next);
   return next;
@@ -147,7 +153,20 @@ function simulateDay(state: VillageState, day: number, obstacles: ObstacleLayer 
   decideRebuilds(state, day, obstacles);
   occupyEmptyDwellings(state, day);
   const satiation = eat(state, day);
+  // nahromaděný hlad se počítá z dnešního jídla – úmrtí dne podle něj (population.md); v hájení
+  // zůstává pod prahem, aby po něm lidé umírali postupně
+  state.starvationDays = nextStarvationDays(
+    state.starvationDays ?? 0,
+    satiation,
+    inLuckyYears(state.foundedDay, day),
+  );
   state.chronicle.push(...populationDay(state, day, satiation));
+  if (state.people.length === 0) {
+    // zemřel poslední člověk – ves vymřela, dál se nesimuluje (ani sklizeň dne)
+    state.extinctDay = day;
+    state.chronicle.push({ day, kind: 'village-extinct' });
+    return;
+  }
   // Sklizeň a ztráta nevymláceného až po jídle (Ruling 13) – 31. 8. se jí ještě z loňských
   // zásob, jak počítá daysUntilHarvest (31. 8. → 1 den); ozim stejně 31. 7.
   if (isOn(date, WINTER_HARVEST_DAY)) harvestWinter(state, day);
@@ -371,13 +390,16 @@ function work(state: VillageState, day: number): void {
     );
   });
   if (orchard) workOrchards(state, allocation.taskAmounts[orchardAt] ?? 0);
-  households.forEach((d, i) => {
+  const repairs = households.map((d, i) => {
     const need = repairNeeds[i] ?? 0;
-    applyRepairs(d, repairNeed > 0 ? (allocation.repairs * need) / repairNeed : 0, need);
+    const manDays = repairNeed > 0 ? (allocation.repairs * need) / repairNeed : 0;
+    applyRepairs(d, manDays, need);
+    return { dwellingId: d.id, manDays };
   });
   decayEmptyDwellings(state, day, new Set(households.map((d) => d.id)));
   state.domesticBacklog = allocation.domesticBacklog;
-  build(state, day, allocation.common);
+  const constructions = build(state, day, allocation.common);
+  state.labor = laborDay(state, day, { allocation, repairs, constructions });
   state.commonLaborHistory.push(allocation.common);
   if (state.commonLaborHistory.length > COMMON_LABOR_HISTORY_DAYS) {
     state.commonLaborHistory.splice(0, state.commonLaborHistory.length - COMMON_LABOR_HISTORY_DAYS);
@@ -448,25 +470,37 @@ function foundingParts(state: VillageState, c: Construction): FieldPart[] {
 /**
  * Společná práce rovným dílem do rozestavěných staveb: stavba, které stačí méně, si vezme jen
  * to, co potřebuje, a zbytek se znovu rozdělí mezi ostatní; co zbude po všech, propadne.
+ * Vrátí, kolik práce šlo do které stavby (rozdělení práce dne pro scénu – labor-report.ts).
  */
-function build(state: VillageState, day: number, common: number): void {
+function build(state: VillageState, day: number, common: number): ConstructionWork[] {
   let active = state.constructions
     .map((c) => ({ c, need: constructionNeed(state, c, day) }))
     .filter((x) => x.need > 0);
+  const invested: ConstructionWork[] = [];
+  const put = (c: Construction, amount: number, completes: boolean): void => {
+    invested.push({
+      construction: c,
+      manDays: amount,
+      doneBefore: c.done,
+      felledBefore: c.wood?.felled ?? 0,
+    });
+    invest(state, day, c, amount, completes);
+  };
   let left = common;
   while (active.length > 0 && left > 0) {
     const share = left / active.length;
     const saturated = active.filter((x) => x.need <= share);
     if (saturated.length === 0) {
-      for (const x of active) invest(state, day, x.c, share, false);
-      return;
+      for (const x of active) put(x.c, share, false);
+      return invested;
     }
     for (const x of saturated) {
-      invest(state, day, x.c, x.need, true);
+      put(x.c, x.need, true);
       left = Math.max(0, left - x.need);
     }
     active = active.filter((x) => x.need > share);
   }
+  return invested;
 }
 
 /** Vloží práci do stavby; `completes` = dostala vše, co jí chybělo. */

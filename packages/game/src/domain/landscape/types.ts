@@ -8,15 +8,25 @@ const SURFACES_BY_CODE: readonly Surface[] = ['water', 'forest', 'meadow'];
 /** Verze vrstev generátoru – ukládají se u sídla, aby změna generátoru nepřepsala jeho krajinu. */
 export interface LayerVersions {
   terrain: 1;
-  vegetation: 1;
-  fertility: 1;
+  /** 2 = víc kvalitní louky kolem vsi (18. 10. 2026). */
+  vegetation: 1 | 2;
+  /** 2 = úrodná niva a mírné svahy (18. 10. 2026). */
+  fertility: 1 | 2;
   /**
    * Vrstva překážek (stromy, keře, kameny – `generateObstacles`). Chybí u sídel založených před
    * jejím vznikem – nová vrstva platí pro všechna sídla, takže u nich je to verze 1.
    */
   obstacles?: 1;
 }
+/** Verze vrstev pro nová sídla. */
 export const CURRENT_LAYER_VERSIONS: LayerVersions = {
+  terrain: 1,
+  vegetation: 2,
+  fertility: 2,
+  obstacles: 1,
+};
+/** Verze vrstev sídel založených do 18. 10. 2026 – jejich krajina se generuje dál stejně. */
+export const INITIAL_LAYER_VERSIONS: LayerVersions = {
   terrain: 1,
   vegetation: 1,
   fertility: 1,

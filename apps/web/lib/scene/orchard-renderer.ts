@@ -15,6 +15,7 @@ import {
   APPLE_VARIANTS,
   SAPLING_GROWTH,
   hasStake,
+  orchardRowLines,
   orchardTreeSpots,
   plantingProgress,
   type Outcrop,
@@ -26,7 +27,10 @@ type SceneOrchard = NonNullable<SceneVillage['orchards']>[number];
 type SceneOrchardSquare = SceneOrchard['squares'][number];
 
 const MODEL_BASE_URL = '/models/trees/';
-/** Kůl u mladého stromku: průřez a délka (m), kus je zatlučený v zemi; stojí kousek od kmene. */
+/**
+ * Kůl u mladého stromku: průřez a délka (m), kus je zatlučený v zemi; stojí kousek od kmene
+ * (podél řady, −x).
+ */
 const STAKE_SIZE_M = 0.08;
 const STAKE_LENGTH_M = 1.9;
 const STAKE_SINK_M = 0.25;
@@ -42,11 +46,12 @@ const FOLIAGE_AMBIENT = new Color3(0.36, 0.38, 0.34);
 const STAKE_AMBIENT = new Color3(0.42, 0.42, 0.4);
 
 /**
- * Jabloňové sady ve scéně (orchard.md – Co hráč vidí): jabloně z 0 A.D. v řadách po čtvercích
- * (orchard-layout.ts) – mladé stromky rostou do plné velikosti a první roky stojí u kůlu, plodící
- * sad má od srpna do sklizně na stromech jablka (model s plody). Výsadba po fázích: světlá čára
- * vytyčení kolem sadu, kůly, pak sazenice (překážky z čtverce jádro odstraní, jakmile se na něm
- * začne pracovat); stromy obejdou skalní výchozy z vrstvy překážek. Modely jsou v instancích
+ * Jabloňové sady ve scéně (orchard.md – Co hráč vidí): jabloně z 0 A.D. v pravidelných řadách
+ * přes celý sad (orchard-layout.ts) – mladé stromky rostou do plné velikosti a první roky stojí
+ * u kůlu, plodící sad má od srpna do sklizně na stromech jablka (model s plody). Výsadba po
+ * fázích: světlé čáry vytyčení kolem sadu a podél řad, kůly, pak sazenice po řadách (překážky
+ * z čtverce jádro odstraní, jakmile se na něm začne pracovat); na skalním výchozu z vrstvy
+ * překážek strom chybí. Modely jsou v instancích
  * (jeden mesh na variantu a plody), načtou se až s prvním sadem.
  */
 export class OrchardRenderer {
@@ -182,8 +187,9 @@ export class OrchardRenderer {
             });
           }
           if (i < staked) {
-            const sx = spot.x + Math.cos(spot.rotationY) * STAKE_OFFSET_M;
-            const sz = spot.z + Math.sin(spot.rotationY) * STAKE_OFFSET_M;
+            // kůl vždy na stejné straně stromu v řadě – kůly stojí v rovné čáře jako stromy
+            const sx = spot.x - STAKE_OFFSET_M;
+            const sz = spot.z;
             stakes.push({ x: sx, y: height(sx, sz) - STAKE_SINK_M, z: sz, rotationY: 0, scale: 1 });
           }
         });
@@ -228,12 +234,16 @@ export class OrchardRenderer {
       .map((i) => ({ x: layer.x[i]!, z: layer.z[i]!, radius: OUTCROP_RADIUS_M * layer.scale[i]! }));
   }
 
-  /** Světlá čára vytyčení po obrysu sadu (provázek, naražená tráva) – jen během výsadby. */
+  /**
+   * Světlé čáry vytyčení (provázek, naražená tráva) – po obrysu sadu a podél řad stromů, jen
+   * během výsadby.
+   */
   private layoutMesh(orchard: SceneOrchard): Mesh {
+    const lines = [...cellsBoundary(orchard.squares), ...orchardRowLines(orchard.squares)];
     const mesh = createStripMesh(
       this.scene,
       `village-orchard-layout-${orchard.id}`,
-      cellsBoundary(orchard.squares).flatMap((line) => stripSegments(line, false, 0.09, 0.5)),
+      lines.flatMap((line) => stripSegments(line, false, 0.09, 0.5)),
       this.context.decalHeight,
       LAYOUT_LIFT_M,
     );

@@ -1,7 +1,8 @@
 import { TOTAL_GAME_DAYS } from '../calendar';
 import type { ObstacleLayer } from '../landscape';
 import { cemeteryFoundingCost, touchingCemeteries, villageCemeteries } from './cemetery';
-import { buildAffordability, payUpfront, type BuildKind } from './costs';
+import { buildAffordability, dwellingLaborManDays, payUpfront, type BuildKind } from './costs';
+import { isVillageExtinct } from './extinction';
 import { partFoundingCost } from './fields';
 import { recordClearedObstacles } from './obstacles';
 import { orchardPlantingCost, villageOrchards } from './orchard';
@@ -24,7 +25,7 @@ import type {
   TileCell,
   VillageState,
 } from './types';
-import { planDwellingWood, takeWood, woodFellingCost, type WoodPlan } from './wood';
+import { planDwellingWood, takeWood, type WoodPlan } from './wood';
 
 const DAYS_PER_YEAR = 365.25; // věk se počítá po 365,25 dne
 const MONTHS_PER_YEAR = 12;
@@ -86,8 +87,12 @@ function validateDay(day: number): void {
   }
 }
 
-/** Akce hráče nesmí do minulosti vsi – před den, do kterého je už dopočítaná; jinak RangeError. */
+/**
+ * Akce hráče nesmí do minulosti vsi – před den, do kterého je už dopočítaná – ani do vymřelé vsi;
+ * jinak RangeError.
+ */
 function validateActionDay(state: VillageState, day: number): void {
+  if (isVillageExtinct(state)) throw new RangeError('Ves vymřela – nikdo v ní nežije.');
   validateDay(day);
   if (day < state.lastDay) {
     throw new RangeError(`Ves je dopočítaná do dne ${state.lastDay}, akce v den ${day} nejde.`);
@@ -301,7 +306,7 @@ export function foundVillage(input: {
   });
   const zemnice = state.constructions[0]!;
   zemnice.wood = takeWood(state, plan);
-  zemnice.cost += woodFellingCost(zemnice.wood);
+  zemnice.cost = dwellingLaborManDays('zemnice', dwellingObstacleCost, plan);
   return state;
 }
 
@@ -373,7 +378,7 @@ export function startNewDwelling(
     id: next.nextId++,
     kind: 'dwelling',
     startedDay: day,
-    cost: dwellingBuildLabor(type) + obstacleCost + woodFellingCost(wood),
+    cost: dwellingLaborManDays(type, obstacleCost, plan),
     done: 0,
     dwellingType: type,
     position,

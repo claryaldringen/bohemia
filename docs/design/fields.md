@@ -336,9 +336,11 @@ pro raný středověk ale nemám – zůstává návrhem Clauda jako dosavadní 
   do sklizně jaře; jinak sklizeň jaře 31. 8. (viz Ozim a jař).
 - **Start:** osadníci přinesli zásoby a osivo na **18 měsíců** potřeby (návrh Clauda) – ves
   přežije i založení těsně po jarním setí.
-- **Hlad ves nezničí** (návrh Clauda, podle anti-cíle populace): hlad tlumí porody a zvyšuje
-  úmrtnost, ale jen dokud se počet lidí nesrovná s tím, co pole a zásoby uživí. Ves se zmenší,
-  ale nevymře, dokud má pole, které obdělává. **Hájení** z populace chrání i před smrtí hladem.
+- **Hlad zabíjí** (Martin, 18. 10. 2026 – dřív „hlad ves nezničí“): hlad tlumí porody a lidé
+  umírají hlady podle nahromaděného hladu, dokud se jejich počet nesrovná s tím, co zásoby
+  uživí – každé úmrtí zvedne příděl ostatním. Bez jídla ves do dvou měsíců vymře a hráč, kterému
+  vymřou všechny vsi, začíná znovu ([populace – Hlad a vymření](population.md)). **Hájení**
+  z populace chrání dospělé i před smrtí hladem.
 
 ### Zarůstání
 
@@ -384,7 +386,8 @@ pro raný středověk ale nemám – zůstává návrhem Clauda jako dosavadní 
   a jestli ji scéna kreslí 3D modelem, nebo obrázkem (vnitřek lesa). Vrstvu generuje server
   i prohlížeč stejnou funkcí ze stejných dat (deterministicky, ověřeno testem), nepřenáší se.
   Ceny podle tabulky výše počítá `placement.ts` z překážek, které na místě opravdu stojí:
-  obydlí platí kusy na vyklízené ploše kolem půdorysu (staveniště ≈ 10 × 12 m), díl pole kusy
+  obydlí platí kusy na vyklízené ploše kolem půdorysu (staveniště ≈ 10 × 12 m, u polozemnice
+  i se zahrádkou ≈ 13 × 12 m), díl pole kusy
   v políčku; skalní výchoz pod obydlím stavbu nedovolí, v poli zůstane a plocha pod ním (kruh
   o poloměru 3 m × velikost skály) se do dílu nepočítá. Čtverec hřbitova platí překážky jako
   díl pole; skalní výchoz ho zablokuje, protože hroby jdou na čtverec v pevné mřížce
@@ -392,9 +395,9 @@ pro raný středověk ale nemám – zůstává návrhem Clauda jako dosavadní 
   při založení vsi) při zahájení stavby, u pole s každým založeným dílem (jak říká Zakládání),
   u hřbitova s dostavěním hřbitova nebo rozšíření. Scéna je
   skryje bez nového načtení stránky. **Zatím ne:** zarostlý příloh (les z náletu) ani rušení
-  polí odstraněné překážky nevrací; cenu překážek rozhraní zatím neukazuje (pravidlo rozhraní:
-  u kurzoru žádné souhrny, jen důvod, proč stavba nejde) – kontroly umístění ji spočítají
-  a stavba ji zaplatí prací.
+  polí odstraněné překážky nevrací. Cenu překážek kontroly umístění spočítají, rozhraní ji
+  ukáže u kurzoru v celkové práci (ikona práce s číslem – „Co hráč vidí“) a stavba ji zaplatí
+  prací.
 - **Vymýcený les ve scéně (18. 10. 2026):** kde ves les vykácela nebo vymýtila pro pole, scéna
   ho přestane kreslit jako les. Maska po políčkách se počítá ze stavu vsi (`cleared-forest.ts`):
   políčko lesa je vymýcené, když z něj zmizela aspoň polovina dospělých stromů (odstraněné,
@@ -427,12 +430,17 @@ a v ustáleném oběhu pole ≈ 14 ha (9); na obživu jí padne ≈ 84 % práce 
 úrodnosti 45 (průměr luk v okolí vsi) potřebuje osev ≈ 3,4 ha a pole ≈ 18 ha (11) a obživa jí
 vezme skoro všechnu práci (odhad ≈ 98 %, dřív ≈ 90 %) – na chudé půdě ves neroste.
 
-**Kolik půdy je:** do 600 m od místa vsi je typicky jen ≈ 35 ha luk s průměrnou úrodností
-≈ 45, z toho ≈ 14 ha s úrodností aspoň 60, skoro vše do 300 m (měření na 60 krajinách).
-S přílohovou soustavou louky uživí jen zhruba **2–3 domácnosti** (dřív 3–4) – mýcení lesa patří
-k růstu vsi od začátku (Martin). Hektar lesa stojí 250 člověkodní (s řemesly 150) a vymýcená
-půda dá první sezónu +40 a druhou +20 úrodnosti a první sezónu se neplete. Domácnosti zbývá
-≈ 50 člověkodní společné práce ročně (měření), takže ves se třemi domácnostmi vymýtí hektar
+**Kolik půdy je** (krajiny nových sídel od 18. 10. 2026 – vegetace a úrodnost 2,
+[krajina](landscape.md)): do 600 m od místa vsi je **≈ 60 ha luk** (p10 59, p90 61,5) s průměrnou
+úrodností ≈ 56, z toho **≈ 34,5 ha s úrodností aspoň 60** (p10 32, p90 38), hlavně lužní louky
+v nivě potoka a roviny u vody; do 300 m je z toho ≈ 25 ha (měření na 500 krajinách,
+`measure-landscapes.ts`). Dřív (verze 1, sídla založená do 18. 10. 2026 si ji nechávají) to
+bylo jen ≈ 36 ha luk s úrodností ≈ 45, z toho ≈ 14 ha úrodných, skoro vše do 300 m.
+Hrubý odhad: s dlouhým přílohem (≈ 13 let, pole 5–6× osev) uživí louky v okolí zhruba
+**4 domácnosti** (na krajinách verze 1 jen 2–3). Mýcení lesa dál patří k růstu vsi (Martin –
+dlouhý příloh, růst mýcením a víc dobré louky). Hektar lesa stojí 250 člověkodní (s řemesly 150)
+a vymýcená půda dá první sezónu +40 a druhou +20 úrodnosti a první sezónu se neplete. Domácnosti
+zbývá ≈ 50 člověkodní společné práce ročně (měření), takže ves se třemi domácnostmi vymýtí hektar
 zhruba za 1,5–2 roky společné práce, když nic jiného nestaví.
 
 ## Kalibrace
@@ -450,8 +458,9 @@ louky – se po opravě podle rešerše přepočítaly; cíle práce na obživu,
 - ves s poli přiměřené velikosti drží zásoby mezi 1 a 1,5 roční potřeby a nasycení ≥ 0,95
   po 95 % let,
 - startovní ves stihne jarní i letní práce s rezervou aspoň 20 %,
-- na typické krajině uživí louky v okolí 2–3 domácnosti (dřív 3–4); ves, která mýtí les, roste
-  dál,
+- na typické krajině uživí louky v okolí ≈ 4 domácnosti (krajiny verze 1 jen 2–3); ves, která
+  mýtí les, roste dál (měření běží na syntetické louce 35 ha z doby krajin verze 1 – nové krajiny
+  mají ≈ 60 ha, viz Kolik půdy je),
 - cíle populace platí dál i se skutečným jídlem místo pevných 85 % (první stavba u 90 % vsí
   do ≈ 8 let).
 
@@ -491,8 +500,11 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 - **Založení pole:** ikona pole v mřížce staveb (jako v 0 A.D.), hráč tažením označí čtverce na
   mřížce políček (jako v realtime strategiích; Martin), s Ctrl je ubírá. Bez souhrnu
   a nápověd (Martin, 17. 10. 2026: „Odstraň všechny popisky – hráč nepotřebuje průvodce.“):
-  čtverce jsou zelené (pole projde), žluté (ještě ne) a červené (sem pole nesmí), u kurzoru jen
-  krátký důvod, proč pole neprojde. Výměru, úrodnost a stadia dílů ukáže panel vybraného pole.
+  čtverce jsou zelené (pole projde), žluté (ještě ne) a červené (sem pole nesmí). U kurzoru
+  jen ikona práce s číslem – kolik člověkodní založení vybraných čtverců stojí i s překážkami
+  (stejně u sadu a hřbitova, u obydlí navíc ikona stromů s počtem stromů ke kácení, když
+  nestačí klády), nebo krátký červený důvod, proč pole neprojde. Výměru, úrodnost a stadia
+  dílů ukáže panel vybraného pole.
 - **Zakládání:** pole se zakládá jako stavba – hotové díly se postupně zbarví, stromy
   a kameny z nich zmizí.
 - **Panel pole** (výběr kliknutím): výměra, úrodnost, kolik dílů se zakládá, je oseto a leží
@@ -559,7 +571,8 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 | Společné zásoby vsi, ztráty 10 %, přídělový systém, start se zásobami na 18 měsíců                                                | návrh Clauda                                    |
 | Přirozená louka nezarůstá; les z náletu ve scéně jako mladé stromky                                                               | návrh Clauda                                    |
 | Překážky jako verzovaná vrstva krajiny v `packages/game`; co je překážka a za kolik                                               | návrh Clauda                                    |
-| Hlad ves zmenší, ale nezničí; hájení chrání i před hladem                                                                         | návrh Clauda                                    |
+| Hlad ves zmenší, ale nezničí; hájení chrání i před hladem (do 18. 10. 2026)                                                       | návrh Clauda                                    |
+| Lidé umírají hlady, ves může vymřít ([populace](population.md))                                                                   | Martin (18. 10. 2026)                           |
 | Výchozí osevní systém: přílohová soustava raných Slovanů                                                                          | Martin                                          |
 | Úroda zatím bez náhody – dobré a špatné roky až s počasím (pak hájení i na neúrodu)                                               | Martin                                          |
 | Přílohová soustava: osev do 70 % úrodnosti (≈ 3 roky), příloh do 95 % (~~≈ 7 let~~), pořadí dílů                                  | návrh Clauda                                    |

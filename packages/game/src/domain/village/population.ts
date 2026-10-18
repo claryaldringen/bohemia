@@ -1,10 +1,9 @@
 import { createRandom, deriveSeed } from '../landscape/random';
 import { bury, hygieneDeathFactor, villageHygiene } from './cemetery';
 import { isOvercrowded } from './dwellings';
-import { ageGroup, ageYears, isAdult, isFertile, occupants } from './people';
+import { ageGroup, isAdult, isFertile, occupants } from './people';
 import {
   ADULT_DEATHS_PER_YEAR,
-  AGE,
   BIRTHS_PER_PAIR_PER_YEAR,
   CROWDED_BIRTH_FACTOR,
   CROWDED_DEATH_FACTOR,
@@ -13,13 +12,16 @@ import {
   HUNGER,
   LUCKY_CHILD_DEATH_FACTOR,
   LUCKY_YEARS,
+  STARVATION,
   childDeathsPerYear,
 } from './rules';
 import type { ChronicleEvent, DwellingType, Person, VillageState } from './types';
 
 const DAYS_PER_YEAR = 365.25; // hájení se měří v letech po 365,25 dne
 const DAYS_PER_RISK_YEAR = 365; // roční riziko se na den převádí přes 365 dní
-const HUNGER_GUARD_ADULTS = 2; // poslední dva lidé 14+ nedostanou přirážku za hlad
+
+type AgeGroup = 'child' | 'adult' | 'elder';
+const AGE_GROUPS: readonly AgeGroup[] = ['child', 'adult', 'elder'];
 
 /** Vliv hladu na porody: 0 při nasycení ≤ 0,5, lineárně 1 při nasycení ≥ 0,95. */
 function hungerBirthFactor(satiation: number): number {
@@ -36,39 +38,107 @@ export function birthChancePerDay(ctx: { satiation: number; overcrowded: boolean
   );
 }
 
-function baseDeathsPerYear(group: 'child' | 'adult' | 'elder', dwellingType: DwellingType): number {
+function baseDeathsPerYear(group: AgeGroup, dwellingType: DwellingType): number {
   if (group === 'child') return childDeathsPerYear() * DWELLINGS[dwellingType].childDeathFactor;
   return group === 'adult' ? ADULT_DEATHS_PER_YEAR : ELDER_DEATHS_PER_YEAR;
 }
 
+/** Hájení – prvních LUCKY_YEARS herních let od založení vsi (population.md). */
+export function inLuckyYears(foundedDay: number, day: number): boolean {
+  return day - foundedDay < LUCKY_YEARS * DAYS_PER_YEAR;
+}
+
 /**
- * Pravděpodobnost úmrtí člověka za den (hájení, přeplněnost, hlad a hygiena zahrnuty).
- * Hygiena 0–1 z pohřebišť (cemetery.md); bez údaje 1 – bez přirážky. Hájení chrání i před ní.
+ * Nejvýš kolik nahromaděného hladu má skupina v hájení – den pod jejím prahem (dospělí 19, děti
+ * a starší 11), aby po konci hájení lidé umírali postupně, ne všichni hned druhý den.
  */
-export function deathChancePerDay(
-  person: Person,
-  ctx: {
-    day: number;
-    foundedDay: number;
-    satiation: number;
-    overcrowded: boolean;
-    dwellingType: DwellingType;
-    protectFromHunger: boolean;
-    hygiene?: number;
-  },
+export function luckyStarvationCap(group: AgeGroup): number {
+  return STARVATION.threshold[group] - STARVATION.luckyMarginDays;
+}
+
+/** Strop nahromaděného hladu vsi v hájení – nejvyšší strop skupin (dospělí, 19 dní). */
+export const LUCKY_STARVATION_CAP = Math.max(...AGE_GROUPS.map(luckyStarvationCap));
+
+/**
+ * Nahromaděný hlad po dni s nasycením `satiation` (population.md – Hlad a vymření): pod 0,9
+ * přibude (0,9 − nasycení) / 0,9 (bez jídla celý den), od 0,9 ubude den (do nuly). Víc než
+ * STARVATION.maxDays nemá vliv, v hájení (`lucky`) nejvýš LUCKY_STARVATION_CAP.
+ */
+export function nextStarvationDays(
+  starvationDays: number,
+  satiation: number,
+  lucky = false,
 ): number {
+  const cap = lucky ? LUCKY_STARVATION_CAP : STARVATION.maxDays;
+  if (satiation >= STARVATION.fedFrom) {
+    return Math.min(cap, Math.max(0, starvationDays - STARVATION.recoveryPerDay));
+  }
+  const growth = (STARVATION.fedFrom - Math.max(0, satiation)) / STARVATION.fedFrom;
+  return Math.min(cap, starvationDays + growth);
+}
+
+/**
+ * Denní riziko úmrtí hladem podle nahromaděného hladu a věkové skupiny (bez hájení): 0 do prahu,
+ * pak ((hlad − práh) / (jistá smrt − práh))^curve, od hranice jisté smrti 1.
+ */
+export function starvationDeathChance(group: AgeGroup, starvationDays: number): number {
+  const from = STARVATION.threshold[group];
+  const to = STARVATION.certainDeath[group];
+  if (starvationDays <= from) return 0;
+  return Math.min(1, ((starvationDays - from) / (to - from)) ** STARVATION.curve);
+}
+
+/** Kontext úmrtnosti člověka v daný den. */
+export interface DeathContext {
+  day: number;
+  foundedDay: number;
+  satiation: number;
+  overcrowded: boolean;
+  dwellingType: DwellingType;
+  /** Hygiena 0–1 z pohřebišť (cemetery.md); bez údaje 1 – bez přirážky. */
+  hygiene?: number;
+  /** Nahromaděný hlad vsi ve dnech bez jídla; bez údaje 0. */
+  starvationDays?: number;
+}
+
+/**
+ * Denní riziko úmrtí člověka po částech: `base` – běžné riziko (věk, přeplněnost, dnešní hlad,
+ * hygiena), `starvation` – úmrtí hladem z nahromaděného hladu. Hájení chrání dospělé a starší
+ * před obojím, dětem běžné riziko půlí a hlad skupiny drží den pod prahem (`luckyStarvationCap`).
+ */
+export function deathChances(
+  person: Person,
+  ctx: DeathContext,
+): { base: number; starvation: number } {
   const group = ageGroup(person, ctx.day);
-  const lucky = ctx.day - ctx.foundedDay < LUCKY_YEARS * DAYS_PER_YEAR;
-  if (lucky && group !== 'child') return 0;
-  const hunger = ctx.protectFromHunger ? 1 : 1 + HUNGER.deathExtraAtZero * (1 - ctx.satiation);
+  const lucky = inLuckyYears(ctx.foundedDay, ctx.day);
+  if (lucky && group !== 'child') return { base: 0, starvation: 0 };
+  const deficit = ctx.starvationDays ?? 0;
+  const luck = lucky ? LUCKY_CHILD_DEATH_FACTOR : 1;
+  const hunger = 1 + HUNGER.deathExtraAtZero * (1 - ctx.satiation);
   const hygiene = lucky ? 1 : hygieneDeathFactor(group, ctx.hygiene ?? 1);
   const yearly =
     baseDeathsPerYear(group, ctx.dwellingType) *
-    (lucky ? LUCKY_CHILD_DEATH_FACTOR : 1) *
+    luck *
     (ctx.overcrowded ? CROWDED_DEATH_FACTOR : 1) *
     hunger *
     hygiene;
-  return 1 - (1 - Math.min(1, yearly)) ** (1 / DAYS_PER_RISK_YEAR);
+  return {
+    base: 1 - (1 - Math.min(1, yearly)) ** (1 / DAYS_PER_RISK_YEAR),
+    starvation: starvationDeathChance(
+      group,
+      lucky ? Math.min(deficit, luckyStarvationCap(group)) : deficit,
+    ),
+  };
+}
+
+/**
+ * Pravděpodobnost úmrtí člověka za den – běžné riziko (hájení, přeplněnost, dnešní hlad
+ * a hygiena) plus úmrtí z nahromaděného hladu (population.md – Hlad a vymření).
+ */
+export function deathChancePerDay(person: Person, ctx: DeathContext): number {
+  const { base, starvation } = deathChances(person, ctx);
+  return Math.min(1, base + starvation);
 }
 
 /**
@@ -107,7 +177,8 @@ function dissolveHouseholds(state: VillageState, day: number): ChronicleEvent[] 
 }
 
 /**
- * Jeden den populace: úmrtí (lidé podle id, každý zemřelý se pohřbí – cemetery.md), porody
+ * Jeden den populace: úmrtí (lidé podle id, každý zemřelý se pohřbí – cemetery.md; zemřel hlady,
+ * když los padl do části rizika z nahromaděného hladu `state.starvationDays`), porody
  * (domácnosti podle id, jeden pokus na pár), pak rozpad domácností. Hygiena platí podle
  * pohřebišť na začátku dne. Mutuje stav a vrací události dne.
  */
@@ -127,23 +198,27 @@ export function populationDay(
 
   // úmrtí
   const hygiene = villageHygiene(state);
-  let livingAdults = state.people.filter((p) => ageYears(p.bornDay, day) >= AGE.adult).length;
+  const starvationDays = state.starvationDays ?? 0;
   const dead = new Set<number>();
   for (const person of [...state.people].sort((a, b) => a.id - b.id)) {
-    const grownUp = ageYears(person.bornDay, day) >= AGE.adult;
-    const chance = deathChancePerDay(person, {
+    const { base, starvation } = deathChances(person, {
       day,
       foundedDay: state.foundedDay,
       satiation,
       overcrowded: crowded.get(person.dwellingId) ?? false,
       dwellingType: typeOf.get(person.dwellingId) ?? 'zemnice',
-      protectFromHunger: grownUp && livingAdults <= HUNGER_GUARD_ADULTS,
       hygiene,
+      starvationDays,
     });
-    if (random.next() < chance) {
+    const roll = random.next();
+    if (roll < Math.min(1, base + starvation)) {
       dead.add(person.id);
-      if (grownUp) livingAdults--;
-      events.push({ day, kind: 'death', group: ageGroup(person, day) });
+      const group = ageGroup(person, day);
+      events.push(
+        roll < base
+          ? { day, kind: 'death', group }
+          : { day, kind: 'death', group, cause: 'hunger' },
+      );
       const full = bury(state, day);
       if (full) events.push(full);
     }

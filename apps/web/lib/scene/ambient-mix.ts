@@ -2,6 +2,7 @@ import { CAMERA_ZOOM_M } from './constants';
 import type { ForestField } from '@bohemia/game';
 import { bedMix } from './ground-layers';
 import type { StreamPoint } from './stream-geometry';
+import { frozenShare } from './water-ice';
 
 /**
  * Mix ambientních zvuků krajiny podle toho, kam se kamera dívá – čisté funkce bez enginu
@@ -91,13 +92,18 @@ const LEVEL: AmbientGains = {
 
 /**
  * Roční období (season-look.ts): násobky hlasitosti – v zimě ptáci skoro mlčí a vítr šumí
- * v holých větvích tišeji, na jaře zpívají víc, na podzim víc fouká. 1 = léto.
+ * v holých větvích tišeji, na jaře zpívají víc, na podzim víc fouká. 1 = léto. `ice` = led na
+ * vodě 0–1 (water-ice.ts) – potok pod ledem je tišší; bez údaje žádný.
  */
 export interface AmbientSeason {
   birds: number;
   birdsong: number;
   leaves: number;
+  ice?: number;
 }
+
+/** O kolik ztichne zamrzlá část potoka (podíl hlasitosti) – pod ledem voda jen tlumeně bublá. */
+const ICE_MUFFLE = 0.85;
 
 const SUMMER_SOUND: AmbientSeason = { birds: 1, birdsong: 1, leaves: 1 };
 
@@ -112,7 +118,7 @@ export function ambientMix(
     : ZOOM_FAR_M;
   const zoom = Math.log(radius / ZOOM_NEAR_M) / Math.log(ZOOM_FAR_M / ZOOM_NEAR_M);
   const listenerHeight = radius * LISTENER_HEIGHT;
-  const stream = streamPresence(view, radius, environment.stream.points);
+  const stream = streamPresence(view, radius, environment.stream.points, season.ice ?? 0);
   const forest = forestPresence(view, radius, environment.forest);
   // Plošné zdroje (les) slábnou s oddálením pomaleji než bodové (odmocnina z útlumu).
   const area = Math.sqrt(attenuation(listenerHeight));
@@ -150,12 +156,14 @@ function inView(horizontal: number, radius: number): number {
  * Potok zní jen tam, kde teče přes oblázky – štěrkové dno stejně jako na obrazovce
  * (`bedMix`); nad bahnem, pískem a v tůních je tichý (Martin). Každý úsek osy je zdroj, který
  * zní podle vzdálenosti od okraje vody a podílu oblázků na dně. Za každou rychlost proudu
- * rozhoduje nejhlasitější úsek – peřej opodál je slyšet i nad tichou tůní.
+ * rozhoduje nejhlasitější úsek – peřej opodál je slyšet i nad tichou tůní. V zimě ztichne
+ * zamrzlá část šířky úseku (`ice`, `frozenShare`).
  */
 function streamPresence(
   view: AmbientView,
   radius: number,
   points: AmbientEnvironment['stream']['points'],
+  ice: number,
 ): { medium: number; fast: number } {
   const result = { medium: 0, fast: 0 };
   const listenerHeight = radius * LISTENER_HEIGHT;
@@ -180,8 +188,9 @@ function streamPresence(
     const speed = a.speed + (b.speed - a.speed) * t;
     const pebbles = bedMix(speed, a.pool + (b.pool - a.pool) * t).gravel;
     if (pebbles <= 0) continue;
+    const open = 1 - ICE_MUFFLE * frozenShare(speed, halfWidth, ice);
     const presence =
-      pebbles * inView(toBank, radius) * attenuation(Math.hypot(toBank, listenerHeight));
+      pebbles * open * inView(toBank, radius) * attenuation(Math.hypot(toBank, listenerHeight));
     const w = streamSpeedWeights(speed);
     result.medium = Math.max(result.medium, presence * w.medium);
     result.fast = Math.max(result.fast, presence * w.fast);

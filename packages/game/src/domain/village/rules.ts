@@ -53,6 +53,22 @@ export const LUCKY_YEARS = 30;
 export const LUCKY_CHILD_DEATH_FACTOR = 0.5;
 // population.md – Růst populace (hlad tlumí porody a zvyšuje úmrtnost); fields.md – Zásoby a nasycení
 export const HUNGER = { birthsStopAt: 0.5, birthsFullAt: 0.95, deathExtraAtZero: 3 } as const;
+// population.md – Hlad a vymření (Martin, 18. 10. 2026; čísla návrh Clauda): nahromaděný hlad
+// vsi ve „dnech bez jídla“ – pod `fedFrom` přibude za den (fedFrom − nasycení) / fedFrom (bez
+// jídla den, při 80 % ≈ 0,11), od `fedFrom` (90 %) ubude recoveryPerDay (do nuly) – jedna hranice,
+// žádné pásmo, kde by hlad stál. Víc než maxDays nemá vliv. V hájení má skupina nejvýš práh − luckyMarginDays (dospělí
+// 19, děti a starší 11), aby po jeho konci lidé umírali postupně. Denní riziko úmrtí hladem je 0
+// do prahu `threshold` a pak strmě roste ((hlad − práh) / (jistá smrt − práh))^curve až
+// k jistotě v `certainDeath` – bez jídla vymřou do 60 dní všichni (děti a starší do 45).
+export const STARVATION = {
+  fedFrom: 0.9,
+  recoveryPerDay: 1,
+  maxDays: 60,
+  luckyMarginDays: 1,
+  threshold: { child: 12, adult: 20, elder: 12 },
+  certainDeath: { child: 45, adult: 60, elder: 45 },
+  curve: 3,
+} as const;
 // population.md – Nové obydlí (do nového obydlí se stěhuje pár z domácnosti s aspoň 4 dospělými)
 export const NEW_HOUSEHOLD_MIN_ADULTS = 4;
 // fields.md – Zásoby a nasycení (roční potřeba jídla podle věku)
@@ -83,12 +99,22 @@ export const FERTILITY = {
 // podle sezóny osevu po vymýcení (1. +40, 2. +20, pak 0) a první sezónu se neplete. Bonus platí
 // jen do `windowYears` let od vymýcení – díl, který ves do té doby neoseje, o popel přijde.
 export const FOREST_BONUS = { bySeason: [40, 20], windowYears: 3 } as const;
-// fields.md – Práce (člověkodny na osetý hektar – meze; sklizeň srpem 30 → 15 + odnos v nůších 20)
+// fields.md – Práce: sklizeň srpem a vázání 30 (s řemesly 15) + odnos úrody v nůších 20 člověkodní
+// na hektar – meze (simulace je počítá jako jednu úlohu sklizně, rozdělení práce pro scénu je
+// dělí – postavy)
+export const HARVEST_WORK_PER_HA: Record<'reap' | 'carry', Bounds> = {
+  reap: { worst: 30, best: 15 },
+  carry: { worst: 20, best: 20 },
+};
+// fields.md – Práce (člověkodny na osetý hektar – meze)
 export const FIELD_WORK_PER_HA: Record<FieldTask, Bounds> = {
   dig: { worst: 100, best: 50 },
   sow: { worst: 10, best: 10 },
   weed: { worst: 30, best: 15 },
-  harvest: { worst: 50, best: 35 },
+  harvest: {
+    worst: HARVEST_WORK_PER_HA.reap.worst + HARVEST_WORK_PER_HA.carry.worst,
+    best: HARVEST_WORK_PER_HA.reap.best + HARVEST_WORK_PER_HA.carry.best,
+  },
   thresh: { worst: 15, best: 10 },
 };
 // fields.md – Práce (vrácení přílohu podle stáří zarůstání – meze; víc než 15 let = les)
@@ -244,14 +270,25 @@ export const DWELLING_FOOTPRINT_M: Record<DwellingType, { width: number; depth: 
 export const DWELLING_MAX_HEIGHT_DIFF_M = 0.5;
 // population.md – Umístění obydlí (překážky na místě osadníci odstraní), fields.md – Co je
 // překážka (obydlí: kusy na ploše ≈ 10 × 10 m kolem půdorysu). Plocha v souřadnicích modelu
-// (x napříč, z k vchodu, m) – staveniště s hromadou hlíny a střecha předsazená před štíty;
-// scéna podle ní kreslí staveniště (DWELLING_CLEARANCE_M).
+// (x napříč, z k vchodu, m) – staveniště s hromadou hlíny a střecha předsazená před štíty,
+// u polozemnice i zahrádka po straně (−x modelu, plot do x ≈ −7,35 – GARDEN
+// v tools/blender/dwellings.py); scéna podle ní kreslí staveniště (DWELLING_CLEARANCE_M).
 export const DWELLING_CLEARING_M: Record<
   DwellingType,
   { minX: number; maxX: number; minZ: number; maxZ: number }
 > = {
   zemnice: { minX: -4.8, maxX: 4.8, minZ: -4.4, maxZ: 7.5 },
-  polozemnice: { minX: -5.1, maxX: 5.1, minZ: -4.7, maxZ: 7.5 },
+  polozemnice: { minX: -7.9, maxX: 5.1, minZ: -4.7, maxZ: 7.5 },
+};
+// population.md – Co hráč vidí (polozemnice se zahrádkou, Martin): zahrádka obehnaná plotem
+// po straně polozemnice – obdélník v souřadnicích modelu (x napříč, z k vchodu, m) i s plotem;
+// zemnice zahrádku nemá. Musí sedět s GARDEN v tools/blender/dwellings.py (Blender x = −x,
+// y = −z). Leží na vyklízené ploše (DWELLING_CLEARING_M), nesmí do vody, lesa, pole ani na jiné
+// obydlí; rovná být nemusí – ve scéně se nakloní podle terénu.
+export const DWELLING_GARDEN_M: Partial<
+  Record<DwellingType, { minX: number; maxX: number; minZ: number; maxZ: number }>
+> = {
+  polozemnice: { minX: -7.35, maxX: -3.35, minZ: -3.4, maxZ: 1.8 },
 };
 // fields.md – Překážka na louce (skalní výchoz se neodstraní, plocha pod ním se nepočítá):
 // poloměr výchozu (m) na jednotku velikosti modelu (modely skal 0 A.D. mají půdorys ≈ 6 m)

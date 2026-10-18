@@ -365,5 +365,6 @@ describe('pole v lese na vygenerované krajině', () => {
         (counts.stone ?? 0) * OBSTACLE_COST.stone + (counts.boulder ?? 0) * OBSTACLE_COST.boulder,
       );
     }
-  });
+    // Pět krajin s vrstvou překážek trvá samo ≈ 1,5 s, při souběhu s testy webu i přes 5 s.
+  }, 30_000);
 });

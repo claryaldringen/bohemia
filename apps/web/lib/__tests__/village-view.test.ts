@@ -75,6 +75,27 @@ const record = (s: VillageState = state()): VillageRecord => ({
   version: 1,
 });
 
+describe('buildVillageView – práce vsi pro postavy', () => {
+  it('čerstvá ves ještě rozdělení práce nemá – ve scéně nikdo', () => {
+    const view = buildVillageView(record(), landscape, DAY);
+    expect(view.scene.labor).toBeUndefined();
+  });
+
+  it('po dopočtu dne: člověkodny po místech na setiny, lidé podle věku a měsíc', () => {
+    const s = advanceVillage(state(), DAY + 1, null);
+    const view = buildVillageView(record(s), landscape, DAY + 1);
+    const labor = view.scene.labor!;
+    expect(labor).toMatchObject({ day: DAY + 1, month: 4, people: view.people });
+    expect(labor.shares.length).toBeGreaterThan(0);
+    for (const share of labor.shares) {
+      expect(share.manDays).toBeGreaterThan(0);
+      expect(Math.round(share.manDays * 100)).toBeCloseTo(share.manDays * 100, 6);
+    }
+    const domestic = labor.shares.find((x) => x.activity === 'domestic');
+    expect(domestic?.target).toEqual({ kind: 'village' });
+  });
+});
+
 describe('buildVillageView', () => {
   it('pole: oseté díly podle plodiny – ozim, jař (díl bez plodiny je jař)', () => {
     const s = settled();
@@ -499,6 +520,10 @@ describe('chronicleText', () => {
     { day: DAY, kind: 'death', group: 'child' },
     { day: DAY, kind: 'death', group: 'adult' },
     { day: DAY, kind: 'death', group: 'elder' },
+    { day: DAY, kind: 'death', group: 'child', cause: 'hunger' },
+    { day: DAY, kind: 'death', group: 'adult', cause: 'hunger' },
+    { day: DAY, kind: 'death', group: 'elder', cause: 'hunger' },
+    { day: DAY, kind: 'village-extinct' },
     { day: DAY, kind: 'household-founded', dwellingId: 2 },
     { day: DAY, kind: 'household-merged', fromDwellingId: 2, toDwellingId: 1 },
     {
@@ -542,6 +567,38 @@ describe('chronicleText', () => {
     expect(
       chronicleText({ day: DAY, kind: 'rebuild-decided', dwellingId: 1, type: 'polozemnice' }, 'X'),
     ).toBe('Obyvatelé se rozhodli přestavět dožilé obydlí na polozemnici.');
+  });
+});
+
+describe('kronika – hlad a vymření', () => {
+  it('úmrtí hladem a vymření vsi', () => {
+    expect(chronicleText({ day: DAY, kind: 'death', group: 'child', cause: 'hunger' }, 'X')).toBe(
+      'Dítě zemřelo hlady.',
+    );
+    expect(chronicleText({ day: DAY, kind: 'village-extinct' }, 'Libice')).toBe(
+      'Zemřel poslední obyvatel – ves Libice vymřela.',
+    );
+  });
+});
+
+describe('vymřelá ves a konec hry', () => {
+  it('žijící ves: bez vymření, hra pokračuje', () => {
+    const view = buildVillageView(record(), landscape, DAY);
+    expect(view.extinct).toBeNull();
+    expect(view.gameOver).toBe(false);
+    expect(view.starving).toBe(false);
+  });
+
+  it('vymřelá ves: roky založení a vymření, obydlí bez obyvatel (bez dýmu a zvířat)', () => {
+    const s = settled();
+    s.people = [];
+    const extinct = advanceVillage(s, DAY + 1, null);
+    expect(extinct.extinctDay).toBe(DAY); // ves vzniká na začátku dne DAY – první den je DAY
+    const view = buildVillageView(record(extinct), landscape, DAY + 1, true);
+    expect(view.extinct).toEqual({ foundedYear: 503, extinctYear: 503, years: 0 });
+    expect(view.gameOver).toBe(true);
+    expect(view.scene.dwellings.every((d) => d.inhabited === false)).toBe(true);
+    expect(view.chronicle[0]?.text).toBe('Zemřel poslední obyvatel – ves Libice vymřela.');
   });
 });
 

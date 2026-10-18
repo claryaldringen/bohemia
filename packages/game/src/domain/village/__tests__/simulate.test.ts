@@ -124,8 +124,10 @@ describe('advanceVillage – dopočítání', () => {
 
   it('(a) i ves, kde hráč staví, dá po kouscích s JSON mezi nimi stejný stav (10 let)', () => {
     const start = found(at(600, 3, 15));
-    // plná domácnost se 4 dospělými – smí hned stavět nové obydlí
+    // plná domácnost se 4 dospělými – smí hned stavět nové obydlí; zásoby navíc, aby hlad
+    // nezabil děti (domácnost by přestala být plná)
     start.people.push(adultOfAge(100, 20, start.foundedDay), adultOfAge(101, 21, start.foundedDay));
+    start.storesKg += 3000;
     const actionDay = at(602, 10, 20);
     const end = at(610, 3, 15);
     const act = (s: VillageState): VillageState =>

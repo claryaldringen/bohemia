@@ -1,6 +1,7 @@
 import { obstaclesOf, type Landscape, type ObstacleLayer } from '../domain/landscape';
 import {
   advanceVillage,
+  isVillageExtinct,
   withForestDistances,
   withObstacleClearing,
   type VillageState,
@@ -11,6 +12,8 @@ import type { VillageRecord, VillageRepository, VillageResult } from './villages
 const MAX_ATTEMPTS = 5;
 
 export const NO_VILLAGE = 'Ves ještě není založená.';
+/** Ves vymřela – žádná akce v ní nejde (population.md – Hlad a vymření). */
+export const VILLAGE_EXTINCT = 'Ves vymřela – nikdo v ní nežije.';
 
 /** Změna stavu vsi – nový stav, nebo důvod odmítnutí. */
 export type VillageChange = { ok: true; state: VillageState } | { ok: false; reason: string };
@@ -59,4 +62,20 @@ export async function updateVillage(
     if (saved !== null) return { ok: true, village: saved };
   }
   throw new Error(`Ves sídla ${settlementId} se nepodařilo uložit – příliš mnoho souběžných změn.`);
+}
+
+/**
+ * Jako `updateVillage`, ale jen pro žijící ves – akce hráče ve vymřelé vsi (dopočítané do dneška)
+ * odmítne s `VILLAGE_EXTINCT`.
+ */
+export function updateLivingVillage(
+  villages: VillageRepository,
+  settlementId: string,
+  today: number,
+  landscape: Landscape,
+  change: (state: VillageState) => VillageChange,
+): Promise<VillageResult> {
+  return updateVillage(villages, settlementId, today, landscape, (state) =>
+    isVillageExtinct(state) ? { ok: false, reason: VILLAGE_EXTINCT } : change(state),
+  );
 }

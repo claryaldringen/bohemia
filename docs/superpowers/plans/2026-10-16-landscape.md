@@ -36,11 +36,13 @@
 ### Task 1: Deterministická náhoda a odvozené seedy
 
 **Files:**
+
 - Create: `packages/game/src/domain/landscape/random.ts`
 - Test: `packages/game/src/domain/landscape/__tests__/random.test.ts`
 - Modify: `packages/game/package.json` (dependency `simplex-noise@^4.0.3`)
 
 **Interfaces:**
+
 - Produces:
   - `interface Random { next(): number }`, kde `next()` vrací číslo v [0, 1),
   - `createRandom(seed: number): Random` (sfc32 nebo mulberry32),
@@ -55,10 +57,12 @@
 ### Task 2: Typy krajiny a vrstva terénu (výšky, potok, místo pro vesnici)
 
 **Files:**
+
 - Create: `packages/game/src/domain/landscape/types.ts`, `terrain.ts`
 - Test: `packages/game/src/domain/landscape/__tests__/terrain.test.ts`, `__tests__/landscape-checks.ts` (nezávislé pomocné kontroly pro testy)
 
 **Interfaces:**
+
 - Consumes: `createRandom`, `deriveSeed` (Task 1).
 - Produces (`types.ts`):
   ```ts
@@ -66,13 +70,18 @@
   export const CELL_SIZE_M = 15;
   export type Surface = 'water' | 'forest' | 'meadow';
   export const SURFACE_CODES = { water: 0, forest: 1, meadow: 2 } as const;
-  export interface LayerVersions { terrain: 1; vegetation: 1; fertility: 1 }
+  export interface LayerVersions {
+    terrain: 1;
+    vegetation: 1;
+    fertility: 1;
+  }
   export const CURRENT_LAYER_VERSIONS: LayerVersions;
   export interface Landscape {
-    readonly size: number; readonly cellSizeM: number;
-    readonly heights: Float32Array;   // m nad nejnižším políčkem
-    readonly surface: Uint8Array;     // SURFACE_CODES
-    readonly fertility: Uint8Array;   // 0–100
+    readonly size: number;
+    readonly cellSizeM: number;
+    readonly heights: Float32Array; // m nad nejnižším políčkem
+    readonly surface: Uint8Array; // SURFACE_CODES
+    readonly fertility: Uint8Array; // 0–100
     readonly villageSite: { x: number; y: number }; // střed místa pro vesnici
   }
   export function surfaceAt(l: Landscape, x: number, y: number): Surface;
@@ -86,6 +95,7 @@
   - `maxNeighbourStepM(heights, size, x, y)`.
 
 Algoritmus terénu, protože ho signatura neurčuje:
+
 1. fBm ze `simplex-noise` (`createNoise2D(random.next)`), 4–5 oktáv, škálované na převýšení 10–40 m.
 2. Zvolit místo pro vesnici (střed v 25–75 % mapy) a kolem něj terén cíleně vyrovnat (plynulý přechod, poloměr ≈ 15 políček).
 3. Potok: cesta nejmenšího odporu (Dijkstra/A* přes výšky) mezi dvěma body na protilehlých okrajích, vedená tak, aby prošla do 20 políček od místa pro vesnici, ale ne jím. Koryto zahloubit o 0,5–1,5 m a šířka 1–3 políčka.
@@ -107,15 +117,18 @@ Algoritmus terénu, protože ho signatura neurčuje:
 ### Task 3: Vrstva vegetace
 
 **Files:**
+
 - Create: `packages/game/src/domain/landscape/vegetation.ts`
 - Test: `packages/game/src/domain/landscape/__tests__/vegetation.test.ts`, doplnit `landscape-checks.ts`
 
 **Interfaces:**
+
 - Consumes: `Terrain`, `generateTerrain` (Task 2), `SURFACE_CODES`.
 - Produces: `generateVegetation(seed: number, terrain: Terrain, version: 1): Uint8Array` (kódy povrchu; voda z terénu → `water`).
 - `landscape-checks.ts`: `share(surface, code): number`, `largestComponentSize(mask: Uint8Array, size: number): number`.
 
 Pravidla:
+
 - Les se rozmístí prahováním vlastního šumu tak, aby tvořil 55–70 % neúrodných i úrodných ploch dohromady (práh dopočítat z kvantilu, ne pokusem).
 - Louky jsou v nivě kolem potoka a na rovinách.
 - Okolí `villageSite` je vždy louka (mýtina).
@@ -133,12 +146,14 @@ Pravidla:
 ### Task 4: Úrodnost, pásmo srovnatelnosti a `generateLandscape`
 
 **Files:**
+
 - Create: `packages/game/src/domain/landscape/fertility.ts`, `band.ts`, `generate.ts`, `index.ts`
 - Create: `packages/game/scripts/measure-landscapes.ts` (vývojový nástroj, `npx tsx`)
 - Modify: `packages/game/src/index.ts` (`export * from './domain/landscape'`)
 - Test: `packages/game/src/domain/landscape/__tests__/generate.test.ts`, doplnit `landscape-checks.ts`
 
 **Interfaces:**
+
 - Consumes: Task 1–3.
 - Produces:
   - `computeFertility(seed: number, terrain: Terrain, surface: Uint8Array, version: 1): Uint8Array`,
@@ -147,6 +162,7 @@ Pravidla:
 - `landscape-checks.ts`: `largestVillageSite(l): number` (největší 4-souvislá komponenta políček, která jsou `meadow`, mají úrodnost ≥ 60, jsou rovinatá (`maxNeighbourStepM ≤ 1.0`) a leží do 20 políček euklidovsky od vody), `fertileCellCount(l)`.
 
 Pravidla úrodnosti:
+
 - Základ dává rovinatost a vzdálenost od vody: optimum 3–15 políček od vody, těsně u vody (≤ 1 políčko) je půda podmáčená a úrodnost nízká.
 - Na svazích a vršcích klesá.
 - Jemný šum ±10.
@@ -173,27 +189,45 @@ Pravidla úrodnosti:
 ### Task 5: Use-case vstupu do hry
 
 **Files:**
+
 - Create: `packages/game/src/application/settlements.ts` (porty a typ `Settlement`), `enter-game.ts`, `index.ts`
 - Create: `packages/game/src/application/__tests__/in-memory-settlements.ts` (testovací utilita)
 - Modify: `packages/game/src/index.ts` (`export * from './application'`)
 - Test: `packages/game/src/application/__tests__/enter-game.test.ts`
 
 **Interfaces:**
+
 - Consumes: `generateLandscape`, `Landscape`, `LayerVersions`, `CURRENT_LAYER_VERSIONS`.
 - Produces:
   ```ts
   export interface Settlement {
-    id: string; ownerId: string; isSeat: boolean;
-    landscapeSeed: number; layerVersions: LayerVersions; createdAt: Date;
+    id: string;
+    ownerId: string;
+    isSeat: boolean;
+    landscapeSeed: number;
+    layerVersions: LayerVersions;
+    createdAt: Date;
   }
   export interface SettlementRepository {
     findSeat(ownerId: string): Promise<Settlement | null>;
     /** Atomicky založí sídelní sídlo hráče; když už existuje, vrátí existující beze změny. */
-    createSeat(input: { ownerId: string; landscapeSeed: number; layerVersions: LayerVersions }): Promise<Settlement>;
+    createSeat(input: {
+      ownerId: string;
+      landscapeSeed: number;
+      layerVersions: LayerVersions;
+    }): Promise<Settlement>;
   }
-  export interface SeedSource { nextSeed(): number } // celé číslo 0 … 2^31 − 1
-  export interface EnterGameDeps { settlements: SettlementRepository; seeds: SeedSource }
-  export interface EnterGameResult { settlement: Settlement; landscape: Landscape }
+  export interface SeedSource {
+    nextSeed(): number;
+  } // celé číslo 0 … 2^31 − 1
+  export interface EnterGameDeps {
+    settlements: SettlementRepository;
+    seeds: SeedSource;
+  }
+  export interface EnterGameResult {
+    settlement: Settlement;
+    landscape: Landscape;
+  }
   export function enterGame(deps: EnterGameDeps, playerId: string): Promise<EnterGameResult>;
   ```
 - `InMemorySettlements implements SettlementRepository`: `createSeat` před zápisem udělá `await Promise.resolve()`, aby šel nasimulovat souběh.
@@ -209,12 +243,14 @@ Pravidla úrodnosti:
 ### Task 6: Tabulka `settlement` a Drizzle adaptér
 
 **Files:**
+
 - Create: `packages/db/src/schema/settlement.ts`, `packages/db/src/adapters/settlement-repository.ts`, `packages/db/src/adapters/index.ts`, `packages/db/vitest.db.config.ts`
 - Create: `packages/db/drizzle/0001_settlement.sql` (generuje `npm run db:generate -- --name settlement`)
 - Modify: `packages/db/src/schema/index.ts`, `packages/db/src/index.ts` (export `createSettlementRepository`), `packages/db/package.json` (dependency `@bohemia/game: "*"`, script `test:db`), `packages/db/vitest.config.ts` nebo `package.json` test (vyloučit `**/*.db.test.ts`), kořenový `package.json` (script `test:db`)
 - Test: `packages/db/src/adapters/__tests__/settlement-repository.db.test.ts`
 
 **Interfaces:**
+
 - Consumes: `SettlementRepository`, `Settlement`, `LayerVersions` z `@bohemia/game`.
 - Produces: `createSettlementRepository(db: Database): SettlementRepository`.
 - Schéma tabulky `settlement`:
@@ -241,6 +277,7 @@ Pravidla úrodnosti:
 ### Task 7: Přenos krajiny, composition root a Babylon scéna (terén, voda, kamera, políčko pod kurzorem)
 
 **Files:**
+
 - Create: `apps/web/lib/db.ts` (`getDatabase(): Database`, líně a přes `globalThis`; `lib/auth.ts` ho začne používat místo vlastní instance)
 - Create: `apps/web/lib/game.ts` (`server-only`; `enterGameForPlayer(playerId: string): Promise<EnterGameResult>`, `SeedSource` přes `randomInt(0, 2 ** 31)` z `node:crypto`)
 - Create: `apps/web/lib/landscape-transfer.ts`, `apps/web/lib/tile-info.ts`
@@ -249,25 +286,47 @@ Pravidla úrodnosti:
 - Modify: `apps/web/package.json` (`@babylonjs/core@^9.31.0`, `@babylonjs/loaders@^9.31.0`)
 
 **Interfaces:**
+
 - Consumes: `enterGame`, `Landscape`, `Surface`, `SURFACE_CODES` (`@bohemia/game`); `createSettlementRepository` (`@bohemia/db`).
 - Produces:
   ```ts
   // landscape-transfer.ts – serializovatelné do props klientské komponenty
   export interface LandscapeTransfer {
-    size: number; cellSizeM: number; villageSite: { x: number; y: number };
-    heightsDm: string; surface: string; fertility: string; // base64 (Uint16 decimetry, Uint8, Uint8)
+    size: number;
+    cellSizeM: number;
+    villageSite: { x: number; y: number };
+    heightsDm: string;
+    surface: string;
+    fertility: string; // base64 (Uint16 decimetry, Uint8, Uint8)
   }
   export function encodeLandscape(l: Landscape): LandscapeTransfer;
   export function decodeLandscape(t: LandscapeTransfer): Landscape;
   // tile-info.ts
-  export interface TileInfo { x: number; y: number; surface: Surface; fertility: number; heightM: number }
+  export interface TileInfo {
+    x: number;
+    y: number;
+    surface: Surface;
+    fertility: number;
+    heightM: number;
+  }
   export function formatTileInfo(tile: TileInfo): string; // „Louka · úrodnost 72“
   // scene/tile-at.ts – svět: osa X = x políčka, osa Z = y políčka, střed krajiny v počátku
-  export function tileAt(l: Landscape, worldX: number, worldZ: number): { x: number; y: number } | null;
-  export function tileCenter(l: Landscape, x: number, y: number): { worldX: number; worldZ: number };
+  export function tileAt(
+    l: Landscape,
+    worldX: number,
+    worldZ: number,
+  ): { x: number; y: number } | null;
+  export function tileCenter(
+    l: Landscape,
+    x: number,
+    y: number,
+  ): { worldX: number; worldZ: number };
   // scene/landscape-scene.ts – bez Reactu
   export class LandscapeScene {
-    static create(canvas: HTMLCanvasElement, options?: { renderer?: 'auto' | 'webgl' }): Promise<LandscapeScene>;
+    static create(
+      canvas: HTMLCanvasElement,
+      options?: { renderer?: 'auto' | 'webgl' },
+    ): Promise<LandscapeScene>;
     readonly renderer: 'webgpu' | 'webgl';
     setLandscape(landscape: Landscape): Promise<void>;
     onTileHover(listener: (tile: TileInfo | null) => void): () => void;
@@ -276,6 +335,7 @@ Pravidla úrodnosti:
   ```
 
 Rozhodnutí pro scénu:
+
 - `create-engine.ts`: když `renderer !== 'webgl'` a `await WebGPUEngine.IsSupportedAsync`, vytvoří `WebGPUEngine` (`await initAsync()`), jinak `Engine` (WebGL 2).
 - Terén je jedna `Mesh` z `VertexData` 128 × 128 vrcholů s vertex barvami podle povrchu: louka světle zelená, lesní půda tmavě zelenohnědá, břeh u vody pískově hnědá. Materiál `StandardMaterial`, bez vlastních shaderů.
 - Voda je síť z vodních políček ve výšce hladiny (dno koryta + 0,4 m), poloprůhledná modrá.
@@ -300,6 +360,7 @@ Rozhodnutí pro scénu:
 ### Task 8: Herní plocha s krajinou a e2e
 
 **Files:**
+
 - Create: `apps/web/components/game/GameView.tsx` (`'use client'`), `apps/web/components/game/TileInfoPanel.tsx`
 - Modify: `apps/web/app/game/page.tsx`
 - Create: `apps/web/e2e/helpers.ts` (přesunout `uniqueEmail`, `register`, `login`, `signOut`, IP hlavičku z `accounts.spec.ts`; přidat `registerAndEnterGame(page)`)
@@ -307,6 +368,7 @@ Rozhodnutí pro scénu:
 - Test: `apps/web/e2e/landscape.spec.ts`
 
 **Interfaces:**
+
 - Consumes: `enterGameForPlayer`, `encodeLandscape`, `decodeLandscape`, `LandscapeScene`, `formatTileInfo`.
 - Produces:
   - `<GameView landscape={LandscapeTransfer} />`: plátno přes celé okno.
@@ -336,18 +398,21 @@ Rozhodnutí pro scénu:
 ### Task 9: Stromy – CC0 modely a instancované vykreslení
 
 **Files:**
+
 - Create: `apps/web/public/models/nature/deciduous-1.glb`, `deciduous-2.glb`, `conifer-1.glb`, `conifer-2.glb`, `apps/web/public/models/LICENSES.md`
 - Create: `apps/web/lib/scene/tree-placement.ts`, `apps/web/lib/scene/trees.ts`
 - Modify: `apps/web/lib/scene/landscape-scene.ts` (`setLandscape` přidá stromy)
 - Test: `apps/web/lib/scene/__tests__/tree-placement.test.ts`, doplnit `apps/web/e2e/landscape.spec.ts`
 
 **Interfaces:**
+
 - Produces:
   - `interface TreePlacement { species: 'deciduous-1' | 'deciduous-2' | 'conifer-1' | 'conifer-2'; worldX: number; worldZ: number; rotationY: number; scale: number }`,
   - `treePlacements(l: Landscape): TreePlacement[]`: deterministicky z hashe polohy políčka, 2–3 stromy na lesní políčko, na jiných políčkách žádné; jehličnany převažují ve vyšších polohách,
   - `addTrees(scene, placements, modelsBaseUrl): Promise<void>`: jeden zdrojový mesh na druh a thin instances; chyba načtení modelu se zaloguje (`console.warn`) a krajina zůstane bez stromů.
 
 Modely:
+
 - Zdroj je **Kenney Nature Kit (CC0)**, 2 listnaté a 2 jehličnaté stromy ve formátu GLB, každý < 150 kB.
 - Když stažení ze stránky Kenney nepůjde, použij Blender MCP (`search_assets` Poly Pizza, autor Kenney nebo Quaternius) a export GLB.
 - Když nepůjde ani jedno, zastav a zeptej se Martina.
@@ -371,6 +436,7 @@ Modely:
 ### Task 10: Dokumentace a závěrečné ověření
 
 **Files:**
+
 - Modify: `CLAUDE.md`:
   - struktura (`domain/landscape`, `application`, `packages/db/src/adapters`, `apps/web/lib/scene`, `components/game`),
   - příkazy (`test:db`, `measure-landscapes`),

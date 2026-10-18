@@ -38,6 +38,7 @@ export type ConstructionPhaseId =
   | 'thatch'
   | 'moss'
   | 'finish'
+  | 'garden'
   | 'kiln'
   | 'forge'
   | 'workshop'
@@ -80,9 +81,10 @@ function porchHousePhases(
 /**
  * Fáze stavby (průběh 0–1, navazují na sebe): vytyčení, sejmutí drnu, kopání jámy, pak
  * zemnice sloupy a krov na zemi, polozemnice srub z trámů po řadách, latě a pletené štíty,
- * mazanice, došky po řadách zdola nahoru a nakonec hřeben s kozami a valy hlíny. Řemeslné
- * dílny navíc přístřešek, pec / výheň a vybavení dílny, uhlíř kryje střechu mechem; milíř
- * se skládá zvlášť – věnec polen, polena po vrstvách, kryt z hlíny a drnů, komín a průduchy.
+ * mazanice, došky po řadách zdola nahoru a nakonec hřeben s kozami a valy hlíny; polozemnice
+ * pak ještě zahrádku (kůly, proplétaný plot, záhony, zelenina). Řemeslné dílny navíc přístřešek,
+ * pec / výheň a vybavení dílny (zahrádku nemají), uhlíř kryje střechu mechem; milíř se skládá
+ * zvlášť – věnec polen, polena po vrstvách, kryt z hlíny a drnů, komín a průduchy.
  */
 export const CONSTRUCTION_PHASES: Record<ConstructionKind, readonly ConstructionPhase[]> = {
   zemnice: [
@@ -98,22 +100,23 @@ export const CONSTRUCTION_PHASES: Record<ConstructionKind, readonly Construction
   ],
   polozemnice: [
     { id: 'layout', label: 'vytyčení – kolíky a provázek', from: 0, to: 0.05 },
-    { id: 'turf', label: 'sejmutí drnu', from: 0.05, to: 0.12 },
-    { id: 'dig', label: 'kopání jámy', from: 0.12, to: 0.26 },
-    { id: 'logs', label: 'roubení stěn', from: 0.26, to: 0.44 },
-    { id: 'frame', label: 'vaznice, sloupy a krokve', from: 0.44, to: 0.54 },
-    { id: 'wattle', label: 'latě a pletené štíty', from: 0.54, to: 0.62 },
-    { id: 'daub', label: 'omazávání mazanicí', from: 0.62, to: 0.72 },
-    { id: 'thatch', label: 'došky po řadách', from: 0.72, to: 0.94 },
-    { id: 'finish', label: 'hřeben, kozy a valy', from: 0.94, to: 1 },
+    { id: 'turf', label: 'sejmutí drnu', from: 0.05, to: 0.11 },
+    { id: 'dig', label: 'kopání jámy', from: 0.11, to: 0.24 },
+    { id: 'logs', label: 'roubení stěn', from: 0.24, to: 0.41 },
+    { id: 'frame', label: 'vaznice, sloupy a krokve', from: 0.41, to: 0.5 },
+    { id: 'wattle', label: 'latě a pletené štíty', from: 0.5, to: 0.58 },
+    { id: 'daub', label: 'omazávání mazanicí', from: 0.58, to: 0.67 },
+    { id: 'thatch', label: 'došky po řadách', from: 0.67, to: 0.86 },
+    { id: 'finish', label: 'hřeben, kozy a valy', from: 0.86, to: 0.91 },
+    { id: 'garden', label: 'zahrádka – kůly, proplétaný plot, záhony', from: 0.91, to: 1 },
   ],
   hrncir: porchHousePhases(
     { id: 'kiln', label: 'hrnčířská pec – podstavec, kopule, topeniště', from: 0.77, to: 0.93 },
-    { id: 'workshop', label: 'dílna – police, hrnce, kruh a dřevo', from: 0.93, to: 1 },
+    { id: 'workshop', label: 'dílna – police, hrnce, kruh, plot a koš', from: 0.93, to: 1 },
   ),
   kovar: porchHousePhases(
     { id: 'forge', label: 'výheň – ohniště, měchy, kovadlina', from: 0.77, to: 0.93 },
-    { id: 'workshop', label: 'dílna – uhlí, koryto, železo a dřevo', from: 0.93, to: 1 },
+    { id: 'workshop', label: 'dílna – uhlí, koryto, železo, plot a koše', from: 0.93, to: 1 },
   ),
   uhlir: [
     { id: 'layout', label: 'vytyčení – kolíky a provázek', from: 0, to: 0.05 },
@@ -125,7 +128,7 @@ export const CONSTRUCTION_PHASES: Record<ConstructionKind, readonly Construction
     { id: 'daub', label: 'omazávání mazanicí', from: 0.54, to: 0.61 },
     { id: 'moss', label: 'mech po řadách místo došků', from: 0.61, to: 0.85 },
     { id: 'finish', label: 'hřeben, kozy a valy', from: 0.85, to: 0.91 },
-    { id: 'workshop', label: 'hráň polen na milíř a koše uhlí', from: 0.91, to: 1 },
+    { id: 'workshop', label: 'hromada polen na milíř a koše uhlí', from: 0.91, to: 1 },
   ],
   milir: [
     { id: 'layout', label: 'vytyčení kruhu a fíra uprostřed', from: 0, to: 0.06 },
@@ -275,6 +278,17 @@ function hasPhase(kind: ConstructionKind, id: ConstructionPhaseId): boolean {
   return CONSTRUCTION_PHASES[kind].some((p) => p.id === id);
 }
 
+/**
+ * Zahrádka polozemnice (tools/blender/dwellings.py – build_garden) ve fázi „garden“:
+ * kůly, proplétaný plot, záhony, zelenina.
+ */
+const GARDEN_STEPS: [string, number][] = [
+  ['garden-posts', 0.05],
+  ['garden-rails', 0.3],
+  ['garden-beds', 0.6],
+  ['garden-plants', 0.82],
+];
+
 /** Díly řemesla po sobě uvnitř jedné fáze: [díl, kdy v rámci fáze 0–1]. */
 const CRAFT_STEPS: Partial<Record<ConstructionKind, [ConstructionPhaseId, [string, number][]][]>> =
   {
@@ -296,7 +310,7 @@ const CRAFT_STEPS: Partial<Record<ConstructionKind, [ConstructionPhaseId, [strin
           ['pots', 0.3],
           ['wheel', 0.5],
           ['clay', 0.7],
-          ['wood', 0.85],
+          ['yard', 0.85],
         ],
       ],
     ],
@@ -317,7 +331,7 @@ const CRAFT_STEPS: Partial<Record<ConstructionKind, [ConstructionPhaseId, [strin
           ['charcoal', 0.1],
           ['trough', 0.35],
           ['iron', 0.6],
-          ['wood', 0.8],
+          ['yard', 0.8],
         ],
       ],
     ],
@@ -394,6 +408,9 @@ export function partSchedule(kind: ConstructionKind): PartRule[] {
   rules.push(...series('thatch', THATCH_COURSES[kind], roof, 0.04, 0.92));
   rules.push({ part: 'ridge', from: within('finish', 0.1) });
   rules.push({ part: 'berms', from: within('finish', 0.45) });
+  if (hasPhase(kind, 'garden')) {
+    for (const [part, t] of GARDEN_STEPS) rules.push({ part, from: within('garden', t) });
+  }
   for (const [id, steps] of CRAFT_STEPS[kind] ?? []) {
     for (const [part, t] of steps) rules.push({ part, from: within(id, t) });
   }
@@ -452,7 +469,9 @@ export function constructionState(kind: ConstructionKind, progress: number): Con
   // dřevo se začne brát se sloupy (zemnice), nebo s roubením (polozemnice)
   const timberUse = base === 'zemnice' ? phase('posts') : phase('logs');
   const used = 1 - 0.6 * ramp(p, finish.from, finish.to);
-  add('spoil', p >= dig.from, (0.3 + 0.7 * ramp(p, dig.from, dig.to)) * used);
+  // u polozemnice se zbytek hlíny rozhrne na valy celý – na jejím místě vyroste zahrádka
+  const spoilLeft = hasPhase(kind, 'garden') ? 1 - ramp(p, finish.from, finish.to) : used;
+  add('spoil', p >= dig.from, (0.3 + 0.7 * ramp(p, dig.from, dig.to)) * spoilLeft);
   add('turf', p >= turf.from, (0.4 + 0.6 * ramp(p, turf.from, turf.to)) * used);
   add('timber', p < frame.to, 1 - 0.65 * ramp(p, timberUse.from, frame.to));
   add('rods', p >= frame.from && p < wattle.to, 1 - 0.6 * ramp(p, wattle.from, wattle.to));

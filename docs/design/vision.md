@@ -53,6 +53,8 @@ ne jeden pán.
 | Hřbitov: poloha a velikost ovlivňují úmrtnost, bez ukazatele hygieny ([cemetery.md](cemetery.md))                   | Martin, čísla návrh Clauda    |
 | Les a dřevo: palivo sbírají vesničané, kácí se na stavby, klády z mýcení ([forest.md](forest.md))                   | Martin, čísla návrh Clauda    |
 | Jabloňový sad: staví se po čtvercích jako pole, plodí od 6. roku ([orchard.md](orchard.md))                         | Martin, čísla návrh Clauda    |
+| Štěstí obyvatel a posvátná místa – duby, háje, modla, svatyně ([happiness.md](happiness.md))                        | Martin, čísla návrh Clauda    |
+| Hlad zabíjí, ves může vymřít; komu vymřou všechny vsi, začíná znovu ([population.md](population.md))                | Martin, čísla návrh Clauda    |
 | Hexagonální architektura (porty a adaptéry), hranice hlídá ESLint                                                   | návrh Clauda, Martin schválil |
 | UI česky, kód anglicky                                                                                              | návrh Clauda                  |
 | Herní čas jako čistá funkce skutečného času, pravidla v `packages/game`, server je autorita                         | návrh Clauda                  |
@@ -67,7 +69,8 @@ Mechaniky probereme postupně. Zatím nerozhodnuto:
 3. **Změny vazalství** – jak se lze osamostatnit, vzbouřit nebo přejít k jinému pánovi.
 4. **Povinnosti pána a vazala** – odvody, vojenská služba, ochrana.
 5. **Smrt, dědictví a nástupnictví** – co když rod vymře? Co když hráč dlouho není online a
-   mezitím uběhnou generace?
+   mezitím uběhnou generace? (Zčásti rozhodnuto: když hráči vymřou všechny vesnice, hra pro něj
+   končí a začíná znovu – Martin, 18. 10. 2026, [populace](population.md).)
 6. **Hospodářství a stavby** – suroviny, obyvatelstvo, postup vesnice → hradiště → tvrz → hrad
    → město.
 7. **Prestiž** – jak vzniká a k čemu slouží.

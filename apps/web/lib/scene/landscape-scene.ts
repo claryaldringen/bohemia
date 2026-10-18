@@ -32,13 +32,14 @@ import { FelledTrees } from './felled-trees';
 import { LogPile } from './log-pile';
 import { sameClearing, villageClearedForest, type ClearedForest } from './cleared-forest';
 import { createForestCanopy, type ForestCanopy } from './forest-canopy';
-import { addImpostors } from './impostors';
+import { addImpostors, type ImpostorForest } from './impostors';
 import { obstacleScenery } from './obstacle-scenery';
 import { createTerrainMesh, type TerrainMesh } from './terrain-mesh';
 import { buildRenderSurface } from './render-surface';
 import { terrainMeshHeight } from './drape';
 import { InstanceHider } from './instance-hider';
 import { VillageLivestock } from './livestock';
+import { VillageVillagers } from './villagers';
 import { PitCuts, applyPitCut } from './pit-cut';
 import { seasonDayAt, seasonLook, seasonLookDistance, type SeasonLook } from './season-look';
 import { isDeciduousMesh } from './season-foliage';
@@ -82,8 +83,9 @@ const SEASON_EPSILON = 0.002;
 /** Stíny v zimě – holé listnáče propouštějí světlo (jen uniforma, mapa se nepřekresluje). */
 const WINTER_SHADOW_DARKNESS = 0.6;
 /**
- * Pod tímto množstvím listí (season-look.ts) listnáče nevrhají stín – holá koruna by vrhala
- * stín plného listí (stínová mapa listí nezná). Stínová mapa se překreslí jen při přechodu.
+ * Pod tímto množstvím listí (season-look.ts) 3D listnáče nevrhají stín – holá koruna by vrhala
+ * stín plného listí (stínová mapa listí nezná) – a impostory vrhají stín holých korun ze
+ * zimního atlasu. Stínová mapa se překreslí jen při přechodu.
  */
 const BARE_SHADOW_LEAVES = 0.3;
 
@@ -145,6 +147,8 @@ export class LandscapeScene {
   private village: VillageRenderer | null = null;
   /** Domácí zvířata vsi (ozdoba) – slepice u obydlí, stáda na loukách a v lese. */
   private livestock: VillageLivestock | null = null;
+  /** Lidé ve vsi – kde ves dnes pracuje (rozdělení práce dne, villagers.md). */
+  private villagers: VillageVillagers | null = null;
   /** Poslední stav vsi od rozhraní – vykreslí se, jakmile je krajina hotová. */
   private villageState: SceneVillage | null = null;
   private placement: ActivePlacement | null = null;
@@ -160,6 +164,8 @@ export class LandscapeScene {
   /** Listnáče ve stínové mapě a jestli jsou zrovna vyřazené (holé). */
   private deciduousCasters: Mesh[] = [];
   private bareShadows = false;
+  /** Vnitřek lesa – v zimě vrhá stín ze zimního atlasu (holé koruny). */
+  private impostorForest: ImpostorForest | null = null;
 
   private constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -287,6 +293,16 @@ export class LandscapeScene {
       baseUrl: '/models/fauna/',
       onLoaded: () => this.renderWhenReady(),
     });
+    // Lidé ve vsi – kde ves dnes pracuje; schůdnou zemi sdílejí se zvířaty, děti pasou stáda.
+    this.villagers?.dispose();
+    this.villagers = new VillageVillagers(this.scene, {
+      layer: obstacles,
+      ground: (village) => this.livestock?.groundFor(village) ?? null,
+      groundHeight: (x, z) => terrainMeshHeight(surface, x, z),
+      baseUrl: '/models/people/',
+      herds: (nowMs) => this.livestock?.herdViews(nowMs) ?? [],
+      onLoaded: () => this.renderWhenReady(),
+    });
     // Ozdobná zvířata podle 0 A.D.: hejna ryb v tůních, kroužící vrány a káně.
     const fauna = {
       fish: fishSchools(surface),
@@ -318,11 +334,24 @@ export class LandscapeScene {
       counted(addTrees(this.scene, trees, { baseUrl: '/models/trees/', groundHeight })),
       counted(addDecorations(this.scene, decor, { baseUrl: '/models/decor/', groundHeight })),
       counted(
-        addImpostors(this.scene, this.rtsCamera.camera, impostors, groundHeight).catch((error) =>
-          console.warn(
-            'Atlas stromů se nepodařilo načíst – vnitřek lesa zůstane bez stromů.',
-            error,
-          ),
+        addImpostors(
+          this.scene,
+          this.rtsCamera.camera,
+          impostors,
+          groundHeight,
+          (shadowAtlasChanged) => {
+            if (shadowAtlasChanged) this.shadows?.refresh();
+            this.renderWhenReady();
+          },
+        ).then(
+          (forest) => {
+            this.impostorForest = forest;
+          },
+          (error) =>
+            console.warn(
+              'Atlas stromů se nepodařilo načíst – vnitřek lesa zůstane bez stromů.',
+              error,
+            ),
         ),
       ),
       counted(
@@ -355,8 +384,10 @@ export class LandscapeScene {
         extentM: landscape.size * landscape.cellSizeM,
       });
       this.pendingCasters.length = 0;
+      // impostory listnáčů v zimě nevypadnou – vrhají stín ze zimního atlasu (setBareShadows)
       this.deciduousCasters = this.scene.meshes.filter(
-        (mesh): mesh is Mesh => mesh instanceof Mesh && isDeciduousMesh(mesh.name),
+        (mesh): mesh is Mesh =>
+          mesh instanceof Mesh && isDeciduousMesh(mesh.name) && !mesh.name.startsWith('impostors-'),
       );
     }
     this.updateSeason(true);
@@ -375,7 +406,7 @@ export class LandscapeScene {
         this.canvas.dataset.sound = state;
       },
     });
-    if (this.season) this.ambient.setSeason(this.season.sound);
+    if (this.season) this.ambient.setSeason({ ...this.season.sound, ice: this.season.ice });
     this.renderBurst(1500);
     this.engine.runRenderLoop(() => this.frame());
   }
@@ -585,6 +616,7 @@ export class LandscapeScene {
     this.placement = null;
     this.village?.dispose();
     this.livestock?.dispose();
+    this.villagers?.dispose();
     this.resizeObserver.disconnect();
     this.canvas.removeEventListener('pointermove', this.onPointerMove);
     this.canvas.removeEventListener('pointerleave', this.onPointerLeave);
@@ -707,10 +739,13 @@ export class LandscapeScene {
     const felled = this.obstacles ? (this.felled?.update(this.obstacles, changes) ?? false) : false;
     const logs = this.logPile?.update(this.villageState, changes) ?? false;
     const animals = this.livestock?.update(this.villageState, Date.now()) ?? false;
+    const people = this.villagers?.update(this.villageState, Date.now()) ?? false;
     // Rozhraní posílá stav vsi opakovaně (dotaz každých pár sekund) – beze změny nic.
     // Vybrané pole mohlo změnit čtverce (zarůstání), vybrané obydlí zaniknout.
     if (changed) this.highlight?.show(this.villageState, this.selection);
-    if (!changed && !hidden && !shaded && !cleared && !felled && !logs && !animals) return;
+    if (!changed && !hidden && !shaded && !cleared && !felled && !logs && !animals && !people) {
+      return;
+    }
     // Dým hned na místě – i při omezeném pohybu, kdy se pak už nehýbe.
     village.animateSmoke(Date.now(), null);
     this.shadows?.refresh();
@@ -752,7 +787,8 @@ export class LandscapeScene {
     const moving = !this.reducedMotion?.matches;
     if (moving && now - this.lastWaterFrame >= 1000 / WATER_FPS) {
       let animated = false;
-      if (this.water && camera.camera.isInFrustum(this.water.mesh)) {
+      // zamrzlá voda neteče – v záběru jen led a stojí, nepřekresluje se
+      if (this.water?.flowsInView(camera.camera)) {
         this.water.animate(now / 1000);
         animated = true;
       }
@@ -761,6 +797,8 @@ export class LandscapeScene {
       if (this.village?.animateSmoke(Date.now(), camera.camera)) animated = true;
       // domácí zvířata – skutečný čas (epoch ms), ne herní: stejný okamžik = stejná póza
       if (this.livestock?.animate(Date.now(), camera.camera)) animated = true;
+      // lidé ve vsi – skutečný čas jako zvířata
+      if (this.villagers?.animate(Date.now(), camera.camera)) animated = true;
       if (animated) {
         this.lastWaterFrame = now;
         this.needsRender = true;
@@ -785,11 +823,6 @@ export class LandscapeScene {
   }
 
   /**
-   * Roční období podle herního data (nebo vývojového přepínače): když se vzhled znatelně
-   * změnil, nastaví světlo, opar, vodu, stíny, zvuky a uniformy materiálů a scénu jednou
-   * překreslí. Vzhled se mění nejvýš jednou za herní den – žádné kreslení navíc.
-   */
-  /**
    * Vrhač stínu ze vsi (stavby, jabloně sadu – vznikají až po krajině). Listnáče (jabloně) se
    * zařadí mezi holé v zimě, ať nevrhají stín plného listí.
    */
@@ -804,6 +837,11 @@ export class LandscapeScene {
     if (deciduous && this.bareShadows) this.shadows.setCastersEnabled([mesh], false);
   }
 
+  /**
+   * Roční období podle herního data (nebo vývojového přepínače): když se vzhled znatelně
+   * změnil, nastaví světlo, opar, vodu, stíny, zvuky a uniformy materiálů a scénu jednou
+   * překreslí. Vzhled se mění nejvýš jednou za herní den – žádné kreslení navíc.
+   */
   private updateSeason(force: boolean): void {
     this.seasonCheckAt = performance.now() + SEASON_CHECK_MS;
     const day = this.seasonDay ?? seasonDayAt(Date.now(), this.worldClock ?? OFFICIAL_WORLD);
@@ -834,9 +872,12 @@ export class LandscapeScene {
     if (this.shadows && bare !== this.bareShadows) {
       this.bareShadows = bare;
       this.shadows.setCastersEnabled(this.deciduousCasters, !bare);
+      // obnoví i stínovou mapu – setCastersEnabled ji překreslí
+      this.impostorForest?.setBareShadows(bare);
     }
-    this.water?.setSeason(look.water.tint, look.water.sky);
-    this.ambient?.setSeason(look.sound);
+    this.water?.setSeason(look.water.tint, look.water.sky, look.ice);
+    this.fauna?.setIce(look.ice);
+    this.ambient?.setSeason({ ...look.sound, ice: look.ice });
     this.needsRender = true;
   }
 

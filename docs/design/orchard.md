@@ -74,10 +74,12 @@ rozhoduje, kolik louky a práce dá do jistoty na dlouho dopředu místo obilí 
 ## Co hráč vidí
 
 - V panelu staveb ikona sadu (název + cena za hektar v tooltipu), stavba po čtvercích.
-- Ve scéně jabloně z 0 A.D. (CC BY-SA 3.0) sponem do pětky – 2 stromy na čtverec, ≈ 10,6 m od
-  sebe, skalní výchozy obejdou: během výsadby čára vytyčení, kůly a sazenice, mladé stromky
-  u kůlu rostou do plné velikosti za 12 let (návrh Clauda); plodící sad má od srpna do sklizně
-  na stromech jablka.
+- Ve scéně jabloně z 0 A.D. (CC BY-SA 3.0) **v pravidelných řadách** (Martin, 18. 10. 2026:
+  „Stromy v sadu by měly být zasazené v pravidelných řadách.“): mřížka po 7,5 m podél os krajiny,
+  4 stromy na čtverec, řady rovně pokračují přes celý sad; na skalním výchozu strom chybí (řada
+  se neodsouvá). Během výsadby čáry vytyčení po obrysu a podél řad, kůly a sazenice po řadách,
+  mladé stromky u kůlu rostou do plné velikosti za 12 let (návrh Clauda); plodící sad má od
+  srpna do sklizně na stromech jablka. Úroda se počítá na hektar, na počtu stromů nezávisí.
 - U vybraného sadu: plocha, stáří a odhad úrody nejbližší sklizně (kg jablek), během výsadby
   průběh – a když čeká na okno, ikona s popiskem „Sází se na jaře a na podzim“. Horní lišta ukáže jablka vedle obilí, jen když nějaká jsou. Minimapa kreslí sady.
 - Kronika: sad je vysazený, sklizeň jablek (kg), starý sad dosloužil.
@@ -96,14 +98,15 @@ dostavění první zemnice vysadí sad 0,5 ha (22 čtverců) 120 m od obydlí. �
 
 ## Rozhodnutí
 
-| Rozhodnutí                                                                                   | Kdo                                        |
-| -------------------------------------------------------------------------------------------- | ------------------------------------------ |
-| Jabloňový sad jako stavba, staví se po čtvercích jako pole                                   | Martin                                     |
-| Výsadba 80 čd/ha, péče 10 čd/ha/rok, ~~sklizeň 25 čd/ha~~ (září–říjen) – opraveno níže       | návrh Clauda, Martin potvrdil              |
-| Plody od 6. roku, ~~plná úroda od 10. roku~~, život ≈ 60 let – opraveno níže                 | návrh Clauda, Martin potvrdil              |
-| ≈ 3 t jablek/ha = ≈ 430 kg obilí; jí se přednostně, zbytek k 1. 3. shnije; bez úhoru a osevu | návrh Clauda, Martin potvrdil              |
-| Plná úroda až od 25. roku, do 50. roku, k nule v 60. roce, pak louka                         | Martin – oprava podle rešerše 17. 10. 2026 |
-| Sklizeň 8 čd/ha (místo 25); výsadba 80, péče 10 v zimě, sklizeň září–říjen                   | Martin – oprava podle rešerše 17. 10. 2026 |
-| Anachronismus (sady až od 9. století) se neřeší                                              | Martin                                     |
-| Rok sadu od 1. 3.; sklizeň poměrně k úrodě; bez nejmenší výměry; spon 2 stromy na čtverec    | návrh Clauda                               |
-| Jablka do konce února v přídělu; při přebytku jen jablka, obilí na potom                     | návrh Clauda                               |
+| Rozhodnutí                                                                                    | Kdo                                        |
+| --------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| Jabloňový sad jako stavba, staví se po čtvercích jako pole                                    | Martin                                     |
+| Výsadba 80 čd/ha, péče 10 čd/ha/rok, ~~sklizeň 25 čd/ha~~ (září–říjen) – opraveno níže        | návrh Clauda, Martin potvrdil              |
+| Plody od 6. roku, ~~plná úroda od 10. roku~~, život ≈ 60 let – opraveno níže                  | návrh Clauda, Martin potvrdil              |
+| ≈ 3 t jablek/ha = ≈ 430 kg obilí; jí se přednostně, zbytek k 1. 3. shnije; bez úhoru a osevu  | návrh Clauda, Martin potvrdil              |
+| Plná úroda až od 25. roku, do 50. roku, k nule v 60. roce, pak louka                          | Martin – oprava podle rešerše 17. 10. 2026 |
+| Sklizeň 8 čd/ha (místo 25); výsadba 80, péče 10 v zimě, sklizeň září–říjen                    | Martin – oprava podle rešerše 17. 10. 2026 |
+| Anachronismus (sady až od 9. století) se neřeší                                               | Martin                                     |
+| Rok sadu od 1. 3.; sklizeň poměrně k úrodě; bez nejmenší výměry; ~~spon 2 stromy na čtverec~~ | návrh Clauda                               |
+| Stromy v pravidelných řadách – mřížka 7,5 m, 4 stromy na čtverec, řady přes celý sad          | Martin, 18. 10. 2026                       |
+| Jablka do konce února v přídělu; při přebytku jen jablka, obilí na potom                      | návrh Clauda                               |

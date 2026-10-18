@@ -57,6 +57,45 @@ describe('createSettlementRepository', () => {
     expect(await repository.findSeat('nikdo')).toBeNull();
   });
 
+  it('listActive vrátí aktivní sídla hráče, sídelní první', async () => {
+    const created = await repository.createSeat(seat);
+    const [other] = await db
+      .insert(schema.settlement)
+      .values({ ...seat, landscapeSeed: 55, isSeat: false })
+      .returning();
+    const active = await repository.listActive('hrac-1');
+    expect(active.map((s) => s.id)).toEqual([created.id, other!.id]);
+    expect(active[0]).toEqual(created);
+    expect(await repository.listActive('nikdo')).toEqual([]);
+  });
+
+  it('archive odloží sídlo – findSeat ani listActive ho nevrátí, data zůstanou', async () => {
+    const created = await repository.createSeat(seat);
+    expect(await repository.archive(created.id)).toBe(true);
+    expect(await repository.findSeat('hrac-1')).toBeNull();
+    expect(await repository.listActive('hrac-1')).toEqual([]);
+    const [row] = await db.select().from(schema.settlement);
+    expect(row).toMatchObject({ id: created.id, isSeat: false, landscapeSeed: 1234 });
+    expect(row?.archivedAt).toBeInstanceOf(Date);
+    expect(await repository.archive(created.id)).toBe(false);
+  });
+
+  it('po archivaci jde založit nové sídelní sídlo s jiným seedem', async () => {
+    const old = await repository.createSeat(seat);
+    await repository.archive(old.id);
+    const fresh = await repository.createSeat({ ...seat, landscapeSeed: 4321 });
+    expect(fresh.id).not.toBe(old.id);
+    expect(fresh).toMatchObject({ isSeat: true, landscapeSeed: 4321 });
+    expect(await repository.findSeat('hrac-1')).toEqual(fresh);
+    expect(await db.select().from(schema.settlement)).toHaveLength(2);
+  });
+
+  it('souběžné archive archivují sídlo jen jednou', async () => {
+    const created = await repository.createSeat(seat);
+    const results = await Promise.all([1, 2, 3].map(() => repository.archive(created.id)));
+    expect(results.filter(Boolean)).toHaveLength(1);
+  });
+
   it('smazání hráče smaže i jeho sídla', async () => {
     await repository.createSeat(seat);
     await db.execute(sql`DELETE FROM "user" WHERE id = 'hrac-1'`);
