@@ -15,6 +15,7 @@ z `apps/web/public/models/pen/`, kráva ze stáda vsi, stoh sena) – portréty 
 z `apps/web/public/models/fields/haystack.glb`), meat (maso – uzená kýta s kostí a provázkem),
 cheese (mléko a sýr – bochník sýra s vykrojeným klínem a hrouda tvarohu), eggs (vejce v hnízdě
 ze slámy), legumes (luštěniny – hromádka suchého hrachu a čočky, otevřený lusk s hrášky),
+hourglass (přesýpací hodiny – kolik zbývá: služba spřežení, výcvik),
 ozim (osení pod sněhem), jar (klasy jarního ječmene), charcoal (hromádka dřevěného uhlí), tools
 (kovaná sekera zkřížená se srpem) a pottery (dva hrnce pražského typu, větší s vlnovkou) –
 suroviny řemesel (crafts.md) – a zvířata stád do panelu ohrady – sheep, goat, pig, cow, chicken
@@ -1219,6 +1220,101 @@ def icon_legumes():
     return True
 
 
+def revolve(bm, profile, seg=40, cap_bottom=False, cap_top=False):
+    """Rotační těleso kolem osy Z z profilu [(z, r), …] zdola nahoru; volitelně zavřené víčky."""
+    rings = []
+    for z, r in profile:
+        rings.append([bm.verts.new((math.cos(2 * math.pi * i / seg) * r, math.sin(2 * math.pi * i / seg) * r, z))
+                      for i in range(seg)])
+    for lo, hi in zip(rings, rings[1:]):
+        for i in range(seg):
+            j = (i + 1) % seg
+            bm.faces.new((lo[i], lo[j], hi[j], hi[i]))
+    if cap_bottom:
+        bm.faces.new(rings[0][::-1])
+    if cap_top:
+        bm.faces.new(rings[-1])
+
+
+def glass_mat(name):
+    """Sklo do ikony: uprostřed průhledné, k okrajům lesklé (vrstva podle úhlu) – obrys baňky
+    je vidět a písek uvnitř taky."""
+    m = bpy.data.materials.new(name)
+    m.use_nodes = True
+    nt = m.node_tree
+    b = next(n for n in nt.nodes if n.type == "BSDF_PRINCIPLED")
+    b.inputs["Base Color"].default_value = (0.78, 0.88, 0.95, 1)
+    b.inputs["Roughness"].default_value = 0.08
+    outn = next(n for n in nt.nodes if n.type == "OUTPUT_MATERIAL")
+    tr = nt.nodes.new("ShaderNodeBsdfTransparent")
+    lw = nt.nodes.new("ShaderNodeLayerWeight")
+    lw.inputs["Blend"].default_value = 0.35
+    ramp = nt.nodes.new("ShaderNodeMapRange")
+    ramp.inputs["From Min"].default_value = 0.0
+    ramp.inputs["From Max"].default_value = 0.6
+    ramp.inputs["To Min"].default_value = 0.03
+    ramp.inputs["To Max"].default_value = 0.8
+    mix = nt.nodes.new("ShaderNodeMixShader")
+    nt.links.new(lw.outputs["Facing"], ramp.inputs["Value"])
+    nt.links.new(ramp.outputs["Result"], mix.inputs["Fac"])
+    nt.links.new(tr.outputs["BSDF"], mix.inputs[1])
+    nt.links.new(b.outputs["BSDF"], mix.inputs[2])
+    nt.links.new(mix.outputs["Shader"], outn.inputs["Surface"])
+    return m
+
+
+def icon_hourglass():
+    """Přesýpací hodiny: dřevěný rám (dvě desky, tři sloupky), skleněné baňky, písek dole
+    v kopečku, nahoře ubývá a tenký proud mezi nimi – čas, který zbývá."""
+    H, NECK = 0.62, 0.045
+
+    def bulb_r(t):
+        # t = 0 u hrdla, 1 u desky: úzké hrdlo, baňka se rozšíří a k desce se zase zúží
+        return NECK + 0.34 * math.sin(math.pi * 0.88 * t) ** 0.7
+
+    steps = 24
+    glass = bmesh.new()
+    lower = [(-H + H * k / steps, bulb_r(1 - k / steps)) for k in range(steps + 1)]
+    upper = [(H * k / steps, bulb_r(k / steps)) for k in range(1, steps + 1)]
+    revolve(glass, lower + upper, seg=48)
+    sand = bmesh.new()
+    # dole kopeček písku: od dna po hladinu ve třetině baňky, nahoře špička
+    base_z, top_z = -H + 0.02, -H + 0.34
+    pile = []
+    for k in range(13):
+        z = base_z + (top_z - base_z) * k / 12
+        t = 1 - (z + H) / H
+        r = bulb_r(t) * 0.93
+        if k == 12:
+            r = 0.0
+        else:
+            r *= (1 - (k / 12) ** 2.2) ** 0.35
+        pile.append((z, max(r, 0.0)))
+    revolve(sand, pile, seg=40, cap_bottom=True)
+    # nahoře zbytek písku: od hrdla po hladinu s mělkým důlkem
+    upper_sand = []
+    for k in range(10):
+        z = 0.02 + 0.2 * k / 9
+        upper_sand.append((z, bulb_r(z / H) * 0.9))
+    revolve(sand, upper_sand + [(0.2, 0.06)], seg=40, cap_bottom=True, cap_top=True)
+    cyl(sand, (0, 0, 0.03), (0, 0, top_z - 0.02), 0.011, 0.011, 8)
+    frame = bmesh.new()
+    cyl(frame, (0, 0, H), (0, 0, H + 0.11), 0.56, 0.56, 48)
+    cyl(frame, (0, 0, -H - 0.11), (0, 0, -H), 0.56, 0.56, 48)
+    for k in range(3):
+        a = 2 * math.pi * k / 3 + 0.5
+        p = (math.cos(a) * 0.46, math.sin(a) * 0.46)
+        cyl(frame, (p[0], p[1], -H), (p[0], p[1], H), 0.045, 0.045, 12)
+    objs = [
+        to_obj(frame, "frame", mat("frame", (0.42, 0.25, 0.12), 0.55, noise=16, bump=0.12)),
+        to_obj(sand, "sand", mat("sand", (0.88, 0.56, 0.22), 0.9, noise=60)),
+        to_obj(glass, "glass", glass_mat("glass")),
+    ]
+    sun(az=-40, el=35, strength=4.5)
+    camera(world_points(objs), az=20, el=14, margin=1.04)
+    return True
+
+
 def icon_animal(name, folder=FAUNA, tint=None, turn=-115):
     """Zvíře stáda (model z `models/fauna/`, vůl ze spřežení `models/plough/`) z boku ve 3/4:
     morph targety pózy (krok, pastva) vypnuté – stojí; pomocná koule v GLB vola pryč."""
@@ -1476,6 +1572,7 @@ RESOURCES = {
     "cheese": icon_cheese,
     "eggs": icon_eggs,
     "legumes": icon_legumes,
+    "hourglass": icon_hourglass,
     "sheep": lambda: icon_animal("sheep"),
     "goat": lambda: icon_animal("goat"),
     "pig": lambda: icon_animal("pig"),
