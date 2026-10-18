@@ -37,6 +37,24 @@ Registrace má být co nejkratší.
 - **Testy:** end-to-end test v prohlížeči (Playwright) celé cesty registrace → ověření →
   přihlášení → herní plocha → odhlášení a obnovy hesla, proti samostatné testovací databázi.
 
+## Vývojový režim (Martin, 18. 10. 2026)
+
+> „Někteří hráči – teď vlastně jenom můj profil Jarmil – budou mít tzv. dev mód. V dev módu budu
+> mít vedle data dvě šipky – jedna přeskočí dál o měsíc a druhá o rok – je to proto, abych při
+> testování hry nemusel čekat, až se vesnice rozroste atd.“
+
+- **Kdo:** účty s příznakem vývojového režimu. Hráč si ho zapnout nemůže, v rozhraní se
+  nepřepíná – nastavuje ho jen skript vývojového účtu (`npm run db:seed-dev`, dnes jen Jarmil).
+- **Šipky vedle data v liště:** ▶ přeskočí **měsíc** (30 herních dní), ⏩ **rok** (365 dní).
+  Dokud server přeskočení nedokončí, obě šipky čekají.
+- **Posun času hráče:** přeskočení nehýbe světem, jen hráčem – hráč pak žije o posun napřed
+  (dnešní den = den světa + posun). Posun platí pro všechno, co hráč vidí a dělá: dopočet
+  a akce vsí, datum v liště, roční období a dým ve scéně. Ves se při přeskočení hned dopočítá
+  do nového dne.
+- **Jen dopředu:** posun jen roste – uložený stav vsi se nikdy nevrací zpět. Nejdál do
+  posledního dne světa (31. 12. 1499).
+- **Ostatní hráči** šipky nevidí a server jim přeskočení odmítne.
+
 ## Mimo rozsah
 
 Pozvánkové kódy (přijdou s mechanikou vazalství), jméno rodu, odesílání skutečných e-mailů,

@@ -36,6 +36,8 @@ import type { LivestockGround } from './livestock-placement';
 import {
   createVillagerPose,
   villagerSeconds,
+  walkSpeed,
+  walkThen,
   type HerdView,
   type VillagerKind,
 } from './villager-motion';
@@ -60,6 +62,11 @@ const HEAD_ROOM_M = 2.6;
 const SHADOW_SIZE_M = 1.15;
 const SHADOW_OPACITY = 0.5;
 const SHADOW_LIFT_M = 0.04;
+/**
+ * Po přeplánování dojde postava na nové místo pěšky, když je od starého dál než `from` a blíž
+ * než `to` (m) – další čtverec pole, další strom; dál (jiná práce jinde ve vsi) se objeví hned.
+ */
+const WALK_OVER_M = { from: 2.5, to: 90 };
 /** Kód vlasů pro shader (villagerLook.w). */
 const HAIR_CODE: Record<HairLook, number> = { natural: 0, grey: 1, linen: 2, madder: 3 };
 
@@ -280,10 +287,31 @@ export class VillageVillagers {
       this.shadow?.mesh.setEnabled(false);
       return had;
     }
+    // kdo už ve vsi je, na nové místo práce dojde (rozpracovaný čtverec je hotový – další)
+    const t = villagerSeconds(nowMs);
+    const probe = createVillagerPose();
+    const before = new Map(
+      this.people.map((p) => {
+        const pose = p.pose(t, herds, probe);
+        return [p.key, { x: pose.x, z: pose.z }] as const;
+      }),
+    );
     this.people = planVillagers(village, ground, {
       seed: villageSeed(village),
       herds: herds.length,
-    }).filter((p) => this.models?.has(p.kind));
+    })
+      .filter((p) => this.models?.has(p.kind))
+      .map((p) => {
+        const from = before.get(p.key);
+        if (!from) return p;
+        const to = p.pose(t, herds, probe);
+        const distance = Math.hypot(to.x - from.x, to.z - from.z);
+        if (distance < WALK_OVER_M.from || distance > WALK_OVER_M.to) return p;
+        return {
+          ...p,
+          pose: walkThen(from.x, from.z, p.pose, t, walkSpeed(p.kind, 'walk', p.scale)),
+        };
+      });
     for (const name of KINDS) {
       const people = this.people.filter((p) => p.kind === name);
       const model = this.models.get(name);
@@ -507,7 +535,12 @@ function villageKey(village: SceneVillage): string {
   );
   const fields = village.fields.map(
     (f) =>
-      `${f.id}:${f.parts.map((p) => `${p.x.toFixed(1)},${p.z.toFixed(1)},${p.stage}`).join(';')}`,
+      `${f.id}:${f.parts
+        .map(
+          (p) =>
+            `${p.x.toFixed(1)},${p.z.toFixed(1)},${p.stage},${p.look ?? ''},${p.work ?? ''},${p.before ?? ''}`,
+        )
+        .join(';')}`,
   );
   const orchards = (village.orchards ?? []).map(
     (o) =>

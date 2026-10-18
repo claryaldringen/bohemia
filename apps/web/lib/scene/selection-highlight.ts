@@ -2,7 +2,7 @@ import type { StandardMaterial } from '@babylonjs/core/Materials/standardMateria
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 import type { Scene } from '@babylonjs/core/scene';
-import { DWELLING_FOOTPRINT_M } from '@bohemia/game';
+import { DWELLING_FOOTPRINT_M, SACRED_BUILDINGS } from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
 import { cellsBoundary } from './field-cells';
 import { footprintCorners, stripSegments, type Point } from './village-layout';
@@ -13,6 +13,8 @@ import type { VillageTarget } from './village-picking';
 const SELECTION_COLOR = new Color3(1, 0.86, 0.45);
 /** O kolik je rámeček kolem obydlí větší než půdorys (m). */
 const DWELLING_RING_MARGIN_M = 1.2;
+/** Kroužek kolem posvátného dubu – kolem kruhu kamenů obětin (m). */
+const OAK_RING_RADIUS_M = 2.6;
 
 /** Zvýraznění vybraného obydlí, pole nebo hřbitova – rámeček na zemi (obtisk). */
 export class SelectionHighlight {
@@ -59,10 +61,30 @@ export class SelectionHighlight {
 }
 
 /**
- * Obrys cíle jako lomené čáry: rámeček kolem půdorysu obydlí, nebo mez kolem čtverců pole,
- * hřbitova či sadu.
+ * Obrys cíle jako lomené čáry: rámeček kolem půdorysu obydlí, modly nebo svatyně, kroužek kolem
+ * posvátného dubu, nebo mez kolem čtverců pole, hřbitova, sadu či háje.
  */
-function targetOutline(village: SceneVillage, target: VillageTarget): Point[][] {
+export function targetOutline(village: SceneVillage, target: VillageTarget): Point[][] {
+  if (target.kind === 'sacred') {
+    const building = village.sacred?.buildings.find((b) => b.id === target.id);
+    if (!building) return [];
+    const size = SACRED_BUILDINGS[building.kind].footprintM + DWELLING_RING_MARGIN_M * 2;
+    const corners = footprintCorners(building.position, size, size);
+    return [[...corners, corners[0]!]];
+  }
+  if (target.kind === 'sacred-oak') {
+    const oak = village.sacred?.oaks.find((o) => o.id === target.id);
+    if (!oak) return [];
+    const ring = Array.from({ length: 25 }, (_, k): Point => {
+      const a = (k / 24) * Math.PI * 2;
+      return [oak.x + Math.cos(a) * OAK_RING_RADIUS_M, oak.z + Math.sin(a) * OAK_RING_RADIUS_M];
+    });
+    return [ring];
+  }
+  if (target.kind === 'grove') {
+    const grove = village.sacred?.groves.find((g) => g.id === target.id);
+    return grove ? cellsBoundary(grove.squares) : [];
+  }
   if (target.kind === 'dwelling') {
     const dwelling = village.dwellings.find((d) => d.id === target.id);
     if (!dwelling) return [];

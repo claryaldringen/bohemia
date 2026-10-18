@@ -237,8 +237,12 @@ export class LandscapeScene {
       requestRender: () => this.renderWhenReady(),
       pitCuts: this.pitCuts,
       sunDirection: SUN_DIRECTION,
+      landscape,
     });
     if (this.worldClock) this.village.setWorldClock(this.worldClock);
+    if (this.season) {
+      this.village.setSeason(this.seasonDayOfYear(), this.season.snow);
+    }
     this.village.setSmokeAlways(this.smokeAlways);
     this.highlight = new SelectionHighlight(this.scene, (x, z) => terrainMeshHeight(surface, x, z));
     await report('forest', 0.4);
@@ -472,16 +476,20 @@ export class LandscapeScene {
               decalHeight: (x, z) => village.decalHeight(x, z),
               cameraAlpha: () => camera.camera.alpha,
               ghostModel: (type) => village.ghostModel(type),
-              baseHeight: (d) => village.baseHeight(d),
+              baseHeight: (type, position) =>
+                type === 'idol' || type === 'shrine'
+                  ? village.sacredBaseHeight(type, position)
+                  : village.baseHeight({ type, position }),
               requestRender,
             },
             mode,
             controlled,
           );
     this.placement = controller;
-    if (mode.kind === 'dwelling') {
+    if (mode.kind !== 'squares') {
       // Model ducha se načte (jednou) a pak naskočí pod kurzorem.
-      void village.loadModels().then(() => {
+      const models = mode.kind === 'sacred' ? village.loadSacredModels() : village.loadModels();
+      void models.then(() => {
         if (this.placement === controller) this.pointerMoved = this.pointerInside;
       });
     }
@@ -721,7 +729,11 @@ export class LandscapeScene {
     const changed = village.update(this.villageState);
     const changes = this.villageState.obstacles ?? NO_OBSTACLE_CHANGES;
     const hiddenIds = new Set([...changes.removed, ...changes.stumps, ...changes.saplings]);
-    const hidden = this.hider.apply(village.hideShapes(), hiddenIds);
+    // posvátné duby se postupně zvětší (jen vzhled, mění se nejvýš jednou za herní rok)
+    const growth = new Map(
+      (this.villageState.sacred?.oaks ?? []).map((oak) => [oak.id, oak.growth ?? 1]),
+    );
+    const hidden = this.hider.apply(village.hideShapes(), hiddenIds, growth);
     const shaded = this.terrainGround?.setHiddenTrees(hiddenIds) ?? false;
     const clearing =
       this.obstacles && this.landscape
@@ -795,6 +807,8 @@ export class LandscapeScene {
       if (this.livestock?.animate(Date.now(), camera.camera)) animated = true;
       // lidé ve vsi – skutečný čas jako zvířata
       if (this.villagers?.animate(Date.now(), camera.camera)) animated = true;
+      // obilí ve větru – jen zralé a zelené v záběru
+      if (this.village?.animateFields(Date.now(), camera.camera)) animated = true;
       if (animated) {
         this.lastWaterFrame = now;
         this.needsRender = true;
@@ -802,6 +816,8 @@ export class LandscapeScene {
     }
     if (camera.update(this.engine.getDeltaTime() / 1000)) {
       this.needsRender = true;
+      // obilí z dálky řídne (trsy), pole pak nese obtisk porostu
+      this.village?.setView(camera.camera.radius);
       // Pod nehybným kurzorem je po pohybu kamery jiné políčko.
       if (this.pointerInside) this.pointerMoved = true;
       const { target, radius } = camera.camera;
@@ -833,6 +849,11 @@ export class LandscapeScene {
     if (deciduous && this.bareShadows) this.shadows.setCastersEnabled([mesh], false);
   }
 
+  /** Den v roce scény – vývojový přepínač, jinak podle herního data světa. */
+  private seasonDayOfYear(): number {
+    return this.seasonDay ?? seasonDayAt(Date.now(), this.worldClock ?? OFFICIAL_WORLD);
+  }
+
   /**
    * Roční období podle herního data (nebo vývojového přepínače): když se vzhled znatelně
    * změnil, nastaví světlo, opar, vodu, stíny, zvuky a uniformy materiálů a scénu jednou
@@ -840,8 +861,13 @@ export class LandscapeScene {
    */
   private updateSeason(force: boolean): void {
     this.seasonCheckAt = performance.now() + SEASON_CHECK_MS;
-    const day = this.seasonDay ?? seasonDayAt(Date.now(), this.worldClock ?? OFFICIAL_WORLD);
+    const day = this.seasonDayOfYear();
     const look = seasonLook(day);
+    // pole podle dne (odhad vzhledu, seč luk) a sněhu – přestaví se, jen když se něco změnilo
+    if (this.village?.setSeason(day, look.snow)) {
+      this.shadows?.refresh();
+      this.needsRender = true;
+    }
     if (!force && this.season && seasonLookDistance(look, this.season) < SEASON_EPSILON) return;
     this.season = look;
     const { light } = look;

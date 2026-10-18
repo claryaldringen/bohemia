@@ -95,7 +95,7 @@ export function DefeatScreen({
           autoFocus
           disabled={pending}
           onClick={restart}
-          className="mt-6 rounded border-2 border-[#8a6a3c] bg-gradient-to-b from-[#56432c] to-[#2b2219] px-8 py-2 font-serif text-lg text-[#f3dfb0] shadow-[inset_0_1px_0_rgb(255_214_150/0.15),0_2px_6px_rgb(0_0_0/0.6)] transition hover:border-[#e0b062] hover:shadow-[inset_0_1px_0_rgb(255_214_150/0.2),0_0_10px_rgb(240_190_100/0.45)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f3cf86] disabled:cursor-wait disabled:opacity-60"
+          className="hud-button mt-6 px-8 py-2 font-serif text-lg disabled:cursor-wait disabled:opacity-60"
         >
           Začít znovu
         </button>

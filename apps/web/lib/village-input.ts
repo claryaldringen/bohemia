@@ -1,4 +1,4 @@
-import type { DwellingType, Position, TileCell } from '@bohemia/game';
+import type { DwellingType, Position, SacredBuildingKind, TileCell, TimeSkip } from '@bohemia/game';
 
 // Ověření tvaru vstupu server actions vsi – data od klienta jsou nedůvěryhodná. Herní pravidla
 // (kde smí stavba stát) ověřují až use-casy.
@@ -7,6 +7,8 @@ import type { DwellingType, Position, TileCell } from '@bohemia/game';
 const MAX_RAW_FIELD_CELLS = 5000;
 const MAX_RAW_NAME_LENGTH = 200;
 const DWELLING_TYPES: readonly DwellingType[] = ['zemnice', 'polozemnice'];
+const SACRED_KINDS: readonly SacredBuildingKind[] = ['idol', 'shrine'];
+const TIME_SKIPS: readonly TimeSkip[] = ['month', 'year'];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -90,4 +92,32 @@ export function parsePlaceCemeteryInput(value: unknown): { cells: TileCell[] } |
 /** Vstup založení sadu `{ cells }` (čtverce jako u pole), jinak null. */
 export function parsePlaceOrchardInput(value: unknown): { cells: TileCell[] } | null {
   return parsePlaceFieldInput(value);
+}
+
+/** Vstup stavby modly nebo svatyně `{ kind, position }`, jinak null. */
+export function parsePlaceSacredInput(
+  value: unknown,
+): { kind: SacredBuildingKind; position: Position } | null {
+  if (!isRecord(value)) return null;
+  const kind = SACRED_KINDS.find((k) => k === value.kind) ?? null;
+  const position = parsePosition(value.position);
+  return kind !== null && position !== null ? { kind, position } : null;
+}
+
+/**
+ * Vstup restartu hry: bez vstupu (obrazovka porážky) = jen po konci hry, `{ abandon: true }`
+ * (nabídka hry) = i se živou vsí. Jiný tvar → null.
+ */
+export function parseRestartGameInput(value: unknown): { abandon: boolean } | null {
+  if (value === undefined) return { abandon: false };
+  if (!isRecord(value)) return null;
+  if (value.abandon === undefined) return { abandon: false };
+  return typeof value.abandon === 'boolean' ? { abandon: value.abandon } : null;
+}
+
+/** Vstup přeskočení času (vývojový režim) `{ skip: 'month' | 'year' }`, jinak null. */
+export function parseSkipTimeInput(value: unknown): { skip: TimeSkip } | null {
+  if (!isRecord(value)) return null;
+  const skip = TIME_SKIPS.find((s) => s === value.skip);
+  return skip === undefined ? null : { skip };
 }

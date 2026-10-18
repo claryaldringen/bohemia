@@ -18,6 +18,7 @@ import {
   tileCenterWorld,
   villageStock,
   wholeLogs,
+  sacredBuildingHappiness,
   type BuildKind,
   type ChronicleEvent,
   type ConstructionKind,
@@ -32,18 +33,21 @@ import {
   type PartStage,
   type PlacementVillage,
   type Position,
+  type SacredBuildingKind,
   type StockResource,
   type TileCell,
   type VillageLifespan,
   type VillageRecord,
   type VillageState,
   type VillageSummary,
+  hasShrine,
   villageCemeteries,
   villageLifespan,
   villageOrchards,
 } from '@bohemia/game';
 import { formatGameDate } from './game-date';
 import { fruitVisible, treeGrowth } from './orchard-look';
+import { sacredOakGrowth } from './sacred-look';
 import { formatCells, formatHa, formatInteger } from './village-format';
 
 // Pohled na ves pro panel a scénu (DTO server actions). Čistý modul – smí ho importovat
@@ -56,6 +60,7 @@ export type {
   LaborShare,
   LaborTarget,
   PartStage,
+  SacredBuildingKind,
   StockResource,
 } from '@bohemia/game';
 
@@ -74,7 +79,43 @@ export interface BuildOption {
    * chybí (0 = ves má).
    */
   upfront: { resource: StockResource; amount: number; missing: number }[];
+  /**
+   * Stavbu nejde zahájit z jiného důvodu než surovin – svatyně je jedna na ves (happiness.md);
+   * rozhraní důvod ukáže v popisku červeně. Jinak null.
+   */
+  blocked: string | null;
   affordable: boolean;
+}
+
+/** Štěstí obyvatel pro horní lištu (happiness.md). */
+export interface VillageHappiness {
+  /** Štěstí 0–100. */
+  value: number;
+  /** Cílová hodnota, ke které se štěstí pomalu posouvá. */
+  target: number;
+  /** Násobek veškeré práce vsi (0,8–1,1). */
+  laborFactor: number;
+}
+
+/**
+ * Posvátná místa pro panel výběru – kolik které samo přidává štěstí (stropy počtu a součtu platí
+ * pro celou ves) a u modly a svatyně průběh stavby.
+ */
+export interface VillageSacred {
+  oaks: { id: number; happiness: number }[];
+  groves: { id: number; oaks: number; squares: number; happiness: number }[];
+  /**
+   * Modly a svatyně – hotové (`built`, id stavby, která je postavila) i rozestavěné (id stavby):
+   * průběh celé stavby i s kácením dubů 0–1 a kolik dubů ještě musí skácet.
+   */
+  buildings: {
+    id: number;
+    kind: SacredBuildingKind;
+    built: boolean;
+    happiness: number;
+    progress: number;
+    oaksToFell: number;
+  }[];
 }
 
 export interface VillageView {
@@ -147,6 +188,10 @@ export interface VillageView {
   starving: boolean;
   /** Stavby stojí – několik dní po sobě nezbyla žádná společná práce. */
   constructionsStalled: boolean;
+  /** Štěstí obyvatel (happiness.md) – horní lišta. */
+  happiness: VillageHappiness;
+  /** Posvátné duby, háje, modly a svatyně (happiness.md) – panel výběru. */
+  sacred: VillageSacred;
   /** Ves vymřela – herní rok založení a vymření a kolik let žila; žijící ves null. */
   extinct: VillageLifespan | null;
   /**
@@ -207,18 +252,7 @@ export interface SceneVillage {
    */
   fields: {
     id: number;
-    parts: {
-      cell: TileCell;
-      x: number;
-      z: number;
-      size: number;
-      stage: PartStage;
-      /**
-       * Vzhled oseté části podle růstu obilí (`CropLook` ve scéně) – zatím ho posílá jen
-       * vývojový náhled staveb, server ne (oseté pole se kreslí jako vzcházející obilí).
-       */
-      crop?: 'growing' | 'ripe' | 'stubble';
-    }[];
+    parts: SceneFieldPart[];
   }[];
   /**
    * Hřbitovy po čtvercích (střed políčka ve světě a strana jako u pole) – průběh stavby
@@ -266,7 +300,91 @@ export interface SceneVillage {
    * před rozdělením práce, ještě nedopočítaný den) nikdo.
    */
   labor?: SceneLabor;
+  /** Posvátná místa (happiness.md) – bez údaje žádná. */
+  sacred?: SceneSacred;
 }
+
+/**
+ * Posvátná místa pro scénu: ušetřené posvátné duby (id stromu z vrstvy překážek a kmen – obětiny
+ * u kmene), dubové háje (id středového dubu, střed a čtverce s jejich středy a stranou – kamenný
+ * kruh a obětiny na okraji) a modly a svatyně (hotové i rozestavěné – id stavby; `progress` je
+ * průběh samotné stavby bez kácení dubů 0–1 pro fáze staveniště, vytyčení je vidět od 0).
+ */
+export interface SceneSacred {
+  /**
+   * `growth` = násobek velikosti dubu (a obětin u kmene) – ušetřené duby se postupně zvětší
+   * (`sacredOakGrowth`, jen vzhled); bez údaje 1.
+   */
+  oaks: { id: number; x: number; z: number; growth?: number }[];
+  groves: {
+    id: number;
+    x: number;
+    z: number;
+    squares: { cell: TileCell; x: number; z: number; size: number }[];
+  }[];
+  buildings: {
+    id: number;
+    kind: SacredBuildingKind;
+    position: Position;
+    built: boolean;
+    progress: number;
+  }[];
+}
+
+/**
+ * Co je na dílu pole vidět (fields.md – Co hráč vidí): rozrytý drn při zakládání (`bare`),
+ * zorané (`plowed`), zavláčené a oseté (`sown`), vzcházející (`sprouted`), zelené (`green`)
+ * a zralé obilí (`ripe`), žeň s panáky snopů (`harvesting`), strniště (`stubble`). Úhor: mladý
+ * (1–2 roky) je strniště s plevelem, kde se pase (`young-fallow`), spasená pastvina (`pasture`);
+ * úhor ve stadiu louky se kosí na seno (Martin) – vysoká tráva na jaře (`meadow`), posečená
+ * s řádky sena a kupkami (`mown`), otava se stohy, které přes podzim a zimu mizí (`haystacks`).
+ */
+export type FieldLook =
+  | 'bare'
+  | 'plowed'
+  | 'sown'
+  | 'sprouted'
+  | 'green'
+  | 'ripe'
+  | 'harvesting'
+  | 'stubble'
+  | 'young-fallow'
+  | 'pasture'
+  | 'meadow'
+  | 'mown'
+  | 'haystacks';
+
+/**
+ * Díl pole ve scéně – políčko krajiny `cell`, jeho střed (x, z) ve světě, strana políčka `size`
+ * v m a stadium. Vzhled (`look`, `work`, `before`) počítá herní jádro po čtvercích – práce mění
+ * díl, až když k němu dojde (fronta práce: jeden rozpracovaný díl na úlohu). Bez `look` ho scéna
+ * odhadne ze stadia a data (`estimateFieldLooks` ve field-look.ts).
+ */
+export interface SceneFieldPart {
+  /** Id dílu v herním jádru – podle něj postavy najdou díly z fronty práce (`SceneLaborShare.parts`). */
+  id?: number;
+  cell: TileCell;
+  x: number;
+  z: number;
+  size: number;
+  stage: PartStage;
+  /** Co je na dílu vidět; u rozpracovaného dílu vzhled hotové části. */
+  look?: FieldLook;
+  /**
+   * Rozpracovaný díl: kolik práce dnešní úlohy je na něm hotovo 0–1 – hotová část řádků má
+   * `look`, zbytek `before`. Zakládaný díl s 0 je jen vytyčený (kolíky a provázek).
+   */
+  work?: number;
+  /** Vzhled nehotové části rozpracovaného dílu; bez údaje povrch před prací (louka u zakládání). */
+  before?: FieldLook;
+}
+
+/**
+ * Podíl práce dne pro postavy. U polních prací může nést díly z fronty práce (`parts` – id
+ * dílů v pořadí: nejdřív rozpracovaný, pak ty, na které práce přijde) – postavy pak pracují
+ * přesně tam; bez nich je scéna odhadne z `work` a vzhledu dílů.
+ */
+export type SceneLaborShare = LaborShare & { parts?: readonly number[] };
 
 /**
  * Rozdělení práce posledního dne pro postavy: člověkodny po činnostech a místech (na setiny),
@@ -276,7 +394,7 @@ export interface SceneLabor {
   day: number;
   month: number;
   people: { children: number; adults: number; elders: number };
-  shares: LaborShare[];
+  shares: SceneLaborShare[];
 }
 
 export const CHRONICLE_LENGTH = 8;
@@ -297,6 +415,8 @@ function deathText(group: 'child' | 'adult' | 'elder', hunger: boolean): string 
 
 function finishedText(kind: ConstructionKind): string {
   if (kind === 'dwelling') return 'Dostavěli nové obydlí.';
+  if (kind === 'idol') return 'Vztyčili dřevěnou modlu.';
+  if (kind === 'shrine') return 'Svatyně je dostavěná – v ohništích hoří oheň.';
   if (kind === 'rebuild') return 'Dokončili přestavbu obydlí.';
   if (kind === 'cemetery') return 'Hřbitov je ohrazený – dá se do něj pohřbívat.';
   if (kind === 'orchard') return 'Sad je vysazený.';
@@ -334,6 +454,10 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       return 'Hlad skončil.';
     case 'part-became-forest':
       return 'Opuštěný díl pole zarostl v les.';
+    case 'sacred-spared':
+      return event.site === 'oak'
+        ? 'Vesničané ušetřili posvátný dub.'
+        : 'Vesničané ušetřili dubový háj.';
     case 'cemetery-full':
       if (event.othersFree) return 'Jeden z hřbitovů se zaplnil – pohřbívá se do dalšího.';
       // staví se jiný hřbitov nebo rozšíření – bude kam pohřbívat
@@ -342,8 +466,15 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
   }
 }
 
+/** Názvy posvátných staveb (happiness.md). */
+export const SACRED_BUILDING_NAMES: Record<SacredBuildingKind, string> = {
+  idol: 'Modla',
+  shrine: 'Svatyně',
+};
+
 function constructionLabel(c: ConstructionSummary): string {
   if (c.kind === 'field') return `Pole ${formatHa(c.areaM2 ?? 0)}`;
+  if (c.kind === 'idol' || c.kind === 'shrine') return SACRED_BUILDING_NAMES[c.kind];
   if (c.kind === 'cemetery') return `Hřbitov (${formatCells(c.squares ?? 0)})`;
   if (c.kind === 'orchard') return `Sad ${formatHa(c.areaM2 ?? 0)}`;
   const type = c.dwellingType ?? 'zemnice';
@@ -377,7 +508,7 @@ function sceneVillage(
     id: f.id,
     parts: state.parts.flatMap((p) =>
       p.fieldId === f.id && p.cell !== undefined
-        ? [scenePart(landscape, p.cell, partStage(p, day))]
+        ? [scenePart(landscape, p, p.cell, partStage(p, day))]
         : [],
     ),
   }));
@@ -400,6 +531,7 @@ function sceneVillage(
   }));
   const reserved = [...reservedTrees(state)].sort((a, b) => a - b);
   const labor = sceneLabor(state, summary.people);
+  const sacred = sceneSacred(state, landscape, day, summary);
   return {
     dwellings: [...built, ...sites],
     fields,
@@ -409,6 +541,89 @@ function sceneVillage(
     ...(reserved.length > 0 ? { reservedTrees: reserved } : {}),
     woodLogs: wholeLogs(state.woodLogs ?? 0),
     ...(labor ? { labor } : {}),
+    ...(sacred ? { sacred } : {}),
+  };
+}
+
+/** Posvátná místa pro scénu; ves bez nich null. */
+function sceneSacred(
+  state: VillageState,
+  landscape: Landscape,
+  day: number,
+  summary: VillageSummary,
+): SceneSacred | null {
+  const sites = state.constructions.flatMap((c) => {
+    if ((c.kind !== 'idol' && c.kind !== 'shrine') || c.position === null) return [];
+    const progress = summary.constructions.find((s) => s.id === c.id)?.buildProgress ?? 0;
+    return [{ id: c.id, kind: c.kind, position: c.position, built: false, progress }];
+  });
+  const buildings = [
+    ...summary.sacred.buildings.map((b) => ({
+      id: b.id,
+      kind: b.kind,
+      position: b.position,
+      built: true,
+      progress: 1,
+    })),
+    ...sites,
+  ];
+  const { oaks, groves } = summary.sacred;
+  if (oaks.length === 0 && groves.length === 0 && buildings.length === 0) return null;
+  return {
+    oaks: oaks.map((o) => ({ id: o.id, x: o.x, z: o.z, growth: sacredOakGrowth(o.day, day) })),
+    groves: groves.map((g) => ({
+      id: g.id,
+      x: g.x,
+      z: g.z,
+      squares: g.cells.map((cell) => {
+        const center = tileCenterWorld(landscape, cell.x, cell.y);
+        return {
+          cell: { x: cell.x, y: cell.y },
+          x: center.x,
+          z: center.z,
+          size: landscape.cellSizeM,
+        };
+      }),
+    })),
+    buildings,
+  };
+}
+
+/** Posvátná místa pro panel výběru – kolik které přidává, u staveb průběh. */
+function sacredView(summary: VillageSummary): VillageSacred {
+  const sites = summary.constructions.flatMap((c) =>
+    c.kind === 'idol' || c.kind === 'shrine'
+      ? [
+          {
+            id: c.id,
+            kind: c.kind,
+            built: false,
+            happiness: SACRED_HAPPINESS[c.kind],
+            progress: c.progress,
+            oaksToFell: c.treesToFell,
+          },
+        ]
+      : [],
+  );
+  return {
+    oaks: summary.sacred.oaks.map((o) => ({ id: o.id, happiness: o.happiness })),
+    groves: summary.sacred.groves.map((g) => ({
+      id: g.id,
+      oaks: g.oaks,
+      squares: g.cells.length,
+      happiness: g.happiness,
+    })),
+    buildings: [
+      ...summary.sacred.buildings.map((b) => ({
+        id: b.id,
+        kind: b.kind,
+        built: true,
+        happiness: b.happiness,
+        progress: 1,
+        oaksToFell: 0,
+      })),
+      ...sites,
+    ],
   };
 }
 
@@ -475,19 +690,35 @@ function cemeteryProgress(
   return built ? Math.min(...active.map((s) => s.progress)) : active[0]!.progress;
 }
 
+/** Krok průběhu zakládání dílu pro scénu – obtisk se nepřestavuje při každém dotazu. */
+const FOUNDING_WORK_STEP = 20;
+
+/**
+ * Díl pole pro scénu. Zakládaný díl nese průběh (`work`): 0 = jen vytyčený (kolíky a provázek),
+ * pak se drn rozrývá po řádcích – zakládá se po dílech od nejbližšího k obydlí, rozpracovaný je
+ * vždy jen jeden. Vzhled ostatních dílů zatím odhadne scéna (field-look.ts).
+ */
 function scenePart(
   landscape: Landscape,
+  part: { id: number; foundingDone: number; foundingCost: number },
   cell: TileCell,
   stage: PartStage,
-): SceneVillage['fields'][number]['parts'][number] {
+): SceneFieldPart {
   const center = tileCenterWorld(landscape, cell.x, cell.y);
-  return {
+  const scene: SceneFieldPart = {
+    id: part.id,
     cell: { x: cell.x, y: cell.y },
     x: center.x,
     z: center.z,
     size: landscape.cellSizeM,
     stage,
   };
+  if (stage === 'founding') {
+    const done = part.foundingCost > 0 ? part.foundingDone / part.foundingCost : 0;
+    const step = Math.round(done * FOUNDING_WORK_STEP) / FOUNDING_WORK_STEP;
+    scene.work = done > 0 ? Math.min(1, Math.max(1 / FOUNDING_WORK_STEP, step)) : 0;
+  }
+  return scene;
 }
 
 function chronicle(state: VillageState, name: string): VillageView['chronicle'] {
@@ -507,7 +738,16 @@ const BUILD_KINDS: readonly BuildKind[] = [
   'field',
   'cemetery',
   'orchard',
+  'idol',
+  'shrine',
 ];
+/** Kolik štěstí přidá modla a svatyně (happiness.md). */
+const SACRED_HAPPINESS: Record<SacredBuildingKind, number> = {
+  idol: sacredBuildingHappiness('idol'),
+  shrine: sacredBuildingHappiness('shrine'),
+};
+/** Svatyně je jedna na ves (happiness.md) – důvod v popisku nabídky staveb. */
+export const SHRINE_LIMIT = 'Ves už svatyni má.';
 const DAYS_PER_YEAR = 365.25;
 
 /**
@@ -523,12 +763,14 @@ function buildOptions(state: VillageState, landscape: Landscape): Record<BuildKi
       const amount = cost.upfront[resource] ?? 0;
       return amount > 0 ? [{ resource, amount, missing: missing[resource] ?? 0 }] : [];
     });
+    const blocked = kind === 'shrine' && hasShrine(state) ? SHRINE_LIMIT : null;
     const option: BuildOption = {
       laborManDays: cost.laborManDays,
       perHa: cost.perHa,
       perSquare: cost.perSquare ?? false,
       upfront,
-      affordable,
+      blocked,
+      affordable: affordable && blocked === null,
     };
     return [kind, option];
   });
@@ -611,6 +853,12 @@ export function buildVillageView(
     hungry: summary.hungry,
     starving: summary.starving,
     constructionsStalled: summary.constructionsStalled,
+    happiness: {
+      value: summary.happiness.value,
+      target: summary.happiness.target,
+      laborFactor: summary.happiness.laborFactor,
+    },
+    sacred: sacredView(summary),
     extinct: villageLifespan(state),
     gameOver,
     cemeteries: summary.cemeteries.map((c) => {
@@ -657,5 +905,13 @@ export function placementVillageFromScene(scene: SceneVillage): PlacementVillage
     })),
     ...(scene.obstacles ? { obstacleChanges: scene.obstacles } : {}),
     ...(scene.reservedTrees ? { reservedTrees: scene.reservedTrees } : {}),
+    ...(scene.sacred
+      ? {
+          sacredBuildings: scene.sacred.buildings.map((b) => ({
+            kind: b.kind,
+            position: b.position,
+          })),
+        }
+      : {}),
   };
 }

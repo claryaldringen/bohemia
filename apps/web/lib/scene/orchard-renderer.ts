@@ -5,7 +5,14 @@ import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import type { Scene } from '@babylonjs/core/scene';
-import { OUTCROP_RADIUS_M, obstacleKind, obstaclesNear, type ObstacleLayer } from '@bohemia/game';
+import {
+  OUTCROP_RADIUS_M,
+  SACRED_OAK_RADIUS_M,
+  obstacleKind,
+  obstaclesNear,
+  sacredSitesOf,
+  type ObstacleLayer,
+} from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
 import { cellsBoundary, cellsBounds, cellsContain } from './field-cells';
 import { applyGammaFog } from './gamma-fog';
@@ -20,7 +27,8 @@ import {
   plantingProgress,
   type Outcrop,
 } from './orchard-layout';
-import { stripSegments, type HideShape } from './village-layout';
+import { StakingPegs, createStringMaterial, createStringMesh, pegInstances } from './staking';
+import { stripSegments, type HideShape, type Point } from './village-layout';
 import { createStripMesh, type HeightFn } from './village-meshes';
 
 type SceneOrchard = NonNullable<SceneVillage['orchards']>[number];
@@ -58,7 +66,13 @@ export class OrchardRenderer {
   private key = '';
   private orchards: readonly SceneOrchard[] = [];
   /** Čára vytyčení podle sadu – přestaví se, jen když se změní jeho čtverce. */
-  private readonly layouts = new Map<number, { cells: string; mesh: Mesh }>();
+  private readonly layouts = new Map<
+    number,
+    { cells: string; meshes: Mesh[]; pegs: ModelInstance[] }
+  >();
+  /** Kolíky vytyčení všech sadů ve výsadbě (staking.ts). */
+  private readonly pegs: StakingPegs;
+  private stringMaterial: Material | null = null;
   private obstacles: ObstacleLayer | null = null;
   private shapes: HideShape[] = [];
   /** Modely jabloní: index varianta × 2 + (s plody ? 1 : 0); null = nenačtený. */
@@ -79,7 +93,9 @@ export class OrchardRenderer {
       /** Dočetly se modely – překreslit a obnovit stíny. */
       onAsyncChange(): void;
     },
-  ) {}
+  ) {
+    this.pegs = new StakingPegs(scene, (mesh) => context.addShadowCaster(mesh));
+  }
 
   /** Překreslí sady, když se změnily; vrátí true, když se něco změnilo. */
   update(orchards: readonly SceneOrchard[]): boolean {
@@ -115,8 +131,9 @@ export class OrchardRenderer {
 
   dispose(): void {
     this.disposed = true;
-    for (const layout of this.layouts.values()) layout.mesh.dispose();
+    for (const layout of this.layouts.values()) for (const mesh of layout.meshes) mesh.dispose();
     this.layouts.clear();
+    this.pegs.dispose();
     for (const model of this.models) model?.dispose();
     this.stakeMesh?.dispose();
   }
@@ -214,35 +231,68 @@ export class OrchardRenderer {
       const cells = orchard.squares.map((s) => `${s.cell.x},${s.cell.y}`).join(';');
       const current = this.layouts.get(orchard.id);
       if (current?.cells === cells) continue;
-      current?.mesh.dispose();
-      this.layouts.set(orchard.id, { cells, mesh: this.layoutMesh(orchard) });
+      for (const mesh of current?.meshes ?? []) mesh.dispose();
+      this.layouts.set(orchard.id, { cells, ...this.layoutParts(orchard) });
     }
     for (const [id, layout] of this.layouts) {
       if (keep.has(id)) continue;
-      layout.mesh.dispose();
+      for (const mesh of layout.meshes) mesh.dispose();
       this.layouts.delete(id);
     }
+    this.pegs.set([...this.layouts.values()].flatMap((layout) => layout.pegs));
   }
 
-  /** Skalní výchozy, které zasahují do čtverce (i z vedlejších políček); bez vrstvy žádné. */
+  /**
+   * Skalní výchozy, které zasahují do čtverce (i z vedlejších políček), a posvátné duby – pod
+   * korunou dubu (≈ 50 m², happiness.md) jabloň nestojí; bez vrstvy žádné.
+   */
   private outcropsNear(square: SceneOrchardSquare): Outcrop[] {
     const layer = this.obstacles;
     if (!layer) return [];
     const half = square.size / 2 + OUTCROP_SEARCH_M;
-    return obstaclesNear(layer, square.x - half, square.z - half, square.x + half, square.z + half)
+    const outcrops = obstaclesNear(
+      layer,
+      square.x - half,
+      square.z - half,
+      square.x + half,
+      square.z + half,
+    )
       .filter((i) => obstacleKind(layer, i) === 'outcrop')
       .map((i) => ({ x: layer.x[i]!, z: layer.z[i]!, radius: OUTCROP_RADIUS_M * layer.scale[i]! }));
+    const oaks = sacredSitesOf(layer)
+      .oaks.filter((o) => Math.abs(o.x - square.x) <= half && Math.abs(o.z - square.z) <= half)
+      .map((o) => ({ x: o.x, z: o.z, radius: SACRED_OAK_RADIUS_M }));
+    return [...outcrops, ...oaks];
   }
 
   /**
    * Světlé čáry vytyčení (provázek, naražená tráva) – po obrysu sadu a podél řad stromů, jen
    * během výsadby.
    */
-  private layoutMesh(orchard: SceneOrchard): Mesh {
-    const lines = [...cellsBoundary(orchard.squares), ...orchardRowLines(orchard.squares)];
+  private layoutParts(orchard: SceneOrchard): { meshes: Mesh[]; pegs: ModelInstance[] } {
+    const boundary = cellsBoundary(orchard.squares);
+    const rows = orchardRowLines(orchard.squares);
+    // kolíky po obvodu sadu a na koncích řad, provázek mezi nimi (vidět od zadání, tj. od 0 %)
+    const pegs = [
+      ...pegInstances(boundary, this.context.groundHeight),
+      ...pegInstances(rows, this.context.groundHeight, Number.POSITIVE_INFINITY),
+    ];
+    this.stringMaterial ??= createStringMaterial(this.scene);
+    const string = createStringMesh(
+      this.scene,
+      `village-orchard-string-${orchard.id}`,
+      [...boundary, ...rows],
+      this.context.groundHeight,
+      this.stringMaterial,
+    );
+    return { meshes: [this.layoutMesh(boundary, rows, orchard.id), string], pegs };
+  }
+
+  private layoutMesh(boundary: Point[][], rows: Point[][], id: number): Mesh {
+    const lines = [...boundary, ...rows];
     const mesh = createStripMesh(
       this.scene,
-      `village-orchard-layout-${orchard.id}`,
+      `village-orchard-layout-${id}`,
       lines.flatMap((line) => stripSegments(line, false, 0.09, 0.5)),
       this.context.decalHeight,
       LAYOUT_LIFT_M,

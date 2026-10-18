@@ -5,6 +5,7 @@ const PLACEMENT = {
   above: 'bottom-full left-1/2 mb-1.5 -translate-x-1/2',
   'above-left': 'right-0 bottom-full mb-1.5',
   'below-left': 'top-full right-0 mt-1.5',
+  left: 'right-full top-1/2 mr-2 -translate-y-1/2',
 } as const;
 
 /**
@@ -14,14 +15,17 @@ const PLACEMENT = {
 export function Tooltip({
   content,
   placement = 'below',
+  block = false,
   children,
 }: {
   content: ReactNode;
   placement?: keyof typeof PLACEMENT;
+  /** Obal přes celou šířku (tlačítko nabídky), jinak jen kolem obsahu. */
+  block?: boolean;
   children: ReactNode;
 }): ReactElement {
   return (
-    <span className="group/tooltip relative inline-flex">
+    <span className={`group/tooltip relative ${block ? 'flex' : 'inline-flex'}`}>
       {children}
       <span
         role="tooltip"

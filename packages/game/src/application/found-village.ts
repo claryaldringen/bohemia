@@ -69,7 +69,7 @@ export async function foundVillageForSettlement(
       obstacles,
     );
     if (!field.check.ok) return { ok: false, reason: field.check.reason ?? 'Sem pole nepatří.' };
-    firstField = { parts: field.parts };
+    firstField = { parts: field.parts, sacred: field.spared };
   }
 
   const founded = foundVillage({
@@ -82,6 +82,7 @@ export async function foundVillageForSettlement(
     dwellingClearedTrees: dwelling.obstacleCounts.tree ?? 0,
     obstacles,
     forestDistanceM: forestEdgeDistanceM(input.landscape, input.dwelling.x, input.dwelling.z),
+    dwellingSpared: dwelling.spared,
   });
   const state = advanceVillage(founded, input.today, obstacles);
   const created = await deps.villages.create(

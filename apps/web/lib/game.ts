@@ -1,7 +1,20 @@
 import 'server-only';
 import { randomInt } from 'node:crypto';
-import { createSettlementRepository, createVillageRepository } from '@bohemia/db';
-import { dynastyStatus, enterGame, restartGame, type EnterGameResult } from '@bohemia/game';
+import {
+  createSettlementRepository,
+  createTimeOffsetRepository,
+  createVillageRepository,
+} from '@bohemia/db';
+import {
+  dynastyStatus,
+  enterGame,
+  playerTime,
+  restartGame,
+  skipTime,
+  type EnterGameResult,
+  type TimeOffsetRepository,
+  type TimeSkip,
+} from '@bohemia/game';
 import { getDatabase } from './db';
 import { cachedLandscapes } from './landscape-cache';
 import { currentWorld, gameDayIndex } from './world';
@@ -29,6 +42,25 @@ export function enterGameForPlayer(playerId: string): Promise<EnterGameResult> {
   );
 }
 
+function timeOffsets(): TimeOffsetRepository {
+  return createTimeOffsetRepository(getDatabase());
+}
+
+/** Dnešní herní den hráče s jeho posunem času, nebo chyba pro hráče (svět neběží). */
+export type PlayerToday =
+  { ok: true; day: number; offsetDays: number } | { ok: false; error: string };
+
+/**
+ * Dnešní herní den hráče – den světa + posun času hráče (vývojový režim, jinak 0). Podle něj se
+ * dopočítávají vsi hráče a provádějí jeho akce.
+ */
+export async function playerToday(playerId: string): Promise<PlayerToday> {
+  const world = gameDayIndex(Date.now(), currentWorld());
+  if (!world.ok) return world;
+  const time = await playerTime({ offsets: timeOffsets() }, { playerId, worldDay: world.day });
+  return { ok: true, day: time.today, offsetDays: time.offsetDays };
+}
+
 function dynastyDeps(): Parameters<typeof dynastyStatus>[0] {
   const db = getDatabase();
   return {
@@ -44,17 +76,39 @@ export async function isGameOverForPlayer(playerId: string, today: number): Prom
 }
 
 /**
- * Začít znovu po konci hry (use-case `restartGame`): staré sídlo jde do archivu, hráč dostane
- * nové s novou krajinou a zakládá ves od první zemnice. Chyba česky pro hráče.
+ * Začít znovu (use-case `restartGame`): staré sídlo jde do archivu, hráč dostane nové s novou
+ * krajinou a zakládá ves od první zemnice. Bez `abandon` jen po konci hry (obrazovka porážky),
+ * s `abandon` i se živou vsí (potvrzení v nabídce hry). Chyba česky pro hráče.
  */
 export async function restartGameForPlayer(
   playerId: string,
+  options: { abandon: boolean } = { abandon: false },
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const today = gameDayIndex(Date.now(), currentWorld());
+  const today = await playerToday(playerId);
   if (!today.ok) return today;
   const result = await restartGame(
     { ...dynastyDeps(), seeds: seeds() },
-    { playerId, today: today.day },
+    { playerId, today: today.day, abandon: options.abandon },
   );
   return result.ok ? { ok: true } : { ok: false, error: result.reason };
+}
+
+/**
+ * Vývojový režim: přeskočí čas hráče o měsíc, nebo rok (use-case `skipTime` – bez `devMode`
+ * odmítne) a dopočítá jeho vsi do nového dneška. Vrátí nový posun času, nebo chybu česky.
+ */
+export async function skipTimeForPlayer(
+  playerId: string,
+  devMode: boolean,
+  skip: TimeSkip,
+): Promise<{ ok: true; offsetDays: number } | { ok: false; error: string }> {
+  const world = gameDayIndex(Date.now(), currentWorld());
+  if (!world.ok) return world;
+  const result = await skipTime(
+    { ...dynastyDeps(), offsets: timeOffsets() },
+    { playerId, devMode, worldDay: world.day, skip },
+  );
+  return result.ok
+    ? { ok: true, offsetDays: result.offsetDays }
+    : { ok: false, error: result.reason };
 }
