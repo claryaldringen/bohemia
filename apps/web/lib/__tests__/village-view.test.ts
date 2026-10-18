@@ -75,6 +75,27 @@ const record = (s: VillageState = state()): VillageRecord => ({
   version: 1,
 });
 
+describe('buildVillageView – práce vsi pro postavy', () => {
+  it('čerstvá ves ještě rozdělení práce nemá – ve scéně nikdo', () => {
+    const view = buildVillageView(record(), landscape, DAY);
+    expect(view.scene.labor).toBeUndefined();
+  });
+
+  it('po dopočtu dne: člověkodny po místech na setiny, lidé podle věku a měsíc', () => {
+    const s = advanceVillage(state(), DAY + 1, null);
+    const view = buildVillageView(record(s), landscape, DAY + 1);
+    const labor = view.scene.labor!;
+    expect(labor).toMatchObject({ day: DAY + 1, month: 4, people: view.people });
+    expect(labor.shares.length).toBeGreaterThan(0);
+    for (const share of labor.shares) {
+      expect(share.manDays).toBeGreaterThan(0);
+      expect(Math.round(share.manDays * 100)).toBeCloseTo(share.manDays * 100, 6);
+    }
+    const domestic = labor.shares.find((x) => x.activity === 'domestic');
+    expect(domestic?.target).toEqual({ kind: 'village' });
+  });
+});
+
 describe('buildVillageView', () => {
   it('čerstvá ves: lidé, zásoby, stavba zemnice zakladatelů a pole', () => {
     const view = buildVillageView(record(), landscape, DAY);

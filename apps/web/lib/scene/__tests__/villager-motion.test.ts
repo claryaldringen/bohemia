@@ -1,0 +1,77 @@
+import { readFileSync } from 'node:fs';
+import { describe, expect, it } from 'vitest';
+import {
+  VILLAGER_CLIPS,
+  createVillagerPose,
+  route,
+  rowWork,
+  shuttle,
+  villagerSeconds,
+  walkSpeed,
+} from '../villager-motion';
+
+const pose = createVillagerPose;
+
+describe('villager-motion – pohyb jako funkce času', () => {
+  it('práce v řadě: pracuje na místě, popojde, na konci řady se otočí zpět', () => {
+    const lane = { ax: 0, az: 0, bx: 10, bz: 0 };
+    const worker = rowWork(lane, 'hoe', 5, 1, 1, 0);
+    const clips = new Set<string>();
+    for (let t = 0; t < 130; t += 0.25) {
+      const p = worker(t, [], pose());
+      expect(p.x).toBeGreaterThanOrEqual(-1e-9);
+      expect(p.x).toBeLessThanOrEqual(10 + 1e-9);
+      expect(p.z).toBe(0);
+      clips.add(p.clip);
+    }
+    expect(clips).toEqual(new Set(['hoe', 'walk']));
+    // 10 kroků po 6 s tam, pak zpět – v 60 s je na konci, v 120 s zase na začátku
+    expect(worker(60.5, [], pose())).toMatchObject({ x: 10, headingX: -1, clip: 'hoe' });
+    expect(worker(120.5, [], pose())).toMatchObject({ x: 0, headingX: 1, clip: 'hoe' });
+  });
+
+  it('stejný okamžik = stejná póza (nic se nepočítá postupně)', () => {
+    const worker = rowWork({ ax: 0, az: 0, bx: 0, bz: 12 }, 'reap', 8, 1, 1.2, 0.37);
+    expect(worker(98765.4, [], pose())).toEqual(worker(98765.4, [], pose()));
+  });
+
+  it('nosič: tam s prázdnou, u pole nakládá, zpět s nůší, doma chvíli stojí', () => {
+    const r = route([
+      [0, 0],
+      [10, 0],
+      [10, 10],
+    ]);
+    expect(r.length).toBe(20);
+    const carrier = shuttle(r, {
+      outClip: 'walk',
+      outSpeed: 2,
+      endClip: 'weed',
+      endS: 3,
+      backClip: 'carry',
+      backSpeed: 1,
+      restClip: 'idle',
+      restS: 2,
+      phase: 0,
+    });
+    expect(carrier(5, [], pose())).toMatchObject({ x: 10, z: 0, clip: 'walk' });
+    expect(carrier(11, [], pose())).toMatchObject({ x: 10, z: 10, clip: 'weed' });
+    const back = carrier(18, [], pose());
+    expect(back).toMatchObject({ x: 10, z: 5, clip: 'carry' });
+    expect(back.headingZ).toBe(-1);
+    expect(carrier(34, [], pose())).toMatchObject({ x: 0, z: 0, clip: 'idle' });
+  });
+
+  it('menší postava chodí pomaleji; čas běží od stejného počátku jako zvířata', () => {
+    expect(walkSpeed('man', 'walk', 0.7)).toBeCloseTo(0.7 * walkSpeed('man', 'walk', 1), 9);
+    expect(villagerSeconds(Date.UTC(2026, 0, 1, 0, 0, 10))).toBe(10);
+  });
+
+  it('klipy postav sedí s people.json (GLB z people_from_0ad.py)', () => {
+    const spec = JSON.parse(
+      readFileSync(new URL('../../../../../tools/blender/people.json', import.meta.url), 'utf8'),
+    ) as { name: string; clips: { name: string }[] }[];
+    for (const figure of spec) {
+      expect(figure.clips.map((c) => c.name).sort()).toEqual([...VILLAGER_CLIPS].sort());
+    }
+  });
+});

@@ -1,4 +1,5 @@
 import { createNoise2D } from 'simplex-noise';
+import { alluvialness, clamp01, heightAboveStream } from './floodplain';
 import { distanceToMask, maxStep } from './grid';
 import { createRandom } from './random';
 import type { Terrain } from './terrain';
@@ -13,13 +14,16 @@ export function computeFertility(
   seed: number,
   terrain: Terrain,
   surface: Uint8Array,
-  version: 1,
+  version: 1 | 2,
 ): Uint8Array {
-  if (version !== 1) throw new RangeError(`Neznámá verze vrstvy úrodnosti: ${String(version)}`);
+  if (version !== 1 && version !== 2) {
+    throw new RangeError(`Neznámá verze vrstvy úrodnosti: ${String(version)}`);
+  }
   const { size, heights, water, villageSite } = terrain;
   const random = createRandom(seed);
   const noise = createNoise2D(() => random.next());
   const waterDistance = distanceToMask(water, size);
+  const aboveStream = version === 2 ? heightAboveStream(water, heights, size) : null;
 
   let landSum = 0;
   let landCount = 0;
@@ -36,12 +40,26 @@ export function computeFertility(
     for (let x = 0; x < size; x++) {
       const i = y * size + x;
       if (surface[i] === SURFACE_CODES.water) continue;
-      let value = byWaterDistance(waterDistance[i]!);
-      value -= maxStep(heights, size, x, y) * 22;
+      const distance = waterDistance[i]!;
+      const step = maxStep(heights, size, x, y);
+      let value: number;
+      if (aboveStream) {
+        // Verze 2: naplaveniny v nivě a roviny u vody přidají.
+        value = byWaterDistanceV2(distance);
+        if (distance > 2.5) {
+          value += ALLUVIAL_BONUS * alluvialness(distance, aboveStream[i]!);
+          value +=
+            FLAT_NEAR_WATER_BONUS * clamp01(1 - step / 0.6) * clamp01(1 - (distance - 3) / 17);
+        }
+        value -= step * 22;
+      } else {
+        value = byWaterDistance(distance);
+        value -= step * 22;
+      }
       value -= Math.max(0, heights[i]! - meanHeight) * 0.6;
       value += noise(x / 10, y / 10) * 6;
       const nearSite = Math.hypot(x - villageSite.x, y - villageSite.y) <= SITE_RADIUS;
-      if (nearSite && waterDistance[i]! > 2.5) value = Math.max(value, SITE_MIN_FERTILITY);
+      if (nearSite && distance > 2.5) value = Math.max(value, SITE_MIN_FERTILITY);
       fertility[i] = Math.round(Math.min(100, Math.max(0, value)));
     }
   }
@@ -56,3 +74,23 @@ function byWaterDistance(distance: number): number {
   if (distance <= 25) return 85 - (distance - 15) * 3;
   return Math.max(30, 55 - (distance - 25) * 0.6);
 }
+
+/**
+ * Verze 2: naplavenina těsně u vody je podmáčená, ale ne tak chudá jako ve verzi 1; základ
+ * dál od vody je o kus nižší – nejlepší půdu dávají až niva a roviny (bonusy níž).
+ */
+function byWaterDistanceV2(distance: number): number {
+  if (distance <= 1.5) return 38;
+  if (distance <= 2.5) return 60;
+  if (distance <= 15) return 80;
+  if (distance <= 25) return 80 - (distance - 15) * 3;
+  return Math.max(30, 50 - (distance - 25) * 0.6);
+}
+
+/** Naplaveniny v nivě (verze 2) – úrodnost navíc v plné nivě. */
+const ALLUVIAL_BONUS = 10;
+/**
+ * Rovina u vody (verze 2) – úrodnost navíc: plná na úplné rovině do 3 políček od vody, slábne
+ * se sklonem (nulová od 0,6 m na políčko) a se vzdáleností (nulová od 20 políček).
+ */
+const FLAT_NEAR_WATER_BONUS = 6;

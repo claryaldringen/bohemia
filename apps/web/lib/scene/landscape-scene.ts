@@ -39,6 +39,7 @@ import { buildRenderSurface } from './render-surface';
 import { terrainMeshHeight } from './drape';
 import { InstanceHider } from './instance-hider';
 import { VillageLivestock } from './livestock';
+import { VillageVillagers } from './villagers';
 import { PitCuts, applyPitCut } from './pit-cut';
 import { seasonDayAt, seasonLook, seasonLookDistance, type SeasonLook } from './season-look';
 import { isDeciduousMesh } from './season-foliage';
@@ -146,6 +147,8 @@ export class LandscapeScene {
   private village: VillageRenderer | null = null;
   /** Domácí zvířata vsi (ozdoba) – slepice u obydlí, stáda na loukách a v lese. */
   private livestock: VillageLivestock | null = null;
+  /** Lidé ve vsi – kde ves dnes pracuje (rozdělení práce dne, villagers.md). */
+  private villagers: VillageVillagers | null = null;
   /** Poslední stav vsi od rozhraní – vykreslí se, jakmile je krajina hotová. */
   private villageState: SceneVillage | null = null;
   private placement: ActivePlacement | null = null;
@@ -288,6 +291,16 @@ export class LandscapeScene {
       relief,
       groundHeight: (x, z) => terrainMeshHeight(surface, x, z),
       baseUrl: '/models/fauna/',
+      onLoaded: () => this.renderWhenReady(),
+    });
+    // Lidé ve vsi – kde ves dnes pracuje; schůdnou zemi sdílejí se zvířaty, děti pasou stáda.
+    this.villagers?.dispose();
+    this.villagers = new VillageVillagers(this.scene, {
+      layer: obstacles,
+      ground: (village) => this.livestock?.groundFor(village) ?? null,
+      groundHeight: (x, z) => terrainMeshHeight(surface, x, z),
+      baseUrl: '/models/people/',
+      herds: (nowMs) => this.livestock?.herdViews(nowMs) ?? [],
       onLoaded: () => this.renderWhenReady(),
     });
     // Ozdobná zvířata podle 0 A.D.: hejna ryb v tůních, kroužící vrány a káně.
@@ -603,6 +616,7 @@ export class LandscapeScene {
     this.placement = null;
     this.village?.dispose();
     this.livestock?.dispose();
+    this.villagers?.dispose();
     this.resizeObserver.disconnect();
     this.canvas.removeEventListener('pointermove', this.onPointerMove);
     this.canvas.removeEventListener('pointerleave', this.onPointerLeave);
@@ -725,10 +739,13 @@ export class LandscapeScene {
     const felled = this.obstacles ? (this.felled?.update(this.obstacles, changes) ?? false) : false;
     const logs = this.logPile?.update(this.villageState, changes) ?? false;
     const animals = this.livestock?.update(this.villageState, Date.now()) ?? false;
+    const people = this.villagers?.update(this.villageState, Date.now()) ?? false;
     // Rozhraní posílá stav vsi opakovaně (dotaz každých pár sekund) – beze změny nic.
     // Vybrané pole mohlo změnit čtverce (zarůstání), vybrané obydlí zaniknout.
     if (changed) this.highlight?.show(this.villageState, this.selection);
-    if (!changed && !hidden && !shaded && !cleared && !felled && !logs && !animals) return;
+    if (!changed && !hidden && !shaded && !cleared && !felled && !logs && !animals && !people) {
+      return;
+    }
     // Dým hned na místě – i při omezeném pohybu, kdy se pak už nehýbe.
     village.animateSmoke(Date.now(), null);
     this.shadows?.refresh();
@@ -780,6 +797,8 @@ export class LandscapeScene {
       if (this.village?.animateSmoke(Date.now(), camera.camera)) animated = true;
       // domácí zvířata – skutečný čas (epoch ms), ne herní: stejný okamžik = stejná póza
       if (this.livestock?.animate(Date.now(), camera.camera)) animated = true;
+      // lidé ve vsi – skutečný čas jako zvířata
+      if (this.villagers?.animate(Date.now(), camera.camera)) animated = true;
       if (animated) {
         this.lastWaterFrame = now;
         this.needsRender = true;

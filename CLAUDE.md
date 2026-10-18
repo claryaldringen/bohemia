@@ -73,7 +73,7 @@ apps/web/            Next.js – úvodní stránka, registrace, přihlášení, 
   hooks/             React hooky (umisťování staveb ve scéně, dotazování na ves)
   lib/               serverová a pomocná logika (auth, session, db, game a village – composition root)
   lib/scene/         3D scéna krajiny v Babylonu – čisté TS třídy bez Reactu
-  public/models/     modely stromů, dekorací a zvířat a atlas impostorů z 0 A.D. (licence v LICENSES.md)
+  public/models/     modely stromů, dekorací, zvířat a lidí a atlas impostorů z 0 A.D. (licence v LICENSES.md)
   e2e/               Playwright testy (proti produkčnímu buildu a databázi bohemia_test)
 packages/game/       herní jádro
   src/domain/        pravidla – calendar.ts, landscape/ (generování krajiny po vrstvách)
@@ -118,8 +118,14 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
 
 - **Generování** (`packages/game/src/domain/landscape/`): `generateLandscape(seed, versions)` –
   vrstvy terén a voda → vegetace → úrodnost, každá s vlastním seedem (`deriveSeed`) a verzí.
-  Pásmo srovnatelnosti hlídá `checkBand` (konstanty v `band.ts`) a testy na 300 seedech. Po
-  změně generátoru pusť `measure-landscapes` a zkontroluj podíl krajin na první pokus a čas.
+  Pásmo srovnatelnosti hlídá `checkBand(landscape, versions)` (pásmo podle verzí – `bandFor`,
+  `BAND_V1` / `BAND_V2` v `band.ts`) a testy na 300 seedech. Po změně generátoru pusť
+  `measure-landscapes` a zkontroluj podíl krajin na první pokus, čas a louky do 600 m od vsi.
+- **Verze vrstev:** nová sídla `CURRENT_LAYER_VERSIONS` (vegetace a úrodnost 2 – víc kvalitní
+  louky kolem vsi, 18. 10. 2026), sídla založená dřív `INITIAL_LAYER_VERSIONS` (vše 1). Stará
+  verze se generuje dál beze změny (`vegetationV1`, `byWaterDistance`) – zlatý otisk krajiny
+  (`generate.test.ts`) i vrstvy překážek (`obstacles.test.ts`) hlídá obě verze. Původní
+  krajinu ukáže `/dev/landscape?seed=…&layers=initial`.
 - **Uložené sídlo nese seed přijatého pokusu** a jeho krajina se generuje přes
   `generateLandscapeAttempt` bez kontroly pásma. Změna pásma (`band.ts`) proto platí jen pro nová
   sídla. **Po ostrém spuštění** se existující vrstva nesmí změnit (přepsala by krajiny hráčů) –
@@ -165,8 +171,8 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   hladiny (`FLOW_CHUNK_M`) a od jaké zimy jsou celé zamrzlé – kreslí se, jen dokud je v záběru
   nezamrzlá voda.
 - **Vývojový náhled** bez přihlášení a databáze: http://localhost:3010/dev/landscape?seed=42
-  (tlačítka předchozí / další / náhodná, lišta vsi s minimapou – pole jde malovat i do lesa
-  a překážky z něj hned zmizí, „Kácet 20 stromů“). V produkci vrací 404.
+  (tlačítka předchozí / další / náhodná / původní vrstvy, lišta vsi s minimapou – pole jde
+  malovat i do lesa a překážky z něj hned zmizí, „Kácet 20 stromů“). V produkci vrací 404.
 - `?renderer=webgl` vynutí WebGL 2 (test záložní cesty). `HEIGHT_SCALE` v `scene/constants.ts`
   převyšuje terén jen vizuálně. Tamtéž rozsah přiblížení kamery `CAMERA_ZOOM_M` (výchozí 120 m
   a nejblíž 50 m jako v 0 A.D.) – řídí se jím i mix zvuků.
@@ -262,7 +268,8 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   vykreslování 1) – hloubku pod kalnou hladinou dělá jejich průhlednost.
 - **Domácí zvířata** (Martin, zatím jen oživení – mechanika později): slepice u hotových obydlí
   (zemnice 2, polozemnice 3 – `chickensFor`, řemesla později podle základního typu), na
-  obývané obydlí 3 ovce, koza a 2 prasata, kráva na dvě domácnosti; pasáci nejsou.
+  obývané obydlí 3 ovce, koza a 2 prasata, kráva na dvě domácnosti; u stád jsou pasáčci z postav
+  (Postavy níž – `herdViews`).
   `livestock-placement.ts` je odvodí z dat vsi pro scénu (`SceneVillage`, i nepovinné
   `cemeteries`) a krajiny: slepice obcházejí dům mimo obdélník domu se šíjí (`chickenBox`),
   ovce s kozami (stádo na 5 domácností) a krávy se pasou na louce do 300 m (ne pole, hřbitov,
@@ -519,6 +526,30 @@ rozhraní částí v
   (`TREE_REGROWTH_YEARS`). Pomocníci pro les a dřevo: `matureTreesByDistance`, `fellTrees`,
   `treeRegrowth`, `countMatureTrees`, `obstacleChangesAt`. Vsi z doby před vrstvou si
   odstraněné překážky doplní při načtení s krajinou (`withObstacleClearing` v `updateVillage`).
+- **Postavy – lidé ve vsi** ([docs/design/villagers.md](docs/design/villagers.md), jen zobrazení,
+  žádná pravidla): ukazují, kde ves dnes pracuje. Jádro: krok práce simulace uloží rozdělení
+  práce dne po činnostech a místech (`labor-report.ts`, `VillageState.labor` – JSON, simulace ho
+  nečte, na kouscích nezávisí; vsi uložené dřív ho mají od dalšího dne), sklizeň se dělí na žeň
+  a odnos podle `HARVEST_WORK_PER_HA`; do scény jde jako `SceneVillage.labor` (člověkodny na
+  setiny, lidé podle věku, měsíc). Scéna: `villager-plan.ts` (čisté funkce, testy) převede
+  člověkodny na postavy (jedna na pracujícího, nejvýš `MAX_WORKERS` = 60, po skupinách až 4
+  v činnosti – `shareCounts`; domácí práce a nečinní venku jen z části, v zimě méně) a rozestaví
+  je (postavy stylizovaně o 20 % větší – `FIGURE_SCALE`, rozestupy s nimi): řady na polích,
+  nosiči polem ↔ obydlí (`walkRoute` obchází domy), stavitelé za
+  staveništěm (`siteBox` = vyklízená plocha), dřevorubci u vyhrazených stromů, sad, obvod
+  hřbitova, výmlat u vsi, ženy u vchodu, starší (šediny) u domů a děti u stád (`herdViews`
+  ze zvířat). Nikdo nestojí ve vodě (rastr schůdné země sdílený se zvířaty – `groundFor`),
+  v domě se šíjí, v zahrádce polozemnice ani na hrobech. Pohyb `villager-motion.ts` – čisté funkce skutečného času
+  jako u zvířat. Kreslení `villagers.ts`: GLB z `tools/blender/people_from_0ad.py`
+  (`people.json` – klipy z 0 A.D., rotace klíčů jako int16, maska látky a vlasů jako
+  occlusionTexture), animace zapečené do textury matic kostí (Babylon VAT) a postavy jako thin
+  instances – mesh `villagers-woman` / `villagers-man` (klip, fáze, tempo na instanci,
+  `villagerLook` = barva oděvu a kód vlasů: šátek, šediny) + měkký kruhový stín
+  `villagers-shadow` (alphaIndex 5 – po obtiscích vsi). **WebGPU má limit 8 vertex bufferů**
+  a postava jich má právě 8 (pozice, normála, uv, kosti 2×, matice, VAT, look) – další atribut
+  na vrchol nepřidávat, patří do textury. Klipy se střídají střihem (VAT prolínat neumí). Hýbou
+  se jen v záběru (`WATER_FPS`), při omezeném pohybu stojí. Ve vývojovém náhledu tlačítko
+  **Lidé** (ukázkové rozdělení práce podle měsíce – `app/dev/landscape/dev-labor.ts`).
 - **e2e:** testy běží v běžícím pomalém světě (2000–2200). Kliknutí do scény při umisťování
   nahrazuje háček `window.__bohemiaE2E.confirmPlacement`, kam kliknout myší pro výběr řekne
   `projectToScreen` (`lib/e2e-hooks.ts`) – existují jen v buildu s `NEXT_PUBLIC_E2E_HOOKS=1`
@@ -539,7 +570,7 @@ npm run test:e2e      # Playwright – build + next start na :3011 proti DB bohe
 npm run format:check  # npm run format = oprava
 npm run db:generate   # nová migrace po změně schématu v packages/db/src/schema
 npm run db:seed-dev   # vývojový účet v lokální DB bez registrace
-npx tsx packages/game/scripts/measure-landscapes.ts 500   # měření generátoru krajiny
+npx tsx packages/game/scripts/measure-landscapes.ts 500   # měření generátoru krajiny (+ initial = verze 1)
 npx tsx packages/game/scripts/measure-village.ts 200 60   # kalibrace simulace vsi
 ```
 

@@ -6,6 +6,7 @@ export * from './dwellings';
 export * from './fields';
 export * from './year-plan';
 export * from './labor';
+export { LABOR_TREES_SHOWN, laborReport } from './labor-report';
 export * from './population';
 export * from './extinction';
 export * from './cemetery';

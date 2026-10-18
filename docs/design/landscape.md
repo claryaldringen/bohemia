@@ -1,6 +1,6 @@
 # Krajina sídla
 
-Stav: schváleno 16. 10. 2026.
+Stav: schváleno 16. 10. 2026, víc kvalitní louky kolem vsi 18. 10. 2026 (vegetace a úrodnost 2).
 
 ## Proč
 
@@ -48,7 +48,10 @@ na který se později přidávají další prvky (černozem, naleziště kovů, 
 - **Verze vrstev:** do ostrého spuštění se generátor smí měnit libovolně (krajiny se prostě
   vygenerují znovu jinak). Po spuštění nesmí změna existující vrstvy přepsat stávající krajiny –
   u sídla se ukládají verze vrstev (např. `{ terrain: 1, vegetation: 1, fertility: 1 }`) a nová
-  verze vrstvy platí jen pro nová sídla; nové vrstvy lze doplnit všem.
+  verze vrstvy platí jen pro nová sídla; nové vrstvy lze doplnit všem. Tak se to dělá už teď:
+  sídla založená do 18. 10. 2026 mají vegetaci a úrodnost 1 (`INITIAL_LAYER_VERSIONS`) a jejich
+  krajina se generuje dál stejně, nová sídla dostanou verze 2 (`CURRENT_LAYER_VERSIONS`) – víc
+  kvalitní louky kolem vsi. Že se původní krajina nezměnila, hlídá zlatý otisk v testech.
 - **Výška:** vrstvený šum (několik oktáv), zvlněná pahorkatina – výrazné vlny ve středních
   měřítkách (stovky metrů). Převýšení v rámci krajiny ≈ 10–40 m, žádné útesy: svahy strmější
   než 2,4 m na políčko se „sesypou“ (termální eroze).
@@ -63,8 +66,22 @@ na který se později přidávají další prvky (černozem, naleziště kovů, 
   a pravého břehu, hladina, mělčina), podle ní scéna kreslí koryto, břehy a porost.
 - **Les:** většina plochy (≈ 55–70 %), v souvislých celcích, ne roztroušených tečkách.
 - **Louky:** zbytek – hlavně v nivě podél potoka a na rovinách.
+  **Víc kvalitní louky kolem vsi** (vegetace 2, Martin – 18. 10. 2026): s dlouhým přílohem
+  potřebuje rodina pole 5–6× větší, než oseje, a v1 měla do 600 m od místa pro vesnici jen
+  ≈ 35 ha luk (≈ 14 ha s úrodností ≥ 60) – louky došly už u dvou domácností. Martin zvolil
+  dlouhý příloh nechat, růst mýcením lesa a dát víc dobré louky (Březno mělo ≈ 180 ha,
+  z toho 50–60 ha velmi dobré půdy hned u sídla). Do 600 m od místa pro vesnici je proto
+  **≈ 60 ha louky** (cíl 58–62 ha), hlavně **lužní louky v nivě potoka** a roviny u vody
+  (obě strany potoka), okraje se vlní podle šumu a v loukách zůstávají háje. Podél zbytku
+  potoka se úseky volné nivy střídají s úseky, kde les sahá k vodě. Suché louky na vršcích
+  jsou až za loukami vsi a je jich méně – doplní jen podíl lesa, který zůstal stejný. Les
+  zůstává na svazích údolí, na vršcích a dál od vsi.
 - **Úrodnost:** nejvyšší na rovinách v rozumné vzdálenosti od vody, nižší na svazích a vršcích,
-  nízká na podmáčených místech těsně u vody.
+  nízká na podmáčených místech těsně u vody. **Úrodnost 2** (s vegetací 2): naplaveniny
+  v nivě (nízko nad potokem, do ≈ 16 políček od vody) přidají až 10, úplná rovina u vody až 6,
+  podmáčený břeh je méně chudý (38 místo 30); základ mimo nivu je o 5 nižší (80 místo 85), takže
+  nejlepší půda je v nivě a na rovinách a půda na svazích údolí je na hranici 60. Výška nad
+  potokem se počítá od dna nejbližšího vodního políčka (`floodplain.ts`).
 - **Srovnatelnost = pásmo, ne jen minimum.** Startovní krajiny mají být podobně dobré – nikdo
   nesmí dostat výrazně víc než ostatní (rozdíly přijdou později přes bonusové vrstvy). Každá
   krajina musí padnout do pásma:
@@ -76,6 +93,13 @@ na který se později přidávají další prvky (černozem, naleziště kovů, 
     s rezervou; zvlněnější terén má víc svahů, a tak méně úrodné půdy než dřívějších
     3 800–5 200) – krajiny se liší vzhledem, ne hodnotou,
   - převýšení nepřekročí 40 m.
+
+  **Pásmo verze 2** (vegetace a úrodnost 2 – `BAND_V2` v `band.ts`, pásmo se vybírá podle verzí
+  vrstev): voda, les 55–70 % a převýšení stejně; místo pro vesnici **600–1 400 políček**
+  (lužní louky se napojí na mýtinu vsi), úrodných políček v krajině **2 550–3 800** (nižší
+  základ úrodnosti mimo nivu) a nově **louka do 600 m od místa pro vesnici 2 500–2 850 políček**
+  (≈ 56–64 ha), **z toho s úrodností ≥ 60 1 300–1 800** (≈ 29–40 ha). Meze jsou z měření na
+  500 seedech (p1/p99 s rezervou). Pásmo verze 1 platí dál beze změny pro sídla s verzí 1.
 
   Generátor má pásmo **cíleně trefovat** (tvarovat terén a vegetaci kolem zvoleného místa pro
   vesnici), ne jen náhodně zkoušet; pokud krajina nevyhoví, zkusí další odvozený seed
@@ -89,7 +113,16 @@ na který se později přidávají další prvky (černozem, naleziště kovů, 
   leží pod nejnižším terénem v okolí osy (meandr vybočený na svah nevisí nad nivou), sedla se
   prořezávají, svahy údolí stoupají nejvýš o 0,9 m na políčko. Rybník v1 negeneruje
   (volitelný prvek, zatím jen potok). Měření:
-  `npx tsx packages/game/scripts/measure-landscapes.ts 500`.
+  `npx tsx packages/game/scripts/measure-landscapes.ts 500` (s argumentem `initial` měří
+  verze vrstev sídel založených do 18. 10. 2026).
+
+  **Naměřeno pro verzi 2 (500 seedů, 18. 10.):** 96,0 % krajin projde pásmem na první pokus,
+  nejvýš 2 pokusy (důvody neúspěchu: úrodná louka u vsi nad 40 ha, úrodných políček v krajině
+  nad mez); jeden pokus ≈ 32 ms (verze 1 na stejném stroji ≈ 22–26 ms). U přijatých krajin je
+  do 600 m od místa pro vesnici **60 ha louky** (p10 58,8 – p90 61,5; v1 36 ha, p10 32 – p90 40),
+  **z toho 34,5 ha s úrodností ≥ 60** (p10 32,3 – p90 38,3; v1 14 ha, p10 12 – p90 17), průměrná
+  úrodnost luk u vsi ≈ 56 (v1 ≈ 45). Podíl lesa se nezměnil: 58–66 %, medián 62 %. Místo pro
+  vesnici 649–1 242 políček. Vrstva překážek má o ≈ 3 % méně kusů (víc louky, méně lesa u vsi).
 
 - **Generuje server.** Klient dostane hotová data krajiny (výšky, povrch, úrodnost), ne seed.
   Herní logika tak vždy vychází z dat serveru a rozdíly v počítání s desetinnými čísly mezi
@@ -210,6 +243,8 @@ na který se později přidávají další prvky (černozem, naleziště kovů, 
 | Ovládání kamery (myš + WASD/Q/E), info o políčku pod kurzorem              | návrh Clauda                                 |
 | Zvlněnější terén, meandrující potok s proměnnou šířkou, tůněmi a mělčinami | návrh Clauda na Martinův požadavek z 16. 10. |
 | Výchozí a nejbližší přiblížení kamery jako v 0 A.D. (120 m, 50 m, 45°)     | Martin (17. 10.)                             |
+| Do 600 m od vsi ≈ 60 ha louky (≈ 30 ha úrodné), lužní louky v nivě potoka  | Martin – víc kvalitní louky, 18. 10. 2026    |
+| Jako nové verze vegetace a úrodnosti – stávající sídla si krajinu nechají  | návrh Clauda (podle pravidla o verzích)      |
 
 ## Stav implementace (v1)
 
@@ -242,6 +277,15 @@ na který se později přidávají další prvky (černozem, naleziště kovů, 
   samozřejmě generátor krajiny, ze které vrstva vychází. `streamCenterline` (`deriveFlow`) přitom
   řídí i vzhled vody a zvuk potoka – ladění vody přes osu potoka změní i vrstvu, vzhledovou část
   je pak třeba oddělit.
+- **Verze vrstev 2 – víc kvalitní louky (18. 10. 2026):** nová sídla mají
+  `{ terrain: 1, vegetation: 2, fertility: 2, obstacles: 1 }`, uložená sídla s verzemi 1 si
+  krajinu nechají (sídlo nese verze i seed přijatého pokusu, pásmo se vybírá podle verzí –
+  `bandFor`). Terén se nemění (stejné výšky i potok jako v1). Vrstva překážek zůstala ve
+  verzi 1 – rozmisťovače jsou stejné, jen stojí na jiné vegetaci; zlatý otisk vrstvy má proto
+  hodnoty pro krajinu z vrstev 1 (beze změny) i z vrstev 2. U krajin verze 2 je les od vsi dál,
+  a tak je u něj méně pařezů (průměrně 6 místo 16). Zlatý otisk samotné krajiny (výšky,
+  povrch, úrodnost, místo pro vesnici) hlídá obě verze v `generate.test.ts`. Vývojový náhled
+  ukáže původní krajinu přes `/dev/landscape?seed=…&layers=initial` (odkaz „původní vrstvy“).
 
 ## Necháno na staviteli
 

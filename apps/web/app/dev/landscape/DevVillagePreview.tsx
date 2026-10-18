@@ -46,6 +46,7 @@ import type {
   SceneField,
 } from '@/lib/scene/village-types';
 import { formatCells, formatHa, formatManDays, plural } from '@/lib/village-format';
+import { demoLabor } from './dev-labor';
 import { placementVillageFromScene, type SceneVillage } from '@/lib/village-view';
 
 const STAGES: PartStage[] = [
@@ -103,10 +104,12 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   // roční období: den v roce (null = podle herního data) a přehrávání roku
   const [seasonDay, setSeasonDay] = useState<number | null>(null);
   const [playingYear, setPlayingYear] = useState(false);
+  // lidé ve vsi – ukázkové rozdělení práce podle měsíce (dev-labor.ts)
+  const [people, setPeople] = useState(false);
   const nextId = useRef(1);
 
-  const village = useMemo<SceneVillage>(
-    () => ({
+  const village = useMemo<SceneVillage>(() => {
+    const base: SceneVillage = {
       dwellings,
       fields: fields.map((field): SceneField => ({
         id: field.id,
@@ -119,9 +122,35 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
       orchards,
       woodLogs,
       obstacles,
-    }),
-    [dwellings, fields, cemeteries, orchards, stage, mixed, woodLogs, obstacles],
-  );
+    };
+    if (!people) return base;
+    // kácí se u nejbližších stromů k prvnímu staveništi (jako vyhrazené stromy stavby)
+    const site = dwellings.find((d) => !d.built);
+    const trees = site
+      ? matureTreesByDistance(obstaclesOf(decoded), obstacles, site.position, { limit: 3 })
+      : [];
+    const day = Math.floor(seasonDay ?? REFERENCE_DAY);
+    const month = dateOfDayOfYear(day).month;
+    const labor = demoLabor(
+      base,
+      month,
+      day,
+      trees.map((t) => t.id),
+    );
+    return { ...base, labor };
+  }, [
+    decoded,
+    dwellings,
+    fields,
+    cemeteries,
+    orchards,
+    stage,
+    mixed,
+    woodLogs,
+    obstacles,
+    people,
+    seasonDay,
+  ]);
 
   useEffect(() => {
     scene?.setVillage(village);
@@ -534,6 +563,41 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     setDwellings(list);
   };
 
+  /**
+   * Lidé ve vsi (ukázkové rozdělení práce). Prázdná ves dostane ukázku – šest hotových obydlí kolem místa vsi a pole
+   * 3 × 2 čtverce vedle (s osetými díly), ať mají lidé kde pracovat a ovce kde se pást.
+   */
+  const togglePeople = (): void => {
+    if (!people && !dwellings.some((d) => d.built)) {
+      scene?.cancelPlacement();
+      const { x: sx, y: sy } = decoded.villageSite;
+      const site = tileCenter(decoded, sx, sy);
+      const list: SceneDwelling[] = [];
+      for (let i = 0; i < 6; i++) {
+        const angle = (i / 6) * Math.PI * 2 + 0.4;
+        const x = site.worldX + Math.cos(angle) * 13;
+        const z = site.worldZ + Math.sin(angle) * 13;
+        const tile = tileAt(decoded, x, z);
+        if (!tile || surfaceAt(decoded, tile.x, tile.y) === 'water') continue;
+        list.push({
+          id: nextId.current++,
+          type: i % 3 === 0 ? 'polozemnice' : 'zemnice',
+          position: { x, z, rotation: angle + Math.PI },
+          built: true,
+          progress: 1,
+        });
+      }
+      setDwellings(list);
+      const cells: TileCell[] = [];
+      for (let dy = 0; dy < 2; dy++)
+        for (let dx = 0; dx < 3; dx++) cells.push({ x: sx + 3 + dx, y: sy - 1 + dy });
+      addField(cells.filter((c) => surfaceAt(decoded, c.x, c.y) !== 'water'));
+      setMixed(false);
+      setStage(STAGES.indexOf('sown'));
+    }
+    setPeople((on) => !on);
+  };
+
   const firstSite = dwellings.find((d) => !d.built);
   const plantingSquare = orchards.flatMap((o) => o.squares).find((s) => s.planting < 1);
   const seasonDate = dateOfDayOfYear(seasonDay ?? REFERENCE_DAY);
@@ -603,6 +667,14 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         )}
         <button className={buttonClass} disabled={!scene} onClick={showPhases}>
           Ukázka fází
+        </button>
+        <button
+          className={buttonClass}
+          disabled={!scene}
+          onClick={togglePeople}
+          data-testid="dev-people"
+        >
+          {people ? 'Lidé ✓' : 'Lidé'}
         </button>
         <button className={buttonClass} onClick={() => setWoodLogs((n) => Math.max(0, n - 10))}>
           Klády −10

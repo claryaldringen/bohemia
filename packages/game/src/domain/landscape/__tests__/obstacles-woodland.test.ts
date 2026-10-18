@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { generateLandscape } from '../generate';
 import { obstacleGroups, scatterContext } from '../obstacles/generate';
-import { SURFACE_CODES } from '../types';
+import { INITIAL_LAYER_VERSIONS, SURFACE_CODES } from '../types';
 import { tileCenterWorld, tileOfWorldPoint } from '../world';
 import { deadwoodPlacements, youngTreePlacements } from '../obstacles/woodland';
 
@@ -96,11 +96,30 @@ describe('deadwoodPlacements', () => {
   });
 
   it('pařezy po kácení jsou u lesa nedaleko vesnice', () => {
-    const stumps = of('stump');
+    // Na krajině z původních vrstev – u krajin s víc loukami (vegetace 2) je les od vsi dál,
+    // a tak pařezů méně (průměrně 6 místo 16); pravidlo rozmístění je stejné.
+    const initial = generateLandscape(3, INITIAL_LAYER_VERSIONS);
+    const initialCtx = scatterContext(initial, initial.obstacleLayer!.seed);
+    const stumps = deadwoodPlacements(initialCtx).filter((p) => p.look.startsWith('stump'));
     expect(stumps.length).toBeGreaterThan(10);
-    const site = tileCenterWorld(landscape, landscape.villageSite.x, landscape.villageSite.y);
-    for (const p of stumps) {
+    expect(of('stump').length).toBeGreaterThan(0);
+    const site = tileCenterWorld(initial, initial.villageSite.x, initial.villageSite.y);
+    for (const p of [...stumps, ...of('stump')]) {
+      const tile = tileOfWorldPoint(initial, p.x, p.z)!;
       expect(Math.hypot(p.x - site.x, p.z - site.z)).toBeLessThan(320);
+      expect(
+        Math.max(
+          Math.abs(tile.x - initial.villageSite.x),
+          Math.abs(tile.y - initial.villageSite.y),
+        ),
+      ).toBeGreaterThan(2);
+    }
+    for (const p of stumps) {
+      expect(initialCtx.field.distanceAt(p.x, p.z)).toBeLessThan(0);
+      expect(initialCtx.field.distanceAt(p.x, p.z)).toBeGreaterThan(-40);
+      expect(initialCtx.stream.nearest(p.x, p.z).bankDistance).toBeGreaterThan(2);
+    }
+    for (const p of of('stump')) {
       expect(fromForest(p)).toBeLessThan(0);
       expect(fromForest(p)).toBeGreaterThan(-40);
       expect(nearVillage(p)).toBe(false);

@@ -154,6 +154,26 @@ export class VillageLivestock {
     return moved;
   }
 
+  /** Střed, poloměr a stěhování stád v okamžiku `nowMs` – pasáčci (villagers.ts). */
+  herdViews(nowMs: number): (HerdState & { kind: Herd['kind']; radiusM: number })[] {
+    const clock = this.clock(nowMs);
+    return this.herds.map((herd) => ({
+      ...herdState(herd, clock, createHerdState()),
+      kind: herd.kind,
+      radiusM: herd.radiusM,
+    }));
+  }
+
+  /**
+   * Terén kolem vsi (rastr schůdné země, luk a okraje lesa) – sdílí ho postavy, aby se drahé
+   * dotazy na potok a les nepočítaly dvakrát. Bez obydlí null.
+   */
+  groundFor(village: LivestockVillage): LivestockGround | null {
+    const built = village.dwellings.filter((d) => d.built);
+    const around = built.length > 0 ? built : village.dwellings;
+    return around.length > 0 ? this.groundAround(around) : null;
+  }
+
   dispose(): void {
     this.disposed = true;
     for (const kind of this.kinds.values()) {

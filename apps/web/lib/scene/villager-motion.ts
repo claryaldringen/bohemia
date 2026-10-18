@@ -1,0 +1,313 @@
+import { LIVESTOCK_EPOCH_MS } from './livestock-motion';
+import { hash01 } from './smoke-schedule';
+
+// Pohyb postav ve vsi jako čistá funkce skutečného času (jako domácí zvířata –
+// livestock-motion.ts): scéna jen dosadí čas a přepíše instance. Práce v řadě po poli, chůze
+// tam a zpět po trase (nosiči), stání u domu a pasáček u stáda. Stejný okamžik = stejná póza,
+// nic se nepočítá postupně; ve zrychleném světě se lidé hýbou stejně klidně (skutečný čas).
+
+export type VillagerKind = 'woman' | 'man';
+/** Klipy animací v GLB (tools/blender/people.json). */
+export type VillagerClip =
+  | 'walk'
+  | 'idle'
+  | 'reap'
+  | 'hoe'
+  | 'seed'
+  | 'weed'
+  | 'carry'
+  | 'carry-wood'
+  | 'fell'
+  | 'build'
+  | 'fruit';
+
+/** Všechny klipy – GLB je musí mít (people.json, hlídá test). */
+export const VILLAGER_CLIPS: readonly VillagerClip[] = [
+  'walk',
+  'idle',
+  'reap',
+  'hoe',
+  'seed',
+  'weed',
+  'carry',
+  'carry-wood',
+  'fell',
+  'build',
+  'fruit',
+];
+
+/** Čas postav (s) ve skutečný okamžik `nowMs` – stejný počátek jako zvířata. */
+export function villagerSeconds(nowMs: number): number {
+  return (nowMs - LIVESTOCK_EPOCH_MS) / 1000;
+}
+
+/** Okamžitý stav postavy (výšku podle terénu doplní scéna). */
+export interface VillagerPose {
+  x: number;
+  z: number;
+  /** Kam postava hledí (vodorovně, jednotkový vektor). */
+  headingX: number;
+  headingZ: number;
+  clip: VillagerClip;
+  /** Rychlost přehrávání klipu (1 = jak je zapečený). */
+  pace: number;
+}
+
+export function createVillagerPose(): VillagerPose {
+  return { x: 0, z: 0, headingX: 0, headingZ: 1, clip: 'idle', pace: 1 };
+}
+
+/** Stádo, u kterého je pasáček: střed, poloměr a stěhování (livestock-motion HerdState). */
+export interface HerdView {
+  x: number;
+  z: number;
+  radiusM: number;
+  moving: number;
+  headingX: number;
+  headingZ: number;
+}
+
+/** Póza postavy v čase `t` (s, villagerSeconds) – zapisuje do `out`, nic nealokuje. */
+export type PoseFn = (t: number, herds: readonly HerdView[], out: VillagerPose) => VillagerPose;
+
+/**
+ * Rychlost chůze (m/s) při přehrávání klipu rychlostí 1 a měřítku 1 – ať nohy neklouzají
+ * (změřeno z GLB jako v prvním náhledu postav). Zmenšená postava jde pomaleji.
+ */
+export const CLIP_SPEED_M_S: Record<VillagerKind, Partial<Record<VillagerClip, number>>> = {
+  woman: { walk: 1.25, carry: 1.05, 'carry-wood': 1.05 },
+  man: { walk: 1.0, carry: 1.1, 'carry-wood': 1.0 },
+};
+
+/** Rychlost chůze postavy v klipu `clip` (m/s) – podle druhu a měřítka. */
+export function walkSpeed(kind: VillagerKind, clip: VillagerClip, scale: number): number {
+  return (CLIP_SPEED_M_S[kind][clip] ?? CLIP_SPEED_M_S[kind].walk ?? 1) * scale;
+}
+
+function set(
+  out: VillagerPose,
+  x: number,
+  z: number,
+  hx: number,
+  hz: number,
+  clip: VillagerClip,
+  pace = 1,
+): VillagerPose {
+  out.x = x;
+  out.z = z;
+  out.headingX = hx;
+  out.headingZ = hz;
+  out.clip = clip;
+  out.pace = pace;
+  return out;
+}
+
+/** Postava stojí na místě a dělá `clip` (hledí ve směru hx, hz). */
+export function stand(
+  x: number,
+  z: number,
+  hx: number,
+  hz: number,
+  clip: VillagerClip,
+  pace = 1,
+): PoseFn {
+  return (_t, _herds, out) => set(out, x, z, hx, hz, clip, pace);
+}
+
+/** Úsek řady na čtverci: od (ax, az) do (bx, bz). */
+export interface Lane {
+  ax: number;
+  az: number;
+  bx: number;
+  bz: number;
+}
+
+/**
+ * Práce v řadě (okopávání, setí, pletí, žeň): `workS` sekund `clip` na místě, pak popojde
+ * o `stepM` (chůze rychlostí `speed`); na konci řady se otočí a jde zpět. `phase` (0–1)
+ * rozhodí sousedy v čase i v řadě.
+ */
+export function rowWork(
+  lane: Lane,
+  clip: VillagerClip,
+  workS: number,
+  stepM: number,
+  speed: number,
+  phase: number,
+): PoseFn {
+  const length = Math.hypot(lane.bx - lane.ax, lane.bz - lane.az);
+  const dx = length > 1e-6 ? (lane.bx - lane.ax) / length : 0;
+  const dz = length > 1e-6 ? (lane.bz - lane.az) / length : 1;
+  const walkS = stepM / Math.max(0.1, speed);
+  const stepS = workS + walkS;
+  const steps = Math.max(1, Math.floor(length / stepM));
+  const shift = phase * steps * 2 * stepS;
+  return (t, _herds, out) => {
+    const time = t + shift;
+    const k = Math.floor(time / stepS);
+    const within = time - k * stepS;
+    const back = Math.floor(k / steps) % 2 === 1;
+    const step = k % steps;
+    const walking = within > workS;
+    const progress = (step + (walking ? (within - workS) / walkS : 0)) * stepM;
+    const along = back ? length - progress : progress;
+    const heading = back ? -1 : 1;
+    return set(
+      out,
+      lane.ax + dx * along,
+      lane.az + dz * along,
+      dx * heading,
+      dz * heading,
+      walking ? 'walk' : clip,
+    );
+  };
+}
+
+/** Trasa jako lomená čára s délkami úseků. */
+export interface Route {
+  points: readonly (readonly [number, number])[];
+  /** Kumulativní délka do každého bodu (první 0). */
+  at: readonly number[];
+  length: number;
+}
+
+export function route(points: readonly (readonly [number, number])[]): Route {
+  const at = [0];
+  let length = 0;
+  for (let i = 1; i < points.length; i++) {
+    const [ax, az] = points[i - 1]!;
+    const [bx, bz] = points[i]!;
+    length += Math.hypot(bx - ax, bz - az);
+    at.push(length);
+  }
+  return { points, at, length };
+}
+
+/** Bod trasy ve vzdálenosti `d` od začátku a směr úseku (do `out`, klip a tempo nemění). */
+export function alongRoute(r: Route, d: number, reverse: boolean, out: VillagerPose): void {
+  const distance = Math.min(r.length, Math.max(0, d));
+  let i = 1;
+  while (i < r.points.length - 1 && r.at[i]! < distance) i++;
+  const [ax, az] = r.points[i - 1]!;
+  const [bx, bz] = r.points[i]!;
+  const segment = Math.max(1e-6, r.at[i]! - r.at[i - 1]!);
+  const u = Math.min(1, Math.max(0, (distance - r.at[i - 1]!) / segment));
+  out.x = ax + (bx - ax) * u;
+  out.z = az + (bz - az) * u;
+  const hx = (bx - ax) / segment;
+  const hz = (bz - az) / segment;
+  out.headingX = reverse ? -hx : hx;
+  out.headingZ = reverse ? -hz : hz;
+}
+
+export interface ShuttleOptions {
+  /** Cesta tam (klip, rychlost m/s), práce na konci (klip, s), cesta zpět, odpočinek na začátku. */
+  outClip: VillagerClip;
+  outSpeed: number;
+  endClip: VillagerClip;
+  endS: number;
+  backClip: VillagerClip;
+  backSpeed: number;
+  restClip: VillagerClip;
+  restS: number;
+  phase: number;
+}
+
+/**
+ * Chůze tam a zpět po trase (nosič úrody, dřeva, vody): tam s `outClip`, na konci `endClip`
+ * (nakládá), zpět s nákladem (`backClip`), na začátku chvíli stojí. Na koncích hledí podél
+ * trasy ven.
+ */
+export function shuttle(r: Route, o: ShuttleOptions): PoseFn {
+  const outS = r.length / Math.max(0.1, o.outSpeed);
+  const backS = r.length / Math.max(0.1, o.backSpeed);
+  const cycle = outS + o.endS + backS + o.restS;
+  const shift = o.phase * cycle;
+  return (t, _herds, out) => {
+    const time = (((t + shift) % cycle) + cycle) % cycle;
+    out.pace = 1;
+    if (time < outS) {
+      alongRoute(r, (time / outS) * r.length, false, out);
+      out.clip = o.outClip;
+    } else if (time < outS + o.endS) {
+      alongRoute(r, r.length, false, out);
+      out.clip = o.endClip;
+    } else if (time < outS + o.endS + backS) {
+      alongRoute(r, (1 - (time - outS - o.endS) / backS) * r.length, true, out);
+      out.clip = o.backClip;
+    } else {
+      alongRoute(r, 0, true, out);
+      out.clip = o.restClip;
+    }
+    return out;
+  };
+}
+
+/**
+ * Pasáček (dítě) u stáda `index`: každých 25 s si vybere jiné místo kolem stáda a dojde tam
+ * (`speed` m/s, `pace` přehrávání chůze); když se stádo stěhuje, jde s ním. Bez stáda (ještě
+ * nenačtená zvířata) stojí na místě `home`.
+ */
+export function herder(
+  index: number,
+  home: { x: number; z: number },
+  seed: number,
+  phase: number,
+  speed: number,
+  pace: number,
+): PoseFn {
+  const slotS = 25;
+  const spot = (k: number, radius: number, axis: 0 | 1): number => {
+    const angle = hash01(seed, k, 81) * Math.PI * 2;
+    const r = radius + 2 + hash01(seed, k, 82) * 3;
+    return axis === 0 ? Math.cos(angle) * r : Math.sin(angle) * r;
+  };
+  return (t, herds, out) => {
+    const herd = herds[index];
+    if (!herd) return set(out, home.x, home.z, 0, 1, 'idle');
+    const time = t + phase * slotS;
+    const k = Math.floor(time / slotS);
+    const within = time - k * slotS;
+    const ax = spot(k - 1, herd.radiusM, 0);
+    const az = spot(k - 1, herd.radiusM, 1);
+    const bx = spot(k, herd.radiusM, 0);
+    const bz = spot(k, herd.radiusM, 1);
+    const d = Math.hypot(bx - ax, bz - az);
+    const walkS = d / speed;
+    const u = walkS > 0 ? Math.min(1, within / walkS) : 1;
+    const x = herd.x + ax + (bx - ax) * u;
+    const z = herd.z + az + (bz - az) * u;
+    if (herd.moving > 0.3) return set(out, x, z, herd.headingX, herd.headingZ, 'walk', pace);
+    if (u < 1 && d > 1e-6) return set(out, x, z, (bx - ax) / d, (bz - az) / d, 'walk', pace);
+    // stojí čelem ke stádu
+    const back = Math.hypot(bx, bz);
+    return back > 1e-6
+      ? set(out, x, z, -bx / back, -bz / back, 'idle')
+      : set(out, x, z, 0, 1, 'idle');
+  };
+}
+
+/**
+ * Postava u domu: `standS` sekund stojí (idle), pak dojde pro vodu nebo dřevo po trase
+ * a s nákladem se vrátí (`shuttle` bez práce na konci by vypadal jako bloudění – chvíli se
+ * u cíle shýbá).
+ */
+export function fetcher(
+  r: Route,
+  kind: VillagerKind,
+  scale: number,
+  standS: number,
+  phase: number,
+): PoseFn {
+  return shuttle(r, {
+    outClip: 'walk',
+    outSpeed: walkSpeed(kind, 'walk', scale),
+    endClip: 'weed',
+    endS: 4,
+    backClip: 'carry',
+    backSpeed: walkSpeed(kind, 'carry', scale),
+    restClip: 'idle',
+    restS: standS,
+    phase,
+  });
+}
