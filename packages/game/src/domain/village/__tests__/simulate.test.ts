@@ -4,11 +4,12 @@ import { foundField, foundVillage, startNewDwelling } from '../actions';
 import type { PartInput } from '../actions';
 import { daysUntilHarvest, eatDay } from '../food';
 import { ageYears, foodNeedPerDay, occupants } from '../people';
-import { AGE, CHRONICLE_MAX_EVENTS, FERTILITY } from '../rules';
+import { NO_CRAFTS } from '../productivity';
+import { AGE, CHRONICLE_MAX_EVENTS, DWELLINGS } from '../rules';
 import { villageLaborFactor } from '../happiness';
 import { advanceVillage } from '../simulate';
 import type { ChronicleEvent, Person, VillageState } from '../types';
-import { createPlan, threshLossKg } from '../year-plan';
+import { createPlan, planCrops, planPartIds, taskRemaining, threshLossKg } from '../year-plan';
 import { withBuiltFirstDwelling } from './village-fixtures';
 
 const at = (year: number, month: number, day: number): number => dayIndexOf({ year, month, day });
@@ -175,7 +176,12 @@ describe('advanceVillage – dopočítání', () => {
     // (≥ 0,95 po 95 % let), je cíl kalibrace v Task 10 – startovní pole 1,7 ha je po třech
     // osevech vyčerpané a potřeba roste (dospívající → dospělí, porody).
     const s = advanceVillage(found(at(600, 10, 1)), at(602, 8, 31), null);
-    expect(harvests(s).filter((e) => e.kg > 0)).toHaveLength(2);
+    // jař 601 (díly hotové po plánu jdou do jaře), pak ozim v červenci a jař v srpnu 602
+    expect(
+      harvests(s)
+        .filter((e) => e.kg > 0)
+        .map((e) => e.crop ?? 'spring'),
+    ).toEqual(['spring', 'winter', 'spring']);
     expect(count(s, 'hunger-began')).toBe(0);
     expect(s.hungry).toBe(false);
   });
@@ -214,9 +220,10 @@ describe('advanceVillage – dopočítání', () => {
 
     const s = advanceVillage(lastSummerDay, at(600, 9, 1), null);
     expect(s.plan).not.toBeNull();
-    expect(s.plan?.partIds.length).toBeGreaterThan(0);
+    const planned = planPartIds(s.plan!);
+    expect(planned.length).toBeGreaterThan(0);
     const sown = s.parts.filter((p) => p.state === 'sown').map((p) => p.id);
-    expect([...(s.plan?.partIds ?? [])].sort((a, b) => a - b)).toEqual(sown);
+    expect([...planned].sort((a, b) => a - b)).toEqual(sown);
     expect(s.storesKg).toBeGreaterThan(0);
     expect(count(s, 'hunger-began')).toBe(0);
   });
@@ -228,7 +235,7 @@ describe('advanceVillage – dopočítání', () => {
     expect(nonFinite(s)).toEqual([]);
     expect(s.storesKg).toBeGreaterThanOrEqual(0);
     expect(count(s, 'hunger-began')).toBe(0);
-    expect(s.plan?.partIds ?? []).toEqual([]);
+    expect(s.plan ? planPartIds(s.plan) : []).toEqual([]);
   });
 
   it('(f) ves bez polí 5 let: bez výjimky, nasycení klesne, zůstanou aspoň 2 dospělí', () => {
@@ -248,10 +255,11 @@ describe('advanceVillage – dopočítání', () => {
 
 describe('advanceVillage – roční plán a sklizeň', () => {
   it('díl dokončený na podzim hned založí plán a další díly ho rozšíří (Ruling 2)', () => {
+    // první díl (2,25 čd) se dělí o společnou práci se stavbou první zemnice – stačí pár dní
     const start = found(at(600, 10, 1));
-    const early = advanceVillage(start, at(600, 10, 3), null);
+    const early = advanceVillage(start, at(600, 10, 10), null);
     expect(early.plan).not.toBeNull();
-    expect(early.plan?.plannedDay).toBeLessThanOrEqual(at(600, 10, 3));
+    expect(early.plan?.plannedDay).toBeLessThanOrEqual(at(600, 10, 10));
     const later = advanceVillage(early, at(600, 12, 31), null);
     expect(later.plan?.plannedDay).toBe(early.plan?.plannedDay);
     expect(later.plan?.partIds.length).toBeGreaterThan(early.plan?.partIds.length ?? 0);
@@ -278,7 +286,8 @@ describe('advanceVillage – roční plán a sklizeň', () => {
 
     const winterEnd = advanceVillage(s, at(601, 2, 28), null);
     const thresh = winterEnd.threshingFromPlan;
-    expect(thresh?.done.thresh).toBeCloseTo(thresh?.required.thresh ?? -1, 6);
+    expect(thresh?.done.thresh).toBeGreaterThan(0);
+    expect(taskRemaining(thresh!, 'thresh')).toBeCloseTo(0, 6); // vymlácená celá sklizená část
     expect(advanceVillage(winterEnd, at(601, 3, 1), null).threshingFromPlan).toBeNull();
   });
 
@@ -294,7 +303,7 @@ describe('advanceVillage – roční plán a sklizeň', () => {
       p.sownYears = i < 70 ? 1 : 0;
     });
     const s = advanceVillage(start, day, null);
-    const selected = new Set(s.plan?.partIds);
+    const selected = new Set(planPartIds(s.plan!));
     expect(selected.size).toBeGreaterThan(0);
     expect(selected.size).toBeLessThan(70); // cíl pokryjí už osevy
     for (const p of s.parts) {
@@ -322,28 +331,38 @@ describe('advanceVillage – roční plán a sklizeň', () => {
     return { s: advanceVillage(start, day, null), day };
   }
 
-  it('1. 9. příloh 16 let (víc než 15) se vrací z lesa: mýcení v plánu a bonus úrodnosti', () => {
-    const { s, day } = returningFallow(604);
-    expect(s.plan?.partIds.length).toBeGreaterThan(0);
-    expect(s.plan?.required.reclaim).toBeGreaterThan(0);
-    for (const id of s.plan?.partIds ?? []) {
-      const part = s.parts.find((p) => p.id === id);
-      expect(part).toMatchObject({
-        state: 'sown',
-        fallowSinceDay: null,
-        sownYears: 0,
-        bonusUntilDay: day + FERTILITY.forestBonusYears * 365,
-      });
+  it('1. 9. příloh 16 let se vrací jako pastvina: drn v plánu, bez bonusu, plete se', () => {
+    // na přílohu se pase – nezaroste v les, vrátit ho stojí drn jako louka (Martin, 18. 10. 2026)
+    const { s } = returningFallow(604);
+    const crops = planCrops(s.plan!);
+    expect(planPartIds(s.plan!).length).toBeGreaterThan(0);
+    const ha = (work: (typeof crops)[number]['work']): number =>
+      work.partIds.reduce((sum, id) => sum + s.parts.find((p) => p.id === id)!.areaM2, 0) / 10_000;
+    for (const { work } of crops) {
+      if (work.partIds.length === 0) continue;
+      expect(work.required.reclaim).toBeGreaterThanOrEqual(100 * ha(work) - 1e-6);
+      expect(work.required.reclaim).toBeLessThan(100 * ha(work) * 1.1);
+      expect(work.required.weed).toBeGreaterThan(0);
+      expect(work.reclaimIds).toEqual(work.partIds);
     }
-  });
-
-  it('1. 9. příloh přesně 15 let ještě není les: vrátí se bez bonusu úrodnosti', () => {
-    const { s } = returningFallow(605);
-    expect(s.plan?.partIds.length).toBeGreaterThan(0);
-    expect(s.plan?.required.reclaim).toBeGreaterThan(0);
-    for (const id of s.plan?.partIds ?? []) {
+    for (const id of planPartIds(s.plan!)) {
       const part = s.parts.find((p) => p.id === id);
       expect(part).toMatchObject({ state: 'sown', fallowSinceDay: null, bonusUntilDay: null });
+    }
+    expect(s.chronicle.some((e) => e.kind === 'part-became-forest')).toBe(false);
+  });
+
+  it('1. 9. příloh 15 let: vrátí se bez bonusu úrodnosti', () => {
+    const { s } = returningFallow(605);
+    const crops = planCrops(s.plan!);
+    expect(planPartIds(s.plan!).length).toBeGreaterThan(0);
+    expect(crops.reduce((sum, { work }) => sum + work.required.reclaim, 0)).toBeGreaterThan(0);
+    for (const id of planPartIds(s.plan!)) {
+      const part = s.parts.find((p) => p.id === id);
+      expect(part).toMatchObject({ state: 'sown', fallowSinceDay: null, bonusUntilDay: null });
+    }
+    for (const { work } of crops) {
+      if (work.partIds.length > 0) expect(work.required.weed).toBeGreaterThan(0);
     }
   });
 
@@ -358,7 +377,7 @@ describe('advanceVillage – roční plán a sklizeň', () => {
       p.foundingDone = p.foundingCost;
       p.state = i < sown ? 'sown' : 'ready';
     });
-    const plan = createPlan(s.parts.slice(0, sown), at(600, 3, 1));
+    const plan = createPlan(s.parts.slice(0, sown), at(600, 3, 1), NO_CRAFTS.tools);
     s.plan = { ...plan, done: { ...plan.required } };
     return s;
   }
@@ -383,13 +402,13 @@ describe('advanceVillage – roční plán a sklizeň', () => {
     const day = at(601, 3, 1);
     const s0 = withoutFields(at(600, 10, 1));
     s0.lastDay = day - 1;
-    const threshing = createPlan([], at(600, 9, 1));
+    const threshing = createPlan([], at(600, 9, 1), NO_CRAFTS.tools);
     threshing.required.thresh = 30;
     threshing.done.thresh = 15;
     threshing.harvestedKg = 500;
     s0.threshingFromPlan = threshing;
     const need = s0.people.reduce((sum, p) => sum + foodNeedPerDay(p, day), 0);
-    const eaten = eatDay(s0.storesKg, need, daysUntilHarvest(day)).storesKg;
+    const eaten = eatDay(s0.storesKg, need, daysUntilHarvest(day), NO_CRAFTS.pottery).storesKg;
     expect(threshLossKg(threshing, 500)).toBeCloseTo(250, 9);
 
     const s = advanceVillage(s0, day, null);
@@ -407,7 +426,7 @@ describe('advanceVillage – roční plán a sklizeň', () => {
       p.foundingDone = p.foundingCost;
       p.state = 'sown';
     }
-    s0.plan = createPlan(s0.parts, at(600, 9, 1));
+    s0.plan = createPlan(s0.parts, at(600, 9, 1), NO_CRAFTS.tools);
 
     const spring = advanceVillage(s0, at(601, 4, 30), null);
     const dig = { done: spring.plan?.done.dig ?? 0, required: spring.plan?.required.dig ?? 0 };
@@ -433,7 +452,7 @@ describe('advanceVillage – roční plán a sklizeň', () => {
       p.foundingDone = p.foundingCost;
       p.state = 'sown';
     }
-    s0.plan = createPlan(s0.parts, at(600, 9, 1));
+    s0.plan = createPlan(s0.parts, at(600, 9, 1), NO_CRAFTS.tools);
 
     const summerEnd = advanceVillage(s0, at(601, 8, 30), null);
     const plan = summerEnd.plan!;
@@ -719,7 +738,7 @@ describe('advanceVillage – obydlí', () => {
   it('dožilé obydlí obyvatelé přestaví – na lepší, když na to ves má', () => {
     const day = at(600, 10, 1);
     const s0 = withBuiltFirstDwelling(found(day));
-    s0.dwellings[0]!.builtDay = day - 16 * 365;
+    s0.dwellings[0]!.builtDay = day - (DWELLINGS.zemnice.lifespanYears + 1) * 365;
     const decided = advanceVillage(s0, day, null);
     expect(decided.chronicle).toContainEqual({
       day,
@@ -739,5 +758,63 @@ describe('advanceVillage – obydlí', () => {
     expect(count(s, 'rebuild-decided')).toBe(1);
     expect(s.dwellings[0]).toMatchObject({ type: 'polozemnice' });
     expect(s.dwellings[0]?.builtDay).toBe(finished?.day);
+  });
+});
+
+describe('advanceVillage – ozim a jař (fields.md – Ozim a jař)', () => {
+  const settled = (): VillageState => advanceVillage(found(at(600, 3, 15)), at(601, 9, 1), null);
+
+  it('1. 9. ves oseje ozim, kolik podzim stihne, zbytek jaří; díly nesou plodinu', () => {
+    const s = settled();
+    const winter = s.plan?.winter;
+    expect(winter?.partIds.length).toBeGreaterThan(0);
+    for (const id of winter?.partIds ?? []) {
+      expect(s.parts.find((p) => p.id === id)?.crop).toBe('winter');
+    }
+    for (const id of s.plan?.partIds ?? []) {
+      expect(s.parts.find((p) => p.id === id)?.crop).toBe('spring');
+    }
+    // díly mimo osev plodinu nemají
+    for (const p of s.parts) if (p.state !== 'sown') expect(p.crop).toBeUndefined();
+  });
+
+  it('ozim se do konce října zkope a zaseje, jař se kope na podzim, co zbude', () => {
+    const autumn = advanceVillage(settled(), at(601, 10, 31), null);
+    const winter = autumn.plan!.winter!;
+    expect(winter.done.dig).toBeCloseTo(winter.required.dig, 6);
+    // plán nechá poslední den okna na zasetí pruhu zkopaného den předtím
+    expect(winter.done.sow).toBeCloseTo(winter.required.sow, 6);
+    const november = advanceVillage(autumn, at(601, 11, 30), null);
+    expect(november.plan!.winter!.done.sow).toBe(winter.done.sow); // po okně se už neseje
+    if (november.plan!.required.dig > 0) expect(november.plan!.done.dig).toBeGreaterThan(0);
+  });
+
+  it('31. 7. sklizeň ozimu do zásob, 31. 8. jař, 1. 3. konec výmlatu obou', () => {
+    const july = advanceVillage(settled(), at(602, 7, 30), null);
+    const harvested = advanceVillage(july, at(602, 7, 31), null);
+    const winterHarvest = harvests(harvested).at(-1)!;
+    expect(winterHarvest).toMatchObject({ day: at(602, 7, 31), crop: 'winter' });
+    expect(winterHarvest.kg).toBeGreaterThan(0);
+    expect(Math.round(harvested.plan!.winter!.harvestedKg!)).toBe(winterHarvest.kg);
+    expect(harvested.storesKg).toBeGreaterThan(july.storesKg + winterHarvest.kg - 5);
+
+    const august = advanceVillage(harvested, at(602, 8, 31), null);
+    expect(august.plan).toBeNull();
+    expect(august.threshingFromPlan?.winter?.harvestedKg).toBe(harvested.plan!.winter!.harvestedKg);
+    const winterEnd = advanceVillage(august, at(603, 2, 28), null);
+    for (const { work } of planCrops(winterEnd.threshingFromPlan!)) {
+      expect(taskRemaining(work, 'thresh')).toBeCloseTo(0, 6);
+    }
+    expect(advanceVillage(winterEnd, at(603, 3, 1), null).threshingFromPlan).toBeNull();
+  });
+
+  it('starší ves bez plodin na dílech a bez ozimu v plánu dopočítá dál (díl bez plodiny = jař)', () => {
+    const old = advanceVillage(found(at(600, 3, 15)), at(601, 6, 1), null);
+    delete old.plan!.winter;
+    for (const p of old.parts) delete p.crop;
+    const s = advanceVillage(JSON.parse(JSON.stringify(old)) as VillageState, at(601, 9, 2), null);
+    expect(harvests(s).at(-1)?.crop).toBeUndefined();
+    expect(s.plan?.winter?.partIds.length).toBeGreaterThan(0);
+    expect(nonFinite(s)).toEqual([]);
   });
 });

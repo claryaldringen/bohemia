@@ -1,15 +1,33 @@
 import type { ObstacleKind } from '../landscape';
-import type { DwellingType, FieldSurface, PlotVariant, TaskName } from './types';
+import type {
+  Bounds,
+  Crop,
+  DwellingType,
+  FieldSurface,
+  FieldTask,
+  PlotVariant,
+  TaskName,
+} from './types';
+
+// Meze produktivity (Martin, oprava podle rešerše 17. 10. 2026 – docs/design/research/): práce
+// a ztráty, pro které literatura dává rozpětí, mají dvojici { worst, best }. Ves bez řemesel
+// platí `worst`, s plně pokrytou potřebou výrobků řemeslníků `best`, mezi tím lineárně podle
+// pokrytí (productivity.ts). Kovář posouvá práci (nástroje), hrnčíř ztráty zásob a denní
+// minimum (nádoby). Kde literatura dává jedno číslo, platí obojí. Řemesla zatím nejsou –
+// volající předávají pokrytí 0 (NO_CRAFTS), tedy `worst`.
 
 /** Úsek okna prací – od měsíce do měsíce včetně (1–12). */
 export type WindowSegment = readonly [number, number];
 
 // population.md – Pojmy (tabulka obydlí: kapacita, cena, životnost), Chátrání a přestavba (opravy, dětská úmrtnost)
+// Životnost zemnice 18 let (oprava podle rešerše, bylo 15): potřeba oprav roste s (věk / životnost)²,
+// takže se s životností sama roztáhne – roční potřeba na konci zůstává 15, za celý život 90
+// člověkodní (bylo 75) a prázdná zemnice vydrží ≈ 16 let (bylo ≈ 14).
 export const DWELLINGS = {
   zemnice: {
     capacity: 6,
     cost: 60,
-    lifespanYears: 15,
+    lifespanYears: 18,
     repairAtEndOfLifePerYear: 15, // kalibrace: ≈ ½ společné práce domácnosti (measure-village)
     childDeathFactor: 1,
   },
@@ -26,14 +44,15 @@ export const BETTER_DWELLING: Record<DwellingType, DwellingType> = {
   zemnice: 'polozemnice',
   polozemnice: 'polozemnice',
 };
-// population.md – Pojmy a Práce (věkové hranice, pracovní síla); START_AGES: Založení vsi (4 lidé)
-export const AGE = { olderChild: 7, adult: 14, elder: 45 } as const;
+// population.md – Pojmy a Práce (věkové hranice, pracovní síla), Růst populace (porody od 16 let –
+// oprava podle rešerše, dospělý pro práci a odemčení zůstává 14–44); START_AGES: Založení vsi (4 lidé)
+export const AGE = { olderChild: 7, adult: 14, fertile: 16, elder: 45 } as const;
 export const LABOR_PER_DAY = { olderChild: 0.3, adult: 1, elder: 0.5 } as const;
 export const START_AGES = [25, 25, 13, 12] as const;
 // population.md – Růst populace (porodnost, úmrtnost dětí a dospělých, štěstí)
 export const BIRTHS_PER_PAIR_PER_YEAR = 1 / 3;
 export const CHILD_DEATH_BEFORE_ADULT = 0.4; // → ročně 1 − 0,6^(1/14)
-export const ADULT_DEATHS_PER_YEAR = 0.015;
+export const ADULT_DEATHS_PER_YEAR = 0.02; // oprava podle rešerše (bylo 0,015; Lahovice)
 export const ELDER_DEATHS_PER_YEAR = 0.08;
 // population.md – Růst populace (přeplněnost)
 export const CROWDED_BIRTH_FACTOR = 0.3;
@@ -62,57 +81,62 @@ export const STARVATION = {
 export const NEW_HOUSEHOLD_MIN_ADULTS = 4;
 // fields.md – Zásoby a nasycení (roční potřeba jídla podle věku)
 export const FOOD_NEED_KG_PER_YEAR = { child: 100, adult: 180, elder: 140 } as const;
-// fields.md – Zásoby a nasycení (ztráty při skladování, start se zásobami)
-export const STORAGE_LOSS_PER_YEAR = 0.1;
+// fields.md – Zásoby a nasycení (ztráty při skladování – meze: s hrnčířem 5 %, start se zásobami)
+export const STORAGE_LOSS_PER_YEAR: Bounds = { worst: 0.1, best: 0.05 };
 export const START_STORES_MONTHS = 18;
 // fields.md – Kolik ves oseje (potřeba + rezerva 15 %, nad 1,5 roční potřeby jen potřeba)
 export const SOW_RESERVE = 0.15;
 export const STORES_HIGH_YEARS = 1.5;
 // fields.md – Kolik ves oseje (návrh Clauda)
 export const PEAK_CAPACITY_SHARE = 1; // ve špičce smí jít na pole všechna práce po denním minimu (kalibrace z 0,8)
-export const SPRING_DIG_SHARE = 0.5; // polovina kopání připadne na jaro (zbytek na podzim)
 // fields.md – Úroda (hrubá úroda na hektar podle úrodnosti)
 export const YIELD_BASE_KG_PER_HA = 760; // × (0,4 + 0,6 × úrodnost / 100)
 // fields.md – Úroda (osivo na hektar)
 export const SEED_KG_PER_HA = 175;
 // fields.md – Úroda (neopletený díl), Zarůstání
 export const UNWEEDED_YIELD = 0.6; // neopletý díl dá 60 % (návrh Clauda, kalibrace)
-// fields.md – Přílohová soustava (osev, úhor), Úroda (úrodnost, vymýcený les), Založení pole
+// fields.md – Přílohová soustava (osev, příloh), Úroda (úrodnost). Obnova v přílohu 2,5 %
+// přirozené za rok (oprava podle rešerše, bylo 5 %): z 0,64 na 0,95 za 13 let.
 export const FERTILITY = {
   sowDepletion: 0.12,
-  fallowRecovery: 0.05,
+  fallowRecovery: 0.025,
   sowableMin: 0.7,
   fallowReady: 0.95,
-  forestBonus: 20,
-  forestBonusYears: 3,
 } as const;
-// fields.md – Práce: sklizeň srpem a vázání 30 + odnos úrody v nůších 20 člověkodní na hektar
-// (simulace je počítá jako jednu úlohu sklizně, rozdělení práce pro scénu je dělí – postavy)
-export const HARVEST_WORK_PER_HA = { reap: 30, carry: 20 } as const;
-// fields.md – Práce (člověkodny na hektar)
-export const FIELD_WORK_PER_HA = {
-  dig: 80,
-  sow: 10,
-  weed: 30,
-  harvest: HARVEST_WORK_PER_HA.reap + HARVEST_WORK_PER_HA.carry,
-  thresh: 30,
-} as const;
-// fields.md – Založení pole (vymýcení lesa podle stáří zarůstání)
-export const RECLAIM_COST_PER_HA = [
-  { maxYears: 2, cost: 0 },
-  { maxYears: 5, cost: 40 },
-  { maxYears: 10, cost: 60 },
-  { maxYears: 15, cost: 150 },
-  { maxYears: Infinity, cost: 250 },
-] as const;
-// fields.md – Zarůstání (víc než 15 let přílohu: z dílu je les)
-export const FOREST_AFTER_YEARS = 16;
-// fields.md – Založení pole (povrch dílu za hektar)
-export const FOUNDING_COST_PER_HA: Record<FieldSurface, number> = {
-  meadow: 40,
-  shrub: 150,
-  forest: 250,
+// fields.md – Úroda (vymýcený les; oprava podle rešerše, bylo +20 na 3 roky): bonus úrodnosti
+// podle sezóny osevu po vymýcení (1. +40, 2. +20, pak 0) a první sezónu se neplete. Bonus platí
+// jen do `windowYears` let od vymýcení – díl, který ves do té doby neoseje, o popel přijde.
+export const FOREST_BONUS = { bySeason: [40, 20], windowYears: 3 } as const;
+// fields.md – Práce: sklizeň srpem a vázání 30 (s řemesly 15) + odnos úrody v nůších 20 člověkodní
+// na hektar – meze (simulace je počítá jako jednu úlohu sklizně, rozdělení práce pro scénu je
+// dělí – postavy)
+export const HARVEST_WORK_PER_HA: Record<'reap' | 'carry', Bounds> = {
+  reap: { worst: 30, best: 15 },
+  carry: { worst: 20, best: 20 },
 };
+// fields.md – Práce (člověkodny na osetý hektar – meze)
+export const FIELD_WORK_PER_HA: Record<FieldTask, Bounds> = {
+  dig: { worst: 100, best: 50 },
+  sow: { worst: 10, best: 10 },
+  weed: { worst: 30, best: 15 },
+  harvest: {
+    worst: HARVEST_WORK_PER_HA.reap.worst + HARVEST_WORK_PER_HA.carry.worst,
+    best: HARVEST_WORK_PER_HA.reap.best + HARVEST_WORK_PER_HA.carry.best,
+  },
+  thresh: { worst: 15, best: 10 },
+};
+// fields.md – Založení pole (povrch dílu za hektar – meze)
+export const FOUNDING_COST_PER_HA: Record<FieldSurface, Bounds> = {
+  meadow: { worst: 100, best: 90 },
+  shrub: { worst: 100, best: 60 },
+  forest: { worst: 250, best: 150 },
+};
+// fields.md – Práce, Zarůstání (Martin, 18. 10. 2026 – na přílohu se pase, nálet nebude): vrácení
+// přílohu do osevu – 1–2 roky bez práce navíc, pak drn pastviny jako založení na louce (meze)
+export const RECLAIM_COST_PER_HA: readonly { maxYears: number; cost: Bounds }[] = [
+  { maxYears: 2, cost: { worst: 0, best: 0 } },
+  { maxYears: Infinity, cost: FOUNDING_COST_PER_HA.meadow },
+];
 // fields.md – Založení pole (sazba povrchu za hektar v sobě má, co povrch tvoří: v lese stromy
 // i se suchými, padlými a pařezy a podrost – „stromy v ceně“, v křovinách keře; po kusech se
 // na takovém čtverci platí jen ostatní překážky – kameny, balvany, v křovinách i stromy)
@@ -136,8 +160,8 @@ export const OBSTACLE_COST = {
 export const DISTANCE = { freeM: 100, percentPer10M: 1 } as const;
 // fields.md – Založení pole (nejdál 800 m od obydlí, nejmenší výměra 0,1 ha)
 export const FIELD_LIMITS = { maxDistanceM: 800, minAreaM2: 1000 } as const;
-// fields.md – Práce (denní minimum domácností); population.md – Práce
-export const DAILY_MIN_PER_HOUSEHOLD = 0.5;
+// fields.md – Práce (denní minimum domácností – meze: s hrnčířem 0,45); population.md – Práce
+export const DAILY_MIN_PER_HOUSEHOLD: Bounds = { worst: 0.5, best: 0.45 };
 // fields.md – Práce (domácí výroba, přenos nedodělané práce nejvýš 60 dní)
 export const DOMESTIC = { perHousehold: 0.3, perPerson: 0.15, backlogMaxDays: 60 } as const;
 // population.md – Nové obydlí (společná práce za posledních 30 dní pro „má na to“)
@@ -156,7 +180,8 @@ export const HYGIENE_DEATH_EXTRA = { child: 0.5, adult: 0.3, elder: 0.3 } as con
 // population.md – Kronika (ves drží posledních 500 událostí, starší se zahazují)
 export const CHRONICLE_MAX_EVENTS = 500;
 
-// fields.md – Práce, tabulka Kdy (okna prací v měsících včetně; kopání, které se na podzim nestihne, pokračuje v březnu–dubnu)
+// fields.md – Práce, tabulka Kdy, a Ozim a jař (okna prací v měsících včetně). WINDOWS = jař:
+// kopá se na podzim, co se nestihne, v březnu–dubnu; seje se na jaře, sklízí v srpnu.
 export const WINDOWS: Record<TaskName, readonly WindowSegment[]> = {
   reclaim: [[9, 11]],
   dig: [
@@ -165,12 +190,33 @@ export const WINDOWS: Record<TaskName, readonly WindowSegment[]> = {
   ],
   sow: [[3, 4]],
   weed: [[5, 6]],
-  harvest: [[7, 8]],
+  harvest: [[8, 8]],
   thresh: [
     [11, 12],
     [1, 2],
   ],
 };
+// fields.md – Ozim a jař (návrh Clauda, Martin schválil směr 18. 10. 2026): ozim se vrací
+// z přílohu, kope a seje v září–říjnu, plete v květnu–červnu jako jař, sklízí v červenci
+// a mlátí v zimě
+export const WINTER_WINDOWS: Record<TaskName, readonly WindowSegment[]> = {
+  reclaim: [[9, 10]],
+  dig: [[9, 10]],
+  sow: [[9, 10]],
+  weed: [[5, 6]],
+  harvest: [[7, 7]],
+  thresh: [
+    [11, 12],
+    [1, 2],
+  ],
+};
+/** Okna prací podle plodiny (fields.md – Ozim a jař). */
+export const CROP_WINDOWS: Record<Crop, Record<TaskName, readonly WindowSegment[]>> = {
+  winter: WINTER_WINDOWS,
+  spring: WINDOWS,
+};
+/** Pořadí plodin při shodě konce okna – ozim (sklízí se dřív) první. */
+export const CROP_ORDER: readonly Crop[] = ['winter', 'spring'];
 // orchard.md – Pravidla (Martin – oprava podle rešerše 17. 10. 2026): výsadba 80 člověkodní/ha
 // (+ překážky jako u pole), péče v zimě 10 člověkodní/ha ročně, sklizeň 8 člověkodní/ha při plné
 // úrodě (při menší úrodě poměrně méně); první jablka 6. rok po výsadbě, úroda lineárně do plné
@@ -205,10 +251,12 @@ export const APPLE_ROT_DAY = { month: 3, day: 1 } as const;
 // výsadba je 1. rokem sadu hned, podzimní (od září) až od příštího jara
 export const ORCHARD_SEASON = { startMonth: 3, autumnPlantingFromMonth: 9 } as const;
 
-// fields.md – Kolik ves oseje (k 1. září), Práce a Včasnost (sklizeň do konce srpna, výmlat do
-// konce února). Musí souhlasit s WINDOWS: sklizeň je poslední den okna harvest, plán den po ní,
-// konec výmlatu den po konci okna thresh (hlídá rules.test.ts).
+// fields.md – Kolik ves oseje (k 1. září), Práce a Včasnost (sklizeň jaře do konce srpna, ozimu
+// do konce července, výmlat do konce února). Musí souhlasit s okny: sklizeň je poslední den okna
+// harvest své plodiny, plán den po sklizni jaře, konec výmlatu den po konci okna thresh (hlídá
+// rules.test.ts).
 export const HARVEST_DAY = { month: 8, day: 31 } as const;
+export const WINTER_HARVEST_DAY = { month: 7, day: 31 } as const;
 export const PLANNING_DAY = { month: 9, day: 1 } as const;
 export const THRESH_END_DAY = { month: 3, day: 1 } as const;
 
@@ -302,13 +350,11 @@ export const FUEL_DOMESTIC_SHARE = 1 / 3;
 export function dwellingBuildLabor(type: DwellingType): number {
   return DWELLINGS[type].cost - DWELLING_TREES[type] * FELLING_MAN_DAYS_PER_TREE;
 }
-// fields.md – Zarůstání (stadia přílohu podle celých let bez péče; víc než 15 let = les)
+// fields.md – Zarůstání (Martin, 18. 10. 2026: na přílohu se pasou ovce, kozy a krávy – nálet
+// nebude): mladý příloh 1–2 roky, pak napořád spásaná pastvina (stadium `meadow`)
 export const OVERGROWTH_STAGES = [
   { maxYears: 2, stage: 'young-fallow' },
-  { maxYears: 5, stage: 'meadow' },
-  { maxYears: 10, stage: 'young-growth' },
-  { maxYears: 15, stage: 'shrub' },
-  { maxYears: Infinity, stage: 'forest' },
+  { maxYears: Infinity, stage: 'meadow' },
 ] as const;
 
 // happiness.md – Štěstí (Martin 18. 10. 2026; čísla návrh Clauda): číslo 0–100, výchozí 50,

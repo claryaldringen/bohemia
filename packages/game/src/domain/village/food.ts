@@ -1,30 +1,42 @@
 import { dateOfDayIndex, dayIndexOf, isLeapYear } from '../calendar';
-import { APPLE_FOOD_VALUE, APPLE_ROT_DAY, HARVEST_DAY, STORAGE_LOSS_PER_YEAR } from './rules';
+import { storageLossPerYear } from './productivity';
+import { APPLE_FOOD_VALUE, APPLE_ROT_DAY, HARVEST_DAY, WINTER_HARVEST_DAY } from './rules';
 
 const COMMON_YEAR_DAYS = 365;
 
-/** Dní do konce sklizňového dne 31. 8. včetně dneška (31. 8. → 1, 1. 9. → celý rok). */
-export function daysUntilHarvest(day: number): number {
+/** Dní do konce dne `target` (měsíc a den po únoru) včetně dneška; po něm do příštího roku. */
+function daysUntilYearly(day: number, target: { month: number; day: number }): number {
   const { year, month, day: dayOfMonth } = dateOfDayIndex(day);
-  const passed =
-    month > HARVEST_DAY.month || (month === HARVEST_DAY.month && dayOfMonth > HARVEST_DAY.day);
-  const harvest = dayIndexOf({ year, ...HARVEST_DAY });
-  // Příští sklizeň je o rok dál, s přestupným únorem příštího roku o den víc. Bez dayIndexOf –
+  const passed = month > target.month || (month === target.month && dayOfMonth > target.day);
+  const thisYear = dayIndexOf({ year, ...target });
+  // Příští termín je o rok dál, s přestupným únorem příštího roku o den víc. Bez dayIndexOf –
   // na podzim 1499 by sahal na rok 1500, který už ve světě není.
-  const next = passed ? harvest + COMMON_YEAR_DAYS + (isLeapYear(year + 1) ? 1 : 0) : harvest;
+  const next = passed ? thisYear + COMMON_YEAR_DAYS + (isLeapYear(year + 1) ? 1 : 0) : thisYear;
   return next - day + 1;
 }
 
+/** Dní do konce sklizňového dne jaře 31. 8. včetně dneška (31. 8. → 1, 1. 9. → celý rok). */
+export function daysUntilHarvest(day: number): number {
+  return daysUntilYearly(day, HARVEST_DAY);
+}
+
+/** Dní do konce sklizně ozimu 31. 7. včetně dneška (31. 7. → 1, 1. 8. → skoro rok). */
+export function daysUntilWinterHarvest(day: number): number {
+  return daysUntilYearly(day, WINTER_HARVEST_DAY);
+}
+
 /**
- * Jeden den jídla: nejdřív ztráta zásob (10 % ročně rovnoměrně), pak příděl.
- * Vystačí-li zásoby do sklizně, jí se dosyta; jinak se zbytek dělí rovně do sklizně.
+ * Jeden den jídla: nejdřív ztráta zásob (meze podle pokrytí nádobami – bez hrnčíře 10 % ročně,
+ * rovnoměrně), pak příděl. Vystačí-li zásoby do sklizně, jí se dosyta; jinak se zbytek dělí
+ * rovně do sklizně.
  */
 export function eatDay(
   storesKg: number,
   needPerDayKg: number,
   daysToHarvest: number,
+  potteryCoverage: number,
 ): { storesKg: number; satiation: number } {
-  const afterLoss = storesKg * (1 - STORAGE_LOSS_PER_YEAR) ** (1 / 365);
+  const afterLoss = storesKg * (1 - storageLossPerYear(potteryCoverage)) ** (1 / 365);
   const needUntilHarvest = needPerDayKg * daysToHarvest;
   if (afterLoss >= needUntilHarvest) {
     return { storesKg: afterLoss - needPerDayKg, satiation: 1 };
@@ -69,8 +81,8 @@ export interface MealResult {
 }
 
 /**
- * Jeden den jídla se sadem (orchard.md – Jídlo): nejdřív ztráta zásob obilí (jablka ztrátu
- * nemají, celá shnijí 1. 3.), pak příděl. Jablka (1 kg = APPLE_FOOD_VALUE kg obilí) se jí
+ * Jeden den jídla se sadem (orchard.md – Jídlo): nejdřív ztráta zásob obilí (meze podle pokrytí
+ * nádobami jako `eatDay`; jablka ztrátu nemají, celá shnijí 1. 3.), pak příděl. Jablka (1 kg = APPLE_FOOD_VALUE kg obilí) se jí
  * přednostně a jen do konce února (`daysToRot`). Vystačí-li jídlo do sklizně, jí se dosyta.
  * Když ne, dělí se rovně do sklizně – pokud se při takovém přídělu stihnou snědat všechna
  * jablka; jinak se do zkažení jí jen jablka (rovným dílem, nejvýš dosyta) a obilí zůstane na
@@ -82,12 +94,13 @@ export function eatMeal(
   needPerDayKg: number,
   daysToHarvest: number,
   daysToRot: number,
+  potteryCoverage: number,
 ): MealResult {
   if (applesKg <= 0 || daysToRot <= 0) {
-    const meal = eatDay(storesKg, needPerDayKg, daysToHarvest);
+    const meal = eatDay(storesKg, needPerDayKg, daysToHarvest, potteryCoverage);
     return { ...meal, applesKg: Math.max(0, applesKg), outlook: meal.satiation };
   }
-  const grain = storesKg * (1 - STORAGE_LOSS_PER_YEAR) ** (1 / 365);
+  const grain = storesKg * (1 - storageLossPerYear(potteryCoverage)) ** (1 / 365);
   if (needPerDayKg <= 0) return { storesKg: grain, applesKg, satiation: 1, outlook: 1 };
   const apples = applesKg * APPLE_FOOD_VALUE; // v kg obilí
   const need = needPerDayKg;

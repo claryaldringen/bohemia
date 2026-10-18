@@ -65,10 +65,11 @@ describe('vzhled dílů – odhad ze stadia a data', () => {
 
   it('mladý úhor se pase, starší je louka na seno – nikdy křoví ani les', () => {
     expect(estimatePart(part(0, 0, 'young-fallow'), 100, 0, 1).look).toBe('young-fallow');
-    for (const stage of ['meadow', 'young-growth', 'shrub', 'forest'] as const) {
-      expect(estimatePart(part(0, 0, stage), 100, 0, 1).look).toBe('meadow');
-      expect(estimatePart(part(0, 0, stage), dayOfYearFromDate(8, 1), 0, 1).look).toBe('haystacks');
-    }
+    // stadia nálet, křoviny a les příloh nemá (jádro – na přílohu se pase)
+    expect(estimatePart(part(0, 0, 'meadow'), 100, 0, 1).look).toBe('meadow');
+    expect(estimatePart(part(0, 0, 'meadow'), dayOfYearFromDate(8, 1), 0, 1).look).toBe(
+      'haystacks',
+    );
   });
 
   it('louka na seno: tráva, seč po dílech od vsi, stohy přes zimu', () => {

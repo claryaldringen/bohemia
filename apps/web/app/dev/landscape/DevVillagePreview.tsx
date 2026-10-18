@@ -62,16 +62,7 @@ import {
   type SceneVillage,
 } from '@/lib/village-view';
 
-const STAGES: PartStage[] = [
-  'founding',
-  'ready',
-  'sown',
-  'young-fallow',
-  'meadow',
-  'young-growth',
-  'shrub',
-  'forest',
-];
+const STAGES: PartStage[] = ['founding', 'ready', 'sown', 'young-fallow', 'meadow'];
 const SEASON_NAMES = { spring: 'jaro', summer: 'léto', autumn: 'podzim', winter: 'zima' } as const;
 /** Stáří obydlí pro pěšiny na vývojové stránce (let; null = odjakživa). */
 const PATH_AGES: (number | null)[] = [null, 0.5, 1, 2, 8, 20, 40];

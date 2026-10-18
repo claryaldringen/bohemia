@@ -1,6 +1,7 @@
 import type { ReactElement, ReactNode } from 'react';
 import { PART_COLORS, SURFACE_COLORS } from '@/lib/minimap';
 import {
+  CROP_LABELS,
   FIELD_SURFACE_NAMES,
   PART_STAGE_NAMES,
   type SelectionDetails,
@@ -155,9 +156,9 @@ function FieldBody({
         <Stat icon="food" name="Úrodnost" testId="selection-fertility">
           {Math.round(details.fertility)}
         </Stat>
-        {details.ashParts > 0 && (
+        {details.ashBonus > 0 && (
           <Tooltip
-            content={`Popel z vymýceného lesa – úrodnost +20 na 3 roky (${details.ashParts} ${plural(details.ashParts, 'díl', 'díly', 'dílů')})`}
+            content={`Popel z vymýceného lesa – úrodnost +40 první sezónu osevu, +20 druhou (${details.ashParts} ${plural(details.ashParts, 'díl', 'díly', 'dílů')})`}
             placement="above"
           >
             <span
@@ -165,10 +166,20 @@ function FieldBody({
               tabIndex={0}
               className="text-xs font-semibold text-amber-300 tabular-nums"
             >
-              +20
+              +{details.ashBonus}
             </span>
           </Tooltip>
         )}
+        {details.crops.map(({ crop, count }) => (
+          <Stat
+            key={crop}
+            icon={CROP_LABELS[crop].icon}
+            name={CROP_LABELS[crop].name}
+            testId={`selection-crop-${crop}`}
+          >
+            {count}
+          </Stat>
+        ))}
       </div>
       <ul aria-label="Díly pole" className="flex flex-wrap gap-1.5">
         {details.stages.map(({ stage, count }) => (

@@ -19,9 +19,9 @@ import {
   placementVillageOf,
   type PlacementVillage,
 } from '../placement';
+import { NO_CRAFTS, foundingCostPerHa } from '../productivity';
 import {
-  FERTILITY,
-  FOUNDING_COST_PER_HA,
+  FOREST_BONUS,
   LOG_ROT_PER_YEAR,
   OBSTACLE_COST,
   SURFACE_INCLUDED_OBSTACLES,
@@ -108,31 +108,37 @@ function village(day = DAY): VillageState {
 }
 
 describe('fieldSquareSurface', () => {
+  const TOOLS = NO_CRAFTS.tools;
+
   it('les podle krajiny, voda není povrch pole', () => {
-    expect(fieldSquareSurface('forest', 0, 225)).toBe('forest');
-    expect(fieldSquareSurface('forest', 9, 225)).toBe('forest');
-    expect(fieldSquareSurface('water', 0, 225)).toBeNull();
+    expect(fieldSquareSurface('forest', 0, 225, TOOLS)).toBe('forest');
+    expect(fieldSquareSurface('forest', 9, 225, TOOLS)).toBe('forest');
+    expect(fieldSquareSurface('water', 0, 225, TOOLS)).toBeNull();
   });
 
   it('louka je křovinami, když by keře po kusech stály aspoň rozdíl sazeb křovin a louky', () => {
-    // políčko 15 × 15 m: (150 − 40) × 0,0225 = 2,475 čd → od 5 keřů po 0,5 čd
-    expect(fieldSquareSurface('meadow', 0, 225)).toBe('meadow');
-    expect(fieldSquareSurface('meadow', 4, 225)).toBe('meadow');
-    expect(fieldSquareSurface('meadow', 5, 225)).toBe('shrub');
-    // menší plocha – stačí méně keřů
-    expect(fieldSquareSurface('meadow', 3, 100)).toBe('shrub');
-    expect(fieldSquareSurface('meadow', 2, 100)).toBe('meadow');
+    // podle rešerše stojí křoviny bez řemesel stejně jako louka (100 čd/ha) a s nástroji méně –
+    // rozdíl sazeb je ≤ 0, takže křovinami je čtverec s jakýmkoli keřem
+    for (const tools of [0, 0.5, 1]) {
+      expect(fieldSquareSurface('meadow', 0, 225, tools)).toBe('meadow');
+      expect(fieldSquareSurface('meadow', 1, 225, tools)).toBe('shrub');
+      expect(fieldSquareSurface('meadow', 5, 100, tools)).toBe('shrub');
+    }
   });
 
-  it('cena s přibývajícími keři roste plynule až po sazbu křovin', () => {
+  it('cena s přibývajícími keři nepřesáhne sazbu křovin a neklesá', () => {
     let previous = 0;
     for (let shrubs = 0; shrubs <= 12; shrubs++) {
-      const surface = fieldSquareSurface('meadow', shrubs, 225)!;
+      const surface = fieldSquareSurface('meadow', shrubs, 225, TOOLS)!;
       const included = SURFACE_INCLUDED_OBSTACLES[surface].includes('shrub');
-      const cost = partFoundingCost(surface, 225, included ? 0 : shrubs * OBSTACLE_COST.shrub);
-      expect(cost).toBeLessThanOrEqual(FOUNDING_COST_PER_HA.shrub * SQUARE_HA + 1e-9);
-      // skok na sazbu křovin je nanejvýš o pár setin dolů, jinak cena neklesá
-      expect(cost).toBeGreaterThan(previous - 0.05);
+      const cost = partFoundingCost(
+        surface,
+        225,
+        included ? 0 : shrubs * OBSTACLE_COST.shrub,
+        TOOLS,
+      );
+      expect(cost).toBeLessThanOrEqual(foundingCostPerHa('shrub', TOOLS) * SQUARE_HA + 1e-9);
+      expect(cost).toBeGreaterThan(previous - 1e-9);
       previous = cost;
     }
   });
@@ -146,10 +152,11 @@ describe('fieldPartsFromCells – pole v křovinách a v lese', () => {
     expect(result.blockedCells).toEqual([]);
     expect(result.parts).toHaveLength(8);
     expect(partAt(result, 6, 8).surface).toBe('shrub');
-    expect(partAt(result, 7, 8).surface).toBe('meadow');
+    // 4 keře – křoviny stojí bez řemesel stejně jako louka, každý keř dělá čtverec křovinami
+    expect(partAt(result, 7, 8).surface).toBe('shrub');
     expect(partAt(result, 8, 8).surface).toBe('forest');
     expect(partAt(result, 9, 9).surface).toBe('forest');
-    expect(result.surfaceCounts).toEqual({ meadow: 3, shrub: 1, forest: 4 });
+    expect(result.surfaceCounts).toEqual({ meadow: 2, shrub: 2, forest: 4 });
   });
 
   it('v lese jsou stromy, souše, pařezy a podrost v sazbě – po kusech jen kameny a balvany', () => {
@@ -160,16 +167,18 @@ describe('fieldPartsFromCells – pole v křovinách a v lese', () => {
     expect(partAt(result, 9, 8).obstacleIds).toEqual([9, 10]);
   });
 
-  it('v křovinách jsou keře v sazbě, strom se platí po kusech; louka platí keře po kusech', () => {
+  it('v křovinách jsou keře v sazbě, strom se platí po kusech', () => {
     expect(partAt(result, 6, 8).obstacleCost).toBe(OBSTACLE_COST.tree);
-    expect(partAt(result, 7, 8).obstacleCost).toBe(4 * OBSTACLE_COST.shrub);
+    expect(partAt(result, 7, 8).obstacleCost).toBe(0);
   });
 
-  it('cena založení: louka 40, křoviny 150, les 250 člověkodní na hektar + překážky', () => {
-    const obstacles =
-      OBSTACLE_COST.stone + OBSTACLE_COST.boulder + OBSTACLE_COST.tree + 4 * OBSTACLE_COST.shrub;
+  it('cena založení: louka 100, křoviny 100, les 250 člověkodní na hektar + překážky', () => {
+    const obstacles = OBSTACLE_COST.stone + OBSTACLE_COST.boulder + OBSTACLE_COST.tree;
     expect(result.obstacleCost).toBe(obstacles);
-    expect(result.foundingCost).toBeCloseTo((3 * 40 + 150 + 4 * 250) * SQUARE_HA + obstacles, 9);
+    expect(result.foundingCost).toBeCloseTo(
+      (2 * 100 + 2 * 100 + 4 * 250) * SQUARE_HA + obstacles,
+      9,
+    );
   });
 
   it('dospělé stromy na dílech dají klády – mladý stromek, souš ani pařez ne', () => {
@@ -227,7 +236,7 @@ describe('založení pole v lese', () => {
   const founded = (): VillageState =>
     foundField(village(), DAY, { parts: preview(placementVillageOf(village(), DAY)).parts });
 
-  it('po založení: překážky zmizí, klády za dospělé stromy, popel z mýcení +20 na 3 roky', () => {
+  it('po založení: překážky zmizí, klády za dospělé stromy, popel z mýcení (okno 3 let)', () => {
     const s = founded();
     const end = DAY + 2 * 365;
     const after = advanceVillage(s, end, layer);
@@ -249,7 +258,7 @@ describe('založení pole v lese', () => {
     }
   });
 
-  it('bonus úrodnosti platí 3 roky od založení dílu, nejvýš 100', () => {
+  it('bonus úrodnosti v okně 3 let od založení dílu – první sezóna +40, nejvýš 100', () => {
     let s = founded();
     let day = DAY;
     // den po dni do založení prvního lesního dílu
@@ -258,9 +267,9 @@ describe('založení pole v lese', () => {
       s = advanceVillage(s, day, layer);
     }
     const part = s.parts.find((p) => p.surface === 'forest' && p.state !== 'founding')!;
-    expect(part.bonusUntilDay).toBe(day + FERTILITY.forestBonusYears * 365);
+    expect(part.bonusUntilDay).toBe(day + FOREST_BONUS.windowYears * 365);
     expect(effectiveFertility(part, day)).toBe(
-      Math.min(100, part.naturalFertility + FERTILITY.forestBonus),
+      Math.min(100, part.naturalFertility + FOREST_BONUS.bySeason[0]),
     );
     expect(effectiveFertility(part, part.bonusUntilDay! + 1)).toBe(part.naturalFertility);
   });

@@ -6,11 +6,15 @@ import {
   effectiveFertility,
   endOfSeason,
   fallowYears,
+  forestBonus,
   grossYieldPerHa,
+  isWeedFree,
   partFoundingCost,
   reclaimCostPerHa,
   selectPartsToSow,
 } from '../fields';
+import { NO_CRAFTS } from '../productivity';
+import { FERTILITY } from '../rules';
 
 const sept = (year: number): number => dayIndexOf({ year, month: 9, day: 1 });
 
@@ -43,21 +47,66 @@ describe('úroda a vzdálenost', () => {
     expect(distanceFactor(500)).toBeCloseTo(1.4, 9);
   });
   it('efektivní úrodnost zahrnuje bonus po vymýcení lesa, nejvýš 100', () => {
-    const p = part({ bonusUntilDay: 100 });
+    const p = part({ naturalFertility: 50, bonusUntilDay: 100 });
     expect(effectiveFertility(p, 100)).toBeCloseTo(90, 9);
-    expect(effectiveFertility(p, 101)).toBeCloseTo(70, 9);
-    expect(effectiveFertility(part({ naturalFertility: 95, bonusUntilDay: 5 }), 5)).toBe(100);
+    expect(effectiveFertility(p, 101)).toBeCloseTo(50, 9);
+    expect(effectiveFertility(part({ bonusUntilDay: 5 }), 5)).toBe(100);
+  });
+});
+
+describe('vymýcený les (Rösch a kol. 2017)', () => {
+  const cleared = (sownYears: number): FieldPart =>
+    part({ naturalFertility: 50, state: 'sown', sownYears, bonusUntilDay: 1000 });
+
+  it('bonus podle sezóny osevu: první +40, druhá +20, třetí 0', () => {
+    expect(forestBonus(cleared(0), 500)).toBe(40);
+    expect(forestBonus(cleared(1), 500)).toBe(20);
+    expect(forestBonus(cleared(2), 500)).toBe(0);
+    expect(effectiveFertility(cleared(0), 500)).toBe(90);
+    expect(effectiveFertility(cleared(1), 500)).toBe(70);
+    expect(effectiveFertility(cleared(2), 500)).toBe(50);
+  });
+
+  it('po okně vymýcení bonus není', () => {
+    expect(forestBonus(cleared(0), 1001)).toBe(0);
+    expect(forestBonus(part({ bonusUntilDay: null }), 0)).toBe(0);
+  });
+
+  it('jen první sezóna po vymýcení je bez pletí', () => {
+    expect(isWeedFree(cleared(0), 500)).toBe(true);
+    expect(isWeedFree(cleared(1), 500)).toBe(false);
+    expect(isWeedFree(cleared(0), 1001)).toBe(false);
+    expect(isWeedFree(part(), 500)).toBe(false);
+  });
+
+  it('po fázi osevu jde díl do přílohu bez bonusu', () => {
+    const p = part({ state: 'sown', fertilityShare: 0.76, sownYears: 2, bonusUntilDay: sept(601) });
+    endOfSeason(p, sept(600));
+    expect(p.state).toBe('fallow');
+    expect(p.bonusUntilDay).toBeNull();
   });
 });
 
 describe('náklady', () => {
-  it('cena vymýcení podle stáří zarůstání', () => {
-    expect(reclaimCostPerHa(1)).toBe(0);
-    expect(reclaimCostPerHa(7)).toBe(60);
-    expect(reclaimCostPerHa(16)).toBe(250);
+  it('vrácení přílohu: 1–2 roky nic, pak drn pastviny jako louka – bez řemesel horní mez', () => {
+    const cost = (years: number): number => reclaimCostPerHa(years, NO_CRAFTS.tools);
+    expect(cost(1)).toBe(0);
+    expect(cost(2)).toBe(0);
+    expect(cost(3)).toBe(100);
+    expect(cost(13)).toBe(100);
+    // na přílohu se pase – nezaroste náletem ani lesem, dražší už nebude
+    expect(cost(40)).toBe(100);
+  });
+  it('s plným pokrytím nástroji dolní mez louky 90', () => {
+    expect(reclaimCostPerHa(4, 1)).toBe(90);
+    expect(reclaimCostPerHa(16, 1)).toBe(90);
+    expect(reclaimCostPerHa(16, 0.5)).toBe(95);
   });
   it('cena založení dílu = povrch × hektary + překážky', () => {
-    expect(partFoundingCost('shrub', 5000, 12)).toBeCloseTo(150 * 0.5 + 12, 9);
+    expect(partFoundingCost('shrub', 5000, 12, NO_CRAFTS.tools)).toBeCloseTo(100 * 0.5 + 12, 9);
+    expect(partFoundingCost('meadow', 10_000, 0, NO_CRAFTS.tools)).toBe(100);
+    expect(partFoundingCost('forest', 10_000, 0, NO_CRAFTS.tools)).toBe(250);
+    expect(partFoundingCost('forest', 10_000, 0, 1)).toBe(150);
   });
 });
 
@@ -84,12 +133,32 @@ describe('přílohová soustava', () => {
     expect(p.sownYears).toBe(0);
   });
 
-  it('z 0,64 dosáhne příloh 0,95 po sedmi letech, po šesti ne', () => {
+  it('z 0,64 dosáhne příloh 0,95 po 13 letech, po 12 ne', () => {
     const p = part({ state: 'fallow', fertilityShare: 0.64, fallowSinceDay: sept(600) });
-    for (let i = 1; i <= 6; i++) endOfSeason(p, sept(600 + i));
+    for (let i = 1; i <= 12; i++) endOfSeason(p, sept(600 + i));
     expect(p.fertilityShare).toBeLessThan(0.95);
-    endOfSeason(p, sept(607));
+    endOfSeason(p, sept(613));
     expect(p.fertilityShare).toBeGreaterThanOrEqual(0.95 - 1e-9);
+  });
+
+  it('oběh dílu: 3 roky osevu a 12–13 let přílohu (pole ≈ 5–6× osevu)', () => {
+    const p = part({ state: 'sown' });
+    let year = 600;
+    let sown = 0;
+    while (p.state === 'sown') {
+      endOfSeason(p, sept(year++));
+      sown++;
+    }
+    let fallow = 0;
+    while (p.fertilityShare < FERTILITY.fallowReady - 1e-9) {
+      endOfSeason(p, sept(year++));
+      fallow++;
+    }
+    expect(sown).toBe(3);
+    expect(fallow).toBeGreaterThanOrEqual(12);
+    expect(fallow).toBeLessThanOrEqual(13);
+    expect((sown + fallow) / sown).toBeGreaterThan(5);
+    expect((sown + fallow) / sown).toBeLessThan(6);
   });
 
   it('úrodnost příloh nepřeroste 1 a ostatní stavy se nemění', () => {
@@ -97,20 +166,14 @@ describe('přílohová soustava', () => {
     endOfSeason(p, sept(601));
     expect(p.fertilityShare).toBe(1);
     const r = part({ state: 'ready' });
-    expect(endOfSeason(r, sept(601))).toBeNull();
-    expect(r.fertilityShare).toBe(1);
+    endOfSeason(r, sept(601));
+    expect(r).toEqual(part({ state: 'ready' }));
   });
 
-  it('zalesnění se ohlásí právě jednou, v 16. roce příloh', () => {
+  it('příloh zůstává pastvinou – ani po 20 letech nezaroste v les (Martin, 18. 10. 2026)', () => {
     const p = part({ id: 7, state: 'fallow', fertilityShare: 1, fallowSinceDay: sept(600) });
-    const events = [];
-    for (let i = 1; i <= 20; i++) {
-      const e = endOfSeason(p, sept(600 + i));
-      if (e) events.push({ e, i });
-    }
-    expect(events).toHaveLength(1);
-    expect(events[0]?.i).toBe(16);
-    expect(events[0]?.e).toEqual({ day: sept(616), kind: 'part-became-forest', partId: 7 });
+    for (let i = 1; i <= 20; i++) endOfSeason(p, sept(600 + i));
+    expect(p).toMatchObject({ state: 'fallow', fallowSinceDay: sept(600), fertilityShare: 1 });
   });
 });
 

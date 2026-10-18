@@ -15,7 +15,7 @@ import {
   villageHappiness,
   type HappinessFactors,
 } from './happiness';
-import { daysUntilAppleRot, daysUntilHarvest, eatMeal, isAppleRotDay } from './food';
+import { daysUntilAppleRot, eatMeal, isAppleRotDay } from './food';
 import {
   orchardAgeYears,
   orchardAreaM2,
@@ -24,6 +24,7 @@ import {
   villageOrchards,
 } from './orchard';
 import { ageGroup, foodNeedPerDay, occupants } from './people';
+import { NO_CRAFTS } from './productivity';
 import {
   CHRONICLE_MAX_EVENTS,
   DWELLINGS,
@@ -49,12 +50,15 @@ import type {
   VillageState,
 } from './types';
 import { treesToFell, woodFellingCost, woodLogs } from './wood';
+import { daysUntilFoodHarvest } from './year-plan';
 
 // Souhrn vsi pro panel hráče a scénu – jen čte stav, nic nemění.
 
-/** Stadium dílu pro scénu: zakládá se, připravený, osetý, nebo příloh podle let zarůstání. */
-export type PartStage =
-  'founding' | 'ready' | 'sown' | 'young-fallow' | 'meadow' | 'young-growth' | 'shrub' | 'forest';
+/**
+ * Stadium dílu pro scénu: zakládá se, připravený, osetý, nebo příloh – mladý příloh 1–2 roky,
+ * pak napořád spásaná pastvina `meadow` (fields.md – Zarůstání; nálet nebude).
+ */
+export type PartStage = 'founding' | 'ready' | 'sown' | 'young-fallow' | 'meadow';
 
 export interface HouseholdSummary {
   dwellingId: number;
@@ -200,11 +204,11 @@ const NO_LABOR = 0.01;
 /** Od kolika dnů nahromaděného hladu lidé umírají hlady – nejnižší práh věkových skupin. */
 const STARVING_FROM_DAYS = Math.min(...Object.values(STARVATION.threshold));
 
-/** Stadium dílu v daný den; příloh podle celých let zarůstání (fields.md – Zarůstání). */
+/** Stadium dílu v daný den; příloh podle celých let ladem (fields.md – Zarůstání). */
 export function partStage(part: FieldPart, day: number): PartStage {
   if (part.state !== 'fallow') return part.state;
   const years = fallowYears(part, day);
-  return OVERGROWTH_STAGES.find((s) => years <= s.maxYears)?.stage ?? 'forest';
+  return OVERGROWTH_STAGES.find((s) => years <= s.maxYears)?.stage ?? 'meadow';
 }
 
 function peopleByGroup(state: VillageState, day: number): VillageSummary['people'] {
@@ -231,8 +235,8 @@ function households(state: VillageState, day: number): HouseholdSummary[] {
 }
 
 /**
- * Nasycení příštího dne: příděl ze zásob obilí a jablek do sklizně (stejně jako eatMeal
- * v simulaci; 1. 3. ráno jablka shnijí).
+ * Nasycení příštího dne: příděl ze zásob obilí a jablek do sklizně, se kterou ves počítá
+ * (i červencová sklizeň ozimu – stejně jako eatMeal v simulaci; 1. 3. ráno jablka shnijí).
  */
 function nextDaySatiation(state: VillageState, day: number, needPerDay: number): number {
   if (needPerDay <= 0) return 1;
@@ -242,8 +246,9 @@ function nextDaySatiation(state: VillageState, day: number, needPerDay: number):
     state.storesKg,
     apples,
     needPerDay,
-    daysUntilHarvest(next),
+    daysUntilFoodHarvest(state.plan, state.parts, next, needPerDay),
     daysUntilAppleRot(next),
+    NO_CRAFTS.pottery,
   ).satiation;
 }
 

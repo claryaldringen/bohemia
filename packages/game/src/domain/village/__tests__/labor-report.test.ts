@@ -93,6 +93,10 @@ describe('laborReport – rozdělení práce dne', () => {
     // zemnice nejdřív kácí své dřevo – bez vrstvy překážek (test) jde kácení bez polohy ke staveništi
     const atSite = labor.shares.filter((x) => x.target.kind === 'site' && x.target.id === site.id);
     expect(atSite.map((x) => x.activity)).toEqual(['fell']);
+    expect(atSite[0]?.construction).toBe(site.id);
+    expect(of(labor.shares, 'found-field')[0]?.construction).toBe(plot.id);
+    // práce mimo stavby id stavby nemá
+    expect(of(labor.shares, 'domestic')[0]?.construction).toBeUndefined();
     expect(of(labor.shares, 'found-field')[0]?.target).toEqual({
       kind: 'field',
       id: plot.fieldId,
@@ -102,16 +106,19 @@ describe('laborReport – rozdělení práce dne', () => {
   });
 
   it('v létě se na poli plánu žne a odnáší podle sazeb, výmlat jde ke vsi', () => {
-    const s = advanceVillage(found(at(600, 10, 1)), at(601, 7, 20), null);
+    // ves založená po 1. 9. seje jen jař – sklízí v srpnu
+    const s = advanceVillage(found(at(600, 10, 1)), at(601, 8, 20), null);
     const labor = laborReport(s)!;
     const fieldId = s.fields[0]!.id;
     const reap = of(labor.shares, 'harvest');
     const carry = of(labor.shares, 'carry');
     expect(reap).toHaveLength(1);
-    expect(reap[0]!.target).toEqual({ kind: 'field', id: fieldId });
-    expect(carry[0]!.target).toEqual({ kind: 'field', id: fieldId });
+    // čelo sklizně – díly pole, přes které dnes sklizeň postoupila
+    expect(reap[0]!.target).toMatchObject({ kind: 'field', id: fieldId });
+    expect(reap[0]!.target.kind === 'field' && reap[0]!.target.parts?.length).toBeGreaterThan(0);
+    expect(carry[0]!.target).toEqual(reap[0]!.target);
     expect(reap[0]!.manDays / carry[0]!.manDays).toBeCloseTo(
-      HARVEST_WORK_PER_HA.reap / HARVEST_WORK_PER_HA.carry,
+      HARVEST_WORK_PER_HA.reap.worst / HARVEST_WORK_PER_HA.carry.worst,
       2,
     );
     const winter = laborReport(advanceVillage(s, at(601, 11, 10), null))!;
@@ -142,9 +149,16 @@ describe('laborReport – rozdělení práce dne', () => {
     const s = advanceVillage(s0, day, null);
     const labor = laborReport(s)!;
     const felling = of(labor.shares, 'fell');
+    // kácení i stavba patří téže stavbě – dřevorubci jsou její stavitelé (scéna podle id)
     expect(felling).toEqual([
-      { activity: 'fell', target: { kind: 'trees', ids: [102] }, manDays: 0.25 },
+      {
+        activity: 'fell',
+        target: { kind: 'trees', ids: [102] },
+        manDays: 0.25,
+        construction: 90,
+      },
     ]);
+    expect(of(labor.shares, 'build')[0]?.construction).toBe(90);
     const common = s.commonLaborHistory.at(-1)!;
     expect(of(labor.shares, 'build')[0]?.manDays).toBeCloseTo(common - 0.25, 3);
     expect(of(labor.shares, 'build')[0]?.target).toEqual({ kind: 'site', id: 90 });

@@ -1,12 +1,12 @@
 import type { ObstacleLayer } from '../landscape';
 import { availableSettlers } from './dwellings';
+import { NO_CRAFTS, foundingCostPerHa } from './productivity';
 import {
   CEMETERY,
   DWELLING_TREES,
   DWELLINGS,
   dwellingBuildLabor,
   FELLING_MAN_DAYS_PER_TREE,
-  FOUNDING_COST_PER_HA,
   ORCHARD,
   SACRED_BUILDINGS,
 } from './rules';
@@ -64,7 +64,7 @@ export const BUILD_COSTS: Record<BuildKind, BuildCost> = {
     perHa: false,
     upfront: { wood: DWELLING_TREES.polozemnice, settlers: 1 },
   },
-  field: { laborManDays: FOUNDING_COST_PER_HA.meadow, perHa: true, upfront: {} },
+  field: { laborManDays: foundingCostPerHa('meadow', NO_CRAFTS.tools), perHa: true, upfront: {} },
   cemetery: { laborManDays: CEMETERY.costPerSquare, perHa: false, perSquare: true, upfront: {} },
   orchard: { laborManDays: ORCHARD.plantingPerHa, perHa: true, upfront: {} },
   idol: {

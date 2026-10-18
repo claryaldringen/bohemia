@@ -44,6 +44,12 @@ export interface Dwelling {
   forestDistanceM?: number;
 }
 export type PartState = 'founding' | 'ready' | 'sown' | 'fallow';
+/**
+ * Plodina osetého dílu (fields.md – Ozim a jař): **ozim** (`winter` – žito a pšenice, kopá se
+ * a seje na podzim, sklízí v červenci) a **jař** (`spring` – ječmen, kopá se na podzim nebo na
+ * jaře, seje na jaře, sklízí v srpnu).
+ */
+export type Crop = 'winter' | 'spring';
 /** Políčko krajiny – sloupec x a řádek y mřížky. */
 export interface TileCell {
   x: number;
@@ -56,9 +62,11 @@ export interface FieldPart {
   distanceM: number;
   naturalFertility: number; // 0–100 z krajiny
   fertilityShare: number; // aktuální úrodnost / přirozená, 0–1
-  bonusUntilDay: number | null; // +20 po vymýcení lesa
+  bonusUntilDay: number | null; // do kdy platí bonus vymýceného lesa (FOREST_BONUS)
   state: PartState;
   sownYears: number; // kolik let v řadě oseto
+  /** Co je na osetém dílu zaseto; chybí u dílů mimo osev a u starších vsí (= jař). */
+  crop?: Crop;
   fallowSinceDay: number | null; // od kdy leží v přílohu
   foundingCost: number; // člověkodny (povrch × plocha + překážky)
   foundingDone: number;
@@ -193,14 +201,44 @@ export interface ConstructionWood {
   felled: number;
 }
 export type TaskName = 'reclaim' | 'dig' | 'sow' | 'weed' | 'harvest' | 'thresh';
+/** Polní práce s pevnou sazbou na osetý hektar (vracení přílohu se počítá podle stáří přílohu). */
+export type FieldTask = Exclude<TaskName, 'reclaim'>;
+/**
+ * Meze produktivity (Martin): hodnota bez řemesel (`worst`) a s plně pokrytou potřebou výrobků
+ * řemeslníků (`best`); mezi nimi lineárně podle pokrytí (productivity.ts).
+ */
+export interface Bounds {
+  readonly worst: number;
+  readonly best: number;
+}
+/** Pokrytí potřeby výrobků řemeslníků 0–1 (crafts.md): nástroje od kováře, nádoby od hrnčíře. */
+export interface CraftCoverage {
+  readonly tools: number;
+  readonly pottery: number;
+}
 /** Sezónní práce v sadech (orchard.md) – v rozdělení práce vedle polních prací. */
 export type OrchardTaskName = 'orchard-care' | 'orchard-harvest';
-export interface YearPlan {
-  plannedDay: number;
+/** Práce jedné plodiny v ročním plánu – díly, potřebné a odvedené člověkodny po úlohách. */
+export interface CropWork {
+  /**
+   * Díly plodiny v pořadí, ve kterém k nim práce postupuje (fields.md – Postup práce po
+   * čtvercích): každá dávka dílů (plán k 1. 9., přidané hotové díly) nejblíž obydlím první, při
+   * shodě podle id; přidané dávky na konec.
+   */
   partIds: number[];
+  /** Díly, které se letos vracejí z přílohu s prací navíc (v pořadí `partIds`); chybí = žádné. */
+  reclaimIds?: number[];
   required: Record<TaskName, number>;
   done: Record<TaskName, number>;
-  harvestedKg: number | null; // čistá úroda sklizená 31. 8. (pro ztrátu nevymláceného 1. 3.)
+  harvestedKg: number | null; // čistá úroda ze sklizně (pro ztrátu nevymláceného 1. 3.)
+}
+/**
+ * Roční plán osevu (k 1. 9.): na nejvyšší úrovni jař (tvar plánu z doby před ozimem), ozim
+ * zvlášť v `winter` – chybí u plánů bez ozimu (i u starších vsí).
+ */
+export interface YearPlan extends CropWork {
+  plannedDay: number;
+  winter?: CropWork;
 }
 export type ChronicleEvent = { day: number } & (
   | { kind: 'village-founded' }
@@ -218,7 +256,11 @@ export type ChronicleEvent = { day: number } & (
       fieldId: number | null;
     }
   | { kind: 'rebuild-decided'; dwellingId: number; type: DwellingType }
-  | { kind: 'harvest'; kg: number }
+  /**
+   * Sklizeň obilí – plodina, když ves seje ozim i jař (ozim v červenci, jař v srpnu); bez ní jen
+   * jař (ves bez ozimu, starší sklizně).
+   */
+  | { kind: 'harvest'; kg: number; crop?: Crop }
   /** Konec sklizně jablek (1. 11.) – kolik kg se sklidilo. */
   | { kind: 'apple-harvest'; kg: number }
   /** Sad dosloužil (60. rok) a vrátil se v louku. */
@@ -266,8 +308,11 @@ export type LaborActivity =
 
 /** Kde se práce dělá. */
 export type LaborTarget =
-  /** Pole (id) – osévané díly plánu, zakládané díly. */
-  | { kind: 'field'; id: number }
+  /**
+   * Pole (id) – osévané díly plánu, zakládané díly. U polních prací `parts` = díly pole, přes
+   * které dnes práce postoupila (čelo práce, v pořadí postupu); bez nich celé pole.
+   */
+  | { kind: 'field'; id: number; parts?: number[] }
   /** Hotové obydlí (id) – opravy, přestavba. */
   | { kind: 'dwelling'; id: number }
   /** Staveniště nového obydlí – id stavby. */
@@ -286,6 +331,12 @@ export interface LaborShare {
   target: LaborTarget;
   /** Člověkodny (na tisíciny). */
   manDays: number;
+  /**
+   * Stavba, do které práce šla (stavba i kácení jejího dřeva, zakládání pole, výsadba sadu,
+   * hřbitov) – scéna podle ní ukáže u každé stavby, která dnes dostala práci, aspoň jednoho
+   * člověka. U ostatní práce (a u rozdělení uložených dřív) chybí.
+   */
+  construction?: number;
 }
 
 /** Rozdělení práce jednoho dne – uložené ve stavu vsi (`VillageState.labor`). */

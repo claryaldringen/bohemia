@@ -32,7 +32,7 @@ const view = (overrides: Partial<VillageView> = {}): VillageView => ({
       affordable: true,
     },
     field: {
-      laborManDays: 40,
+      laborManDays: 100,
       perHa: true,
       perSquare: false,
       upfront: [],

@@ -2,13 +2,15 @@
 // Jen pro prohlídku modelů: řemesla a posvátná místa zatím nemají místo ve hře. Za řadou
 // staveb pole, hřbitov, sad a louka na seno po čtvercích – jejich fáze podle průběhu stavby
 // (showcaseGrounds); vpravo modla, svatyně, posvátný dub a dubový háj (dekorace bez staveniště);
-// vlevo od pole čtverec, který orá spřežení volů s rádlem (ukázka „Orání“, plough-team.ts).
+// vlevo od pole čtverec, který orá spřežení volů s rádlem (ukázka „Orání“, plough-team.ts),
+// vlevo od zemnice ohrada s přístřeškem (ukázka „Ohrada“, pen-layout.ts).
 import { CEMETERY, PLOT_VARIANTS, type PlotVariant, type TileCell } from '@bohemia/game';
 import type { FieldLook, SceneFieldPart, SceneVillage } from '../village-view';
 import { CEMETERY_PHASES } from './cemetery-layout';
 import { hayPhase, meadowLook, type HayMeadow } from './hay-meadows';
 import { plotHouse } from './homestead-layout';
 import { TREE_GROWTH_YEARS, treeGrowth } from './orchard-layout';
+import { penFacing, type Direction, type PenSquare } from './pen-layout';
 import type { PloughField } from './plough-team';
 import type { ConstructionKind } from './village-construction';
 
@@ -134,6 +136,35 @@ export const SHOWCASE_BUILDINGS: readonly ShowcaseBuilding[] = [
   building('modla', 'Modla', 'modla', 50, 14),
   building('svatyne', 'Svatyně', 'svatyne', 80, 46),
 ];
+
+// --- Ohrada s přístřeškem (docs/design/oxen.md – zatím jen modely, ve hře není) ---
+
+export interface ShowcasePen {
+  id: 'ohrada';
+  label: string;
+  square: PenSquare;
+  /** Směr k nejbližšímu obydlí – branka a otevřená strana přístřešku (pen-layout.ts). */
+  facing: Direction;
+  /** Nejbližší obydlí (zemnice vpravo od ohrady). */
+  toward: { x: number; z: number };
+  focus: { x: number; z: number; radius: number };
+}
+
+const PEN_SQUARE: PenSquare = { x: -50, z: 8, size: 15 };
+const PEN_TOWARD = { x: -27, z: 0 };
+
+/**
+ * Ohrada vlevo od zemnice (mimo řadu staveb i pole za ní): branka míří k zemnici – nejbližšímu
+ * obydlí, přístřešek stojí v zadním rohu dál od kamery.
+ */
+export const SHOWCASE_PEN: ShowcasePen = {
+  id: 'ohrada',
+  label: 'Ohrada',
+  square: PEN_SQUARE,
+  facing: penFacing(PEN_SQUARE, PEN_TOWARD),
+  toward: PEN_TOWARD,
+  focus: { x: PEN_SQUARE.x + 1, z: PEN_SQUARE.z - 1.5, radius: 30 },
+};
 
 // --- Posvátný dub a dubový háj (dekorace – vznikají samy, staveniště nemají) ---
 

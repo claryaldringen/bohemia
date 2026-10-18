@@ -3,7 +3,8 @@ import {
   ageGroup,
   ageYears,
   foodNeedPerDay,
-  isFertileAdult,
+  isAdult,
+  isFertile,
   laborPerDay,
   occupants,
 } from '../people';
@@ -46,12 +47,20 @@ describe('potřeba jídla', () => {
   });
 });
 
-describe('plodnost', () => {
-  it('plodný je dospělý 14–44', () => {
-    expect(isFertileAdult(person(1), atAge(13))).toBe(false);
-    expect(isFertileAdult(person(1), atAge(14))).toBe(true);
-    expect(isFertileAdult(person(1), atAge(44))).toBe(true);
-    expect(isFertileAdult(person(1), atAge(45))).toBe(false);
+describe('dospělost a plodnost', () => {
+  it('dospělý (práce, odemčení, domácnost) je 14–44', () => {
+    expect(isAdult(person(1), atAge(13))).toBe(false);
+    expect(isAdult(person(1), atAge(14))).toBe(true);
+    expect(isAdult(person(1), atAge(44))).toBe(true);
+    expect(isAdult(person(1), atAge(45))).toBe(false);
+  });
+
+  it('děti může mít až od 16 let, do 44', () => {
+    expect(isFertile(person(1), atAge(14))).toBe(false);
+    expect(isFertile(person(1), atAge(16) - 1)).toBe(false);
+    expect(isFertile(person(1), atAge(16))).toBe(true);
+    expect(isFertile(person(1), atAge(44))).toBe(true);
+    expect(isFertile(person(1), atAge(45))).toBe(false);
   });
 });
 

@@ -12,7 +12,7 @@ import {
   villageHygiene,
 } from '../cemetery';
 import { deathChancePerDay, populationDay } from '../population';
-import { CEMETERY, CEMETERY_DISTANCE_M } from '../rules';
+import { ADULT_DEATHS_PER_YEAR, CEMETERY, CEMETERY_DISTANCE_M } from '../rules';
 import { advanceVillage } from '../simulate';
 import { recentDeathsPerYear, summarizeVillage } from '../summary';
 import type { Cemetery, CemeterySquare, Person, VillageState } from '../types';
@@ -132,7 +132,7 @@ describe('hygiena', () => {
     const later = { ...ctx, day: AFTER_LUCK };
     const person = adult(1, 30, AFTER_LUCK);
     expect(deathChancePerDay(person, { ...later, hygiene: 0 })).toBeCloseTo(
-      1 - (1 - 0.015 * 1.3) ** (1 / 365),
+      1 - (1 - ADULT_DEATHS_PER_YEAR * 1.3) ** (1 / 365),
       12,
     );
     expect(deathChancePerDay(person, { ...later, hygiene: 1 })).toBe(

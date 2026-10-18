@@ -338,7 +338,7 @@ describe('placeField', () => {
     const today = TODAY + 3;
     const result = await placeField(
       { villages },
-      { settlementId: ID, landscape, today, cells: block(10, 6, 3, 4) },
+      { settlementId: ID, landscape, today, cells: block(11, 6, 3, 4) },
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -352,6 +352,22 @@ describe('placeField', () => {
     expect(state.constructions.find((c) => c.fieldId === fieldId)?.startedDay).toBe(today);
   });
 
+  it('čtverce navazující na pole ho rozšíří – i pod nejmenší výměru, pole i s nimi ji má', async () => {
+    const villages = await foundedVillages();
+    const before = (await villages.find(ID))!.state;
+    const fieldId = before.fields[0]!.id;
+    const result = await placeField(
+      { villages },
+      { settlementId: ID, landscape, today: TODAY + 1, cells: block(10, 6, 1, 4) },
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const { state } = result.village;
+    expect(state.fields.map((f) => f.id)).toEqual([fieldId]);
+    expect(state.parts.filter((p) => p.fieldId === fieldId)).toHaveLength(16 + 4);
+    expect(state.constructions.filter((c) => c.kind === 'field')).toHaveLength(1);
+  });
+
   it('ves dopočítaná za dnešek (čas se posunul zpět): pole začne v den vsi, ne výjimka', async () => {
     const villages = await foundedVillages();
     const ahead = TODAY + 5;
@@ -360,7 +376,7 @@ describe('placeField', () => {
     });
     const result = await placeField(
       { villages },
-      { settlementId: ID, landscape, today: TODAY + 1, cells: block(10, 6, 3, 4) },
+      { settlementId: ID, landscape, today: TODAY + 1, cells: block(11, 6, 3, 4) },
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;

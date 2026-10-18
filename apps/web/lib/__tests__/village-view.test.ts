@@ -97,6 +97,21 @@ describe('buildVillageView – práce vsi pro postavy', () => {
 });
 
 describe('buildVillageView', () => {
+  it('pole: oseté díly podle plodiny – ozim, jař (díl bez plodiny je jař)', () => {
+    const s = settled();
+    s.parts.forEach((p, i) => {
+      p.foundingDone = p.foundingCost;
+      p.state = 'sown';
+      if (i < 3) p.crop = 'winter';
+      else if (i === 3) p.crop = 'spring';
+    });
+    s.constructions = s.constructions.filter((c) => c.kind !== 'field');
+    expect(buildVillageView(record(s), landscape, DAY).fields[0]?.crops).toEqual({
+      winter: 3,
+      spring: 2,
+    });
+  });
+
   it('čerstvá ves: lidé, zásoby, stavba zemnice zakladatelů a pole', () => {
     const free = (
       laborManDays: number,
@@ -136,7 +151,7 @@ describe('buildVillageView', () => {
         blocked: null,
         affordable: false,
       },
-      field: free(40, { perHa: true }),
+      field: free(100, { perHa: true }),
       cemetery: free(10, { perSquare: true }),
       orchard: free(80, { perHa: true }),
       // modla a svatyně chtějí dospělé duby – krajina testu stromy nemá (happiness.md)
@@ -195,7 +210,9 @@ describe('buildVillageView', () => {
         fertility: 50,
         stages: { founding: 5 },
         surfaces: { meadow: 5 },
+        crops: {},
         ashParts: 0,
+        ashBonus: 0,
       },
     ]);
     expect(view.hungry).toBe(false);
@@ -372,48 +389,42 @@ describe('buildVillageView', () => {
       treesToFell: 0,
     });
     expect(scene.fields).toHaveLength(1);
-    // díly nesou id z jádra a průběh zakládání (0 = jen vytyčené – kolíky a provázek)
-    const parts = scene.fields[0]?.parts ?? [];
-    expect(new Set(parts.map((p) => p.id)).size).toBe(5);
-    expect(parts.map((p) => ({ ...p, id: undefined }))).toEqual([
-      { cell: { x: 8, y: 8 }, x: 7.5, z: 7.5, size: 15, stage: 'founding', work: 0, id: undefined },
-      {
-        cell: { x: 9, y: 8 },
-        x: 22.5,
+    const ids = s.parts.map((p) => p.id);
+    expect(scene.fields[0]?.parts).toEqual([
+      // zakládané díly: rozrytý drn, s 0 jen vytyčené (kolíky)
+      ...[0, 1, 2, 3, 4].map((i) => ({
+        id: ids[i],
+        cell: { x: 8 + i, y: 8 },
+        x: 7.5 + 15 * i,
         z: 7.5,
         size: 15,
         stage: 'founding',
+        look: 'bare',
         work: 0,
-        id: undefined,
-      },
-      {
-        cell: { x: 10, y: 8 },
-        x: 37.5,
-        z: 7.5,
-        size: 15,
-        stage: 'founding',
-        work: 0,
-        id: undefined,
-      },
-      {
-        cell: { x: 11, y: 8 },
-        x: 52.5,
-        z: 7.5,
-        size: 15,
-        stage: 'founding',
-        work: 0,
-        id: undefined,
-      },
-      {
-        cell: { x: 12, y: 8 },
-        x: 67.5,
-        z: 7.5,
-        size: 15,
-        stage: 'founding',
-        work: 0,
-        id: undefined,
-      },
+      })),
     ]);
+  });
+
+  it('osetá pole po čtvercích: vzhled, rozpracovaný díl a rozdělení práce na dílech čela', () => {
+    // ves s 5 díly dopočtená do podzimního kopání ozimu (1. 9. 504 – plán s ozimem)
+    const day = dayIndexOf({ year: 504, month: 9, day: 3 });
+    const s = advanceVillage(settled(), day, null);
+    const scene = buildVillageView(record(s), landscape, day).scene;
+    const parts = scene.fields[0]!.parts;
+    const sown = parts.filter((p) => p.stage === 'sown');
+    expect(sown.length).toBeGreaterThan(0);
+    for (const p of sown) expect(['stubble', 'plowed', 'sown']).toContain(p.look);
+    // jeden rozpracovaný díl na úlohu – kopání: hotová část zoraná, zbytek loňské strniště
+    const working = parts.filter((p) => p.work !== undefined && p.look === 'plowed');
+    expect(working).toHaveLength(1);
+    expect(working[0]).toMatchObject({ look: 'plowed', before: 'stubble' });
+    expect(working[0]!.work).toBeGreaterThan(0);
+    expect(working[0]!.work).toBeLessThan(1);
+    const dig = scene.labor?.shares.find((x) => x.activity === 'dig');
+    expect(dig?.target).toEqual({ kind: 'field', id: scene.fields[0]!.id });
+    expect(dig?.parts?.length).toBeGreaterThan(0);
+    for (const id of dig?.parts ?? []) expect(parts.map((p) => p.id)).toContain(id);
+    expect(dig?.parts?.at(-1)).toBe(working[0]!.id);
   });
 
   it('staveniště ve scéně ukazuje stavbu bez kácení, panel celý průběh a stromy ke skácení', () => {
@@ -665,6 +676,12 @@ describe('chronicleText', () => {
   it('sklizeň s tisíci a přestavba ve 4. pádě', () => {
     expect(chronicleText({ day: DAY, kind: 'harvest', kg: 1250 }, 'X')).toBe(
       'Sklizeň: 1 250 kg obilí.',
+    );
+    expect(chronicleText({ day: DAY, kind: 'harvest', kg: 900, crop: 'winter' }, 'X')).toBe(
+      'Sklizeň ozimu: 900 kg obilí.',
+    );
+    expect(chronicleText({ day: DAY, kind: 'harvest', kg: 90, crop: 'spring' }, 'X')).toBe(
+      'Sklizeň jaře: 90 kg obilí.',
     );
     expect(
       chronicleText({ day: DAY, kind: 'rebuild-decided', dwellingId: 1, type: 'polozemnice' }, 'X'),

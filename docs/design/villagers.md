@@ -17,6 +17,11 @@ Hráč má vidět, **kde ves dnes pracuje** – kam jde práce lidí, kterou po�
   minimum → polní a sadové práce → opravy → domácí výroba → společná práce do staveb).
 - **Nejvýš 60 pracujících** – větší ves se poměrně zmenší. Lidé pracují pohromadě: v každé
   činnosti po skupinách až čtyř tam, kde je práce nejvíc (ne každý na jiném z desítek polí).
+- **Stavba neroste sama od sebe** (Martin, 18. 10. 2026): u každé stavby, která dnes dostala práci
+  (obydlí i první zemnice, přestavba, zakládání pole, výsadba sadu, hřbitov i rozšíření, modla
+  a svatyně), stojí aspoň jeden člověk – i když by po zaokrouhlení, skupinách po čtyřech nebo
+  omezení na 60 nikdo nezbyl (ubere se z největší skupiny). Dřevorubci u stromů vyhrazených pro
+  stavbu jsou její stavitelé. Stavba bez dnešní práce neroste a nikdo u ní nestojí.
 - **Kde kdo je:**
   - pole – řady lidí na osévaných čtvercích: okopávání motykou (kopání i vracení přílohu), setí
     z nůše, pletí v předklonu, žeň srpem; skupiny se po pár dnech posunou po poli dál,
@@ -26,6 +31,7 @@ Hráč má vidět, **kde ves dnes pracuje** – kam jde práce lidí, kterou po�
   - výmlat – v zimě u vsi na udusaném místě mimo pole (cep zatím nahrazuje palička),
   - stavba obydlí – nejdřív dřevorubci u stromů vyhrazených pro stavbu (forest.md), přebyteční
     nosí dřevo ke staveništi; pak stavitelé kolem staveniště (v první čtvrtině kopou jámu),
+    u polozemnice na pozemku uvnitř pozemku u domu a na konci u plotu,
   - opravy a přestavba – u obydlí, výsadba sadu – okopávání čtverců, které se sázejí, sklizeň
     a péče – pod jabloněmi, hřbitov – na obvodu ohrazovaných čtverců (nikdy na hrobech),
   - domácí práce – ženy před vchodem, některé chodí pro vodu a dřevo kousek od domu,

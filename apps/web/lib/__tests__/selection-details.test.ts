@@ -75,7 +75,9 @@ const view = {
       fertility: 61.4,
       stages: { sown: 6, founding: 4 },
       surfaces: { meadow: 10 },
+      crops: { spring: 2, winter: 4 },
       ashParts: 0,
+      ashBonus: 0,
     },
     {
       id: 6,
@@ -83,7 +85,9 @@ const view = {
       fertility: 80,
       stages: { ready: 6 },
       surfaces: { forest: 4, meadow: 1, shrub: 1 },
+      crops: {},
       ashParts: 4,
+      ashBonus: 40,
     },
   ],
   cemeteries: [
@@ -178,7 +182,7 @@ describe('selectionDetails', () => {
     });
   });
 
-  it('pole: výměra, úrodnost, díly podle stadia v pořadí a zakládání', () => {
+  it('pole: výměra, úrodnost, díly podle stadia v pořadí, ozim a jař a zakládání', () => {
     expect(selectionDetails(view, scene, { kind: 'field', id: 5 })).toEqual({
       kind: 'field',
       id: 5,
@@ -189,7 +193,12 @@ describe('selectionDetails', () => {
         { stage: 'sown', count: 6 },
       ],
       surfaces: [],
+      crops: [
+        { crop: 'winter', count: 4 },
+        { crop: 'spring', count: 2 },
+      ],
       ashParts: 0,
+      ashBonus: 0,
       founding: 0.25,
     });
   });
@@ -203,7 +212,9 @@ describe('selectionDetails', () => {
         { surface: 'shrub', count: 1 },
         { surface: 'forest', count: 4 },
       ],
+      crops: [],
       ashParts: 4,
+      ashBonus: 40,
       founding: null,
     });
   });

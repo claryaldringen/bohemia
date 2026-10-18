@@ -243,9 +243,6 @@ export function estimatePart(
       // mladý úhor (strniště 1–2 roky) se pase – stáda s pasáčkem (Martin)
       return whole('young-fallow');
     case 'meadow':
-    case 'young-growth':
-    case 'shrub':
-    case 'forest':
       // starší úhor nezarůstá křovím ani lesem – je z něj louka, která se kosí na seno (Martin)
       return estimateHay(dayOfYear, index, Math.max(1, count));
     case 'sown':
@@ -255,7 +252,7 @@ export function estimatePart(
 
 /** Stadium úhoru, ve kterém je louka na seno (starší než mladý úhor). */
 export function isHayStage(stage: SceneFieldPart['stage']): boolean {
-  return stage === 'meadow' || stage === 'young-growth' || stage === 'shrub' || stage === 'forest';
+  return stage === 'meadow';
 }
 
 /**

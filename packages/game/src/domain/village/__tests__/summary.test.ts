@@ -54,16 +54,14 @@ describe('partStage', () => {
     expect(partStage(fallowPart(null, 'sown'), DAY)).toBe('sown');
   });
 
-  it('příloh zarůstá podle let: mladý příloh, louka, nálet, křoviny, les', () => {
+  it('příloh: mladý příloh 1–2 roky, pak napořád pastvina (nálet nebude – pase se)', () => {
     const since = dayIndexOf({ year: 600, month: 9, day: 1 });
     const after = (years: number): number => dayIndexOf({ year: 600 + years, month: 9, day: 1 });
     expect(partStage(fallowPart(since), since)).toBe('young-fallow');
     expect(partStage(fallowPart(since), after(2))).toBe('young-fallow');
     expect(partStage(fallowPart(since), after(3))).toBe('meadow');
-    expect(partStage(fallowPart(since), after(6))).toBe('young-growth');
-    expect(partStage(fallowPart(since), after(11))).toBe('shrub');
-    expect(partStage(fallowPart(since), after(15))).toBe('shrub');
-    expect(partStage(fallowPart(since), after(16))).toBe('forest');
+    expect(partStage(fallowPart(since), after(16))).toBe('meadow');
+    expect(partStage(fallowPart(since), after(40))).toBe('meadow');
   });
 });
 

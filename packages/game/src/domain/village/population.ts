@@ -1,7 +1,7 @@
 import { createRandom, deriveSeed } from '../landscape/random';
 import { bury, hygieneDeathFactor, villageHygiene } from './cemetery';
 import { isOvercrowded } from './dwellings';
-import { ageGroup, isFertileAdult, occupants } from './people';
+import { ageGroup, isAdult, isFertile, occupants } from './people';
 import {
   ADULT_DEATHS_PER_YEAR,
   BIRTHS_PER_PAIR_PER_YEAR,
@@ -147,7 +147,7 @@ export function deathChancePerDay(person: Person, ctx: DeathContext): number {
  */
 export function householdBreaksUp(members: Person[], day: number): boolean {
   if (members.length === 0) return false;
-  const adults = members.filter((p) => isFertileAdult(p, day)).length;
+  const adults = members.filter((p) => isAdult(p, day)).length;
   return adults === 0 || members.length === 1;
 }
 
@@ -226,11 +226,11 @@ export function populationDay(
   state.people = state.people.filter((p) => !dead.has(p.id));
 
   // porody – po domácnostech podle id (i zakladatelé na staveništi první zemnice; prázdné
-  // obydlí by stejně nemělo pár)
+  // obydlí by stejně nemělo pár); pár jsou dva lidé 16–44 let v jedné domácnosti
   const households = [...new Set(state.people.map((p) => p.dwellingId))].sort((a, b) => a - b);
   for (const household of households) {
     const pairs = Math.floor(
-      occupants(state, household).filter((p) => isFertileAdult(p, day)).length / 2,
+      occupants(state, household).filter((p) => isFertile(p, day)).length / 2,
     );
     const chance = birthChancePerDay({
       satiation,

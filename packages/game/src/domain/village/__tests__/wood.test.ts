@@ -11,6 +11,7 @@ import {
 import { foundCemetery, foundField, foundVillage, startNewDwelling } from '../actions';
 import { dwellingLaborManDays, villageStock } from '../costs';
 import { allocateDay } from '../labor';
+import { NO_CRAFTS } from '../productivity';
 import {
   countMatureTrees,
   matureTreesByDistance,
@@ -27,6 +28,7 @@ import {
 } from '../placement';
 import {
   DOMESTIC,
+  DWELLINGS,
   DWELLING_TREES,
   FELLING_MAN_DAYS_PER_TREE,
   LOG_ROT_PER_YEAR,
@@ -697,6 +699,7 @@ describe('palivo', () => {
       tasks: [],
       repairNeed: 0,
       domesticBacklog: 0,
+      potteryCoverage: NO_CRAFTS.pottery,
     };
     const near = allocateDay(base);
     const far = allocateDay({ ...base, fuelExtra: 0.1 });
@@ -727,7 +730,7 @@ describe('přestavba a determinismus', () => {
   it('přestavba vezme klády a zbytek vyhradí mezi nejbližšími stromy k obydlí', () => {
     const s = fullVillage();
     s.people = s.people.slice(0, 4);
-    s.dwellings[0]!.builtDay = DAY - 16 * 365;
+    s.dwellings[0]!.builtDay = DAY - (DWELLINGS.zemnice.lifespanYears + 1) * 365;
     s.woodLogs = 4;
     const decided = advanceVillage(s, DAY + 1, forest);
     const rebuild = decided.constructions.find((c) => c.kind === 'rebuild')!;

@@ -9,10 +9,11 @@ import {
   type BuildKind,
 } from './costs';
 import { isVillageExtinct } from './extinction';
-import { partFoundingCost } from './fields';
+import { fieldsTouching, partFoundingCost } from './fields';
 import { obstacleChangesAt, recordClearedObstacles } from './obstacles';
 import { orchardPlantingCost, villageOrchards } from './orchard';
 import { ageGroup } from './people';
+import { NO_CRAFTS } from './productivity';
 import {
   FIELD_LIMITS,
   FOOD_NEED_KG_PER_YEAR,
@@ -171,7 +172,7 @@ function validateObstacleIds(ids: readonly number[]): void {
  * Ověří vstup pole (společné pro první pole vsi i `foundField`); jinak RangeError. Čísla, která
  * nejsou konečná (NaN, ±∞), by stav otrávila natrvalo – po uložení do JSON z nich je `null`.
  */
-function validateField(field: FieldInput): void {
+function validateField(field: FieldInput, joinedAreaM2 = 0): void {
   if (field.parts.length === 0) throw new RangeError('Pole musí mít aspoň jeden díl.');
   for (const part of field.parts) {
     if (!Number.isFinite(part.areaM2) || part.areaM2 <= 0) {
@@ -190,20 +191,76 @@ function validateField(field: FieldInput): void {
       throw new RangeError(`Díl pole je dál než ${FIELD_LIMITS.maxDistanceM} m od vsi.`);
     }
   }
-  const total = field.parts.reduce((sum, p) => sum + p.areaM2, 0);
+  // rozšíření navazujícího pole – nejmenší výměru musí mít pole i s ním (fields.md)
+  const total = field.parts.reduce((sum, p) => sum + p.areaM2, 0) + joinedAreaM2;
   if (total < FIELD_LIMITS.minAreaM2) {
     throw new RangeError(`Pole musí mít aspoň ${FIELD_LIMITS.minAreaM2} m².`);
   }
   if (field.sacred) validateSpared(field.sacred);
 }
 
-/** Přidá do (již naklonovaného) stavu pole, jeho díly ve stavu 'founding' a stavbu pole. */
+/**
+ * Sloučí pole `others` do pole `into` (mutuje stav – fields.md, Navazující pole): díly
+ * s nezměněným stavem, rozestavěná založení (jedna stavba – nejstarší, s cenou a prací všech),
+ * kronika a rozdělení práce dne odkazují na `into`; sloučená pole zmizí.
+ */
+function mergeFields(state: VillageState, into: number, others: readonly number[]): void {
+  const merged = new Set(others);
+  for (const part of state.parts) if (merged.has(part.fieldId)) part.fieldId = into;
+  state.fields = state.fields.filter((f) => !merged.has(f.id));
+  const founding = state.constructions
+    .filter(
+      (c) =>
+        c.kind === 'field' && c.fieldId !== null && (c.fieldId === into || merged.has(c.fieldId)),
+    )
+    .sort((a, b) => a.id - b.id);
+  const kept = founding[0];
+  if (kept) {
+    kept.fieldId = into;
+    for (const c of founding.slice(1)) {
+      kept.cost += c.cost;
+      kept.done += c.done;
+    }
+    const dropped = new Set(founding.slice(1).map((c) => c.id));
+    state.constructions = state.constructions.filter((c) => !dropped.has(c.id));
+  }
+  for (const event of state.chronicle) {
+    if (
+      event.kind === 'construction-finished' &&
+      event.fieldId !== null &&
+      merged.has(event.fieldId)
+    ) {
+      event.fieldId = into;
+    }
+  }
+  for (const share of state.labor?.shares ?? []) {
+    if (share.target.kind === 'field' && merged.has(share.target.id)) share.target.id = into;
+  }
+}
+
+/**
+ * Přidá do (již naklonovaného) stavu díly pole ve stavu 'founding' a stavbu pole. Čtverce, které
+ * stranou navazují na pole, ho rozšíří (stejné id, díly na konec, rozestavěné založení pole dostane
+ * jejich cenu, jinak nová stavba pole); navazují-li na víc polí, ta se nejdřív sloučí do
+ * nejstaršího (Martin – fields.md, Navazující pole). Jinak vznikne nové pole.
+ */
 function addField(state: VillageState, day: number, field: FieldInput): void {
-  const fieldId = state.nextId++;
-  state.fields.push({ id: fieldId });
+  const joined = fieldsTouching(
+    state.parts,
+    field.parts.flatMap((p) => (p.cell ? [p.cell] : [])),
+  );
+  const extended = joined[0];
+  if (extended !== undefined && joined.length > 1) mergeFields(state, extended, joined.slice(1));
+  const fieldId = extended ?? state.nextId++;
+  if (extended === undefined) state.fields.push({ id: fieldId });
   let cost = 0;
   for (const input of field.parts) {
-    const foundingCost = partFoundingCost(input.surface, input.areaM2, input.obstacleCost);
+    const foundingCost = partFoundingCost(
+      input.surface,
+      input.areaM2,
+      input.obstacleCost,
+      NO_CRAFTS.tools,
+    );
     cost += foundingCost;
     state.parts.push({
       id: state.nextId++,
@@ -223,6 +280,11 @@ function addField(state: VillageState, day: number, field: FieldInput): void {
       ...(input.obstacleIds?.length ? { obstacles: [...input.obstacleIds] } : {}),
       ...(input.trees ? { trees: input.trees } : {}),
     });
+  }
+  const running = state.constructions.find((c) => c.kind === 'field' && c.fieldId === fieldId);
+  if (running) {
+    running.cost += cost;
+    return;
   }
   state.constructions.push({
     id: state.nextId++,
@@ -442,7 +504,16 @@ export function startNewDwelling(
  */
 export function foundField(state: VillageState, day: number, field: FieldInput): VillageState {
   validateActionDay(state, day);
-  validateField(field);
+  const joined = new Set(
+    fieldsTouching(
+      state.parts,
+      field.parts.flatMap((p) => (p.cell ? [p.cell] : [])),
+    ),
+  );
+  validateField(
+    field,
+    state.parts.filter((p) => joined.has(p.fieldId)).reduce((sum, p) => sum + p.areaM2, 0),
+  );
   requireAffordable(state, 'field');
   const next = structuredClone(state);
   payUpfront(next, 'field');

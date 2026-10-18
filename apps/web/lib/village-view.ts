@@ -6,6 +6,8 @@ import {
   ageYears,
   dateOfDayIndex,
   effectiveFertility,
+  fieldPartLooks,
+  forestBonus,
   monthInWindow,
   obstacleChangesAt,
   ORCHARD_PLANTING_WINDOWS,
@@ -23,6 +25,7 @@ import {
   type ChronicleEvent,
   type ConstructionKind,
   type ConstructionSummary,
+  type Crop,
   type DwellingPlot,
   type DwellingType,
   type FieldSurface,
@@ -57,6 +60,7 @@ import { formatCells, formatHa, formatInteger } from './village-format';
 
 export type {
   BuildKind,
+  Crop,
   FieldSurface,
   LaborActivity,
   LaborShare,
@@ -169,7 +173,8 @@ export interface VillageView {
   }[];
   /**
    * Pole pro panel výběru: výměra, průměrná úrodnost, počet dílů podle stadia a podle povrchu,
-   * na kterém se díly zakládaly (louka, křoviny, les), a kolik dílů má popel z vymýceného lesa.
+   * na kterém se díly zakládaly (louka, křoviny, les), oseté díly podle plodiny (ozim, jař)
+   * a kolik dílů má popel z vymýceného lesa.
    */
   fields: {
     id: number;
@@ -177,8 +182,12 @@ export interface VillageView {
     fertility: number;
     stages: Partial<Record<PartStage, number>>;
     surfaces: Partial<Record<FieldSurface, number>>;
-    /** Díly s bonusem úrodnosti po vymýcení lesa (fields.md – Úroda). */
+    /** Oseté díly podle plodiny (fields.md – Ozim a jař); díl bez plodiny je jař. */
+    crops: Partial<Record<Crop, number>>;
+    /** Díly v okně bonusu úrodnosti po vymýcení lesa (fields.md – Úroda). */
     ashParts: number;
+    /** Nejvyšší letošní bonus úrodnosti z popela (+40 první sezónu osevu, +20 druhou), jinak 0. */
+    ashBonus: number;
   }[];
   /** Hřbitovy v pořadí pohřbívání – kolik místa zbývá (hygienu hráč nevidí – cemetery.md). */
   cemeteries: VillageCemetery[];
@@ -390,8 +399,9 @@ export type FieldLook =
 /**
  * Díl pole ve scéně – políčko krajiny `cell`, jeho střed (x, z) ve světě, strana políčka `size`
  * v m a stadium. Vzhled (`look`, `work`, `before`) počítá herní jádro po čtvercích – práce mění
- * díl, až když k němu dojde (fronta práce: jeden rozpracovaný díl na úlohu). Bez `look` ho scéna
- * odhadne ze stadia a data (`estimateFieldLooks` ve field-look.ts).
+ * díl, až když k němu dojde (fronta práce: jeden rozpracovaný díl na úlohu; `fieldPartLooks`
+ * v jádru). Bez `look` (starší příloh – pastvina a louka na seno) ho scéna odhadne ze stadia
+ * a data (`estimateFieldLooks` ve field-look.ts).
  */
 export interface SceneFieldPart {
   /** Id dílu v herním jádru – podle něj postavy najdou díly z fronty práce (`SceneLaborShare.parts`). */
@@ -421,7 +431,8 @@ export type SceneLaborShare = LaborShare & { parts?: readonly number[] };
 
 /**
  * Rozdělení práce posledního dne pro postavy: člověkodny po činnostech a místech (na setiny),
- * lidé podle věku (pasáčci, starší u obydlí) a herní den s měsícem (v zimě je venku méně lidí).
+ * lidé podle věku a herní den s měsícem (v zimě je venku méně lidí; podle dne se ve scéně kosí
+ * a pase na úhoru).
  */
 export interface SceneLabor {
   day: number;
@@ -476,7 +487,7 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
     case 'rebuild-decided':
       return `Obyvatelé se rozhodli přestavět dožilé obydlí na ${DWELLING_NAMES[event.type].accusative}.`;
     case 'harvest':
-      return `Sklizeň: ${formatInteger(event.kg)} kg obilí.`;
+      return `${HARVEST_NAMES[event.crop ?? 'any']}: ${formatInteger(event.kg)} kg obilí.`;
     case 'apple-harvest':
       return `Sklizeň jablek: ${formatInteger(event.kg)} kg.`;
     case 'orchard-gone':
@@ -552,11 +563,13 @@ function sceneVillage(
       },
     ];
   });
+  const looks = fieldPartLooks(state, day);
   const fields = state.fields.map((f) => ({
     id: f.id,
-    parts: state.parts.flatMap((p) =>
+    // vzhled po čtvercích z jádra (fieldPartLooks); bez něj (starší příloh) odhad scény
+    parts: state.parts.flatMap((p): SceneFieldPart[] =>
       p.fieldId === f.id && p.cell !== undefined
-        ? [scenePart(landscape, p, p.cell, partStage(p, day))]
+        ? [{ ...scenePart(landscape, p, p.cell, partStage(p, day)), ...looks.get(p.id) }]
         : [],
     ),
   }));
@@ -675,13 +688,21 @@ function sacredView(summary: VillageSummary): VillageSacred {
   };
 }
 
-/** Rozdělení práce posledního dne pro postavy – člověkodny na setiny, nulové podíly pryč. */
+/** Rozdělení práce posledního dne pro postavy – člověkodny na setiny (drobné podíly 0,01). */
 function sceneLabor(state: VillageState, people: SceneLabor['people']): SceneLabor | null {
   const labor = laborReport(state);
   if (!labor) return null;
-  const shares = labor.shares.flatMap((share) => {
-    const manDays = Math.round(share.manDays * 100) / 100;
-    return manDays > 0 ? [{ ...share, manDays }] : [];
+  // na setiny, ale nic, co dnes práci dostalo, nezmizí – i drobná práce na stavbě je stavba,
+  // která roste, a u ní má někdo stát (villagers.md); díly čela polní práce jdou do podílu
+  // (`parts`), cíl zůstane pole
+  const shares = labor.shares.flatMap((share): SceneLaborShare[] => {
+    if (share.manDays <= 0) return [];
+    const manDays = Math.max(0.01, Math.round(share.manDays * 100) / 100);
+    if (share.target.kind === 'field' && share.target.parts) {
+      const { parts, ...target } = share.target;
+      return [{ ...share, target, manDays, parts }];
+    }
+    return [{ ...share, manDays }];
   });
   return { day: labor.day, month: dateOfDayIndex(labor.day).month, people, shares };
 }
@@ -780,6 +801,13 @@ function chronicle(state: VillageState, name: string): VillageView['chronicle'] 
     }));
 }
 
+/** Kronika sklizní podle plodiny (fields.md – Ozim a jař); bez plodiny ves seje jen jař. */
+const HARVEST_NAMES: Record<Crop | 'any', string> = {
+  winter: 'Sklizeň ozimu',
+  spring: 'Sklizeň jaře',
+  any: 'Sklizeň',
+};
+
 const BUILD_KINDS: readonly BuildKind[] = [
   'zemnice',
   'polozemnice',
@@ -826,7 +854,7 @@ function buildOptions(state: VillageState, landscape: Landscape): Record<BuildKi
 }
 
 /**
- * Pole pro panel výběru – výměra, úrodnost vážená plochou, díly podle stadia a povrchu
+ * Pole pro panel výběru – výměra, úrodnost vážená plochou, díly podle stadia, povrchu a plodiny
  * a díly s popelem z vymýceného lesa.
  */
 function fieldViews(state: VillageState, day: number): VillageView['fields'] {
@@ -839,14 +867,21 @@ function fieldViews(state: VillageState, day: number): VillageView['fields'] {
         : 0;
     const stages: Partial<Record<PartStage, number>> = {};
     const surfaces: Partial<Record<FieldSurface, number>> = {};
+    const crops: Partial<Record<Crop, number>> = {};
     let ashParts = 0;
+    let ashBonus = 0;
     for (const p of parts) {
       const stage = partStage(p, day);
       stages[stage] = (stages[stage] ?? 0) + 1;
       surfaces[p.surface] = (surfaces[p.surface] ?? 0) + 1;
+      if (p.state === 'sown') {
+        const crop = p.crop ?? 'spring';
+        crops[crop] = (crops[crop] ?? 0) + 1;
+      }
       if (p.bonusUntilDay !== null && p.bonusUntilDay >= day) ashParts++;
+      ashBonus = Math.max(ashBonus, forestBonus(p, day));
     }
-    return { id: f.id, areaM2, fertility, stages, surfaces, ashParts };
+    return { id: f.id, areaM2, fertility, stages, surfaces, crops, ashParts, ashBonus };
   });
 }
 
@@ -948,7 +983,10 @@ export function placementVillageFromScene(scene: SceneVillage): PlacementVillage
       ...(d.plot ? { plot: { cell: d.plot.cell, variant: d.plot.variant } } : {}),
     })),
     constructions: [],
-    parts: scene.fields.flatMap((f) => f.parts.map((p) => ({ cell: p.cell }))),
+    // pole a plocha dílu (políčko) pro navazující pole – rozšíření a sloučení (fields.md)
+    parts: scene.fields.flatMap((f) =>
+      f.parts.map((p) => ({ cell: p.cell, fieldId: f.id, areaM2: p.size * p.size })),
+    ),
     cemeteries: (scene.cemeteries ?? []).map((c) => ({
       squares: c.squares.map((s) => ({ cell: s.cell })),
     })),

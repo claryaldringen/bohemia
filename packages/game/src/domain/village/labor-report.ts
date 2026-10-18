@@ -1,9 +1,12 @@
 import { isVillageExtinct } from './extinction';
 import type { DayAllocation, LaborTaskName } from './labor';
 import { villageOrchards } from './orchard';
+import { NO_CRAFTS, withinBounds } from './productivity';
 import { HARVEST_WORK_PER_HA } from './rules';
 import type {
   Construction,
+  CropWork,
+  TaskName,
   LaborActivity,
   LaborDay,
   LaborShare,
@@ -12,6 +15,8 @@ import type {
   YearPlan,
 } from './types';
 import { woodFellingCost } from './wood';
+import { partsWorked, type PartTask } from './field-progress';
+import { planPartIds } from './year-plan';
 
 // Rozdělení práce posledního odsimulovaného dne po činnostech a místech – jen pro zobrazení
 // (postavy ve scéně, villagers.md). Vzniká v kroku práce simulace ze stejného rozdělení, které
@@ -25,9 +30,19 @@ export interface ConstructionWork {
   felledBefore: number;
 }
 
+/** Polní úloha dne: práce plodiny a kolik z ní bylo hotové před a po dnešní práci (člověkodny). */
+export interface FieldTaskWork {
+  task: TaskName;
+  work: CropWork;
+  before: number;
+  after: number;
+}
+
 /** Co krok práce simulace dnes rozdělil. */
 export interface DayWork {
   allocation: DayAllocation;
+  /** Polní úlohy dne po plodinách (bez nich se práce polí dělí podle plochy plánu). */
+  fieldWork?: FieldTaskWork[];
   /** Opravy po obydlích (poměrně k potřebě). */
   repairs: { dwellingId: number; manDays: number }[];
   constructions: ConstructionWork[];
@@ -37,37 +52,47 @@ export interface DayWork {
 export const LABOR_TREES_SHOWN = 3;
 /** Méně člověkodní se do rozdělení nezapíše. */
 const MIN_MAN_DAYS = 0.001;
+/** Podíl odnosu na práci sklizně (řemesla zatím nejsou – horní meze, NO_CRAFTS). */
 const HARVEST_CARRY_SHARE =
-  HARVEST_WORK_PER_HA.carry / (HARVEST_WORK_PER_HA.reap + HARVEST_WORK_PER_HA.carry);
+  withinBounds(HARVEST_WORK_PER_HA.carry, NO_CRAFTS.tools) /
+  (withinBounds(HARVEST_WORK_PER_HA.reap, NO_CRAFTS.tools) +
+    withinBounds(HARVEST_WORK_PER_HA.carry, NO_CRAFTS.tools));
 
 const FIELD_ACTIVITIES: readonly LaborTaskName[] = ['reclaim', 'dig', 'sow', 'weed', 'harvest'];
 
 /**
- * Rozdělení práce dne podle míst (stav po práci dne – mutovat se smí až potom). Polní úlohy
- * plánu se dělí mezi pole podle plochy jejich dílů v plánu, sklizeň na žeň a odnos podle sazeb
- * (fields.md), výmlat se dělá u vsi. Sezónní práce v sadech podle plochy vysazených čtverců.
+ * Rozdělení práce dne podle míst (stav po práci dne – mutovat se smí až potom). Polní úlohy jdou
+ * na díly, přes které dnes práce postoupila (čelo práce – field-progress.ts), sečtené po polích
+ * s id těch dílů v cíli; sklizeň na žeň a odnos podle sazeb (fields.md), výmlat se dělá u vsi.
+ * Sezónní práce v sadech podle plochy vysazených čtverců.
  */
 export function laborDay(state: VillageState, day: number, work: DayWork): LaborDay {
   const shares: LaborShare[] = [];
-  const add = (activity: LaborActivity, target: LaborTarget, manDays: number): void => {
+  const add = (
+    activity: LaborActivity,
+    target: LaborTarget,
+    manDays: number,
+    construction?: number,
+  ): void => {
     const rounded = Math.round(manDays * 1000) / 1000;
-    if (rounded >= MIN_MAN_DAYS) shares.push({ activity, target, manDays: rounded });
+    if (rounded < MIN_MAN_DAYS) return;
+    shares.push({
+      activity,
+      target,
+      manDays: rounded,
+      ...(construction === undefined ? {} : { construction }),
+    });
   };
   const { allocation } = work;
 
-  const fieldWork = FIELD_ACTIVITIES.some((task) => allocation.tasks[task] > 0);
-  const fields = fieldWork ? planFieldAreas(state) : [];
-  for (const task of FIELD_ACTIVITIES) {
-    const amount = allocation.tasks[task];
-    if (amount <= 0) continue;
-    for (const { id, share } of fields) {
-      const manDays = amount * share;
-      if (task === 'harvest') {
-        add('harvest', { kind: 'field', id }, manDays * (1 - HARVEST_CARRY_SHARE));
-        add('carry', { kind: 'field', id }, manDays * HARVEST_CARRY_SHARE);
-      } else {
-        add(task, { kind: 'field', id }, manDays);
-      }
+  for (const { task, fieldId, manDays, parts } of fieldShares(state, day, work)) {
+    const target: LaborTarget =
+      parts.length > 0 ? { kind: 'field', id: fieldId, parts } : { kind: 'field', id: fieldId };
+    if (task === 'harvest') {
+      add('harvest', target, manDays * (1 - HARVEST_CARRY_SHARE));
+      add('carry', target, manDays * HARVEST_CARRY_SHARE);
+    } else {
+      add(task, target, manDays);
     }
   }
   add('thresh', { kind: 'village' }, allocation.tasks.thresh);
@@ -86,10 +111,54 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
   let invested = 0;
   for (const c of work.constructions) {
     invested += c.manDays;
-    for (const share of constructionShares(c)) add(share.activity, share.target, share.manDays);
+    for (const share of constructionShares(c)) {
+      add(share.activity, share.target, share.manDays, c.construction.id);
+    }
   }
   add('idle', { kind: 'village' }, allocation.common - invested);
   return { day, shares };
+}
+
+/**
+ * Polní práce dne po polích: s polními úlohami po plodinách na díly, přes které práce dnes
+ * postoupila (podíl podle úseku dílu), jinak (starší volání) poměrně k ploše polí v plánu.
+ */
+function fieldShares(
+  state: VillageState,
+  day: number,
+  work: DayWork,
+): { task: PartTask; fieldId: number; manDays: number; parts: number[] }[] {
+  const { allocation, fieldWork } = work;
+  if (!fieldWork) {
+    const fields = FIELD_ACTIVITIES.some((t) => allocation.tasks[t] > 0)
+      ? planFieldAreas(state)
+      : [];
+    return FIELD_ACTIVITIES.flatMap((task) =>
+      fields.map(({ id, share }) => ({
+        task: task as PartTask,
+        fieldId: id,
+        manDays: allocation.tasks[task] * share,
+        parts: [],
+      })),
+    );
+  }
+  if (!fieldWork.some(({ task, before, after }) => task !== 'thresh' && after > before)) return [];
+  const partsById = new Map(state.parts.map((p) => [p.id, p]));
+  const shares = new Map<
+    string,
+    { task: PartTask; fieldId: number; manDays: number; parts: number[] }
+  >();
+  for (const { task, work: crop, before, after } of fieldWork) {
+    if (task === 'thresh' || after - before <= 0) continue;
+    for (const part of partsWorked(crop, partsById, task, day, before, after)) {
+      const key = `${task}:${part.fieldId}`;
+      const share = shares.get(key) ?? { task, fieldId: part.fieldId, manDays: 0, parts: [] };
+      share.manDays += (after - before) * part.share;
+      if (!share.parts.includes(part.id)) share.parts.push(part.id);
+      shares.set(key, share);
+    }
+  }
+  return [...shares.values()];
 }
 
 /**
@@ -115,8 +184,9 @@ function planFieldAreas(state: VillageState): { id: number; share: number }[] {
   const plan = state.plan;
   if (plan === null) return [];
   const cached = planAreas.get(plan);
-  if (cached && cached.parts === plan.partIds.length) return cached.shares;
-  const inPlan = new Set(plan.partIds);
+  const partIds = planPartIds(plan);
+  if (cached && cached.parts === partIds.length) return cached.shares;
+  const inPlan = new Set(partIds);
   const areas = new Map<number, number>();
   let total = 0;
   for (const part of state.parts) {
@@ -128,7 +198,7 @@ function planFieldAreas(state: VillageState): { id: number; share: number }[] {
     total <= 0
       ? []
       : [...areas].sort(([a], [b]) => a - b).map(([id, area]) => ({ id, share: area / total }));
-  planAreas.set(plan, { parts: plan.partIds.length, shares });
+  planAreas.set(plan, { parts: partIds.length, shares });
   return shares;
 }
 

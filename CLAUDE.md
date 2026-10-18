@@ -81,7 +81,7 @@ packages/game/       herní jádro
   src/application/   use-casy a porty (enterGame, SettlementRepository, SeedSource)
   scripts/           vývojové nástroje (measure-landscapes.ts, measure-village.ts)
 packages/db/         Drizzle schéma, klient, migrace a adaptéry portů (src/adapters/)
-docs/design/         herní design – vize + dokument pro každou mechaniku
+docs/design/         herní design – vize + dokument pro každou mechaniku, rešerše v research/
 ```
 
 ## Herní kalendář
@@ -466,13 +466,44 @@ rozhraní částí v
   stavbou) dají klády jako u pole; nevyklizené čtverce sadu jsou v `claimedObstacles`. Kroky
   simulace sadů (`plantOrchard`, `workOrchards`, `orchardSeasonDay`) se z `@bohemia/game`
   neexportují.
+- **Ozim a jař** (fields.md – Ozim a jař): roční plán (`YearPlan`) nese práci jaře nahoře (tvar
+  plánu z doby před ozimem) a ozimu v `winter?` (`CropWork`); díly osevu mají `crop?` (chybí =
+  jař). Okna prací po plodinách `CROP_WINDOWS` (`WINDOWS` = jař, `WINTER_WINDOWS`) v `rules.ts`.
+  K 1. 9. rozhodne `chooseCrops` (`sowing.ts`): díly v pořadí `sowingOrder`, každý do ozimu, když
+  ho podzim (září–říjen po sklizni jablek) stihne a červenec sklidí, jinak do jaře, když se
+  vejde do zbytku podzimu, jara a srpna – volná práce `windowDaysLeft` × práce po denním minimu.
+  Díly hotové po plánu jdou jen do jaře. Polní úlohy obou plodin řadí `fieldTasks` v `simulate.ts`
+  (konec okna, ozim před jaří); `allocateDay` vrací i `taskAmounts` po úlohách vstupu (stejný
+  název víckrát). Sklizeň ozimu 31. 7. (`harvestWinter`), jaře 31. 8.; příděl počítá do sklizně
+  podle `daysUntilFoodHarvest` (31. 7., když ozim podle odhadu uživí srpen). Plán po plodinách
+  prochází `planCrops`, všechny díly `planPartIds`.
+- **Postup práce po čtvercích** (Martin – fields.md): kopání, setí a sklizeň mění díl, až k němu
+  dojde práce. `field-progress.ts` (jen čte): díly plodiny v pořadí `CropWork.partIds` (dávka
+  nejblíž obydlím první, při shodě id – řadí `createCropWork`), váha = plocha × vzdálenost;
+  `fieldPartLooks` → vzhled dílu `{ look, work?, before? }` (bare, plowed, sown, sprouted, green,
+  ripe, harvesting, stubble, young-fallow, pasture; vzejití a zrání podle kalendáře; starší
+  příloh bez vzhledu – doplní scéna), `fieldFrontiers` (čelo práce úloh dne), `partsWorked`
+  (díly, přes které dnes práce postoupila). Rozdělení práce dne (`labor-report.ts`) dostává
+  `fieldWork` (před a po po plodinách) a cílí polní práce na `{ kind: 'field', id, parts }`.
+  Ve scéně (`village-view.ts`) je díl `SceneFieldPart` (`id`, `look`, `work`, `before` –
+  `FieldLook`) a podíl práce `SceneLaborShare` s `parts`; postavy (`villager-plan.ts`) pracují na
+  `parts`. Simulace se tím nemění.
+- **Navazující pole** (Martin): `foundField` – čtverce navazující stranou na pole ho rozšíří
+  (`fieldsTouching` ve `fields.ts`, stejné id, rozestavěné založení dostane cenu, jinak nová stavba
+  pole), na víc polí je sloučí do nejstaršího (`mergeFields` v `actions.ts`: díly, stavby
+  založení, kronika, `labor`). Průběh stavby pole se počítá jen z jejích dílů (`invest`). Náhled
+  (`fieldPartsFromCells`) vrací `joinedFields` a nejmenší výměru měří i s navazujícím polem.
+- **Příloh je pastvina** (Martin): 1–2 roky mladý příloh, pak napořád `meadow` (pastvina) –
+  nálet, křoviny ani les na přílohu nejsou (`OVERGROWTH_STAGES`), vrácení stojí nejvýš drn louky
+  (`RECLAIM_COST_PER_HA`), kronika `part-became-forest` už nevzniká (typ zůstává pro staré
+  kroniky). Seno na loukách je zatím jen scéna.
 - **Štěstí a posvátná místa** ([happiness.md](docs/design/happiness.md), `happiness.ts`,
   `sacred.ts`): štěstí 0–100 (`VillageState.happiness` – hodnota, úmrtí posledního roku, dny dřiny
   posledních 60 dní; chybí = 50) se den po dni posouvá o denní podíl k cíli
   (`happinessTarget` z `happinessFactors`: hlad, úmrtí, přeplněnost, dřina `isToilDay` – ves by
   běžící polní práce dnešním tempem nedodělala do konce oken –, zásoby, posvátná místa) – krok
   `updateHappiness` na konci dne. Násobí veškerou práci: `allocateDay` má jediný háček
-  `productivity` (`villageLaborFactor`, 0,8–1,1; násobí se i kapacita v `sowingLimits`).
+  `productivity` (`villageLaborFactor`, 0,8–1,1; násobí se i kapacita v `sowingCapacity`).
   **Posvátné duby a háje** jsou čistá funkce vrstvy překážek – `sacredSitesOf(layer)` (mezipaměť
   podle vrstvy, ≈ 30 ms, jen přesná aritmetika – stejně v prohlížeči): posvátný dub = horní
   třetina velikosti dubů (`OAK_MODEL_HEIGHT_M` × měřítko) a nejvýš 5 stromů do 15 m, háj = aspoň
@@ -504,6 +535,14 @@ rozhraní částí v
 - **Čísla** pravidel jsou jen v `rules.ts` (u každého odkaz na sekci návrhu); změna čísla = i
   text v návrhu. Kalibrace: `measure-village.ts` nasimuluje stovky vsí a vypíše cíle z Kalibrace
   obou dokumentů s OK / MIMO (`200 60` rychlé cíle, `100 1000` vymření do roku 1500).
+- **Meze produktivity** (Martin): čísla s rozpětím v literatuře jsou v `rules.ts` dvojice
+  `{ worst, best }` – **nejhorší mez** (nejvíc člověkodní, nejvyšší ztráty – bez řemesel)
+  a **nejlepší mez** (plně pokrytá potřeba výrobků řemeslníků); řemeslníci zvyšují produktivitu
+  = snižují pracnost od `worst` k `best`. V textech nepsat „horní / dolní mez“.
+  Hodnotu podle pokrytí 0–1 dávají funkce v `productivity.ts` (`withinBounds`, `fieldWorkPerHa`,
+  `storageLossPerYear`…). Řemesla zatím nejsou – volající předávají `NO_CRAFTS` (pokrytí 0);
+  stav řemesel nevymýšlet, až vzniknou, pokrytí se spočítá v `simulate.ts`. Zdroje čísel jsou
+  v rešerších `docs/design/research/`.
 - **Web:** server actions `app/game/actions.ts` (`getVillageView`, `foundVillage`, `placeDwelling`,
   `placeField`, `placeCemetery`, `placeOrchard`, `renameVillage` → `VillageView` / `null` /
   `{ error }`; `restartGame(input?)` → `{ ok: true }` / `{ error }`),
@@ -651,7 +690,9 @@ rozhraní částí v
   a odnos podle `HARVEST_WORK_PER_HA`; do scény jde jako `SceneVillage.labor` (člověkodny na
   setiny, lidé podle věku, měsíc). Scéna: `villager-plan.ts` (čisté funkce, testy) převede
   člověkodny na postavy (jedna na pracujícího, nejvýš `MAX_WORKERS` = 60, po skupinách až 4
-  v činnosti – `shareCounts`; domácí práce a nečinní venku jen z části, v zimě méně) a rozestaví
+  v činnosti – `shareCounts`; domácí práce a nečinní venku jen z části, v zimě méně; **každá
+  stavba s dnešní prací má aspoň jednoho člověka** – `LaborShare.construction` z jádra,
+  `withBuilderAtEachConstruction`, náhradní místo `builderNearby`) a rozestaví
   je (postavy stylizovaně o 20 % větší – `FIGURE_SCALE`, rozestupy s nimi): řady na polích
   přesně na čtvercích, kde se pracuje (Martin – fronta práce `workedParts`: díly z
   `SceneLaborShare.parts`, jinak rozpracovaný díl a za ním další; řada stojí hned za čarou práce
@@ -697,6 +738,14 @@ rozhraní částí v
   `isDeciduousMesh`). Postavy: `VillagerPlanOptions.paths` (`VillagerPaths`) – `walkRoute` jde
   po pěšině, ženy pro vodu a dřevo na konec pěšiny domácnosti. Vývojová stránka: tlačítka
   **Pěšiny**, **Provoz** (teplotní mapa) a **Stáří** (stáří obydlí, s „Lidé“), čísla výpočtu.
+- **Ohrada s přístřeškem** ([oxen.md](docs/design/oxen.md); zatím jen modely a ukázka
+  **Ohrada** na `/dev/buildings`, pravidla ne): přístřešek s pultovou doškovou střechou, jesle,
+  žlab a branka ze žerdí z `tools/blender/pen.py` (`models/pen/pen.glb`, díly staveniště
+  `pen-construction.glb` „ohrada-…“; materiál `…-low` = jen poprašek sněhu – pod střechou
+  nesněží), plot je sdílený pletený plot (`PEN_FENCE`), stoh = kupka z polí. Rozmístění,
+  fáze stavby a póza zvířat `pen-layout.ts` (čisté funkce, testy – branka na straně ke vsi,
+  přístřešek v zadním rohu naproti; `SHELTER_M` musí sedět s rozměry v `pen.py`), kreslení
+  `pen-renderer.ts`, voli (VAT klip `idle`) a kráva `pen-animals.ts`. Na stránce přepínač **Zima**.
 - **e2e:** testy běží v běžícím pomalém světě (2000–2200). Kliknutí do scény při umisťování
   nahrazuje háček `window.__bohemiaE2E.confirmPlacement`, kam kliknout myší pro výběr řekne
   `projectToScreen` (`lib/e2e-hooks.ts`) – existují jen v buildu s `NEXT_PUBLIC_E2E_HOOKS=1`

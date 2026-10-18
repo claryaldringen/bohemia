@@ -1,5 +1,6 @@
 import {
   sacredBuildingHappiness,
+  type Crop,
   type DwellingType,
   type FieldSurface,
   type PartStage,
@@ -52,8 +53,12 @@ export type SelectionDetails =
        * prázdné, když je celé pole na louce.
        */
       surfaces: { surface: FieldSurface; count: number }[];
-      /** Díly s popelem z vymýceného lesa (+20 úrodnosti na 3 roky – fields.md). */
+      /** Oseté díly podle plodiny v pořadí CROP_ORDER (jen nenulové – fields.md, Ozim a jař). */
+      crops: { crop: Crop; count: number }[];
+      /** Díly s popelem z vymýceného lesa (fields.md – Úroda). */
       ashParts: number;
+      /** Nejvyšší letošní bonus úrodnosti z popela (+40 první sezónu, +20 druhou), jinak 0. */
+      ashBonus: number;
       /** Zakládání pole (průběh 0–1), hotové null. */
       founding: number | null;
     }
@@ -110,17 +115,23 @@ export type SelectionDetails =
       oaksToFell: number;
     };
 
-/** Pořadí stadií dílů v panelu pole – od zakládání po zarůstání. */
+/** Pořadí stadií dílů v panelu pole – od zakládání po příloh (pastvinu). */
 export const PART_STAGE_ORDER: readonly PartStage[] = [
   'founding',
   'ready',
   'sown',
   'young-fallow',
   'meadow',
-  'young-growth',
-  'shrub',
-  'forest',
 ];
+
+/** Pořadí plodin v panelu pole – ozim (sklízí se dřív), jař. */
+export const CROP_ORDER: readonly Crop[] = ['winter', 'spring'];
+
+/** Popisky plodin a ikony (`/icons/resources/<ikona>.png`). */
+export const CROP_LABELS: Record<Crop, { name: string; icon: string }> = {
+  winter: { name: 'Ozim – žito a pšenice, zasetá na podzim, sklizeň v červenci', icon: 'ozim' },
+  spring: { name: 'Jař – ječmen, zasetý na jaře, sklizeň v srpnu', icon: 'jar' },
+};
 
 /** Pořadí povrchů v panelu pole – od louky po les. */
 export const FIELD_SURFACE_ORDER: readonly FieldSurface[] = ['meadow', 'shrub', 'forest'];
@@ -136,10 +147,7 @@ export const PART_STAGE_NAMES: Record<PartStage, string> = {
   ready: 'Připraveno k osevu',
   sown: 'Oseto',
   'young-fallow': 'Mladý příloh',
-  meadow: 'Příloh – louka',
-  'young-growth': 'Příloh – nálet',
-  shrub: 'Příloh – křoviny',
-  forest: 'Příloh – les',
+  meadow: 'Příloh – pastvina',
 };
 
 /** Údaje o vybraném cíli, nebo null (nic nevybráno, cíl zanikl, ves ještě není). */
@@ -245,7 +253,12 @@ export function selectionDetails(
           return count > 0 ? [{ surface, count }] : [];
         })
       : [],
+    crops: CROP_ORDER.flatMap((crop) => {
+      const count = field.crops[crop] ?? 0;
+      return count > 0 ? [{ crop, count }] : [];
+    }),
     ashParts: field.ashParts,
+    ashBonus: field.ashBonus,
     founding: founding ? founding.progress : null,
   };
 }

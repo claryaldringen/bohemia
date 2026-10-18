@@ -1,4 +1,4 @@
-import { TOTAL_GAME_DAYS, dateOfDayIndex, dayIndexOf } from '../calendar';
+import { TOTAL_GAME_DAYS, dateOfDayIndex } from '../calendar';
 import type { CalendarDate } from '../calendar';
 import type { Landscape, ObstacleLayer } from '../landscape';
 import { villageCemeteries } from './cemetery';
@@ -9,8 +9,8 @@ import {
   repairNeedPerDay,
   wantsRebuild,
 } from './dwellings';
-import { endOfSeason, fallowYears, selectPartsToSow } from './fields';
-import { daysUntilAppleRot, daysUntilHarvest, eatMeal } from './food';
+import { endOfSeason, expectedNetKg, sowingOrder } from './fields';
+import { daysUntilAppleRot, eatMeal } from './food';
 import { isToilDay, updateHappiness, villageLaborFactor, windowEndDay } from './happiness';
 import { recordClearedObstacles } from './obstacles';
 import { relocationPlot } from './plots';
@@ -26,36 +26,45 @@ import {
   villageApplesKg,
   workOrchards,
 } from './orchard';
-import { ageGroup, foodNeedPerDay, isFertileAdult, laborPerDay, occupants } from './people';
+import { ageGroup, foodNeedPerDay, isAdult, laborPerDay, occupants } from './people';
 import { isVillageExtinct } from './extinction';
 import { householdBreaksUp, inLuckyYears, nextStarvationDays, populationDay } from './population';
+import { NO_CRAFTS, dailyMinPerHousehold } from './productivity';
 import {
   CHRONICLE_MAX_EVENTS,
   COMMON_LABOR_HISTORY_DAYS,
-  DAILY_MIN_PER_HOUSEHOLD,
-  FERTILITY,
-  FIELD_WORK_PER_HA,
+  CROP_ORDER,
+  CROP_WINDOWS,
   FOOD_NEED_KG_PER_YEAR,
-  FOREST_AFTER_YEARS,
+  FOREST_BONUS,
   HARVEST_DAY,
   ORCHARD_WINDOWS,
   PEAK_CAPACITY_SHARE,
   PLANNING_DAY,
   SOW_RESERVE,
-  SPRING_DIG_SHARE,
   STORES_HIGH_YEARS,
   THRESH_END_DAY,
   WINDOWS,
+  WINTER_HARVEST_DAY,
+  WINTER_WINDOWS,
   dwellingBuildLabor,
 } from './rules';
+import {
+  chooseCrops,
+  orchardOnlyLoad,
+  planLoad,
+  windowDaysLeft,
+  type SowingCapacity,
+} from './sowing';
 import type {
   ChronicleEvent,
   Construction,
+  Crop,
+  CropWork,
   Dwelling,
   FieldPart,
   TaskName,
   VillageState,
-  YearPlan,
 } from './types';
 import {
   addLogs,
@@ -70,18 +79,27 @@ import {
 import {
   TASK_ORDER,
   activeTasks,
+  addToCropWork,
   createPlan,
+  createYearPlan,
+  daysUntilFoodHarvest,
   harvestKg,
+  planCrops,
+  planPartIds,
   taskRemaining,
+  taskWindowEnd,
   threshLossKg,
   windowEndOf,
 } from './year-plan';
 
 type DayOfYear = Readonly<Pick<CalendarDate, 'month' | 'day'>>;
 
+// Řemesla zatím nejsou (crafts.md) – práce i ztráty se počítají s pokrytím NO_CRAFTS, tedy
+// s horními mezemi (`worst`). Až řemesla vzniknou, pokrytí se spočítá ze stavu vsi tady.
+
 /** Díl hotový nejpozději v posledním měsíci setí (duben) jde ještě do letošního plánu. */
 const LAST_JOIN_MONTH = Math.max(...WINDOWS.sow.map(([, to]) => to));
-/** Bonus vymýceného lesa trvá roky × 365 dní. */
+/** Okno bonusu vymýceného lesa trvá roky × 365 dní. */
 const DAYS_PER_BONUS_YEAR = 365;
 /** Tolerance, pod kterou se nasycení ještě bere jako plné. */
 const SATIATION_EPSILON = 1e-9;
@@ -137,9 +155,9 @@ function simulateDay(
   rotLogs(state);
   // sady: shnilá jablka, konec péče a stárnutí (1. 3.), začátek a konec sklizně a péče
   state.chronicle.push(...orchardSeasonDay(state, day));
-  if (isOn(date, PLANNING_DAY)) planYear(state, day, date.year);
+  if (isOn(date, PLANNING_DAY)) planYear(state, day);
   if (date.month >= PLANNING_DAY.month || date.month <= LAST_JOIN_MONTH) {
-    joinFinishedParts(state, day, date.year);
+    joinFinishedParts(state, day);
   }
   const toil = work(state, day);
   finishConstructions(state, day);
@@ -164,7 +182,8 @@ function simulateDay(
     return;
   }
   // Sklizeň a ztráta nevymláceného až po jídle (Ruling 13) – 31. 8. se jí ještě z loňských
-  // zásob, jak počítá daysUntilHarvest (31. 8. → 1 den).
+  // zásob, jak počítá daysUntilHarvest (31. 8. → 1 den); ozim stejně 31. 7.
+  if (isOn(date, WINTER_HARVEST_DAY)) harvestWinter(state, day);
   if (isOn(date, HARVEST_DAY)) harvest(state, day);
   if (isOn(date, THRESH_END_DAY)) endThreshing(state);
 }
@@ -175,107 +194,119 @@ function isOn(date: CalendarDate, target: DayOfYear): boolean {
 
 // --- plán osevu -------------------------------------------------------------------------
 
-/** Krok 1 (1. 9.): konec hospodářského roku pro všechny díly a nový plán osevu. */
-function planYear(state: VillageState, day: number, year: number): void {
-  for (const part of state.parts) {
-    const event = endOfSeason(part, day);
-    if (event) state.chronicle.push(event);
-  }
-  const { targetKg, maxHa } = sowingLimits(state, day, year);
-  const selected = selectPartsToSow(state.parts, targetKg, maxHa, day);
+/**
+ * Krok 1 (1. 9.): konec hospodářského roku pro všechny díly a nový plán osevu – ves rozhodne, co
+ * oseje ozimem a co jaří (fields.md – Ozim a jař).
+ */
+function planYear(state: VillageState, day: number): void {
+  for (const part of state.parts) endOfSeason(part, day);
+  const crops = chooseCrops(sowingOrder(state.parts), {
+    targetKg: sowingTarget(state, day),
+    startKg: 0,
+    capacity: sowingCapacity(state, day),
+    load: orchardOnlyLoad(orchardHarvestLoad(state)),
+    allowWinter: true,
+    day,
+    toolCoverage: NO_CRAFTS.tools,
+  });
   // plán vzniká před změnou stavu dílů – vrácení přílohu se počítá jen u dílů v přílohu
-  state.plan = createPlan(selected, day);
-  const chosen = new Set(selected.map((p) => p.id));
+  state.plan = createYearPlan(crops, day, NO_CRAFTS.tools);
+  const chosen = new Set([...crops.winter, ...crops.spring].map((p) => p.id));
   for (const part of state.parts) {
     if (chosen.has(part.id) || (part.state !== 'sown' && part.state !== 'ready')) continue;
     // nevybraný osev i nevyužitý hotový díl jdou do přílohu a začnou zarůstat
     part.state = 'fallow';
     part.fallowSinceDay = day;
     part.sownYears = 0;
+    delete part.crop;
   }
-  sow(selected, day);
+  sow(crops.winter, day, 'winter');
+  sow(crops.spring, day, 'spring');
 }
 
 /**
- * Krok 2 (1. 9. – 30. 4.): díly hotové v předchozích dnech jdou do letošního plánu, když ho
- * plán nepokrývá – bez plánu ho založí. Díly hotové po dubnu čekají na 1. 9.
+ * Krok 2 (1. 9. – 30. 4.): díly hotové v předchozích dnech jdou do letošního plánu jako jař,
+ * když plán cíl nepokrývá a jař se vejde do zbývající práce – bez plánu ho založí. Díly hotové
+ * po dubnu čekají na 1. 9.
  */
-function joinFinishedParts(state: VillageState, day: number, year: number): void {
-  if (!state.parts.some((p) => p.state === 'ready')) return;
-  const { targetKg, maxHa } = sowingLimits(state, day, year);
+function joinFinishedParts(state: VillageState, day: number): void {
+  const ready = state.parts.filter((p) => p.state === 'ready');
+  if (ready.length === 0) return;
   const plan = state.plan;
-  if (plan === null) {
-    const selected = selectPartsToSow(state.parts, targetKg, maxHa, day);
-    if (selected.length === 0) return;
-    state.plan = createPlan(selected, day);
-    sow(selected, day);
-    return;
-  }
-  // díly plánu (oseté) jdou ve výběru první – nové díly přibudou, jen když cíl nepokryjí
-  const inPlan = new Set(plan.partIds);
-  const candidates = state.parts.filter((p) => inPlan.has(p.id) || p.state === 'ready');
-  const added = selectPartsToSow(candidates, targetKg, maxHa, day).filter((p) => !inPlan.has(p.id));
-  if (added.length === 0) return;
-  const extra = createPlan(added, day);
-  for (const task of TASK_ORDER) plan.required[task] += extra.required[task];
-  plan.partIds.push(...extra.partIds);
-  sow(added, day);
+  const inPlan = new Set(plan ? planPartIds(plan) : []);
+  // díly plánu (oseté) se počítají do cíle první – nové přibudou, jen když ho nepokryjí
+  const startKg = state.parts
+    .filter((p) => inPlan.has(p.id))
+    .reduce((sum, p) => sum + expectedNetKg(p, day), 0);
+  const { spring } = chooseCrops(sowingOrder(ready), {
+    targetKg: sowingTarget(state, day),
+    startKg,
+    capacity: sowingCapacity(state, day),
+    load: planLoad(plan, orchardHarvestLoad(state)),
+    allowWinter: false,
+    day,
+    toolCoverage: NO_CRAFTS.tools,
+  });
+  if (spring.length === 0) return;
+  if (plan === null) state.plan = createPlan(spring, day, NO_CRAFTS.tools);
+  else addToCropWork(plan, spring, day, NO_CRAFTS.tools);
+  sow(spring, day, 'spring');
+}
+
+/** Cíl osevu: roční potřeba + rezerva, při velkých zásobách jen potřeba. */
+function sowingTarget(state: VillageState, day: number): number {
+  const need = state.people.reduce((sum, p) => sum + FOOD_NEED_KG_PER_YEAR[ageGroup(p, day)], 0);
+  return state.storesKg > STORES_HIGH_YEARS * need ? need : need * (1 + SOW_RESERVE);
 }
 
 /**
- * Cíl osevu (roční potřeba + rezerva, při velkých zásobách jen potřeba) a nejvýš kolik
- * hektarů stihne práce ve špičkách – jarní kopání se setím a letní sklizeň.
+ * Seje se, co je zkopané do včerejška (TASK_ORDER) – v okně setí proto plán počítá s jedním dnem
+ * méně, aby se zasel i pruh zkopaný poslední den kopání.
  */
-function sowingLimits(
-  state: VillageState,
-  day: number,
-  year: number,
-): { targetKg: number; maxHa: number } {
-  const need = state.people.reduce((sum, p) => sum + FOOD_NEED_KG_PER_YEAR[ageGroup(p, day)], 0);
-  const targetKg = state.storesKg > STORES_HIGH_YEARS * need ? need : need * (1 + SOW_RESERVE);
+const SOW_AFTER_DIG_DAYS = 1;
+
+/**
+ * Volná práce vsi ve špičkách polních prací od dneška do konce hospodářského roku: všechna
+ * práce po denním minimu (PEAK_CAPACITY_SHARE) krát dny oken – podzim pro ozim (září–říjen)
+ * a celý podzim (září–listopad), jaro (březen–duben), červenec a srpen (sklizně).
+ */
+function sowingCapacity(state: VillageState, day: number): SowingCapacity {
+  // práci násobí štěstí vsi (happiness.md)
   const capacity =
     state.people.reduce((sum, p) => sum + laborPerDay(p, day), 0) * villageLaborFactor(state);
-  const dailyMin = DAILY_MIN_PER_HOUSEHOLD * householdCount(state);
+  const dailyMin = dailyMinPerHousehold(NO_CRAFTS.pottery) * householdCount(state);
   const free = Math.max(0, capacity - dailyMin) * PEAK_CAPACITY_SHARE;
-  const springCap = free * windowDays(year, WINDOWS.sow);
-  const summerCap = free * windowDays(year, WINDOWS.harvest);
-  const maxHa = Math.min(
-    springCap / (FIELD_WORK_PER_HA.dig * SPRING_DIG_SHARE + FIELD_WORK_PER_HA.sow),
-    summerCap / FIELD_WORK_PER_HA.harvest,
-  );
-  return { targetKg, maxHa };
+  const days = (segments: Parameters<typeof windowDaysLeft>[1], sowing = false): number =>
+    free * Math.max(0, windowDaysLeft(day, segments) - (sowing ? SOW_AFTER_DIG_DAYS : 0));
+  return {
+    autumnWinter: days(WINTER_WINDOWS.sow, true),
+    autumn: days(WINDOWS.reclaim),
+    spring: days(WINDOWS.sow, true),
+    july: days(WINTER_WINDOWS.harvest),
+    august: days(WINDOWS.harvest),
+  };
 }
 
-/**
- * Počet dní v měsíčních oknech. Okna setí a sklizně nezahrnují únor, takže jejich délka na
- * roku nezávisí – stačí letošní rok (příští by v roce 1499 ležel mimo svět).
- */
-function windowDays(year: number, segments: readonly (readonly [number, number])[]): number {
-  let days = 0;
-  for (const [from, to] of segments) {
-    const end =
-      to < 12
-        ? dayIndexOf({ year, month: to + 1, day: 1 })
-        : dayIndexOf({ year, month: 12, day: 31 }) + 1;
-    days += end - dayIndexOf({ year, month: from, day: 1 });
-  }
-  return days;
+/** Zbývající sklizeň jablek (září–říjen) – ves s ní při plánu osevu počítá (orchard.md). */
+function orchardHarvestLoad(state: VillageState): number {
+  const work = state.orchardWork;
+  return work?.task === 'harvest' ? orchardWorkRemaining(work) : 0;
 }
 
-/** Do kdy platí bonus úrodnosti lesa vymýceného v den `day`. */
+/** Do kdy platí okno bonusu úrodnosti lesa vymýceného v den `day`. */
 function forestBonusUntil(day: number): number {
-  return day + FERTILITY.forestBonusYears * DAYS_PER_BONUS_YEAR;
+  return day + FOREST_BONUS.windowYears * DAYS_PER_BONUS_YEAR;
 }
 
-/** Vybrané díly se osejí; příloh starší 15 let se vrací z lesa a dostane bonus úrodnosti. */
-function sow(parts: FieldPart[], day: number): void {
+/** Vybrané díly se osejí plodinou `crop` (příloh se vrací do osevu). */
+function sow(parts: FieldPart[], day: number, crop: Crop): void {
   for (const part of parts) {
     if (part.state === 'fallow') {
-      if (fallowYears(part, day) >= FOREST_AFTER_YEARS) part.bonusUntilDay = forestBonusUntil(day);
       part.fallowSinceDay = null;
       part.sownYears = 0;
     }
     part.state = 'sown';
+    part.crop = crop;
   }
 }
 
@@ -295,37 +326,58 @@ function householdCount(state: VillageState): number {
   return new Set(state.people.map((p) => p.dwellingId)).size;
 }
 
+/** Polní úloha dne: práce plodiny, kterou dostane, a konec jejího okna pro pořadí. */
+interface FieldTaskEntry {
+  name: TaskName;
+  crop: Crop;
+  remaining: number;
+  work: CropWork;
+  end: number;
+  rank: number;
+}
+
 /**
- * Krok 3: rozdělení práce vsi. Polní úlohy plánu (bez výmlatu – úroda plánu ještě neroste)
- * a výmlat loňské úrody, sezónní práce v sadech podle konce svého okna (sklizeň jablek před
- * podzimním kopáním, péče až po výmlatu); opravy obydlí poměrně k potřebě; společná práce do
- * staveb. Veškerou práci násobí štěstí (happiness.md). Vrací, jestli ves dnes nestíhá polní
- * práce v období (dřina).
+ * Polní úlohy dne: práce plánu po plodinách (bez výmlatu – úroda plánu ještě neroste) a výmlat
+ * loňské úrody obou plodin. Nejbližší konec okna první, při shodě ozim před jaří a pořadí úloh
+ * (TASK_ORDER).
  */
-function work(state: VillageState, day: number): boolean {
-  const owned: { name: TaskName; remaining: number; plan: YearPlan }[] = [];
-  const plan = state.plan;
-  if (plan !== null) {
-    for (const name of activeTasks(plan, day)) {
-      if (name !== 'thresh') owned.push({ name, remaining: taskRemaining(plan, name), plan });
+function fieldTasks(state: VillageState, day: number): FieldTaskEntry[] {
+  const month = dateOfDayIndex(day).month;
+  const entries: FieldTaskEntry[] = [];
+  const add = (crop: Crop, work: CropWork, name: TaskName): void => {
+    const end = taskWindowEnd(name, month, crop);
+    if (end === null) return;
+    const rank = CROP_ORDER.indexOf(crop) * TASK_ORDER.length + TASK_ORDER.indexOf(name);
+    entries.push({ name, crop, remaining: taskRemaining(work, name), work, end, rank });
+  };
+  if (state.plan !== null) {
+    for (const { crop, work } of planCrops(state.plan)) {
+      for (const name of activeTasks(work, day, crop)) if (name !== 'thresh') add(crop, work, name);
     }
   }
-  const threshing = state.threshingFromPlan;
-  if (threshing !== null && activeTasks(threshing, day).includes('thresh')) {
-    owned.push({ name: 'thresh', remaining: taskRemaining(threshing, 'thresh'), plan: threshing });
+  if (state.threshingFromPlan !== null) {
+    for (const { crop, work } of planCrops(state.threshingFromPlan)) {
+      if (activeTasks(work, day, crop).includes('thresh')) add(crop, work, 'thresh');
+    }
   }
+  return entries.sort((a, b) => a.end - b.end || a.rank - b.rank);
+}
 
+/**
+ * Krok 3: rozdělení práce vsi. Polní úlohy obou plodin (`fieldTasks`), sezónní práce v sadech
+ * podle konce svého okna (sklizeň jablek po ozimu, před podzimním kopáním jaře, péče až po
+ * výmlatu); opravy obydlí poměrně k potřebě; společná práce do staveb. Veškerou práci násobí
+ * štěstí (happiness.md). Vrací, jestli ves dnes nestíhá polní práce v období (dřina).
+ */
+function work(state: VillageState, day: number): boolean {
+  const owned = fieldTasks(state, day);
   const tasks: { name: LaborTaskName; remaining: number }[] = owned.map(({ name, remaining }) => ({
     name,
     remaining,
   }));
   const orchard = orchardTask(state, day);
-  if (orchard) {
-    // polní úlohy se stejným nebo dřívějším koncem okna mají přednost (výmlat před péčí)
-    const month = dateOfDayIndex(day).month;
-    const after = owned.findIndex((t) => (windowEndOf(WINDOWS[t.name], month) ?? 0) > orchard.end);
-    tasks.splice(after < 0 ? tasks.length : after, 0, orchard);
-  }
+  const orchardAt = orchard ? orchardPosition(owned, orchard) : -1;
+  if (orchard) tasks.splice(orchardAt, 0, orchard);
 
   const households = occupiedDwellings(state);
   const repairNeeds = households.map((d) => repairNeedPerDay(d, day));
@@ -337,15 +389,19 @@ function work(state: VillageState, day: number): boolean {
     tasks,
     repairNeed,
     domesticBacklog: state.domesticBacklog,
+    potteryCoverage: NO_CRAFTS.pottery,
     fuelExtra: fuelExtraPerDay(state),
     productivity: villageLaborFactor(state),
   });
 
-  for (const task of owned) {
-    const done = task.plan.done[task.name] + allocation.tasks[task.name];
-    task.plan.done[task.name] = Math.min(task.plan.required[task.name], done);
-  }
-  if (orchard) workOrchards(state, allocation.tasks[orchard.name]);
+  // polní práce dne – i odkud kam došla (rozdělení práce po dílech pro postavy, labor-report.ts)
+  const fieldWork = owned.map((task, i) => {
+    const amount = allocation.taskAmounts[orchard && i >= orchardAt ? i + 1 : i] ?? 0;
+    const before = task.work.done[task.name];
+    task.work.done[task.name] = Math.min(task.work.required[task.name], before + amount);
+    return { task: task.name, work: task.work, before, after: task.work.done[task.name], amount };
+  });
+  if (orchard) workOrchards(state, allocation.taskAmounts[orchardAt] ?? 0);
   const repairs = households.map((d, i) => {
     const need = repairNeeds[i] ?? 0;
     const manDays = repairNeed > 0 ? (allocation.repairs * need) / repairNeed : 0;
@@ -355,18 +411,31 @@ function work(state: VillageState, day: number): boolean {
   decayEmptyDwellings(state, day, new Set(households.map((d) => d.id)));
   state.domesticBacklog = allocation.domesticBacklog;
   const constructions = build(state, day, allocation.common);
-  state.labor = laborDay(state, day, { allocation, repairs, constructions });
+  state.labor = laborDay(state, day, { allocation, fieldWork, repairs, constructions });
   state.commonLaborHistory.push(allocation.common);
   if (state.commonLaborHistory.length > COMMON_LABOR_HISTORY_DAYS) {
     state.commonLaborHistory.splice(0, state.commonLaborHistory.length - COMMON_LABOR_HISTORY_DAYS);
   }
-  // dřina: stihne ves dnešním tempem polní práce do konce jejich oken?
-  const pace = owned.reduce((sum, task) => sum + allocation.tasks[task.name], 0);
+  // dřina: stihne ves dnešním tempem polní práce obou plodin do konce jejich oken?
+  const pace = fieldWork.reduce((sum, task) => sum + task.amount, 0);
   const seasonTasks = owned.map((task) => ({
-    remaining: taskRemaining(task.plan, task.name),
-    endDay: windowEndDay(WINDOWS[task.name], day) ?? day,
+    remaining: taskRemaining(task.work, task.name),
+    endDay: windowEndDay(CROP_WINDOWS[task.crop][task.name], day) ?? day,
   }));
   return isToilDay(seasonTasks, pace, day);
+}
+
+/**
+ * Kam mezi polní úlohy patří práce v sadech: polní úlohy s dřívějším koncem okna mají přednost.
+ * Při shodě konce jde sklizeň jablek před ozim (jablka zrají v září a do konce října spadnou –
+ * ozim dostane zbytek podzimu, se kterým plán osevu počítá), péče až po výmlatu.
+ */
+function orchardPosition(
+  owned: readonly FieldTaskEntry[],
+  orchard: { name: LaborTaskName; end: number },
+): number {
+  const beforeTie = orchard.name === ORCHARD_TASK_NAMES.harvest;
+  return owned.filter((t) => t.end < orchard.end || (!beforeTie && t.end === orchard.end)).length;
 }
 
 /** Sezónní práce v sadech dnes (sklizeň, nebo péče) s koncem okna pro pořadí; jinak null. */
@@ -474,10 +543,12 @@ function invest(
   // pole zakládá díly od nejbližšího k obydlí; přebytek dne teče do dalšího dílu
   const parts = foundingParts(state, c).sort((a, b) => a.distanceM - b.distanceM || a.id - b.id);
   let left = amount;
+  let used = 0;
   for (const part of parts) {
     const need = part.foundingCost - part.foundingDone;
     if (completes || left >= need) {
       left -= need;
+      used += need;
       part.foundingDone = part.foundingCost;
       part.state = 'ready';
       if (part.surface === 'forest') part.bonusUntilDay = forestBonusUntil(day);
@@ -493,12 +564,12 @@ function invest(
       }
     } else {
       part.foundingDone += left;
+      used += left;
       break;
     }
   }
-  c.done = state.parts
-    .filter((p) => p.fieldId === c.fieldId)
-    .reduce((sum, p) => sum + p.foundingDone, 0);
+  // průběh stavby jen z jejích dílů – pole mohlo mít díly založené dřív (rozšíření, sloučení)
+  c.done = Math.min(c.cost, c.done + used);
 }
 
 // --- stavby a domácnosti ------------------------------------------------------------------
@@ -628,7 +699,7 @@ function moveInYoungestPair(state: VillageState, day: number, dwellingId: number
   for (const source of qualifyingDwellings(state, day)) {
     const members = occupants(state, source.id);
     const movers = members
-      .filter((p) => isFertileAdult(p, day))
+      .filter((p) => isAdult(p, day))
       .sort((a, b) => b.bornDay - a.bornDay || b.id - a.id)
       .slice(0, 2);
     if (movers.length < 2) continue;
@@ -704,23 +775,40 @@ function occupyEmptyDwellings(state: VillageState, day: number): void {
 
 // --- sklizeň a jídlo --------------------------------------------------------------------
 
-/** 31. 8. (po jídle dne): čistá úroda do zásob, plán jde k výmlatu. */
+/** 31. 7. (po jídle dne): čistá úroda ozimu do zásob (fields.md – Ozim a jař). */
+function harvestWinter(state: VillageState, day: number): void {
+  const winter = state.plan?.winter;
+  if (!winter || winter.harvestedKg !== null) return;
+  const kg = harvestKg(winter, state.parts, day);
+  state.storesKg += kg;
+  winter.harvestedKg = kg;
+  state.chronicle.push({ day, kind: 'harvest', kg: Math.round(kg), crop: 'winter' });
+}
+
+/** 31. 8. (po jídle dne): čistá úroda jaře do zásob, plán (i s ozimem) jde k výmlatu. */
 function harvest(state: VillageState, day: number): void {
   const plan = state.plan;
   if (plan === null) return;
   const kg = harvestKg(plan, state.parts, day);
   state.storesKg += kg;
   plan.harvestedKg = kg;
-  state.chronicle.push({ day, kind: 'harvest', kg: Math.round(kg) });
+  // plán jen s ozimem jař nesklízí – žádná sklizeň do kroniky
+  if (!plan.winter) state.chronicle.push({ day, kind: 'harvest', kg: Math.round(kg) });
+  else if (plan.partIds.length > 0) {
+    state.chronicle.push({ day, kind: 'harvest', kg: Math.round(kg), crop: 'spring' });
+  }
   state.threshingFromPlan = plan;
   state.plan = null;
 }
 
-/** 1. 3. (po jídle dne): nevymlácená část úrody se zkazila. */
+/** 1. 3. (po jídle dne): nevymlácená část úrody obou plodin se zkazila. */
 function endThreshing(state: VillageState): void {
   const threshing = state.threshingFromPlan;
   if (threshing === null) return;
-  const loss = threshLossKg(threshing, threshing.harvestedKg ?? 0);
+  const loss = planCrops(threshing).reduce(
+    (sum, { work }) => sum + threshLossKg(work, work.harvestedKg ?? 0),
+    0,
+  );
   state.storesKg = Math.max(0, state.storesKg - loss);
   state.threshingFromPlan = null;
 }
@@ -736,8 +824,9 @@ function eat(state: VillageState, day: number): number {
     state.storesKg,
     villageApplesKg(state),
     need,
-    daysUntilHarvest(day),
+    daysUntilFoodHarvest(state.plan, state.parts, day, need),
     daysUntilAppleRot(day),
+    NO_CRAFTS.pottery,
   );
   const { storesKg, satiation } = meal;
   state.storesKg = storesKg;

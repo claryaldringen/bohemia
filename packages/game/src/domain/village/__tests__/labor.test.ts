@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { DAILY_MIN_PER_HOUSEHOLD, DOMESTIC } from '../rules';
+import { DOMESTIC } from '../rules';
 import { allocateDay } from '../labor';
+import { NO_CRAFTS, dailyMinPerHousehold } from '../productivity';
 
 const DOMESTIC_FOR_4 = DOMESTIC.perHousehold + DOMESTIC.perPerson * 4;
 const base = {
@@ -10,7 +11,9 @@ const base = {
   tasks: [],
   repairNeed: 0,
   domesticBacklog: 0,
+  potteryCoverage: NO_CRAFTS.pottery,
 };
+const DAILY_MIN = dailyMinPerHousehold(NO_CRAFTS.pottery);
 
 function sum(r: ReturnType<typeof allocateDay>): number {
   return (
@@ -25,11 +28,18 @@ function sum(r: ReturnType<typeof allocateDay>): number {
 describe('allocateDay', () => {
   it('bez úloh: minimum, domácí výroba, zbytek společná práce', () => {
     const r = allocateDay(base);
-    expect(r.dailyMin).toBeCloseTo(DAILY_MIN_PER_HOUSEHOLD);
+    expect(r.dailyMin).toBeCloseTo(DAILY_MIN);
     expect(r.domestic).toBeCloseTo(DOMESTIC_FOR_4);
-    expect(r.common).toBeCloseTo(2.6 - DAILY_MIN_PER_HOUSEHOLD - DOMESTIC_FOR_4);
+    expect(r.common).toBeCloseTo(2.6 - DAILY_MIN - DOMESTIC_FOR_4);
     expect(sum(r)).toBeCloseTo(2.6);
     expect(r.tasks.dig).toBe(0);
+  });
+  it('denní minimum podle pokrytí nádobami: bez hrnčíře 0,5, s plným pokrytím 0,45', () => {
+    expect(allocateDay(base).dailyMin).toBeCloseTo(0.5, 9);
+    expect(allocateDay({ ...base, households: 2, potteryCoverage: 1 }).dailyMin).toBeCloseTo(
+      0.9,
+      9,
+    );
   });
   it('úlohy v daném pořadí', () => {
     const r = allocateDay({
@@ -43,6 +53,19 @@ describe('allocateDay', () => {
     expect(r.tasks.dig).toBeCloseTo(1.1);
     expect(r.domestic).toBe(0);
     expect(r.domesticBacklog).toBeCloseTo(DOMESTIC_FOR_4);
+    expect(sum(r)).toBeCloseTo(2.6);
+  });
+  it('stejná úloha dvou plodin: práce po úlohách vstupu v jejich pořadí', () => {
+    const r = allocateDay({
+      ...base,
+      tasks: [
+        { name: 'dig', remaining: 1.5 },
+        { name: 'orchard-harvest', remaining: 0.2 },
+        { name: 'dig', remaining: 5 },
+      ],
+    });
+    expect(r.taskAmounts.map((a) => Number(a.toFixed(6)))).toEqual([1.5, 0.2, 0.4]);
+    expect(r.tasks.dig).toBeCloseTo(1.9);
     expect(sum(r)).toBeCloseTo(2.6);
   });
   it('práce v sadu jde mezi polní úlohy v daném pořadí', () => {

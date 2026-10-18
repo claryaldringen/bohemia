@@ -1,4 +1,4 @@
-import { isFertileAdult, occupants } from './people';
+import { isAdult, occupants } from './people';
 import { BETTER_DWELLING, DWELLINGS, NEW_HOUSEHOLD_MIN_ADULTS } from './rules';
 import type { Dwelling, DwellingType, VillageState } from './types';
 
@@ -39,8 +39,7 @@ export function qualifyingDwellings(state: VillageState, day: number): Dwelling[
     .filter(
       (d) =>
         crowding(state, d) >= 0 &&
-        occupants(state, d.id).filter((p) => isFertileAdult(p, day)).length >=
-          NEW_HOUSEHOLD_MIN_ADULTS,
+        occupants(state, d.id).filter((p) => isAdult(p, day)).length >= NEW_HOUSEHOLD_MIN_ADULTS,
     )
     .sort((a, b) => crowding(state, b) - crowding(state, a) || a.id - b.id);
 }

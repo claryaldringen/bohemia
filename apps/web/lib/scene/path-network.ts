@@ -116,7 +116,8 @@ const ERRAND_REACH = { factor: 1.25, extra: 30 } as const;
 const ERRAND_NEAR_COST = 130;
 /**
  * Cena chůze přes díl pole podle stadia (násobek terénu): přes osetý díl se nechodí (obchází se
- * po okraji), zoraný a zakládaný díl je hrubá hlína, přes úhor a louku se chodí volně.
+ * po okraji), zoraný a zakládaný díl je hrubá hlína, přes úhor a pastvinu se chodí volně (nálet
+ * ani les na přílohu není).
  */
 const STAGE_COST: Record<PartStage, number> = {
   founding: 3,
@@ -124,9 +125,6 @@ const STAGE_COST: Record<PartStage, number> = {
   sown: 12,
   'young-fallow': 1.1,
   meadow: 1.25,
-  'young-growth': 2,
-  shrub: 3,
-  forest: 1.5,
 };
 /** Sad (pod jabloněmi, okopané kmeny) a hřbitov (plot, hroby). */
 const ORCHARD_COST = 1.6;

@@ -45,7 +45,18 @@ const determinismSyntax = [
 ];
 // Vrstvu překážek počítá server i prohlížeč a musí jim vyjít bit po bitu stejně – jen operace,
 // které IEEE 754 zaokrouhluje přesně. Tyhle funkce jsou v JS „implementation-approximated“.
-const APPROXIMATED_MATH = ['sin', 'cos', 'tan', 'atan', 'atan2', 'hypot', 'exp', 'log', 'pow', 'cbrt'];
+const APPROXIMATED_MATH = [
+  'sin',
+  'cos',
+  'tan',
+  'atan',
+  'atan2',
+  'hypot',
+  'exp',
+  'log',
+  'pow',
+  'cbrt',
+];
 const exactMathProperties = APPROXIMATED_MATH.map((property) => ({
   object: 'Math',
   property,

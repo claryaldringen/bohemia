@@ -15,6 +15,7 @@ import {
   villageOrchards,
 } from '../orchard';
 import { MAX_ORCHARD_CELLS, orchardPartsFromCells, type PlacementVillage } from '../placement';
+import { NO_CRAFTS } from '../productivity';
 import {
   APPLE_FOOD_VALUE,
   LOGS_PER_CLEARED_TREE,
@@ -43,13 +44,16 @@ const field = (count = 75): PartInput[] =>
     obstacleCost: 0,
   }));
 
+/** Pole o 40 dílech (0,9 ha) – jarní práce v poli nechá výsadbě sadu práci hned v březnu. */
+const LIGHT_FIELD = 40;
+
 /** Ves s dostavěnou zemnicí a polem, dopočítaná do dne `day`. */
-function village(day: number): VillageState {
+function village(day: number, fieldParts?: number): VillageState {
   const founded = foundVillage({
     seed: 42,
     day: day - 200,
     dwellingPosition: POSITION,
-    firstField: { parts: field() },
+    firstField: { parts: field(fieldParts) },
   });
   return advanceVillage(withBuiltFirstDwelling(founded), day, null);
 }
@@ -156,8 +160,8 @@ describe('jídlo s jablky (orchard.md – Jídlo)', () => {
       [0, 5, 100],
       [500, 0, 100],
     ] as const) {
-      const meal = eatDay(stores, need, days);
-      expect(eatMeal(stores, 0, need, days, 50)).toEqual({
+      const meal = eatDay(stores, need, days, NO_CRAFTS.pottery);
+      expect(eatMeal(stores, 0, need, days, 50, NO_CRAFTS.pottery)).toEqual({
         ...meal,
         applesKg: 0,
         outlook: meal.satiation,
@@ -166,33 +170,36 @@ describe('jídlo s jablky (orchard.md – Jídlo)', () => {
   });
 
   it('jablka se jí přednostně – obilí ubude jen o ztrátu ze skladování', () => {
-    const r = eatMeal(1000, 700, 2, 200, 100);
+    const r = eatMeal(1000, 700, 2, 200, 100, NO_CRAFTS.pottery);
     expect(r.satiation).toBe(1);
     expect(r.applesKg).toBeCloseTo(700 - 2 / APPLE_FOOD_VALUE);
-    expect(r.storesKg).toBeCloseTo(eatDay(1000, 0, 200).storesKg);
+    expect(r.storesKg).toBeCloseTo(eatDay(1000, 0, 200, NO_CRAFTS.pottery).storesKg);
   });
 
   it('jablka do konce února pokryjí hlad – dělí se rovně, když se stihnou sníst', () => {
     // obilí 100 kg, jablka za 100 kg obilí, potřeba 2 kg/den, 200 dní do sklizně, 150 do zkažení
-    const r = eatMeal(100, 100 / APPLE_FOOD_VALUE, 2, 200, 150);
-    expect(r.satiation).toBeCloseTo((eatDay(100, 0, 200).storesKg + 100) / 400, 6);
-    expect(r.storesKg).toBeCloseTo(eatDay(100, 0, 200).storesKg, 6);
+    const r = eatMeal(100, 100 / APPLE_FOOD_VALUE, 2, 200, 150, NO_CRAFTS.pottery);
+    expect(r.satiation).toBeCloseTo(
+      (eatDay(100, 0, 200, NO_CRAFTS.pottery).storesKg + 100) / 400,
+      6,
+    );
+    expect(r.storesKg).toBeCloseTo(eatDay(100, 0, 200, NO_CRAFTS.pottery).storesKg, 6);
   });
 
   it('výhled: dosyta jablky, ale obilí po 1. 3. nestačí – výhled pod 1', () => {
     // obilí 100 kg na 100 dní po zkažení při potřebě 2 kg/den → výhled ≈ 0,5
-    const r = eatMeal(100, 1000 / APPLE_FOOD_VALUE, 2, 200, 100);
+    const r = eatMeal(100, 1000 / APPLE_FOOD_VALUE, 2, 200, 100, NO_CRAFTS.pottery);
     expect(r.satiation).toBe(1);
-    expect(r.outlook).toBeCloseTo(eatDay(100, 0, 200).storesKg / (2 * 100), 9);
-    expect(eatMeal(1000, 1000 / APPLE_FOOD_VALUE, 2, 200, 100).outlook).toBe(1);
+    expect(r.outlook).toBeCloseTo(eatDay(100, 0, 200, NO_CRAFTS.pottery).storesKg / (2 * 100), 9);
+    expect(eatMeal(1000, 1000 / APPLE_FOOD_VALUE, 2, 200, 100, NO_CRAFTS.pottery).outlook).toBe(1);
   });
 
   it('jablek víc, než se stihne sníst: do zkažení jen jablka, obilí zůstane na potom', () => {
     // obilí 0, jablka za 300 kg obilí, potřeba 2 kg/den, 200 dní do sklizně, 100 do zkažení
-    const r = eatMeal(0, 300 / APPLE_FOOD_VALUE, 2, 200, 100);
+    const r = eatMeal(0, 300 / APPLE_FOOD_VALUE, 2, 200, 100, NO_CRAFTS.pottery);
     expect(r.satiation).toBe(1);
     // hlad bez obilí a s jablky jen na část zimy: jí se rovně do zkažení
-    const short = eatMeal(0, 100 / APPLE_FOOD_VALUE, 2, 200, 100);
+    const short = eatMeal(0, 100 / APPLE_FOOD_VALUE, 2, 200, 100, NO_CRAFTS.pottery);
     expect(short.satiation).toBeCloseTo(0.5, 6);
     expect(short.storesKg).toBe(0);
   });
@@ -365,7 +372,10 @@ describe('foundOrchard', () => {
 
 describe('advanceVillage – sad', () => {
   it('výsadba čeká na okno (jaro, podzim) – v zimě společnou práci nebere', () => {
-    const s = foundOrchard(village(at(602, 1, 5)), at(602, 1, 5), { squares: squares(4) });
+    // menší pole – jarní kopání (100 čd/ha) nechá na výsadbu práci už v březnu
+    const s = foundOrchard(village(at(602, 1, 5), LIGHT_FIELD), at(602, 1, 5), {
+      squares: squares(4),
+    });
     const winter = advanceVillage(s, at(602, 2, 28), null);
     // v zimě společná práce zbývala – výsadba ji přesto nebrala
     expect(winter.commonLaborHistory.every((labor) => labor > 0.5)).toBe(true);
@@ -434,7 +444,9 @@ describe('advanceVillage – sad', () => {
   });
 
   it('jarní výsadba 600: první jablka v září 605 (6. rok), sklizeň do zásob a kronika', () => {
-    const s = foundOrchard(village(at(600, 2, 10)), at(600, 2, 10), { squares: squares(8) });
+    const s = foundOrchard(village(at(600, 2, 10), LIGHT_FIELD), at(600, 2, 10), {
+      squares: squares(8),
+    });
     const result = advanceVillage(s, at(605, 11, 1), null);
     const orchard = villageOrchards(result)[0]!;
     expect(orchard.squares.every((q) => dateOfDayIndex(q.plantedDay!).year === 600)).toBe(true);
@@ -471,13 +483,17 @@ describe('advanceVillage – sad', () => {
     expect(march.orchardWork ?? null).toBeNull();
   });
 
-  it('sklizeň jablek má přednost před podzimním kopáním (dřívější konec okna)', () => {
+  it('sklizeň jablek má přednost před podzimními pracemi v poli (i ozimem)', () => {
     const base = village(at(601, 8, 31));
     const s = withOrchard(base, 400, at(570, 4, 1)); // 9 ha – sklizeň ≈ 72 člověkodní
     const day = advanceVillage(s, at(601, 9, 2), null);
     expect(day.orchardWork!.done).toBeGreaterThan(1);
-    expect(day.plan?.done.dig ?? 0).toBe(0);
-    expect(day.plan?.done.reclaim ?? 0).toBe(0);
+    // i před ozimem – jablka se sklízejí první, ozim dostane zbytek podzimu
+    expect(day.plan?.winter).toBeDefined();
+    for (const work of [day.plan, day.plan?.winter]) {
+      expect(work?.done.dig ?? 0).toBe(0);
+      expect(work?.done.reclaim ?? 0).toBe(0);
+    }
   });
 
   it('hlad hlásí hned, když obilí po zkažení jablek (1. 3.) nevystačí – ne až 1. 3.', () => {

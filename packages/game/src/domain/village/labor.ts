@@ -1,4 +1,5 @@
-import { DAILY_MIN_PER_HOUSEHOLD, DOMESTIC } from './rules';
+import { dailyMinPerHousehold } from './productivity';
+import { DOMESTIC } from './rules';
 import type { OrchardTaskName, TaskName } from './types';
 
 /** Sezónní práce v rozdělení práce vsi – polní (fields.md) a v sadech (orchard.md). */
@@ -11,6 +12,8 @@ export interface DayAllocationInput {
   tasks: { name: LaborTaskName; remaining: number }[];
   repairNeed: number;
   domesticBacklog: number;
+  /** Pokrytí nádobami 0–1 – posouvá denní minimum mezi mezemi (crafts.md). */
+  potteryCoverage: number;
   /** Práce navíc na palivu za den – ves daleko od lesa (forest.md – Palivo); bez údaje 0. */
   fuelExtra?: number;
   /**
@@ -23,6 +26,8 @@ export interface DayAllocationInput {
 export interface DayAllocation {
   dailyMin: number;
   tasks: Record<LaborTaskName, number>;
+  /** Práce pro jednotlivé úlohy vstupu v jejich pořadí (stejný název může být víckrát – plodiny). */
+  taskAmounts: number[];
   repairs: number;
   domestic: number;
   domesticBacklog: number;
@@ -40,7 +45,7 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
     left -= amount;
     return amount;
   };
-  const dailyMin = take(DAILY_MIN_PER_HOUSEHOLD * input.households);
+  const dailyMin = take(dailyMinPerHousehold(input.potteryCoverage) * input.households);
   const tasks: Record<LaborTaskName, number> = {
     reclaim: 0,
     dig: 0,
@@ -51,7 +56,11 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
     'orchard-care': 0,
     'orchard-harvest': 0,
   };
-  for (const task of input.tasks) tasks[task.name] += take(task.remaining);
+  const taskAmounts = input.tasks.map((task) => {
+    const amount = take(task.remaining);
+    tasks[task.name] += amount;
+    return amount;
+  });
   const repairs = take(input.repairNeed);
   const todayNeed =
     DOMESTIC.perHousehold * input.households +
@@ -62,5 +71,5 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
     0,
     Math.min(DOMESTIC.backlogMaxDays * todayNeed, input.domesticBacklog + todayNeed - domestic),
   );
-  return { dailyMin, tasks, repairs, domestic, domesticBacklog, common: left };
+  return { dailyMin, tasks, taskAmounts, repairs, domestic, domesticBacklog, common: left };
 }

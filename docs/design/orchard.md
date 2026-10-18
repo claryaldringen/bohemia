@@ -2,11 +2,11 @@
 
 Stav: schváleno 17. 10. 2026 (Martin: „Do staveb ještě přidej jabloňový sad. Bude se stavět
 stejně, jako pole.“ – čísla návrh Clauda, Martin: „Ano, udělej to tak“), týž den opraveno podle
-rešerše (Martin – plná úroda až od 25. roku, sklizeň 8 člověkodní/ha). Anachronismus (sady až
-od 9. století) se záměrně neřeší (Martin). Implementováno 18. 10. 2026: jádro
-`packages/game/src/domain/village/orchard.ts`, umístění `orchardPartsFromCells`, jídlo
-`eatMeal` (`food.ts`), scéna `apps/web/lib/scene/orchard-renderer.ts` a `orchard-layout.ts`,
-Sad [B] v mřížce staveb.
+[rešerše](research/2026-10-17-remesla-drevo-sad.md) (Martin – plná úroda až od 25. roku, sklizeň
+8 člověkodní/ha). Anachronismus (sady až od 9. století) se záměrně neřeší (Martin).
+Implementováno 18. 10. 2026: jádro `packages/game/src/domain/village/orchard.ts`, umístění
+`orchardPartsFromCells`, jídlo `eatMeal` (`food.ts`), scéna
+`apps/web/lib/scene/orchard-renderer.ts` a `orchard-layout.ts`, Sad [B] v mřížce staveb.
 
 ## Proč
 
@@ -42,7 +42,9 @@ rozhoduje, kolik louky a práce dá do jistoty na dlouho dopředu místo obilí 
 - **Růst a úroda** (Martin – oprava podle rešerše): první jablka **6. rok** po výsadbě, úroda
   roste lineárně do **plné úrody ve 25. roce** (6. rok 1/20, 15. rok 1/2), plná do **50. roku**,
   pak lineárně klesá k nule v **60. roce** (51. rok 9/10, 59. rok 1/10) – 1. 3. 60. roku se sad
-  vrátí v louku. Starý sad hráč nahradí novou výsadbou.
+  vrátí v louku. Dřív plná úroda od 10. roku: vysokokmenné sady dosahují plné úrody až po
+  ≈ 20–30 letech a kalkulace počítají s výnosem do 50. roku (LfL Bayern; Lípa a Jongepierová
+  2020). Starý sad hráč nahradí novou výsadbou.
 - **Úroda** (návrh Clauda): plná úroda **≈ 3 t jablek/ha** ročně, jako jídlo **≈ 430 kg
   obilí/ha** (jablka mají asi 1/7 výživy obilí na kg). Úrodnost půdy se nepoužívá a sad ji
   nevyčerpává; nepotřebuje úhor ani osev.
@@ -51,9 +53,11 @@ rozhoduje, kolik louky a práce dá do jistoty na dlouho dopředu místo obilí 
   - **péče** (prořezávání) v zimě (prosinec–únor) **10 člověkodní/ha** ročně o všechny vysazené
     stromy; jde až po výmlatu. Nedodělaná péče zatím nic nezhorší – je to jen práce.
   - **sklizeň** v září–říjnu **8 člověkodní/ha** při plné úrodě, při menší úrodě poměrně méně
-    (návrh Clauda); jde před podzimním kopáním (okno končí dřív). Jablka přibývají do zásob
-    postupně, jak se sklízí; co se do konce října nestihne, spadne a shnije (úroda × podíl
-    sklizené práce).
+    (návrh Clauda; dřív 25: setřesení a ruční sběr ≈ 1 člověkoden na 300–500 kg – Degenbeck
+    2020); jde před podzimními pracemi v poli – před ozimem (při stejném konci okna jablka
+    první, ozim dostane zbytek podzimu, se kterým plán osevu počítá) i před kopáním jaře (okno
+    končí dřív). Jablka přibývají do zásob postupně, jak se sklízí; co se do konce října
+    nestihne, spadne a shnije (úroda × podíl sklizené práce).
 - **Jídlo:** sklizená jablka jdou do zásob vsi zvlášť a **jí se přednostně** před obilím; co
   zbude k **1. 3.** (ráno), shnije. Přídělový systém (fields.md) počítá jen s jablky, která se
   stihnou sníst do konce února: když jídlo do sklizně nevystačí, dělí se rovně – a když jablek
@@ -63,6 +67,9 @@ rozhoduje, kolik louky a práce dá do jistoty na dlouho dopředu místo obilí 
   nevystačí až po 1. 3. Jablka nemají ztráty ze skladování. Plánování osevu a rezerva obilí se
   jablky nemění.
 - **Hájení** a hlad fungují beze změny ([populace](population.md)).
+- **Doba (neřeší se):** kulturní jabloně jsou v Čechách a na Moravě doložené hlavně od 9.–10.
+  století na centrálních místech (Látková 2017). Martin: co předbíhá dobu, zatím neřešit –
+  letopočet začátku hry se může posunout.
 
 ## Co hráč vidí
 

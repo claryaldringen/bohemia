@@ -10,6 +10,8 @@ import {
   PLANNING_DAY,
   THRESH_END_DAY,
   WINDOWS,
+  WINTER_HARVEST_DAY,
+  WINTER_WINDOWS,
   childDeathsPerYear,
 } from '../rules';
 import { seasonBounds } from '../orchard';
@@ -35,6 +37,19 @@ describe('data polního roku souhlasí s okny prací', () => {
     const next = dateOfDayIndex(harvest + 1);
     expect(inWindow('harvest', next.month)).toBe(false);
     expect({ month: next.month, day: next.day }).toEqual(PLANNING_DAY);
+  });
+
+  it('sklizeň ozimu je poslední den jeho okna sklizně, setí ozimu končí před koncem podzimu jaře', () => {
+    const inWinter = (task: keyof typeof WINTER_WINDOWS, month: number): boolean =>
+      WINTER_WINDOWS[task].some(([from, to]) => month >= from && month <= to);
+    const harvest = dayIndexOf({ year: 601, ...WINTER_HARVEST_DAY });
+    expect(inWinter('harvest', WINTER_HARVEST_DAY.month)).toBe(true);
+    expect(inWinter('harvest', dateOfDayIndex(harvest + 1).month)).toBe(false);
+    expect(WINTER_HARVEST_DAY.month).toBeLessThan(HARVEST_DAY.month);
+    const sowEnd = Math.max(...WINTER_WINDOWS.sow.map(([, to]) => to));
+    expect(sowEnd).toBeLessThan(Math.max(...WINDOWS.dig.filter(([f]) => f >= 9).map(([, t]) => t)));
+    expect(WINTER_WINDOWS.weed).toEqual(WINDOWS.weed);
+    expect(WINTER_WINDOWS.thresh).toEqual(WINDOWS.thresh);
   });
 
   it('konec výmlatu je den po konci okna výmlatu', () => {

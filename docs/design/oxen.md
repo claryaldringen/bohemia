@@ -1,7 +1,9 @@
 # Orání rádlem – voli, ohrada, seno
 
 Stav: schváleno 18. 10. 2026 (Martin: „Takhle je to ok“). Implementace zatím není (modely spřežení, rádla
-a oráče jsou hotové – `tools/blender/plough.py`, ukázka na `/dev/buildings`).
+a oráče jsou hotové – `tools/blender/plough.py`; modely ohrady s přístřeškem, žlabem, jeslemi
+a brankou, ikony ohrady a sena – `tools/blender/pen.py`, `icons.py`; obojí ukázka na
+`/dev/buildings`).
 
 ## Proč
 

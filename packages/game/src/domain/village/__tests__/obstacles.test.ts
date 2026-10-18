@@ -27,6 +27,7 @@ import {
   placementVillageOf,
   type PlacementVillage,
 } from '../placement';
+import { NO_CRAFTS, foundingCostPerHa } from '../productivity';
 import {
   DWELLINGS,
   OBSTACLE_COST,
@@ -100,11 +101,12 @@ describe('fieldPartsFromCells – překážky na čtvercích', () => {
   it('díl platí překážky po kusech podle tabulky a osadníci je odstraní', () => {
     expect(partOf(8, 8).obstacleCost).toBe(OBSTACLE_COST.tree + OBSTACLE_COST.stone);
     expect(partOf(8, 8).obstacleIds).toEqual([100, 101]);
-    expect(partOf(9, 8).obstacleCost).toBe(OBSTACLE_COST.shrub);
+    // čtverec s keřem je křovinami (bez řemesel stejná sazba jako louka) – keř je v sazbě
+    expect(partOf(9, 8).surface).toBe('shrub');
+    expect(partOf(9, 8).obstacleCost).toBe(0);
+    expect(partOf(9, 8).obstacleIds).toHaveLength(1);
     expect(partOf(9, 9).obstacleIds).toBeUndefined();
-    expect(preview.obstacleCost).toBe(
-      OBSTACLE_COST.tree + OBSTACLE_COST.stone + OBSTACLE_COST.shrub,
-    );
+    expect(preview.obstacleCost).toBe(OBSTACLE_COST.tree + OBSTACLE_COST.stone);
     expect(preview.obstacleCounts).toEqual({ tree: 1, stone: 1, shrub: 1, outcrop: 1 });
   });
 
@@ -116,8 +118,11 @@ describe('fieldPartsFromCells – překážky na čtvercích', () => {
     expect(preview.areaM2).toBeCloseTo(6 * 225 - Math.PI * OUTCROP_RADIUS_M ** 2, 6);
   });
 
-  it('cena založení = louka za hektar + překážky', () => {
-    const meadow = (preview.areaM2 / 10_000) * 40;
+  it('cena založení = louka (i křoviny – bez řemesel stejná sazba) za hektar + překážky', () => {
+    expect(foundingCostPerHa('shrub', NO_CRAFTS.tools)).toBe(
+      foundingCostPerHa('meadow', NO_CRAFTS.tools),
+    );
+    const meadow = (preview.areaM2 / 10_000) * foundingCostPerHa('meadow', NO_CRAFTS.tools);
     expect(preview.foundingCost).toBeCloseTo(meadow + preview.obstacleCost, 9);
   });
 
