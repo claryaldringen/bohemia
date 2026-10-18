@@ -29,6 +29,13 @@ export interface SelectionWorkshop {
   stockKg: number;
   /** Pokrytí potřeby vsi výrobkem 0–1 (nástroje, keramika); uhlí null. */
   coverage: number | null;
+  /**
+   * Uhlíř: rozdělaný milíř – fáze, buky (připravené / v dávce), průběh fáze 0–1, v lese
+   * (crafts.md – Uhlíř); jinak null.
+   */
+  kiln: VillageView['crafts']['workshops'][number]['kiln'];
+  /** Uhlíř: pařezy buků, na které ještě zasadí mladý buk. */
+  toPlant: number;
 }
 
 export type SelectionDetails =
@@ -356,6 +363,8 @@ function workshopDetails(view: VillageView, dwellingId: number): SelectionWorksh
     outputPerDayKg: workshop.outputPerDayKg,
     stockKg: view.crafts.stocks[stock],
     coverage,
+    kiln: workshop.kiln,
+    toPlant: workshop.toPlant,
   };
 }
 

@@ -834,7 +834,9 @@ export class LandscapeScene {
       this.cleared = clearing;
       for (const listener of this.clearedListeners) listener(clearing);
     }
-    const felled = this.obstacles ? (this.felled?.update(this.obstacles, changes) ?? false) : false;
+    const felled = this.obstacles
+      ? (this.felled?.update(this.obstacles, changes, this.villageState.plantedSaplings) ?? false)
+      : false;
     const logs = this.logPile?.update(this.villageState, changes) ?? false;
     const animals = this.livestock?.update(this.villageState, Date.now()) ?? false;
     const people = this.villagers?.update(this.villageState, Date.now()) ?? false;

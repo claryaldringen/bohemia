@@ -44,7 +44,7 @@ import {
   type VillagerClip,
   type VillagerKind,
 } from './villager-motion';
-import { MILIR_SHAPE_M, craftSpots, milirPlace } from './workshop-layout';
+import { MILIR_SHAPE_M, craftSpots, forestKilnAnchor, milirPlace } from './workshop-layout';
 
 // Postavy ve vsi (docs/design/villagers.md): kdo kde je a co dělá, jako čistá funkce vsi pro
 // scénu – z rozdělení práce posledního dne (herní jádro, labor-report.ts), ne z vlastních
@@ -108,6 +108,7 @@ const WOMEN: Record<LaborActivity, number> = {
   cemetery: 0.2,
   repair: 0.2,
   craft: 0.25,
+  plant: 0.4,
   domestic: 0.85,
   idle: 0.5,
 };
@@ -232,6 +233,10 @@ interface House {
 
 /** Id překážky „milíř“ v seznamu staveb – kladná id jsou obydlí, malá záporná čekající stavby. */
 const MILIR_ID_OFFSET = -1_000_000;
+/** Id překážky „milíř v lese“ (crafts.md – Uhlíř) – podle id dílny uhlíře. */
+const FOREST_KILN_ID_OFFSET = -2_000_000;
+/** Dřevo dávky leží u lesního milíře – kácení do tolika metrů od něj nosí polena k němu. */
+const FOREST_KILN_HAUL_M = 120;
 
 interface Point {
   x: number;
@@ -491,6 +496,18 @@ function context(
       },
     ];
   });
+  // milíře uhlířů v lese – stejně jako milíř u dílny (crafts.md – Uhlíř)
+  const forestKilns: House[] = (village.kilns ?? []).map((k) => {
+    const half = MILIR_SHAPE_M.radius;
+    return {
+      id: FOREST_KILN_ID_OFFSET - k.id,
+      position: { x: k.x, z: k.z, rotation: 0 },
+      built: true,
+      progress: 1,
+      inhabited: false,
+      box: { minX: -half, maxX: half, minZ: -half, maxZ: half },
+    };
+  });
   // modla a svatyně: stavitelé stojí kolem půdorysu, hotové lidé obcházejí (happiness.md)
   const sacred: House[] = (village.sacred?.buildings ?? []).map((b) => {
     const half = SACRED_BUILDINGS[b.kind].footprintM / 2;
@@ -515,7 +532,7 @@ function context(
       box: { minX: -half, maxX: half, minZ: -half, maxZ: half },
     };
   });
-  const houses = [...dwellings, ...milirs, ...sacred, ...pens];
+  const houses = [...dwellings, ...milirs, ...forestKilns, ...sacred, ...pens];
   const homes = dwellings.filter((h) => h.inhabited);
   const settled = homes.length > 0 ? homes : dwellings.length > 0 ? dwellings : houses;
   const center = {
@@ -757,7 +774,11 @@ function placer(ctx: Context, share: SceneLaborShare, count: number): Placer {
     case 'repair':
       return t.kind === 'dwelling' ? building(ctx, t, 'build') : none;
     case 'craft':
+      if (t.kind === 'kiln') return kilnWorkers(ctx, t);
       return t.kind === 'dwelling' ? craftsmen(ctx, t.id) : none;
+    case 'plant':
+      // uhlíř sází mladé buky na pařezy (crafts.md – Uhlíř, obnova lesa)
+      return t.kind === 'trees' ? planting(ctx, t.ids) : none;
     case 'domestic':
       return domestic(ctx);
     case 'idle':
@@ -1188,16 +1209,24 @@ function felling(ctx: Context, ids: readonly number[], forConstruction = true): 
   const sites = forConstruction
     ? ctx.houses.filter((h) => !h.built)
     : ctx.houses.filter((h) => h.built && (h.craft === 'burner' || h.craft === 'potter'));
+  // uhlíř v lese nosí polena k lesnímu milíři u dávky (crafts.md – Uhlíř)
+  const kilns = forConstruction ? [] : (ctx.village.kilns ?? []);
   return (i, who) => {
     const tree = trees[i % trees.length]!;
     if (i < trees.length * 2) {
       const slot = { ...who, phase: (who.phase + (i >= trees.length ? 0.5 : 0)) % 1 };
       return atTree(ctx, tree, slot, 'fell', FELL_REACH_M);
     }
-    const target = nearestHouse(sites.length > 0 ? sites : ctx.houses, tree);
-    const from = target ? nearestFree(ctx, tree.x + 1.5, tree.z, 3) : null;
-    if (!target || !from) return atTree(ctx, tree, who, 'fell', FELL_REACH_M + 0.6);
-    const path = walkRoute(ctx, doorPoint(target, -1.5), from);
+    const kiln = nearestPoint(kilns, tree, FOREST_KILN_HAUL_M);
+    const target = kiln ? null : nearestHouse(sites.length > 0 ? sites : ctx.houses, tree);
+    const from = target || kiln ? nearestFree(ctx, tree.x + 1.5, tree.z, 3) : null;
+    const to = kiln
+      ? nearestFree(ctx, kiln.x + MILIR_SHAPE_M.radius + 1, kiln.z, 3)
+      : target
+        ? doorPoint(target, -1.5)
+        : null;
+    if (!to || !from) return atTree(ctx, tree, who, 'fell', FELL_REACH_M + 0.6);
+    const path = walkRoute(ctx, to, from);
     if (!path) return atTree(ctx, tree, who, 'fell', FELL_REACH_M + 0.6);
     return shuttle(path, {
       outClip: 'walk',
@@ -1211,6 +1240,44 @@ function felling(ctx: Context, ids: readonly number[], forConstruction = true): 
       phase: who.phase,
     });
   };
+}
+
+/** Nejbližší z bodů do `reach` m od `p`, jinak null. */
+function nearestPoint<T extends Point>(list: readonly T[], p: Point, reach: number): T | null {
+  let best: T | null = null;
+  let bestD = reach;
+  for (const q of list) {
+    const d = Math.hypot(q.x - p.x, q.z - p.z);
+    if (d <= bestD) {
+      best = q;
+      bestD = d;
+    }
+  }
+  return best;
+}
+
+/**
+ * Uhlíř u milíře v lese (crafts.md – Uhlíř): staví, hlídá a vytahuje uhlí – místa kolem kupy
+ * jako u milíře u dílny (`craftSpots` s `forestKilnAnchor`).
+ */
+function kilnWorkers(ctx: Context, kiln: { x: number; z: number }): Placer {
+  const spots = craftSpots('burner', forestKilnAnchor(kiln));
+  return (i) => {
+    const spot = spots[i % spots.length]!;
+    if (free(ctx, spot.x, spot.z)) return stand(spot.x, spot.z, spot.hx, spot.hz, spot.clip);
+    const near = nearestFree(ctx, spot.x, spot.z, 4);
+    return near ? stand(near.x, near.z, spot.hx, spot.hz, spot.clip) : null;
+  };
+}
+
+/** Sázení mladých buků: u každého pařezu jeden člověk s motykou (crafts.md – Uhlíř). */
+function planting(ctx: Context, ids: readonly number[]): Placer {
+  const stumps = ids.flatMap((id) => {
+    const p = ctx.ground.tree(id);
+    return p ? [p] : [];
+  });
+  if (stumps.length === 0) return none;
+  return (i, who) => atTree(ctx, stumps[i % stumps.length]!, who, 'hoe', FELL_REACH_M);
 }
 
 /**

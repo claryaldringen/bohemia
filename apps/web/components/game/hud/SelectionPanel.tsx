@@ -120,20 +120,42 @@ function activityLook(workshop: SelectionWorkshop): {
 } {
   const product = CRAFT_LOOKS[workshop.craft].product;
   const perDay = `${formatDecimal(workshop.outputPerDayKg, 1)} kg/den`;
+  const kiln = workshop.kiln;
+  const percent = kiln ? formatPercent(kiln.progress) : '–';
   const looks: Record<WorkshopActivity, { icon: string; name: string; value: string }> = {
     producing: {
       icon: product.icon,
       name: `Vyrábí – ${product.name.toLowerCase()}`,
       value: perDay,
     },
-    felling: { icon: 'wood', name: 'Kácí dřevo', value: perDay },
+    felling: {
+      icon: 'wood',
+      name: workshop.craft === 'burner' ? 'Kácí a připravuje buky na milíř' : 'Kácí dřevo',
+      value: kiln ? `${kiln.prepared}/${kiln.trees}` : perDay,
+    },
+    building: { icon: 'wood', name: 'Staví milíř', value: percent },
+    burning: { icon: 'charcoal', name: 'Pálí milíř – hlídá ve dne i v noci', value: percent },
+    drawing: { icon: 'charcoal', name: 'Vytahuje uhlí z milíře', value: percent },
+    planting: { icon: 'labor', name: 'Sází mladé buky na pařezy', value: `${workshop.toPlant}` },
+    resting: { icon: 'people', name: 'Uhlí je dost – pomáhá vsi', value: '–' },
     'no-charcoal': { icon: 'charcoal', name: 'Čeká na uhlí', value: '0' },
-    'no-wood': { icon: 'wood', name: 'Čeká na dřevo – není co kácet', value: '0' },
+    'no-wood': {
+      icon: 'wood',
+      name:
+        workshop.craft === 'burner'
+          ? 'Čeká na dřevo – nejsou dospělé buky'
+          : 'Čeká na dřevo – není co kácet',
+      value: '0',
+    },
     idle: { icon: 'labor', name: 'Nemá kdo pracovat', value: '0' },
     empty: { icon: 'people', name: 'Prázdná – nikdo tu nebydlí', value: '0' },
   };
   const look = looks[workshop.activity];
-  const stalled = workshop.activity !== 'producing' && workshop.activity !== 'felling';
+  const stalled =
+    workshop.activity === 'no-charcoal' ||
+    workshop.activity === 'no-wood' ||
+    workshop.activity === 'idle' ||
+    workshop.activity === 'empty';
   return { ...look, stalled };
 }
 
@@ -164,6 +186,20 @@ function WorkshopRow({ workshop }: { workshop: SelectionWorkshop }): ReactElemen
       >
         {formatInteger(workshop.stockKg)}
       </Stat>
+      {workshop.kiln?.forest && (
+        <Stat icon="wood" name="Milíř stojí v lese u těžby" testId="selection-workshop-forest">
+          les
+        </Stat>
+      )}
+      {workshop.craft === 'burner' && workshop.toPlant > 0 && workshop.activity !== 'planting' && (
+        <Stat
+          icon="labor"
+          name="Pařezy buků, na které ještě zasadí mladý buk (sází na jaře a na podzim)"
+          testId="selection-workshop-to-plant"
+        >
+          {workshop.toPlant}
+        </Stat>
+      )}
     </div>
   );
 }

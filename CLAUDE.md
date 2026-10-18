@@ -529,7 +529,22 @@ rozhraní částí v
   `households[].craft`, `SceneVillage.dwellings[].craft` / `working`, server action
   `placeWorkshop`, mřížka staveb hrnčíř [F], kovář [G], uhlíř [H] (`placement: 'workshop'`),
   lišta uhlí / nástroje / keramika (jen ves s dílnou), panel výběru dílny, upozornění
-  `no-charcoal` / `no-wood`.
+  `no-charcoal` / `no-wood`. **Uhlíř** (`charcoal.ts`, crafts.md – Uhlíř, Martin 18. 10. 2026):
+  kácí jen buky (`isBeech`, `availableTrees(…, 'beeches')`) po dávkách do milíře
+  (`Workshop.kiln` – `CharcoalKiln`: buky vyhrazené v `reservedTrees`, fáze `wood` → `build` →
+  `burn` 8 dní → `draw`, čísla `CHARCOAL_KILN`); první buk do 150 m od milíře u zemnice = pálí
+  doma, dál milíř v lese (`kiln.site`, přirážka chůze `kilnWalkFactor`). Na pařezy sází mladé
+  buky (`Workshop.toPlant`, `plantOnStump` → `ObstacleChange.planted`; `felledTreeStage` – sazenice
+  dospěje za `BEECH_PLANTING.matureYears`, bez sazenice nálet jako dřív; `saplingGrowth`). Pálí
+  jen do zásoby na rok spotřeby kovářů (`charcoalShortfallKg`, `smithsCharcoalPerYear`); bez
+  milíře a sázení odpočívá (`restingBurners` – v kroku práce před `allocateDay`, jeho domácnost
+  pracuje se vsí: `craftHouseholds(state, resting)`). Starší dílna uhlíře se převede
+  (`migrateBurner`). Rozdělení práce: `fell` u buků (i příprava dřeva), `craft` u milíře – v lese
+  cíl `{ kind: 'kiln', id, x, z }`, `plant` u pařezů. Web: `VillageWorkshop.kiln` / `toPlant`,
+  `SceneVillage.kilns` (lesní milíře – fáze, průběh) a `plantedSaplings` (velikost mladých buků);
+  scéna kreslí lesní milíř funkcemi milíře u dílny přes kotvu `forestKilnAnchor`
+  (`workshop-layout.ts`), postavy u lesního milíře `kilnWorkers`, sázení `planting`, polena nosí
+  k lesnímu milíři (`felling`).
 - **Ozim a jař** (fields.md – Ozim a jař): roční plán (`YearPlan`) nese práci jaře nahoře (tvar
   plánu z doby před ozimem) a ozimu v `winter?` (`CropWork`); díly osevu mají `crop?` (chybí =
   jař). Okna prací po plodinách `CROP_WINDOWS` (`WINDOWS` = jař, `WINTER_WINDOWS`) v `rules.ts`.

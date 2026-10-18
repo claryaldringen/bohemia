@@ -1202,3 +1202,47 @@ describe('pevné cesty v pohledu na ves (roads.md)', () => {
     expect(view.scene.roadTrees).toBeUndefined();
   });
 });
+
+describe('buildVillageView – uhlíř (crafts.md – Uhlíř)', () => {
+  /** Ves s uhlířem (id 50) – milíř podle `kiln`, pařez 7 se sazenicí. */
+  const burnerVillage = (
+    kiln: NonNullable<VillageState['dwellings'][number]['workshop']>['kiln'],
+  ): VillageState => {
+    const s = settled();
+    s.dwellings.push({
+      id: 50,
+      type: 'zemnice',
+      builtDay: DAY,
+      condition: 1,
+      position: { x: 40, z: 0, rotation: 0 },
+      workshop: { craft: 'burner', felling: null, fuelKg: 0, activity: 'burning', kiln },
+    });
+    s.people.push({ id: 90, bornDay: DAY - 9000, dwellingId: 50 });
+    s.felledTrees = [{ id: 7, day: DAY - 3650, planted: DAY - 3650 }];
+    return s;
+  };
+  const kiln = (site: { x: number; z: number } | null) => ({
+    site,
+    trees: [{ id: null, cost: 2 }],
+    stage: 'burn' as const,
+    prepared: 1,
+    done: 4,
+  });
+
+  it('milíř u dílny při pálení kouří z dílny, lesní milíř je ve scéně zvlášť', () => {
+    const home = buildVillageView(record(burnerVillage(kiln(null))), landscape, DAY);
+    expect(home.scene.dwellings.find((d) => d.id === 50)).toMatchObject({ working: true });
+    expect(home.scene.kilns).toBeUndefined();
+    const forest = buildVillageView(record(burnerVillage(kiln({ x: 90, z: 10 }))), landscape, DAY);
+    expect(forest.scene.dwellings.find((d) => d.id === 50)?.working).toBeUndefined();
+    expect(forest.scene.kilns).toEqual([{ id: 50, x: 90, z: 10, stage: 'burn', progress: 0.5 }]);
+    const workshop = forest.crafts.workshops.find((w) => w.dwellingId === 50);
+    expect(workshop?.kiln).toMatchObject({ stage: 'burn', forest: true, progress: 0.5 });
+  });
+
+  it('mladé buky od uhlíře rostou – velikost podle stáří (za 60 let dospělé)', () => {
+    const view = buildVillageView(record(burnerVillage(null)), landscape, DAY);
+    const sapling = view.scene.plantedSaplings?.find((p) => p.id === 7);
+    expect(sapling?.growth).toBeCloseTo(10 / 60, 1);
+  });
+});

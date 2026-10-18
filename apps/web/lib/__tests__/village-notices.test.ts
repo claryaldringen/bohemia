@@ -307,6 +307,8 @@ describe('villageNotices – řemesla (crafts.md)', () => {
       occupants: 2,
       laborPerDay: 0.9,
       outputPerDayKg: 0.09,
+      kiln: null,
+      toPlant: 0,
     });
     const crafts = (activities: VillageView['crafts']['workshops'][number]['activity'][]) => ({
       ...view().crafts,
