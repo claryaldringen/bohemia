@@ -252,9 +252,10 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   zobe / ryje nebo stojí – čisté funkce času, deterministicky. `livestock.ts` (`VillageLivestock`, háček v
   `landscape-scene.ts`) je kreslí jako fauna: mesh `livestock-*` na druh, krok (parabola přes
   dvě pózy) a hlava dolů (třetí morph target) ve vertex shaderu, výška a náklon podle terénu.
-  Textura z GLB se čte jako sRGB – StandardMaterial ji převádí zpět (`LIVESTOCK_GAMMA`), jinak
-  jsou zvířata tmavá. **Známá vada:** ryby a ptáci (`fauna.ts`) ten převod nemají, jsou proto
-  tmavší, než by měli být – barvy ryb jsou na tom vyladěné, zatím se nechávají. Modely v `fauna.json` (ovce, koza, kráva, prase, slepice) jsou ve
+  Textury z GLB (dobytek, ryby i ptáci – `loadGeometry` ve `fauna.ts`) se čtou v barvách
+  obrazovky (glTF bez sRGB bufferů) a StandardMaterial je kreslí bez převodu jako 0 A.D. – se
+  sRGB čtením by GPU barvy převedlo do lineárních a zvířata by ztmavla (WebGPU i WebGL 2).
+  Modely v `fauna.json` (ovce, koza, kráva, prase, slepice) jsou ve
   skutečné velikosti, ve scéně stylizovaně větší (`SCALE`). Terén pro zvířata je rastr 4 m
   kolem vsi (`livestockGround`) – přepočet jen při změně obydlí, polí nebo hřbitovů.
 - **Ves** (`village-renderer.ts`): obydlí stojí nad skutečnou jámou – terén a obtisky se v ní

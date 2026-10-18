@@ -48,7 +48,7 @@ const FISH_RENDERING_GROUP = 1;
  * od tmavé vody odlišily. Ptáci se nebarví.
  */
 const FISH_TINT = new Color3(0.9, 1, 0.92);
-const FISH_GLOW = new Color3(0.18, 0.2, 0.18);
+const FISH_GLOW = new Color3(0.05, 0.06, 0.05);
 
 interface FaunaGroup {
   bounds: BoundingInfo;
@@ -77,6 +77,7 @@ export interface FaunaGeometry {
    * když ji model nemá.
    */
   keyC: Float32Array | null;
+  /** Textura v barvách obrazovky (`gammaSpace`) – pro StandardMaterial bez převodu. */
   texture: BaseTexture | null;
 }
 
@@ -175,12 +176,19 @@ function boundingInfo(b: Bounds): BoundingInfo {
 }
 
 /**
+ * Textura zvířat se čte tak, jak je uložená (barvy obrazovky, `gammaSpace`) – kreslí ji
+ * StandardMaterial, který s barvami textury počítá bez převodu (jako 0 A.D.). Výchozí čtení
+ * glTF jako sRGB by GPU převedlo do lineárních barev a zvířata by ztmavla (WebGPU i WebGL 2).
+ */
+const GLTF_GAMMA_TEXTURES = { pluginOptions: { gltf: { useSRGBBuffers: false } } };
+
+/**
  * Načte GLB a vrátí jeho geometrii ve světových osách Babylonu (zapeče převod os z glTF)
  * a klíčové pózy: první morph target je póza +1, druhý −1. Když se scéna mezitím zruší, vrátí
  * null; chybu načtení propustí volajícímu.
  */
 export async function loadGeometry(scene: Scene, url: string): Promise<FaunaGeometry | null> {
-  const container = await LoadAssetContainerAsync(url, scene);
+  const container = await LoadAssetContainerAsync(url, scene, GLTF_GAMMA_TEXTURES);
   if (scene.isDisposed) return null;
   // Do scény jen kvůli texturám – s ní se pak uvolní. Meshe a materiál GLB se hned zahodí.
   container.addAllToScene();
