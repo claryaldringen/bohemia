@@ -657,6 +657,29 @@ export const CRAFT_NEEDS = {
   potteryKgPerPerson: 5,
   potteryBreakagePerYear: 0.4,
 } as const;
+// crafts.md – Uhlíř (Martin 18. 10. 2026 – uhlíř pálí buky, staví milíř, sází mladé buky;
+// čísla podle rešerše 2026-10-18-charcoal.md, rozdělení práce návrh Clauda): milíř = dávka
+// 15 buků (≈ 18 prm, ≈ 1,8 t uhlí – Ø ≈ 4,6 m jako model). Práce po fázích: kácení a dovoz
+// k milíři (FELLING_MAN_DAYS_PER_TREE + vzdálenost), příprava dřeva (odvětvení, krácení, štípání)
+// 6 čd na buk, stavba milíře 2 čd na buk, pálení 8 dní (hlídá se ve dne i v noci – celá práce
+// domácnosti), vytahání, třídění a odnos uhlí 2 čd na buk. Leží-li první buk dávky do 150 m od
+// milíře u dílny, pálí se doma; dál staví uhlíř milíř v lese u dávky (Szabó a kol. 2022) a za
+// chůzi z dílny platí přirážku vzdálenosti (DISTANCE) na veškerou práci u něj. Uhlí pálí jen do
+// zásoby na rok spotřeby kovářů (návrh Clauda) – s plnou zásobou sází buky, nebo pomáhá vsi.
+export const CHARCOAL_KILN = {
+  trees: 15,
+  prepManDaysPerTree: 6,
+  buildManDaysPerTree: 2,
+  burnDays: 8,
+  drawManDaysPerTree: 2,
+  homeReachM: 150,
+  reserveYears: 1,
+} as const;
+// crafts.md – Uhlíř, obnova lesa (Martin; čísla návrh Clauda podle rešerše): na pařez skáceného
+// buku uhlíř zasadí mladý buk (semenáček z lesa) – 0,1 čd na sazenici, jen v oknech výsadby jako
+// sad; sazenice je hned mladý stromek a za 60 let dospělý buk (dolní mez 60–80 let – na pasece
+// nečeká na nálet). Pařez bez sazenice dorůstá z náletu jako dřív (TREE_REGROWTH_YEARS).
+export const BEECH_PLANTING = { manDaysPerTree: 0.1, matureYears: 60 } as const;
 // crafts.md – Budovy (Martin): milíř stojí kus od uhlířovy zemnice – odstup v souřadnicích modelu
 // (x napříč, z k vchodu, m; totéž MILIR_OFFSET v tools/blender/crafts.py) a čtvercový půdorys
 // pro kontrolu místa (kruh milíře Ø ≈ 5,3 m), vyklízí se kruh ušlapané trávy (poloměr m)

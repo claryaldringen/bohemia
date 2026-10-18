@@ -69,6 +69,7 @@ export * from './sacred';
 export * from './sacred-life';
 export * from './happiness';
 export * from './crafts';
+export * from './charcoal';
 export * from './paths';
 export * from './road-trees';
 export * from './road-upgrades';

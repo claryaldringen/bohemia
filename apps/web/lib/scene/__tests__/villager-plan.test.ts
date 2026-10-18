@@ -991,3 +991,71 @@ describe('řemeslníci – práce v dílně (crafts.md)', () => {
     }
   });
 });
+
+describe('uhlíř – milíř v lese a sázení buků (crafts.md – Uhlíř)', () => {
+  const KILN = { x: -42, z: -60 };
+  function forestVillage(shares: LaborShare[]): SceneVillage {
+    const base = village(shares);
+    return {
+      ...base,
+      dwellings: [...base.dwellings, { ...house(21, -60, 20, 0.4), craft: 'burner' as const }],
+      kilns: [{ id: 21, x: KILN.x, z: KILN.z, stage: 'build', progress: 0.5 }],
+    };
+  }
+
+  it('u lesního milíře stojí uhlíř kolem kupy, ne u dílny', () => {
+    const people = planVillagers(
+      forestVillage([
+        { activity: 'craft', target: { kind: 'kiln', id: 21, x: KILN.x, z: KILN.z }, manDays: 2 },
+      ]),
+      GROUND,
+      { seed: 5, herds: 0 },
+    );
+    const burners = people.filter((p) => p.key.startsWith('craft:kiln-21:'));
+    expect(burners.length).toBe(2);
+    for (const p of burners) {
+      const pose = at(p, 5);
+      const d = Math.hypot(pose.x - KILN.x, pose.z - KILN.z);
+      expect(d).toBeGreaterThan(MILIR_SHAPE_M.radius);
+      expect(d).toBeLessThan(MILIR_SHAPE_M.radius + 3);
+    }
+  });
+
+  it('mladé buky sází u pařezů motykou', () => {
+    const people = planVillagers(
+      forestVillage([
+        { activity: 'plant', target: { kind: 'trees', ids: [501, 502] }, manDays: 1 },
+      ]),
+      GROUND,
+      { seed: 5, herds: 0 },
+    );
+    const planters = people.filter((p) => p.key.startsWith('plant:'));
+    expect(planters.length).toBeGreaterThan(0);
+    for (const p of planters) {
+      const pose = at(p, 5);
+      const stump = Math.min(
+        Math.hypot(pose.x + 40, pose.z + 30),
+        Math.hypot(pose.x + 44, pose.z + 33),
+      );
+      expect(stump).toBeLessThan(3);
+      expect(pose.clip).toBe('hoe');
+    }
+  });
+
+  it('kácení buků u lesního milíře nosí polena k milíři', () => {
+    const people = planVillagers(
+      forestVillage([{ activity: 'fell', target: { kind: 'trees', ids: [501] }, manDays: 4 }]),
+      GROUND,
+      { seed: 3, herds: 0 },
+    );
+    const carriers = people.filter((p) => p.key.startsWith('fell:')).slice(2);
+    expect(carriers.length).toBeGreaterThan(0);
+    // nosiči chodí mezi bukem a milířem – nikdy daleko od nich (dílna je ≈ 85 m od lesa)
+    for (const p of carriers) {
+      for (let t = 0; t < 60; t += 2.3) {
+        const { x, z } = at(p, t);
+        expect(Math.hypot(x - KILN.x, z - KILN.z)).toBeLessThan(45);
+      }
+    }
+  });
+});

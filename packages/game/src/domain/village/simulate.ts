@@ -3,7 +3,14 @@ import type { CalendarDate } from '../calendar';
 import type { Landscape, ObstacleLayer } from '../landscape';
 import { villageCemeteries } from './cemetery';
 import { cloneState } from './clone';
-import { craftCoverage, craftHouseholds, newWorkshop, wearCraftStocks, workCrafts } from './crafts';
+import {
+  craftCoverage,
+  craftHouseholds,
+  newWorkshop,
+  restingBurners,
+  wearCraftStocks,
+  workCrafts,
+} from './crafts';
 import {
   adultChildrenSettlers,
   decayEmptyDwelling,
@@ -216,7 +223,7 @@ function simulateDay(
   if (date.month >= PLANNING_DAY.month || date.month <= LAST_JOIN_MONTH) {
     joinFinishedParts(state, day, coverage);
   }
-  const { toil, milking } = work(state, day, obstacles, coverage);
+  const { toil, milking } = work(state, day, obstacles, coverage, landscape);
   // nástroje a nádoby v užívání se opotřebí (crafts.md – Účinek)
   wearCraftStocks(state, day);
   finishConstructions(state, day);
@@ -518,6 +525,7 @@ function work(
   day: number,
   obstacles: ObstacleLayer | null,
   coverage: CraftCoverage,
+  landscape: Landscape | null,
 ): { toil: boolean; milking: number } {
   const month = dateOfDayIndex(day).month;
   // orba: spřežení s rádlem, se železnou špičkou od kováře rychleji (oxen.md)
@@ -573,10 +581,12 @@ function work(
   const households = occupiedDwellings(state);
   const repairNeeds = households.map((d) => repairNeedPerDay(d, day));
   const repairNeed = repairNeeds.reduce((sum, n) => sum + n, 0);
-  const crafts = craftHouseholds(state);
+  const productivity = villageLaborFactor(state);
+  // uhlíř s plnou zásobou uhlí dnes pracuje se vsí (crafts.md – Uhlíř)
+  const resting = restingBurners(state, day, coverage, productivity);
+  const crafts = craftHouseholds(state, resting);
   const villagers =
     crafts.size > 0 ? state.people.filter((p) => !crafts.has(p.dwellingId)) : state.people;
-  const productivity = villageLaborFactor(state);
   const allocation = allocateDay({
     capacity: villagers.reduce((sum, p) => sum + laborPerDay(p, day), 0),
     households: householdCount(state) - crafts.size,
@@ -628,7 +638,7 @@ function work(
   decayEmptyDwellings(state, day, new Set(households.map((d) => d.id)));
   state.domesticBacklog = allocation.domesticBacklog;
   const constructions = build(state, day, allocation.common);
-  const workshops = workCrafts(state, day, obstacles, coverage, productivity);
+  const workshops = workCrafts(state, day, obstacles, coverage, productivity, resting, landscape);
   const hayMowing = state.hay?.mowing;
   state.labor = laborDay(state, day, {
     allocation,

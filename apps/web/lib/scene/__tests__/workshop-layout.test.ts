@@ -3,12 +3,14 @@ import { MILIR, milirPosition } from '@bohemia/game';
 import type { SceneVillage } from '../../village-view';
 import { ventSmokeStrength, smokeStrength } from '../smoke-schedule';
 import { CONSTRUCTION_PHASES } from '../village-construction';
+import { plantedScale } from '../felled-trees';
 import { insideFootprint } from '../village-picking';
 import {
   CRAFT_MODEL,
   MILIR_SHAPE_M,
   PORCH_FRONT_M,
   craftSpots,
+  forestKilnAnchor,
   milirHideShape,
   milirPlace,
   workshopVents,
@@ -96,5 +98,24 @@ describe('dílny ve scéně (crafts.md)', () => {
     // před polozemnicí pod přístřeškem (5 / 2 + 2,6 m)
     expect(insideFootprint({ x: AT.x, z: AT.z + 4.6 }, { ...house, craft: 'potter' })).toBe(true);
     expect(insideFootprint({ x: AT.x, z: AT.z + 4.6 }, house)).toBe(false);
+  });
+});
+
+describe('milíř v lese (crafts.md – Uhlíř)', () => {
+  it('kotva lesního milíře – funkce milíře u dílny ho kreslí na místě v lese', () => {
+    const center = { x: 123.5, z: -48 };
+    const anchor = forestKilnAnchor(center);
+    const place = milirPlace(anchor);
+    expect(place.x).toBeCloseTo(center.x, 9);
+    expect(place.z).toBeCloseTo(center.z, 9);
+    const [vent] = workshopVents('burner', anchor);
+    expect(vent).toMatchObject({ kind: 'milir' });
+    expect(vent!.x).toBeCloseTo(center.x, 9);
+  });
+
+  it('zasazený buk roste od sazenice do velikosti stromu', () => {
+    expect(plantedScale(0, 1)).toBeCloseTo(0.15, 9);
+    expect(plantedScale(1, 1.2)).toBeCloseTo(1.2, 9);
+    expect(plantedScale(0.5, 1)).toBeGreaterThan(plantedScale(0.2, 1));
   });
 });
