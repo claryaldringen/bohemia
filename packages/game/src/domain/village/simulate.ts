@@ -76,6 +76,7 @@ import { inLuckyYears, nextStarvationDays, populationDay } from './population';
 import { dailyMinPerHousehold } from './productivity';
 import { moveRelocatedHousehold, relocatingHouseholds } from './relocation';
 import { keepManor, villageManorId } from './manor';
+import { goodsDay } from './goods';
 import { finishExpeditions, workExpeditions } from './trade';
 import { finishTrail, trailsDay } from './trail';
 import { recordRuins, updateRuins } from './ruins';
@@ -257,6 +258,8 @@ function simulateDay(
   // zemské stezky – dostavěné úseky od vsi ven hned vylepšené, vrácené výpravy (trade.md)
   trailsDay(state);
   state.chronicle.push(...finishExpeditions(state, day));
+  // sůl se jí, kožešiny se opotřebí (trade.md – Zboží zvenku)
+  goodsDay(state);
   finishConstructions(state, day);
   // dvorec vojvody – po zániku dvorce nejstarší obydlí, starší ves dvorec dostane (trade.md)
   keepManor(state);
@@ -1204,6 +1207,8 @@ function eat(
     milkEnergy: milk.energy * milked,
     eggsKg: dailyEggsKg(state),
     legumesKg: villageLegumesKg(state),
+    // med ze zboží zvenku (trade.md)
+    honeyKg: state.goods?.honeyKg ?? 0,
     daysToLegumeHarvest: daysUntilLegumeHarvest(day),
     needPerDay: need,
     proteinNeedPerDay: villageProteinNeed(state, day),
@@ -1219,6 +1224,7 @@ function eat(
   if (state.cheeseKg !== undefined || meal.cheeseKg > 0) state.cheeseKg = meal.cheeseKg;
   if (state.legumesKg !== undefined || meal.legumesKg > 0) state.legumesKg = meal.legumesKg;
   if (state.applesKg !== undefined) state.applesKg = meal.fruitKg;
+  if (state.goods) state.goods.honeyKg = meal.honeyKg;
   state.diet = meal.diet;
   const hungry = meal.outlook < 1 - SATIATION_EPSILON;
   if (hungry !== state.hungry) {
@@ -1228,7 +1234,8 @@ function eat(
   return {
     satiation: meal.diet.satiation,
     energy: meal.diet.energy,
-    fruit: meal.diet.shares.fruit > 0,
+    // med štěstí přidá jako ovoce (trade.md – Zboží zvenku)
+    fruit: meal.diet.shares.fruit > 0 || (meal.diet.shares.honey ?? 0) > 0,
     meat: meal.diet.shares.meat,
   };
 }

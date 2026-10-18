@@ -10,6 +10,7 @@ import {
   HAPPINESS_PENALTY,
   type WindowSegment,
 } from './rules';
+import { goodsHappiness } from './goods';
 import { sacredHappiness } from './sacred';
 import type { ChronicleEvent, HappinessState, VillageState } from './types';
 
@@ -65,6 +66,8 @@ export interface HappinessFactors {
   meat: number;
   /** Posvátná místa – nejvýš +40. */
   sacred: number;
+  /** Zboží zvenku – sůl +3, kožešiny až +2 (trade.md); chybí = 0. */
+  goods?: number;
 }
 
 /**
@@ -75,6 +78,7 @@ export function happinessTarget(f: HappinessFactors): number {
   const value =
     HAPPINESS.base +
     f.sacred +
+    (f.goods ?? 0) +
     f.stores +
     f.fruit +
     f.meat -
@@ -83,6 +87,11 @@ export function happinessTarget(f: HappinessFactors): number {
     f.crowding -
     f.toil;
   return Math.min(HAPPINESS.max, Math.max(HAPPINESS.min, value));
+}
+
+/** Štěstí ze zboží zvenku jako složka – jen když nějaké přidává (starší složky beze změny). */
+function goodsFactor(goods: number): { goods?: number } {
+  return goods > 0 ? { goods } : {};
 }
 
 /** Hlad: nasycení pod 0,9 ubere lineárně až 40 (při nulovém nasycení). */
@@ -147,6 +156,7 @@ export function happinessFactors(
     fruit: fruit ? DIET.fruitHappiness : 0,
     meat: meatHappiness(meatShare),
     sacred: sacredHappiness(state, day, obstacles),
+    ...goodsFactor(goodsHappiness(state)),
   };
 }
 

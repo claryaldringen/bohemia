@@ -54,8 +54,10 @@ import {
   type Crop,
   type DwellingPlot,
   type BuildableDwellingType,
+  foreignGoods,
   type Direction8,
   type DwellingType,
+  type ForeignGoods,
   type FieldSurface,
   type LaborShare,
   type Landscape,
@@ -445,6 +447,8 @@ export interface VillageView {
    * a obchod se sousedy; dokud zakladatelé první zemnici staví, null.
    */
   manor: VillageManor | null;
+  /** Zboží zvenku (trade.md) – sůl, železo, med (kg) a kožešiny (kusy); horní lišta jen > 0. */
+  goods: ForeignGoods;
 }
 
 /** Hřbitov pro panel výběru – čísla, žádné věty (rozhraní jako v 0 A.D.). */
@@ -1973,6 +1977,7 @@ export function buildVillageView(
     chronicle: chronicle(state, name),
     lastMarriageDay: lastMarriageDay(state),
     manor: manorView(state, landscape, day),
+    goods: { ...foreignGoods(state) },
   };
 }
 

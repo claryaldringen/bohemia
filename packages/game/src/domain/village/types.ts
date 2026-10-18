@@ -1203,6 +1203,8 @@ export interface DietDay {
     eggs: number;
     fruit: number;
     legumes?: number;
+    /** Med ze zboží zvenku (trade.md); chybí u jídla uloženého dřív = 0. */
+    honey?: number;
   };
 }
 

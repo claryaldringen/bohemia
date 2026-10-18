@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import type { VillageView } from '@/lib/village-view';
 import {
+  ForeignStocks,
   SatiationTooltip,
   dairyName,
   satiationState,
@@ -124,5 +125,20 @@ describe('mléko a sýr v liště', () => {
     expect(showsDairy({ cheeseKg: 0, milkLPerDay: 3.2 })).toBe(true);
     expect(dairyName({ milkLPerDay: 12.4 })).toBe('Sýr (kg) – mléko 12 l/den');
     expect(dairyName({ milkLPerDay: 0 })).toBe('Sýr (kg)');
+  });
+});
+
+describe('zboží zvenku v horní liště (trade.md)', () => {
+  it('sůl, železo, med a kožešiny – jen to, co ves má', () => {
+    const html = renderToStaticMarkup(
+      <ForeignStocks goods={{ saltKg: 12.4, ironKg: 0, honeyKg: 3, furs: 0.2 }} />,
+    );
+    expect(html).toContain('data-testid="village-salt"');
+    expect(html).toContain('data-testid="village-honey"');
+    expect(html).not.toContain('village-iron');
+    expect(html).not.toContain('village-furs');
+    expect(
+      renderToStaticMarkup(<ForeignStocks goods={{ saltKg: 0, ironKg: 0, honeyKg: 0, furs: 0 }} />),
+    ).toBe('');
   });
 });
