@@ -9,12 +9,16 @@ hrncir, kovar, uhlir (řemeslné dílny z `apps/web/public/models/crafts/`, uhl�
 (jabloňový sad), modla, svatyne (posvátná místa z `apps/web/public/models/sacred/`), dub
 (posvátný dub s obětinami), sous (posvátná souš – uschlý dub z `apps/web/public/models/decor/`
 s obětinami), haj (dubový háj s kameny) a ohrada (přístřešek, žlab a branka
-z `apps/web/public/models/pen/`, kráva ze stáda vsi, stoh sena) – portréty do panelu výběru;
+z `apps/web/public/models/pen/`, kráva ze stáda vsi, stoh sena), cesta, cesta-upravena a hat
+(stupně pevné cesty – pás cesty, strouha a kameny, hať a lávka z `apps/web/public/models/roads/`)
+a jablone (jabloně s jablky střídavě podél cesty – tlačítko „Vysadit jabloně“) – portréty do
+panelu výběru;
 (64 × 64 PNG) – `resources/` people, food, wood, labor, satiation, date, apples, happiness
 (štěstí – plamen ohniště nad zkříženými poleny v kruhu kamenů), hay (seno – kupka sena
 z `apps/web/public/models/fields/haystack.glb`), meat (maso – uzená kýta s kostí a provázkem),
 cheese (mléko a sýr – bochník sýra s vykrojeným klínem a hrouda tvarohu), eggs (vejce v hnízdě
 ze slámy), legumes (luštěniny – hromádka suchého hrachu a čočky, otevřený lusk s hrášky),
+hourglass (přesýpací hodiny – kolik zbývá: služba spřežení, výcvik),
 ozim (osení pod sněhem), jar (klasy jarního ječmene), charcoal (hromádka dřevěného uhlí), tools
 (kovaná sekera zkřížená se srpem) a pottery (dva hrnce pražského typu, větší s vlnovkou) –
 suroviny řemesel (crafts.md) –, overgrowth (zarůstání – keře a mladá bříza z modelů krajiny
@@ -58,7 +62,7 @@ PEN = os.path.join(ROOT, "apps/web/public/models/pen")
 PLOUGH = os.path.join(ROOT, "apps/web/public/models/plough")
 FAUNA = os.path.join(ROOT, "apps/web/public/models/fauna")
 FIELDS = os.path.join(ROOT, "apps/web/public/models/fields")
-DECOR = os.path.join(ROOT, "apps/web/public/models/decor")
+ROADS = os.path.join(ROOT, "apps/web/public/models/roads")
 TEX = os.path.join(ROOT, "apps/web/public/textures/terrain")
 TMP = tempfile.mkdtemp(prefix="bohemia-icons-")
 RES = 256
@@ -662,6 +666,78 @@ def icon_ohrada():
 # --------------------------------------------------------------- suroviny ----
 
 
+def road_strip(width, length, material, z=0.004, wobble=0.12, seed=3):
+    """Pás cesty přes portrét (podél Y) s lehce zvlněnými okraji."""
+    rng = random.Random(seed)
+    bm = bmesh.new()
+    n = 24
+    rows = []
+    for i in range(n + 1):
+        y = -length / 2 + length * i / n
+        dx = math.sin(y * 0.6) * 0.25
+        row = []
+        for side in (-1, 1):
+            x = dx + side * (width / 2 + rng.uniform(-wobble, wobble))
+            row.append(bm.verts.new((x, y, z)))
+        rows.append(row)
+    for i in range(n):
+        bm.faces.new((rows[i][0], rows[i][1], rows[i + 1][1], rows[i + 1][0]))
+    return to_obj(bm, "road", material, smooth=False)
+
+
+def icon_road(grade):
+    """Portrét stupně pevné cesty (roads.md): vyšlapaná, upravená se strouhou a kameny, hať a lávka."""
+    rng = random.Random(11)
+    gr = ground(6.4, mat("g", tex=f"{TEX}/grass-dirt.jpg", scale=0.25, tint=(0.8, 0.82, 0.6)), z=-0.02, fade=0.72)
+    earth = mat("earth", tex=f"{TEX}/mud.jpg", scale=0.5, tint=(0.82, 0.66, 0.48))
+    width = 1.6 if grade == "cesta" else 2.4
+    road_strip(width, 12.0, earth)
+    if grade != "cesta":
+        ditch = mat("ditch", tex=f"{TEX}/mud.jpg", scale=0.6, tint=(0.45, 0.36, 0.28))
+        strip = road_strip(0.45, 12.0, ditch, z=0.006, wobble=0.05, seed=5)
+        strip.location.x = width / 2 + 0.45
+        for k in range(14):
+            y = rng.uniform(-4.5, 4.5)
+            objs = place_model("road-stone", folder=ROADS)
+            place_root(objs, (rng.uniform(-0.9, 0.9) + math.sin(y * 0.6) * 0.25, y, 0.0), rng.uniform(0, 6.28), rng.uniform(0.8, 1.3))
+    if grade == "hat":
+        # hať přes mokřinu vpředu a lávka přes potok vzadu
+        water = mat("water", (0.22, 0.32, 0.36), 0.15)
+        bm = bmesh.new()
+        bmesh.ops.create_grid(bm, x_segments=2, y_segments=2, size=1.0)
+        for v in bm.verts:
+            v.co = (v.co.x * 6.5, 2.6 + v.co.y * 1.0, -0.12)
+        to_obj(bm, "water", water, smooth=False)
+        for k in range(16):
+            objs = place_model("road-log", folder=ROADS)
+            y = -3.6 + k * 0.24
+            place_root(objs, (math.sin(y * 0.6) * 0.25, y, 0.0), rng.uniform(-0.06, 0.06), 1.0)
+        objs = place_model("road-bridge", folder=ROADS)
+        place_root(objs, (math.sin(2.6 * 0.6) * 0.25, 2.6, -0.05), 0.0, 1.0)
+    sun(az=-55, el=46)
+    camera([Vector((-3.2, -4.6, 0)), Vector((3.2, 4.6, 1.4)), Vector((-3.2, 4.6, 0)), Vector((3.2, -4.6, 0))], az=24, el=42, margin=0.92)
+
+
+def icon_jablone():
+    """Jabloně podél cesty (roads.md – Vysazení jabloní): vyšlapaná cesta, jabloně s jablky střídavě po stranách."""
+    rng = random.Random(17)
+    ground(6.4, mat("g", tex=f"{TEX}/grass-dirt.jpg", scale=0.25, tint=(0.8, 0.82, 0.6)), z=-0.02, fade=0.72)
+    road_strip(1.9, 12.0, mat("earth", tex=f"{TEX}/mud.jpg", scale=0.5, tint=(0.72, 0.56, 0.4)))
+    trunk, leaves, apples = bmesh.new(), bmesh.new(), bmesh.new()
+    for k in range(4):
+        y = -3.9 + k * 2.6
+        side = 1 if k % 2 == 0 else -1
+        x = math.sin(y * 0.6) * 0.25 + side * 2.0
+        apple_tree(trunk, leaves, apples, x, y, rng, rng.uniform(0.78, 0.86))
+    objs = [
+        to_obj(trunk, "trunks", mat("bark", (0.36, 0.26, 0.17), 0.9, noise=30, bump=0.4)),
+        to_obj(leaves, "leaves", mat("leaves", (0.17, 0.34, 0.07), 0.8, noise=18, bump=0.8)),
+        to_obj(apples, "apples", mat("apple", (0.75, 0.06, 0.03), 0.4)),
+    ]
+    sun(az=-55, el=46)
+    camera(world_points(objs) + [Vector((-3.2, -4.6, 0)), Vector((3.2, 4.6, 0))], az=24, el=42, margin=0.95)
+
+
 def icon_food():
     """Snopek obilí převázaný provazem."""
     rng = random.Random(11)
@@ -1241,6 +1317,101 @@ def icon_legumes():
     return True
 
 
+def revolve(bm, profile, seg=40, cap_bottom=False, cap_top=False):
+    """Rotační těleso kolem osy Z z profilu [(z, r), …] zdola nahoru; volitelně zavřené víčky."""
+    rings = []
+    for z, r in profile:
+        rings.append([bm.verts.new((math.cos(2 * math.pi * i / seg) * r, math.sin(2 * math.pi * i / seg) * r, z))
+                      for i in range(seg)])
+    for lo, hi in zip(rings, rings[1:]):
+        for i in range(seg):
+            j = (i + 1) % seg
+            bm.faces.new((lo[i], lo[j], hi[j], hi[i]))
+    if cap_bottom:
+        bm.faces.new(rings[0][::-1])
+    if cap_top:
+        bm.faces.new(rings[-1])
+
+
+def glass_mat(name):
+    """Sklo do ikony: uprostřed průhledné, k okrajům lesklé (vrstva podle úhlu) – obrys baňky
+    je vidět a písek uvnitř taky."""
+    m = bpy.data.materials.new(name)
+    m.use_nodes = True
+    nt = m.node_tree
+    b = next(n for n in nt.nodes if n.type == "BSDF_PRINCIPLED")
+    b.inputs["Base Color"].default_value = (0.78, 0.88, 0.95, 1)
+    b.inputs["Roughness"].default_value = 0.08
+    outn = next(n for n in nt.nodes if n.type == "OUTPUT_MATERIAL")
+    tr = nt.nodes.new("ShaderNodeBsdfTransparent")
+    lw = nt.nodes.new("ShaderNodeLayerWeight")
+    lw.inputs["Blend"].default_value = 0.35
+    ramp = nt.nodes.new("ShaderNodeMapRange")
+    ramp.inputs["From Min"].default_value = 0.0
+    ramp.inputs["From Max"].default_value = 0.6
+    ramp.inputs["To Min"].default_value = 0.03
+    ramp.inputs["To Max"].default_value = 0.8
+    mix = nt.nodes.new("ShaderNodeMixShader")
+    nt.links.new(lw.outputs["Facing"], ramp.inputs["Value"])
+    nt.links.new(ramp.outputs["Result"], mix.inputs["Fac"])
+    nt.links.new(tr.outputs["BSDF"], mix.inputs[1])
+    nt.links.new(b.outputs["BSDF"], mix.inputs[2])
+    nt.links.new(mix.outputs["Shader"], outn.inputs["Surface"])
+    return m
+
+
+def icon_hourglass():
+    """Přesýpací hodiny: dřevěný rám (dvě desky, tři sloupky), skleněné baňky, písek dole
+    v kopečku, nahoře ubývá a tenký proud mezi nimi – čas, který zbývá."""
+    H, NECK = 0.62, 0.045
+
+    def bulb_r(t):
+        # t = 0 u hrdla, 1 u desky: úzké hrdlo, baňka se rozšíří a k desce se zase zúží
+        return NECK + 0.34 * math.sin(math.pi * 0.88 * t) ** 0.7
+
+    steps = 24
+    glass = bmesh.new()
+    lower = [(-H + H * k / steps, bulb_r(1 - k / steps)) for k in range(steps + 1)]
+    upper = [(H * k / steps, bulb_r(k / steps)) for k in range(1, steps + 1)]
+    revolve(glass, lower + upper, seg=48)
+    sand = bmesh.new()
+    # dole kopeček písku: od dna po hladinu ve třetině baňky, nahoře špička
+    base_z, top_z = -H + 0.02, -H + 0.34
+    pile = []
+    for k in range(13):
+        z = base_z + (top_z - base_z) * k / 12
+        t = 1 - (z + H) / H
+        r = bulb_r(t) * 0.93
+        if k == 12:
+            r = 0.0
+        else:
+            r *= (1 - (k / 12) ** 2.2) ** 0.35
+        pile.append((z, max(r, 0.0)))
+    revolve(sand, pile, seg=40, cap_bottom=True)
+    # nahoře zbytek písku: od hrdla po hladinu s mělkým důlkem
+    upper_sand = []
+    for k in range(10):
+        z = 0.02 + 0.2 * k / 9
+        upper_sand.append((z, bulb_r(z / H) * 0.9))
+    revolve(sand, upper_sand + [(0.2, 0.06)], seg=40, cap_bottom=True, cap_top=True)
+    cyl(sand, (0, 0, 0.03), (0, 0, top_z - 0.02), 0.011, 0.011, 8)
+    frame = bmesh.new()
+    cyl(frame, (0, 0, H), (0, 0, H + 0.11), 0.56, 0.56, 48)
+    cyl(frame, (0, 0, -H - 0.11), (0, 0, -H), 0.56, 0.56, 48)
+    for k in range(3):
+        a = 2 * math.pi * k / 3 + 0.5
+        p = (math.cos(a) * 0.46, math.sin(a) * 0.46)
+        cyl(frame, (p[0], p[1], -H), (p[0], p[1], H), 0.045, 0.045, 12)
+    objs = [
+        to_obj(frame, "frame", mat("frame", (0.42, 0.25, 0.12), 0.55, noise=16, bump=0.12)),
+        to_obj(sand, "sand", mat("sand", (0.88, 0.56, 0.22), 0.9, noise=60)),
+        to_obj(glass, "glass", glass_mat("glass")),
+    ]
+    sun(az=-40, el=35, strength=4.5)
+    camera(world_points(objs), az=20, el=14, margin=1.04)
+    return True
+
+
 def icon_animal(name, folder=FAUNA, tint=None, turn=-115):
     """Zvíře stáda (model z `models/fauna/`, vůl ze spřežení `models/plough/`) z boku ve 3/4:
     morph targety pózy (krok, pastva) vypnuté – stojí; pomocná koule v GLB vola pryč."""
@@ -1484,6 +1655,10 @@ BUILD = {
     "sous": icon_sous,
     "haj": icon_haj,
     "ohrada": icon_ohrada,
+    "cesta": lambda: icon_road("cesta"),
+    "cesta-upravena": lambda: icon_road("cesta-upravena"),
+    "hat": lambda: icon_road("hat"),
+    "jablone": icon_jablone,
 }
 RESOURCES = {
     "food": icon_food,
@@ -1498,6 +1673,7 @@ RESOURCES = {
     "cheese": icon_cheese,
     "eggs": icon_eggs,
     "legumes": icon_legumes,
+    "hourglass": icon_hourglass,
     "sheep": lambda: icon_animal("sheep"),
     "goat": lambda: icon_animal("goat"),
     "pig": lambda: icon_animal("pig"),

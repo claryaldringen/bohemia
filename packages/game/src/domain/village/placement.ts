@@ -15,6 +15,7 @@ import { fieldSquareSurface, fieldsTouching, partFoundingCost } from './fields';
 import { TAKEN_LAND_EPSILON_M2, landLeftM2, type TakenLand } from './land-taken';
 import { LIVESTOCK, withLivestock } from './livestock';
 import { orchardPlantingCost } from './orchard';
+import { roadWalk, walkGroundOf, type Walk, type WalkRoad } from './paths/walking';
 import {
   cellObstacles,
   dwellingClearing,
@@ -152,6 +153,11 @@ export interface PlacementVillage {
    * produktivity. Bez údaje 0 (ves bez kováře).
    */
   readonly toolCoverage?: number;
+  /**
+   * Pevné cesty pro chůzi ke stromům ke kácení (roads.md – osa, stupeň, mokřina a brody) – cena
+   * kácení u kurzoru jako na serveru (`placementWalk`). Bez údaje žádné.
+   */
+  readonly walkRoads?: readonly WalkRoad[];
 }
 
 /** Kontrola umístění obydlí s cenou překážek na vyklízené ploše. */
@@ -1130,7 +1136,16 @@ export function placementVillageOf(state: VillageState, day: number): PlacementV
     reservedTrees: [...reservedTrees(state)],
     sacredBuildings: sacredBuildingPlots(state),
     toolCoverage: craftCoverage(state, day).tools,
+    walkRoads: state.roads?.roads ?? [],
   };
+}
+
+/**
+ * Chůze ke stromům ke kácení po pevných cestách vsi s půdou krajiny (roads.md) – stejná na
+ * serveru (`villageRoadWalk`) i u kurzoru v prohlížeči.
+ */
+export function placementWalk(landscape: Landscape, village: PlacementVillage | null): Walk {
+  return roadWalk(village?.walkRoads ?? [], walkGroundOf(landscape));
 }
 
 /** Polohy obydlí vsi včetně rozestavěných – od nich se měří vzdálenost dílů pole. */

@@ -25,11 +25,13 @@ import {
   OAK_MODEL_HEIGHT_M,
   SACRED_BUILDINGS,
 } from './rules';
+import type { Walk } from './paths/walking';
 import { sacredSitesOf } from './sacred';
 import { isWoodTreeId } from './woods';
 import type {
   Construction,
   ConstructionWood,
+  Dwelling,
   DwellingType,
   SacredBuildingKind,
   VillageState,
@@ -342,6 +344,11 @@ export interface WoodPlanOptions {
   clearedIds?: readonly number[];
   /** Kolik dřeva (stromů) stavba chce – řemeslná dílna víc (crafts.md); bez údaje podle obydlí. */
   trees?: number;
+  /**
+   * Chůze ke stromům po pevných cestách s půdou (roads.md – kácení chůzí, `roadWalk`): cena
+   * kácení podle ní místo vzdušné vzdálenosti. Bez ní (kalibrace, testy) vzdušná vzdálenost.
+   */
+  walk?: Walk;
 }
 
 /**
@@ -422,11 +429,7 @@ export function planWoodFrom(
   const exclude = source.claimed();
   for (const id of options.clearedIds ?? []) exclude.add(id);
   const trees = nearestMatureTrees(options.obstacles, source.changes(), position, toFell, exclude);
-  const fell = trees.map((t) => ({
-    id: t.id,
-    distanceM: t.distanceM,
-    cost: fellingCost(t.distanceM),
-  }));
+  const fell = fellingsOf(trees, position, options.walk);
   return { clearedTrees, fromPile, fell, missing: toFell - fell.length };
 }
 
@@ -454,7 +457,7 @@ export function planSacredWood(
   kind: SacredBuildingKind,
   position: { x: number; z: number },
   source: Pick<WoodSource, 'changes' | 'claimed'>,
-  options: { obstacles?: ObstacleLayer | null; clearedIds?: readonly number[] } = {},
+  options: { obstacles?: ObstacleLayer | null; clearedIds?: readonly number[]; walk?: Walk } = {},
 ): WoodPlan {
   const need = SACRED_BUILDINGS[kind].oaks;
   if (!options.obstacles) {
@@ -475,12 +478,24 @@ export function planSacredWood(
     exclude,
     isOak,
   );
-  const fell = oaks.map((t) => ({
-    id: t.id,
-    distanceM: t.distanceM,
-    cost: fellingCost(t.distanceM),
-  }));
+  const fell = fellingsOf(oaks, position, options.walk);
   return { clearedTrees: 0, fromPile: 0, fell, missing: need - fell.length };
+}
+
+/**
+ * Stromy ke kácení s cenou: vzdálenost chůze ke stromu (`walk` – po pevných cestách s půdou,
+ * roads.md), bez ní vzdušná vzdálenost.
+ */
+function fellingsOf(
+  trees: readonly TreeAtDistance[],
+  position: { x: number; z: number },
+  walk: Walk | undefined,
+): PlannedFelling[] {
+  const walks = walk && trees.length > 0 ? walk(position, trees) : null;
+  return trees.map((t, k) => {
+    const distanceM = walks ? walks[k]! : t.distanceM;
+    return { id: t.id, distanceM, cost: fellingCost(distanceM) };
+  });
 }
 
 /** Stojí strom v den `day` – není odstraněný ani pokácený (nebo už dorostl)? */
@@ -514,6 +529,16 @@ export function fellAsWorked(state: VillageState, c: Construction, day: number):
 }
 
 /**
+ * Vzdálenost obydlí k okraji lesa pro palivo (m): chůze (`forestWalkM` – po pěšinách a pevných
+ * cestách, roads.md), bez ní (kalibrace, starší obydlí) vzdušná vzdálenost z krajiny.
+ */
+export function dwellingForestDistance(
+  d: Pick<Dwelling, 'forestDistanceM' | 'forestWalkM'>,
+): number | undefined {
+  return d.forestWalkM ?? d.forestDistanceM;
+}
+
+/**
  * Práce navíc na palivu za den (forest.md – Palivo): palivová část domácí výroby domácnosti je
  * o 1 % dražší za každých 10 m nad 100 m od jejího obydlí k nejbližšímu okraji lesa.
  * Zakladatelé, kteří bydlí na staveništi první zemnice, se počítají od staveniště. `include`
@@ -527,7 +552,7 @@ export function fuelExtraPerDay(
   // běžný případ (les blízko všech obydlí) bez počítání domácností – volá se každý den
   const far = (distance: number | undefined): boolean => distanceFactor(distance ?? 0) > 1;
   if (
-    !state.dwellings.some((d) => far(d.forestDistanceM)) &&
+    !state.dwellings.some((d) => far(dwellingForestDistance(d))) &&
     !state.constructions.some((c) => far(c.forestDistanceM))
   ) {
     return 0;
@@ -537,8 +562,9 @@ export function fuelExtraPerDay(
   let extra = 0;
   for (const [householdId, count] of members) {
     if (!include(householdId)) continue;
+    const dwelling = state.dwellings.find((d) => d.id === householdId);
     const distance =
-      state.dwellings.find((d) => d.id === householdId)?.forestDistanceM ??
+      (dwelling ? dwellingForestDistance(dwelling) : undefined) ??
       state.constructions.find((c) => c.kind === 'dwelling' && c.dwellingId === householdId)
         ?.forestDistanceM ??
       0;

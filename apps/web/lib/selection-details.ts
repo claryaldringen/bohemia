@@ -6,11 +6,13 @@ import {
   type FieldSurface,
   type HerdSpecies,
   type PartStage,
+  type RoadGrade,
+  type RoadUpgradeOption,
   type SacredBuildingKind,
   type WorkshopActivity,
 } from '@bohemia/game';
 import type { VillageTarget } from './scene/village-picking';
-import { CRAFT_LOOKS, type SceneVillage, type VillageView } from './village-view';
+import { CRAFT_LOOKS, type SceneVillage, type VillageRoad, type VillageView } from './village-view';
 
 // Co ukáže panel výběru (dole uprostřed, jako v 0 A.D.) o vybraném obydlí (i řemeslné dílně –
 // crafts.md), poli, hřbitovu, sadu, posvátném místě (posvátný dub, dubový háj, modla, svatyně –
@@ -176,6 +178,24 @@ export type SelectionDetails =
       hayKg: number;
       /** Proč teď nejde začít výcvik (česky), nebo null. */
       trainBlocked: string | null;
+    }
+  | {
+      kind: 'road';
+      id: number;
+      grade: RoadGrade;
+      lengthM: number;
+      ageYears: number;
+      /** Stojící stromy u úseku. */
+      trees: number;
+      /** Mokřina na ose (m) a brody – kde se hodí hať a lávka. */
+      wetM: number;
+      fords: number;
+      /** Rozestavěné vylepšení (stupeň, průběh 0–1, stromy ke skácení); jinak null. */
+      building: { grade: RoadGrade; progress: number; treesToFell: number } | null;
+      /** Vylepšení, která úsek nabízí – cena a proč teď nejde. */
+      upgrades: RoadUpgradeOption[];
+      /** Jabloně podél úseku a „Vysadit jabloně“ (roads.md – Vysazení jabloní). */
+      apples: VillageRoad['apples'];
     };
 
 /** Pořadí stád v panelu ohrady (diet.md – Dobytek). */
@@ -321,6 +341,10 @@ export function selectionDetails(
   }
   if (target.kind === 'sacred') return sacredDetails(view, scene, target.id);
   if (target.kind === 'pen') return penDetails(view, target.id);
+  if (target.kind === 'road') {
+    const road = view?.roads.find((r) => r.id === target.id);
+    return road ? { kind: 'road', ...road } : null;
+  }
   if (target.kind === 'orchard') {
     const orchard = view?.orchards.find((o) => o.id === target.id);
     if (!orchard) return null;

@@ -42,6 +42,7 @@ const view = (overrides: Partial<VillageView> = {}): VillageView => ({
     milkLPerYear: 0,
   },
   pens: [],
+  roads: [],
   woodLogs: 0,
   crafts: {
     present: false,

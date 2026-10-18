@@ -9,7 +9,11 @@ import {
   type ObstacleLayer,
 } from '../landscape';
 import { pointInPolygon, type Point } from './polygon';
-import { roadTreeObstacleKind, type RoadTreeObstacleKind } from './road-trees';
+import {
+  roadAppleObstacleKind,
+  roadTreeObstacleKind,
+  type RoadTreeObstacleKind,
+} from './road-trees';
 import { villageWoods, woodMatureTrees, woodTreeSpots } from './woods';
 import {
   DWELLING_CLEARING_M,
@@ -96,6 +100,12 @@ export function obstacleChangesAt(state: ChangeLists, day: number): ObstacleChan
     if (removed.has(tree.id)) continue;
     const kind = roadTreeObstacleKind(tree, day);
     if (kind !== null) added.push({ id: tree.id, x: tree.x, z: tree.z, kind });
+  }
+  // jabloně u cest (roads.md – Vysazení jabloní) – jako stromy u cest
+  for (const apple of state.roads?.apples ?? []) {
+    if (removed.has(apple.id)) continue;
+    const kind = roadAppleObstacleKind(apple, day);
+    if (kind !== null) added.push({ id: apple.id, x: apple.x, z: apple.z, kind });
   }
   for (const wood of villageWoods(state)) {
     const mature = woodMatureTrees(wood, day);

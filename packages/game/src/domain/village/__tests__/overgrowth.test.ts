@@ -7,6 +7,8 @@ import { pastureHa, pigForestHa } from '../livestock';
 import { obstacleChangesAt } from '../obstacles';
 import { fallowGrazing, grazedPartIds, overgrowthDay } from '../overgrowth';
 import { isHayMeadow, mownPartIds } from '../hay';
+import { plantingBlocker } from '../paths/roads';
+import { pathTerrainOf, pathWindowFor, withObstacles } from '../paths/terrain';
 import { pastureGrazedParts, pathVillageOf, walkLayoutKey } from '../paths/village';
 import { isPloughable } from '../plough';
 import {
@@ -377,6 +379,24 @@ describe('les vsi – stromy', () => {
     expect(done.woods).toBeUndefined();
     expect((done.woodLogs ?? 0) - logsBefore).toBeGreaterThan(4);
     expect(done.parts.find((p) => p.cell?.x === 9 && p.cell.y === 9)?.surface).toBe('forest');
+  });
+
+  it('les vsi a cesty se nebijí: strom u cesty ani jabloň do lesa vsi, pěšina obchází jeho stromy', () => {
+    const landscape = makeLandscape();
+    const s = village(at(660, 11, 1));
+    s.parts = [];
+    s.fields = [];
+    s.woods = [{ ...wood, cell: { x: 2, y: 2 }, x: -82.5, z: -82.5 }];
+    const blocked = plantingBlocker(s, landscape);
+    expect(blocked(-82.5, -82.5)).toBe(true);
+    expect(blocked(-82.5 + 45, -82.5)).toBe(false);
+    const window = pathWindowFor(landscape, { minX: -105, minZ: -105, maxX: -60, maxZ: -60 });
+    const base = pathTerrainOf(landscape, window);
+    const layer = packObstacles([], 16, 15);
+    const without = withObstacles(base, layer, { removed: [], stumps: [], saplings: [] });
+    const withWood = withObstacles(base, layer, obstacleChangesAt(s, s.lastDay));
+    const sum = (t: typeof base): number => t.cost.reduce((a, c) => a + c, 0);
+    expect(sum(withWood)).toBeGreaterThan(sum(without));
   });
 
   it('clearWoodAt odebere les i záznamy o jeho stromech', () => {

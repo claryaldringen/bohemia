@@ -65,7 +65,13 @@ import {
 } from './dev-holdings';
 import { demoLabor } from './dev-labor';
 import { demoOvergrowth, type OvergrowthDemo } from './dev-overgrowth';
-import { demoRoad } from './dev-road';
+import {
+  DEMO_APPLE_STAGES,
+  DEMO_ROAD_STAGES,
+  demoApplesStage,
+  demoRoad,
+  demoRoadStage,
+} from './dev-road';
 import {
   placementVillageFromScene,
   scenePlot,
@@ -159,7 +165,12 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   const [pathAge, setPathAge] = useState<number | null>(null);
   const [pathInfo, setPathInfo] = useState('');
   // ukázka pevné cesty se stromy v různém stáří (roads.md, dev-road.ts)
-  const [road, setRoad] = useState<Pick<SceneVillage, 'roads' | 'roadTrees'> | null>(null);
+  const [road, setRoad] = useState<Pick<SceneVillage, 'roads' | 'roadTrees' | 'roadApples'> | null>(
+    null,
+  );
+  // stupeň vylepšení ukázkových cest (dev-road.ts – DEMO_ROAD_STAGES) a stadium jabloní u cesty
+  const [roadStage, setRoadStage] = useState(0);
+  const [appleStage, setAppleStage] = useState(0);
   // ukázka zarůstání přílohu a lesa vsi (fields.md – Zarůstání, dev-overgrowth.ts)
   const [overgrowth, setOvergrowth] = useState<OvergrowthDemo | null>(null);
   // hospodaření podle polohy domů (fields.md): obrysy úseků a vzorec polí ze simulace jádra
@@ -193,7 +204,13 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
           }
         : obstacles,
       ...(overgrowth && overgrowth.woods.length > 0 ? { woods: overgrowth.woods } : {}),
-      ...(road ?? {}),
+      ...(road
+        ? {
+            roads: demoRoadStage(road.roads ?? [], roadStage),
+            roadTrees: road.roadTrees ?? [],
+            roadApples: demoApplesStage(road.roadApples ?? [], appleStage),
+          }
+        : {}),
       ...(sacredOaks.length > 0 || groves.length > 0 || sacredBuildings.length > 0
         ? { sacred: { oaks: sacredOaks, groves, buildings: sacredBuildings } }
         : {}),
@@ -236,6 +253,8 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     sacredBuildings,
     pathAge,
     road,
+    roadStage,
+    appleStage,
     simulated,
     overgrowth,
   ]);
@@ -1019,7 +1038,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
       return;
     }
     const sample = demoRoad(decoded);
-    setRoad({ roads: sample.roads, roadTrees: sample.trees });
+    setRoad({ roads: sample.roads, roadTrees: sample.trees, roadApples: sample.apples });
     const points = sample.roads[0]!.points;
     const middle = points[Math.floor(points.length / 2)]!;
     scene?.moveCameraTo(middle.x, middle.z);
@@ -1194,6 +1213,26 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         >
           {road ? 'Cesta ✓' : 'Cesta'}
         </button>
+        {road && (
+          <button
+            className={buttonClass}
+            onClick={() => setRoadStage((s) => (s + 1) % DEMO_ROAD_STAGES.length)}
+            title="Stupeň vylepšení ukázkových cest (s rozestavěnými fázemi)"
+            data-testid="dev-road-stage"
+          >
+            Cesta: {DEMO_ROAD_STAGES[roadStage]!.label}
+          </button>
+        )}
+        {road && (
+          <button
+            className={buttonClass}
+            onClick={() => setAppleStage((s) => (s + 1) % DEMO_APPLE_STAGES.length)}
+            title="Jabloně podél ukázkové cesty (vytyčení, mladé u kůlu, s jablky, souše)"
+            data-testid="dev-road-apples"
+          >
+            Jabloně: {DEMO_APPLE_STAGES[appleStage]!.label}
+          </button>
+        )}
         <button
           className={buttonClass}
           disabled={!scene}

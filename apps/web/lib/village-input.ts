@@ -132,6 +132,24 @@ export function parseTrainTeamInput(value: unknown): { penId: number } | null {
   return Number.isInteger(penId) && (penId as number) > 0 ? { penId: penId as number } : null;
 }
 
+/** Vstup vylepšení pevné cesty `{ roadId, upgrade }` (roads.md), jinak null. */
+export function parseUpgradeRoadInput(
+  value: unknown,
+): { roadId: number; upgrade: 'improved' | 'causeway' } | null {
+  if (!isRecord(value)) return null;
+  const { roadId, upgrade } = value;
+  if (!Number.isInteger(roadId) || (roadId as number) <= 0) return null;
+  if (upgrade !== 'improved' && upgrade !== 'causeway') return null;
+  return { roadId: roadId as number, upgrade };
+}
+
+/** Vstup výsadby jabloní podél pevné cesty `{ roadId }` (roads.md), jinak null. */
+export function parsePlantRoadApplesInput(value: unknown): { roadId: number } | null {
+  if (!isRecord(value)) return null;
+  const { roadId } = value;
+  return Number.isInteger(roadId) && (roadId as number) > 0 ? { roadId: roadId as number } : null;
+}
+
 /** Vstup stavby modly nebo svatyně `{ kind, position }`, jinak null. */
 export function parsePlaceSacredInput(
   value: unknown,

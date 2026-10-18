@@ -18,7 +18,7 @@ import { PLOUGH_HA_PER_DAY, isPloughable, ploughWorkPerHa } from '../plough';
 import { NO_CRAFTS } from '../productivity';
 import { cloneState } from '../clone';
 import { advanceVillage } from '../simulate';
-import type { FieldPart, VillageState } from '../types';
+import type { ChronicleEvent, FieldPart, VillageState } from '../types';
 import { createCropWork, partWork, tilledShare } from '../year-plan';
 import { withBuiltFirstDwelling } from './village-fixtures';
 
@@ -137,6 +137,49 @@ describe('ohrada', () => {
     expect(events).toEqual([{ day: old.lastDay + 1, kind: 'team-retired', penId: 900 }]);
     expect(old.meatKg).toBeCloseTo(meat + 2 * LIVESTOCK.oxMeatKg, 9);
     expect(ableTeams(old)).toBe(0);
+  });
+});
+
+describe('náhrada spřežení (Martin 18. 10. 2026)', () => {
+  const YEAR = 365.25;
+
+  it('výcvik nového páru jde jen v posledních 2 letech služby – jinak důvod se zbývajícími roky', () => {
+    const day = at(600, 5, 1);
+    const s = withTeam(day);
+    s.livestock!.herds.cow = 4;
+    const pen = s.pens![0]!;
+    pen.team = { readyDay: day - Math.ceil(YEAR) };
+    expect(trainingBlock(s, 900, day, null)).toBe('Spřežení slouží ještě 9 let.');
+    pen.team = { readyDay: day - Math.floor(6.5 * YEAR) };
+    expect(trainingBlock(s, 900, day, null)).toBe('Spřežení slouží ještě 4 roky.');
+    pen.team = { readyDay: day - Math.ceil(7.9 * YEAR) };
+    expect(trainingBlock(s, 900, day, null)).toBe('Spřežení slouží ještě 3 roky.');
+    pen.team = { readyDay: day - Math.ceil((OXEN.serviceYears - OXEN.trainingYears) * YEAR) };
+    expect(trainingBlock(s, 900, day, null)).toBeNull();
+    // ohrada bez spřežení cvičí kdykoli
+    pen.team = null;
+    expect(trainingBlock(s, 900, day, null)).toBeNull();
+  });
+
+  it('náhrada naváže bez překryvu – starý pár doslouží celých 10 let a nový orá týž den', () => {
+    const day = at(600, 5, 1);
+    const s = withTeam(day);
+    s.livestock!.herds.cow = 4;
+    s.hay = { kg: 30_000, mowing: null };
+    const readyDay = day - Math.ceil((OXEN.serviceYears - OXEN.trainingYears) * YEAR);
+    s.pens![0]!.team = { readyDay };
+    const training = trainTeam(s, day, 900, null);
+    const after = advanceVillage(training, day + Math.ceil(OXEN.trainingYears * YEAR) + 30, null);
+    const teamEvents = after.chronicle.filter(
+      (e) => (e.kind === 'team-retired' || e.kind === 'team-ready') && e.day > day,
+    );
+    expect(teamEvents.map((e) => e.kind)).toEqual(['team-retired', 'team-ready']);
+    const [retired, ready] = teamEvents as [ChronicleEvent, ChronicleEvent];
+    expect(retired.day).toBe(ready.day);
+    // starý pár sloužil celou dobu, nový je vycvičený
+    expect(retired.day - readyDay).toBeGreaterThanOrEqual(OXEN.serviceYears * YEAR);
+    expect(after.pens![0]!.team).toEqual({ readyDay: ready.day });
+    expect(after.pens![0]!.training).toBeNull();
   });
 });
 

@@ -336,44 +336,61 @@ export class OrchardRenderer {
 
   /** Kůl: tenký hranol, pata v počátku. */
   private createStakeMesh(): Mesh {
-    const h = STAKE_SIZE_M / 2;
-    const top = STAKE_LENGTH_M;
-    const corners: [number, number][] = [
-      [-h, -h],
-      [h, -h],
-      [h, h],
-      [-h, h],
-    ];
-    const positions: number[] = [];
-    const indices: number[] = [];
-    for (let k = 0; k < 4; k++) {
-      const [ax, az] = corners[k]!;
-      const [bx, bz] = corners[(k + 1) % 4]!;
-      const i = positions.length / 3;
-      positions.push(ax, 0, az, bx, 0, bz, bx * 0.8, top, bz * 0.8, ax * 0.8, top, az * 0.8);
-      indices.push(i, i + 2, i + 1, i, i + 3, i + 2);
-    }
-    const normals = new Float32Array(positions.length);
-    VertexData.ComputeNormals(positions, indices, normals);
-    const data = new VertexData();
-    data.positions = positions;
-    data.normals = normals;
-    data.indices = indices;
-    const mesh = new Mesh('orchard-stakes', this.scene);
-    data.applyToMesh(mesh);
-    const material = new StandardMaterial('village-orchard-stake', this.scene);
-    material.diffuseColor = new Color3(0.62, 0.52, 0.38);
-    material.ambientColor = STAKE_AMBIENT;
-    material.specularColor = Color3.Black();
-    material.backFaceCulling = false;
-    material.twoSidedLighting = true;
-    mesh.material = material;
-    mesh.isPickable = false;
-    mesh.receiveShadows = true;
-    this.context.addShadowCaster(mesh);
-    return mesh;
+    return createTreeStakeMesh(this.scene, 'orchard-stakes', (mesh) =>
+      this.context.addShadowCaster(mesh),
+    );
   }
 }
+
+/**
+ * Kůl u mladého stromku (sad, jabloně u cest): tenký hranol, pata v počátku – mesh pro instance
+ * (`setInstances`), vrhá stín.
+ */
+export function createTreeStakeMesh(
+  scene: Scene,
+  name: string,
+  addShadowCaster: (mesh: Mesh) => void,
+): Mesh {
+  const h = STAKE_SIZE_M / 2;
+  const top = STAKE_LENGTH_M;
+  const corners: [number, number][] = [
+    [-h, -h],
+    [h, -h],
+    [h, h],
+    [-h, h],
+  ];
+  const positions: number[] = [];
+  const indices: number[] = [];
+  for (let k = 0; k < 4; k++) {
+    const [ax, az] = corners[k]!;
+    const [bx, bz] = corners[(k + 1) % 4]!;
+    const i = positions.length / 3;
+    positions.push(ax, 0, az, bx, 0, bz, bx * 0.8, top, bz * 0.8, ax * 0.8, top, az * 0.8);
+    indices.push(i, i + 2, i + 1, i, i + 3, i + 2);
+  }
+  const normals = new Float32Array(positions.length);
+  VertexData.ComputeNormals(positions, indices, normals);
+  const data = new VertexData();
+  data.positions = positions;
+  data.normals = normals;
+  data.indices = indices;
+  const mesh = new Mesh(name, scene);
+  data.applyToMesh(mesh);
+  const material = new StandardMaterial(`${name}-material`, scene);
+  material.diffuseColor = new Color3(0.62, 0.52, 0.38);
+  material.ambientColor = STAKE_AMBIENT;
+  material.specularColor = Color3.Black();
+  material.backFaceCulling = false;
+  material.twoSidedLighting = true;
+  mesh.material = material;
+  mesh.isPickable = false;
+  mesh.receiveShadows = true;
+  addShadowCaster(mesh);
+  return mesh;
+}
+
+/** Kůl stojí kousek od kmene (podél řady, −x) a je kus zatlučený (m). */
+export const TREE_STAKE = { offsetM: STAKE_OFFSET_M, sinkM: STAKE_SINK_M };
 
 /** Co z sadů rozhoduje o vzhledu – čtverce, výsadba (i obnova), velikost stromů a jablka. */
 function orchardsKey(orchards: readonly SceneOrchard[]): string {
@@ -393,7 +410,7 @@ function orchardsKey(orchards: readonly SceneOrchard[]): string {
 }
 
 /** Nastaví instance meshe; bez instancí ho vypne (jinak by se vykreslil samotný v počátku). */
-function setInstances(mesh: Mesh, instances: readonly ModelInstance[]): void {
+export function setInstances(mesh: Mesh, instances: readonly ModelInstance[]): void {
   if (instances.length === 0) {
     mesh.setEnabled(false);
     return;
@@ -406,7 +423,7 @@ function setInstances(mesh: Mesh, instances: readonly ModelInstance[]): void {
  * Materiál jabloně – jako 3D stromy krajiny: tlumené světlo, bez odlesku, opar v gama prostoru
  * a roční období podle jména modelu (`apple*` – jarní květ, podzimní listí, v zimě holé).
  */
-function prepareAppleMaterial(material: Material, model: string): void {
+export function prepareAppleMaterial(material: Material, model: string): void {
   if (!(material instanceof PBRMaterial)) return;
   material.albedoColor = FOLIAGE_TINT;
   material.roughness = 1;

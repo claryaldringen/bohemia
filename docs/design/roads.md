@@ -1,8 +1,9 @@
 # Pevné cesty – stromy podél nich a vylepšení
 
 Stav: schváleno 18. 10. 2026 (Martin: „Ano, spusť to takhle“). **Fáze 1 hotová** (18. 10. 2026 –
-pevné cesty a stromy u nich, viz [Fáze 1 – jak je postavená](#fáze-1--jak-je-postavená)); výběr,
-vylepšení a rychlejší chůze (fáze 2) a jabloně (fáze 3) zatím ne. Navazuje na
+pevné cesty a stromy u nich, viz [Fáze 1 – jak je postavená](#fáze-1--jak-je-postavená)),
+**fáze 2 hotová** (výběr, vylepšení a rychlejší chůze – [Fáze 2](#fáze-2--jak-je-postavená)),
+**fáze 3 hotová** (jabloně podél cesty – [Fáze 3](#fáze-3--jak-je-postavená)). Navazuje na
 [vyšlapané pěšiny](paths.md) (jen vzhled) a nahrazuje v nich stromy podél pěšin.
 
 ## Proč
@@ -119,6 +120,8 @@ společné práce vsi; stromy bere jako obydlí (klády z hromady, pak nejbliž�
 | Vzdálenost práce chůzí místo vzdušnou čarou, mokřina ×2, brod +30 m                      | návrh Clauda |
 | Fáze 1 – rok cest, porovnání s loňskem, připojení a dělení úseků, provoz cesty (níž)     | návrh Clauda |
 | Fáze 1 – místa na stromy, strom jako překážka (kláda od 20 let), cesta přes pole zůstává | návrh Clauda |
+| Fáze 2 – mokřina, výběr, ceny bez přirážky, okno chůze, kácení chůzí po pevných cestách  | návrh Clauda |
+| Fáze 3 – místa jabloní, výsadba jako stavba, souš 10 let, jabloně zůstanou i bez cesty   | návrh Clauda |
 
 ## Fáze 1 – jak je postavená
 
@@ -166,11 +169,88 @@ Návrh Clauda (detaily, které návrh výš nechal otevřené – 18. 10. 2026):
   s krajinou ≈ 0,55 s (bez krajiny 0,15 s – rozdíl jsou pěšiny dne i pevné cesty). Stav pevných
   cest ≈ 3 kB.
 
+## Fáze 2 – jak je postavená
+
+Návrh Clauda (18. 10. 2026):
+
+- **Mokřina** = suchá rovina (sklon nejvýš 0,04) do 3 buněk terénu pěšin (≈ 11 m) od vody –
+  podmáčený břeh a niva potoka. **Brod** = mělký úzký úsek potoka (průchozí voda – paths.md).
+  Kde úsek vede mokřinou a přes brody, se určí z krajiny při vzniku úseku (starší úseky si to
+  doplní při roční kontrole); rozdělení úseku rozdělí i mokřinu a brody.
+- **Výběr:** kliknutí do 2,5 m od osy vybere úsek (po obydlí, posvátných místech, pozemku
+  a ohradě, před polem); zvýrazní se čarami po obou stranách pásu. Panel: portrét stupně, délka,
+  stáří, stromy u úseku, mokřina a brody, průběh rozestavěného vylepšení a tlačítka vylepšení
+  (ikony, v popisku název, práce a dřevo; zašedlé s důvodem červeně – „Nejdřív je potřeba cestu
+  upravit.“, „Cesta se už vylepšuje.“, „Na hať a lávku chybí dřevo.“).
+- **Ceny** podle tabulky výš: upravená cesta 15 čd na 100 m délky úseku (bez přirážky za
+  vzdálenost – pracuje se na cestě), hať 1 strom a 2 čd na 2 m mokřiny (stromy nahoru na celé),
+  lávka 4 stromy a 15 čd na brod; dřevo jako obydlí – celé klády z hromady, zbytek nejbližší
+  dospělé stromy k polovině úseku (kácení v ceně). Hať a lávka se nabízí, jen když úsek vede
+  mokřinou nebo přes brod, a jde až po upravené cestě.
+- **Vylepšení je stavba** ze společné práce (lidé pracují podél úseku u čela práce); úsek během
+  stavby nezaroste; když se rozdělí, stavba platí pro oba kusy. Po dokončení dostane úsek nový
+  stupeň a kronika „Cesta je vylepšená – chodí se po ní rychleji.“
+- **Chůze** (walking.ts – jediné místo výpočtu): po pevné cestě podle stupně (vyšlapaná 1,2×,
+  upravená i hať a lávka 1,5×), mokřinou 0,5× (po hati 1,5×), brod + 30 m (po lávce nic);
+  mokřina a brod platí i pro chůzi rovně mimo cestu a po pěšinách dne. Okno terénu pro chůzi je
+  pevné – 1,4 × 1,4 km kolem místa vsi (stejné na serveru i v prohlížeči).
+- **Vzdálenost práce chůzí:** díly pole a čtverce sadu z nejbližšího obydlí po pěšinách
+  a pevných cestách, palivo z obydlí k nejbližšímu okraji lesa, kácení dřeva staveb od stavby ke
+  stromu po pevných cestách (bez pěšin dne – cena u kurzoru tak sedí se serverem). Přepočítá se
+  se změnou rozložení vsi – pevné cesty a jejich stupeň jsou v klíči, takže hned po vylepšení
+  a po roční kontrole. Bez krajiny (kalibrace) vzdušnou čarou jako dřív.
+- **Příklad:** pole 400 m od vsi, kam se jde 300 m po cestě přes 20 m mokřiny a brod a 100 m
+  rovně: bez cesty 450 m chůze (+35 % práce), vyšlapaná cesta ≈ 403 m (+30 %), upravená ≈ 357 m
+  (+26 %), s hatí a lávkou 300 m (+20 %).
+- **Scéna:** upravená cesta je pás 2,6 m s udusanou hlínou skoro po celé šířce, strouha 1,75 m
+  vlevo od osy (přes brod ne), kameny v mokřině a u brodu hustě, jinde řídce; hať jsou kmeny
+  napříč po 0,24 m, lávka 5,2 m ze tří kmenů na prazích a kůlech se zábradlím (modely
+  `tools/blender/roads.py`). Rozestavěné vylepšení: vytyčení kolíky a provázkem od zadání
+  (Martin), úprava roste od začátku úseku, kmeny hatě se kladou po mokřině podle průběhu, lávka
+  nejdřív kůly a prahy (od 25 %), celá od 90 %. Ikony `cesta`, `cesta-upravena`, `hat`.
+
+## Fáze 3 – jak je postavená
+
+Návrh Clauda (18. 10. 2026):
+
+- **Místa** (`roadAppleSpots`): po 10 m podél úseku střídavě po stranách, 2,6–3,4 m od osy (bez
+  6 m na koncích úseku). Jabloň nestojí v lese, ve vodě ani v brodu, na stavbě vsi (obydlí,
+  pole, sad, hřbitov, ohrada – jako stromy u cest), do 2,2 m od osy jiné pevné cesty, do 2,5 m od
+  překážky krajiny (kmen, keř, kámen), do 6 m od stromu u cesty a do 8 m od jiné jabloně – proto
+  „Vysadit jabloně“ po letech doplní jen mezery a nesází naproti stojící jabloni. Místa jsou
+  deterministická (seed vsi a úseku).
+- **Výsadba je stavba** `road-apples` ze společné práce: 0,44 čd na jabloň (80 čd/ha při
+  180 stromech/ha), bez přirážky za vzdálenost (jako výsadba sadu); pracuje se jen v oknech
+  výsadby (září–listopad, březen–duben), mimo ně stavba čeká (v panelu ikona „Sází se na jaře
+  a na podzim“). Jabloně se sázejí po řadě podél úseku – každá, na kterou práce došla, dostane den
+  výsadby. Úsek ve výsadbě nezaroste. Kronika „Jabloně podél cesty jsou vysazené.“
+- **Úroda a práce** jako sad na strom (1/180 ha): plody od 6. roku, plná úroda ≈ 16,7 kg od 25.
+  roku, péče v zimě a sklizeň v září–říjnu jdou se sady (`orchardWork`), jablka do zásoby ovoce
+  (`applesKg`). Přirážka za vzdálenost u péče a sklizně podle vzdušné vzdálenosti jabloně od
+  nejbližšího obydlí při výsadbě (jabloň stojí u cesty – chůze by se lišila málo).
+- **Život:** strom do 60 let, pak souš 10 let a místo je volné. Jako překážka je jabloň do 20 let
+  mladý strom (kácení bez klády), pak strom (kláda), souš jako souš; stavba přes jabloň ji
+  odstraní. U jabloně se strom u cesty neuchytí (do 6 m). Jabloně zůstanou, i když vyšlapaná cesta
+  zaroste (jako stromy u cest); při rozdělení úseku patří bližší části.
+- **Panel cesty:** počet jabloní (v závorce plodící, když nejsou všechny), průběh výsadby
+  a tlačítko „Vysadit jabloně“ (ikona `jablone`, v popisku práce a počet jabloní; zašedlé
+  s důvodem – „Jabloně se tu už sázejí.“, „Podél cesty není volné místo.“). Server výsadbu
+  ověří znovu (use-case `plantApplesAlongRoad`).
+- **Scéna:** jabloně ze sadu (`apple-1…4`, s jablky `apple-fruit-1…4`) s velikostí podle stáří
+  jako v sadu (sazenice 30 %, plná za 12 let, první 3 roky u kůlu), jablka od srpna do sklizně,
+  roční období jako sad (květ, podzimní listí, holé koruny – meshe `pathside-apple-*`); souš jako
+  u stromů u cest. Místa, která čekají na výsadbu, jsou od zadání vytyčená kolíkem a provázkem
+  po straně cesty (Martin – u všech staveb). Lidé česají a ošetřují jabloně úseku a sázejí u míst,
+  která čekají.
+- **Příklad:** úsek 200 m s volnými místy po celé délce dá ≈ 19 jabloní – výsadba ≈ 8,4 čd (na
+  jaře nebo na podzim), od 25. roku ≈ 317 kg jablek ročně (výživou ≈ 45 kg obilí), sklizeň
+  ≈ 0,8 čd a péče ≈ 1,1 čd za zimu (do 100 m od obydlí bez přirážky).
+
 ## Na stavitelích
 
 - Výpočet sítě je v herním jádru (`domain/village/paths/`), volá ho simulace (roční síť) i scéna
   (pěšiny dne) – herní logika jednou. Pevné cesty: `paths/roads.ts`, stromy `road-trees.ts`.
 - Stav vsi má pevné cesty, jejich stromy a roční součty práce po místech; staré vsi začnou bez
-  pevných cest (vzniknou do dvou let). Jabloně přibudou s fází 3.
-- Pořadí implementace: (1) pevné cesty a stromy – **hotovo**, (2) výběr, vylepšení a chůze,
-  (3) jabloně.
+  pevných cest (vzniknou do dvou let). Jabloně jsou v `VillageRoads.apples` (chybí = žádné).
+- Pořadí implementace: (1) pevné cesty a stromy – **hotovo**, (2) výběr, vylepšení a chůze –
+  **hotovo**, (3) jabloně – **hotovo**.
