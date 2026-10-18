@@ -1,3 +1,4 @@
+import { isVillageExtinct } from './extinction';
 import type { DayAllocation, LaborTaskName } from './labor';
 import { villageOrchards } from './orchard';
 import { HARVEST_WORK_PER_HA } from './rules';
@@ -8,6 +9,7 @@ import type {
   LaborShare,
   LaborTarget,
   VillageState,
+  YearPlan,
 } from './types';
 import { woodFellingCost } from './wood';
 
@@ -53,7 +55,8 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
   };
   const { allocation } = work;
 
-  const fields = planFieldAreas(state);
+  const fieldWork = FIELD_ACTIVITIES.some((task) => allocation.tasks[task] > 0);
+  const fields = fieldWork ? planFieldAreas(state) : [];
   for (const task of FIELD_ACTIVITIES) {
     const amount = allocation.tasks[task];
     if (amount <= 0) continue;
@@ -89,15 +92,30 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
   return { day, shares };
 }
 
-/** Rozdělení práce posledního odsimulovaného dne; ves uložená před jeho zavedením null. */
-export function laborReport(state: Pick<VillageState, 'labor'>): LaborDay | null {
+/**
+ * Rozdělení práce posledního odsimulovaného dne; ves uložená před jeho zavedením null. Vymřelá
+ * ves nepracuje – její poslední den (kdy ještě někdo pracoval) se už neukazuje.
+ */
+export function laborReport(state: Pick<VillageState, 'labor' | 'extinctDay'>): LaborDay | null {
+  if (isVillageExtinct(state)) return null;
   return state.labor ?? null;
 }
+
+/**
+ * Podíly polí na ploše plánu se počítají jednou na plán – díly plánu jen přibývají
+ * (`joinFinishedParts`) a plocha ani pole dílu se nemění; simulace se ptá každý den.
+ */
+const planAreas = new WeakMap<
+  YearPlan,
+  { parts: number; shares: { id: number; share: number }[] }
+>();
 
 /** Pole s díly v letošním plánu a jejich podíl na ploše plánu (podle id pole). */
 function planFieldAreas(state: VillageState): { id: number; share: number }[] {
   const plan = state.plan;
   if (plan === null) return [];
+  const cached = planAreas.get(plan);
+  if (cached && cached.parts === plan.partIds.length) return cached.shares;
   const inPlan = new Set(plan.partIds);
   const areas = new Map<number, number>();
   let total = 0;
@@ -106,8 +124,12 @@ function planFieldAreas(state: VillageState): { id: number; share: number }[] {
     areas.set(part.fieldId, (areas.get(part.fieldId) ?? 0) + part.areaM2);
     total += part.areaM2;
   }
-  if (total <= 0) return [];
-  return [...areas].sort(([a], [b]) => a - b).map(([id, area]) => ({ id, share: area / total }));
+  const shares =
+    total <= 0
+      ? []
+      : [...areas].sort(([a], [b]) => a - b).map(([id, area]) => ({ id, share: area / total }));
+  planAreas.set(plan, { parts: plan.partIds.length, shares });
+  return shares;
 }
 
 /** Sady s vysazenými čtverci a jejich podíl na vysazené ploše. */

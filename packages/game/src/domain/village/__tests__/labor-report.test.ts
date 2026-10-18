@@ -168,6 +168,13 @@ describe('laborReport – rozdělení práce dne', () => {
     expect(of(rebuild.shares, 'idle')).toEqual([]);
   });
 
+  it('vymřelá ves nepracuje – rozdělení posledního dne se neukazuje', () => {
+    const day = at(600, 10, 1);
+    const s = advanceVillage(found(day), day + 1, null);
+    expect(laborReport(s)).not.toBeNull();
+    expect(laborReport({ ...s, extinctDay: day + 1 })).toBeNull();
+  });
+
   it('po kouscích dá stejné rozdělení jako jedním voláním', () => {
     const start = found(at(600, 3, 15));
     const end = start.foundedDay + 150;

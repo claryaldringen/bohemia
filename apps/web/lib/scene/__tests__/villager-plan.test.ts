@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { LaborShare, SceneVillage } from '../../village-view';
+import { DWELLING_GARDEN_M } from '@bohemia/game';
 import { chickenBox } from '../livestock-placement';
 import { localToWorld } from '../village-layout';
 import { createVillagerPose, type HerdView, type VillagerPose } from '../villager-motion';
@@ -31,9 +32,16 @@ const square = (cx: number, cy: number, stage: 'sown' | 'founding' | 'ready' = '
   stage,
 });
 
-const house = (id: number, x: number, z: number, rotation = 0, built = true) => ({
+const house = (
+  id: number,
+  x: number,
+  z: number,
+  rotation = 0,
+  built = true,
+  type: 'zemnice' | 'polozemnice' = 'zemnice',
+) => ({
   id,
-  type: 'zemnice' as const,
+  type,
   position: { x, z, rotation },
   built,
   progress: built ? 1 : 0.6,
@@ -94,7 +102,14 @@ function inHouse(v: SceneVillage, x: number, z: number): boolean {
     const s = Math.sin(d.position.rotation);
     const lx = (x - d.position.x) * c - (z - d.position.z) * s;
     const lz = (x - d.position.x) * s + (z - d.position.z) * c;
-    return Math.abs(lx) < box.halfX && lz > box.minZ && lz < box.maxZ;
+    const garden = DWELLING_GARDEN_M[d.type];
+    const inGarden =
+      garden !== undefined &&
+      lx > garden.minX &&
+      lx < garden.maxX &&
+      lz > garden.minZ &&
+      lz < garden.maxZ;
+    return inGarden || (Math.abs(lx) < box.halfX && lz > box.minZ && lz < box.maxZ);
   });
 }
 
@@ -279,7 +294,12 @@ describe('walkRoute – trasa kolem domů', () => {
     built: d.built,
     progress: d.progress,
     inhabited: d.built,
-    box: chickenBox(d.type),
+    box: {
+      minX: -chickenBox(d.type).halfX,
+      maxX: chickenBox(d.type).halfX,
+      minZ: chickenBox(d.type).minZ,
+      maxZ: chickenBox(d.type).maxZ,
+    },
   }));
   const ctx = { houses, ground: GROUND, graves: [] };
 

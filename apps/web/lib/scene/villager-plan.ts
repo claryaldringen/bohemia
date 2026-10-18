@@ -1,4 +1,9 @@
-import { DWELLING_CLEARING_M, type DwellingType, type Position } from '@bohemia/game';
+import {
+  DWELLING_CLEARING_M,
+  DWELLING_GARDEN_M,
+  type DwellingType,
+  type Position,
+} from '@bohemia/game';
 import type { LaborActivity, LaborShare, LaborTarget, SceneVillage } from '../village-view';
 import { cellsBoundary, type CellSquare } from './field-cells';
 import { chickenBox } from './livestock-placement';
@@ -135,8 +140,10 @@ export interface VillagerPlanOptions {
   maxWorkers?: number;
 }
 
+/** Obdélník domu v jeho souřadnicích (x napříč, z k vchodu). */
 interface Box {
-  halfX: number;
+  minX: number;
+  maxX: number;
   minZ: number;
   maxZ: number;
 }
@@ -327,7 +334,7 @@ function context(
     built: d.built,
     progress: d.progress,
     inhabited: d.built && d.inhabited !== false,
-    box: d.built ? chickenBox(d.type) : siteBox(d.type),
+    box: d.built ? houseBox(d.type) : siteBox(d.type),
   }));
   const homes = houses.filter((h) => h.inhabited);
   const settled = homes.length > 0 ? homes : houses;
@@ -345,10 +352,27 @@ function context(
  */
 function siteBox(type: DwellingType): Box {
   const clearance = DWELLING_CLEARING_M[type];
+  // vyklízená plocha polozemnice sahá doleva i přes budoucí zahrádku – nářadí leží souměrně
   return {
-    halfX: Math.max(-clearance.minX, clearance.maxX),
+    minX: -clearance.maxX,
+    maxX: clearance.maxX,
     minZ: clearance.minZ,
     maxZ: Math.max(chickenBox(type).maxZ, SITE_FRONT_M),
+  };
+}
+
+/**
+ * Hotové obydlí: dům se střechou a šíjí (jako pro slepice – `chickenBox`) a u polozemnice
+ * i oplocená zahrádka vedle domu (`DWELLING_GARDEN_M`) – obdélník přes obojí.
+ */
+function houseBox(type: DwellingType): Box {
+  const house = chickenBox(type);
+  const garden = DWELLING_GARDEN_M[type];
+  return {
+    minX: Math.min(-house.halfX, garden?.minX ?? 0),
+    maxX: Math.max(house.halfX, garden?.maxX ?? 0),
+    minZ: Math.min(house.minZ, garden?.minZ ?? 0),
+    maxZ: Math.max(house.maxZ, garden?.maxZ ?? 0),
   };
 }
 
@@ -362,7 +386,10 @@ function inBox(h: House, x: number, z: number, margin: number): boolean {
   const lx = dx * c - dz * s;
   const lz = dx * s + dz * c;
   return (
-    Math.abs(lx) < h.box.halfX + margin && lz > h.box.minZ - margin && lz < h.box.maxZ + margin
+    lx > h.box.minX - margin &&
+    lx < h.box.maxX + margin &&
+    lz > h.box.minZ - margin &&
+    lz < h.box.maxZ + margin
   );
 }
 
@@ -755,18 +782,18 @@ function building(
   );
   if (!house) return none;
   const digging = !house.built && house.progress < 0.25;
-  const { halfX, minZ, maxZ } = house.box;
+  const { minX, maxX, minZ, maxZ } = house.box;
   // místa po obvodu (souřadnice domu) – ne před vchodem do šíje
   const slots: [number, number][] = [
-    [-halfX - 0.6, 0],
-    [halfX + 0.6, 0],
+    [minX - 0.6, 0],
+    [maxX + 0.6, 0],
     [0, minZ - 0.6],
-    [-halfX - 0.6, minZ + 0.8],
-    [halfX + 0.6, minZ + 0.8],
-    [-halfX - 0.6, maxZ - 1.2],
-    [halfX + 0.6, maxZ - 1.2],
-    [-halfX * 0.6, minZ - 0.6],
-    [halfX * 0.6, minZ - 0.6],
+    [minX - 0.6, minZ + 0.8],
+    [maxX + 0.6, minZ + 0.8],
+    [minX - 0.6, maxZ - 1.2],
+    [maxX + 0.6, maxZ - 1.2],
+    [minX * 0.6, minZ - 0.6],
+    [maxX * 0.6, minZ - 0.6],
   ];
   return (i) => {
     const ring = Math.floor(i / slots.length);
@@ -935,7 +962,8 @@ function idlers(ctx: Context): Placer {
     if (!home) return null;
     const pair = Math.floor(i / (2 * homes.length));
     const side = pair % 2 === 0 ? 1 : -1;
-    const base = worldPoint(home.position, side * (home.box.halfX + 2.4), 0.5 - pair);
+    const edge = side > 0 ? home.box.maxX + 2.4 : home.box.minX - 2.4;
+    const base = worldPoint(home.position, edge, 0.5 - pair);
     const across = unit(Math.cos(home.position.rotation), -Math.sin(home.position.rotation));
     const k = i % 2 === 0 ? -0.7 : 0.7;
     const spot = nearestFree(ctx, base.x + across.x * k, base.z + across.z * k, 2);
@@ -952,7 +980,8 @@ function elders(ctx: Context, count: number): PlannedVillager[] {
     const home = homes[i % homes.length]!;
     const who = identity(ctx.seed, `elder:${home.id}:${i}`, { women: 0.5, child: false });
     const side = i % 2 === 0 ? 1 : -1;
-    const p = worldPoint(home.position, side * (home.box.halfX + 0.7), home.box.minZ * 0.3);
+    const edge = side > 0 ? home.box.maxX + 0.7 : home.box.minX - 0.7;
+    const p = worldPoint(home.position, edge, home.box.minZ * 0.3);
     const spot = nearestFree(ctx, p.x, p.z, 1.5);
     if (!spot) continue;
     const away = unit(spot.x - home.position.x, spot.z - home.position.z);
@@ -1037,8 +1066,8 @@ function segmentHitsBox(h: House, p: Point, q: Point): boolean {
   const [x1, z1] = toLocal(q.x, q.z);
   const m = 0.4;
   const edges: [number, number][] = [
-    [-(x1 - x0), x0 - (-h.box.halfX - m)],
-    [x1 - x0, h.box.halfX + m - x0],
+    [-(x1 - x0), x0 - (h.box.minX - m)],
+    [x1 - x0, h.box.maxX + m - x0],
     [-(z1 - z0), z0 - (h.box.minZ - m)],
     [z1 - z0, h.box.maxZ + m - z0],
   ];
@@ -1059,7 +1088,11 @@ function segmentHitsBox(h: House, p: Point, q: Point): boolean {
 
 /** Bod stranou od domu – kolmo k úsečce na tu stranu, kde úsečka dům míjí blíž okraji. */
 function aroundHouse(h: House, p: Point, q: Point): Point {
-  const center = worldPoint(h.position, 0, (h.box.minZ + h.box.maxZ) / 2);
+  const center = worldPoint(
+    h.position,
+    (h.box.minX + h.box.maxX) / 2,
+    (h.box.minZ + h.box.maxZ) / 2,
+  );
   const dx = q.x - p.x;
   const dz = q.z - p.z;
   const length = Math.max(1e-6, Math.hypot(dx, dz));
@@ -1070,7 +1103,8 @@ function aroundHouse(h: House, p: Point, q: Point): Point {
   const closest = { x: p.x + dx * t, z: p.z + dz * t };
   let n = unit(closest.x - center.x, closest.z - center.z);
   if (Math.hypot(closest.x - center.x, closest.z - center.z) < 1e-3) n = unit(-dz, dx);
+  const halfX = (h.box.maxX - h.box.minX) / 2;
   const halfZ = (h.box.maxZ - h.box.minZ) / 2;
-  const reach = Math.hypot(h.box.halfX, halfZ) + 1;
+  const reach = Math.hypot(halfX, halfZ) + 1;
   return { x: center.x + n.x * reach, z: center.z + n.z * reach };
 }
