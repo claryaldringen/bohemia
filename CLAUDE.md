@@ -882,16 +882,38 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   (`relocate-household.ts`, důvody česky `RELOCATION_BLOCKED`, `NO_RELOCATION`).
 - **Víc vsí jednoho hráče** (migration.md, fáze 2): sídlo (`settlement`) = mapa s krajinou,
   na jedné mapě může být víc vsí (`village.id` je primární klíč, `settlement_id` jen cizí klíč);
-  nová mapa = nové sídlo s polohou v mřížce světa (`settlement.grid_x` / `grid_y`, port
-  `Settlement.worldCell`, `SettlementRepository.create` – políčko nejvýš jedno aktivní na svět).
+  nová mapa = nové sídlo s polohou v mřížce map (`settlement.grid_x` / `grid_y`, port
+  `Settlement.worldCell`, `SettlementRepository.create` – mřížka je zatím každého hráče zvlášť,
+  políčko nejvýš jedno aktivní na hráče; `assignWorldCell` dá sídelnímu sídlu (0, 0)).
   Port `VillageRepository` jde podle id vsi (`find`, `save`, `rename`), `listBySettlement`,
   `create` (první ves sídla – atomicky, zámek řádku sídla) a `add` (další ves). Use-casy berou
   `villageId`; `findPlayerVillage` ověří, že ves patří hráči (sídlo mezi jeho aktivními),
   `firstPlayerVillage` = výchozí ves (sídelní sídlo první). `dynastyStatus` projde všechny vsi
   všech aktivních sídel (konec hry až po vymření všech), `restartGame` archivuje všechna sídla.
   `foundAnotherVillage` = další ves téhož sídla nejméně `NEW_VILLAGE_MIN_DISTANCE_M` (300 m)
-  od staveb ostatních (`villages-apart.ts`). Vsi na jedné mapě o sobě zatím nevědí (scéna kreslí
-  jen vybranou ves, kontroly umístění neznají stavby druhé vsi) – řeší fáze 3.
+  od staveb ostatních (`villages-apart.ts`).
+- **Odchod do nové vsi** (migration.md, fáze 3 a 4; `departure.ts`): `departVillage` – domácnosti
+  vybraných obydlí odejdou celé (rodokmen – rodiče osadníků jako předci, odešlí ve staré vsi
+  v `ancestors` / `emigrants` se směrem), s jídlem `leavingFood` (`LEAVING`: 25 kg na člověka od
+  7 let, nejvýš poměrný díl zásob, ze všech zásob stejný podíl) a poměrným dílem stád; domy
+  zůstanou prázdné, kronika `households-left`. Odejdou-li všichni, `abandonedDay` + kronika
+  `village-abandoned` – ves se nesimuluje (`isVillageDormant` v `advanceVillageSteps`: vymřelá,
+  opuštěná, na cestě), akce odmítne `updateLivingVillage` (`VILLAGE_ABANDONED`,
+  `VILLAGE_TRAVELLING`), pohled ji ukáže přes `abandonedVillageAt` (domy chátrají podle dne
+  odchodu, pak jámy; pole ladem); `isGameOver` ji počítá jako mrtvou. Nová ves z osadníků:
+  `foundVillage({ settlers })` – jedna domácnost na staveništi první zemnice, id lidí ze staré
+  vsi. Use-case `leaveVillage` (`leave-village.ts`): na téže mapě (`here` – místo první zemnice
+  ověří proti stavbám všech vsí mapy a 300 m dřív, než lidé odejdou, pak `add`), nebo na novou mapu
+  (`map` – sídlo vedle ve směru `neighbourCell` z `world-grid.ts`, `generateAcceptedLandscape`,
+  prázdné vlastní sídlo na políčku se použije znovu, vlastní ves tam → `OWN_MAP_THERE`; ves na
+  cestě `travellingVillage` s `VillageState.journey`, dny `travelDays` – 1–3 podle
+  `edgeDistanceM` od dvorce, po hotové stezce 1). `settleJourney` po příjezdu založí ves
+  (`settlersOf`). **Vsi na téže mapě o sobě vědí:** `neighbourSnapshot` (`neighbourhood.ts`) –
+  stavby a políčka jiných vsí mapy, jejich odstraněné, pokácené a vyhrazené stromy;
+  `updateVillage` ho připojí (`withNeighbours`, jen když na mapě jiná ves je – otisk napřed)
+  a před uložením odebere. `obstacleChangesAt` a `reservedTrees` ho započítají (kácení se
+  nekříží), `placementVillageOf` dává `PlacementVillage.foreign` – kontroly umístění
+  (`checkFootprintFree`, čtverce `foreign`, pozemky) odmítnou `FOREIGN_LAND`.
 - **Determinismus:** simulace jde den po dni v pevném pořadí kroků (`simulate.ts`), náhoda dne
   je ze seedu vsi a indexu dne – výsledek nezávisí na tom, po jakých kouscích se ves dopočítá.
 - **Dopočet po kouscích na serveru:** `advanceVillageSteps` je `advanceVillage` po dnech
@@ -925,7 +947,8 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   dne v `simulate.ts`; `NO_CRAFTS` (pokrytí 0) jen pro ves bez řemesel a testy. Zdroje čísel
   jsou v rešerších `docs/design/research/`.
 - **Web:** server actions `app/game/actions.ts` (`getVillageView`, `selectVillage`, `foundVillage`,
-  `foundDevVillage`, `placeDwelling`, `relocateHousehold`, `cancelRelocation`, `placeWorkshop`,
+  `foundDevVillage`, `placeDwelling`, `relocateHousehold`, `cancelRelocation`, `leaveVillage`,
+  `settleJourney`, `placeWorkshop`,
   `placeField`, `placeCemetery`, `placeOrchard`, `placeSacred`, `placePen`, `trainTeam`,
   `buildTrail`, `sendExpedition`, `renameVillage` → `VillageView` / `null` / `{ error }`; `restartGame(input?)` → `{ ok: true }` /
   `{ error }`). **Každá akce nad vsí nese `villageId`** (UUID – `villageIdOf` v
@@ -974,9 +997,14 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   klik / tažení přesune pohled; krajina a ves se kreslí jednou do vrstvy v rozlišení plátna
   – `drawMinimapVillage` – a při pohybu kamery se přes ni kreslí jen záběr – `drawMinimapView`), `SelectionPanel` (dole uprostřed, jen při výběru,
   `lib/selection-details.ts`; u obydlí a víc vybraných obydlí – počet domácností a lidí –
-  tlačítka Přestěhovat po typu nového domu a Odejít, zatím zašedlé, a průběh stěhování se
-  Zrušit – `hud/RelocationControls.tsx`; u víc domácností se nové domy umisťují postupně, po
-  umístění jednoho hned další jako Shift + klik), `BuildGrid` (vpravo dole), `NoticeLines` (mizející řádky nahoře),
+  tlačítka Přestěhovat po typu nového domu a Odejít – růžice odchodu `LeaveCompass`: uprostřed
+  nová ves na téže mapě (umístění první zemnice nejméně 300 m od staveb všech vsí mapy, pak se
+  rozhraní přepne), kolem 8 směrů nové mapy (dny cesty, lidé a jídlo v popisku, směr s vlastní
+  vsí zašedlý) –, průběh stěhování se Zrušit – `hud/RelocationControls.tsx`; u víc domácností se
+  nové domy umisťují postupně, po umístění jednoho hned další jako Shift + klik; ves na cestě
+  ukáže řádek `JourneyBanner` a po příjezdu nabídne jen zemnici – `settleJourney`; stavby jiných
+  vsí na téže mapě se kreslí s vlastními a nevybírají – `lib/scene/neighbour-villages.ts`,
+  `SceneVillage.neighbours`, pohled `lib/departure-view.ts`), `BuildGrid` (vpravo dole), `NoticeLines` (mizející řádky nahoře),
   `CursorReason` (jde s kurzorem při umisťování: u prošlého umístění **cena ikonami s čísly** –
   práce celkem v člověkodnech i s překážkami, u obydlí i s kácením, a ikona stromů s počtem
   stromů ke kácení, když nestačí klády, u modly a svatyně ikona dubu s počtem dubů ke kácení –

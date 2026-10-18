@@ -46,7 +46,8 @@ export interface SettlementRepository {
   }): Promise<Settlement>;
   /**
    * Založí další (nesídelní) sídlo hráče – novou mapu na políčku mřížky světa (odchod na novou
-   * mapu, migration.md). Políčko je nejvýš jedno aktivní na celý svět – obsazené → null.
+   * mapu, migration.md). Mřížka je zatím každého hráče zvlášť: políčko je nejvýš jedno aktivní
+   * na hráče – obsazené → null.
    */
   create(input: {
     ownerId: string;
@@ -54,6 +55,11 @@ export interface SettlementRepository {
     layerVersions: LayerVersions;
     worldCell: WorldCell;
   }): Promise<Settlement | null>;
+  /**
+   * Dá sídlu bez polohy políčko mřížky (sídelní sídlo z doby před mřížkou – (0, 0)); sídlo,
+   * které polohu už má, nemění. Vrátí sídlo s polohou, neznámé nebo archivované null.
+   */
+  assignWorldCell(settlementId: string, cell: WorldCell): Promise<Settlement | null>;
 }
 
 /** Port: zdroj nových seedů krajiny – náhoda přichází zvenku, doména je deterministická. */

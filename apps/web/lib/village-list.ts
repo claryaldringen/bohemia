@@ -1,4 +1,11 @@
-import { isVillageExtinct, summarizeVillage, type VillageRecord } from '@bohemia/game';
+import {
+  isVillageAbandoned,
+  isVillageDormant,
+  isVillageExtinct,
+  isVillageTravelling,
+  summarizeVillage,
+  type VillageRecord,
+} from '@bohemia/game';
 
 // Vsi hráče pro přepínač v horní liště (migration.md – Víc vsí jednoho hráče): jméno, lidé
 // a co se v nich děje – upozornění z jiné vsi se ukážou i při pohledu na jinou ves. Čistý modul
@@ -14,6 +21,10 @@ export interface VillageListItem {
   people: number;
   /** Ves vymřela. */
   extinct: boolean;
+  /** Ves je opuštěná – odešli všichni (migration.md). */
+  abandoned: boolean;
+  /** Lidé jsou na cestě na novou mapu – ves ještě nestojí (migration.md). */
+  travelling: boolean;
   /** Ves hladoví – zásoby nevystačí do sklizně. */
   hungry: boolean;
   /** Lidé umírají hlady. */
@@ -23,13 +34,16 @@ export interface VillageListItem {
 /** Položka přepínače z uložené vsi dopočítané do dne `day`. */
 export function villageListItem(record: VillageRecord, day: number): VillageListItem {
   const extinct = isVillageExtinct(record.state);
-  const summary = extinct ? null : summarizeVillage(record.state, day);
+  const dormant = isVillageDormant(record.state);
+  const summary = dormant ? null : summarizeVillage(record.state, day);
   return {
     id: record.id,
     settlementId: record.settlementId,
     name: record.name,
     people: record.state.people.length,
     extinct,
+    abandoned: isVillageAbandoned(record.state),
+    travelling: isVillageTravelling(record.state),
     hungry: summary?.hungry ?? false,
     starving: summary?.starving ?? false,
   };

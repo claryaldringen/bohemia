@@ -96,7 +96,7 @@ describe('createSettlementRepository', () => {
     expect(results.filter(Boolean)).toHaveLength(1);
   });
 
-  it('create založí nesídelní sídlo na políčku mřížky světa, obsazené políčko odmítne', async () => {
+  it('create založí nesídelní sídlo na políčku mřížky hráče, jeho obsazené políčko odmítne', async () => {
     const home = await repository.createSeat(seat);
     const created = await repository.create({
       ...seat,
@@ -113,16 +113,31 @@ describe('createSettlementRepository', () => {
       home.id,
       created!.id,
     ]);
-    // políčko je jedno na celý svět – ani jiný hráč na něj nesmí
+    expect(await repository.create({ ...seat, worldCell: { x: 3, y: -2 } })).toBeNull();
+    // mřížka je zatím každého hráče zvlášť – jiný hráč na stejné políčko smí
     await addPlayer('hrac-2');
-    const taken = await repository.create({
+    const other = await repository.create({
       ownerId: 'hrac-2',
       landscapeSeed: 78,
       layerVersions: CURRENT_LAYER_VERSIONS,
       worldCell: { x: 3, y: -2 },
     });
-    expect(taken).toBeNull();
+    expect(other).toMatchObject({ ownerId: 'hrac-2', worldCell: { x: 3, y: -2 } });
     expect(await repository.findSeat('hrac-1')).toEqual(home);
+  });
+
+  it('assignWorldCell dá sídlu bez polohy políčko, sídlo s polohou nemění', async () => {
+    const home = await repository.createSeat(seat);
+    expect(home.worldCell).toBeNull();
+    const placed = await repository.assignWorldCell(home.id, { x: 0, y: 0 });
+    expect(placed).toMatchObject({ id: home.id, worldCell: { x: 0, y: 0 } });
+    const again = await repository.assignWorldCell(home.id, { x: 5, y: 5 });
+    expect(again?.worldCell).toEqual({ x: 0, y: 0 });
+    await repository.archive(home.id);
+    expect(await repository.assignWorldCell(home.id, { x: 1, y: 1 })).toBeNull();
+    expect(
+      await repository.assignWorldCell('00000000-0000-0000-0000-000000000000', { x: 0, y: 0 }),
+    ).toBeNull();
   });
 
   it('archivované sídlo políčko mřížky uvolní', async () => {

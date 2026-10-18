@@ -72,7 +72,6 @@ import {
   workOrchards,
 } from './orchard';
 import { ageGroup, laborPerDay } from './people';
-import { isVillageExtinct } from './extinction';
 import { inLuckyYears, nextStarvationDays, populationDay } from './population';
 import { dailyMinPerHousehold } from './productivity';
 import { moveRelocatedHousehold, relocatingHouseholds } from './relocation';
@@ -80,6 +79,7 @@ import { keepManor, villageManorId } from './manor';
 import { goodsDay } from './goods';
 import { finishExpeditions, workExpeditions } from './trade';
 import { finishTrail, trailsDay } from './trail';
+import { isVillageDormant } from './departure';
 import { recordRuins, updateRuins } from './ruins';
 import {
   CHRONICLE_MAX_EVENTS,
@@ -210,7 +210,8 @@ export function* advanceVillageSteps(
   }
   // ves z doby před příbuzenstvím dostane pohlaví a manžele (kinship.md) – jednou, idempotentně
   const next = cloneState(withKinship(state));
-  for (let day = next.lastDay + 1; day <= toDay && !isVillageExtinct(next); day++) {
+  // vymřelá, opuštěná a ves na cestě se nesimulují – jen se posune den (migration.md)
+  for (let day = next.lastDay + 1; day <= toDay && !isVillageDormant(next); day++) {
     simulateDay(next, day, obstacles, landscape);
     yield day;
   }

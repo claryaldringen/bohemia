@@ -1,0 +1,2 @@
+DROP INDEX "settlement_grid_idx";--> statement-breakpoint
+CREATE UNIQUE INDEX "settlement_owner_grid_idx" ON "settlement" USING btree ("owner_id","grid_x","grid_y") WHERE "settlement"."archived_at" IS NULL;

@@ -19,7 +19,16 @@ export interface SendExpeditionInput {
   direction: Direction8;
   give: TradeGoods;
   get: TradeGoods;
+  /**
+   * Směry, kde na sousední mapě leží vlastní ves hráče (migration.md) – soused bez simulace tam
+   * není a obchod mezi vlastními vsemi zatím není. Bez údaje žádné.
+   */
+  ownDirections?: readonly Direction8[];
 }
+
+/** Tím směrem leží vlastní ves – obchodovat s ní zatím nejde (migration.md). */
+export const OWN_VILLAGE_TRADE =
+  'Tím směrem leží tvoje ves – obchod mezi vlastními vsemi zatím není.';
 
 /**
  * Hráč pošle ve dvorci výpravu nosičů k sousedovi (trade.md – Obchod; ves se nejdřív dopočítá do
@@ -32,6 +41,9 @@ export function sendExpedition(
 ): Promise<VillageResult> {
   if (!DIRECTIONS.includes(input.direction)) {
     return Promise.resolve({ ok: false, reason: UNKNOWN_DIRECTION });
+  }
+  if (input.ownDirections?.includes(input.direction)) {
+    return Promise.resolve({ ok: false, reason: OWN_VILLAGE_TRADE });
   }
   return updateLivingVillage(
     deps.villages,

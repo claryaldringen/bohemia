@@ -11,6 +11,8 @@ const village = (over: Partial<VillageListItem> = {}): VillageListItem => ({
   name: 'Libice',
   people: 12,
   extinct: false,
+  abandoned: false,
+  travelling: false,
   hungry: false,
   starving: false,
   ...over,

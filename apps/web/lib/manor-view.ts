@@ -102,6 +102,7 @@ export function manorView(
   state: VillageState,
   landscape: Landscape,
   day: number,
+  ownMaps: Partial<Record<Direction8, string>> = {},
 ): VillageManor | null {
   const manor = villageManor(state);
   if (!manor || state.extinctDay !== undefined) return null;
@@ -109,6 +110,7 @@ export function manorView(
   return {
     dwellingId: manor.id,
     trails: trailOptions(state, day, landscape, obstacles, villageRoadWalk(state, landscape)),
-    neighbours: neighbourViews(state, day),
+    // tím směrem, kde leží vlastní ves, soused bez simulace není (migration.md)
+    neighbours: neighbourViews(state, day).filter((n) => ownMaps[n.direction] === undefined),
   };
 }

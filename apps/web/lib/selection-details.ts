@@ -1,4 +1,5 @@
 import {
+  LEAVING,
   sacredBuildingHappiness,
   type Craft,
   type Crop,
@@ -13,6 +14,7 @@ import {
   type SacredBuildingKind,
   type WorkshopActivity,
 } from '@bohemia/game';
+import type { LeaveDirection } from './departure-view';
 import type { VillageManor } from './manor-view';
 import type { HouseholdRelocation } from './relocation-view';
 import type { VillageTarget } from './scene/village-picking';
@@ -78,6 +80,8 @@ export type SelectionDetails =
       relocate: Record<BuildableDwellingType, BuildOption> | null;
       /** Dvorec vojvody (trade.md) – vylepšení vsi; obyčejné obydlí null. */
       manor: VillageManor | null;
+      /** Odejít do nové vsi (migration.md); když domácnost odejít nemůže, null. */
+      leave: SelectionLeave | null;
     }
   | {
       /** Víc vybraných obydlí (Ctrl/Shift + klik, Ctrl + A – migration.md). */
@@ -91,6 +95,8 @@ export type SelectionDetails =
       relocatable: readonly number[];
       /** Cena nového domu jedné domácnosti. */
       relocate: Record<BuildableDwellingType, BuildOption> | null;
+      /** Odejít do nové vsi s domácnostmi, které můžou (migration.md); žádná null. */
+      leave: SelectionLeave | null;
     }
   | {
       kind: 'site';
@@ -356,6 +362,7 @@ export function selectionDetails(
       relocation: household.relocation,
       relocate: view && household.relocationBlock === null ? view.relocation : null,
       manor: view?.manor?.dwellingId === household.dwellingId ? view.manor : null,
+      leave: view ? leaveDetails(view, [household.dwellingId]) : null,
     };
   }
   if (target.kind === 'cemetery') {
@@ -470,6 +477,47 @@ function dwellingsDetails(
     people: inhabited.reduce((sum, h) => sum + h.occupants, 0),
     relocatable,
     relocate: view && relocatable.length > 0 ? view.relocation : null,
+    leave: view ? leaveDetails(view, present) : null,
+  };
+}
+
+/**
+ * Odchod do nové vsi (migration.md) – kdo odejde, kolik lidí, jídla s sebou a kam to jde. Domácnosti,
+ * které si staví nový dům, zůstávají; ve vymřelé či opuštěné vsi a u lidí na cestě nikdo.
+ */
+export interface SelectionLeave {
+  /** Obydlí, jejichž domácnosti odejdou. */
+  households: readonly number[];
+  people: number;
+  /** Jídlo s sebou (kg) – kolik unesou lidé od 7 let, nejvýš poměrný díl zásob. */
+  foodKg: number;
+  /** Na novou mapu po směrech – dny cesty, nebo proč tím směrem nejde. */
+  directions: readonly LeaveDirection[];
+}
+
+/** Odchod domácností vybraných obydlí `ids`; když žádná odejít nemůže, null. */
+function leaveDetails(view: VillageView, ids: readonly number[]): SelectionLeave | null {
+  if (view.extinct || view.abandoned || view.journey) return null;
+  const leaving = view.households.filter(
+    (h) =>
+      ids.includes(h.dwellingId) &&
+      h.occupants > 0 &&
+      h.relocationBlock !== 'relocating' &&
+      h.relocationBlock !== 'no-household',
+  );
+  if (leaving.length === 0) return null;
+  const people = leaving.reduce((sum, h) => sum + h.occupants, 0);
+  const carriers = leaving
+    .flatMap((h) => h.ages)
+    .filter((age) => age >= LEAVING.carryFromAge).length;
+  const total = view.people.children + view.people.adults + view.people.elders;
+  const food = view.storesKg + view.meatKg + view.cheeseKg + view.legumesKg + view.applesKg;
+  const share = total > 0 ? people / total : 0;
+  return {
+    households: leaving.map((h) => h.dwellingId),
+    people,
+    foodKg: Math.min(carriers * LEAVING.carryKgPerPerson, Math.max(0, food) * share),
+    directions: view.leave.directions,
   };
 }
 

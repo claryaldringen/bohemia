@@ -12,11 +12,16 @@ export function isVillageExtinct(state: Pick<VillageState, 'extinctDay'>): boole
 }
 
 /**
- * Konec hry: hráč má aspoň jednu ves a žádná z nich nežije. Bez vsí (ještě nezaložil) hra
- * nekončí – zakládá. Obecně pro víc vsí, dnes má hráč jednu.
+ * Konec hry: hráč má aspoň jednu ves a žádná z nich nežije – všechny vymřely, nebo je lidé
+ * opustili (migration.md). Ves na cestě žije. Bez vsí (ještě nezaložil) hra nekončí – zakládá.
  */
-export function isGameOver(villages: readonly Pick<VillageState, 'extinctDay'>[]): boolean {
-  return villages.length > 0 && villages.every(isVillageExtinct);
+export function isGameOver(
+  villages: readonly Pick<VillageState, 'extinctDay' | 'abandonedDay'>[],
+): boolean {
+  return (
+    villages.length > 0 &&
+    villages.every((v) => isVillageExtinct(v) || v.abandonedDay !== undefined)
+  );
 }
 
 /** Jak dlouho vymřelá ves žila – herní rok založení a vymření a celé roky mezi nimi. */

@@ -1,0 +1,280 @@
+import { describe, expect, it } from 'vitest';
+import { foundVillage, startRelocation } from '../actions';
+import {
+  abandonedVillageAt,
+  departVillage,
+  departureBlock,
+  edgeDistanceM,
+  isVillageDormant,
+  leavingFood,
+  settlersOf,
+  travelDays,
+  travellingVillage,
+} from '../departure';
+import { isGameOver } from '../extinction';
+import { occupants } from '../people';
+import { DWELLINGS, LEAVING } from '../rules';
+import { advanceVillage } from '../simulate';
+import type { Person, VillageState } from '../types';
+import { directionBetween, neighbourCell, OPPOSITE, SEAT_CELL } from '../world-grid';
+import { makeLandscape } from './placement-fixtures';
+import { withBuiltFirstDwelling } from './village-fixtures';
+
+// Odchod do nové vsi (migration.md – fáze 3 a 4): domácnosti odejdou celé, s jídlem, které unesou,
+// a poměrným dílem stád; stará ves zůstane, odejdou-li všichni, je opuštěná.
+
+const DAY = 1000;
+const YEAR = 365.25;
+const HOME = { x: 10, z: 20, rotation: 0 };
+
+/**
+ * Ves se dvěma domácnostmi: zakladatelé (4 lidé) v zemnici 1 a rodina syna (otec, matka, dítě 3
+ * roky) v zemnici vedle – syn je dítětem zakladatelů. Zásoby 2000 kg obilí, 300 kg masa, 100 kg
+ * luštěnin.
+ */
+function twoHouseholds(): VillageState {
+  const s = withBuiltFirstDwelling(foundVillage({ seed: 7, day: DAY, dwellingPosition: HOME }));
+  const founders = s.people.filter((p) => p.dwellingId === 1);
+  const [father, mother] = founders;
+  const home = s.nextId++;
+  s.dwellings.push({
+    id: home,
+    type: 'zemnice',
+    builtDay: DAY,
+    condition: 1,
+    position: { x: 60, z: 20, rotation: 0 },
+  });
+  const son: Person = {
+    id: s.nextId++,
+    bornDay: DAY - Math.ceil(22 * YEAR),
+    dwellingId: home,
+    sex: 'male',
+    motherId: mother!.id,
+    fatherId: father!.id,
+  };
+  const wife: Person = {
+    id: s.nextId++,
+    bornDay: DAY - Math.ceil(20 * YEAR),
+    dwellingId: home,
+    sex: 'female',
+  };
+  son.spouseId = wife.id;
+  wife.spouseId = son.id;
+  const child: Person = {
+    id: s.nextId++,
+    bornDay: DAY - Math.ceil(3 * YEAR),
+    dwellingId: home,
+    sex: 'female',
+    motherId: wife.id,
+    fatherId: son.id,
+  };
+  s.people.push(son, wife, child);
+  s.storesKg = 2000;
+  s.meatKg = 300;
+  s.legumesKg = 100;
+  return s;
+}
+
+const sonHome = (s: VillageState): number => s.dwellings[1]!.id;
+
+describe('departVillage', () => {
+  it('domácnost odejde celá i s rodokmenem, jídlem a dílem stád; stará ves zůstane', () => {
+    const s = twoHouseholds();
+    const herdsBefore = { ...s.livestock!.herds };
+    const { state, settlers } = departVillage(s, DAY, [sonHome(s)]);
+    expect(settlers.people.map((p) => p.id).sort()).toEqual(
+      s.people
+        .filter((p) => p.dwellingId === sonHome(s))
+        .map((p) => p.id)
+        .sort(),
+    );
+    // manželé i dítě si nesou vazby, rodiče syna jsou v rodokmenu nové vsi
+    const son = settlers.people.find((p) => p.sex === 'male')!;
+    expect(son.spouseId).toBeDefined();
+    expect(settlers.ancestors.map((a) => a.id).sort()).toEqual(
+      [son.motherId!, son.fatherId!].sort(),
+    );
+    // 3 ze 7 lidí, unesou dva dospělí (dítěti jsou 3 roky): 2 × 25 kg
+    const food = settlers.food;
+    const carried = food.grainKg + food.meatKg + food.legumesKg + food.cheeseKg + food.applesKg;
+    expect(carried).toBeCloseTo(2 * LEAVING.carryKgPerPerson, 6);
+    // ze všech zásob stejný podíl
+    expect(food.grainKg / food.meatKg).toBeCloseTo(2000 / 300, 6);
+    expect(state.storesKg).toBeCloseTo(2000 - food.grainKg, 6);
+    expect(state.meatKg).toBeCloseTo(300 - food.meatKg, 6);
+    // stáda: 3/7
+    expect(settlers.herds.sheep).toBeCloseTo((herdsBefore.sheep * 3) / 7, 6);
+    expect(state.livestock!.herds.sheep).toBeCloseTo((herdsBefore.sheep * 4) / 7, 6);
+    // ve staré vsi zůstal prázdný dům, syn je v rodokmenu (rodič žijících ne – jeho dítě odešlo)
+    expect(occupants(state, sonHome(s))).toEqual([]);
+    expect(state.dwellings).toHaveLength(2);
+    expect(state.people).toHaveLength(4);
+    expect(state.abandonedDay).toBeUndefined();
+    expect(state.chronicle.at(-1)).toEqual({
+      day: DAY,
+      kind: 'households-left',
+      households: 1,
+      people: 3,
+    });
+    // vstupní stav se nemění
+    expect(s.people).toHaveLength(7);
+  });
+
+  it('malé zásoby si vezmou jen poměrný díl', () => {
+    const s = twoHouseholds();
+    s.storesKg = 70;
+    s.meatKg = 0;
+    s.legumesKg = 0;
+    const leavers = s.people.filter((p) => p.dwellingId === sonHome(s));
+    expect(leavingFood(s, leavers, DAY).grainKg).toBeCloseTo(30, 6);
+  });
+
+  it('na novou mapu: ve staré vsi zůstanou jako odešlí ve směru (war.md)', () => {
+    const s = twoHouseholds();
+    const { state } = departVillage(s, DAY, [sonHome(s)], 'N');
+    expect(state.chronicle.at(-1)).toMatchObject({ kind: 'households-left', direction: 'N' });
+    expect((state.emigrants ?? []).every((e) => e.direction === 'N')).toBe(true);
+    expect((state.emigrants ?? []).length).toBeGreaterThan(0);
+  });
+
+  it('odejdou-li všichni, ves je opuštěná a dál se nesimuluje (nevymře)', () => {
+    const s = twoHouseholds();
+    const { state } = departVillage(s, DAY, [1, sonHome(s)]);
+    expect(state.people).toEqual([]);
+    expect(state.abandonedDay).toBe(DAY);
+    expect(state.chronicle.at(-1)).toEqual({ day: DAY, kind: 'village-abandoned' });
+    expect(isVillageDormant(state)).toBe(true);
+    const later = advanceVillage(state, DAY + 500, null);
+    expect(later.extinctDay).toBeUndefined();
+    expect(later.lastDay).toBe(DAY + 500);
+    expect(later.dwellings).toEqual(state.dwellings);
+    // konec hry: jediná ves opuštěná
+    expect(isGameOver([later])).toBe(true);
+    expect(isGameOver([later, s])).toBe(false);
+  });
+
+  it('odejít nejde z prázdného domu, s domácností, která se stěhuje, ani dvakrát', () => {
+    const s = twoHouseholds();
+    expect(departureBlock(s, [])).not.toBeNull();
+    expect(departureBlock(s, [999])).not.toBeNull();
+    expect(departureBlock(s, [1, 1])).not.toBeNull();
+    s.woodLogs = 20;
+    const moving = startRelocation(s, DAY, sonHome(s), 'zemnice', { x: 120, z: 0, rotation: 0 }, 0);
+    expect(departureBlock(moving, [sonHome(s)])).toMatch(/staví nový dům/);
+    expect(() => departVillage(moving, DAY, [sonHome(s)])).toThrow(RangeError);
+    const { state } = departVillage(s, DAY, [1, sonHome(s)]);
+    expect(departureBlock(state, [1])).not.toBeNull();
+  });
+});
+
+describe('nová ves z osadníků', () => {
+  it('foundVillage s osadníky: jejich lidé, jídlo a stáda, id za nimi', () => {
+    const s = twoHouseholds();
+    const { settlers } = departVillage(s, DAY, [sonHome(s)]);
+    const fresh = foundVillage({
+      seed: 9,
+      day: DAY,
+      dwellingPosition: { x: -200, z: -200, rotation: 0 },
+      settlers,
+    });
+    const maxId = Math.max(
+      ...settlers.people.map((p) => p.id),
+      ...settlers.ancestors.map((a) => a.id),
+    );
+    const household = maxId + 1;
+    expect(fresh.people.map((p) => p.id).sort()).toEqual(settlers.people.map((p) => p.id).sort());
+    expect(fresh.people.every((p) => p.dwellingId === household)).toBe(true);
+    expect(fresh.constructions[0]).toMatchObject({
+      dwellingId: household,
+      dwellingType: 'zemnice',
+    });
+    expect(fresh.manorId).toBe(household);
+    expect(fresh.storesKg).toBeCloseTo(settlers.food.grainKg, 6);
+    expect(fresh.livestock!.herds).toEqual(settlers.herds);
+    expect(fresh.ancestors).toEqual(settlers.ancestors);
+    // ves se dopočítává jako každá jiná
+    const later = advanceVillage(fresh, DAY + 60, null);
+    expect(later.people.length).toBeGreaterThan(0);
+  });
+
+  it('ves na cestě se nesimuluje; po příjezdu se založí ze svých osadníků', () => {
+    const s = twoHouseholds();
+    const { settlers } = departVillage(s, DAY, [sonHome(s)], 'E');
+    const travelling = travellingVillage(settlers, 42, DAY, {
+      direction: 'E',
+      departedDay: DAY,
+      arrivalDay: DAY + 2,
+    });
+    expect(isVillageDormant(travelling)).toBe(true);
+    expect(isGameOver([travelling])).toBe(false);
+    const later = advanceVillage(travelling, DAY + 10, null);
+    expect(later.people).toEqual(travelling.people);
+    expect(later.lastDay).toBe(DAY + 10);
+    const back = settlersOf(later);
+    expect(back.people.map((p) => p.id)).toEqual(settlers.people.map((p) => p.id));
+    expect(back.food.grainKg).toBeCloseTo(settlers.food.grainKg, 6);
+    expect(back.herds).toEqual(settlers.herds);
+  });
+});
+
+describe('opuštěná ves jen pro pohled', () => {
+  it('domy chátrají ode dne odchodu, pak zbude zarůstající jáma; pole ladem', () => {
+    const s = twoHouseholds();
+    s.parts.push({
+      id: 500,
+      fieldId: 499,
+      areaM2: 225,
+      distanceM: 30,
+      naturalFertility: 60,
+      fertilityShare: 1,
+      bonusUntilDay: null,
+      state: 'sown',
+      crop: 'winter',
+      sownYears: 1,
+      fallowSinceDay: null,
+      foundingCost: 10,
+      foundingDone: 10,
+      surface: 'meadow',
+      cell: { x: 3, y: 3 },
+    });
+    const { state } = departVillage(s, DAY, [1, sonHome(s)]);
+    expect(abandonedVillageAt(s, DAY + 100)).toBe(s);
+    const soon = abandonedVillageAt(state, DAY + 365);
+    expect(soon.dwellings).toHaveLength(2);
+    expect(soon.dwellings.every((d) => d.condition < 1 && d.condition > 0)).toBe(true);
+    expect(soon.parts[0]).toMatchObject({ state: 'fallow', fallowSinceDay: DAY });
+    expect(soon.parts[0]!.crop).toBeUndefined();
+    const fallen = abandonedVillageAt(
+      state,
+      DAY + Math.ceil(DWELLINGS.zemnice.emptyLifespanYears * YEAR) + 30,
+    );
+    expect(fallen.dwellings).toEqual([]);
+    expect(fallen.ruins?.map((r) => r.id).sort()).toEqual([1, sonHome(s)].sort());
+    // zbytky jam po letech zmizí
+    expect(abandonedVillageAt(state, DAY + 40 * 365).ruins).toEqual([]);
+  });
+});
+
+describe('cesta na novou mapu', () => {
+  it('dny cesty podle vzdálenosti ke kraji mapy, po stezce 1 den', () => {
+    expect(travelDays(150, false)).toBe(1);
+    expect(travelDays(401, false)).toBe(2);
+    expect(travelDays(5000, false)).toBe(3);
+    expect(travelDays(5000, true)).toBe(1);
+  });
+
+  it('vzdálenost ke kraji krajiny ve směru', () => {
+    const l = makeLandscape({ size: 40 }); // 600 m, kraje ±300 m
+    expect(edgeDistanceM(l, { x: 0, z: 0 }, 'N')).toBeCloseTo(300, 6);
+    expect(edgeDistanceM(l, { x: 100, z: 0 }, 'E')).toBeCloseTo(200, 6);
+    expect(edgeDistanceM(l, { x: 0, z: 0 }, 'NE')).toBeCloseTo(300 * Math.SQRT2, 6);
+  });
+
+  it('mřížka map: sousední políčko, směr mezi políčky a opačný směr', () => {
+    expect(neighbourCell(SEAT_CELL, 'N')).toEqual({ x: 0, y: 1 });
+    expect(neighbourCell({ x: 2, y: 3 }, 'SW')).toEqual({ x: 1, y: 2 });
+    expect(directionBetween({ x: 0, y: 0 }, { x: 1, y: -1 })).toBe('SE');
+    expect(directionBetween({ x: 0, y: 0 }, { x: 2, y: 0 })).toBeNull();
+    expect(OPPOSITE.NW).toBe('SE');
+  });
+});

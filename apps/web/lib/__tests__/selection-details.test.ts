@@ -50,7 +50,19 @@ const RELOCATE_OPTION = {
   affordable: true,
 };
 
+const LEAVE_DIRECTIONS = [{ direction: 'N' as const, days: 2, blocked: null }];
+
 const view = {
+  people: { children: 2, adults: 4, elders: 0 },
+  storesKg: 1000,
+  meatKg: 0,
+  cheeseKg: 0,
+  legumesKg: 0,
+  applesKg: 0,
+  leave: { directions: LEAVE_DIRECTIONS },
+  extinct: null,
+  abandoned: null,
+  journey: null,
   crafts: {
     present: true,
     stocks: { charcoalKg: 40, toolsKg: 6, potteryKg: 12.4 },
@@ -286,6 +298,8 @@ describe('selectionDetails', () => {
       relocation: null,
       relocate: view.relocation,
       manor: null,
+      // odejít smí: 4 lidé, unesou 3 od 7 let (75 kg), díl zásob 4/6 by byl víc
+      leave: { households: [1], people: 4, foodKg: 75, directions: LEAVE_DIRECTIONS },
     });
   });
 
@@ -305,6 +319,8 @@ describe('selectionDetails', () => {
       people: 6,
       relocatable: [1],
       relocate: view.relocation,
+      // domácnost, která si staví nový dům, zůstává
+      leave: { households: [1], people: 4, foodKg: 75, directions: LEAVE_DIRECTIONS },
     });
     expect(selectionDetails(view, scene, { kind: 'dwellings', ids: [77, 78] })).toBeNull();
     // jen stěhující se domácnost – přestěhovat nejde
