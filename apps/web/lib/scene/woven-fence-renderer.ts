@@ -7,12 +7,18 @@ import { Matrix, Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 import type { Scene } from '@babylonjs/core/scene';
 import { appendMatrix, loadModelParts } from './instanced-model';
+import { applySeasonSnow } from './season-materials';
 import type { HeightFn } from './village-meshes';
 import type { FenceStage } from './woven-fence';
 
 export const WOVEN_FENCE_MODEL_URL = '/models/dwellings/woven-fence.glb';
 
 const PARTS = ['fence-post', 'fence-post-gate', 'fence-rail'] as const;
+/**
+ * Sníh na plotu v zimě – jen poprašek: větve mají trojboký průřez s hřbetem nahoru a plné
+ * pokrytí (jako střechy) by z pletiva udělalo bílé provázky.
+ */
+const FENCE_SNOW = 0.3;
 type FencePart = (typeof PARTS)[number];
 
 /**
@@ -100,7 +106,11 @@ export class WovenFenceRenderer {
           this.scene,
           WOVEN_FENCE_MODEL_URL,
           'village-fence-',
-          (m) => this.context.prepareMaterial(m),
+          (m) => {
+            // dřív než úprava vlastníka – ta pak sníh na střechy už nepřidá (jen jeden plugin)
+            applySeasonSnow(m, FENCE_SNOW);
+            this.context.prepareMaterial(m);
+          },
         );
         if (!parts) return;
         if (this.disposed) {
