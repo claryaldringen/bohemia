@@ -557,9 +557,10 @@ rozhraní částí v
   a prázdné obydlí v kroku 6 (`occupyEmptyDwellings`) nejdřív zabere mladý pár z plné domácnosti
   se 4 dospělými 14–44 (`qualifyingDwellings`, `moveInYoungestPair`); co zůstane úplně prázdné,
   osídlí **dospělé děti z přeplněné domácnosti** (Martin, 18. 10. 2026; `adultChildrenSettlers`):
-  lidé 14–44 kromě `HOUSEHOLD_HEADS` (2) nejstarších od 14 let, všichni z jedné domácnosti, nebo
-  dva jednotlivci z různých (jediný člověk by se rozpadl), a ne z domácnosti, jejíž zbytek by se
-  rozpadl (`householdBreaksUp`, v `people.ts`). Možné nové domácnosti = kvalifikované + ostatní
+  lidé 14–44 kromě `HOUSEHOLD_HEADS` (2) nejstarších od 14 let, u neplodných rodičů (oba 45+)
+  i kromě nejstaršího dospělého dítěte – dědice (`householdHeir`, Martin), všichni z jedné
+  domácnosti, nebo dva jednotlivci z různých (jediný člověk by se rozpadl), a ne z domácnosti,
+  jejíž zbytek by se rozpadl (`householdBreaksUp`, v `people.ts`). Možné nové domácnosti = kvalifikované + ostatní
   přeplněné s aspoň dvěma dospělými dětmi + jednotlivci po dvou. **Prázdné obydlí chátrá
   rychleji** (Martin): `decayEmptyDwelling` – bez oprav podle stáří a navíc pevný denní podíl,
   nové zanikne za `DWELLINGS[type].emptyLifespanYears` (zemnice 5, polozemnice 8 let).

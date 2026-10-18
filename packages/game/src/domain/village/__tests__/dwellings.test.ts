@@ -6,6 +6,7 @@ import {
   applyRepairs,
   availableSettlers,
   decayEmptyDwelling,
+  householdHeir,
   isFull,
   isOvercrowded,
   qualifyingDwellings,
@@ -149,7 +150,7 @@ describe('dospělé děti z přeplněné domácnosti', () => {
     expect(adultChildren(household(1, [33, 30, 9, 4]), DAY)).toEqual([]);
   });
 
-  it('přeplněná domácnost s dospělými dětmi je zdroj – plná ne, ani když by se zbytek rozpadl', () => {
+  it('přeplněná domácnost s dospělými dětmi je zdroj – plná ne', () => {
     // 7 lidí v zemnici (6 míst); dospělí 14–44 jen tři – staré pravidlo nesplňuje
     const crowded = village(household(1, [46, 40, 17, 15, 8, 5, 2]));
     expect(qualifyingDwellings(crowded, DAY)).toEqual([]);
@@ -160,11 +161,33 @@ describe('dospělé děti z přeplněné domácnosti', () => {
     const full = village(household(1, [46, 40, 17, 15, 8, 5]));
     expect(adultChildrenSources(full, DAY)).toEqual([]);
     expect(availableSettlers(full, DAY)).toBe(0);
-    // zůstali by jen starší a děti – domácnost by se rozpadla
-    const elders = village(household(1, [50, 48, 20, 18, 8, 5, 2]));
-    expect(adultChildrenSources(elders, DAY)).toEqual([]);
-    expect(adultChildrenSettlers(elders, DAY, 6)).toEqual([]);
-    expect(availableSettlers(elders, DAY)).toBe(0);
+  });
+
+  // Martin, 18. 10. 2026: „Pokud už jsou rodiče neplodní, tak ano, má“ – dědic zůstane doma.
+  it('dědic: oba rodiče 45+ → nejstarší dospělé dítě; s plodným rodičem žádný', () => {
+    expect(householdHeir(household(1, [50, 47, 22, 20, 18, 5]), DAY)?.id).toBe(3);
+    expect(householdHeir(household(1, [46, 40, 17, 15, 8]), DAY)).toBeNull();
+    expect(householdHeir(household(1, [60, 50]), DAY)).toBeNull(); // bez dospělých dětí
+  });
+
+  it('rodiče 50 a 47 se dvěma dospělými dětmi: dědic zůstane, mladší čeká na protějšek', () => {
+    const two = village(household(1, [50, 47, 20, 18, 8, 5, 2]), [dwelling(1), dwelling(2)]);
+    expect(adultChildrenSources(two, DAY).map((x) => ids(x.children))).toEqual([[4]]);
+    expect(adultChildrenSettlers(two, DAY, 6)).toEqual([]);
+    expect(availableSettlers(two, DAY)).toBe(-1); // prázdné obydlí 2 nikoho nečeká
+    // s jednotlivcem jiné přeplněné domácnosti odejdou spolu, dědic zůstane
+    const paired = village(
+      [...two.people, ...household(10, [45, 42, 18, 9, 6, 3, 1], 2)],
+      [dwelling(1), dwelling(2)],
+    );
+    expect(ids(adultChildrenSettlers(paired, DAY, 6))).toEqual([4, 12]);
+    expect(availableSettlers(paired, DAY)).toBe(1);
+  });
+
+  it('rodiče 50 a 47 se třemi dospělými dětmi: dva mladší odejdou, nejstarší zůstane', () => {
+    const s = village(household(1, [50, 47, 22, 20, 18, 5, 2]));
+    expect(ids(adultChildrenSettlers(s, DAY, 6))).toEqual([5, 4]);
+    expect(availableSettlers(s, DAY)).toBe(1);
   });
 
   it('jediné dospělé dítě samo nejde – se svým protějškem z jiné přeplněné domácnosti ano', () => {
