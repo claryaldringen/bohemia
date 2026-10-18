@@ -207,18 +207,7 @@ export interface SceneVillage {
    */
   fields: {
     id: number;
-    parts: {
-      cell: TileCell;
-      x: number;
-      z: number;
-      size: number;
-      stage: PartStage;
-      /**
-       * Vzhled oseté části podle růstu obilí (`CropLook` ve scéně) – zatím ho posílá jen
-       * vývojový náhled staveb, server ne (oseté pole se kreslí jako vzcházející obilí).
-       */
-      crop?: 'growing' | 'ripe' | 'stubble';
-    }[];
+    parts: SceneFieldPart[];
   }[];
   /**
    * Hřbitovy po čtvercích (střed políčka ve světě a strana jako u pole) – průběh stavby
@@ -269,6 +258,61 @@ export interface SceneVillage {
 }
 
 /**
+ * Co je na dílu pole vidět (fields.md – Co hráč vidí): rozrytý drn při zakládání (`bare`),
+ * zorané (`plowed`), zavláčené a oseté (`sown`), vzcházející (`sprouted`), zelené (`green`)
+ * a zralé obilí (`ripe`), žeň s panáky snopů (`harvesting`), strniště (`stubble`). Úhor: mladý
+ * (1–2 roky) je strniště s plevelem, kde se pase (`young-fallow`), spasená pastvina (`pasture`);
+ * úhor ve stadiu louky se kosí na seno (Martin) – vysoká tráva na jaře (`meadow`), posečená
+ * s řádky sena a kupkami (`mown`), otava se stohy, které přes podzim a zimu mizí (`haystacks`).
+ */
+export type FieldLook =
+  | 'bare'
+  | 'plowed'
+  | 'sown'
+  | 'sprouted'
+  | 'green'
+  | 'ripe'
+  | 'harvesting'
+  | 'stubble'
+  | 'young-fallow'
+  | 'pasture'
+  | 'meadow'
+  | 'mown'
+  | 'haystacks';
+
+/**
+ * Díl pole ve scéně – políčko krajiny `cell`, jeho střed (x, z) ve světě, strana políčka `size`
+ * v m a stadium. Vzhled (`look`, `work`, `before`) počítá herní jádro po čtvercích – práce mění
+ * díl, až když k němu dojde (fronta práce: jeden rozpracovaný díl na úlohu). Bez `look` ho scéna
+ * odhadne ze stadia a data (`estimateFieldLooks` ve field-look.ts).
+ */
+export interface SceneFieldPart {
+  /** Id dílu v herním jádru – podle něj postavy najdou díly z fronty práce (`SceneLaborShare.parts`). */
+  id?: number;
+  cell: TileCell;
+  x: number;
+  z: number;
+  size: number;
+  stage: PartStage;
+  /** Co je na dílu vidět; u rozpracovaného dílu vzhled hotové části. */
+  look?: FieldLook;
+  /**
+   * Rozpracovaný díl: kolik práce dnešní úlohy je na něm hotovo 0–1 – hotová část řádků má
+   * `look`, zbytek `before`. Zakládaný díl s 0 je jen vytyčený (kolíky a provázek).
+   */
+  work?: number;
+  /** Vzhled nehotové části rozpracovaného dílu; bez údaje povrch před prací (louka u zakládání). */
+  before?: FieldLook;
+}
+
+/**
+ * Podíl práce dne pro postavy. U polních prací může nést díly z fronty práce (`parts` – id
+ * dílů v pořadí: nejdřív rozpracovaný, pak ty, na které práce přijde) – postavy pak pracují
+ * přesně tam; bez nich je scéna odhadne z `work` a vzhledu dílů.
+ */
+export type SceneLaborShare = LaborShare & { parts?: readonly number[] };
+
+/**
  * Rozdělení práce posledního dne pro postavy: člověkodny po činnostech a místech (na setiny),
  * lidé podle věku (pasáčci, starší u obydlí) a herní den s měsícem (v zimě je venku méně lidí).
  */
@@ -276,7 +320,7 @@ export interface SceneLabor {
   day: number;
   month: number;
   people: { children: number; adults: number; elders: number };
-  shares: LaborShare[];
+  shares: SceneLaborShare[];
 }
 
 export const CHRONICLE_LENGTH = 8;
@@ -377,7 +421,7 @@ function sceneVillage(
     id: f.id,
     parts: state.parts.flatMap((p) =>
       p.fieldId === f.id && p.cell !== undefined
-        ? [scenePart(landscape, p.cell, partStage(p, day))]
+        ? [scenePart(landscape, p, p.cell, partStage(p, day))]
         : [],
     ),
   }));
@@ -475,19 +519,35 @@ function cemeteryProgress(
   return built ? Math.min(...active.map((s) => s.progress)) : active[0]!.progress;
 }
 
+/** Krok průběhu zakládání dílu pro scénu – obtisk se nepřestavuje při každém dotazu. */
+const FOUNDING_WORK_STEP = 20;
+
+/**
+ * Díl pole pro scénu. Zakládaný díl nese průběh (`work`): 0 = jen vytyčený (kolíky a provázek),
+ * pak se drn rozrývá po řádcích – zakládá se po dílech od nejbližšího k obydlí, rozpracovaný je
+ * vždy jen jeden. Vzhled ostatních dílů zatím odhadne scéna (field-look.ts).
+ */
 function scenePart(
   landscape: Landscape,
+  part: { id: number; foundingDone: number; foundingCost: number },
   cell: TileCell,
   stage: PartStage,
-): SceneVillage['fields'][number]['parts'][number] {
+): SceneFieldPart {
   const center = tileCenterWorld(landscape, cell.x, cell.y);
-  return {
+  const scene: SceneFieldPart = {
+    id: part.id,
     cell: { x: cell.x, y: cell.y },
     x: center.x,
     z: center.z,
     size: landscape.cellSizeM,
     stage,
   };
+  if (stage === 'founding') {
+    const done = part.foundingCost > 0 ? part.foundingDone / part.foundingCost : 0;
+    const step = Math.round(done * FOUNDING_WORK_STEP) / FOUNDING_WORK_STEP;
+    scene.work = done > 0 ? Math.min(1, Math.max(1 / FOUNDING_WORK_STEP, step)) : 0;
+  }
+  return scene;
 }
 
 function chronicle(state: VillageState, name: string): VillageView['chronicle'] {

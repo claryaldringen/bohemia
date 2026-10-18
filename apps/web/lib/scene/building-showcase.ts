@@ -11,7 +11,13 @@ import { Matrix, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { CreateGround } from '@babylonjs/core/Meshes/Builders/groundBuilder';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { Scene } from '@babylonjs/core/scene';
-import { SHOWCASE_BUILDINGS, SHOWCASE_GROUNDS, showcaseGrounds } from './building-showcase-layout';
+import {
+  SHOWCASE_BUILDINGS,
+  SHOWCASE_GROUNDS,
+  showcaseGrounds,
+  showcaseHayMeadows,
+  showcaseMeadowDay,
+} from './building-showcase-layout';
 import { SUN_DIRECTION } from './constants';
 import { createEngine, type RendererName } from './create-engine';
 import { GARDEN_MODEL_URL, eaveTufts, gardenInstance, type TuftModel } from './dwelling-decor';
@@ -45,7 +51,8 @@ const CONSTRUCTION_URLS = [
 /**
  * VÝVOJOVÝ NÁHLED – jen pro /dev/buildings: stavby vedle sebe na rovné louce se světlem hry
  * (slunce, obloha, opar a kontrast jako LandscapeScene), jámy, trsy trávy u okapu a zahrádka
- * polozemnice jako ve vsi, stíny od slunce. Za stavbami pole, hřbitov a sad – kreslí je herní
+ * polozemnice jako ve vsi, stíny od slunce. Za stavbami pole, hřbitov, sad a louka na seno –
+ * kreslí je herní
  * `VillageRenderer` podle `showcaseGrounds`. Kamera se otáčí levým tlačítkem, posouvá pravým,
  * kolečko přibližuje. Kreslí se jen při změně pohledu.
  */
@@ -293,6 +300,8 @@ export class BuildingShowcase {
       pitCuts: new PitCuts(),
       sunDirection: SUN_DIRECTION,
     });
+    this.grounds.setHayMeadows(showcaseHayMeadows());
+    this.grounds.setSeason(showcaseMeadowDay(this.progress), 0);
     this.grounds.update(showcaseGrounds(this.progress).village);
     this.shadows = addSunShadows(sun, { casters, receivers: [ground], extentM: GROUND_SIZE.width });
     this.applyProgress();
@@ -309,6 +318,7 @@ export class BuildingShowcase {
     for (const mesh of this.finished) mesh.setEnabled(built);
     for (const mesh of this.tufts) mesh.setEnabled(built);
     this.sites.update(this.progress);
+    this.grounds?.setSeason(showcaseMeadowDay(this.progress), 0);
     this.grounds?.update(showcaseGrounds(this.progress).village);
     this.shadows?.refresh();
     this.burst(400);

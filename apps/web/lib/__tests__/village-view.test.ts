@@ -298,12 +298,47 @@ describe('buildVillageView', () => {
       treesToFell: 0,
     });
     expect(scene.fields).toHaveLength(1);
-    expect(scene.fields[0]?.parts).toEqual([
-      { cell: { x: 8, y: 8 }, x: 7.5, z: 7.5, size: 15, stage: 'founding' },
-      { cell: { x: 9, y: 8 }, x: 22.5, z: 7.5, size: 15, stage: 'founding' },
-      { cell: { x: 10, y: 8 }, x: 37.5, z: 7.5, size: 15, stage: 'founding' },
-      { cell: { x: 11, y: 8 }, x: 52.5, z: 7.5, size: 15, stage: 'founding' },
-      { cell: { x: 12, y: 8 }, x: 67.5, z: 7.5, size: 15, stage: 'founding' },
+    // díly nesou id z jádra a průběh zakládání (0 = jen vytyčené – kolíky a provázek)
+    const parts = scene.fields[0]?.parts ?? [];
+    expect(new Set(parts.map((p) => p.id)).size).toBe(5);
+    expect(parts.map((p) => ({ ...p, id: undefined }))).toEqual([
+      { cell: { x: 8, y: 8 }, x: 7.5, z: 7.5, size: 15, stage: 'founding', work: 0, id: undefined },
+      {
+        cell: { x: 9, y: 8 },
+        x: 22.5,
+        z: 7.5,
+        size: 15,
+        stage: 'founding',
+        work: 0,
+        id: undefined,
+      },
+      {
+        cell: { x: 10, y: 8 },
+        x: 37.5,
+        z: 7.5,
+        size: 15,
+        stage: 'founding',
+        work: 0,
+        id: undefined,
+      },
+      {
+        cell: { x: 11, y: 8 },
+        x: 52.5,
+        z: 7.5,
+        size: 15,
+        stage: 'founding',
+        work: 0,
+        id: undefined,
+      },
+      {
+        cell: { x: 12, y: 8 },
+        x: 67.5,
+        z: 7.5,
+        size: 15,
+        stage: 'founding',
+        work: 0,
+        id: undefined,
+      },
     ]);
   });
 

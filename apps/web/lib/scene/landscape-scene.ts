@@ -241,8 +241,12 @@ export class LandscapeScene {
       requestRender: () => this.renderWhenReady(),
       pitCuts: this.pitCuts,
       sunDirection: SUN_DIRECTION,
+      landscape,
     });
     if (this.worldClock) this.village.setWorldClock(this.worldClock);
+    if (this.season) {
+      this.village.setSeason(this.seasonDayOfYear(), this.season.snow);
+    }
     this.village.setSmokeAlways(this.smokeAlways);
     this.highlight = new SelectionHighlight(this.scene, (x, z) => terrainMeshHeight(surface, x, z));
     await report('forest', 0.4);
@@ -799,6 +803,8 @@ export class LandscapeScene {
       if (this.livestock?.animate(Date.now(), camera.camera)) animated = true;
       // lidé ve vsi – skutečný čas jako zvířata
       if (this.villagers?.animate(Date.now(), camera.camera)) animated = true;
+      // obilí ve větru – jen zralé a zelené v záběru
+      if (this.village?.animateFields(Date.now(), camera.camera)) animated = true;
       if (animated) {
         this.lastWaterFrame = now;
         this.needsRender = true;
@@ -806,6 +812,8 @@ export class LandscapeScene {
     }
     if (camera.update(this.engine.getDeltaTime() / 1000)) {
       this.needsRender = true;
+      // obilí z dálky řídne (trsy), pole pak nese obtisk porostu
+      this.village?.setView(camera.camera.radius);
       // Pod nehybným kurzorem je po pohybu kamery jiné políčko.
       if (this.pointerInside) this.pointerMoved = true;
       const { target, radius } = camera.camera;
@@ -837,6 +845,11 @@ export class LandscapeScene {
     if (deciduous && this.bareShadows) this.shadows.setCastersEnabled([mesh], false);
   }
 
+  /** Den v roce scény – vývojový přepínač, jinak podle herního data světa. */
+  private seasonDayOfYear(): number {
+    return this.seasonDay ?? seasonDayAt(Date.now(), this.worldClock ?? OFFICIAL_WORLD);
+  }
+
   /**
    * Roční období podle herního data (nebo vývojového přepínače): když se vzhled znatelně
    * změnil, nastaví světlo, opar, vodu, stíny, zvuky a uniformy materiálů a scénu jednou
@@ -844,8 +857,13 @@ export class LandscapeScene {
    */
   private updateSeason(force: boolean): void {
     this.seasonCheckAt = performance.now() + SEASON_CHECK_MS;
-    const day = this.seasonDay ?? seasonDayAt(Date.now(), this.worldClock ?? OFFICIAL_WORLD);
+    const day = this.seasonDayOfYear();
     const look = seasonLook(day);
+    // pole podle dne (odhad vzhledu, seč luk) a sněhu – přestaví se, jen když se něco změnilo
+    if (this.village?.setSeason(day, look.snow)) {
+      this.shadows?.refresh();
+      this.needsRender = true;
+    }
     if (!force && this.season && seasonLookDistance(look, this.season) < SEASON_EPSILON) return;
     this.season = look;
     const { light } = look;
