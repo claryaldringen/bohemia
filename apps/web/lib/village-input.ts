@@ -1,9 +1,14 @@
 import {
   CRAFTS,
+  DIRECTIONS,
   PLOT_VARIANTS,
+  TRADE_GOOD_VALUES,
   type Craft,
+  type Direction8,
+  type TradeGood,
+  type TradeGoods,
   type DwellingPlot,
-  type DwellingType,
+  type BuildableDwellingType,
   type Position,
   type SacredBuildingKind,
   type TileCell,
@@ -16,7 +21,7 @@ import {
 /** Nejvíc čtverců pole, které server vůbec přijme (pravidla povolí méně – MAX_FIELD_CELLS). */
 const MAX_RAW_FIELD_CELLS = 5000;
 const MAX_RAW_NAME_LENGTH = 200;
-const DWELLING_TYPES: readonly DwellingType[] = ['zemnice', 'polozemnice'];
+const DWELLING_TYPES: readonly BuildableDwellingType[] = ['zemnice', 'polozemnice'];
 const SACRED_KINDS: readonly SacredBuildingKind[] = ['idol', 'shrine'];
 const TIME_SKIPS: readonly TimeSkip[] = ['month', 'year', 'decade'];
 
@@ -36,7 +41,7 @@ export function parsePosition(value: unknown): Position | null {
   return { x, z, rotation };
 }
 
-export function parseDwellingType(value: unknown): DwellingType | null {
+export function parseDwellingType(value: unknown): BuildableDwellingType | null {
   return DWELLING_TYPES.find((type) => type === value) ?? null;
 }
 
@@ -80,7 +85,7 @@ export function parseRenameVillageInput(value: unknown): { name: string } | null
 /** Vstup stavby obydlí `{ type, position }`, jinak null. */
 export function parsePlaceDwellingInput(
   value: unknown,
-): { type: DwellingType; position: Position; plot?: DwellingPlot } | null {
+): { type: BuildableDwellingType; position: Position; plot?: DwellingPlot } | null {
   if (!isRecord(value)) return null;
   const type = parseDwellingType(value.type);
   const position = parsePosition(value.position);
@@ -141,6 +146,45 @@ export function parseUpgradeRoadInput(
   if (!Number.isInteger(roadId) || (roadId as number) <= 0) return null;
   if (upgrade !== 'improved' && upgrade !== 'causeway') return null;
   return { roadId: roadId as number, upgrade };
+}
+
+/** Nejvíc zboží jednoho druhu, které server v nabídce obchodu vůbec přijme. */
+const MAX_RAW_TRADE_AMOUNT = 1_000_000;
+
+/** Směr stezky (trade.md – 8 směrů), jinak null. */
+export function parseDirection(value: unknown): Direction8 | null {
+  return DIRECTIONS.find((d) => d === value) ?? null;
+}
+
+/** Vstup stavby zemské stezky `{ direction }` (trade.md), jinak null. */
+export function parseBuildTrailInput(value: unknown): { direction: Direction8 } | null {
+  if (!isRecord(value)) return null;
+  const direction = parseDirection(value.direction);
+  return direction ? { direction } : null;
+}
+
+/** Zboží `{ druh: množství }` – známé druhy, celá nezáporná čísla, jinak null. */
+export function parseTradeGoods(value: unknown): TradeGoods | null {
+  if (!isRecord(value)) return null;
+  const goods: TradeGoods = {};
+  for (const [key, amount] of Object.entries(value)) {
+    if (!(key in TRADE_GOOD_VALUES)) return null;
+    if (!Number.isInteger(amount) || (amount as number) < 0) return null;
+    if ((amount as number) > MAX_RAW_TRADE_AMOUNT) return null;
+    if ((amount as number) > 0) goods[key as TradeGood] = amount as number;
+  }
+  return goods;
+}
+
+/** Vstup výpravy k sousedovi `{ direction, give, get }` (trade.md – Obchod), jinak null. */
+export function parseSendExpeditionInput(
+  value: unknown,
+): { direction: Direction8; give: TradeGoods; get: TradeGoods } | null {
+  if (!isRecord(value)) return null;
+  const direction = parseDirection(value.direction);
+  const give = parseTradeGoods(value.give);
+  const get = parseTradeGoods(value.get);
+  return direction && give && get ? { direction, give, get } : null;
 }
 
 /** Vstup výsadby jabloní podél pevné cesty `{ roadId }` (roads.md), jinak null. */
@@ -212,9 +256,12 @@ function parsePositiveInt(value: unknown): number | null {
  * Vstup přestěhování domácnosti `{ dwellingId, type, position, plot? }` – nový dům jako stavba
  * obydlí (migration.md), jinak null.
  */
-export function parseRelocateHouseholdInput(
-  value: unknown,
-): { dwellingId: number; type: DwellingType; position: Position; plot?: DwellingPlot } | null {
+export function parseRelocateHouseholdInput(value: unknown): {
+  dwellingId: number;
+  type: BuildableDwellingType;
+  position: Position;
+  plot?: DwellingPlot;
+} | null {
   if (!isRecord(value)) return null;
   const dwellingId = parsePositiveInt(value.dwellingId);
   const dwelling = parsePlaceDwellingInput(value);

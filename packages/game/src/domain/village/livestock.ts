@@ -69,6 +69,7 @@ export const SLAUGHTER_MONTH = 11;
 export const CHICKENS_PER_DWELLING: Readonly<Record<DwellingType, number>> = {
   zemnice: 2,
   polozemnice: 3,
+  dvorec: 4,
 };
 /** Na maso navíc jdou mláďata v tomto pořadí – nejvíc masa za kus první. */
 const MEAT_ORDER: readonly HerdSpecies[] = ['pig', 'sheep', 'goat', 'cow'];

@@ -14,6 +14,7 @@ import {
   compactChunks,
   emptyBounds,
   mergeBounds,
+  transformBounds,
   type ChunkGrid,
   type ChunkOrder,
   type LocalBounds,
@@ -43,8 +44,10 @@ interface Entry {
   matrices: Float32Array;
   colors: Float32Array | undefined;
   hidden: Uint8Array | null;
-  /** Obaly čtverců (scenery-chunks.ts). */
+  /** Obaly čtverců v prostoru meshe (scenery-chunks.ts) – obal klonu pro Babylon. */
   bounds: Float32Array;
+  /** Tytéž obaly ve světě (maticí meshe) – podle nich se rozhoduje, co je v záběru. */
+  world: Float32Array;
   outMatrices: Float32Array;
   outColors: Float32Array | undefined;
   /** Čtverce, jejichž instance jsou teď v bufferu kamery. */
@@ -107,6 +110,7 @@ export class SceneryCulling {
       // zvětšené instance mají větší obal
       entry.matrices = matrices;
       chunkBounds(matrices, entry.chunk, entry.local, entry.bounds);
+      entry.world = worldBounds(source, entry.bounds);
       this.unionDirty = true;
     }
     if (colors) entry.colors = colors;
@@ -134,7 +138,7 @@ export class SceneryCulling {
     if (!moved && !this.unionDirty && !dirty) return false;
     if (this.unionDirty) {
       this.union = emptyBounds(this.grid.count * this.grid.count);
-      for (const entry of this.entries.values()) mergeBounds(this.union, entry.bounds);
+      for (const entry of this.entries.values()) mergeBounds(this.union, entry.world);
     }
     if (moved || this.unionDirty) {
       this.lastTransform.set(m);
@@ -153,9 +157,7 @@ export class SceneryCulling {
     }
     let rebuilt = false;
     for (const entry of this.entries.values()) {
-      const visible = this.unionVisible.filter((c) =>
-        boxInFrustum(entry.bounds, c, this.planeData),
-      );
+      const visible = this.unionVisible.filter((c) => boxInFrustum(entry.world, c, this.planeData));
       if (!entry.dirty && sameChunks(visible, entry.visible)) continue;
       entry.visible = visible;
       entry.dirty = false;
@@ -202,6 +204,7 @@ export class SceneryCulling {
       view.thinInstanceSetBuffer('color', outColors, 4, false);
     }
     view.thinInstanceCount = 0;
+    const bounds = chunkBounds(instances.matrices, chunk, local);
     this.entries.set(source, {
       source,
       view,
@@ -210,7 +213,8 @@ export class SceneryCulling {
       matrices: instances.matrices,
       colors: instances.colors,
       hidden: null,
-      bounds: chunkBounds(instances.matrices, chunk, local),
+      bounds,
+      world: worldBounds(source, bounds),
       outMatrices,
       outColors: instances.colors ? outColors : undefined,
       visible: [],
@@ -221,6 +225,22 @@ export class SceneryCulling {
 
   private createView(source: Mesh): Mesh {
     const view = source.clone(`${VIEW_PREFIX}${source.name}`, null, true);
+    // Vlastní geometrie: Babylon drží buffery thin instances (world0–3, barva) na geometrii –
+    // klon se sdílenou geometrií by kreslil buffer zdroje (prvních N instancí odjinud) a les
+    // v záběru by chyběl. Geometrie (vrcholy) se zkopíruje, změny vrcholů zdroje (impostory se
+    // natáčejí ke kameře) se do kopie přenesou.
+    view.makeGeometryUnique();
+    const sourceGeometry = source.geometry;
+    if (sourceGeometry) {
+      const previous = sourceGeometry.onGeometryUpdated;
+      sourceGeometry.onGeometryUpdated = (geometry, kind): void => {
+        previous?.(geometry, kind);
+        if (kind !== VertexBuffer.PositionKind || view.isDisposed()) return;
+        const positions = geometry.getVerticesData(VertexBuffer.PositionKind);
+        if (positions)
+          view.geometry?.updateVerticesData(VertexBuffer.PositionKind, positions, false);
+      };
+    }
     view.isPickable = false;
     view.alwaysSelectAsActiveMesh = false;
     view.cullingStrategy = AbstractMesh.CULLINGSTRATEGY_STANDARD;
@@ -292,4 +312,10 @@ function positionBounds(mesh: Mesh): LocalBounds | null {
     }
   }
   return [min[0]!, min[1]!, min[2]!, max[0]!, max[1]!, max[2]!];
+}
+
+/** Obaly čtverců ve světě – maticí meshe (meshe scenérie ji mají jednotkovou, pak tytéž). */
+function worldBounds(mesh: Mesh, bounds: Float32Array): Float32Array {
+  const world = mesh.computeWorldMatrix(true);
+  return world.isIdentity() ? bounds : transformBounds(bounds, world.m);
 }

@@ -4,7 +4,9 @@ import { NOT_PLAYER_VILLAGE } from '@bohemia/game';
 import { restartGameForPlayer } from '@/lib/game';
 import { getSession } from '@/lib/session';
 import {
+  buildTrailForPlayer,
   cancelRelocationForPlayer,
+  sendExpeditionForPlayer,
   foundDevVillageForPlayer,
   foundVillageForPlayer,
   placeCemeteryForPlayer,
@@ -28,7 +30,9 @@ import {
   type VillageView,
 } from '@/lib/village';
 import {
+  parseBuildTrailInput,
   parseCancelRelocationInput,
+  parseSendExpeditionInput,
   parseFoundVillageInput,
   parsePlaceCemeteryInput,
   parsePlaceDwellingInput,
@@ -220,6 +224,22 @@ export async function trainTeam(input: unknown): Promise<VillageActionResult> {
  */
 export async function upgradeRoad(input: unknown): Promise<VillageActionResult> {
   return villageAction(input, parseUpgradeRoadInput, upgradeRoadForPlayer);
+}
+
+/**
+ * Zemská stezka z dvorce vojvody ke kraji mapy (trade.md): `{ villageId, direction }` – server ji
+ * naplánuje znovu (`planTrail` – trasa, úseky, dřevo).
+ */
+export async function buildTrail(input: unknown): Promise<VillageActionResult> {
+  return villageAction(input, parseBuildTrailInput, buildTrailForPlayer);
+}
+
+/**
+ * Výprava nosičů k sousedovi (trade.md – Obchod): `{ villageId, direction, give, get }` (zboží
+ * `{ druh: množství }`) – server výměnu ověří znovu (`tradeQuote`).
+ */
+export async function sendExpedition(input: unknown): Promise<VillageActionResult> {
+  return villageAction(input, parseSendExpeditionInput, sendExpeditionForPlayer);
 }
 
 /**

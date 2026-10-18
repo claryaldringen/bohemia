@@ -36,7 +36,8 @@ describe('SHOWCASE_BUILDINGS', () => {
 
   it('pozemky polozemnic (15 × 15 m) se nepřekrývají a nezasahují do ostatních staveb', () => {
     const models = SHOWCASE_BUILDINGS.flatMap((b) => b.models);
-    const plots = models.flatMap((m) => (m.plot ? [m.plot] : []));
+    // dvorec vojvody (trade.md) má pozemek dvou políček – jen pozemky polozemnic
+    const plots = models.flatMap((m) => (m.plot && !m.plot.yard ? [m.plot] : []));
     expect(plots.length).toBe(6);
     expect(new Set(plots.map((p) => p.variant)).size).toBe(5);
     for (const p of plots) {
@@ -90,6 +91,25 @@ describe('ukázka rozpadu obydlí', () => {
     expect(decayLabel(0)).toMatch(/^stav 100 % – celý dům/);
     expect(decayLabel(DECAY_HOUSE_SHARE + 0.2)).toMatch(/^zbytek jámy – 5 let po zániku/);
     expect(decayLabel(1)).toMatch(/zmizel/);
+  });
+
+  it('opuštěné stavby (abandonment.md): chátrají s posuvníkem, pak zbytky a rozpadlý plot', () => {
+    const start = showcaseDecay(0);
+    expect(start.sacred!.buildings.map((b) => [b.kind, b.condition, b.abandoned])).toEqual([
+      ['idol', undefined, true],
+      ['shrine', undefined, true],
+    ]);
+    expect(start.pens![0]!.stocked).toBe(false);
+    const half = showcaseDecay(DECAY_HOUSE_SHARE / 2);
+    expect(half.sacred!.buildings[0]!.condition).toBeCloseTo(0.5, 2);
+    expect(half.cemeteries![0]!.fence).toBeCloseTo(0.5, 2);
+    expect(half.pens![0]!.condition).toBeCloseTo(0.5, 2);
+    const fallen = showcaseDecay(DECAY_HOUSE_SHARE + 0.1);
+    expect(fallen.sacred!.buildings).toEqual([]);
+    expect(fallen.sacred!.ruins!.map((r) => r.kind)).toEqual(['idol', 'shrine']);
+    expect(fallen.cemeteries![0]!.fence).toBe(0);
+    expect(fallen.pens).toEqual([]);
+    expect(showcaseDecay(1).sacred!.ruins).toBeUndefined();
   });
 
   it('dvojice podle posuvníku a řada všech stupňů se zbytky jam, nic se nepřekrývá', () => {

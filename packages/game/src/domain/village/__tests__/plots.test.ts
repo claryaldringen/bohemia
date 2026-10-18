@@ -278,7 +278,8 @@ describe('přestavba polozemnice bez pozemku', () => {
       parts = advanceVillage(parts, Math.min(end, s.lastDay + step), EMPTY, landscape);
     }
     expect(parts).toEqual(whole);
-    expect(whole.dwellings.find((d) => d.type === 'polozemnice')?.plot).toBeDefined();
+    // jediná zemnice je dvorec vojvody – přestaví se na dvorec na pozemku se dvorem (trade.md)
+    expect(whole.dwellings.find((d) => d.type === 'dvorec')?.plot?.yard).toBeDefined();
   });
 
   it('bez krajiny (testy, měření) se přestaví na místě; bez volného políčka do 50 m taky', () => {

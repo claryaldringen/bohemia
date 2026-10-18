@@ -1,4 +1,5 @@
 import { dateOfDayIndex } from '../../calendar';
+import { stockedPenIds } from '../abandonment';
 import { tileCenterWorld, type Landscape, type ObstacleLayer } from '../../landscape';
 import { villageCemeteries } from '../cemetery';
 import { HAY_WINTER_MONTHS } from '../hay';
@@ -95,9 +96,23 @@ export function pastureGrazedParts(
 export function pathVillageOf(state: VillageState, day: number, landscape: Landscape): PathVillage {
   const occupied = new Set(state.people.map((p) => p.dwellingId));
   const plotOf = (
-    plot: { cell: TileCell } | undefined,
-  ): { plot: { cell: TileCell; x: number; z: number; size: number } } | object =>
-    plot ? { plot: square(landscape, plot.cell) } : {};
+    plot: { cell: TileCell; yard?: TileCell } | undefined,
+  ):
+    | {
+        plot: {
+          cell: TileCell;
+          x: number;
+          z: number;
+          size: number;
+          yard?: { x: number; z: number };
+        };
+      }
+    | object => {
+    if (!plot) return {};
+    // dvorec vojvody (trade.md) – pozemek i se dvorem
+    const yard = plot.yard ? tileCenterWorld(landscape, plot.yard.x, plot.yard.y) : null;
+    return { plot: { ...square(landscape, plot.cell), ...(yard ? { yard } : {}) } };
+  };
   const dwellings = [
     ...state.dwellings.map((d) => ({
       id: d.id,
@@ -191,6 +206,8 @@ export function pathVillageOf(state: VillageState, day: number, landscape: Lands
   const hayMeadows = (state.hay?.mowing?.squares ?? []).flatMap((sq) =>
     sq.cell ? [square(landscape, sq.cell)] : [],
   );
+  // do ohrady bez zvířat se krmit nechodí (abandonment.md)
+  const stocked = stockedPenIds(state);
   const pens = villagePens(state).map((p) => ({
     id: p.id,
     cell: { x: p.cell.x, y: p.cell.y },
@@ -198,6 +215,7 @@ export function pathVillageOf(state: VillageState, day: number, landscape: Lands
     z: p.z,
     size: landscape.cellSizeM,
     built: p.builtDay !== null,
+    ...(p.builtDay !== null && !stocked.has(p.id) ? { stocked: false } : {}),
   }));
   return {
     dwellings,
@@ -279,8 +297,10 @@ function computeVillageNetwork(
 
 /**
  * Klíč rozložení vsi pro vzdálenosti chůze: obydlí a staveniště (poloha, pozemek, obyvatelé,
- * stáří spojení po desetinách), díly polí se stadiem, sady, hřbitovy, posvátná místa, pevné
- * cesty, ohrady a počet stád na pastvě. Práce dne ani pokácené stromy v něm nejsou – síť se kvůli nim každý den nepřepočítává.
+ * stáří spojení po desetinách), díly polí (políčka – bez stadia), sady, hřbitovy, posvátná místa,
+ * pevné cesty, ohrady, les vsi a počet stád na pastvě. Práce dne ani pokácené stromy v něm nejsou
+ * – síť se kvůli nim každý den nepřepočítává. Stadia dílů a pastva úhoru jsou zvlášť
+ * (`walkStageKey`) – promítají se nejvýš jednou za měsíc (Martin, 18. 10. 2026).
  */
 export function walkLayoutKey(state: VillageState, day: number): string {
   const occupied = new Set(state.people.map((p) => p.dwellingId));
@@ -289,18 +309,14 @@ export function walkLayoutKey(state: VillageState, day: number): string {
   const at = (p: Position): string => `${p.x},${p.z},${p.rotation}`;
   const dwellings = state.dwellings.map(
     (d) =>
-      `${d.id}:${d.type}${d.workshop ? `/${d.workshop.craft}` : ''}:${at(d.position)}:${d.plot ? `${d.plot.cell.x},${d.plot.cell.y}` : ''}:${occupied.has(d.id) ? 1 : 0}:${age(d.builtDay)}`,
+      `${d.id}:${d.type}${d.workshop ? `/${d.workshop.craft}` : ''}:${at(d.position)}:${d.plot ? `${d.plot.cell.x},${d.plot.cell.y}${d.plot.yard ? `+${d.plot.yard.x},${d.plot.yard.y}` : ''}` : ''}:${occupied.has(d.id) ? 1 : 0}:${age(d.builtDay)}`,
   );
   const sites = state.constructions.flatMap((c) =>
     c.position !== null && (c.kind === 'dwelling' || c.kind === 'idol' || c.kind === 'shrine')
       ? [`${c.id}:${c.kind}${c.craft ? `/${c.craft}` : ''}:${at(c.position)}:${age(c.startedDay)}`]
       : [],
   );
-  const grazed = pastureGrazedParts(state, day);
-  const parts = state.parts.map(
-    (p) =>
-      `${p.id}:${p.cell ? `${p.cell.x},${p.cell.y}` : ''}:${partStage(p, day)}${isGrazeableFallow(p) && !grazed.has(p.id) ? ':-' : ''}`,
-  );
+  const parts = state.parts.map((p) => `${p.id}:${p.cell ? `${p.cell.x},${p.cell.y}` : ''}`);
   const woods = villageWoods(state).map((w) => `${w.cell.x},${w.cell.y}`);
   const orchards = villageOrchards(state).map(
     (o) => `${o.id}:${o.squares.map((s) => `${s.cell.x},${s.cell.y}`).join(';')}`,
@@ -314,8 +330,10 @@ export function walkLayoutKey(state: VillageState, day: number): string {
     (state.sacredBuildings ?? []).map((b) => b.id).join(','),
   ].join('|');
   const roads = state.roads?.roads ?? [];
+  const stocked = stockedPenIds(state);
   const pens = villagePens(state).map(
-    (p) => `${p.id}:${p.cell.x},${p.cell.y}:${p.builtDay === null ? 0 : 1}`,
+    (p) =>
+      `${p.id}:${p.cell.x},${p.cell.y}:${p.builtDay === null ? 0 : 1}${p.builtDay !== null && !stocked.has(p.id) ? ':-' : ''}`,
   );
   const herds = state.livestock ? pastureHerds(pastureLivestock(state, day)) : 0;
   return JSON.stringify([
@@ -334,6 +352,20 @@ export function walkLayoutKey(state: VillageState, day: number): string {
 }
 
 /**
+ * Stadia dílů pole pro vzdálenosti chůze (paths.md, fields.md – Vzdálenost): stadium a jestli se
+ * na úhoru pase. Osev a zakládání postupují po dílech den po dni – síť by se jinak přepočítávala
+ * každých pár dní; do klíče chůze se proto promítají jen 1. dne v měsíci (`refreshWalkDistances`).
+ */
+export function walkStageKey(state: VillageState, day: number): string {
+  const grazed = pastureGrazedParts(state, day);
+  return state.parts
+    .map(
+      (p) => `${p.id}:${partStage(p, day)}${isGrazeableFallow(p) && !grazed.has(p.id) ? ':-' : ''}`,
+    )
+    .join(';');
+}
+
+/**
  * Otisk klíče rozložení (`walkLayoutKey`) – ve stavu vsi se drží jen on (16 šestnáctkových
  * číslic, dvě nezávislé 32bitové FNV-1a), ne celý klíč (u Vlkova 37 kB). Shoda otisků = shoda
  * klíčů (náhodná shoda 1 : 2^64).
@@ -347,14 +379,6 @@ export function walkLayoutHash(key: string): string {
     b = Math.imul(b ^ c, 0x01000193) ^ (b >>> 15);
   }
   return `${(a >>> 0).toString(16).padStart(8, '0')}${(b >>> 0).toString(16).padStart(8, '0')}`;
-}
-
-/**
- * Otisk rozložení uložený ve stavu – vsi uložené před otisky (do 18. 10. 2026) mají celý klíč
- * (JSON pole), ten se porovná přes svůj otisk.
- */
-function storedLayoutHash(stored: string | undefined): string | undefined {
-  return stored !== undefined && stored.startsWith('[') ? walkLayoutHash(stored) : stored;
 }
 
 /** Polohy obydlí vsi včetně rozestavěných – od nich se měří vzdálenost dílů pole. */
@@ -394,9 +418,10 @@ export function walkDistancesTo(
  * chůze): díly pole (`FieldPart.walkDistanceM`) a čtverce sadů (`OrchardSquare.walkDistanceM`)
  * z nejbližšího obydlí, palivo z obydlí k nejbližšímu okraji lesa (`Dwelling.forestWalkM`).
  * Přepočítá je, jen když se od posledního výpočtu změnilo rozložení vsi (`walkLayoutKey` – i pevné
- * cesty a jejich stupeň, takže i po dokončení vylepšení; ve stavu jen otisk `walkLayoutHash`,
- * celý klíč uložený dřív se beze změny rozložení jen převede na otisk). Chůze rovně počítá
- * mokřinu a brody (`walkGroundOf`) – pole za potokem bez cesty zdraží, s hatí a lávkou zlevní.
+ * cesty a jejich stupeň, takže i po dokončení vylepšení) nebo stadia dílů (`walkStageKey`), ta ale
+ * jen 1. dne v měsíci (Martin – chůze se přepočítává měsíčně; otisk stadií z posledního 1. dne je
+ * ve stavu `walkStages`, ve stavu jen otisky `walkLayoutHash`). Chůze rovně počítá mokřinu a brody
+ * (`walkGroundOf`) – pole za potokem bez cesty zdraží, s hatí a lávkou zlevní.
  */
 export function refreshWalkDistances(
   state: VillageState,
@@ -404,8 +429,12 @@ export function refreshWalkDistances(
   landscape: Landscape,
   obstacles: ObstacleLayer | null,
 ): void {
-  const key = walkLayoutHash(walkLayoutKey(state, day));
-  const unchanged = storedLayoutHash(state.walkLayoutKey) === key;
+  // stadia dílů jen 1. dne v měsíci (a poprvé) – jinak platí otisk z posledního 1. dne
+  if (state.walkStages === undefined || dateOfDayIndex(day).day === 1) {
+    state.walkStages = walkLayoutHash(walkStageKey(state, day));
+  }
+  const key = walkLayoutHash(`${walkLayoutKey(state, day)}|${state.walkStages}`);
+  const unchanged = state.walkLayoutKey === key;
   state.walkLayoutKey = key;
   if (unchanged) return;
   const network = villagePathNetwork(state, day, landscape, obstacles);

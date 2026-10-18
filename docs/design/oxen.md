@@ -34,6 +34,9 @@ půdy na seno. Dobytek, dosud jen ozdoba, se tím poprvé zapojí do hry.
   ve hře je – jedna kráva na 2 domácnosti) (návrh Clauda).
 - V létě se dobytek pase venku (úhor, louky po seči – jako dnes), přes zimu stojí v ohradě a žere
   seno.
+- **Ohrada bez zvířat chátrá** ([abandonment.md](abandonment.md), Martin 18. 10. 2026): do ohrady
+  bez spřežení, výcviku a zimních krav se krmit nechodí; když k ní za rok nevede žádná cesta,
+  chátrá a za ≈ 10 let se rozpadne a zmizí. Ohrada se zvířaty opuštěná není.
 
 ## Spřežení (cvičí hráč)
 

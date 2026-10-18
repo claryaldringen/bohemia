@@ -23,6 +23,8 @@ const pen = (over: Partial<Extract<SelectionDetails, { kind: 'pen' }>> = {}): Se
   training: null,
   hayKg: 3200,
   trainBlocked: null,
+  condition: 1,
+  abandoned: false,
   ...over,
 });
 
@@ -142,6 +144,36 @@ describe('SelectionPanel – posvátný dub a háj', () => {
   });
 });
 
+// Panel obydlí (kinship.md – Co hráč vidí): muži, ženy, děti, starší a manželské páry.
+describe('SelectionPanel – rodiny v obydlí', () => {
+  it('muži, ženy, děti, starší a páry ikonami s čísly', () => {
+    const html = render({
+      kind: 'dwelling',
+      id: 1,
+      type: 'polozemnice',
+      occupants: 8,
+      family: { men: 2, women: 2, boys: 1, girls: 2, elderMen: 0, elderWomen: 1, couples: 2 },
+      capacity: 8,
+      ages: [52, 30, 27, 24, 22, 9, 6, 2],
+      condition: 1,
+      ageYears: 3,
+      full: true,
+      overcrowded: false,
+      rebuild: null,
+      workshop: null,
+      relocation: null,
+      relocate: null,
+      manor: null,
+    });
+    expect(text(html, 'selection-family-man')).toBe('2');
+    expect(text(html, 'selection-family-woman')).toBe('2');
+    expect(text(html, 'selection-family-child')).toBe('3');
+    expect(text(html, 'selection-family-elder')).toBe('1');
+    expect(text(html, 'selection-family-ring')).toBe('2');
+    expect(html).toContain('/icons/resources/ring.png');
+  });
+});
+
 // Přestěhování domácnosti a výběr víc obydlí (migration.md – Co hráč vidí).
 const option = (affordable: boolean, missing = 0): BuildOption => ({
   laborManDays: 60,
@@ -160,6 +192,7 @@ const dwelling = (
   id: 3,
   type: 'zemnice',
   occupants: 4,
+  family: { men: 1, women: 1, boys: 1, girls: 1, elderMen: 0, elderWomen: 0, couples: 1 },
   capacity: 6,
   ages: [30, 28, 6, 2],
   condition: 0.9,
@@ -170,6 +203,7 @@ const dwelling = (
   workshop: null,
   relocation: null,
   relocate,
+  manor: null,
   ...over,
 });
 
@@ -270,5 +304,56 @@ describe('panel pole – plodiny (fields.md – Luštěniny)', () => {
     expect(html).toMatch(/legumes\.png.*data-testid="selection-crop-legume"[^>]*>2</);
     expect(html).toContain('Luštěniny – hrách a čočka');
     expect(html).toContain('data-testid="selection-crop-winter"');
+  });
+});
+
+describe('SelectionPanel – opuštěné stavby (abandonment.md)', () => {
+  const sacred = (
+    over: Partial<Extract<SelectionDetails, { kind: 'sacred' }>> = {},
+  ): SelectionDetails => ({
+    kind: 'sacred',
+    id: 40,
+    type: 'idol',
+    happiness: 8,
+    building: null,
+    oaksToFell: 0,
+    condition: 1,
+    abandoned: false,
+    ...over,
+  });
+
+  it('hotová modla: stav ikonou s procenty, opuštěná navíc ikona „Opuštěno“', () => {
+    const visited = render(sacred());
+    expect(visited).toContain('/icons/resources/condition.png');
+    expect(visited).toMatch(/data-testid="selection-wear"[^>]*>(<span[^>]*>)?100 %/);
+    expect(visited).not.toContain('selection-abandoned');
+    const left = render(sacred({ condition: 0.38, abandoned: true }));
+    expect(left).toContain('/icons/resources/abandoned.png');
+    expect(left).toContain('data-testid="selection-abandoned"');
+    // nízký stav červeně
+    expect(left).toMatch(/text-red-400[^>]*>38 %/);
+  });
+
+  it('rozestavěná modla stav neukazuje; ohrada a hřbitov ano', () => {
+    expect(render(sacred({ building: 0.4 }))).not.toContain('selection-wear');
+    const penHtml = render(pen({ condition: 0.6, abandoned: true }));
+    expect(penHtml).toContain('data-testid="selection-wear"');
+    expect(penHtml).toContain('data-testid="selection-abandoned"');
+    const cemetery: SelectionDetails = {
+      kind: 'cemetery',
+      id: 30,
+      squares: 1,
+      capacity: 56,
+      graves: 20,
+      freeGraves: 36,
+      yearsLeft: 9,
+      built: true,
+      building: null,
+      condition: 0,
+      abandoned: false,
+    };
+    const html = render(cemetery);
+    expect(html).toContain('Plot – stav');
+    expect(html).toMatch(/text-red-400[^>]*>0 %/);
   });
 });

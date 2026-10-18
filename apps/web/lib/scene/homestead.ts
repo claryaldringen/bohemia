@@ -24,6 +24,8 @@ import { createDecalMesh, type HeightFn } from './village-meshes';
 import type { WovenFenceRenderer } from './woven-fence-renderer';
 
 export const HOMESTEAD_MODEL_URL = '/models/dwellings/homestead.glb';
+/** Brána pozemku dvorce vojvody (trade.md – tools/blender/dwellings.py „dvorec“). */
+const MANOR_GATE_URL = '/models/dwellings/dvorec-gate.glb';
 /** Plevel na zarostlých záhonech – trs trávy jako u okapu obydlí. */
 const WEED_MODEL_URL = '/models/dwellings/grass-tuft-1.glb';
 /** Trs plevele je menší než trs u okapu (díl je ve skutečné velikosti trsu trávy). */
@@ -64,6 +66,9 @@ export class HomesteadRenderer {
   /** Plevel zarostlých záhonů – načte se, až nějaký pozemek zarůstá. */
   private weeds: Mesh | null = null;
   private weedsLoading: Promise<void> | null = null;
+  /** Brána dvorce – načte se s prvním pozemkem dvorce. */
+  private gate: Mesh | null = null;
+  private gateLoading: Promise<void> | null = null;
   private disposed = false;
 
   constructor(
@@ -91,9 +96,10 @@ export class HomesteadRenderer {
     for (const view of plots) {
       seen.add(view.id);
       const h = view.house;
+      const y = view.square.yard;
       const layoutKey = `${view.square.x},${view.square.z},${view.square.size},${view.variant}${
         h ? `|${h.x},${h.z},${h.rotation}` : ''
-      }`;
+      }${y ? `|${y.x},${y.z}` : ''}`;
       const p = view.progress;
       const d = view.decay;
       const decayKey = d ? `|${round(d.fence)}|${round(d.beds)}|${d.seed}` : '';
@@ -128,6 +134,7 @@ export class HomesteadRenderer {
     if ([...this.entries.values()].some((e) => (e.view.decay?.beds ?? 0) > 0)) {
       void this.loadWeeds();
     }
+    if ([...this.entries.values()].some((e) => e.layout.gate !== null)) void this.loadGate();
     if (changed) this.updateInstances();
     return changed;
   }
@@ -141,6 +148,31 @@ export class HomesteadRenderer {
     this.entries.clear();
     for (const mesh of this.parts?.values() ?? []) mesh.dispose();
     this.weeds?.dispose();
+    this.gate?.dispose();
+  }
+
+  private loadGate(): Promise<void> {
+    this.gateLoading ??= (async () => {
+      try {
+        const mesh = await loadMergedModel(this.scene, MANOR_GATE_URL, 'village-plot-gate', (m) =>
+          this.context.prepareMaterial(m),
+        );
+        if (!mesh) return;
+        if (this.disposed) {
+          mesh.dispose();
+          return;
+        }
+        mesh.setEnabled(false);
+        mesh.receiveShadows = true;
+        this.context.addShadowCaster(mesh);
+        this.gate = mesh;
+        this.updateInstances();
+        this.context.onAsyncChange();
+      } catch (error) {
+        console.warn('Bránu dvorce se nepodařilo načíst.', error);
+      }
+    })();
+    return this.gateLoading;
   }
 
   private loadWeeds(): Promise<void> {
@@ -195,6 +227,7 @@ export class HomesteadRenderer {
 
   /** Instance všech dílů ze všech pozemků. */
   private updateInstances(): void {
+    this.updateGates();
     const parts = this.parts;
     if (!parts) return;
     const buffers = new Map<string, number[]>(PARTS.map((name) => [name, []]));
@@ -248,6 +281,33 @@ export class HomesteadRenderer {
       mesh.thinInstanceSetBuffer('matrix', Float32Array.from(data), 16, true);
       mesh.setEnabled(true);
     }
+  }
+
+  /** Brány pozemků dvorců – stojí, až jsou zatlučené kůly plotu. */
+  private updateGates(): void {
+    if (!this.gate) return;
+    const matrix = new Matrix();
+    const data: number[] = [];
+    for (const { layout, view } of this.entries.values()) {
+      const gate = layout.gate;
+      if (!gate || view.progress.posts < 1) continue;
+      compose(
+        matrix,
+        gate.x,
+        this.context.groundHeight(gate.x, gate.z),
+        gate.z,
+        gate.rotation,
+        1,
+        null,
+      );
+      appendMatrix(data, matrix);
+    }
+    if (data.length === 0) {
+      this.gate.setEnabled(false);
+      return;
+    }
+    this.gate.thinInstanceSetBuffer('matrix', Float32Array.from(data), 16, true);
+    this.gate.setEnabled(true);
   }
 
   /** Vyšlapaná tráva od branky ke dvorku před dveřmi. */

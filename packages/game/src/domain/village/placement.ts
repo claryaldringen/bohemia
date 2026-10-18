@@ -29,6 +29,7 @@ import {
   type ObstacleChanges,
   type ObstacleTally,
 } from './obstacles';
+import { plotCells } from './plot-cells';
 import { coveredArea, polygonsOverlap, rectangleCorners, type Point } from './polygon';
 import {
   CEMETERY,
@@ -331,11 +332,35 @@ export function dwellingFootprint(type: DwellingType, position: Position): Point
   return rectangleCorners(position.x, position.z, width, depth, position.rotation);
 }
 
-/** Poloha domu na pozemku: střed políčka + posun varianty, vchodem k brance (`PLOT_HOUSE_*`). */
+/**
+ * Poloha domu na pozemku: střed políčka + posun varianty, vchodem k brance (`PLOT_HOUSE_*`).
+ * Dvorec (pozemek se dvorem – trade.md): uprostřed políčka domu, vchodem ke dvoru.
+ */
 export function plotHousePosition(landscape: Landscape, plot: DwellingPlot): Position {
   const center = tileCenterWorld(landscape, plot.cell.x, plot.cell.y);
+  if (plot.yard) {
+    return { x: center.x, z: center.z, rotation: yardRotation(plot.cell, plot.yard) };
+  }
   const offset = PLOT_HOUSE_OFFSET_M[plot.variant];
   return { x: center.x + offset.x, z: center.z + offset.z, rotation: PLOT_HOUSE_ROTATION };
+}
+
+/**
+ * Natočení domu, jehož vchod (+z modelu) míří z políčka `cell` do sousedního `yard`: model +z
+ * jde do (sin r, cos r) světa – dvůr na −z (vpředu jako u ostatních pozemků) π, na +z 0, na +x
+ * π/2, na −x −π/2.
+ */
+export function yardRotation(cell: TileCell, yard: TileCell): number {
+  const dx = yard.x - cell.x;
+  const dy = yard.y - cell.y;
+  if (dy < 0) return Math.PI;
+  if (dy > 0) return 0;
+  return dx > 0 ? Math.PI / 2 : -Math.PI / 2;
+}
+
+/** Dvůr sousedí s políčkem domu stranou. */
+function yardTouches(cell: TileCell, yard: TileCell): boolean {
+  return Math.abs(yard.x - cell.x) + Math.abs(yard.y - cell.y) === 1;
 }
 
 /**
@@ -358,7 +383,9 @@ interface PlacedDwelling {
 export function dwellingPlot(landscape: Landscape, d: PlacedDwelling): Point[][] {
   if (d.craft) return workshopFootprints(d.craft, d.position);
   const footprint = dwellingFootprint(d.type, d.position);
-  return d.plot ? [cellCorners(landscape, d.plot.cell), footprint] : [footprint];
+  return d.plot
+    ? [...plotCells(d.plot).map((cell) => cellCorners(landscape, cell)), footprint]
+    : [footprint];
 }
 
 /** Obydlí vsi pro kontrolu překryvu (řemeslo dílny jako `craft`). */
@@ -883,22 +910,46 @@ export function checkPlotPlacement(
     position: null,
   };
   if (!PLOT_TYPES[type]) return { ...fail('Tohle obydlí se staví bez pozemku.'), ...none };
-  const { cell } = plot;
   if (!PLOT_VARIANTS.includes(plot.variant)) {
     return { ...fail('Neplatné místo domu na pozemku.'), ...none };
   }
-  const where = plotCellProblem(landscape, cell);
-  if (where) return { ...fail(where), ...none };
+  // dvorec stojí na pozemku dvou políček – dům a dvůr (trade.md – Dvorec vojvody)
+  if ((type === 'dvorec') !== (plot.yard !== undefined)) {
+    return { ...fail('Dvorec potřebuje pozemek se dvorem.'), ...none };
+  }
+  if (plot.yard && (plot.variant !== 'center' || !yardTouches(plot.cell, plot.yard))) {
+    return { ...fail('Dvůr musí sousedit s políčkem domu.'), ...none };
+  }
+  const cells = plotCells(plot);
+  for (const cell of cells) {
+    const where = plotCellProblem(landscape, cell);
+    if (where) return { ...fail(where), ...none };
+  }
   const position = plotHousePosition(landscape, plot);
   const terrain = checkFootprintTerrain(landscape, footprintSamples(type, position));
   if (!terrain.ok) return { ...terrain, ...none };
   const sites = sacredSitesOf(obstacles);
-  const taken = plotSquareProblem(landscape, village, cell, obstacles, sites, takeLand);
-  if (taken) return { ...fail(taken), ...none };
+  for (const cell of cells) {
+    const taken = plotSquareProblem(landscape, village, cell, obstacles, sites, takeLand);
+    if (taken) return { ...fail(taken), ...none };
+  }
   const house = sacredUnder(landscape, obstacles, sites, [dwellingFootprint(type, position)]);
   if (house) return { ...fail(house), ...none };
-  const takenLand = takeLand ? takenPlotLand(landscape, village, cell) : [];
-  const tally = plotClearing(landscape, village, cell, obstacles, sites, takenLand.length > 0);
+  const takenLand = takeLand
+    ? cells.flatMap((cell) => takenPlotLand(landscape, village, cell))
+    : [];
+  const tally = sumClearings(
+    cells.map((cell) =>
+      plotClearing(
+        landscape,
+        village,
+        cell,
+        obstacles,
+        sites,
+        takenLand.some((t) => t.cell.x === cell.x && t.cell.y === cell.y),
+      ),
+    ),
+  );
   const warning = joinWarnings(
     nearCemeteryWarning(landscape, village, position).warning,
     takenLandWarning(landscape, village, takenLand),
@@ -985,6 +1036,25 @@ function plotClearing(
     obstacleIds: tally.ids,
     clearedTrees: unreservedTrees(village, tally.treeIds),
     obstacleCounts: tally.counts,
+    spared: NO_SPARED,
+  };
+}
+
+/** Překážky víc políček pozemku dohromady (dvorec – dům a dvůr). */
+function sumClearings(
+  clearings: readonly ReturnType<typeof plotClearing>[],
+): ReturnType<typeof plotClearing> {
+  const counts: Partial<Record<ObstacleKind, number>> = {};
+  for (const c of clearings) {
+    for (const [kind, n] of Object.entries(c.obstacleCounts) as [ObstacleKind, number][]) {
+      counts[kind] = (counts[kind] ?? 0) + n;
+    }
+  }
+  return {
+    obstacleCost: clearings.reduce((sum, c) => sum + c.obstacleCost, 0),
+    obstacleIds: clearings.flatMap((c) => c.obstacleIds),
+    clearedTrees: clearings.reduce((sum, c) => sum + c.clearedTrees, 0),
+    obstacleCounts: counts,
     spared: NO_SPARED,
   };
 }

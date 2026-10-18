@@ -119,3 +119,79 @@ describe('cloneState – stav vsi se zbytkem jámy', () => {
     expect(state.ruins![0]!.plot!.cell.x).toBe(10);
   });
 });
+
+describe('cloneState – příbuzenství (kinship.md)', () => {
+  it('pohlaví, rodiče, manžele, původ, předky a dcery vdané pryč zkopíruje jako structuredClone', () => {
+    const day = dayIndexOf({ year: 600, month: 10, day: 1 });
+    const s = foundVillage({ seed: 3, day, dwellingPosition: { x: -100, z: -20, rotation: 0 } });
+    s.people.push({
+      id: 40,
+      bornDay: day - 6000,
+      dwellingId: 1,
+      sex: 'female',
+      origin: 'SE',
+      motherId: 70,
+      fatherId: 71,
+    });
+    s.ancestors = [{ id: 70, motherId: 80 }];
+    s.emigrants = [
+      { id: 72, sex: 'female', bornDay: day - 7000, direction: 'W', motherId: 70, fatherId: 71 },
+    ];
+    expect(s.people[0]!.spouseId).toBe(s.people[1]!.id);
+    const copy = cloneState(s);
+    expect(copy).toEqual(structuredClone(s));
+    copy.people.at(-1)!.origin = 'N';
+    copy.ancestors![0]!.motherId = 1;
+    copy.emigrants![0]!.direction = 'E';
+    expect(s.people.at(-1)!.origin).toBe('SE');
+    expect(s.ancestors[0]!.motherId).toBe(80);
+    expect(s.emigrants[0]!.direction).toBe('W');
+  });
+});
+
+describe('cloneState – dvorec, stezky, obchod a zboží zvenku (trade.md)', () => {
+  it('kopíruje celé jako structuredClone a kopie je nezávislá', () => {
+    const state = {
+      manorId: 1,
+      trails: [
+        {
+          id: 40,
+          direction: 'SE' as const,
+          pieces: [{ roadId: 3, grade: 'causeway' as const, manDays: 12.5 }],
+          lengthM: 640.2,
+          startedDay: 100,
+          builtDay: null,
+        },
+      ],
+      trade: {
+        neighbours: [
+          { direction: 'SE' as const, season: 600, supply: { salt: 80 }, demand: { grain: 900 } },
+        ],
+        expeditions: [
+          {
+            id: 1,
+            direction: 'SE' as const,
+            trailId: 40,
+            startedDay: 120,
+            give: { grain: 100 },
+            get: { salt: 10 },
+            porters: 4,
+            days: 5,
+            cost: 20,
+            done: 3.5,
+          },
+        ],
+        nextId: 2,
+      },
+      goods: { saltKg: 1.5, ironKg: 0, honeyKg: 2, furs: 0.4 },
+    } as Pick<VillageState, 'manorId' | 'trails' | 'trade' | 'goods'>;
+    const copy = cloneState(state);
+    expect(copy).toEqual(structuredClone(state));
+    copy.trails![0]!.pieces[0]!.manDays = 0;
+    copy.trade!.expeditions[0]!.give.grain = 1;
+    copy.goods!.saltKg = 9;
+    expect(state.trails![0]!.pieces[0]!.manDays).toBe(12.5);
+    expect(state.trade!.expeditions[0]!.give.grain).toBe(100);
+    expect(state.goods!.saltKg).toBe(1.5);
+  });
+});

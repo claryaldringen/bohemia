@@ -18,6 +18,8 @@ const view = (overrides: Partial<VillageView> = {}): VillageView => ({
   name: 'Libice',
   villages: [],
   relocation: { zemnice: workshop(60), polozemnice: workshop(220) },
+  manor: null,
+  goods: { saltKg: 0, ironKg: 0, honeyKg: 0, furs: 0 },
   dayIndex: 1000,
   people: { children: 2, adults: 2, elders: 0 },
   households: [],
@@ -223,6 +225,8 @@ describe('hřbitov je plný', () => {
     graves: 56 - freeGraves,
     freeGraves,
     yearsLeft: null,
+    fenceCondition: 1,
+    abandoned: false,
   });
 
   it('jen když žádný hotový hřbitov nemá volný hrob – bez hřbitova nic', () => {
@@ -295,6 +299,20 @@ describe('newNotices – porážka a spřežení (diet.md, oxen.md)', () => {
     expect(newNotices(null, after)).toEqual([]);
   });
 
+  it('nevěsta z okolí a dcera vdaná pryč – fakt (kinship.md)', () => {
+    const after = view({
+      dayIndex: 1003,
+      chronicle: [
+        entry(1002, 'married-away', 'Dcera se vdala do sousední vsi.'),
+        entry(1001, 'bride-from-outside', 'Muž si přivedl nevěstu ze sousední vsi.'),
+      ],
+    });
+    expect(newNotices(view({ dayIndex: 1000 }), after)).toEqual([
+      { kind: 'bride-from-outside', tone: 'info', text: 'Nevěsta z okolí' },
+      { kind: 'married-away', tone: 'info', text: 'Dcera se vdala pryč' },
+    ]);
+  });
+
   it('posvátný dub uschl a posvátná souš padla – fakt', () => {
     const after = view({
       dayIndex: 1003,
@@ -306,6 +324,31 @@ describe('newNotices – porážka a spřežení (diet.md, oxen.md)', () => {
     expect(newNotices(view(), after)).toEqual([
       { kind: 'sacred-oak-died', tone: 'warn', text: 'Posvátný dub uschl' },
       { kind: 'sacred-snag-fell', tone: 'warn', text: 'Posvátná souš padla' },
+    ]);
+  });
+
+  it('opuštěná stavba spadla – fakt podle stavby (abandonment.md), sedm model jedním řádkem', () => {
+    const fell = (
+      day: number,
+      structure: NonNullable<VillageView['chronicle'][number]['structure']>,
+    ): VillageView['chronicle'][number] => ({
+      ...entry(day, 'structure-fell', ''),
+      structure,
+    });
+    const after = view({
+      dayIndex: 1010,
+      chronicle: [
+        fell(1009, 'pen'),
+        fell(1008, 'cemetery-fence'),
+        fell(1007, 'shrine'),
+        ...Array.from({ length: 7 }, () => fell(1005, 'idol')),
+      ],
+    });
+    expect(newNotices(view({ dayIndex: 1000 }), after)).toEqual([
+      { kind: 'idol-fell', tone: 'warn', text: 'Modla padla' },
+      { kind: 'shrine-fell', tone: 'warn', text: 'Svatyně se rozpadla' },
+      { kind: 'cemetery-fence-fell', tone: 'warn', text: 'Plot hřbitova se rozpadl' },
+      { kind: 'pen-fell', tone: 'warn', text: 'Ohrada se rozpadla' },
     ]);
   });
 

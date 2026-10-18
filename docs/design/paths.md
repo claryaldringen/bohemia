@@ -31,7 +31,8 @@ A po vyšlapané pěšině se chodí lépe – cesta na vzdálené pole po ní s
   v sadu) jde tam, kde se dnes pracuje – vylepšení pevné cesty a práce u jabloní podél ní
   ([roads.md](roads.md)) k polovině úseku.
   Daleko (voda, les) se chodí méně často – pěšina tam vznikne, až když se cesty víc domácností
-  slijí. Ohrada (oxen.md) má k práci dne trochu navíc jako zavedené místo. Stáda (diet.md – ovce
+  slijí. Ohrada (oxen.md) má k práci dne trochu navíc jako zavedené místo – jen
+  ohrada se zvířaty (do prázdné se krmit nechodí – [abandonment.md](abandonment.md)). Stáda (diet.md – ovce
   s kozami po 20 kusech, krávy po 6, jako ve scéně) se denně vyženou na úhor a zpět – jedna cesta
   na stádo: mladý úhor vždy, louka na seno až po seči (srpen–listopad); v zimě stojí krávy
   v ohradě, prasata jdou do lesa (návrh Clauda).
@@ -82,10 +83,13 @@ není.“), čísla návrh Clauda.
   ale počítá mokřinu a brody ([roads.md](roads.md)), takže díl za potokem může být dál než
   vzdušnou čarou. Stejně se měří čtverce sadu a palivo (obydlí → okraj lesa).
 - **Kdy se přepočítá:** když se změní rozložení vsi – nové obydlí nebo staveniště, nová pole
-  a díly, změna stadia dílu (osev, úhor), sady, hřbitovy, posvátná místa, kdo kde bydlí a stáří
-  spojení (nová pěšina se vyšlapává dva roky). Simulace to kontroluje den po dni, výsledek tak
-  nezávisí na tom, po jakých kouscích se ves dopočítá. Do sítě jde i práce posledního dne (kam
-  ves chodí), ale kvůli ní samotné se nepřepočítává.
+  a díly, sady, hřbitovy, posvátná místa, pevné cesty, ohrady, stáda, kdo kde bydlí a stáří
+  spojení (nová pěšina se vyšlapává dva roky). **Stadia dílů (osev, úhor, pastva na úhoru) se
+  promítají jen jednou za měsíc – k 1. dni měsíce** (Martin, 18. 10. 2026: chůze se přepočítává
+  měsíčně – osev a zakládání postupují po dílech den po dni a síť se přepočítávala každých pár
+  dní). Simulace to kontroluje den po dni, výsledek tak nezávisí na tom, po jakých kouscích se ves
+  dopočítá. Do sítě jde i práce posledního dne (kam ves chodí) a stadia dílů v den přepočtu, ale
+  kvůli nim samotným se nepřepočítává.
 - **Uložení:** vzdálenost chůze každého dílu a čtverce sadu (`walkDistanceM`) a obydlí k okraji
   lesa (`forestWalkM`); vsi uložené dřív si je spočítají při prvním dopočítání s krajinou.
   Kalibrace (bez krajiny) počítá dál s přímou vzdáleností.

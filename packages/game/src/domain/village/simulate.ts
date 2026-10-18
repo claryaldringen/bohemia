@@ -1,6 +1,7 @@
 import { TOTAL_GAME_DAYS, dateOfDayIndex } from '../calendar';
 import type { CalendarDate } from '../calendar';
 import type { Landscape, ObstacleLayer } from '../landscape';
+import { abandonmentCheck, abandonmentDay } from './abandonment';
 import { villageCemeteries } from './cemetery';
 import { cloneState } from './clone';
 import {
@@ -12,10 +13,8 @@ import {
   workCrafts,
 } from './crafts';
 import {
-  adultChildrenSettlers,
   decayEmptyDwelling,
   nextYearlyCommonLabor,
-  qualifyingDwellings,
   rebuildType,
   repairNeedPerDay,
   wantsRebuild,
@@ -35,6 +34,8 @@ import { daysUntilAppleRot } from './food';
 import { isToilDay, updateHappiness, villageLaborFactor, windowEndDay } from './happiness';
 import { MOWING_WINDOWS, mow, mowingRemaining } from './hay';
 import { sowingBlocks, villageHoldings, workOrder } from './holdings';
+import { occupyEmptyDwellings, settleNewDwelling } from './households';
+import { withKinship } from './kinship';
 import { husbandryDay } from './husbandry';
 import { daysUntilLegumeHarvest, villageLegumesKg } from './legumes';
 import {
@@ -55,7 +56,7 @@ import { refreshWalkDistances } from './paths/village';
 import { roadWalk, walkGroundOf } from './paths/walking';
 import { finishRoadApples, workRoadApples, roadApplesNeed } from './road-apples';
 import { finishRoadUpgrade } from './road-upgrades';
-import { relocationPlot } from './plots';
+import { copyPlot, relocationPlot } from './plots';
 import { villageSacredOaks } from './sacred';
 import { sacredOakEvents } from './sacred-life';
 import { allocateDay, type LaborTaskName } from './labor';
@@ -70,17 +71,20 @@ import {
   villageApplesKg,
   workOrchards,
 } from './orchard';
-import { ageGroup, householdBreaksUp, isAdult, laborPerDay, occupants } from './people';
+import { ageGroup, laborPerDay } from './people';
 import { isVillageExtinct } from './extinction';
 import { inLuckyYears, nextStarvationDays, populationDay } from './population';
 import { dailyMinPerHousehold } from './productivity';
 import { moveRelocatedHousehold, relocatingHouseholds } from './relocation';
+import { keepManor, villageManorId } from './manor';
+import { goodsDay } from './goods';
+import { finishExpeditions, workExpeditions } from './trade';
+import { finishTrail, trailsDay } from './trail';
 import { recordRuins, updateRuins } from './ruins';
 import {
   CHRONICLE_MAX_EVENTS,
   COMMON_LABOR_HISTORY_DAYS,
   CROP_ORDER,
-  DWELLINGS,
   FOOD_NEED_KG_PER_YEAR,
   FOREST_BONUS,
   HARVEST_DAY,
@@ -204,7 +208,8 @@ export function* advanceVillageSteps(
   if (toDay < state.lastDay) {
     throw new RangeError(`Ves je dopočítaná do dne ${state.lastDay}, nelze zpět na ${toDay}.`);
   }
-  const next = cloneState(state);
+  // ves z doby před příbuzenstvím dostane pohlaví a manžele (kinship.md) – jednou, idempotentně
+  const next = cloneState(withKinship(state));
   for (let day = next.lastDay + 1; day <= toDay && !isVillageExtinct(next); day++) {
     simulateDay(next, day, obstacles, landscape);
     yield day;
@@ -251,7 +256,14 @@ function simulateDay(
   const { toil, milking } = work(state, day, obstacles, coverage, landscape);
   // nástroje a nádoby v užívání se opotřebí (crafts.md – Účinek)
   wearCraftStocks(state, day);
+  // zemské stezky – dostavěné úseky od vsi ven hned vylepšené, vrácené výpravy (trade.md)
+  trailsDay(state);
+  state.chronicle.push(...finishExpeditions(state, day));
+  // sůl se jí, kožešiny se opotřebí (trade.md – Zboží zvenku)
+  goodsDay(state);
   finishConstructions(state, day);
+  // dvorec vojvody – po zániku dvorce nejstarší obydlí, starší ves dvorec dostane (trade.md)
+  keepManor(state);
   decideRebuilds(state, day, obstacles, landscape);
   occupyEmptyDwellings(state, day);
   // zbytky jam po zaniklých obydlích zarůstají, pod novou stavbou zmizí (ruins.ts)
@@ -284,7 +296,11 @@ function simulateDay(
   if (isOn(date, HARVEST_DAY)) harvest(state, day);
   if (isOn(date, THRESH_END_DAY)) endThreshing(state);
   // pevné cesty (roads.md): práce dne do ročního součtu, 1. 11. roční kontrola cest a stromů
-  roadsDay(state, day, landscape, obstacles);
+  const visits = roadsDay(state, day, landscape, obstacles);
+  // opuštěné stavby (abandonment.md): 1. 11. podle provozu roční sítě začnou nebo přestanou
+  // chátrat, každý den spadnou ty, jejichž stav došel na nulu
+  if (visits) abandonmentCheck(state, day, visits);
+  state.chronicle.push(...abandonmentDay(state, day, landscape));
 }
 
 function isOn(date: CalendarDate, target: DayOfYear): boolean {
@@ -680,7 +696,9 @@ function work(
   });
   decayEmptyDwellings(state, day, new Set(households.map((d) => d.id)));
   state.domesticBacklog = allocation.domesticBacklog;
-  const constructions = build(state, day, allocation.common);
+  // nosiči výprav k sousedům jdou ze společné práce před stavbami (trade.md – Doprava)
+  const trade = workExpeditions(state, allocation.common);
+  const constructions = build(state, day, allocation.common - trade.used);
   const workshops = workCrafts(state, day, obstacles, coverage, productivity, resting, landscape);
   const hayMowing = state.hay?.mowing;
   state.labor = laborDay(state, day, {
@@ -689,6 +707,7 @@ function work(
     repairs,
     constructions,
     workshops,
+    trade: trade.shares,
     toolCoverage: coverage.tools,
     ...(hayMowing
       ? { mowing: { mowing: hayMowing, before: mowingBefore, after: hayMowing.done } }
@@ -917,6 +936,11 @@ function finishConstructions(state: VillageState, day: number): void {
       state.chronicle.push(finishedEvent(day, c, null));
       continue;
     }
+    if (c.kind === 'road' && c.trail !== undefined) {
+      // dostavěná zemská stezka – obchod se sousedem (trade.md)
+      state.chronicle.push(...finishTrail(state, c, day));
+      continue;
+    }
     if (c.kind === 'road') {
       // vylepšená pevná cesta – rychlejší chůze (roads.md); vzdálenosti chůze se přepočítají
       finishRoadUpgrade(state, c);
@@ -963,7 +987,7 @@ function finishConstructions(state: VillageState, day: number): void {
         // přestavba na pozemku jinde (polozemnice bez pozemku) – domácnost se přestěhuje
         if (c.plot && c.position) {
           dwelling.position = { ...c.position };
-          dwelling.plot = { cell: { ...c.plot.cell }, variant: c.plot.variant };
+          dwelling.plot = copyPlot(c.plot);
           if (c.forestDistanceM !== undefined) dwelling.forestDistanceM = c.forestDistanceM;
         }
       }
@@ -977,16 +1001,17 @@ function finishConstructions(state: VillageState, day: number): void {
       builtDay: day,
       condition: 1,
       position: { ...c.position },
-      ...(c.plot ? { plot: { cell: { ...c.plot.cell }, variant: c.plot.variant } } : {}),
+      ...(c.plot ? { plot: copyPlot(c.plot) } : {}),
       ...(c.forestDistanceM === undefined ? {} : { forestDistanceM: c.forestDistanceM }),
       // řemeslná dílna – řemeslo patří budově (crafts.md)
       ...(c.craft ? { workshop: newWorkshop(c.craft, c.waterDistanceM) } : {}),
     };
     state.dwellings.push(dwelling);
     state.chronicle.push(finishedEvent(day, c, dwelling.id));
-    // přestěhování: domácnost se přestěhuje do nového domu, starý zůstane prázdný (migration.md)
+    // přestěhování: domácnost se přestěhuje do nového domu, starý zůstane prázdný (migration.md);
+    // jinak nové obydlí osídlí rodina ženatého syna (kinship.md – Domácnosti)
     if (c.relocates !== undefined) moveRelocatedHousehold(state, day, c, dwelling.id);
-    else if (c.dwellingId === null) moveInYoungestPair(state, day, dwelling.id);
+    else if (c.dwellingId === null) settleNewDwelling(state, day, dwelling.id);
   }
   state.constructions = unfinished;
   // vylepšený úsek se stejným stupněm jako soused v uzlu bez odbočky se s ním spojí (roads.md)
@@ -1034,30 +1059,6 @@ function finishedEvent(day: number, c: Construction, dwellingId: number | null):
 }
 
 /**
- * Dva nejmladší lidé 14–44 z první domácnosti, která splňuje podmínku nového obydlí a dva
- * takové lidi může uvolnit, se přestěhují do obydlí `dwellingId` (při shodě data narození
- * mladší = vyšší id). Domácnosti se zkoušejí v pořadí `qualifyingDwellings`. Pár neodejde, když
- * by se zbytek domácnosti hned rozpadl (zůstali by jen starší a děti) – rozpad by zbytek večer
- * přestěhoval za párem a druhý den by se pár stěhoval znovu. S podmínkou čtyř dospělých 14–44
- * to nenastane; kontrola to hlídá i pro případ, že se podmínka změní.
- */
-function moveInYoungestPair(state: VillageState, day: number, dwellingId: number): void {
-  for (const source of qualifyingDwellings(state, day)) {
-    const members = occupants(state, source.id);
-    const movers = members
-      .filter((p) => isAdult(p, day))
-      .sort((a, b) => b.bornDay - a.bornDay || b.id - a.id)
-      .slice(0, 2);
-    if (movers.length < 2) continue;
-    const staying = members.filter((p) => !movers.includes(p));
-    if (householdBreaksUp(staying, day)) continue;
-    for (const p of movers) p.dwellingId = dwellingId;
-    state.chronicle.push({ day, kind: 'household-founded', dwellingId });
-    return;
-  }
-}
-
-/**
  * Krok 5: obyvatelé dožilého obydlí se rozhodnou ho přestavět (rozhoduje stáří – obydlený dům
  * nechátrá). Přestavba bere
  * dřevo jako nová stavba (forest.md): klády z hromady, zbytek vyhradí mezi nejbližšími dospělými
@@ -1080,16 +1081,22 @@ function decideRebuilds(
   for (const household of relocatingHouseholds(state)) rebuilding.add(household);
   // „má na to“ podle ročního průměru – v zimě (výmlat) ani o žních ves nezchudne (Martin)
   const yearlyCommon = yearlyCommonLabor(state);
+  const manorId = villageManorId(state);
   for (const d of occupiedDwellings(state)) {
     if (rebuilding.has(d.id) || !wantsRebuild(d, day)) continue;
-    // dílna zůstane dílnou stejného typu na svém místě (crafts.md), ostatní podle práce a dřeva
+    // dílna zůstane dílnou stejného typu na svém místě (crafts.md), dvorec vojvody se přestaví na
+    // dvorec (trade.md), ostatní podle práce a dřeva
     const craft = d.workshop?.craft;
     // dřevo: klády na hromadě a stromy, které jde skácet – po předchozích přestavbách dne
     const type = craft
       ? d.type
-      : rebuildType(d.type, yearlyCommon, woodSupply(state, obstacles, day));
+      : d.id === manorId
+        ? 'dvorec'
+        : rebuildType(d.type, yearlyCommon, woodSupply(state, obstacles, day));
+    // nový pozemek: polozemnice bez pozemku, dvorec bez pozemku se dvorem (dvě políčka)
+    const needsSite = !d.plot || (type === 'dvorec' && !d.plot.yard);
     const site =
-      landscape && obstacles && !d.plot && !craft
+      landscape && obstacles && needsSite && !craft
         ? relocationPlot(state, landscape, obstacles, d, type, day)
         : null;
     // kácení chůzí po pevných cestách (roads.md) – jen s krajinou
@@ -1122,33 +1129,6 @@ function decideRebuilds(
     });
     state.chronicle.push({ day, kind: 'rebuild-decided', dwellingId: d.id, type });
   }
-}
-
-/**
- * Krok 6 (population.md – Prázdné obydlí): úplně prázdná obydlí (podle id) nejdřív obsadí mladý
- * pár z domácnosti, která splňuje podmínku nového obydlí (`moveInYoungestPair`, beze změny). Co
- * zůstane prázdné, osídlí dospělé děti z přeplněné domácnosti (`moveInAdultChildren`, návrh
- * Clauda) – až po prvním kole, aby se nová domácnost dospělých dětí týž den znovu nedělila.
- */
-function occupyEmptyDwellings(state: VillageState, day: number): void {
-  const empty = (): Dwelling[] => {
-    const occupied = new Set(state.people.map((p) => p.dwellingId));
-    return state.dwellings.filter((d) => !occupied.has(d.id)).sort((a, b) => a.id - b.id);
-  };
-  for (const d of empty()) moveInYoungestPair(state, day, d.id);
-  for (const d of empty()) moveInAdultChildren(state, day, d);
-}
-
-/**
- * Dospělé děti z přeplněné domácnosti (`adultChildrenSettlers` – všechny z jedné domácnosti,
- * nebo dvě jednotlivá z různých) se přestěhují do prázdného obydlí `dwelling` a založí v něm
- * domácnost; nikdo, když takoví lidé nejsou.
- */
-function moveInAdultChildren(state: VillageState, day: number, dwelling: Dwelling): void {
-  const movers = adultChildrenSettlers(state, day, DWELLINGS[dwelling.type].capacity);
-  if (movers.length === 0) return;
-  for (const p of movers) p.dwellingId = dwelling.id;
-  state.chronicle.push({ day, kind: 'household-founded', dwellingId: dwelling.id });
 }
 
 // --- sklizeň a jídlo --------------------------------------------------------------------
@@ -1232,6 +1212,8 @@ function eat(
     milkEnergy: milk.energy * milked,
     eggsKg: dailyEggsKg(state),
     legumesKg: villageLegumesKg(state),
+    // med ze zboží zvenku (trade.md)
+    honeyKg: state.goods?.honeyKg ?? 0,
     daysToLegumeHarvest: daysUntilLegumeHarvest(day),
     needPerDay: need,
     proteinNeedPerDay: villageProteinNeed(state, day),
@@ -1247,6 +1229,7 @@ function eat(
   if (state.cheeseKg !== undefined || meal.cheeseKg > 0) state.cheeseKg = meal.cheeseKg;
   if (state.legumesKg !== undefined || meal.legumesKg > 0) state.legumesKg = meal.legumesKg;
   if (state.applesKg !== undefined) state.applesKg = meal.fruitKg;
+  if (state.goods) state.goods.honeyKg = meal.honeyKg;
   state.diet = meal.diet;
   const hungry = meal.outlook < 1 - SATIATION_EPSILON;
   if (hungry !== state.hungry) {
@@ -1256,7 +1239,8 @@ function eat(
   return {
     satiation: meal.diet.satiation,
     energy: meal.diet.energy,
-    fruit: meal.diet.shares.fruit > 0,
+    // med štěstí přidá jako ovoce (trade.md – Zboží zvenku)
+    fruit: meal.diet.shares.fruit > 0 || (meal.diet.shares.honey ?? 0) > 0,
     meat: meal.diet.shares.meat,
   };
 }

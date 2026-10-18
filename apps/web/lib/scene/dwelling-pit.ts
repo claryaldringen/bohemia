@@ -46,6 +46,16 @@ export const PIT_SHAPES: Record<DwellingType, PitShape> = {
     steps: 2,
     roofEndZ: 3.15,
   },
+  // dvorec vojvody (trade.md) – srub 4,6 × 8,4 m (DVOREC_O v dwellings.py), šíje 1 m
+  dvorec: {
+    halfX: 2.24,
+    halfZ: 4.14,
+    rampHalfX: 0.42,
+    rampEndZ: 5.2,
+    depth: 0.5,
+    steps: 2,
+    roofEndZ: 5.25,
+  },
 };
 
 /** Bod v jámě nebo šíji (souřadnice modelu). */

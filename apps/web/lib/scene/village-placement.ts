@@ -52,6 +52,7 @@ const GHOST_VISIBILITY = 0.6;
 const FOOTPRINT_NAMES: Record<DwellingType | SacredBuildingKind, string> = {
   zemnice: 'Zemnice',
   polozemnice: 'Polozemnice',
+  dvorec: 'Dvorec',
   idol: 'Modla',
   shrine: 'Svatyně',
 };

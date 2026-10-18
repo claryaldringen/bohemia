@@ -108,7 +108,11 @@ export function targetOutline(village: SceneVillage, target: VillageTarget): Poi
     const dwelling = village.dwellings.find((d) => d.id === target.id);
     if (!dwelling) return [];
     // Martin: vybrané obydlí na pozemku označí celý pozemek, ne jen stavbu
-    if (dwelling.plot) return cellsBoundary([dwelling.plot]);
+    if (dwelling.plot) {
+      // dvorec vojvody – celý pozemek i se dvorem (trade.md)
+      const { yard } = dwelling.plot;
+      return cellsBoundary(yard ? [dwelling.plot, { ...dwelling.plot, ...yard }] : [dwelling.plot]);
+    }
     const { width, depth } = DWELLING_FOOTPRINT_M[dwelling.type];
     const corners = footprintCorners(
       dwelling.position,

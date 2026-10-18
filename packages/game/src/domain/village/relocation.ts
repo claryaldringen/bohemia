@@ -1,7 +1,7 @@
 import type { ObstacleLayer } from '../landscape';
 import { affordability, BUILD_COSTS, villageStock, type Affordability } from './costs';
 import { occupants } from './people';
-import type { Construction, DwellingType, VillageState } from './types';
+import type { BuildableDwellingType, Construction, VillageState } from './types';
 import { addLogs } from './wood';
 
 // Přestěhování domácnosti (migration.md – Přestěhování domácnosti): domácnost si postaví nový dům
@@ -47,7 +47,7 @@ export function relocationBlock(state: VillageState, householdId: number): Reloc
  */
 export function relocationAffordability(
   state: VillageState,
-  type: DwellingType,
+  type: BuildableDwellingType,
   obstacles?: ObstacleLayer | null,
 ): Affordability {
   const { settlers, ...upfront } = BUILD_COSTS[type].upfront;
@@ -59,7 +59,8 @@ export function relocationAffordability(
  * Dostavěné přestěhování (krok simulace – dokončené stavby): obyvatelé domácnosti `c.relocates`
  * se přestěhují do nového obydlí `dwellingId` (mutuje stav). Když domácnost mezitím zanikla
  * (vymřela, sloučila se se sousedy), nikdo se nestěhuje – nové obydlí je prázdné a osídlí ho
- * ještě týž den mladý pár nebo dospělé děti jako každé prázdné obydlí.
+ * ještě týž den rodina ženatého syna nebo svobodný syn jako každé prázdné obydlí (kinship.md).
+ * Stěhuje se celá domácnost – manželé i rodiče s dětmi zůstanou spolu.
  */
 export function moveRelocatedHousehold(
   state: VillageState,

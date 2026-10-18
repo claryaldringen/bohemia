@@ -2,7 +2,9 @@ import {
   sacredBuildingHappiness,
   type Craft,
   type Crop,
+  type BuildableDwellingType,
   type DwellingType,
+  type FamilyCounts,
   type FieldSurface,
   type HerdSpecies,
   type PartStage,
@@ -11,6 +13,7 @@ import {
   type SacredBuildingKind,
   type WorkshopActivity,
 } from '@bohemia/game';
+import type { VillageManor } from './manor-view';
 import type { HouseholdRelocation } from './relocation-view';
 import type { VillageTarget } from './scene/village-picking';
 import {
@@ -53,6 +56,8 @@ export type SelectionDetails =
       id: number;
       type: DwellingType;
       occupants: number;
+      /** Muži, ženy, děti, starší a manželské páry (kinship.md – panel obydlí). */
+      family: FamilyCounts;
       capacity: number;
       /** Věk obyvatel v letech, od nejstaršího. */
       ages: number[];
@@ -70,7 +75,9 @@ export type SelectionDetails =
       /** Domácnost si staví nový dům (migration.md – Přestěhování domácnosti); jinak null. */
       relocation: HouseholdRelocation | null;
       /** Přestěhovat domácnost – cena nového domu; když teď nejde (staví, přestavuje…), null. */
-      relocate: Record<DwellingType, BuildOption> | null;
+      relocate: Record<BuildableDwellingType, BuildOption> | null;
+      /** Dvorec vojvody (trade.md) – vylepšení vsi; obyčejné obydlí null. */
+      manor: VillageManor | null;
     }
   | {
       /** Víc vybraných obydlí (Ctrl/Shift + klik, Ctrl + A – migration.md). */
@@ -83,7 +90,7 @@ export type SelectionDetails =
       /** Domácnosti, které se teď můžou přestěhovat (id obydlí) – Přestěhovat je umístí postupně. */
       relocatable: readonly number[];
       /** Cena nového domu jedné domácnosti. */
-      relocate: Record<DwellingType, BuildOption> | null;
+      relocate: Record<BuildableDwellingType, BuildOption> | null;
     }
   | {
       kind: 'site';
@@ -137,6 +144,10 @@ export type SelectionDetails =
       built: boolean;
       /** Stavba – založení, u hotového rozšíření (průběh 0–1); bez stavby null. */
       building: number | null;
+      /** Stav plotu 0–1 (abandonment.md). */
+      condition: number;
+      /** Nikdo ke hřbitovu nechodí – plot chátrá. */
+      abandoned: boolean;
     }
   | {
       kind: 'orchard';
@@ -184,6 +195,10 @@ export type SelectionDetails =
       building: number | null;
       /** Kolik dubů stavba ještě musí skácet. */
       oaksToFell: number;
+      /** Stav hotové stavby 0–1 (abandonment.md); rozestavěná 1. */
+      condition: number;
+      /** Opuštěná – nikdo k ní nechodí, chátrá. */
+      abandoned: boolean;
     }
   | {
       kind: 'pen';
@@ -211,6 +226,10 @@ export type SelectionDetails =
       hayKg: number;
       /** Proč teď nejde začít výcvik (česky), nebo null. */
       trainBlocked: string | null;
+      /** Stav hotové ohrady 0–1 (abandonment.md). */
+      condition: number;
+      /** Opuštěná – bez zvířat a nikdo k ní nechodí, chátrá. */
+      abandoned: boolean;
     }
   | {
       kind: 'road';
@@ -319,6 +338,7 @@ export function selectionDetails(
       id: household.dwellingId,
       type: household.type,
       occupants: household.occupants,
+      family: household.family,
       capacity: household.capacity,
       ages: household.ages,
       condition: household.condition,
@@ -335,6 +355,7 @@ export function selectionDetails(
       workshop: view ? workshopDetails(view, household.dwellingId) : null,
       relocation: household.relocation,
       relocate: view && household.relocationBlock === null ? view.relocation : null,
+      manor: view?.manor?.dwellingId === household.dwellingId ? view.manor : null,
     };
   }
   if (target.kind === 'cemetery') {
@@ -350,6 +371,8 @@ export function selectionDetails(
       yearsLeft: cemetery.yearsLeft,
       built: cemetery.built,
       building: cemetery.built && cemetery.progress >= 1 ? null : cemetery.progress,
+      condition: cemetery.fenceCondition,
+      abandoned: cemetery.abandoned,
     };
   }
   if (target.kind === 'sacred-oak') {
@@ -491,6 +514,8 @@ function sacredDetails(
       happiness: building.happiness,
       building: building.built ? null : building.progress,
       oaksToFell: building.built ? 0 : building.oaksToFell,
+      condition: building.condition,
+      abandoned: building.abandoned,
     };
   }
   const site = scene.sacred?.buildings.find((b) => b.id === id);
@@ -502,6 +527,8 @@ function sacredDetails(
     happiness: sacredBuildingHappiness(site.kind),
     building: site.built ? null : site.progress,
     oaksToFell: 0,
+    condition: site.condition ?? 1,
+    abandoned: site.abandoned === true,
   };
 }
 
@@ -525,5 +552,7 @@ function penDetails(view: VillageView | null, id: number): SelectionDetails | nu
     training: pen.training,
     hayKg: view.hayKg,
     trainBlocked: pen.trainBlocked,
+    condition: pen.condition,
+    abandoned: pen.abandoned,
   };
 }

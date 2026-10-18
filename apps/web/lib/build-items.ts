@@ -25,6 +25,7 @@ import {
   type Craft,
   type DwellingPlacementCheck,
   type DwellingPlot,
+  type BuildableDwellingType,
   type DwellingType,
   type Landscape,
   type ObstacleLayer,
@@ -85,7 +86,7 @@ export type BuildItem =
   | (BuildItemBase & {
       placement: 'footprint';
       /** Model a půdorys ducha. */
-      dwellingType: DwellingType;
+      dwellingType: BuildableDwellingType;
       /** `woodLogs` = klády na hromadě v kusech (`VillageView.woodLogs`) – pro cenu dřeva. */
       check(
         landscape: Landscape,
@@ -97,7 +98,7 @@ export type BuildItem =
   | (BuildItemBase & {
       placement: 'plot';
       /** Model ducha domu. */
-      dwellingType: DwellingType;
+      dwellingType: BuildableDwellingType;
       check(
         landscape: Landscape,
         village: PlacementVillage,
@@ -129,7 +130,7 @@ export type BuildItem =
       ): FootprintCheck;
     });
 
-const dwelling = (kind: DwellingType, name: string, hotkeyLabel: string): BuildItem => {
+const dwelling = (kind: BuildableDwellingType, name: string, hotkeyLabel: string): BuildItem => {
   const base = { kind, name, icon: kind, hotkey: `Key${hotkeyLabel}`, hotkeyLabel };
   if (PLOT_TYPES[kind]) {
     return {

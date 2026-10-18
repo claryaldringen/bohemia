@@ -12,6 +12,7 @@ export * from './plough';
 export * from './oxen';
 export { hayHeads } from './husbandry';
 export * from './dwellings';
+export * from './manor';
 export * from './relocation';
 export * from './villages-apart';
 export * from './fields';
@@ -22,6 +23,8 @@ export * from './field-progress';
 export * from './labor';
 export { LABOR_TREES_SHOWN, laborReport } from './labor-report';
 export * from './population';
+export * from './kinship';
+export * from './households';
 export * from './marriage';
 export * from './extinction';
 export * from './cemetery';
@@ -58,8 +61,18 @@ export * from './simulate';
 export * from './polygon';
 export * from './placement';
 export * from './plots';
+export * from './plot-cells';
 export { TAKEN_LAND_EPSILON_M2, landLeftM2, type TakenLand } from './land-taken';
 export * from './ruins';
+// opuštěné stavby – čisté funkce stavu; kroky simulace (roční kontrola, pád) zůstávají uvnitř
+export {
+  isAbandoned,
+  sacredRuinOvergrowth,
+  stockedPenIds,
+  structureCondition,
+  structureFallDay,
+  visitKey,
+} from './abandonment';
 export * from './obstacles';
 export * from './summary';
 export * from './names';
@@ -73,6 +86,10 @@ export * from './charcoal';
 export * from './paths';
 export * from './road-trees';
 export * from './road-upgrades';
+export * from './trail';
+export * from './neighbours';
+export * from './trade';
+export * from './goods';
 // jabloně u cest – kroky simulace (práce a dokončení výsadby) zůstávají uvnitř
 export {
   roadAppleSpots,

@@ -1,11 +1,25 @@
 // Stav vsi – JSON-serializovatelný (objekty, pole, čísla, řetězce, null).
-export type DwellingType = 'zemnice' | 'polozemnice';
+/**
+ * Typ obydlí: zemnice, polozemnice a dvorec vojvody (trade.md – Dvorec vojvody: delší a vyšší
+ * polozemnice se zdobenými štíty na pozemku dvou políček). Dvorec hráč nestaví – vznikne jen
+ * přestavbou dvorce vsi (`VillageState.manorId`).
+ */
+export type DwellingType = 'zemnice' | 'polozemnice' | 'dvorec';
+/** Obydlí, která hráč staví z nabídky staveb (dvorec ne – trade.md). */
+export type BuildableDwellingType = Exclude<DwellingType, 'dvorec'>;
 export type FieldSurface = 'meadow' | 'shrub' | 'forest';
 export interface Position {
   x: number;
   z: number;
   rotation: number;
 } // svět, m; ověřuje plán 3
+/** Pohlaví člověka (kinship.md). */
+export type Sex = 'male' | 'female';
+/**
+ * Směr k sousední vsi (war.md – Svět: mřížka map, 8 sousedů): sever, severovýchod, východ,
+ * jihovýchod, jih, jihozápad, západ, severozápad.
+ */
+export type NeighborDirection = 'N' | 'NE' | 'E' | 'SE' | 'S' | 'SW' | 'W' | 'NW';
 export interface Person {
   id: number;
   bornDay: number;
@@ -14,6 +28,44 @@ export interface Person {
    * staveništi), obydlí s tím id vznikne až s dokončením.
    */
   dwellingId: number;
+  /**
+   * Pohlaví (kinship.md). U vsí uložených před příbuzenstvím chybí – doplní ho jednou
+   * `withKinship`.
+   */
+  sex?: Sex;
+  /** Matka a otec (id) – chybí, když jsou neznámí (zakladatelé, lidé z okolí, starší vsi). */
+  motherId?: number;
+  fatherId?: number;
+  /** Manžel / manželka (id žijícího člověka ve vsi); svobodný, vdovec a vdova ho nemají. */
+  spouseId?: number;
+  /**
+   * Ze které sousední vsi člověk přišel – nevěsta z okolí (kinship.md, war.md – příbuzní
+   * v cílové vsi); narození ve vsi ho nemají.
+   */
+  origin?: NeighborDirection;
+}
+/**
+ * Dcera, která se vdala pryč (kinship.md – Sňatky z okolí): jen záznam v rodokmenu, nesimuluje se –
+ * id, pohlaví, den narození, rodiče a směr vsi, kam odešla (war.md – muži s příbuznými v cílové
+ * vsi útočit nechtějí). Ves ho drží, jen dokud ve vsi žije její rodič, sourozenec nebo dítě.
+ */
+export interface Emigrant {
+  id: number;
+  sex: Sex;
+  bornDay: number;
+  direction: NeighborDirection;
+  motherId?: number;
+  fatherId?: number;
+}
+/**
+ * Zemřelý nebo odešlý předek v rodokmenu (kinship.md – Příbuzenství): jen id a jeho rodiče, aby
+ * šli poznat prarodiče, strýcové a bratranci žijících. Ves ho drží, jen dokud je rodičem
+ * někoho žijícího.
+ */
+export interface Ancestor {
+  id: number;
+  motherId?: number;
+  fatherId?: number;
 }
 /**
  * Kde na pozemku stojí dům: uprostřed, nebo v jednom ze čtyř rohů (population.md – Umístění
@@ -28,6 +80,12 @@ export type PlotVariant = 'center' | 'back-left' | 'back-right' | 'front-right' 
 export interface DwellingPlot {
   cell: TileCell;
   variant: PlotVariant;
+  /**
+   * Dvorec vojvody (trade.md): druhé políčko pozemku – dvůr sousedící stranou s políčkem domu
+   * `cell`. Dům stojí uprostřed `cell` vchodem ke dvoru (varianta `center`), brána je na
+   * vzdálené straně dvora. U ostatních pozemků chybí.
+   */
+  yard?: TileCell;
 }
 export interface Dwelling {
   id: number;
@@ -256,6 +314,11 @@ export interface Cemetery {
   graves: number;
   /** Den dokončení (vytyčení a ohrazení); dokud se zakládá, null. */
   builtDay: number | null;
+  /**
+   * Chátrání pleteného plotu (abandonment.md): ke hřbitovu, kam nikdo nechodí, plot chátrá
+   * a rozpadne se – hroby zůstávají a pohřbívá se dál. Chybí = celý plot.
+   */
+  fenceWear?: StructureWear;
 }
 /**
  * Čtverec jabloňového sadu – políčko krajiny (orchard.md). Sází se jako stavba ze společné práce
@@ -363,6 +426,11 @@ export interface Construction {
    */
   roadIds?: number[];
   roadGrade?: RoadGrade;
+  /**
+   * Stavba zemské stezky (trade.md – Zemská stezka): id stezky – úseky stavby jsou úseky stezky
+   * (`Trail.pieces`) se svým stupněm a prací, staví se po úsecích od vsi ven. Jen u stavby `road`.
+   */
+  trail?: number;
   /** Dřevo obydlí, přestavby, modly a svatyně (forest.md); u starších staveb a polí chybí. */
   wood?: ConstructionWood;
   /** Nové obydlí: vzdálenost k nejbližšímu okraji lesa (m) – obydlí ji po dostavění převezme. */
@@ -470,8 +538,15 @@ export type ChronicleEvent = { day: number } & (
   | { kind: 'village-extinct' }
   | { kind: 'household-founded'; dwellingId: number }
   | { kind: 'household-merged'; fromDwellingId: number; toDwellingId: number }
-  /** Sňatek mezi domy (population.md) – svobodný z domu `from` se přestěhoval k protějšku. */
+  /**
+   * Svatba ve vsi (kinship.md – Sňatky) – nevěsta z domu `from` se přestěhovala k muži do domu
+   * `to` (ze stejného domu from = to).
+   */
   | { kind: 'marriage'; fromDwellingId: number; toDwellingId: number }
+  /** Muž z domu `dwellingId` si přivedl nevěstu z okolí (kinship.md – Sňatky z okolí). */
+  | { kind: 'bride-from-outside'; dwellingId: number }
+  /** Dcera z domu `dwellingId` se vdala pryč – odešla ze vsi (kinship.md – Sňatky z okolí). */
+  | { kind: 'married-away'; dwellingId: number }
   | {
       kind: 'construction-finished';
       constructionKind: ConstructionKind;
@@ -543,6 +618,17 @@ export type ChronicleEvent = { day: number } & (
   | { kind: 'road-formed'; roadId: number }
   /** Nepoužívaná vyšlapaná cesta zarostla (roads.md – Zarůstání) – id úseku. */
   | { kind: 'road-overgrown'; roadId: number }
+  /** Zemská stezka ke kraji mapy je dostavěná – obchod se sousedem (trade.md). */
+  | { kind: 'trail-built'; trailId: number; direction: Direction8 }
+  /** Výprava nosičů vyrazila k sousedovi – co nesou (trade.md – Obchod). */
+  | { kind: 'trade-departed'; direction: Direction8; give: TradeGoods }
+  /** Výprava se vrátila – co přinesla (trade.md – Obchod). */
+  | { kind: 'trade-returned'; direction: Direction8; get: TradeGoods }
+  /**
+   * Opuštěná stavba, ke které léta nikdo nechodil, se rozpadla (abandonment.md): modla padla,
+   * svatyně se rozpadla, plot hřbitova se rozpadl, ohrada se rozpadla – id stavby.
+   */
+  | { kind: 'structure-fell'; structure: AbandonedStructure; id: number }
   | {
       kind: 'cemetery-full';
       cemeteryId: number;
@@ -592,6 +678,8 @@ export type LaborActivity =
   | 'plant'
   /** Denní minimum domácností a domácí výroba (fields.md – Práce, body 1 a 4). */
   | 'domestic'
+  /** Nosiči výpravy k sousedovi po zemské stezce (trade.md – Obchod). */
+  | 'trade'
   /** Společná práce, na kterou nezbyla žádná stavba (propadla). */
   | 'idle';
 
@@ -620,6 +708,8 @@ export type LaborTarget =
   | { kind: 'trees'; ids: number[] }
   /** Milíř uhlíře v lese (crafts.md – Uhlíř) – dílna (id obydlí) a střed milíře ve světě (m). */
   | { kind: 'kiln'; id: number; x: number; z: number }
+  /** Zemská stezka (id) – nosiči výpravy k sousedovi (trade.md – Obchod). */
+  | { kind: 'trail'; id: number }
   /** Ves celkově – výmlat, domácí práce, nevyužitá společná práce. */
   | { kind: 'village' };
 
@@ -724,6 +814,11 @@ export interface VillageState {
   hay?: HayState;
   /** Ohrady s přístřeškem (oxen.md); chybí = žádné. */
   pens?: Pen[];
+  /**
+   * Zbytky padlých model a svatyní (abandonment.md – Následky) – zarůstají a zmizí. Chybí =
+   * žádné (i u vsí uložených před chátráním staveb).
+   */
+  sacredRuins?: SacredRuin[];
   /** Jídlo posledního odsimulovaného dne – energie, pestrost a podíly (jen pro zobrazení). */
   diet?: DietDay;
   /** Zásoby výrobků řemeslníků (crafts.md) – u vsí uložených před řemesly chybí (= 0). */
@@ -732,13 +827,25 @@ export interface VillageState {
    * Starší polozemnice už dostaly pozemky (`withPlots`, Martin 18. 10. 2026). Chybí u vsí
    * uložených před převodem – při načtení se jednou převedou.
    */
+  /**
+   * Zemřelí a odešlí rodiče žijících (kinship.md – Příbuzenství) – jen pro poznání blízkých
+   * příbuzných. U vsí uložených před příbuzenstvím chybí (= žádní).
+   */
+  ancestors?: Ancestor[];
+  /** Dcery, které se vdaly pryč – záznam se směrem jejich nové vsi (kinship.md); chybí = žádné. */
+  emigrants?: Emigrant[];
   plotsMigrated?: true;
   /**
-   * Otisk klíče rozložení vsi (`walkLayoutHash`), pro které se naposledy spočítaly vzdálenosti
-   * chůze dílů po pěšinách (`FieldPart.walkDistanceM`). Chybí, dokud se nespočítaly (starší vsi,
-   * simulace bez krajiny); vsi uložené do 18. 10. 2026 mají celý klíč – při dopočtu se převede.
+   * Otisk rozložení vsi (`walkLayoutKey` se stadii `walkStages`), pro které se naposledy spočítaly
+   * vzdálenosti chůze po pěšinách (`FieldPart.walkDistanceM`…). Chybí, dokud se nespočítaly
+   * (starší vsi, simulace bez krajiny); klíč z doby před měsíčními stadii se jednou přepočítá.
    */
   walkLayoutKey?: string;
+  /**
+   * Otisk stadií dílů a pastvy úhoru (`walkStageKey`) z posledního 1. dne v měsíci – do klíče
+   * chůze se stadia promítají jen jednou za měsíc (Martin, 18. 10. 2026). Chybí jako výše.
+   */
+  walkStages?: string;
   /**
    * Pevné cesty, stromy u nich a roční součty práce (roads.md). Chybí u vsí uložených před nimi
    * a ve vsích simulovaných bez krajiny (kalibrace, testy) – začnou při prvním dopočtu s krajinou.
@@ -754,6 +861,132 @@ export interface VillageState {
    * = žádný (i u vsí uložených před zarůstáním).
    */
   woods?: VillageWood[];
+  /**
+   * Dvorec vojvody (trade.md – Dvorec vojvody): id obydlí (= domácnosti), které je dvorcem vsi –
+   * v nové vsi první zemnice zakladatelů, ve starší vsi nejstarší obydlí (`withManor`). Odtud jdou
+   * vylepšení vsi. Chybí u vsí uložených dřív – doplní ho `withManor` nebo první dopočítaný den.
+   */
+  manorId?: number;
+  /** Zemské stezky k sousedům (trade.md – Zemská stezka); chybí = žádné. */
+  trails?: Trail[];
+  /** Obchod se sousedy – zásoby a poptávka sousedů a výpravy (trade.md – Obchod); chybí = nic. */
+  trade?: VillageTrade;
+  /**
+   * Zboží zvenku (trade.md – Zboží zvenku ve vsi): sůl, železo, med (kg) a kožešiny (kusy).
+   * Chybí = žádné.
+   */
+  goods?: ForeignGoods;
+}
+
+// --- dvorec, zemská stezka a obchod (trade.md) ----------------------------------------------
+
+/**
+ * Osm směrů od vsi ke kraji mapy – sever je +z, východ +x (trade.md – Zemská stezka); stejné
+ * směry jako původ nevěst z okolí (`NeighborDirection` – kinship.md).
+ */
+export type Direction8 = NeighborDirection;
+
+/**
+ * Úsek zemské stezky – pevná cesta (`Road`), po které stezka vede, na jaký stupeň se při stavbě
+ * vylepší (upravená, nebo hať a lávka přes mokřinu a brod) a práce na něm (člověkodny i s kácením
+ * dřeva hatě).
+ */
+export interface TrailPiece {
+  roadId: number;
+  grade: Exclude<RoadGrade, 'trodden'>;
+  manDays: number;
+}
+
+/**
+ * Zemská stezka (trade.md – Zemská stezka): od dvorce ke kraji mapy ve směru `direction`. Osa je
+ * uložená jako pevné cesty `pieces` (od vsi ven); stavba je vylepšení cesty (`Construction.trail`)
+ * po úsecích od vsi ven. Hotová stezka (`builtDay`) otevře obchod se sousedem v tom směru.
+ */
+export interface Trail {
+  id: number;
+  direction: Direction8;
+  pieces: TrailPiece[];
+  /** Délka osy od dvorce ke kraji mapy (m). */
+  lengthM: number;
+  /** Den zadání stavby. */
+  startedDay: number;
+  /** Den dostavění; dokud se staví, null. */
+  builtDay: number | null;
+}
+
+/**
+ * Zboží obchodu (trade.md – Sousedé): obilí, maso, sýr, luštěniny (kg), dobytek (kusy – krávy),
+ * klády (kusy), keramika, nástroje, uhlí (kg) a zboží zvenku – sůl, železo, med (kg) a kožešiny
+ * (kusy).
+ */
+export type TradeGood =
+  | 'grain'
+  | 'meat'
+  | 'cheese'
+  | 'legumes'
+  | 'cattle'
+  | 'logs'
+  | 'pottery'
+  | 'tools'
+  | 'charcoal'
+  | 'salt'
+  | 'iron'
+  | 'honey'
+  | 'furs';
+
+/** Množství zboží (jen uvedené druhy, kg nebo kusy podle druhu). */
+export type TradeGoods = Partial<Record<TradeGood, number>>;
+
+/** Zboží zvenku ve vsi (trade.md – Zboží zvenku ve vsi). */
+export interface ForeignGoods {
+  saltKg: number;
+  ironKg: number;
+  honeyKg: number;
+  /** Kožešiny (kusy; neceločíselné – opotřebení). */
+  furs: number;
+}
+
+/**
+ * Soused v jednom směru – co mu letos zbývá z nabídky a kolik ještě vezme ze sháněného
+ * (trade.md – Sousedé: roční zásoby a poptávka, doplnění 1. 11.). Povaha (co nabízí a shání) se
+ * nemění a počítá se ze seedu světa (`neighbourOf`), ukládá se jen, co z roku zbývá.
+ */
+export interface NeighbourStock {
+  direction: Direction8;
+  /** Rok obchodu (herní rok, ve kterém začal 1. 11.), ke kterému zásoby platí. */
+  season: number;
+  /** Co soused ještě letos dá (nabízené zboží). */
+  supply: TradeGoods;
+  /** Kolik soused ještě letos vezme (sháněné zboží). */
+  demand: TradeGoods;
+}
+
+/**
+ * Výprava nosičů k sousedovi (trade.md – Obchod): zboží, které nesou tam (už odebrané ze zásob
+ * vsi), a co přinesou zpět; nosiči a práce (lidé × dny ze společné práce vsi). Zboží dorazí, až se
+ * nosiči vrátí (odvedená práce = celá cena).
+ */
+export interface TradeExpedition {
+  id: number;
+  direction: Direction8;
+  trailId: number;
+  startedDay: number;
+  give: TradeGoods;
+  get: TradeGoods;
+  porters: number;
+  /** Dny cesty tam a zpět i s cestou za krajem mapy. */
+  days: number;
+  /** Práce celkem (člověkodny = nosiči × dny) a kolik je odvedeno. */
+  cost: number;
+  done: number;
+}
+
+/** Obchod vsi se sousedy (trade.md). */
+export interface VillageTrade {
+  neighbours: NeighbourStock[];
+  expeditions: TradeExpedition[];
+  /** Další id výpravy. */
+  nextId: number;
 }
 
 // --- pevné cesty (roads.md) ------------------------------------------------------------------
@@ -978,6 +1211,8 @@ export interface Pen {
   training: { startDay: number } | null;
   /** Překážky na čtverci (id z vrstvy) – zmizí se zahájením stavby. */
   obstacles?: number[];
+  /** Chátrání ohrady bez zvířat, kam nikdo nechodí (abandonment.md); chybí = celá. */
+  wear?: StructureWear;
 }
 
 /**
@@ -1004,6 +1239,8 @@ export interface DietDay {
     eggs: number;
     fruit: number;
     legumes?: number;
+    /** Med ze zboží zvenku (trade.md); chybí u jídla uloženého dřív = 0. */
+    honey?: number;
   };
 }
 
@@ -1049,6 +1286,39 @@ export interface SacredBuilding {
   kind: SacredBuildingKind;
   position: Position;
   builtDay: number;
+  /** Chátrání opuštěné stavby (abandonment.md); chybí = celá. */
+  wear?: StructureWear;
+}
+
+/**
+ * Stavby, které chátrají, když k nim léta nikdo nechodí (abandonment.md): modla, svatyně, plot
+ * hřbitova a ohrada.
+ */
+export type AbandonedStructure = 'idol' | 'shrine' | 'cemetery-fence' | 'pen';
+
+/**
+ * Chátrání stavby (abandonment.md – Chátrání): stav 0–1 a od kdy je stavba opuštěná. Opuštěná
+ * stavba ztrácí stav rovnoměrně (`ABANDONMENT.fallYears` od plného stavu do pádu); když se k ní
+ * lidé znovu začnou chodit, `abandonedDay` zmizí a stav zůstane, jaký byl (nezvedá se).
+ */
+export interface StructureWear {
+  /** Stav 0–1 v den `abandonedDay` (opuštěná stavba), jinak trvale. */
+  condition: number;
+  /** Den roční kontroly cest, která zjistila, že sem nikdo nechodí; chybí = navštěvovaná. */
+  abandonedDay?: number;
+}
+
+/**
+ * Zbytek padlé modly nebo svatyně (abandonment.md – Následky): padlá modla na zemi, ze svatyně
+ * zarůstající příkop. Jen vzhled – zarůstá `ABANDONMENT.remnantYears` let a zmizí, stavba přes něj
+ * ho odstraní.
+ */
+export interface SacredRuin {
+  id: number;
+  kind: SacredBuildingKind;
+  position: Position;
+  /** Den pádu – od něj zbytek zarůstá. */
+  day: number;
 }
 
 /** Změna krajiny sídla nad vygenerovanou vrstvou překážek – id překážky a den. */

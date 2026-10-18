@@ -29,6 +29,7 @@ export type ConstructionKind = DwellingType | CraftKind | SacredKind;
 export const CONSTRUCTION_BASE: Record<ConstructionKind, DwellingType | null> = {
   zemnice: 'zemnice',
   polozemnice: 'polozemnice',
+  dvorec: 'dvorec',
   hrncir: 'polozemnice',
   kovar: 'polozemnice',
   uhlir: 'zemnice',
@@ -144,6 +145,22 @@ export const CONSTRUCTION_PHASES: Record<ConstructionKind, readonly Construction
     { id: 'fence', label: 'polský plot – kůly, pak proplétání větví', from: 0.85, to: 0.94 },
     { id: 'beds', label: 'záhony a zelenina', from: 0.94, to: 1 },
   ],
+  // dvorec vojvody (trade.md): jako polozemnice, delší srub, řezby (koňské hlavy, zdobené štíty)
+  // a plot pozemku dvou políček s bránou
+  dvorec: [
+    { id: 'layout', label: 'vytyčení – kolíky a provázek', from: 0, to: 0.04 },
+    { id: 'turf', label: 'sejmutí drnu', from: 0.04, to: 0.09 },
+    { id: 'dig', label: 'kopání jámy', from: 0.09, to: 0.19 },
+    { id: 'logs', label: 'roubení stěn', from: 0.19, to: 0.36 },
+    { id: 'frame', label: 'vaznice, sloupy a krokve', from: 0.36, to: 0.44 },
+    { id: 'wattle', label: 'latě a pletené štíty', from: 0.44, to: 0.51 },
+    { id: 'daub', label: 'omazávání mazanicí', from: 0.51, to: 0.58 },
+    { id: 'thatch', label: 'došky po řadách', from: 0.58, to: 0.76 },
+    { id: 'finish', label: 'hřeben, kozy a valy', from: 0.76, to: 0.81 },
+    { id: 'carve', label: 'řezby – koňské hlavy a zdobené štíty', from: 0.81, to: 0.86 },
+    { id: 'fence', label: 'plot pozemku a brána', from: 0.86, to: 0.95 },
+    { id: 'beds', label: 'záhony a zelenina', from: 0.95, to: 1 },
+  ],
   hrncir: porchHousePhases(
     { id: 'kiln', label: 'hrnčířská pec – podstavec, kopule, topeniště', from: 0.77, to: 0.93 },
     { id: 'workshop', label: 'dílna – police, hrnce, kruh a koš', from: 0.93, to: 1 },
@@ -205,6 +222,7 @@ export const SHRINE_PETALS = 8;
 export const THATCH_COURSES: Record<ConstructionKind, number> = {
   zemnice: 8,
   polozemnice: 9,
+  dvorec: 9,
   hrncir: 9,
   kovar: 9,
   uhlir: 8,
@@ -213,6 +231,8 @@ export const THATCH_COURSES: Record<ConstructionKind, number> = {
   svatyne: 0,
 };
 const RAFTER_PAIRS = 5;
+/** Dvorec (trade.md) je dlouhý – krokví víc (ridge_frame v dwellings.py, n_rafters=7). */
+const MANOR_RAFTER_PAIRS = 7;
 const LOG_COURSES = 6;
 /** Vrstvy polen a prstence krytu milíře (tools/blender/crafts.py). */
 const MILIR_STACK_TIERS = 4;
@@ -264,6 +284,18 @@ export const SITE_PROP_PLACES: Record<ConstructionKind, PropPlaces> = {
     clay: { x: -3.3, z: 4.4, rotation: 0.2 },
   },
   polozemnice: POLOZEMNICE_PLACES,
+  // dvorec – rekvizity dál od delšího a širšího srubu
+  dvorec: {
+    spoil: { x: -4.2, z: -1.2, rotation: Math.PI / 2 },
+    turf: { x: 4.1, z: -4.6, rotation: 0.3 },
+    timber: { x: 4.1, z: 0.8, rotation: 0.05 },
+    rods: { x: -1.3, z: -6.2, rotation: 0.1 },
+    straw: { x: 1.4, z: -6.3, rotation: Math.PI / 2 },
+    spade: { x: -3.3, z: 2.2, rotation: 0.6 },
+    basket: { x: -1.6, z: 5.8, rotation: 0 },
+    stones: { x: 3.9, z: 5.3, rotation: 0.4 },
+    clay: { x: -3.9, z: 6.3, rotation: 0.2 },
+  },
   // pod přístřeškem stojí pec / výheň a police – koš stranou před dílnou, kameny a hlína
   // vedle přístřešku (mimo polena u pece a uhlí u výhně)
   hrncir: { ...POLOZEMNICE_PLACES, basket: { x: -3.3, z: 2.9, rotation: 0 } },
@@ -486,7 +518,8 @@ export function partSchedule(kind: ConstructionKind): PartRule[] {
     rules.push({ part: 'plates', from: within('frame', 0.05) });
     rules.push({ part: 'posts', from: within('frame', 0.25) });
     rules.push({ part: 'ridge-beam', from: within('frame', 0.4) });
-    rules.push(...series('rafters', RAFTER_PAIRS, 'frame', 0.5, 0.95));
+    const rafters = base === 'dvorec' ? MANOR_RAFTER_PAIRS : RAFTER_PAIRS;
+    rules.push(...series('rafters', rafters, 'frame', 0.5, 0.95));
   }
   if (hasPhase(kind, 'porch')) {
     rules.push({ part: 'porch-posts', from: within('porch', 0.1) });
@@ -501,6 +534,8 @@ export function partSchedule(kind: ConstructionKind): PartRule[] {
   rules.push(...series('thatch', THATCH_COURSES[kind], roof, 0.04, 0.92));
   rules.push({ part: 'ridge', from: within('finish', 0.1) });
   rules.push({ part: 'berms', from: within('finish', 0.45) });
+  // dvorec: koňské hlavy na kozách a bednění štítů se zubořezem (trade.md)
+  if (hasPhase(kind, 'carve')) rules.push({ part: 'carving', from: within('carve', 0.2) });
   for (const [id, steps] of CRAFT_STEPS[kind] ?? []) {
     for (const [part, t] of steps) rules.push({ part, from: within(id, t) });
   }

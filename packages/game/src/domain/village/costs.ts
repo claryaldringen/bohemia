@@ -1,5 +1,5 @@
 import type { ObstacleLayer } from '../landscape';
-import { availableSettlers } from './dwellings';
+import { availableSettlers } from './households';
 import { PEN } from './oxen';
 import { NO_CRAFTS, foundingCostPerHa } from './productivity';
 import {
@@ -14,7 +14,13 @@ import {
   workshopCost,
   workshopTrees,
 } from './rules';
-import type { Craft, DwellingType, SacredBuildingKind, VillageState } from './types';
+import type {
+  BuildableDwellingType,
+  Craft,
+  DwellingType,
+  SacredBuildingKind,
+  VillageState,
+} from './types';
 import { oakSupply, woodSupply, type WoodPlan } from './wood';
 
 // Ceny staveb a jestli na ně ves má (population.md – Nové obydlí, Odemčení). Práce
@@ -29,13 +35,13 @@ import { oakSupply, woodSupply, type WoodPlan } from './wood';
  * ohrada s přístřeškem (oxen.md – jeden čtverec louky, dřevo předem, osadníci ne).
  */
 export type BuildKind =
-  DwellingType | Craft | 'field' | 'cemetery' | 'orchard' | SacredBuildingKind | 'pen';
+  BuildableDwellingType | Craft | 'field' | 'cemetery' | 'orchard' | SacredBuildingKind | 'pen';
 
 /**
  * Co stavba potřebuje předem: obilí ze zásob, dřevo (stromy – klády z hromady, nebo dospělé
  * stromy ke skácení; kámen přibude), dospělé duby ke skácení (modla a svatyně – happiness.md)
- * a lidé k osídlení (`availableSettlers` – mladý pár nebo dospělé děti z přeplněné domácnosti,
- * kteří se do nového obydlí nastěhují). Lidi stavba neodebírá, jen je zamluví – rozestavěné
+ * a lidé k osídlení (`availableSettlers` – rodina ženatého syna nebo svobodný nejstarší syn
+ * z přeplněného domu, kteří se do nového obydlí nastěhují – kinship.md). Lidi stavba neodebírá, jen je zamluví – rozestavěné
  * obydlí snižuje počet volných.
  */
 export type StockResource = 'grain' | 'wood' | 'oaks' | 'settlers';

@@ -1,3 +1,4 @@
+import type { AbandonedStructure } from '@bohemia/game';
 import { formatInteger } from './village-format';
 import type { VillageView } from './village-view';
 
@@ -6,8 +7,10 @@ import type { VillageView } from './village-view';
 // nebo dubový háj (happiness.md – jen když přibude), kovář nemá uhlí a dílna nemá co kácet
 // (crafts.md), svatba mezi domy (population.md – Sňatky mezi domy, když přibude), podzimní
 // porážka (diet.md), spřežení volů – vycvičené, dosloužilo, vůl uhynul pro nedostatek sena
-// (oxen.md) –, vesničané obnovují starý sad a starý sad dosloužil (orchard.md – Obnova sadu)
-// a posvátný dub uschl a posvátná souš padla (happiness.md) – nové události kroniky. Vymřelá ves žádná nemá.
+// (oxen.md) –, vesničané obnovují starý sad a starý sad dosloužil (orchard.md – Obnova sadu),
+// posvátný dub uschl a posvátná souš padla (happiness.md), nevěsta z okolí a dcera vdaná pryč
+// (kinship.md – Sňatky z okolí), opuštěná modla padla, svatyně, plot hřbitova či ohrada se
+// rozpadly (abandonment.md) – nové události kroniky. Vymřelá ves žádná nemá.
 // Odvozují se z pohledu na ves a ukážou se jednou, když nově vzniknou – jako krátký mizející
 // řádek nahoře uprostřed (jako oznámení v 0 A.D.). Jen fakt, žádná rada.
 
@@ -30,7 +33,18 @@ export type NoticeKind =
   | 'ox-died'
   | 'orchard-renewal'
   | 'orchard-gone'
+  | 'bride-from-outside'
+  | 'married-away'
   | 'part-forest'
+  /** Zemská stezka a obchod se sousedy (trade.md). */
+  | 'trail-built'
+  | 'trade-departed'
+  | 'trade-returned'
+  /** Opuštěná stavba spadla (abandonment.md). */
+  | 'idol-fell'
+  | 'shrine-fell'
+  | 'cemetery-fence-fell'
+  | 'pen-fell'
   /** Upozornění z jiné vsi hráče (migration.md – Víc vsí jednoho hráče). */
   | 'other-hungry'
   | 'other-starving'
@@ -144,6 +158,12 @@ const CHRONICLE_NOTICES: Partial<
         : 'Podzimní porážka',
   }),
   'team-ready': () => ({ kind: 'team-ready', tone: 'info', text: 'Spřežení je vycvičené' }),
+  'bride-from-outside': () => ({
+    kind: 'bride-from-outside',
+    tone: 'info',
+    text: 'Nevěsta z okolí',
+  }),
+  'married-away': () => ({ kind: 'married-away', tone: 'info', text: 'Dcera se vdala pryč' }),
   'team-retired': () => ({ kind: 'team-retired', tone: 'info', text: 'Spřežení dosloužilo' }),
   'ox-died': () => ({ kind: 'ox-died', tone: 'warn', text: 'Vůl uhynul – chybělo seno' }),
   'orchard-renewal-started': () => ({
@@ -152,6 +172,10 @@ const CHRONICLE_NOTICES: Partial<
     text: 'Vesničané obnovují starý sad',
   }),
   'orchard-gone': () => ({ kind: 'orchard-gone', tone: 'warn', text: 'Starý sad dosloužil' }),
+  // zemská stezka a výpravy k sousedům (trade.md – Kronika)
+  'trail-built': () => ({ kind: 'trail-built', tone: 'info', text: 'Zemská stezka je dostavěná' }),
+  'trade-departed': () => ({ kind: 'trade-departed', tone: 'info', text: 'Výprava vyrazila' }),
+  'trade-returned': () => ({ kind: 'trade-returned', tone: 'info', text: 'Výprava se vrátila' }),
   // nepasený příloh zarostl lesem a vypadl z pole (fields.md – Zarůstání)
   'part-became-forest': () => ({
     kind: 'part-forest',
@@ -169,6 +193,20 @@ const CHRONICLE_NOTICES: Partial<
     tone: 'warn',
     text: 'Posvátná souš padla',
   }),
+  // opuštěná stavba spadla (abandonment.md) – fakt podle stavby
+  'structure-fell': (entry) => STRUCTURE_FELL_NOTICES[entry.structure ?? 'idol'],
+};
+
+/** Krátké řádky k pádu opuštěné stavby (abandonment.md – Následky). */
+const STRUCTURE_FELL_NOTICES: Record<AbandonedStructure, VillageNotice> = {
+  idol: { kind: 'idol-fell', tone: 'warn', text: 'Modla padla' },
+  shrine: { kind: 'shrine-fell', tone: 'warn', text: 'Svatyně se rozpadla' },
+  'cemetery-fence': {
+    kind: 'cemetery-fence-fell',
+    tone: 'warn',
+    text: 'Plot hřbitova se rozpadl',
+  },
+  pen: { kind: 'pen-fell', tone: 'warn', text: 'Ohrada se rozpadla' },
 };
 
 /** Nové události kroniky od předchozího pohledu (den po něm), které se ohlásí jako fakt. */

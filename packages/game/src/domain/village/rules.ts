@@ -47,17 +47,35 @@ export const DWELLINGS = {
     childDeathFactor: 0.8,
     emptyLifespanYears: 8,
   },
+  // trade.md – Dvorec vojvody (návrh Clauda, schváleno 18. 10. 2026): delší a vyšší polozemnice,
+  // kapacita 10, cena a dřevo jako polozemnice × 1,5 (opravy taky × 1,5), jinak jako polozemnice
+  dvorec: {
+    capacity: 10,
+    cost: 330,
+    lifespanYears: 22,
+    repairAtEndOfLifePerYear: 25.5,
+    childDeathFactor: 0.8,
+    emptyLifespanYears: 8,
+  },
 } as const;
+// trade.md – Dvorec vojvody: cena a dřevo dvorce = polozemnice × MANOR.costFactor; pozemek dvou
+// políček (dům a dvůr) se hledá při přestavbě jako u polozemnice do PLOT_RELOCATION_M
+export const MANOR = { costFactor: 1.5 } as const;
 // population.md – Nové obydlí (obyvatelé staví vždy lepší obydlí)
 export const BETTER_DWELLING: Record<DwellingType, DwellingType> = {
   zemnice: 'polozemnice',
   polozemnice: 'polozemnice',
+  dvorec: 'dvorec',
 };
 // population.md – Pojmy a Práce (věkové hranice, pracovní síla), Růst populace (porody od 16 let –
 // oprava podle rešerše, dospělý pro práci a odemčení zůstává 14–44); START_AGES: Založení vsi (4 lidé)
 export const AGE = { olderChild: 7, adult: 14, fertile: 16, elder: 45 } as const;
 export const LABOR_PER_DAY = { olderChild: 0.3, adult: 1, elder: 0.5 } as const;
 export const START_AGES = [25, 25, 13, 12] as const;
+// kinship.md – Pohlaví (návrh Clauda): zakladatelé jsou dva páry – muž a žena 25 let (manželé)
+// a chlapec 13 a dívka 12 let (nepříbuzní, rodiče neznámí – vezmou se, až dorostou); pohlaví
+// v pořadí START_AGES
+export const START_SEXES = ['male', 'female', 'male', 'female'] as const;
 // population.md – Růst populace (porodnost, úmrtnost dětí a dospělých, štěstí)
 export const BIRTHS_PER_PAIR_PER_YEAR = 1 / 3;
 export const CHILD_DEATH_BEFORE_ADULT = 0.4; // → ročně 1 − 0,6^(1/14)
@@ -86,13 +104,22 @@ export const STARVATION = {
   certainDeath: { child: 45, adult: 60, elder: 45 },
   curve: 3,
 } as const;
-// population.md – Nové obydlí (do nového obydlí se stěhuje pár z domácnosti s aspoň 4 dospělými)
-export const NEW_HOUSEHOLD_MIN_ADULTS = 4;
-// population.md – Nové obydlí, Prázdné obydlí (návrh Clauda): dospělé děti = lidé 14–44 kromě
-// dvou nejstarších od 14 let výš (rodiče / hlava domácnosti); nová domácnost má aspoň dva lidi –
-// jediný člověk by se hned rozpadl (Rozpad domácnosti)
-export const HOUSEHOLD_HEADS = 2;
-export const NEW_HOUSEHOLD_MIN_PEOPLE = 2;
+// kinship.md – Pohlaví (návrh Clauda): chlapců se rodí 105 na 100 dívek; rodit může žena 16–44
+// s manželem, muž je plodný od 16 let bez horní meze (AGE.fertile, AGE.elder)
+export const BOY_SHARE = 105 / 205;
+// kinship.md – Sňatky (návrh Clauda): věkový rozdíl snoubenců nejvýš 15 let; z okolí si svobodný
+// muž od 18 let bez možné nevěsty ve vsi přivede ženu 16–22 let s pravděpodobností 30 % ročně,
+// svobodná žena od 18 let bez možného ženicha se s 30 % ročně vdá pryč (Martin – varianta c,
+// čísla návrh Clauda); vdova s dětmi do 14 let (AGE.adult) zůstává v domě manžela a nevdává se
+export const MARRIAGE = {
+  maxAgeGapYears: 15,
+  outsidePerYear: 0.3,
+  outsideFromAge: 18,
+  brideAge: { from: 16, to: 22 },
+} as const;
+// kinship.md – Sňatky z okolí (návrh Clauda, kvůli válce – war.md): nevěsta z okolí si pamatuje,
+// ze které sousední vsi přišla, a dcera, kam se vdala – směr je los z osmi sousedů
+export const NEIGHBOR_DIRECTIONS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'] as const;
 // fields.md – Zásoby a nasycení (roční potřeba jídla podle věku)
 export const FOOD_NEED_KG_PER_YEAR = { child: 100, adult: 180, elder: 140 } as const;
 // fields.md – Zásoby a nasycení (ztráty při skladování – meze: s hrnčířem 5 %, start se zásobami)
@@ -411,6 +438,8 @@ export function childDeathsPerYear(): number {
 export const DWELLING_FOOTPRINT_M: Record<DwellingType, { width: number; depth: number }> = {
   zemnice: { width: 4, depth: 4 },
   polozemnice: { width: 5, depth: 5 },
+  // trade.md – Dvorec (návrh Clauda): srub 5 × 8,4 m s valy – tools/blender/dwellings.py
+  dvorec: { width: 6, depth: 9.6 },
 };
 export const DWELLING_MAX_HEIGHT_DIFF_M = 0.5;
 // population.md – Umístění obydlí (překážky na místě osadníci odstraní), fields.md – Co je
@@ -424,6 +453,7 @@ export const DWELLING_CLEARING_M: Record<
 > = {
   zemnice: { minX: -4.8, maxX: 4.8, minZ: -4.4, maxZ: 7.5 },
   polozemnice: { minX: -5.1, maxX: 5.1, minZ: -4.7, maxZ: 7.5 },
+  dvorec: { minX: -5.4, maxX: 5.4, minZ: -6.4, maxZ: 9.5 },
 };
 // population.md – Umístění obydlí (Martin, 18. 10. 2026): polozemnice stojí na pozemku velkém
 // jako jedno políčko pole (15 × 15 m, v mřížce políček), obehnaném polským plotem; dům uprostřed
@@ -432,6 +462,7 @@ export const DWELLING_CLEARING_M: Record<
 export const PLOT_TYPES: Readonly<Record<DwellingType, boolean>> = {
   zemnice: false,
   polozemnice: true,
+  dvorec: true,
 };
 /** Pořadí variant při přepínání klávesami [ a ]. */
 export const PLOT_VARIANTS: readonly PlotVariant[] = [
@@ -486,7 +517,12 @@ export const TREE_SAPLING_AFTER_YEARS = 30;
 export const TREE_REGROWTH_YEARS = 70;
 // forest.md – Stavby a kácení (Martin – oprava podle rešerše 17. 10. 2026): strom = velký strom;
 // zemnice ≈ 7 stromů, polozemnice ≈ 18 stromů; přestavba stejně jako nová stavba
-export const DWELLING_TREES: Record<DwellingType, number> = { zemnice: 7, polozemnice: 18 };
+export const DWELLING_TREES: Record<DwellingType, number> = {
+  zemnice: 7,
+  polozemnice: 18,
+  // trade.md – Dvorec: dřevo polozemnice × 1,5
+  dvorec: 27,
+};
 // forest.md – Kácení: skácení a dovoz 2 člověkodny za strom, +1 % za každých 10 m nad 100 m od
 // staveniště (vzdálenost jako u polí – DISTANCE). U blízkého lesa stojí stavba práci jako dřív –
 // cena obydlí (DWELLINGS.cost) v sobě kácení blízkého lesa už má (dwellingBuildLabor).
@@ -758,3 +794,83 @@ export function workshopBuildLabor(craft: Craft): number {
 // migration.md – Odchod do nové vsi (návrh Clauda): první zemnice nové vsi na téže mapě stojí
 // nejméně 300 m od staveb jiných vsí.
 export const NEW_VILLAGE_MIN_DISTANCE_M = 300;
+
+// trade.md – Zemská stezka (návrh Clauda): trasa od dvorce ke kraji mapy nejlevnější chůzí po
+// terénu pěšin (svahy, brody, les, překážky) – cíl do TRAIL.edgeBandM od kraje schůdné krajiny
+// v rozmezí ±coneDeg od směru (když tudy cesta nevede, ±wideConeDeg); po pevné cestě poloviční
+// cena chůze jako v síti pěšin (trasa se k ní stáhne a vede po ní)
+export const TRAIL = { coneDeg: 22.5, wideConeDeg: 45, edgeBandM: 20, roadDiscount: 0.5 } as const;
+// trade.md – Obchod (návrh Clauda, schváleno 18. 10. 2026): výměna podle hodnot v kg obilí. Soused
+// bere s přirážkou ≈ 20 % (prodává o ni dráž, kupuje o ni levněji), co shání, za to dá o 20 % víc,
+// co nabízí, dá o 20 % levněji: ves za sháněné zboží dostane hodnotu ÷ 1,2 × 1,2 = 1 × hodnota,
+// nabízené zboží platí hodnotou × 1,2 × 0,8 = 0,96. Nosič unese 25 kg (dobytek se žene – honák na
+// 10 kusů, návrh Clauda); cesta tam a zpět 2–6 dní podle délky stezky (2 dny do 400 m, každých
+// dalších 250 m den navíc – návrh Clauda) + 1 den za krajem mapy. Zásoby a poptávka sousedů se
+// doplní 1. 11. Ves si nechá aspoň 2 krávy (chovný pár – návrh Clauda).
+export const TRADE = {
+  markup: 0.2,
+  demandBonus: 0.2,
+  offerDiscount: 0.2,
+  porterKg: 25,
+  headsPerDrover: 10,
+  tripDays: { min: 2, max: 6, fromM: 400, perDayM: 250 },
+  beyondEdgeDays: 1,
+  restockDay: { month: 11, day: 1 },
+  keepCows: 2,
+} as const;
+// trade.md – Sousedé (návrh Clauda): soused nabízí 2–3 druhy zboží (aspoň jedno zboží zvenku)
+// a shání 2–3 (jen co ves sama umí – zboží zvenku ne); roční zásoba každého nabízeného zboží
+// v hodnotě 600–1 500 kg obilí, poptávka po sháněném 800–2 000 kg obilí
+export const NEIGHBOURS = {
+  offers: { min: 2, max: 3 },
+  demands: { min: 2, max: 3 },
+  supplyKg: { from: 600, to: 1500 },
+  demandKg: { from: 800, to: 2000 },
+} as const;
+// trade.md – Obchod, hodnoty zboží v kg obilí (rešerše research/2026-10-18-trade-values.md, návrh
+// Clauda): obilí 1, luštěniny 1, maso 3, sýr 4, med 6, sůl 8, keramika 3, uhlí 0,5, nástroje 60,
+// železo 30 (kg), kráva 600, kláda 40, kožešina 25 (kus). `carryKg` – kolik váží kus pro nosiče
+// (kláda vleče 4 nosiči = 100 kg; kožešina 1,5 kg; dobytek se žene – `TRADE.headsPerDrover`)
+export const TRADE_GOOD_VALUES = {
+  grain: { valueKg: 1, carryKg: 1 },
+  legumes: { valueKg: 1, carryKg: 1 },
+  meat: { valueKg: 3, carryKg: 1 },
+  cheese: { valueKg: 4, carryKg: 1 },
+  honey: { valueKg: 6, carryKg: 1 },
+  salt: { valueKg: 8, carryKg: 1 },
+  pottery: { valueKg: 3, carryKg: 1 },
+  charcoal: { valueKg: 0.5, carryKg: 1 },
+  tools: { valueKg: 60, carryKg: 1 },
+  iron: { valueKg: 30, carryKg: 1 },
+  cattle: { valueKg: 600, carryKg: 0 },
+  logs: { valueKg: 40, carryKg: 100 },
+  furs: { valueKg: 25, carryKg: 1.5 },
+} as const;
+// trade.md – Zboží zvenku ve vsi (návrh Clauda): sůl se spotřebuje 3 kg na člověka a rok (≈ 8 g
+// denně) a dokud je, přidává štěstí +3; kožešiny se opotřebí 20 % ročně a přidají až +2 štěstí
+// (plně při kožešině na člověka); med se jí rovným dílem do roka, nejvýš 5 % potřeby energie
+// (0,9 kg obilí na kg), a přidá štěstí jako ovoce (+5 – s ovocem se nesčítá)
+export const FOREIGN_GOODS = {
+  saltKgPerPersonYear: 3,
+  saltHappiness: 3,
+  furWearPerYear: 0.2,
+  furHappiness: 2,
+  honeyEnergy: 0.9,
+  honeyCap: 0.05,
+  honeyDays: 365,
+} as const;
+// trade.md – Zboží zvenku, crafts.md – Kovář (návrh Clauda): z koupeného železa kovář jen kuje –
+// 1,2 kg železa (opal), 3 člověkodny a 10 kg uhlí na 1 kg nástrojů místo rudy a tavení (10 čd
+// a 50 kg uhlí); železo bere přednostně
+export const IRON_SMITHING = { ironKgPerKg: 1.2, manDaysPerKg: 3, charcoalKgPerKg: 10 } as const;
+// abandonment.md – Chátrání (Martin 18. 10. 2026: „stavby, kam nikdo nechodí, budou postupně
+// chátrat a rozpadnou se“; čísla návrh Clauda podle rešerše research/2026-10-18-abandonment.md):
+// opuštěná stavba spadne za `fallYears` let od plného stavu – modla (dubový kůl Ø 0,5 m v zemi)
+// 20, svatyně (kůl ×1,55) 30, pletený plot hřbitova 10, ohrada bez zvířat (přístřešek s došky,
+// pletený plot) 10; zbytek padlé modly leží 10 let, zarostlý příkop svatyně 20 let. Stavba
+// dokončená za poslední rok opuštěná není – lidé k ní chodili stavět.
+export const ABANDONMENT = {
+  fallYears: { idol: 20, shrine: 30, 'cemetery-fence': 10, pen: 10 },
+  remnantYears: { idol: 10, shrine: 20 },
+  graceDays: 365,
+} as const;

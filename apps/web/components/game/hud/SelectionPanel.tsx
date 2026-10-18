@@ -1,5 +1,10 @@
 import { useState, type ReactElement, type ReactNode } from 'react';
-import { CRAFT_NAMES, type DwellingType } from '@bohemia/game';
+import {
+  CRAFT_NAMES,
+  type BuildableDwellingType,
+  type DwellingType,
+  type FamilyCounts,
+} from '@bohemia/game';
 import { PART_COLORS, SURFACE_COLORS } from '@/lib/minimap';
 import {
   CROP_LABELS,
@@ -27,7 +32,9 @@ import {
   type Craft,
   type WorkshopActivity,
 } from '@/lib/village-view';
-import type { RoadGrade, RoadUpgrade } from '@bohemia/game';
+import type { Direction8, RoadGrade, RoadUpgrade, TradeGoods } from '@bohemia/game';
+import { ManorUpgrades } from './ManorPanel';
+import { TradePanel } from './TradePanel';
 import {
   CancelRelocationButton,
   LeaveButton,
@@ -105,6 +112,41 @@ function Bar({
         <span style={{ width: `${percent}%` }} />
       </span>
     </Tooltip>
+  );
+}
+
+/**
+ * Stav stavby (abandonment.md – opuštěné stavby chátrají): ikona stavu s procenty a ikona
+ * opuštěné stavby, když k ní nikdo nechodí a chátrá – bez textů navíc (jako v 0 A.D.).
+ */
+function Wear({
+  condition,
+  abandoned,
+  name = 'Stav',
+}: {
+  condition: number;
+  abandoned: boolean;
+  name?: string;
+}): ReactElement {
+  const low = condition < 0.45;
+  return (
+    <span className="flex items-center gap-2">
+      <Stat icon="condition" name={name} testId="selection-wear">
+        <span className={low ? 'text-red-400' : ''}>{formatPercent(condition)}</span>
+      </Stat>
+      {abandoned && (
+        <Tooltip content="Opuštěno" placement="above">
+          <img
+            src="/icons/resources/abandoned.png"
+            alt="Opuštěno"
+            width={20}
+            height={20}
+            data-testid="selection-abandoned"
+            tabIndex={0}
+          />
+        </Tooltip>
+      )}
+    </span>
   );
 }
 
@@ -223,18 +265,29 @@ function WorkshopRow({ workshop }: { workshop: SelectionWorkshop }): ReactElemen
 /** Akce panelu nad obydlími – přestěhování domácnosti a jeho zrušení (migration.md). */
 interface RelocationActions {
   /** Začne umisťovat nové domy domácností `householdIds` (postupně, jeden za druhým). */
-  onRelocate?: (type: DwellingType, householdIds: readonly number[]) => void;
+  onRelocate?: (type: BuildableDwellingType, householdIds: readonly number[]) => void;
   /** Zruší rozestavěné stěhování (stavba nového domu) – hotovo, až se vrátí. */
   onCancelRelocation?: (constructionId: number) => Promise<void>;
+}
+
+/** Vylepšení vsi z dvorce vojvody (trade.md) – zemská stezka a obchod. */
+interface ManorActions {
+  /** Zadá stavbu zemské stezky do směru (server action) – hotovo, až se vrátí. */
+  onBuildTrail?: (direction: Direction8) => Promise<void>;
+  /** Vyšle výpravu k sousedovi (server action) – hotovo, až se vrátí. */
+  onSendExpedition?: (direction: Direction8, give: TradeGoods, get: TradeGoods) => Promise<void>;
 }
 
 function DwellingBody({
   details,
   onRelocate,
   onCancelRelocation,
+  onBuildTrail,
+  onSendExpedition,
 }: {
   details: Extract<SelectionDetails, { kind: 'dwelling' }>;
-} & RelocationActions): ReactElement {
+} & RelocationActions &
+  ManorActions): ReactElement {
   const tone = details.overcrowded ? 'text-red-400' : details.full ? 'text-[#f3cf86]' : '';
   return (
     <div className="flex min-w-0 flex-col gap-1.5">
@@ -249,6 +302,7 @@ function DwellingBody({
           {details.ageYears}
         </Stat>
       </div>
+      <FamilyRow family={details.family} />
       <ul data-testid="selection-ages" aria-label="Věk obyvatel" className="flex flex-wrap gap-1">
         {details.ages.map((age, i) => (
           <li
@@ -271,6 +325,19 @@ function DwellingBody({
           constructionId={details.relocation.constructionId}
           progress={details.relocation.progress}
           onCancel={onCancelRelocation}
+        />
+      )}
+      {details.manor && (
+        <ManorUpgrades
+          manor={details.manor}
+          onBuildTrail={onBuildTrail}
+          trade={(close) => (
+            <TradePanel
+              neighbours={details.manor?.neighbours ?? []}
+              onSend={onSendExpedition}
+              onClose={close}
+            />
+          )}
         />
       )}
       {details.relocate && (
@@ -317,6 +384,34 @@ function DwellingsBody({
         )}
         <LeaveButton />
       </div>
+    </div>
+  );
+}
+
+/**
+ * Rodiny v obydlí (kinship.md – Co hráč vidí): muži, ženy, děti, starší a manželské páry – ikony
+ * s čísly, bez slov (rozhraní jako v 0 A.D.).
+ */
+function FamilyRow({ family }: { family: FamilyCounts }): ReactElement {
+  const items: { icon: string; name: string; value: number }[] = [
+    { icon: 'man', name: 'Muži', value: family.men },
+    { icon: 'woman', name: 'Ženy', value: family.women },
+    { icon: 'child', name: 'Děti', value: family.boys + family.girls },
+    { icon: 'elder', name: 'Starší', value: family.elderMen + family.elderWomen },
+    { icon: 'ring', name: 'Manželské páry', value: family.couples },
+  ];
+  return (
+    <div data-testid="selection-family" className="flex flex-wrap items-center gap-x-3 gap-y-1">
+      {items.map((item) => (
+        <Stat
+          key={item.icon}
+          icon={item.icon}
+          name={item.name}
+          testId={`selection-family-${item.icon}`}
+        >
+          {item.value}
+        </Stat>
+      ))}
     </div>
   );
 }
@@ -455,6 +550,7 @@ function CemeteryBody({
         <Stat icon="date" name="Místo na roky" testId="selection-years">
           {formatYearsShort(details.yearsLeft)}
         </Stat>
+        <Wear condition={details.condition} abandoned={details.abandoned} name="Plot – stav" />
       </div>
       {details.building !== null && <Bar value={details.building} name="Rozšíření" />}
     </div>
@@ -611,6 +707,7 @@ function PenBody({
             {formatInteger(details.milkLPerDay)}
           </Stat>
         )}
+        <Wear condition={details.condition} abandoned={details.abandoned} />
       </div>
       <ul aria-label="Stáda vsi" className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
         {HERD_ORDER.map((species) => (
@@ -902,7 +999,10 @@ function SacredBody({
   if (details.building === null) {
     return (
       <div className="flex flex-col justify-center gap-1.5">
-        <HappinessGain value={details.happiness} />
+        <div className="flex items-center gap-3">
+          <HappinessGain value={details.happiness} />
+          <Wear condition={details.condition} abandoned={details.abandoned} />
+        </div>
       </div>
     );
   }
@@ -943,6 +1043,8 @@ export function SelectionPanel({
   onCancelRelocation,
   onUpgradeRoad,
   onPlantRoadApples,
+  onBuildTrail,
+  onSendExpedition,
 }: {
   details: SelectionDetails | null;
   /** Zadá v ohradě výcvik spřežení (server action) – hotovo, až se vrátí. */
@@ -951,7 +1053,8 @@ export function SelectionPanel({
   onUpgradeRoad?: (roadId: number, upgrade: RoadUpgrade) => Promise<void>;
   /** Zadá výsadbu jabloní podél pevné cesty (server action) – hotovo, až se vrátí. */
   onPlantRoadApples?: (roadId: number) => Promise<void>;
-} & RelocationActions): ReactElement | null {
+} & RelocationActions &
+  ManorActions): ReactElement | null {
   if (!details) return null;
   let portrait: ReactElement;
   let body: ReactElement;
@@ -1029,12 +1132,19 @@ export function SelectionPanel({
     portrait = <Portrait icon="zemnice" name={`Obydlí (${details.ids.length})`} />;
     body = <DwellingsBody details={details} onRelocate={onRelocate} />;
   } else {
-    portrait = dwellingPortrait(details.type, details.workshop?.craft ?? null);
+    // dvorec vojvody (trade.md) – i když je to zatím zemnice zakladatelů
+    portrait = details.manor ? (
+      <Portrait icon={details.type} name="Dvorec vojvody" />
+    ) : (
+      dwellingPortrait(details.type, details.workshop?.craft ?? null)
+    );
     body = (
       <DwellingBody
         details={details}
         onRelocate={onRelocate}
         onCancelRelocation={onCancelRelocation}
+        onBuildTrail={onBuildTrail}
+        onSendExpedition={onSendExpedition}
       />
     );
   }

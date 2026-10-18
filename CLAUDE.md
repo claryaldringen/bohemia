@@ -242,11 +242,14 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   adaptér): krajina 16 × 16 čtverců po ≈ 120 m (`SCENERY_CHUNKS`). Každý mesh s nehybnými
   instancemi (`setStaticInstances`, jméno `trees-` / `decor-` / `impostors-` / `felled-` /
   `pathside-` – `CULLED_MESHES`; i les vsi, pařezy a stromy u cest, které se mění) dostane klon
-  pro kameru `view-<jméno>` (sdílí geometrii i materiál – roční období platí dál), do jehož
+  pro kameru `view-<jméno>` (sdílí materiál – roční období platí dál –, ale má **vlastní kopii
+  geometrie**: Babylon drží buffery thin instances na geometrii, sdílená by kreslila buffer
+  zdroje; změny vrcholů zdroje – natáčení impostorů – se do kopie přenesou), do jehož
   bufferu se před snímkem nakopírují jen instance čtverců, jejichž obal je v záběru; draw cally
   zůstanou (jeden na model), ve výchozím pohledu ≈ 3 % trojúhelníků (0,3 M místo 10 M). Původní
   mesh se všemi instancemi kreslí **jen stínová mapa** (`SHADOW_ONLY_LAYER` – kamera ho
-  přeskočí, stínový generátor vrstvy nekontroluje), takže stíny jsou jako dřív. Nový renderer
+  přeskočí, stínový generátor vrstvy nekontroluje), takže stíny jsou jako dřív. Obaly čtverců
+  se pro ořez převádějí světovou maticí meshe (`transformBounds` – i mesh pod rodičem). Nový renderer
   instancí stromů a keřů: instance přes `setStaticInstances` (ne `thinInstanceSetBuffer`)
   a jméno s předponou z `CULLED_MESHES`, vypínat zdroj (`setEnabled`) – klon ho následuje.
   Impostory mají obal přes všechna natočení (`localBounds`). Měření bez prohlížeče:
@@ -430,6 +433,19 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   u staveniště (`villager-plan.ts`) a jabloně sadu se vyhnou koruně posvátného dubu. Vývojový
   náhled má tlačítka Modla, Svatyně, Ukázka svatyní a „Mýtit les s posvátným dubem / hájem“;
   náhled staveb (/dev/buildings) kreslí modlu a svatyni po fázích svým potrubím.
+  **Rozpad opuštěné modly a svatyně** (abandonment.md, `structure-decay.ts` – čisté funkce,
+  testy): stupeň `structureDecayStage` jako u obydlí (≥ 70 / 45 / 20 %), díly `sacredDecayParts`
+  – celá navštěvovaná = hotový model, opuštěné svatyni vyhasnou ohniště hned (díly staveniště
+  a `shrine-fires-cold`, bez dýmu), sešlá zšedlá modla s mechem bez obětin, nakloněná a rozpadlá
+  se kloní (`sacredLean` – ≈ 12° a 28°, směr podle id; `leanPoint` posune vrcholy před položením
+  na terén) a zarůstá; zbytek `sacredRuinParts` (padlá modla u pahýlu zapadá do trávy, příkop
+  svatyně se srovná – `heightScale`). Díly `models/sacred/sacred-decay.glb` z `sacred.py` (čtvrtý
+  argument `decay`; načtou se až s první chátrající stavbou, do té doby nejbližší díly
+  staveniště – `DECAY_SUBSTITUTES`); zarostlá plocha a příkop svatyně dostanou ve scéně trávu
+  terénu po světových souřadnicích (`overgrow`). Plot opuštěného hřbitova a ohrady `decayFence`
+  podle `fenceDecayAmount` (po dvacetinách), mohylky zarůstají a slehnou se s ním. Náhled:
+  /dev/buildings tlačítko **Rozpad staveb** (modla, svatyně, hřbitov, ohrada – stejný posuvník
+  ▶ Rozpad jako obydlí, `showcaseAbandoned`).
 - **Řemeslné dílny** (ve hře od 18. 10. 2026, pravidla v [docs/design/crafts.md](docs/design/crafts.md),
   jádro a rozhraní viz Ves – Řemesla): `public/models/crafts/`
   hrnčíř a kovář (polozemnice s přístřeškem o `PORCH` 3,6 m vpředu, pod ním pec / výheň
@@ -470,11 +486,14 @@ rozhraní částí v
   Ves se dopočítá při každém načtení a akci (worker zatím není).
 - **API jádra:** `foundVillage` (4 lidé, zásoby, stavba první zemnice, volitelně první pole),
   `advanceVillage(state, toDay)` (dopočítá ves do dne včetně) a akce hráče `startNewDwelling`,
-  `startWorkshop`, `foundField`, `foundCemetery`, `foundOrchard`, `foundPen` a `trainTeam`. Stav
+  `startWorkshop`, `foundField`, `foundCemetery`, `foundOrchard`, `foundPen`, `trainTeam`,
+  `startTrail` a `startExpedition` (trade.md). Stav
   vsi je JSON-serializovatelný, funkce vstupní stav nemění. Nové části stavu jsou volitelné
   (`VillageState.cemeteries?`, `orchards?`, `applesKg?`, `orchardWork?`, `starvationDays?`,
   `extinctDay?`, `crafts?`, `Dwelling.workshop?`, `livestock?`, `meatKg?`, `cheeseKg?`,
-  `legumesKg?`, `hay?`, `pens?`, `diet?`, `ruins?`, `woods?`, `FieldPart.overgrowthYears?`) – vsi
+  `legumesKg?`, `hay?`, `pens?`, `diet?`, `ruins?`, `woods?`, `FieldPart.overgrowthYears?`,
+  `manorId?`, `trails?`, `trade?`, `goods?`, `DwellingPlot.yard?`, `Construction.trail?`) – vsi
+  `sacredRuins?`, `SacredBuilding.wear?`, `Cemetery.fenceWear?`, `Pen.wear?`) – vsi
   uložené dřív se načtou a beze sadů či dílen se jejich stav nemění.
 - **Hlad a vymření** (population.md, Martin 18. 10. 2026): nahromaděný hlad
   `VillageState.starvationDays` (`nextStarvationDays` po jídle dne – pod 90 % přídělu
@@ -525,6 +544,32 @@ rozhraní částí v
   nerozpadají** (`dwellingDecay` jim dává stupeň 0). Náhled: /dev/buildings – tlačítka **Rozpad**
   (opuštěná zemnice a polozemnice na pozemku, posuvník ▶ Rozpad: stav 100 → 0 %, pak zbytek
   jámy 10 let) a **Stupně rozpadu** (řada stupňů 0–3 a zbytek jámy) – `showcaseDecay`.
+- **Opuštěné stavby chátrají** ([abandonment.md](docs/design/abandonment.md), Martin 18. 10. 2026:
+  „Jo ty stavby, kam nikdo nechodí, budou postupně chátrat a rozpadnou se“; čísla podle rešerše
+  `research/2026-10-18-abandonment.md`): `abandonment.ts`. **Opuštěná** = stavba, ke které podle
+  roční sítě cest (1. 11., stejná `computePathNetwork` jako pevné cesty) za rok nevedla žádná
+  cesta – síť vrací provoz ke stavbám `PathNetwork.visits` (klíč `visitKey` – `idol:<id>`,
+  `shrine:<id>`, `cemetery:<id>`, `pen:<id>`; jen domácnosti, ke kterým se trasa našla; k modle,
+  svatyni a hřbitovu chodí každá domácnost jen k nejbližšímu). `roadsDay` ho vrátí v den roční
+  kontroly (jinak a bez krajiny null – kalibrace nic neopouští) a `simulateDay` zavolá
+  `abandonmentCheck` (začne / přestane chátrat; dokončená za poslední rok – `graceDays` – ne;
+  ohrada se zvířaty – `stockedPenIds`: spřežení, výcvik, zimní krávy rovným dílem jako ve
+  scéně – nikdy) a každý den `abandonmentDay` (pád, zbytky). Do ohrady bez zvířat se nechodí
+  krmit (`PathVillage.pens[].stocked: false` – `pathVillageOf`, `ScenePen.stocked`, i v klíčích
+  sítě). Stav `StructureWear` (`condition` ke dni `abandonedDay`; bez dne zastavené chátrání –
+  stav se nezvedá) na `SacredBuilding.wear`, `Cemetery.fenceWear`, `Pen.wear`; stav dne
+  `structureCondition`, den pádu `structureFallDay`. Spadne za `ABANDONMENT.fallYears` (modla
+  20, svatyně 30, plot hřbitova 10, ohrada 10 let) → kronika `structure-fell` (`structure`,
+  `id`; upozornění „Modla padla“ / „Svatyně se rozpadla“ / „Plot hřbitova se rozpadl“ / „Ohrada se
+  rozpadla“): modla a svatyně zmizí ze `sacredBuildings` (štěstí jen ze stojících, svatyni jde
+  postavit znovu) a zůstane `VillageState.sacredRuins` (`sacredRuinOvergrowth`, modla 10,
+  příkop 20 let – `remnantYears`, pod stavbou zmizí), u hřbitova jen plot (`fenceWear`
+  `{ condition: 0 }`, pohřbívá se dál, oprava plotu zatím žádná), ohrada zmizí; ohrada, do
+  které se vrátila zvířata, chátrat přestane hned (nejméně 1 %). Web: `VillageSacred.buildings`,
+  `VillagePen` a `VillageCemetery` nesou `condition` / `fenceCondition` a `abandoned` (panel –
+  `Wear`: ikona `resources/condition` s %, ikona `resources/abandoned`), scéna
+  `SceneSacred.buildings[].condition` / `abandoned`, `SceneSacred.ruins`, `ScenePen.condition`,
+  `SceneVillage.cemeteries[].fence` (jen pod 1, po setinách).
 - **Hřbitov** (`cemetery.ts`, cemetery.md): čtverce s 56 hroby, zemřelý se pohřbí do hotového
   hřbitova s místem nejblíž k obydlím (`bury` v `populationDay`), kronika `cemetery-full`.
   Čtverce navazující stranou na hřbitov ho **rozšíří** (`foundCemetery`: stejné id, čtverce na
@@ -785,11 +830,42 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   (`field-progress.ts`), rozdělení práce posílá činnosti `plough`, `mow`, `slaughter`, `pen`.
 - **Hráč staví kdy chce** (Martin) – stavbu smí zablokovat jen **cena předem** (`costs.ts`:
   `BUILD_COSTS`, `buildAffordability`): suroviny ze zásob (dnes žádné) a u obydlí **lidé
-  k osídlení** (`settlers` = `availableSettlers` v `dwellings.ts`: možné nové domácnosti
+  k osídlení** (`settlers` = `availableSettlers` v `households.ts`: možné nové domácnosti
   `possibleNewHouseholds` − prázdná − rozestavěná nová obydlí); pole a hřbitov lidi nechtějí.
   Tlačítko je pak zašedlé, zkratka nic nespustí, v popisku chybějící část červeně; server odmítne
   (`NO_SETTLERS`, `CANNOT_AFFORD`). `waitingHouseholds` (upozornění „Domácnost je plná“) =
   kladní lidé k osídlení.
+- **Příbuzenství a pohlaví** ([kinship.md](docs/design/kinship.md), Martin 18. 10. 2026;
+  `kinship.ts`): `Person.sex`, `motherId`, `fatherId`, `spouseId`, u nevěsty z okolí `origin`
+  (směr sousední vsi – válka); zemřelí a odešlí rodiče žijících v `VillageState.ancestors` (id
+  a rodiče, jen dokud jsou rodičem někoho žijícího – `removePeople`), dcery vdané pryč
+  v `emigrants` (se směrem). `areCloseKin` (do bratranců), `hasCloseKinIn` (příbuzní ve vsi ve
+  směru – war.md), `familyCounts` (muži, ženy, děti, starší, páry – panel obydlí a pohlaví postav).
+  Staré vsi převede `withKinship` (v `updateVillage` i na začátku `advanceVillage`, bez příznaku –
+  ves, kde mají všichni pohlaví, se nemění; `availableSettlers` počítá na převedené).
+  **Porody** (`population.ts`) jen manželským párům: žena 16–44 s manželem od 16 let v témže domě,
+  chlapec `BOY_SHARE` (105/205). **Domácnost drží člověk 16–44** (`householdBreaksUp` v `people.ts`;
+  osamělý 16–44 zůstává), rozpadlá jde k příbuzným (syn, dcera, sourozenec), jinak do domu
+  s nejvíc místy.
+- **Osídlení obydlí** (`households.ts`; population.md – Nové obydlí, kinship.md – Domácnosti): nové
+  obydlí po dokončení (`settleNewDwelling`) a prázdné v kroku 6 (`occupyEmptyDwellings`) osídlí
+  **rodina ženatého syna** (muž, žena, jejich svobodné děti – `familiesOf` / `leavingFamilies`);
+  nejstarší ženatý syn zůstává (dědic), v domě bez rodičů nejstarší ženatý muž. Co zůstane prázdné,
+  osídlí **svobodný nejstarší syn z plného domu** (`loneSonOf`, Martin – „nejstarší dítě může
+  odejít“, „ať prázdný dům obsadí i plná domácnost“; od 16 let, bez ženatého dědice a s neplodnou matkou zůstává nejstarší a jde druhý).
+  Dcery odcházejí sňatkem. Ne z domácnosti, jejíž zbytek by se rozpadl. **Chátrá jen prázdné
+  obydlí** (Martin: „obydlená budova nechátrá – obyvatelé ji opravují“): `decayEmptyDwelling` – bez
+  oprav podle stáří a navíc pevný denní podíl, nové zanikne za `DWELLINGS[type].emptyLifespanYears`
+  (zemnice 5, polozemnice 8 let). Obydlené stav neztrácí – opravy podle stáří (`repairNeedPerDay`)
+  dál berou práci vsi, nedodělek se jen neudělá; přestavbu rozhoduje jen stáří (`wantsRebuild`).
+- **Sňatky** (`marriage.ts`, kinship.md – Sňatky; Martin, varianta c): svobodný = muž od 16 / žena
+  16–44 bez manžela (vdova s dětmi do 14 ne – `isSingle`); v kroku 6 po osídlení obydlí se berou
+  nepříbuzní muž a žena s rozdílem do `MARRIAGE.maxAgeGapYears` (od nejstaršího, nejbližší věkem –
+  `bestMatch`), **žena se stěhuje k muži** (`canWed`: její dům se nesmí rozpadnout, ženichův nesmí
+  být přeplněný). Kdo nemá s kým, tomu okolí s 30 % ročně (`MARRIAGE.outsidePerYear`, los ze seedu
+  a dne): muži od 18 nevěsta 16–22 s `origin` (ne v hladu, ne do přeplněného domu), žena od 18 se
+  vdá pryč (záznam v `emigrants`). Kronika `marriage`, `bride-from-outside`, `married-away`;
+  upozornění „Svatba“ (`VillageView.lastMarriageDay`), „Nevěsta z okolí“, „Dcera se vdala pryč“.
 - **Přestěhování domácnosti** ([migration.md](docs/design/migration.md), fáze 1): akce
   `startRelocation` (`actions.ts`) = nová stavba obydlí (`kind: 'dwelling'`) s
   `Construction.relocates` = id domácnosti – dřevo, pozemek polozemnice, překážky a cena jako
@@ -814,26 +890,6 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   `foundAnotherVillage` = další ves téhož sídla nejméně `NEW_VILLAGE_MIN_DISTANCE_M` (300 m)
   od staveb ostatních (`villages-apart.ts`). Vsi na jedné mapě o sobě zatím nevědí (scéna kreslí
   jen vybranou ves, kontroly umístění neznají stavby druhé vsi) – řeší fáze 3.
-- **Osídlení prázdného obydlí** (population.md – Prázdné obydlí): nové obydlí po dokončení
-  a prázdné obydlí v kroku 6 (`occupyEmptyDwellings`) nejdřív zabere mladý pár z plné domácnosti
-  se 4 dospělými 14–44 (`qualifyingDwellings`, `moveInYoungestPair`); co zůstane úplně prázdné,
-  osídlí **dospělé děti z přeplněné domácnosti** (Martin, 18. 10. 2026; `adultChildrenSettlers`):
-  lidé 14–44 kromě `HOUSEHOLD_HEADS` (2) nejstarších od 14 let, u neplodných rodičů (oba 45+)
-  i kromě nejstaršího dospělého dítěte – dědice (`householdHeir`, Martin), všichni z jedné
-  domácnosti, nebo dva jednotlivci z různých, a když pár není, **nejstarší dítě samo** (Martin,
-  od 16 let – `canLeaveAlone`); ne z domácnosti, jejíž zbytek by se rozpadl (`householdBreaksUp`
-  v `people.ts` – osamělý člověk 16–44 se nerozpadá, je svobodný). Možné nové domácnosti =
-  kvalifikované + ostatní přeplněné s aspoň dvěma dospělými dětmi + jednotlivci po dvou + poslední
-  jednotlivec sám (`possibleNewHouseholds`). **Chátrá jen prázdné obydlí** (Martin: „obydlená
-  budova nechátrá – obyvatelé ji opravují“): `decayEmptyDwelling` – bez oprav podle stáří a navíc
-  pevný denní podíl, nové zanikne za `DWELLINGS[type].emptyLifespanYears` (zemnice 5, polozemnice
-  8 let). Obydlené stav neztrácí – opravy podle stáří (`repairNeedPerDay`) dál berou práci vsi,
-  nedodělek se jen neudělá; přestavbu rozhoduje jen stáří (`wantsRebuild`).
-- **Sňatky mezi domy** (population.md, Martin 18. 10. 2026; `marriage.ts`): svobodný = jediný
-  člověk 16–44 v domácnosti (`singles`, od nejstaršího); dva svobodní z různých domů se vezmou
-  v kroku 6 po obsazení prázdných obydlí (`arrangeMarriages`). Stěhuje se ten, komu se dům
-  nerozpadne, jinak do domu s víc volnými místy, při shodě mladší; jen do domu s volným místem
-  – svatba dům nepřeplní, jinak by se nejstarší dítě stěhovalo tam a zpět (`marriageMove`). Kronika `marriage`, upozornění „Svatba“ (`VillageView.lastMarriageDay`).
 - **Determinismus:** simulace jde den po dni v pevném pořadí kroků (`simulate.ts`), náhoda dne
   je ze seedu vsi a indexu dne – výsledek nezávisí na tom, po jakých kouscích se ves dopočítá.
 - **Dopočet po kouscích na serveru:** `advanceVillageSteps` je `advanceVillage` po dnech
@@ -869,7 +925,7 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
 - **Web:** server actions `app/game/actions.ts` (`getVillageView`, `selectVillage`, `foundVillage`,
   `foundDevVillage`, `placeDwelling`, `relocateHousehold`, `cancelRelocation`, `placeWorkshop`,
   `placeField`, `placeCemetery`, `placeOrchard`, `placeSacred`, `placePen`, `trainTeam`,
-  `renameVillage` → `VillageView` / `null` / `{ error }`; `restartGame(input?)` → `{ ok: true }` /
+  `buildTrail`, `sendExpedition`, `renameVillage` → `VillageView` / `null` / `{ error }`; `restartGame(input?)` → `{ ok: true }` /
   `{ error }`). **Každá akce nad vsí nese `villageId`** (UUID – `villageIdOf` v
   `lib/village-input.ts`) a server ověří, že ves patří hráči (`context` v `lib/village.ts` →
   `findPlayerVillage`); `getVillageView({ villageId: null })` = první ves hráče (zakládá-li ves,
@@ -902,7 +958,8 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   krátkým řádkem se jménem vsi – `otherVillageNotices`; ikony s čísly: lidé, obilí, luštěniny
   (ikona `legumes`, když jsou v zásobě, na poli nebo v jídle – `showsLegumes`), maso,
   sýr (ikona `cheese`, v popisku mléko za den) když je mléko nebo sýr, ovoce (jablka) jen když
-  jsou nebo je sad, seno s ohradou, klády, uhlí / nástroje / keramika jen ves s řemesly, volná
+  jsou nebo je sad, seno s ohradou, klády, uhlí / nástroje / keramika jen ves s řemesly, sůl /
+  železo / med / kožešiny jen když jsou (`ForeignStocks` – trade.md, med i v popisku nasycení), volná
   práce, nasycení (barva ikony podle energie – hlad, tooltip nasycení s energií, bílkovinami
   a podíly obilí / luštěniny / maso / mléko a sýr / vejce / ovoce), štěstí, datum – obnoví se
   na začátku dalšího herního dne, ne každou sekundu (`dateRefreshDelay` v `lib/game-date.ts`);
@@ -1051,7 +1108,7 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   bez kácení (`buildProgress`).
 - **Upozornění** (`lib/village-notices.ts`): plná domácnost (fakt), lidé umírají hlady, hlad,
   stojící stavby, plný hřbitov (žádný hotový nemá volný hrob), vesničané ušetřili posvátný dub
-  / dubový háj a svatba mezi domy (fakt, když přibude – svatba podle
+  / dubový háj, svatba, nevěsta z okolí a dcera vdaná pryč (fakt, když přibude – svatba podle
   `VillageView.lastMarriageDay`), podzimní porážka, spřežení vycvičené / dosloužilo, vůl
   uhynul, vesničané obnovují starý sad a starý sad dosloužil (nové události kroniky –
   `VillageView.chronicle[].kind`, `CHRONICLE_NOTICES`) – nově vzniklé jako krátký mizející
@@ -1082,7 +1139,9 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   a odnos podle `HARVEST_WORK_PER_HA`; do scény jde jako `SceneVillage.labor` (člověkodny na
   setiny, lidé podle věku, měsíc). Scéna: `villager-plan.ts` (čisté funkce, testy) převede
   člověkodny na postavy (jedna na pracujícího, nejvýš `MAX_WORKERS` = 60, po skupinách až 4
-  v činnosti – `shareCounts`; domácí práce a nečinní venku jen z části, v zimě méně; **každá
+  v činnosti – `shareCounts`; muž nebo žena podle podílu činnosti posunutého podílem žen ve vsi –
+  `figureSexes` a `womenChance` ze `SceneLabor.people`, kinship.md; domácí práce a nečinní venku
+  jen z části, v zimě méně; **každá
   stavba s dnešní prací má aspoň jednoho člověka** – `LaborShare.construction` z jádra,
   `withBuilderAtEachConstruction`, náhradní místo `builderNearby`) a rozestaví
   je (postavy stylizovaně o 20 % větší – `FIGURE_SCALE`, rozestupy s nimi): řady na polích
@@ -1131,12 +1190,15 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   (`nearest.ts` – bit po bitu jako průchod všemi díly, zlatý otisk sítě v `paths-nearest.test.ts`);
   síla `pathStrength` (odmocnina provozu), stáří obydlí →
   `pathAgeFactor`; vyhlazené čáry se sílou a stářím v bodech, provoz po buňkách `traffic.raw`;
-  `annual: true` = roční provoz; `PathVillage` splňuje `SceneVillage`), `walking.ts` (`walkGraph`, `walkingDistances` – vzdálenost chůze, po pěšině
+  `annual: true` = roční provoz; provoz ke stavbám `visits` – opuštěné stavby, abandonment.md;
+  `PathVillage` splňuje `SceneVillage`), `walking.ts` (`walkGraph`, `walkingDistances` – vzdálenost chůze, po pěšině
   `PATH_WALK` rychleji, nikdy víc než rovně – čistá funkce pro každého, kdo měří cestu na pole)
   a `village.ts` (`pathVillageOf` ze stavu vsi jako scéna i s pevnými cestami, `refreshWalkDistances`
-  – den po dni v `simulateDay` při změně `walkLayoutKey` (i pevné cesty), jen s krajinou; ve stavu
-  je jen otisk klíče `walkLayoutHash` (celý klíč z vsí uložených dřív se beze změny rozložení jen
-  převede); `villagePathNetwork` si pamatuje poslední síť po krajinách (otisk `pathVillageOf`) –
+  – den po dni v `simulateDay` při změně `walkLayoutKey` (i pevné cesty), jen s krajinou;
+  **stadia dílů a pastva úhoru (`walkStageKey`) se do klíče promítají jen 1. dne v měsíci**
+  (Martin, 18. 10. 2026 – osev postupuje po dílech a síť se přepočítávala každých pár dní; otisk
+  stadií z posledního 1. dne je ve stavu `walkStages`), strukturální změny hned; ve stavu jen
+  otisky `walkLayoutHash`; `villagePathNetwork` si pamatuje poslední síť po krajinách (otisk `pathVillageOf`) –
   seč luk ve stejný den po přepočtu chůze síť nepočítá znovu →
   `FieldPart.walkDistanceM`, práce přes `partWalkDistance` v `year-plan.ts` (`partWork`, `partWeight`),
   `field-progress.ts` a seči `hay.ts`).
@@ -1235,6 +1297,62 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   `pathside-apple-*` s materiálem `prepareAppleMaterial` ze sadu, kůly `createTreeStakeMesh`),
   vytyčení `appleStaking` v `RoadWorks`, postavy `roadApples` ve `villager-plan.ts`;
   `/dev/landscape` tlačítko **Jabloně: …** (s **Cesta**) přepíná stadia.
+- **Dvorec vojvody** ([trade.md](docs/design/trade.md) – Dvorec vojvody, Jak je postavené;
+  `manor.ts`): `VillageState.manorId` = obydlí (domácnost), odkud jdou vylepšení vsi – nová ves
+  první zemnice zakladatelů (`foundVillage`), starší nejstarší obydlí (`withManor` v
+  `updateVillage`, `keepManor` krok dne, `villageManorId` / `villageManor`). Typ obydlí `dvorec`
+  (`DwellingType`; hráč ho nestaví – `BuildableDwellingType` = zemnice a polozemnice v nabídce,
+  stěhování a vstupu server actions): kapacita 10, cena a dřevo polozemnice × 1,5 (`DWELLINGS`,
+  `DWELLING_TREES`, `MANOR`), dožilý dvorec `decideRebuilds` přestaví vždy na `dvorec`.
+  **Pozemek dvou políček:** `DwellingPlot.yard` (dvůr stranou vedle políčka domu, varianta
+  `center`, dům vchodem ke dvoru – `yardRotation`, `plotCells` v `plot-cells.ts`, `copyPlot`),
+  `checkPlotPlacement` u dvorce dvůr vyžaduje, `relocationPlot(…, 'dvorec')` hledá dvojici volných
+  políček (`YARD_SIDES`). Model `tools/blender/dwellings.py` pátým argumentem `dvorec` (jen
+  `dvorec.glb`, brána `dvorec-gate.glb`, díly staveniště `dvorec-construction.glb` – uzly
+  `dvorec-…`, řezby `carving` ve fázi `carve`; srub 4,6 × 8,4 m, zubořez na štítech, koňské hlavy
+  na kozách – `DVOREC_*`, musí sedět s `PIT_SHAPES.dvorec`, `SHAPES` a `SMOKE_VENT` v
+  `dwelling-decor.ts`, `MANOR_HOUSE_RECT_M` v `homestead-layout.ts`). Scéna: model a díly
+  staveniště se načtou až s prvním dvorcem (`loadManorModels`), `ScenePlot.yard` /
+  `PlotSquare.yard` – plot přes obě políčka (`plotFenceRect`), brána `MANOR_FENCE` a model brány
+  (`HomesteadLayout.gate`, `HomesteadRenderer`), výběr a zvýraznění celého pozemku; dvorec se
+  zatím nerozpadá (`dwellingDecayStage`), zbytek jámy jako po polozemnici (`decayModelType`).
+  Panel: portrét „Dvorec vojvody“ a vylepšení vsi (`hud/ManorPanel.tsx`, data `lib/manor-view.ts`).
+  Ikona `icons/build/dvorec.png`, ukázka **Dvorec vojvody** na `/dev/buildings`.
+- **Zemská stezka** (trade.md – Zemská stezka; `trail.ts`): `trailRoutes` – jedna Dijkstra po
+  terénu pěšin celé krajiny (`trailTerrain` s překážkami, po pevné cestě × 0,5 – `TRAIL`) z místa
+  za branou dvorce (`trailStart`) do všech 8 směrů (`DIRECTIONS`, `Direction8` = `NeighborDirection`
+  z příbuzenství, sever +z), v mezipaměti podle krajiny, bodu a sítě cest (první dotaz ≈ 0,7 s,
+  pak ≈ 10–30 ms). `planTrail` uloží osu jako pevné cesty na kopii stavu (`addTrailRoads` v
+  `paths/roads.ts` – nové úseky po 150 m přes `formRoad`, po pevné cestě vede po ní, rozdělení
+  úseku přidá kus stezky – `splitTrailPieces`), úseky `Trail.pieces` se stupněm a prací
+  (`roadUpgradeCost`, hať a lávka přes mokřinu a brod, dřevo `planWoodFrom`), důvody česky
+  (`TRAIL_BLOCKED`, `TRAIL_NO_WOOD`…). `startTrail` → stavba `road` s `Construction.trail`
+  a `roadIds` od vsi ven; `trailsDay` (krok po práci) dá dostavěným úsekům stupeň hned,
+  `finishTrail` (ve `finishConstructions`) hotovou stezku, kronika `trail-built`. Práce na úseku
+  u čela (`trailWorkFront`, `trailWorkRoad` v `labor-report.ts`). `trailOptions` – nabídka 8 směrů
+  (stav, průběh, délka, cena, dny cesty `trailTripDays`). Use-case `buildTrail`, server action
+  `buildTrail` (`{ villageId, direction }`). Web: růžice šipek `TrailCompass`, scéna
+  `lib/trail-view.ts` (`sceneTrails` – osa stezky, `trailRoadWork` – vytyčení a průběh po úsecích
+  v `sceneRoads`), `SceneVillage.trails`. Ikona `icons/build/stezka.png`.
+- **Sousedé a obchod** (trade.md – Sousedé, Obchod; `neighbours.ts`, `trade.ts`): `neighbourOf(seed,
+směr)` – stálá povaha (2–3 nabízí, aspoň jedno zboží zvenku, 2–3 shání, roční zásoby a poptávka
+  `NEIGHBOURS`, jméno `suggestVillageName`), `neighbourStock` – zbytek roku obchodu
+  (`tradeSeason` – od 1. 11.), ukládá se jen `VillageTrade.neighbours`. Hodnoty zboží v kg obilí
+  `TRADE_GOOD_VALUES` (rešerše `research/2026-10-18-trade-values.md`), ceny `sellPrice` / `buyPrice`
+  (přirážka a příplatky `TRADE`), `tradeQuote` – kontrola a ocenění (bilance pro souseda ≥ 0,
+  nosiči `expeditionPorters`, dny, práce; důvody česky). `startExpedition` odebere zboží a zapíše
+  výpravu (`TradeExpedition`), `workExpeditions` (v kroku práce před stavbami – nejvýš nosiči za
+  den ze společné práce) a `finishExpeditions` (po práci – zboží do zásob, kronika
+  `trade-departed` / `trade-returned`). Rozdělení práce: činnost `trade`, cíl `{ kind: 'trail' }`
+  – nosiči ve scéně chodí po stezce (`porters` ve `villager-plan.ts`). Use-case `sendExpedition`,
+  server action `sendExpedition` (`{ villageId, direction, give, get }` – `parseSendExpeditionInput`).
+  Web: `VillageManor.neighbours` (`neighbourViews`), panel `hud/TradePanel.tsx` (posuvníky, náhled
+  `lib/trade-quote.ts`), upozornění, ikona `icons/build/obchod.png`.
+- **Zboží zvenku** (trade.md – Zboží zvenku ve vsi; `goods.ts`): `VillageState.goods` (sůl, železo,
+  med v kg, kožešiny v kusech), `goodsDay` (krok dne – sůl se jí, kožešiny se opotřebí),
+  `goodsHappiness` (složka štěstí `goods` – sůl +3, kožešiny až +2), med v `eatDiet` (`honeyKg`,
+  podíl `DietDay.shares.honey`, štěstí jako ovoce), kovář bere železo přednostně (`workSmith`,
+  `IRON_SMITHING`). Čísla `FOREIGN_GOODS`. Ikony `salt`, `iron`, `honey`, `furs` (`icons.py`).
 - **Ohrada s přístřeškem** ([oxen.md](docs/design/oxen.md); ve vsi `SceneVillage.pens` –
   `village-pens.ts` ve `VillageRenderer`: fáze podle `progress`, branka k nejbližšímu obydlí,
   zvířata `penAnimalsFor` na místa `spots` – voli spřežení (v den orby na poli), telata ve
@@ -1246,6 +1364,11 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   fáze stavby a póza zvířat `pen-layout.ts` (čisté funkce, testy – branka na straně ke vsi,
   přístřešek v zadním rohu naproti; `SHELTER_M` musí sedět s rozměry v `pen.py`), kreslení
   `pen-renderer.ts`, voli (VAT klip `idle`) a kráva `pen-animals.ts`. Na stránce přepínač **Zima**.
+  **Rozpad opuštěné ohrady** (abandonment.md): `PenView.condition` → `penDecayParts` (sešlá:
+  vybledlé děravé došky s mechem, prázdné jesle, žlab bez vody; propadlá: prověšená střecha,
+  spadlá branka; rozpadlá: sloupy a krokve) z `models/pen/pen-decay.glb` (`pen.py`, pátý
+  argument `decay`; místo dílu `penDecayPlace`), bláto mizí (`PEN_MUD_BY_STAGE`), stoh jen
+  u celé, plot `decayFence`.
 - **e2e:** testy běží v běžícím pomalém světě (2000–2200). Kliknutí do scény při umisťování
   nahrazuje háček `window.__bohemiaE2E.confirmPlacement`, kam kliknout myší pro výběr řekne
   `projectToScreen` (`lib/e2e-hooks.ts`) – existují jen v buildu s `NEXT_PUBLIC_E2E_HOOKS=1`

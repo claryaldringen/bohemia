@@ -157,6 +157,8 @@ const view = {
       graves: 72,
       freeGraves: 40,
       yearsLeft: 12.2,
+      fenceCondition: 0.62,
+      abandoned: true,
     },
     {
       id: 31,
@@ -167,6 +169,8 @@ const view = {
       graves: 0,
       freeGraves: 56,
       yearsLeft: null,
+      fenceCondition: 1,
+      abandoned: false,
     },
   ],
   orchards: [
@@ -196,8 +200,26 @@ const view = {
     ],
     groves: [{ id: 800, oaks: 11, squares: 9, happiness: 12, ageYears: 254 }],
     buildings: [
-      { id: 40, kind: 'idol', built: true, happiness: 8, progress: 1, oaksToFell: 0 },
-      { id: 41, kind: 'shrine', built: false, happiness: 25, progress: 0.35, oaksToFell: 2 },
+      {
+        id: 40,
+        kind: 'idol',
+        built: true,
+        happiness: 8,
+        progress: 1,
+        oaksToFell: 0,
+        condition: 0.4,
+        abandoned: true,
+      },
+      {
+        id: 41,
+        kind: 'shrine',
+        built: false,
+        happiness: 25,
+        progress: 0.35,
+        oaksToFell: 2,
+        condition: 1,
+        abandoned: false,
+      },
     ],
   },
   hayKg: 3200,
@@ -222,6 +244,8 @@ const view = {
       trainBlocked: 'Na výcvik chybí telata – stádo potřebuje aspoň 3 krávy.',
       cows: 4,
       oxen: 2,
+      condition: 1,
+      abandoned: false,
     },
     {
       id: 91,
@@ -232,6 +256,8 @@ const view = {
       trainBlocked: 'Ohrada se ještě staví.',
       cows: 0,
       oxen: 0,
+      condition: 1,
+      abandoned: false,
     },
   ],
 } as unknown as VillageView;
@@ -259,6 +285,7 @@ describe('selectionDetails', () => {
       workshop: null,
       relocation: null,
       relocate: view.relocation,
+      manor: null,
     });
   });
 
@@ -379,6 +406,8 @@ describe('selectionDetails – hřbitov', () => {
       yearsLeft: 12.2,
       built: true,
       building: null,
+      condition: 0.62,
+      abandoned: true,
     });
     expect(selectionDetails(view, scene, { kind: 'cemetery', id: 31 })).toMatchObject({
       built: false,
@@ -443,6 +472,8 @@ describe('selectionDetails – posvátná místa', () => {
       happiness: 8,
       building: null,
       oaksToFell: 0,
+      condition: 0.4,
+      abandoned: true,
     });
     expect(selectionDetails(view, scene, { kind: 'sacred', id: 41 })).toEqual({
       kind: 'sacred',
@@ -451,6 +482,8 @@ describe('selectionDetails – posvátná místa', () => {
       happiness: 25,
       building: 0.35,
       oaksToFell: 2,
+      condition: 1,
+      abandoned: false,
     });
     expect(selectionDetails(view, scene, { kind: 'sacred', id: -1 })).toEqual({
       kind: 'sacred',
@@ -459,6 +492,8 @@ describe('selectionDetails – posvátná místa', () => {
       happiness: 8,
       building: 0,
       oaksToFell: 0,
+      condition: 1,
+      abandoned: false,
     });
     expect(selectionDetails(view, scene, { kind: 'sacred', id: 99 })).toBeNull();
   });
@@ -480,6 +515,8 @@ describe('selectionDetails – posvátná místa', () => {
       training: null,
       hayKg: 3200,
       trainBlocked: 'Na výcvik chybí telata – stádo potřebuje aspoň 3 krávy.',
+      condition: 1,
+      abandoned: false,
     });
     expect(selectionDetails(view, scene, { kind: 'pen', id: 91 })).toMatchObject({
       kind: 'pen',

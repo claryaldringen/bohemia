@@ -31,6 +31,10 @@ import {
   roadUpgradeOptions,
   villageRoadWalk,
   ruinOvergrowth,
+  isAbandoned,
+  sacredRuinOvergrowth,
+  stockedPenIds,
+  structureCondition,
   squareBearing,
   summarizeVillage,
   tileCenterWorld,
@@ -39,12 +43,14 @@ import {
   sacredBuildingHappiness,
   HAY_WINTER_MONTHS,
   foundingCostPerHa,
+  type AbandonedStructure,
   type BuildKind,
   type DietDay,
   type HerdSpecies,
   type LivestockSummary,
   type ChronicleEvent,
   type LandTaker,
+  type FamilyCounts,
   type ConstructionKind,
   type ConstructionSummary,
   type Craft,
@@ -52,7 +58,11 @@ import {
   type CraftStocks,
   type Crop,
   type DwellingPlot,
+  type BuildableDwellingType,
+  foreignGoods,
+  type Direction8,
   type DwellingType,
+  type ForeignGoods,
   type FieldSurface,
   type LaborShare,
   type Landscape,
@@ -99,6 +109,9 @@ import {
   relocationOptions,
   type HouseholdRelocation,
 } from './relocation-view';
+import { manorView, type VillageManor } from './manor-view';
+import { sceneTrails, trailRoadWork } from './trail-view';
+import { DIRECTION_NAMES, goodsText } from './trade-names';
 import { formatCells, formatHa, formatInteger } from './village-format';
 import type { VillageListItem } from './village-list';
 
@@ -180,6 +193,10 @@ export interface VillageSacred {
     happiness: number;
     progress: number;
     oaksToFell: number;
+    /** Stav hotové stavby 0–1 (abandonment.md – chátrání); rozestavěná 1. */
+    condition: number;
+    /** Opuštěná – nikdo k ní nechodí, chátrá. */
+    abandoned: boolean;
   }[];
 }
 
@@ -198,6 +215,10 @@ export interface VillagePen {
   /** Kolik krav a volů v ohradě právě stojí (krávy jen v zimě). */
   cows: number;
   oxen: number;
+  /** Stav hotové ohrady 0–1 (abandonment.md – ohrada bez zvířat chátrá); rozestavěná 1. */
+  condition: number;
+  /** Opuštěná – bez zvířat a nikdo k ní nechodí, chátrá. */
+  abandoned: boolean;
 }
 
 /**
@@ -306,6 +327,8 @@ export interface VillageView {
     /** Řemeslo dílny (crafts.md); obyčejné obydlí null. */
     craft: Craft | null;
     occupants: number;
+    /** Muži, ženy, děti, starší a manželské páry (kinship.md – panel obydlí). */
+    family: FamilyCounts;
     capacity: number;
     full: boolean;
     overcrowded: boolean;
@@ -351,7 +374,7 @@ export interface VillageView {
   /** Nabídka staveb – hráč staví kdy chce, předem musí ves mít suroviny a lidi k osídlení. */
   build: Record<BuildKind, BuildOption>;
   /** Nový dům stěhující se domácnosti – cena bez lidí k osídlení (migration.md). */
-  relocation: Record<DwellingType, BuildOption>;
+  relocation: Record<BuildableDwellingType, BuildOption>;
   constructions: {
     id: number;
     kind: ConstructionKind;
@@ -427,11 +450,20 @@ export interface VillageView {
     day: number;
     kind: ChronicleEvent['kind'];
     kg?: number;
+    /** U pádu opuštěné stavby (`structure-fell`) která stavba. */
+    structure?: AbandonedStructure;
     dateLabel: string;
     text: string;
   }[];
   /** Den poslední svatby mezi domy (population.md – Sňatky mezi domy); žádná null. */
   lastMarriageDay: number | null;
+  /**
+   * Dvorec vojvody (trade.md – Dvorec vojvody): obydlí, odkud jdou vylepšení vsi – zemské stezky
+   * a obchod se sousedy; dokud zakladatelé první zemnici staví, null.
+   */
+  manor: VillageManor | null;
+  /** Zboží zvenku (trade.md) – sůl, železo, med (kg) a kožešiny (kusy); horní lišta jen > 0. */
+  goods: ForeignGoods;
 }
 
 /** Hřbitov pro panel výběru – čísla, žádné věty (rozhraní jako v 0 A.D.). */
@@ -448,6 +480,10 @@ export interface VillageCemetery {
   freeGraves: number;
   /** Odhad, za kolik let se zaplní (podle úmrtí posledních let); bez úmrtí null. */
   yearsLeft: number | null;
+  /** Stav plotu 0–1 (abandonment.md – ke hřbitovu, kam nikdo nechodí, plot chátrá). */
+  fenceCondition: number;
+  /** Opuštěný – nikdo k němu nechodí, plot chátrá. */
+  abandoned: boolean;
 }
 
 /** Sad pro panel výběru – čísla, žádné věty. */
@@ -472,17 +508,23 @@ export interface ScenePlot {
   z: number;
   size: number;
   variant: PlotVariant;
+  /** Dvůr dvorce vojvody (trade.md) – druhé políčko pozemku a jeho střed; jinak chybí. */
+  yard?: { cell: TileCell; x: number; z: number };
 }
 
-/** Pozemek obydlí ze stavu vsi pro scénu (střed políčka ve světě). */
+/** Pozemek obydlí ze stavu vsi pro scénu (střed políčka ve světě, u dvorce i dvůr). */
 export function scenePlot(landscape: Landscape, plot: DwellingPlot): ScenePlot {
   const center = tileCenterWorld(landscape, plot.cell.x, plot.cell.y);
+  const yard = plot.yard ? tileCenterWorld(landscape, plot.yard.x, plot.yard.y) : null;
   return {
     cell: { x: plot.cell.x, y: plot.cell.y },
     x: center.x,
     z: center.z,
     size: landscape.cellSizeM,
     variant: plot.variant,
+    ...(plot.yard && yard
+      ? { yard: { cell: { x: plot.yard.x, y: plot.yard.y }, x: yard.x, z: yard.z } }
+      : {}),
   };
 }
 
@@ -566,6 +608,11 @@ export interface SceneVillage {
     built: boolean;
     progress: number;
     graves: number;
+    /**
+     * Stav plotu 0–1 (abandonment.md) – plot se rozpadá jako plot opuštěného pozemku, mohylky
+     * zarůstají. Jen pod 1; bez údaje celý.
+     */
+    fence?: number;
   }[];
   /**
    * Jabloňové sady po čtvercích (střed políčka ve světě a strana jako u pole): průběh výsadby
@@ -632,6 +679,11 @@ export interface SceneVillage {
    * podle pěšin dne) a pěšiny dne se k nim stahují. Bez údaje žádné.
    */
   roads?: SceneRoad[];
+  /**
+   * Zemské stezky (trade.md) – osa od dvorce ke kraji mapy (úseky pevných cest za sebou) a jestli
+   * je dostavěná; nosiči výpravy po ní chodí (`villager-plan.ts`). Bez údaje žádné.
+   */
+  trails?: SceneTrail[];
   /**
    * Stromy u pevných cest (roads.md) – stadium (keř, strom, souš, pařez) a velikost 0–1 v den
    * pohledu. Bez údaje žádné.
@@ -701,12 +753,27 @@ export interface ScenePen {
   oxen: number;
   trainees: number;
   cows: number;
+  /** Stav hotové ohrady 0–1 (abandonment.md – rozpad); jen pod 1, bez údaje celá. */
+  condition?: number;
+  /**
+   * Hotová ohrada bez zvířat (spřežení, výcvik, zimní krávy) – krmit se do ní nechodí (síť
+   * pěšin jako na serveru – `PathVillage.pens`). Ohrada se zvířaty údaj nemá.
+   */
+  stocked?: false;
 }
 
 /**
  * Pevná cesta pro scénu (roads.md): osa, stupeň, mokřina a brody na ose a rozestavěné
  * vylepšení (na jaký stupeň a průběh samotné stavby bez kácení 0–1 – fáze staveniště).
  */
+/** Zemská stezka ve scéně (trade.md) – osa od dvorce ke kraji mapy. */
+export interface SceneTrail {
+  id: number;
+  direction: Direction8;
+  points: { x: number; z: number }[];
+  built: boolean;
+}
+
 export type SceneRoad = Pick<Road, 'id' | 'points' | 'grade' | 'ground' | 'openEnds'> & {
   upgrade?: { grade: RoadGrade; progress: number };
 };
@@ -765,7 +832,19 @@ export interface SceneSacred {
     position: Position;
     built: boolean;
     progress: number;
+    /**
+     * Stav hotové stavby 0–1 (abandonment.md – chátrání, structure-decay.ts) – jen pod 1; bez
+     * údaje celá.
+     */
+    condition?: number;
+    /** Opuštěná stavba – chátrá (u svatyně vyhasnou ohniště). Bez údaje navštěvovaná. */
+    abandoned?: true;
   }[];
+  /**
+   * Zbytky padlých model a svatyní (abandonment.md – Následky): padlá modla na zemi, zarostlý
+   * příkop svatyně – jak zarostly 0–1 (`overgrowth`, po 5 %). Bez údaje žádné.
+   */
+  ruins?: { id: number; kind: SacredBuildingKind; position: Position; overgrowth: number }[];
 }
 
 /**
@@ -851,7 +930,11 @@ export type SceneLaborShare = LaborShare & { parts?: readonly number[] };
 export interface SceneLabor {
   day: number;
   month: number;
-  people: { children: number; adults: number; elders: number };
+  /**
+   * Lidé vsi podle věku a – když jsou známí – podle pohlaví (kinship.md): postavy ve scéně jsou
+   * muži a ženy v poměru, jaký ves má (`villager-plan.ts`); bez údaje půl na půl.
+   */
+  people: { children: number; adults: number; elders: number } & Partial<FamilyCounts>;
   shares: SceneLaborShare[];
 }
 
@@ -874,6 +957,7 @@ export const CRAFT_LOOKS: Record<
 export const DWELLING_NAMES: Record<DwellingType, { nominative: string; accusative: string }> = {
   zemnice: { nominative: 'Zemnice', accusative: 'zemnici' },
   polozemnice: { nominative: 'Polozemnice', accusative: 'polozemnici' },
+  dvorec: { nominative: 'Dvorec', accusative: 'dvorec' },
 };
 
 function deathText(group: 'child' | 'adult' | 'elder', hunger: boolean): string {
@@ -946,6 +1030,14 @@ function forestText(parts: number, gone: boolean): string {
     : `Nepasené pole zarostlo lesem – ubylo ${formatCells(parts)}.`;
 }
 
+/** Opuštěná stavba spadla (abandonment.md – kronika). */
+const STRUCTURE_FELL_TEXTS: Record<AbandonedStructure, string> = {
+  idol: 'Modla, ke které léta nikdo nechodil, padla.',
+  shrine: 'Opuštěná svatyně se rozpadla – zbyl jen zarůstající příkop.',
+  'cemetery-fence': 'Plot hřbitova, kam nikdo nechodí, se rozpadl.',
+  pen: 'Opuštěná ohrada se rozpadla.',
+};
+
 /** Text události kroniky česky. */
 export function chronicleText(event: ChronicleEvent, villageName: string): string {
   switch (event.kind) {
@@ -958,11 +1050,15 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
     case 'village-extinct':
       return `Zemřel poslední obyvatel – ves ${villageName} vymřela.`;
     case 'household-founded':
-      return 'Dva mladí dospělí založili v novém obydlí vlastní domácnost.';
+      return 'V obydlí založila domácnost nová rodina.';
     case 'household-merged':
-      return 'Zbytek domácnosti se přestěhoval k sousedům.';
+      return 'Zbytek domácnosti se přestěhoval k příbuzným nebo sousedům.';
     case 'marriage':
-      return 'Svatba – jeden ze snoubenců se přestěhoval do domu druhého.';
+      return 'Svatba – nevěsta se přestěhovala k ženichovi.';
+    case 'bride-from-outside':
+      return 'Muž si přivedl nevěstu ze sousední vsi.';
+    case 'married-away':
+      return 'Dcera se vdala do sousední vsi.';
     case 'construction-finished':
       return finishedText(event.constructionKind, event.craft);
     case 'rebuild-decided':
@@ -1011,6 +1107,14 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       return 'Kudy se chodí léta, vyšlapala se pevná cesta.';
     case 'road-overgrown':
       return 'Nepoužívaná cesta zarostla.';
+    case 'trail-built':
+      return `Zemská stezka na ${DIRECTION_NAMES[event.direction].name} je dostavěná – dá se obchodovat se sousedy.`;
+    case 'trade-departed':
+      return `Nosiči vyrazili po stezce na ${DIRECTION_NAMES[event.direction].name} – nesou ${goodsText(event.give)}.`;
+    case 'trade-returned':
+      return `Nosiči se vrátili ${DIRECTION_NAMES[event.direction].from} – přinesli ${goodsText(event.get)}.`;
+    case 'structure-fell':
+      return STRUCTURE_FELL_TEXTS[event.structure];
     case 'cemetery-full':
       if (event.othersFree) return 'Jeden z hřbitovů se zaplnil – pohřbívá se do dalšího.';
       // staví se jiný hřbitov nebo rozšíření – bude kam pohřbívat
@@ -1115,13 +1219,14 @@ function sceneVillage(
     built: c.builtDay !== null,
     progress: cemeteryProgress(c.id, c.builtDay !== null, constructions),
     graves: c.graves,
+    ...wearOf(structureCondition(c.fenceWear, 'cemetery-fence', day), 'fence'),
   }));
   const orchards = villageOrchards(state).map((o) => ({
     id: o.id,
     squares: o.squares.map((s) => sceneOrchardSquare(landscape, s, day, state.orchardWork ?? null)),
   }));
   const reserved = [...reservedTrees(state)].sort((a, b) => a - b);
-  const labor = sceneLabor(state, summary.people);
+  const labor = sceneLabor(state, { ...summary.people, ...summary.family });
   const sacred = sceneSacred(state, landscape, day, summary);
   const obstacles = obstacleChangesAt(state, day);
   const roads = sceneRoads(state, summary.constructions);
@@ -1179,11 +1284,25 @@ function sceneVillage(
 
 /** Pevné cesty vsi pro scénu (roads.md) – i s rozestavěným vylepšením. */
 export function sceneRoads(
-  state: Pick<VillageState, 'roads'>,
+  state: Pick<VillageState, 'roads'> & Partial<Pick<VillageState, 'trails' | 'constructions'>>,
   constructions: readonly ConstructionSummary[] = [],
 ): SceneRoad[] {
+  // zemské stezky (trade.md) se staví po úsecích – průběh každého úseku zvlášť
+  const trailWork = trailRoadWork({
+    trails: state.trails ?? [],
+    constructions: state.constructions ?? [],
+  });
+  const trailRoads = new Set(
+    (state.constructions ?? []).flatMap((c) => (c.trail !== undefined ? (c.roadIds ?? []) : [])),
+  );
   return (state.roads?.roads ?? []).map((r) => {
-    const work = constructions.find((c) => c.kind === 'road' && c.roadIds?.includes(r.id));
+    const onTrail = trailWork.get(r.id);
+    // dostavěný úsek rozestavěné stezky už stavbu nemá
+    const work = onTrail
+      ? { roadGrade: onTrail.grade, buildProgress: onTrail.progress }
+      : trailRoads.has(r.id)
+        ? undefined
+        : constructions.find((c) => c.kind === 'road' && c.roadIds?.includes(r.id));
     return {
       id: r.id,
       points: r.points.map((p) => ({ x: p.x, z: p.z })),
@@ -1424,10 +1543,12 @@ function scenePens(
   const winter = HAY_WINTER_MONTHS.includes(dateOfDayIndex(day).month);
   const built = summary.pens.filter((p) => p.built).length;
   const cows = winter && built > 0 ? summary.livestock.herds.cow : 0;
+  const stocked = stockedPenIds(state);
   let builtIndex = 0;
   return summary.pens.map((pen) => {
     const construction = state.constructions.find((c) => c.kind === 'pen' && c.penId === pen.id);
     const share = pen.built ? Math.floor(cows / built) + (builtIndex++ < cows % built ? 1 : 0) : 0;
+    const wear = (state.pens ?? []).find((p) => p.id === pen.id)?.wear;
     return {
       id: pen.id,
       cell: { x: pen.cell.x, y: pen.cell.y },
@@ -1441,8 +1562,19 @@ function scenePens(
       oxen: pen.team ? 2 : 0,
       trainees: pen.training ? 2 : 0,
       cows: share,
+      ...wearOf(structureCondition(wear, 'pen', day), 'condition'),
+      ...(pen.built && !stocked.has(pen.id) ? { stocked: false as const } : {}),
     };
   });
+}
+
+/**
+ * Stav stavby pro scénu (abandonment.md): jen pod 1, po setinách – scéna podle něj volí stupeň
+ * rozpadu (structure-decay.ts) a přestaví se jen při změně stupně.
+ */
+function wearOf<K extends string>(condition: number, key: K): { [key in K]?: number } {
+  if (condition >= 1) return {};
+  return { [key]: Math.floor(condition * 100) / 100 } as { [key in K]?: number };
 }
 
 /** Posvátná místa pro scénu; ves bez nich null. */
@@ -1457,18 +1589,33 @@ function sceneSacred(
     const progress = summary.constructions.find((s) => s.id === c.id)?.buildProgress ?? 0;
     return [{ id: c.id, kind: c.kind, position: c.position, built: false, progress }];
   });
+  const wears = new Map((state.sacredBuildings ?? []).map((b) => [b.id, b.wear]));
   const buildings = [
-    ...summary.sacred.buildings.map((b) => ({
-      id: b.id,
-      kind: b.kind,
-      position: b.position,
-      built: true,
-      progress: 1,
-    })),
+    ...summary.sacred.buildings.map((b) => {
+      const wear = wears.get(b.id);
+      return {
+        id: b.id,
+        kind: b.kind,
+        position: b.position,
+        built: true,
+        progress: 1,
+        ...wearOf(structureCondition(wear, b.kind, day), 'condition'),
+        ...(isAbandoned(wear) ? { abandoned: true as const } : {}),
+      };
+    }),
     ...sites,
   ];
+  // zbytky padlých model a svatyní – zarůstání po 5 % (scéna se přestaví jen při změně)
+  const ruins = (state.sacredRuins ?? []).map((r) => ({
+    id: r.id,
+    kind: r.kind,
+    position: r.position,
+    overgrowth: Math.floor(sacredRuinOvergrowth(r, day) * 20) / 20,
+  }));
   const { oaks, groves } = summary.sacred;
-  if (oaks.length === 0 && groves.length === 0 && buildings.length === 0) return null;
+  if (oaks.length === 0 && groves.length === 0 && buildings.length === 0 && ruins.length === 0) {
+    return null;
+  }
   // souš a padlý kmen mají velikost dubu v den uschnutí
   const sceneOak = (o: (typeof oaks)[number]): SceneSacredOak => ({
     id: o.id,
@@ -1497,6 +1644,7 @@ function sceneSacred(
       }),
     })),
     buildings,
+    ...(ruins.length > 0 ? { ruins } : {}),
   };
 }
 
@@ -1504,7 +1652,12 @@ function sceneSacred(
  * Posvátná místa pro panel výběru – kolik které přidává, stáří dubů (souš: stáří, kdy uschla;
  * háj: nejstarší dub podle vrstvy překážek), u staveb průběh. Padlá souš už posvátným dubem není.
  */
-function sacredView(summary: VillageSummary, obstacles: ObstacleLayer, day: number): VillageSacred {
+function sacredView(
+  state: VillageState,
+  summary: VillageSummary,
+  obstacles: ObstacleLayer,
+  day: number,
+): VillageSacred {
   const sites = summary.constructions.flatMap((c) =>
     c.kind === 'idol' || c.kind === 'shrine'
       ? [
@@ -1515,10 +1668,13 @@ function sacredView(summary: VillageSummary, obstacles: ObstacleLayer, day: numb
             happiness: SACRED_HAPPINESS[c.kind],
             progress: c.progress,
             oaksToFell: c.treesToFell,
+            condition: 1,
+            abandoned: false,
           },
         ]
       : [],
   );
+  const wears = new Map((state.sacredBuildings ?? []).map((b) => [b.id, b.wear]));
   return {
     oaks: summary.sacred.oaks.flatMap((o) =>
       o.stage === 'fallen'
@@ -1540,6 +1696,8 @@ function sacredView(summary: VillageSummary, obstacles: ObstacleLayer, day: numb
         happiness: b.happiness,
         progress: 1,
         oaksToFell: 0,
+        condition: structureCondition(wears.get(b.id), b.kind, day),
+        abandoned: isAbandoned(wears.get(b.id)),
       })),
       ...sites,
     ],
@@ -1667,6 +1825,7 @@ function chronicle(state: VillageState, name: string): VillageView['chronicle'] 
       day: event.day,
       kind: event.kind,
       ...('kg' in event ? { kg: event.kg } : {}),
+      ...(event.kind === 'structure-fell' ? { structure: event.structure } : {}),
       dateLabel: formatGameDate(dateOfDayIndex(event.day)),
       text: chronicleText(event, name),
     }));
@@ -1885,12 +2044,18 @@ export function buildVillageView(
       target: summary.happiness.target,
       laborFactor: summary.happiness.laborFactor,
     },
-    sacred: sacredView(summary, obstacles, day),
+    sacred: sacredView(state, summary, obstacles, day),
     extinct: villageLifespan(state),
     gameOver,
     cemeteries: summary.cemeteries.map((c) => {
       const progress = cemeteryProgress(c.id, c.built, summary.constructions);
-      return { ...c, progress };
+      const wear = villageCemeteries(state).find((x) => x.id === c.id)?.fenceWear;
+      return {
+        ...c,
+        progress,
+        fenceCondition: structureCondition(wear, 'cemetery-fence', day),
+        abandoned: isAbandoned(wear),
+      };
     }),
     orchards: summary.orchards.map((o) => {
       const planting = summary.constructions.find(
@@ -1910,9 +2075,11 @@ export function buildVillageView(
     }),
     pens: penViews(state, day, summary),
     roads: roadViews(state, landscape, day, summary),
-    scene: sceneVillage(state, landscape, day, summary),
+    scene: { ...sceneVillage(state, landscape, day, summary), trails: sceneTrails(state) },
     chronicle: chronicle(state, name),
     lastMarriageDay: lastMarriageDay(state),
+    manor: manorView(state, landscape, day),
+    goods: { ...foreignGoods(state) },
   };
 }
 
@@ -1925,6 +2092,7 @@ function penViews(state: VillageState, day: number, summary: VillageSummary): Vi
     const progress = pen.built
       ? 1
       : (summary.constructions.find((c) => c.id === construction?.id)?.progress ?? 0);
+    const wear = (state.pens ?? []).find((p) => p.id === pen.id)?.wear;
     return {
       id: pen.id,
       built: pen.built,
@@ -1934,6 +2102,8 @@ function penViews(state: VillageState, day: number, summary: VillageSummary): Vi
       trainBlocked: pen.trainBlocked,
       cows: winter && pen.built && built > 0 ? Math.round(summary.livestock.herds.cow / built) : 0,
       oxen: (pen.team ? 2 : 0) + (pen.training ? 2 : 0),
+      condition: structureCondition(wear, 'pen', day),
+      abandoned: isAbandoned(wear),
     };
   });
 }

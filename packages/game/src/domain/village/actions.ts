@@ -17,6 +17,7 @@ import { fieldsTouching, mergeFields, partFoundingCost } from './fields';
 import { giveWayToBuilding, validateTakenLand, type TakenLand } from './land-taken';
 import { obstacleChangesAt, recordClearedObstacles } from './obstacles';
 import { orchardPlantingCost, villageOrchards } from './orchard';
+import { copyPlot } from './plots';
 import type { Walk } from './paths/walking';
 import { ageGroup } from './people';
 import { relocationAffordability, relocationBlock, returnConstructionWood } from './relocation';
@@ -27,6 +28,7 @@ import {
   FOOD_NEED_KG_PER_YEAR,
   PLOT_VARIANTS,
   START_AGES,
+  START_SEXES,
   START_STORES_MONTHS,
   dwellingBuildLabor,
   workshopTrees,
@@ -35,8 +37,8 @@ import { hasShrine, recordSpared, validateSpared, type SparedSacred } from './sa
 import type {
   CemeterySquare,
   Craft,
+  BuildableDwellingType,
   DwellingPlot,
-  DwellingType,
   FieldSurface,
   OrchardSquare,
   Person,
@@ -326,11 +328,19 @@ export function foundVillage(input: {
   if (firstField) validateField(firstField);
   if (input.dwellingSpared) validateSpared(input.dwellingSpared);
   const householdId = 1;
+  // zakladatelé jsou dva páry (kinship.md – Pohlaví): manželé 25 let a chlapec s dívkou, kteří
+  // nejsou příbuzní (rodiče neznámí) – vezmou se, až dorostou
   const people: Person[] = START_AGES.map((age, i) => ({
     id: householdId + 1 + i,
     bornDay: day - Math.ceil(age * DAYS_PER_YEAR),
     dwellingId: householdId,
+    sex: START_SEXES[i] ?? 'male',
   }));
+  const [husband, wife] = people;
+  if (husband && wife) {
+    husband.spouseId = wife.id;
+    wife.spouseId = husband.id;
+  }
   const constructionId = householdId + 1 + people.length;
   const annualNeed = people.reduce((sum, p) => sum + FOOD_NEED_KG_PER_YEAR[ageGroup(p, day)], 0);
   const state: VillageState = {
@@ -369,6 +379,8 @@ export function foundVillage(input: {
     // výchozí stádo osadníků (diet.md – Dobytek); krajinu pro pastvu doplní use-case
     livestock: startingLivestock({ people }),
     meatKg: 0,
+    // první zemnice zakladatelů je dvorcem vojvody (trade.md – Dvorec vojvody)
+    manorId: householdId,
   };
   // pole napřed – stromy na jeho dílech patří poli (klády po založení), zemnice je nekácí
   if (firstField) addField(state, day, firstField);
@@ -439,7 +451,7 @@ export interface DwellingSiteOptions {
 export function startNewDwelling(
   state: VillageState,
   day: number,
-  type: DwellingType,
+  type: BuildableDwellingType,
   position: Position,
   obstacleCost: number,
   obstacleIds: readonly number[] = [],
@@ -462,7 +474,7 @@ export function startRelocation(
   state: VillageState,
   day: number,
   householdId: number,
-  type: DwellingType,
+  type: BuildableDwellingType,
   position: Position,
   obstacleCost: number,
   obstacleIds: readonly number[] = [],
@@ -539,7 +551,7 @@ function validateDwellingSite(
 function addDwellingSite(
   state: VillageState,
   day: number,
-  type: DwellingType,
+  type: BuildableDwellingType,
   position: Position,
   obstacleCost: number,
   obstacleIds: readonly number[],
@@ -565,7 +577,7 @@ function addDwellingSite(
     done: 0,
     dwellingType: type,
     position,
-    ...(site.plot ? { plot: { cell: { ...site.plot.cell }, variant: site.plot.variant } } : {}),
+    ...(site.plot ? { plot: copyPlot(site.plot) } : {}),
     dwellingId: null,
     fieldId: null,
     wood,

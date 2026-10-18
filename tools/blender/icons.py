@@ -4,14 +4,16 @@ Celé jedním příkazem z kořene repa (Blender 5, ImageMagick `magick`, intern
 
     blender -b --factory-startup --python tools/blender/icons.py -- apps/web/public/icons [jen,vybrané,ikony]
 
-Výstup (128 × 128 PNG, průhledné rohy) – `build/` zemnice, polozemnice, pole, hrbitov,
+Výstup (128 × 128 PNG, průhledné rohy) – `build/` zemnice, polozemnice, dvorec (dvorec vojvody –
+trade.md), pole, hrbitov,
 hrncir, kovar, uhlir (řemeslné dílny z `apps/web/public/models/crafts/`, uhlíř s milířem), sad
 (jabloňový sad), modla, svatyne (posvátná místa z `apps/web/public/models/sacred/`), dub
 (posvátný dub s obětinami), sous (posvátná souš – uschlý dub z `apps/web/public/models/decor/`
 s obětinami), haj (dubový háj s kameny) a ohrada (přístřešek, žlab a branka
 z `apps/web/public/models/pen/`, kráva ze stáda vsi, stoh sena), cesta, cesta-upravena a hat
 (stupně pevné cesty – pás cesty, strouha a kameny, hať a lávka z `apps/web/public/models/roads/`)
-a jablone (jabloně s jablky střídavě podél cesty – tlačítko „Vysadit jabloně“) – portréty do
+a jablone (jabloně s jablky střídavě podél cesty – tlačítko „Vysadit jabloně“), stezka (zemská
+stezka od brány dvorce – trade.md) a obchod (pytle obilí, sůl, hřivny a kožešina) – portréty do
 panelu výběru;
 (64 × 64 PNG) – `resources/` people, food, wood, labor, satiation, date, apples, happiness
 (štěstí – plamen ohniště nad zkříženými poleny v kruhu kamenů), hay (seno – kupka sena
@@ -22,9 +24,16 @@ hourglass (přesýpací hodiny – kolik zbývá: služba spřežení, výcvik),
 ozim (osení pod sněhem), jar (klasy jarního ječmene), charcoal (hromádka dřevěného uhlí), tools
 (kovaná sekera zkřížená se srpem) a pottery (dva hrnce pražského typu, větší s vlnovkou) –
 suroviny řemesel (crafts.md) –, overgrowth (zarůstání – keře a mladá bříza z modelů krajiny
-`apps/web/public/models/decor/` a `trees/`, fields.md – Zarůstání) a zvířata stád do panelu
+`apps/web/public/models/decor/` a `trees/`, fields.md – Zarůstání), zboží zvenku (trade.md) – salt
+(homole soli), iron (železné hřivny), honey (hrnec medu s pláství), furs (kožešiny) –
+condition (stav stavby –
+zšedlý rozštípnutý kůl s prasklinou a mechem) a abandoned (opuštěná stavba – padlý kůl
+v kopřivách z `apps/web/public/models/dwellings/decay.glb`, abandonment.md) a zvířata stád do panelu
 ohrady – sheep, goat, pig, cow, chicken
-(modely `apps/web/public/models/fauna/`) a ox (vůl ze spřežení `apps/web/public/models/plough/ox.glb`).
+(modely `apps/web/public/models/fauna/`) a ox (vůl ze spřežení `apps/web/public/models/plough/ox.glb`)
+a rodiny do panelu obydlí (kinship.md) – man, woman, child (chlapec a dívka), elder (starší s holí
+a šedinami; vesničané z `apps/web/public/models/people/`) a ring (bronzový prsten – manželské
+páry).
 Bez druhého argumentu vše, jinak čárkami oddělený výběr (např. `pole,hrbitov,food`).
 
 Postup: portréty staveb a ikony `food`, `wood`, `labor`, `satiation`, `date`, `apples` se vyrenderují v Cycles
@@ -62,6 +71,7 @@ PEN = os.path.join(ROOT, "apps/web/public/models/pen")
 PLOUGH = os.path.join(ROOT, "apps/web/public/models/plough")
 FAUNA = os.path.join(ROOT, "apps/web/public/models/fauna")
 FIELDS = os.path.join(ROOT, "apps/web/public/models/fields")
+PEOPLE = os.path.join(ROOT, "apps/web/public/models/people")
 ROADS = os.path.join(ROOT, "apps/web/public/models/roads")
 TEX = os.path.join(ROOT, "apps/web/public/textures/terrain")
 TMP = tempfile.mkdtemp(prefix="bohemia-icons-")
@@ -1080,6 +1090,61 @@ def icon_overgrowth():
     return True
 
 
+def icon_condition():
+    """Stav stavby (abandonment.md – panel výběru): zšedlý tesaný kůl rozštípnutý nahoře,
+    s prasklinou a mechem u paty."""
+    wood, crack, moss = bmesh.new(), bmesh.new(), bmesh.new()
+    cyl(wood, (0, 0, -0.1), (0.02, 0, 1.45), 0.24, 0.22, seg=6)
+    cyl(wood, (0.08, 0.0, 1.4), (0.13, 0.02, 1.86), 0.11, 0.05, seg=5)
+    cyl(wood, (-0.08, 0.0, 1.4), (-0.14, -0.02, 1.68), 0.1, 0.05, seg=5)
+    # prasklina – tmavý zub po přední straně od rozštípnutého vršku dolů
+    for (z0, x0), (z1, x1) in zip([(1.5, 0.0), (1.1, 0.05), (0.75, -0.02), (0.45, 0.03)], [(1.1, 0.05), (0.75, -0.02), (0.45, 0.03), (0.3, 0.0)]):
+        cyl(crack, (x0, -0.232, z0), (x1, -0.232, z1), 0.028, 0.022, seg=4)
+    rng = random.Random(5)
+    for i in range(7):
+        a = rng.uniform(0, 6.28)
+        blob(moss, ((math.cos(a) * 0.24, math.sin(a) * 0.24, rng.uniform(0.0, 0.25)), (0, 0, a)), (0.16, 0.1, 0.1), 8, 5)
+    blob(moss, ((0.05, -0.05, 1.42), (0, 0, 0.4)), (0.14, 0.12, 0.05), 8, 5)
+    to_obj(wood, "post", mat("post", (0.46, 0.43, 0.38), 0.95, noise=18, bump=0.5), smooth=False)
+    to_obj(crack, "crack", mat("crack", (0.08, 0.06, 0.05), 1.0), smooth=False)
+    to_obj(moss, "moss", mat("moss", (0.26, 0.4, 0.12), 1.0, noise=30))
+    sun(az=-45, el=40, strength=4.2)
+    camera([Vector((-0.4, -0.4, -0.1)), Vector((0.4, 0.4, 1.9))], az=20, el=12, margin=1.04)
+    return True
+
+
+def icon_abandoned():
+    """Opuštěno (abandonment.md – panel výběru): zšedlý padlý kůl zarůstající kopřivami
+    a trávou – kopřivy z modelu rozpadu obydlí (models/dwellings/decay.glb)."""
+    log, grass = bmesh.new(), bmesh.new()
+    cyl(log, (-0.9, 0.1, 0.16), (0.85, -0.15, 0.13), 0.17, 0.15, seg=8)
+    rng = random.Random(11)
+    for i in range(26):
+        x, y = rng.uniform(-1.0, 1.0), rng.uniform(-0.5, 0.45)
+        h = rng.uniform(0.25, 0.55)
+        cyl(grass, (x, y, 0), (x + rng.uniform(-0.12, 0.12), y + rng.uniform(-0.1, 0.1), h), 0.025, 0.0, seg=3)
+    to_obj(log, "log", mat("log", (0.44, 0.42, 0.37), 0.95, noise=18, bump=0.5), smooth=False)
+    to_obj(grass, "grass", mat("grass", (0.3, 0.46, 0.16), 1.0, noise=22), smooth=False)
+    before = set(bpy.data.objects)
+    bpy.ops.import_scene.gltf(filepath=f"{MODELS}/decay.glb")
+    nettles = []
+    for o in [o for o in bpy.data.objects if o not in before]:
+        if o.type == "MESH" and o.name.startswith("nettle"):
+            nettles.append(o)
+        elif o.type == "MESH":
+            bpy.data.objects.remove(o)
+    for k, (x, y, sc, rot) in enumerate(((0.45, 0.2, 1.25, 0.3), (-0.55, -0.15, 1.0, 1.7))):
+        o = nettles[0] if k == 0 else nettles[0].copy()
+        if k:
+            bpy.context.collection.objects.link(o)
+        o.location = (x, y, 0)
+        o.scale = (sc, sc, sc)
+        o.rotation_euler = (0, 0, rot)
+    sun(az=-45, el=42, strength=4.2)
+    camera([Vector((-1.0, -0.6, 0)), Vector((1.0, 0.6, 1.0))], az=15, el=22, margin=1.0)
+    return True
+
+
 def icon_apples():
     """Tři červená jablka se stopkou, jedno s lístkem."""
     skin, stems, leaf = bmesh.new(), bmesh.new(), bmesh.new()
@@ -1638,11 +1703,156 @@ def icon_pottery():
     return True
 
 
+
+# ------------------------------------------------- dvorec, stezka a obchod (trade.md) ----
+
+
+def icon_stezka():
+    """Zemská stezka: upravená cesta se strouhou a kameny vede od brány dvorce do dálky."""
+    rng = random.Random(23)
+    ground(7.4, mat("g", tex=f"{TEX}/grass-dirt.jpg", scale=0.25, tint=(0.8, 0.82, 0.6)), z=-0.02, fade=0.72)
+    earth = mat("earth", tex=f"{TEX}/mud.jpg", scale=0.5, tint=(0.82, 0.66, 0.48))
+    road = road_strip(2.4, 16.0, earth, seed=7)
+    road.location.y = 3.0
+    ditch = mat("ditch", tex=f"{TEX}/mud.jpg", scale=0.6, tint=(0.45, 0.36, 0.28))
+    strip = road_strip(0.45, 16.0, ditch, z=0.006, wobble=0.05, seed=5)
+    strip.location = (1.65, 3.0, 0)
+    for k in range(18):
+        y = rng.uniform(-3.5, 9.0)
+        objs = place_model("road-stone", folder=ROADS)
+        place_root(objs, (rng.uniform(-0.9, 0.9) + math.sin((y - 3.0) * 0.6) * 0.25, y, 0.0), rng.uniform(0, 6.28), rng.uniform(0.8, 1.3))
+    gate = place_model("dvorec-gate")
+    place_root(gate, (math.sin(-7.0 * 0.6) * 0.25, -4.2, 0.0), 0.0, 1.0)
+    sun(az=-55, el=46)
+    camera([Vector((-3.6, -5.2, 0)), Vector((3.6, 8.5, 0.6)), Vector((0, -4.2, 3.2))], az=18, el=34, margin=0.86, shift=(0, -0.02))
+
+
+def sack(bm, centre, size, rot, rng):
+    """Pytel: zploštělý bochník s uvázaným hrdlem nahoře."""
+    blob(bm, (centre, (0, 0, rot)), (0.42 * size, 0.36 * size, 0.46 * size), 16, 10)
+    top = Vector(centre) + Vector((0, 0, 0.42 * size))
+    cyl(bm, top, top + Vector((0.03, 0.0, 0.16 * size)), 0.12 * size, 0.16 * size, 10)
+
+
+def iron_bar(bm, centre, length, rot):
+    """Hřivna – kovaný železný prut zúžený do hrotu (raně středověké platidlo)."""
+    a = Vector(centre) - Vector((math.cos(rot), math.sin(rot), 0)) * length / 2
+    b = Vector(centre) + Vector((math.cos(rot), math.sin(rot), 0)) * length / 2
+    cyl(bm, a, b, 0.12, 0.04, 4)
+
+
+def iron_mat():
+    m = mat("iron", (0.11, 0.1, 0.1), 0.62, noise=22, bump=0.6)
+    next(x for x in m.node_tree.nodes if x.type == "BSDF_PRINCIPLED").inputs["Metallic"].default_value = 0.45
+    return m
+
+
+def fur_pelt(bm, centre, size, rot, curl=0.0):
+    """Stažená kožešina: tělo, čtyři běhy a ocas – plochá deska se zvlněnými okraji."""
+    pts = [(0.0, 0.55), (0.18, 0.5), (0.22, 0.32), (0.42, 0.36), (0.34, 0.18), (0.26, -0.2),
+           (0.44, -0.36), (0.26, -0.42), (0.1, -0.5), (0.04, -0.9), (-0.04, -0.9), (-0.1, -0.5),
+           (-0.26, -0.42), (-0.44, -0.36), (-0.26, -0.2), (-0.34, 0.18), (-0.42, 0.36), (-0.22, 0.32),
+           (-0.18, 0.5)]
+    c, r = Vector(centre), Euler((0, 0, rot)).to_matrix()
+    top = [bm.verts.new(c + r @ Vector((x * size, y * size, 0.03 + curl * (x * x) * size))) for x, y in pts]
+    bot = [bm.verts.new(c + r @ Vector((x * size, y * size, curl * (x * x) * size))) for x, y in pts]
+    bm.faces.new(top)
+    bm.faces.new(bot[::-1])
+    for i in range(len(pts)):
+        j = (i + 1) % len(pts)
+        bm.faces.new((bot[i], bot[j], top[j], top[i]))
+
+
+def fur_mat(name="fur", color=(0.2, 0.12, 0.06)):
+    return mat(name, color, 0.95, noise=90, bump=1.0)
+
+
+def icon_obchod():
+    """Obchod se sousedy: pytle obilí vyměněné za sůl, železné hřivny, med a kožešinu."""
+    rng = random.Random(5)
+    ground(2.6, mat("g", tex=f"{TEX}/grass-dirt.jpg", scale=0.45, tint=(0.8, 0.78, 0.6)), z=0.0, fade=0.7)
+    sacks = bmesh.new()
+    sack(sacks, (-0.85, 0.35, 0.42), 1.0, 0.3, rng)
+    sack(sacks, (-0.25, 0.7, 0.36), 0.85, -0.4, rng)
+    to_obj(sacks, "sacks", mat("linen", (0.42, 0.33, 0.2), 0.95, noise=40, bump=0.4))
+    bars = bmesh.new()
+    for k in range(3):
+        iron_bar(bars, (0.55 + 0.05 * k, -0.35 + 0.2 * k, 0.08 + 0.13 * k), 1.0, 0.35 - 0.1 * k)
+    to_obj(bars, "bars", iron_mat(), smooth=False)
+    fur = bmesh.new()
+    fur_pelt(fur, (0.1, -0.55, 0.01), 0.9, 1.3, curl=0.08)
+    to_obj(fur, "fur", fur_mat(), smooth=False)
+    salt = bmesh.new()
+    cyl(salt, (0.95, 0.55, 0.0), (0.95, 0.55, 0.62), 0.24, 0.07, 18)
+    to_obj(salt, "salt", mat("salt", (0.86, 0.85, 0.8), 0.7, noise=50, bump=0.3))
+    sun(az=-45, el=46, strength=4.3)
+    camera([Vector((-1.4, -1.2, 0)), Vector((1.4, 1.2, 0.95))], az=22, el=40, margin=1.02)
+
+
+def icon_salt():
+    """Sůl: homole soli a hromádka krystalů."""
+    bm = bmesh.new()
+    cyl(bm, (-0.2, 0.1, 0.0), (-0.2, 0.1, 1.05), 0.36, 0.1, 24)
+    rng = random.Random(3)
+    for k in range(22):
+        a = rng.uniform(0, 6.28)
+        r = rng.uniform(0.0, 0.45)
+        blob(bm, ((0.45 + math.cos(a) * r, -0.25 + math.sin(a) * r * 0.7, 0.05 + (0.45 - r) * 0.35), (rng.uniform(0, 3), rng.uniform(0, 3), 0)), (0.08, 0.07, 0.06), 5, 3)
+    to_obj(bm, "salt", mat("salt", (0.9, 0.89, 0.84), 0.6, noise=60, bump=0.35), smooth=False)
+    sun(az=-40, el=45, strength=4.4)
+    camera([Vector((-0.65, -0.8, 0)), Vector((1.0, 0.5, 1.05))], az=0, el=18, margin=1.02)
+    return True
+
+
+def icon_iron():
+    """Železo: tři kované hřivny (pruty zúžené do hrotu) na sobě."""
+    bm = bmesh.new()
+    for k, (y, z, rot) in enumerate(((-0.25, 0.07, 0.25), (0.05, 0.07, 0.05), (-0.1, 0.2, 0.15))):
+        iron_bar(bm, (0.0, y, z), 1.6, rot)
+    to_obj(bm, "bars", iron_mat(), smooth=False)
+    sun(az=-40, el=50, strength=4.4)
+    camera([Vector((-0.85, -0.5, 0)), Vector((0.85, 0.4, 0.3))], az=10, el=34, margin=1.02)
+    return True
+
+
+def icon_honey():
+    """Med: hliněný hrnec plný zlatého medu a plástev vedle."""
+    pot, honey, comb = bmesh.new(), bmesh.new(), bmesh.new()
+    lathe(pot, POT_OUTER + POT_INNER, (-0.15, 0.1, 0.0), 0.95)
+    bmesh.ops.create_circle(honey, cap_ends=True, radius=0.43 * 0.95, segments=36)
+    for v in honey.verts:
+        v.co = Vector((v.co.x - 0.15, v.co.y + 0.1, 0.9 * 0.95))
+    # stékající kapka přes okraj
+    blob(honey, ((0.32, 0.1, 0.78), (0, 0, 0)), (0.06, 0.06, 0.16), 8, 6)
+    for k in range(5):
+        x, y = 0.55 + 0.17 * (k % 3), -0.45 + 0.15 * (k // 3) + 0.08 * (k % 2)
+        cyl(comb, (x, y, 0.0), (x, y, 0.16), 0.09, 0.09, 6)
+    to_obj(pot, "pot", mat("clay-pot", (0.26, 0.19, 0.13), 0.8, noise=16, bump=0.3))
+    gold = mat("honey", (0.85, 0.5, 0.06), 0.25)
+    to_obj(honey, "honey", gold)
+    to_obj(comb, "comb", mat("comb", (0.88, 0.62, 0.15), 0.5, noise=30, bump=0.4), smooth=False)
+    sun(az=-45, el=46, strength=4.3)
+    camera([Vector((-0.75, -0.6, 0.0)), Vector((1.0, 0.65, 0.98))], az=0, el=20, margin=1.04)
+    return True
+
+
+def icon_furs():
+    """Kožešiny: rozložená stažená kůže a srolovaná vedle."""
+    flat, roll = bmesh.new(), bmesh.new()
+    fur_pelt(flat, (-0.1, 0.0, 0.0), 1.0, 0.25, curl=0.06)
+    cyl(roll, (0.55, -0.55, 0.16), (0.55, 0.45, 0.16), 0.17, 0.17, 18)
+    to_obj(flat, "fur", fur_mat(), smooth=False)
+    to_obj(roll, "roll", fur_mat("fur2", (0.3, 0.19, 0.1)))
+    sun(az=-40, el=50, strength=4.4)
+    camera([Vector((-0.7, -1.0, 0)), Vector((0.8, 0.8, 0.35))], az=0, el=52, margin=1.0)
+    return True
+
 # --------------------------------------------------------------- hlavní ----
 
 BUILD = {
     "zemnice": lambda: icon_dwelling("zemnice"),
     "polozemnice": lambda: icon_dwelling("polozemnice"),
+    "dvorec": lambda: icon_dwelling("dvorec"),
     "pole": icon_pole,
     "hrbitov": icon_hrbitov,
     "hrncir": lambda: icon_craft("hrncir"),
@@ -1659,7 +1869,120 @@ BUILD = {
     "cesta-upravena": lambda: icon_road("cesta-upravena"),
     "hat": lambda: icon_road("hat"),
     "jablone": icon_jablone,
+    "stezka": icon_stezka,
+    "obchod": icon_obchod,
 }
+
+# ------------------------------------------------------------- rodiny ----
+# Ikony panelu obydlí (kinship.md – Co hráč vidí): muž, žena, děti, starší a prsten (manželské
+# páry). Postavy jsou vesničané hry (`apps/web/public/models/people/`, z 0 A.D.) v klidové pózy
+# ze snímku klipu `idle`.
+
+
+def place_person(name, loc=(0.0, 0.0, 0.0), scale=1.0, turn=-20.0, frame=12):
+    """Vesničan `man` / `woman` stojící v pozici `loc`: klip idle na snímku `frame`, natočený."""
+    before = set(bpy.data.objects)
+    bpy.ops.import_scene.gltf(filepath=f"{PEOPLE}/{name}.glb")
+    new = [o for o in bpy.data.objects if o not in before]
+    helpers = [o for o in new if o.name.startswith("Icosphere")]
+    new = [o for o in new if o not in helpers]
+    for o in helpers:
+        bpy.data.objects.remove(o, do_unlink=True)
+    rig = next(o for o in new if o.type == "ARMATURE")
+    idle = next(a for a in bpy.data.actions if a.name.startswith("idle"))
+    if rig.animation_data is None:
+        rig.animation_data_create()
+    rig.animation_data.action = idle
+    bpy.context.scene.frame_set(frame)
+    # importér glTF už kostru natočil z Y-up do Z-up – posun, otočení a měřítko se k tomu přidají
+    place = Matrix.Translation(Vector(loc)) @ Matrix.Rotation(math.radians(turn), 4, "Z")
+    rig.matrix_world = place @ Matrix.Scale(scale, 4) @ rig.matrix_world
+    bpy.context.view_layer.update()
+    return [o for o in new if o.type == "MESH"]
+
+
+def grey_hair(objs, amount=0.55):
+    """Starší: šediny – barva textury se smíchá s šedou (celá postava trochu vybledne)."""
+    for o in objs:
+        for m in o.data.materials:
+            nt = m.node_tree
+            b = next(n for n in nt.nodes if n.type == "BSDF_PRINCIPLED")
+            link = next((l for l in nt.links if l.to_socket == b.inputs["Base Color"]), None)
+            if link is None:
+                continue
+            mx = nt.nodes.new("ShaderNodeMix")
+            mx.data_type, mx.blend_type = "RGBA", "MIX"
+            mx.inputs["Factor"].default_value = amount
+            mx.inputs[7].default_value = (0.62, 0.6, 0.57, 1)
+            nt.links.new(link.from_socket, mx.inputs[6])
+            nt.links.new(mx.outputs[2], b.inputs["Base Color"])
+
+
+def box_points(meshes, z_from=0.0, z_to=1.0):
+    """Rohy kvádru kolem postav, jen pásmo výšky z_from–z_to (podíl výšky) – výřez portrétu."""
+    pts = world_points(meshes)
+    xs, ys, zs = [p.x for p in pts], [p.y for p in pts], [p.z for p in pts]
+    lo, hi = min(zs), max(zs)
+    z0, z1 = lo + (hi - lo) * z_from, lo + (hi - lo) * z_to
+    return [Vector((x, y, z)) for x in (min(xs), max(xs)) for y in (min(ys), max(ys)) for z in (z0, z1)]
+
+
+def bust_icon(meshes):
+    """Portrét – hlava a ramena jako ikona obyvatel 0 A.D."""
+    sun(az=-40, el=40, strength=4.4)
+    camera(box_points(meshes, 0.62, 1.0), az=12, el=6, margin=1.0)
+
+
+def icon_man():
+    bust_icon(place_person("man"))
+
+
+def icon_woman():
+    bust_icon(place_person("woman"))
+
+
+def icon_child():
+    """Děti: malá postava (vesničan zmenšený na dětskou výšku) u matky, matka jen do pasu."""
+    kid = place_person("man", loc=(-0.3, -0.25, 0), scale=0.55, turn=-15)
+    mother = place_person("woman", loc=(0.22, 0.05, 0), turn=-25)
+    sun(az=-40, el=40, strength=4.4)
+    pts = world_points(kid)
+    top = max(p.z for p in pts)
+    frame = [p for p in box_points(kid + mother) if p.z <= top] + [Vector((p.x, p.y, top * 1.08)) for p in pts]
+    camera(frame, az=12, el=6, margin=1.02, shift=(0.0, 0.02))
+
+
+def icon_elder():
+    """Starší: portrét muže se šedinami (vybledlá barva) a hůl u ramene."""
+    meshes = place_person("man", turn=-25, frame=40)
+    grey_hair(meshes)
+    bm = bmesh.new()
+    cyl(bm, (0.3, -0.24, 0.0), (0.34, -0.22, 1.62), 0.024, 0.02)
+    stick = to_obj(bm, "hul", mat("hul", (0.32, 0.2, 0.11), rough=0.7))
+    sun(az=-40, el=40, strength=4.4)
+    camera(box_points(meshes, 0.62, 1.0), az=12, el=6, margin=1.0)
+    del stick
+
+
+def icon_ring():
+    """Manželské páry: bronzový prsten s rytým páskem, mírně nakloněný."""
+    bpy.ops.mesh.primitive_torus_add(major_radius=1.0, minor_radius=0.16, major_segments=96, minor_segments=24)
+    ring = bpy.context.active_object
+    bronze = bpy.data.materials.new("bronz")
+    bronze.use_nodes = True
+    b = next(n for n in bronze.node_tree.nodes if n.type == "BSDF_PRINCIPLED")
+    b.inputs["Base Color"].default_value = (0.78, 0.52, 0.22, 1)
+    b.inputs["Metallic"].default_value = 1.0
+    b.inputs["Roughness"].default_value = 0.32
+    ring.data.materials.append(bronze)
+    bpy.ops.object.shade_smooth()
+    ring.rotation_euler = (math.radians(62), 0, math.radians(18))
+    ring.scale = (1, 1, 1.35)
+    bpy.context.view_layer.update()
+    sun(az=-50, el=48, strength=4.4)
+    camera(world_points([ring]), az=0, el=20, margin=1.12)
+
+
 RESOURCES = {
     "food": icon_food,
     "wood": icon_wood,
@@ -1686,6 +2009,17 @@ RESOURCES = {
     "tools": icon_tools,
     "pottery": icon_pottery,
     "overgrowth": icon_overgrowth,
+    "salt": icon_salt,
+    "iron": icon_iron,
+    "honey": icon_honey,
+    "furs": icon_furs,
+    "condition": icon_condition,
+    "abandoned": icon_abandoned,
+    "man": icon_man,
+    "woman": icon_woman,
+    "child": icon_child,
+    "elder": icon_elder,
+    "ring": icon_ring,
 }
 
 

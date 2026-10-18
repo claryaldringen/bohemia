@@ -22,3 +22,22 @@ export function withBuiltFirstDwelling(state: VillageState): VillageState {
   });
   return next;
 }
+
+/**
+ * Dvorec vojvody jinde (trade.md): přidá prázdné starší obydlí daleko od vsi a udělá z něj dvorec
+ * – první zemnice zakladatelů se pak přestavuje jako každé obyčejné obydlí (testy přestavby na
+ * lepší obydlí).
+ */
+export function withManorElsewhere(state: VillageState): VillageState {
+  const next = structuredClone(state);
+  const id = next.nextId++;
+  next.dwellings.push({
+    id,
+    type: 'zemnice',
+    builtDay: next.foundedDay,
+    condition: 1,
+    position: { x: 400, z: 400, rotation: 0 },
+  });
+  next.manorId = id;
+  return next;
+}

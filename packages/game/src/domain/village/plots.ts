@@ -106,6 +106,23 @@ export function withPlots(
   return next;
 }
 
+/** Strany, kam od políčka domu dvorce zkusit dvůr (sloupec, řádek – řádek roste k +z). */
+const YARD_SIDES: readonly (readonly [number, number])[] = [
+  [0, -1],
+  [1, 0],
+  [-1, 0],
+  [0, 1],
+];
+
+/** Kopie pozemku (i se dvorem dvorce). */
+export function copyPlot(plot: DwellingPlot): DwellingPlot {
+  return {
+    cell: { x: plot.cell.x, y: plot.cell.y },
+    variant: plot.variant,
+    ...(plot.yard ? { yard: { x: plot.yard.x, y: plot.yard.y } } : {}),
+  };
+}
+
 /** Pozemek pro přestavbu: políčko, varianta, poloha domu, překážky a vzdálenost k lesu. */
 export interface RelocationPlot {
   plot: DwellingPlot;
@@ -115,7 +132,8 @@ export interface RelocationPlot {
 }
 
 /**
- * Přestavba polozemnice bez pozemku (i přestavba zemnice na polozemnici): nejbližší políčko do
+ * Přestavba polozemnice bez pozemku (i přestavba zemnice na polozemnici), u dvorce (trade.md) i na
+ * pozemku dvou políček – dům a dvůr vedle něj (`YARD_SIDES`): nejbližší políčko do
  * PLOT_RELOCATION_M od domu (ke středu políčka; při shodě nižší řádek a sloupec), na které smí
  * nový pozemek (`checkPlotPlacement` – jako při stavbě, jen bez obydlí samotného, to se
  * přestavbou přesune, a bez čtverců polí a sadů). Varianty od té, kde by dům stál nejblíž starému místu. Žádné → null,
@@ -145,6 +163,30 @@ export function relocationPlot(
     }
   }
   candidates.sort((a, b) => a.distance - b.distance || a.cell.y - b.cell.y || a.cell.x - b.cell.x);
+  // dvorec vojvody (trade.md): políčko domu a dvůr vedle něj – dvůr napřed vpředu (−z, vchod
+  // k brance jako u ostatních pozemků), pak vpravo, vlevo a vzadu
+  if (type === 'dvorec') {
+    for (const { cell } of candidates) {
+      for (const [dx, dy] of YARD_SIDES) {
+        const plot: DwellingPlot = {
+          cell,
+          variant: 'center',
+          yard: { x: cell.x + dx, y: cell.y + dy },
+        };
+        const check = checkPlotPlacement(landscape, village, type, plot, obstacles, {
+          takeLand: false,
+        });
+        if (!check.ok || !check.position) continue;
+        return {
+          plot,
+          position: check.position,
+          check,
+          forestDistanceM: forestEdgeDistanceM(landscape, check.position.x, check.position.z),
+        };
+      }
+    }
+    return null;
+  }
   for (const { cell } of candidates) {
     const variants = [...PLOT_VARIANTS].sort((a, b) => {
       const pa = plotHousePosition(landscape, { cell, variant: a });

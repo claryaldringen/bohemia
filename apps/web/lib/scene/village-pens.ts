@@ -18,8 +18,8 @@ export function ploughingToday(village: Pick<SceneVillage, 'labor'>): boolean {
 }
 
 /**
- * Ohrady ke kreslení: čtverec, branka k nejbližšímu obydlí (bez obydlí dolů, −z) a průběh stavby
- * (hotová 1).
+ * Ohrady ke kreslení: čtverec, branka k nejbližšímu obydlí (bez obydlí dolů, −z), průběh stavby
+ * (hotová 1) a stav opuštěné ohrady (abandonment.md – rozpad).
  */
 export function scenePenViews(village: Pick<SceneVillage, 'pens' | 'dwellings'>): PenView[] {
   return (village.pens ?? []).map((pen) => {
@@ -38,6 +38,7 @@ export function scenePenViews(village: Pick<SceneVillage, 'pens' | 'dwellings'>)
       square,
       facing: penFacing(square, target),
       progress: pen.built ? 1 : Math.min(0.999, Math.max(0, pen.progress)),
+      ...(pen.condition === undefined ? {} : { condition: pen.condition }),
     };
   });
 }

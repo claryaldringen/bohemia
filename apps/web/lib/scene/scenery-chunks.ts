@@ -121,6 +121,38 @@ export function chunkBounds(
   return out;
 }
 
+/**
+ * Obaly čtverců převedené maticí meshe (16 čísel jako u Babylonu – pata instance je v prostoru
+ * meshe, ořez se počítá ve světě): kvádr každého čtverce maticí – střed maticí, poloosy přes
+ * absolutní hodnoty matice. Prázdné čtverce zůstanou prázdné.
+ */
+export function transformBounds(
+  bounds: Float32Array,
+  matrix: ArrayLike<number>,
+  out: Float32Array = new Float32Array(bounds.length),
+): Float32Array {
+  const m = matrix;
+  for (let i = 0; i < bounds.length; i += 6) {
+    if (bounds[i] === Infinity) {
+      out.set([Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity], i);
+      continue;
+    }
+    const cx = (bounds[i]! + bounds[i + 3]!) / 2;
+    const cy = (bounds[i + 1]! + bounds[i + 4]!) / 2;
+    const cz = (bounds[i + 2]! + bounds[i + 5]!) / 2;
+    const ex = (bounds[i + 3]! - bounds[i]!) / 2;
+    const ey = (bounds[i + 4]! - bounds[i + 1]!) / 2;
+    const ez = (bounds[i + 5]! - bounds[i + 2]!) / 2;
+    for (let a = 0; a < 3; a++) {
+      const center = cx * m[a]! + cy * m[4 + a]! + cz * m[8 + a]! + m[12 + a]!;
+      const extent = ex * Math.abs(m[a]!) + ey * Math.abs(m[4 + a]!) + ez * Math.abs(m[8 + a]!);
+      out[i + a] = center - extent;
+      out[i + 3 + a] = center + extent;
+    }
+  }
+  return out;
+}
+
 /** Sjednotí obaly čtverců `source` do `target` (stejná mřížka). */
 export function mergeBounds(target: Float32Array, source: Float32Array): void {
   for (let i = 0; i < target.length; i += 6) {
