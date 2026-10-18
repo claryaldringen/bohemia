@@ -60,6 +60,34 @@ export function addSunShadows(
   };
 }
 
+/** Co se při překreslení vsi změnilo (`LandscapeScene.applyVillage`). */
+export interface VillageSceneChanges {
+  /** Stavby, pole (panáky, stohy), hřbitovy, sady… – `VillageRenderer.update`. */
+  village: boolean;
+  /** Skryté nebo zvětšené stromy, keře a kameny krajiny (InstanceHider). */
+  hidden: boolean;
+  /** Pařezy a nálet po pokácených stromech. */
+  felled: boolean;
+  /** Hromada klád. */
+  logs: boolean;
+  /** Ztmavení trávy pod stromy (terén stín jen přijímá). */
+  shade: boolean;
+  /** Plocha korun nad pasekou (nevrhá stín do mapy). */
+  canopy: boolean;
+  /** Domácí zvířata a lidé – stín do stínové mapy nevrhají (mapa je statická). */
+  animals: boolean;
+  people: boolean;
+}
+
+/**
+ * Obnovit stínovou mapu (4096², přes celou krajinu)? Jen když se změnily vrhače stínu – stavby
+ * a pole vsi, skryté stromy, pařezy, hromada klád; ne kvůli zvířatům, lidem, ztmavení trávy
+ * nebo ploše korun (dřív se mapa překreslila po každé změně práce dne).
+ */
+export function castersChanged(changes: VillageSceneChanges): boolean {
+  return changes.village || changes.hidden || changes.felled || changes.logs;
+}
+
 export interface SunShadows {
   /** Vykreslí stínovou mapu znovu (po změně vrhačů – stavby, skryté stromy). */
   refresh(): void;
