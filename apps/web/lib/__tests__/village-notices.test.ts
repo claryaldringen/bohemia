@@ -18,6 +18,19 @@ const view = (overrides: Partial<VillageView> = {}): VillageView => ({
   households: [],
   storesKg: 800,
   applesKg: 0,
+  meatKg: 0,
+  hayKg: 0,
+  diet: { energy: 1, diversity: 0.8, shares: { grain: 1, meat: 0, fruit: 0 } },
+  livestock: {
+    herds: { sheep: 3, goat: 1, pig: 2, cow: 1 },
+    chickens: 2,
+    oxen: 0,
+    pastureHa: 50,
+    grazingHa: 1.8,
+    pigForestHa: 30,
+    meatNeedKg: 187,
+  },
+  pens: [],
   woodLogs: 0,
   crafts: {
     present: false,
@@ -90,6 +103,14 @@ const view = (overrides: Partial<VillageView> = {}): VillageView => ({
     potter: workshop(286),
     smith: workshop(286),
     burner: workshop(78),
+    pen: {
+      laborManDays: 40,
+      perHa: false,
+      perSquare: false,
+      upfront: [{ resource: 'wood', amount: 6, missing: 0 }],
+      blocked: null,
+      affordable: true,
+    },
   },
   constructions: [],
   fields: [],
@@ -218,6 +239,53 @@ describe('newNotices – posvátná místa', () => {
       { kind: 'sacred-grove', tone: 'info', text: 'Vesničané ušetřili dubový háj' },
     ]);
     expect(newNotices(after, after)).toEqual([]);
+  });
+});
+
+describe('newNotices – porážka a spřežení (diet.md, oxen.md)', () => {
+  const entry = (
+    day: number,
+    kind: VillageView['chronicle'][number]['kind'],
+    text: string,
+    kg?: number,
+  ): VillageView['chronicle'][number] => ({
+    day,
+    kind,
+    dateLabel: '',
+    text,
+    ...(kg === undefined ? {} : { kg }),
+  });
+
+  it('nové události kroniky od minulého pohledu – fakt jednou za druh, v pořadí, jak se staly', () => {
+    const before = view({ dayIndex: 1000 });
+    const after = view({
+      dayIndex: 1010,
+      chronicle: [
+        entry(1009, 'ox-died', 'Přes zimu chybělo seno – vůl uhynul a spřežení se rozpadlo.'),
+        entry(1008, 'ox-died', 'Přes zimu chybělo seno – tele ve výcviku uhynulo.'),
+        entry(1005, 'slaughter', 'Podzimní porážka: 1 250 kg masa.', 1250),
+        entry(1002, 'team-ready', 'Spřežení volů je vycvičené – orá rádlem.'),
+        entry(1000, 'team-retired', 'Spřežení dosloužilo – voli zestárli a šli na maso.'),
+      ],
+    });
+    expect(newNotices(before, after)).toEqual([
+      { kind: 'team-ready', tone: 'info', text: 'Spřežení je vycvičené' },
+      { kind: 'slaughter', tone: 'info', text: 'Podzimní porážka – 1 250 kg masa' },
+      { kind: 'ox-died', tone: 'warn', text: 'Vůl uhynul – chybělo seno' },
+    ]);
+    // stejný pohled podruhé nic, první načtení nic
+    expect(newNotices(after, after)).toEqual([]);
+    expect(newNotices(null, after)).toEqual([]);
+  });
+
+  it('spřežení dosloužilo – fakt', () => {
+    const after = view({
+      dayIndex: 1003,
+      chronicle: [entry(1001, 'team-retired', 'Spřežení dosloužilo.')],
+    });
+    expect(newNotices(view(), after)).toEqual([
+      { kind: 'team-retired', tone: 'info', text: 'Spřežení dosloužilo' },
+    ]);
   });
 });
 

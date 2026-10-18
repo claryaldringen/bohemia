@@ -8,10 +8,12 @@ import {
   placeDwellingForPlayer,
   placeFieldForPlayer,
   placeOrchardForPlayer,
+  placePenForPlayer,
   placeSacredForPlayer,
   placeWorkshopForPlayer,
   renameVillageForPlayer,
   skipTimeForPlayerView,
+  trainTeamForPlayer,
   villageViewForPlayer,
   type TimeSkipResult,
   type VillageActionResult,
@@ -23,11 +25,13 @@ import {
   parsePlaceDwellingInput,
   parsePlaceFieldInput,
   parsePlaceOrchardInput,
+  parsePlacePenInput,
   parsePlaceSacredInput,
   parsePlaceWorkshopInput,
   parseRenameVillageInput,
   parseRestartGameInput,
   parseSkipTimeInput,
+  parseTrainTeamInput,
 } from '@/lib/village-input';
 
 // Server actions vsi. Každá je veřejný POST endpoint: přihlášení ze session, vstup ověřený
@@ -112,6 +116,27 @@ export async function placeSacred(input: unknown): Promise<VillageActionResult> 
   const parsed = parsePlaceSacredInput(input);
   if (parsed === null) return { error: INVALID_INPUT };
   return placeSacredForPlayer(id, parsed);
+}
+
+/**
+ * Stavba ohrady s přístřeškem (oxen.md): `{ cells: [{ x, y }] }` – jeden čtverec louky. Server
+ * umístění ověří znovu (`checkPenPlacement`).
+ */
+export async function placePen(input: unknown): Promise<VillageActionResult> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  const parsed = parsePlacePenInput(input);
+  if (parsed === null) return { error: INVALID_INPUT };
+  return placePenForPlayer(id, parsed);
+}
+
+/** Výcvik spřežení v ohradě (oxen.md – „Vycvičit spřežení“): `{ penId }`. */
+export async function trainTeam(input: unknown): Promise<VillageActionResult> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  const parsed = parseTrainTeamInput(input);
+  if (parsed === null) return { error: INVALID_INPUT };
+  return trainTeamForPlayer(id, parsed);
 }
 
 /**

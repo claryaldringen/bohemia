@@ -16,7 +16,17 @@ import {
   villageHappiness,
   type HappinessFactors,
 } from './happiness';
-import { applesSpoiled, daysUntilAppleRot, eatMeal } from './food';
+import { villageMeal, villageMeatKg } from './diet';
+import { villageHayKg } from './hay';
+import {
+  grazingDemandHa,
+  meatNeedPerYear,
+  pastureHa,
+  pigForestHa,
+  villageChickens,
+  villageHerds,
+} from './livestock';
+import { OXEN, teamAgeYears, trainingBlock, trainingProgress, villagePens } from './oxen';
 import {
   orchardAgeYears,
   orchardAreaM2,
@@ -45,8 +55,10 @@ import type {
   Craft,
   CraftCoverage,
   CraftStocks,
+  DietDay,
   DwellingType,
   FieldPart,
+  HerdSpecies,
   Position,
   SacredBuildingKind,
   TileCell,
@@ -54,7 +66,6 @@ import type {
   WorkshopActivity,
 } from './types';
 import { treesToFell, woodFellingCost, woodLogs } from './wood';
-import { daysUntilFoodHarvest } from './year-plan';
 
 // Souhrn vsi pro panel hráče a scénu – jen čte stav, nic nemění.
 
@@ -177,6 +188,37 @@ export interface SacredSummary {
   buildings: { id: number; kind: SacredBuildingKind; position: Position; happiness: number }[];
 }
 
+/** Dobytek vsi pro panel (diet.md – Co hráč vidí): stáda, slepice, voli a nosnost. */
+export interface LivestockSummary {
+  /** Kusy po druzích (zaokrouhleně). */
+  herds: Record<HerdSpecies, number>;
+  chickens: number;
+  /** Voli – spřežení i telata ve výcviku. */
+  oxen: number;
+  /** Pastva vsi a kolik jí stáda spásají (ha). */
+  pastureHa: number;
+  grazingHa: number;
+  /** Les pro prasata (ha, 1 ha na prase). */
+  pigForestHa: number;
+  /** Roční potřeba masa vsi (kg). */
+  meatNeedKg: number;
+}
+
+/** Ohrada pro panel výběru a scénu (oxen.md – Co hráč vidí). */
+export interface PenSummary {
+  id: number;
+  cell: TileCell;
+  x: number;
+  z: number;
+  built: boolean;
+  /** Vycvičené spřežení: stáří v letech a kolik let ještě slouží; bez spřežení null. */
+  team: { ageYears: number; yearsLeft: number } | null;
+  /** Výcvik spřežení: průběh 0–1 a zbývající dny; bez výcviku null. */
+  training: { progress: number; daysLeft: number } | null;
+  /** Proč teď nejde začít výcvik (česky), nebo null. */
+  trainBlocked: string | null;
+}
+
 export interface VillageSummary {
   people: { children: number; adults: number; elders: number };
   households: HouseholdSummary[];
@@ -187,8 +229,18 @@ export interface VillageSummary {
   woodLogs: number;
   /** Na kolik měsíců zásoby obilí vystačí při dnešní potřebě (bez lidí 0). */
   storesMonths: number;
-  /** Nasycení příštího dne 0–1 podle přídělového systému. */
+  /** Nasycení příštího dne 0–1 podle přídělového systému (energie × pestrost – diet.md). */
   satiation: number;
+  /** Jídlo příštího dne – energie, pestrost a podíly obilí, masa a ovoce (diet.md). */
+  diet: DietDay;
+  /** Zásoba masa (kg). */
+  meatKg: number;
+  /** Zásoba sena (kg). */
+  hayKg: number;
+  /** Dobytek – stáda, slepice, voli a nosnost. */
+  livestock: LivestockSummary;
+  /** Ohrady v pořadí založení. */
+  pens: PenSummary[];
   /** Průměrná společná práce za den (posledních 30 dní). */
   commonLaborPerDay: number;
   /**
@@ -267,23 +319,66 @@ function households(state: VillageState, day: number): HouseholdSummary[] {
 }
 
 /**
- * Nasycení příštího dne: příděl ze zásob obilí a jablek do sklizně, se kterou ves počítá
- * (i červencová sklizeň ozimu – stejně jako eatMeal v simulaci; 1. 3. ráno jablka shnijí,
+ * Jídlo příštího dne: příděl ze zásob obilí, masa a ovoce do sklizně, se kterou ves počítá
+ * (i červencová sklizeň ozimu – stejně jako jídlo v simulaci; 1. 3. ráno ovoce shnije,
  * v nádobách později – pokrytí nádobami jako simulace příští den).
  */
-function nextDaySatiation(state: VillageState, day: number, needPerDay: number): number {
-  if (needPerDay <= 0) return 1;
+function nextDayDiet(state: VillageState, day: number): DietDay {
   const next = Math.min(day + 1, TOTAL_GAME_DAYS - 1);
-  const pottery = craftCoverage(state, next).pottery;
-  const apples = applesSpoiled(next, pottery) ? 0 : villageApplesKg(state);
-  return eatMeal(
-    state.storesKg,
-    apples,
-    needPerDay,
-    daysUntilFoodHarvest(state.plan, state.parts, next, needPerDay),
-    daysUntilAppleRot(next, pottery),
-    pottery,
-  ).satiation;
+  return villageMeal(state, next, craftCoverage(state, next).pottery).diet;
+}
+
+const DAYS_PER_SERVICE_YEAR = 365.25;
+
+/** Ohrady pro panel a scénu. */
+function penSummaries(state: VillageState, day: number): PenSummary[] {
+  return villagePens(state).map((pen) => {
+    const age = teamAgeYears(pen, day);
+    const progress = trainingProgress(pen, day);
+    return {
+      id: pen.id,
+      cell: { x: pen.cell.x, y: pen.cell.y },
+      x: pen.x,
+      z: pen.z,
+      built: pen.builtDay !== null,
+      team:
+        age === null ? null : { ageYears: age, yearsLeft: Math.max(0, OXEN.serviceYears - age) },
+      training:
+        progress === null || !pen.training
+          ? null
+          : {
+              progress,
+              daysLeft: Math.max(
+                0,
+                Math.ceil(pen.training.startDay + OXEN.trainingYears * DAYS_PER_SERVICE_YEAR - day),
+              ),
+            },
+      trainBlocked: trainingBlock(state, pen.id, day, null),
+    };
+  });
+}
+
+/** Dobytek pro panel – stáda zaokrouhleně, nosnost pastvy a lesa. */
+function livestockSummary(state: VillageState, day: number): LivestockSummary {
+  const herds = villageHerds(state);
+  const oxen = villagePens(state).reduce(
+    (sum, pen) => sum + (pen.team ? OXEN.teamSize : 0) + (pen.training ? OXEN.teamSize : 0),
+    0,
+  );
+  return {
+    herds: {
+      sheep: Math.round(herds.sheep),
+      goat: Math.round(herds.goat),
+      pig: Math.round(herds.pig),
+      cow: Math.round(herds.cow),
+    },
+    chickens: villageChickens(state),
+    oxen,
+    pastureHa: pastureHa(state),
+    grazingHa: grazingDemandHa(herds, oxen),
+    pigForestHa: pigForestHa(state),
+    meatNeedKg: meatNeedPerYear(state, day),
+  };
 }
 
 function constructionSummary(state: VillageState, c: Construction): ConstructionSummary {
@@ -382,6 +477,7 @@ function stalled(state: VillageState): boolean {
 /** Souhrn vsi v den `day` (stav má být dopočítaný do tohoto dne). */
 export function summarizeVillage(state: VillageState, day: number): VillageSummary {
   const needPerDay = state.people.reduce((sum, p) => sum + foodNeedPerDay(p, day), 0);
+  const diet = nextDayDiet(state, day);
   const history = state.commonLaborHistory;
   const deathsPerYear = recentDeathsPerYear(state, day);
   const starvationDays = state.starvationDays ?? 0;
@@ -393,7 +489,12 @@ export function summarizeVillage(state: VillageState, day: number): VillageSumma
     woodLogs: woodLogs(state),
     storesMonths:
       needPerDay > 0 ? state.storesKg / ((needPerDay * DAYS_PER_YEAR) / MONTHS_PER_YEAR) : 0,
-    satiation: nextDaySatiation(state, day, needPerDay),
+    satiation: diet.satiation,
+    diet,
+    meatKg: villageMeatKg(state),
+    hayKg: villageHayKg(state),
+    livestock: livestockSummary(state, day),
+    pens: penSummaries(state, day),
     commonLaborPerDay: history.length > 0 ? history.reduce((s, v) => s + v, 0) / history.length : 0,
     fullHousehold: waitingHouseholds(state, day) > 0,
     constructions: state.constructions.map((c) => constructionSummary(state, c)),
@@ -412,7 +513,7 @@ export function summarizeVillage(state: VillageState, day: number): VillageSumma
       ageYears: orchardAgeYears(o, day),
       expectedYieldKg: orchardExpectedYieldKg(o, day),
     })),
-    happiness: happinessSummary(state, day, nextDaySatiation(state, day, needPerDay)),
+    happiness: happinessSummary(state, day, diet),
     sacred: sacredSummary(state),
     crafts: craftsSummary(state, day),
   };
@@ -447,10 +548,10 @@ function craftsSummary(state: VillageState, day: number): CraftsSummary {
   };
 }
 
-/** Štěstí, jeho cíl a složky (cíl při nasycení příštího dne). */
-function happinessSummary(state: VillageState, day: number, satiation: number): HappinessSummary {
+/** Štěstí, jeho cíl a složky (cíl při jídle příštího dne). */
+function happinessSummary(state: VillageState, day: number, diet: DietDay): HappinessSummary {
   const value = villageHappiness(state);
-  const factors = happinessFactors(state, day, satiation);
+  const factors = happinessFactors(state, day, diet.satiation, diet.shares.fruit > 0);
   return {
     value,
     target: happinessTarget(factors),

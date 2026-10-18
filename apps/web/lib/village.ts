@@ -9,9 +9,11 @@ import {
   placeDwelling,
   placeField,
   placeOrchard,
+  placePen,
   placeSacredBuilding,
   placeWorkshop,
   renameVillage,
+  trainTeamInPen,
   type Craft,
   type DwellingPlot,
   type DwellingType,
@@ -236,6 +238,44 @@ export async function renameVillageForPlayer(
   const result = await renameVillage(
     { villages: villages() },
     { settlementId: ctx.settlementId, today: ctx.day, name: input.name, landscape: ctx.landscape },
+  );
+  return toActionResult(result, ctx.landscape, ctx.day);
+}
+
+/** Stavba ohrady s přístřeškem (oxen.md) – jeden čtverec louky. */
+export async function placePenForPlayer(
+  playerId: string,
+  input: { cells: TileCell[] },
+): Promise<VillageActionResult> {
+  const ctx = await context(playerId);
+  if (!ctx.ok) return { error: ctx.error };
+  const [cell, ...rest] = input.cells;
+  if (!cell || rest.length > 0) return { error: PEN_ONE_SQUARE };
+  const result = await placePen(
+    { villages: villages() },
+    { settlementId: ctx.settlementId, landscape: ctx.landscape, today: ctx.day, cell },
+  );
+  return toActionResult(result, ctx.landscape, ctx.day);
+}
+
+/** Ohrada je jeden čtverec (oxen.md). */
+export const PEN_ONE_SQUARE = 'Ohrada je jeden čtverec.';
+
+/** Výcvik spřežení v ohradě (oxen.md – „Vycvičit spřežení“). */
+export async function trainTeamForPlayer(
+  playerId: string,
+  input: { penId: number },
+): Promise<VillageActionResult> {
+  const ctx = await context(playerId);
+  if (!ctx.ok) return { error: ctx.error };
+  const result = await trainTeamInPen(
+    { villages: villages() },
+    {
+      settlementId: ctx.settlementId,
+      landscape: ctx.landscape,
+      today: ctx.day,
+      penId: input.penId,
+    },
   );
   return toActionResult(result, ctx.landscape, ctx.day);
 }

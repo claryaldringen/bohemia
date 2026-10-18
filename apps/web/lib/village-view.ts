@@ -23,8 +23,12 @@ import {
   villageStock,
   wholeLogs,
   sacredBuildingHappiness,
+  HAY_WINTER_MONTHS,
   foundingCostPerHa,
   type BuildKind,
+  type DietDay,
+  type HerdSpecies,
+  type LivestockSummary,
   type ChronicleEvent,
   type ConstructionKind,
   type ConstructionSummary,
@@ -69,6 +73,7 @@ export type {
   BuildKind,
   Craft,
   Crop,
+  HerdSpecies,
   FieldSurface,
   LaborActivity,
   LaborShare,
@@ -133,6 +138,26 @@ export interface VillageSacred {
   }[];
 }
 
+/** Ohrada pro panel výběru (oxen.md – Co hráč vidí): stavba, spřežení, výcvik a seno. */
+export interface VillagePen {
+  id: number;
+  built: boolean;
+  /** Průběh stavby 0–1 (hotová 1). */
+  progress: number;
+  /** Vycvičené spřežení – stáří a kolik let ještě slouží; bez spřežení null. */
+  team: { ageYears: number; yearsLeft: number } | null;
+  /** Výcvik spřežení – průběh 0–1 a zbývající dny; bez výcviku null. */
+  training: { progress: number; daysLeft: number } | null;
+  /** Proč teď nejde začít výcvik (česky), nebo null – tlačítko „Vycvičit spřežení“. */
+  trainBlocked: string | null;
+  /** Kolik krav a volů v ohradě právě stojí (krávy jen v zimě). */
+  cows: number;
+  oxen: number;
+}
+
+/** Jídlo pro horní lištu a tooltip nasycení (diet.md) – energie, pestrost a podíly na energii. */
+export type VillageDiet = Pick<DietDay, 'energy' | 'diversity' | 'shares'>;
+
 /** Řemeslná dílna pro panel výběru (crafts.md – Co hráč vidí). */
 export interface VillageWorkshop {
   /** Id obydlí dílny. */
@@ -180,8 +205,18 @@ export interface VillageView {
     ageYears: number;
   }[];
   storesKg: number;
-  /** Zásoby jablek (kg) – horní lišta je ukáže vedle obilí, jen když nějaká jsou. */
+  /** Zásoby ovoce – jablek (kg; v rozhraní „ovoce“ – diet.md). */
   applesKg: number;
+  /** Zásoba masa (kg) – uzené maso a vejce (diet.md). */
+  meatKg: number;
+  /** Zásoba sena (kg) – horní lišta ho ukáže, když ves má ohradu nebo seno (oxen.md). */
+  hayKg: number;
+  /** Jídlo příštího dne – energie, pestrost a podíly obilí, masa a ovoce (tooltip nasycení). */
+  diet: VillageDiet;
+  /** Dobytek – stáda, slepice, voli a nosnost (diet.md – Co hráč vidí). */
+  livestock: LivestockSummary;
+  /** Ohrady v pořadí založení. */
+  pens: VillagePen[];
   /** Klády na hromadě u vsi v kusech (forest.md). */
   woodLogs: number;
   /** Řemesla – zásoby uhlí, nástrojů a keramiky, pokrytí a dílny (crafts.md). */
@@ -253,8 +288,17 @@ export interface VillageView {
    */
   gameOver: boolean;
   scene: SceneVillage;
-  /** Posledních CHRONICLE_LENGTH událostí, nejnovější první. */
-  chronicle: { day: number; dateLabel: string; text: string }[];
+  /**
+   * Posledních CHRONICLE_LENGTH událostí, nejnovější první (`kind` – druh pro upozornění, `kg` –
+   * množství u sklizní a porážky).
+   */
+  chronicle: {
+    day: number;
+    kind: ChronicleEvent['kind'];
+    kg?: number;
+    dateLabel: string;
+    text: string;
+  }[];
   /** Den poslední svatby mezi domy (population.md – Sňatky mezi domy); žádná null. */
   lastMarriageDay: number | null;
 }
@@ -403,6 +447,31 @@ export interface SceneVillage {
    * založení jako server. Bez údaje 0.
    */
   toolCoverage?: number;
+  /**
+   * Stáda na pastvě (diet.md – skutečné počty, zaokrouhleně): ovce, kozy, prasata a krávy mimo
+   * ohradu (v zimě stojí krávy v ohradě, když ves nějakou má). Bez údaje se odvodí z domácností.
+   */
+  livestock?: Record<HerdSpecies, number>;
+  /** Ohrady (oxen.md) – čtverec, stavba a zvířata v ní. Bez údaje žádné. */
+  pens?: ScenePen[];
+}
+
+/**
+ * Ohrada ve scéně: políčko (střed a strana jako u pole), průběh stavby 0–1 (`built` hotová)
+ * a zvířata v ní – voli spřežení (když dnes neorá – orbu ukazuje `labor`), telata ve výcviku
+ * a krávy (v zimě).
+ */
+export interface ScenePen {
+  id: number;
+  cell: TileCell;
+  x: number;
+  z: number;
+  size: number;
+  built: boolean;
+  progress: number;
+  oxen: number;
+  trainees: number;
+  cows: number;
 }
 
 /**
@@ -546,6 +615,8 @@ function finishedText(kind: ConstructionKind, craft?: Craft): string {
   if (kind === 'rebuild') return 'Dokončili přestavbu obydlí.';
   if (kind === 'cemetery') return 'Hřbitov je ohrazený – dá se do něj pohřbívat.';
   if (kind === 'orchard') return 'Sad je vysazený.';
+  if (kind === 'pen') return 'Ohrada je postavená.';
+  if (kind === 'ard') return 'Vesničané vyrobili rádlo.';
   return 'Pole je založené – dá se osévat.';
 }
 
@@ -573,7 +644,17 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
     case 'harvest':
       return `${HARVEST_NAMES[event.crop ?? 'any']}: ${formatInteger(event.kg)} kg obilí.`;
     case 'apple-harvest':
-      return `Sklizeň jablek: ${formatInteger(event.kg)} kg.`;
+      return `Sklizeň ovoce: ${formatInteger(event.kg)} kg.`;
+    case 'slaughter':
+      return `Podzimní porážka: ${formatInteger(event.kg)} kg masa.`;
+    case 'team-ready':
+      return 'Spřežení volů je vycvičené – orá rádlem.';
+    case 'team-retired':
+      return 'Spřežení dosloužilo – voli zestárli a šli na maso.';
+    case 'ox-died':
+      return event.training
+        ? 'Přes zimu chybělo seno – tele ve výcviku uhynulo.'
+        : 'Přes zimu chybělo seno – vůl uhynul a spřežení se rozpadlo.';
     case 'orchard-gone':
       return 'Starý sad dosloužil a zarostl loukou.';
     case 'hunger-began':
@@ -606,6 +687,8 @@ function constructionLabel(c: ConstructionSummary): string {
   if (c.kind === 'idol' || c.kind === 'shrine') return SACRED_BUILDING_NAMES[c.kind];
   if (c.kind === 'cemetery') return `Hřbitov (${formatCells(c.squares ?? 0)})`;
   if (c.kind === 'orchard') return `Sad ${formatHa(c.areaM2 ?? 0)}`;
+  if (c.kind === 'pen') return 'Ohrada';
+  if (c.kind === 'ard') return 'Rádlo';
   const type = c.dwellingType ?? 'zemnice';
   if (c.kind === 'rebuild') return `Přestavba na ${DWELLING_NAMES[type].accusative}`;
   return DWELLING_NAMES[type].nominative;
@@ -683,6 +766,9 @@ function sceneVillage(
   const reserved = [...reservedTrees(state)].sort((a, b) => a - b);
   const labor = sceneLabor(state, summary.people);
   const sacred = sceneSacred(state, landscape, day, summary);
+  const pens = scenePens(state, landscape, day, summary);
+  const penned = pens.reduce((sum, pen) => sum + pen.cows, 0);
+  const herds = summary.livestock.herds;
   return {
     dwellings: [...built, ...sites],
     fields,
@@ -693,6 +779,8 @@ function sceneVillage(
     woodLogs: wholeLogs(state.woodLogs ?? 0),
     ...(labor ? { labor } : {}),
     ...(sacred ? { sacred } : {}),
+    livestock: { ...herds, cow: Math.max(0, herds.cow - penned) },
+    ...(pens.length > 0 ? { pens } : {}),
     ...(summary.crafts.coverage.tools > 0 ? { toolCoverage: summary.crafts.coverage.tools } : {}),
   };
 }
@@ -725,6 +813,41 @@ function craftsView(state: VillageState, summary: VillageSummary): VillageCrafts
       outputPerDayKg: workshopOutputKg(w.craft, w.laborPerDay, w.oreFactor),
     })),
   };
+}
+
+/**
+ * Ohrady pro scénu: stavba (průběh z rozestavěné stavby) a zvířata – voli spřežení, telata ve
+ * výcviku a v zimě krávy stáda (do hotových ohrad rovným dílem – oxen.md: přes zimu stojí
+ * v ohradě).
+ */
+function scenePens(
+  state: VillageState,
+  landscape: Landscape,
+  day: number,
+  summary: VillageSummary,
+): ScenePen[] {
+  const winter = HAY_WINTER_MONTHS.includes(dateOfDayIndex(day).month);
+  const built = summary.pens.filter((p) => p.built).length;
+  const cows = winter && built > 0 ? summary.livestock.herds.cow : 0;
+  let builtIndex = 0;
+  return summary.pens.map((pen) => {
+    const construction = state.constructions.find((c) => c.kind === 'pen' && c.penId === pen.id);
+    const share = pen.built ? Math.floor(cows / built) + (builtIndex++ < cows % built ? 1 : 0) : 0;
+    return {
+      id: pen.id,
+      cell: { x: pen.cell.x, y: pen.cell.y },
+      x: pen.x,
+      z: pen.z,
+      size: landscape.cellSizeM,
+      built: pen.built,
+      progress: pen.built
+        ? 1
+        : (summary.constructions.find((c) => c.id === construction?.id)?.buildProgress ?? 0),
+      oxen: pen.team ? 2 : 0,
+      trainees: pen.training ? 2 : 0,
+      cows: share,
+    };
+  });
 }
 
 /** Posvátná místa pro scénu; ves bez nich null. */
@@ -926,6 +1049,8 @@ function chronicle(state: VillageState, name: string): VillageView['chronicle'] 
     .reverse()
     .map((event) => ({
       day: event.day,
+      kind: event.kind,
+      ...('kg' in event ? { kg: event.kg } : {}),
       dateLabel: formatGameDate(dateOfDayIndex(event.day)),
       text: chronicleText(event, name),
     }));
@@ -949,6 +1074,7 @@ const BUILD_KINDS: readonly BuildKind[] = [
   'potter',
   'smith',
   'burner',
+  'pen',
 ];
 /** Kolik štěstí přidá modla a svatyně (happiness.md). */
 const SACRED_HAPPINESS: Record<SacredBuildingKind, number> = {
@@ -1056,6 +1182,14 @@ export function buildVillageView(
     }),
     storesKg: summary.storesKg,
     applesKg: summary.applesKg,
+    meatKg: summary.meatKg,
+    hayKg: summary.hayKg,
+    diet: {
+      energy: summary.diet.energy,
+      diversity: summary.diet.diversity,
+      shares: summary.diet.shares,
+    },
+    livestock: summary.livestock,
     woodLogs: wholeLogs(summary.woodLogs),
     crafts: craftsView(state, summary),
     storesMonths: summary.storesMonths,
@@ -1112,10 +1246,33 @@ export function buildVillageView(
           !monthInWindow(ORCHARD_PLANTING_WINDOWS, dateOfDayIndex(day).month),
       };
     }),
+    pens: penViews(state, day, summary),
     scene: sceneVillage(state, landscape, day, summary),
     chronicle: chronicle(state, name),
     lastMarriageDay: lastMarriageDay(state),
   };
+}
+
+/** Ohrady pro panel výběru – stavba, spřežení, výcvik a zvířata v ohradě. */
+function penViews(state: VillageState, day: number, summary: VillageSummary): VillagePen[] {
+  const winter = HAY_WINTER_MONTHS.includes(dateOfDayIndex(day).month);
+  const built = summary.pens.filter((p) => p.built).length;
+  return summary.pens.map((pen) => {
+    const construction = state.constructions.find((c) => c.kind === 'pen' && c.penId === pen.id);
+    const progress = pen.built
+      ? 1
+      : (summary.constructions.find((c) => c.id === construction?.id)?.progress ?? 0);
+    return {
+      id: pen.id,
+      built: pen.built,
+      progress,
+      team: pen.team,
+      training: pen.training,
+      trainBlocked: pen.trainBlocked,
+      cows: winter && pen.built && built > 0 ? Math.round(summary.livestock.herds.cow / built) : 0,
+      oxen: (pen.team ? 2 : 0) + (pen.training ? 2 : 0),
+    };
+  });
 }
 
 /**
@@ -1143,6 +1300,7 @@ export function placementVillageFromScene(scene: SceneVillage): PlacementVillage
     orchards: (scene.orchards ?? []).map((o) => ({
       squares: o.squares.map((s) => ({ cell: s.cell })),
     })),
+    pens: (scene.pens ?? []).map((pen) => ({ cell: pen.cell })),
     ...(scene.obstacles ? { obstacleChanges: scene.obstacles } : {}),
     ...(scene.reservedTrees ? { reservedTrees: scene.reservedTrees } : {}),
     ...(scene.sacred

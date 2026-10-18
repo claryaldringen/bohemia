@@ -4,6 +4,7 @@ import {
   type Crop,
   type DwellingType,
   type FieldSurface,
+  type HerdSpecies,
   type PartStage,
   type SacredBuildingKind,
   type WorkshopActivity,
@@ -12,8 +13,9 @@ import type { VillageTarget } from './scene/village-picking';
 import { CRAFT_LOOKS, type SceneVillage, type VillageView } from './village-view';
 
 // Co ukáže panel výběru (dole uprostřed, jako v 0 A.D.) o vybraném obydlí (i řemeslné dílně –
-// crafts.md), poli, hřbitovu, sadu nebo posvátném místě (posvátný dub, dubový háj, modla,
-// svatyně – happiness.md). Čistý modul – data z pohledu na ves a scény vsi.
+// crafts.md), poli, hřbitovu, sadu, posvátném místě (posvátný dub, dubový háj, modla, svatyně –
+// happiness.md) nebo ohradě (oxen.md – zvířata, spřežení, výcvik a seno; diet.md – stáda vsi).
+// Čistý modul – data z pohledu na ves a scény vsi.
 
 /** Řemeslná dílna v panelu výběru – co dělá, kolik vyrobí a zásoba jejího výrobku. */
 export interface SelectionWorkshop {
@@ -133,7 +135,43 @@ export type SelectionDetails =
       building: number | null;
       /** Kolik dubů stavba ještě musí skácet. */
       oaksToFell: number;
+    }
+  | {
+      kind: 'pen';
+      id: number;
+      built: boolean;
+      /** Průběh stavby 0–1 (hotová 1). */
+      progress: number;
+      /** Voli v ohradě – spřežení i telata ve výcviku. */
+      oxen: number;
+      /** Krávy v ohradě (v zimě). */
+      cows: number;
+      /** Stáda vsi (kusy) a slepice u obydlí. */
+      herds: Record<HerdSpecies, number>;
+      chickens: number;
+      /** Pastva vsi a kolik ji stáda spásají (ha). */
+      pastureHa: number;
+      grazingHa: number;
+      /** Vycvičené spřežení – stáří a kolik let ještě slouží; bez spřežení null. */
+      team: { ageYears: number; yearsLeft: number } | null;
+      /** Výcvik spřežení – průběh 0–1 a zbývající dny; bez výcviku null. */
+      training: { progress: number; daysLeft: number } | null;
+      /** Zásoba sena vsi (kg). */
+      hayKg: number;
+      /** Proč teď nejde začít výcvik (česky), nebo null. */
+      trainBlocked: string | null;
     };
+
+/** Pořadí stád v panelu ohrady (diet.md – Dobytek). */
+export const HERD_ORDER: readonly HerdSpecies[] = ['sheep', 'goat', 'pig', 'cow'];
+
+/** Ikony a názvy stád (`/icons/resources/<ikona>.png`). */
+export const HERD_LABELS: Record<HerdSpecies, { name: string; icon: string }> = {
+  sheep: { name: 'Ovce', icon: 'sheep' },
+  goat: { name: 'Kozy', icon: 'goat' },
+  pig: { name: 'Prasata', icon: 'pig' },
+  cow: { name: 'Krávy', icon: 'cow' },
+};
 
 /** Pořadí stadií dílů v panelu pole – od zakládání po příloh (pastvinu). */
 export const PART_STAGE_ORDER: readonly PartStage[] = [
@@ -244,6 +282,7 @@ export function selectionDetails(
       : null;
   }
   if (target.kind === 'sacred') return sacredDetails(view, scene, target.id);
+  if (target.kind === 'pen') return penDetails(view, target.id);
   if (target.kind === 'orchard') {
     const orchard = view?.orchards.find((o) => o.id === target.id);
     if (!orchard) return null;
@@ -335,5 +374,27 @@ function sacredDetails(
     happiness: sacredBuildingHappiness(site.kind),
     building: site.built ? null : site.progress,
     oaksToFell: 0,
+  };
+}
+
+/** Ohrada – z pohledu na ves (stáda, pastva a seno jsou celé vsi). */
+function penDetails(view: VillageView | null, id: number): SelectionDetails | null {
+  const pen = view?.pens.find((p) => p.id === id);
+  if (!view || !pen) return null;
+  return {
+    kind: 'pen',
+    id,
+    built: pen.built,
+    progress: pen.progress,
+    oxen: pen.oxen,
+    cows: pen.cows,
+    herds: view.livestock.herds,
+    chickens: view.livestock.chickens,
+    pastureHa: view.livestock.pastureHa,
+    grazingHa: view.livestock.grazingHa,
+    team: pen.team,
+    training: pen.training,
+    hayKg: view.hayKg,
+    trainBlocked: pen.trainBlocked,
   };
 }

@@ -53,6 +53,9 @@
 //   a špičky z Ukázky. Sonda s polem o polovinu větším, než oběh potřebuje (hráč nic
 //   nepřidává), měří zarůstání. Ustálené vzorce bez simulace: village-calculator.ts.
 //
+// Strava a dobytek (diet.md): hráč skriptu ohrady nestaví (orba ne), stáda rostou a porážka dává
+// maso samo. Cíle „nasycení ≥ 0,95“ a hlad měří energii (dost jídla – jako před stravou),
+// nasycení se stravou (energie × pestrost) a podíly masa a ovoce jsou informace na konci kroků.
 // Nasycení dne se počítá stejně jako v simulaci – ze stavu na konci předchozího dne. V krocích,
 // kde ves hladověla, skript přehraje jídlo den po dni ze začátku kroku a kroniky; když přehrané
 // zásoby nesedí s koncem kroku (nebo ves má jablka – sklízejí se postupně), přepočítá krok den po
@@ -75,21 +78,20 @@ import {
   WINTER_HARVEST_DAY,
   advanceVillage,
   villageHappiness,
+  villageMeal,
+  livestockLandAt,
   ageGroup,
   availableSettlers,
   buildAffordability,
   cemeteryCapacity,
   dailyMinPerHousehold,
-  daysUntilAppleRot,
   daysUntilFoodHarvest,
   eatDay,
-  eatMeal,
   foodNeedPerDay,
   foundCemetery,
   foundField,
   foundOrchard,
   foundVillage,
-  isAppleRotDay,
   grossYieldPerHa,
   isCemeteryBuilding,
   laborPerDay,
@@ -110,6 +112,7 @@ import type {
 import { defaultWorkers, lowerProcessPriority, lowerThreadPriority } from './lib/background';
 import {
   LAND_KINDS,
+  V1_LIVESTOCK_LAND,
   V1_MEADOW_FERTILITY,
   VARIANTS,
   applyVariantToNewParts,
@@ -339,6 +342,8 @@ interface RunResult {
   winterShare: Map<number, number>;
   /** Štěstí obyvatel na konci každého kroku (happiness.md) – jen informace. */
   happiness: number[];
+  /** Jídlo posledního dne každého kroku (diet.md) – nasycení a podíly masa a ovoce. */
+  diet: { satiation: number; meat: number; fruit: number }[];
   /** Založená pole podle povrchu (ha) – i první pole při založení vsi. */
   foundedHa: Record<FieldSurface, number>;
 }
@@ -353,20 +358,12 @@ function isOn(date: CalendarDate, target: { month: number; day: number }): boole
 }
 
 /**
- * Nasycení dne `day` ze stavu na konci předchozího dne – stejně jako krok jídla v simulaci
- * (jablka přednostně, 1. 3. ráno shnijí).
+ * Energie jídla dne `day` ze stavu na konci předchozího dne – stejně jako krok jídla v simulaci
+ * (diet.md: ovoce přednostně, maso do porážky, obilí dorovná; 1. 3. ráno ovoce shnije; bez vajec
+ * dne). Cíle hladu měří energii – pestrost stravy je informace zvlášť.
  */
 function satiationOn(previous: VillageState, day: number): number {
-  const need = previous.people.reduce((sum, p) => sum + foodNeedPerDay(p, day), 0);
-  const apples = isAppleRotDay(day) ? 0 : (previous.applesKg ?? 0);
-  return eatMeal(
-    previous.storesKg,
-    apples,
-    need,
-    daysUntilFoodHarvest(previous.plan, previous.parts, day, need),
-    daysUntilAppleRot(day),
-    NO_CRAFTS.pottery,
-  ).satiation;
+  return villageMeal(previous, day).diet.energy;
 }
 
 /**
@@ -407,8 +404,10 @@ function foodTrack(
   const beforeIds = new Set(before.people.map((p) => p.id));
   const vanished = before.people.filter((p) => !afterIds.has(p.id));
   const born = after.people.filter((p) => !beforeIds.has(p.id));
-  // jablka se sklízejí postupně v září–říjnu – přehrát je bez simulace práce nejde
+  // jablka se sklízejí postupně v září–říjnu – přehrát je bez simulace práce nejde; maso (vejce
+  // každý den, porážka) taky ne
   if ((before.applesKg ?? 0) > 0 || (after.applesKg ?? 0) > 0 || after.orchardWork) return null;
+  if ((before.meatKg ?? 0) > 0 || (after.meatKg ?? 0) > 0) return null;
   const deathDay = new Map<number, number>();
   for (const e of events) {
     if (e.kind !== 'death') continue;
@@ -456,6 +455,7 @@ function emptyResult(): RunResult {
     stopDay: null,
     rebuilds: [],
     minSatiation: new Map(),
+    diet: [],
     storesRatio: new Map(),
     labor: new Map(),
     plans: [],
@@ -634,7 +634,16 @@ function runVillage(start: VillageState, startLand: number, opts: RunOptions): R
     if (isOn(date, HARVEST_DAY)) restoreBurnedAfterHarvest(after);
     addLabor(result, after, day - before.lastDay);
     countWood(after);
-    if (after.extinctDay === undefined) result.happiness.push(villageHappiness(after));
+    if (after.extinctDay === undefined) {
+      result.happiness.push(villageHappiness(after));
+      if (after.diet) {
+        result.diet.push({
+          satiation: after.diet.satiation,
+          meat: after.diet.shares.meat,
+          fruit: after.diet.shares.fruit,
+        });
+      }
+    }
 
     for (const e of events) {
       if (e.kind === 'rebuild-decided') {
@@ -791,6 +800,11 @@ function foundOn(
     forestDistanceM: land.site.forestDistanceM,
   });
   applyVariantToNewParts(state, 0, config.variant);
+  // pastva a žaludy výchozího stáda (diet.md): louka a les do 600 m od vsi – skutečná krajina,
+  // nebo syntetická (louka celá, les rovnoměrně 50–800 m)
+  state.livestock!.land = land.landscape
+    ? livestockLandAt(land.landscape, land.position.x, land.position.z)
+    : V1_LIVESTOCK_LAND;
   return { state, cursor: first.next, firstParts: first.parts };
 }
 
@@ -1052,6 +1066,31 @@ function report(villages: VillageResult[], probes: Record<ProbeName, ProbeSummar
   };
   const ok = (pass: boolean): Status => (pass ? 'OK' : 'MIMO');
   const builders = villages.map((v) => v.builder);
+
+  // strava (diet.md) – nasycení se stravou a podíly masa a ovoce na energii, jen informace
+  for (const [label, runs] of [
+    ['hráč staví', builders],
+    ['nestaví', villages.map((v) => v.loner)],
+  ] as const) {
+    const all = runs.flatMap((r) => r.diet);
+    const satiation = all.map((d) => d.satiation);
+    row(
+      `Strava – nasycení se stravou (${label})`,
+      'informace – energie × pestrost (jen obilí 0,80)',
+      `kroky: medián ${fmt(quantile(satiation, 0.5), 2)} | p10 ${fmt(quantile(satiation, 0.1), 2)} | p90 ${fmt(quantile(satiation, 0.9), 2)} | maso medián ${pct(
+        quantile(
+          all.map((d) => d.meat),
+          0.5,
+        ),
+      )} energie | ovoce medián ${pct(
+        quantile(
+          all.map((d) => d.fruit),
+          0.5,
+        ),
+      )}`,
+      'info',
+    );
+  }
 
   // štěstí obyvatel (happiness.md) – bez posvátných míst (hráč skriptu je nestaví), jen informace
   for (const [label, runs] of [

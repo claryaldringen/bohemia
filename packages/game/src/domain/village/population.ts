@@ -167,7 +167,8 @@ function dissolveHouseholds(state: VillageState, day: number): ChronicleEvent[] 
 }
 
 /**
- * Jeden den populace: úmrtí (lidé podle id, každý zemřelý se pohřbí – cemetery.md; zemřel hlady,
+ * Jeden den populace (porody podle nasycení `satiation`, úmrtnost hladem podle energie `energy` –
+ * diet.md): úmrtí (lidé podle id, každý zemřelý se pohřbí – cemetery.md; zemřel hlady,
  * když los padl do části rizika z nahromaděného hladu `state.starvationDays`), porody
  * (domácnosti podle id, jeden pokus na pár), pak rozpad domácností. Hygiena platí podle
  * pohřebišť na začátku dne. Mutuje stav a vrací události dne.
@@ -176,6 +177,7 @@ export function populationDay(
   state: VillageState,
   day: number,
   satiation: number,
+  energy: number = satiation,
 ): ChronicleEvent[] {
   const events: ChronicleEvent[] = [];
   const random = createRandom(deriveSeed(state.seed, 'day:' + day));
@@ -194,7 +196,8 @@ export function populationDay(
     const { base, starvation } = deathChances(person, {
       day,
       foundedDay: state.foundedDay,
-      satiation,
+      // hlad zvyšuje úmrtnost z nedostatku energie, ne z pestrosti stravy (diet.md)
+      satiation: energy,
       overcrowded: crowded.get(person.dwellingId) ?? false,
       dwellingType: typeOf.get(person.dwellingId) ?? 'zemnice',
       hygiene,
