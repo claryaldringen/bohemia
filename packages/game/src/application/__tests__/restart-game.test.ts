@@ -162,6 +162,79 @@ describe('restartGame', () => {
   }, 60_000);
 });
 
+describe('restartGame s abandon (nabídka hry)', () => {
+  it('se živou vsí archivuje sídlo i se vsí a založí nové s novým seedem', async () => {
+    const { settlements, villages, settlementId } = await playerWithVillage(false);
+    const result = await restartGame(
+      { settlements, villages, landscapes, seeds: seedsFrom(777) },
+      { playerId: PLAYER, today: TODAY, abandon: true },
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.settlement.id).not.toBe(settlementId);
+    expect(result.settlement).toMatchObject({ ownerId: PLAYER, isSeat: true });
+    expect(result.settlement.landscapeSeed).not.toBe(11);
+    expect(settlements.archived.has(settlementId)).toBe(true);
+    expect(await settlements.listActive(PLAYER)).toEqual([result.settlement]);
+    // opuštěná ves zůstane v archivu, jak byla – živá, jen se dál nedopočítává
+    const abandoned = villages.records.get(settlementId)?.state;
+    expect(abandoned?.extinctDay).toBeUndefined();
+    expect(abandoned?.people.length).toBeGreaterThan(0);
+    expect(villages.records.has(result.settlement.id)).toBe(false);
+    const after = await dynastyStatus(
+      { settlements, villages, landscapes },
+      { playerId: PLAYER, today: TODAY },
+    );
+    expect(after).toMatchObject({ villages: [], gameOver: false });
+  }, 30_000);
+
+  it('bez abandon (i s abandon: false) se živou vsí dál odmítne', async () => {
+    const { settlements, villages, settlementId } = await playerWithVillage(false);
+    const result = await restartGame(
+      { settlements, villages, landscapes, seeds: seedsFrom(777) },
+      { playerId: PLAYER, today: TODAY, abandon: false },
+    );
+    expect(result).toEqual({ ok: false, reason: DYNASTY_ALIVE });
+    expect(settlements.archived.size).toBe(0);
+    expect((await settlements.findSeat(PLAYER))?.id).toBe(settlementId);
+  });
+
+  it('po vymření funguje jako restart z obrazovky porážky', async () => {
+    const { settlements, villages, settlementId } = await playerWithVillage(true);
+    const result = await restartGame(
+      { settlements, villages, landscapes, seeds: seedsFrom(777) },
+      { playerId: PLAYER, today: TODAY, abandon: true },
+    );
+    expect(result.ok && result.settlement.id !== settlementId).toBe(true);
+    expect(settlements.archived.has(settlementId)).toBe(true);
+  }, 30_000);
+
+  it('bez vsi vrátí sídlo beze změny – opakované potvrzení nezaloží další krajinu', async () => {
+    const { settlements, villages } = await playerWithVillage(false);
+    const deps = { settlements, villages, landscapes, seeds: seedsFrom(777, 888) };
+    const first = await restartGame(deps, { playerId: PLAYER, today: TODAY, abandon: true });
+    const second = await restartGame(deps, { playerId: PLAYER, today: TODAY, abandon: true });
+    expect(first.ok && second.ok).toBe(true);
+    if (!first.ok || !second.ok) return;
+    expect(second.settlement).toEqual(first.settlement);
+    expect(settlements.settlements).toHaveLength(2);
+    expect(settlements.archived.size).toBe(1);
+  }, 30_000);
+
+  it('souběžné restarty se živou vsí založí jediné nové sídlo', async () => {
+    const { settlements, villages } = await playerWithVillage(false);
+    const deps = { settlements, villages, landscapes, seeds: seedsFrom(777, 888, 999) };
+    const results = await Promise.all(
+      [1, 2, 3].map(() => restartGame(deps, { playerId: PLAYER, today: TODAY, abandon: true })),
+    );
+    expect(results.every((r) => r.ok)).toBe(true);
+    const ids = new Set(results.map((r) => (r.ok ? r.settlement.id : '')));
+    expect(ids.size).toBe(1);
+    expect(await settlements.listActive(PLAYER)).toHaveLength(1);
+    expect(settlements.settlements).toHaveLength(2);
+  }, 60_000);
+});
+
 describe('akce ve vymřelé vsi', () => {
   it('stavby i přejmenování odmítne česky, načíst ves jde', async () => {
     const { villages, settlementId } = await playerWithVillage(true);
