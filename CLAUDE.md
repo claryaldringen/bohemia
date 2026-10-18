@@ -428,7 +428,8 @@ rozhraní částí v
   `startWorkshop`, `foundField`, `foundCemetery`, `foundOrchard`, `foundPen` a `trainTeam`. Stav
   vsi je JSON-serializovatelný, funkce vstupní stav nemění. Nové části stavu jsou volitelné
   (`VillageState.cemeteries?`, `orchards?`, `applesKg?`, `orchardWork?`, `starvationDays?`,
-  `extinctDay?`, `crafts?`, `Dwelling.workshop?`, `livestock?`, `meatKg?`, `cheeseKg?`, `hay?`,
+  `extinctDay?`, `crafts?`, `Dwelling.workshop?`, `livestock?`, `meatKg?`, `cheeseKg?`,
+  `legumesKg?`, `hay?`,
   `pens?`, `diet?`, `ruins?`) – vsi uložené dřív se načtou a beze sadů či dílen se jejich stav
   nemění.
 - **Hlad a vymření** (population.md, Martin 18. 10. 2026): nahromaděný hlad
@@ -540,7 +541,14 @@ rozhraní částí v
   (konec okna, ozim před jaří); `allocateDay` vrací i `taskAmounts` po úlohách vstupu (stejný
   název víckrát). Sklizeň ozimu 31. 7. (`harvestWinter`), jaře 31. 8.; příděl počítá do sklizně
   podle `daysUntilFoodHarvest` (31. 7., když ozim podle odhadu uživí srpen). Plán po plodinách
-  prochází `planCrops`, všechny díly `planPartIds`.
+  prochází `planCrops`, všechny díly `planPartIds`. **Luštěniny** (fields.md – Luštěniny, Martin 18. 10. 2026): třetí plodina `legume` (`YearPlan.legume?`, `LEGUME_WINDOWS` – jař se sklizní
+  v červenci, `LEGUMES` a `LEGUME_WORK_PER_HA` v `rules.ts`, úroda `cropGrossPerHa` /
+  `cropSeedPerHa`, `partWork(…, crop)`); `chooseCrops` dostane `legumeTargetKg`
+  (`legumeNeedPerYear` + rezerva) a `energyFloorKg` – obilí napřed na celý cíl, pak luštěniny na
+  díly výběru od domu (loňské luštěniny až nakonec) a obilí doplní energii (`chooseLegumes`);
+  sklizeň 31. 7. do `VillageState.legumesKg` (`harvestWinter`), osev úrodnost vrátí
+  (`LEGUMES.fertilityGain` v `endOfSeason`). Scéna: `SceneFieldPart.crop: 'legume'` – trsy
+  hrachu `crop-pea-green` / `crop-pea-ripe` a hromádky `pea-heap` v `crops.glb`.
 - **Postup práce po čtvercích** (Martin – fields.md): kopání, setí a sklizeň mění díl, až k němu
   dojde práce. `field-progress.ts` (jen čte): díly plodiny v pořadí `CropWork.partIds` (dávka
   po úsecích hospodářství od domu ven – řadí `createCropWork` s `workOrder`, ves bez hospodářství
@@ -622,7 +630,8 @@ rozhraní částí v
 - **Strava a dobytek** ([diet.md](docs/design/diet.md)): jídlo dne `eatDiet` / `villageMeal`
   (`diet.ts`) – ovoce (jablka; v rozhraní „ovoce“) rovným dílem do zkažení 1. 3., čerstvé mléko
   a vejce, maso rovným dílem do porážky 1. 11., sýr do 1. 5. (`daysUntilMilking`), obilí
-  dorovná; stropy ovoce 25 %, maso 40 %, mléko a sýr 30 % potřeby energie (`DIET`).
+  dorovná; stropy ovoce 25 %, maso 40 %, mléko a sýr 30 %, luštěniny 25 % potřeby energie
+  (`DIET`); luštěniny (`legumes.ts`) rovným dílem do sklizně 31. 7. (`daysUntilLegumeHarvest`).
   **Bílkoviny** (Martin 18. 10. 2026): 1,6 g na kg tělesné váhy (`PROTEIN`, `proteinNeedPerDay`
   – 20 / 60 / 58 kg), nasycení = energie × kvalita (`dietQuality` = 0,6 + 0,34 × bílkoviny +
   0,06 × ovoce; jen obilí ≈ 80 %). **Mléko a sýr** (`dairy.ts`): dojí se 40 % skotu a 50 % ovcí
@@ -631,11 +640,13 @@ rozhraní částí v
   `ANIMAL_CARE`): úlohy `milking` a `animal-care` jdou v `allocateDay` hned po denním minimu
   (činnosti `milking`, `animal-care` v rozdělení práce), pasení bez práce. `VillageState.diet`
   nese jídlo posledního dne (energie, bílkoviny, kvalita, nasycení, podíly obilí / maso / mléko
-  / vejce / ovoce). **Hlad z energie:** `nextStarvationDays` a přirážka úmrtnosti dostávají
-  energii, porody a štěstí nasycení (`populationDay(state, day, satiation, energy)`, ovoce
-  štěstí +5 – `HappinessFactors.fruit`). Stáda `VillageState.livestock` (`livestock.ts`: počty
+  / vejce / ovoce / luštěniny – `legumes?`, starší jídlo bez něj). **Hlad z energie:**
+  `nextStarvationDays` a přirážka úmrtnosti dostávají energii, porody a štěstí nasycení
+  (`populationDay(state, day, satiation, energy)`, ovoce štěstí +5 – `HappinessFactors.fruit`,
+  maso až +3 – `meatHappiness`, `HappinessFactors.meat`). Stáda `VillageState.livestock` (`livestock.ts`: počty
   s podílem kusu, mláďata 1. 4., porážka 1. 11. – nad nosnost a nejvýš polovina mláďat na maso,
-  chovný pár zůstane; potřeba masa z chybějících bílkovin `meatNeedPerYear` / `proteinBudget`,
+  chovný pár zůstane; potřeba masa z bílkovin, které chybí i po luštěninách ze zásoby
+  `meatNeedPerYear` / `proteinBudget`,
   „ves chová, kolik potřebuje“ podle chovných kusů; nosnost pastvy `pastureHa`, lesa `pigForestHa` a sena; vejce denně;
   `meatKg` se uzí 20 %/rok). Louka a les do 600 m pro pastvu jsou z krajiny ve stavu
   (`LivestockState.land`) – doplní je `withLivestockLand` (založení vsi i migrace v
@@ -711,11 +722,13 @@ rozhraní částí v
   composition root `lib/village.ts`, `lib/village-view.ts` (DTO, smí i do prohlížeče). Typy pro scénu jsou
   odvozené odtud a z `@bohemia/game` – nedefinovat je znovu ve scéně.
 - **Rozhraní jako v 0 A.D., bez popisků a průvodce** (Martin): `components/game/VillageGame.tsx`
-  skládá `hud/` – `TopBar` (jméno vsi, klik = přejmenovat; ikony s čísly: lidé, obilí, maso,
+  skládá `hud/` – `TopBar` (jméno vsi, klik = přejmenovat; ikony s čísly: lidé, obilí, luštěniny
+  (ikona `legumes`, když jsou v zásobě, na poli nebo v jídle – `showsLegumes`), maso,
   sýr (ikona `cheese`, v popisku mléko za den) když je mléko nebo sýr, ovoce (jablka) jen když
   jsou nebo je sad, seno s ohradou, klády, uhlí / nástroje / keramika jen ves s řemesly, volná
   práce, nasycení (barva ikony podle energie – hlad, tooltip nasycení s energií, bílkovinami
-  a podíly obilí / maso / mléko a sýr / vejce / ovoce), štěstí, datum; zvuk a tlačítko nabídky),
+  a podíly obilí / luštěniny / maso / mléko a sýr / vejce / ovoce), štěstí, datum; zvuk
+  a tlačítko nabídky),
   `GameMenu` (nabídka hry jako v 0 A.D. pod lištou vpravo, F10 – smí mít slova: Začít znovu,
   Odhlásit s e-mailem v popisku, Zpět do hry; Začít znovu se živou vsí jen po potvrzení v panelu,
   bez dialogů prohlížeče, při zakládání vsi zamčené; otevření zruší umisťování i výběr, klávesy
