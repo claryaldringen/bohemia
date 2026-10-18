@@ -237,7 +237,7 @@ describe('newNotices – posvátná místa', () => {
     const before = view();
     const after = view({
       sacred: {
-        oaks: [{ id: 7, happiness: 5, ageYears: 310 }],
+        oaks: [{ id: 7, happiness: 5, ageYears: 310, snag: false }],
         groves: [{ id: 9, oaks: 12, squares: 9, happiness: 13, ageYears: 240 }],
         buildings: [],
       },
@@ -285,6 +285,20 @@ describe('newNotices – porážka a spřežení (diet.md, oxen.md)', () => {
     // stejný pohled podruhé nic, první načtení nic
     expect(newNotices(after, after)).toEqual([]);
     expect(newNotices(null, after)).toEqual([]);
+  });
+
+  it('posvátný dub uschl a posvátná souš padla – fakt', () => {
+    const after = view({
+      dayIndex: 1003,
+      chronicle: [
+        entry(1002, 'sacred-snag-fell', 'Posvátná souš padla.'),
+        entry(1001, 'sacred-oak-died', 'Posvátný dub stářím uschl – zůstala posvátná souš.'),
+      ],
+    });
+    expect(newNotices(view(), after)).toEqual([
+      { kind: 'sacred-oak-died', tone: 'warn', text: 'Posvátný dub uschl' },
+      { kind: 'sacred-snag-fell', tone: 'warn', text: 'Posvátná souš padla' },
+    ]);
   });
 
   it('spřežení dosloužilo – fakt', () => {

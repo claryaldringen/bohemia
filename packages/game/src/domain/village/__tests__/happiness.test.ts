@@ -105,7 +105,8 @@ describe('štěstí ve vsi', () => {
     const s = village();
     s.sacredOaks = [1, 2, 3].map((id) => ({ id, day: DAY, x: 0, z: 0 }));
     const target = happinessTarget(happinessFactors(s, DAY, 1));
-    expect(target).toBe(50 + 15 + 5); // tři posvátné duby a zásoby na 18 měsíců
+    // tři posvátné duby (bez vrstvy překážek jako nejmladší – po 1) a zásoby na 18 měsíců
+    expect(target).toBe(50 + 3 + 5);
     for (let day = DAY; day < DAY + 1461; day++) {
       updateHappiness(s, day, { satiation: 1, events: [], toil: false });
     }

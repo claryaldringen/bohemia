@@ -440,6 +440,10 @@ export type ChronicleEvent = { day: number } & (
     }
   /** Vesničané při mýcení ušetřili posvátný dub nebo dubový háj (happiness.md) – id místa. */
   | { kind: 'sacred-spared'; site: 'oak' | 'grove'; id: number }
+  /** Ušetřený posvátný dub stářím uschl – zůstala posvátná souš (happiness.md) – id dubu. */
+  | { kind: 'sacred-oak-died'; id: number }
+  /** Posvátná souš padla – místo už není posvátný dub (happiness.md) – id dubu. */
+  | { kind: 'sacred-snag-fell'; id: number }
   /** Z dlouhodobého provozu vznikla pevná cesta (roads.md) – id úseku. */
   | { kind: 'road-formed'; roadId: number }
   /** Nepoužívaná vyšlapaná cesta zarostla (roads.md – Zarůstání) – id úseku. */

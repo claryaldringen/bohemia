@@ -86,11 +86,23 @@ describe('SelectionPanel – ohrada', () => {
 
 describe('SelectionPanel – posvátný dub a háj', () => {
   it('posvátný dub: štěstí a stáří ikonou s číslem, popisek jen „Stáří (roky)“', () => {
-    const html = render({ kind: 'sacred-oak', id: 7, happiness: 5, ageYears: 1203 });
+    const html = render({ kind: 'sacred-oak', id: 7, happiness: 5, ageYears: 1203, snag: false });
     expect(html).toContain('>+5<');
     expect(text(html, 'selection-age')).toBe('1 203');
     expect(html).toContain('src="/icons/resources/date.png"');
     expect(html).toContain('Stáří (roky)');
+  });
+
+  it('posvátný dub má portrét dubu, souš portrét souše – jinak stejné stáří a štěstí', () => {
+    const oak = render({ kind: 'sacred-oak', id: 7, happiness: 5, ageYears: 450, snag: false });
+    expect(oak).toContain('src="/icons/build/dub.png"');
+    expect(oak).toContain('Posvátný dub');
+    const snag = render({ kind: 'sacred-oak', id: 7, happiness: 1, ageYears: 1180, snag: true });
+    expect(snag).toContain('src="/icons/build/sous.png"');
+    expect(snag).toContain('Posvátná souš');
+    expect(snag).not.toContain('dub.png');
+    expect(snag).toContain('>+1<');
+    expect(text(snag, 'selection-age')).toBe('1 180');
   });
 
   it('háj: stáří nejstaršího dubu vedle počtu dubů', () => {
@@ -100,7 +112,7 @@ describe('SelectionPanel – posvátný dub a háj', () => {
   });
 
   it('neznámé stáří se neukáže', () => {
-    const html = render({ kind: 'sacred-oak', id: 7, happiness: 5, ageYears: null });
+    const html = render({ kind: 'sacred-oak', id: 7, happiness: 5, ageYears: null, snag: false });
     expect(html).not.toContain('selection-age');
     expect(html).not.toContain('Stáří');
   });

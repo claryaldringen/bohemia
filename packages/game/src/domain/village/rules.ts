@@ -491,9 +491,39 @@ export const HAPPINESS_BONUS = { storesYears: 1, stores: 5, sacredMax: 40 } as c
 // se násobí – štěstí 0 → × 0,8, 50 → × 1, 100 → × 1,1, mezi tím lineárně
 export const HAPPINESS_LABOR = { atMin: 0.8, atBase: 1, atMax: 1.1 } as const;
 
-// happiness.md – Posvátná místa: posvátný dub +5 (nejvýš 3 duby), dubový háj +10 a +1 za každé
-// 2 duby nad 6, nejvýš +15 za háj (nejvýš 2 háje); pod korunou dubu na poli se neoseje ≈ 50 m²
-export const SACRED_OAK = { happiness: 5, counted: 3, crownM2: 50 } as const;
+// happiness.md – Posvátná místa: posvátný dub podle stáří (`SACRED_OAK_HAPPINESS`, nejvýš 3 duby
+// – ty, které přidávají nejvíc), dubový háj +10 a +1 za každé 2 duby nad 6, nejvýš +15 za háj
+// (nejvýš 2 háje); pod korunou dubu na poli se neoseje ≈ 50 m²
+export const SACRED_OAK = { counted: 3, crownM2: 50 } as const;
+// happiness.md – Posvátný dub – stáří a štěstí (Martin 18. 10. 2026: „čím jsou starší, tím víc
+// štěstí přidávají. Nejmladší 1, nejstarší 10.“): živý dub stáří `youngYears` přidá `young`,
+// stáří `oldYears` (nejvyšší možná délka života) `old`; mezi tím podle logaritmu stáří, na celé
+// body (návrh Clauda – každé zdvojnásobení stáří přidá stejně, ≈ 2,4 bodu: 200 let 2, 400 let 4,
+// 600 let 6, 1000 let 8, 1400 let 9; lineárně by 200 a 600 let dalo 1 a 3). Posvátná souš
+// (uschlý dub) přidá `snag` (návrh Clauda), padlá souš nic.
+export const SACRED_OAK_HAPPINESS = {
+  youngYears: 150,
+  oldYears: 2000,
+  young: 1,
+  old: 10,
+  snag: 1,
+} as const;
+// happiness.md – Posvátný dub – délka života (Martin 18. 10. 2026: „mohou stářím uschnout, ale ať
+// je to variabilní … ať se ty nejstarší mohly dožít až 2000 let“; rozdělení návrh Clauda):
+// délka života = `minYears` + (`maxYears` − `minYears`) × B, kde B je `rank`. nejmenší z `draws`
+// náhodných čísel (rozdělení Beta(2, 4)) – ≈ 81 % dubů se dožije 800–1400 let (nejčastěji
+// ≈ 1100, průměr 1200), ≈ 19 % déle, přes 1700 let ≈ 1,6 % a 2000 let nikdo nepřekročí. Uschne
+// v létě, když přijde sucho (některý z `death.days` dní od 1. `death.month` – červen až srpen);
+// souš stojí `snagYears` let (rovnoměrně) a padne v kterýkoli den roku. Náhoda je z id a polohy
+// dubu ve vrstvě – stejný dub má stejný život v každé vsi.
+export const SACRED_OAK_LIFE = {
+  minYears: 800,
+  maxYears: 2000,
+  draws: 5,
+  rank: 2,
+  death: { month: 6, days: 92 },
+  snagYears: [50, 100],
+} as const;
 export const GROVE = {
   minOaks: 6,
   radiusM: 25,

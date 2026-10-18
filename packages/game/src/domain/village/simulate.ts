@@ -44,6 +44,8 @@ import { overgrowthDay } from './overgrowth';
 import { roadsDay } from './paths/roads';
 import { refreshWalkDistances } from './paths/village';
 import { relocationPlot } from './plots';
+import { villageSacredOaks } from './sacred';
+import { sacredOakEvents } from './sacred-life';
 import { allocateDay, type LaborTaskName } from './labor';
 import { laborDay, type ConstructionWork } from './labor-report';
 import {
@@ -207,6 +209,8 @@ function simulateDay(
   state.chronicle.push(...overgrowthDay(state, day, obstacles ?? landscape));
   // stáda, seno a ohrady: mláďata, seč, porážka, vejce, zimní krmení, spřežení (diet.md, oxen.md)
   state.chronicle.push(...husbandryDay(state, day, coverage.tools, landscape, obstacles));
+  // ušetřené posvátné duby stářím usychají a souše padají – den plyne z dubu (happiness.md)
+  state.chronicle.push(...sacredOakEvents(villageSacredOaks(state), obstacles, day));
   if (isOn(date, PLANNING_DAY)) planYear(state, day, coverage);
   if (date.month >= PLANNING_DAY.month || date.month <= LAST_JOIN_MONTH) {
     joinFinishedParts(state, day, coverage);
@@ -234,7 +238,7 @@ function simulateDay(
   state.chronicle.push(...events);
   // štěstí na konci dne – hlad, úmrtí, přeplněnost, dřina, zásoby, ovoce a posvátná místa
   // (happiness.md, diet.md)
-  updateHappiness(state, day, { satiation, events, toil, fruit });
+  updateHappiness(state, day, { satiation, events, toil, fruit, obstacles });
   if (state.people.length === 0) {
     // zemřel poslední člověk – ves vymřela, dál se nesimuluje (ani sklizeň dne)
     state.extinctDay = day;
