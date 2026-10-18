@@ -9,7 +9,15 @@ import {
   type ReactElement,
 } from 'react';
 import { DWELLING_FOOTPRINT_M, type Landscape } from '@bohemia/game';
-import { PART_COLORS, minimapImage, minimapToWorld, worldToMinimap } from '@/lib/minimap';
+import {
+  CEMETERY_COLOR,
+  ORCHARD_COLOR,
+  PART_COLORS,
+  minimapImage,
+  minimapToWorld,
+  worldToMinimap,
+} from '@/lib/minimap';
+import type { ClearedForest } from '@/lib/scene/cleared-forest';
 import type { LandscapeScene, ViewFootprint } from '@/lib/scene/landscape-scene';
 import type { SceneVillage } from '@/lib/village-view';
 
@@ -19,8 +27,9 @@ const SIZE_PX = 196;
 const IMAGE_PX = 256;
 
 /**
- * Minimapa vlevo dole (jako v 0 A.D.): krajina sídla shora (voda, les, louka, skála), pole,
- * obydlí a obrys záběru kamery. Kliknutí nebo tažení přesune pohled.
+ * Minimapa vlevo dole (jako v 0 A.D.): krajina sídla shora (voda, les – vykácený řídne do
+ * paseky, louka, skála), pole, hřbitovy, sady, obydlí a obrys záběru kamery. Kliknutí nebo
+ * tažení přesune pohled.
  */
 export function Minimap({
   landscape,
@@ -34,8 +43,10 @@ export function Minimap({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [view, setView] = useState<ViewFootprint | null>(null);
   const dragging = useRef(false);
+  // vymýcený les počítá scéna (její vrstva překážek) a ohlásí jen znatelnou změnu
+  const [cleared, setCleared] = useState<ClearedForest | null>(null);
 
-  // Obrázek krajiny se spočítá jednou (krajina sídla se nemění).
+  // Obrázek krajiny se přepočítá jen při změně vymýceného lesa (krajina sídla se nemění).
   const base = useMemo(() => {
     if (typeof document === 'undefined') return null;
     const image = document.createElement('canvas');
@@ -44,12 +55,13 @@ export function Minimap({
     const context = image.getContext('2d');
     if (!context) return null;
     const pixels = new ImageData(IMAGE_PX, IMAGE_PX);
-    pixels.data.set(minimapImage(landscape, IMAGE_PX));
+    pixels.data.set(minimapImage(landscape, IMAGE_PX, cleared));
     context.putImageData(pixels, 0, 0);
     return image;
-  }, [landscape]);
+  }, [landscape, cleared]);
 
   useEffect(() => scene?.onViewChange(setView), [scene]);
+  useEffect(() => scene?.onClearedForestChange(setCleared), [scene]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -75,6 +87,24 @@ export function Minimap({
         const [r, g, b] = PART_COLORS[part.stage];
         context.fillStyle = `rgb(${r} ${g} ${b})`;
         const p = at(part.x, part.z);
+        context.fillRect(p.x - cellPx / 2, p.y - cellPx / 2, cellPx + 0.3, cellPx + 0.3);
+      }
+    }
+    // hřbitovy po čtvercích (zakládané průsvitné)
+    for (const cemetery of village.cemeteries ?? []) {
+      const [r, g, b] = CEMETERY_COLOR;
+      context.fillStyle = `rgb(${r} ${g} ${b} / ${cemetery.built ? 1 : 0.55})`;
+      for (const square of cemetery.squares) {
+        const p = at(square.x, square.z);
+        context.fillRect(p.x - cellPx / 2, p.y - cellPx / 2, cellPx + 0.3, cellPx + 0.3);
+      }
+    }
+    // sady po čtvercích (čtverce, které se ještě sázejí, průsvitné)
+    for (const orchard of village.orchards ?? []) {
+      const [r, g, b] = ORCHARD_COLOR;
+      for (const square of orchard.squares) {
+        context.fillStyle = `rgb(${r} ${g} ${b} / ${square.planting >= 1 ? 1 : 0.55})`;
+        const p = at(square.x, square.z);
         context.fillRect(p.x - cellPx / 2, p.y - cellPx / 2, cellPx + 0.3, cellPx + 0.3);
       }
     }

@@ -1,3 +1,4 @@
+import type { ObstacleKind } from '../landscape';
 import type { Bounds, DwellingType, FieldSurface, FieldTask, TaskName } from './types';
 
 // Meze produktivity (Martin, oprava podle rešerše 17. 10. 2026 – docs/design/research/): práce
@@ -6,6 +7,9 @@ import type { Bounds, DwellingType, FieldSurface, FieldTask, TaskName } from './
 // pokrytí (productivity.ts). Kovář posouvá práci (nástroje), hrnčíř ztráty zásob a denní
 // minimum (nádoby). Kde literatura dává jedno číslo, platí obojí. Řemesla zatím nejsou –
 // volající předávají pokrytí 0 (NO_CRAFTS), tedy `worst`.
+
+/** Úsek okna prací – od měsíce do měsíce včetně (1–12). */
+export type WindowSegment = readonly [number, number];
 
 // population.md – Pojmy (tabulka obydlí: kapacita, cena, životnost), Chátrání a přestavba (opravy, dětská úmrtnost)
 // Životnost zemnice 18 let (oprava podle rešerše, bylo 15): potřeba oprav roste s (věk / životnost)²,
@@ -104,6 +108,14 @@ export const FOUNDING_COST_PER_HA: Record<FieldSurface, Bounds> = {
   shrub: { worst: 100, best: 60 },
   forest: { worst: 250, best: 150 },
 };
+// fields.md – Založení pole (sazba povrchu za hektar v sobě má, co povrch tvoří: v lese stromy
+// i se suchými, padlými a pařezy a podrost – „stromy v ceně“, v křovinách keře; po kusech se
+// na takovém čtverci platí jen ostatní překážky – kameny, balvany, v křovinách i stromy)
+export const SURFACE_INCLUDED_OBSTACLES: Record<FieldSurface, readonly ObstacleKind[]> = {
+  meadow: [],
+  shrub: ['shrub'],
+  forest: ['tree', 'youngTree', 'snag', 'fallenTree', 'stump', 'shrub'],
+};
 // fields.md – Založení pole (překážky na díle, práce navíc)
 export const OBSTACLE_COST = {
   stone: 1,
@@ -125,11 +137,22 @@ export const DAILY_MIN_PER_HOUSEHOLD: Bounds = { worst: 0.5, best: 0.45 };
 export const DOMESTIC = { perHousehold: 0.3, perPerson: 0.15, backlogMaxDays: 60 } as const;
 // population.md – Nové obydlí (společná práce za posledních 30 dní pro „má na to“)
 export const COMMON_LABOR_HISTORY_DAYS = 30;
+// cemetery.md – Pravidla (stavba: vytyčení a ohrazení 10 člověkodní na čtverec; hrob i s uličkami
+// 4 m², na čtverec 15 × 15 m se vejde 56 hrobů)
+export const CEMETERY = { costPerSquare: 10, graveM2: 4, gravesPerSquare: 56 } as const;
+// cemetery.md – Hygiena (pohřebiště s volným místem: od nejbližšího obydlí v pořádku od 150 m,
+// nejhorší pod 50 m; od vody v pořádku od 100 m, nejhorší pod 30 m; mezi tím plynule, násobí se)
+export const CEMETERY_DISTANCE_M = {
+  dwelling: { worst: 50, ok: 150 },
+  water: { worst: 30, ok: 100 },
+} as const;
+// cemetery.md – Vliv na úmrtnost (roční riziko × 1 + extra × (1 − hygiena); hájení chrání)
+export const HYGIENE_DEATH_EXTRA = { child: 0.5, adult: 0.3, elder: 0.3 } as const;
 // population.md – Kronika (ves drží posledních 500 událostí, starší se zahazují)
 export const CHRONICLE_MAX_EVENTS = 500;
 
 // fields.md – Práce, tabulka Kdy (okna prací v měsících včetně; kopání, které se na podzim nestihne, pokračuje v březnu–dubnu)
-export const WINDOWS: Record<TaskName, readonly (readonly [number, number])[]> = {
+export const WINDOWS: Record<TaskName, readonly WindowSegment[]> = {
   reclaim: [[9, 11]],
   dig: [
     [9, 11],
@@ -143,6 +166,40 @@ export const WINDOWS: Record<TaskName, readonly (readonly [number, number])[]> =
     [1, 2],
   ],
 };
+// orchard.md – Pravidla (Martin – oprava podle rešerše 17. 10. 2026): výsadba 80 člověkodní/ha
+// (+ překážky jako u pole), péče v zimě 10 člověkodní/ha ročně, sklizeň 8 člověkodní/ha při plné
+// úrodě (při menší úrodě poměrně méně); první jablka 6. rok po výsadbě, úroda lineárně do plné
+// úrody 25. rok, plná do 50. roku, pak lineárně k nule v 60. roce – tehdy se sad vrátí v louku;
+// plná úroda ≈ 3 t jablek/ha ročně
+export const ORCHARD = {
+  plantingPerHa: 80,
+  carePerHa: 10,
+  harvestPerHa: 8,
+  fullYieldKgPerHa: 3000,
+  firstFruitYear: 6,
+  fullYieldYear: 25,
+  declineAfterYear: 50,
+  endYear: 60,
+} as const;
+// orchard.md – Úroda (jablka mají asi 1/7 výživy obilí na kg: 3 t jablek ≈ 430 kg obilí)
+export const APPLE_FOOD_VALUE = 1 / 7;
+// orchard.md – okna prací v měsících včetně: výsadba na jaře nebo na podzim jako kopání (návrh
+// Clauda), péče (prořezávání) v zimě, sklizeň v září–říjnu. Sezóny péče a sklizně začínají
+// prvním dnem prvního měsíce a končí prvním dnem po posledním měsíci (péče 1. 12. – 1. 3.).
+export const ORCHARD_PLANTING_WINDOWS = WINDOWS.dig;
+export const ORCHARD_WINDOWS: Record<'harvest' | 'care', readonly WindowSegment[]> = {
+  harvest: [[9, 10]],
+  care: [
+    [12, 12],
+    [1, 2],
+  ],
+};
+// orchard.md – Jídlo (jablka se jí přednostně; co zbude k 1. 3., shnije – před jídlem dne)
+export const APPLE_ROT_DAY = { month: 3, day: 1 } as const;
+// orchard.md – Rok sadu (návrh Clauda): hospodářský rok sadu začíná na jaře 1. 3. – jarní
+// výsadba je 1. rokem sadu hned, podzimní (od září) až od příštího jara
+export const ORCHARD_SEASON = { startMonth: 3, autumnPlantingFromMonth: 9 } as const;
+
 // fields.md – Kolik ves oseje (k 1. září), Práce a Včasnost (sklizeň do konce srpna, výmlat do
 // konce února). Musí souhlasit s WINDOWS: sklizeň je poslední den okna harvest, plán den po ní,
 // konec výmlatu den po konci okna thresh (hlídá rules.test.ts).
@@ -162,6 +219,43 @@ export const DWELLING_FOOTPRINT_M: Record<DwellingType, { width: number; depth: 
   polozemnice: { width: 5, depth: 5 },
 };
 export const DWELLING_MAX_HEIGHT_DIFF_M = 0.5;
+// population.md – Umístění obydlí (překážky na místě osadníci odstraní), fields.md – Co je
+// překážka (obydlí: kusy na ploše ≈ 10 × 10 m kolem půdorysu). Plocha v souřadnicích modelu
+// (x napříč, z k vchodu, m) – staveniště s hromadou hlíny a střecha předsazená před štíty;
+// scéna podle ní kreslí staveniště (DWELLING_CLEARANCE_M).
+export const DWELLING_CLEARING_M: Record<
+  DwellingType,
+  { minX: number; maxX: number; minZ: number; maxZ: number }
+> = {
+  zemnice: { minX: -4.8, maxX: 4.8, minZ: -4.4, maxZ: 7.5 },
+  polozemnice: { minX: -5.1, maxX: 5.1, minZ: -4.7, maxZ: 7.5 },
+};
+// fields.md – Překážka na louce (skalní výchoz se neodstraní, plocha pod ním se nepočítá):
+// poloměr výchozu (m) na jednotku velikosti modelu (modely skal 0 A.D. mají půdorys ≈ 6 m)
+export const OUTCROP_RADIUS_M = 3;
+// forest.md – Les ustupuje (oprava podle rešerše, schválil Martin): z pařezu vyroste nálet
+// a pokácený strom je ≈ za 30 let mladý stromek, za ≈ 70 let zase dospělý strom (dá se kácet)
+export const TREE_SAPLING_AFTER_YEARS = 30;
+export const TREE_REGROWTH_YEARS = 70;
+// forest.md – Stavby a kácení (Martin – oprava podle rešerše 17. 10. 2026): strom = velký strom;
+// zemnice ≈ 7 stromů, polozemnice ≈ 18 stromů; přestavba stejně jako nová stavba
+export const DWELLING_TREES: Record<DwellingType, number> = { zemnice: 7, polozemnice: 18 };
+// forest.md – Kácení: skácení a dovoz 2 člověkodny za strom, +1 % za každých 10 m nad 100 m od
+// staveniště (vzdálenost jako u polí – DISTANCE). U blízkého lesa stojí stavba práci jako dřív –
+// cena obydlí (DWELLINGS.cost) v sobě kácení blízkého lesa už má (dwellingBuildLabor).
+export const FELLING_MAN_DAYS_PER_TREE = 2;
+// forest.md – Mýcení a hromada klád: dospělý strom z mýcení (pole, hřbitov, staveniště) = 1 kláda
+export const LOGS_PER_CLEARED_TREE = 1;
+// forest.md – Klády hnijí (Martin – oprava podle rešerše 17. 10. 2026): ≈ 4 % ročně
+export const LOG_ROT_PER_YEAR = 0.04;
+// forest.md – Palivo: palivová část domácí výroby (návrh Clauda: třetina) je o 1 % dražší za
+// každých 10 m nad 100 m od obydlí k nejbližšímu okraji lesa (vzdálenost jako u polí – DISTANCE)
+export const FUEL_DOMESTIC_SHARE = 1 / 3;
+
+/** Práce na obydlí bez dřeva – cena obydlí minus kácení jeho stromů u blízkého lesa. */
+export function dwellingBuildLabor(type: DwellingType): number {
+  return DWELLINGS[type].cost - DWELLING_TREES[type] * FELLING_MAN_DAYS_PER_TREE;
+}
 // fields.md – Zarůstání (stadia přílohu podle celých let bez péče; víc než 15 let = les)
 export const OVERGROWTH_STAGES = [
   { maxYears: 2, stage: 'young-fallow' },

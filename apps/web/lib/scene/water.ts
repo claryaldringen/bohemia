@@ -11,6 +11,7 @@ import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import type { Scene } from '@babylonjs/core/scene';
 import { HEIGHT_SCALE } from './constants';
 import type { RenderSurface } from './render-surface';
+import type { Rgb } from './season-look';
 import { WATER_VISIBILITY_M, waterClarity } from './stream-geometry';
 
 /** Vodní plocha sahá kousek za okraj vody, aby okraj mohl plynule vyblednout (m). */
@@ -37,6 +38,8 @@ export interface WaterSurface {
   mesh: Mesh;
   /** Nastaví čas animace vln (s). */
   animate(timeSeconds: number): void;
+  /** Roční období: násobek barev vody a barva odrazu oblohy (season-look.ts). */
+  setSeason(tint: Rgb, sky: Rgb): void;
 }
 
 /**
@@ -121,6 +124,11 @@ export function createWaterMesh(scene: Scene, surface: RenderSurface): WaterSurf
     animate(timeSeconds) {
       plugin.time = timeSeconds;
     },
+    setSeason(tint, sky) {
+      plugin.murky = MURKY_COLOR.multiplyByFloats(...tint);
+      plugin.clear = CLEAR_COLOR.multiplyByFloats(...tint);
+      plugin.sky = new Color3(...sky);
+    },
   };
 }
 
@@ -186,6 +194,9 @@ function createRippleNormalMap(scene: Scene): RawTexture {
  */
 class WaterPlugin extends MaterialPluginBase {
   time = 0;
+  murky = MURKY_COLOR;
+  clear = CLEAR_COLOR;
+  sky = SKY_REFLECTION;
 
   constructor(
     material: Material,
@@ -257,9 +268,9 @@ uniform vec3 waterSky;
     uniformBuffer.updateFloat2('waterRepeat', RIPPLE_REPEAT_M[0], RIPPLE_REPEAT_M[1]);
     uniformBuffer.updateFloat2('waterSpeed', FLOW_SPEED_MPS[0], FLOW_SPEED_MPS[1]);
     uniformBuffer.updateFloat2('waterVisibility', WATER_VISIBILITY_M[0], WATER_VISIBILITY_M[1]);
-    uniformBuffer.updateColor3('waterMurky', MURKY_COLOR);
-    uniformBuffer.updateColor3('waterClear', CLEAR_COLOR);
-    uniformBuffer.updateColor3('waterSky', SKY_REFLECTION);
+    uniformBuffer.updateColor3('waterMurky', this.murky);
+    uniformBuffer.updateColor3('waterClear', this.clear);
+    uniformBuffer.updateColor3('waterSky', this.sky);
     uniformBuffer.setTexture('waterRipples', this.ripples);
   }
 

@@ -1,25 +1,27 @@
 // Čistá geometrie vsi pro scénu (bez Babylonu): půdorysy, mnohoúhelníky, obtisky na terénu
 // a vzhled dílů pole podle stavu (geometrie polí po čtvercích je ve field-cells.ts). Souřadnice
 // světa scény v metrech (x, z).
-import type { DwellingType, PartStage, Position } from '@bohemia/game';
+import {
+  DWELLING_CLEARING_M,
+  type DwellingType,
+  type PartStage,
+  type Position,
+} from '@bohemia/game';
 import { cellsBounds, cellsContain } from './field-cells';
 import type { SceneField } from './village-types';
 
 export type Point = [number, number];
 
 /**
- * Kolik místa obydlí ve scéně zabere i s valy, rekvizitami a vyšlapanou hlínou před vchodem
- * (souřadnice modelu ve scéně: x napříč, z k vchodu). Stromy a kameny uvnitř se skryjí.
+ * Kolik místa obydlí ve scéně zabere i s valy, rekvizitami, staveništěm (hromada hlíny, hráň,
+ * snopy – village-construction.ts) a střechou předsazenou 1,05 m před štíty (souřadnice modelu
+ * ve scéně: x napříč, z k vchodu). Je to plocha, ze které osadníci odstraní překážky (herní
+ * jádro – `DWELLING_CLEARING_M`), proto je jen jedna.
  */
 export const DWELLING_CLEARANCE_M: Record<
   DwellingType,
   { minX: number; maxX: number; minZ: number; maxZ: number }
-> = {
-  // i se staveništěm (hromada hlíny, hráň, snopy – village-construction.ts) a střechou
-  // předsazenou 1,05 m před štíty
-  zemnice: { minX: -4.8, maxX: 4.8, minZ: -4.4, maxZ: 7.5 },
-  polozemnice: { minX: -5.1, maxX: 5.1, minZ: -4.7, maxZ: 7.5 },
-};
+> = DWELLING_CLEARING_M;
 
 /** Bod v souřadnicích modelu (x napříč, z k vchodu) → svět, natočení jako `mesh.rotation.y`. */
 export function localToWorld(position: Position, lx: number, lz: number): Point {

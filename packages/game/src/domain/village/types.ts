@@ -9,6 +9,10 @@ export interface Position {
 export interface Person {
   id: number;
   bornDay: number;
+  /**
+   * Domácnost = id obydlí. Zakladatelé vsi mají id první zemnice už během její stavby (bydlí na
+   * staveništi), obydlí s tím id vznikne až s dokončením.
+   */
   dwellingId: number;
 }
 export interface Dwelling {
@@ -17,6 +21,11 @@ export interface Dwelling {
   builtDay: number;
   condition: number /* 0–1 */;
   position: Position;
+  /**
+   * Vzdálenost obydlí k nejbližšímu okraji lesa (m) – z krajiny při zahájení stavby (simulace
+   * krajinu nemá); prodražuje palivo (forest.md – Palivo). U starších obydlí chybí (= les blízko).
+   */
+  forestDistanceM?: number;
 }
 export type PartState = 'founding' | 'ready' | 'sown' | 'fallow';
 /** Políčko krajiny – sloupec x a řádek y mřížky. */
@@ -39,6 +48,10 @@ export interface FieldPart {
   foundingDone: number;
   surface: FieldSurface; // povrch při založení
   cell?: TileCell; // políčko krajiny = čtverec pole, který díl zabírá
+  /** Překážky na čtverci (id z vrstvy překážek) – zmizí z krajiny, až osadníci díl založí. */
+  obstacles?: number[];
+  /** Dospělé stromy mezi překážkami – po založení dílu dají klády na hromadu (forest.md). */
+  trees?: number;
 }
 /** Pole – jeho čtverce jsou políčka jeho dílů (`FieldPart.cell`). */
 export interface Field {
@@ -46,7 +59,75 @@ export interface Field {
   /** @deprecated Obrys z prvního prototypu (pole se kreslila volným obrysem) – jen staré vsi. */
   outline?: [number, number][];
 }
-export type ConstructionKind = 'dwelling' | 'rebuild' | 'field';
+/** Čtverec pohřebiště – políčko krajiny, jeho střed ve světě (m) a vzdálenost od vody. */
+export interface CemeterySquare {
+  cell: TileCell;
+  x: number;
+  z: number;
+  /** Vzdálenost čtverce od nejbližší vody (m) – z krajiny při založení (simulace krajinu nemá). */
+  waterDistanceM: number;
+  /**
+   * Rozšíření ve stavbě – id stavby, která čtverec ohrazuje; do jejího dokončení se čtverec
+   * nepočítá (hroby, hygiena). Bez údaje je čtverec hotový se hřbitovem.
+   */
+  constructionId?: number;
+  /** Překážky na čtverci (id z vrstvy překážek) – zmizí z krajiny, až osadníci čtverec ohradí. */
+  obstacles?: number[];
+  /** Dospělé stromy mezi překážkami – po ohrazení čtverce dají klády na hromadu (forest.md). */
+  trees?: number;
+}
+/**
+ * Hřbitov (pohřebiště) – souvislá skupina čtverců (cemetery.md); hroby se plní a znovu
+ * nepoužívají. Rozšíření přidává čtverce na konec (`constructionId`, dokud se ohrazují).
+ */
+export interface Cemetery {
+  id: number;
+  squares: CemeterySquare[];
+  /** Strana čtverce (m) – vzdálenost od obydlí se měří k okraji čtverce. */
+  squareSizeM: number;
+  /** Obsazené hroby. */
+  graves: number;
+  /** Den dokončení (vytyčení a ohrazení); dokud se zakládá, null. */
+  builtDay: number | null;
+}
+/**
+ * Čtverec jabloňového sadu – políčko krajiny (orchard.md). Sází se jako stavba ze společné práce
+ * (od nejbližšího k obydlím), od výsadby stromy rostou a plodí podle roku sadu.
+ */
+export interface OrchardSquare {
+  cell: TileCell;
+  /** Plocha čtverce bez skalních výchozů (m²) – jako u dílu pole. */
+  areaM2: number;
+  /** Vzdálenost středu čtverce od nejbližšího obydlí při založení (m) – práce v sadu dražší. */
+  distanceM: number;
+  /** Výsadba: člověkodny (80/ha + překážky) a kolik je hotovo. */
+  plantingCost: number;
+  plantingDone: number;
+  /** Den, kdy osadníci čtverec vysadili; dokud se sází, null. */
+  plantedDay: number | null;
+  /**
+   * Překážky na čtverci (id z vrstvy překážek) – zmizí z krajiny, jakmile ho osadníci začnou
+   * sázet (vyklizení je první část výsadby).
+   */
+  obstacles?: number[];
+  /** Dospělé stromy mezi překážkami – s vyklizením čtverce dají klády na hromadu (forest.md). */
+  trees?: number;
+}
+/** Jabloňový sad – souvislá skupina čtverců (orchard.md). */
+export interface Orchard {
+  id: number;
+  squares: OrchardSquare[];
+}
+/** Sezónní práce v sadech celé vsi – sklizeň (září–říjen), nebo péče (prosinec–únor). */
+export interface OrchardWork {
+  task: 'harvest' | 'care';
+  /** Potřebné a hotové člověkodny. */
+  required: number;
+  done: number;
+  /** Sklizeň: kg jablek při plné sklizni (péče 0). */
+  yieldKg: number;
+}
+export type ConstructionKind = 'dwelling' | 'rebuild' | 'field' | 'cemetery' | 'orchard';
 export interface Construction {
   id: number;
   kind: ConstructionKind;
@@ -55,8 +136,34 @@ export interface Construction {
   done: number;
   dwellingType: DwellingType | null;
   position: Position | null; // dwelling
-  dwellingId: number | null; // rebuild
+  /** rebuild: přestavované obydlí; dwelling: domácnost zakladatelů (první zemnice), jinak null. */
+  dwellingId: number | null;
   fieldId: number | null; // field – zakládá díly od nejbližšího
+  cemeteryId?: number | null; // cemetery (u starších staveb chybí)
+  orchardId?: number | null; // orchard – vysazuje čtverce od nejbližšího (u ostatních chybí)
+  /** Dřevo obydlí a přestavby (forest.md); u starších staveb a polí chybí. */
+  wood?: ConstructionWood;
+  /** Nové obydlí: vzdálenost k nejbližšímu okraji lesa (m) – obydlí ji po dostavění převezme. */
+  forestDistanceM?: number;
+}
+/**
+ * Dřevo stavby (forest.md – Stavby a kácení): kolik ho stavba spotřebuje, kolik klád vzala při
+ * zahájení z hromady a které stromy se pro ni kácí. Stromy jsou vyhrazené od zahájení a kácí se
+ * jako první část práce stavby – pokácený strom nechá pařez (`felledTrees`).
+ */
+export interface ConstructionWood {
+  /** Dřevo, které stavba spotřebuje (stromy = klády). */
+  trees: number;
+  /** Klády vzaté při zahájení z hromady. */
+  fromPile: number;
+  /**
+   * Stromy ke kácení v pořadí kácení (nejbližší ke staveništi první): id z vrstvy překážek (null =
+   * kácení bez polohy – ves bez vrstvy překážek, jen testy) a práce za skácení a dovoz
+   * (člověkodny, i se vzdáleností).
+   */
+  fell: { id: number | null; cost: number }[];
+  /** Kolik stromů z `fell` už je pokácených. */
+  felled: number;
 }
 export type TaskName = 'reclaim' | 'dig' | 'sow' | 'weed' | 'harvest' | 'thresh';
 /** Polní práce s pevnou sazbou na osetý hektar (vracení přílohu se počítá podle stáří přílohu). */
@@ -74,6 +181,8 @@ export interface CraftCoverage {
   readonly tools: number;
   readonly pottery: number;
 }
+/** Sezónní práce v sadech (orchard.md) – v rozdělení práce vedle polních prací. */
+export type OrchardTaskName = 'orchard-care' | 'orchard-harvest';
 export interface YearPlan {
   plannedDay: number;
   partIds: number[];
@@ -95,9 +204,21 @@ export type ChronicleEvent = { day: number } & (
     }
   | { kind: 'rebuild-decided'; dwellingId: number; type: DwellingType }
   | { kind: 'harvest'; kg: number }
+  /** Konec sklizně jablek (1. 11.) – kolik kg se sklidilo. */
+  | { kind: 'apple-harvest'; kg: number }
+  /** Sad dosloužil (60. rok) a vrátil se v louku. */
+  | { kind: 'orchard-gone'; orchardId: number }
   | { kind: 'hunger-began' }
   | { kind: 'hunger-ended' }
   | { kind: 'part-became-forest'; partId: number }
+  | {
+      kind: 'cemetery-full';
+      cemeteryId: number;
+      /** Jiný hotový hřbitov má volný hrob. */
+      othersFree: boolean;
+      /** Nějaký hřbitov nebo rozšíření se právě staví (u starších událostí chybí). */
+      othersBuilding?: boolean;
+    }
 );
 export interface VillageState {
   seed: number;
@@ -116,4 +237,30 @@ export interface VillageState {
   hungry: boolean;
   commonLaborHistory: number[]; // společná práce posledních 30 dní (pro „má na to“)
   chronicle: ChronicleEvent[];
+  /** Pohřebiště – u vsí uložených před zavedením pohřebišť chybí (= žádné). */
+  cemeteries?: Cemetery[];
+  /**
+   * Překážky krajiny odstraněné natrvalo i s pařezy (pole, obydlí, hřbitovy, sady). Chybí u vsí
+   * založených před vrstvou překážek – doplní je `withObstacleClearing`.
+   */
+  clearedObstacles?: ObstacleChange[];
+  /** Pokácené stromy – zbyl po nich pařez a z náletu znovu dorostou (TREE_REGROWTH_YEARS). */
+  felledTrees?: ObstacleChange[];
+  /** Jabloňové sady – u vsí uložených před zavedením sadů chybí (= žádné). */
+  orchards?: Orchard[];
+  /** Zásoby jablek (kg) – jí se před obilím, 1. 3. shnijí. Chybí = žádná. */
+  applesKg?: number;
+  /** Rozběhnutá sezónní práce v sadech (sklizeň, péče); chybí nebo null = žádná. */
+  orchardWork?: OrchardWork | null;
+  /**
+   * Klády na hromadě u vsi (forest.md – Mýcení a hromada klád) – z mýcení přibývají, stavby je
+   * berou, hnijí (proto i neceločíselné). U vsí uložených před dřevem chybí (= 0).
+   */
+  woodLogs?: number;
+}
+
+/** Změna krajiny sídla nad vygenerovanou vrstvou překážek – id překážky a den. */
+export interface ObstacleChange {
+  id: number;
+  day: number;
 }

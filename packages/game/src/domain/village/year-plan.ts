@@ -9,7 +9,7 @@ import {
   returnsFromForest,
 } from './fields';
 import { fieldWorkPerHa } from './productivity';
-import { SEED_KG_PER_HA, UNWEEDED_YIELD, WINDOWS } from './rules';
+import { SEED_KG_PER_HA, UNWEEDED_YIELD, WINDOWS, type WindowSegment } from './rules';
 import type { FieldPart, FieldTask, TaskName, YearPlan } from './types';
 
 const M2_PER_HA = 10_000;
@@ -95,9 +95,16 @@ function workedShare(plan: YearPlan, task: TaskName): number {
   return workable > 0 ? Math.min(1, plan.done[task] / workable) : 1;
 }
 
-/** Konec aktuálního úseku okna v měsících; navazující úsek od ledna se přičte (mlácení do konce února). */
+/** Konec aktuálního úseku okna úlohy v měsících (viz `windowEndOf`). */
 function windowEnd(task: TaskName, month: number): number | null {
-  const segments = WINDOWS[task];
+  return windowEndOf(WINDOWS[task], month);
+}
+
+/**
+ * Konec aktuálního úseku okna v měsících; navazující úsek od ledna se přičte (mlácení do konce
+ * února = 14). Mimo okno null. Podle konce se řadí sezónní práce – nejbližší konec první.
+ */
+export function windowEndOf(segments: readonly WindowSegment[], month: number): number | null {
   const current = segments.find(([from, to]) => month >= from && month <= to);
   if (!current) return null;
   const [, to] = current;

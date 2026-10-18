@@ -10,8 +10,24 @@ export interface LayerVersions {
   terrain: 1;
   vegetation: 1;
   fertility: 1;
+  /**
+   * Vrstva překážek (stromy, keře, kameny – `generateObstacles`). Chybí u sídel založených před
+   * jejím vznikem – nová vrstva platí pro všechna sídla, takže u nich je to verze 1.
+   */
+  obstacles?: 1;
 }
-export const CURRENT_LAYER_VERSIONS: LayerVersions = { terrain: 1, vegetation: 1, fertility: 1 };
+export const CURRENT_LAYER_VERSIONS: LayerVersions = {
+  terrain: 1,
+  vegetation: 1,
+  fertility: 1,
+  obstacles: 1,
+};
+
+/** Seed a verze vrstvy překážek, ze kterých ji `generateObstacles` vygeneruje (líně). */
+export interface ObstacleLayerSeed {
+  readonly seed: number;
+  readonly version: 1;
+}
 
 /**
  * Bod osy potoka, seřazené po proudu. Souřadnice v políčkách (celé číslo = střed políčka),
@@ -43,6 +59,11 @@ export interface Landscape {
   readonly villageSite: { x: number; y: number };
   /** Osa potoka s šířkou břehů a hladinou (pro vykreslení koryta). */
   readonly stream: readonly StreamPoint[];
+  /**
+   * Vrstva překážek se negeneruje s krajinou (stovky ms) – až když je potřeba, ze seedu a verze
+   * (`obstaclesOf`). null = krajina bez překážek (ručně vyrobená krajina v testech).
+   */
+  readonly obstacleLayer: ObstacleLayerSeed | null;
 }
 
 export function surfaceAt(landscape: Landscape, x: number, y: number): Surface {

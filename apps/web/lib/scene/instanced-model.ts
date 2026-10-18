@@ -15,6 +15,8 @@ export interface ModelInstance {
   scale: number;
   /** Naklonění: svislá osa modelu míří sem (jednotkový vektor), jinak stojí svisle. */
   up?: { x: number; y: number; z: number };
+  /** Id překážky ve vrstvě překážek – podle něj se instance skryje (vykácený strom…). */
+  id?: number;
 }
 
 /**
@@ -32,22 +34,42 @@ export async function addInstancedModel(
   if (instances.length === 0) return null;
   const model = await loadMergedModel(scene, url, name, prepareMaterial);
   if (!model) return null;
-  setStaticInstances(model, instanceMatrices(instances));
+  setStaticInstances(model, instanceMatrices(instances), { ids: instanceIds(instances) });
   return model;
 }
 
-/** Původní matice instancí nehybných meshů (stromy, dekorace) – pro skrývání pod vsí. */
-const staticInstances = new WeakMap<Mesh, Float32Array>();
-
-/** Nastaví meshi nehybné instance a zapamatuje si jejich matice (Babylon drží stejné pole). */
-export function setStaticInstances(mesh: Mesh, matrices: Float32Array): void {
-  mesh.thinInstanceSetBuffer('matrix', matrices, 16, true);
-  staticInstances.set(mesh, matrices);
+/** Nehybné instance meshe: matice (16 čísel na instanci) a k nim id překážek a barvy. */
+export interface StaticInstances {
+  matrices: Float32Array;
+  /** Id překážky u každé instance – jen když ho mají všechny (stromy a kameny krajiny). */
+  ids?: Uint32Array;
+  /** Barva instance (4 čísla) – impostory. */
+  colors?: Float32Array;
 }
 
-/** Matice instancí z `setStaticInstances`, nebo undefined. */
-export function staticInstanceMatrices(mesh: Mesh): Float32Array | undefined {
+/** Původní instance nehybných meshů (stromy, dekorace) – pro skrývání pod vsí a kácení. */
+const staticInstances = new WeakMap<Mesh, StaticInstances>();
+
+/** Nastaví meshi nehybné instance a zapamatuje si je (Babylon drží stejná pole). */
+export function setStaticInstances(
+  mesh: Mesh,
+  matrices: Float32Array,
+  extra: { ids?: Uint32Array; colors?: Float32Array } = {},
+): void {
+  mesh.thinInstanceSetBuffer('matrix', matrices, 16, true);
+  if (extra.colors) mesh.thinInstanceSetBuffer('color', extra.colors, 4, true);
+  staticInstances.set(mesh, { matrices, ...extra });
+}
+
+/** Instance z `setStaticInstances`, nebo undefined. */
+export function staticInstancesOf(mesh: Mesh): StaticInstances | undefined {
   return staticInstances.get(mesh);
+}
+
+/** Id překážek instancí – jen když je mají všechny instance, jinak undefined. */
+export function instanceIds(instances: readonly { id?: number }[]): Uint32Array | undefined {
+  if (instances.length === 0 || instances.some((i) => i.id === undefined)) return undefined;
+  return Uint32Array.from(instances, (i) => i.id!);
 }
 
 /**

@@ -1,4 +1,5 @@
 import { createRandom, deriveSeed } from '../landscape/random';
+import { bury, hygieneDeathFactor, villageHygiene } from './cemetery';
 import { isOvercrowded } from './dwellings';
 import { ageGroup, ageYears, isAdult, isFertile, occupants } from './people';
 import {
@@ -40,7 +41,10 @@ function baseDeathsPerYear(group: 'child' | 'adult' | 'elder', dwellingType: Dwe
   return group === 'adult' ? ADULT_DEATHS_PER_YEAR : ELDER_DEATHS_PER_YEAR;
 }
 
-/** Pravděpodobnost úmrtí člověka za den (hájení, přeplněnost a hlad zahrnuty). */
+/**
+ * Pravděpodobnost úmrtí člověka za den (hájení, přeplněnost, hlad a hygiena zahrnuty).
+ * Hygiena 0–1 z pohřebišť (cemetery.md); bez údaje 1 – bez přirážky. Hájení chrání i před ní.
+ */
 export function deathChancePerDay(
   person: Person,
   ctx: {
@@ -50,17 +54,20 @@ export function deathChancePerDay(
     overcrowded: boolean;
     dwellingType: DwellingType;
     protectFromHunger: boolean;
+    hygiene?: number;
   },
 ): number {
   const group = ageGroup(person, ctx.day);
   const lucky = ctx.day - ctx.foundedDay < LUCKY_YEARS * DAYS_PER_YEAR;
   if (lucky && group !== 'child') return 0;
   const hunger = ctx.protectFromHunger ? 1 : 1 + HUNGER.deathExtraAtZero * (1 - ctx.satiation);
+  const hygiene = lucky ? 1 : hygieneDeathFactor(group, ctx.hygiene ?? 1);
   const yearly =
     baseDeathsPerYear(group, ctx.dwellingType) *
     (lucky ? LUCKY_CHILD_DEATH_FACTOR : 1) *
     (ctx.overcrowded ? CROWDED_DEATH_FACTOR : 1) *
-    hunger;
+    hunger *
+    hygiene;
   return 1 - (1 - Math.min(1, yearly)) ** (1 / DAYS_PER_RISK_YEAR);
 }
 
@@ -100,8 +107,9 @@ function dissolveHouseholds(state: VillageState, day: number): ChronicleEvent[] 
 }
 
 /**
- * Jeden den populace: úmrtí (lidé podle id), porody (obydlí podle id, jeden pokus na pár),
- * pak rozpad domácností. Mutuje stav a vrací události dne.
+ * Jeden den populace: úmrtí (lidé podle id, každý zemřelý se pohřbí – cemetery.md), porody
+ * (domácnosti podle id, jeden pokus na pár), pak rozpad domácností. Hygiena platí podle
+ * pohřebišť na začátku dne. Mutuje stav a vrací události dne.
  */
 export function populationDay(
   state: VillageState,
@@ -118,6 +126,7 @@ export function populationDay(
   }
 
   // úmrtí
+  const hygiene = villageHygiene(state);
   let livingAdults = state.people.filter((p) => ageYears(p.bornDay, day) >= AGE.adult).length;
   const dead = new Set<number>();
   for (const person of [...state.people].sort((a, b) => a.id - b.id)) {
@@ -129,22 +138,32 @@ export function populationDay(
       overcrowded: crowded.get(person.dwellingId) ?? false,
       dwellingType: typeOf.get(person.dwellingId) ?? 'zemnice',
       protectFromHunger: grownUp && livingAdults <= HUNGER_GUARD_ADULTS,
+      hygiene,
     });
     if (random.next() < chance) {
       dead.add(person.id);
       if (grownUp) livingAdults--;
       events.push({ day, kind: 'death', group: ageGroup(person, day) });
+      const full = bury(state, day);
+      if (full) events.push(full);
     }
   }
   state.people = state.people.filter((p) => !dead.has(p.id));
 
-  // porody – pár jsou dva lidé 16–44 let v jedné domácnosti
-  for (const d of [...state.dwellings].sort((a, b) => a.id - b.id)) {
-    const pairs = Math.floor(occupants(state, d.id).filter((p) => isFertile(p, day)).length / 2);
-    const chance = birthChancePerDay({ satiation, overcrowded: crowded.get(d.id) ?? false });
+  // porody – po domácnostech podle id (i zakladatelé na staveništi první zemnice; prázdné
+  // obydlí by stejně nemělo pár); pár jsou dva lidé 16–44 let v jedné domácnosti
+  const households = [...new Set(state.people.map((p) => p.dwellingId))].sort((a, b) => a - b);
+  for (const household of households) {
+    const pairs = Math.floor(
+      occupants(state, household).filter((p) => isFertile(p, day)).length / 2,
+    );
+    const chance = birthChancePerDay({
+      satiation,
+      overcrowded: crowded.get(household) ?? false,
+    });
     for (let i = 0; i < pairs; i++) {
       if (random.next() < chance) {
-        state.people.push({ id: state.nextId++, bornDay: day, dwellingId: d.id });
+        state.people.push({ id: state.nextId++, bornDay: day, dwellingId: household });
         events.push({ day, kind: 'birth' });
       }
     }

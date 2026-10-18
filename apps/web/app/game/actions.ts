@@ -3,8 +3,10 @@
 import { getSession } from '@/lib/session';
 import {
   foundVillageForPlayer,
+  placeCemeteryForPlayer,
   placeDwellingForPlayer,
   placeFieldForPlayer,
+  placeOrchardForPlayer,
   renameVillageForPlayer,
   villageViewForPlayer,
   type VillageActionResult,
@@ -12,8 +14,10 @@ import {
 } from '@/lib/village';
 import {
   parseFoundVillageInput,
+  parsePlaceCemeteryInput,
   parsePlaceDwellingInput,
   parsePlaceFieldInput,
+  parsePlaceOrchardInput,
   parseRenameVillageInput,
 } from '@/lib/village-input';
 
@@ -60,6 +64,30 @@ export async function placeField(input: unknown): Promise<VillageActionResult> {
   const parsed = parsePlaceFieldInput(input);
   if (parsed === null) return { error: INVALID_INPUT };
   return placeFieldForPlayer(id, parsed);
+}
+
+/**
+ * Založení pohřebiště po čtvercích (políčkách krajiny): `{ cells: { x, y }[] }`. Server
+ * umístění ověří znovu (`cemeteryPartsFromCells`); blízkost obydlí a vody jen varuje v náhledu.
+ */
+export async function placeCemetery(input: unknown): Promise<VillageActionResult> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  const parsed = parsePlaceCemeteryInput(input);
+  if (parsed === null) return { error: INVALID_INPUT };
+  return placeCemeteryForPlayer(id, parsed);
+}
+
+/**
+ * Založení jabloňového sadu po čtvercích (políčkách krajiny): `{ cells }`. Server umístění
+ * ověří znovu (`orchardPartsFromCells`).
+ */
+export async function placeOrchard(input: unknown): Promise<VillageActionResult> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  const parsed = parsePlaceOrchardInput(input);
+  if (parsed === null) return { error: INVALID_INPUT };
+  return placeOrchardForPlayer(id, parsed);
 }
 
 /** Přejmenování vsi: `{ name }`. */

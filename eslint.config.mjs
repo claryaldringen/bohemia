@@ -32,6 +32,52 @@ const domainRule = {
   group: ['**/application', '**/application/**'],
   message: 'Doména nesmí záviset na use-casech – závislosti míří jen dovnitř.',
 };
+// Determinismus: čas a náhoda přicházejí parametrem nebo přes port, nikdy z globálu.
+const determinismProperties = [
+  { object: 'Date', property: 'now', message: 'Čas předej parametrem (port Clock).' },
+  { object: 'Math', property: 'random', message: 'Náhodu předej přes port.' },
+];
+const determinismSyntax = [
+  {
+    selector: "NewExpression[callee.name='Date'][arguments.length=0]",
+    message: 'Čas předej parametrem (port Clock).',
+  },
+];
+// Vrstvu překážek počítá server i prohlížeč a musí jim vyjít bit po bitu stejně – jen operace,
+// které IEEE 754 zaokrouhluje přesně. Tyhle funkce jsou v JS „implementation-approximated“.
+const APPROXIMATED_MATH = [
+  'sin',
+  'cos',
+  'tan',
+  'atan',
+  'atan2',
+  'hypot',
+  'exp',
+  'log',
+  'pow',
+  'cbrt',
+];
+const exactMathProperties = APPROXIMATED_MATH.map((property) => ({
+  object: 'Math',
+  property,
+  message: 'Vrstva překážek musí být deterministická napříč enginy – použij det-math.ts.',
+}));
+const exactMathSyntax = [
+  {
+    selector: "BinaryExpression[operator='**'], AssignmentExpression[operator='**=']",
+    message: 'Mocnina ** je v JS přibližná – v deterministické vrstvě násob, nebo napiš konstantu.',
+  },
+];
+/** Soubory, ze kterých vzniká vrstva překážek (generuje ji server i prohlížeč). */
+const DETERMINISTIC_LAYER_FILES = [
+  'packages/game/src/domain/landscape/obstacles/**/*.ts',
+  'packages/game/src/domain/landscape/forest-field.ts',
+  'packages/game/src/domain/landscape/stream-geometry.ts',
+  'packages/game/src/domain/landscape/relief.ts',
+  'packages/game/src/domain/landscape/det-math.ts',
+  'packages/game/src/domain/landscape/quantize.ts',
+  'packages/game/src/domain/landscape/world.ts',
+];
 
 export default defineConfig(
   {
@@ -65,19 +111,8 @@ export default defineConfig(
     ignores: ['**/__tests__/**'],
     rules: {
       'no-restricted-imports': ['error', { patterns: [infrastructureRule] }],
-      // Determinismus: čas a náhoda přicházejí parametrem nebo přes port, nikdy z globálu.
-      'no-restricted-properties': [
-        'error',
-        { object: 'Date', property: 'now', message: 'Čas předej parametrem (port Clock).' },
-        { object: 'Math', property: 'random', message: 'Náhodu předej přes port.' },
-      ],
-      'no-restricted-syntax': [
-        'error',
-        {
-          selector: "NewExpression[callee.name='Date'][arguments.length=0]",
-          message: 'Čas předej parametrem (port Clock).',
-        },
-      ],
+      'no-restricted-properties': ['error', ...determinismProperties],
+      'no-restricted-syntax': ['error', ...determinismSyntax],
     },
   },
   {
@@ -85,6 +120,15 @@ export default defineConfig(
     ignores: ['**/__tests__/**'],
     rules: {
       'no-restricted-imports': ['error', { patterns: [infrastructureRule, domainRule] }],
+    },
+  },
+  {
+    // Pozdější pravidlo přepíše dřívější celé – proto i pravidla determinismu výše.
+    files: DETERMINISTIC_LAYER_FILES,
+    ignores: ['**/__tests__/**'],
+    rules: {
+      'no-restricted-properties': ['error', ...determinismProperties, ...exactMathProperties],
+      'no-restricted-syntax': ['error', ...determinismSyntax, ...exactMathSyntax],
     },
   },
   {

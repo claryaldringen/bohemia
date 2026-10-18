@@ -5,7 +5,10 @@
 // Strategie hráče:
 // - Syntetická krajina: 35 ha louky s úrodností 70 po dílech 225 m², vzdálenost od obydlí roste
 //   podle pořadí zakládání z 50 na 600 m; za loukou les s úrodností 60 (165 ha, 50–800 m podle
-//   pořadí). Překážky žádné.
+//   pořadí). Překážky žádné. Les jako vrstva překážek: dospělé stromy (hustota jako ve skutečné
+//   krajině, ≈ 258 na ha) na východ od vsi od 50 m dál – stavby z nich kácí nejbližší (dřevo,
+//   forest.md), díl lesa dá po založení klády za své stromy. Obydlí stojí 50 m od okraje lesa
+//   (palivo bez přirážky).
 // - Ves se zakládá zemnicí a prvním polem ≈ 1,7 ha (75 dílů) jako v Ukázce fields.md; den
 //   založení se mezi vesnicemi rozprostře přes celý rok 500 (všechna roční období).
 // - Hráč staví zemnici, kdykoli může – kontroluje po každém kroku (týden, v dlouhých bězích
@@ -16,7 +19,13 @@
 //   dřív 3,3), kde osev = roční potřeba × (1 + rezerva) / čistá úroda hektaru v průměru tří let
 //   osevu (tak osev vybírá i ves).
 // - Řemesla zatím nejsou – práce a ztráty se počítají s pokrytím NO_CRAFTS (horní meze).
-// - Druhá strategie „nikdy nestaví“: totéž bez nových obydlí – jediná domácnost.
+// - Hřbitov (cemetery.md): hráč ho založí hned po dostavění první zemnice – jeden čtverec 200 m
+//   od obydlí (všechna stojí v počátku) a 150 m od vody, hygiena 1 – a rozšíří ho o čtverec,
+//   když je z 80 % plný a žádné rozšíření se zrovna nestaví.
+// - Druhá strategie „nikdy nestaví“: totéž bez nových obydlí a bez hřbitova – jediná domácnost.
+// - Třetí strategie „staví a sází sad“ (orchard.md): jako první, a hned po dostavění první
+//   zemnice založí jabloňový sad 0,5 ha (22 čtverců 120 m od obydlí, mimo půdu pro pole) –
+//   jen informace, sad cíle polí a populace nemění.
 // - Sondy s pevným složením domácnosti (startovní: 2 dospělí a 2 děti 7–13 let; plná:
 //   4 dospělí a 2 malé děti): skript před každým krokem vrátí lidi do pevného složení, takže
 //   ves nestárne ani neroste – měří ustálený oběh, práci na obživu a špičky z Ukázky. Sonda
@@ -24,12 +33,14 @@
 //
 // Nasycení dne se počítá stejně jako v simulaci – ze stavu na konci předchozího dne. V krocích,
 // kde ves hladověla, skript přehraje jídlo den po dni ze začátku kroku a kroniky; když přehrané
-// zásoby nesedí s koncem kroku, přepočítá krok den po dni (výsledek na kouscích nezávisí).
+// zásoby nesedí s koncem kroku (nebo ves má jablka – sklízejí se postupně), přepočítá krok den po
+// dni (výsledek na kouscích nezávisí).
 // Vsi a sondy běží paralelně ve worker vláknech (každá ves je samostatná úloha).
 import { availableParallelism } from 'node:os';
 import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
 import { TOTAL_GAME_DAYS, dateOfDayIndex, dayIndexOf } from '../src/domain/calendar';
 import type { CalendarDate } from '../src/domain/calendar';
+import { packObstacles, type ObstaclePlacement } from '../src/domain/landscape';
 import {
   DWELLINGS,
   FERTILITY,
@@ -45,14 +56,22 @@ import {
   THRESH_END_DAY,
   advanceVillage,
   ageGroup,
+  buildAffordability,
+  cemeteryCapacity,
   dailyMinPerHousehold,
+  daysUntilAppleRot,
   daysUntilHarvest,
   eatDay,
+  eatMeal,
   fallowYears,
   foodNeedPerDay,
+  foundCemetery,
   foundField,
+  foundOrchard,
   foundVillage,
+  isAppleRotDay,
   grossYieldPerHa,
+  isCemeteryBuilding,
   laborPerDay,
   qualifyingDwellings,
   repairNeedPerDay,
@@ -113,6 +132,22 @@ const STEP_DAYS = config.years > 100 ? 28 : 7;
 const FIRST_YEAR = 500;
 const LAST_YEAR = 1499;
 const POSITION = { x: 0, z: 0, rotation: 0 };
+// les syntetické krajiny: stromy po čtvercové mřížce s roztečí pro ≈ 258 stromů na ha od 50 m na
+// východ od vsi (vrstva 128 × 15 m = ±960 m); díl lesa (225 m²) má ≈ 5,8 stromu
+const TREES_PER_HA = 258;
+const FOREST_EDGE_M = 50;
+const FOREST = ((): ReturnType<typeof packObstacles> => {
+  const spacing = Math.sqrt(M2_PER_HA / TREES_PER_HA);
+  const trees: ObstaclePlacement[] = [];
+  let id = 1;
+  for (let x = FOREST_EDGE_M; x < 950; x += spacing) {
+    for (let z = -950; z < 950; z += spacing) {
+      trees.push({ id: id++, kind: 'tree', look: 'oak-1', x, z, rotation: 0, scale: 1 });
+    }
+  }
+  return packObstacles(trees, 128, 15);
+})();
+const DWELLING_SITE = { obstacles: FOREST, forestDistanceM: FOREST_EDGE_M };
 const OUTLINE: [number, number][] = [
   [0, 0],
   [15, 0],
@@ -125,6 +160,15 @@ const PROBES = {
   oversize: { ages: [25.5, 25.5, 10.5, 10.5], oversize: 1.5 },
 } as const;
 type ProbeName = keyof typeof PROBES;
+// hřbitov hráče: čtverce za sebou v ose x, první 200 m od obydlí v počátku, 150 m od vody
+const CEMETERY_FIRST_CELL = 13;
+const CEMETERY_WATER_M = 150;
+const CEMETERY_EXTEND_AT = 0.8;
+// sad hráče (třetí strategie): 22 čtverců ≈ 0,5 ha, 120 m od obydlí, mimo půdu pro pole
+const ORCHARD_SQUARES = 22;
+const ORCHARD_DISTANCE_M = 120;
+// plná úroda sadu od 25. roku (orchard.md) – úroda jablek se měří od tohoto roku vsi
+const ORCHARD_FULL_FROM_YEAR = 26;
 const PROBE_SEEDS = 5;
 const PROBE_YEARS = 50;
 const PROBE_STEP_DAYS = 28; // sonda nestaví – stačí krok 4 týdny
@@ -150,12 +194,16 @@ function landPart(index: number): PartInput | null {
   const j = index - MEADOW_PARTS;
   if (j >= FOREST_PARTS) return null;
   const f = LAND.forest;
+  // stromy dílu lesa: 5 nebo 6, v průměru hustota lesa (stromy jsou v ceně za hektar)
+  const trees = Math.floor(((j + 1) * PART_M2 * TREES_PER_HA) / M2_PER_HA);
+  const before = Math.floor((j * PART_M2 * TREES_PER_HA) / M2_PER_HA);
   return {
     areaM2: PART_M2,
     distanceM: lerp(f.fromM, f.toM, j / (FOREST_PARTS - 1)),
     naturalFertility: f.fertility,
     surface: 'forest',
     obstacleCost: 0,
+    trees: trees - before,
   };
 }
 
@@ -222,6 +270,8 @@ interface RunOptions {
   forkPolozemnice: boolean;
   /** Skončit, jakmile je hotová stavba s tímto id (rozvětvení pro polozemnici). */
   stopAfterConstruction: number | null;
+  /** Po dostavění první zemnice založit sad (třetí strategie). */
+  orchard?: boolean;
 }
 
 interface PlanRecord {
@@ -263,6 +313,10 @@ interface RunResult {
   finalSownHa: number;
   maxHouseholds: number;
   replays: number;
+  appleHarvests: Map<number, number>; // rok sklizně → kg jablek
+  orchardDay: number | null; // den založení sadu
+  /** Dřevo staveb obydlí (i přestaveb): klády z hromady a pokácené stromy. */
+  wood: { fromPile: number; felled: number; finalLogs: number };
 }
 
 function harvestYear(day: number): number {
@@ -274,10 +328,21 @@ function isOn(date: CalendarDate, target: { month: number; day: number }): boole
   return date.month === target.month && date.day === target.day;
 }
 
-/** Nasycení dne `day` ze stavu na konci předchozího dne – stejně jako krok jídla v simulaci. */
+/**
+ * Nasycení dne `day` ze stavu na konci předchozího dne – stejně jako krok jídla v simulaci
+ * (jablka přednostně, 1. 3. ráno shnijí).
+ */
 function satiationOn(previous: VillageState, day: number): number {
   const need = previous.people.reduce((sum, p) => sum + foodNeedPerDay(p, day), 0);
-  return eatDay(previous.storesKg, need, daysUntilHarvest(day), NO_CRAFTS.pottery).satiation;
+  const apples = isAppleRotDay(day) ? 0 : (previous.applesKg ?? 0);
+  return eatMeal(
+    previous.storesKg,
+    apples,
+    need,
+    daysUntilHarvest(day),
+    daysUntilAppleRot(day),
+    NO_CRAFTS.pottery,
+  ).satiation;
 }
 
 /**
@@ -316,6 +381,8 @@ function foodTrack(
   const beforeIds = new Set(before.people.map((p) => p.id));
   const vanished = before.people.filter((p) => !afterIds.has(p.id));
   const born = after.people.filter((p) => !beforeIds.has(p.id));
+  // jablka se sklízejí postupně v září–říjnu – přehrát je bez simulace práce nejde
+  if ((before.applesKg ?? 0) > 0 || (after.applesKg ?? 0) > 0 || after.orchardWork) return null;
   const deathDay = new Map<number, number>();
   for (const e of events) {
     if (e.kind !== 'death') continue;
@@ -371,6 +438,9 @@ function emptyResult(): RunResult {
     finalSownHa: 0,
     maxHouseholds: 0,
     replays: 0,
+    appleHarvests: new Map(),
+    orchardDay: null,
+    wood: { fromPile: 0, felled: 0, finalLogs: 0 },
   };
 }
 
@@ -380,7 +450,7 @@ function lowerMin(map: Map<number, number>, key: number, value: number): void {
 
 /** Jeden krok simulace; nasycení dní zapíše do výsledku. Vrací stav na konci kroku. */
 function step(result: RunResult, before: VillageState, stop: number): VillageState {
-  const after = advanceVillage(before, stop);
+  const after = advanceVillage(before, stop, FOREST);
   const hunger =
     before.hungry || after.hungry || after.chronicle.some((e) => e.kind === 'hunger-began');
   if (!hunger) return after;
@@ -393,7 +463,7 @@ function step(result: RunResult, before: VillageState, stop: number): VillageSta
   let s = before;
   for (let d = before.lastDay + 1; d <= stop; d++) {
     lowerMin(result.minSatiation, harvestYear(d), satiationOn(s, d));
-    s = advanceVillage(s, d);
+    s = advanceVillage(s, d, FOREST);
   }
   return s;
 }
@@ -456,11 +526,51 @@ function recordPlan(result: RunResult, after: VillageState, pinned: boolean): vo
   }
 }
 
+/**
+ * Hřbitov hráče: založí ho, dokud žádný není, a rozšíří o čtverec, když je z 80 % plný
+ * a nic se na něm nestaví.
+ */
+function tendCemetery(state: VillageState, day: number): VillageState {
+  const cemetery = state.cemeteries?.[0];
+  if (cemetery && isCemeteryBuilding(cemetery)) return state;
+  if (cemetery && cemetery.graves < CEMETERY_EXTEND_AT * cemeteryCapacity(cemetery)) return state;
+  const index = CEMETERY_FIRST_CELL + (cemetery?.squares.length ?? 0);
+  const square = {
+    cell: { x: index, y: 0 },
+    x: index * 15 + 7.5,
+    z: 7.5,
+    waterDistanceM: CEMETERY_WATER_M,
+    obstacleCost: 0,
+  };
+  return foundCemetery(state, day, { squares: [square], squareSizeM: 15 });
+}
+
+/** Sad hráče (třetí strategie): 22 čtverců v řadě y = −5 (pole leží v řadě y = 0 a dál). */
+function plantOrchard(state: VillageState, day: number): VillageState {
+  const squares = Array.from({ length: ORCHARD_SQUARES }, (_, i) => ({
+    cell: { x: i, y: -5 },
+    areaM2: PART_M2,
+    distanceM: ORCHARD_DISTANCE_M,
+    obstacleCost: 0,
+  }));
+  return foundOrchard(state, day, { squares });
+}
+
 function runVillage(start: VillageState, startLand: number, opts: RunOptions): RunResult {
   const result = emptyResult();
   let state = start;
   let land = startLand;
   let firstConstruction: { id: number; day: number } | null = null;
+  const seenConstructions = new Set<number>();
+  const countWood = (s: VillageState): void => {
+    for (const c of s.constructions) {
+      if (!c.wood || seenConstructions.has(c.id)) continue;
+      seenConstructions.add(c.id);
+      result.wood.fromPile += c.wood.fromPile;
+      result.wood.felled += c.wood.fell.length;
+    }
+  };
+  countWood(start);
   const finishedDwelling = (events: ChronicleEvent[]): ChronicleEvent | undefined =>
     events.find((e) => e.kind === 'construction-finished' && e.constructionKind === 'dwelling');
 
@@ -473,6 +583,7 @@ function runVillage(start: VillageState, startLand: number, opts: RunOptions): R
     const day = after.lastDay;
     const date = dateOfDayIndex(day);
     addLabor(result, after, day - before.lastDay);
+    countWood(after);
 
     for (const e of events) {
       if (e.kind === 'rebuild-decided') {
@@ -486,6 +597,8 @@ function runVillage(start: VillageState, startLand: number, opts: RunOptions): R
       } else if (e.kind === 'part-became-forest') {
         result.forestParts.add(e.partId);
         result.firstForestYears ??= (e.day - start.foundedDay) / DAYS_PER_YEAR;
+      } else if (e.kind === 'apple-harvest') {
+        result.appleHarvests.set(dateOfDayIndex(e.day).year, e.kg);
       }
     }
     if (firstConstruction && !after.constructions.some((c) => c.id === firstConstruction?.id)) {
@@ -528,8 +641,8 @@ function runVillage(start: VillageState, startLand: number, opts: RunOptions): R
     // stavby hráče
     if (result.firstBuildDay === null && qualifyingDwellings(after, day).length > 0) {
       result.firstBuildDay = day;
-      if (opts.forkPolozemnice) {
-        const fork = startNewDwelling(after, day, 'polozemnice', POSITION, 0);
+      if (opts.forkPolozemnice && buildAffordability(after, 'polozemnice', FOREST).affordable) {
+        const fork = startNewDwelling(after, day, 'polozemnice', POSITION, 0, [], DWELLING_SITE);
         const forked = runVillage(fork, land, {
           ...opts,
           endDay: Math.min(opts.endDay, day + 5 * 365),
@@ -540,10 +653,16 @@ function runVillage(start: VillageState, startLand: number, opts: RunOptions): R
         if (forked.stopDay !== null) result.polozemniceDays = forked.stopDay - day;
       }
     }
+    if (opts.build && after.dwellings.length > 0) after = tendCemetery(after, day);
+    if (opts.orchard && result.orchardDay === null && after.dwellings.length > 0) {
+      after = plantOrchard(after, day);
+      result.orchardDay = day;
+    }
     if (opts.build) {
       // Hráč staví kdy chce – bot postaví zemnici pro každou plnou domácnost, která nemá kam.
       while (waitingHouseholds(after, day) > 0) {
-        after = startNewDwelling(after, day, 'zemnice', POSITION, 0);
+        after = startNewDwelling(after, day, 'zemnice', POSITION, 0, [], DWELLING_SITE);
+        countWood(after);
         const id = after.constructions.at(-1)?.id;
         if (result.zemniceDays === null && firstConstruction === null && id !== undefined) {
           firstConstruction = { id, day };
@@ -558,6 +677,7 @@ function runVillage(start: VillageState, startLand: number, opts: RunOptions): R
   const lastPlan = result.plans.at(-1);
   result.finalFieldHa = lastPlan?.fieldHa ?? 0;
   result.finalSownHa = lastPlan?.sownHa ?? 0;
+  result.wood.finalLogs = state.woodLogs ?? 0;
   return result;
 }
 
@@ -567,6 +687,8 @@ function foundOn(seed: number, day: number, parts: number): VillageState {
     day,
     dwellingPosition: POSITION,
     firstField: { outline: OUTLINE, parts: landParts(0, parts) },
+    obstacles: FOREST,
+    forestDistanceM: FOREST_EDGE_M,
   });
 }
 
@@ -631,7 +753,8 @@ type TaskResult =
       endDay: number;
       builder: RunResult;
       loner: RunResult;
-      ms: { builder: number; loner: number };
+      orchard: RunResult;
+      ms: { builder: number; loner: number; orchard: number };
     }
   | { kind: 'probe'; probe: ProbeName; summary: ProbeSummary; ms: number; replays: number };
 
@@ -655,8 +778,14 @@ function runVillageTask(index: number): TaskResult {
     build: false,
     forkPolozemnice: false,
   });
-  const ms = { builder: t1 - t0, loner: performance.now() - t1 };
-  return { kind: 'village', index, foundDay, endDay, builder, loner, ms };
+  const t2 = performance.now();
+  const orchard = runVillage(foundOn(index, foundDay, START_PARTS), START_PARTS, {
+    ...options,
+    forkPolozemnice: false,
+    orchard: true,
+  });
+  const ms = { builder: t1 - t0, loner: t2 - t1, orchard: performance.now() - t2 };
+  return { kind: 'village', index, foundDay, endDay, builder, loner, orchard, ms };
 }
 
 function runProbe(name: ProbeName): TaskResult {
@@ -989,6 +1118,33 @@ function report(villages: VillageResult[], probes: Record<ProbeName, ProbeSummar
     `${pct(satiationOk)} let | nejnižší nasycení roku p1 ${fmt(quantile(minSatiation, 0.01), 2)}, p5 ${fmt(quantile(minSatiation, 0.05), 2)} | bez hladu ${pct(share(minSatiation.map((v) => v >= 1 - EPSILON)))} (n ${minSatiation.length})`,
     ok(satiationOk >= 0.95),
   );
+  const wood = builders.map((r) => r.wood);
+  const totalPile = wood.reduce((sum, w) => sum + w.fromPile, 0);
+  const totalFelled = wood.reduce((sum, w) => sum + w.felled, 0);
+  row(
+    `Dřevo obydlí – hráč staví (${config.years} let)`,
+    'jen informace (forest.md)',
+    `z hromady ${pct(totalPile / Math.max(1, totalPile + totalFelled))} | pokácené stromy na ves medián ${fmt(
+      quantile(
+        wood.map((w) => w.felled),
+        0.5,
+      ),
+      0,
+    )} | klády na konci medián ${fmt(
+      quantile(
+        wood.map((w) => w.finalLogs),
+        0.5,
+      ),
+      0,
+    )}, p90 ${fmt(
+      quantile(
+        wood.map((w) => w.finalLogs),
+        0.9,
+      ),
+      0,
+    )}`,
+    'info',
+  );
   const landGone = builders.filter((r) => r.landGoneYear !== null).length;
   if (landGone > 0) {
     const lateYears = villages.flatMap(({ builder, foundDay, endDay }) =>
@@ -1043,6 +1199,50 @@ function report(villages: VillageResult[], probes: Record<ProbeName, ProbeSummar
     )} (medián, n ${living.length})`,
     'info',
   );
+  // třetí strategie – hráč staví a hned po první zemnici vysadí sad 0,5 ha
+  const orchardYears = villages.flatMap(({ orchard, foundDay, endDay }) =>
+    fullYears(orchard, foundDay, endDay)
+      .filter((y) => orchard.landGoneYear === null || y < orchard.landGoneYear)
+      .map((y) => orchard.minSatiation.get(y) ?? 1),
+  );
+  const orchards = villages.map((v) => v.orchard);
+  row(
+    'Hráč staví + sad 0,5 ha: nasycení ≥ 0,95 celý rok',
+    'jen informace (bez sadu viz výše)',
+    `${pct(share(orchardYears.map((v) => v >= SATIATION_OK)))} let (n ${orchardYears.length}) | na konci domácností medián ${fmt(
+      quantile(
+        orchards.map((r) => r.finalHouseholds),
+        0.5,
+      ),
+      0,
+    )}, lidí ${fmt(
+      quantile(
+        orchards.map((r) => r.finalPeople),
+        0.5,
+      ),
+      0,
+    )} | vymření ${pct(share(orchards.map((r) => r.extinctDay !== null)))}`,
+    'info',
+  );
+  const planted = villages.flatMap(({ orchard }) =>
+    orchard.orchardDay === null ? [] : [{ orchard, from: dateOfDayIndex(orchard.orchardDay).year }],
+  );
+  const firstApples = planted.map(({ orchard, from }) => {
+    const years = [...orchard.appleHarvests.keys()].sort((a, b) => a - b);
+    return years.length > 0 ? years[0]! - from : Infinity;
+  });
+  const fullHarvests = planted.flatMap(({ orchard, from }) =>
+    [...orchard.appleHarvests.entries()]
+      .filter(([y]) => y - from >= ORCHARD_FULL_FROM_YEAR)
+      .map(([, kg]) => kg),
+  );
+  row(
+    'Sad 0,5 ha: první jablka / úroda v plné síle',
+    '6. rok / ≈ 1 500 kg (3 t/ha, ≈ 215 kg obilí)',
+    `první sklizeň medián ${fmt(quantile(firstApples, 0.5), 0)} let po založení | od ${ORCHARD_FULL_FROM_YEAR}. roku sklizeň medián ${fmt(quantile(fullHarvests, 0.5), 0)} kg, p10 ${fmt(quantile(fullHarvests, 0.1), 0)} kg (n ${fullHarvests.length})`,
+    'info',
+  );
+
   const meadowGone = builders.map((r) => r.meadowGoneHouseholds).filter((v) => v !== null);
   row(
     'Louky (35 ha, úrodnost 70) uživí domácností',
@@ -1088,10 +1288,10 @@ async function main(): Promise<void> {
   const cpu = (pick: (v: VillageResult) => number): string =>
     fmt(villages.reduce((sum, v) => sum + pick(v), 0) / 1000);
   const replays =
-    villages.reduce((sum, v) => sum + v.builder.replays + v.loner.replays, 0) +
+    villages.reduce((sum, v) => sum + v.builder.replays + v.loner.replays + v.orchard.replays, 0) +
     results.reduce((sum, r) => sum + (r.kind === 'probe' ? r.replays : 0), 0);
   console.log(
-    `Čas: ${fmt((performance.now() - started) / 1000)} s (CPU: hráč staví ${cpu((v) => v.ms.builder)} s, nestaví ${cpu((v) => v.ms.loner)} s; vláken ${Math.max(1, Math.min(availableParallelism() - 1, tasks.length))}), přepočtů den po dni ${replays}`,
+    `Čas: ${fmt((performance.now() - started) / 1000)} s (CPU: hráč staví ${cpu((v) => v.ms.builder)} s, nestaví ${cpu((v) => v.ms.loner)} s, se sadem ${cpu((v) => v.ms.orchard)} s; vláken ${Math.max(1, Math.min(availableParallelism() - 1, tasks.length))}), přepočtů den po dni ${replays}`,
   );
 }
 

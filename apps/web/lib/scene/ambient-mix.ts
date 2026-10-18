@@ -1,5 +1,5 @@
 import { CAMERA_ZOOM_M } from './constants';
-import type { ForestField } from './forest-field';
+import type { ForestField } from '@bohemia/game';
 import { bedMix } from './ground-layers';
 import type { StreamPoint } from './stream-geometry';
 
@@ -89,8 +89,24 @@ const LEVEL: AmbientGains = {
   streamFast: 0.9,
 };
 
-/** Cílové hlasitosti vrstev pro pohled kamery. */
-export function ambientMix(view: AmbientView, environment: AmbientEnvironment): AmbientGains {
+/**
+ * Roční období (season-look.ts): násobky hlasitosti – v zimě ptáci skoro mlčí a vítr šumí
+ * v holých větvích tišeji, na jaře zpívají víc, na podzim víc fouká. 1 = léto.
+ */
+export interface AmbientSeason {
+  birds: number;
+  birdsong: number;
+  leaves: number;
+}
+
+const SUMMER_SOUND: AmbientSeason = { birds: 1, birdsong: 1, leaves: 1 };
+
+/** Cílové hlasitosti vrstev pro pohled kamery (a roční období). */
+export function ambientMix(
+  view: AmbientView,
+  environment: AmbientEnvironment,
+  season: AmbientSeason = SUMMER_SOUND,
+): AmbientGains {
   const radius = Number.isFinite(view.radius)
     ? Math.min(ZOOM_FAR_M, Math.max(ZOOM_NEAR_M, view.radius))
     : ZOOM_FAR_M;
@@ -101,9 +117,9 @@ export function ambientMix(view: AmbientView, environment: AmbientEnvironment): 
   // Plošné zdroje (les) slábnou s oddálením pomaleji než bodové (odmocnina z útlumu).
   const area = Math.sqrt(attenuation(listenerHeight));
   return {
-    birds: LEVEL.birds * (1 + (BIRDS_FAR - 1) * zoom),
-    birdsong: LEVEL.birdsong * area * forest.birdsong,
-    leaves: LEVEL.leaves * area * forest.leaves,
+    birds: Math.min(1, LEVEL.birds * (1 + (BIRDS_FAR - 1) * zoom) * season.birds),
+    birdsong: Math.min(1, LEVEL.birdsong * area * forest.birdsong * season.birdsong),
+    leaves: Math.min(1, LEVEL.leaves * area * forest.leaves * season.leaves),
     streamMedium: LEVEL.streamMedium * stream.medium,
     streamFast: LEVEL.streamFast * stream.fast,
   };

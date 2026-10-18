@@ -81,3 +81,13 @@ export function parsePlaceFieldInput(value: unknown): { cells: TileCell[] } | nu
   const cells = parseCells(value.cells);
   return cells !== null ? { cells } : null;
 }
+
+/** Vstup založení pohřebiště `{ cells }` (čtverce jako u pole), jinak null. */
+export function parsePlaceCemeteryInput(value: unknown): { cells: TileCell[] } | null {
+  return parsePlaceFieldInput(value);
+}
+
+/** Vstup založení sadu `{ cells }` (čtverce jako u pole), jinak null. */
+export function parsePlaceOrchardInput(value: unknown): { cells: TileCell[] } | null {
+  return parsePlaceFieldInput(value);
+}

@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { generateLandscape } from '@bohemia/game';
+import {
+  generateLandscape,
+  generateObstacles,
+  transferPrecision,
+  type ObstacleLayer,
+} from '@bohemia/game';
 import { decodeLandscape, encodeLandscape } from '../landscape-transfer';
 
 describe('přenos krajiny ze serveru do prohlížeče', () => {
@@ -36,5 +41,34 @@ describe('přenos krajiny ze serveru do prohlížeče', () => {
 
   it('zakódovaná krajina má po JSON.stringify méně než 150 kB', () => {
     expect(JSON.stringify(encodeLandscape(landscape)).length).toBeLessThan(150_000);
+  });
+
+  it('prohlížeč dostane přesně krajinu s přesností transferPrecision (i se seedem překážek)', () => {
+    const decoded = decodeLandscape(encodeLandscape(landscape));
+    const expected = transferPrecision(landscape);
+    expect(decoded.heights).toEqual(expected.heights);
+    expect(decoded.stream).toEqual(expected.stream);
+    expect(decoded.obstacleLayer).toEqual(landscape.obstacleLayer);
+  });
+
+  it('vrstva překážek vygenerovaná v prohlížeči je přesně ta ze serveru', () => {
+    const server = generateObstacles(landscape);
+    const browser = generateObstacles(decodeLandscape(encodeLandscape(landscape)));
+    const columns = ['id', 'x', 'z', 'kind', 'look', 'rotation', 'scale', 'impostor'] as const;
+    const differences = (a: ObstacleLayer, b: ObstacleLayer): number => {
+      let count = Math.abs(a.count - b.count);
+      for (const key of columns) {
+        for (let i = 0; i < Math.min(a.count, b.count); i++) if (a[key][i] !== b[key][i]) count++;
+      }
+      return count;
+    };
+    expect(browser.count).toBeGreaterThan(40_000);
+    expect(differences(browser, server)).toBe(0);
+  });
+
+  it('týž přenos dekóduje na týž objekt – scéna i rozhraní sdílí krajinu a její překážky', () => {
+    const transfer = encodeLandscape(landscape);
+    expect(decodeLandscape(transfer)).toBe(decodeLandscape(transfer));
+    expect(decodeLandscape(encodeLandscape(landscape))).not.toBe(decodeLandscape(transfer));
   });
 });

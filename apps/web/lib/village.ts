@@ -4,8 +4,10 @@ import { createVillageRepository } from '@bohemia/db';
 import {
   foundVillageForSettlement,
   loadVillage,
+  placeCemetery,
   placeDwelling,
   placeField,
+  placeOrchard,
   renameVillage,
   type DwellingType,
   type EnterGameResult,
@@ -54,7 +56,7 @@ async function villageView(ctx: Context): Promise<VillageView | null | { error: 
   if (!ctx.ok) return { error: ctx.error };
   const record = await loadVillage(
     { villages: villages() },
-    { settlementId: ctx.settlementId, today: ctx.day },
+    { settlementId: ctx.settlementId, today: ctx.day, landscape: ctx.landscape },
   );
   return record === null ? null : buildVillageView(record, ctx.landscape, ctx.day);
 }
@@ -120,6 +122,32 @@ export async function placeFieldForPlayer(
   return toActionResult(result, ctx.landscape, ctx.day);
 }
 
+export async function placeCemeteryForPlayer(
+  playerId: string,
+  input: { cells: TileCell[] },
+): Promise<VillageActionResult> {
+  const ctx = await context(playerId);
+  if (!ctx.ok) return { error: ctx.error };
+  const result = await placeCemetery(
+    { villages: villages() },
+    { settlementId: ctx.settlementId, landscape: ctx.landscape, today: ctx.day, ...input },
+  );
+  return toActionResult(result, ctx.landscape, ctx.day);
+}
+
+export async function placeOrchardForPlayer(
+  playerId: string,
+  input: { cells: TileCell[] },
+): Promise<VillageActionResult> {
+  const ctx = await context(playerId);
+  if (!ctx.ok) return { error: ctx.error };
+  const result = await placeOrchard(
+    { villages: villages() },
+    { settlementId: ctx.settlementId, landscape: ctx.landscape, today: ctx.day, ...input },
+  );
+  return toActionResult(result, ctx.landscape, ctx.day);
+}
+
 export async function renameVillageForPlayer(
   playerId: string,
   input: { name: string },
@@ -128,7 +156,7 @@ export async function renameVillageForPlayer(
   if (!ctx.ok) return { error: ctx.error };
   const result = await renameVillage(
     { villages: villages() },
-    { settlementId: ctx.settlementId, today: ctx.day, name: input.name },
+    { settlementId: ctx.settlementId, today: ctx.day, name: input.name, landscape: ctx.landscape },
   );
   return toActionResult(result, ctx.landscape, ctx.day);
 }

@@ -10,7 +10,8 @@ const scene: SceneVillage = {
       type: 'polozemnice',
       position: { x: 20, z: 0, rotation: 0 },
       built: false,
-      progress: 0.4,
+      // staveniště ve scéně ukazuje samotnou stavbu – dřevo se ještě kácí
+      progress: 0.1,
     },
   ],
   fields: [{ id: 5, parts: [] }],
@@ -39,6 +40,7 @@ const view = {
       dwellingType: 'polozemnice',
       dwellingId: null,
       fieldId: null,
+      treesToFell: 5,
     },
     {
       id: 12,
@@ -50,7 +52,66 @@ const view = {
       fieldId: 5,
     },
   ],
-  fields: [{ id: 5, areaM2: 2250, fertility: 61.4, stages: { sown: 6, founding: 4 } }],
+  fields: [
+    {
+      id: 5,
+      areaM2: 2250,
+      fertility: 61.4,
+      stages: { sown: 6, founding: 4 },
+      surfaces: { meadow: 10 },
+      ashParts: 0,
+    },
+    {
+      id: 6,
+      areaM2: 1350,
+      fertility: 80,
+      stages: { ready: 6 },
+      surfaces: { forest: 4, meadow: 1, shrub: 1 },
+      ashParts: 4,
+    },
+  ],
+  cemeteries: [
+    {
+      id: 30,
+      squares: 2,
+      built: true,
+      progress: 1,
+      capacity: 112,
+      graves: 72,
+      freeGraves: 40,
+      yearsLeft: 12.2,
+    },
+    {
+      id: 31,
+      squares: 1,
+      built: false,
+      progress: 0.5,
+      capacity: 56,
+      graves: 0,
+      freeGraves: 56,
+      yearsLeft: null,
+    },
+  ],
+  orchards: [
+    {
+      id: 60,
+      areaM2: 900,
+      squares: 4,
+      ageYears: 7,
+      expectedYieldKg: 81,
+      planting: null,
+      plantingWaits: false,
+    },
+    {
+      id: 61,
+      areaM2: 225,
+      squares: 1,
+      ageYears: null,
+      expectedYieldKg: 0,
+      planting: 0.3,
+      plantingWaits: true,
+    },
+  ],
 } as unknown as VillageView;
 
 describe('selectionDetails', () => {
@@ -76,14 +137,21 @@ describe('selectionDetails', () => {
     });
   });
 
-  it('staveniště: typ a průběh (i před založením vsi, ze scény)', () => {
+  it('staveniště: typ, celý průběh i s kácením a stromy ke skácení (bez vsi ze scény)', () => {
     expect(selectionDetails(view, scene, { kind: 'dwelling', id: 9 })).toEqual({
       kind: 'site',
       id: 9,
       type: 'polozemnice',
       progress: 0.4,
+      treesToFell: 5,
     });
-    expect(selectionDetails(null, scene, { kind: 'dwelling', id: 9 })?.kind).toBe('site');
+    expect(selectionDetails(null, scene, { kind: 'dwelling', id: 9 })).toEqual({
+      kind: 'site',
+      id: 9,
+      type: 'polozemnice',
+      progress: 0.1,
+      treesToFell: 0,
+    });
   });
 
   it('pole: výměra, úrodnost, díly podle stadia v pořadí a zakládání', () => {
@@ -96,7 +164,64 @@ describe('selectionDetails', () => {
         { stage: 'founding', count: 4 },
         { stage: 'sown', count: 6 },
       ],
+      surfaces: [],
+      ashParts: 0,
       founding: 0.25,
     });
+  });
+
+  it('pole z vymýceného lesa: díly podle povrchu v pořadí louka, křoviny, les a popel', () => {
+    const details = selectionDetails(view, scene, { kind: 'field', id: 6 });
+    expect(details).toMatchObject({
+      kind: 'field',
+      surfaces: [
+        { surface: 'meadow', count: 1 },
+        { surface: 'shrub', count: 1 },
+        { surface: 'forest', count: 4 },
+      ],
+      ashParts: 4,
+      founding: null,
+    });
+  });
+});
+
+describe('selectionDetails – hřbitov', () => {
+  it('hroby a odhad v letech; zakládaný jen s průběhem založení', () => {
+    expect(selectionDetails(view, scene, { kind: 'cemetery', id: 30 })).toEqual({
+      kind: 'cemetery',
+      id: 30,
+      squares: 2,
+      capacity: 112,
+      graves: 72,
+      freeGraves: 40,
+      yearsLeft: 12.2,
+      built: true,
+      building: null,
+    });
+    expect(selectionDetails(view, scene, { kind: 'cemetery', id: 31 })).toMatchObject({
+      built: false,
+      building: 0.5,
+    });
+    expect(selectionDetails(view, scene, { kind: 'cemetery', id: 99 })).toBeNull();
+  });
+});
+
+describe('selectionDetails – sad', () => {
+  it('výměra, stáří, úroda příští sklizně; vysazovaný s průběhem výsadby', () => {
+    expect(selectionDetails(view, scene, { kind: 'orchard', id: 60 })).toEqual({
+      kind: 'orchard',
+      id: 60,
+      areaM2: 900,
+      ageYears: 7,
+      expectedYieldKg: 81,
+      planting: null,
+      plantingWaits: false,
+    });
+    expect(selectionDetails(view, scene, { kind: 'orchard', id: 61 })).toMatchObject({
+      ageYears: null,
+      planting: 0.3,
+      plantingWaits: true,
+    });
+    expect(selectionDetails(view, scene, { kind: 'orchard', id: 99 })).toBeNull();
   });
 });

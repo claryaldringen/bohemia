@@ -1,7 +1,17 @@
 import type { ReactElement, ReactNode } from 'react';
-import { PART_COLORS } from '@/lib/minimap';
-import { PART_STAGE_NAMES, type SelectionDetails } from '@/lib/selection-details';
-import { formatHa, formatPercent } from '@/lib/village-format';
+import { PART_COLORS, SURFACE_COLORS } from '@/lib/minimap';
+import {
+  FIELD_SURFACE_NAMES,
+  PART_STAGE_NAMES,
+  type SelectionDetails,
+} from '@/lib/selection-details';
+import {
+  formatHa,
+  formatInteger,
+  formatPercent,
+  formatYearsShort,
+  plural,
+} from '@/lib/village-format';
 import { DWELLING_NAMES } from '@/lib/village-view';
 import { Tooltip } from './Tooltip';
 
@@ -102,8 +112,22 @@ function DwellingBody({
         ))}
       </ul>
       <Bar value={details.condition} name="Stav" testId="selection-condition" />
-      {details.rebuild && <Bar value={details.rebuild.progress} name="Přestavba" />}
+      {details.rebuild && (
+        <div className="flex items-center gap-3">
+          <Bar value={details.rebuild.progress} name="Přestavba" />
+          {details.rebuild.treesToFell > 0 && <WoodToFell trees={details.rebuild.treesToFell} />}
+        </div>
+      )}
     </div>
+  );
+}
+
+/** Dřevo, které stavba ještě musí skácet (forest.md) – ikona a počet stromů. */
+function WoodToFell({ trees }: { trees: number }): ReactElement {
+  return (
+    <Stat icon="wood" name="Stromy ke skácení" testId="selection-wood">
+      {trees}
+    </Stat>
   );
 }
 
@@ -127,6 +151,20 @@ function FieldBody({
         <Stat icon="food" name="Úrodnost" testId="selection-fertility">
           {Math.round(details.fertility)}
         </Stat>
+        {details.ashParts > 0 && (
+          <Tooltip
+            content={`Popel z vymýceného lesa – úrodnost +20 na 3 roky (${details.ashParts} ${plural(details.ashParts, 'díl', 'díly', 'dílů')})`}
+            placement="above"
+          >
+            <span
+              data-testid="selection-ash"
+              tabIndex={0}
+              className="text-xs font-semibold text-amber-300 tabular-nums"
+            >
+              +20
+            </span>
+          </Tooltip>
+        )}
       </div>
       <ul aria-label="Díly pole" className="flex flex-wrap gap-1.5">
         {details.stages.map(({ stage, count }) => (
@@ -148,15 +186,120 @@ function FieldBody({
           </li>
         ))}
       </ul>
+      {details.surfaces.length > 0 && (
+        <ul aria-label="Povrch dílů při založení" className="flex flex-wrap gap-1.5">
+          {details.surfaces.map(({ surface, count }) => (
+            <li key={surface}>
+              <Tooltip content={FIELD_SURFACE_NAMES[surface]} placement="above">
+                <span
+                  data-surface={surface}
+                  tabIndex={0}
+                  className="flex items-center gap-1 text-xs tabular-nums"
+                >
+                  <span
+                    aria-hidden
+                    className="inline-block h-3 w-3 rounded-full border border-black/50"
+                    style={{ background: `rgb(${SURFACE_COLORS[surface].join(' ')})` }}
+                  />
+                  {count}
+                </span>
+              </Tooltip>
+            </li>
+          ))}
+        </ul>
+      )}
       {details.founding !== null && <Bar value={details.founding} name="Založení" />}
+    </div>
+  );
+}
+
+function CemeteryBody({
+  details,
+}: {
+  details: Extract<SelectionDetails, { kind: 'cemetery' }>;
+}): ReactElement {
+  if (!details.built) {
+    return (
+      <div className="flex flex-col justify-center gap-1.5">
+        <Bar value={details.building ?? 0} name="Založení" testId="selection-progress" />
+      </div>
+    );
+  }
+  const full = details.freeGraves === 0;
+  return (
+    <div className="flex min-w-0 flex-col gap-1.5">
+      <div className="flex items-center gap-3">
+        <Tooltip content="Hroby" placement="above">
+          <span
+            data-testid="selection-graves"
+            tabIndex={0}
+            className={`text-sm font-semibold tabular-nums ${full ? 'text-red-400' : ''}`}
+          >
+            {details.graves}/{details.capacity}
+          </span>
+        </Tooltip>
+        <Stat icon="date" name="Místo na roky" testId="selection-years">
+          {formatYearsShort(details.yearsLeft)}
+        </Stat>
+      </div>
+      {details.building !== null && <Bar value={details.building} name="Rozšíření" />}
+    </div>
+  );
+}
+
+function OrchardBody({
+  details,
+}: {
+  details: Extract<SelectionDetails, { kind: 'orchard' }>;
+}): ReactElement {
+  return (
+    <div className="flex min-w-0 flex-col gap-1.5">
+      <div className="flex items-center gap-3">
+        <Tooltip content="Výměra" placement="above">
+          <span
+            data-testid="selection-area"
+            tabIndex={0}
+            className="text-sm font-semibold tabular-nums"
+          >
+            {formatHa(details.areaM2)}
+          </span>
+        </Tooltip>
+        {details.ageYears !== null && (
+          <Stat icon="date" name="Stáří (roky)" testId="selection-age">
+            {details.ageYears}
+          </Stat>
+        )}
+        <Stat icon="apples" name="Úroda (kg)" testId="selection-yield">
+          {formatInteger(details.expectedYieldKg)}
+        </Stat>
+      </div>
+      {details.planting !== null && (
+        <div className="flex items-center gap-1.5">
+          <Bar value={details.planting} name="Výsadba" testId="selection-progress" />
+          {details.plantingWaits && (
+            <Tooltip content="Sází se na jaře a na podzim" placement="above">
+              <img
+                data-testid="selection-planting-waits"
+                src="/icons/resources/date.png"
+                alt="Sází se na jaře a na podzim"
+                width={18}
+                height={18}
+                tabIndex={0}
+              />
+            </Tooltip>
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
 /**
  * Panel výběru dole uprostřed (jako v 0 A.D.) – jen když je něco vybrané: portrét, typ
- * a ikony s čísly. Obydlí: obyvatelé, věk obyvatel, stav, stáří; staveniště: průběh stavby;
- * pole: výměra, úrodnost, díly podle stadia.
+ * a ikony s čísly. Obydlí: obyvatelé, věk obyvatel, stav, stáří (u přestavby i stromy ke
+ * skácení); staveniště: průběh stavby a stromy, které ještě musí skácet;
+ * pole: výměra, úrodnost, díly podle stadia; hřbitov: hroby, na kolik let místo vystačí
+ * a průběh založení / rozšíření; sad: výměra, stáří, úroda příští sklizně a průběh výsadby.
  */
 export function SelectionPanel({
   details,
@@ -169,13 +312,22 @@ export function SelectionPanel({
   if (details.kind === 'field') {
     portrait = <Portrait icon="pole" name="Pole" />;
     body = <FieldBody details={details} />;
+  } else if (details.kind === 'cemetery') {
+    portrait = <Portrait icon="hrbitov" name="Hřbitov" />;
+    body = <CemeteryBody details={details} />;
+  } else if (details.kind === 'orchard') {
+    portrait = <Portrait icon="sad" name="Sad" />;
+    body = <OrchardBody details={details} />;
   } else if (details.kind === 'site') {
     portrait = <Portrait icon={details.type} name={DWELLING_NAMES[details.type].nominative} />;
     body = (
       <div className="flex flex-col justify-center gap-1.5">
-        <Stat icon="labor" name="Stavba">
-          {formatPercent(details.progress)}
-        </Stat>
+        <div className="flex items-center gap-3">
+          <Stat icon="labor" name="Stavba">
+            {formatPercent(details.progress)}
+          </Stat>
+          {details.treesToFell > 0 && <WoodToFell trees={details.treesToFell} />}
+        </div>
         <Bar value={details.progress} name="Stavba" testId="selection-progress" />
       </div>
     );

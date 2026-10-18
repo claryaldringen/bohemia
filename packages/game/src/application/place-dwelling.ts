@@ -1,7 +1,9 @@
-import type { Landscape } from '../domain/landscape';
+import { obstaclesOf, type Landscape } from '../domain/landscape';
 import {
   buildAffordability,
   checkDwellingPlacement,
+  forestEdgeDistanceM,
+  placementVillageOf,
   startNewDwelling,
   type DwellingType,
   type Position,
@@ -20,24 +22,54 @@ export interface PlaceDwellingInput {
 
 /** Ves nemá suroviny, které stavba stojí předem (population.md – Odemčení). */
 export const CANNOT_AFFORD = 'Na tuhle stavbu ves nemá suroviny.';
+/** Nové obydlí nemá kdo osídlit – žádná domácnost nemá mladý pár navíc (population.md – Odemčení). */
+export const NO_SETTLERS = 'Nové obydlí nemá kdo osídlit.';
+/** Klády na hromadě ani dospělé stromy sídla na stavbu nestačí (forest.md – Stavby a kácení). */
+export const NO_WOOD = 'Na stavbu chybí dřevo – klády ani stromy ke kácení nestačí.';
 
 /**
- * Hráč zahájí stavbu nového obydlí – kdykoli, jen na ni ves musí mít suroviny předem (ves se
- * nejdřív dopočítá do dneška).
+ * Hráč zahájí stavbu nového obydlí – kdykoli, když je kým ho osadit a ves má suroviny a dřevo
+ * předem (ves se nejdřív dopočítá do dneška). Stromy z vyklízené plochy jdou na hromadu klád,
+ * stavba vezme klády z hromady a zbytek dřeva vyhradí mezi nejbližšími dospělými stromy.
  */
 export function placeDwelling(
   deps: { villages: VillageRepository },
   input: PlaceDwellingInput,
 ): Promise<VillageResult> {
-  return updateVillage(deps.villages, input.settlementId, input.today, (state) => {
+  return updateVillage(deps.villages, input.settlementId, input.today, input.landscape, (state) => {
     // akce patří do dne, do kterého je ves dopočítaná – dnešek, nebo „budoucí“ den vsi
     const day = state.lastDay;
-    if (!buildAffordability(state, input.type).affordable) {
-      return { ok: false, reason: CANNOT_AFFORD };
+    const obstacles = obstaclesOf(input.landscape);
+    const { affordable, missing } = buildAffordability(state, input.type, obstacles);
+    if (!affordable) {
+      const reason = missing.settlers ? NO_SETTLERS : missing.wood ? NO_WOOD : CANNOT_AFFORD;
+      return { ok: false, reason };
     }
-    const check = checkDwellingPlacement(input.landscape, state, input.type, input.position);
+    const check = checkDwellingPlacement(
+      input.landscape,
+      placementVillageOf(state, day),
+      input.type,
+      input.position,
+      obstacles,
+    );
     if (!check.ok) return { ok: false, reason: check.reason ?? 'Sem obydlí nepatří.' };
     const position = { ...input.position };
-    return { ok: true, state: startNewDwelling(state, day, input.type, position, 0) };
+    // překážky na vyklízené ploše: práce navíc, osadníci je odstraní při zahájení stavby
+    return {
+      ok: true,
+      state: startNewDwelling(
+        state,
+        day,
+        input.type,
+        position,
+        check.obstacleCost,
+        check.obstacleIds,
+        {
+          obstacles,
+          clearedTrees: check.obstacleCounts.tree ?? 0,
+          forestDistanceM: forestEdgeDistanceM(input.landscape, position.x, position.z),
+        },
+      ),
+    };
   });
 }

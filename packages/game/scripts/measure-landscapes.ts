@@ -3,8 +3,10 @@ import {
   checkBand,
   CURRENT_LAYER_VERSIONS,
   generateLandscapeAttempt,
+  generateObstacles,
   MAX_ATTEMPTS,
   measureLandscape,
+  type Landscape,
 } from '../src/domain/landscape';
 
 const count = Number(process.argv[2] ?? 500);
@@ -15,6 +17,9 @@ const firstAttempt = {
   reliefM: [] as number[],
 };
 const attempts: number[] = [];
+/** Přijaté krajiny pro měření vrstvy překážek (generuje se jen pro přijatou krajinu, líně). */
+const accepted: Landscape[] = [];
+const OBSTACLE_SAMPLE = 20;
 const failures: Record<string, number> = {};
 const started = performance.now();
 
@@ -32,6 +37,7 @@ for (let seed = 0; seed < count; seed++) {
     for (const failure of band.failures) failures[failure] = (failures[failure] ?? 0) + 1;
     if (band.ok) {
       attempts.push(attempt + 1);
+      if (accepted.length < OBSTACLE_SAMPLE) accepted.push(landscape);
       break;
     }
   }
@@ -55,3 +61,19 @@ console.log(
 );
 console.log(`  důvody neúspěchu pokusů:`, failures);
 console.log(`  průměrný čas jednoho pokusu ${(elapsed / totalAttempts).toFixed(1)} ms`);
+
+// Vrstva překážek (stromy, keře, kameny) – server ji generuje jednou na krajinu v mezipaměti,
+// prohlížeč jednou při načtení scény.
+const obstacleTimes: number[] = [];
+const obstacleCounts: number[] = [];
+for (const landscape of accepted) {
+  const start = performance.now();
+  const layer = generateObstacles({ ...landscape, surface: landscape.surface.slice() });
+  obstacleTimes.push(performance.now() - start);
+  obstacleCounts.push(layer.count);
+}
+if (accepted.length > 0) {
+  console.log(`Vrstva překážek (${accepted.length} přijatých krajin):`);
+  console.log(`  překážek      ${quantiles(obstacleCounts)}`);
+  console.log(`  čas (ms)      ${quantiles(obstacleTimes.map((t) => Math.round(t)))}`);
+}

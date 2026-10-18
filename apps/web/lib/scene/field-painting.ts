@@ -1,3 +1,4 @@
+import { Constants } from '@babylonjs/core/Engines/constants';
 import { RawTexture } from '@babylonjs/core/Materials/Textures/rawTexture';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import type { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
@@ -33,11 +34,17 @@ const DECAL_POINTS_PER_CELL = 4;
 const GRID_TEXTURE_PX = 128;
 const FILL_ALPHA = 0.4;
 const ERASE_ALPHA = 0.3;
+/**
+ * Obrys výběru prosvítá přes stromy (pole jde i do lesa – fields.md): druhý obrys bez testu
+ * hloubky, průsvitný – čtverce pod korunami jsou vidět.
+ */
+const XRAY_ALPHA = 0.55;
 const COLORS = {
   ok: [0.3, 0.85, 0.35],
   bad: [0.92, 0.24, 0.18],
   draw: [0.98, 0.78, 0.3],
   erase: [0.95, 0.95, 0.92],
+  warn: [1, 0.55, 0.12],
 } as const satisfies Record<string, readonly [number, number, number]>;
 type Look = keyof typeof COLORS;
 
@@ -69,7 +76,8 @@ interface Stroke {
  * Malování stavby po čtvercích – pole a další stavby malované jako pole (jako v realtime
  * strategiích); co smí kam, říká `mode.preview`. Myš: levé kliknutí přepne čtverec,
  * levé tažení přidá obdélník čtverců, s Ctrl (na Macu i Cmd) ubere; pravé kliknutí malování
- * zruší (jako v 0 A.D.). Krajina se posouvá prostředním tlačítkem, okrajem okna a WASD.
+ * zruší (jako v 0 A.D.). Krajina se posouvá prostředním tlačítkem, mezerníkem + tahem, okrajem
+ * okna a WASD (levé tažení tu maluje – posun s mezerníkem zařídí kamera, stisk sem nepustí).
  * Enter potvrdí, Esc zruší tah nebo celé malování, Backspace / Ctrl+Z vrátí poslední tah.
  * Kolem kurzoru je vidět mřížka čtverců, vybrané čtverce zelené (pole projde) / žluté
  * (ještě ne) a zakázané červené.
@@ -91,6 +99,8 @@ export class FieldPainter {
   private cursorMeshes: Mesh[] = [];
   private readonly fillMaterial: StandardMaterial;
   private readonly lineMaterials: Record<Look, StandardMaterial>;
+  /** Obrys výběru přes stromy – bez testu hloubky (XRAY_ALPHA). */
+  private readonly xrayMaterials: Record<Look, StandardMaterial>;
   private readonly gridMaterial: StandardMaterial;
   private readonly gridTexture: RawTexture;
   private done = false;
@@ -115,6 +125,23 @@ export class FieldPainter {
       bad: line('bad'),
       draw: line('draw'),
       erase: line('erase'),
+      warn: line('warn'),
+    };
+    const xray = (look: Look): StandardMaterial => {
+      const material = createDecalMaterial(scene, `field-paint-xray-${look}`, {
+        emissive: new Color3(...COLORS[look]),
+      });
+      material.alpha = XRAY_ALPHA;
+      material.depthFunction = Constants.ALWAYS;
+      material.disableDepthWrite = true;
+      return material;
+    };
+    this.xrayMaterials = {
+      ok: xray('ok'),
+      bad: xray('bad'),
+      draw: xray('draw'),
+      erase: xray('erase'),
+      warn: xray('warn'),
     };
     this.gridTexture = createGridTexture(scene);
     this.gridMaterial = createDecalMaterial(scene, 'field-paint-grid', {
@@ -194,7 +221,12 @@ export class FieldPainter {
     canvas.style.cursor = '';
     disposeAll(this.selectionMeshes);
     disposeAll(this.cursorMeshes);
-    for (const m of [this.fillMaterial, this.gridMaterial, ...Object.values(this.lineMaterials)]) {
+    for (const m of [
+      this.fillMaterial,
+      this.gridMaterial,
+      ...Object.values(this.lineMaterials),
+      ...Object.values(this.xrayMaterials),
+    ]) {
       m.dispose();
     }
     this.gridTexture.dispose();
@@ -349,12 +381,13 @@ export class FieldPainter {
     disposeAll(this.selectionMeshes);
     const ok = this.preview?.check.ok ?? false;
     const blocked = new Set((this.preview?.blockedCells ?? []).map((c) => cellKey(c)));
+    const warned = new Set((this.preview?.warningCells ?? []).map((c) => cellKey(c)));
     const squares = this.candidate.map((cell) => this.square(cell));
-    const fills = squares.map((s) => ({
-      square: s,
-      look: (blocked.has(cellKey(s.cell)) ? 'bad' : ok ? 'ok' : 'draw') as Look,
-      alpha: FILL_ALPHA,
-    }));
+    const fills = squares.map((s): { square: CellSquare; look: Look; alpha: number } => {
+      const key = cellKey(s.cell);
+      const look: Look = blocked.has(key) ? 'bad' : !ok ? 'draw' : warned.has(key) ? 'warn' : 'ok';
+      return { square: s, look, alpha: FILL_ALPHA };
+    });
     if (stroke?.mode === 'remove') {
       for (const cell of strokeCells) {
         if (this.selection.has(cell)) {
@@ -365,9 +398,12 @@ export class FieldPainter {
     if (fills.length > 0) this.selectionMeshes.push(this.fillMesh(fills));
     if (squares.length > 0) {
       const look: Look = ok ? 'ok' : blocked.size > 0 ? 'bad' : 'draw';
-      this.selectionMeshes.push(
-        this.lineMesh('field-paint-outline', cellsBoundary(squares), look, 0.35),
-      );
+      const boundary = cellsBoundary(squares);
+      this.selectionMeshes.push(this.lineMesh('field-paint-outline', boundary, look, 0.35));
+      const xray = this.lineMesh('field-paint-xray', boundary, look, 0.35);
+      xray.material = this.xrayMaterials[look];
+      xray.alphaIndex = 12;
+      this.selectionMeshes.push(xray);
     }
     if (stroke && (stroke.dragged || !sameCell(stroke.start, stroke.end))) {
       const look: Look = stroke.mode === 'remove' ? 'bad' : 'erase';

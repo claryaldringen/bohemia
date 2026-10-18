@@ -12,8 +12,10 @@ import {
 import {
   foundVillage,
   getVillageView,
+  placeCemetery,
   placeDwelling,
   placeField,
+  placeOrchard,
   renameVillage,
 } from '@/app/game/actions';
 import { usePlacement } from '@/hooks/use-placement';
@@ -57,6 +59,8 @@ type ActionResult = VillageView | { error: string };
  */
 const SUBMIT_SQUARES: Partial<Record<BuildKind, (cells: TileCell[]) => Promise<ActionResult>>> = {
   field: (cells) => placeField({ cells }),
+  cemetery: (cells) => placeCemetery({ cells }),
+  orchard: (cells) => placeOrchard({ cells }),
 };
 
 function isVillageView(state: VillageData): state is VillageView {
@@ -248,7 +252,7 @@ export function VillageGame({
     setPending(list);
   };
 
-  /** Postaví obydlí – první zemnice ves založí (osadníci přišli), další jsou stavby. */
+  /** Postaví obydlí – první zemnice ves založí (osadníci si ji postaví), další jsou stavby. */
   const buildDwelling = (type: DwellingType, position: Position): void => {
     const entry: PendingDwelling = { id: -1 - pendingId.current++, type, position };
     setPendingList([...pendingRef.current, entry]);
@@ -302,7 +306,7 @@ export function VillageGame({
     startBuildRef.current = startBuild;
   });
 
-  // Klávesy rozhraní: zkratky staveb (Z, X, C) a Esc zruší výběr.
+  // Klávesy rozhraní: zkratky staveb (Z, X, C, V, B) a Esc zruší výběr.
   const placingRef = useRef(placement.active);
   useEffect(() => {
     placingRef.current = placement.active;

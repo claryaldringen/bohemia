@@ -1,12 +1,14 @@
-import type { Landscape } from '../domain/landscape';
+import { obstaclesOf, type Landscape } from '../domain/landscape';
 import {
   advanceVillage,
   checkDwellingPlacement,
   checkVillageName,
   fieldPartsFromCells,
+  forestEdgeDistanceM,
   foundVillage,
   normalizeVillageName,
   type FieldInput,
+  type PlacementVillage,
   type Position,
   type TileCell,
 } from '../domain/village';
@@ -40,12 +42,32 @@ export async function foundVillageForSettlement(
   }
   const name = checkVillageName(input.name);
   if (!name.ok) return { ok: false, reason: name.reason ?? 'Neplatné jméno vsi.' };
-  const dwelling = checkDwellingPlacement(input.landscape, null, 'zemnice', input.dwelling);
+  const obstacles = obstaclesOf(input.landscape);
+  const dwelling = checkDwellingPlacement(
+    input.landscape,
+    null,
+    'zemnice',
+    input.dwelling,
+    obstacles,
+  );
   if (!dwelling.ok) return { ok: false, reason: dwelling.reason ?? 'Sem zemnice nepatří.' };
   const cells = input.fieldCells ?? [];
   let firstField: FieldInput | null = null;
   if (cells.length > 0) {
-    const field = fieldPartsFromCells(input.landscape, null, cells, [input.dwelling]);
+    // překážky na staveništi první zemnice osadníci odstraní při založení – pole je neplatí podruhé
+    const founding: PlacementVillage = {
+      dwellings: [],
+      constructions: [],
+      parts: [],
+      obstacleChanges: { removed: dwelling.obstacleIds, stumps: [], saplings: [] },
+    };
+    const field = fieldPartsFromCells(
+      input.landscape,
+      founding,
+      cells,
+      [input.dwelling],
+      obstacles,
+    );
     if (!field.check.ok) return { ok: false, reason: field.check.reason ?? 'Sem pole nepatří.' };
     firstField = { parts: field.parts };
   }
@@ -55,8 +77,13 @@ export async function foundVillageForSettlement(
     day: input.today,
     dwellingPosition: { ...input.dwelling },
     firstField,
+    dwellingObstacleIds: dwelling.obstacleIds,
+    dwellingObstacleCost: dwelling.obstacleCost,
+    dwellingClearedTrees: dwelling.obstacleCounts.tree ?? 0,
+    obstacles,
+    forestDistanceM: forestEdgeDistanceM(input.landscape, input.dwelling.x, input.dwelling.z),
   });
-  const state = advanceVillage(founded, input.today);
+  const state = advanceVillage(founded, input.today, obstacles);
   const created = await deps.villages.create(
     input.settlementId,
     normalizeVillageName(input.name),

@@ -76,5 +76,154 @@
     "opaque": true,
     "texture_px": 128,
     "key_gain": 3
+  },
+  {
+    "name": "sheep",
+    "dae": "meshes/skeletal/sheep.dae",
+    "texture": "textures/skins/skeletal/animal_sheep_no_player_color_a.dds",
+    "forward": "-y",
+    "size": {
+      "axis": "y",
+      "m": 1.25
+    },
+    "pose": {
+      "animation": "animation/quadraped/sheep_idle_01.dae",
+      "time": 0
+    },
+    "keys": {
+      "stride_a": {
+        "animation": "animation/quadraped/sheep_walk.dae",
+        "time": 0
+      },
+      "stride_b": {
+        "animation": "animation/quadraped/sheep_walk.dae",
+        "time": 0.385
+      },
+      "graze": {
+        "animation": "animation/quadraped/sheep_idle_02.dae",
+        "time": 0.28
+      }
+    },
+    "opaque": true,
+    "texture_px": 256
+  },
+  {
+    "name": "goat",
+    "dae": "meshes/skeletal/goat.dae",
+    "texture": "textures/skins/skeletal/animal_goat.png",
+    "forward": "-y",
+    "size": {
+      "axis": "y",
+      "m": 1.2
+    },
+    "pose": {
+      "animation": "animation/quadraped/goat_idle_02.dae",
+      "time": 0
+    },
+    "keys": {
+      "stride_a": {
+        "animation": "animation/quadraped/goat_walk.dae",
+        "time": 0
+      },
+      "stride_b": {
+        "animation": "animation/quadraped/goat_walk.dae",
+        "time": 0.833
+      },
+      "graze": {
+        "animation": "animation/quadraped/goat_idle_01.dae",
+        "time": 2.4
+      }
+    },
+    "opaque": true,
+    "texture_px": 256
+  },
+  {
+    "name": "cow",
+    "dae": "meshes/skeletal/cattle_female_a.dae",
+    "texture": "textures/skins/skeletal/animal_cattle_beige.png",
+    "forward": "-y",
+    "size": {
+      "axis": "y",
+      "m": 2.1
+    },
+    "pose": {
+      "animation": "animation/quadraped/bovidae_idle_a.dae",
+      "time": 0
+    },
+    "keys": {
+      "stride_a": {
+        "animation": "animation/quadraped/bovidae_walk_relax.dae",
+        "time": 0
+      },
+      "stride_b": {
+        "animation": "animation/quadraped/bovidae_walk_relax.dae",
+        "time": 1.143
+      },
+      "graze": {
+        "animation": "animation/quadraped/bovidae_feeding.dae",
+        "time": 3
+      }
+    },
+    "opaque": true,
+    "texture_px": 256
+  },
+  {
+    "name": "pig",
+    "dae": "meshes/skeletal/pig.dae",
+    "texture": "textures/skins/skeletal/animal_pig_d.png",
+    "forward": "-y",
+    "size": {
+      "axis": "y",
+      "m": 1.25
+    },
+    "pose": {
+      "animation": "animation/quadraped/animal_pig_idle_01.dae",
+      "time": 0
+    },
+    "keys": {
+      "stride_a": {
+        "animation": "animation/quadraped/animal_pig_walk_01.dae",
+        "time": 0
+      },
+      "stride_b": {
+        "animation": "animation/quadraped/animal_pig_walk_01.dae",
+        "time": 0.165
+      },
+      "graze": {
+        "animation": "animation/quadraped/animal_pig_feeding_01.dae",
+        "time": 0.9
+      }
+    },
+    "opaque": true,
+    "texture_px": 256
+  },
+  {
+    "name": "chicken",
+    "dae": "meshes/skeletal/chicken.dae",
+    "texture": "textures/skins/skeletal/animal_chicken_b.dds",
+    "forward": "-y",
+    "size": {
+      "axis": "y",
+      "m": 0.45
+    },
+    "pose": {
+      "animation": "animation/quadraped/chicken_idle_01.dae",
+      "time": 0.04
+    },
+    "keys": {
+      "stride_a": {
+        "animation": "animation/quadraped/chicken_walk.dae",
+        "time": 0.04
+      },
+      "stride_b": {
+        "animation": "animation/quadraped/chicken_walk.dae",
+        "time": 0.33
+      },
+      "graze": {
+        "animation": "animation/quadraped/chicken_idle_02.dae",
+        "time": 0.29
+      }
+    },
+    "opaque": true
   }
 ]

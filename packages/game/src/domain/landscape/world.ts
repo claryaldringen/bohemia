@@ -28,6 +28,16 @@ export function tileCenterWorld(l: Landscape, x: number, y: number): { x: number
 
 /** Výška terénu (m, bez převýšení scény) v bodě světa – bilineárně mezi středy políček. */
 export function heightAtWorld(l: Landscape, x: number, z: number): number {
+  return sampleTilesAtWorld(l, l.heights, x, z);
+}
+
+/** Hodnota pole po políčkách (index y * size + x) v bodě světa – bilineárně mezi středy políček. */
+export function sampleTilesAtWorld(
+  l: Landscape,
+  values: ArrayLike<number>,
+  x: number,
+  z: number,
+): number {
   const half = halfExtent(l);
   const fx = Math.min(l.size - 1, Math.max(0, (x + half) / l.cellSizeM - 0.5));
   const fz = Math.min(l.size - 1, Math.max(0, (z + half) / l.cellSizeM - 0.5));
@@ -35,8 +45,8 @@ export function heightAtWorld(l: Landscape, x: number, z: number): number {
   const z0 = Math.floor(fz);
   const x1 = Math.min(l.size - 1, x0 + 1);
   const z1 = Math.min(l.size - 1, z0 + 1);
-  const h = (tx: number, tz: number): number => l.heights[tz * l.size + tx]!;
-  const top = h(x0, z0) + (h(x1, z0) - h(x0, z0)) * (fx - x0);
-  const bottom = h(x0, z1) + (h(x1, z1) - h(x0, z1)) * (fx - x0);
+  const v = (tx: number, tz: number): number => values[tz * l.size + tx]!;
+  const top = v(x0, z0) + (v(x1, z0) - v(x0, z0)) * (fx - x0);
+  const bottom = v(x0, z1) + (v(x1, z1) - v(x0, z1)) * (fx - x0);
   return top + (bottom - top) * (fz - z0);
 }

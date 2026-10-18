@@ -9,11 +9,16 @@ import { Tooltip } from './Tooltip';
 /** Kolik slotů má mřížka staveb (jako příkazový panel 0 A.D.) – prázdné jsou prohlubně. */
 const GRID_SLOTS = 8;
 
-const RESOURCE_ICONS: Record<StockResource, { icon: string; unit: string }> = {
-  grain: { icon: 'food', unit: 'kg' },
+const RESOURCE_ICONS: Record<StockResource, { icon: string; unit: string; name: string }> = {
+  grain: { icon: 'food', unit: 'kg', name: 'Obilí' },
+  wood: { icon: 'wood', unit: '', name: 'Dřevo (stromy)' },
+  settlers: { icon: 'people', unit: '', name: 'Lidé k osídlení' },
 };
 
-/** Popisek stavby: název a cena – práce a suroviny předem, chybějící červeně (jako v 0 A.D.). */
+/**
+ * Popisek stavby: název a cena – práce, suroviny a lidé k osídlení předem, chybějící červeně
+ * (jako v 0 A.D.).
+ */
 function BuildTooltip({
   item,
   option,
@@ -30,21 +35,23 @@ function BuildTooltip({
           <span className="flex items-center gap-1">
             <img src="/icons/resources/labor.png" alt="" width={16} height={16} />
             {formatManDays(option.laborManDays)}
-            {option.perHa ? ' / ha' : ''}
+            {option.perHa ? ' / ha' : option.perSquare ? ' / čtverec' : ''}
           </span>
           {option.upfront.map((cost) => (
             <span
               key={cost.resource}
+              data-resource={cost.resource}
               data-missing={cost.missing > 0}
               className={`flex items-center gap-1 ${cost.missing > 0 ? 'font-semibold text-red-400' : ''}`}
             >
               <img
                 src={`/icons/resources/${RESOURCE_ICONS[cost.resource].icon}.png`}
-                alt=""
+                alt={RESOURCE_ICONS[cost.resource].name}
                 width={16}
                 height={16}
               />
-              {formatInteger(cost.amount)} {RESOURCE_ICONS[cost.resource].unit}
+              {formatInteger(cost.amount)}
+              {RESOURCE_ICONS[cost.resource].unit && ` ${RESOURCE_ICONS[cost.resource].unit}`}
             </span>
           ))}
         </span>
@@ -55,7 +62,8 @@ function BuildTooltip({
 
 /**
  * Mřížka staveb vpravo dole (jako v 0 A.D.): čtvercové ikony, klávesová zkratka a cena jen
- * v popisku. Stavba, na kterou ves nemá suroviny předem, je zašedlá a nejde spustit.
+ * v popisku. Stavba, na kterou ves nemá předem suroviny nebo lidi k osídlení, je zašedlá a nejde
+ * spustit (ani zkratkou).
  */
 export function BuildGrid({
   options,
@@ -63,7 +71,7 @@ export function BuildGrid({
   disabled,
   onBuild,
 }: {
-  /** Nabízené stavby; null = bez ceny (první zemnice zakládá ves – osadníci přišli). */
+  /** Nabízené stavby; null = bez ceny (první zemnice zakládá ves – osídlí ji zakladatelé). */
   options: Partial<Record<BuildItem['kind'], BuildOption | null>>;
   /** Co se právě umisťuje. */
   active: BuildItem['kind'] | null;

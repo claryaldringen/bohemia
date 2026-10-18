@@ -5,7 +5,11 @@ import { enterGame, type EnterGameResult } from '@bohemia/game';
 import { getDatabase } from './db';
 import { cachedLandscapes } from './landscape-cache';
 
-/** Kolik krajin sídel držet v paměti serveru (jedna má stovky kB). */
+/**
+ * Kolik krajin sídel držet v paměti serveru. Krajina sama má ≈ 0,1 MB, s vrstvou překážek
+ * (generuje se až pro stavby) ještě 1,8–2,0 MB – změřeno na 20 krajinách; plná mezipaměť
+ * tak drží nejvýš ≈ 65 MB.
+ */
 const LANDSCAPE_CACHE_SIZE = 32;
 const landscapes = cachedLandscapes(LANDSCAPE_CACHE_SIZE);
 

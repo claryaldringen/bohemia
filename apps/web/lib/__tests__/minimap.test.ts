@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import type { Landscape } from '@bohemia/game';
+import { NO_OBSTACLE_CHANGES, packObstacles, type Landscape } from '@bohemia/game';
 import { minimapImage, minimapToWorld, worldToMinimap } from '../minimap';
+import { clearedForest } from '../scene/cleared-forest';
 
 const SIZE = 8;
 const landscape: Landscape = {
@@ -14,6 +15,7 @@ const landscape: Landscape = {
   fertility: new Uint8Array(SIZE * SIZE).fill(50),
   villageSite: { x: 4, y: 4 },
   stream: [],
+  obstacleLayer: null,
 };
 
 describe('převod souřadnic minimapy', () => {
@@ -47,5 +49,24 @@ describe('minimapImage', () => {
     const meadow = at(8, 8);
     expect(forest[1]).toBeGreaterThan(forest[0]!);
     expect(meadow[1]).toBeGreaterThan(forest[1]!);
+  });
+});
+
+describe('minimapImage – vymýcený les', () => {
+  const px = 16;
+  const at = (image: Uint8ClampedArray, x: number, y: number): number[] =>
+    Array.from(image.slice((y * px + x) * 4, (y * px + x) * 4 + 3));
+  const layer = packObstacles([], SIZE, 15);
+
+  it('vymýcené políčko lesa je světlejší paseka, ostatní les zůstane', () => {
+    // horní řádek obrázku (sever) = řádek y = SIZE − 1 krajiny, políčko (4, 7) je pixely 8–9
+    const cleared = clearedForest(landscape, layer, NO_OBSTACLE_CHANGES, [{ x: 4, y: SIZE - 1 }]);
+    const plain = minimapImage(landscape, px);
+    const image = minimapImage(landscape, px, cleared);
+    const forest = at(plain, 8, 0);
+    const clearing = at(image, 8, 0);
+    expect(clearing[1]).toBeGreaterThan(forest[1]! + 20);
+    expect(at(image, 12, 0)).toEqual(at(plain, 12, 0));
+    expect(at(image, 8, 8)).toEqual(at(plain, 8, 8));
   });
 });

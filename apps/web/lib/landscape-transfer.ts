@@ -1,9 +1,14 @@
-import type { Landscape, StreamPoint } from '@bohemia/game';
+import type { Landscape, ObstacleLayerSeed, StreamPoint } from '@bohemia/game';
 
 /** Čísel na bod osy potoka: x, y, levá a pravá poloviční šířka, hladina, mělčina (0/1). */
 const STREAM_FIELDS = 6;
 
-/** Krajina ve tvaru, který jde poslat v props ze serveru do klientské komponenty (≈ 90 kB). */
+/**
+ * Krajina ve tvaru, který jde poslat v props ze serveru do klientské komponenty (≈ 100 kB,
+ * ≈ 50 kB po kompresi). Přesnost (výšky na cm, osa potoka ve Float32) odpovídá
+ * `transferPrecision` z herního jádra – vrstvu překážek (desítky tisíc stromů) si prohlížeč
+ * vygeneruje sám ze seedu vrstvy a vyjde mu přesně stejná jako serveru.
+ */
 export interface LandscapeTransfer {
   size: number;
   cellSizeM: number;
@@ -16,6 +21,8 @@ export interface LandscapeTransfer {
   fertility: string;
   /** Base64 Float32 little-endian – body osy potoka po STREAM_FIELDS číslech. */
   stream: string;
+  /** Seed a verze vrstvy překážek (null = krajina bez překážek). */
+  obstacleLayer: ObstacleLayerSeed | null;
 }
 
 export function encodeLandscape(l: Landscape): LandscapeTransfer {
@@ -29,10 +36,23 @@ export function encodeLandscape(l: Landscape): LandscapeTransfer {
     surface: bytesToBase64(l.surface),
     fertility: bytesToBase64(l.fertility),
     stream: bytesToBase64(encodeStream(l.stream)),
+    obstacleLayer: l.obstacleLayer,
   };
 }
 
+/** Dekódované krajiny podle přenosu – scéna i rozhraní dostanou týž objekt (a vrstvu překážek). */
+const decoded = new WeakMap<LandscapeTransfer, Landscape>();
+
+/** Krajina z přenosu; pro týž objekt přenosu vrací týž objekt krajiny (`obstaclesOf` jednou). */
 export function decodeLandscape(t: LandscapeTransfer): Landscape {
+  const cached = decoded.get(t);
+  if (cached) return cached;
+  const landscape = decode(t);
+  decoded.set(t, landscape);
+  return landscape;
+}
+
+function decode(t: LandscapeTransfer): Landscape {
   const heightBytes = base64ToBytes(t.heightsCm);
   const view = new DataView(heightBytes.buffer);
   const heights = new Float32Array(t.size * t.size);
@@ -45,6 +65,7 @@ export function decodeLandscape(t: LandscapeTransfer): Landscape {
     surface: base64ToBytes(t.surface),
     fertility: base64ToBytes(t.fertility),
     stream: decodeStream(base64ToBytes(t.stream)),
+    obstacleLayer: t.obstacleLayer,
   };
 }
 

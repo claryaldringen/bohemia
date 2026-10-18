@@ -5,18 +5,19 @@ Celé jedním příkazem z kořene repa (Blender 5, ImageMagick `magick`, intern
     blender -b --factory-startup --python tools/blender/icons.py -- apps/web/public/icons [jen,vybrané,ikony]
 
 Výstup (128 × 128 PNG, průhledné rohy) – `build/` zemnice, polozemnice, pole, hrbitov,
-hrncir, kovar, uhlir (řemeslné dílny z `apps/web/public/models/crafts/`, uhlíř s milířem);
-(64 × 64 PNG) – `resources/` people, food, labor, satiation, date. Bez druhého argumentu
-vše, jinak čárkami oddělený výběr (např. `pole,hrbitov,food`).
+hrncir, kovar, uhlir (řemeslné dílny z `apps/web/public/models/crafts/`, uhlíř s milířem), sad
+(jabloňový sad); (64 × 64 PNG) – `resources/` people, food, wood, labor, satiation, date, apples.
+Bez druhého argumentu vše, jinak čárkami oddělený výběr (např. `pole,hrbitov,food`).
 
-Postup: portréty staveb a ikony `food`, `labor`, `satiation`, `date` se vyrenderují v Cycles
+Postup: portréty staveb a ikony `food`, `wood`, `labor`, `satiation`, `date`, `apples` se vyrenderují v Cycles
 (ortografická kamera ~3/4 shora, teplé slunce, měkký stín, 256 px) a ImageMagick je zmenší
 a vloží na tmavě hnědé pozadí s vinětou a zaoblenými rohy (jako portréty 0 A.D.); ikony surovin
 zůstávají průhledné jako v 0 A.D. `people` je původní ikona 0 A.D. (`population.png`, CC BY-SA 3.0),
 stahuje se z oficiálního repozitáře 0 A.D. (GitHub 0ad/0ad), jen zmenšená/zachovaná; licence viz
 `apps/web/public/icons/LICENSES.md`. Zemnice a polozemnice jsou vlastní modely
-(`apps/web/public/models/dwellings/`), pole, hřbitov, obilí, motyka, miska s chlebem a slunce se
-modelují přímo v tomto skriptu, textury země jsou z `apps/web/public/textures/terrain/`.
+(`apps/web/public/models/dwellings/`), pole, hřbitov, sad (jabloně s jablky), obilí, hranice
+klád, motyka, miska s chlebem, slunce a jablka se modelují přímo v tomto skriptu, textury země
+jsou z `apps/web/public/textures/terrain/`.
 """
 import math
 import os
@@ -28,7 +29,7 @@ import urllib.request
 
 import bmesh
 import bpy
-from mathutils import Euler, Vector
+from mathutils import Euler, Vector, noise
 
 args = sys.argv[sys.argv.index("--") + 1 :]
 OUT = os.path.abspath(args[0])
@@ -409,6 +410,69 @@ def icon_hrbitov():
     camera([Vector((-4.2, -2.4, 0)), Vector((4.2, 4.4, 1.6)), Vector((-4.2, 4.4, 0)), Vector((4.2, -2.4, 0))], az=22, el=38, margin=1.0, shift=(0, 0.0))
 
 
+def lumpy(bm, centre, rad, rng, seg=16, rings=10, amp=0.16):
+    """Hrbolatý elipsoid (chomáč listí koruny) – poloměr rozvlněný šumem."""
+    r = bmesh.ops.create_uvsphere(bm, u_segments=seg, v_segments=rings, radius=1.0)
+    off = Vector((rng.uniform(0, 50), rng.uniform(0, 50), rng.uniform(0, 50)))
+    for v in r["verts"]:
+        k = 1 + amp * noise.noise(v.co * 2.2 + off)
+        v.co = Vector(centre) + Vector((v.co.x * rad[0], v.co.y * rad[1], v.co.z * rad[2])) * k
+
+
+def apple_tree(trunk, leaves, apples, x, y, rng, size=1.0):
+    """Malá jabloň: kmen s rozvětvením, koruna z chomáčů listí a červená jablka po jejím povrchu."""
+    s = size
+    top = Vector((x + rng.uniform(-0.05, 0.05), y, 1.05 * s))
+    cyl(trunk, (x, y, -0.05), top, 0.14 * s, 0.1 * s, 8)
+    for k in range(3):
+        a = 2 * math.pi * k / 3 + rng.uniform(0, 1)
+        cyl(trunk, top, top + Vector((math.cos(a) * 0.4, math.sin(a) * 0.4, 0.45)) * s, 0.08 * s, 0.04 * s, 6)
+    crown = Vector((x, y, 1.85 * s))
+    tufts = [(crown, (0.95, 0.95, 0.72))]
+    for k in range(5):
+        a = 2 * math.pi * k / 5 + rng.uniform(-0.3, 0.3)
+        c = crown + Vector((math.cos(a) * 0.5, math.sin(a) * 0.5, rng.uniform(-0.2, 0.25))) * s
+        tufts.append((c, (0.62, 0.62, 0.52)))
+    tufts.append((crown + Vector((0, 0, 0.55)) * s, (0.6, 0.6, 0.45)))
+    # drobné chomáčky po obvodu – členitý obrys koruny místo hladké koule
+    for _ in range(22):
+        a, e = rng.uniform(0, 2 * math.pi), rng.uniform(-0.5, 1.2)
+        d = Vector((math.cos(a) * math.cos(e), math.sin(a) * math.cos(e), math.sin(e) * 0.85))
+        tufts.append((crown + d * 0.92 * s, (0.3, 0.3, 0.26)))
+    for c, rad in tufts:
+        lumpy(leaves, c, tuple(r * s for r in rad), rng, 12, 8, 0.22)
+    # jablka na povrchu koruny – hlavně z boku a shora, kde je ve výřezu vidět
+    for _ in range(14):
+        a = rng.uniform(0, 2 * math.pi)
+        e = rng.uniform(-0.35, 0.9)
+        d = Vector((math.cos(a) * math.cos(e), math.sin(a) * math.cos(e), math.sin(e) * 0.8))
+        p = crown + Vector((d.x * 1.12, d.y * 1.12, d.z * 1.12 + 0.08)) * s
+        blob(apples, (p[:], (0, 0, 0)), (0.12 * s, 0.12 * s, 0.11 * s), 10, 6)
+
+
+def icon_sad():
+    """Jabloňový sad: tři řady malých jabloní s červenými jablky v trávě, pár jablek pod stromy."""
+    rng = random.Random(5)
+    ground(8.5, mat("g", tex=f"{TEX}/grass-lush.jpg", scale=0.22, tint=(0.8, 0.85, 0.65)), z=0.0, fade=0.7)
+    trunk, leaves, apples = bmesh.new(), bmesh.new(), bmesh.new()
+    gap = 2.7
+    for r in range(3):
+        for c in range(3):
+            x = (c - 1) * gap + rng.uniform(-0.12, 0.12)
+            y = (r - 1) * gap + rng.uniform(-0.12, 0.12)
+            apple_tree(trunk, leaves, apples, x, y, rng, rng.uniform(0.92, 1.05))
+            for _ in range(2):  # spadaná jablka
+                a, d = rng.uniform(0, 6.28), rng.uniform(0.4, 1.0)
+                blob(apples, ((x + math.cos(a) * d, y + math.sin(a) * d, 0.08), (0, 0, 0)), (0.11, 0.11, 0.1), 10, 6)
+    objs = [
+        to_obj(trunk, "trunks", mat("bark", (0.36, 0.26, 0.17), 0.9, noise=30, bump=0.4)),
+        to_obj(leaves, "leaves", mat("leaves", (0.17, 0.34, 0.07), 0.8, noise=18, bump=0.8)),
+        to_obj(apples, "apples", mat("apple", (0.75, 0.06, 0.03), 0.4)),
+    ]
+    sun(az=-55, el=44)
+    camera(world_points(objs), az=16, el=40, margin=1.03)
+
+
 # --------------------------------------------------------------- suroviny ----
 
 
@@ -442,6 +506,44 @@ def icon_food():
     to_obj(cord, "cord", mat("cord", (0.45, 0.3, 0.16), 0.9))
     sun(az=-50, el=50, strength=4.0)
     camera([Vector((-0.7, -0.7, -0.5)), Vector((0.7, 0.7, 1.5))], az=0, el=18, margin=1.06)
+    return True
+
+
+def icon_wood():
+    """Hranice klád (3 + 2 + 1) – kůra a světlá čela s letokruhy."""
+    rng = random.Random(7)
+    r = 0.27
+    bark, ends = bmesh.new(), bmesh.new()
+    h = r * math.sqrt(3)
+    logs = [(-2 * r, r), (0, r), (2 * r, r), (-r, r + h), (r, r + h), (0, r + 2 * h)]
+    rings = (0.0, 0.3, 0.42, 0.7, 0.82, 0.93, 1.0)
+    for y, z in logs:
+        rr = r * rng.uniform(0.93, 1.0)
+        x0 = -0.85 + rng.uniform(-0.08, 0.08)
+        x1 = 0.85 + rng.uniform(-0.08, 0.08)
+        cyl(bark, (x0, y, z), (x1, y, z), rr, rr * 0.97, 14)
+        # čelo: soustředné mezikruží střídavě světlé a tmavší (letokruhy), okraj tmavý (lýko)
+        seg = 20
+        c = Vector((x1 + 0.004, y, z))
+        prev = [c] * seg
+        for k, f in enumerate(rings[1:], start=1):
+            cur = [c + Vector((0, math.cos(2 * math.pi * i / seg), math.sin(2 * math.pi * i / seg))) * rr * 0.97 * f for i in range(seg)]
+            pv = [ends.verts.new(v) for v in prev] if k > 1 else None
+            cv = [ends.verts.new(v) for v in cur]
+            for i in range(seg):
+                j = (i + 1) % seg
+                if k == 1:
+                    cc = ends.verts.new(c)
+                    face = ends.faces.new((cc, cv[i], cv[j]))
+                else:
+                    face = ends.faces.new((pv[i], pv[j], cv[j], cv[i]))
+                face.material_index = k % 2
+            prev = cur
+    to_obj(bark, "bark", mat("bark", (0.17, 0.1, 0.05), 0.95, noise=26, bump=0.6))
+    o = to_obj(ends, "ends", mat("sapwood", (0.95, 0.72, 0.4), 0.75, noise=40), smooth=False)
+    o.data.materials.append(mat("ring", (0.6, 0.38, 0.17), 0.8))
+    sun(az=40, el=45, strength=4.2)
+    camera([Vector((-0.95, -0.85, 0)), Vector((0.95, 0.85, r + 2 * h + r))], az=58, el=24, margin=1.04)
     return True
 
 
@@ -525,6 +627,70 @@ def icon_date():
     return True
 
 
+def apple(bm, centre, r, tilt=(0, 0, 0)):
+    """Jablko: koule rozšířená nahoře, s důlky u stopky a u kalichu; vrací vrchol důlku (stopka)."""
+    sp = bmesh.ops.create_uvsphere(bm, u_segments=32, v_segments=18, radius=1.0)
+    rot = Euler(tilt).to_matrix()
+    for v in sp["verts"]:
+        x, y, z = v.co
+        rho2 = x * x + y * y
+        z -= (0.3 if z > 0 else 0.16) * math.copysign(1, z) * math.exp(-rho2 / 0.07)
+        k = 1 + 0.08 * z
+        v.co = Vector(centre) + rot @ (Vector((x * k, y * k, z * 0.9)) * r)
+    return Vector(centre) + rot @ (Vector((0, 0, 0.62)) * r), rot
+
+
+def apple_skin():
+    """Slupka: sytě červená se žlutozelenými místy a jemnými podélnými proužky."""
+    m = mat("apple", (0.7, 0.05, 0.03), 0.42)
+    nt = m.node_tree
+    b = next(n for n in nt.nodes if n.type == "BSDF_PRINCIPLED")
+    tc = nt.nodes.new("ShaderNodeTexCoord")
+    patch = nt.nodes.new("ShaderNodeTexNoise")
+    patch.inputs["Scale"].default_value = 1.6
+    patch.inputs["Detail"].default_value = 3
+    ramp = nt.nodes.new("ShaderNodeMapRange")
+    ramp.inputs["From Min"].default_value = 0.55
+    ramp.inputs["From Max"].default_value = 0.7
+    streak = nt.nodes.new("ShaderNodeTexNoise")  # proužky = šum natažený podél osy jablka
+    streak.inputs["Scale"].default_value = 9
+    mp = nt.nodes.new("ShaderNodeMapping")
+    mp.inputs["Scale"].default_value = (1.0, 1.0, 0.15)
+    mix = nt.nodes.new("ShaderNodeMix")
+    mix.data_type = "RGBA"
+    mix.inputs[6].default_value = (0.66, 0.04, 0.03, 1)
+    mix.inputs[7].default_value = (0.86, 0.55, 0.12, 1)
+    dark = nt.nodes.new("ShaderNodeMix")
+    dark.data_type, dark.blend_type = "RGBA", "MULTIPLY"
+    dark.inputs["Factor"].default_value = 0.35
+    nt.links.new(tc.outputs["Object"], patch.inputs["Vector"])
+    nt.links.new(patch.outputs["Fac"], ramp.inputs["Value"])
+    nt.links.new(ramp.outputs["Result"], mix.inputs["Factor"])
+    nt.links.new(tc.outputs["Object"], mp.inputs["Vector"])
+    nt.links.new(mp.outputs["Vector"], streak.inputs["Vector"])
+    nt.links.new(mix.outputs[2], dark.inputs[6])
+    nt.links.new(streak.outputs["Fac"], dark.inputs[7])
+    nt.links.new(dark.outputs[2], b.inputs["Base Color"])
+    return m
+
+
+def icon_apples():
+    """Tři červená jablka se stopkou, jedno s lístkem."""
+    skin, stems, leaf = bmesh.new(), bmesh.new(), bmesh.new()
+    for (c, r, tilt) in (((-0.52, 0.0, 0.0), 0.5, (0.15, -0.25, 0)), ((0.5, -0.05, 0.0), 0.48, (-0.1, 0.3, 0)),
+                         ((0.0, 0.45, 0.6), 0.47, (0.35, 0.05, 0))):
+        tip, rot = apple(skin, c, r, tilt)
+        cyl(stems, tip, tip + rot @ Vector((0.05, 0, 0.32)) * r * 1.6, 0.035, 0.025, 6)
+    # lístek u stopky horního jablka, natočený ke kameře a šikmo vzhůru
+    blob(leaf, ((tip + Vector((0.21, -0.03, 0.12)))[:], (1.1, -0.5, 0)), (0.27, 0.11, 0.025), 14, 6)
+    to_obj(skin, "apples", apple_skin())
+    to_obj(stems, "stems", mat("stem", (0.33, 0.22, 0.12), 0.8))
+    to_obj(leaf, "leaf", mat("leaf", (0.22, 0.45, 0.12), 0.6))
+    sun(az=-45, el=50, strength=4.0)
+    camera([Vector((-1.1, -0.6, -0.5)), Vector((1.1, 1.0, 1.3))], az=0, el=22, margin=1.06)
+    return True
+
+
 # --------------------------------------------------------------- hlavní ----
 
 BUILD = {
@@ -535,8 +701,16 @@ BUILD = {
     "hrncir": lambda: icon_craft("hrncir"),
     "kovar": lambda: icon_craft("kovar"),
     "uhlir": lambda: icon_craft("uhlir"),
+    "sad": icon_sad,
 }
-RESOURCES = {"food": icon_food, "labor": icon_labor, "satiation": icon_satiation, "date": icon_date}
+RESOURCES = {
+    "food": icon_food,
+    "wood": icon_wood,
+    "labor": icon_labor,
+    "satiation": icon_satiation,
+    "date": icon_date,
+    "apples": icon_apples,
+}
 
 
 def backdrop(src, dst, size):

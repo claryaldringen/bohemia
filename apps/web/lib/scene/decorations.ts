@@ -6,6 +6,7 @@ import { HEIGHT_SCALE } from './constants';
 import { DECOR_MODELS, type DecorModel, type DecorPlacement } from './decor-placement';
 import { applyGammaFog } from './gamma-fog';
 import { addInstancedModel } from './instanced-model';
+import { applySeasonModel } from './season-materials';
 
 /** Lekníny kousek nad hladinou, ať se s ní neperou o hloubku (m ve scéně). */
 const FLOAT_ABOVE_WATER = 0.15;
@@ -54,13 +55,14 @@ export async function addDecorations(
             z: p.worldZ,
             rotationY: p.rotationY,
             scale: p.scale,
+            id: p.id,
             up: model.startsWith('rock')
               ? slopeUp(p, options.groundHeight, ROCK_TILT)
               : model.startsWith('fallen')
                 ? slopeUp(p, options.groundHeight, FALLEN_TILT)
                 : undefined,
           })),
-        (material) => prepareMaterial(model, material),
+        (material) => prepareDecorMaterial(model, material),
       ),
     ),
   );
@@ -107,7 +109,8 @@ function slopeUp(
   return { x: x / length, y: 1 / length, z: z / length };
 }
 
-function prepareMaterial(model: DecorModel, material: Material): void {
+/** Materiál dekorace – světlo a tón podle druhu (rostliny jako stromy okraje, kameny tlumeně). */
+export function prepareDecorMaterial(model: DecorModel, material: Material): void {
   if (!(material instanceof PBRMaterial)) return;
   applyGammaFog(material);
   material.roughness = 1;
@@ -125,4 +128,6 @@ function prepareMaterial(model: DecorModel, material: Material): void {
     material.albedoColor = SHRUB_TINT;
   if (model === 'rock-tower') material.albedoColor = TOWER_TINT;
   if (material.albedoTexture) material.albedoTexture.anisotropicFilteringLevel = 8;
+  // Roční období: keře a vrby se barví a opadávají, rákos usychá, na kamenech a kmenech sníh.
+  applySeasonModel(material, model);
 }

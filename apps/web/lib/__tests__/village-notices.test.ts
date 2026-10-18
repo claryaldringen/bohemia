@@ -8,17 +8,29 @@ const view = (overrides: Partial<VillageView> = {}): VillageView => ({
   people: { children: 2, adults: 2, elders: 0 },
   households: [],
   storesKg: 800,
+  applesKg: 0,
+  woodLogs: 0,
   storesMonths: 17,
   satiation: 1,
   commonLaborPerDay: 1,
   fullHousehold: false,
   build: {
-    zemnice: { laborManDays: 60, perHa: false, upfront: [], affordable: true },
-    polozemnice: { laborManDays: 220, perHa: false, upfront: [], affordable: true },
-    field: { laborManDays: 100, perHa: true, upfront: [], affordable: true },
+    zemnice: { laborManDays: 60, perHa: false, perSquare: false, upfront: [], affordable: true },
+    polozemnice: {
+      laborManDays: 220,
+      perHa: false,
+      perSquare: false,
+      upfront: [],
+      affordable: true,
+    },
+    field: { laborManDays: 100, perHa: true, perSquare: false, upfront: [], affordable: true },
+    cemetery: { laborManDays: 10, perHa: false, perSquare: true, upfront: [], affordable: true },
+    orchard: { laborManDays: 80, perHa: true, perSquare: false, upfront: [], affordable: true },
   },
   constructions: [],
   fields: [],
+  cemeteries: [],
+  orchards: [],
   hungry: false,
   constructionsStalled: false,
   scene: { dwellings: [], fields: [] },
@@ -63,5 +75,32 @@ describe('newNotices', () => {
 
   it('první pohled na ves nic neohlásí', () => {
     expect(newNotices(null, view({ hungry: true }))).toEqual([]);
+  });
+});
+
+describe('hřbitov je plný', () => {
+  const cemetery = (built: boolean, freeGraves: number): VillageView['cemeteries'][number] => ({
+    id: 1,
+    squares: 1,
+    built,
+    progress: built ? 1 : 0.3,
+    capacity: 56,
+    graves: 56 - freeGraves,
+    freeGraves,
+    yearsLeft: null,
+  });
+
+  it('jen když žádný hotový hřbitov nemá volný hrob – bez hřbitova nic', () => {
+    const kinds = (cemeteries: VillageView['cemeteries']): string[] =>
+      villageNotices(view({ cemeteries })).map((n) => n.kind);
+    expect(kinds([])).toEqual([]);
+    expect(kinds([cemetery(true, 0)])).toEqual(['cemetery-full']);
+    expect(kinds([cemetery(true, 0), cemetery(true, 3)])).toEqual([]);
+    // rozestavěný hřbitov mrtvé nepřijme – hotové jsou plné
+    expect(kinds([cemetery(true, 0), cemetery(false, 56)])).toEqual(['cemetery-full']);
+    expect(kinds([cemetery(false, 56)])).toEqual([]);
+    expect(villageNotices(view({ cemeteries: [cemetery(true, 0)] }))[0]?.text).toBe(
+      'Hřbitov je plný',
+    );
   });
 });

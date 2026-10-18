@@ -14,7 +14,7 @@ const SELECTION_COLOR = new Color3(1, 0.86, 0.45);
 /** O kolik je rámeček kolem obydlí větší než půdorys (m). */
 const DWELLING_RING_MARGIN_M = 1.2;
 
-/** Zvýraznění vybraného obydlí nebo pole – rámeček na zemi (obtisk). */
+/** Zvýraznění vybraného obydlí, pole nebo hřbitova – rámeček na zemi (obtisk). */
 export class SelectionHighlight {
   private readonly material: StandardMaterial;
   private meshes: Mesh[] = [];
@@ -58,7 +58,10 @@ export class SelectionHighlight {
   }
 }
 
-/** Obrys cíle jako lomené čáry: rámeček kolem půdorysu obydlí, nebo mez kolem čtverců pole. */
+/**
+ * Obrys cíle jako lomené čáry: rámeček kolem půdorysu obydlí, nebo mez kolem čtverců pole,
+ * hřbitova či sadu.
+ */
 function targetOutline(village: SceneVillage, target: VillageTarget): Point[][] {
   if (target.kind === 'dwelling') {
     const dwelling = village.dwellings.find((d) => d.id === target.id);
@@ -70,6 +73,14 @@ function targetOutline(village: SceneVillage, target: VillageTarget): Point[][] 
       depth + DWELLING_RING_MARGIN_M * 2,
     );
     return [[...corners, corners[0]!]];
+  }
+  if (target.kind === 'cemetery') {
+    const cemetery = village.cemeteries?.find((c) => c.id === target.id);
+    return cemetery ? cellsBoundary(cemetery.squares) : [];
+  }
+  if (target.kind === 'orchard') {
+    const orchard = village.orchards?.find((o) => o.id === target.id);
+    return orchard ? cellsBoundary(orchard.squares) : [];
   }
   const field = village.fields.find((f) => f.id === target.id);
   if (!field || field.parts.length === 0) return [];

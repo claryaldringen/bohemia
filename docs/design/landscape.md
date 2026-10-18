@@ -148,7 +148,8 @@ na který se později přidávají další prvky (černozem, naleziště kovů, 
   v 0 A.D. chybí). Na skalách a suchých hřbetech borovice (reliktní bory; přímořská borovice
   z 0 A.D. vypadá jako naše borovice lesní), před lesem skupinky mladých stromků (louka zarůstá),
   na okraji lesa souše a padlé stromy, u lesa poblíž vesnice pařezy, v klidné vodě kmeny.
-  Jen vzhled scény – herní data políček se nemění. **Vnitřek lesa tvoří impostory**
+  Herní data políček se nemění; rozmístění stromů je vrstva překážek (viz Stav implementace).
+  **Vnitřek lesa tvoří impostory**
   – obrázky týchž stromů vyrenderované pod pevným náklonem kamery (kamera se otáčí jen kolem
   svislé osy, takže obrázek sedí z každého směru); jejich začátek zakrývají řady 3D stromů.
   V lese je tráva (ne hrabanka – Martin), pod stromy ztmavená. Mezery hluboko v lese vyplňuje
@@ -216,6 +217,31 @@ na který se později přidávají další prvky (černozem, naleziště kovů, 
   do zelena (textura má hodně hnědých větviček).
 - Scéna se kreslí jen při změně pohledu (statická krajina nezatěžuje počítač).
 - Terén je ve scéně vizuálně převýšený (`HEIGHT_SCALE = 3`); laditelné spolu se vzhledem.
+- **Vrstva překážek (17. 10. 2026, podle fields.md – Překážky jsou herní data):** stromy
+  (okraj lesa, vnitřek lesa, louky, břehy, borovice, mladé stromky), souše, padlé stromy,
+  pařezy, keře, kameny, balvany a skalní výchozy už nejsou „jen vzhled scény“ – jsou to herní
+  data čtvrté vrstvy `obstacles` (verze 1, seed `deriveSeed(seed, 'obstacles')`; sídla uložená
+  před ní mají verzi 1 doplněnou). Vzhled zůstal: stejné rozmisťování, hustoty a skladba
+  dřevin, jen náhody jsou nově ze seedu vrstvy (jednotlivé stromy stojí jinde, hustota stejná).
+  Výjimka z „klient dostane hotová data“: vrstva má ≈ 65–72 tisíc překážek (≈ 470 kB po
+  kompresi, krajina samotná ≈ 50 kB), a tak ji prohlížeč generuje sám stejnou funkcí ze
+  stejných dat jako server – z krajiny s přesností přenosu a jen s deterministickou
+  matematikou (+ − × ÷ √, žádné sin/cos/atan2/hypot, které se mezi JS enginy liší – hlídá
+  ESLint); test ověřuje, že výsledek je bit po bitu shodný, **ale jen ve V8** (Node = Chrome).
+  Firefox a Safari test nepokrývá – shodu tam drží jen omezení na přesně zaokrouhlované
+  operace. Generování trvá ≈ 230–350 ms (stejně jako dřív rozmisťování ve scéně), na serveru
+  jednou na krajinu v mezipaměti (vrstva ≈ 1,8–2,0 MB paměti, pole lesa se nedrží). Rákos,
+  orobinec, lekníny, kmeny v potoce a zvířata zůstávají jen ozdobou scény. Pásmo
+  srovnatelnosti se nemění.
+- **Co vrstvu překážek mění** (po ostrém spuštění jen novou verzí vrstvy, zlatý otisk v testech to
+  hlídá): rozmisťovače (`landscape/obstacles/`), pole lesa (`forest-field.ts`), osa potoka ve
+  světě (`stream-geometry.ts`), tvar terénu (`relief.ts`, `SUN_RAYS`), `det-math.ts`,
+  `transferPrecision` i přesnost kodéru ve webu (`landscape-transfer.ts`: výšky na cm, osa potoka
+  ve Float32), pomocné funkce `world.ts`, `deriveSeed` a `createRandom`, verze `simplex-noise`
+  (připnutá bez stříšky), číslování `OBSTACLE_SOURCES` (id) a `VILLAGE_CLEARING_TILES` – a
+  samozřejmě generátor krajiny, ze které vrstva vychází. `streamCenterline` (`deriveFlow`) přitom
+  řídí i vzhled vody a zvuk potoka – ladění vody přes osu potoka změní i vrstvu, vzhledovou část
+  je pak třeba oddělit.
 
 ## Necháno na staviteli
 

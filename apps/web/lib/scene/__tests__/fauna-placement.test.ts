@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generateLandscape, SURFACE_CODES } from '@bohemia/game';
+import { buildForestField, generateLandscape, SURFACE_CODES } from '@bohemia/game';
 import { HEIGHT_SCALE } from '../constants';
 import {
   birdFlocks,
@@ -8,7 +8,6 @@ import {
   flockReach,
   type FishSchool,
 } from '../fauna-placement';
-import { buildForestField } from '../forest-field';
 import { buildRenderSurface } from '../render-surface';
 import { tileAt } from '../tile-at';
 

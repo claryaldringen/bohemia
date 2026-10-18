@@ -32,6 +32,7 @@ export function makeLandscape(spec: LandscapeSpec = {}): Landscape {
     fertility,
     villageSite: { x: size / 2, y: size / 2 },
     stream: [],
+    obstacleLayer: null,
   };
 }
 

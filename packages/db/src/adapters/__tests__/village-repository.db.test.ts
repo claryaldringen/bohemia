@@ -79,7 +79,7 @@ describe('createVillageRepository', () => {
 
   it('save s aktuální verzí uloží stav a zvýší verzi, se starou verzí vrátí null', async () => {
     await villages.create(settlementId, 'Libice', state());
-    const next = advanceVillage(state(), DAY + 10);
+    const next = advanceVillage(state(), DAY + 10, null);
     const saved = await villages.save(settlementId, next, 1);
     expect(saved).toMatchObject({ version: 2, state: next });
     expect(await villages.save(settlementId, state(), 1)).toBeNull();
@@ -89,18 +89,20 @@ describe('createVillageRepository', () => {
   it('ze souběžných save se stejnou verzí projde jediný', async () => {
     await villages.create(settlementId, 'Libice', state());
     const results = await Promise.all(
-      [1, 2, 3, 4].map((n) => villages.save(settlementId, advanceVillage(state(), DAY + n), 1)),
+      [1, 2, 3, 4].map((n) =>
+        villages.save(settlementId, advanceVillage(state(), DAY + n, null), 1),
+      ),
     );
     expect(results.filter((r) => r !== null)).toHaveLength(1);
     expect((await villages.find(settlementId))?.version).toBe(2);
   });
 
   it('dopočítání po uložení a načtení dá totéž jako bez databáze (JSON nic nezmění)', async () => {
-    const stored = advanceVillage(state(), DAY + 400);
+    const stored = advanceVillage(state(), DAY + 400, null);
     await villages.create(settlementId, 'Libice', stored);
     const loaded = await villages.find(settlementId);
     const later = DAY + 900;
-    expect(advanceVillage(loaded!.state, later)).toEqual(advanceVillage(stored, later));
+    expect(advanceVillage(loaded!.state, later, null)).toEqual(advanceVillage(stored, later, null));
   });
 
   it('rename změní jméno, stav ani verzi ne; bez vsi vrátí false', async () => {

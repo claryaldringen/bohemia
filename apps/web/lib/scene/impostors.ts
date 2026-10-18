@@ -11,7 +11,9 @@ import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import type { Scene } from '@babylonjs/core/scene';
 import { IMPOSTOR_ATLAS, type ImpostorCell } from './impostor-atlas';
-import type { ImpostorPlacement } from './impostor-placement';
+import { setStaticInstances } from './instanced-model';
+import type { ImpostorPlacement } from './obstacle-scenery';
+import { applySeasonImpostors } from './season-materials';
 
 /** Jas obrázků stromů (nejvýš 1) – ladí se proti terénu, aby les nebyl tmavá skvrna ani bledý. */
 const BRIGHTNESS = new Color3(0.92, 0.95, 0.92);
@@ -50,6 +52,8 @@ export async function addImpostors(
   material.disableLighting = true;
   material.emissiveColor = BRIGHTNESS;
   material.backFaceCulling = false;
+  // podzimní barvy a holé zimní koruny listnáčů (smrky zůstanou)
+  applySeasonImpostors(material);
 
   const quads = IMPOSTOR_ATLAS.cells
     .flatMap((cell, index) =>
@@ -124,8 +128,8 @@ function createQuad(
       0.86 + 0.22 * fract(Math.sin(t.worldX * 12.9898 + t.worldZ * 78.233) * 43758.5453);
     colors.set([shade, shade, shade * 0.97, 1], i * 4);
   });
-  mesh.thinInstanceSetBuffer('matrix', matrices, 16, true);
-  mesh.thinInstanceSetBuffer('color', colors, 4, true);
+  // Id stromů – instance vykácených stromů se skryjí (InstanceHider).
+  setStaticInstances(mesh, matrices, { colors, ids: Uint32Array.from(trees, (t) => t.id) });
 
   const positions = new Float32Array(12);
   return {

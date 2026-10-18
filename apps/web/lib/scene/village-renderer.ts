@@ -9,8 +9,14 @@ import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import type { Scene } from '@babylonjs/core/scene';
-import { DWELLING_FOOTPRINT_M, type DwellingType, type WorldClock } from '@bohemia/game';
+import {
+  DWELLING_FOOTPRINT_M,
+  type DwellingType,
+  type ObstacleLayer,
+  type WorldClock,
+} from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
+import { CemeteryRenderer } from './cemetery-renderer';
 import { EARTH_LAYERS, SMOKE_VENT, earthPatch, eaveTufts, type TuftModel } from './dwelling-decor';
 import {
   PIT_SHAPES,
@@ -28,6 +34,7 @@ import {
   loadModelParts,
   type ModelInstance,
 } from './instanced-model';
+import { OrchardRenderer } from './orchard-renderer';
 import { applyPitCut, type PitCuts } from './pit-cut';
 import {
   SITE_PROP_PLACES,
@@ -57,6 +64,7 @@ import {
   createStripMesh,
   type HeightFn,
 } from './village-meshes';
+import { applySeasonGround, applySeasonModel, applySeasonSnow } from './season-materials';
 import { VillageSmoke, type SmokeSource } from './village-smoke';
 import type { SceneDwelling, SceneField } from './village-types';
 
@@ -76,6 +84,8 @@ const DWELLING_SINK_M = 0.05;
  */
 const FIELD_GRID_PER_CELL = 8;
 const FIELD_EDGE_SOFT_M = 1.2;
+/** Sníh na obtiscích vsi (pole, řádky, cesty) – část jejich barvy zimou prosvítá, mez zůstane. */
+const VILLAGE_SNOW = 0.85;
 /** Mez kolem pole – tenký pás podél hranice čtverců (m). */
 const OUTLINE_WIDTH_M = 0.3;
 /** Rozteč řádků obilí / brázd (m) a délka opakování textury podél nich. */
@@ -127,7 +137,8 @@ interface VillageContext {
  * Ves ve scéně: hotová obydlí jako modely (thin instances, jeden mesh na typ) nad vyhloubenou
  * jámou se schody, kolem nich vyšlapaná hlína a trsy trávy u okapu, z dýmníku občas dým;
  * staveniště po fázích (village-construction.ts) z dílů modelu a rekvizit v instancích, jáma
- * se prohlubuje s průběhem; pole jako obtisky na terénu podle stavu dílů s mezí podél obrysu.
+ * se prohlubuje s průběhem; pole jako obtisky na terénu podle stavu dílů s mezí podél obrysu;
+ * pohřebiště s plotem a mohylkami (cemetery-renderer.ts); jabloňové sady (orchard-renderer.ts).
  * `update` mění jen to, co se změnilo.
  */
 export class VillageRenderer {
@@ -144,6 +155,8 @@ export class VillageRenderer {
   private siteLoading: Promise<void> | null = null;
   private siteKey = '';
   private readonly smoke: VillageSmoke;
+  private readonly cemeteries: CemeteryRenderer;
+  private readonly orchards: OrchardRenderer;
   private village: SceneVillage = { dwellings: [], fields: [] };
   private disposed = false;
 
@@ -152,6 +165,8 @@ export class VillageRenderer {
     private readonly context: VillageContext,
   ) {
     this.smoke = new VillageSmoke(scene, SMOKE_TEXTURE_URL);
+    this.cemeteries = new CemeteryRenderer(scene, context);
+    this.orchards = new OrchardRenderer(scene, context);
   }
 
   /** Vrátí true, když se ve scéně něco změnilo (je co překreslit). */
@@ -160,10 +175,12 @@ export class VillageRenderer {
     this.village = village;
     const dwellings = this.updateDwellings(village.dwellings);
     const fields = this.updateFields(village.fields);
+    const cemeteries = this.cemeteries.update(village.cemeteries ?? [], village.dwellings);
+    const orchards = this.orchards.update(village.orchards ?? []);
     const models = this.updateModels();
     const sites = this.updateConstruction();
     const smoke = this.updateSmokeSources();
-    return dwellings || fields || models || sites || smoke;
+    return dwellings || fields || cemeteries || orchards || models || sites || smoke;
   }
 
   /**
@@ -179,6 +196,11 @@ export class VillageRenderer {
     this.smoke.setAlways(enabled);
   }
 
+  /** Vrstva překážek krajiny (skalní výchozy pro stromy sadu); vrátí true, když je co překreslit. */
+  setObstacles(layer: ObstacleLayer): boolean {
+    return this.orchards.setObstacles(layer);
+  }
+
   /** Svět, podle jehož herního dne se v obydlích topí (ráno a večer). */
   setWorldClock(world: WorldClock): void {
     this.smoke.setWorldClock(world);
@@ -189,6 +211,8 @@ export class VillageRenderer {
     const shapes: HideShape[] = [];
     for (const view of this.dwellings.values()) shapes.push(view.shape);
     for (const view of this.fields.values()) if (view.shape) shapes.push(view.shape);
+    shapes.push(...this.cemeteries.hideShapes());
+    shapes.push(...this.orchards.hideShapes());
     return shapes;
   }
 
@@ -207,6 +231,8 @@ export class VillageRenderer {
   dispose(): void {
     this.disposed = true;
     this.smoke.dispose();
+    this.cemeteries.dispose();
+    this.orchards.dispose();
     for (const view of this.dwellings.values()) for (const mesh of view.meshes) mesh.dispose();
     for (const view of this.fields.values()) for (const mesh of view.meshes) mesh.dispose();
     this.dwellings.clear();
@@ -771,6 +797,8 @@ export class VillageRenderer {
       const decal = createDecalMaterial(this.scene, `village-${key}`, { texture, zOffset });
       // obtisky (vyšlapaná hlína, sejmutý drn) nesmí viset nad jámou
       applyPitCut(decal, this.context.pitCuts);
+      // tráva v nich usychá jako na terénu, v zimě je zasype sníh – pole a cesty jen prosvítají
+      applySeasonGround(decal, VILLAGE_SNOW);
       const loaded = decal.diffuseTexture;
       if (loaded instanceof Texture && !loaded.isReady()) {
         loaded.onLoadObservable.addOnce(() => this.context.requestRender());
@@ -810,6 +838,7 @@ export class VillageRenderer {
       texture.hasAlpha = true;
       standard.diffuseTexture = texture;
       standard.useAlphaFromDiffuseTexture = true;
+      applySeasonGround(standard, VILLAGE_SNOW);
       material = standard;
       this.materials.set('rows', material);
     }
@@ -890,6 +919,8 @@ function prepareDwellingMaterial(material: Material): void {
   material.metallic = 0;
   material.ambientColor = AMBIENT;
   if (material.albedoTexture) material.albedoTexture.anisotropicFilteringLevel = 8;
+  // v zimě sníh na střechách (plochy obrácené nahoru)
+  applySeasonSnow(material);
 }
 
 function prepareTuftMaterial(material: Material): void {
@@ -902,4 +933,6 @@ function prepareTuftMaterial(material: Material): void {
   material.directIntensity = 0.75;
   material.albedoColor = TUFT_TINT;
   if (material.albedoTexture) material.albedoTexture.anisotropicFilteringLevel = 8;
+  // trsy na podzim usychají a přes zimu stojí suché
+  applySeasonModel(material, 'grass-tuft');
 }

@@ -1,14 +1,16 @@
 import '@babylonjs/core/Meshes/thinInstanceMesh';
 import '@babylonjs/loaders/glTF';
 import { LoadAssetContainerAsync } from '@babylonjs/core/Loading/sceneLoader';
+import type { Material } from '@babylonjs/core/Materials/material';
 import { PBRMaterial } from '@babylonjs/core/Materials/PBR/pbrMaterial';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Matrix, Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import type { Scene } from '@babylonjs/core/scene';
 import { applyGammaFog } from './gamma-fog';
-import { setStaticInstances } from './instanced-model';
-import { TREE_MODELS, type TreePlacement } from './tree-placement';
+import { instanceIds, setStaticInstances } from './instanced-model';
+import { TREE_MODELS, type TreeModel, type TreePlacement } from './obstacle-scenery';
+import { applySeasonModel } from './season-materials';
 
 /**
  * Tón a jas 3D stromů okraje – laděné tak, aby splynuly s impostory vnitřku lesa (vyrenderovanými
@@ -40,29 +42,7 @@ export async function addTrees(
       const container = await LoadAssetContainerAsync(`${options.baseUrl}${model}.glb`, scene);
       if (scene.isDisposed) return;
       container.addAllToScene();
-      for (const material of container.materials) {
-        if (!(material instanceof PBRMaterial)) continue;
-        material.albedoColor = model.startsWith('spruce')
-          ? SPRUCE_TINT
-          : model.startsWith('elm') || model.startsWith('poplar')
-            ? PALE_TINT
-            : model.startsWith('pine')
-              ? PINE_TINT
-              : FOLIAGE_TINT;
-        material.roughness = 1;
-        // Bez odlesku: odraz světlé oblohy na kartách listí dělal z dálky stromy bledé a modravé.
-        material.metallicF0Factor = 0;
-        material.ambientColor = FOLIAGE_AMBIENT;
-        // Méně směrového světla – při natočení kamery proti slunci okraj nezsvětlí oproti vnitřku.
-        material.directIntensity = 0.7;
-        // Nízký práh alfy: v mipmapách z dálky alfa listí klesá a koruny by prořídly – skrz ně
-        // by prosvítala světlá tráva a okraj lesa by z dálky vypadal jako bledý lem.
-        material.alphaCutOff = 0.15;
-        // Karty větví jsou často skoro z boku – bez anizotropie se textura rozmaže do šeda.
-        if (material.albedoTexture) material.albedoTexture.anisotropicFilteringLevel = 8;
-        // Opar v gama prostoru jako u terénu a impostorů (vestavěný opar PBR zešedí zeleň).
-        applyGammaFog(material);
-      }
+      for (const material of container.materials) prepareTreeMaterial(model, material);
 
       const parts = container.meshes.filter(
         (mesh): mesh is Mesh => mesh instanceof Mesh && mesh.getTotalVertices() > 0,
@@ -84,7 +64,7 @@ export async function addTrees(
         );
         matrix.copyToArray(matrices, i * 16);
       });
-      setStaticInstances(tree, matrices);
+      setStaticInstances(tree, matrices, { ids: instanceIds(trees) });
     }),
   );
   for (const result of results) {
@@ -92,4 +72,31 @@ export async function addTrees(
       console.warn('Model stromu se nepodařilo načíst – les zůstane bez stromů.', result.reason);
     }
   }
+}
+
+/** Materiál 3D stromu – tón a světlo laděné k impostorům vnitřku lesa (viz konstanty nahoře). */
+export function prepareTreeMaterial(model: TreeModel, material: Material): void {
+  if (!(material instanceof PBRMaterial)) return;
+  material.albedoColor = model.startsWith('spruce')
+    ? SPRUCE_TINT
+    : model.startsWith('elm') || model.startsWith('poplar')
+      ? PALE_TINT
+      : model.startsWith('pine')
+        ? PINE_TINT
+        : FOLIAGE_TINT;
+  material.roughness = 1;
+  // Bez odlesku: odraz světlé oblohy na kartách listí dělal z dálky stromy bledé a modravé.
+  material.metallicF0Factor = 0;
+  material.ambientColor = FOLIAGE_AMBIENT;
+  // Méně směrového světla – při natočení kamery proti slunci okraj nezsvětlí oproti vnitřku.
+  material.directIntensity = 0.7;
+  // Nízký práh alfy: v mipmapách z dálky alfa listí klesá a koruny by prořídly – skrz ně
+  // by prosvítala světlá tráva a okraj lesa by z dálky vypadal jako bledý lem.
+  material.alphaCutOff = 0.15;
+  // Karty větví jsou často skoro z boku – bez anizotropie se textura rozmaže do šeda.
+  if (material.albedoTexture) material.albedoTexture.anisotropicFilteringLevel = 8;
+  // Opar v gama prostoru jako u terénu a impostorů (vestavěný opar PBR zešedí zeleň).
+  applyGammaFog(material);
+  // Roční období: listnáče se barví a opadávají, na jehličí napadne sníh.
+  applySeasonModel(material, model);
 }

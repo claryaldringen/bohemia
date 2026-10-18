@@ -1,0 +1,122 @@
+[
+  {
+    "name": "apple-1",
+    "parts": [
+      {
+        "dae": "meshes/gaia/tree_apple_trunk_a.dae",
+        "texture": "textures/skins/gaia/trunk_deciduous_a.dds"
+      },
+      {
+        "dae": "meshes/gaia/tree_apple_top_a.dae",
+        "texture": "textures/skins/gaia/tree_apple_a_leaves.png",
+        "foliage": "all"
+      }
+    ],
+    "scale": 0.48
+  },
+  {
+    "name": "apple-2",
+    "parts": [
+      {
+        "dae": "meshes/gaia/tree_apple_trunk_b.dae",
+        "texture": "textures/skins/gaia/trunk_deciduous_b.dds"
+      },
+      {
+        "dae": "meshes/gaia/tree_apple_top_b.dae",
+        "texture": "textures/skins/gaia/tree_apple_a_leaves.png",
+        "foliage": "all"
+      }
+    ],
+    "scale": 0.46
+  },
+  {
+    "name": "apple-3",
+    "parts": [
+      {
+        "dae": "meshes/gaia/tree_apple_trunk_a.dae",
+        "texture": "textures/skins/gaia/trunk_deciduous_b.dds"
+      },
+      {
+        "dae": "meshes/gaia/tree_apple_top_c.dae",
+        "texture": "textures/skins/gaia/tree_apple_a_leaves.png",
+        "foliage": "all"
+      }
+    ],
+    "scale": 0.68
+  },
+  {
+    "name": "apple-4",
+    "parts": [
+      {
+        "dae": "meshes/gaia/tree_apple_trunk_b.dae",
+        "texture": "textures/skins/gaia/trunk_deciduous_a.dds"
+      },
+      {
+        "dae": "meshes/gaia/tree_apple_top_d.dae",
+        "texture": "textures/skins/gaia/tree_apple_a_leaves.png",
+        "foliage": "all"
+      }
+    ],
+    "scale": 0.61
+  },
+  {
+    "name": "apple-fruit-1",
+    "parts": [
+      {
+        "dae": "meshes/gaia/tree_apple_trunk_a.dae",
+        "texture": "textures/skins/gaia/trunk_deciduous_a.dds"
+      },
+      {
+        "dae": "meshes/gaia/tree_apple_top_a.dae",
+        "texture": "textures/skins/gaia/tree_apple_a_ripe.png",
+        "foliage": "all"
+      }
+    ],
+    "scale": 0.48
+  },
+  {
+    "name": "apple-fruit-2",
+    "parts": [
+      {
+        "dae": "meshes/gaia/tree_apple_trunk_b.dae",
+        "texture": "textures/skins/gaia/trunk_deciduous_b.dds"
+      },
+      {
+        "dae": "meshes/gaia/tree_apple_top_b.dae",
+        "texture": "textures/skins/gaia/tree_apple_a_ripe.png",
+        "foliage": "all"
+      }
+    ],
+    "scale": 0.46
+  },
+  {
+    "name": "apple-fruit-3",
+    "parts": [
+      {
+        "dae": "meshes/gaia/tree_apple_trunk_a.dae",
+        "texture": "textures/skins/gaia/trunk_deciduous_b.dds"
+      },
+      {
+        "dae": "meshes/gaia/tree_apple_top_c.dae",
+        "texture": "textures/skins/gaia/tree_apple_a_ripe.png",
+        "foliage": "all"
+      }
+    ],
+    "scale": 0.68
+  },
+  {
+    "name": "apple-fruit-4",
+    "parts": [
+      {
+        "dae": "meshes/gaia/tree_apple_trunk_b.dae",
+        "texture": "textures/skins/gaia/trunk_deciduous_a.dds"
+      },
+      {
+        "dae": "meshes/gaia/tree_apple_top_d.dae",
+        "texture": "textures/skins/gaia/tree_apple_a_ripe.png",
+        "foliage": "all"
+      }
+    ],
+    "scale": 0.61
+  }
+]

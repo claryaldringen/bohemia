@@ -170,20 +170,49 @@ function collectErrors(page: Page): string[] {
   return errors;
 }
 
-test('prostřední tlačítko krajinu posouvá, levé a pravé tažení s ní nehýbe', async ({ page }) => {
+/** Kolik políček leží mezi dvěma body řádku uprostřed obrazovky – roste s oddálením kamery. */
+async function viewSpan(page: Page): Promise<number> {
+  const viewport = page.viewportSize()!;
+  const tileAt = async (x: number): Promise<[number, number]> => {
+    await page.mouse.move(x - 5, viewport.height / 2);
+    await page.mouse.move(x, viewport.height / 2);
+    const info = readyScene(page);
+    await expect(info).toHaveAttribute('data-tile', /\d+,\d+/);
+    const [tx, ty] = (await info.getAttribute('data-tile'))!.split(',').map(Number);
+    return [tx!, ty!];
+  };
+  const left = await tileAt(viewport.width / 2 - 300);
+  const right = await tileAt(viewport.width / 2 + 300);
+  return tileDistance(left, right);
+}
+
+test('levé i prostřední tažení krajinu posouvá, pravé ne; trackpad přibližuje', async ({
+  page,
+}) => {
   await withoutTrees(page);
   await registerAndEnterGame(page, 'ovladani');
   await expect(readyScene(page)).toBeVisible({ timeout: 30_000 });
   const start = await centerTile(page);
 
-  // Jako v 0 A.D.: levé tlačítko vybírá a staví, pravé ruší – kamerou nehýbou.
-  await drag(page, 'left', 300);
+  // Pravé tlačítko ruší (jako v 0 A.D.) – kamerou nehýbe.
   await drag(page, 'right', 300);
   expect(tileDistance(await centerTile(page), start)).toBeLessThanOrEqual(0);
 
-  // Výchozí přiblížení je blízko (120 m): 600 px posune krajinu asi o 50 m ≈ 3,4 políčka.
+  // Uchopená mapa: výchozí přiblížení je blízko (120 m), 600 px ≈ 50 m ≈ 3,4 políčka.
+  // Levé tažení posouvá, když se nic neumisťuje (trackpad nemá prostřední tlačítko).
+  await drag(page, 'left', 600);
+  const afterLeft = await centerTile(page);
+  expect(tileDistance(afterLeft, start)).toBeGreaterThan(2);
   await drag(page, 'middle', 600);
-  expect(tileDistance(await centerTile(page), start)).toBeGreaterThan(2);
+  expect(tileDistance(await centerTile(page), afterLeft)).toBeGreaterThan(2);
+
+  // Rozevření prstů na trackpadu (Chrome: kolečko s Ctrl, malé kroky) kameru přiblíží.
+  const before = await viewSpan(page);
+  await page.keyboard.down('Control');
+  for (let i = 0; i < 12; i++) await page.mouse.wheel(0, -6);
+  await page.keyboard.up('Control');
+  await page.waitForTimeout(500);
+  expect(await viewSpan(page)).toBeLessThan(before * 0.8);
 });
 
 // TODO: v bezhlavém Chromiu se pohyb kamery bez myši neprojeví (v běžném Chrome ověřeno ručně:
