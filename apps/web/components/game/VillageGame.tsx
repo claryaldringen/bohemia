@@ -305,11 +305,17 @@ export function VillageGame({
     const result = await getVillageView({ villageId: viewRef.current?.id ?? null });
     if (busyRef.current || seq < appliedSeq.current) return;
     appliedSeq.current = seq;
+    // Ves zmizela nebo leží na jiné mapě (restart hry v jiném panelu) – načíst znovu i s krajinou.
+    const lost = viewRef.current !== null && result === null;
+    if (lost || (isVillageView(result) && result.settlementId !== settlementId)) {
+      window.location.reload();
+      return;
+    }
     // Chyba (např. odhlášení v jiném panelu) poslední pohled na ves nesmaže – jen se ohlásí.
     if (result !== null && 'error' in result && viewRef.current) {
       pushNotice({ kind: 'error', tone: 'error', text: result.error });
     } else applyVillage(result);
-  }, [applyVillage, pushNotice]);
+  }, [applyVillage, pushNotice, settlementId]);
   // Dokud ves není, není co obnovovat (založení vrátí pohled samo); po konci hry se nic nemění.
   usePolling(poll, POLL_MS, village !== null && !gameOver);
 

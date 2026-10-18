@@ -1,5 +1,6 @@
 'use server';
 
+import { NOT_PLAYER_VILLAGE } from '@bohemia/game';
 import { restartGameForPlayer } from '@/lib/game';
 import { getSession } from '@/lib/session';
 import {
@@ -71,7 +72,9 @@ async function villageAction<T>(
 
 /**
  * Ves hráče dopočítaná do dneška: `{ villageId }` – vybraná ves; `{ villageId: null }` (ještě
- * žádnou nezná, zakládá ves) – jeho první ves, nebo null, dokud žádnou nemá.
+ * žádnou nezná, zakládá ves) – jeho první ves, nebo null, dokud žádnou nemá. Když vybraná ves
+ * hráči už nepatří (restart hry v jiném panelu), vrátí jeho první ves (nebo null) – klient pak
+ * načte stránku znovu.
  */
 export async function getVillageView(
   input: unknown,
@@ -80,7 +83,11 @@ export async function getVillageView(
   if (id === null) return { error: NOT_SIGNED_IN };
   const villageId = villageIdOf(input);
   if (villageId === null && !isNullVillage(input)) return { error: INVALID_INPUT };
-  return villageViewForPlayer(id, villageId);
+  const view = await villageViewForPlayer(id, villageId);
+  if (villageId !== null && view !== null && 'error' in view && view.error === NOT_PLAYER_VILLAGE) {
+    return villageViewForPlayer(id, null);
+  }
+  return view;
 }
 
 function isNullVillage(input: unknown): boolean {
