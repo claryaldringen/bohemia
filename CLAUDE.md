@@ -647,7 +647,9 @@ rozhraní částí v
   `trainingBlock` = důvod pro tlačítko) vezme 2 telata ze stáda a postaví rádlo (stavba `'ard'`);
   po 2 letech `Pen.team`, po 10 letech na maso. Seno `VillageState.hay` (seč 1. 6. z úhoru ve
   fázi louky a přirozených luk do 600 m od obydlí – `planMowing` s krajinou, `HayMowing.squares`,
-  od nejbližší, jen kolik je třeba; sezónní úloha `mow`, vzhled políček `hayMeadowLooks`; zimní krmení, pokrytí volů `oxenHayCoverage`
+  od nejbližší po pěšinách (`partWalkDistance`, přirozené louky `walkDistancesTo` z
+  `paths/village.ts`), jen kolik je třeba; pěšina k sečeným loukám – `PathVillage.hayMeadows`
+  a práce `meadow`; sezónní úloha `mow`, vzhled políček `hayMeadowLooks`; zimní krmení, pokrytí volů `oxenHayCoverage`
   k 1. 3.). **Orba:** plán s vycvičeným spřežením dá díly bez drnu (`isPloughable`) do
   `CropWork.plough` (jejich kopání v `required.dig` není); úloha `plough` v oknech kopání, nejvýš
   `ploughCapacityPerDay`; setí jde za `tilledShare`; `returnPloughToHoe` vrátí díly motyce

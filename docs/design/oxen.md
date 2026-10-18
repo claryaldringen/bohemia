@@ -85,12 +85,16 @@ Rozhodnutí kontroléru tam, kde návrh nedává postup (Martin je může změni
   vystřídá staré (staré jde na maso); spřežení starší 10 let zestárne a jde na maso (2 × 120 kg).
 - **Seno:** 1. 6. ves naplánuje seč – seno pro krávy a voly na zimu (≈ 1,5 t na kus, ohrada bez
   spřežení a výcviku počítá se dvěma voly – výcvik jde zadat kdykoli) bez zásoby, z dílů úhoru ve
-  fázi louky a z přirozených luk do 600 m od nejbližší k obydlí (vzdálenost od nejbližšího
-  obydlí, při shodě díly úhoru a pak po políčkách; simulace k tomu dostává krajinu). Seče se
+  fázi louky a z přirozených luk do 600 m od nejbližší k obydlí – vzdálenost je **chůze po
+  pěšinách** jako u polních prací ([paths.md](paths.md) – Pěšiny a práce; díl úhoru
+  `partWalkDistance`, políčko přirozené louky přes síť pěšin vsi, bez sítě rovně), při shodě díly
+  úhoru a pak po políčkách; simulace k tomu dostává krajinu. Vzdálenost louky se uloží s plánem
+  a podle ní je i práce seče. Seče se
   v červnu–červenci po dílech a políčkách jako polní práce, seno přibývá poměrně k práci.
   **Louky na seno ve scéně jsou data** (`SceneVillage.hayMeadows` – políčka přirozených luk
   v seči se vzhledem `meadow` / `mown` / `haystacks` po čele práce); dekorativní louky na seno
-  zůstaly jen ve vývojové ukázce. V listopadu–březnu žere každý kus ≈ 10 kg denně, voli první.
+  zůstaly jen ve vývojové ukázce. K políčkům, kde se ten den seče, vede pěšina (sekáči – práce
+  dne), pevné cesty sčítají seč za rok jako jedno místo. V listopadu–březnu žere každý kus ≈ 10 kg denně, voli první.
   Zimní krmení, voda a kydání krav a volů je práce ([strava – Práce se zvířaty](diet.md)).
 - **Pokrytí sena** se rozhodne **1. 3.**: co voli za zimu dostali a co jim ze zásoby zbývá na
   březen, proti potřebě celé zimy. Pod polovinu jeden vůl (nebo tele ve výcviku) uhyne,

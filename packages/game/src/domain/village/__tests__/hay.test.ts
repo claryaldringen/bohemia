@@ -123,6 +123,40 @@ describe('seno ze všech luk', () => {
     expect(mowing.yieldKg).toBeGreaterThanOrEqual(3000);
   });
 
+  it('louky se řadí podle chůze po pěšinách – díly i přirozené louky (paths.md)', () => {
+    const day = at(600, 6, 1);
+    const s = village(day);
+    s.dwellings[0]!.position = { x: 0, z: 0, rotation: 0 };
+    // díl úhoru rovně 400 m, po pěšině jen 5 m – seče se první
+    s.parts = [{ ...meadow(1, 400), areaM2: 2_000, walkDistanceM: 5 }];
+    const landscape = makeLandscape();
+    // po pěšině na východ (x > 0) se jde o pětinu rychleji
+    const measured: number[] = [];
+    const walk = (targets: readonly { x: number; z: number }[]): number[] => {
+      measured.push(targets.length);
+      return targets.map((t) => Math.hypot(t.x, t.z) * (t.x > 0 ? 0.8 : 1));
+    };
+    const mowing = planMowing(s, day, 2, landscape, walk)!;
+    expect(mowing.squares![0]!.partId).toBe(1);
+    expect(mowing.squares![0]!.distanceM).toBe(5);
+    const natural = mowing.squares!.filter((sq) => sq.cell !== undefined);
+    const east = natural.filter((sq) => sq.cell!.x >= 8).length;
+    expect(east).toBeGreaterThan(natural.length - east);
+    const distances = mowing.squares!.map((sq) => sq.distanceM);
+    expect([...distances].sort((a, b) => a - b)).toEqual(distances);
+    // síť měří jen louky, které se do seče mohou dostat (chůze ≥ 3/4 přímé vzdálenosti)
+    expect(measured).toHaveLength(1);
+    expect(measured[0]!).toBeGreaterThan(natural.length);
+    expect(measured[0]!).toBeLessThan(16 * 16 - 1);
+    // bez sítě pěšin (null) se měří rovně
+    const straight = planMowing(s, day, 2, landscape, () => null)!;
+    const straightNatural = straight.squares!.filter((sq) => sq.cell !== undefined);
+    const straightEast = straightNatural.filter((sq) => sq.cell!.x >= 8).length;
+    expect(Math.abs(2 * straightEast - straightNatural.length)).toBeLessThan(
+      east * 2 - natural.length,
+    );
+  });
+
   it('posečená přirozená louka má vzhled seče, stohy od poloviny července', () => {
     const s = village(at(600, 5, 30));
     s.dwellings[0]!.position = { x: 0, z: 0, rotation: 0 };
