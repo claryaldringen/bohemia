@@ -1,3 +1,4 @@
+import '@babylonjs/core/Engines/AbstractEngine/abstractEngine.timeQuery';
 import '@babylonjs/core/Engines/Extensions/engine.query';
 import '@babylonjs/core/Engines/WebGPU/Extensions/engine.query';
 import type { AbstractEngine } from '@babylonjs/core/Engines/abstractEngine';
@@ -27,7 +28,12 @@ export class ScenePerf {
     this.sceneMeter.captureFrameTime = true;
     this.sceneMeter.captureActiveMeshesEvaluationTime = true;
     this.engineMeter = new EngineInstrumentation(engine);
-    this.engineMeter.captureGPUFrameTime = true;
+    try {
+      this.engineMeter.captureGPUFrameTime = true;
+    } catch (error) {
+      // měření GPU je jen doplněk – bez něj ukazatel ukáže „–“, scéna jede dál
+      console.warn('Měření GPU snímku se nepodařilo zapnout.', error);
+    }
   }
 
   /** Průchod smyčky (každý requestAnimationFrame). */
@@ -46,7 +52,7 @@ export class ScenePerf {
   }
 
   stats(nowMs: number, animationFps: number): ScenePerfStats {
-    const gpu = this.engineMeter.gpuFrameTimeCounter;
+    const gpu = this.gpuCounter();
     // čítač GPU je v nanosekundách; bez podpory měření zůstane nula
     const gpuNs = gpu?.lastSecAverage || gpu?.current || 0;
     return {
@@ -62,6 +68,14 @@ export class ScenePerf {
       triangles: this.scene.getActiveIndices() / 3,
       pickMs: this.picks.average(),
     };
+  }
+
+  private gpuCounter(): { lastSecAverage: number; current: number } | null {
+    try {
+      return this.engineMeter.gpuFrameTimeCounter;
+    } catch {
+      return null;
+    }
   }
 
   dispose(): void {
