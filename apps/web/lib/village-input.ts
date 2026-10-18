@@ -3,7 +3,7 @@ import {
   PLOT_VARIANTS,
   type Craft,
   type DwellingPlot,
-  type DwellingType,
+  type BuildableDwellingType,
   type Position,
   type SacredBuildingKind,
   type TileCell,
@@ -16,7 +16,7 @@ import {
 /** Nejvíc čtverců pole, které server vůbec přijme (pravidla povolí méně – MAX_FIELD_CELLS). */
 const MAX_RAW_FIELD_CELLS = 5000;
 const MAX_RAW_NAME_LENGTH = 200;
-const DWELLING_TYPES: readonly DwellingType[] = ['zemnice', 'polozemnice'];
+const DWELLING_TYPES: readonly BuildableDwellingType[] = ['zemnice', 'polozemnice'];
 const SACRED_KINDS: readonly SacredBuildingKind[] = ['idol', 'shrine'];
 const TIME_SKIPS: readonly TimeSkip[] = ['month', 'year', 'decade'];
 
@@ -36,7 +36,7 @@ export function parsePosition(value: unknown): Position | null {
   return { x, z, rotation };
 }
 
-export function parseDwellingType(value: unknown): DwellingType | null {
+export function parseDwellingType(value: unknown): BuildableDwellingType | null {
   return DWELLING_TYPES.find((type) => type === value) ?? null;
 }
 
@@ -80,7 +80,7 @@ export function parseRenameVillageInput(value: unknown): { name: string } | null
 /** Vstup stavby obydlí `{ type, position }`, jinak null. */
 export function parsePlaceDwellingInput(
   value: unknown,
-): { type: DwellingType; position: Position; plot?: DwellingPlot } | null {
+): { type: BuildableDwellingType; position: Position; plot?: DwellingPlot } | null {
   if (!isRecord(value)) return null;
   const type = parseDwellingType(value.type);
   const position = parsePosition(value.position);
@@ -212,9 +212,12 @@ function parsePositiveInt(value: unknown): number | null {
  * Vstup přestěhování domácnosti `{ dwellingId, type, position, plot? }` – nový dům jako stavba
  * obydlí (migration.md), jinak null.
  */
-export function parseRelocateHouseholdInput(
-  value: unknown,
-): { dwellingId: number; type: DwellingType; position: Position; plot?: DwellingPlot } | null {
+export function parseRelocateHouseholdInput(value: unknown): {
+  dwellingId: number;
+  type: BuildableDwellingType;
+  position: Position;
+  plot?: DwellingPlot;
+} | null {
   if (!isRecord(value)) return null;
   const dwellingId = parsePositiveInt(value.dwellingId);
   const dwelling = parsePlaceDwellingInput(value);

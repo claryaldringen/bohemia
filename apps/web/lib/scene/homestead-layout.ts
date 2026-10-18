@@ -22,11 +22,15 @@ import {
   type WovenFence,
 } from './woven-fence';
 
-/** Políčko pozemku ve světě – střed a strana (m), jako čtverec pole. */
+/**
+ * Políčko pozemku ve světě – střed a strana (m), jako čtverec pole; u dvorce vojvody (trade.md)
+ * i střed dvora – druhého políčka vedle.
+ */
 export interface PlotSquare {
   x: number;
   z: number;
   size: number;
+  yard?: { x: number; z: number };
 }
 
 /** Obdélník ve světě (m). */
@@ -48,6 +52,12 @@ export const PLOT_FENCE: FenceStyle = {
   rails: [0.16, 0.28, 0.4, 0.52, 0.64, 0.76, 0.88],
   gateWidth: 1.3,
 };
+
+/**
+ * Plot pozemku dvorce vojvody (trade.md): stejný polský plot, jen se širokou bránou
+ * (dvorec-gate.glb – sloupy 2,6 m od sebe, průchod 2,4 m).
+ */
+export const MANOR_FENCE: FenceStyle = { ...PLOT_FENCE, gateWidth: 2.4 };
 
 /** Zelenina na záhonech (oblasti atlasu `veg` – tools/blender/dwellings.py). */
 export type PlotCrop = 'cabbage' | 'turnip' | 'onion' | 'dill';
@@ -73,6 +83,8 @@ const PLANT_ROWS_M = [-0.2, 0.2] as const;
  * (x ± 3,35), před vchodem šíje a střecha (z − 3,5), vzadu střecha (z + 3,35).
  */
 const HOUSE_RECT_M = { halfX: 3.35, front: 3.5, back: 3.35 } as const;
+/** Dvorec vojvody (dwellings.py – DVOREC_*): okap 2,78 m s valy, střecha 5,25 m od středu. */
+const MANOR_HOUSE_RECT_M = { halfX: 3.55, front: 5.7, back: 5.6 } as const;
 /** Udusaný dvorek před dveřmi a cestička k brance (m). */
 const YARD_M = { halfX: 1.9, depth: 1.7 } as const;
 const PATH_HALF_M = 0.75;
@@ -108,21 +120,37 @@ export interface HomesteadLayout {
   plants: PlotPlant[];
   /** Cestička od branky ke dvorku před dveřmi (obdélník); bez branky null. */
   path: Point[] | null;
+  /**
+   * Brána pozemku dvorce vojvody (trade.md) – uprostřed průchodu, natočení modelu (průchod podél
+   * osy z modelu); u ostatních pozemků null.
+   */
+  gate: Position | null;
 }
 
-/** Obdélník plotu na políčku. */
+/** Obdélník plotu na políčku (u dvorce přes obě políčka – dům i dvůr). */
 export function plotFenceRect(square: PlotSquare): Rect {
   const half = square.size / 2 - FENCE_INSET_M;
+  const yard = square.yard ?? square;
   return {
-    minX: square.x - half,
-    maxX: square.x + half,
-    minZ: square.z - half,
-    maxZ: square.z + half,
+    minX: Math.min(square.x, yard.x) - half,
+    maxX: Math.max(square.x, yard.x) + half,
+    minZ: Math.min(square.z, yard.z) - half,
+    maxZ: Math.max(square.z, yard.z) + half,
   };
 }
 
-/** Poloha domu na pozemku (stejně jako jádro – `plotHousePosition`). */
+/**
+ * Poloha domu na pozemku (stejně jako jádro – `plotHousePosition`); dvorec uprostřed políčka
+ * domu vchodem ke dvoru (`yardRotation`).
+ */
 export function plotHouse(square: PlotSquare, variant: PlotVariant): Position {
+  if (square.yard) {
+    const dx = square.yard.x - square.x;
+    const dz = square.yard.z - square.z;
+    const rotation =
+      Math.abs(dz) >= Math.abs(dx) ? (dz < 0 ? Math.PI : 0) : dx > 0 ? Math.PI / 2 : -Math.PI / 2;
+    return { x: square.x, z: square.z, rotation };
+  }
   const offset = PLOT_HOUSE_OFFSET_M[variant];
   return { x: square.x + offset.x, z: square.z + offset.z, rotation: PLOT_HOUSE_ROTATION };
 }
@@ -179,8 +207,11 @@ export function homesteadLayout(
 ): HomesteadLayout {
   const house = actualHouse ?? plotHouse(square, variant);
   const fenceRect = plotFenceRect(square);
+  // dvorec vojvody (trade.md): větší dům, brána na vzdálené straně dvora
+  const houseRect = square.yard ? MANOR_HOUSE_RECT_M : HOUSE_RECT_M;
+  const style = square.yard ? MANOR_FENCE : PLOT_FENCE;
   // vchod míří do (sin r, cos r) – branka na straně plotu, kam vchod míří (u varianty vpředu, −z)
-  const door = localToWorld(house, 0, HOUSE_RECT_M.front);
+  const door = localToWorld(house, 0, houseRect.front);
   const facing: Point = [Math.sin(house.rotation), Math.cos(house.rotation)];
   const toward =
     Math.abs(facing[1]) >= Math.abs(facing[0])
@@ -194,7 +225,7 @@ export function homesteadLayout(
     door[1] > fenceRect.minZ &&
     door[1] < fenceRect.maxZ;
   const fence = withoutPostsUnder(
-    wovenFence([rectPath(fenceRect)], PLOT_FENCE, doorInside ? { toward } : null),
+    wovenFence([rectPath(fenceRect)], style, doorInside ? { toward } : null),
     house,
   );
   // kůly branky – první a poslední kůl plotu (i když se plot u domu rozdělil na víc kusů)
@@ -207,7 +238,8 @@ export function homesteadLayout(
         }
       : null;
   const local = (lx: number, lz: number): Point => localToWorld(house, lx, lz);
-  const { halfX, front, back } = HOUSE_RECT_M;
+  const { halfX, front, back } = houseRect;
+  const yardHalf = square.size / 2;
   const exclusions: Rect[] = [
     boundsOf([
       local(-halfX, front),
@@ -223,6 +255,17 @@ export function homesteadLayout(
     ]),
     ...(gate
       ? [widen(boundsOf([[gate.at[0] + gate.out[0], gate.at[1] + gate.out[1]], door]), PATH_HALF_M)]
+      : []),
+    // dvůr dvorce zůstává volný – záhony jen kolem domu
+    ...(square.yard
+      ? [
+          {
+            minX: square.yard.x - yardHalf,
+            maxX: square.yard.x + yardHalf,
+            minZ: square.yard.z - yardHalf,
+            maxZ: square.yard.z + yardHalf,
+          },
+        ]
       : []),
   ];
   const inner: Rect = {
@@ -279,6 +322,10 @@ export function homesteadLayout(
     beds,
     plants,
     path: gate ? plotPath(gate, door, facing) : null,
+    gate:
+      square.yard && gate
+        ? { x: gate.at[0], z: gate.at[1], rotation: Math.atan2(gate.out[0], gate.out[1]) }
+        : null,
   };
 }
 

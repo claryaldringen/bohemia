@@ -37,6 +37,12 @@ Celý postup (art = <0ad>/binaries/data/mods/public/art, PNG z DDS viz atlas.py)
       tools/blender/dwelling-grass.json art apps/web/public/models/dwellings
 Poslední krok jsou trsy trávy u okapu (grass-tuft-1.glb, grass-tuft-2.glb).
 
+Dvorec vojvody (docs/design/trade.md – Dvorec vojvody; dvorec.glb, brána pozemku dvorec-gate.glb
+a díly staveniště dvorec-construction.glb – uzly „dvorec-…“) se exportuje zvlášť pátým argumentem
+„dvorec“ – ostatní GLB se nepřepíšou, koše netřeba:
+  blender -b --factory-startup --python tools/blender/dwellings.py -- \
+      /tmp/dwelling-atlas - apps/web/public/models/dwellings /tmp/dvorec-renders dvorec
+
 Rozpad obydlí (decay.glb – stupně sešlý, propadá se, zřícený a zbytek jámy po zániku, kopřivy;
 podrobně v sekci „rozpad obydlí“ níže, který stupeň kdy, určuje apps/web/lib/scene/dwelling-decay.ts)
 se exportuje zvlášť pátým argumentem „decay“ – ostatní GLB obydlí se tím nepřepíšou, koše netřeba:
@@ -53,8 +59,10 @@ from mathutils import Vector
 
 args = sys.argv[sys.argv.index("--") + 1 :]
 ATLAS, PROPS, OUT, RENDER = args[0], args[1], args[2], args[3]
-# pátý argument „decay“ = jen díly rozpadu obydlí (decay.glb), ostatní GLB se nepřepisují
+# pátý argument „decay“ = jen díly rozpadu obydlí (decay.glb), ostatní GLB se nepřepisují;
+# „dvorec“ = jen dvorec vojvody (dvorec.glb, dvorec-gate.glb, dvorec-construction.glb)
 DECAY_ONLY = len(args) > 4 and args[4] == "decay"
+DVOREC_ONLY = len(args) > 4 and args[4] == "dvorec"
 META = json.load(open(os.path.join(ATLAS, "atlas.json")))
 AW, AH, UPER = META["W"], META["H"], META["uperiod_m"]
 BANDS, REGIONS = META["bands"], META["regions"]
@@ -711,6 +719,229 @@ def build_polozemnice(part, stages=False):
                     b.beam((-o - over, yc, zl), (o + over, yc, zl), t * 0.96)
         ridge_frame(part, (-(o - t / 2), o - t / 2), z_top, apex, half_len, slope, x_eave, z_in)
         wattle_gables(part("wattle"), ((-o + 0.03, (0, -1, 0)), (o - 0.03, (0, 1, 0))), apex, slope, z_top + 0.02, zv)
+
+
+# ------------------------------------------------------------------ dvorec vojvody
+
+# Dvorec vojvody (trade.md – Dvorec vojvody, návrh Clauda): delší a vyšší polozemnice – srub
+# 4,6 × 8,4 m s vyššími stěnami, zdobené štíty (vrch štítu bedněný prkny se zubořezem) a konce
+# zkřížených štítových prken (koz) vyřezané do koňských hlav. Dvorec stojí na pozemku dvou políček
+# (dům a dvůr) obehnaném pleteným plotem s bránou (dvorec-gate.glb) – rozmístí je scéna
+# (apps/web/lib/scene/homestead-layout.ts). Jámu kreslí scéna (dwelling-pit.ts – PIT_SHAPES.dvorec).
+DVOREC_RAMP = 1.0  # délka vstupní šíje dvorce (m) – jako v dwelling-pit.ts
+DVOREC_O = (2.3, 4.2)  # vnější půlrozměry srubu napříč a podél hřebene (m)
+DVOREC_EAVE = 2.78  # okap (m od osy) – délka po spádu se musí vejít do řad došků atlasu
+DVOREC_KOZY = (1.85, 0.62)  # štítová prkna: po spádu dolů / přesah za hřeben (m)
+DVOREC_DOOR_TOP = 1.0  # horní hrana dveří nad terénem (m) – vyšší než u polozemnice
+
+
+def prism(b, pts2d, origin, u_axis, v_axis, thick, mat):
+    """Hranol z obrysu `pts2d` (u, v) v rovině os u, v, tloušťka `thick` kolmo na ni."""
+    o, u, v = Vector(origin), Vector(u_axis).normalized(), Vector(v_axis).normalized()
+    n = u.cross(v).normalized()
+    ring = list(zip(pts2d, pts2d[1:] + pts2d[:1]))
+    ccw = sum(a0 * c1 - a1 * c0 for (a0, c0), (a1, c1) in ring) > 0
+    front = [o + u * a + v * c + n * (thick / 2) for a, c in pts2d]
+    back = [o + u * a + v * c - n * (thick / 2) for a, c in pts2d]
+    b.poly(front, mat, out=n, uvm=list(pts2d))
+    b.poly(back, mat, out=-n, uvm=list(pts2d))
+    for i, ((a0, c0), (a1, c1)) in enumerate(ring):
+        j = (i + 1) % len(pts2d)
+        na, nc = (c1 - c0, a0 - a1) if ccw else (c0 - c1, a1 - a0)
+        edge = math.hypot(a1 - a0, c1 - c0)
+        b.poly([front[i], front[j], back[j], back[i]], mat, out=u * na + v * nc, uvm=[(0, 0), (edge, 0), (edge, thick), (0, thick)])
+
+
+# Koňská hlava na konci štítového prkna (u = podél prkna ven za hřeben, v = kolmo nahoru): krk
+# pokračuje prknem, hlava se sklání ven a dolů, nahoře dvě uši – vyřezaná z prkna (Martin).
+HORSE_HEAD = [
+    (-0.06, -0.1),
+    (-0.06, 0.1),
+    (0.16, 0.11),
+    (0.3, 0.2),
+    (0.34, 0.31),
+    (0.38, 0.24),
+    (0.42, 0.33),
+    (0.46, 0.22),
+    (0.6, 0.12),
+    (0.66, 0.0),
+    (0.6, -0.05),
+    (0.47, -0.02),
+    (0.37, -0.07),
+    (0.28, -0.13),
+    (0.14, -0.1),
+]
+
+
+def bowed_head(scale=1.3, bow=0.7):
+    """Koňská hlava zvětšená a za krkem skloněná ven a dolů (o `bow` rad) – prkno stoupá pod 45°,
+    hlava míří skoro vodorovně jako u koníků na štítech."""
+    pivot = 0.14
+    out = []
+    for a, c in HORSE_HEAD:
+        if a > pivot:
+            da, dc = a - pivot, c
+            a, c = pivot + da * math.cos(bow) + dc * math.sin(bow), -da * math.sin(bow) + dc * math.cos(bow)
+        out.append((a * scale, c * scale))
+    return out
+
+
+def horse_heads(b, half_len, z_ridge, slope, kozy):
+    """Koňské hlavy na koncích koz obou štítů – navazují na prkna z `thatch_roof`."""
+    down, up = kozy
+    cs = 1 / math.sqrt(1 + slope * slope)
+    off = LIP / cs + 0.05
+    for side in (-1, 1):
+        for sgn in (-1, 1):
+            y = side * (half_len + 0.04 + (0.075 if sgn > 0 else 0))
+            a = Vector((sgn * down, y, z_ridge - slope * down + off))
+            c = Vector((-sgn * up, y, z_ridge + slope * up + off))
+            u = (c - a).normalized()
+            v = Vector((0, 1, 0)).cross(u).normalized()
+            if v.z < 0:
+                v = -v
+            prism(b, bowed_head(), c, u, v, 0.075, "beam")
+
+
+def zigzag_boards(b, y, out, apex, slope, z_low, z_high, width=0.2):
+    """Bednění vrchu štítu svislými prkny se zubořezem dole (zdobený štít): prkna od `z_low`
+    (každé druhé o kus níž – zuby) po střechu, vrch štítu nad `z_high` tmavý (dýmník)."""
+    def x_at(z):
+        return (apex - z) / slope
+
+    x = -x_at(z_low)
+    k = 0
+    yo = y + (0.03 if out[1] > 0 else -0.03)
+    while x < x_at(z_low) - 0.05:
+        x1 = min(x + width, x_at(z_low))
+        xm = (x + x1) / 2
+        z_top = min(z_high, apex - slope * max(abs(x), abs(x1)))
+        z_bot = z_low - (0.16 if k % 2 else 0.0)
+        if z_top > z_bot + 0.05:
+            tip = z_bot - 0.08
+            pts = [(x, yo, z_bot), (xm, yo, tip), (x1, yo, z_bot), (x1, yo, z_top), (x, yo, z_top)]
+            b.poly(pts, "beam", out=out, uvm=[(p[2], p[0] - xm) for p in pts])
+        x = x1 + 0.01
+        k += 1
+
+
+def build_dvorec(part, stages=False):
+    """Dvorec: jáma 0,5 m, srub omazaný hlínou (delší a vyšší než polozemnice), zdobené štíty
+    a koňské hlavy na kozách. stages=True přidá díly staveniště (kolíky, řady srubu, krov, latě,
+    výplet štítů, řezby)."""
+    D = 0.5
+    ox, oy = DVOREC_O
+    t = 0.24
+    over = 0.28
+    z_top = 1.3
+    slope = 1.0
+    th = 0.34
+    t_v = th * math.sqrt(2)
+    z_ridge = z_top + t_v + slope * ox
+    x_eave = DVOREC_EAVE
+    half_len = oy + GABLE_OVERHANG
+    door_top = DVOREC_DOOR_TOP
+
+    b = part("daub")
+    for sgn in (-1, 1):
+        x0, x1 = sorted((sgn * ox, sgn * (ox - t)))
+        b.box(x0, x1, -oy, oy, -D, z_top, "daub")
+    b.box(-ox + t, ox - t, oy - t, oy, -D, z_top, "daub", skip=("-x", "+x"))
+    b.box(-ox + t, -DOOR, -oy, -oy + t, -D, z_top, "daub", skip=("-x",))
+    b.box(DOOR, ox - t, -oy, -oy + t, -D, z_top, "daub", skip=("+x",))
+    b.box(-0.6, 0.6, -oy, -oy + t, door_top, z_top, "daub", skip=("-z",))
+    b.poly([(-DOOR, -oy, door_top), (DOOR, -oy, door_top), (DOOR, -oy + t, door_top), (-DOOR, -oy + t, door_top)], "beam", out=(0, 0, -1))
+    # konce trámů na nárožích (střídají se o půl trámu)
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            xa, xb = sorted((sx * ox, sx * (ox - t)))
+            ya, yb = sorted((sy * oy, sy * (oy + over)))
+            b.log_stub(xa, xb, ya, yb, -0.05, z_top - 0.04, "y")
+            xa, xb = sorted((sx * ox, sx * (ox + over)))
+            ya, yb = sorted((sy * oy, sy * (oy - t)))
+            b.log_stub(xa, xb, ya, yb, -0.05, z_top - 0.04 - 0.12, "x", zoff=0.111)
+    # tmavé nitro za dveřmi, ostění a vyřezávané sloupky u dveří (hlavice nad překladem)
+    b.poly([(-DOOR, -oy + t + 0.3, -D), (DOOR, -oy + t + 0.3, -D), (DOOR, -oy + t + 0.3, door_top), (-DOOR, -oy + t + 0.3, door_top)], "dark", out=(0, -1, 0))
+    for sgn in (-1, 1):
+        b.poly([(sgn * DOOR, -oy, -D), (sgn * DOOR, -oy + t + 0.3, -D), (sgn * DOOR, -oy + t + 0.3, door_top), (sgn * DOOR, -oy, door_top)], "dark", out=(-sgn, 0, 0))
+        b.beam((sgn * 0.52, -oy - 0.08, -D), (sgn * 0.52, -oy - 0.08, door_top + 0.36), 0.15)
+        b.beam((sgn * 0.52, -oy - 0.08, door_top + 0.36), (sgn * 0.52, -oy - 0.08, door_top + 0.52), 0.21)
+    b.beam((-0.72, -oy - 0.08, door_top + 0.08), (0.72, -oy - 0.08, door_top + 0.08), 0.13)
+
+    b = part("plates")
+    for sgn in (-1, 1):
+        b.beam((sgn * (ox - t / 2), -half_len + 0.08, z_top + 0.07), (sgn * (ox - t / 2), half_len - 0.08, z_top + 0.07), 0.17)
+
+    z_in = thatch_roof(part, half_len, z_ridge, slope, x_eave, th, ny=10, kozy=DVOREC_KOZY)
+    horse_heads(part("carving"), half_len, z_ridge, slope, DVOREC_KOZY)
+
+    apex = z_in(0)
+    zv = apex - 0.48
+    z_board = z_top + 0.62
+
+    def x_at(z):
+        return (apex - z) / slope
+
+    b = part("daub")
+    for y, out in ((-oy, (0, -1, 0)), (oy, (0, 1, 0))):
+        b.poly([(-x_at(z_top), y, z_top), (x_at(z_top), y, z_top), (x_at(zv), y, zv), (-x_at(zv), y, zv)], "daub", out=out)
+        b.poly([(-x_at(zv), y, zv), (x_at(zv), y, zv), (0, y, apex)], "dark", out=out)
+        gable_frame(b, y, apex, slope, z_top + 0.05, zv, size=0.13)
+        yo = y + (0.05 if y > 0 else -0.05)
+        b.beam((-ox - 0.1, yo, z_top + 0.03), (ox + 0.1, yo, z_top + 0.03), 0.15)
+    # zdobené štíty: bednění se zubořezem nad omítkou
+    b = part("carving")
+    for y, out in ((-oy - 0.02, (0, -1, 0)), (oy + 0.02, (0, 1, 0))):
+        zigzag_boards(b, y, out, apex, slope, z_board, zv)
+    # hlína nahrnutá kolem srubu (val), u šíje hlína po stranách
+    b = part("berms")
+    for sgn in (-1, 1):
+        b.berm((sgn * (ox + 0.3), -oy - 0.1, 0), (sgn * (ox + 0.3), oy + 0.1, 0), 0.24, 0.75, segments=5)
+    b.berm((-ox + 0.1, oy + 0.3, 0), (ox - 0.1, oy + 0.3, 0), 0.24, 0.75, segments=3)
+    for sgn in (-1, 1):
+        b.berm((sgn * 0.95, -oy - 0.3, 0), (sgn * (ox - 0.1), -oy - 0.3, 0), 0.2, 0.6, segments=1, mat="spoil")
+    entrance_berms(b, -oy - 0.05, DOOR, DVOREC_RAMP, mound_h=0.22)
+
+    if stages:
+        stakes_and_string(part("stakes"), outline_with_ramp(ox, oy, DVOREC_RAMP))
+        n = 6
+        for k in range(n):
+            zc = -D + t / 2 + k * (z_top + D - t) / (n - 1)
+            b = part(f"logs-{k + 1}")
+            for sgn in (-1, 1):
+                xc = sgn * (ox - t / 2)
+                b.beam((xc, -oy - over, zc), (xc, oy + over, zc), t)
+                yc = sgn * (oy - t / 2)
+                zl = zc + 0.02
+                if sgn < 0 and zc - t / 2 < door_top:
+                    b.beam((-ox - over, yc, zl), (-DOOR, yc, zl), t * 0.96)
+                    b.beam((DOOR, yc, zl), (ox + over, yc, zl), t * 0.96)
+                else:
+                    b.beam((-ox - over, yc, zl), (ox + over, yc, zl), t * 0.96)
+        ridge_frame(part, (-(oy - t / 2), 0.0, oy - t / 2), z_top, apex, half_len, slope, x_eave, z_in, n_rafters=7)
+        wattle_gables(part("wattle"), ((-oy + 0.03, (0, -1, 0)), (oy - 0.03, (0, 1, 0))), apex, slope, z_top + 0.02, zv)
+
+
+def build_dvorec_gate(b):
+    """Brána pozemku dvorce: dva vyšší sloupy, překlad a stříška z prken – průchod 2,4 m široký
+    (MANOR_FENCE.gateWidth ve scéně), počátek uprostřed průchodu na zemi, průchod podél osy y."""
+    half = 1.3
+    for sgn in (-1, 1):
+        b.beam((sgn * half, 0, -0.3), (sgn * half, 0, 2.35), 0.2)
+        b.beam((sgn * half, 0, 2.35), (sgn * half, 0, 2.5), 0.26)
+    b.beam((-half - 0.35, 0, 2.18), (half + 0.35, 0, 2.18), 0.17)
+    # stříška ze dvou prken nad překladem
+    for sgn in (-1, 1):
+        a = (-half - 0.5, sgn * 0.02, 2.32)
+        c = (half + 0.5, sgn * 0.02, 2.32)
+        b.poly(
+            [(a[0], sgn * 0.02, 2.33), (c[0], sgn * 0.02, 2.33), (c[0], sgn * 0.42, 2.12), (a[0], sgn * 0.42, 2.12)],
+            "beam",
+            out=(0, sgn, 1),
+            uvm=[(0, 0), (2 * half + 1, 0), (2 * half + 1, 0.3), (0, 0.3)],
+        )
+    # koňská hlava nad bránou (ze střechy dvorce)
+    prism(b, bowed_head(1.1, 0.5), (0, 0, 2.42), (0.7, 0, 0.7), (-0.7, 0, 0.7), 0.075, "beam")
 
 
 def site_props(part, mat):
@@ -1657,9 +1888,53 @@ def render_decay(objs):
     render([nettle], os.path.join(RENDER, "nettle.png"), (-1.6, -2.2, 1.4), (0, 0, 0.4), size=(700, 600))
 
 
+def dvorec_main():
+    """Jen dvorec vojvody → dvorec.glb, dvorec-gate.glb a dvorec-construction.glb (trade.md)."""
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    mat = make_material()
+    dp = Parts("f-dvorec")
+    build_dvorec(dp)
+    dvorec = join(dp.build(mat), "dvorec")
+    gate_b = Builder("dvorec-gate")
+    build_dvorec_gate(gate_b)
+    # brána je malý díl – jako pletený plot s polovičním atlasem
+    gate = gate_b.build(make_material(0.5))
+    os.makedirs(OUT, exist_ok=True)
+    for obj in (dvorec, gate):
+        obj.location = (0, 0, 0)
+        export([obj], os.path.join(OUT, f"{obj.name}.glb"))
+        d = obj.dimensions
+        print(f"STAT {obj.name}: {tri_count(obj)} tris, {d.x:.2f} x {d.y:.2f} x {d.z:.2f} m")
+    ds = Parts("dvorec")
+    build_dvorec(ds, stages=True)
+    stage_objs = ds.build(mat)
+    bpy.ops.object.select_all(action="DESELECT")
+    for obj in stage_objs:
+        obj.select_set(True)
+    bpy.context.view_layer.objects.active = stage_objs[0]
+    bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+    export(stage_objs, os.path.join(OUT, "dvorec-construction.glb"))
+    for obj in stage_objs:
+        print(f"PART {obj.name}: {tri_count(obj)} tris")
+    if RENDER != "-":
+        terrain = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "apps", "web", "public", "textures", "terrain")
+        setup_world(os.path.join(terrain, "grass.jpg"))
+        os.makedirs(RENDER, exist_ok=True)
+        for o in stage_objs:
+            o.hide_render = True
+        gate.location = (0, -12, 0)
+        render([dvorec, gate], os.path.join(RENDER, "dvorec_front.png"), (-9.5, -16.5, 6.5), (0.3, -2, 1.2))
+        render([dvorec], os.path.join(RENDER, "dvorec_side.png"), (17.0, -3.5, 5.0), (0, -0.3, 1.4), lens=35)
+        render([dvorec], os.path.join(RENDER, "dvorec_heads.png"), (-2.5, -9.5, 5.6), (0, -5.3, 4.2), size=(1200, 900), lens=40)
+        render([dvorec, gate], os.path.join(RENDER, "dvorec_game_angle.png"), (0, -26, 23.0), (0, -3, 0.5), size=(1600, 900))
+
+
 def main():
     if DECAY_ONLY:
         decay_main()
+        return
+    if DVOREC_ONLY:
+        dvorec_main()
         return
     bpy.ops.wm.read_factory_settings(use_empty=True)
     mat = make_material()

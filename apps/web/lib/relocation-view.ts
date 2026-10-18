@@ -5,6 +5,7 @@ import {
   relocationAffordability,
   relocationBlock,
   type ConstructionSummary,
+  type BuildableDwellingType,
   type DwellingType,
   type Landscape,
   type RelocationBlock,
@@ -17,7 +18,7 @@ import type { BuildOption } from './village-view';
 // domu bez lidí k osídlení a co dělá která domácnost. Čistý modul.
 
 /** Typy nového domu, které hráč při stěhování volí. */
-export const RELOCATION_TYPES: readonly DwellingType[] = ['zemnice', 'polozemnice'];
+export const RELOCATION_TYPES: readonly BuildableDwellingType[] = ['zemnice', 'polozemnice'];
 
 /** Přestěhování domácnosti v panelu výběru – stavba nového domu a její průběh. */
 export interface HouseholdRelocation {
@@ -36,9 +37,9 @@ export interface HouseholdRelocation {
 export function relocationOptions(
   state: VillageState,
   landscape: Landscape,
-): Record<DwellingType, BuildOption> {
+): Record<BuildableDwellingType, BuildOption> {
   const obstacles = obstaclesOf(landscape);
-  const option = (type: DwellingType): BuildOption => {
+  const option = (type: BuildableDwellingType): BuildOption => {
     const cost: ResourceAmounts = { ...BUILD_COSTS[type].upfront };
     delete cost.settlers; // přestěhování lidi k osídlení nechce
     const { affordable, missing } = relocationAffordability(state, type, obstacles);

@@ -51,7 +51,7 @@ describe('ceny staveb', () => {
       perHa: false,
       upfront: { wood: DWELLING_TREES.polozemnice, settlers: 1 },
     });
-    expect(DWELLING_TREES).toEqual({ zemnice: 7, polozemnice: 18 });
+    expect(DWELLING_TREES).toEqual({ zemnice: 7, polozemnice: 18, dvorec: 27 });
     expect(BUILD_COSTS.field).toEqual({
       laborManDays: FOUNDING_COST_PER_HA.meadow.worst, // řemesla zatím nejsou – horní mez
       perHa: true,

@@ -18,6 +18,7 @@ const view = (overrides: Partial<VillageView> = {}): VillageView => ({
   name: 'Libice',
   villages: [],
   relocation: { zemnice: workshop(60), polozemnice: workshop(220) },
+  manor: null,
   dayIndex: 1000,
   people: { children: 2, adults: 2, elders: 0 },
   households: [],

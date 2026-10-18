@@ -170,6 +170,7 @@ const dwelling = (
   workshop: null,
   relocation: null,
   relocate,
+  manor: null,
   ...over,
 });
 

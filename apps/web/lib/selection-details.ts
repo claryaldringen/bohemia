@@ -2,6 +2,7 @@ import {
   sacredBuildingHappiness,
   type Craft,
   type Crop,
+  type BuildableDwellingType,
   type DwellingType,
   type FieldSurface,
   type HerdSpecies,
@@ -11,6 +12,7 @@ import {
   type SacredBuildingKind,
   type WorkshopActivity,
 } from '@bohemia/game';
+import type { VillageManor } from './manor-view';
 import type { HouseholdRelocation } from './relocation-view';
 import type { VillageTarget } from './scene/village-picking';
 import {
@@ -70,7 +72,9 @@ export type SelectionDetails =
       /** Domácnost si staví nový dům (migration.md – Přestěhování domácnosti); jinak null. */
       relocation: HouseholdRelocation | null;
       /** Přestěhovat domácnost – cena nového domu; když teď nejde (staví, přestavuje…), null. */
-      relocate: Record<DwellingType, BuildOption> | null;
+      relocate: Record<BuildableDwellingType, BuildOption> | null;
+      /** Dvorec vojvody (trade.md) – vylepšení vsi; obyčejné obydlí null. */
+      manor: VillageManor | null;
     }
   | {
       /** Víc vybraných obydlí (Ctrl/Shift + klik, Ctrl + A – migration.md). */
@@ -83,7 +87,7 @@ export type SelectionDetails =
       /** Domácnosti, které se teď můžou přestěhovat (id obydlí) – Přestěhovat je umístí postupně. */
       relocatable: readonly number[];
       /** Cena nového domu jedné domácnosti. */
-      relocate: Record<DwellingType, BuildOption> | null;
+      relocate: Record<BuildableDwellingType, BuildOption> | null;
     }
   | {
       kind: 'site';
@@ -335,6 +339,7 @@ export function selectionDetails(
       workshop: view ? workshopDetails(view, household.dwellingId) : null,
       relocation: household.relocation,
       relocate: view && household.relocationBlock === null ? view.relocation : null,
+      manor: view?.manor?.dwellingId === household.dwellingId ? view.manor : null,
     };
   }
   if (target.kind === 'cemetery') {

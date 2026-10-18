@@ -9,6 +9,7 @@ import { villageHerds } from '../livestock';
 import { obstacleChangesAt, obstacleStatus, type ObstacleChanges } from '../obstacles';
 import { villageOrchards } from '../orchard';
 import { villagePens } from '../oxen';
+import { plotCells } from '../plot-cells';
 import { ROAD_TREE_ID_BASE, roadAppleStage, roadTreeLook } from '../road-trees';
 import { MILIR, ROADS, ROAD_APPLES, ROAD_TREES, SACRED_BUILDINGS } from '../rules';
 import type {
@@ -842,10 +843,13 @@ export function plantingBlocker(
   for (const c of villageCemeteries(state)) for (const s of c.squares) addTile(s.cell);
   for (const o of villageOrchards(state)) for (const s of o.squares) addTile(s.cell);
   for (const g of state.groves ?? []) for (const cell of g.cells) addTile(cell);
-  for (const d of state.dwellings) if (d.plot) addTile(d.plot.cell);
-  for (const c of state.constructions) if (c.plot) addTile(c.plot.cell);
+  for (const d of state.dwellings)
+    for (const cell of d.plot ? plotCells(d.plot) : []) addTile(cell);
+  for (const c of state.constructions)
+    for (const cell of c.plot ? plotCells(c.plot) : []) addTile(cell);
   for (const p of villagePens(state)) addTile(p.cell);
-  for (const r of state.ruins ?? []) if (r.plot) addTile(r.plot.cell);
+  for (const r of state.ruins ?? [])
+    for (const cell of r.plot ? plotCells(r.plot) : []) addTile(cell);
   // les vsi (fields.md – Les vsi) – strom u cesty ani jabloň do něj nepatří, roste tam les
   for (const w of state.woods ?? []) addTile(w.cell);
   // obydlí, staveniště i zbytky jam po zaniklých obydlích – pořád ves

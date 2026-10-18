@@ -1,5 +1,12 @@
 // Stav vsi – JSON-serializovatelný (objekty, pole, čísla, řetězce, null).
-export type DwellingType = 'zemnice' | 'polozemnice';
+/**
+ * Typ obydlí: zemnice, polozemnice a dvorec vojvody (trade.md – Dvorec vojvody: delší a vyšší
+ * polozemnice se zdobenými štíty na pozemku dvou políček). Dvorec hráč nestaví – vznikne jen
+ * přestavbou dvorce vsi (`VillageState.manorId`).
+ */
+export type DwellingType = 'zemnice' | 'polozemnice' | 'dvorec';
+/** Obydlí, která hráč staví z nabídky staveb (dvorec ne – trade.md). */
+export type BuildableDwellingType = Exclude<DwellingType, 'dvorec'>;
 export type FieldSurface = 'meadow' | 'shrub' | 'forest';
 export interface Position {
   x: number;
@@ -28,6 +35,12 @@ export type PlotVariant = 'center' | 'back-left' | 'back-right' | 'front-right' 
 export interface DwellingPlot {
   cell: TileCell;
   variant: PlotVariant;
+  /**
+   * Dvorec vojvody (trade.md): druhé políčko pozemku – dvůr sousedící stranou s políčkem domu
+   * `cell`. Dům stojí uprostřed `cell` vchodem ke dvoru (varianta `center`), brána je na
+   * vzdálené straně dvora. U ostatních pozemků chybí.
+   */
+  yard?: TileCell;
 }
 export interface Dwelling {
   id: number;
@@ -357,6 +370,11 @@ export interface Construction {
    */
   roadIds?: number[];
   roadGrade?: RoadGrade;
+  /**
+   * Stavba zemské stezky (trade.md – Zemská stezka): id stezky – úseky stavby jsou úseky stezky
+   * (`Trail.pieces`) se svým stupněm a prací, staví se po úsecích od vsi ven. Jen u stavby `road`.
+   */
+  trail?: number;
   /** Dřevo obydlí, přestavby, modly a svatyně (forest.md); u starších staveb a polí chybí. */
   wood?: ConstructionWood;
   /** Nové obydlí: vzdálenost k nejbližšímu okraji lesa (m) – obydlí ji po dostavění převezme. */
@@ -529,6 +547,12 @@ export type ChronicleEvent = { day: number } & (
   | { kind: 'road-formed'; roadId: number }
   /** Nepoužívaná vyšlapaná cesta zarostla (roads.md – Zarůstání) – id úseku. */
   | { kind: 'road-overgrown'; roadId: number }
+  /** Zemská stezka ke kraji mapy je dostavěná – obchod se sousedem (trade.md). */
+  | { kind: 'trail-built'; trailId: number; direction: Direction8 }
+  /** Výprava nosičů vyrazila k sousedovi – co nesou (trade.md – Obchod). */
+  | { kind: 'trade-departed'; direction: Direction8; give: TradeGoods }
+  /** Výprava se vrátila – co přinesla (trade.md – Obchod). */
+  | { kind: 'trade-returned'; direction: Direction8; get: TradeGoods }
   | {
       kind: 'cemetery-full';
       cemeteryId: number;
@@ -578,6 +602,8 @@ export type LaborActivity =
   | 'plant'
   /** Denní minimum domácností a domácí výroba (fields.md – Práce, body 1 a 4). */
   | 'domestic'
+  /** Nosiči výpravy k sousedovi po zemské stezce (trade.md – Obchod). */
+  | 'trade'
   /** Společná práce, na kterou nezbyla žádná stavba (propadla). */
   | 'idle';
 
@@ -606,6 +632,8 @@ export type LaborTarget =
   | { kind: 'trees'; ids: number[] }
   /** Milíř uhlíře v lese (crafts.md – Uhlíř) – dílna (id obydlí) a střed milíře ve světě (m). */
   | { kind: 'kiln'; id: number; x: number; z: number }
+  /** Zemská stezka (id) – nosiči výpravy k sousedovi (trade.md – Obchod). */
+  | { kind: 'trail'; id: number }
   /** Ves celkově – výmlat, domácí práce, nevyužitá společná práce. */
   | { kind: 'village' };
 
@@ -739,6 +767,129 @@ export interface VillageState {
    * = žádný (i u vsí uložených před zarůstáním).
    */
   woods?: VillageWood[];
+  /**
+   * Dvorec vojvody (trade.md – Dvorec vojvody): id obydlí (= domácnosti), které je dvorcem vsi –
+   * v nové vsi první zemnice zakladatelů, ve starší vsi nejstarší obydlí (`withManor`). Odtud jdou
+   * vylepšení vsi. Chybí u vsí uložených dřív – doplní ho `withManor` nebo první dopočítaný den.
+   */
+  manorId?: number;
+  /** Zemské stezky k sousedům (trade.md – Zemská stezka); chybí = žádné. */
+  trails?: Trail[];
+  /** Obchod se sousedy – zásoby a poptávka sousedů a výpravy (trade.md – Obchod); chybí = nic. */
+  trade?: VillageTrade;
+  /**
+   * Zboží zvenku (trade.md – Zboží zvenku ve vsi): sůl, železo, med (kg) a kožešiny (kusy).
+   * Chybí = žádné.
+   */
+  goods?: ForeignGoods;
+}
+
+// --- dvorec, zemská stezka a obchod (trade.md) ----------------------------------------------
+
+/** Osm směrů od vsi ke kraji mapy – sever je +z, východ +x (trade.md – Zemská stezka). */
+export type Direction8 = 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'nw';
+
+/**
+ * Úsek zemské stezky – pevná cesta (`Road`), po které stezka vede, na jaký stupeň se při stavbě
+ * vylepší (upravená, nebo hať a lávka přes mokřinu a brod) a práce na něm (člověkodny i s kácením
+ * dřeva hatě).
+ */
+export interface TrailPiece {
+  roadId: number;
+  grade: Exclude<RoadGrade, 'trodden'>;
+  manDays: number;
+}
+
+/**
+ * Zemská stezka (trade.md – Zemská stezka): od dvorce ke kraji mapy ve směru `direction`. Osa je
+ * uložená jako pevné cesty `pieces` (od vsi ven); stavba je vylepšení cesty (`Construction.trail`)
+ * po úsecích od vsi ven. Hotová stezka (`builtDay`) otevře obchod se sousedem v tom směru.
+ */
+export interface Trail {
+  id: number;
+  direction: Direction8;
+  pieces: TrailPiece[];
+  /** Délka osy od dvorce ke kraji mapy (m). */
+  lengthM: number;
+  /** Den zadání stavby. */
+  startedDay: number;
+  /** Den dostavění; dokud se staví, null. */
+  builtDay: number | null;
+}
+
+/**
+ * Zboží obchodu (trade.md – Sousedé): obilí, maso, sýr, luštěniny (kg), dobytek (kusy – krávy),
+ * klády (kusy), keramika, nástroje, uhlí (kg) a zboží zvenku – sůl, železo, med (kg) a kožešiny
+ * (kusy).
+ */
+export type TradeGood =
+  | 'grain'
+  | 'meat'
+  | 'cheese'
+  | 'legumes'
+  | 'cattle'
+  | 'logs'
+  | 'pottery'
+  | 'tools'
+  | 'charcoal'
+  | 'salt'
+  | 'iron'
+  | 'honey'
+  | 'furs';
+
+/** Množství zboží (jen uvedené druhy, kg nebo kusy podle druhu). */
+export type TradeGoods = Partial<Record<TradeGood, number>>;
+
+/** Zboží zvenku ve vsi (trade.md – Zboží zvenku ve vsi). */
+export interface ForeignGoods {
+  saltKg: number;
+  ironKg: number;
+  honeyKg: number;
+  /** Kožešiny (kusy; neceločíselné – opotřebení). */
+  furs: number;
+}
+
+/**
+ * Soused v jednom směru – co mu letos zbývá z nabídky a kolik ještě vezme ze sháněného
+ * (trade.md – Sousedé: roční zásoby a poptávka, doplnění 1. 11.). Povaha (co nabízí a shání) se
+ * nemění a počítá se ze seedu světa (`neighbourOf`), ukládá se jen, co z roku zbývá.
+ */
+export interface NeighbourStock {
+  direction: Direction8;
+  /** Rok obchodu (herní rok, ve kterém začal 1. 11.), ke kterému zásoby platí. */
+  season: number;
+  /** Co soused ještě letos dá (nabízené zboží). */
+  supply: TradeGoods;
+  /** Kolik soused ještě letos vezme (sháněné zboží). */
+  demand: TradeGoods;
+}
+
+/**
+ * Výprava nosičů k sousedovi (trade.md – Obchod): zboží, které nesou tam (už odebrané ze zásob
+ * vsi), a co přinesou zpět; nosiči a práce (lidé × dny ze společné práce vsi). Zboží dorazí, až se
+ * nosiči vrátí (odvedená práce = celá cena).
+ */
+export interface TradeExpedition {
+  id: number;
+  direction: Direction8;
+  trailId: number;
+  startedDay: number;
+  give: TradeGoods;
+  get: TradeGoods;
+  porters: number;
+  /** Dny cesty tam a zpět i s cestou za krajem mapy. */
+  days: number;
+  /** Práce celkem (člověkodny = nosiči × dny) a kolik je odvedeno. */
+  cost: number;
+  done: number;
+}
+
+/** Obchod vsi se sousedy (trade.md). */
+export interface VillageTrade {
+  neighbours: NeighbourStock[];
+  expeditions: TradeExpedition[];
+  /** Další id výpravy. */
+  nextId: number;
 }
 
 // --- pevné cesty (roads.md) ------------------------------------------------------------------

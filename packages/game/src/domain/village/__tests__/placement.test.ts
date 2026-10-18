@@ -153,7 +153,7 @@ describe('pozemek polozemnice', () => {
   });
 
   it('dům stojí uprostřed nebo v rohu, vchodem k brance (−z), celý uvnitř políčka', () => {
-    expect(PLOT_TYPES).toEqual({ zemnice: false, polozemnice: true });
+    expect(PLOT_TYPES).toEqual({ zemnice: false, polozemnice: true, dvorec: true });
     expect(PLOT_VARIANTS).toHaveLength(5);
     expect(plotHousePosition(landscape, plot('center'))).toEqual({
       x: 7.5,

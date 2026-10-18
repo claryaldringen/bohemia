@@ -55,7 +55,7 @@ import { refreshWalkDistances } from './paths/village';
 import { roadWalk, walkGroundOf } from './paths/walking';
 import { finishRoadApples, workRoadApples, roadApplesNeed } from './road-apples';
 import { finishRoadUpgrade } from './road-upgrades';
-import { relocationPlot } from './plots';
+import { copyPlot, relocationPlot } from './plots';
 import { villageSacredOaks } from './sacred';
 import { sacredOakEvents } from './sacred-life';
 import { allocateDay, type LaborTaskName } from './labor';
@@ -75,6 +75,7 @@ import { isVillageExtinct } from './extinction';
 import { inLuckyYears, nextStarvationDays, populationDay } from './population';
 import { dailyMinPerHousehold } from './productivity';
 import { moveRelocatedHousehold, relocatingHouseholds } from './relocation';
+import { keepManor, villageManorId } from './manor';
 import { recordRuins, updateRuins } from './ruins';
 import {
   CHRONICLE_MAX_EVENTS,
@@ -232,6 +233,8 @@ function simulateDay(
   // nástroje a nádoby v užívání se opotřebí (crafts.md – Účinek)
   wearCraftStocks(state, day);
   finishConstructions(state, day);
+  // dvorec vojvody – po zániku dvorce nejstarší obydlí, starší ves dvorec dostane (trade.md)
+  keepManor(state);
   decideRebuilds(state, day, obstacles, landscape);
   occupyEmptyDwellings(state, day);
   // zbytky jam po zaniklých obydlích zarůstají, pod novou stavbou zmizí (ruins.ts)
@@ -940,7 +943,7 @@ function finishConstructions(state: VillageState, day: number): void {
         // přestavba na pozemku jinde (polozemnice bez pozemku) – domácnost se přestěhuje
         if (c.plot && c.position) {
           dwelling.position = { ...c.position };
-          dwelling.plot = { cell: { ...c.plot.cell }, variant: c.plot.variant };
+          dwelling.plot = copyPlot(c.plot);
           if (c.forestDistanceM !== undefined) dwelling.forestDistanceM = c.forestDistanceM;
         }
       }
@@ -954,7 +957,7 @@ function finishConstructions(state: VillageState, day: number): void {
       builtDay: day,
       condition: 1,
       position: { ...c.position },
-      ...(c.plot ? { plot: { cell: { ...c.plot.cell }, variant: c.plot.variant } } : {}),
+      ...(c.plot ? { plot: copyPlot(c.plot) } : {}),
       ...(c.forestDistanceM === undefined ? {} : { forestDistanceM: c.forestDistanceM }),
       // řemeslná dílna – řemeslo patří budově (crafts.md)
       ...(c.craft ? { workshop: newWorkshop(c.craft, c.waterDistanceM) } : {}),
@@ -1055,16 +1058,22 @@ function decideRebuilds(
   for (const household of relocatingHouseholds(state)) rebuilding.add(household);
   // „má na to“ podle ročního průměru – v zimě (výmlat) ani o žních ves nezchudne (Martin)
   const yearlyCommon = yearlyCommonLabor(state);
+  const manorId = villageManorId(state);
   for (const d of occupiedDwellings(state)) {
     if (rebuilding.has(d.id) || !wantsRebuild(d, day)) continue;
-    // dílna zůstane dílnou stejného typu na svém místě (crafts.md), ostatní podle práce a dřeva
+    // dílna zůstane dílnou stejného typu na svém místě (crafts.md), dvorec vojvody se přestaví na
+    // dvorec (trade.md), ostatní podle práce a dřeva
     const craft = d.workshop?.craft;
     // dřevo: klády na hromadě a stromy, které jde skácet – po předchozích přestavbách dne
     const type = craft
       ? d.type
-      : rebuildType(d.type, yearlyCommon, woodSupply(state, obstacles, day));
+      : d.id === manorId
+        ? 'dvorec'
+        : rebuildType(d.type, yearlyCommon, woodSupply(state, obstacles, day));
+    // nový pozemek: polozemnice bez pozemku, dvorec bez pozemku se dvorem (dvě políčka)
+    const needsSite = !d.plot || (type === 'dvorec' && !d.plot.yard);
     const site =
-      landscape && obstacles && !d.plot && !craft
+      landscape && obstacles && needsSite && !craft
         ? relocationPlot(state, landscape, obstacles, d, type, day)
         : null;
     // kácení chůzí po pevných cestách (roads.md) – jen s krajinou

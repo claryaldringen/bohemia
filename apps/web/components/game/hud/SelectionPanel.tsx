@@ -1,5 +1,5 @@
 import { useState, type ReactElement, type ReactNode } from 'react';
-import { CRAFT_NAMES, type DwellingType } from '@bohemia/game';
+import { CRAFT_NAMES, type BuildableDwellingType, type DwellingType } from '@bohemia/game';
 import { PART_COLORS, SURFACE_COLORS } from '@/lib/minimap';
 import {
   CROP_LABELS,
@@ -216,7 +216,7 @@ function WorkshopRow({ workshop }: { workshop: SelectionWorkshop }): ReactElemen
 /** Akce panelu nad obydlími – přestěhování domácnosti a jeho zrušení (migration.md). */
 interface RelocationActions {
   /** Začne umisťovat nové domy domácností `householdIds` (postupně, jeden za druhým). */
-  onRelocate?: (type: DwellingType, householdIds: readonly number[]) => void;
+  onRelocate?: (type: BuildableDwellingType, householdIds: readonly number[]) => void;
   /** Zruší rozestavěné stěhování (stavba nového domu) – hotovo, až se vrátí. */
   onCancelRelocation?: (constructionId: number) => Promise<void>;
 }
@@ -1014,7 +1014,12 @@ export function SelectionPanel({
     portrait = <Portrait icon="zemnice" name={`Obydlí (${details.ids.length})`} />;
     body = <DwellingsBody details={details} onRelocate={onRelocate} />;
   } else {
-    portrait = dwellingPortrait(details.type, details.workshop?.craft ?? null);
+    // dvorec vojvody (trade.md) – i když je to zatím zemnice zakladatelů
+    portrait = details.manor ? (
+      <Portrait icon={details.type} name="Dvorec vojvody" />
+    ) : (
+      dwellingPortrait(details.type, details.workshop?.craft ?? null)
+    );
     body = (
       <DwellingBody
         details={details}

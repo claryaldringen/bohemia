@@ -8,6 +8,7 @@ import {
   type BuildKind,
   type Craft,
   type DwellingPlot,
+  type BuildableDwellingType,
   type DwellingType,
   type Position,
   type SacredBuildingKind,
@@ -371,7 +372,11 @@ export function VillageGame({
    * Postaví obydlí – první zemnice ves založí (osadníci si ji postaví), další jsou stavby;
    * polozemnice na pozemku (`plot`).
    */
-  const buildDwelling = (type: DwellingType, position: Position, plot?: DwellingPlot): void => {
+  const buildDwelling = (
+    type: BuildableDwellingType,
+    position: Position,
+    plot?: DwellingPlot,
+  ): void => {
     const entry: PendingSite = {
       kind: 'dwelling',
       id: -1 - pendingId.current++,
@@ -449,7 +454,7 @@ export function VillageGame({
       : {};
 
   /** Umisťování obydlí: zemnice půdorysem u kurzoru, polozemnice na pozemku (políčku). */
-  const dwellingMode = (type: DwellingType): PlacementMode => {
+  const dwellingMode = (type: BuildableDwellingType): PlacementMode => {
     const item = buildItem(type);
     if (item.placement === 'plot') {
       return {
@@ -473,7 +478,7 @@ export function VillageGame({
    * `type` postupně za každou domácnost – po umístění jedné hned běží umisťování další (jako
    * Shift + klik u staveb); Esc nebo pravé tlačítko zbytek zruší.
    */
-  const relocate = (type: DwellingType, householdIds: readonly number[]): void => {
+  const relocate = (type: BuildableDwellingType, householdIds: readonly number[]): void => {
     const villageId = viewRef.current?.id;
     if (!scene || !villageId || householdIds.length === 0) return;
     const queue = [...householdIds];
@@ -517,7 +522,10 @@ export function VillageGame({
       return;
     }
     const onDwelling = (result: PlacementResult): void => {
-      if (result.kind === 'dwelling') buildDwelling(result.type, result.position, result.plot);
+      // dvorec hráč nestaví – vznikne přestavbou dvorce vsi (trade.md)
+      if (result.kind === 'dwelling' && result.type !== 'dvorec') {
+        buildDwelling(result.type, result.position, result.plot);
+      }
     };
     if (item.placement === 'plot' || item.placement === 'footprint') {
       placement.start(dwellingMode(item.dwellingType), onDwelling);

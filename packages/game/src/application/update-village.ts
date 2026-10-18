@@ -4,6 +4,7 @@ import {
   isVillageExtinct,
   withForestDistances,
   withLivestockLand,
+  withManor,
   withMergedFields,
   withObstacleClearing,
   withPlots,
@@ -59,15 +60,18 @@ export async function updateVillage(
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     const record = await villages.find(villageId);
     if (record === null) return { ok: false, reason: NO_VILLAGE };
-    const migrated = withLivestockLand(
-      withMergedFields(
-        withPlots(
-          withForestDistances(withObstacleClearing(record.state, obstacles), landscape),
-          landscape,
-          obstacles,
+    // dvorec vojvody – starší ves ho dostane (nejstarší obydlí, trade.md)
+    const migrated = withManor(
+      withLivestockLand(
+        withMergedFields(
+          withPlots(
+            withForestDistances(withObstacleClearing(record.state, obstacles), landscape),
+            landscape,
+            obstacles,
+          ),
         ),
+        landscape,
       ),
-      landscape,
     );
     const current = advancedToToday(migrated, today, obstacles, landscape);
     const changed = change(current);

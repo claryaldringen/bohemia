@@ -1,7 +1,7 @@
 import type { ObstacleLayer } from '../landscape';
 import { affordability, BUILD_COSTS, villageStock, type Affordability } from './costs';
 import { occupants } from './people';
-import type { Construction, DwellingType, VillageState } from './types';
+import type { BuildableDwellingType, Construction, VillageState } from './types';
 import { addLogs } from './wood';
 
 // Přestěhování domácnosti (migration.md – Přestěhování domácnosti): domácnost si postaví nový dům
@@ -47,7 +47,7 @@ export function relocationBlock(state: VillageState, householdId: number): Reloc
  */
 export function relocationAffordability(
   state: VillageState,
-  type: DwellingType,
+  type: BuildableDwellingType,
   obstacles?: ObstacleLayer | null,
 ): Affordability {
   const { settlers, ...upfront } = BUILD_COSTS[type].upfront;

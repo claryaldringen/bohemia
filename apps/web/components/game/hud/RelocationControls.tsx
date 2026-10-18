@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, type ReactElement } from 'react';
-import type { DwellingType } from '@bohemia/game';
+import type { BuildableDwellingType } from '@bohemia/game';
 import { RELOCATION_TYPES } from '@/lib/relocation-view';
 import { formatInteger, formatManDays, formatPercent } from '@/lib/village-format';
 import { DWELLING_NAMES, type BuildOption } from '@/lib/village-view';
@@ -18,7 +18,7 @@ function RelocateTooltip({
   option,
   households,
 }: {
-  type: DwellingType;
+  type: BuildableDwellingType;
   option: BuildOption;
   households: number;
 }): ReactElement {
@@ -63,10 +63,10 @@ export function RelocateButtons({
   households,
   onRelocate,
 }: {
-  options: Record<DwellingType, BuildOption>;
+  options: Record<BuildableDwellingType, BuildOption>;
   /** Kolik domácností se stěhuje (po jedné umístí hráč nový dům každé). */
   households: number;
-  onRelocate?: (type: DwellingType) => void;
+  onRelocate?: (type: BuildableDwellingType) => void;
 }): ReactElement {
   return (
     <div role="group" aria-label="Přestěhovat" className="flex items-center gap-1">

@@ -30,6 +30,7 @@ const DECAY_SECONDS = 40;
 const KIND_LABELS: Record<ConstructionKind, string> = {
   zemnice: 'Zemnice',
   polozemnice: 'Polozemnice',
+  dvorec: 'Dvorec vojvody',
   hrncir: 'Hrnčíř',
   kovar: 'Kovář',
   uhlir: 'Uhlíř',

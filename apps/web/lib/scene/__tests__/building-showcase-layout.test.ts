@@ -36,7 +36,8 @@ describe('SHOWCASE_BUILDINGS', () => {
 
   it('pozemky polozemnic (15 × 15 m) se nepřekrývají a nezasahují do ostatních staveb', () => {
     const models = SHOWCASE_BUILDINGS.flatMap((b) => b.models);
-    const plots = models.flatMap((m) => (m.plot ? [m.plot] : []));
+    // dvorec vojvody (trade.md) má pozemek dvou políček – jen pozemky polozemnic
+    const plots = models.flatMap((m) => (m.plot && !m.plot.yard ? [m.plot] : []));
     expect(plots.length).toBe(6);
     expect(new Set(plots.map((p) => p.variant)).size).toBe(5);
     for (const p of plots) {

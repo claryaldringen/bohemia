@@ -4,7 +4,8 @@ Celé jedním příkazem z kořene repa (Blender 5, ImageMagick `magick`, intern
 
     blender -b --factory-startup --python tools/blender/icons.py -- apps/web/public/icons [jen,vybrané,ikony]
 
-Výstup (128 × 128 PNG, průhledné rohy) – `build/` zemnice, polozemnice, pole, hrbitov,
+Výstup (128 × 128 PNG, průhledné rohy) – `build/` zemnice, polozemnice, dvorec (dvorec vojvody –
+trade.md), pole, hrbitov,
 hrncir, kovar, uhlir (řemeslné dílny z `apps/web/public/models/crafts/`, uhlíř s milířem), sad
 (jabloňový sad), modla, svatyne (posvátná místa z `apps/web/public/models/sacred/`), dub
 (posvátný dub s obětinami), sous (posvátná souš – uschlý dub z `apps/web/public/models/decor/`
@@ -1643,6 +1644,7 @@ def icon_pottery():
 BUILD = {
     "zemnice": lambda: icon_dwelling("zemnice"),
     "polozemnice": lambda: icon_dwelling("polozemnice"),
+    "dvorec": lambda: icon_dwelling("dvorec"),
     "pole": icon_pole,
     "hrbitov": icon_hrbitov,
     "hrncir": lambda: icon_craft("hrncir"),
