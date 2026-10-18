@@ -6,9 +6,10 @@ const CURSOR_GAP_PX = 18;
 
 /**
  * U kurzoru při umisťování (jde s kurzorem): u prošlého umístění cena jako ikony s čísly –
- * práce celkem v člověkodnech (i s překážkami a kácením) a u obydlí stromy, které se skácí,
- * když nestačí klády na hromadě; pod ní oranžově varování, které stavbu neblokuje
- * (`check.warning` – hřbitov blízko obydlí nebo vody, obydlí blízko hřbitova), řádek na každé.
+ * práce celkem v člověkodnech (i s překážkami a kácením), u obydlí stromy, které se skácí,
+ * když nestačí klády na hromadě, a u modly a svatyně dospělé duby ke skácení; pod ní oranžově
+ * varování, které stavbu neblokuje (`check.warning` – hřbitov blízko obydlí nebo vody, obydlí
+ * blízko hřbitova, posvátný dub nebo háj zůstane stát), řádek na každé.
  * Když umístění nejde, místo ceny jen krátký červený důvod. Jestli stavba jde, ukazuje i barva
  * ducha / čtverců ve scéně.
  */
@@ -50,6 +51,12 @@ export function CursorReason({
             <span data-cost="trees" className="flex items-center gap-1">
               <img src="/icons/resources/wood.png" alt="Stromy" width={16} height={16} />
               {formatInteger(cost.trees)}
+            </span>
+          )}
+          {(cost.oaks ?? 0) > 0 && (
+            <span data-cost="oaks" className="flex items-center gap-1">
+              <img src="/icons/build/dub.png" alt="Duby" width={16} height={16} />
+              {formatInteger(cost.oaks ?? 0)}
             </span>
           )}
         </span>

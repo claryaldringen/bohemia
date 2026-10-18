@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { NO_OBSTACLE_CHANGES, packObstacles, type Landscape } from '@bohemia/game';
-import { minimapImage, minimapToWorld, worldToMinimap } from '../minimap';
+import { minimapImage, minimapToWorld, sacredMinimapMarks, worldToMinimap } from '../minimap';
 import { clearedForest } from '../scene/cleared-forest';
 
 const SIZE = 8;
@@ -68,5 +68,35 @@ describe('minimapImage – vymýcený les', () => {
     expect(clearing[1]).toBeGreaterThan(forest[1]! + 20);
     expect(at(image, 12, 0)).toEqual(at(plain, 12, 0));
     expect(at(image, 8, 8)).toEqual(at(plain, 8, 8));
+  });
+});
+
+describe('sacredMinimapMarks', () => {
+  it('háj po čtvercích, dub tečkou, modla a svatyně půdorysem (aspoň 3,5 px)', () => {
+    const marks = sacredMinimapMarks(
+      landscape,
+      {
+        oaks: [{ id: 1, x: 0, z: 0 }],
+        groves: [
+          { id: 2, x: 7.5, z: 7.5, squares: [{ cell: { x: 4, y: 4 }, x: 7.5, z: 7.5, size: 15 }] },
+        ],
+        buildings: [
+          { id: 3, kind: 'idol', position: { x: 0, z: 0, rotation: 0 }, built: true, progress: 1 },
+          {
+            id: 4,
+            kind: 'shrine',
+            position: { x: 0, z: 0, rotation: 0 },
+            built: false,
+            progress: 0,
+          },
+        ],
+      },
+      120,
+    );
+    expect(marks.map((m) => m.kind)).toEqual(['square', 'dot', 'footprint', 'footprint']);
+    expect(marks[0]).toMatchObject({ x: 67.5, y: 52.5, size: 15 });
+    expect(marks[2]).toMatchObject({ size: 4, built: true });
+    expect(marks[3]).toMatchObject({ size: 30, built: false });
+    expect(sacredMinimapMarks(landscape, undefined, 120)).toEqual([]);
   });
 });

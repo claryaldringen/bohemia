@@ -8,6 +8,13 @@ import {
 } from './cemetery';
 import { isFull, isOvercrowded, waitingHouseholds } from './dwellings';
 import { fallowYears } from './fields';
+import {
+  happinessFactors,
+  happinessLaborFactor,
+  happinessTarget,
+  villageHappiness,
+  type HappinessFactors,
+} from './happiness';
 import { daysUntilAppleRot, daysUntilHarvest, eatMeal, isAppleRotDay } from './food';
 import {
   orchardAgeYears,
@@ -17,12 +24,28 @@ import {
   villageOrchards,
 } from './orchard';
 import { ageGroup, foodNeedPerDay, occupants } from './people';
-import { CHRONICLE_MAX_EVENTS, DWELLINGS, OVERGROWTH_STAGES, STARVATION } from './rules';
+import {
+  CHRONICLE_MAX_EVENTS,
+  DWELLINGS,
+  OVERGROWTH_STAGES,
+  SACRED_OAK,
+  STARVATION,
+} from './rules';
+import {
+  groveHappiness,
+  sacredBuildingHappiness,
+  villageGroves,
+  villageSacredBuildings,
+  villageSacredOaks,
+} from './sacred';
 import type {
   Construction,
   ConstructionKind,
   DwellingType,
   FieldPart,
+  Position,
+  SacredBuildingKind,
+  TileCell,
   VillageState,
 } from './types';
 import { treesToFell, woodFellingCost, woodLogs } from './wood';
@@ -93,6 +116,33 @@ export interface OrchardSummary {
   expectedYieldKg: number;
 }
 
+/** Štěstí obyvatel pro horní lištu (happiness.md). */
+export interface HappinessSummary {
+  /** Štěstí 0–100. */
+  value: number;
+  /** Cílová hodnota, ke které se štěstí posouvá (při zítřejším nasycení). */
+  target: number;
+  /** Z čeho se cíl skládá (body; ubírající kladně). */
+  factors: HappinessFactors;
+  /** Násobek veškeré práce vsi (0,8–1,1). */
+  laborFactor: number;
+}
+
+/** Posvátná místa vsi pro panel výběru a scénu – i kolik které přidává (bez stropů). */
+export interface SacredSummary {
+  oaks: { id: number; x: number; z: number; happiness: number }[];
+  groves: {
+    id: number;
+    x: number;
+    z: number;
+    cells: TileCell[];
+    oaks: number;
+    happiness: number;
+  }[];
+  /** Hotové modly a svatyně (id = id stavby, která je postavila). */
+  buildings: { id: number; kind: SacredBuildingKind; position: Position; happiness: number }[];
+}
+
 export interface VillageSummary {
   people: { children: number; adults: number; elders: number };
   households: HouseholdSummary[];
@@ -132,6 +182,10 @@ export interface VillageSummary {
   deathsPerYear: number;
   /** Jabloňové sady v pořadí založení. */
   orchards: OrchardSummary[];
+  /** Štěstí obyvatel (happiness.md). */
+  happiness: HappinessSummary;
+  /** Posvátná místa – ušetřené duby a háje, hotové modly a svatyně. */
+  sacred: SacredSummary;
 }
 
 const DAYS_PER_YEAR = 365;
@@ -316,6 +370,46 @@ export function summarizeVillage(state: VillageState, day: number): VillageSumma
       plantedSquares: o.squares.filter((s) => s.plantedDay !== null).length,
       ageYears: orchardAgeYears(o, day),
       expectedYieldKg: orchardExpectedYieldKg(o, day),
+    })),
+    happiness: happinessSummary(state, day, nextDaySatiation(state, day, needPerDay)),
+    sacred: sacredSummary(state),
+  };
+}
+
+/** Štěstí, jeho cíl a složky (cíl při nasycení příštího dne). */
+function happinessSummary(state: VillageState, day: number, satiation: number): HappinessSummary {
+  const value = villageHappiness(state);
+  const factors = happinessFactors(state, day, satiation);
+  return {
+    value,
+    target: happinessTarget(factors),
+    factors,
+    laborFactor: happinessLaborFactor(value),
+  };
+}
+
+/** Posvátná místa vsi a kolik které samo přidává (stropy počtu a součtu platí pro ves). */
+function sacredSummary(state: VillageState): SacredSummary {
+  return {
+    oaks: villageSacredOaks(state).map((o) => ({
+      id: o.id,
+      x: o.x,
+      z: o.z,
+      happiness: SACRED_OAK.happiness,
+    })),
+    groves: villageGroves(state).map((g) => ({
+      id: g.id,
+      x: g.x,
+      z: g.z,
+      cells: g.cells.map((c) => ({ x: c.x, y: c.y })),
+      oaks: g.oaks,
+      happiness: groveHappiness(g.oaks),
+    })),
+    buildings: villageSacredBuildings(state).map((b) => ({
+      id: b.id,
+      kind: b.kind,
+      position: b.position,
+      happiness: sacredBuildingHappiness(b.kind),
     })),
   };
 }

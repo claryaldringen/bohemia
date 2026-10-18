@@ -43,7 +43,7 @@ const HOME: Position = { x: -60, z: 0, rotation: 0 };
 const SQUARE_HA = 225 / 10_000;
 
 const LOOKS: Record<ObstaclePlacement['kind'], ObstaclePlacement['look']> = {
-  tree: 'oak-1',
+  tree: 'beech-1',
   youngTree: 'fir-young-1',
   snag: 'snag-1',
   fallenTree: 'fallen-1',

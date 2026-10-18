@@ -10,12 +10,15 @@ import {
   NO_OBSTACLE_CHANGES,
   cemeteryPartsFromCells,
   checkDwellingPlacement,
+  checkSacredBuildingPlacement,
   fieldPartsFromCells,
   matureTreesByDistance,
   obstaclesOf,
   orchardPartsFromCells,
+  sacredSitesOf,
   surfaceAt,
   type DwellingType,
+  type SacredBuildingKind,
   type Landscape,
   type ObstacleChanges,
   type PartStage,
@@ -26,7 +29,7 @@ import {
 import { GameView } from '@/components/game/GameView';
 import { CursorReason } from '@/components/game/hud/CursorReason';
 import { Minimap } from '@/components/game/hud/Minimap';
-import { dwellingPlacementCost } from '@/lib/build-items';
+import { dwellingPlacementCost, sacredPlacementCost } from '@/lib/build-items';
 import { decodeLandscape, type LandscapeTransfer } from '@/lib/landscape-transfer';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
 import { CEMETERY_PHASES } from '@/lib/scene/cemetery-layout';
@@ -38,6 +41,7 @@ import {
 } from '@/lib/scene/orchard-layout';
 import { tileAt, tileCenter } from '@/lib/scene/tile-at';
 import { CONSTRUCTION_PHASES, constructionPhase } from '@/lib/scene/village-construction';
+import { SACRED_PHASES, SACRED_SITE_KIND, sacredPhase } from '@/lib/scene/sacred-layout';
 import { REFERENCE_DAY, dateOfDayOfYear } from '@/lib/scene/season-look';
 import type {
   SquaresPreview,
@@ -47,7 +51,7 @@ import type {
 } from '@/lib/scene/village-types';
 import { formatCells, formatHa, formatManDays, plural } from '@/lib/village-format';
 import { demoLabor } from './dev-labor';
-import { placementVillageFromScene, type SceneVillage } from '@/lib/village-view';
+import { placementVillageFromScene, type SceneSacred, type SceneVillage } from '@/lib/village-view';
 
 const STAGES: PartStage[] = [
   'founding',
@@ -67,6 +71,8 @@ const buttonClass =
 
 type DevCemetery = NonNullable<SceneVillage['cemeteries']>[number];
 type DevOrchard = NonNullable<SceneVillage['orchards']>[number];
+type DevSacredBuilding = SceneSacred['buildings'][number];
+const SACRED_NAMES: Record<SacredBuildingKind, string> = { idol: 'Modla', shrine: 'Svatyně' };
 
 interface DevWindow extends Window {
   __bohemiaDev?: {
@@ -78,6 +84,13 @@ interface DevWindow extends Window {
     addField: (cells: TileCell[]) => void;
     /** Pokácí `count` dospělých stromů nejblíž bodu (pařezy). */
     fellTrees: (count: number, near?: { x: number; z: number }) => void;
+    /** Modly a svatyně (i staveniště) – snímky z Playwrightu. */
+    setSacredBuildings: (buildings: DevSacredBuilding[]) => void;
+    /** Vymýtí les kolem nejbližšího háje a posvátného dubu – kam se podívat. */
+    clearSacred: () => {
+      grove: { x: number; z: number } | null;
+      oak: { x: number; z: number } | null;
+    };
   };
 }
 
@@ -93,6 +106,10 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   const [fields, setFields] = useState<DevField[]>([]);
   const [cemeteries, setCemeteries] = useState<DevCemetery[]>([]);
   const [orchards, setOrchards] = useState<DevOrchard[]>([]);
+  // posvátná místa (happiness.md): ušetřené duby a háje, modly a svatyně
+  const [sacredOaks, setSacredOaks] = useState<SceneSacred['oaks']>([]);
+  const [groves, setGroves] = useState<SceneSacred['groves']>([]);
+  const [sacredBuildings, setSacredBuildings] = useState<DevSacredBuilding[]>([]);
   const [stage, setStage] = useState(0);
   const [mixed, setMixed] = useState(true);
   const [placing, setPlacing] = useState<string | null>(null);
@@ -122,6 +139,9 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
       orchards,
       woodLogs,
       obstacles,
+      ...(sacredOaks.length > 0 || groves.length > 0 || sacredBuildings.length > 0
+        ? { sacred: { oaks: sacredOaks, groves, buildings: sacredBuildings } }
+        : {}),
     };
     if (!people) return base;
     // kácí se u nejbližších stromů k prvnímu staveništi (jako vyhrazené stromy stavby)
@@ -150,6 +170,9 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     obstacles,
     people,
     seasonDay,
+    sacredOaks,
+    groves,
+    sacredBuildings,
   ]);
 
   useEffect(() => {
@@ -208,10 +231,81 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     }));
   };
 
+  /**
+   * Mýcení lesa s posvátným dubem a hájem: najde nejbližší háj a posvátný dub (vrstva překážek)
+   * k místu vsi a založí pole na čtvercích kolem nich – jádro háj z pole vyjme a dub nechá stát,
+   * ušetřená místa se ukážou s obětinami a kameny. Vrátí, kde jsou (pro kameru).
+   */
+  const clearSacred = (): {
+    grove: { x: number; z: number } | null;
+    oak: { x: number; z: number } | null;
+  } => {
+    const sites = sacredSitesOf(obstaclesOf(decoded));
+    const site = tileCenter(decoded, decoded.villageSite.x, decoded.villageSite.y);
+    const distance = (p: { x: number; z: number }): number =>
+      Math.hypot(p.x - site.worldX, p.z - site.worldZ);
+    const grove = [...sites.groves].sort((a, b) => distance(a) - distance(b))[0] ?? null;
+    const oak = [...sites.oaks].sort((a, b) => distance(a) - distance(b))[0] ?? null;
+    const ring = (cells: readonly TileCell[], reach: number): TileCell[] => {
+      const out = new Map<string, TileCell>();
+      for (const c of cells) {
+        for (let dy = -reach; dy <= reach; dy++) {
+          for (let dx = -reach; dx <= reach; dx++) {
+            const cell = { x: c.x + dx, y: c.y + dy };
+            if (cell.x < 0 || cell.y < 0 || cell.x >= decoded.size || cell.y >= decoded.size)
+              continue;
+            out.set(`${cell.x},${cell.y}`, cell);
+          }
+        }
+      }
+      return [...out.values()].filter((c) => surfaceAt(decoded, c.x, c.y) !== 'water');
+    };
+    const oakCell = oak
+      ? {
+          x: Math.floor((oak.x + (decoded.size * decoded.cellSizeM) / 2) / decoded.cellSizeM),
+          y: Math.floor((oak.z + (decoded.size * decoded.cellSizeM) / 2) / decoded.cellSizeM),
+        }
+      : null;
+    const cells = [...(grove ? ring(grove.cells, 2) : []), ...(oakCell ? ring([oakCell], 1) : [])];
+    const preview = fieldPartsFromCells(
+      decoded,
+      placementVillageFromScene(village),
+      cells,
+      devDwellingPositions(decoded, village),
+    );
+    const cleared = preview.parts.flatMap((part) => part.obstacleIds ?? []);
+    setObstacles((changes) => ({
+      ...changes,
+      removed: [...new Set([...changes.removed, ...cleared])].sort((a, b) => a - b),
+    }));
+    const partCells = preview.parts.flatMap((part) => (part.cell ? [part.cell] : []));
+    if (partCells.length > 0) {
+      const id = nextId.current++;
+      setFields((list) => [...list, { id, parts: fieldParts(decoded, partCells) }]);
+    }
+    setSacredOaks((list) => [
+      ...list.filter((o) => !preview.spared.oaks.some((s) => s.id === o.id)),
+      ...preview.spared.oaks,
+    ]);
+    setGroves((list) => [
+      ...list.filter((g) => !preview.spared.groves.some((s) => s.id === g.id)),
+      ...preview.spared.groves.map((g) => ({
+        id: g.id,
+        x: g.x,
+        z: g.z,
+        squares: fieldParts(decoded, g.cells),
+      })),
+    ]);
+    return {
+      grove: grove ? { x: grove.x, z: grove.z } : null,
+      oak: oak ? { x: oak.x, z: oak.z } : null,
+    };
+  };
+
   // Přístup ke scéně a vsi pro snímky z Playwrightu (jen tato vývojová stránka).
-  const devActions = useRef({ addField, fellTrees });
+  const devActions = useRef({ addField, fellTrees, clearSacred });
   useEffect(() => {
-    devActions.current = { addField, fellTrees };
+    devActions.current = { addField, fellTrees, clearSacred };
   });
   useEffect(() => {
     if (!scene) return;
@@ -223,6 +317,8 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
       setOrchards,
       addField: (cells) => devActions.current.addField(cells),
       fellTrees: (count, near) => devActions.current.fellTrees(count, near),
+      setSacredBuildings,
+      clearSacred: () => devActions.current.clearSacred(),
     };
     return () => {
       delete devWindow.__bohemiaDev;
@@ -274,6 +370,76 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         },
       },
     );
+  };
+
+  /** Modla nebo svatyně se skutečnou kontrolou a cenou z herního jádra (staví se po fázích). */
+  const placeSacred = (kind: SacredBuildingKind): void => {
+    if (!scene) return;
+    setPlacing(SACRED_NAMES[kind]);
+    scene.startPlacement(
+      {
+        kind: 'sacred',
+        type: kind,
+        check: (position) => {
+          const placementVillage = placementVillageFromScene(village);
+          const layer = obstaclesOf(decoded);
+          const check = checkSacredBuildingPlacement(
+            decoded,
+            placementVillage,
+            kind,
+            position,
+            layer,
+          );
+          return {
+            ...check,
+            cost: check.ok
+              ? sacredPlacementCost(placementVillage, kind, position, check, layer)
+              : null,
+          };
+        },
+      },
+      {
+        ...handlers,
+        onConfirm: (result) => {
+          handlers.onCancel();
+          if (result.kind !== 'sacred') return;
+          const id = nextId.current++;
+          setSacredBuildings((list) => [
+            ...list,
+            { id, kind: result.type, position: result.position, built: false, progress: 0 },
+          ]);
+        },
+      },
+    );
+  };
+
+  /**
+   * Modly a svatyně ve všech fázích stavby vedle sebe u místa vsi (vytyčení při 0 %, pak
+   * středy fází) a hotové na konci řady.
+   */
+  const showSacred = (): void => {
+    scene?.cancelPlacement();
+    const site = tileCenter(decoded, decoded.villageSite.x, decoded.villageSite.y);
+    const list: DevSacredBuilding[] = [];
+    (['idol', 'shrine'] as const).forEach((kind, row) => {
+      const phases = SACRED_PHASES[SACRED_SITE_KIND[kind]];
+      const stops = [0, ...phases.slice(1).map((p) => (p.from + p.to) / 2), 1];
+      const spacing = kind === 'idol' ? 7 : 34;
+      stops.forEach((progress, i) => {
+        const x = site.worldX + (i - (stops.length - 1) / 2) * spacing;
+        const z = site.worldZ + (row === 0 ? 12 : 40);
+        const tile = tileAt(decoded, x, z);
+        if (!tile || surfaceAt(decoded, tile.x, tile.y) === 'water') return;
+        list.push({
+          id: nextId.current++,
+          kind,
+          position: { x, z, rotation: Math.PI },
+          built: progress >= 1,
+          progress,
+        });
+      });
+    });
+    setSacredBuildings(list);
   };
 
   const placeField = (): void => {
@@ -471,6 +637,13 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         }),
       })),
     );
+    setSacredBuildings((list) =>
+      list.map((b) => {
+        if (b.built) return b;
+        const progress = next(b.progress);
+        return { ...b, progress, built: progress >= 1 };
+      }),
+    );
   };
 
   /** Pohřbí do hotových hřbitovů dalších `count` mrtvých (nejvýš do zaplnění). */
@@ -599,6 +772,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   };
 
   const firstSite = dwellings.find((d) => !d.built);
+  const firstSacredSite = sacredBuildings.find((b) => !b.built);
   const plantingSquare = orchards.flatMap((o) => o.squares).find((s) => s.planting < 1);
   const seasonDate = dateOfDayOfYear(seasonDay ?? REFERENCE_DAY);
 
@@ -663,6 +837,32 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
           <span data-testid="dev-village-phase">
             {Math.round(firstSite.progress * 100)} % ·{' '}
             {constructionPhase(firstSite.type, firstSite.progress).label}
+          </span>
+        )}
+        <button className={buttonClass} disabled={!scene} onClick={() => placeSacred('idol')}>
+          Modla
+        </button>
+        <button className={buttonClass} disabled={!scene} onClick={() => placeSacred('shrine')}>
+          Svatyně
+        </button>
+        <button className={buttonClass} disabled={!scene} onClick={showSacred}>
+          Ukázka svatyní
+        </button>
+        <button
+          className={buttonClass}
+          disabled={!scene}
+          onClick={() => {
+            const at = clearSacred();
+            const target = at.grove ?? at.oak;
+            if (target) scene?.moveCameraTo(target.x, target.z);
+          }}
+        >
+          Mýtit les s posvátným dubem / hájem
+        </button>
+        {firstSacredSite && (
+          <span data-testid="dev-sacred-phase">
+            {SACRED_NAMES[firstSacredSite.kind]} {Math.round(firstSacredSite.progress * 100)} % ·{' '}
+            {sacredPhase(SACRED_SITE_KIND[firstSacredSite.kind], firstSacredSite.progress).label}
           </span>
         )}
         <button className={buttonClass} disabled={!scene} onClick={showPhases}>
@@ -739,6 +939,9 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
             setFields([]);
             setCemeteries([]);
             setOrchards([]);
+            setSacredOaks([]);
+            setGroves([]);
+            setSacredBuildings([]);
             setObstacles(NO_OBSTACLE_CHANGES);
           }}
         >

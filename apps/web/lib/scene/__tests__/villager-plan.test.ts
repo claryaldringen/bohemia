@@ -258,6 +258,38 @@ describe('planVillagers – kdo kde je', () => {
     }
   });
 
+  it('stavitelé modly stojí kolem jejího půdorysu – ne uvnitř (happiness.md)', () => {
+    const shares: LaborShare[] = [
+      { activity: 'build', target: { kind: 'site', id: 95 }, manDays: 4 },
+    ];
+    const withIdol: SceneVillage = {
+      ...village(shares),
+      sacred: {
+        oaks: [],
+        groves: [],
+        buildings: [
+          {
+            id: 95,
+            kind: 'idol',
+            position: { x: 40, z: -40, rotation: 0 },
+            built: false,
+            progress: 0.4,
+          },
+        ],
+      },
+    };
+    const builders = planVillagers(withIdol, GROUND, { seed: 3, herds: 0 }).filter((p) =>
+      p.key.startsWith('build:'),
+    );
+    expect(builders.length).toBeGreaterThan(0);
+    for (const p of builders) {
+      const pose = at(p, 10);
+      const d = Math.max(Math.abs(pose.x - 40), Math.abs(pose.z + 40));
+      expect(d).toBeGreaterThan(2);
+      expect(d).toBeLessThan(8);
+    }
+  });
+
   it('pasáček jde za svým stádem; vdané ženy mají šátek, starší šediny', () => {
     const herder = of('herder:')[0]!;
     const pose = at(herder, 50);

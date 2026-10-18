@@ -476,16 +476,20 @@ export class LandscapeScene {
               decalHeight: (x, z) => village.decalHeight(x, z),
               cameraAlpha: () => camera.camera.alpha,
               ghostModel: (type) => village.ghostModel(type),
-              baseHeight: (d) => village.baseHeight(d),
+              baseHeight: (type, position) =>
+                type === 'idol' || type === 'shrine'
+                  ? village.sacredBaseHeight(type, position)
+                  : village.baseHeight({ type, position }),
               requestRender,
             },
             mode,
             controlled,
           );
     this.placement = controller;
-    if (mode.kind === 'dwelling') {
+    if (mode.kind !== 'squares') {
       // Model ducha se načte (jednou) a pak naskočí pod kurzorem.
-      void village.loadModels().then(() => {
+      const models = mode.kind === 'sacred' ? village.loadSacredModels() : village.loadModels();
+      void models.then(() => {
         if (this.placement === controller) this.pointerMoved = this.pointerInside;
       });
     }

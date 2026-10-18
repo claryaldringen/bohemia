@@ -13,6 +13,7 @@ import {
   DWELLING_FOOTPRINT_M,
   type DwellingType,
   type ObstacleLayer,
+  type SacredBuildingKind,
   type WorldClock,
 } from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
@@ -43,6 +44,7 @@ import {
   type ModelInstance,
 } from './instanced-model';
 import { OrchardRenderer } from './orchard-renderer';
+import { SacredRenderer } from './sacred-renderer';
 import { applyPitCut, type PitCuts } from './pit-cut';
 import {
   SITE_PROP_PLACES,
@@ -169,6 +171,7 @@ export class VillageRenderer {
   private readonly smoke: VillageSmoke;
   private readonly cemeteries: CemeteryRenderer;
   private readonly orchards: OrchardRenderer;
+  private readonly sacred: SacredRenderer;
   private village: SceneVillage = { dwellings: [], fields: [] };
   private disposed = false;
 
@@ -179,6 +182,7 @@ export class VillageRenderer {
     this.smoke = new VillageSmoke(scene, SMOKE_TEXTURE_URL);
     this.cemeteries = new CemeteryRenderer(scene, context);
     this.orchards = new OrchardRenderer(scene, context);
+    this.sacred = new SacredRenderer(scene, context);
   }
 
   /** Vrátí true, když se ve scéně něco změnilo (je co překreslit). */
@@ -189,10 +193,11 @@ export class VillageRenderer {
     const fields = this.updateFields(village.fields);
     const cemeteries = this.cemeteries.update(village.cemeteries ?? [], village.dwellings);
     const orchards = this.orchards.update(village.orchards ?? []);
+    const sacred = this.sacred.update(village.sacred);
     const models = this.updateModels();
     const sites = this.updateConstruction();
     const smoke = this.updateSmokeSources();
-    return dwellings || fields || cemeteries || orchards || models || sites || smoke;
+    return dwellings || fields || cemeteries || orchards || sacred || models || sites || smoke;
   }
 
   /**
@@ -225,11 +230,16 @@ export class VillageRenderer {
     for (const view of this.fields.values()) if (view.shape) shapes.push(view.shape);
     shapes.push(...this.cemeteries.hideShapes());
     shapes.push(...this.orchards.hideShapes());
+    shapes.push(...this.sacred.hideShapes());
     return shapes;
   }
 
-  /** Průhledný model obydlí pro ducha při umisťování (null, dokud se model nenačte). */
-  ghostModel(type: DwellingType): Mesh | null {
+  /**
+   * Průhledný model obydlí, modly nebo svatyně pro ducha při umisťování (null, dokud se model
+   * nenačte).
+   */
+  ghostModel(type: DwellingType | SacredBuildingKind): Mesh | null {
+    if (type === 'idol' || type === 'shrine') return this.sacred.ghostModel(type);
     void this.loadModels();
     return this.ghosts.get(type) ?? null;
   }
@@ -240,11 +250,22 @@ export class VillageRenderer {
     return this.loading;
   }
 
+  /** Načte modely modly a svatyně (duch při umisťování). */
+  loadSacredModels(): Promise<void> {
+    return this.sacred.loadModels();
+  }
+
+  /** Pata modly nebo svatyně (duch při umisťování). */
+  sacredBaseHeight(kind: SacredBuildingKind, position: SceneDwelling['position']): number {
+    return this.sacred.baseHeight({ kind, position });
+  }
+
   dispose(): void {
     this.disposed = true;
     this.smoke.dispose();
     this.cemeteries.dispose();
     this.orchards.dispose();
+    this.sacred.dispose();
     for (const view of this.dwellings.values()) for (const mesh of view.meshes) mesh.dispose();
     for (const view of this.fields.values()) for (const mesh of view.meshes) mesh.dispose();
     this.dwellings.clear();
@@ -366,6 +387,8 @@ export class VillageRenderer {
         const [x, z] = localToWorld(d.position, 0, vent.z);
         return { seed: d.id, x, y: this.baseHeight(d) + vent.y, z };
       });
+    // ohniště hotových svatyní – občas dým jako z obydlí (happiness.md)
+    sources.push(...this.sacred.smokeSources());
     return this.smoke.setSources(sources);
   }
 

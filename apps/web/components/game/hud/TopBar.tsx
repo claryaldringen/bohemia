@@ -163,7 +163,7 @@ function IconButton({
 /**
  * Horní lišta jako v 0 A.D.: jméno vsi (klik = přejmenovat), ikony s čísly – lidé, obilí,
  * jablka (jen když nějaká jsou), klády na hromadě, volná práce, nasycení (jen barva ikony),
- * herní datum – a vpravo zvuk a odhlášení.
+ * štěstí (happiness.md), herní datum – a vpravo zvuk a odhlášení.
  */
 export function TopBar({
   view,
@@ -225,6 +225,9 @@ export function TopBar({
               filter={SATIATION_GLOW[satiation]}
             />
           </span>
+          <Resource icon="happiness" name="Štěstí" testId="village-happiness">
+            {Math.round(view.happiness.value)}
+          </Resource>
         </div>
       )}
       <div className="ml-auto flex items-center gap-1">

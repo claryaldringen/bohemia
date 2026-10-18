@@ -42,3 +42,5 @@ export * from './summary';
 export * from './names';
 export * from './costs';
 export * from './wood';
+export * from './sacred';
+export * from './happiness';

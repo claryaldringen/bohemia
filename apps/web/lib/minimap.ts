@@ -1,10 +1,12 @@
 import {
   buildRelief,
+  SACRED_BUILDINGS,
   SURFACE_CODES,
   type FieldSurface,
   type Landscape,
   type PartStage,
 } from '@bohemia/game';
+import type { SceneSacred } from './village-view';
 import { CLEARED_SHARE, type ClearedForest } from './scene/cleared-forest';
 import { SUN_DIRECTION } from './scene/constants';
 import { sampleTiles } from './scene/tile-at';
@@ -48,6 +50,45 @@ export const CEMETERY_COLOR: Rgb = [150, 146, 112];
 
 /** Sad na minimapě – sytá zeleň korun jabloní, tmavší než louka a světlejší než les. */
 export const ORCHARD_COLOR: Rgb = [78, 118, 52];
+
+/** Posvátná místa na minimapě – teplá okrová (obětiny, oheň), dobře odlišená od zeleně. */
+export const SACRED_COLOR: Rgb = [232, 164, 64];
+
+/** Značka posvátného místa na minimapě v px: čtverec háje, bod dubu, půdorys modly a svatyně. */
+export type SacredMark =
+  | { kind: 'square'; x: number; y: number; size: number }
+  | { kind: 'dot'; x: number; y: number; radius: number }
+  | { kind: 'footprint'; x: number; y: number; size: number; built: boolean };
+
+/**
+ * Značky posvátných míst pro minimapu o straně `sizePx`: čtverce hájů (průsvitně), posvátné duby
+ * jako tečky a modly a svatyně jako čtverečky podle půdorysu (aspoň 3,5 px).
+ */
+export function sacredMinimapMarks(
+  l: Landscape,
+  sacred: SceneSacred | undefined,
+  sizePx: number,
+): SacredMark[] {
+  if (!sacred) return [];
+  const pxPerM = sizePx / (l.size * l.cellSizeM);
+  const marks: SacredMark[] = [];
+  for (const grove of sacred.groves) {
+    for (const square of grove.squares) {
+      const p = worldToMinimap(l, square.x, square.z, sizePx);
+      marks.push({ kind: 'square', x: p.x, y: p.y, size: square.size * pxPerM });
+    }
+  }
+  for (const oak of sacred.oaks) {
+    const p = worldToMinimap(l, oak.x, oak.z, sizePx);
+    marks.push({ kind: 'dot', x: p.x, y: p.y, radius: 1.8 });
+  }
+  for (const b of sacred.buildings) {
+    const p = worldToMinimap(l, b.position.x, b.position.z, sizePx);
+    const size = Math.max(3.5, SACRED_BUILDINGS[b.kind].footprintM * pxPerM);
+    marks.push({ kind: 'footprint', x: p.x, y: p.y, size, built: b.built });
+  }
+  return marks;
+}
 
 /** Strana krajiny v metrech. */
 function extentM(l: Landscape): number {

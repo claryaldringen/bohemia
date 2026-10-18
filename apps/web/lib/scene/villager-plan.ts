@@ -1,6 +1,7 @@
 import {
   DWELLING_CLEARING_M,
   DWELLING_GARDEN_M,
+  SACRED_BUILDINGS,
   type DwellingType,
   type Position,
 } from '@bohemia/game';
@@ -160,9 +161,12 @@ interface Box {
   maxZ: number;
 }
 
+/**
+ * Stavba, kolem které lidé stojí a kterou obcházejí: obydlí (hotové i staveniště), nebo modla
+ * či svatyně (`sacred` – jen staveniště a překážka, nebydlí se v ní).
+ */
 interface House {
   id: number;
-  type: DwellingType;
   position: Position;
   built: boolean;
   progress: number;
@@ -339,17 +343,29 @@ function context(
   seed: number,
   day: number,
 ): Context {
-  const houses: House[] = village.dwellings.map((d) => ({
+  const dwellings: House[] = village.dwellings.map((d) => ({
     id: d.id,
-    type: d.type,
     position: d.position,
     built: d.built,
     progress: d.progress,
     inhabited: d.built && d.inhabited !== false,
     box: d.built ? houseBox(d.type) : siteBox(d.type),
   }));
-  const homes = houses.filter((h) => h.inhabited);
-  const settled = homes.length > 0 ? homes : houses;
+  // modla a svatyně: stavitelé stojí kolem půdorysu, hotové lidé obcházejí (happiness.md)
+  const sacred: House[] = (village.sacred?.buildings ?? []).map((b) => {
+    const half = SACRED_BUILDINGS[b.kind].footprintM / 2;
+    return {
+      id: b.id,
+      position: b.position,
+      built: b.built,
+      progress: b.progress,
+      inhabited: false,
+      box: { minX: -half, maxX: half, minZ: -half, maxZ: half },
+    };
+  });
+  const houses = [...dwellings, ...sacred];
+  const homes = dwellings.filter((h) => h.inhabited);
+  const settled = homes.length > 0 ? homes : dwellings.length > 0 ? dwellings : houses;
   const center = {
     x: settled.reduce((s, h) => s + h.position.x, 0) / settled.length,
     z: settled.reduce((s, h) => s + h.position.z, 0) / settled.length,

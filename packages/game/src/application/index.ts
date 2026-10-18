@@ -8,5 +8,6 @@ export * from './place-dwelling';
 export * from './place-field';
 export * from './place-cemetery';
 export * from './place-orchard';
+export * from './place-sacred';
 export * from './rename-village';
 export * from './restart-game';
