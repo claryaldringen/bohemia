@@ -28,7 +28,8 @@ rozhoduje, kolik louky a práce dá do jistoty na dlouho dopředu místo obilí 
   hřbitov nesmí na sad – obydlí ano, viz Obydlí v sadu). **Na pole smí** (Martin, 18. 10. 2026 –
   [fields.md](fields.md), Pole jako krajina): čtverec pole pod sadem z pole zmizí (úroda, plán
   a práce pole úměrně), překážky dílu sad neplatí; u kurzoru oranžově „Pole se zmenší“.
-  Ovládání stejné jako u pole.
+  Ovládání stejné jako u pole. **Sad jde natočit** po 15° ve vlastní mřížce jako pole (Martin, 18. 10. 2026 – [fields.md](fields.md), Natočené stavby): [ a ] před prvním čtvercem otáčejí
+  mřížku; sad přes pole v jiné mřížce mu vezme jen průnik ploch.
   Nejmenší výměru sad nemá – i jeden čtverec je sad (návrh Clauda).
 - **Obydlí v sadu** (Martin, 18. 10. 2026: „domy by měly jít stavět na polích a v sadech. Pole
   a sad se prostě zmenší o plochu domu“; podrobnosti návrh Clauda – [populace](population.md),
@@ -118,7 +119,8 @@ sad v 60. roce naráz zmizel – bez upozornění a nikdo ho neobnovil.
 
 - V panelu staveb ikona sadu (název + cena za hektar v tooltipu), stavba po čtvercích.
 - Ve scéně jabloně z 0 A.D. (CC BY-SA 3.0) **v pravidelných řadách** (Martin, 18. 10. 2026:
-  „Stromy v sadu by měly být zasazené v pravidelných řadách.“): mřížka po 7,5 m podél os krajiny,
+  „Stromy v sadu by měly být zasazené v pravidelných řadách.“): mřížka po 7,5 m podél os krajiny
+  (u natočeného sadu podél os jeho mřížky),
   4 stromy na čtverec, řady rovně pokračují přes celý sad; na skalním výchozu strom chybí (řada
   se neodsouvá). Během výsadby čáry vytyčení po obrysu a podél řad, kůly a sazenice po řadách,
   mladé stromky u kůlu rostou do plné velikosti za 12 let (návrh Clauda); plodící sad má od

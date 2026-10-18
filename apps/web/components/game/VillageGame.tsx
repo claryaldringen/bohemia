@@ -12,6 +12,7 @@ import {
   type DwellingType,
   type Position,
   type SacredBuildingKind,
+  type SquareGrid,
   type TileCell,
   type TimeSkip,
   type WorldClock,
@@ -47,6 +48,7 @@ import { setE2EHook } from '@/lib/e2e-hooks';
 import { opensMenu } from '@/lib/game-menu';
 import { nextPollDelayMs } from '@/lib/village-polling';
 import { decodeLandscape, type LandscapeTransfer } from '@/lib/landscape-transfer';
+import { structureGridAt, type CellSquare } from '@/lib/scene/field-cells';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
 import type { VillageTarget } from '@/lib/scene/village-picking';
 import {
@@ -95,13 +97,44 @@ type ActionResult = VillageView | { error: string };
  * Nová stavba po čtvercích = nový řádek tady a záznam v `lib/build-items.ts`.
  */
 const SUBMIT_SQUARES: Partial<
-  Record<BuildKind, (villageId: string, cells: TileCell[]) => Promise<ActionResult>>
+  Record<
+    BuildKind,
+    (villageId: string, cells: TileCell[], grid?: SquareGrid) => Promise<ActionResult>
+  >
 > = {
-  field: (villageId, cells) => placeField({ villageId, cells }),
+  // pole a sad i v natočené mřížce (fields.md – Natočené stavby)
+  field: (villageId, cells, grid) => placeField({ villageId, cells, ...(grid ? { grid } : {}) }),
   cemetery: (villageId, cells) => placeCemetery({ villageId, cells }),
-  orchard: (villageId, cells) => placeOrchard({ villageId, cells }),
+  orchard: (villageId, cells, grid) =>
+    placeOrchard({ villageId, cells, ...(grid ? { grid } : {}) }),
   pen: (villageId, cells) => placePen({ villageId, cells }),
 };
+
+/**
+ * Stavby po čtvercích daného druhu ve scéně s mřížkou a čtverci – malování se chytí jejich
+ * mřížky (rozšíření natočeného pole – fields.md, Natočené stavby).
+ */
+function squareStructures(
+  scene: SceneVillage | null,
+  kind: BuildKind,
+): { id: number; grid?: SquareGrid; squares: readonly CellSquare[] }[] {
+  if (!scene) return [];
+  if (kind === 'field') {
+    return scene.fields.map((f) => ({
+      id: f.id,
+      ...(f.grid ? { grid: f.grid } : {}),
+      squares: f.parts,
+    }));
+  }
+  if (kind === 'orchard') {
+    return (scene.orchards ?? []).map((o) => ({
+      id: o.id,
+      ...(o.grid ? { grid: o.grid } : {}),
+      squares: o.squares,
+    }));
+  }
+  return [];
+}
 
 function isVillageView(state: VillageData): state is VillageView {
   return state !== null && !('error' in state);
@@ -521,21 +554,39 @@ export function VillageGame({
     if (!scene || !(kind in options)) return;
     const option = options[kind];
     if (option && !option.affordable) return;
+    const chosen = selected;
     setSelected(null);
     setPlacingItem(kind);
     const item = buildItem(kind);
     if (item.placement === 'squares') {
       const submit = SUBMIT_SQUARES[kind];
       if (!submit) throw new Error(`Stavba ${kind} nemá server action.`);
+      // vybrané pole či sad stejného druhu: malování začne v jeho mřížce (rozšíření)
+      const structures = squareStructures(sceneVillageRef.current, kind);
+      const start =
+        chosen && chosen.kind === kind
+          ? structures.find((s) => 'id' in chosen && s.id === chosen.id)?.grid
+          : undefined;
       placement.start(
         {
           kind: 'squares',
-          preview: (cells) => ({ ...item.check(decoded, placementVillage(), cells), label: '' }),
+          preview: (cells, grid) => ({
+            ...item.check(decoded, placementVillage(), cells, grid),
+            label: '',
+          }),
+          ...(item.rotatable
+            ? {
+                rotatable: true,
+                gridAt: (x: number, z: number) =>
+                  structureGridAt(squareStructures(sceneVillageRef.current, kind), x, z),
+                ...(start ? { grid: start } : {}),
+              }
+            : {}),
         },
         (result) => {
           const villageId = viewRef.current?.id;
           if (result.kind === 'squares' && villageId) {
-            void runBuildAction(() => submit(villageId, result.cells));
+            void runBuildAction(() => submit(villageId, result.cells, result.grid));
           }
         },
       );

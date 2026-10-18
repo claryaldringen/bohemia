@@ -12,6 +12,7 @@ import type {
   PlacementCheck,
   Position,
   SacredBuildingKind,
+  SquareGrid,
   TileCell,
 } from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
@@ -80,7 +81,24 @@ export type PlacementMode =
         position: Position | null;
       };
     }
-  | { kind: 'squares'; preview(cells: TileCell[]): SquaresPreview }
+  | {
+      kind: 'squares';
+      /** Kontrola čtverců v mřížce `grid` (fields.md – Natočené stavby; bez ní mřížka krajiny). */
+      preview(cells: TileCell[], grid?: SquareGrid): SquaresPreview;
+      /**
+       * Stavbu jde natáčet (pole, sad): [ a ] před prvním čtvercem otáčejí mřížku po 15°, nad
+       * stavbou stejného druhu se malování chytí její mřížky (rozšíření). Bez údaje jen mřížka
+       * krajiny (hřbitov, ohrada).
+       */
+      rotatable?: boolean;
+      /**
+       * Mřížka stavby stejného druhu pod bodem světa – undefined = stavba v mřížce krajiny, null =
+       * žádná stavba. Malování se jí chytí, dokud není vybraný žádný čtverec.
+       */
+      gridAt?(x: number, z: number): SquareGrid | undefined | null;
+      /** Mřížka, ve které malování začne (vybraná stavba stejného druhu); bez údaje krajina. */
+      grid?: SquareGrid;
+    }
   | {
       /** Modla nebo svatyně (happiness.md) – čtvercový půdorys u kurzoru jako obydlí. */
       kind: 'sacred';
@@ -104,7 +122,7 @@ export type PlacementMode =
  */
 export type PlacementResult =
   | { kind: 'dwelling'; type: DwellingType; position: Position; plot?: DwellingPlot }
-  | { kind: 'squares'; cells: TileCell[] }
+  | { kind: 'squares'; cells: TileCell[]; grid?: SquareGrid }
   | { kind: 'sacred'; type: SacredBuildingKind; position: Position }
   | { kind: 'workshop'; craft: Craft; position: Position };
 

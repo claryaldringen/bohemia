@@ -8,6 +8,7 @@ import {
   DWELLING_FOOTPRINT_M,
   SACRED_BUILDINGS,
   WORKSHOP_PORCH_M,
+  rotatedSquareCorners,
   workshopFootprints,
   type DwellingPlot,
   type PlacementCheck,
@@ -108,6 +109,17 @@ export interface PlacementContext {
   cameraAlpha(): number;
   /** Políčko krajiny pod bodem (pozemek) se středem a stranou, nebo null mimo krajinu. */
   cellAt(x: number, z: number): (PlotSquare & { cell: TileCell }) | null;
+  /**
+   * Pozemek natočený o `rotation` (násobek 15°) pod bodem v ukládané podobě (`rotatedPlot` –
+   * střed na cm; natočení o násobek 90° se přichytí na políčko pod bodem) a jeho čtverec ve
+   * světě; null mimo krajinu.
+   */
+  plotAt(
+    x: number,
+    z: number,
+    rotation: number,
+    variant: PlotVariant,
+  ): { plot: DwellingPlot; square: PlotSquare } | null;
   ghostModel(type: GhostType): Mesh | null;
   /** Pata modelu stavby na místě (obydlí, dílna, milíř, modla, svatyně). */
   baseHeight(type: GhostType, position: Position): number;
@@ -117,9 +129,10 @@ export interface PlacementContext {
 /**
  * Umisťování obydlí (a modly či svatyně) jako v 0 A.D.: duch u kurzoru, levé kliknutí postaví,
  * se Shiftem postaví a umisťuje dál další kus; pravé kliknutí nebo Esc zruší. Klávesy [ a ]
- * otáčejí stavbou, u obydlí na pozemku (polozemnice – celé políčko pod kurzorem) přepínají
- * variantu, kde na pozemku dům stojí. Enter postaví pod kurzorem. Kurzor nad terénem dodává
- * scéna jednou za snímek (`setCursor`).
+ * otáčejí stavbou po 15° – u obydlí na pozemku (polozemnice) celým pozemkem (Martin 18. 10. 2026,
+ * varianta a): bez natočení a po 90° je pozemek políčko pod kurzorem, jinak natočený čtverec se
+ * středem pod kurzorem; Tab (se Shiftem zpět) přepíná variantu, kde na pozemku dům stojí. Enter
+ * postaví pod kurzorem. Kurzor nad terénem dodává scéna jednou za snímek (`setCursor`).
  */
 export class PlacementController implements ActivePlacement {
   private readonly ghost: Mesh[] = [];
@@ -129,6 +142,8 @@ export class PlacementController implements ActivePlacement {
   private screen: { x: number; y: number } | null = null;
   private rotation: number;
   private variant: PlotVariant = 'center';
+  /** Natočení pozemku (polozemnice) – začíná v osách krajiny jako dřív. */
+  private plotRotation = 0;
   private downs = new Map<number, { x: number; y: number }>();
   private model: Mesh | null = null;
   /** Druhý duch – milíř uhlíře kus od zemnice. */
@@ -226,8 +241,12 @@ export class PlacementController implements ActivePlacement {
     if (event.code === 'BracketLeft' || event.code === 'BracketRight') {
       event.preventDefault();
       const step = event.code === 'BracketRight' ? 1 : -1;
-      if (this.mode.kind === 'plot') this.variant = nextPlotVariant(this.variant, step);
+      if (this.mode.kind === 'plot') this.plotRotation += step * ROTATE_STEP;
       else this.rotation += step * ROTATE_STEP;
+      this.refresh();
+    } else if (event.code === 'Tab' && this.mode.kind === 'plot') {
+      event.preventDefault();
+      this.variant = nextPlotVariant(this.variant, event.shiftKey ? -1 : 1);
       this.refresh();
     } else if (event.code === 'Enter' || event.code === 'NumpadEnter') {
       event.preventDefault();
@@ -272,10 +291,13 @@ export class PlacementController implements ActivePlacement {
       : { kind: 'dwelling', type: mode.type, position };
   }
 
-  /** Pozemek pod bodem: políčko krajiny a vybraná varianta (null mimo krajinu). */
+  /** Pozemek pod bodem: natočený čtverec (nebo políčko) a vybraná varianta (null mimo krajinu). */
   private plot(point: Point): DwellingPlot | null {
-    const square = this.context.cellAt(point[0], point[1]);
-    return square ? { cell: square.cell, variant: this.variant } : null;
+    return this.plotAt(point)?.plot ?? null;
+  }
+
+  private plotAt(point: Point): { plot: DwellingPlot; square: PlotSquare } | null {
+    return this.context.plotAt(point[0], point[1], normalizeAngle(this.plotRotation), this.variant);
   }
 
   private position(point: Point): Position {
@@ -306,24 +328,24 @@ export class PlacementController implements ActivePlacement {
     let check: PlacementCheck & { cost?: PlacementCost | null };
     let label = mode.kind === 'workshop' ? CRAFT_NAMES[mode.craft] : FOOTPRINT_NAMES[mode.type];
     if (mode.kind === 'plot') {
-      const square = this.context.cellAt(this.cursor[0], this.cursor[1]);
-      if (!square) {
+      const at = this.plotAt(this.cursor);
+      if (!at) {
         this.model?.setEnabled(false);
         this.handlers.onPreview?.(null);
         return;
       }
-      const plotCheck = mode.check({ cell: square.cell, variant: this.variant });
+      const { plot, square } = at;
+      const plotCheck = mode.check(plot);
       check = plotCheck;
       position = plotCheck.position ?? plotHouse(square, this.variant);
       label = `${label} – ${VARIANT_NAMES[this.variant]}`;
-      // celý pozemek (políčko) – světlejší plocha s obrysem
-      const h = square.size / 2;
-      const corners: Point[] = [
-        [square.x - h, square.z - h],
-        [square.x + h, square.z - h],
-        [square.x + h, square.z + h],
-        [square.x - h, square.z + h],
-      ];
+      // celý pozemek (políčko, natočený čtverec) – světlejší plocha s obrysem
+      const corners: Point[] = rotatedSquareCorners(
+        square.x,
+        square.z,
+        square.size,
+        square.rotation ?? 0,
+      ).map(([x, z]): Point => [x, z]);
       const look = check.ok ? 'ok' : 'bad';
       this.addFill(corners, look, 0.18);
       this.addStrip(stripSegments(corners, true, 0.2, 1), look);

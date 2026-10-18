@@ -142,5 +142,13 @@ export function targetOutline(village: SceneVillage, target: VillageTarget): Poi
   }
   const field = village.fields.find((f) => f.id === target.id);
   if (!field || field.parts.length === 0) return [];
-  return cellsBoundary(field.parts.map((p) => ({ cell: p.cell, x: p.x, z: p.z, size: p.size })));
+  return cellsBoundary(
+    field.parts.map((p) => ({
+      cell: p.cell,
+      x: p.x,
+      z: p.z,
+      size: p.size,
+      ...(p.rotation !== undefined ? { rotation: p.rotation } : {}),
+    })),
+  );
 }

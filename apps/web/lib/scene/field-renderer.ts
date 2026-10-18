@@ -14,7 +14,7 @@ import type { Scene } from '@babylonjs/core/scene';
 import { dateOfDayIndex, type Landscape, type ObstacleLayer } from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
 import { clearingMask, clearingsKey, clearingsNear, fieldClearings } from './building-clearings';
-import { cellsBounds, cellsContain, rowDirection, touchingSquares } from './field-cells';
+import { cellsBounds, rowDirection, squaresContain, touchingSquares } from './field-cells';
 import {
   CROP_KINDS,
   FIELD_TEXTURES,
@@ -40,7 +40,8 @@ import {
   type FieldBlockContent,
   type FieldContent,
 } from './field-blocks';
-import { fieldPartViews, villageCenter, workSteps } from './field-look';
+import { fieldPartViews, villageCenter, workSteps, type PartView } from './field-look';
+import { fieldSpace } from './field-space';
 import { applyGammaFog } from './gamma-fog';
 import {
   SWATH_SPACING_M,
@@ -354,7 +355,7 @@ export class FieldRenderer {
     // obydlí, modly, svatyně a stromy u cest na poli – pod nimi pole není
     const clearings = fieldClearings(
       this.village,
-      cellsContain(this.village.fields.flatMap((f) => f.parts)),
+      squaresContain(this.village.fields.flatMap((f) => f.parts)),
     );
     // přirozené louky letošní seče (oxen.md – Seno) se kreslí jako díly pole se vzhledem od
     // jádra – se zápornými id, bez skrývání překážek (stromy a kameny na louce zůstanou)
@@ -401,13 +402,27 @@ export class FieldRenderer {
       changed = true;
       if (current) for (const mesh of current.meshes) mesh.dispose();
       const rows = rowDirection(field.parts);
+      // natočené pole (fields.md – Natočené stavby): obsah v rovném prostoru jeho mřížky, do
+      // světa se otočí až hotový (obtisky, rostliny, vytyčení); textury podle světových řádků
+      const space = fieldSpace(field.parts);
+      const spaced = (list: readonly PartView[]): PartView[] =>
+        space ? list.map((v) => ({ ...v, part: space.square(v.part) })) : [...list];
+      const rowsIn = space ? rowDirection(field.parts.map((p) => space.square(p))) : rows;
+      const centerIn = space ? space.point(center) : center;
       let coverage: ((x: number, z: number) => number) | null = null;
       const coverageOf = (): ((x: number, z: number) => number) => {
         if (coverage) return coverage;
-        const ragged = raggedCoverage([...drawn, ...neighbours], EDGE_SOFT_M);
+        const edge = [...drawn, ...neighbours].map((p) => (space ? space.square(p) : p));
+        const ragged = raggedCoverage(edge, EDGE_SOFT_M);
         const mask = clearingMask(built, CLEARING_SOFT_M);
+        const maskIn = space
+          ? (u: number, v: number): number => {
+              const [x, z] = space.frame.toWorld(u, v);
+              return mask(x, z);
+            }
+          : mask;
         coverage =
-          built.length > 0 ? (x: number, z: number): number => ragged(x, z) * mask(x, z) : ragged;
+          built.length > 0 ? (x: number, z: number): number => ragged(x, z) * maskIn(x, z) : ragged;
         return coverage;
       };
       const reuse = current?.context === context ? current.blocks : null;
@@ -421,15 +436,30 @@ export class FieldRenderer {
             ? cached
             : {
                 key: blockKey,
-                content: fieldBlockContent(blockViews, rows, center, coverageOf(), day),
+                content: fieldBlockContent(spaced(blockViews), rowsIn, centerIn, coverageOf(), day),
               },
         );
       }
-      const content = mergeFieldBlocks(
-        views,
+      const merged = mergeFieldBlocks(
+        spaced(views),
         [...blocks.values()].map((b) => b.content),
       );
-      const staking = fieldStaking(views);
+      const content: FieldContent = space
+        ? {
+            layers: new Map(
+              [...merged.layers].map(([k, layer]) => [
+                k,
+                { ...layer, grids: layer.grids.map((g) => space.grid(g)) },
+              ]),
+            ),
+            swaths: merged.swaths.map((g) => space.grid(g)),
+            plants: space.plants(merged.plants),
+          }
+        : merged;
+      const stakingIn = fieldStaking(spaced(views));
+      const staking = space
+        ? { lines: space.lines(stakingIn.lines), pegs: space.pegs(stakingIn.pegs) }
+        : stakingIn;
       this.fields.set(field.id, {
         key,
         meshes: this.fieldMeshes(field, content, rows, staking.lines),

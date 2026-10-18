@@ -17,7 +17,10 @@ import {
   matureTreesByDistance,
   obstaclesOf,
   orchardPartsFromCells,
+  ROTATION_STEP,
+  rotatedPlot,
   sacredSitesOf,
+  squareCenter,
   surfaceAt,
   walkGroundOf,
   type DwellingType,
@@ -27,6 +30,7 @@ import {
   type PartStage,
   type PlacementCheck,
   type Position,
+  type SquareGrid,
   type TileCell,
 } from '@bohemia/game';
 import { GameView } from '@/components/game/GameView';
@@ -37,6 +41,7 @@ import { dwellingPlacementCost, sacredPlacementCost } from '@/lib/build-items';
 import { decodeLandscape, type LandscapeTransfer } from '@/lib/landscape-transfer';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
 import { CEMETERY_PHASES } from '@/lib/scene/cemetery-layout';
+import { structureGridAt } from '@/lib/scene/field-cells';
 import { FIELD_LOOKS, FIELD_LOOK_LABELS, type FieldLook } from '@/lib/scene/field-look';
 import {
   PLANTING_PHASES,
@@ -125,7 +130,9 @@ interface DevWindow extends Window {
 
 interface DevField {
   id: number;
-  parts: { cell: TileCell; x: number; z: number; size: number }[];
+  /** Natočená mřížka pole (fields.md – Natočené stavby); bez ní mřížka krajiny. */
+  grid?: SquareGrid;
+  parts: { cell: TileCell; x: number; z: number; size: number; rotation?: number }[];
   /**
    * Ukázka polí: vzhled celého pole (rozpracovaný díl s `work`), nebo `staked` – vytyčené pole
    * před zakládáním. Bez údaje podle přepínače dílů.
@@ -190,6 +197,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
       fields: [
         ...fields.map((field): SceneField => ({
           id: field.id,
+          ...(field.grid ? { grid: field.grid } : {}),
           parts: field.parts.map((part, i) =>
             devPart(field, part, i, { stage, mixed, lookMode, simulated }),
           ),
@@ -327,12 +335,14 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
    * Pole na čtvercích – díly i v lese a křovinách; překážky dílů (stromy, keře, kameny) zmizí
    * hned jako po založení, ať je vidět vymýcený les.
    */
-  const addField = (cells: TileCell[]): void => {
+  const addField = (cells: TileCell[], grid?: SquareGrid): void => {
     const preview = fieldPartsFromCells(
       decoded,
       placementVillageFromScene(village),
       cells,
       devDwellingPositions(decoded, village),
+      undefined,
+      grid,
     );
     const cleared = preview.parts.flatMap((part) => part.obstacleIds ?? []);
     setObstacles((changes) => ({
@@ -340,7 +350,71 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
       removed: [...new Set([...changes.removed, ...cleared])].sort((a, b) => a - b),
     }));
     const id = nextId.current++;
-    setFields((list) => [...list, { id, parts: fieldParts(decoded, cells) }]);
+    setFields((list) => [
+      ...list,
+      { id, ...(grid ? { grid } : {}), parts: fieldParts(decoded, cells, grid) },
+    ]);
+  };
+
+  /**
+   * Natočené stavby (Martin 18. 10. 2026 – fields.md, Natočené stavby): u místa vsi natočený
+   * pozemek polozemnice (15°, dům vzadu vlevo), pole v mřížce natočené o 30° a sad o 45° – ve
+   * všech se pak dá malovat dál (malování se chytí jejich mřížky) a pozemky natáčet klávesami
+   * [ a ].
+   */
+  const showRotated = (): void => {
+    scene?.cancelPlacement();
+    const { x: sx, y: sy } = decoded.villageSite;
+    const at = (dx: number, dy: number): { x: number; z: number } => {
+      const c = tileCenter(decoded, sx + dx, sy + dy);
+      return { x: c.worldX, z: c.worldZ };
+    };
+    const site = at(0, 0);
+    const plot = rotatedPlot(decoded, { ...at(-2, 0), rotation: ROTATION_STEP }, 'back-left');
+    const list: SceneDwelling[] = [
+      {
+        id: nextId.current++,
+        type: 'zemnice',
+        position: { x: site.x, z: site.z - 10, rotation: 0 },
+        built: true,
+        progress: 1,
+      },
+    ];
+    if (plot) {
+      const placementVillage = placementVillageFromScene(village);
+      const check = checkPlotPlacement(decoded, placementVillage, 'polozemnice', plot);
+      if (check.position) {
+        list.push({
+          id: nextId.current++,
+          type: 'polozemnice',
+          position: check.position,
+          built: true,
+          progress: 1,
+          plot: scenePlot(decoded, plot),
+        });
+      }
+    }
+    setDwellings(list);
+    const fieldGrid: SquareGrid = { ...at(3, 3), rotation: 2 * ROTATION_STEP };
+    const fieldCells: TileCell[] = [];
+    for (let y = 0; y < 3; y++) for (let x = 0; x < 4; x++) fieldCells.push({ x, y });
+    const orchardGrid: SquareGrid = { ...at(-4, 4), rotation: 3 * ROTATION_STEP };
+    const orchardCells: TileCell[] = [];
+    for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) orchardCells.push({ x, y });
+    setFields([]);
+    setOrchards([
+      {
+        id: nextId.current++,
+        grid: orchardGrid,
+        squares: fieldParts(decoded, orchardCells, orchardGrid).map((square) => ({
+          ...square,
+          planting: 1,
+          growth: treeGrowth(20),
+          fruit: true,
+        })),
+      },
+    ]);
+    addField(fieldCells, fieldGrid);
   };
 
   /** Pokácí dospělé stromy nejblíž bodu (bez bodu u prvního obydlí nebo místa vsi) – pařezy. */
@@ -465,7 +539,8 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     if (!scene) return;
     setPlacing(type === 'zemnice' ? 'Zemnice' : 'Polozemnice');
     if (PLOT_TYPES[type]) {
-      // polozemnice na pozemku – kontrola i cena jako ve hře (herní jádro), [ a ] = varianty
+      // polozemnice na pozemku – kontrola i cena jako ve hře (herní jádro), [ a ] otáčejí pozemek,
+      // Tab mění variantu
       scene.startPlacement(
         {
           kind: 'plot',
@@ -615,15 +690,34 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     scene.startPlacement(
       {
         kind: 'squares',
-        preview: (cells) => {
-          const preview = fakeFieldPreview(decoded, village, cells);
-          if (!preview.check.ok) return preview;
+        // natočené pole (fields.md – Natočené stavby): [ a ] otáčejí mřížku, nad polem se malování
+        // chytí jeho mřížky
+        rotatable: true,
+        gridAt: (x, z) =>
+          structureGridAt(
+            fields.map((f) => ({ ...(f.grid ? { grid: f.grid } : {}), squares: f.parts })),
+            x,
+            z,
+          ),
+        preview: (cells, grid) => {
           const real = fieldPartsFromCells(
             decoded,
             placementVillageFromScene(village),
             cells,
             village.dwellings.map((d) => d.position),
+            undefined,
+            grid,
           );
+          if (grid) {
+            return {
+              check: real.check,
+              label: `${formatCells(cells.length)} · ${formatHa(real.areaM2)}`,
+              blockedCells: real.blockedCells,
+              cost: real.check.ok ? { laborManDays: real.foundingCost, trees: 0 } : null,
+            };
+          }
+          const preview = fakeFieldPreview(decoded, village, cells);
+          if (!preview.check.ok) return preview;
           return { ...preview, cost: { laborManDays: real.foundingCost, trees: 0 } };
         },
       },
@@ -632,7 +726,27 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         onConfirm: (result) => {
           handlers.onCancel();
           if (result.kind !== 'squares') return;
-          addField(result.cells);
+          // rozšíření pole v jeho mřížce – díly přibudou k poli, které čtverce navazují
+          const joined = fieldPartsFromCells(
+            decoded,
+            placementVillageFromScene(village),
+            result.cells,
+            village.dwellings.map((d) => d.position),
+            undefined,
+            result.grid,
+          ).joinedFields[0];
+          const target = fields.find((f) => f.id === joined);
+          if (target) {
+            setFields((list) =>
+              list.map((f) =>
+                f.id === target.id
+                  ? { ...f, parts: [...f.parts, ...fieldParts(decoded, result.cells, result.grid)] }
+                  : f,
+              ),
+            );
+            return;
+          }
+          addField(result.cells, result.grid);
         },
       },
     );
@@ -681,12 +795,16 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     scene.startPlacement(
       {
         kind: 'squares',
-        preview: (cells) => {
+        rotatable: true,
+        gridAt: (x, z) => structureGridAt(orchards, x, z),
+        preview: (cells, grid) => {
           const result = orchardPartsFromCells(
             decoded,
             placementVillageFromScene(village),
             cells,
             village.dwellings.map((d) => d.position),
+            undefined,
+            grid,
           );
           return {
             check: result.check,
@@ -702,13 +820,14 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
           handlers.onCancel();
           if (result.kind !== 'squares') return;
           const id = nextId.current++;
-          const squares = fieldParts(decoded, result.cells).map((square) => ({
+          const grid = result.grid;
+          const squares = fieldParts(decoded, result.cells, grid).map((square) => ({
             ...square,
             planting: 0,
             growth: 0,
             fruit: false,
           }));
-          setOrchards((list) => [...list, { id, squares }]);
+          setOrchards((list) => [...list, { id, ...(grid ? { grid } : {}), squares }]);
         },
       },
     );
@@ -1314,6 +1433,9 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         <button className={buttonClass} disabled={!scene} onClick={showFields}>
           Ukázka polí
         </button>
+        <button className={buttonClass} disabled={!scene} onClick={showRotated}>
+          Natočené stavby
+        </button>
         <button
           className={buttonClass}
           disabled={!scene}
@@ -1398,8 +1520,8 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
             <span className="text-stone-500">
               (Esc zruší
               {placing === 'Pole' || placing === 'Hřbitov' || placing === 'Sad'
-                ? ', klik / tažení maluje čtverce, Ctrl ubírá, Enter potvrdí, pravý klik zruší'
-                : ', [ ] otáčí, klik postaví, Shift + klik staví dál'}
+                ? `${placing === 'Hřbitov' ? '' : ', [ ] otáčí mřížku před prvním čtvercem'}, klik / tažení maluje čtverce, Ctrl ubírá, Enter potvrdí, pravý klik zruší`
+                : `, [ ] otáčí${placing === 'Polozemnice' ? ', Tab mění místo domu' : ''}, klik postaví, Shift + klik staví dál`}
               )
             </span>
           </span>
@@ -1474,8 +1596,17 @@ function fakeFieldPreview(l: Landscape, village: SceneVillage, cells: TileCell[]
   return { check, label, blockedCells };
 }
 
-/** Díly pole – políčka ve středech čtverců (bez vody). */
-function fieldParts(l: Landscape, cells: TileCell[]): DevField['parts'] {
+/**
+ * Díly pole – políčka ve středech čtverců (bez vody); v natočené mřížce (fields.md – Natočené
+ * stavby) čtverce mřížky se středem a natočením (vodu hlídá kontrola z jádra).
+ */
+function fieldParts(l: Landscape, cells: TileCell[], grid?: SquareGrid): DevField['parts'] {
+  if (grid) {
+    return cells.map((cell) => {
+      const c = squareCenter(l, grid, cell);
+      return { cell, x: c.x, z: c.z, size: l.cellSizeM, rotation: grid.rotation };
+    });
+  }
   return cells
     .filter((c) => surfaceAt(l, c.x, c.y) !== 'water')
     .map((cell) => {

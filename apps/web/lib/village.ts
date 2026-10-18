@@ -29,6 +29,7 @@ import {
   type Landscape,
   type Position,
   type SacredBuildingKind,
+  type SquareGrid,
   type TileCell,
   type TimeSkip,
   type VillageRecord,
@@ -314,7 +315,7 @@ export function cancelRelocationForPlayer(
 export function placeFieldForPlayer(
   playerId: string,
   villageId: string,
-  input: { cells: TileCell[] },
+  input: { cells: TileCell[]; grid?: SquareGrid },
 ): Promise<VillageActionResult> {
   return actOn(playerId, villageId, (ctx) =>
     placeField(
@@ -340,7 +341,7 @@ export function placeCemeteryForPlayer(
 export function placeOrchardForPlayer(
   playerId: string,
   villageId: string,
-  input: { cells: TileCell[] },
+  input: { cells: TileCell[]; grid?: SquareGrid },
 ): Promise<VillageActionResult> {
   return actOn(playerId, villageId, (ctx) =>
     placeOrchard(

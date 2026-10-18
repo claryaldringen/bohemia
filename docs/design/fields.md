@@ -203,6 +203,68 @@ má nějaké meze. Bez řemeslníků ber tu nejhorší hranici, s řemeslníky t
   neslučují. Převod běží při každém načtení bez příznaku „převedeno“ – po sloučení už žádná dvě
   pole nenavazují, takže další načtení nic nezmění (návrh Clauda).
 
+### Natočené stavby
+
+Stav: **Martin, 18. 10. 2026:** „Je to 3D, takže všechny stavby by měly jít natáčet po 15
+stupních“ a „plošné stavby (pole, sady, hřbitovy) by měly jít natáčet také“ – každá ve vlastní
+natočené mřížce. U pozemku polozemnice zvolil variantu a (natočí se celý pozemek, místo domu
+přepíná Tab – [populace](population.md), Natočený pozemek). Model a pravidla níž jsou **návrh
+Clauda**; implementace v `square-grid.ts` a `squares.ts` (jádro), ve scéně `field-cells.ts`
+(rovný prostor mřížky) a `field-space.ts`.
+
+- **Vlastní mřížka stavby:** pole a sad mají volitelnou **mřížku** `grid` – střed čtverce (0, 0)
+  ve světě a natočení po 15° v rozsahu **15–75°** (čtverec otočený o 90° je zase týž čtverec, jen
+  by se čtverce jinak jmenovaly). Čtverce stavby jsou dál celočíselné souřadnice (x, y) – ale
+  v její mřížce; strana je strana políčka krajiny (15 m). Stavba **bez mřížky leží v mřížce
+  krajiny** (čtverec = políčko) – všechny stavby z doby před natáčením i každé nové pole či sad
+  nenatočený. Proč tak: díl zůstává čtvercem s celočíselnými souřadnicemi, takže navazování,
+  slučování, úseky hospodaření, postup práce i vzhled po čtvercích fungují beze změny ve své
+  mřížce; jen převod na svět jde přes mřížku stavby. Ukládá se jen jedna mřížka na pole (ne na
+  díl) – stav vsi nebobtná.
+- **Počátek mřížky:** nová natočená mřížka má čtverec (0, 0) ve **středu políčka krajiny**, kde
+  hráč začne malovat (čtverec pod kurzorem leží na políčku). Rozšíření jde vždy v mřížce
+  rozšiřovaného pole.
+- **Krajina pod natočeným čtvercem** se vzorkuje **5 × 5 body** (středy podčtverců) po políčkách
+  krajiny – deterministicky, stejně v prohlížeči i na serveru: **úrodnost** = průměr políček pod
+  body, **voda**, když do ní zasahuje kterýkoli bod (stavba nesmí do vody), **les**, když v něm
+  leží většina bodů (pole pak platí sazbu lesa, sad a pozemek do lesa nesmí). Čtverec mimo
+  krajinu (kterýkoli roh) nejde. Překážky čtverce jsou ty s **patou v natočeném čtverci**, plocha
+  pod skalními výchozy a korunou posvátného dubu se odečítá jako u políčka. Háj: čtverec, pod
+  kterým leží políčko háje, se z výběru vyjme.
+- **Překryvy staveb** se počítají ze skutečných ploch: rejstřík čtverců staveb po políčkách
+  krajiny – u dvou čtverců v mřížce krajiny rozhoduje rovnost políček (bit po bitu jako dřív),
+  jinak přesný překryv mnohoúhelníků (dotyk hranou překryv není). Pole na pole dál nesmí ani
+  napříč mřížkami; sad, hřbitov, ohrada a pozemek na pole smí (Pole jako krajina) – pole jim
+  ustoupí: čtverec, který stavba zabírá **přesně** (stejná mřížka a souřadnice), zmizí celý jako
+  dřív, jinak se díl zmenší o **průnik ploch** a pod 20 % políčka zmizí (jako u obydlí bez
+  pozemku). Zabraný kus nese mřížku stavby, ke které patří (`TakenLand.grid`).
+- **Navazování a slučování** jen **ve stejné mřížce**: čtverce navazují na pole, které má stejnou
+  mřížku (stejný počátek v toleranci a krok natočení); pole v jiné mřížce zůstanou samostatná,
+  i když se dotýkají. Stará navazující pole se slučují po mřížkách.
+- **Les vsi** z natočeného dílu leží v mřížce pole (stromy v natočeném čtverci, id stromů podle
+  buňky 7,5 m pod jeho středem – středy nepřekrývajících se čtverců jsou od sebe aspoň 15 m).
+  Pole ho vymýtí, jen když je jeho čtverec přesně čtvercem pole (stejná mřížka); natočené pole
+  napříč lesem vsi z jiné mřížky nejde („Les vsi pole vymýtí jen po jeho čtvercích“), ostatní
+  stavby na les vsi nesmí jako dřív.
+- **Hospodaření, pěšiny, seno, stromy u cest:** hospodářství a úseky berou středy čtverců v mřížce
+  pole (sousedé při vyhlazení jen v téže mřížce), síť pěšin bere natočené čtverce v jejich
+  mřížce (buňky sítě převede do souřadnic mřížky), přirozené louky na seno vynechají každé
+  políčko, do kterého zasahuje natočený čtverec, strom u cesty ani jabloň nestojí v natočeném
+  čtverci sadu, pozemku ani lesa vsi; jabloň a strom u cesty na natočeném dílu mu vezmou
+  20 m² jako jinde.
+- **Malování:** natáčet jde **pole a sad** – [ a ] před prvním čtvercem otáčejí mřížku po 15°
+  (kolem čtverce pod kurzorem), nad polem či sadem stejného druhu se malování **chytí jeho
+  mřížky** a drží ji i mimo něj (rozšíření); vybrané pole či sad stejného druhu dá mřížku hned.
+  Prvním čtvercem se mřížka zamkne. Mřížka kolem kurzoru i obrysy jsou natočené.
+- **Hřbitov a ohrada zatím leží v mřížce krajiny** (rozhodnutí Clauda – bod 3 zadání: celé
+  natáčení plošných staveb je velké, napřed pole a sad). Kontroly je proti natočeným polím,
+  sadům a pozemkům hlídají skutečnými plochami, takže je lze natočit později stejným modelem
+  (`Cemetery.grid`, ohrada natočený čtverec jako pozemek). Volně stojící stavby (zemnice, dílny,
+  modla, svatyně) se natáčejí po 15° odjakživa; dvorec vojvody hráč nestaví, zůstává v osách.
+- **Kompatibilita:** stavby bez mřížky a pozemky bez natočení se počítají bit po bitu jako dřív
+  (testy a kalibrace beze změny); dopočet po kouscích dává totéž jako vcelku i s natočenými
+  stavbami.
+
 ### Kolik ves oseje (rozhodují obyvatelé)
 
 - Každý rok k **1. září** (po sklizni, před podzimním kopáním) ves sama rozhodne, kolik na
@@ -870,7 +932,8 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
   jen ikona práce s číslem – kolik člověkodní založení vybraných čtverců stojí i s překážkami
   (stejně u sadu a hřbitova, u obydlí navíc ikona stromů s počtem stromů ke kácení, když
   nestačí klády), nebo krátký červený důvod, proč pole neprojde. Výměru, úrodnost a stadia
-  dílů ukáže panel vybraného pole.
+  dílů ukáže panel vybraného pole. Pole jde natočit po 15° (Natočené stavby): [ a ] před prvním
+  čtvercem otáčejí mřížku, nad polem se malování chytí jeho mřížky.
 - **Zakládání:** pole se zakládá jako stavba po dílech od obydlí – rozpracovaný díl se rozrývá
   po řádcích, stromy a kameny z hotového dílu zmizí.
 - **Panel pole** (výběr kliknutím): výměra, úrodnost, kolik dílů se zakládá, je oseto a leží
@@ -1021,6 +1084,10 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 | Sad, hřbitov a ohrada vezmou celý čtverec, modla a svatyně průnik půdorysu, jabloň a strom u cesty 20 m²                          | návrh Clauda                                    |
 | Nálet stromů u cest na poli jen na mezi (místa 2,5–4 m od osy); jabloně kdekoli podél cesty                                       | návrh Clauda                                    |
 | Luštěniny jako plodina na poli kvůli bílkovinám (1,6 g/kg zůstává); maso mírně zvyšuje štěstí                                     | Martin (18. 10. 2026)                           |
+| Všechny stavby jde natáčet po 15°, plošné stavby každá ve vlastní natočené mřížce; pozemek se natočí celý, místo domu Tab         | Martin (18. 10. 2026)                           |
+| Mřížka na pole / sad (počátek, natočení 15–75°), čtverce v ní; krajina pod čtvercem 5 × 5 body; překryvy ze skutečných ploch      | návrh Clauda                                    |
+| Navazování jen ve stejné mřížce; stavba přes pole v jiné mřížce mu vezme průnik; les vsi pole vymýtí jen po jeho čtvercích        | návrh Clauda                                    |
+| Hřbitov a ohrada zatím v mřížce krajiny – natočí se později stejným modelem                                                       | rozhodnutí Clauda                               |
 | Luštěniny = hrách a čočka, jař se sklizní v červenci; úroda 0,8 obilí, osivo 150 kg/ha, práce a neopletý díl podle rešerše        | návrh Clauda (rešerše)                          |
 | Osev luštěniny úrodnost vrátí o 0,03 (obilí −0,12); ztráta skladováním jako obilí                                                 | návrh Clauda (rešerše)                          |
 | Obilí má přednost: luštěniny na díly výběru od domu, obilí doplní energii, luštěniny smějí jít na rezervu osevu, ne pod potřebu   | návrh Clauda                                    |

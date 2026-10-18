@@ -2,6 +2,7 @@ import {
   DWELLING_FOOTPRINT_M,
   SURFACE_CODES,
   dateOfDayIndex,
+  rotationCosSin,
   type DwellingType,
   type ForestField,
   type Landscape,
@@ -45,13 +46,17 @@ export interface LivestockVillage {
       x: number;
       z: number;
       size: number;
+      /** Natočený díl natočeného pole (fields.md – Natočené stavby). */
+      rotation?: number;
       stage?: SceneFieldPart['stage'];
       look?: SceneFieldPart['look'];
       work?: number;
     }[];
   }[];
   cemeteries?: readonly { squares: readonly { x: number; z: number; size: number }[] }[];
-  orchards?: readonly { squares: readonly { x: number; z: number; size: number }[] }[];
+  orchards?: readonly {
+    squares: readonly { x: number; z: number; size: number; rotation?: number }[];
+  }[];
   /** Ohrady (oxen.md) – oplocené čtverce, stáda ani slepice do nich nechodí. */
   pens?: readonly { x: number; z: number; size: number }[];
   /** Herní den (rozdělení práce) – na louce na seno se pase jen po seči. Bez něj se tam nepase. */
@@ -300,10 +305,27 @@ interface Square {
   x: number;
   z: number;
   size: number;
+  /** Natočený čtverec (fields.md – Natočené stavby) – test v jeho osách. */
+  rotation?: number;
 }
 
 /** Méně čtverců projde dotaz rovnou. */
 const SQUARE_LOOKUP_MIN = 8;
+
+/** Bod ve čtverci rozšířeném o `margin` (ostrá nerovnost); natočený čtverec v jeho osách. */
+function inSquare(s: Square, x: number, z: number, margin: number): boolean {
+  const h = s.size / 2 + margin;
+  if (!s.rotation) return Math.abs(x - s.x) < h && Math.abs(z - s.z) < h;
+  const [c, sn] = rotationCosSin(s.rotation);
+  const dx = x - s.x;
+  const dz = z - s.z;
+  return Math.abs(dx * c - dz * sn) < h && Math.abs(dx * sn + dz * c) < h;
+}
+
+/** Největší vzdálenost bodu čtverce od středu v ose světa (natočený až √2 × polovina strany). */
+function squareReach(s: Square): number {
+  return (s.size / 2) * (s.rotation ? Math.SQRT2 : 1);
+}
 
 /**
  * Dotaz „bod ve čtverci rozšířeném o `margin`“ (ostrá nerovnost v obou osách) přes přihrádky
@@ -314,14 +336,12 @@ export function squareLookup(
   list: readonly Square[],
 ): (x: number, z: number, margin: number) => boolean {
   const scan = (x: number, z: number, margin: number): boolean =>
-    list.some(
-      (s) => Math.abs(x - s.x) < s.size / 2 + margin && Math.abs(z - s.z) < s.size / 2 + margin,
-    );
+    list.some((s) => inSquare(s, x, z, margin));
   if (list.length < SQUARE_LOOKUP_MIN) return scan;
   let maxHalf = 0;
   for (const s of list) {
     if (!Number.isFinite(s.x) || !Number.isFinite(s.z) || !Number.isFinite(s.size)) return scan;
-    maxHalf = Math.max(maxHalf, s.size / 2);
+    maxHalf = Math.max(maxHalf, squareReach(s));
   }
   const cell = Math.max(1, maxHalf * 2);
   const slack = cell * 1e-6;
@@ -361,9 +381,7 @@ export function squareLookup(
         const bucket = buckets.get((j - minJ) * width + (i - minI));
         if (!bucket) continue;
         for (const s of bucket) {
-          if (Math.abs(x - s.x) < s.size / 2 + margin && Math.abs(z - s.z) < s.size / 2 + margin) {
-            return true;
-          }
+          if (inSquare(s, x, z, margin)) return true;
         }
       }
     }

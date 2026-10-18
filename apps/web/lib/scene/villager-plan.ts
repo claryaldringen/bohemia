@@ -2,6 +2,7 @@ import {
   DWELLING_CLEARING_M,
   SACRED_BUILDINGS,
   dateOfDayIndex,
+  rotationCosSin,
   type Craft,
   type DwellingType,
   type Position,
@@ -228,7 +229,8 @@ interface House {
    * staví na konci – stavitelé u plotu).
    */
   own?: Box;
-  plot?: { x: number; z: number; size: number };
+  /** Natočený pozemek (fields.md – Natočené stavby) má i natočení. */
+  plot?: { x: number; z: number; size: number; rotation?: number };
   /** Řemeslná dílna (crafts.md) – řemeslníci stojí u pece, výhně nebo milíře. */
   craft?: Craft;
 }
@@ -489,7 +491,15 @@ function context(
     inhabited: d.built && d.inhabited !== false,
     box: d.plot ? plotBox(d.position, d.plot) : d.built ? houseBox(d.type) : siteBox(d.type),
     ...(d.plot
-      ? { own: houseBox(d.type), plot: { x: d.plot.x, z: d.plot.z, size: d.plot.size } }
+      ? {
+          own: houseBox(d.type),
+          plot: {
+            x: d.plot.x,
+            z: d.plot.z,
+            size: d.plot.size,
+            ...(d.plot.rotation !== undefined ? { rotation: d.plot.rotation } : {}),
+          },
+        }
       : {}),
     ...(d.craft ? { craft: d.craft } : {}),
   }));
@@ -579,17 +589,14 @@ export function houseBox(type: DwellingType): Box {
  * Obydlí na pozemku (hotové i staveniště): celé oplocené políčko v osách modelu domu – lidé
  * stojí za plotem (před brankou), dovnitř cizích pozemků nechodí.
  */
-export function plotBox(position: Position, plot: { x: number; z: number; size: number }): Box {
-  const h = plot.size / 2;
+export function plotBox(
+  position: Position,
+  plot: { x: number; z: number; size: number; rotation?: number },
+): Box {
   const c = Math.cos(position.rotation);
   const s = Math.sin(position.rotation);
-  // rohy políčka do os modelu (inverze localToWorld)
-  const local = [
-    [plot.x - h, plot.z - h],
-    [plot.x + h, plot.z - h],
-    [plot.x + h, plot.z + h],
-    [plot.x - h, plot.z + h],
-  ].map(([x, z]) => {
+  // rohy políčka (natočeného pozemku) do os modelu (inverze localToWorld)
+  const local = squareCorners(plot).map(([x, z]) => {
     const dx = x! - position.x;
     const dz = z! - position.z;
     return [dx * c - dz * s, dx * s + dz * c] as const;
@@ -927,6 +934,61 @@ interface Square {
   x: number;
   z: number;
   size: number;
+  /** Natočený čtverec natočené stavby (fields.md – Natočené stavby). */
+  rotation?: number;
+}
+
+/** Osy čtverce ve světě – místní x a z (natočený čtverec natočené stavby). */
+function squareAxes(square: { rotation?: number }): [Point, Point] {
+  if (!square.rotation) {
+    return [
+      { x: 1, z: 0 },
+      { x: 0, z: 1 },
+    ];
+  }
+  const [c, s] = rotationCosSin(square.rotation);
+  return [
+    { x: c, z: -s },
+    { x: s, z: c },
+  ];
+}
+
+/** Rohy čtverce ve světě (místní −−, +−, ++, −+). */
+function squareCorners(square: {
+  x: number;
+  z: number;
+  size: number;
+  rotation?: number;
+}): [number, number][] {
+  const h = square.size / 2;
+  const [ax, az] = squareAxes(square);
+  return (
+    [
+      [-h, -h],
+      [h, -h],
+      [h, h],
+      [-h, h],
+    ] as const
+  ).map(([u, v]): [number, number] => [
+    square.x + ax.x * u + az.x * v,
+    square.z + ax.z * u + az.z * v,
+  ]);
+}
+
+/** Bod do souřadnic čtverce (u podél místní x, v podél místní z). */
+function squareLocal(square: Square, x: number, z: number): [number, number] {
+  const [ax, az] = squareAxes(square);
+  const dx = x - square.x;
+  const dz = z - square.z;
+  return [dx * ax.x + dz * ax.z, dx * az.x + dz * az.z];
+}
+
+/** Bod ve čtverci rozšířeném o `margin` (ostrá nerovnost, v osách čtverce). */
+function inSquare(square: Square, x: number, z: number, margin: number): boolean {
+  const h = square.size / 2 + margin;
+  if (!square.rotation) return Math.abs(x - square.x) < h && Math.abs(z - square.z) < h;
+  const [u, v] = squareLocal(square, x, z);
+  return Math.abs(u) < h && Math.abs(v) < h;
 }
 
 /** Pole s díly ve vzhledu, jak je kreslí scéna (field-look.ts), směrem řádků a práce. */
@@ -1097,10 +1159,15 @@ function laneAlongRows(
   v: number,
   half: number,
 ): Lane | null {
-  const alongX = Math.abs(frame.along[0]) > 0.5;
-  // freeLane počítá napříč v ose z (řádky podél x), nebo v ose x (řádky podél z)
-  const offset = alongX ? v * frame.across[1] : v * frame.across[0];
-  return freeLane(ctx, square, alongX, 1, offset, half);
+  // podél řádků (i natočeného pole), napříč o `v` ve směru práce
+  return freeLane(
+    ctx,
+    square,
+    { x: frame.along[0], z: frame.along[1] },
+    { x: frame.across[0], z: frame.across[1] },
+    v,
+    half,
+  );
 }
 
 function crewRows(
@@ -1131,11 +1198,17 @@ function rowOn(
   const row = ROW[clip] ?? { workS: 5, stepM: 1 };
   const dx = square.x - ctx.center.x;
   const dz = square.z - ctx.center.z;
-  const alongX = Math.abs(dx) >= Math.abs(dz);
-  const sign = (alongX ? dx : dz) >= 0 ? 1 : -1;
+  // řada podél té osy čtverce, která míří nejvíc od vsi (natočený čtverec v jeho osách)
+  const [ax, az] = squareAxes(square);
+  const du = dx * ax.x + dz * ax.z;
+  const dv = dx * az.x + dz * az.z;
+  const alongU = Math.abs(du) >= Math.abs(dv);
+  const sign = (alongU ? du : dv) >= 0 ? 1 : -1;
+  const dir = alongU ? { x: ax.x * sign, z: ax.z * sign } : { x: az.x * sign, z: az.z * sign };
+  const perp = alongU ? az : ax;
   const half = square.size / 2 - ROW_MARGIN_M;
   const across = -half + ((member + 0.5) * 2 * half) / size + (who.phase - 0.5) * 0.6;
-  const lane = freeLane(ctx, square, alongX, sign, across, half);
+  const lane = freeLane(ctx, square, dir, perp, across, half);
   if (!lane) return null;
   return rowWork(
     lane,
@@ -1147,19 +1220,22 @@ function rowOn(
   );
 }
 
-/** Řada napříč čtvercem v ose x nebo z – zkrácená na nejdelší volný úsek (voda, dům). */
+/**
+ * Řada přes čtverec ve směru `dir` (jednotkový), posunutá o `across` ve směru `perp` – zkrácená na
+ * nejdelší volný úsek (voda, dům).
+ */
 function freeLane(
   ctx: Context,
   square: Square,
-  alongX: boolean,
-  sign: number,
+  dir: Point,
+  perp: Point,
   across: number,
   half: number,
 ): Lane | null {
-  const at = (u: number): Point =>
-    alongX
-      ? { x: square.x + sign * u, z: square.z + across }
-      : { x: square.x + across, z: square.z + sign * u };
+  const at = (u: number): Point => ({
+    x: square.x + dir.x * u + perp.x * across,
+    z: square.z + dir.z * u + perp.z * across,
+  });
   const steps = Math.max(1, Math.round((2 * half) / 1));
   let best: [number, number] | null = null;
   let start: number | null = null;
@@ -1198,9 +1274,14 @@ function carriers(ctx: Context, share: SceneLaborShare, fieldId: number): Placer
     if (!home) return fallback();
     const door = doorPoint(home, (who.phase - 0.5) * 1.6);
     const half = square.size / 2 - ROW_MARGIN_M;
+    // kraj čtverce nejblíž dveřím (v osách čtverce – i natočeného)
+    const [u, v] = squareLocal(square, door.x, door.z);
+    const [ax, az] = squareAxes(square);
+    const cu = Math.min(half, Math.max(-half, u));
+    const cv = Math.min(half, Math.max(-half, v));
     const edge = {
-      x: Math.min(square.x + half, Math.max(square.x - half, door.x)),
-      z: Math.min(square.z + half, Math.max(square.z - half, door.z)),
+      x: square.x + ax.x * cu + az.x * cv,
+      z: square.z + ax.z * cu + az.z * cv,
     };
     const path = walkRoute(ctx, door, edge);
     if (!path) return fallback();
@@ -1440,7 +1521,7 @@ const PLOT_BUILDER_RINGS_M = [5, 6.2];
 function plotBuilderSpots(
   ctx: Context,
   house: House,
-  plot: { x: number; z: number; size: number },
+  plot: { x: number; z: number; size: number; rotation?: number },
 ): Point[] {
   const inside = plot.size / 2 - gap(0.6);
   const spots: Point[] = [];
@@ -1451,7 +1532,8 @@ function plotBuilderSpots(
       const a = (order / 12) * Math.PI * 2 + house.position.rotation;
       const x = house.position.x + Math.sin(a) * r;
       const z = house.position.z + Math.cos(a) * r;
-      if (Math.abs(x - plot.x) > inside || Math.abs(z - plot.z) > inside) continue;
+      const [u, v] = squareLocal(plot, x, z);
+      if (Math.abs(u) > inside || Math.abs(v) > inside) continue;
       if (nearestFreeFor(ctx, house, x, z, 0) === null) continue;
       spots.push({ x, z });
     }
@@ -1474,14 +1556,18 @@ const PLOT_SIDES: readonly (readonly [number, number])[] = [
 function plotFence(
   ctx: Context,
   house: House,
-  plot: { x: number; z: number; size: number },
+  plot: { x: number; z: number; size: number; rotation?: number },
 ): Placer {
   const inset = plot.size / 2 - gap(0.8);
+  const [ax, az] = squareAxes(plot);
   return (i, who) => {
     const side = (i + Math.floor(who.phase * 4)) % 4;
     const along = (((i * 0.37 + who.phase) % 1) * 2 - 1) * inset * 0.8;
 
-    const [nx, nz] = PLOT_SIDES[side] ?? [1, 0];
+    // normála strany v osách pozemku (natočený pozemek natočená)
+    const [su, sv] = PLOT_SIDES[side] ?? [1, 0];
+    const nx = ax.x * su + az.x * sv;
+    const nz = ax.z * su + az.z * sv;
     const x = plot.x + nx * inset - nz * along;
     const z = plot.z + nz * inset + nx * along;
     const spot = nearestFreeFor(ctx, house, x, z, 2);
@@ -1557,13 +1643,7 @@ function openGround(ctx: Context, p: Point, radius: number): boolean {
     const x = p.x + Math.cos(a) * r;
     const z = p.z + Math.sin(a) * r;
     if (!free(ctx, x, z)) return false;
-    if (
-      squares.some(
-        (s) => Math.abs(x - s.x) < s.size / 2 + 0.5 && Math.abs(z - s.z) < s.size / 2 + 0.5,
-      )
-    ) {
-      return false;
-    }
+    if (squares.some((s) => inSquare(s, x, z, 0.5))) return false;
     if (ctx.houses.some((h) => inBox(h, x, z, 1.5))) return false;
   }
   return true;

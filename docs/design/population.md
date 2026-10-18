@@ -100,14 +100,26 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
 - **Polozemnice stojí na pozemku velkém jako jedno políčko pole** (Martin, 18. 10. 2026):
   15 × 15 m v mřížce políček jako čtverec pole, celý obehnaný polským plotem. Dům stojí
   **uprostřed, nebo v jednom ze čtyř rohů** – 5 variant jednoho stavení (Martin); hráč je při
-  umisťování přepíná klávesami [ a ] (místo otáčení), vchod míří vždy k brance na přední straně
-  pozemku (návrh Clauda). Pozemek musí být volná louka – ne voda, zatím ani les, bez skalního
+  umisťování přepíná klávesou Tab (klávesy [ a ] pozemek otáčejí – viz Natočený pozemek níž),
+  vchod míří vždy k brance na přední straně pozemku (návrh Clauda). Pozemek musí být volná louka – ne voda, zatím ani les, bez skalního
   výchozu, bez posvátného dubu a čtverce dubového háje (dům ani pod korunou dubu ze sousedství –
   jako u obydlí, [happiness.md](happiness.md)), nezabraný hřbitovem ani jiným obydlím či
   pozemkem – čtverec pole nebo sadu smí (viz Obydlí na poli a v sadu); rovná zem
   (≤ 0,5 m) se hlídá jen pod domem. Překážky na pozemku platí jako na čtverci pole (všechny kusy
   na políčku), dospělé stromy z něj dají klády (návrh Clauda). Zemnice pozemek nemá a staví se
   volně.
+- **Natočený pozemek** (Martin, 18. 10. 2026: „Je to 3D, takže všechny stavby by měly jít natáčet
+  po 15 stupních“ – u pozemku **varianta a: natočí se celý pozemek**, místo domu přepíná Tab):
+  klávesy [ a ] otáčejí celým pozemkem po 15° kolem jeho středu, **Tab** (se Shiftem zpět)
+  přepíná variantu – kde na pozemku dům stojí. Bez natočení a po 90° je pozemek políčko pod
+  kurzorem jako dřív (jen dům míří jinam), jinak natočený čtverec 15 × 15 m se **středem
+  kdekoli pod kurzorem** (na cm), ne v mřížce políček. Plot se zakulacenými rohy, branka na přední
+  straně, záhony, cestička i dům se otočí s ním. Kontroly (návrh Clauda) jdou přes natočený
+  čtverec: louka a voda podle 5 × 5 bodů pod ním (do vody nesmí žádný, v lese nesmí ležet
+  většina), skalní výchoz, posvátný dub (kmen ve čtverci) a háj (políčko háje pod čtvercem)
+  i kolize se stavbami podle skutečného překryvu ploch; na poli a v sadu vezme dílům a čtvercům
+  jen **průnik** (díl pod 20 % políčka zmizí jako u obydlí bez pozemku), překážky čtverce platí
+  kromě těch na poli a v sadu. Pozemky z doby před natáčením zůstávají políčky.
 - **Polozemnice postavené před pozemky dostanou pozemek** (Martin, 18. 10. 2026): při načtení
   vsi (jednou, před dopočtem) dostane každá polozemnice bez pozemku – hotová i rozestavěná –
   políčko, na kterém stojí střed domu, když je volné (žádný díl pole, čtverec hřbitova ani sadu,
@@ -138,7 +150,9 @@ zmenší o plochu domu“. Podrobnosti jsou návrh Clauda:
 
 - **Polozemnice s pozemkem** smí na čtverec pole i sadu (pozemek je celé políčko ve stejné
   mřížce). Díl pole nebo čtverec sadu pod pozemkem z pole či sadu **zmizí** – pole či sad se
-  o čtverec zmenší; byl-li to poslední čtverec, pole či sad zanikne. Zbytek zůstane jedním polem či
+  o čtverec zmenší; byl-li to poslední čtverec, pole či sad zanikne. Natočený pozemek nebo pole
+  či sad v jiné mřížce (fields.md – Natočené stavby) berou jen průnik ploch jako obydlí bez
+  pozemku. Zbytek zůstane jedním polem či
   sadem, i kdyby se tím rozpadl na nesouvislé části – nic se nedělí.
 - **Zemnice a další obydlí bez pozemku** (i řemeslné dílny) smí přes díly polí a čtverce sadu.
   Každý dotčený díl či čtverec se **zmenší o průnik vyklízené plochy obydlí** (staveniště

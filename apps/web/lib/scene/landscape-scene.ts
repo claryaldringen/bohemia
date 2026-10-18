@@ -9,11 +9,14 @@ import { Matrix, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { Scene } from '@babylonjs/core/scene';
 import {
+  GRID_TURNS,
   buildForestField,
   buildRelief,
   NO_OBSTACLE_CHANGES,
   OFFICIAL_WORLD,
   obstaclesOf,
+  rotatedPlot,
+  rotationTurn,
   surfaceAt,
   tileOfWorldPoint,
   type DwellingType,
@@ -580,6 +583,25 @@ export class LandscapeScene {
                 if (!cell) return null;
                 const center = tileCenter(landscape, cell.x, cell.y);
                 return { cell, x: center.worldX, z: center.worldZ, size: landscape.cellSizeM };
+              },
+              plotAt: (x, z, rotation, variant) => {
+                // natočený pozemek (fields.md – Natočené stavby): po 90° políčko pod kurzorem,
+                // jinak čtverec se středem pod kurzorem – v ukládané podobě jako na serveru
+                let cx = x;
+                let cz = z;
+                if ((rotationTurn(rotation) ?? 0) % GRID_TURNS === 0) {
+                  const cell = tileAt(landscape, x, z);
+                  if (!cell) return null;
+                  const center = tileCenter(landscape, cell.x, cell.y);
+                  cx = center.worldX;
+                  cz = center.worldZ;
+                }
+                const plot = rotatedPlot(landscape, { x: cx, z: cz, rotation }, variant);
+                if (!plot) return null;
+                const size = landscape.cellSizeM;
+                if (plot.square) return { plot, square: { ...plot.square, size } };
+                const center = tileCenter(landscape, plot.cell.x, plot.cell.y);
+                return { plot, square: { x: center.worldX, z: center.worldZ, size } };
               },
               ghostModel: (type) => village.ghostModel(type),
               baseHeight: (type, position) => {

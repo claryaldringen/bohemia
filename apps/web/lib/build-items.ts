@@ -21,6 +21,7 @@ import {
   placementWalk,
   PEN,
   sacredLaborManDays,
+  sameGrid,
   type BuildKind,
   type Craft,
   type DwellingPlacementCheck,
@@ -34,6 +35,7 @@ import {
   type Position,
   type SacredBuildingKind,
   type SacredPlacementCheck,
+  type SquareGrid,
   type TileCell,
   type Walk,
 } from '@bohemia/game';
@@ -108,7 +110,17 @@ export type BuildItem =
     })
   | (BuildItemBase & {
       placement: 'squares';
-      check(landscape: Landscape, village: PlacementVillage, cells: TileCell[]): SquaresCheck;
+      /**
+       * Stavba jde natáčet ve vlastní mřížce (pole, sad – fields.md, Natočené stavby); hřbitov
+       * a ohrada leží v mřížce krajiny.
+       */
+      rotatable?: boolean;
+      check(
+        landscape: Landscape,
+        village: PlacementVillage,
+        cells: TileCell[],
+        grid?: SquareGrid,
+      ): SquaresCheck;
     })
   | (BuildItemBase & {
       /** Modla nebo svatyně – čtvercový půdorys u kurzoru (otáčí se jako obydlí). */
@@ -341,12 +353,15 @@ export const BUILD_ITEMS: readonly BuildItem[] = [
     hotkey: 'KeyC',
     hotkeyLabel: 'C',
     placement: 'squares',
-    check: (landscape, village, cells) => {
+    rotatable: true,
+    check: (landscape, village, cells, grid) => {
       const result = fieldPartsFromCells(
         landscape,
         village,
         cells,
         village.dwellings.map((d) => d.position),
+        undefined,
+        grid,
       );
       return {
         check: result.check,
@@ -373,7 +388,10 @@ export const BUILD_ITEMS: readonly BuildItem[] = [
         check: result.check,
         blockedCells: result.blockedCells,
         // čtverce polí, které hřbitov sebere, oranžově (fields.md – Pole jako krajina)
-        warningCells: [...result.warningCells, ...result.takenLand.map((t) => t.cell)],
+        warningCells: [
+          ...result.warningCells,
+          ...result.takenLand.filter((t) => !t.grid).map((t) => t.cell),
+        ],
         cost: squaresCost(result.check, result.foundingCost),
       };
     },
@@ -385,18 +403,24 @@ export const BUILD_ITEMS: readonly BuildItem[] = [
     hotkey: 'KeyB',
     hotkeyLabel: 'B',
     placement: 'squares',
-    check: (landscape, village, cells) => {
+    rotatable: true,
+    check: (landscape, village, cells, grid) => {
       const result = orchardPartsFromCells(
         landscape,
         village,
         cells,
         village.dwellings.map((d) => d.position),
+        undefined,
+        grid,
       );
       return {
         check: result.check,
         blockedCells: result.blockedCells,
-        // čtverce polí, které sad sebere, oranžově (fields.md – Pole jako krajina)
-        warningCells: result.takenLand.map((t) => t.cell),
+        // čtverce polí, které sad sebere, oranžově (fields.md – Pole jako krajina) – jen čtverce
+        // v mřížce sadu (zabrané kusy natočeného pole do výběru sadu nepatří)
+        warningCells: result.takenLand
+          .filter((t) => sameGrid(t.grid, result.grid))
+          .map((t) => t.cell),
         cost: squaresCost(result.check, result.plantingCost),
       };
     },
@@ -429,7 +453,7 @@ export const BUILD_ITEMS: readonly BuildItem[] = [
         check,
         blockedCells: check.ok ? [] : [cell],
         // čtverec pole pod ohradou oranžově (fields.md – Pole jako krajina)
-        warningCells: check.takenLand.map((t) => t.cell),
+        warningCells: check.takenLand.filter((t) => !t.grid).map((t) => t.cell),
         cost: check.ok ? penPlacementCost(village, check) : null,
       };
     },

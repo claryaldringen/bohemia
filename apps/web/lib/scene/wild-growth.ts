@@ -1,4 +1,11 @@
-import { isWoodTreeId, woodTreeOf, woodTreeSpots, type AddedObstacle } from '@bohemia/game';
+import {
+  isWoodTreeId,
+  rotationCosSin,
+  woodIdCell,
+  woodTreeOf,
+  woodTreeSpots,
+  type AddedObstacle,
+} from '@bohemia/game';
 import type { SceneFieldPart, SceneVillage, SceneWood } from '../village-view';
 import { hash01 } from './smoke-schedule';
 
@@ -94,31 +101,37 @@ function pick<T>(list: readonly T[], a: number, b: number, salt: number): T {
   return list[Math.min(list.length - 1, Math.floor(hash01(a, b, salt) * list.length))]!;
 }
 
-/** Bod v čtverci dílu podle hashe (políčko, pořadí rostliny, sůl). */
-function spotIn(
-  part: Pick<SceneFieldPart, 'cell' | 'x' | 'z' | 'size'>,
-  k: number,
-  salt: number,
-): { x: number; z: number } {
+/** Čtverec dílu nebo lesa vsi – i natočený (fields.md – Natočené stavby). */
+type WildSquare = Pick<SceneFieldPart, 'cell' | 'x' | 'z' | 'size'> & { rotation?: number };
+
+/**
+ * Seed čtverce: políčko; natočený čtverec (souřadnice v mřížce stavby se mohou opakovat) podle
+ * středu na decimetry.
+ */
+function squareSeed(part: WildSquare): number {
+  if (!part.rotation) return part.cell.y * 4096 + part.cell.x;
+  return (Math.round(part.x * 10) * 73_856_093) ^ (Math.round(part.z * 10) * 19_349_663);
+}
+
+/** Bod v čtverci dílu podle hashe (políčko, pořadí rostliny, sůl) – v osách čtverce. */
+function spotIn(part: WildSquare, k: number, salt: number): { x: number; z: number } {
   const span = part.size - 2 * MARGIN_M;
-  const seed = part.cell.y * 4096 + part.cell.x;
-  return {
-    x: part.x - span / 2 + hash01(seed, k, salt) * span,
-    z: part.z - span / 2 + hash01(seed, k, salt + 1) * span,
-  };
+  const seed = squareSeed(part);
+  const u = -span / 2 + hash01(seed, k, salt) * span;
+  const v = -span / 2 + hash01(seed, k, salt + 1) * span;
+  if (!part.rotation) return { x: part.x + u, z: part.z + v };
+  const [c, s] = rotationCosSin(part.rotation);
+  return { x: part.x + u * c + v * s, z: part.z - u * s + v * c };
 }
 
 /**
  * Keře a stromky na zarůstajícím dílu po `years` letech bez pastvy a seče. Stromky stojí na
  * místech, kde jednou poroste les vsi (`woodTreeSpots`), ať les při vypadnutí z pole nepřeskočí.
  */
-export function partWildPlants(
-  part: Pick<SceneFieldPart, 'cell' | 'x' | 'z' | 'size'>,
-  years: number,
-): WildPlant[] {
+export function partWildPlants(part: WildSquare, years: number): WildPlant[] {
   if (years < SHRUBS.fromYears) return [];
   const plants: WildPlant[] = [];
-  const seed = part.cell.y * 4096 + part.cell.x;
+  const seed = squareSeed(part);
   const grown = (years - SHRUBS.fromYears) / (SHRUBS.fullYears - SHRUBS.fromYears);
   const shade = lerp(
     1,
@@ -143,6 +156,7 @@ export function partWildPlants(
       x: part.x,
       z: part.z,
       areaM2: part.size * part.size,
+      ...(part.rotation !== undefined ? { rotation: part.rotation } : {}),
     });
     const count = Math.max(1, Math.round(lerp(1, spots.length, t)));
     for (const spot of spots.slice(0, count)) {
@@ -190,7 +204,7 @@ export function woodWildPlants(wood: SceneWood, trees: readonly AddedObstacle[])
       scale: size * (tree.kind === 'tree' ? 1 : YOUNG_TREE_SCALE) * jitter,
     });
   }
-  const seed = wood.cell.y * 4096 + wood.cell.x;
+  const seed = squareSeed(wood);
   for (let k = 0; k < WOOD_UNDERGROWTH; k++) {
     plants.push({
       model: pick(WILD_SHRUB_MODELS, seed, k, 91),
@@ -226,7 +240,9 @@ export function wildPlants(
   }
   const trees = woodTreesByCell(village);
   for (const wood of village.woods ?? []) {
-    plants.push(...woodWildPlants(wood, trees.get(`${wood.cell.x},${wood.cell.y}`) ?? []));
+    // les z natočeného pole má id stromů podle buňky pod středem (woodIdCell v jádru)
+    const id = woodIdCell(wood);
+    plants.push(...woodWildPlants(wood, trees.get(`${id.x},${id.y}`) ?? []));
   }
   return plants;
 }

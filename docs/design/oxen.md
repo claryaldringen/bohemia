@@ -28,7 +28,8 @@ půdy na seno. Dobytek, dosud jen ozdoba, se tím poprvé zapojí do hry.
 
 - **Stavba po čtvercích** jako pozemek polozemnice: jeden čtverec 15 × 15 m na louce, obehnaný
   **pleteným plotem se zakulacenými rohy** (Martin), v rohu jednoduchý přístřešek na sloupech
-  s doškovou střechou a žlab; branka (návrh Clauda).
+  s doškovou střechou a žlab; branka (návrh Clauda). Ohrada zatím leží v mřížce krajiny
+  (natáčení plošných staveb má napřed pole a sad – [fields.md](fields.md), Natočené stavby).
 - Cena: **40 člověkodní a 6 stromů** (kůly, přístřešek – [les](forest.md)) (návrh Clauda).
 - Jedna ohrada pojme **jedno spřežení** (2 voli) a k tomu chovné krávy a telata (stádo, které dnes
   ve hře je – jedna kráva na 2 domácnosti) (návrh Clauda).

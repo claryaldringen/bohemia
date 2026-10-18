@@ -1,7 +1,12 @@
 // Čistá geometrie vsi pro scénu (bez Babylonu): půdorysy, mnohoúhelníky a obtisky na terénu
 // (geometrie polí po čtvercích je ve field-cells.ts, vzhled dílů pole ve field-look.ts).
 // Souřadnice světa scény v metrech (x, z).
-import { DWELLING_CLEARING_M, type DwellingType, type Position } from '@bohemia/game';
+import {
+  DWELLING_CLEARING_M,
+  rotatedSquareCorners,
+  type DwellingType,
+  type Position,
+} from '@bohemia/game';
 import { cellsBounds, cellsContain } from './field-cells';
 import type { SceneField } from './village-types';
 
@@ -145,6 +150,27 @@ export function decalGrid(
   return { positions, alphas, indices: Uint32Array.from(indices) };
 }
 
+/**
+ * Síť obtisku v „rovném prostoru“ natočené mřížky (field-cells.ts – `GridFrame`): body a krytí se
+ * počítají v rovném prostoru, polohy se pak převedou do světa (`toWorld`). Bez převodu `decalGrid`.
+ */
+export function decalGridIn(
+  toWorld: ((u: number, v: number) => Point) | null,
+  bounds: Bounds,
+  step: number,
+  alphaAt: (u: number, v: number) => number,
+): DecalGrid {
+  const grid = decalGrid(bounds, step, alphaAt);
+  if (!toWorld) return grid;
+  const p = grid.positions;
+  for (let k = 0; k < p.length; k += 2) {
+    const [x, z] = toWorld(p[k]!, p[k + 1]!);
+    p[k] = x;
+    p[k + 1] = z;
+  }
+  return grid;
+}
+
 /** Krytí s měkkým okrajem: 0 venku, 1 dál než `softM` uvnitř obrysu. */
 export function softCoverage(
   polygon: readonly Point[],
@@ -200,11 +226,15 @@ export interface HideShape {
   contains(x: number, z: number): boolean;
 }
 
-/** Pozemek obydlí ve scéně – střed políčka a strana (jako `ScenePlot` ve village-view.ts). */
+/**
+ * Pozemek obydlí ve scéně – střed políčka a strana (jako `ScenePlot` ve village-view.ts), natočený
+ * pozemek i natočení (fields.md – Natočené stavby).
+ */
 interface PlotArea {
   x: number;
   z: number;
   size: number;
+  rotation?: number;
 }
 
 /**
@@ -219,6 +249,12 @@ export function dwellingArea(d: {
   if (d.plot) {
     const h = d.plot.size / 2;
     const { x, z } = d.plot;
+    if (d.plot.rotation) {
+      return rotatedSquareCorners(x, z, d.plot.size, d.plot.rotation).map(([cx, cz]): Point => [
+        cx,
+        cz,
+      ]);
+    }
     return [
       [x - h, z - h],
       [x + h, z - h],

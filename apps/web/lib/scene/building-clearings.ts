@@ -3,12 +3,17 @@
 // (staveniště s hromadou hlíny, u dílny i kruh milíře), modla a svatyně svůj půdorys, jabloň
 // a strom u cesty plochu pod korunou (TAKEN_LAND_TREE_M2) – herní jádro díl o ni zmenší, scéna pod
 // ní nekreslí obilí ani obtisk pole (pod obydlím ani jabloně sadu). Stavby po čtvercích
-// a pozemek berou celé políčko, takže díl pod nimi v datech vsi už není. Čistý modul bez
-// Babylonu, souřadnice světa scény v metrech.
+// a pozemek v téže mřížce berou celé políčko, takže díl pod nimi v datech vsi už není; natočený
+// pozemek a stavby po čtvercích přes pole v jiné mřížce (fields.md – Natočené stavby) berou jen
+// průnik – jejich čtverce scéna pod polem vynechá taky. Čistý modul bez Babylonu, souřadnice
+// světa scény v metrech.
 import {
+  GRID_TURNS,
   TAKEN_LAND_TREE_M2,
   freeDwellingClearings,
   pointInPolygon,
+  rotatedSquareCorners,
+  rotationTurn,
   sacredFootprint,
   type Point,
 } from '@bohemia/game';
@@ -35,10 +40,37 @@ function clearingOf(polygon: readonly Point[]): Clearing {
   };
 }
 
-/** Vyklízené plochy hotových i rozestavěných obydlí bez pozemku (stejné jako v jádru). */
+/** Je čtverec natočený mimo osy krajiny (ne o násobek 90°)? */
+function turned(rotation: number | undefined): boolean {
+  if (rotation === undefined) return false;
+  return (rotationTurn(rotation) ?? 1) % GRID_TURNS !== 0;
+}
+
+/** Čtverec stavby (střed, strana, natočení) jako vyklízená plocha. */
+function squareClearing(square: {
+  x: number;
+  z: number;
+  size: number;
+  rotation?: number;
+}): Clearing {
+  return clearingOf(
+    rotatedSquareCorners(square.x, square.z, square.size, square.rotation ?? 0).map(
+      ([x, z]): Point => [x, z],
+    ),
+  );
+}
+
+/**
+ * Vyklízené plochy hotových i rozestavěných obydlí bez pozemku (stejné jako v jádru) a natočené
+ * pozemky (fields.md – Natočené stavby) – zabírají díly polí a čtverce sadů jen zčásti.
+ */
 export function buildingClearings(dwellings: readonly SceneDwelling[]): Clearing[] {
   return dwellings.flatMap((d) =>
-    d.plot ? [] : freeDwellingClearings(d.type, d.position, d.craft).map(clearingOf),
+    d.plot
+      ? turned(d.plot.rotation)
+        ? [squareClearing(d.plot)]
+        : []
+      : freeDwellingClearings(d.type, d.position, d.craft).map(clearingOf),
   );
 }
 
@@ -63,16 +95,33 @@ function treeLand(x: number, z: number): Clearing {
  * stojí na poli (`onField` – kmen na čtverci pole; strom vedle pole poli nic nebere).
  */
 export function fieldClearings(
-  village: Pick<SceneVillage, 'dwellings' | 'sacred' | 'roadTrees' | 'roadApples'>,
+  village: Pick<SceneVillage, 'dwellings' | 'sacred' | 'roadTrees' | 'roadApples'> &
+    Partial<Pick<SceneVillage, 'fields' | 'orchards' | 'cemeteries' | 'pens'>>,
   onField: (x: number, z: number) => boolean,
 ): Clearing[] {
   const trees = [...(village.roadTrees ?? []), ...(village.roadApples ?? [])];
+  // stavby po čtvercích přes pole v jiné mřížce (natočené – fields.md) zabírají díly jen zčásti:
+  // natočený sad vždy, při natočeném poli i sady, hřbitovy, ohrady a pozemky v mřížce krajiny
+  const turnedFields = (village.fields ?? []).some((f) => f.parts.some((p) => turned(p.rotation)));
+  const squares = [
+    ...(village.orchards ?? []).flatMap((o) =>
+      turnedFields || o.squares.some((sq) => turned(sq.rotation)) ? o.squares : [],
+    ),
+    ...(turnedFields
+      ? [
+          ...(village.cemeteries ?? []).flatMap((c) => c.squares),
+          ...(village.pens ?? []),
+          ...village.dwellings.flatMap((d) => (d.plot && !turned(d.plot.rotation) ? [d.plot] : [])),
+        ]
+      : []),
+  ];
   return [
     ...buildingClearings(village.dwellings),
     ...(village.sacred?.buildings ?? []).map((b) =>
       clearingOf(sacredFootprint(b.kind, b.position)),
     ),
     ...trees.filter((t) => onField(t.x, t.z)).map((t) => treeLand(t.x, t.z)),
+    ...squares.map(squareClearing),
   ];
 }
 

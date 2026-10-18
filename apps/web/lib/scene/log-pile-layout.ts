@@ -10,6 +10,7 @@ import {
   pointInPolygon,
   polygonsOverlap,
   rectangleCorners,
+  rotatedSquareCorners,
   surfaceAt,
   tileOfWorldPoint,
   type Landscape,
@@ -105,19 +106,23 @@ export function logPileLayout(count: number): LogPlacement[] {
  */
 function plotReach(
   position: { x: number; z: number; rotation: number },
-  plot: { x: number; z: number; size: number },
+  plot: { x: number; z: number; size: number; rotation?: number },
 ): { right: number; left: number; back: number } {
   const h = plot.size / 2;
   const c = Math.cos(position.rotation);
   const s = Math.sin(position.rotation);
-  const local = [
-    [plot.x - h, plot.z - h],
-    [plot.x + h, plot.z - h],
-    [plot.x + h, plot.z + h],
-    [plot.x - h, plot.z + h],
-  ].map(([x, z]) => {
-    const dx = x! - position.x;
-    const dz = z! - position.z;
+  // rohy pozemku – natočený pozemek (fields.md – Natočené stavby) natočené
+  const corners: readonly (readonly [number, number])[] = plot.rotation
+    ? rotatedSquareCorners(plot.x, plot.z, plot.size, plot.rotation)
+    : [
+        [plot.x - h, plot.z - h],
+        [plot.x + h, plot.z - h],
+        [plot.x + h, plot.z + h],
+        [plot.x - h, plot.z + h],
+      ];
+  const local = corners.map(([x, z]) => {
+    const dx = x - position.x;
+    const dz = z - position.z;
     return [dx * c - dz * s, dx * s + dz * c] as const;
   });
   return {

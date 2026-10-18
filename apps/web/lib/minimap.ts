@@ -3,6 +3,7 @@ import {
   DWELLING_FOOTPRINT_M,
   SACRED_BUILDINGS,
   SURFACE_CODES,
+  rotatedSquareCorners,
   type FieldSurface,
   type Landscape,
   type PartStage,
@@ -221,41 +222,48 @@ export function drawMinimapVillage(
   const at = (x: number, z: number): { x: number; y: number } =>
     worldToMinimap(landscape, x, z, sizePx);
   const cellPx = (landscape.cellSizeM / (landscape.size * landscape.cellSizeM)) * sizePx;
+  /** Čtverec (políčko) aktuální barvou – natočený čtverec (fields.md) jako mnohoúhelník. */
+  const square = (x: number, z: number, rotation?: number): void => {
+    if (!rotation) {
+      const p = at(x, z);
+      context.fillRect(p.x - cellPx / 2, p.y - cellPx / 2, cellPx + 0.3, cellPx + 0.3);
+      return;
+    }
+    const corners = rotatedSquareCorners(x, z, landscape.cellSizeM, rotation).map(([cx, cz]) =>
+      at(cx, cz),
+    );
+    context.beginPath();
+    corners.forEach((c, i) => (i === 0 ? context.moveTo(c.x, c.y) : context.lineTo(c.x, c.y)));
+    context.closePath();
+    context.fill();
+  };
 
   // les vsi – čtverce polí zarostlé lesem (fields.md – Les vsi)
   {
     const [r, g, b] = WOOD_COLOR;
     context.fillStyle = `rgb(${r} ${g} ${b})`;
-    for (const wood of village.woods ?? []) {
-      const p = at(wood.x, wood.z);
-      context.fillRect(p.x - cellPx / 2, p.y - cellPx / 2, cellPx + 0.3, cellPx + 0.3);
-    }
+    for (const wood of village.woods ?? []) square(wood.x, wood.z, wood.rotation);
   }
   // pole po čtvercích podle stadia dílů
   for (const field of village.fields) {
     for (const part of field.parts) {
       const [r, g, b] = PART_COLORS[part.stage];
       context.fillStyle = `rgb(${r} ${g} ${b})`;
-      const p = at(part.x, part.z);
-      context.fillRect(p.x - cellPx / 2, p.y - cellPx / 2, cellPx + 0.3, cellPx + 0.3);
+      square(part.x, part.z, part.rotation);
     }
   }
   // hřbitovy po čtvercích (zakládané průsvitné)
   for (const cemetery of village.cemeteries ?? []) {
     const [r, g, b] = CEMETERY_COLOR;
     context.fillStyle = `rgb(${r} ${g} ${b} / ${cemetery.built ? 1 : 0.55})`;
-    for (const square of cemetery.squares) {
-      const p = at(square.x, square.z);
-      context.fillRect(p.x - cellPx / 2, p.y - cellPx / 2, cellPx + 0.3, cellPx + 0.3);
-    }
+    for (const s of cemetery.squares) square(s.x, s.z);
   }
   // sady po čtvercích (čtverce, které se ještě sázejí, průsvitné)
   for (const orchard of village.orchards ?? []) {
     const [r, g, b] = ORCHARD_COLOR;
-    for (const square of orchard.squares) {
-      context.fillStyle = `rgb(${r} ${g} ${b} / ${square.planting >= 1 ? 1 : 0.55})`;
-      const p = at(square.x, square.z);
-      context.fillRect(p.x - cellPx / 2, p.y - cellPx / 2, cellPx + 0.3, cellPx + 0.3);
+    for (const s of orchard.squares) {
+      context.fillStyle = `rgb(${r} ${g} ${b} / ${s.planting >= 1 ? 1 : 0.55})`;
+      square(s.x, s.z, s.rotation);
     }
   }
   // posvátná místa – okrové: háje průsvitně po čtvercích, duby tečkou, modly a svatyně půdorysem

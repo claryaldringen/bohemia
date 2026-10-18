@@ -5,16 +5,29 @@ import type { StandardMaterial } from '@babylonjs/core/Materials/standardMateria
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 import type { Scene } from '@babylonjs/core/scene';
-import { tileCenterWorld, tileOfWorldPoint, type Landscape, type TileCell } from '@bohemia/game';
+import {
+  GRID_TURNS,
+  gridCellAt,
+  rotationTurn,
+  sameGrid,
+  squareCenter,
+  tileCenterWorld,
+  tileOfWorldPoint,
+  turnRotation,
+  type Landscape,
+  type SquareGrid,
+  type TileCell,
+} from '@bohemia/game';
 import {
   CellSelection,
   cellsBoundary,
+  gridFrame,
   mergeDecalGrids,
   rectangleCells,
   type CellSquare,
   type StrokeMode,
 } from './field-cells';
-import { decalGrid, smoothstep, stripSegments, type Point } from './village-layout';
+import { decalGrid, decalGridIn, smoothstep, stripSegments, type Point } from './village-layout';
 import {
   createDecalMaterial,
   createDecalMesh,
@@ -74,7 +87,11 @@ interface Stroke {
 
 /**
  * Malování stavby po čtvercích – pole a další stavby malované jako pole (jako v realtime
- * strategiích); co smí kam, říká `mode.preview`. Myš: levé kliknutí přepne čtverec,
+ * strategiích); co smí kam, říká `mode.preview`. Stavby, které jde natáčet (pole, sad – fields.md,
+ * Natočené stavby), malují ve vlastní mřížce: [ a ] před prvním čtvercem otáčejí mřížku po 15°
+ * (natočená mřížka má čtverec pod kurzorem ve středu políčka krajiny), nad stavbou stejného
+ * druhu se malování chytí její mřížky a drží ji (rozšíření pole jde jen v jeho mřížce); prvním
+ * čtvercem se mřížka zamkne. Myš: levé kliknutí přepne čtverec,
  * levé tažení přidá obdélník čtverců, s Ctrl (na Macu i Cmd) ubere; pravé kliknutí malování
  * zruší (jako v 0 A.D.). Krajina se posouvá prostředním tlačítkem, mezerníkem + tahem, okrajem
  * okna a WASD (levé tažení tu maluje – posun s mezerníkem zařídí kamera, stisk sem nepustí).
@@ -104,12 +121,25 @@ export class FieldPainter {
   private readonly gridMaterial: StandardMaterial;
   private readonly gridTexture: RawTexture;
   private done = false;
+  /** Mřížka malování (fields.md – Natočené stavby); undefined = mřížka krajiny. */
+  private grid: SquareGrid | undefined;
+  /** Natočení volné mřížky v krocích po 15° (0–5) – klávesy [ a ]. */
+  private freeTurn = 0;
+  /** Malování se chytilo mřížky stavby pod kurzorem (nebo vybrané stavby) a drží ji. */
+  private adopted = false;
+  /** Poslední bod terénu pod kurzorem – volná mřížka se po otočení postaví k němu. */
+  private lastPoint: Point | null = null;
 
   constructor(
     private readonly context: PaintContext,
     readonly mode: FieldMode,
     private readonly handlers: PlacementHandlers,
   ) {
+    if (mode.rotatable && mode.grid) {
+      this.grid = mode.grid;
+      this.freeTurn = (rotationTurn(mode.grid.rotation) ?? 0) % GRID_TURNS;
+      this.adopted = true;
+    }
     const scene = context.scene;
     this.fillMaterial = createDecalMaterial(scene, 'field-paint-fill', {
       emissive: Color3.White(),
@@ -163,7 +193,11 @@ export class FieldPainter {
   /** Bod terénu pod kurzorem (null mimo krajinu) a kurzor v px plátna – jednou za snímek. */
   setCursor(point: Point | null, screen: { x: number; y: number } | null): void {
     if (this.done) return;
-    const cell = point ? tileOfWorldPoint(this.context.landscape, point[0], point[1]) : null;
+    if (point) {
+      this.lastPoint = point;
+      if (!this.gridLocked()) this.followGrid(point);
+    }
+    const cell = point ? this.cellOf(point) : null;
     if (!sameCell(cell, this.cursorCell)) {
       this.cursorCell = cell;
       this.cursorDirty = true;
@@ -196,8 +230,9 @@ export class FieldPainter {
     if (this.selectionDirty) this.refreshSelection();
     if (this.candidate.length === 0 || !this.preview?.check.ok) return;
     const cells = this.candidate;
+    const grid = this.grid;
     this.dispose();
-    this.handlers.onConfirm({ kind: 'squares', cells });
+    this.handlers.onConfirm({ kind: 'squares', cells, ...(grid ? { grid } : {}) });
   }
 
   /** Zruší malování a ohlásí to (`onCancel`). */
@@ -300,6 +335,11 @@ export class FieldPainter {
     }
     if (event.ctrlKey || event.metaKey) return;
     switch (event.code) {
+      case 'BracketLeft':
+      case 'BracketRight':
+        event.preventDefault();
+        this.turn(event.code === 'BracketRight' ? 1 : -1);
+        return;
       case 'Escape':
         event.preventDefault();
         if (this.stroke) {
@@ -359,13 +399,86 @@ export class FieldPainter {
 
   private cellAt(x: number, y: number): TileCell | null {
     const point = this.context.pickGround(x, y);
-    return point ? tileOfWorldPoint(this.context.landscape, point[0], point[1]) : null;
+    return point ? this.cellOf(point) : null;
+  }
+
+  /** Čtverec mřížky malování pod bodem terénu; mimo krajinu null. */
+  private cellOf(point: Point): TileCell | null {
+    const l = this.context.landscape;
+    if (!this.grid) return tileOfWorldPoint(l, point[0], point[1]);
+    const cell = gridCellAt(l, this.grid, point[0], point[1]);
+    const center = squareCenter(l, this.grid, cell);
+    return tileOfWorldPoint(l, center.x, center.z) ? cell : null;
   }
 
   private square(cell: TileCell): CellSquare {
     const l = this.context.landscape;
-    const center = tileCenterWorld(l, cell.x, cell.y);
-    return { cell, x: center.x, z: center.z, size: l.cellSizeM };
+    const center = squareCenter(l, this.grid, cell);
+    return {
+      cell,
+      x: center.x,
+      z: center.z,
+      size: l.cellSizeM,
+      ...(this.grid ? { rotation: this.grid.rotation } : {}),
+    };
+  }
+
+  /** Mřížka se zamkne prvním čtvercem (výběr nebo rozběhnutý tah). */
+  private gridLocked(): boolean {
+    return this.stroke !== null || this.selection.count > 0;
+  }
+
+  /**
+   * Mřížka podle kurzoru (jen nezamčená, jen stavba, kterou jde natáčet): nad stavbou stejného
+   * druhu její mřížka (drží se i mimo ni – rozšíření), jinak volná mřížka s natočením `freeTurn`
+   * a čtvercem pod kurzorem ve středu políčka krajiny.
+   */
+  private followGrid(point: Point): void {
+    if (!this.mode.rotatable) return;
+    const found = this.mode.gridAt?.(point[0], point[1]);
+    if (found !== null && found !== undefined) {
+      this.adopted = true;
+      this.freeTurn = (rotationTurn(found.rotation) ?? 0) % GRID_TURNS;
+      this.setGrid(found);
+      return;
+    }
+    if (found === undefined && this.mode.gridAt) {
+      // stavba v mřížce krajiny
+      this.adopted = true;
+      this.freeTurn = 0;
+      this.setGrid(undefined);
+      return;
+    }
+    if (this.adopted) return;
+    this.setGrid(this.freeGrid(point));
+  }
+
+  /** Volná mřížka u bodu: natočení `freeTurn`, čtverec (0, 0) ve středu políčka pod bodem. */
+  private freeGrid(point: Point): SquareGrid | undefined {
+    if (this.freeTurn === 0) return undefined;
+    const l = this.context.landscape;
+    const tile = tileOfWorldPoint(l, point[0], point[1]);
+    if (!tile) return this.grid;
+    const center = tileCenterWorld(l, tile.x, tile.y);
+    return { x: center.x, z: center.z, rotation: turnRotation(this.freeTurn) };
+  }
+
+  /** [ a ]: natočí mřížku po 15° – jen než se namaluje první čtverec. */
+  private turn(step: number): void {
+    if (!this.mode.rotatable || this.gridLocked()) return;
+    this.freeTurn = (((this.freeTurn + step) % GRID_TURNS) + GRID_TURNS) % GRID_TURNS;
+    this.adopted = false;
+    if (this.lastPoint) this.setGrid(this.freeGrid(this.lastPoint));
+    const cell = this.lastPoint ? this.cellOf(this.lastPoint) : null;
+    this.cursorCell = cell;
+    this.cursorDirty = true;
+  }
+
+  private setGrid(grid: SquareGrid | undefined): void {
+    if (sameGrid(grid, this.grid)) return;
+    this.grid = grid;
+    this.cursorCell = null;
+    this.cursorDirty = true;
   }
 
   /** Výběr po rozběhnutém tahu, jeho kontrola a obtisky. */
@@ -376,7 +489,7 @@ export class FieldPainter {
     this.candidate = stroke
       ? this.selection.preview(strokeCells, stroke.mode)
       : this.selection.cells();
-    this.preview = this.candidate.length > 0 ? this.mode.preview(this.candidate) : null;
+    this.preview = this.candidate.length > 0 ? this.mode.preview(this.candidate, this.grid) : null;
 
     disposeAll(this.selectionMeshes);
     const ok = this.preview?.check.ok ?? false;
@@ -447,8 +560,11 @@ export class FieldPainter {
     const { grid, colors } = mergeDecalGrids(
       fills.map(({ square, look, alpha }) => {
         const half = square.size / 2;
+        // natočený čtverec: síť v rovném prostoru jeho mřížky (field-cells.ts – GridFrame)
+        const frame = gridFrame(square);
         return {
-          grid: decalGrid(
+          grid: decalGridIn(
+            frame.rotated ? frame.toWorld : null,
             {
               minX: square.x - half,
               maxX: square.x + half,
@@ -489,6 +605,7 @@ export class FieldPainter {
 
   /** Mřížka čtverců kolem kurzoru – čáry z textury, ke kraji slábne. */
   private gridMesh(center: TileCell): Mesh {
+    if (this.grid) return this.turnedGridMesh(center);
     const l = this.context.landscape;
     const size = l.cellSizeM;
     const half = (l.size * size) / 2;
@@ -512,6 +629,40 @@ export class FieldPainter {
       color: [1, 1, 1],
       alpha: 0.7,
       uv: (x, z) => [(x + half) / size, (z + half) / size],
+    });
+    mesh.material = this.gridMaterial;
+    mesh.alphaIndex = 11;
+    mesh.receiveShadows = false;
+    return mesh;
+  }
+
+  /** Mřížka natočené stavby kolem kurzoru – v rovném prostoru mřížky, čáry z textury. */
+  private turnedGridMesh(center: TileCell): Mesh {
+    const square = this.square(center);
+    const frame = gridFrame(square);
+    const size = square.size;
+    const reach = GRID_RADIUS_CELLS * size;
+    const span = (GRID_RADIUS_CELLS + 0.5) * size;
+    const grid = decalGridIn(
+      frame.toWorld,
+      {
+        minX: square.x - span,
+        maxX: square.x + span,
+        minZ: square.z - span,
+        maxZ: square.z + span,
+      },
+      size / DECAL_POINTS_PER_CELL,
+      (u, v) => 1 - smoothstep(reach * 0.35, reach, Math.hypot(u - square.x, v - square.z)),
+    );
+    const mesh = createDecalMesh(this.context.scene, 'field-paint-grid', grid, {
+      height: this.context.decalHeight,
+      lift: 0.1,
+      color: [1, 1, 1],
+      alpha: 0.7,
+      uv: (x, z) => {
+        const [u, v] = frame.toSpace(x, z);
+        return [(u - square.x) / size + 0.5, (v - square.z) / size + 0.5];
+      },
     });
     mesh.material = this.gridMaterial;
     mesh.alphaIndex = 11;

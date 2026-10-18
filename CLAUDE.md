@@ -382,10 +382,17 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   na délku, zelí, řepa, cibule, kopr – `homestead_parts`, oblasti atlasu `veg` a `soil`); každý
   díl stojí na terénu sám. Fáze polozemnice po hřebeni: `fence` (kůly, pak větve zdola)
   a `beds` (`ConstructionState.plot`). Umisťování: režim `plot` (políčko pod kurzorem, [ a ]
-  přepínají variantu místo otáčení), vytyčení při 0 % kolíky a provázkem kolem pozemku
+  otáčejí celým pozemkem, Tab přepíná variantu), vytyčení při 0 % kolíky a provázkem kolem pozemku
   (`plotStakingLine`), výběr i kliknutí kamkoli na pozemek označí celé políčko, rekvizity
   staveniště rohového domu se zrcadlí dovnitř (`sitePropPlace`), slepice zůstávají uvnitř
-  plotu, cizí ani lidé do pozemku nechodí, hromada klád leží za plotem. Dílny z polozemnice
+  plotu, cizí ani lidé do pozemku nechodí, hromada klád leží za plotem. **Natočený pozemek**
+  (Martin 18. 10. 2026, varianta a – viz Ves – Natočené stavby): `DwellingPlot.square` (střed
+  na cm, natočení po 15°; `cell` = políčko pod středem), [ a ] otáčejí celým pozemkem, **Tab**
+  (Shift + Tab zpět) přepíná variantu; bez natočení a po 90° se přichytí na políčko pod kurzorem
+  (`rotatedPlot` / `canonicalPlot` – ukládaná podoba stejně v prohlížeči i na serveru).
+  `homesteadLayout` natočený pozemek rozmístí v jeho osách a otočí do světa (`HomesteadLayout.rotation`
+  – záhony v instancích natočené), `insidePlot`, `plotStakingLine`, `plotFenceCorners` v osách
+  pozemku, `ScenePlot.rotation`. Dílny z polozemnice
   (hrnčíř, kovář) pozemek nemají – stojí volně jako dřív. **Hřbitov** (`cemetery-renderer.ts`,
   geometrie bez Babylonu v `cemetery-layout.ts`): nízký pletený plot po obrysu čtverců (sdílený
   pletený plot, zakulacené rohy) s brankou k nejbližšímu hotovému obydlí (při rozšíření jinam
@@ -1019,18 +1026,51 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   | pravé tlačítko         | zruší výběr                                   | zruší                           | zruší malování                     |
   | Esc                    | zruší výběr                                   | zruší                           | zruší tah, pak malování            |
   | F10                    | otevře nabídku hry, zruší výběr               | otevře nabídku, zruší           | otevře nabídku, zruší malování     |
-  | další                  |                                               | `[` / `]` otáčí, Enter postaví  | Backspace / Ctrl+Z vrátí, Enter    |
+  | `[` / `]`              |                                               | otáčí po 15° (pozemek celý)     | otáčí mřížku po 15° (pole, sad)    |
+  | Tab                    |                                               | pozemek: místo domu (varianta)  | –                                  |
+  | další                  |                                               | Enter postaví                   | Backspace / Ctrl+Z vrátí, Enter    |
 
   Vždy: WASD / šipky a kurzor u okraje okna posouvají, kolečko i rozevření prstů na trackpadu
   (Ctrl + kolečko, v Safari `gesturechange`) přibližují, Q/E otáčí, R vrátí pohled na ves
-  (`setCameraHome`). Ctrl ve výběru obydlí platí i jako Cmd; Ctrl / Shift + klik na cestu či
+  (`setCameraHome`). Malování pole a sadu: [ a ] jen před prvním čtvercem (pak je mřížka
+  zamčená), nad polem / sadem stejného druhu se malování chytí jeho mřížky (`gridAt`, drží ji
+  i mimo něj – rozšíření), vybrané pole / sad dá mřížku hned (`PlacementMode.squares.grid`);
+  natočená mřížka má čtverec pod kurzorem ve středu políčka. Ctrl ve výběru obydlí platí i jako Cmd; Ctrl / Shift + klik na cestu či
   pole vybraná obydlí nezruší; Ctrl + A při umisťování nic nevybere. Zkratky staveb Z zemnice, X polozemnice, C pole, V hřbitov, B sad,
   N modla, M svatyně, O ohrada (modla a svatyně se umisťují půdorysem jako obydlí – `PlacementMode`
   `sacred`). V otevřené nabídce hry žádná klávesa hry neběží – F10 nebo Esc ji zavře (Tab jen
   po jejích položkách). Rozhraní
   obydlí hned ukáže jako staveniště a akce posílá na server za sebou (fronta v `VillageGame`).
 
-- **Stavby po čtvercích** (pole, hřbitov; políčka krajiny 15 × 15 m, díl = políčko):
+- **Natočené stavby** ([fields.md](docs/design/fields.md) – Natočené stavby; Martin 18. 10. 2026:
+  „Je to 3D, takže všechny stavby by měly jít natáčet po 15 stupních“): `square-grid.ts`
+  (deterministická vrstva – přesné cos/sin násobků 15° z odmocnin, `rotationTurn`,
+  `rotationCosSin`, `squareCenter` / `squareCorners` / `gridCellAt` v mřížce, `normalizeGrid`,
+  `rotatedSquareCorners`, `squareKey`, `sameGrid`) – pole a sad mají volitelnou mřížku
+  `Field.grid` / `Orchard.grid` (`SquareGrid` – střed čtverce 0, 0 a natočení 15–75°, čtverce
+  dílů v ní), pozemek `DwellingPlot.square`, les vsi z natočeného pole `VillageWood.grid` (id
+  stromů `woodIdCell` – buňka 7,5 m pod středem), zabraný kus `TakenLand.grid`. Bez mřížky =
+  mřížka krajiny, všechno bit po bitu jako dřív. `squares.ts`: čtverce staveb ve světě
+  (`villageLandSquares`, `fieldGrids`, `fieldGridOf`) a rejstřík `PolygonIndex` po políčkách (dva
+  čtverce v mřížce krajiny podle rovnosti políček, jinak `polygonsOverlap`; `containing` pro
+  paty překážek), `tilesUnder`. Kontroly v `placement.ts` (tvary `Shape` – `plotShapes`
+  v `plot-cells.ts`): krajina pod natočeným čtvercem 5 × 5 body (`sampledGround` – voda
+  kterýkoli bod, les většina, úrodnost průměr), překážky s patou v mnohoúhelníku
+  (`squareObstacles`, vlastník překážek test bodu – `OwnedLand`), zabraná půda průnikem
+  (`takenSquareLand`, `takenLandUnder`), navazování jen ve stejné mřížce (`fieldsTouching`
+  s mřížkou, `withMergedFields` po mřížkách), les vsi jen přesným čtvercem (`woodEdge`).
+  `fieldPartsFromCells` / `orchardPartsFromCells` a use-casy `placeField` / `placeOrchard` berou
+  `grid`, akce `foundField` / `foundOrchard` mřížku uloží. Hospodaření, síť pěšin (`PathSquare.rotation`,
+  `squareCells` v mřížce), louky na seno, stromy u cest, zbytky jam a vzdálenosti vsí znají
+  mřížku. **Hřbitov a ohrada zatím jen v mřížce krajiny.** Scéna: čtverce nesou `rotation`
+  (`SceneFieldPart`, čtverce sadu, `SceneWood`, `ScenePlot`), `field-cells.ts` počítá v „rovném
+  prostoru“ mřížky (`gridFrame` – `toSpace` / `toWorld`, `inFrame`, `squaresContain`,
+  `structureGridAt`, `squareContains`), pole se kreslí v rovném prostoru a otočí do světa
+  (`field-space.ts`), jabloně v řadách os sadu, výběr, minimapa, stáda, postavy, vymýcený les
+  a plochy pod polem (`fieldClearings`) natočené čtverce znají. `/dev/landscape` tlačítko
+  **Natočené stavby** (pozemek 15°, pole 30°, sad 45°).
+- **Stavby po čtvercích** (pole, hřbitov; políčka krajiny 15 × 15 m, díl = políčko – pole a sad
+  i v natočené mřížce, viz Natočené stavby):
   `fieldPartsFromCells` a `cemeteryPartsFromCells` v `placement.ts` (společné kontroly čtverců;
   u hřbitova navíc `check.warning` a `warningCells`, které neblokují – oranžově). Pole smí na
   louku, do křovin i do lesa – povrch dílu `fieldSquareSurface` (les z krajiny, křoviny = louka

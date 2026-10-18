@@ -97,9 +97,10 @@ export class HomesteadRenderer {
       seen.add(view.id);
       const h = view.house;
       const y = view.square.yard;
+      const turned = view.square.rotation ? `@${view.square.rotation}` : '';
       const layoutKey = `${view.square.x},${view.square.z},${view.square.size},${view.variant}${
         h ? `|${h.x},${h.z},${h.rotation}` : ''
-      }${y ? `|${y.x},${y.z}` : ''}`;
+      }${y ? `|${y.x},${y.z}` : ''}${turned}`;
       const p = view.progress;
       const d = view.decay;
       const decayKey = d ? `|${round(d.fence)}|${round(d.beds)}|${d.seed}` : '';
@@ -237,30 +238,45 @@ export class HomesteadRenderer {
     const weeds: number[] = [];
     for (const { layout, view } of this.entries.values()) {
       const stage = plotStage(layout, view.progress, view.decay);
+      // záhony leží podél osy x pozemku – u natočeného pozemku natočené (fields.md)
+      const r = layout.rotation;
+      const c = Math.cos(r);
+      const s = Math.sin(r);
+      /** Posun od středu záhonu podél záhonu (u) a napříč (v). */
+      const along = (dx: number, dz: number): number => dx * c - dz * s;
+      const across = (dx: number, dz: number): number => dx * s + dz * c;
       const beds = stage.beds.map((bed) => {
         const half = bed.length / 2;
         const hw = BED_WIDTH_M / 2;
-        const sx = (height(bed.x + half, bed.z) - height(bed.x - half, bed.z)) / bed.length;
-        const sz = (height(bed.x, bed.z + hw) - height(bed.x, bed.z - hw)) / BED_WIDTH_M;
+        const sx =
+          (height(bed.x + c * half, bed.z - s * half) -
+            height(bed.x - c * half, bed.z + s * half)) /
+          bed.length;
+        const sz =
+          (height(bed.x + s * hw, bed.z + c * hw) - height(bed.x - s * hw, bed.z - c * hw)) /
+          BED_WIDTH_M;
         const y = height(bed.x, bed.z) - BED_SINK_M;
-        const up = new Vector3(-sx, 1, -sz).normalize();
-        compose(matrix, bed.x, y, bed.z, 0, 1, up, bed.length);
+        // spád ve světě: −(sx · osa záhonu + sz · osa napříč)
+        const up = new Vector3(-(sx * c + sz * s), 1, -(-sx * s + sz * c)).normalize();
+        compose(matrix, bed.x, y, bed.z, r, 1, up, bed.length);
         appendMatrix(push('bed'), matrix);
         return { bed, sx, sz, y };
       });
       for (const plant of stage.plants) {
         const base = beds[plant.bed];
         if (!base) continue;
-        const y =
-          base.y + BED_TOP_M + base.sx * (plant.x - base.bed.x) + base.sz * (plant.z - base.bed.z);
+        const dx = plant.x - base.bed.x;
+        const dz = plant.z - base.bed.z;
+        const y = base.y + BED_TOP_M + base.sx * along(dx, dz) + base.sz * across(dx, dz);
         compose(matrix, plant.x, y, plant.z, plant.rotationY, plant.scale, null);
         appendMatrix(push(`plant-${plant.crop}`), matrix);
       }
       for (const weed of stage.weeds) {
         const base = beds[weed.bed];
         if (!base) continue;
-        const y =
-          base.y + BED_TOP_M + base.sx * (weed.x - base.bed.x) + base.sz * (weed.z - base.bed.z);
+        const dx = weed.x - base.bed.x;
+        const dz = weed.z - base.bed.z;
+        const y = base.y + BED_TOP_M + base.sx * along(dx, dz) + base.sz * across(dx, dz);
         compose(matrix, weed.x, y - 0.02, weed.z, weed.rotationY, weed.scale * WEED_SCALE, null);
         appendMatrix(weeds, matrix);
       }

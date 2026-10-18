@@ -270,7 +270,9 @@ export class OrchardRenderer {
   private outcropsNear(square: SceneOrchardSquare): Outcrop[] {
     const layer = this.obstacles;
     if (!layer) return [];
-    const half = square.size / 2 + OUTCROP_SEARCH_M;
+    // natočený čtverec (fields.md – Natočené stavby) zabírá v osách světa víc
+    const spread = square.rotation !== undefined ? Math.SQRT2 : 1;
+    const half = (square.size / 2) * spread + OUTCROP_SEARCH_M;
     const outcrops = obstaclesNear(
       layer,
       square.x - half,

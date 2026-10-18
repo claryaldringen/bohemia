@@ -6,6 +6,7 @@ import {
   milirPosition,
   type TileCell,
 } from '@bohemia/game';
+import { isRotatedSquare, squareContains, type CellSquare } from './field-cells';
 import type { SceneVillage } from '../village-view';
 
 // Výběr obydlí, polí, sadů a hřbitovů kliknutím do scény – čisté funkce bez Babylonu (paprsek
@@ -161,34 +162,33 @@ export function pickVillageTarget(
   }
   if (best) return { kind: 'sacred-oak', id: best.id };
   if (!options.ground) return null;
-  const cell = options.cellOf(options.ground.x, options.ground.z);
+  const ground = options.ground;
+  const cell = options.cellOf(ground.x, ground.z);
   if (!cell) return null;
+  // čtverec v mřížce krajiny podle políčka, natočený čtverec (fields.md – Natočené stavby)
+  // podle bodu terénu v jeho osách
+  const hit = (square: CellSquare): boolean =>
+    isRotatedSquare(square)
+      ? squareContains(square, ground.x, ground.z)
+      : square.cell.x === cell.x && square.cell.y === cell.y;
   const owner = village.dwellings.find(
     (d) =>
-      (d.plot?.cell.x === cell.x && d.plot.cell.y === cell.y) ||
+      (d.plot !== undefined && hit(d.plot)) ||
       // dvůr dvorce vojvody patří k pozemku (trade.md)
       (d.plot?.yard?.cell.x === cell.x && d.plot.yard.cell.y === cell.y),
   );
   if (owner) return { kind: 'dwelling', id: owner.id };
-  const pen = (village.pens ?? []).find((p) => p.cell.x === cell.x && p.cell.y === cell.y);
+  const pen = (village.pens ?? []).find((p) => hit(p));
   if (pen) return { kind: 'pen', id: pen.id };
-  const road = nearestRoad(village, options.ground, ROAD_PICK_M);
+  const road = nearestRoad(village, ground, ROAD_PICK_M);
   if (road !== null) return { kind: 'road', id: road };
-  const field = village.fields.find((f) =>
-    f.parts.some((p) => p.cell.x === cell.x && p.cell.y === cell.y),
-  );
+  const field = village.fields.find((f) => f.parts.some(hit));
   if (field) return { kind: 'field', id: field.id };
-  const cemetery = (village.cemeteries ?? []).find((c) =>
-    c.squares.some((s) => s.cell.x === cell.x && s.cell.y === cell.y),
-  );
+  const cemetery = (village.cemeteries ?? []).find((c) => c.squares.some(hit));
   if (cemetery) return { kind: 'cemetery', id: cemetery.id };
-  const orchard = (village.orchards ?? []).find((o) =>
-    o.squares.some((s) => s.cell.x === cell.x && s.cell.y === cell.y),
-  );
+  const orchard = (village.orchards ?? []).find((o) => o.squares.some(hit));
   if (orchard) return { kind: 'orchard', id: orchard.id };
-  const grove = (sacred?.groves ?? []).find((g) =>
-    g.squares.some((s) => s.cell.x === cell.x && s.cell.y === cell.y),
-  );
+  const grove = (sacred?.groves ?? []).find((g) => g.squares.some(hit));
   return grove ? { kind: 'grove', id: grove.id } : null;
 }
 

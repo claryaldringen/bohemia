@@ -8,6 +8,9 @@ import {
   PLOT_HOUSE_OFFSET_M,
   PLOT_HOUSE_ROTATION,
   PLOT_VARIANTS,
+  plotHouseRotation,
+  rotationCosSin,
+  rotationTurn,
   type PlotVariant,
   type Position,
 } from '@bohemia/game';
@@ -31,6 +34,39 @@ export interface PlotSquare {
   z: number;
   size: number;
   yard?: { x: number; z: number };
+  /**
+   * Natočený pozemek (Martin 18. 10. 2026 – varianta a, fields.md – Natočené stavby): natočení
+   * celého pozemku kolem středu (rad, po 15°) – plot, záhony, cestička i dům. Bez údaje 0.
+   */
+  rotation?: number;
+}
+
+/** Osy natočeného pozemku (cos, sin), nebo null u pozemku v osách světa (i dvorce). */
+function plotAxes(square: PlotSquare): readonly [number, number] | null {
+  if (square.rotation === undefined || square.yard) return null;
+  if (rotationTurn(square.rotation) === 0) return null;
+  return rotationCosSin(square.rotation);
+}
+
+/** Bod v osách pozemku (kolem jeho středu) → svět – natočení jako rotation.y v Babylonu. */
+function plotToWorld(square: PlotSquare, axes: readonly [number, number], p: Point): Point {
+  const [c, s] = axes;
+  const dx = p[0] - square.x;
+  const dz = p[1] - square.z;
+  return [square.x + dx * c + dz * s, square.z - dx * s + dz * c];
+}
+
+/** Bod světa → osy pozemku (inverze `plotToWorld`). */
+function worldToPlot(square: PlotSquare, axes: readonly [number, number], p: Point): Point {
+  const [c, s] = axes;
+  const dx = p[0] - square.x;
+  const dz = p[1] - square.z;
+  return [square.x + dx * c - dz * s, square.z + dx * s + dz * c];
+}
+
+/** Pozemek v osách světa se stejným středem (pro rozmístění v osách pozemku). */
+function unturned(square: PlotSquare): PlotSquare {
+  return { x: square.x, z: square.z, size: square.size };
 }
 
 /** Obdélník ve světě (m). */
@@ -109,8 +145,16 @@ export interface PlotPlant {
 
 export interface HomesteadLayout {
   house: Position;
-  /** Obdélník plotu (osy kůlů na rovných stranách). */
+  /**
+   * Obdélník plotu (osy kůlů na rovných stranách) – u natočeného pozemku v osách pozemku (kolem
+   * jeho středu), ne ve světě.
+   */
   fenceRect: Rect;
+  /**
+   * Natočení pozemku (rad) – záhony leží podél osy x pozemku; ve světě je natočený i plot,
+   * cestička a rostliny. Pozemek v osách světa 0.
+   */
+  rotation: number;
   /**
    * Plot – jeden kus od kůlu branky dokola k druhému; u domu stojícího přes plot přerušený
    * (stěna domu je ohradou, s vchodem ven z pozemku i bez branky).
@@ -144,6 +188,12 @@ export function plotFenceRect(square: PlotSquare): Rect {
  * domu vchodem ke dvoru (`yardRotation`).
  */
 export function plotHouse(square: PlotSquare, variant: PlotVariant): Position {
+  const axes = plotAxes(square);
+  if (axes) {
+    const offset = PLOT_HOUSE_OFFSET_M[variant];
+    const [x, z] = plotToWorld(square, axes, [square.x + offset.x, square.z + offset.z]);
+    return { x, z, rotation: plotHouseRotation(square.rotation!) };
+  }
   if (square.yard) {
     const dx = square.yard.x - square.x;
     const dz = square.yard.z - square.z;
@@ -205,6 +255,8 @@ export function homesteadLayout(
   seed = 0,
   actualHouse?: Position,
 ): HomesteadLayout {
+  const axes = plotAxes(square);
+  if (axes) return turnedLayout(square, axes, variant, seed, actualHouse);
   const house = actualHouse ?? plotHouse(square, variant);
   const fenceRect = plotFenceRect(square);
   // dvorec vojvody (trade.md): větší dům, brána na vzdálené straně dvora
@@ -318,6 +370,7 @@ export function homesteadLayout(
   return {
     house,
     fenceRect,
+    rotation: 0,
     fence,
     beds,
     plants,
@@ -326,6 +379,57 @@ export function homesteadLayout(
       square.yard && gate
         ? { x: gate.at[0], z: gate.at[1], rotation: Math.atan2(gate.out[0], gate.out[1]) }
         : null,
+  };
+}
+
+/**
+ * Natočený pozemek: rozmístění v osách pozemku (jako by nebyl natočený, se stejným středem
+ * a seedem), pak se plot, záhony, rostliny, cestička a dům otočí kolem středu do světa.
+ */
+function turnedLayout(
+  square: PlotSquare,
+  axes: readonly [number, number],
+  variant: PlotVariant,
+  seed: number,
+  actualHouse?: Position,
+): HomesteadLayout {
+  const rotation = square.rotation!;
+  const local = unturned(square);
+  const houseLocal = actualHouse
+    ? (() => {
+        const [x, z] = worldToPlot(square, axes, [actualHouse.x, actualHouse.z]);
+        return { x, z, rotation: actualHouse.rotation - rotation };
+      })()
+    : undefined;
+  const layout = homesteadLayout(local, variant, seed, houseLocal);
+  const [c, s] = axes;
+  const point = (p: Point): Point => plotToWorld(square, axes, p);
+  const turn = (x: number, z: number): [number, number] => [x * c + z * s, -x * s + z * c];
+  const [hx, hz] = point([layout.house.x, layout.house.z]);
+  return {
+    house: actualHouse ?? { x: hx, z: hz, rotation: plotHouseRotation(rotation) },
+    fenceRect: layout.fenceRect,
+    rotation,
+    fence: {
+      runs: layout.fence.runs.map((run) => ({
+        closed: run.closed,
+        posts: run.posts.map((post) => {
+          const [x, z] = point([post.x, post.z]);
+          const [outX, outZ] = turn(post.outX, post.outZ);
+          return { ...post, x, z, outX, outZ };
+        }),
+      })),
+    },
+    beds: layout.beds.map((bed) => {
+      const [x, z] = point([bed.x, bed.z]);
+      return { ...bed, x, z };
+    }),
+    plants: layout.plants.map((plant) => {
+      const [x, z] = point([plant.x, plant.z]);
+      return { ...plant, x, z, rotationY: plant.rotationY + rotation };
+    }),
+    path: layout.path ? layout.path.map(point) : null,
+    gate: null,
   };
 }
 
@@ -405,10 +509,27 @@ function withoutPostsUnder(fence: WovenFence, house: Position): WovenFence {
   return { runs };
 }
 
-/** Bod uvnitř ohrazení pozemku (s okrajem `margin` od plotu, m)? */
+/** Bod uvnitř ohrazení pozemku (s okrajem `margin` od plotu, m)? I natočeného – v jeho osách. */
 export function insidePlot(square: PlotSquare, x: number, z: number, margin = 0): boolean {
-  const r = plotFenceRect(square);
-  return x > r.minX + margin && x < r.maxX - margin && z > r.minZ + margin && z < r.maxZ - margin;
+  const axes = plotAxes(square);
+  const [px, pz] = axes ? worldToPlot(square, axes, [x, z]) : [x, z];
+  const r = plotFenceRect(axes ? unturned(square) : square);
+  return (
+    px > r.minX + margin && px < r.maxX - margin && pz > r.minZ + margin && pz < r.maxZ - margin
+  );
+}
+
+/** Rohy obdélníku plotu ve světě (u natočeného pozemku natočené). */
+export function plotFenceCorners(square: PlotSquare): Point[] {
+  const axes = plotAxes(square);
+  const r = plotFenceRect(axes ? unturned(square) : square);
+  const corners: Point[] = [
+    [r.minX, r.minZ],
+    [r.maxX, r.minZ],
+    [r.maxX, r.maxZ],
+    [r.minX, r.maxZ],
+  ];
+  return axes ? corners.map((p) => plotToWorld(square, axes, p)) : corners;
 }
 
 /** Trs plevele (trávy) na zarostlém záhonu – pata na vršku záhonu `bed`. */
@@ -492,12 +613,6 @@ export function plotInward(variant: PlotVariant): { x: number; z: number } {
  * plotu – rohy vytyčení zakulacené být nemusí. Uzavřená čára (první bod i na konci).
  */
 export function plotStakingLine(square: PlotSquare): Point[] {
-  const r = plotFenceRect(square);
-  return [
-    [r.minX, r.minZ],
-    [r.maxX, r.minZ],
-    [r.maxX, r.maxZ],
-    [r.minX, r.maxZ],
-    [r.minX, r.minZ],
-  ];
+  const corners = plotFenceCorners(square);
+  return [...corners, corners[0]!];
 }

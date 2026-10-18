@@ -29,7 +29,10 @@ další rozhodnutí o místě v krajině – vedle obydlí a polí.
 ## Pravidla
 
 - **Stavba:** hráč pohřebiště zakládá **po čtvercích** jako pole – políčka krajiny 15 × 15 m
-  (návrh Clauda, Martin potvrdil). Nesmí ležet ve vodě ani na obydlí. **Na pole smí**
+  (návrh Clauda, Martin potvrdil). Hřbitov zatím leží v mřížce krajiny – natáčení plošných staveb
+  (Martin, 18. 10. 2026) má napřed pole a sad ([fields.md](fields.md), Natočené stavby); proti
+  natočeným polím, sadům a pozemkům se překryvy počítají ze skutečných ploch (pole pod hřbitovem
+  ve vlastní mřížce přijde o průnik). Nesmí ležet ve vodě ani na obydlí. **Na pole smí**
   (Martin, 18. 10. 2026 – [fields.md](fields.md), Pole jako krajina): čtverec pole pod hřbitovem
   z pole zmizí, překážky dílu hřbitov neplatí; u kurzoru oranžově „Pole se zmenší“. Založení stojí
   práci jako stavba ze společné práce vsi: vytyčení a ohrazení **10 člověkodní na čtverec**

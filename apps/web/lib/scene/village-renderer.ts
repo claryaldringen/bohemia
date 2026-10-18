@@ -10,6 +10,7 @@ import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import type { Scene } from '@babylonjs/core/scene';
 import {
   DWELLING_FOOTPRINT_M,
+  rotationCosSin,
   type DwellingType,
   type Landscape,
   type ObstacleLayer,
@@ -1621,12 +1622,16 @@ function trampledArea(d: SceneDwelling): Point[] {
   if (d.plot) {
     const h = d.plot.size / 2 - inset;
     const { x, z } = d.plot;
-    return [
-      [x - h, z - h],
-      [x + h, z - h],
-      [x + h, z + h],
-      [x - h, z + h],
-    ];
+    // natočený pozemek (fields.md – Natočené stavby) – rohy v jeho osách
+    const [c, s] = d.plot.rotation !== undefined ? rotationCosSin(d.plot.rotation) : [1, 0];
+    return (
+      [
+        [-h, -h],
+        [h, -h],
+        [h, h],
+        [-h, h],
+      ] as const
+    ).map(([lx, lz]): Point => [x + lx * c + lz * s, z - lx * s + lz * c]);
   }
   const c = DWELLING_CLEARANCE_M[d.type];
   // hrnčíř a kovář: ušlapáno i pod přístřeškem před domem

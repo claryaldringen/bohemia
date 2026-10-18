@@ -1,15 +1,20 @@
 // Čistá geometrie polí po čtvercích (bez Babylonu): výběr čtverců při malování pole, obrys
 // sjednocení čtverců (mez), měkký okraj pole a směr řádků. Čtverec = políčko krajiny,
-// souřadnice světa scény v metrech (x, z), políčko (x, y) jako v herním jádru.
-import type { TileCell } from '@bohemia/game';
+// souřadnice světa scény v metrech (x, z), políčko (x, y) jako v herním jádru. Čtverce natočené
+// stavby (fields.md – Natočené stavby) mají natočení `rotation` a `cell` v mřížce stavby –
+// výpočty běží v „rovném prostoru“ mřížky (natočení kolem prvního čtverce zpět), u nenatočených
+// čtverců je to svět beze změny.
+import { rotationCosSin, rotationTurn, type SquareGrid, type TileCell } from '@bohemia/game';
 import type { Bounds, DecalGrid, Point } from './village-layout';
 
-/** Čtverec pole ve scéně – políčko, jeho střed ve světě a strana (m). */
+/** Čtverec pole ve scéně – políčko, jeho střed ve světě, strana (m) a natočení (rad). */
 export interface CellSquare {
   cell: TileCell;
   x: number;
   z: number;
   size: number;
+  /** Natočení čtverce natočené stavby (rad, po 15°); bez údaje 0 – políčko krajiny. */
+  rotation?: number;
 }
 
 /** Jak tah myší mění výběr: přidá čtverce, nebo je ubere. */
@@ -102,25 +107,140 @@ function sameKeys(a: Map<string, unknown>, b: Map<string, unknown>): boolean {
   return true;
 }
 
-/** Převod políček na světové souřadnice podle jednoho známého čtverce (mřížka je pravidelná). */
-interface GridFrame {
-  /** Střed políčka (x, y) ve světě. */
+/**
+ * Převod čtverců mřížky na souřadnice podle jednoho známého čtverce (mřížka je pravidelná). Počítá
+ * se v „rovném prostoru“ mřížky: u natočené mřížky je to svět otočený kolem známého čtverce zpět
+ * (`toSpace` / `toWorld`), u nenatočené svět sám.
+ */
+export interface GridFrame {
+  /** Střed čtverce (x, y) v rovném prostoru. */
   center(x: number, y: number): Point;
-  /** Políčko pod bodem světa. */
-  cellAt(wx: number, wz: number): TileCell;
+  /** Čtverec pod bodem rovného prostoru. */
+  cellAt(u: number, v: number): TileCell;
+  /** Bod světa → rovný prostor. */
+  toSpace(x: number, z: number): Point;
+  /** Bod rovného prostoru → svět. */
+  toWorld(u: number, v: number): Point;
+  /** Jednotkové směry os mřížky ve světě (osa x čtverců, osa y čtverců). */
+  axes: [Point, Point];
+  rotated: boolean;
   size: number;
 }
 
-function gridFrame(reference: CellSquare): GridFrame {
+/**
+ * Mřížka stavby po čtvercích (pole, sad), ve které leží bod (x, z) – `grid` stavby; undefined =
+ * stavba v mřížce krajiny, null = bod neleží na žádné (malování se chytí mřížky stavby pod
+ * kurzorem – fields.md, Natočené stavby).
+ */
+export function structureGridAt(
+  structures: readonly { grid?: SquareGrid; squares: readonly CellSquare[] }[],
+  x: number,
+  z: number,
+): SquareGrid | undefined | null {
+  for (const s of structures) {
+    if (s.squares.some((square) => squareContains(square, x, z))) return s.grid;
+  }
+  return null;
+}
+
+/** Je čtverec natočený (ne v mřížce krajiny)? */
+export function isRotatedSquare(square: { rotation?: number }): boolean {
+  if (square.rotation === undefined) return false;
+  const turn = rotationTurn(square.rotation);
+  return turn === null || turn % 24 !== 0;
+}
+
+export function gridFrame(reference: CellSquare): GridFrame {
   const { cell, x: rx, z: rz, size } = reference;
+  const center = (x: number, y: number): Point => [
+    rx + (x - cell.x) * size,
+    rz + (y - cell.y) * size,
+  ];
+  const cellAt = (u: number, v: number): TileCell => ({
+    x: cell.x + Math.round((u - rx) / size),
+    y: cell.y + Math.round((v - rz) / size),
+  });
+  if (!isRotatedSquare(reference)) {
+    return {
+      size,
+      center,
+      cellAt,
+      toSpace: (x, z) => [x, z],
+      toWorld: (u, v) => [u, v],
+      axes: [
+        [1, 0],
+        [0, 1],
+      ],
+      rotated: false,
+    };
+  }
+  // místní (lx, lz) → svět (rx + lx·c + lz·s, rz − lx·s + lz·c) jako rotation.y v Babylonu
+  const [c, s] = rotationCosSin(reference.rotation!);
   return {
     size,
-    center: (x, y) => [rx + (x - cell.x) * size, rz + (y - cell.y) * size],
-    cellAt: (wx, wz) => ({
-      x: cell.x + Math.round((wx - rx) / size),
-      y: cell.y + Math.round((wz - rz) / size),
-    }),
+    center,
+    cellAt,
+    toSpace: (x, z) => {
+      const dx = x - rx;
+      const dz = z - rz;
+      return [rx + dx * c - dz * s, rz + dx * s + dz * c];
+    },
+    toWorld: (u, v) => {
+      const lx = u - rx;
+      const lz = v - rz;
+      return [rx + lx * c + lz * s, rz - lx * s + lz * c];
+    },
+    axes: [
+      [c, -s],
+      [s, c],
+    ],
+    rotated: true,
   };
+}
+
+/** Leží čtverec `square` ve stejné mřížce jako rámec (natočení a střed sedí na čtverec)? */
+export function inFrame(frame: GridFrame, reference: CellSquare, square: CellSquare): boolean {
+  if (isRotatedSquare(square) !== frame.rotated) return false;
+  if (frame.rotated && rotationTurn(square.rotation!) !== rotationTurn(reference.rotation!)) {
+    return false;
+  }
+  const [u, v] = frame.toSpace(square.x, square.z);
+  const [cu, cv] = frame.center(square.cell.x, square.cell.y);
+  return Math.abs(u - cu) < 1e-3 && Math.abs(v - cv) < 1e-3;
+}
+
+/** Rohy čtverce ve světě (místní −−, +−, ++, −+ – jako rohy políčka). */
+export function squareCornersOf(square: CellSquare): Point[] {
+  const h = square.size / 2;
+  if (!isRotatedSquare(square)) {
+    return [
+      [square.x - h, square.z - h],
+      [square.x + h, square.z - h],
+      [square.x + h, square.z + h],
+      [square.x - h, square.z + h],
+    ];
+  }
+  const [c, s] = rotationCosSin(square.rotation!);
+  return (
+    [
+      [-h, -h],
+      [h, -h],
+      [h, h],
+      [-h, h],
+    ] as const
+  ).map(([lx, lz]): Point => [square.x + lx * c + lz * s, square.z - lx * s + lz * c]);
+}
+
+/** Leží bod ve čtverci (nebo do `marginM` od jeho stran – v osách čtverce)? */
+export function squareContains(square: CellSquare, x: number, z: number, marginM = 0): boolean {
+  const h = square.size / 2 + marginM;
+  if (!isRotatedSquare(square)) {
+    return Math.abs(x - square.x) <= h && Math.abs(z - square.z) <= h;
+  }
+  const [c, s] = rotationCosSin(square.rotation!);
+  const dx = x - square.x;
+  const dz = z - square.z;
+  return Math.abs(dx * c - dz * s) <= h && Math.abs(dx * s + dz * c) <= h;
 }
 
 /**
@@ -150,7 +270,7 @@ export function cellsBoundary(squares: readonly CellSquare[]): Point[][] {
   const half = frame.size / 2;
   const corner = (x: number, y: number): Point => {
     const [cx, cz] = frame.center(x, y);
-    return [cx - half, cz - half];
+    return frame.toWorld(cx - half, cz - half);
   };
   const segments: Point[][] = [];
   const runs = (
@@ -192,7 +312,8 @@ export function cellsCoverage(
   const frame = gridFrame(first);
   const inside = new Set(squares.map((s) => key(s.cell.x, s.cell.y)));
   const half = frame.size / 2;
-  return (x, z) => {
+  return (wx, wz) => {
+    const [x, z] = frame.toSpace(wx, wz);
     const cell = frame.cellAt(x, z);
     if (!inside.has(key(cell.x, cell.y))) return 0;
     let distance = softM;
@@ -218,8 +339,13 @@ export function touchingSquares<T extends CellSquare>(
   own: readonly CellSquare[],
   others: readonly T[],
 ): T[] {
+  const first = own[0];
+  if (!first) return [];
+  const frame = gridFrame(first);
   const mine = new Set(own.map((s) => key(s.cell.x, s.cell.y)));
   return others.filter((o) => {
+    // sousedství po čtvercích jen ve stejné mřížce (natočené stavby – fields.md)
+    if (!inFrame(frame, first, o)) return false;
     if (mine.has(key(o.cell.x, o.cell.y))) return false;
     for (let dy = -1; dy <= 1; dy++) {
       for (let dx = -1; dx <= 1; dx++) {
@@ -234,7 +360,13 @@ export function touchingSquares<T extends CellSquare>(
 export function cellsBounds(squares: readonly CellSquare[], marginM = 0): Bounds {
   const bounds = { minX: Infinity, maxX: -Infinity, minZ: Infinity, maxZ: -Infinity };
   for (const s of squares) {
-    const half = s.size / 2 + marginM;
+    // natočený čtverec zabírá v osách světa víc (|cos| + |sin| násobek)
+    let spread = 1;
+    if (isRotatedSquare(s)) {
+      const [c, sn] = rotationCosSin(s.rotation!);
+      spread = Math.abs(c) + Math.abs(sn);
+    }
+    const half = (s.size / 2) * spread + marginM;
     bounds.minX = Math.min(bounds.minX, s.x - half);
     bounds.maxX = Math.max(bounds.maxX, s.x + half);
     bounds.minZ = Math.min(bounds.minZ, s.z - half);
@@ -253,7 +385,8 @@ export function cellsContain(
   const frame = gridFrame(first);
   const inside = new Set(squares.map((s) => key(s.cell.x, s.cell.y)));
   const half = frame.size / 2 + marginM;
-  return (x, z) => {
+  return (wx, wz) => {
+    const [x, z] = frame.toSpace(wx, wz);
     const cell = frame.cellAt(x, z);
     for (let dy = -1; dy <= 1; dy++) {
       for (let dx = -1; dx <= 1; dx++) {
@@ -266,11 +399,40 @@ export function cellsContain(
   };
 }
 
-/** Směr řádků obilí a brázd – podél delší strany pole (jednotkový vektor). */
+/**
+ * Leží bod v některém ze čtverců z různých staveb (každá ve své mřížce – fields.md, Natočené
+ * stavby)? Čtverce se rozdělí po mřížkách a v každé se hledá jako `cellsContain`.
+ */
+export function squaresContain(
+  squares: readonly CellSquare[],
+  marginM = 0,
+): (x: number, z: number) => boolean {
+  const groups: { frame: GridFrame; reference: CellSquare; squares: CellSquare[] }[] = [];
+  for (const square of squares) {
+    const group = groups.find((g) => inFrame(g.frame, g.reference, square));
+    if (group) group.squares.push(square);
+    else groups.push({ frame: gridFrame(square), reference: square, squares: [square] });
+  }
+  const tests = groups.map((g) => cellsContain(g.squares, marginM));
+  if (tests.length === 1) return tests[0]!;
+  return (x, z) => tests.some((test) => test(x, z));
+}
+
+/**
+ * Směr řádků obilí a brázd – podél delší strany pole (jednotkový vektor); u natočeného pole podél
+ * os jeho mřížky.
+ */
 export function rowDirection(squares: readonly CellSquare[]): Point {
-  if (squares.length === 0) return [1, 0];
-  const b = cellsBounds(squares);
-  return b.maxX - b.minX >= b.maxZ - b.minZ ? [1, 0] : [0, 1];
+  const first = squares[0];
+  if (!first) return [1, 0];
+  if (!isRotatedSquare(first)) {
+    const b = cellsBounds(squares);
+    return b.maxX - b.minX >= b.maxZ - b.minZ ? [1, 0] : [0, 1];
+  }
+  const xs = squares.map((s) => s.cell.x);
+  const ys = squares.map((s) => s.cell.y);
+  const [alongX, alongY] = gridFrame(first).axes;
+  return Math.max(...xs) - Math.min(...xs) >= Math.max(...ys) - Math.min(...ys) ? alongX : alongY;
 }
 
 /**

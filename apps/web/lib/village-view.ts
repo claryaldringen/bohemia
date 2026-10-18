@@ -37,6 +37,7 @@ import {
   structureCondition,
   squareBearing,
   summarizeVillage,
+  squareCenter,
   tileCenterWorld,
   villageStock,
   wholeLogs,
@@ -84,6 +85,7 @@ import {
   type RoadUpgrade,
   type RoadUpgradeOption,
   type SacredBuildingKind,
+  type SquareGrid,
   type StockResource,
   type TileCell,
   type VillageLifespan,
@@ -501,19 +503,34 @@ export interface VillageOrchard {
   plantingWaits: boolean;
 }
 
-/** Pozemek obydlí ve scéně – políčko se středem a stranou jako čtverec pole a varianta. */
+/**
+ * Pozemek obydlí ve scéně – políčko se středem a stranou jako čtverec pole a varianta. Natočený
+ * pozemek (fields.md – Natočené stavby) má střed čtverce a natočení `rotation` (rad, po 15°) –
+ * celý pozemek i s plotem, záhony a brankou je otočený; `cell` je pak políčko pod středem.
+ */
 export interface ScenePlot {
   cell: TileCell;
   x: number;
   z: number;
   size: number;
   variant: PlotVariant;
+  rotation?: number;
   /** Dvůr dvorce vojvody (trade.md) – druhé políčko pozemku a jeho střed; jinak chybí. */
   yard?: { cell: TileCell; x: number; z: number };
 }
 
 /** Pozemek obydlí ze stavu vsi pro scénu (střed políčka ve světě, u dvorce i dvůr). */
 export function scenePlot(landscape: Landscape, plot: DwellingPlot): ScenePlot {
+  if (plot.square && !plot.yard) {
+    return {
+      cell: { x: plot.cell.x, y: plot.cell.y },
+      x: plot.square.x,
+      z: plot.square.z,
+      size: landscape.cellSizeM,
+      variant: plot.variant,
+      rotation: plot.square.rotation,
+    };
+  }
   const center = tileCenterWorld(landscape, plot.cell.x, plot.cell.y);
   const yard = plot.yard ? tileCenterWorld(landscape, plot.yard.x, plot.yard.y) : null;
   return {
@@ -595,6 +612,11 @@ export interface SceneVillage {
    */
   fields: {
     id: number;
+    /**
+     * Natočená mřížka pole (fields.md – Natočené stavby) – díly nesou střed a natočení, malování
+     * rozšíření jde v ní. Bez údaje mřížka krajiny.
+     */
+    grid?: SquareGrid;
     parts: SceneFieldPart[];
   }[];
   /**
@@ -623,11 +645,15 @@ export interface SceneVillage {
    */
   orchards?: {
     id: number;
+    /** Natočená mřížka sadu (fields.md – Natočené stavby); bez údaje mřížka krajiny. */
+    grid?: SquareGrid;
     squares: {
       cell: TileCell;
       x: number;
       z: number;
       size: number;
+      /** Natočení čtverce natočeného sadu (rad); bez údaje 0. */
+      rotation?: number;
       planting: number;
       growth: number;
       fruit: boolean;
@@ -721,6 +747,9 @@ export interface SceneWood {
   x: number;
   z: number;
   size: number;
+  /** Les z natočeného pole (fields.md – Natočené stavby) – mřížka pole a natočení čtverce. */
+  grid?: SquareGrid;
+  rotation?: number;
   surface: FieldSurface;
   /** Stáří lesa v celých letech – stromy rostou do 70 let (VILLAGE_WOOD). */
   age: number;
@@ -888,6 +917,11 @@ export interface SceneFieldPart {
   x: number;
   z: number;
   size: number;
+  /**
+   * Natočení čtverce natočeného pole (rad, po 15° – fields.md, Natočené stavby); `cell` je pak
+   * čtverec v mřížce pole. Bez údaje 0 – díl je políčko krajiny.
+   */
+  rotation?: number;
   stage: PartStage;
   /** Co je na dílu vidět; u rozpracovaného dílu vzhled hotové části. */
   look?: FieldLook;
@@ -1191,13 +1225,14 @@ function sceneVillage(
   const grazed = state.livestock ? pastureGrazedParts(state, day) : null;
   const fields = state.fields.map((f) => ({
     id: f.id,
+    ...(f.grid ? { grid: f.grid } : {}),
     // vzhled po čtvercích z jádra (fieldPartLooks); bez něj (starší příloh) odhad scény
     parts: state.parts.flatMap((p): SceneFieldPart[] => {
       if (p.fieldId !== f.id || p.cell === undefined) return [];
       const years = p.state === 'fallow' ? partOvergrowthYears(p) : 0;
       return [
         {
-          ...scenePart(landscape, p, p.cell, partStage(p, day)),
+          ...scenePart(landscape, p, p.cell, partStage(p, day), f.grid),
           ...looks.get(p.id),
           ...(p.state === 'sown' && p.crop === 'legume' ? { crop: 'legume' as const } : {}),
           ...(years > 0 ? { overgrowth: years } : {}),
@@ -1223,7 +1258,10 @@ function sceneVillage(
   }));
   const orchards = villageOrchards(state).map((o) => ({
     id: o.id,
-    squares: o.squares.map((s) => sceneOrchardSquare(landscape, s, day, state.orchardWork ?? null)),
+    ...(o.grid ? { grid: o.grid } : {}),
+    squares: o.squares.map((s) =>
+      sceneOrchardSquare(landscape, s, day, state.orchardWork ?? null, o.grid),
+    ),
   }));
   const reserved = [...reservedTrees(state)].sort((a, b) => a - b);
   const labor = sceneLabor(state, { ...summary.people, ...summary.family });
@@ -1336,12 +1374,14 @@ export function sceneWoods(
   day: number,
 ): SceneWood[] {
   return villageWoods(state).map((w) => {
-    const center = tileCenterWorld(landscape, w.cell.x, w.cell.y);
+    // les z natočeného pole stojí v jeho mřížce (fields.md – Natočené stavby)
+    const center = squareCenter(landscape, w.grid, w.cell);
     return {
       cell: { x: w.cell.x, y: w.cell.y },
       x: center.x,
       z: center.z,
       size: landscape.cellSizeM,
+      ...(w.grid ? { grid: w.grid, rotation: w.grid.rotation } : {}),
       surface: w.surface,
       age: Math.floor(woodAgeYears(w, day)),
     };
@@ -1734,8 +1774,9 @@ function sceneOrchardSquare(
   square: OrchardSquare,
   day: number,
   work: OrchardWork | null,
+  grid?: SquareGrid,
 ): NonNullable<SceneVillage['orchards']>[number]['squares'][number] {
-  const center = tileCenterWorld(landscape, square.cell.x, square.cell.y);
+  const center = squareCenter(landscape, grid, square.cell);
   const planted = square.plantedDay;
   const planting =
     planted !== null ? 1 : square.plantingCost > 0 ? square.plantingDone / square.plantingCost : 0;
@@ -1755,6 +1796,7 @@ function sceneOrchardSquare(
     x: center.x,
     z: center.z,
     size: landscape.cellSizeM,
+    ...(grid ? { rotation: grid.rotation } : {}),
     planting,
     growth,
     fruit,
@@ -1790,14 +1832,17 @@ function scenePart(
   part: { id: number; foundingDone: number; foundingCost: number },
   cell: TileCell,
   stage: PartStage,
+  grid?: SquareGrid,
 ): SceneFieldPart {
-  const center = tileCenterWorld(landscape, cell.x, cell.y);
+  // natočené pole (fields.md – Natočené stavby): střed čtverce v mřížce pole a natočení
+  const center = squareCenter(landscape, grid, cell);
   const scene: SceneFieldPart = {
     id: part.id,
     cell: { x: cell.x, y: cell.y },
     x: center.x,
     z: center.z,
     size: landscape.cellSizeM,
+    ...(grid ? { rotation: grid.rotation } : {}),
     stage,
   };
   if (stage === 'founding') {
@@ -2108,6 +2153,18 @@ function penViews(state: VillageState, day: number, summary: VillageSummary): Vi
   });
 }
 
+/** Pozemek ze scény pro kontrolu umístění – i natočený (střed a natočení čtverce). */
+function plotOfScene(plot: ScenePlot): DwellingPlot {
+  return {
+    cell: plot.cell,
+    variant: plot.variant,
+    ...(plot.yard ? { yard: plot.yard.cell } : {}),
+    ...(plot.rotation !== undefined && !plot.yard
+      ? { square: { x: plot.x, z: plot.z, rotation: plot.rotation } }
+      : {}),
+  };
+}
+
 /**
  * Data pro kontrolu umístění v prohlížeči (`checkDwellingPlacement`, `fieldPartsFromCells`,
  * `cemeteryPartsFromCells`, `orchardPartsFromCells`) ze scény vsi – hotová i rozestavěná obydlí
@@ -2119,24 +2176,36 @@ export function placementVillageFromScene(scene: SceneVillage): PlacementVillage
     dwellings: scene.dwellings.map((d) => ({
       type: d.type,
       position: d.position,
-      ...(d.plot ? { plot: { cell: d.plot.cell, variant: d.plot.variant } } : {}),
+      ...(d.plot ? { plot: plotOfScene(d.plot) } : {}),
       ...(d.craft ? { workshop: { craft: d.craft } } : {}),
     })),
     constructions: [],
+    // natočená pole (fields.md – Natočené stavby) – díly jsou čtverce v jejich mřížce
+    fields: scene.fields.map((f) => ({ id: f.id, ...(f.grid ? { grid: f.grid } : {}) })),
     // pole a plocha dílu (políčko) pro navazující pole – rozšíření a sloučení (fields.md)
     parts: scene.fields.flatMap((f) =>
-      f.parts.map((p) => ({ cell: p.cell, fieldId: f.id, areaM2: p.size * p.size })),
+      f.parts.map((p) => ({
+        ...(p.id !== undefined ? { id: p.id } : {}),
+        cell: p.cell,
+        fieldId: f.id,
+        areaM2: p.size * p.size,
+      })),
     ),
     cemeteries: (scene.cemeteries ?? []).map((c) => ({
       squares: c.squares.map((s) => ({ cell: s.cell })),
     })),
     // plocha čtverce (políčko) pro varování, že sad stavbou obydlí zanikne
     orchards: (scene.orchards ?? []).map((o) => ({
+      ...(o.grid ? { grid: o.grid } : {}),
       squares: o.squares.map((s) => ({ cell: s.cell, areaM2: s.size * s.size })),
     })),
     pens: (scene.pens ?? []).map((pen) => ({ cell: pen.cell })),
     // les vsi – pole ho vymýtí jako les, ostatní stavby na něj nesmí (fields.md – Les vsi)
-    ...(scene.woods ? { woods: scene.woods.map((w) => ({ cell: w.cell })) } : {}),
+    ...(scene.woods
+      ? {
+          woods: scene.woods.map((w) => ({ cell: w.cell, ...(w.grid ? { grid: w.grid } : {}) })),
+        }
+      : {}),
     ...(scene.obstacles ? { obstacleChanges: scene.obstacles } : {}),
     ...(scene.reservedTrees ? { reservedTrees: scene.reservedTrees } : {}),
     ...(scene.sacred

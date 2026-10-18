@@ -9,6 +9,7 @@ import {
   type TileCell,
 } from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
+import { isRotatedSquare, squareContains } from './field-cells';
 
 // Vymýcený les ve scéně a na minimapě (fields.md – Krajina sídla a scéna, forest.md – Les
 // ustupuje): kde ves les vykácela nebo ho vymýtila pro pole, scéna tam les přestane kreslit –
@@ -108,7 +109,24 @@ export function villageClearedForest(
   village: Pick<SceneVillage, 'fields' | 'obstacles'>,
 ): ClearedForest {
   const squares = village.fields.flatMap((field) =>
-    field.parts.flatMap((part) => (part.stage === 'founding' ? [] : [part.cell])),
+    field.parts.flatMap((part) => {
+      if (part.stage === 'founding') return [];
+      if (!isRotatedSquare(part)) return [part.cell];
+      // natočený díl (fields.md – Natočené stavby): políčka, jejichž střed na dílu leží
+      const half = (l.size * l.cellSizeM) / 2;
+      const reach = Math.ceil(part.size / l.cellSizeM);
+      const tx = Math.floor((part.x + half) / l.cellSizeM);
+      const ty = Math.floor((part.z + half) / l.cellSizeM);
+      const cells: TileCell[] = [];
+      for (let y = ty - reach; y <= ty + reach; y++) {
+        for (let x = tx - reach; x <= tx + reach; x++) {
+          const cx = -half + (x + 0.5) * l.cellSizeM;
+          const cz = -half + (y + 0.5) * l.cellSizeM;
+          if (squareContains(part, cx, cz)) cells.push({ x, y });
+        }
+      }
+      return cells;
+    }),
   );
   return clearedForest(l, layer, village.obstacles ?? NO_OBSTACLE_CHANGES, squares);
 }
