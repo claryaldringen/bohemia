@@ -11,13 +11,20 @@ import { Matrix, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { CreateGround } from '@babylonjs/core/Meshes/Builders/groundBuilder';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { Scene } from '@babylonjs/core/scene';
-import { SHOWCASE_BUILDINGS, SHOWCASE_GROUNDS, showcaseGrounds } from './building-showcase-layout';
-import { SUN_DIRECTION } from './constants';
+import {
+  SHOWCASE_BUILDINGS,
+  SHOWCASE_GROUNDS,
+  showcaseGrounds,
+  showcasePloughField,
+} from './building-showcase-layout';
+import { SUN_DIRECTION, WATER_FPS } from './constants';
 import { createEngine, type RendererName } from './create-engine';
 import { GARDEN_MODEL_URL, eaveTufts, gardenInstance, type TuftModel } from './dwelling-decor';
 import { applyGammaFog } from './gamma-fog';
 import { addInstancedModel, loadMergedModel, loadModelParts } from './instanced-model';
 import { PitCuts, applyPitCut } from './pit-cut';
+import { ploughPath } from './plough-team';
+import { PloughTeams } from './plough-team-renderer';
 import { ShowcaseSites } from './showcase-sites';
 import { addSunShadows, type SunShadows } from './sun-shadows';
 import { CONSTRUCTION_BASE } from './village-construction';
@@ -46,8 +53,10 @@ const CONSTRUCTION_URLS = [
  * VÝVOJOVÝ NÁHLED – jen pro /dev/buildings: stavby vedle sebe na rovné louce se světlem hry
  * (slunce, obloha, opar a kontrast jako LandscapeScene), jámy, trsy trávy u okapu a zahrádka
  * polozemnice jako ve vsi, stíny od slunce. Za stavbami pole, hřbitov a sad – kreslí je herní
- * `VillageRenderer` podle `showcaseGrounds`. Kamera se otáčí levým tlačítkem, posouvá pravým,
- * kolečko přibližuje. Kreslí se jen při změně pohledu.
+ * `VillageRenderer` podle `showcaseGrounds` – a stranou orá spřežení volů s rádlem
+ * (`PloughTeams`). Kamera se otáčí levým tlačítkem, posouvá pravým, kolečko přibližuje.
+ * Kreslí se jen při změně pohledu – výjimka je spřežení v záběru (WATER_FPS jako voda,
+ * při omezeném pohybu stojí).
  */
 export class BuildingShowcase {
   private readonly resizeObserver: ResizeObserver;
@@ -65,6 +74,18 @@ export class BuildingShowcase {
   /** Hotové modely a trsy trávy – při stavbě skryté. */
   private readonly finished: Mesh[] = [];
   private readonly tufts: Mesh[] = [];
+  /** Spřežení volů s rádlem (ukázka „Orání“). */
+  private teams: PloughTeams | null = null;
+  /** Poslední snímek animace spřežení (ms) – nejvýš WATER_FPS za sekundu. */
+  private lastAnimation = 0;
+  /** Při omezeném pohybu stojí – stačí ho jednou postavit. */
+  private frozenWritten = false;
+  /** Kamera jede za spřežením. */
+  private following = false;
+  private readonly reducedMotion =
+    typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      ? window.matchMedia('(prefers-reduced-motion: reduce)')
+      : null;
 
   private constructor(
     private readonly engine: AbstractEngine,
@@ -154,12 +175,27 @@ export class BuildingShowcase {
     this.camera.beta = GAME_BETA;
   }
 
+  /** Kamera na spřežení (střed mezi jhem a rádlem); `radius` = vzdálenost kamery (m). */
+  focusTeam(radius = 16): void {
+    const center = this.teams?.center();
+    if (!center) return;
+    this.setView({ x: center.x, z: center.z, radius });
+  }
+
+  /** Kamera jede za spřežením (zapnuto / vypnuto); vrátí nový stav. */
+  followTeam(on: boolean): boolean {
+    this.following = on && this.teams !== null;
+    if (this.following) this.focusTeam(this.camera.radius > 60 ? 24 : this.camera.radius);
+    return this.following;
+  }
+
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
     this.resizeObserver.disconnect();
     this.sites?.dispose();
     this.grounds?.dispose();
+    this.teams?.dispose();
     this.camera.detachControl();
     this.engine.stopRenderLoop();
     this.scene.dispose();
@@ -294,6 +330,13 @@ export class BuildingShowcase {
       sunDirection: SUN_DIRECTION,
     });
     this.grounds.update(showcaseGrounds(this.progress).village);
+    this.teams = new PloughTeams(scene, {
+      baseUrl: '/models/plough/',
+      groundHeight: () => 0,
+      prepareMaterial: prepareModelMaterial,
+      onLoaded: () => this.burst(600),
+    });
+    this.teams.setPaths([ploughPath(showcasePloughField())]);
     this.shadows = addSunShadows(sun, { casters, receivers: [ground], extentM: GROUND_SIZE.width });
     this.applyProgress();
     await scene.whenReadyAsync();
@@ -314,14 +357,40 @@ export class BuildingShowcase {
     this.burst(400);
   }
 
-  /** Kreslí jen při změně pohledu (a chvíli po načtení, než se dokončí shadery a textury). */
+  /**
+   * Kreslí jen při změně pohledu (a chvíli po načtení, než se dokončí shadery a textury) –
+   * výjimka je spřežení v záběru: hýbe se samo, nejvýš WATER_FPS snímků za sekundu.
+   */
   private frame(): void {
+    const now = performance.now();
+    let animated = false;
+    if (this.teams) {
+      if (this.reducedMotion?.matches) {
+        // omezený pohyb: spřežení stojí uprostřed první řady
+        if (!this.frozenWritten && this.teams.animate(0, null, true)) {
+          this.frozenWritten = true;
+          animated = true;
+        }
+      } else if (now - this.lastAnimation >= 1000 / WATER_FPS) {
+        this.frozenWritten = false;
+        // skutečný čas (epoch ms) jako zvířata – stejný okamžik = stejná póza
+        const camera = this.following ? null : this.camera;
+        if (this.teams.animate(Date.now(), camera)) {
+          this.lastAnimation = now;
+          animated = true;
+        }
+      }
+      if (this.following) {
+        const center = this.teams.center();
+        if (center) this.camera.target.set(center.x, 0, center.z);
+      }
+    }
     this.camera.update();
     const view = this.camera.getViewMatrix(true);
     const changed = !this.hasView || !view.equals(this.lastView);
     this.lastView.copyFrom(view);
     this.hasView = true;
-    if (!changed && performance.now() > this.burstUntil) return;
+    if (!changed && !animated && now > this.burstUntil) return;
     this.scene.render(false);
   }
 

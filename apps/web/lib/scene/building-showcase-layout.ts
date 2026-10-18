@@ -1,10 +1,12 @@
 // Rozestavění staveb na vývojové stránce /dev/buildings – bez Babylonu (smí i do stránky).
 // Jen pro prohlídku modelů: řemesla zatím nemají herní pravidla ani místo ve hře. Za řadou
-// staveb pole, hřbitov a sad po čtvercích – jejich fáze podle průběhu stavby (showcaseGrounds).
+// staveb pole, hřbitov a sad po čtvercích – jejich fáze podle průběhu stavby (showcaseGrounds)
+// – a stranou čtverec, který orá spřežení volů s rádlem (ukázka „Orání“, plough-team.ts).
 import { CEMETERY, type TileCell } from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
 import { CEMETERY_PHASES } from './cemetery-layout';
 import { TREE_GROWTH_YEARS, treeGrowth } from './orchard-layout';
+import type { PloughField } from './plough-team';
 import type { ConstructionKind } from './village-construction';
 
 /**
@@ -84,7 +86,7 @@ const SQUARE_M = 15;
 /** Roh čtverce (0, 0) – za řadou staveb, aby pole, hřbitov a sad nic nezakrývaly. */
 const GROUND_ORIGIN = { x: -55, z: 18 };
 
-export type ShowcaseGroundId = 'field' | 'cemetery' | 'orchard';
+export type ShowcaseGroundId = 'field' | 'cemetery' | 'orchard' | 'plowing';
 
 export interface ShowcaseGround {
   id: ShowcaseGroundId;
@@ -127,7 +129,21 @@ export const SHOWCASE_GROUNDS: readonly ShowcaseGround[] = [
   ground('field', 'Pole', 0, 0, 3, 2),
   ground('cemetery', 'Hřbitov', 4, 0, 2, 1),
   ground('orchard', 'Sad', 7, 0, 2, 2),
+  // ob čtverec od sadu – spřežení se na souvratích otáčí za okrajem pole
+  ground('plowing', 'Orání', 11, 0, 1, 1),
 ];
+
+/**
+ * Čtverec, který orá spřežení: řady napříč obrazovkou (podél x – z výchozí kamery je spřežení
+ * vidět z boku), čtyři řady tam a zpět.
+ */
+export function showcasePloughField(): PloughField {
+  const square = SHOWCASE_GROUNDS.find((g) => g.id === 'plowing')!.squares[0]!;
+  return { x: square.x, z: square.z, size: square.size, dirX: 1, dirZ: 0, rows: 4 };
+}
+
+/** Popisek ukázky orby v liště (průběh stavby ji neovlivní – orá se pořád). */
+export const PLOWING_LABEL = 'spřežení volů s rádlem orá tam a zpět (ve hře zatím ne)';
 
 /** Fáze stavby po čtvercích pro lištu (průběh 0–1, navazují na sebe). */
 export interface ShowcasePhase {
@@ -236,10 +252,16 @@ export function showcaseGrounds(progress: number): {
       ? `${growing.label} – ${Math.min(TREE_GROWTH_YEARS, Math.floor(age) + 1)}. rok`
       : orchardPhase.label;
 
+  // orané pole: připravené brázdy (vzhled pole po rozrytí), stále – nezávisí na průběhu
+  const plowing = of('plowing').squares.map((square) => ({ ...square, stage: 'ready' as const }));
+
   return {
     village: {
       dwellings: [],
-      fields: [{ id: 1, parts }],
+      fields: [
+        { id: 1, parts },
+        { id: 2, parts: plowing },
+      ],
       cemeteries: [{ id: 1, squares: cemetery, built, progress: built ? 1 : founding, graves }],
       orchards: [
         {
@@ -257,6 +279,7 @@ export function showcaseGrounds(progress: number): {
       field: phaseAt(FIELD_SHOWCASE_PHASES, p).label,
       cemetery: cemeteryLabel,
       orchard: orchardLabel,
+      plowing: PLOWING_LABEL,
     },
   };
 }
