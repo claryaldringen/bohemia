@@ -1,6 +1,7 @@
 import { obstaclesOf, type Landscape, type ObstacleLayer } from '../domain/landscape';
 import {
   advanceVillage,
+  advanceVillageSteps,
   isVillageExtinct,
   withForestDistances,
   withLivestockLand,
@@ -11,7 +12,7 @@ import {
   withoutBuiltOverRuins,
   type VillageState,
 } from '../domain/village';
-import type { VillageRecord, VillageRepository, VillageResult } from './villages';
+import type { Pause, VillageRecord, VillageRepository, VillageResult } from './villages';
 
 /** Kolikrát se akce zkusí znovu, když ves mezitím uložil jiný požadavek. */
 const MAX_ATTEMPTS = 5;
@@ -38,6 +39,29 @@ export function advancedToToday(
 }
 
 /**
+ * Jako `advancedToToday`, ale s přestávkami (`pause`) mezi dny – dlouhý dopočet (hráč dlouho
+ * nehrál, přeskok času) neblokuje server. Stejný výsledek jako bez přestávek.
+ */
+async function advancedToTodayWithPauses(
+  state: VillageState,
+  today: number,
+  obstacles: ObstacleLayer,
+  landscape: Landscape,
+  pause: Pause | undefined,
+): Promise<VillageState> {
+  if (!pause || state.lastDay >= today) {
+    return advancedToToday(state, today, obstacles, landscape);
+  }
+  const steps = advanceVillageSteps(state, today, obstacles, landscape);
+  for (;;) {
+    const step = steps.next();
+    if (step.done) return step.value;
+    const wait = pause();
+    if (wait) await wait;
+  }
+}
+
+/**
  * Načte ves, dopočítá ji do dneška, provede změnu a uloží s kontrolou verze. Při souběhu
  * (verze nesouhlasí) to zkusí znovu nad čerstvým stavem. Nezměněný stav se neukládá.
  * Vsi z doby před vrstvou překážek nejdřív doplní odstraněné překážky (`withObstacleClearing`)
@@ -48,7 +72,7 @@ export function advancedToToday(
  * před dopočtem, aby se s nimi už počítalo; pak se uloží.
  * Ves se dopočítává s vrstvou překážek a krajinou sídla (přestavby kácí stromy, polozemnice bez
  * pozemku se přestaví na volném políčku). Zbytky jam po zaniklých obydlích pod novou stavbou po
- * změně zmizí (`withoutBuiltOverRuins`).
+ * změně zmizí (`withoutBuiltOverRuins`). S `pause` dělá dopočet mezi dny přestávky.
  */
 export async function updateVillage(
   villages: VillageRepository,
@@ -56,6 +80,7 @@ export async function updateVillage(
   today: number,
   landscape: Landscape,
   change: (state: VillageState) => VillageChange,
+  pause?: Pause,
 ): Promise<VillageResult> {
   const obstacles = obstaclesOf(landscape);
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
@@ -73,7 +98,7 @@ export async function updateVillage(
         landscape,
       ),
     );
-    const current = advancedToToday(migrated, today, obstacles, landscape);
+    const current = await advancedToTodayWithPauses(migrated, today, obstacles, landscape, pause);
     const changed = change(current);
     if (!changed.ok) return changed;
     // na místo zříceniny jde stavět – stavba zbytek jámy odstraní (ruins.ts)

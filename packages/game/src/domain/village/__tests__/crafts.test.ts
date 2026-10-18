@@ -5,7 +5,11 @@ import { foundField, foundVillage, startWorkshop } from '../actions';
 import { BUILD_COSTS } from '../costs';
 import {
   craftCoverage,
+  craftNeeds,
   craftStocks,
+  craftTargets,
+  restingCrafters,
+  smithsCharcoalPerYear,
   newWorkshop,
   wearCraftStocks,
   workCrafts,
@@ -499,5 +503,91 @@ describe('umístění dílny (crafts.md – Budovy)', () => {
     expect(check.ok).toBe(true);
     expect(check.obstacleIds).toEqual([7]);
     expect(check.obstacleCost).toBe(1);
+  });
+});
+
+describe('řemeslníci vyrábějí podle potřeby, volný čas pracují pro ves (crafts.md – Podle potřeby)', () => {
+  it('zásoba do potřeby vsi a opotřebení za rok – nástroje × 1,3, keramika × 1,4', () => {
+    const s = fullVillage();
+    // 4 pracující a 6 lidí
+    expect(craftNeeds(s, DAY)).toEqual({ toolsKg: 12, potteryKg: 30 });
+    const targets = craftTargets(s, DAY);
+    expect(targets.toolsKg).toBeCloseTo(12 * 1.3, 9);
+    expect(targets.potteryKg).toBeCloseTo(30 * 1.4, 9);
+  });
+
+  it('kovář s plnou zásobou nástrojů nekuje a jeho domácnost pracuje se vsí', () => {
+    const s = withWorkshop(fullVillage(), 'smith');
+    // 6 pracujících (i kovářovi dva) → potřeba 18 kg, zásoba do 23,4 kg
+    s.crafts = { charcoalKg: 1000, toolsKg: 23.5, potteryKg: 0 };
+    expect(restingCrafters(s, DAY + 1, NO_CRAFTS)).toEqual(new Map([[WORKSHOP_ID, 'resting']]));
+    const resting = advanceVillage(s, DAY + 1, null);
+    expect(resting.dwellings.find((d) => d.id === WORKSHOP_ID)?.workshop?.activity).toBe('resting');
+    expect(resting.crafts!.charcoalKg).toBe(1000);
+    // s chybějící zásobou kuje (uhlí ubývá) a do práce vsi nepřispívá
+    const short = withWorkshop(fullVillage(), 'smith');
+    short.crafts = { charcoalKg: 1000, toolsKg: 20, potteryKg: 0 };
+    expect(restingCrafters(short, DAY + 1, NO_CRAFTS).size).toBe(0);
+    const working = advanceVillage(short, DAY + 1, null);
+    expect(working.crafts!.charcoalKg).toBeLessThan(1000);
+    // domácnost kováře (2 dospělí, po minimu a domácí výrobě 0,9 čd) přidá vsi práci
+    expect(resting.commonLaborHistory.at(-1)! - working.commonLaborHistory.at(-1)!).toBeGreaterThan(
+      0.8,
+    );
+  });
+
+  it('kovář bez uhlí pomáhá vsi a dílna hlásí, že čeká na uhlí', () => {
+    const s = withWorkshop(fullVillage(), 'smith');
+    s.crafts = { charcoalKg: 0, toolsKg: 0, potteryKg: 0 };
+    const after = advanceVillage(s, DAY + 1, null);
+    expect(after.dwellings.find((d) => d.id === WORKSHOP_ID)?.workshop?.activity).toBe(
+      'no-charcoal',
+    );
+    const empty = withWorkshop(fullVillage(), 'smith');
+    empty.people = empty.people.filter((p) => p.dwellingId !== WORKSHOP_ID);
+    const without = advanceVillage(empty, DAY + 1, null);
+    expect(after.commonLaborHistory.at(-1)!).toBeGreaterThan(without.commonLaborHistory.at(-1)!);
+  });
+
+  it('hrnčíř vypaluje jen do zásoby keramiky na rok', () => {
+    const s = withWorkshop(fullVillage(), 'potter');
+    // 8 lidí → potřeba 40 kg, zásoba do 56 kg
+    s.crafts = { charcoalKg: 0, toolsKg: 0, potteryKg: 56 };
+    expect(restingCrafters(s, DAY + 1, NO_CRAFTS).get(WORKSHOP_ID)).toBe('resting');
+    s.crafts.potteryKg = 50;
+    expect(restingCrafters(s, DAY + 1, NO_CRAFTS).has(WORKSHOP_ID)).toBe(false);
+  });
+
+  it('uhlíř pálí podle potřeby kováře – s plnou zásobou nástrojů jen na jejich opotřebení', () => {
+    const s = withWorkshop(fullVillage(), 'smith', 51, { x: 40, z: 30, rotation: 0 }, 70);
+    withWorkshop(s, 'burner', 52, { x: 40, z: -30, rotation: 0 }, 80);
+    // 8 pracujících → potřeba 24 kg nástrojů, opotřebení 7,2 kg ročně → 360 kg uhlí
+    s.crafts = { charcoalKg: 0, toolsKg: 31.3, potteryKg: 0 };
+    expect(smithsCharcoalPerYear(s, DAY + 1, NO_CRAFTS)).toBeCloseTo(24 * 0.3 * 50, 6);
+    s.crafts.charcoalKg = 400;
+    expect(restingCrafters(s, DAY + 1, NO_CRAFTS).get(52)).toBe('resting');
+    s.crafts.charcoalKg = 300;
+    expect(restingCrafters(s, DAY + 1, NO_CRAFTS).has(52)).toBe(false);
+  });
+
+  it('výsledek nezávisí na kouscích dopočítání', () => {
+    const make = (): VillageState => {
+      const s = withWorkshop(fullVillage(), 'smith', 51, { x: 40, z: 30, rotation: 0 }, 70);
+      withWorkshop(s, 'potter', 52, { x: 40, z: -30, rotation: 0 }, 80);
+      withWorkshop(s, 'burner', 53, { x: 40, z: 0, rotation: 0 }, 90);
+      return s;
+    };
+    const end = DAY + 3 * 365;
+    const whole = advanceVillage(make(), end, forest);
+    let chunked = make();
+    for (const to of [DAY + 50, DAY + 51, DAY + 400, DAY + 777, end]) {
+      chunked = advanceVillage(chunked, to, forest);
+    }
+    expect(chunked).toEqual(whole);
+    // zásoby drží potřebu – nerostou do nekonečna
+    const targets = craftTargets(whole, end);
+    expect(whole.crafts!.toolsKg).toBeLessThan(targets.toolsKg * 1.2);
+    expect(whole.crafts!.potteryKg).toBeLessThan(targets.potteryKg * 1.2);
+    expect(whole.crafts!.toolsKg).toBeGreaterThan(0);
   });
 });

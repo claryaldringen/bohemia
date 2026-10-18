@@ -4,7 +4,12 @@ import { foundField, foundVillage } from '../actions';
 import { distanceFactor, partWalkDistance } from '../fields';
 import type { PathLine } from '../paths/network';
 import { PATH_FOREST_EDGE, PATH_WATER_SPOT, pathTerrainOf, pathWindowFor } from '../paths/terrain';
-import { refreshWalkDistances, villagePathNetwork, walkLayoutKey } from '../paths/village';
+import {
+  refreshWalkDistances,
+  villagePathNetwork,
+  walkLayoutHash,
+  walkLayoutKey,
+} from '../paths/village';
 import { pathWalkLength, walkGraph, walkingDistances } from '../paths/walking';
 import { PATH_WALK } from '../rules';
 import { advanceVillage } from '../simulate';
@@ -135,7 +140,31 @@ describe('vzdálenost chůze dílů pole (refreshWalkDistances)', () => {
       expect(p.walkDistanceM!).toBeLessThanOrEqual(p.distanceM);
       expect(distanceFactor(partWalkDistance(p))).toBeLessThanOrEqual(distanceFactor(p.distanceM));
     }
-    expect(s.walkLayoutKey).toBe(walkLayoutKey(s, DAY + 1));
+    // ve stavu jen otisk klíče, ne celý klíč
+    expect(s.walkLayoutKey).toBe(walkLayoutHash(walkLayoutKey(s, DAY + 1)));
+    expect(s.walkLayoutKey).toMatch(/^[0-9a-f]{16}$/);
+  });
+
+  it('celý klíč uložený dřív se beze změny rozložení jen převede na otisk – bez přepočtu', () => {
+    const s = advanceVillage(withField(), DAY + 1, null, LANDSCAPE);
+    const part = s.parts.find((p) => p.cell)!;
+    part.walkDistanceM = 1;
+    // ves uložená před otisky: ve stavu celý klíč rozložení
+    s.walkLayoutKey = walkLayoutKey(s, DAY + 2);
+    refreshWalkDistances(s, DAY + 2, LANDSCAPE, null);
+    expect(part.walkDistanceM).toBe(1);
+    expect(s.walkLayoutKey).toBe(walkLayoutHash(walkLayoutKey(s, DAY + 2)));
+    // starý klíč jiného rozložení – přepočet
+    s.walkLayoutKey = '["jiné rozložení"]';
+    refreshWalkDistances(s, DAY + 2, LANDSCAPE, null);
+    expect(part.walkDistanceM).not.toBe(1);
+  });
+
+  it('otisk klíče: stejný klíč stejný otisk, drobná změna jiný', () => {
+    const key = JSON.stringify([['1:zemnice:0,0,0::1:10'], [], ['5:7,3:sown']]);
+    expect(walkLayoutHash(key)).toBe(walkLayoutHash(`${key}`));
+    expect(walkLayoutHash(key)).not.toBe(walkLayoutHash(key.replace('sown', 'ready')));
+    expect(walkLayoutHash('')).toMatch(/^[0-9a-f]{16}$/);
   });
 
   it('s pěšinou na pole je chůze na vzdálené díly kratší než přímá', () => {

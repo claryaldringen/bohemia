@@ -327,7 +327,9 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   listopad: `grazeablePart`, `grazingDay` z rozdělení práce), jinak na louce do 300 m (ne osetý
   díl, hřbitov, obydlí, voda, skála, prudký svah), prasata na okraji lesa (−7 až +5 m od hranice, hlouběji je
   zakryjí koruny) do 150 m (jinak do 260 m), nejbližší vhodný okraj první – za lesem po otočení
-  kamery zmizí, to nevadí (Martin). **Pohyb běží ve skutečném čase, ne v herním** – ve
+  kamery zmizí, to nevadí (Martin). Dotazy „bod na čtverci“ jdou přes přihrádky (`squareLookup`)
+  a sousední pastviny trasy z přihrádek – u pole s tisíci díly by průchod všemi trval sekundy;
+  rozmístění je stejné (zlatý otisk v `livestock-golden.test.ts`). **Pohyb běží ve skutečném čase, ne v herním** – ve
   zrychleném světě zvířata „běhala jak na koksu“ (Martin); scéna dosadí epoch ms
   (`livestockClock`), stejný okamžik = stejná póza. Stádo je na pastvině své trasy (sousední
   pastviny) 3–9 minut a pak se za pevnou dobu krokem přesune na další, tam a zpět
@@ -564,8 +566,13 @@ rozhraní částí v
   `checkWorkshopPlacement` (volně jako zemnice; půdorys `workshopFootprints` i s přístřeškem
   a u uhlíře s milířem kus od zemnice – `MILIR`, `milirPosition`; `PlacementVillage.dwellings`
   nese `workshop.craft`, ať se do milíře nestaví). Domácnosti obývaných dílen (`craftHouseholds`)
-  pracují jen v dílně (`workshopLabor`, `workCrafts` v kroku práce – mimo `allocateDay`, do sil
-  plánu osevu se nepočítají); uhlíř a hrnčíř kácejí strom po stromu (`Workshop.felling` je
+  pracují v dílně (`workshopLabor`, `workCrafts` v kroku práce – mimo `allocateDay`, do sil
+  plánu osevu se nepočítají), jen dokud je co dělat: **podle potřeby** (Martin 18. 10. 2026 –
+  volný čas na poli) kovář a hrnčíř vyrábějí do zásoby `craftTargets` (potřeba + opotřebení za
+  rok), uhlíř do zásoby uhlí na rok spotřeby kovářů (`smithsCharcoalPerYear` – opotřebení
+  a chybějící zásoba nástrojů); s plnou zásobou nebo bez vstupu je dílna v `restingCrafters`
+  (na začátku kroku práce, hodnota `resting` / `no-charcoal` / `no-wood`) a její domácnost
+  pracuje v `allocateDay` se vsí (`craftHouseholds(state, resting)`); uhlíř a hrnčíř kácejí strom po stromu (`Workshop.felling` je
   vyhrazený – `reservedTrees` / `claimedObstacles` ho znají), zásoby `VillageState.crafts`
   (kg uhlí, nástrojů, keramiky; opotřebení `wearCraftStocks` jen v užívání). **Pokrytí**
   `craftCoverage` se spočítá na začátku dne a jde všude, kde platí meze (plán osevu, přidané díly,
@@ -584,8 +591,7 @@ rozhraní částí v
   vzdušně). Na pařezy sází mladé buky (`Workshop.toPlant`, `plantOnStump` → `ObstacleChange.planted`; `felledTreeStage` – sazenice
   dospěje za `BEECH_PLANTING.matureYears`, bez sazenice nálet jako dřív; `saplingGrowth`). Pálí
   jen do zásoby na rok spotřeby kovářů (`charcoalShortfallKg`, `smithsCharcoalPerYear`); bez
-  milíře a sázení odpočívá (`restingBurners` – v kroku práce před `allocateDay`, jeho domácnost
-  pracuje se vsí: `craftHouseholds(state, resting)`). Starší dílna uhlíře se převede
+  milíře a sázení odpočívá (`restingCrafters`, viz výš). Starší dílna uhlíře se převede
   (`migrateBurner`). Rozdělení práce: `fell` u buků (i příprava dřeva), `craft` u milíře – v lese
   cíl `{ kind: 'kiln', id, x, z }`, `plant` u pařezů. Web: `VillageWorkshop.kiln` / `toPlant`,
   `SceneVillage.kilns` (lesní milíře – fáze, průběh) a `plantedSaplings` (velikost mladých buků);
@@ -811,6 +817,13 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   – svatba dům nepřeplní, jinak by se nejstarší dítě stěhovalo tam a zpět (`marriageMove`). Kronika `marriage`, upozornění „Svatba“ (`VillageView.lastMarriageDay`).
 - **Determinismus:** simulace jde den po dni v pevném pořadí kroků (`simulate.ts`), náhoda dne
   je ze seedu vsi a indexu dne – výsledek nezávisí na tom, po jakých kouscích se ves dopočítá.
+- **Dopočet po kouscích na serveru:** `advanceVillageSteps` je `advanceVillage` po dnech
+  (generátor – tatáž smyčka, stav se klonuje jednou). `loadVillage` / `dynastyStatus` dostanou
+  port `Pause` (`application/villages.ts`) a mezi dny se ptají, jestli počkat; web
+  (`lib/compute-pause.ts`, v `dynastyDeps`) po ≈ 50 ms počítání v kuse pustí přes `setImmediate`
+  ke slovu ostatní požadavky – dopočet po dlouhé nepřítomnosti nebo přeskok o 10 let neblokuje
+  server (jedno vlákno). Jeden drahý den (přepočet sítě pěšin) se nedělí. Výsledek na
+  přestávkách nezávisí (test v `villages.test.ts`).
 - **Čísla** pravidel jsou jen v `rules.ts` (u každého odkaz na sekci návrhu); změna čísla = i
   text v návrhu. Kalibrace: `measure-village.ts` nasimuluje stovky vsí a vypíše cíle z Kalibrace
   obou dokumentů s OK / MIMO (`--quick` = 50 vsí na denní ladění, `200 60` závěrečné ověření,
@@ -849,6 +862,20 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   Next.js odpověděl novým vykreslením stránky a novou scénou); stránka /game ji přečte
   (`lib/village-cookie.ts`) a otevře přes `gameEntryForPlayer` (`lib/game.ts`), cizí nebo
   archivovaná ves → první ves hráče. Typy pro scénu jsou odvozené odtud a z `@bohemia/game` – nedefinovat je znovu ve scéně.
+- **Dotazování na ves** (`VillageGame` + `hooks/use-polling.ts`): klient se zeptá na začátku
+  dalšího herního dne hráče (`nextPollDelayMs` v `lib/village-polling.ts` – začátek dne po dni
+  pohledu přes `realTimeOf` + 1 s, nejdřív za 5 s, nejpozději za 86 s; po návratu do panelu hned). Pošle
+  `{ villageId, known }` – `known` = `VillageView.stamp`, otisk pohledu (`villageViewStamp`
+  v `application/village-stamp.ts`: vybraná ves, den, id + jméno + verze všech vsí hráče –
+  pohled je čistá funkce těchto údajů). Server (`villageViewIfChanged`) nejdřív levně
+  (`currentVillageViewStamp` – sídla hráče a `VillageRepository.stampsOf`: id, jméno, verze
+  a `state->>'lastDay'` bez stavu) a při shodě, když jsou všechny vsi dopočítané do dneška,
+  vrátí `{ unchanged: true }` bez načtení stavů (Vlkov: celý řádek ≈ 830 kB / 50 ms, dotaz na
+  něj jde v celé cestě 3×). Akce a přeskok času vracejí vždy celý pohled. Změna jména verzi
+  nemění, proto je jméno v otisku zvlášť. e2e testy po přímé změně uložené vsi volají háček
+  `pollVillage` (`lib/e2e-hooks.ts`) – sám by dotaz přišel až s dalším herním dnem.
+- **Uložení vsi** (`save`) vrací jen id, sídlo, jméno a verzi – záznam nese předaný stav (ne kopii
+  z databáze).
 - **Rozhraní jako v 0 A.D., bez popisků a průvodce** (Martin): `components/game/VillageGame.tsx`
   skládá `hud/` – `TopBar` (jméno vsi = přepínač vsí `hud/VillageSwitcher.tsx` – klik otevře
   seznam vsí hráče se jménem a lidmi, klik na ves ji přepne – ves na téže mapě na místě, na jiné
@@ -1079,12 +1106,17 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   vyšlapané buňky hned zlevní; buňky pod pevnou cestou (`PathVillage.roads`) od začátku jako plná
   pěšina – trasy se k ní stahují; ohrady (`pens` – plot jako hřbitov, krmení jako cíl) a stáda na
   pastvě (`livestock` → `pastureHerds`, cesta na stádo denně na úhor; ze stavu `pastureLivestock`
-  jako `SceneVillage.livestock`); síla `pathStrength` (odmocnina provozu), stáří obydlí →
+  jako `SceneVillage.livestock`); cena buňky pole podle nejbližšího dílu přes přihrádky políček
+  (`nearest.ts` – bit po bitu jako průchod všemi díly, zlatý otisk sítě v `paths-nearest.test.ts`);
+  síla `pathStrength` (odmocnina provozu), stáří obydlí →
   `pathAgeFactor`; vyhlazené čáry se sílou a stářím v bodech, provoz po buňkách `traffic.raw`;
   `annual: true` = roční provoz; `PathVillage` splňuje `SceneVillage`), `walking.ts` (`walkGraph`, `walkingDistances` – vzdálenost chůze, po pěšině
   `PATH_WALK` rychleji, nikdy víc než rovně – čistá funkce pro každého, kdo měří cestu na pole)
   a `village.ts` (`pathVillageOf` ze stavu vsi jako scéna i s pevnými cestami, `refreshWalkDistances`
-  – den po dni v `simulateDay` při změně `walkLayoutKey` (i pevné cesty), jen s krajinou →
+  – den po dni v `simulateDay` při změně `walkLayoutKey` (i pevné cesty), jen s krajinou; ve stavu
+  je jen otisk klíče `walkLayoutHash` (celý klíč z vsí uložených dřív se beze změny rozložení jen
+  převede); `villagePathNetwork` si pamatuje poslední síť po krajinách (otisk `pathVillageOf`) –
+  seč luk ve stejný den po přepočtu chůze síť nepočítá znovu →
   `FieldPart.walkDistanceM`, práce přes `partWalkDistance` v `year-plan.ts` (`partWork`, `partWeight`),
   `field-progress.ts` a seči `hay.ts`).
   Scéna `path-renderer.ts` (`VillagePaths` v `LandscapeScene`: přepočet jen při změně

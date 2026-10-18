@@ -108,6 +108,20 @@ describe('createVillageRepository', () => {
     expect(await villages.listBySettlement(UNKNOWN)).toEqual([]);
   });
 
+  it('stampsOf vrátí id, sídlo, jméno, verzi a den dopočtu vsí sídel – bez stavu', async () => {
+    const first = await villages.create(settlementId, 'Libice', state());
+    const second = await villages.add(settlementId, 'Budeč', state());
+    const later = advanceVillage(state(), DAY + 5, null);
+    await villages.save(second.id, later, 1);
+    const stamps = await villages.stampsOf([settlementId, UNKNOWN]);
+    expect(stamps.sort((a, b) => a.name.localeCompare(b.name))).toEqual([
+      { id: second.id, settlementId, name: 'Budeč', version: 2, lastDay: later.lastDay },
+      { id: first!.id, settlementId, name: 'Libice', version: 1, lastDay: state().lastDay },
+    ]);
+    expect(await villages.stampsOf([])).toEqual([]);
+    expect(await villages.stampsOf([UNKNOWN])).toEqual([]);
+  });
+
   it('find neznámé vsi i řetězce, který není UUID, vrátí null', async () => {
     expect(await villages.find(UNKNOWN)).toBeNull();
     expect(await villages.find('village-1')).toBeNull();
@@ -117,6 +131,9 @@ describe('createVillageRepository', () => {
     const { id } = (await villages.create(settlementId, 'Libice', state()))!;
     const next = advanceVillage(state(), DAY + 10, null);
     const saved = await villages.save(id, next, 1);
+    // záznam nese předaný stav – databáze ho zpátky neposílá
+    expect(saved?.state).toBe(next);
+    expect(saved).toMatchObject({ id, settlementId, name: 'Libice' });
     expect(saved).toMatchObject({ id, version: 2, state: next });
     expect(await villages.save(id, state(), 1)).toBeNull();
     expect((await villages.find(id))?.state.lastDay).toBe(DAY + 10);
