@@ -204,9 +204,13 @@ function cropYieldKg(
   harvestFrac: number,
 ): number {
   const weedFrac = workedShare(work, 'weed');
+  // díly plánu podle id najednou – hledat každý v celém poli by bylo kvadratické
+  const wanted = new Set(work.partIds);
+  const byId = new Map<number, FieldPart>();
+  for (const part of parts) if (wanted.has(part.id)) byId.set(part.id, part);
   let total = 0;
   for (const id of work.partIds) {
-    const part = parts.find((p) => p.id === id);
+    const part = byId.get(id);
     if (!part) continue;
     const ha = part.areaM2 / M2_PER_HA;
     const weeded = isWeedFree(part, day) ? 1 : weedFrac;

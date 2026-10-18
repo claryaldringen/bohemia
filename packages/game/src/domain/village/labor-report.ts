@@ -129,6 +129,7 @@ function fieldShares(
       })),
     );
   }
+  if (!fieldWork.some(({ task, before, after }) => task !== 'thresh' && after > before)) return [];
   const partsById = new Map(state.parts.map((p) => [p.id, p]));
   const shares = new Map<
     string,
