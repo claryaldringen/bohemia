@@ -1,10 +1,13 @@
 import { obstaclesOf, type Landscape } from '../domain/landscape';
 import {
+  PLOT_TYPES,
   buildAffordability,
   checkDwellingPlacement,
+  checkPlotPlacement,
   forestEdgeDistanceM,
   placementVillageOf,
   startNewDwelling,
+  type DwellingPlot,
   type DwellingType,
   type Position,
 } from '../domain/village';
@@ -17,7 +20,10 @@ export interface PlaceDwellingInput {
   /** Dnešní herní den (index dne). */
   today: number;
   type: DwellingType;
+  /** Volná poloha (zemnice); u obydlí na pozemku ji určí pozemek. */
   position: Position;
+  /** Pozemek – povinný u polozemnice (`PLOT_TYPES`), u zemnice se nebere. */
+  plot?: DwellingPlot;
 }
 
 /** Ves nemá suroviny, které stavba stojí předem (population.md – Odemčení). */
@@ -26,6 +32,8 @@ export const CANNOT_AFFORD = 'Na tuhle stavbu ves nemá suroviny.';
 export const NO_SETTLERS = 'Nové obydlí nemá kdo osídlit.';
 /** Klády na hromadě ani dospělé stromy sídla na stavbu nestačí (forest.md – Stavby a kácení). */
 export const NO_WOOD = 'Na stavbu chybí dřevo – klády ani stromy ke kácení nestačí.';
+/** Polozemnice se staví na pozemku – políčku krajiny (population.md – Umístění obydlí). */
+export const NO_PLOT = 'Polozemnice potřebuje pozemek – celé políčko.';
 
 /**
  * Hráč zahájí stavbu nového obydlí – kdykoli, když je kým ho osadit a ves má suroviny a dřevo
@@ -50,15 +58,18 @@ export function placeDwelling(
         const reason = missing.settlers ? NO_SETTLERS : missing.wood ? NO_WOOD : CANNOT_AFFORD;
         return { ok: false, reason };
       }
-      const check = checkDwellingPlacement(
-        input.landscape,
-        placementVillageOf(state, day),
-        input.type,
-        input.position,
-        obstacles,
-      );
+      const village = placementVillageOf(state, day);
+      // obydlí na pozemku: poloha domu podle pozemku (klientská poloha se nebere)
+      const plot = PLOT_TYPES[input.type] ? input.plot : undefined;
+      if (PLOT_TYPES[input.type] && !plot) return { ok: false, reason: NO_PLOT };
+      const plotCheck = plot
+        ? checkPlotPlacement(input.landscape, village, input.type, plot, obstacles)
+        : null;
+      const check =
+        plotCheck ??
+        checkDwellingPlacement(input.landscape, village, input.type, input.position, obstacles);
       if (!check.ok) return { ok: false, reason: check.reason ?? 'Sem obydlí nepatří.' };
-      const position = { ...input.position };
+      const position = plotCheck?.position ?? { ...input.position };
       // překážky na vyklízené ploše: práce navíc, osadníci je odstraní při zahájení stavby
       return {
         ok: true,
@@ -73,6 +84,7 @@ export function placeDwelling(
             obstacles,
             clearedTrees: check.obstacleCounts.tree ?? 0,
             forestDistanceM: forestEdgeDistanceM(input.landscape, position.x, position.z),
+            ...(plot ? { plot } : {}),
             sacred: check.spared,
           },
         ),

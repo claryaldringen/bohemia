@@ -733,7 +733,7 @@ export async function loadBakedModel(scene: Scene, url: string): Promise<BakedMo
  * (villagerMask.g) – stínování textury zůstane. Maska je textura, ne atribut vrcholů: WebGPU
  * dovoluje nejvýš 8 vertex bufferů a postava (kostra, VAT, barva instance) jich má právě 8.
  */
-class VillagerPlugin extends MaterialPluginBase {
+export class VillagerPlugin extends MaterialPluginBase {
   constructor(
     material: Material,
     private readonly linearTexture: boolean,

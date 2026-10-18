@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import type { LaborShare, SceneLaborShare, SceneVillage } from '../../village-view';
-import { DWELLING_GARDEN_M } from '@bohemia/game';
 import { chickenBox } from '../livestock-placement';
 import { localToWorld } from '../village-layout';
 import { createVillagerPose, walkThen, type HerdView, type VillagerPose } from '../villager-motion';
@@ -104,14 +103,12 @@ function inHouse(v: SceneVillage, x: number, z: number): boolean {
     const s = Math.sin(d.position.rotation);
     const lx = (x - d.position.x) * c - (z - d.position.z) * s;
     const lz = (x - d.position.x) * s + (z - d.position.z) * c;
-    const garden = DWELLING_GARDEN_M[d.type];
-    const inGarden =
-      garden !== undefined &&
-      lx > garden.minX &&
-      lx < garden.maxX &&
-      lz > garden.minZ &&
-      lz < garden.maxZ;
-    return inGarden || (Math.abs(lx) < box.halfX && lz > box.minZ && lz < box.maxZ);
+    const plot = d.plot;
+    const inPlot =
+      plot !== undefined &&
+      Math.abs(x - plot.x) < plot.size / 2 &&
+      Math.abs(z - plot.z) < plot.size / 2;
+    return inPlot || (Math.abs(lx) < box.halfX && lz > box.minZ && lz < box.maxZ);
   });
 }
 

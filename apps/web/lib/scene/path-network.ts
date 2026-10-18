@@ -2,7 +2,7 @@ import { SACRED_BUILDINGS, type DwellingType, type PartStage, type Position } fr
 import type { SceneVillage } from '../village-view';
 import { PATH_FOREST_EDGE, PATH_WATER_SPOT, type PathTerrain } from './path-terrain';
 import { localToWorld } from './village-layout';
-import { houseBox, siteBox } from './villager-plan';
+import { houseBox, plotBox, siteBox } from './villager-plan';
 
 // Vyšlapané pěšiny (docs/design/paths.md) – jen vzhled, žádná pravidla. Čistá deterministická
 // funkce vsi a terénu: z každé domácnosti se chodí pro vodu k potoku, pro dřevo k okraji lesa,
@@ -224,7 +224,8 @@ export function pathNetworkKey(village: SceneVillage): string {
       d.since !== undefined && day !== null
         ? `${ageBucket(day - d.since)}/${Math.floor(Math.min(YEARS_KEY_MAX, (day - d.since) / DAYS_PER_YEAR) / YEARS_STEP)}`
         : '';
-    return `${d.id}:${d.type}:${d.built ? 1 : 0}:${d.inhabited === false ? 0 : 1}:${age}:${d.position.x.toFixed(1)},${d.position.z.toFixed(1)},${d.position.rotation.toFixed(2)}`;
+    const plot = d.plot ? `${d.plot.cell.x},${d.plot.cell.y}` : '';
+    return `${d.id}:${d.type}:${d.built ? 1 : 0}:${d.inhabited === false ? 0 : 1}:${age}:${plot}:${d.position.x.toFixed(1)},${d.position.z.toFixed(1)},${d.position.rotation.toFixed(2)}`;
   });
   const fields = village.fields.map(
     (f) => `${f.id}:${f.parts.map((p) => `${p.cell.x},${p.cell.y},${p.stage}`).join(';')}`,
@@ -405,9 +406,13 @@ function buildingBounds(b: Building, margin: number): [number, number, number, n
   ];
 }
 
-/** Obdélník obydlí pro pěšiny – hotové jako dům se zahrádkou, rozestavěné jako staveniště. */
-function dwellingBox(type: DwellingType, built: boolean): Building['box'] {
-  return built ? houseBox(type) : siteBox(type);
+/**
+ * Obdélník obydlí pro pěšiny: na pozemku celé oplocené políčko (brána = branka na přední
+ * straně proti vchodu), volné obydlí jako dům se šíjí, rozestavěné jako staveniště.
+ */
+function dwellingBox(d: SceneVillage['dwellings'][number]): Building['box'] {
+  if (d.plot) return plotBox(d.position, d.plot);
+  return d.built ? houseBox(d.type) : siteBox(d.type);
 }
 
 /** Brána domu – kus před koncem šíje (odtud vychází pěšina). */
@@ -1303,7 +1308,7 @@ export function computePathNetwork(input: PathNetworkInput): PathNetwork {
   const v = input.village;
   const buildings = new Map<number, Building>();
   for (const d of v.dwellings) {
-    buildings.set(d.id, { position: d.position, box: dwellingBox(d.type, d.built) });
+    buildings.set(d.id, { position: d.position, box: dwellingBox(d) });
   }
   const obstaclesOnly: Building[] = [...buildings.values()];
   for (const b of v.sacred?.buildings ?? []) {

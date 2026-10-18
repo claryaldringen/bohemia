@@ -13,13 +13,13 @@ import type { Point } from './village-layout';
 import type { HeightFn } from './village-meshes';
 
 /** Kolík: průřez a délka (m), do země jde kousek; provázek je přivázaný těsně pod špičkou. */
-const PEG_SIZE_M = 0.16;
-const PEG_LENGTH_M = 1.25;
+const PEG_SIZE_M = 0.05;
+const PEG_LENGTH_M = 0.5;
 const PEG_SINK_M = 0.2;
-const STRING_HEIGHT_M = 0.85;
+const STRING_HEIGHT_M = 0.18;
 /** Šířka stuhy provázku (m) – o něco víc než skutečný provázek, jinak by z dálky zmizel. */
-const STRING_WIDTH_M = 0.1;
-const PEG_AMBIENT = new Color3(0.5, 0.48, 0.44);
+const STRING_WIDTH_M = 0.025;
+const PEG_AMBIENT = new Color3(0.32, 0.24, 0.16);
 
 /** Instance kolíků pro dané čáry vytyčení (paty v terénu). */
 export function pegInstances(
@@ -104,8 +104,9 @@ export function createStringMesh(
 /** Světlý materiál provázku (nezávisí na světle, aby se neztratil ve stínu). */
 export function createStringMaterial(scene: Scene): Material {
   const m = new StandardMaterial('village-staking-string', scene);
-  m.diffuseColor = new Color3(0.93, 0.88, 0.72);
-  m.emissiveColor = new Color3(0.35, 0.32, 0.24);
+  // provázek ze lnu – nebarvený, šedobéžový
+  m.diffuseColor = new Color3(0.76, 0.68, 0.52);
+  m.emissiveColor = new Color3(0.14, 0.12, 0.09);
   m.specularColor = Color3.Black();
   m.backFaceCulling = false;
   return m;
@@ -175,7 +176,8 @@ export class StakingPegs {
     const mesh = new Mesh('village-staking-pegs', this.scene);
     data.applyToMesh(mesh);
     const material = new StandardMaterial('village-staking-peg', this.scene);
-    material.diffuseColor = new Color3(0.92, 0.82, 0.62);
+    // dřevěné kolíky – osekané, světle hnědé
+    material.diffuseColor = new Color3(0.55, 0.4, 0.25);
     material.ambientColor = PEG_AMBIENT;
     material.specularColor = Color3.Black();
     material.backFaceCulling = false;

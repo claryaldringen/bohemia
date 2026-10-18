@@ -5,20 +5,23 @@ import {
   MAX_FIELD_CELLS,
   cemeteryPartsFromCells,
   checkDwellingPlacement,
-  dwellingGarden,
+  checkPlotPlacement,
+  dwellingFootprint,
   dwellingPlot,
   fieldPartsFromCells,
+  plotHousePosition,
   villageDwellingPositions,
   waterDistanceM,
   type PlacementVillage,
 } from '../placement';
 import {
-  DWELLING_CLEARING_M,
   DWELLING_FOOTPRINT_M,
-  DWELLING_GARDEN_M,
   FIELD_LIMITS,
+  PLOT_HOUSE_ROTATION,
+  PLOT_TYPES,
+  PLOT_VARIANTS,
 } from '../rules';
-import type { Position, TileCell } from '../types';
+import type { DwellingPlot, PlotVariant, Position, TileCell } from '../types';
 import { block, makeLandscape } from './placement-fixtures';
 
 const at = (x: number, z: number, rotation = 0): Position => ({ x, z, rotation });
@@ -133,75 +136,126 @@ describe('checkDwellingPlacement – překryv', () => {
   });
 });
 
-describe('zahrádka polozemnice', () => {
-  it('leží po straně domu (−x modelu), otáčí se s ním; zemnice zahrádku nemá', () => {
-    const g = DWELLING_GARDEN_M.polozemnice!;
-    expect(DWELLING_GARDEN_M.zemnice).toBeUndefined();
-    expect(dwellingGarden('zemnice', at(0, 0))).toBeNull();
-    // celá mimo půdorys 5 × 5 m, ne před vchodem (+z)
-    expect(g.maxX).toBeLessThan(-DWELLING_FOOTPRINT_M.polozemnice.width / 2);
-    expect(g.maxZ).toBeLessThan(DWELLING_FOOTPRINT_M.polozemnice.depth / 2);
-    const xs = (rotation: number): number[] =>
-      dwellingGarden('polozemnice', at(0, 0, rotation))!.map(([x]) => x);
-    expect(Math.min(...xs(0))).toBeCloseTo(g.minX);
-    expect(Math.max(...xs(0))).toBeCloseTo(g.maxX);
-    // otočená o 180° leží na druhé straně
-    expect(Math.min(...xs(Math.PI))).toBeCloseTo(-g.maxX);
-    expect(dwellingPlot('polozemnice', at(0, 0))).toHaveLength(2);
-    expect(dwellingPlot('zemnice', at(0, 0))).toHaveLength(1);
+describe('pozemek polozemnice', () => {
+  const landscape = makeLandscape();
+  // políčko (8, 8) = svět x 0 … 15, z 0 … 15, střed (7,5; 7,5)
+  const plot = (variant: PlotVariant = 'center', x = 8, y = 8): DwellingPlot => ({
+    cell: { x, y },
+    variant,
   });
 
-  it('vejde se na vyklízenou plochu obydlí', () => {
-    const g = DWELLING_GARDEN_M.polozemnice!;
-    const c = DWELLING_CLEARING_M.polozemnice;
-    expect(g.minX).toBeGreaterThan(c.minX);
-    expect(g.maxX).toBeLessThan(c.maxX);
-    expect(g.minZ).toBeGreaterThan(c.minZ);
-    expect(g.maxZ).toBeLessThan(c.maxZ);
+  it('dům stojí uprostřed nebo v rohu, vchodem k brance (−z), celý uvnitř políčka', () => {
+    expect(PLOT_TYPES).toEqual({ zemnice: false, polozemnice: true });
+    expect(PLOT_VARIANTS).toHaveLength(5);
+    expect(plotHousePosition(landscape, plot('center'))).toEqual({
+      x: 7.5,
+      z: 7.5,
+      rotation: PLOT_HOUSE_ROTATION,
+    });
+    expect(PLOT_HOUSE_ROTATION).toBeCloseTo(Math.PI);
+    const half = DWELLING_FOOTPRINT_M.polozemnice.width / 2;
+    for (const variant of PLOT_VARIANTS) {
+      const p = plotHousePosition(landscape, plot(variant));
+      // půdorys s rezervou na valy, střechu a plot (plot ≈ 0,5 m od okraje políčka)
+      expect(Math.abs(p.x - 7.5) + half).toBeLessThanOrEqual(6);
+      expect(Math.abs(p.z - 7.5) + half).toBeLessThanOrEqual(6);
+    }
+    const corners = PLOT_VARIANTS.map((v) => plotHousePosition(landscape, plot(v)));
+    expect(new Set(corners.map((p) => `${p.x},${p.z}`)).size).toBe(5);
+    expect(plotHousePosition(landscape, plot('back-left')).x).toBeLessThan(7.5);
+    expect(plotHousePosition(landscape, plot('back-left')).z).toBeGreaterThan(7.5);
   });
 
-  it('nesmí do vody ani do lesa – zemnice na stejném místě projde', () => {
-    // půdorys x 1 … 6 v políčku 8, zahrádka x −3,85 … 0,15 zasahuje do políčka 7
-    const water = makeLandscape({ surface: (x) => (x === 7 ? 'water' : 'meadow') });
-    const wet = checkDwellingPlacement(water, null, 'polozemnice', at(3.5, 7.5));
-    expect(wet.ok).toBe(false);
-    expect(wet.reason).toMatch(/Zahrádka.*vod/);
-    expect(checkDwellingPlacement(water, null, 'zemnice', at(3.5, 7.5)).ok).toBe(true);
-    const forest = makeLandscape({ surface: (x) => (x === 7 ? 'forest' : 'meadow') });
-    const shaded = checkDwellingPlacement(forest, null, 'polozemnice', at(3.5, 7.5));
-    expect(shaded.reason).toMatch(/Zahrádka.*louku/);
-    // otočená zahrádkou na druhou stranu projde
-    expect(checkDwellingPlacement(forest, null, 'polozemnice', at(3.5, 7.5, Math.PI)).ok).toBe(
+  it('na volné louce projde, vrátí polohu domu; zemnice pozemek nemá', () => {
+    const check = checkPlotPlacement(landscape, null, 'polozemnice', plot('front-right'));
+    expect(check.ok).toBe(true);
+    expect(check.position).toEqual(plotHousePosition(landscape, plot('front-right')));
+    expect(check.obstacleCost).toBe(0);
+    const zemnice = checkPlotPlacement(landscape, null, 'zemnice', plot());
+    expect(zemnice.ok).toBe(false);
+    expect(zemnice.position).toBeNull();
+  });
+
+  it('ne do vody, lesa ani mimo krajinu; neplatná varianta neprojde', () => {
+    const water = makeLandscape({ surface: (x) => (x === 8 ? 'water' : 'meadow') });
+    expect(checkPlotPlacement(water, null, 'polozemnice', plot()).reason).toMatch(/vod/);
+    const forest = makeLandscape({ surface: (x) => (x === 8 ? 'forest' : 'meadow') });
+    expect(checkPlotPlacement(forest, null, 'polozemnice', plot()).reason).toMatch(/louku/);
+    expect(checkPlotPlacement(landscape, null, 'polozemnice', plot('center', 16, 8)).ok).toBe(
+      false,
+    );
+    const bad = { cell: { x: 8, y: 8 }, variant: 'middle' } as unknown as DwellingPlot;
+    expect(checkPlotPlacement(landscape, null, 'polozemnice', bad).ok).toBe(false);
+  });
+
+  it('pod domem musí být rovná zem – na svahu neprojde', () => {
+    const steep = makeLandscape({ height: (x) => x * 2 });
+    const check = checkPlotPlacement(steep, null, 'polozemnice', plot());
+    expect(check.ok).toBe(false);
+    expect(check.reason).toMatch(/nerovná/);
+  });
+
+  it('políčko nesmí zabírat pole, jiný pozemek ani obydlí – a naopak', () => {
+    const fieldVillage: PlacementVillage = { ...EMPTY, parts: [{ cell: { x: 8, y: 8 } }] };
+    expect(checkPlotPlacement(landscape, fieldVillage, 'polozemnice', plot()).reason).toMatch(
+      /polem/,
+    );
+    const neighbour: PlacementVillage = {
+      ...EMPTY,
+      dwellings: [
+        {
+          type: 'polozemnice',
+          position: plotHousePosition(landscape, plot()),
+          plot: plot(),
+        },
+      ],
+    };
+    // stejné políčko i jiná varianta na něm – zabrané
+    expect(checkPlotPlacement(landscape, neighbour, 'polozemnice', plot('back-left')).ok).toBe(
+      false,
+    );
+    // sousední políčko je volné (dotyk hranou překryv není)
+    expect(checkPlotPlacement(landscape, neighbour, 'polozemnice', plot('center', 9, 8)).ok).toBe(
       true,
+    );
+    // zemnice do cizího pozemku nesmí, ani pole na jeho políčko
+    expect(checkDwellingPlacement(landscape, neighbour, 'zemnice', at(13, 3)).ok).toBe(false);
+    const field = fieldPartsFromCells(landscape, neighbour, block(4, 8, 5, 1), [at(7.5, 7.5)]);
+    expect(field.blockedCells).toContainEqual({ x: 8, y: 8 });
+    // volná zemnice zasahující do políčka pozemek zablokuje
+    const zemnice: PlacementVillage = {
+      ...EMPTY,
+      dwellings: [{ type: 'zemnice', position: at(1, 1) }],
+    };
+    expect(checkPlotPlacement(landscape, zemnice, 'polozemnice', plot()).reason).toMatch(/obydlím/);
+    // rozestavěná polozemnice se svým pozemkem
+    const site: PlacementVillage = {
+      ...EMPTY,
+      constructions: [
+        {
+          dwellingType: 'polozemnice',
+          position: plotHousePosition(landscape, plot()),
+          plot: plot(),
+        },
+      ],
+    };
+    expect(checkPlotPlacement(landscape, site, 'polozemnice', plot()).reason).toMatch(
+      /rozestavěným/,
     );
   });
 
-  it('rovná být nemusí – rozdíl výšek se měří jen pod půdorysem', () => {
-    // půdorys x 8,5 … 13,5 je rovný, zahrádka x 3,65 … 7,65 klesá o ≈ 0,77 m
-    const l = makeLandscape({ height: (x) => (x <= 7 ? 3 : 0) });
-    expect(checkDwellingPlacement(l, null, 'polozemnice', at(11, 7.5)).ok).toBe(true);
-  });
-
-  it('nesmí na jiné obydlí a jiné obydlí ani pole nesmí na ni', () => {
-    const landscape = makeLandscape();
-    const village: PlacementVillage = {
-      ...EMPTY,
-      dwellings: [{ type: 'zemnice', position: at(0, 0) }],
-    };
-    // zahrádka x −1,35 … 2,65 by zasáhla zemnici
-    const onHouse = checkDwellingPlacement(landscape, village, 'polozemnice', at(6, 0));
-    expect(onHouse.ok).toBe(false);
-    expect(onHouse.reason).toMatch(/obydlím/);
-    expect(checkDwellingPlacement(landscape, village, 'polozemnice', at(12, 0)).ok).toBe(true);
-    // zemnice do cizí zahrádky
-    const withGarden: PlacementVillage = {
-      ...EMPTY,
-      dwellings: [{ type: 'polozemnice', position: at(20, 7.5) }],
-    };
-    expect(checkDwellingPlacement(landscape, withGarden, 'zemnice', at(14.5, 7)).ok).toBe(false);
-    // pole přes zahrádku (x 12,65 … 16,65) – čtverec x 0 … 15 je zabraný
-    const field = fieldPartsFromCells(landscape, withGarden, block(4, 8, 5, 1), [at(20, 7.5)]);
-    expect(field.blockedCells).toContainEqual({ x: 8, y: 8 });
+  it('pozemek zabírá celé políčko, volné obydlí jen půdorys', () => {
+    const [square] = dwellingPlot(landscape, {
+      type: 'polozemnice',
+      position: plotHousePosition(landscape, plot()),
+      plot: plot(),
+    });
+    const xs = square!.map(([x]) => x);
+    expect(Math.min(...xs)).toBe(0);
+    expect(Math.max(...xs)).toBe(15);
+    expect(dwellingPlot(landscape, { type: 'polozemnice', position: at(0, 0) })).toEqual([
+      dwellingFootprint('polozemnice', at(0, 0)),
+    ]);
   });
 });
 

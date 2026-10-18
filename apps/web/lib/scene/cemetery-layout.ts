@@ -1,9 +1,11 @@
 // Pohřebiště ve scéně bez Babylonu (cemetery.md – Co hráč vidí): nízký proutěný plot kolem
 // čtverců s brankou k vsi, hliněné mohylky (žárové hroby 6.–8. století) přibývající, jak se
 // pohřebiště plní, a fáze založení (vytyčení → kůly → pletení plotu). Souřadnice světa scény
-// v metrech (x, z), čtverce jako u pole (field-cells.ts).
+// v metrech (x, z), čtverce jako u pole (field-cells.ts). Plot je pletený plot společný
+// s pozemkem polozemnice (woven-fence.ts) – zakulacené rohy, jen hustší pletivo.
 import { cellsBoundary, type CellSquare } from './field-cells';
 import { seededRandom, type Point } from './village-layout';
+import { wovenFence, type FencePath, type FenceStyle, type WovenFence } from './woven-fence';
 
 /**
  * Hroby ve čtverci po řadách: 7 × 8 = 56 – musí sedět s CEMETERY.gravesPerSquare (hlídá test);
@@ -14,12 +16,15 @@ export const GRAVE_GRID = { columns: 7, rows: 8 } as const;
 const GRAVE_MARGIN_M = 0.5;
 /** Kolik posledních hrobů je čerstvých (holá hlína) – ostatní zarostly travou. */
 export const FRESH_GRAVES = 3;
-/** Rozestup kůlů plotu (m), výška pleteného plotu (m) a šířka branky (m). */
-export const POST_SPACING_M = 1.4;
-export const FENCE_HEIGHT_M = 0.8;
-export const GATE_WIDTH_M = 1.8;
-/** Branka jen na rovném úseku plotu aspoň takhle dlouhém (m). */
-const GATE_MIN_RUN_M = GATE_WIDTH_M + 2 * POST_SPACING_M;
+/**
+ * Plot hřbitova: kůly nejvýš po metru jako u polského plotu, ale hustší pletivo – jedenáct větví
+ * 0,1–0,8 m (nízký plot) – a širší branka 1,8 m (projde průvod s nebožtíkem).
+ */
+export const CEMETERY_FENCE: FenceStyle = {
+  postStep: 1,
+  rails: [0.1, 0.17, 0.24, 0.31, 0.38, 0.45, 0.52, 0.59, 0.66, 0.73, 0.8],
+  gateWidth: 1.8,
+};
 
 export interface GravePlacement {
   x: number;
@@ -63,132 +68,134 @@ export function gravePlacements(
   return out;
 }
 
-export interface FencePost {
-  x: number;
-  z: number;
-  /** Kůl u branky je vyšší. */
-  gate: boolean;
-}
-
 export interface FenceLayout {
-  /** Úseky pleteného plotu (začátek, konec) – branka je mezera mezi nimi. */
-  runs: [Point, Point][];
-  /** Kůly v pořadí obcházení plotu (staví se v tomto pořadí). */
-  posts: FencePost[];
-  /** Rohy obrysu – kolíky vytyčení. */
-  corners: Point[];
-  /** Obrys čtverců – čára vytyčení. */
+  /** Pletený plot (kůly v pořadí stavby, branka). */
+  fence: WovenFence;
+  /** Obrys čtverců – čára vytyčení a kolíky (rohy vytyčení zakulacené nejsou). */
   outline: Point[][];
 }
 
+const SAME_M = 1e-3;
+
 function samePoint(a: Point, b: Point): boolean {
-  return Math.abs(a[0] - b[0]) < 1e-6 && Math.abs(a[1] - b[1]) < 1e-6;
+  return Math.abs(a[0] - b[0]) < SAME_M && Math.abs(a[1] - b[1]) < SAME_M;
 }
 
-/**
- * Úsečky obrysu v pořadí obcházení: každá další navazuje na konec předchozí (otočená, když
- * je potřeba); obrys z více smyček (díra uvnitř) pokračuje další smyčkou.
- */
-function chainSegments(segments: readonly [Point, Point][]): [Point, Point][] {
-  const left = [...segments];
-  const out: [Point, Point][] = [];
-  while (left.length > 0) {
-    let current = left.shift()!;
-    out.push(current);
-    for (;;) {
-      const end = current[1];
-      const index = left.findIndex(([a, b]) => samePoint(a, end) || samePoint(b, end));
-      if (index < 0) break;
-      const [a, b] = left.splice(index, 1)[0]!;
-      current = samePoint(a, end) ? [a, b] : [b, a];
-      out.push(current);
+function hasSquare(squares: readonly CellSquare[], x: number, z: number): boolean {
+  return squares.some((q) => Math.abs(q.x - x) < SAME_M && Math.abs(q.z - z) < SAME_M);
+}
+
+/** Úhel odbočení ze směru a→b do směru b→c (kladný = doleva). */
+function turn(a: Point, b: Point, c: Point): number {
+  const ux = b[0] - a[0];
+  const uz = b[1] - a[1];
+  const vx = c[0] - b[0];
+  const vz = c[1] - b[1];
+  return Math.atan2(ux * vz - uz * vx, ux * vx + uz * vz);
+}
+
+/** Vynechá body uprostřed rovných úseků (u uzavřené čáry i přes začátek). */
+function mergeStraight(points: Point[], closed: boolean): Point[] {
+  const out = [...points];
+  for (let changed = true; changed && out.length > 2;) {
+    changed = false;
+    for (let i = closed ? 0 : 1; i < (closed ? out.length : out.length - 1); i++) {
+      const prev = out[(i - 1 + out.length) % out.length]!;
+      const next = out[(i + 1) % out.length]!;
+      if (Math.abs(turn(prev, out[i]!, next)) < 1e-6) {
+        out.splice(i, 1);
+        changed = true;
+        break;
+      }
     }
   }
   return out;
 }
 
-/** Střed branky na úseku: bod úseku nejblíž k `toward`, aby branka i kůly po stranách vešly. */
-function gateCenter([a, b]: [Point, Point], toward: { x: number; z: number } | null): number {
-  const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
-  const margin = (GATE_WIDTH_M / 2 + POST_SPACING_M) / length;
-  if (!toward) return 0.5;
-  const t =
-    ((toward.x - a[0]) * (b[0] - a[0]) + (toward.z - a[1]) * (b[1] - a[1])) / (length * length);
-  return Math.min(1 - margin, Math.max(margin, t));
+/**
+ * Čáry plotu po obrysu čtverců (ohrazení vlevo – jak chce woven-fence.ts): strany čtverců, za
+ * kterými není jiný čtverec ani čtverec z `fenced` (tam už plot stojí), spojené za sebou.
+ * Obrys bez vynechaných stran je uzavřená čára (díra uvnitř další), s vynechanými kusy otevřené.
+ * Kde se čtverce dotýkají jen rohem, zahne čára doleva – každý čtverec má svůj oblouk.
+ */
+function outlinePaths(squares: readonly CellSquare[], fenced: readonly CellSquare[]): FencePath[] {
+  const sides: [Point, Point][] = [];
+  const toward: Point[] = [
+    [0, -1],
+    [1, 0],
+    [0, 1],
+    [-1, 0],
+  ];
+  for (const q of squares) {
+    const h = q.size / 2;
+    // proti směru hodinových ručiček v (x, z) – čtverec leží vlevo od každé strany
+    const c: Point[] = [
+      [q.x - h, q.z - h],
+      [q.x + h, q.z - h],
+      [q.x + h, q.z + h],
+      [q.x - h, q.z + h],
+    ];
+    toward.forEach(([dx, dz], k) => {
+      const nx = q.x + dx * q.size;
+      const nz = q.z + dz * q.size;
+      if (hasSquare(squares, nx, nz) || hasSquare(fenced, nx, nz)) return;
+      sides.push([c[k]!, c[(k + 1) % 4]!]);
+    });
+  }
+  const used = sides.map(() => false);
+  const follow = (first: number, closed: boolean): Point[] => {
+    const points: Point[] = [sides[first]![0]];
+    let i = first;
+    for (;;) {
+      used[i] = true;
+      const [from, end] = sides[i]!;
+      points.push(end);
+      if (closed && samePoint(end, points[0]!)) break;
+      let next = -1;
+      let bestTurn = -Infinity;
+      sides.forEach(([a, b], j) => {
+        if (used[j] || !samePoint(a, end)) return;
+        const t = turn(from, end, b);
+        if (t > bestTurn) {
+          bestTurn = t;
+          next = j;
+        }
+      });
+      if (next < 0) break;
+      i = next;
+    }
+    return points;
+  };
+  const paths: FencePath[] = [];
+  // otevřené kusy začínají stranou, na kterou žádná nenavazuje
+  sides.forEach(([a], i) => {
+    if (used[i] || sides.some(([, b]) => samePoint(a, b))) return;
+    paths.push({ points: mergeStraight(follow(i, false), false), closed: false });
+  });
+  sides.forEach((_, i) => {
+    if (used[i]) return;
+    const points = follow(i, true);
+    points.pop(); // poslední bod je zase první
+    paths.push({ points: mergeStraight(points, true), closed: true });
+  });
+  return paths;
 }
 
 /**
- * Plot kolem čtverců hřbitova: úseky po obrysu, kůly po ≈ 1,4 m (na koncích úseků vždy)
- * a branka v místě plotu nejblíž k bodu `gateToward` (k vsi) na dost dlouhém úseku – když se
- * hřbitov rozšíří jinam, branka zůstane, kde byla; bez bodu uprostřed prvního dost dlouhého
- * úseku. `withGate: false` = plot bez branky (rozšíření ve stavbě).
+ * Plot kolem čtverců hřbitova: pletený plot po obrysu se zakulacenými rohy a branka v místě
+ * plotu nejblíž k bodu `gateToward` (k vsi) na dost dlouhém rovném úseku – když se hřbitov
+ * rozšíří jinam, branka zůstane, kde byla; bez bodu uprostřed prvního dost dlouhého úseku.
+ * Rozšíření ve stavbě: `withGate: false` a `fenced` = čtverce, kolem kterých plot už stojí –
+ * strany sousedící s nimi se vynechají a plot rozšíření na starý plot jen navazuje.
  */
 export function fenceLayout(
   squares: readonly CellSquare[],
   gateToward: { x: number; z: number } | null,
-  withGate = true,
+  options: { withGate?: boolean; fenced?: readonly CellSquare[] } = {},
 ): FenceLayout {
-  const outline = cellsBoundary(squares);
-  const segments = chainSegments(
-    outline.map((line): [Point, Point] => [line[0]!, line[line.length - 1]!]),
-  );
-  const length = ([a, b]: [Point, Point]): number => Math.hypot(b[0] - a[0], b[1] - a[1]);
-  const at = ([a, b]: [Point, Point], t: number): Point => [
-    a[0] + (b[0] - a[0]) * t,
-    a[1] + (b[1] - a[1]) * t,
-  ];
-  let gateIndex = -1;
-  let gateT = 0.5;
-  let best = Infinity;
-  segments.forEach((segment, i) => {
-    if (!withGate || length(segment) < GATE_MIN_RUN_M) return;
-    const t = gateCenter(segment, gateToward);
-    const [gx, gz] = at(segment, t);
-    const d = gateToward ? Math.hypot(gx - gateToward.x, gz - gateToward.z) : i;
-    if (d < best) {
-      best = d;
-      gateIndex = i;
-      gateT = t;
-    }
-  });
-
-  const runs: [Point, Point][] = [];
-  const posts: FencePost[] = [];
-  const corners: Point[] = [];
-  const addPost = (p: Point, gate: boolean): void => {
-    const existing = posts.find((q) => samePoint([q.x, q.z], p));
-    if (existing) {
-      existing.gate ||= gate;
-      return;
-    }
-    posts.push({ x: p[0], z: p[1], gate });
-  };
-  const postsAlong = ([a, b]: [Point, Point], gateAtStart: boolean, gateAtEnd: boolean): void => {
-    const steps = Math.max(1, Math.round(length([a, b]) / POST_SPACING_M));
-    for (let s = 0; s <= steps; s++) {
-      const t = s / steps;
-      const gate = (s === 0 && gateAtStart) || (s === steps && gateAtEnd);
-      addPost([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t], gate);
-    }
-  };
-  segments.forEach((segment, i) => {
-    const [a, b] = segment;
-    for (const corner of [a, b])
-      if (!corners.some((c) => samePoint(c, corner))) corners.push(corner);
-    if (i !== gateIndex) {
-      runs.push(segment);
-      postsAlong(segment, false, false);
-      return;
-    }
-    // branka: mezera kolem jejího středu, kůly po stranách vyšší
-    const half = GATE_WIDTH_M / 2 / length(segment);
-    const first: [Point, Point] = [a, at(segment, gateT - half)];
-    const second: [Point, Point] = [at(segment, gateT + half), b];
-    runs.push(first, second);
-    postsAlong(first, false, true);
-    postsAlong(second, true, false);
-  });
-  return { runs, posts, corners, outline };
+  const paths = outlinePaths(squares, options.fenced ?? []);
+  const gate = options.withGate === false ? null : { toward: gateToward };
+  return { fence: wovenFence(paths, CEMETERY_FENCE, gate), outline: cellsBoundary(squares) };
 }
 
 /** Fáze založení pohřebiště pro vývojovou lištu (průběh 0–1, navazují na sebe). */
@@ -203,19 +210,19 @@ export interface CemeteryConstruction {
   layout: boolean;
   /** Podíl zatlučených kůlů 0–1. */
   posts: number;
-  /** Výška upleteného plotu (m). */
-  wattleHeight: number;
+  /** Podíl upletených větví 0–1 (zdola nahoru). */
+  rails: number;
 }
 
 /** Co pohřebiště ukáže při průběhu založení 0–1 (hotové = celý plot). */
 export function cemeteryConstruction(progress: number, built: boolean): CemeteryConstruction {
-  if (built || progress >= 1) return { layout: false, posts: 1, wattleHeight: FENCE_HEIGHT_M };
+  if (built || progress >= 1) return { layout: false, posts: 1, rails: 1 };
   const [layout, posts, wattle] = CEMETERY_PHASES;
   const share = (phase: { from: number; to: number }): number =>
     Math.min(1, Math.max(0, (progress - phase.from) / (phase.to - phase.from)));
   return {
     layout: progress < wattle.from,
     posts: progress < layout.to ? 0 : share(posts),
-    wattleHeight: progress < wattle.from ? 0 : FENCE_HEIGHT_M * (0.12 + 0.88 * share(wattle)),
+    rails: progress < wattle.from ? 0 : share(wattle),
   };
 }

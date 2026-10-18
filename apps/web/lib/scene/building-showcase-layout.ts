@@ -1,12 +1,15 @@
 // Rozestavění staveb na vývojové stránce /dev/buildings – bez Babylonu (smí i do stránky).
 // Jen pro prohlídku modelů: řemesla a posvátná místa zatím nemají místo ve hře. Za řadou
 // staveb pole, hřbitov, sad a louka na seno po čtvercích – jejich fáze podle průběhu stavby
-// (showcaseGrounds); vpravo modla, svatyně, posvátný dub a dubový háj (dekorace bez staveniště).
-import { CEMETERY, type TileCell } from '@bohemia/game';
+// (showcaseGrounds); vpravo modla, svatyně, posvátný dub a dubový háj (dekorace bez staveniště);
+// vlevo od pole čtverec, který orá spřežení volů s rádlem (ukázka „Orání“, plough-team.ts).
+import { CEMETERY, PLOT_VARIANTS, type PlotVariant, type TileCell } from '@bohemia/game';
 import type { FieldLook, SceneFieldPart, SceneVillage } from '../village-view';
 import { CEMETERY_PHASES } from './cemetery-layout';
 import { hayPhase, meadowLook, type HayMeadow } from './hay-meadows';
+import { plotHouse } from './homestead-layout';
 import { TREE_GROWTH_YEARS, treeGrowth } from './orchard-layout';
+import type { PloughField } from './plough-team';
 import type { ConstructionKind } from './village-construction';
 
 /**
@@ -25,6 +28,8 @@ export interface ShowcaseModel {
   z: number;
   /** Natočení kolem svislé osy (rad) – jako `Position.rotation`. */
   rotation: number;
+  /** Pozemek polozemnice – políčko (střed, strana) a varianta, kde na něm dům stojí. */
+  plot?: { x: number; z: number; size: number; variant: PlotVariant };
 }
 
 export interface ShowcaseBuilding {
@@ -78,12 +83,34 @@ function building(
   };
 }
 
+/** Polozemnice na pozemku 15 × 15 m (jako políčko pole) – dům podle varianty. */
+function plotModel(x: number, z: number, variant: PlotVariant): ShowcaseModel {
+  const plot = { x, z, size: 15, variant };
+  const house = plotHouse(plot, variant);
+  return {
+    kind: 'polozemnice',
+    url: '/models/dwellings/polozemnice.glb',
+    x: house.x,
+    z: house.z,
+    rotation: house.rotation,
+    plot,
+  };
+}
+
 const UHLIR_X = 26;
 const milir = offset(UHLIR_X, 0, FACING, MILIR_OFFSET_M);
+/** Řada pěti variant pozemku polozemnice před stavbami (z) a rozestup středů (m). */
+const VARIANTS_Z = -26;
+const VARIANTS_STEP = 17;
 
 export const SHOWCASE_BUILDINGS: readonly ShowcaseBuilding[] = [
   building('zemnice', 'Zemnice', 'zemnice', -27),
-  building('polozemnice', 'Polozemnice', 'polozemnice', -14),
+  {
+    id: 'polozemnice',
+    label: 'Polozemnice',
+    models: [plotModel(-14, 0, 'center')],
+    focus: { x: -14, z: -1.5, radius: 24 },
+  },
   building('hrncir', 'Hrnčíř', 'hrncir', -1),
   building('kovar', 'Kovář', 'kovar', 12),
   {
@@ -94,6 +121,14 @@ export const SHOWCASE_BUILDINGS: readonly ShowcaseBuilding[] = [
       { kind: 'milir', url: '/models/crafts/milir.glb', x: milir.x, z: milir.z, rotation: 0 },
     ],
     focus: { x: (UHLIR_X + milir.x) / 2, z: -1.5, radius: 26 },
+  },
+  {
+    id: 'pozemky',
+    label: 'Pozemky (5 variant)',
+    models: PLOT_VARIANTS.map((variant, i) =>
+      plotModel((i - (PLOT_VARIANTS.length - 1) / 2) * VARIANTS_STEP, VARIANTS_Z, variant),
+    ),
+    focus: { x: 0, z: VARIANTS_Z, radius: 62 },
   },
   // posvátná místa: modla (4 × 4 m) a svatyně (30 × 30 m) – vpravo za milířem, před sadem
   building('modla', 'Modla', 'modla', 50, 14),
@@ -200,7 +235,7 @@ const SQUARE_M = 15;
 /** Roh čtverce (0, 0) – za řadou staveb, aby pole, hřbitov a sad nic nezakrývaly. */
 const GROUND_ORIGIN = { x: -55, z: 18 };
 
-export type ShowcaseGroundId = 'field' | 'cemetery' | 'orchard' | 'meadow';
+export type ShowcaseGroundId = 'field' | 'cemetery' | 'orchard' | 'meadow' | 'plowing';
 
 export interface ShowcaseGround {
   id: ShowcaseGroundId;
@@ -244,7 +279,21 @@ export const SHOWCASE_GROUNDS: readonly ShowcaseGround[] = [
   ground('cemetery', 'Hřbitov', 4, 0, 2, 1),
   ground('orchard', 'Sad', 7, 0, 2, 2),
   ground('meadow', 'Louka na seno', 10, 0, 3, 2),
+  // vlevo od pole ob čtverec – spřežení se na souvratích otáčí za okrajem pole
+  ground('plowing', 'Orání', -2, 0, 1, 1),
 ];
+
+/**
+ * Čtverec, který orá spřežení: řady napříč obrazovkou (podél x – z výchozí kamery je spřežení
+ * vidět z boku), čtyři řady tam a zpět.
+ */
+export function showcasePloughField(): PloughField {
+  const square = SHOWCASE_GROUNDS.find((g) => g.id === 'plowing')!.squares[0]!;
+  return { x: square.x, z: square.z, size: square.size, dirX: 1, dirZ: 0, rows: 4 };
+}
+
+/** Popisek ukázky orby v liště (průběh stavby ji neovlivní – orá se pořád). */
+export const PLOWING_LABEL = 'spřežení volů s rádlem orá tam a zpět (ve hře zatím ne)';
 
 /** Fáze stavby po čtvercích pro lištu (průběh 0–1, navazují na sebe). */
 export interface ShowcasePhase {
@@ -455,10 +504,20 @@ export function showcaseGrounds(progress: number): {
       ? `${growing.label} – ${Math.min(TREE_GROWTH_YEARS, Math.floor(age) + 1)}. rok`
       : orchardPhase.label;
 
+  // orané pole: brázdy (vzhled po orbě), stále – nezávisí na průběhu
+  const plowing = of('plowing').squares.map((square): SceneFieldPart => ({
+    ...square,
+    stage: 'ready',
+    look: 'plowed',
+  }));
+
   return {
     village: {
       dwellings: [],
-      fields: [{ id: 1, parts }],
+      fields: [
+        { id: 1, parts },
+        { id: 2, parts: plowing },
+      ],
       cemeteries: [{ id: 1, squares: cemetery, built, progress: built ? 1 : founding, graves }],
       orchards: [
         {
@@ -477,6 +536,7 @@ export function showcaseGrounds(progress: number): {
       cemetery: cemeteryLabel,
       orchard: orchardLabel,
       meadow: hayLabel,
+      plowing: PLOWING_LABEL,
     },
   };
 }

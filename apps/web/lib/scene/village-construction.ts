@@ -62,7 +62,8 @@ export type ConstructionPhaseId =
   | 'thatch'
   | 'moss'
   | 'finish'
-  | 'garden'
+  | 'fence'
+  | 'beds'
   | 'kiln'
   | 'forge'
   | 'workshop'
@@ -113,9 +114,10 @@ function porchHousePhases(
  * Fáze stavby (průběh 0–1, navazují na sebe): vytyčení, sejmutí drnu, kopání jámy, pak
  * zemnice sloupy a krov na zemi, polozemnice srub z trámů po řadách, latě a pletené štíty,
  * mazanice, došky po řadách zdola nahoru a nakonec hřeben s kozami a valy hlíny; polozemnice
- * pak ještě zahrádku (kůly, proplétaný plot, záhony, zelenina). Řemeslné dílny navíc přístřešek,
- * pec / výheň a vybavení dílny (zahrádku nemají), uhlíř kryje střechu mechem; milíř se skládá
- * zvlášť – věnec polen, polena po vrstvách, kryt z hlíny a drnů, komín a průduchy.
+ * pak ještě polský plot kolem pozemku (kůly, pak proplétání větví) a záhony se zeleninou
+ * (homestead-layout.ts). Řemeslné dílny navíc přístřešek, pec / výheň a vybavení dílny (pozemek
+ * nemají), uhlíř kryje střechu mechem; milíř se skládá zvlášť – věnec polen, polena po vrstvách,
+ * kryt z hlíny a drnů, komín a průduchy.
  */
 export const CONSTRUCTION_PHASES: Record<ConstructionKind, readonly ConstructionPhase[]> = {
   zemnice: [
@@ -132,14 +134,15 @@ export const CONSTRUCTION_PHASES: Record<ConstructionKind, readonly Construction
   polozemnice: [
     { id: 'layout', label: 'vytyčení – kolíky a provázek', from: 0, to: 0.05 },
     { id: 'turf', label: 'sejmutí drnu', from: 0.05, to: 0.11 },
-    { id: 'dig', label: 'kopání jámy', from: 0.11, to: 0.24 },
-    { id: 'logs', label: 'roubení stěn', from: 0.24, to: 0.41 },
-    { id: 'frame', label: 'vaznice, sloupy a krokve', from: 0.41, to: 0.5 },
-    { id: 'wattle', label: 'latě a pletené štíty', from: 0.5, to: 0.58 },
-    { id: 'daub', label: 'omazávání mazanicí', from: 0.58, to: 0.67 },
-    { id: 'thatch', label: 'došky po řadách', from: 0.67, to: 0.86 },
-    { id: 'finish', label: 'hřeben, kozy a valy', from: 0.86, to: 0.91 },
-    { id: 'garden', label: 'zahrádka – kůly, proplétaný plot, záhony', from: 0.91, to: 1 },
+    { id: 'dig', label: 'kopání jámy', from: 0.11, to: 0.23 },
+    { id: 'logs', label: 'roubení stěn', from: 0.23, to: 0.39 },
+    { id: 'frame', label: 'vaznice, sloupy a krokve', from: 0.39, to: 0.47 },
+    { id: 'wattle', label: 'latě a pletené štíty', from: 0.47, to: 0.55 },
+    { id: 'daub', label: 'omazávání mazanicí', from: 0.55, to: 0.63 },
+    { id: 'thatch', label: 'došky po řadách', from: 0.63, to: 0.8 },
+    { id: 'finish', label: 'hřeben, kozy a valy', from: 0.8, to: 0.85 },
+    { id: 'fence', label: 'polský plot – kůly, pak proplétání větví', from: 0.85, to: 0.94 },
+    { id: 'beds', label: 'záhony a zelenina', from: 0.94, to: 1 },
   ],
   hrncir: porchHousePhases(
     { id: 'kiln', label: 'hrnčířská pec – podstavec, kopule, topeniště', from: 0.77, to: 0.93 },
@@ -330,7 +333,22 @@ export interface ConstructionState {
   trampled: number;
   /** Rekvizity a jejich velikost (hromada roste s kopáním, hráň ubývá se stavbou…). */
   props: { prop: SiteProp; scale: number }[];
+  /**
+   * Pozemek (jen obydlí na pozemku, homestead-layout.ts): podíl zatlučených kůlů plotu 0–1,
+   * upletených větví (zdola nahoru) 0–1 a hotových záhonů se zeleninou 0–1.
+   */
+  plot: PlotProgress;
 }
+
+export interface PlotProgress {
+  posts: number;
+  rails: number;
+  beds: number;
+}
+
+/** Hotový pozemek – celý plot i záhony. */
+export const PLOT_BUILT: PlotProgress = { posts: 1, rails: 1, beds: 1 };
+const PLOT_NONE: PlotProgress = { posts: 0, rails: 0, beds: 0 };
 
 /** 0 před `from`, 1 po `to`, mezi tím lineárně. */
 export function ramp(p: number, from: number, to: number): number {
@@ -359,17 +377,6 @@ function phaseOf(kind: ConstructionKind, id: ConstructionPhaseId): ConstructionP
 function hasPhase(kind: ConstructionKind, id: ConstructionPhaseId): boolean {
   return CONSTRUCTION_PHASES[kind].some((p) => p.id === id);
 }
-
-/**
- * Zahrádka polozemnice (tools/blender/dwellings.py – build_garden) ve fázi „garden“:
- * kůly, proplétaný plot, záhony, zelenina.
- */
-const GARDEN_STEPS: [string, number][] = [
-  ['garden-posts', 0.05],
-  ['garden-rails', 0.3],
-  ['garden-beds', 0.6],
-  ['garden-plants', 0.82],
-];
 
 /** Díly řemesla po sobě uvnitř jedné fáze: [díl, kdy v rámci fáze 0–1]. */
 const CRAFT_STEPS: Partial<Record<ConstructionKind, [ConstructionPhaseId, [string, number][]][]>> =
@@ -494,9 +501,6 @@ export function partSchedule(kind: ConstructionKind): PartRule[] {
   rules.push(...series('thatch', THATCH_COURSES[kind], roof, 0.04, 0.92));
   rules.push({ part: 'ridge', from: within('finish', 0.1) });
   rules.push({ part: 'berms', from: within('finish', 0.45) });
-  if (hasPhase(kind, 'garden')) {
-    for (const [part, t] of GARDEN_STEPS) rules.push({ part, from: within('garden', t) });
-  }
   for (const [id, steps] of CRAFT_STEPS[kind] ?? []) {
     for (const [part, t] of steps) rules.push({ part, from: within(id, t) });
   }
@@ -594,6 +598,7 @@ export function constructionState(kind: ConstructionKind, progress: number): Con
       turf: 0,
       trampled: 0.85 * ramp(p, 0.01, ring.from),
       props,
+      plot: PLOT_NONE,
     };
   }
   const turf = phase('turf');
@@ -606,8 +611,9 @@ export function constructionState(kind: ConstructionKind, progress: number): Con
   // dřevo se začne brát se sloupy (zemnice), nebo s roubením (polozemnice)
   const timberUse = base === 'zemnice' ? phase('posts') : phase('logs');
   const used = 1 - 0.6 * ramp(p, finish.from, finish.to);
-  // u polozemnice se zbytek hlíny rozhrne na valy celý – na jejím místě vyroste zahrádka
-  const spoilLeft = hasPhase(kind, 'garden') ? 1 - ramp(p, finish.from, finish.to) : used;
+  // polozemnice: zbytek hlíny se rozhrne na valy celý – na pozemku pak vyrostou záhony
+  const fenced = hasPhase(kind, 'fence');
+  const spoilLeft = fenced ? 1 - ramp(p, finish.from, finish.to) : used;
   add('spoil', p >= dig.from, (0.3 + 0.7 * ramp(p, dig.from, dig.to)) * spoilLeft);
   add('turf', p >= turf.from, (0.4 + 0.6 * ramp(p, turf.from, turf.to)) * used);
   add('timber', p < frame.to, 1 - 0.65 * ramp(p, timberUse.from, frame.to));
@@ -638,6 +644,39 @@ export function constructionState(kind: ConstructionKind, progress: number): Con
     turf: ramp(p, turf.from, turf.to),
     trampled: 0.85 * ramp(p, 0.01, dig.from + 0.04),
     props,
+    plot: fenced ? plotProgress(kind, p) : PLOT_NONE,
+  };
+}
+
+/** Pozemek během stavby: kůly v první polovině fáze plotu, pak větve zdola, nakonec záhony. */
+function plotProgress(kind: ConstructionKind, p: number): PlotProgress {
+  const fence = phaseOf(kind, 'fence');
+  const beds = phaseOf(kind, 'beds');
+  const middle = (fence.from + fence.to) / 2;
+  return {
+    posts: ramp(p, fence.from, middle),
+    rails: ramp(p, middle, fence.to),
+    beds: ramp(p, beds.from, beds.to),
+  };
+}
+
+/**
+ * Kde leží rekvizita staveniště obydlí na pozemku: rohový dům má plot hned za sebou – rekvizity,
+ * které by ležely za plotem (ven z pozemku), se zrcadlí dovnitř pozemku. `inward` = směr do
+ * středu pozemku v osách modelu (znaménka x a z; 0 = na té ose nic nezrcadlit).
+ */
+export function sitePropPlace(
+  kind: ConstructionKind,
+  prop: SiteProp,
+  inward: { x: number; z: number } = { x: 0, z: 0 },
+): { x: number; z: number; rotation: number } {
+  const place = SITE_PROP_PLACES[kind][prop];
+  const flipX = inward.x !== 0 && Math.sign(place.x) !== Math.sign(inward.x);
+  const flipZ = inward.z !== 0 && Math.sign(place.z) !== Math.sign(inward.z);
+  return {
+    x: flipX ? -place.x : place.x,
+    z: flipZ ? -place.z : place.z,
+    rotation: flipX !== flipZ ? -place.rotation : place.rotation,
   };
 }
 
@@ -669,6 +708,7 @@ function sacredState(kind: SacredKind, p: number, parts: string[]): Construction
       turf: 0,
       trampled: 0.85 * ramp(p, 0.01, ground.to),
       props,
+      plot: PLOT_NONE,
     };
   }
   const dig = phase('dig');
@@ -692,5 +732,6 @@ function sacredState(kind: SacredKind, p: number, parts: string[]): Construction
     turf: 0,
     trampled: 0.85 * ramp(p, 0.01, dig.from + 0.05),
     props,
+    plot: PLOT_NONE,
   };
 }

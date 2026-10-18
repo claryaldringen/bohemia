@@ -23,6 +23,7 @@ import {
   type ChronicleEvent,
   type ConstructionKind,
   type ConstructionSummary,
+  type DwellingPlot,
   type DwellingType,
   type FieldSurface,
   type LaborShare,
@@ -32,6 +33,7 @@ import {
   type OrchardWork,
   type PartStage,
   type PlacementVillage,
+  type PlotVariant,
   type Position,
   type SacredBuildingKind,
   type StockResource,
@@ -235,6 +237,27 @@ export interface VillageOrchard {
   plantingWaits: boolean;
 }
 
+/** Pozemek obydlí ve scéně – políčko se středem a stranou jako čtverec pole a varianta. */
+export interface ScenePlot {
+  cell: TileCell;
+  x: number;
+  z: number;
+  size: number;
+  variant: PlotVariant;
+}
+
+/** Pozemek obydlí ze stavu vsi pro scénu (střed políčka ve světě). */
+export function scenePlot(landscape: Landscape, plot: DwellingPlot): ScenePlot {
+  const center = tileCenterWorld(landscape, plot.cell.x, plot.cell.y);
+  return {
+    cell: { x: plot.cell.x, y: plot.cell.y },
+    x: center.x,
+    z: center.z,
+    size: landscape.cellSizeM,
+    variant: plot.variant,
+  };
+}
+
 export interface SceneVillage {
   /** Hotová obydlí (`built: true`, id obydlí) i rozestavěná (`built: false`, id stavby). */
   dwellings: {
@@ -245,6 +268,11 @@ export interface SceneVillage {
     progress: number;
     /** Bydlí v něm někdo – jen z obydlí s obyvateli stoupá dým. Bez údaje = obývané. */
     inhabited?: boolean;
+    /**
+     * Pozemek (polozemnice) – políčko krajiny, jeho střed (x, z) ve světě, strana v m a varianta
+     * (kde na něm dům stojí). Volná obydlí (zemnice, starší polozemnice) ho nemají.
+     */
+    plot?: ScenePlot;
     /**
      * Herní den, od kdy obydlí stojí (hotové – dostavění, staveniště – zahájení stavby): pěšiny
      * domácnosti se vyšlapávají postupně (paths.md). Bez údaje = odjakživa.
@@ -502,12 +530,14 @@ function sceneVillage(
     built: true,
     progress: 1,
     inhabited: occupied.has(d.id),
+    ...(d.plot ? { plot: scenePlot(landscape, d.plot) } : {}),
     since: d.builtDay,
   }));
   // staveniště ukazuje samotnou stavbu – dřevo se kácí v lese, než se začne stavět
   const sites = state.constructions.flatMap((c) => {
     if (c.kind !== 'dwelling' || c.dwellingType === null || c.position === null) return [];
     const progress = constructions.find((s) => s.id === c.id)?.buildProgress ?? 0;
+    const plot = c.plot ? { plot: scenePlot(landscape, c.plot) } : {};
     return [
       {
         id: c.id,
@@ -515,6 +545,7 @@ function sceneVillage(
         position: c.position,
         built: false,
         progress,
+        ...plot,
         since: c.startedDay,
       },
     ];
@@ -909,7 +940,11 @@ export function buildVillageView(
  */
 export function placementVillageFromScene(scene: SceneVillage): PlacementVillage {
   return {
-    dwellings: scene.dwellings.map((d) => ({ type: d.type, position: d.position })),
+    dwellings: scene.dwellings.map((d) => ({
+      type: d.type,
+      position: d.position,
+      ...(d.plot ? { plot: { cell: d.plot.cell, variant: d.plot.variant } } : {}),
+    })),
     constructions: [],
     parts: scene.fields.flatMap((f) => f.parts.map((p) => ({ cell: p.cell }))),
     cemeteries: (scene.cemeteries ?? []).map((c) => ({

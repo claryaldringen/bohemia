@@ -42,7 +42,7 @@ import { applySeasonGround } from './season-materials';
 import { prepareTreeMaterial } from './trees';
 import { decalGrid } from './village-layout';
 import { createDecalMaterial, createDecalMesh, type HeightFn } from './village-meshes';
-import { houseBox, siteBox, type VillagerPaths } from './villager-plan';
+import { houseBox, plotBox, siteBox, type VillagerPaths } from './villager-plan';
 
 // Vyšlapané pěšiny ve scéně (docs/design/paths.md): síť se spočítá v prohlížeči z vsi
 // a krajiny (path-network.ts), jen když se změní rozložení vsi nebo místa práce dne – odloženě
@@ -506,7 +506,7 @@ function canPlantOf(
   ];
   const houses = village.dwellings.map((d) => ({
     position: d.position,
-    box: d.built ? houseBox(d.type) : siteBox(d.type),
+    box: d.plot ? plotBox(d.position, d.plot) : d.built ? houseBox(d.type) : siteBox(d.type),
   }));
   const sacred = (village.sacred?.buildings ?? []).map((b) => ({
     x: b.position.x,

@@ -22,4 +22,24 @@ describe('SHOWCASE_BUILDINGS', () => {
       }
     }
   });
+
+  it('pozemky polozemnic (15 × 15 m) se nepřekrývají a nezasahují do ostatních staveb', () => {
+    const models = SHOWCASE_BUILDINGS.flatMap((b) => b.models);
+    const plots = models.flatMap((m) => (m.plot ? [m.plot] : []));
+    expect(plots.length).toBe(6);
+    expect(new Set(plots.map((p) => p.variant)).size).toBe(5);
+    for (const p of plots) {
+      for (const q of plots) {
+        if (p === q) continue;
+        const apart = Math.abs(p.x - q.x) >= 15 || Math.abs(p.z - q.z) >= 15;
+        expect(apart).toBe(true);
+      }
+      for (const m of models) {
+        if (m.plot) continue;
+        // ostatní stavby i se staveništěm (≈ 5 m od středu) leží mimo políčko pozemku
+        const outside = Math.abs(m.x - p.x) > 7.5 + 4.5 || Math.abs(m.z - p.z) > 7.5 + 4.5;
+        expect(outside, m.kind).toBe(true);
+      }
+    }
+  });
 });

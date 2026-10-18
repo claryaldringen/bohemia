@@ -16,6 +16,7 @@ import { obstacleChangesAt } from '../obstacles';
 import {
   cemeteryPartsFromCells,
   checkDwellingPlacement,
+  checkPlotPlacement,
   checkSacredBuildingPlacement,
   fieldPartsFromCells,
   orchardPartsFromCells,
@@ -255,6 +256,28 @@ describe('mýcení kolem posvátných míst', () => {
     expect(near.obstacleIds).not.toContain(BIG_OAK);
     expect(near.spared.oaks.map((o) => o.id)).toEqual([BIG_OAK]);
     expect(near.warning).toContain('Posvátný dub zůstane stát');
+  });
+
+  it('pozemek polozemnice: na políčku nesmí být posvátný dub ani háj (nic nezůstane stát)', () => {
+    const plot = (x: number, y: number) =>
+      checkPlotPlacement(
+        landscape,
+        null,
+        'polozemnice',
+        { cell: { x, y }, variant: 'center' },
+        layer,
+      );
+    const oak = plot(8, 8);
+    expect(oak.ok).toBe(false);
+    expect(oak.reason).toBe('Na pozemku stojí posvátný dub – ten vesničané nepokácí.');
+    const grove = plot(3, 12);
+    expect(grove.ok).toBe(false);
+    expect(grove.reason).toBe('Na pozemku roste posvátný dubový háj – ten vesničané nevykácejí.');
+    // sousední políčko jde – dub stojí dál od domu, než sahá koruna
+    const beside = plot(8, 7);
+    expect(beside.ok).toBe(true);
+    expect(beside.obstacleIds).not.toContain(BIG_OAK);
+    expect(beside.spared).toEqual({ oaks: [], groves: [] });
   });
 
   it('založení pole zapíše ušetřený dub do vsi a kroniky – jednou', () => {

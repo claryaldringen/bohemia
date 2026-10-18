@@ -180,6 +180,32 @@ describe('computePathNetwork – pěšiny vsi', () => {
     expect(towards(without)).toBe(false);
   });
 
+  it('pozemek polozemnice: pěšina vede od branky a dovnitř plotu nechodí', () => {
+    // pozemek na políčku se středem (37,5; 7,5), dům vchodem k −z (k brance)
+    const plot = { cell: { x: 2, y: 0 }, x: 37.5, z: 7.5, size: 15, variant: 'center' as const };
+    const v = village({
+      dwellings: [
+        house(1, 0, 0),
+        house(2, 14, 4),
+        {
+          ...house(5, 37.5, 7.5, Math.PI),
+          type: 'polozemnice',
+          plot,
+        },
+      ],
+    });
+    const network = computePathNetwork({ village: v, terrain });
+    const inside = samples(network).filter(
+      (p) => Math.abs(p.x - plot.x) < 6.5 && Math.abs(p.z - plot.z) < 6.5,
+    );
+    expect(inside).toEqual([]);
+    // branka je na přední straně (−z) proti vchodu
+    const gate = { x: 37.5, z: 7.5 - 7.5 - 1 };
+    expect(
+      network.lines.some((l) => l.points.some((p) => Math.hypot(p.x - gate.x, p.z - gate.z) < 3)),
+    ).toBe(true);
+  });
+
   it('ves bez obydlí pěšiny nemá', () => {
     expect(computePathNetwork({ village: village({ dwellings: [] }), terrain }).lines).toEqual([]);
     expect(pathBounds(village({ dwellings: [] }))).toBeNull();

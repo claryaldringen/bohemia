@@ -1,0 +1,90 @@
+[
+  {
+    "name": "ox",
+    "length_m": 2.2,
+    "body": {
+      "dae": "meshes/skeletal/cattle_male_c.dae",
+      "texture": "textures/skins/skeletal/animal_cattle_beige.png",
+      "multiply": [0.76, 0.6, 0.47],
+      "coat": [[0.92, 0, 1, 0.34]],
+      "texture_px": 256
+    },
+    "props": [],
+    "clips": [
+      {
+        "name": "walk",
+        "animation": "animation/quadraped/bovidae_walk.dae",
+        "report": ["Bovidae_Neck", "Bovidae_Head", "Bovidae_spine1", "Bovidae_spine"]
+      },
+      {
+        "name": "idle",
+        "animation": "animation/quadraped/bovidae_idle_a.dae"
+      }
+    ]
+  },
+  {
+    "name": "plowman",
+    "height_m": 1.72,
+    "body": {
+      "dae": "meshes/skeletal/new/m_tunic_short.dae",
+      "texture": "textures/skins/skeletal/celt/tunic_01_01.png",
+      "tint": [0.62, 0.52, 0.38],
+      "pattern": 0.35,
+      "flatten": [
+        [0, 0.25, 1, 0.92],
+        [0.5, 0, 0.66, 0.25]
+      ]
+    },
+    "props": [
+      {
+        "name": "head",
+        "dae": "meshes/props/new/head_longhair.dae",
+        "point": "prop-head",
+        "texture": "textures/skins/props/head/celt_a.dds",
+        "tint": [0.33, 0.25, 0.15]
+      }
+    ],
+    "clips": [
+      {
+        "name": "walk",
+        "animation": "animation/biped/citizen/walk_relax_m.dae",
+        "props": ["head"],
+        "report": ["hand_L", "finger_L"]
+      },
+      {
+        "name": "idle",
+        "animation": "animation/biped/citizen/idle_relax_m_a.dae",
+        "props": ["head"]
+      },
+      {
+        "name": "plough",
+        "animation": "animation/biped/citizen/walk_relax_m.dae",
+        "props": ["head"],
+        "pose": {
+          "lean": [
+            {
+              "bone": "spine",
+              "deg": 16
+            }
+          ],
+          "reach": {
+            "L": [0.21, 0.28, 1.06],
+            "R": [-0.21, 0.28, 1.06]
+          }
+        },
+        "report": ["arm_L", "arm_R", "hand_L", "hand_R", "finger_L", "finger_R"]
+      },
+      {
+        "name": "lead",
+        "animation": "animation/biped/citizen/walk_relax_m.dae",
+        "props": ["head"],
+        "pose": {
+          "reach": {
+            "R": [-0.24, 0.32, 1.02]
+          }
+        },
+        "report": ["hand_R", "finger_R"]
+      }
+    ]
+  }
+]

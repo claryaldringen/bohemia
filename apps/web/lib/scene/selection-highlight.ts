@@ -61,8 +61,9 @@ export class SelectionHighlight {
 }
 
 /**
- * Obrys cíle jako lomené čáry: rámeček kolem půdorysu obydlí, modly nebo svatyně, kroužek kolem
- * posvátného dubu, nebo mez kolem čtverců pole, hřbitova, sadu či háje.
+ * Obrys cíle jako lomené čáry: celý pozemek obydlí (polozemnice – políčko), rámeček kolem
+ * půdorysu volného obydlí, modly nebo svatyně, kroužek kolem posvátného dubu, nebo mez kolem
+ * čtverců pole, hřbitova, sadu či háje.
  */
 export function targetOutline(village: SceneVillage, target: VillageTarget): Point[][] {
   if (target.kind === 'sacred') {
@@ -88,6 +89,8 @@ export function targetOutline(village: SceneVillage, target: VillageTarget): Poi
   if (target.kind === 'dwelling') {
     const dwelling = village.dwellings.find((d) => d.id === target.id);
     if (!dwelling) return [];
+    // Martin: vybrané obydlí na pozemku označí celý pozemek, ne jen stavbu
+    if (dwelling.plot) return cellsBoundary([dwelling.plot]);
     const { width, depth } = DWELLING_FOOTPRINT_M[dwelling.type];
     const corners = footprintCorners(
       dwelling.position,
