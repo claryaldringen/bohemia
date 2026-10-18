@@ -2,11 +2,27 @@ import {
   DWELLING_CLEARING_M,
   DWELLING_GARDEN_M,
   SACRED_BUILDINGS,
+  dateOfDayIndex,
   type DwellingType,
   type Position,
 } from '@bohemia/game';
-import type { LaborActivity, LaborShare, LaborTarget, SceneVillage } from '../village-view';
-import { cellsBoundary, type CellSquare } from './field-cells';
+import type {
+  LaborActivity,
+  LaborShare,
+  LaborTarget,
+  SceneLaborShare,
+  SceneVillage,
+} from '../village-view';
+import { cellsBoundary, rowDirection, type CellSquare } from './field-cells';
+import {
+  fieldPartViews,
+  villageCenter,
+  workFrame,
+  workSteps,
+  workedParts,
+  type PartView,
+  type WorkFrame,
+} from './field-look';
 import { chickenBox } from './livestock-placement';
 import { orchardTreeSpots } from './orchard-layout';
 import { hash01 } from './smoke-schedule';
@@ -533,22 +549,22 @@ function nearestHouse(list: readonly House[], p: Point): House | null {
 
 // --- podle činnosti ------------------------------------------------------------------------
 
-function placer(ctx: Context, share: LaborShare, count: number): Placer {
+function placer(ctx: Context, share: SceneLaborShare, count: number): Placer {
   const t = share.target;
   switch (share.activity) {
     case 'dig':
     case 'reclaim':
-      return t.kind === 'field' ? fieldRows(ctx, t.id, count, 'hoe') : none;
+      return t.kind === 'field' ? fieldRows(ctx, share, t.id, count, 'hoe') : none;
     case 'sow':
-      return t.kind === 'field' ? fieldRows(ctx, t.id, count, 'seed') : none;
+      return t.kind === 'field' ? fieldRows(ctx, share, t.id, count, 'seed') : none;
     case 'weed':
-      return t.kind === 'field' ? fieldRows(ctx, t.id, count, 'weed') : none;
+      return t.kind === 'field' ? fieldRows(ctx, share, t.id, count, 'weed') : none;
     case 'harvest':
-      return t.kind === 'field' ? fieldRows(ctx, t.id, count, 'reap') : none;
+      return t.kind === 'field' ? fieldRows(ctx, share, t.id, count, 'reap') : none;
     case 'carry':
-      return t.kind === 'field' ? carriers(ctx, t.id) : none;
+      return t.kind === 'field' ? carriers(ctx, share, t.id) : none;
     case 'found-field':
-      return t.kind === 'field' ? founding(ctx, t.id, count) : none;
+      return t.kind === 'field' ? founding(ctx, share, t.id, count) : none;
     case 'thresh':
       return threshing(ctx, count);
     case 'orchard-harvest':
@@ -580,31 +596,117 @@ interface Square {
   size: number;
 }
 
-/**
- * Čtverce pole pro práci: díly ve stadiu `stage` (osévané = v plánu, zakládané), jinak všechny.
- * Osévané se střídají po dnech (řady se posouvají po poli), zakládané od nejbližšího k obydlí
- * jako v simulaci.
- */
-function fieldSquares(ctx: Context, fieldId: number, stage: 'sown' | 'founding'): Square[] {
-  const field = ctx.village.fields.find((f) => f.id === fieldId);
-  if (!field || field.parts.length === 0) return [];
-  const matching = field.parts.filter((p) => p.stage === stage);
-  const parts = matching.length > 0 ? matching : field.parts;
-  const distance = (p: Square): number => {
-    const h = nearestHouse(ctx.houses, p);
-    return h ? Math.hypot(h.position.x - p.x, h.position.z - p.z) : 0;
-  };
-  const sorted = [...parts].sort((a, b) => distance(a) - distance(b) || a.x - b.x || a.z - b.z);
-  if (stage === 'founding') return sorted;
-  const start =
-    Math.floor(ctx.day / CREW_MOVE_DAYS) +
-    Math.floor(hash01(fieldId, ctx.seed, 92) * sorted.length);
-  return sorted.map((_, i) => sorted[(start + i) % sorted.length]!);
+/** Pole s díly ve vzhledu, jak je kreslí scéna (field-look.ts), směrem řádků a práce. */
+interface FieldWork {
+  views: PartView[];
+  rows: [number, number];
+  center: { x: number; z: number };
 }
 
-/** Řady na čtvercích pole – po CREW lidech na čtverec, `clip` podle člena řady. */
-function fieldRows(ctx: Context, fieldId: number, count: number, clip: VillagerClip): Placer {
-  return crewRows(ctx, fieldSquares(ctx, fieldId, 'sown'), count, () => clip);
+function fieldWork(ctx: Context, fieldId: number): FieldWork | null {
+  const field = ctx.village.fields.find((f) => f.id === fieldId);
+  if (!field || field.parts.length === 0) return null;
+  const dayOfYear = dateOfDayIndex(ctx.day).dayOfYear;
+  return {
+    views: fieldPartViews(field, { dayOfYear, village: ctx.village }),
+    rows: rowDirection(field.parts),
+    center: villageCenter(ctx.village, field.parts),
+  };
+}
+
+/**
+ * Díly, na kterých se dnes pracuje (Martin: panáček přijde přesně na čtverec, který se zrovna
+ * dělá): z fronty práce od herního jádra (`share.parts`), jinak rozpracovaný díl a za ním díly,
+ * na které práce přijde (field-look.ts – `workedParts`). Pletí se střídá po dnech.
+ */
+function workedSquares(ctx: Context, share: SceneLaborShare, work: FieldWork): PartView[] {
+  const worked = workedParts(work.views, share.activity, share.parts);
+  if (share.activity !== 'weed' || worked.length === 0) return worked;
+  const fieldId = share.target.kind === 'field' ? share.target.id : 0;
+  const start =
+    Math.floor(ctx.day / CREW_MOVE_DAYS) +
+    Math.floor(hash01(fieldId, ctx.seed, 92) * worked.length);
+  return worked.map((_, i) => worked[(start + i) % worked.length]!);
+}
+
+/**
+ * Řady na čtvercích pole – po CREW lidech na čtverec z fronty práce, `clip` podle práce. Na
+ * rozpracovaném čtverci stojí řada na čáře práce (kus do nehotové části) a jde podél řádků.
+ */
+function fieldRows(
+  ctx: Context,
+  share: SceneLaborShare,
+  fieldId: number,
+  count: number,
+  clip: VillagerClip,
+): Placer {
+  const work = fieldWork(ctx, fieldId);
+  if (!work) return none;
+  const squares = workedSquares(ctx, share, work);
+  if (squares.length === 0) return none;
+  return (i, who) => {
+    const crew = Math.floor(i / CREW);
+    const member = i % CREW;
+    const size = Math.min(CREW, count - crew * CREW);
+    const view = squares[crew % squares.length]!;
+    return frontierRow(ctx, work, view, member, size, clip, who, share.activity === 'weed');
+  };
+}
+
+/** Rozestup lidí v řadě napříč řádky na čáře práce (m). */
+const FRONT_GAP_M = gap(0.9);
+
+/**
+ * Člověk `member` z `size` na čtverci: řada vede podél řádků pole. Na rozpracovaném čtverci
+ * stojí lidé vedle sebe hned za čarou práce (v nehotové části), na čtverci, kam práce teprve
+ * přijde, u jeho začátku (strana blíž vsi); při pletí rozestoupení přes celý čtverec.
+ */
+function frontierRow(
+  ctx: Context,
+  work: FieldWork,
+  view: PartView,
+  member: number,
+  size: number,
+  clip: VillagerClip,
+  who: Identity,
+  spread: boolean,
+): PoseFn | null {
+  const square = view.part;
+  const frame = workFrame(square, work.rows, work.center);
+  const half = square.size / 2 - ROW_MARGIN_M;
+  const line = view.work !== null ? workSteps(view.work) : 0;
+  let v: number;
+  if (spread) {
+    v = -half + ((member + 0.5) * 2 * half) / size + (who.phase - 0.5) * 0.6;
+  } else {
+    const start = -square.size / 2 + line * square.size;
+    v = Math.min(half, Math.max(-half, start + (member + 0.5) * FRONT_GAP_M));
+  }
+  const lane = laneAlongRows(ctx, square, frame, v, half);
+  if (!lane) return null;
+  const row = ROW[clip] ?? { workS: 5, stepM: 1 };
+  return rowWork(
+    lane,
+    clip,
+    row.workS,
+    row.stepM,
+    walkSpeed(who.kind, 'walk', who.scale),
+    who.phase,
+  );
+}
+
+/** Řada podél řádků pole ve vzdálenosti `v` napříč (souřadnice práce) – nejdelší volný úsek. */
+function laneAlongRows(
+  ctx: Context,
+  square: Square,
+  frame: WorkFrame,
+  v: number,
+  half: number,
+): Lane | null {
+  const alongX = Math.abs(frame.along[0]) > 0.5;
+  // freeLane počítá napříč v ose z (řádky podél x), nebo v ose x (řádky podél z)
+  const offset = alongX ? v * frame.across[1] : v * frame.across[0];
+  return freeLane(ctx, square, alongX, 1, offset, half);
 }
 
 function crewRows(
@@ -685,16 +787,20 @@ function freeLane(
 }
 
 /**
- * Nosiči úrody: od obydlí nejblíž čtverci, kde se žne, a s nůší zpět. Když trasa nevede po
- * suchu, žne nosič taky.
+ * Nosiči úrody: od obydlí nejblíž čtverci, kde stojí panáky (sklizená část fronty žně), a se
+ * snopy v nůši zpět. Když trasa nevede po suchu, žne nosič taky.
  */
-function carriers(ctx: Context, fieldId: number): Placer {
-  const squares = fieldSquares(ctx, fieldId, 'sown');
+function carriers(ctx: Context, share: SceneLaborShare, fieldId: number): Placer {
+  const work = fieldWork(ctx, fieldId);
+  if (!work) return none;
+  const squares = workedSquares(ctx, share, work);
   if (squares.length === 0) return none;
   return (i, who) => {
-    const square = squares[Math.floor(i / 2) % squares.length]!;
+    const view = squares[Math.floor(i / 2) % squares.length]!;
+    const square = view.part;
     const home = nearestHouse(ctx.homes, square);
-    const fallback = (): PoseFn | null => rowOn(ctx, square, i % CREW, CREW, 'reap', who);
+    const fallback = (): PoseFn | null =>
+      frontierRow(ctx, work, view, i % CREW, CREW, 'reap', who, false);
     if (!home) return fallback();
     const door = doorPoint(home, (who.phase - 0.5) * 1.6);
     const half = square.size / 2 - ROW_MARGIN_M;
@@ -719,24 +825,27 @@ function carriers(ctx: Context, fieldId: number): Placer {
 }
 
 /**
- * Zakládání pole: stromy na zakládaném čtverci se kácejí (sekera u kmene), zbytek okopává
- * drn motykou.
+ * Zakládání pole: na rozpracovaném čtverci (pak na dalších z fronty – od obydlí) se kácejí
+ * stromy (sekera u kmene), zbytek rozrývá drn motykou na čáře práce.
  */
-function founding(ctx: Context, fieldId: number, count: number): Placer {
-  const squares = fieldSquares(ctx, fieldId, 'founding');
+function founding(ctx: Context, share: SceneLaborShare, fieldId: number, count: number): Placer {
+  const work = fieldWork(ctx, fieldId);
+  if (!work) return none;
+  const squares = workedSquares(ctx, share, work);
   if (squares.length === 0) return none;
-  const trees = squares.map((s) => ctx.ground.treesIn(s.x, s.z, s.size / 2, CREW));
+  const trees = squares.map((s) => ctx.ground.treesIn(s.part.x, s.part.z, s.part.size / 2, CREW));
   return (i, who) => {
     const crew = Math.floor(i / CREW);
     const member = i % CREW;
     const k = crew % squares.length;
-    const square = squares[k]!;
+    const view = squares[k]!;
     const standing = trees[k] ?? [];
     if (standing.length > 0 && member % 2 === 0) {
       const tree = standing[(member / 2) % standing.length]!;
       return atTree(ctx, tree, who, 'fell', FELL_REACH_M);
     }
-    return rowOn(ctx, square, member, Math.min(CREW, count - crew * CREW), 'hoe', who);
+    const size = Math.min(CREW, count - crew * CREW);
+    return frontierRow(ctx, work, view, member, size, 'hoe', who, false);
   };
 }
 

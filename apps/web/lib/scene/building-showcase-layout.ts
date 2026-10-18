@@ -1,10 +1,11 @@
 // Rozestavění staveb na vývojové stránce /dev/buildings – bez Babylonu (smí i do stránky).
 // Jen pro prohlídku modelů: řemesla a posvátná místa zatím nemají místo ve hře. Za řadou
-// staveb pole, hřbitov a sad po čtvercích – jejich fáze podle průběhu stavby (showcaseGrounds);
-// vpravo modla, svatyně, posvátný dub a dubový háj (dekorace bez staveniště).
+// staveb pole, hřbitov, sad a louka na seno po čtvercích – jejich fáze podle průběhu stavby
+// (showcaseGrounds); vpravo modla, svatyně, posvátný dub a dubový háj (dekorace bez staveniště).
 import { CEMETERY, type TileCell } from '@bohemia/game';
-import type { SceneVillage } from '../village-view';
+import type { FieldLook, SceneFieldPart, SceneVillage } from '../village-view';
 import { CEMETERY_PHASES } from './cemetery-layout';
+import { hayPhase, meadowLook, type HayMeadow } from './hay-meadows';
 import { TREE_GROWTH_YEARS, treeGrowth } from './orchard-layout';
 import type { ConstructionKind } from './village-construction';
 
@@ -199,7 +200,7 @@ const SQUARE_M = 15;
 /** Roh čtverce (0, 0) – za řadou staveb, aby pole, hřbitov a sad nic nezakrývaly. */
 const GROUND_ORIGIN = { x: -55, z: 18 };
 
-export type ShowcaseGroundId = 'field' | 'cemetery' | 'orchard';
+export type ShowcaseGroundId = 'field' | 'cemetery' | 'orchard' | 'meadow';
 
 export interface ShowcaseGround {
   id: ShowcaseGroundId;
@@ -242,6 +243,7 @@ export const SHOWCASE_GROUNDS: readonly ShowcaseGround[] = [
   ground('field', 'Pole', 0, 0, 3, 2),
   ground('cemetery', 'Hřbitov', 4, 0, 2, 1),
   ground('orchard', 'Sad', 7, 0, 2, 2),
+  ground('meadow', 'Louka na seno', 10, 0, 3, 2),
 ];
 
 /** Fáze stavby po čtvercích pro lištu (průběh 0–1, navazují na sebe). */
@@ -252,18 +254,66 @@ export interface ShowcasePhase {
 }
 
 /**
- * Pole: zakládání (drn se rozrývá, hotové čtverce se zbarví), připravené pole s brázdami, osev
- * po čtvercích – to je ve hře; pak růst obilí, zralé obilí a strniště jen jako náhled (`CropLook`).
+ * Pole přes všechny vzhledy (fields.md – Co hráč vidí): vytyčení kolíky a provázkem, zakládání,
+ * orba a setí po čtvercích (práce jde po dílech, rozpracovaný je vždy jen jeden), vzcházející,
+ * zelené a zralé obilí, žeň s panáky, strniště, mladý úhor a spasená pastvina.
  */
-export const FIELD_SHOWCASE_PHASES: readonly ShowcasePhase[] = [
-  { label: 'zakládání – drn se rozrývá po čtvercích', from: 0, to: 0.34 },
-  { label: 'připravené pole – brázdy', from: 0.34, to: 0.46 },
-  { label: 'osev po čtvercích – vzchází obilí', from: 0.46, to: 0.6 },
-  { label: 'zelené obilí (ve hře zatím ne)', from: 0.6, to: 0.76 },
-  { label: 'zralé obilí (ve hře zatím ne)', from: 0.76, to: 0.9 },
-  { label: 'strniště po sklizni (ve hře zatím ne)', from: 0.9, to: 1 },
-];
-/** Hřbitov: do poloviny založení (fáze `CEMETERY_PHASES`), pak přibývají hroby. */
+export const FIELD_SHOWCASE_PHASES: readonly (ShowcasePhase & {
+  look: FieldLook | null;
+  before?: FieldLook;
+  /** Práce jde po čtvercích (rozpracovaný jeden), jinak celé pole naráz. */
+  frontier?: boolean;
+})[] = [
+  { label: 'vytyčení – kolíky a provázek', from: 0, to: 0.05, look: null },
+  {
+    label: 'zakládání – drn se rozrývá po čtvercích',
+    from: 0.05,
+    to: 0.16,
+    look: 'bare',
+    frontier: true,
+  },
+  {
+    label: 'kopání – brázdy po čtvercích',
+    from: 0.16,
+    to: 0.26,
+    look: 'plowed',
+    before: 'bare',
+    frontier: true,
+  },
+  {
+    label: 'setí po čtvercích',
+    from: 0.26,
+    to: 0.34,
+    look: 'sown',
+    before: 'plowed',
+    frontier: true,
+  },
+  { label: 'vzchází obilí', from: 0.34, to: 0.41, look: 'sprouted' },
+  { label: 'zelené obilí', from: 0.41, to: 0.48, look: 'green' },
+  { label: 'zralé obilí', from: 0.48, to: 0.54, look: 'ripe' },
+  {
+    label: 'žeň po čtvercích – panáky',
+    from: 0.54,
+    to: 0.65,
+    look: 'harvesting',
+    before: 'ripe',
+    frontier: true,
+  },
+  { label: 'strniště', from: 0.65, to: 0.71, look: 'stubble' },
+  { label: 'mladý úhor – strniště a plevel, pase se', from: 0.71, to: 0.77, look: 'young-fallow' },
+  { label: 'úhor se pase – pastvina', from: 0.77, to: 0.82, look: 'pasture' },
+  { label: 'úhor – louka, roste tráva', from: 0.82, to: 0.86, look: 'meadow' },
+  {
+    label: 'seč po čtvercích – řádky sena',
+    from: 0.86,
+    to: 0.92,
+    look: 'mown',
+    before: 'meadow',
+    frontier: true,
+  },
+  { label: 'seno v kupkách', from: 0.92, to: 0.95, look: 'mown' },
+  { label: 'stohy – přes zimu se zkrmí', from: 0.95, to: 1, look: 'haystacks' },
+]; /** Hřbitov: do poloviny založení (fáze `CEMETERY_PHASES`), pak přibývají hroby. */
 const CEMETERY_FOUNDED_AT = 0.5;
 /** Sad: vytyčení, kůly, sazenice (výsadba jako ve hře), mladé stromky rostou, plodící sad. */
 export const ORCHARD_SHOWCASE_PHASES: readonly ShowcasePhase[] = [
@@ -278,38 +328,84 @@ function ramp(p: number, from: number, to: number): number {
   return Math.min(1, Math.max(0, (p - from) / (to - from)));
 }
 
-function phaseAt(phases: readonly ShowcasePhase[], p: number): ShowcasePhase {
+function phaseAt<T extends ShowcasePhase>(phases: readonly T[], p: number): T {
   return phases.find((phase) => p < phase.to) ?? phases[phases.length - 1]!;
 }
 
-type ScenePart = SceneVillage['fields'][number]['parts'][number];
-
-/** Díl pole při průběhu: čtverce se zakládají, osévají a dozrávají po řadě. */
-function fieldPart(index: number, count: number, p: number): Pick<ScenePart, 'stage' | 'crop'> {
-  const [founding, ready, sowing, growing, ripe] = FIELD_SHOWCASE_PHASES as [
-    ShowcasePhase,
-    ShowcasePhase,
-    ShowcasePhase,
-    ShowcasePhase,
-    ShowcasePhase,
-  ];
-  if (p < ready.from) {
-    const done = founding.from + ((founding.to - founding.from) * (index + 1)) / (count + 1);
-    return { stage: p >= done ? 'ready' : 'founding' };
-  }
-  if (p < sowing.from) return { stage: 'ready' };
-  if (p < sowing.to) {
-    const sown = sowing.from + ((sowing.to - sowing.from) * index) / count;
-    return { stage: p >= sown ? 'sown' : 'ready' };
-  }
-  if (p < growing.to) return { stage: 'sown', crop: 'growing' };
-  if (p < ripe.to) return { stage: 'sown', crop: 'ripe' };
-  return { stage: 'sown', crop: 'stubble' };
+/**
+ * Díl pole při průběhu: v rámci fáze jdou čtverce po řadě – hotové mají vzhled fáze,
+ * rozpracovaný (jen jeden) i předchozí vzhled se svou rozpracovaností, ostatní čekají.
+ */
+function fieldPart(
+  index: number,
+  count: number,
+  p: number,
+): Omit<SceneFieldPart, 'cell' | 'x' | 'z' | 'size'> {
+  const phase = phaseAt(FIELD_SHOWCASE_PHASES, p);
+  const founding = phase.look === null || phase.look === 'bare';
+  const stage = founding
+    ? 'founding'
+    : phase.look === 'young-fallow'
+      ? 'young-fallow'
+      : phase.look === 'pasture' ||
+          phase.look === 'meadow' ||
+          phase.look === 'mown' ||
+          phase.look === 'haystacks'
+        ? 'meadow'
+        : 'sown';
+  if (phase.look === null) return { id: index + 1, stage, look: 'bare', work: 0 };
+  if (!phase.frontier) return { id: index + 1, stage, look: phase.look };
+  const done = ramp(p, phase.from, phase.to) * count;
+  const work = Math.min(1, Math.max(0, done - index));
+  if (founding)
+    return { id: index + 1, stage: work >= 1 ? 'ready' : 'founding', look: 'bare', work };
+  return {
+    id: index + 1,
+    stage,
+    look: phase.look,
+    work,
+    ...(phase.before ? { before: phase.before } : {}),
+  };
 }
 
 /**
- * Pole, hřbitov a sad na vývojové stránce při průběhu `progress` (0–1): ves pro scénu
- * (`VillageRenderer` – kreslí je stejně jako ve hře) a popisek fáze každého z nich.
+ * Den v roce pro seno na vývojové stránce (`VillageRenderer.setSeason`) – souběžně s fázemi
+ * louky na poli: do jara tráva, pak seč (řádky sena), kupky a stohy přes podzim a zimu až do
+ * března (zkrmují se). Louka na seno vedle pole jde stejně.
+ */
+export function showcaseMeadowDay(progress: number): number {
+  const p = Math.min(1, Math.max(0, progress));
+  const stops: [number, number][] = [
+    [0.82, 120],
+    [0.86, 150],
+    [0.865, 156],
+    [0.92, 178],
+    [0.925, 181],
+    [0.95, 192],
+    [0.955, 194],
+    [1, 430],
+  ];
+  if (p <= stops[0]![0]) return stops[0]![1];
+  for (let i = 1; i < stops.length; i++) {
+    const [p1, d1] = stops[i]!;
+    const [p0, d0] = stops[i - 1]!;
+    if (p <= p1) {
+      const day = Math.round(d0 + ((p - p0) / (p1 - p0)) * (d1 - d0));
+      return day > 365 ? day - 365 : day;
+    }
+  }
+  return 430 - 365;
+}
+
+/** Louka na seno vývojové stránky (čtverce ze SHOWCASE_GROUNDS). */
+export function showcaseHayMeadows(): HayMeadow[] {
+  const meadow = SHOWCASE_GROUNDS.find((g) => g.id === 'meadow')!;
+  return [{ id: 1, squares: meadow.squares, rows: [1, 0] }];
+}
+
+/**
+ * Pole, hřbitov, sad a louka na seno na vývojové stránce při průběhu `progress` (0–1): ves pro
+ * scénu (`VillageRenderer` – kreslí je stejně jako ve hře) a popisek fáze každého z nich.
  */
 export function showcaseGrounds(progress: number): {
   village: SceneVillage;
@@ -320,6 +416,14 @@ export function showcaseGrounds(progress: number): {
 
   const field = of('field').squares;
   const parts = field.map((square, i) => ({ ...square, ...fieldPart(i, field.length, p) }));
+  const hay = hayPhase(showcaseMeadowDay(p));
+  const hayLabel = !hay
+    ? 'louka (seče se v červnu)'
+    : meadowLook(hay) === 'haystacks'
+      ? 'stohy na otavě – přes zimu se zkrmí'
+      : hay.hay === 'heaps'
+        ? 'seno v kupkách'
+        : `seč – řádky sena (${Math.round(hay.mown * 100)} %)`;
 
   const cemetery = of('cemetery').squares;
   const capacity = cemetery.length * CEMETERY.gravesPerSquare;
@@ -372,6 +476,7 @@ export function showcaseGrounds(progress: number): {
       field: phaseAt(FIELD_SHOWCASE_PHASES, p).label,
       cemetery: cemeteryLabel,
       orchard: orchardLabel,
+      meadow: hayLabel,
     },
   };
 }

@@ -16,6 +16,8 @@ import {
   SHOWCASE_DECOR,
   SHOWCASE_GROUNDS,
   showcaseGrounds,
+  showcaseHayMeadows,
+  showcaseMeadowDay,
   type ShowcaseDecorModel,
 } from './building-showcase-layout';
 import { SUN_DIRECTION } from './constants';
@@ -79,9 +81,10 @@ function decorInstance(m: ShowcaseDecorModel): ModelInstance {
 /**
  * VÝVOJOVÝ NÁHLED – jen pro /dev/buildings: stavby vedle sebe na rovné louce se světlem hry
  * (slunce, obloha, opar a kontrast jako LandscapeScene), jámy, trsy trávy u okapu a zahrádka
- * polozemnice jako ve vsi, stíny od slunce. Za stavbami pole, hřbitov a sad – kreslí je herní
- * `VillageRenderer` podle `showcaseGrounds`; vpravo posvátný dub s obětinami a dubový háj
- * s kameny (`SHOWCASE_DECOR`, bez staveniště). Kamera se otáčí levým tlačítkem, posouvá pravým,
+ * polozemnice jako ve vsi, stíny od slunce. Za stavbami pole, hřbitov, sad a louka na seno –
+ * kreslí je herní `VillageRenderer` podle `showcaseGrounds`; vpravo posvátný dub s obětinami
+ * a dubový háj s kameny (`SHOWCASE_DECOR`, bez staveniště). Kamera se otáčí levým tlačítkem,
+ * posouvá pravým,
  * kolečko přibližuje. Kreslí se jen při změně pohledu.
  */
 export class BuildingShowcase {
@@ -373,6 +376,8 @@ export class BuildingShowcase {
       pitCuts: new PitCuts(),
       sunDirection: SUN_DIRECTION,
     });
+    this.grounds.setHayMeadows(showcaseHayMeadows());
+    this.grounds.setSeason(showcaseMeadowDay(this.progress), 0);
     this.grounds.update(showcaseGrounds(this.progress).village);
     this.shadows = addSunShadows(sun, { casters, receivers: [ground], extentM: GROUND_SIZE.width });
     this.applyProgress();
@@ -389,6 +394,7 @@ export class BuildingShowcase {
     for (const mesh of this.finished) mesh.setEnabled(built);
     for (const mesh of this.tufts) mesh.setEnabled(built);
     this.sites.update(this.progress);
+    this.grounds?.setSeason(showcaseMeadowDay(this.progress), 0);
     this.grounds?.update(showcaseGrounds(this.progress).village);
     this.shadows?.refresh();
     this.burst(400);

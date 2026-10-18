@@ -187,6 +187,46 @@ describe('planLivestock – kde', () => {
   });
 });
 
+describe('planLivestock – pastva na úhoru', () => {
+  // úhor 4 × 3 čtverce na louce západně od vsi, vedle osetý díl; ves bez pole u vsi
+  const fallowParts = Array.from({ length: 12 }, (_, i) => ({
+    x: -120 + (i % 4) * 15,
+    z: -30 + Math.floor(i / 4) * 15,
+    size: 15,
+    stage: 'young-fallow' as const,
+  }));
+  const sown = { x: -45, z: -15, size: 15, stage: 'sown' as const };
+  const village = (stage: 'young-fallow' | 'meadow', day?: number): LivestockVillage => ({
+    ...VILLAGE,
+    fields: [{ parts: [...fallowParts.map((p) => ({ ...p, stage })), sown] }],
+    ...(day !== undefined ? { labor: { day } } : {}),
+  });
+  const onFallow = (x: number, z: number): boolean =>
+    fallowParts.some((p) => Math.abs(x - p.x) <= p.size / 2 && Math.abs(z - p.z) <= p.size / 2);
+
+  it('ovce, kozy a krávy se pasou na mladém úhoru (pasáček za nimi), nikdy na osetém dílu', () => {
+    const plan = planLivestock(village('young-fallow'), GROUND, 7);
+    const grazing = plan.herds.filter((h) => h.kind !== 'swine');
+    expect(grazing.length).toBeGreaterThan(0);
+    expect(grazing.some((h) => h.route.every((spot) => onFallow(spot.x, spot.z)))).toBe(true);
+    for (const herd of grazing) {
+      for (const spot of herd.route) {
+        expect(Math.abs(spot.x - sown.x) < 7.5 && Math.abs(spot.z - sown.z) < 7.5).toBe(false);
+      }
+    }
+  });
+
+  it('louka na seno se pase až po seči (srpen), před ní stáda na louce', () => {
+    // herní den 2422 = 15. 8. roku 506, 2330 = 15. 5.
+    const august = planLivestock(village('meadow', 2422 + 0), GROUND, 7);
+    const may = planLivestock(village('meadow', 2330), GROUND, 7);
+    const routeOn = (herds: Herd[]): boolean =>
+      herds.filter((h) => h.kind !== 'swine').some((h) => h.route.some((s) => onFallow(s.x, s.z)));
+    expect(routeOn(august.herds)).toBe(true);
+    expect(routeOn(may.herds)).toBe(false);
+  });
+});
+
 describe('livestockGround na skutečné krajině', () => {
   const landscape = generateLandscape(42);
   const surface = buildRenderSurface(landscape);

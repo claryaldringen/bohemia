@@ -33,6 +33,7 @@ import { dwellingPlacementCost, sacredPlacementCost } from '@/lib/build-items';
 import { decodeLandscape, type LandscapeTransfer } from '@/lib/landscape-transfer';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
 import { CEMETERY_PHASES } from '@/lib/scene/cemetery-layout';
+import { FIELD_LOOKS, FIELD_LOOK_LABELS, type FieldLook } from '@/lib/scene/field-look';
 import {
   PLANTING_PHASES,
   TREE_GROWTH_YEARS,
@@ -97,7 +98,16 @@ interface DevWindow extends Window {
 interface DevField {
   id: number;
   parts: { cell: TileCell; x: number; z: number; size: number }[];
+  /**
+   * Ukázka polí: vzhled celého pole (rozpracovaný díl s `work`), nebo `staked` – vytyčené pole
+   * před zakládáním. Bez údaje podle přepínače dílů.
+   */
+  sample?: { look: FieldLook | null; work?: number; before?: FieldLook };
 }
+
+/** Vzhled polí na vývojové stránce: podle stadia dílů (a období), nebo jeden vzhled pro všechny. */
+type LookMode = 'stage' | FieldLook;
+const LOOK_MODES: LookMode[] = ['stage', ...FIELD_LOOKS];
 
 export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer }): ReactElement {
   const decoded = useMemo(() => decodeLandscape(landscape), [landscape]);
@@ -112,6 +122,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   const [sacredBuildings, setSacredBuildings] = useState<DevSacredBuilding[]>([]);
   const [stage, setStage] = useState(0);
   const [mixed, setMixed] = useState(true);
+  const [lookMode, setLookMode] = useState<LookMode>('stage');
   const [placing, setPlacing] = useState<string | null>(null);
   const [preview, setPreview] = useState<PlacementPreview | null>(null);
   const [smokeAlways, setSmokeAlways] = useState(false);
@@ -130,10 +141,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
       dwellings,
       fields: fields.map((field): SceneField => ({
         id: field.id,
-        parts: field.parts.map((part, i) => ({
-          ...part,
-          stage: STAGES[(stage + (mixed ? i : 0)) % STAGES.length]!,
-        })),
+        parts: field.parts.map((part, i) => devPart(field, part, i, { stage, mixed, lookMode })),
       })),
       cemeteries,
       orchards,
@@ -166,6 +174,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     orchards,
     stage,
     mixed,
+    lookMode,
     woodLogs,
     obstacles,
     people,
@@ -708,6 +717,77 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     setCemeteries(list);
   };
 
+  /**
+   * Ukázka polí: obydlí u místa vsi a vedle sebe pole 2 × 2 čtverce v každém vzhledu – vytyčené,
+   * zakládané (rozpracovaný čtverec), zorané, oseté, vzcházející, zelené, zralé, žeň s panáky,
+   * strniště, mladý úhor, pastvina a louka na seno (tráva, seč, stohy – řádky sena, kupky
+   * a stohy podle období). Rozpracované díly mají práci napůl.
+   */
+  const showFields = (): void => {
+    scene?.cancelPlacement();
+    const { x: sx, y: sy } = decoded.villageSite;
+    const samples: NonNullable<DevField['sample']>[] = [
+      { look: null },
+      { look: 'bare', work: 0.5 },
+      { look: 'plowed', work: 0.5, before: 'stubble' },
+      { look: 'sown' },
+      { look: 'sprouted' },
+      { look: 'green' },
+      { look: 'ripe' },
+      { look: 'harvesting', work: 0.5, before: 'ripe' },
+      { look: 'stubble' },
+      { look: 'young-fallow' },
+      { look: 'pasture' },
+      { look: 'meadow' },
+      { look: 'mown', work: 0.5, before: 'meadow' },
+      { look: 'haystacks' },
+    ];
+    const list: DevField[] = [];
+    const cleared: number[] = [];
+    samples.forEach((sample, i) => {
+      const row = Math.floor(i / 6);
+      const col = i % 6;
+      const cells: TileCell[] = [];
+      for (let dy = 0; dy < 2; dy++)
+        for (let dx = 0; dx < 2; dx++)
+          cells.push({ x: sx - 9 + col * 3 + dx, y: sy + 2 + row * 3 + dy });
+      const parts = fieldParts(decoded, cells);
+      if (parts.length < cells.length) return;
+      const preview = fieldPartsFromCells(decoded, placementVillageFromScene(village), cells, [
+        {
+          x: tileCenter(decoded, sx, sy).worldX,
+          z: tileCenter(decoded, sx, sy).worldZ,
+          rotation: 0,
+        },
+      ]);
+      if (sample.look !== null)
+        cleared.push(...preview.parts.flatMap((part) => part.obstacleIds ?? []));
+      list.push({ id: nextId.current++, parts, sample });
+    });
+    const site = tileCenter(decoded, sx, sy);
+    setDwellings([
+      {
+        id: nextId.current++,
+        type: 'polozemnice',
+        position: { x: site.worldX, z: site.worldZ - 10, rotation: 0 },
+        built: true,
+        progress: 1,
+      },
+      {
+        id: nextId.current++,
+        type: 'zemnice',
+        position: { x: site.worldX + 12, z: site.worldZ - 12, rotation: 0.4 },
+        built: true,
+        progress: 1,
+      },
+    ]);
+    setObstacles((changes) => ({
+      ...changes,
+      removed: [...new Set([...changes.removed, ...cleared])].sort((a, b) => a - b),
+    }));
+    setFields(list);
+  };
+
   /** Řada stavenišť ve všech fázích vedle sebe u místa vsi (a hotové obydlí na konci). */
   const showPhases = (): void => {
     scene?.cancelPlacement();
@@ -897,6 +977,18 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         <button className={buttonClass} onClick={() => setStage((s) => (s + 1) % STAGES.length)}>
           Díly: {STAGES[stage]}
         </button>
+        <button
+          className={buttonClass}
+          data-testid="dev-field-look"
+          onClick={() =>
+            setLookMode((mode) => LOOK_MODES[(LOOK_MODES.indexOf(mode) + 1) % LOOK_MODES.length]!)
+          }
+        >
+          Vzhled: {lookMode === 'stage' ? 'podle stadia a období' : FIELD_LOOK_LABELS[lookMode]}
+        </button>
+        <button className={buttonClass} disabled={!scene} onClick={showFields}>
+          Ukázka polí
+        </button>
         <label className="flex items-center gap-1">
           <input type="checkbox" checked={mixed} onChange={(e) => setMixed(e.target.checked)} />
           střídat stavy
@@ -1039,4 +1131,51 @@ function fieldParts(l: Landscape, cells: TileCell[]): DevField['parts'] {
       const c = tileCenter(l, cell.x, cell.y);
       return { cell, x: c.worldX, z: c.worldZ, size: l.cellSizeM };
     });
+}
+
+/**
+ * Díl pole vývojové vsi: ukázkové pole má svůj vzhled (rozpracovaný díl je ten nejblíž, ostatní
+ * hotové), jinak stadium z přepínače dílů a vzhled z přepínače vzhledu (podle stadia ho odhadne
+ * scéna z data – přehrání roku projde orbu, setí, růst, žeň a strniště).
+ */
+function devPart(
+  field: DevField,
+  part: DevField['parts'][number],
+  index: number,
+  options: { stage: number; mixed: boolean; lookMode: LookMode },
+): SceneField['parts'][number] {
+  const sample = field.sample;
+  if (sample) {
+    if (sample.look === null)
+      return { ...part, id: index + 1, stage: 'founding', look: 'bare', work: 0 };
+    const stage =
+      sample.look === 'bare'
+        ? 'founding'
+        : sample.look === 'young-fallow'
+          ? 'young-fallow'
+          : ['pasture', 'meadow', 'mown', 'haystacks'].includes(sample.look)
+            ? 'meadow'
+            : 'sown';
+    // rozpracovaný je první díl, ostatní mají vzhled celé
+    const work = sample.work !== undefined ? (index === 0 ? sample.work : 1) : undefined;
+    return {
+      ...part,
+      id: index + 1,
+      stage: stage === 'founding' && work === 1 ? 'ready' : stage,
+      look: sample.look,
+      ...(work !== undefined ? { work } : {}),
+      ...(sample.before ? { before: sample.before } : {}),
+    };
+  }
+  const stage = STAGES[(options.stage + (options.mixed ? index : 0)) % STAGES.length]!;
+  if (options.lookMode === 'stage') {
+    // zakládaný díl: první rozpracovaný, ostatní jen vytyčené
+    return stage === 'founding'
+      ? { ...part, id: index + 1, stage, work: index === 0 ? 0.5 : 0 }
+      : { ...part, id: index + 1, stage };
+  }
+  const look = options.mixed
+    ? FIELD_LOOKS[(FIELD_LOOKS.indexOf(options.lookMode) + index) % FIELD_LOOKS.length]!
+    : options.lookMode;
+  return { ...part, id: index + 1, stage, look };
 }
