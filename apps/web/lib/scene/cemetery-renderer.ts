@@ -17,6 +17,7 @@ import {
 } from './cemetery-layout';
 import { cellsBounds, cellsContain, type CellSquare } from './field-cells';
 import { instanceMatrices, type ModelInstance } from './instanced-model';
+import { StakingPegs, createStringMaterial, createStringMesh, pegInstances } from './staking';
 import { seededRandom, stripSegments, type HideShape, type Point } from './village-layout';
 import { createStripMesh, type HeightFn } from './village-meshes';
 
@@ -27,8 +28,7 @@ type SceneDwelling = SceneVillage['dwellings'][number];
 const POST_SIZE_M = 0.09;
 const POST_LENGTH_M = FENCE_HEIGHT_M + 0.3;
 const POST_SINK_M = 0.12;
-/** Kolík vytyčení je menší (uniformní měřítko kůlu), kůly branky vyšší. */
-const STAKE_SCALE = 0.55;
+/** Kůly branky jsou vyšší (uniformní měřítko kůlu). */
 const GATE_POST_SCALE = 1.25;
 /** Plot leží o kousek v zemi, aby na svahu nevisel; body pletení po nejvýš 0,7 m. */
 const WATTLE_SINK_M = 0.06;
@@ -51,6 +51,8 @@ interface CemeteryView {
   shape: HideShape;
   /** Instance kůlů, kolíků a mohylek tohoto pohřebiště (sdílené meshe). */
   posts: ModelInstance[];
+  /** Kolíky vytyčení (staking.ts) – stojí, dokud se nezačnou zatloukat kůly. */
+  pegs: ModelInstance[];
   grassMounds: ModelInstance[];
   earthMounds: ModelInstance[];
 }
@@ -65,6 +67,7 @@ export class CemeteryRenderer {
   private readonly views = new Map<number, CemeteryView>();
   private readonly materials = new Map<string, Material>();
   private postMesh: Mesh | null = null;
+  private readonly pegs: StakingPegs;
   private grassMoundMesh: Mesh | null = null;
   private earthMoundMesh: Mesh | null = null;
 
@@ -73,10 +76,14 @@ export class CemeteryRenderer {
     private readonly context: {
       /** Přesná výška vykresleného terénu (s převýšením). */
       decalHeight: HeightFn;
+      /** Hladký terén (s převýšením) – paty kolíků a provázek. */
+      groundHeight: HeightFn;
       addShadowCaster(mesh: Mesh): void;
       requestRender(): void;
     },
-  ) {}
+  ) {
+    this.pegs = new StakingPegs(scene, (mesh) => context.addShadowCaster(mesh));
+  }
 
   /** Překreslí pohřebiště, která se změnila; vrátí true, když se něco změnilo. */
   update(cemeteries: readonly SceneCemetery[], dwellings: readonly SceneDwelling[]): boolean {
@@ -111,6 +118,7 @@ export class CemeteryRenderer {
     for (const view of this.views.values()) for (const mesh of view.meshes) mesh.dispose();
     this.views.clear();
     this.postMesh?.dispose();
+    this.pegs.dispose();
     this.grassMoundMesh?.dispose();
     this.earthMoundMesh?.dispose();
   }
@@ -151,6 +159,7 @@ export class CemeteryRenderer {
 
     const meshes: Mesh[] = [];
     const posts: ModelInstance[] = [];
+    const pegs: ModelInstance[] = [];
     const height = this.context.decalHeight;
     for (const { fence, state, key: part } of fences) {
       const name = `${cemetery.id}-${part}`;
@@ -168,15 +177,17 @@ export class CemeteryRenderer {
           });
         }
       } else if (state.layout) {
-        for (const [x, z] of fence.corners) {
-          posts.push({
-            x,
-            y: height(x, z) - POST_SINK_M * STAKE_SCALE,
-            z,
-            rotationY: 0,
-            scale: STAKE_SCALE,
-          });
-        }
+        // od zadání po zatlučení kůlů: kolíky a napnutý provázek po obvodu (i u rozšíření)
+        pegs.push(...pegInstances(fence.outline, this.context.groundHeight));
+        meshes.push(
+          createStringMesh(
+            this.scene,
+            `village-cemetery-string-${name}`,
+            fence.outline,
+            this.context.groundHeight,
+            this.material('string', () => createStringMaterial(this.scene)),
+          ),
+        );
       }
     }
 
@@ -208,7 +219,7 @@ export class CemeteryRenderer {
       bounds: cellsBounds(squares, HIDE_MARGIN_M),
       contains: cellsContain(squares, HIDE_MARGIN_M),
     };
-    return { key, meshes, shape, posts, grassMounds, earthMounds };
+    return { key, meshes, shape, posts, pegs, grassMounds, earthMounds };
   }
 
   /** Sdílené meshe kůlů a mohylek dostanou instance všech pohřebišť. */
@@ -216,6 +227,7 @@ export class CemeteryRenderer {
     const views = [...this.views.values()];
     const posts = views.flatMap((v) => v.posts);
     const grass = views.flatMap((v) => v.grassMounds);
+    this.pegs.set(views.flatMap((v) => v.pegs));
     const earth = views.flatMap((v) => v.earthMounds);
     if (posts.length > 0) this.postMesh ??= this.createPostMesh();
     if (grass.length > 0) this.grassMoundMesh ??= this.createMoundMesh('grass');

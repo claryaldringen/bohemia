@@ -13,6 +13,7 @@ pod stejnou licencí. Licence se týká jen těchto souborů, ne zbytku hry Bohe
 | `build/zemnice.png`       | vlastní render modelu `models/dwellings/zemnice.glb` (Blender Cycles) na terénních texturách `grass-dirt.jpg` a `mud.jpg` (0 A.D.), vložený na pozadí s vinětou        |
 | `build/polozemnice.png`   | totéž z `models/dwellings/polozemnice.glb`                                                                                                                             |
 | `build/pole.png`          | vlastní model (záhony a klasy obilí vymodelované ve skriptu), textury `grass-dirt.jpg` a `mud.jpg` (0 A.D.)                                                            |
+| `resources/fields.png`    | zmenšená `build/pole.png` (64 × 64, `sips -z 64 64`) – stejný zdroj a licence                                                                                          |
 | `build/hrbitov.png`       | vlastní model (mohyly, plot z proutí, kameny, kůly), textury `grass-lush.jpg` a `grass-dirt.jpg` (0 A.D.)                                                              |
 | `build/hrncir.png`        | vlastní render modelu `models/crafts/hrncir.glb` (licence v `models/crafts/LICENSES.md`), textury `grass-dirt.jpg` a `mud.jpg` (0 A.D.), pozadí s vinětou              |
 | `build/kovar.png`         | totéž z `models/crafts/kovar.glb`                                                                                                                                      |

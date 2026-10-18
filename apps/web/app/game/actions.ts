@@ -10,7 +10,9 @@ import {
   placeOrchardForPlayer,
   placeSacredForPlayer,
   renameVillageForPlayer,
+  skipTimeForPlayerView,
   villageViewForPlayer,
+  type TimeSkipResult,
   type VillageActionResult,
   type VillageView,
 } from '@/lib/village';
@@ -22,6 +24,8 @@ import {
   parsePlaceOrchardInput,
   parsePlaceSacredInput,
   parseRenameVillageInput,
+  parseRestartGameInput,
+  parseSkipTimeInput,
 } from '@/lib/village-input';
 
 // Server actions vsi. Každá je veřejný POST endpoint: přihlášení ze session, vstup ověřený
@@ -115,12 +119,28 @@ export async function renameVillage(input: unknown): Promise<VillageActionResult
 }
 
 /**
- * Začít znovu po konci hry (vymřely všechny vsi): nové sídlo s novou krajinou. Bez vstupu –
- * jestli hra opravdu skončila, ověří use-case. Po úspěchu klient načte stránku znovu.
+ * Začít znovu – nové sídlo s novou krajinou. Bez vstupu (obrazovka porážky) jen po konci hry
+ * (vymřely všechny vsi – ověří use-case); `{ abandon: true }` (potvrzení v nabídce hry) i se
+ * živou vsí, která i s rodem zanikne. Po úspěchu klient načte stránku znovu.
  */
-export async function restartGame(): Promise<{ ok: true } | { error: string }> {
+export async function restartGame(input?: unknown): Promise<{ ok: true } | { error: string }> {
   const id = await playerId();
   if (id === null) return { error: NOT_SIGNED_IN };
-  const result = await restartGameForPlayer(id);
+  const parsed = parseRestartGameInput(input);
+  if (parsed === null) return { error: INVALID_INPUT };
+  const result = await restartGameForPlayer(id, parsed);
   return result.ok ? { ok: true } : { error: result.error };
+}
+
+/**
+ * Vývojový režim: přeskočí čas hráče o měsíc, nebo rok – `{ skip: 'month' | 'year' }`. Jen pro
+ * účet s `devMode` (příznak účtu – klient ho nastavit nemůže; bez něj use-case odmítne). Vrátí
+ * ves dopočítanou do nového dneška a nový posun času pro hodiny v prohlížeči.
+ */
+export async function skipTime(input: unknown): Promise<TimeSkipResult> {
+  const session = await getSession();
+  if (!session) return { error: NOT_SIGNED_IN };
+  const parsed = parseSkipTimeInput(input);
+  if (parsed === null) return { error: INVALID_INPUT };
+  return skipTimeForPlayerView(session.user.id, session.user.devMode === true, parsed.skip);
 }

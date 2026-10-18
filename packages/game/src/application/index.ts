@@ -11,3 +11,4 @@ export * from './place-orchard';
 export * from './place-sacred';
 export * from './rename-village';
 export * from './restart-game';
+export * from './player-time';

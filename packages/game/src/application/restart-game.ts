@@ -55,24 +55,34 @@ export async function dynastyStatus(
 /** Rod ještě žije – hráč má živou ves, hra nekončí. */
 export const DYNASTY_ALIVE = 'Rod ještě žije – hra pokračuje.';
 
+export interface RestartGameInput extends DynastyInput {
+  /**
+   * Začít znovu i se živou vsí (nabídka hry – Martin, 18. 10. 2026): ves i rod zaniknou.
+   * Bez něj jen po konci hry (obrazovka porážky).
+   */
+  abandon?: boolean;
+}
+
 export type RestartGameResult =
   { ok: true; settlement: Settlement; landscape: Landscape } | { ok: false; reason: string };
 
 /**
- * Začít znovu: hráči vymřely všechny vsi, takže jeho aktivní sídla jdou do archivu a vznikne
- * nové sídelní sídlo s novým seedem krajiny – pak hráč zakládá ves jako nový (první zemnice).
- * Když hráč ještě žádnou ves nemá (ani vymřelou – třeba druhý souběžný restart už proběhl),
- * vrátí jeho sídlo beze změny. Živá ves restart odmítne.
+ * Začít znovu: aktivní sídla hráče i se vsí jdou do archivu a vznikne nové sídelní sídlo
+ * s novým seedem krajiny – pak hráč zakládá ves jako nový (první zemnice). Bez `abandon` jen po
+ * konci hry (vymřely všechny vsi), živá ves restart odmítne; s `abandon` (hráč to potvrdil
+ * v nabídce) se archivují i živé vsi. Když hráč ještě žádnou ves nemá (ani vymřelou – třeba
+ * druhý souběžný nebo opakovaný restart už proběhl), vrátí jeho sídlo beze změny.
  */
 export async function restartGame(
   deps: DynastyDeps & { seeds: SeedSource },
-  input: DynastyInput,
+  input: RestartGameInput,
 ): Promise<RestartGameResult> {
   const status = await dynastyStatus(deps, input);
-  if (status.villages.some((v) => !isVillageExtinct(v.state))) {
+  if (!input.abandon && status.villages.some((v) => !isVillageExtinct(v.state))) {
     return { ok: false, reason: DYNASTY_ALIVE };
   }
-  if (status.gameOver) {
+  // bez abandon sem dojde jen hráč, jehož vsi všechny vymřely (konec hry)
+  if (status.villages.length > 0) {
     for (const settlement of status.settlements) await deps.settlements.archive(settlement.id);
   }
   const { settlement, landscape } = await enterGame(deps, input.playerId);

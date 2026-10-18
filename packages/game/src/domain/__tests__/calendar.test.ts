@@ -5,6 +5,7 @@ import {
   getWorldState,
   OFFICIAL_WORLD,
   realTimeOf,
+  shiftWorldClock,
   TOTAL_GAME_DAYS,
   type WorldClock,
 } from '../calendar';
@@ -158,5 +159,53 @@ describe('dayIndexOf a dateOfDayIndex – převod data a indexu dne', () => {
       month: 12,
       day: 31,
     });
+  });
+});
+
+describe('shiftWorldClock – hodiny posunuté o celé herní dny', () => {
+  /** Index herního dne v okamžiku `nowMs`, nebo stav světa, který neběží. */
+  const dayAt = (nowMs: number, world: WorldClock): number | string => {
+    const state = getWorldState(nowMs, world);
+    return state.status === 'running' ? dayIndexOf(state.date) : state.status;
+  };
+  // zrychlený svět testů – herní den trvá zlomek sekundy a nedělí se na celé ms
+  const fastStart = Date.parse('2026-10-16T10:00:00Z');
+  const worlds: [string, WorldClock][] = [
+    ['ostrý', OFFICIAL_WORLD],
+    ['zrychlený', { startMs: fastStart, endMs: fastStart + 7 * 3_600_000 + 123 }],
+  ];
+
+  it('bez posunu vrátí stejné hodiny', () => {
+    expect(shiftWorldClock(OFFICIAL_WORLD, 0)).toBe(OFFICIAL_WORLD);
+  });
+
+  it.each(worlds)('%s svět: den trvá stejně dlouho', (_, world) => {
+    const shifted = shiftWorldClock(world, 365);
+    expect(shifted.endMs - shifted.startMs).toBe(world.endMs - world.startMs);
+    expect(shifted.startMs).toBeLessThan(world.startMs);
+  });
+
+  it.each(worlds)('%s svět: na začátku i uprostřed dne ukáže datum o posun dál', (_, world) => {
+    const dayMs = (world.endMs - world.startMs) / TOTAL_GAME_DAYS;
+    for (const days of [1, 30, 365, 1000]) {
+      const shifted = shiftWorldClock(world, days);
+      for (const day of [0, 1, 59, 1234, 200_000, TOTAL_GAME_DAYS - days - 1]) {
+        const start = realTimeOf(dateOfDayIndex(day), world);
+        expect(dayAt(start, shifted)).toBe(day + days);
+        expect(dayAt(start + Math.floor(dayMs / 2), shifted)).toBe(day + days);
+      }
+    }
+  });
+
+  it('posunutý svět skončí o posun dřív – poslední den je pořád 31. 12. 1499', () => {
+    const shifted = shiftWorldClock(OFFICIAL_WORLD, 30);
+    const lastShiftedDay = realTimeOf(dateOfDayIndex(TOTAL_GAME_DAYS - 31), OFFICIAL_WORLD);
+    expect(dayAt(lastShiftedDay, shifted)).toBe(TOTAL_GAME_DAYS - 1);
+    const firstPastEnd = realTimeOf(dateOfDayIndex(TOTAL_GAME_DAYS - 30), OFFICIAL_WORLD);
+    expect(dayAt(firstPastEnd, shifted)).toBe('ended');
+  });
+
+  it.each([-1, 1.5, Number.NaN])('posun %s odmítne', (days) => {
+    expect(() => shiftWorldClock(OFFICIAL_WORLD, days)).toThrow(RangeError);
   });
 });

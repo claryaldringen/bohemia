@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { registerAndEnterGame, useUniqueClientIp } from './helpers';
+import { registerAndEnterGame, signOut, useUniqueClientIp } from './helpers';
 
 test.beforeEach(async ({ context }) => {
   await useUniqueClientIp(context);
@@ -63,8 +63,7 @@ test('odhlášení během načítání scény nezpůsobí chybu', async ({ page 
   await registerAndEnterGame(page, 'rychly-odchod');
   const errors = collectErrors(page);
   await page.goto('/game');
-  await page.getByRole('button', { name: 'Odhlásit' }).click();
-  await expect(page).toHaveURL(/\/$/);
+  await signOut(page);
   await page.waitForTimeout(1000);
   expect(errors).toEqual([]);
 });

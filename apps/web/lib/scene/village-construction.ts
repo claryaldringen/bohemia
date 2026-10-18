@@ -143,11 +143,11 @@ export const CONSTRUCTION_PHASES: Record<ConstructionKind, readonly Construction
   ],
   hrncir: porchHousePhases(
     { id: 'kiln', label: 'hrnčířská pec – podstavec, kopule, topeniště', from: 0.77, to: 0.93 },
-    { id: 'workshop', label: 'dílna – police, hrnce, kruh, plot a koš', from: 0.93, to: 1 },
+    { id: 'workshop', label: 'dílna – police, hrnce, kruh a koš', from: 0.93, to: 1 },
   ),
   kovar: porchHousePhases(
     { id: 'forge', label: 'výheň – ohniště, měchy, kovadlina', from: 0.77, to: 0.93 },
-    { id: 'workshop', label: 'dílna – uhlí, koryto, železo, plot a koše', from: 0.93, to: 1 },
+    { id: 'workshop', label: 'dílna – uhlí, koryto, železo a koše', from: 0.93, to: 1 },
   ),
   uhlir: [
     { id: 'layout', label: 'vytyčení – kolíky a provázek', from: 0, to: 0.05 },

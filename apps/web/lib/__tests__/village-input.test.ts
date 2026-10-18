@@ -6,7 +6,9 @@ import {
   parsePlaceFieldInput,
   parsePlaceSacredInput,
   parseRenameVillageInput,
+  parseRestartGameInput,
   parsePosition,
+  parseSkipTimeInput,
 } from '../village-input';
 
 describe('ověření vstupu server actions vsi', () => {
@@ -69,6 +71,26 @@ describe('ověření vstupu server actions vsi', () => {
     expect(parsePlaceDwellingInput({ type: 'hrad', position: dwelling })).toBeNull();
     expect(parsePlaceFieldInput({ cells })).toEqual({ cells });
     expect(parsePlaceFieldInput({})).toBeNull();
+  });
+
+  it('restart hry: bez vstupu jen po konci hry, { abandon: true } i se živou vsí', () => {
+    expect(parseRestartGameInput(undefined)).toEqual({ abandon: false });
+    expect(parseRestartGameInput({})).toEqual({ abandon: false });
+    expect(parseRestartGameInput({ abandon: true })).toEqual({ abandon: true });
+    expect(parseRestartGameInput({ abandon: false })).toEqual({ abandon: false });
+    expect(parseRestartGameInput({ abandon: 'true' })).toBeNull();
+    expect(parseRestartGameInput({ abandon: 1 })).toBeNull();
+    expect(parseRestartGameInput(null)).toBeNull();
+    expect(parseRestartGameInput(true)).toBeNull();
+  });
+
+  it('přeskočení času: jen měsíc, nebo rok', () => {
+    expect(parseSkipTimeInput({ skip: 'month' })).toEqual({ skip: 'month' });
+    expect(parseSkipTimeInput({ skip: 'year', days: 9999 })).toEqual({ skip: 'year' });
+    expect(parseSkipTimeInput({ skip: 'century' })).toBeNull();
+    expect(parseSkipTimeInput({ days: 30 })).toBeNull();
+    expect(parseSkipTimeInput('month')).toBeNull();
+    expect(parseSkipTimeInput(undefined)).toBeNull();
   });
 });
 
