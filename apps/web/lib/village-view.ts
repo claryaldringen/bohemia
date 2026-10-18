@@ -26,7 +26,6 @@ import {
   villageStock,
   wholeLogs,
   sacredBuildingHappiness,
-  sacredOakAgeYears,
   HAY_WINTER_MONTHS,
   foundingCostPerHa,
   type BuildKind,
@@ -131,7 +130,8 @@ export interface VillageHappiness {
  * vrstvu null) a u modly a svatyně průběh stavby.
  */
 export interface VillageSacred {
-  oaks: { id: number; happiness: number; ageYears: number | null }[];
+  /** Živé posvátné duby a posvátné souše (`snag`) – padlá souš už posvátným dubem není. */
+  oaks: { id: number; happiness: number; ageYears: number | null; snag: boolean }[];
   groves: {
     id: number;
     oaks: number;
@@ -530,17 +530,35 @@ export type SceneRoad = Pick<Road, 'id' | 'points' | 'grade'>;
 export type SceneRoadTree = Pick<RoadTree, 'id' | 'x' | 'z' | 'species'> & RoadTreeLook;
 
 /**
+ * Posvátný dub ve scéně: id stromu z vrstvy překážek a kmen. `growth` = násobek velikosti dubu
+ * (a obětin u kmene) – ušetřené duby se postupně zvětší (`sacredOakGrowth`, jen vzhled; souš od
+ * uschnutí už neroste); bez údaje 1. `snag` – dub uschl, místo stromu stojí posvátná souš
+ * (obětiny u ní zůstávají). `sizeM` – velikost dubu (výška modelu × měřítko) pro souš a padlý
+ * kmen; bez údaje odhad.
+ */
+export interface SceneSacredOak {
+  id: number;
+  x: number;
+  z: number;
+  growth?: number;
+  snag?: true;
+  sizeM?: number;
+}
+
+/**
  * Posvátná místa pro scénu: ušetřené posvátné duby (id stromu z vrstvy překážek a kmen – obětiny
  * u kmene), dubové háje (id středového dubu, střed a čtverce s jejich středy a stranou – kamenný
  * kruh a obětiny na okraji) a modly a svatyně (hotové i rozestavěné – id stavby; `progress` je
  * průběh samotné stavby bez kácení dubů 0–1 pro fáze staveniště, vytyčení je vidět od 0).
  */
 export interface SceneSacred {
+  /** Živé posvátné duby a posvátné souše. */
+  oaks: SceneSacredOak[];
   /**
-   * `growth` = násobek velikosti dubu (a obětin u kmene) – ušetřené duby se postupně zvětší
-   * (`sacredOakGrowth`, jen vzhled); bez údaje 1.
+   * Padlé posvátné souše (happiness.md – Posvátný dub): místo už není posvátný dub – strom se
+   * skryje a leží padlý kmen. Bez údaje žádné.
    */
-  oaks: { id: number; x: number; z: number; growth?: number }[];
+  fallenOaks?: SceneSacredOak[];
   groves: {
     id: number;
     x: number;
@@ -738,6 +756,10 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       return event.site === 'oak'
         ? 'Vesničané ušetřili posvátný dub.'
         : 'Vesničané ušetřili dubový háj.';
+    case 'sacred-oak-died':
+      return 'Posvátný dub stářím uschl – zůstala posvátná souš.';
+    case 'sacred-snag-fell':
+      return 'Posvátná souš padla.';
     case 'road-formed':
       return 'Kudy se chodí léta, vyšlapala se pevná cesta.';
     case 'road-overgrown':
@@ -996,8 +1018,19 @@ function sceneSacred(
   ];
   const { oaks, groves } = summary.sacred;
   if (oaks.length === 0 && groves.length === 0 && buildings.length === 0) return null;
+  // souš a padlý kmen mají velikost dubu v den uschnutí
+  const sceneOak = (o: (typeof oaks)[number]): SceneSacredOak => ({
+    id: o.id,
+    x: o.x,
+    z: o.z,
+    growth: sacredOakGrowth(o.day, o.diedDay ?? day),
+    ...(o.stage === 'snag' ? { snag: true as const } : {}),
+    ...(o.stage !== 'alive' && o.sizeM !== null ? { sizeM: o.sizeM } : {}),
+  });
+  const fallen = oaks.filter((o) => o.stage === 'fallen').map(sceneOak);
   return {
-    oaks: oaks.map((o) => ({ id: o.id, x: o.x, z: o.z, growth: sacredOakGrowth(o.day, day) })),
+    oaks: oaks.filter((o) => o.stage !== 'fallen').map(sceneOak),
+    ...(fallen.length > 0 ? { fallenOaks: fallen } : {}),
     groves: groves.map((g) => ({
       id: g.id,
       x: g.x,
@@ -1017,8 +1050,8 @@ function sceneSacred(
 }
 
 /**
- * Posvátná místa pro panel výběru – kolik které přidává, stáří dubů podle vrstvy překážek, u staveb
- * průběh.
+ * Posvátná místa pro panel výběru – kolik které přidává, stáří dubů (souš: stáří, kdy uschla;
+ * háj: nejstarší dub podle vrstvy překážek), u staveb průběh. Padlá souš už posvátným dubem není.
  */
 function sacredView(summary: VillageSummary, obstacles: ObstacleLayer, day: number): VillageSacred {
   const sites = summary.constructions.flatMap((c) =>
@@ -1036,11 +1069,11 @@ function sacredView(summary: VillageSummary, obstacles: ObstacleLayer, day: numb
       : [],
   );
   return {
-    oaks: summary.sacred.oaks.map((o) => ({
-      id: o.id,
-      happiness: o.happiness,
-      ageYears: sacredOakAgeYears(obstacles, o.id, day),
-    })),
+    oaks: summary.sacred.oaks.flatMap((o) =>
+      o.stage === 'fallen'
+        ? []
+        : [{ id: o.id, happiness: o.happiness, ageYears: o.ageYears, snag: o.stage === 'snag' }],
+    ),
     groves: summary.sacred.groves.map((g) => ({
       id: g.id,
       oaks: g.oaks,
@@ -1296,7 +1329,8 @@ export function buildVillageView(
   gameOver = false,
 ): VillageView {
   const { state, name } = record;
-  const summary = summarizeVillage(state, day);
+  const obstacles = obstaclesOf(landscape);
+  const summary = summarizeVillage(state, day, obstacles);
   return {
     name,
     dayIndex: day,
@@ -1355,7 +1389,7 @@ export function buildVillageView(
       target: summary.happiness.target,
       laborFactor: summary.happiness.laborFactor,
     },
-    sacred: sacredView(summary, obstaclesOf(landscape), day),
+    sacred: sacredView(summary, obstacles, day),
     extinct: villageLifespan(state),
     gameOver,
     cemeteries: summary.cemeteries.map((c) => {
