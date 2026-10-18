@@ -12,6 +12,7 @@ import type {
   SacredBuildingKind,
   TileCell,
 } from '../types';
+import { nearestPartFinder } from './nearest';
 import { PATH_FOREST_EDGE, PATH_WATER_SPOT, type PathTerrain } from './terrain';
 
 // Vyšlapané pěšiny (docs/design/paths.md). Čistá deterministická funkce vsi a terénu – počítá ji
@@ -486,6 +487,13 @@ interface Square {
   size: number;
 }
 
+/** Číselný klíč políčka (celá čísla do ±2^20 – krajina je o řády menší). */
+function tileKey(x: number, y: number): number {
+  return (x + TILE_KEY_OFFSET) * TILE_KEY_SPAN + (y + TILE_KEY_OFFSET);
+}
+const TILE_KEY_OFFSET = 1_048_576; // 2^20
+const TILE_KEY_SPAN = 2_097_152; // 2^21
+
 /**
  * Buňky čtverců (políček) jedné stavby: `inside` – střed uvnitř nebo na hraně mezi dvěma
  * čtverci (mezi díly pole meze nejsou), `edge` – střed na vnější hraně (tam vede pěšina podél
@@ -494,12 +502,15 @@ interface Square {
 function squareCells(grid: Grid, squares: readonly Square[]): { inside: number[]; edge: number[] } {
   const first = squares[0];
   if (!first) return { inside: [], edge: [] };
-  const tiles = new Set(squares.map((s) => `${s.cell.x},${s.cell.y}`));
+  const tiles = new Set(squares.map((s) => tileKey(s.cell.x, s.cell.y)));
   const left = first.x - first.size / 2;
   const top = first.z - first.size / 2;
   const inUnion = (x: number, z: number): boolean =>
     tiles.has(
-      `${first.cell.x + Math.floor((x - left) / first.size)},${first.cell.y + Math.floor((z - top) / first.size)}`,
+      tileKey(
+        first.cell.x + Math.floor((x - left) / first.size),
+        first.cell.y + Math.floor((z - top) / first.size),
+      ),
     );
   const seen = new Set<number>();
   const inside: number[] = [];
@@ -652,8 +663,9 @@ function villageGrid(input: PathNetworkInput, buildings: readonly Building[]): G
   const v = input.village;
   for (const field of v.fields) {
     // hrana mezi díly téhož pole je uvnitř pole (meze nejsou) – cena podle nejbližšího dílu
+    const nearestPart = nearestPartFinder(field.parts, field.parts[0]?.size ?? 0);
     for (const c of squareCells(grid, field.parts).inside) {
-      const stage = nearestPart(field.parts, cellX(grid, c), cellZ(grid, c)).stage;
+      const stage = nearestPart(cellX(grid, c), cellZ(grid, c)).stage;
       grid.base[c] = grid.base[c]! * STAGE_COST[stage];
       grid.village[c] = 1;
     }
@@ -700,23 +712,6 @@ function villageGrid(input: PathNetworkInput, buildings: readonly Building[]): G
     });
   }
   return grid;
-}
-
-function nearestPart<T extends { x: number; z: number }>(
-  parts: readonly T[],
-  x: number,
-  z: number,
-): T {
-  let best = parts[0]!;
-  let bestD = Infinity;
-  for (const p of parts) {
-    const d = Math.abs(p.x - x) + Math.abs(p.z - z);
-    if (d < bestD) {
-      best = p;
-      bestD = d;
-    }
-  }
-  return best;
 }
 
 /** Nejbližší průchodná buňka k bodu (do `reach` buněk), nebo −1. */
