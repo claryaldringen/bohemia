@@ -5,6 +5,7 @@ import {
   VILLAGE_NAME_MAX_LENGTH,
   checkVillageName,
   getWorldState,
+  type TimeSkip,
   type WorldClock,
 } from '@bohemia/game';
 import { formatWorldState } from '@/lib/game-date';
@@ -137,6 +138,9 @@ function IconButton({
   pressed,
   expanded,
   keyshortcuts,
+  disabled,
+  busy,
+  testId,
   onClick,
   children,
 }: {
@@ -146,6 +150,10 @@ function IconButton({
   /** Tlačítko otevírá panel (nabídka) – je otevřený? */
   expanded?: boolean;
   keyshortcuts?: string;
+  disabled?: boolean;
+  /** Akce tlačítka právě běží (čeká se na server). */
+  busy?: boolean;
+  testId?: string;
   onClick: () => void;
   children: ReactNode;
 }): ReactElement {
@@ -154,13 +162,16 @@ function IconButton({
       <button
         type="button"
         data-hud-block
+        data-testid={testId}
         aria-label={label}
         aria-pressed={pressed}
         aria-haspopup={expanded === undefined ? undefined : 'dialog'}
         aria-expanded={expanded}
         aria-keyshortcuts={keyshortcuts}
+        aria-busy={busy}
+        disabled={disabled}
         onClick={onClick}
-        className="flex h-8 w-8 items-center justify-center rounded text-[#d8c39a] hover:bg-white/5 hover:text-[#ffe9b8] focus-visible:outline-2 focus-visible:outline-[#f3cf86] aria-expanded:bg-white/10 aria-expanded:text-[#ffe9b8]"
+        className="flex h-8 w-8 items-center justify-center rounded text-[#d8c39a] hover:bg-white/5 hover:text-[#ffe9b8] focus-visible:outline-2 focus-visible:outline-[#f3cf86] disabled:cursor-wait disabled:opacity-45 disabled:hover:bg-transparent disabled:hover:text-[#d8c39a] aria-busy:animate-pulse aria-expanded:bg-white/10 aria-expanded:text-[#ffe9b8]"
       >
         {children}
       </button>
@@ -168,10 +179,50 @@ function IconButton({
   );
 }
 
+/** Přeskoky času v liště: popisek a ikona (▶ měsíc, ⏩ rok). */
+const TIME_SKIP_BUTTONS: readonly { skip: TimeSkip; label: string; icon: string }[] = [
+  { skip: 'month', label: '+1 měsíc', icon: 'M8 5.5v13l10-6.5z' },
+  { skip: 'year', label: '+1 rok', icon: 'M3.5 6v12l8.5-6zM12 6v12l8.5-6z' },
+];
+
+/**
+ * Vývojový režim: dvě šipky vedle data – ▶ přeskočí měsíc (30 herních dní), ⏩ rok. Dokud server
+ * přeskočení nedokončí (`pending`), obě tlačítka čekají.
+ */
+export function DevTimeButtons({
+  pending,
+  onSkip,
+}: {
+  /** Přeskočení, na které se čeká, nebo null. */
+  pending: TimeSkip | null;
+  onSkip: (skip: TimeSkip) => void;
+}): ReactElement {
+  return (
+    <span data-testid="dev-time" className="flex items-center">
+      {TIME_SKIP_BUTTONS.map(({ skip, label, icon }) => (
+        <IconButton
+          key={skip}
+          label={label}
+          tooltip={<span className="whitespace-nowrap">{label}</span>}
+          testId={`dev-skip-${skip}`}
+          disabled={pending !== null}
+          busy={pending === skip}
+          onClick={() => onSkip(skip)}
+        >
+          <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
+            <path d={icon} />
+          </svg>
+        </IconButton>
+      ))}
+    </span>
+  );
+}
+
 /**
  * Horní lišta jako v 0 A.D.: jméno vsi (klik = přejmenovat), ikony s čísly – lidé, obilí,
  * jablka (jen když nějaká jsou), klády na hromadě, volná práce, nasycení (jen barva ikony),
- * herní datum – a vpravo zvuk a nabídka hry (F10: Začít znovu, Odhlásit).
+ * herní datum (ve vývojovém režimu se šipkami přeskočení času) – a vpravo zvuk a nabídka hry
+ * (F10: Začít znovu, Odhlásit).
  */
 export function TopBar({
   view,
@@ -182,8 +233,10 @@ export function TopBar({
   menuOpen,
   onToggleMenu,
   onRename,
+  devTime,
 }: {
   view: VillageView | null;
+  /** Hodiny světa hráče – ve vývojovém režimu posunuté o jeho posun času. */
   world: WorldClock;
   /** Čas serveru při renderu – první render v prohlížeči tak sedí s HTML ze serveru. */
   initialNowMs: number;
@@ -192,6 +245,8 @@ export function TopBar({
   menuOpen: boolean;
   onToggleMenu: () => void;
   onRename: (name: string) => Promise<string | null>;
+  /** Vývojový režim – šipky přeskočení času vedle data; bez něj null. */
+  devTime: { pending: TimeSkip | null; onSkip: (skip: TimeSkip) => void } | null;
 }): ReactElement {
   const [nowMs, setNowMs] = useState(initialNowMs);
   useEffect(() => {
@@ -243,6 +298,7 @@ export function TopBar({
             {formatWorldState(getWorldState(nowMs, world), world)}
           </span>
         </Resource>
+        {devTime && <DevTimeButtons pending={devTime.pending} onSkip={devTime.onSkip} />}
         <span className="mx-1 h-6 border-l border-[#5c4526]" aria-hidden />
         <IconButton
           label="Zvuky krajiny"

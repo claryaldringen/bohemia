@@ -18,6 +18,8 @@ function createAuth(db: Database) {
       additionalFields: {
         // Zatím vždy čeština – výběr jazyka přijde s překlady.
         language: { type: 'string', required: true, defaultValue: 'cs', input: false },
+        // Vývojový režim (přeskakování času) – nastavuje jen `npm run db:seed-dev`, klient nikdy.
+        devMode: { type: 'boolean', required: false, defaultValue: false, input: false },
       },
     },
     emailAndPassword: {

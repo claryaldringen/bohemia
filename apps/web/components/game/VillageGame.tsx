@@ -2,11 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import {
+  shiftWorldClock,
   suggestVillageName,
   type BuildKind,
   type DwellingType,
   type Position,
   type TileCell,
+  type TimeSkip,
   type WorldClock,
 } from '@bohemia/game';
 import {
@@ -18,6 +20,7 @@ import {
   placeOrchard,
   renameVillage,
   restartGame,
+  skipTime,
 } from '@/app/game/actions';
 import { usePlacement } from '@/hooks/use-placement';
 import { usePolling } from '@/hooks/use-polling';
@@ -100,13 +103,16 @@ function withPending(scene: SceneVillage, pending: readonly PendingDwelling[]): 
  * každé akci a každých 5 s (jen při viditelném panelu) přijde nový VillageView. Ve vymřelé vsi
  * se nestaví; když hráči vymřely všechny vsi, přes zamrzlou scénu je obrazovka porážky
  * s tlačítkem Začít znovu (nové sídlo, stránka se načte znovu). Nabídka hry (tlačítko v liště,
- * F10) nabízí Začít znovu i se živou vsí (po potvrzení) a odhlášení.
+ * F10) nabízí Začít znovu i se živou vsí (po potvrzení) a odhlášení. Ve vývojovém režimu jsou
+ * vedle data šipky přeskočení času – hodiny v liště i ve scéně jdou o posun času hráče napřed.
  */
 export function VillageGame({
   landscape,
   seed,
   initialVillage,
   world,
+  timeOffsetDays: initialTimeOffsetDays,
+  devMode,
   email,
   initialNowMs,
 }: {
@@ -116,6 +122,10 @@ export function VillageGame({
   initialVillage: VillageData;
   /** Svět jako na serveru – herní datum v liště a dým z obydlí podle herního dne. */
   world: WorldClock;
+  /** Posun času hráče ve dnech (vývojový režim) – hodiny v liště a ve scéně jdou o tolik napřed. */
+  timeOffsetDays: number;
+  /** Vývojový režim účtu – šipky přeskočení času vedle data. */
+  devMode: boolean;
   /** E-mail přihlášeného hráče (popisek odhlášení v nabídce). */
   email: string;
   /** Čas serveru při renderu (datum v liště sedí s HTML ze serveru). */
@@ -129,7 +139,11 @@ export function VillageGame({
   const [placingItem, setPlacingItem] = useState<BuildKind | null>(null);
   const [notices, setNotices] = useState<NoticeLine[]>([]);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [timeOffsetDays, setTimeOffsetDays] = useState(initialTimeOffsetDays);
+  const [skipping, setSkipping] = useState<TimeSkip | null>(null);
   const [soundOn, setSoundOn] = useSoundPreference();
+  // Hodiny hráče: svět posunutý o jeho posun času – datum, roční období i dým jako na serveru.
+  const clock = useMemo(() => shiftWorldClock(world, timeOffsetDays), [world, timeOffsetDays]);
   const placement = usePlacement(scene);
   const view = isVillageView(village) ? village : null;
   const villageError = village !== null && 'error' in village ? village.error : null;
@@ -174,8 +188,8 @@ export function VillageGame({
   );
 
   useEffect(() => {
-    scene?.setWorldClock(world);
-  }, [scene, world]);
+    scene?.setWorldClock(clock);
+  }, [scene, clock]);
 
   const sceneVillage = useMemo(
     () => withPending(view ? view.scene : EMPTY_SCENE, pending),
@@ -221,13 +235,13 @@ export function VillageGame({
 
   /** Akce nad vsí na serveru (ve frontě za předchozími); vrátí chybu pro hráče, nebo null. */
   const runAction = useCallback(
-    (action: () => Promise<ActionResult>): Promise<string | null> => {
+    (action: () => Promise<VillageData>): Promise<string | null> => {
       const run = async (): Promise<string | null> => {
         busyRef.current = true;
         const seq = ++requestSeq.current;
         try {
           const result = await action();
-          if ('error' in result) return result.error;
+          if (result !== null && 'error' in result) return result.error;
           appliedSeq.current = Math.max(appliedSeq.current, seq);
           applyVillage(result);
           return null;
@@ -374,6 +388,28 @@ export function VillageGame({
 
   const rename = (name: string): Promise<string | null> => runAction(() => renameVillage({ name }));
 
+  /**
+   * Vývojový režim: přeskočí čas o měsíc, nebo rok. Server posune čas hráče a vrátí ves
+   * v novém dni – hodiny v liště a ve scéně se posunou s ní. Dokud se čeká, šipky čekají.
+   */
+  const skippingRef = useRef(false);
+  const skipTimeBy = (skip: TimeSkip): void => {
+    // ref: dvojklik dřív, než se tlačítka překreslí jako zamčená, nepřeskočí dvakrát
+    if (skippingRef.current) return;
+    skippingRef.current = true;
+    setSkipping(skip);
+    void runAction(async () => {
+      const result = await skipTime({ skip });
+      if ('error' in result) return result;
+      setTimeOffsetDays(result.timeOffsetDays);
+      return result.village;
+    }).then((failure) => {
+      skippingRef.current = false;
+      setSkipping(null);
+      if (failure !== null) pushNotice({ kind: 'error', tone: 'error', text: failure });
+    });
+  };
+
   // Ves vymřela uprostřed umisťování – stavba už nejde, umisťování skončí.
   const extinct = Boolean(view?.extinct);
   useEffect(() => {
@@ -413,13 +449,14 @@ export function VillageGame({
       <GameView landscape={landscape} onSceneReady={setScene} overlays={false} />
       <TopBar
         view={view}
-        world={world}
+        world={clock}
         initialNowMs={initialNowMs}
         soundOn={soundOn}
         onToggleSound={toggleSound}
         menuOpen={menuShown}
         onToggleMenu={() => (menuShown ? closeMenu() : openMenu())}
         onRename={rename}
+        devTime={devMode ? { pending: skipping, onSkip: skipTimeBy } : null}
       />
       <Minimap landscape={decoded} scene={scene} village={sceneVillage} />
       <SelectionPanel details={selectionDetails(view, sceneVillage, current)} />
