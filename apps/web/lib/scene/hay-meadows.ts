@@ -1,5 +1,6 @@
-// Louky na seno kolem vsi – jen vzhled scény (Martin: na loukách se seká seno pro dobytek;
-// herní mechanika sena zatím není). Bez Babylonu: které louky se sečou (deterministicky podle
+// Louky na seno kolem vsi. Ve vsi je kreslí data – přirozené louky letošní seče
+// (`SceneVillage.hayMeadows`, `hayMeadowFields` – jako díly pole se vzhledem od herního jádra);
+// výběr podle krajiny (`chooseHayMeadows`) zůstal jen pro vývojovou ukázku. Bez Babylonu: které louky se sečou (deterministicky podle
 // krajiny a vsi), kdy v roce a co na nich je – posečené řádky sena, kupky a stohy.
 import {
   obstacleStatus,
@@ -8,7 +9,8 @@ import {
   type Landscape,
   type ObstacleLayer,
 } from '@bohemia/game';
-import type { SceneVillage } from '../village-view';
+import type { SceneHayMeadow, SceneVillage } from '../village-view';
+import type { SceneField } from './village-types';
 import type { CellSquare } from './field-cells';
 import type { PlantInstance } from './field-crops';
 import { villageCenter } from './field-look';
@@ -254,4 +256,56 @@ export function meadowHay(
   dayOfYear: number,
 ): PlantInstance[] {
   return hayOnSquares(meadow.squares, phase, dayOfYear);
+}
+
+/**
+ * Přirozené louky letošní seče (`SceneVillage.hayMeadows`) jako „pole“ pro kreslení – po
+ * souvislých skupinách políček (sousedí stranou), se záporným id (−1, −2…, od skupiny
+ * s nejmenším políčkem), díly ve stadiu louky se vzhledem od herního jádra. Nejsou to pole:
+ * nepatří do `SceneVillage.fields` (umisťování, zvířata, postavy o nich nevědí).
+ */
+export function hayMeadowFields(meadows: readonly SceneHayMeadow[]): SceneField[] {
+  const key = (x: number, y: number): string => `${x},${y}`;
+  const byCell = new Map(meadows.map((m) => [key(m.cell.x, m.cell.y), m]));
+  const seen = new Set<string>();
+  const ordered = [...meadows].sort((a, b) => a.cell.y - b.cell.y || a.cell.x - b.cell.x);
+  const fields: SceneField[] = [];
+  for (const start of ordered) {
+    const startKey = key(start.cell.x, start.cell.y);
+    if (seen.has(startKey)) continue;
+    seen.add(startKey);
+    const group: SceneHayMeadow[] = [];
+    const queue = [start];
+    while (queue.length > 0) {
+      const m = queue.shift()!;
+      group.push(m);
+      for (const [dx, dy] of [
+        [1, 0],
+        [-1, 0],
+        [0, 1],
+        [0, -1],
+      ] as const) {
+        const k = key(m.cell.x + dx, m.cell.y + dy);
+        const next = byCell.get(k);
+        if (!next || seen.has(k)) continue;
+        seen.add(k);
+        queue.push(next);
+      }
+    }
+    group.sort((a, b) => a.cell.y - b.cell.y || a.cell.x - b.cell.x);
+    fields.push({
+      id: -(fields.length + 1),
+      parts: group.map((m) => ({
+        cell: { x: m.cell.x, y: m.cell.y },
+        x: m.x,
+        z: m.z,
+        size: m.size,
+        stage: 'meadow' as const,
+        look: m.look,
+        ...(m.work === undefined ? {} : { work: m.work }),
+        ...(m.before === undefined ? {} : { before: m.before }),
+      })),
+    });
+  }
+  return fields;
 }

@@ -49,10 +49,11 @@ půdy na seno. Dobytek, dosud jen ozdoba, se tím poprvé zapojí do hry.
 
 - Voli přes zimu (listopad–březen, ≈ 150 dní) sežerou **≈ 1,5 t sena na vola**, tedy **≈ 3 t na
   spřežení** (návrh Clauda – ≈ 10 kg denně).
-- Seno dává **úhor ve fázi louky a louky na seno**: ≈ **1,5 t/ha** ročně (nehnojená louka – návrh
-  Clauda), tedy ≈ **2 ha luk na spřežení**. Sečení, sušení a stohování stojí **6 člověkodní/ha**
-  v červnu–červenci (dnes je sečení jen vzhled – s voly se stane prací). Ves seče jen tolik, kolik
-  potřebuje.
+- Seno dávají **všechny louky** (Martin, 18. 10. 2026): přirozené louky z krajiny do **600 m**
+  od obydlí (políčka louky, která nezabírá pole, sad, hřbitov, pozemek, ohrada ani obydlí)
+  a úhor ve fázi louky (pastvina) – ≈ **1,5 t/ha** ročně (nehnojená louka – návrh Clauda), tedy
+  ≈ **2 ha luk na spřežení**. Seče se **od nejbližší louky k obydlí a jen tolik, kolik je
+  potřeba**. Sečení, sušení a stohování stojí **6 člověkodní/ha** v červnu–červenci.
 - **Bez sena** voli zeslábnou: na jaře orají jen podíl odpovídající pokrytí sena (zbytek se dokope
   motykou); když sena chybí přes polovinu, jeden vůl uhyne a spřežení se rozpadne (návrh Clauda).
 
@@ -84,10 +85,17 @@ Rozhodnutí kontroléru tam, kde návrh nedává postup (Martin je může změni
   vystřídá staré (staré jde na maso); spřežení starší 10 let zestárne a jde na maso (2 × 120 kg).
 - **Seno:** 1. 6. ves naplánuje seč – seno pro krávy a voly na zimu (≈ 1,5 t na kus, ohrada bez
   spřežení a výcviku počítá se dvěma voly – výcvik jde zadat kdykoli) bez zásoby, z dílů úhoru ve
-  fázi louky od nejbližšího k obydlí. Seče se v červnu–červenci po dílech jako polní práce,
-  seno přibývá poměrně k práci. **Louky na seno kolem vsi zůstaly jen ve vývojové ukázce** – ve
-  vsi by klamaly, seno dávají jen díly úhoru (data). V listopadu–březnu žere každý kus ≈ 10 kg
-  denně, voli první.
+  fázi louky a z přirozených luk do 600 m od nejbližší k obydlí – vzdálenost je **chůze po
+  pěšinách** jako u polních prací ([paths.md](paths.md) – Pěšiny a práce; díl úhoru
+  `partWalkDistance`, políčko přirozené louky přes síť pěšin vsi, bez sítě rovně), při shodě díly
+  úhoru a pak po políčkách; simulace k tomu dostává krajinu. Vzdálenost louky se uloží s plánem
+  a podle ní je i práce seče. Seče se
+  v červnu–červenci po dílech a políčkách jako polní práce, seno přibývá poměrně k práci.
+  **Louky na seno ve scéně jsou data** (`SceneVillage.hayMeadows` – políčka přirozených luk
+  v seči se vzhledem `meadow` / `mown` / `haystacks` po čele práce); dekorativní louky na seno
+  zůstaly jen ve vývojové ukázce. K políčkům, kde se ten den seče, vede pěšina (sekáči – práce
+  dne), pevné cesty sčítají seč za rok jako jedno místo. V listopadu–březnu žere každý kus ≈ 10 kg denně, voli první.
+  Zimní krmení, voda a kydání krav a volů je práce ([strava – Práce se zvířaty](diet.md)).
 - **Pokrytí sena** se rozhodne **1. 3.**: co voli za zimu dostali a co jim ze zásoby zbývá na
   březen, proti potřebě celé zimy. Pod polovinu jeden vůl (nebo tele ve výcviku) uhyne,
   spřežení i výcvik se rozpadnou a druhý vůl jde na maso. Mezi polovinou a plným pokrytím vrátí
@@ -120,4 +128,6 @@ Rozhodnutí kontroléru tam, kde návrh nedává postup (Martin je může změni
 | Seno 1,5 t na vola za zimu, louka 1,5 t/ha, sečení 6 čd/ha; bez sena slabší orba / úhyn     | návrh Clauda                  |
 | Orba 10 → 6 čd/ha místo kopání 100 → 50; drn rádlo nezvládne; spřežení ≈ 0,3 ha/den         | návrh Clauda (rešerše)        |
 | Výcvik z aspoň 3 krav; rádlo jako stavba; seč 1. 6. pro krávy a 2 voly na ohradu            | rozhodnutí kontroléru         |
-| Pokrytí sena k 1. 3.; vracení orby motyce po celých dílech; louky na seno jen v ukázce      | rozhodnutí kontroléru         |
+| Pokrytí sena k 1. 3.; vracení orby motyce po celých dílech                                  | rozhodnutí kontroléru         |
+| Seno ze všech luk – přirozené louky i úhor ve fázi louky, od nejbližší, jen kolik je třeba  | Martin (18. 10. 2026)         |
+| Přirozené louky do 600 m od obydlí; louky na seno ve scéně z dat                            | návrh Clauda                  |

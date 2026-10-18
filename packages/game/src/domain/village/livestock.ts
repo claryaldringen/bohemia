@@ -1,5 +1,6 @@
 import { dateOfDayIndex } from '../calendar';
-import { DIET } from './diet';
+import { yearlyMilk } from './dairy';
+import { PROTEIN, proteinNeedPerDay } from './diet';
 import { isOvergrown } from './fields';
 import { HAY } from './hay';
 import { ageGroup } from './people';
@@ -16,9 +17,10 @@ import type {
 // Stáda rostou mláďaty na jaře až do nosnosti – pastva na úhoru a loukách (ovce, kozy, krávy),
 // les do 600 m od vsi (prasata, žaludy a bukvice), seno na zimu (krávy a voli). V listopadu jde
 // na maso, co přeroste nosnost, a mladé kusy, které ves potřebuje na maso; chovné kusy (aspoň
-// pár od druhu) zůstanou. Slepice u obydlí snáší vejce (počítají se jako maso). Zásoba masa se
-// uzí a suší – ztrácí 20 % ročně (diet.ts). Pasou děti – žádná práce; porážka a uzení 1
-// člověkoden na 20 kg masa.
+// pár od druhu) zůstanou. Slepice u obydlí snáší vejce (jí se čerstvá). Zásoba masa se uzí
+// a suší – ztrácí 20 % ročně (diet.ts). Maso a mléko jsou kvůli bílkovinám (Martin): kolik masa
+// ves potřebuje, určí bílkoviny, které chybí po obilí, mléku a vejcích. Pasou děti – žádná práce;
+// porážka a uzení 1 člověkoden na 20 kg masa, dojení a péče – dairy.ts.
 
 /**
  * diet.md – Dobytek (návrh Clauda, Martin schválil): výchozí stádo na domácnost 3 ovce, 1 koza,
@@ -28,9 +30,11 @@ import type {
  * a uzení 1 člověkoden na 20 kg. Na maso navíc (když ho ves nemá dost) jde nejvýš polovina
  * letošních mláďat – druhá polovina stádo rozšíří (návrh Clauda při implementaci; bez ní by ves
  * snědla každé mládě a stádo by nikdy nevyrostlo). Ves chová, kolik potřebuje: když by mláďata
- * ovcí, koz a prasat (s vejci) dala aspoň 1,5× roční potřeby masa, jdou letošní mláďata těch
- * druhů na maso celá a stádo už neroste (rozhodnutí kontroléru – jinak by stádo rostlo až do
- * nosnosti luk, stovky ovcí na pár lidí). Krávy rostou dál do nosnosti (telata pro voly).
+ * ovcí, koz a prasat dala aspoň 1,5× masa, které ves potřebuje (bílkoviny, které chybí po obilí,
+ * mléku a vejcích), jdou letošní mláďata těch druhů na maso celá a stádo už neroste (rozhodnutí
+ * kontroléru – jinak by stádo rostlo až do nosnosti luk). Krávy rostou dál do nosnosti (telata
+ * pro voly). Odhad bílkovin z obilí počítá s obilím na 70 % energie, z mléka s 85 % jeho bílkovin
+ * (zbytek odteče se syrovátkou při výrobě sýra – návrh Clauda).
  * Bez údaje o krajině typická krajina (≈ 60 ha luk do 600 m – fields.md, Kolik půdy je; les
  * návrh Clauda).
  */
@@ -48,6 +52,8 @@ export const LIVESTOCK = {
   breedingMin: 2,
   youngForMeat: 0.5,
   herdSufficient: 1.5,
+  grainEnergyShare: 0.7,
+  milkProteinKept: 0.85,
   slaughterKgPerManDay: 20,
   defaultLand: { meadowHa: 60, forestHa: 40 },
 } as const;
@@ -204,10 +210,46 @@ export function grazingDemandHa(herds: Record<HerdSpecies, number>, oxen: number
   );
 }
 
-/** Roční potřeba masa vsi (kg) – 20 % potřeby energie v mase (diet.md). */
-export function meatNeedPerYear(state: Pick<VillageState, 'people'>, day: number): number {
-  const energy = state.people.reduce((sum, p) => sum + FOOD_NEED_KG_PER_YEAR[ageGroup(p, day)], 0);
-  return (energy * DIET.shares.meat) / DIET.meatEnergy;
+/** Roční bilance bílkovin vsi (kg): potřeba a co dá obilí, mléko stád a vejce. */
+export interface ProteinBudget {
+  need: number;
+  grain: number;
+  milk: number;
+  eggs: number;
+}
+
+/** Roční bilance bílkovin vsi se stády `herds` (bez údaje dnešní stáda). */
+export function proteinBudget(
+  state: Pick<VillageState, 'people' | 'dwellings' | 'livestock'>,
+  day: number,
+  herds: Record<HerdSpecies, number> = villageHerds(state),
+): ProteinBudget {
+  let need = 0;
+  let grain = 0;
+  for (const p of state.people) {
+    need += proteinNeedPerDay(p, day) * DAYS_PER_YEAR;
+    grain +=
+      FOOD_NEED_KG_PER_YEAR[ageGroup(p, day)] * LIVESTOCK.grainEnergyShare * PROTEIN.perKg.grain;
+  }
+  return {
+    need,
+    grain,
+    milk: yearlyMilk(herds).proteinKg * LIVESTOCK.milkProteinKept,
+    eggs: villageChickens(state) * LIVESTOCK.eggsKgPerHen * PROTEIN.perKg.eggs,
+  };
+}
+
+/**
+ * Roční potřeba masa vsi (kg) – bílkoviny, které chybí po obilí, mléku stád a vejcích (diet.md –
+ * Bílkoviny), v mase.
+ */
+export function meatNeedPerYear(
+  state: Pick<VillageState, 'people' | 'dwellings' | 'livestock'>,
+  day: number,
+  herds?: Record<HerdSpecies, number>,
+): number {
+  const b = proteinBudget(state, day, herds);
+  return Math.max(0, b.need - b.grain - b.milk - b.eggs) / PROTEIN.perKg.meat;
 }
 
 /** Přidá maso z porážky a práci na porážce a uzení (mutuje stav). */
@@ -233,10 +275,9 @@ export function workSlaughter(state: VillageState, amount: number): void {
   work.done = Math.min(work.required, work.done + amount);
 }
 
-/** Jeden den snášky – vejce do zásoby masa (mutuje stav). */
-export function layEggs(state: VillageState): void {
-  const eggs = (villageChickens(state) * LIVESTOCK.eggsKgPerHen) / DAYS_PER_YEAR;
-  if (eggs > 0) state.meatKg = (state.meatKg ?? 0) + eggs;
+/** Vejce dne (kg) – jí se čerstvá. */
+export function dailyEggsKg(state: Pick<VillageState, 'people' | 'dwellings'>): number {
+  return (villageChickens(state) * LIVESTOCK.eggsKgPerHen) / DAYS_PER_YEAR;
 }
 
 /** Jaro (1. 4.): mláďata – každé stádo přibude o svůj roční růst (mutuje stav). */
@@ -272,8 +313,9 @@ export function winterTargets(
 /**
  * Porážka (1. 11., před jídlem dne – mutuje stav): na maso jde, co přeroste nosnost (pastva, les,
  * seno na zimu – `winterTargets`); stádo, které dává masa dost, neroste (mláďata ovcí, koz
- * a prasat celá na maso); a když maso v zásobě s vejci roční potřebu nepokryje, i letošní
- * mláďata navíc (prasata první, nejvýš polovina mláďat) – chovný pár zůstane. Vrátí událost kroniky, nebo null.
+ * a prasat celá na maso); a když maso v zásobě roční potřebu (bílkoviny po obilí, mléku a vejcích)
+ * nepokryje, i letošní mláďata navíc (prasata první, nejvýš polovina mláďat) – chovný pár zůstane.
+ * Vrátí událost kroniky, nebo null.
  */
 export function slaughter(
   state: VillageState,
@@ -284,13 +326,18 @@ export function slaughter(
   const livestock = ensureLivestock(state);
   const herds = livestock.herds;
   const keep = winterTargets(state, oxen, hayKg);
-  const eggs = villageChickens(state) * LIVESTOCK.eggsKgPerHen;
-  const need = meatNeedPerYear(state, day);
-  // stádo dost velké: mláďata ovcí, koz a prasat (s vejci) by dala aspoň 1,5× potřeby masa –
-  // letošní mláďata těch druhů jdou na maso celá
-  const potential =
-    eggs +
-    MEAT_HERDS.reduce((sum, s) => sum + keep[s] * LIVESTOCK.growth[s] * LIVESTOCK.meatKg[s], 0);
+  // maso, které ves potřebuje – bílkoviny po obilí, mléku stád (přes zimu) a vejcích
+  const need = meatNeedPerYear(state, day, keep);
+  // stádo dost velké: chovné kusy ovcí, koz a prasat (bez letošních mláďat) by mláďaty dalo
+  // aspoň 1,5× potřeby masa – letošní mláďata těch druhů jdou na maso celá
+  const potential = MEAT_HERDS.reduce(
+    (sum, s) =>
+      sum +
+      Math.max(0, Math.min(keep[s], herds[s] - livestock.young[s])) *
+        LIVESTOCK.growth[s] *
+        LIVESTOCK.meatKg[s],
+    0,
+  );
   if (potential >= LIVESTOCK.herdSufficient * need) {
     for (const s of MEAT_HERDS) {
       const breeding = Math.min(herds[s], LIVESTOCK.breedingMin);
@@ -298,7 +345,7 @@ export function slaughter(
     }
   }
   let meat = HERD_SPECIES.reduce((sum, s) => sum + (herds[s] - keep[s]) * LIVESTOCK.meatKg[s], 0);
-  let shortfall = need - eggs - (state.meatKg ?? 0) - meat;
+  let shortfall = need - (state.meatKg ?? 0) - meat;
   for (const species of MEAT_ORDER) {
     if (shortfall <= EPSILON) break;
     const youngLeft = Math.max(

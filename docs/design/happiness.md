@@ -132,6 +132,16 @@ Každé místo přidá k cílovému štěstí; posvátná místa dohromady nejv�
 - V nabídce staveb **modla** a **svatyně** (název + cena v tooltipu).
 - Posvátné duby a háje se objeví samy, když se kolem mýtí – jdou vybrat; panel výběru ukáže,
   kolik přidávají (ikona štěstí + číslo).
+- **Stáří posvátného dubu** (Martin 18. 10. 2026: „pokud označím posvátný dub, chtěl bych vidět
+  jeho stáří“): panel výběru ukáže ikonu data s počtem let (popisek „Stáří (roky)“ jako u obydlí
+  a sadu). Stáří plyne jen z dubu – z jeho velikosti (výška modelu × měřítko): k 1. 1. 500 má
+  nejmenší posvátný dub (≈ 17,7 m, práh horní třetiny dubů) **150 let** a největší (≈ 26,5 m)
+  **400 let**, mezi tím lineárně (návrh Clauda); k tomu herní roky od začátku světa do dneška
+  hráče. Stejný dub má tedy stejné stáří v každé vsi a stárne s herním časem (na konci světa
+  ≈ 1150–1400 let). Rozpětí: 150 let ≈ mohutný dospělý solitérní dub (obvod ≈ 3 m), od 400 let
+  je dub „starobylý“ (Woodland Trust, Ancient Tree Inventory – dub běžně žije ≈ 600 let,
+  výjimečně 1000). U **háje** panel ukáže stáří jeho nejstaršího dubu (největší dospělý dub
+  v okruhu 25 m od středu, stejný výpočet – rozhodnutí Clauda).
 - Upozornění (fakt): „Vesničané ušetřili posvátný dub“ / „… dubový háj“.
 
 ## Navazuje
@@ -156,3 +166,5 @@ Každé místo přidá k cílovému štěstí; posvátná místa dohromady nejv�
 | Ušetření dubu a háje se zapíše už při zahájení stavby (při vytyčení)                   | Martin potvrdil 18. 10. 2026              |
 | Modla nepotřebuje rovinu                                                               | rozhodnutí kontroléru (implementace)      |
 | Posvátné duby se postupně zvětší – o 30 % za 60 let od ušetření (jen vzhled)           | Martin; čísla návrh Clauda                |
+| Panel posvátného dubu ukáže jeho stáří; 150–400 let k roku 500 podle velikosti         | Martin; rozpětí návrh Clauda              |
+| Panel háje ukáže stáří jeho nejstaršího dubu                                           | návrh Clauda                              |

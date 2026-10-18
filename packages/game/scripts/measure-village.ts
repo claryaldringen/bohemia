@@ -343,7 +343,7 @@ interface RunResult {
   /** Štěstí obyvatel na konci každého kroku (happiness.md) – jen informace. */
   happiness: number[];
   /** Jídlo posledního dne každého kroku (diet.md) – nasycení a podíly masa a ovoce. */
-  diet: { satiation: number; meat: number; fruit: number }[];
+  diet: { satiation: number; protein: number; meat: number; dairy: number; fruit: number }[];
   /** Založená pole podle povrchu (ha) – i první pole při založení vsi. */
   foundedHa: Record<FieldSurface, number>;
 }
@@ -639,7 +639,9 @@ function runVillage(start: VillageState, startLand: number, opts: RunOptions): R
       if (after.diet) {
         result.diet.push({
           satiation: after.diet.satiation,
+          protein: after.diet.protein,
           meat: after.diet.shares.meat,
+          dairy: after.diet.shares.dairy,
           fruit: after.diet.shares.fruit,
         });
       }
@@ -1067,27 +1069,19 @@ function report(villages: VillageResult[], probes: Record<ProbeName, ProbeSummar
   const ok = (pass: boolean): Status => (pass ? 'OK' : 'MIMO');
   const builders = villages.map((v) => v.builder);
 
-  // strava (diet.md) – nasycení se stravou a podíly masa a ovoce na energii, jen informace
+  // strava (diet.md) – nasycení, bílkoviny a podíly masa, mléka a ovoce na energii, informace
   for (const [label, runs] of [
     ['hráč staví', builders],
     ['nestaví', villages.map((v) => v.loner)],
   ] as const) {
     const all = runs.flatMap((r) => r.diet);
+    const median = (pick: (d: (typeof all)[number]) => number): number =>
+      quantile(all.map(pick), 0.5);
     const satiation = all.map((d) => d.satiation);
     row(
       `Strava – nasycení se stravou (${label})`,
-      'informace – energie × pestrost (jen obilí 0,80)',
-      `kroky: medián ${fmt(quantile(satiation, 0.5), 2)} | p10 ${fmt(quantile(satiation, 0.1), 2)} | p90 ${fmt(quantile(satiation, 0.9), 2)} | maso medián ${pct(
-        quantile(
-          all.map((d) => d.meat),
-          0.5,
-        ),
-      )} energie | ovoce medián ${pct(
-        quantile(
-          all.map((d) => d.fruit),
-          0.5,
-        ),
-      )}`,
+      'informace – energie × kvalita z bílkovin (jen obilí ≈ 0,8)',
+      `kroky: medián ${fmt(quantile(satiation, 0.5), 2)} | p10 ${fmt(quantile(satiation, 0.1), 2)} | bílkoviny medián ${pct(median((d) => d.protein))} | energie z masa ${pct(median((d) => d.meat))}, mléka a sýra ${pct(median((d) => d.dairy))}, ovoce ${pct(median((d) => d.fruit))}`,
       'info',
     );
   }

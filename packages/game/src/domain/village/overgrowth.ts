@@ -137,10 +137,16 @@ function dropForestParts(
   }
   if (woods.length > 0) state.woods = woods;
   state.parts = state.parts.filter((p) => !removed.has(p.id));
-  const mowing = state.hay?.mowing;
-  if (mowing) {
+  const hay = state.hay;
+  const mowing = hay?.mowing;
+  if (hay && mowing) {
     mowing.partIds = mowing.partIds.filter((id) => !removed.has(id));
-    if (mowing.partIds.length === 0) state.hay!.mowing = null;
+    if (mowing.squares) {
+      mowing.squares = mowing.squares.filter(
+        (sq) => sq.partId === undefined || !removed.has(sq.partId),
+      );
+    }
+    if (mowing.partIds.length === 0 && (mowing.squares?.length ?? 0) === 0) hay.mowing = null;
   }
   for (const share of state.labor?.shares ?? []) {
     if (share.target.kind !== 'field' || !share.target.parts) continue;

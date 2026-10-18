@@ -28,13 +28,14 @@ function freePlaces(state: VillageState, dwelling: Dwelling): number {
 
 /**
  * Smí se `mover` přestěhovat do obydlí `to`? Jeho domácnost se odchodem nerozpadne
- * (`householdBreaksUp` – jinak by ji rozpad večer přestěhoval a rozpad vsi by se rozjel) a cílová
- * domácnost není přeplněná – po sňatku je nejvýš o jednoho přes kapacitu (přeplněnou pak řeší
- * dospělé děti do prázdného obydlí a upozornění „Domácnost je plná“).
+ * (`householdBreaksUp` – jinak by ji rozpad večer přestěhoval a rozpad vsi by se rozjel) a v cílové
+ * domácnosti je volné místo – svatba dům nikdy nepřeplní. Jinak by se stěhovalo tam a zpět:
+ * nejstarší dítě odejde z přeplněného domu samo, svatba by ho s rodičem, který jediný v domě
+ * zůstal 16–44, vrátila do teď plného domu, ten by byl zase přeplněný a dítě by odešlo znovu.
  */
 function canMove(state: VillageState, day: number, mover: Person, to: Dwelling): boolean {
   const staying = occupants(state, mover.dwellingId).filter((p) => p.id !== mover.id);
-  return !householdBreaksUp(staying, day) && freePlaces(state, to) >= 0;
+  return !householdBreaksUp(staying, day) && freePlaces(state, to) > 0;
 }
 
 /** Sňatek: kdo se stěhuje a kam. */
@@ -45,7 +46,7 @@ export interface MarriageMove {
 
 /**
  * Kdo se při sňatku svobodných `a` a `b` (různé domy) stěhuje: ten, jehož domácnost se odchodem
- * nerozpadne a jehož protějšek nebydlí v přeplněném domě. Smějí-li oba, stěhuje se do domu
+ * nerozpadne a v jehož cílovém domě je volné místo. Smějí-li oba, stěhuje se do domu
  * s víc volnými místy, při shodě mladší (při shodě data narození vyšší id). Nesmí-li ani jeden,
  * null – počkají.
  */

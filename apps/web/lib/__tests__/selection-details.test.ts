@@ -169,8 +169,8 @@ const view = {
     },
   ],
   sacred: {
-    oaks: [{ id: 700, happiness: 5 }],
-    groves: [{ id: 800, oaks: 11, squares: 9, happiness: 12 }],
+    oaks: [{ id: 700, happiness: 5, ageYears: 312 }],
+    groves: [{ id: 800, oaks: 11, squares: 9, happiness: 12, ageYears: 254 }],
     buildings: [
       { id: 40, kind: 'idol', built: true, happiness: 8, progress: 1, oaksToFell: 0 },
       { id: 41, kind: 'shrine', built: false, happiness: 25, progress: 0.35, oaksToFell: 2 },
@@ -185,6 +185,8 @@ const view = {
     grazingHa: 8.4,
     pigForestHa: 30,
     meatNeedKg: 560,
+    milkLPerDay: 14.2,
+    milkLPerYear: 2900,
   },
   pens: [
     {
@@ -349,17 +351,19 @@ describe('selectionDetails – sad', () => {
 });
 
 describe('selectionDetails – posvátná místa', () => {
-  it('posvátný dub a háj: kolik přidávají štěstí, háj i počet dubů', () => {
+  it('posvátný dub a háj: kolik přidávají štěstí a stáří dubu, háj i počet dubů', () => {
     expect(selectionDetails(view, scene, { kind: 'sacred-oak', id: 700 })).toEqual({
       kind: 'sacred-oak',
       id: 700,
       happiness: 5,
+      ageYears: 312,
     });
     expect(selectionDetails(view, scene, { kind: 'grove', id: 800 })).toEqual({
       kind: 'grove',
       id: 800,
       oaks: 11,
       happiness: 12,
+      ageYears: 254,
     });
     expect(selectionDetails(view, scene, { kind: 'sacred-oak', id: 1 })).toBeNull();
     expect(selectionDetails(view, scene, { kind: 'grove', id: 1 })).toBeNull();
@@ -405,6 +409,7 @@ describe('selectionDetails – posvátná místa', () => {
       chickens: 6,
       pastureHa: 41.5,
       grazingHa: 8.4,
+      milkLPerDay: 14.2,
       team: { ageYears: 3, yearsLeft: 7 },
       training: null,
       hayKg: 3200,

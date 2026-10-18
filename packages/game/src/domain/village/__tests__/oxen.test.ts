@@ -293,6 +293,8 @@ describe('kopie stavu', () => {
     );
     s.pens![0]!.training = { startDay: day - 100 };
     s.hay = { kg: 2500, mowing: { partIds: [9, 10], required: 3, done: 1, yieldKg: 750 } };
+    s.meatKg = 50;
+    s.cheeseKg = 20;
     const state = advanceVillage(s, at(600, 11, 20), null);
     // orba s vrácenými díly, zimní seno a porážka – všechna nová pole stavu jsou vyplněná
     const work = state.plan!.winter ?? state.plan!;
@@ -301,7 +303,8 @@ describe('kopie stavu', () => {
     expect(state.livestock?.slaughterWork).toBeDefined();
     expect(state.hay?.winter).toBeDefined();
     expect(state.diet).toBeDefined();
-    expect(state.meatKg).toBeGreaterThan(0);
+    expect(state.meatKg).toBeDefined();
+    expect(state.cheeseKg).toBeGreaterThan(0);
     const copy = cloneState(state);
     expect(copy).toEqual(structuredClone(state));
     copy.livestock!.herds.sheep = 999;

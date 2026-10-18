@@ -170,11 +170,11 @@ describe('dospělé děti z přeplněné domácnosti', () => {
     expect(householdHeir(household(1, [60, 50]), DAY)).toBeNull(); // bez dospělých dětí
   });
 
-  it('rodiče 50 a 47 se dvěma dospělými dětmi: dědic zůstane, mladší čeká na protějšek', () => {
+  it('rodiče 50 a 47 se dvěma dospělými dětmi: dědic zůstane, mladší odejde samo', () => {
     const two = village(household(1, [50, 47, 20, 18, 8, 5, 2]), [dwelling(1), dwelling(2)]);
     expect(adultChildrenSources(two, DAY).map((x) => ids(x.children))).toEqual([[4]]);
-    expect(adultChildrenSettlers(two, DAY, 6)).toEqual([]);
-    expect(availableSettlers(two, DAY)).toBe(-1); // prázdné obydlí 2 nikoho nečeká
+    expect(ids(adultChildrenSettlers(two, DAY, 6))).toEqual([4]);
+    expect(availableSettlers(two, DAY)).toBe(0); // jeden osadník, na něj čeká prázdné obydlí 2
     // s jednotlivcem jiné přeplněné domácnosti odejdou spolu, dědic zůstane
     const paired = village(
       [...two.people, ...household(10, [45, 42, 18, 9, 6, 3, 1], 2)],
@@ -190,23 +190,30 @@ describe('dospělé děti z přeplněné domácnosti', () => {
     expect(availableSettlers(s, DAY)).toBe(1);
   });
 
-  it('jediné dospělé dítě samo nejde – se svým protějškem z jiné přeplněné domácnosti ano', () => {
+  // Martin, 18. 10. 2026: „pokud se lidé v domě tísní a je tam nejstarší dítě, nejstarší dítě
+  // může odejít do nového domu“
+  it('jediné dospělé dítě od 16 let odejde samo – s protějškem z jiné přeplněné domácnosti spolu', () => {
     const one = household(1, [46, 40, 16, 8, 5, 2, 1], 1);
-    const alone = village(one, [dwelling(1), dwelling(2)]);
-    expect(adultChildrenSettlers(alone, DAY, 6)).toEqual([]);
-    expect(availableSettlers(alone, DAY)).toBe(-1); // prázdné obydlí 2 nikoho nečeká
+    const alone = village(one, [dwelling(1)]);
+    expect(ids(adultChildrenSettlers(alone, DAY, 6))).toEqual([3]);
+    expect(availableSettlers(alone, DAY)).toBe(1); // hráč smí postavit obydlí
+    // patnáctileté samo nejde – samo by se v prázdném domě rozpadlo
+    const young = village(household(1, [46, 40, 15, 8, 5, 2, 1], 1), [dwelling(1)]);
+    expect(adultChildrenSettlers(young, DAY, 6)).toEqual([]);
+    expect(availableSettlers(young, DAY)).toBe(0);
+    // pár má přednost před jednotlivcem
     const two = village(
       [...one, ...household(10, [45, 42, 18, 9, 6, 3, 1], 2)],
       [dwelling(1), dwelling(2)],
     );
     expect(ids(adultChildrenSettlers(two, DAY, 6))).toEqual([3, 12]);
     expect(availableSettlers(two, DAY)).toBe(1);
-    // třetí jednotlivec pár nemá – možné domácnosti se zaokrouhlí dolů
+    // třetí jednotlivec pár nemá – odejde samo do dalšího obydlí
     const three = village(
       [...two.people, ...household(20, [47, 41, 19, 7, 6, 4, 2], 3)],
       [dwelling(1), dwelling(2), dwelling(3)],
     );
-    expect(availableSettlers(three, DAY)).toBe(1);
+    expect(availableSettlers(three, DAY)).toBe(2);
   });
 
   it('pořadí od nejvíc přeplněné, při shodě nižší id; kapacita omezí počet – zůstanou nejstarší', () => {
@@ -265,13 +272,14 @@ describe('opravy a přestavba', () => {
     expect(d.condition).toBe(0.5);
   });
 
-  it('chce přestavbu po uplynutí životnosti (zemnice 18 let) nebo při nulovém stavu', () => {
+  it('chce přestavbu po uplynutí životnosti (zemnice 18 let) – rozhoduje jen stáří, ne stav', () => {
     const d = dwelling(1);
     expect(DWELLINGS.zemnice.lifespanYears).toBe(18);
     expect(wantsRebuild(d, 18 * YEAR)).toBe(true);
     expect(wantsRebuild(d, 17 * YEAR)).toBe(false);
+    // obydlený dům nechátrá (Martin) – ani zbylý nízký stav po chátrání přestavbu nespustí
     d.condition = 0;
-    expect(wantsRebuild(d, 1)).toBe(true);
+    expect(wantsRebuild(d, 1)).toBe(false);
   });
 
   it('nové prázdné obydlí chátrá rychleji – zemnice zanikne za ≈ 5 let, polozemnice za ≈ 8', () => {

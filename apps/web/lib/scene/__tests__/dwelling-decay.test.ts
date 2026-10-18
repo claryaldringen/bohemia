@@ -8,6 +8,7 @@ import {
   decayModelParts,
   decayNettles,
   decayStage,
+  dwellingDecayStage,
   ruinHollowData,
   ruinHollowY,
   ruinLook,
@@ -56,9 +57,16 @@ describe('stupně rozpadu obydlí', () => {
     expect(DECAY_LOOKS[1].fence).toBe(0);
     expect(DECAY_LOOKS[2].fence).toBeGreaterThan(0);
     expect(DECAY_LOOKS[2].beds).toBeGreaterThan(0);
-    // ze zřícené střechy nestoupá dým
-    expect(DECAY_LOOKS[2].smoke).toBe(true);
-    expect(DECAY_LOOKS[3].smoke).toBe(false);
+  });
+
+  it('rozpadá se jen prázdné obydlí – obydlené je celé i s nízkým stavem; dílny zatím celé', () => {
+    expect(dwellingDecayStage({ condition: 0.1, inhabited: false })).toBe(3);
+    expect(dwellingDecayStage({ condition: 0.5, inhabited: false })).toBe(1);
+    // obyvatelé dům opravují (Martin) – i znovu osídlený zchátralý dům je celý
+    expect(dwellingDecayStage({ condition: 0.1, inhabited: true })).toBe(0);
+    expect(dwellingDecayStage({ condition: 0.1 })).toBe(0);
+    expect(dwellingDecayStage({ condition: 0.1, inhabited: false, craft: 'potter' })).toBe(0);
+    expect(dwellingDecayStage({ inhabited: false })).toBe(0);
   });
 
   it('celý dům je hotový model; díly rozpadu a zbytku jámy jsou v decay.glb', () => {

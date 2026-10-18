@@ -1,32 +1,48 @@
 import { dateOfDayIndex, dayIndexOf, isLeapYear } from '../calendar';
 import { applesSpoiled, daysUntilAppleRot } from './food';
 import { villageApplesKg } from './orchard';
-import { foodNeedPerDay } from './people';
+import { DAIRY, cheeseFromMilk, daysUntilMilking, villageCheeseKg, type MilkYield } from './dairy';
+import { ageGroup, foodNeedPerDay } from './people';
 import { NO_CRAFTS, storageLossPerYear } from './productivity';
 import { APPLE_FOOD_VALUE } from './rules';
-import type { DietDay, VillageState } from './types';
+import type { DietDay, Person, VillageState } from './types';
 import { daysUntilFoodHarvest } from './year-plan';
 
-// Strava – obilí, maso, ovoce (diet.md, schváleno 18. 10. 2026). Energie (v obilních
-// ekvivalentech) proti potřebě a pestrost stravy: nasycení = pokrytí energie × pestrost. Ovoce
-// se jí přednostně, dokud nezkazí (rovným dílem do 1. 3.), maso rovným dílem do příští porážky,
-// obilí dorovná; ovoce smí pokrýt nejvýš čtvrtinu potřeby energie, maso 40 %. Hladem se umírá
-// jen z nedostatku energie (population.md – Hlad a vymření), pestrost řídí porody a štěstí.
+// Strava – obilí, maso, mléko a sýr, vejce, ovoce (diet.md). Energie (v obilních ekvivalentech)
+// a bílkoviny proti potřebě: nasycení = pokrytí energie × kvalita stravy z bílkovin a ovoce
+// (Martin 18. 10. 2026: maso a mléko kvůli bílkovinám – 1,6 g na kg tělesné váhy). Ovoce se jí
+// přednostně, dokud nezkazí (rovným dílem do 1. 3.), čerstvé mléko a vejce, jak přibývají
+// (přebytek mléka na sýr), maso rovným dílem do příští porážky a sýr do příštího dojení; obilí
+// dorovná energii. Ovoce smí pokrýt nejvýš čtvrtinu potřeby energie, maso 40 %, mléko a sýr 30 %.
+// Hladem se umírá jen z nedostatku energie (population.md – Hlad a vymření), bílkoviny a ovoce
+// řídí porody a štěstí.
 
 /**
- * diet.md – Pravidla (návrh Clauda, Martin schválil): plná strava = 75 % energie z obilí, 20 %
- * z masa, 5 % z ovoce; pestrost 0,80 + 0,14 × pokrytí masa + 0,06 × pokrytí ovoce (pokrytí =
- * snědené ÷ podíl ve stravě, nejvýš 1); strop ovoce 25 %, masa 40 % potřeby energie; energie
- * masa 0,6 kg obilí na kg (ovoce APPLE_FOOD_VALUE); ovoce přidá štěstí +5; zásoba masa se uzí
- * a suší – ztratí 20 % ročně.
+ * diet.md – Pravidla: stropy ovoce 25 %, masa 40 %, mléka a sýra 30 % potřeby energie; energie
+ * v kg obilí na kg (maso ≈ 2 000, vejce ≈ 1 430 kcal/kg proti obilí 3 400; mléko a sýr – dairy.ts;
+ * ovoce APPLE_FOOD_VALUE); kvalita stravy 0,60 + 0,34 × pokrytí bílkovin + 0,06 × pokrytí ovoce
+ * (nejvýš 1 – samo obilí ≈ 0,8); ovoce plně při 5 % energie; ovoce přidá štěstí +5; zásoba masa se
+ * uzí a suší – ztratí 20 % ročně (návrh Clauda, Martin).
  */
 export const DIET = {
-  shares: { grain: 0.75, meat: 0.2, fruit: 0.05 },
-  diversity: { base: 0.8, meat: 0.14, fruit: 0.06 },
-  caps: { meat: 0.4, fruit: 0.25 },
+  caps: { meat: 0.4, fruit: 0.25, dairy: 0.3 },
   meatEnergy: 0.6,
+  energy: { eggs: 0.42 },
+  quality: { base: 0.6, protein: 0.34, fruit: 0.06 },
+  fruitShare: 0.05,
   fruitHappiness: 5,
   meatLossPerYear: 0.2,
+} as const;
+
+/**
+ * diet.md – Bílkoviny (Martin: 1,6 g na kg tělesné váhy denně; tělesná váha a obsah bílkovin podle
+ * rešerše 2026-10-18-dairy-protein.md): průměrná tělesná váha skupin (kg), bílkoviny v kg na kg
+ * potraviny (obilí směs, uzené maso, sýr, vejce).
+ */
+export const PROTEIN = {
+  gPerKgBody: 1.6,
+  bodyKg: { child: 20, adult: 60, elder: 58 },
+  perKg: { grain: 0.1, meat: 0.17, cheese: DAIRY.cheeseProtein, eggs: 0.125 },
 } as const;
 
 /** Porážka (diet.md – listopad): 1. 11. ráno, před jídlem dne – maso se jí rovným dílem do ní. */
@@ -35,6 +51,8 @@ export const SLAUGHTER_DAY = { month: 11, day: 1 } as const;
 const COMMON_YEAR_DAYS = 365;
 /** Maso se uzí rovnoměrně po dnech – za rok ubude DIET.meatLossPerYear. */
 const DAILY_MEAT_KEEP = (1 - DIET.meatLossPerYear) ** (1 / COMMON_YEAR_DAYS);
+/** Sýr se suší a zraje – za rok ubude DAIRY.cheeseLossPerYear. */
+const DAILY_CHEESE_KEEP = (1 - DAIRY.cheeseLossPerYear) ** (1 / COMMON_YEAR_DAYS);
 
 /** Energie masa v kg obilí. */
 export function meatEnergy(kg: number): number {
@@ -46,48 +64,106 @@ export function fruitEnergy(kg: number): number {
   return kg * APPLE_FOOD_VALUE;
 }
 
-/** Pestrost stravy 0,8–1 z pokrytí masa a ovoce (0–1, ořízne se). */
-export function dietDiversity(meatCoverage: number, fruitCoverage: number): number {
+/** Potřeba bílkovin člověka za den (kg) – 1,6 g na kg tělesné váhy jeho skupiny. */
+export function proteinNeedPerDay(person: Person, day: number): number {
+  return (PROTEIN.bodyKg[ageGroup(person, day)] * PROTEIN.gPerKgBody) / 1000;
+}
+
+/** Kvalita stravy 0,6–1 z pokrytí bílkovin a ovoce (0–1, ořízne se). */
+export function dietQuality(proteinCoverage: number, fruitCoverage: number): number {
   const clamp = (v: number): number => Math.min(1, Math.max(0, v));
-  const { base, meat, fruit } = DIET.diversity;
-  return base + meat * clamp(meatCoverage) + fruit * clamp(fruitCoverage);
+  const { base, protein, fruit } = DIET.quality;
+  return Math.min(1, base + protein * clamp(proteinCoverage) + fruit * clamp(fruitCoverage));
 }
 
 /**
- * Jídlo dne z toho, co se snědlo (kg obilí, masa a jablek) proti potřebě energie (kg obilí za den):
- * energie, pestrost (pokrytí masa a ovoce proti jejich podílu v plné stravě), nasycení a podíly.
- * Bez potřeby (nikdo nejí) plné nasycení.
+ * Co se dnes snědlo (kg; mléko v litrech, `milkProteinKg` a `milkEnergy` = bílkoviny a energie
+ * vypitého mléka – podle druhů).
  */
-export function dietOf(
-  needPerDay: number,
-  grainKg: number,
-  meatKg: number,
-  fruitKg: number,
-): DietDay {
-  if (needPerDay <= 0) {
-    return { energy: 1, diversity: 1, satiation: 1, shares: { grain: 0, meat: 0, fruit: 0 } };
-  }
-  const grain = grainKg / needPerDay;
-  const meat = meatEnergy(meatKg) / needPerDay;
-  const fruit = fruitEnergy(fruitKg) / needPerDay;
-  const energy = Math.min(1, grain + meat + fruit);
-  const diversity = dietDiversity(meat / DIET.shares.meat, fruit / DIET.shares.fruit);
-  return { energy, diversity, satiation: energy * diversity, shares: { grain, meat, fruit } };
+export interface Eaten {
+  grainKg: number;
+  meatKg: number;
+  fruitKg: number;
+  milkL: number;
+  milkProteinKg: number;
+  milkEnergy: number;
+  cheeseKg: number;
+  eggsKg: number;
 }
 
-/** Vstup jídla dne – zásoby na konci včerejška, potřeba a výhled. */
+const NOTHING: Eaten = {
+  grainKg: 0,
+  meatKg: 0,
+  fruitKg: 0,
+  milkL: 0,
+  milkProteinKg: 0,
+  milkEnergy: 0,
+  cheeseKg: 0,
+  eggsKg: 0,
+};
+
+/**
+ * Jídlo dne z toho, co se snědlo, proti potřebě energie (kg obilí za den) a bílkovin (kg za den):
+ * energie, bílkoviny, kvalita stravy, nasycení a podíly zdrojů na energii. Bez potřeby (nikdo
+ * nejí) plné nasycení.
+ */
+export function dietOf(needPerDay: number, proteinNeedKg: number, eaten: Eaten): DietDay {
+  if (needPerDay <= 0) {
+    return {
+      energy: 1,
+      protein: 1,
+      diversity: 1,
+      satiation: 1,
+      shares: { grain: 0, meat: 0, dairy: 0, eggs: 0, fruit: 0 },
+    };
+  }
+  const shares = {
+    grain: eaten.grainKg / needPerDay,
+    meat: meatEnergy(eaten.meatKg) / needPerDay,
+    dairy: (eaten.milkEnergy + eaten.cheeseKg * DAIRY.cheeseEnergy) / needPerDay,
+    eggs: (eaten.eggsKg * DIET.energy.eggs) / needPerDay,
+    fruit: fruitEnergy(eaten.fruitKg) / needPerDay,
+  };
+  const energy = Math.min(
+    1,
+    shares.grain + shares.meat + shares.dairy + shares.eggs + shares.fruit,
+  );
+  const proteinKg =
+    eaten.grainKg * PROTEIN.perKg.grain +
+    eaten.meatKg * PROTEIN.perKg.meat +
+    eaten.cheeseKg * PROTEIN.perKg.cheese +
+    eaten.eggsKg * PROTEIN.perKg.eggs +
+    eaten.milkProteinKg;
+  const protein = proteinNeedKg > 0 ? Math.min(1, proteinKg / proteinNeedKg) : 1;
+  const diversity = dietQuality(protein, shares.fruit / DIET.fruitShare);
+  return { energy, protein, diversity, satiation: energy * diversity, shares };
+}
+
+/** Vstup jídla dne – zásoby na konci včerejška, dnešní mléko a vejce, potřeba a výhled. */
 export interface DietInput {
   grainKg: number;
   meatKg: number;
   fruitKg: number;
+  /** Zásoba sýra (kg). */
+  cheeseKg?: number;
+  /** Dnes nadojené mléko (l), jeho bílkoviny (kg) a energie (kg obilí). */
+  milkL?: number;
+  milkProteinKg?: number;
+  milkEnergy?: number;
+  /** Dnes snesená vejce (kg) – jí se čerstvá. */
+  eggsKg?: number;
   /** Potřeba energie vsi za den (kg obilí). */
   needPerDay: number;
+  /** Potřeba bílkovin vsi za den (kg); bez údaje bílkoviny pokryté. */
+  proteinNeedPerDay?: number;
   /** Dní do sklizně včetně dneška (přídělový systém – `daysUntilFoodHarvest`). */
   daysToHarvest: number;
   /** Dní, kdy ještě jde jíst ovoce, včetně dneška (`daysUntilAppleRot`); 0 = žádné. */
   daysToRot: number;
   /** Dní do příští porážky (bez jejího dne) – maso se jí rovným dílem do ní. */
   daysToSlaughter: number;
+  /** Dní do příštího začátku dojení – sýr se jí rovným dílem do něj; bez údaje rok. */
+  daysToMilking?: number;
   /** Pokrytí nádobami 0–1 – ztráty zásob obilí (crafts.md). */
   potteryCoverage: number;
 }
@@ -97,6 +173,10 @@ export interface DietResult {
   grainKg: number;
   meatKg: number;
   fruitKg: number;
+  /** Zásoba sýra po jídle – i se sýrem z dnešního přebytku mléka. */
+  cheeseKg: number;
+  /** Kolik sýra dnes přibylo z mléka, které se nevypilo (kg). */
+  cheeseMadeKg: number;
   diet: DietDay;
   /**
    * Nejnižší příděl energie do sklizně podle výhledu 0–1 (dnešní, nebo po zkažení ovoce, je-li
@@ -106,64 +186,97 @@ export interface DietResult {
 }
 
 /**
- * Jeden den jídla (diet.md): ztráta zásob (obilí podle nádob, maso uzením), pak příděl. Ovoce
- * rovným dílem do zkažení a maso rovným dílem do porážky, oboje nejvýš do svého stropu; obilí
- * dorovná potřebu energie. Vystačí-li obilí do sklizně (s masem a ovocem, které ještě přijdou na
- * řadu), jí se dosyta; jinak se energie dělí rovně do sklizně – a když by ani tak obilí do zkažení
- * ovoce nebylo potřeba, jí se do té doby jen maso a ovoce a obilí zůstane na dobu po nich.
+ * Jeden den jídla (diet.md): ztráta zásob (obilí podle nádob, maso uzením, sýr sušením), pak
+ * příděl. Ovoce rovným dílem do zkažení, čerstvé mléko (co se nevypije do stropu mléka a sýra,
+ * zpracuje se na sýr) a vejce, maso rovným dílem do porážky a sýr do příštího dojení, vše nejvýš
+ * do svých stropů; obilí dorovná potřebu energie. Vystačí-li obilí do sklizně (s tím, co ještě
+ * přijde na řadu), jí se dosyta; jinak se energie dělí rovně do sklizně – a když by ani tak obilí
+ * do zkažení ovoce nebylo potřeba, jí se do té doby jen ostatní a obilí zůstane na dobu po něm.
  */
 export function eatDiet(input: DietInput): DietResult {
   const grain = input.grainKg * (1 - storageLossPerYear(input.potteryCoverage)) ** (1 / 365);
   const meat = Math.max(0, input.meatKg) * DAILY_MEAT_KEEP;
   const fruit = Math.max(0, input.fruitKg);
+  const cheese = Math.max(0, input.cheeseKg ?? 0) * DAILY_CHEESE_KEEP;
+  const milkL = Math.max(0, input.milkL ?? 0);
+  const milkProtein = Math.max(0, input.milkProteinKg ?? 0);
+  const milkTotalEnergy = Math.max(0, input.milkEnergy ?? 0);
+  const eggs = Math.max(0, input.eggsKg ?? 0);
   const need = input.needPerDay;
   if (need <= 0) {
+    // nikdo nejí – mléko na sýr
+    const made = cheeseFromMilk(milkProtein);
     return {
       grainKg: grain,
       meatKg: meat,
       fruitKg: fruit,
-      diet: dietOf(0, 0, 0, 0),
+      cheeseKg: cheese + made,
+      cheeseMadeKg: made,
+      diet: dietOf(0, 0, NOTHING),
       outlook: 1,
     };
   }
   const days = Math.max(1, input.daysToHarvest);
   const rotDays = Math.min(Math.max(0, input.daysToRot), days);
-  // příděly ovoce a masa (energie za den) – rovným dílem, nejvýš strop
+  // příděly (energie za den): ovoce do zkažení, čerstvé mléko a vejce, maso do porážky, sýr do
+  // příštího dojení – rovným dílem, nejvýš strop
   const fruitRation =
     rotDays > 0 ? Math.min(DIET.caps.fruit * need, fruitEnergy(fruit) / rotDays) : 0;
+  const milkEnergy = Math.min(DIET.caps.dairy * need, milkTotalEnergy);
+  // vypitý podíl mléka – zbytek na sýr
+  const drunkShare = milkTotalEnergy > 0 ? milkEnergy / milkTotalEnergy : 0;
+  const milkDrunk = milkL * drunkShare;
+  const eggsEnergy = eggs * DIET.energy.eggs;
   const meatRation = Math.min(
     DIET.caps.meat * need,
     meatEnergy(meat) / Math.max(1, input.daysToSlaughter),
   );
-  // obilí potřebné do sklizně, když se jí dosyta (ovoce jen do zkažení)
-  const grainNeed = (need - meatRation) * days - fruitRation * rotDays;
+  const cheeseRation = Math.min(
+    Math.max(0, DIET.caps.dairy * need - milkEnergy),
+    (cheese * DAIRY.cheeseEnergy) / Math.max(1, input.daysToMilking ?? COMMON_YEAR_DAYS),
+  );
+  // maso, sýr a vejce se počítají i do dalších dní, mléko a ovoce jen, jak opravdu přijdou
+  const daily = meatRation + cheeseRation + eggsEnergy;
+  const today = fruitRation + milkEnergy + daily;
+  const grainNeed = (need - daily) * days - fruitRation * rotDays - milkEnergy;
   let outlook = 1;
   let grainToday: number;
   if (grain >= grainNeed) {
-    grainToday = need - meatRation - fruitRation;
+    grainToday = need - today;
   } else {
-    const even = (grain + fruitRation * rotDays + meatRation * days) / (need * days);
-    if (even * need >= fruitRation + meatRation) {
+    const even = (grain + fruitRation * rotDays + milkEnergy + daily * days) / (need * days);
+    if (even * need >= today) {
       outlook = even;
-      grainToday = even * need - fruitRation - meatRation;
+      grainToday = even * need - today;
     } else {
-      // do zkažení ovoce jen maso a ovoce, obilí zůstane na dny po něm
+      // do zkažení ovoce jen ostatní jídlo, obilí zůstane na dny po něm
       grainToday = 0;
-      const today = (fruitRation + meatRation) / need;
+      const now = today / need;
       const after = days - rotDays;
-      const later = after > 0 ? (grain + meatRation * after) / (need * after) : today;
-      outlook = Math.min(today, later);
+      const later = after > 0 ? (grain + daily * after) / (need * after) : now;
+      outlook = Math.min(now, later);
     }
   }
   grainToday = Math.max(0, Math.min(grain, grainToday));
-  const meatKg = meatRation / DIET.meatEnergy;
-  const fruitKg = fruitRation / APPLE_FOOD_VALUE;
-  const diet = dietOf(need, grainToday, meatKg, fruitKg);
+  const eaten: Eaten = {
+    grainKg: grainToday,
+    meatKg: meatRation / DIET.meatEnergy,
+    fruitKg: fruitRation / APPLE_FOOD_VALUE,
+    milkL: milkDrunk,
+    milkProteinKg: milkProtein * drunkShare,
+    milkEnergy,
+    cheeseKg: cheeseRation / DAIRY.cheeseEnergy,
+    eggsKg: eggs,
+  };
+  const made = cheeseFromMilk(milkProtein * (1 - drunkShare));
+  const diet = dietOf(need, input.proteinNeedPerDay ?? 0, eaten);
   return {
     // poslední den před sklizní se snědí celé zásoby – ořez chyb zaokrouhlení pod nulu
     grainKg: Math.max(0, grain - grainToday),
-    meatKg: Math.max(0, meat - meatKg),
-    fruitKg: Math.max(0, fruit - fruitKg),
+    meatKg: Math.max(0, meat - eaten.meatKg),
+    fruitKg: Math.max(0, fruit - eaten.fruitKg),
+    cheeseKg: Math.max(0, cheese - eaten.cheeseKg) + made,
+    cheeseMadeKg: made,
     diet,
     outlook: Math.min(1, outlook),
   };
@@ -188,6 +301,11 @@ export function villageFoodNeed(state: Pick<VillageState, 'people'>, day: number
   return state.people.reduce((sum, p) => sum + foodNeedPerDay(p, day), 0);
 }
 
+/** Potřeba bílkovin vsi za den (kg). */
+export function villageProteinNeed(state: Pick<VillageState, 'people'>, day: number): number {
+  return state.people.reduce((sum, p) => sum + proteinNeedPerDay(p, day), 0);
+}
+
 /** Zásoba masa vsi (kg) – u vsí bez dobytka 0. */
 export function villageMeatKg(state: Pick<VillageState, 'meatKg'>): number {
   return state.meatKg ?? 0;
@@ -195,20 +313,31 @@ export function villageMeatKg(state: Pick<VillageState, 'meatKg'>): number {
 
 /**
  * Jídlo dne `day` ze stavu na konci předchozího dne – bez změny stavu (stejně jako krok jídla
- * simulace, jen bez vajec dne). 1. 3. ráno ovoce shnije, v nádobách později (`potteryCoverage`
- * – crafts.md).
+ * simulace; mléko a vejce dne bez ohledu na práci). 1. 3. ráno ovoce shnije, v nádobách později
+ * (`potteryCoverage` – crafts.md).
  */
 export function villageMeal(
   state: VillageState,
   day: number,
   potteryCoverage: number = NO_CRAFTS.pottery,
+  fresh: { milk: MilkYield; eggsKg: number } = {
+    milk: { liters: 0, proteinKg: 0, energy: 0 },
+    eggsKg: 0,
+  },
 ): DietResult {
   const need = villageFoodNeed(state, day);
   return eatDiet({
     grainKg: state.storesKg,
     meatKg: villageMeatKg(state),
     fruitKg: applesSpoiled(day, potteryCoverage) ? 0 : villageApplesKg(state),
+    cheeseKg: villageCheeseKg(state),
+    milkL: fresh.milk.liters,
+    milkProteinKg: fresh.milk.proteinKg,
+    milkEnergy: fresh.milk.energy,
+    eggsKg: fresh.eggsKg,
     needPerDay: need,
+    proteinNeedPerDay: villageProteinNeed(state, day),
+    daysToMilking: daysUntilMilking(day),
     daysToHarvest: daysUntilFoodHarvest(state.plan, state.parts, day, need),
     daysToRot: daysUntilAppleRot(day, potteryCoverage),
     daysToSlaughter: daysUntilSlaughter(day),

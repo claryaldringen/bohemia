@@ -9,9 +9,12 @@ import {
   foundOrchard,
   foundVillage,
   generateLandscape,
+  groveAgeYears,
   obstaclesOf,
   placementVillageOf,
   reservedTrees,
+  sacredOakAgeYears,
+  sacredSitesOf,
   surfaceAt,
   tileCenterWorld,
   villageDwellingPositions,
@@ -1108,8 +1111,11 @@ describe('štěstí a posvátná místa v pohledu na ves', () => {
     const view = buildVillageView(record(s), landscape, DAY);
     expect(view.happiness.value).toBe(62.4);
     expect(view.happiness.laborFactor).toBeCloseTo(1 + (0.1 * 12.4) / 50, 9);
-    expect(view.sacred.oaks).toEqual([{ id: 7, happiness: 5 }]);
-    expect(view.sacred.groves).toEqual([{ id: 8, oaks: 14, squares: 1, happiness: 14 }]);
+    // ruční krajina bez vrstvy překážek – stáří dubů neznámé
+    expect(view.sacred.oaks).toEqual([{ id: 7, happiness: 5, ageYears: null }]);
+    expect(view.sacred.groves).toEqual([
+      { id: 8, oaks: 14, squares: 1, happiness: 14, ageYears: null },
+    ]);
     expect(view.sacred.buildings).toEqual([
       { id: 40, kind: 'idol', built: true, happiness: 8, progress: 1, oaksToFell: 0 },
       { id: 41, kind: 'shrine', built: false, happiness: 25, progress: 0.25, oaksToFell: 2 },
@@ -1150,6 +1156,23 @@ describe('štěstí a posvátná místa v pohledu na ves', () => {
     s.sacredOaks = [{ id: 7, day: DAY - Math.ceil(30 * 365.25), x: 20, z: 30 }];
     const view = buildVillageView(record(s), landscape, DAY);
     expect(view.scene.sacred?.oaks[0]?.growth).toBeCloseTo(1.15, 9);
+  });
+
+  it('panel ukáže stáří posvátného dubu a nejstaršího dubu háje podle vrstvy překážek', () => {
+    const real = generateLandscape(5);
+    const sites = sacredSitesOf(obstaclesOf(real));
+    const oak = sites.oaks[0]!;
+    const grove = sites.groves[0]!;
+    const s = settled();
+    s.sacredOaks = [{ id: oak.id, day: DAY, x: oak.x, z: oak.z }];
+    s.groves = [{ id: grove.id, day: DAY, x: grove.x, z: grove.z, cells: grove.cells, oaks: 9 }];
+    const view = buildVillageView(record(s), real, DAY);
+    const layer = obstaclesOf(real);
+    expect(view.sacred.oaks[0]?.ageYears).toBe(sacredOakAgeYears(layer, oak.id, DAY));
+    expect(view.sacred.groves[0]?.ageYears).toBe(groveAgeYears(layer, grove, DAY));
+    // k 1. 1. 500 je posvátný dub starý 150–400 let, v roce 503 o 3 roky víc
+    expect(view.sacred.oaks[0]?.ageYears).toBeGreaterThanOrEqual(153);
+    expect(view.sacred.oaks[0]?.ageYears).toBeLessThanOrEqual(403);
   });
 
   it('ves bez posvátných míst je ve scéně nemá', () => {

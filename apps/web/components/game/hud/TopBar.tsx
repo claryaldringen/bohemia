@@ -79,17 +79,22 @@ const DIET_SOURCES: readonly {
 }[] = [
   { key: 'grain', icon: 'food', name: 'Obilí' },
   { key: 'meat', icon: 'meat', name: 'Maso' },
+  { key: 'dairy', icon: 'cheese', name: 'Mléko a sýr' },
+  { key: 'eggs', icon: 'eggs', name: 'Vejce' },
   { key: 'fruit', icon: 'apples', name: 'Ovoce' },
 ];
 
 /**
- * Tooltip nasycení (diet.md – Co hráč vidí): nasycení, podíly obilí, masa a ovoce na energii
- * (ikony a procenta) a energie s pestrostí stravy.
+ * Tooltip nasycení (diet.md – Co hráč vidí): nasycení, pokrytí energie a bílkovin a podíly obilí,
+ * masa, mléka a sýra, vajec a ovoce na energii (ikony a procenta).
  */
 export function SatiationTooltip({ view }: { view: VillageView }): ReactElement {
   return (
     <span className="block" data-testid="satiation-tooltip">
       <span className="font-semibold">Nasycení {formatPercent(view.satiation)}</span>
+      <span className="mt-0.5 block text-[#bfa77a] tabular-nums">
+        energie {formatPercent(view.diet.energy)} · bílkoviny {formatPercent(view.diet.protein)}
+      </span>
       <span className="mt-0.5 flex items-center gap-2">
         {DIET_SOURCES.map(({ key, icon, name }) => (
           <span key={key} data-share={key} className="flex items-center gap-0.5 tabular-nums">
@@ -98,11 +103,19 @@ export function SatiationTooltip({ view }: { view: VillageView }): ReactElement 
           </span>
         ))}
       </span>
-      <span className="mt-0.5 block text-[#bfa77a] tabular-nums">
-        energie {formatPercent(view.diet.energy)} · pestrost {formatPercent(view.diet.diversity)}
-      </span>
     </span>
   );
+}
+
+/** Mléko a sýr v horní liště – když je sýr v zásobě nebo se dojí (diet.md – Mléko a sýr). */
+export function showsDairy(view: Pick<VillageView, 'cheeseKg' | 'milkLPerDay'>): boolean {
+  return view.cheeseKg >= 1 || view.milkLPerDay > 0;
+}
+
+/** Popisek mléka a sýra: zásoba v kg, v době dojení i mléko za den. */
+export function dairyName(view: Pick<VillageView, 'milkLPerDay'>): string {
+  const milk = Math.round(view.milkLPerDay);
+  return milk > 0 ? `Sýr (kg) – mléko ${formatInteger(milk)} l/den` : 'Sýr (kg)';
 }
 
 /** Seno v horní liště – když ves má hotovou ohradu nebo seno v zásobě (oxen.md). */
@@ -297,9 +310,10 @@ export function DevTimeButtons({
 
 /**
  * Horní lišta jako v 0 A.D.: jméno vsi (klik = přejmenovat), ikony s čísly – lidé, obilí, maso,
- * ovoce (když nějaké je, nebo ves má sad – diet.md), seno (když ves má ohradu nebo seno –
- * oxen.md), pole, klády na hromadě, uhlí, nástroje a keramika (jen ves s řemesly – crafts.md),
- * volná práce, nasycení (barva ikony, v popisku podíly stravy),
+ * mléko a sýr (když je sýr nebo se dojí), ovoce (když nějaké je, nebo ves má sad – diet.md),
+ * seno (když ves má ohradu nebo seno – oxen.md), pole, klády na hromadě, uhlí, nástroje
+ * a keramika (jen ves s řemesly – crafts.md), volná práce, nasycení (barva ikony podle energie,
+ * v popisku energie, bílkoviny a podíly stravy),
  * štěstí (happiness.md), herní datum (ve vývojovém režimu se šipkami přeskočení času) – a vpravo
  * zvuk a nabídka hry (F10: Začít znovu, Odhlásit).
  */
@@ -353,6 +367,11 @@ export function TopBar({
           <Resource icon="meat" name="Maso" testId="village-meat">
             {formatInteger(view.meatKg)}
           </Resource>
+          {showsDairy(view) && (
+            <Resource icon="cheese" name={dairyName(view)} testId="village-cheese">
+              {formatInteger(view.cheeseKg)}
+            </Resource>
+          )}
           {(Math.round(view.applesKg) > 0 || view.orchards.length > 0) && (
             <Resource icon="apples" name="Ovoce" testId="village-apples">
               {formatInteger(view.applesKg)}

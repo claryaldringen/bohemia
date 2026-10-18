@@ -1,4 +1,4 @@
-import { ageGroup, householdBreaksUp, isAdult, occupants } from './people';
+import { ageGroup, householdBreaksUp, isAdult, isFertile, occupants } from './people';
 import {
   BETTER_DWELLING,
   COMMON_LABOR_YEAR_DAYS,
@@ -133,11 +133,23 @@ export function adultChildrenSources(
 }
 
 /**
+ * Smí jediné odcházející dospělé dítě odejít samo? Jen od 16 let (`isFertile`) – mladší by se
+ * v prázdném obydlí hned rozpadl (`householdBreaksUp`), svobodný 16–44 zůstane a vezme se.
+ */
+function canLeaveAlone(source: AdultChildrenSource, day: number): boolean {
+  const [child] = source.children;
+  return source.children.length === 1 && child !== undefined && isFertile(child, day);
+}
+
+/**
  * Kdo osídlí úplně prázdné obydlí s kapacitou `capacity`, když ho nezabral mladý pár z plné
  * domácnosti se 4 dospělými (population.md – Prázdné obydlí, návrh Clauda): dospělé děti první
  * přeplněné domácnosti v pořadí `adultChildrenSources`, která jich má aspoň dvě. Domácnost s jediným
- * dospělým dítětem ho pošle s jedním dospělým dítětem jiné takové domácnosti (první v pořadí) –
- * jediný člověk by se v novém obydlí hned rozpadl. Nikdo (prázdné pole), když takoví lidé nejsou.
+ * dospělým dítětem ho pošle s jedním dospělým dítětem jiné takové domácnosti (první v pořadí).
+ * Když pár není, odejde samo nejstarší dospělé dítě první takové domácnosti (Martin, 18. 10. 2026:
+ * „pokud se lidé v domě tísní a je tam nejstarší dítě, nejstarší dítě může odejít do nového domu“)
+ * – u neplodných rodičů druhé nejstarší, nejstarší je dědic –, jen od 16 let (`canLeaveAlone`).
+ * Nikdo (prázdné pole), když takoví lidé nejsou.
  */
 export function adultChildrenSettlers(
   state: VillageState,
@@ -151,21 +163,25 @@ export function adultChildrenSettlers(
     const partner = sources.find((other) => other !== source && single(other));
     if (partner) return [...source.children, ...partner.children];
   }
-  return [];
+  return sources.find((s) => canLeaveAlone(s, day))?.children ?? [];
 }
 
 /**
  * Kolik nových domácností může ves založit (population.md – Lidé k osídlení): domácnosti, ze
  * kterých se může oddělit mladý pár (`qualifyingDwellings`), plus z ostatních přeplněných
- * domácností každá s aspoň dvěma dospělými dětmi jedna domácnost a jednotlivá dospělá děti po
- * dvou (zaokrouhleno dolů – `adultChildrenSources`).
+ * domácností každá s aspoň dvěma dospělými dětmi jedna domácnost, jednotlivá dospělá děti po
+ * dvou (`adultChildrenSources`) a poslední jednotlivec bez páru sám, smí-li odejít sám
+ * (`canLeaveAlone`) – v tomtéž pořadí, v jakém je simulace stěhuje (`adultChildrenSettlers`).
  */
 export function possibleNewHouseholds(state: VillageState, day: number): number {
   const qualifying = new Set(qualifyingDwellings(state, day).map((d) => d.id));
   const others = adultChildrenSources(state, day).filter((s) => !qualifying.has(s.dwelling.id));
   const families = others.filter((s) => s.children.length >= NEW_HOUSEHOLD_MIN_PEOPLE).length;
-  const singles = others.length - families;
-  return qualifying.size + families + Math.floor(singles / NEW_HOUSEHOLD_MIN_PEOPLE);
+  const singles = others.filter((s) => s.children.length < NEW_HOUSEHOLD_MIN_PEOPLE);
+  const pairs = Math.floor(singles.length / NEW_HOUSEHOLD_MIN_PEOPLE);
+  const last = singles.length % NEW_HOUSEHOLD_MIN_PEOPLE === 1 ? singles.at(-1) : undefined;
+  const alone = last !== undefined && canLeaveAlone(last, day) ? 1 : 0;
+  return qualifying.size + families + pairs + alone;
 }
 
 /**
@@ -202,7 +218,11 @@ export function repairNeedPerDay(dwelling: Dwelling, day: number): number {
   return (spec.repairAtEndOfLifePerYear * ratio ** 2) / DAYS_PER_COST_YEAR;
 }
 
-/** Nedodělek oprav (potřeba − odvedená práce) ubírá stav o nedodělek / cena, nejméně na 0. */
+/**
+ * Nedodělek oprav (potřeba − odvedená práce) ubírá stav o nedodělek / cena, nejméně na 0. Jen pro
+ * prázdné obydlí (`decayEmptyDwelling` – neopravuje ho nikdo): obydlený dům stav drží, jeho
+ * obyvatelé ho opravují (Martin, 18. 10. 2026 – population.md, Chátrání a přestavba).
+ */
 export function applyRepairs(dwelling: Dwelling, workDone: number, need: number): void {
   const shortfall = need - workDone;
   if (shortfall <= 0) return;
@@ -214,7 +234,7 @@ export function applyRepairs(dwelling: Dwelling, workDone: number, need: number)
  * potřebu oprav podle stáří (`repairNeedPerDay`) – a navíc o pevný denní podíl, protože se
  * nevytápí, došky hnijí, dřevo v zemi trouchniví a nikdo nespraví střechu (Martin, 18. 10. 2026):
  * nové prázdné obydlí spadne z plného stavu na nulu zhruba za `emptyLifespanYears`. Stav nikdy
- * neklesne pod 0; po znovuosídlení se opravy vrací od stavu, který zbyl (nezvedá se).
+ * neklesne pod 0; po znovuosídlení stav dál neklesá (obyvatelé dům opravují), ale ani se nezvedá.
  */
 export function decayEmptyDwelling(dwelling: Dwelling, day: number): void {
   applyRepairs(dwelling, 0, repairNeedPerDay(dwelling, day));
@@ -222,12 +242,12 @@ export function decayEmptyDwelling(dwelling: Dwelling, day: number): void {
   dwelling.condition = Math.max(0, dwelling.condition - perDay);
 }
 
-/** Obyvatelé chtějí přestavět: obydlí dožilo, nebo je na nule. */
+/**
+ * Obyvatelé chtějí přestavět: obydlí dožilo (životnost). Rozhoduje jen stáří – obydlený dům
+ * nechátrá, na nulu spadne jen prázdný (ten zanikne).
+ */
 export function wantsRebuild(dwelling: Dwelling, day: number): boolean {
-  return (
-    fractionalAge(dwelling, day) >= DWELLINGS[dwelling.type].lifespanYears ||
-    dwelling.condition <= 0
-  );
+  return fractionalAge(dwelling, day) >= DWELLINGS[dwelling.type].lifespanYears;
 }
 
 /**

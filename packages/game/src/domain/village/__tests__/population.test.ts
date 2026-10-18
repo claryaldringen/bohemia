@@ -339,11 +339,23 @@ describe('populationDay', () => {
     expect(state.people.filter((p) => p.dwellingId === 3)).toHaveLength(0);
   });
 
-  it('jediný dospělý bez dětí se přestěhuje jinam; prázdné obydlí zůstává', () => {
+  it('jediný člověk 16–44 zůstává – svobodný, vezme se (sňatky mezi domy)', () => {
     const day = FOUNDED + 5 * YEAR;
     const state = village(
       1,
       [ofAge(1, 30, 1, day), ofAge(2, 30, 1, day), ofAge(3, 30, 2, day)],
+      [dwelling(1), dwelling(2)],
+    );
+    const events = populationDay(state, day, 0);
+    expect(events.filter((e) => e.kind === 'household-merged')).toEqual([]);
+    expect(state.people.find((p) => p.id === 3)?.dwellingId).toBe(2);
+  });
+
+  it('jediný dospělý mimo plodný věk (15 let) se přestěhuje jinam; prázdné obydlí zůstává', () => {
+    const day = FOUNDED + 5 * YEAR;
+    const state = village(
+      1,
+      [ofAge(1, 30, 1, day), ofAge(2, 30, 1, day), ofAge(3, 15, 2, day)],
       [dwelling(1), dwelling(2)],
     );
     const events = populationDay(state, day, 0);

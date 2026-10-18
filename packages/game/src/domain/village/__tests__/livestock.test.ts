@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { foundVillage } from '../actions';
-import { DIET } from '../diet';
+import { PROTEIN } from '../diet';
 import {
   LIVESTOCK,
   grazingDemandHa,
   herdBirths,
   meatNeedPerYear,
+  proteinBudget,
   pastureHa,
   pigForestHa,
   slaughter,
@@ -74,8 +75,8 @@ describe('výchozí stádo', () => {
     const json = JSON.parse(JSON.stringify(s)) as VillageState;
     const next = advanceVillage(json, s.lastDay + 1, null);
     expect(next.livestock!.herds).toEqual(startingHerds(1));
-    // vejce prvního dne
-    expect(next.meatKg).toBeGreaterThan(0);
+    // jídlo prvního dne i s vejci
+    expect(next.diet!.shares.eggs).toBeGreaterThan(0);
   });
 
   it('withLivestock doplní krajinu pro pastvu jednou – pak vrátí týž stav', () => {
@@ -150,10 +151,16 @@ describe('porážka (1. 11.)', () => {
     s.livestock!.young = herds({ pig: 2, sheep: 2 });
     s.meatKg = 0;
     const need = meatNeedPerYear(s, at(600, 11, 1));
-    // 4 lidé: 2 × 180 + 2 × 100 kg energie, 20 % v mase po 0,6
-    expect(need).toBeCloseTo(((2 * 180 + 2 * 100) * DIET.shares.meat) / DIET.meatEnergy, 9);
+    // bílkoviny (1,6 g na kg váhy), které chybí po obilí, mléku ovcí a vejcích – v mase
+    const b = proteinBudget(s, at(600, 11, 1));
+    expect(b.need).toBeCloseTo(
+      ((2 * PROTEIN.bodyKg.adult + 2 * PROTEIN.bodyKg.child) * PROTEIN.gPerKgBody * 365) / 1000,
+      9,
+    );
+    expect(need).toBeCloseTo((b.need - b.grain - b.milk - b.eggs) / PROTEIN.perKg.meat, 9);
+    expect(need).toBeGreaterThan(150);
     slaughter(s, at(600, 11, 1), 0, 0);
-    // polovina mláďat prasat (50 kg) nepokryje potřebu ≈ 187 kg – i polovina jehňat
+    // polovina mláďat prasat (50 kg) nepokryje potřebu – i polovina jehňat
     expect(s.livestock!.herds.pig).toBeCloseTo(3, 9);
     expect(s.livestock!.herds.sheep).toBeCloseTo(5, 9);
     expect(s.livestock!.young).toEqual(herds({}));
@@ -162,11 +169,11 @@ describe('porážka (1. 11.)', () => {
   it('stádo, které dává masa dost (1,5× potřeby), neroste – mláďata jdou na maso celá', () => {
     const s = village(at(600, 11, 1));
     s.livestock!.land = { meadowHa: 1000, forestHa: 1000 };
-    s.livestock!.herds = herds({ pig: 8, sheep: 6, cow: 3 });
-    s.livestock!.young = herds({ pig: 4, sheep: 2, cow: 0.5 });
+    s.livestock!.herds = herds({ pig: 18, sheep: 6, cow: 3 });
+    s.livestock!.young = herds({ pig: 9, sheep: 2, cow: 0.5 });
     s.meatKg = 0;
     slaughter(s, at(600, 11, 1), 0, 10_000);
-    expect(s.livestock!.herds.pig).toBeCloseTo(4, 9);
+    expect(s.livestock!.herds.pig).toBeCloseTo(9, 9);
     expect(s.livestock!.herds.sheep).toBeCloseTo(4, 9);
     // krávy rostou dál do nosnosti (telata pro voly)
     expect(s.livestock!.herds.cow).toBeCloseTo(3, 9);

@@ -1,10 +1,13 @@
-# Strava a dobytek – obilí, maso, ovoce
+# Strava a dobytek – obilí, maso, mléko a sýr, vejce, ovoce
 
 Stav: schváleno 18. 10. 2026 (Martin: „Ano“), **implementováno 18. 10. 2026** – jádro
-`domain/village/diet.ts` (jídlo dne), `livestock.ts` (stáda, porážka, vejce), `husbandry.ts`
-(den hospodářství); scéna kreslí skutečná stáda. Rozhodnutí z implementace jsou v části
-Implementace a v tabulce Rozhodnutí jako „rozhodnutí kontroléru“ – **k potvrzení** hlavně potřeba
-masa (60 kg místo 20 kg na dospělého, viz níže).
+`domain/village/diet.ts` (jídlo dne), `dairy.ts` (mléko, sýr, práce se zvířaty), `livestock.ts`
+(stáda, porážka, vejce), `husbandry.ts` (den hospodářství); scéna kreslí skutečná stáda.
+**Týž den změna (Martin):** maso není kvůli energii, ale kvůli **bílkovinám – 1,6 g na kg tělesné
+váhy**; bílkoviny dává obilí, mléko a sýr, maso a vejce („Ovce, kozy i krávy jsou mléčná
+zvířata“) a **práce se zvířaty se počítá** – viz Bílkoviny, Mléko a sýr, Práce se zvířaty
+(implementováno; čísla z [rešerše](research/2026-10-18-dairy-protein.md)). Rozhodnutí
+z implementace jsou v tabulce Rozhodnutí jako „návrh Clauda“ nebo „rozhodnutí kontroléru“.
 
 ## Proč
 
@@ -19,8 +22,10 @@ Raně středověká strava nebyla jen obilí. Plné nasycení potřebuje kombina
 - **Cíl:** ovoce zvyšuje nasycení i štěstí – je sladké (Martin).
 - **Cíl:** maso dává **dobytek** – prasata vykrmená žaludy v lese, přebytečné kusy ovcí, koz
   a krav; slepice dávají vejce (Martin potvrdil směr).
-- **Ne-cíl (teď):** lov a rybolov (později jako doplněk), mléko a sýry jako zvláštní potravina,
-  zelenina ze zahrádek, sůl a uzení jako suroviny, nemoci dobytka.
+- **Cíl:** bílkoviny z obilí, mléka a sýra, masa a vajec – 1,6 g na kg tělesné váhy (Martin);
+  ovce, kozy i krávy se dojí (Martin).
+- **Ne-cíl (teď):** lov a rybolov (později jako doplněk), zelenina ze zahrádek, sůl a uzení jako
+  suroviny, nemoci dobytka, máslo a syrovátka zvlášť.
 - **Anti-cíl:** ves, která vymře jen proto, že nemá maso – nedostatek pestrosti strávníky oslabí,
   ale hladem se umírá jen z nedostatku energie (viz Hlad).
 
@@ -31,31 +36,61 @@ Raně středověká strava nebyla jen obilí. Plné nasycení potřebuje kombina
 - **Energie** – kolik jídla (v obilních ekvivalentech) lidé snědí proti potřebě. **Obilí 1,
   maso 0,6, ovoce 1/7** (maso ≈ 2 000 kcal/kg proti obilí ≈ 3 400; jablka jako dnes – návrh
   Clauda).
-- **Nasycení** – co hráč vidí (0–100 %): energie **a** pestrost stravy (níže).
+- **Bílkoviny** – kolik bílkovin lidé snědí proti potřebě 1,6 g na kg tělesné váhy (Martin).
+- **Nasycení** – co hráč vidí (0–100 %): energie **a** kvalita stravy z bílkovin a ovoce (níže).
 
 ## Pravidla (návrh Clauda, doladí se hraním)
 
-### Podíly ve stravě
+### Bílkoviny a nasycení (Martin, 18. 10. 2026; tvar návrh Clauda)
 
-- Plná strava = **75 % energie z obilí, 20 % z masa, 5 % z ovoce**.
-- **Nasycení = pokrytí energie × pestrost**, kde pestrost = 0,80 + 0,14 × pokrytí masa +
-  0,06 × pokrytí ovoce (pokrytí = snědené ÷ podíl ve stravě, nejvýš 1):
-  - jen obilí (dost energie) → **nasycení 80 %**,
-  - obilí + maso → **94 %**,
-  - obilí + ovoce → **86 %**,
-  - obilí + maso + ovoce → **100 %** (Martin – kombinace).
-- **Ovoce nikdy nestačí samo:** ovoce smí pokrýt nejvýš **25 % energie**, maso nejvýš **40 %** –
-  zbytek musí být obilí (Martin). Ovoce se jí přednostně, dokud nezkazí (k 1. 3. – [sad](orchard.md)),
-  maso po něm, obilí dorovná.
+- **Potřeba bílkovin = 1,6 g na kg tělesné váhy denně** (Martin). Váha podle osteologie
+  ([rešerše](research/2026-10-18-dairy-protein.md)): dítě 0–13 let **20 kg**, dospělý **60 kg**,
+  starší **58 kg** → **32 / 96 / 93 g denně**.
+- **Bílkoviny v potravinách:** obilí (směs) **10 %**, maso **17 %** (čerstvá váha), vejce
+  **12,5 %**, mléko kravské **33 g/l**, kozí **36 g/l**, ovčí **57 g/l**, sýr **25 %**.
+- **Nasycení = pokrytí energie × kvalita stravy**, kvalita = **0,60 + 0,34 × pokrytí bílkovin +
+  0,06 × pokrytí ovoce** (nejvýš 1; ovoce plně při 5 % energie):
+  - jen obilí (dost energie) – obilí dá ≈ polovinu potřeby bílkovin dospělého (49 z 96 g), dítěti
+    víc → **nasycení ≈ 80 %** jako dosud,
+  - bílkoviny plně (s mlékem, masem, vejci) → **94 %**, i s ovocem **100 %**.
+- Dřív (do 18. 10. 2026 odpoledne): pestrost 0,80 + 0,14 × pokrytí masa + 0,06 × pokrytí ovoce
+  a plná strava 75 / 20 / 5 % energie z obilí, masa a ovoce – nahrazeno bílkovinami.
+- **Ovoce nikdy nestačí samo:** ovoce smí pokrýt nejvýš **25 % energie**, maso nejvýš **40 %**,
+  mléko a sýr **30 %** – zbytek musí být obilí (Martin; strop mléka návrh Clauda). Ovoce se jí
+  přednostně, dokud nezkazí (k 1. 3. – [sad](orchard.md)), čerstvé mléko a vejce, jak přibývají,
+  maso rovným dílem do porážky a sýr do příštího dojení; obilí dorovná energii.
 - **Ovoce a štěstí:** když lidé jedí ovoce, štěstí **+5** (sladké – Martin; [štěstí](happiness.md)).
 
 ### Hlad
 
 - **Hladem se umírá z energie, ne z pestrosti:** nahromaděný hlad ([populace](population.md) –
   Hlad a vymření) roste jen z nedostatku **energie** (pod 90 %).
-- **Nasycení** (energie × pestrost) dál řídí porody (pod 50 % se nerodí, plně od 95 %) a štěstí
-  (hlad ubírá štěstí, pod 90 %). Ves jen s obilím (80 %) se tedy množí pomaleji a je méně šťastná,
-  ale neumírá.
+- **Nasycení** (energie × kvalita z bílkovin) dál řídí porody (pod 50 % se nerodí, plně od 95 %)
+  a štěstí (hlad ubírá štěstí, pod 90 %). Nedostatek bílkovin tak sníží porody a štěstí – ves jen
+  s obilím (≈ 80 %) se množí pomaleji a je méně šťastná, ale neumírá.
+
+### Mléko a sýr (Martin: „Ovce, kozy i krávy jsou mléčná zvířata“; čísla rešerše)
+
+- **Dojí se dojné kusy stáda:** skot **40 %**, ovce a kozy **50 %** stáda (návrh Clauda – hra
+  nevede samice po kusech). Mléko pro lidi (po vykrmení mláděte) za rok na dojný kus: kráva
+  **300 l** (květen–září naplno, říjen–listopad napůl), ovce **25 l** (15. 5. – 31. 8., po
+  odstavu jehňat), koza **60 l** (květen–září). Energie mléka 640 / 700 / 1 050 kcal na litr.
+- **Čerstvé mléko se pije hned** – do stropu mléka a sýra (30 % energie); co se nevypije, zpracuje
+  se na **syřidlový sýr**: zůstane **75 % bílkovin** mléka, sýr má **25 % bílkovin**
+  a 3 000 kcal/kg (z kravského a kozího ≈ 10 l na kg, z ovčího ≈ 6 l). Tvaroh zvlášť hra nevede
+  (vydrží jen dny).
+- **Zásoba sýra** ztrácí **15 % ročně** a jí se rovným dílem **do 1. 5.** (začátek dojení, sýr
+  vydrží do té doby) – v zimě tak bílkoviny dává sýr.
+
+### Práce se zvířaty (Martin se ptal, jestli je započítaná; čísla rešerše, člověkoden 10 h)
+
+- **Dojení** na dojný kus a den v době dojení: kráva **0,017**, koza **0,013**, ovce **0,005**
+  člověkodne (kráva 2 × 5 min). **Sýr** 1 člověkoden na 100 l zpracovaného mléka (návrh Clauda).
+- **Zimní péče** (listopad–březen) o krávu nebo vola – krmení, voda, kydání – **20 min denně**
+  (≈ 5 člověkodní za zimu). **Prase** u domu **2 min**, **slepice** půl minuty denně (návrh
+  Clauda).
+- Práce se zvířaty jde **hned po denním minimu** – zvířata nepočkají; co se nepodojí, to se
+  nenadojí. **Pasení zůstává bez práce** – pasou děti (Martin).
 
 ### Dobytek – stáda a maso
 
@@ -69,16 +104,15 @@ Raně středověká strava nebyla jen obilí. Plné nasycení potřebuje kombina
 - **Porážka na podzim** (listopad): co přeroste nosnost a mladé kusy navíc jdou na maso:
   **prase ≈ 50 kg, ovce ≈ 15 kg, koza ≈ 12 kg, kráva ≈ 120 kg** masa (návrh Clauda). Ves si nechá
   chovné kusy (nejméně pár od každého druhu).
-- **Vejce:** slepice dají celý rok ≈ **5 kg vajec na slepici** (počítají se jako maso – návrh
-  Clauda).
-- **Zásoba masa** se **uzí a suší** – ztratí **20 % ročně** (návrh Clauda). Potřeba masa ve
-  stravě = **20 % energie**, tedy ≈ **60 kg na dospělého a rok** (dítě ≈ 33, starší ≈ 47).
-  Návrh uváděl ≈ 20 kg (dítě 12, starší 15) = 20 % energie – to si odporuje: 20 kg masa je
-  jen ≈ 12 kg obilí, ≈ 7 % energie dospělého. Implementace drží podíly ve stravě (75 / 20 / 5 %
-  energie, jak říká tabulka Rozhodnutí) a z nich potřebu masa – **k potvrzení** (s 20 kg by
-  plné nasycení masem dalo už výchozí stádo a pestrost by skoro nic neznamenala).
+- **Vejce:** slepice dají celý rok ≈ **5 kg vajec na slepici**, jí se čerstvá (návrh Clauda).
+- **Zásoba masa** se **uzí a suší** – ztratí **20 % ročně** (návrh Clauda). **Kolik masa ves
+  potřebuje, určí bílkoviny:** co chybí po obilí (odhad obilí na 70 % energie), mléku stád
+  (85 % jeho bílkovin – syrovátka odteče) a vejcích, v mase (17 % bílkovin). Dospělý tak potřebuje
+  ≈ 35 kg bílkovin ročně, z obilí ≈ 13 kg – s ≈ 110 l mléka ≈ **100 kg masa ročně** (vlastní
+  výpočet; 1,6 g/kg je asi dvojnásobek bezpečné dávky FAO/WHO – Martinova volba). Dřív pevně
+  60 kg (20 % energie) – nahrazeno.
 - **Práce:** pasou děti – žádná práce (Martin); porážka a uzení ≈ **1 člověkoden na 20 kg masa**;
-  seno podle [orání rádlem](oxen.md).
+  dojení a péče viz Práce se zvířaty; seno podle [orání rádlem](oxen.md).
 - **Ohrada:** krávy a voli přes zimu v ohradě s přístřeškem ([orání rádlem](oxen.md)); ovce, kozy
   a prasata přezimují u domů (návrh Clauda).
 
@@ -94,7 +128,9 @@ Rozhodnutí kontroléru tam, kde návrh nedává číslo nebo postup (Martin je 
   přijdou na řadu); když by obilí do zkažení ovoce nebylo potřeba, jí se do té doby jen maso
   a ovoce a obilí zůstane na dobu po nich (jako dřív u jablek).
 - **Hlad z energie:** nahromaděný hlad i přirážka úmrtnosti za dnešní hlad počítají s energií,
-  porody a štěstí s nasycením (energie × pestrost). Hlad v rozhraní (upozornění) = výhled energie.
+  porody a štěstí s nasycením (energie × kvalita z bílkovin). Hlad v rozhraní (upozornění) =
+  výhled energie. Mléko a ovoce se do výhledu na další dny nepočítají (jen dnešní), maso, sýr
+  a vejce ano.
 - **Stáda** jsou čísla s podílem kusu (mláďata a porážka se počítají podílem stáda), panel
   a scéna je zaokrouhlí. Výchozí stádo dostane nová ves i ves uložená před dobytkem (z domácností,
   jako dřív ozdoba scény). **Mláďata 1. 4.** (stádo × roční růst).
@@ -115,14 +151,15 @@ Rozhodnutí kontroléru tam, kde návrh nedává číslo nebo postup (Martin je 
 - **Porážka 1. 11.** (ráno, před jídlem): na maso jde, co přeroste nosnost; když zásoba masa
   s vejci na rok nepokryje potřebu, i letošní mláďata – prasata první (nejvíc masa), pak ovce,
   kozy, krávy – ale **nejvýš polovina mláďat** (druhá polovina stádo rozšíří; bez toho by ves
-  snědla každé mládě a stádo by nikdy nevyrostlo). **Ves chová, kolik potřebuje:** když by
-  mláďata ovcí, koz a prasat (s vejci) dala aspoň 1,5× roční potřeby masa, jdou jejich letošní
-  mláďata na maso celá a stádo už neroste – jinak by rostlo až do nosnosti luk (stovky ovcí na
+  snědla každé mládě a stádo by nikdy nevyrostlo). **Ves chová, kolik potřebuje:** když by chovné
+  kusy ovcí, koz a prasat (bez letošních mláďat) mláďaty dalo aspoň 1,5× masa, které ves potřebuje
+  (bílkoviny po obilí, mléku a vejcích), jdou jejich letošní mláďata na maso celá a stádo už
+  neroste – jinak by rostlo až do nosnosti luk (stovky ovcí na
   pár lidí, maso by hnilo a porážka brala práci). Krávy rostou dál do nosnosti (telata pro voly).
   Chovný pár (nebo co ves má, když méně) zůstane.
   Práce na porážce a uzení (1 člověkoden na 20 kg) je sezónní práce v listopadu.
 - **Vejce:** slepice u obydlí každé domácnosti (zemnice 2, polozemnice 3 – jako ve scéně), 5 kg
-  ročně na slepici, každý den do zásoby masa.
+  ročně na slepici, jí se čerstvá každý den.
 - **Scéna:** stáda na pastvě podle skutečných počtů, v zimě krávy v ohradě (když ves nějakou má).
 
 ## Naměřeno (18. 10. 2026)
@@ -143,25 +180,46 @@ po sloučení s `feat/landscape` bez stravy (fields.md – Naměřeno):
 - **štěstí** (informace): medián 46,5 (hráč staví), 39,9 (bez staveb); porody při nasycení 0,94
   jdou z 98 %.
 
+## Naměřeno s bílkovinami (18. 10. 2026)
+
+Krátké `measure-village.ts 20 20` (skutečné krajiny, hráč skriptu ohrady nestaví; jen orientačně –
+dlouhá kalibrace poběží v noci):
+
+- **bílkoviny** medián 100 %, **nasycení** medián 0,94 (p10 0,82); energie z masa 34 % (ves bez
+  staveb 40 % – strop), z mléka a sýra 19 % (23 %),
+- energie ≥ 0,95 celý rok 98,7 % let, nic nevymřelo; zásoby po sklizni medián 2,5 roční potřeby
+  (maso a mléko nahradí část obilí – cíl osevu stravu nezná),
+- **práce na obživu** startovní ves 95 % (dřív ≈ 90 %), plná domácnost 92 % (86 %) – dojení
+  a péče o zvířata (≈ 5 % práce),
+- jedna domácnost (6–7 lidí) po 12 letech chová ≈ **15 prasat, 7 ovcí, 3 kozy a 4 krávy** (po
+  porážce), nadojí ≈ 700 l mléka ročně a potřebuje ≈ 470 kg masa ročně; maso jde ke stropu 40 %
+  energie.
+
 ## Co hráč vidí
 
-- V horní liště **obilí, maso, ovoce** (ikony + čísla) a nasycení; tooltip nasycení ukáže
-  podíly (ikony obilí / maso / ovoce s procenty).
+- V horní liště **obilí, maso, mléko a sýr, ovoce** (ikony + čísla) a nasycení; tooltip nasycení
+  ukáže energii a bílkoviny a podíly (ikony obilí / maso / mléko a sýr / vejce / ovoce
+  s procenty).
 - Stáda ve scéně odpovídají skutečnému počtu zvířat; na podzim porážka (krátká zpráva).
 - V panelu ohrady a u stád počty zvířat a nosnost (ikony + čísla).
 
 ## Rozhodnutí
 
-| Rozhodnutí                                                                                    | Kdo                   |
-| --------------------------------------------------------------------------------------------- | --------------------- |
-| Jablka → „ovoce“ (ikona zůstane); ovoce zvyšuje nasycení i štěstí                             | Martin                |
-| Plné nasycení jen z kombinace obilí–maso–ovoce; samo obilí ani ovoce nestačí                  | Martin                |
-| Maso z dobytka (prasata v lese, přebytky ovcí, koz, krav), vejce; lov a rybolov později       | Martin potvrdil směr  |
-| Podíly 75 / 20 / 5 %, pestrost 0,80 + 0,14 × maso + 0,06 × ovoce; strop ovoce 25 %, masa 40 % | návrh Clauda          |
-| Hladem se umírá jen z nedostatku energie, pestrost řídí porody a štěstí                       | návrh Clauda          |
-| Růst stád, nosnost (pastva, les, seno), porážka a výtěžnost masa, vejce, uzení 20 %/rok       | návrh Clauda          |
-| Potřeba masa z podílu 20 % energie (≈ 60 kg na dospělého místo 20 kg) – **k potvrzení**       | rozhodnutí kontroléru |
-| Ovoce do zkažení a maso do porážky rovným dílem; stropy z potřeby energie                     | rozhodnutí kontroléru |
-| Pastva = louka do 600 m bez polí a staveb + příloh; na maso navíc nejvýš polovina mláďat      | rozhodnutí kontroléru |
-| Ves chová, kolik potřebuje – stádo dávající 1,5× potřeby masa neroste (krávy ano)             | rozhodnutí kontroléru |
-| Pastva po dílech přílohu od nejbližšího; zarůstající příloh a les vsi nejsou pastvinou        | návrh Clauda          |
+| Rozhodnutí                                                                                        | Kdo                    |
+| ------------------------------------------------------------------------------------------------- | ---------------------- |
+| Jablka → „ovoce“ (ikona zůstane); ovoce zvyšuje nasycení i štěstí                                 | Martin                 |
+| Plné nasycení jen z kombinace obilí–maso–ovoce; samo obilí ani ovoce nestačí                      | Martin                 |
+| Maso z dobytka (prasata v lese, přebytky ovcí, koz, krav), vejce; lov a rybolov později           | Martin potvrdil směr   |
+| ~~Podíly 75 / 20 / 5 %, pestrost 0,80 + 0,14 × maso + 0,06 × ovoce~~; strop ovoce 25 %, masa 40 % | návrh Clauda           |
+| Maso a mléko kvůli bílkovinám – 1,6 g na kg tělesné váhy; mléko a sýr ze všech dojných zvířat     | Martin (18. 10. 2026)  |
+| Práce se zvířaty se počítá (dojení, sýr, zimní péče, prasata a slepice), pasení bez práce         | Martin (18. 10. 2026)  |
+| Kvalita stravy 0,60 + 0,34 × bílkoviny + 0,06 × ovoce; strop mléka a sýra 30 % energie            | návrh Clauda           |
+| Váhy 20 / 60 / 58 kg, bílkoviny potravin, dojivost, sýr, práce – podle rešerše 18. 10. 2026       | návrh Clauda (rešerše) |
+| Dojí se 40 % skotu a 50 % ovcí a koz; sýr do 1. 5., ztráta 15 %/rok; potřeba masa z bílkovin      | návrh Clauda           |
+| Hladem se umírá jen z nedostatku energie, pestrost řídí porody a štěstí                           | návrh Clauda           |
+| Růst stád, nosnost (pastva, les, seno), porážka a výtěžnost masa, vejce, uzení 20 %/rok           | návrh Clauda           |
+| ~~Potřeba masa z podílu 20 % energie (≈ 60 kg na dospělého)~~ – nahrazeno bílkovinami             | rozhodnutí kontroléru  |
+| Ovoce do zkažení a maso do porážky rovným dílem; stropy z potřeby energie                         | rozhodnutí kontroléru  |
+| Pastva = louka do 600 m bez polí a staveb + příloh; na maso navíc nejvýš polovina mláďat          | rozhodnutí kontroléru  |
+| Ves chová, kolik potřebuje – stádo dávající 1,5× potřeby masa neroste (krávy ano)                 | rozhodnutí kontroléru  |
+| Pastva po dílech přílohu od nejbližšího; zarůstající příloh a les vsi nejsou pastvinou            | návrh Clauda           |

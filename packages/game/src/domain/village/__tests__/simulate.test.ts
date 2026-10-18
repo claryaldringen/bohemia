@@ -4,7 +4,8 @@ import { foundField, foundVillage, startNewDwelling } from '../actions';
 import type { PartInput } from '../actions';
 import { daysUntilSlaughter, eatDiet } from '../diet';
 import { daysUntilHarvest } from '../food';
-import { LIVESTOCK, villageChickens } from '../livestock';
+import { animalCareNeed } from '../dairy';
+import { LIVESTOCK, villageChickens, villageHerds } from '../livestock';
 import { ageYears, foodNeedPerDay, occupants } from '../people';
 import { NO_CRAFTS } from '../productivity';
 import {
@@ -449,7 +450,8 @@ describe('advanceVillage – roční plán a sklizeň', () => {
     const eggs = (villageChickens(s0) * LIVESTOCK.eggsKgPerHen) / 365;
     const eaten = eatDiet({
       grainKg: s0.storesKg,
-      meatKg: (s0.meatKg ?? 0) + eggs,
+      meatKg: s0.meatKg ?? 0,
+      eggsKg: eggs,
       fruitKg: 0,
       needPerDay: need,
       daysToHarvest: daysUntilHarvest(day),
@@ -604,9 +606,15 @@ describe('advanceVillage – založení vsi', () => {
     expect(count(s, 'death')).toBe(0);
     expect(count(s, 'household-merged')).toBe(0);
     // společná práce = síla 2,6 × štěstí na začátku dne (happiness.md) − denní minimum 0,5
-    // − domácí práce 0,9 (jedna domácnost)
-    const factor = villageLaborFactor(advanceVillage(s0, day + 29, null));
-    expect(s.commonLaborHistory.at(-1)).toBeCloseTo(2.6 * factor - 0.5 - 0.3 - 4 * 0.15, 9);
+    // − práce se zvířaty (dojení krávy v říjnu, prasata, slepice – diet.md) − domácí práce 0,9
+    // (jedna domácnost)
+    const before = advanceVillage(s0, day + 29, null);
+    const factor = villageLaborFactor(before);
+    const animals = animalCareNeed(villageHerds(before), 0, villageChickens(before), day + 30);
+    expect(s.commonLaborHistory.at(-1)).toBeCloseTo(
+      2.6 * factor - 0.5 - animals.milking - animals.care - 0.3 - 4 * 0.15,
+      9,
+    );
   });
 
   it('stavbu první zemnice a první pole staví zakladatelé společnou prací rovným dílem', () => {
@@ -836,31 +844,55 @@ describe('advanceVillage – obydlí', () => {
     expect(originalOccupants(s, 50, s0.nextId)).toEqual([102, 103]);
   });
 
-  it('jediné dospělé dítě samo nejde – s protějškem z jiné přeplněné domácnosti odejdou spolu', () => {
+  // Martin, 18. 10. 2026: „pokud se lidé v domě tísní a je tam nejstarší dítě, nejstarší dítě
+  // může odejít do nového domu“
+  it('nejstarší dítě z přeplněného domu odejde samo a nerozpadne se – a nevrátí se', () => {
     const day = at(600, 10, 1);
     const one = { 1: [46, 40, 16, 8, 5, 2, 1] };
     const alone = crowdedVillage(day, one);
     alone.dwellings.push(emptyZemnice(50, day));
-    const stays = advanceVillage(alone, day + 5, null);
-    expect(occupants(stays, 50)).toEqual([]);
-    expect(count(stays, 'household-founded')).toBe(0);
-
-    const s0 = crowdedVillage(day, { ...one, 2: [45, 42, 18, 9, 6, 3, 1] });
-    s0.dwellings.push(emptyZemnice(50, day));
-    const s = advanceVillage(s0, day, null);
-    expect(originalOccupants(s, 50, s0.nextId)).toEqual([102, 202]);
-    expect(count(s, 'household-founded')).toBe(1);
+    const s1 = advanceVillage(alone, day + 10, null);
+    expect(originalOccupants(s1, 50, alone.nextId)).toEqual([102]);
+    expect(count(s1, 'household-founded')).toBe(1);
+    expect(count(s1, 'household-merged')).toBe(0);
+    // svatba s rodičem, který doma zůstal jediný 16–44, by ho vrátila do plného domu – ne
+    expect(count(s1, 'marriage')).toBe(0);
   });
 
-  it('neplodní rodiče (50 a 47) se dvěma dospělými dětmi – nikdo neodejde, dědic zůstane', () => {
+  it('nejstarší dítě v novém domě si vezme svobodný odjinud; pár má přednost před jednotlivcem', () => {
     const day = at(600, 10, 1);
-    // nejstarší dospělé dítě zůstane doma (Martin), mladší by šlo samo – čeká na protějšek
+    const one = { 1: [46, 40, 16, 8, 5, 2, 1] };
+    // polozemnice se svobodným 30letým – odejít smí (zůstane patnáctiletý), místa má míň než
+    // nový dům, takže se stěhuje 30letý
+    const s0 = crowdedVillage(day, { ...one, 2: [52, 30, 15, 6] });
+    s0.dwellings.find((d) => d.id === 2)!.type = 'polozemnice';
+    s0.dwellings.push(emptyZemnice(50, day));
+    const s = advanceVillage(s0, day, null);
+    expect(originalOccupants(s, 50, s0.nextId)).toEqual([102, 201]);
+    expect(s.chronicle).toContainEqual({
+      day,
+      kind: 'marriage',
+      fromDwellingId: 2,
+      toDwellingId: 50,
+    });
+    // dvě přeplněné domácnosti s jediným dospělým dítětem – odejdou spolu
+    const pair = crowdedVillage(day, { ...one, 2: [45, 42, 18, 9, 6, 3, 1] });
+    pair.dwellings.push(emptyZemnice(50, day));
+    const p = advanceVillage(pair, day, null);
+    expect(originalOccupants(p, 50, pair.nextId)).toEqual([102, 202]);
+    expect(count(p, 'household-founded')).toBe(1);
+  });
+
+  it('neplodní rodiče (50 a 47) se dvěma dospělými dětmi – dědic zůstane, mladší odejde samo', () => {
+    const day = at(600, 10, 1);
+    // nejstarší dospělé dítě zůstane doma jako dědic (Martin), druhé nejstarší smí odejít samo
     const elders = crowdedVillage(day, { 1: [50, 47, 20, 18, 8, 5, 2] });
     elders.dwellings.push(emptyZemnice(50, day));
     const s = advanceVillage(elders, day + 5, null);
-    expect(count(s, 'household-founded')).toBe(0);
+    expect(originalOccupants(s, 50, elders.nextId)).toEqual([103]);
+    expect(originalOccupants(s, 1, elders.nextId)).toEqual([100, 101, 102, 104, 105, 106]);
+    expect(count(s, 'household-founded')).toBe(1);
     expect(count(s, 'household-merged')).toBe(0);
-    expect(occupants(s, 50)).toEqual([]);
   });
 
   it('neplodní rodiče (50 a 47) se třemi dospělými dětmi – dva mladší odejdou, nejstarší zůstane', () => {
@@ -903,8 +935,8 @@ describe('advanceVillage – obydlí', () => {
 
   it('osídlení dospělými dětmi nezávisí na kouscích dopočtu', () => {
     const day = at(600, 10, 1);
-    // obydlí 1 pošle dospělé děti hned; v obydlí 2 je jediné dospělé dítě, za pár měsíců bude
-    // čtrnáctileté druhé a odejdou spolu do druhého prázdného obydlí
+    // obydlí 1 pošle dospělé děti hned, z obydlí 2 odejde jediné dospělé dítě samo do druhého
+    // prázdného obydlí; pak se svobodní berou (sňatky mezi domy)
     const start = crowdedVillage(day, {
       1: [46, 40, 17, 15, 8, 5, 2],
       2: [45, 42, 18, 13.8, 6, 3, 1],
@@ -913,7 +945,12 @@ describe('advanceVillage – obydlí', () => {
     const end = day + Math.ceil(3 * YEAR);
     const whole = advanceVillage(start, end, null);
     expect(count(whole, 'household-founded')).toBeGreaterThanOrEqual(2);
-    expect(originalOccupants(whole, 51, start.nextId)).toEqual([202, 203]);
+    const founded = whole.chronicle.filter((e) => e.kind === 'household-founded' && e.day === day);
+    expect(founded).toEqual([
+      { day, kind: 'household-founded', dwellingId: 50 },
+      { day, kind: 'household-founded', dwellingId: 51 },
+    ]);
+    expect(count(whole, 'marriage')).toBeGreaterThanOrEqual(1);
     const viaJson = (s: VillageState): VillageState =>
       JSON.parse(JSON.stringify(s)) as VillageState;
     let chunked = viaJson(start);
@@ -926,11 +963,12 @@ describe('advanceVillage – obydlí', () => {
 
   // Sňatky mezi domy (population.md; Martin, 18. 10. 2026: „Ano, přidej sňatky mezi domy“).
   /**
-   * Vlkov (rok 612): zemnice 1 – pár 42 a 19 s malými dětmi, polozemnice 2 – starší 63 a 49,
-   * jediný 27letý a děti. Za tři roky je 42letý starší a 19letý zůstane bez protějšku.
+   * Vlkov (3. 8. 612, stav z Martinovy vsi): zemnice 1 – pár 43 a 19 s malými dětmi, polozemnice
+   * 2 – starší 63 a 49, jediný 27letý a děti. Za dva roky je 43letý starší a 19letý zůstane bez
+   * protějšku.
    */
   function vlkov(day: number): VillageState {
-    const s = crowdedVillage(day, { 1: [42, 19, 2, 1], 2: [63, 49, 27, 12, 10, 6] });
+    const s = crowdedVillage(day, { 1: [43, 19, 2, 2], 2: [63, 49, 27, 12, 10, 7] });
     s.dwellings.find((d) => d.id === 2)!.type = 'polozemnice';
     s.storesKg = 60_000; // bez polí – zásoby na celý test, ať porody netlumí hlad
     return s;
@@ -939,17 +977,18 @@ describe('advanceVillage – obydlí', () => {
   const marriages = (s: VillageState): MarriageEvent[] =>
     s.chronicle.filter((e): e is MarriageEvent => e.kind === 'marriage');
 
-  it('Vlkov: po třech letech se 27letý přistěhuje k 19letému do zemnice a mají děti', () => {
+  it('Vlkov: po dvou letech se 27letý přistěhuje k 19letému do zemnice a mají děti', () => {
     const day = at(612, 3, 1);
     const s0 = vlkov(day);
-    // dokud má 19letý v domě protějšek (42), svatba není
-    expect(marriages(advanceVillage(s0, day + Math.floor(2.9 * YEAR), null))).toEqual([]);
+    // dokud má 19letý v domě protějšek (43), svatba není
+    expect(marriages(advanceVillage(s0, day + Math.floor(1.9 * YEAR), null))).toEqual([]);
     const s = advanceVillage(s0, day + Math.ceil(12 * YEAR), null);
     const [wedding] = marriages(s);
-    // z polozemnice odejít smí (zůstane patnáctiletý), ze zemnice by zůstal jen starší s dětmi
+    // z polozemnice odejít smí (zůstane čtrnáctiletý), ze zemnice by zůstal jen starší s dětmi;
+    // v zemnici je ještě volné místo (svatba dům nepřeplní)
     expect(wedding).toMatchObject({ fromDwellingId: 2, toDwellingId: 1 });
-    expect(wedding!.day - day).toBeGreaterThan(2.9 * YEAR);
-    expect(wedding!.day - day).toBeLessThan(3.1 * YEAR);
+    expect(wedding!.day - day).toBeGreaterThan(1.9 * YEAR);
+    expect(wedding!.day - day).toBeLessThan(2.1 * YEAR);
     expect(marriages(s)).toHaveLength(1);
     expect(originalOccupants(s, 1, s0.nextId)).toEqual([100, 101, 102, 103, 202]);
     // nový pár (19letý a 27letý) má v zemnici děti
@@ -982,6 +1021,54 @@ describe('advanceVillage – obydlí', () => {
     }
     chunked = advanceVillage(chunked, end, null);
     expect(viaJson(chunked)).toEqual(viaJson(whole));
+  });
+
+  /** Práce na opravách posledního dne (rozdělení práce dne). */
+  const repairLabor = (s: VillageState): number =>
+    (s.labor?.shares ?? [])
+      .filter((share) => share.activity === 'repair')
+      .reduce((sum, share) => sum + share.manDays, 0);
+
+  it('obydlený dům nechátrá ani bez práce na opravy, prázdný vedle něj chátrá (Martin)', () => {
+    const day = at(600, 10, 1);
+    const s0 = withoutFields(day);
+    // stará zemnice s vysokou potřebou oprav, v ní jen malé děti – na opravy nikdo nepracuje
+    const home = s0.dwellings[0]!;
+    home.builtDay = day - 17 * 365;
+    home.condition = 0.6;
+    s0.people = [3, 4, 2].map((years, i) => ({ ...adultOfAge(200 + i, years, day) }));
+    s0.dwellings.push({
+      id: 50,
+      type: 'zemnice',
+      builtDay: day - 17 * 365,
+      condition: 1,
+      position: POSITION,
+    });
+    const s = advanceVillage(s0, day + 200, null);
+    expect(s.dwellings.find((d) => d.id === home.id)?.condition).toBe(0.6);
+    expect(repairLabor(s)).toBe(0);
+    expect(s.dwellings.find((d) => d.id === 50)!.condition).toBeLessThan(0.95);
+  });
+
+  it('starý obydlený dům stav drží – opravy podle stáří dál berou práci vsi', () => {
+    const day = at(600, 10, 1);
+    const s0 = withoutFields(day);
+    s0.dwellings[0]!.builtDay = day - 17 * 365;
+    const s = advanceVillage(s0, day + 120, null);
+    expect(s.dwellings[0]!.condition).toBe(1);
+    expect(repairLabor(s)).toBeGreaterThan(0);
+  });
+
+  it('obydlený dům na nule po dřívějším chátrání se nepřestavuje – rozhoduje stáří', () => {
+    const day = at(600, 10, 1);
+    const young = withoutFields(day);
+    young.dwellings[0]!.condition = 0;
+    const kept = advanceVillage(young, day + 30, null);
+    expect(count(kept, 'rebuild-decided')).toBe(0);
+    expect(kept.dwellings[0]!.condition).toBe(0);
+    const old = withoutFields(day);
+    old.dwellings[0]!.builtDay = day - (DWELLINGS.zemnice.lifespanYears + 1) * 365;
+    expect(count(advanceVillage(old, day, null), 'rebuild-decided')).toBe(1);
   });
 
   it('prázdné obydlí chátrá a na nule zanikne', () => {

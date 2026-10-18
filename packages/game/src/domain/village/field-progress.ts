@@ -2,7 +2,7 @@ import { dateOfDayIndex } from '../calendar';
 import { distanceFactor, fallowStage, isOvergrown, isWeedFree, partWalkDistance } from './fields';
 import { isHayMeadow, mowingPosition, mowingSpans } from './hay';
 import { partStage } from './summary';
-import type { Crop, CropWork, FieldPart, VillageState } from './types';
+import type { Crop, CropWork, FieldPart, TileCell, VillageState } from './types';
 import { cropTaskRemaining, cropTaskWindows, planCrops } from './year-plan';
 
 // Postup práce po čtvercích (fields.md – Postup práce po čtvercích; Martin, 18. 10. 2026): plán
@@ -219,7 +219,10 @@ const NATURAL_STAGE: Record<Crop, readonly FieldPartLook[]> = {
 };
 
 /** Kolik práce úlohy je na dílu hotovo 0–1; díl, kterého se úloha netýká, null. */
-function shareOn(span: PartSpan | undefined, position: number): number | null {
+function shareOn(
+  span: Pick<PartSpan, 'start' | 'end'> | undefined,
+  position: number,
+): number | null {
   if (!span) return null;
   return Math.min(1, Math.max(0, (position - span.start) / (span.end - span.start)));
 }
@@ -309,9 +312,36 @@ function mownShares(
   if (!mowing) return shares;
   const at = mowingPosition(mowing);
   for (const span of mowingSpans(mowing, partsById)) {
-    shares.set(span.id, shareOn(span, at) ?? 0);
+    if (span.partId !== undefined) shares.set(span.partId, shareOn(span, at) ?? 0);
   }
   return shares;
+}
+
+/** Vzhled políčka přirozené louky v seči (oxen.md – Seno). */
+export interface MeadowSquareView extends PartView {
+  cell: TileCell;
+}
+
+/**
+ * Přirozené louky letošní (do 1. 6. loňské) seče a co je na nich vidět – vysoká tráva, seč po
+ * řádcích, posečeno, stohy (jako louka na seno z úhoru). Louky, které se nesečou, nejsou.
+ */
+export function hayMeadowLooks(state: VillageState, day: number): MeadowSquareView[] {
+  const mowing = state.hay?.mowing;
+  if (!mowing?.squares) return [];
+  const partsById = new Map(state.parts.map((p) => [p.id, p]));
+  const at = mowingPosition(mowing);
+  return mowingSpans(mowing, partsById).flatMap((span) => {
+    if (!span.cell) return [];
+    const view = hayLook(shareOn(span, at) ?? 0, day);
+    if (view.work !== undefined) {
+      view.work = Math.min(
+        1,
+        Math.max(1 / WORK_STEP, Math.round(view.work * WORK_STEP) / WORK_STEP),
+      );
+    }
+    return [{ cell: span.cell, ...view }];
+  });
 }
 
 /**

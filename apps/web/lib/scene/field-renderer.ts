@@ -36,6 +36,7 @@ import { applyGammaFog } from './gamma-fog';
 import {
   SWATH_SPACING_M,
   chooseHayMeadows,
+  hayMeadowFields,
   hayPhase,
   meadowHay,
   type HayMeadow,
@@ -319,13 +320,17 @@ export class FieldRenderer {
     let changed = false;
     const seen = new Set<number>();
     const clearings = buildingClearings(this.village.dwellings);
-    for (const field of this.village.fields) {
+    // přirozené louky letošní seče (oxen.md – Seno) se kreslí jako díly pole se vzhledem od
+    // jádra – se zápornými id, bez skrývání překážek (stromy a kameny na louce zůstanou)
+    const meadows = hayMeadowFields(this.village.hayMeadows ?? []);
+    for (const field of [...this.village.fields, ...meadows]) {
       seen.add(field.id);
       // obydlí na poli – pod jeho vyklízenou plochou pole není
       const built = clearingsNear(clearings, cellsBounds(field.parts), CLEARING_SOFT_M);
       const views = fieldPartViews(field, { dayOfYear: day, village: this.village });
-      // čtverce sousedních polí – kde pole navazují, okraj se netlumí (bez švu mezi poli)
-      // zarůstající díly obtisk nemají – okraj pole k nim se tlumí jako k louce
+      // čtverce sousedních polí – kde pole navazují, okraj se netlumí (bez švu mezi poli); louky
+      // jen k polím, pole jen k polím; zarůstající díly obtisk nemají – okraj k nim se tlumí
+      // jako k louce
       const neighbours = touchingSquares(
         field.parts,
         this.village.fields.flatMap((f) =>
@@ -357,7 +362,7 @@ export class FieldRenderer {
       this.fields.set(field.id, {
         key,
         meshes: this.fieldMeshes(field, views, rows, center, coverage, staking.lines, day),
-        shape: fieldHideShape(field),
+        shape: field.id < 0 ? null : fieldHideShape(field),
         plants: fieldPlants(views, rows, center, coverage, day),
         pegs: staking.pegs,
       });
