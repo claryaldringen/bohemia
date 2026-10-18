@@ -473,11 +473,12 @@ export const CRAFT_NEEDS = {
 // (x napříč, z k vchodu, m; totéž MILIR_OFFSET v tools/blender/crafts.py) a čtvercový půdorys
 // pro kontrolu místa (kruh milíře Ø ≈ 5,3 m), vyklízí se kruh ušlapané trávy (poloměr m)
 export const MILIR = { offset: { x: -9, z: 3 }, footprintM: 6, clearingRadiusM: 4.6 } as const;
-// crafts.md – Budovy: přístřešek hrnčíře a kováře sahá před polozemnici o tolik (m) – půdorys
-// dílny je o něj delší (vpředu, +z modelu)
+// crafts.md – Budovy: přístřešek hrnčíře a kováře sahá před půdorys polozemnice o tolik (m) –
+// půdorys dílny je o něj delší (vpředu, +z modelu; přední okraj přístřešku 5,7 m od středu,
+// tools/blender/crafts.py PZ_O + PORCH)
 export const WORKSHOP_PORCH_M: Readonly<Record<Craft, number>> = {
-  potter: 2.6,
-  smith: 2.6,
+  potter: 3.2,
+  smith: 3.2,
   burner: 0,
 };
 // crafts.md – Účinek, orchard.md: jablka v nádobách vydrží do 1. 5. místo 1. 3. – s plným pokrytím

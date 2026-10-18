@@ -171,6 +171,31 @@ describe('buildVillageView', () => {
         blocked: null,
         affordable: false,
       },
+      // řemeslné dílny – obydlí + 30 % práce i dřeva, mladý pár k osídlení (crafts.md)
+      potter: {
+        laborManDays: 286,
+        perHa: false,
+        perSquare: false,
+        upfront: [{ resource: 'wood', amount: 23, missing: 23 }, noSettlers],
+        blocked: null,
+        affordable: false,
+      },
+      smith: {
+        laborManDays: 286,
+        perHa: false,
+        perSquare: false,
+        upfront: [{ resource: 'wood', amount: 23, missing: 23 }, noSettlers],
+        blocked: null,
+        affordable: false,
+      },
+      burner: {
+        laborManDays: 78,
+        perHa: false,
+        perSquare: false,
+        upfront: [{ resource: 'wood', amount: 9, missing: 9 }, noSettlers],
+        blocked: null,
+        affordable: false,
+      },
     });
     // zakladatelé bydlí na staveništi – domácnost s obydlím přibude s dostavěním zemnice
     expect(view.households).toEqual([]);
@@ -183,6 +208,7 @@ describe('buildVillageView', () => {
         label: 'Zemnice',
         progress: 0,
         dwellingType: 'zemnice',
+        craft: null,
         dwellingId: null,
         fieldId: null,
         cemeteryId: null,
@@ -195,6 +221,7 @@ describe('buildVillageView', () => {
         label: 'Pole 0,11 ha',
         progress: 0,
         dwellingType: null,
+        craft: null,
         dwellingId: null,
         fieldId,
         cemeteryId: null,
@@ -255,6 +282,7 @@ describe('buildVillageView', () => {
       {
         dwellingId: 1,
         type: 'zemnice',
+        craft: null,
         occupants: 4,
         capacity: 6,
         full: false,
@@ -343,6 +371,7 @@ describe('buildVillageView', () => {
       label: 'Polozemnice',
       progress: 0.25,
       dwellingType: 'polozemnice',
+      craft: null,
       dwellingId: null,
       fieldId: null,
       cemeteryId: null,

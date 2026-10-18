@@ -44,8 +44,10 @@ import { SacredRenderer } from './sacred-renderer';
 import { applyPitCut, type PitCuts } from './pit-cut';
 import {
   PLOT_BUILT,
+  ROUND_SITE_M,
   constructionState,
   sitePropPlace,
+  type ConstructionKind as SiteKind,
   type ConstructionState,
 } from './village-construction';
 import {
@@ -72,11 +74,35 @@ import { closedLine } from './staking-layout';
 import { applySeasonGround, applySeasonModel, applySeasonSnow } from './season-materials';
 import { VillageSmoke, type SmokeSource } from './village-smoke';
 import type { SceneDwelling } from './village-types';
+import {
+  CRAFT_MODEL,
+  milirCircle,
+  milirFootPoints,
+  milirHideShape,
+  milirPlace,
+  workshopVents,
+  type WorkshopModel,
+} from './workshop-layout';
 import { WovenFenceRenderer } from './woven-fence-renderer';
 
 const MODEL_BASE_URL = '/models/dwellings/';
+/** Modely a díly staveniště řemeslných dílen a milíře (tools/blender/crafts.py). */
+const CRAFT_MODEL_BASE_URL = '/models/crafts/';
+const CRAFT_SITE_FILES = ['construction.glb', 'construction-moss.glb'] as const;
 const SMOKE_TEXTURE_URL = '/textures/particles/smoke.png';
 const DWELLING_TYPES: readonly DwellingType[] = ['zemnice', 'polozemnice'];
+/** Hotový model ve vsi: obydlí, řemeslná dílna (crafts.md), nebo milíř uhlíře. */
+type ModelKey = DwellingType | WorkshopModel | 'milir';
+const CRAFT_MODEL_KEYS: readonly (WorkshopModel | 'milir')[] = [
+  'hrncir',
+  'kovar',
+  'uhlir',
+  'milir',
+];
+/** Přístřešek hrnčíře a kováře sahá o tolik dál před obydlí (m) – ušlapaná tráva i před ním. */
+const PORCH_EXTRA_M = 2.6;
+/** Rozvrh dýmu pece, výhně a milíře se liší od dýmníku obydlí (seed = id obydlí × 4 + druh). */
+const CRAFT_SMOKE_SEED = 1_000_000;
 const TUFT_MODELS: readonly TuftModel[] = ['grass-tuft-1', 'grass-tuft-2'];
 const AMBIENT = new Color3(0.38, 0.38, 0.36);
 /** Rostliny jako dekorace krajiny (decorations.ts) – trsy u okapu jsou sytější a zelenější. */
@@ -102,7 +128,8 @@ interface DwellingView {
   key: string;
   dwelling: SceneDwelling;
   meshes: Mesh[];
-  shape: HideShape;
+  /** Kde se skryjí stromy a kameny krajiny – obydlí, u uhlíře i kruh milíře. */
+  shapes: HideShape[];
   /** Vyhloubená jáma (terén se v ní prořízne), nebo null, dokud se nekope. */
   cut: PitCut | null;
   /** Kolíky vytyčení (staking.ts), dokud se nezačne kopat. */
@@ -138,8 +165,11 @@ interface VillageContext {
  */
 export class VillageRenderer {
   private readonly dwellings = new Map<number, DwellingView>();
-  private readonly models = new Map<DwellingType, Mesh | null>();
-  private readonly ghosts = new Map<DwellingType, Mesh>();
+  private readonly models = new Map<ModelKey, Mesh | null>();
+  private readonly ghosts = new Map<ModelKey, Mesh>();
+  /** Modely dílen a milíře se načítají, až jsou potřeba (dílna ve vsi, duch při umisťování). */
+  private craftLoading: Promise<void> | null = null;
+  private craftSiteLoading: Promise<void> | null = null;
   private readonly tufts = new Map<TuftModel, Mesh | null>();
   /** Pozemky polozemnic – plot, záhony a cestička (homestead.ts). */
   private readonly plots: HomesteadRenderer;
@@ -270,7 +300,7 @@ export class VillageRenderer {
   /** Oblasti, kde se mají skrýt stromy a kameny krajiny. */
   hideShapes(): HideShape[] {
     const shapes: HideShape[] = [];
-    for (const view of this.dwellings.values()) shapes.push(view.shape);
+    for (const view of this.dwellings.values()) shapes.push(...view.shapes);
     shapes.push(...this.fields.hideShapes());
     shapes.push(...this.cemeteries.hideShapes());
     shapes.push(...this.orchards.hideShapes());
@@ -279,12 +309,13 @@ export class VillageRenderer {
   }
 
   /**
-   * Průhledný model obydlí, modly nebo svatyně pro ducha při umisťování (null, dokud se model
-   * nenačte).
+   * Průhledný model obydlí, řemeslné dílny, milíře, modly nebo svatyně pro ducha při umisťování
+   * (null, dokud se model nenačte).
    */
-  ghostModel(type: DwellingType | SacredBuildingKind): Mesh | null {
+  ghostModel(type: ModelKey | SacredBuildingKind): Mesh | null {
     if (type === 'idol' || type === 'shrine') return this.sacred.ghostModel(type);
-    void this.loadModels();
+    if (isCraftModel(type)) void this.loadCraftModels();
+    else void this.loadModels();
     return this.ghosts.get(type) ?? null;
   }
 
@@ -292,6 +323,31 @@ export class VillageRenderer {
   loadModels(): Promise<void> {
     this.loading ??= this.load();
     return this.loading;
+  }
+
+  /** Načte modely řemeslných dílen a milíře (jednou); po načtení se ves překreslí. */
+  loadCraftModels(): Promise<void> {
+    this.craftLoading ??= (async () => {
+      await Promise.all(
+        CRAFT_MODEL_KEYS.map((key) => this.loadModel(key, `${CRAFT_MODEL_BASE_URL}${key}.glb`)),
+      );
+      if (this.disposed) return;
+      this.builtKey = '';
+      this.updateModels();
+      this.context.onAsyncChange();
+    })();
+    return this.craftLoading;
+  }
+
+  /**
+   * Pata milíře: střed, nebo průměr bodů na okraji kupy, když je níž (svah), o kousek zapuštěná
+   * jako obydlí.
+   */
+  milirBaseHeight(position: SceneDwelling['position']): number {
+    const h = this.context.groundHeight;
+    const [center, ...rim] = milirFootPoints(position);
+    const mean = rim.reduce((sum, [x, z]) => sum + h(x, z), 0) / rim.length;
+    return Math.min(h(center![0], center![1]), mean) - DWELLING_SINK_M;
   }
 
   /** Načte modely modly a svatyně (duch při umisťování). */
@@ -318,37 +374,40 @@ export class VillageRenderer {
     this.dwellings.clear();
   }
 
+  /** Načte jeden hotový model (obydlí, dílna, milíř) i s duchem pro umisťování. */
+  private async loadModel(key: ModelKey, url: string): Promise<void> {
+    try {
+      const model = await loadMergedModel(
+        this.scene,
+        url,
+        `village-${key}`,
+        prepareDwellingMaterial,
+      );
+      if (!model) return;
+      // Víc materiálů v GLB → po spojení meshů je ořez stěn opačně než u jednomateriálových
+      // modelů (instanced-model.ts nastavuje CCW) – otočit zpět. Atlas = jeden materiál.
+      const material = model.material;
+      if (material instanceof MultiMaterial && material.subMaterials.length > 1) {
+        for (const m of material.subMaterials)
+          if (m) m.sideOrientation = Material.ClockWiseSideOrientation;
+      }
+      // Duch dřív, než mesh dostane instance – klon by je jinak nesl s sebou.
+      const ghost = model.clone(`village-ghost-${key}`);
+      ghost.setEnabled(false);
+      ghost.isPickable = false;
+      this.ghosts.set(key, ghost);
+      model.setEnabled(false);
+      this.models.set(key, model);
+      this.context.addShadowCaster(model);
+    } catch (error) {
+      console.warn(`Model ${key} se nepodařilo načíst.`, error);
+      this.models.set(key, null);
+    }
+  }
+
   private async load(): Promise<void> {
     await Promise.all([
-      ...DWELLING_TYPES.map(async (type) => {
-        try {
-          const model = await loadMergedModel(
-            this.scene,
-            `${MODEL_BASE_URL}${type}.glb`,
-            `village-${type}`,
-            prepareDwellingMaterial,
-          );
-          if (!model) return;
-          // Víc materiálů v GLB → po spojení meshů je ořez stěn opačně než u jednomateriálových
-          // modelů (instanced-model.ts nastavuje CCW) – otočit zpět. Atlas = jeden materiál.
-          const material = model.material;
-          if (material instanceof MultiMaterial && material.subMaterials.length > 1) {
-            for (const m of material.subMaterials)
-              if (m) m.sideOrientation = Material.ClockWiseSideOrientation;
-          }
-          // Duch dřív, než mesh dostane instance – klon by je jinak nesl s sebou.
-          const ghost = model.clone(`village-ghost-${type}`);
-          ghost.setEnabled(false);
-          ghost.isPickable = false;
-          this.ghosts.set(type, ghost);
-          model.setEnabled(false);
-          this.models.set(type, model);
-          this.context.addShadowCaster(model);
-        } catch (error) {
-          console.warn(`Model obydlí ${type} se nepodařilo načíst.`, error);
-          this.models.set(type, null);
-        }
-      }),
+      ...DWELLING_TYPES.map((type) => this.loadModel(type, `${MODEL_BASE_URL}${type}.glb`)),
       ...TUFT_MODELS.map(async (name) => {
         try {
           const tuft = await loadMergedModel(
@@ -384,18 +443,31 @@ export class VillageRenderer {
       if (current?.key === key) continue;
       changed = true;
       if (current) for (const mesh of current.meshes) mesh.dispose();
-      const state = dwelling.built ? null : constructionState(dwelling.type, dwelling.progress);
+      const state = dwelling.built
+        ? null
+        : constructionState(siteKind(dwelling), dwelling.progress);
       const dug = !state || state.pitDepth > 0;
+      // milíř uhlíře se staví spolu se zemnicí (stejný průběh) a stojí kus od ní
+      const burner = dwelling.craft === 'burner';
+      const milir = burner && state ? constructionState('milir', dwelling.progress) : null;
+      const meshes = state ? this.constructionSite(dwelling, state) : this.dwellingGround(dwelling);
+      if (milir) meshes.push(...this.milirSite(dwelling, milir));
+      else if (burner) meshes.push(this.milirGround(dwelling));
+      const lines: Point[][] = [];
+      if (state && state.outline > 0) lines.push(this.stakingLine(dwelling));
+      if (milir && milir.outline > 0) {
+        lines.push(closedLine(milirCircle(dwelling.position, ROUND_SITE_M.milir.outline)));
+      }
       this.dwellings.set(dwelling.id, {
         key,
         dwelling,
-        meshes: state ? this.constructionSite(dwelling, state) : this.dwellingGround(dwelling),
-        shape: dwellingHideShape(dwelling),
+        meshes,
+        shapes: [
+          dwellingHideShape(dwelling),
+          ...(burner ? [milirHideShape(dwelling.position)] : []),
+        ],
         cut: dug ? { position: dwelling.position, shape: PIT_SHAPES[dwelling.type] } : null,
-        pegs:
-          state && state.outline > 0
-            ? pegInstances([this.stakingLine(dwelling)], this.context.groundHeight)
-            : [],
+        pegs: lines.length > 0 ? pegInstances(lines, this.context.groundHeight) : [],
       });
     }
     for (const [id, view] of this.dwellings) {
@@ -413,7 +485,7 @@ export class VillageRenderer {
     return changed;
   }
 
-  /** Dýmníky hotových obývaných obydlí pro dým. */
+  /** Dýmníky hotových obývaných obydlí, pece, výhně a milíře pracujících dílen pro dým. */
   private updateSmokeSources(): boolean {
     const sources: SmokeSource[] = this.village.dwellings
       .filter((d) => d.built && d.inhabited !== false)
@@ -422,6 +494,20 @@ export class VillageRenderer {
         const [x, z] = localToWorld(d.position, 0, vent.z);
         return { seed: d.id, x, y: this.baseHeight(d) + vent.y, z };
       });
+    // dílna, která dnes vyrábí – pec, výheň, nebo milíř (u uhlíře jen při pálení – crafts.md)
+    for (const d of this.village.dwellings) {
+      if (!d.built || !d.craft || !d.working) continue;
+      for (const vent of workshopVents(d.craft, d.position)) {
+        const milir = vent.kind === 'milir';
+        sources.push({
+          seed: CRAFT_SMOKE_SEED + d.id * 4 + (milir ? 2 : 1),
+          x: vent.x,
+          y: (milir ? this.milirBaseHeight(d.position) : this.baseHeight(d)) + vent.y,
+          z: vent.z,
+          kind: vent.kind,
+        });
+      }
+    }
     // ohniště hotových svatyní – občas dým jako z obydlí (happiness.md)
     sources.push(...this.sacred.smokeSources());
     return this.smoke.setSources(sources);
@@ -439,6 +525,7 @@ export class VillageRenderer {
     const key = [...sites.map(dwellingKey), ...sacredSites.map(sacredBuildingKey)].join(';');
     if (key === this.siteKey) return false;
     if (sites.length > 0 || sacredSites.length > 0) void this.loadConstruction();
+    if (sites.some((d) => d.craft)) void this.loadCraftConstruction();
     if (!this.siteLoading) return false;
     this.siteKey = key;
     const instances = new Map<string, ModelInstance[]>();
@@ -448,22 +535,46 @@ export class VillageRenderer {
       else instances.set(name, [instance]);
     };
     for (const d of sites) {
-      const state = constructionState(d.type, d.progress);
+      const kind = siteKind(d);
+      const state = constructionState(kind, d.progress);
       const base = this.baseHeight(d);
       const rotationY = d.position.rotation;
       const house = { x: d.position.x, y: base, z: d.position.z, rotationY, scale: 1 };
-      for (const part of state.parts) push(`${d.type}-${part}`, house);
+      for (const part of state.parts) push(`${kind}-${part}`, house);
       const inward = d.plot ? plotInward(d.plot.variant) : undefined;
       for (const { prop, scale } of state.props) {
         // hromada hlíny je vlastní síť staveniště (leží na terénu, barvy jako jáma)
         if (prop === 'spoil') continue;
-        const place = sitePropPlace(d.type, prop, inward);
+        const place = sitePropPlace(kind, prop, inward);
         const [x, z] = localToWorld(d.position, place.x, place.z);
         push(`site-${prop}`, {
           x,
           y: this.context.groundHeight(x, z) - 0.02,
           z,
           rotationY: rotationY + place.rotation,
+          scale,
+        });
+      }
+      if (d.craft !== 'burner') continue;
+      // milíř uhlíře – kruhové staveniště kus od zemnice, stejný průběh
+      const milir = milirPlace(d.position);
+      const milirState = constructionState('milir', d.progress);
+      const heap = {
+        x: milir.x,
+        y: this.milirBaseHeight(d.position),
+        z: milir.z,
+        rotationY: milir.rotation,
+        scale: 1,
+      };
+      for (const part of milirState.parts) push(`milir-${part}`, heap);
+      for (const { prop, scale } of milirState.props) {
+        const place = sitePropPlace('milir', prop);
+        const [x, z] = localToWorld(milir, place.x, place.z);
+        push(`site-${prop}`, {
+          x,
+          y: this.context.groundHeight(x, z) - 0.02,
+          z,
+          rotationY: milir.rotation + place.rotation,
           scale,
         });
       }
@@ -513,27 +624,83 @@ export class VillageRenderer {
     return this.siteLoading;
   }
 
-  /** Modely hotových obydlí a trsy u okapu – přepočítají se, jen když se změnila hotová obydlí. */
+  /**
+   * Díly staveniště řemeslných dílen a milíře (construction.glb a construction-moss.glb
+   * řemesel – jednou); po načtení se staveniště překreslí.
+   */
+  private loadCraftConstruction(): Promise<void> {
+    this.craftSiteLoading ??= (async () => {
+      await Promise.all(
+        CRAFT_SITE_FILES.map(async (file) => {
+          try {
+            const parts = await loadModelParts(
+              this.scene,
+              `${CRAFT_MODEL_BASE_URL}${file}`,
+              'village-site-',
+              prepareDwellingMaterial,
+            );
+            for (const [name, mesh] of parts ?? []) {
+              // díly mají v GLB řemesel jiná jména než u obydlí – kdyby se přesto opakovaly,
+              // kreslí se jen první
+              if (this.siteParts.has(name)) {
+                mesh.dispose();
+                continue;
+              }
+              mesh.setEnabled(false);
+              this.context.addShadowCaster(mesh);
+              this.siteParts.set(name, mesh);
+            }
+          } catch (error) {
+            console.warn(`Díly staveniště dílny ${file} se nepodařilo načíst.`, error);
+          }
+        }),
+      );
+      if (this.disposed) return;
+      this.siteKey = '';
+      this.updateConstruction();
+      this.context.onAsyncChange();
+    })();
+    return this.craftSiteLoading;
+  }
+
+  /**
+   * Modely hotových obydlí, řemeslných dílen (u uhlíře i milíř) a trsy u okapu – přepočítají se,
+   * jen když se změnila hotová obydlí.
+   */
   private updateModels(): boolean {
     const built = this.village.dwellings.filter((d) => d.built);
     const key = built.map(dwellingKey).join(';');
     if (key === this.builtKey) return false;
     if (built.length > 0) void this.loadModels();
+    if (built.some((d) => d.craft)) void this.loadCraftModels();
     if (!this.loading) return false;
     this.builtKey = key;
-    for (const type of DWELLING_TYPES) {
-      const model = this.models.get(type);
-      if (!model) continue;
-      const instances: ModelInstance[] = built
-        .filter((d) => d.type === type)
-        .map((d) => ({
-          x: d.position.x,
-          y: this.baseHeight(d),
-          z: d.position.z,
-          rotationY: d.position.rotation,
-          scale: 1,
-        }));
-      setInstances(model, instances);
+    const instances = new Map<ModelKey, ModelInstance[]>();
+    const push = (model: ModelKey, instance: ModelInstance): void => {
+      const list = instances.get(model);
+      if (list) list.push(instance);
+      else instances.set(model, [instance]);
+    };
+    for (const d of built) {
+      push(d.craft ? CRAFT_MODEL[d.craft] : d.type, {
+        x: d.position.x,
+        y: this.baseHeight(d),
+        z: d.position.z,
+        rotationY: d.position.rotation,
+        scale: 1,
+      });
+      if (d.craft !== 'burner') continue;
+      const milir = milirPlace(d.position);
+      push('milir', {
+        x: milir.x,
+        y: this.milirBaseHeight(d.position),
+        z: milir.z,
+        rotationY: milir.rotation,
+        scale: 1,
+      });
+    }
+    for (const [model, mesh] of this.models) {
+      if (mesh) setInstances(mesh, instances.get(model) ?? []);
     }
     const tufts = built.flatMap((d) => eaveTufts(d.type, d.position, d.id));
     for (const name of TUFT_MODELS) {
@@ -771,6 +938,64 @@ export class VillageRenderer {
     return mesh;
   }
 
+  /**
+   * Staveniště milíře (kruhové, bez jámy – village-construction.ts): ušlapaná tráva kolem
+   * a světlá čára vytyčeného kruhu, dokud se neskládá věnec polen. Díly a rekvizity kreslí
+   * `updateConstruction` v instancích.
+   */
+  private milirSite(d: SceneDwelling, state: ConstructionState): Mesh[] {
+    const meshes: Mesh[] = [];
+    const site = ROUND_SITE_M.milir;
+    if (state.trampled > 0) {
+      meshes.push(this.milirTrampled(d, site.trampled - TRAMPLED_SOFT_M / 2, state.trampled));
+    }
+    if (state.outline > 0) {
+      const line = createStripMesh(
+        this.scene,
+        `village-milir-layout-${d.id}`,
+        stripSegments(milirCircle(d.position, site.outline), true, 0.09, 0.5),
+        this.context.decalHeight,
+        LIFT.outline,
+      );
+      line.material = this.layoutMaterial();
+      meshes.push(line);
+    }
+    return meshes;
+  }
+
+  /** Hotový milíř: kolem vyšlapaná zem (uhlíř u něj pracuje), u opuštěného zarůstá. */
+  private milirGround(d: SceneDwelling): Mesh {
+    const alpha = d.inhabited === false ? ABANDONED_EARTH_ALPHA : 0.85;
+    return this.milirTrampled(d, ROUND_SITE_M.milir.trampled - TRAMPLED_SOFT_M / 2, alpha);
+  }
+
+  /** Ušlapaná tráva v kruhu kolem milíře (poloměr `radius`, měkký okraj). */
+  private milirTrampled(d: SceneDwelling, radius: number, alpha: number): Mesh {
+    const area = milirCircle(d.position, radius);
+    const b = polygonBounds(area);
+    const pad = TRAMPLED_SOFT_M;
+    const mesh = createDecalMesh(
+      this.scene,
+      `village-milir-trampled-${d.id}`,
+      decalGrid(
+        { minX: b.minX - pad, maxX: b.maxX + pad, minZ: b.minZ - pad, maxZ: b.maxZ + pad },
+        0.6,
+        softCoverage(area, TRAMPLED_SOFT_M),
+      ),
+      {
+        height: this.context.decalHeight,
+        smoothHeight: this.context.groundHeight,
+        lift: LIFT.worn,
+        color: [0.95, 0.88, 0.78],
+        alpha,
+        uv: 20,
+      },
+    );
+    mesh.material = this.decalMaterial('grass-dirt');
+    mesh.alphaIndex = 1;
+    return mesh;
+  }
+
   private decalMaterial(texture: 'grass-dirt' | 'mud', zOffset = -2): Material {
     const key = `decal-${texture}-${zOffset}`;
     let material = this.materials.get(key);
@@ -834,6 +1059,16 @@ function plotViews(dwellings: readonly SceneDwelling[]): PlotView[] {
   });
 }
 
+/** Druh staveniště (fáze, díly): obydlí, nebo model řemeslné dílny. */
+function siteKind(d: Pick<SceneDwelling, 'type' | 'craft'>): SiteKind {
+  return d.craft ? CRAFT_MODEL[d.craft] : d.type;
+}
+
+/** Je model dílnou nebo milířem (public/models/crafts)? */
+function isCraftModel(key: ModelKey): key is WorkshopModel | 'milir' {
+  return (CRAFT_MODEL_KEYS as readonly string[]).includes(key);
+}
+
 /** Ušlapaná tráva staveniště: pozemek, nebo místo kolem modelu (bez kusu před vchodem). */
 function trampledArea(d: SceneDwelling): Point[] {
   const inset = TRAMPLED_INSET_M + TRAMPLED_SOFT_M / 2;
@@ -848,11 +1083,13 @@ function trampledArea(d: SceneDwelling): Point[] {
     ];
   }
   const c = DWELLING_CLEARANCE_M[d.type];
+  // hrnčíř a kovář: ušlapáno i pod přístřeškem před domem
+  const porch = d.craft === 'potter' || d.craft === 'smith' ? PORCH_EXTRA_M : 0;
   return [
     localToWorld(d.position, c.minX + inset, c.minZ + inset),
     localToWorld(d.position, c.maxX - inset, c.minZ + inset),
-    localToWorld(d.position, c.maxX - inset, c.maxZ - inset - 2),
-    localToWorld(d.position, c.minX + inset, c.maxZ - inset - 2),
+    localToWorld(d.position, c.maxX - inset, c.maxZ - inset - 2 + porch),
+    localToWorld(d.position, c.minX + inset, c.maxZ - inset - 2 + porch),
   ];
 }
 
@@ -861,7 +1098,7 @@ function dwellingKey(d: SceneDwelling): string {
   // Průběh stavby po 2 % – sloupy nerostou plynule, ale ani se nepřestavují při každém dotazu.
   // Hotové obydlí se přestaví, když se vylidní nebo zase zabydlí (hlína u vchodu zarůstá).
   const look = d.built ? (d.inhabited === false ? 'empty' : '') : Math.round(d.progress * 50);
-  return [d.type, p.x, p.z, p.rotation, d.built, look].join('|');
+  return [d.type, d.craft ?? '', p.x, p.z, p.rotation, d.built, look].join('|');
 }
 
 /** Nastaví instance meshe; bez instancí ho vypne (jinak by se vykreslil samotný model v počátku). */

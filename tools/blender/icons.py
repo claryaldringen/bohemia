@@ -11,8 +11,9 @@ hrncir, kovar, uhlir (řemeslné dílny z `apps/web/public/models/crafts/`, uhl�
 z `apps/web/public/models/pen/`, kráva ze stáda vsi, stoh sena) – portréty do panelu výběru;
 (64 × 64 PNG) – `resources/` people, food, wood, labor, satiation, date, apples, happiness
 (štěstí – plamen ohniště nad zkříženými poleny v kruhu kamenů), hay (seno – kupka sena
-z `apps/web/public/models/fields/haystack.glb`), ozim (osení pod sněhem) a jar (klasy jarního
-ječmene).
+z `apps/web/public/models/fields/haystack.glb`), ozim (osení pod sněhem), jar (klasy jarního
+ječmene), charcoal (hromádka dřevěného uhlí), tools (kovaná sekera zkřížená se srpem) a pottery
+(dva hrnce pražského typu, větší s vlnovkou) – suroviny řemesel (crafts.md).
 Bez druhého argumentu vše, jinak čárkami oddělený výběr (např. `pole,hrbitov,food`).
 
 Postup: portréty staveb a ikony `food`, `wood`, `labor`, `satiation`, `date`, `apples` se vyrenderují v Cycles
@@ -981,6 +982,192 @@ def icon_apples():
     return True
 
 
+def charcoal_lump(bm, centre, size, rot, rng):
+    """Kus dřevěného uhlí: hranolek s nepravidelnými lomy (rozštípnuté poleno po pálení)."""
+    first = len(bm.verts)
+    r = bmesh.ops.create_cube(bm, size=1.0)
+    edges = list({e for v in r["verts"] for e in v.link_edges})
+    bmesh.ops.subdivide_edges(bm, edges=edges, cuts=1, use_grid_fill=True)
+    m = Euler(rot).to_matrix()
+    bm.verts.ensure_lookup_table()
+    # nové vrcholy jsou na konci (obal BMVert se pro set nehodí – vzniká znovu)
+    for v in list(bm.verts)[first:]:
+        j = Vector((rng.uniform(-0.12, 0.12), rng.uniform(-0.12, 0.12), rng.uniform(-0.12, 0.12)))
+        local = Vector(((v.co.x + j.x) * size[0], (v.co.y + j.y) * size[1], (v.co.z + j.z) * size[2]))
+        v.co = Vector(centre) + m @ local
+
+
+def charcoal_mat():
+    """Uhlí: skoro černé se stříbřitým leskem na lomech a jemnými příčnými trhlinami."""
+    m = mat("charcoal", (0.035, 0.035, 0.04), 0.28, noise=40, bump=0.5)
+    nt = m.node_tree
+    b = next(n for n in nt.nodes if n.type == "BSDF_PRINCIPLED")
+    b.inputs["Specular IOR Level"].default_value = 0.85
+    # trhliny napříč vlákny – pruhy vlnové textury jako výška
+    wave = nt.nodes.new("ShaderNodeTexWave")
+    wave.inputs["Scale"].default_value = 7.0
+    wave.inputs["Distortion"].default_value = 3.0
+    wave.inputs["Detail"].default_value = 2.0
+    tc = nt.nodes.new("ShaderNodeTexCoord")
+    nt.links.new(tc.outputs["Object"], wave.inputs["Vector"])
+    bn = nt.nodes.new("ShaderNodeBump")
+    bn.inputs["Strength"].default_value = 0.35
+    bn.inputs["Distance"].default_value = 0.02
+    nt.links.new(wave.outputs["Fac"], bn.inputs["Height"])
+    nt.links.new(bn.outputs["Normal"], b.inputs["Normal"])
+    return m
+
+
+def icon_charcoal():
+    """Uhlí: hromádka kusů dřevěného uhlí – lesklé lomy čtou se i na tmavé liště."""
+    rng = random.Random(23)
+    bm = bmesh.new()
+    lumps = [
+        # spodní vrstva
+        ((-0.46, 0.0, 0.13), (0.34, 0.24, 0.24)),
+        ((-0.02, -0.2, 0.12), (0.36, 0.25, 0.22)),
+        ((0.44, -0.04, 0.13), (0.32, 0.26, 0.24)),
+        ((-0.2, 0.3, 0.12), (0.32, 0.24, 0.22)),
+        ((0.26, 0.32, 0.12), (0.34, 0.24, 0.22)),
+        # druhá vrstva
+        ((-0.26, 0.02, 0.36), (0.32, 0.24, 0.22)),
+        ((0.2, -0.02, 0.38), (0.34, 0.24, 0.24)),
+        ((0.0, 0.28, 0.36), (0.3, 0.22, 0.22)),
+        # třetí vrstva a vršek
+        ((-0.08, 0.06, 0.6), (0.32, 0.24, 0.22)),
+        ((0.22, 0.14, 0.58), (0.24, 0.2, 0.2)),
+        ((0.04, 0.12, 0.82), (0.26, 0.2, 0.2)),
+    ]
+    for (c, s) in lumps:
+        rot = (rng.uniform(-0.35, 0.35), rng.uniform(-0.35, 0.35), rng.uniform(0, math.pi))
+        charcoal_lump(bm, c, s, rot, rng)
+    o = to_obj(bm, "charcoal", charcoal_mat(), smooth=False)
+    o.data.update()
+    sun(az=-45, el=42, strength=4.0, color=(1.0, 0.9, 0.75))
+    # protisvětlo zezadu – světlé hrany oddělí černé uhlí od tmavé lišty
+    sun(az=150, el=25, strength=4.0, color=(0.8, 0.88, 1.0))
+    camera([Vector((-0.7, -0.45, 0)), Vector((0.7, 0.5, 0.98))], az=0, el=24, margin=1.04)
+    return True
+
+
+def flat_plate(bm, pts, y, thickness):
+    """Plochý díl (list sekery) z obrysu `pts` v rovině XZ, tloušťka ve směru Y."""
+    front = [bm.verts.new((x, y - thickness / 2, z)) for x, z in pts]
+    back = [bm.verts.new((x, y + thickness / 2, z)) for x, z in pts]
+    bm.faces.new(front[::-1])
+    bm.faces.new(back)
+    n = len(pts)
+    for i in range(n):
+        j = (i + 1) % n
+        bm.faces.new((front[i], front[j], back[j], back[i]))
+
+
+def icon_tools():
+    """Nástroje: kovaná sekera s bradou na topůrku zkřížená se srpem – železo od kováře."""
+    wood, iron, edge = bmesh.new(), bmesh.new(), bmesh.new()
+    # sekera: topůrko zprava dole doleva nahoru, list s bradou míří doprava
+    h0, h1 = Vector((0.74, 0.0, -0.78)), Vector((-0.46, 0.0, 0.76))
+    cyl(wood, h0, h1, 0.1, 0.09, 10)
+    d = (h1 - h0).normalized()
+    n = Vector((d.z, 0, -d.x))  # kolmo doprava nahoru
+    head = h0 + (h1 - h0) * 0.84
+    k = 1.25  # list sekery větší než skutečně – ikona se čte i ve 26 px
+    to_xz = lambda u, v: ((head + d * u * k + n * v * k).x, (head + d * u * k + n * v * k).z)  # noqa: E731
+    blade_pts = [
+        (0.13, -0.16), (0.14, 0.12), (0.11, 0.3), (0.2, 0.62), (0.3, 0.86),
+        (-0.06, 0.92), (-0.38, 0.86), (-0.42, 0.72), (-0.22, 0.5), (-0.12, 0.3),
+        (-0.13, 0.12), (-0.11, -0.16),
+    ]
+    flat_plate(iron, [to_xz(u, v) for u, v in blade_pts], -0.02, 0.12)
+    # broušené ostří – světlejší pruh podél břitu
+    edge_pts = [(0.3, 0.86), (-0.06, 0.92), (-0.38, 0.86), (-0.34, 0.8), (-0.06, 0.85), (0.26, 0.8)]
+    flat_plate(edge, [to_xz(u, v) for u, v in edge_pts], -0.02, 0.13)
+    # srp: rukojeť vlevo dole, čepel obloukem nahoru a doprava
+    c, R = Vector((0.04, 0.0, 0.0)), 0.55
+    start = c + Vector((math.cos(math.radians(212)), 0, math.sin(math.radians(212)))) * R
+    cyl(wood, (-0.86, -0.18, -0.86), (start.x + 0.02, -0.18, start.z - 0.02), 0.1, 0.09, 10)
+    steps = 26
+    outer, inner = [], []
+    a0, a1 = math.radians(212), math.radians(-38)
+    for i in range(steps + 1):
+        t = i / steps
+        a = a0 + (a1 - a0) * t
+        w = 0.22 * (1 - t) ** 0.6 + 0.006
+        rr = R + 0.03 * math.sin(math.pi * t)
+        outer.append((c.x + math.cos(a) * rr, c.z + math.sin(a) * rr))
+        inner.append((c.x + math.cos(a) * (rr - w), c.z + math.sin(a) * (rr - w)))
+    flat_plate(iron, outer + inner[::-1], -0.18, 0.07)
+    bmesh.ops.recalc_face_normals(iron, faces=iron.faces)
+    bmesh.ops.recalc_face_normals(edge, faces=edge.faces)
+    to_obj(wood, "handles", mat("haft", (0.66, 0.45, 0.24), 0.75, noise=18, bump=0.3))
+    ir = mat("forged", (0.36, 0.36, 0.38), 0.42, noise=14, bump=0.4)
+    next(x for x in ir.node_tree.nodes if x.type == "BSDF_PRINCIPLED").inputs["Metallic"].default_value = 0.65
+    to_obj(iron, "iron", ir, smooth=False)
+    ed = mat("edge", (0.72, 0.72, 0.74), 0.3)
+    next(x for x in ed.node_tree.nodes if x.type == "BSDF_PRINCIPLED").inputs["Metallic"].default_value = 0.8
+    to_obj(edge, "edge", ed, smooth=False)
+    sun(az=-35, el=45, strength=4.4)
+    camera([Vector((-0.9, -0.3, -1.0)), Vector((0.9, 0.3, 1.25))], az=0, el=8, margin=1.02)
+    return True
+
+
+# Hrnec pražského typu: vnější profil (poloměr, výška) od dna k okraji, pak vnitřek zpět ke dnu
+POT_OUTER = [(0.0, 0.0), (0.3, 0.0), (0.36, 0.05), (0.48, 0.25), (0.57, 0.5), (0.58, 0.6),
+             (0.53, 0.76), (0.45, 0.86), (0.43, 0.9), (0.47, 0.97), (0.51, 1.0)]
+POT_INNER = [(0.46, 1.0), (0.39, 0.92), (0.4, 0.86), (0.51, 0.62), (0.44, 0.25), (0.0, 0.08)]
+
+
+def lathe(bm, profile, centre, scale, segs=36):
+    """Rotační těleso z profilu (poloměr, výška) kolem svislé osy v bodě `centre`."""
+    rings = []
+    for (r, z) in profile:
+        rings.append([bm.verts.new((centre[0] + math.cos(2 * math.pi * k / segs) * r * scale,
+                                    centre[1] + math.sin(2 * math.pi * k / segs) * r * scale,
+                                    centre[2] + z * scale)) for k in range(segs)])
+    for a, b in zip(rings, rings[1:]):
+        for k in range(segs):
+            j = (k + 1) % segs
+            bm.faces.new((a[k], a[j], b[j], b[k]))
+
+
+def pot_radius(z):
+    """Vnější poloměr hrnce ve výšce z (lineárně mezi body profilu)."""
+    for (r0, z0), (r1, z1) in zip(POT_OUTER, POT_OUTER[1:]):
+        if z0 <= z <= z1 and z1 > z0:
+            return r0 + (r1 - r0) * (z - z0) / (z1 - z0)
+    return POT_OUTER[-1][0]
+
+
+def icon_pottery():
+    """Keramika: dva hrnce pražského typu v ruce dělané, větší s vlnovkou a rýhami na plecích."""
+    big, small_pot, lines = bmesh.new(), bmesh.new(), bmesh.new()
+    big_c, big_s = (-0.32, 0.12, 0.0), 1.0
+    lathe(big, POT_OUTER + POT_INNER, big_c, big_s)
+    lathe(small_pot, POT_OUTER + POT_INNER, (0.5, -0.22, 0.0), 0.72)
+    # výzdoba hřebenem: dvě vodorovné rýhy a vlnovka mezi nimi (tmavé, mírně zapuštěné)
+    segs = 72
+
+    def groove(zf, wave=0.0, waves=7):
+        pts = []
+        for k in range(segs + 1):
+            a = 2 * math.pi * k / segs
+            z = zf + wave * math.sin(waves * a)
+            r = pot_radius(z) * big_s + 0.004
+            pts.append(Vector((big_c[0] + math.cos(a) * r, big_c[1] + math.sin(a) * r, big_c[2] + z * big_s)))
+        for p, q in zip(pts, pts[1:]):
+            cyl(lines, p, q, 0.014, 0.014, 5)
+
+    groove(0.74)
+    groove(0.64, wave=0.035)
+    groove(0.54)
+    to_obj(big, "pot", mat("clay-pot", (0.24, 0.18, 0.13), 0.8, noise=16, bump=0.3))
+    to_obj(small_pot, "pot2", mat("clay-pot2", (0.2, 0.17, 0.14), 0.82, noise=16, bump=0.3))
+    to_obj(lines, "ornament", mat("incised", (0.07, 0.05, 0.04), 0.9))
+    sun(az=-45, el=46, strength=4.3)
+    camera([Vector((-0.92, -0.6, 0.0)), Vector((0.92, 0.7, 1.02))], az=0, el=20, margin=1.04)
+    return True
+
+
 # --------------------------------------------------------------- hlavní ----
 
 BUILD = {
@@ -1009,6 +1196,9 @@ RESOURCES = {
     "hay": icon_hay,
     "ozim": icon_ozim,
     "jar": icon_jar,
+    "charcoal": icon_charcoal,
+    "tools": icon_tools,
+    "pottery": icon_pottery,
 }
 
 

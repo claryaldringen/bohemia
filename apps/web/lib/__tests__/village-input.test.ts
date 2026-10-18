@@ -5,6 +5,7 @@ import {
   parsePlaceDwellingInput,
   parsePlaceFieldInput,
   parsePlaceSacredInput,
+  parsePlaceWorkshopInput,
   parseRenameVillageInput,
   parseRestartGameInput,
   parsePosition,
@@ -124,5 +125,24 @@ describe('vstup stavby modly a svatyně', () => {
       parsePlaceSacredInput({ kind: 'idol', position: { x: 1, z: NaN, rotation: 0 } }),
     ).toBeNull();
     expect(parsePlaceSacredInput(null)).toBeNull();
+  });
+});
+
+describe('vstup stavby řemeslné dílny', () => {
+  it('řemeslo potter / smith / burner a poloha s konečnými čísly, jinak null', () => {
+    const position = { x: 1, z: 2, rotation: 0.5 };
+    expect(parsePlaceWorkshopInput({ craft: 'smith', position })).toEqual({
+      craft: 'smith',
+      position,
+    });
+    expect(parsePlaceWorkshopInput({ craft: 'burner', position, extra: 1 })).toEqual({
+      craft: 'burner',
+      position,
+    });
+    expect(parsePlaceWorkshopInput({ craft: 'weaver', position })).toBeNull();
+    expect(
+      parsePlaceWorkshopInput({ craft: 'potter', position: { x: 1, z: 2, rotation: Infinity } }),
+    ).toBeNull();
+    expect(parsePlaceWorkshopInput('potter')).toBeNull();
   });
 });

@@ -7,8 +7,8 @@ import { PIT_SHAPES } from './dwelling-pit';
 import type { DwellingType } from '@bohemia/game';
 
 /**
- * Řemeslné stavby – zatím jen modely (docs/design/crafts.md čeká na schválení): hrnčíř, kovář,
- * uhlíř a milíř, který stojí kus od uhlířovy zemnice a staví se zvlášť.
+ * Řemeslné stavby (docs/design/crafts.md): hrnčíř, kovář, uhlíř a milíř, který stojí kus od
+ * uhlířovy zemnice – ve vsi se staví spolu s ní (stejný průběh, workshop-layout.ts).
  */
 export type CraftKind = 'hrncir' | 'kovar' | 'uhlir' | 'milir';
 export const CRAFT_KINDS: readonly CraftKind[] = ['hrncir', 'kovar', 'uhlir', 'milir'];

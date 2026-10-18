@@ -6,6 +6,14 @@ const scene: SceneVillage = {
   dwellings: [
     { id: 1, type: 'zemnice', position: { x: 0, z: 0, rotation: 0 }, built: true, progress: 1 },
     {
+      id: 2,
+      type: 'polozemnice',
+      craft: 'smith',
+      position: { x: -20, z: 0, rotation: 0 },
+      built: true,
+      progress: 1,
+    },
+    {
       id: 9,
       type: 'polozemnice',
       position: { x: 20, z: 0, rotation: 0 },
@@ -34,6 +42,22 @@ const scene: SceneVillage = {
 };
 
 const view = {
+  crafts: {
+    present: true,
+    stocks: { charcoalKg: 40, toolsKg: 6, potteryKg: 12.4 },
+    needs: { toolsKg: 12, potteryKg: 30 },
+    coverage: { tools: 0.5, pottery: 0.41 },
+    workshops: [
+      {
+        dwellingId: 2,
+        craft: 'smith',
+        activity: 'no-charcoal',
+        occupants: 2,
+        laborPerDay: 0.9,
+        outputPerDayKg: 0.09,
+      },
+    ],
+  },
   households: [
     {
       dwellingId: 1,
@@ -45,6 +69,18 @@ const view = {
       condition: 0.8,
       ages: [27, 26, 15, 3],
       ageYears: 2,
+    },
+    {
+      dwellingId: 2,
+      type: 'polozemnice',
+      craft: 'smith',
+      occupants: 2,
+      capacity: 8,
+      full: false,
+      overcrowded: false,
+      condition: 1,
+      ages: [24, 22],
+      ageYears: 1,
     },
   ],
   constructions: [
@@ -162,6 +198,23 @@ describe('selectionDetails', () => {
       full: false,
       overcrowded: false,
       rebuild: null,
+      workshop: null,
+    });
+  });
+
+  it('dílna: co dělá, práce za den, zásoba výrobku a pokrytí potřeby vsi (crafts.md)', () => {
+    expect(selectionDetails(view, scene, { kind: 'dwelling', id: 2 })).toMatchObject({
+      kind: 'dwelling',
+      id: 2,
+      type: 'polozemnice',
+      workshop: {
+        craft: 'smith',
+        activity: 'no-charcoal',
+        laborPerDay: 0.9,
+        outputPerDayKg: 0.09,
+        stockKg: 6,
+        coverage: 0.5,
+      },
     });
   });
 
@@ -170,6 +223,7 @@ describe('selectionDetails', () => {
       kind: 'site',
       id: 9,
       type: 'polozemnice',
+      craft: null,
       progress: 0.4,
       treesToFell: 5,
     });
@@ -177,6 +231,7 @@ describe('selectionDetails', () => {
       kind: 'site',
       id: 9,
       type: 'polozemnice',
+      craft: null,
       progress: 0.1,
       treesToFell: 0,
     });

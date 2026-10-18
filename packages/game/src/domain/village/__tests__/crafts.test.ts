@@ -20,6 +20,7 @@ import {
 import { NO_CRAFTS } from '../productivity';
 import { CRAFT_BASE, workshopBuildLabor, workshopCost, workshopTrees } from '../rules';
 import { advanceVillage } from '../simulate';
+import { summarizeVillage } from '../summary';
 import type { Craft, Person, VillageState } from '../types';
 import { reservedTrees } from '../wood';
 import { planCrops } from '../year-plan';
@@ -414,6 +415,27 @@ describe('dílny ve vsi – simulace', () => {
     const dwelling = rebuilt.dwellings.find((d) => d.id === WORKSHOP_ID)!;
     expect(dwelling.workshop?.craft).toBe('burner');
     expect(dwelling.type).toBe('zemnice');
+  });
+});
+
+describe('souhrn řemesel pro panel (crafts.md – Co hráč vidí)', () => {
+  it('zásoby, potřeba, pokrytí a dílny s tím, co dělají', () => {
+    const s = withWorkshop(fullVillage(), 'smith');
+    s.crafts = { charcoalKg: 0, toolsKg: 9, potteryKg: 0 };
+    const after = advanceVillage(s, DAY + 1, null);
+    const { crafts } = summarizeVillage(after, DAY + 1);
+    expect(crafts.needs).toEqual({ toolsKg: 18, potteryKg: 40 });
+    expect(crafts.coverage.tools).toBeCloseTo(after.crafts!.toolsKg / 18, 9);
+    expect(crafts.workshops).toEqual([
+      {
+        dwellingId: WORKSHOP_ID,
+        craft: 'smith',
+        activity: 'no-charcoal',
+        occupants: 2,
+        laborPerDay: expect.closeTo(0.9, 1),
+        oreFactor: 1,
+      },
+    ]);
   });
 });
 

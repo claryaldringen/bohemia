@@ -1,5 +1,7 @@
 import {
+  CRAFTS,
   PLOT_VARIANTS,
+  type Craft,
   type DwellingPlot,
   type DwellingType,
   type Position,
@@ -122,6 +124,16 @@ export function parsePlaceSacredInput(
   const kind = SACRED_KINDS.find((k) => k === value.kind) ?? null;
   const position = parsePosition(value.position);
   return kind !== null && position !== null ? { kind, position } : null;
+}
+
+/** Vstup stavby řemeslné dílny `{ craft, position }`, jinak null. */
+export function parsePlaceWorkshopInput(
+  value: unknown,
+): { craft: Craft; position: Position } | null {
+  if (!isRecord(value)) return null;
+  const craft = CRAFTS.find((c) => c === value.craft) ?? null;
+  const position = parsePosition(value.position);
+  return craft !== null && position !== null ? { craft, position } : null;
 }
 
 /**

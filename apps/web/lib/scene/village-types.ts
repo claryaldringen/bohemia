@@ -6,6 +6,7 @@
 // Position.rotation = natočení kolem svislé osy v radiánech jako `mesh.rotation.y` v Babylonu:
 // 0 = vchod míří do +Z, π/2 do +X (vchod míří do směru (sin r, cos r) v osách x, z).
 import type {
+  Craft,
   DwellingPlot,
   DwellingType,
   PlacementCheck,
@@ -82,6 +83,16 @@ export type PlacementMode =
       kind: 'sacred';
       type: SacredBuildingKind;
       check(position: Position): PlacementCheck & { cost?: PlacementCost | null };
+    }
+  | {
+      /**
+       * Řemeslná dílna (crafts.md) – volně u kurzoru jako zemnice ([ a ] otáčejí): duch modelu
+       * dílny, u uhlíře i milíře kus od zemnice; `type` = obydlí, na kterém dílna stojí.
+       */
+      kind: 'workshop';
+      craft: Craft;
+      type: DwellingType;
+      check(position: Position): PlacementCheck & { cost?: PlacementCost | null };
     };
 
 /**
@@ -91,7 +102,8 @@ export type PlacementMode =
 export type PlacementResult =
   | { kind: 'dwelling'; type: DwellingType; position: Position; plot?: DwellingPlot }
   | { kind: 'squares'; cells: TileCell[] }
-  | { kind: 'sacred'; type: SacredBuildingKind; position: Position };
+  | { kind: 'sacred'; type: SacredBuildingKind; position: Position }
+  | { kind: 'workshop'; craft: Craft; position: Position };
 
 /**
  * Průběžný stav umisťování pro rozhraní: kontrola, popisek (u pole výměra a cena z `preview`,

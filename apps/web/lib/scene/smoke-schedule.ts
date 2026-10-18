@@ -63,6 +63,30 @@ export function smokeStrength(seed: number, gameDay: number): number {
   return strength;
 }
 
+/**
+ * Odkud dým stoupá: dýmník obydlí (topí se podle rozvrhu ohně – vaření ráno a večer), pec nebo
+ * výheň pracující dílny (topí se přes pracovní den) a milíř (doutná dnem i nocí – crafts.md).
+ */
+export type SmokeKind = 'hearth' | 'craft' | 'milir';
+
+/** Pracovní den dílny jako denní doba 0–1 – pec a výheň hoří od rána do večera. */
+const CRAFT_FIRE = { from: 0.26, to: 0.78 } as const;
+
+/**
+ * Síla dýmu 0–1 v herní okamžik `gameDay` podle druhu zdroje: dýmník podle rozvrhu ohně
+ * (`smokeStrength`), pec a výheň přes pracovní den (síla se den po dni trochu liší), milíř
+ * pořád – slabší, doutná pod hlínou.
+ */
+export function ventSmokeStrength(kind: SmokeKind, seed: number, gameDay: number): number {
+  if (kind === 'hearth') return smokeStrength(seed, gameDay);
+  const day = Math.floor(gameDay);
+  if (kind === 'milir') return 0.5 + 0.15 * hash01(seed, day, 21);
+  const time = gameDay - day;
+  const rise = Math.min(1, Math.max(0, (time - CRAFT_FIRE.from) / FIRE_EDGE_DAY));
+  const fall = Math.min(1, Math.max(0, (CRAFT_FIRE.to - time) / FIRE_EDGE_DAY));
+  return (0.55 + 0.25 * hash01(seed, day, 22)) * Math.min(rise, fall);
+}
+
 // --- Obláčky kouře ---
 
 /** Obláčků na jeden sloupec dýmu a jak dlouho obláček žije (s). */
