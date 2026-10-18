@@ -33,6 +33,8 @@ import { FelledTrees } from './felled-trees';
 import { LogPile } from './log-pile';
 import { sameClearing, villageClearedForest, type ClearedForest } from './cleared-forest';
 import { createForestCanopy, type ForestCanopy } from './forest-canopy';
+import type { ScenePerfStats } from './perf-stats';
+import { ScenePerf } from './scene-perf';
 import { addImpostors, type ImpostorForest } from './impostors';
 import { obstacleScenery } from './obstacle-scenery';
 import { createTerrainMesh, type TerrainMesh } from './terrain-mesh';
@@ -173,6 +175,8 @@ export class LandscapeScene {
   private bareShadows = false;
   /** Vnitřek lesa – v zimě vrhá stín ze zimního atlasu (holé koruny). */
   private impostorForest: ImpostorForest | null = null;
+  /** Vývojový ukazatel výkonu (jen /dev/landscape – `enablePerfStats`). */
+  private perf: ScenePerf | null = null;
 
   private constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -603,6 +607,17 @@ export class LandscapeScene {
     return this.paths?.stats ?? null;
   }
 
+  /** Vývojový ukazatel výkonu – zapne měření (něco stojí, proto jen na vývojové stránce). */
+  enablePerfStats(): void {
+    if (this.disposed) return;
+    this.perf ??= new ScenePerf(this.scene, this.engine, this.renderer);
+  }
+
+  /** Čísla výkonu scény; bez `enablePerfStats` null. */
+  perfStats(): ScenePerfStats | null {
+    return this.perf?.stats(performance.now(), this.animationFps()) ?? null;
+  }
+
   /** Vývojová volba: dým ze všech hotových obydlí pořád (kontrola vzhledu dýmu). */
   setSmokeAlways(enabled: boolean): void {
     this.smokeAlways = enabled;
@@ -718,6 +733,7 @@ export class LandscapeScene {
     this.canvas.removeEventListener('pointerup', this.onPointerUp);
     this.ambient?.dispose();
     this.rtsCamera?.dispose();
+    this.perf?.dispose();
     this.engine.stopRenderLoop();
     this.scene.dispose();
     this.engine.dispose();
@@ -870,7 +886,9 @@ export class LandscapeScene {
   private pickGround(x: number, y: number): [number, number] | null {
     const terrain = this.terrain;
     if (!terrain || !this.landscape) return null;
+    const started = this.perf ? performance.now() : 0;
     const pick = this.scene.pick(x, y, (mesh) => mesh === terrain);
+    this.perf?.pick(performance.now() - started);
     const point = pick?.hit ? pick.pickedPoint : null;
     if (!point || !tileAt(this.landscape, point.x, point.z)) return null;
     return [point.x, point.z];
@@ -884,6 +902,7 @@ export class LandscapeScene {
     const camera = this.rtsCamera;
     if (!camera) return;
     const now = performance.now();
+    this.perf?.loop(now);
     if (now >= this.seasonCheckAt) this.updateSeason(false);
     if (now < this.renderBurstUntil) this.needsRender = true;
     // Voda teče a zvířata se hýbou sama – výjimka z kreslení jen při změně, dokud jsou v záběru.
@@ -929,6 +948,12 @@ export class LandscapeScene {
     if (!this.needsRender) return;
     this.needsRender = false;
     this.scene.render(false);
+    this.perf?.frameDrawn(now);
+  }
+
+  /** Plynulost animací (snímků za sekundu) – při omezeném pohybu stojí. */
+  private animationFps(): number {
+    return this.reducedMotion?.matches ? 0 : WATER_FPS;
   }
 
   /**
