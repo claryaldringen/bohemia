@@ -854,7 +854,8 @@ function sceneVillage(
     ];
   });
   const looks = fieldPartLooks(state, day);
-  const grazed = pastureGrazedParts(state, day);
+  // kam stáda dojdou – jen ves se skutečnými stády (bez nich scéna stáda odvodí z domácností)
+  const grazed = state.livestock ? pastureGrazedParts(state, day) : null;
   const fields = state.fields.map((f) => ({
     id: f.id,
     // vzhled po čtvercích z jádra (fieldPartLooks); bez něj (starší příloh) odhad scény
@@ -866,7 +867,7 @@ function sceneVillage(
           ...scenePart(landscape, p, p.cell, partStage(p, day)),
           ...looks.get(p.id),
           ...(years > 0 ? { overgrowth: years } : {}),
-          ...(isGrazeableFallow(p) ? { grazed: grazed.has(p.id) } : {}),
+          ...(grazed && isGrazeableFallow(p) ? { grazed: grazed.has(p.id) } : {}),
         },
       ];
     }),
