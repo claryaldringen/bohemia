@@ -97,6 +97,7 @@ const TUFT_MODELS: readonly TuftModel[] = ['grass-tuft-1', 'grass-tuft-2'];
  */
 const CONSTRUCTION_URLS = [
   '/models/dwellings/construction.glb',
+  '/models/dwellings/dvorec-construction.glb',
   '/models/crafts/construction.glb',
   '/models/crafts/construction-moss.glb',
   '/models/sacred/idol-construction.glb',

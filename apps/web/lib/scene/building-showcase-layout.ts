@@ -42,8 +42,17 @@ export interface ShowcaseModel {
   z: number;
   /** Natočení kolem svislé osy (rad) – jako `Position.rotation`. */
   rotation: number;
-  /** Pozemek polozemnice – políčko (střed, strana) a varianta, kde na něm dům stojí. */
-  plot?: { x: number; z: number; size: number; variant: PlotVariant };
+  /**
+   * Pozemek polozemnice – políčko (střed, strana) a varianta, kde na něm dům stojí; u dvorce
+   * vojvody i střed dvora (trade.md).
+   */
+  plot?: {
+    x: number;
+    z: number;
+    size: number;
+    variant: PlotVariant;
+    yard?: { x: number; z: number };
+  };
 }
 
 export interface ShowcaseBuilding {
@@ -78,7 +87,8 @@ export const SACRED_MODEL_URLS = {
 /** Cesta k hotovému modelu stavby v `public/`. */
 function modelUrl(kind: ConstructionKind): string {
   if (kind === 'modla' || kind === 'svatyne') return SACRED_MODEL_URLS[kind];
-  const folder = kind === 'zemnice' || kind === 'polozemnice' ? 'dwellings' : 'crafts';
+  const folder =
+    kind === 'zemnice' || kind === 'polozemnice' || kind === 'dvorec' ? 'dwellings' : 'crafts';
   return `/models/${folder}/${kind}.glb`;
 }
 
@@ -110,6 +120,24 @@ function plotModel(x: number, z: number, variant: PlotVariant): ShowcaseModel {
     plot,
   };
 }
+
+/**
+ * Dvorec vojvody (trade.md) na pozemku dvou políček – dům vzadu, dvůr s bránou vpředu (ke
+ * kameře); vlevo za ohradou.
+ */
+function manorModel(x: number, z: number): ShowcaseModel {
+  const plot = { x, z, size: 15, variant: 'center' as const, yard: { x, z: z - 15 } };
+  const house = plotHouse(plot, 'center');
+  return {
+    kind: 'dvorec',
+    url: '/models/dwellings/dvorec.glb',
+    x: house.x,
+    z: house.z,
+    rotation: house.rotation,
+    plot,
+  };
+}
+const MANOR_AT = { x: -82, z: -4 };
 
 const UHLIR_X = 26;
 const milir = offset(UHLIR_X, 0, FACING, MILIR_OFFSET_M);
@@ -143,6 +171,12 @@ export const SHOWCASE_BUILDINGS: readonly ShowcaseBuilding[] = [
       plotModel((i - (PLOT_VARIANTS.length - 1) / 2) * VARIANTS_STEP, VARIANTS_Z, variant),
     ),
     focus: { x: 0, z: VARIANTS_Z, radius: 62 },
+  },
+  {
+    id: 'dvorec',
+    label: 'Dvorec vojvody',
+    models: [manorModel(MANOR_AT.x, MANOR_AT.z)],
+    focus: { x: MANOR_AT.x, z: MANOR_AT.z - 7.5, radius: 34 },
   },
   // posvátná místa: modla (4 × 4 m) a svatyně (30 × 30 m) – vpravo za milířem, před sadem
   building('modla', 'Modla', 'modla', 50, 14),
@@ -707,7 +741,7 @@ export function showcaseDecay(t: number): SceneVillage {
   const at = decayAt(t);
   const dwellings: ShowcaseDwelling[] = [];
   const ruins: ShowcaseRuin[] = [];
-  const types: readonly DwellingType[] = ['zemnice', 'polozemnice'];
+  const types: readonly Exclude<DwellingType, 'dvorec'>[] = ['zemnice', 'polozemnice'];
   for (const [i, type] of types.entries()) {
     const id = 9001 + i;
     const x = DECAY_PAIR_X[type];

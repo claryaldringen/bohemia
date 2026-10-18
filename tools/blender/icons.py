@@ -4,14 +4,16 @@ Celé jedním příkazem z kořene repa (Blender 5, ImageMagick `magick`, intern
 
     blender -b --factory-startup --python tools/blender/icons.py -- apps/web/public/icons [jen,vybrané,ikony]
 
-Výstup (128 × 128 PNG, průhledné rohy) – `build/` zemnice, polozemnice, pole, hrbitov,
+Výstup (128 × 128 PNG, průhledné rohy) – `build/` zemnice, polozemnice, dvorec (dvorec vojvody –
+trade.md), pole, hrbitov,
 hrncir, kovar, uhlir (řemeslné dílny z `apps/web/public/models/crafts/`, uhlíř s milířem), sad
 (jabloňový sad), modla, svatyne (posvátná místa z `apps/web/public/models/sacred/`), dub
 (posvátný dub s obětinami), sous (posvátná souš – uschlý dub z `apps/web/public/models/decor/`
 s obětinami), haj (dubový háj s kameny) a ohrada (přístřešek, žlab a branka
 z `apps/web/public/models/pen/`, kráva ze stáda vsi, stoh sena), cesta, cesta-upravena a hat
 (stupně pevné cesty – pás cesty, strouha a kameny, hať a lávka z `apps/web/public/models/roads/`)
-a jablone (jabloně s jablky střídavě podél cesty – tlačítko „Vysadit jabloně“) – portréty do
+a jablone (jabloně s jablky střídavě podél cesty – tlačítko „Vysadit jabloně“), stezka (zemská
+stezka od brány dvorce – trade.md) a obchod (pytle obilí, sůl, hřivny a kožešina) – portréty do
 panelu výběru;
 (64 × 64 PNG) – `resources/` people, food, wood, labor, satiation, date, apples, happiness
 (štěstí – plamen ohniště nad zkříženými poleny v kruhu kamenů), hay (seno – kupka sena
@@ -22,7 +24,8 @@ hourglass (přesýpací hodiny – kolik zbývá: služba spřežení, výcvik),
 ozim (osení pod sněhem), jar (klasy jarního ječmene), charcoal (hromádka dřevěného uhlí), tools
 (kovaná sekera zkřížená se srpem) a pottery (dva hrnce pražského typu, větší s vlnovkou) –
 suroviny řemesel (crafts.md) –, overgrowth (zarůstání – keře a mladá bříza z modelů krajiny
-`apps/web/public/models/decor/` a `trees/`, fields.md – Zarůstání) a zvířata stád do panelu
+`apps/web/public/models/decor/` a `trees/`, fields.md – Zarůstání), zboží zvenku (trade.md) – salt
+(homole soli), iron (železné hřivny), honey (hrnec medu s pláství), furs (kožešiny) – a zvířata stád do panelu
 ohrady – sheep, goat, pig, cow, chicken
 (modely `apps/web/public/models/fauna/`) a ox (vůl ze spřežení `apps/web/public/models/plough/ox.glb`)
 a rodiny do panelu obydlí (kinship.md) – man, woman, child (chlapec a dívka), elder (starší s holí
@@ -1642,11 +1645,156 @@ def icon_pottery():
     return True
 
 
+
+# ------------------------------------------------- dvorec, stezka a obchod (trade.md) ----
+
+
+def icon_stezka():
+    """Zemská stezka: upravená cesta se strouhou a kameny vede od brány dvorce do dálky."""
+    rng = random.Random(23)
+    ground(7.4, mat("g", tex=f"{TEX}/grass-dirt.jpg", scale=0.25, tint=(0.8, 0.82, 0.6)), z=-0.02, fade=0.72)
+    earth = mat("earth", tex=f"{TEX}/mud.jpg", scale=0.5, tint=(0.82, 0.66, 0.48))
+    road = road_strip(2.4, 16.0, earth, seed=7)
+    road.location.y = 3.0
+    ditch = mat("ditch", tex=f"{TEX}/mud.jpg", scale=0.6, tint=(0.45, 0.36, 0.28))
+    strip = road_strip(0.45, 16.0, ditch, z=0.006, wobble=0.05, seed=5)
+    strip.location = (1.65, 3.0, 0)
+    for k in range(18):
+        y = rng.uniform(-3.5, 9.0)
+        objs = place_model("road-stone", folder=ROADS)
+        place_root(objs, (rng.uniform(-0.9, 0.9) + math.sin((y - 3.0) * 0.6) * 0.25, y, 0.0), rng.uniform(0, 6.28), rng.uniform(0.8, 1.3))
+    gate = place_model("dvorec-gate")
+    place_root(gate, (math.sin(-7.0 * 0.6) * 0.25, -4.2, 0.0), 0.0, 1.0)
+    sun(az=-55, el=46)
+    camera([Vector((-3.6, -5.2, 0)), Vector((3.6, 8.5, 0.6)), Vector((0, -4.2, 3.2))], az=18, el=34, margin=0.86, shift=(0, -0.02))
+
+
+def sack(bm, centre, size, rot, rng):
+    """Pytel: zploštělý bochník s uvázaným hrdlem nahoře."""
+    blob(bm, (centre, (0, 0, rot)), (0.42 * size, 0.36 * size, 0.46 * size), 16, 10)
+    top = Vector(centre) + Vector((0, 0, 0.42 * size))
+    cyl(bm, top, top + Vector((0.03, 0.0, 0.16 * size)), 0.12 * size, 0.16 * size, 10)
+
+
+def iron_bar(bm, centre, length, rot):
+    """Hřivna – kovaný železný prut zúžený do hrotu (raně středověké platidlo)."""
+    a = Vector(centre) - Vector((math.cos(rot), math.sin(rot), 0)) * length / 2
+    b = Vector(centre) + Vector((math.cos(rot), math.sin(rot), 0)) * length / 2
+    cyl(bm, a, b, 0.12, 0.04, 4)
+
+
+def iron_mat():
+    m = mat("iron", (0.11, 0.1, 0.1), 0.62, noise=22, bump=0.6)
+    next(x for x in m.node_tree.nodes if x.type == "BSDF_PRINCIPLED").inputs["Metallic"].default_value = 0.45
+    return m
+
+
+def fur_pelt(bm, centre, size, rot, curl=0.0):
+    """Stažená kožešina: tělo, čtyři běhy a ocas – plochá deska se zvlněnými okraji."""
+    pts = [(0.0, 0.55), (0.18, 0.5), (0.22, 0.32), (0.42, 0.36), (0.34, 0.18), (0.26, -0.2),
+           (0.44, -0.36), (0.26, -0.42), (0.1, -0.5), (0.04, -0.9), (-0.04, -0.9), (-0.1, -0.5),
+           (-0.26, -0.42), (-0.44, -0.36), (-0.26, -0.2), (-0.34, 0.18), (-0.42, 0.36), (-0.22, 0.32),
+           (-0.18, 0.5)]
+    c, r = Vector(centre), Euler((0, 0, rot)).to_matrix()
+    top = [bm.verts.new(c + r @ Vector((x * size, y * size, 0.03 + curl * (x * x) * size))) for x, y in pts]
+    bot = [bm.verts.new(c + r @ Vector((x * size, y * size, curl * (x * x) * size))) for x, y in pts]
+    bm.faces.new(top)
+    bm.faces.new(bot[::-1])
+    for i in range(len(pts)):
+        j = (i + 1) % len(pts)
+        bm.faces.new((bot[i], bot[j], top[j], top[i]))
+
+
+def fur_mat(name="fur", color=(0.2, 0.12, 0.06)):
+    return mat(name, color, 0.95, noise=90, bump=1.0)
+
+
+def icon_obchod():
+    """Obchod se sousedy: pytle obilí vyměněné za sůl, železné hřivny, med a kožešinu."""
+    rng = random.Random(5)
+    ground(2.6, mat("g", tex=f"{TEX}/grass-dirt.jpg", scale=0.45, tint=(0.8, 0.78, 0.6)), z=0.0, fade=0.7)
+    sacks = bmesh.new()
+    sack(sacks, (-0.85, 0.35, 0.42), 1.0, 0.3, rng)
+    sack(sacks, (-0.25, 0.7, 0.36), 0.85, -0.4, rng)
+    to_obj(sacks, "sacks", mat("linen", (0.42, 0.33, 0.2), 0.95, noise=40, bump=0.4))
+    bars = bmesh.new()
+    for k in range(3):
+        iron_bar(bars, (0.55 + 0.05 * k, -0.35 + 0.2 * k, 0.08 + 0.13 * k), 1.0, 0.35 - 0.1 * k)
+    to_obj(bars, "bars", iron_mat(), smooth=False)
+    fur = bmesh.new()
+    fur_pelt(fur, (0.1, -0.55, 0.01), 0.9, 1.3, curl=0.08)
+    to_obj(fur, "fur", fur_mat(), smooth=False)
+    salt = bmesh.new()
+    cyl(salt, (0.95, 0.55, 0.0), (0.95, 0.55, 0.62), 0.24, 0.07, 18)
+    to_obj(salt, "salt", mat("salt", (0.86, 0.85, 0.8), 0.7, noise=50, bump=0.3))
+    sun(az=-45, el=46, strength=4.3)
+    camera([Vector((-1.4, -1.2, 0)), Vector((1.4, 1.2, 0.95))], az=22, el=40, margin=1.02)
+
+
+def icon_salt():
+    """Sůl: homole soli a hromádka krystalů."""
+    bm = bmesh.new()
+    cyl(bm, (-0.2, 0.1, 0.0), (-0.2, 0.1, 1.05), 0.36, 0.1, 24)
+    rng = random.Random(3)
+    for k in range(22):
+        a = rng.uniform(0, 6.28)
+        r = rng.uniform(0.0, 0.45)
+        blob(bm, ((0.45 + math.cos(a) * r, -0.25 + math.sin(a) * r * 0.7, 0.05 + (0.45 - r) * 0.35), (rng.uniform(0, 3), rng.uniform(0, 3), 0)), (0.08, 0.07, 0.06), 5, 3)
+    to_obj(bm, "salt", mat("salt", (0.9, 0.89, 0.84), 0.6, noise=60, bump=0.35), smooth=False)
+    sun(az=-40, el=45, strength=4.4)
+    camera([Vector((-0.65, -0.8, 0)), Vector((1.0, 0.5, 1.05))], az=0, el=18, margin=1.02)
+    return True
+
+
+def icon_iron():
+    """Železo: tři kované hřivny (pruty zúžené do hrotu) na sobě."""
+    bm = bmesh.new()
+    for k, (y, z, rot) in enumerate(((-0.25, 0.07, 0.25), (0.05, 0.07, 0.05), (-0.1, 0.2, 0.15))):
+        iron_bar(bm, (0.0, y, z), 1.6, rot)
+    to_obj(bm, "bars", iron_mat(), smooth=False)
+    sun(az=-40, el=50, strength=4.4)
+    camera([Vector((-0.85, -0.5, 0)), Vector((0.85, 0.4, 0.3))], az=10, el=34, margin=1.02)
+    return True
+
+
+def icon_honey():
+    """Med: hliněný hrnec plný zlatého medu a plástev vedle."""
+    pot, honey, comb = bmesh.new(), bmesh.new(), bmesh.new()
+    lathe(pot, POT_OUTER + POT_INNER, (-0.15, 0.1, 0.0), 0.95)
+    bmesh.ops.create_circle(honey, cap_ends=True, radius=0.43 * 0.95, segments=36)
+    for v in honey.verts:
+        v.co = Vector((v.co.x - 0.15, v.co.y + 0.1, 0.9 * 0.95))
+    # stékající kapka přes okraj
+    blob(honey, ((0.32, 0.1, 0.78), (0, 0, 0)), (0.06, 0.06, 0.16), 8, 6)
+    for k in range(5):
+        x, y = 0.55 + 0.17 * (k % 3), -0.45 + 0.15 * (k // 3) + 0.08 * (k % 2)
+        cyl(comb, (x, y, 0.0), (x, y, 0.16), 0.09, 0.09, 6)
+    to_obj(pot, "pot", mat("clay-pot", (0.26, 0.19, 0.13), 0.8, noise=16, bump=0.3))
+    gold = mat("honey", (0.85, 0.5, 0.06), 0.25)
+    to_obj(honey, "honey", gold)
+    to_obj(comb, "comb", mat("comb", (0.88, 0.62, 0.15), 0.5, noise=30, bump=0.4), smooth=False)
+    sun(az=-45, el=46, strength=4.3)
+    camera([Vector((-0.75, -0.6, 0.0)), Vector((1.0, 0.65, 0.98))], az=0, el=20, margin=1.04)
+    return True
+
+
+def icon_furs():
+    """Kožešiny: rozložená stažená kůže a srolovaná vedle."""
+    flat, roll = bmesh.new(), bmesh.new()
+    fur_pelt(flat, (-0.1, 0.0, 0.0), 1.0, 0.25, curl=0.06)
+    cyl(roll, (0.55, -0.55, 0.16), (0.55, 0.45, 0.16), 0.17, 0.17, 18)
+    to_obj(flat, "fur", fur_mat(), smooth=False)
+    to_obj(roll, "roll", fur_mat("fur2", (0.3, 0.19, 0.1)))
+    sun(az=-40, el=50, strength=4.4)
+    camera([Vector((-0.7, -1.0, 0)), Vector((0.8, 0.8, 0.35))], az=0, el=52, margin=1.0)
+    return True
+
 # --------------------------------------------------------------- hlavní ----
 
 BUILD = {
     "zemnice": lambda: icon_dwelling("zemnice"),
     "polozemnice": lambda: icon_dwelling("polozemnice"),
+    "dvorec": lambda: icon_dwelling("dvorec"),
     "pole": icon_pole,
     "hrbitov": icon_hrbitov,
     "hrncir": lambda: icon_craft("hrncir"),
@@ -1663,6 +1811,8 @@ BUILD = {
     "cesta-upravena": lambda: icon_road("cesta-upravena"),
     "hat": lambda: icon_road("hat"),
     "jablone": icon_jablone,
+    "stezka": icon_stezka,
+    "obchod": icon_obchod,
 }
 
 # ------------------------------------------------------------- rodiny ----
@@ -1801,6 +1951,10 @@ RESOURCES = {
     "tools": icon_tools,
     "pottery": icon_pottery,
     "overgrowth": icon_overgrowth,
+    "salt": icon_salt,
+    "iron": icon_iron,
+    "honey": icon_honey,
+    "furs": icon_furs,
     "man": icon_man,
     "woman": icon_woman,
     "child": icon_child,

@@ -22,6 +22,7 @@ import { CemeteryRenderer } from './cemetery-renderer';
 import {
   DECAY_LOOKS,
   decayModelParts,
+  decayModelType,
   decayNettles,
   dwellingDecayStage,
   ruinHollowData,
@@ -111,6 +112,9 @@ const CRAFT_MODEL_BASE_URL = '/models/crafts/';
 const CRAFT_SITE_FILES = ['construction.glb', 'construction-moss.glb'] as const;
 const SMOKE_TEXTURE_URL = '/textures/particles/smoke.png';
 const DWELLING_TYPES: readonly DwellingType[] = ['zemnice', 'polozemnice'];
+/** Dvorec vojvody (trade.md – tools/blender/dwellings.py „dvorec“): model a díly staveniště. */
+const MANOR_MODEL_URL = `${MODEL_BASE_URL}dvorec.glb`;
+const MANOR_SITE_URL = `${MODEL_BASE_URL}dvorec-construction.glb`;
 /** Hotový model ve vsi: obydlí, řemeslná dílna (crafts.md), nebo milíř uhlíře. */
 type ModelKey = DwellingType | WorkshopModel | 'milir';
 const CRAFT_MODEL_KEYS: readonly (WorkshopModel | 'milir')[] = [
@@ -208,6 +212,8 @@ export class VillageRenderer {
   /** Modely dílen a milíře se načítají, až jsou potřeba (dílna ve vsi, duch při umisťování). */
   private craftLoading: Promise<void> | null = null;
   private craftSiteLoading: Promise<void> | null = null;
+  /** Dvorec vojvody (trade.md) – model a díly staveniště se načtou až s prvním dvorcem. */
+  private manorLoading: Promise<void> | null = null;
   private readonly tufts = new Map<TuftModel, Mesh | null>();
   /** Pozemky polozemnic – plot, záhony a cestička (homestead.ts). */
   private readonly plots: HomesteadRenderer;
@@ -462,6 +468,38 @@ export class VillageRenderer {
   loadModels(): Promise<void> {
     this.loading ??= this.load();
     return this.loading;
+  }
+
+  /**
+   * Načte model dvorce vojvody a díly jeho staveniště (jednou – trade.md); po načtení se ves
+   * překreslí.
+   */
+  loadManorModels(): Promise<void> {
+    this.manorLoading ??= (async () => {
+      await this.loadModel('dvorec', MANOR_MODEL_URL);
+      try {
+        const parts = await loadModelParts(
+          this.scene,
+          MANOR_SITE_URL,
+          'village-site-',
+          prepareDwellingMaterial,
+        );
+        for (const [name, mesh] of parts ?? []) {
+          mesh.setEnabled(false);
+          this.context.addShadowCaster(mesh);
+          this.siteParts.set(name, mesh);
+        }
+      } catch (error) {
+        console.warn('Díly staveniště dvorce se nepodařilo načíst.', error);
+      }
+      if (this.disposed) return;
+      this.builtKey = '';
+      this.siteKey = '';
+      this.updateModels();
+      this.updateConstruction();
+      this.context.onAsyncChange();
+    })();
+    return this.manorLoading;
   }
 
   /** Načte modely řemeslných dílen a milíře (jednou); po načtení se ves překreslí. */
@@ -797,7 +835,9 @@ export class VillageRenderer {
         overgrowth: r.overgrowth,
       };
       const floor = { x: r.position.x, z: r.position.z, rotationY: r.position.rotation, scale: 1 };
-      if (look.beams) push(`${r.type}-${look.beams}`, { ...floor, y: base - look.depth });
+      if (look.beams) {
+        push(`${decayModelType(r.type)}-${look.beams}`, { ...floor, y: base - look.depth });
+      }
       const nettles = decayNettles(
         r.type,
         r.position,
@@ -907,6 +947,7 @@ export class VillageRenderer {
       void this.loadConstruction();
     }
     if (sites.some((d) => d.craft) || kilnSites.length > 0) void this.loadCraftConstruction();
+    if (sites.some((d) => d.type === 'dvorec')) void this.loadManorModels();
     if (!this.siteLoading) return false;
     this.siteKey = key;
     const instances = new Map<string, ModelInstance[]>();
@@ -1082,6 +1123,7 @@ export class VillageRenderer {
     if (key === this.builtKey) return false;
     if (built.length > 0 || kilns.length > 0) void this.loadModels();
     if (built.some((d) => d.craft) || kilns.length > 0) void this.loadCraftModels();
+    if (built.some((d) => d.type === 'dvorec')) void this.loadManorModels();
     if (!this.loading) return false;
     this.builtKey = key;
     const instances = new Map<ModelKey, ModelInstance[]>();
@@ -1546,7 +1588,9 @@ function plotViews(dwellings: readonly SceneDwelling[]): PlotView[] {
 }
 
 /** Stupeň rozpadu hotového obydlí – jen prázdné se rozpadá (dwelling-decay.ts). */
-function dwellingDecay(d: Pick<SceneDwelling, 'condition' | 'craft' | 'inhabited'>): DecayStage {
+function dwellingDecay(
+  d: Pick<SceneDwelling, 'condition' | 'craft' | 'inhabited' | 'type'>,
+): DecayStage {
   return dwellingDecayStage(d);
 }
 

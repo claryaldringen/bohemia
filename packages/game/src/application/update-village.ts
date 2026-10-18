@@ -6,6 +6,7 @@ import {
   withForestDistances,
   withKinship,
   withLivestockLand,
+  withManor,
   withMergedFields,
   withMergedRoads,
   withObstacleClearing,
@@ -102,7 +103,14 @@ export async function updateVillage(
         ),
       ),
     );
-    const current = await advancedToTodayWithPauses(migrated, today, obstacles, landscape, pause);
+    // dvorec vojvody – starší ves ho dostane (nejstarší obydlí, trade.md)
+    const current = await advancedToTodayWithPauses(
+      withManor(migrated),
+      today,
+      obstacles,
+      landscape,
+      pause,
+    );
     const changed = change(current);
     if (!changed.ok) return changed;
     // na místo zříceniny jde stavět – stavba zbytek jámy odstraní (ruins.ts)

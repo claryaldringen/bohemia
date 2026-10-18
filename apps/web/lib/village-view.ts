@@ -53,7 +53,11 @@ import {
   type CraftStocks,
   type Crop,
   type DwellingPlot,
+  type BuildableDwellingType,
+  foreignGoods,
+  type Direction8,
   type DwellingType,
+  type ForeignGoods,
   type FieldSurface,
   type LaborShare,
   type Landscape,
@@ -100,6 +104,9 @@ import {
   relocationOptions,
   type HouseholdRelocation,
 } from './relocation-view';
+import { manorView, type VillageManor } from './manor-view';
+import { sceneTrails, trailRoadWork } from './trail-view';
+import { DIRECTION_NAMES, goodsText } from './trade-names';
 import { formatCells, formatHa, formatInteger } from './village-format';
 import type { VillageListItem } from './village-list';
 
@@ -354,7 +361,7 @@ export interface VillageView {
   /** Nabídka staveb – hráč staví kdy chce, předem musí ves mít suroviny a lidi k osídlení. */
   build: Record<BuildKind, BuildOption>;
   /** Nový dům stěhující se domácnosti – cena bez lidí k osídlení (migration.md). */
-  relocation: Record<DwellingType, BuildOption>;
+  relocation: Record<BuildableDwellingType, BuildOption>;
   constructions: {
     id: number;
     kind: ConstructionKind;
@@ -435,6 +442,13 @@ export interface VillageView {
   }[];
   /** Den poslední svatby mezi domy (population.md – Sňatky mezi domy); žádná null. */
   lastMarriageDay: number | null;
+  /**
+   * Dvorec vojvody (trade.md – Dvorec vojvody): obydlí, odkud jdou vylepšení vsi – zemské stezky
+   * a obchod se sousedy; dokud zakladatelé první zemnici staví, null.
+   */
+  manor: VillageManor | null;
+  /** Zboží zvenku (trade.md) – sůl, železo, med (kg) a kožešiny (kusy); horní lišta jen > 0. */
+  goods: ForeignGoods;
 }
 
 /** Hřbitov pro panel výběru – čísla, žádné věty (rozhraní jako v 0 A.D.). */
@@ -475,17 +489,23 @@ export interface ScenePlot {
   z: number;
   size: number;
   variant: PlotVariant;
+  /** Dvůr dvorce vojvody (trade.md) – druhé políčko pozemku a jeho střed; jinak chybí. */
+  yard?: { cell: TileCell; x: number; z: number };
 }
 
-/** Pozemek obydlí ze stavu vsi pro scénu (střed políčka ve světě). */
+/** Pozemek obydlí ze stavu vsi pro scénu (střed políčka ve světě, u dvorce i dvůr). */
 export function scenePlot(landscape: Landscape, plot: DwellingPlot): ScenePlot {
   const center = tileCenterWorld(landscape, plot.cell.x, plot.cell.y);
+  const yard = plot.yard ? tileCenterWorld(landscape, plot.yard.x, plot.yard.y) : null;
   return {
     cell: { x: plot.cell.x, y: plot.cell.y },
     x: center.x,
     z: center.z,
     size: landscape.cellSizeM,
     variant: plot.variant,
+    ...(plot.yard && yard
+      ? { yard: { cell: { x: plot.yard.x, y: plot.yard.y }, x: yard.x, z: yard.z } }
+      : {}),
   };
 }
 
@@ -636,6 +656,11 @@ export interface SceneVillage {
    */
   roads?: SceneRoad[];
   /**
+   * Zemské stezky (trade.md) – osa od dvorce ke kraji mapy (úseky pevných cest za sebou) a jestli
+   * je dostavěná; nosiči výpravy po ní chodí (`villager-plan.ts`). Bez údaje žádné.
+   */
+  trails?: SceneTrail[];
+  /**
    * Stromy u pevných cest (roads.md) – stadium (keř, strom, souš, pařez) a velikost 0–1 v den
    * pohledu. Bez údaje žádné.
    */
@@ -710,6 +735,14 @@ export interface ScenePen {
  * Pevná cesta pro scénu (roads.md): osa, stupeň, mokřina a brody na ose a rozestavěné
  * vylepšení (na jaký stupeň a průběh samotné stavby bez kácení 0–1 – fáze staveniště).
  */
+/** Zemská stezka ve scéně (trade.md) – osa od dvorce ke kraji mapy. */
+export interface SceneTrail {
+  id: number;
+  direction: Direction8;
+  points: { x: number; z: number }[];
+  built: boolean;
+}
+
 export type SceneRoad = Pick<Road, 'id' | 'points' | 'grade' | 'ground'> & {
   upgrade?: { grade: RoadGrade; progress: number };
 };
@@ -881,6 +914,7 @@ export const CRAFT_LOOKS: Record<
 export const DWELLING_NAMES: Record<DwellingType, { nominative: string; accusative: string }> = {
   zemnice: { nominative: 'Zemnice', accusative: 'zemnici' },
   polozemnice: { nominative: 'Polozemnice', accusative: 'polozemnici' },
+  dvorec: { nominative: 'Dvorec', accusative: 'dvorec' },
 };
 
 function deathText(group: 'child' | 'adult' | 'elder', hunger: boolean): string {
@@ -1022,6 +1056,12 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       return 'Kudy se chodí léta, vyšlapala se pevná cesta.';
     case 'road-overgrown':
       return 'Nepoužívaná cesta zarostla.';
+    case 'trail-built':
+      return `Zemská stezka na ${DIRECTION_NAMES[event.direction].name} je dostavěná – dá se obchodovat se sousedy.`;
+    case 'trade-departed':
+      return `Nosiči vyrazili po stezce na ${DIRECTION_NAMES[event.direction].name} – nesou ${goodsText(event.give)}.`;
+    case 'trade-returned':
+      return `Nosiči se vrátili ${DIRECTION_NAMES[event.direction].from} – přinesli ${goodsText(event.get)}.`;
     case 'cemetery-full':
       if (event.othersFree) return 'Jeden z hřbitovů se zaplnil – pohřbívá se do dalšího.';
       // staví se jiný hřbitov nebo rozšíření – bude kam pohřbívat
@@ -1190,11 +1230,25 @@ function sceneVillage(
 
 /** Pevné cesty vsi pro scénu (roads.md) – i s rozestavěným vylepšením. */
 export function sceneRoads(
-  state: Pick<VillageState, 'roads'>,
+  state: Pick<VillageState, 'roads'> & Partial<Pick<VillageState, 'trails' | 'constructions'>>,
   constructions: readonly ConstructionSummary[] = [],
 ): SceneRoad[] {
+  // zemské stezky (trade.md) se staví po úsecích – průběh každého úseku zvlášť
+  const trailWork = trailRoadWork({
+    trails: state.trails ?? [],
+    constructions: state.constructions ?? [],
+  });
+  const trailRoads = new Set(
+    (state.constructions ?? []).flatMap((c) => (c.trail !== undefined ? (c.roadIds ?? []) : [])),
+  );
   return (state.roads?.roads ?? []).map((r) => {
-    const work = constructions.find((c) => c.kind === 'road' && c.roadIds?.includes(r.id));
+    const onTrail = trailWork.get(r.id);
+    // dostavěný úsek rozestavěné stezky už stavbu nemá
+    const work = onTrail
+      ? { roadGrade: onTrail.grade, buildProgress: onTrail.progress }
+      : trailRoads.has(r.id)
+        ? undefined
+        : constructions.find((c) => c.kind === 'road' && c.roadIds?.includes(r.id));
     return {
       id: r.id,
       points: r.points.map((p) => ({ x: p.x, z: p.z })),
@@ -1919,9 +1973,11 @@ export function buildVillageView(
     }),
     pens: penViews(state, day, summary),
     roads: roadViews(state, landscape, day, summary),
-    scene: sceneVillage(state, landscape, day, summary),
+    scene: { ...sceneVillage(state, landscape, day, summary), trails: sceneTrails(state) },
     chronicle: chronicle(state, name),
     lastMarriageDay: lastMarriageDay(state),
+    manor: manorView(state, landscape, day),
+    goods: { ...foreignGoods(state) },
   };
 }
 

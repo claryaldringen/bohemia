@@ -9,7 +9,7 @@ import {
   placementVillageOf,
   startNewDwelling,
   type DwellingPlot,
-  type DwellingType,
+  type BuildableDwellingType,
   type Position,
 } from '../domain/village';
 import { updateLivingVillage } from './update-village';
@@ -21,7 +21,7 @@ export interface PlaceDwellingInput {
   landscape: Landscape;
   /** Dnešní herní den (index dne). */
   today: number;
-  type: DwellingType;
+  type: BuildableDwellingType;
   /** Volná poloha (zemnice); u obydlí na pozemku ji určí pozemek. */
   position: Position;
   /** Pozemek – povinný u polozemnice (`PLOT_TYPES`), u zemnice se nebere. */

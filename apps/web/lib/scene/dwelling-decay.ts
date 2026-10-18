@@ -44,8 +44,10 @@ export function dwellingDecayStage(d: {
   condition?: number;
   inhabited?: boolean;
   craft?: string;
+  type?: DwellingType;
 }): DecayStage {
-  if (d.craft || d.inhabited !== false) return 0;
+  // dvorec vojvody zatím díly rozpadu nemá – zůstane celý (jako dílny)
+  if (d.craft || d.type === 'dvorec' || d.inhabited !== false) return 0;
   return decayStage(d.condition);
 }
 
@@ -75,6 +77,14 @@ export const DECAY_LOOKS: Record<DecayStage, DecayLook> = {
  * Díly decay.glb pro stupeň (konstrukce, zbylé došky, zarostlé došky); celý dům je hotový model
  * obydlí – žádné díly.
  */
+/**
+ * Typ, jehož díly rozpadu a zbytku jámy (decay.glb) obydlí použije – dvorec vojvody (trade.md)
+ * vlastní nemá, zbytek jámy po něm je jako po polozemnici.
+ */
+export function decayModelType(type: DwellingType): Exclude<DwellingType, 'dvorec'> {
+  return type === 'dvorec' ? 'polozemnice' : type;
+}
+
 export function decayModelParts(type: DwellingType, stage: DecayStage): string[] {
   if (stage === 0) return [];
   return [`${type}-${stage}`, `${type}-${stage}-thatch`, `${type}-${stage}-moss`];
@@ -275,6 +285,7 @@ export interface NettlePlacement {
 const HOUSE_NETTLES_M: Record<DwellingType, { x: number; z: number }> = {
   zemnice: { x: 3.0, z: 2.9 },
   polozemnice: { x: 3.05, z: 3.0 },
+  dvorec: { x: 3.3, z: 5.4 },
 };
 
 /**

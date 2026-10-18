@@ -10,7 +10,7 @@ import {
   relocationBlock,
   startRelocation,
   type DwellingPlot,
-  type DwellingType,
+  type BuildableDwellingType,
   type Position,
   type RelocationBlock,
 } from '../domain/village';
@@ -30,7 +30,7 @@ export interface RelocateHouseholdInput {
   /** Obydlí, jehož domácnost se stěhuje (id obydlí = id domácnosti). */
   dwellingId: number;
   /** Typ nového domu – hráč volí zemnici, nebo polozemnici. */
-  type: DwellingType;
+  type: BuildableDwellingType;
   /** Volná poloha (zemnice); u obydlí na pozemku ji určí pozemek. */
   position: Position;
   /** Pozemek – povinný u polozemnice (`PLOT_TYPES`), u zemnice se nebere. */

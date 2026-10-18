@@ -22,7 +22,7 @@ import { availableSettlers, waitingHouseholds } from '../households';
 import { withKinship } from '../kinship';
 import type { ChronicleEvent, Dwelling, Person, VillageState } from '../types';
 import { createPlan, planCrops, planPartIds, taskRemaining, threshLossKg } from '../year-plan';
-import { withBuiltFirstDwelling } from './village-fixtures';
+import { withBuiltFirstDwelling, withManorElsewhere } from './village-fixtures';
 
 const at = (year: number, month: number, day: number): number => dayIndexOf({ year, month, day });
 const YEAR = 365.25;
@@ -1134,7 +1134,8 @@ describe('advanceVillage – obydlí', () => {
 
   it('dožilé obydlí obyvatelé přestaví – na lepší, když na to ves má', () => {
     const day = at(600, 10, 1);
-    const s0 = withBuiltFirstDwelling(found(day));
+    // dvorec vojvody je jinde – první zemnice je obyčejné obydlí (trade.md)
+    const s0 = withManorElsewhere(withBuiltFirstDwelling(found(day)));
     s0.dwellings[0]!.builtDay = day - (DWELLINGS.zemnice.lifespanYears + 1) * 365;
     // za rok společné práce by polozemnici (220 čd) postavila
     s0.commonLaborYearly = 1;
@@ -1164,7 +1165,7 @@ describe('přestavba na lepší obydlí – roční průměr práce a dřevo (Ma
   /** Dožilá zemnice v zimě: posledních 30 dní ves jen mlátila – společná práce nulová. */
   function winter(): { s0: VillageState; day: number } {
     const day = at(600, 1, 15);
-    const s0 = withBuiltFirstDwelling(found(day));
+    const s0 = withManorElsewhere(withBuiltFirstDwelling(found(day)));
     s0.dwellings[0]!.builtDay = day - (DWELLINGS.zemnice.lifespanYears + 1) * 365;
     s0.commonLaborHistory = Array.from({ length: COMMON_LABOR_HISTORY_DAYS }, () => 0);
     s0.woodLogs = 40;

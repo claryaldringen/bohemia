@@ -8,6 +8,7 @@ import {
 } from '../landscape';
 import { distanceFactor, fallowStage, partWalkDistance } from './fields';
 import { FASTEST_WALK_SHARE } from './paths/walking';
+import { plotCells } from './plot-cells';
 import type { WindowSegment } from './rules';
 import type { FieldPart, HayMowing, HaySquare, HayState, TileCell, VillageState } from './types';
 
@@ -104,8 +105,10 @@ function naturalMeadows(
   for (const o of state.orchards ?? []) for (const sq of o.squares) taken.add(key(sq.cell));
   for (const c of state.cemeteries ?? []) for (const sq of c.squares) taken.add(key(sq.cell));
   for (const pen of state.pens ?? []) taken.add(key(pen.cell));
-  for (const d of state.dwellings) if (d.plot) taken.add(key(d.plot.cell));
-  for (const c of state.constructions) if (c.plot) taken.add(key(c.plot.cell));
+  for (const d of state.dwellings)
+    for (const cell of d.plot ? plotCells(d.plot) : []) taken.add(key(cell));
+  for (const c of state.constructions)
+    for (const cell of c.plot ? plotCells(c.plot) : []) taken.add(key(cell));
   // les vsi už louka není (fields.md – Les vsi)
   for (const w of state.woods ?? []) taken.add(key(w.cell));
   for (const h of houses) {

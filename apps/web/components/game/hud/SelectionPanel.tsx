@@ -1,5 +1,10 @@
 import { useState, type ReactElement, type ReactNode } from 'react';
-import { CRAFT_NAMES, type DwellingType, type FamilyCounts } from '@bohemia/game';
+import {
+  CRAFT_NAMES,
+  type BuildableDwellingType,
+  type DwellingType,
+  type FamilyCounts,
+} from '@bohemia/game';
 import { PART_COLORS, SURFACE_COLORS } from '@/lib/minimap';
 import {
   CROP_LABELS,
@@ -27,7 +32,9 @@ import {
   type Craft,
   type WorkshopActivity,
 } from '@/lib/village-view';
-import type { RoadGrade, RoadUpgrade } from '@bohemia/game';
+import type { Direction8, RoadGrade, RoadUpgrade, TradeGoods } from '@bohemia/game';
+import { ManorUpgrades } from './ManorPanel';
+import { TradePanel } from './TradePanel';
 import {
   CancelRelocationButton,
   LeaveButton,
@@ -223,18 +230,29 @@ function WorkshopRow({ workshop }: { workshop: SelectionWorkshop }): ReactElemen
 /** Akce panelu nad obydlími – přestěhování domácnosti a jeho zrušení (migration.md). */
 interface RelocationActions {
   /** Začne umisťovat nové domy domácností `householdIds` (postupně, jeden za druhým). */
-  onRelocate?: (type: DwellingType, householdIds: readonly number[]) => void;
+  onRelocate?: (type: BuildableDwellingType, householdIds: readonly number[]) => void;
   /** Zruší rozestavěné stěhování (stavba nového domu) – hotovo, až se vrátí. */
   onCancelRelocation?: (constructionId: number) => Promise<void>;
+}
+
+/** Vylepšení vsi z dvorce vojvody (trade.md) – zemská stezka a obchod. */
+interface ManorActions {
+  /** Zadá stavbu zemské stezky do směru (server action) – hotovo, až se vrátí. */
+  onBuildTrail?: (direction: Direction8) => Promise<void>;
+  /** Vyšle výpravu k sousedovi (server action) – hotovo, až se vrátí. */
+  onSendExpedition?: (direction: Direction8, give: TradeGoods, get: TradeGoods) => Promise<void>;
 }
 
 function DwellingBody({
   details,
   onRelocate,
   onCancelRelocation,
+  onBuildTrail,
+  onSendExpedition,
 }: {
   details: Extract<SelectionDetails, { kind: 'dwelling' }>;
-} & RelocationActions): ReactElement {
+} & RelocationActions &
+  ManorActions): ReactElement {
   const tone = details.overcrowded ? 'text-red-400' : details.full ? 'text-[#f3cf86]' : '';
   return (
     <div className="flex min-w-0 flex-col gap-1.5">
@@ -272,6 +290,19 @@ function DwellingBody({
           constructionId={details.relocation.constructionId}
           progress={details.relocation.progress}
           onCancel={onCancelRelocation}
+        />
+      )}
+      {details.manor && (
+        <ManorUpgrades
+          manor={details.manor}
+          onBuildTrail={onBuildTrail}
+          trade={(close) => (
+            <TradePanel
+              neighbours={details.manor?.neighbours ?? []}
+              onSend={onSendExpedition}
+              onClose={close}
+            />
+          )}
         />
       )}
       {details.relocate && (
@@ -972,6 +1003,8 @@ export function SelectionPanel({
   onCancelRelocation,
   onUpgradeRoad,
   onPlantRoadApples,
+  onBuildTrail,
+  onSendExpedition,
 }: {
   details: SelectionDetails | null;
   /** Zadá v ohradě výcvik spřežení (server action) – hotovo, až se vrátí. */
@@ -980,7 +1013,8 @@ export function SelectionPanel({
   onUpgradeRoad?: (roadId: number, upgrade: RoadUpgrade) => Promise<void>;
   /** Zadá výsadbu jabloní podél pevné cesty (server action) – hotovo, až se vrátí. */
   onPlantRoadApples?: (roadId: number) => Promise<void>;
-} & RelocationActions): ReactElement | null {
+} & RelocationActions &
+  ManorActions): ReactElement | null {
   if (!details) return null;
   let portrait: ReactElement;
   let body: ReactElement;
@@ -1058,12 +1092,19 @@ export function SelectionPanel({
     portrait = <Portrait icon="zemnice" name={`Obydlí (${details.ids.length})`} />;
     body = <DwellingsBody details={details} onRelocate={onRelocate} />;
   } else {
-    portrait = dwellingPortrait(details.type, details.workshop?.craft ?? null);
+    // dvorec vojvody (trade.md) – i když je to zatím zemnice zakladatelů
+    portrait = details.manor ? (
+      <Portrait icon={details.type} name="Dvorec vojvody" />
+    ) : (
+      dwellingPortrait(details.type, details.workshop?.craft ?? null)
+    );
     body = (
       <DwellingBody
         details={details}
         onRelocate={onRelocate}
         onCancelRelocation={onCancelRelocation}
+        onBuildTrail={onBuildTrail}
+        onSendExpedition={onSendExpedition}
       />
     );
   }

@@ -1,7 +1,11 @@
 import { test, expect, type Page } from '@playwright/test';
 import { Client } from 'pg';
 import {
+  buyPrice,
   cemeteryPartsFromCells,
+  neighbourOf,
+  sellPrice,
+  villageGoodStock,
   checkDwellingPlacement,
   checkPlotPlacement,
   fieldPartsFromCells,
@@ -784,4 +788,91 @@ test('druhá ves na téže mapě (vývojový režim) – jméno vsi v liště p�
   await expect(name).toHaveText('Druhovice');
   await page.reload();
   await expect(name).toHaveText('Druhovice', { timeout: 30_000 });
+});
+
+test('ves postaví ve dvorci zemskou stezku a pošle po ní výpravu k sousedovi', async ({ page }) => {
+  const { seat: s } = await newPlayer(page, 'obchod');
+  const spots = villageSpots(s.landscape);
+  await found(page, spots.dwelling);
+
+  // Dostavěná zemnice zakladatelů je dvorec vojvody (trade.md); zásoby na obchod.
+  const state = withBuiltFirstDwelling(await villageState(s.settlementId));
+  Object.assign(state, {
+    storesKg: 4000,
+    meatKg: 300,
+    cheeseKg: 300,
+    legumesKg: 300,
+    woodLogs: 40,
+    crafts: { charcoalKg: 400, toolsKg: 20, potteryKg: 60 },
+  });
+  await writeVillageState(s.settlementId, state);
+  await pollVillage(page);
+
+  // Klik na dvorec – panel dvorce s vylepšeními vsi
+  await page.keyboard.press('r');
+  const panel = page.getByTestId('selection-panel');
+  await expect
+    .poll(
+      async () => {
+        const point = await page.evaluate(
+          (p) => window.__bohemiaE2E!.projectToScreen!(p.x, p.z),
+          spots.dwelling,
+        );
+        if (!point) return null;
+        await page.mouse.move(point.x - 3, point.y);
+        await page.mouse.click(point.x, point.y);
+        return panel.getByTestId('manor-upgrades').count();
+      },
+      { timeout: 30_000 },
+    )
+    .toBe(1);
+  await expect(panel.getByTestId('manor-trade')).toBeDisabled();
+
+  // Zemská stezka: růžice 8 směrů – první směr, kudy stezka vede
+  await panel.getByTestId('manor-trail').click();
+  const compass = page.getByTestId('trail-compass');
+  await expect(compass).toBeVisible();
+  const open = compass.locator('button[data-status="none"]:not([disabled])').first();
+  const direction = (await open.getAttribute('data-testid'))!.replace('trail-', '');
+  await open.click();
+  await expect
+    .poll(async () => (await villageState(s.settlementId)).trails?.length ?? 0, {
+      timeout: 30_000,
+    })
+    .toBe(1);
+  await expect(page.locator('[data-testid="village-notice"][data-kind="error"]')).toHaveCount(0);
+
+  // Stezka je dostavěná (jako po letech práce) – obchod se otevře
+  const built = await villageState(s.settlementId);
+  const trail = built.trails![0]!;
+  trail.builtDay = built.lastDay;
+  built.constructions = built.constructions.filter((c) => c.trail === undefined);
+  for (const road of built.roads?.roads ?? []) {
+    if (trail.pieces.some((p) => p.roadId === road.id)) road.grade = 'improved';
+  }
+  await writeVillageState(s.settlementId, built);
+  await pollVillage(page);
+  await expect(panel.getByTestId('manor-trade')).toBeEnabled({ timeout: 20_000 });
+  await panel.getByTestId('manor-trade').click();
+  await expect(page.getByTestId('trade-panel')).toBeVisible();
+
+  // Výhodná výměna: kus nabízeného zboží za sháněné, které ves má
+  const neighbour = neighbourOf(built.seed, trail.direction);
+  const want = neighbour.offers[0]!;
+  const pay = neighbour.demands.find(
+    (g) => villageGoodStock(built, g) * sellPrice(g) >= buyPrice(want),
+  )!;
+  const amount = Math.ceil(buyPrice(want) / sellPrice(pay));
+  await page.getByTestId(`trade-get-${want}`).locator('input').fill('1');
+  await page.getByTestId(`trade-give-${pay}`).locator('input').fill(String(amount));
+  await expect(page.getByTestId('trade-balance')).toHaveAttribute('data-fair', 'true');
+  await page.getByTestId('trade-send').click();
+  await expect
+    .poll(async () => (await villageState(s.settlementId)).trade?.expeditions.length ?? 0, {
+      timeout: 30_000,
+    })
+    .toBe(1);
+  const sent = await villageState(s.settlementId);
+  expect(sent.trade!.expeditions[0]).toMatchObject({ direction, get: { [want]: 1 } });
+  expect(sent.chronicle.some((e) => e.kind === 'trade-departed')).toBe(true);
 });

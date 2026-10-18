@@ -95,9 +95,23 @@ export function pastureGrazedParts(
 export function pathVillageOf(state: VillageState, day: number, landscape: Landscape): PathVillage {
   const occupied = new Set(state.people.map((p) => p.dwellingId));
   const plotOf = (
-    plot: { cell: TileCell } | undefined,
-  ): { plot: { cell: TileCell; x: number; z: number; size: number } } | object =>
-    plot ? { plot: square(landscape, plot.cell) } : {};
+    plot: { cell: TileCell; yard?: TileCell } | undefined,
+  ):
+    | {
+        plot: {
+          cell: TileCell;
+          x: number;
+          z: number;
+          size: number;
+          yard?: { x: number; z: number };
+        };
+      }
+    | object => {
+    if (!plot) return {};
+    // dvorec vojvody (trade.md) – pozemek i se dvorem
+    const yard = plot.yard ? tileCenterWorld(landscape, plot.yard.x, plot.yard.y) : null;
+    return { plot: { ...square(landscape, plot.cell), ...(yard ? { yard } : {}) } };
+  };
   const dwellings = [
     ...state.dwellings.map((d) => ({
       id: d.id,
@@ -291,7 +305,7 @@ export function walkLayoutKey(state: VillageState, day: number): string {
   const at = (p: Position): string => `${p.x},${p.z},${p.rotation}`;
   const dwellings = state.dwellings.map(
     (d) =>
-      `${d.id}:${d.type}${d.workshop ? `/${d.workshop.craft}` : ''}:${at(d.position)}:${d.plot ? `${d.plot.cell.x},${d.plot.cell.y}` : ''}:${occupied.has(d.id) ? 1 : 0}:${age(d.builtDay)}`,
+      `${d.id}:${d.type}${d.workshop ? `/${d.workshop.craft}` : ''}:${at(d.position)}:${d.plot ? `${d.plot.cell.x},${d.plot.cell.y}${d.plot.yard ? `+${d.plot.yard.x},${d.plot.yard.y}` : ''}` : ''}:${occupied.has(d.id) ? 1 : 0}:${age(d.builtDay)}`,
   );
   const sites = state.constructions.flatMap((c) =>
     c.position !== null && (c.kind === 'dwelling' || c.kind === 'idol' || c.kind === 'shrine')

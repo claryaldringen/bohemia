@@ -12,6 +12,7 @@ export * from './plough';
 export * from './oxen';
 export { hayHeads } from './husbandry';
 export * from './dwellings';
+export * from './manor';
 export * from './relocation';
 export * from './villages-apart';
 export * from './fields';
@@ -60,6 +61,7 @@ export * from './simulate';
 export * from './polygon';
 export * from './placement';
 export * from './plots';
+export * from './plot-cells';
 export { TAKEN_LAND_EPSILON_M2, landLeftM2, type TakenLand } from './land-taken';
 export * from './ruins';
 export * from './obstacles';
@@ -75,6 +77,10 @@ export * from './charcoal';
 export * from './paths';
 export * from './road-trees';
 export * from './road-upgrades';
+export * from './trail';
+export * from './neighbours';
+export * from './trade';
+export * from './goods';
 // jabloně u cest – kroky simulace (práce a dokončení výsadby) zůstávají uvnitř
 export {
   roadAppleSpots,

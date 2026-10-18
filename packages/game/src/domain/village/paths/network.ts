@@ -103,7 +103,8 @@ export interface PathVillage {
     inhabited?: boolean;
     since?: number;
     craft?: Craft;
-    plot?: { cell: TileCell; x: number; z: number; size: number };
+    /** `yard` – dvůr dvorce vojvody (trade.md): střed druhého políčka pozemku. */
+    plot?: { cell: TileCell; x: number; z: number; size: number; yard?: { x: number; z: number } };
   }[];
   /**
    * Pole – díly se stadiem; `grazed` u přílohu ve fázi louky = pasou se na něm stáda (fields.md –
@@ -367,7 +368,8 @@ export function pathNetworkKey(village: PathVillage): string {
       d.since !== undefined && day !== null
         ? `${ageBucket(day - d.since)}/${Math.floor(Math.min(YEARS_KEY_MAX, (day - d.since) / DAYS_PER_YEAR) / YEARS_STEP)}`
         : '';
-    const plot = d.plot ? `${d.plot.cell.x},${d.plot.cell.y}` : '';
+    const yard = d.plot?.yard ? `+${d.plot.yard.x},${d.plot.yard.z}` : '';
+    const plot = d.plot ? `${d.plot.cell.x},${d.plot.cell.y}${yard}` : '';
     return `${d.id}:${d.type}${d.craft ? `/${d.craft}` : ''}:${d.built ? 1 : 0}:${d.inhabited === false ? 0 : 1}:${age}:${plot}:${d.position.x.toFixed(1)},${d.position.z.toFixed(1)},${d.position.rotation.toFixed(2)}`;
   });
   const fields = village.fields.map(
@@ -647,6 +649,7 @@ function dwellingBox(d: PathVillage['dwellings'][number]): PathBox {
 export const DWELLING_PATH_BOX_M: Record<DwellingType, PathBox> = {
   zemnice: { minX: -2.9, maxX: 2.9, minZ: -3.3, maxZ: 4.2 },
   polozemnice: { minX: -3.4, maxX: 3.4, minZ: -3.8, maxZ: 3.8 },
+  dvorec: { minX: -3.8, maxX: 3.8, minZ: -5.9, maxZ: 5.9 },
 };
 /** Staveniště sahá s hromadou hlíny a nářadím před dům nejméně tak daleko (m). */
 const SITE_FRONT_M = 5;
@@ -662,16 +665,23 @@ function sitePathBox(type: DwellingType): PathBox {
   };
 }
 
-/** Oplocený pozemek v osách domu (jako `plotBox` postav ve scéně). */
-function plotPathBox(position: Position, plot: { x: number; z: number; size: number }): PathBox {
+/** Oplocený pozemek v osách domu (jako `plotBox` postav ve scéně) – u dvorce i se dvorem. */
+function plotPathBox(
+  position: Position,
+  plot: { x: number; z: number; size: number; yard?: { x: number; z: number } },
+): PathBox {
   const h = plot.size / 2;
   const c = detCos(position.rotation);
   const s = detSin(position.rotation);
+  const minX = Math.min(plot.x, plot.yard?.x ?? plot.x) - h;
+  const maxX = Math.max(plot.x, plot.yard?.x ?? plot.x) + h;
+  const minZ = Math.min(plot.z, plot.yard?.z ?? plot.z) - h;
+  const maxZ = Math.max(plot.z, plot.yard?.z ?? plot.z) + h;
   const local = [
-    [plot.x - h, plot.z - h],
-    [plot.x + h, plot.z - h],
-    [plot.x + h, plot.z + h],
-    [plot.x - h, plot.z + h],
+    [minX, minZ],
+    [maxX, minZ],
+    [maxX, maxZ],
+    [minX, maxZ],
   ].map(([x, z]) => {
     const dx = x! - position.x;
     const dz = z! - position.z;

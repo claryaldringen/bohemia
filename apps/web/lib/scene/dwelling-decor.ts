@@ -15,6 +15,8 @@ const SHAPES: Record<DwellingType, { eaveX: number; eaveHalf: number; frontY: nu
   zemnice: { eaveX: 2.5, eaveHalf: 3.1, frontY: -2.6 },
   // přesah střechy 0,5 m za stěnu – kapková linie x = 2,6
   polozemnice: { eaveX: 2.6, eaveHalf: 3.2, frontY: -2.6 },
+  // dvorec vojvody (trade.md) – okap 2,78 m, střecha přečnívá štíty o 1,05 m
+  dvorec: { eaveX: 2.78, eaveHalf: 5.3, frontY: -4.7 },
 };
 
 /**
@@ -24,6 +26,7 @@ const SHAPES: Record<DwellingType, { eaveX: number; eaveHalf: number; frontY: nu
 export const SMOKE_VENT: Record<DwellingType, { y: number; z: number }> = {
   zemnice: { y: 1.85, z: -2.1 },
   polozemnice: { y: 2.85, z: -2.2 },
+  dvorec: { y: 3.35, z: -4.3 },
 };
 
 export type TuftModel = 'grass-tuft-1' | 'grass-tuft-2';

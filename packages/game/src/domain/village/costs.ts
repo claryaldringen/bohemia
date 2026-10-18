@@ -14,7 +14,13 @@ import {
   workshopCost,
   workshopTrees,
 } from './rules';
-import type { Craft, DwellingType, SacredBuildingKind, VillageState } from './types';
+import type {
+  BuildableDwellingType,
+  Craft,
+  DwellingType,
+  SacredBuildingKind,
+  VillageState,
+} from './types';
 import { oakSupply, woodSupply, type WoodPlan } from './wood';
 
 // Ceny staveb a jestli na ně ves má (population.md – Nové obydlí, Odemčení). Práce
@@ -29,7 +35,7 @@ import { oakSupply, woodSupply, type WoodPlan } from './wood';
  * ohrada s přístřeškem (oxen.md – jeden čtverec louky, dřevo předem, osadníci ne).
  */
 export type BuildKind =
-  DwellingType | Craft | 'field' | 'cemetery' | 'orchard' | SacredBuildingKind | 'pen';
+  BuildableDwellingType | Craft | 'field' | 'cemetery' | 'orchard' | SacredBuildingKind | 'pen';
 
 /**
  * Co stavba potřebuje předem: obilí ze zásob, dřevo (stromy – klády z hromady, nebo dospělé

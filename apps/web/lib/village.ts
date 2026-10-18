@@ -18,10 +18,14 @@ import {
   plantApplesAlongRoad,
   trainTeamInPen,
   upgradeRoad,
+  buildTrail,
+  sendExpedition,
   villageViewStamp,
   type Craft,
   type DwellingPlot,
-  type DwellingType,
+  type BuildableDwellingType,
+  type Direction8,
+  type TradeGoods,
   type Landscape,
   type Position,
   type SacredBuildingKind,
@@ -264,7 +268,7 @@ export async function foundDevVillageForPlayer(
 export function placeDwellingForPlayer(
   playerId: string,
   villageId: string,
-  input: { type: DwellingType; position: Position; plot?: DwellingPlot },
+  input: { type: BuildableDwellingType; position: Position; plot?: DwellingPlot },
 ): Promise<VillageActionResult> {
   return actOn(playerId, villageId, (ctx) =>
     placeDwelling(
@@ -278,7 +282,12 @@ export function placeDwellingForPlayer(
 export function relocateHouseholdForPlayer(
   playerId: string,
   villageId: string,
-  input: { dwellingId: number; type: DwellingType; position: Position; plot?: DwellingPlot },
+  input: {
+    dwellingId: number;
+    type: BuildableDwellingType;
+    position: Position;
+    plot?: DwellingPlot;
+  },
 ): Promise<VillageActionResult> {
   return actOn(playerId, villageId, (ctx) =>
     relocateHousehold(
@@ -448,6 +457,46 @@ export function plantRoadApplesForPlayer(
     plantApplesAlongRoad(
       { villages: villages() },
       { villageId: ctx.villageId, landscape: ctx.landscape, today: ctx.day, roadId: input.roadId },
+    ),
+  );
+}
+
+/** Zemská stezka ke kraji mapy z dvorce vojvody (trade.md – Zemská stezka). */
+export function buildTrailForPlayer(
+  playerId: string,
+  villageId: string,
+  input: { direction: Direction8 },
+): Promise<VillageActionResult> {
+  return actOn(playerId, villageId, (ctx) =>
+    buildTrail(
+      { villages: villages() },
+      {
+        villageId: ctx.villageId,
+        landscape: ctx.landscape,
+        today: ctx.day,
+        direction: input.direction,
+      },
+    ),
+  );
+}
+
+/** Výprava nosičů k sousedovi po hotové stezce (trade.md – Obchod). */
+export function sendExpeditionForPlayer(
+  playerId: string,
+  villageId: string,
+  input: { direction: Direction8; give: TradeGoods; get: TradeGoods },
+): Promise<VillageActionResult> {
+  return actOn(playerId, villageId, (ctx) =>
+    sendExpedition(
+      { villages: villages() },
+      {
+        villageId: ctx.villageId,
+        landscape: ctx.landscape,
+        today: ctx.day,
+        direction: input.direction,
+        give: input.give,
+        get: input.get,
+      },
     ),
   );
 }

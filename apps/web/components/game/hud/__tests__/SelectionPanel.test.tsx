@@ -161,6 +161,7 @@ describe('SelectionPanel – rodiny v obydlí', () => {
       workshop: null,
       relocation: null,
       relocate: null,
+      manor: null,
     });
     expect(text(html, 'selection-family-man')).toBe('2');
     expect(text(html, 'selection-family-woman')).toBe('2');
@@ -200,6 +201,7 @@ const dwelling = (
   workshop: null,
   relocation: null,
   relocate,
+  manor: null,
   ...over,
 });
 

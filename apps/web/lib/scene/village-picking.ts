@@ -164,7 +164,10 @@ export function pickVillageTarget(
   const cell = options.cellOf(options.ground.x, options.ground.z);
   if (!cell) return null;
   const owner = village.dwellings.find(
-    (d) => d.plot?.cell.x === cell.x && d.plot.cell.y === cell.y,
+    (d) =>
+      (d.plot?.cell.x === cell.x && d.plot.cell.y === cell.y) ||
+      // dvůr dvorce vojvody patří k pozemku (trade.md)
+      (d.plot?.yard?.cell.x === cell.x && d.plot.yard.cell.y === cell.y),
   );
   if (owner) return { kind: 'dwelling', id: owner.id };
   const pen = (village.pens ?? []).find((p) => p.cell.x === cell.x && p.cell.y === cell.y);

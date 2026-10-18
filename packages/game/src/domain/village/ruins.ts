@@ -4,6 +4,7 @@ import { workshopFootprints } from './crafts';
 import { villageOrchards } from './orchard';
 import { villagePens } from './oxen';
 import { cellCorners, dwellingFootprint, dwellingPlot } from './placement';
+import { copyPlot } from './plots';
 import { polygonsOverlap, type Point } from './polygon';
 import { RUIN_YEARS } from './rules';
 import { sacredBuildingPlots, sacredFootprint } from './sacred';
@@ -36,7 +37,7 @@ export function recordRuins(
       id: d.id,
       type: d.type,
       position: { ...d.position },
-      ...(d.plot ? { plot: { cell: { ...d.plot.cell }, variant: d.plot.variant } } : {}),
+      ...(d.plot ? { plot: copyPlot(d.plot) } : {}),
       ...(d.workshop ? { craft: d.workshop.craft } : {}),
       day,
     });

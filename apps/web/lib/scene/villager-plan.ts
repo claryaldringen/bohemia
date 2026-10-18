@@ -111,6 +111,7 @@ const WOMEN: Record<LaborActivity, number> = {
   craft: 0.25,
   plant: 0.4,
   domestic: 0.85,
+  trade: 0.3,
   idle: 0.5,
 };
 /**
@@ -841,6 +842,9 @@ function placer(ctx: Context, share: SceneLaborShare, count: number): Placer {
       return t.kind === 'trees' ? planting(ctx, t.ids) : none;
     case 'domestic':
       return domestic(ctx);
+    case 'trade':
+      // nosiči výpravy k sousedovi po zemské stezce (trade.md)
+      return t.kind === 'trail' ? porters(ctx, t.id) : none;
     case 'idle':
       return idlers(ctx);
   }
@@ -1719,6 +1723,29 @@ function roadWork(ctx: Context, roadId: number): Placer {
     const slot = slots[i % slots.length]!;
     return stand(slot.x, slot.z, slot.hx, slot.hz, i % 2 === 0 ? 'hoe' : 'build');
   };
+}
+
+/**
+ * Nosiči výpravy k sousedovi (trade.md – Obchod): jdou s nákladem po zemské stezce od dvorce ke
+ * kraji mapy a zase zpět (skutečný čas jako ostatní postavy) – rozestoupení podle fáze, takže
+ * tvoří karavanu po celé stezce.
+ */
+function porters(ctx: Context, trailId: number): Placer {
+  const trail = (ctx.village.trails ?? []).find((t) => t.id === trailId);
+  if (!trail || trail.points.length < 2) return none;
+  const path = route(trail.points.map((p) => [p.x, p.z] as const));
+  return (_i, who) =>
+    shuttle(path, {
+      outClip: 'carry',
+      outSpeed: walkSpeed(who.kind, 'carry', who.scale),
+      endClip: 'idle',
+      endS: 4,
+      backClip: 'carry',
+      backSpeed: walkSpeed(who.kind, 'carry', who.scale),
+      restClip: 'idle',
+      restS: 3,
+      phase: who.phase,
+    });
 }
 
 /**

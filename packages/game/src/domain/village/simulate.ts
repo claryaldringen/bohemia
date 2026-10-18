@@ -55,7 +55,7 @@ import { refreshWalkDistances } from './paths/village';
 import { roadWalk, walkGroundOf } from './paths/walking';
 import { finishRoadApples, workRoadApples, roadApplesNeed } from './road-apples';
 import { finishRoadUpgrade } from './road-upgrades';
-import { relocationPlot } from './plots';
+import { copyPlot, relocationPlot } from './plots';
 import { villageSacredOaks } from './sacred';
 import { sacredOakEvents } from './sacred-life';
 import { allocateDay, type LaborTaskName } from './labor';
@@ -75,6 +75,10 @@ import { isVillageExtinct } from './extinction';
 import { inLuckyYears, nextStarvationDays, populationDay } from './population';
 import { dailyMinPerHousehold } from './productivity';
 import { moveRelocatedHousehold, relocatingHouseholds } from './relocation';
+import { keepManor, villageManorId } from './manor';
+import { goodsDay } from './goods';
+import { finishExpeditions, workExpeditions } from './trade';
+import { finishTrail, trailsDay } from './trail';
 import { recordRuins, updateRuins } from './ruins';
 import {
   CHRONICLE_MAX_EVENTS,
@@ -251,7 +255,14 @@ function simulateDay(
   const { toil, milking } = work(state, day, obstacles, coverage, landscape);
   // nástroje a nádoby v užívání se opotřebí (crafts.md – Účinek)
   wearCraftStocks(state, day);
+  // zemské stezky – dostavěné úseky od vsi ven hned vylepšené, vrácené výpravy (trade.md)
+  trailsDay(state);
+  state.chronicle.push(...finishExpeditions(state, day));
+  // sůl se jí, kožešiny se opotřebí (trade.md – Zboží zvenku)
+  goodsDay(state);
   finishConstructions(state, day);
+  // dvorec vojvody – po zániku dvorce nejstarší obydlí, starší ves dvorec dostane (trade.md)
+  keepManor(state);
   decideRebuilds(state, day, obstacles, landscape);
   occupyEmptyDwellings(state, day);
   // zbytky jam po zaniklých obydlích zarůstají, pod novou stavbou zmizí (ruins.ts)
@@ -680,7 +691,9 @@ function work(
   });
   decayEmptyDwellings(state, day, new Set(households.map((d) => d.id)));
   state.domesticBacklog = allocation.domesticBacklog;
-  const constructions = build(state, day, allocation.common);
+  // nosiči výprav k sousedům jdou ze společné práce před stavbami (trade.md – Doprava)
+  const trade = workExpeditions(state, allocation.common);
+  const constructions = build(state, day, allocation.common - trade.used);
   const workshops = workCrafts(state, day, obstacles, coverage, productivity, resting, landscape);
   const hayMowing = state.hay?.mowing;
   state.labor = laborDay(state, day, {
@@ -689,6 +702,7 @@ function work(
     repairs,
     constructions,
     workshops,
+    trade: trade.shares,
     toolCoverage: coverage.tools,
     ...(hayMowing
       ? { mowing: { mowing: hayMowing, before: mowingBefore, after: hayMowing.done } }
@@ -917,6 +931,11 @@ function finishConstructions(state: VillageState, day: number): void {
       state.chronicle.push(finishedEvent(day, c, null));
       continue;
     }
+    if (c.kind === 'road' && c.trail !== undefined) {
+      // dostavěná zemská stezka – obchod se sousedem (trade.md)
+      state.chronicle.push(...finishTrail(state, c, day));
+      continue;
+    }
     if (c.kind === 'road') {
       // vylepšená pevná cesta – rychlejší chůze (roads.md); vzdálenosti chůze se přepočítají
       finishRoadUpgrade(state, c);
@@ -963,7 +982,7 @@ function finishConstructions(state: VillageState, day: number): void {
         // přestavba na pozemku jinde (polozemnice bez pozemku) – domácnost se přestěhuje
         if (c.plot && c.position) {
           dwelling.position = { ...c.position };
-          dwelling.plot = { cell: { ...c.plot.cell }, variant: c.plot.variant };
+          dwelling.plot = copyPlot(c.plot);
           if (c.forestDistanceM !== undefined) dwelling.forestDistanceM = c.forestDistanceM;
         }
       }
@@ -977,7 +996,7 @@ function finishConstructions(state: VillageState, day: number): void {
       builtDay: day,
       condition: 1,
       position: { ...c.position },
-      ...(c.plot ? { plot: { cell: { ...c.plot.cell }, variant: c.plot.variant } } : {}),
+      ...(c.plot ? { plot: copyPlot(c.plot) } : {}),
       ...(c.forestDistanceM === undefined ? {} : { forestDistanceM: c.forestDistanceM }),
       // řemeslná dílna – řemeslo patří budově (crafts.md)
       ...(c.craft ? { workshop: newWorkshop(c.craft, c.waterDistanceM) } : {}),
@@ -1057,16 +1076,22 @@ function decideRebuilds(
   for (const household of relocatingHouseholds(state)) rebuilding.add(household);
   // „má na to“ podle ročního průměru – v zimě (výmlat) ani o žních ves nezchudne (Martin)
   const yearlyCommon = yearlyCommonLabor(state);
+  const manorId = villageManorId(state);
   for (const d of occupiedDwellings(state)) {
     if (rebuilding.has(d.id) || !wantsRebuild(d, day)) continue;
-    // dílna zůstane dílnou stejného typu na svém místě (crafts.md), ostatní podle práce a dřeva
+    // dílna zůstane dílnou stejného typu na svém místě (crafts.md), dvorec vojvody se přestaví na
+    // dvorec (trade.md), ostatní podle práce a dřeva
     const craft = d.workshop?.craft;
     // dřevo: klády na hromadě a stromy, které jde skácet – po předchozích přestavbách dne
     const type = craft
       ? d.type
-      : rebuildType(d.type, yearlyCommon, woodSupply(state, obstacles, day));
+      : d.id === manorId
+        ? 'dvorec'
+        : rebuildType(d.type, yearlyCommon, woodSupply(state, obstacles, day));
+    // nový pozemek: polozemnice bez pozemku, dvorec bez pozemku se dvorem (dvě políčka)
+    const needsSite = !d.plot || (type === 'dvorec' && !d.plot.yard);
     const site =
-      landscape && obstacles && !d.plot && !craft
+      landscape && obstacles && needsSite && !craft
         ? relocationPlot(state, landscape, obstacles, d, type, day)
         : null;
     // kácení chůzí po pevných cestách (roads.md) – jen s krajinou
@@ -1182,6 +1207,8 @@ function eat(
     milkEnergy: milk.energy * milked,
     eggsKg: dailyEggsKg(state),
     legumesKg: villageLegumesKg(state),
+    // med ze zboží zvenku (trade.md)
+    honeyKg: state.goods?.honeyKg ?? 0,
     daysToLegumeHarvest: daysUntilLegumeHarvest(day),
     needPerDay: need,
     proteinNeedPerDay: villageProteinNeed(state, day),
@@ -1197,6 +1224,7 @@ function eat(
   if (state.cheeseKg !== undefined || meal.cheeseKg > 0) state.cheeseKg = meal.cheeseKg;
   if (state.legumesKg !== undefined || meal.legumesKg > 0) state.legumesKg = meal.legumesKg;
   if (state.applesKg !== undefined) state.applesKg = meal.fruitKg;
+  if (state.goods) state.goods.honeyKg = meal.honeyKg;
   state.diet = meal.diet;
   const hungry = meal.outlook < 1 - SATIATION_EPSILON;
   if (hungry !== state.hungry) {
@@ -1206,7 +1234,8 @@ function eat(
   return {
     satiation: meal.diet.satiation,
     energy: meal.diet.energy,
-    fruit: meal.diet.shares.fruit > 0,
+    // med štěstí přidá jako ovoce (trade.md – Zboží zvenku)
+    fruit: meal.diet.shares.fruit > 0 || (meal.diet.shares.honey ?? 0) > 0,
     meat: meal.diet.shares.meat,
   };
 }

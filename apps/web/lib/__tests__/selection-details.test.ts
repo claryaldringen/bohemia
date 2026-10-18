@@ -259,6 +259,7 @@ describe('selectionDetails', () => {
       workshop: null,
       relocation: null,
       relocate: view.relocation,
+      manor: null,
     });
   });
 

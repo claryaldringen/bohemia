@@ -11,6 +11,7 @@ import { villageHerds } from '../livestock';
 import { obstacleChangesAt, obstacleStatus, type ObstacleChanges } from '../obstacles';
 import { villageOrchards } from '../orchard';
 import { villagePens } from '../oxen';
+import { plotCells } from '../plot-cells';
 import { ROAD_TREE_ID_BASE, roadAppleStage, roadTreeLook } from '../road-trees';
 import { MILIR, ROADS, ROAD_APPLES, ROAD_TREES, SACRED_BUILDINGS } from '../rules';
 import type {
@@ -25,6 +26,7 @@ import type {
   RoadTreeSpecies,
   RoadTreeSpot,
   TileCell,
+  Trail,
   VillageRoads,
   VillageState,
 } from '../types';
@@ -275,7 +277,10 @@ export function updateRoads(
       layer: obstacles,
       changes,
       seed: state.seed,
-      split: (from, to) => splitRoadWork(state.constructions, from, to),
+      split: (from, to) => {
+        splitRoadWork(state.constructions, from, to);
+        splitTrailPieces(state.trails, from, to);
+      },
     };
     for (const road of formRoads(roads, runs, day, network.traffic, context)) {
       events.push({ day, kind: 'road-formed', roadId: road.id });
@@ -311,6 +316,18 @@ export function roadsInWork(constructions: readonly Construction[]): Set<number>
 function splitRoadWork(constructions: Construction[], from: number, to: number): void {
   for (const c of constructions) {
     if (c.roadIds?.includes(from)) c.roadIds.push(to);
+  }
+}
+
+/**
+ * Úsek `from` se rozdělil – zemská stezka (trade.md), která po něm vede, vede i po novém úseku
+ * `to` hned za ním: stejný stupeň, práce zůstane u prvního kusu (mutuje).
+ */
+function splitTrailPieces(trails: readonly Trail[] | undefined, from: number, to: number): void {
+  for (const trail of trails ?? []) {
+    const at = trail.pieces.findIndex((p) => p.roadId === from);
+    if (at < 0) continue;
+    trail.pieces.splice(at + 1, 0, { roadId: to, grade: trail.pieces[at]!.grade, manDays: 0 });
   }
 }
 
@@ -1015,10 +1032,13 @@ export function plantingBlocker(
   for (const c of villageCemeteries(state)) for (const s of c.squares) addTile(s.cell);
   for (const o of villageOrchards(state)) for (const s of o.squares) addTile(s.cell);
   for (const g of state.groves ?? []) for (const cell of g.cells) addTile(cell);
-  for (const d of state.dwellings) if (d.plot) addTile(d.plot.cell);
-  for (const c of state.constructions) if (c.plot) addTile(c.plot.cell);
+  for (const d of state.dwellings)
+    for (const cell of d.plot ? plotCells(d.plot) : []) addTile(cell);
+  for (const c of state.constructions)
+    for (const cell of c.plot ? plotCells(c.plot) : []) addTile(cell);
   for (const p of villagePens(state)) addTile(p.cell);
-  for (const r of state.ruins ?? []) if (r.plot) addTile(r.plot.cell);
+  for (const r of state.ruins ?? [])
+    for (const cell of r.plot ? plotCells(r.plot) : []) addTile(cell);
   // les vsi (fields.md – Les vsi) – strom u cesty ani jabloň do něj nepatří, roste tam les
   for (const w of state.woods ?? []) addTile(w.cell);
   // obydlí, staveniště i zbytky jam po zaniklých obydlích – pořád ves
@@ -1123,4 +1143,110 @@ function rootTrees(
     }
   }
   giveWayToBuilding(state, day, treeTakenLand(landscape, state.parts, rooted), 'road-trees');
+}
+
+// --- zemská stezka (trade.md – Zemská stezka) -------------------------------------------------
+
+/** Nová cesta stezky se dělí na úseky nejvýš tak dlouhé (m) – staví se po úsecích od vsi ven. */
+const TRAIL_PIECE_M = 150;
+/** Úsek pevné cesty vede po trase stezky, když tolik jeho bodů leží do TRAIL_MATCH_M od ní. */
+const TRAIL_MATCH_M = 3;
+const TRAIL_MATCH_SHARE = 0.6;
+
+/** Provoz nové cesty stezky – zatím nikdo nechodí (stezka se staví, upravená nezaroste). */
+const NO_TRAFFIC: PathTraffic = {
+  originX: 0,
+  originZ: 0,
+  cellM: 1,
+  width: 0,
+  height: 0,
+  values: new Float32Array(0),
+  raw: new Float32Array(0),
+};
+
+/** Vzdálenost po trase k bodu trasy nejblíž (x, z) – pořadí úseků od vsi ven. */
+function alongRoute(route: readonly RoadPoint[], x: number, z: number): number {
+  const at = lengthsAlong(route);
+  let best = Infinity;
+  let along = 0;
+  for (let k = 1; k < route.length; k++) {
+    const hit = toSegment(x, z, route[k - 1]!, route[k]!);
+    if (hit.distance < best) {
+      best = hit.distance;
+      along = at[k - 1]! + (at[k]! - at[k - 1]!) * hit.t;
+    }
+  }
+  return along;
+}
+
+/**
+ * Uloží trasu zemské stezky jako pevné cesty (mutuje stav – `state.roads`): kde trasa nevede po
+ * pevné cestě (ON_ROAD_M), vznikne nová vyšlapaná cesta, která se k pevným cestám připojí
+ * v rozcestí jako cesty z provozu (`formRoad` – osa, místa na stromy, mokřina a brody), kde po
+ * ní vede, stezka použije ji. Vrátí id úseků, po kterých stezka vede, seřazené od vsi ven
+ * (úsek patří ke stezce, když aspoň TRAIL_MATCH_SHARE jeho bodů leží do TRAIL_MATCH_M od trasy).
+ */
+export function addTrailRoads(
+  state: VillageState,
+  route: readonly RoadPoint[],
+  day: number,
+  landscape: Landscape,
+  obstacles: ObstacleLayer | null,
+  terrain: PathTerrain,
+): number[] {
+  const roads = (state.roads ??= emptyRoads(day));
+  const context: SpotContext = {
+    terrain,
+    blocked: plantingBlocker(state, landscape),
+    layer: obstacles,
+    changes: obstacleChangesAt(state, day),
+    seed: state.seed,
+    split: (from, to) => {
+      splitRoadWork(state.constructions, from, to);
+      splitTrailPieces(state.trails, from, to);
+    },
+  };
+  const run = resample(route, null, SAMPLE_M).points;
+  const onRoadAt = axisDistance(roads.roads.map((r) => r.points));
+  const onRoad = run.map((p) => onRoadAt(p.x, p.z) <= ON_ROAD_M);
+  let i = 0;
+  while (i < run.length) {
+    if (onRoad[i]) {
+      i++;
+      continue;
+    }
+    let j = i;
+    while (j + 1 < run.length && !onRoad[j + 1]) j++;
+    // dlouhý běh po kusech nejvýš TRAIL_PIECE_M – kusy na sebe navazují společným bodem
+    const pieces = Math.max(1, Math.ceil(((j - i) * SAMPLE_M) / TRAIL_PIECE_M));
+    const per = Math.ceil((j - i) / pieces);
+    for (let k = i; k < j || k === i; k += per) {
+      const last = Math.min(j, k + per);
+      formRoad(
+        roads,
+        run.slice(k, last + 1),
+        k > 0,
+        last < run.length - 1,
+        day,
+        NO_TRAFFIC,
+        context,
+      );
+      if (last >= j) break;
+    }
+    i = j + 1;
+  }
+  const near = axisDistance([route]);
+  return roads.roads
+    .filter((road) => {
+      const points = resample(road.points, null, SAMPLE_M).points;
+      const close = points.filter((p) => near(p.x, p.z) <= TRAIL_MATCH_M).length;
+      return points.length > 0 && close >= TRAIL_MATCH_SHARE * points.length;
+    })
+    .map((road) => {
+      const half = Math.max(1, roadLengthM(road) / 2);
+      const mid = resample(road.points, null, half).points[1] ?? road.points[0]!;
+      return { id: road.id, along: alongRoute(route, mid.x, mid.z) };
+    })
+    .sort((a, b) => a.along - b.along || a.id - b.id)
+    .map((r) => r.id);
 }
