@@ -13,7 +13,9 @@ import {
   placeSacredBuilding,
   placeWorkshop,
   renameVillage,
+  plantApplesAlongRoad,
   trainTeamInPen,
+  upgradeRoad,
   type Craft,
   type DwellingPlot,
   type DwellingType,
@@ -275,6 +277,45 @@ export async function trainTeamForPlayer(
       landscape: ctx.landscape,
       today: ctx.day,
       penId: input.penId,
+    },
+  );
+  return toActionResult(result, ctx.landscape, ctx.day);
+}
+
+/** Vylepšení pevné cesty (roads.md – Vylepšení cesty): upravená cesta, nebo hať a lávka. */
+export async function upgradeRoadForPlayer(
+  playerId: string,
+  input: { roadId: number; upgrade: 'improved' | 'causeway' },
+): Promise<VillageActionResult> {
+  const ctx = await context(playerId);
+  if (!ctx.ok) return { error: ctx.error };
+  const result = await upgradeRoad(
+    { villages: villages() },
+    {
+      settlementId: ctx.settlementId,
+      landscape: ctx.landscape,
+      today: ctx.day,
+      roadId: input.roadId,
+      upgrade: input.upgrade,
+    },
+  );
+  return toActionResult(result, ctx.landscape, ctx.day);
+}
+
+/** Výsadba jabloní podél pevné cesty (roads.md – Vysazení jabloní). */
+export async function plantRoadApplesForPlayer(
+  playerId: string,
+  input: { roadId: number },
+): Promise<VillageActionResult> {
+  const ctx = await context(playerId);
+  if (!ctx.ok) return { error: ctx.error };
+  const result = await plantApplesAlongRoad(
+    { villages: villages() },
+    {
+      settlementId: ctx.settlementId,
+      landscape: ctx.landscape,
+      today: ctx.day,
+      roadId: input.roadId,
     },
   );
   return toActionResult(result, ctx.landscape, ctx.day);

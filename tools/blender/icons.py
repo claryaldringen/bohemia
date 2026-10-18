@@ -9,7 +9,10 @@ hrncir, kovar, uhlir (řemeslné dílny z `apps/web/public/models/crafts/`, uhl�
 (jabloňový sad), modla, svatyne (posvátná místa z `apps/web/public/models/sacred/`), dub
 (posvátný dub s obětinami), sous (posvátná souš – uschlý dub z `apps/web/public/models/decor/`
 s obětinami), haj (dubový háj s kameny) a ohrada (přístřešek, žlab a branka
-z `apps/web/public/models/pen/`, kráva ze stáda vsi, stoh sena) – portréty do panelu výběru;
+z `apps/web/public/models/pen/`, kráva ze stáda vsi, stoh sena), cesta, cesta-upravena a hat
+(stupně pevné cesty – pás cesty, strouha a kameny, hať a lávka z `apps/web/public/models/roads/`)
+a jablone (jabloně s jablky střídavě podél cesty – tlačítko „Vysadit jabloně“) – portréty do
+panelu výběru;
 (64 × 64 PNG) – `resources/` people, food, wood, labor, satiation, date, apples, happiness
 (štěstí – plamen ohniště nad zkříženými poleny v kruhu kamenů), hay (seno – kupka sena
 z `apps/web/public/models/fields/haystack.glb`), meat (maso – uzená kýta s kostí a provázkem),
@@ -57,6 +60,7 @@ PEN = os.path.join(ROOT, "apps/web/public/models/pen")
 PLOUGH = os.path.join(ROOT, "apps/web/public/models/plough")
 FAUNA = os.path.join(ROOT, "apps/web/public/models/fauna")
 FIELDS = os.path.join(ROOT, "apps/web/public/models/fields")
+ROADS = os.path.join(ROOT, "apps/web/public/models/roads")
 TEX = os.path.join(ROOT, "apps/web/public/textures/terrain")
 TMP = tempfile.mkdtemp(prefix="bohemia-icons-")
 RES = 256
@@ -658,6 +662,78 @@ def icon_ohrada():
 
 
 # --------------------------------------------------------------- suroviny ----
+
+
+def road_strip(width, length, material, z=0.004, wobble=0.12, seed=3):
+    """Pás cesty přes portrét (podél Y) s lehce zvlněnými okraji."""
+    rng = random.Random(seed)
+    bm = bmesh.new()
+    n = 24
+    rows = []
+    for i in range(n + 1):
+        y = -length / 2 + length * i / n
+        dx = math.sin(y * 0.6) * 0.25
+        row = []
+        for side in (-1, 1):
+            x = dx + side * (width / 2 + rng.uniform(-wobble, wobble))
+            row.append(bm.verts.new((x, y, z)))
+        rows.append(row)
+    for i in range(n):
+        bm.faces.new((rows[i][0], rows[i][1], rows[i + 1][1], rows[i + 1][0]))
+    return to_obj(bm, "road", material, smooth=False)
+
+
+def icon_road(grade):
+    """Portrét stupně pevné cesty (roads.md): vyšlapaná, upravená se strouhou a kameny, hať a lávka."""
+    rng = random.Random(11)
+    gr = ground(6.4, mat("g", tex=f"{TEX}/grass-dirt.jpg", scale=0.25, tint=(0.8, 0.82, 0.6)), z=-0.02, fade=0.72)
+    earth = mat("earth", tex=f"{TEX}/mud.jpg", scale=0.5, tint=(0.82, 0.66, 0.48))
+    width = 1.6 if grade == "cesta" else 2.4
+    road_strip(width, 12.0, earth)
+    if grade != "cesta":
+        ditch = mat("ditch", tex=f"{TEX}/mud.jpg", scale=0.6, tint=(0.45, 0.36, 0.28))
+        strip = road_strip(0.45, 12.0, ditch, z=0.006, wobble=0.05, seed=5)
+        strip.location.x = width / 2 + 0.45
+        for k in range(14):
+            y = rng.uniform(-4.5, 4.5)
+            objs = place_model("road-stone", folder=ROADS)
+            place_root(objs, (rng.uniform(-0.9, 0.9) + math.sin(y * 0.6) * 0.25, y, 0.0), rng.uniform(0, 6.28), rng.uniform(0.8, 1.3))
+    if grade == "hat":
+        # hať přes mokřinu vpředu a lávka přes potok vzadu
+        water = mat("water", (0.22, 0.32, 0.36), 0.15)
+        bm = bmesh.new()
+        bmesh.ops.create_grid(bm, x_segments=2, y_segments=2, size=1.0)
+        for v in bm.verts:
+            v.co = (v.co.x * 6.5, 2.6 + v.co.y * 1.0, -0.12)
+        to_obj(bm, "water", water, smooth=False)
+        for k in range(16):
+            objs = place_model("road-log", folder=ROADS)
+            y = -3.6 + k * 0.24
+            place_root(objs, (math.sin(y * 0.6) * 0.25, y, 0.0), rng.uniform(-0.06, 0.06), 1.0)
+        objs = place_model("road-bridge", folder=ROADS)
+        place_root(objs, (math.sin(2.6 * 0.6) * 0.25, 2.6, -0.05), 0.0, 1.0)
+    sun(az=-55, el=46)
+    camera([Vector((-3.2, -4.6, 0)), Vector((3.2, 4.6, 1.4)), Vector((-3.2, 4.6, 0)), Vector((3.2, -4.6, 0))], az=24, el=42, margin=0.92)
+
+
+def icon_jablone():
+    """Jabloně podél cesty (roads.md – Vysazení jabloní): vyšlapaná cesta, jabloně s jablky střídavě po stranách."""
+    rng = random.Random(17)
+    ground(6.4, mat("g", tex=f"{TEX}/grass-dirt.jpg", scale=0.25, tint=(0.8, 0.82, 0.6)), z=-0.02, fade=0.72)
+    road_strip(1.9, 12.0, mat("earth", tex=f"{TEX}/mud.jpg", scale=0.5, tint=(0.72, 0.56, 0.4)))
+    trunk, leaves, apples = bmesh.new(), bmesh.new(), bmesh.new()
+    for k in range(4):
+        y = -3.9 + k * 2.6
+        side = 1 if k % 2 == 0 else -1
+        x = math.sin(y * 0.6) * 0.25 + side * 2.0
+        apple_tree(trunk, leaves, apples, x, y, rng, rng.uniform(0.78, 0.86))
+    objs = [
+        to_obj(trunk, "trunks", mat("bark", (0.36, 0.26, 0.17), 0.9, noise=30, bump=0.4)),
+        to_obj(leaves, "leaves", mat("leaves", (0.17, 0.34, 0.07), 0.8, noise=18, bump=0.8)),
+        to_obj(apples, "apples", mat("apple", (0.75, 0.06, 0.03), 0.4)),
+    ]
+    sun(az=-55, el=46)
+    camera(world_points(objs) + [Vector((-3.2, -4.6, 0)), Vector((3.2, 4.6, 0))], az=24, el=42, margin=0.95)
 
 
 def icon_food():
@@ -1558,6 +1634,10 @@ BUILD = {
     "sous": icon_sous,
     "haj": icon_haj,
     "ohrada": icon_ohrada,
+    "cesta": lambda: icon_road("cesta"),
+    "cesta-upravena": lambda: icon_road("cesta-upravena"),
+    "hat": lambda: icon_road("hat"),
+    "jablone": icon_jablone,
 }
 RESOURCES = {
     "food": icon_food,

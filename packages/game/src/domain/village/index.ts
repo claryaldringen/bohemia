@@ -38,6 +38,11 @@ export {
   orchardWorkRemaining,
   orchardYear,
   orchardYieldShare,
+  roadAppleBearing,
+  roadAppleCareWork,
+  roadAppleHarvestWork,
+  roadApplePlantingWork,
+  roadAppleYieldKg,
   seasonBounds,
   squareBearing,
   squareCareWork,
@@ -64,3 +69,12 @@ export * from './happiness';
 export * from './crafts';
 export * from './paths';
 export * from './road-trees';
+export * from './road-upgrades';
+// jabloně u cest – kroky simulace (práce a dokončení výsadby) zůstávají uvnitř
+export {
+  roadAppleSpots,
+  roadApplesOption,
+  startRoadApples,
+  villageRoadApples,
+  type RoadApplesOption,
+} from './road-apples';

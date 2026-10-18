@@ -1,5 +1,5 @@
 import type { RoadTreeSpecies } from '@bohemia/game';
-import type { SceneRoadTree } from '../village-view';
+import type { SceneRoadApple, SceneRoadTree } from '../village-view';
 import { hash01 } from './smoke-schedule';
 
 // Stromy u pevných cest ve scéně (docs/design/roads.md – Stromy u pevných cest; Martin: napřed
@@ -23,6 +23,23 @@ export const PATH_TREE_MODELS = [
 ] as const;
 export type PathTreeModel = (typeof PATH_TREE_MODELS)[number];
 
+/**
+ * Jabloně podél cest (roads.md – Vysazení jabloní) – modely ze sadu (public/models/trees/),
+ * bez plodů a s plody (varianty jako v sadu – orchard-layout.ts).
+ */
+export const ROAD_APPLE_MODELS = [
+  'apple-1',
+  'apple-2',
+  'apple-3',
+  'apple-4',
+  'apple-fruit-1',
+  'apple-fruit-2',
+  'apple-fruit-3',
+  'apple-fruit-4',
+] as const;
+export type RoadAppleModel = (typeof ROAD_APPLE_MODELS)[number];
+const APPLE_VARIANTS = 4;
+
 /** Keř (mladý nálet do 8 let), souš a pařez – modely dekorací (public/models/decor/). */
 export const ROAD_SHRUB_MODELS = [
   'shrub-1',
@@ -42,12 +59,13 @@ type RoadDecorModel =
   | typeof OAK_SNAG_MODEL
   | typeof STUMP_MODEL;
 
-/** Model u cesty: strom (stromy krajiny), nebo keř, souš a pařez (dekorace). */
-export type RoadsideModel = PathTreeModel | RoadDecorModel;
+/** Model u cesty: strom (stromy krajiny), jabloň (ze sadu), nebo keř, souš a pařez (dekorace). */
+export type RoadsideModel = PathTreeModel | RoadAppleModel | RoadDecorModel;
 
 /** Všechny modely u cest – meshe `pathside-<model>`. */
 export const ROADSIDE_MODELS: readonly RoadsideModel[] = [
   ...PATH_TREE_MODELS,
+  ...ROAD_APPLE_MODELS,
   ...ROAD_SHRUB_MODELS,
   ...ROAD_SNAG_MODELS,
   OAK_SNAG_MODEL,
@@ -59,9 +77,16 @@ export function isPathTreeModel(model: RoadsideModel): model is PathTreeModel {
   return (PATH_TREE_MODELS as readonly string[]).includes(model);
 }
 
+/** Je model jabloň (materiál jabloně ze sadu)? */
+export function isRoadAppleModel(model: RoadsideModel): model is RoadAppleModel {
+  return (ROAD_APPLE_MODELS as readonly string[]).includes(model);
+}
+
 /** Soubor modelu u cesty. */
 export function roadsideModelUrl(model: RoadsideModel): string {
-  return isPathTreeModel(model) ? `/models/trees/${model}.glb` : `/models/decor/${model}.glb`;
+  return isPathTreeModel(model) || isRoadAppleModel(model)
+    ? `/models/trees/${model}.glb`
+    : `/models/decor/${model}.glb`;
 }
 
 /** Instance modelu u cesty – poloha, natočení a násobek velikosti modelu. */
@@ -118,4 +143,27 @@ export function roadsideInstance(tree: SceneRoadTree): RoadsideInstance {
 /** Klíč stromů u cest – modely se přestaví, jen když se změní. */
 export function roadTreesKey(trees: readonly SceneRoadTree[] | undefined): string {
   return (trees ?? []).map((t) => `${t.id}:${t.stage}:${t.growth}`).join(',');
+}
+
+/**
+ * Jabloň u cesty ve scéně: strom ze sadu (varianta podle id, s plody od srpna do sklizně)
+ * s velikostí z jádra (sazenice 30 % → plná za 12 let), souš jako u stromů u cest. Jabloň, která
+ * na výsadbu teprve čeká, model nemá – stojí tam kolík vytyčení (road-works.ts).
+ */
+export function roadAppleInstance(apple: SceneRoadApple): RoadsideInstance | null {
+  const rotationY = hash01(apple.id, 5, 73) * Math.PI * 2;
+  const jitter = 0.92 + hash01(apple.id, 6, 73) * 0.16;
+  const at = { x: apple.x, z: apple.z, rotationY };
+  if (apple.stage === 'planting') return null;
+  if (apple.stage === 'snag') {
+    return { ...at, model: pick(ROAD_SNAG_MODELS, apple.id, 3), scale: jitter * 0.8 };
+  }
+  const variant = Math.floor(hash01(apple.id, 7, 73) * APPLE_VARIANTS) % APPLE_VARIANTS;
+  const model = ROAD_APPLE_MODELS[variant + (apple.fruit ? APPLE_VARIANTS : 0)]!;
+  return { ...at, model, scale: apple.growth * jitter };
+}
+
+/** Klíč jabloní u cest – modely se přestaví, jen když se změní stadium, velikost nebo plody. */
+export function roadApplesKey(apples: readonly SceneRoadApple[] | undefined): string {
+  return (apples ?? []).map((a) => `${a.id}:${a.stage}:${a.growth}:${a.fruit ? 1 : 0}`).join(',');
 }

@@ -95,7 +95,8 @@ Rozhodnutí kontroléru tam, kde návrh nedává postup (Martin je může změni
   spřežení a výcviku počítá se dvěma voly – výcvik jde zadat kdykoli) bez zásoby, z dílů úhoru ve
   fázi louky a z přirozených luk do 600 m od nejbližší k obydlí – vzdálenost je **chůze po
   pěšinách** jako u polních prací ([paths.md](paths.md) – Pěšiny a práce; díl úhoru
-  `partWalkDistance`, políčko přirozené louky přes síť pěšin vsi, bez sítě rovně), při shodě díly
+  `partWalkDistance`, políčko přirozené louky přes síť pěšin vsi a pevné cesty podle stupně –
+  [roads.md](roads.md), bez sítě rovně), při shodě díly
   úhoru a pak po políčkách; simulace k tomu dostává krajinu. Vzdálenost louky se uloží s plánem
   a podle ní je i práce seče. Seče se
   v červnu–červenci po dílech a políčkách jako polní práce, seno přibývá poměrně k práci.

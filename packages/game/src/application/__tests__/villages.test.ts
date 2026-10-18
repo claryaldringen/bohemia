@@ -7,6 +7,7 @@ import {
   tileCenterWorld,
 } from '../../domain/landscape';
 import {
+  villageRoadWalk,
   advanceVillage,
   checkDwellingPlacement,
   checkPlotPlacement,
@@ -801,8 +802,11 @@ describe('překážky krajiny ve vsi (vrstva překážek)', () => {
       .filter((t) => !check.obstacleIds.includes(t.id) && !reserved.has(t.id))
       .slice(0, 18 - Math.min(18, siteTrees));
     expect(construction.wood!.fell.map((t) => t.id)).toEqual(nearest.map((t) => t.id));
+    // kácení podle chůze ke stromu (roads.md – mokřina ×2, brod + 30 m; pevné cesty ves nemá)
+    const walks = villageRoadWalk(before, real)(spot, nearest);
     construction.wood!.fell.forEach((t, i) => {
-      expect(t.cost).toBeCloseTo(fellingCost(nearest[i]!.distanceM), 9);
+      expect(walks[i]!).toBeGreaterThanOrEqual(nearest[i]!.distanceM - 1e-9);
+      expect(t.cost).toBeCloseTo(fellingCost(walks[i]!), 9);
     });
     expect(construction.cost).toBeCloseTo(
       dwellingBuildLabor('polozemnice') + check.obstacleCost + woodFellingCost(construction.wood),

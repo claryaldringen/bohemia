@@ -17,6 +17,7 @@ import { fieldsTouching, mergeFields, partFoundingCost } from './fields';
 import { giveWayToDwelling, validateTakenLand, type TakenLand } from './land-taken';
 import { obstacleChangesAt, recordClearedObstacles } from './obstacles';
 import { orchardPlantingCost, villageOrchards } from './orchard';
+import type { Walk } from './paths/walking';
 import { ageGroup } from './people';
 import {
   CRAFTS,
@@ -405,6 +406,8 @@ export interface DwellingSiteOptions {
    * se o ně zmenší (population.md – Obydlí na poli a v sadu).
    */
   takenLand?: readonly TakenLand[];
+  /** Chůze ke stromům ke kácení po pevných cestách (roads.md); bez ní vzdušná vzdálenost. */
+  walk?: Walk;
 }
 
 /**
@@ -448,6 +451,7 @@ export function startNewDwelling(
     ...(site.obstacles ? { obstacles: site.obstacles } : {}),
     clearedTrees: site.clearedTrees ?? 0,
     clearedIds: obstacleIds,
+    ...(site.walk ? { walk: site.walk } : {}),
   });
   if (plan.missing > 0) throw new RangeError('Na stavbu ves nemá dřevo – není z čeho kácet.');
   const next = structuredClone(state);
@@ -522,6 +526,7 @@ export function startWorkshop(
     clearedTrees: site.clearedTrees ?? 0,
     clearedIds: obstacleIds,
     trees: workshopTrees(craft),
+    ...(site.walk ? { walk: site.walk } : {}),
   });
   if (plan.missing > 0) throw new RangeError('Na stavbu ves nemá dřevo – není z čeho kácet.');
   const next = structuredClone(state);
@@ -769,6 +774,8 @@ export interface SacredSiteOptions {
   obstacles?: ObstacleLayer;
   /** Dospělé stromy mezi `obstacleIds` – osadníci je skácí na hromadu klád. */
   clearedTrees?: number;
+  /** Chůze k dubům ke kácení po pevných cestách (roads.md); bez ní vzdušná vzdálenost. */
+  walk?: Walk;
 }
 
 /**
@@ -803,7 +810,11 @@ export function startSacredBuilding(
     kind,
     position,
     { changes: () => obstacleChangesAt(state, day), claimed: () => claimedObstacles(state) },
-    { obstacles: site.obstacles ?? null, clearedIds: obstacleIds },
+    {
+      obstacles: site.obstacles ?? null,
+      clearedIds: obstacleIds,
+      ...(site.walk ? { walk: site.walk } : {}),
+    },
   );
   if (plan.missing > 0) throw new RangeError('Na stavbu ves nemá dospělé duby ke kácení.');
   const next = structuredClone(state);
@@ -835,6 +846,7 @@ export function foundPen(
   day: number,
   input: PenInput,
   obstacles: ObstacleLayer | null,
+  walk?: Walk,
 ): VillageState {
   validateActionDay(state, day);
   if (!Number.isInteger(input.cell.x) || !Number.isInteger(input.cell.y)) {
@@ -850,7 +862,7 @@ export function foundPen(
     throw new RangeError('Na čtverci už ohrada stojí.');
   }
   requireAffordable(state, 'pen', obstacles ?? undefined);
-  return startPen(state, day, input, obstacles);
+  return startPen(state, day, input, obstacles, walk);
 }
 
 /**
@@ -862,7 +874,8 @@ export function trainTeam(
   day: number,
   penId: number,
   obstacles: ObstacleLayer | null,
+  walk?: Walk,
 ): VillageState {
   validateActionDay(state, day);
-  return startTeamTraining(state, day, penId, obstacles);
+  return startTeamTraining(state, day, penId, obstacles, walk);
 }

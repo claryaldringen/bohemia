@@ -15,7 +15,7 @@ import {
   type PlotVariant,
   type TileCell,
 } from '@bohemia/game';
-import type { FieldLook, SceneFieldPart, SceneVillage } from '../village-view';
+import type { FieldLook, SceneFieldPart, SceneRoad, SceneVillage } from '../village-view';
 import { CEMETERY_PHASES } from './cemetery-layout';
 import { DECAY_LABELS, DECAY_STAGES, decayStage, type DecayStage } from './dwelling-decay';
 import { hayPhase, meadowLook, type HayMeadow } from './hay-meadows';
@@ -762,4 +762,50 @@ export function showcaseDecay(t: number): SceneVillage {
     });
   }
   return { dwellings, fields: [], ruins };
+}
+
+// --- pevné cesty (roads.md – Vylepšení cesty) ------------------------------------------------
+
+/** Řada ukázky cest za řadou stupňů rozpadu (z) – tři úseky pod sebou. */
+const ROADS_Z = -104;
+const ROADS_STEP_Z = 9;
+
+/** Ukázka pevných cest na /dev/buildings. */
+export const SHOWCASE_ROADS = {
+  id: 'cesty',
+  label: 'Cesty',
+  focus: { x: 0, z: ROADS_Z - ROADS_STEP_Z, radius: 34 },
+} as const;
+
+/**
+ * Úseky ukázky cest: vyšlapaná, úprava (vyšlapaná → upravená podle průběhu stavby – široký pás,
+ * strouha, kameny v mokřině) a hať s lávkou (upravená → hať přes mokřinu a lávka přes brod).
+ * Při 100 % hotové; vytyčení provázkem od 0 %.
+ */
+export function showcaseRoads(progress: number): SceneRoad[] {
+  const p = Math.min(1, Math.max(0, progress));
+  const axis = (z: number): { x: number; z: number }[] => [
+    { x: -20, z },
+    { x: 0, z: z + 1.5 },
+    { x: 20, z },
+  ];
+  const building = (grade: 'improved' | 'causeway'): Partial<SceneRoad> =>
+    p < 1 ? { upgrade: { grade, progress: p } } : {};
+  return [
+    { id: 1, points: axis(ROADS_Z), grade: 'trodden', ground: { wet: [], fords: [] } },
+    {
+      id: 2,
+      points: axis(ROADS_Z - ROADS_STEP_Z),
+      grade: p < 1 ? 'trodden' : 'improved',
+      ground: { wet: [[14, 24]], fords: [] },
+      ...building('improved'),
+    },
+    {
+      id: 3,
+      points: axis(ROADS_Z - 2 * ROADS_STEP_Z),
+      grade: p < 1 ? 'improved' : 'causeway',
+      ground: { wet: [[6, 20]], fords: [30] },
+      ...building('causeway'),
+    },
+  ];
 }

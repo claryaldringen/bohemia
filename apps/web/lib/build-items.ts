@@ -18,6 +18,7 @@ import {
   planDwellingWoodFrom,
   planSacredWood,
   planWoodFrom,
+  placementWalk,
   PEN,
   sacredLaborManDays,
   type BuildKind,
@@ -33,6 +34,7 @@ import {
   type SacredBuildingKind,
   type SacredPlacementCheck,
   type TileCell,
+  type Walk,
 } from '@bohemia/game';
 import type { PlacementCost } from './scene/village-types';
 
@@ -196,6 +198,8 @@ export function dwellingPlacementCost(
       obstacles,
       clearedTrees: check.clearedTrees,
       clearedIds: check.obstacleIds,
+      // kácení chůzí po pevných cestách jako na serveru (roads.md)
+      walk: placementWalk(landscape, village),
     },
   );
   return {
@@ -230,6 +234,7 @@ export function workshopPlacementCost(
       clearedTrees: check.clearedTrees,
       clearedIds: check.obstacleIds,
       trees: workshopTrees(craft),
+      walk: placementWalk(landscape, village),
     },
   );
   return {
@@ -275,6 +280,7 @@ export function sacredPlacementCost(
   position: Position,
   check: Pick<SacredPlacementCheck, 'obstacleCost' | 'obstacleIds'>,
   obstacles: ObstacleLayer,
+  walk?: Walk,
 ): PlacementCost {
   const plan = planSacredWood(
     kind,
@@ -283,7 +289,7 @@ export function sacredPlacementCost(
       changes: () => village.obstacleChanges ?? NO_OBSTACLE_CHANGES,
       claimed: () => new Set(village.reservedTrees ?? []),
     },
-    { obstacles, clearedIds: check.obstacleIds },
+    { obstacles, clearedIds: check.obstacleIds, ...(walk ? { walk } : {}) },
   );
   return {
     laborManDays: sacredLaborManDays(kind, check.obstacleCost, plan),
@@ -310,7 +316,16 @@ const sacred = (
     const check = checkSacredBuildingPlacement(landscape, village, kind, position, obstacles);
     return {
       ...check,
-      cost: check.ok ? sacredPlacementCost(village, kind, position, check, obstacles) : null,
+      cost: check.ok
+        ? sacredPlacementCost(
+            village,
+            kind,
+            position,
+            check,
+            obstacles,
+            placementWalk(landscape, village),
+          )
+        : null,
     };
   },
 });

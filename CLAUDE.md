@@ -673,8 +673,9 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   po 2 letech `Pen.team`, po 10 letech na maso; náhradu jde cvičit jen v posledních 2 letech
   služby (`serviceYearsBeforeTraining`, Martin – druhé spřežení = druhá ohrada). Seno `VillageState.hay` (seč 1. 6. z úhoru ve
   fázi louky a přirozených luk do 600 m od obydlí – `planMowing` s krajinou, `HayMowing.squares`,
-  od nejbližší po pěšinách (`partWalkDistance`, přirozené louky `walkDistancesTo` z
-  `paths/village.ts`), jen kolik je třeba; pěšina k sečeným loukám – `PathVillage.hayMeadows`
+  od nejbližší po pěšinách a pevných cestách (`partWalkDistance`, přirozené louky
+  `walkDistancesTo` z `paths/village.ts` přes `walking.ts` – měří se jen louky v dosahu podle
+  `FASTEST_WALK_SHARE`), jen kolik je třeba; pěšina k sečeným loukám – `PathVillage.hayMeadows`
   a práce `meadow`; sezónní úloha `mow`, vzhled políček `hayMeadowLooks`; zimní krmení, pokrytí volů `oxenHayCoverage`
   k 1. 3.). **Orba:** plán s vycvičeným spřežením dá díly bez drnu (`isPloughable`) do
   `CropWork.plough` (jejich kopání v `required.dig` není); úloha `plough` v oknech kopání, nejvýš
@@ -986,6 +987,48 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   z dekorací, strom podle druhu z `ROAD_TREE_MODELS`, souš `snag-*` / `snag-oak`, pařez `stump`;
   meshe `pathside-<model>` – roční období a stíny jako stromy krajiny; přestaví se jen při změně
   `roadTreesKey`).
+- **Vylepšení pevné cesty a chůze podle stupně** ([roads.md](docs/design/roads.md) – fáze 2):
+  terén pěšin má příznaky `PATH_WETLAND` (mokřina – suchá rovina do 3 buněk od vody) a `PATH_WATER`;
+  úsek nese `Road.ground` (mokřina od–do a brody na ose – `roadGroundOf` při vzniku, starší při
+  roční kontrole; `splitRoad` je dělí). `road-upgrades.ts`: `roadUpgradeOptions` (nabídka, cena
+  `roadUpgradeCost` – `ROAD_UPGRADES` v `rules.ts`, důvod česky), `startRoadUpgrade` → stavba
+  `kind: 'road'` s `roadIds` a `roadGrade` (dřevo `planWoodFrom` k polovině úseku),
+  `finishRoadUpgrade` v `finishConstructions`; úsek ve stavbě nezaroste (`roadsInWork`). Use-case
+  `upgradeRoad`, server action `upgradeRoad` (`{ roadId, upgrade }`), práce `{ kind: 'road' }`
+  (labor-report, postavy `roadWork`, pěšina k polovině úseku). **Chůze** jen ve `walking.ts`:
+  `walkGraph(lines, { roads, ground })` – pěšiny dne, pevné cesty podle `ROAD_WALK`
+  (`roadPieceCost` – stupeň, mokřina, brod + 30 m bez lávky), `groundWalkLength` (rovně: mokřina
+  ×2, vstup do vody + 30 m), `walkingDistances(graph, origins, targets, ground)`; půda
+  `walkGroundOf(landscape)` je pevné okno kolem místa vsi. `refreshWalkDistances` počítá
+  `FieldPart.walkDistanceM`, `OrchardSquare.walkDistanceM` (`squareWalkDistance`) a
+  `Dwelling.forestWalkM` (`dwellingForestDistance` – palivo); kácení staveb přes `walk` v plánu
+  dřeva (`roadWalk` / `villageRoadWalk` jen po pevných cestách, u kurzoru `placementWalk`
+  s `PlacementVillage.walkRoads`). Bez krajiny (kalibrace) se nic z toho nepočítá. Web:
+  `VillageView.roads` (`VillageRoad` – panel), `SceneRoad.ground` a `upgrade` (průběh pro fáze),
+  výběr `{ kind: 'road' }` (`nearestRoad`, `ROAD_PICK_M`), panel `RoadBody` (ikony `cesta`,
+  `cesta-upravena`, `hat`). Scéna: `road-works-layout.ts` (čisté funkce – pásy `roadBands`,
+  strouha `ditchLines`, kameny, kmeny hatě, lávky, vytyčení), `road-works.ts` (`RoadWorks` –
+  modely `public/models/roads/` z `tools/blender/roads.py` v instancích, `roadRibbonMeshes`
+  i pro `/dev/buildings` – ukázka **Cesty** s posuvníkem stavby); `/dev/landscape` tlačítko
+  **Cesta: …** přepíná stupně a rozestavěné fáze (i cesta k nejbližšímu brodu).
+- **Jabloně podél pevné cesty** ([roads.md](docs/design/roads.md) – fáze 3): `VillageRoads.apples`
+  (`RoadApple` – místo, úsek, `distanceM` vzdušnou čarou, `plantedDay` null = čeká na výsadbu,
+  `constructionId`). `road-apples.ts`: `roadAppleSpots` (po 10 m střídavě – `roadTreeSpots`
+  s rozestupy `ROAD_APPLES`, mimo stavby, les, vodu, osy cest, překážky, stromy u cest a jiné
+  jabloně), `roadApplesOption` (počet, práce, důvod česky), `startRoadApples` → stavba
+  `kind: 'road-apples'` s `roadIds`; práce jen v oknech výsadby (`roadApplesNeed`, kroky
+  `workRoadApples` / `finishRoadApples` se neexportují). Úroda a práce jako sad na strom
+  (`roadAppleYieldKg`, `roadAppleHarvestWork`, `roadAppleCareWork`, `roadApplePlantingWork`
+  v `orchard.ts`, `startWork` je přičte k sadům); stadium `roadAppleStage` (čeká, strom, souš
+  10 let – pak zmizí v `updateRoads`), překážka `roadAppleObstacleKind` v `obstacleChangesAt`.
+  Práce v rozdělení `{ kind: 'road' }` (`orchardAreas` – jabloně podle plochy na strom).
+  Use-case `plantApplesAlongRoad`, server action `plantRoadApples` (`{ roadId }`). Web:
+  `VillageRoad.apples` (panel – počet, plodící, výsadba, nabídka), `SceneVillage.roadApples`
+  (`sceneRoadApples` – velikost a plody jako sad z `orchard-look.ts`), tlačítko „Vysadit jabloně“
+  (ikona `jablone`), jabloně ve scéně přes `path-trees.ts` (`roadAppleInstance`, meshe
+  `pathside-apple-*` s materiálem `prepareAppleMaterial` ze sadu, kůly `createTreeStakeMesh`),
+  vytyčení `appleStaking` v `RoadWorks`, postavy `roadApples` ve `villager-plan.ts`;
+  `/dev/landscape` tlačítko **Jabloně: …** (s **Cesta**) přepíná stadia.
 - **Ohrada s přístřeškem** ([oxen.md](docs/design/oxen.md); ve vsi `SceneVillage.pens` –
   `village-pens.ts` ve `VillageRenderer`: fáze podle `progress`, branka k nejbližšímu obydlí,
   zvířata `penAnimalsFor` na místa `spots` – voli spřežení (v den orby na poli), telata ve

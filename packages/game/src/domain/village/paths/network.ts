@@ -7,6 +7,7 @@ import type {
   Craft,
   DwellingType,
   HerdSpecies,
+  RoadGrade,
   LaborTarget,
   Position,
   SacredBuildingKind,
@@ -125,7 +126,7 @@ export interface PathVillage {
   /** Odstraněné a pokácené překážky (počty – klíč sítě). */
   obstacles?: Pick<ObstacleChanges, 'removed' | 'stumps'>;
   /** Pevné cesty (roads.md) – po nich se jde jako po plné pěšině. Bez údaje žádné. */
-  roads?: readonly { points: readonly PathPoint[] }[];
+  roads?: readonly { id?: number; points: readonly PathPoint[]; grade?: RoadGrade }[];
   /**
    * Ohrady (oxen.md) – čtverec jako díl pole a jestli je hotová: plot obchází, k ohradě se chodí
    * krmit dobytek. Bez údaje žádné.
@@ -186,16 +187,11 @@ const NEIGHBOUR_TRIPS = 0.5;
 const NEIGHBOURS = 2;
 /** Cest za den na člověkoden práce dne na místě (tam a zpět = jedna cesta). */
 const TRIPS_PER_MAN_DAY = 1;
-/**
- * Zavedená místa – cest za den celé vsi navíc k práci dne (pěšina nezaroste mezi pracemi). Hroby
- * předků se navštěvují často (raní Slované – obětiny, hostiny za mrtvé; návrh Clauda) – i ves se
- * dvěma domácnostmi má ke hřbitovu pěšinu.
- */
+/** Zavedená místa – cest za den celé vsi navíc k práci dne (pěšina nezaroste mezi pracemi). */
 const BASE_TRIPS = {
   field: 1.6,
   fallow: 0.4,
   orchard: 0.8,
-  cemetery: 1.5,
   site: 0.6,
   sacred: 0.6,
   pen: 0.8,
@@ -207,6 +203,12 @@ const BASE_TRIPS = {
  */
 const PASTURE = { flockHeads: 20, cattleHeads: 6, tripsPerHerd: 1 } as const;
 const AFTERMATH_MONTHS: readonly number[] = [8, 9, 10, 11];
+/**
+ * Návštěvy hrobů předků (Martin schválil, návrh Clauda – raní Slované je navštěvovali pravidelně:
+ * obětiny, hostiny za mrtvé): cest za den na člověka domácnosti, každá domácnost k nejbližšímu
+ * hřbitovu (ves se 7 lidmi ≈ 1 cesta denně, se 40 lidmi ≈ 6).
+ */
+const CEMETERY_VISITS_PER_PERSON = 0.15;
 /** Lidí na domácnost bez rozdělení práce (ves uložená dřív). */
 const DEFAULT_HOUSEHOLD = 5;
 /** Menší cesta za den se nehledá. */
@@ -391,6 +393,26 @@ export function pathNetworkKey(village: PathVillage): string {
   ]);
 }
 
+/** Bod v polovině lomené čáry. */
+function middleOf(points: readonly PathPoint[]): PathPoint {
+  let total = 0;
+  for (let k = 1; k < points.length; k++) {
+    total += length2(points[k]!.x - points[k - 1]!.x, points[k]!.z - points[k - 1]!.z);
+  }
+  let along = 0;
+  for (let k = 1; k < points.length; k++) {
+    const a = points[k - 1]!;
+    const b = points[k]!;
+    const length = length2(b.x - a.x, b.z - a.z);
+    if (length > 0 && along + length >= total / 2) {
+      const u = (total / 2 - along) / length;
+      return { x: a.x + (b.x - a.x) * u, z: a.z + (b.z - a.z) * u };
+    }
+    along += length;
+  }
+  return points[0]!;
+}
+
 /** Kolik stád se pase (ovce s kozami, krávy – PASTURE); prasata ne. */
 export function pastureHerds(livestock: PathVillage['livestock']): number {
   const whole = (n: number | undefined): number => Math.max(0, Math.round(n ?? 0));
@@ -400,13 +422,13 @@ export function pastureHerds(livestock: PathVillage['livestock']): number {
   );
 }
 
-/** Klíč pevných cest – počet bodů a konce každé osy (osa se jinak nemění). */
+/** Klíč pevných cest – počet bodů, konce každé osy (osa se jinak nemění) a stupeň. */
 export function roadsKey(roads: PathVillage['roads']): string {
   return (roads ?? [])
     .map((r) => {
       const a = r.points[0];
       const b = r.points[r.points.length - 1];
-      return a && b ? `${r.points.length}:${a.x},${a.z}:${b.x},${b.z}` : '';
+      return a && b ? `${r.points.length}:${a.x},${a.z}:${b.x},${b.z}:${r.grade ?? ''}` : '';
     })
     .join(';');
 }
@@ -896,11 +918,43 @@ function tripGroups(
     // nově zakládané pole: pěšina se teprve vyšlapává
     target(squaresTarget(field.parts), base + work(`field:${field.id}`), founding ? 0.5 : 1);
   }
-  for (const orchard of v.orchards ?? []) {
-    target(squaresTarget(orchard.squares), BASE_TRIPS.orchard + work(`orchard:${orchard.id}`));
-  }
-  for (const cemetery of v.cemeteries ?? []) {
-    target(squaresTarget(cemetery.squares), BASE_TRIPS.cemetery + work(`cemetery:${cemetery.id}`));
+  // sad: zavedené místo jen k nejbližšímu sadu, práce dne tam, kde se dnes pracuje
+  const orchards = v.orchards ?? [];
+  const nearestOrchard = nearestOfKind(
+    homes,
+    orchards.map((o) => o.squares),
+  );
+  orchards.forEach((orchard, k) => {
+    const sources = squaresTarget(orchard.squares);
+    if (sources.length === 0) return;
+    const base = shareWeights(homes, BASE_TRIPS.orchard);
+    const builders = shareWeights(homes, work(`orchard:${orchard.id}`));
+    const weights = homes.map((_, i) => builders[i]! + (nearestOrchard[i] === k ? base[i]! : 0));
+    if (weights.every((w) => w < MIN_TRIP)) return;
+    groups.push({ sources, weights, maxCost: groupReach(grid, sources, homes) });
+  });
+  // hřbitov: návštěvy hrobů podle lidí v domácnosti (k nejbližšímu hřbitovu) a práce dne
+  const cemeteries = v.cemeteries ?? [];
+  const nearestCemetery = nearestOfKind(
+    homes,
+    cemeteries.map((c) => c.squares),
+  );
+  cemeteries.forEach((cemetery, k) => {
+    const sources = squaresTarget(cemetery.squares);
+    if (sources.length === 0) return;
+    const builders = shareWeights(homes, work(`cemetery:${cemetery.id}`));
+    const weights = homes.map(
+      (h, i) =>
+        builders[i]! + (nearestCemetery[i] === k ? CEMETERY_VISITS_PER_PERSON * h.size * h.age : 0),
+    );
+    if (weights.every((w) => w <= 0)) return;
+    groups.push({ sources, weights, maxCost: groupReach(grid, sources, homes) });
+  });
+  // vylepšení pevné cesty (roads.md) – nosí se k polovině úseku
+  for (const road of v.roads ?? []) {
+    if (road.id === undefined || road.points.length === 0) continue;
+    const trips = work(`road:${road.id}`);
+    if (trips > 0) target(cellsAround(grid, middleOf(road.points), 3), trips);
   }
   // ohrada: krmení a napájení dobytka, stavba a rádlo (práce dne na ohradě)
   for (const pen of v.pens ?? []) {
@@ -950,16 +1004,59 @@ function tripGroups(
     const sources = trees.flatMap((p) => cellsAround(grid, p, 2.5));
     target(sources, t.manDays * TRIPS_PER_MAN_DAY);
   }
-  for (const oak of v.sacred?.oaks ?? []) {
-    target(cellsAround(grid, oak, OAK_REACH_M), BASE_TRIPS.sacred);
+  // posvátná místa: každá domácnost chodí jen k nejbližšímu místu každého druhu (posvátný dub,
+  // háj, modla, svatyně – Martin); rozestavěná modla a svatyně jsou staveniště (práce dne)
+  const visit = (places: readonly { sources: number[]; at: readonly PathPoint[] }[]): void => {
+    if (places.length === 0) return;
+    const nearest = nearestOfKind(
+      homes,
+      places.map((p) => p.at),
+    );
+    const weights = shareWeights(homes, BASE_TRIPS.sacred);
+    places.forEach((place, k) => {
+      const own = weights.map((w, i) => (nearest[i] === k ? w : 0));
+      if (place.sources.length === 0 || own.every((w) => w < MIN_TRIP)) return;
+      groups.push({
+        sources: place.sources,
+        weights: own,
+        maxCost: groupReach(grid, place.sources, homes),
+      });
+    });
+  };
+  visit(
+    (v.sacred?.oaks ?? []).map((oak) => ({
+      sources: cellsAround(grid, oak, OAK_REACH_M),
+      at: [oak],
+    })),
+  );
+  visit(
+    (v.sacred?.groves ?? []).map((grove) => ({
+      sources: squaresTarget(grove.squares),
+      at: grove.squares,
+    })),
+  );
+  const sacredBuildings = v.sacred?.buildings ?? [];
+  for (const kind of ['idol', 'shrine'] as const) {
+    visit(
+      sacredBuildings
+        .filter((b) => b.built && b.kind === kind)
+        .map((b) => ({
+          sources: cellsAround(
+            grid,
+            b.position,
+            SACRED_BUILDINGS[b.kind].footprintM / 2 + grid.cellM,
+          ),
+          at: [b.position],
+        })),
+    );
   }
-  for (const grove of v.sacred?.groves ?? []) {
-    target(squaresTarget(grove.squares), BASE_TRIPS.sacred);
-  }
-  for (const b of v.sacred?.buildings ?? []) {
+  for (const b of sacredBuildings) {
+    if (b.built) continue;
     const half = SACRED_BUILDINGS[b.kind].footprintM / 2;
-    const trips = b.built ? BASE_TRIPS.sacred : BASE_TRIPS.site + work(`site:${b.id}`);
-    target(cellsAround(grid, b.position, half + grid.cellM), trips);
+    target(
+      cellsAround(grid, b.position, half + grid.cellM),
+      BASE_TRIPS.site + work(`site:${b.id}`),
+    );
   }
   // sousedé – každá domácnost se dvěma nejbližšími (dvojice jednou)
   const pairs = new Set<string>();
@@ -1042,6 +1139,31 @@ function errandGroups(
     });
   }
   return groups;
+}
+
+/**
+ * Nejbližší místo daného druhu každé domácnosti (index v `places`, −1 = žádné): vzdušnou čarou
+ * od domu k nejbližšímu bodu místa (čtverce, kmene, stavby), při shodě první místo. K zavedeným
+ * místům (posvátná místa, hřbitov, sad) chodí domácnost jen k nejbližšímu (Martin).
+ */
+function nearestOfKind(
+  homes: readonly Household[],
+  places: readonly (readonly PathPoint[])[],
+): number[] {
+  return homes.map((h) => {
+    let best = -1;
+    let bestD = Infinity;
+    places.forEach((points, k) => {
+      for (const p of points) {
+        const d = length2(p.x - h.x, p.z - h.z);
+        if (d < bestD) {
+          best = k;
+          bestD = d;
+        }
+      }
+    });
+    return best;
+  });
 }
 
 /** Nejbližší místo pochůzky každé domácnosti vzdušnou čarou (−1 = žádné) – směr pro A*. */
