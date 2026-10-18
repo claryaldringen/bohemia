@@ -1,6 +1,6 @@
 // Jak se vzhled dílů pole kreslí (bez Babylonu): obtisky po dílech a jejich rozpracovaných
-// částech, trsy obilí v řádcích, panáky snopů na sklizené části, plevel v úhoru a kolíky
-// s provázkem kolem vytyčeného pole. Všechno deterministicky podle políčka – stejné pole se
+// částech, trsy obilí a hrachu v řádcích, panáky snopů (u luštěnin hromádky vytrhaného hrachu)
+// na sklizené části, plevel v úhoru a kolíky s provázkem kolem vytyčeného pole. Všechno deterministicky podle políčka – stejné pole se
 // při překreslení nezmění. Vzhled dílů rozhoduje field-look.ts.
 import { createNoise2D } from 'simplex-noise';
 import { cellsBoundary, cellsCoverage, type CellSquare } from './field-cells';
@@ -24,9 +24,22 @@ export type Rgb = readonly [number, number, number];
 export type FieldTexture =
   'farmland' | 'sown' | 'stubble' | 'crop' | 'grass' | 'grass-flowers' | 'grass-dirt' | 'mud';
 
-/** Trsy obilí (uzly crops.glb): zelené s klasy, zralé, vzcházející, strniště. */
-export type CropKind = 'green' | 'ripe' | 'sprout' | 'stubble';
-export const CROP_KINDS: readonly CropKind[] = ['green', 'ripe', 'sprout', 'stubble'];
+/**
+ * Trsy (uzly crops.glb – `crop-<druh>`): obilí zelené s klasy, zralé, vzcházející, strniště;
+ * hrách zelený kvetoucí a zralý (luštěniny – fields.md, Luštěniny).
+ */
+export type CropKind = 'green' | 'ripe' | 'sprout' | 'stubble' | 'pea-green' | 'pea-ripe';
+export const CROP_KINDS: readonly CropKind[] = [
+  'green',
+  'ripe',
+  'sprout',
+  'stubble',
+  'pea-green',
+  'pea-ripe',
+];
+
+/** Plodina dílu, která vypadá jinak než obilí (`SceneFieldPart.crop`). */
+export type FieldCrop = 'legume';
 
 /** Textura obtisku: soubor, délka opakování (m) a jestli brázdy vedou podél řádků pole. */
 export const FIELD_TEXTURES: Record<FieldTexture, { url: string; repeatM: number; rows: boolean }> =
@@ -229,9 +242,58 @@ export function isWildStage(stage: string): boolean {
   return stage === 'shrubs' || stage === 'young-forest';
 }
 
+/**
+ * Luštěniny (hrách a čočka – fields.md, Luštěniny) vypadají jinak než obilí: nízké polehlé
+ * trsy hrachu (zelené kvetou, zralé žlutohnědé), porost shora do modrozelené a zralý do hněda,
+ * po sklizni (rostliny se vytrhají) skoro holá zem s pár zbytky a místo panáků hromádky.
+ */
+const LEGUME_STYLES: Partial<Record<FieldLook, Partial<LookStyle>>> = {
+  sprouted: { crop: { kind: 'sprout', height: 0.2, width: 0.75, density: 0.7 } },
+  green: {
+    tint: [0.36, 0.55, 0.36],
+    crop: { kind: 'pea-green', height: 0.6, width: 1.25, density: 1 },
+  },
+  ripe: {
+    tint: [0.66, 0.56, 0.36],
+    crop: { kind: 'pea-ripe', height: 0.52, width: 1.2, density: 1 },
+  },
+  harvesting: {
+    tint: [0.96, 0.86, 0.72],
+    crop: { kind: 'stubble', height: 0.07, width: 0.4, density: 0.12 },
+  },
+  stubble: {
+    tint: [0.94, 0.84, 0.7],
+    crop: { kind: 'stubble', height: 0.07, width: 0.4, density: 0.12 },
+  },
+};
+
+/** Vzhled dílu podle plodiny – luštěniny mají vlastní trsy a tón, jinak LOOK_STYLES. */
+export function lookStyle(look: FieldLook, crop?: FieldCrop): LookStyle {
+  const base = LOOK_STYLES[look];
+  const legume = crop === 'legume' ? LEGUME_STYLES[look] : undefined;
+  return legume ? { ...base, ...legume } : base;
+}
+
+/** Čtverec dílu s plodinou (`SceneFieldPart.crop`). */
+export type CropSquare = CellSquare & { readonly crop?: FieldCrop };
+
+/**
+ * Část klíče změn pole (field-renderer.ts) za vzhled dílů: vzhled, rozpracovanost po pruzích,
+ * vzhled zbytku, vytyčení a plodina – pole se přestaví, jen když se některé z nich změní.
+ */
+export function partViewsKey(views: readonly PartView[]): unknown[] {
+  return views.map((v) => [
+    v.look,
+    v.work === null ? null : workSteps(v.work),
+    v.before,
+    v.staked,
+    v.part.crop ?? null,
+  ]);
+}
+
 /** Kus obtisku: obdélník ve světě se vzhledem (celý díl, nebo jeho hotová či nehotová část). */
 export interface DecalPiece {
-  part: CellSquare;
+  part: CropSquare;
   bounds: Bounds;
   look: FieldLook;
 }
@@ -239,9 +301,9 @@ export interface DecalPiece {
 /** Rozteč řádků obilí (m) a trsů v řádku (m), odstup trsů od meze (krytí obtisku). */
 export const ROW_M = 0.8;
 export const STEP_M = 0.7;
-/** Rozestup panáků podél řádků a napříč (m). */
-const STOOK_ALONG_M = 6;
-const STOOK_ACROSS_M = 4.8;
+/** Rozestup panáků podél řádků a napříč (m); hromádky hrachu jsou menší a hustší. */
+const STOOK_SPACING_M = { along: 6, across: 4.8 } as const;
+const HEAP_SPACING_M = { along: 4.2, across: 3.6 } as const;
 
 /** Rozsah `w` (0–1) jako obdélník ve světě – díl je čtverec v osách. */
 function workRect(part: CellSquare, frame: WorkFrame, from: number, to: number): Bounds {
@@ -313,9 +375,23 @@ export interface PlantInstance {
 export interface FieldPlants {
   crops: Record<CropKind, PlantInstance[]>;
   stooks: PlantInstance[];
+  /** Hromádky vytrhaného hrachu na sklizené části luštěnin (uzel pea-heap v crops.glb). */
+  heaps: PlantInstance[];
   weeds: PlantInstance[];
   /** Kupky a stohy sena (model stohu, velikost ve `width`). */
   hay: PlantInstance[];
+}
+
+/** Prázdné instance trsů po druzích. */
+export function emptyCrops(): Record<CropKind, PlantInstance[]> {
+  return {
+    green: [],
+    ripe: [],
+    sprout: [],
+    stubble: [],
+    'pea-green': [],
+    'pea-ripe': [],
+  };
 }
 
 /** Semínko náhody pro políčko (a druh věci na něm). */
@@ -337,8 +413,9 @@ export function fieldPlants(
   dayOfYear = 196,
 ): FieldPlants {
   const plants: FieldPlants = {
-    crops: { green: [], ripe: [], sprout: [], stubble: [] },
+    crops: emptyCrops(),
     stooks: [],
+    heaps: [],
     weeds: [],
     hay: [],
   };
@@ -367,7 +444,7 @@ export function fieldPlants(
 
 function addCrops(
   plants: FieldPlants,
-  part: CellSquare,
+  part: CropSquare,
   frame: WorkFrame,
   lookAt: (w: number) => FieldLook | null,
   coverage: (x: number, z: number) => number,
@@ -391,7 +468,7 @@ function addCrops(
       const shade = 0.86 + random() * 0.22;
       const rank = random();
       const look = lookAt(workAt(frame, part, x, z));
-      const crop = look ? LOOK_STYLES[look].crop : null;
+      const crop = look ? lookStyle(look, part.crop).crop : null;
       if (!crop) continue;
       // u meze trsy řídnou s obtiskem – okraj pole je měkký
       const edge = smoothstep(0.15, 0.85, coverage(x, z));
@@ -411,7 +488,7 @@ function addCrops(
 
 function addStooks(
   plants: FieldPlants,
-  part: CellSquare,
+  part: CropSquare,
   frame: WorkFrame,
   lookAt: (w: number) => FieldLook | null,
   done: number,
@@ -421,8 +498,12 @@ function addStooks(
   const random = seededRandom(cellSeed(part, 0x51ed));
   const { along, across, half } = frame;
   const size = 2 * half;
-  const rowsAcross = Math.max(1, Math.round(size / STOOK_ACROSS_M));
-  const perRow = Math.max(1, Math.round(size / STOOK_ALONG_M));
+  // luštěniny se vytrhají a suší v hromádkách, obilí se váže do snopů a staví do panáků
+  const legume = part.crop === 'legume';
+  const spacing = legume ? HEAP_SPACING_M : STOOK_SPACING_M;
+  const target = legume ? plants.heaps : plants.stooks;
+  const rowsAcross = Math.max(1, Math.round(size / spacing.across));
+  const perRow = Math.max(1, Math.round(size / spacing.along));
   for (let r = 0; r < rowsAcross; r++) {
     const w = (r + 0.5) / rowsAcross;
     // panák stojí až kus za čarou žně – snopy se vážou za ženci
@@ -438,7 +519,7 @@ function addStooks(
       const rank = random();
       const look = lookAt(workAt(frame, part, x, z));
       if (!look || !LOOK_STYLES[look].stooks || coverage(x, z) < 0.6) continue;
-      plants.stooks.push({ x, z, rotation, width: scale, height: scale, shade: 1, rank });
+      target.push({ x, z, rotation, width: scale, height: scale, shade: 1, rank });
     }
   }
 }

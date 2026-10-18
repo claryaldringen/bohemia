@@ -5,6 +5,7 @@ import { foundingCostPerHa, withinBounds } from './productivity';
 import {
   DISTANCE,
   FERTILITY,
+  LEGUMES,
   FOREST_BONUS,
   OBSTACLE_COST,
   OVERGROWTH_STAGES,
@@ -152,11 +153,15 @@ export function partFoundingCost(
 
 /**
  * Konec hospodářského roku (1. 9.) pro jeden díl – mění ho na místě: osev vyčerpá úrodnost
- * (pod 70 % jde díl do přílohu), příloh ji obnoví.
+ * (pod 70 % jde díl do přílohu; luštěniny ji naopak trochu vrátí – poutají dusík, fields.md –
+ * Luštěniny), příloh ji obnoví.
  */
 export function endOfSeason(part: FieldPart, day: number): void {
   if (part.state === 'sown') {
-    part.fertilityShare -= FERTILITY.sowDepletion;
+    part.fertilityShare =
+      part.crop === 'legume'
+        ? Math.min(1, part.fertilityShare + LEGUMES.fertilityGain)
+        : part.fertilityShare - FERTILITY.sowDepletion;
     part.sownYears += 1;
     if (part.fertilityShare < FERTILITY.sowableMin - EPSILON) {
       part.state = 'fallow';

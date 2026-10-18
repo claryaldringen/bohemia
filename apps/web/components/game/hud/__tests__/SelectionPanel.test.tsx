@@ -117,3 +117,28 @@ describe('SelectionPanel – posvátný dub a háj', () => {
     expect(html).not.toContain('Stáří');
   });
 });
+
+describe('panel pole – plodiny (fields.md – Luštěniny)', () => {
+  it('oseté díly luštěninami mají vlastní ikonu a počet vedle ozimu a jaře', () => {
+    const html = render({
+      kind: 'field',
+      id: 5,
+      areaM2: 2250,
+      fertility: 70,
+      stages: [{ stage: 'sown', count: 6 }],
+      surfaces: [],
+      crops: [
+        { crop: 'winter', count: 3 },
+        { crop: 'spring', count: 1 },
+        { crop: 'legume', count: 2 },
+      ],
+      ashParts: 0,
+      ashBonus: 0,
+      overgrowingM2: 0,
+      founding: null,
+    });
+    expect(html).toMatch(/legumes\.png.*data-testid="selection-crop-legume"[^>]*>2</);
+    expect(html).toContain('Luštěniny – hrách a čočka');
+    expect(html).toContain('data-testid="selection-crop-winter"');
+  });
+});

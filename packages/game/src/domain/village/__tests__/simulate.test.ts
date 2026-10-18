@@ -186,12 +186,13 @@ describe('advanceVillage – dopočítání', () => {
     // (≥ 0,95 po 95 % let), je cíl kalibrace v Task 10 – startovní pole 1,7 ha je po třech
     // osevech vyčerpané a potřeba roste (dospívající → dospělí, porody).
     const s = advanceVillage(found(at(600, 10, 1)), at(602, 8, 31), null);
-    // jař 601 (díly hotové po plánu jdou do jaře), pak ozim v červenci a jař v srpnu 602
+    // jař 601 (díly hotové po plánu jdou do jaře), pak luštěniny a ozim v červenci a jař
+    // v srpnu 602 (luštěniny až z ročního plánu – fields.md, Luštěniny)
     expect(
       harvests(s)
         .filter((e) => e.kg > 0)
         .map((e) => e.crop ?? 'spring'),
-    ).toEqual(['spring', 'winter', 'spring']);
+    ).toEqual(['spring', 'legume', 'winter', 'spring']);
     expect(count(s, 'hunger-began')).toBe(0);
     expect(s.hungry).toBe(false);
   });
