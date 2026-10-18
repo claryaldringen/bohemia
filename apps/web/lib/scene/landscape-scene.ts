@@ -48,6 +48,7 @@ import { SHADOW_DARKNESS, addSunShadows, type SunShadows } from './sun-shadows';
 import { tileAt, tileCenter } from './tile-at';
 import { addTrees } from './trees';
 import { FieldPainter } from './field-painting';
+import { PlacementOutlines } from './placement-outlines-view';
 import { SelectionHighlight } from './selection-highlight';
 import { pickVillageTarget, rayAtHeight, type Ray, type VillageTarget } from './village-picking';
 import { PlacementController, type ActivePlacement } from './village-placement';
@@ -96,6 +97,8 @@ export class LandscapeScene {
   private readonly downs = new Map<number, { x: number; y: number; placing: boolean }>();
   private selection: VillageTarget | null = null;
   private highlight: SelectionHighlight | null = null;
+  /** Hranice stávajících objektů – jen při malování pole, sadu a hřbitova. */
+  private outlines: PlacementOutlines | null = null;
   private groundHeight: ((x: number, z: number) => number) | null = null;
   private readonly resizeObserver: ResizeObserver;
   private landscape: Landscape | null = null;
@@ -244,6 +247,13 @@ export class LandscapeScene {
       this.village.setSeason(this.seasonDayOfYear(), this.season.snow);
     }
     this.village.setSmokeAlways(this.smokeAlways);
+    this.outlines = new PlacementOutlines(
+      this.scene,
+      (x, z) => terrainMeshHeight(surface, x, z),
+      () => {
+        this.needsRender = true;
+      },
+    );
     this.highlight = new SelectionHighlight(this.scene, (x, z) => terrainMeshHeight(surface, x, z));
     await report('forest', 0.4);
     if (this.disposed) return;
@@ -445,11 +455,17 @@ export class LandscapeScene {
     };
     const controlled: PlacementHandlers = {
       onConfirm: (result, keepPlacing) => {
-        if (!keepPlacing && this.placement === controller) this.placement = null;
+        if (!keepPlacing && this.placement === controller) {
+          this.placement = null;
+          this.outlines?.hide();
+        }
         handlers.onConfirm(result, keepPlacing);
       },
       onCancel: () => {
-        if (this.placement === controller) this.placement = null;
+        if (this.placement === controller) {
+          this.placement = null;
+          this.outlines?.hide();
+        }
         handlers.onCancel();
       },
       onPreview: handlers.onPreview ? (preview) => handlers.onPreview?.(preview) : undefined,
@@ -486,6 +502,8 @@ export class LandscapeScene {
             controlled,
           );
     this.placement = controller;
+    if (mode.kind === 'squares') this.outlines?.show(this.villageState);
+    else this.outlines?.hide();
     if (mode.kind !== 'squares') {
       // Model ducha se načte (jednou) a pak naskočí pod kurzorem.
       const models = mode.kind === 'sacred' ? village.loadSacredModels() : village.loadModels();
@@ -616,6 +634,7 @@ export class LandscapeScene {
     this.viewListeners.clear();
     this.clearedListeners.clear();
     this.highlight?.dispose();
+    this.outlines?.dispose();
     this.placement?.dispose();
     this.placement = null;
     this.village?.dispose();
@@ -750,7 +769,10 @@ export class LandscapeScene {
     const people = this.villagers?.update(this.villageState, Date.now()) ?? false;
     // Rozhraní posílá stav vsi opakovaně (dotaz každých pár sekund) – beze změny nic.
     // Vybrané pole mohlo změnit čtverce (zarůstání), vybrané obydlí zaniknout.
-    if (changed) this.highlight?.show(this.villageState, this.selection);
+    if (changed) {
+      this.highlight?.show(this.villageState, this.selection);
+      this.outlines?.update(this.villageState);
+    }
     if (!changed && !hidden && !shaded && !cleared && !felled && !logs && !animals && !people) {
       return;
     }
