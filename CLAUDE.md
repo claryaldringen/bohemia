@@ -368,8 +368,13 @@ rozhraní částí v
   jen když jsou, volná práce, nasycení barvou ikony, datum; zvuk a odhlášení), `Minimap` (vlevo dole, `lib/minimap.ts`,
   klik / tažení přesune pohled), `SelectionPanel` (dole uprostřed, jen při výběru,
   `lib/selection-details.ts`), `BuildGrid` (vpravo dole), `NoticeLines` (mizející řádky nahoře),
-  `CursorReason` (důvod, proč umístění nejde; oranžově `check.warning`, které stavbu
-  neblokuje – hřbitov blízko obydlí nebo vody, obydlí blízko hřbitova). Popisky = `hud/Tooltip.tsx`, jeden krátký
+  `CursorReason` (jde s kurzorem při umisťování: u prošlého umístění **cena ikonami s čísly** –
+  práce celkem v člověkodnech i s překážkami, u obydlí i s kácením, a ikona stromů s počtem
+  stromů ke kácení, když nestačí klády – `PlacementCost` z `lib/build-items.ts`, obydlí přes
+  `dwellingPlacementCost` = `planDwellingWoodFrom` + `dwellingLaborManDays` z jádra jako při
+  zahájení stavby; pod ní oranžově `check.warning`, které stavbu neblokuje – hřbitov blízko
+  obydlí nebo vody, obydlí blízko hřbitova; když umístění nejde, místo ceny krátký červený
+  důvod). Kromě důvodu a varování u kurzoru žádná slova ani souhrny. Popisky = `hud/Tooltip.tsx`, jeden krátký
   název (u staveb i cena). Vzhled panelů: třídy `hud-*` v `app/globals.css`. Ikony
   `public/icons/build/` a `public/icons/resources/`. Panely, nad kterými se krajina neposouvá
   okrajem okna, mají `data-hud-block`.
@@ -411,7 +416,8 @@ rozhraní částí v
 - **Les a dřevo** ([forest.md](docs/design/forest.md), `domain/village/wood.ts`): klády na hromadě
   (`woodLogs`, staré vsi 0, hnijí 4 % ročně), obydlí, první zemnice i přestavby berou dřevo
   (`DWELLING_TREES` 7 / 18) nejdřív z hromady, zbytek vyhradí při zahájení mezi nejbližšími
-  dospělými stromy (`planDwellingWood`, `nearestMatureTrees` – hledá po políčkách) a kácí je jako
+  dospělými stromy (`planDwellingWood`, bez stavu vsi `planDwellingWoodFrom` s `WoodSource` – cena
+  u kurzoru; `nearestMatureTrees` – hledá po políčkách) a kácí je jako
   první část práce stavby (`fellAsWorked` → pařezy). Simulace proto povinně dostává vrstvu
   překážek (`advanceVillage(state, day, obstacles)`; `null` = kácení bez polohy jen v testech),
   use-casy krajinu (`updateVillage`, `loadVillage`, `renameVillage`); kalibrace má syntetický

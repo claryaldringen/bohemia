@@ -294,7 +294,8 @@ export function VillageGame({
       {
         kind: 'dwelling',
         type: item.dwellingType,
-        check: (position) => item.check(decoded, placementVillage(), position),
+        check: (position) =>
+          item.check(decoded, placementVillage(), position, viewRef.current?.woodLogs ?? 0),
       },
       (result) => {
         if (result.kind === 'dwelling') buildDwelling(result.type, result.position);

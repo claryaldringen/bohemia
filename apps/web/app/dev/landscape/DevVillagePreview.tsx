@@ -8,6 +8,8 @@ import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import {
   CEMETERY,
   cemeteryPartsFromCells,
+  checkDwellingPlacement,
+  fieldPartsFromCells,
   orchardPartsFromCells,
   surfaceAt,
   type DwellingType,
@@ -18,6 +20,8 @@ import {
   type TileCell,
 } from '@bohemia/game';
 import { GameView } from '@/components/game/GameView';
+import { CursorReason } from '@/components/game/hud/CursorReason';
+import { dwellingPlacementCost } from '@/lib/build-items';
 import { decodeLandscape, type LandscapeTransfer } from '@/lib/landscape-transfer';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
 import { CEMETERY_PHASES } from '@/lib/scene/cemetery-layout';
@@ -158,7 +162,22 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
       {
         kind: 'dwelling',
         type,
-        check: (position) => fakeDwellingCheck(decoded, village, position),
+        check: (position) => {
+          const check = fakeDwellingCheck(decoded, village, position);
+          if (!check.ok) return { ...check, cost: null };
+          // cena jako ve hře – překážky a dřevo podle skutečné vrstvy překážek a klád
+          const placementVillage = placementVillageFromScene(village);
+          const real = checkDwellingPlacement(decoded, placementVillage, type, position);
+          const cost = dwellingPlacementCost(
+            decoded,
+            placementVillage,
+            type,
+            position,
+            real,
+            woodLogs,
+          );
+          return { ...check, cost };
+        },
       },
       {
         ...handlers,
@@ -179,7 +198,20 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     if (!scene) return;
     setPlacing('Pole');
     scene.startPlacement(
-      { kind: 'squares', preview: (cells) => fakeFieldPreview(decoded, village, cells) },
+      {
+        kind: 'squares',
+        preview: (cells) => {
+          const preview = fakeFieldPreview(decoded, village, cells);
+          if (!preview.check.ok) return preview;
+          const real = fieldPartsFromCells(
+            decoded,
+            placementVillageFromScene(village),
+            cells,
+            village.dwellings.map((d) => d.position),
+          );
+          return { ...preview, cost: { laborManDays: real.foundingCost, trees: 0 } };
+        },
+      },
       {
         ...handlers,
         onConfirm: (result) => {
@@ -211,6 +243,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
             label: `${formatCells(cells.length)} · ${result.capacity} ${plural(result.capacity, 'hrob', 'hroby', 'hrobů')}`,
             blockedCells: result.blockedCells,
             warningCells: result.warningCells,
+            cost: result.check.ok ? { laborManDays: result.foundingCost, trees: 0 } : null,
           };
         },
       },
@@ -245,6 +278,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
             check: result.check,
             label: `${formatCells(cells.length)} · ${formatHa(result.areaM2)}`,
             blockedCells: result.blockedCells,
+            cost: result.check.ok ? { laborManDays: result.plantingCost, trees: 0 } : null,
           };
         },
       },
@@ -593,14 +627,8 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
           </span>
         )}
       </div>
-      {preview?.screen && (
-        <div
-          className={`pointer-events-none fixed z-10 rounded px-2 py-0.5 text-xs text-white ${preview.check.ok ? 'bg-emerald-700/85' : 'bg-red-700/85'}`}
-          style={{ left: preview.screen.x + 16, top: preview.screen.y + 16 }}
-        >
-          {previewText(preview)}
-        </div>
-      )}
+      {/* u kurzoru totéž co ve hře – cena ikonami s čísly, nebo důvod, proč to nejde */}
+      <CursorReason preview={preview} />
     </>
   );
 }
