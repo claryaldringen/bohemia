@@ -619,7 +619,7 @@ describe('advanceVillage – obydlí', () => {
     expect(s.constructions).toEqual([]);
   });
 
-  it('obydlí postavené do zásoby stojí prázdné, dokud domácnost nezplní – nechátrá hned', () => {
+  it('obydlí postavené do zásoby stojí prázdné, dokud domácnost nezplní – a chátrá rychleji', () => {
     const day = at(600, 10, 1);
     const settled = withBuiltFirstDwelling(found(day));
     // pár, pro který se stavělo, mezitím chybí (např. domácnost přišla o dospělého)
@@ -635,8 +635,30 @@ describe('advanceVillage – obydlí', () => {
     expect(fresh).toBeDefined();
     expect(occupants(s, fresh!.id)).toEqual([]);
     expect(s.people.every((p) => p.dwellingId === 1)).toBe(true);
-    // prázdné obydlí se neopravuje, ale potřeba oprav roste s věkem – za 2 roky skoro nic
-    expect(fresh!.condition).toBeGreaterThan(0.99);
+    // prázdné obydlí se neopravuje a chátrá rychleji (population.md – Prázdné obydlí): prázdná
+    // zemnice spadne z plného stavu za ≈ 5 let – za 2 roky o ≈ 2/5, podle stáří skoro nic navíc
+    expect(fresh!.condition).toBeGreaterThan(0.59);
+    expect(fresh!.condition).toBeLessThan(0.6);
+    // obydlené obydlí chátrá beze změny – jen podle stáří a neodvedených oprav, skoro nic
+    expect(s.dwellings.find((d) => d.id === 1)!.condition).toBeGreaterThan(0.99);
+  });
+
+  it('po osídlení zrychlené chátrání přestane – opravy pokračují od stavu, který zbyl', () => {
+    const day = at(600, 10, 1);
+    const s0 = withoutFields(day);
+    s0.dwellings.push({ id: 50, type: 'zemnice', builtDay: day, condition: 1, position: POSITION });
+    const emptyYear = advanceVillage(s0, day + Math.ceil(YEAR), null);
+    const left = emptyYear.dwellings.find((d) => d.id === 50)!.condition;
+    expect(left).toBeGreaterThan(0.79);
+    expect(left).toBeLessThan(0.8);
+    // do obydlí se nastěhuje pár
+    for (const id of [900, 901]) {
+      emptyYear.people.push({ ...adultOfAge(id, 20, emptyYear.lastDay), dwellingId: 50 });
+    }
+    const s = advanceVillage(emptyYear, emptyYear.lastDay + Math.ceil(YEAR), null);
+    const lived = s.dwellings.find((d) => d.id === 50)!.condition;
+    expect(lived).toBeLessThanOrEqual(left); // stav se nezvedá
+    expect(lived).toBeGreaterThan(left - 0.01); // prázdné by ztratilo dalších ≈ 0,2
   });
 
   it('prázdné obydlí obsadí kvalifikovaná domácnost', () => {

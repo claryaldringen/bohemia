@@ -560,7 +560,9 @@ rozhraní částí v
   lidé 14–44 kromě `HOUSEHOLD_HEADS` (2) nejstarších od 14 let, všichni z jedné domácnosti, nebo
   dva jednotlivci z různých (jediný člověk by se rozpadl), a ne z domácnosti, jejíž zbytek by se
   rozpadl (`householdBreaksUp`, v `people.ts`). Možné nové domácnosti = kvalifikované + ostatní
-  přeplněné s aspoň dvěma dospělými dětmi + jednotlivci po dvou.
+  přeplněné s aspoň dvěma dospělými dětmi + jednotlivci po dvou. **Prázdné obydlí chátrá
+  rychleji** (Martin): `decayEmptyDwelling` – bez oprav podle stáří a navíc pevný denní podíl,
+  nové zanikne za `DWELLINGS[type].emptyLifespanYears` (zemnice 5, polozemnice 8 let).
 - **Determinismus:** simulace jde den po dni v pevném pořadí kroků (`simulate.ts`), náhoda dne
   je ze seedu vsi a indexu dne – výsledek nezávisí na tom, po jakých kouscích se ves dopočítá.
 - **Čísla** pravidel jsou jen v `rules.ts` (u každého odkaz na sekci návrhu); změna čísla = i

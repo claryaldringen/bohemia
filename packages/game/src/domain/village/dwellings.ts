@@ -189,6 +189,19 @@ export function applyRepairs(dwelling: Dwelling, workDone: number, need: number)
   dwelling.condition = Math.max(0, dwelling.condition - shortfall / DWELLINGS[dwelling.type].cost);
 }
 
+/**
+ * Den prázdného obydlí (population.md – Prázdné obydlí): neopravuje se – stav ubývá o celou
+ * potřebu oprav podle stáří (`repairNeedPerDay`) – a navíc o pevný denní podíl, protože se
+ * nevytápí, došky hnijí, dřevo v zemi trouchniví a nikdo nespraví střechu (Martin, 18. 10. 2026):
+ * nové prázdné obydlí spadne z plného stavu na nulu zhruba za `emptyLifespanYears`. Stav nikdy
+ * neklesne pod 0; po znovuosídlení se opravy vrací od stavu, který zbyl (nezvedá se).
+ */
+export function decayEmptyDwelling(dwelling: Dwelling, day: number): void {
+  applyRepairs(dwelling, 0, repairNeedPerDay(dwelling, day));
+  const perDay = 1 / (DWELLINGS[dwelling.type].emptyLifespanYears * DAYS_PER_YEAR);
+  dwelling.condition = Math.max(0, dwelling.condition - perDay);
+}
+
 /** Obyvatelé chtějí přestavět: obydlí dožilo, nebo je na nule. */
 export function wantsRebuild(dwelling: Dwelling, day: number): boolean {
   return (

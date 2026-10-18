@@ -6,6 +6,7 @@ import { craftCoverage, craftHouseholds, newWorkshop, wearCraftStocks, workCraft
 import {
   adultChildrenSettlers,
   applyRepairs,
+  decayEmptyDwelling,
   nextYearlyCommonLabor,
   qualifyingDwellings,
   rebuildType,
@@ -501,7 +502,7 @@ function orchardTask(
 /**
  * Opuštěná obydlí se neopravují ani nepřestavují: rozestavěná přestavba prázdného obydlí se
  * opustí (nebere společnou práci, klády, které vzala z hromady, se na ni vrátí, vyhrazené stromy
- * se uvolní), obydlí chátrá a na nule zanikne.
+ * se uvolní), obydlí chátrá rychleji než obydlené (`decayEmptyDwelling`) a na nule zanikne.
  */
 function decayEmptyDwellings(state: VillageState, day: number, occupied: Set<number>): void {
   state.constructions = state.constructions.filter((c) => {
@@ -512,7 +513,7 @@ function decayEmptyDwellings(state: VillageState, day: number, occupied: Set<num
   const gone = new Set<number>();
   for (const d of state.dwellings) {
     if (occupied.has(d.id)) continue;
-    applyRepairs(d, 0, repairNeedPerDay(d, day));
+    decayEmptyDwelling(d, day);
     if (d.condition <= 0) gone.add(d.id);
   }
   if (gone.size === 0) return;

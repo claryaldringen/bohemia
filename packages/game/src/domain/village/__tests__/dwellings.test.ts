@@ -5,6 +5,7 @@ import {
   adultChildrenSources,
   applyRepairs,
   availableSettlers,
+  decayEmptyDwelling,
   isFull,
   isOvercrowded,
   qualifyingDwellings,
@@ -250,22 +251,44 @@ describe('opravy a přestavba', () => {
     expect(wantsRebuild(d, 1)).toBe(true);
   });
 
-  it('prázdné obydlí bez oprav vydrží – zemnice ≈ 16 let, polozemnice ≈ 26 let', () => {
-    const lastsYears = (type: Dwelling['type']): number => {
+  it('nové prázdné obydlí chátrá rychleji – zemnice zanikne za ≈ 5 let, polozemnice za ≈ 8', () => {
+    const lastsYears = (
+      type: Dwelling['type'],
+      decay: (d: Dwelling, day: number) => void,
+    ): number => {
       const d = dwelling(1, 0, type);
       let day = 0;
       while (d.condition > 0) {
         day++;
-        applyRepairs(d, 0, repairNeedPerDay(d, day));
+        decay(d, day);
       }
       return day / YEAR;
     };
-    const zemnice = lastsYears('zemnice');
-    expect(zemnice).toBeGreaterThan(15);
-    expect(zemnice).toBeLessThan(16.5);
-    const polozemnice = lastsYears('polozemnice');
-    expect(polozemnice).toBeGreaterThan(25.5);
-    expect(polozemnice).toBeLessThan(27.5);
+    const empty = decayEmptyDwelling;
+    expect(DWELLINGS.zemnice.emptyLifespanYears).toBe(5);
+    const zemnice = lastsYears('zemnice', empty);
+    expect(zemnice).toBeGreaterThan(4.5);
+    expect(zemnice).toBeLessThan(5.5);
+    const polozemnice = lastsYears('polozemnice', empty);
+    expect(polozemnice).toBeGreaterThan(7.5);
+    expect(polozemnice).toBeLessThan(8.5);
+    // jen bez oprav (dřívější prázdné obydlí) by vydržela ≈ 16 a ≈ 26 let
+    const unrepaired = (d: Dwelling, day: number): void =>
+      applyRepairs(d, 0, repairNeedPerDay(d, day));
+    expect(lastsYears('zemnice', unrepaired)).toBeGreaterThan(15);
+    expect(lastsYears('polozemnice', unrepaired)).toBeGreaterThan(25.5);
+  });
+
+  it('prázdnému obydlí ubývá k chátrání podle stáří pevný denní podíl, nejméně na 0', () => {
+    const old = dwelling(1, 0);
+    const day = 10 * YEAR;
+    const ageOnly = dwelling(1, 0);
+    applyRepairs(ageOnly, 0, repairNeedPerDay(ageOnly, day));
+    decayEmptyDwelling(old, day);
+    expect(ageOnly.condition - old.condition).toBeCloseTo(1 / (5 * YEAR), 12);
+    old.condition = 1e-6;
+    decayEmptyDwelling(old, day);
+    expect(old.condition).toBe(0);
   });
 
   it('lepší obydlí, když na něj ves za rok společné práce má', () => {

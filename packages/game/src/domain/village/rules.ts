@@ -23,7 +23,11 @@ export type WindowSegment = readonly [number, number];
 // population.md – Pojmy (tabulka obydlí: kapacita, cena, životnost), Chátrání a přestavba (opravy, dětská úmrtnost)
 // Životnost zemnice 18 let (oprava podle rešerše, bylo 15): potřeba oprav roste s (věk / životnost)²,
 // takže se s životností sama roztáhne – roční potřeba na konci zůstává 15, za celý život 90
-// člověkodní (bylo 75) a prázdná zemnice vydrží ≈ 16 let (bylo ≈ 14).
+// člověkodní (bylo 75).
+// population.md – Prázdné obydlí (Martin, 18. 10. 2026: neobydlené budovy chátrají rychleji; čísla
+// návrh Clauda): prázdnému obydlí ubývá k chátrání podle stáří pevný podíl stavu, aby nové spadlo
+// z plného stavu na nulu za `emptyLifespanYears` (dřív jen bez oprav: zemnice ≈ 16, polozemnice
+// ≈ 26 let).
 export const DWELLINGS = {
   zemnice: {
     capacity: 6,
@@ -31,6 +35,7 @@ export const DWELLINGS = {
     lifespanYears: 18,
     repairAtEndOfLifePerYear: 15, // kalibrace: ≈ ½ společné práce domácnosti (measure-village)
     childDeathFactor: 1,
+    emptyLifespanYears: 5,
   },
   polozemnice: {
     capacity: 8,
@@ -38,6 +43,7 @@ export const DWELLINGS = {
     lifespanYears: 22,
     repairAtEndOfLifePerYear: 17, // kalibrace: ≈ ½ společné práce domácnosti (measure-village)
     childDeathFactor: 0.8,
+    emptyLifespanYears: 8,
   },
 } as const;
 // population.md – Nové obydlí (obyvatelé staví vždy lepší obydlí)
