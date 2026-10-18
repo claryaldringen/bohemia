@@ -1,4 +1,14 @@
-import type { CalendarDate, Season, WorldClock, WorldState } from '@bohemia/game';
+import {
+  TOTAL_GAME_DAYS,
+  dateOfDayIndex,
+  dayIndexOf,
+  getWorldState,
+  realTimeOf,
+  type CalendarDate,
+  type Season,
+  type WorldClock,
+  type WorldState,
+} from '@bohemia/game';
 
 const MONTHS_GENITIVE = [
   'ledna',
@@ -58,4 +68,30 @@ export function formatWorldState(state: WorldState, world: WorldClock): string {
       return `${formatGameDate(state.date)} · ${SEASON_NAMES[state.date.season]}`;
     }
   }
+}
+
+/**
+ * Obnova data v liště: nejdřív po sekundě (zrychlené testovací světy mají den za zlomek
+ * sekundy), nejdéle po 5 minutách (svět, který ještě nezačal, má start za měsíce – časovač by
+ * přetekl); herní den ostrého světa (≈ 86 s) se vejde.
+ */
+export const DATE_REFRESH_MS = { min: 1000, max: 5 * 60_000 } as const;
+
+/** Kdy se datum v liště změní – začátek dalšího herního dne, start světa; po konci null. */
+export function nextDateChangeMs(nowMs: number, world: WorldClock): number | null {
+  const state = getWorldState(nowMs, world);
+  if (state.status === 'not-started') return world.startMs;
+  if (state.status === 'ended') return null;
+  const next = dayIndexOf(state.date) + 1;
+  return next >= TOTAL_GAME_DAYS ? world.endMs : realTimeOf(dateOfDayIndex(next), world);
+}
+
+/**
+ * Za kolik ms obnovit datum v liště: až začne další herní den (ostrý svět ≈ 86 s – místo
+ * překreslení lišty každou sekundu), v mezích DATE_REFRESH_MS; po konci světa null.
+ */
+export function dateRefreshDelay(nowMs: number, world: WorldClock): number | null {
+  const next = nextDateChangeMs(nowMs, world);
+  if (next === null) return null;
+  return Math.min(DATE_REFRESH_MS.max, Math.max(DATE_REFRESH_MS.min, next - nowMs + 1));
 }

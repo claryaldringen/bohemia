@@ -495,8 +495,8 @@ pravidla → první verze hladu (1 − nasycení za den, hájení bez stropu) �
   4. **20–0 % – zřícený:** střecha spadlá do jámy, trčí krokve a sloupy, stěny rozpadlé (ze štítů
      zemnice nízké pahýly, ze srubu polozemnice spodní řady trámů); z plotu zbyly pahýly, záhony
      zarostlé.
-  5. **Po zániku – zbytek jámy:** zarostlá prohlubeň s kopřivami, pár trámy a nízkými valy, ≈ 10
-     let postupně zarůstá a pak zmizí (Chátrání a přestavba – Po zániku).
+  5. **Po zániku – zbytek jámy:** zarostlá prohlubeň s kopřivami, pár trámy a nízkým zarostlým
+     valem po okraji, ≈ 10 let postupně zarůstá a pak zmizí (Chátrání a přestavba – Po zániku).
 
   Řemeslné dílny (hrnčíř, kovář, uhlíř) zatím zůstávají celé – jejich díly rozpadu přijdou
   později (stojí na tvarech obydlí, ale přístřešek, pec, výheň a milíř potřebují vlastní).
