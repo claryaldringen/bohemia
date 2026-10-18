@@ -1047,8 +1047,9 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   Scéna `path-renderer.ts` (`VillagePaths` v `LandscapeScene`: přepočet jen při změně
   `pathNetworkKey`, odloženě) – obtisky `paths-worn` / `paths-earth` z `path-ribbon.ts` **nad**
   obtisky polí a vsi (alphaIndex 3 / 3,5, lift 0,05 / 0,055, zOffset −3,5 / −4; přes osetý díl
-  úzká stopa; v pevné cestě se pěšina dne ztrácí – `roadFade`), sníh přes `applySeasonGround`
-  (0,55 – stopa prosvítá). Pěšiny dne stromy nemají (stromy jsou jen u pevných cest – níž).
+  úzká stopa; v pevné cestě se pěšina dne ztrácí – `roadFade`; rozcestí – konec aspoň tří čar –
+  je udusaný plácek `ribbonJunctions` / `JUNCTION`, u pevných cest `roadJunctions`), sníh přes
+  `applySeasonGround` (0,55 – stopa prosvítá). Pěšiny dne stromy nemají (stromy jsou jen u pevných cest – níž).
   Postavy: `path-router.ts` (trasa s tempem úseků) → `VillagerPaths.route` →
   `route(points, pace)` – `shuttle` jde po pěšině rychleji. Vývojová stránka: tlačítka
   **Pěšiny**, **Cesta** (ukázka pevné cesty se stromy v každém stadiu – `dev-road.ts`), **Provoz**
@@ -1067,7 +1068,10 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   `traffic.raw` po ose) a zarůstání vyšlapané cesty (5 let pod polovinou prahu) → nové cesty
   z úseků nad prahem (`ROADS.tripsPerDay`), které leží i na loňských (`MATCH_M`) a nevedou po
   pevné cestě; konec se připojí k pevné cestě a ta se v rozcestí rozdělí (`splitRoad`) – osa se
-  jinak nikdy nemění → místa na stromy (`roadTreeSpots`, `plantingBlocker` – ne ve vsi, na
+  jinak nikdy nemění → **falešná rozcestí** (uzel jen se dvěma úseky stejného stupně, bez
+  rozdílného vylepšení) se spojí (`mergeRoadChains` – i po dokončení vylepšení ve
+  `finishConstructions`, starší vsi při načtení `withMergedRoads` v `updateVillage`; id a den
+  vzniku staršího, roads.md – Úseky a rozcestí) → místa na stromy (`roadTreeSpots`, `plantingBlocker` – ne ve vsi, na
   čtvercích, v lese, ve vodě, u překážek krajiny) → konec pařezů a stromy odstraněné stavbou →
   uchycení (10 % ročně, los ze seedu vsi, roku a místa). Čísla v `rules.ts` (`ROADS`,
   `ROAD_TREES`). Stadium stromu jen ze dne (`road-trees.ts`: `roadTreeLook` – keř, strom

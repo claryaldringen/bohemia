@@ -5,6 +5,7 @@ import {
   withForestDistances,
   withLivestockLand,
   withMergedFields,
+  withMergedRoads,
   withObstacleClearing,
   withPlots,
   withoutBuiltOverRuins,
@@ -42,7 +43,8 @@ export function advancedToToday(
  * Vsi z doby před vrstvou překážek nejdřív doplní odstraněné překážky (`withObstacleClearing`)
  * a obydlím z doby před palivem vzdálenost k lesu (`withForestDistances`), polozemnicím z doby
  * před pozemky pozemek (`withPlots`), stará navazující pole se sloučí (`withMergedFields`) a vsím
- * z doby před dobytkem se doplní výchozí stádo a louka a les pro pastvu (`withLivestockLand`) –
+ * z doby před dobytkem se doplní výchozí stádo a louka a les pro pastvu (`withLivestockLand`)
+ * a pevné cesty z doby před slučováním úseků se spojí ve falešných rozcestích (`withMergedRoads`) –
  * před dopočtem, aby se s nimi už počítalo; pak se uloží.
  * Ves se dopočítává s vrstvou překážek a krajinou sídla (přestavby kácí stromy, polozemnice bez
  * pozemku se přestaví na volném políčku). Zbytky jam po zaniklých obydlích pod novou stavbou po
@@ -59,15 +61,17 @@ export async function updateVillage(
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     const record = await villages.find(villageId);
     if (record === null) return { ok: false, reason: NO_VILLAGE };
-    const migrated = withLivestockLand(
-      withMergedFields(
-        withPlots(
-          withForestDistances(withObstacleClearing(record.state, obstacles), landscape),
-          landscape,
-          obstacles,
+    const migrated = withMergedRoads(
+      withLivestockLand(
+        withMergedFields(
+          withPlots(
+            withForestDistances(withObstacleClearing(record.state, obstacles), landscape),
+            landscape,
+            obstacles,
+          ),
         ),
+        landscape,
       ),
-      landscape,
     );
     const current = advancedToToday(migrated, today, obstacles, landscape);
     const changed = change(current);

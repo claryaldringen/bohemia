@@ -42,7 +42,10 @@ Cesta se tím stává herní věcí: pamatuje si, kudy vede, a zkracuje lidem ch
     0,55 dnešních pěšin), se stane **pevnou cestou** (návrh Clauda). Uloží se jeho osa
     a od té doby se nehýbe. Nová trasa, která vede blízko pevné cesty, se k ní přimkne (sleva
     za pevnou cestu), takže se síť jen rozrůstá, nepřekresluje.
-  - Pevná cesta je **úsek mezi rozcestími a konci** – po ní se vybírá a vylepšuje.
+  - Pevná cesta je **úsek mezi rozcestími a konci** – po ní se vybírá a vylepšuje. Kde se
+    potkávají jen dva úseky (falešné rozcestí – odbočka zarostla, nová cesta navázala na konec
+    jiné), spojí se do jednoho (Martin, 18. 10. 2026 – viz [Úseky a rozcestí](#úseky-a-rozcestí)).
+    Rozcestí je ve scéně udusaný plácek – nejvyšlapanější místo cesty.
   - **Zarůstání:** vyšlapaná cesta, kterou se **5 let po sobě** chodí pod polovinu prahu,
     zaroste a zmizí (návrh Clauda). Upravená cesta a hať nezarůstají. Stromy u zarostlé cesty
     stojí dál, dokud neodumřou.
@@ -122,6 +125,8 @@ společné práce vsi; stromy bere jako obydlí (klády z hromady, pak nejbliž�
 | Fáze 1 – místa na stromy, strom jako překážka (kláda od 20 let), cesta přes pole zůstává | návrh Clauda |
 | Fáze 2 – mokřina, výběr, ceny bez přirážky, okno chůze, kácení chůzí po pevných cestách  | návrh Clauda |
 | Fáze 3 – místa jabloní, výsadba jako stavba, souš 10 let, jabloně zůstanou i bez cesty   | návrh Clauda |
+| Úsek mezi rozcestími: dva úseky v uzlu bez odbočky se spojí; rozcestí je udusaný plácek  | Martin       |
+| Spojení – id a den vzniku staršího, provoz vážený délkou; různý stupeň zůstane rozdělen  | návrh Clauda |
 
 ## Fáze 1 – jak je postavená
 
@@ -142,7 +147,7 @@ Návrh Clauda (detaily, které návrh výš nechal otevřené – 18. 10. 2026):
   polohy). Body osy se tím nemění – cesta se nehýbe. Rozcestí sdílí přesně stejný bod.
 - **Provoz cesty (zarůstání):** medián provozu roční sítě (cest za den) v bodech osy po 3 m (vždy
   nejvyšší z buněk kolem bodu – trasa vede po cestě nebo těsně vedle); pamatuje se posledních
-  5 let. Když zaroste úsek mezi dvěma jinými, ty se nespojují (rozcestí zůstane).
+  5 let. ~~Když zaroste úsek mezi dvěma jinými, ty se nespojují (rozcestí zůstane).~~ Od 18. 10. 2026 se spojí – [Úseky a rozcestí](#úseky-a-rozcestí).
 - **Sleva za pevnou cestu** v síti dne i v roční síti: buňky pod osou cesty jako plná pěšina
   (poloviční cena) – pěšiny dne se k cestě stahují. Ve scéně se pěšina dne v pevné cestě ztrácí
   (do 1,4 m od osy se nekreslí, od 3,2 m plně), pevná cesta se kreslí z dat jako plně vyšlapaná
@@ -245,6 +250,32 @@ Návrh Clauda (18. 10. 2026):
 - **Příklad:** úsek 200 m s volnými místy po celé délce dá ≈ 19 jabloní – výsadba ≈ 8,4 čd (na
   jaře nebo na podzim), od 25. roku ≈ 317 kg jablek ročně (výživou ≈ 45 kg obilí), sklizeň
   ≈ 0,8 čd a péče ≈ 1,1 čd za zimu (do 100 m od obydlí bez přirážky).
+
+## Úseky a rozcestí
+
+Martin (18. 10. 2026, ves Vlkov): „úsek mezi dvěma rozcestími je v pohodě, ale ve hře jsou
+evidentně falešná rozcestí“ a „rozcestí by mělo být nejvyšlapanější plochou, teď vlastně chybí“.
+Ve Vlkově bylo z 23 úseků 13 uzlů, kde se potkávají jen dva úseky – zbytky po rozdělení cesty,
+když odbočka zarostla, a cesty navázané na konec jiné v různých letech.
+
+- **Spojení úseků** (`mergeRoadChains`, návrh Clauda): kde končí právě dva úseky (uzel bez
+  odbočky), spojí se do jednoho – osa za sebou (směr staršího úseku zůstane), místa na stromy,
+  jabloně, mokřina a brody na ose, provoz posledních let (vážený délkou), den vzniku a id
+  staršího úseku. Stromy u cesty se nemění. Stavby na úsecích – výsadba jabloní a vylepšení, které
+  platí pro oba úseky – přejdou na spojený úsek.
+- **Zůstanou rozdělené:** úseky různého stupně (vyšlapaná a upravená – skutečná hranice
+  vylepšení) a úseky, z nichž se vylepšuje jen jeden (nebo každý jinou stavbou) – po dokončení
+  vylepšení se spojí, mají-li stejný stupeň. Uzavřený okruh z jednoho úseku zůstane.
+- **Kdy:** v roční kontrole po zarůstání a vzniku nových cest (zarostlá odbočka uzel uvolní),
+  po dokončení vylepšení a jednou při načtení starší vsi (`withMergedRoads` – bez falešného
+  rozcestí vrátí týž stav). Simulace pak falešná rozcestí sama nevytváří, takže výsledek
+  nezávisí na kouscích dopočtu.
+- **Vlkov po převodu:** z 23 úseků zbude 11 – jediný uzel se dvěma úseky je hranice upravené
+  a vyšlapané cesty, skutečná rozcestí 2 (tři a čtyři úseky), zbytek jsou konce.
+- **Rozcestí ve scéně** (návrh Clauda): kde končí aspoň tři úseky, je plácek udusané hlíny – kruh
+  1,4× širší než přicházející cesta s nepravidelným okrajem, plné síly; vbíhá-li do něj upravená
+  cesta, je v jejím širším pásu (`roadJunctions` v `road-works-layout.ts`). Totéž rozcestí pěšin
+  dne ([paths.md](paths.md)).
 
 ## Na stavitelích
 

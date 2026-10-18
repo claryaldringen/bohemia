@@ -50,7 +50,7 @@ import { arrangeMarriages } from './marriage';
 import { ableTeams, finishPen, ploughCapacityPerDay, villageOxen } from './oxen';
 import { recordClearedObstacles } from './obstacles';
 import { overgrowthDay } from './overgrowth';
-import { roadsDay } from './paths/roads';
+import { mergeRoadChains, roadsDay } from './paths/roads';
 import { refreshWalkDistances } from './paths/village';
 import { roadWalk, walkGroundOf } from './paths/walking';
 import { finishRoadApples, workRoadApples, roadApplesNeed } from './road-apples';
@@ -880,6 +880,7 @@ function isFinished(state: VillageState, c: Construction, founding: FoundingInde
 function finishConstructions(state: VillageState, day: number): void {
   const unfinished: Construction[] = [];
   const founding = foundingIndex(state);
+  let roadUpgraded = false;
   for (const c of state.constructions) {
     if (!isFinished(state, c, founding)) {
       unfinished.push(c);
@@ -899,6 +900,7 @@ function finishConstructions(state: VillageState, day: number): void {
       // vylepšená pevná cesta – rychlejší chůze (roads.md); vzdálenosti chůze se přepočítají
       finishRoadUpgrade(state, c);
       state.chronicle.push(finishedEvent(day, c, null));
+      roadUpgraded = true;
       continue;
     }
     if (c.kind === 'road-apples') {
@@ -966,6 +968,8 @@ function finishConstructions(state: VillageState, day: number): void {
     else if (c.dwellingId === null) moveInYoungestPair(state, day, dwelling.id);
   }
   state.constructions = unfinished;
+  // vylepšený úsek se stejným stupněm jako soused v uzlu bez odbočky se s ním spojí (roads.md)
+  if (roadUpgraded && state.roads) mergeRoadChains(state.roads, state.constructions);
 }
 
 /**
