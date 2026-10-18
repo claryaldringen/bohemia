@@ -146,9 +146,8 @@ export class LandscapeScene {
   private village: VillageRenderer | null = null;
   /** Domácí zvířata vsi (ozdoba) – slepice u obydlí, stáda na loukách a v lese. */
   private livestock: VillageLivestock | null = null;
-  /** SPIKE: animovaní lidé ve vsi (zapínají se vývojovým tlačítkem). */
+  /** Lidé ve vsi – kde ves dnes pracuje (rozdělení práce dne, villagers.md). */
   private villagers: VillageVillagers | null = null;
-  private villagersEnabled = false;
   /** Poslední stav vsi od rozhraní – vykreslí se, jakmile je krajina hotová. */
   private villageState: SceneVillage | null = null;
   private placement: ActivePlacement | null = null;
@@ -291,15 +290,16 @@ export class LandscapeScene {
       baseUrl: '/models/fauna/',
       onLoaded: () => this.renderWhenReady(),
     });
-    // SPIKE: lidé ve vsi – pasáček stojí u prvního stáda ovcí a koz.
+    // Lidé ve vsi – kde ves dnes pracuje; schůdnou zemi sdílejí se zvířaty, děti pasou stáda.
     this.villagers?.dispose();
     this.villagers = new VillageVillagers(this.scene, {
+      layer: obstacles,
+      ground: (village) => this.livestock?.groundFor(village) ?? null,
       groundHeight: (x, z) => terrainMeshHeight(surface, x, z),
       baseUrl: '/models/people/',
-      herd: (nowMs) => this.livestock?.herdViews(nowMs).find((h) => h.kind === 'flock') ?? null,
+      herds: (nowMs) => this.livestock?.herdViews(nowMs) ?? [],
       onLoaded: () => this.renderWhenReady(),
     });
-    if (this.villagersEnabled) this.villagers.setEnabled(true, Date.now());
     // Ozdobná zvířata podle 0 A.D.: hejna ryb v tůních, kroužící vrány a káně.
     const fauna = {
       fish: fishSchools(surface),
@@ -391,12 +391,6 @@ export class LandscapeScene {
     if (this.season) this.ambient.setSeason(this.season.sound);
     this.renderBurst(1500);
     this.engine.runRenderLoop(() => this.frame());
-  }
-
-  /** SPIKE: zapne nebo vypne animované lidi ve vsi. */
-  setVillagersSpike(enabled: boolean): void {
-    this.villagersEnabled = enabled;
-    if (this.villagers?.setEnabled(enabled, Date.now())) this.renderWhenReady();
   }
 
   /** Zapne nebo vypne zvuky krajiny – volat přímo z kliknutí (prohlížeč pustí zvuk po gestu). */
@@ -731,8 +725,9 @@ export class LandscapeScene {
     // Rozhraní posílá stav vsi opakovaně (dotaz každých pár sekund) – beze změny nic.
     // Vybrané pole mohlo změnit čtverce (zarůstání), vybrané obydlí zaniknout.
     if (changed) this.highlight?.show(this.villageState, this.selection);
-    if (!changed && !hidden && !shaded && !cleared && !felled && !logs && !animals && !people)
+    if (!changed && !hidden && !shaded && !cleared && !felled && !logs && !animals && !people) {
       return;
+    }
     // Dým hned na místě – i při omezeném pohybu, kdy se pak už nehýbe.
     village.animateSmoke(Date.now(), null);
     this.shadows?.refresh();
@@ -783,7 +778,7 @@ export class LandscapeScene {
       if (this.village?.animateSmoke(Date.now(), camera.camera)) animated = true;
       // domácí zvířata – skutečný čas (epoch ms), ne herní: stejný okamžik = stejná póza
       if (this.livestock?.animate(Date.now(), camera.camera)) animated = true;
-      // SPIKE: lidé – skutečný čas jako zvířata
+      // lidé ve vsi – skutečný čas jako zvířata
       if (this.villagers?.animate(Date.now(), camera.camera)) animated = true;
       if (animated) {
         this.lastWaterFrame = now;

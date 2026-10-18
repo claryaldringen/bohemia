@@ -41,6 +41,24 @@
         "dae": "meshes/props/special/luggage_female_back.dae",
         "point": "prop-back",
         "texture": "textures/skins/props/basket_iber_1.dds"
+      },
+      {
+        "name": "axe",
+        "dae": "meshes/props/tool_axe.dae",
+        "point": "prop-weapon_L",
+        "texture": "textures/skins/props/prop_weap.dds"
+      },
+      {
+        "name": "mallet",
+        "dae": "meshes/props/prop_mallet.dae",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/prop_weap.dds"
+      },
+      {
+        "name": "wood",
+        "dae": "meshes/props/shuttle_wood.dae",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/wood_e.png"
       }
     ],
     "clips": [
@@ -65,8 +83,38 @@
         "props": ["head", "hoe"]
       },
       {
+        "name": "seed",
+        "animation": "animation/biped/gatherer/seeding.dae",
+        "props": ["head", "basket"]
+      },
+      {
+        "name": "weed",
+        "animation": "animation/biped/gatherer/gather_berries.dae",
+        "props": ["head"]
+      },
+      {
         "name": "carry",
         "animation": "animation/biped/gatherer/carry_grain_f.dae",
+        "props": ["head", "basket"]
+      },
+      {
+        "name": "carry-wood",
+        "animation": "animation/biped/gatherer/carry_wood_f.dae",
+        "props": ["head", "wood"]
+      },
+      {
+        "name": "fell",
+        "animation": "animation/biped/gatherer/gather_wood.dae",
+        "props": ["head", "axe"]
+      },
+      {
+        "name": "build",
+        "animation": "animation/biped/citizen/build.dae",
+        "props": ["head", "mallet"]
+      },
+      {
+        "name": "fruit",
+        "animation": "animation/biped/gatherer/gather_fruit_f.dae",
         "props": ["head", "basket"]
       }
     ]
@@ -93,6 +141,16 @@
         "tint": [0.33, 0.25, 0.15]
       },
       {
+        "name": "sickle",
+        "procedural": "sickle",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "blade": [0.75, 0.78, 0.95, 0.86],
+          "handle": [0.06, 0.35, 0.14, 0.85]
+        }
+      },
+      {
         "name": "hoe",
         "dae": "meshes/props/tool_hoe.dae",
         "point": "prop-weapon_R",
@@ -103,6 +161,24 @@
         "dae": "meshes/props/special/luggage_female_back.dae",
         "point": "prop-back",
         "texture": "textures/skins/props/basket_iber_1.dds"
+      },
+      {
+        "name": "axe",
+        "dae": "meshes/props/tool_axe.dae",
+        "point": "prop-weapon_L",
+        "texture": "textures/skins/props/prop_weap.dds"
+      },
+      {
+        "name": "mallet",
+        "dae": "meshes/props/prop_mallet.dae",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/prop_weap.dds"
+      },
+      {
+        "name": "wood",
+        "dae": "meshes/props/shuttle_wood.dae",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/wood_e.png"
       }
     ],
     "clips": [
@@ -117,13 +193,48 @@
         "props": ["head"]
       },
       {
+        "name": "reap",
+        "animation": "animation/biped/gatherer/gather_meat.dae",
+        "props": ["head", "sickle"]
+      },
+      {
         "name": "hoe",
         "animation": "animation/biped/gatherer/farming.dae",
         "props": ["head", "hoe"]
       },
       {
+        "name": "seed",
+        "animation": "animation/biped/gatherer/seeding.dae",
+        "props": ["head", "basket"]
+      },
+      {
+        "name": "weed",
+        "animation": "animation/biped/gatherer/gather_berries.dae",
+        "props": ["head"]
+      },
+      {
         "name": "carry",
         "animation": "animation/biped/gatherer/carry_grain_m.dae",
+        "props": ["head", "basket"]
+      },
+      {
+        "name": "carry-wood",
+        "animation": "animation/biped/gatherer/carry_wood_m.dae",
+        "props": ["head", "wood"]
+      },
+      {
+        "name": "fell",
+        "animation": "animation/biped/gatherer/gather_wood.dae",
+        "props": ["head", "axe"]
+      },
+      {
+        "name": "build",
+        "animation": "animation/biped/citizen/build.dae",
+        "props": ["head", "mallet"]
+      },
+      {
+        "name": "fruit",
+        "animation": "animation/biped/gatherer/gather_fruit_m.dae",
         "props": ["head", "basket"]
       }
     ]

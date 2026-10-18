@@ -1,4 +1,4 @@
-"""Lidé z 0 A.D. (skinované COLLADA + propy) -> GLB s kostrou a animacemi pro scénu (SPIKE).
+"""Lidé z 0 A.D. (skinované COLLADA + propy) -> GLB s kostrou a animacemi pro scénu.
 
 blender -b --factory-startup --python tools/blender/people_from_0ad.py -- \
     tools/blender/people.json <0ad>/binaries/data/mods/public/art apps/web/public/models/people
@@ -15,6 +15,11 @@ textur, takže postava je jeden mesh s jedním materiálem (ve scéně jeden dra
 postavy jednoho druhu – apps/web/lib/scene/villagers.ts).
 Barvy: plochy pro barvu hráče (alfa < 1) dostanou barvu „tint“ (průměr plochy) a „pattern“
 ztlumí kostkovaný vzor keltských šatů (1 = beze změny, 0 = jednolitá barva).
+Maska částí (druhá textura atlasu, v glTF jako occlusionTexture): R = látka oděvu (plochy barvy
+hráče a „flatten“ těla), G = vlasy (plochy barvy hráče hlavy) – scéna podle ní barví oděv
+a vlasy (šátek, šediny) na instanci. Zvláštní textura místo atributu vrcholů: WebGPU dovoluje
+jen 8 vertex bufferů a postava s kostrou, VAT a barvou instance jich má právě 8.
+Rotace klíčů jsou normalizované int16 (glTF 2.0 to dovoluje) – poloviční velikost animací.
 
 GLB se zapisuje ručně (struct + json) – Blender 5 COLLADA neumí a stavět z matic kostí
 armaturu jen kvůli exportu by bylo křehčí. Blender je tu jen kvůli texturám (DDS, atlas, JPEG).
@@ -291,12 +296,33 @@ def tinted(px, tint, pattern, flatten=None):
     return colored * (1 - a) + rgb * a
 
 
+def part_masks(px, part):
+    """Maska látky a vlasů části v rozlišení slotu (řádky odspodu jako obrázek Blenderu): tělo –
+    plochy barvy hráče a oblasti „flatten“ s látkou, hlava – plochy barvy hráče (vlasy)."""
+    rgb, a = px[..., :3], px[..., 3]
+    h, w = a.shape
+    player = (a < 0.99).astype(np.float32)
+    zero = np.zeros((h, w), np.float32)
+    if part["kind"] == "body":
+        cloth = player.copy()
+        sat = rgb.max(axis=2) - rgb.min(axis=2)
+        for x0, y0, x1, y1 in part.get("flatten") or []:
+            rows = slice(round((1 - y1) * h), round((1 - y0) * h))
+            cols = slice(round(x0 * w), round(x1 * w))
+            cloth[rows, cols] = np.maximum(cloth[rows, cols], (sat[rows, cols] < 0.2).astype(np.float32))
+        return cloth, zero
+    if part.get("name") == "head":
+        return zero, player
+    return zero, zero
+
+
 def build_atlas(parts, art):
     """Textury částí do jednoho atlasu (police po řádcích) – vrátí pixely a obdélník každé."""
     slots, x, y, row_h = {}, 0, 0, 0
     images = []
     for part in parts:
-        key = (part["texture"], tuple(part.get("tint") or ()), part.get("pattern"), str(part.get("flatten")))
+        key = (part["texture"], tuple(part.get("tint") or ()), part.get("pattern"), str(part.get("flatten")), part["kind"], part.get("name") == "head")
+        part["slot_key"] = key
         if key in slots:
             part["slot"] = slots[key]
             continue
@@ -317,10 +343,14 @@ def build_atlas(parts, art):
     while height < y + row_h:
         height *= 2
     atlas = np.zeros((height, ATLAS_W, 3), dtype=np.float32)
-    for _, part, (sx, sy, w, h) in images:
+    mask = np.zeros((height, ATLAS_W, 3), dtype=np.float32)
+    for key, part, (sx, sy, w, h) in images:
         px = load_pixels(os.path.join(art, part["texture"]), w, h)
         atlas[sy : sy + h, sx : sx + w] = tinted(px, part.get("tint"), part.get("pattern"), part.get("flatten"))
-    return atlas, height
+        cloth, hair = part_masks(px, part)
+        mask[sy : sy + h, sx : sx + w, 0] = cloth
+        mask[sy : sy + h, sx : sx + w, 1] = hair
+    return atlas, height, mask
 
 
 def atlas_jpeg(atlas, quality=92):
@@ -335,6 +365,21 @@ def atlas_jpeg(atlas, quality=92):
     data = open(path, "rb").read()
     preview = path
     return data, preview
+
+
+def image_png(pixels):
+    """RGB obrázek (řádky odspodu jako v Blenderu) jako PNG – maska, bez ztrátové komprese."""
+    h, w, _ = pixels.shape
+    im = bpy.data.images.new("mask", w, h, alpha=False)
+    rgba = np.concatenate([np.clip(pixels, 0, 1), np.ones((h, w, 1), np.float32)], axis=2)
+    im.pixels.foreach_set(rgba.ravel())
+    path = os.path.join(tempfile.mkdtemp(), "mask.png")
+    im.filepath_raw = path
+    im.file_format = "PNG"
+    im.save()
+    data = open(path, "rb").read()
+    bpy.data.images.remove(im)
+    return data
 
 
 # --- Animace ---------------------------------------------------------------------------------
@@ -385,6 +430,9 @@ class Gltf:
     def __init__(self):
         self.bin = bytearray()
         self.views, self.accessors = [], []
+        # animace v jednom společném bufferView – JSON s tisícem pohledů by byl větší než data
+        self.shared = bytearray()
+        self.shared_accessors = []
 
     def view(self, data, target=None):
         while len(self.bin) % 4:
@@ -396,15 +444,17 @@ class Gltf:
         self.views.append(view)
         return len(self.views) - 1
 
-    def accessor(self, array, kind, component, target=None, minmax=False, normalized=False):
+    def accessor(self, array, kind, component, target=None, minmax=False, normalized=False, shared=False):
         array = np.ascontiguousarray(array)
-        view = self.view(array.tobytes(), target)
-        acc = {
-            "bufferView": view,
-            "componentType": component,
-            "count": int(array.shape[0]),
-            "type": kind,
-        }
+        acc = {"componentType": component, "count": int(array.shape[0]), "type": kind}
+        if shared:
+            while len(self.shared) % 4:
+                self.shared.append(0)
+            acc["byteOffset"] = len(self.shared)
+            self.shared += array.tobytes()
+            self.shared_accessors.append(len(self.accessors))
+        else:
+            acc["bufferView"] = self.view(array.tobytes(), target)
         if normalized:
             acc["normalized"] = True
         if minmax:
@@ -413,6 +463,22 @@ class Gltf:
             acc["max"] = [float(v) for v in flat.max(axis=0)]
         self.accessors.append(acc)
         return len(self.accessors) - 1
+
+    def finish_shared(self):
+        if not self.shared_accessors:
+            return
+        view = self.view(bytes(self.shared))
+        for a in self.shared_accessors:
+            self.accessors[a]["bufferView"] = view
+
+
+def weights_u8(weights):
+    """Váhy kostí jako normalizované bajty se součtem přesně 255 (zbytek dostane největší)."""
+    w = np.array(weights, np.float32)
+    q = np.floor(w * 255 + 0.5).astype(np.int32)
+    for row, values in zip(q, w):
+        row[int(np.argmax(values))] += 255 - int(row.sum())
+    return q.astype(np.uint8)
 
 
 def column_major(m):
@@ -445,7 +511,7 @@ def convert(spec, art, out_dir):
         rest_world[joint] = rest_world[parent] @ local
         props.append(dict(prop, parent=parent, local=local, kind="prop", joint=joint))
         parts.append(props[-1])
-    atlas, atlas_h = build_atlas(parts, art)
+    atlas, atlas_h, mask = build_atlas(parts, art)
 
     joints = names + [p["joint"] for p in props]
     joint_index = {n: i for i, n in enumerate(joints)}
@@ -542,7 +608,7 @@ def convert(spec, art, out_dir):
         "NORMAL": g.accessor(np.array(nor, np.float32), "VEC3", 5126, 34962),
         "TEXCOORD_0": g.accessor(np.array(uv, np.float32), "VEC2", 5126, 34962),
         "JOINTS_0": g.accessor(np.array(jnt, np.uint8), "VEC4", 5121, 34962),
-        "WEIGHTS_0": g.accessor(np.array(wgt, np.float32), "VEC4", 5126, 34962),
+        "WEIGHTS_0": g.accessor(weights_u8(wgt), "VEC4", 5121, 34962, normalized=True),
     }
     indices = g.accessor(np.array(idx, np.uint16), "SCALAR", 5123, 34963)
     ibm = np.array([column_major(rest_world[n].inverted()) for n in joints], np.float32)
@@ -550,6 +616,7 @@ def convert(spec, art, out_dir):
 
     jpeg, preview = atlas_jpeg(atlas)
     image_view = g.view(jpeg)
+    mask_view = g.view(image_png(mask))
 
     # Animace: každý klip vlastní animace glTF, kanál pro každý klouby (jen co se liší od klidu).
     animations = []
@@ -566,7 +633,10 @@ def convert(spec, art, out_dir):
                     return cache[name]
                 if name in prop_points:
                     p = prop_points[name]
-                    w = world_at(p["parent"]) @ p["local"]
+                    # bod propu má v animaci vlastní kanál (nástroj se v ruce natáčí)
+                    w = worlds_t.get(p["point"])
+                    if w is None:
+                        w = world_at(p["parent"]) @ p["local"]
                 elif name in worlds_t:
                     w = worlds_t[name]
                 else:
@@ -582,7 +652,9 @@ def convert(spec, art, out_dir):
                     s = [0.0, 0.0, 0.0]
                 samples[name].append((t, r, s))
         t0 = times[0]
-        input_acc = g.accessor(np.array([t - t0 for t in times], np.float32), "SCALAR", 5126, minmax=True)
+        input_acc = g.accessor(np.array([t - t0 for t in times], np.float32), "SCALAR", 5126, minmax=True, shared=True)
+        # stálá hodnota celého klipu (měřítko propu, posun kloubu) – dva klíče se skokem
+        end_acc = g.accessor(np.array([0.0, times[-1] - t0], np.float32), "SCALAR", 5126, minmax=True, shared=True)
         channels, samplers = [], []
         for name in joints:
             series = samples[name]
@@ -596,17 +668,30 @@ def convert(spec, art, out_dir):
                 rest = np.array(rest_trs[name][i], np.float32)
                 if path == "rotation":
                     same = np.all(np.abs(np.abs(values @ rest) - 1) < 1e-6)
+                    constant = np.all(np.abs(np.abs(values @ values[0]) - 1) < 1e-6)
                 else:
-                    same = np.all(np.abs(values - rest) < 1e-5)
+                    # 1e-4 jednotky 0 A.D. (postava ≈ 3,9) – pod tím je jen šum rozkladu matic
+                    same = np.all(np.abs(values - rest) < 1e-4)
+                    constant = np.all(np.abs(values - values[0]) < 1e-4)
                 # Propy mají měřítko v každém klipu – jinak by si přehrávač nechal 0 z minulého.
                 if same and not (name in prop_points and path == "scale"):
                     continue
-                out_acc = g.accessor(values, kind, 5126)
-                samplers.append({"input": input_acc, "output": out_acc, "interpolation": "LINEAR"})
+                interpolation, sampler_input = "LINEAR", input_acc
+                if constant:
+                    values = values[[0, 0]]
+                    interpolation, sampler_input = "STEP", end_acc
+                if path == "rotation":
+                    # normalizované int16 (glTF 2.0 dovoluje u rotací) – poloviční velikost
+                    quant = np.round(np.clip(values, -1, 1) * 32767).astype(np.int16)
+                    out_acc = g.accessor(quant, kind, 5122, normalized=True, shared=True)
+                else:
+                    out_acc = g.accessor(values, kind, 5126, shared=True)
+                samplers.append({"input": sampler_input, "output": out_acc, "interpolation": interpolation})
                 channels.append({"sampler": len(samplers) - 1, "target": {"node": joint_node[name], "path": path}})
         animations.append({"name": clip["name"], "channels": channels, "samplers": samplers})
         print(f"  klip {clip['name']}: {len(times)} klíčů, {times[-1] - t0:.3f} s, {len(channels)} kanálů")
 
+    g.finish_shared()
     doc = {
         "asset": {"version": "2.0", "generator": "Bohemia people_from_0ad.py"},
         "scene": 0,
@@ -627,11 +712,16 @@ def convert(spec, art, out_dir):
                     "metallicFactor": 0.0,
                     "roughnessFactor": 1.0,
                 },
+                # maska látky (R) a vlasů (G) – scéna ji čte jako ambientTexture
+                "occlusionTexture": {"index": 1},
             }
         ],
-        "textures": [{"source": 0, "sampler": 0}],
+        "textures": [{"source": 0, "sampler": 0}, {"source": 1, "sampler": 0}],
         "samplers": [{"magFilter": 9729, "minFilter": 9729, "wrapS": 33071, "wrapT": 33071}],
-        "images": [{"bufferView": image_view, "mimeType": "image/jpeg"}],
+        "images": [
+            {"bufferView": image_view, "mimeType": "image/jpeg"},
+            {"bufferView": mask_view, "mimeType": "image/png"},
+        ],
         "animations": animations,
         "accessors": g.accessors,
         "bufferViews": g.views,

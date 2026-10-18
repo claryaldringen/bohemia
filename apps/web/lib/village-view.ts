@@ -9,6 +9,7 @@ import {
   monthInWindow,
   obstacleChangesAt,
   ORCHARD_PLANTING_WINDOWS,
+  laborReport,
   obstaclesOf,
   partStage,
   reservedTrees,
@@ -23,6 +24,7 @@ import {
   type ConstructionSummary,
   type DwellingType,
   type FieldSurface,
+  type LaborShare,
   type Landscape,
   type ObstacleChanges,
   type OrchardSquare,
@@ -34,6 +36,7 @@ import {
   type TileCell,
   type VillageRecord,
   type VillageState,
+  type VillageSummary,
   villageCemeteries,
   villageOrchards,
 } from '@bohemia/game';
@@ -44,7 +47,15 @@ import { formatCells, formatHa, formatInteger } from './village-format';
 // Pohled na ves pro panel a scénu (DTO server actions). Čistý modul – smí ho importovat
 // i klient (typy, převod scény na data pro kontrolu umístění).
 
-export type { BuildKind, FieldSurface, PartStage, StockResource } from '@bohemia/game';
+export type {
+  BuildKind,
+  FieldSurface,
+  LaborActivity,
+  LaborShare,
+  LaborTarget,
+  PartStage,
+  StockResource,
+} from '@bohemia/game';
 
 /**
  * Stavba v nabídce staveb: cena a jestli na ni ves má (bez surovin, dřeva nebo lidí k osídlení je
@@ -228,6 +239,22 @@ export interface SceneVillage {
   reservedTrees?: number[];
   /** Klády na hromadě v kusech – scéna je složí u obydlí nejblíž lesu. Bez údaje žádné. */
   woodLogs?: number;
+  /**
+   * Kde ves dnes pracuje – postavy ve scéně (docs/design/villagers.md). Bez údaje (ves uložená
+   * před rozdělením práce, ještě nedopočítaný den) nikdo.
+   */
+  labor?: SceneLabor;
+}
+
+/**
+ * Rozdělení práce posledního dne pro postavy: člověkodny po činnostech a místech (na setiny),
+ * lidé podle věku (pasáčci, starší u obydlí) a herní den s měsícem (v zimě je venku méně lidí).
+ */
+export interface SceneLabor {
+  day: number;
+  month: number;
+  people: { children: number; adults: number; elders: number };
+  shares: LaborShare[];
 }
 
 export const CHRONICLE_LENGTH = 8;
@@ -302,8 +329,9 @@ function sceneVillage(
   state: VillageState,
   landscape: Landscape,
   day: number,
-  constructions: ConstructionSummary[],
+  summary: VillageSummary,
 ): SceneVillage {
+  const constructions = summary.constructions;
   const occupied = new Set(state.people.map((p) => p.dwellingId));
   const built = state.dwellings.map((d) => ({
     id: d.id,
@@ -345,6 +373,7 @@ function sceneVillage(
     squares: o.squares.map((s) => sceneOrchardSquare(landscape, s, day, state.orchardWork ?? null)),
   }));
   const reserved = [...reservedTrees(state)].sort((a, b) => a - b);
+  const labor = sceneLabor(state, summary.people);
   return {
     dwellings: [...built, ...sites],
     fields,
@@ -353,7 +382,19 @@ function sceneVillage(
     obstacles: obstacleChangesAt(state, day),
     ...(reserved.length > 0 ? { reservedTrees: reserved } : {}),
     woodLogs: wholeLogs(state.woodLogs ?? 0),
+    ...(labor ? { labor } : {}),
   };
+}
+
+/** Rozdělení práce posledního dne pro postavy – člověkodny na setiny, nulové podíly pryč. */
+function sceneLabor(state: VillageState, people: SceneLabor['people']): SceneLabor | null {
+  const labor = laborReport(state);
+  if (!labor) return null;
+  const shares = labor.shares.flatMap((share) => {
+    const manDays = Math.round(share.manDays * 100) / 100;
+    return manDays > 0 ? [{ ...share, manDays }] : [];
+  });
+  return { day: labor.day, month: dateOfDayIndex(labor.day).month, people, shares };
 }
 
 const DAYS_PER_TREE_YEAR = 365.25;
@@ -559,7 +600,7 @@ export function buildVillageView(
           !monthInWindow(ORCHARD_PLANTING_WINDOWS, dateOfDayIndex(day).month),
       };
     }),
-    scene: sceneVillage(state, landscape, day, summary.constructions),
+    scene: sceneVillage(state, landscape, day, summary),
     chronicle: chronicle(state, name),
   };
 }
