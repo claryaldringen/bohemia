@@ -16,16 +16,22 @@ import {
   type Landscape,
   type Position,
   type TileCell,
+  type TimeSkip,
   type VillageRepository,
   type VillageResult,
 } from '@bohemia/game';
 import { getDatabase } from './db';
-import { enterGameForPlayer, isGameOverForPlayer } from './game';
+import {
+  enterGameForPlayer,
+  isGameOverForPlayer,
+  playerToday,
+  skipTimeForPlayer,
+  type PlayerToday,
+} from './game';
 import { buildVillageView, type VillageView } from './village-view';
-import { currentWorld, gameDayIndex } from './world';
 
-// Composition root vsi: dnešní herní den ze světových hodin, Drizzle repozitář, use-casy
-// a převod na VillageView.
+// Composition root vsi: dnešní herní den hráče (světové hodiny + jeho posun času), Drizzle
+// repozitář, use-casy a převod na VillageView.
 
 export type { PartStage, SceneVillage, VillageView } from './village-view';
 
@@ -40,17 +46,19 @@ function villages(): VillageRepository {
   return createVillageRepository(getDatabase());
 }
 
-/** Sídlo hráče s krajinou a dnešní den – společný začátek všech akcí. */
+/** Sídlo hráče s krajinou a jeho dnešní den – společný začátek všech akcí. */
 async function context(playerId: string): Promise<Context> {
-  const today = gameDayIndex(Date.now(), currentWorld());
+  const today = await playerToday(playerId);
   if (!today.ok) return today;
   const { settlement, landscape } = await enterGameForPlayer(playerId);
   return { ok: true, playerId, settlementId: settlement.id, landscape, day: today.day };
 }
 
-/** Jako `context`, ale pro sídlo, které už volající načetl (krajina se negeneruje znovu). */
-function seatContext({ settlement, landscape }: EnterGameResult): Context {
-  const today = gameDayIndex(Date.now(), currentWorld());
+/**
+ * Jako `context`, ale pro sídlo a dnešní den hráče, které už volající načetl (krajina se
+ * negeneruje znovu).
+ */
+function seatContext({ settlement, landscape }: EnterGameResult, today: PlayerToday): Context {
   if (!today.ok) return today;
   return {
     ok: true,
@@ -93,11 +101,35 @@ export async function villageViewForPlayer(
   return villageView(await context(playerId));
 }
 
-/** Ves už načteného sídla hráče (stránka /game má sídlo s krajinou z `enterGameForPlayer`). */
+/**
+ * Ves už načteného sídla hráče k jeho dnešnímu dni (stránka /game má sídlo s krajinou
+ * z `enterGameForPlayer` a den z `playerToday`).
+ */
 export function villageViewForSeat(
   seat: EnterGameResult,
+  today: PlayerToday,
 ): Promise<VillageView | null | { error: string }> {
-  return villageView(seatContext(seat));
+  return villageView(seatContext(seat, today));
+}
+
+/** Výsledek přeskočení času pro klienta – ves v novém dni (null = nezaložená) a nový posun. */
+export type TimeSkipResult =
+  { village: VillageView | null; timeOffsetDays: number } | { error: string };
+
+/**
+ * Vývojový režim: přeskočí čas hráče o měsíc, nebo rok (`devMode` z účtu – bez něj use-case
+ * odmítne) a vrátí ves dopočítanou do nového dneška s novým posunem času.
+ */
+export async function skipTimeForPlayerView(
+  playerId: string,
+  devMode: boolean,
+  skip: TimeSkip,
+): Promise<TimeSkipResult> {
+  const skipped = await skipTimeForPlayer(playerId, devMode, skip);
+  if (!skipped.ok) return { error: skipped.error };
+  const village = await villageViewForPlayer(playerId);
+  if (village !== null && 'error' in village) return village;
+  return { village, timeOffsetDays: skipped.offsetDays };
 }
 
 export async function foundVillageForPlayer(

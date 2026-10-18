@@ -1,5 +1,6 @@
 // Vývojový účet pro lokální hraní bez registrace a ověřování e-mailu.
 // Spuštění: npm run db:seed-dev (z kořene repa). Opakované spuštění účet obnoví (heslo, ověření).
+// Účet má vývojový režim – v liště vedle data přeskočí čas o měsíc nebo rok.
 import { randomUUID } from 'node:crypto';
 import { and, eq } from 'drizzle-orm';
 import { hashPassword } from 'better-auth/crypto';
@@ -31,7 +32,7 @@ async function main(): Promise<void> {
     if (existing) {
       await db
         .update(schema.user)
-        .set({ emailVerified: true, updatedAt: now })
+        .set({ emailVerified: true, devMode: true, updatedAt: now })
         .where(eq(schema.user.id, userId));
     } else {
       await db.insert(schema.user).values({
@@ -39,6 +40,7 @@ async function main(): Promise<void> {
         name: DEV_USER.name,
         email: DEV_USER.email,
         emailVerified: true,
+        devMode: true,
         createdAt: now,
         updatedAt: now,
       });

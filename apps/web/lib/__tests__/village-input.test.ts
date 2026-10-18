@@ -7,6 +7,7 @@ import {
   parseRenameVillageInput,
   parseRestartGameInput,
   parsePosition,
+  parseSkipTimeInput,
 } from '../village-input';
 
 describe('ověření vstupu server actions vsi', () => {
@@ -97,5 +98,14 @@ describe('ověření vstupu server actions vsi', () => {
     expect(parseRestartGameInput({ abandon: 1 })).toBeNull();
     expect(parseRestartGameInput(null)).toBeNull();
     expect(parseRestartGameInput(true)).toBeNull();
+  });
+
+  it('přeskočení času: jen měsíc, nebo rok', () => {
+    expect(parseSkipTimeInput({ skip: 'month' })).toEqual({ skip: 'month' });
+    expect(parseSkipTimeInput({ skip: 'year', days: 9999 })).toEqual({ skip: 'year' });
+    expect(parseSkipTimeInput({ skip: 'century' })).toBeNull();
+    expect(parseSkipTimeInput({ days: 30 })).toBeNull();
+    expect(parseSkipTimeInput('month')).toBeNull();
+    expect(parseSkipTimeInput(undefined)).toBeNull();
   });
 });
