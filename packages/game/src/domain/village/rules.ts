@@ -80,6 +80,11 @@ export const STARVATION = {
 } as const;
 // population.md – Nové obydlí (do nového obydlí se stěhuje pár z domácnosti s aspoň 4 dospělými)
 export const NEW_HOUSEHOLD_MIN_ADULTS = 4;
+// population.md – Nové obydlí, Prázdné obydlí (návrh Clauda): dospělé děti = lidé 14–44 kromě
+// dvou nejstarších od 14 let výš (rodiče / hlava domácnosti); nová domácnost má aspoň dva lidi –
+// jediný člověk by se hned rozpadl (Rozpad domácnosti)
+export const HOUSEHOLD_HEADS = 2;
+export const NEW_HOUSEHOLD_MIN_PEOPLE = 2;
 // fields.md – Zásoby a nasycení (roční potřeba jídla podle věku)
 export const FOOD_NEED_KG_PER_YEAR = { child: 100, adult: 180, elder: 140 } as const;
 // fields.md – Zásoby a nasycení (ztráty při skladování – meze: s hrnčířem 5 %, start se zásobami)

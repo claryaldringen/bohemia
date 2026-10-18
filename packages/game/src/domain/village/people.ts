@@ -44,6 +44,16 @@ export function isFertile(person: Person, day: number): boolean {
   return age >= AGE.fertile && age < AGE.elder;
 }
 
+/**
+ * Dojde k rozpadu domácnosti? Nikdo 14–44 let (jen děti nebo starší), nebo jediný člověk
+ * a nikdo jiný (population.md – Rozpad domácnosti).
+ */
+export function householdBreaksUp(members: readonly Person[], day: number): boolean {
+  if (members.length === 0) return false;
+  const adults = members.filter((p) => isAdult(p, day)).length;
+  return adults === 0 || members.length === 1;
+}
+
 /** Obyvatelé obydlí seřazení podle id. */
 export function occupants(state: VillageState, dwellingId: number): Person[] {
   return state.people.filter((p) => p.dwellingId === dwellingId).sort((a, b) => a.id - b.id);

@@ -548,11 +548,19 @@ rozhraní částí v
   `placeSacred`. Štěstí z míst `sacredHappiness` (stropy počtu a +40).
 - **Hráč staví kdy chce** (Martin) – stavbu smí zablokovat jen **cena předem** (`costs.ts`:
   `BUILD_COSTS`, `buildAffordability`): suroviny ze zásob (dnes žádné) a u obydlí **lidé
-  k osídlení** (`settlers` = `availableSettlers` v `dwellings.ts`: domácnosti s párem navíc −
-  prázdná − rozestavěná nová obydlí); pole a hřbitov lidi nechtějí. Tlačítko je pak zašedlé,
-  zkratka nic nespustí, v popisku chybějící část červeně; server odmítne (`NO_SETTLERS`,
-  `CANNOT_AFFORD`). `waitingHouseholds` (upozornění „Domácnost je plná“) = kladní lidé
-  k osídlení.
+  k osídlení** (`settlers` = `availableSettlers` v `dwellings.ts`: možné nové domácnosti
+  `possibleNewHouseholds` − prázdná − rozestavěná nová obydlí); pole a hřbitov lidi nechtějí.
+  Tlačítko je pak zašedlé, zkratka nic nespustí, v popisku chybějící část červeně; server odmítne
+  (`NO_SETTLERS`, `CANNOT_AFFORD`). `waitingHouseholds` (upozornění „Domácnost je plná“) =
+  kladní lidé k osídlení.
+- **Osídlení prázdného obydlí** (population.md – Prázdné obydlí): nové obydlí po dokončení
+  a prázdné obydlí v kroku 6 (`occupyEmptyDwellings`) nejdřív zabere mladý pár z plné domácnosti
+  se 4 dospělými 14–44 (`qualifyingDwellings`, `moveInYoungestPair`); co zůstane úplně prázdné,
+  osídlí **dospělé děti z přeplněné domácnosti** (Martin, 18. 10. 2026; `adultChildrenSettlers`):
+  lidé 14–44 kromě `HOUSEHOLD_HEADS` (2) nejstarších od 14 let, všichni z jedné domácnosti, nebo
+  dva jednotlivci z různých (jediný člověk by se rozpadl), a ne z domácnosti, jejíž zbytek by se
+  rozpadl (`householdBreaksUp`, v `people.ts`). Možné nové domácnosti = kvalifikované + ostatní
+  přeplněné s aspoň dvěma dospělými dětmi + jednotlivci po dvou.
 - **Determinismus:** simulace jde den po dni v pevném pořadí kroků (`simulate.ts`), náhoda dne
   je ze seedu vsi a indexu dne – výsledek nezávisí na tom, po jakých kouscích se ves dopočítá.
 - **Čísla** pravidel jsou jen v `rules.ts` (u každého odkaz na sekci návrhu); změna čísla = i

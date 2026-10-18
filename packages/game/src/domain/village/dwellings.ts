@@ -1,12 +1,14 @@
-import { isAdult, occupants } from './people';
+import { ageGroup, householdBreaksUp, isAdult, occupants } from './people';
 import {
   BETTER_DWELLING,
   COMMON_LABOR_YEAR_DAYS,
   DWELLINGS,
   DWELLING_TREES,
+  HOUSEHOLD_HEADS,
   NEW_HOUSEHOLD_MIN_ADULTS,
+  NEW_HOUSEHOLD_MIN_PEOPLE,
 } from './rules';
-import type { Dwelling, DwellingType, VillageState } from './types';
+import type { Dwelling, DwellingType, Person, VillageState } from './types';
 
 const DAYS_PER_YEAR = 365.25; // věk obydlí v (neceločíselných) letech
 const DAYS_PER_COST_YEAR = 365; // roční společná práce se dělí 365 dny
@@ -51,22 +53,119 @@ export function qualifyingDwellings(state: VillageState, day: number): Dwelling[
 }
 
 /**
- * Lidé k osídlení nového obydlí (population.md – Odemčení): domácnosti, ze kterých se může
- * oddělit mladý pár (`qualifyingDwellings`), minus prázdná obydlí a rozestavěná nová obydlí –
- * každé už jeden pár čeká. První zemnice zakladatelů (stavba s `dwellingId`) nikoho nečeká,
- * zakladatelé ji osídlí sami. Může vyjít záporně (obydlí postavená do zásoby).
+ * Dospělé děti domácnosti (population.md – Prázdné obydlí, návrh Clauda): lidé 14–44 let kromě
+ * HOUSEHOLD_HEADS nejstarších lidí domácnosti od 14 let výš (rodiče, hlava domácnosti – počítají
+ * se i starší nad 44). Od nejmladšího; při shodě data narození je mladší vyšší id.
+ */
+export function adultChildren(members: readonly Person[], day: number): Person[] {
+  const heads = new Set(
+    members
+      .filter((p) => ageGroup(p, day) !== 'child')
+      .sort((a, b) => a.bornDay - b.bornDay || a.id - b.id)
+      .slice(0, HOUSEHOLD_HEADS)
+      .map((p) => p.id),
+  );
+  return members
+    .filter((p) => isAdult(p, day) && !heads.has(p.id))
+    .sort((a, b) => b.bornDay - a.bornDay || b.id - a.id);
+}
+
+/** Přeplněná domácnost a její dospělé děti, které z ní můžou odejít do prázdného obydlí. */
+export interface AdultChildrenSource {
+  dwelling: Dwelling;
+  /** Kdo odejde – od nejmladšího. */
+  children: Person[];
+}
+
+/**
+ * Přeplněné domácnosti (lidí víc než míst), ze kterých můžou dospělé děti odejít osídlit úplně
+ * prázdné obydlí (population.md – Prázdné obydlí, návrh Clauda): od nejvíc přeplněné, při shodě
+ * podle id obydlí. Odejdou všechny dospělé děti (`adultChildren`), nejvýš `capacity` – při
+ * přebytku zůstanou nejstarší z nich; rodiče a děti pod 14 zůstanou. Domácnost bez dospělých
+ * dětí a domácnost, jejíž zbytek by se po jejich odchodu rozpadl (`householdBreaksUp` – zůstali
+ * by jen starší a děti; rozpad by je večer přestěhoval jinam a stěhovalo by se tam a zpět), tu
+ * nejsou.
+ */
+export function adultChildrenSources(
+  state: VillageState,
+  day: number,
+  capacity = Number.POSITIVE_INFINITY,
+): AdultChildrenSource[] {
+  const sources: { source: AdultChildrenSource; crowding: number }[] = [];
+  for (const dwelling of state.dwellings) {
+    const extra = crowding(state, dwelling);
+    if (extra <= 0) continue;
+    const members = occupants(state, dwelling.id);
+    const children = adultChildren(members, day).slice(0, capacity);
+    if (children.length === 0) continue;
+    if (
+      householdBreaksUp(
+        members.filter((p) => !children.includes(p)),
+        day,
+      )
+    )
+      continue;
+    sources.push({ source: { dwelling, children }, crowding: extra });
+  }
+  return sources
+    .sort((a, b) => b.crowding - a.crowding || a.source.dwelling.id - b.source.dwelling.id)
+    .map((x) => x.source);
+}
+
+/**
+ * Kdo osídlí úplně prázdné obydlí s kapacitou `capacity`, když ho nezabral mladý pár z plné
+ * domácnosti se 4 dospělými (population.md – Prázdné obydlí, návrh Clauda): dospělé děti první
+ * přeplněné domácnosti v pořadí `adultChildrenSources`, která jich má aspoň dvě. Domácnost s jediným
+ * dospělým dítětem ho pošle s jedním dospělým dítětem jiné takové domácnosti (první v pořadí) –
+ * jediný člověk by se v novém obydlí hned rozpadl. Nikdo (prázdné pole), když takoví lidé nejsou.
+ */
+export function adultChildrenSettlers(
+  state: VillageState,
+  day: number,
+  capacity: number,
+): Person[] {
+  const sources = adultChildrenSources(state, day, capacity);
+  const single = (s: AdultChildrenSource): boolean => s.children.length < NEW_HOUSEHOLD_MIN_PEOPLE;
+  for (const source of sources) {
+    if (!single(source)) return source.children;
+    const partner = sources.find((other) => other !== source && single(other));
+    if (partner) return [...source.children, ...partner.children];
+  }
+  return [];
+}
+
+/**
+ * Kolik nových domácností může ves založit (population.md – Lidé k osídlení): domácnosti, ze
+ * kterých se může oddělit mladý pár (`qualifyingDwellings`), plus z ostatních přeplněných
+ * domácností každá s aspoň dvěma dospělými dětmi jedna domácnost a jednotlivá dospělá děti po
+ * dvou (zaokrouhleno dolů – `adultChildrenSources`).
+ */
+export function possibleNewHouseholds(state: VillageState, day: number): number {
+  const qualifying = new Set(qualifyingDwellings(state, day).map((d) => d.id));
+  const others = adultChildrenSources(state, day).filter((s) => !qualifying.has(s.dwelling.id));
+  const families = others.filter((s) => s.children.length >= NEW_HOUSEHOLD_MIN_PEOPLE).length;
+  const singles = others.length - families;
+  return qualifying.size + families + Math.floor(singles / NEW_HOUSEHOLD_MIN_PEOPLE);
+}
+
+/**
+ * Lidé k osídlení nového obydlí (population.md – Odemčení, Lidé k osídlení): možné nové
+ * domácnosti (`possibleNewHouseholds` – mladý pár z plné domácnosti se 4 dospělými, dospělé děti
+ * z přeplněné domácnosti), minus prázdná obydlí a rozestavěná nová obydlí – každé už jednu
+ * domácnost čeká. První zemnice zakladatelů (stavba s `dwellingId`) nikoho nečeká, zakladatelé ji
+ * osídlí sami. Může vyjít záporně (obydlí postavená do zásoby).
  */
 export function availableSettlers(state: VillageState, day: number): number {
   const building = state.constructions.filter(
     (c) => c.kind === 'dwelling' && c.dwellingId === null,
   ).length;
   const empty = state.dwellings.filter((d) => occupants(state, d.id).length === 0).length;
-  return qualifyingDwellings(state, day).length - building - empty;
+  return possibleNewHouseholds(state, day) - building - empty;
 }
 
 /**
- * Kolik plných domácností nemá kam se rozdělit – na každou z nich nečeká prázdné ani
- * rozestavěné obydlí (= kladní `availableSettlers`). Upozornění „Domácnost je plná“.
+ * Kolik možných nových domácností nemá kam jít – na každou z nich nečeká prázdné ani rozestavěné
+ * obydlí (= kladní `availableSettlers`). Upozornění „Domácnost je plná“.
  */
 export function waitingHouseholds(state: VillageState, day: number): number {
   return Math.max(0, availableSettlers(state, day));
