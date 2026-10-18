@@ -264,6 +264,7 @@ describe('panel pole – plodiny (fields.md – Luštěniny)', () => {
       ],
       ashParts: 0,
       ashBonus: 0,
+      overgrowingM2: 0,
       founding: null,
     });
     expect(html).toMatch(/legumes\.png.*data-testid="selection-crop-legume"[^>]*>2</);

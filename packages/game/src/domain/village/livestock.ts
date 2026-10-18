@@ -1,6 +1,7 @@
 import { dateOfDayIndex } from '../calendar';
 import { yearlyMilk } from './dairy';
 import { PROTEIN, proteinNeedPerDay } from './diet';
+import { isOvergrown } from './fields';
 import { HAY } from './hay';
 import { legumeSupplyPerYear } from './legumes';
 import { ageGroup } from './people';
@@ -158,19 +159,21 @@ export function villageChickens(state: Pick<VillageState, 'people' | 'dwellings'
 
 /**
  * Pastva (ha) pro ovce, kozy, krávy a voly: louka do 600 m bez toho, co zabírají pole mimo
- * příloh, sady, hřbitovy, pozemky a ohrady, plus příloh na vymýceném lese (pase se na celém
- * přílohu – mladém i pastvině, po seči i na louce na seno).
+ * příloh, příloh zarostlý křovím a mladým lesem, les vsi, sady, hřbitovy, pozemky a ohrady, plus
+ * příloh na vymýceném lese (pase se na celém přílohu ve fázi louky – mladém i pastvině, po seči
+ * i na louce na seno; fields.md – Zarůstání).
  */
 export function pastureHa(state: VillageState): number {
   let used = 0;
   let clearedFallow = 0;
   for (const part of state.parts) {
-    if (part.state === 'fallow') {
+    if (part.state === 'fallow' && !isOvergrown(part)) {
       if (part.surface === 'forest') clearedFallow += part.areaM2;
     } else if (part.surface !== 'forest') {
       used += part.areaM2;
     }
   }
+  for (const wood of state.woods ?? []) if (wood.surface !== 'forest') used += wood.areaM2;
   for (const orchard of state.orchards ?? []) {
     for (const square of orchard.squares) used += square.areaM2;
   }
@@ -183,12 +186,18 @@ export function pastureHa(state: VillageState): number {
   return meadow + clearedFallow / M2_PER_HA;
 }
 
-/** Les pro prasata (ha): les do 600 m bez dílů polí, které ves v lese založila. */
+/**
+ * Les pro prasata (ha): les do 600 m bez dílů polí, které ves v lese založila, a s lesem vsi na
+ * bývalé louce (les vsi na vymýceném lese už mezi díly není – je zase lesem; fields.md – Les vsi).
+ */
 export function pigForestHa(state: VillageState): number {
   const cleared = state.parts
     .filter((p) => p.surface === 'forest' && p.state !== 'founding')
     .reduce((sum, p) => sum + p.areaM2, 0);
-  return Math.max(0, livestockLand(state).forestHa - cleared / M2_PER_HA);
+  const grown = (state.woods ?? [])
+    .filter((w) => w.surface !== 'forest')
+    .reduce((sum, w) => sum + w.areaM2, 0);
+  return Math.max(0, livestockLand(state).forestHa - cleared / M2_PER_HA) + grown / M2_PER_HA;
 }
 
 /** Pastva, kterou stáda (a `oxen` volů) spásají (ha). */

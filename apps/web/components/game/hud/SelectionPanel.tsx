@@ -367,6 +367,11 @@ function FieldBody({
             {count}
           </Stat>
         ))}
+        {details.overgrowingM2 > 0 && (
+          <Stat icon="overgrowth" name="Zarůstá" testId="selection-overgrowing">
+            {formatHa(details.overgrowingM2)}
+          </Stat>
+        )}
       </div>
       <ul aria-label="Díly pole" className="flex flex-wrap gap-1.5">
         {details.stages.map(({ stage, count }) => (

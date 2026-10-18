@@ -77,6 +77,7 @@ describe('luštěniny v liště', () => {
     crops: legume > 0 ? { spring: 3, legume } : { spring: 3 },
     ashParts: 0,
     ashBonus: 0,
+    overgrowingM2: 0,
   });
   const noLegumes = diet(1);
   const shares = { grain: 1, meat: 0, dairy: 0, eggs: 0, fruit: 0 };

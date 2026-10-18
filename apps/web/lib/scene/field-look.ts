@@ -8,7 +8,11 @@ import { aftermathGrazing, hayPhase } from './hay-meadows';
 
 export type { FieldLook };
 
-/** Všechny vzhledy dílu v pořadí roku – vývojové stránky je ukazují po řadě. */
+/**
+ * Všechny vzhledy dílu v pořadí roku – vývojové stránky je ukazují po řadě. Zarůstající příloh
+ * (`shrubs`, `young-forest` – fields.md, Zarůstání) do roku nepatří, jeho vzhled dělají keře
+ * a stromky podle let bez pastvy a seče (ukázka „Zarůstání“ na /dev/landscape).
+ */
 export const FIELD_LOOKS: readonly FieldLook[] = [
   'bare',
   'plowed',
@@ -40,6 +44,8 @@ export const FIELD_LOOK_LABELS: Record<FieldLook, string> = {
   meadow: 'úhor – louka, roste tráva',
   mown: 'úhor – posečeno na seno',
   haystacks: 'úhor – stohy sena',
+  shrubs: 'nepasený příloh – křoviny',
+  'young-forest': 'nepasený příloh – mladý les',
 };
 
 /**
@@ -243,10 +249,14 @@ export function estimatePart(
       // mladý úhor (strniště 1–2 roky) se pase – stáda s pasáčkem (Martin)
       return whole('young-fallow');
     case 'meadow':
-      // starší úhor nezarůstá křovím ani lesem – je z něj louka, která se kosí na seno (Martin)
+      // starší úhor je louka, která se kosí na seno (Martin); nepasený a nesečený zarůstá
       return estimateHay(dayOfYear, index, Math.max(1, count));
     case 'sown':
       return estimateSown(dayOfYear, index, Math.max(1, count));
+    case 'shrubs':
+    case 'young-forest':
+      // nepasený a nesečený příloh zarůstá (fields.md – Zarůstání)
+      return whole(part.stage);
   }
 }
 
@@ -426,12 +436,16 @@ const TASK_LOOKS: Partial<
 /**
  * Díl se pase – stáda smějí na něj (livestock-placement.ts): mladý úhor a pastvina vždy, louka
  * na seno až po seči na otavě (od srpna do konce listopadu – Martin: ne dřív). Bez dne v roce
- * se louka na seno nepase.
+ * se louka na seno nepase. Jen díly, kam stáda dojdou (`grazed` – nejbližší příloh napřed,
+ * fields.md – Zarůstání); křoviny a mladý les nikdy.
  */
 export function grazeablePart(
-  part: Pick<SceneFieldPart, 'stage' | 'look' | 'work'>,
+  part: Pick<SceneFieldPart, 'stage' | 'look' | 'work' | 'grazed'>,
   dayOfYear?: number,
 ): boolean {
+  if (part.grazed === false || part.stage === 'shrubs' || part.stage === 'young-forest') {
+    return false;
+  }
   const aftermath = dayOfYear !== undefined && aftermathGrazing(dayOfYear);
   if (part.look) {
     if (part.work !== undefined && part.work < 1) return false;

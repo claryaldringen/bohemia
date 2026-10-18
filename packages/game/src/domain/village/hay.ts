@@ -6,9 +6,9 @@ import {
   tileOfWorldPoint,
   type Landscape,
 } from '../landscape';
-import { distanceFactor, fallowYears, partWalkDistance } from './fields';
+import { distanceFactor, fallowStage, partWalkDistance } from './fields';
 import { FASTEST_WALK_SHARE } from './paths/walking';
-import { OVERGROWTH_STAGES, type WindowSegment } from './rules';
+import type { WindowSegment } from './rules';
 import type { FieldPart, HayMowing, HaySquare, HayState, TileCell, VillageState } from './types';
 
 // Seno (oxen.md – Seno, diet.md – Dobytek): krávy a voli přes zimu (listopad–březen) sežerou
@@ -39,8 +39,6 @@ const M2_PER_HA = 10_000;
 /** Přirozené louky se sečou do této vzdálenosti od nejbližšího obydlí (m) – jako pastva. */
 export const HAY_REACH_M = 600;
 
-/** Mladý příloh (1–2 roky) není louka na seno – seno dává až pastvina (fields.md – Příloh). */
-const YOUNG_FALLOW_YEARS = OVERGROWTH_STAGES[0].maxYears;
 /** Tolerance proti chybám desetinných čísel. */
 const EPSILON = 1e-9;
 
@@ -54,9 +52,12 @@ export function villageHay(state: Pick<VillageState, 'hay'>): HayState {
   return state.hay ?? { kg: 0, mowing: null };
 }
 
-/** Díl je úhor ve fázi louky – seče se na seno (příloh starší než mladý). */
+/**
+ * Díl je úhor ve fázi louky – seče se na seno: příloh starší než mladý (1–2 roky) a ještě
+ * nezarostlý křovím ani lesem (fields.md – Příloh a pastva, Zarůstání).
+ */
 export function isHayMeadow(part: FieldPart, day: number): boolean {
-  return part.state === 'fallow' && fallowYears(part, day) > YOUNG_FALLOW_YEARS;
+  return part.state === 'fallow' && fallowStage(part, day) === 'meadow';
 }
 
 /**
@@ -82,7 +83,7 @@ export type MeadowWalk = (targets: readonly { x: number; z: number }[]) => numbe
 
 /**
  * Políčka přirozené louky do HAY_REACH_M od nejbližšího obydlí, která nezabírá pole, sad,
- * hřbitov, pozemek, ohrada ani obydlí (oxen.md – Seno), s přímou vzdáleností od obydlí. Bez
+ * hřbitov, pozemek, ohrada, obydlí ani les vsi (oxen.md – Seno), s přímou vzdáleností od obydlí. Bez
  * krajiny nebo obydlí žádná.
  */
 function naturalMeadows(
@@ -105,6 +106,8 @@ function naturalMeadows(
   for (const pen of state.pens ?? []) taken.add(key(pen.cell));
   for (const d of state.dwellings) if (d.plot) taken.add(key(d.plot.cell));
   for (const c of state.constructions) if (c.plot) taken.add(key(c.plot.cell));
+  // les vsi už louka není (fields.md – Les vsi)
+  for (const w of state.woods ?? []) taken.add(key(w.cell));
   for (const h of houses) {
     const tile = tileOfWorldPoint(landscape, h.x, h.z);
     if (tile) taken.add(key(tile));
@@ -227,6 +230,22 @@ export function planMowing(
   if (squares.length === 0) return null;
   const partIds = squares.flatMap((sq) => (sq.partId === undefined ? [] : [sq.partId]));
   return { partIds, squares, required, done: 0, yieldKg };
+}
+
+/**
+ * Díly přílohu, které se letos posekly (fields.md – Zarůstání): díly letošní seče, ke kterým
+ * došla práce (i rozpracovaný). Bez seče žádné.
+ */
+export function mownPartIds(state: Pick<VillageState, 'hay' | 'parts'>): Set<number> {
+  const mowing = state.hay?.mowing;
+  if (!mowing) return new Set();
+  const position = mowingPosition(mowing);
+  const partsById = new Map(state.parts.map((p) => [p.id, p]));
+  return new Set(
+    mowingSpans(mowing, partsById)
+      .filter((span) => span.partId !== undefined && span.start + EPSILON < position)
+      .map((span) => span.partId!),
+  );
 }
 
 /** Leží měsíc dne v okně sečení? */

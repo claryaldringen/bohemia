@@ -343,7 +343,7 @@ describe('advanceVillage – roční plán a sklizeň', () => {
   }
 
   it('1. 9. příloh 16 let se vrací jako pastvina: drn v plánu, bez bonusu, plete se', () => {
-    // na přílohu se pase – nezaroste v les, vrátit ho stojí drn jako louka (Martin, 18. 10. 2026)
+    // spásaný příloh (bez let bez pastvy) nezaroste, vrátit ho stojí drn jako louka
     const { s } = returningFallow(604);
     const crops = planCrops(s.plan!);
     expect(planPartIds(s.plan!).length).toBeGreaterThan(0);
@@ -361,6 +361,34 @@ describe('advanceVillage – roční plán a sklizeň', () => {
       expect(part).toMatchObject({ state: 'sown', fallowSinceDay: null, bonusUntilDay: null });
     }
     expect(s.chronicle.some((e) => e.kind === 'part-became-forest')).toBe(false);
+  });
+
+  it('1. 9. vrácený mladý les (25 let bez pastvy): mýcení jako les, za dospělé stromy klády', () => {
+    // fields.md – Zarůstání: mladý les se vrací za sazbu lesa, dospělé stromy dají klády
+    const day = at(620, 9, 1);
+    const start = found(at(600, 6, 1));
+    start.constructions = [];
+    start.lastDay = day - 1;
+    start.woodLogs = 0;
+    for (const p of start.parts) {
+      p.foundingDone = p.foundingCost;
+      p.state = 'fallow';
+      p.fallowSinceDay = at(595, 9, 1);
+      p.overgrowthYears = 25;
+    }
+    const s = advanceVillage(start, day, null);
+    const crops = planCrops(s.plan!);
+    expect(planPartIds(s.plan!).length).toBeGreaterThan(0);
+    const ha = (work: (typeof crops)[number]['work']): number =>
+      work.partIds.reduce((sum, id) => sum + s.parts.find((p) => p.id === id)!.areaM2, 0) / 10_000;
+    for (const { work } of crops) {
+      if (work.partIds.length === 0) continue;
+      expect(work.required.reclaim).toBeGreaterThanOrEqual(250 * ha(work) - 1e-6);
+    }
+    for (const id of planPartIds(s.plan!)) {
+      expect(s.parts.find((p) => p.id === id)?.overgrowthYears).toBeUndefined();
+    }
+    expect(s.woodLogs ?? 0).toBeGreaterThan(0);
   });
 
   it('1. 9. příloh 15 let: vrátí se bez bonusu úrodnosti', () => {

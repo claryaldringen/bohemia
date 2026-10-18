@@ -374,6 +374,21 @@ describe('newNotices – obnova a konec sadu (orchard.md – Obnova sadu)', () =
   });
 });
 
+describe('newNotices – nepasené pole zarostlo lesem (fields.md – Zarůstání)', () => {
+  it('krátký řádek jednou, i když zarostlo víc polí', () => {
+    const entry = (day: number): VillageView['chronicle'][number] => ({
+      day,
+      kind: 'part-became-forest',
+      dateLabel: '',
+      text: '',
+    });
+    const after = view({ dayIndex: 1400, chronicle: [entry(1366), entry(1366)] });
+    expect(newNotices(view({ dayIndex: 1300 }), after)).toEqual([
+      { kind: 'part-forest', tone: 'warn', text: 'Nepasené pole zarostlo lesem' },
+    ]);
+  });
+});
+
 describe('upozornění z jiných vsí (migration.md)', () => {
   const item = (overrides: Partial<VillageListItem> = {}): VillageListItem => ({
     id: 'v-2',

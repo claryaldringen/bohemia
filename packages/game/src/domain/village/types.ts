@@ -144,6 +144,16 @@ export interface CraftStocks {
 }
 export type PartState = 'founding' | 'ready' | 'sown' | 'fallow';
 /**
+ * Stadium přílohu (fields.md – Zarůstání): mladý příloh (1–2 roky ladem), louka (pastvina, louka
+ * na seno), křoviny a mladý les – nepasený a nesečený příloh zarůstá.
+ */
+export type FallowStage = 'young-fallow' | 'meadow' | 'shrubs' | 'young-forest';
+/**
+ * Co roste na přílohu podle let bez pastvy a seče (fields.md – Zarůstání): louka, křoviny, mladý
+ * les, les – díl v lese z pole vypadne.
+ */
+export type OvergrowthStage = 'meadow' | 'shrubs' | 'young-forest' | 'forest';
+/**
  * Plodina osetého dílu (fields.md – Ozim a jař, Luštěniny): **ozim** (`winter` – žito a pšenice,
  * kopá se a seje na podzim, sklízí v červenci), **jař** (`spring` – ječmen, kopá se na podzim nebo
  * na jaře, seje na jaře, sklízí v srpnu) a **luštěniny** (`legume` – hrách a čočka; jař – kopá
@@ -182,6 +192,33 @@ export interface FieldPart {
    * (`refreshWalkDistances`); chybí u vsí uložených dřív a bez krajiny (= `distanceM`).
    */
   walkDistanceM?: number;
+  /**
+   * Roky přílohu bez pastvy a seče (fields.md – Zarůstání): přibývají 1. 11. za každé vegetační
+   * období, kdy díl stáda nespásla a ves neposekla; pastva nebo seč je ve fázi louky vynuluje, od
+   * křovin už ne. Chybí = 0 (díly mimo příloh, vsi uložené dřív).
+   */
+  overgrowthYears?: number;
+}
+/**
+ * Les vsi (fields.md – Zarůstání, Les vsi): čtverec pole, který zarostl lesem a z pole vypadl. Les
+ * dál roste – dospělé stromy na něm přibývají se stářím (VILLAGE_WOOD) a jde je kácet na dřevo;
+ * pole na čtverci ho vymýtí jako les. Prasatům je lesem, stádům pastvinou už není.
+ */
+export interface VillageWood {
+  /** Políčko krajiny (čtverec dílu). */
+  cell: TileCell;
+  /**
+   * Střed políčka ve světě (m) – stromy lesa stojí kolem něj (`woodTreeSpots`). Chybí ve vsi
+   * simulované bez krajiny (testy) – les pak stromy nemá.
+   */
+  x?: number;
+  z?: number;
+  /** Plocha dílu, ze kterého les vyrostl (m², bez skalních výchozů). */
+  areaM2: number;
+  /** Povrch dílu při založení – les na louce ubere pastvu, les v lese vrátí les prasatům. */
+  surface: FieldSurface;
+  /** Den, kdy díl z pole vypadl – les byl tehdy starý OVERGROWTH_STAGES (30 let). */
+  day: number;
 }
 /** Pole – jeho čtverce jsou políčka jeho dílů (`FieldPart.cell`). */
 export interface Field {
@@ -470,7 +507,18 @@ export type ChronicleEvent = { day: number } & (
   | { kind: 'land-taken'; land: 'field' | 'orchard'; id: number; areaM2: number; gone: boolean }
   | { kind: 'hunger-began' }
   | { kind: 'hunger-ended' }
-  | { kind: 'part-became-forest'; partId: number }
+  /**
+   * Nepasený a nesečený příloh zarostl lesem a z pole vypadl (fields.md – Zarůstání): první díl,
+   * pole, kolik dílů a jestli pole zaniklo. U událostí ze staršího pravidla (do 18. 10. 2026)
+   * je jen `partId`.
+   */
+  | {
+      kind: 'part-became-forest';
+      partId: number;
+      fieldId?: number;
+      parts?: number;
+      gone?: boolean;
+    }
   /** Vesničané při mýcení ušetřili posvátný dub nebo dubový háj (happiness.md) – id místa. */
   | { kind: 'sacred-spared'; site: 'oak' | 'grove'; id: number }
   /** Ušetřený posvátný dub stářím uschl – zůstala posvátná souš (happiness.md) – id dubu. */
@@ -686,6 +734,11 @@ export interface VillageState {
    * RUIN_YEARS let, pak zmizí (ruins.ts). Chybí = žádné (i u vsí uložených před nimi).
    */
   ruins?: DwellingRuin[];
+  /**
+   * Les vsi – čtverce polí, které zarostly lesem a z pole vypadly (fields.md – Zarůstání). Chybí
+   * = žádný (i u vsí uložených před zarůstáním).
+   */
+  woods?: VillageWood[];
 }
 
 // --- pevné cesty (roads.md) ------------------------------------------------------------------

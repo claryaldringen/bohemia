@@ -14,6 +14,7 @@ import {
   roadTreeObstacleKind,
   type RoadTreeObstacleKind,
 } from './road-trees';
+import { villageWoods, woodMatureTrees, woodTreeSpots } from './woods';
 import {
   BEECH_PLANTING,
   DWELLING_CLEARING_M,
@@ -27,8 +28,8 @@ import type { DwellingType, ObstacleChange, Position, TileCell, VillageState } f
 // Krajina sídla = vygenerovaná vrstva překážek + změny, které v ní udělali lidé (fields.md –
 // Krajina sídla a scéna, forest.md – Krajina sídla): odstraněné překážky (pole, obydlí) zmizí
 // natrvalo i s pařezy, pokácené stromy nechají pařez a z náletu znovu dorostou. Navíc ves do
-// krajiny přidává stromy u pevných cest (roads.md) – překážky nad vrstvou (`added`), které stavba
-// odstraní jako ostatní.
+// krajiny přidává stromy u pevných cest (roads.md) a stromy lesa vsi (fields.md – Les vsi) –
+// překážky nad vrstvou (`added`), které stavba odstraní jako ostatní.
 
 const DAYS_PER_YEAR = 365.25;
 const NO_IDS: ReadonlySet<number> = new Set();
@@ -42,13 +43,16 @@ export interface ObstacleChanges {
   /** Pokácené stromy, které znovu rostou z náletu (mladý stromek). */
   readonly saplings: readonly number[];
   /**
-   * Překážky, které ves přidala nad vrstvu – stromy u pevných cest (roads.md) v daný den, podle
-   * id. Bez údaje žádné.
+   * Překážky, které ves přidala nad vrstvu – stromy u pevných cest (roads.md) a stromy lesa vsi
+   * (fields.md – Les vsi) v daný den, podle id. Bez údaje žádné.
    */
   readonly added?: readonly AddedObstacle[];
 }
 
-/** Překážka přidaná vsí nad vrstvu (strom u pevné cesty): id, pata (m) a druh v daný den. */
+/**
+ * Překážka přidaná vsí nad vrstvu (strom u pevné cesty, strom lesa vsi): id, pata (m) a druh
+ * v daný den.
+ */
 export interface AddedObstacle {
   readonly id: number;
   readonly x: number;
@@ -111,11 +115,13 @@ export function plantOnStump(state: VillageState, id: number, day: number): bool
   return true;
 }
 
-type ChangeLists = Pick<VillageState, 'clearedObstacles' | 'felledTrees' | 'roads'>;
+type ChangeLists = Pick<VillageState, 'clearedObstacles' | 'felledTrees' | 'roads'> &
+  Partial<Pick<VillageState, 'woods'>>;
 
 /**
  * Změny překážek vsi v den `day` (stromy, které už dorostly, mezi změnami nejsou) a stromy
- * u pevných cest, které v ten den stojí a stavba je neodstranila (`added`).
+ * u pevných cest a lesa vsi, které v ten den stojí a stavba je neodstranila (`added`) – strom
+ * lesa vsi je dospělý, mladý stromek, nebo po kácení pařez a pak nálet (mladý stromek).
  */
 export function obstacleChangesAt(state: ChangeLists, day: number): ObstacleChanges {
   const removed = new Set((state.clearedObstacles ?? []).map((c) => c.id));
@@ -145,6 +151,22 @@ export function obstacleChangesAt(state: ChangeLists, day: number): ObstacleChan
     if (removed.has(apple.id)) continue;
     const kind = roadAppleObstacleKind(apple, day);
     if (kind !== null) added.push({ id: apple.id, x: apple.x, z: apple.z, kind });
+  }
+  for (const wood of villageWoods(state)) {
+    const mature = woodMatureTrees(wood, day);
+    for (const spot of woodTreeSpots(wood)) {
+      if (removed.has(spot.id)) continue;
+      const felled = lastFelled.get(spot.id);
+      // pokácený strom lesa vsi dorůstá z pařezu, nebo ze sazenice jako strom krajiny
+      const regrowth = felled === undefined ? 'grown' : felledTreeStage(felled, day);
+      const kind: RoadTreeObstacleKind =
+        regrowth === 'stump'
+          ? 'stump'
+          : regrowth === 'sapling' || spot.k >= mature
+            ? 'youngTree'
+            : 'tree';
+      added.push({ id: spot.id, x: spot.x, z: spot.z, kind });
+    }
   }
   added.sort((a, b) => a.id - b.id);
   return {

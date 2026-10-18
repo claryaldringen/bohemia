@@ -7,6 +7,8 @@ import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 import type { Scene } from '@babylonjs/core/scene';
 import {
   computePathNetwork,
+  isWoodTreeId,
+  type ObstacleChanges,
   obstaclePosition,
   pathBounds,
   pathNetworkKey,
@@ -292,6 +294,8 @@ export class VillagePaths {
       changes.removed.length,
       changes.stumps.length,
       changes.saplings.length,
+      // stromy lesa vsi – pěšiny je obcházejí jako stromy krajiny (fields.md – Les vsi)
+      (changes.added ?? []).filter((o) => isWoodTreeId(o.id)).length,
     ].join('|');
     let terrainMs = 0;
     if (this.obstacleTerrain?.key !== obstacleKey) {
@@ -503,7 +507,7 @@ export class VillagePaths {
   }
 }
 
-const EMPTY_CHANGES = { removed: [], stumps: [], saplings: [] };
+const EMPTY_CHANGES: ObstacleChanges = { removed: [], stumps: [], saplings: [] };
 
 /** Barva teplotní mapy pro provoz (cest za den). */
 export function heatColor(trips: number): [number, number, number] {

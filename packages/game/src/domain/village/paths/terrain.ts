@@ -12,6 +12,7 @@ import {
 } from '../../landscape';
 import { obstacleStatus, type ObstacleChanges } from '../obstacles';
 import { OUTCROP_RADIUS_M } from '../rules';
+import { isWoodTreeId } from '../woods';
 
 // Terén pro vyšlapané pěšiny (docs/design/paths.md) – cena chůze po buňkách hrubé mřížky kolem
 // vsi. Mřížka sedí na body sítě vykreslení scény (střed políčka + k × čtvrtina políčka, ≈ 3,75 m),
@@ -346,13 +347,7 @@ export function withObstacles(
   const status = obstacleStatus(changes);
   const maxX = originX + (width - 1) * cellM;
   const maxZ = originZ + (height - 1) * cellM;
-  for (const index of obstaclesNear(layer, originX, originZ, maxX, maxZ)) {
-    const kind = status.kindOf(layer, index);
-    if (kind === null) continue;
-    const { radius: unit, extra } = OBSTACLE_COST[kind];
-    const radius = unit * layer.scale[index]!;
-    const x = layer.x[index]!;
-    const z = layer.z[index]!;
+  const add = (x: number, z: number, radius: number, extra: number): void => {
     const reach = Math.max(radius, half);
     const i0 = Math.max(0, Math.ceil((x - reach - originX) / cellM - 1e-6));
     const j0 = Math.max(0, Math.ceil((z - reach - originZ) / cellM - 1e-6));
@@ -367,6 +362,22 @@ export function withObstacles(
         cost[c] = cost[c]! + extra;
       }
     }
+  };
+  for (const index of obstaclesNear(layer, originX, originZ, maxX, maxZ)) {
+    const kind = status.kindOf(layer, index);
+    if (kind === null) continue;
+    const { radius: unit, extra } = OBSTACLE_COST[kind];
+    add(layer.x[index]!, layer.z[index]!, unit * layer.scale[index]!, extra);
+  }
+  // stromy lesa vsi (fields.md – Les vsi) jsou les jako stromy krajiny – pěšina je obchází
+  // (stromy u cest ne – stojí mimo osu cesty, roads.md)
+  for (const o of changes?.added ?? []) {
+    if (!isWoodTreeId(o.id)) continue;
+    if (o.x < originX - half || o.x > maxX + half || o.z < originZ - half || o.z > maxZ + half) {
+      continue;
+    }
+    const { radius, extra } = OBSTACLE_COST[o.kind];
+    add(o.x, o.z, radius, extra);
   }
   return { ...terrain, cost };
 }

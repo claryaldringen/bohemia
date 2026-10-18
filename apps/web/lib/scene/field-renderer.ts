@@ -23,6 +23,7 @@ import {
   emptyCrops,
   fieldPlants,
   fieldStaking,
+  isWildStage,
   lookStyle,
   partViewsKey,
   patchNoise,
@@ -352,11 +353,15 @@ export class FieldRenderer {
       const built = clearingsNear(clearings, cellsBounds(field.parts), CLEARING_SOFT_M);
       const views = fieldPartViews(field, { dayOfYear: day, village: this.village });
       // čtverce sousedních polí – kde pole navazují, okraj se netlumí (bez švu mezi poli); louky
-      // jen k polím, pole jen k polím
+      // jen k polím, pole jen k polím; zarůstající díly obtisk nemají – okraj k nim se tlumí
+      // jako k louce
       const neighbours = touchingSquares(
         field.parts,
-        this.village.fields.flatMap((f) => (f.id === field.id ? [] : f.parts)),
+        this.village.fields.flatMap((f) =>
+          f.id === field.id ? [] : f.parts.filter((p) => !isWildStage(p.stage)),
+        ),
       );
+      const drawn = field.parts.filter((p) => !isWildStage(p.stage));
       // louka na seno se mění po dnech (řádky, kupky, stohy, které přes zimu mizí)
       const hay = views.some((v) => v.look && LOOK_STYLES[v.look].hay);
       const key = JSON.stringify([
@@ -373,7 +378,7 @@ export class FieldRenderer {
       if (current) for (const mesh of current.meshes) mesh.dispose();
       const rows = rowDirection(field.parts);
       const center = villageCenter(this.village, field.parts);
-      const ragged = raggedCoverage([...field.parts, ...neighbours], EDGE_SOFT_M);
+      const ragged = raggedCoverage([...drawn, ...neighbours], EDGE_SOFT_M);
       const mask = clearingMask(built, CLEARING_SOFT_M);
       const coverage =
         built.length > 0 ? (x: number, z: number): number => ragged(x, z) * mask(x, z) : ragged;
@@ -476,6 +481,8 @@ export class FieldRenderer {
     const pieces = decalPieces(views, rows, center);
     for (const piece of pieces) {
       const style = lookStyle(piece.look, piece.part.crop);
+      // zarůstající příloh obtisk nemá – zůstane tráva louky (fields.md – Zarůstání)
+      if (style.alpha <= 0) continue;
       const step = piece.part.size / GRID_PER_CELL;
       const grid = decalGrid(piece.bounds, step, coverage);
       if (grid.indices.length === 0) continue;

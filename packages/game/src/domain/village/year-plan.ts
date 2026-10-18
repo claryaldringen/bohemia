@@ -3,7 +3,7 @@ import {
   distanceFactor,
   partWalkDistance,
   effectiveFertility,
-  fallowYears,
+  fallowStage,
   grossYieldPerHa,
   isWeedFree,
   reclaimCostPerHa,
@@ -48,7 +48,8 @@ export function partWeight(part: FieldPart): number {
 
 /**
  * Člověkodny prací jednoho dílu za rok podle sazeb (meze podle pokrytí nástroji) a vzdálenosti.
- * První sezónu po vymýcení lesa se díl neplete; příloh stojí navíc vrácení podle let ladem.
+ * První sezónu po vymýcení lesa se díl neplete; příloh stojí navíc vrácení podle stadia (mladý
+ * příloh nic, louka drn, křoviny a mladý les jako jejich založení – fields.md, Zarůstání).
  * S `plough` (ves má spřežení – oxen.md) díl, který rádlo zvládne, místo kopání orá.
  */
 export function partWork(
@@ -67,7 +68,7 @@ export function partWork(
     work[task] = ha * fieldWorkPerHa(task, toolCoverage, crop) * factor;
   }
   if (part.state === 'fallow') {
-    work.reclaim = reclaimCostPerHa(fallowYears(part, day), toolCoverage) * ha * factor;
+    work.reclaim = reclaimCostPerHa(fallowStage(part, day), toolCoverage) * ha * factor;
   }
   if (plough && isPloughable(part, day)) {
     work.plough = ha * ploughWorkPerHa(toolCoverage) * factor;

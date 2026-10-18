@@ -30,6 +30,7 @@ export type NoticeKind =
   | 'ox-died'
   | 'orchard-renewal'
   | 'orchard-gone'
+  | 'part-forest'
   /** Upozornění z jiné vsi hráče (migration.md – Víc vsí jednoho hráče). */
   | 'other-hungry'
   | 'other-starving'
@@ -126,8 +127,8 @@ function ownNotices(previous: VillageView, next: VillageView): VillageNotice[] {
 }
 
 /**
- * Události kroniky, které se ohlásí jako fakt (diet.md, oxen.md, orchard.md – Obnova sadu) – nejvýš
- * jednou za druh.
+ * Události kroniky, které se ohlásí jako fakt (diet.md, oxen.md, orchard.md – Obnova sadu,
+ * fields.md – Zarůstání) – nejvýš jednou za druh.
  */
 type ChronicleEntry = VillageView['chronicle'][number];
 
@@ -151,6 +152,12 @@ const CHRONICLE_NOTICES: Partial<
     text: 'Vesničané obnovují starý sad',
   }),
   'orchard-gone': () => ({ kind: 'orchard-gone', tone: 'warn', text: 'Starý sad dosloužil' }),
+  // nepasený příloh zarostl lesem a vypadl z pole (fields.md – Zarůstání)
+  'part-became-forest': () => ({
+    kind: 'part-forest',
+    tone: 'warn',
+    text: 'Nepasené pole zarostlo lesem',
+  }),
   // posvátný dub stářím uschl, posvátná souš padla (happiness.md – Posvátný dub)
   'sacred-oak-died': () => ({
     kind: 'sacred-oak-died',

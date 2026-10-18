@@ -64,6 +64,7 @@ import {
   type SimulatedPart,
 } from './dev-holdings';
 import { demoLabor } from './dev-labor';
+import { demoOvergrowth, type OvergrowthDemo } from './dev-overgrowth';
 import {
   DEMO_APPLE_STAGES,
   DEMO_ROAD_STAGES,
@@ -170,6 +171,8 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   // stupeň vylepšení ukázkových cest (dev-road.ts – DEMO_ROAD_STAGES) a stadium jabloní u cesty
   const [roadStage, setRoadStage] = useState(0);
   const [appleStage, setAppleStage] = useState(0);
+  // ukázka zarůstání přílohu a lesa vsi (fields.md – Zarůstání, dev-overgrowth.ts)
+  const [overgrowth, setOvergrowth] = useState<OvergrowthDemo | null>(null);
   // hospodaření podle polohy domů (fields.md): obrysy úseků a vzorec polí ze simulace jádra
   const [holdingsOn, setHoldingsOn] = useState(false);
   const [simulated, setSimulated] = useState<Map<string, SimulatedPart> | null>(null);
@@ -179,16 +182,28 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   const village = useMemo<SceneVillage>(() => {
     const base: SceneVillage = {
       dwellings,
-      fields: fields.map((field): SceneField => ({
-        id: field.id,
-        parts: field.parts.map((part, i) =>
-          devPart(field, part, i, { stage, mixed, lookMode, simulated }),
-        ),
-      })),
+      fields: [
+        ...fields.map((field): SceneField => ({
+          id: field.id,
+          parts: field.parts.map((part, i) =>
+            devPart(field, part, i, { stage, mixed, lookMode, simulated }),
+          ),
+        })),
+        ...(overgrowth ? [overgrowth.field] : []),
+      ],
       cemeteries,
       orchards,
       woodLogs,
-      obstacles,
+      obstacles: overgrowth
+        ? {
+            ...obstacles,
+            removed: [...new Set([...obstacles.removed, ...overgrowth.cleared])].sort(
+              (a, b) => a - b,
+            ),
+            added: [...(obstacles.added ?? []), ...overgrowth.added],
+          }
+        : obstacles,
+      ...(overgrowth && overgrowth.woods.length > 0 ? { woods: overgrowth.woods } : {}),
       ...(road
         ? {
             roads: demoRoadStage(road.roads ?? [], roadStage),
@@ -241,6 +256,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     roadStage,
     appleStage,
     simulated,
+    overgrowth,
   ]);
 
   useEffect(() => {
@@ -1001,6 +1017,20 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     setPeople((on) => !on);
   };
 
+  /**
+   * Ukázka zarůstání: díly nepaseného přílohu v každé fázi (louka, křoviny, mladý les) a les vsi
+   * v různém stáří – kamera k nim.
+   */
+  const toggleOvergrowth = (): void => {
+    if (overgrowth) {
+      setOvergrowth(null);
+      return;
+    }
+    const sample = demoOvergrowth(decoded, nextId.current++);
+    setOvergrowth(sample);
+    scene?.moveCameraTo(sample.center.x, sample.center.z);
+  };
+
   /** Ukázka pevné cesty se stromy (keř, mladý a plný strom, souš, pařez) – kamera k ní. */
   const toggleRoad = (): void => {
     if (road) {
@@ -1203,6 +1233,15 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
             Jabloně: {DEMO_APPLE_STAGES[appleStage]!.label}
           </button>
         )}
+        <button
+          className={buttonClass}
+          disabled={!scene}
+          onClick={toggleOvergrowth}
+          title="Nepasený příloh v každé fázi zarůstání (louka, křoviny, mladý les) a les vsi 30–70 let"
+          data-testid="dev-overgrowth"
+        >
+          {overgrowth ? 'Zarůstání ✓' : 'Zarůstání'}
+        </button>
         <button
           className={buttonClass}
           disabled={!scene}

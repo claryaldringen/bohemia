@@ -30,7 +30,7 @@ import {
   villageMeatKg,
   villageProteinNeed,
 } from './diet';
-import { endOfSeason, expectedNetKg } from './fields';
+import { endOfSeason, expectedNetKg, fallowStage, partOvergrowthYears } from './fields';
 import { daysUntilAppleRot } from './food';
 import { isToilDay, updateHappiness, villageLaborFactor, windowEndDay } from './happiness';
 import { MOWING_WINDOWS, mow, mowingRemaining } from './hay';
@@ -49,6 +49,7 @@ import {
 import { arrangeMarriages } from './marriage';
 import { ableTeams, finishPen, ploughCapacityPerDay, villageOxen } from './oxen';
 import { recordClearedObstacles } from './obstacles';
+import { overgrowthDay } from './overgrowth';
 import { roadsDay } from './paths/roads';
 import { refreshWalkDistances } from './paths/village';
 import { roadWalk, walkGroundOf } from './paths/walking';
@@ -124,6 +125,7 @@ import {
   woodFellingCost,
   woodSupply,
 } from './wood';
+import { clearWoodAt, woodMatureShare, woodTreesOnArea } from './woods';
 import {
   TASK_ORDER,
   activeTasks,
@@ -215,6 +217,9 @@ function simulateDay(
   // sady: shnilá jablka, konec péče a stárnutí (1. 3.), začátek a konec sklizně a péče, obnova
   // starých čtverců v oknech výsadby (stavba ze společné práce – dostane práci už dnes)
   state.chronicle.push(...orchardSeasonDay(state, day, coverage.pottery));
+  // zarůstání přílohu (1. 11., před porážkou – stáda jsou ještě letní): díly, které se nespásly
+  // ani neposekly, zarůstají, les z pole vypadne (fields.md – Zarůstání)
+  state.chronicle.push(...overgrowthDay(state, day, obstacles ?? landscape));
   // stáda, seno a ohrady: mláďata, seč, porážka, vejce, zimní krmení, spřežení (diet.md, oxen.md)
   state.chronicle.push(...husbandryDay(state, day, coverage.tools, landscape, obstacles));
   // ušetřené posvátné duby stářím usychají a souše padají – den plyne z dubu (happiness.md)
@@ -297,6 +302,8 @@ function planYear(state: VillageState, day: number, coverage: CraftCoverage): vo
   // hospodářský rok
   state.plan = createYearPlan(crops, day, coverage.tools, plough, workOrder(holdings));
   const chosen = new Set([...crops.winter, ...crops.spring, ...crops.legume].map((p) => p.id));
+  // vrácený mladý les dá za dospělé stromy klády (fields.md – Zarůstání, forest.md – Mýcení)
+  addLogs(state, reclaimedLogs([...crops.winter, ...crops.spring, ...crops.legume], day));
   for (const part of state.parts) {
     if (chosen.has(part.id) || (part.state !== 'sown' && part.state !== 'ready')) continue;
     // nevybraný osev i nevyužitý hotový díl jdou do přílohu a začnou zarůstat
@@ -418,12 +425,27 @@ function forestBonusUntil(day: number): number {
   return day + FOREST_BONUS.windowYears * DAYS_PER_BONUS_YEAR;
 }
 
-/** Vybrané díly se osejí plodinou `crop` (příloh se vrací do osevu). */
+/**
+ * Klády z vracených dílů v mladém lese (fields.md – Zarůstání): dospělých stromů jako v lese vsi
+ * stejného stáří (`woodMatureShare` × hustota lesa) – za každý celý strom kláda (forest.md –
+ * Mýcení).
+ */
+function reclaimedLogs(parts: readonly FieldPart[], day: number): number {
+  let trees = 0;
+  for (const part of parts) {
+    if (part.state !== 'fallow' || fallowStage(part, day) !== 'young-forest') continue;
+    trees += woodTreesOnArea(part.areaM2) * woodMatureShare(partOvergrowthYears(part));
+  }
+  return logsFromClearedTrees(Math.floor(trees + 1e-9));
+}
+
+/** Vybrané díly se osejí plodinou `crop` (příloh se vrací do osevu – zarůstání začne znovu). */
 function sow(parts: FieldPart[], day: number, crop: Crop): void {
   for (const part of parts) {
     if (part.state === 'fallow') {
       part.fallowSinceDay = null;
       part.sownYears = 0;
+      delete part.overgrowthYears;
     }
     part.state = 'sown';
     part.crop = crop;
@@ -829,6 +851,8 @@ function invest(
         addLogs(state, logsFromClearedTrees(part.trees));
         delete part.trees;
       }
+      // pole vymýtilo les vsi na čtverci (fields.md – Les vsi) – stromy zmizely s překážkami
+      if (part.cell) clearWoodAt(state, part.cell);
     } else {
       part.foundingDone += left;
       used += left;

@@ -18,6 +18,10 @@ import {
   groveAgeYears,
   obstaclesOf,
   partStage,
+  partOvergrowthYears,
+  pastureGrazedParts,
+  isGrazeableFallow,
+  isOvergrown,
   reservedTrees,
   roadAppleBearing,
   roadAppleStage,
@@ -82,6 +86,8 @@ import {
   villageCemeteries,
   villageLifespan,
   villageOrchards,
+  villageWoods,
+  woodAgeYears,
 } from '@bohemia/game';
 import { formatGameDate } from './game-date';
 import { fruitVisible, treeGrowth } from './orchard-look';
@@ -378,6 +384,11 @@ export interface VillageView {
     ashParts: number;
     /** Nejvyšší letošní bonus úrodnosti z popela (+40 první sezónu osevu, +20 druhou), jinak 0. */
     ashBonus: number;
+    /**
+     * Kolik z pole zarůstá (m², fields.md – Zarůstání): příloh, který se poslední vegetační
+     * období nespásl ani neposekl, i ten, který už zarostl křovinami a mladým lesem.
+     */
+    overgrowingM2: number;
   }[];
   /** Hřbitovy v pořadí pohřbívání – kolik místa zbývá (hygienu hráč nevidí – cemetery.md). */
   cemeteries: VillageCemetery[];
@@ -632,11 +643,28 @@ export interface SceneVillage {
   /** Ohrady (oxen.md) – čtverec, stavba a zvířata v ní. Bez údaje žádné. */
   pens?: ScenePen[];
   /**
+   * Les vsi (fields.md – Les vsi) – čtverce polí zarostlé lesem: políčko, povrch při založení
+   * a stáří lesa v celých letech (od 30). Stromy jsou mezi překážkami přidanými vsí
+   * (`obstacles.added`, id lesa vsi – `isWoodTreeId`). Bez údaje žádný.
+   */
+  woods?: SceneWood[];
+  /**
    * Přirozené louky letošní seče (oxen.md – Seno; ozdobné louky na seno nahradila data):
    * políčko, střed a strana jako u dílu pole a vzhled `meadow` / `mown` / `haystacks` (rozpracované
    * s `work` a `before`). Bez údaje žádné.
    */
   hayMeadows?: SceneHayMeadow[];
+}
+
+/** Čtverec lesa vsi ve scéně (fields.md – Les vsi). */
+export interface SceneWood {
+  cell: TileCell;
+  x: number;
+  z: number;
+  size: number;
+  surface: FieldSurface;
+  /** Stáří lesa v celých letech – stromy rostou do 70 let (VILLAGE_WOOD). */
+  age: number;
 }
 
 /** Políčko přirozené louky v seči pro scénu. */
@@ -740,6 +768,8 @@ export interface SceneSacred {
  * (1–2 roky) je strniště s plevelem, kde se pase (`young-fallow`), spasená pastvina (`pasture`);
  * úhor ve stadiu louky se kosí na seno (Martin) – vysoká tráva na jaře (`meadow`), posečená
  * s řádky sena a kupkami (`mown`), otava se stohy, které přes podzim a zimu mizí (`haystacks`).
+ * Nepasený a nesečený příloh zarůstá (fields.md – Zarůstání): křoviny (`shrubs`) a mladý les
+ * (`young-forest`) – bez obtisku pole, roste na něm keř a stromky (`overgrowth` dílu).
  */
 export type FieldLook =
   | 'bare'
@@ -754,7 +784,9 @@ export type FieldLook =
   | 'pasture'
   | 'meadow'
   | 'mown'
-  | 'haystacks';
+  | 'haystacks'
+  | 'shrubs'
+  | 'young-forest';
 
 /**
  * Díl pole ve scéně – políčko krajiny `cell`, jeho střed (x, z) ve světě, strana políčka `size`
@@ -780,6 +812,16 @@ export interface SceneFieldPart {
   work?: number;
   /** Vzhled nehotové části rozpracovaného dílu; bez údaje povrch před prací (louka u zakládání). */
   before?: FieldLook;
+  /**
+   * Roky přílohu bez pastvy a seče (fields.md – Zarůstání) – podle nich ve scéně rostou keře
+   * a stromky (hustota a velikost). Jen u přílohu, který zarůstá (aspoň rok).
+   */
+  overgrowth?: number;
+  /**
+   * Příloh ve fázi louky: pasou se na něm stáda (`pastureGrazedParts` – nejbližší napřed). Kam
+   * stáda nedojdou, tam se ve scéně nepase a pasáček nechodí. Bez údaje se pase všude.
+   */
+  grazed?: boolean;
   /**
    * Plodina osetého dílu, když to není obilí – `legume` (hrách a čočka – fields.md,
    * Luštěniny): zelené, zralé a sklizené luštěniny vypadají jinak než obilí. Bez údaje obilí.
@@ -871,6 +913,14 @@ function landTakenText(land: 'field' | 'orchard', areaM2: number, gone: boolean)
     : `Sad ustoupil stavbě obydlí – zmenšil se o ${formatInteger(areaM2)} m².`;
 }
 
+/** Příloh zarostl lesem a vypadl z pole – kronika (fields.md – Zarůstání). */
+function forestText(parts: number, gone: boolean): string {
+  if (gone) return 'Nepasené pole zarostlo lesem a zaniklo.';
+  return parts === 1
+    ? 'Nepasený díl pole zarostl lesem – pole se zmenšilo.'
+    : `Nepasené pole zarostlo lesem – ubylo ${formatCells(parts)}.`;
+}
+
 /** Text události kroniky česky. */
 export function chronicleText(event: ChronicleEvent, villageName: string): string {
   switch (event.kind) {
@@ -923,7 +973,7 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
     case 'hunger-ended':
       return 'Hlad skončil.';
     case 'part-became-forest':
-      return 'Opuštěný díl pole zarostl v les.';
+      return forestText(event.parts ?? 1, event.gone ?? false);
     case 'sacred-spared':
       return event.site === 'oak'
         ? 'Vesničané ušetřili posvátný dub.'
@@ -1008,21 +1058,26 @@ function sceneVillage(
     ];
   });
   const looks = fieldPartLooks(state, day);
+  // kam stáda dojdou – jen ves se skutečnými stády (bez nich scéna stáda odvodí z domácností)
+  const grazed = state.livestock ? pastureGrazedParts(state, day) : null;
   const fields = state.fields.map((f) => ({
     id: f.id,
     // vzhled po čtvercích z jádra (fieldPartLooks); bez něj (starší příloh) odhad scény
-    parts: state.parts.flatMap((p): SceneFieldPart[] =>
-      p.fieldId === f.id && p.cell !== undefined
-        ? [
-            {
-              ...scenePart(landscape, p, p.cell, partStage(p, day)),
-              ...looks.get(p.id),
-              ...(p.state === 'sown' && p.crop === 'legume' ? { crop: 'legume' as const } : {}),
-            },
-          ]
-        : [],
-    ),
+    parts: state.parts.flatMap((p): SceneFieldPart[] => {
+      if (p.fieldId !== f.id || p.cell === undefined) return [];
+      const years = p.state === 'fallow' ? partOvergrowthYears(p) : 0;
+      return [
+        {
+          ...scenePart(landscape, p, p.cell, partStage(p, day)),
+          ...looks.get(p.id),
+          ...(p.state === 'sown' && p.crop === 'legume' ? { crop: 'legume' as const } : {}),
+          ...(years > 0 ? { overgrowth: years } : {}),
+          ...(grazed && isGrazeableFallow(p) ? { grazed: grazed.has(p.id) } : {}),
+        },
+      ];
+    }),
   }));
+  const woods = sceneWoods(state, landscape, day);
   const cemeteries = villageCemeteries(state).map((c) => ({
     id: c.id,
     squares: c.squares.map((s) => ({
@@ -1090,6 +1145,7 @@ function sceneVillage(
     ...(summary.crafts.coverage.tools > 0 ? { toolCoverage: summary.crafts.coverage.tools } : {}),
     ...(roads.length > 0 ? { roads } : {}),
     ...(roadTrees.length > 0 ? { roadTrees } : {}),
+    ...(woods.length > 0 ? { woods } : {}),
     ...(kilns.length > 0 ? { kilns } : {}),
     ...(plantedSaplings.length > 0 ? { plantedSaplings } : {}),
     ...(roadApples.length > 0 ? { roadApples } : {}),
@@ -1123,6 +1179,25 @@ export function sceneRoads(
             },
           }
         : {}),
+    };
+  });
+}
+
+/** Les vsi pro scénu (fields.md – Les vsi) – stáří v celých letech (scéna se mění jen občas). */
+export function sceneWoods(
+  state: Pick<VillageState, 'woods'>,
+  landscape: Landscape,
+  day: number,
+): SceneWood[] {
+  return villageWoods(state).map((w) => {
+    const center = tileCenterWorld(landscape, w.cell.x, w.cell.y);
+    return {
+      cell: { x: w.cell.x, y: w.cell.y },
+      x: center.x,
+      z: center.z,
+      size: landscape.cellSizeM,
+      surface: w.surface,
+      age: Math.floor(woodAgeYears(w, day)),
     };
   });
 }
@@ -1652,7 +1727,11 @@ function fieldViews(state: VillageState, day: number): VillageView['fields'] {
     const crops: Partial<Record<Crop, number>> = {};
     let ashParts = 0;
     let ashBonus = 0;
+    let overgrowingM2 = 0;
     for (const p of parts) {
+      if (p.state === 'fallow' && (partOvergrowthYears(p) > 0 || isOvergrown(p))) {
+        overgrowingM2 += p.areaM2;
+      }
       const stage = partStage(p, day);
       stages[stage] = (stages[stage] ?? 0) + 1;
       surfaces[p.surface] = (surfaces[p.surface] ?? 0) + 1;
@@ -1663,7 +1742,17 @@ function fieldViews(state: VillageState, day: number): VillageView['fields'] {
       if (p.bonusUntilDay !== null && p.bonusUntilDay >= day) ashParts++;
       ashBonus = Math.max(ashBonus, forestBonus(p, day));
     }
-    return { id: f.id, areaM2, fertility, stages, surfaces, crops, ashParts, ashBonus };
+    return {
+      id: f.id,
+      areaM2,
+      fertility,
+      stages,
+      surfaces,
+      crops,
+      ashParts,
+      ashBonus,
+      overgrowingM2,
+    };
   });
 }
 
@@ -1848,6 +1937,8 @@ export function placementVillageFromScene(scene: SceneVillage): PlacementVillage
       squares: o.squares.map((s) => ({ cell: s.cell, areaM2: s.size * s.size })),
     })),
     pens: (scene.pens ?? []).map((pen) => ({ cell: pen.cell })),
+    // les vsi – pole ho vymýtí jako les, ostatní stavby na něj nesmí (fields.md – Les vsi)
+    ...(scene.woods ? { woods: scene.woods.map((w) => ({ cell: w.cell })) } : {}),
     ...(scene.obstacles ? { obstacleChanges: scene.obstacles } : {}),
     ...(scene.reservedTrees ? { reservedTrees: scene.reservedTrees } : {}),
     ...(scene.sacred

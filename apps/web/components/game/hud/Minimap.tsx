@@ -13,6 +13,7 @@ import {
   CEMETERY_COLOR,
   ORCHARD_COLOR,
   PART_COLORS,
+  WOOD_COLOR,
   SACRED_COLOR,
   minimapImage,
   minimapToWorld,
@@ -83,6 +84,15 @@ export function Minimap({
       worldToMinimap(landscape, x, z, SIZE_PX);
     const cellPx = (landscape.cellSizeM / (landscape.size * landscape.cellSizeM)) * SIZE_PX;
 
+    // les vsi – čtverce polí zarostlé lesem (fields.md – Les vsi)
+    {
+      const [r, g, b] = WOOD_COLOR;
+      context.fillStyle = `rgb(${r} ${g} ${b})`;
+      for (const wood of village.woods ?? []) {
+        const p = at(wood.x, wood.z);
+        context.fillRect(p.x - cellPx / 2, p.y - cellPx / 2, cellPx + 0.3, cellPx + 0.3);
+      }
+    }
     // pole po čtvercích podle stadia dílů
     for (const field of village.fields) {
       for (const part of field.parts) {

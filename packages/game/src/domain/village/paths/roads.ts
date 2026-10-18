@@ -826,7 +826,7 @@ function spotsForRoad(roads: VillageRoads, road: Road, context: SpotContext): Ro
 
 /**
  * Stavby vsi, u kterých strom u cesty nevyroste (roads.md – ne ve vsi, na pozemcích, hřbitově,
- * v sadu ani na poli): čtverce dílů polí, sadů, hřbitovů, hájů, ohrad a pozemků i s okrajem, okolí
+ * v sadu ani na poli): čtverce dílů polí, sadů, hřbitovů, hájů, ohrad, pozemků a lesa vsi i s okrajem, okolí
  * obydlí, stavenišť a zbytků jam, modly a svatyně, milíře a posvátných dubů. Mimo krajinu taky ne.
  */
 export function plantingBlocker(
@@ -846,6 +846,8 @@ export function plantingBlocker(
   for (const c of state.constructions) if (c.plot) addTile(c.plot.cell);
   for (const p of villagePens(state)) addTile(p.cell);
   for (const r of state.ruins ?? []) if (r.plot) addTile(r.plot.cell);
+  // les vsi (fields.md – Les vsi) – strom u cesty ani jabloň do něj nepatří, roste tam les
+  for (const w of state.woods ?? []) addTile(w.cell);
   // obydlí, staveniště i zbytky jam po zaniklých obydlích – pořád ves
   const homes = [
     ...state.dwellings.map((d) => d.position),
