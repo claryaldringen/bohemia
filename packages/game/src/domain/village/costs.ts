@@ -34,8 +34,9 @@ export type BuildKind =
 /**
  * Co stavba potřebuje předem: obilí ze zásob, dřevo (stromy – klády z hromady, nebo dospělé
  * stromy ke skácení; kámen přibude), dospělé duby ke skácení (modla a svatyně – happiness.md)
- * a lidé k osídlení (`availableSettlers` – mladý pár, který se do nového obydlí nastěhuje). Lidi
- * stavba neodebírá, jen je zamluví – rozestavěné obydlí snižuje počet volných.
+ * a lidé k osídlení (`availableSettlers` – mladý pár nebo dospělé děti z přeplněné domácnosti,
+ * kteří se do nového obydlí nastěhují). Lidi stavba neodebírá, jen je zamluví – rozestavěné
+ * obydlí snižuje počet volných.
  */
 export type StockResource = 'grain' | 'wood' | 'oaks' | 'settlers';
 

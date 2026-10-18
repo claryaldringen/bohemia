@@ -13,7 +13,7 @@ import { craftCoverage } from './crafts';
 import { isVillageExtinct } from './extinction';
 import { startingLivestock } from './livestock';
 import { startPen, startTeamTraining, type PenInput } from './oxen';
-import { fieldsTouching, partFoundingCost } from './fields';
+import { fieldsTouching, mergeFields, partFoundingCost } from './fields';
 import { obstacleChangesAt, recordClearedObstacles } from './obstacles';
 import { orchardPlantingCost, villageOrchards } from './orchard';
 import { ageGroup } from './people';
@@ -204,45 +204,6 @@ function validateField(field: FieldInput, joinedAreaM2 = 0): void {
     throw new RangeError(`Pole musí mít aspoň ${FIELD_LIMITS.minAreaM2} m².`);
   }
   if (field.sacred) validateSpared(field.sacred);
-}
-
-/**
- * Sloučí pole `others` do pole `into` (mutuje stav – fields.md, Navazující pole): díly
- * s nezměněným stavem, rozestavěná založení (jedna stavba – nejstarší, s cenou a prací všech),
- * kronika a rozdělení práce dne odkazují na `into`; sloučená pole zmizí.
- */
-function mergeFields(state: VillageState, into: number, others: readonly number[]): void {
-  const merged = new Set(others);
-  for (const part of state.parts) if (merged.has(part.fieldId)) part.fieldId = into;
-  state.fields = state.fields.filter((f) => !merged.has(f.id));
-  const founding = state.constructions
-    .filter(
-      (c) =>
-        c.kind === 'field' && c.fieldId !== null && (c.fieldId === into || merged.has(c.fieldId)),
-    )
-    .sort((a, b) => a.id - b.id);
-  const kept = founding[0];
-  if (kept) {
-    kept.fieldId = into;
-    for (const c of founding.slice(1)) {
-      kept.cost += c.cost;
-      kept.done += c.done;
-    }
-    const dropped = new Set(founding.slice(1).map((c) => c.id));
-    state.constructions = state.constructions.filter((c) => !dropped.has(c.id));
-  }
-  for (const event of state.chronicle) {
-    if (
-      event.kind === 'construction-finished' &&
-      event.fieldId !== null &&
-      merged.has(event.fieldId)
-    ) {
-      event.fieldId = into;
-    }
-  }
-  for (const share of state.labor?.shares ?? []) {
-    if (share.target.kind === 'field' && merged.has(share.target.id)) share.target.id = into;
-  }
 }
 
 /**

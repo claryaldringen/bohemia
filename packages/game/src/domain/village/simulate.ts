@@ -2,9 +2,12 @@ import { TOTAL_GAME_DAYS, dateOfDayIndex } from '../calendar';
 import type { CalendarDate } from '../calendar';
 import type { Landscape, ObstacleLayer } from '../landscape';
 import { villageCemeteries } from './cemetery';
+import { cloneState } from './clone';
 import { craftCoverage, craftHouseholds, newWorkshop, wearCraftStocks, workCrafts } from './crafts';
 import {
+  adultChildrenSettlers,
   applyRepairs,
+  decayEmptyDwelling,
   nextYearlyCommonLabor,
   qualifyingDwellings,
   rebuildType,
@@ -34,14 +37,15 @@ import {
   villageApplesKg,
   workOrchards,
 } from './orchard';
-import { ageGroup, isAdult, laborPerDay, occupants } from './people';
+import { ageGroup, householdBreaksUp, isAdult, laborPerDay, occupants } from './people';
 import { isVillageExtinct } from './extinction';
-import { householdBreaksUp, inLuckyYears, nextStarvationDays, populationDay } from './population';
+import { inLuckyYears, nextStarvationDays, populationDay } from './population';
 import { dailyMinPerHousehold } from './productivity';
 import {
   CHRONICLE_MAX_EVENTS,
   COMMON_LABOR_HISTORY_DAYS,
   CROP_ORDER,
+  DWELLINGS,
   FOOD_NEED_KG_PER_YEAR,
   FOREST_BONUS,
   HARVEST_DAY,
@@ -145,7 +149,7 @@ export function advanceVillage(
   if (toDay < state.lastDay) {
     throw new RangeError(`Ves je dopočítaná do dne ${state.lastDay}, nelze zpět na ${toDay}.`);
   }
-  const next = structuredClone(state);
+  const next = cloneState(state);
   for (let day = next.lastDay + 1; day <= toDay && !isVillageExtinct(next); day++) {
     simulateDay(next, day, obstacles, landscape);
   }
@@ -569,7 +573,7 @@ function orchardTask(
 /**
  * Opuštěná obydlí se neopravují ani nepřestavují: rozestavěná přestavba prázdného obydlí se
  * opustí (nebere společnou práci, klády, které vzala z hromady, se na ni vrátí, vyhrazené stromy
- * se uvolní), obydlí chátrá a na nule zanikne.
+ * se uvolní), obydlí chátrá rychleji než obydlené (`decayEmptyDwelling`) a na nule zanikne.
  */
 function decayEmptyDwellings(state: VillageState, day: number, occupied: Set<number>): void {
   state.constructions = state.constructions.filter((c) => {
@@ -580,7 +584,7 @@ function decayEmptyDwellings(state: VillageState, day: number, occupied: Set<num
   const gone = new Set<number>();
   for (const d of state.dwellings) {
     if (occupied.has(d.id)) continue;
-    applyRepairs(d, 0, repairNeedPerDay(d, day));
+    decayEmptyDwelling(d, day);
     if (d.condition <= 0) gone.add(d.id);
   }
   if (gone.size === 0) return;
@@ -591,14 +595,39 @@ function decayEmptyDwellings(state: VillageState, day: number, occupied: Set<num
  * Kolik práce stavbě dnes chybí; pole = zbývající zakládání jeho nehotových dílů, sad =
  * zbývající výsadba (jen v oknech výsadby – mimo ně stavba čeká).
  */
-function constructionNeed(state: VillageState, c: Construction, day: number): number {
+function constructionNeed(
+  state: VillageState,
+  c: Construction,
+  day: number,
+  founding: FoundingIndex,
+): number {
   if (c.kind === 'orchard') return orchardPlantingNeed(state, c, day);
   if (c.kind !== 'field') return Math.max(0, c.cost - c.done);
-  return foundingParts(state, c).reduce((sum, p) => sum + (p.foundingCost - p.foundingDone), 0);
+  return foundingParts(founding, c).reduce((sum, p) => sum + (p.foundingCost - p.foundingDone), 0);
 }
 
-function foundingParts(state: VillageState, c: Construction): FieldPart[] {
-  return state.parts.filter((p) => p.fieldId === c.fieldId && p.state === 'founding');
+/**
+ * Zakládané díly po polích (v pořadí dílů ve stavu) – jeden průchod díly na krok místo průchodu
+ * na každou stavbu pole (s tisíci dílů to byla třetina času simulace). Bez stavby pole prázdné.
+ */
+type FoundingIndex = ReadonlyMap<number, readonly FieldPart[]>;
+
+function foundingIndex(state: VillageState): FoundingIndex {
+  const byField = new Map<number, FieldPart[]>();
+  if (!state.constructions.some((c) => c.kind === 'field')) return byField;
+  for (const p of state.parts) {
+    if (p.state !== 'founding') continue;
+    const list = byField.get(p.fieldId);
+    if (list) list.push(p);
+    else byField.set(p.fieldId, [p]);
+  }
+  return byField;
+}
+
+/** Zakládané díly stavby pole – stav znovu, protože založení mění díl na připravený. */
+function foundingParts(founding: FoundingIndex, c: Construction): FieldPart[] {
+  if (c.fieldId === null) return [];
+  return (founding.get(c.fieldId) ?? []).filter((p) => p.state === 'founding');
 }
 
 /**
@@ -607,8 +636,9 @@ function foundingParts(state: VillageState, c: Construction): FieldPart[] {
  * Vrátí, kolik práce šlo do které stavby (rozdělení práce dne pro scénu – labor-report.ts).
  */
 function build(state: VillageState, day: number, common: number): ConstructionWork[] {
+  const founding = foundingIndex(state);
   let active = state.constructions
-    .map((c) => ({ c, need: constructionNeed(state, c, day) }))
+    .map((c) => ({ c, need: constructionNeed(state, c, day, founding) }))
     .filter((x) => x.need > 0);
   const invested: ConstructionWork[] = [];
   const put = (c: Construction, amount: number, completes: boolean): void => {
@@ -618,7 +648,7 @@ function build(state: VillageState, day: number, common: number): ConstructionWo
       doneBefore: c.done,
       felledBefore: c.wood?.felled ?? 0,
     });
-    invest(state, day, c, amount, completes);
+    invest(state, day, c, amount, completes, founding);
   };
   let left = common;
   while (active.length > 0 && left > 0) {
@@ -644,6 +674,7 @@ function invest(
   c: Construction,
   amount: number,
   completes: boolean,
+  founding: FoundingIndex,
 ): void {
   if (c.kind === 'orchard') {
     plantOrchard(state, day, c, amount, completes);
@@ -656,7 +687,7 @@ function invest(
     return;
   }
   // pole zakládá díly od nejbližšího k obydlí; přebytek dne teče do dalšího dílu
-  const parts = foundingParts(state, c).sort((a, b) => a.distanceM - b.distanceM || a.id - b.id);
+  const parts = foundingParts(founding, c).sort((a, b) => a.distanceM - b.distanceM || a.id - b.id);
   let left = amount;
   let used = 0;
   for (const part of parts) {
@@ -689,8 +720,8 @@ function invest(
 
 // --- stavby a domácnosti ------------------------------------------------------------------
 
-function isFinished(state: VillageState, c: Construction): boolean {
-  if (c.kind === 'field') return foundingParts(state, c).length === 0;
+function isFinished(state: VillageState, c: Construction, founding: FoundingIndex): boolean {
+  if (c.kind === 'field') return foundingParts(founding, c).length === 0;
   if (c.kind === 'orchard') return isOrchardPlanted(state, c);
   return c.done >= c.cost;
 }
@@ -698,12 +729,14 @@ function isFinished(state: VillageState, c: Construction): boolean {
 /**
  * Krok 4: dokončené stavby – nové obydlí, přestavěné obydlí, založené pole, vysazený sad
  * a pohřebiště. První zemnice dostane id domácnosti zakladatelů (`dwellingId` stavby) – ti už
- * v ní bydlí, nikdo se nestěhuje. Do jiného nového obydlí se stěhuje mladý pár.
+ * v ní bydlí, nikdo se nestěhuje. Do jiného nového obydlí se stěhuje mladý pár; když žádný není,
+ * osídlí ho ještě týž den dospělé děti z přeplněné domácnosti (krok 6).
  */
 function finishConstructions(state: VillageState, day: number): void {
   const unfinished: Construction[] = [];
+  const founding = foundingIndex(state);
   for (const c of state.constructions) {
-    if (!isFinished(state, c)) {
+    if (!isFinished(state, c, founding)) {
       unfinished.push(c);
       continue;
     }
@@ -899,13 +932,30 @@ function decideRebuilds(
 }
 
 /**
- * Krok 6: prázdné obydlí obsadí první domácnost, která splňuje podmínku nového obydlí a má dva
- * lidi 14–44.
+ * Krok 6 (population.md – Prázdné obydlí): úplně prázdná obydlí (podle id) nejdřív obsadí mladý
+ * pár z domácnosti, která splňuje podmínku nového obydlí (`moveInYoungestPair`, beze změny). Co
+ * zůstane prázdné, osídlí dospělé děti z přeplněné domácnosti (`moveInAdultChildren`, návrh
+ * Clauda) – až po prvním kole, aby se nová domácnost dospělých dětí týž den znovu nedělila.
  */
 function occupyEmptyDwellings(state: VillageState, day: number): void {
-  const occupied = new Set(state.people.map((p) => p.dwellingId));
-  const empty = state.dwellings.filter((d) => !occupied.has(d.id)).sort((a, b) => a.id - b.id);
-  for (const d of empty) moveInYoungestPair(state, day, d.id);
+  const empty = (): Dwelling[] => {
+    const occupied = new Set(state.people.map((p) => p.dwellingId));
+    return state.dwellings.filter((d) => !occupied.has(d.id)).sort((a, b) => a.id - b.id);
+  };
+  for (const d of empty()) moveInYoungestPair(state, day, d.id);
+  for (const d of empty()) moveInAdultChildren(state, day, d);
+}
+
+/**
+ * Dospělé děti z přeplněné domácnosti (`adultChildrenSettlers` – všechny z jedné domácnosti,
+ * nebo dvě jednotlivá z různých) se přestěhují do prázdného obydlí `dwelling` a založí v něm
+ * domácnost; nikdo, když takoví lidé nejsou.
+ */
+function moveInAdultChildren(state: VillageState, day: number, dwelling: Dwelling): void {
+  const movers = adultChildrenSettlers(state, day, DWELLINGS[dwelling.type].capacity);
+  if (movers.length === 0) return;
+  for (const p of movers) p.dwellingId = dwelling.id;
+  state.chronicle.push({ day, kind: 'household-founded', dwellingId: dwelling.id });
 }
 
 // --- sklizeň a jídlo --------------------------------------------------------------------

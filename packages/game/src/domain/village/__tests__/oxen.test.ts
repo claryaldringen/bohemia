@@ -16,6 +16,7 @@ import {
 } from '../oxen';
 import { PLOUGH_HA_PER_DAY, isPloughable, ploughWorkPerHa } from '../plough';
 import { NO_CRAFTS } from '../productivity';
+import { cloneState } from '../clone';
 import { advanceVillage } from '../simulate';
 import type { FieldPart, VillageState } from '../types';
 import { createCropWork, partWork, tilledShare } from '../year-plan';
@@ -272,5 +273,44 @@ describe('dopočet a staré vsi', () => {
     expect(next.livestock).toBeDefined();
     expect(next.diet).toBeDefined();
     expect(next.people.length).toBeGreaterThan(0);
+  });
+});
+
+describe('kopie stavu', () => {
+  it('cloneState zkopíruje stáda, maso, seno, ohrady, spřežení, orbu i jídlo jako structuredClone', () => {
+    const day = at(600, 8, 31);
+    const s = withTeam(day);
+    s.fields = [{ id: 1 }];
+    s.parts = Array.from({ length: 12 }, (_, i) =>
+      part(i + 1, {
+        areaM2: 2250,
+        distanceM: 100 + 5 * i,
+        cell: { x: i, y: 0 },
+        ...(i >= 8
+          ? { state: 'fallow' as const, sownYears: 0, fallowSinceDay: at(594, 9, 1) }
+          : {}),
+      }),
+    );
+    s.pens![0]!.training = { startDay: day - 100 };
+    s.hay = { kg: 2500, mowing: { partIds: [9, 10], required: 3, done: 1, yieldKg: 750 } };
+    const state = advanceVillage(s, at(600, 11, 20), null);
+    // orba s vrácenými díly, zimní seno a porážka – všechna nová pole stavu jsou vyplněná
+    const work = state.plan!.winter ?? state.plan!;
+    work.plough ??= { partIds: [1], required: 1, done: 0, weight: 0.1, digWeight: 0 };
+    work.plough.returned = [2];
+    expect(state.livestock?.slaughterWork).toBeDefined();
+    expect(state.hay?.winter).toBeDefined();
+    expect(state.diet).toBeDefined();
+    expect(state.meatKg).toBeGreaterThan(0);
+    const copy = cloneState(state);
+    expect(copy).toEqual(structuredClone(state));
+    copy.livestock!.herds.sheep = 999;
+    copy.pens![0]!.team!.readyDay = -1;
+    copy.hay!.winter!.oxenEatenKg = -1;
+    work.plough.returned.push(3);
+    expect(state.livestock!.herds.sheep).not.toBe(999);
+    expect(state.pens![0]!.team!.readyDay).not.toBe(-1);
+    expect(state.hay!.winter!.oxenEatenKg).not.toBe(-1);
+    expect((copy.plan!.winter ?? copy.plan!).plough!.returned).toEqual([2]);
   });
 });
