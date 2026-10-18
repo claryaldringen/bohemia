@@ -35,6 +35,14 @@ import {
   shrineFiresWorld,
 } from './sacred-layout';
 import { applySeasonGround, applySeasonSnow } from './season-materials';
+import { decayStage } from './dwelling-decay';
+import {
+  leanPoint,
+  sacredDecayParts,
+  sacredLean,
+  sacredRuinParts,
+  type SacredDecayPart,
+} from './structure-decay';
 import { ROUND_SITE_M, constructionState, type ConstructionState } from './village-construction';
 import type { SmokeSource } from './village-smoke';
 import {
@@ -55,6 +63,25 @@ import {
 } from './village-meshes';
 
 type SceneSacredBuilding = SceneSacred['buildings'][number];
+type SceneSacredRuin = NonNullable<SceneSacred['ruins']>[number];
+
+/**
+ * Díly rozpadu, dokud se sacred-decay.glb nenačte (nebo když chybí): nejbližší díl staveniště –
+ * modla zůstane modlou, jen bez mechu (abandonment.md). Díly bez náhrady (mech) se vynechají.
+ */
+const DECAY_SUBSTITUTES: Record<string, string> = {
+  'idol-weathered': 'modla-idol',
+  'idol-ground-overgrown': 'modla-ground',
+  'idol-stones-scattered': 'modla-stones',
+  'idol-fallen': 'modla-log',
+  'shrine-idol-weathered': 'svatyne-idol',
+  'shrine-idol-fallen': 'svatyne-log',
+  'shrine-ground-overgrown': 'svatyne-platform-2',
+  'shrine-paving-overgrown': 'svatyne-paving',
+};
+
+/** Úprava bodu modelu před položením na terén (náklon modly, zapuštění zbytku). */
+type VertexShift = (x: number, y: number, z: number) => [number, number, number];
 
 /** Modely v instancích – obětiny u dubu, kameny háje, posvátná souš a padlý kmen. */
 type DecorKey = 'oak-offerings' | 'stone-a' | 'stone-b' | 'altar' | 'oak-snag' | 'oak-fallen';
@@ -82,6 +109,10 @@ const LIFT = { outline: 0.06, trampled: 0.03 };
 const TRAMPLED_SOFT_M = 2.2;
 /** Sníh na ušlapané trávě – jako na obtiscích vsi (village-renderer.ts). */
 const TRAMPLED_SNOW = 0.85;
+/** Tráva na zarostlé svatyni: opakování textury (m), odstín (o kousek tmavší – vlhčí příkop) a sníh. */
+const OVERGROWN_UV_M = 6;
+const OVERGROWN_TINT = new Color3(0.84, 0.8, 0.6);
+const OVERGROWN_SNOW = 1;
 
 /** Co renderer potřebuje od vsi – terén, stíny a ohlášení dočtených modelů. */
 export interface SacredContext {
@@ -120,7 +151,12 @@ export class SacredRenderer {
   private readonly fallbacks = new Map<string, Mesh | null>();
   private readonly ghosts = new Map<SacredBuildingKind, Mesh>();
   private readonly buildings = new Map<number, BuildingView>();
+  /** Zbytky padlých model a svatyní (abandonment.md) – podle id bývalé stavby. */
+  private readonly ruins = new Map<number, BuildingView>();
   private loading: Promise<void> | null = null;
+  private decayLoading: Promise<void> | null = null;
+  /** Tráva terénu na zarostlé ploše a příkopu svatyně (abandonment.md). */
+  private overgrownMaterial: Material | null = null;
   private loaded = false;
   private layoutMaterial: Material | null = null;
   private trampledMaterial: Material | null = null;
@@ -147,8 +183,11 @@ export class SacredRenderer {
       return { bounds: polygonBounds(corners), contains: (x, z) => pointInPolygon(corners, x, z) };
     });
     if (next && hasContent(next)) void this.loadModels();
+    // díly rozpadu (≈ 1,7 MB) až s první chátrající stavbou nebo zbytkem
+    if (next && hasDecay(next)) void this.loadDecayModels();
     this.updateDecor();
     this.updateBuildings();
+    this.updateRuins();
     return true;
   }
 
@@ -161,7 +200,8 @@ export class SacredRenderer {
   smokeSources(): SmokeSource[] {
     const sources: SmokeSource[] = [];
     for (const b of this.sacred?.buildings ?? []) {
-      if (!b.built || b.kind !== 'shrine') continue;
+      // opuštěná svatyně má ohniště studená (abandonment.md)
+      if (!b.built || b.kind !== 'shrine' || b.abandoned) continue;
       shrineFiresWorld(b.position, this.fireSpots).forEach(([x, z], k) => {
         sources.push({
           seed: SHRINE_SMOKE_SEED + b.id * 8 + k,
@@ -186,6 +226,36 @@ export class SacredRenderer {
     return this.loading;
   }
 
+  /**
+   * Načte díly rozpadu (sacred-decay.glb, jednou) – do té doby chátrající stavby kreslí nejbližší
+   * díly staveniště (`DECAY_SUBSTITUTES`); po načtení se stavby a zbytky překreslí.
+   */
+  loadDecayModels(): Promise<void> {
+    this.decayLoading ??= (async () => {
+      await this.loadModels();
+      try {
+        const loaded = await loadModelParts(
+          this.scene,
+          `${SACRED_MODEL_BASE_URL}${SACRED_MODELS.decay}`,
+          'village-sacred-',
+          prepareSacredMaterial,
+        );
+        for (const [name, mesh] of loaded ?? []) {
+          this.templates.set(name, this.prepareTemplate(mesh));
+        }
+      } catch (error) {
+        console.warn('Díly rozpadu posvátných staveb se nepodařilo načíst.', error);
+      }
+      if (this.disposed) return;
+      this.buildings.forEach((view) => (view.key = ''));
+      this.ruins.forEach((view) => (view.key = ''));
+      this.updateBuildings();
+      this.updateRuins();
+      this.context.onAsyncChange();
+    })();
+    return this.decayLoading;
+  }
+
   /** Pata modelu (duch při umisťování): střed, nebo průměr rohů půdorysu, když je níž. */
   baseHeight(b: Pick<SceneSacredBuilding, 'kind' | 'position'>): number {
     const h = this.context.groundHeight;
@@ -196,7 +266,10 @@ export class SacredRenderer {
 
   dispose(): void {
     this.disposed = true;
-    for (const view of this.buildings.values()) for (const mesh of view.meshes) mesh.dispose();
+    for (const view of [...this.buildings.values(), ...this.ruins.values()]) {
+      for (const mesh of view.meshes) mesh.dispose();
+    }
+    this.ruins.clear();
     for (const mesh of this.templates.values()) mesh.dispose();
     for (const mesh of this.fallbacks.values()) mesh?.dispose();
     for (const mesh of this.ghosts.values()) mesh.dispose();
@@ -274,7 +347,9 @@ export class SacredRenderer {
     }
     this.updateDecor();
     this.buildings.forEach((view) => (view.key = ''));
+    this.ruins.forEach((view) => (view.key = ''));
     this.updateBuildings();
+    this.updateRuins();
     this.context.onAsyncChange();
   }
 
@@ -415,11 +490,74 @@ export class SacredRenderer {
     const state = b.built ? null : constructionState(kind, b.progress);
     const meshes = state ? this.siteDecals(b, state) : [];
     if (!this.loaded) return meshes;
-    const keys = state ? state.parts.map((part) => `${kind}-${part}`) : [b.kind];
-    for (const key of keys) {
-      const template = this.template(key);
+    // hotová stavba podle stupně rozpadu (abandonment.md – structure-decay.ts)
+    const stage = decayStage(b.condition);
+    const parts: SacredDecayPart[] = state
+      ? state.parts.map((part) => ({ key: `${kind}-${part}` }))
+      : sacredDecayParts(b.kind, stage, b.abandoned === true);
+    const lean = sacredLean(b.id, stage);
+    for (const part of parts) {
+      const template = this.decayTemplate(part.key);
       if (!template) continue;
-      const mesh = this.draped(template, b.position, `village-sacred-${b.id}-${key}`);
+      const shift: VertexShift | undefined = part.lean
+        ? (x, y, z) => leanPoint(x, y, z, lean)
+        : undefined;
+      const mesh = this.draped(template, b.position, `village-sacred-${b.id}-${part.key}`, shift);
+      this.overgrow(mesh, part.key);
+      this.context.addShadowCaster(mesh);
+      meshes.push(mesh);
+    }
+    return meshes;
+  }
+
+  /** Předloha dílu rozpadu – nenačtený díl nahradí nejbližší díl staveniště (bez mechu). */
+  private decayTemplate(key: string): Mesh | null {
+    const own = this.templates.get(key);
+    if (own) return own;
+    const substitute = DECAY_SUBSTITUTES[key];
+    if (substitute) return this.templates.get(substitute) ?? null;
+    if (key.includes('-moss') || key === 'shrine-fires-cold') return null;
+    return this.template(key);
+  }
+
+  /**
+   * Zbytky padlých model a svatyní (abandonment.md – Následky): padlá modla u pahýlu, zarůstající
+   * příkop svatyně – přestaví se jen zbytek, který se změnil (zarůstání po 5 %).
+   */
+  private updateRuins(): void {
+    const seen = new Set<number>();
+    for (const r of this.sacred?.ruins ?? []) {
+      seen.add(r.id);
+      const p = r.position;
+      const key = [r.kind, p.x, p.z, p.rotation, r.overgrowth, this.loaded ? '' : 'loading'].join(
+        '|',
+      );
+      const current = this.ruins.get(r.id);
+      if (current?.key === key) continue;
+      if (current) for (const mesh of current.meshes) mesh.dispose();
+      this.ruins.set(r.id, { key, meshes: this.ruinMeshes(r) });
+    }
+    for (const [id, view] of this.ruins) {
+      if (seen.has(id)) continue;
+      for (const mesh of view.meshes) mesh.dispose();
+      this.ruins.delete(id);
+    }
+  }
+
+  private ruinMeshes(r: SceneSacredRuin): Mesh[] {
+    if (!this.loaded) return [];
+    const meshes: Mesh[] = [];
+    for (const part of sacredRuinParts(r.kind, r.overgrowth)) {
+      const template = this.decayTemplate(part.key);
+      if (!template) continue;
+      const shift: VertexShift = (x, y, z) => [x, y * part.heightScale - part.sinkM, z];
+      const mesh = this.draped(
+        template,
+        r.position,
+        `village-sacred-ruin-${r.id}-${part.key}`,
+        shift,
+      );
+      this.overgrow(mesh, part.key);
       this.context.addShadowCaster(mesh);
       meshes.push(mesh);
     }
@@ -486,6 +624,38 @@ export class SacredRenderer {
     return meshes;
   }
 
+  /**
+   * Zarostlá plocha a příkop svatyně (díl `shrine-ground-overgrown` z sacred-decay.glb): tráva
+   * terénu po světových souřadnicích – zarostlý příkop navazuje na louku kolem, je vidět jen
+   * tvarem (stín valu a dna). Ostatní díly beze změny.
+   */
+  private overgrow(mesh: Mesh, key: string): void {
+    if (key !== 'shrine-ground-overgrown' || !this.templates.has(key)) return;
+    const positions = mesh.getVerticesData(VertexBuffer.PositionKind);
+    if (!positions) return;
+    const uvs = new Float32Array((positions.length / 3) * 2);
+    for (let i = 0, j = 0; i < positions.length; i += 3, j += 2) {
+      uvs[j] = positions[i]! / OVERGROWN_UV_M;
+      uvs[j + 1] = positions[i + 2]! / OVERGROWN_UV_M;
+    }
+    mesh.setVerticesData(VertexBuffer.UVKind, uvs, false);
+    mesh.material = this.overgrownMaterialOnce();
+  }
+
+  private overgrownMaterialOnce(): Material {
+    this.overgrownMaterial ??= (() => {
+      const m = createDecalMaterial(this.scene, 'village-sacred-overgrown', {
+        texture: 'grass',
+        zOffset: 0,
+      });
+      m.backFaceCulling = true;
+      m.diffuseColor = OVERGROWN_TINT;
+      applySeasonGround(m, OVERGROWN_SNOW);
+      return m;
+    })();
+    return this.overgrownMaterial;
+  }
+
   /** Světlá čára vytyčení (vápno / naražená tráva po provázku) – jako u obydlí. */
   private layoutMaterialOnce(): Material {
     this.layoutMaterial ??= (() => {
@@ -516,7 +686,7 @@ export class SacredRenderer {
    * Kopie předlohy na místě stavby položená na terén: vrchol (x, y, z modelu) jde na
    * natočené místo ve světě a jeho výška je terén pod ním + y (model stojí na zemi).
    */
-  private draped(template: Mesh, position: Position, name: string): Mesh {
+  private draped(template: Mesh, position: Position, name: string, shift?: VertexShift): Mesh {
     const mesh = template.clone(name, null, true, false);
     mesh.sideOrientation = template.sideOrientation;
     mesh.makeGeometryUnique();
@@ -525,9 +695,13 @@ export class SacredRenderer {
       const positions = new Float32Array(source.length);
       const h = this.context.decalHeight;
       for (let i = 0; i < source.length; i += 3) {
-        const [x, z] = localToWorld(position, source[i]!, source[i + 2]!);
+        // náklon modly a zapuštění zbytku v souřadnicích modelu (structure-decay.ts)
+        const [lx, ly, lz] = shift
+          ? shift(source[i]!, source[i + 1]!, source[i + 2]!)
+          : [source[i]!, source[i + 1]!, source[i + 2]!];
+        const [x, z] = localToWorld(position, lx, lz);
         positions[i] = x;
-        positions[i + 1] = h(x, z) + DRAPE_LIFT_M + source[i + 1]!;
+        positions[i + 1] = h(x, z) + DRAPE_LIFT_M + ly;
         positions[i + 2] = z;
       }
       mesh.setVerticesData(VertexBuffer.PositionKind, positions, false);
@@ -554,12 +728,21 @@ function fireSpotsOf(nodes: ReadonlyMap<string, { x: number; z: number }>): Poin
   return spots;
 }
 
+/** Chátrající stavba nebo zbytek – potřebuje díly rozpadu. */
+function hasDecay(sacred: SceneSacred): boolean {
+  return (
+    (sacred.ruins?.length ?? 0) > 0 ||
+    sacred.buildings.some((b) => b.built && (b.abandoned || (b.condition ?? 1) < 1))
+  );
+}
+
 function hasContent(sacred: SceneSacred): boolean {
   return (
     sacred.oaks.length > 0 ||
     (sacred.fallenOaks?.length ?? 0) > 0 ||
     sacred.groves.length > 0 ||
-    sacred.buildings.length > 0
+    sacred.buildings.length > 0 ||
+    (sacred.ruins?.length ?? 0) > 0
   );
 }
 
@@ -588,6 +771,7 @@ function sacredKey(sacred: SceneSacred | null): string {
       .map((g) => `${g.id}:${g.squares.map((s) => `${s.cell.x},${s.cell.y}`).join(',')}`)
       .join(';'),
     sacred.buildings.map((b) => `${b.id}:${sacredBuildingKey(b)}`).join(';'),
+    (sacred.ruins ?? []).map((r) => `${r.id}:${r.kind}:${r.overgrowth}`).join(';'),
   ].join('|');
 }
 

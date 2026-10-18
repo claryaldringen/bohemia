@@ -17,6 +17,7 @@ import {
   SHOWCASE_GROUNDS,
   SHOWCASE_PEN,
   decayLabel,
+  structureDecayLabel,
   showcaseGrounds,
 } from '@/lib/scene/building-showcase-layout';
 import { penPhase } from '@/lib/scene/pen-layout';
@@ -282,6 +283,10 @@ export function BuildingShowcaseView(): ReactElement {
         <p className="mt-1 text-xs">
           <span className="text-stone-900 dark:text-stone-100">Opuštěná obydlí:</span>{' '}
           {decayLabel(decay)}
+        </p>
+        <p className="mt-1 text-xs">
+          <span className="text-stone-900 dark:text-stone-100">Opuštěné stavby:</span>{' '}
+          {structureDecayLabel(decay)}
         </p>
       </section>
       <p className="fixed bottom-0 left-0 z-10 rounded-tr bg-stone-100/80 px-4 py-2 text-xs text-stone-600 backdrop-blur dark:bg-stone-950/70 dark:text-stone-400">

@@ -17,7 +17,6 @@ import {
 } from './instanced-model';
 import {
   PEN_HAYSTACK_SCALE,
-  PEN_MODEL_PARTS,
   penFenceStage,
   penLayout,
   penMudAt,
@@ -31,18 +30,31 @@ import {
   type PenStage,
 } from './pen-layout';
 import { applySeasonSnow } from './season-materials';
+import {
+  PEN_MUD_BY_STAGE,
+  fenceDecayAmount,
+  penDecayParts,
+  penDecayPlace,
+  structureDecayStage,
+  type StructureStage,
+} from './structure-decay';
 import { StakingPegs, createStringMaterial, createStringMesh, pegInstances } from './staking';
 import { decalGrid } from './village-layout';
 import { createDecalMesh, type HeightFn } from './village-meshes';
+import { decayFence } from './woven-fence';
 import type { WovenFenceRenderer } from './woven-fence-renderer';
 
 export const PEN_MODEL_URL = '/models/pen/pen.glb';
 export const PEN_CONSTRUCTION_URL = '/models/pen/pen-construction.glb';
+/** Díly rozpadu opuštěné ohrady (abandonment.md – tools/blender/pen.py, structure-decay.ts). */
+export const PEN_DECAY_URL = '/models/pen/pen-decay.glb';
 const HAYSTACK_URL = '/models/fields/haystack.glb';
 /** Předpona dílů staveniště v pen-construction.glb. */
 const SITE_PREFIX = 'ohrada-';
 /** Seno stohu je o něco sušší než na louce (HAY_TINT ve field-renderer.ts). */
 const HAY_TINT = new Color3(0.74, 0.72, 0.52);
+/** Rozpad plotu opuštěné ohrady se ve scéně mění po dvacetinách. */
+const FENCE_DECAY_STEPS = 20;
 /** Pata dílů je o kousek zapuštěná (na svahu nevisí) a obtisk bláta nad terénem (m). */
 const SINK_M = 0.03;
 const MUD_LIFT_M = 0.03;
@@ -53,12 +65,16 @@ const MUD_STEP_M = 0.35;
  */
 const LOW_SNOW = 0.25;
 
-/** Ohrada ke kreslení: id, čtverec, směr ke vsi (branka) a průběh stavby 0–1. */
+/**
+ * Ohrada ke kreslení: id, čtverec, směr ke vsi (branka), průběh stavby 0–1 a stav hotové
+ * ohrady 0–1 (abandonment.md – opuštěná ohrada se rozpadá; bez údaje celá).
+ */
 export interface PenView {
   id: number;
   square: PenSquare;
   facing: Direction;
   progress: number;
+  condition?: number;
 }
 
 interface PenEntry {
@@ -66,6 +82,8 @@ interface PenEntry {
   layoutKey: string;
   layout: PenLayout;
   stage: PenStage;
+  /** Stupeň rozpadu hotové ohrady (0 = celá). */
+  decay: StructureStage;
   mud: Mesh | null;
   string: Mesh | null;
 }
@@ -74,6 +92,7 @@ export class PenRenderer {
   private readonly entries = new Map<number, PenEntry>();
   private models: Map<string, Mesh> | null = null;
   private site: Map<string, Mesh> | null = null;
+  private decayParts: Map<string, Mesh> | null = null;
   private haystack: Mesh | null = null;
   private loading: Promise<void> | null = null;
   private readonly pegs: StakingPegs;
@@ -107,7 +126,12 @@ export class PenRenderer {
       const { square, facing } = view;
       const layoutKey = [square.x, square.z, square.size, facing.x, facing.z].join(',');
       const stage = penStage(view.progress);
-      const key = `${layoutKey}|${Math.round(view.progress * 400)}`;
+      const decay = stage.built ? structureDecayStage(view.condition) : 0;
+      // rozpad plotu po dvacetinách – ohrada se nepřestavuje při každé drobné změně stavu
+      const fenceDecay = stage.built
+        ? Math.round(fenceDecayAmount(view.condition) * FENCE_DECAY_STEPS) / FENCE_DECAY_STEPS
+        : 0;
+      const key = `${layoutKey}|${Math.round(view.progress * 400)}|${decay}|${fenceDecay}`;
       const current = this.entries.get(view.id);
       if (current?.key === key) continue;
       changed = true;
@@ -119,8 +143,9 @@ export class PenRenderer {
         current.mud?.dispose();
         current.string?.dispose();
       }
-      if (stage.mud > 0 && !mud) mud = this.mudMesh(view.id, layout);
-      if (mud) mud.visibility = stage.mud;
+      const mudCover = stage.mud * PEN_MUD_BY_STAGE[decay];
+      if (mudCover > 0 && !mud) mud = this.mudMesh(view.id, layout);
+      if (mud) mud.visibility = mudCover;
       if (stage.staking && !string) {
         this.stringMaterial ??= createStringMaterial(this.scene);
         string = createStringMesh(
@@ -135,8 +160,12 @@ export class PenRenderer {
         string.dispose();
         string = null;
       }
-      this.entries.set(view.id, { key, layoutKey, layout, stage, mud, string });
-      this.context.fences.set(fenceOwner(view.id), penFenceStage(layout, stage));
+      this.entries.set(view.id, { key, layoutKey, layout, stage, decay, mud, string });
+      const fence = penFenceStage(layout, stage);
+      this.context.fences.set(
+        fenceOwner(view.id),
+        fenceDecay > 0 ? decayFence(fence, fenceDecay, view.id) : fence,
+      );
     }
     for (const [id, entry] of this.entries) {
       if (seen.has(id)) continue;
@@ -174,7 +203,11 @@ export class PenRenderer {
     this.entries.clear();
     this.pegs.dispose();
     this.stringMaterial?.dispose();
-    for (const mesh of [...(this.models?.values() ?? []), ...(this.site?.values() ?? [])]) {
+    for (const mesh of [
+      ...(this.models?.values() ?? []),
+      ...(this.site?.values() ?? []),
+      ...(this.decayParts?.values() ?? []),
+    ]) {
       mesh.dispose();
     }
     this.haystack?.dispose();
@@ -187,13 +220,14 @@ export class PenRenderer {
         if (m.name.endsWith('-low')) applySeasonSnow(m, LOW_SNOW);
         this.context.prepareMaterial(m);
       };
-      const [models, site, haystack] = await Promise.allSettled([
+      const [models, site, haystack, decay] = await Promise.allSettled([
         loadModelParts(this.scene, PEN_MODEL_URL, 'pen-', prepare),
         loadModelParts(this.scene, PEN_CONSTRUCTION_URL, 'pen-site-', prepare),
         loadMergedModel(this.scene, HAYSTACK_URL, 'pen-haystack', (m) => {
           prepare(m);
           if (m instanceof PBRMaterial) m.albedoColor = HAY_TINT;
         }),
+        loadModelParts(this.scene, PEN_DECAY_URL, 'pen-decay-', prepare),
       ]);
       const all: Mesh[] = [];
       if (models.status === 'fulfilled' && models.value) {
@@ -208,6 +242,11 @@ export class PenRenderer {
         this.haystack = haystack.value;
         all.push(haystack.value);
       } else console.warn('Stoh sena se nepodařilo načíst.', reason(haystack));
+      // díly rozpadu – bez nich se opuštěná ohrada kreslí celá
+      if (decay.status === 'fulfilled' && decay.value) {
+        this.decayParts = decay.value;
+        all.push(...decay.value.values());
+      } else console.warn('Díly rozpadu ohrady se nepodařilo načíst.', reason(decay));
       if (this.disposed) {
         for (const mesh of all) mesh.dispose();
         return;
@@ -238,9 +277,14 @@ export class PenRenderer {
       return { x: at.x, y: height(at.x, at.z) - SINK_M, z: at.z, rotationY: at.rotation, scale };
     };
     const pegs: ModelInstance[] = [];
-    for (const { layout, stage } of this.entries.values()) {
+    for (const { layout, stage, decay } of this.entries.values()) {
       if (stage.built) {
-        for (const part of PEN_MODEL_PARTS) push(this.models?.get(part), place(layout, part));
+        // opuštěná ohrada podle stupně rozpadu (abandonment.md); bez dílů rozpadu celá
+        const parts = this.decayParts ? penDecayParts(decay) : penDecayParts(0);
+        for (const { from, part } of parts) {
+          const mesh = from === 'pen' ? this.models?.get(part) : this.decayParts?.get(part);
+          push(mesh, place(layout, penDecayPlace(part)));
+        }
       } else {
         for (const part of stage.parts)
           push(this.site?.get(SITE_PREFIX + part), place(layout, part));
@@ -248,7 +292,7 @@ export class PenRenderer {
           push(this.site?.get(SITE_PREFIX + prop), place(layout, prop, scale));
         }
       }
-      if (stage.haystack > 0) {
+      if (stage.haystack > 0 && decay === 0) {
         const at = layout.haystack;
         push(this.haystack, {
           x: at.x,
@@ -263,6 +307,7 @@ export class PenRenderer {
     const meshes = [
       ...(this.models?.values() ?? []),
       ...(this.site?.values() ?? []),
+      ...(this.decayParts?.values() ?? []),
       ...(this.haystack ? [this.haystack] : []),
     ];
     for (const mesh of meshes) {

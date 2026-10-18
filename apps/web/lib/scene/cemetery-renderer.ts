@@ -19,7 +19,8 @@ import { instanceMatrices, type ModelInstance } from './instanced-model';
 import { StakingPegs, createStringMaterial, createStringMesh, pegInstances } from './staking';
 import { seededRandom, stripSegments, type HideShape, type Point } from './village-layout';
 import { createStripMesh, type HeightFn } from './village-meshes';
-import { fenceStage } from './woven-fence';
+import { fenceDecayAmount } from './structure-decay';
+import { decayFence, fenceStage } from './woven-fence';
 import type { WovenFenceRenderer } from './woven-fence-renderer';
 
 type SceneCemetery = NonNullable<SceneVillage['cemeteries']>[number];
@@ -36,6 +37,12 @@ const LAYOUT_LIFT_M = 0.06;
 const HIDE_MARGIN_M = 1.5;
 /** Okolní světlo z oblohy (scene.ambientColor je bílá) – mohylky by byly jinak příliš tmavé. */
 const AMBIENT = new Color3(0.42, 0.42, 0.4);
+/** Opuštěný hřbitov: mohylky se srovnají – zapadnou až o tolik své výšky (násobek měřítka, m). */
+const MOUND_SETTLE_M = 0.2;
+/** Od jak zarostlého hřbitova je i čerstvá mohylka zarostlá trávou. */
+const FRESH_OVERGROWN = 0.3;
+/** Rozpad plotu se ve scéně mění po dvacetinách (klíč pohřebiště). */
+const FENCE_DECAY_STEPS = 20;
 
 interface CemeteryView {
   key: string;
@@ -161,12 +168,19 @@ export class CemeteryRenderer {
     const owners: string[] = [];
     const pegs: ModelInstance[] = [];
     const height = this.context.decalHeight;
+    // opuštěný hřbitov (abandonment.md): plot hotových čtverců se rozpadá, mohylky zarůstají
+    const decay = fenceDecay(cemetery.fence);
+    const overgrown = decay;
     for (const { fence, state, key: part } of fences) {
       const name = `${cemetery.id}-${part}`;
       if (state.layout) meshes.push(this.layoutMesh(name, fence));
       const owner = `cemetery-${name}`;
       owners.push(owner);
-      this.context.fences.set(owner, fenceStage(fence.fence, CEMETERY_FENCE, state));
+      const stage = fenceStage(fence.fence, CEMETERY_FENCE, state);
+      this.context.fences.set(
+        owner,
+        part === 'ready' && decay > 0 ? decayFence(stage, decay, cemetery.id) : stage,
+      );
       if (state.posts <= 0 && state.layout) {
         // od zadání po zatlučení kůlů: kolíky a napnutý provázek po obvodu (i u rozšíření)
         pegs.push(...pegInstances(fence.outline, this.context.groundHeight));
@@ -197,12 +211,12 @@ export class CemeteryRenderer {
         );
         const instance = {
           x: grave.x,
-          y,
+          y: y - MOUND_SETTLE_M * overgrown * grave.scale,
           z: grave.z,
           rotationY: grave.rotationY,
           scale: grave.scale,
         };
-        (grave.fresh ? earthMounds : grassMounds).push(instance);
+        (grave.fresh && overgrown < FRESH_OVERGROWN ? earthMounds : grassMounds).push(instance);
       }
     }
 
@@ -357,7 +371,14 @@ function cemeteryKey(c: SceneCemetery, gate: Point | null): string {
     building ? Math.round(c.progress * 50) : '',
     c.graves,
     gate ? `${Math.round(gate[0])},${Math.round(gate[1])}` : '',
+    // rozpad plotu opuštěného hřbitova po dvacetinách (abandonment.md)
+    c.fence === undefined ? '' : fenceDecay(c.fence),
   ].join('|');
+}
+
+/** Rozpad plotu hřbitova po dvacetinách (0 = celý plot). */
+function fenceDecay(condition: number | undefined): number {
+  return Math.round(fenceDecayAmount(condition) * FENCE_DECAY_STEPS) / FENCE_DECAY_STEPS;
 }
 
 /** Nastaví instance meshe; bez instancí ho vypne (jinak by se vykreslil samotný v počátku). */

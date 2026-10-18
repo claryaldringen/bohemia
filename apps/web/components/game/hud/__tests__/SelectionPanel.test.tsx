@@ -274,3 +274,54 @@ describe('panel pole – plodiny (fields.md – Luštěniny)', () => {
     expect(html).toContain('data-testid="selection-crop-winter"');
   });
 });
+
+describe('SelectionPanel – opuštěné stavby (abandonment.md)', () => {
+  const sacred = (
+    over: Partial<Extract<SelectionDetails, { kind: 'sacred' }>> = {},
+  ): SelectionDetails => ({
+    kind: 'sacred',
+    id: 40,
+    type: 'idol',
+    happiness: 8,
+    building: null,
+    oaksToFell: 0,
+    condition: 1,
+    abandoned: false,
+    ...over,
+  });
+
+  it('hotová modla: stav ikonou s procenty, opuštěná navíc ikona „Opuštěno“', () => {
+    const visited = render(sacred());
+    expect(visited).toContain('/icons/resources/condition.png');
+    expect(visited).toMatch(/data-testid="selection-wear"[^>]*>(<span[^>]*>)?100 %/);
+    expect(visited).not.toContain('selection-abandoned');
+    const left = render(sacred({ condition: 0.38, abandoned: true }));
+    expect(left).toContain('/icons/resources/abandoned.png');
+    expect(left).toContain('data-testid="selection-abandoned"');
+    // nízký stav červeně
+    expect(left).toMatch(/text-red-400[^>]*>38 %/);
+  });
+
+  it('rozestavěná modla stav neukazuje; ohrada a hřbitov ano', () => {
+    expect(render(sacred({ building: 0.4 }))).not.toContain('selection-wear');
+    const penHtml = render(pen({ condition: 0.6, abandoned: true }));
+    expect(penHtml).toContain('data-testid="selection-wear"');
+    expect(penHtml).toContain('data-testid="selection-abandoned"');
+    const cemetery: SelectionDetails = {
+      kind: 'cemetery',
+      id: 30,
+      squares: 1,
+      capacity: 56,
+      graves: 20,
+      freeGraves: 36,
+      yearsLeft: 9,
+      built: true,
+      building: null,
+      condition: 0,
+      abandoned: false,
+    };
+    const html = render(cemetery);
+    expect(html).toContain('Plot – stav');
+    expect(html).toMatch(/text-red-400[^>]*>0 %/);
+  });
+});

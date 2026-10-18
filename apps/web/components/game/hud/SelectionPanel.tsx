@@ -108,6 +108,41 @@ function Bar({
   );
 }
 
+/**
+ * Stav stavby (abandonment.md – opuštěné stavby chátrají): ikona stavu s procenty a ikona
+ * opuštěné stavby, když k ní nikdo nechodí a chátrá – bez textů navíc (jako v 0 A.D.).
+ */
+function Wear({
+  condition,
+  abandoned,
+  name = 'Stav',
+}: {
+  condition: number;
+  abandoned: boolean;
+  name?: string;
+}): ReactElement {
+  const low = condition < 0.45;
+  return (
+    <span className="flex items-center gap-2">
+      <Stat icon="condition" name={name} testId="selection-wear">
+        <span className={low ? 'text-red-400' : ''}>{formatPercent(condition)}</span>
+      </Stat>
+      {abandoned && (
+        <Tooltip content="Opuštěno" placement="above">
+          <img
+            src="/icons/resources/abandoned.png"
+            alt="Opuštěno"
+            width={20}
+            height={20}
+            data-testid="selection-abandoned"
+            tabIndex={0}
+          />
+        </Tooltip>
+      )}
+    </span>
+  );
+}
+
 /** Portrét a název obydlí, nebo dílny řemesla. */
 function dwellingPortrait(type: DwellingType, craft: Craft | null): ReactElement {
   return craft ? (
@@ -448,6 +483,7 @@ function CemeteryBody({
         <Stat icon="date" name="Místo na roky" testId="selection-years">
           {formatYearsShort(details.yearsLeft)}
         </Stat>
+        <Wear condition={details.condition} abandoned={details.abandoned} name="Plot – stav" />
       </div>
       {details.building !== null && <Bar value={details.building} name="Rozšíření" />}
     </div>
@@ -604,6 +640,7 @@ function PenBody({
             {formatInteger(details.milkLPerDay)}
           </Stat>
         )}
+        <Wear condition={details.condition} abandoned={details.abandoned} />
       </div>
       <ul aria-label="Stáda vsi" className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
         {HERD_ORDER.map((species) => (
@@ -887,7 +924,10 @@ function SacredBody({
   if (details.building === null) {
     return (
       <div className="flex flex-col justify-center gap-1.5">
-        <HappinessGain value={details.happiness} />
+        <div className="flex items-center gap-3">
+          <HappinessGain value={details.happiness} />
+          <Wear condition={details.condition} abandoned={details.abandoned} />
+        </div>
       </div>
     );
   }

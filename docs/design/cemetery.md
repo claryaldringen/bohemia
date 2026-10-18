@@ -49,6 +49,9 @@ další rozhodnutí o místě v krajině – vedle obydlí a polí.
   hlad a přeplněnost ([populace](population.md)). **Hájení** prvních 30 let platí i tady.
 - **Pohřeb:** zemřelý obsadí hrob v pohřebišti s volným místem (nejbližším k obydlím); kronika
   zapíše, když se pohřebiště zaplní.
+- **Opuštěný hřbitov** ([abandonment.md](abandonment.md), Martin 18. 10. 2026): ke hřbitovu, kam
+  za rok nevede žádná cesta, plot chátrá a za ≈ 10 let se rozpadne – mohylky zůstanou a zarostou,
+  pohřbívá se do něj dál a hygiena se nemění.
 
 ## Co hráč vidí
 

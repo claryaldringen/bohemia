@@ -31,7 +31,8 @@ A po vyšlapané pěšině se chodí lépe – cesta na vzdálené pole po ní s
   v sadu) jde tam, kde se dnes pracuje – vylepšení pevné cesty a práce u jabloní podél ní
   ([roads.md](roads.md)) k polovině úseku.
   Daleko (voda, les) se chodí méně často – pěšina tam vznikne, až když se cesty víc domácností
-  slijí. Ohrada (oxen.md) má k práci dne trochu navíc jako zavedené místo. Stáda (diet.md – ovce
+  slijí. Ohrada (oxen.md) má k práci dne trochu navíc jako zavedené místo – jen
+  ohrada se zvířaty (do prázdné se krmit nechodí – [abandonment.md](abandonment.md)). Stáda (diet.md – ovce
   s kozami po 20 kusech, krávy po 6, jako ve scéně) se denně vyženou na úhor a zpět – jedna cesta
   na stádo: mladý úhor vždy, louka na seno až po seči (srpen–listopad); v zimě stojí krávy
   v ohradě, prasata jdou do lesa (návrh Clauda).

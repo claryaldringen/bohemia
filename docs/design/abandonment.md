@@ -128,3 +128,10 @@ domů u potoka a jednu ≈ 330 m. Každý dům má nejblíž tu jednu – ke sku
   (`StructureWear` – stav a den opuštění), `VillageState.sacredRuins`; čísla `ABANDONMENT`
   v `rules.ts`. Staré vsi záznamy nemají – začínají s plným stavem.
 - Síť pěšin: `TripGroup.visit` → `PathNetwork.visits`, `PathVillage.pens[].stocked`.
+- Zbytek pod novou stavbou zmizí při dopočtu dalšího dne (kontrola jen kolem zbytků – ≈ 30 ms za
+  rok i ve Vlkově s 1 800 díly polí). Ohrada, do které se vrátila zvířata, má stav aspoň 1 %
+  (se zvířaty nespadne).
+- Scéna: `structure-decay.ts` (stupně a díly), `sacred-renderer.ts` (díly rozpadu se načtou až
+  s první chátrající stavbou – `sacred-decay.glb`, zarostlý příkop svatyně dostane trávu terénu),
+  `pen-renderer.ts` (`pen-decay.glb`), `cemetery-renderer.ts` (plot `decayFence`, mohylky
+  zarůstají). Ukázka **Rozpad staveb** na `/dev/buildings` se stejným posuvníkem jako obydlí.

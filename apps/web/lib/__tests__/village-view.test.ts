@@ -734,6 +734,8 @@ describe('hřbitov v pohledu na ves', () => {
         graves: 0,
         freeGraves: 112,
         yearsLeft: null,
+        fenceCondition: 1,
+        abandoned: false,
       },
     ]);
     expect(view.scene.cemeteries).toEqual([
@@ -1132,8 +1134,26 @@ describe('štěstí a posvátná místa v pohledu na ves', () => {
       { id: 8, oaks: 14, squares: 1, happiness: 14, ageYears: null },
     ]);
     expect(view.sacred.buildings).toEqual([
-      { id: 40, kind: 'idol', built: true, happiness: 8, progress: 1, oaksToFell: 0 },
-      { id: 41, kind: 'shrine', built: false, happiness: 25, progress: 0.25, oaksToFell: 2 },
+      {
+        id: 40,
+        kind: 'idol',
+        built: true,
+        happiness: 8,
+        progress: 1,
+        oaksToFell: 0,
+        condition: 1,
+        abandoned: false,
+      },
+      {
+        id: 41,
+        kind: 'shrine',
+        built: false,
+        happiness: 25,
+        progress: 0.25,
+        oaksToFell: 2,
+        condition: 1,
+        abandoned: false,
+      },
     ]);
     expect(view.scene.sacred).toEqual({
       oaks: [{ id: 7, x: 20, z: 30, growth: 1 }],
@@ -1475,5 +1495,60 @@ describe('buildVillageView – uhlíř (crafts.md – Uhlíř)', () => {
     const view = buildVillageView(record(burnerVillage(null)), landscape, DAY);
     const sapling = view.scene.plantedSaplings?.find((p) => p.id === 7);
     expect(sapling?.growth).toBeCloseTo(10 / 60, 1);
+  });
+});
+
+describe('opuštěné stavby v pohledu na ves (abandonment.md)', () => {
+  it('stav a opuštění v panelu, stupeň ve scéně, zbytky padlých model a kronika pádu', () => {
+    const s = settled();
+    s.livestock = {
+      herds: { sheep: 0, goat: 0, pig: 0, cow: 0 },
+      young: { sheep: 0, goat: 0, pig: 0, cow: 0 },
+    };
+    const yearDays = 365.25;
+    s.sacredBuildings = [
+      {
+        id: 40,
+        kind: 'idol',
+        position: { x: 60, z: 0, rotation: 0 },
+        builtDay: DAY - 3000,
+        // opuštěná před 5 lety z plného stavu – modla padne za 20 let
+        wear: { condition: 1, abandonedDay: DAY - Math.round(5 * yearDays) },
+      },
+    ];
+    s.sacredRuins = [
+      {
+        id: 39,
+        kind: 'shrine',
+        position: { x: 0, z: 90, rotation: 0 },
+        day: DAY - Math.round(4 * yearDays),
+      },
+    ];
+    s.pens = [
+      {
+        id: 70,
+        cell: { x: 2, y: 2 },
+        x: -82.5,
+        z: -82.5,
+        builtDay: DAY - 4000,
+        team: null,
+        training: null,
+        wear: { condition: 0.3 },
+      },
+    ];
+    s.chronicle.push({ day: DAY - 1, kind: 'structure-fell', structure: 'pen', id: 71 });
+    const view = buildVillageView(record(s), landscape, DAY);
+    const idol = view.sacred.buildings.find((b) => b.id === 40)!;
+    expect(idol.abandoned).toBe(true);
+    expect(idol.condition).toBeCloseTo(0.75, 2);
+    expect(view.scene.sacred!.buildings[0]).toMatchObject({ condition: 0.75, abandoned: true });
+    expect(view.scene.sacred!.ruins).toEqual([
+      { id: 39, kind: 'shrine', position: { x: 0, z: 90, rotation: 0 }, overgrowth: 0.2 },
+    ]);
+    expect(view.pens[0]).toMatchObject({ condition: 0.3, abandoned: false });
+    expect(view.scene.pens![0]).toMatchObject({ condition: 0.3, stocked: false });
+    const fell = view.chronicle.find((e) => e.kind === 'structure-fell')!;
+    expect(fell.structure).toBe('pen');
+    expect(fell.text).toBe('Opuštěná ohrada se rozpadla.');
   });
 });

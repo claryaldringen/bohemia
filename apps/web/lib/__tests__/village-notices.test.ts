@@ -311,6 +311,31 @@ describe('newNotices – porážka a spřežení (diet.md, oxen.md)', () => {
     ]);
   });
 
+  it('opuštěná stavba spadla – fakt podle stavby (abandonment.md), sedm model jedním řádkem', () => {
+    const fell = (
+      day: number,
+      structure: NonNullable<VillageView['chronicle'][number]['structure']>,
+    ): VillageView['chronicle'][number] => ({
+      ...entry(day, 'structure-fell', ''),
+      structure,
+    });
+    const after = view({
+      dayIndex: 1010,
+      chronicle: [
+        fell(1009, 'pen'),
+        fell(1008, 'cemetery-fence'),
+        fell(1007, 'shrine'),
+        ...Array.from({ length: 7 }, () => fell(1005, 'idol')),
+      ],
+    });
+    expect(newNotices(view({ dayIndex: 1000 }), after)).toEqual([
+      { kind: 'idol-fell', tone: 'warn', text: 'Modla padla' },
+      { kind: 'shrine-fell', tone: 'warn', text: 'Svatyně se rozpadla' },
+      { kind: 'cemetery-fence-fell', tone: 'warn', text: 'Plot hřbitova se rozpadl' },
+      { kind: 'pen-fell', tone: 'warn', text: 'Ohrada se rozpadla' },
+    ]);
+  });
+
   it('spřežení dosloužilo – fakt', () => {
     const after = view({
       dayIndex: 1003,
