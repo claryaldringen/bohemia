@@ -118,7 +118,7 @@ export interface RelocationPlot {
  * Přestavba polozemnice bez pozemku (i přestavba zemnice na polozemnici): nejbližší políčko do
  * PLOT_RELOCATION_M od domu (ke středu políčka; při shodě nižší řádek a sloupec), na které smí
  * nový pozemek (`checkPlotPlacement` – jako při stavbě, jen bez obydlí samotného, to se
- * přestavbou přesune). Varianty od té, kde by dům stál nejblíž starému místu. Žádné → null,
+ * přestavbou přesune, a bez čtverců polí a sadů). Varianty od té, kde by dům stál nejblíž starému místu. Žádné → null,
  * obydlí se přestaví na místě bez pozemku.
  */
 export function relocationPlot(
@@ -153,7 +153,10 @@ export function relocationPlot(
     });
     for (const variant of variants) {
       const plot = { cell, variant };
-      const check = checkPlotPlacement(landscape, village, type, plot, obstacles);
+      // obyvatelé si nový pozemek na poli ani v sadu nevezmou – to rozhoduje jen hráč
+      const check = checkPlotPlacement(landscape, village, type, plot, obstacles, {
+        takeLand: false,
+      });
       if (!check.ok || !check.position) continue;
       return {
         plot,

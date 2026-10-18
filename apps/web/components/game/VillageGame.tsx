@@ -16,17 +16,25 @@ import {
   type WorldClock,
 } from '@bohemia/game';
 import {
+  cancelRelocation,
+  foundDevVillage,
   foundVillage,
   getVillageView,
   placeCemetery,
   placeDwelling,
   placeField,
   placeOrchard,
+  placePen,
   placeSacred,
   placeWorkshop,
+  plantRoadApples,
+  relocateHousehold,
   renameVillage,
   restartGame,
+  selectVillage,
   skipTime,
+  trainTeam,
+  upgradeRoad,
 } from '@/app/game/actions';
 import { usePlacement } from '@/hooks/use-placement';
 import { usePolling } from '@/hooks/use-polling';
@@ -34,12 +42,21 @@ import { authClient } from '@/lib/auth-client';
 import { buildItem, buildItemForKey } from '@/lib/build-items';
 import { setE2EHook } from '@/lib/e2e-hooks';
 import { opensMenu } from '@/lib/game-menu';
+import { nextPollDelayMs } from '@/lib/village-polling';
 import { decodeLandscape, type LandscapeTransfer } from '@/lib/landscape-transfer';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
-import { targetExists, type VillageTarget } from '@/lib/scene/village-picking';
-import type { PlacementResult } from '@/lib/scene/village-types';
+import type { VillageTarget } from '@/lib/scene/village-picking';
+import {
+  allDwellingsTarget,
+  nextSelection,
+  presentTarget,
+  selectsAllDwellings,
+} from '@/lib/scene/village-selection';
+import type { PlacementMode, PlacementResult } from '@/lib/scene/village-types';
 import { selectionDetails } from '@/lib/selection-details';
 import { useSoundPreference } from './SoundToggle';
+import { rememberVillage } from '@/lib/village-choice';
+import type { VillageListItem } from '@/lib/village-list';
 import { newNotices } from '@/lib/village-notices';
 import {
   placementVillageFromScene,
@@ -62,7 +79,6 @@ import { TopBar } from './hud/TopBar';
 /** Stav vsi ze serveru: pohled na ves, ještě nezaložená (null), nebo chyba (svět neběží…). */
 export type VillageData = VillageView | null | { error: string };
 
-const POLL_MS = 5000;
 /** Nejvíc řádků oznámení najednou – starší ustoupí novějším. */
 const MAX_NOTICES = 4;
 const CONNECTION_FAILED = 'Spojení se serverem selhalo.';
@@ -75,10 +91,13 @@ type ActionResult = VillageView | { error: string };
  * Server action staveb malovaných po čtvercích podle druhu (obydlí jdou přes `placeDwelling`).
  * Nová stavba po čtvercích = nový řádek tady a záznam v `lib/build-items.ts`.
  */
-const SUBMIT_SQUARES: Partial<Record<BuildKind, (cells: TileCell[]) => Promise<ActionResult>>> = {
-  field: (cells) => placeField({ cells }),
-  cemetery: (cells) => placeCemetery({ cells }),
-  orchard: (cells) => placeOrchard({ cells }),
+const SUBMIT_SQUARES: Partial<
+  Record<BuildKind, (villageId: string, cells: TileCell[]) => Promise<ActionResult>>
+> = {
+  field: (villageId, cells) => placeField({ villageId, cells }),
+  cemetery: (villageId, cells) => placeCemetery({ villageId, cells }),
+  orchard: (villageId, cells) => placeOrchard({ villageId, cells }),
+  pen: (villageId, cells) => placePen({ villageId, cells }),
 };
 
 function isVillageView(state: VillageData): state is VillageView {
@@ -144,15 +163,21 @@ function withPending(scene: SceneVillage, pending: readonly PendingSite[]): Scen
  * suroviny, datum), minimapa vlevo dole, panel výběru dole uprostřed, mřížka staveb vpravo dole
  * a mizející oznámení nahoře. Bez průvodce – hráč staví, kdy chce. Dokud ves není, mřížka
  * nabízí jen zemnici: její umístění ves založí (s navrženým jménem). Stav vsi drží server – po
- * každé akci a každých 5 s (jen při viditelném panelu) přijde nový VillageView. Ve vymřelé vsi
+ * každé akci a na začátku každého herního dne (jen při viditelném panelu; beze změny server
+ * odpoví jen „beze změny“) přijde nový VillageView. Ve vymřelé vsi
  * se nestaví; když hráči vymřely všechny vsi, přes zamrzlou scénu je obrazovka porážky
  * s tlačítkem Začít znovu (nové sídlo, stránka se načte znovu). Nabídka hry (tlačítko v liště,
  * F10) nabízí Začít znovu i se živou vsí (po potvrzení) a odhlášení. Ve vývojovém režimu jsou
  * vedle data šipky přeskočení času – hodiny v liště i ve scéně jdou o posun času hráče napřed.
+ * Hráč může mít víc vsí (migration.md): jméno vsi v liště je přepínač – ves na téže mapě se
+ * přepne na místě, na jiné mapě se stránka načte znovu (jiná krajina). Akce nesou id vsi.
+ * Ctrl / Shift + klik přidá obydlí k výběru, Ctrl + A vybere všechna; panel výběru obydlí
+ * nabídne Přestěhovat (nový dům postupně každé domácnosti).
  */
 export function VillageGame({
   landscape,
   seed,
+  settlementId,
   initialVillage,
   world,
   timeOffsetDays: initialTimeOffsetDays,
@@ -163,6 +188,8 @@ export function VillageGame({
   landscape: LandscapeTransfer;
   /** Seed krajiny sídla – podle něj hra navrhne jméno vsi. */
   seed: number;
+  /** Sídlo (mapa) načtené krajiny – ves z jiného sídla se přepne novým načtením stránky. */
+  settlementId: string;
   initialVillage: VillageData;
   /** Svět jako na serveru – herní datum v liště a dým z obydlí podle herního dne. */
   world: WorldClock;
@@ -185,6 +212,7 @@ export function VillageGame({
   const [menuOpen, setMenuOpen] = useState(false);
   const [timeOffsetDays, setTimeOffsetDays] = useState(initialTimeOffsetDays);
   const [skipping, setSkipping] = useState<TimeSkip | null>(null);
+  const [foundingDevVillage, setFoundingDevVillage] = useState(false);
   const [soundOn, setSoundOn] = useSoundPreference();
   // Hodiny hráče: svět posunutý o jeho posun času – datum, roční období i dým jako na serveru.
   const clock = useMemo(() => shiftWorldClock(world, timeOffsetDays), [world, timeOffsetDays]);
@@ -249,9 +277,20 @@ export function VillageGame({
     if (scene && home) scene.setCameraHome(home.x, home.z);
   }, [scene, home]);
 
-  // Výběr kliknutím do scény; zaniklý cíl (dostavěné staveniště, zarostlé pole) se zruší.
-  useEffect(() => scene?.onSelect(setSelected), [scene]);
-  const current = selected && targetExists(sceneVillage, selected) ? selected : null;
+  // Výběr kliknutím do scény (s Ctrl / Shift přidá nebo ubere obydlí); zaniklý cíl (dostavěné
+  // staveniště, zarostlé pole) se zruší, z víc obydlí zbydou jen ta, která ještě stojí.
+  useEffect(
+    () =>
+      scene?.onSelect((target, additive) =>
+        setSelected((prev) => nextSelection(prev, target, additive)),
+      ),
+    [scene],
+  );
+  const current = useMemo(() => presentTarget(sceneVillage, selected), [sceneVillage, selected]);
+  const sceneVillageRef = useRef(sceneVillage);
+  useEffect(() => {
+    sceneVillageRef.current = sceneVillage;
+  }, [sceneVillage]);
   useEffect(() => {
     scene?.setSelection(current);
   }, [scene, current]);
@@ -266,16 +305,39 @@ export function VillageGame({
   const poll = useCallback(async (): Promise<void> => {
     if (busyRef.current) return;
     const seq = ++requestSeq.current;
-    const result = await getVillageView();
+    const known = viewRef.current?.stamp;
+    const result = await getVillageView({
+      villageId: viewRef.current?.id ?? null,
+      ...(known ? { known } : {}),
+    });
     if (busyRef.current || seq < appliedSeq.current) return;
     appliedSeq.current = seq;
+    // Od pohledu, který máme, se nic nezměnilo (stejný den i verze vsí) – server nic neposlal.
+    if (result !== null && 'unchanged' in result) return;
+    // Ves zmizela nebo leží na jiné mapě (restart hry v jiném panelu) – načíst znovu i s krajinou.
+    const lost = viewRef.current !== null && result === null;
+    if (lost || (isVillageView(result) && result.settlementId !== settlementId)) {
+      window.location.reload();
+      return;
+    }
     // Chyba (např. odhlášení v jiném panelu) poslední pohled na ves nesmaže – jen se ohlásí.
     if (result !== null && 'error' in result && viewRef.current) {
       pushNotice({ kind: 'error', tone: 'error', text: result.error });
     } else applyVillage(result);
-  }, [applyVillage, pushNotice]);
+  }, [applyVillage, pushNotice, settlementId]);
+  // Další dotaz na začátku dalšího herního dne hráče (nejdřív za 5 s, nejpozději za 86 s) – ves
+  // se dopočítává po dnech, akce vracejí čerstvou ves samy.
+  const pollDelay = useCallback(
+    (): number => nextPollDelayMs(viewRef.current?.dayIndex ?? null, clock, Date.now()),
+    [clock],
+  );
   // Dokud ves není, není co obnovovat (založení vrátí pohled samo); po konci hry se nic nemění.
-  usePolling(poll, POLL_MS, village !== null && !gameOver);
+  const pollNow = usePolling(poll, pollDelay, village !== null && !gameOver);
+  // Testovací háček: zeptat se na ves hned (test změnil uloženou ves přímo v databázi).
+  useEffect(() => {
+    setE2EHook('pollVillage', pollNow);
+    return () => setE2EHook('pollVillage', undefined);
+  }, [pollNow]);
 
   /** Akce nad vsí na serveru (ve frontě za předchozími); vrátí chybu pro hráče, nebo null. */
   const runAction = useCallback(
@@ -336,10 +398,34 @@ export function VillageGame({
       ...(plot ? { plot: scenePlot(decoded, plot) } : {}),
     };
     setPendingList([...pendingRef.current, entry]);
+    const villageId = viewRef.current?.id ?? null;
     void runBuildAction(() =>
-      viewRef.current === null
+      villageId === null
         ? foundVillage({ name: suggestVillageName(seed), dwelling: position })
-        : placeDwelling({ type, position, ...(plot ? { plot } : {}) }),
+        : placeDwelling({ villageId, type, position, ...(plot ? { plot } : {}) }),
+    ).finally(() => setPendingList(pendingRef.current.filter((d) => d.id !== entry.id)));
+  };
+
+  /**
+   * Nový dům stěhující se domácnosti (migration.md) – staveniště hned ve scéně, server umístění
+   * ověří znovu.
+   */
+  const buildRelocation = (
+    villageId: string,
+    dwellingId: number,
+    result: Extract<PlacementResult, { kind: 'dwelling' }>,
+  ): void => {
+    const { type, position, plot } = result;
+    const entry: PendingSite = {
+      kind: 'dwelling',
+      id: -1 - pendingId.current++,
+      type,
+      position,
+      ...(plot ? { plot: scenePlot(decoded, plot) } : {}),
+    };
+    setPendingList([...pendingRef.current, entry]);
+    void runBuildAction(() =>
+      relocateHousehold({ villageId, dwellingId, type, position, ...(plot ? { plot } : {}) }),
     ).finally(() => setPendingList(pendingRef.current.filter((d) => d.id !== entry.id)));
   };
 
@@ -353,7 +439,9 @@ export function VillageGame({
       craft,
     };
     setPendingList([...pendingRef.current, entry]);
-    void runBuildAction(() => placeWorkshop({ craft, position })).finally(() =>
+    const villageId = viewRef.current?.id;
+    if (!villageId) return;
+    void runBuildAction(() => placeWorkshop({ villageId, craft, position })).finally(() =>
       setPendingList(pendingRef.current.filter((d) => d.id !== entry.id)),
     );
   };
@@ -362,7 +450,9 @@ export function VillageGame({
   const buildSacred = (type: SacredBuildingKind, position: Position): void => {
     const entry: PendingSite = { kind: 'sacred', id: -1 - pendingId.current++, type, position };
     setPendingList([...pendingRef.current, entry]);
-    void runBuildAction(() => placeSacred({ kind: type, position })).finally(() =>
+    const villageId = viewRef.current?.id;
+    if (!villageId) return;
+    void runBuildAction(() => placeSacred({ villageId, kind: type, position })).finally(() =>
       setPendingList(pendingRef.current.filter((d) => d.id !== entry.id)),
     );
   };
@@ -375,6 +465,50 @@ export function VillageGame({
     : villageError === null
       ? { zemnice: null }
       : {};
+
+  /** Umisťování obydlí: zemnice půdorysem u kurzoru, polozemnice na pozemku (políčku). */
+  const dwellingMode = (type: DwellingType): PlacementMode => {
+    const item = buildItem(type);
+    if (item.placement === 'plot') {
+      return {
+        kind: 'plot',
+        type,
+        check: (plot) =>
+          item.check(decoded, placementVillage(), plot, viewRef.current?.woodLogs ?? 0),
+      };
+    }
+    if (item.placement !== 'footprint') throw new Error(`${type} se neumisťuje jako obydlí.`);
+    return {
+      kind: 'dwelling',
+      type,
+      check: (position) =>
+        item.check(decoded, placementVillage(), position, viewRef.current?.woodLogs ?? 0),
+    };
+  };
+
+  /**
+   * Přestěhovat domácnosti obydlí `householdIds` (migration.md): hráč umístí nový dům typu
+   * `type` postupně za každou domácnost – po umístění jedné hned běží umisťování další (jako
+   * Shift + klik u staveb); Esc nebo pravé tlačítko zbytek zruší.
+   */
+  const relocate = (type: DwellingType, householdIds: readonly number[]): void => {
+    const villageId = viewRef.current?.id;
+    if (!scene || !villageId || householdIds.length === 0) return;
+    const queue = [...householdIds];
+    setSelected(null);
+    setPlacingItem(null);
+    const run = (): void => {
+      placement.start(dwellingMode(type), (result, keepPlacing) => {
+        const household = queue.shift();
+        if (result.kind !== 'dwelling' || household === undefined) return;
+        buildRelocation(villageId, household, result);
+        if (queue.length === 0) {
+          if (keepPlacing) placement.cancel();
+        } else if (!keepPlacing) run();
+      });
+    };
+    run();
+  };
 
   const startBuild = (kind: BuildKind): void => {
     if (!scene || !(kind in options)) return;
@@ -392,7 +526,10 @@ export function VillageGame({
           preview: (cells) => ({ ...item.check(decoded, placementVillage(), cells), label: '' }),
         },
         (result) => {
-          if (result.kind === 'squares') void runBuildAction(() => submit(result.cells));
+          const villageId = viewRef.current?.id;
+          if (result.kind === 'squares' && villageId) {
+            void runBuildAction(() => submit(villageId, result.cells));
+          }
         },
       );
       return;
@@ -400,16 +537,8 @@ export function VillageGame({
     const onDwelling = (result: PlacementResult): void => {
       if (result.kind === 'dwelling') buildDwelling(result.type, result.position, result.plot);
     };
-    if (item.placement === 'plot') {
-      placement.start(
-        {
-          kind: 'plot',
-          type: item.dwellingType,
-          check: (plot) =>
-            item.check(decoded, placementVillage(), plot, viewRef.current?.woodLogs ?? 0),
-        },
-        onDwelling,
-      );
+    if (item.placement === 'plot' || item.placement === 'footprint') {
+      placement.start(dwellingMode(item.dwellingType), onDwelling);
       return;
     }
     if (item.placement === 'workshop') {
@@ -440,15 +569,6 @@ export function VillageGame({
       );
       return;
     }
-    placement.start(
-      {
-        kind: 'dwelling',
-        type: item.dwellingType,
-        check: (position) =>
-          item.check(decoded, placementVillage(), position, viewRef.current?.woodLogs ?? 0),
-      },
-      onDwelling,
-    );
   };
   const startBuildRef = useRef(startBuild);
   useEffect(() => {
@@ -469,7 +589,7 @@ export function VillageGame({
   });
   const closeMenu = useCallback((): void => setMenuOpen(false), []);
 
-  // Klávesy rozhraní: F10 otevře nabídku, zkratky staveb (Z, X, C, V, B, N, M, F, G, H), Esc zruší
+  // Klávesy rozhraní: F10 otevře nabídku, zkratky staveb (Z, X, C, V, B, N, M, F, G, H, O), Esc zruší
   // výběr.
   // Otevřená nabídka klávesy zachytí dřív (GameMenu) – sem pak nedojdou.
   const placingRef = useRef(placement.active);
@@ -489,6 +609,12 @@ export function VillageGame({
         setSelected(null);
         return;
       }
+      // Ctrl + A – všechna obydlí vsi (migration.md); při umisťování ne (malování po čtvercích)
+      if (selectsAllDwellings(event)) {
+        event.preventDefault(); // prohlížeč by označil text stránky
+        if (placingRef.current === null) setSelected(allDwellingsTarget(sceneVillageRef.current));
+        return;
+      }
       const item = buildItemForKey(event);
       if (!item || event.repeat) return;
       event.preventDefault();
@@ -505,7 +631,62 @@ export function VillageGame({
     scene?.setSoundEnabled(next);
   };
 
-  const rename = (name: string): Promise<string | null> => runAction(() => renameVillage({ name }));
+  const rename = (name: string): Promise<string | null> => {
+    const villageId = viewRef.current?.id;
+    return villageId
+      ? runAction(() => renameVillage({ villageId, name }))
+      : Promise.resolve(CONNECTION_FAILED);
+  };
+
+  /**
+   * Přepne na jinou ves hráče (přepínač v liště) a zapamatuje ji (cookie). Ves na téže mapě se
+   * načte na místě a pohled skočí na ni; ves na jiné mapě má jinou krajinu – stránka se načte
+   * znovu (server ověří, že ves patří hráči).
+   */
+  const switchVillage = (village: VillageListItem): void => {
+    const shown = viewRef.current;
+    if (!shown || village.id === shown.id) return;
+    cancelPlacement();
+    setSelected(null);
+    if (village.settlementId !== settlementId) {
+      rememberVillage(village.id);
+      window.location.reload();
+      return;
+    }
+    void runAction(() => selectVillage({ villageId: village.id })).then((failure) => {
+      if (failure !== null) {
+        pushNotice({ kind: 'error', tone: 'error', text: failure });
+        return;
+      }
+      rememberVillage(village.id);
+      lookAtVillage();
+    });
+  };
+
+  /** Pohled na první obydlí (staveniště) právě ukázané vsi – po přepnutí vsi. */
+  const lookAtVillage = (): void => {
+    const first = viewRef.current?.scene.dwellings[0]?.position;
+    if (first) scene?.moveCameraTo(first.x, first.z);
+  };
+
+  /** Vývojový režim: druhá ves na téže mapě – rozhraní se na ni hned přepne. */
+  const foundSecondVillage = (): void => {
+    const villageId = viewRef.current?.id;
+    if (!villageId || foundingDevVillage) return;
+    cancelPlacement();
+    setSelected(null);
+    setFoundingDevVillage(true);
+    void runAction(() => foundDevVillage({ villageId })).then((failure) => {
+      setFoundingDevVillage(false);
+      if (failure !== null) {
+        pushNotice({ kind: 'error', tone: 'error', text: failure });
+        return;
+      }
+      const founded = viewRef.current?.id;
+      if (founded) rememberVillage(founded);
+      lookAtVillage();
+    });
+  };
 
   /**
    * Vývojový režim: přeskočí čas o měsíc, nebo rok. Server posune čas hráče a vrátí ves
@@ -518,7 +699,7 @@ export function VillageGame({
     skippingRef.current = true;
     setSkipping(skip);
     void runAction(async () => {
-      const result = await skipTime({ skip });
+      const result = await skipTime({ skip, villageId: viewRef.current?.id ?? null });
       if ('error' in result) return result;
       setTimeOffsetDays(result.timeOffsetDays);
       return result.village;
@@ -575,10 +756,43 @@ export function VillageGame({
         menuOpen={menuShown}
         onToggleMenu={() => (menuShown ? closeMenu() : openMenu())}
         onRename={rename}
+        onSelectVillage={switchVillage}
         devTime={devMode ? { pending: skipping, onSkip: skipTimeBy } : null}
+        devVillage={
+          devMode && view && !view.extinct
+            ? { pending: foundingDevVillage, onFound: foundSecondVillage }
+            : null
+        }
       />
       <Minimap landscape={decoded} scene={scene} village={sceneVillage} />
-      <SelectionPanel details={selectionDetails(view, sceneVillage, current)} />
+      <SelectionPanel
+        details={selectionDetails(view, sceneVillage, current)}
+        onTrainTeam={(penId) => {
+          const villageId = viewRef.current?.id;
+          return villageId
+            ? runBuildAction(() => trainTeam({ villageId, penId }))
+            : Promise.resolve();
+        }}
+        onRelocate={relocate}
+        onCancelRelocation={(constructionId) => {
+          const villageId = viewRef.current?.id;
+          return villageId
+            ? runBuildAction(() => cancelRelocation({ villageId, constructionId }))
+            : Promise.resolve();
+        }}
+        onUpgradeRoad={(roadId, upgrade) => {
+          const villageId = viewRef.current?.id;
+          return villageId
+            ? runBuildAction(() => upgradeRoad({ villageId, roadId, upgrade }))
+            : Promise.resolve();
+        }}
+        onPlantRoadApples={(roadId) => {
+          const villageId = viewRef.current?.id;
+          return villageId
+            ? runBuildAction(() => plantRoadApples({ villageId, roadId }))
+            : Promise.resolve();
+        }}
+      />
       <BuildGrid
         options={options}
         active={placement.active ? placingItem : null}

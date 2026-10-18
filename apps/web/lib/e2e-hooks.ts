@@ -15,6 +15,8 @@ export interface E2EHooks {
   confirmPlacement?: (result: PlacementResult) => void;
   /** Bod krajiny (x, z) na obrazovce v CSS px, nebo null mimo záběr – kam kliknout myší. */
   projectToScreen?: (x: number, z: number) => { x: number; y: number } | null;
+  /** Zeptá se na ves hned (dotazování jinak čeká na další herní den – v testech ≈ 86 s). */
+  pollVillage?: () => void;
 }
 
 declare global {

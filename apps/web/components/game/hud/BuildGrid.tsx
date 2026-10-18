@@ -10,7 +10,7 @@ import { Tooltip } from './Tooltip';
 const GRID_SLOTS = 12;
 
 /** Ikony surovin předem – cesta k obrázku v `public/icons/`, jednotka a název. */
-const RESOURCE_ICONS: Record<StockResource, { src: string; unit: string; name: string }> = {
+export const RESOURCE_ICONS: Record<StockResource, { src: string; unit: string; name: string }> = {
   grain: { src: '/icons/resources/food.png', unit: 'kg', name: 'Obilí' },
   wood: { src: '/icons/resources/wood.png', unit: '', name: 'Dřevo (stromy)' },
   oaks: { src: '/icons/build/dub.png', unit: '', name: 'Dospělé duby' },

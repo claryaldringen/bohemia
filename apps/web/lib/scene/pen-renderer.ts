@@ -1,4 +1,4 @@
-// Ohrady s přístřeškem ve scéně (zatím jen ukázka na /dev/buildings – docs/design/oxen.md):
+// Ohrady s přístřeškem ve scéně (ve vsi i na ukázce /dev/buildings – docs/design/oxen.md):
 // pletený plot se zakulacenými rohy (sdílený – woven-fence-renderer.ts), přístřešek, jesle, žlab
 // a branka z models/pen/pen.glb, při stavbě díly z pen-construction.glb (tools/blender/pen.py),
 // stoh sena z models/fields/haystack.glb, vytyčení kolíky a provázkem a obtisk vyšlapaného bláta.
@@ -154,7 +154,14 @@ export class PenRenderer {
 
   /** Rozmístění hotových ohrad (zvířata – pen-animals.ts). */
   builtLayouts(): PenLayout[] {
-    return [...this.entries.values()].filter((e) => e.stage.built).map((e) => e.layout);
+    return this.builtPens().map((p) => p.layout);
+  }
+
+  /** Hotové ohrady s id a rozmístěním (zvířata podle ohrady – village-pens.ts). */
+  builtPens(): { id: number; layout: PenLayout }[] {
+    return [...this.entries.entries()]
+      .filter(([, e]) => e.stage.built)
+      .map(([id, e]) => ({ id, layout: e.layout }));
   }
 
   dispose(): void {

@@ -1,18 +1,33 @@
-import { SACRED_BUILDINGS, type DwellingType, type PartStage, type Position } from '@bohemia/game';
-import type { SceneVillage } from '../village-view';
-import { PATH_FOREST_EDGE, PATH_WATER_SPOT, type PathTerrain } from './path-terrain';
-import { localToWorld } from './village-layout';
-import { MILIR_SHAPE_M, milirPlace } from './workshop-layout';
-import { houseBox, plotBox, siteBox } from './villager-plan';
+import { detCos, detSin, length2 } from '../../landscape';
+import { milirPosition } from '../crafts';
+import { DWELLING_CLEARING_M, SACRED_BUILDINGS } from '../rules';
+import type { ObstacleChanges } from '../obstacles';
+import type { PartStage } from '../summary';
+import type {
+  Craft,
+  DwellingType,
+  FieldSurface,
+  HerdSpecies,
+  RoadGrade,
+  LaborTarget,
+  Position,
+  SacredBuildingKind,
+  TileCell,
+} from '../types';
+import { nearestPartFinder } from './nearest';
+import { PATH_FOREST_EDGE, PATH_WATER_SPOT, type PathTerrain } from './terrain';
 
-// Vyšlapané pěšiny (docs/design/paths.md) – jen vzhled, žádná pravidla. Čistá deterministická
-// funkce vsi a terénu: z každé domácnosti se chodí pro vodu k potoku, pro dřevo k okraji lesa,
-// na pole, do sadu, ke hřbitovu, k posvátným místům, k hromadě klád a na staveniště – tam, kam
-// ves dnes chodí práce (rozdělení práce dne), plus kousek navíc, ať zavedená místa pěšinu mají.
+// Vyšlapané pěšiny (docs/design/paths.md). Čistá deterministická funkce vsi a terénu – počítá ji
+// server (cesta na pole po pěšině je rychlejší – fields.md – Vzdálenost) i prohlížeč (vzhled,
+// postavy) a musí jim vyjít stejně: jen přesná aritmetika (det-math, hlídá ESLint). Z každé
+// domácnosti se chodí pro vodu k potoku, pro dřevo k okraji lesa, na pole, do sadu, ke hřbitovu,
+// k posvátným místům a na staveniště – tam, kam ves dnes chodí práce (rozdělení práce dne), plus
+// kousek navíc, ať zavedená místa pěšinu mají.
 // Trasy hledá Dijkstra na hrubé mřížce (path-terrain.ts + domy, pole a překážky vsi). Provoz se
 // sčítá po buňkách, z něj síla pěšiny; pak se trasy hledají znovu se slevou na vyšlapané buňky
-// (aktivní chodci) – lidé dají přednost vyšlapané pěšině a trasy se slijí do sítě. Výsledek jsou
-// vyhlazené lomené čáry se silou v bodech.
+// (aktivní chodci) – lidé dají přednost vyšlapané pěšině a trasy se slijí do sítě. Po pevné cestě
+// (roads.md) se jde jako po plné pěšině, takže se k ní trasy stahují. Výsledek jsou vyhlazené
+// lomené čáry se silou v bodech.
 
 /** Bod ve světě (m). */
 export interface PathPoint {
@@ -42,6 +57,8 @@ export interface PathTraffic {
   width: number;
   height: number;
   values: Float32Array;
+  /** Provoz po buňkách bez vyhlazení (cest za den) – podle něj pevné cesty zarůstají (roads.md). */
+  raw: Float32Array;
 }
 
 /** Kam chodí domácnost pro vodu a dřevo – konec její trasy (null = nikam blízko). */
@@ -59,25 +76,115 @@ export interface PathNetwork {
   trips: number;
 }
 
+/** Čtverec stavby po políčkách (díl pole, čtverec sadu, hřbitova, háje) – střed a strana (m). */
+export interface PathSquare {
+  cell: TileCell;
+  x: number;
+  z: number;
+  size: number;
+}
+
+/**
+ * Ves pro pěšiny – jen to, na čem pěšiny závisí. Tvar odpovídá vsi pro scénu (`SceneVillage`
+ * ve webu ji splňuje), server ji skládá ze stavu vsi (`pathVillageOf`).
+ */
+export interface PathVillage {
+  /**
+   * Hotová obydlí (id obydlí) i staveniště (id stavby). `inhabited` – bydlí v něm někdo (bez
+   * údaje ano), `since` – herní den, od kdy stojí (dostavění / zahájení stavby; bez údaje
+   * odjakživa), `plot` – pozemek polozemnice (střed políčka a strana), `craft` – řemeslná dílna
+   * (u uhlíře stojí kus od zemnice milíř – crafts.md).
+   */
+  dwellings: readonly {
+    id: number;
+    type: DwellingType;
+    position: Position;
+    built: boolean;
+    inhabited?: boolean;
+    since?: number;
+    craft?: Craft;
+    plot?: { cell: TileCell; x: number; z: number; size: number };
+  }[];
+  /**
+   * Pole – díly se stadiem; `grazed` u přílohu ve fázi louky = pasou se na něm stáda (fields.md –
+   * Zarůstání, `pastureGrazedParts`): kam stáda nedojdou, tam pasáček nechodí. Bez údaje se pase
+   * na každém přílohu.
+   */
+  fields: readonly {
+    id: number;
+    parts: readonly (PathSquare & { stage: PartStage; grazed?: boolean })[];
+  }[];
+  orchards?: readonly { id: number; squares: readonly PathSquare[] }[];
+  cemeteries?: readonly { id: number; squares: readonly PathSquare[] }[];
+  sacred?: {
+    oaks: readonly { id: number; x: number; z: number }[];
+    groves: readonly { id: number; x: number; z: number; squares: readonly PathSquare[] }[];
+    buildings: readonly {
+      id: number;
+      kind: SacredBuildingKind;
+      position: Position;
+      built: boolean;
+    }[];
+  };
+  /** Rozdělení práce posledního dne (člověkodny po místech), lidé podle věku a herní den. */
+  labor?: {
+    day: number;
+    month: number;
+    people: { children: number; adults: number; elders: number };
+    shares: readonly { target: LaborTarget; manDays: number }[];
+  };
+  /** Odstraněné a pokácené překážky (počty – klíč sítě). */
+  obstacles?: Pick<ObstacleChanges, 'removed' | 'stumps'>;
+  /** Pevné cesty (roads.md) – po nich se jde jako po plné pěšině. Bez údaje žádné. */
+  roads?: readonly { id?: number; points: readonly PathPoint[]; grade?: RoadGrade }[];
+  /**
+   * Ohrady (oxen.md) – čtverec jako díl pole a jestli je hotová: plot obchází, k ohradě se chodí
+   * krmit dobytek. Bez údaje žádné.
+   */
+  pens?: readonly (PathSquare & { id: number; built: boolean })[];
+  /**
+   * Stáda na pastvě (diet.md – kusy po druzích, krávy v zimě v ohradě nepočítané): pasáček je
+   * denně vyžene na úhor. Bez údaje žádná.
+   */
+  livestock?: Readonly<Partial<Record<HerdSpecies, number>>>;
+  /**
+   * Les vsi (fields.md – Les vsi) – čtverce polí zarostlé lesem: na bývalé louce se jde jako
+   * lesem (les na vymýceném lese už terén krajiny zná). Bez údaje žádný.
+   */
+  woods?: readonly (PathSquare & { surface?: FieldSurface })[];
+  /**
+   * Přirozené louky letošní seče (oxen.md – Seno) – políčka; pěšina vede k těm, kde se dnes seče
+   * (práce `meadow` v rozdělení práce). Bez údaje žádné.
+   */
+  hayMeadows?: readonly PathSquare[];
+}
+
 export interface PathNetworkInput {
-  village: SceneVillage;
-  /** Terén okna – i s překážkami krajiny (`withObstacles` v path-terrain.ts). */
+  village: PathVillage;
+  /** Terén okna – i s překážkami krajiny (`withObstacles` v terrain.ts). */
   terrain: PathTerrain;
   /** Poloha stromu z vrstvy překážek – kácení dřeva pro stavbu. */
   tree?(id: number): PathPoint | null;
-  /** Hromada klád (log-pile-layout.ts), nebo null. */
-  logPile?: PathPoint | null;
+  /**
+   * Provoz za celý rok místo dne (pevné cesty – roads.md): `village.labor.shares` nesou průměrné
+   * člověkodny na den za rok, pro dřevo se chodí podle průměru roku (ne podle měsíce).
+   */
+  annual?: boolean;
 }
 
 /** Kola hledání: první trasy (každá další se přidá k už vyšlapaným) a jedno kolo se slevou z prvního. */
 const PASSES = 2;
 /** Vyšlapaná buňka stojí (1 − PATH_DISCOUNT × síla) – po silné pěšině se jde i oklikou. */
 const PATH_DISCOUNT = 0.5;
+/** Kupa milíře uhlíře (crafts.py MILIR_R) – pěšina ji obejde. */
+const MILIR_RADIUS_M = 2.3;
+/** Pevná cesta (roads.md): sleva jako po plné pěšině – trasy se k ní stahují. */
+const ROAD_STRENGTH = 1;
 /**
  * Provoz v cestách za den: pod `min` se pěšina nevyšlape (jednotlivé cesty nekreslí), od `full`
- * je plná; mezi tím síla roste s logaritmem provozu (`ref` = měřítko).
+ * je plná; mezi tím síla roste s odmocninou provozu (pomalu – přesná aritmetika místo logaritmu).
  */
-export const PATH_TRAFFIC = { min: 0.6, ref: 1, full: 10 } as const;
+export const PATH_TRAFFIC = { min: 0.6, full: 10 } as const;
 /** Za kolik let od vzniku je spojení vyšlapané naplno (domácnost i cíl) – pěšina se objevuje. */
 export const PATH_AGE_FULL_YEARS = 2;
 const DAYS_PER_YEAR = 365.25;
@@ -100,11 +207,23 @@ const BASE_TRIPS = {
   field: 1.6,
   fallow: 0.4,
   orchard: 0.8,
-  cemetery: 0.7,
   site: 0.6,
   sacred: 0.6,
-  logPile: 0.8,
+  pen: 0.8,
 } as const;
+/**
+ * Stáda na pastvě (diet.md, jako scéna – livestock-placement.ts): ovce s kozami po 20 kusech,
+ * krávy po 6; pasáček vyžene každé stádo jednou denně na úhor a zpět (jedna cesta). Mladý úhor se
+ * pase vždy, louka na seno až po seči (srpen–listopad); prasata jdou do lesa (cesty pro dřevo).
+ */
+const PASTURE = { flockHeads: 20, cattleHeads: 6, tripsPerHerd: 1 } as const;
+const AFTERMATH_MONTHS: readonly number[] = [8, 9, 10, 11];
+/**
+ * Návštěvy hrobů předků (Martin schválil, návrh Clauda – raní Slované je navštěvovali pravidelně:
+ * obětiny, hostiny za mrtvé): cest za den na člověka domácnosti, každá domácnost k nejbližšímu
+ * hřbitovu (ves se 7 lidmi ≈ 1 cesta denně, se 40 lidmi ≈ 6).
+ */
+const CEMETERY_VISITS_PER_PERSON = 0.15;
 /** Lidí na domácnost bez rozdělení práce (ves uložená dřív). */
 const DEFAULT_HOUSEHOLD = 5;
 /** Menší cesta za den se nehledá. */
@@ -126,10 +245,16 @@ const STAGE_COST: Record<PartStage, number> = {
   sown: 12,
   'young-fallow': 1.1,
   meadow: 1.25,
+  // zarůstající příloh (fields.md – Zarůstání): trnité křoviny, houština mladého lesa
+  shrubs: 2.2,
+  'young-forest': 1.8,
 };
-/** Sad (pod jabloněmi, okopané kmeny) a hřbitov (plot, hroby). */
+/** Les vsi na bývalé louce – jako les krajiny (terrain.ts – FOREST_COST). */
+const WOOD_COST = 1.35;
+/** Sad (pod jabloněmi, okopané kmeny), hřbitov (plot, hroby) a ohrada (plot ze žerdí). */
 const ORCHARD_COST = 1.6;
 const CEMETERY_COST = 15;
+const PEN_COST = 15;
 /** Svatyně – ohrazený posvátný okrsek (modla stojí na malém půdorysu – neprůchodná). */
 const SHRINE_COST = 2.5;
 /** Okraj domu, kam pěšina nesmí (m). */
@@ -165,7 +290,7 @@ const WINDOW_ROUND_M = 90;
  * ven (stabilní okno) a nejvýš MAX_WINDOW_HALF_M od středu obydlí. Ves bez obydlí null.
  */
 export function pathBounds(
-  village: SceneVillage,
+  village: PathVillage,
 ): { minX: number; minZ: number; maxX: number; maxZ: number } | null {
   if (village.dwellings.length === 0) return null;
   const xs: number[] = [];
@@ -183,6 +308,8 @@ export function pathBounds(
   for (const o of village.sacred?.oaks ?? []) add(o.x, o.z);
   for (const g of village.sacred?.groves ?? []) add(g.x, g.z);
   for (const b of village.sacred?.buildings ?? []) add(b.position.x, b.position.z);
+  for (const p of village.pens ?? []) add(p.x, p.z);
+  for (const m of mowedMeadows(village)) add(m.x, m.z);
   const clampX = (x: number): number =>
     Math.min(cx + MAX_WINDOW_HALF_M, Math.max(cx - MAX_WINDOW_HALF_M, x));
   const clampZ = (z: number): number =>
@@ -197,13 +324,30 @@ export function pathBounds(
   };
 }
 
+/**
+ * Políčka přirozených luk, kde ves seče (práce `meadow` v rozdělení práce – v roční síti za rok),
+ * podle `hayMeadows`; políčko, které ves nezná, vypadne.
+ */
+function mowedMeadows(village: PathVillage): PathSquare[] {
+  const meadows = village.hayMeadows ?? [];
+  if (meadows.length === 0) return [];
+  const byCell = new Map(meadows.map((m) => [`${m.cell.x},${m.cell.y}`, m]));
+  const out = new Map<string, PathSquare>();
+  for (const share of village.labor?.shares ?? []) {
+    if (share.target.kind !== 'meadow' || share.manDays <= 0) continue;
+    for (const c of share.target.cells) {
+      const key = `${c.x},${c.y}`;
+      const m = byCell.get(key);
+      if (m) out.set(key, m);
+    }
+  }
+  return [...out.values()];
+}
+
 /** Síla pěšiny 0–1 z provozu (cest za den); pod prahem 0. */
 export function pathStrength(trips: number): number {
   if (trips < PATH_TRAFFIC.min) return 0;
-  return Math.min(
-    1,
-    Math.log1p(trips / PATH_TRAFFIC.ref) / Math.log1p(PATH_TRAFFIC.full / PATH_TRAFFIC.ref),
-  );
+  return Math.min(1, Math.sqrt(trips / PATH_TRAFFIC.full));
 }
 
 /** Kolik spojení je vyšlapané podle stáří (roky) – za PATH_AGE_FULL_YEARS naplno. */
@@ -216,7 +360,7 @@ export function pathAgeFactor(years: number): number {
  * přepočítá, jen když se změní. Člověkodny po půlkách, stáří po desetinách – denní drobné změny
  * síť nepřestavují.
  */
-export function pathNetworkKey(village: SceneVillage): string {
+export function pathNetworkKey(village: PathVillage): string {
   const day = village.labor?.day ?? null;
   const dwellings = village.dwellings.map((d) => {
     const age =
@@ -227,7 +371,11 @@ export function pathNetworkKey(village: SceneVillage): string {
     return `${d.id}:${d.type}${d.craft ? `/${d.craft}` : ''}:${d.built ? 1 : 0}:${d.inhabited === false ? 0 : 1}:${age}:${plot}:${d.position.x.toFixed(1)},${d.position.z.toFixed(1)},${d.position.rotation.toFixed(2)}`;
   });
   const fields = village.fields.map(
-    (f) => `${f.id}:${f.parts.map((p) => `${p.cell.x},${p.cell.y},${p.stage}`).join(';')}`,
+    (f) =>
+      `${f.id}:${f.parts.map((p) => `${p.cell.x},${p.cell.y},${p.stage}${p.grazed === false ? ',-' : ''}`).join(';')}`,
+  );
+  const woods = (village.woods ?? []).map(
+    (w) => `${w.cell.x},${w.cell.y}${w.surface === 'forest' ? 'f' : ''}`,
   );
   const orchards = (village.orchards ?? []).map(
     (o) => `${o.id}:${o.squares.map((s) => `${s.cell.x},${s.cell.y}`).join(';')}`,
@@ -252,6 +400,9 @@ export function pathNetworkKey(village: SceneVillage): string {
   const obstacles = village.obstacles
     ? `${village.obstacles.removed.length},${village.obstacles.stumps.length}`
     : '';
+  const pens = (village.pens ?? []).map(
+    (p) => `${p.id}:${p.cell.x},${p.cell.y}:${p.built ? 1 : 0}`,
+  );
   return JSON.stringify([
     dwellings,
     fields,
@@ -259,9 +410,53 @@ export function pathNetworkKey(village: SceneVillage): string {
     cemeteries,
     sacred,
     labor,
-    (village.woodLogs ?? 0) > 0 ? 1 : 0,
     obstacles,
+    roadsKey(village.roads),
+    pens,
+    pastureHerds(village.livestock),
+    // bez lesa vsi prázdné – klíč starších vsí zůstane stejný
+    ...(woods.length > 0 ? [woods] : []),
   ]);
+}
+
+/** Bod v polovině lomené čáry. */
+function middleOf(points: readonly PathPoint[]): PathPoint {
+  let total = 0;
+  for (let k = 1; k < points.length; k++) {
+    total += length2(points[k]!.x - points[k - 1]!.x, points[k]!.z - points[k - 1]!.z);
+  }
+  let along = 0;
+  for (let k = 1; k < points.length; k++) {
+    const a = points[k - 1]!;
+    const b = points[k]!;
+    const length = length2(b.x - a.x, b.z - a.z);
+    if (length > 0 && along + length >= total / 2) {
+      const u = (total / 2 - along) / length;
+      return { x: a.x + (b.x - a.x) * u, z: a.z + (b.z - a.z) * u };
+    }
+    along += length;
+  }
+  return points[0]!;
+}
+
+/** Kolik stád se pase (ovce s kozami, krávy – PASTURE); prasata ne. */
+export function pastureHerds(livestock: PathVillage['livestock']): number {
+  const whole = (n: number | undefined): number => Math.max(0, Math.round(n ?? 0));
+  const flock = whole(livestock?.sheep) + whole(livestock?.goat);
+  return (
+    Math.ceil(flock / PASTURE.flockHeads) + Math.ceil(whole(livestock?.cow) / PASTURE.cattleHeads)
+  );
+}
+
+/** Klíč pevných cest – počet bodů, konce každé osy (osa se jinak nemění) a stupeň. */
+export function roadsKey(roads: PathVillage['roads']): string {
+  return (roads ?? [])
+    .map((r) => {
+      const a = r.points[0];
+      const b = r.points[r.points.length - 1];
+      return a && b ? `${r.points.length}:${a.x},${a.z}:${b.x},${b.z}:${r.grade ?? ''}` : '';
+    })
+    .join(';');
 }
 
 function ageBucket(days: number): number {
@@ -269,13 +464,19 @@ function ageBucket(days: number): number {
 }
 
 /** Člověkodny dne po místech (klíč místa), po půlkách – nulová místa vynechá. */
-function laborByTarget(village: SceneVillage): [string, number][] {
+function laborByTarget(village: PathVillage): [string, number][] {
   const sums = new Map<string, number>();
   for (const share of village.labor?.shares ?? []) {
     const t = share.target;
     if (t.kind === 'village') continue;
-    const key = t.kind === 'trees' ? `trees:${t.ids.join('.')}` : `${t.kind}:${t.id}`;
-    sums.set(key, (sums.get(key) ?? 0) + share.manDays);
+    const key =
+      t.kind === 'trees'
+        ? `trees:${t.ids.join('.')}`
+        : t.kind === 'meadow'
+          ? `meadow:${t.cells.map((c) => `${c.x}.${c.y}`).join('_')}`
+          : `${t.kind}:${t.id}`;
+    // na setiny jako ve scéně (village-view.ts) – server i prohlížeč pak sečtou totéž
+    sums.set(key, (sums.get(key) ?? 0) + Math.round(share.manDays * 100) / 100);
   }
   return [...sums.entries()]
     .map(([key, manDays]): [string, number] => [key, Math.round(manDays * 2) / 2])
@@ -333,6 +534,13 @@ interface Square {
   size: number;
 }
 
+/** Číselný klíč políčka (celá čísla do ±2^20 – krajina je o řády menší). */
+function tileKey(x: number, y: number): number {
+  return (x + TILE_KEY_OFFSET) * TILE_KEY_SPAN + (y + TILE_KEY_OFFSET);
+}
+const TILE_KEY_OFFSET = 1_048_576; // 2^20
+const TILE_KEY_SPAN = 2_097_152; // 2^21
+
 /**
  * Buňky čtverců (políček) jedné stavby: `inside` – střed uvnitř nebo na hraně mezi dvěma
  * čtverci (mezi díly pole meze nejsou), `edge` – střed na vnější hraně (tam vede pěšina podél
@@ -341,12 +549,15 @@ interface Square {
 function squareCells(grid: Grid, squares: readonly Square[]): { inside: number[]; edge: number[] } {
   const first = squares[0];
   if (!first) return { inside: [], edge: [] };
-  const tiles = new Set(squares.map((s) => `${s.cell.x},${s.cell.y}`));
+  const tiles = new Set(squares.map((s) => tileKey(s.cell.x, s.cell.y)));
   const left = first.x - first.size / 2;
   const top = first.z - first.size / 2;
   const inUnion = (x: number, z: number): boolean =>
     tiles.has(
-      `${first.cell.x + Math.floor((x - left) / first.size)},${first.cell.y + Math.floor((z - top) / first.size)}`,
+      tileKey(
+        first.cell.x + Math.floor((x - left) / first.size),
+        first.cell.y + Math.floor((z - top) / first.size),
+      ),
     );
   const seen = new Set<number>();
   const inside: number[] = [];
@@ -369,15 +580,30 @@ function squareCells(grid: Grid, squares: readonly Square[]): { inside: number[]
   return { inside, edge };
 }
 
-/** Stavba, kterou pěšiny obcházejí: dům (i se šíjí a zahrádkou), staveniště, modla. */
+/** Obdélník v souřadnicích domu (x napříč, z k vchodu, m). */
+export interface PathBox {
+  minX: number;
+  maxX: number;
+  minZ: number;
+  maxZ: number;
+}
+
+/** Stavba, kterou pěšiny obcházejí: dům (i se šíjí), pozemek, staveniště, modla. */
 interface Building {
   position: Position;
-  box: { minX: number; maxX: number; minZ: number; maxZ: number };
+  box: PathBox;
+}
+
+/** Bod v souřadnicích domu (x napříč, z k vchodu) → svět (natočení jako `mesh.rotation.y`). */
+function localToWorld(position: Position, lx: number, lz: number): [number, number] {
+  const c = detCos(position.rotation);
+  const s = detSin(position.rotation);
+  return [position.x + lx * c + lz * s, position.z - lx * s + lz * c];
 }
 
 function inBuilding(b: Building, x: number, z: number, margin: number): boolean {
-  const c = Math.cos(b.position.rotation);
-  const s = Math.sin(b.position.rotation);
+  const c = detCos(b.position.rotation);
+  const s = detSin(b.position.rotation);
   const dx = x - b.position.x;
   const dz = z - b.position.z;
   const lx = dx * c - dz * s;
@@ -409,9 +635,54 @@ function buildingBounds(b: Building, margin: number): [number, number, number, n
  * Obdélník obydlí pro pěšiny: na pozemku celé oplocené políčko (brána = branka na přední
  * straně proti vchodu), volné obydlí jako dům se šíjí, rozestavěné jako staveniště.
  */
-function dwellingBox(d: SceneVillage['dwellings'][number]): Building['box'] {
-  if (d.plot) return plotBox(d.position, d.plot);
-  return d.built ? houseBox(d.type) : siteBox(d.type);
+function dwellingBox(d: PathVillage['dwellings'][number]): PathBox {
+  if (d.plot) return plotPathBox(d.position, d.plot);
+  return d.built ? DWELLING_PATH_BOX_M[d.type] : sitePathBox(d.type);
+}
+
+/**
+ * Dům se střechou a šíjí v souřadnicích domu (x napříč, z k vchodu) – stejný obdélník jako
+ * u slepic a postav ve scéně (`chickenBox` + `houseBox` ve webu, hlídá test).
+ */
+export const DWELLING_PATH_BOX_M: Record<DwellingType, PathBox> = {
+  zemnice: { minX: -2.9, maxX: 2.9, minZ: -3.3, maxZ: 4.2 },
+  polozemnice: { minX: -3.4, maxX: 3.4, minZ: -3.8, maxZ: 3.8 },
+};
+/** Staveniště sahá s hromadou hlíny a nářadím před dům nejméně tak daleko (m). */
+const SITE_FRONT_M = 5;
+
+/** Staveniště: celá vyklízená plocha (jako `siteBox` postav ve scéně). */
+function sitePathBox(type: DwellingType): PathBox {
+  const clearance = DWELLING_CLEARING_M[type];
+  return {
+    minX: clearance.minX,
+    maxX: clearance.maxX,
+    minZ: clearance.minZ,
+    maxZ: Math.max(DWELLING_PATH_BOX_M[type].maxZ, SITE_FRONT_M),
+  };
+}
+
+/** Oplocený pozemek v osách domu (jako `plotBox` postav ve scéně). */
+function plotPathBox(position: Position, plot: { x: number; z: number; size: number }): PathBox {
+  const h = plot.size / 2;
+  const c = detCos(position.rotation);
+  const s = detSin(position.rotation);
+  const local = [
+    [plot.x - h, plot.z - h],
+    [plot.x + h, plot.z - h],
+    [plot.x + h, plot.z + h],
+    [plot.x - h, plot.z + h],
+  ].map(([x, z]) => {
+    const dx = x! - position.x;
+    const dz = z! - position.z;
+    return [dx * c - dz * s, dx * s + dz * c] as const;
+  });
+  return {
+    minX: Math.min(...local.map((p) => p[0])),
+    maxX: Math.max(...local.map((p) => p[0])),
+    minZ: Math.min(...local.map((p) => p[1])),
+    maxZ: Math.max(...local.map((p) => p[1])),
+  };
 }
 
 /** Brána domu – kus před koncem šíje (odtud vychází pěšina). */
@@ -439,8 +710,9 @@ function villageGrid(input: PathNetworkInput, buildings: readonly Building[]): G
   const v = input.village;
   for (const field of v.fields) {
     // hrana mezi díly téhož pole je uvnitř pole (meze nejsou) – cena podle nejbližšího dílu
+    const nearestPart = nearestPartFinder(field.parts, field.parts[0]?.size ?? 0);
     for (const c of squareCells(grid, field.parts).inside) {
-      const stage = nearestPart(field.parts, cellX(grid, c), cellZ(grid, c)).stage;
+      const stage = nearestPart(cellX(grid, c), cellZ(grid, c)).stage;
       grid.base[c] = grid.base[c]! * STAGE_COST[stage];
       grid.village[c] = 1;
     }
@@ -456,6 +728,16 @@ function villageGrid(input: PathNetworkInput, buildings: readonly Building[]): G
       grid.base[c] = grid.base[c]! * CEMETERY_COST;
       grid.village[c] = 1;
     }
+  }
+  for (const pen of v.pens ?? []) {
+    for (const c of squareCells(grid, [pen]).inside) {
+      grid.base[c] = grid.base[c]! * PEN_COST;
+      grid.village[c] = 1;
+    }
+  }
+  const woods = (v.woods ?? []).filter((w) => w.surface !== 'forest');
+  if (woods.length > 0) {
+    for (const c of squareCells(grid, woods).inside) grid.base[c] = grid.base[c]! * WOOD_COST;
   }
   for (const b of v.sacred?.buildings ?? []) {
     if (b.kind !== 'shrine') continue;
@@ -483,23 +765,6 @@ function villageGrid(input: PathNetworkInput, buildings: readonly Building[]): G
   return grid;
 }
 
-function nearestPart<T extends { x: number; z: number }>(
-  parts: readonly T[],
-  x: number,
-  z: number,
-): T {
-  let best = parts[0]!;
-  let bestD = Infinity;
-  for (const p of parts) {
-    const d = Math.abs(p.x - x) + Math.abs(p.z - z);
-    if (d < bestD) {
-      best = p;
-      bestD = d;
-    }
-  }
-  return best;
-}
-
 /** Nejbližší průchodná buňka k bodu (do `reach` buněk), nebo −1. */
 function passableNear(grid: Grid, x: number, z: number, reach: number): number {
   const ci = Math.round((x - grid.originX) / grid.cellM);
@@ -513,7 +778,7 @@ function passableNear(grid: Grid, x: number, z: number, reach: number): number {
       if (i < 0 || j < 0 || i >= grid.width || j >= grid.height) continue;
       const c = j * grid.width + i;
       if (!Number.isFinite(grid.base[c]!)) continue;
-      const d = Math.hypot(grid.originX + i * grid.cellM - x, grid.originZ + j * grid.cellM - z);
+      const d = length2(grid.originX + i * grid.cellM - x, grid.originZ + j * grid.cellM - z);
       if (d < bestD) {
         best = c;
         bestD = d;
@@ -527,13 +792,41 @@ function passableNear(grid: Grid, x: number, z: number, reach: number): number {
 function cellsAround(grid: Grid, p: PathPoint, radius: number): number[] {
   const out: number[] = [];
   cellsIn(grid, p.x - radius, p.z - radius, p.x + radius, p.z + radius, (c, x, z) => {
-    if (Math.hypot(x - p.x, z - p.z) <= radius && Number.isFinite(grid.base[c]!)) out.push(c);
+    if (length2(x - p.x, z - p.z) <= radius && Number.isFinite(grid.base[c]!)) out.push(c);
   });
   if (out.length === 0) {
     const near = passableNear(grid, p.x, p.z, 3);
     if (near >= 0) out.push(near);
   }
   return out;
+}
+
+/**
+ * Buňky pevných cest (síla ROAD_STRENGTH, jinak 0) – osy se projdou po třetinách buňky a označí
+ * se nejbližší buňka, takže cesta je souvislá řada buněk. Bez cest null.
+ */
+function roadCells(grid: Grid, roads: PathVillage['roads']): Float32Array | null {
+  if (!roads || roads.length === 0) return null;
+  const fixed = new Float32Array(grid.width * grid.height);
+  const step = grid.cellM / 3;
+  const mark = (x: number, z: number): void => {
+    const i = Math.round((x - grid.originX) / grid.cellM);
+    const j = Math.round((z - grid.originZ) / grid.cellM);
+    if (i < 0 || j < 0 || i >= grid.width || j >= grid.height) return;
+    const c = j * grid.width + i;
+    if (Number.isFinite(grid.base[c]!)) fixed[c] = ROAD_STRENGTH;
+  };
+  for (const road of roads) {
+    const pts = road.points;
+    if (pts.length === 1) mark(pts[0]!.x, pts[0]!.z);
+    for (let k = 1; k < pts.length; k++) {
+      const a = pts[k - 1]!;
+      const b = pts[k]!;
+      const n = Math.max(1, Math.ceil(length2(b.x - a.x, b.z - a.z) / step));
+      for (let s = 0; s <= n; s++) mark(a.x + ((b.x - a.x) * s) / n, a.z + ((b.z - a.z) * s) / n);
+    }
+  }
+  return fixed;
 }
 
 // --- cesty -----------------------------------------------------------------------------------
@@ -574,7 +867,7 @@ interface TripGroup {
 }
 
 function households(
-  village: SceneVillage,
+  village: PathVillage,
   grid: Grid,
   buildings: Map<number, Building>,
 ): Household[] {
@@ -649,11 +942,63 @@ function tripGroups(
     // nově zakládané pole: pěšina se teprve vyšlapává
     target(squaresTarget(field.parts), base + work(`field:${field.id}`), founding ? 0.5 : 1);
   }
-  for (const orchard of v.orchards ?? []) {
-    target(squaresTarget(orchard.squares), BASE_TRIPS.orchard + work(`orchard:${orchard.id}`));
+  // sad: zavedené místo jen k nejbližšímu sadu, práce dne tam, kde se dnes pracuje
+  const orchards = v.orchards ?? [];
+  const nearestOrchard = nearestOfKind(
+    homes,
+    orchards.map((o) => o.squares),
+  );
+  orchards.forEach((orchard, k) => {
+    const sources = squaresTarget(orchard.squares);
+    if (sources.length === 0) return;
+    const base = shareWeights(homes, BASE_TRIPS.orchard);
+    const builders = shareWeights(homes, work(`orchard:${orchard.id}`));
+    const weights = homes.map((_, i) => builders[i]! + (nearestOrchard[i] === k ? base[i]! : 0));
+    if (weights.every((w) => w < MIN_TRIP)) return;
+    groups.push({ sources, weights, maxCost: groupReach(grid, sources, homes) });
+  });
+  // hřbitov: návštěvy hrobů podle lidí v domácnosti (k nejbližšímu hřbitovu) a práce dne
+  const cemeteries = v.cemeteries ?? [];
+  const nearestCemetery = nearestOfKind(
+    homes,
+    cemeteries.map((c) => c.squares),
+  );
+  cemeteries.forEach((cemetery, k) => {
+    const sources = squaresTarget(cemetery.squares);
+    if (sources.length === 0) return;
+    const builders = shareWeights(homes, work(`cemetery:${cemetery.id}`));
+    const weights = homes.map(
+      (h, i) =>
+        builders[i]! + (nearestCemetery[i] === k ? CEMETERY_VISITS_PER_PERSON * h.size * h.age : 0),
+    );
+    if (weights.every((w) => w <= 0)) return;
+    groups.push({ sources, weights, maxCost: groupReach(grid, sources, homes) });
+  });
+  // vylepšení pevné cesty (roads.md) – nosí se k polovině úseku
+  for (const road of v.roads ?? []) {
+    if (road.id === undefined || road.points.length === 0) continue;
+    const trips = work(`road:${road.id}`);
+    if (trips > 0) target(cellsAround(grid, middleOf(road.points), 3), trips);
   }
-  for (const cemetery of v.cemeteries ?? []) {
-    target(squaresTarget(cemetery.squares), BASE_TRIPS.cemetery + work(`cemetery:${cemetery.id}`));
+  // ohrada: krmení a napájení dobytka, stavba a rádlo (práce dne na ohradě)
+  for (const pen of v.pens ?? []) {
+    const base = pen.built ? BASE_TRIPS.pen : BASE_TRIPS.site;
+    target(squaresTarget([pen]), base + work(`pen:${pen.id}`));
+  }
+  // stáda na pastvu – na úhor vsi (louka na seno až po seči; v roční síti obojí)
+  const herds = pastureHerds(v.livestock);
+  if (herds > 0) {
+    const aftermath = input.annual || AFTERMATH_MONTHS.includes(v.labor?.month ?? 6);
+    // jen díly, které stáda opravdu spásají (fields.md – Zarůstání – nejbližší příloh napřed)
+    const pasture = v.fields.flatMap((f) =>
+      f.parts.filter(
+        (p) =>
+          p.grazed !== false && (p.stage === 'young-fallow' || (aftermath && p.stage === 'meadow')),
+      ),
+    );
+    if (pasture.length > 0) {
+      target(squaresTarget(pasture), herds * PASTURE.tripsPerHerd);
+    }
   }
   // staveniště nových obydlí – nosí se k jejich čelu
   for (const d of v.dwellings) {
@@ -666,6 +1011,18 @@ function tripGroups(
       if (repair > 0) target(cellsAround(grid, gateOf(b), 2.5), repair);
     }
   }
+  // seč přirozených luk (oxen.md – Seno): k políčkům, kde se dnes seče, chodí sekáči
+  if (v.hayMeadows && v.hayMeadows.length > 0) {
+    const byCell = new Map(v.hayMeadows.map((m) => [`${m.cell.x},${m.cell.y}`, m]));
+    for (const t of v.labor?.shares ?? []) {
+      if (t.target.kind !== 'meadow') continue;
+      const squares = t.target.cells.flatMap((c) => {
+        const m = byCell.get(`${c.x},${c.y}`);
+        return m ? [m] : [];
+      });
+      target(squaresTarget(squares), t.manDays * TRIPS_PER_MAN_DAY);
+    }
+  }
   for (const t of v.labor?.shares ?? []) {
     if (t.target.kind !== 'trees' || !input.tree) continue;
     const trees = t.target.ids.flatMap((id) => {
@@ -675,25 +1032,65 @@ function tripGroups(
     const sources = trees.flatMap((p) => cellsAround(grid, p, 2.5));
     target(sources, t.manDays * TRIPS_PER_MAN_DAY);
   }
-  for (const oak of v.sacred?.oaks ?? []) {
-    target(cellsAround(grid, oak, OAK_REACH_M), BASE_TRIPS.sacred);
+  // posvátná místa: každá domácnost chodí jen k nejbližšímu místu každého druhu (posvátný dub,
+  // háj, modla, svatyně – Martin); rozestavěná modla a svatyně jsou staveniště (práce dne)
+  const visit = (places: readonly { sources: number[]; at: readonly PathPoint[] }[]): void => {
+    if (places.length === 0) return;
+    const nearest = nearestOfKind(
+      homes,
+      places.map((p) => p.at),
+    );
+    const weights = shareWeights(homes, BASE_TRIPS.sacred);
+    places.forEach((place, k) => {
+      const own = weights.map((w, i) => (nearest[i] === k ? w : 0));
+      if (place.sources.length === 0 || own.every((w) => w < MIN_TRIP)) return;
+      groups.push({
+        sources: place.sources,
+        weights: own,
+        maxCost: groupReach(grid, place.sources, homes),
+      });
+    });
+  };
+  visit(
+    (v.sacred?.oaks ?? []).map((oak) => ({
+      sources: cellsAround(grid, oak, OAK_REACH_M),
+      at: [oak],
+    })),
+  );
+  visit(
+    (v.sacred?.groves ?? []).map((grove) => ({
+      sources: squaresTarget(grove.squares),
+      at: grove.squares,
+    })),
+  );
+  const sacredBuildings = v.sacred?.buildings ?? [];
+  for (const kind of ['idol', 'shrine'] as const) {
+    visit(
+      sacredBuildings
+        .filter((b) => b.built && b.kind === kind)
+        .map((b) => ({
+          sources: cellsAround(
+            grid,
+            b.position,
+            SACRED_BUILDINGS[b.kind].footprintM / 2 + grid.cellM,
+          ),
+          at: [b.position],
+        })),
+    );
   }
-  for (const grove of v.sacred?.groves ?? []) {
-    target(squaresTarget(grove.squares), BASE_TRIPS.sacred);
-  }
-  for (const b of v.sacred?.buildings ?? []) {
+  for (const b of sacredBuildings) {
+    if (b.built) continue;
     const half = SACRED_BUILDINGS[b.kind].footprintM / 2;
-    const trips = b.built ? BASE_TRIPS.sacred : BASE_TRIPS.site + work(`site:${b.id}`);
-    target(cellsAround(grid, b.position, half + grid.cellM), trips);
-  }
-  if (input.logPile && (v.woodLogs ?? 0) > 0) {
-    target(cellsAround(grid, input.logPile, 3.5), BASE_TRIPS.logPile);
+    target(
+      cellsAround(grid, b.position, half + grid.cellM),
+      BASE_TRIPS.site + work(`site:${b.id}`),
+    );
   }
   // sousedé – každá domácnost se dvěma nejbližšími (dvojice jednou)
   const pairs = new Set<string>();
   homes.forEach((h, a) => {
     const near = homes
-      .map((o, b) => ({ b, d: Math.hypot(o.x - h.x, o.z - h.z) }))
+      .map((o, b) => ({ b, d: length2(o.x - h.x, o.z - h.z) }))
       .filter((n) => n.b !== a)
       .sort((p, q) => p.d - q.d || p.b - q.b)
       .slice(0, NEIGHBOURS);
@@ -721,7 +1118,12 @@ function tripGroups(
  * domácnost k nejbližšímu místu. Cest za den: voda podle lidí v domácnosti, dřevo na domácnost
  * (v zimní půlce roku víc). Hledá se od všech míst najednou k branám.
  */
-function errandGroups(village: SceneVillage, grid: Grid, homes: readonly Household[]): TripGroup[] {
+function errandGroups(
+  annual: boolean,
+  village: PathVillage,
+  grid: Grid,
+  homes: readonly Household[],
+): TripGroup[] {
   const all = grid.width * grid.height;
   const water: number[] = [];
   const wood: number[] = [];
@@ -732,7 +1134,12 @@ function errandGroups(village: SceneVillage, grid: Grid, homes: readonly Househo
     if (f & PATH_FOREST_EDGE) wood.push(c);
   }
   const winter = WINTER_MONTHS.includes(village.labor?.month ?? 6);
-  const woodTrips = winter ? WOOD_TRIPS.winter : WOOD_TRIPS.summer;
+  const woodTrips = annual
+    ? (WOOD_TRIPS.winter * WINTER_MONTHS.length + WOOD_TRIPS.summer * (12 - WINTER_MONTHS.length)) /
+      12
+    : winter
+      ? WOOD_TRIPS.winter
+      : WOOD_TRIPS.summer;
   const groups: TripGroup[] = [];
   const marksOf = (cells: readonly number[]): Uint8Array => {
     const marks = new Uint8Array(all);
@@ -762,13 +1169,38 @@ function errandGroups(village: SceneVillage, grid: Grid, homes: readonly Househo
   return groups;
 }
 
+/**
+ * Nejbližší místo daného druhu každé domácnosti (index v `places`, −1 = žádné): vzdušnou čarou
+ * od domu k nejbližšímu bodu místa (čtverce, kmene, stavby), při shodě první místo. K zavedeným
+ * místům (posvátná místa, hřbitov, sad) chodí domácnost jen k nejbližšímu (Martin).
+ */
+function nearestOfKind(
+  homes: readonly Household[],
+  places: readonly (readonly PathPoint[])[],
+): number[] {
+  return homes.map((h) => {
+    let best = -1;
+    let bestD = Infinity;
+    places.forEach((points, k) => {
+      for (const p of points) {
+        const d = length2(p.x - h.x, p.z - h.z);
+        if (d < bestD) {
+          best = k;
+          bestD = d;
+        }
+      }
+    });
+    return best;
+  });
+}
+
 /** Nejbližší místo pochůzky každé domácnosti vzdušnou čarou (−1 = žádné) – směr pro A*. */
 function nearestByAir(grid: Grid, cells: readonly number[], homes: readonly Household[]): number[] {
   return homes.map((h) => {
     let best = -1;
     let bestD = Infinity;
     for (const c of cells) {
-      const d = Math.hypot(cellX(grid, c) - h.x, cellZ(grid, c) - h.z);
+      const d = length2(cellX(grid, c) - h.x, cellZ(grid, c) - h.z);
       if (d < bestD) {
         best = c;
         bestD = d;
@@ -793,16 +1225,16 @@ function groupReach(grid: Grid, sources: readonly number[], homes: readonly Hous
   sz /= sources.length;
   let spread = 0;
   for (const c of sources)
-    spread = Math.max(spread, Math.hypot(cellX(grid, c) - sx, cellZ(grid, c) - sz));
+    spread = Math.max(spread, length2(cellX(grid, c) - sx, cellZ(grid, c) - sz));
   let far = 0;
-  for (const h of homes) far = Math.max(far, Math.hypot(h.x - sx, h.z - sz));
+  for (const h of homes) far = Math.max(far, length2(h.x - sx, h.z - sz));
   return (far + spread + 40) * 6;
 }
 
 // --- hledání ---------------------------------------------------------------------------------
 
 /** Binární halda (min) nad buňkami s cenou – líné mazání (zastaralé záznamy se přeskočí). */
-class CellHeap {
+export class PathHeap {
   private keys = new Float64Array(1024);
   private cells = new Int32Array(1024);
   size = 0;
@@ -879,7 +1311,7 @@ interface SearchState {
   stamp: Uint32Array;
   run: number;
   parent: Int32Array;
-  heap: CellHeap;
+  heap: PathHeap;
   /** Brány domácností, ke kterým hledání ještě má dojít (1 = čeká). */
   sinks: Uint8Array;
 }
@@ -911,7 +1343,7 @@ function search(
   const weight = toward >= 0 ? A_STAR_WEIGHT * grid.cellM : 0;
   const estimate = (c: number): number => {
     const ci = c % w;
-    return Math.hypot(ci - ti, (c - ci) / w - tj) * weight;
+    return length2(ci - ti, (c - ci) / w - tj) * weight;
   };
   for (const s of sources) {
     if (stamp[s] === run) continue;
@@ -1182,7 +1614,7 @@ function searchErrand(
   const weight = toward >= 0 ? A_STAR_WEIGHT * grid.cellM : 0;
   const estimate = (c: number): number => {
     const ci = c % w;
-    return Math.hypot(ci - ti, (c - ci) / w - tj) * weight;
+    return length2(ci - ti, (c - ci) / w - tj) * weight;
   };
   // cíl hledání: místo (zbývá 0) nebo pěšina k místu (zbývá cena po ní) – záznam −(c + 1);
   // cíl se přijme o něco dřív (GOAL_SLACK), hledání pak neprochází celé okolí
@@ -1313,9 +1745,9 @@ export function computePathNetwork(input: PathNetworkInput): PathNetwork {
   // milíř uhlíře kus od zemnice – pěšina ho obejde (crafts.md)
   for (const d of v.dwellings) {
     if (d.craft !== 'burner') continue;
-    const half = MILIR_SHAPE_M.radius;
+    const half = MILIR_RADIUS_M;
     obstaclesOnly.push({
-      position: milirPlace(d.position),
+      position: milirPosition(d.position),
       box: { minX: -half, maxX: half, minZ: -half, maxZ: half },
     });
   }
@@ -1338,6 +1770,7 @@ export function computePathNetwork(input: PathNetworkInput): PathNetwork {
       width: grid.width,
       height: grid.height,
       values: new Float32Array(all),
+      raw: new Float32Array(all),
     },
     errands: new Map(),
     trips: 0,
@@ -1345,7 +1778,10 @@ export function computePathNetwork(input: PathNetworkInput): PathNetwork {
   const homes = households(v, grid, buildings);
   if (homes.length === 0) return empty;
   // nejvytíženější skupiny první – vyšlapou kmen, ke kterému se přidají ostatní
-  const groups = [...errandGroups(v, grid, homes), ...tripGroups(input, grid, homes, buildings)]
+  const groups = [
+    ...errandGroups(input.annual ?? false, v, grid, homes),
+    ...tripGroups(input, grid, homes, buildings),
+  ]
     .map((group, order) => ({ group, order, total: group.weights.reduce((a, b) => a + b, 0) }))
     .sort((a, b) => b.total - a.total || a.order - b.order)
     .map((g) => g.group);
@@ -1354,14 +1790,21 @@ export function computePathNetwork(input: PathNetworkInput): PathNetwork {
     stamp: new Uint32Array(all),
     run: 0,
     parent: new Int32Array(all),
-    heap: new CellHeap(),
+    heap: new PathHeap(),
     sinks: new Uint8Array(all),
   };
+  // pevné cesty: od začátku jako plná pěšina (sleva), síla buňky nikdy pod ni neklesne
+  const fixed = roadCells(grid, v.roads);
   const costs: PassCosts = {
     base: grid.base,
-    previous: new Float32Array(all),
+    previous: fixed ? new Float32Array(fixed) : new Float32Array(all),
     cost: new Float32Array(grid.base),
   };
+  if (fixed) {
+    for (let c = 0; c < all; c++) {
+      if (fixed[c]! > 0) costs.cost[c] = grid.base[c]! * (1 - PATH_DISCOUNT * fixed[c]!);
+    }
+  }
   let result: Traffic = {
     cells: new Float32Array(all),
     edges: new Float32Array(all * 4),
@@ -1373,7 +1816,7 @@ export function computePathNetwork(input: PathNetworkInput): PathNetwork {
   for (let pass = 0; pass < PASSES; pass++) {
     if (pass > 0) {
       for (let c = 0; c < all; c++) {
-        const s = pathStrength(smooth[c]!);
+        const s = fixed ? Math.max(fixed[c]!, pathStrength(smooth[c]!)) : pathStrength(smooth[c]!);
         costs.previous[c] = s;
         costs.cost[c] = s > 0 ? grid.base[c]! * (1 - PATH_DISCOUNT * s) : grid.base[c]!;
       }
@@ -1384,7 +1827,7 @@ export function computePathNetwork(input: PathNetworkInput): PathNetwork {
   }
   return {
     lines: extractLines(grid, result, new Map(homes.map((h) => [h.gate, h.gatePoint]))),
-    traffic: { ...empty.traffic, values: smooth },
+    traffic: { ...empty.traffic, values: smooth, raw: result.cells },
     errands,
     trips: result.trips,
   };
@@ -1479,8 +1922,8 @@ function extractLines(
     });
     const first = adjacency.get(chain[0]!)!.size;
     const last = adjacency.get(chain[chain.length - 1]!)!.size;
-    const simple = simplify(points, [strength, years], SIMPLIFY_M);
-    const smoothed = chaikin(simple.points, simple.values, SMOOTH_PASSES);
+    const simple = simplifyPathLine(points, [strength, years], SIMPLIFY_M);
+    const smoothed = smoothPathLine(simple.points, simple.values, SMOOTH_PASSES);
     lines.push({
       points: smoothed.points,
       strength: smoothed.values[0]!,
@@ -1493,7 +1936,7 @@ function extractLines(
 }
 
 /** Douglasův–Peuckerův algoritmus (konce zůstanou) – hodnoty v bodech (síla…) v ponechaných. */
-export function simplify(
+export function simplifyPathLine(
   points: readonly PathPoint[],
   values: readonly (readonly number[])[],
   tolerance: number,
@@ -1509,7 +1952,7 @@ export function simplify(
     const pb = points[b]!;
     const dx = pb.x - pa.x;
     const dz = pb.z - pa.z;
-    const length = Math.hypot(dx, dz);
+    const length = length2(dx, dz);
     let worst = -1;
     let worstD = tolerance;
     for (let k = a + 1; k < b; k++) {
@@ -1517,7 +1960,7 @@ export function simplify(
       const d =
         length > 1e-9
           ? Math.abs((p.x - pa.x) * dz - (p.z - pa.z) * dx) / length
-          : Math.hypot(p.x - pa.x, p.z - pa.z);
+          : length2(p.x - pa.x, p.z - pa.z);
       if (d > worstD) {
         worst = k;
         worstD = d;
@@ -1539,7 +1982,7 @@ export function simplify(
 }
 
 /** Chaikinovo vyhlazení lomené čáry (konce zůstanou na místě), hodnoty v bodech se interpolují. */
-export function chaikin(
+export function smoothPathLine(
   points: readonly PathPoint[],
   values: readonly (readonly number[])[],
   passes: number,
@@ -1569,123 +2012,4 @@ export function chaikin(
     vs = nv;
   }
   return { points: p, values: vs };
-}
-
-// --- chůze po pěšinách (postavy) -------------------------------------------------------------
-
-/** Trasa postavy po pěšinách – body [x, z] od startu do cíle, nebo null (jde rovnou). */
-export type PathRoute = [number, number][];
-
-/** Na pěšinu se odbočí nejvýš z takové dálky (m). */
-const ENTRY_MAX_M = 30;
-/** Trasa po pěšinách smí být nejvýš tolikrát (a o tolik m) delší než přímá – jinak se jde rovnou. */
-const DETOUR = { factor: 1.7, extraM: 12 } as const;
-/** Mřížka pro hledání nejbližšího bodu pěšiny (m). */
-const BUCKET_M = 12;
-
-export interface PathRouter {
-  /** Trasa z `a` do `b` po pěšinách (k nejbližšímu bodu pěšiny, po ní, od ní k cíli). */
-  route(a: PathPoint, b: PathPoint): PathRoute | null;
-}
-
-/** Hledání tras po pěšinách sítě – graf bodů os (rozcestí sdílejí bod). */
-export function pathRouter(network: Pick<PathNetwork, 'lines'>): PathRouter {
-  const xs: number[] = [];
-  const zs: number[] = [];
-  const links: { to: number; length: number }[][] = [];
-  const shared = new Map<string, number>();
-  const node = (p: PathPoint, end: boolean): number => {
-    const key = end ? `${p.x.toFixed(3)},${p.z.toFixed(3)}` : null;
-    if (key !== null) {
-      const found = shared.get(key);
-      if (found !== undefined) return found;
-    }
-    xs.push(p.x);
-    zs.push(p.z);
-    links.push([]);
-    const id = xs.length - 1;
-    if (key !== null) shared.set(key, id);
-    return id;
-  };
-  for (const line of network.lines) {
-    let prev = -1;
-    line.points.forEach((p, k) => {
-      const id = node(p, k === 0 || k === line.points.length - 1);
-      if (prev >= 0 && prev !== id) {
-        const length = Math.hypot(xs[id]! - xs[prev]!, zs[id]! - zs[prev]!);
-        links[prev]!.push({ to: id, length });
-        links[id]!.push({ to: prev, length });
-      }
-      prev = id;
-    });
-  }
-  const buckets = new Map<string, number[]>();
-  const bucketKey = (bx: number, bz: number): string => `${bx},${bz}`;
-  for (let id = 0; id < xs.length; id++) {
-    const key = bucketKey(Math.floor(xs[id]! / BUCKET_M), Math.floor(zs[id]! / BUCKET_M));
-    const list = buckets.get(key);
-    if (list) list.push(id);
-    else buckets.set(key, [id]);
-  }
-  const nearest = (p: PathPoint): number => {
-    const bx = Math.floor(p.x / BUCKET_M);
-    const bz = Math.floor(p.z / BUCKET_M);
-    const reach = Math.ceil(ENTRY_MAX_M / BUCKET_M);
-    let best = -1;
-    let bestD = ENTRY_MAX_M;
-    for (let dz = -reach; dz <= reach; dz++) {
-      for (let dx = -reach; dx <= reach; dx++) {
-        for (const id of buckets.get(bucketKey(bx + dx, bz + dz)) ?? []) {
-          const d = Math.hypot(xs[id]! - p.x, zs[id]! - p.z);
-          if (d < bestD) {
-            best = id;
-            bestD = d;
-          }
-        }
-      }
-    }
-    return best;
-  };
-  return {
-    route(a, b) {
-      if (xs.length === 0) return null;
-      const from = nearest(a);
-      const to = nearest(b);
-      if (from < 0 || to < 0 || from === to) return null;
-      // Dijkstra po grafu os (malý – stovky až tisíce bodů)
-      const dist = new Float64Array(xs.length).fill(Infinity);
-      const parent = new Int32Array(xs.length).fill(-1);
-      const heap = new CellHeap();
-      dist[from] = 0;
-      heap.push(from, 0);
-      while (heap.size > 0) {
-        const c = heap.pop();
-        const d = heap.topKey;
-        if (d > dist[c]!) continue;
-        if (c === to) break;
-        for (const { to: n, length } of links[c]!) {
-          const nd = d + length;
-          if (nd < dist[n]!) {
-            dist[n] = nd;
-            parent[n] = c;
-            heap.push(n, nd);
-          }
-        }
-      }
-      if (!Number.isFinite(dist[to]!)) return null;
-      const chain: number[] = [];
-      for (let c = to; c >= 0; c = parent[c]!) chain.push(c);
-      chain.reverse();
-      const points: PathRoute = [[a.x, a.z]];
-      for (const id of chain) points.push([xs[id]!, zs[id]!]);
-      points.push([b.x, b.z]);
-      let length = 0;
-      for (let k = 1; k < points.length; k++) {
-        length += Math.hypot(points[k]![0] - points[k - 1]![0], points[k]![1] - points[k - 1]![1]);
-      }
-      const direct = Math.hypot(b.x - a.x, b.z - a.z);
-      if (length > direct * DETOUR.factor + DETOUR.extraM) return null;
-      return points;
-    },
-  };
 }

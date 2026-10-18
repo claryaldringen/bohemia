@@ -21,6 +21,7 @@ import {
   SEED_KG_PER_HA,
   SOW_RESERVE,
   TASK_ORDER,
+  YOUNG_FALLOW_YEARS,
   dailyMinPerHousehold,
   distanceFactor,
   dwellingBuildLabor,
@@ -267,8 +268,11 @@ export function steadyState(input: SteadyInput): SteadyResult {
   const capacityPerDay = laborPerDay(h) * count;
   const dailyMinPerDay = dailyMinPerHousehold(NO_CRAFTS.pottery) * count;
   const free = Math.max(0, capacityPerDay - dailyMinPerDay);
-  // vrácení přílohu po ROTATION.fallow letech – drn pastviny
-  const reclaimPerHa = reclaimCostPerHa(ROTATION.fallow, NO_CRAFTS.tools);
+  // vrácení přílohu po ROTATION.fallow letech – drn pastviny (spásaný příloh nezarůstá)
+  const reclaimPerHa = reclaimCostPerHa(
+    ROTATION.fallow > YOUNG_FALLOW_YEARS ? 'meadow' : 'young-fallow',
+    NO_CRAFTS.tools,
+  );
   const orchardAutumn = ORCHARD.harvestPerHa * input.orchardHa * factor;
   const winter = winterHectares(sown, free, factor, reclaimPerHa, orchardAutumn);
   const reclaimedHa = sown / ROTATION.sown;

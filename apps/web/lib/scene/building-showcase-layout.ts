@@ -3,10 +3,21 @@
 // staveb pole, hřbitov, sad a louka na seno po čtvercích – jejich fáze podle průběhu stavby
 // (showcaseGrounds); vpravo modla, svatyně, posvátný dub a dubový háj (dekorace bez staveniště);
 // vlevo od pole čtverec, který orá spřežení volů s rádlem (ukázka „Orání“, plough-team.ts),
-// vlevo od zemnice ohrada s přístřeškem (ukázka „Ohrada“, pen-layout.ts).
-import { CEMETERY, MILIR, PLOT_VARIANTS, type PlotVariant, type TileCell } from '@bohemia/game';
-import type { FieldLook, SceneFieldPart, SceneVillage } from '../village-view';
+// vlevo od zemnice ohrada s přístřeškem (ukázka „Ohrada“, pen-layout.ts); před pozemky rozpad
+// obydlí – opuštěná zemnice a polozemnice podle posuvníku stavu a řada všech stupňů rozpadu
+// (showcaseDecay, dwelling-decay.ts).
+import {
+  CEMETERY,
+  MILIR,
+  PLOT_VARIANTS,
+  RUIN_YEARS,
+  type DwellingType,
+  type PlotVariant,
+  type TileCell,
+} from '@bohemia/game';
+import type { FieldLook, SceneFieldPart, SceneRoad, SceneVillage } from '../village-view';
 import { CEMETERY_PHASES } from './cemetery-layout';
+import { DECAY_LABELS, DECAY_STAGES, decayStage, type DecayStage } from './dwelling-decay';
 import { hayPhase, meadowLook, type HayMeadow } from './hay-meadows';
 import { plotHouse } from './homestead-layout';
 import { TREE_GROWTH_YEARS, treeGrowth } from './orchard-layout';
@@ -267,7 +278,7 @@ const SQUARE_M = 15;
 /** Roh čtverce (0, 0) – za řadou staveb, aby pole, hřbitov a sad nic nezakrývaly. */
 const GROUND_ORIGIN = { x: -55, z: 18 };
 
-export type ShowcaseGroundId = 'field' | 'cemetery' | 'orchard' | 'meadow' | 'plowing';
+export type ShowcaseGroundId = 'field' | 'cemetery' | 'orchard' | 'meadow' | 'plowing' | 'legumes';
 
 export interface ShowcaseGround {
   id: ShowcaseGroundId;
@@ -313,6 +324,8 @@ export const SHOWCASE_GROUNDS: readonly ShowcaseGround[] = [
   ground('meadow', 'Louka na seno', 10, 0, 3, 2),
   // vlevo od pole ob čtverec – spřežení se na souvratích otáčí za okrajem pole
   ground('plowing', 'Orání', -2, 0, 1, 1),
+  // za polem ob řadu – pole s luštěninami (hrách – fields.md, Luštěniny)
+  ground('legumes', 'Luštěniny', 0, 3, 3, 2),
 ];
 
 /**
@@ -394,7 +407,49 @@ export const FIELD_SHOWCASE_PHASES: readonly (ShowcasePhase & {
   },
   { label: 'seno v kupkách', from: 0.92, to: 0.95, look: 'mown' },
   { label: 'stohy – přes zimu se zkrmí', from: 0.95, to: 1, look: 'haystacks' },
-]; /** Hřbitov: do poloviny založení (fáze `CEMETERY_PHASES`), pak přibývají hroby. */
+];
+
+/**
+ * Pole s luštěninami (fields.md – Luštěniny): kopání a setí po čtvercích, vzcházející, zelený
+ * kvetoucí a zralý hrách, sklizeň po čtvercích (hrách se vytrhá a suší v hromádkách) a skoro
+ * holá zem po sklizni.
+ */
+export const LEGUME_SHOWCASE_PHASES: readonly (ShowcasePhase & {
+  look: FieldLook | null;
+  before?: FieldLook;
+  frontier?: boolean;
+})[] = [
+  {
+    label: 'kopání – brázdy po čtvercích',
+    from: 0,
+    to: 0.12,
+    look: 'plowed',
+    before: 'stubble',
+    frontier: true,
+  },
+  {
+    label: 'setí hrachu po čtvercích',
+    from: 0.12,
+    to: 0.26,
+    look: 'sown',
+    before: 'plowed',
+    frontier: true,
+  },
+  { label: 'vzchází hrách', from: 0.26, to: 0.36, look: 'sprouted' },
+  { label: 'zelený hrách kvete', from: 0.36, to: 0.52, look: 'green' },
+  { label: 'zralý hrách', from: 0.52, to: 0.64, look: 'ripe' },
+  {
+    label: 'sklizeň po čtvercích – hrách se trhá a suší v hromádkách',
+    from: 0.64,
+    to: 0.82,
+    look: 'harvesting',
+    before: 'ripe',
+    frontier: true,
+  },
+  { label: 'po sklizni – skoro holá zem', from: 0.82, to: 1, look: 'stubble' },
+];
+
+/** Hřbitov: do poloviny založení (fáze `CEMETERY_PHASES`), pak přibývají hroby. */
 const CEMETERY_FOUNDED_AT = 0.5;
 /** Sad: vytyčení, kůly, sazenice (výsadba jako ve hře), mladé stromky rostou, plodící sad. */
 export const ORCHARD_SHOWCASE_PHASES: readonly ShowcasePhase[] = [
@@ -421,8 +476,9 @@ function fieldPart(
   index: number,
   count: number,
   p: number,
+  phases: typeof FIELD_SHOWCASE_PHASES = FIELD_SHOWCASE_PHASES,
 ): Omit<SceneFieldPart, 'cell' | 'x' | 'z' | 'size'> {
-  const phase = phaseAt(FIELD_SHOWCASE_PHASES, p);
+  const phase = phaseAt(phases, p);
   const founding = phase.look === null || phase.look === 'bare';
   const stage = founding
     ? 'founding'
@@ -536,6 +592,15 @@ export function showcaseGrounds(progress: number): {
       ? `${growing.label} – ${Math.min(TREE_GROWTH_YEARS, Math.floor(age) + 1)}. rok`
       : orchardPhase.label;
 
+  // pole s luštěninami – osetý hrách prochází rokem jako pole obilí
+  const legumeSquares = of('legumes').squares;
+  const legumes = legumeSquares.map((square, i): SceneFieldPart => ({
+    ...square,
+    ...fieldPart(i, legumeSquares.length, p, LEGUME_SHOWCASE_PHASES),
+    id: 100 + i,
+    crop: 'legume',
+  }));
+
   // orané pole: brázdy (vzhled po orbě), stále – nezávisí na průběhu
   const plowing = of('plowing').squares.map((square): SceneFieldPart => ({
     ...square,
@@ -549,6 +614,7 @@ export function showcaseGrounds(progress: number): {
       fields: [
         { id: 1, parts },
         { id: 2, parts: plowing },
+        { id: 3, parts: legumes },
       ],
       cemeteries: [{ id: 1, squares: cemetery, built, progress: built ? 1 : founding, graves }],
       orchards: [
@@ -569,6 +635,177 @@ export function showcaseGrounds(progress: number): {
       orchard: orchardLabel,
       meadow: hayLabel,
       plowing: PLOWING_LABEL,
+      legumes: phaseAt(LEGUME_SHOWCASE_PHASES, p).label,
     },
   };
+}
+
+// --- Rozpad obydlí (population.md – Co hráč vidí, Chátrání a přestavba) ---
+
+export interface ShowcaseDecayTarget {
+  id: 'rozpad' | 'stupne';
+  label: string;
+  focus: { x: number; z: number; radius: number };
+}
+
+/** Řada s posuvníkem (zemnice a polozemnice na pozemku) a řada všech stupňů za ní (z). */
+const DECAY_ROW_Z = -52;
+const STAGES_ROW_Z = { zemnice: -70, polozemnice: -84 } as const;
+const DECAY_PAIR_X = { zemnice: -14, polozemnice: 2 } as const;
+const STAGES_X0 = -24;
+const STAGES_STEP = 12;
+
+export const SHOWCASE_DECAY: readonly ShowcaseDecayTarget[] = [
+  { id: 'rozpad', label: 'Rozpad', focus: { x: -5, z: DECAY_ROW_Z - 2, radius: 30 } },
+  {
+    id: 'stupne',
+    label: 'Stupně rozpadu',
+    focus: { x: STAGES_X0 + 2 * STAGES_STEP, z: -79, radius: 48 },
+  },
+];
+
+/**
+ * Posuvník rozpadu 0–1: do DECAY_HOUSE_SHARE klesá stav opuštěného obydlí ze 100 na 0 %, pak
+ * obydlí zanikne a zbytek jámy RUIN_YEARS let zarůstá.
+ */
+export const DECAY_HOUSE_SHARE = 0.6;
+
+/** Stav obydlí (0–1), nebo jak zarostl zbytek jámy (0–1) při posuvníku `t`. */
+export function decayAt(t: number): { condition: number } | { overgrowth: number } {
+  const p = Math.min(1, Math.max(0, t));
+  if (p < DECAY_HOUSE_SHARE) return { condition: 1 - p / DECAY_HOUSE_SHARE };
+  return { overgrowth: (p - DECAY_HOUSE_SHARE) / (1 - DECAY_HOUSE_SHARE) };
+}
+
+/** Popisek posuvníku: stav a stupeň rozpadu, nebo kolik let zbytek jámy zarůstá. */
+export function decayLabel(t: number): string {
+  const at = decayAt(t);
+  if ('condition' in at) {
+    return `stav ${Math.round(at.condition * 100)} % – ${DECAY_LABELS[decayStage(at.condition)]}`;
+  }
+  const years = Math.round(at.overgrowth * RUIN_YEARS);
+  return at.overgrowth >= 1
+    ? 'zbytek jámy zarostl a zmizel'
+    : `zbytek jámy – ${years} ${years === 1 ? 'rok' : years >= 2 && years <= 4 ? 'roky' : 'let'} po zániku, zarůstá`;
+}
+
+/** Stav ukázky každého stupně (uprostřed jeho rozpětí) a zbytek jámy ve třetině zarůstání. */
+const STAGE_CONDITION: Record<DecayStage, number> = { 0: 1, 1: 0.58, 2: 0.33, 3: 0.1 };
+const STAGES_RUIN_OVERGROWTH = 0.3;
+/** Pozemek polozemnice v ukázce (políčko jen pro scénu). */
+const DECAY_PLOT_SIZE = 15;
+
+type ShowcaseDwelling = SceneVillage['dwellings'][number];
+type ShowcaseRuin = NonNullable<SceneVillage['ruins']>[number];
+
+/**
+ * Rozpad obydlí na vývojové stránce: opuštěná zemnice a polozemnice na pozemku podle posuvníku
+ * (`decayAt`) a za nimi řada stupňů 0–3 a zbytku jámy pro obě obydlí – ves pro scénu
+ * (`VillageRenderer` je kreslí jako ve hře).
+ */
+export function showcaseDecay(t: number): SceneVillage {
+  const at = decayAt(t);
+  const dwellings: ShowcaseDwelling[] = [];
+  const ruins: ShowcaseRuin[] = [];
+  const types: readonly DwellingType[] = ['zemnice', 'polozemnice'];
+  for (const [i, type] of types.entries()) {
+    const id = 9001 + i;
+    const x = DECAY_PAIR_X[type];
+    const plot =
+      type === 'polozemnice'
+        ? {
+            cell: { x: 0, y: 0 },
+            x,
+            z: DECAY_ROW_Z,
+            size: DECAY_PLOT_SIZE,
+            variant: 'center' as const,
+          }
+        : undefined;
+    const position = plot ? plotHouse(plot, 'center') : { x, z: DECAY_ROW_Z, rotation: FACING };
+    if ('condition' in at) {
+      dwellings.push({
+        id,
+        type,
+        position,
+        built: true,
+        progress: 1,
+        inhabited: false,
+        condition: at.condition,
+        ...(plot ? { plot } : {}),
+      });
+    } else if (at.overgrowth < 1) {
+      ruins.push({ id, type, position, since: 0, overgrowth: at.overgrowth });
+    }
+    // řada stupňů: celý dům, sešlý, propadá se, zřícený a zbytek jámy
+    DECAY_STAGES.forEach((stage, k) => {
+      const spot = { x: STAGES_X0 + k * STAGES_STEP, z: STAGES_ROW_Z[type], rotation: FACING };
+      dwellings.push({
+        id: 9100 + i * 10 + k,
+        type,
+        position: spot,
+        built: true,
+        progress: 1,
+        inhabited: false,
+        condition: STAGE_CONDITION[stage],
+      });
+    });
+    ruins.push({
+      id: 9150 + i,
+      type,
+      position: {
+        x: STAGES_X0 + DECAY_STAGES.length * STAGES_STEP,
+        z: STAGES_ROW_Z[type],
+        rotation: FACING,
+      },
+      since: 0,
+      overgrowth: STAGES_RUIN_OVERGROWTH,
+    });
+  }
+  return { dwellings, fields: [], ruins };
+}
+
+// --- pevné cesty (roads.md – Vylepšení cesty) ------------------------------------------------
+
+/** Řada ukázky cest za řadou stupňů rozpadu (z) – tři úseky pod sebou. */
+const ROADS_Z = -104;
+const ROADS_STEP_Z = 9;
+
+/** Ukázka pevných cest na /dev/buildings. */
+export const SHOWCASE_ROADS = {
+  id: 'cesty',
+  label: 'Cesty',
+  focus: { x: 0, z: ROADS_Z - ROADS_STEP_Z, radius: 34 },
+} as const;
+
+/**
+ * Úseky ukázky cest: vyšlapaná, úprava (vyšlapaná → upravená podle průběhu stavby – široký pás,
+ * strouha, kameny v mokřině) a hať s lávkou (upravená → hať přes mokřinu a lávka přes brod).
+ * Při 100 % hotové; vytyčení provázkem od 0 %.
+ */
+export function showcaseRoads(progress: number): SceneRoad[] {
+  const p = Math.min(1, Math.max(0, progress));
+  const axis = (z: number): { x: number; z: number }[] => [
+    { x: -20, z },
+    { x: 0, z: z + 1.5 },
+    { x: 20, z },
+  ];
+  const building = (grade: 'improved' | 'causeway'): Partial<SceneRoad> =>
+    p < 1 ? { upgrade: { grade, progress: p } } : {};
+  return [
+    { id: 1, points: axis(ROADS_Z), grade: 'trodden', ground: { wet: [], fords: [] } },
+    {
+      id: 2,
+      points: axis(ROADS_Z - ROADS_STEP_Z),
+      grade: p < 1 ? 'trodden' : 'improved',
+      ground: { wet: [[14, 24]], fords: [] },
+      ...building('improved'),
+    },
+    {
+      id: 3,
+      points: axis(ROADS_Z - 2 * ROADS_STEP_Z),
+      grade: p < 1 ? 'improved' : 'causeway',
+      ground: { wet: [[6, 20]], fords: [30] },
+      ...building('causeway'),
+    },
+  ];
 }

@@ -1,16 +1,27 @@
 import { dateOfDayIndex } from '../calendar';
 import type { Surface } from '../landscape';
+import { cloneState } from './clone';
 import { foundingCostPerHa, withinBounds } from './productivity';
 import {
   DISTANCE,
   FERTILITY,
+  LEGUMES,
   FOREST_BONUS,
   OBSTACLE_COST,
+  OVERGROWTH_STAGES,
   RECLAIM_COST_PER_HA,
   SEED_KG_PER_HA,
   YIELD_BASE_KG_PER_HA,
+  YOUNG_FALLOW_YEARS,
 } from './rules';
-import type { FieldPart, FieldSurface, TileCell, VillageState } from './types';
+import type {
+  FallowStage,
+  FieldPart,
+  FieldSurface,
+  OvergrowthStage,
+  TileCell,
+  VillageState,
+} from './types';
 
 const M2_PER_HA = 10_000;
 /** Tolerance proti chybám desetinných čísel při porovnání podílů úrodnosti. */
@@ -45,13 +56,21 @@ export function grossYieldPerHa(fertility: number): number {
   return YIELD_BASE_KG_PER_HA * (0.4 + (0.6 * fertility) / 100);
 }
 
+/**
+ * Vzdálenost dílu pro práci (m): chůze po vyšlapaných pěšinách (`walkDistanceM`, paths.md –
+ * Pěšiny a práce), jinak přímá vzdálenost od obydlí (vsi bez krajiny, starší uložené vsi).
+ */
+export function partWalkDistance(part: Pick<FieldPart, 'distanceM' | 'walkDistanceM'>): number {
+  return part.walkDistanceM ?? part.distanceM;
+}
+
 /** Násobek práce podle vzdálenosti od obydlí (+1 % za každých 10 m nad volnou vzdáleností). */
 export function distanceFactor(distanceM: number): number {
   return 1 + ((Math.max(0, distanceM - DISTANCE.freeM) / 10) * DISTANCE.percentPer10M) / 100;
 }
 
 /** Celé kalendářní roky od `fallowSinceDay` do `day`; 0, pokud díl nikdy neležel v přílohu. */
-export function fallowYears(part: FieldPart, day: number): number {
+export function fallowYears(part: Pick<FieldPart, 'fallowSinceDay'>, day: number): number {
   if (part.fallowSinceDay === null) return 0;
   const since = dateOfDayIndex(part.fallowSinceDay);
   const now = dateOfDayIndex(day);
@@ -60,10 +79,44 @@ export function fallowYears(part: FieldPart, day: number): number {
   return Math.max(0, now.year - since.year - (beforeAnniversary ? 1 : 0));
 }
 
-/** Cena vrácení hektaru zarostlého dílu v člověkodnech podle let přílohu a pokrytí nástroji. */
-export function reclaimCostPerHa(years: number, toolCoverage: number): number {
-  const step = RECLAIM_COST_PER_HA.find((s) => years <= s.maxYears);
-  return step ? withinBounds(step.cost, toolCoverage) : 0;
+/** Co roste na přílohu po `years` letech bez pastvy a seče (fields.md – Zarůstání). */
+export function overgrowthStage(years: number): OvergrowthStage {
+  let stage: OvergrowthStage = 'meadow';
+  for (const step of OVERGROWTH_STAGES) if (years >= step.fromYears) stage = step.stage;
+  return stage;
+}
+
+/** Roky přílohu bez pastvy a seče (díly mimo příloh a vsi uložené dřív 0). */
+export function partOvergrowthYears(part: Pick<FieldPart, 'overgrowthYears'>): number {
+  return part.overgrowthYears ?? 0;
+}
+
+/**
+ * Zarostl díl křovím nebo lesem (fields.md – Zarůstání)? Pastva ani seč ho pak už nevrátí
+ * a pastvinou ani loukou na seno není.
+ */
+export function isOvergrown(part: Pick<FieldPart, 'state' | 'overgrowthYears'>): boolean {
+  return part.state === 'fallow' && overgrowthStage(partOvergrowthYears(part)) !== 'meadow';
+}
+
+/**
+ * Stadium přílohu v den `day` (fields.md – Zarůstání): křoviny a mladý les podle let bez pastvy
+ * a seče, jinak mladý příloh 1–2 roky ladem a pak louka (pastvina, louka na seno). Díl, který by
+ * byl lesem, z pole vypadne při ročním kroku – do té doby je mladým lesem.
+ */
+export function fallowStage(
+  part: Pick<FieldPart, 'fallowSinceDay' | 'overgrowthYears'>,
+  day: number,
+): FallowStage {
+  const grown = overgrowthStage(partOvergrowthYears(part));
+  if (grown === 'forest') return 'young-forest';
+  if (grown !== 'meadow') return grown;
+  return fallowYears(part, day) <= YOUNG_FALLOW_YEARS ? 'young-fallow' : 'meadow';
+}
+
+/** Cena vrácení hektaru přílohu ve stadiu `stage` v člověkodnech podle pokrytí nástroji. */
+export function reclaimCostPerHa(stage: FallowStage, toolCoverage: number): number {
+  return withinBounds(RECLAIM_COST_PER_HA[stage], toolCoverage);
 }
 
 /**
@@ -100,11 +153,15 @@ export function partFoundingCost(
 
 /**
  * Konec hospodářského roku (1. 9.) pro jeden díl – mění ho na místě: osev vyčerpá úrodnost
- * (pod 70 % jde díl do přílohu), příloh ji obnoví.
+ * (pod 70 % jde díl do přílohu; luštěniny ji naopak trochu vrátí – poutají dusík, fields.md –
+ * Luštěniny), příloh ji obnoví.
  */
 export function endOfSeason(part: FieldPart, day: number): void {
   if (part.state === 'sown') {
-    part.fertilityShare -= FERTILITY.sowDepletion;
+    part.fertilityShare =
+      part.crop === 'legume'
+        ? Math.min(1, part.fertilityShare + LEGUMES.fertilityGain)
+        : part.fertilityShare - FERTILITY.sowDepletion;
     part.sownYears += 1;
     if (part.fertilityShare < FERTILITY.sowableMin - EPSILON) {
       part.state = 'fallow';
@@ -116,29 +173,39 @@ export function endOfSeason(part: FieldPart, day: number): void {
     return;
   }
   if (part.state === 'fallow') {
-    // příloh je pastvina – nezarůstá v les, jen se mu vrací úrodnost
+    // v přílohu se vrací úrodnost; zarůstání počítá roční krok 1. 11. (overgrowth.ts)
     part.fertilityShare = Math.min(1, part.fertilityShare + FERTILITY.fallowRecovery);
   }
 }
 
 /**
+ * Skupina dílu v pořadí přílohové soustavy (fields.md – Přílohová soustava): 1 osévaný díl, který
+ * smí dál (≥ 0,7), 2 čerstvě založený (připravený), 3 příloh zotavený aspoň na 0,95, 4 příloh
+ * 0,7–0,95; jiný díl (zakládaný, vyčerpaný příloh) null.
+ */
+export type SowingGroup = 1 | 2 | 3 | 4;
+export function sowingGroup(p: FieldPart): SowingGroup | null {
+  const sowable = p.fertilityShare >= FERTILITY.sowableMin - EPSILON;
+  if (p.state === 'sown') return sowable ? 1 : null;
+  if (p.state === 'ready') return 2;
+  if (p.state !== 'fallow' || !sowable) return null;
+  return p.fertilityShare >= FERTILITY.fallowReady - EPSILON ? 3 : 4;
+}
+
+/**
  * Díly, které smí ves osít, v pořadí ze spec: osetý (≥ 0,7), připravený, příloh ≥ 0,95
- * (nejmladší první), příloh ≥ 0,7 (nejúrodnější první). Díly nemění.
+ * (nejmladší první), příloh ≥ 0,7 (nejúrodnější první). Díly nemění. Ves s hospodářstvími bere
+ * díly po úsecích (`sowingBlocks` v holdings.ts).
  */
 export function sowingOrder(parts: FieldPart[]): FieldPart[] {
-  const sowable = (p: FieldPart): boolean => p.fertilityShare >= FERTILITY.sowableMin - EPSILON;
-  const full = (p: FieldPart): boolean => p.fertilityShare >= FERTILITY.fallowReady - EPSILON;
   const since = (p: FieldPart): number => p.fallowSinceDay ?? -Infinity;
-
   const byDistance = (a: FieldPart, b: FieldPart): number => a.distanceM - b.distanceM;
-  const group1 = parts.filter((p) => p.state === 'sown' && sowable(p)).sort(byDistance);
-  const group2 = parts.filter((p) => p.state === 'ready').sort(byDistance);
-  const group3 = parts
-    .filter((p) => p.state === 'fallow' && full(p))
-    .sort((a, b) => since(b) - since(a) || byDistance(a, b));
-  const group4 = parts
-    .filter((p) => p.state === 'fallow' && sowable(p) && !full(p))
-    .sort((a, b) => b.fertilityShare - a.fertilityShare || byDistance(a, b));
+  const inGroup = (group: SowingGroup): FieldPart[] =>
+    parts.filter((p) => sowingGroup(p) === group);
+  const group1 = inGroup(1).sort(byDistance);
+  const group2 = inGroup(2).sort(byDistance);
+  const group3 = inGroup(3).sort((a, b) => since(b) - since(a) || byDistance(a, b));
+  const group4 = inGroup(4).sort((a, b) => b.fertilityShare - a.fertilityShare || byDistance(a, b));
   return [...group1, ...group2, ...group3, ...group4];
 }
 
@@ -292,7 +359,7 @@ export function withMergedFields(state: VillageState): VillageState {
     if (r !== id) groups.set(r, [...(groups.get(r) ?? []), id]);
   }
   if (groups.size === 0) return state;
-  const next = structuredClone(state);
+  const next = cloneState(state);
   for (const [into, others] of [...groups].sort(([a], [b]) => a - b)) {
     mergeFields(next, into, others);
   }

@@ -8,7 +8,11 @@ import { aftermathGrazing, hayPhase } from './hay-meadows';
 
 export type { FieldLook };
 
-/** Všechny vzhledy dílu v pořadí roku – vývojové stránky je ukazují po řadě. */
+/**
+ * Všechny vzhledy dílu v pořadí roku – vývojové stránky je ukazují po řadě. Zarůstající příloh
+ * (`shrubs`, `young-forest` – fields.md, Zarůstání) do roku nepatří, jeho vzhled dělají keře
+ * a stromky podle let bez pastvy a seče (ukázka „Zarůstání“ na /dev/landscape).
+ */
 export const FIELD_LOOKS: readonly FieldLook[] = [
   'bare',
   'plowed',
@@ -40,6 +44,8 @@ export const FIELD_LOOK_LABELS: Record<FieldLook, string> = {
   meadow: 'úhor – louka, roste tráva',
   mown: 'úhor – posečeno na seno',
   haystacks: 'úhor – stohy sena',
+  shrubs: 'nepasený příloh – křoviny',
+  'young-forest': 'nepasený příloh – mladý les',
 };
 
 /**
@@ -159,11 +165,14 @@ export function workOrder(
   center: { x: number; z: number },
 ): SceneFieldPart[] {
   const houses = village.dwellings.map((d) => d.position);
-  const distance = (p: SceneFieldPart): number =>
-    houses.length > 0
-      ? Math.min(...houses.map((h) => Math.hypot(h.x - p.x, h.z - p.z)))
-      : Math.hypot(center.x - p.x, center.z - p.z);
-  return [...parts].sort((a, b) => distance(a) - distance(b) || a.x - b.x || a.z - b.z);
+  // vzdálenost dílu jednou (ne při každém porovnání řazení) – pořadí stejné
+  const distances = new Map<SceneFieldPart, number>();
+  for (const p of parts) {
+    let distance = houses.length > 0 ? Infinity : Math.hypot(center.x - p.x, center.z - p.z);
+    for (const h of houses) distance = Math.min(distance, Math.hypot(h.x - p.x, h.z - p.z));
+    distances.set(p, distance);
+  }
+  return [...parts].sort((a, b) => distances.get(a)! - distances.get(b)! || a.x - b.x || a.z - b.z);
 }
 
 /** Kontext odhadu: den v roce (1–366) a ves (obydlí určí pořadí a směr práce). */
@@ -177,6 +186,34 @@ export interface LookContext {
  * podle něj, ostatní podle odhadu ze stadia a data (`estimatePart`).
  */
 export function fieldPartViews(
+  field: { parts: readonly SceneFieldPart[] },
+  context: LookContext,
+): PartView[] {
+  // stejné díly, obydlí a den (pole a postavy v jednom stavu vsi) – vzhled z mezipaměti
+  const cached = viewsCache.get(field.parts);
+  if (
+    cached &&
+    cached.dwellings === context.village.dwellings &&
+    cached.day === context.dayOfYear
+  ) {
+    return cached.views;
+  }
+  const views = computePartViews(field, context);
+  viewsCache.set(field.parts, {
+    dwellings: context.village.dwellings,
+    day: context.dayOfYear,
+    views,
+  });
+  return views;
+}
+
+/** Vzhled dílů podle pole (pole dílů ze stavu vsi) – výsledek se nemění, jen se čte. */
+const viewsCache = new WeakMap<
+  readonly SceneFieldPart[],
+  { dwellings: LookContext['village']['dwellings']; day: number; views: PartView[] }
+>();
+
+function computePartViews(
   field: { parts: readonly SceneFieldPart[] },
   context: LookContext,
 ): PartView[] {
@@ -243,10 +280,14 @@ export function estimatePart(
       // mladý úhor (strniště 1–2 roky) se pase – stáda s pasáčkem (Martin)
       return whole('young-fallow');
     case 'meadow':
-      // starší úhor nezarůstá křovím ani lesem – je z něj louka, která se kosí na seno (Martin)
+      // starší úhor je louka, která se kosí na seno (Martin); nepasený a nesečený zarůstá
       return estimateHay(dayOfYear, index, Math.max(1, count));
     case 'sown':
       return estimateSown(dayOfYear, index, Math.max(1, count));
+    case 'shrubs':
+    case 'young-forest':
+      // nepasený a nesečený příloh zarůstá (fields.md – Zarůstání)
+      return whole(part.stage);
   }
 }
 
@@ -409,17 +450,33 @@ const TASK_LOOKS: Partial<
     queued: (v) => v.look === 'harvesting',
     fallback: (v) => v.part.stage === 'sown',
   },
+  // seč sena na úhoru ve fázi louky (oxen.md – Seno)
+  mow: {
+    after: ['mown'],
+    queued: (v) => v.look === 'meadow',
+    fallback: (v) => isHayStage(v.part.stage),
+  },
+  // orba rádlem (oxen.md) – díly jako u kopání
+  plough: {
+    after: ['plowed'],
+    queued: (v) => v.part.stage === 'sown' && (v.look === 'stubble' || v.look === 'bare'),
+    fallback: (v) => v.part.stage === 'sown' || v.part.stage === 'ready',
+  },
 };
 
 /**
  * Díl se pase – stáda smějí na něj (livestock-placement.ts): mladý úhor a pastvina vždy, louka
  * na seno až po seči na otavě (od srpna do konce listopadu – Martin: ne dřív). Bez dne v roce
- * se louka na seno nepase.
+ * se louka na seno nepase. Jen díly, kam stáda dojdou (`grazed` – nejbližší příloh napřed,
+ * fields.md – Zarůstání); křoviny a mladý les nikdy.
  */
 export function grazeablePart(
-  part: Pick<SceneFieldPart, 'stage' | 'look' | 'work'>,
+  part: Pick<SceneFieldPart, 'stage' | 'look' | 'work' | 'grazed'>,
   dayOfYear?: number,
 ): boolean {
+  if (part.grazed === false || part.stage === 'shrubs' || part.stage === 'young-forest') {
+    return false;
+  }
   const aftermath = dayOfYear !== undefined && aftermathGrazing(dayOfYear);
   if (part.look) {
     if (part.work !== undefined && part.work < 1) return false;

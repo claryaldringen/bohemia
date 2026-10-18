@@ -206,6 +206,15 @@ export function syntheticLand(): CalibrationLand {
 /** Syntetický díl pro sondy – plocha louky v1 (úrodnost 70). */
 export const V1_MEADOW_FERTILITY = V1.meadow.fertility;
 
+/**
+ * Louka a les do 600 m od vsi na syntetické krajině – pastva a žaludy stád (diet.md): louka celá,
+ * les rovnoměrně 50–800 m od obydlí.
+ */
+export const V1_LIVESTOCK_LAND = {
+  meadowHa: V1.meadow.ha,
+  forestHa: (V1.forest.ha * (600 - V1.forest.fromM)) / (V1.forest.toM - V1.forest.fromM),
+} as const;
+
 // --- skutečná krajina -------------------------------------------------------------------
 
 /**

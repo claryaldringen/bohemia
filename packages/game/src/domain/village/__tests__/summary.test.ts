@@ -77,7 +77,10 @@ describe('summarizeVillage', () => {
     expect(zemnice!.progress).toBeGreaterThan(0);
     expect(zemnice!.progress).toBeLessThan(1);
     expect(summary.storesMonths).toBeCloseTo(18, 0);
-    expect(summary.satiation).toBe(1);
+    // obilí je dost, bílkoviny z obilí, vajec a mléka výchozího stáda – nasycení přes 0,8
+    expect(summary.diet.energy).toBeCloseTo(1, 9);
+    expect(summary.satiation).toBeGreaterThan(0.78);
+    expect(summary.satiation).toBeLessThan(0.95);
     expect(summary.fullHousehold).toBe(false);
   });
 
@@ -90,12 +93,15 @@ describe('summarizeVillage', () => {
         type: 'zemnice',
         craft: null,
         occupants: 4,
+        // zakladatelé: manželé, chlapec a dívka (kinship.md)
+        family: { men: 1, women: 1, boys: 1, girls: 1, elderMen: 0, elderWomen: 0, couples: 1 },
         capacity: 6,
         full: false,
         overcrowded: false,
         condition: expect.closeTo(1, 3),
       },
     ]);
+    expect(summary.family).toEqual(summary.households[0]!.family);
     expect(summary.fullHousehold).toBe(false);
   });
 

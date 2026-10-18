@@ -6,6 +6,7 @@ import {
   type ObstacleLayer,
 } from '../landscape';
 import { pointInPolygon, rectangleCorners, type Point } from './polygon';
+import { sacredOakNow } from './sacred-life';
 import {
   GROVE,
   GROVE_DEFINITION,
@@ -429,14 +430,21 @@ export function sacredBuildingHappiness(kind: SacredBuildingKind): number {
 }
 
 /**
- * Štěstí z posvátných míst vsi (happiness.md): duby +5 (nejvýš 3), háje podle dubů (nejvýš 2
- * nejlepší), modly +8 (nejvýš 2), svatyně +25 (jedna) – dohromady nejvýš +40. Počítají se jen
- * hotové modly a svatyně.
+ * Štěstí z posvátných míst vsi v den `day` (happiness.md): duby podle stáří 1–10, souš 1 (nejvýš
+ * 3 – ty, které přidávají nejvíc; `sacredOakNow` z vrstvy překážek `obstacles`, bez ní jako
+ * nejmladší dub), háje podle dubů (nejvýš 2 nejlepší), modly +8 (nejvýš 2), svatyně +25 (jedna) –
+ * dohromady nejvýš +40. Počítají se jen hotové modly a svatyně.
  */
 export function sacredHappiness(
   state: Pick<VillageState, 'sacredOaks' | 'groves' | 'sacredBuildings'>,
+  day: number,
+  obstacles: ObstacleLayer | null,
 ): number {
-  const oaks = Math.min(villageSacredOaks(state).length, SACRED_OAK.counted) * SACRED_OAK.happiness;
+  const oaks = villageSacredOaks(state)
+    .map((o) => sacredOakNow(obstacles, o.id, day).happiness)
+    .sort((a, b) => b - a)
+    .slice(0, SACRED_OAK.counted)
+    .reduce((sum, v) => sum + v, 0);
   const groves = villageGroves(state)
     .map((g) => groveHappiness(g.oaks))
     .sort((a, b) => b - a)

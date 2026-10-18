@@ -122,6 +122,57 @@ export function polygonsOverlap(a: readonly Point[], b: readonly Point[]): boole
 }
 
 /**
+ * Průnik mnohoúhelníku `subject` s konvexním mnohoúhelníkem `clip` (Sutherland–Hodgman) – oba
+ * libovolně obíhané; bez průniku prázdné pole. Jen sčítání a násobení – v prohlížeči i na serveru
+ * vyjde totéž.
+ */
+export function clipToConvex(subject: readonly Point[], clip: readonly Point[]): Point[] {
+  const orientation = Math.sign(signedDoubleArea(clip));
+  if (orientation === 0) return [];
+  let output: Point[] = [...subject];
+  for (let i = 0; i < clip.length && output.length > 0; i++) {
+    const a = at(clip, i);
+    const b = at(clip, i + 1);
+    const input = output;
+    output = [];
+    for (let j = 0; j < input.length; j++) {
+      const p = input[j]!;
+      const q = at(input, j + 1);
+      const sp = cross(a, b, p) * orientation;
+      const sq = cross(a, b, q) * orientation;
+      if (sp >= 0) output.push(p);
+      if (sp >= 0 !== sq >= 0) {
+        const t = sp / (sp - sq);
+        output.push([p[0] + t * (q[0] - p[0]), p[1] + t * (q[1] - p[1])]);
+      }
+    }
+  }
+  return output;
+}
+
+/**
+ * Plocha části konvexního mnohoúhelníku `within`, kterou pokrývá sjednocení konvexních
+ * mnohoúhelníků `polygons` (princip inkluze a exkluze – pro pár mnohoúhelníků jedné stavby).
+ */
+export function coveredArea(
+  polygons: readonly (readonly Point[])[],
+  within: readonly Point[],
+): number {
+  let area = 0;
+  const visit = (start: number, piece: readonly Point[], count: number): void => {
+    for (let i = start; i < polygons.length; i++) {
+      const next = clipToConvex(piece, polygons[i]!);
+      const size = polygonArea(next);
+      if (size <= 0) continue;
+      area += count % 2 === 0 ? size : -size;
+      visit(i + 1, next, count + 1);
+    }
+  };
+  visit(0, within, 0);
+  return area;
+}
+
+/**
  * Rohy obdélníku width × depth se středem (x, z), otočeného o `rotation` (rad) kolem svislé osy
  * jako `rotation.y` v Babylonu: místní (lx, lz) → (x + lx·cos + lz·sin, z − lx·sin + lz·cos).
  */

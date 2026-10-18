@@ -9,7 +9,12 @@ import {
   type TreeLook,
 } from '@bohemia/game';
 import { prepareDecorMaterial } from './decorations';
-import { instanceMatrices, loadMergedModel, type ModelInstance } from './instanced-model';
+import {
+  instanceMatrices,
+  loadMergedModel,
+  setStaticInstances,
+  type ModelInstance,
+} from './instanced-model';
 import { prepareTreeMaterial } from './trees';
 
 /** Model, kterým se kreslí pařez nebo nálet: soubor a příprava materiálu. */
@@ -64,6 +69,15 @@ function saplingOf(look: string, id: number): { model: TreeLook; scale: number }
 }
 
 /**
+ * Velikost zasazeného mladého buku podle stáří 0–1 (crafts.md – Uhlíř): sazenice ≈ 0,15 velikosti
+ * stromu, dospělý buk velikostí původního stromu (`treeScale` z vrstvy překážek).
+ */
+export function plantedScale(growth: number, treeScale: number): number {
+  const t = Math.min(1, Math.max(0, growth));
+  return (0.15 + 0.85 * t) * treeScale;
+}
+
+/**
  * Pařezy po pokácených stromech a nálet, který z nich dorůstá (forest.md – Les ustupuje).
  * Původní strom skryje InstanceHider podle id, tady se na jeho místo přidá pařez nebo mladý
  * stromek. Modely se načtou až při prvním použití.
@@ -87,11 +101,21 @@ export class FelledTrees {
     },
   ) {}
 
-  /** Pařezy a nálet podle změn vsi; vrátí true, když se změnily už načtené modely. */
-  update(layer: ObstacleLayer, changes: ObstacleChanges): boolean {
-    const signature = `${changes.stumps.join(',')}|${changes.saplings.join(',')}`;
+  /**
+   * Pařezy a nálet podle změn vsi; mladé buky, které zasadil uhlíř (`planted` – id a velikost
+   * 0–1, crafts.md – Uhlíř), rostou od sazenice k dospělému stromu. Vrátí true, když se změnily
+   * už načtené modely.
+   */
+  update(
+    layer: ObstacleLayer,
+    changes: ObstacleChanges,
+    planted: readonly { id: number; growth: number }[] = [],
+  ): boolean {
+    const plantedKey = planted.map((p) => `${p.id}:${p.growth}`).join(',');
+    const signature = `${changes.stumps.join(',')}|${changes.saplings.join(',')}|${plantedKey}`;
     if (signature === this.signature) return false;
     this.signature = signature;
+    const growth = new Map(planted.map((p) => [p.id, p.growth]));
 
     const desired = new Map<string, { model: FelledModel; instances: ModelInstance[] }>();
     const add = (model: FelledModel, instance: ModelInstance): void => {
@@ -126,12 +150,13 @@ export class FelledTrees {
       const p = place(id);
       if (!p) continue;
       const sapling = saplingOf(obstacleLook(layer, obstacleIndex(layer, id)), id);
+      const grown = growth.get(id);
       add(treeModel(sapling.model), {
         x: p.x,
         y: this.options.groundHeight(p.x, p.z),
         z: p.z,
         rotationY: p.rotation,
-        scale: sapling.scale,
+        scale: grown === undefined ? sapling.scale : plantedScale(grown, p.scale),
       });
     }
     // modely, které už nic nekreslí, se vypnou
@@ -192,7 +217,8 @@ export class FelledTrees {
       mesh.setEnabled(false);
       return true;
     }
-    mesh.thinInstanceSetBuffer('matrix', instanceMatrices(entry.instances), 16, true);
+    // nehybné instance – ořez podle záběru (scenery-culling.ts) je kreslí jen v záběru
+    setStaticInstances(mesh, instanceMatrices(entry.instances));
     mesh.setEnabled(true);
     return true;
   }

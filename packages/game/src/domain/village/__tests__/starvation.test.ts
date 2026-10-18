@@ -55,6 +55,11 @@ function village(
     hungry: false,
     commonLaborHistory: [],
     chronicle: [],
+    // bez stád – žádné mléko ani maso (jídlo jen ze zásob obilí a vajec)
+    livestock: {
+      herds: { sheep: 0, goat: 0, pig: 0, cow: 0 },
+      young: { sheep: 0, goat: 0, pig: 0, cow: 0 },
+    },
   };
 }
 
@@ -153,8 +158,8 @@ describe('hladovění – poloviční příděl', () => {
       expect(share).toBeGreaterThan(0.25);
       expect(share).toBeLessThan(0.75);
       expect(end.extinctDay).toBeUndefined();
-      // smrt zvedla příděl zbylým k 90 % – hlad se zotavuje (od 90 % o den denně)
-      expect(summarizeVillage(january, january.lastDay).satiation).toBeGreaterThan(0.85);
+      // smrt zvedla příděl zbylým k 90 % – hlad se zotavuje (od 90 % energie o den denně)
+      expect(summarizeVillage(january, january.lastDay).diet.energy).toBeGreaterThan(0.85);
       if (january.starvationDays === 0) recovered++;
       // příděl kolísá kolem 90 % – hlad může zůstat kousek nad prahem dětí, riziko je zanedbatelné
       expect(end.starvationDays).toBeLessThan(STARVATION.threshold.child + 3);
@@ -181,10 +186,11 @@ describe('hladovění – zotavení a dopočet', () => {
   it('po návratu jídla hlad ubývá o den denně až k nule', () => {
     const start = village(4, 12);
     const hungry = advanceVillage(start, START + 9, null);
-    expect(hungry.starvationDays).toBe(10);
+    // vejce slepic u obydlí dají trošku energie (diet.md) – hlad přibývá skoro o den denně
+    expect(hungry.starvationDays).toBeCloseTo(10, 0);
     hungry.storesKg = 10_000;
     const fed = advanceVillage(hungry, START + 13, null);
-    expect(fed.starvationDays).toBe(6);
+    expect(fed.starvationDays).toBeCloseTo(6, 0);
     expect(advanceVillage(fed, START + 30, null).starvationDays).toBe(0);
   });
 
@@ -278,11 +284,10 @@ describe('vymření vsi', () => {
       people: { children: 0, adults: 0, elders: 0 },
     });
     const starving = advanceVillage(village(9, 12), START + 15, null);
-    expect(summarizeVillage(starving, starving.lastDay)).toMatchObject({
-      extinctDay: null,
-      starving: true,
-      starvationDays: 16,
-    });
+    const summary = summarizeVillage(starving, starving.lastDay);
+    expect(summary).toMatchObject({ extinctDay: null, starving: true });
+    // vejce slepic u obydlí dají trošku energie (diet.md)
+    expect(summary.starvationDays).toBeCloseTo(16, 0);
   });
 });
 

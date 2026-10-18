@@ -29,7 +29,16 @@ const DAY = at(600, 10, 1);
 const POSITION = { x: 0, z: 0, rotation: 0 };
 const village = (): VillageState =>
   withBuiltFirstDwelling(foundVillage({ seed: 11, day: DAY, dwellingPosition: POSITION }));
-const NONE = { hunger: 0, deaths: 0, crowding: 0, toil: 0, stores: 0, sacred: 0 };
+const NONE = {
+  hunger: 0,
+  deaths: 0,
+  crowding: 0,
+  toil: 0,
+  stores: 0,
+  fruit: 0,
+  meat: 0,
+  sacred: 0,
+};
 
 describe('štěstí – čísla z návrhu', () => {
   it('práce vsi: 0 → × 0,8, 50 → × 1, 100 → × 1,1, mezi tím lineárně', () => {
@@ -62,6 +71,9 @@ describe('štěstí – čísla z návrhu', () => {
     expect(happinessTarget({ ...NONE, sacred: 40, stores: 5 })).toBe(95);
     expect(happinessTarget({ ...NONE, hunger: 40, deaths: 20, crowding: 15 })).toBe(0);
     expect(happinessTarget({ ...NONE, sacred: 40, stores: 5, toil: 15 })).toBe(80);
+    // ovoce je sladké – štěstí +5 (diet.md), maso mírně – až +3 (Martin)
+    expect(happinessTarget({ ...NONE, fruit: 5 })).toBe(55);
+    expect(happinessTarget({ ...NONE, fruit: 5, meat: 3 })).toBe(58);
   });
 
   it('dřina: ves dnešním tempem nestihne polní práce do konce okna (nejbližší termín první)', () => {
@@ -103,7 +115,8 @@ describe('štěstí ve vsi', () => {
     const s = village();
     s.sacredOaks = [1, 2, 3].map((id) => ({ id, day: DAY, x: 0, z: 0 }));
     const target = happinessTarget(happinessFactors(s, DAY, 1));
-    expect(target).toBe(50 + 15 + 5); // tři posvátné duby a zásoby na 18 měsíců
+    // tři posvátné duby (bez vrstvy překážek jako nejmladší – po 1) a zásoby na 18 měsíců
+    expect(target).toBe(50 + 3 + 5);
     for (let day = DAY; day < DAY + 1461; day++) {
       updateHappiness(s, day, { satiation: 1, events: [], toil: false });
     }

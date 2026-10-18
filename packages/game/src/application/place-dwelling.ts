@@ -1,5 +1,6 @@
 import { obstaclesOf, type Landscape } from '../domain/landscape';
 import {
+  villageRoadWalk,
   PLOT_TYPES,
   buildAffordability,
   checkDwellingPlacement,
@@ -15,7 +16,8 @@ import { updateLivingVillage } from './update-village';
 import type { VillageRepository, VillageResult } from './villages';
 
 export interface PlaceDwellingInput {
-  settlementId: string;
+  /** Ves (id), ve které hráč jedná – její sídlo dává krajinu `landscape`. */
+  villageId: string;
   landscape: Landscape;
   /** Dnešní herní den (index dne). */
   today: number;
@@ -46,7 +48,7 @@ export function placeDwelling(
 ): Promise<VillageResult> {
   return updateLivingVillage(
     deps.villages,
-    input.settlementId,
+    input.villageId,
     input.today,
     input.landscape,
     (state) => {
@@ -86,6 +88,10 @@ export function placeDwelling(
             forestDistanceM: forestEdgeDistanceM(input.landscape, position.x, position.z),
             ...(plot ? { plot } : {}),
             sacred: check.spared,
+            // pole a sady pod obydlím se o zabranou plochu zmenší
+            takenLand: check.takenLand,
+            // kácení dřeva chůzí po pevných cestách (roads.md)
+            walk: villageRoadWalk(state, input.landscape),
           },
         ),
       };

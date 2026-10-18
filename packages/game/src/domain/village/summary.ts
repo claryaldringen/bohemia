@@ -1,4 +1,5 @@
 import { TOTAL_GAME_DAYS } from '../calendar';
+import type { ObstacleLayer } from '../landscape';
 import {
   burialOrder,
   cemeteryCapacity,
@@ -7,8 +8,10 @@ import {
   villageCemeteries,
 } from './cemetery';
 import { craftCoverage, craftNeeds, craftStocks, oreFactor, workshopLabor } from './crafts';
-import { isFull, isOvercrowded, waitingHouseholds } from './dwellings';
-import { fallowYears } from './fields';
+import { isFull, isOvercrowded } from './dwellings';
+import { waitingHouseholds } from './households';
+import { familyCounts, type FamilyCounts } from './kinship';
+import { fallowStage } from './fields';
 import {
   happinessFactors,
   happinessLaborFactor,
@@ -16,7 +19,21 @@ import {
   villageHappiness,
   type HappinessFactors,
 } from './happiness';
-import { applesSpoiled, daysUntilAppleRot, eatMeal } from './food';
+import { dailyMilk, villageCheeseKg, yearlyMilk } from './dairy';
+import { villageMeal, villageMeatKg } from './diet';
+import { villageHayKg } from './hay';
+import { villageLegumesKg } from './legumes';
+import {
+  dailyEggsKg,
+  grazingDemandHa,
+  legumeNeedPerYear,
+  meatNeedPerYear,
+  pastureHa,
+  pigForestHa,
+  villageChickens,
+  villageHerds,
+} from './livestock';
+import { OXEN, teamAgeYears, trainingBlock, trainingProgress, villagePens } from './oxen';
 import {
   orchardAgeYears,
   orchardAreaM2,
@@ -25,13 +42,7 @@ import {
   villageOrchards,
 } from './orchard';
 import { ageGroup, foodNeedPerDay, occupants } from './people';
-import {
-  CHRONICLE_MAX_EVENTS,
-  DWELLINGS,
-  OVERGROWTH_STAGES,
-  SACRED_OAK,
-  STARVATION,
-} from './rules';
+import { CHARCOAL_KILN, CHRONICLE_MAX_EVENTS, DWELLINGS, STARVATION } from './rules';
 import {
   groveHappiness,
   sacredBuildingHappiness,
@@ -39,30 +50,37 @@ import {
   villageSacredBuildings,
   villageSacredOaks,
 } from './sacred';
+import { sacredOakNow, type SacredOakNow } from './sacred-life';
 import type {
+  CharcoalKiln,
+  KilnStage,
   Construction,
   ConstructionKind,
   Craft,
   CraftCoverage,
   CraftStocks,
+  DietDay,
   DwellingType,
+  FallowStage,
   FieldPart,
+  HerdSpecies,
   Position,
   SacredBuildingKind,
   TileCell,
   VillageState,
   WorkshopActivity,
+  RoadGrade,
 } from './types';
 import { treesToFell, woodFellingCost, woodLogs } from './wood';
-import { daysUntilFoodHarvest } from './year-plan';
 
 // Souhrn vsi pro panel hráče a scénu – jen čte stav, nic nemění.
 
 /**
  * Stadium dílu pro scénu: zakládá se, připravený, osetý, nebo příloh – mladý příloh 1–2 roky,
- * pak napořád spásaná pastvina `meadow` (fields.md – Zarůstání; nálet nebude).
+ * pak louka (pastvina, louka na seno); nepasený a nesečený příloh zarůstá křovinami a mladým
+ * lesem (fields.md – Zarůstání).
  */
-export type PartStage = 'founding' | 'ready' | 'sown' | 'young-fallow' | 'meadow';
+export type PartStage = 'founding' | 'ready' | 'sown' | FallowStage;
 
 export interface HouseholdSummary {
   dwellingId: number;
@@ -70,6 +88,8 @@ export interface HouseholdSummary {
   /** Řemeslo dílny (crafts.md); obyčejné obydlí null. */
   craft: Craft | null;
   occupants: number;
+  /** Muži, ženy, děti, starší a manželské páry domácnosti (kinship.md – panel obydlí). */
+  family: FamilyCounts;
   capacity: number;
   full: boolean;
   overcrowded: boolean;
@@ -97,6 +117,12 @@ export interface ConstructionSummary {
   buildProgress: number;
   /** Kolik stromů stavba ještě musí skácet (forest.md). */
   treesToFell: number;
+  /**
+   * Vylepšení pevné cesty a výsadba jabloní u ní – úseky a stupeň, na který se vylepšují
+   * (roads.md); jinak null.
+   */
+  roadIds: number[] | null;
+  roadGrade: RoadGrade | null;
 }
 
 /** Pohřebiště pro panel – kolik místa zbývá (hygienu hráč nevidí – cemetery.md). */
@@ -139,6 +165,19 @@ export interface WorkshopSummary {
   laborPerDay: number;
   /** Přirážka za rudu nebo hlínu dál od potoka (1 = voda blízko). */
   oreFactor: number;
+  /**
+   * Uhlíř: rozdělaný milíř (crafts.md – Uhlíř) – fáze, kolik buků dávky je připravených z kolika,
+   * průběh fáze 0–1 (u pálení dny ÷ CHARCOAL_KILN.burnDays) a jestli stojí v lese; jinak null.
+   */
+  kiln: {
+    stage: KilnStage;
+    prepared: number;
+    trees: number;
+    progress: number;
+    forest: boolean;
+  } | null;
+  /** Uhlíř: pařezy buků, na které ještě zasadí mladý buk; ostatní dílny 0. */
+  toPlant: number;
 }
 
 /** Řemesla vsi – zásoby, potřeba, pokrytí (meze produktivity) a dílny. */
@@ -163,8 +202,11 @@ export interface HappinessSummary {
 
 /** Posvátná místa vsi pro panel výběru a scénu – i kolik které přidává (bez stropů). */
 export interface SacredSummary {
-  /** Ušetřené posvátné duby – `day` = den ušetření (dub pak ve scéně postupně roste). */
-  oaks: { id: number; day: number; x: number; z: number; happiness: number }[];
+  /**
+   * Ušetřené posvátné duby – `day` = den ušetření (dub pak ve scéně postupně roste), stadium,
+   * stáří, štěstí, velikost a den uschnutí v den souhrnu (`SacredOakNow`).
+   */
+  oaks: ({ id: number; day: number; x: number; z: number } & SacredOakNow)[];
   groves: {
     id: number;
     x: number;
@@ -177,8 +219,46 @@ export interface SacredSummary {
   buildings: { id: number; kind: SacredBuildingKind; position: Position; happiness: number }[];
 }
 
+/** Dobytek vsi pro panel (diet.md – Co hráč vidí): stáda, slepice, voli a nosnost. */
+export interface LivestockSummary {
+  /** Kusy po druzích (zaokrouhleně). */
+  herds: Record<HerdSpecies, number>;
+  chickens: number;
+  /** Voli – spřežení i telata ve výcviku. */
+  oxen: number;
+  /** Pastva vsi a kolik jí stáda spásají (ha). */
+  pastureHa: number;
+  grazingHa: number;
+  /** Les pro prasata (ha, 1 ha na prase). */
+  pigForestHa: number;
+  /** Roční potřeba masa vsi (kg) – bílkoviny, které chybí po obilí, mléku, vejcích a luštěninách. */
+  meatNeedKg: number;
+  /** Kolik luštěnin ves chce za rok sníst (kg – cíl osevu luštěnin bez rezervy). */
+  legumeNeedKg: number;
+  /** Mléko dnes (l, když se podojí všechny dojné samice) a za rok. */
+  milkLPerDay: number;
+  milkLPerYear: number;
+}
+
+/** Ohrada pro panel výběru a scénu (oxen.md – Co hráč vidí). */
+export interface PenSummary {
+  id: number;
+  cell: TileCell;
+  x: number;
+  z: number;
+  built: boolean;
+  /** Vycvičené spřežení: stáří v letech a kolik let ještě slouží; bez spřežení null. */
+  team: { ageYears: number; yearsLeft: number } | null;
+  /** Výcvik spřežení: průběh 0–1 a zbývající dny; bez výcviku null. */
+  training: { progress: number; daysLeft: number } | null;
+  /** Proč teď nejde začít výcvik (česky), nebo null. */
+  trainBlocked: string | null;
+}
+
 export interface VillageSummary {
   people: { children: number; adults: number; elders: number };
+  /** Muži, ženy, děti, starší a páry celé vsi (kinship.md) – i pohlaví postav ve scéně. */
+  family: FamilyCounts;
   households: HouseholdSummary[];
   storesKg: number;
   /** Zásoby jablek (kg) – jí se před obilím, 1. 3. shnijí. */
@@ -187,8 +267,22 @@ export interface VillageSummary {
   woodLogs: number;
   /** Na kolik měsíců zásoby obilí vystačí při dnešní potřebě (bez lidí 0). */
   storesMonths: number;
-  /** Nasycení příštího dne 0–1 podle přídělového systému. */
+  /** Nasycení příštího dne 0–1 podle přídělového systému (energie × pestrost – diet.md). */
   satiation: number;
+  /** Jídlo příštího dne – energie, pestrost a podíly obilí, masa a ovoce (diet.md). */
+  diet: DietDay;
+  /** Zásoba masa (kg). */
+  meatKg: number;
+  /** Zásoba sýra (kg). */
+  cheeseKg: number;
+  /** Zásoba luštěnin (kg – diet.md, Luštěniny). */
+  legumesKg: number;
+  /** Zásoba sena (kg). */
+  hayKg: number;
+  /** Dobytek – stáda, slepice, voli a nosnost. */
+  livestock: LivestockSummary;
+  /** Ohrady v pořadí založení. */
+  pens: PenSummary[];
   /** Průměrná společná práce za den (posledních 30 dní). */
   commonLaborPerDay: number;
   /**
@@ -235,11 +329,13 @@ const NO_LABOR = 0.01;
 /** Od kolika dnů nahromaděného hladu lidé umírají hlady – nejnižší práh věkových skupin. */
 const STARVING_FROM_DAYS = Math.min(...Object.values(STARVATION.threshold));
 
-/** Stadium dílu v daný den; příloh podle celých let ladem (fields.md – Zarůstání). */
+/**
+ * Stadium dílu v daný den; příloh podle let ladem a let bez pastvy a seče (`fallowStage` –
+ * fields.md, Zarůstání).
+ */
 export function partStage(part: FieldPart, day: number): PartStage {
   if (part.state !== 'fallow') return part.state;
-  const years = fallowYears(part, day);
-  return OVERGROWTH_STAGES.find((s) => years <= s.maxYears)?.stage ?? 'meadow';
+  return fallowStage(part, day);
 }
 
 function peopleByGroup(state: VillageState, day: number): VillageSummary['people'] {
@@ -259,6 +355,7 @@ function households(state: VillageState, day: number): HouseholdSummary[] {
     type: d.type,
     craft: d.workshop?.craft ?? null,
     occupants: occupants(state, d.id).length,
+    family: familyCounts(occupants(state, d.id), day),
     capacity: DWELLINGS[d.type].capacity,
     full: isFull(state, d.id, day),
     overcrowded: isOvercrowded(state, d.id, day),
@@ -267,23 +364,72 @@ function households(state: VillageState, day: number): HouseholdSummary[] {
 }
 
 /**
- * Nasycení příštího dne: příděl ze zásob obilí a jablek do sklizně, se kterou ves počítá
- * (i červencová sklizeň ozimu – stejně jako eatMeal v simulaci; 1. 3. ráno jablka shnijí,
+ * Jídlo příštího dne: příděl ze zásob obilí, masa a ovoce do sklizně, se kterou ves počítá
+ * (i červencová sklizeň ozimu – stejně jako jídlo v simulaci; 1. 3. ráno ovoce shnije,
  * v nádobách později – pokrytí nádobami jako simulace příští den).
  */
-function nextDaySatiation(state: VillageState, day: number, needPerDay: number): number {
-  if (needPerDay <= 0) return 1;
+function nextDayDiet(state: VillageState, day: number): DietDay {
   const next = Math.min(day + 1, TOTAL_GAME_DAYS - 1);
-  const pottery = craftCoverage(state, next).pottery;
-  const apples = applesSpoiled(next, pottery) ? 0 : villageApplesKg(state);
-  return eatMeal(
-    state.storesKg,
-    apples,
-    needPerDay,
-    daysUntilFoodHarvest(state.plan, state.parts, next, needPerDay),
-    daysUntilAppleRot(next, pottery),
-    pottery,
-  ).satiation;
+  return villageMeal(state, next, craftCoverage(state, next).pottery, {
+    milk: dailyMilk(villageHerds(state), next),
+    eggsKg: dailyEggsKg(state),
+  }).diet;
+}
+
+const DAYS_PER_SERVICE_YEAR = 365.25;
+
+/** Ohrady pro panel a scénu. */
+function penSummaries(state: VillageState, day: number): PenSummary[] {
+  return villagePens(state).map((pen) => {
+    const age = teamAgeYears(pen, day);
+    const progress = trainingProgress(pen, day);
+    return {
+      id: pen.id,
+      cell: { x: pen.cell.x, y: pen.cell.y },
+      x: pen.x,
+      z: pen.z,
+      built: pen.builtDay !== null,
+      team:
+        age === null ? null : { ageYears: age, yearsLeft: Math.max(0, OXEN.serviceYears - age) },
+      training:
+        progress === null || !pen.training
+          ? null
+          : {
+              progress,
+              daysLeft: Math.max(
+                0,
+                Math.ceil(pen.training.startDay + OXEN.trainingYears * DAYS_PER_SERVICE_YEAR - day),
+              ),
+            },
+      trainBlocked: trainingBlock(state, pen.id, day, null),
+    };
+  });
+}
+
+/** Dobytek pro panel – stáda zaokrouhleně, nosnost pastvy a lesa. */
+function livestockSummary(state: VillageState, day: number): LivestockSummary {
+  const herds = villageHerds(state);
+  const oxen = villagePens(state).reduce(
+    (sum, pen) => sum + (pen.team ? OXEN.teamSize : 0) + (pen.training ? OXEN.teamSize : 0),
+    0,
+  );
+  return {
+    herds: {
+      sheep: Math.round(herds.sheep),
+      goat: Math.round(herds.goat),
+      pig: Math.round(herds.pig),
+      cow: Math.round(herds.cow),
+    },
+    chickens: villageChickens(state),
+    oxen,
+    pastureHa: pastureHa(state),
+    grazingHa: grazingDemandHa(herds, oxen),
+    pigForestHa: pigForestHa(state),
+    meatNeedKg: meatNeedPerYear(state, day),
+    legumeNeedKg: legumeNeedPerYear(state, day),
+    milkLPerDay: dailyMilk(herds, day).liters,
+    milkLPerYear: yearlyMilk(herds).liters,
+  };
 }
 
 function constructionSummary(state: VillageState, c: Construction): ConstructionSummary {
@@ -311,6 +457,8 @@ function constructionSummary(state: VillageState, c: Construction): Construction
     progress: c.cost > 0 ? Math.min(1, c.done / c.cost) : 1,
     buildProgress: buildProgress(c),
     treesToFell: treesToFell(c),
+    roadIds: c.kind === 'road' || c.kind === 'road-apples' ? [...(c.roadIds ?? [])] : null,
+    roadGrade: c.kind === 'road' ? (c.roadGrade ?? null) : null,
   };
 }
 
@@ -380,20 +528,33 @@ function stalled(state: VillageState): boolean {
 }
 
 /** Souhrn vsi v den `day` (stav má být dopočítaný do tohoto dne). */
-export function summarizeVillage(state: VillageState, day: number): VillageSummary {
+export function summarizeVillage(
+  state: VillageState,
+  day: number,
+  obstacles: ObstacleLayer | null = null,
+): VillageSummary {
   const needPerDay = state.people.reduce((sum, p) => sum + foodNeedPerDay(p, day), 0);
+  const diet = nextDayDiet(state, day);
   const history = state.commonLaborHistory;
   const deathsPerYear = recentDeathsPerYear(state, day);
   const starvationDays = state.starvationDays ?? 0;
   return {
     people: peopleByGroup(state, day),
+    family: familyCounts(state.people, day),
     households: households(state, day),
     storesKg: state.storesKg,
     applesKg: villageApplesKg(state),
     woodLogs: woodLogs(state),
     storesMonths:
       needPerDay > 0 ? state.storesKg / ((needPerDay * DAYS_PER_YEAR) / MONTHS_PER_YEAR) : 0,
-    satiation: nextDaySatiation(state, day, needPerDay),
+    satiation: diet.satiation,
+    diet,
+    meatKg: villageMeatKg(state),
+    cheeseKg: villageCheeseKg(state),
+    legumesKg: villageLegumesKg(state),
+    hayKg: villageHayKg(state),
+    livestock: livestockSummary(state, day),
+    pens: penSummaries(state, day),
     commonLaborPerDay: history.length > 0 ? history.reduce((s, v) => s + v, 0) / history.length : 0,
     fullHousehold: waitingHouseholds(state, day) > 0,
     constructions: state.constructions.map((c) => constructionSummary(state, c)),
@@ -412,8 +573,8 @@ export function summarizeVillage(state: VillageState, day: number): VillageSumma
       ageYears: orchardAgeYears(o, day),
       expectedYieldKg: orchardExpectedYieldKg(o, day),
     })),
-    happiness: happinessSummary(state, day, nextDaySatiation(state, day, needPerDay)),
-    sacred: sacredSummary(state),
+    happiness: happinessSummary(state, day, diet, obstacles),
+    sacred: sacredSummary(state, day, obstacles),
     crafts: craftsSummary(state, day),
   };
 }
@@ -441,16 +602,52 @@ function craftsSummary(state: VillageState, day: number): CraftsSummary {
               ? workshopLabor(state, day, d.id, coverage.pottery, productivity).craft
               : 0,
           oreFactor: oreFactor(workshop),
+          kiln: workshop.kiln ? kilnSummary(workshop.kiln) : null,
+          toPlant: workshop.toPlant?.length ?? 0,
         },
       ];
     }),
   };
 }
 
-/** Štěstí, jeho cíl a složky (cíl při nasycení příštího dne). */
-function happinessSummary(state: VillageState, day: number, satiation: number): HappinessSummary {
+/** Rozdělaný milíř pro panel: fáze, buky a průběh fáze 0–1. */
+function kilnSummary(kiln: CharcoalKiln): NonNullable<WorkshopSummary['kiln']> {
+  const n = kiln.trees.length;
+  const total =
+    kiln.stage === 'wood'
+      ? 0
+      : kiln.stage === 'burn'
+        ? CHARCOAL_KILN.burnDays
+        : (kiln.stage === 'build'
+            ? CHARCOAL_KILN.buildManDaysPerTree
+            : CHARCOAL_KILN.drawManDaysPerTree) * n;
+  const progress =
+    kiln.stage === 'wood' ? (n > 0 ? kiln.prepared / n : 1) : total > 0 ? kiln.done / total : 1;
+  return {
+    stage: kiln.stage,
+    prepared: kiln.prepared,
+    trees: n,
+    progress: Math.min(1, Math.max(0, progress)),
+    forest: kiln.site !== null,
+  };
+}
+
+/** Štěstí, jeho cíl a složky (cíl při jídle příštího dne). */
+function happinessSummary(
+  state: VillageState,
+  day: number,
+  diet: DietDay,
+  obstacles: ObstacleLayer | null,
+): HappinessSummary {
   const value = villageHappiness(state);
-  const factors = happinessFactors(state, day, satiation);
+  const factors = happinessFactors(
+    state,
+    day,
+    diet.satiation,
+    diet.shares.fruit > 0,
+    obstacles,
+    diet.shares.meat,
+  );
   return {
     value,
     target: happinessTarget(factors),
@@ -459,15 +656,22 @@ function happinessSummary(state: VillageState, day: number, satiation: number): 
   };
 }
 
-/** Posvátná místa vsi a kolik které samo přidává (stropy počtu a součtu platí pro ves). */
-function sacredSummary(state: VillageState): SacredSummary {
+/**
+ * Posvátná místa vsi a kolik které samo přidává (stropy počtu a součtu platí pro ves); duby se
+ * stadiem a stářím v den `day` (`sacredOakNow`).
+ */
+function sacredSummary(
+  state: VillageState,
+  day: number,
+  obstacles: ObstacleLayer | null,
+): SacredSummary {
   return {
     oaks: villageSacredOaks(state).map((o) => ({
       id: o.id,
       day: o.day,
       x: o.x,
       z: o.z,
-      happiness: SACRED_OAK.happiness,
+      ...sacredOakNow(obstacles, o.id, day),
     })),
     groves: villageGroves(state).map((g) => ({
       id: g.id,

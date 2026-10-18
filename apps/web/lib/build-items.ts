@@ -3,6 +3,7 @@ import {
   PLOT_TYPES,
   cemeteryPartsFromCells,
   checkDwellingPlacement,
+  checkPenPlacement,
   checkPlotPlacement,
   checkSacredBuildingPlacement,
   checkWorkshopPlacement,
@@ -13,8 +14,12 @@ import {
   NO_OBSTACLE_CHANGES,
   obstaclesOf,
   orchardPartsFromCells,
+  penLaborManDays,
   planDwellingWoodFrom,
   planSacredWood,
+  planWoodFrom,
+  placementWalk,
+  PEN,
   sacredLaborManDays,
   type BuildKind,
   type Craft,
@@ -29,6 +34,7 @@ import {
   type SacredBuildingKind,
   type SacredPlacementCheck,
   type TileCell,
+  type Walk,
 } from '@bohemia/game';
 import type { PlacementCost } from './scene/village-types';
 
@@ -192,6 +198,8 @@ export function dwellingPlacementCost(
       obstacles,
       clearedTrees: check.clearedTrees,
       clearedIds: check.obstacleIds,
+      // kácení chůzí po pevných cestách jako na serveru (roads.md)
+      walk: placementWalk(landscape, village),
     },
   );
   return {
@@ -226,6 +234,7 @@ export function workshopPlacementCost(
       clearedTrees: check.clearedTrees,
       clearedIds: check.obstacleIds,
       trees: workshopTrees(craft),
+      walk: placementWalk(landscape, village),
     },
   );
   return {
@@ -271,6 +280,7 @@ export function sacredPlacementCost(
   position: Position,
   check: Pick<SacredPlacementCheck, 'obstacleCost' | 'obstacleIds'>,
   obstacles: ObstacleLayer,
+  walk?: Walk,
 ): PlacementCost {
   const plan = planSacredWood(
     kind,
@@ -279,7 +289,7 @@ export function sacredPlacementCost(
       changes: () => village.obstacleChanges ?? NO_OBSTACLE_CHANGES,
       claimed: () => new Set(village.reservedTrees ?? []),
     },
-    { obstacles, clearedIds: check.obstacleIds },
+    { obstacles, clearedIds: check.obstacleIds, ...(walk ? { walk } : {}) },
   );
   return {
     laborManDays: sacredLaborManDays(kind, check.obstacleCost, plan),
@@ -306,7 +316,16 @@ const sacred = (
     const check = checkSacredBuildingPlacement(landscape, village, kind, position, obstacles);
     return {
       ...check,
-      cost: check.ok ? sacredPlacementCost(village, kind, position, check, obstacles) : null,
+      cost: check.ok
+        ? sacredPlacementCost(
+            village,
+            kind,
+            position,
+            check,
+            obstacles,
+            placementWalk(landscape, village),
+          )
+        : null,
     };
   },
 });
@@ -352,7 +371,8 @@ export const BUILD_ITEMS: readonly BuildItem[] = [
       return {
         check: result.check,
         blockedCells: result.blockedCells,
-        warningCells: result.warningCells,
+        // čtverce polí, které hřbitov sebere, oranžově (fields.md – Pole jako krajina)
+        warningCells: [...result.warningCells, ...result.takenLand.map((t) => t.cell)],
         cost: squaresCost(result.check, result.foundingCost),
       };
     },
@@ -374,6 +394,8 @@ export const BUILD_ITEMS: readonly BuildItem[] = [
       return {
         check: result.check,
         blockedCells: result.blockedCells,
+        // čtverce polí, které sad sebere, oranžově (fields.md – Pole jako krajina)
+        warningCells: result.takenLand.map((t) => t.cell),
         cost: squaresCost(result.check, result.plantingCost),
       };
     },
@@ -383,7 +405,64 @@ export const BUILD_ITEMS: readonly BuildItem[] = [
   workshop('potter', 'Hrnčíř', 'hrncir', 'F'),
   workshop('smith', 'Kovář', 'kovar', 'G'),
   workshop('burner', 'Uhlíř', 'uhlir', 'H'),
+  {
+    // oxen.md – ohrada s přístřeškem: jeden čtverec louky, staví se jako pole po čtvercích
+    kind: 'pen',
+    name: 'Ohrada',
+    icon: 'ohrada',
+    hotkey: 'KeyO',
+    hotkeyLabel: 'O',
+    placement: 'squares',
+    check: (landscape, village, cells) => {
+      const [cell, ...rest] = cells;
+      if (!cell) return { check: { ok: false, reason: null }, blockedCells: [], cost: null };
+      if (rest.length > 0) {
+        return {
+          check: { ok: false, reason: 'Ohrada je jeden čtverec.' },
+          blockedCells: rest,
+          cost: null,
+        };
+      }
+      const check = checkPenPlacement(landscape, village, cell);
+      return {
+        check,
+        blockedCells: check.ok ? [] : [cell],
+        // čtverec pole pod ohradou oranžově (fields.md – Pole jako krajina)
+        warningCells: check.takenLand.map((t) => t.cell),
+        cost: check.ok ? penPlacementCost(village, check) : null,
+      };
+    },
+  },
 ];
+
+/**
+ * Cena ohrady u kurzoru: práce jako při zahájení stavby (`penLaborManDays` – stavba, překážky
+ * a kácení) – dřevo z klád na hromadě nezná (VillageView je ukazuje jen v kusech), proto počítá,
+ * jako by se kácelo u ohrady všech 6 stromů bez klád; stromy ke kácení ukáže 0 (cena dřeva je
+ * v nabídce staveb).
+ */
+function penPlacementCost(
+  village: PlacementVillage,
+  check: {
+    obstacleCost: number;
+    obstacleIds: number[];
+    clearedTrees: number;
+    x: number;
+    z: number;
+  },
+): PlacementCost {
+  const plan = planWoodFrom(
+    PEN.trees,
+    { x: check.x, z: check.z },
+    {
+      logs: 0,
+      changes: () => village.obstacleChanges ?? NO_OBSTACLE_CHANGES,
+      claimed: () => new Set(village.reservedTrees ?? []),
+    },
+    { clearedIds: check.obstacleIds, clearedTrees: check.clearedTrees },
+  );
+  return { laborManDays: penLaborManDays(check.obstacleCost, plan), trees: 0 };
+}
 
 /** Stavba podle druhu. */
 export function buildItem(kind: BuildKind): BuildItem {

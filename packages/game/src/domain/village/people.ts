@@ -44,14 +44,31 @@ export function isFertile(person: Person, day: number): boolean {
   return age >= AGE.fertile && age < AGE.elder;
 }
 
+/** Žena, která může rodit: 16–44 let (kinship.md – Pohlaví). */
+export function canBear(person: Person, day: number): boolean {
+  return person.sex === 'female' && isFertile(person, day);
+}
+
+/** Muž, který může zplodit dítě: od 16 let bez horní meze (kinship.md – Pohlaví). */
+export function canFather(person: Person, day: number): boolean {
+  return person.sex === 'male' && ageYears(person.bornDay, day) >= AGE.fertile;
+}
+
 /**
- * Dojde k rozpadu domácnosti? Nikdo 14–44 let (jen děti nebo starší), nebo jediný člověk
- * a nikdo jiný (population.md – Rozpad domácnosti).
+ * Drží člověk domácnost pohromadě? Muž nebo žena 16–44 let (kinship.md – Domácnosti: dům bez
+ * dospělého muže i ženy od 16 let – jen děti, nebo jen starší – se rozpadne).
+ */
+export function holdsHousehold(person: Person, day: number): boolean {
+  return isFertile(person, day);
+}
+
+/**
+ * Dojde k rozpadu domácnosti? Nikdo 16–44 let – jen děti, nebo jen starší (kinship.md –
+ * Domácnosti; population.md – Rozpad domácnosti). Jediný člověk 16–44 se nerozpadá – je svobodný
+ * a vezme se (Martin, 18. 10. 2026 – nejstarší dítě smí odejít samo).
  */
 export function householdBreaksUp(members: readonly Person[], day: number): boolean {
-  if (members.length === 0) return false;
-  const adults = members.filter((p) => isAdult(p, day)).length;
-  return adults === 0 || members.length === 1;
+  return members.length > 0 && !members.some((p) => holdsHousehold(p, day));
 }
 
 /** Obyvatelé obydlí seřazení podle id. */

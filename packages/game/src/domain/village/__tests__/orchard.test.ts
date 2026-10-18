@@ -9,9 +9,13 @@ import {
   orchardAgeYears,
   orchardExpectedYieldKg,
   orchardPlantingCost,
+  orchardPlantingNeed,
   orchardSeason,
+  orchardSeasonDay,
   orchardYear,
   orchardYieldShare,
+  renewalQuota,
+  squareDueForRenewal,
   villageOrchards,
 } from '../orchard';
 import { MAX_ORCHARD_CELLS, orchardPartsFromCells, type PlacementVillage } from '../placement';
@@ -23,6 +27,7 @@ import {
   ORCHARD,
   OUTCROP_RADIUS_M,
 } from '../rules';
+import { cloneState } from '../clone';
 import { advanceVillage } from '../simulate';
 import { claimedObstacles, woodLogs } from '../wood';
 import { summarizeVillage } from '../summary';
@@ -246,7 +251,7 @@ describe('orchardPartsFromCells – staví se jako pole', () => {
     expect(orchardPartsFromCells(landscape, null, [{ x: 18, y: 18 }], home).check.ok).toBe(true);
   });
 
-  it('voda, les, obydlí, pole, hřbitov, jiný sad a vzdálenost blokují', () => {
+  it('voda, les, obydlí, hřbitov, jiný sad a vzdálenost blokují; pole ne', () => {
     const village: PlacementVillage = {
       dwellings: [{ type: 'zemnice', position: { x: 0, z: 0, rotation: 0 } }],
       constructions: [],
@@ -259,7 +264,6 @@ describe('orchardPartsFromCells – staví se jako pole', () => {
     expect(check(block(30, 5, 2, 1))).toBe('Sad nesmí zasahovat do vody.');
     expect(check(block(1, 1, 2, 1))).toMatch(/jen na louce/);
     expect(check(block(15, 15, 2, 2))).toBe('Sad se překrývá s obydlím.');
-    expect(check(block(19, 20, 2, 1))).toBe('Sad se překrývá s polem.');
     expect(check(block(11, 20, 2, 1))).toBe('Sad se překrývá s hřbitovem.');
     expect(check(block(6, 20, 2, 1))).toBe('Sad se překrývá s jiným sadem.');
     expect(check(block(18, 18, 1, 1), [{ x: 1000, z: 1000, rotation: 0 }])).toBe(
@@ -268,9 +272,11 @@ describe('orchardPartsFromCells – staví se jako pole', () => {
     expect(check([...block(18, 18, 1, 1), ...block(20, 18, 1, 1)])).toBe(
       'Čtverce sadu musí tvořit jeden celek – sousedit stranou.',
     );
-    expect(
-      orchardPartsFromCells(landscape, village, block(19, 20, 2, 1), home).blockedCells,
-    ).toEqual([{ x: 20, y: 20 }]);
+    // na pole smí (fields.md – Pole jako krajina) – čtverec pole z pole zmizí
+    const onField = orchardPartsFromCells(landscape, village, block(19, 20, 2, 1), home);
+    expect(onField.check).toMatchObject({ ok: true, warning: 'Pole se zmenší' });
+    expect(onField.blockedCells).toEqual([]);
+    expect(onField.takenLand).toEqual([{ cell: { x: 20, y: 20 }, areaM2: 225, cellAreaM2: 225 }]);
     expect(orchardPartsFromCells(landscape, EMPTY, [{ x: 1.5, y: 2 }], home).check.reason).toBe(
       'Neplatné čtverce sadu.',
     );
@@ -283,7 +289,7 @@ describe('orchardPartsFromCells – staví se jako pole', () => {
     ).toMatch(/nejvýš/);
   });
 
-  it('sad brání poli, hřbitovu i obydlí', async () => {
+  it('sad brání poli a hřbitovu; obydlí do sadu smí – sad se zmenší', async () => {
     const { checkDwellingPlacement, cemeteryPartsFromCells, fieldPartsFromCells } =
       await import('../placement');
     const small = makeLandscape();
@@ -291,9 +297,13 @@ describe('orchardPartsFromCells – staví se jako pole', () => {
       ...EMPTY,
       orchards: [{ squares: block(4, 10, 2, 1).map((cell) => ({ cell })) }],
     };
-    expect(
-      checkDwellingPlacement(small, village, 'zemnice', { x: -45, z: 38, rotation: 0 }).reason,
-    ).toBe('Překrývá se se sadem.');
+    const dwelling = checkDwellingPlacement(small, village, 'zemnice', {
+      x: -45,
+      z: 38,
+      rotation: 0,
+    });
+    expect(dwelling).toMatchObject({ ok: true, warning: 'Sad se zmenší' });
+    expect(dwelling.takenLand.map((t) => t.cell)).toEqual(block(4, 10, 2, 1));
     expect(fieldPartsFromCells(small, village, block(4, 9, 3, 2), home).check.reason).toBe(
       'Pole se překrývá se sadem.',
     );
@@ -503,7 +513,10 @@ describe('advanceVillage – sad', () => {
     s.hungry = false;
     const next = advanceVillage(s, at(601, 10, 2), null);
     const summary = summarizeVillage(next, next.lastDay);
-    expect(summary.satiation).toBe(1); // dnes se jí dosyta jablky
+    // ovoce smí pokrýt nejvýš čtvrtinu energie (diet.md) – samo nenasytí; obilí se šetří na
+    // dobu po zkažení jablek
+    expect(next.diet!.shares.fruit).toBeCloseTo(0.25, 9);
+    expect(summary.diet.energy).toBeLessThan(1);
     expect(next.hungry).toBe(true);
     expect(summary.hungry).toBe(true);
     expect(events(next, 'hunger-began').at(-1)?.day).toBe(at(601, 10, 2));
@@ -518,7 +531,8 @@ describe('advanceVillage – sad', () => {
     expect(kg).toBeLessThan(ORCHARD.fullYieldKgPerHa * ha(1200) * 0.8);
   });
 
-  it('v 60. roce sad dosloužil – 1. 3. zaroste loukou a kronika to zapíše', () => {
+  it('bez práce na obnovu sad v 60. roce dosloužil – 1. 3. zaroste loukou, kronika to zapíše', () => {
+    // mladá ves zakládá pole – na podzim jde všechna práce do pole, na obnovu nezbude
     const base = village(at(599, 8, 1));
     const s = withOrchard(base, 4, at(541, 4, 1)); // 59. rok sadu v září 599
     const autumn = advanceVillage(s, at(599, 11, 1), null);
@@ -526,9 +540,13 @@ describe('advanceVillage – sad', () => {
       Math.round(ORCHARD.fullYieldKgPerHa * ha(4) * 0.1),
     );
     const before = advanceVillage(autumn, at(600, 2, 29), null);
-    expect(villageOrchards(before)).toHaveLength(1);
+    // vesničané čtverec do obnovy zařadili, ale práce na něj nedošla – stojí staré stromy
+    expect(events(before, 'orchard-renewal-started')).toHaveLength(1);
+    const waiting = villageOrchards(before)[0]!.squares.filter((q) => q.renewal !== undefined);
+    expect(waiting.map((q) => q.plantedDay)).toEqual([at(541, 4, 1)]);
     const after = advanceVillage(before, at(600, 3, 1), null);
     expect(villageOrchards(after)).toHaveLength(0);
+    expect(after.constructions.some((c) => c.kind === 'orchard')).toBe(false);
     expect(events(after, 'orchard-gone')).toEqual([
       { day: at(600, 3, 1), kind: 'orchard-gone', orchardId: s.orchards![0]!.id },
     ]);
@@ -568,6 +586,177 @@ describe('advanceVillage – sad', () => {
     expect(daily).toEqual(whole);
     // sad opravdu plodil – jinak by shoda nic neznamenala
     expect(events(whole, 'apple-harvest').length).toBeGreaterThanOrEqual(5);
+  });
+});
+
+/** Usazená ves – první pole je dávno založené a v jarním i podzimním okně zbývá společná práce. */
+function settledVillage(day: number): VillageState {
+  return advanceVillage(village(day - 3 * 365, LIGHT_FIELD), day, null);
+}
+
+const PLANTING_MONTHS = [3, 4, 9, 10, 11];
+
+describe('obnova sadu (orchard.md – Obnova sadu)', () => {
+  it('za rok sadu nejvýš desetina čtverců, nahoru, aspoň jeden; od 50. roku sadu', () => {
+    expect([1, 4, 10, 11, 20, 30, 40, 41].map(renewalQuota)).toEqual([1, 1, 1, 2, 2, 3, 4, 5]);
+    const square = (plantedDay: number | null): Orchard['squares'][number] => ({
+      cell: { x: 0, y: 0 },
+      areaM2: 225,
+      distanceM: 60,
+      plantingCost: 1.8,
+      plantingDone: plantedDay === null ? 0 : 1.8,
+      plantedDay,
+    });
+    // jarní výsadba 541: 49. rok sadu v sezóně 589, 50. (poslední s plnou úrodou) od 1. 3. 590
+    expect(squareDueForRenewal(square(at(541, 4, 1)), at(590, 2, 28))).toBe(false);
+    expect(squareDueForRenewal(square(at(541, 4, 1)), at(590, 3, 1))).toBe(true);
+    expect(squareDueForRenewal(square(null), at(700, 3, 1))).toBe(false);
+    // do 60. roku zbývá na obnovu celého sadu dost let
+    expect((ORCHARD.endYear - ORCHARD.declineAfterYear) * ORCHARD.renewalShareYear).toBe(1);
+  });
+
+  it('starý sad se za 10 let obnoví po desetinách, nejstarší první, a nikdy nezmizí', () => {
+    const base = settledVillage(at(589, 6, 1));
+    const s = withOrchard(base, 20, at(541, 4, 1));
+    const orchardId = s.orchards![0]!.id;
+    // druhá polovina vysazená na podzim 542 – roste od jara 543, do obnovy patří až od 592
+    for (const square of s.orchards![0]!.squares.slice(10)) square.plantedDay = at(542, 10, 15);
+    let current = s;
+    for (let year = 590; year <= 604; year++) {
+      current = advanceVillage(current, at(year, 3, 2), null);
+      // sad žije celý – žádný čtverec nezarostl loukou
+      expect(villageOrchards(current)).toHaveLength(1);
+      expect(villageOrchards(current)[0]!.squares).toHaveLength(20);
+    }
+    const end = advanceVillage(current, at(604, 11, 15), null);
+    expect(events(end, 'orchard-gone')).toEqual([]);
+    const squaresAtEnd = villageOrchards(end)[0]!.squares;
+    // všechny čtverce jsou znovu vysazené mladé stromy, sázelo se jen v oknech výsadby
+    expect(squaresAtEnd.every((q) => q.plantedDay !== null && q.plantedDay >= at(590, 3, 1))).toBe(
+      true,
+    );
+    expect(squaresAtEnd.every((q) => q.renewal === undefined)).toBe(true);
+    const days = squaresAtEnd.map((q) => q.plantedDay!);
+    expect(days.every((d) => PLANTING_MONTHS.includes(dateOfDayIndex(d).month))).toBe(true);
+    // za rok sadu nejvýš 2 čtverce (desetina z 20)
+    const perSeason = new Map<number, number>();
+    for (const d of days)
+      perSeason.set(orchardSeason(d), (perSeason.get(orchardSeason(d)) ?? 0) + 1);
+    expect([...perSeason.values()].every((n) => n <= 2)).toBe(true);
+    expect(perSeason.size).toBe(10);
+    // nejstarší první: jarní výsadba 541 se obnovila celá dřív než podzimní 542
+    const older = days.slice(0, 10);
+    const younger = days.slice(10);
+    expect(Math.max(...older)).toBeLessThanOrEqual(Math.min(...younger));
+    // kronika: zahájení obnovy jednou za rok sadu – po dvou čtvercích, první hned 1. 3. 590
+    const renewals = events(end, 'orchard-renewal-started');
+    expect(renewals).toHaveLength(10);
+    expect(renewals[0]).toEqual({
+      day: at(590, 3, 1),
+      kind: 'orchard-renewal-started',
+      orchardId,
+      squares: 2,
+    });
+    expect(renewals.every((e) => e.squares === 2 && e.orchardId === orchardId)).toBe(true);
+    expect(renewals.every((e) => PLANTING_MONTHS.includes(dateOfDayIndex(e.day).month))).toBe(true);
+    // dokončená obnova se do kroniky jako vysazený sad nepíše
+    expect(
+      end.chronicle.some(
+        (e) => e.kind === 'construction-finished' && e.constructionKind === 'orchard',
+      ),
+    ).toBe(false);
+    // úroda nespadla na nulu – každý podzim se něco sklidilo
+    const harvestYears = events(end, 'apple-harvest').map((e) => dateOfDayIndex(e.day).year);
+    expect(harvestYears).toEqual(Array.from({ length: 16 }, (_, i) => 589 + i));
+  });
+
+  it('obnova jen v oknech výsadby – starý sad (i uložený dřív) se zařadí sám v nejbližším okně', () => {
+    const base = settledVillage(at(598, 6, 1));
+    const s = withOrchard(base, 10, at(543, 4, 1)); // 56. rok sadu, bez údaje o obnově
+    expect(s.orchards![0]!.renewedSeason).toBeUndefined();
+    const summer = advanceVillage(s, at(598, 8, 31), null);
+    expect(events(summer, 'orchard-renewal-started')).toEqual([]);
+    expect(summer.constructions.some((c) => c.kind === 'orchard')).toBe(false);
+    const autumn = advanceVillage(summer, at(598, 11, 30), null);
+    const renewal = events(autumn, 'orchard-renewal-started');
+    expect(renewal.map((e) => e.day)).toEqual([at(598, 9, 1)]);
+    const renewed = villageOrchards(autumn)[0]!.squares.filter(
+      (q) => q.plantedDay! > at(598, 3, 1),
+    );
+    expect(renewed).toHaveLength(1);
+    expect(PLANTING_MONTHS).toContain(dateOfDayIndex(renewed[0]!.plantedDay!).month);
+    // v zimě se znovu nerozhoduje – další obnova až v roce sadu 599 (od jara)
+    const winter = advanceVillage(autumn, at(599, 2, 28), null);
+    expect(events(winter, 'orchard-renewal-started')).toHaveLength(1);
+    const spring = advanceVillage(winter, at(599, 3, 1), null);
+    expect(events(spring, 'orchard-renewal-started').at(-1)?.day).toBe(at(599, 3, 1));
+  });
+
+  it('staré stromy se kácejí až po sklizni jablek; obnova stojí stejnou práci jako výsadba', () => {
+    const base = settledVillage(at(598, 8, 1));
+    const s = withOrchard(base, 10, at(543, 4, 1));
+    const day = at(598, 9, 1);
+    const started = advanceVillage(s, day - 1, null);
+    // ráno 1. 9.: sklizeň se rozběhne a vesničané zařadí čtverec do obnovy
+    const morning = structuredClone(started);
+    orchardSeasonDay(morning, day);
+    const renewal = morning.constructions.find((c) => c.kind === 'orchard')!;
+    expect(renewal).toMatchObject({ renewal: true, startedDay: day, done: 0 });
+    expect(renewal.cost).toBeCloseTo(orchardPlantingCost(225, 0), 9);
+    expect(morning.orchardWork?.task).toBe('harvest');
+    expect(orchardPlantingNeed(morning, renewal, day)).toBe(0);
+    // po sklizni (hotová práce) jde obnova na řadu
+    morning.orchardWork!.done = morning.orchardWork!.required;
+    expect(orchardPlantingNeed(morning, renewal, day)).toBeCloseTo(orchardPlantingCost(225, 0), 9);
+    // mimo okno výsadby obnova práci nebere
+    expect(orchardPlantingNeed(morning, renewal, at(598, 12, 1))).toBe(0);
+  });
+
+  it('po kouscích s JSON mezi nimi dá stejný stav jako jedním voláním (obnova 590–592)', () => {
+    const start = withOrchard(settledVillage(at(589, 6, 1)), 12, at(541, 4, 1));
+    const end = at(592, 12, 1);
+    const whole = advanceVillage(start, end, null);
+    const viaJson = (s: VillageState): VillageState =>
+      JSON.parse(JSON.stringify(s)) as VillageState;
+    const steps = [1, 29, 400, 7, 1000, 13, 365, 2, 777, 61];
+    let chunked = viaJson(start);
+    for (let i = 0; chunked.lastDay < end; i++) {
+      chunked = viaJson(
+        advanceVillage(chunked, Math.min(end, chunked.lastDay + steps[i % steps.length]!), null),
+      );
+    }
+    expect(chunked).toEqual(whole);
+    let daily = start;
+    while (daily.lastDay < end) daily = advanceVillage(daily, daily.lastDay + 1, null);
+    expect(daily).toEqual(whole);
+    // obnova opravdu běžela – jinak by shoda nic neznamenala
+    expect(events(whole, 'orchard-renewal-started')).toHaveLength(3);
+    expect(
+      villageOrchards(whole)[0]!.squares.filter((q) => q.plantedDay! >= at(590, 3, 1)),
+    ).toHaveLength(6);
+  });
+
+  it('kopie stavu (cloneState) s rozběhnutou obnovou je stejná jako structuredClone', () => {
+    const base = settledVillage(at(598, 8, 1));
+    const day = at(598, 9, 1);
+    const morning = advanceVillage(withOrchard(base, 10, at(543, 4, 1)), day - 1, null);
+    orchardSeasonDay(morning, day);
+    // nová pole stavu: značka obnovy na čtverci, rok poslední obnovy sadu a stavba obnovy
+    const orchard = villageOrchards(morning)[0]!;
+    expect(orchard.renewedSeason).toBe(598);
+    expect(orchard.squares.filter((q) => q.renewal !== undefined)).toHaveLength(1);
+    expect(morning.constructions.some((c) => c.renewal === true)).toBe(true);
+    const copy = cloneState(morning);
+    expect(copy).toEqual(structuredClone(morning));
+    copy.orchards![0]!.renewedSeason = 0;
+    expect(orchard.renewedSeason).toBe(598);
+  });
+
+  it('panel: stáří sadu je průměr čtverců – obnovou sad mládne', () => {
+    const s = withOrchard(settledVillage(at(589, 6, 1)), 10, at(541, 4, 1));
+    const result = advanceVillage(s, at(590, 6, 1), null);
+    // 9 čtverců ≈ 49 let, 1 mladý – průměr vážený plochou ≈ 44 let
+    expect(summarizeVillage(result, at(590, 6, 1)).orchards[0]!.ageYears).toBe(44);
   });
 });
 

@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  ROAD_TREE_ID_BASE,
   advanceVillage,
+  obstacleChangesAt,
+  startRoadApples,
+  startRoadUpgrade,
   checkDwellingPlacement,
   dayIndexOf,
   fieldPartsFromCells,
@@ -8,13 +12,20 @@ import {
   foundOrchard,
   foundVillage,
   generateLandscape,
+  groveAgeYears,
+  oakAgeHappiness,
   obstaclesOf,
   placementVillageOf,
   reservedTrees,
+  sacredOakLife,
+  sacredOakNow,
+  sacredSitesOf,
+  startRelocation,
   surfaceAt,
   tileCenterWorld,
   villageDwellingPositions,
   type ChronicleEvent,
+  type LandTaker,
   type Landscape,
   type PartInput,
   type VillageRecord,
@@ -25,6 +36,8 @@ import {
   buildVillageView,
   chronicleText,
   placementVillageFromScene,
+  sceneRoadApples,
+  type VillageView,
 } from '../village-view';
 
 const DAY = dayIndexOf({ year: 503, month: 4, day: 12 });
@@ -69,6 +82,7 @@ const settled = (): VillageState => {
   return s;
 };
 const record = (s: VillageState = state()): VillageRecord => ({
+  id: 'v-1',
   settlementId: 's-1',
   name: 'Libice',
   state: s,
@@ -93,6 +107,54 @@ describe('buildVillageView – práce vsi pro postavy', () => {
     }
     const domestic = labor.shares.find((x) => x.activity === 'domestic');
     expect(domestic?.target).toEqual({ kind: 'village' });
+  });
+});
+
+describe('buildVillageView – zarůstání (fields.md)', () => {
+  it('díly přílohu: roky bez pastvy, kde se pase, zarůstající plocha; les vsi se stromy', () => {
+    const s = settled();
+    s.constructions = s.constructions.filter((c) => c.kind !== 'field');
+    s.parts.forEach((p, i) => {
+      p.foundingDone = p.foundingCost;
+      p.state = 'fallow';
+      p.fallowSinceDay = DAY - 10 * 365;
+      p.distanceM = 50 + i;
+      p.areaM2 = 1000;
+      if (i === 3) p.overgrowthYears = 2;
+      if (i === 4) p.overgrowthYears = 7;
+    });
+    // jedna ovce spase 0,2 ha – dva nejbližší díly po 0,1 ha
+    s.livestock = {
+      herds: { sheep: 0, goat: 0, pig: 0, cow: 0 },
+      young: { sheep: 0, goat: 0, pig: 0, cow: 0 },
+    };
+    s.livestock.herds.sheep = 1;
+    const center = tileCenterWorld(landscape, 3, 3);
+    s.woods = [
+      {
+        cell: { x: 3, y: 3 },
+        x: center.x,
+        z: center.z,
+        areaM2: 225,
+        surface: 'meadow',
+        day: DAY - 400,
+      },
+    ];
+    const view = buildVillageView(record(s), landscape, DAY);
+    const scene = view.scene.fields[0]!.parts;
+    expect(scene.map((p) => p.stage)).toEqual(['meadow', 'meadow', 'meadow', 'meadow', 'shrubs']);
+    expect(scene.map((p) => p.overgrowth)).toEqual([undefined, undefined, undefined, 2, 7]);
+    // křoviny se nepasou
+    expect(scene.map((p) => p.grazed)).toEqual([true, true, false, false, undefined]);
+    expect(scene[4]!.look).toBe('shrubs');
+    expect(view.fields[0]!.overgrowingM2).toBe(2000);
+    expect(view.fields[0]!.stages).toEqual({ meadow: 4, shrubs: 1 });
+    expect(view.scene.woods).toEqual([
+      { cell: { x: 3, y: 3 }, x: center.x, z: center.z, size: 15, surface: 'meadow', age: 31 },
+    ]);
+    const woodTrees = (view.scene.obstacles?.added ?? []).filter((o) => o.id >= 2 ** 31);
+    expect(woodTrees).toHaveLength(5);
+    expect(placementVillageFromScene(view.scene).woods).toEqual([{ cell: { x: 3, y: 3 } }]);
   });
 });
 
@@ -196,6 +258,15 @@ describe('buildVillageView', () => {
         blocked: null,
         affordable: false,
       },
+      // ohrada s přístřeškem (oxen.md) – 40 čd a 6 stromů předem, osadníci ne
+      pen: {
+        laborManDays: 40,
+        perHa: false,
+        perSquare: false,
+        upfront: [{ resource: 'wood', amount: 6, missing: 6 }],
+        blocked: null,
+        affordable: false,
+      },
     });
     // zakladatelé bydlí na staveništi – domácnost s obydlím přibude s dostavěním zemnice
     expect(view.households).toEqual([]);
@@ -210,6 +281,7 @@ describe('buildVillageView', () => {
         dwellingType: 'zemnice',
         craft: null,
         dwellingId: null,
+        relocates: null,
         fieldId: null,
         cemeteryId: null,
         orchardId: null,
@@ -223,6 +295,7 @@ describe('buildVillageView', () => {
         dwellingType: null,
         craft: null,
         dwellingId: null,
+        relocates: null,
         fieldId,
         cemeteryId: null,
         orchardId: null,
@@ -240,6 +313,7 @@ describe('buildVillageView', () => {
         crops: {},
         ashParts: 0,
         ashBonus: 0,
+        overgrowingM2: 0,
       },
     ]);
     expect(view.hungry).toBe(false);
@@ -284,12 +358,16 @@ describe('buildVillageView', () => {
         type: 'zemnice',
         craft: null,
         occupants: 4,
+        // zakladatelé: manželé 25 let, chlapec 13 a dívka 12 (kinship.md)
+        family: { men: 1, women: 1, boys: 1, girls: 1, elderMen: 0, elderWomen: 0, couples: 1 },
         capacity: 6,
         full: false,
         overcrowded: false,
         condition: 1,
         ages: [25, 25, 13, 12],
         ageYears: 0,
+        relocation: null,
+        relocationBlock: null,
       },
     ]);
   });
@@ -370,6 +448,32 @@ describe('buildVillageView', () => {
     expect(scene.dwellings[0]?.inhabited).toBe(false);
   });
 
+  it('scéna: stav chátrajícího obydlí a zbytky jam po zaniklých obydlích (jak zarostly)', () => {
+    const s = settled();
+    s.dwellings[0]!.condition = 0.4321;
+    const plot = { cell: { x: 9, y: 9 }, variant: 'center' as const };
+    s.ruins = [
+      { id: 7, type: 'polozemnice', position: { x: 10, z: 20, rotation: 0 }, plot, day: DAY - 365 },
+    ];
+    const { scene } = buildVillageView(record(s), landscape, DAY);
+    expect(scene.dwellings[0]?.condition).toBe(0.432);
+    const center = tileCenterWorld(landscape, 9, 9);
+    expect(scene.ruins).toEqual([
+      {
+        id: 7,
+        type: 'polozemnice',
+        position: { x: 10, z: 20, rotation: 0 },
+        since: DAY - 365,
+        overgrowth: 0.1,
+        plot: { cell: { x: 9, y: 9 }, x: center.x, z: center.z, size: 15, variant: 'center' },
+      },
+    ]);
+    // celé obydlí stav neposílá, ves bez zbytků jam je nemá
+    const plain = buildVillageView(record(settled()), landscape, DAY).scene;
+    expect(plain.dwellings[0]).not.toHaveProperty('condition');
+    expect(plain).not.toHaveProperty('ruins');
+  });
+
   it('scéna: obydlí, díly pole ve středech políček a rozestavěné obydlí', () => {
     const s = settled();
     // stavba obydlí rovnou do stavu – pravidla odemčení tu netestujeme
@@ -412,6 +516,7 @@ describe('buildVillageView', () => {
       dwellingType: 'polozemnice',
       craft: null,
       dwellingId: null,
+      relocates: null,
       fieldId: null,
       cemeteryId: null,
       orchardId: null,
@@ -487,12 +592,14 @@ describe('buildVillageView', () => {
       rotation: 0,
     });
     expect(onHouse.ok).toBe(false);
+    // na pole obydlí smí – pole se zmenší (population.md – Obydlí na poli a v sadu)
     const inField = checkDwellingPlacement(landscape, village, 'zemnice', {
       x: 30,
       z: 7,
       rotation: 0,
     });
-    expect(inField.reason).toMatch(/polem/);
+    expect(inField).toMatchObject({ ok: true, warning: 'Pole se zmenší' });
+    expect(inField.takenLand.length).toBeGreaterThan(0);
   });
 
   it('scéna nese odstraněné a pokácené překážky – i do kontroly umístění v prohlížeči', () => {
@@ -573,7 +680,12 @@ describe('buildVillageView', () => {
     const s = state();
     const view = buildVillageView(record(s), landscape, DAY);
     expect(view.chronicle).toEqual([
-      { day: DAY, dateLabel: '12. dubna 503', text: 'Osadníci založili ves Libice.' },
+      {
+        day: DAY,
+        kind: 'village-founded',
+        dateLabel: '12. dubna 503',
+        text: 'Osadníci založili ves Libice.',
+      },
     ]);
     s.chronicle.push(
       ...Array.from({ length: 20 }, (_, i) => ({ day: DAY + i + 1, kind: 'birth' as const })),
@@ -582,6 +694,17 @@ describe('buildVillageView', () => {
     expect(long.chronicle).toHaveLength(CHRONICLE_LENGTH);
     expect(long.chronicle[0]?.day).toBe(DAY + 20);
     expect(long.chronicle[0]?.dateLabel).toBe('2. května 503');
+  });
+
+  it('den poslední svatby mezi domy (upozornění „Svatba“), bez svatby null', () => {
+    const s = state();
+    expect(buildVillageView(record(s), landscape, DAY).lastMarriageDay).toBeNull();
+    s.chronicle.push(
+      { day: DAY + 1, kind: 'marriage', fromDwellingId: 2, toDwellingId: 1 },
+      { day: DAY + 3, kind: 'marriage', fromDwellingId: 3, toDwellingId: 1 },
+      { day: DAY + 4, kind: 'birth' },
+    );
+    expect(buildVillageView(record(s), landscape, DAY + 4).lastMarriageDay).toBe(DAY + 3);
   });
 });
 
@@ -658,6 +781,9 @@ describe('chronicleText', () => {
     { day: DAY, kind: 'village-extinct' },
     { day: DAY, kind: 'household-founded', dwellingId: 2 },
     { day: DAY, kind: 'household-merged', fromDwellingId: 2, toDwellingId: 1 },
+    { day: DAY, kind: 'marriage', fromDwellingId: 2, toDwellingId: 1 },
+    { day: DAY, kind: 'bride-from-outside', dwellingId: 1 },
+    { day: DAY, kind: 'married-away', dwellingId: 1 },
     {
       day: DAY,
       kind: 'construction-finished',
@@ -670,6 +796,8 @@ describe('chronicleText', () => {
     { day: DAY, kind: 'hunger-began' },
     { day: DAY, kind: 'hunger-ended' },
     { day: DAY, kind: 'part-became-forest', partId: 4 },
+    { day: DAY, kind: 'part-became-forest', partId: 4, fieldId: 2, parts: 3, gone: false },
+    { day: DAY, kind: 'part-became-forest', partId: 4, fieldId: 2, parts: 1, gone: true },
     { day: DAY, kind: 'cemetery-full', cemeteryId: 5, othersFree: true },
     { day: DAY, kind: 'cemetery-full', cemeteryId: 5, othersFree: false },
     { day: DAY, kind: 'cemetery-full', cemeteryId: 5, othersFree: false, othersBuilding: true },
@@ -696,6 +824,8 @@ describe('chronicleText', () => {
     },
     { day: DAY, kind: 'sacred-spared', site: 'oak', id: 7 },
     { day: DAY, kind: 'sacred-spared', site: 'grove', id: 8 },
+    { day: DAY, kind: 'road-formed', roadId: 3 },
+    { day: DAY, kind: 'road-overgrown', roadId: 3 },
   ];
 
   it('každá událost má český text', () => {
@@ -715,6 +845,19 @@ describe('chronicleText', () => {
     expect(
       chronicleText({ day: DAY, kind: 'rebuild-decided', dwellingId: 1, type: 'polozemnice' }, 'X'),
     ).toBe('Obyvatelé se rozhodli přestavět dožilé obydlí na polozemnici.');
+  });
+});
+
+describe('kronika – zarůstání (fields.md)', () => {
+  it('díl nebo pole zarostlo lesem a vypadlo z pole', () => {
+    const forest = (parts: number, gone: boolean): string =>
+      chronicleText(
+        { day: DAY, kind: 'part-became-forest', partId: 1, fieldId: 2, parts, gone },
+        'X',
+      );
+    expect(forest(1, false)).toBe('Nepasený díl pole zarostl lesem – pole se zmenšilo.');
+    expect(forest(3, false)).toBe('Nepasené pole zarostlo lesem – ubylo 3 čtverce.');
+    expect(forest(2, true)).toBe('Nepasené pole zarostlo lesem a zaniklo.');
   });
 });
 
@@ -742,7 +885,7 @@ describe('vymřelá ves a konec hry', () => {
     s.people = [];
     const extinct = advanceVillage(s, DAY + 1, null);
     expect(extinct.extinctDay).toBe(DAY); // ves vzniká na začátku dne DAY – první den je DAY
-    const view = buildVillageView(record(extinct), landscape, DAY + 1, true);
+    const view = buildVillageView(record(extinct), landscape, DAY + 1, { gameOver: true });
     expect(view.extinct).toEqual({ foundedYear: 503, extinctYear: 503, years: 0 });
     expect(view.gameOver).toBe(true);
     expect(view.scene.dwellings.every((d) => d.inhabited === false)).toBe(true);
@@ -833,7 +976,12 @@ describe('sad v pohledu na ves', () => {
       plantingWaits: true,
     });
     expect(placementVillageFromScene(view.scene).orchards).toEqual([
-      { squares: [{ cell: { x: 2, y: 2 } }, { cell: { x: 3, y: 2 } }] },
+      {
+        squares: [
+          { cell: { x: 2, y: 2 }, areaM2: 225 },
+          { cell: { x: 3, y: 2 }, areaM2: 225 },
+        ],
+      },
     ]);
   });
 
@@ -865,9 +1013,94 @@ describe('sad v pohledu na ves', () => {
     expect(june.scene.orchards?.[0]?.squares[0]?.fruit).toBe(false);
   });
 
+  it('obnova: velikost stromů a jablka po čtvercích, vytyčený jen obnovovaný čtverec', () => {
+    const s = withOrchard();
+    s.constructions = s.constructions.filter((c) => c.kind !== 'orchard');
+    const [old, renewed] = s.orchards![0]!.squares;
+    old!.plantedDay = dayIndexOf({ year: 507, month: 4, day: 1 });
+    old!.plantingDone = old!.plantingCost;
+    // obnovený čtverec – vysazený znovu na jaře 558
+    renewed!.plantedDay = dayIndexOf({ year: 558, month: 4, day: 1 });
+    renewed!.plantingDone = renewed!.plantingCost;
+    const august = dayIndexOf({ year: 560, month: 8, day: 10 });
+    s.lastDay = august;
+    const view = buildVillageView(record(s), landscape, august);
+    const [oldScene, renewedScene] = view.scene.orchards![0]!.squares;
+    // starý čtverec (54. rok sadu) má plné stromy s jablky, obnovený mladé stromky bez jablek
+    expect(oldScene).toMatchObject({ planting: 1, growth: 1, fruit: true });
+    expect(renewedScene).toMatchObject({ planting: 1, fruit: false });
+    expect(renewedScene!.growth).toBeGreaterThan(0.3);
+    expect(renewedScene!.growth).toBeLessThan(0.5);
+    expect(renewedScene).not.toHaveProperty('renewal');
+    // stáří sadu = průměr čtverců vážený plochou ((53,4 + 2,4) / 2)
+    expect(view.orchards[0]!.ageYears).toBe(27);
+
+    // obnova běží: staré stromy na čtverci skácené, sází se znovu (kůly → sazenice)
+    renewed!.plantedDay = null;
+    renewed!.plantingCost = 1.8;
+    renewed!.plantingDone = 0.9;
+    renewed!.renewal = 99;
+    s.constructions.push({
+      id: 99,
+      kind: 'orchard',
+      startedDay: august - 3,
+      cost: 1.8,
+      done: 0.9,
+      dwellingType: null,
+      position: null,
+      dwellingId: null,
+      fieldId: null,
+      orchardId: s.orchards![0]!.id,
+      renewal: true,
+    });
+    const renewing = buildVillageView(record(s), landscape, august);
+    expect(renewing.scene.orchards![0]!.squares[1]).toMatchObject({
+      planting: 0.5,
+      growth: 0,
+      fruit: false,
+      renewal: true,
+    });
+    expect(renewing.scene.orchards![0]!.squares[0]).not.toHaveProperty('renewal');
+    expect(renewing.orchards[0]).toMatchObject({ planting: 0.5, ageYears: 53 });
+  });
+
+  it('kronika obnovy – druh události pro upozornění a text', () => {
+    const s = withOrchard();
+    const orchardId = s.orchards![0]!.id;
+    s.chronicle.push({ day: DAY - 30, kind: 'orchard-renewal-started', orchardId, squares: 4 });
+    expect(buildVillageView(record(s), landscape, DAY).chronicle[0]).toMatchObject({
+      day: DAY - 30,
+      kind: 'orchard-renewal-started',
+      text: 'Vesničané obnovují starý sad – znovu vysadí 4 čtverce.',
+    });
+  });
+
+  it('kronika: pole a sad ustoupily stavbě obydlí', () => {
+    const taken = (land: 'field' | 'orchard', gone: boolean): string =>
+      chronicleText({ day: 0, kind: 'land-taken', land, id: 3, areaM2: 1234.4, gone }, 'Libice');
+    expect(taken('field', false)).toBe('Pole ustoupilo stavbě obydlí – zmenšilo se o 1 234 m².');
+    expect(taken('field', true)).toBe('Pole ustoupilo stavbě obydlí a zaniklo.');
+    expect(taken('orchard', false)).toBe('Sad ustoupil stavbě obydlí – zmenšil se o 1 234 m².');
+    expect(taken('orchard', true)).toBe('Sad ustoupil stavbě obydlí a zanikl.');
+  });
+
+  it('kronika: pole ustoupilo i ostatním stavbám (pole jako krajina)', () => {
+    const by = (taker: LandTaker, gone = false): string =>
+      chronicleText(
+        { day: 0, kind: 'land-taken', land: 'field', id: 3, areaM2: 20, gone, by: taker },
+        'Libice',
+      );
+    expect(by('orchard', true)).toBe('Pole ustoupilo sadu a zaniklo.');
+    expect(by('cemetery', true)).toBe('Pole ustoupilo hřbitovu a zaniklo.');
+    expect(by('pen')).toBe('Pole ustoupilo ohradě – zmenšilo se o 20 m².');
+    expect(by('shrine')).toBe('Pole ustoupilo svatyni – zmenšilo se o 20 m².');
+    expect(by('road-apples')).toBe('Pole ustoupilo jabloním u cesty – zmenšilo se o 20 m².');
+    expect(by('road-trees')).toBe('Pole ustoupilo stromům u cesty – zmenšilo se o 20 m².');
+  });
+
   it('kronika: sklizeň jablek a dosloužilý sad', () => {
     expect(chronicleText({ day: 0, kind: 'apple-harvest', kg: 1234 }, 'Libice')).toBe(
-      'Sklizeň jablek: 1 234 kg.',
+      'Sklizeň ovoce: 1 234 kg.',
     );
     expect(chronicleText({ day: 0, kind: 'orchard-gone', orchardId: 3 }, 'Libice')).toBe(
       'Starý sad dosloužil a zarostl loukou.',
@@ -911,8 +1144,12 @@ describe('štěstí a posvátná místa v pohledu na ves', () => {
     const view = buildVillageView(record(s), landscape, DAY);
     expect(view.happiness.value).toBe(62.4);
     expect(view.happiness.laborFactor).toBeCloseTo(1 + (0.1 * 12.4) / 50, 9);
-    expect(view.sacred.oaks).toEqual([{ id: 7, happiness: 5 }]);
-    expect(view.sacred.groves).toEqual([{ id: 8, oaks: 14, squares: 1, happiness: 14 }]);
+    // ruční krajina bez vrstvy překážek – stáří dubů neznámé
+    // bez vrstvy se dub počítá jako nejmladší (+1)
+    expect(view.sacred.oaks).toEqual([{ id: 7, happiness: 1, ageYears: null, snag: false }]);
+    expect(view.sacred.groves).toEqual([
+      { id: 8, oaks: 14, squares: 1, happiness: 14, ageYears: null },
+    ]);
     expect(view.sacred.buildings).toEqual([
       { id: 40, kind: 'idol', built: true, happiness: 8, progress: 1, oaksToFell: 0 },
       { id: 41, kind: 'shrine', built: false, happiness: 25, progress: 0.25, oaksToFell: 2 },
@@ -955,10 +1192,307 @@ describe('štěstí a posvátná místa v pohledu na ves', () => {
     expect(view.scene.sacred?.oaks[0]?.growth).toBeCloseTo(1.15, 9);
   });
 
+  it('panel ukáže stáří posvátného dubu a nejstaršího dubu háje podle vrstvy překážek', () => {
+    const real = generateLandscape(5);
+    const sites = sacredSitesOf(obstaclesOf(real));
+    const oak = sites.oaks[0]!;
+    const grove = sites.groves[0]!;
+    const s = settled();
+    s.sacredOaks = [{ id: oak.id, day: DAY, x: oak.x, z: oak.z }];
+    s.groves = [{ id: grove.id, day: DAY, x: grove.x, z: grove.z, cells: grove.cells, oaks: 9 }];
+    const view = buildVillageView(record(s), real, DAY);
+    const layer = obstaclesOf(real);
+    expect(view.sacred.oaks[0]?.ageYears).toBe(sacredOakNow(layer, oak.id, DAY).ageYears);
+    expect(view.sacred.groves[0]?.ageYears).toBe(groveAgeYears(layer, grove, DAY));
+    // k 1. 1. 500 je posvátný dub starý 150–400 let, v roce 503 o 3 roky víc
+    expect(view.sacred.oaks[0]?.ageYears).toBeGreaterThanOrEqual(153);
+    expect(view.sacred.oaks[0]?.ageYears).toBeLessThanOrEqual(403);
+  });
+
+  it('posvátný dub uschne: panel souš se stářím a +1, scéna souš; padlá souš z panelu zmizí', () => {
+    const real = generateLandscape(5);
+    const layer = obstaclesOf(real);
+    const oak = sacredSitesOf(layer).oaks.find((o) => {
+      const life = sacredOakLife(layer, o.id);
+      return life?.diesDay != null && life.fallsDay != null;
+    })!;
+    const life = sacredOakLife(layer, oak.id)!;
+    const died = life.diesDay!;
+    const fell = life.fallsDay!;
+    const s = settled();
+    s.sacredOaks = [{ id: oak.id, day: DAY, x: oak.x, z: oak.z }];
+    const at = (day: number): VillageView => buildVillageView(record(s), real, day);
+    const span = life.lifespanYears;
+    expect(at(died - 1).sacred.oaks).toEqual([
+      { id: oak.id, happiness: oakAgeHappiness(span), ageYears: span, snag: false },
+    ]);
+    expect(at(died - 1).scene.sacred?.oaks[0]?.snag).toBeUndefined();
+    // souš: stáří, kdy uschla, štěstí 1, ve scéně souš s velikostí dubu – od uschnutí neroste
+    const snag = at(died);
+    expect(snag.sacred.oaks).toEqual([{ id: oak.id, happiness: 1, ageYears: span, snag: true }]);
+    expect(snag.happiness.target).toBeGreaterThan(0);
+    const sceneOak = snag.scene.sacred?.oaks[0];
+    expect(sceneOak).toMatchObject({ id: oak.id, snag: true, sizeM: life.sizeM });
+    expect(at(fell - 1).scene.sacred?.oaks[0]?.growth).toBe(sceneOak?.growth);
+    // padlá souš: už není posvátný dub – v panelu ani mezi duby scény, leží padlý kmen
+    const fallen = at(fell);
+    expect(fallen.sacred.oaks).toEqual([]);
+    expect(fallen.scene.sacred?.oaks).toEqual([]);
+    expect(fallen.scene.sacred?.fallenOaks).toEqual([
+      { id: oak.id, x: oak.x, z: oak.z, growth: sceneOak?.growth, sizeM: life.sizeM },
+    ]);
+  });
+
+  it('kronika: posvátný dub uschl, posvátná souš padla', () => {
+    expect(chronicleText({ day: 0, kind: 'sacred-oak-died', id: 1 }, 'Libice')).toBe(
+      'Posvátný dub stářím uschl – zůstala posvátná souš.',
+    );
+    expect(chronicleText({ day: 0, kind: 'sacred-snag-fell', id: 1 }, 'Libice')).toBe(
+      'Posvátná souš padla.',
+    );
+  });
+
   it('ves bez posvátných míst je ve scéně nemá', () => {
     const view = buildVillageView(record(settled()), landscape, DAY);
     expect(view.scene.sacred).toBeUndefined();
     expect(view.sacred).toEqual({ oaks: [], groves: [], buildings: [] });
     expect(view.happiness.value).toBe(50);
+  });
+});
+
+describe('pevné cesty v pohledu na ves (roads.md)', () => {
+  const YEAR = 365.25;
+  const withRoads = (): VillageState => {
+    const s = settled();
+    const tree = (id: number, years: number, life = 100) => ({
+      id: ROAD_TREE_ID_BASE + id,
+      spot: id,
+      x: 20 + id * 10,
+      z: 3,
+      species: 'elm' as const,
+      rootedDay: DAY - Math.round(years * YEAR),
+      diesDay: DAY - Math.round(years * YEAR) + Math.round(life * YEAR),
+    });
+    s.roads = {
+      nextId: 20,
+      roads: [
+        {
+          id: 1,
+          points: [
+            { x: 0, z: 0 },
+            { x: 80, z: 0 },
+          ],
+          bornDay: DAY - 3000,
+          grade: 'trodden',
+          traffic: [4.5],
+          spots: [],
+        },
+      ],
+      // keř, mladý strom, plný strom, souš, pařez, zmizelý pařez, strom odstraněný stavbou
+      trees: [tree(1, 3), tree(2, 12), tree(3, 60), tree(4, 105), tree(5, 115), tree(6, 130)],
+      candidates: [],
+      labor: { from: DAY - 10, days: 10, shares: [] },
+    };
+    s.roads.trees.push(tree(7, 50));
+    s.clearedObstacles = [{ id: ROAD_TREE_ID_BASE + 7, day: DAY - 5 }];
+    return s;
+  };
+
+  it('scéna dostane osy cest a stromy ve stadiu podle dne (velikost po dvacetinách)', () => {
+    const view = buildVillageView(record(withRoads()), landscape, DAY);
+    expect(view.scene.roads).toEqual([
+      {
+        id: 1,
+        points: [
+          { x: 0, z: 0 },
+          { x: 80, z: 0 },
+        ],
+        grade: 'trodden',
+      },
+    ]);
+    const trees = view.scene.roadTrees!;
+    expect(trees.map((t) => [t.id - ROAD_TREE_ID_BASE, t.stage])).toEqual([
+      [1, 'shrub'],
+      [2, 'tree'],
+      [3, 'tree'],
+      [4, 'snag'],
+      [5, 'stump'],
+    ]);
+    for (const t of trees) expect(Math.round(t.growth * 20)).toBeCloseTo(t.growth * 20, 9);
+    expect(trees[2]!.growth).toBe(1);
+    expect(trees[1]!.growth).toBeLessThan(0.5);
+  });
+
+  it('stromy u cest jsou překážky i pro kontrolu umístění v prohlížeči', () => {
+    const s = withRoads();
+    const view = buildVillageView(record(s), landscape, DAY);
+    const fromScene = placementVillageFromScene(view.scene).obstacleChanges!;
+    expect(fromScene.added).toEqual(placementVillageOf(s, DAY).obstacleChanges!.added);
+    expect(fromScene.added!.map((o) => o.kind)).toEqual([
+      'shrub',
+      'youngTree',
+      'tree',
+      'snag',
+      'stump',
+    ]);
+  });
+
+  it('panel cesty: stupeň, délka, stromy, vylepšení s cenou; rozestavěné ve scéně s průběhem', () => {
+    const s = withRoads();
+    const view = buildVillageView(record(s), landscape, DAY);
+    const road = view.roads[0]!;
+    expect(road).toMatchObject({ id: 1, grade: 'trodden', lengthM: 80, building: null });
+    // stromy se počítají jen na místech úseku – tenhle úsek místa nemá
+    expect(road.trees).toBe(0);
+    expect(road.upgrades.map((u) => u.upgrade)).toEqual(['improved']);
+    expect(road.upgrades[0]!.laborManDays).toBe(12);
+    const started = startRoadUpgrade(s, DAY, 1, 'improved', null);
+    const building = buildVillageView(record(started), landscape, DAY);
+    expect(building.roads[0]!.building).toMatchObject({ grade: 'improved', progress: 0 });
+    expect(building.roads[0]!.upgrades[0]!.blocked).toMatch(/vylepšuje/);
+    expect(building.scene.roads![0]!.upgrade).toEqual({ grade: 'improved', progress: 0 });
+    expect(building.constructions.at(-1)!.label).toBe('Úprava cesty');
+  });
+
+  it('jabloně u cesty: panel s počtem a plodícími, scéna se stadiem, velikostí a plody', () => {
+    const s = withRoads();
+    const apple = (id: number, years: number) => ({
+      id: ROAD_TREE_ID_BASE + id,
+      roadId: 1,
+      x: 10 + id * 3,
+      z: -3,
+      distanceM: 30,
+      plantedDay: DAY - Math.round(years * YEAR),
+    });
+    // mladá (neplodí), plodící, souš, zmizelá souš
+    s.roads!.apples = [apple(11, 2), apple(12, 20), apple(13, 65), apple(14, 80)];
+    const view = buildVillageView(record(s), landscape, DAY);
+    expect(view.roads[0]!.apples).toMatchObject({ trees: 2, bearing: 1, planting: null });
+    const scene = view.scene.roadApples!;
+    expect(scene.map((a) => [a.id - ROAD_TREE_ID_BASE, a.stage])).toEqual([
+      [11, 'tree'],
+      [12, 'tree'],
+      [13, 'snag'],
+    ]);
+    expect(scene[0]!.growth).toBeLessThan(0.5);
+    expect(scene[1]!.growth).toBe(1);
+    // duben – bez jablek; v srpnu plodící jabloň jablka má, mladá ne
+    expect(scene.some((a) => a.fruit)).toBe(false);
+    const august = dayIndexOf({ year: 503, month: 8, day: 10 });
+    const summer = sceneRoadApples(s, august, obstacleChangesAt(s, august));
+    expect(summer.find((a) => a.id === ROAD_TREE_ID_BASE + 12)!.fruit).toBe(true);
+    expect(summer.find((a) => a.id === ROAD_TREE_ID_BASE + 11)!.fruit).toBe(false);
+  });
+
+  it('výsadba jabloní: panel s průběhem a zašedlým tlačítkem, scéna vytyčená místa', () => {
+    const s = withRoads();
+    const option = buildVillageView(record(s), landscape, DAY).roads[0]!.apples.option;
+    expect(option.blocked).toBeNull();
+    expect(option.trees).toBeGreaterThan(3);
+    const started = startRoadApples(s, DAY, 1, landscape, obstaclesOf(landscape));
+    const view = buildVillageView(record(started), landscape, DAY);
+    // duben – okno výsadby, nečeká se
+    expect(view.roads[0]!.apples.planting).toEqual({
+      trees: option.trees,
+      progress: 0,
+      waits: false,
+    });
+    expect(view.roads[0]!.apples.option.blocked).toMatch(/sázejí/);
+    expect(view.scene.roadApples!.every((a) => a.stage === 'planting')).toBe(true);
+    expect(view.constructions.at(-1)!.label).toBe('Jabloně u cesty');
+  });
+
+  it('ves bez pevných cest je ve scéně nemá', () => {
+    const view = buildVillageView(record(settled()), landscape, DAY);
+    expect(view.scene.roads).toBeUndefined();
+    expect(view.scene.roadTrees).toBeUndefined();
+    expect(view.scene.roadApples).toBeUndefined();
+  });
+});
+
+describe('buildVillageView – víc vsí a přestěhování (migration.md)', () => {
+  it('id vsi a sídla; bez seznamu vsí přepínač ukáže jen tuhle ves', () => {
+    const view = buildVillageView(record(), landscape, DAY);
+    expect(view.id).toBe('v-1');
+    expect(view.settlementId).toBe('s-1');
+    expect(view.villages).toEqual([
+      {
+        id: 'v-1',
+        settlementId: 's-1',
+        name: 'Libice',
+        people: 4,
+        extinct: false,
+        hungry: false,
+        starving: false,
+      },
+    ]);
+  });
+
+  it('přestěhování domácnosti: cena bez lidí k osídlení, průběh a stavba u domácnosti', () => {
+    const s = settled();
+    s.woodLogs = 20;
+    const before = buildVillageView(record(s), landscape, DAY);
+    // nové obydlí nemá kdo osídlit, přestěhovat se domácnost může
+    expect(before.build.zemnice.affordable).toBe(false);
+    expect(before.relocation.zemnice).toMatchObject({ affordable: true, blocked: null });
+    expect(before.relocation.zemnice.upfront).toEqual([
+      { resource: 'wood', amount: 7, missing: 0 },
+    ]);
+    expect(before.households[0]?.relocationBlock).toBeNull();
+    const moving = startRelocation(s, DAY, 1, 'zemnice', { x: 60, z: 60, rotation: 0 }, 0);
+    const view = buildVillageView(record(moving), landscape, DAY);
+    const site = view.constructions.find((c) => c.relocates === 1);
+    expect(site).toMatchObject({ kind: 'dwelling', dwellingType: 'zemnice', progress: 0 });
+    expect(view.households[0]).toMatchObject({
+      relocation: { constructionId: site?.id, type: 'zemnice', progress: 0 },
+      relocationBlock: 'relocating',
+    });
+    expect(view.chronicle[0]?.text).toBe(
+      'Domácnost si začala stavět novou zemnici – přestěhuje se.',
+    );
+  });
+});
+
+describe('buildVillageView – uhlíř (crafts.md – Uhlíř)', () => {
+  /** Ves s uhlířem (id 50) – milíř podle `kiln`, pařez 7 se sazenicí. */
+  const burnerVillage = (
+    kiln: NonNullable<VillageState['dwellings'][number]['workshop']>['kiln'],
+  ): VillageState => {
+    const s = settled();
+    s.dwellings.push({
+      id: 50,
+      type: 'zemnice',
+      builtDay: DAY,
+      condition: 1,
+      position: { x: 40, z: 0, rotation: 0 },
+      workshop: { craft: 'burner', felling: null, fuelKg: 0, activity: 'burning', kiln },
+    });
+    s.people.push({ id: 90, bornDay: DAY - 9000, dwellingId: 50 });
+    s.felledTrees = [{ id: 7, day: DAY - 3650, planted: DAY - 3650 }];
+    return s;
+  };
+  const kiln = (site: { x: number; z: number } | null) => ({
+    site,
+    trees: [{ id: null, cost: 2 }],
+    stage: 'burn' as const,
+    prepared: 1,
+    done: 4,
+  });
+
+  it('milíř u dílny při pálení kouří z dílny, lesní milíř je ve scéně zvlášť', () => {
+    const home = buildVillageView(record(burnerVillage(kiln(null))), landscape, DAY);
+    expect(home.scene.dwellings.find((d) => d.id === 50)).toMatchObject({ working: true });
+    expect(home.scene.kilns).toBeUndefined();
+    const forest = buildVillageView(record(burnerVillage(kiln({ x: 90, z: 10 }))), landscape, DAY);
+    expect(forest.scene.dwellings.find((d) => d.id === 50)?.working).toBeUndefined();
+    expect(forest.scene.kilns).toEqual([{ id: 50, x: 90, z: 10, stage: 'burn', progress: 0.5 }]);
+    const workshop = forest.crafts.workshops.find((w) => w.dwellingId === 50);
+    expect(workshop?.kiln).toMatchObject({ stage: 'burn', forest: true, progress: 0.5 });
+  });
+
+  it('mladé buky od uhlíře rostou – velikost podle stáří (za 60 let dospělé)', () => {
+    const view = buildVillageView(record(burnerVillage(null)), landscape, DAY);
+    const sapling = view.scene.plantedSaplings?.find((p) => p.id === 7);
+    expect(sapling?.growth).toBeCloseTo(10 / 60, 1);
   });
 });

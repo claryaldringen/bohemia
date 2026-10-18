@@ -201,18 +201,56 @@ export interface Route {
   /** Kumulativní délka do každého bodu (první 0). */
   at: readonly number[];
   length: number;
+  /**
+   * Tempo úseků (násobek rychlosti chůze; po vyšlapané pěšině víc než 1 – paths.md) a délka
+   * chůze do každého bodu (délka ÷ tempo) – bez tempa jako délka.
+   */
+  pace?: readonly number[];
+  walkAt?: readonly number[];
+  walkLength?: number;
 }
 
-export function route(points: readonly (readonly [number, number])[]): Route {
+export function route(
+  points: readonly (readonly [number, number])[],
+  pace?: readonly number[],
+): Route {
   const at = [0];
+  const walkAt = [0];
   let length = 0;
+  let walk = 0;
   for (let i = 1; i < points.length; i++) {
     const [ax, az] = points[i - 1]!;
     const [bx, bz] = points[i]!;
-    length += Math.hypot(bx - ax, bz - az);
+    const segment = Math.hypot(bx - ax, bz - az);
+    length += segment;
+    walk += segment / Math.max(0.1, pace?.[i - 1] ?? 1);
     at.push(length);
+    walkAt.push(walk);
   }
-  return { points, at, length };
+  return pace ? { points, at, length, pace, walkAt, walkLength: walk } : { points, at, length };
+}
+
+/** Délka chůze trasy (s tempem úseků – po pěšině kratší). */
+function walkLengthOf(r: Route): number {
+  return r.walkLength ?? r.length;
+}
+
+/**
+ * Bod trasy po `w` metrech chůze (s tempem úseků) a směr úseku (do `out`); vrátí tempo úseku –
+ * po pěšině jde postava rychleji a rychleji i kráčí.
+ */
+function alongRouteWalk(r: Route, w: number, reverse: boolean, out: VillagerPose): number {
+  if (!r.walkAt || !r.pace) {
+    alongRoute(r, w, reverse, out);
+    return 1;
+  }
+  const walk = Math.min(walkLengthOf(r), Math.max(0, w));
+  let i = 1;
+  while (i < r.points.length - 1 && r.walkAt[i]! < walk) i++;
+  const span = Math.max(1e-6, r.walkAt[i]! - r.walkAt[i - 1]!);
+  const u = Math.min(1, Math.max(0, (walk - r.walkAt[i - 1]!) / span));
+  alongRoute(r, r.at[i - 1]! + (r.at[i]! - r.at[i - 1]!) * u, reverse, out);
+  return r.pace[i - 1] ?? 1;
 }
 
 /** Bod trasy ve vzdálenosti `d` od začátku a směr úseku (do `out`, klip a tempo nemění). */
@@ -251,21 +289,23 @@ export interface ShuttleOptions {
  * trasy ven.
  */
 export function shuttle(r: Route, o: ShuttleOptions): PoseFn {
-  const outS = r.length / Math.max(0.1, o.outSpeed);
-  const backS = r.length / Math.max(0.1, o.backSpeed);
+  // po vyšlapané pěšině se jde rychleji (tempo úseků) – cesta trvá podle délky chůze
+  const walk = walkLengthOf(r);
+  const outS = walk / Math.max(0.1, o.outSpeed);
+  const backS = walk / Math.max(0.1, o.backSpeed);
   const cycle = outS + o.endS + backS + o.restS;
   const shift = o.phase * cycle;
   return (t, _herds, out) => {
     const time = (((t + shift) % cycle) + cycle) % cycle;
     out.pace = 1;
     if (time < outS) {
-      alongRoute(r, (time / outS) * r.length, false, out);
+      out.pace = alongRouteWalk(r, (time / outS) * walk, false, out);
       out.clip = o.outClip;
     } else if (time < outS + o.endS) {
       alongRoute(r, r.length, false, out);
       out.clip = o.endClip;
     } else if (time < outS + o.endS + backS) {
-      alongRoute(r, (1 - (time - outS - o.endS) / backS) * r.length, true, out);
+      out.pace = alongRouteWalk(r, (1 - (time - outS - o.endS) / backS) * walk, true, out);
       out.clip = o.backClip;
     } else {
       alongRoute(r, 0, true, out);

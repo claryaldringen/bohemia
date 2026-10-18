@@ -11,7 +11,13 @@ přestanou kreslit jako les (viz Krajina sídla a scéna). **Ozim a jař s podzi
 (18. 10. 2026)** – návrh Clauda, Martin schválil směr; implementováno (`sowing.ts`,
 `year-plan.ts`), viz Ozim a jař. **Týž den dvě Martinova rozhodnutí:** na přílohu se pase,
 nálet ani les na něm nebude (viz Příloh a pastva), a pole mění fáze závislé na člověku po
-čtvercích, až k nim dojde práce (viz Postup práce po čtvercích; `field-progress.ts`).
+čtvercích, až k nim dojde práce (viz Postup práce po čtvercích; `field-progress.ts`). **Hospodaření
+podle polohy domů (18. 10. 2026)** – Martin: pole ať není roztříštěné a vesničané ať to odvodí od
+polohy domů; implementováno (`holdings.ts`), viz Hospodaření podle polohy domů. **Zarůstání
+(18. 10. 2026)** – Martin: „Ano udělej to tak“ – s dobytkem, který má skutečnou nosnost pastvy,
+nepasený a nesečený příloh zarůstá a les z pole vypadne; čísla návrh Clauda podle
+[rešerše](research/2026-10-18-overgrowth.md); implementováno (`overgrowth.ts`, `woods.ts`), viz
+Zarůstání a Les vsi.
 
 ## Proč
 
@@ -60,8 +66,11 @@ všechnu práci vsi a teprve lepší nástroje a osevní systémy (další mecha
   - **aktuální úrodnost** – osev ji vyčerpává, ležení ladem obnovuje,
   - **stav v daném roce:** **zakládá se** (mýcení, rozrušení drnu), **oseto**, nebo **příloh**
     (leží ladem a pase se na něm),
-  - **stáří přílohu** – kolik let díl leží ladem; 1–2 roky mladý příloh, pak pastvina (viz Příloh
-    a pastva).
+  - **stáří přílohu** – kolik let díl leží ladem; 1–2 roky mladý příloh, pak louka – pastvina
+    a louka na seno (viz Příloh a pastva),
+  - **roky bez pastvy a seče** – kolik vegetačních období příloh stáda nespásla a ves neposekla;
+    podle nich zarůstá křovinami a lesem (viz Zarůstání).
+- **Les vsi** – čtverec pole, který zarostl lesem a z pole vypadl (viz Les vsi).
 - **Osevní systém** – které díly pole se smějí osít a jak dlouho leží ladem. **Zpočátku
   přílohová soustava raných Slovanů** (Martin): díl se pár let po sobě osévá, pak leží dlouho
   ladem jako **příloh** (pastvina), než ho ves znovu vrátí do osevu. Lepší systémy (dvojpolní,
@@ -147,6 +156,35 @@ má nějaké meze. Bez řemeslníků ber tu nejhorší hranici, s řemeslníky t
   klády na hromadu vsi – strom = kláda ([les a dřevo](forest.md) – Mýcení a hromada klád).
 - Hráč může čtverce pole přidat, ubrat nebo pole zrušit. Přidaná plocha se zakládá (jako nové
   pole, nebo rozšíření – viz Navazující pole), ubraná nebo zrušená leží ladem (pastvina).
+- **Obydlí na poli** (Martin, 18. 10. 2026: „domy by měly jít stavět na polích a v sadech. Pole
+  a sad se prostě zmenší o plochu domu“; podrobnosti návrh Clauda – [populace](population.md),
+  Obydlí na poli a v sadu): pozemek polozemnice sebere celý čtverec – díl z pole zmizí, poslední
+  díl pole zruší; obydlí bez pozemku sebere dílům průnik své vyklízené plochy a díl pod 20 %
+  políčka zmizí celý. Zbytek zůstane jedním polem, i když se rozpadne na nesouvislé části. Díl
+  zmizí i z ročního plánu a z pořadí práce, zmenšenému dílu ubude úměrně úrody i práce, ostatním
+  dílům zůstane hotová práce; zakládaný díl zmenší úměrně i založení (cena i odvedená práce),
+  zakládaný díl pod pozemkem zmizí s ním a jeho překážky odklidí staveniště domu. Pole naopak na
+  obydlí nesmí (beze změny). Když dům zanikne, plocha se do pole nevrací.
+- **Pole jako krajina** (Martin, 18. 10. 2026: „Pole by se mělo chovat jako normální krajina.
+  Takže by na něm mělo jít postavit cokoliv kromě jiného pole.“ – spouštěč: ve Vlkově s ≈ 40 ha
+  polí neměly jabloně podél cest kde stát; podrobnosti návrh Clauda): na pole smí **každá stavba
+  kromě jiného pole** a pole ustoupí stejně jako obydlí (předchozí bod):
+  - **sad, hřbitov a ohrada** (po čtvercích) – čtverec pole pod nimi z pole zmizí celý,
+  - **modla a svatyně** (půdorys) – díl se zmenší o průnik půdorysu, pod 20 % políčka zmizí,
+  - **řemeslné dílny** jako obydlí (průnik vyklízené plochy dílny i milíře),
+  - **jabloně a stromy u cest** – každý strom vezme dílu **20 m²** (pod korunou se neorá ani
+    neseje); jabloně kdekoli podél cesty (zadáním výsadby), strom u cesty náletem jen na mezi
+    – jeho místa leží 2,5–4 m od osy cesty, tam se neorá (orané pole by nálet zničilo); bere si
+    půdu, až se uchytí.
+    Úroda a práce úměrně ploše (plán osevu i luštěniny, orba, seč, založení – jako u obydlí),
+    překážky založeného dílu už nejsou, takže je stavba neplatí (stromy u cesty a jabloně na poli
+    ano). Pole **na pole** dál nesmí (jediná výjimka), sad na sad, hřbitov na hřbitov a ostatní
+    překryvy staveb mezi sebou zůstávají zakázané. Les vsi a zarůstání beze změny. Kontrola
+    v prohlížeči i na serveru jsou stejné funkce jádra; u kurzoru oranžově „Pole se zmenší“
+    / „Pole zanikne“, u staveb po čtvercích i čtverce pole oranžově, u jabloní v nabídce na panelu
+    cesty. Kronika: pole ustoupilo sadu, hřbitovu, ohradě, modle, svatyni, jabloním nebo stromům
+    u cesty. Pole leží na krajině pod ním – na čtverci pole v lese (vymýceném) stavby dál nesmí,
+    jako v lese (zatím).
 - **Navazující pole** (Martin, 18. 10. 2026: „Pokud více polí navazuje přímo na sebe, počítají se
   jako jedno.“): čtverce, které stranou navazují na pole, ho **rozšíří** – stejné pole, nové díly
   na konec (jako rozšíření hřbitova); rozestavěné založení pole dostane jejich cenu, u hotového
@@ -193,8 +231,8 @@ Výchozí osevní systém je přílohová soustava raných Slovanů (Martin). Pr
   a pak ležela ladem 20 i více let (Beranová 1980), trávopolní soustava 15–20 let, žďár ≈ 12 let
   (Rösch a kol. 2017). **K potvrzení:** rozhodnutí znělo +2 % za rok s cílem 12–13 let, jenže
   +2 % vede z 64 % na 95 % až za 16 let (12–13 let platí od 70 %) a každý příloh by tehdy
-  zarostl v les – proto 2,5 % (rešerše uvádí 2–2,5 %). Od 18. 10. 2026 příloh v les nezarůstá
-  (pase se), délka přílohu tak už les nehlídá.
+  zarostl v les – proto 2,5 % (rešerše uvádí 2–2,5 %). Od 18. 10. 2026 zarůstá jen příloh, který
+  stáda nespásají a ves neposeče (viz Zarůstání) – délka přílohu sama les nehlídá.
 - **Smí se osít** díl, jehož aktuální úrodnost je aspoň 70 % přirozené.
 - **Pořadí:** k 1. září ves vybírá díly na příští rok v tomto pořadí, dokud nepokryje potřebu
   (viz Kolik ves oseje):
@@ -203,6 +241,10 @@ Výchozí osevní systém je přílohová soustava raných Slovanů (Martin). Pr
   3. přílohy zotavené aspoň na 95 % – nejmladší první (nejlevnější vrácení), při shodě
      nejbližší,
   4. když to nestačí, i přílohy zotavené na 70–95 % – nejvíc zotavené první.
+
+  Ves s hospodářstvími (díly na políčkách a aspoň jeden dům) bere skupiny ve stejném pořadí, ale
+  po celých úsecích hospodářství od domu ven – viz Hospodaření podle polohy domů.
+
 - **Vrácení přílohu do osevu** stojí po 1–2 letech drn pastviny (viz Práce a Příloh a pastva).
   V přílohové soustavě je to běžná součást oběhu, ne trest.
 - **Příliš velké pole:** díly, které ves pro svou potřebu nevybere, dál leží jako pastvina. Práce
@@ -249,6 +291,15 @@ První sezónu po vymýcení lesa se díl **neplete** (viz Úroda).
 
 - **Vzdálenost:** práce na dílu je o 1 % dražší za každých 10 m nad 100 m od nejbližšího
   obydlí (chůze, nošení v nůších – návrh Clauda). Díl 500 m daleko stojí o 40 % víc práce.
+  Vzdálenost se měří chůzí: po vyšlapané pěšině se chodí o čtvrtinu rychleji (podle její síly),
+  úsek po pěšině se tak počítá 0,75–1 × délka (paths.md – Pěšiny a práce, Martin 18. 10. 2026);
+  po pevné cestě podle stupně – vyšlapaná 1,2×, upravená 1,5× (roads.md – Rychlejší chůze).
+  Mokřina se počítá dvojnásobně (po hati 1,5× rychleji než louka), brod + 30 m (po lávce bez
+  zdržení) – i rovně mimo cestu, takže pole za potokem bez cesty zdraží, s hatí a lávkou zlevní.
+  Stejně se měří vzdálenost čtverce sadu (orchard.md). Bez krajiny (kalibrace) vzdušnou čarou.
+  **Chůze se přepočítává měsíčně** (Martin, 18. 10. 2026): hned po změně rozložení vsi (obydlí,
+  nové díly a čtverce, cesty, ohrady, sady, hřbitov, stáda), změny stadií dílů (osev, úhor,
+  pastva) se do ní promítnou až 1. dne dalšího měsíce (paths.md – Pěšiny a práce).
 - **Včasnost:** co se v období nestihne, propadá: nezasetý díl se ten rok nesklidí, neopletý
   dá nižší úrodu, nesklizená úroda shnije na poli, nevymlácené do konce února se zkazí (návrh
   Clauda; přesné podíly doladí kalibrace).
@@ -259,10 +310,11 @@ První sezónu po vymýcení lesa se díl **neplete** (viz Úroda).
   nebere a úroda zaseté části se za nezasetou nesráží podruhé – pletí a sklizeň se měří vůči
   zaseté ploše.
 - **Vrácení přílohu** do osevu (podzim září–listopad, u ozimu září–říjen, před kopáním – návrh
-  Clauda) stojí práci navíc podle stáří přílohu: 1–2 roky nic, pak **drn pastviny jako založení
-  na louce – 100 člověkodní na hektar (s řemesly 90)** (Semjonov 1974). Víc to nestojí – na
-  přílohu se pase, nálet ani les na něm nevyroste (Martin, 18. 10. 2026; dřív nálet a křoviny
-  100 (60), les 250 (150)). V běžném oběhu se příloh vrací po 13 letech, tedy za 100 na hektar.
+  Clauda) stojí práci navíc podle stadia přílohu (viz Zarůstání): mladý příloh (1–2 roky) nic,
+  louka **drn jako založení na louce – 100 člověkodní na hektar (s řemesly 90)** (Semjonov 1974),
+  křoviny jako založení v křovinách **100 (60)** a mladý les jako založení v lese **250 (150)**;
+  dospělé stromy mladého lesa dají klády. V běžném oběhu se spásaný příloh vrací po 13 letech
+  jako louka, tedy za 100 na hektar.
 
 ### Ozim a jař
 
@@ -316,6 +368,40 @@ pro raný středověk ale nemám – zůstává návrhem Clauda jako dosavadní 
   čtvercích, jak k nim dojde práce (viz Postup práce po čtvercích).
 - **Panel pole** ukazuje oseté díly podle plodiny (ikona ozimu a jaře s počtem dílů).
 
+### Luštěniny
+
+Stav: **Martin, 18. 10. 2026:** „c) ale maso bude mírně zvyšovat štěstí“ – bílkoviny 1,6 g na kg
+tělesné váhy zůstávají a přidají se luštěniny jako plodina na poli (strava – [diet.md](diet.md),
+Luštěniny). Čísla podle [rešerše](research/2026-10-18-legumes.md), kde chybí, návrh Clauda.
+
+- **Plodina:** hrách a čočka jako jedna plodina „luštěniny“ (v Mikulčicích čočka ≈ 75 % nálezů
+  luštěnin, hrách druhý; bob, vikev a hrachor vzácné – zatím ne). **Jař**: kopání na podzim
+  (září–listopad), co se nestihne, v březnu–dubnu, setí v **březnu–dubnu**, pletí v květnu–červnu,
+  sklizeň (trhání) v **červenci**, výmlat v zimě (listopad–únor). Ozimý hrách až ve 20. století.
+- **Úroda:** 0,8 úrody obilí při stejné úrodnosti (≈ 600 kg/ha při plné, literatura 390–680),
+  osivo **150 kg/ha** (výnos ≈ 1 : 3,3 – středověké účty 3× až 5½× jako obilí). Neopletý díl dá
+  **50 %** (obilí 60 % – čočka plevel snáší nejhůř).
+- **Práce** na hektar (nejhorší / nejlepší mez): kopání 100 / 50 a setí 10 / 10 jako jař, pletí
+  **40 / 20** (obilí 30 / 15 – hrách se okopával dvakrát), sklizeň **35 / 20** + odnos 20 / 20
+  (žeň luštěnin ≈ 1,2× dráž), výmlat **10 / 6** (obilí 15 / 10).
+- **Úrodnost:** osev luštěniny úrodnost dílu neubere (obilí −0,12), ale **vrátí 0,03** – poutá
+  dusík, ≈ rok přílohu (nejvýš plná úrodnost). Opatrná hodnota: dnešní pokusy dávají obilí po
+  luštěnině víc, středověké výnosy z Winchesteru přínos nenašly.
+- **Kolik ves oseje (k 1. 9.):** cíl luštěnin = kolik jich ves chce sníst za rok (bílkoviny, které
+  chybí po obilí, mléku stád a vejcích, nejvýš strop stravy – diet.md) + rezerva 15 % jako
+  u obilí (při zásobě nad 1,5 roku jen potřeba). **Obilí má přednost:** ves nejdřív vybere obilí
+  na celý cíl osevu jako dřív, pak luštěniny dostanou díly toho výběru od domu (díly, které měly
+  luštěniny loni, až nakonec – střídání plodin) a obilí doplní další díly, kolik energie
+  luštěniny dají méně. Když na doplnění nestačí půda nebo práce, smí plán jít na rezervu osevu,
+  ne pod roční potřebu – jinak díl zůstane obilím a luštěnin je méně. Díly hotové během roku
+  jdou jen do jaře (luštěniny až s ročním plánem).
+- **Zásoba luštěnin** (kg): sklizeň **31. 7.** (po jídle dne, jako ozim), nevymlácená část se
+  1. 3. zkazí jako u obilí. Ztráta skladováním jako obilí (10 %, s hrnčířem 5 % ročně – zrnokaz
+     napadá semena na poli, ve skladu se nemnoží). Jí se rovným dílem celý rok do příští sklizně.
+- **Ve scéně** hrách tvoří nízkou hustou rohož – zelený kvetoucí v květnu–červnu, zralý hnědý
+  v červenci; po sklizni místo panáků hromádky vytrhaného hrachu a skoro holá zem. Panel pole
+  ukáže díly luštěnin (ikona a počet).
+
 ### Úroda
 
 - **Hrubá úroda** osetého hektaru při plné a včasné práci: **760 kg × (0,4 + 0,6 × aktuální
@@ -333,8 +419,8 @@ pro raný středověk ale nemám – zůstává návrhem Clauda jako dosavadní 
   nesráží. Oprava podle rešerše (dřív +20 na 3 roky): první osev čerstvě vymýcené a vypálené
   plochy dal úrody srovnatelné s dnešním zemědělstvím a sklizeň bez plevele (Rösch a kol. 2017).
   Bonus platí jen do 3 let od vymýcení – díl, který ves do té doby neoseje, o něj přijde.
-  Stejně díl pole založený v lese (povrch les – okno běží od založení dílu); příloh v les
-  nezarůstá (pase se), bonus proto nedostává.
+  Stejně díl pole založený v lese (povrch les – okno běží od založení dílu) i pole založené na
+  lese vsi (viz Les vsi); vracený zarostlý příloh bonus nedostává (oběh dílu běží dál).
 - **Bez náhody** – stejná práce na stejné půdě dá stejnou úrodu (Martin). Dobré a špatné roky
   přijdou až s mechanikou počasí; hájení z [populace](population.md) se pak rozšíří i na
   neúrodu.
@@ -343,10 +429,11 @@ pro raný středověk ale nemám – zůstává návrhem Clauda jako dosavadní 
 
 - Čistá úroda jde do **společných zásob vsi** (návrh Clauda – ves drží společné zásoby).
 - **Potřeba jídla z pole** (kg obilí za rok): dospělý 180, starší 140, dítě 100.
-- **Zbytek stravy** (zahrada, sběr, ryby, drobné hospodářství) se zatím nemodeluje a bere se jako
-  pokrytý. Domácí výroba je jen spotřeba práce – její nedodělání nasycení nesnižuje (návrh
-  Clauda). Nasycení tak závisí jen na zásobách obilí, jak čeká [populace](population.md) – se
-  sadem na obilí a jablcích, která se jí přednostně ([sad](orchard.md)).
+- **Zbytek stravy** – maso a ovoce řeší [strava](diet.md) (od 18. 10. 2026: potřeba níže je
+  potřeba energie v kg obilí, maso a ovoce z ní pokryjí část); zahrada, sběr a ryby se zatím
+  nemodelují. Domácí výroba je jen spotřeba práce – její nedodělání nasycení nesnižuje (návrh
+  Clauda). Nasycení počítá [strava](diet.md) – energie (obilí, maso, ovoce) × pestrost; dřív
+  záviselo jen na obilí a jablcích ([sad](orchard.md)).
 - **Ztráty při skladování:** 10 % zásob za rok (myši, plíseň), rozložené rovnoměrně; s hrnčířem
   5 % (meze – dobře utěsněná jáma ztrácí málo, Butser; rozpětí návrh Clauda).
 - **Přídělový systém:** dokud zásoby vystačí do příští sklizně, jí ves dosyta (nasycení 1).
@@ -366,21 +453,85 @@ pro raný středověk ale nemám – zůstává návrhem Clauda jako dosavadní 
 
 Stav: **Martin, 18. 10. 2026:** „Nálety na úhoru nebudou, protože se tam budou pást ovce, kozy
 a krávy, které přirozenou obnovu lesa zastaví. Na loukách se navíc bude sekat seno pro dobytek.“
-(Dřív – návrh Clauda – příloh zarůstal: louka, nálet, křoviny a po 15 letech les.)
+Týž den, když dobytek dostal skutečnou nosnost pastvy (stáda spasou jen část velkého pole):
+nepasený a nesečený příloh zarůstá (viz Zarůstání).
 
 - Příloh i díl odebraný z pole: **1–2 roky mladý příloh** (plevel, tráva) – vrácení bez práce
-  navíc, **pak napořád pastvina** – spásaný drn, vrácení do osevu jako založení na louce (viz
-  Práce). Nálet, křoviny ani les na přílohu nebudou a z dílu se les nestane.
-- **Starší vsi:** díly, které už ležely v přílohu víc než 2 roky (dřív stadia louka, nálet,
-  křoviny, les), jsou teď pastvinou – stadium se počítá z let ladem, takže se změní samo; vrátit
-  je stojí drn (rozhodnutí Clauda – Martin o starých dílech nerozhodl).
-- **Pastva a seno:** dobytek zatím mechaniku nemá (krmení, mléko, hnůj) – pastva je jen důvod,
-  proč příloh nezarůstá, a sekání sena na loukách je zatím jen scéna, bez práce a bez sena
-  v zásobách. Až přijde dobytek, seno a pastva dostanou práci i užitek (viz Navazuje).
+  navíc, pak **louka** – pastvina a louka na seno, vrácení do osevu jako založení na louce (viz
+  Práce). Pase-li se na ní nebo seče-li se, louka zůstane loukou; jinak zarůstá.
+- **Pastva po dílech** (návrh Clauda – [strava a dobytek](diet.md)): stáda se pasou napřed na
+  nejbližším přílohu ve fázi louky (mladý příloh i louka, od nejbližšího k obydlí – přímá
+  vzdálenost dílu, při shodě id), každý díl pojme nejvýš svou plochu potřeby pastvy (≈ 1 ha na
+  krávu a vola, 0,2 ha na ovci a kozu); co zbude, pasou na přirozených loukách krajiny. Díl se
+  **spásl**, když na něj připadla aspoň **polovina** jeho plochy. Stejné rozdělení určuje, kam
+  chodí pasáček (síť pěšin) a kde se stáda pasou ve scéně.
+- **Seno** ([orání rádlem](oxen.md)): úhor ve fázi louky se seče na seno pro krávy a voly – práce
+  v červnu–červenci a seno v zásobách. Díl, ke kterému letos došla seč, se **posekl**.
+- **Starší vsi:** roky bez pastvy a seče se začnou počítat od zavedení pravidla – žádný díl
+  nezaroste hned (rozhodnutí Clauda – stará data o pastvě nejsou).
 - **Přirozená louka**, která nikdy nebyla polem, zůstává loukou (návrh Clauda – louky se zatím
-  nemění).
-- **Ve scéně:** mladý příloh jako zaplevelená zem, pastvina jako tráva. Okolí vsi tak tvoří
-  mozaiku polí a pastvin v různém stadiu.
+  nemění, nezarůstají).
+- **Ve scéně:** mladý příloh jako zaplevelená zem, louka jako tráva (na jaře kvetoucí, seč, stohy),
+  zarůstající příloh s přibývajícími keři a stromky. Okolí vsi tak tvoří mozaiku polí, pastvin
+  a mlází v různém stadiu.
+
+### Zarůstání
+
+Stav: **Martin, 18. 10. 2026:** „Ano udělej to tak“ – nepasený a nesečený příloh zarůstá, a když
+zaroste lesem, z pole vypadne. Čísla návrh Clauda, ověřená
+[rešerší](research/2026-10-18-overgrowth.md) (sedí s chronosekvencí opuštěné louky 2–5 / 5–15 /
+15–30 / přes 30 let – Jelinčić a kol. 2023 – a s Českým krasem: trnka kolem 15. roku, zapojené
+dřeviny po ≈ 20 letech – Prach 2023). Implementace `overgrowth.ts`.
+
+| Roky bez pastvy a seče | Na dílu                                | Vrácení do osevu stojí                             |
+| ---------------------- | -------------------------------------- | -------------------------------------------------- |
+| do 5                   | louka (mladý příloh 1–2 roky ladem)    | drn louky 100 (90) člověkodní/ha, mladý příloh nic |
+| 5–15                   | křoviny (trnka, hloh, šípek, svída)    | jako křoviny 100 (60)                              |
+| 15–30                  | mladý les (osika, bříza, líska)        | jako les 250 (150), dospělé stromy dají klády      |
+| přes 30                | les – **díl z pole vypadne** (les vsi) | jako nové pole v lese (viz Les vsi)                |
+
+- **Rok bez pastvy a seče** se počítá jednou za rok **1. 11.** (po pastevní sezóně a seči, před
+  podzimní porážkou – stáda jsou ještě letní) a jen dílům, které ležely ladem **celé vegetační
+  období od 1. 4.** (díl zatravněný v září se ten rok nepočítá). Díl, který se nespásl ani
+  neposekl, přidá rok. Ve fázi louky (do 5 let) pastva nebo seč roky **vynuluje** – louka zůstane
+  loukou; od křovin už pastva ani seč zarůstání nevrátí (keře a stromky by bylo třeba vymýtit –
+  to je vrácení do osevu) a díl **přestane být pastvinou** (sníží nosnost – zpětná vazba: méně
+  pastvy, menší stádo, víc zarůstá). Návrh Clauda; literatura uvádí, že zarůstání zastaví kosení
+  nebo pastva nejpozději od ≈ 8. roku (Prach 2023) – hra je o kus přísnější.
+- Zarůstá díl na louce, v křovinách i na vymýceném lese stejně. Křoviny a mladý les se nesečou.
+  Vrácený díl (osev) začne počítat znovu od nuly.
+- **Determinismus:** roční krok je pevný den simulace a čte jen stav vsi – výsledek nezávisí na
+  tom, po jakých kouscích se ves dopočítá.
+- **Vypadnutí z pole:** díl, který dosáhne 30 let, zmizí z pole (ze seče i z rozdělení práce
+  dne); pole se zmenší, a když nezbude žádný díl, zanikne i se svou stavbou. Na čtverci zůstane
+  **les vsi**. Kronika: „Nepasený díl pole zarostl lesem – pole se zmenšilo.“ (víc dílů: „…ubylo
+  N čtverců“, poslední díl: „Nepasené pole zarostlo lesem a zaniklo.“), krátký řádek nahoře.
+
+### Les vsi
+
+Návrh Clauda (implementace `woods.ts`): stav vsi si pamatuje zarostlé čtverce (políčko, plochu,
+povrch při založení a den vypadnutí z pole – les je tehdy 30 let starý).
+
+- **Stromy jsou herní data** jako stromy u pevných cest ([cesty](roads.md)) – překážky nad vrstvou
+  krajiny se stabilním id: na čtverci roste tolik stromů jako v lese krajiny (**240 na hektar**,
+  ≈ 5 na políčko – vlastní výpočet z vrstvy překážek), na pevných místech čtverce. **Dospělých**
+  přibývá se stářím lesa – od 15 let (mladý les) lineárně do plné hustoty v **70 letech** (jako
+  pokácený strom krajiny – [les a dřevo](forest.md); Prach 2023: les podle složení ≈ 70 let),
+  ostatní jsou mladé stromky.
+- **Dřevo:** dospělé stromy lesa vsi jde kácet pro stavby a dílny jako stromy krajiny (nejbližší
+  první; duby pro modlu a svatyni jen z lesa krajiny) a počítají se do dřeva, které ves má.
+  Uhlíř, který pálí buky, smí pálit i les vsi – je to smíšený les a dřevo vsi (rozhodnutí
+  Clauda). Pokácený strom nechá pařez a dorůstá jako strom krajiny, i ze sazenice, kterou
+  uhlíř na pařez zasadí.
+- **Stavba:** pole na lese vsi ho **vymýtí jako les** – povrch les (250, s řemesly 150 člověkodní
+  na hektar, stromy v ceně), dospělé stromy dají klády a vymýcená půda popel (viz Úroda); les
+  zmizí, až se díl založí. Ostatní stavby (obydlí, pozemek, ohrada, sad, hřbitov, modla
+  a svatyně) jdou jako v lese krajiny zatím jen na louku – na les vsi ne.
+- **Pastva:** les vsi na bývalé louce už není pastvinou a prasatům je lesem (žaludy a bukvice);
+  les vsi na vymýceném lese se lesem prasat stane zase (díl v lese nepočítá) – [strava a
+  dobytek](diet.md).
+- **Ve scéně:** plný porost 3D stromů (bříza a osika, s věkem přibývá dubů a buků) s podrostem,
+  stromy rostou do 70 let, pokácený strom je pařez; na minimapě les.
 
 ### Postup práce po čtvercích
 
@@ -389,8 +540,9 @@ Stav: **Martin, 18. 10. 2026:** „Chtěl bych, aby pole neměnilo fáze, které
 čtverec zoral. To samé se sklizní.“ Pravidla návrh Clauda podle zadání.
 
 - Plán vede práci za celou plodinu (kolik člověkodní každé úlohy je hotových). **Díl po dílu**
-  se z toho odvozuje deterministicky: díly plodiny mají pevné pořadí – **nejblíž obydlím první,
-  při shodě podle id** (díly přidané po plánu na konec, mezi sebou stejně) – a každý díl má váhu
+  se z toho odvozuje deterministicky: díly plodiny mají pevné pořadí – **po úsecích hospodářství,
+  v úseku od domu ven** (viz Hospodaření podle polohy domů; ves bez hospodářství nejblíž obydlím
+  první, při shodě podle id; díly přidané po plánu na konec, mezi sebou stejně) – a každý díl má váhu
   své práce (plocha × příplatek za vzdálenost). Je-li hotových 40 % kopání, je zkopáno prvních
   40 % váhy dílů, další díl je **čelo práce** (rozpracovaný) a zbytek čeká. Stejně setí (jen
   zkopané – setí nikdy nepředběhne kopání), sklizeň (jen zasetá) a pletí (bez dílů po vymýceném
@@ -420,6 +572,92 @@ Stav: **Martin, 18. 10. 2026:** „Chtěl bych, aby pole neměnilo fáze, které
   prací `parts` – id dílů čela práce v pořadí postupu – a cíl `{ kind: 'field', id }`;
   `scene.labor` nese herní den. Grafika polí podle 0 A.D. a rozmístění postav na čelech se
   připravují zvlášť.
+
+### Hospodaření podle polohy domů
+
+Stav: **Martin, 18. 10. 2026:** „Pořeš obhospodařování pole, aby nebylo tak fragmentované. Aby
+vesničané obhospodařovali pole tím nejlepším způsobem, aniž by na něj museli dlouho chodit. Ve
+středověkých Čechách to typicky znamenalo, že když jsi měl usedlosti podél cesty, tak za každou
+usedlostí ležel dlouhý lán pole, kde vedle sebe ležela obdělávaná část a část ponechaná ladem.
+Sedlák tak vyšel z domu na pole a mohl hned začít pracovat, nemusel např. dlouho přecházet úhor.“
+A pak: „Spíš ať to vesničané odvodí od polohy domů. V Estonsku a Dánsku to kupříkladu bylo tak, že
+jsi měl cca čtvercové polnosti a uprostřed každé polnosti bylo hospodářství – cesta k němu vedla
+přes to pole a byla zpravidla lemována stromy.“ Pravidla návrh Clauda podle zadání; implementace
+`holdings.ts` (háčky v `simulate.ts`, `sowing.ts` a `year-plan.ts`).
+
+Dřív ves vybírala díly po jednom podle skupiny přílohové soustavy a vzdálenosti od nejbližšího
+obydlí: osev tvořil soustředné prstence kolem domů, které se oběhem posouvaly ven, a po pár letech
+ležel osetý prstenec za přílohem – sedlák chodil přes úhor (viz Naměřeno níž).
+
+- **Hospodářství:** každý díl pole patří k obydlí, ke kterému má nejblíž – jen kvůli organizaci
+  práce, pole i jídlo zůstávají společné. Vzdálenost se měří vzdušnou čarou od domu ke středu
+  čtverce: chůze po hrubé mřížce (voda jako brod 5×, sklon jako u pěšin, ploty cizích pozemků) by
+  na 40 krajinách přidělila jiný dům jen 4,6 % čtverců (mimo těsnou shodu dvou domů 1,2 %) a na
+  nich by vzdušná čára prodloužila chůzi v průměru o 14,5 % – a simulace krajinu nemá. Domy jsou
+  hotová obydlí (i prázdná); dokud žádné nestojí, staveniště první zemnice. Díly bez políčka (pole
+  z obrysu) k hospodářství nepatří. Hospodářství ani úseky se **neukládají** – vždy se odvodí
+  z polohy domů a čtverců, takže starší vsi nic nepřevádějí a nový dům si „vezme“ díly, ke kterým
+  je nejblíž.
+- **Úseky:** hospodářství se dělí na úseky, které vycházejí od domu. Čtverce se rozdělí na
+  prstence po 15 m od nejbližšího čtverce hospodářství a každý prstenec po směru kolem domu na
+  tolik stejných dílů, kolik čtverců má první prstenec u domu – úsek je u domu široký asi jeden
+  čtverec. Dům obklopený poli má úseky jako výseče (samota uprostřed polnosti), dům na kraji pole
+  souběžné dlouhé pásy – lány (řadová ves). Směr se měří od řezu v největší mezeře mezi směry
+  čtverců (úseky nepřetečou přes záda domu), hranice úseku se mezi prstenci posune nejvýš
+  o čtverec (kde hospodářství na jedné straně skončí, skončí i jeho úseky a nepřeskočí jinam)
+  a jeden průchod vyhladí zuby mřížky (čtverec převezme úsek většiny svých sousedů).
+- **Osev po úsecích:** k 1. září ves bere díly po **blocích** – díly jednoho úseku ve stejné
+  skupině přílohové soustavy, vždy od domu ven. Úsek osetý najednou se najednou vyčerpá a najednou
+  jde do přílohu, takže vzorec polí drží přes oběhy. Skupiny jdou v dřívějším pořadí (osévané,
+  čerstvě založené, přílohy ≥ 95 %, přílohy 70–95 %), v nich bloky:
+  - osévané díly – od úseku nejblíž domu,
+  - čerstvě založené – nejdřív bloky, před kterými v úseku neleží příloh, pak nejblíž domu,
+  - přílohy ≥ 95 % – nejdřív bez přílohu před sebou (sedlák nejde přes úhor), pak úseky, které se
+    už osévají (ves úsek dokončí – vnější část úseku se oseje rok po vnitřní), pak nejvíc odpočaté
+    (dřív nejmladší příloh) a nejblíž domu,
+  - přílohy 70–95 % – nejvíc zotavené, pak bez přílohu před sebou, rozběhnuté úseky, nejblíž domu.
+
+  Když cíl osevu potřebuje jen část bloku, bere ves díly od domu ven. Mezi hospodářstvími se bloky
+  střídají tak, aby každé mělo osetý stejný podíl své plochy – všechna obíhají stejně rychle.
+
+- **Ozim a jař:** blok jde celý do ozimu, když se tam vejde, jinak celý do jaře; když se nevejde
+  ani tam, rozdělí se po dílech jako dřív. Díly hotové během roku (do konce dubna) jdou do jaře po
+  blocích stejně.
+- **Postup práce:** díly plodiny jdou po úsecích – úsek s dílem nejblíž svému domu první, při
+  shodě v pořadí úseků –, v úseku od domu ven (viz Postup práce po čtvercích). Čelo práce tak
+  úsek dokončí od domu ven a jde na další; rozdělení práce dne a vzhled dílů se řídí tímtéž.
+- **Co se nemění:** sazby práce a příplatek za vzdálenost (dál od nejbližšího obydlí při založení
+  dílu), umístění polí, uložený stav (JSON beze změny) a nezávislost na kouscích dopočítání. Ves
+  bez hospodářství (bez domů, nebo jen s díly bez políčka – i syntetická louka kalibrace
+  `measure-village.ts --land v1`) bere díly v dřívějším pořadí bit po bitu stejně. Kalibrace na
+  skutečných krajinách (`--land real`, výchozí) díly na políčkách má, takže hospodaří podle domů –
+  všechna obydlí tam stojí v jednom bodě, je to tedy jedno hospodářství s výsečemi kolem vsi.
+- **Pěšiny** ([pěšiny](paths.md)) se pravidly nemění: osetý díl je pro chůzi dražší než úhor,
+  takže pěšiny k vodě a k lesu teď vedou podél hranic osetých úseků (lánů, výsečí), ne přes
+  prstence – stromy podél pěšin lemují meze mezi úseky.
+- **Vývojová stránka** `/dev/landscape`: „Hospodaření: řadová ves / samoty“ postaví ukázkovou ves
+  a ukáže vzorec polí po 20 letech simulace jádra (v každém domě dva dospělí), „Úseky“ obrysy úseků
+  v barvách domů a „Po 20 letech“ totéž pro vlastní vývojovou ves.
+
+**Naměřeno** (`packages/game/scripts/measure-holdings.ts 12`, 18. 10. 2026): 12 krajin, tři
+domácnosti po dvou dospělých, všechna pole připravená, roky 8–30 po plánu osevu; dřívější pořadí
+→ úseky. „Za úhorem“ = osetý čtverec, ke kterému od domu nevede cesta po mřížce bez přílohu kratší
+než 1,3 × vzdušná čára + 1 čtverec.
+
+| Metrika                             | Řadová ves       | Samoty           |
+| ----------------------------------- | ---------------- | ---------------- |
+| osetých čtverců za úhorem           | 57,0 → 19,1 %    | 88,5 → 25,7 %    |
+| souvislých skupin osevu             | 6,4 → 6,0        | 32,0 → 7,8       |
+| čtverců na skupinu                  | 34,1 → 26,4      | 9,6 → 19,7       |
+| hran k neosetému na osetý čtverec   | 0,73 → 1,02      | 1,95 → 0,87      |
+| vzdálenost osetého čtverce od domu  | 198,5 → 185,9 m  | 89,3 → 86,7 m    |
+| příplatek za chůzi (vážený plochou) | 10,75 → 9,71 %   | 0,70 → 0,63 %    |
+| sklizeň                             | 1 244 → 1 245 kg | 1 191 → 1 190 kg |
+| polní práce plánu                   | 846 → 832 čd     | 810 → 812 čd     |
+
+Úroda a práce se nezměnily (rozdíly v řádu procenta), chůze se zkrátila a sedlák přes úhor chodí
+3–4× méně. Zbylých ≈ 20 % je hlavně rok, kdy vnitřní část úseku už odpočívá a vnější se oseje
+naposledy. V řadové vsi je hran víc – lány jsou úzké pásy vedle sebe, jak Martin popsal.
 
 ### Krajina sídla a scéna
 
@@ -636,9 +874,12 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 - **Zakládání:** pole se zakládá jako stavba po dílech od obydlí – rozpracovaný díl se rozrývá
   po řádcích, stromy a kameny z hotového dílu zmizí.
 - **Panel pole** (výběr kliknutím): výměra, úrodnost, kolik dílů se zakládá, je oseto a leží
-  v přílohu podle stadia (mladý příloh, pastvina) – ikony a čísla; oseté díly podle plodiny (ozim,
-  jař). Očekávaná úroda a jestli práce stačí – později.
-- **Horní lišta:** zásoby obilí, volná společná práce za den, nasycení (barva ikony).
+  v přílohu podle stadia (mladý příloh, pastvina, křoviny, mladý les) – ikony a čísla; oseté díly
+  podle plodiny (ozim, jař); **kolik z pole zarůstá** – ikona zarůstání (keř a mladá bříza)
+  s plochou přílohu, který se poslední vegetační období nespásl ani neposekl, i toho, který už
+  zarostl (viz Zarůstání). Očekávaná úroda a jestli práce stačí – později.
+- **Horní lišta:** zásoby obilí, volná společná práce za den, nasycení (barva ikony); výměra polí
+  klesne, když díl zaroste lesem a vypadne z pole.
 - **Vytyčení:** nově zadané pole je hned vytyčené – kolíky v rozích a po čtvercích a provázek
   po obrysu dílů, které se ještě zakládají (Martin: „Když někde zadám stavbu, ať se hned vytyčí
   provázkem a kolíky.“). Čtverec, na kterém osadníci začnou, se rozrývá po řádcích; hotové díly
@@ -656,6 +897,13 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
   a od poloviny července stohy na otavě, které přes podzim a zimu postupně mizí (zkrmují se);
   na otavě se od srpna do konce listopadu pase. Z dálky trsy řídnou a pole nese barva obtisku.
   Kolem vsi se navíc seče pár luk na seno (jen vzhled, na dvě domácnosti jedna louka).
+  **Zarůstání** (viz Zarůstání, Les vsi): stáda se pasou jen na dílech, kam dojdou (nejbližší
+  napřed). Na nepaseném a nesečeném přílohu od 3. roku přibývají keře, které rostou (plné
+  křoviny v 15 letech), od 8. roku průkopnické stromky (bříza, osika), v 30 letech mladý les;
+  obtisk pole na křovinách a mladém lese zmizí a zůstane tráva louky. Les vsi je plný porost 3D
+  stromů s podrostem, stromy rostou do 70 let (přibývá dubů a buků), pokácený strom je pařez.
+  Keře a stromy jsou modely krajiny – barví se a opadávají s ročními obdobími a vrhají stín jako
+  ostatní stromy. Mění se jen se změnou dat (rok bez pastvy, stáří lesa).
 - **Práce po čtvercích** (Martin: „aby pole neměnilo fáze, které jsou závislé na člověku,
   samovolně“): díl se změní (zoráno, oseto, sklizeno, posečeno), až když k němu práce dojde –
   rozpracovaný je vždy jeden díl na úlohu a mění se po řádcích od strany blíž vsi; postavy
@@ -664,7 +912,10 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
   `before` z `fieldPartLooks` – viz Postup práce po čtvercích) a frontu práce
   (`SceneLaborShare.parts`); scéna odhaduje z data jen starší příloh (louka na seno, pastvina).
 - **Kronika:** založení pole, sklizeň (kolik – ves s ozimem i jaří zvlášť sklizeň ozimu a jaře),
-  hlad.
+  hlad, pole ustoupilo stavbě obydlí (o kolik m², nebo zaniklo), nepasený příloh zarostl lesem
+  a vypadl z pole (krátký řádek nahoře).
+- **Obydlí na poli:** u kurzoru oranžově „Pole se zmenší“ (poslední díl: „Pole zanikne“), pod
+  vyklízenou plochou domu scéna nekreslí obilí ani obtisk pole.
 
 ## Navazuje
 
@@ -742,13 +993,35 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 | Stejné osivo a úroda, pletí v květnu–červnu, výmlat v zimě; vymrzání až s počasím                                                 | návrh Clauda, Martin schválil směr 18. 10. 2026 |
 | Sklizeň ozimu do zásob 31. 7.; příděl počítá s ní, když uživí srpen                                                               | návrh Clauda, Martin schválil směr 18. 10. 2026 |
 | Díly hotové po 1. 9. jdou do jaře; sklizeň jablek před ozimem                                                                     | návrh Clauda                                    |
-| Na přílohu se pase – nálet ani les nebude; 1–2 roky mladý příloh, pak napořád pastvina                                            | Martin (18. 10. 2026)                           |
-| Vrácení přílohu nejvýš drn louky (100, s řemesly 90); staré díly v náletu či lese jsou pastvinou                                  | návrh Clauda (podle Martina)                    |
+| ~~Na přílohu se pase – nálet ani les nebude; 1–2 roky mladý příloh, pak napořád pastvina~~                                        | Martin (18. 10. 2026)                           |
+| ~~Vrácení přílohu nejvýš drn louky (100, s řemesly 90); staré díly v náletu či lese jsou pastvinou~~                              | návrh Clauda (podle Martina)                    |
+| Nepasený a nesečený příloh zarůstá (louka do 5 let, křoviny do 15, mladý les do 30), les z pole vypadne                           | Martin (18. 10. 2026)                           |
+| Roky 5 / 15 / 30 podle rešerše (Jelinčić a kol. 2023, Prach 2023); křoviny trnka, hloh, šípek, svída                              | návrh Clauda (rešerše 18. 10. 2026)             |
+| Roční krok 1. 11., jen díl ladem celé vegetační období; pastva či seč nuluje jen ve fázi louky                                    | návrh Clauda                                    |
+| Pastva po dílech od nejbližšího, díl nejvýš svou plochou; spásl se při polovině plochy; zbytek na loukách krajiny                 | návrh Clauda                                    |
+| Vrácení podle stadia: louka 100 (90), křoviny 100 (60), mladý les 250 (150) a klády za dospělé stromy                             | návrh Clauda                                    |
+| Les vsi: 240 stromů/ha, dospělé od 15 do 70 let, kácí se na dřevo; pole ho vymýtí jako les, jiné stavby ne                        | návrh Clauda                                    |
+| Starší vsi začínají počítat roky bez pastvy od zavedení pravidla                                                                  | rozhodnutí Clauda                               |
 | Seno na loukách zatím jen scéna – bez práce a bez sena v zásobách                                                                 | návrh Clauda                                    |
 | Fáze závislé na člověku (kopání, setí, sklizeň) se mění po čtvercích, až k nim dojde práce                                        | Martin (18. 10. 2026)                           |
 | Pořadí dílů nejblíž obydlím první (při shodě id), váha = práce dílu; vzejití a zrání podle kalendáře                              | návrh Clauda                                    |
 | Postavy pracují na dílech čela práce (rozdělení práce dne posílá jejich id)                                                       | návrh Clauda (podle Martina)                    |
+| Pole ať není roztříštěné – vesničané hospodaří podle polohy domů (lány za usedlostmi, polnosti kolem samot)                       | Martin (18. 10. 2026)                           |
+| Díl patří k nejbližšímu domu vzdušnou čarou; hospodářství a úseky se neukládají, odvodí se z polohy domů a čtverců                | návrh Clauda (podle Martina)                    |
+| Úseky od domu: prstence po 15 m, v každém tolik dílů po směru, kolik čtverců má první prstenec                                    | návrh Clauda (podle Martina)                    |
+| Osev po blocích úseků od domu ven; bez přílohu před sebou a rozběhnuté úseky první; osev mezi hospodářstvími podle plochy         | návrh Clauda (podle Martina)                    |
+| Blok úseku celý do ozimu, nebo celý do jaře; práce po úsecích od domu ven                                                         | návrh Clauda (podle Martina)                    |
 | Navazující pole se počítají jako jedno – rozšíření, víc polí se sloučí do nejstaršího                                             | Martin (18. 10. 2026)                           |
 | Sloučení: díly i se stavem, jedna stavba založení, kronika a práce dne na nejstarší pole; výměra i s rozšířením                   | návrh Clauda                                    |
 | Stará navazující pole se sloučí samy při načtení vsi (do nejstaršího)                                                             | Martin (18. 10. 2026)                           |
 | Převod starých polí bez příznaku „převedeno“ – souvislé skupiny stranou, pole z obrysu ne                                         | návrh Clauda                                    |
+| Obydlí jde stavět na pole – pole se zmenší o plochu domu                                                                          | Martin (18. 10. 2026)                           |
+| Pozemek sebere celý díl, obydlí bez pozemku průnik vyklízené plochy, díl pod 20 % zmizí; plán, úroda a založení úměrně            | návrh Clauda                                    |
+| Pole jako krajina – na pole smí cokoli kromě jiného pole                                                                          | Martin (18. 10. 2026)                           |
+| Sad, hřbitov a ohrada vezmou celý čtverec, modla a svatyně průnik půdorysu, jabloň a strom u cesty 20 m²                          | návrh Clauda                                    |
+| Nálet stromů u cest na poli jen na mezi (místa 2,5–4 m od osy); jabloně kdekoli podél cesty                                       | návrh Clauda                                    |
+| Luštěniny jako plodina na poli kvůli bílkovinám (1,6 g/kg zůstává); maso mírně zvyšuje štěstí                                     | Martin (18. 10. 2026)                           |
+| Luštěniny = hrách a čočka, jař se sklizní v červenci; úroda 0,8 obilí, osivo 150 kg/ha, práce a neopletý díl podle rešerše        | návrh Clauda (rešerše)                          |
+| Osev luštěniny úrodnost vrátí o 0,03 (obilí −0,12); ztráta skladováním jako obilí                                                 | návrh Clauda (rešerše)                          |
+| Obilí má přednost: luštěniny na díly výběru od domu, obilí doplní energii, luštěniny smějí jít na rezervu osevu, ne pod potřebu   | návrh Clauda                                    |
+| Střídání: díly s loňskými luštěninami až nakonec; díly hotové během roku jen do jaře                                              | návrh Clauda                                    |

@@ -12,7 +12,8 @@ import { updateLivingVillage } from './update-village';
 import type { VillageRepository, VillageResult } from './villages';
 
 export interface PlaceOrchardInput {
-  settlementId: string;
+  /** Ves (id), ve které hráč jedná – její sídlo dává krajinu `landscape`. */
+  villageId: string;
   landscape: Landscape;
   /** Dnešní herní den (index dne). */
   today: number;
@@ -31,7 +32,7 @@ export function placeOrchard(
 ): Promise<VillageResult> {
   return updateLivingVillage(
     deps.villages,
-    input.settlementId,
+    input.villageId,
     input.today,
     input.landscape,
     (state) => {
@@ -44,7 +45,12 @@ export function placeOrchard(
       if (!orchard.check.ok)
         return { ok: false, reason: orchard.check.reason ?? 'Sem sad nepatří.' };
       // akce patří do dne, do kterého je ves dopočítaná – dnešek, nebo „budoucí“ den vsi
-      const squares = { squares: orchard.squares, sacred: orchard.spared };
+      // čtverce polí pod sadem z pole zmizí (fields.md – Pole jako krajina)
+      const squares = {
+        squares: orchard.squares,
+        sacred: orchard.spared,
+        takenLand: orchard.takenLand,
+      };
       return { ok: true, state: foundOrchard(state, state.lastDay, squares) };
     },
   );

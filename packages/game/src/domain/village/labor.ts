@@ -2,8 +2,12 @@ import { dailyMinPerHousehold } from './productivity';
 import { DOMESTIC } from './rules';
 import type { OrchardTaskName, TaskName } from './types';
 
-/** Sezónní práce v rozdělení práce vsi – polní (fields.md) a v sadech (orchard.md). */
-export type LaborTaskName = TaskName | OrchardTaskName;
+/**
+ * Sezónní práce v rozdělení práce vsi – polní (fields.md), orba rádlem, seč sena (oxen.md),
+ * porážka a uzení, dojení a péče o zvířata (diet.md) a v sadech (orchard.md).
+ */
+export type LaborTaskName =
+  TaskName | OrchardTaskName | 'plough' | 'mow' | 'slaughter' | 'milking' | 'animal-care';
 
 export interface DayAllocationInput {
   capacity: number;
@@ -53,6 +57,11 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
     weed: 0,
     harvest: 0,
     thresh: 0,
+    plough: 0,
+    mow: 0,
+    slaughter: 0,
+    milking: 0,
+    'animal-care': 0,
     'orchard-care': 0,
     'orchard-harvest': 0,
   };

@@ -277,37 +277,126 @@ describe('populationDay', () => {
     expect(a).toEqual(b);
   });
 
-  it('porody až od 16 let: pár 14letých (dospělí pro práci) za 2 roky dítě nemá, 16letých ano (50 seedů)', () => {
-    const births = (age: number): number => {
-      let count = 0;
-      for (let seed = 1; seed <= 50; seed++) {
-        const day0 = FOUNDED + 5 * YEAR; // hájení – nikdo dospělý neumře
-        const pair = [ofAge(1, age, 1, day0), ofAge(2, age, 1, day0)];
-        const state = village(seed, pair, [dwelling(1)]);
-        for (let day = day0; day < day0 + 2 * 365 - 1; day++) {
-          count += populationDay(state, day, 1).filter((e) => e.kind === 'birth').length;
-        }
+  /** Manželé daného věku (muž 1, žena 2) v obydlí 1. */
+  const spouses = (husbandAge: number, wifeAge: number, day: number): Person[] => [
+    { ...ofAge(1, husbandAge, 1, day), sex: 'male', spouseId: 2 },
+    { ...ofAge(2, wifeAge, 1, day), sex: 'female', spouseId: 1 },
+  ];
+  /** Porody za dva roky ve 50 vsích s lidmi `people(den)`. */
+  const birthsIn2Years = (people: (day: number) => Person[]): number => {
+    let count = 0;
+    for (let seed = 1; seed <= 50; seed++) {
+      const day0 = FOUNDED + 5 * YEAR; // hájení – nikdo dospělý neumře
+      const state = village(seed, people(day0), [dwelling(1)]);
+      for (let day = day0; day < day0 + 2 * 365 - 1; day++) {
+        count += populationDay(state, day, 1).filter((e) => e.kind === 'birth').length;
       }
-      return count;
-    };
-    expect(births(14)).toBe(0);
-    expect(births(16)).toBeGreaterThan(0);
+    }
+    return count;
+  };
+
+  it('porody až od 16 let: manželé 14letí (dospělí pro práci) za 2 roky dítě nemají, 16letí ano (50 seedů)', () => {
+    expect(birthsIn2Years((day) => spouses(14, 14, day))).toBe(0);
+    expect(birthsIn2Years((day) => spouses(16, 16, day))).toBeGreaterThan(0);
   }, 30_000);
 
-  it('narozené dítě dostane nové id, den narození a obydlí rodičů', () => {
-    // dvojice plodných dospělých, nasycení 1 – někdy za pár let se musí narodit dítě
-    const state = village(3, [ofAge(1, 20, 1, FOUNDED), ofAge(2, 20, 1, FOUNDED)], [dwelling(1)]);
+  it('děti jen manželským párům: svobodný muž a žena v domě ani žena 45+ dítě nemají (kinship.md)', () => {
+    const unmarried = (day: number): Person[] => [
+      { ...ofAge(1, 25, 1, day), sex: 'male' },
+      { ...ofAge(2, 22, 1, day), sex: 'female' },
+    ];
+    expect(birthsIn2Years(unmarried)).toBe(0);
+    // muž je plodný bez horní meze, žena jen do 44
+    expect(birthsIn2Years((day) => spouses(60, 30, day))).toBeGreaterThan(0);
+    expect(birthsIn2Years((day) => spouses(40, 46, day))).toBe(0);
+  }, 30_000);
+
+  it('narozené dítě dostane nové id, den narození, obydlí, pohlaví, matku a otce', () => {
+    // manželé, nasycení 1 – někdy za pár let se musí narodit dítě
+    const state = village(3, spouses(22, 20, FOUNDED), [dwelling(1)]);
     let born: Person | undefined;
     for (let day = FOUNDED; day < FOUNDED + 5 * 365 && !born; day++) {
       const before = state.nextId;
       const events = populationDay(state, day, 1);
       if (events.some((e) => e.kind === 'birth')) {
         born = state.people.find((p) => p.id === before);
-        expect(born).toEqual({ id: before, bornDay: day, dwellingId: 1 });
+        expect(born).toMatchObject({
+          id: before,
+          bornDay: day,
+          dwellingId: 1,
+          motherId: 2,
+          fatherId: 1,
+        });
+        expect(['male', 'female']).toContain(born?.sex);
         expect(state.nextId).toBe(before + 1);
       }
     }
     expect(born).toBeDefined();
+  });
+
+  it('chlapců se rodí 105 na 100 dívek', () => {
+    let boys = 0;
+    let all = 0;
+    for (let seed = 1; seed <= 200; seed++) {
+      const state = village(seed, spouses(20, 18, FOUNDED), [dwelling(1, 'polozemnice')]);
+      for (let day = FOUNDED; day < FOUNDED + 20 * 365; day++) {
+        const before = state.nextId;
+        if (!populationDay(state, day, 1).some((e) => e.kind === 'birth')) continue;
+        for (const p of state.people) {
+          if (p.id < before) continue;
+          all++;
+          if (p.sex === 'male') boys++;
+        }
+      }
+    }
+    expect(all).toBeGreaterThan(800);
+    expect(boys / all).toBeGreaterThan(105 / 205 - 0.04);
+    expect(boys / all).toBeLessThan(105 / 205 + 0.04);
+  }, 60_000);
+
+  it('rozpadlá domácnost jde k příbuzným – do domu syna, i když jinde je víc místa (kinship.md)', () => {
+    const day = FOUNDED + 5 * YEAR; // hájení: nikdo dospělý neumře
+    const state = village(
+      1,
+      [
+        // dům 1: starší rodiče – nikdo 16–44, domácnost se rozpadne
+        { ...ofAge(1, 62, 1, day), sex: 'male', spouseId: 2 },
+        { ...ofAge(2, 58, 1, day), sex: 'female', spouseId: 1 },
+        // dům 2: jejich syn se ženou a dvěma dětmi (2 volná místa)
+        { ...ofAge(3, 30, 2, day), sex: 'male', spouseId: 4, fatherId: 1, motherId: 2 },
+        { ...ofAge(4, 27, 2, day), sex: 'female', spouseId: 3 },
+        { ...ofAge(5, 4, 2, day), sex: 'female', fatherId: 3, motherId: 4 },
+        { ...ofAge(6, 2, 2, day), sex: 'male', fatherId: 3, motherId: 4 },
+        // dům 3: nepříbuzní v polozemnici (6 volných míst)
+        { ...ofAge(7, 30, 3, day), sex: 'male', spouseId: 8 },
+        { ...ofAge(8, 28, 3, day), sex: 'female', spouseId: 7 },
+      ],
+      [dwelling(1), dwelling(2), dwelling(3, 'polozemnice')],
+    );
+    const events = populationDay(state, day, 1);
+    expect(events).toContainEqual({
+      day,
+      kind: 'household-merged',
+      fromDwellingId: 1,
+      toDwellingId: 2,
+    });
+  });
+
+  it('jediný člověk 16–44 v domě zůstává (svobodný), samotný starší se přestěhuje', () => {
+    const day = FOUNDED + 5 * YEAR;
+    const state = village(
+      1,
+      [
+        { ...ofAge(1, 30, 1, day), sex: 'male' },
+        { ...ofAge(2, 60, 2, day), sex: 'female' },
+        { ...ofAge(3, 30, 3, day), sex: 'male', spouseId: 4 },
+        { ...ofAge(4, 28, 3, day), sex: 'female', spouseId: 3 },
+      ],
+      [dwelling(1), dwelling(2), dwelling(3)],
+    );
+    // samotná starší jde do domu s nejvíc volnými místy – k samotnému muži (5 míst)
+    const merged = populationDay(state, day, 1).filter((e) => e.kind === 'household-merged');
+    expect(merged).toEqual([{ day, kind: 'household-merged', fromDwellingId: 2, toDwellingId: 1 }]);
   });
 
   it('obydlí jen s dětmi se přestěhuje do obydlí s nejvíc volnými místy', () => {
@@ -339,11 +428,23 @@ describe('populationDay', () => {
     expect(state.people.filter((p) => p.dwellingId === 3)).toHaveLength(0);
   });
 
-  it('jediný dospělý bez dětí se přestěhuje jinam; prázdné obydlí zůstává', () => {
+  it('jediný člověk 16–44 zůstává – svobodný, vezme se (sňatky mezi domy)', () => {
     const day = FOUNDED + 5 * YEAR;
     const state = village(
       1,
       [ofAge(1, 30, 1, day), ofAge(2, 30, 1, day), ofAge(3, 30, 2, day)],
+      [dwelling(1), dwelling(2)],
+    );
+    const events = populationDay(state, day, 0);
+    expect(events.filter((e) => e.kind === 'household-merged')).toEqual([]);
+    expect(state.people.find((p) => p.id === 3)?.dwellingId).toBe(2);
+  });
+
+  it('jediný dospělý mimo plodný věk (15 let) se přestěhuje jinam; prázdné obydlí zůstává', () => {
+    const day = FOUNDED + 5 * YEAR;
+    const state = village(
+      1,
+      [ofAge(1, 30, 1, day), ofAge(2, 30, 1, day), ofAge(3, 15, 2, day)],
       [dwelling(1), dwelling(2)],
     );
     const events = populationDay(state, day, 0);

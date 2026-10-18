@@ -1,26 +1,26 @@
 'use client';
 
 import { useEffect, useState, type ReactElement, type ReactNode } from 'react';
-import {
-  VILLAGE_NAME_MAX_LENGTH,
-  checkVillageName,
-  getWorldState,
-  type TimeSkip,
-  type WorldClock,
-} from '@bohemia/game';
-import { formatWorldState } from '@/lib/game-date';
+import { getWorldState, type TimeSkip, type WorldClock } from '@bohemia/game';
+import { dateRefreshDelay, formatWorldState } from '@/lib/game-date';
 import { MENU_HOTKEY } from '@/lib/game-menu';
 import { formatDecimal, formatHa, formatInteger, formatPercent } from '@/lib/village-format';
+import type { VillageListItem } from '@/lib/village-list';
 import type { VillageView } from '@/lib/village-view';
 import { Tooltip } from './Tooltip';
+import { VillageSwitcher } from './VillageSwitcher';
 
-// Herní den trvá v ostrém světě ≈ 86 s, v zrychlených testovacích světech i zlomek sekundy.
-const DATE_REFRESH_MS = 1000;
-
-/** Stav nasycení pro barvu ikony: syto / hlad / velký hlad. */
-export function satiationState(satiation: number): 'fed' | 'hungry' | 'starving' {
-  if (satiation >= 0.995) return 'fed';
-  return satiation >= 0.6 ? 'hungry' : 'starving';
+/**
+ * Stav jídla pro barvu ikony nasycení: syto / hlad / velký hlad. Řídí ho energie (hlad –
+ * diet.md: hladem se umírá z energie), ne nasycení – ves jen s obilím má nasycení ≈ 80 %
+ * natrvalo, a přesto nehladoví.
+ */
+export function satiationState(
+  view: Pick<VillageView, 'hungry' | 'starving'> & { diet: Pick<VillageView['diet'], 'energy'> },
+): 'fed' | 'hungry' | 'starving' {
+  if (view.starving || view.diet.energy < 0.6) return 'starving';
+  if (view.hungry || view.diet.energy < 0.995) return 'hungry';
+  return 'fed';
 }
 
 const SATIATION_GLOW: Record<ReturnType<typeof satiationState>, string> = {
@@ -37,7 +37,8 @@ function Resource({
   filter,
 }: {
   icon: string;
-  name: string;
+  /** Popisek – název, u nasycení i podíly stravy. */
+  name: ReactNode;
   testId: string;
   children?: ReactNode;
   filter?: string;
@@ -61,6 +62,72 @@ function Resource({
       </span>
     </Tooltip>
   );
+}
+
+/** Zdroje stravy v tooltipu nasycení – ikona, název a podíl na energii (diet.md). */
+const DIET_SOURCES: readonly {
+  key: keyof VillageView['diet']['shares'];
+  icon: string;
+  name: string;
+}[] = [
+  { key: 'grain', icon: 'food', name: 'Obilí' },
+  { key: 'legumes', icon: 'legumes', name: 'Luštěniny' },
+  { key: 'meat', icon: 'meat', name: 'Maso' },
+  { key: 'dairy', icon: 'cheese', name: 'Mléko a sýr' },
+  { key: 'eggs', icon: 'eggs', name: 'Vejce' },
+  { key: 'fruit', icon: 'apples', name: 'Ovoce' },
+];
+
+/**
+ * Tooltip nasycení (diet.md – Co hráč vidí): nasycení, pokrytí energie a bílkovin a podíly obilí,
+ * luštěnin, masa, mléka a sýra, vajec a ovoce na energii (ikony a procenta; jídlo uložené před
+ * luštěninami je nemá – 0).
+ */
+export function SatiationTooltip({ view }: { view: VillageView }): ReactElement {
+  return (
+    <span className="block" data-testid="satiation-tooltip">
+      <span className="font-semibold">Nasycení {formatPercent(view.satiation)}</span>
+      <span className="mt-0.5 block text-[#bfa77a] tabular-nums">
+        energie {formatPercent(view.diet.energy)} · bílkoviny {formatPercent(view.diet.protein)}
+      </span>
+      <span className="mt-0.5 flex items-center gap-2">
+        {DIET_SOURCES.map(({ key, icon, name }) => (
+          <span key={key} data-share={key} className="flex items-center gap-0.5 tabular-nums">
+            <img src={`/icons/resources/${icon}.png`} alt={name} width={16} height={16} />
+            {formatPercent(view.diet.shares[key] ?? 0)}
+          </span>
+        ))}
+      </span>
+    </span>
+  );
+}
+
+/**
+ * Luštěniny v horní liště (diet.md – Luštěniny) – když jsou v zásobě, ves je letos seje nebo je
+ * dnes jí.
+ */
+export function showsLegumes(view: Pick<VillageView, 'legumesKg' | 'fields' | 'diet'>): boolean {
+  return (
+    view.legumesKg >= 1 ||
+    view.fields.some((f) => (f.crops.legume ?? 0) > 0) ||
+    (view.diet.shares.legumes ?? 0) > 0
+  );
+}
+
+/** Mléko a sýr v horní liště – když je sýr v zásobě nebo se dojí (diet.md – Mléko a sýr). */
+export function showsDairy(view: Pick<VillageView, 'cheeseKg' | 'milkLPerDay'>): boolean {
+  return view.cheeseKg >= 1 || view.milkLPerDay > 0;
+}
+
+/** Popisek mléka a sýra: zásoba v kg, v době dojení i mléko za den. */
+export function dairyName(view: Pick<VillageView, 'milkLPerDay'>): string {
+  const milk = Math.round(view.milkLPerDay);
+  return milk > 0 ? `Sýr (kg) – mléko ${formatInteger(milk)} l/den` : 'Sýr (kg)';
+}
+
+/** Seno v horní liště – když ves má hotovou ohradu nebo seno v zásobě (oxen.md). */
+export function showsHay(view: Pick<VillageView, 'hayKg' | 'pens'>): boolean {
+  return Math.round(view.hayKg) > 0 || view.pens.some((pen) => pen.built);
 }
 
 /**
@@ -89,75 +156,6 @@ function CraftStocks({ crafts }: { crafts: VillageView['crafts'] }): ReactElemen
         {formatInteger(stocks.potteryKg)}
       </Resource>
     </>
-  );
-}
-
-/** Jméno vsi – kliknutím se přepíše na místě, Enter uloží, Esc zruší. */
-function VillageName({
-  name,
-  onRename,
-}: {
-  name: string;
-  onRename: (name: string) => Promise<string | null>;
-}): ReactElement {
-  const [draft, setDraft] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-
-  if (draft === null) {
-    return (
-      <button
-        type="button"
-        data-testid="village-name"
-        data-hud-block
-        onClick={() => {
-          setDraft(name);
-          setError(null);
-        }}
-        className="max-w-56 truncate rounded px-2 py-0.5 font-serif text-lg text-[#f3dfb0] hover:text-[#ffe9b8] focus-visible:outline-2 focus-visible:outline-[#f3cf86]"
-      >
-        {name}
-      </button>
-    );
-  }
-  const check = checkVillageName(draft);
-  const reason = error ?? (check.ok ? null : check.reason);
-  return (
-    <Tooltip content={reason} placement="below">
-      <input
-        data-hud-block
-        aria-label="Jméno vsi"
-        aria-invalid={reason !== null}
-        value={draft}
-        autoFocus
-        maxLength={VILLAGE_NAME_MAX_LENGTH}
-        disabled={saving}
-        onFocus={(event) => event.target.select()}
-        onChange={(event) => {
-          setDraft(event.target.value);
-          setError(null);
-        }}
-        onBlur={() => {
-          if (!saving) setDraft(null);
-        }}
-        onKeyDown={(event) => {
-          if (event.key === 'Escape') {
-            event.preventDefault();
-            setDraft(null);
-          } else if (event.key === 'Enter') {
-            event.preventDefault();
-            if (!check.ok || saving) return;
-            setSaving(true);
-            void onRename(draft).then((failure) => {
-              setSaving(false);
-              if (failure === null) setDraft(null);
-              else setError(failure);
-            });
-          }
-        }}
-        className={`w-56 rounded border bg-[#15100b] px-2 py-0.5 font-serif text-lg text-[#f3dfb0] outline-none ${reason ? 'border-red-500' : 'border-[#8a6a3c] focus:border-[#e0b062]'}`}
-      />
-    </Tooltip>
   );
 }
 
@@ -249,9 +247,38 @@ export function DevTimeButtons({
 }
 
 /**
- * Horní lišta jako v 0 A.D.: jméno vsi (klik = přejmenovat), ikony s čísly – lidé, obilí,
- * jablka (jen když nějaká jsou), klády na hromadě, uhlí, nástroje a keramika (jen ves
- * s řemesly – crafts.md), volná práce, nasycení (jen barva ikony),
+ * Vývojový režim: druhá ves na téže mapě (jen pro vyzkoušení přepínače vsí – migration.md).
+ * Dokud server ves zakládá, tlačítko čeká.
+ */
+export function DevVillageButton({
+  pending,
+  onFound,
+}: {
+  pending: boolean;
+  onFound: () => void;
+}): ReactElement {
+  return (
+    <IconButton
+      label="Druhá ves na téže mapě"
+      tooltip={<span className="whitespace-nowrap">Druhá ves na téže mapě</span>}
+      testId="dev-second-village"
+      disabled={pending}
+      busy={pending}
+      onClick={onFound}
+    >
+      <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
+        <path d="M3 11l7-6 7 6v8H3zM17 3h2v3h3v2h-3v3h-2V8h-3V6h3z" />
+      </svg>
+    </IconButton>
+  );
+}
+
+/**
+ * Horní lišta jako v 0 A.D.: jméno vsi (přepínač vsí hráče – migration.md; dvojklik nebo tužka =
+ * přejmenovat), ikony s čísly – lidé, obilí, maso, mléko a sýr (když je sýr nebo se dojí), ovoce
+ * (když nějaké je, nebo ves má sad – diet.md), seno (když ves má ohradu nebo seno – oxen.md),
+ * pole, klády na hromadě, uhlí, nástroje a keramika (jen ves s řemesly – crafts.md), volná práce,
+ * nasycení (barva ikony podle energie, v popisku energie, bílkoviny a podíly stravy),
  * štěstí (happiness.md), herní datum (ve vývojovém režimu se šipkami přeskočení času) – a vpravo
  * zvuk a nabídka hry (F10: Začít znovu, Odhlásit).
  */
@@ -264,7 +291,9 @@ export function TopBar({
   menuOpen,
   onToggleMenu,
   onRename,
+  onSelectVillage,
   devTime,
+  devVillage = null,
 }: {
   view: VillageView | null;
   /** Hodiny světa hráče – ve vývojovém režimu posunuté o jeho posun času. */
@@ -276,24 +305,45 @@ export function TopBar({
   menuOpen: boolean;
   onToggleMenu: () => void;
   onRename: (name: string) => Promise<string | null>;
+  /** Přepne na jinou ves hráče (přepínač vsí). */
+  onSelectVillage?: (village: VillageListItem) => void;
   /** Vývojový režim – šipky přeskočení času vedle data; bez něj null. */
   devTime: { pending: TimeSkip | null; onSkip: (skip: TimeSkip) => void } | null;
+  /** Vývojový režim – druhá ves na téže mapě; bez něj (nebo bez vsi) null. */
+  devVillage?: { pending: boolean; onFound: () => void } | null;
 }): ReactElement {
   const [nowMs, setNowMs] = useState(initialNowMs);
+  // Datum se obnoví na začátku dalšího herního dne (ostrý svět ≈ 86 s), ne každou sekundu –
+  // lišta se jinak zbytečně překresluje. Po změně hodin (přeskočení času) hned.
+  const { startMs, endMs } = world;
   useEffect(() => {
-    const timer = setInterval(() => setNowMs(Date.now()), DATE_REFRESH_MS);
-    return () => clearInterval(timer);
-  }, []);
+    const clock = { startMs, endMs };
+    let timer = setTimeout(function tick(): void {
+      const now = Date.now();
+      setNowMs(now);
+      const delay = dateRefreshDelay(now, clock);
+      if (delay !== null) timer = setTimeout(tick, delay);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [startMs, endMs]);
 
   const people = view ? view.people.children + view.people.adults + view.people.elders : 0;
-  const satiation = view ? satiationState(view.satiation) : 'fed';
+  const satiation = view ? satiationState(view) : 'fed';
 
   return (
     <header
       data-testid="top-bar"
       className="hud-panel fixed inset-x-0 top-0 z-20 flex h-11 items-center gap-1 rounded-none border-x-0 border-t-0 px-2"
     >
-      {view && <VillageName name={view.name} onRename={onRename} />}
+      {view && (
+        <VillageSwitcher
+          name={view.name}
+          currentId={view.id}
+          villages={view.villages}
+          onSelect={(village) => onSelectVillage?.(village)}
+          onRename={onRename}
+        />
+      )}
       {view && (
         <div className="ml-2 flex items-center gap-1 border-l border-[#5c4526] pl-2">
           <Resource icon="people" name="Lidé" testId="village-people">
@@ -302,9 +352,27 @@ export function TopBar({
           <Resource icon="food" name="Obilí" testId="village-stores">
             {formatInteger(view.storesKg)}
           </Resource>
-          {Math.round(view.applesKg) > 0 && (
-            <Resource icon="apples" name="Jablka" testId="village-apples">
+          {showsLegumes(view) && (
+            <Resource icon="legumes" name="Luštěniny (kg)" testId="village-legumes">
+              {formatInteger(view.legumesKg)}
+            </Resource>
+          )}
+          <Resource icon="meat" name="Maso" testId="village-meat">
+            {formatInteger(view.meatKg)}
+          </Resource>
+          {showsDairy(view) && (
+            <Resource icon="cheese" name={dairyName(view)} testId="village-cheese">
+              {formatInteger(view.cheeseKg)}
+            </Resource>
+          )}
+          {(Math.round(view.applesKg) > 0 || view.orchards.length > 0) && (
+            <Resource icon="apples" name="Ovoce" testId="village-apples">
               {formatInteger(view.applesKg)}
+            </Resource>
+          )}
+          {showsHay(view) && (
+            <Resource icon="hay" name="Seno" testId="village-hay">
+              {formatInteger(view.hayKg)}
             </Resource>
           )}
           <Resource icon="fields" name="Pole – celková rozloha" testId="village-fields">
@@ -320,7 +388,7 @@ export function TopBar({
           <span data-testid="village-satiation" data-state={satiation} className="contents">
             <Resource
               icon="satiation"
-              name={`Nasycení ${formatPercent(view.satiation)}`}
+              name={<SatiationTooltip view={view} />}
               testId="village-satiation-value"
               filter={SATIATION_GLOW[satiation]}
             />
@@ -337,6 +405,9 @@ export function TopBar({
           </span>
         </Resource>
         {devTime && <DevTimeButtons pending={devTime.pending} onSkip={devTime.onSkip} />}
+        {devVillage && (
+          <DevVillageButton pending={devVillage.pending} onFound={devVillage.onFound} />
+        )}
         <span className="mx-1 h-6 border-l border-[#5c4526]" aria-hidden />
         <IconButton
           label="Zvuky krajiny"

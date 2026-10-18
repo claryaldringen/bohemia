@@ -13,9 +13,13 @@ import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { Scene } from '@babylonjs/core/scene';
 import {
   SHOWCASE_BUILDINGS,
+  SHOWCASE_DECAY,
+  SHOWCASE_ROADS,
   SHOWCASE_DECOR,
   SHOWCASE_GROUNDS,
   SHOWCASE_PEN,
+  showcaseDecay,
+  showcaseRoads,
   showcaseGrounds,
   showcaseHayMeadows,
   showcaseMeadowDay,
@@ -24,6 +28,7 @@ import {
 } from './building-showcase-layout';
 import { SUN_DIRECTION, WATER_FPS } from './constants';
 import { createEngine, type RendererName } from './create-engine';
+import type { PitCut } from './dwelling-pit';
 import { eaveTufts, type TuftModel } from './dwelling-decor';
 import { HomesteadRenderer, type PlotView } from './homestead';
 import { applyGammaFog } from './gamma-fog';
@@ -40,6 +45,7 @@ import { PenRenderer } from './pen-renderer';
 import { PitCuts, applyPitCut } from './pit-cut';
 import { ploughPath } from './plough-team';
 import { PloughTeams } from './plough-team-renderer';
+import { RoadWorks, roadRibbonMeshes } from './road-works';
 import { REFERENCE_DAY, seasonLook, type SeasonLight } from './season-look';
 import {
   applySeasonGround,
@@ -97,6 +103,28 @@ const CONSTRUCTION_URLS = [
   '/models/sacred/shrine-construction.glb',
 ];
 
+/**
+ * Jámy jednoho vlastníka (staveniště ukázky, rozpad obydlí): jeho obtisky prořezává jen jeho
+ * jámy, louku ukázky všechny (`onChange` je složí).
+ */
+class PitCutsPart extends PitCuts {
+  private cuts: readonly PitCut[] = [];
+
+  constructor(private readonly onChange: () => void) {
+    super();
+  }
+
+  override set(cuts: readonly PitCut[]): void {
+    super.set(cuts);
+    this.cuts = cuts;
+    this.onChange();
+  }
+
+  get list(): readonly PitCut[] {
+    return this.cuts;
+  }
+}
+
 /** Pata modelu: obydlí a dílny o kousek zapuštěné, posvátná místa leží na terénu (mají vlastní zem). */
 function modelBaseY(kind: ConstructionKind): number {
   return kind === 'modla' || kind === 'svatyne' ? 0 : BASE_Y;
@@ -134,6 +162,10 @@ export class BuildingShowcase {
   private sites: ShowcaseSites | null = null;
   /** Pole, hřbitov a sad – herní renderer vsi bez obydlí. */
   private grounds: VillageRenderer | null = null;
+  /** Rozpad obydlí – herní renderer vsi s opuštěnými obydlími a zbytky jam (showcaseDecay). */
+  private decay: VillageRenderer | null = null;
+  /** Posuvník rozpadu 0–1 (building-showcase-layout.ts – decayAt). */
+  private decayT = 0;
   /** Pozemky polozemnic – plot a záhony po fázích jako ve vsi (homestead.ts). */
   private plots: HomesteadRenderer | null = null;
   private fences: WovenFenceRenderer | null = null;
@@ -148,6 +180,10 @@ export class BuildingShowcase {
   /** Ohrada s přístřeškem a zvířata v ní (ukázka „Ohrada“). */
   private pens: PenRenderer | null = null;
   private penAnimals: PenAnimals | null = null;
+  /** Pevné cesty – vyšlapaná, úprava a hať s lávkou po fázích (ukázka „Cesty“). */
+  private roadWorks: RoadWorks | null = null;
+  private roadMeshes: Mesh[] = [];
+  private roadMaterials: { worn: Material; earth: Material } | null = null;
   /** Zimní vzhled (sníh na střechách a louce) – jinak léto. */
   private winter = false;
   /** Poslední snímek animace spřežení (ms) – nejvýš WATER_FPS za sekundu. */
@@ -230,13 +266,18 @@ export class BuildingShowcase {
     return showcase;
   }
 
-  /** Kamera na stavbu (id ze SHOWCASE_BUILDINGS, SHOWCASE_GROUNDS, SHOWCASE_DECOR nebo SHOWCASE_PEN). */
+  /**
+   * Kamera na stavbu (id ze SHOWCASE_BUILDINGS, SHOWCASE_GROUNDS, SHOWCASE_DECOR, SHOWCASE_PEN
+   * nebo SHOWCASE_DECAY).
+   */
   focus(id: string): void {
     const target = [
       ...SHOWCASE_BUILDINGS,
       ...SHOWCASE_GROUNDS,
       ...SHOWCASE_DECOR,
       SHOWCASE_PEN,
+      ...SHOWCASE_DECAY,
+      SHOWCASE_ROADS,
     ].find((b) => b.id === id);
     if (!target) return;
     this.setView(target.focus);
@@ -308,11 +349,14 @@ export class BuildingShowcase {
     this.resizeObserver.disconnect();
     this.sites?.dispose();
     this.grounds?.dispose();
+    this.decay?.dispose();
     this.plots?.dispose();
     this.fences?.dispose();
     this.teams?.dispose();
     this.pens?.dispose();
     this.penAnimals?.dispose();
+    this.roadWorks?.dispose();
+    for (const mesh of this.roadMeshes) mesh.dispose();
     this.camera.detachControl();
     this.engine.stopRenderLoop();
     this.scene.dispose();
@@ -328,10 +372,25 @@ export class BuildingShowcase {
     this.applyProgress();
   }
 
+  /**
+   * Rozpad obydlí 0–1 (posuvník): stav opuštěné zemnice a polozemnice klesá ze 100 na 0 %, pak
+   * zbytek jámy zarůstá (building-showcase-layout.ts – decayAt). Řada stupňů zůstává.
+   */
+  setDecay(t: number): void {
+    this.decayT = Math.min(1, Math.max(0, t));
+    if (!this.decay?.update(showcaseDecay(this.decayT))) return;
+    this.shadows?.refresh();
+    this.burst(400);
+  }
+
   private async build(sun: DirectionalLight): Promise<void> {
     const scene = this.scene;
     const models = SHOWCASE_BUILDINGS.flatMap((b) => b.models);
+    // louka se prořízne jámami stavenišť i rozpadlých obydlí a zbytků jam
     const pitCuts = new PitCuts();
+    const mergeCuts = (): void => pitCuts.set([...siteCuts.list, ...decayCuts.list]);
+    const siteCuts = new PitCutsPart(mergeCuts);
+    const decayCuts = new PitCutsPart(mergeCuts);
 
     const ground = CreateGround(
       'showcase-ground',
@@ -452,7 +511,7 @@ export class BuildingShowcase {
       }),
     ]);
     if (this.disposed) return;
-    this.sites = new ShowcaseSites(scene, models, parts, pitCuts, BASE_Y, modelBaseY);
+    this.sites = new ShowcaseSites(scene, models, parts, siteCuts, BASE_Y, modelBaseY);
     this.grounds = new VillageRenderer(scene, {
       groundHeight: () => 0,
       decalHeight: () => 0,
@@ -469,6 +528,23 @@ export class BuildingShowcase {
       pitCuts: new PitCuts(),
       sunDirection: SUN_DIRECTION,
     });
+    // rozpad obydlí – opuštěná obydlí a zbytky jam kreslí herní renderer vsi
+    this.decay = new VillageRenderer(scene, {
+      groundHeight: () => 0,
+      decalHeight: () => 0,
+      addShadowCaster: (mesh) => {
+        if (this.shadows) this.shadows.addCaster(mesh);
+        else casters.push(mesh);
+      },
+      onAsyncChange: () => {
+        this.shadows?.refresh();
+        this.burst(600);
+      },
+      requestRender: () => this.burst(300),
+      pitCuts: decayCuts,
+      sunDirection: SUN_DIRECTION,
+    });
+    this.decay.update(showcaseDecay(this.decayT));
     this.grounds.setHayMeadows(showcaseHayMeadows());
     this.grounds.setSeason(showcaseMeadowDay(this.progress), this.snow());
     this.grounds.update(showcaseGrounds(this.progress).village);
@@ -498,6 +574,7 @@ export class BuildingShowcase {
       onAsyncChange,
       pathMaterial: () => pathMaterial,
       prepareMaterial: prepareModelMaterial,
+      prepareWeedMaterial: prepareTuftMaterial,
       fences: this.fences,
     });
     this.teams = new PloughTeams(scene, {
@@ -522,6 +599,27 @@ export class BuildingShowcase {
     this.penAnimals = new PenAnimals(scene, {
       groundHeight: () => 0,
       onLoaded: () => this.burst(600),
+    });
+    // pevné cesty (roads.md) – obtisky a díly vylepšení jako ve vsi
+    const roadWorn = createDecalMaterial(scene, 'showcase-roads-worn', {
+      texture: 'grass-dirt',
+      zOffset: -3.5,
+    });
+    const roadEarth = createDecalMaterial(scene, 'showcase-roads-earth', {
+      texture: 'mud',
+      zOffset: -4,
+    });
+    applySeasonGround(roadWorn, 0.55);
+    applySeasonGround(roadEarth, 0.55);
+    this.roadMaterials = { worn: roadWorn, earth: roadEarth };
+    this.roadWorks = new RoadWorks(scene, {
+      groundHeight: () => 0,
+      addShadowCaster: addCaster,
+      requestRender: () => this.burst(300),
+      refreshShadows: () => {
+        this.shadows?.refresh();
+        this.burst(600);
+      },
     });
     this.shadows = addSunShadows(sun, { casters, receivers: [ground], extentM: GROUND_SIZE.width });
     this.applyProgress();
@@ -550,8 +648,25 @@ export class BuildingShowcase {
       },
     ]);
     this.penAnimals?.set(this.pens?.builtLayouts().flatMap((layout) => layout.animals) ?? []);
+    this.updateRoads();
     this.shadows?.refresh();
     this.burst(400);
+  }
+
+  /** Ukázka cest při průběhu stavby – obtisky znovu, díly vylepšení podle fáze. */
+  private updateRoads(): void {
+    const materials = this.roadMaterials;
+    if (!materials) return;
+    const roads = showcaseRoads(this.progress);
+    for (const mesh of this.roadMeshes) mesh.dispose();
+    this.roadMeshes = roadRibbonMeshes(this.scene, roads, {
+      height: () => 0,
+      smoothHeight: () => 0,
+      material: (kind) => materials[kind],
+      lift: { worn: 0.05, earth: 0.055 },
+      alphaIndex: { worn: 3, earth: 3.5 },
+    });
+    this.roadWorks?.update(roads);
   }
 
   /** Sněhová pokrývka ukázky (0 v létě). */

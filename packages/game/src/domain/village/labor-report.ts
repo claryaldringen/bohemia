@@ -3,11 +3,12 @@ import { isVillageExtinct } from './extinction';
 import type { DayAllocation, LaborTaskName } from './labor';
 import { villageOrchards } from './orchard';
 import { NO_CRAFTS, withinBounds } from './productivity';
-import { HARVEST_WORK_PER_HA } from './rules';
+import { HARVEST_WORK_PER_HA, ROAD_APPLES } from './rules';
+import { mowingSquaresWorked } from './hay';
 import type {
   Construction,
   CropWork,
-  TaskName,
+  HayMowing,
   LaborActivity,
   LaborDay,
   LaborShare,
@@ -17,7 +18,10 @@ import type {
 } from './types';
 import { woodFellingCost } from './wood';
 import { partsWorked, type PartTask } from './field-progress';
-import { planPartIds } from './year-plan';
+import { planPartIds, type CropTask } from './year-plan';
+
+/** Hektar v m² – plocha sadu na jabloň u cesty. */
+const M2_PER_HA = 10_000;
 
 // Rozdělení práce posledního odsimulovaného dne po činnostech a místech – jen pro zobrazení
 // (postavy ve scéně, villagers.md). Vzniká v kroku práce simulace ze stejného rozdělení, které
@@ -33,7 +37,7 @@ export interface ConstructionWork {
 
 /** Polní úloha dne: práce plodiny a kolik z ní bylo hotové před a po dnešní práci (člověkodny). */
 export interface FieldTaskWork {
-  task: TaskName;
+  task: CropTask;
   work: CropWork;
   before: number;
   after: number;
@@ -47,6 +51,8 @@ export interface DayWork {
   /** Opravy po obydlích (poměrně k potřebě). */
   repairs: { dwellingId: number; manDays: number }[];
   constructions: ConstructionWork[];
+  /** Seč sena dne – kolik bylo posečeno před a po dnešní práci (oxen.md). */
+  mowing?: { mowing: HayMowing; before: number; after: number };
   /** Práce řemeslníků po dílnách (crafts.md); bez údaje žádná. */
   workshops?: WorkshopDay[];
   /** Pokrytí nástroji dne – podíl žně a odnosu na sklizni (meze); bez údaje 0. */
@@ -102,10 +108,20 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
     }
   }
   add('thresh', { kind: 'village' }, allocation.tasks.thresh);
+  for (const share of mowingShares(state, work)) add('mow', share.target, share.manDays);
+  add('slaughter', { kind: 'village' }, allocation.tasks.slaughter);
+  // dojení u domů, zimní péče o krávy a voly u ohrady (když ves nějakou má – diet.md)
+  const pen = (state.pens ?? []).find((p) => p.builtDay !== null);
+  add('milking', { kind: 'village' }, allocation.tasks.milking);
+  add(
+    'animal-care',
+    pen ? { kind: 'pen', id: pen.id } : { kind: 'village' },
+    allocation.tasks['animal-care'],
+  );
   const orchards = orchardAreas(state);
   for (const task of ['orchard-care', 'orchard-harvest'] as const) {
-    for (const { id, share } of orchards) {
-      add(task, { kind: 'orchard', id }, allocation.tasks[task] * share);
+    for (const { target, share } of orchards) {
+      add(task, target, allocation.tasks[task] * share);
     }
   }
 
@@ -119,7 +135,8 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
     { kind: 'village' },
     allocation.dailyMin + allocation.domestic + workshops.reduce((sum, w) => sum + w.domestic, 0),
   );
-  // řemeslníci: uhlíř a hrnčíř kácejí u svého stromu, výroba v dílně (crafts.md)
+  // řemeslníci: uhlíř a hrnčíř kácejí u svého stromu, výroba v dílně – uhlíř u milíře, v lese
+  // u lesního milíře, a sází mladé buky na pařezy (crafts.md – Uhlíř)
   for (const w of workshops) {
     const place: LaborTarget = { kind: 'dwelling', id: w.dwellingId };
     add(
@@ -127,7 +144,14 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
       w.fellingTrees.length > 0 ? { kind: 'trees', ids: w.fellingTrees } : place,
       w.felling,
     );
-    add('craft', place, w.making);
+    const kiln: LaborTarget = w.kilnSite
+      ? { kind: 'kiln', id: w.dwellingId, x: w.kilnSite.x, z: w.kilnSite.z }
+      : place;
+    add('craft', kiln, w.making);
+    if (w.planting) {
+      const stumps = w.plantedTrees ?? [];
+      add('plant', stumps.length > 0 ? { kind: 'trees', ids: stumps } : place, w.planting);
+    }
   }
 
   let invested = 0;
@@ -184,6 +208,41 @@ function fieldShares(
 }
 
 /**
+ * Seč dne na louky, přes které dnes postoupila: díly úhoru po polích, přirozené louky zvlášť
+ * (podíl podle úseku louky).
+ */
+function mowingShares(
+  state: VillageState,
+  work: DayWork,
+): { target: LaborTarget; manDays: number }[] {
+  const day = work.mowing;
+  if (!day || day.after - day.before <= 0) return [];
+  const partsById = new Map(state.parts.map((p) => [p.id, p]));
+  const fields = new Map<number, { manDays: number; parts: number[] }>();
+  const meadow = { manDays: 0, cells: [] as { x: number; y: number }[] };
+  for (const sq of mowingSquaresWorked(day.mowing, partsById, day.before, day.after)) {
+    const manDays = (day.after - day.before) * sq.share;
+    if (sq.partId !== undefined && sq.fieldId !== undefined) {
+      const share = fields.get(sq.fieldId) ?? { manDays: 0, parts: [] };
+      share.manDays += manDays;
+      share.parts.push(sq.partId);
+      fields.set(sq.fieldId, share);
+    } else if (sq.cell) {
+      meadow.manDays += manDays;
+      meadow.cells.push(sq.cell);
+    }
+  }
+  const shares: { target: LaborTarget; manDays: number }[] = [...fields].map(([id, share]) => ({
+    target: { kind: 'field', id, parts: share.parts },
+    manDays: share.manDays,
+  }));
+  if (meadow.cells.length > 0) {
+    shares.push({ target: { kind: 'meadow', cells: meadow.cells }, manDays: meadow.manDays });
+  }
+  return shares;
+}
+
+/**
  * Rozdělení práce posledního odsimulovaného dne; ves uložená před jeho zavedením null. Vymřelá
  * ves nepracuje – její poslední den (kdy ještě někdo pracoval) se už neukazuje.
  */
@@ -224,15 +283,25 @@ function planFieldAreas(state: VillageState): { id: number; share: number }[] {
   return shares;
 }
 
-/** Sady s vysazenými čtverci a jejich podíl na vysazené ploše. */
-function orchardAreas(state: VillageState): { id: number; share: number }[] {
-  const areas = villageOrchards(state).map((o) => ({
-    id: o.id,
+/**
+ * Sady s vysazenými čtverci a úseky cest s vysazenými jabloněmi (roads.md – jabloň jako sad na
+ * strom, ≈ 1/180 ha) a jejich podíl na vysazené ploše.
+ */
+function orchardAreas(state: VillageState): { target: LaborTarget; share: number }[] {
+  const areas: { target: LaborTarget; area: number }[] = villageOrchards(state).map((o) => ({
+    target: { kind: 'orchard', id: o.id },
     area: o.squares.reduce((sum, s) => sum + (s.plantedDay !== null ? s.areaM2 : 0), 0),
   }));
+  const perApple = M2_PER_HA / ROAD_APPLES.treesPerHa;
+  const byRoad = new Map<number, number>();
+  for (const apple of state.roads?.apples ?? []) {
+    if (apple.plantedDay === null) continue;
+    byRoad.set(apple.roadId, (byRoad.get(apple.roadId) ?? 0) + perApple);
+  }
+  for (const [id, area] of byRoad) areas.push({ target: { kind: 'road', id }, area });
   const total = areas.reduce((sum, a) => sum + a.area, 0);
   if (total <= 0) return [];
-  return areas.filter((a) => a.area > 0).map((a) => ({ id: a.id, share: a.area / total }));
+  return areas.filter((a) => a.area > 0).map((a) => ({ target: a.target, share: a.area / total }));
 }
 
 /**
@@ -264,6 +333,27 @@ function constructionShares(work: ConstructionWork): LaborShare[] {
           },
         ];
   }
+  if (c.kind === 'pen' || c.kind === 'ard') {
+    if (c.penId === null || c.penId === undefined) return [];
+    return penShares(work, { kind: 'pen', id: c.penId });
+  }
+  if (c.kind === 'road-apples') {
+    const roadId = c.roadIds?.[0];
+    return roadId === undefined
+      ? []
+      : [
+          {
+            activity: 'orchard-plant',
+            target: { kind: 'road', id: roadId },
+            manDays: work.manDays,
+          },
+        ];
+  }
+  if (c.kind === 'road') {
+    // vylepšení pevné cesty (roads.md) – kácení dřeva hatě, pak práce na úseku
+    const roadId = c.roadIds?.[0];
+    return roadId === undefined ? [] : penShares(work, { kind: 'road', id: roadId }, 'build');
+  }
   if (c.kind === 'cemetery') {
     return c.cemeteryId === null || c.cemeteryId === undefined
       ? []
@@ -284,6 +374,19 @@ function constructionShares(work: ConstructionWork): LaborShare[] {
         : { kind: 'dwelling', id: c.dwellingId }
       : { kind: 'site', id: c.id };
   if (place === null) return [];
+  return penShares(work, place, 'build');
+}
+
+/**
+ * Práce stavby se dřevem po místech: nejdřív kácení jejích stromů (forest.md), zbytek na místě
+ * stavby – obydlí a staveniště (`build`), ohrada a rádlo (`pen`).
+ */
+function penShares(
+  work: ConstructionWork,
+  place: LaborTarget,
+  activity: LaborActivity = 'pen',
+): LaborShare[] {
+  const c = work.construction;
   const felling = woodFellingCost(c.wood);
   const fellWork = Math.max(
     0,
@@ -299,7 +402,7 @@ function constructionShares(work: ConstructionWork): LaborShare[] {
     });
   }
   if (work.manDays - fellWork > 0) {
-    shares.push({ activity: 'build', target: place, manDays: work.manDays - fellWork });
+    shares.push({ activity, target: place, manDays: work.manDays - fellWork });
   }
   return shares;
 }

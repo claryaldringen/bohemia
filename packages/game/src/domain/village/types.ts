@@ -6,6 +6,13 @@ export interface Position {
   z: number;
   rotation: number;
 } // svět, m; ověřuje plán 3
+/** Pohlaví člověka (kinship.md). */
+export type Sex = 'male' | 'female';
+/**
+ * Směr k sousední vsi (war.md – Svět: mřížka map, 8 sousedů): sever, severovýchod, východ,
+ * jihovýchod, jih, jihozápad, západ, severozápad.
+ */
+export type NeighborDirection = 'N' | 'NE' | 'E' | 'SE' | 'S' | 'SW' | 'W' | 'NW';
 export interface Person {
   id: number;
   bornDay: number;
@@ -14,6 +21,44 @@ export interface Person {
    * staveništi), obydlí s tím id vznikne až s dokončením.
    */
   dwellingId: number;
+  /**
+   * Pohlaví (kinship.md). U vsí uložených před příbuzenstvím chybí – doplní ho jednou
+   * `withKinship`.
+   */
+  sex?: Sex;
+  /** Matka a otec (id) – chybí, když jsou neznámí (zakladatelé, lidé z okolí, starší vsi). */
+  motherId?: number;
+  fatherId?: number;
+  /** Manžel / manželka (id žijícího člověka ve vsi); svobodný, vdovec a vdova ho nemají. */
+  spouseId?: number;
+  /**
+   * Ze které sousední vsi člověk přišel – nevěsta z okolí (kinship.md, war.md – příbuzní
+   * v cílové vsi); narození ve vsi ho nemají.
+   */
+  origin?: NeighborDirection;
+}
+/**
+ * Dcera, která se vdala pryč (kinship.md – Sňatky z okolí): jen záznam v rodokmenu, nesimuluje se –
+ * id, pohlaví, den narození, rodiče a směr vsi, kam odešla (war.md – muži s příbuznými v cílové
+ * vsi útočit nechtějí). Ves ho drží, jen dokud ve vsi žije její rodič, sourozenec nebo dítě.
+ */
+export interface Emigrant {
+  id: number;
+  sex: Sex;
+  bornDay: number;
+  direction: NeighborDirection;
+  motherId?: number;
+  fatherId?: number;
+}
+/**
+ * Zemřelý nebo odešlý předek v rodokmenu (kinship.md – Příbuzenství): jen id a jeho rodiče, aby
+ * šli poznat prarodiče, strýcové a bratranci žijících. Ves ho drží, jen dokud je rodičem
+ * někoho žijícího.
+ */
+export interface Ancestor {
+  id: number;
+  motherId?: number;
+  fatherId?: number;
 }
 /**
  * Kde na pozemku stojí dům: uprostřed, nebo v jednom ze čtyř rohů (population.md – Umístění
@@ -43,6 +88,12 @@ export interface Dwelling {
    */
   forestDistanceM?: number;
   /**
+   * Chůze z obydlí k nejbližšímu okraji lesa (m – po pěšinách a pevných cestách, mokřina ×2, brod
+   * + 30 m; roads.md – Rychlejší chůze) – palivo (forest.md) ho bere místo `forestDistanceM`.
+   * Počítá se jen s krajinou; u starších obydlí chybí do prvního přepočtu.
+   */
+  forestWalkM?: number;
+  /**
    * Řemeslná dílna (crafts.md) – řemeslo patří budově: provozuje ho domácnost, která v ní bydlí,
    * prázdná dílna nic nevyrábí. Obyčejné obydlí ji nemá.
    */
@@ -53,10 +104,48 @@ export type Craft = 'potter' | 'smith' | 'burner';
 /**
  * Co dílna dělala poslední odsimulovaný den (crafts.md – Co hráč vidí): vyrábí, kácí dřevo na
  * uhlí nebo palivo, čeká na uhlí (kovář), čeká na dřevo (uhlíř a hrnčíř – není co kácet), nemá
- * kdo pracovat (domácnost bez práce po minimu a domácí výrobě), nebo je prázdná.
+ * kdo pracovat (domácnost bez práce po minimu a domácí výrobě), nebo je prázdná. Uhlíř
+ * (crafts.md – Uhlíř): kácí a připravuje dřevo (`felling`), staví milíř (`building`), pálí
+ * a hlídá ho (`burning`), vytahuje uhlí (`drawing`), sází mladé buky (`planting`), nebo má uhlí
+ * dost a pomáhá vsi (`resting`).
  */
 export type WorkshopActivity =
-  'producing' | 'felling' | 'no-charcoal' | 'no-wood' | 'idle' | 'empty';
+  | 'producing'
+  | 'felling'
+  | 'building'
+  | 'burning'
+  | 'drawing'
+  | 'planting'
+  | 'resting'
+  | 'no-charcoal'
+  | 'no-wood'
+  | 'idle'
+  | 'empty';
+/** Fáze milíře (crafts.md – Uhlíř): kácení a příprava dřeva, stavba, pálení, vytahání uhlí. */
+export type KilnStage = 'wood' | 'build' | 'burn' | 'draw';
+/**
+ * Milíř uhlíře – jedna dávka buků od výběru po vytahání uhlí (crafts.md – Uhlíř). Stojí u dílny
+ * (`site` null – milíř kus od zemnice), nebo v lese u dávky (`site` – střed milíře ve světě, m).
+ * Buky dávky jsou od výběru vyhrazené; kácí se a připravují strom po stromu v pořadí `trees`.
+ */
+export interface CharcoalKiln {
+  site: { x: number; z: number } | null;
+  /**
+   * Buky dávky: id z vrstvy překážek (null = kácení bez polohy – ves bez vrstvy, jen testy)
+   * a práce za skácení a dovoz k milíři (člověkodny, i se vzdáleností).
+   */
+  trees: { id: number | null; cost: number }[];
+  stage: KilnStage;
+  /** Kolik buků dávky je skácených a připravených (fáze `wood`). */
+  prepared: number;
+  /** Práce odvedená v rozdělané části fáze (čd; u buku kácení a pak příprava), u pálení dny. */
+  done: number;
+  /**
+   * Milíř v lese: vzdálenost chůze z dílny k němu (m – po pevných cestách s půdou, paths/walking.ts)
+   * pro přirážku za chůzi; bez údaje vzdušná vzdálenost (vsi bez krajiny, kalibrace).
+   */
+  walkM?: number;
+}
 /**
  * Strom, který dílna kácí (uhlíř na uhlí, hrnčíř na palivo pece – forest.md, kácení): id z vrstvy
  * překážek (null = kácení bez polohy – ves bez vrstvy, jen testy), práce za skácení a dovoz
@@ -81,6 +170,13 @@ export interface Workshop {
   fuelKg: number;
   /** Co dílna dělala poslední odsimulovaný den (panel výběru, dým ve scéně). */
   activity: WorkshopActivity;
+  /** Uhlíř: rozdělaný milíř (crafts.md – Uhlíř); bez údaje nebo null žádný. */
+  kiln?: CharcoalKiln | null;
+  /**
+   * Uhlíř: pařezy buků, které skácel a na které ještě zasadí mladý buk (id z vrstvy překážek,
+   * v pořadí kácení – obnova lesa). Bez údaje žádné.
+   */
+  toPlant?: number[];
 }
 /**
  * Zásoby výrobků řemeslníků (crafts.md, kg): uhlí pro kováře, nástroje a keramika. Co ves
@@ -93,11 +189,22 @@ export interface CraftStocks {
 }
 export type PartState = 'founding' | 'ready' | 'sown' | 'fallow';
 /**
- * Plodina osetého dílu (fields.md – Ozim a jař): **ozim** (`winter` – žito a pšenice, kopá se
- * a seje na podzim, sklízí v červenci) a **jař** (`spring` – ječmen, kopá se na podzim nebo na
- * jaře, seje na jaře, sklízí v srpnu).
+ * Stadium přílohu (fields.md – Zarůstání): mladý příloh (1–2 roky ladem), louka (pastvina, louka
+ * na seno), křoviny a mladý les – nepasený a nesečený příloh zarůstá.
  */
-export type Crop = 'winter' | 'spring';
+export type FallowStage = 'young-fallow' | 'meadow' | 'shrubs' | 'young-forest';
+/**
+ * Co roste na přílohu podle let bez pastvy a seče (fields.md – Zarůstání): louka, křoviny, mladý
+ * les, les – díl v lese z pole vypadne.
+ */
+export type OvergrowthStage = 'meadow' | 'shrubs' | 'young-forest' | 'forest';
+/**
+ * Plodina osetého dílu (fields.md – Ozim a jař, Luštěniny): **ozim** (`winter` – žito a pšenice,
+ * kopá se a seje na podzim, sklízí v červenci), **jař** (`spring` – ječmen, kopá se na podzim nebo
+ * na jaře, seje na jaře, sklízí v srpnu) a **luštěniny** (`legume` – hrách a čočka; jař – kopá
+ * se jako jař, seje na jaře, sklízí v červenci; diet.md – Luštěniny).
+ */
+export type Crop = 'winter' | 'spring' | 'legume';
 /** Políčko krajiny – sloupec x a řádek y mřížky. */
 export interface TileCell {
   x: number;
@@ -124,6 +231,39 @@ export interface FieldPart {
   obstacles?: number[];
   /** Dospělé stromy mezi překážkami – po založení dílu dají klády na hromadu (forest.md). */
   trees?: number;
+  /**
+   * Vzdálenost chůze z nejbližšího obydlí po vyšlapaných pěšinách (m, paths.md – Pěšiny a práce):
+   * po pěšině se chodí rychleji, nikdy víc než `distanceM`. Přepočítá se se změnou rozložení vsi
+   * (`refreshWalkDistances`); chybí u vsí uložených dřív a bez krajiny (= `distanceM`).
+   */
+  walkDistanceM?: number;
+  /**
+   * Roky přílohu bez pastvy a seče (fields.md – Zarůstání): přibývají 1. 11. za každé vegetační
+   * období, kdy díl stáda nespásla a ves neposekla; pastva nebo seč je ve fázi louky vynuluje, od
+   * křovin už ne. Chybí = 0 (díly mimo příloh, vsi uložené dřív).
+   */
+  overgrowthYears?: number;
+}
+/**
+ * Les vsi (fields.md – Zarůstání, Les vsi): čtverec pole, který zarostl lesem a z pole vypadl. Les
+ * dál roste – dospělé stromy na něm přibývají se stářím (VILLAGE_WOOD) a jde je kácet na dřevo;
+ * pole na čtverci ho vymýtí jako les. Prasatům je lesem, stádům pastvinou už není.
+ */
+export interface VillageWood {
+  /** Políčko krajiny (čtverec dílu). */
+  cell: TileCell;
+  /**
+   * Střed políčka ve světě (m) – stromy lesa stojí kolem něj (`woodTreeSpots`). Chybí ve vsi
+   * simulované bez krajiny (testy) – les pak stromy nemá.
+   */
+  x?: number;
+  z?: number;
+  /** Plocha dílu, ze kterého les vyrostl (m², bez skalních výchozů). */
+  areaM2: number;
+  /** Povrch dílu při založení – les na louce ubere pastvu, les v lese vrátí les prasatům. */
+  surface: FieldSurface;
+  /** Den, kdy díl z pole vypadl – les byl tehdy starý OVERGROWTH_STAGES (30 let). */
+  day: number;
 }
 /** Pole – jeho čtverce jsou políčka jeho dílů (`FieldPart.cell`). */
 export interface Field {
@@ -172,6 +312,11 @@ export interface OrchardSquare {
   areaM2: number;
   /** Vzdálenost středu čtverce od nejbližšího obydlí při založení (m) – práce v sadu dražší. */
   distanceM: number;
+  /**
+   * Chůze z nejbližšího obydlí po pěšinách a pevných cestách (m – roads.md, jako díl pole); bez
+   * krajiny (kalibrace) chybí – práce se počítá z `distanceM`.
+   */
+  walkDistanceM?: number;
   /** Výsadba: člověkodny (80/ha + překážky) a kolik je hotovo. */
   plantingCost: number;
   plantingDone: number;
@@ -184,11 +329,23 @@ export interface OrchardSquare {
   obstacles?: number[];
   /** Dospělé stromy mezi překážkami – s vyklizením čtverce dají klády na hromadu (forest.md). */
   trees?: number;
+  /**
+   * Obnova (orchard.md – Obnova sadu): id stavby obnovy, do které vesničané čtverec zařadili.
+   * Dokud na něj práce nedojde, stojí staré stromy (`plantedDay` výsadby, ze které rostou);
+   * s první prací se staré stromy skácí a čtverec se sází znovu (`plantedDay` null, výsadba
+   * bez překážek). Po výsadbě údaj zmizí. U ostatních čtverců chybí.
+   */
+  renewal?: number;
 }
 /** Jabloňový sad – souvislá skupina čtverců (orchard.md). */
 export interface Orchard {
   id: number;
   squares: OrchardSquare[];
+  /**
+   * Hospodářský rok sadu (rok jeho jara), ve kterém vesničané naposledy zařadili čtverce do
+   * obnovy – za rok sadu jen jednou (orchard.md – Obnova sadu). Chybí = ještě nikdy.
+   */
+  renewedSeason?: number;
 }
 /** Sezónní práce v sadech celé vsi – sklizeň (září–říjen), nebo péče (prosinec–únor). */
 export interface OrchardWork {
@@ -206,7 +363,21 @@ export type ConstructionKind =
   | 'cemetery'
   | 'orchard'
   /** Dřevěná modla a svatyně (happiness.md) – stavba se polohou v `position`. */
-  | SacredBuildingKind;
+  | SacredBuildingKind
+  /** Ohrada s přístřeškem (oxen.md) – čtverec v `penId`. */
+  | 'pen'
+  /** Rádlo pro výcvik spřežení v ohradě `penId` (oxen.md – 1 strom a 5 člověkodní). */
+  | 'ard'
+  /** Vylepšení pevné cesty `roadIds` na stupeň `roadGrade` (roads.md – Vylepšení cesty). */
+  | 'road'
+  /** Výsadba jabloní podél pevné cesty `roadIds` (roads.md – Vysazení jabloní). */
+  | 'road-apples';
+/**
+ * Co může vzít půdu poli (fields.md – Pole jako krajina; Martin 18. 10. 2026): obydlí (i dílna),
+ * sad, hřbitov, ohrada, modla, svatyně, jabloně u cesty a stromy u cesty – cokoli kromě pole.
+ */
+export type LandTaker =
+  'dwelling' | 'orchard' | 'cemetery' | 'pen' | 'idol' | 'shrine' | 'road-apples' | 'road-trees';
 /** Posvátná stavba, kterou staví hráč (happiness.md). */
 export type SacredBuildingKind = 'idol' | 'shrine';
 export interface Construction {
@@ -224,6 +395,19 @@ export interface Construction {
   fieldId: number | null; // field – zakládá díly od nejbližšího
   cemeteryId?: number | null; // cemetery (u starších staveb chybí)
   orchardId?: number | null; // orchard – vysazuje čtverce od nejbližšího (u ostatních chybí)
+  /**
+   * Obnova sadu (orchard.md – Obnova sadu): stavbu založili vesničané sami a sází znovu jen
+   * čtverce s `OrchardSquare.renewal` = id stavby. U výsadby a ostatních staveb chybí.
+   */
+  renewal?: true;
+  /** Ohrada – stavba ohrady a rádlo pro její spřežení (oxen.md); u ostatních chybí. */
+  penId?: number | null;
+  /**
+   * Vylepšení pevné cesty (roads.md): úseky (rozdělení úseku přidá i nový) a stupeň, na který se
+   * vylepšují; u ostatních staveb chybí.
+   */
+  roadIds?: number[];
+  roadGrade?: RoadGrade;
   /** Dřevo obydlí, přestavby, modly a svatyně (forest.md); u starších staveb a polí chybí. */
   wood?: ConstructionWood;
   /** Nové obydlí: vzdálenost k nejbližšímu okraji lesa (m) – obydlí ji po dostavění převezme. */
@@ -232,6 +416,12 @@ export interface Construction {
   craft?: Craft;
   /** Nová dílna: vzdálenost k potoku (m) – dílna ji po dostavění převezme. */
   waterDistanceM?: number;
+  /**
+   * Přestěhování domácnosti (migration.md): id domácnosti (= id jejího obydlí), která si nové
+   * obydlí staví a po dostavění se do něj přestěhuje – starý dům zůstane prázdný. Jen u stavby
+   * `dwelling`, u ostatních staveb chybí.
+   */
+  relocates?: number;
 }
 /**
  * Dřevo stavby (forest.md – Stavby a kácení): kolik ho stavba spotřebuje, kolik klád vzala při
@@ -283,6 +473,28 @@ export interface CropWork {
   required: Record<TaskName, number>;
   done: Record<TaskName, number>;
   harvestedKg: number | null; // čistá úroda ze sklizně (pro ztrátu nevymláceného 1. 3.)
+  /**
+   * Orba rádlem (oxen.md – Účinek na práci): díly, které místo motyky orá spřežení. Jejich
+   * kopání v `required.dig` není. Chybí = ves letos neorá (i plány starších vsí).
+   */
+  plough?: PloughWork;
+}
+/**
+ * Orba jedné plodiny: díly pro spřežení v pořadí orby, potřebné a odvedené člověkodny a váhy
+ * (plocha × vzdálenost) oraných dílů a dílů kopaných motykou – setí jde za obojím. Díly vrácené
+ * motyce (vůl uhynul, spřežení dosloužilo, slabí voli po zimě bez sena) se kopou na konci řady
+ * kopání (`returned`).
+ */
+export interface PloughWork {
+  partIds: number[];
+  required: number;
+  done: number;
+  /** Váha oraných dílů (ha × příplatek za vzdálenost). */
+  weight: number;
+  /** Váha dílů kopaných motykou (i vrácených). */
+  digWeight: number;
+  /** Díly vrácené motyce – kopou se po ostatních dílech plodiny. */
+  returned?: number[];
 }
 /**
  * Roční plán osevu (k 1. 9.): na nejvyšší úrovni jař (tvar plánu z doby před ozimem), ozim
@@ -291,6 +503,8 @@ export interface CropWork {
 export interface YearPlan extends CropWork {
   plannedDay: number;
   winter?: CropWork;
+  /** Luštěniny (fields.md – Luštěniny) – chybí u plánů bez luštěnin (i u starších vsí). */
+  legume?: CropWork;
 }
 export type ChronicleEvent = { day: number } & (
   | { kind: 'village-founded' }
@@ -301,6 +515,15 @@ export type ChronicleEvent = { day: number } & (
   | { kind: 'village-extinct' }
   | { kind: 'household-founded'; dwellingId: number }
   | { kind: 'household-merged'; fromDwellingId: number; toDwellingId: number }
+  /**
+   * Svatba ve vsi (kinship.md – Sňatky) – nevěsta z domu `from` se přestěhovala k muži do domu
+   * `to` (ze stejného domu from = to).
+   */
+  | { kind: 'marriage'; fromDwellingId: number; toDwellingId: number }
+  /** Muž z domu `dwellingId` si přivedl nevěstu z okolí (kinship.md – Sňatky z okolí). */
+  | { kind: 'bride-from-outside'; dwellingId: number }
+  /** Dcera z domu `dwellingId` se vdala pryč – odešla ze vsi (kinship.md – Sňatky z okolí). */
+  | { kind: 'married-away'; dwellingId: number }
   | {
       kind: 'construction-finished';
       constructionKind: ConstructionKind;
@@ -310,20 +533,68 @@ export type ChronicleEvent = { day: number } & (
       craft?: Craft;
     }
   | { kind: 'rebuild-decided'; dwellingId: number; type: DwellingType }
+  /** Domácnost obydlí `dwellingId` si začala stavět nový dům typu `type` (migration.md). */
+  | { kind: 'relocation-started'; dwellingId: number; type: DwellingType }
+  /** Hráč zrušil rozestavěné přestěhování domácnosti `dwellingId` (migration.md). */
+  | { kind: 'relocation-cancelled'; dwellingId: number }
+  /** Domácnost se přestěhovala do dostavěného domu – starý dům zůstal prázdný (migration.md). */
+  | { kind: 'household-relocated'; fromDwellingId: number; toDwellingId: number }
   /**
-   * Sklizeň obilí – plodina, když ves seje ozim i jař (ozim v červenci, jař v srpnu); bez ní jen
-   * jař (ves bez ozimu, starší sklizně).
+   * Sklizeň – plodina, když ves seje ozim i jař (ozim v červenci, jař v srpnu); bez ní jen jař
+   * (ves bez ozimu, starší sklizně). `legume` – luštěniny (kg do zásoby luštěnin, ne obilí).
    */
   | { kind: 'harvest'; kg: number; crop?: Crop }
   /** Konec sklizně jablek (1. 11.) – kolik kg se sklidilo. */
   | { kind: 'apple-harvest'; kg: number }
+  /** Podzimní porážka (diet.md – 1. 11.): kolik kg masa a kolik kusů kterého druhu. */
+  | { kind: 'slaughter'; kg: number; animals: Partial<Record<HerdSpecies, number>> }
+  /** Spřežení volů v ohradě je vycvičené a orá (oxen.md). */
+  | { kind: 'team-ready'; penId: number }
+  /** Spřežení dosloužilo – voli zestárli (oxen.md, ≈ 10 let), šli na maso. */
+  | { kind: 'team-retired'; penId: number }
+  /** Přes zimu chybělo přes polovinu sena – vůl uhynul, spřežení (nebo výcvik) se rozpadlo. */
+  | { kind: 'ox-died'; penId: number; training: boolean }
   /** Sad dosloužil (60. rok) a vrátil se v louku. */
   | { kind: 'orchard-gone'; orchardId: number }
+  /** Vesničané zařadili čtverce starého sadu do obnovy (orchard.md – Obnova sadu). */
+  | { kind: 'orchard-renewal-started'; orchardId: number; squares: number }
+  /**
+   * Pole nebo sad ustoupil stavbě obydlí (population.md – Obydlí na poli a v sadu): o kolik m² se
+   * zmenšil, a jestli tím zanikl (dům sebral poslední čtverec).
+   */
+  | {
+      kind: 'land-taken';
+      land: 'field' | 'orchard';
+      id: number;
+      areaM2: number;
+      gone: boolean;
+      /** Co půdu vzalo (fields.md – Pole jako krajina); bez údaje obydlí (starší události). */
+      by?: LandTaker;
+    }
   | { kind: 'hunger-began' }
   | { kind: 'hunger-ended' }
-  | { kind: 'part-became-forest'; partId: number }
+  /**
+   * Nepasený a nesečený příloh zarostl lesem a z pole vypadl (fields.md – Zarůstání): první díl,
+   * pole, kolik dílů a jestli pole zaniklo. U událostí ze staršího pravidla (do 18. 10. 2026)
+   * je jen `partId`.
+   */
+  | {
+      kind: 'part-became-forest';
+      partId: number;
+      fieldId?: number;
+      parts?: number;
+      gone?: boolean;
+    }
   /** Vesničané při mýcení ušetřili posvátný dub nebo dubový háj (happiness.md) – id místa. */
   | { kind: 'sacred-spared'; site: 'oak' | 'grove'; id: number }
+  /** Ušetřený posvátný dub stářím uschl – zůstala posvátná souš (happiness.md) – id dubu. */
+  | { kind: 'sacred-oak-died'; id: number }
+  /** Posvátná souš padla – místo už není posvátný dub (happiness.md) – id dubu. */
+  | { kind: 'sacred-snag-fell'; id: number }
+  /** Z dlouhodobého provozu vznikla pevná cesta (roads.md) – id úseku. */
+  | { kind: 'road-formed'; roadId: number }
+  /** Nepoužívaná vyšlapaná cesta zarostla (roads.md – Zarůstání) – id úseku. */
+  | { kind: 'road-overgrown'; roadId: number }
   | {
       kind: 'cemetery-full';
       cemeteryId: number;
@@ -344,11 +615,23 @@ export type LaborActivity =
   | 'harvest'
   | 'carry'
   | 'thresh'
+  /** Orba rádlem – oráč a honáček se spřežením (oxen.md). */
+  | 'plough'
+  /** Sečení, sušení a stohování sena (oxen.md – Seno). */
+  | 'mow'
+  /** Porážka a uzení masa (diet.md). */
+  | 'slaughter'
+  /** Dojení a zpracování mléka na sýr (diet.md – Práce se zvířaty). */
+  | 'milking'
+  /** Péče o zvířata – zimní krmení, voda a kydání krav a volů, prasata a slepice. */
+  | 'animal-care'
   /** Sezónní práce v sadech (orchard.md). */
   | 'orchard-care'
   | 'orchard-harvest'
   /** Společná práce do staveb: stavba obydlí, kácení jeho dřeva, zakládání pole, výsadba sadu, hřbitov. */
   | 'build'
+  /** Stavba ohrady a výroba rádla (oxen.md). */
+  | 'pen'
   | 'fell'
   | 'found-field'
   | 'orchard-plant'
@@ -357,6 +640,8 @@ export type LaborActivity =
   | 'repair'
   /** Řemeslník v dílně (crafts.md) – výroba uhlí, nástrojů nebo keramiky. */
   | 'craft'
+  /** Uhlíř sází mladé buky na pařezy (crafts.md – Uhlíř, obnova lesa). */
+  | 'plant'
   /** Denní minimum domácností a domácí výroba (fields.md – Práce, body 1 a 4). */
   | 'domestic'
   /** Společná práce, na kterou nezbyla žádná stavba (propadla). */
@@ -377,8 +662,16 @@ export type LaborTarget =
   | { kind: 'orchard'; id: number }
   /** Hřbitov (id) – zakládání a rozšíření. */
   | { kind: 'cemetery'; id: number }
-  /** Stromy z vrstvy překážek, které se pro stavbu právě kácejí. */
+  /** Ohrada (id) – stavba, rádlo, péče o krávy a voly v zimě. */
+  | { kind: 'pen'; id: number }
+  /** Pevná cesta (id úseku) – vylepšení a jabloně podél ní (roads.md). */
+  | { kind: 'road'; id: number }
+  /** Přirozená louka – políčka, na kterých se dnes seče seno (oxen.md – Seno). */
+  | { kind: 'meadow'; cells: TileCell[] }
+  /** Stromy z vrstvy překážek, které se pro stavbu nebo dílnu právě kácejí (i pařezy k sázení). */
   | { kind: 'trees'; ids: number[] }
+  /** Milíř uhlíře v lese (crafts.md – Uhlíř) – dílna (id obydlí) a střed milíře ve světě (m). */
+  | { kind: 'kiln'; id: number; x: number; z: number }
   /** Ves celkově – výmlat, domácí práce, nevyužitá společná práce. */
   | { kind: 'village' };
 
@@ -455,8 +748,9 @@ export interface VillageState {
    */
   woodLogs?: number;
   /**
-   * Rozdělení práce posledního odsimulovaného dne (labor-report.ts) – jen pro zobrazení, simulace
-   * ho nečte. U vsí uložených před jeho zavedením chybí do prvního dopočítaného dne.
+   * Rozdělení práce posledního odsimulovaného dne (labor-report.ts) – pro zobrazení; simulace ho
+   * čte jen přes síť pěšin (kam se chodí – vzdálenost chůze dílů, paths.md). U vsí uložených
+   * před jeho zavedením chybí do prvního dopočítaného dne.
    */
   labor?: LaborDay;
   /** Štěstí obyvatel (happiness.md) – u vsí uložených před jeho zavedením chybí (= výchozí 50). */
@@ -467,13 +761,298 @@ export interface VillageState {
   groves?: Grove[];
   /** Hotové modly a svatyně (happiness.md); chybí = žádné. */
   sacredBuildings?: SacredBuilding[];
+  /**
+   * Dobytek (diet.md – Dobytek): stáda ovcí, koz, prasat a krav. U vsí uložených před dobytkem
+   * chybí – výchozí stádo z domácností doplní `withLivestock` (nebo první dopočítaný den).
+   */
+  livestock?: LivestockState;
+  /** Zásoba masa (kg) – uzené a sušené (diet.md). Chybí = žádná. */
+  meatKg?: number;
+  /** Zásoba sýra (kg) – z mléka, které se nevypije čerstvé (diet.md). Chybí = žádná. */
+  cheeseKg?: number;
+  /** Zásoba luštěnin (kg suchého semene – diet.md, Luštěniny). Chybí = žádná. */
+  legumesKg?: number;
+  /** Seno (oxen.md – Seno): zásoba, sečení a zima. Chybí = žádné. */
+  hay?: HayState;
+  /** Ohrady s přístřeškem (oxen.md); chybí = žádné. */
+  pens?: Pen[];
+  /** Jídlo posledního odsimulovaného dne – energie, pestrost a podíly (jen pro zobrazení). */
+  diet?: DietDay;
   /** Zásoby výrobků řemeslníků (crafts.md) – u vsí uložených před řemesly chybí (= 0). */
   crafts?: CraftStocks;
   /**
    * Starší polozemnice už dostaly pozemky (`withPlots`, Martin 18. 10. 2026). Chybí u vsí
    * uložených před převodem – při načtení se jednou převedou.
    */
+  /**
+   * Zemřelí a odešlí rodiče žijících (kinship.md – Příbuzenství) – jen pro poznání blízkých
+   * příbuzných. U vsí uložených před příbuzenstvím chybí (= žádní).
+   */
+  ancestors?: Ancestor[];
+  /** Dcery, které se vdaly pryč – záznam se směrem jejich nové vsi (kinship.md); chybí = žádné. */
+  emigrants?: Emigrant[];
   plotsMigrated?: true;
+  /**
+   * Otisk rozložení vsi (`walkLayoutKey` se stadii `walkStages`), pro které se naposledy spočítaly
+   * vzdálenosti chůze po pěšinách (`FieldPart.walkDistanceM`…). Chybí, dokud se nespočítaly
+   * (starší vsi, simulace bez krajiny); klíč z doby před měsíčními stadii se jednou přepočítá.
+   */
+  walkLayoutKey?: string;
+  /**
+   * Otisk stadií dílů a pastvy úhoru (`walkStageKey`) z posledního 1. dne v měsíci – do klíče
+   * chůze se stadia promítají jen jednou za měsíc (Martin, 18. 10. 2026). Chybí jako výše.
+   */
+  walkStages?: string;
+  /**
+   * Pevné cesty, stromy u nich a roční součty práce (roads.md). Chybí u vsí uložených před nimi
+   * a ve vsích simulovaných bez krajiny (kalibrace, testy) – začnou při prvním dopočtu s krajinou.
+   */
+  roads?: VillageRoads;
+  /**
+   * Zbytky jam po zaniklých obydlích (population.md – Chátrání a přestavba, Po zániku) – zarůstají
+   * RUIN_YEARS let, pak zmizí (ruins.ts). Chybí = žádné (i u vsí uložených před nimi).
+   */
+  ruins?: DwellingRuin[];
+  /**
+   * Les vsi – čtverce polí, které zarostly lesem a z pole vypadly (fields.md – Zarůstání). Chybí
+   * = žádný (i u vsí uložených před zarůstáním).
+   */
+  woods?: VillageWood[];
+}
+
+// --- pevné cesty (roads.md) ------------------------------------------------------------------
+
+/** Bod osy pevné cesty ve světě (m, na centimetry). */
+export interface RoadPoint {
+  x: number;
+  z: number;
+}
+
+/**
+ * Stupeň pevné cesty (roads.md – Vylepšení cesty): vyšlapaná (vznikne sama), upravená a hať
+ * s lávkou (staví hráč – zatím jen vyšlapaná).
+ */
+export type RoadGrade = 'trodden' | 'improved' | 'causeway';
+
+/** Místo na strom u pevné cesty – určené jednou při vzniku cesty (roads.md – Stromy). */
+export interface RoadTreeSpot {
+  id: number;
+  x: number;
+  z: number;
+}
+
+/**
+ * Pevná cesta – úsek mezi rozcestími a konci (roads.md – Dvě vrstvy cest): osa se uloží při
+ * vzniku a od té doby se nehýbe (jen se při napojení nové cesty rozdělí na dva úseky).
+ */
+export interface Road {
+  id: number;
+  /** Osa – lomená čára ve světě (m, na cm); rozcestí sdílejí bod. */
+  points: RoadPoint[];
+  /** Herní den vzniku (rozdělený úsek ho zdědí). */
+  bornDay: number;
+  grade: RoadGrade;
+  /**
+   * Provoz posledních let (cest za den – roční průměr, nejnovější poslední; nejvýš
+   * ROADS.overgrowYears) – podle něj vyšlapaná cesta zaroste.
+   */
+  traffic: number[];
+  spots: RoadTreeSpot[];
+  /**
+   * Kudy úsek vede (roads.md – Vylepšení cesty): mokřinou (úseky osy od–do v m) a přes brody
+   * (polohy na ose v m). Určí se z krajiny při vzniku (u starších úseků při roční kontrole).
+   */
+  ground?: RoadGround;
+}
+
+/** Mokřina a brody na ose úseku – vzdálenosti od začátku osy (m, na decimetry). */
+export interface RoadGround {
+  wet: [number, number][];
+  fords: number[];
+}
+
+/** Druh stromu u cesty (roads.md – Druhy): dub, jilm, topol. */
+export type RoadTreeSpecies = 'oak' | 'elm' | 'poplar';
+
+/**
+ * Strom u pevné cesty (roads.md – Stromy u pevných cest) – herní data: uchytil se na místě
+ * `spot` a stojí tam do smrti; keř, strom, souš a pařez se odvozují ze dne (`roadTreeLook`). Id
+ * leží nad rozsahem vrstvy překážek (ROAD_TREE_ID_BASE) – stavba přes strom ho odstraní jako
+ * ostatní překážky (`clearedObstacles`).
+ */
+export interface RoadTree {
+  id: number;
+  spot: number;
+  x: number;
+  z: number;
+  species: RoadTreeSpecies;
+  rootedDay: number;
+  /** Den smrti stářím – pak souš, pařez a místo je zase volné. */
+  diesDay: number;
+}
+
+/** Práce za rok cest na jednom místě (člověkodny celkem) – `field` bez dílů. */
+export interface RoadLaborShare {
+  target: LaborTarget;
+  manDays: number;
+}
+
+/** Pevné cesty vsi (roads.md). */
+export interface VillageRoads {
+  /** Další id úseku, místa a stromu (strom: ROAD_TREE_ID_BASE + id). */
+  nextId: number;
+  roads: Road[];
+  trees: RoadTree[];
+  /**
+   * Úseky roční sítě nad prahem z minulé roční kontroly (osy po ≈ 4 m) – kde se nad prahem chodí
+   * i letos, vznikne pevná cesta.
+   */
+  candidates: RoadPoint[][];
+  /**
+   * Práce od poslední roční kontroly (od 1. 11.) po místech – z rozdělení práce dne. Roční síť
+   * z ní bere průměrné člověkodny na den (`manDays / days`).
+   */
+  labor: { from: number; days: number; shares: RoadLaborShare[] };
+  /** Jabloně vysazené hráčem podél úseků (roads.md – Vysazení jabloní); chybí = žádné. */
+  apples?: RoadApple[];
+}
+
+/**
+ * Jabloň u pevné cesty (roads.md – Vysazení jabloní): jako strom sadu – výsadba v oknech jara
+ * a podzimu, plody od 6. roku, život ≈ 60 let, pak souš. Id leží v rozsahu stromů u cest
+ * (ROAD_TREE_ID_BASE) – stavba přes jabloň ji odstraní jako ostatní překážky.
+ */
+export interface RoadApple {
+  id: number;
+  /** Úsek, podél kterého hráč jabloně vysadil. */
+  roadId: number;
+  x: number;
+  z: number;
+  /** Vzdálenost od nejbližšího obydlí při zadání (m) – péče a sklizeň dražší jako v sadu. */
+  distanceM: number;
+  /** Den výsadby; dokud čeká na výsadbu, null. */
+  plantedDay: number | null;
+  /** Stavba výsadby, dokud se sází; pak chybí. */
+  constructionId?: number;
+}
+
+/**
+ * Zbytek jámy po zaniklém obydlí: zarostlá prohlubeň s kopřivami a pár trámy (population.md –
+ * Po zániku). Poloha, typ, pozemek a řemeslo zaniklého obydlí (jen pro vzhled) a den zániku; id =
+ * id zaniklého obydlí. Na místo zříceniny jde stavět – stavba ji odstraní.
+ */
+export interface DwellingRuin {
+  id: number;
+  type: DwellingType;
+  position: Position;
+  plot?: DwellingPlot;
+  craft?: Craft;
+  /** Den zániku obydlí – od něj jáma zarůstá. */
+  day: number;
+}
+
+/** Druh stáda (diet.md – Dobytek); slepice patří k obydlím, voli k ohradám. */
+export type HerdSpecies = 'sheep' | 'goat' | 'pig' | 'cow';
+
+/**
+ * Stáda vsi (diet.md – Dobytek). Počty mohou být neceločíselné – mláďata a porážka se počítají
+ * podílem stáda; panel a scéna je zaokrouhlí.
+ */
+export interface LivestockState {
+  herds: Record<HerdSpecies, number>;
+  /** Mláďata letošního jara (přibyla 1. 4.) – z nich ves v listopadu bere maso navíc. */
+  young: Record<HerdSpecies, number>;
+  /**
+   * Louka a les (ha) do LIVESTOCK.reachM od vsi podle krajiny (simulace krajinu nemá) – pastva
+   * a žaludy. Bez údaje výchozí hodnoty typické krajiny (LIVESTOCK.defaultLand).
+   */
+  land?: { meadowHa: number; forestHa: number };
+  /** Porážka a uzení (listopad) – potřebné a odvedené člověkodny; chybí = žádná. */
+  slaughterWork?: { required: number; done: number } | null;
+}
+
+/** Seno (oxen.md – Seno): zásoba, letošní seč a zima. */
+export interface HayState {
+  kg: number;
+  /** Sečení (červen–červenec) – díly úhoru ve fázi louky v pořadí seče; null = letos se neseče. */
+  mowing: HayMowing | null;
+  /**
+   * Zima (listopad–březen): kolik sena voli potřebovali a dostali do včerejška – pokrytí rozhodne
+   * o jarní orbě a úhynu (oxen.md). Chybí mimo zimu.
+   */
+  winter?: { oxenNeedKg: number; oxenEatenKg: number };
+}
+
+/**
+ * Seč jednoho léta – díly úhoru (`partIds`) a v pořadí seče i čtverce přirozených luk
+ * (`squares`; bez nich jen díly), potřebné a odvedené člověkodny a seno při plné seči (kg).
+ */
+export interface HayMowing {
+  partIds: number[];
+  /** Louky v pořadí seče (od obydlí) – díl úhoru (`partId`), nebo políčko přirozené louky. */
+  squares?: HaySquare[];
+  required: number;
+  done: number;
+  yieldKg: number;
+}
+
+/** Louka v seči: díl úhoru ve fázi louky, nebo políčko přirozené louky krajiny (oxen.md – Seno). */
+export interface HaySquare {
+  partId?: number;
+  cell?: TileCell;
+  areaM2: number;
+  /**
+   * Vzdálenost chůze z nejbližšího obydlí po pěšinách při plánu seče (m, paths.md – Pěšiny
+   * a práce; díl `partWalkDistance`, políčko ke středu); bez pěšin přímá.
+   */
+  distanceM: number;
+}
+
+/**
+ * Ohrada s přístřeškem (oxen.md) – čtverec 15 × 15 m, spřežení volů a výcvik nového. Stavba
+ * a rádlo jsou stavby (`Construction.penId`).
+ */
+export interface Pen {
+  id: number;
+  cell: TileCell;
+  /** Střed čtverce ve světě (m). */
+  x: number;
+  z: number;
+  /** Den dostavění; dokud se staví, null. */
+  builtDay: number | null;
+  /** Vycvičené spřežení (2 voli) – den, kdy začalo orat; úhyn vola ho rozpadne. */
+  team: { readyDay: number } | null;
+  /** Výcvik dvou telat – den zadání (spřežení za OXEN.trainingYears let a s hotovým rádlem). */
+  training: { startDay: number } | null;
+  /** Překážky na čtverci (id z vrstvy) – zmizí se zahájením stavby. */
+  obstacles?: number[];
+}
+
+/**
+ * Jídlo jednoho dne (diet.md) – energie a bílkoviny proti potřebě, kvalita stravy a podíly zdrojů
+ * na energii.
+ */
+export interface DietDay {
+  /** Pokrytí energie 0–1 (obilí, maso, mléko a sýr, vejce, ovoce v obilních ekvivalentech). */
+  energy: number;
+  /** Pokrytí bílkovin 0–1 (1,6 g na kg tělesné váhy – Martin). */
+  protein: number;
+  /** Kvalita stravy 0,6–1 z bílkovin a ovoce (`dietQuality`). */
+  diversity: number;
+  /** Nasycení = energie × kvalita stravy. */
+  satiation: number;
+  /**
+   * Podíly na potřebě energie 0–1 – obilí, maso, mléko a sýr, vejce, ovoce a luštěniny (chybí
+   * u jídla uloženého před luštěninami = 0).
+   */
+  shares: {
+    grain: number;
+    meat: number;
+    dairy: number;
+    eggs: number;
+    fruit: number;
+    legumes?: number;
+  };
 }
 
 /**
@@ -524,4 +1103,10 @@ export interface SacredBuilding {
 export interface ObstacleChange {
   id: number;
   day: number;
+  /**
+   * Pokácený strom: den, kdy na pařez někdo zasadil mladý strom (uhlíř buk – crafts.md, Uhlíř).
+   * Sazenice je hned mladý stromek a dospěje za BEECH_PLANTING.matureYears; bez údaje strom
+   * dorůstá z náletu (TREE_SAPLING_AFTER_YEARS, TREE_REGROWTH_YEARS).
+   */
+  planted?: number;
 }

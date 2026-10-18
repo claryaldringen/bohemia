@@ -15,6 +15,20 @@ const SELECTION_COLOR = new Color3(1, 0.86, 0.45);
 const DWELLING_RING_MARGIN_M = 1.2;
 /** Kroužek kolem posvátného dubu – kolem kruhu kamenů obětin (m). */
 const OAK_RING_RADIUS_M = 2.6;
+/** Čáry výběru úseku cesty od osy (m) – kousek za okrajem pásu vyšlapané a upravené cesty. */
+const ROAD_RING_M = { trodden: 1.6, improved: 2.2 } as const;
+
+/** Lomená čára posunutá o `d` m kolmo (vlevo kladně) – v bodech zlomu podle průměru směrů. */
+export function offsetLine(points: readonly { x: number; z: number }[], d: number): Point[] {
+  return points.map((p, k) => {
+    const a = points[Math.max(0, k - 1)]!;
+    const b = points[Math.min(points.length - 1, k + 1)]!;
+    const dx = b.x - a.x;
+    const dz = b.z - a.z;
+    const l = Math.hypot(dx, dz) || 1;
+    return [p.x - (dz / l) * d, p.z + (dx / l) * d];
+  });
+}
 
 /** Zvýraznění vybraného obydlí, pole nebo hřbitova – rámeček na zemi (obtisk). */
 export class SelectionHighlight {
@@ -62,8 +76,8 @@ export class SelectionHighlight {
 
 /**
  * Obrys cíle jako lomené čáry: celý pozemek obydlí (polozemnice – políčko), rámeček kolem
- * půdorysu volného obydlí, modly nebo svatyně, kroužek kolem posvátného dubu, nebo mez kolem
- * čtverců pole, hřbitova, sadu či háje.
+ * půdorysu volného obydlí (u víc vybraných obydlí kolem každého), modly nebo svatyně, kroužek kolem posvátného dubu, nebo mez kolem
+ * čtverců pole, hřbitova, sadu, háje či ohrady.
  */
 export function targetOutline(village: SceneVillage, target: VillageTarget): Point[][] {
   if (target.kind === 'sacred') {
@@ -86,6 +100,10 @@ export function targetOutline(village: SceneVillage, target: VillageTarget): Poi
     const grove = village.sacred?.groves.find((g) => g.id === target.id);
     return grove ? cellsBoundary(grove.squares) : [];
   }
+  if (target.kind === 'dwellings') {
+    // víc vybraných obydlí – rámeček kolem každého (migration.md)
+    return target.ids.flatMap((id) => targetOutline(village, { kind: 'dwelling', id }));
+  }
   if (target.kind === 'dwelling') {
     const dwelling = village.dwellings.find((d) => d.id === target.id);
     if (!dwelling) return [];
@@ -106,6 +124,17 @@ export function targetOutline(village: SceneVillage, target: VillageTarget): Poi
   if (target.kind === 'orchard') {
     const orchard = village.orchards?.find((o) => o.id === target.id);
     return orchard ? cellsBoundary(orchard.squares) : [];
+  }
+  if (target.kind === 'pen') {
+    const pen = village.pens?.find((p) => p.id === target.id);
+    return pen ? cellsBoundary([pen]) : [];
+  }
+  if (target.kind === 'road') {
+    const road = village.roads?.find((r) => r.id === target.id);
+    if (!road) return [];
+    // úsek cesty: čáry po obou stranách pásu cesty
+    const half = road.grade === 'trodden' ? ROAD_RING_M.trodden : ROAD_RING_M.improved;
+    return [offsetLine(road.points, half), offsetLine(road.points, -half)];
   }
   const field = village.fields.find((f) => f.id === target.id);
   if (!field || field.parts.length === 0) return [];

@@ -28,6 +28,8 @@ const CORNERS: readonly [number, number][] = [
 
 /** Vnitřek lesa z impostorů – co jde měnit po vytvoření. */
 export interface ImpostorForest {
+  /** Meshe čtverců (skrývání vykácených – InstanceHider). */
+  meshes: Mesh[];
   /**
    * Holé listnáče (zima): stínová mapa vezme alfu ze zimního atlasu – stín vrhají kmeny
    * a větve, ne plné koruny. Vrací true, když se atlas stínů změnil (stínovou mapu obnovit).
@@ -124,6 +126,7 @@ export async function addImpostors(
     for (const quad of quads) quad.face(right);
   });
   return {
+    meshes: quads.map((quad) => quad.mesh),
     setBareShadows(bare) {
       bareShadows = bare;
       return applyShadowAtlas();
@@ -132,6 +135,7 @@ export async function addImpostors(
 }
 
 interface ImpostorQuad {
+  mesh: Mesh;
   face(right: Vector3): void;
 }
 
@@ -164,8 +168,6 @@ function createQuad(
   vertexData.applyToMesh(mesh, true);
   mesh.material = material;
   mesh.isPickable = false;
-  // Instance jsou po celé krajině – ořezávání po meshi by nic neušetřilo.
-  mesh.alwaysSelectAsActiveMesh = true;
 
   const matrices = new Float32Array(trees.length * 16);
   const colors = new Float32Array(trees.length * 4);
@@ -183,11 +185,27 @@ function createQuad(
       0.86 + 0.22 * fract(Math.sin(t.worldX * 12.9898 + t.worldZ * 78.233) * 43758.5453);
     colors.set([shade, shade, shade * 0.97, 1], i * 4);
   });
+  // Obal čtverce pro ořez podle záběru (scenery-culling.ts) – čtverec se natáčí kolem svislé
+  // osy, obal proto pokryje všechna natočení.
+  const reach = Math.max(pivotU, 1 - pivotU) * cell.sideM;
+  const localBounds = [
+    -reach,
+    -cell.pivotV * cell.sideM * stretch,
+    -reach,
+    reach,
+    (1 - cell.pivotV) * cell.sideM * stretch,
+    reach,
+  ] as const;
   // Id stromů – instance vykácených stromů se skryjí (InstanceHider).
-  setStaticInstances(mesh, matrices, { colors, ids: Uint32Array.from(trees, (t) => t.id) });
+  setStaticInstances(mesh, matrices, {
+    colors,
+    ids: Uint32Array.from(trees, (t) => t.id),
+    localBounds,
+  });
 
   const positions = new Float32Array(12);
   return {
+    mesh,
     face(right: Vector3): void {
       CORNERS.forEach(([u, v], k) => {
         const across = (u - pivotU) * cell.sideM;

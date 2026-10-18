@@ -17,9 +17,11 @@ import type { StreamCenterline } from './stream-geometry';
 import { tileAt } from './tile-at';
 import { localToWorld } from './village-layout';
 
-// Domácí zvířata jako ozdoba vsi (zatím bez herní mechaniky – Martin): slepice kolem obydlí,
-// ovce s kozami a krávy na loukách, prasata v lese u okraje. Všechno se odvozuje z dat vsi pro
-// scénu a z krajiny, deterministicky – stejná ves = stejná zvířata a stejné pastviny.
+// Domácí zvířata vsi: slepice kolem obydlí, ovce s kozami a krávy na loukách a úhoru, prasata
+// v lese u okraje. Kolik jich je, říká herní jádro (diet.md – skutečná stáda, `livestock`;
+// krávy v zimě v ohradě se nepočítají), kde se pasou, se odvozuje z dat vsi pro scénu
+// a z krajiny, deterministicky – stejná ves = stejná zvířata a stejné pastviny. Bez počtů od
+// jádra (starší data) se stáda odvodí z domácností jako dřív.
 
 export type LivestockSpecies = 'sheep' | 'goat' | 'cow' | 'pig' | 'chicken';
 
@@ -50,8 +52,15 @@ export interface LivestockVillage {
   }[];
   cemeteries?: readonly { squares: readonly { x: number; z: number; size: number }[] }[];
   orchards?: readonly { squares: readonly { x: number; z: number; size: number }[] }[];
+  /** Ohrady (oxen.md) – oplocené čtverce, stáda ani slepice do nich nechodí. */
+  pens?: readonly { x: number; z: number; size: number }[];
   /** Herní den (rozdělení práce) – na louce na seno se pase jen po seči. Bez něj se tam nepase. */
   labor?: { day: number };
+  /**
+   * Skutečné počty stád od herního jádra (diet.md, zaokrouhleně; krávy bez těch v ohradě). Bez
+   * údaje se odvodí z domácností (`PER_HOUSEHOLD`).
+   */
+  livestock?: Readonly<Record<'sheep' | 'goat' | 'pig' | 'cow', number>>;
 }
 
 /** Den v roce pro pastvu na dílech pole (z rozdělení práce vsi), nebo undefined. */
@@ -138,8 +147,8 @@ export function chickensFor(type: DwellingType): number {
 
 /** Na domácnost (obývané obydlí): ovce, kozy, prasata; krávy na dvě domácnosti. */
 export const PER_HOUSEHOLD = { sheep: 3, goat: 1, pig: 2, householdsPerCow: 2 } as const;
-/** Kolik domácností má společné stádo ovcí a koz a nejvýš kolik krav a prasat je v jednom. */
-const HOUSEHOLDS_PER_FLOCK = 5;
+/** Nejvýš kolik ovcí a koz je v jednom stádě a nejvýš kolik krav a prasat. */
+const FLOCK_SIZE = 5 * (PER_HOUSEHOLD.sheep + PER_HOUSEHOLD.goat);
 const COWS_PER_HERD = 6;
 const PIGS_PER_HERD = 8;
 
@@ -247,14 +256,11 @@ function obstacles(village: LivestockVillage): Obstacles {
   // úhor se pase (stadium bez údaje = osetý díl – starší data)
   const day = grazingDay(village);
   const grazed = parts.filter((p) => grazedPart(p, day));
-  const sown = parts.filter((p) => !grazed.includes(p));
-  const squares = [...sown, ...graves, ...orchards];
-  const inSquare =
-    (list: readonly { x: number; z: number; size: number }[]) =>
-    (x: number, z: number, margin: number): boolean =>
-      list.some(
-        (s) => Math.abs(x - s.x) < s.size / 2 + margin && Math.abs(z - s.z) < s.size / 2 + margin,
-      );
+  const grazedSet = new Set(grazed);
+  const sown = parts.filter((p) => !grazedSet.has(p));
+  // ohrada je oplocená jako pole – stáda kolem ní, ne skrz (oxen.md)
+  const squares = [...sown, ...graves, ...orchards, ...(village.pens ?? [])];
+  const inSquare = squareLookup;
   const houses = village.dwellings.map((d) => ({
     id: d.id,
     position: d.position,
@@ -281,13 +287,112 @@ function obstacles(village: LivestockVillage): Obstacles {
     inOtherPlot: (x, z, exceptId, margin) =>
       village.dwellings.some(
         (d) => d.id !== exceptId && d.plot !== undefined && insidePlot(d.plot, x, z, -margin),
+      ) ||
+      (village.pens ?? []).some(
+        (pen) =>
+          Math.abs(x - pen.x) < pen.size / 2 + margin &&
+          Math.abs(z - pen.z) < pen.size / 2 + margin,
       ),
   };
 }
 
+interface Square {
+  x: number;
+  z: number;
+  size: number;
+}
+
+/** Méně čtverců projde dotaz rovnou. */
+const SQUARE_LOOKUP_MIN = 8;
+
 /**
- * Domácí zvířata vsi: slepice u každého hotového obydlí, na každou domácnost tři ovce, koza
- * a dvě prasata, na dvě domácnosti kráva. Ovce s kozami (stádo na pět domácností) a krávy se
+ * Dotaz „bod ve čtverci rozšířeném o `margin`“ (ostrá nerovnost v obou osách) přes přihrádky
+ * po největším čtverci – stejný výsledek jako průchod všemi čtverci, jen bez tisíců porovnání
+ * na bod (rozmístění stád se ptá statisíckrát, pole mívá stovky až tisíce dílů).
+ */
+export function squareLookup(
+  list: readonly Square[],
+): (x: number, z: number, margin: number) => boolean {
+  const scan = (x: number, z: number, margin: number): boolean =>
+    list.some(
+      (s) => Math.abs(x - s.x) < s.size / 2 + margin && Math.abs(z - s.z) < s.size / 2 + margin,
+    );
+  if (list.length < SQUARE_LOOKUP_MIN) return scan;
+  let maxHalf = 0;
+  for (const s of list) {
+    if (!Number.isFinite(s.x) || !Number.isFinite(s.z) || !Number.isFinite(s.size)) return scan;
+    maxHalf = Math.max(maxHalf, s.size / 2);
+  }
+  const cell = Math.max(1, maxHalf * 2);
+  const slack = cell * 1e-6;
+  let minI = Infinity;
+  let minJ = Infinity;
+  let maxI = -Infinity;
+  let maxJ = -Infinity;
+  for (const s of list) {
+    const i = Math.floor(s.x / cell);
+    const j = Math.floor(s.z / cell);
+    minI = Math.min(minI, i);
+    maxI = Math.max(maxI, i);
+    minJ = Math.min(minJ, j);
+    maxJ = Math.max(maxJ, j);
+  }
+  const width = maxI - minI + 1;
+  const buckets = new Map<number, Square[]>();
+  for (const s of list) {
+    const key = (Math.floor(s.z / cell) - minJ) * width + (Math.floor(s.x / cell) - minI);
+    const bucket = buckets.get(key);
+    if (bucket) bucket.push(s);
+    else buckets.set(key, [s]);
+  }
+  return (x, z, margin) => {
+    if (!Number.isFinite(x) || !Number.isFinite(z) || !Number.isFinite(margin)) {
+      return scan(x, z, margin);
+    }
+    // čtverec, který bod obsahuje, má střed blíž než největší polovina strany + okraj (s rezervou
+    // na zaokrouhlení při zařazení do přihrádky)
+    const reach = maxHalf + Math.max(0, margin) + slack;
+    const i0 = Math.max(minI, Math.floor((x - reach) / cell));
+    const i1 = Math.min(maxI, Math.floor((x + reach) / cell));
+    const j0 = Math.max(minJ, Math.floor((z - reach) / cell));
+    const j1 = Math.min(maxJ, Math.floor((z + reach) / cell));
+    for (let j = j0; j <= j1; j++) {
+      for (let i = i0; i <= i1; i++) {
+        const bucket = buckets.get((j - minJ) * width + (i - minI));
+        if (!bucket) continue;
+        for (const s of bucket) {
+          if (Math.abs(x - s.x) < s.size / 2 + margin && Math.abs(z - s.z) < s.size / 2 + margin) {
+            return true;
+          }
+        }
+      }
+    }
+    return false;
+  };
+}
+
+/** Kolik zvířat kterého druhu se pase: od herního jádra, jinak z domácností (starší data). */
+export function herdCounts(
+  village: LivestockVillage,
+): Readonly<Record<'sheep' | 'goat' | 'pig' | 'cow', number>> {
+  if (village.livestock) {
+    const { sheep, goat, pig, cow } = village.livestock;
+    const whole = (n: number): number => Math.max(0, Math.round(n));
+    return { sheep: whole(sheep), goat: whole(goat), pig: whole(pig), cow: whole(cow) };
+  }
+  const households = householdCount(village);
+  return {
+    sheep: households * PER_HOUSEHOLD.sheep,
+    goat: households * PER_HOUSEHOLD.goat,
+    pig: households * PER_HOUSEHOLD.pig,
+    cow: Math.ceil(households / PER_HOUSEHOLD.householdsPerCow),
+  };
+}
+
+/**
+ * Domácí zvířata vsi: slepice u každého hotového obydlí, stáda podle skutečných počtů od jádra
+ * (`herdCounts`; bez nich na domácnost tři ovce, koza a dvě prasata, na dvě domácnosti kráva).
+ * Ovce s kozami (stádo na každých 20 kusů – dřív na pět domácností) a krávy se
  * pasou přednostně na úhoru vsi (mladý úhor i pastvina – stěhují se mezi jeho čtverci, nikdy na
  * osetý díl), bez úhoru na loukách do pár set metrů od vsi, prasata v lese u okraje do 150 m.
  * `seed` míchá krajinu, aby se stáda v každé vsi pásla jinde.
@@ -326,13 +431,13 @@ export function planLivestock(
     !blocked.onCrop(x, z, margin) &&
     !blocked.nearDwelling(x, z, SWINE_DWELLING_GAP_M);
 
-  // Ovce s kozami: stádo na pět domácností.
-  const flocks = Math.ceil(households / HOUSEHOLDS_PER_FLOCK);
+  const counts = herdCounts(village);
+  // Ovce s kozami: stádo nejvýš po FLOCK_SIZE kusech (dřív na pět domácností = 20 kusů).
+  const flocks = Math.ceil((counts.sheep + counts.goat) / FLOCK_SIZE);
   for (let k = 0; k < flocks; k++) {
-    const share = shareOf(households, flocks, k);
     const animals = [
-      ...repeat('sheep', share * PER_HOUSEHOLD.sheep),
-      ...repeat('goat', share * PER_HOUSEHOLD.goat),
+      ...repeat('sheep', shareOf(counts.sheep, flocks, k)),
+      ...repeat('goat', shareOf(counts.goat, flocks, k)),
     ] as LivestockSpecies[];
     const herd = buildHerd(
       'flock',
@@ -347,8 +452,8 @@ export function planLivestock(
     );
     if (herd) herds.push(herd);
   }
-  // Krávy: jedna na dvě domácnosti, stáda nejvýš po šesti.
-  const cows = Math.ceil(households / PER_HOUSEHOLD.householdsPerCow);
+  // Krávy: stáda nejvýš po šesti.
+  const cows = counts.cow;
   const cattle = Math.ceil(cows / COWS_PER_HERD);
   for (let k = 0; k < cattle; k++) {
     const animals = repeat('cow', shareOf(cows, cattle, k)) as LivestockSpecies[];
@@ -366,7 +471,7 @@ export function planLivestock(
     if (herd) herds.push(herd);
   }
   // Prasata: v lese u okraje do 150 m od vsi (když tam les není, o kus dál).
-  const pigs = households * PER_HOUSEHOLD.pig;
+  const pigs = counts.pig;
   const swine = Math.ceil(pigs / PIGS_PER_HERD);
   for (let k = 0; k < swine; k++) {
     const animals = repeat('pig', shareOf(pigs, swine, k)) as LivestockSpecies[];
@@ -549,15 +654,25 @@ function buildHerd(
     }
     return true;
   };
+  // trasa se k pastvinám vrací – průchodnost cesty mezi dvěma pastvinami se počítá jednou
+  const freeWays = new Map<number, boolean>();
+  const freeWay = (from: number, to: number): boolean => {
+    const key = from * candidates.length + to;
+    let free = freeWays.get(key);
+    if (free === undefined) {
+      free = pathFree(candidates[from]!, candidates[to]!);
+      freeWays.set(key, free);
+    }
+    return free;
+  };
   const falloff = PASTURE_FALLOFF_M[kind];
+  const neighbours = routeNeighbours(candidates);
   const route: number[] = [start];
   for (let step = 1; step < ROUTE_LENGTH; step++) {
-    const current = candidates[route[route.length - 1]!]!;
+    const current = route[route.length - 1]!;
     const recent = new Set(route.slice(-ROUTE_MEMORY));
-    const near = candidates
-      .map((c, i) => ({ c, i, d: Math.hypot(c.x - current.x, c.z - current.z) }))
-      .filter((n) => n.d >= ROUTE_STEP_M.from && n.d <= ROUTE_STEP_M.to);
-    let options = near.filter((n) => !recent.has(n.i) && pathFree(current, n.c));
+    const near = neighbours(current);
+    let options = near.filter((n) => !recent.has(n.i) && freeWay(current, n.i));
     if (options.length === 0) {
       const previous = route[route.length - 2];
       options = near.filter((n) => n.i === previous);
@@ -603,6 +718,49 @@ function buildHerd(
     route: route.map((i) => ({ x: candidates[i]!.x, z: candidates[i]!.z })),
     radiusM,
     animals,
+  };
+}
+
+/**
+ * Sousední pastviny trasy (krok ROUTE_STEP_M) k pastvině `index` – v pořadí kandidátů jako
+ * průchod všemi, jen přes přihrádky o straně nejdelšího kroku (a pro každou pastvinu jednou).
+ */
+function routeNeighbours(
+  candidates: readonly { x: number; z: number; d: number }[],
+): (index: number) => { c: { x: number; z: number; d: number }; i: number; d: number }[] {
+  const cell = ROUTE_STEP_M.to;
+  const buckets = new Map<string, number[]>();
+  const keyOf = (i: number, j: number): string => `${i},${j}`;
+  candidates.forEach((c, i) => {
+    const key = keyOf(Math.floor(c.x / cell), Math.floor(c.z / cell));
+    const bucket = buckets.get(key);
+    if (bucket) bucket.push(i);
+    else buckets.set(key, [i]);
+  });
+  const cache = new Map<
+    number,
+    { c: { x: number; z: number; d: number }; i: number; d: number }[]
+  >();
+  return (index) => {
+    const known = cache.get(index);
+    if (known) return known;
+    const current = candidates[index]!;
+    const ci = Math.floor(current.x / cell);
+    const cj = Math.floor(current.z / cell);
+    const found: number[] = [];
+    // krok nejvýš o přihrádku, druhá přihrádka je rezerva na zaokrouhlení
+    for (let j = cj - 2; j <= cj + 2; j++) {
+      for (let i = ci - 2; i <= ci + 2; i++) found.push(...(buckets.get(keyOf(i, j)) ?? []));
+    }
+    found.sort((a, b) => a - b);
+    const near = found
+      .map((i) => {
+        const c = candidates[i]!;
+        return { c, i, d: Math.hypot(c.x - current.x, c.z - current.z) };
+      })
+      .filter((n) => n.d >= ROUTE_STEP_M.from && n.d <= ROUTE_STEP_M.to);
+    cache.set(index, near);
+    return near;
   };
 }
 

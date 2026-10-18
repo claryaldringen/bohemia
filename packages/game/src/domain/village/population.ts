@@ -1,10 +1,12 @@
 import { createRandom, deriveSeed } from '../landscape/random';
 import { bury, hygieneDeathFactor, villageHygiene } from './cemetery';
 import { isOvercrowded } from './dwellings';
-import { ageGroup, householdBreaksUp, isFertile, occupants } from './people';
+import { removePeople } from './kinship';
+import { ageGroup, canBear, canFather, householdBreaksUp, occupants } from './people';
 import {
   ADULT_DEATHS_PER_YEAR,
   BIRTHS_PER_PAIR_PER_YEAR,
+  BOY_SHARE,
   CROWDED_BIRTH_FACTOR,
   CROWDED_DEATH_FACTOR,
   DWELLINGS,
@@ -15,7 +17,7 @@ import {
   STARVATION,
   childDeathsPerYear,
 } from './rules';
-import type { ChronicleEvent, DwellingType, Person, VillageState } from './types';
+import type { ChronicleEvent, Dwelling, DwellingType, Person, VillageState } from './types';
 
 const DAYS_PER_YEAR = 365.25; // hájení se měří v letech po 365,25 dne
 const DAYS_PER_RISK_YEAR = 365; // roční riziko se na den převádí přes 365 dní
@@ -141,22 +143,73 @@ export function deathChancePerDay(person: Person, ctx: DeathContext): number {
   return Math.min(1, base + starvation);
 }
 
-/** Rozpadlé domácnosti se přestěhují do obydlí s nejvíc volnými místy (při shodě nižší id). */
+/** Z obývaných obydlí `homes` (kromě `fromId`) to s nejvíc volnými místy, při shodě nižší id. */
+function roomiest(
+  state: VillageState,
+  homes: readonly Dwelling[],
+  fromId: number,
+): { id: number; free: number } | null {
+  let target: { id: number; free: number } | null = null;
+  for (const d of homes) {
+    if (d.id === fromId) continue;
+    const count = occupants(state, d.id).length;
+    if (count === 0) continue;
+    const free = DWELLINGS[d.type].capacity - count;
+    if (target === null || free > target.free || (free === target.free && d.id < target.id)) {
+      target = { id: d.id, free };
+    }
+  }
+  return target;
+}
+
+/**
+ * Kam se rozpadlá domácnost přestěhuje (kinship.md – Domácnosti): k nejbližším příbuzným – do domu
+ * syna, pak dcery, pak sourozence někoho z ní (v každé skupině dům s nejvíc volnými místy), jinak
+ * do obydlí s nejvíc volnými místy (population.md – Rozpad domácnosti). Smí ho i přeplnit.
+ */
+function dissolveTarget(
+  state: VillageState,
+  members: readonly Person[],
+  fromId: number,
+): { id: number } | null {
+  const ids = new Set(members.map((m) => m.id));
+  const mothers = new Set(members.flatMap((m) => (m.motherId === undefined ? [] : [m.motherId])));
+  const fathers = new Set(members.flatMap((m) => (m.fatherId === undefined ? [] : [m.fatherId])));
+  const childOf = (p: Person): boolean =>
+    (p.motherId !== undefined && ids.has(p.motherId)) ||
+    (p.fatherId !== undefined && ids.has(p.fatherId));
+  const tiers: ((p: Person) => boolean)[] = [
+    (p) => p.sex === 'male' && childOf(p),
+    (p) => p.sex === 'female' && childOf(p),
+    (p) =>
+      (p.motherId !== undefined && mothers.has(p.motherId)) ||
+      (p.fatherId !== undefined && fathers.has(p.fatherId)),
+  ];
+  for (const related of tiers) {
+    const homes = new Set(
+      state.people.filter((p) => p.dwellingId !== fromId && related(p)).map((p) => p.dwellingId),
+    );
+    const target = roomiest(
+      state,
+      state.dwellings.filter((d) => homes.has(d.id)),
+      fromId,
+    );
+    if (target) return target;
+  }
+  return roomiest(state, state.dwellings, fromId);
+}
+
+/**
+ * Rozpadlé domácnosti (nikdo 16–44 – `householdBreaksUp`) se přestěhují k příbuzným, jinak do
+ * obydlí s nejvíc volnými místy (`dissolveTarget`); obydlí podle id.
+ */
 function dissolveHouseholds(state: VillageState, day: number): ChronicleEvent[] {
   const events: ChronicleEvent[] = [];
   const ids = state.dwellings.map((d) => d.id).sort((a, b) => a - b);
   for (const fromId of ids) {
-    if (!householdBreaksUp(occupants(state, fromId), day)) continue;
-    let target: { id: number; free: number } | null = null;
-    for (const d of state.dwellings) {
-      if (d.id === fromId) continue;
-      const count = occupants(state, d.id).length;
-      if (count === 0) continue;
-      const free = DWELLINGS[d.type].capacity - count;
-      if (target === null || free > target.free || (free === target.free && d.id < target.id)) {
-        target = { id: d.id, free };
-      }
-    }
+    const members = occupants(state, fromId);
+    if (!householdBreaksUp(members, day)) continue;
+    const target = dissolveTarget(state, members, fromId);
     if (target === null) continue;
     for (const p of state.people) {
       if (p.dwellingId === fromId) p.dwellingId = target.id;
@@ -167,15 +220,17 @@ function dissolveHouseholds(state: VillageState, day: number): ChronicleEvent[] 
 }
 
 /**
- * Jeden den populace: úmrtí (lidé podle id, každý zemřelý se pohřbí – cemetery.md; zemřel hlady,
+ * Jeden den populace (porody podle nasycení `satiation`, úmrtnost hladem podle energie `energy` –
+ * diet.md): úmrtí (lidé podle id, každý zemřelý se pohřbí – cemetery.md; zemřel hlady,
  * když los padl do části rizika z nahromaděného hladu `state.starvationDays`), porody
- * (domácnosti podle id, jeden pokus na pár), pak rozpad domácností. Hygiena platí podle
+ * (domácnosti podle id, jeden pokus na manželský pár – kinship.md), pak rozpad domácností. Hygiena platí podle
  * pohřebišť na začátku dne. Mutuje stav a vrací události dne.
  */
 export function populationDay(
   state: VillageState,
   day: number,
   satiation: number,
+  energy: number = satiation,
 ): ChronicleEvent[] {
   const events: ChronicleEvent[] = [];
   const random = createRandom(deriveSeed(state.seed, 'day:' + day));
@@ -194,7 +249,8 @@ export function populationDay(
     const { base, starvation } = deathChances(person, {
       day,
       foundedDay: state.foundedDay,
-      satiation,
+      // hlad zvyšuje úmrtnost z nedostatku energie, ne z pestrosti stravy (diet.md)
+      satiation: energy,
       overcrowded: crowded.get(person.dwellingId) ?? false,
       dwellingType: typeOf.get(person.dwellingId) ?? 'zemnice',
       hygiene,
@@ -213,24 +269,35 @@ export function populationDay(
       if (full) events.push(full);
     }
   }
-  state.people = state.people.filter((p) => !dead.has(p.id));
+  // zemřelí – manželé ovdoví, rodiče žijících zůstanou v rodokmenu (kinship.md)
+  removePeople(state, dead);
 
-  // porody – po domácnostech podle id (i zakladatelé na staveništi první zemnice; prázdné
-  // obydlí by stejně nemělo pár); pár jsou dva lidé 16–44 let v jedné domácnosti
+  // porody – po domácnostech podle id (i zakladatelé na staveništi první zemnice), v domácnosti
+  // po manželských párech podle id ženy: žena 16–44 s manželem od 16 let v témže domě
+  // (kinship.md – Pohlaví); chlapec s pravděpodobností BOY_SHARE
   const households = [...new Set(state.people.map((p) => p.dwellingId))].sort((a, b) => a - b);
   for (const household of households) {
-    const pairs = Math.floor(
-      occupants(state, household).filter((p) => isFertile(p, day)).length / 2,
-    );
+    const members = occupants(state, household);
+    const couples = members.flatMap((mother) => {
+      if (!canBear(mother, day)) return [];
+      const father = members.find((m) => m.id === mother.spouseId);
+      return father && canFather(father, day) ? [{ mother, father }] : [];
+    });
     const chance = birthChancePerDay({
       satiation,
       overcrowded: crowded.get(household) ?? false,
     });
-    for (let i = 0; i < pairs; i++) {
-      if (random.next() < chance) {
-        state.people.push({ id: state.nextId++, bornDay: day, dwellingId: household });
-        events.push({ day, kind: 'birth' });
-      }
+    for (const { mother, father } of couples) {
+      if (random.next() >= chance) continue;
+      state.people.push({
+        id: state.nextId++,
+        bornDay: day,
+        dwellingId: household,
+        sex: random.next() < BOY_SHARE ? 'male' : 'female',
+        motherId: mother.id,
+        fatherId: father.id,
+      });
+      events.push({ day, kind: 'birth' });
     }
   }
 

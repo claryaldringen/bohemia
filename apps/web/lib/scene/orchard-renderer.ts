@@ -14,6 +14,13 @@ import {
   type ObstacleLayer,
 } from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
+import {
+  TREE_CLEARANCE_M,
+  clearingsKey,
+  clearingsNear,
+  insideClearings,
+  type Clearing,
+} from './building-clearings';
 import { cellsBoundary, cellsBounds, cellsContain } from './field-cells';
 import { applyGammaFog } from './gamma-fog';
 import { applySeasonModel } from './season-materials';
@@ -25,6 +32,7 @@ import {
   orchardRowLines,
   orchardTreeSpots,
   plantingProgress,
+  stakedSquares,
   type Outcrop,
 } from './orchard-layout';
 import { StakingPegs, createStringMaterial, createStringMesh, pegInstances } from './staking';
@@ -59,12 +67,15 @@ const STAKE_AMBIENT = new Color3(0.42, 0.42, 0.4);
  * u kůlu, plodící sad má od srpna do sklizně na stromech jablka (model s plody). Výsadba po
  * fázích: světlé čáry vytyčení kolem sadu a podél řad, kůly, pak sazenice po řadách (překážky
  * z čtverce jádro odstraní, jakmile se na něm začne pracovat); na skalním výchozu z vrstvy
- * překážek strom chybí. Modely jsou v instancích
- * (jeden mesh na variantu a plody), načtou se až s prvním sadem.
+ * překážek strom chybí. Obnova starého sadu (Obnova sadu) jde po čtvercích stejnými fázemi
+ * – vytyčené jsou jen obnovované čtverce, velikost stromů a jablka jsou po čtvercích. Modely
+ * jsou v instancích (jeden mesh na variantu a plody), načtou se až s prvním sadem.
  */
 export class OrchardRenderer {
   private key = '';
   private orchards: readonly SceneOrchard[] = [];
+  /** Vyklízené plochy obydlí u sadů – pod nimi jabloně nestojí. */
+  private clearings: readonly Clearing[] = [];
   /** Čára vytyčení podle sadu – přestaví se, jen když se změní jeho čtverce. */
   private readonly layouts = new Map<
     number,
@@ -97,12 +108,19 @@ export class OrchardRenderer {
     this.pegs = new StakingPegs(scene, (mesh) => context.addShadowCaster(mesh));
   }
 
-  /** Překreslí sady, když se změnily; vrátí true, když se něco změnilo. */
-  update(orchards: readonly SceneOrchard[]): boolean {
-    const key = orchardsKey(orchards);
+  /**
+   * Překreslí sady, když se změnily; vrátí true, když se něco změnilo. `clearings` = vyklízené
+   * plochy obydlí (building-clearings.ts) – stromy pod domem na čtverci sadu chybí.
+   */
+  update(orchards: readonly SceneOrchard[], clearings: readonly Clearing[] = []): boolean {
+    const squares = orchards.flatMap((o) => o.squares);
+    const near =
+      squares.length > 0 ? clearingsNear(clearings, cellsBounds(squares), TREE_CLEARANCE_M) : [];
+    const key = `${orchardsKey(orchards)}#${clearingsKey(near)}`;
     if (key === this.key) return false;
     this.key = key;
     this.orchards = orchards;
+    this.clearings = near;
     this.updateLayouts(orchards);
     this.shapes = orchards
       .filter((o) => o.squares.length > 0)
@@ -183,9 +201,10 @@ export class OrchardRenderer {
     const trees: ModelInstance[][] = Array.from({ length: APPLE_VARIANTS * 2 }, () => []);
     const stakes: ModelInstance[] = [];
     const height = this.context.groundHeight;
+    const built = insideClearings(this.clearings, TREE_CLEARANCE_M);
     for (const orchard of this.orchards) {
       for (const square of orchard.squares) {
-        const spots = orchardTreeSpots(square, this.outcropsNear(square));
+        const spots = orchardTreeSpots(square, this.outcropsNear(square), built);
         const planted = square.planting >= 1;
         const { stakes: staked, saplings } = planted
           ? { stakes: hasStake(square.growth) ? spots.length : 0, saplings: spots.length }
@@ -220,19 +239,21 @@ export class OrchardRenderer {
   }
 
   /**
-   * Čáry vytyčení sadů, které se sázejí – stávající se nechají, nová se postaví jen pro sad se
-   * změněnými čtverci (velikost stromů a jablka se mění častěji než čtverce).
+   * Čáry vytyčení sadů, které se sázejí (při obnově jen obnovované čtverce – `stakedSquares`) –
+   * stávající se nechají, nová se postaví jen pro sad se změněnými vytyčenými čtverci (velikost
+   * stromů a jablka se mění častěji než čtverce).
    */
   private updateLayouts(orchards: readonly SceneOrchard[]): void {
     const keep = new Set<number>();
     for (const orchard of orchards) {
-      if (orchard.squares.length === 0 || orchard.squares.every((s) => s.planting >= 1)) continue;
+      const staked = stakedSquares(orchard.squares);
+      if (staked.length === 0) continue;
       keep.add(orchard.id);
-      const cells = orchard.squares.map((s) => `${s.cell.x},${s.cell.y}`).join(';');
+      const cells = staked.map((s) => `${s.cell.x},${s.cell.y}`).join(';');
       const current = this.layouts.get(orchard.id);
       if (current?.cells === cells) continue;
       for (const mesh of current?.meshes ?? []) mesh.dispose();
-      this.layouts.set(orchard.id, { cells, ...this.layoutParts(orchard) });
+      this.layouts.set(orchard.id, { cells, ...this.layoutParts(orchard.id, staked) });
     }
     for (const [id, layout] of this.layouts) {
       if (keep.has(id)) continue;
@@ -269,9 +290,12 @@ export class OrchardRenderer {
    * Světlé čáry vytyčení (provázek, naražená tráva) – po obrysu sadu a podél řad stromů, jen
    * během výsadby.
    */
-  private layoutParts(orchard: SceneOrchard): { meshes: Mesh[]; pegs: ModelInstance[] } {
-    const boundary = cellsBoundary(orchard.squares);
-    const rows = orchardRowLines(orchard.squares);
+  private layoutParts(
+    id: number,
+    squares: readonly SceneOrchardSquare[],
+  ): { meshes: Mesh[]; pegs: ModelInstance[] } {
+    const boundary = cellsBoundary(squares);
+    const rows = orchardRowLines(squares);
     // kolíky po obvodu sadu a na koncích řad, provázek mezi nimi (vidět od zadání, tj. od 0 %)
     const pegs = [
       ...pegInstances(boundary, this.context.groundHeight),
@@ -280,12 +304,12 @@ export class OrchardRenderer {
     this.stringMaterial ??= createStringMaterial(this.scene);
     const string = createStringMesh(
       this.scene,
-      `village-orchard-string-${orchard.id}`,
+      `village-orchard-string-${id}`,
       [...boundary, ...rows],
       this.context.groundHeight,
       this.stringMaterial,
     );
-    return { meshes: [this.layoutMesh(boundary, rows, orchard.id), string], pegs };
+    return { meshes: [this.layoutMesh(boundary, rows, id), string], pegs };
   }
 
   private layoutMesh(boundary: Point[][], rows: Point[][], id: number): Mesh {
@@ -312,46 +336,63 @@ export class OrchardRenderer {
 
   /** Kůl: tenký hranol, pata v počátku. */
   private createStakeMesh(): Mesh {
-    const h = STAKE_SIZE_M / 2;
-    const top = STAKE_LENGTH_M;
-    const corners: [number, number][] = [
-      [-h, -h],
-      [h, -h],
-      [h, h],
-      [-h, h],
-    ];
-    const positions: number[] = [];
-    const indices: number[] = [];
-    for (let k = 0; k < 4; k++) {
-      const [ax, az] = corners[k]!;
-      const [bx, bz] = corners[(k + 1) % 4]!;
-      const i = positions.length / 3;
-      positions.push(ax, 0, az, bx, 0, bz, bx * 0.8, top, bz * 0.8, ax * 0.8, top, az * 0.8);
-      indices.push(i, i + 2, i + 1, i, i + 3, i + 2);
-    }
-    const normals = new Float32Array(positions.length);
-    VertexData.ComputeNormals(positions, indices, normals);
-    const data = new VertexData();
-    data.positions = positions;
-    data.normals = normals;
-    data.indices = indices;
-    const mesh = new Mesh('orchard-stakes', this.scene);
-    data.applyToMesh(mesh);
-    const material = new StandardMaterial('village-orchard-stake', this.scene);
-    material.diffuseColor = new Color3(0.62, 0.52, 0.38);
-    material.ambientColor = STAKE_AMBIENT;
-    material.specularColor = Color3.Black();
-    material.backFaceCulling = false;
-    material.twoSidedLighting = true;
-    mesh.material = material;
-    mesh.isPickable = false;
-    mesh.receiveShadows = true;
-    this.context.addShadowCaster(mesh);
-    return mesh;
+    return createTreeStakeMesh(this.scene, 'orchard-stakes', (mesh) =>
+      this.context.addShadowCaster(mesh),
+    );
   }
 }
 
-/** Co z sadů rozhoduje o vzhledu – čtverce, výsadba, velikost stromů a jablka. */
+/**
+ * Kůl u mladého stromku (sad, jabloně u cest): tenký hranol, pata v počátku – mesh pro instance
+ * (`setInstances`), vrhá stín.
+ */
+export function createTreeStakeMesh(
+  scene: Scene,
+  name: string,
+  addShadowCaster: (mesh: Mesh) => void,
+): Mesh {
+  const h = STAKE_SIZE_M / 2;
+  const top = STAKE_LENGTH_M;
+  const corners: [number, number][] = [
+    [-h, -h],
+    [h, -h],
+    [h, h],
+    [-h, h],
+  ];
+  const positions: number[] = [];
+  const indices: number[] = [];
+  for (let k = 0; k < 4; k++) {
+    const [ax, az] = corners[k]!;
+    const [bx, bz] = corners[(k + 1) % 4]!;
+    const i = positions.length / 3;
+    positions.push(ax, 0, az, bx, 0, bz, bx * 0.8, top, bz * 0.8, ax * 0.8, top, az * 0.8);
+    indices.push(i, i + 2, i + 1, i, i + 3, i + 2);
+  }
+  const normals = new Float32Array(positions.length);
+  VertexData.ComputeNormals(positions, indices, normals);
+  const data = new VertexData();
+  data.positions = positions;
+  data.normals = normals;
+  data.indices = indices;
+  const mesh = new Mesh(name, scene);
+  data.applyToMesh(mesh);
+  const material = new StandardMaterial(`${name}-material`, scene);
+  material.diffuseColor = new Color3(0.62, 0.52, 0.38);
+  material.ambientColor = STAKE_AMBIENT;
+  material.specularColor = Color3.Black();
+  material.backFaceCulling = false;
+  material.twoSidedLighting = true;
+  mesh.material = material;
+  mesh.isPickable = false;
+  mesh.receiveShadows = true;
+  addShadowCaster(mesh);
+  return mesh;
+}
+
+/** Kůl stojí kousek od kmene (podél řady, −x) a je kus zatlučený (m). */
+export const TREE_STAKE = { offsetM: STAKE_OFFSET_M, sinkM: STAKE_SINK_M };
+
+/** Co z sadů rozhoduje o vzhledu – čtverce, výsadba (i obnova), velikost stromů a jablka. */
 function orchardsKey(orchards: readonly SceneOrchard[]): string {
   return orchards
     .map(
@@ -360,7 +401,8 @@ function orchardsKey(orchards: readonly SceneOrchard[]): string {
         o.squares
           .map(
             (s) =>
-              `${s.cell.x},${s.cell.y},${Math.round(s.planting * 50)},${s.growth},${s.fruit ? 1 : 0}`,
+              `${s.cell.x},${s.cell.y},${Math.round(s.planting * 50)},${s.growth},` +
+              `${s.fruit ? 1 : 0}${s.renewal ? 'r' : ''}`,
           )
           .join(';'),
     )
@@ -368,7 +410,7 @@ function orchardsKey(orchards: readonly SceneOrchard[]): string {
 }
 
 /** Nastaví instance meshe; bez instancí ho vypne (jinak by se vykreslil samotný v počátku). */
-function setInstances(mesh: Mesh, instances: readonly ModelInstance[]): void {
+export function setInstances(mesh: Mesh, instances: readonly ModelInstance[]): void {
   if (instances.length === 0) {
     mesh.setEnabled(false);
     return;
@@ -381,7 +423,7 @@ function setInstances(mesh: Mesh, instances: readonly ModelInstance[]): void {
  * Materiál jabloně – jako 3D stromy krajiny: tlumené světlo, bez odlesku, opar v gama prostoru
  * a roční období podle jména modelu (`apple*` – jarní květ, podzimní listí, v zimě holé).
  */
-function prepareAppleMaterial(material: Material, model: string): void {
+export function prepareAppleMaterial(material: Material, model: string): void {
   if (!(material instanceof PBRMaterial)) return;
   material.albedoColor = FOLIAGE_TINT;
   material.roughness = 1;

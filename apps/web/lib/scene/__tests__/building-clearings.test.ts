@@ -1,0 +1,89 @@
+import { describe, expect, it } from 'vitest';
+import { freeDwellingClearings } from '@bohemia/game';
+import {
+  TREE_LAND_RADIUS_M,
+  buildingClearings,
+  clearingMask,
+  clearingsKey,
+  clearingsNear,
+  fieldClearings,
+} from '../building-clearings';
+
+// Obydlí na poli a v sadu (population.md): pod vyklízenou plochou obydlí bez pozemku scéna
+// nekreslí obilí, obtisk pole ani jabloně – stejná plocha, jakou herní jádro z dílu odečte.
+
+const dwelling = (x: number, z: number, extra: object = {}) => ({
+  id: 1,
+  type: 'zemnice' as const,
+  position: { x, z, rotation: 0 },
+  built: true,
+  progress: 1,
+  ...extra,
+});
+
+describe('vyklízené plochy obydlí ve scéně', () => {
+  it('obydlí bez pozemku má plochu jako v jádru, obydlí na pozemku žádnou', () => {
+    const clearings = buildingClearings([
+      dwelling(0, 0),
+      dwelling(50, 0, {
+        type: 'polozemnice',
+        plot: { cell: { x: 11, y: 8 }, x: 52.5, z: 7.5, size: 15, variant: 'center' },
+      }),
+    ]);
+    expect(clearings.map((c) => c.polygon)).toEqual(
+      freeDwellingClearings('zemnice', { x: 0, z: 0, rotation: 0 }),
+    );
+    // zemnice: x −4,8 … 4,8, z −4,4 … 7,5
+    expect(clearings[0]).toMatchObject({ minX: -4.8, maxX: 4.8, minZ: -4.4, maxZ: 7.5 });
+  });
+
+  it('uhlíř má plochu i kolem milíře', () => {
+    expect(buildingClearings([dwelling(0, 0, { craft: 'burner' })])).toHaveLength(2);
+  });
+
+  it('maska: ve ploše 0, za okrajem plynule k 1; vzdálené plochy se vyřadí', () => {
+    const clearings = buildingClearings([dwelling(0, 0)]);
+    const mask = clearingMask(clearings, 2);
+    expect(mask(0, 0)).toBe(0);
+    expect(mask(5.8, 0)).toBeCloseTo(0.5, 9);
+    expect(mask(10, 0)).toBe(1);
+    expect(clearingMask([], 2)(0, 0)).toBe(1);
+    expect(clearingsNear(clearings, { minX: 20, maxX: 30, minZ: 0, maxZ: 10 }, 1)).toEqual([]);
+    expect(clearingsNear(clearings, { minX: 5, maxX: 30, minZ: 0, maxZ: 10 }, 1)).toHaveLength(1);
+    expect(clearingsKey(clearings)).toBe(clearingsKey(buildingClearings([dwelling(0, 0)])));
+  });
+});
+
+describe('co pole pod sebou nekreslí (pole jako krajina)', () => {
+  it('obydlí, modla a kruh 20 m² pod stromem u cesty a jabloní – jen ty na poli', () => {
+    const village = {
+      dwellings: [dwelling(0, 0)],
+      sacred: {
+        oaks: [],
+        groves: [],
+        buildings: [
+          {
+            id: 9,
+            kind: 'idol' as const,
+            position: { x: 30, z: 0, rotation: 0 },
+            built: true,
+            progress: 1,
+          },
+        ],
+      },
+      roadTrees: [{ id: 1, x: 50, z: 0, species: 'oak' as const, stage: 'tree' as const, size: 1 }],
+      roadApples: [
+        { id: 2, roadId: 1, x: 60, z: 0, stage: 'tree' as const, growth: 1, fruit: false },
+        { id: 3, roadId: 1, x: 200, z: 0, stage: 'tree' as const, growth: 1, fruit: false },
+      ],
+    };
+    const clearings = fieldClearings(village as never, (x) => x < 100);
+    expect(clearings).toHaveLength(4);
+    const mask = clearingMask(clearings, 1);
+    expect(mask(30, 0)).toBe(0);
+    expect(mask(50, TREE_LAND_RADIUS_M - 0.2)).toBe(0);
+    expect(mask(60, 0)).toBe(0);
+    expect(mask(200, 0)).toBe(1);
+    expect(Math.PI * TREE_LAND_RADIUS_M ** 2).toBeCloseTo(20, 9);
+  });
+});

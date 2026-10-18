@@ -13,14 +13,16 @@ import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import type { Scene } from '@babylonjs/core/scene';
 import { dateOfDayIndex, type Landscape, type ObstacleLayer } from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
-import { rowDirection, touchingSquares } from './field-cells';
+import { clearingMask, clearingsKey, clearingsNear, fieldClearings } from './building-clearings';
+import { cellsBounds, cellsContain, rowDirection, touchingSquares } from './field-cells';
 import {
   CROP_KINDS,
   FIELD_TEXTURES,
   LOOK_STYLES,
-  decalPieces,
-  fieldPlants,
+  emptyCrops,
   fieldStaking,
+  isWildStage,
+  partViewsKey,
   patchNoise,
   raggedCoverage,
   type CropKind,
@@ -29,11 +31,21 @@ import {
   type Peg,
   type PlantInstance,
 } from './field-crops';
+import {
+  GRID_PER_CELL,
+  fieldBlockContent,
+  groupFieldBlocks,
+  mergeFieldBlocks,
+  type DecalLayer,
+  type FieldBlockContent,
+  type FieldContent,
+} from './field-blocks';
 import { fieldPartViews, villageCenter, workSteps } from './field-look';
 import { applyGammaFog } from './gamma-fog';
 import {
   SWATH_SPACING_M,
   chooseHayMeadows,
+  hayMeadowFields,
   hayPhase,
   meadowHay,
   type HayMeadow,
@@ -60,12 +72,17 @@ import {
 type SceneField = SceneVillage['fields'][number];
 
 const MODEL_URL = '/models/fields/';
+/** Uzel hromádky vytrhaného hrachu v crops.glb. */
+const HEAP_NODE = 'pea-heap';
 const WEED_URLS = ['/models/dwellings/grass-tuft-1.glb', '/models/dwellings/grass-tuft-2.glb'];
-/** Bodů sítě obtisku na stranu čtverce – 8 na 15 m sedí na síť terénu (village-renderer.ts). */
-const GRID_PER_CELL = 8;
 /** Šířka měkkého okraje pole a louky na seno (m). */
 const EDGE_SOFT_M = 1.6;
 const MEADOW_EDGE_SOFT_M = 3;
+/**
+ * Měkký okraj pole u obydlí (m) – vyklízenou plochu obydlí na poli herní jádro z dílu odečte
+ * (population.md – Obydlí na poli a v sadu), obtisk ani trsy pod ní nejsou.
+ */
+const CLEARING_SOFT_M = 1.2;
 /** Sníh na obtiscích pole – část barvy zimou prosvítá (jako cesty a vyšlapaná hlína). */
 const FIELD_SNOW = 0.85;
 /** Výška obtisků nad terénem (m) – navzájem v pořadí, aby se nepraly o hloubku. */
@@ -101,7 +118,13 @@ const CROP_TINT: Record<CropKind, readonly [number, number, number]> = {
   ripe: [0.96, 0.92, 0.82],
   sprout: [0.78, 0.92, 0.66],
   stubble: [0.92, 0.86, 0.72],
+  'pea-green': [0.66, 0.78, 0.66],
+  'pea-ripe': [0.86, 0.8, 0.7],
 };
+/** Hromádky vytrhaného hrachu (uzel pea-heap v crops.glb) – tón suchých lodyh. */
+const HEAP_TINT: readonly [number, number, number] = [0.98, 0.92, 0.8];
+/** Trsy, které se vlní ve větru (vysoké a husté). */
+const SWAYING_KINDS: readonly CropKind[] = ['ripe', 'green', 'pea-green', 'pea-ripe'];
 const PROP_AMBIENT = new Color3(0.4, 0.4, 0.38);
 /** Panáky ze slámy (světlé, do zlata) a stohy sena (do zelena – seno je sušená tráva). */
 const STRAW_TINT = new Color3(1, 0.94, 0.8);
@@ -114,6 +137,10 @@ interface FieldView {
   shape: HideShape | null;
   plants: FieldPlants;
   pegs: Peg[];
+  /** Klíč toho, co ovlivní všechny bloky (okraj pole, směr řádků, střed, den sena). */
+  context: string;
+  /** Obsah bloků dílů – přestaví se jen bloky, které se změnily (field-blocks.ts). */
+  blocks: Map<string, { key: string; content: FieldBlockContent }>;
 }
 
 interface MeadowView {
@@ -173,6 +200,13 @@ export class FieldRenderer {
     count: 0,
     thin: true,
     sink: 0.05,
+  };
+  private readonly heaps: PlantMesh = {
+    mesh: null,
+    instances: [],
+    count: 0,
+    thin: true,
+    sink: 0.04,
   };
   private readonly haystacks: PlantMesh = {
     mesh: null,
@@ -259,7 +293,7 @@ export class FieldRenderer {
   /** Obilí ve větru – jen zralé a zelené v záběru; vrátí true, když se v záběru něco hnulo. */
   animate(nowMs: number, camera: Camera | null): boolean {
     if (this.swayPlugins.length === 0 || this.radius > SWAY_RANGE_M) return false;
-    const visible = (['ripe', 'green'] as const).some((kind) => {
+    const visible = SWAYING_KINDS.some((kind) => {
       const mesh = this.crops.get(kind)?.mesh;
       if (!mesh || !mesh.isEnabled() || mesh.thinInstanceCount === 0) return false;
       return camera ? camera.isInFrustum(mesh) : true;
@@ -287,7 +321,13 @@ export class FieldRenderer {
     for (const view of this.meadowViews.values()) for (const mesh of view.meshes) mesh.dispose();
     this.fields.clear();
     this.meadowViews.clear();
-    for (const plant of [...this.crops.values(), this.stooks, this.haystacks, ...this.weeds]) {
+    for (const plant of [
+      ...this.crops.values(),
+      this.stooks,
+      this.heaps,
+      this.haystacks,
+      ...this.weeds,
+    ]) {
       plant.mesh?.dispose();
     }
     this.pegMesh?.dispose();
@@ -311,37 +351,93 @@ export class FieldRenderer {
     const day = this.lookDay();
     let changed = false;
     const seen = new Set<number>();
-    for (const field of this.village.fields) {
+    // obydlí, modly, svatyně a stromy u cest na poli – pod nimi pole není
+    const clearings = fieldClearings(
+      this.village,
+      cellsContain(this.village.fields.flatMap((f) => f.parts)),
+    );
+    // přirozené louky letošní seče (oxen.md – Seno) se kreslí jako díly pole se vzhledem od
+    // jádra – se zápornými id, bez skrývání překážek (stromy a kameny na louce zůstanou)
+    const meadows = hayMeadowFields(this.village.hayMeadows ?? []);
+    for (const field of [...this.village.fields, ...meadows]) {
       seen.add(field.id);
+      // obydlí na poli – pod jeho vyklízenou plochou pole není
+      const built = clearingsNear(clearings, cellsBounds(field.parts), CLEARING_SOFT_M);
       const views = fieldPartViews(field, { dayOfYear: day, village: this.village });
-      // čtverce sousedních polí – kde pole navazují, okraj se netlumí (bez švu mezi poli)
+      // čtverce sousedních polí – kde pole navazují, okraj se netlumí (bez švu mezi poli); louky
+      // jen k polím, pole jen k polím; zarůstající díly obtisk nemají – okraj k nim se tlumí
+      // jako k louce
       const neighbours = touchingSquares(
         field.parts,
-        this.village.fields.flatMap((f) => (f.id === field.id ? [] : f.parts)),
+        this.village.fields.flatMap((f) =>
+          f.id === field.id ? [] : f.parts.filter((p) => !isWildStage(p.stage)),
+        ),
       );
+      const drawn = field.parts.filter((p) => !isWildStage(p.stage));
       // louka na seno se mění po dnech (řádky, kupky, stohy, které přes zimu mizí)
       const hay = views.some((v) => v.look && LOOK_STYLES[v.look].hay);
-      const key = JSON.stringify([
+      const center = villageCenter(this.village, field.parts);
+      // Co ovlivní každý blok: krytí okraje (vykreslené díly, sousední pole, obydlí na poli),
+      // směr řádků a střed (podle všech dílů), den sena. Bloky dílů (field-blocks.ts) mají
+      // vlastní klíč – při postupu práce se přestaví jen ty, kde se něco změnilo.
+      const context = JSON.stringify([
         field.parts.map((p) => [p.x, p.z, p.size]),
-        views.map((v) => [v.look, v.work === null ? null : workSteps(v.work), v.before, v.staked]),
-        villageCenter(this.village, field.parts),
+        drawn.map((p) => [p.cell.x, p.cell.y]),
+        center,
         hay ? day : null,
         neighbours.map((p) => [p.cell.x, p.cell.y]),
+        clearingsKey(built),
       ]);
+      const grouped = groupFieldBlocks(views);
+      const blockKeys = new Map(
+        [...grouped].map(([block, blockViews]) => [
+          block,
+          JSON.stringify(partViewsKey(blockViews)),
+        ]),
+      );
+      const key = `${context}|${[...blockKeys].map(([block, k]) => `${block}:${k}`).join('|')}`;
       const current = this.fields.get(field.id);
       if (current?.key === key) continue;
       changed = true;
       if (current) for (const mesh of current.meshes) mesh.dispose();
       const rows = rowDirection(field.parts);
-      const center = villageCenter(this.village, field.parts);
-      const coverage = raggedCoverage([...field.parts, ...neighbours], EDGE_SOFT_M);
+      let coverage: ((x: number, z: number) => number) | null = null;
+      const coverageOf = (): ((x: number, z: number) => number) => {
+        if (coverage) return coverage;
+        const ragged = raggedCoverage([...drawn, ...neighbours], EDGE_SOFT_M);
+        const mask = clearingMask(built, CLEARING_SOFT_M);
+        coverage =
+          built.length > 0 ? (x: number, z: number): number => ragged(x, z) * mask(x, z) : ragged;
+        return coverage;
+      };
+      const reuse = current?.context === context ? current.blocks : null;
+      const blocks = new Map<string, { key: string; content: FieldBlockContent }>();
+      for (const [block, blockViews] of grouped) {
+        const blockKey = blockKeys.get(block)!;
+        const cached = reuse?.get(block);
+        blocks.set(
+          block,
+          cached?.key === blockKey
+            ? cached
+            : {
+                key: blockKey,
+                content: fieldBlockContent(blockViews, rows, center, coverageOf(), day),
+              },
+        );
+      }
+      const content = mergeFieldBlocks(
+        views,
+        [...blocks.values()].map((b) => b.content),
+      );
       const staking = fieldStaking(views);
       this.fields.set(field.id, {
         key,
-        meshes: this.fieldMeshes(field, views, rows, center, coverage, staking.lines, day),
-        shape: fieldHideShape(field),
-        plants: fieldPlants(views, rows, center, coverage, day),
+        meshes: this.fieldMeshes(field, content, rows, staking.lines),
+        shape: field.id < 0 ? null : fieldHideShape(field),
+        plants: content.plants,
         pegs: staking.pegs,
+        context,
+        blocks,
       });
     }
     for (const [id, view] of this.fields) {
@@ -413,50 +509,12 @@ export class FieldRenderer {
    */
   private fieldMeshes(
     field: SceneField,
-    views: ReturnType<typeof fieldPartViews>,
+    content: FieldContent,
     rows: [number, number],
-    center: { x: number; z: number },
-    coverage: (x: number, z: number) => number,
     stakingLines: Point[][],
-    day: number,
   ): Mesh[] {
     if (field.parts.length === 0) return [];
-    const layers = new Map<string, DecalLayer>();
-    const layer = (texture: FieldTexture, patches: boolean): DecalLayer => {
-      const key = `${texture}|${patches ? 1 : 0}`;
-      let entry = layers.get(key);
-      if (!entry) {
-        entry = { texture, patches, grids: [], colors: [], alphas: [] };
-        layers.set(key, entry);
-      }
-      return entry;
-    };
-    const pieces = decalPieces(views, rows, center);
-    for (const piece of pieces) {
-      const style = LOOK_STYLES[piece.look];
-      const step = piece.part.size / GRID_PER_CELL;
-      const grid = decalGrid(piece.bounds, step, coverage);
-      if (grid.indices.length === 0) continue;
-      const base = layer(style.texture, false);
-      base.grids.push(grid);
-      base.colors.push(style.tint);
-      base.alphas.push(style.alpha);
-      if (style.patches) {
-        // skvrny jemnější sítí – šum je menší než krok obtisku
-        const even = style.patches.even ?? false;
-        const fine = decalGrid(piece.bounds, even ? step : step / 2, (x, z) => {
-          if (even) return coverage(x, z);
-          const n = patchNoise(x, z);
-          return coverage(x, z) * Math.min(1, Math.max(0, (n - 0.45) / 0.2));
-        });
-        if (fine.indices.length > 0) {
-          const patches = layer(style.patches.texture, true);
-          patches.grids.push(fine);
-          patches.colors.push(style.patches.tint);
-          patches.alphas.push(style.patches.alpha);
-        }
-      }
-    }
+    const layers = content.layers;
     const meshes: Mesh[] = [];
     const [dx, dz] = rows;
     for (const entry of layers.values()) {
@@ -478,17 +536,8 @@ export class FieldRenderer {
       meshes.push(mesh);
     }
     // posečená louka na seno: řádky sena na posečené části (v době sušení)
-    if (hayPhase(day)?.hay === 'swaths') {
-      const swathGrids = pieces
-        .filter((piece) => piece.look === 'mown')
-        .map((piece) =>
-          decalGrid(piece.bounds, piece.part.size / GRID_PER_CELL / 2, (x, z) => {
-            const n = patchNoise(x * 1.7, z * 1.7);
-            return coverage(x, z) * (0.55 + 0.45 * n);
-          }),
-        )
-        .filter((grid) => grid.indices.length > 0);
-      if (swathGrids.length > 0) meshes.push(this.swathMesh(`field-${field.id}`, swathGrids, rows));
+    if (content.swaths.length > 0) {
+      meshes.push(this.swathMesh(`field-${field.id}`, content.swaths, rows));
     }
     if (stakingLines.length > 0) {
       const line = createStripMesh(
@@ -615,18 +664,15 @@ export class FieldRenderer {
 
   /** Instance trsů, panáků, plevele, kolíků a stohů ze všech polí a luk. */
   private updatePlants(): void {
-    const crops: Record<CropKind, PlantInstance[]> = {
-      green: [],
-      ripe: [],
-      sprout: [],
-      stubble: [],
-    };
+    const crops = emptyCrops();
     const stooks: PlantInstance[] = [];
+    const heaps: PlantInstance[] = [];
     const weeds: PlantInstance[] = [];
     const pegs: Peg[] = [];
     for (const view of this.fields.values()) {
       for (const kind of CROP_KINDS) crops[kind].push(...view.plants.crops[kind]);
       stooks.push(...view.plants.stooks);
+      heaps.push(...view.plants.heaps);
       weeds.push(...view.plants.weeds);
       pegs.push(...view.pegs);
     }
@@ -637,6 +683,7 @@ export class FieldRenderer {
     const needed =
       CROP_KINDS.some((k) => crops[k].length > 0) ||
       stooks.length > 0 ||
+      heaps.length > 0 ||
       weeds.length > 0 ||
       hay.length > 0;
     if (needed) void this.loadModels();
@@ -644,6 +691,7 @@ export class FieldRenderer {
       this.setPlants(this.crops.get(kind)!, crops[kind], CROP_TINT[kind]);
     }
     this.setPlants(this.stooks, stooks);
+    this.setPlants(this.heaps, heaps, HEAP_TINT);
     this.setPlants(this.haystacks, hay);
     // plevel napůl do obou trsů trávy
     this.weeds.forEach((plant, i) =>
@@ -705,6 +753,7 @@ export class FieldRenderer {
       apply(this.crops.get(kind)!, kind === 'sprout' || kind === 'stubble');
     for (const weed of this.weeds) apply(weed, true);
     apply(this.stooks, false);
+    apply(this.heaps, false);
     apply(this.haystacks, false);
     return changed;
   }
@@ -751,7 +800,17 @@ export class FieldRenderer {
             mesh.receiveShadows = true;
             this.crops.get(kind)!.mesh = mesh;
           }
-          for (const [name, mesh] of parts) if (!name.startsWith('crop-')) mesh.dispose();
+          // hromádky vytrhaného hrachu – rekvizita jako panák (vrhá stín)
+          const heap = parts.get(HEAP_NODE);
+          if (heap) {
+            heap.setEnabled(false);
+            heap.receiveShadows = true;
+            this.context.addShadowCaster(heap);
+            this.heaps.mesh = heap;
+          }
+          for (const [name, mesh] of parts) {
+            if (!name.startsWith('crop-') && name !== HEAP_NODE) mesh.dispose();
+          }
         } catch (error) {
           console.warn('Trsy obilí se nepodařilo načíst.', error);
         }
@@ -993,14 +1052,6 @@ export class FieldRenderer {
     }
     return material;
   }
-}
-
-interface DecalLayer {
-  texture: FieldTexture;
-  patches: boolean;
-  grids: DecalGrid[];
-  colors: (readonly [number, number, number])[];
-  alphas: number[];
 }
 
 /** Hustota trsů podle odstupu kamery (1 blízko, FAR_DENSITY daleko, 0 od HIDE). */

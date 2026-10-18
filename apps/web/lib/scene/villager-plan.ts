@@ -5,14 +5,18 @@ import {
   type Craft,
   type DwellingType,
   type Position,
+  type TileCell,
 } from '@bohemia/game';
 import type {
   LaborActivity,
   LaborShare,
   LaborTarget,
+  SceneFieldPart,
   SceneLaborShare,
+  SceneLabor,
   SceneVillage,
 } from '../village-view';
+import { TREE_CLEARANCE_M, buildingClearings, insideClearings } from './building-clearings';
 import { cellsBoundary, rowDirection, type CellSquare } from './field-cells';
 import {
   fieldPartViews,
@@ -41,7 +45,7 @@ import {
   type VillagerClip,
   type VillagerKind,
 } from './villager-motion';
-import { MILIR_SHAPE_M, craftSpots, milirPlace } from './workshop-layout';
+import { MILIR_SHAPE_M, craftSpots, forestKilnAnchor, milirPlace } from './workshop-layout';
 
 // Postavy ve vsi (docs/design/villagers.md): kdo kde je a co dělá, jako čistá funkce vsi pro
 // scénu – z rozdělení práce posledního dne (herní jádro, labor-report.ts), ne z vlastních
@@ -90,15 +94,22 @@ const WOMEN: Record<LaborActivity, number> = {
   harvest: 0.65,
   carry: 0.5,
   thresh: 0.3,
+  plough: 0,
+  mow: 0.3,
+  slaughter: 0.4,
+  milking: 0.9,
+  'animal-care': 0.4,
   'orchard-care': 0.3,
   'orchard-harvest': 0.6,
   build: 0.15,
+  pen: 0.15,
   fell: 0.05,
   'found-field': 0.2,
   'orchard-plant': 0.3,
   cemetery: 0.2,
   repair: 0.2,
   craft: 0.25,
+  plant: 0.4,
   domestic: 0.85,
   idle: 0.5,
 };
@@ -169,11 +180,14 @@ export interface VillagerGround {
  * domácnost pro vodu a dřevo. Bez nich se chodí rovnou.
  */
 export interface VillagerPaths {
-  /** Trasa z `a` do `b` po pěšinách (body [x, z] od `a` do `b`), nebo null – jde se rovnou. */
+  /**
+   * Trasa z `a` do `b` po pěšinách – body [x, z] od `a` do `b` a tempo úseků (po pěšině se jde
+   * rychleji – paths.md), nebo null – jde se rovnou.
+   */
   route(
     a: { x: number; z: number },
     b: { x: number; z: number },
-  ): readonly (readonly [number, number])[] | null;
+  ): { points: readonly (readonly [number, number])[]; pace: readonly number[] } | null;
   /** Kam chodí domácnost (id obydlí) pro vodu nebo dřevo – konec její pěšiny, nebo null. */
   errand(dwellingId: number, kind: 'water' | 'wood'): { x: number; z: number } | null;
 }
@@ -220,6 +234,10 @@ interface House {
 
 /** Id překážky „milíř“ v seznamu staveb – kladná id jsou obydlí, malá záporná čekající stavby. */
 const MILIR_ID_OFFSET = -1_000_000;
+/** Id překážky „milíř v lese“ (crafts.md – Uhlíř) – podle id dílny uhlíře. */
+const FOREST_KILN_ID_OFFSET = -2_000_000;
+/** Dřevo dávky leží u lesního milíře – kácení do tolika metrů od něj nosí polena k němu. */
+const FOREST_KILN_HAUL_M = 120;
 
 interface Point {
   x: number;
@@ -240,6 +258,8 @@ interface Context {
   ground: VillagerGround;
   seed: number;
   day: number;
+  /** Podíly žen ve vsi – postavy podle skutečného pohlaví lidí (kinship.md). */
+  sexes: FigureSexes;
   center: Point;
   houses: House[];
   /** Obydlí, kde se bydlí (bez nich staveniště zakladatelů). */
@@ -262,7 +282,14 @@ export function planVillagers(
 ): PlannedVillager[] {
   const labor = village.labor;
   if (!labor || village.dwellings.length === 0) return [];
-  const ctx = context(village, ground, options.seed, labor.day, options.paths ?? null);
+  const ctx = context(
+    village,
+    ground,
+    options.seed,
+    labor.day,
+    options.paths ?? null,
+    figureSexes(labor.people),
+  );
   const counts = shareCounts(labor.shares, labor.month, options.maxWorkers ?? MAX_WORKERS);
   const people: PlannedVillager[] = [];
   labor.shares.forEach((share, s) => {
@@ -271,13 +298,13 @@ export function planVillagers(
     const place = placer(ctx, share, count);
     for (let i = 0; i < count; i++) {
       const who = identity(ctx.seed, `${share.activity}:${targetKey(share.target)}:${i}`, {
-        women: WOMEN[share.activity],
+        women: womenChance(WOMEN[share.activity], ctx.sexes.women),
         child: false,
       });
       // u stavby musí někdo stát, i když zvláštní místo (strom, řada, plot) nevyšlo
       const pose =
         place(i, who) ?? (isConstructionShare(share) ? builderNearby(ctx, share, i, who) : null);
-      if (pose) people.push(villager(who, pose, adultHair(who)));
+      if (pose) people.push(villager(who, pose, adultHair(who, ctx.sexes.married)));
     }
   });
   const winter = WINTER_MONTHS.includes(labor.month);
@@ -329,6 +356,7 @@ const CONSTRUCTION_ACTIVITIES: ReadonlySet<LaborActivity> = new Set([
   'found-field',
   'orchard-plant',
   'cemetery',
+  'pen',
 ]);
 
 function isConstructionShare(share: Pick<LaborShare, 'activity'>): boolean {
@@ -450,6 +478,7 @@ function context(
   seed: number,
   day: number,
   paths: VillagerPaths | null,
+  sexes: FigureSexes = figureSexes(null),
 ): Context {
   const dwellings: House[] = village.dwellings.map((d) => ({
     id: d.id,
@@ -478,6 +507,18 @@ function context(
       },
     ];
   });
+  // milíře uhlířů v lese – stejně jako milíř u dílny (crafts.md – Uhlíř)
+  const forestKilns: House[] = (village.kilns ?? []).map((k) => {
+    const half = MILIR_SHAPE_M.radius;
+    return {
+      id: FOREST_KILN_ID_OFFSET - k.id,
+      position: { x: k.x, z: k.z, rotation: 0 },
+      built: true,
+      progress: 1,
+      inhabited: false,
+      box: { minX: -half, maxX: half, minZ: -half, maxZ: half },
+    };
+  });
   // modla a svatyně: stavitelé stojí kolem půdorysu, hotové lidé obcházejí (happiness.md)
   const sacred: House[] = (village.sacred?.buildings ?? []).map((b) => {
     const half = SACRED_BUILDINGS[b.kind].footprintM / 2;
@@ -490,7 +531,19 @@ function context(
       box: { minX: -half, maxX: half, minZ: -half, maxZ: half },
     };
   });
-  const houses = [...dwellings, ...milirs, ...sacred];
+  // ohrady (oxen.md): oplocený čtverec – lidé stojí za plotem, dovnitř nechodí
+  const pens: House[] = (village.pens ?? []).map((pen) => {
+    const half = pen.size / 2;
+    return {
+      id: pen.id,
+      position: { x: pen.x, z: pen.z, rotation: 0 },
+      built: pen.built,
+      progress: pen.progress,
+      inhabited: false,
+      box: { minX: -half, maxX: half, minZ: -half, maxZ: half },
+    };
+  });
+  const houses = [...dwellings, ...milirs, ...forestKilns, ...sacred, ...pens];
   const homes = dwellings.filter((h) => h.inhabited);
   const settled = homes.length > 0 ? homes : dwellings.length > 0 ? dwellings : houses;
   const center = {
@@ -498,7 +551,7 @@ function context(
     z: settled.reduce((s, h) => s + h.position.z, 0) / settled.length,
   };
   const graves = (village.cemeteries ?? []).flatMap((c) => c.squares);
-  return { village, ground, seed, day, center, houses, homes: settled, graves, paths };
+  return { village, ground, seed, day, sexes, center, houses, homes: settled, graves, paths };
 }
 
 /**
@@ -618,9 +671,55 @@ function clothOf(seed: number): VillagerLook['cloth'] {
   return [last[0] * shade, last[1] * shade, last[2] * shade];
 }
 
-/** Vdané ženy nosí šátek – většinou lněný, některé barvený mořenou. */
-function adultHair(who: Identity): HairLook {
-  if (who.kind !== 'woman' || hash01(who.seed, 6, 91) >= MARRIED) return 'natural';
+/**
+ * Podíly žen ve vsi pro postavy (kinship.md – postavy podle skutečného pohlaví): ženy mezi muži
+ * a ženami 14–44, starší ženy mezi staršími, dívky mezi dětmi a vdané mezi ženami. Bez údajů
+ * (ves bez pohlaví, staré testy) null – platí výchozí podíly činností.
+ */
+export interface FigureSexes {
+  women: number | null;
+  elderWomen: number | null;
+  girls: number | null;
+  married: number | null;
+}
+
+/** Podíl `part` z `part + other`, nebo null, když nikdo není. */
+function shareOf(part: number | undefined, other: number | undefined): number | null {
+  if (part === undefined || other === undefined || part + other === 0) return null;
+  return part / (part + other);
+}
+
+export function figureSexes(people: SceneLabor['people'] | null): FigureSexes {
+  if (!people) return { women: null, elderWomen: null, girls: null, married: null };
+  const women = (people.women ?? 0) + (people.elderWomen ?? 0);
+  return {
+    women: shareOf(people.women, people.men),
+    elderWomen: shareOf(people.elderWomen, people.elderMen),
+    girls: shareOf(people.girls, people.boys),
+    married:
+      people.couples === undefined || women === 0 ? null : Math.min(1, people.couples / women),
+  };
+}
+
+/**
+ * Pravděpodobnost, že postava činnosti je žena: výchozí podíl činnosti `base` (počítá s vsí půl
+ * na půl) posunutý podle podílu žen ve vsi `share` – poměr šancí se vynásobí. Ves bez žen má jen
+ * muže, ves bez mužů jen ženy; bez údaje `base`.
+ */
+export function womenChance(base: number, share: number | null): number {
+  if (share === null) return base;
+  if (share <= 0 || base <= 0) return 0;
+  if (share >= 1 || base >= 1) return 1;
+  const odds = (base / (1 - base)) * (share / (1 - share));
+  return odds / (1 + odds);
+}
+
+/**
+ * Vdané ženy nosí šátek – většinou lněný, některé barvený mořenou. Podíl vdaných podle vsi
+ * (`married`), bez údaje MARRIED.
+ */
+function adultHair(who: Identity, married: number | null = null): HairLook {
+  if (who.kind !== 'woman' || hash01(who.seed, 6, 91) >= (married ?? MARRIED)) return 'natural';
   return hash01(who.seed, 7, 91) < 0.75 ? 'linen' : 'madder';
 }
 
@@ -638,6 +737,10 @@ function villager(who: Identity, pose: PoseFn, hair: HairLook): PlannedVillager 
 function targetKey(target: LaborTarget): string {
   if (target.kind === 'village') return 'village';
   if (target.kind === 'trees') return `trees-${target.ids[0] ?? 0}`;
+  if (target.kind === 'meadow') {
+    const first = target.cells[0];
+    return first ? `meadow-${first.x}-${first.y}` : 'meadow';
+  }
   return `${target.kind}-${target.id}`;
 }
 
@@ -695,22 +798,47 @@ function placer(ctx: Context, share: SceneLaborShare, count: number): Placer {
       return t.kind === 'field' ? founding(ctx, share, t.id, count) : none;
     case 'thresh':
       return threshing(ctx, count);
+    case 'plough':
+      // oráč a honáček jsou součástí spřežení (plough-team-renderer.ts)
+      return none;
+    case 'mow':
+      if (t.kind === 'meadow') return meadowRows(ctx, t.cells, count);
+      return t.kind === 'field' ? fieldRows(ctx, share, t.id, count, 'reap') : none;
+    case 'milking':
+      // dojení u domů – ženy u dojných zvířat vedle obydlí (diet.md)
+      return milkers(ctx);
+    case 'animal-care':
+      // v zimě u ohrady (krmení, voda, kydání), jinak u domů (prasata, slepice)
+      return t.kind === 'pen' ? penFence(ctx, t.id) : domestic(ctx);
+    case 'slaughter':
+      // porážka a uzení u vsi (diet.md) – na udusané zemi kousek od domů jako výmlat
+      return threshing(ctx, count);
+    case 'pen':
+      return t.kind === 'pen' ? penFence(ctx, t.id) : none;
     case 'orchard-harvest':
     case 'orchard-care':
+      if (t.kind === 'road') return roadApples(ctx, t.id, count, 'tree');
       return t.kind === 'orchard' ? orchardTrees(ctx, t.id, count) : none;
     case 'orchard-plant':
+      if (t.kind === 'road') return roadApples(ctx, t.id, count, 'planting');
       return t.kind === 'orchard' ? orchardPlanting(ctx, t.id, count) : none;
     case 'cemetery':
       return t.kind === 'cemetery' ? cemeteryFence(ctx, t.id) : none;
     case 'fell':
       if (t.kind === 'trees') return felling(ctx, t.ids, share.construction !== undefined);
+      if (t.kind === 'pen') return penFence(ctx, t.id);
       return t.kind === 'site' || t.kind === 'dwelling' ? building(ctx, t, 'build') : none;
     case 'build':
+      if (t.kind === 'road') return roadWork(ctx, t.id);
       return t.kind === 'site' || t.kind === 'dwelling' ? building(ctx, t, 'build') : none;
     case 'repair':
       return t.kind === 'dwelling' ? building(ctx, t, 'build') : none;
     case 'craft':
+      if (t.kind === 'kiln') return kilnWorkers(ctx, t);
       return t.kind === 'dwelling' ? craftsmen(ctx, t.id) : none;
+    case 'plant':
+      // uhlíř sází mladé buky na pařezy (crafts.md – Uhlíř, obnova lesa)
+      return t.kind === 'trees' ? planting(ctx, t.ids) : none;
     case 'domestic':
       return domestic(ctx);
     case 'idle':
@@ -778,6 +906,13 @@ function constructionAnchors(
     for (const sq of (pending.length > 0 ? pending : squares).slice(0, 3)) {
       anchors.push({ at: sq, clip: 'build' });
     }
+  } else if (t.kind === 'pen') {
+    const pen = (ctx.village.pens ?? []).find((p) => p.id === t.id);
+    if (pen) anchors.push({ at: pen, clip: 'build' });
+  } else if (t.kind === 'road') {
+    const road = (ctx.village.roads ?? []).find((r) => r.id === t.id);
+    const middle = road?.points[Math.floor(road.points.length / 2)];
+    if (middle) anchors.push({ at: middle, clip: 'hoe' });
   }
   // dřevo pro stavbu: když u stromů místo není, aspoň u stavby, pro kterou se kácí
   if (share.construction !== undefined) houseAt(share.construction);
@@ -821,6 +956,67 @@ function workedSquares(ctx: Context, share: SceneLaborShare, work: FieldWork): P
     Math.floor(ctx.day / CREW_MOVE_DAYS) +
     Math.floor(hash01(fieldId, ctx.seed, 92) * worked.length);
   return worked.map((_, i) => worked[(start + i) % worked.length]!);
+}
+
+/**
+ * Seč přirozené louky (oxen.md – Seno): řady sekáčů na políčkách louky, přes která dnes seč
+ * postoupila (`cells` od jádra) – jako řady na poli, vzhled a rozpracovanost z
+ * `SceneVillage.hayMeadows`. Řádky sena vedou podél x, seče se od strany blíž vsi.
+ */
+function meadowRows(ctx: Context, cells: readonly TileCell[], count: number): Placer {
+  const meadows = ctx.village.hayMeadows ?? [];
+  const views: PartView[] = cells.flatMap((cell, order) => {
+    const m = meadows.find((h) => h.cell.x === cell.x && h.cell.y === cell.y);
+    if (!m) return [];
+    const part: SceneFieldPart = {
+      cell: { x: m.cell.x, y: m.cell.y },
+      x: m.x,
+      z: m.z,
+      size: m.size,
+      stage: 'meadow',
+      look: m.look,
+    };
+    const work = m.work !== undefined && m.work < 1 ? m.work : null;
+    return [
+      {
+        part,
+        look: m.look,
+        work,
+        before: work !== null ? (m.before ?? null) : null,
+        staked: false,
+        order,
+      },
+    ];
+  });
+  if (views.length === 0) return none;
+  const work: FieldWork = { views, rows: [1, 0], center: villageCenter(ctx.village) };
+  return (i, who) => {
+    const crew = Math.floor(i / CREW);
+    const member = i % CREW;
+    const size = Math.min(CREW, count - crew * CREW);
+    const view = views[crew % views.length]!;
+    return frontierRow(ctx, work, view, member, size, 'reap', who, false);
+  };
+}
+
+/**
+ * Dojení (diet.md – Práce se zvířaty): ženy u bočních stěn obydlí, sehnuté k dojnému zvířeti
+ * (klip pletí – dojení animace nemá), po domech dokola.
+ */
+function milkers(ctx: Context): Placer {
+  const homes = [...ctx.homes].sort((a, b) => a.id - b.id);
+  return (i) => {
+    const home = homes[i % homes.length];
+    if (!home) return null;
+    const turn = Math.floor(i / homes.length);
+    const side = turn % 2 === 0 ? 1 : -1;
+    const edge = side > 0 ? home.box.maxX + gap(1.8) : home.box.minX - gap(1.8);
+    const p = worldPoint(home.position, edge, home.box.minZ * 0.2 - turn * gap(0.8));
+    const spot = nearestFree(ctx, p.x, p.z, 2);
+    if (!spot) return null;
+    const toward = unit(home.position.x - spot.x, home.position.z - spot.z);
+    return stand(spot.x, spot.z, -toward.z * side, toward.x * side, 'weed');
+  };
 }
 
 /**
@@ -1077,16 +1273,24 @@ function felling(ctx: Context, ids: readonly number[], forConstruction = true): 
   const sites = forConstruction
     ? ctx.houses.filter((h) => !h.built)
     : ctx.houses.filter((h) => h.built && (h.craft === 'burner' || h.craft === 'potter'));
+  // uhlíř v lese nosí polena k lesnímu milíři u dávky (crafts.md – Uhlíř)
+  const kilns = forConstruction ? [] : (ctx.village.kilns ?? []);
   return (i, who) => {
     const tree = trees[i % trees.length]!;
     if (i < trees.length * 2) {
       const slot = { ...who, phase: (who.phase + (i >= trees.length ? 0.5 : 0)) % 1 };
       return atTree(ctx, tree, slot, 'fell', FELL_REACH_M);
     }
-    const target = nearestHouse(sites.length > 0 ? sites : ctx.houses, tree);
-    const from = target ? nearestFree(ctx, tree.x + 1.5, tree.z, 3) : null;
-    if (!target || !from) return atTree(ctx, tree, who, 'fell', FELL_REACH_M + 0.6);
-    const path = walkRoute(ctx, doorPoint(target, -1.5), from);
+    const kiln = nearestPoint(kilns, tree, FOREST_KILN_HAUL_M);
+    const target = kiln ? null : nearestHouse(sites.length > 0 ? sites : ctx.houses, tree);
+    const from = target || kiln ? nearestFree(ctx, tree.x + 1.5, tree.z, 3) : null;
+    const to = kiln
+      ? nearestFree(ctx, kiln.x + MILIR_SHAPE_M.radius + 1, kiln.z, 3)
+      : target
+        ? doorPoint(target, -1.5)
+        : null;
+    if (!to || !from) return atTree(ctx, tree, who, 'fell', FELL_REACH_M + 0.6);
+    const path = walkRoute(ctx, to, from);
     if (!path) return atTree(ctx, tree, who, 'fell', FELL_REACH_M + 0.6);
     return shuttle(path, {
       outClip: 'walk',
@@ -1100,6 +1304,44 @@ function felling(ctx: Context, ids: readonly number[], forConstruction = true): 
       phase: who.phase,
     });
   };
+}
+
+/** Nejbližší z bodů do `reach` m od `p`, jinak null. */
+function nearestPoint<T extends Point>(list: readonly T[], p: Point, reach: number): T | null {
+  let best: T | null = null;
+  let bestD = reach;
+  for (const q of list) {
+    const d = Math.hypot(q.x - p.x, q.z - p.z);
+    if (d <= bestD) {
+      best = q;
+      bestD = d;
+    }
+  }
+  return best;
+}
+
+/**
+ * Uhlíř u milíře v lese (crafts.md – Uhlíř): staví, hlídá a vytahuje uhlí – místa kolem kupy
+ * jako u milíře u dílny (`craftSpots` s `forestKilnAnchor`).
+ */
+function kilnWorkers(ctx: Context, kiln: { x: number; z: number }): Placer {
+  const spots = craftSpots('burner', forestKilnAnchor(kiln));
+  return (i) => {
+    const spot = spots[i % spots.length]!;
+    if (free(ctx, spot.x, spot.z)) return stand(spot.x, spot.z, spot.hx, spot.hz, spot.clip);
+    const near = nearestFree(ctx, spot.x, spot.z, 4);
+    return near ? stand(near.x, near.z, spot.hx, spot.hz, spot.clip) : null;
+  };
+}
+
+/** Sázení mladých buků: u každého pařezu jeden člověk s motykou (crafts.md – Uhlíř). */
+function planting(ctx: Context, ids: readonly number[]): Placer {
+  const stumps = ids.flatMap((id) => {
+    const p = ctx.ground.tree(id);
+    return p ? [p] : [];
+  });
+  if (stumps.length === 0) return none;
+  return (i, who) => atTree(ctx, stumps[i % stumps.length]!, who, 'hoe', FELL_REACH_M);
 }
 
 /**
@@ -1327,7 +1569,11 @@ function openGround(ctx: Context, p: Point, radius: number): boolean {
 function orchardTrees(ctx: Context, orchardId: number, count: number): Placer {
   const orchard = (ctx.village.orchards ?? []).find((o) => o.id === orchardId);
   if (!orchard) return none;
-  const trees = orchard.squares.filter((s) => s.planting >= 1).flatMap((s) => orchardTreeSpots(s));
+  // jabloně pod obydlím na čtverci sadu nejsou (jako ve scéně – orchard-renderer.ts)
+  const built = insideClearings(buildingClearings(ctx.village.dwellings), TREE_CLEARANCE_M);
+  const trees = orchard.squares
+    .filter((s) => s.planting >= 1)
+    .flatMap((s) => orchardTreeSpots(s, [], built));
   if (trees.length === 0) return none;
   const start = Math.floor(ctx.day / CREW_MOVE_DAYS) * count;
   return (i, who) => {
@@ -1345,6 +1591,30 @@ function orchardPlanting(ctx: Context, orchardId: number, count: number): Placer
     .filter((s) => s.planting < 1)
     .sort((a, b) => b.planting - a.planting || distance(a) - distance(b));
   return crewRows(ctx, squares, count, () => 'hoe');
+}
+
+/**
+ * Jabloně podél pevné cesty (roads.md – Vysazení jabloní): sklizeň a péče u stromů (`tree`),
+ * výsadba u míst, která na ni čekají (`planting` – okopávají jámu). Po skupinách se přesouvají
+ * po řadě jako v sadu.
+ */
+function roadApples(
+  ctx: Context,
+  roadId: number,
+  count: number,
+  stage: 'tree' | 'planting',
+): Placer {
+  const trees = (ctx.village.roadApples ?? []).filter(
+    (a) => a.roadId === roadId && a.stage === stage,
+  );
+  if (trees.length === 0) return none;
+  const start = Math.floor(ctx.day / CREW_MOVE_DAYS) * count;
+  return (i, who) => {
+    const tree = trees[(start + i) % trees.length]!;
+    return stage === 'tree'
+      ? atTree(ctx, tree, who, 'fruit', gap(1.3))
+      : atTree(ctx, tree, who, 'hoe', gap(0.9));
+  };
 }
 
 /**
@@ -1384,6 +1654,70 @@ function cemeteryFence(ctx: Context, cemeteryId: number): Placer {
     const step = Math.max(1, Math.floor(slots.length / 6));
     const slot = slots[(offset + i * step) % slots.length]!;
     return stand(slot.x, slot.z, slot.hx, slot.hz, i % 3 === 2 ? 'hoe' : 'build');
+  };
+}
+
+/**
+ * Stavba ohrady a výroba rádla (oxen.md): lidé po obvodu čtverce ohrady za plotem čelem
+ * dovnitř – kůly, proplétání a přístřešek; střídavě kolem dokola.
+ */
+function penFence(ctx: Context, penId: number): Placer {
+  const pen = (ctx.village.pens ?? []).find((p) => p.id === penId);
+  if (!pen) return none;
+  const out = pen.size / 2 + HOUSE_MARGIN_M + gap(0.5);
+  const slots: { x: number; z: number; hx: number; hz: number }[] = [];
+  for (const [nx, nz] of PLOT_SIDES) {
+    for (const along of [-0.5, 0, 0.5]) {
+      const x = pen.x + nx * out - nz * along * pen.size * 0.8;
+      const z = pen.z + nz * out + nx * along * pen.size * 0.8;
+      if (free(ctx, x, z)) slots.push({ x, z, hx: -nx, hz: -nz });
+    }
+  }
+  if (slots.length === 0) return none;
+  const offset = Math.floor(hash01(penId, ctx.seed, 96) * slots.length);
+  return (i) => {
+    // sousední lidé na opačných stranách ohrady
+    const slot = slots[(offset + i * 5) % slots.length]!;
+    return stand(slot.x, slot.z, slot.hx, slot.hz, i % 3 === 2 ? 'hoe' : 'build');
+  };
+}
+
+/**
+ * Vylepšení pevné cesty (roads.md): lidé podél úseku po obou stranách osy – kopou strouhu,
+ * kladou kameny a kmeny hatě (motyka a stavba střídavě), čelem k ose.
+ */
+function roadWork(ctx: Context, roadId: number): Placer {
+  const road = (ctx.village.roads ?? []).find((r) => r.id === roadId);
+  if (!road || road.points.length < 2) return none;
+  const slots: { x: number; z: number; hx: number; hz: number }[] = [];
+  const at = [0];
+  for (let k = 1; k < road.points.length; k++) {
+    const a = road.points[k - 1]!;
+    const b = road.points[k]!;
+    at.push(at[k - 1]! + Math.hypot(b.x - a.x, b.z - a.z));
+  }
+  const length = at[at.length - 1]!;
+  // práce postupuje od začátku úseku – lidé u čela práce, kousek před ním a za ním
+  const front = (road.upgrade?.progress ?? 0) * length;
+  for (let k = 0; k < 12; k++) {
+    const d = Math.min(length, Math.max(0, front + (k - 4) * 3));
+    let seg = 1;
+    while (seg < road.points.length - 1 && at[seg]! < d) seg++;
+    const a = road.points[seg - 1]!;
+    const b = road.points[seg]!;
+    const span = Math.max(1e-6, at[seg]! - at[seg - 1]!);
+    const u = Math.min(1, Math.max(0, (d - at[seg - 1]!) / span));
+    const nx = -(b.z - a.z) / span;
+    const nz = (b.x - a.x) / span;
+    const side = k % 2 === 0 ? 1 : -1;
+    const x = a.x + (b.x - a.x) * u + nx * side * gap(1.6);
+    const z = a.z + (b.z - a.z) * u + nz * side * gap(1.6);
+    if (free(ctx, x, z)) slots.push({ x, z, hx: -nx * side, hz: -nz * side });
+  }
+  if (slots.length === 0) return none;
+  return (i) => {
+    const slot = slots[i % slots.length]!;
+    return stand(slot.x, slot.z, slot.hx, slot.hz, i % 2 === 0 ? 'hoe' : 'build');
   };
 }
 
@@ -1442,10 +1776,10 @@ function errandRoute(ctx: Context, home: House, door: Point, who: Identity): Rou
     // pěšina končí u vody / pod stromy – postava se zastaví na nejbližším volném místě
     const goal = nearestFree(ctx, end.x, end.z, 4);
     const along = paths.route(door, end);
-    if (!goal || !along || along.length < 2) continue;
-    const points = [...along.slice(0, -1), [goal.x, goal.z] as const];
+    if (!goal || !along || along.points.length < 2) continue;
+    const points = [...along.points.slice(0, -1), [goal.x, goal.z] as const];
     if (!pathRouteOk(ctx, points, false)) continue;
-    const path = route(points.map(([x, z]) => [x, z] as const));
+    const path = route(points, along.pace);
     if (path.length <= ERRAND_MAX_M) return path;
   }
   return null;
@@ -1475,7 +1809,10 @@ function elders(ctx: Context, count: number): PlannedVillager[] {
   const out: PlannedVillager[] = [];
   for (let i = 0; i < count && homes.length > 0; i++) {
     const home = homes[i % homes.length]!;
-    const who = identity(ctx.seed, `elder:${home.id}:${i}`, { women: 0.5, child: false });
+    const who = identity(ctx.seed, `elder:${home.id}:${i}`, {
+      women: womenChance(0.5, ctx.sexes.elderWomen),
+      child: false,
+    });
     const side = i % 2 === 0 ? 1 : -1;
     const edge = side > 0 ? home.box.maxX + gap(0.7) : home.box.minX - gap(0.7);
     const p = worldPoint(home.position, edge, home.box.minZ * 0.3);
@@ -1497,7 +1834,10 @@ function elders(ctx: Context, count: number): PlannedVillager[] {
 function herders(ctx: Context, count: number): PlannedVillager[] {
   const out: PlannedVillager[] = [];
   for (let k = 0; k < count; k++) {
-    const who = identity(ctx.seed, `herder:${k}`, { women: 0.4, child: true });
+    const who = identity(ctx.seed, `herder:${k}`, {
+      women: womenChance(0.4, ctx.sexes.girls),
+      child: true,
+    });
     const speed = walkSpeed(who.kind, 'walk', who.scale) * 0.8;
     const home = nearestFree(ctx, ctx.center.x + 12 + k * 2, ctx.center.z + 12, 6) ?? ctx.center;
     out.push(villager(who, herder(k, home, who.seed, who.phase, speed, 0.8), 'natural'));
@@ -1517,8 +1857,8 @@ export function walkRoute(
   b: Point,
 ): Route | null {
   const along = ctx.paths?.route(a, b);
-  if (along && along.length >= 2 && pathRouteOk(ctx, along)) {
-    return route(along.map(([x, z]) => [x, z] as const));
+  if (along && along.points.length >= 2 && pathRouteOk(ctx, along.points)) {
+    return route(along.points, along.pace);
   }
   let points: Point[] = [a, b];
   for (let pass = 0; pass < 4; pass++) {
