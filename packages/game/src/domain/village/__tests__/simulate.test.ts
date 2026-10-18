@@ -987,6 +987,54 @@ describe('advanceVillage – obydlí', () => {
     expect(viaJson(chunked)).toEqual(viaJson(whole));
   });
 
+  /** Práce na opravách posledního dne (rozdělení práce dne). */
+  const repairLabor = (s: VillageState): number =>
+    (s.labor?.shares ?? [])
+      .filter((share) => share.activity === 'repair')
+      .reduce((sum, share) => sum + share.manDays, 0);
+
+  it('obydlený dům nechátrá ani bez práce na opravy, prázdný vedle něj chátrá (Martin)', () => {
+    const day = at(600, 10, 1);
+    const s0 = withoutFields(day);
+    // stará zemnice s vysokou potřebou oprav, v ní jen malé děti – na opravy nikdo nepracuje
+    const home = s0.dwellings[0]!;
+    home.builtDay = day - 17 * 365;
+    home.condition = 0.6;
+    s0.people = [3, 4, 2].map((years, i) => ({ ...adultOfAge(200 + i, years, day) }));
+    s0.dwellings.push({
+      id: 50,
+      type: 'zemnice',
+      builtDay: day - 17 * 365,
+      condition: 1,
+      position: POSITION,
+    });
+    const s = advanceVillage(s0, day + 200, null);
+    expect(s.dwellings.find((d) => d.id === home.id)?.condition).toBe(0.6);
+    expect(repairLabor(s)).toBe(0);
+    expect(s.dwellings.find((d) => d.id === 50)!.condition).toBeLessThan(0.95);
+  });
+
+  it('starý obydlený dům stav drží – opravy podle stáří dál berou práci vsi', () => {
+    const day = at(600, 10, 1);
+    const s0 = withoutFields(day);
+    s0.dwellings[0]!.builtDay = day - 17 * 365;
+    const s = advanceVillage(s0, day + 120, null);
+    expect(s.dwellings[0]!.condition).toBe(1);
+    expect(repairLabor(s)).toBeGreaterThan(0);
+  });
+
+  it('obydlený dům na nule po dřívějším chátrání se nepřestavuje – rozhoduje stáří', () => {
+    const day = at(600, 10, 1);
+    const young = withoutFields(day);
+    young.dwellings[0]!.condition = 0;
+    const kept = advanceVillage(young, day + 30, null);
+    expect(count(kept, 'rebuild-decided')).toBe(0);
+    expect(kept.dwellings[0]!.condition).toBe(0);
+    const old = withoutFields(day);
+    old.dwellings[0]!.builtDay = day - (DWELLINGS.zemnice.lifespanYears + 1) * 365;
+    expect(count(advanceVillage(old, day, null), 'rebuild-decided')).toBe(1);
+  });
+
   it('prázdné obydlí chátrá a na nule zanikne', () => {
     const day = at(600, 10, 1);
     const s0 = withoutFields(day);

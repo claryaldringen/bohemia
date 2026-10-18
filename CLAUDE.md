@@ -458,8 +458,9 @@ rozhraní částí v
   zříceniny neznají, na jejich místo jde stavět. Web: `SceneVillage.dwellings[].condition`
   (jen < 1) a `SceneVillage.ruins` (`overgrowth` 0–1 – `ruinOvergrowth`). Scéna:
   `dwelling-decay.ts` (čisté funkce, testy) – stupeň podle stavu `decayStage` (≥ 70 % celý, ≥ 45
-  sešlý, ≥ 20 propadá se, pod 20 zřícený – pro každé obydlí, i obydlené), `DECAY_LOOKS` (kryt jámy
-  střechou, hlína u vchodu, dým jen do propadající se střechy, plot a záhony pozemku, kopřivy),
+  sešlý, ≥ 20 propadá se, pod 20 zřícený); rozpadá se jen prázdné obydlí (`dwellingDecayStage` –
+  obydlené je vždy celé, i znovu osídlený zchátralý dům), `DECAY_LOOKS` (kryt jámy střechou, hlína
+  u vchodu, plot a záhony pozemku, kopřivy),
   `ruinLook` (hloubka prohlubně, trámy `ruin` / `ruin-late`, výška valů, kopřivy – po krocích 5 %),
   `ruinHollowData` / `ruinHollowY` (zarostlá prohlubeň – síť přes obdélník jámy, řez terénu
   `ruinPitShape` bez šíje), `decayNettles`. Díly v `models/dwellings/decay.glb` z
@@ -658,9 +659,11 @@ rozhraní částí v
   od 16 let – `canLeaveAlone`); ne z domácnosti, jejíž zbytek by se rozpadl (`householdBreaksUp`
   v `people.ts` – osamělý člověk 16–44 se nerozpadá, je svobodný). Možné nové domácnosti =
   kvalifikované + ostatní přeplněné s aspoň dvěma dospělými dětmi + jednotlivci po dvou + poslední
-  jednotlivec sám (`possibleNewHouseholds`). **Prázdné obydlí chátrá
-  rychleji** (Martin): `decayEmptyDwelling` – bez oprav podle stáří a navíc pevný denní podíl,
-  nové zanikne za `DWELLINGS[type].emptyLifespanYears` (zemnice 5, polozemnice 8 let).
+  jednotlivec sám (`possibleNewHouseholds`). **Chátrá jen prázdné obydlí** (Martin: „obydlená
+  budova nechátrá – obyvatelé ji opravují“): `decayEmptyDwelling` – bez oprav podle stáří a navíc
+  pevný denní podíl, nové zanikne za `DWELLINGS[type].emptyLifespanYears` (zemnice 5, polozemnice
+  8 let). Obydlené stav neztrácí – opravy podle stáří (`repairNeedPerDay`) dál berou práci vsi,
+  nedodělek se jen neudělá; přestavbu rozhoduje jen stáří (`wantsRebuild`).
 - **Sňatky mezi domy** (population.md, Martin 18. 10. 2026; `marriage.ts`): svobodný = jediný
   člověk 16–44 v domácnosti (`singles`, od nejstaršího); dva svobodní z různých domů se vezmou
   v kroku 6 po obsazení prázdných obydlí (`arrangeMarriages`). Stěhuje se ten, komu se dům
