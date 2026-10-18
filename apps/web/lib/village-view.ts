@@ -18,6 +18,8 @@ import {
   obstaclesOf,
   partStage,
   reservedTrees,
+  roadTreeLook,
+  ruinOvergrowth,
   squareBearing,
   summarizeVillage,
   tileCenterWorld,
@@ -49,6 +51,9 @@ import {
   type PlacementVillage,
   type PlotVariant,
   type Position,
+  type Road,
+  type RoadTree,
+  type RoadTreeLook,
   type SacredBuildingKind,
   type StockResource,
   type TileCell,
@@ -303,6 +308,8 @@ export interface VillageView {
     dateLabel: string;
     text: string;
   }[];
+  /** Den poslední svatby mezi domy (population.md – Sňatky mezi domy); žádná null. */
+  lastMarriageDay: number | null;
 }
 
 /** Hřbitov pro panel výběru – čísla, žádné věty (rozhraní jako v 0 A.D.). */
@@ -387,6 +394,24 @@ export interface SceneVillage {
      * domácnosti se vyšlapávají postupně (paths.md). Bez údaje = odjakživa.
      */
     since?: number;
+    /**
+     * Stav hotového obydlí 0–1 (population.md – Chátrání) – podle něj se dům ve scéně rozpadá
+     * (dwelling-decay.ts). Bez údaje = celý (100 %).
+     */
+    condition?: number;
+  }[];
+  /**
+   * Zbytky jam po zaniklých obydlích (population.md – Po zániku): typ, poloha, den zániku
+   * (`since`), u polozemnice pozemek, jak zarostly 0–1 (`overgrowth`). Bez údaje žádné.
+   */
+  ruins?: {
+    id: number;
+    type: DwellingType;
+    position: Position;
+    since: number;
+    overgrowth: number;
+    plot?: ScenePlot;
+    craft?: Craft;
   }[];
   /**
    * Pole po čtvercích – díl = políčko krajiny `cell`, jeho střed (x, z) ve světě, strana
@@ -411,7 +436,9 @@ export interface SceneVillage {
   /**
    * Jabloňové sady po čtvercích (střed políčka ve světě a strana jako u pole): průběh výsadby
    * čtverce 0–1, velikost stromů 0–1 (mladé stromky rostou – orchard-look.ts) a jestli na
-   * stromech visí jablka (pozdní léto a podzim, než se sklidí). Bez údaje žádné.
+   * stromech visí jablka (pozdní léto a podzim, než se sklidí). Velikost a jablka jsou po
+   * čtvercích – obnovený čtverec má mladé stromky, zbytek sadu staré (orchard.md – Obnova sadu).
+   * Bez údaje žádné.
    */
   orchards?: {
     id: number;
@@ -423,6 +450,11 @@ export interface SceneVillage {
       planting: number;
       growth: number;
       fruit: boolean;
+      /**
+       * Čtverec obnovy, který se sází znovu (staré stromy jsou skácené) – vytyčuje se jen on,
+       * ne celý sad. U ostatních čtverců chybí.
+       */
+      renewal?: true;
     }[];
   }[];
   /**
@@ -449,6 +481,16 @@ export interface SceneVillage {
    * založení jako server. Bez údaje 0.
    */
   toolCoverage?: number;
+  /**
+   * Pevné cesty (roads.md) – úseky mezi rozcestími: osa a stupeň. Kreslí se stále stejně (ne
+   * podle pěšin dne) a pěšiny dne se k nim stahují. Bez údaje žádné.
+   */
+  roads?: SceneRoad[];
+  /**
+   * Stromy u pevných cest (roads.md) – stadium (keř, strom, souš, pařez) a velikost 0–1 v den
+   * pohledu. Bez údaje žádné.
+   */
+  roadTrees?: SceneRoadTree[];
   /**
    * Stáda na pastvě (diet.md – skutečné počty, zaokrouhleně): ovce, kozy, prasata a krávy mimo
    * ohradu (v zimě stojí krávy v ohradě, když ves nějakou má). Bez údaje se odvodí z domácností.
@@ -492,6 +534,11 @@ export interface ScenePen {
   trainees: number;
   cows: number;
 }
+
+/** Pevná cesta pro scénu (roads.md). */
+export type SceneRoad = Pick<Road, 'id' | 'points' | 'grade'>;
+/** Strom u pevné cesty pro scénu – poloha, druh a vzhled v den pohledu (`roadTreeLook`). */
+export type SceneRoadTree = Pick<RoadTree, 'id' | 'x' | 'z' | 'species'> & RoadTreeLook;
 
 /**
  * Posvátná místa pro scénu: ušetřené posvátné duby (id stromu z vrstvy překážek a kmen – obětiny
@@ -639,6 +686,18 @@ function finishedText(kind: ConstructionKind, craft?: Craft): string {
   return 'Pole je založené – dá se osévat.';
 }
 
+/** Pole nebo sad ustoupil stavbě obydlí – kronika (population.md – Obydlí na poli a v sadu). */
+function landTakenText(land: 'field' | 'orchard', areaM2: number, gone: boolean): string {
+  if (land === 'field') {
+    return gone
+      ? 'Pole ustoupilo stavbě obydlí a zaniklo.'
+      : `Pole ustoupilo stavbě obydlí – zmenšilo se o ${formatInteger(areaM2)} m².`;
+  }
+  return gone
+    ? 'Sad ustoupil stavbě obydlí a zanikl.'
+    : `Sad ustoupil stavbě obydlí – zmenšil se o ${formatInteger(areaM2)} m².`;
+}
+
 /** Text události kroniky česky. */
 export function chronicleText(event: ChronicleEvent, villageName: string): string {
   switch (event.kind) {
@@ -654,6 +713,8 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       return 'Dva mladí dospělí založili v novém obydlí vlastní domácnost.';
     case 'household-merged':
       return 'Zbytek domácnosti se přestěhoval k sousedům.';
+    case 'marriage':
+      return 'Svatba – jeden ze snoubenců se přestěhoval do domu druhého.';
     case 'construction-finished':
       return finishedText(event.constructionKind, event.craft);
     case 'rebuild-decided':
@@ -674,6 +735,10 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
         : 'Přes zimu chybělo seno – vůl uhynul a spřežení se rozpadlo.';
     case 'orchard-gone':
       return 'Starý sad dosloužil a zarostl loukou.';
+    case 'orchard-renewal-started':
+      return `Vesničané obnovují starý sad – znovu vysadí ${formatCells(event.squares)}.`;
+    case 'land-taken':
+      return landTakenText(event.land, event.areaM2, event.gone);
     case 'hunger-began':
       return 'Ve vsi začal hlad – zásoby nevystačí do sklizně.';
     case 'hunger-ended':
@@ -684,6 +749,10 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       return event.site === 'oak'
         ? 'Vesničané ušetřili posvátný dub.'
         : 'Vesničané ušetřili dubový háj.';
+    case 'road-formed':
+      return 'Kudy se chodí léta, vyšlapala se pevná cesta.';
+    case 'road-overgrown':
+      return 'Nepoužívaná cesta zarostla.';
     case 'cemetery-full':
       if (event.othersFree) return 'Jeden z hřbitovů se zaplnil – pohřbívá se do dalšího.';
       // staví se jiný hřbitov nebo rozšíření – bude kam pohřbívat
@@ -728,6 +797,8 @@ function sceneVillage(
     inhabited: occupied.has(d.id),
     ...(d.plot ? { plot: scenePlot(landscape, d.plot) } : {}),
     since: d.builtDay,
+    // stav po tisícinách – rozpad ve scéně jde po stupních (dwelling-decay.ts)
+    ...(d.condition < 1 ? { condition: Math.round(d.condition * 1000) / 1000 } : {}),
     ...(d.workshop ? { craft: d.workshop.craft } : {}),
     ...(d.workshop && occupied.has(d.id) && d.workshop.activity === 'producing'
       ? { working: true }
@@ -783,6 +854,18 @@ function sceneVillage(
   const reserved = [...reservedTrees(state)].sort((a, b) => a - b);
   const labor = sceneLabor(state, summary.people);
   const sacred = sceneSacred(state, landscape, day, summary);
+  const obstacles = obstacleChangesAt(state, day);
+  const roads = sceneRoads(state);
+  const roadTrees = sceneRoadTrees(state, day, obstacles);
+  const ruins = (state.ruins ?? []).map((r) => ({
+    id: r.id,
+    type: r.type,
+    position: r.position,
+    since: r.day,
+    overgrowth: Math.round(ruinOvergrowth(r, day) * 1000) / 1000,
+    ...(r.plot ? { plot: scenePlot(landscape, r.plot) } : {}),
+    ...(r.craft ? { craft: r.craft } : {}),
+  }));
   const pens = scenePens(state, landscape, day, summary);
   const hayMeadows = hayMeadowLooks(state, day).map((view): SceneHayMeadow => {
     const center = tileCenterWorld(landscape, view.cell.x, view.cell.y);
@@ -800,10 +883,11 @@ function sceneVillage(
   const herds = summary.livestock.herds;
   return {
     dwellings: [...built, ...sites],
+    ...(ruins.length > 0 ? { ruins } : {}),
     fields,
     cemeteries,
     ...(orchards.length > 0 ? { orchards } : {}),
-    obstacles: obstacleChangesAt(state, day),
+    obstacles,
     ...(reserved.length > 0 ? { reservedTrees: reserved } : {}),
     woodLogs: wholeLogs(state.woodLogs ?? 0),
     ...(labor ? { labor } : {}),
@@ -812,7 +896,39 @@ function sceneVillage(
     ...(hayMeadows.length > 0 ? { hayMeadows } : {}),
     ...(pens.length > 0 ? { pens } : {}),
     ...(summary.crafts.coverage.tools > 0 ? { toolCoverage: summary.crafts.coverage.tools } : {}),
+    ...(roads.length > 0 ? { roads } : {}),
+    ...(roadTrees.length > 0 ? { roadTrees } : {}),
   };
+}
+
+/** Pevné cesty vsi pro scénu (roads.md). */
+export function sceneRoads(state: Pick<VillageState, 'roads'>): SceneRoad[] {
+  return (state.roads?.roads ?? []).map((r) => ({
+    id: r.id,
+    points: r.points.map((p) => ({ x: p.x, z: p.z })),
+    grade: r.grade,
+  }));
+}
+
+/** Velikost stromu u cesty ve scéně po dvacetinách – strom se překreslí jen po znatelném přírůstku. */
+const ROAD_TREE_GROWTH_STEPS = 20;
+
+/**
+ * Stromy u pevných cest pro scénu v den `day` (roads.md) – bez stromů, které odstranila stavba
+ * a které už zmizely; velikost po dvacetinách (scéna se mění jen občas).
+ */
+export function sceneRoadTrees(
+  state: Pick<VillageState, 'roads'>,
+  day: number,
+  obstacles: ObstacleChanges,
+): SceneRoadTree[] {
+  const removed = new Set(obstacles.removed);
+  return (state.roads?.trees ?? []).flatMap((t): SceneRoadTree[] => {
+    const look = roadTreeLook(t, day);
+    if (look === null || removed.has(t.id)) return [];
+    const growth = Math.round(look.growth * ROAD_TREE_GROWTH_STEPS) / ROAD_TREE_GROWTH_STEPS;
+    return [{ id: t.id, x: t.x, z: t.z, species: t.species, stage: look.stage, growth }];
+  });
 }
 
 /** Výroba dílny za den při práci `labor` (kg) – uhlíř bez kácení, kovář a hrnčíř s přirážkou. */
@@ -1016,6 +1132,8 @@ function sceneOrchardSquare(
     planting,
     growth,
     fruit,
+    // obnova: staré stromy skácené, čtverec se sází znovu (orchard.md – Obnova sadu)
+    ...(square.renewal !== undefined && planted === null ? { renewal: true as const } : {}),
   };
 }
 
@@ -1062,6 +1180,15 @@ function scenePart(
     scene.work = done > 0 ? Math.min(1, Math.max(1 / FOUNDING_WORK_STEP, step)) : 0;
   }
   return scene;
+}
+
+/** Den poslední svatby mezi domy v kronice; žádná null. */
+function lastMarriageDay(state: VillageState): number | null {
+  for (let i = state.chronicle.length - 1; i >= 0; i--) {
+    const event = state.chronicle[i];
+    if (event?.kind === 'marriage') return event.day;
+  }
+  return null;
 }
 
 function chronicle(state: VillageState, name: string): VillageView['chronicle'] {
@@ -1273,6 +1400,7 @@ export function buildVillageView(
     pens: penViews(state, day, summary),
     scene: sceneVillage(state, landscape, day, summary),
     chronicle: chronicle(state, name),
+    lastMarriageDay: lastMarriageDay(state),
   };
 }
 
@@ -1320,8 +1448,9 @@ export function placementVillageFromScene(scene: SceneVillage): PlacementVillage
     cemeteries: (scene.cemeteries ?? []).map((c) => ({
       squares: c.squares.map((s) => ({ cell: s.cell })),
     })),
+    // plocha čtverce (políčko) pro varování, že sad stavbou obydlí zanikne
     orchards: (scene.orchards ?? []).map((o) => ({
-      squares: o.squares.map((s) => ({ cell: s.cell })),
+      squares: o.squares.map((s) => ({ cell: s.cell, areaM2: s.size * s.size })),
     })),
     pens: (scene.pens ?? []).map((pen) => ({ cell: pen.cell })),
     ...(scene.obstacles ? { obstacleChanges: scene.obstacles } : {}),

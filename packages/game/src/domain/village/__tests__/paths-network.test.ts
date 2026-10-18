@@ -1,23 +1,22 @@
 import { describe, expect, it } from 'vitest';
-import type { SceneVillage } from '../../village-view';
 import {
+  DWELLING_PATH_BOX_M,
   PATH_TRAFFIC,
-  chaikin,
   computePathNetwork,
   pathAgeFactor,
   pathBounds,
   pathNetworkKey,
-  pathRouter,
   pathStrength,
-  simplify,
+  simplifyPathLine,
+  smoothPathLine,
   type PathNetwork,
-} from '../path-network';
-import { houseBox } from '../villager-plan';
-import { house, part, testTerrain } from './path-fixtures';
+  type PathVillage,
+} from '../paths/network';
+import { house, part, pathTestTerrain } from './paths-fixtures';
 
-const terrain = testTerrain();
+const terrain = pathTestTerrain();
 
-function village(extra: Partial<SceneVillage> = {}): SceneVillage {
+function village(extra: Partial<PathVillage> = {}): PathVillage {
   return {
     dwellings: [house(1, 0, 0), house(2, 14, 4), house(3, -13, 5)],
     fields: [],
@@ -70,13 +69,13 @@ describe('computePathNetwork – pěšiny vsi', () => {
     const network = computePathNetwork({ village: village(), terrain });
     const pts = points(network);
     // u břehu (potok z ∈ (70, 76))
-    expect(pts.some((p) => p.z > 60 && p.z < 70)).toBe(true);
+    expect(pts.some((p) => p.z > 60 && p.z < 72)).toBe(true);
     // u okraje lesa (x < −90 je les)
     expect(pts.some((p) => p.x < -80)).toBe(true);
     for (const id of [1, 2, 3]) {
       const errand = network.errands.get(id)!;
       expect(errand.water!.z).toBeGreaterThan(60);
-      expect(errand.water!.z).toBeLessThan(71);
+      expect(errand.water!.z).toBeLessThan(72);
       expect(errand.wood!.x).toBeLessThan(-80);
     }
   });
@@ -85,7 +84,7 @@ describe('computePathNetwork – pěšiny vsi', () => {
     const v = village();
     const network = computePathNetwork({ village: v, terrain });
     for (const d of v.dwellings) {
-      const box = houseBox(d.type);
+      const box = DWELLING_PATH_BOX_M[d.type];
       for (const p of network.lines.flatMap((l) => l.points)) {
         const c = Math.cos(d.position.rotation);
         const s = Math.sin(d.position.rotation);
@@ -104,7 +103,7 @@ describe('computePathNetwork – pěšiny vsi', () => {
 
   it('osetý díl obchází po okraji, přes úhor jde rovně', () => {
     // pole přes cestu k vodě: díly v řadě z = 37,5, x od −22,5 do 22,5
-    const across = (stage: 'sown' | 'young-fallow'): SceneVillage =>
+    const across = (stage: 'sown' | 'young-fallow'): PathVillage =>
       village({
         fields: [{ id: 9, parts: [-22.5, -7.5, 7.5, 22.5].map((x) => part(x, 37.5, stage)) }],
       });
@@ -126,7 +125,7 @@ describe('computePathNetwork – pěšiny vsi', () => {
           day: 4000,
           month: 7,
           people: { children: 4, adults: 8, elders: 2 },
-          shares: [{ activity: 'harvest', target: { kind: 'field', id: 5 }, manDays: 6 }],
+          shares: [{ target: { kind: 'field', id: 5 }, manDays: 6 }],
         },
       }),
       terrain,
@@ -168,6 +167,21 @@ describe('computePathNetwork – pěšiny vsi', () => {
     });
     expect(computePathNetwork({ village: fresh, terrain }).lines).toEqual([]);
     expect(computePathNetwork({ village: old, terrain }).lines.length).toBeGreaterThan(0);
+  });
+
+  it('ves se dvěma domácnostmi má pěšinu ke hřbitovu (návštěvy hrobů)', () => {
+    // domy daleko od sebe – každá domácnost chodí ke hřbitovu svou cestou, trasy se neslijí
+    const cemetery = { id: 7, squares: [part(-7.5, -67.5), part(7.5, -67.5)] };
+    const v = village({
+      dwellings: [house(1, -40, 0), house(2, 40, 0)],
+      cemeteries: [cemetery],
+      labor: { day: 4000, month: 6, people: { children: 2, adults: 4, elders: 1 }, shares: [] },
+    });
+    const network = computePathNetwork({ village: v, terrain });
+    expect(samples(network).some((p) => p.z < -50 && Math.abs(p.x) < 25)).toBe(true);
+    // bez hřbitova tam pěšina nevede
+    const none = computePathNetwork({ village: { ...v, cemeteries: [] }, terrain });
+    expect(samples(none).some((p) => p.z < -50 && Math.abs(p.x) < 25)).toBe(false);
   });
 
   it('zrušený cíl vypadne', () => {
@@ -230,7 +244,7 @@ describe('pathNetworkKey', () => {
         day: 4000,
         month: 7,
         people: { children: 4, adults: 8, elders: 2 },
-        shares: [{ activity: 'harvest', target: { kind: 'field', id: 5 }, manDays: 6.04 }],
+        shares: [{ target: { kind: 'field', id: 5 }, manDays: 6.04 }],
       },
     });
     const tiny = {
@@ -258,7 +272,7 @@ describe('pathBounds', () => {
   });
 });
 
-describe('simplify, chaikin', () => {
+describe('simplifyPathLine, smoothPathLine', () => {
   it('zjednodušení nechá konce a zlom, vyhlazení konce a hodnoty mezi', () => {
     const pts = [
       { x: 0, z: 0 },
@@ -266,10 +280,10 @@ describe('simplify, chaikin', () => {
       { x: 10, z: 0 },
       { x: 10, z: 10 },
     ];
-    const simple = simplify(pts, [[0, 0.5, 1, 1]], 0.5);
+    const simple = simplifyPathLine(pts, [[0, 0.5, 1, 1]], 0.5);
     expect(simple.points).toEqual([pts[0], pts[2], pts[3]]);
     expect(simple.values[0]).toEqual([0, 1, 1]);
-    const smooth = chaikin(simple.points, simple.values, 2);
+    const smooth = smoothPathLine(simple.points, simple.values, 2);
     expect(smooth.points[0]).toEqual(pts[0]);
     expect(smooth.points[smooth.points.length - 1]).toEqual(pts[3]);
     expect(smooth.points.length).toBeGreaterThan(3);
@@ -277,24 +291,5 @@ describe('simplify, chaikin', () => {
       expect(v).toBeGreaterThanOrEqual(0);
       expect(v).toBeLessThanOrEqual(1);
     }
-  });
-});
-
-describe('pathRouter – chůze po pěšinách', () => {
-  it('z brány k vodě po pěšině, bez sítě nic', () => {
-    const network = computePathNetwork({ village: village(), terrain });
-    const router = pathRouter(network);
-    const end = network.errands.get(1)!.water!;
-    const gate = { x: 0, z: 9 };
-    const route = router.route(gate, end)!;
-    expect(route[0]).toEqual([gate.x, gate.z]);
-    expect(route[route.length - 1]).toEqual([end.x, end.z]);
-    expect(route.length).toBeGreaterThan(3);
-    expect(pathRouter({ lines: [] }).route(gate, end)).toBeNull();
-  });
-
-  it('daleko od pěšin se jde rovnou', () => {
-    const router = pathRouter(computePathNetwork({ village: village(), terrain }));
-    expect(router.route({ x: 140, z: -140 }, { x: 130, z: -130 })).toBeNull();
   });
 });

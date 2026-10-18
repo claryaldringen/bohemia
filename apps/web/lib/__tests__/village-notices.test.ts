@@ -134,6 +134,7 @@ const view = (overrides: Partial<VillageView> = {}): VillageView => ({
   gameOver: false,
   scene: { dwellings: [], fields: [] },
   chronicle: [],
+  lastMarriageDay: null,
   ...overrides,
 });
 
@@ -188,6 +189,19 @@ describe('newNotices', () => {
 
   it('první pohled na ves nic neohlásí', () => {
     expect(newNotices(null, view({ hungry: true }))).toEqual([]);
+  });
+
+  it('svatba mezi domy – krátký fakt, jen když od minulého pohledu přibude', () => {
+    const before = view({ lastMarriageDay: 900 });
+    expect(newNotices(view(), before)).toEqual([
+      { kind: 'marriage', tone: 'info', text: 'Svatba' },
+    ]);
+    expect(newNotices(before, view({ lastMarriageDay: 900 }))).toEqual([]);
+    expect(newNotices(before, view({ lastMarriageDay: 990 })).map((n) => n.kind)).toEqual([
+      'marriage',
+    ]);
+    // trvalé upozornění to není
+    expect(villageNotices(view({ lastMarriageDay: 990 }))).toEqual([]);
   });
 });
 
@@ -303,6 +317,35 @@ describe('villageNotices – řemesla (crafts.md)', () => {
     expect(villageNotices(view({ crafts: crafts(['no-charcoal', 'no-wood']) }))).toEqual([
       { kind: 'no-charcoal', tone: 'warn', text: 'Kovář nemá uhlí' },
       { kind: 'no-wood', tone: 'warn', text: 'Dílna nemá co kácet' },
+    ]);
+  });
+});
+
+describe('newNotices – obnova a konec sadu (orchard.md – Obnova sadu)', () => {
+  const entry = (
+    day: number,
+    kind: 'orchard-renewal-started' | 'orchard-gone',
+  ): VillageView['chronicle'][number] => ({ day, kind, dateLabel: '', text: '' });
+
+  it('vesničané začali obnovovat starý sad – fakt jednou, při prvním načtení nic', () => {
+    const before = view({ dayIndex: 1000 });
+    const after = view({ dayIndex: 1003, chronicle: [entry(1001, 'orchard-renewal-started')] });
+    expect(newNotices(null, after)).toEqual([]);
+    expect(newNotices(before, after)).toEqual([
+      { kind: 'orchard-renewal', tone: 'info', text: 'Vesničané obnovují starý sad' },
+    ]);
+    expect(newNotices(after, after)).toEqual([]);
+    // trvalá upozornění se o sadu nezmiňují
+    expect(villageNotices(after)).toEqual([]);
+  });
+
+  it('starý sad dosloužil – krátký řádek', () => {
+    const after = view({
+      dayIndex: 1400,
+      chronicle: [entry(1366, 'orchard-gone'), entry(1001, 'orchard-renewal-started')],
+    });
+    expect(newNotices(view({ dayIndex: 1300 }), after)).toEqual([
+      { kind: 'orchard-gone', tone: 'warn', text: 'Starý sad dosloužil' },
     ]);
   });
 });

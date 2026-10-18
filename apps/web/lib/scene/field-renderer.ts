@@ -13,7 +13,8 @@ import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import type { Scene } from '@babylonjs/core/scene';
 import { dateOfDayIndex, type Landscape, type ObstacleLayer } from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
-import { rowDirection, touchingSquares } from './field-cells';
+import { buildingClearings, clearingMask, clearingsKey, clearingsNear } from './building-clearings';
+import { cellsBounds, rowDirection, touchingSquares } from './field-cells';
 import {
   CROP_KINDS,
   FIELD_TEXTURES,
@@ -67,6 +68,11 @@ const GRID_PER_CELL = 8;
 /** Šířka měkkého okraje pole a louky na seno (m). */
 const EDGE_SOFT_M = 1.6;
 const MEADOW_EDGE_SOFT_M = 3;
+/**
+ * Měkký okraj pole u obydlí (m) – vyklízenou plochu obydlí na poli herní jádro z dílu odečte
+ * (population.md – Obydlí na poli a v sadu), obtisk ani trsy pod ní nejsou.
+ */
+const CLEARING_SOFT_M = 1.2;
 /** Sníh na obtiscích pole – část barvy zimou prosvítá (jako cesty a vyšlapaná hlína). */
 const FIELD_SNOW = 0.85;
 /** Výška obtisků nad terénem (m) – navzájem v pořadí, aby se nepraly o hloubku. */
@@ -312,11 +318,14 @@ export class FieldRenderer {
     const day = this.lookDay();
     let changed = false;
     const seen = new Set<number>();
+    const clearings = buildingClearings(this.village.dwellings);
     // přirozené louky letošní seče (oxen.md – Seno) se kreslí jako díly pole se vzhledem od
     // jádra – se zápornými id, bez skrývání překážek (stromy a kameny na louce zůstanou)
     const meadows = hayMeadowFields(this.village.hayMeadows ?? []);
     for (const field of [...this.village.fields, ...meadows]) {
       seen.add(field.id);
+      // obydlí na poli – pod jeho vyklízenou plochou pole není
+      const built = clearingsNear(clearings, cellsBounds(field.parts), CLEARING_SOFT_M);
       const views = fieldPartViews(field, { dayOfYear: day, village: this.village });
       // čtverce sousedních polí – kde pole navazují, okraj se netlumí (bez švu mezi poli); louky
       // jen k polím, pole jen k polím
@@ -332,6 +341,7 @@ export class FieldRenderer {
         villageCenter(this.village, field.parts),
         hay ? day : null,
         neighbours.map((p) => [p.cell.x, p.cell.y]),
+        clearingsKey(built),
       ]);
       const current = this.fields.get(field.id);
       if (current?.key === key) continue;
@@ -339,7 +349,10 @@ export class FieldRenderer {
       if (current) for (const mesh of current.meshes) mesh.dispose();
       const rows = rowDirection(field.parts);
       const center = villageCenter(this.village, field.parts);
-      const coverage = raggedCoverage([...field.parts, ...neighbours], EDGE_SOFT_M);
+      const ragged = raggedCoverage([...field.parts, ...neighbours], EDGE_SOFT_M);
+      const mask = clearingMask(built, CLEARING_SOFT_M);
+      const coverage =
+        built.length > 0 ? (x: number, z: number): number => ragged(x, z) * mask(x, z) : ragged;
       const staking = fieldStaking(views);
       this.fields.set(field.id, {
         key,

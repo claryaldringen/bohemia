@@ -15,6 +15,7 @@ import type {
   SceneLaborShare,
   SceneVillage,
 } from '../village-view';
+import { TREE_CLEARANCE_M, buildingClearings, insideClearings } from './building-clearings';
 import { cellsBoundary, rowDirection, type CellSquare } from './field-cells';
 import {
   fieldPartViews,
@@ -177,11 +178,14 @@ export interface VillagerGround {
  * domácnost pro vodu a dřevo. Bez nich se chodí rovnou.
  */
 export interface VillagerPaths {
-  /** Trasa z `a` do `b` po pěšinách (body [x, z] od `a` do `b`), nebo null – jde se rovnou. */
+  /**
+   * Trasa z `a` do `b` po pěšinách – body [x, z] od `a` do `b` a tempo úseků (po pěšině se jde
+   * rychleji – paths.md), nebo null – jde se rovnou.
+   */
   route(
     a: { x: number; z: number },
     b: { x: number; z: number },
-  ): readonly (readonly [number, number])[] | null;
+  ): { points: readonly (readonly [number, number])[]; pace: readonly number[] } | null;
   /** Kam chodí domácnost (id obydlí) pro vodu nebo dřevo – konec její pěšiny, nebo null. */
   errand(dwellingId: number, kind: 'water' | 'wood'): { x: number; z: number } | null;
 }
@@ -1434,7 +1438,11 @@ function openGround(ctx: Context, p: Point, radius: number): boolean {
 function orchardTrees(ctx: Context, orchardId: number, count: number): Placer {
   const orchard = (ctx.village.orchards ?? []).find((o) => o.id === orchardId);
   if (!orchard) return none;
-  const trees = orchard.squares.filter((s) => s.planting >= 1).flatMap((s) => orchardTreeSpots(s));
+  // jabloně pod obydlím na čtverci sadu nejsou (jako ve scéně – orchard-renderer.ts)
+  const built = insideClearings(buildingClearings(ctx.village.dwellings), TREE_CLEARANCE_M);
+  const trees = orchard.squares
+    .filter((s) => s.planting >= 1)
+    .flatMap((s) => orchardTreeSpots(s, [], built));
   if (trees.length === 0) return none;
   const start = Math.floor(ctx.day / CREW_MOVE_DAYS) * count;
   return (i, who) => {
@@ -1574,10 +1582,10 @@ function errandRoute(ctx: Context, home: House, door: Point, who: Identity): Rou
     // pěšina končí u vody / pod stromy – postava se zastaví na nejbližším volném místě
     const goal = nearestFree(ctx, end.x, end.z, 4);
     const along = paths.route(door, end);
-    if (!goal || !along || along.length < 2) continue;
-    const points = [...along.slice(0, -1), [goal.x, goal.z] as const];
+    if (!goal || !along || along.points.length < 2) continue;
+    const points = [...along.points.slice(0, -1), [goal.x, goal.z] as const];
     if (!pathRouteOk(ctx, points, false)) continue;
-    const path = route(points.map(([x, z]) => [x, z] as const));
+    const path = route(points, along.pace);
     if (path.length <= ERRAND_MAX_M) return path;
   }
   return null;
@@ -1649,8 +1657,8 @@ export function walkRoute(
   b: Point,
 ): Route | null {
   const along = ctx.paths?.route(a, b);
-  if (along && along.length >= 2 && pathRouteOk(ctx, along)) {
-    return route(along.map(([x, z]) => [x, z] as const));
+  if (along && along.points.length >= 2 && pathRouteOk(ctx, along.points)) {
+    return route(along.points, along.pace);
   }
   let points: Point[] = [a, b];
   for (let pass = 0; pass < 4; pass++) {

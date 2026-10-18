@@ -46,6 +46,7 @@ describe('checkDwellingPlacement – terén', () => {
       clearedTrees: 0,
       obstacleCounts: {},
       spared: { oaks: [], groves: [] },
+      takenLand: [],
     });
   });
 
@@ -120,14 +121,21 @@ describe('checkDwellingPlacement – překryv', () => {
     expect(check.reason).toMatch(/rozestavěným/);
   });
 
-  it('nesmí stát v poli ani zasahovat do jeho čtverce', () => {
-    const check = checkDwellingPlacement(landscape, village, 'zemnice', at(-40, 50));
-    expect(check.ok).toBe(false);
-    expect(check.reason).toMatch(/polem/);
-    // půdorys x −18 … −14 zasahuje 1 m do čtverce pole (hrana pole x = −15)
-    expect(checkDwellingPlacement(landscape, village, 'zemnice', at(-16, 50)).ok).toBe(false);
-    // půdorys x −15 … −11 se pole jen dotýká
-    expect(checkDwellingPlacement(landscape, village, 'zemnice', at(-13, 50)).ok).toBe(true);
+  it('smí na pole – díly pod vyklízenou plochou se zmenší (population.md, Martin)', () => {
+    const inside = checkDwellingPlacement(landscape, village, 'zemnice', at(-40, 50));
+    expect(inside).toMatchObject({ ok: true, warning: 'Pole se zmenší' });
+    // vyklízená plocha x −44,8 … −35,2, z 45,6 … 57,5 – celá v políčku (5, 11)
+    expect(inside.takenLand).toEqual([
+      { cell: { x: 5, y: 11 }, areaM2: expect.closeTo(9.6 * 11.9, 9), cellAreaM2: 225 },
+    ]);
+    // půdorys x −15 … −11 se pole jen dotýká, vyklízená plocha (x −17,8 …) do něj zasahuje
+    const beside = checkDwellingPlacement(landscape, village, 'zemnice', at(-13, 50));
+    expect(beside.ok).toBe(true);
+    expect(beside.takenLand).toEqual([
+      { cell: { x: 6, y: 11 }, areaM2: expect.closeTo(2.8 * 11.9, 9), cellAreaM2: 225 },
+    ]);
+    // daleko od pole nic nebere
+    expect(checkDwellingPlacement(landscape, village, 'zemnice', at(10, 0)).takenLand).toEqual([]);
   });
 
   it('díl bez políčka (stará data) nic nezabírá', () => {
@@ -195,11 +203,13 @@ describe('pozemek polozemnice', () => {
     expect(check.reason).toMatch(/nerovná/);
   });
 
-  it('políčko nesmí zabírat pole, jiný pozemek ani obydlí – a naopak', () => {
+  it('políčko nesmí zabírat jiný pozemek ani obydlí – a naopak; pole ano, zmenší se', () => {
     const fieldVillage: PlacementVillage = { ...EMPTY, parts: [{ cell: { x: 8, y: 8 } }] };
-    expect(checkPlotPlacement(landscape, fieldVillage, 'polozemnice', plot()).reason).toMatch(
-      /polem/,
-    );
+    expect(checkPlotPlacement(landscape, fieldVillage, 'polozemnice', plot())).toMatchObject({
+      ok: true,
+      warning: 'Pole se zmenší',
+      takenLand: [{ cell: { x: 8, y: 8 }, areaM2: 225, cellAreaM2: 225 }],
+    });
     const neighbour: PlacementVillage = {
       ...EMPTY,
       dwellings: [
@@ -458,6 +468,7 @@ describe('hřbitov brání obydlí i poli', () => {
       clearedTrees: 0,
       obstacleCounts: {},
       spared: { oaks: [], groves: [] },
+      takenLand: [],
     };
     expect(checkDwellingPlacement(landscape, village, 'zemnice', at(-45, 10))).toEqual({
       ok: true,

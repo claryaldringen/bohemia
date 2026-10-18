@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import { dayIndexOf } from '../../calendar';
+import { foundVillage } from '../actions';
 import { cloneState } from '../clone';
+import { ROAD_TREE_ID_BASE } from '../road-trees';
+import { advanceVillage } from '../simulate';
+import type { VillageRoads, VillageState } from '../types';
+import { withBuiltFirstDwelling } from './village-fixtures';
 
 describe('cloneState', () => {
   it('zkopíruje vnořené objekty a pole jako structuredClone', () => {
@@ -29,5 +35,87 @@ describe('cloneState', () => {
     expect(copy.byId.get(1)).toEqual({ a: 1 });
     expect(copy.when).toBeInstanceOf(Date);
     expect(copy.when.getTime()).toBe(0);
+  });
+
+  it('pevné cesty, stromy u nich a roční součty práce (roads.md) kopíruje celé', () => {
+    const roads: VillageRoads = {
+      nextId: 9,
+      roads: [
+        {
+          id: 1,
+          points: [
+            { x: 0.5, z: 1.25 },
+            { x: 40, z: -3 },
+          ],
+          bornDay: 1200,
+          grade: 'trodden',
+          traffic: [4.1, 3.9],
+          spots: [{ id: 2, x: 10, z: 3 }],
+        },
+      ],
+      trees: [
+        {
+          id: ROAD_TREE_ID_BASE + 3,
+          spot: 2,
+          x: 10,
+          z: 3,
+          species: 'oak',
+          rootedDay: 1500,
+          diesDay: 90000,
+        },
+      ],
+      candidates: [[{ x: 1, z: 2 }]],
+      labor: {
+        from: 1600,
+        days: 12,
+        shares: [
+          { target: { kind: 'field', id: 4 }, manDays: 7.5 },
+          { target: { kind: 'trees', ids: [11, 12] }, manDays: 1 },
+        ],
+      },
+    };
+    const state = { lastDay: 1611, roads } as Pick<VillageState, 'lastDay' | 'roads'>;
+    const before = structuredClone(state);
+    const copy = cloneState(state);
+    expect(copy).toEqual(before);
+    // nic se nesdílí – další kousek dopočtu nesmí měnit uložený stav
+    copy.roads!.roads[0]!.points[0]!.x = 99;
+    copy.roads!.roads[0]!.traffic.push(1);
+    copy.roads!.roads[0]!.spots.pop();
+    copy.roads!.trees[0]!.diesDay = 1;
+    copy.roads!.candidates[0]!.push({ x: 5, z: 5 });
+    copy.roads!.labor.shares[0]!.manDays += 1;
+    const ids = copy.roads!.labor.shares[1]!.target;
+    if (ids.kind === 'trees') ids.ids.push(13);
+    expect(state).toEqual(before);
+    expect(copy).not.toEqual(before);
+  });
+});
+
+describe('cloneState – stav vsi se zbytkem jámy', () => {
+  it('zbytky jam po zaniklých obydlích (pozemek, řemeslo) zkopíruje jako structuredClone', () => {
+    const day = dayIndexOf({ year: 600, month: 10, day: 1 });
+    const s = withBuiltFirstDwelling(
+      foundVillage({ seed: 3, day, dwellingPosition: { x: -100, z: -20, rotation: 0 } }),
+    );
+    s.storesKg = 5000;
+    s.dwellings.push({
+      id: 50,
+      type: 'polozemnice',
+      builtDay: day - 30 * 365,
+      condition: 0.0001,
+      position: { x: 40, z: 40, rotation: 0.3 },
+      plot: { cell: { x: 10, y: 10 }, variant: 'center' },
+    });
+    const state = advanceVillage(s, day + 3, null);
+    expect(state.ruins).toHaveLength(1);
+    expect(state.ruins![0]!.plot).toBeDefined();
+    state.ruins!.push({ ...state.ruins![0]!, id: 51, craft: 'potter' });
+    const copy = cloneState(state);
+    expect(copy).toEqual(structuredClone(state));
+    copy.ruins![0]!.position.x = 99;
+    copy.ruins![0]!.plot!.cell.x = 99;
+    expect(state.ruins![0]!.position.x).toBe(40);
+    expect(state.ruins![0]!.plot!.cell.x).toBe(10);
   });
 });

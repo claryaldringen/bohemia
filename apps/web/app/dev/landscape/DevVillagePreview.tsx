@@ -54,7 +54,17 @@ import type {
 } from '@/lib/scene/village-types';
 import { formatCells, formatHa, formatManDays, plural } from '@/lib/village-format';
 import { SACRED_OAK_GROWTH } from '@/lib/sacred-look';
+import {
+  HOLDINGS_DEMOS,
+  HOLDINGS_DEMO_NAMES,
+  HOLDINGS_SHOW_DAY,
+  holdingsDemo,
+  holdingsOverlay,
+  simulateHoldings,
+  type SimulatedPart,
+} from './dev-holdings';
 import { demoLabor } from './dev-labor';
+import { demoRoad } from './dev-road';
 import {
   placementVillageFromScene,
   scenePlot,
@@ -66,6 +76,8 @@ const STAGES: PartStage[] = ['founding', 'ready', 'sown', 'young-fallow', 'meado
 const SEASON_NAMES = { spring: 'jaro', summer: 'léto', autumn: 'podzim', winter: 'zima' } as const;
 /** Stáří obydlí pro pěšiny na vývojové stránce (let; null = odjakživa). */
 const PATH_AGES: (number | null)[] = [null, 0.5, 1, 2, 8, 20, 40];
+/** Ukázka hospodaření podle polohy domů – po kolika letech simulace se vzorec polí ukáže. */
+const HOLDINGS_YEARS = 20;
 /** „Přehrát rok“ – celý rok za tolik sekund. */
 const YEAR_PLAY_S = 60;
 const buttonClass =
@@ -145,6 +157,12 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   const [heatmap, setHeatmap] = useState(false);
   const [pathAge, setPathAge] = useState<number | null>(null);
   const [pathInfo, setPathInfo] = useState('');
+  // ukázka pevné cesty se stromy v různém stáří (roads.md, dev-road.ts)
+  const [road, setRoad] = useState<Pick<SceneVillage, 'roads' | 'roadTrees'> | null>(null);
+  // hospodaření podle polohy domů (fields.md): obrysy úseků a vzorec polí ze simulace jádra
+  const [holdingsOn, setHoldingsOn] = useState(false);
+  const [simulated, setSimulated] = useState<Map<string, SimulatedPart> | null>(null);
+  const [demo, setDemo] = useState(0);
   const nextId = useRef(1);
 
   const village = useMemo<SceneVillage>(() => {
@@ -152,12 +170,15 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
       dwellings,
       fields: fields.map((field): SceneField => ({
         id: field.id,
-        parts: field.parts.map((part, i) => devPart(field, part, i, { stage, mixed, lookMode })),
+        parts: field.parts.map((part, i) =>
+          devPart(field, part, i, { stage, mixed, lookMode, simulated }),
+        ),
       })),
       cemeteries,
       orchards,
       woodLogs,
       obstacles,
+      ...(road ?? {}),
       ...(sacredOaks.length > 0 || groves.length > 0 || sacredBuildings.length > 0
         ? { sacred: { oaks: sacredOaks, groves, buildings: sacredBuildings } }
         : {}),
@@ -199,6 +220,8 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     groves,
     sacredBuildings,
     pathAge,
+    road,
+    simulated,
   ]);
 
   useEffect(() => {
@@ -213,6 +236,12 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     scene?.setPathHeatmap(heatmap);
   }, [scene, heatmap]);
 
+  useEffect(() => {
+    if (!scene) return;
+    const cells = fields.flatMap((f) => f.parts.map((p) => p.cell));
+    scene.setHoldingsOverlay(holdingsOn ? holdingsOverlay(decoded, dwellings, cells) : null);
+  }, [scene, holdingsOn, decoded, dwellings, fields]);
+
   // čísla posledního výpočtu pěšin (přepočítají se odloženě po změně vsi)
   useEffect(() => {
     if (!scene) return;
@@ -220,7 +249,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
       const stats = scene.pathStats();
       setPathInfo(
         stats
-          ? `${stats.lines} úseků · ${stats.trips} tras · ${stats.trees} stromů · ${stats.ms.toFixed(0)} ms` +
+          ? `${stats.lines} úseků · ${stats.trips} tras · ${stats.roads} cest · ${stats.trees} stromů · ${stats.ms.toFixed(0)} ms` +
               (stats.terrainMs > 0 ? ` (+ terén ${stats.terrainMs.toFixed(0)} ms)` : '')
           : '',
       );
@@ -953,6 +982,49 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     setPeople((on) => !on);
   };
 
+  /** Ukázka pevné cesty se stromy (keř, mladý a plný strom, souš, pařez) – kamera k ní. */
+  const toggleRoad = (): void => {
+    if (road) {
+      setRoad(null);
+      return;
+    }
+    const sample = demoRoad(decoded);
+    setRoad({ roads: sample.roads, roadTrees: sample.trees });
+    const points = sample.roads[0]!.points;
+    const middle = points[Math.floor(points.length / 2)]!;
+    scene?.moveCameraTo(middle.x, middle.z);
+  };
+
+  /**
+   * Ukázka hospodaření podle polohy domů (řadová ves, samoty – střídá se): domy na pozemcích,
+   * pole kolem, vzorec polí po HOLDINGS_YEARS letech simulace jádra a obrysy úseků.
+   */
+  const showHoldings = (): void => {
+    scene?.cancelPlacement();
+    const kind = HOLDINGS_DEMOS[demo % HOLDINGS_DEMOS.length]!;
+    setDemo((d) => d + 1);
+    const layout = holdingsDemo(decoded, kind, () => nextId.current++);
+    setDwellings(layout.dwellings);
+    setFields([]);
+    setCemeteries([]);
+    setOrchards([]);
+    addField(layout.cells);
+    setSimulated(simulateHoldings(decoded, layout.dwellings, layout.cells, HOLDINGS_YEARS));
+    setHoldingsOn(true);
+    setPlayingYear(false);
+    setSeasonDay(HOLDINGS_SHOW_DAY);
+    const site = tileCenter(decoded, decoded.villageSite.x, decoded.villageSite.y);
+    scene?.moveCameraTo(site.worldX, site.worldZ);
+  };
+
+  /** Vzorec polí současné vývojové vsi po HOLDINGS_YEARS letech simulace (díly připravené). */
+  const simulateVillage = (): void => {
+    const cells = fields.flatMap((f) => f.parts.map((p) => p.cell));
+    setSimulated(simulateHoldings(decoded, dwellings, cells, HOLDINGS_YEARS));
+    setPlayingYear(false);
+    setSeasonDay(HOLDINGS_SHOW_DAY);
+  };
+
   const firstSite = dwellings.find((d) => !d.built);
   const firstSacredSite = sacredBuildings.find((b) => !b.built);
   const plantingSquare = orchards.flatMap((o) => o.squares).find((s) => s.planting < 1);
@@ -1086,6 +1158,15 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         <button
           className={buttonClass}
           disabled={!scene}
+          onClick={toggleRoad}
+          title="Ukázka pevné cesty se stromy v každém stadiu (keř, mladý, plný, souš, pařez)"
+          data-testid="dev-road"
+        >
+          {road ? 'Cesta ✓' : 'Cesta'}
+        </button>
+        <button
+          className={buttonClass}
+          disabled={!scene}
           onClick={() => setHeatmap((on) => !on)}
           data-testid="dev-path-heatmap"
         >
@@ -1137,6 +1218,30 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         <button className={buttonClass} disabled={!scene} onClick={showFields}>
           Ukázka polí
         </button>
+        <button
+          className={buttonClass}
+          disabled={!scene}
+          onClick={showHoldings}
+          data-testid="dev-holdings-demo"
+        >
+          Hospodaření: {HOLDINGS_DEMO_NAMES[HOLDINGS_DEMOS[demo % HOLDINGS_DEMOS.length]!]}
+        </button>
+        <button
+          className={buttonClass}
+          disabled={!scene}
+          onClick={() => setHoldingsOn((on) => !on)}
+          data-testid="dev-holdings"
+        >
+          {holdingsOn ? 'Úseky ✓' : 'Úseky'}
+        </button>
+        <button
+          className={buttonClass}
+          disabled={!scene || fields.length === 0}
+          onClick={simulated ? () => setSimulated(null) : simulateVillage}
+          title={`Vzorec polí po ${HOLDINGS_YEARS} letech simulace (dva dospělí v každém domě)`}
+        >
+          {simulated ? `Po ${HOLDINGS_YEARS} letech ✓` : `Po ${HOLDINGS_YEARS} letech`}
+        </button>
         <label className="flex items-center gap-1">
           <input type="checkbox" checked={mixed} onChange={(e) => setMixed(e.target.checked)} />
           střídat stavy
@@ -1186,6 +1291,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
             setGroves([]);
             setSacredBuildings([]);
             setObstacles(NO_OBSTACLE_CHANGES);
+            setSimulated(null);
           }}
         >
           Smazat ves
@@ -1290,9 +1396,16 @@ function devPart(
   field: DevField,
   part: DevField['parts'][number],
   index: number,
-  options: { stage: number; mixed: boolean; lookMode: LookMode },
+  options: {
+    stage: number;
+    mixed: boolean;
+    lookMode: LookMode;
+    simulated: ReadonlyMap<string, SimulatedPart> | null;
+  },
 ): SceneField['parts'][number] {
   const sample = field.sample;
+  const simulated = sample ? undefined : options.simulated?.get(`${part.cell.x},${part.cell.y}`);
+  if (simulated) return { ...part, id: index + 1, ...simulated };
   if (sample) {
     if (sample.look === null)
       return { ...part, id: index + 1, stage: 'founding', look: 'bare', work: 0 };

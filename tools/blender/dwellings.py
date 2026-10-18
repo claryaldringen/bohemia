@@ -36,6 +36,12 @@ Celý postup (art = <0ad>/binaries/data/mods/public/art, PNG z DDS viz atlas.py)
   blender -b --factory-startup --python tools/blender/trees_from_0ad.py -- \
       tools/blender/dwelling-grass.json art apps/web/public/models/dwellings
 Poslední krok jsou trsy trávy u okapu (grass-tuft-1.glb, grass-tuft-2.glb).
+
+Rozpad obydlí (decay.glb – stupně sešlý, propadá se, zřícený a zbytek jámy po zániku, kopřivy;
+podrobně v sekci „rozpad obydlí“ níže, který stupeň kdy, určuje apps/web/lib/scene/dwelling-decay.ts)
+se exportuje zvlášť pátým argumentem „decay“ – ostatní GLB obydlí se tím nepřepíšou, koše netřeba:
+  blender -b --factory-startup --python tools/blender/dwellings.py -- \
+      /tmp/dwelling-atlas - apps/web/public/models/dwellings /tmp/decay-renders decay
 """
 import json
 import math
@@ -47,12 +53,15 @@ from mathutils import Vector
 
 args = sys.argv[sys.argv.index("--") + 1 :]
 ATLAS, PROPS, OUT, RENDER = args[0], args[1], args[2], args[3]
+# pátý argument „decay“ = jen díly rozpadu obydlí (decay.glb), ostatní GLB se nepřepisují
+DECAY_ONLY = len(args) > 4 and args[4] == "decay"
 META = json.load(open(os.path.join(ATLAS, "atlas.json")))
 AW, AH, UPER = META["W"], META["H"], META["uperiod_m"]
 BANDS, REGIONS = META["bands"], META["regions"]
 
 COURSES = META["thatch_courses"]  # hranice řad došků po spádu od okapu (m) – sedí s atlasem
 LIP = 0.06  # o kolik spodní hrana řady přečnívá řadu pod ní (m)
+THATCH_NY = 6  # dílků řady došků podél hřebene (díly rozpadu jemněji – díry nejsou po metru)
 
 
 def noise(x, y):
@@ -329,12 +338,13 @@ class Parts:
         return [b.build(mat) for b in self.builders.values()]
 
 
-def thatch_roof(part, half_len, z_ridge, slope, x_eave, thickness, ny=6, kozy=(1.5, 0.62)):
+def thatch_roof(part, half_len, z_ridge, slope, x_eave, thickness, ny=None, kozy=(1.5, 0.62)):
     """Sedlová slámová střecha z řad došků (kurzů): každá řada je nepatrně strmější než
     střecha, takže spodní hrana přečnívá řadu pod ní o LIP – stupeň vrhá stín a řady jsou
     čitelné i z dálky. part(klíč) vrátí Builder: řady 'thatch-1' … 'thatch-N' zdola nahoru
     (staveniště je kladou postupně), hřeben s kozami 'ridge'. Vrací z_in(x) – spodní plochu
     střechy."""
+    ny = ny or THATCH_NY
     cs = 1 / math.sqrt(1 + slope * slope)
     t_v = thickness / cs  # svislá tloušťka
     L = x_eave / cs  # délka po spádu
@@ -1174,7 +1184,483 @@ def setup_world(grass_path):
     scene.collection.objects.link(g)
 
 
+# ------------------------------------------------------------------ rozpad obydlí
+
+# Rozpad obydlí (population.md – Co hráč vidí, Martin 18. 10. 2026: „jako se nový dům postupně
+# staví, tak starý a opuštěný dům se musí postupně rozpadat“). Stupně podle stavu obydlí – který
+# kdy, určuje scéna (apps/web/lib/scene/dwelling-decay.ts):
+#   1 sešlý (70–45 %)     došky vybledlé a prořídlé, místy díry, mech a tráva na střeše, omítka
+#                         místy opadaná (vidět výplet, u polozemnice trámy srubu)
+#   2 propadá se (45–20)  část došků pryč, vidět latě a krokve, hřeben prověšený a nakřivo
+#   3 zřícený (20–0 %)    střecha spadlá do jámy, trčí krokve a sloupy, stěny rozpadlé
+#   zbytek jámy           (po zániku obydlí) trámy v zarůstající prohlubni, nízké valy, kopřivy
+# Díly jsou tvary obydlí (build_zemnice / build_polozemnice se stages=True) přeskládané po plochách:
+# díry = vynechané plochy, prověšení a zřícení = posunuté vrcholy (plochy se nejdřív rozdělí na
+# dílky ≈ 0,5 m, aby se daly ohnout). Uzly decay.glb (souřadnice a počátek jako hotové obydlí):
+#   <typ>-<stupeň>          konstrukce (omítka, valy, krov, srub) – atlas obydlí
+#   <typ>-<stupeň>-thatch   zbylé došky a hřeben – materiál „decay-faded“ (atlas × vybledlá barva)
+#   <typ>-<stupeň>-moss     zarostlé kousky došků (mech, tráva) – „decay-moss“ (atlas × olivová)
+#   <typ>-ruin              trámy a pahýly sloupů na dně prohlubně (počátek = dno uprostřed)
+#   <typ>-ruin-late         totéž o pár let později – míň trámů, nižší pahýl
+#   <typ>-ruin-berms        nízké zarostlé valy kolem prohlubně (počátek = původní terén)
+#   nettle                  trs kopřiv (počátek = zem) – „decay-nettle“
+# Barvy materiálů jsou glTF baseColorFactor (obrázek atlasu je v GLB jen jednou).
+
+# rozměry z build_zemnice / build_polozemnice: jáma, půlrozměry, střecha; `collapse` = jak hluboko
+# spadne hřeben zřícené střechy pod terén, `wall` = val zbytků srubu, přes který se došky přehnou
+DECAY_SHAPES = {
+    "zemnice": {
+        "pit": 1.0,
+        "hx": 1.85,
+        "hy": 2.0,
+        "slope": 1.08,
+        "x_eave": 2.3,
+        "z_ridge": 1.08 * 2.3,
+        "half_len": 2.0 + GABLE_OVERHANG,
+        "collapse": 0.72,
+        "wall": 0.0,
+    },
+    "polozemnice": {
+        "pit": 0.5,
+        "hx": 2.1,
+        "hy": 2.1,
+        "slope": 1.0,
+        "x_eave": 2.6,
+        "z_ridge": 0.95 + 0.32 * math.sqrt(2) + 2.1,
+        "half_len": 2.1 + GABLE_OVERHANG,
+        "collapse": 0.3,
+        "wall": 0.3,
+    },
+}
+DECAY_TINTS = {
+    "decay-faded": (0.66, 0.63, 0.56),  # vybledlé, zašedlé došky a hřeben
+    "decay-moss": (0.46, 0.6, 0.3),  # došky zarostlé mechem a trávou
+    "decay-nettle": (0.5, 0.66, 0.4),  # kopřivy
+}
+DECAY_STEP = 0.55  # největší dílek plochy, která se ohýbá (m)
+
+
+def tinted_material(base, name, tint):
+    """Materiál s týmž obrázkem atlasu jako `base`, barva = atlas × tint (baseColorFactor)."""
+    mat = bpy.data.materials.new(name)
+    mat.use_backface_culling = True
+    nodes = mat.node_tree.nodes
+    bsdf = next(n for n in nodes if n.type == "BSDF_PRINCIPLED")
+    tex = nodes.new("ShaderNodeTexImage")
+    tex.image = next(n for n in base.node_tree.nodes if n.type == "TEX_IMAGE").image
+    mix = nodes.new("ShaderNodeMix")
+    mix.data_type = "RGBA"
+    mix.blend_type = "MULTIPLY"
+    mix.inputs["Factor"].default_value = 1.0
+    mat.node_tree.links.new(tex.outputs["Color"], mix.inputs["A"])
+    mix.inputs["B"].default_value = (*tint, 1)
+    mat.node_tree.links.new(mix.outputs["Result"], bsdf.inputs["Base Color"])
+    bsdf.inputs["Roughness"].default_value = 1.0
+    bsdf.inputs["Specular IOR Level"].default_value = 0.0
+    return mat
+
+
+def _polys(b):
+    """Plochy Builderu jako (body, uv, hladkost) – kopie vrcholů."""
+    return [([b.verts[i].copy() for i in face], list(uv), sm) for face, uv, sm in zip(b.faces, b.uvs, b.smooth)]
+
+
+def _put(b, pts, uv, sm=False):
+    """Plocha s hotovými UV atlasu (přeskládaná z jiného Builderu)."""
+    base = len(b.verts)
+    b.verts.extend(Vector(p) for p in pts)
+    b.faces.append(list(range(base, base + len(pts))))
+    b.uvs.append([tuple(t) for t in uv])
+    b.smooth.append(sm)
+
+
+def _normal(pts):
+    n = Vector((0, 0, 0))
+    for i, a in enumerate(pts):
+        c = pts[(i + 1) % len(pts)]
+        n.x += (a.y - c.y) * (a.z + c.z)
+        n.y += (a.z - c.z) * (a.x + c.x)
+        n.z += (a.x - c.x) * (a.y + c.y)
+    return n.normalized() if n.length > 1e-9 else n
+
+
+def _center(pts):
+    return sum(pts, Vector((0, 0, 0))) / len(pts)
+
+
+def _bilinear(a, b, c, d, s, t):
+    return a * ((1 - s) * (1 - t)) + b * (s * (1 - t)) + c * (s * t) + d * ((1 - s) * t)
+
+
+def _subdivide(pts, uv, step=DECAY_STEP):
+    """Čtyřúhelník rozdělený na dílky nejvýš `step` m (aby se dal ohnout), UV bilineárně."""
+    if len(pts) != 4:
+        return [(pts, uv)]
+    p0, p1, p2, p3 = pts
+    na = max(1, math.ceil(max((p1 - p0).length, (p2 - p3).length) / step - 1e-6))
+    nb = max(1, math.ceil(max((p3 - p0).length, (p2 - p1).length) / step - 1e-6))
+    if na == 1 and nb == 1:
+        return [(pts, uv)]
+    u0, u1, u2, u3 = (Vector((t[0], t[1], 0)) for t in uv)
+    out = []
+    for i in range(na):
+        for j in range(nb):
+            st = ((i / na, j / nb), ((i + 1) / na, j / nb), ((i + 1) / na, (j + 1) / nb), (i / na, (j + 1) / nb))
+            out.append((
+                [_bilinear(p0, p1, p2, p3, s, t) for s, t in st],
+                [tuple(_bilinear(u0, u1, u2, u3, s, t))[:2] for s, t in st],
+            ))
+    return out
+
+
+def _blot(x, y, salt):
+    """Skvrny ≈ 1 m (zhruba 0–1, deterministicky) – kde chybí došky, kde roste mech."""
+    return (
+        0.5
+        + 0.22 * math.sin(1.9 * x + 2.7 * y + 1.3 * salt)
+        + 0.16 * math.sin(3.3 * y - 1.1 * x + 2.1 * salt)
+        + 0.12 * math.sin(5.7 * x + 4.3 * y + 0.7 * salt)
+    )
+
+
+def _sag(shape, amount, lean):
+    """Prověšená střecha (stupeň 2): mezi štíty klesne hřeben o `amount`, přesah za štíty se
+    sveze dolů, okapy zůstanou na valech; celá střecha se nakloní na stranu (`lean` m ve výšce
+    hřebene)."""
+    hy, half_len, x_eave, z_ridge = shape["hy"], shape["half_len"], shape["x_eave"], shape["z_ridge"]
+
+    def f(p):
+        mid = max(0.0, 1 - (p.y / hy) ** 2)
+        over = max(0.0, (abs(p.y) - hy) / (half_len - hy))
+        k = max(0.0, 1 - abs(p.x) / x_eave) ** 0.7
+        h = max(0.0, p.z) / z_ridge
+        return Vector((p.x + lean * h, p.y, p.z - (amount * mid + 0.8 * amount * over) * k))
+
+    return f
+
+
+def _collapse(shape):
+    """Zřícená střecha (stupeň 3): hřeben spadl do jámy, okapy zůstaly na valech (u polozemnice
+    se došky přehnou přes zbytky srubu) – došky a krov leží v korytě, přesah za štíty na zemi,
+    vrstva se slehne."""
+    hy, half_len, x_eave = shape["hy"], shape["half_len"], shape["x_eave"]
+    z_ridge, slope, depth, wall = shape["z_ridge"], shape["slope"], shape["collapse"], shape["wall"]
+
+    def f(p):
+        ax = min(1.0, abs(p.x) / x_eave)
+        ay = abs(p.y)
+        w = 1.0 if ay <= hy else max(0.2, 1 - 0.8 * (ay - hy) / (half_len - hy))
+        below = p.z - (z_ridge - slope * abs(p.x))  # pod lícem střechy (tloušťka, krokve)
+        z = -depth * (1 - ax) ** 1.2 * w + 1.6 * noise(2.1 * p.x, 1.7 * p.y)
+        z += wall * math.exp(-(((abs(p.x) - 2.0) / 0.35) ** 2)) * min(1.0, w * 1.4)
+        return Vector((p.x * 0.94, p.y * 0.97, z + 0.45 * below + 0.05))
+
+    return f
+
+
+def _beams(b):
+    """Plochy Builderu po trámech (beam/plank = 6 ploch za sebou)."""
+    polys = _polys(b)
+    return [polys[i : i + 6] for i in range(0, len(polys), 6)]
+
+
+def _copy(dst, polys, deform=None, step=None):
+    """Plochy do `dst` – volitelně rozdělené na dílky a posunuté."""
+    for pts, uv, sm in polys:
+        pieces = _subdivide(pts, uv, step) if step else [(pts, uv)]
+        for p, u in pieces:
+            _put(dst, [deform(q) for q in p] if deform else p, u, sm)
+
+
+def _patch(b, origin, ax_u, ax_v, out, size, mat, uv_at, seed):
+    """Nepravidelná skvrna (osmiúhelník) těsně před plochou – opadaná omítka (výplet, trámy),
+    mech na doškách. `uv_at(du, dv)` = metrické (u, v) atlasu bodu skvrny."""
+    pts, uvm = [], []
+    for k in range(8):
+        a = 2 * math.pi * (k + 0.3 * (_rand(seed * 8 + k, 21) - 0.5)) / 8
+        r = 0.72 + 0.3 * _rand(seed * 8 + k, 22)
+        du, dv = 0.5 * size[0] * r * math.cos(a), 0.5 * size[1] * r * math.sin(a)
+        pts.append(Vector(origin) + Vector(ax_u) * du + Vector(ax_v) * dv + Vector(out) * 0.014)
+        uvm.append(uv_at(du, dv))
+    b.poly(pts, mat, out=out, uvm=uvm)
+
+
+def _wall_patches(b, kind, stage):
+    """Opadaná omítka: na štítech vidět výplet z proutí, u polozemnice na stěnách trámy srubu."""
+    count = 3 if stage == 1 else 6
+    grow = 1.0 if stage == 1 else 1.35
+    wattle = lambda du, dv, z: (du, z + dv + 0.05)  # noqa: E731
+    if kind == "zemnice":
+        spots = [(2.0, 0.9, 0.5), (2.0, -0.6, 1.0), (-2.0, 1.15, 0.38), (2.0, -0.2, 0.25), (-2.0, -1.2, 0.55), (-2.0, 0.65, 1.15)]
+        for i, (y, x, z) in enumerate(spots[:count]):
+            out = (0, 1 if y > 0 else -1, 0)
+            _patch(b, (x, y, z), (1, 0, 0), (0, 0, 1), out, (0.62 * grow, 0.42 * grow), "wattle", lambda du, dv, z=z: wattle(du, dv, z), 31 + i)
+        return
+    # polozemnice: boky srubu (x = ±2,1) – trámy pod mazanicí, štíty nad srubem – výplet
+    spots = [(2.1, 0.8, 0.45), (-2.1, -0.9, 0.3), (2.1, -1.1, 0.12), (-2.1, 1.2, 0.6), (2.1, 0.0, 0.7), (-2.1, 0.2, 0.2)]
+    for i, (x, y, z) in enumerate(spots[:count]):
+        out = (1 if x > 0 else -1, 0, 0)
+        _patch(b, (x, y, z), (0, 1, 0), (0, 0, 1), out, (0.7 * grow, 0.4 * grow), "logs_rot", lambda du, dv, y=y, z=z: (y + du, (z + dv) % 0.44 - 0.22), 41 + i)
+    for i, (y, x, z) in enumerate([(2.1, 0.5, 1.45), (-2.1, -0.6, 1.3)][: 1 if stage == 1 else 2]):
+        out = (0, 1 if y > 0 else -1, 0)
+        _patch(b, (x, y, z), (1, 0, 0), (0, 0, 1), out, (0.55 * grow, 0.38 * grow), "wattle", lambda du, dv, z=z: wattle(du, dv, z - 0.95), 51 + i)
+
+
+def _mossy(pts, salt, level):
+    """Zarůstá kousek došků mechem a trávou? Jen horní plochy, skvrny podle šumu (≈ 2 m)."""
+    c = _center(pts)
+    return _normal(pts).z > 0.3 and _blot(0.6 * c.x + 4.0, 0.6 * c.y, salt + 5) + 0.1 * _rand(int(97 * (c.x + 3.1 * c.y + 7)), 23) > level
+
+
+def decay_parts(kind, stage):
+    """Díly stupně rozpadu `stage` (1–3) obydlí `kind`: (konstrukce, došky, mech) – Buildery."""
+    shape = DECAY_SHAPES[kind]
+    src = Parts("src")
+    (build_zemnice if kind == "zemnice" else build_polozemnice)(src, stages=True)
+    parts = src.builders
+    main = Builder(f"{kind}-{stage}")
+    thatch = Builder(f"{kind}-{stage}-thatch")
+    moss = Builder(f"{kind}-{stage}-moss")
+    salt = 3 * stage + (0 if kind == "zemnice" else 11)
+    deform = {1: None, 2: _sag(shape, 0.5, 0.26), 3: _collapse(shape)}[stage]
+    hole = {1: 0.8, 2: 0.6, 3: 0.55}[stage]
+    moss_level = {1: 0.68, 2: 0.6, 3: 0.52}[stage]
+    x_eave, half_len = shape["x_eave"], shape["half_len"]
+
+    def missing(c):
+        """Chybí kousek došků v bodě c (původní poloha)? Díry jako skvrny ≈ 2 m s roztřepaným
+        okrajem; stupeň 2 hlavně kolem středu hřebene."""
+        bias = 0.1 * _rand(int(97 * (c.x + 3.1 * c.y + 11)), salt)
+        if stage == 2:
+            bias += 0.3 * max(0.0, 1 - abs(c.y) / half_len) * max(0.0, 1 - abs(c.x) / x_eave)
+        return _blot(0.55 * c.x, 0.55 * c.y, salt) + bias > hole
+
+    # došky a hřeben: díry, prověšení / zřícení, mech na horních plochách
+    for key, b in parts.items():
+        if not (key.startswith("thatch") or key == "ridge"):
+            continue
+        for pts, uv, sm in _polys(b):
+            # dílky ≈ 0,5 m: ohnou se, hřeben chybí po kusech (řady došků je mají z THATCH_NY)
+            for p, u in _subdivide(pts, uv) if deform or key == "ridge" else [(pts, uv)]:
+                if missing(_center(p)):
+                    continue
+                q = [deform(v) for v in p] if deform else p
+                _put(moss if _mossy(q, salt, moss_level) else thatch, q, u, sm)
+
+    # krov: latě, krokve a hřebenová vaznice – vidět děrami; ve stupni 2 a 3 část chybí
+    frame = [k for k in parts if k in ("laths", "ridge-beam") or k.startswith("rafters")]
+    for key in frame:
+        for i, beam in enumerate(_beams(parts[key])):
+            seed = sum(ord(ch) for ch in key) * 31 + i
+            drop = {1: 0.0, 2: 0.3 if key == "laths" else 0.15, 3: 0.55}[stage]
+            if _rand(seed, salt) < drop:
+                continue
+            _copy(main, beam, deform, DECAY_STEP if deform else None)
+
+    # valy hlíny zůstávají
+    _copy(main, _polys(parts["berms"]))
+
+    if stage < 3:
+        # stěny stojí, omítka místy opadala; sloupy krovu jdou s prověšeným hřebenem
+        _copy(main, _polys(parts["daub"]))
+        _wall_patches(main, kind, stage)
+        for key in ("posts", "plates"):
+            if key in parts:
+                _copy(main, _polys(parts[key]), deform, DECAY_STEP if deform else None)
+        return main, thatch, moss
+
+    if kind == "zemnice":
+        _zemnice_rubble(main, parts)
+    else:
+        _polozemnice_rubble(main, parts, deform)
+    _sticking_rafters(main, kind)
+    return main, thatch, moss
+
+
+def _gable_stub(b, y, x0, x1, top, seed):
+    """Zbytek omazaného štítu zemnice: pruh od ZG (pod zemí) po zubatou horní hranu `top`
+    (m nad terénem) – líc ven a hrana omítky nahoře."""
+    out = (0, 1 if y > 0 else -1, 0)
+    n = max(2, math.ceil((x1 - x0) / 0.4))
+    xs = [x0 + (x1 - x0) * i / n for i in range(n + 1)]
+    hs = [max(0.05, top * (0.75 + 0.5 * _blot(2.3 * x, 0.0, seed) - 0.25 * _rand(seed * 17 + i, 24))) for i, x in enumerate(xs)]
+    for i in range(n):
+        pts = [(xs[i], y, -0.5), (xs[i + 1], y, -0.5), (xs[i + 1], y, hs[i + 1]), (xs[i], y, hs[i])]
+        b.poly(pts, "daub", out=out, uvm=[(p[0], p[2]) for p in pts])
+        inner = y - 0.09 * out[1]
+        cap = [(xs[i], y, hs[i]), (xs[i + 1], y, hs[i + 1]), (xs[i + 1], inner, hs[i + 1] - 0.03), (xs[i], inner, hs[i] - 0.03)]
+        b.poly(cap, "wattle", out=(0, 0, 1), uvm=[(p[0], 0.1 + 0.4 * (p[1] - inner) * out[1]) for p in cap])
+
+
+def _zemnice_rubble(b, parts):
+    """Zřícená zemnice: ze štítů zbyly nízké zubaté pahýly, u dveří jeden sloup ostění, nadpraží
+    leží; ze dvou sloupů krovu jeden ulomený trčí, druhý leží v jámě; rohové kůly jámy stojí."""
+    px, py, door = 1.85, 2.0, DOOR
+    _gable_stub(b, py, -px, px, 0.55, 3)
+    _gable_stub(b, -py, -px, -door - 0.06, 0.42, 5)
+    _gable_stub(b, -py, door + 0.06, px, 0.3, 7)
+    b.beam((-0.48, -py - 0.06, -1.0), (-0.5, -py - 0.08, 0.72), 0.12)
+    b.beam((0.1, -py - 0.35, 0.05), (1.15, -py - 0.75, 0.0), 0.13)
+    # sloupy krovu: ulomený nakřivo, druhý spadl do jámy; rozsochy pryč
+    b.beam((0, -1.4, -1.0), (0.18, -1.32, 0.62), 0.17)
+    b.beam((-0.55, 1.15, -0.9), (1.1, 0.25, -0.62), 0.17)
+    for beam in _beams(parts["posts"])[6:]:  # rohové kůly výdřevy jámy
+        _copy(b, beam)
+
+
+def _polozemnice_rubble(b, parts, deform):
+    """Zřícená polozemnice: ze srubu zbyly spodní řady trámů (horní napůl, ještě výš jednotlivé
+    trámy), pár trámů spadlo dovnitř; vaznice se zřítily se střechou."""
+    keep = {1: 1.0, 2: 1.0, 3: 1.0, 4: 0.55, 5: 0.25, 6: 0.0}
+    for course, share in keep.items():
+        for i, beam in enumerate(_beams(parts[f"logs-{course}"])):
+            if _rand(course * 13 + i, 25) < share:
+                _copy(b, beam)
+    for a, c in (((-1.9, -0.8, 0.25), (-0.5, 0.9, -0.36)), ((1.95, 1.2, 0.3), (0.4, 0.2, -0.38)), ((0.6, -2.3, 0.12), (-0.9, -1.0, -0.4))):
+        b.beam(a, c, 0.21)
+    for i, beam in enumerate(_beams(parts["plates"])):
+        if i % 2 == 0:
+            _copy(b, beam, deform, DECAY_STEP)
+
+
+def _sticking_rafters(b, kind):
+    """Pár krokví trčí ze zřícené střechy – pata na valu (zemnice) nebo na zbytku srubu, ulomený
+    konec šikmo nahoru."""
+    if kind == "zemnice":
+        rafters = [((2.2, -1.2, 0.05), (1.15, -1.0, 1.2)), ((-2.2, 0.4, 0.05), (-1.0, 0.65, 1.0)), ((2.15, 1.8, 0.08), (1.35, 1.55, 0.85))]
+    else:
+        rafters = [((2.05, -1.0, 0.32), (0.95, -0.85, 1.45)), ((-2.05, 0.6, 0.3), (-0.85, 0.75, 1.25)), ((1.95, 2.0, 0.28), (1.2, 1.7, 1.0))]
+    for a, c in rafters:
+        b.beam(a, c, 0.1)
+
+
+def _overgrown_uv(uv):
+    """UV valu přemapované do trávy pásu drnů (zarostlý val): poloha v pásu (od paty valu)
+    se zachová, jen se stáhne do spodní, travnaté části pásu drnů."""
+    row = (1 - uv[1]) * AH
+    src = next((b for b in (BANDS["turf"], BANDS["spoil"]) if b["r0"] - 1 <= row <= b["r1"] + 1), BANDS["turf"])
+    t = min(1.0, max(0.0, (src["r1"] - row) / (src["r1"] - src["r0"])))
+    turf = BANDS["turf"]
+    return (uv[0], 1 - (turf["r1"] - 3 - 0.5 * t * (turf["r1"] - turf["r0"])) / AH)
+
+
+def ruin_parts(kind):
+    """Zbytek jámy: trámy a pahýly sloupů na dně prohlubně (dva stupně) a nízké zarostlé valy."""
+    shape = DECAY_SHAPES[kind]
+    hx, hy = shape["hx"] - 0.6, shape["hy"] - 0.6
+    early, late = Builder(f"{kind}-ruin"), Builder(f"{kind}-ruin-late")
+    logs = [
+        ((-hx, -0.4 * hy, 0.06), (0.7 * hx, 0.5 * hy, 0.02), 0.17),
+        ((0.2 * hx, -hy, 0.04), (0.9 * hx, 0.4 * hy, 0.09), 0.14),
+        ((-0.6 * hx, 0.75 * hy, 0.05), (0.5 * hx, 0.95 * hy, 0.03), 0.15),
+        ((-0.9 * hx, -0.95 * hy, 0.08), (-0.2 * hx, -0.3 * hy, 0.04), 0.12),
+    ]
+    for i, (a, c, size) in enumerate(logs):
+        early.beam(a, c, size)
+        if i in (0, 2):
+            late.beam((a[0], a[1], a[2] - 0.05), (c[0], c[1], c[2] - 0.05), size * 0.9)
+    stumps = [(0.15, -0.55 * hy), (-0.25, 0.6 * hy)] if kind == "zemnice" else [(-hx, -hy), (hx, hy)]
+    for i, (x, y) in enumerate(stumps):
+        early.beam((x, y, -0.25), (x + 0.03, y + 0.02, 0.45 - 0.15 * i), 0.15)
+    late.beam((stumps[0][0], stumps[0][1], -0.25), (stumps[0][0], stumps[0][1], 0.22), 0.14)
+    # valy: tvar valů obydlí, nižší a zarostlé trávou
+    src = Parts("src-ruin")
+    (build_zemnice if kind == "zemnice" else build_polozemnice)(src)
+    berms = Builder(f"{kind}-ruin-berms")
+    berms._smooth_now = True
+    for pts, uv, sm in _polys(src.builders["berms"]):
+        _put(berms, [Vector((p.x, p.y, p.z * 0.6)) for p in pts], [_overgrown_uv(t) for t in uv], sm)
+    return early, late, berms
+
+
+def nettle_clump(b):
+    """Trs kopřiv: sedm lodyh 0,5–0,95 m, na každé čtyři až pět párů křižmostojných listů
+    (lodyha z pásu drnů, list z oblasti zeleniny – řepa); listy šikmo, líc nahoru."""
+    prev = b._smooth_now
+    for k in range(7):
+        a = 2 * math.pi * (k + 0.4 * _rand(k, 26)) / 7
+        r0 = 0.04 + 0.14 * _rand(k, 27)
+        base = Vector((r0 * math.cos(a), r0 * math.sin(a), 0))
+        h = 0.5 + 0.45 * _rand(k, 28)
+        lean = 0.06 + 0.08 * _rand(k, 29)
+        tip = base + Vector((lean * math.cos(a), lean * math.sin(a), h))
+        b._smooth_now = False
+        b.beam(base, tip, 0.018, mat="turf")
+        b._smooth_now = "up"
+        n = 4 + k % 2
+        for j in range(n):
+            t = 0.28 + 0.68 * j / n
+            p = base.lerp(tip, t)
+            size = 0.13 * (1.15 - 0.55 * j / n)
+            phi = a + (math.pi / 2 if j % 2 else 0) + 0.4 * (_rand(k * 7 + j, 30) - 0.5)
+            for side in (-1, 1):
+                d = Vector((side * math.cos(phi), side * math.sin(phi), 0))
+                perp = Vector((-d.y, d.x, 0))
+                length, width = 1.6 * size, 0.5 * size
+                mid = p + d * (0.5 * length) + Vector((0, 0, 0.03))
+                leaf = [p, mid + perp * width, p + d * length - Vector((0, 0, 0.04)), mid - perp * width]
+                uv = [_veg_uv(1, 0.5, 0.0), _veg_uv(1, 1.0, 0.55), _veg_uv(1, 0.5, 1.0), _veg_uv(1, 0.0, 0.55)]
+                b.poly(leaf, "veg", out=(0, 0, 1), uvm=uv)
+    b._smooth_now = prev
+
+
+def decay_main():
+    """Jen díly rozpadu obydlí → decay.glb (ostatní GLB obydlí zůstanou beze změny)."""
+    global THATCH_NY
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    THATCH_NY = 12
+    mat = make_material()
+    mats = {name: tinted_material(mat, name, tint) for name, tint in DECAY_TINTS.items()}
+    objs = []
+    for kind in ("zemnice", "polozemnice"):
+        for stage in (1, 2, 3):
+            main, thatch, moss = decay_parts(kind, stage)
+            objs.append(main.build(mat))
+            objs.append(thatch.build(mats["decay-faded"]))
+            if moss.faces:
+                objs.append(moss.build(mats["decay-moss"]))
+        early, late, berms = ruin_parts(kind)
+        objs += [early.build(mat), late.build(mat), berms.build(mat)]
+    nettle = Builder("nettle")
+    nettle_clump(nettle)
+    objs.append(nettle.build(mats["decay-nettle"]))
+    os.makedirs(OUT, exist_ok=True)
+    export(objs, os.path.join(OUT, "decay.glb"))
+    for obj in objs:
+        print(f"PART {obj.name}: {tri_count(obj)} tris")
+    if RENDER != "-":
+        render_decay(objs)
+
+
+def render_decay(objs):
+    """Náhledy rozpadu: každý stupeň obou obydlí nad jámou, zbytek jámy a kopřivy."""
+    root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "apps", "web", "public", "textures", "terrain")
+    setup_world(os.path.join(root, "grass.jpg"))
+    os.makedirs(RENDER, exist_ok=True)
+    scene = bpy.context.scene
+    scene.cycles.samples = 24
+    grass_mat = bpy.data.materials["ground"]
+    earth_mat = textured_material("pit-earth", os.path.join(root, "mud.jpg"), (0.8, 0.62, 0.45))
+    by_name = {o.name: o for o in objs}
+    for kind in ("zemnice", "polozemnice"):
+        bpy.data.objects["ground"].hide_render = True
+        extra = pit_ground(kind, grass_mat, earth_mat)
+        for stage in (1, 2, 3):
+            shown = [by_name[n] for n in (f"{kind}-{stage}", f"{kind}-{stage}-thatch", f"{kind}-{stage}-moss") if n in by_name]
+            render(shown, os.path.join(RENDER, f"{kind}-{stage}.png"), (-7.5, -11.5, 7.0), (0.3, 0, 0.6), size=(900, 640))
+        for o in extra:
+            bpy.data.objects.remove(o)
+        bpy.data.objects["ground"].hide_render = False
+        ruin = [by_name[f"{kind}-ruin"], by_name[f"{kind}-ruin-berms"]]
+        render(ruin, os.path.join(RENDER, f"{kind}-ruin.png"), (-6.5, -9.5, 6.0), (0, 0, 0), size=(900, 640))
+    nettle = by_name["nettle"]
+    render([nettle], os.path.join(RENDER, "nettle.png"), (-1.6, -2.2, 1.4), (0, 0, 0.4), size=(700, 600))
+
+
 def main():
+    if DECAY_ONLY:
+        decay_main()
+        return
     bpy.ops.wm.read_factory_settings(use_empty=True)
     mat = make_material()
 

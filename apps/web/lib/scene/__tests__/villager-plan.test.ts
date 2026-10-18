@@ -596,11 +596,14 @@ describe('pěšiny – postavy chodí po vyšlapaných pěšinách (paths.md)', 
   }));
   /** Pěšina oklikou přes bod (30, −20); voda je u (40, 55), dřevo u (−40, −30). */
   const paths: VillagerPaths = {
-    route: (a, b) => [
-      [a.x, a.z],
-      [30, -20],
-      [b.x, b.z],
-    ],
+    route: (a, b) => ({
+      points: [
+        [a.x, a.z],
+        [30, -20],
+        [b.x, b.z],
+      ],
+      pace: [1, 1.33],
+    }),
     errand: (_id, kind) => (kind === 'water' ? { x: 40, z: 55 } : { x: -40, z: -26 }),
   };
 
@@ -618,16 +621,21 @@ describe('pěšiny – postavy chodí po vyšlapaných pěšinách (paths.md)', 
       [30, -20],
       [40, -10],
     ]);
+    // po pěšině (druhý úsek) se jde rychleji – trasa je „kratší“ chůzí než délkou
+    expect(route.walkLength!).toBeLessThan(route.length);
   });
 
   it('pěšina přes vodu neprojde – jde se rovnou', () => {
     const wet: VillagerPaths = {
       ...paths,
-      route: (a, b) => [
-        [a.x, a.z],
-        [100, 65],
-        [b.x, b.z],
-      ],
+      route: (a, b) => ({
+        points: [
+          [a.x, a.z],
+          [100, 65],
+          [b.x, b.z],
+        ],
+        pace: [1, 1],
+      }),
     };
     const route = walkRoute(
       { houses, ground: GROUND, graves: [], paths: wet },

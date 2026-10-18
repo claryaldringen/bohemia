@@ -124,6 +124,12 @@ export interface FieldPart {
   obstacles?: number[];
   /** Dospělé stromy mezi překážkami – po založení dílu dají klády na hromadu (forest.md). */
   trees?: number;
+  /**
+   * Vzdálenost chůze z nejbližšího obydlí po vyšlapaných pěšinách (m, paths.md – Pěšiny a práce):
+   * po pěšině se chodí rychleji, nikdy víc než `distanceM`. Přepočítá se se změnou rozložení vsi
+   * (`refreshWalkDistances`); chybí u vsí uložených dřív a bez krajiny (= `distanceM`).
+   */
+  walkDistanceM?: number;
 }
 /** Pole – jeho čtverce jsou políčka jeho dílů (`FieldPart.cell`). */
 export interface Field {
@@ -184,11 +190,23 @@ export interface OrchardSquare {
   obstacles?: number[];
   /** Dospělé stromy mezi překážkami – s vyklizením čtverce dají klády na hromadu (forest.md). */
   trees?: number;
+  /**
+   * Obnova (orchard.md – Obnova sadu): id stavby obnovy, do které vesničané čtverec zařadili.
+   * Dokud na něj práce nedojde, stojí staré stromy (`plantedDay` výsadby, ze které rostou);
+   * s první prací se staré stromy skácí a čtverec se sází znovu (`plantedDay` null, výsadba
+   * bez překážek). Po výsadbě údaj zmizí. U ostatních čtverců chybí.
+   */
+  renewal?: number;
 }
 /** Jabloňový sad – souvislá skupina čtverců (orchard.md). */
 export interface Orchard {
   id: number;
   squares: OrchardSquare[];
+  /**
+   * Hospodářský rok sadu (rok jeho jara), ve kterém vesničané naposledy zařadili čtverce do
+   * obnovy – za rok sadu jen jednou (orchard.md – Obnova sadu). Chybí = ještě nikdy.
+   */
+  renewedSeason?: number;
 }
 /** Sezónní práce v sadech celé vsi – sklizeň (září–říjen), nebo péče (prosinec–únor). */
 export interface OrchardWork {
@@ -228,6 +246,11 @@ export interface Construction {
   fieldId: number | null; // field – zakládá díly od nejbližšího
   cemeteryId?: number | null; // cemetery (u starších staveb chybí)
   orchardId?: number | null; // orchard – vysazuje čtverce od nejbližšího (u ostatních chybí)
+  /**
+   * Obnova sadu (orchard.md – Obnova sadu): stavbu založili vesničané sami a sází znovu jen
+   * čtverce s `OrchardSquare.renewal` = id stavby. U výsadby a ostatních staveb chybí.
+   */
+  renewal?: true;
   /** Ohrada – stavba ohrady a rádlo pro její spřežení (oxen.md); u ostatních chybí. */
   penId?: number | null;
   /** Dřevo obydlí, přestavby, modly a svatyně (forest.md); u starších staveb a polí chybí. */
@@ -329,6 +352,8 @@ export type ChronicleEvent = { day: number } & (
   | { kind: 'village-extinct' }
   | { kind: 'household-founded'; dwellingId: number }
   | { kind: 'household-merged'; fromDwellingId: number; toDwellingId: number }
+  /** Sňatek mezi domy (population.md) – svobodný z domu `from` se přestěhoval k protějšku. */
+  | { kind: 'marriage'; fromDwellingId: number; toDwellingId: number }
   | {
       kind: 'construction-finished';
       constructionKind: ConstructionKind;
@@ -355,11 +380,22 @@ export type ChronicleEvent = { day: number } & (
   | { kind: 'ox-died'; penId: number; training: boolean }
   /** Sad dosloužil (60. rok) a vrátil se v louku. */
   | { kind: 'orchard-gone'; orchardId: number }
+  /** Vesničané zařadili čtverce starého sadu do obnovy (orchard.md – Obnova sadu). */
+  | { kind: 'orchard-renewal-started'; orchardId: number; squares: number }
+  /**
+   * Pole nebo sad ustoupil stavbě obydlí (population.md – Obydlí na poli a v sadu): o kolik m² se
+   * zmenšil, a jestli tím zanikl (dům sebral poslední čtverec).
+   */
+  | { kind: 'land-taken'; land: 'field' | 'orchard'; id: number; areaM2: number; gone: boolean }
   | { kind: 'hunger-began' }
   | { kind: 'hunger-ended' }
   | { kind: 'part-became-forest'; partId: number }
   /** Vesničané při mýcení ušetřili posvátný dub nebo dubový háj (happiness.md) – id místa. */
   | { kind: 'sacred-spared'; site: 'oak' | 'grove'; id: number }
+  /** Z dlouhodobého provozu vznikla pevná cesta (roads.md) – id úseku. */
+  | { kind: 'road-formed'; roadId: number }
+  /** Nepoužívaná vyšlapaná cesta zarostla (roads.md – Zarůstání) – id úseku. */
+  | { kind: 'road-overgrown'; roadId: number }
   | {
       kind: 'cemetery-full';
       cemeteryId: number;
@@ -507,8 +543,9 @@ export interface VillageState {
    */
   woodLogs?: number;
   /**
-   * Rozdělení práce posledního odsimulovaného dne (labor-report.ts) – jen pro zobrazení, simulace
-   * ho nečte. U vsí uložených před jeho zavedením chybí do prvního dopočítaného dne.
+   * Rozdělení práce posledního odsimulovaného dne (labor-report.ts) – pro zobrazení; simulace ho
+   * čte jen přes síť pěšin (kam se chodí – vzdálenost chůze dílů, paths.md). U vsí uložených
+   * před jeho zavedením chybí do prvního dopočítaného dne.
    */
   labor?: LaborDay;
   /** Štěstí obyvatel (happiness.md) – u vsí uložených před jeho zavedením chybí (= výchozí 50). */
@@ -541,6 +578,120 @@ export interface VillageState {
    * uložených před převodem – při načtení se jednou převedou.
    */
   plotsMigrated?: true;
+  /**
+   * Klíč rozložení vsi, pro které se naposledy spočítaly vzdálenosti chůze dílů po pěšinách
+   * (`FieldPart.walkDistanceM`). Chybí, dokud se nespočítaly (starší vsi, simulace bez krajiny).
+   */
+  walkLayoutKey?: string;
+  /**
+   * Pevné cesty, stromy u nich a roční součty práce (roads.md). Chybí u vsí uložených před nimi
+   * a ve vsích simulovaných bez krajiny (kalibrace, testy) – začnou při prvním dopočtu s krajinou.
+   */
+  roads?: VillageRoads;
+  /**
+   * Zbytky jam po zaniklých obydlích (population.md – Chátrání a přestavba, Po zániku) – zarůstají
+   * RUIN_YEARS let, pak zmizí (ruins.ts). Chybí = žádné (i u vsí uložených před nimi).
+   */
+  ruins?: DwellingRuin[];
+}
+
+// --- pevné cesty (roads.md) ------------------------------------------------------------------
+
+/** Bod osy pevné cesty ve světě (m, na centimetry). */
+export interface RoadPoint {
+  x: number;
+  z: number;
+}
+
+/**
+ * Stupeň pevné cesty (roads.md – Vylepšení cesty): vyšlapaná (vznikne sama), upravená a hať
+ * s lávkou (staví hráč – zatím jen vyšlapaná).
+ */
+export type RoadGrade = 'trodden' | 'improved' | 'causeway';
+
+/** Místo na strom u pevné cesty – určené jednou při vzniku cesty (roads.md – Stromy). */
+export interface RoadTreeSpot {
+  id: number;
+  x: number;
+  z: number;
+}
+
+/**
+ * Pevná cesta – úsek mezi rozcestími a konci (roads.md – Dvě vrstvy cest): osa se uloží při
+ * vzniku a od té doby se nehýbe (jen se při napojení nové cesty rozdělí na dva úseky).
+ */
+export interface Road {
+  id: number;
+  /** Osa – lomená čára ve světě (m, na cm); rozcestí sdílejí bod. */
+  points: RoadPoint[];
+  /** Herní den vzniku (rozdělený úsek ho zdědí). */
+  bornDay: number;
+  grade: RoadGrade;
+  /**
+   * Provoz posledních let (cest za den – roční průměr, nejnovější poslední; nejvýš
+   * ROADS.overgrowYears) – podle něj vyšlapaná cesta zaroste.
+   */
+  traffic: number[];
+  spots: RoadTreeSpot[];
+}
+
+/** Druh stromu u cesty (roads.md – Druhy): dub, jilm, topol. */
+export type RoadTreeSpecies = 'oak' | 'elm' | 'poplar';
+
+/**
+ * Strom u pevné cesty (roads.md – Stromy u pevných cest) – herní data: uchytil se na místě
+ * `spot` a stojí tam do smrti; keř, strom, souš a pařez se odvozují ze dne (`roadTreeLook`). Id
+ * leží nad rozsahem vrstvy překážek (ROAD_TREE_ID_BASE) – stavba přes strom ho odstraní jako
+ * ostatní překážky (`clearedObstacles`).
+ */
+export interface RoadTree {
+  id: number;
+  spot: number;
+  x: number;
+  z: number;
+  species: RoadTreeSpecies;
+  rootedDay: number;
+  /** Den smrti stářím – pak souš, pařez a místo je zase volné. */
+  diesDay: number;
+}
+
+/** Práce za rok cest na jednom místě (člověkodny celkem) – `field` bez dílů. */
+export interface RoadLaborShare {
+  target: LaborTarget;
+  manDays: number;
+}
+
+/** Pevné cesty vsi (roads.md). */
+export interface VillageRoads {
+  /** Další id úseku, místa a stromu (strom: ROAD_TREE_ID_BASE + id). */
+  nextId: number;
+  roads: Road[];
+  trees: RoadTree[];
+  /**
+   * Úseky roční sítě nad prahem z minulé roční kontroly (osy po ≈ 4 m) – kde se nad prahem chodí
+   * i letos, vznikne pevná cesta.
+   */
+  candidates: RoadPoint[][];
+  /**
+   * Práce od poslední roční kontroly (od 1. 11.) po místech – z rozdělení práce dne. Roční síť
+   * z ní bere průměrné člověkodny na den (`manDays / days`).
+   */
+  labor: { from: number; days: number; shares: RoadLaborShare[] };
+}
+
+/**
+ * Zbytek jámy po zaniklém obydlí: zarostlá prohlubeň s kopřivami a pár trámy (population.md –
+ * Po zániku). Poloha, typ, pozemek a řemeslo zaniklého obydlí (jen pro vzhled) a den zániku; id =
+ * id zaniklého obydlí. Na místo zříceniny jde stavět – stavba ji odstraní.
+ */
+export interface DwellingRuin {
+  id: number;
+  type: DwellingType;
+  position: Position;
+  plot?: DwellingPlot;
+  craft?: Craft;
+  /** Den zániku obydlí – od něj jáma zarůstá. */
+  day: number;
 }
 
 /** Druh stáda (diet.md – Dobytek); slepice patří k obydlím, voli k ohradám. */
@@ -593,7 +744,10 @@ export interface HaySquare {
   partId?: number;
   cell?: TileCell;
   areaM2: number;
-  /** Od středu políčka k nejbližšímu obydlí (m). */
+  /**
+   * Vzdálenost chůze z nejbližšího obydlí po pěšinách při plánu seče (m, paths.md – Pěšiny
+   * a práce; díl `partWalkDistance`, políčko ke středu); bez pěšin přímá.
+   */
   distanceM: number;
 }
 

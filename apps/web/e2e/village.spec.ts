@@ -132,7 +132,7 @@ function* around(x: number, z: number, maxR: number): Generator<Position> {
 
 /**
  * Místo pro první zemnici u místa vsi, pole 3 × 2 čtverce (0,135 ha) vedle ní a pozemek pro
- * polozemnici (celé políčko, dům uprostřed), který nepřekáží ani jednomu.
+ * polozemnici (celé políčko, dům uprostřed), který nepřekáží ani jednomu (ani poli nic nevezme).
  */
 function villageSpots(l: Landscape): {
   dwelling: Position;
@@ -167,7 +167,8 @@ function villageSpots(l: Landscape): {
               variant: 'center',
             };
             const check = checkPlotPlacement(l, village, 'polozemnice', plot);
-            if (check.ok && check.position) {
+            // pozemek smí i na pole (zmenší ho) – test chce pole celé
+            if (check.ok && check.position && check.takenLand.length === 0) {
               return { dwelling, cells, second: { position: check.position, plot } };
             }
           }

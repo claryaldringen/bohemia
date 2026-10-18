@@ -68,7 +68,7 @@ const exactMathSyntax = [
     message: 'Mocnina ** je v JS přibližná – v deterministické vrstvě násob, nebo napiš konstantu.',
   },
 ];
-/** Soubory, ze kterých vzniká vrstva překážek (generuje ji server i prohlížeč). */
+/** Soubory, ze kterých vzniká vrstva překážek a síť pěšin (počítá je server i prohlížeč). */
 const DETERMINISTIC_LAYER_FILES = [
   'packages/game/src/domain/landscape/obstacles/**/*.ts',
   'packages/game/src/domain/landscape/forest-field.ts',
@@ -77,6 +77,8 @@ const DETERMINISTIC_LAYER_FILES = [
   'packages/game/src/domain/landscape/det-math.ts',
   'packages/game/src/domain/landscape/quantize.ts',
   'packages/game/src/domain/landscape/world.ts',
+  // vyšlapané pěšiny – síť počítá server (vzdálenost chůze na pole) i prohlížeč (vzhled)
+  'packages/game/src/domain/village/paths/**/*.ts',
 ];
 
 export default defineConfig(

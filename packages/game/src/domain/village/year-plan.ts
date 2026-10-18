@@ -1,6 +1,7 @@
 import { dateOfDayIndex } from '../calendar';
 import {
   distanceFactor,
+  partWalkDistance,
   effectiveFertility,
   fallowYears,
   grossYieldPerHa,
@@ -37,9 +38,12 @@ export function emptyTaskRecord(): Record<TaskName, number> {
 /** Práce dílu za rok po úlohách a orba rádlem (`plough` – jen díly, které orá spřežení). */
 export type PartWork = Record<TaskName, number> & { plough: number };
 
-/** Váha dílu v polních pracích – plocha × příplatek za vzdálenost (ha). */
+/**
+ * Váha dílu v polních pracích – plocha × příplatek za vzdálenost chůze po pěšinách (ha, paths.md)
+ * – stejný příplatek jako v `partWork`.
+ */
 export function partWeight(part: FieldPart): number {
-  return (part.areaM2 / M2_PER_HA) * distanceFactor(part.distanceM);
+  return (part.areaM2 / M2_PER_HA) * distanceFactor(partWalkDistance(part));
 }
 
 /**
@@ -55,7 +59,7 @@ export function partWork(
 ): PartWork {
   const work: PartWork = { ...emptyTaskRecord(), plough: 0 };
   const ha = part.areaM2 / M2_PER_HA;
-  const factor = distanceFactor(part.distanceM);
+  const factor = distanceFactor(partWalkDistance(part));
   const weedFree = isWeedFree(part, day);
   for (const task of RATE_TASKS) {
     if (task === 'weed' && weedFree) continue;
@@ -71,19 +75,28 @@ export function partWork(
   return work;
 }
 
+/** Pořadí dílů, ve kterém k nim postupuje práce plodiny. */
+export type WorkOrder = (parts: readonly FieldPart[]) => FieldPart[];
+
+/** Dřívější pořadí práce: nejblíž obydlím první, při shodě podle id. */
+export const nearestFirst: WorkOrder = (parts) =>
+  [...parts].sort((a, b) => a.distanceM - b.distanceM || a.id - b.id);
+
 /**
  * Práce jedné plodiny pro vybrané díly (viz `partWork`). Díly se seřadí, jak k nim práce
- * postupuje – nejblíž obydlím první, při shodě podle id (fields.md – Postup práce po čtvercích).
- * S `plough` orá spřežení díly, které rádlo zvládne (`plough` v práci plodiny).
+ * postupuje (fields.md – Postup práce po čtvercích): ves s hospodářstvími po úsecích od domu ven
+ * (`workOrder` v holdings.ts), jinak nejblíž obydlím první, při shodě podle id. S `plough` orá
+ * spřežení díly, které rádlo zvládne (`plough` v práci plodiny).
  */
 export function createCropWork(
   selected: FieldPart[],
   day: number,
   toolCoverage: number,
   plough = false,
+  order: WorkOrder = nearestFirst,
 ): CropWork {
   const required = emptyTaskRecord();
-  const ordered = [...selected].sort((a, b) => a.distanceM - b.distanceM || a.id - b.id);
+  const ordered = order(selected);
   const reclaimIds: number[] = [];
   const ploughIds: number[] = [];
   let ploughRequired = 0;
@@ -127,8 +140,9 @@ export function createPlan(
   day: number,
   toolCoverage: number,
   plough = false,
+  order: WorkOrder = nearestFirst,
 ): YearPlan {
-  return { plannedDay: day, ...createCropWork(selected, day, toolCoverage, plough) };
+  return { plannedDay: day, ...createCropWork(selected, day, toolCoverage, plough, order) };
 }
 
 /** Roční plán s ozimem a jaří (fields.md – Ozim a jař); bez ozimu bez `winter`. */
@@ -137,16 +151,18 @@ export function createYearPlan(
   day: number,
   toolCoverage: number,
   plough = false,
+  order: WorkOrder = nearestFirst,
 ): YearPlan {
-  const plan = createPlan(crops.spring, day, toolCoverage, plough);
+  const plan = createPlan(crops.spring, day, toolCoverage, plough, order);
   if (crops.winter.length > 0) {
-    plan.winter = createCropWork(crops.winter, day, toolCoverage, plough);
+    plan.winter = createCropWork(crops.winter, day, toolCoverage, plough, order);
   }
   return plan;
 }
 
 /**
- * Přidá do práce plodiny další díly (mutuje `work`). S `plough` je orá spřežení (díly, které
+ * Přidá do práce plodiny další díly (mutuje `work`) – nová dávka jde na konec, seřazená `order`.
+ * S `plough` je orá spřežení (díly, které
  * rádlo zvládne) – plodina bez orby ji dostane; `parts` (díly vsi) pak určí váhu dílů, které se
  * u ní dosud kopaly (bez nich 0 – setí jde jen za orbou přidaných dílů).
  */
@@ -157,8 +173,9 @@ export function addToCropWork(
   toolCoverage: number,
   plough = false,
   parts?: ReadonlyMap<number, FieldPart>,
+  order: WorkOrder = nearestFirst,
 ): void {
-  const extra = createCropWork(added, day, toolCoverage, plough);
+  const extra = createCropWork(added, day, toolCoverage, plough, order);
   // váha dílů, které se u plodiny dosud kopaly – před přidáním nových dílů
   const dugBefore = work.plough
     ? work.plough.digWeight

@@ -1,7 +1,13 @@
 import { dateOfDayIndex } from '../calendar';
-import { surfaceAt, tileCenterWorld, tileOfWorldPoint, type Landscape } from '../landscape';
-import { distanceFactor, fallowYears } from './fields';
-import { OVERGROWTH_STAGES, type WindowSegment } from './rules';
+import {
+  length2,
+  surfaceAt,
+  tileCenterWorld,
+  tileOfWorldPoint,
+  type Landscape,
+} from '../landscape';
+import { distanceFactor, fallowYears, partWalkDistance } from './fields';
+import { OVERGROWTH_STAGES, PATH_WALK, type WindowSegment } from './rules';
 import type { FieldPart, HayMowing, HaySquare, HayState, TileCell, VillageState } from './types';
 
 // Seno (oxen.md – Seno, diet.md – Dobytek): krávy a voli přes zimu (listopad–březen) sežerou
@@ -52,16 +58,36 @@ export function isHayMeadow(part: FieldPart, day: number): boolean {
   return part.state === 'fallow' && fallowYears(part, day) > YOUNG_FALLOW_YEARS;
 }
 
-/** Váha louky v seči – její práce (plocha × příplatek za vzdálenost), jako u polních prací. */
+/**
+ * Váha louky v seči – její práce (plocha × příplatek za vzdálenost chůze po pěšinách – paths.md),
+ * jako u polních prací. Vzdálenost louky se ukládá při plánu seče (`HaySquare.distanceM`).
+ */
 function mowWeight(square: { areaM2: number; distanceM: number }): number {
   return (square.areaM2 / M2_PER_HA) * distanceFactor(square.distanceM);
 }
 
+/** Vzdálenost se ukládá na desetiny metru (dolů – jako vzdálenost chůze dílů). */
+const DISTANCE_ROUNDING = 10;
+
+function roundDistance(m: number): number {
+  return Math.floor(m * DISTANCE_ROUNDING) / DISTANCE_ROUNDING;
+}
+
+/**
+ * Vzdálenosti chůze z obydlí po pěšinách ke středům políček (m) – `walkDistancesTo`
+ * v paths/village.ts; null = bez sítě pěšin (přímé vzdálenosti).
+ */
+export type MeadowWalk = (targets: readonly { x: number; z: number }[]) => number[] | null;
+
 /**
  * Políčka přirozené louky do HAY_REACH_M od nejbližšího obydlí, která nezabírá pole, sad,
- * hřbitov, pozemek, ohrada ani obydlí (oxen.md – Seno). Bez krajiny nebo obydlí žádná.
+ * hřbitov, pozemek, ohrada ani obydlí (oxen.md – Seno), s přímou vzdáleností od obydlí. Bez
+ * krajiny nebo obydlí žádná.
  */
-function naturalMeadows(state: VillageState, landscape: Landscape | null): HaySquare[] {
+function naturalMeadows(
+  state: VillageState,
+  landscape: Landscape | null,
+): (HaySquare & { cell: TileCell; x: number; z: number })[] {
   if (!landscape) return [];
   const houses = [
     ...state.dwellings.map((d) => d.position),
@@ -92,44 +118,91 @@ function naturalMeadows(state: VillageState, landscape: Landscape | null): HaySq
   const minY = Math.max(0, Math.min(...tiles.map((t) => t.y)) - reach);
   const maxY = Math.min(landscape.size - 1, Math.max(...tiles.map((t) => t.y)) + reach);
   const area = landscape.cellSizeM * landscape.cellSizeM;
-  const squares: HaySquare[] = [];
+  const squares: (HaySquare & { cell: TileCell; x: number; z: number })[] = [];
   for (let y = minY; y <= maxY; y++) {
     for (let x = minX; x <= maxX; x++) {
       if (taken.has(y * landscape.size + x) || surfaceAt(landscape, x, y) !== 'meadow') continue;
       const c = tileCenterWorld(landscape, x, y);
       let distanceM = Infinity;
-      for (const h of houses) distanceM = Math.min(distanceM, Math.hypot(h.x - c.x, h.z - c.z));
-      if (distanceM <= HAY_REACH_M) squares.push({ cell: { x, y }, areaM2: area, distanceM });
+      for (const h of houses) distanceM = Math.min(distanceM, length2(h.x - c.x, h.z - c.z));
+      if (distanceM <= HAY_REACH_M) {
+        squares.push({ cell: { x, y }, areaM2: area, distanceM, x: c.x, z: c.z });
+      }
     }
   }
   return squares;
 }
 
+/** Pořadí luk v seči: od nejbližší, při shodě díly úhoru (podle id) a pak políčka po řádcích. */
+function byDistance(a: HaySquare, b: HaySquare): number {
+  return (
+    a.distanceM - b.distanceM ||
+    (a.partId ?? Infinity) - (b.partId ?? Infinity) ||
+    (a.cell?.y ?? 0) - (b.cell?.y ?? 0) ||
+    (a.cell?.x ?? 0) - (b.cell?.x ?? 0)
+  );
+}
+
+/** Vzdálenost, do které louky od nejbližší pokryjí `need` kg sena (jinak Infinity). */
+function coverDistance(sorted: readonly HaySquare[], need: number): number {
+  let yieldKg = 0;
+  for (const square of sorted) {
+    yieldKg += (square.areaM2 / M2_PER_HA) * HAY.yieldKgPerHa;
+    if (yieldKg >= need - EPSILON) return square.distanceM;
+  }
+  return Infinity;
+}
+
+/**
+ * Vzdálenosti chůze přirozených luk po pěšinách (mutuje `meadows`): chůze je nejvýš přímá
+ * vzdálenost a nejméně (1 − PATH_WALK.speedup) × přímá – louky, které i rovně leží dál než
+ * vzdálenost pokrytí potřeby ÷ (1 − speedup), se do seče nedostanou a síť je neměří.
+ */
+function walkMeadows(
+  meadows: (HaySquare & { x: number; z: number })[],
+  parts: readonly HaySquare[],
+  need: number,
+  walk: MeadowWalk,
+): void {
+  const reach = coverDistance([...parts, ...meadows].sort(byDistance), need);
+  const near = meadows.filter((m) => m.distanceM * (1 - PATH_WALK.speedup) <= reach);
+  if (near.length === 0) return;
+  const walks = walk(near);
+  if (!walks) return;
+  near.forEach((m, k) => {
+    m.distanceM = Math.min(m.distanceM, walks[k] ?? Infinity);
+  });
+}
+
 /**
  * Plán seče (1. 6.): seno, které stádo na zimu potřebuje (`heads` kusů dobytka × 1,5 t) bez
  * zásoby, z luk od nejbližší k obydlí – dílů úhoru ve fázi louky a s krajinou i přirozených luk
- * (`naturalMeadows`) –, dokud úroda sena potřebu nepokryje. Bez potřeby nebo bez luk null.
+ * (`naturalMeadows`) –, dokud úroda sena potřebu nepokryje. Vzdálenost je chůze po pěšinách jako
+ * u polních prací: díly `partWalkDistance`, přirozené louky přes `walk` (bez něj rovně). Bez
+ * potřeby nebo bez luk null.
  */
 export function planMowing(
   state: VillageState,
   day: number,
   heads: number,
   landscape: Landscape | null = null,
+  walk: MeadowWalk | null = null,
 ): HayMowing | null {
   const need = heads * HAY.perHeadKg - villageHayKg(state);
   if (need <= EPSILON) return null;
+  const parts = state.parts
+    .filter((p) => isHayMeadow(p, day))
+    .map((p): HaySquare => ({ partId: p.id, areaM2: p.areaM2, distanceM: partWalkDistance(p) }));
+  const meadows = naturalMeadows(state, landscape);
+  if (walk && meadows.length > 0) walkMeadows(meadows, parts, need, walk);
   const candidates: HaySquare[] = [
-    ...state.parts
-      .filter((p) => isHayMeadow(p, day))
-      .map((p): HaySquare => ({ partId: p.id, areaM2: p.areaM2, distanceM: p.distanceM })),
-    ...naturalMeadows(state, landscape),
-  ].sort(
-    (a, b) =>
-      a.distanceM - b.distanceM ||
-      (a.partId ?? Infinity) - (b.partId ?? Infinity) ||
-      (a.cell?.y ?? 0) - (b.cell?.y ?? 0) ||
-      (a.cell?.x ?? 0) - (b.cell?.x ?? 0),
-  );
+    ...parts,
+    ...meadows.map(({ cell, areaM2, distanceM }): HaySquare => ({
+      cell,
+      areaM2,
+      distanceM: roundDistance(distanceM),
+    })),
+  ].sort(byDistance);
   const squares: HaySquare[] = [];
   let required = 0;
   let yieldKg = 0;
@@ -186,7 +259,7 @@ function mowingSquares(mowing: HayMowing, partsById: ReadonlyMap<number, FieldPa
   if (mowing.squares) return mowing.squares;
   return mowing.partIds.flatMap((id) => {
     const part = partsById.get(id);
-    return part ? [{ partId: id, areaM2: part.areaM2, distanceM: part.distanceM }] : [];
+    return part ? [{ partId: id, areaM2: part.areaM2, distanceM: partWalkDistance(part) }] : [];
   });
 }
 

@@ -4,6 +4,7 @@ import {
   RAIL_WEAVE_M,
   WOVEN_CORNER_RADIUS_M,
   WOVEN_INNER_CORNER_RADIUS_M,
+  decayFence,
   fencePosts,
   fenceStage,
   wovenFence,
@@ -171,5 +172,42 @@ describe('fenceStage', () => {
     expect(side(0)).toBeCloseTo(1, 9);
     expect(side(1)).toBeCloseTo(-1, 9);
     expect(side(count)).toBeCloseTo(-1, 9);
+  });
+});
+
+describe('rozpad pleteného plotu (opuštěný pozemek)', () => {
+  const built = fenceStage(wovenFence([{ points: rect, closed: true }], style, null), style, {
+    posts: 1,
+    rails: 1,
+  });
+
+  it('bez rozpadu celý; s rozpadem ubývá větví, kůly se kloní, nakonec pahýly', () => {
+    expect(decayFence(built, 0, 3)).toBe(built);
+    const some = decayFence(built, 0.45, 3);
+    const most = decayFence(built, 0.85, 3);
+    expect(some.posts).toHaveLength(built.posts.length);
+    expect(most.posts).toHaveLength(built.posts.length);
+    expect(some.rails.length).toBeLessThan(built.rails.length);
+    expect(some.rails.length).toBeGreaterThan(0);
+    expect(most.rails.length).toBeLessThan(some.rails.length);
+    const leaning = (s: typeof built): number => s.posts.filter((p) => p.lean).length;
+    const stumps = (s: typeof built): number => s.posts.filter((p) => p.sink !== undefined).length;
+    expect(leaning(some)).toBeGreaterThan(0);
+    expect(stumps(some)).toBe(0);
+    expect(stumps(most)).toBeGreaterThan(0);
+    // větev nevede k pahýlu
+    for (const rail of most.rails) {
+      expect(most.posts[rail.a]!.sink).toBeUndefined();
+      expect(most.posts[rail.b]!.sink).toBeUndefined();
+    }
+    for (const post of most.posts) {
+      if (post.lean) expect(Math.hypot(post.lean.x, post.lean.z)).toBeLessThan(0.5);
+      if (post.sink !== undefined) expect(post.sink).toBeGreaterThanOrEqual(0.6);
+    }
+  });
+
+  it('pevně podle seedu – stejný plot se rozpadá pořád stejně', () => {
+    expect(decayFence(built, 0.6, 8)).toEqual(decayFence(built, 0.6, 8));
+    expect(decayFence(built, 0.6, 8)).not.toEqual(decayFence(built, 0.6, 9));
   });
 });

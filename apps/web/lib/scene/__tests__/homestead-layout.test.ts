@@ -209,6 +209,28 @@ describe('pozemek během stavby', () => {
     expect(full.plants).toHaveLength(layout.plants.length);
   });
 
+  it('rozpad: plot padá, zelenina mizí a záhony zarůstají plevelem; bez rozpadu beze změny', () => {
+    const built = { posts: 1, rails: 1, beds: 1 };
+    const full = plotStage(layout, built);
+    expect(full.weeds).toEqual([]);
+    expect(plotStage(layout, built, { fence: 0, beds: 0, seed: 4 })).toEqual(full);
+    const some = plotStage(layout, built, { fence: 0.45, beds: 0.5, seed: 4 });
+    const all = plotStage(layout, built, { fence: 0.85, beds: 1, seed: 4 });
+    expect(some.beds).toEqual(full.beds);
+    expect(some.plants.length).toBeLessThan(full.plants.length);
+    expect(all.plants.length).toBeLessThan(some.plants.length);
+    expect(some.weeds.length).toBeGreaterThan(0);
+    expect(all.weeds.length).toBeGreaterThan(some.weeds.length);
+    expect(some.fence.rails.length).toBeLessThan(full.fence.rails.length);
+    // plevel leží na svém záhonu
+    for (const weed of all.weeds) {
+      const bed = all.beds[weed.bed]!;
+      expect(Math.abs(weed.x - bed.x)).toBeLessThanOrEqual(bed.length / 2);
+      expect(Math.abs(weed.z - bed.z)).toBeLessThanOrEqual(0.4);
+    }
+    expect(plotStage(layout, built, { fence: 0.85, beds: 1, seed: 4 })).toEqual(all);
+  });
+
   it('vytyčení při zadání: kolíky a provázek po obdélníku budoucího plotu', () => {
     const line = plotStakingLine(square);
     const rect = plotFenceRect(square);

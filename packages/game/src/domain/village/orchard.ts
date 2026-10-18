@@ -22,12 +22,16 @@ import type {
 } from './types';
 
 // Jabloňové sady (orchard.md): výsadba jako stavba ze společné práce v oknech jara a podzimu,
-// rok sadu, úroda podle stáří, sezónní práce (sklizeň v září–říjnu, péče v zimě) a stárnutí –
-// v 60. roce se sad vrátí v louku. Čisté funkce a kroky simulace (mutují stav, volat na klonu).
+// rok sadu, úroda podle stáří, sezónní práce (sklizeň v září–říjnu, péče v zimě), obnova – od
+// 50. roku sadu vesničané čtverce sami sázejí znovu (Obnova sadu) – a stárnutí: čtverec, na který
+// obnova nedošla, se v 60. roce vrátí v louku. Čisté funkce a kroky simulace (mutují stav, volat
+// na klonu).
 
 const M2_PER_HA = 10_000;
 const MONTHS_PER_YEAR = 12;
 const DAYS_PER_YEAR = 365.25;
+/** Tolerance zaokrouhlení podílu čtverců nahoru (40 × 0,1 nesmí dát 5). */
+const SHARE_EPSILON = 1e-9;
 
 type DayOfYear = Readonly<Pick<CalendarDate, 'month' | 'day'>>;
 
@@ -163,7 +167,8 @@ export function orchardAreaM2(orchard: Orchard): number {
 
 /**
  * Stáří sadu v celých letech od výsadby (průměr vysazených čtverců vážený plochou – čtverce
- * vysazené v různých oknech se liší o rok); dokud není nic vysazeno, null.
+ * vysazené v různých oknech se liší o rok, obnovou sad postupně mládne); dokud není nic
+ * vysazeno, null.
  */
 export function orchardAgeYears(orchard: Orchard, day: number): number | null {
   const planted = orchard.squares.filter((s) => s.plantedDay !== null);
@@ -179,34 +184,69 @@ function orchardOf(state: VillageState, c: Construction): Orchard | undefined {
   return villageOrchards(state).find((o) => o.id === c.orchardId);
 }
 
-/** Čtverce, které se ještě sázejí, od nejbližšího k obydlím (při shodě po řádcích). */
-function unplantedSquares(orchard: Orchard): OrchardSquare[] {
+/**
+ * Čtverce, které stavba sází, od nejbližšího k obydlím (při shodě po řádcích): výsadba
+ * nevysazené čtverce, obnova čtverce zařazené do ní (i ty, kde ještě stojí staré stromy).
+ */
+function plantingSquares(orchard: Orchard, c: Construction): OrchardSquare[] {
   return orchard.squares
-    .filter((s) => s.plantedDay === null)
+    .filter((s) =>
+      c.renewal ? s.renewal === c.id : s.renewal === undefined && s.plantedDay === null,
+    )
     .sort((a, b) => a.distanceM - b.distanceM || a.cell.y - b.cell.y || a.cell.x - b.cell.x);
 }
 
-/** Je výsadba sadu hotová (všechny čtverce vysazené, nebo sad zanikl)? */
-export function isOrchardPlanted(state: VillageState, c: Construction): boolean {
-  const orchard = orchardOf(state, c);
-  return !orchard || orchard.squares.every((s) => s.plantedDay !== null);
+/** Čtverec obnovy, na kterém ještě stojí staré stromy (práce na něj nedošla). */
+function awaitsFelling(square: OrchardSquare): boolean {
+  return square.renewal !== undefined && square.plantedDay !== null;
 }
 
 /**
- * Kolik práce výsadbě dnes chybí – jen v oknech výsadby (jaro, podzim); mimo ně stavba sadu
- * společnou práci nebere a čeká.
+ * Čtverce, na kterých se dnes dá sázet: staré stromy obnovy se nekácejí, dokud běží sklizeň
+ * jablek – její úroda se počítá i z nich (orchard.md – Obnova sadu).
+ */
+function workableSquares(state: VillageState, orchard: Orchard, c: Construction): OrchardSquare[] {
+  const squares = plantingSquares(orchard, c);
+  const harvesting =
+    state.orchardWork?.task === 'harvest' && orchardWorkRemaining(state.orchardWork) > 0;
+  return harvesting ? squares.filter((s) => !awaitsFelling(s)) : squares;
+}
+
+/** Výsadba obnovovaného čtverce – jako výsadba, překážky na něm už nejsou. */
+function renewalPlantingCost(square: OrchardSquare): number {
+  return orchardPlantingCost(square.areaM2, 0);
+}
+
+/** Kolik práce čtverci do vysazení chybí (u čtverce obnovy se starými stromy celá výsadba). */
+function squarePlantingNeed(square: OrchardSquare): number {
+  return awaitsFelling(square)
+    ? renewalPlantingCost(square)
+    : square.plantingCost - square.plantingDone;
+}
+
+/** Je výsadba (obnova) sadu hotová (všechny její čtverce vysazené, nebo sad zanikl)? */
+export function isOrchardPlanted(state: VillageState, c: Construction): boolean {
+  const orchard = orchardOf(state, c);
+  return !orchard || plantingSquares(orchard, c).length === 0;
+}
+
+/**
+ * Kolik práce výsadbě (obnově) dnes chybí – jen v oknech výsadby (jaro, podzim); mimo ně stavba
+ * sadu společnou práci nebere a čeká.
  */
 export function orchardPlantingNeed(state: VillageState, c: Construction, day: number): number {
   const orchard = orchardOf(state, c);
   if (!orchard || !monthInWindow(ORCHARD_PLANTING_WINDOWS, dateOfDayIndex(day).month)) return 0;
-  return unplantedSquares(orchard).reduce((sum, s) => sum + (s.plantingCost - s.plantingDone), 0);
+  return workableSquares(state, orchard, c).reduce((sum, s) => sum + squarePlantingNeed(s), 0);
 }
 
 /**
  * Vloží společnou práci do výsadby (mutuje stav): čtverce od nejbližšího, přebytek dne teče do
  * dalšího. Překážky z čtverce zmizí natrvalo, jakmile na něm práce začne (nejdřív se vyklidí,
  * pak se zatloukají kůly a sázejí stromky – sazenice tak nestojí mezi kameny a keři), vysazený
- * čtverec dostane den výsadby. `completes` = výsadba dostala vše, co jí dnes chyběla.
+ * čtverec dostane den výsadby. Obnova (orchard.md – Obnova sadu) s první prací na čtverci skácí
+ * staré stromy a sází ho znovu; vysazený čtverec z obnovy vypadne. `completes` = výsadba dostala
+ * vše, co jí dnes chyběla.
  */
 export function plantOrchard(
   state: VillageState,
@@ -218,8 +258,15 @@ export function plantOrchard(
   const orchard = orchardOf(state, c);
   if (!orchard) return;
   let left = amount;
-  for (const square of unplantedSquares(orchard)) {
+  let used = 0;
+  for (const square of workableSquares(state, orchard, c)) {
     if (!completes && left <= 0) break;
+    if (awaitsFelling(square)) {
+      // staré stromy se skácí – čtverec roste znovu od sazenic
+      square.plantedDay = null;
+      square.plantingCost = renewalPlantingCost(square);
+      square.plantingDone = 0;
+    }
     if (square.obstacles) {
       recordClearedObstacles(state, square.obstacles, day);
       delete square.obstacles;
@@ -232,14 +279,20 @@ export function plantOrchard(
     const need = square.plantingCost - square.plantingDone;
     if (completes || left >= need) {
       left -= need;
+      used += need;
       square.plantingDone = square.plantingCost;
       square.plantedDay = day;
+      delete square.renewal;
     } else {
       square.plantingDone += left;
+      used += left;
       break;
     }
   }
-  c.done = orchard.squares.reduce((sum, s) => sum + s.plantingDone, 0);
+  // obnova počítá jen svou práci – vysazené čtverce z ní vypadly
+  c.done = c.renewal
+    ? Math.min(c.cost, c.done + used)
+    : orchard.squares.reduce((sum, s) => sum + s.plantingDone, 0);
 }
 
 // --- sezónní práce -----------------------------------------------------------------------------
@@ -274,7 +327,8 @@ const SEASON_START: DayOfYear = { month: ORCHARD_SEASON.startMonth, day: 1 };
  * Začátek dne v sadech (mutuje stav, před prací a jídlem dne). 1. 3.: nesnědená jablka shnijí
  * (v nádobách později – `applesSpoiled` podle pokrytí nádobami, crafts.md), péče končí
  * a čtverce v 60. roce sadu se vrátí v louku. 1. 9.: sklizeň (práce podle úrody). 1. 11.: konec
- * sklizně – nesklizená jablka spadla a shnila. 1. 12.: péče o vysazené stromy.
+ * sklizně – nesklizená jablka spadla a shnila. 1. 12.: péče o vysazené stromy. Každý den v oknech
+ * výsadby: vesničané zařadí staré čtverce do obnovy (`renewOrchards`).
  */
 export function orchardSeasonDay(
   state: VillageState,
@@ -293,6 +347,7 @@ export function orchardSeasonDay(
   }
   if (isOn(date, HARVEST_SEASON.start)) startWork(state, day, 'harvest');
   if (isOn(date, CARE_SEASON.start)) startWork(state, day, 'care');
+  events.push(...renewOrchards(state, day));
   return events;
 }
 
@@ -328,8 +383,8 @@ function rotApples(state: VillageState): void {
 }
 
 /**
- * 1. 3.: čtverce v 60. roce sadu se vrátí v louku (stromy dosloužily – orchard.md). Sad bez
- * čtverců zanikne a kronika to zapíše.
+ * 1. 3.: čtverce v 60. roce sadu se vrátí v louku (stromy dosloužily – orchard.md) – i ty, které
+ * čekaly na obnovu a práce na ně nedošla. Sad bez čtverců zanikne a kronika to zapíše.
  */
 function retireOrchards(state: VillageState, day: number): ChronicleEvent[] {
   const orchards = state.orchards;
@@ -345,5 +400,77 @@ function retireOrchards(state: VillageState, day: number): ChronicleEvent[] {
     }
   }
   state.orchards = orchards.filter((o) => o.squares.length > 0);
+  return events;
+}
+
+// --- obnova sadu -------------------------------------------------------------------------------
+
+/**
+ * Kolik čtverců sadu o `squares` čtvercích se za rok sadu nejvýš obnoví: desetina, zaokrouhleno
+ * nahoru, aspoň 1 (orchard.md – Obnova sadu).
+ */
+export function renewalQuota(squares: number): number {
+  return Math.max(1, Math.ceil(squares * ORCHARD.renewalShareYear - SHARE_EPSILON));
+}
+
+/**
+ * Patří čtverec v den `day` do obnovy? Vysazený čtverec od 50. roku sadu – posledního roku plné
+ * úrody; do 60. roku tak na obnovu zbývá 10 let (orchard.md – Obnova sadu).
+ */
+export function squareDueForRenewal(square: OrchardSquare, day: number): boolean {
+  return (
+    square.plantedDay !== null && orchardYear(square.plantedDay, day) >= ORCHARD.declineAfterYear
+  );
+}
+
+/**
+ * Vesničané sami obnovují staré sady (mutuje stav, na začátku dne – orchard.md – Obnova sadu):
+ * v oknech výsadby zařadí do obnovy čtverce od 50. roku sadu, nejstarší první (při shodě
+ * v pořadí čtverců), nejvýš `renewalQuota` – jednou za rok sadu a jen když sad nemá
+ * rozestavěnou výsadbu ani předchozí obnovu. Obnova je stavba sadu ze společné práce
+ * (`Construction.renewal`) – nečeká na hráče ani na suroviny, jako přestavba obydlí. Rozhoduje
+ * jen stav a den, ne kousky dopočtu – staré sady (i uložené dřív) se zařadí samy.
+ */
+function renewOrchards(state: VillageState, day: number): ChronicleEvent[] {
+  const orchards = state.orchards;
+  if (!orchards || orchards.length === 0) return [];
+  if (!monthInWindow(ORCHARD_PLANTING_WINDOWS, dateOfDayIndex(day).month)) return [];
+  const season = orchardSeason(day);
+  const events: ChronicleEvent[] = [];
+  for (const orchard of orchards) {
+    if (orchard.renewedSeason === season) continue;
+    if (state.constructions.some((c) => c.kind === 'orchard' && c.orchardId === orchard.id)) {
+      continue;
+    }
+    const due = orchard.squares
+      .map((square, index) => ({ square, index }))
+      .filter(({ square }) => squareDueForRenewal(square, day))
+      .sort((a, b) => (a.square.plantedDay ?? 0) - (b.square.plantedDay ?? 0) || a.index - b.index)
+      .slice(0, renewalQuota(orchard.squares.length))
+      .map(({ square }) => square);
+    if (due.length === 0) continue;
+    const id = state.nextId++;
+    for (const square of due) square.renewal = id;
+    orchard.renewedSeason = season;
+    state.constructions.push({
+      id,
+      kind: 'orchard',
+      startedDay: day,
+      cost: due.reduce((sum, s) => sum + renewalPlantingCost(s), 0),
+      done: 0,
+      dwellingType: null,
+      position: null,
+      dwellingId: null,
+      fieldId: null,
+      orchardId: orchard.id,
+      renewal: true,
+    });
+    events.push({
+      day,
+      kind: 'orchard-renewal-started',
+      orchardId: orchard.id,
+      squares: due.length,
+    });
+  }
   return events;
 }

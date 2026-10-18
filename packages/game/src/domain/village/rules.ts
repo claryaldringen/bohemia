@@ -170,6 +170,46 @@ export const OBSTACLE_COST = {
 } as const;
 // fields.md – Práce (vzdálenost od obydlí, +1 % za každých 10 m nad 100 m)
 export const DISTANCE = { freeM: 100, percentPer10M: 1 } as const;
+// paths.md – Pěšiny a práce (Martin 18. 10. 2026: „Tam, kde bude vyšlapaná cesta, ať se chodí
+// o něco lépe než tam, kde není.“): po vyšlapané pěšině se chodí o čtvrtinu rychleji – úsek
+// pěšiny síly s se do vzdálenosti dílu (fields.md – Vzdálenost) počítá (1 − speedup × s) × délka
+export const PATH_WALK = { speedup: 0.25 } as const;
+// roads.md – Dvě vrstvy cest (návrh Clauda, schváleno 18. 10. 2026): pevné cesty se počítají
+// jednou za rok k 1. 11. (po sklizni jablek) z celoroční práce; úsek, kudy se dva roky po sobě
+// chodí aspoň 3× denně (roční průměr), se stane pevnou cestou; vyšlapaná cesta, kudy se 5 let po
+// sobě chodí pod polovinu prahu, zaroste
+export const ROADS = {
+  yearDay: { month: 11, day: 1 },
+  tripsPerDay: 3,
+  years: 2,
+  overgrowYears: 5,
+  overgrowShare: 0.5,
+} as const;
+// roads.md – Stromy u pevných cest (Martin: napřed keř, stojí, dokud samy neodumřou; čísla návrh
+// Clauda): místa po 12–20 m střídavě po stranách 2,5–4 m od osy, stromy nejméně 8 m od sebe;
+// uchycení 10 % ročně na volném místě u cesty starší 5 let; polovina dubů, zbytek jilmy a topoly;
+// keř 8 let, pak mladý strom 30 % velikosti, plná velikost ve 40 letech; kládu při stavbě dá
+// strom od 20 let (mladší je mladý stromek); život topol 60–100, jilm 100–200, dub 200–400 let,
+// pak souš 10 let a pařez 10 let
+export const ROAD_TREES = {
+  spacingM: { from: 12, to: 20 },
+  offsetM: { from: 2.5, to: 4 },
+  gapM: 8,
+  rootAfterYears: 5,
+  rootChancePerYear: 0.1,
+  speciesShare: { oak: 0.5, elm: 0.28 },
+  shrubYears: 8,
+  youngScale: 0.3,
+  fullYears: 40,
+  logFromYears: 20,
+  lifeYears: {
+    poplar: { from: 60, to: 100 },
+    elm: { from: 100, to: 200 },
+    oak: { from: 200, to: 400 },
+  },
+  snagYears: 10,
+  stumpYears: 10,
+} as const;
 // fields.md – Založení pole (nejdál 800 m od obydlí, nejmenší výměra 0,1 ha)
 export const FIELD_LIMITS = { maxDistanceM: 800, minAreaM2: 1000 } as const;
 // fields.md – Práce (denní minimum domácností – meze: s hrnčířem 0,45); population.md – Práce
@@ -182,6 +222,9 @@ export const COMMON_LABOR_HISTORY_DAYS = 30;
 // lepší obydlí podle ročního průměru společné práce – klouzavý (exponenciální) průměr s časovou
 // konstantou jednoho roku, aby výmlat v zimě ani žně ves nezchudly
 export const COMMON_LABOR_YEAR_DAYS = 365;
+// population.md – Chátrání a přestavba, Po zániku (Martin 18. 10. 2026, číslo návrh Clauda): zbytek
+// jámy po zaniklém obydlí (zarostlá prohlubeň s kopřivami a pár trámy) zarůstá ≈ 10 let, pak zmizí
+export const RUIN_YEARS = 10;
 // cemetery.md – Pravidla (stavba: vytyčení a ohrazení 10 člověkodní na čtverec; hrob i s uličkami
 // 4 m², na čtverec 15 × 15 m se vejde 56 hrobů)
 export const CEMETERY = { costPerSquare: 10, graveM2: 4, gravesPerSquare: 56 } as const;
@@ -236,8 +279,12 @@ export const CROP_ORDER: readonly Crop[] = ['winter', 'spring'];
 // orchard.md – Pravidla (Martin – oprava podle rešerše 17. 10. 2026): výsadba 80 člověkodní/ha
 // (+ překážky jako u pole), péče v zimě 10 člověkodní/ha ročně, sklizeň 8 člověkodní/ha při plné
 // úrodě (při menší úrodě poměrně méně); první jablka 6. rok po výsadbě, úroda lineárně do plné
-// úrody 25. rok, plná do 50. roku, pak lineárně k nule v 60. roce – tehdy se sad vrátí v louku;
-// plná úroda ≈ 3 t jablek/ha ročně
+// úrody 25. rok, plná do 50. roku, pak lineárně k nule v 60. roce – tehdy se čtverec vrátí
+// v louku; plná úroda ≈ 3 t jablek/ha ročně.
+// orchard.md – Obnova sadu (Martin 18. 10. 2026 – vesničané obnovují sami, čísla návrh Clauda):
+// čtverce od 50. roku sadu (`declineAfterYear` – poslední rok plné úrody) vysadí vesničané znovu,
+// za rok sadu nejvýš desetina čtverců (`renewalShareYear`, nahoru, aspoň 1) – za 10 let do konce
+// (50.–59. rok) se tak obnoví celý sad
 export const ORCHARD = {
   plantingPerHa: 80,
   carePerHa: 10,
@@ -247,6 +294,7 @@ export const ORCHARD = {
   fullYieldYear: 25,
   declineAfterYear: 50,
   endYear: 60,
+  renewalShareYear: 0.1,
 } as const;
 // orchard.md – Úroda (jablka mají asi 1/7 výživy obilí na kg: 3 t jablek ≈ 430 kg obilí)
 export const APPLE_FOOD_VALUE = 1 / 7;
@@ -335,6 +383,12 @@ export const PLOT_HOUSE_ROTATION = Math.PI;
  * varianty než tolik metrů se na něj posune, dál zůstane stát, kde je.
  */
 export const PLOT_SNAP_M = 2;
+/**
+ * population.md – Obydlí na poli a v sadu (Martin, 18. 10. 2026: „Pole a sad se prostě zmenší
+ * o plochu domu“; práh návrh Clauda): díl pole nebo čtverec sadu, kterému po stavbě obydlí zbude
+ * méně než tento podíl políčka, zmizí celý – zbytek u domu by nikdo neobdělával.
+ */
+export const TAKEN_LAND_MIN_SHARE = 0.2;
 /**
  * Polozemnice bez pozemku dostane při přestavbě nejbližší volné políčko – nejvýš tak daleko od
  * domu (m, ke středu políčka); dál žádné nehledá a zůstane bez pozemku.
