@@ -58,12 +58,36 @@ describe('rodiny, které se mohou oddělit', () => {
       ...couple({ id: 20, age: 26, mother: 11, father: 10 }, { id: 21, age: 22 }),
     ]);
     expect(leavingFamilies(heir, DAY)).toEqual([]);
-    // rodiče zemřeli – ženatí bratři: zůstává starší, mladší se oddělí
+    // rodiče zemřeli – ženatí bratři v plném domě (6 lidí): zůstává starší, mladší se oddělí
     const brothers = build([
       ...couple({ id: 20, age: 30, mother: 91, father: 90 }, { id: 21, age: 27 }),
       ...couple({ id: 30, age: 26, mother: 91, father: 90 }, { id: 31, age: 24 }),
+      { id: 40, age: 4, sex: 'male', mother: 21, father: 20 },
+      { id: 41, age: 2, sex: 'female', mother: 31, father: 30 },
     ]);
-    expect(leavingFamilies(brothers, DAY).map((f) => ids(f.people))).toEqual([[30, 31]]);
+    expect(leavingFamilies(brothers, DAY).map((f) => ids(f.people))).toEqual([[30, 31, 41]]);
+  });
+
+  it('z neplného domu žádná rodina – lidé k osídlení jen z plné domácnosti', () => {
+    // dva páry ve 4 lidech v zemnici pro 6 – jako zakladatelé, když se jejich děti vezmou
+    const notFull = build([
+      ...couple({ id: 20, age: 30, mother: 91, father: 90 }, { id: 21, age: 27 }),
+      ...couple({ id: 30, age: 26, mother: 91, father: 90 }, { id: 31, age: 24 }),
+    ]);
+    expect(familiesOf(notFull, notFull.dwellings[0]!, DAY)).toHaveLength(1);
+    expect(leavingFamilies(notFull, DAY)).toEqual([]);
+    expect(availableSettlers(notFull, DAY)).toBe(0);
+  });
+
+  it('z plného domu odejde jen tolik rodin, dokud dům zůstává plný – obvykle jedna', () => {
+    // tři páry v plné zemnici: po odchodu první rodiny zbydou 4 lidé, druhá už nejde
+    const s = build([
+      ...couple({ id: 20, age: 32, mother: 91, father: 90 }, { id: 21, age: 29 }),
+      ...couple({ id: 30, age: 28, mother: 91, father: 90 }, { id: 31, age: 25 }),
+      ...couple({ id: 40, age: 24, mother: 91, father: 90 }, { id: 41, age: 22 }),
+    ]);
+    expect(familiesOf(s, s.dwellings[0]!, DAY)).toHaveLength(2);
+    expect(availableSettlers(s, DAY)).toBe(1);
   });
 
   it('rodina neodejde, když by se zbytek domácnosti rozpadl', () => {

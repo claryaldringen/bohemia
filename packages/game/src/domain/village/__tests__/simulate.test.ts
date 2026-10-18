@@ -822,20 +822,45 @@ describe('advanceVillage – obydlí', () => {
     );
   });
 
-  it('dva ženatí bratři bez rodičů – mladší se s rodinou oddělí do prázdného obydlí', () => {
+  it('dva ženatí bratři bez rodičů – mladší se s rodinou oddělí do prázdného obydlí, jen z plného domu', () => {
     const day = at(600, 10, 1);
+    const brothers: Kin[] = [
+      { id: 20, age: 30, sex: 'male', home: 1, spouse: 21, mother: 5, father: 4 },
+      { id: 21, age: 27, sex: 'female', home: 1, spouse: 20 },
+      { id: 30, age: 26, sex: 'male', home: 1, spouse: 31, mother: 5, father: 4 },
+      { id: 31, age: 24, sex: 'female', home: 1, spouse: 30 },
+    ];
+    // 4 lidé v zemnici pro 6 – dům není plný, nikdo neodchází
+    const notFull = advanceVillage(kinVillage(day, brothers, [zemnice(50, day)]), day + 5, null);
+    expect(occupants(notFull, 50)).toEqual([]);
+    // s dvěma dětmi je plný – mladší bratr odejde i se svým dítětem
     const s0 = kinVillage(
       day,
       [
-        { id: 20, age: 30, sex: 'male', home: 1, spouse: 21, mother: 5, father: 4 },
-        { id: 21, age: 27, sex: 'female', home: 1, spouse: 20 },
-        { id: 30, age: 26, sex: 'male', home: 1, spouse: 31, mother: 5, father: 4 },
-        { id: 31, age: 24, sex: 'female', home: 1, spouse: 30 },
+        ...brothers,
+        { id: 40, age: 4, sex: 'male', home: 1, mother: 21, father: 20 },
+        { id: 41, age: 2, sex: 'female', home: 1, mother: 31, father: 30 },
       ],
       [zemnice(50, day)],
     );
     const s = advanceVillage(s0, day, null);
-    expect(originalOccupants(s, 50)).toEqual([30, 31]);
+    expect(originalOccupants(s, 50)).toEqual([30, 31, 41]);
+  });
+
+  it('založená ves: lidé k osídlení 0, dokud dům zakladatelů není plný – i když se děti vezmou', () => {
+    const day = at(600, 3, 15);
+    let s = advanceVillage(foundVillage({ seed: 5, day, dwellingPosition: POSITION }), day, null);
+    expect(availableSettlers(s, day)).toBe(0);
+    // za 5 let: zemnice stojí, chlapec a dívka zakladatelů jsou svoji – dva páry, ale ve 4–5 lidech
+    s = advanceVillage(s, day + Math.ceil(5 * YEAR), null);
+    expect(s.people.filter((p) => p.sex === 'male' && p.spouseId !== undefined)).toHaveLength(2);
+    expect(s.people.length).toBeLessThan(6);
+    expect(availableSettlers(s, s.lastDay)).toBe(0);
+    // dům plný – první pár může dát novou domácnost
+    for (let id = 900; s.people.length < 6; id++) {
+      s.people.push({ id, bornDay: s.lastDay - 100, dwellingId: 1, sex: 'female' });
+    }
+    expect(availableSettlers(s, s.lastDay)).toBe(1);
   });
 
   it('svobodný nejstarší syn z přeplněného domu odejde sám, nerozpadne se a vezme si dceru odvedle', () => {

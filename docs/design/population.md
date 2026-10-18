@@ -302,8 +302,10 @@ jich bude moci mít více), tak pro něj hra končí – musí začínat znovu.�
 - **Cena:** člověkodny ze společné práce vsi (dřevo viz Zjednodušení). Stavba roste den po dni
   podle toho, kolik společné práce přitéká; hráč vidí postup.
 - **Po dokončení** nové obydlí osídlí **rodina ženatého syna** – muž, jeho žena a jejich svobodné
-  děti (Martin: „plná domácnost → nová domácnost v novém obydlí“; převod na rodiny
-  [kinship.md](kinship.md) – návrh Clauda, Martin schválil). **Nejstarší ženatý syn zůstává
+  děti – **z plné nebo přeplněné domácnosti** (Martin: „plná domácnost → nová domácnost v novém
+  obydlí“; převod na rodiny [kinship.md](kinship.md) – návrh Clauda, Martin schválil; z neplného
+  domu ne – rozhodnutí 18. 10. 2026). Z plného domu odejde rodina, dokud dům zůstává plný –
+  obvykle jedna. **Nejstarší ženatý syn zůstává
   s rodiči** jako dědic; v domě bez rodičů (ženatí bratři po jejich smrti) zůstává nejstarší
   z ženatých mužů. Rodina neodejde, když by se zbytek domácnosti rozpadl (zůstali by jen starší
   a děti). Z více rodin jde ta z nejvíc přeplněné domácnosti, v ní nejstarší muž. Když žádná
@@ -574,6 +576,7 @@ pravidla → první verze hladu (1 − nasycení za den, hájení bez stropu) �
 | ~~Svobodní od nejstaršího, protějšek další v pořadí~~; denně v kroku 6               | návrh Clauda                               |
 | Nejstarší dítě z přeplněného domu smí odejít do nového domu samo                     | Martin (18. 10. 2026)                      |
 | Prázdný (i nový) dům obsadí i plná domácnost – svobodný syn i z plného domu          | Martin (18. 10. 2026)                      |
+| Novou domácnost (i lidi k osídlení) dává jen plná nebo přeplněná domácnost           | podle Martina, rozhodnuto 18. 10. 2026     |
 | Samo jen od 16 let, až po párech; osamělý 16–44 se nerozpadá (svobodný)              | návrh Clauda                               |
 | ~~Svatba nikdy nepřeplní dům~~ – s rodinami do plného domu smí (kinship.md)          | návrh Clauda                               |
 | Příbuzenství a pohlaví – rodiny, sňatky ve vsi a s okolím ([kinship.md](kinship.md)) | Martin (18. 10. 2026)                      |
