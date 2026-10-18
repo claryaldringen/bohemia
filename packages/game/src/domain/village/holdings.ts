@@ -60,6 +60,8 @@ export interface FieldHoldings {
 /** O kolik čtverců (oblouk na poloměru prstence) se smí hranice úseku posunout mezi prstenci. */
 export const MAX_SHIFT_CELLS = 1;
 const TAU = 2 * Math.PI;
+/** Číselný klíč políčka (y · krok + x) – krok větší než strana krajiny i se sousedy za okrajem. */
+const CELL_KEY_STRIDE = 4096;
 const EPSILON = 1e-9;
 /** Úrodnost se v klíčích porovnává na miliontiny (přičítání po 0,025 nese chyby). */
 const SHARE_PRECISION = 1e6;
@@ -87,9 +89,22 @@ export function holdingHouses(
   );
 }
 
+/**
+ * Hospodářství podle pole dílů vsi – simulace se ptá každý den (hotové díly během roku), geometrie
+ * se přitom mění jen s novými díly (pole dílů v simulaci jen roste) a s domy. Klíč: počet dílů
+ * a domy; nové pole dílů (akce hráče, nový stav) = nový výpočet.
+ */
+const holdingsCache = new WeakMap<readonly FieldPart[], { key: string; holdings: FieldHoldings }>();
+
 /** Hospodářství a úseky vsi (viz hlavička souboru). */
 export function villageHoldings(state: VillageState): FieldHoldings {
-  return fieldHoldings(holdingHouses(state), state.parts);
+  const houses = holdingHouses(state);
+  const key = `${state.parts.length}|${houses.map((h) => `${h.id}:${h.position.x}:${h.position.z}`).join(',')}`;
+  const cached = holdingsCache.get(state.parts);
+  if (cached?.key === key) return cached.holdings;
+  const holdings = fieldHoldings(houses, state.parts);
+  holdingsCache.set(state.parts, { key, holdings });
+  return holdings;
 }
 
 interface PlacedCell {
@@ -258,7 +273,8 @@ function smoothLanes(
   lanes: readonly number[],
   fixed: readonly number[],
 ): number[] {
-  const index = new Map(cells.map((c, i) => [`${c.cell.x},${c.cell.y}`, i]));
+  const cellKey = (x: number, y: number): number => y * CELL_KEY_STRIDE + x;
+  const index = new Map(cells.map((c, i) => [cellKey(c.cell.x, c.cell.y), i]));
   const keep = new Set(fixed);
   return cells.map((c, i) => {
     const own = lanes[i]!;
@@ -266,7 +282,7 @@ function smoothLanes(
     const votes = new Map<number, number>();
     for (let dy = -1; dy <= 1; dy++) {
       for (let dx = -1; dx <= 1; dx++) {
-        const j = index.get(`${c.cell.x + dx},${c.cell.y + dy}`);
+        const j = index.get(cellKey(c.cell.x + dx, c.cell.y + dy));
         if (j === undefined) continue;
         votes.set(lanes[j]!, (votes.get(lanes[j]!) ?? 0) + 1);
       }
