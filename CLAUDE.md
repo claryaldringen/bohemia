@@ -466,7 +466,18 @@ rozhraní částí v
   jablek nevystačí. Překážky čtverce zmizí s první prací na něm a dospělé stromy (nevyhrazené
   stavbou) dají klády jako u pole; nevyklizené čtverce sadu jsou v `claimedObstacles`. Kroky
   simulace sadů (`plantOrchard`, `workOrchards`, `orchardSeasonDay`) se z `@bohemia/game`
-  neexportují.
+  neexportují. **Obnova sadu** (orchard.md – Obnova sadu, Martin 18. 10. 2026 – vesničané
+  obnovují sami jako přestavbu obydlí): `renewOrchards` (v `orchardSeasonDay`, každý den v oknech
+  výsadby) zařadí čtverce od 50. roku sadu (`squareDueForRenewal`) – nejstarší první, nejvýš
+  `renewalQuota` (desetina, nahoru, aspoň 1 – `ORCHARD.renewalShareYear`), jednou za rok sadu
+  (`Orchard.renewedSeason`) a jen bez rozestavěné výsadby či obnovy sadu – do stavby sadu
+  s `Construction.renewal` (čtverce nesou `OrchardSquare.renewal` = id stavby, kronika
+  `orchard-renewal-started`). Práce jako výsadba (`plantingPerHa`, okna výsadby, společná práce);
+  staré stromy čtverce se skácí s první prací (`plantedDay` null, nová cena výsadby bez překážek),
+  během běžící sklizně jablek ne; po výsadbě nový `plantedDay` a značka zmizí. Dokončená obnova
+  `construction-finished` nepíše. Čtverec, na který obnova do 60. roku nedojde, zaroste 1. 3. jako
+  dřív (`retireOrchards`, `orchard-gone`). Scéna: velikost stromů a jablka po čtvercích,
+  obnovovaný čtverec nese `renewal` a vytyčuje se jen on (`stakedSquares` v `orchard-layout.ts`).
 - **Řemesla** (`crafts.ts`, crafts.md): dílna = obydlí s `Dwelling.workshop` (řemeslo
   `Craft` = `potter` / `smith` / `burner` patří budově; hrnčíř a kovář polozemnice, uhlíř
   zemnice – `CRAFT_BASE`), stavba je `kind: 'dwelling'` s `craft` (cena `workshopCost` /
@@ -683,8 +694,9 @@ rozhraní částí v
   bez kácení (`buildProgress`).
 - **Upozornění** (`lib/village-notices.ts`): plná domácnost (fakt), lidé umírají hlady, hlad,
   stojící stavby, plný hřbitov (žádný hotový nemá volný hrob), vesničané ušetřili posvátný dub
-  / dubový háj (fakt, když přibude) – nově vzniklé jako krátký mizející řádek nahoře, žádný
-  trvalý seznam; vymřelá ves žádná. Kronika je jen v DTO.
+  / dubový háj (fakt, když přibude), vesničané obnovují starý sad a starý sad dosloužil (fakt,
+  když v kronice přibude novější událost – `VillageView.orchardEvents`) – nově vzniklé jako
+  krátký mizející řádek nahoře, žádný trvalý seznam; vymřelá ves žádná. Kronika je jen v DTO.
 - **Krajina sídla** se na serveru drží v LRU mezipaměti (`lib/landscape-cache.ts`, port
   `LandscapeSource` v `enterGame`) – negeneruje se při každé akci a dotazu. Vrstva překážek
   se generuje až pro stavby (`obstaclesOf`, mezipaměť podle objektu krajiny); dotaz na ves
