@@ -878,6 +878,8 @@ export class LandscapeScene {
       if (this.livestock?.animate(Date.now(), camera.camera)) animated = true;
       // lidé ve vsi – skutečný čas jako zvířata
       if (this.villagers?.animate(Date.now(), camera.camera)) animated = true;
+      // voli a krávy v ohradách a spřežení na poli (oxen.md) – skutečný čas jako zvířata
+      if (this.village?.animateOxen(Date.now(), camera.camera)) animated = true;
       // obilí ve větru – jen zralé a zelené v záběru
       if (this.village?.animateFields(Date.now(), camera.camera)) animated = true;
       if (animated) {

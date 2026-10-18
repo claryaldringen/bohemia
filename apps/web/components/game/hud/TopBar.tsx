@@ -17,10 +17,17 @@ import { Tooltip } from './Tooltip';
 // Herní den trvá v ostrém světě ≈ 86 s, v zrychlených testovacích světech i zlomek sekundy.
 const DATE_REFRESH_MS = 1000;
 
-/** Stav nasycení pro barvu ikony: syto / hlad / velký hlad. */
-export function satiationState(satiation: number): 'fed' | 'hungry' | 'starving' {
-  if (satiation >= 0.995) return 'fed';
-  return satiation >= 0.6 ? 'hungry' : 'starving';
+/**
+ * Stav jídla pro barvu ikony nasycení: syto / hlad / velký hlad. Řídí ho energie (hlad –
+ * diet.md: hladem se umírá z energie), ne nasycení – ves jen s obilím má nasycení ≈ 80 %
+ * natrvalo, a přesto nehladoví.
+ */
+export function satiationState(
+  view: Pick<VillageView, 'hungry' | 'starving'> & { diet: Pick<VillageView['diet'], 'energy'> },
+): 'fed' | 'hungry' | 'starving' {
+  if (view.starving || view.diet.energy < 0.6) return 'starving';
+  if (view.hungry || view.diet.energy < 0.995) return 'hungry';
+  return 'fed';
 }
 
 const SATIATION_GLOW: Record<ReturnType<typeof satiationState>, string> = {
@@ -37,7 +44,8 @@ function Resource({
   filter,
 }: {
   icon: string;
-  name: string;
+  /** Popisek – název, u nasycení i podíly stravy. */
+  name: ReactNode;
   testId: string;
   children?: ReactNode;
   filter?: string;
@@ -61,6 +69,45 @@ function Resource({
       </span>
     </Tooltip>
   );
+}
+
+/** Zdroje stravy v tooltipu nasycení – ikona, název a podíl na energii (diet.md). */
+const DIET_SOURCES: readonly {
+  key: keyof VillageView['diet']['shares'];
+  icon: string;
+  name: string;
+}[] = [
+  { key: 'grain', icon: 'food', name: 'Obilí' },
+  { key: 'meat', icon: 'meat', name: 'Maso' },
+  { key: 'fruit', icon: 'apples', name: 'Ovoce' },
+];
+
+/**
+ * Tooltip nasycení (diet.md – Co hráč vidí): nasycení, podíly obilí, masa a ovoce na energii
+ * (ikony a procenta) a energie s pestrostí stravy.
+ */
+export function SatiationTooltip({ view }: { view: VillageView }): ReactElement {
+  return (
+    <span className="block" data-testid="satiation-tooltip">
+      <span className="font-semibold">Nasycení {formatPercent(view.satiation)}</span>
+      <span className="mt-0.5 flex items-center gap-2">
+        {DIET_SOURCES.map(({ key, icon, name }) => (
+          <span key={key} data-share={key} className="flex items-center gap-0.5 tabular-nums">
+            <img src={`/icons/resources/${icon}.png`} alt={name} width={16} height={16} />
+            {formatPercent(view.diet.shares[key])}
+          </span>
+        ))}
+      </span>
+      <span className="mt-0.5 block text-[#bfa77a] tabular-nums">
+        energie {formatPercent(view.diet.energy)} · pestrost {formatPercent(view.diet.diversity)}
+      </span>
+    </span>
+  );
+}
+
+/** Seno v horní liště – když ves má hotovou ohradu nebo seno v zásobě (oxen.md). */
+export function showsHay(view: Pick<VillageView, 'hayKg' | 'pens'>): boolean {
+  return Math.round(view.hayKg) > 0 || view.pens.some((pen) => pen.built);
 }
 
 /** Jméno vsi – kliknutím se přepíše na místě, Enter uloží, Esc zruší. */
@@ -219,8 +266,9 @@ export function DevTimeButtons({
 }
 
 /**
- * Horní lišta jako v 0 A.D.: jméno vsi (klik = přejmenovat), ikony s čísly – lidé, obilí,
- * jablka (jen když nějaká jsou), klády na hromadě, volná práce, nasycení (jen barva ikony),
+ * Horní lišta jako v 0 A.D.: jméno vsi (klik = přejmenovat), ikony s čísly – lidé, obilí, maso,
+ * ovoce (když nějaké je, nebo ves má sad – diet.md), seno (když ves má ohradu nebo seno –
+ * oxen.md), pole, klády na hromadě, volná práce, nasycení (barva ikony, v popisku podíly stravy),
  * štěstí (happiness.md), herní datum (ve vývojovém režimu se šipkami přeskočení času) – a vpravo
  * zvuk a nabídka hry (F10: Začít znovu, Odhlásit).
  */
@@ -255,7 +303,7 @@ export function TopBar({
   }, []);
 
   const people = view ? view.people.children + view.people.adults + view.people.elders : 0;
-  const satiation = view ? satiationState(view.satiation) : 'fed';
+  const satiation = view ? satiationState(view) : 'fed';
 
   return (
     <header
@@ -271,9 +319,17 @@ export function TopBar({
           <Resource icon="food" name="Obilí" testId="village-stores">
             {formatInteger(view.storesKg)}
           </Resource>
-          {Math.round(view.applesKg) > 0 && (
-            <Resource icon="apples" name="Jablka" testId="village-apples">
+          <Resource icon="meat" name="Maso" testId="village-meat">
+            {formatInteger(view.meatKg)}
+          </Resource>
+          {(Math.round(view.applesKg) > 0 || view.orchards.length > 0) && (
+            <Resource icon="apples" name="Ovoce" testId="village-apples">
               {formatInteger(view.applesKg)}
+            </Resource>
+          )}
+          {showsHay(view) && (
+            <Resource icon="hay" name="Seno" testId="village-hay">
+              {formatInteger(view.hayKg)}
             </Resource>
           )}
           <Resource icon="fields" name="Pole – celková rozloha" testId="village-fields">
@@ -288,7 +344,7 @@ export function TopBar({
           <span data-testid="village-satiation" data-state={satiation} className="contents">
             <Resource
               icon="satiation"
-              name={`Nasycení ${formatPercent(view.satiation)}`}
+              name={<SatiationTooltip view={view} />}
               testId="village-satiation-value"
               filter={SATIATION_GLOW[satiation]}
             />

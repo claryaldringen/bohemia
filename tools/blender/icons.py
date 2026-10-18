@@ -11,8 +11,10 @@ hrncir, kovar, uhlir (řemeslné dílny z `apps/web/public/models/crafts/`, uhl�
 z `apps/web/public/models/pen/`, kráva ze stáda vsi, stoh sena) – portréty do panelu výběru;
 (64 × 64 PNG) – `resources/` people, food, wood, labor, satiation, date, apples, happiness
 (štěstí – plamen ohniště nad zkříženými poleny v kruhu kamenů), hay (seno – kupka sena
-z `apps/web/public/models/fields/haystack.glb`), ozim (osení pod sněhem) a jar (klasy jarního
-ječmene).
+z `apps/web/public/models/fields/haystack.glb`), meat (maso – uzená kýta s kostí a provázkem),
+ozim (osení pod sněhem), jar (klasy jarního ječmene) a zvířata stád do panelu ohrady – sheep, goat,
+pig, cow, chicken (modely `apps/web/public/models/fauna/`) a ox (vůl ze spřežení
+`apps/web/public/models/plough/ox.glb`).
 Bez druhého argumentu vše, jinak čárkami oddělený výběr (např. `pole,hrbitov,food`).
 
 Postup: portréty staveb a ikony `food`, `wood`, `labor`, `satiation`, `date`, `apples` se vyrenderují v Cycles
@@ -35,7 +37,7 @@ import urllib.request
 
 import bmesh
 import bpy
-from mathutils import Euler, Vector, noise
+from mathutils import Euler, Matrix, Vector, noise
 
 args = sys.argv[sys.argv.index("--") + 1 :]
 OUT = os.path.abspath(args[0])
@@ -46,6 +48,7 @@ CRAFTS = os.path.join(ROOT, "apps/web/public/models/crafts")
 SACRED = os.path.join(ROOT, "apps/web/public/models/sacred")
 TREES = os.path.join(ROOT, "apps/web/public/models/trees")
 PEN = os.path.join(ROOT, "apps/web/public/models/pen")
+PLOUGH = os.path.join(ROOT, "apps/web/public/models/plough")
 FAUNA = os.path.join(ROOT, "apps/web/public/models/fauna")
 FIELDS = os.path.join(ROOT, "apps/web/public/models/fields")
 TEX = os.path.join(ROOT, "apps/web/public/textures/terrain")
@@ -981,6 +984,99 @@ def icon_apples():
     return True
 
 
+def spin(bm, angle):
+    """Otočí všechny vrcholy kolem svislé osy Z o `angle` (rad)."""
+    rot = Euler((0, 0, angle)).to_matrix()
+    for v in bm.verts:
+        v.co = rot @ v.co
+
+
+def icon_meat():
+    """Maso: uzená kýta s kostí převázaná provázkem, seříznutý konec ukazuje maso a sádlo."""
+    ham, bone, fat, cut, cord = bmesh.new(), bmesh.new(), bmesh.new(), bmesh.new(), bmesh.new()
+    flat = -0.78  # seříznutý tlustý konec (podíl délky)
+    sp = bmesh.ops.create_uvsphere(ham, u_segments=40, v_segments=24, radius=1.0)
+    for v in sp["verts"]:
+        x, y, z = v.co
+        t = min(1.0, max(0.0, (x + 1) / 2))  # 0 tlustý konec, 1 u kosti
+        taper = 1 - 0.62 * t ** 1.6
+        v.co = Vector((max(x, flat) * 0.95, y * 0.58 * taper, z * 0.52 * taper))
+    # řez: sádlo po obvodu, uvnitř maso – elipsy těsně před seříznutým koncem
+    edge = math.sqrt(1 - flat * flat) * (1 - 0.62 * ((flat + 1) / 2) ** 1.6)
+    for bm, depth, k in ((fat, 0.006, 1.0), (cut, 0.012, 0.8)):
+        ring = []
+        for i in range(40):
+            a = 2 * math.pi * i / 40
+            ring.append(bm.verts.new(Vector((flat * 0.95 - depth, math.cos(a) * 0.58 * edge * k, math.sin(a) * 0.52 * edge * k))))
+        bm.faces.new(ring[::-1])
+    # kost z užšího konce s kloubem
+    cyl(bone, (0.78, 0, 0), (1.42, 0, 0.07), 0.095, 0.085, 14)
+    for dy in (-0.075, 0.075):
+        blob(bone, ((1.46, dy, 0.075), (0, 0, 0)), (0.11, 0.1, 0.1), 12, 8)
+    # provázek kolem kýty a smyčka na zavěšení do udírny
+    rx, rz = 0.58 * 0.73 * 1.04, 0.52 * 0.73 * 1.04
+    segs = 28
+    for i in range(segs):
+        a0, a1 = 2 * math.pi * i / segs, 2 * math.pi * (i + 1) / segs
+        cyl(cord, (0.25, math.cos(a0) * rx, math.sin(a0) * rz), (0.25, math.cos(a1) * rx, math.sin(a1) * rz), 0.025, 0.025, 6)
+    loop = [(0.25, 0.0, rz)] + [(0.25 + 0.16 * math.sin(math.pi * k / 8), 0.0, rz + 0.42 * math.sin(math.pi * k / 16)) for k in range(1, 17)]
+    for p0, p1 in zip(loop, loop[1:]):
+        cyl(cord, p0, p1, 0.022, 0.022, 6)
+    objs = []
+    for bm, name, material in (
+        (ham, "ham", mat("smoked", (0.3, 0.1, 0.045), 0.5, noise=14, bump=0.5)),
+        (fat, "fat", mat("fat", (0.92, 0.84, 0.72), 0.6)),
+        (cut, "cut", mat("meat", (0.72, 0.24, 0.2), 0.45, noise=22)),
+        (bone, "bone", mat("bone", (0.88, 0.84, 0.74), 0.55)),
+        (cord, "cord", mat("cord", (0.45, 0.3, 0.16), 0.9)),
+    ):
+        spin(bm, math.radians(40))  # seříznutý konec ke kameře
+        objs.append(to_obj(bm, name, material, smooth=name != "fat" and name != "cut"))
+    sun(az=-45, el=50, strength=4.0)
+    camera(world_points(objs), az=0, el=24, margin=1.06)
+    return True
+
+
+def icon_animal(name, folder=FAUNA, tint=None, turn=-115):
+    """Zvíře stáda (model z `models/fauna/`, vůl ze spřežení `models/plough/`) z boku ve 3/4:
+    morph targety pózy (krok, pastva) vypnuté – stojí; pomocná koule v GLB vola pryč."""
+    objs = []
+    for o in place_model(name, folder=folder):
+        if o.name.startswith("Icosphere"):
+            bpy.data.objects.remove(o, do_unlink=True)
+        else:
+            objs.append(o)
+    # kořeny modelu (u vola armatura – place_model vrací jen meshe); klipy GLB by přepsaly
+    # natočení kostry – zvíře jen stojí
+    roots = set()
+    for o in objs:
+        while o.parent is not None:
+            o = o.parent
+        roots.add(o)
+    meshes = [o for o in objs if o.type == "MESH"]
+    for o in meshes + list(roots):
+        o.animation_data_clear()
+        if o.type == "ARMATURE":  # klidová póza kostry místo snímku chůze
+            for bone in o.pose.bones:
+                bone.matrix_basis = Matrix.Identity(4)
+    for o in meshes:
+        for key in (o.data.shape_keys.key_blocks if o.data.shape_keys else [])[1:]:
+            key.value = 0.0
+    spin_z = Matrix.Rotation(math.radians(turn), 4, "Z")
+    for o in roots:
+        o.matrix_world = spin_z @ o.matrix_world
+    bpy.context.view_layer.update()
+    low = min((o.matrix_world @ Vector(c)).z for o in meshes for c in o.bound_box)
+    for o in roots:
+        o.location.z -= low
+    bpy.context.view_layer.update()
+    if tint:
+        tint_imported(meshes, tint)
+    sun(az=-50, el=48, strength=4.0)
+    camera(world_points(meshes), az=0, el=16, margin=1.06)
+    return True
+
+
 # --------------------------------------------------------------- hlavní ----
 
 BUILD = {
@@ -1007,6 +1103,13 @@ RESOURCES = {
     "apples": icon_apples,
     "happiness": icon_happiness,
     "hay": icon_hay,
+    "meat": icon_meat,
+    "sheep": lambda: icon_animal("sheep"),
+    "goat": lambda: icon_animal("goat"),
+    "pig": lambda: icon_animal("pig"),
+    "cow": lambda: icon_animal("cow"),
+    "chicken": lambda: icon_animal("chicken"),
+    "ox": lambda: icon_animal("ox", folder=PLOUGH),
     "ozim": icon_ozim,
     "jar": icon_jar,
 }

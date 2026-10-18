@@ -7,8 +7,10 @@ import {
   PEN_PROPS,
   PEN_THATCH_COURSES,
   SHELTER_M,
+  TRAINEE_SCALE,
   insidePen,
   penAnimalPose,
+  penAnimalsFor,
   penConstructionParts,
   penFacing,
   penFenceStage,
@@ -361,5 +363,43 @@ describe('ohrada – zvířata', () => {
       // hlavu občas zvedne
       expect(lowest).toBeLessThan(0.3);
     }
+  });
+});
+
+describe('penAnimalsFor – skutečná zvířata ohrady (oxen.md)', () => {
+  const layout = penLayout(square, { x: 0, z: -1 });
+
+  it('voli spřežení u žlabu a jeslí, pak telata (menší), pak krávy; nejvýš kolik je míst', () => {
+    const animals = penAnimalsFor(layout, { oxen: 2, trainees: 2, cows: 3 });
+    expect(animals.map((a) => a.kind)).toEqual(['ox', 'ox', 'ox', 'ox', 'cow', 'cow', 'cow']);
+    expect(animals[0]!.activity).toBe('drink');
+    expect(animals[1]!.activity).toBe('hay');
+    expect(animals[0]!.scale).toBeUndefined();
+    expect(animals[2]!.scale).toBe(TRAINEE_SCALE);
+    expect(penAnimalsFor(layout, { oxen: 0, trainees: 0, cows: 0 })).toEqual([]);
+    expect(penAnimalsFor(layout, { oxen: 2, trainees: 2, cows: 50 })).toHaveLength(
+      layout.spots.length,
+    );
+    // ukázka – dva voli a kráva
+    expect(layout.animals.map((a) => a.kind)).toEqual(['ox', 'ox', 'cow']);
+  });
+
+  it('místa stojí uvnitř plotu, mimo přístřešek a aspoň 2 m od sebe', () => {
+    const roof = roofCorners(layout);
+    const minX = Math.min(...roof.map((p) => p.x));
+    const maxX = Math.max(...roof.map((p) => p.x));
+    const minZ = Math.min(...roof.map((p) => p.z));
+    const maxZ = Math.max(...roof.map((p) => p.z));
+    layout.spots.forEach((spot, i) => {
+      expect(insidePen(layout, spot.x, spot.z, 1)).toBe(true);
+      // jen místo u jeslí stojí pod střechou přístřešku
+      if (i !== 1) {
+        const under = spot.x > minX && spot.x < maxX && spot.z > minZ && spot.z < maxZ;
+        expect(under).toBe(false);
+      }
+      for (const other of layout.spots.slice(i + 1)) {
+        expect(Math.hypot(other.x - spot.x, other.z - spot.z)).toBeGreaterThan(2);
+      }
+    });
   });
 });
