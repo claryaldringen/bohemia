@@ -3,6 +3,9 @@ import { MaterialPluginBase } from '@babylonjs/core/Materials/materialPluginBase
 import { PBRMaterial } from '@babylonjs/core/Materials/PBR/pbrMaterial';
 import { ShaderLanguage } from '@babylonjs/core/Materials/shaderLanguage';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
+import type { BaseTexture } from '@babylonjs/core/Materials/Textures/baseTexture';
+import { RawTexture } from '@babylonjs/core/Materials/Textures/rawTexture';
+import type { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import type { UniformBuffer } from '@babylonjs/core/Materials/uniformBuffer';
 import type { Scene } from '@babylonjs/core/scene';
 import { seasonFoliageFor, type SeasonFoliageOptions } from './season-foliage';
@@ -187,13 +190,28 @@ export function applySeasonGround(material: Material, snowCoverage = 1): void {
   new SeasonStandardPlugin(material, 'ground', snowCoverage);
 }
 
-/** Impostory vnitřku lesa: podzimní barvy, v zimě šedohnědé prořídlé koruny (smrky zůstanou). */
-export function applySeasonImpostors(material: StandardMaterial): void {
-  if (material.pluginManager?.getPlugin('SeasonStandard')) return;
-  new SeasonStandardPlugin(material, 'impostor', 1);
+/** Letní a zimní atlas impostorů (stejné buňky) – zimní se načítá na pozadí. */
+export interface ImpostorAtlases {
+  summer: Texture;
+  /** Zimní atlas (holé listnáče, smrky se sněhem), null dokud se nenačte – pak jen letní. */
+  winter: Texture | null;
 }
 
-/** Plocha korun hluboko v lese: podzimní skvrny, v zimě holé větve se sněhem pod nimi. */
+/**
+ * Impostory vnitřku lesa: listnáče s opadem listí přejdou po pixelech na zimní atlas (holé
+ * kmeny a větve, pod nimi je vidět zasněžená zem), smrky se sněhem; na podzim se letní obrázek
+ * listnáčů barví. Barvu i alfu bere z vlastních samplerů – `diffuseTexture` materiálu tak může
+ * nést atlas pro stínovou mapu (v zimě zimní, ať stín vrhají holé koruny).
+ */
+export function applySeasonImpostors(material: StandardMaterial, atlases: ImpostorAtlases): void {
+  if (material.pluginManager?.getPlugin('SeasonImpostor')) return;
+  new SeasonImpostorPlugin(material, atlases);
+}
+
+/**
+ * Plocha korun hluboko v lese: podzimní skvrny, s opadem listí po skvrnách mizí – v zimě je
+ * pod holými impostory vidět zasněžená zem.
+ */
 export function applySeasonCanopy(material: StandardMaterial): void {
   if (material.pluginManager?.getPlugin('SeasonStandard')) return;
   new SeasonStandardPlugin(material, 'canopy', 1);
@@ -312,7 +330,7 @@ const linear = (color: Rgb): string =>
     .join(', ');
 /** Barvy PBR (lineární): sníh, větvičky holé koruny, květy (trnky, hlohu, jabloní). */
 const SNOW_LINEAR = linear(SNOW_GAMMA);
-const TWIG_LINEAR = linear([0.45, 0.4, 0.36]);
+const TWIG_LINEAR = linear([0.37, 0.34, 0.31]);
 const BLOSSOM_LINEAR = linear([0.97, 0.94, 0.95]);
 
 /**
@@ -335,7 +353,7 @@ const PBR_GLSL = `{
   float seasonKeep = max(clamp(seasonB.x * 1.4 - seasonSeedB * 0.4, 0.0, 1.0), seasonOptions.z);
   float seasonTwig = 0.0;
   if (seasonLeaf > 0.5 && seasonNoise(vAlbedoUV * 23.0 + seasonSeedA * 31.0) * 0.98 + 0.01 > seasonKeep) {
-    if (seasonNoise(vAlbedoUV * 61.0 + seasonSeedB * 17.0) > 0.4) discard;
+    if (seasonNoise(vAlbedoUV * 61.0 + seasonSeedB * 17.0) > 0.3) discard;
     seasonTwig = 1.0;
   }
   vec3 seasonTint = mix(seasonAutumn.rgb, seasonAutumn.rgb * vec3(1.0, 0.55, 0.4), seasonSeedA * seasonAutumn.a);
@@ -374,7 +392,7 @@ const PBR_WGSL = `{
   let seasonKeep = max(clamp(uniforms.seasonB.x * 1.4 - seasonSeedB * 0.4, 0.0, 1.0), uniforms.seasonOptions.z);
   var seasonTwig = 0.0;
   if (seasonLeaf > 0.5 && seasonNoise(seasonUv * 23.0 + seasonSeedA * 31.0) * 0.98 + 0.01 > seasonKeep) {
-    if (seasonNoise(seasonUv * 61.0 + seasonSeedB * 17.0) > 0.4) { discard; }
+    if (seasonNoise(seasonUv * 61.0 + seasonSeedB * 17.0) > 0.3) { discard; }
     seasonTwig = 1.0;
   }
   let seasonTint = mix(uniforms.seasonAutumn.rgb, uniforms.seasonAutumn.rgb * vec3f(1.0, 0.55, 0.4), seasonSeedA * uniforms.seasonAutumn.a);
@@ -398,7 +416,7 @@ const PBR_WGSL = `{
   }
 }`;
 
-type StandardMode = 'ground' | 'impostor' | 'canopy';
+type StandardMode = 'ground' | 'canopy';
 
 /**
  * StandardMaterial (obtisky polí a cest, impostory, plocha korun): barva se upraví po textuře
@@ -413,9 +431,7 @@ class SeasonStandardPlugin extends MaterialPluginBase {
     super(material, 'SeasonStandard', 250, {
       SEASON_STD: false,
       SEASON_STD_GROUND: false,
-      SEASON_STD_IMPOSTOR: false,
       SEASON_STD_CANOPY: false,
-      SEASON_SEED: false,
     });
     this._enable(true);
   }
@@ -423,9 +439,7 @@ class SeasonStandardPlugin extends MaterialPluginBase {
   override prepareDefines(defines: Record<string, unknown>): void {
     defines['SEASON_STD'] = true;
     defines['SEASON_STD_GROUND'] = this.mode === 'ground';
-    defines['SEASON_STD_IMPOSTOR'] = this.mode === 'impostor';
     defines['SEASON_STD_CANOPY'] = this.mode === 'canopy';
-    defines['SEASON_SEED'] = this.mode === 'impostor';
   }
 
   override getClassName(): string {
@@ -466,22 +480,17 @@ uniform float seasonCoverage;
     shaderType: string,
     shaderLanguage: ShaderLanguage = ShaderLanguage.GLSL,
   ): Record<string, string> | null {
-    const wgsl = shaderLanguage === ShaderLanguage.WGSL;
-    if (shaderType === 'vertex') return wgsl ? SEED_VERTEX_WGSL : SEED_VERTEX_GLSL;
     if (shaderType !== 'fragment') return null;
+    const wgsl = shaderLanguage === ShaderLanguage.WGSL;
     const code = wgsl ? STANDARD_WGSL : STANDARD_GLSL;
     const modes = `#ifdef SEASON_STD_GROUND
 ${code.ground}
-#endif
-#ifdef SEASON_STD_IMPOSTOR
-${code.impostor}
 #endif
 #ifdef SEASON_STD_CANOPY
 ${code.canopy}
 #endif`;
     return {
       CUSTOM_FRAGMENT_DEFINITIONS: `#ifdef SEASON_STD
-${wgsl ? SEED_FRAGMENT_WGSL : SEED_FRAGMENT_GLSL}
 ${wgsl ? SEASON_HELPERS_WGSL : SEASON_HELPERS_GLSL}
 #endif`,
       CUSTOM_FRAGMENT_UPDATE_DIFFUSE: `#ifdef SEASON_STD
@@ -494,9 +503,8 @@ ${modes}
 /**
  * Kód podle druhu materiálu (gama prostor, `baseColor` už s barvou vrcholů / instance):
  * - ground: obtisk na zemi – tráva (zelené pixely) usychá a sníh jako na terénu,
- * - impostor: horní řada atlasu jsou smrky (beze změny), listnáče se na podzim barví podle
- *   stromu a v zimě z koruny zbudou šedohnědé prořídlé větve,
- * - canopy: plocha korun – podzimní skvrny, v zimě holé větve a mezi nimi sníh.
+ * - canopy: plocha korun – podzimní skvrny, s opadem listí mizí po skvrnách (12 m) a drobných
+ *   dírách (2,5 m), v zimě úplně – pod holými stromy je vidět zem.
  */
 const STANDARD_GLSL: Record<StandardMode, string> = {
   ground: `if (seasonA.y > 0.0 || seasonA.z > 0.0) {
@@ -507,25 +515,6 @@ if (seasonA.x > 0.0) {
   float seasonCover = seasonSnowCover(vPositionW.xz, seasonA.x) * seasonCoverage;
   baseColor.rgb = mix(baseColor.rgb, seasonSnowColor(baseColor.rgb), seasonCover);
 }`,
-  impostor: `{
-  float seasonEvergreen = step(0.75, vDiffuseUV.y);
-  float seasonLeaf = seasonLeafMask(baseColor.rgb) * (1.0 - seasonEvergreen);
-  float seasonSeedA = vSeasonSeed;
-  float seasonSeedB = fract(seasonSeedA * 7.13 + 0.37);
-  float seasonAutumnAmount = clamp(seasonB.y * 1.5 - seasonSeedA * 0.5, 0.0, 1.0);
-  float seasonKeep = clamp(seasonB.x * 1.4 - seasonSeedB * 0.4, 0.0, 1.0);
-  float seasonLuma = dot(baseColor.rgb, vec3(0.299, 0.587, 0.114));
-  vec3 seasonTint = mix(vec3(0.86, 0.7, 0.28), vec3(0.72, 0.4, 0.18), seasonSeedA);
-  vec3 seasonAutumnColor = seasonTint * (seasonLuma / dot(seasonTint, vec3(0.299, 0.587, 0.114))) * 1.15;
-  baseColor.rgb = mix(baseColor.rgb, baseColor.rgb * vec3(1.03, 1.1, 0.75), seasonLeaf * seasonA.w);
-  baseColor.rgb = mix(baseColor.rgb, seasonAutumnColor, seasonLeaf * seasonAutumnAmount);
-  float seasonBare = seasonLeaf * (1.0 - seasonKeep);
-  if (seasonBare > 0.3 && seasonNoise(vDiffuseUV * 220.0 + seasonSeedA * 17.0) < seasonBare * 0.6) discard;
-  baseColor.rgb = mix(baseColor.rgb, vec3(0.36, 0.32, 0.3) * (0.7 + 1.2 * seasonLuma), seasonBare);
-  // sníh na smrcích – chomáče na větvích
-  float seasonFlakes = seasonEvergreen * smoothstep(0.5, 0.72, seasonNoise(vDiffuseUV * 300.0 + seasonSeedA * 11.0));
-  baseColor.rgb = mix(baseColor.rgb, seasonSnowColor(baseColor.rgb), seasonSnowCover(vPositionW.xz, seasonA.x) * seasonFlakes * 0.8);
-}`,
   canopy: `{
   float seasonLuma = dot(baseColor.rgb, vec3(0.299, 0.587, 0.114));
   float seasonPatch = seasonNoise(vPositionW.xz * 0.08);
@@ -533,11 +522,9 @@ if (seasonA.x > 0.0) {
   float seasonKeep = clamp(seasonB.x * 1.4 - (1.0 - seasonPatch) * 0.4, 0.0, 1.0);
   vec3 seasonTint = mix(vec3(0.86, 0.7, 0.28), vec3(0.72, 0.4, 0.18), seasonNoise(vPositionW.xz * 0.05 + 3.0));
   vec3 seasonAutumnColor = seasonTint * (seasonLuma / dot(seasonTint, vec3(0.299, 0.587, 0.114))) * 1.1;
+  if (seasonNoise(vPositionW.xz * 0.4) * 0.98 + 0.01 > seasonKeep) discard;
   baseColor.rgb = mix(baseColor.rgb, baseColor.rgb * vec3(1.03, 1.1, 0.75), seasonA.w);
   baseColor.rgb = mix(baseColor.rgb, seasonAutumnColor, seasonAutumnAmount);
-  vec3 seasonBranches = vec3(0.3, 0.27, 0.25) * (0.6 + 1.4 * seasonLuma);
-  float seasonGround = seasonSnowCover(vPositionW.xz, seasonA.x) * smoothstep(0.25, 0.75, seasonNoise(vPositionW.xz * 0.9));
-  baseColor.rgb = mix(baseColor.rgb, mix(seasonBranches, seasonSnowColor(baseColor.rgb) * 0.75, seasonGround), 1.0 - seasonKeep);
 }`,
 };
 
@@ -550,27 +537,6 @@ if (uniforms.seasonA.x > 0.0) {
   let seasonCover = seasonSnowCover(fragmentInputs.vPositionW.xz, uniforms.seasonA.x) * uniforms.seasonCoverage;
   baseColor = vec4f(mix(baseColor.rgb, seasonSnowColor(baseColor.rgb), seasonCover), baseColor.a);
 }`,
-  impostor: `{
-  let seasonEvergreen = step(0.75, fragmentInputs.vDiffuseUV.y);
-  let seasonLeaf = seasonLeafMask(baseColor.rgb) * (1.0 - seasonEvergreen);
-  let seasonSeedA = fragmentInputs.vSeasonSeed;
-  let seasonSeedB = fract(seasonSeedA * 7.13 + 0.37);
-  let seasonAutumnAmount = clamp(uniforms.seasonB.y * 1.5 - seasonSeedA * 0.5, 0.0, 1.0);
-  let seasonKeep = clamp(uniforms.seasonB.x * 1.4 - seasonSeedB * 0.4, 0.0, 1.0);
-  let seasonLuma = dot(baseColor.rgb, vec3f(0.299, 0.587, 0.114));
-  let seasonTint = mix(vec3f(0.86, 0.7, 0.28), vec3f(0.72, 0.4, 0.18), seasonSeedA);
-  let seasonAutumnColor = seasonTint * (seasonLuma / dot(seasonTint, vec3f(0.299, 0.587, 0.114))) * 1.15;
-  var seasonColor = mix(baseColor.rgb, baseColor.rgb * vec3f(1.03, 1.1, 0.75), seasonLeaf * uniforms.seasonA.w);
-  seasonColor = mix(seasonColor, seasonAutumnColor, seasonLeaf * seasonAutumnAmount);
-  let seasonBare = seasonLeaf * (1.0 - seasonKeep);
-  if (seasonBare > 0.3 && seasonNoise(fragmentInputs.vDiffuseUV * 220.0 + seasonSeedA * 17.0) < seasonBare * 0.6) {
-    discard;
-  }
-  seasonColor = mix(seasonColor, vec3f(0.36, 0.32, 0.3) * (0.7 + 1.2 * seasonLuma), seasonBare);
-  let seasonFlakes = seasonEvergreen * smoothstep(0.5, 0.72, seasonNoise(fragmentInputs.vDiffuseUV * 300.0 + seasonSeedA * 11.0));
-  seasonColor = mix(seasonColor, seasonSnowColor(seasonColor), seasonSnowCover(fragmentInputs.vPositionW.xz, uniforms.seasonA.x) * seasonFlakes * 0.8);
-  baseColor = vec4f(seasonColor, baseColor.a);
-}`,
   canopy: `{
   let seasonLuma = dot(baseColor.rgb, vec3f(0.299, 0.587, 0.114));
   let seasonXz = fragmentInputs.vPositionW.xz;
@@ -579,11 +545,181 @@ if (uniforms.seasonA.x > 0.0) {
   let seasonKeep = clamp(uniforms.seasonB.x * 1.4 - (1.0 - seasonPatch) * 0.4, 0.0, 1.0);
   let seasonTint = mix(vec3f(0.86, 0.7, 0.28), vec3f(0.72, 0.4, 0.18), seasonNoise(seasonXz * 0.05 + 3.0));
   let seasonAutumnColor = seasonTint * (seasonLuma / dot(seasonTint, vec3f(0.299, 0.587, 0.114))) * 1.1;
+  if (seasonNoise(seasonXz * 0.4) * 0.98 + 0.01 > seasonKeep) {
+    discard;
+  }
   var seasonColor = mix(baseColor.rgb, baseColor.rgb * vec3f(1.03, 1.1, 0.75), uniforms.seasonA.w);
   seasonColor = mix(seasonColor, seasonAutumnColor, seasonAutumnAmount);
-  let seasonBranches = vec3f(0.3, 0.27, 0.25) * (0.6 + 1.4 * seasonLuma);
-  let seasonGround = seasonSnowCover(seasonXz, uniforms.seasonA.x) * smoothstep(0.25, 0.75, seasonNoise(seasonXz * 0.9));
-  seasonColor = mix(seasonColor, mix(seasonBranches, seasonSnowColor(baseColor.rgb) * 0.75, seasonGround), 1.0 - seasonKeep);
   baseColor = vec4f(seasonColor, baseColor.a);
 }`,
 };
+
+/**
+ * Impostory (StandardMaterial s instancemi, alpha test až po všech výpočtech alfy): barva a alfa
+ * z letního, nebo zimního atlasu. Listnáč přechází s opadem listí (každý strom trochu jindy),
+ * smrk se sněhovou pokrývkou; po pixelech podle šumu (≈ 0,4 m na stromě) – koruna řídne
+ * postupně a pod ní se objeví holé větve. Podzimní barva a jarní svěžest jen na letním obrázku.
+ */
+class SeasonImpostorPlugin extends MaterialPluginBase {
+  private readonly placeholder: RawTexture;
+
+  constructor(
+    material: StandardMaterial,
+    private readonly atlases: ImpostorAtlases,
+  ) {
+    super(material, 'SeasonImpostor', 250, { SEASON_IMPOSTOR: false, SEASON_SEED: false });
+    // zástupná průhledná textura, dokud se zimní atlas nenačte (shader ji nepoužije)
+    this.placeholder = RawTexture.CreateRGBATexture(
+      new Uint8Array(4),
+      1,
+      1,
+      material.getScene(),
+      false,
+    );
+    this.placeholder.name = 'impostor-winter-placeholder';
+    this._enable(true);
+  }
+
+  override prepareDefines(defines: Record<string, unknown>): void {
+    defines['SEASON_IMPOSTOR'] = true;
+    defines['SEASON_SEED'] = true;
+  }
+
+  override getClassName(): string {
+    return 'SeasonImpostorPlugin';
+  }
+
+  override isCompatible(shaderLanguage: ShaderLanguage): boolean {
+    return shaderLanguage === ShaderLanguage.GLSL || shaderLanguage === ShaderLanguage.WGSL;
+  }
+
+  override getSamplers(samplers: string[]): void {
+    samplers.push('seasonSummerAtlas', 'seasonWinterAtlas');
+  }
+
+  override getUniforms(shaderLanguage: ShaderLanguage = ShaderLanguage.GLSL): {
+    ubo: { name: string; size: number; type: string }[];
+    fragment: string;
+  } {
+    return {
+      ubo: [...SEASON_UBO, { name: 'seasonWinterReady', size: 1, type: 'float' }],
+      fragment:
+        shaderLanguage === ShaderLanguage.WGSL
+          ? `#ifdef SEASON_IMPOSTOR
+uniform seasonA: vec4f;
+uniform seasonB: vec4f;
+uniform seasonWinterReady: f32;
+#endif`
+          : `#ifdef SEASON_IMPOSTOR
+uniform vec4 seasonA;
+uniform vec4 seasonB;
+uniform float seasonWinterReady;
+#endif`,
+    };
+  }
+
+  override bindForSubMesh(uniformBuffer: UniformBuffer): void {
+    bindSeasonUniforms(uniformBuffer, this._material.getScene());
+    const winter = this.atlases.winter;
+    uniformBuffer.updateFloat('seasonWinterReady', winter ? 1 : 0);
+    uniformBuffer.setTexture('seasonSummerAtlas', this.atlases.summer);
+    uniformBuffer.setTexture('seasonWinterAtlas', winter ?? this.placeholder);
+  }
+
+  override getActiveTextures(activeTextures: BaseTexture[]): void {
+    activeTextures.push(this.atlases.summer);
+    if (this.atlases.winter) activeTextures.push(this.atlases.winter);
+  }
+
+  override dispose(): void {
+    this.placeholder.dispose();
+  }
+
+  override getCustomCode(
+    shaderType: string,
+    shaderLanguage: ShaderLanguage = ShaderLanguage.GLSL,
+  ): Record<string, string> | null {
+    const wgsl = shaderLanguage === ShaderLanguage.WGSL;
+    if (shaderType === 'vertex') return wgsl ? SEED_VERTEX_WGSL : SEED_VERTEX_GLSL;
+    if (shaderType !== 'fragment') return null;
+    return wgsl
+      ? {
+          CUSTOM_FRAGMENT_DEFINITIONS: `#ifdef SEASON_IMPOSTOR
+${SEED_FRAGMENT_WGSL}
+var seasonSummerAtlasSampler: sampler;
+var seasonSummerAtlas: texture_2d<f32>;
+var seasonWinterAtlasSampler: sampler;
+var seasonWinterAtlas: texture_2d<f32>;
+${SEASON_HELPERS_WGSL}
+#endif`,
+          CUSTOM_FRAGMENT_UPDATE_DIFFUSE: `#ifdef SEASON_IMPOSTOR
+${IMPOSTOR_WGSL}
+#endif`,
+        }
+      : {
+          CUSTOM_FRAGMENT_DEFINITIONS: `#ifdef SEASON_IMPOSTOR
+${SEED_FRAGMENT_GLSL}
+uniform sampler2D seasonSummerAtlas;
+uniform sampler2D seasonWinterAtlas;
+${SEASON_HELPERS_GLSL}
+#endif`,
+          CUSTOM_FRAGMENT_UPDATE_DIFFUSE: `#ifdef SEASON_IMPOSTOR
+${IMPOSTOR_GLSL}
+#endif`,
+        };
+  }
+}
+
+const IMPOSTOR_GLSL = `{
+  float seasonEvergreen = step(0.75, vDiffuseUV.y);
+  float seasonSeedA = vSeasonSeed;
+  float seasonSeedB = fract(seasonSeedA * 7.13 + 0.37);
+#if defined(INSTANCESCOLOR) && defined(INSTANCES)
+  vec3 seasonShade = vColor.rgb * vDiffuseInfos.y;
+#else
+  vec3 seasonShade = vec3(vDiffuseInfos.y);
+#endif
+  vec4 seasonSummer = texture2D(seasonSummerAtlas, vDiffuseUV);
+  vec4 seasonWinter = texture2D(seasonWinterAtlas, vDiffuseUV);
+  float seasonKeep = clamp(seasonB.x * 1.4 - seasonSeedB * 0.4, 0.0, 1.0);
+  float seasonWinterAmount = mix(1.0 - seasonKeep, seasonSnowCover(vPositionW.xz, seasonA.x), seasonEvergreen) * seasonWinterReady;
+  float seasonUseWinter = step(seasonNoise(vDiffuseUV * 160.0 + seasonSeedA * 23.0) * 0.98 + 0.01, seasonWinterAmount);
+  vec4 seasonTexel = mix(seasonSummer, seasonWinter, seasonUseWinter);
+  vec3 seasonColor = seasonTexel.rgb * seasonShade;
+  float seasonLeaf = seasonLeafMask(seasonSummer.rgb) * (1.0 - seasonEvergreen) * (1.0 - seasonUseWinter);
+  float seasonAutumnAmount = clamp(seasonB.y * 1.5 - seasonSeedA * 0.5, 0.0, 1.0);
+  float seasonLuma = dot(seasonColor, vec3(0.299, 0.587, 0.114));
+  vec3 seasonTint = mix(vec3(0.86, 0.7, 0.28), vec3(0.72, 0.4, 0.18), seasonSeedA);
+  vec3 seasonAutumnColor = seasonTint * (seasonLuma / dot(seasonTint, vec3(0.299, 0.587, 0.114))) * 1.15;
+  seasonColor = mix(seasonColor, seasonColor * vec3(1.03, 1.1, 0.75), seasonLeaf * seasonA.w);
+  seasonColor = mix(seasonColor, seasonAutumnColor, seasonLeaf * seasonAutumnAmount);
+  baseColor = vec4(seasonColor, seasonTexel.a);
+  alpha = seasonTexel.a * vDiffuseColor.a;
+}`;
+
+const IMPOSTOR_WGSL = `{
+  let seasonEvergreen = step(0.75, fragmentInputs.vDiffuseUV.y);
+  let seasonSeedA = fragmentInputs.vSeasonSeed;
+  let seasonSeedB = fract(seasonSeedA * 7.13 + 0.37);
+#if defined(INSTANCESCOLOR) && defined(INSTANCES)
+  let seasonShade = fragmentInputs.vColor.rgb * uniforms.vDiffuseInfos.y;
+#else
+  let seasonShade = vec3f(uniforms.vDiffuseInfos.y);
+#endif
+  let seasonSummer = textureSample(seasonSummerAtlas, seasonSummerAtlasSampler, fragmentInputs.vDiffuseUV);
+  let seasonWinter = textureSample(seasonWinterAtlas, seasonWinterAtlasSampler, fragmentInputs.vDiffuseUV);
+  let seasonKeep = clamp(uniforms.seasonB.x * 1.4 - seasonSeedB * 0.4, 0.0, 1.0);
+  let seasonWinterAmount = mix(1.0 - seasonKeep, seasonSnowCover(fragmentInputs.vPositionW.xz, uniforms.seasonA.x), seasonEvergreen) * uniforms.seasonWinterReady;
+  let seasonUseWinter = step(seasonNoise(fragmentInputs.vDiffuseUV * 160.0 + seasonSeedA * 23.0) * 0.98 + 0.01, seasonWinterAmount);
+  let seasonTexel = mix(seasonSummer, seasonWinter, seasonUseWinter);
+  var seasonColor = seasonTexel.rgb * seasonShade;
+  let seasonLeaf = seasonLeafMask(seasonSummer.rgb) * (1.0 - seasonEvergreen) * (1.0 - seasonUseWinter);
+  let seasonAutumnAmount = clamp(uniforms.seasonB.y * 1.5 - seasonSeedA * 0.5, 0.0, 1.0);
+  let seasonLuma = dot(seasonColor, vec3f(0.299, 0.587, 0.114));
+  let seasonTint = mix(vec3f(0.86, 0.7, 0.28), vec3f(0.72, 0.4, 0.18), seasonSeedA);
+  let seasonAutumnColor = seasonTint * (seasonLuma / dot(seasonTint, vec3f(0.299, 0.587, 0.114))) * 1.15;
+  seasonColor = mix(seasonColor, seasonColor * vec3f(1.03, 1.1, 0.75), seasonLeaf * uniforms.seasonA.w);
+  seasonColor = mix(seasonColor, seasonAutumnColor, seasonLeaf * seasonAutumnAmount);
+  baseColor = vec4f(seasonColor, seasonTexel.a);
+  alpha = seasonTexel.a * uniforms.vDiffuseColor.a;
+}`;
