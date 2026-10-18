@@ -3,7 +3,12 @@ import type { StandardMaterial } from '@babylonjs/core/Materials/standardMateria
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 import type { Scene } from '@babylonjs/core/scene';
-import { DWELLING_FOOTPRINT_M, type DwellingType, type Position } from '@bohemia/game';
+import {
+  DWELLING_FOOTPRINT_M,
+  dwellingGarden,
+  type DwellingType,
+  type Position,
+} from '@bohemia/game';
 import {
   decalGrid,
   footprintCorners,
@@ -226,6 +231,12 @@ export class PlacementController implements ActivePlacement {
     const left = localToWorld(position, -0.7, depth / 2 + 0.5);
     const right = localToWorld(position, 0.7, depth / 2 + 0.5);
     this.addFill([left, tip, right], look, 0.85, 0.1);
+    // zahrádka polozemnice – světlejší obrys vedle domu (patří k obydlí, nesmí na pole ani do vody)
+    const garden = dwellingGarden(mode.type, position)?.map(([x, z]): Point => [x, z]);
+    if (garden) {
+      this.addFill(garden, look, 0.18);
+      this.addStrip(stripSegments(garden, true, 0.12, 1), look);
+    }
     if (this.model) {
       this.model.position.set(
         position.x,
@@ -243,6 +254,7 @@ export class PlacementController implements ActivePlacement {
       check,
       label: DWELLING_NAMES[mode.type],
       screen: this.screen,
+      cost: check.ok ? (check.cost ?? null) : null,
     });
   }
 

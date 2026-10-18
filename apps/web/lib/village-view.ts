@@ -34,10 +34,12 @@ import {
   type Position,
   type StockResource,
   type TileCell,
+  type VillageLifespan,
   type VillageRecord,
   type VillageState,
   type VillageSummary,
   villageCemeteries,
+  villageLifespan,
   villageOrchards,
 } from '@bohemia/game';
 import { formatGameDate } from './game-date';
@@ -141,8 +143,17 @@ export interface VillageView {
   orchards: VillageOrchard[];
   /** Ves hladoví – zásoby nevystačí do sklizně. */
   hungry: boolean;
+  /** Lidé umírají hlady – nahromaděný hlad přesáhl práh (population.md – Hlad a vymření). */
+  starving: boolean;
   /** Stavby stojí – několik dní po sobě nezbyla žádná společná práce. */
   constructionsStalled: boolean;
+  /** Ves vymřela – herní rok založení a vymření a kolik let žila; žijící ves null. */
+  extinct: VillageLifespan | null;
+  /**
+   * Konec hry – hráči vymřely všechny vsi (ne jen tahle). Rozhraní ukáže obrazovku porážky
+   * s tlačítkem Začít znovu.
+   */
+  gameOver: boolean;
   scene: SceneVillage;
   /** Posledních CHRONICLE_LENGTH událostí, nejnovější první. */
   chronicle: { day: number; dateLabel: string; text: string }[];
@@ -196,7 +207,18 @@ export interface SceneVillage {
    */
   fields: {
     id: number;
-    parts: { cell: TileCell; x: number; z: number; size: number; stage: PartStage }[];
+    parts: {
+      cell: TileCell;
+      x: number;
+      z: number;
+      size: number;
+      stage: PartStage;
+      /**
+       * Vzhled oseté části podle růstu obilí (`CropLook` ve scéně) – zatím ho posílá jen
+       * vývojový náhled staveb, server ne (oseté pole se kreslí jako vzcházející obilí).
+       */
+      crop?: 'growing' | 'ripe' | 'stubble';
+    }[];
   }[];
   /**
    * Hřbitovy po čtvercích (střed políčka ve světě a strana jako u pole) – průběh stavby
@@ -265,10 +287,12 @@ export const DWELLING_NAMES: Record<DwellingType, { nominative: string; accusati
   polozemnice: { nominative: 'Polozemnice', accusative: 'polozemnici' },
 };
 
-function deathText(group: 'child' | 'adult' | 'elder'): string {
-  if (group === 'child') return 'Zemřelo dítě.';
-  if (group === 'adult') return 'Zemřel jeden z dospělých.';
-  return 'Zemřel jeden ze starších.';
+function deathText(group: 'child' | 'adult' | 'elder', hunger: boolean): string {
+  if (group === 'child') return hunger ? 'Dítě zemřelo hlady.' : 'Zemřelo dítě.';
+  if (group === 'adult') {
+    return hunger ? 'Jeden z dospělých zemřel hlady.' : 'Zemřel jeden z dospělých.';
+  }
+  return hunger ? 'Jeden ze starších zemřel hlady.' : 'Zemřel jeden ze starších.';
 }
 
 function finishedText(kind: ConstructionKind): string {
@@ -287,7 +311,9 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
     case 'birth':
       return 'Narodilo se dítě.';
     case 'death':
-      return deathText(event.group);
+      return deathText(event.group, event.cause === 'hunger');
+    case 'village-extinct':
+      return `Zemřel poslední obyvatel – ves ${villageName} vymřela.`;
     case 'household-founded':
       return 'Dva mladí dospělí založili v novém obydlí vlastní domácnost.';
     case 'household-merged':
@@ -534,11 +560,15 @@ function fieldViews(state: VillageState, day: number): VillageView['fields'] {
   });
 }
 
-/** Pohled na ves v den `day` (ves má být dopočítaná do tohoto dne). */
+/**
+ * Pohled na ves v den `day` (ves má být dopočítaná do tohoto dne). `gameOver` – hráči vymřely
+ * všechny vsi (zjistí ho vstupní bod přes `dynastyStatus`, pohled na jednu ves to neví).
+ */
 export function buildVillageView(
   record: VillageRecord,
   landscape: Landscape,
   day: number,
+  gameOver = false,
 ): VillageView {
   const { state, name } = record;
   const summary = summarizeVillage(state, day);
@@ -579,7 +609,10 @@ export function buildVillageView(
     })),
     fields: fieldViews(state, day),
     hungry: summary.hungry,
+    starving: summary.starving,
     constructionsStalled: summary.constructionsStalled,
+    extinct: villageLifespan(state),
+    gameOver,
     cemeteries: summary.cemeteries.map((c) => {
       const progress = cemeteryProgress(c.id, c.built, summary.constructions);
       return { ...c, progress };

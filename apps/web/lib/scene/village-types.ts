@@ -21,12 +21,24 @@ export type SceneField = SceneVillage['fields'][number];
 export type SceneFieldPart = SceneField['parts'][number];
 
 /**
- * Náhled stavby malované po čtvercích (pole, později sad, hřbitov): kontrola, popisek
+ * Cena umístění pro rozhraní u kurzoru (ikony s čísly): práce celkem v člověkodnech – i s
+ * překážkami (a u obydlí s kácením) – a u obydlí kolik stromů se pro stavbu skácí (0 = dřevo
+ * je z hromady klád).
+ */
+export interface PlacementCost {
+  laborManDays: number;
+  trees: number;
+}
+
+/**
+ * Náhled stavby malované po čtvercích (pole, sad, hřbitov): kontrola, popisek, cena
  * a zakázané čtverce.
  */
 export interface SquaresPreview {
   check: PlacementCheck;
   label: string;
+  /** Cena prošlého umístění (jinak null nebo chybí). */
+  cost?: PlacementCost | null;
   /** Čtverce, kam pole nesmí – scéna je zbarví červeně. */
   blockedCells: readonly TileCell[];
   /** Čtverce, kterých se týká varování (`check.warning`) – scéna je zbarví oranžově. */
@@ -38,7 +50,12 @@ export interface SquaresPreview {
  * nebo stavbu po čtvercích políček (pole a další stavby malované jako pole).
  */
 export type PlacementMode =
-  | { kind: 'dwelling'; type: DwellingType; check(position: Position): PlacementCheck }
+  | {
+      kind: 'dwelling';
+      type: DwellingType;
+      /** Kontrola místa, u prošlého umístění i s cenou. */
+      check(position: Position): PlacementCheck & { cost?: PlacementCost | null };
+    }
   | { kind: 'squares'; preview(cells: TileCell[]): SquaresPreview };
 
 /** Potvrzené umístění – scéna ho ohlásí jen tehdy, když kontrola prošla. */
@@ -55,6 +72,8 @@ export interface PlacementPreview {
   check: PlacementCheck;
   label: string;
   screen: { x: number; y: number } | null;
+  /** Cena prošlého umístění – rozhraní ji ukáže u kurzoru (null = žádná, nebo neprošlo). */
+  cost?: PlacementCost | null;
 }
 
 export interface PlacementHandlers {

@@ -11,6 +11,7 @@ import {
   type LivestockGround,
   type LivestockVillage,
 } from '../livestock-placement';
+import { inGarden } from '../dwelling-decor';
 import { GROUND, VILLAGE, dwelling, inSquares } from './livestock-fixtures';
 import { buildRenderSurface } from '../render-surface';
 import { tileCenter } from '../tile-at';
@@ -90,6 +91,22 @@ describe('planLivestock – kde', () => {
           const inside = Math.abs(lx) < box.halfX && lz > box.minZ && lz < box.maxZ;
           expect(inside).toBe(false);
         }
+      }
+    }
+  });
+
+  it('slepice nechodí do oplocené zahrádky polozemnice', () => {
+    const village: LivestockVillage = {
+      dwellings: [dwelling(1, 'polozemnice', 0, 0, { rotation: 0.7 })],
+      fields: [],
+    };
+    const [flock] = planLivestock(village, GROUND, 3).chickens;
+    expect(flock?.arc).not.toBeNull();
+    for (let i = 0; i <= 40; i++) {
+      const theta = flock!.arc!.from + ((flock!.arc!.to - flock!.arc!.from) * i) / 40;
+      for (const d of [flock!.reachM.from, 2.4, flock!.reachM.to]) {
+        const [x, z] = chickenPoint(flock!, theta, d);
+        expect(inGarden('polozemnice', flock!.position, x, z)).toBe(false);
       }
     }
   });

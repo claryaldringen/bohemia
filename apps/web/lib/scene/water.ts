@@ -1,3 +1,5 @@
+import type { Camera } from '@babylonjs/core/Cameras/camera';
+import { BoundingInfo } from '@babylonjs/core/Culling/boundingInfo';
 import type { Material } from '@babylonjs/core/Materials/material';
 import { MaterialPluginBase } from '@babylonjs/core/Materials/materialPluginBase';
 import { ShaderLanguage } from '@babylonjs/core/Materials/shaderLanguage';
@@ -6,13 +8,28 @@ import { RawTexture } from '@babylonjs/core/Materials/Textures/rawTexture';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import type { UniformBuffer } from '@babylonjs/core/Materials/uniformBuffer';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
+import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import type { Scene } from '@babylonjs/core/scene';
 import { HEIGHT_SCALE } from './constants';
 import type { RenderSurface } from './render-surface';
 import type { Rgb } from './season-look';
+import {
+  bindSeasonUniforms,
+  SEASON_HELPERS_GLSL,
+  SEASON_HELPERS_WGSL,
+  SEASON_UBO,
+} from './season-materials';
 import { WATER_VISIBILITY_M, waterClarity } from './stream-geometry';
+import {
+  bankSlowdown,
+  BANK_ICE_M,
+  FREEZE_SPEED,
+  frozenFrom,
+  ICE_JITTER,
+  ICE_SOFTNESS,
+} from './water-ice';
 
 /** Vodní plocha sahá kousek za okraj vody, aby okraj mohl plynule vyblednout (m). */
 const EDGE_MARGIN_M = 1.5;
@@ -32,21 +49,47 @@ const FLOWING_SPEED: readonly [number, number] = [0.2, 0.6];
 const MURKY_COLOR = new Color3(0.2, 0.21, 0.12);
 const CLEAR_COLOR = new Color3(0.13, 0.24, 0.23);
 const SKY_REFLECTION = new Color3(0.55, 0.66, 0.78);
+/**
+ * Led (barvy obrazovky): tenký u otevřené vody tmavý, silný průsvitně šedomodrý se zamrzlými
+ * bublinami a jinovatkou; na silném ledu leží sníh jako na zemi (season-materials.ts), vítr
+ * z něj ale místy odfoukne skvrny holého ledu.
+ */
+const ICE_THIN = [0.27, 0.31, 0.33] as const;
+const ICE_CLEAR = [0.43, 0.48, 0.5] as const;
+const ICE_FROST = [0.6, 0.64, 0.66] as const;
+/** Kolik sněhu z pokrývky na zemi zůstane na ledu (zbytek odfouká vítr). */
+const ICE_SNOW = 0.75;
+/**
+ * Zamrzlou vodu není třeba kreslit 30× za sekundu: hladina je rozdělená na čtverce o této
+ * straně (m) a překresluje se, jen dokud je v záběru čtverec s nezamrzlou vodou.
+ */
+const FLOW_CHUNK_M = 120;
 
 /** Hladina potoka s animovanými vlnkami; `animate` posouvá čas (scéna pak musí překreslit). */
 export interface WaterSurface {
   mesh: Mesh;
   /** Nastaví čas animace vln (s). */
   animate(timeSeconds: number): void;
-  /** Roční období: násobek barev vody a barva odrazu oblohy (season-look.ts). */
-  setSeason(tint: Rgb, sky: Rgb): void;
+  /**
+   * Roční období: násobek barev vody, barva odrazu oblohy a led 0–1 (season-look.ts; shader
+   * čte led z uniform období – `setSeasonShaderState` se stejným vzhledem).
+   */
+  setSeason(tint: Rgb, sky: Rgb, ice: number): void;
+  /** Je v záběru kamery nezamrzlá voda? Jen ta teče – zamrzlá se nepřekresluje. */
+  flowsInView(camera: Camera): boolean;
+}
+
+/** Čtverec hladiny: obal jeho trojúhelníků a od jaké zimy je celý zamrzlý (water-ice.ts). */
+interface FlowChunk {
+  bounds: BoundingInfo;
+  frozenFrom: number;
 }
 
 /**
  * Hladina potoka jako souvislá plocha nad vyhloubeným korytem (podle water_high z 0 A.D.):
  * barva a průhlednost podle hloubky a průzračnosti (rychlá voda nad štěrkem čirá, pomalá nad
  * bahnem kalná), vlnky plují po proudu rychlostí proudu, šikmo voda odráží oblohu (Fresnel),
- * slunce se leskne na vlnkách.
+ * slunce se leskne na vlnkách. V zimě pomalá voda a okraje u břehů zamrznou (water-ice.ts).
  */
 export function createWaterMesh(scene: Scene, surface: RenderSurface): WaterSurface | null {
   const n = surface.resolution;
@@ -81,10 +124,15 @@ export function createWaterMesh(scene: Scene, surface: RenderSurface): WaterSurf
       (MIN_ALPHA[1] - MIN_ALPHA[0]) * smoothstep(FLOWING_SPEED[0], FLOWING_SPEED[1], near.speed);
     positions.push(x, level * HEIGHT_SCALE, z);
     flow.push(near.flowX, near.flowZ, near.speed, clarity);
-    info.push(depth, edge, minAlpha);
+    info.push(depth, edge, minAlpha, near.bankDistance);
     vertexIndex[v] = positions.length / 3 - 1;
     return vertexIndex[v]!;
   };
+
+  // Čtverce hladiny pro zamrzání: obal a největší rychlost a podíl proudu u břehu jejich rohů
+  // (shader je mezi rohy prolíná, součin největších je horní mez).
+  const origin = surface.position(0);
+  const chunks = new Map<number, { min: Vector3; max: Vector3; speed: number; slowdown: number }>();
 
   for (let j = 0; j < n - 1; j++) {
     for (let i = 0; i < n - 1; i++) {
@@ -95,9 +143,35 @@ export function createWaterMesh(scene: Scene, surface: RenderSurface): WaterSurf
       if (corners.every((v) => sample(v).bankDistance > EDGE_MARGIN_M)) continue;
       const [va, vb, vc, vd] = corners.map(vertex) as [number, number, number, number];
       indices.push(va, vb, vc, vb, vd, vc);
+      const corner = surface.position(a);
+      const key =
+        Math.floor((corner.x - origin.x) / FLOW_CHUNK_M) * 1024 +
+        Math.floor((corner.z - origin.z) / FLOW_CHUNK_M);
+      let chunk = chunks.get(key);
+      if (!chunk) {
+        chunk = {
+          min: new Vector3(Infinity, Infinity, Infinity),
+          max: new Vector3(-Infinity, -Infinity, -Infinity),
+          speed: 0,
+          slowdown: 0,
+        };
+        chunks.set(key, chunk);
+      }
+      for (const v of [va, vb, vc, vd]) {
+        const p = new Vector3(positions[v * 3]!, positions[v * 3 + 1]!, positions[v * 3 + 2]!);
+        chunk.min.minimizeInPlace(p);
+        chunk.max.maximizeInPlace(p);
+        chunk.speed = Math.max(chunk.speed, flow[v * 4 + 2]!);
+        chunk.slowdown = Math.max(chunk.slowdown, bankSlowdown(info[v * 4 + 3]!));
+      }
     }
   }
   if (indices.length === 0) return null;
+  const flowChunks: FlowChunk[] = [...chunks.values()].map((c) => ({
+    bounds: new BoundingInfo(c.min, c.max),
+    frozenFrom: frozenFrom(c.speed * c.slowdown),
+  }));
+  let openChunks = flowChunks;
 
   const normals: number[] = [];
   VertexData.ComputeNormals(positions, indices, normals);
@@ -108,7 +182,7 @@ export function createWaterMesh(scene: Scene, surface: RenderSurface): WaterSurf
   const mesh = new Mesh('water', scene);
   vertexData.applyToMesh(mesh);
   mesh.setVerticesData('waterFlow', flow, false, 4);
-  mesh.setVerticesData('waterInfo', info, false, 3);
+  mesh.setVerticesData('waterInfo', info, false, 4);
 
   const material = new StandardMaterial('water-material', scene);
   material.specularColor = new Color3(0.9, 0.88, 0.8);
@@ -124,10 +198,15 @@ export function createWaterMesh(scene: Scene, surface: RenderSurface): WaterSurf
     animate(timeSeconds) {
       plugin.time = timeSeconds;
     },
-    setSeason(tint, sky) {
+    setSeason(tint, sky, ice) {
       plugin.murky = MURKY_COLOR.multiplyByFloats(...tint);
       plugin.clear = CLEAR_COLOR.multiplyByFloats(...tint);
       plugin.sky = new Color3(...sky);
+      openChunks = flowChunks.filter((chunk) => ice < chunk.frozenFrom);
+    },
+    flowsInView(camera) {
+      if (openChunks.length === 0 || !camera.isInFrustum(mesh)) return false;
+      return openChunks.some((chunk) => camera.isInFrustum(chunk.bounds));
     },
   };
 }
@@ -188,9 +267,44 @@ function createRippleNormalMap(scene: Scene): RawTexture {
   return texture;
 }
 
+/** Číslo jako desetinný literál shaderu (GLSL ES nepřevádí celá čísla na float samo). */
+function float(value: number): string {
+  return Number.isInteger(value) ? value.toFixed(1) : String(value);
+}
+
+const rgb = (color: readonly [number, number, number]): string => color.map(float).join(', ');
+
+/** Led podle water-ice.ts: `iceCover` s rychlostí proudu u břehu zpomalenou (`iceFlowSpeed`). */
+const ICE_COVER_GLSL = `vec2 waterIceTurn(vec2 p) {
+  return vec2(0.8 * p.x - 0.6 * p.y, 0.6 * p.x + 0.8 * p.y);
+}
+float waterIceSnow(vec2 xz, float amount) {
+  float n = 0.65 * seasonNoise(xz * 0.035 + 21.0) + 0.35 * seasonNoise(waterIceTurn(xz) * 0.11 + 4.0);
+  return smoothstep(n - 0.06, n + 0.06, amount * 1.2 - 0.25);
+}
+float waterIceCover(float speed, float bankDistance, float ice, float jitter) {
+  float limit = ${float(FREEZE_SPEED)} * min(ice, 1.0);
+  float flow = max(0.0, max(speed, 0.0) * smoothstep(0.0, ${float(BANK_ICE_M)}, -bankDistance) + jitter * ${float(ICE_JITTER)});
+  return 1.0 - smoothstep(limit - ${float(ICE_SOFTNESS)}, limit, flow);
+}`;
+const ICE_COVER_WGSL = `fn waterIceTurn(p: vec2f) -> vec2f {
+  return vec2f(0.8 * p.x - 0.6 * p.y, 0.6 * p.x + 0.8 * p.y);
+}
+fn waterIceSnow(xz: vec2f, amount: f32) -> f32 {
+  let n = 0.65 * seasonNoise(xz * 0.035 + 21.0) + 0.35 * seasonNoise(waterIceTurn(xz) * 0.11 + 4.0);
+  return smoothstep(n - 0.06, n + 0.06, amount * 1.2 - 0.25);
+}
+fn waterIceCover(speed: f32, bankDistance: f32, ice: f32, jitter: f32) -> f32 {
+  let limit = ${float(FREEZE_SPEED)} * min(ice, 1.0);
+  let flow = max(0.0, max(speed, 0.0) * smoothstep(0.0, ${float(BANK_ICE_M)}, -bankDistance) + jitter * ${float(ICE_JITTER)});
+  return 1.0 - smoothstep(limit - ${float(ICE_SOFTNESS)}, limit, flow);
+}`;
+
 /**
  * Shader vody (GLSL i WGSL) nad StandardMaterialem: vlastní atributy vrcholů waterFlow
- * (směr toku x/z, rychlost, průzračnost) a waterInfo (hloubka, okraj, nejmenší krytí).
+ * (směr toku x/z, rychlost, průzračnost) a waterInfo (hloubka, okraj, nejmenší krytí,
+ * vzdálenost od okraje vody). Led čte z uniform ročního období (seasonB.w, sníh seasonA.x) –
+ * bez textury navíc, šum je procedurální (season-materials.ts).
  */
 class WaterPlugin extends MaterialPluginBase {
   time = 0;
@@ -239,6 +353,7 @@ class WaterPlugin extends MaterialPluginBase {
         { name: 'waterMurky', size: 3, type: 'vec3' },
         { name: 'waterClear', size: 3, type: 'vec3' },
         { name: 'waterSky', size: 3, type: 'vec3' },
+        ...SEASON_UBO,
       ],
       fragment:
         shaderLanguage === ShaderLanguage.WGSL
@@ -250,6 +365,8 @@ uniform waterVisibility: vec2f;
 uniform waterMurky: vec3f;
 uniform waterClear: vec3f;
 uniform waterSky: vec3f;
+uniform seasonA: vec4f;
+uniform seasonB: vec4f;
 #endif`
           : `#ifdef WATER
 uniform float waterTime;
@@ -259,6 +376,8 @@ uniform vec2 waterVisibility;
 uniform vec3 waterMurky;
 uniform vec3 waterClear;
 uniform vec3 waterSky;
+uniform vec4 seasonA;
+uniform vec4 seasonB;
 #endif`,
     };
   }
@@ -271,6 +390,7 @@ uniform vec3 waterSky;
     uniformBuffer.updateColor3('waterMurky', this.murky);
     uniformBuffer.updateColor3('waterClear', this.clear);
     uniformBuffer.updateColor3('waterSky', this.sky);
+    bindSeasonUniforms(uniformBuffer, this._material.getScene());
     uniformBuffer.setTexture('waterRipples', this.ripples);
   }
 
@@ -287,17 +407,17 @@ uniform vec3 waterSky;
       return wgsl
         ? {
             CUSTOM_VERTEX_DEFINITIONS: `attribute waterFlow: vec4f;
-attribute waterInfo: vec3f;
+attribute waterInfo: vec4f;
 varying vWaterFlow: vec4f;
-varying vWaterInfo: vec3f;`,
+varying vWaterInfo: vec4f;`,
             CUSTOM_VERTEX_MAIN_END: `vertexOutputs.vWaterFlow = vertexInputs.waterFlow;
 vertexOutputs.vWaterInfo = vertexInputs.waterInfo;`,
           }
         : {
             CUSTOM_VERTEX_DEFINITIONS: `attribute vec4 waterFlow;
-attribute vec3 waterInfo;
+attribute vec4 waterInfo;
 varying vec4 vWaterFlow;
-varying vec3 vWaterInfo;`,
+varying vec4 vWaterInfo;`,
             CUSTOM_VERTEX_MAIN_END: `vWaterFlow = waterFlow;
 vWaterInfo = waterInfo;`,
           };
@@ -307,12 +427,17 @@ vWaterInfo = waterInfo;`,
     // vzorec z 0 A.D. by při naší strmé kameře zbělil celý potok.
     // Flowmap se dvěma fázemi: textura pluje po proudu a každá fáze se po půl cyklu vrátí –
     // druhá ji mezitím překryje, takže se vlnky nikdy nenatáhnou.
+    // Led: pokrytí podle rychlosti proudu u břehu a zimy, okraj trhá šum; tenký led u otevřené
+    // vody tmavší, silný průsvitně šedomodrý s jinovatkou a sněhem. Na ledu vlnky stojí, slunce
+    // se leskne méně a obloha se odráží slaběji. Kousek nad okrajem vody led končí (pod terénem).
     if (wgsl) {
       return {
         CUSTOM_FRAGMENT_DEFINITIONS: `varying vWaterFlow: vec4f;
-varying vWaterInfo: vec3f;
+varying vWaterInfo: vec4f;
 var waterRipplesSampler: sampler;
 var waterRipples: texture_2d<f32>;
+${SEASON_HELPERS_WGSL}
+${ICE_COVER_WGSL}
 fn waterLayer(xz: vec2f, dir: vec2f, metersPerSecond: f32, repeatM: f32, time: f32, period: f32) -> vec2f {
   let phase0 = fract(time / period);
   let phase1 = fract(time / period + 0.5);
@@ -324,27 +449,38 @@ fn waterLayer(xz: vec2f, dir: vec2f, metersPerSecond: f32, repeatM: f32, time: f
 }`,
         CUSTOM_FRAGMENT_UPDATE_DIFFUSE: `let waterClarity = fragmentInputs.vWaterFlow.w;
 let waterVisibilityM = mix(uniforms.waterVisibility.x, uniforms.waterVisibility.y, waterClarity);
-baseColor = vec4f(mix(uniforms.waterMurky, uniforms.waterClear, waterClarity), baseColor.a);
-alpha = fragmentInputs.vWaterInfo.y * clamp(1.0 - exp(-fragmentInputs.vWaterInfo.x / waterVisibilityM), fragmentInputs.vWaterInfo.z, 1.0);`,
+let waterIceXz = fragmentInputs.vPositionW.xz;
+let waterIceGrain = 0.55 * seasonNoise(waterIceXz * 0.18) + 0.3 * seasonNoise(waterIceTurn(waterIceXz) * 0.5 + 11.0) + 0.15 * seasonNoise(waterIceTurn(waterIceTurn(waterIceXz)) * 1.3 + 5.0);
+let waterIce = waterIceCover(fragmentInputs.vWaterFlow.z, fragmentInputs.vWaterInfo.w, uniforms.seasonB.w, waterIceGrain * 2.0 - 1.0);
+let waterIceThick = smoothstep(0.3, 1.0, waterIce);
+let waterIceFrost = 0.7 * smoothstep(0.2, 0.9, 0.6 * seasonNoise(waterIceTurn(waterIceXz) * 0.6 + 3.0) + 0.4 * waterIceGrain);
+var waterIceColor = mix(vec3f(${rgb(ICE_THIN)}), mix(vec3f(${rgb(ICE_CLEAR)}), vec3f(${rgb(ICE_FROST)}), waterIceFrost), waterIceThick);
+waterIceColor = mix(waterIceColor, mix(seasonSnowColor(waterIceColor), waterIceColor, 0.15), waterIceSnow(waterIceXz, uniforms.seasonA.x * ${float(ICE_SNOW)}) * waterIceThick);
+let waterIceAlpha = mix(0.8, 0.97, waterIceThick) * (1.0 - smoothstep(0.0, 0.8, fragmentInputs.vWaterInfo.w));
+baseColor = vec4f(mix(mix(uniforms.waterMurky, uniforms.waterClear, waterClarity), waterIceColor, waterIce), baseColor.a);
+alpha = mix(fragmentInputs.vWaterInfo.y * clamp(1.0 - exp(-fragmentInputs.vWaterInfo.x / waterVisibilityM), fragmentInputs.vWaterInfo.z, 1.0), waterIceAlpha, waterIce);`,
         CUSTOM_FRAGMENT_BEFORE_LIGHTS: `{
   let waterDir = fragmentInputs.vWaterFlow.xy;
   let waterRate = mix(uniforms.waterSpeed.x, uniforms.waterSpeed.y, fragmentInputs.vWaterFlow.z);
   let waterXz = fragmentInputs.vPositionW.xz;
   let ripple = waterLayer(waterXz, waterDir, waterRate, uniforms.waterRepeat.x, uniforms.waterTime, 2.0)
     + 0.6 * waterLayer(waterXz, waterDir, waterRate * 1.4, uniforms.waterRepeat.y, uniforms.waterTime, 1.3);
-  let roughness = mix(0.12, 0.55, fragmentInputs.vWaterFlow.z);
+  let roughness = mix(0.12, 0.55, fragmentInputs.vWaterFlow.z) * (1.0 - waterIce);
   normalW = normalize(vec3f(ripple.x * roughness, 1.0, ripple.y * roughness));
 }`,
         CUSTOM_FRAGMENT_BEFORE_FOG: `{
-  let fresnel = min(0.04 + 0.96 * pow(1.0 - max(dot(normalW, viewDirectionW), 0.0), 3.0), 0.8);
+  color = vec4f(max(color.rgb - finalSpecular * (0.7 * waterIce), vec3f(0.0)), color.a);
+  let fresnel = min(0.04 + 0.96 * pow(1.0 - max(dot(normalW, viewDirectionW), 0.0), 3.0), 0.8) * (1.0 - 0.8 * waterIce);
   color = vec4f(mix(color.rgb, uniforms.waterSky, fresnel), max(color.a, fresnel * fragmentInputs.vWaterInfo.y));
 }`,
       };
     }
     return {
       CUSTOM_FRAGMENT_DEFINITIONS: `varying vec4 vWaterFlow;
-varying vec3 vWaterInfo;
+varying vec4 vWaterInfo;
 uniform sampler2D waterRipples;
+${SEASON_HELPERS_GLSL}
+${ICE_COVER_GLSL}
 vec2 waterLayer(vec2 xz, vec2 dir, float metersPerSecond, float repeatM, float time, float period) {
   float phase0 = fract(time / period);
   float phase1 = fract(time / period + 0.5);
@@ -356,18 +492,27 @@ vec2 waterLayer(vec2 xz, vec2 dir, float metersPerSecond, float repeatM, float t
 }`,
       CUSTOM_FRAGMENT_UPDATE_DIFFUSE: `float waterClarity = vWaterFlow.w;
 float waterVisibilityM = mix(waterVisibility.x, waterVisibility.y, waterClarity);
-baseColor.rgb = mix(waterMurky, waterClear, waterClarity);
-alpha = vWaterInfo.y * clamp(1.0 - exp(-vWaterInfo.x / waterVisibilityM), vWaterInfo.z, 1.0);`,
+vec2 waterIceXz = vPositionW.xz;
+float waterIceGrain = 0.55 * seasonNoise(waterIceXz * 0.18) + 0.3 * seasonNoise(waterIceTurn(waterIceXz) * 0.5 + 11.0) + 0.15 * seasonNoise(waterIceTurn(waterIceTurn(waterIceXz)) * 1.3 + 5.0);
+float waterIce = waterIceCover(vWaterFlow.z, vWaterInfo.w, seasonB.w, waterIceGrain * 2.0 - 1.0);
+float waterIceThick = smoothstep(0.3, 1.0, waterIce);
+float waterIceFrost = 0.7 * smoothstep(0.2, 0.9, 0.6 * seasonNoise(waterIceTurn(waterIceXz) * 0.6 + 3.0) + 0.4 * waterIceGrain);
+vec3 waterIceColor = mix(vec3(${rgb(ICE_THIN)}), mix(vec3(${rgb(ICE_CLEAR)}), vec3(${rgb(ICE_FROST)}), waterIceFrost), waterIceThick);
+waterIceColor = mix(waterIceColor, mix(seasonSnowColor(waterIceColor), waterIceColor, 0.15), waterIceSnow(waterIceXz, seasonA.x * ${float(ICE_SNOW)}) * waterIceThick);
+float waterIceAlpha = mix(0.8, 0.97, waterIceThick) * (1.0 - smoothstep(0.0, 0.8, vWaterInfo.w));
+baseColor.rgb = mix(mix(waterMurky, waterClear, waterClarity), waterIceColor, waterIce);
+alpha = mix(vWaterInfo.y * clamp(1.0 - exp(-vWaterInfo.x / waterVisibilityM), vWaterInfo.z, 1.0), waterIceAlpha, waterIce);`,
       CUSTOM_FRAGMENT_BEFORE_LIGHTS: `{
   vec2 waterDir = vWaterFlow.xy;
   float waterRate = mix(waterSpeed.x, waterSpeed.y, vWaterFlow.z);
   vec2 ripple = waterLayer(vPositionW.xz, waterDir, waterRate, waterRepeat.x, waterTime, 2.0)
     + 0.6 * waterLayer(vPositionW.xz, waterDir, waterRate * 1.4, waterRepeat.y, waterTime, 1.3);
-  float roughness = mix(0.12, 0.55, vWaterFlow.z);
+  float roughness = mix(0.12, 0.55, vWaterFlow.z) * (1.0 - waterIce);
   normalW = normalize(vec3(ripple.x * roughness, 1.0, ripple.y * roughness));
 }`,
       CUSTOM_FRAGMENT_BEFORE_FOG: `{
-  float fresnel = min(0.04 + 0.96 * pow(1.0 - max(dot(normalW, viewDirectionW), 0.0), 3.0), 0.8);
+  color.rgb = max(color.rgb - finalSpecular * (0.7 * waterIce), 0.0);
+  float fresnel = min(0.04 + 0.96 * pow(1.0 - max(dot(normalW, viewDirectionW), 0.0), 3.0), 0.8) * (1.0 - 0.8 * waterIce);
   color.rgb = mix(color.rgb, waterSky, fresnel);
   color.a = max(color.a, fresnel * vWaterInfo.y);
 }`,

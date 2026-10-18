@@ -11,6 +11,10 @@ Pásy přes celou šířku atlasu se opakují ve směru U (textura REPEAT), ve s
 plocha uvnitř svého pásu (metricky – v metadatech je rozsah v metrech). Hustota 128 px/m,
 šířka 1024 px = 8 m. Výstup: atlas.png (+ náhled), atlas.json s rozložením pro Blender.
 
+Oblasti zahrádky polozemnice (druhá řada pod košem a hlínou, mimo místa oblastí řemesel
+z craft_atlas.py): „veg“ – zelenina po třetinách v U (zelí, řepa, bylinky a cibule; procedurálně),
+„soil“ – zkypřená hlína záhonu (z mud.jpg).
+
 Zdroje (vše 0 A.D., Wildfire Games, CC BY-SA 3.0) – souřadnice výřezů v pixelech atlasu:
   celt_struct_1 (512²): došky 0–380 × 45–128, omítka 256–512 × 412–510, proutí 250–343 × 133–229,
                         čela trámů 362–500 × 358–382
@@ -335,6 +339,48 @@ def region_trench():
     return resize(t, 120, 192)
 
 
+VEG_ZONES = ("cabbage", "turnip", "herb")  # pořadí třetin oblasti „veg“ v U
+
+
+def region_veg(w, h):
+    """Zelenina zahrádky (procedurálně): tři třetiny v U – zelí (sivě modrozelené listy se
+    světlými žilkami), řepa (svěží zelená s hlavní žilkou), bylinky a cibule (tmavší zelená,
+    jemné proužky). V = 0 u země (tmavší), V = 1 špičky listů (světlejší)."""
+    zw = w // len(VEG_ZONES)
+    yy = np.linspace(1, 0, h)[:, None]  # 1 nahoře obrázku = V 1 (špičky)
+    out = np.zeros((h, zw * len(VEG_ZONES), 3), dtype=np.float32)
+    colors = {
+        "cabbage": ((58, 88, 54), (140, 170, 122)),
+        "turnip": ((52, 92, 30), (128, 168, 66)),
+        "herb": ((34, 66, 26), (96, 132, 58)),
+    }
+    for k, name in enumerate(VEG_ZONES):
+        lo, hi = (np.array(c, dtype=np.float32) / 255.0 for c in colors[name])
+        n = value_noise(h, zw, [(4, 3, 1.0), (11, 7, 0.5)], 90 + k)
+        t = np.clip(0.15 + 0.75 * yy + 0.18 * n, 0, 1)
+        col = lo * (1 - t[..., None]) + hi * t[..., None]
+        x = (np.arange(zw) + 0.5) / zw
+        if name == "cabbage":  # žilky listů rozbíhající se od středu
+            veins = np.abs(np.sin((x[None, :] - 0.5) * 9 * math.pi + yy * 5))
+            col = col * (1 + 0.16 * smoothstep(0.85, 1.0, veins))[..., None]
+        elif name == "turnip":  # hlavní žilka uprostřed listu
+            rib = np.exp(-(((x - 0.5) / 0.06) ** 2))[None, :] * np.ones_like(yy)
+            col = col * (1 + 0.22 * rib)[..., None]
+        else:  # stébla bylinek a nať cibule
+            col = col * (0.9 + 0.2 * (0.5 + 0.5 * np.sin(x * 14 * math.pi)))[None, :, None]
+        out[:, k * zw : (k + 1) * zw] = col
+    return out
+
+
+def region_soil(w, h):
+    """Zkypřená tmavá hlína záhonu: hrudky a mělké brázdy podél U."""
+    mud = resize(load(os.path.join(TERRAIN, "mud.jpg"))[:256, :256], w * 2, w * 2)[:h, :w]
+    soil = gradient_map(mud, [(0, (34, 24, 16)), (0.5, (78, 58, 40)), (1, (122, 96, 70))])
+    clods = value_noise(h, w, [(10, 6, 1.0), (24, 14, 0.5)], 97)
+    furrows = 0.5 + 0.5 * np.sin(np.linspace(0, 4 * 2 * math.pi, h))[:, None]
+    return soil * (0.88 + 0.12 * clods + 0.14 * furrows)[..., None]
+
+
 # ---------------------------------------------------------------- skladba
 
 def main():
@@ -380,13 +426,24 @@ def main():
         "earth": resize(load(os.path.join(TERRAIN, "mud.jpg"))[:512, :512], 128, 128),
         "dark": np.full((32, 32, 3), [0.035, 0.028, 0.022], dtype=np.float32),
     }
-    for name, img in regions.items():
+    def put_region(name, img, x, r0):
         h, w = img.shape[:2]
         padded = np.pad(img, ((GUT, GUT), (GUT, GUT), (0, 0)), mode="edge")
         atlas[r0 - GUT : r0 + h + GUT, x - GUT : x + w + GUT] = padded
         meta["regions"][name] = {"x0": x, "x1": x + w, "r0": r0, "r1": r0 + h}
-        x += w + 2 * GUT
+        return x + w + 2 * GUT
+
+    for name, img in regions.items():
+        x = put_region(name, img, x, r0)
     cursor = r0 + max(img.shape[0] for img in regions.values()) + GUT
+    # zahrádka polozemnice: druhá řada pod košem a hlínou (vedle dna šíje, mimo místa, kam
+    # craft_atlas.py dává oblasti řemesel – ty začínají vpravo za nejpravější oblastí obydlí)
+    r1 = r0 + max(meta["regions"][n]["r1"] - r0 for n in ("basket", "earth")) + 2 * GUT
+    x = meta["regions"]["basket"]["x0"]
+    x = put_region("veg", region_veg(144, 40), x, r1)
+    x = put_region("soil", region_soil(64, 40), x, r1)
+    assert x - GUT <= max(r["x1"] for r in meta["regions"].values()) + GUT, x
+    assert r1 + 40 + GUT <= cursor, (r1, cursor)
     assert cursor <= H, cursor
     meta["used_rows"] = cursor
     # zbytek atlasu – opakovat poslední řádek (ať mipmapy nemají černou)

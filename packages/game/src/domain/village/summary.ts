@@ -17,7 +17,7 @@ import {
   villageOrchards,
 } from './orchard';
 import { ageGroup, foodNeedPerDay, occupants } from './people';
-import { CHRONICLE_MAX_EVENTS, DWELLINGS, OVERGROWTH_STAGES } from './rules';
+import { CHRONICLE_MAX_EVENTS, DWELLINGS, OVERGROWTH_STAGES, STARVATION } from './rules';
 import type {
   Construction,
   ConstructionKind,
@@ -115,6 +115,15 @@ export interface VillageSummary {
   constructions: ConstructionSummary[];
   /** Ves hladoví – zásoby nevystačí do sklizně (jako `hunger-began` v kronice). */
   hungry: boolean;
+  /** Nahromaděný hlad ve dnech bez jídla (population.md – Hlad a vymření). */
+  starvationDays: number;
+  /**
+   * Lidé umírají hlady – nahromaděný hlad přesáhl práh dětí a starších (dospělých chrání
+   * v hájení štěstí, ale děti hladem umírají i tehdy).
+   */
+  starving: boolean;
+  /** Den vymření vsi; žijící ves null. */
+  extinctDay: number | null;
   /** Stavby stojí – posledních STALL_DAYS dní nezbyla žádná společná práce. */
   constructionsStalled: boolean;
   /** Pohřebiště v pořadí pohřbívání. */
@@ -133,6 +142,8 @@ export const RECENT_DEATHS_YEARS = 10;
 export const STALL_DAYS = 3;
 /** Méně společné práce za den (člověkodny) se bere jako žádná. */
 const NO_LABOR = 0.01;
+/** Od kolika dnů nahromaděného hladu lidé umírají hlady – nejnižší práh věkových skupin. */
+const STARVING_FROM_DAYS = Math.min(...Object.values(STARVATION.threshold));
 
 /** Stadium dílu v daný den; příloh podle celých let zarůstání (fields.md – Zarůstání). */
 export function partStage(part: FieldPart, day: number): PartStage {
@@ -278,6 +289,7 @@ export function summarizeVillage(state: VillageState, day: number): VillageSumma
   const needPerDay = state.people.reduce((sum, p) => sum + foodNeedPerDay(p, day), 0);
   const history = state.commonLaborHistory;
   const deathsPerYear = recentDeathsPerYear(state, day);
+  const starvationDays = state.starvationDays ?? 0;
   return {
     people: peopleByGroup(state, day),
     households: households(state, day),
@@ -291,6 +303,9 @@ export function summarizeVillage(state: VillageState, day: number): VillageSumma
     fullHousehold: waitingHouseholds(state, day) > 0,
     constructions: state.constructions.map((c) => constructionSummary(state, c)),
     hungry: state.hungry,
+    starvationDays,
+    starving: state.people.length > 0 && starvationDays > STARVING_FROM_DAYS,
+    extinctDay: state.extinctDay ?? null,
     constructionsStalled: stalled(state),
     cemeteries: cemeterySummaries(state, deathsPerYear),
     deathsPerYear,

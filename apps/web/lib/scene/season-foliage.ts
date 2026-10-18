@@ -51,12 +51,12 @@ export function seasonFoliageFor(model: string): SeasonFoliageOptions | null {
       deciduous: true,
       autumn: [0.74, 0.4, 0.17],
       variation: 0.5,
-      minLeaves: 0.12,
+      minLeaves: 0.06,
       blossom: 0.35,
     };
   }
-  if (model === 'underbrush-1') return { ...BEECH, minLeaves: 0.35 };
-  if (model === 'underbrush-2') return { ...OAK, minLeaves: 0.35 };
+  if (model === 'underbrush-1') return { ...BEECH, minLeaves: 0.2 };
+  if (model === 'underbrush-2') return { ...OAK, minLeaves: 0.2 };
   // rákos, orobinec a trsy trávy přes zimu stojí suché, lekníny zmizí
   if (model === 'reeds' || model === 'cattails' || /^grass-tuft/.test(model)) {
     return { deciduous: true, autumn: [0.7, 0.62, 0.46], variation: 0.2, minLeaves: 1 };
@@ -69,8 +69,8 @@ export function seasonFoliageFor(model: string): SeasonFoliageOptions | null {
 
 /**
  * Mesh listnáčů podle jména (`trees-<model>`, `decor-<model>`, `orchard-<model>` – jabloně sadu,
- * `impostors-<buňka atlasu>`) – v zimě se vyřadí ze stínové mapy: holá koruna by jinak vrhala
- * stín plného listí.
+ * `impostors-<buňka atlasu>`) – v zimě nesmí vrhat stín plného listí: 3D listnáče se vyřadí
+ * ze stínové mapy, impostory vrhají stín ze zimního atlasu (landscape-scene.ts).
  */
 export function isDeciduousMesh(name: string): boolean {
   const impostor = /^impostors-(\d+)/.exec(name);

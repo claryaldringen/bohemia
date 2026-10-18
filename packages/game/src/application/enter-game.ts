@@ -22,7 +22,7 @@ export interface EnterGameResult {
 export async function enterGame(deps: EnterGameDeps, playerId: string): Promise<EnterGameResult> {
   const existing = await deps.settlements.findSeat(playerId);
   const landscapeOf = (settlement: Settlement): Landscape =>
-    (deps.landscapes ?? GENERATED).landscapeOf(settlement.landscapeSeed, settlement.layerVersions);
+    settlementLandscape(settlement, deps.landscapes);
   if (existing) return { settlement: existing, landscape: landscapeOf(existing) };
 
   const accepted = generateAcceptedLandscape(deps.seeds.nextSeed());
@@ -39,3 +39,11 @@ export async function enterGame(deps: EnterGameDeps, playerId: string): Promise<
 
 /** Uložené sídlo má seed přijatého pokusu – krajina se generuje přesně z něj, bez pásma. */
 const GENERATED: LandscapeSource = { landscapeOf: generateLandscapeAttempt };
+
+/** Krajina uloženého sídla – z mezipaměti vstupního bodu, nebo vygenerovaná ze seedu. */
+export function settlementLandscape(
+  settlement: Settlement,
+  landscapes?: LandscapeSource,
+): Landscape {
+  return (landscapes ?? GENERATED).landscapeOf(settlement.landscapeSeed, settlement.layerVersions);
+}

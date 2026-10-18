@@ -3,6 +3,7 @@ import { randomInt } from 'node:crypto';
 import { createVillageRepository } from '@bohemia/db';
 import {
   foundVillageForSettlement,
+  isVillageExtinct,
   loadVillage,
   placeCemetery,
   placeDwelling,
@@ -18,7 +19,7 @@ import {
   type VillageResult,
 } from '@bohemia/game';
 import { getDatabase } from './db';
-import { enterGameForPlayer } from './game';
+import { enterGameForPlayer, isGameOverForPlayer } from './game';
 import { buildVillageView, type VillageView } from './village-view';
 import { currentWorld, gameDayIndex } from './world';
 
@@ -31,7 +32,8 @@ export type { PartStage, SceneVillage, VillageView } from './village-view';
 export type VillageActionResult = VillageView | { error: string };
 
 type Failure = { ok: false; error: string };
-type Context = { ok: true; settlementId: string; landscape: Landscape; day: number } | Failure;
+type Context =
+  { ok: true; playerId: string; settlementId: string; landscape: Landscape; day: number } | Failure;
 
 function villages(): VillageRepository {
   return createVillageRepository(getDatabase());
@@ -42,23 +44,37 @@ async function context(playerId: string): Promise<Context> {
   const today = gameDayIndex(Date.now(), currentWorld());
   if (!today.ok) return today;
   const { settlement, landscape } = await enterGameForPlayer(playerId);
-  return { ok: true, settlementId: settlement.id, landscape, day: today.day };
+  return { ok: true, playerId, settlementId: settlement.id, landscape, day: today.day };
 }
 
 /** Jako `context`, ale pro sídlo, které už volající načetl (krajina se negeneruje znovu). */
 function seatContext({ settlement, landscape }: EnterGameResult): Context {
   const today = gameDayIndex(Date.now(), currentWorld());
   if (!today.ok) return today;
-  return { ok: true, settlementId: settlement.id, landscape, day: today.day };
+  return {
+    ok: true,
+    playerId: settlement.ownerId,
+    settlementId: settlement.id,
+    landscape,
+    day: today.day,
+  };
 }
 
+/**
+ * Pohled na ves sídla. Konec hry (vymřely všechny vsi hráče) se zjišťuje, jen když vymřela tahle
+ * ves – živá ves znamená, že hra pokračuje.
+ */
 async function villageView(ctx: Context): Promise<VillageView | null | { error: string }> {
   if (!ctx.ok) return { error: ctx.error };
   const record = await loadVillage(
     { villages: villages() },
     { settlementId: ctx.settlementId, today: ctx.day, landscape: ctx.landscape },
   );
-  return record === null ? null : buildVillageView(record, ctx.landscape, ctx.day);
+  if (record === null) return null;
+  const gameOver = isVillageExtinct(record.state)
+    ? await isGameOverForPlayer(ctx.playerId, ctx.day)
+    : false;
+  return buildVillageView(record, ctx.landscape, ctx.day, gameOver);
 }
 
 function toActionResult(

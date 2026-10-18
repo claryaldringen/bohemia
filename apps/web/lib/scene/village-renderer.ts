@@ -17,7 +17,15 @@ import {
 } from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
 import { CemeteryRenderer } from './cemetery-renderer';
-import { EARTH_LAYERS, SMOKE_VENT, earthPatch, eaveTufts, type TuftModel } from './dwelling-decor';
+import {
+  EARTH_LAYERS,
+  GARDEN_MODEL_URL,
+  SMOKE_VENT,
+  earthPatch,
+  eaveTufts,
+  gardenInstance,
+  type TuftModel,
+} from './dwelling-decor';
 import {
   PIT_SHAPES,
   pitMeshData,
@@ -98,6 +106,8 @@ const TURF_MARGIN_M = 0.35;
 /** Ušlapaná tráva kolem staveniště: o kolik menší než místo pro stavbu a jak měkký okraj (m). */
 const TRAMPLED_INSET_M = 0.6;
 const TRAMPLED_SOFT_M = 2.2;
+/** Krytí vyšlapané hlíny u opuštěného obydlí – zarůstá trávou (vymřelá ves, prázdné obydlí). */
+const ABANDONED_EARTH_ALPHA = 0.4;
 /** Hromada hlíny z jámy v plné velikosti (m) – většina hlíny jde nakonec na valy. */
 const SPOIL_HEAP_M = { rx: 1.7, rz: 1.2, height: 0.72 };
 
@@ -147,6 +157,8 @@ export class VillageRenderer {
   private readonly models = new Map<DwellingType, Mesh | null>();
   private readonly ghosts = new Map<DwellingType, Mesh>();
   private readonly tufts = new Map<TuftModel, Mesh | null>();
+  /** Zahrádka polozemnice – samostatný model položený na terén vedle domu. */
+  private garden: Mesh | null = null;
   private readonly materials = new Map<string, Material>();
   private loading: Promise<void> | null = null;
   private builtKey = '';
@@ -270,6 +282,22 @@ export class VillageRenderer {
           this.models.set(type, null);
         }
       }),
+      (async () => {
+        try {
+          const garden = await loadMergedModel(
+            this.scene,
+            GARDEN_MODEL_URL,
+            'village-garden',
+            prepareDwellingMaterial,
+          );
+          if (!garden) return;
+          garden.setEnabled(false);
+          this.context.addShadowCaster(garden);
+          this.garden = garden;
+        } catch (error) {
+          console.warn('Model zahrádky se nepodařilo načíst.', error);
+        }
+      })(),
       ...TUFT_MODELS.map(async (name) => {
         try {
           const tuft = await loadMergedModel(
@@ -362,14 +390,11 @@ export class VillageRenderer {
       const state = constructionState(d.type, d.progress);
       const base = this.baseHeight(d);
       const rotationY = d.position.rotation;
+      const house = { x: d.position.x, y: base, z: d.position.z, rotationY, scale: 1 };
+      // díly zahrádky stojí na jejím vlastním místě na terénu (gardenInstance)
+      const garden = gardenInstance(d.type, d.position, this.context.groundHeight);
       for (const part of state.parts) {
-        push(`${d.type}-${part}`, {
-          x: d.position.x,
-          y: base,
-          z: d.position.z,
-          rotationY,
-          scale: 1,
-        });
+        push(`${d.type}-${part}`, part.startsWith('garden-') && garden ? garden : house);
       }
       for (const { prop, scale } of state.props) {
         // hromada hlíny je vlastní síť staveniště (leží na terénu, barvy jako jáma)
@@ -438,6 +463,15 @@ export class VillageRenderer {
         }));
       setInstances(model, instances);
     }
+    if (this.garden) {
+      setInstances(
+        this.garden,
+        built.flatMap((d) => {
+          const garden = gardenInstance(d.type, d.position, this.context.groundHeight);
+          return garden ? [garden] : [];
+        }),
+      );
+    }
     const tufts = built.flatMap((d) => eaveTufts(d.type, d.position, d.id));
     for (const name of TUFT_MODELS) {
       const mesh = this.tufts.get(name);
@@ -474,6 +508,9 @@ export class VillageRenderer {
 
   /** Vyšlapaná hlína před vchodem: širší prošlapaná tráva, uvnitř holá udusaná hlína. */
   private dwellingGround(d: SceneDwelling): Mesh[] {
+    // opuštěné obydlí (nikdo v něm nebydlí – vymřelá ves, prázdné obydlí) zarůstá trávou:
+    // vyšlapaná a udusaná hlína se nikdo neobnovuje
+    const alpha = d.inhabited === false ? ABANDONED_EARTH_ALPHA : 1;
     const worn = createDecalMesh(
       this.scene,
       `village-worn-${d.id}`,
@@ -483,6 +520,7 @@ export class VillageRenderer {
         smoothHeight: this.context.groundHeight,
         lift: LIFT.worn,
         color: [1, 0.96, 0.88],
+        alpha,
         uv: 20,
       },
     );
@@ -498,6 +536,7 @@ export class VillageRenderer {
         lift: LIFT.earth,
         // šedavá hlína z terénu do teplejší hnědé (udusaná hlína u dveří)
         color: [1.05, 0.9, 0.74],
+        alpha,
         uv: 14,
       },
     );
@@ -702,7 +741,7 @@ export class VillageRenderer {
         coverage,
       );
       if (grid.indices.length === 0) continue;
-      const look = partLook(part.stage);
+      const look = partLook(part.stage, part.crop);
       const group = groups.get(look.texture) ?? { grids: [], colors: [], alphas: [] };
       group.grids.push(grid);
       group.colors.push(look.tint);
@@ -897,9 +936,9 @@ export class VillageRenderer {
 function dwellingKey(d: SceneDwelling): string {
   const p = d.position;
   // Průběh stavby po 2 % – sloupy nerostou plynule, ale ani se nepřestavují při každém dotazu.
-  return [d.type, p.x, p.z, p.rotation, d.built, d.built ? '' : Math.round(d.progress * 50)].join(
-    '|',
-  );
+  // Hotové obydlí se přestaví, když se vylidní nebo zase zabydlí (hlína u vchodu zarůstá).
+  const look = d.built ? (d.inhabited === false ? 'empty' : '') : Math.round(d.progress * 50);
+  return [d.type, p.x, p.z, p.rotation, d.built, look].join('|');
 }
 
 /** Nastaví instance meshe; bez instancí ho vypne (jinak by se vykreslil samotný model v počátku). */
