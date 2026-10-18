@@ -517,7 +517,8 @@ rozhraní částí v
   setiny, lidé podle věku, měsíc). Scéna: `villager-plan.ts` (čisté funkce, testy) převede
   člověkodny na postavy (jedna na pracujícího, nejvýš `MAX_WORKERS` = 60, po skupinách až 4
   v činnosti – `shareCounts`; domácí práce a nečinní venku jen z části, v zimě méně) a rozestaví
-  je: řady na polích, nosiči polem ↔ obydlí (`walkRoute` obchází domy), stavitelé za
+  je (postavy stylizovaně o 20 % větší – `FIGURE_SCALE`, rozestupy s nimi): řady na polích,
+  nosiči polem ↔ obydlí (`walkRoute` obchází domy), stavitelé za
   staveništěm (`siteBox` = vyklízená plocha), dřevorubci u vyhrazených stromů, sad, obvod
   hřbitova, výmlat u vsi, ženy u vchodu, starší (šediny) u domů a děti u stád (`herdViews`
   ze zvířat). Nikdo nestojí ve vodě (rastr schůdné země sdílený se zvířaty – `groundFor`),

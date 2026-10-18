@@ -33,6 +33,18 @@ import {
 // u obydlí. Navíc starší u domů a děti u stád (nejsou práce vsi). Nikdo nestojí ve vodě,
 // v domě nebo jámě ani na hrobech.
 
+/**
+ * Postavy jsou stylizovaně o 20 % větší než skutečná výška modelu (žena 1,6 m, muž 1,72 m),
+ * jako domácí zvířata – z kamery (50–120 m) by jinak byly moc malé (Martin). Rozestupy mezi
+ * lidmi a od domů, stromů a plotů se zvětšují s nimi (`gap`).
+ */
+export const FIGURE_SCALE = 1.2;
+
+/** Rozestup `m` metrů pro postavu ve skutečné velikosti, zvětšený s postavami. */
+function gap(m: number): number {
+  return m * FIGURE_SCALE;
+}
+
 /** Nejvýš tolik pracujících postav – víc se jich zmenší poměrně. */
 export const MAX_WORKERS = 60;
 /** Nejvýš tolik starších u domů a kolik starších na jednu postavu. */
@@ -96,9 +108,9 @@ const ROW: Partial<Record<VillagerClip, { workS: number; stepM: number }>> = {
 const ROW_MARGIN_M = 1.2;
 const MIN_LANE_M = 3;
 /** Odstup od domu (m), kam se nevstupuje (k obdélníku domu se šíjí). */
-const HOUSE_MARGIN_M = 0.3;
+const HOUSE_MARGIN_M = gap(0.3);
 /** Odstup dřevorubce od kmene (m) – kmeny stromů ve scéně mají poloměr až ≈ 0,8 m. */
-const FELL_REACH_M = 1.6;
+const FELL_REACH_M = 1.3 + gap(0.5);
 /** Staveniště před vchodem (m, souřadnice domu) – nářadí a hlína u šíje. */
 const SITE_FRONT_M = 5;
 /** Krok kontroly trasy (m). */
@@ -432,7 +444,7 @@ function identity(seed: number, key: string, options: { women: number; child: bo
     : kind === 'woman'
       ? 0.96 + r * 0.07
       : 0.95 + r * 0.1;
-  return { key, kind, scale, phase: hash01(s, 3, 91), seed: s };
+  return { key, kind, scale: scale * FIGURE_SCALE, phase: hash01(s, 3, 91), seed: s };
 }
 
 function clothOf(seed: number): VillagerLook['cloth'] {
@@ -487,7 +499,7 @@ function worldPoint(position: Position, lx: number, lz: number): Point {
 
 /** Před vchodem domu (na konci šíje), `side` napříč (m). */
 function doorPoint(h: House, side = 0): Point {
-  return worldPoint(h.position, side, h.box.maxZ + 0.6);
+  return worldPoint(h.position, side, h.box.maxZ + gap(0.6));
 }
 
 function nearestHouse(list: readonly House[], p: Point): House | null {
@@ -785,15 +797,15 @@ function building(
   const { minX, maxX, minZ, maxZ } = house.box;
   // místa po obvodu (souřadnice domu) – ne před vchodem do šíje
   const slots: [number, number][] = [
-    [minX - 0.6, 0],
-    [maxX + 0.6, 0],
-    [0, minZ - 0.6],
-    [minX - 0.6, minZ + 0.8],
-    [maxX + 0.6, minZ + 0.8],
-    [minX - 0.6, maxZ - 1.2],
-    [maxX + 0.6, maxZ - 1.2],
-    [minX * 0.6, minZ - 0.6],
-    [maxX * 0.6, minZ - 0.6],
+    [minX - gap(0.6), 0],
+    [maxX + gap(0.6), 0],
+    [0, minZ - gap(0.6)],
+    [minX - gap(0.6), minZ + 0.8],
+    [maxX + gap(0.6), minZ + 0.8],
+    [minX - gap(0.6), maxZ - 1.2],
+    [maxX + gap(0.6), maxZ - 1.2],
+    [minX * 0.6, minZ - gap(0.6)],
+    [maxX * 0.6, minZ - gap(0.6)],
   ];
   return (i) => {
     const ring = Math.floor(i / slots.length);
@@ -830,8 +842,8 @@ function threshing(ctx: Context, count: number): Placer {
     const floor = floors[Math.floor(i / perFloor) % floors.length]!;
     const inFloor = Math.min(perFloor, count - Math.floor(i / perFloor) * perFloor);
     const a = ((i % perFloor) / inFloor) * Math.PI * 2 + hash01(ctx.seed, 94, 1);
-    const x = floor.x + Math.cos(a) * 1.4;
-    const z = floor.z + Math.sin(a) * 1.4;
+    const x = floor.x + Math.cos(a) * gap(1.4);
+    const z = floor.z + Math.sin(a) * gap(1.4);
     return stand(x, z, -Math.cos(a), -Math.sin(a), 'build');
   };
 }
@@ -870,7 +882,7 @@ function orchardTrees(ctx: Context, orchardId: number, count: number): Placer {
   const start = Math.floor(ctx.day / CREW_MOVE_DAYS) * count;
   return (i, who) => {
     const tree = trees[(start + i) % trees.length]!;
-    return atTree(ctx, tree, who, 'fruit', 1.3);
+    return atTree(ctx, tree, who, 'fruit', gap(1.3));
   };
 }
 
@@ -905,8 +917,8 @@ function cemeteryFence(ctx: Context, cemeteryId: number): Placer {
       const mz = a[1] + ((b[1] - a[1]) * d) / length;
       // ven = strana, která neleží v žádném čtverci hřbitova
       for (const side of [1, -1]) {
-        const x = mx + n.x * side * 0.7;
-        const z = mz + n.z * side * 0.7;
+        const x = mx + n.x * side * gap(0.7);
+        const z = mz + n.z * side * gap(0.7);
         const inside = cemetery.squares.some(
           (s) => Math.abs(x - s.x) < s.size / 2 && Math.abs(z - s.z) < s.size / 2,
         );
@@ -935,7 +947,7 @@ function domestic(ctx: Context): Placer {
     const home = homes[i % homes.length];
     if (!home) return null;
     const turn = Math.floor(i / homes.length);
-    const side = turn % 2 === 0 ? -1.3 : 1.3;
+    const side = turn % 2 === 0 ? -gap(1.3) : gap(1.3);
     const door = nearestFree(ctx, doorPoint(home, side).x, doorPoint(home, side).z, 1.5);
     if (!door) return null;
     if (turn % 2 === 1) {
@@ -965,7 +977,7 @@ function idlers(ctx: Context): Placer {
     const edge = side > 0 ? home.box.maxX + 2.4 : home.box.minX - 2.4;
     const base = worldPoint(home.position, edge, 0.5 - pair);
     const across = unit(Math.cos(home.position.rotation), -Math.sin(home.position.rotation));
-    const k = i % 2 === 0 ? -0.7 : 0.7;
+    const k = i % 2 === 0 ? -gap(0.7) : gap(0.7);
     const spot = nearestFree(ctx, base.x + across.x * k, base.z + across.z * k, 2);
     if (!spot) return null;
     return stand(spot.x, spot.z, -across.x * Math.sign(k), -across.z * Math.sign(k), 'idle');
@@ -980,7 +992,7 @@ function elders(ctx: Context, count: number): PlannedVillager[] {
     const home = homes[i % homes.length]!;
     const who = identity(ctx.seed, `elder:${home.id}:${i}`, { women: 0.5, child: false });
     const side = i % 2 === 0 ? 1 : -1;
-    const edge = side > 0 ? home.box.maxX + 0.7 : home.box.minX - 0.7;
+    const edge = side > 0 ? home.box.maxX + gap(0.7) : home.box.minX - gap(0.7);
     const p = worldPoint(home.position, edge, home.box.minZ * 0.3);
     const spot = nearestFree(ctx, p.x, p.z, 1.5);
     if (!spot) continue;

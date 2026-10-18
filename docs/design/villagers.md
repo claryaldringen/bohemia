@@ -36,7 +36,9 @@ Hráč má vidět, **kde ves dnes pracuje** – kam jde práce lidí, kterou po�
 - **Navíc, mimo práci vsi:** starší u domů (na dva jednoho, nejvýš čtyři, v zimě polovina; šediny)
   a děti jako pasáčci – jedno u každého stáda, když ves děti má.
 - **Vzhled:** muži a ženy podle činnosti (jádro pohlaví nezná), oděv nebarvený, hnědý nebo okrový,
-  vdané ženy s lněným nebo mořenou barveným šátkem. Pod každou postavou měkký stín.
+  vdané ženy s lněným nebo mořenou barveným šátkem. Pod každou postavou měkký stín. Postavy jsou
+  stylizovaně o 20 % větší než skutečná výška (jako domácí zvířata), aby byly z kamery vidět
+  (Martin, 18. 10. 2026); rozestupy se zvětšují s nimi.
 - **Nikdo nestojí ve vodě, v domě, v jámě, v oplocené zahrádce ani na hrobech;** kdo chodí,
   obchází domy.
 - **Vymřelá ves** (ani lidé, ani práce) – nikdo.

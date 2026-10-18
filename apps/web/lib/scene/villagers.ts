@@ -52,8 +52,11 @@ const BAKE_FPS = 24;
 /** Dál od kamery (m) se lidé nehýbou – jsou pár pixelů a pohyb by jen zbytečně kreslil. */
 const ANIMATE_RANGE_M = 700;
 /** Výška obalu postav nad terénem (m). */
-const HEAD_ROOM_M = 2.2;
-/** Kruhový stín pod postavou: průměr (m při měřítku 1), krytí uprostřed, výška nad terénem. */
+const HEAD_ROOM_M = 2.6;
+/**
+ * Kruhový stín pod postavou: průměr (m při měřítku 1 – roste s měřítkem postavy i se
+ * stylizovaným zvětšením FIGURE_SCALE), krytí uprostřed, výška nad terénem.
+ */
 const SHADOW_SIZE_M = 1.15;
 const SHADOW_OPACITY = 0.5;
 const SHADOW_LIFT_M = 0.04;

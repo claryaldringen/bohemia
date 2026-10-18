@@ -5,6 +5,7 @@ import { chickenBox } from '../livestock-placement';
 import { localToWorld } from '../village-layout';
 import { createVillagerPose, type HerdView, type VillagerPose } from '../villager-motion';
 import {
+  FIGURE_SCALE,
   MAX_ELDERS,
   MAX_WORKERS,
   crewSplit,
@@ -261,7 +262,11 @@ describe('planVillagers – kdo kde je', () => {
     const herder = of('herder:')[0]!;
     const pose = at(herder, 50);
     expect(Math.hypot(pose.x - 120, pose.z - 120)).toBeLessThan(12);
-    expect(herder.scale).toBeLessThan(0.8);
+    // dítě – menší než dospělí i se stylizovaným zvětšením postav
+    expect(herder.scale).toBeLessThan(0.75 * FIGURE_SCALE);
+    expect(Math.min(...of('harvest:').map((p) => p.scale))).toBeGreaterThanOrEqual(
+      0.95 * FIGURE_SCALE,
+    );
     expect(of('elder:').every((p) => p.look.hair === 'grey')).toBe(true);
     expect(
       people
