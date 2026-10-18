@@ -1,4 +1,6 @@
 import '@babylonjs/core/Culling/ray';
+import { Ray as PickingRay } from '@babylonjs/core/Culling/ray.core';
+import type { Camera } from '@babylonjs/core/Cameras/camera';
 import type { AbstractEngine } from '@babylonjs/core/Engines/abstractEngine';
 import { DirectionalLight } from '@babylonjs/core/Lights/directionalLight';
 import { HemisphericLight } from '@babylonjs/core/Lights/hemisphericLight';
@@ -33,10 +35,15 @@ import { FelledTrees } from './felled-trees';
 import { LogPile } from './log-pile';
 import { sameClearing, villageClearedForest, type ClearedForest } from './cleared-forest';
 import { createForestCanopy, type ForestCanopy } from './forest-canopy';
+import type { ScenePerfStats } from './perf-stats';
+import { ScenePerf } from './scene-perf';
 import { addImpostors, type ImpostorForest } from './impostors';
 import { obstacleScenery } from './obstacle-scenery';
 import { createTerrainMesh, type TerrainMesh } from './terrain-mesh';
+import { animationFps, loopStep, nextTick, tickDue } from './render-loop';
 import { buildRenderSurface } from './render-surface';
+import { chunkGrid } from './scenery-chunks';
+import { SceneryCulling } from './scenery-culling';
 import { terrainMeshHeight } from './drape';
 import { InstanceHider } from './instance-hider';
 import { VillageLivestock } from './livestock';
@@ -46,7 +53,7 @@ import { PitCuts, applyPitCut } from './pit-cut';
 import { seasonDayAt, seasonLook, seasonLookDistance, type SeasonLook } from './season-look';
 import { isDeciduousMesh } from './season-foliage';
 import { setSeasonShaderState } from './season-materials';
-import { SHADOW_DARKNESS, addSunShadows, type SunShadows } from './sun-shadows';
+import { SHADOW_DARKNESS, addSunShadows, castersChanged, type SunShadows } from './sun-shadows';
 import { tileAt, tileCenter } from './tile-at';
 import { addTrees } from './trees';
 import { FieldPainter } from './field-painting';
@@ -120,8 +127,22 @@ export class LandscapeScene {
   private water: WaterSurface | null = null;
   /** Ozdobné ryby a ptáci – hýbou se jako voda, dokud jsou v záběru. */
   private fauna: Fauna | null = null;
-  /** Poslední snímek animace vody (ms) – voda se překresluje nejvýš WATER_FPS za sekundu. */
-  private lastWaterFrame = 0;
+  /**
+   * Poslední takt animací a dokreslování (ms) – voda, zvířata a lidé se překreslují nejvýš
+   * WATER_FPS za sekundu a stejně často se kontroluje, jestli se v záběru něco hýbe.
+   */
+  private lastAnimationTick = Number.NEGATIVE_INFINITY;
+  /** Smyčka kreslení (requestAnimationFrame) a čas jejího posledního průchodu. */
+  private loopHandle = 0;
+  private lastLoopAt: number | null = null;
+  /** WebGL ztratil kontext – do obnovení se nekreslí (jako ve smyčce Babylonu). */
+  private contextLost = false;
+  /**
+   * Okno má fokus a kdy hráč naposledy něco udělal (myš, klávesy, kolečko, dotyk) – na pozadí
+   * jdou animace pomaleji (`animationFps`).
+   */
+  private focused = typeof document.hasFocus === 'function' ? document.hasFocus() : true;
+  private lastInputAt = performance.now();
   /**
    * Systémové „omezit pohyb“ – voda pak stojí a scéna se kreslí jen při změně. Hodnota se mění
    * živě (MediaQueryList). Zapínají ho i e2e testy: bezhlavý prohlížeč kreslí softwarově
@@ -147,7 +168,14 @@ export class LandscapeScene {
   /** Vrhače stínu vsi, které vznikly dřív než stínová mapa. */
   private readonly pendingCasters: Mesh[] = [];
   /** Stromy, keře a kameny krajiny, které ves odstranila nebo vykácela (a ozdoby pod stavbami). */
-  private readonly hider = new InstanceHider();
+  private readonly hider = new InstanceHider((mesh, matrices, hidden, colors) =>
+    this.culling?.setInstances(mesh, matrices, hidden, colors),
+  );
+  /**
+   * Ořez stromů, dekorací, impostorů, lesa vsi, pařezů a stromů u cest podle záběru po čtvercích
+   * (scenery-culling.ts) – kamera kreslí jen instance čtverců v záběru, stínová mapa všechny.
+   */
+  private culling: SceneryCulling | null = null;
   /** Vrstva překážek krajiny (herní data – stejná jako na serveru). */
   private obstacles: ObstacleLayer | null = null;
   /** Pařezy a nálet po pokácených stromech. */
@@ -177,6 +205,10 @@ export class LandscapeScene {
   private bareShadows = false;
   /** Vnitřek lesa – v zimě vrhá stín ze zimního atlasu (holé koruny). */
   private impostorForest: ImpostorForest | null = null;
+  /** Paprsek pro pick terénu pod kurzorem (bez alokace při každém pohybu myši). */
+  private readonly pickRay = PickingRay.Zero();
+  /** Vývojový ukazatel výkonu (jen /dev/landscape – `enablePerfStats`). */
+  private perf: ScenePerf | null = null;
 
   private constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -194,6 +226,11 @@ export class LandscapeScene {
     canvas.addEventListener('pointerleave', this.onPointerLeave);
     canvas.addEventListener('pointerdown', this.onPointerDown);
     canvas.addEventListener('pointerup', this.onPointerUp);
+    window.addEventListener('focus', this.onFocus);
+    window.addEventListener('blur', this.onBlur);
+    for (const type of INPUT_EVENTS) {
+      window.addEventListener(type, this.onInput, { capture: true, passive: true });
+    }
   }
 
   static async create(
@@ -232,6 +269,9 @@ export class LandscapeScene {
   ): Promise<void> {
     if (this.disposed) return;
     this.landscape = landscape;
+    // dřív než první modely – zařadí každý mesh s nehybnými instancemi, i les vsi a pařezy
+    this.culling?.dispose();
+    this.culling = new SceneryCulling(this.scene, chunkGrid(landscape.size * landscape.cellSizeM));
     const report = async (step: SceneStep, done: number): Promise<void> => {
       onProgress({ step, done });
       await nextPaint();
@@ -337,9 +377,10 @@ export class LandscapeScene {
       groundHeight,
       pitCuts: this.pitCuts,
       addShadowCaster: (mesh) => this.addVillageCaster(mesh),
+      // nová síť pěšin mění jen obtisky a trasy postav – stromy u cest obnoví stíny samy
+      // (refreshShadows), stínová mapa se kvůli pěšinám nepřekresluje
       onChange: () => {
         this.villagers?.setPaths(this.paths?.paths() ?? null, Date.now());
-        this.shadows?.refresh();
         this.renderWhenReady();
       },
       requestRender: () => this.renderWhenReady(),
@@ -375,9 +416,20 @@ export class LandscapeScene {
     let loaded = 0;
     const counted = <T>(promise: Promise<T>): Promise<T> =>
       promise.finally(() => onProgress({ step: 'models', done: 0.6 + 0.075 * ++loaded }));
+    // stromy, dekorace a impostory krajiny – jen ty skrývá InstanceHider (les vsi ne)
+    const sceneryMeshes: Mesh[] = [];
+    const collect = (meshes: Mesh[]): void => {
+      sceneryMeshes.push(...meshes);
+    };
     await Promise.all([
-      counted(addTrees(this.scene, trees, { baseUrl: '/models/trees/', groundHeight })),
-      counted(addDecorations(this.scene, decor, { baseUrl: '/models/decor/', groundHeight })),
+      counted(
+        addTrees(this.scene, trees, { baseUrl: '/models/trees/', groundHeight }).then(collect),
+      ),
+      counted(
+        addDecorations(this.scene, decor, { baseUrl: '/models/decor/', groundHeight }).then(
+          collect,
+        ),
+      ),
       counted(
         addImpostors(
           this.scene,
@@ -391,6 +443,7 @@ export class LandscapeScene {
         ).then(
           (forest) => {
             this.impostorForest = forest;
+            if (forest) collect(forest.meshes);
           },
           (error) =>
             console.warn(
@@ -410,11 +463,7 @@ export class LandscapeScene {
     ]);
     if (this.disposed) return;
     // Odstraněné a vykácené překážky se skryjí podle id, ozdoby pod stavbami podle polohy paty.
-    this.hider.track(
-      this.scene.meshes.filter(
-        (mesh): mesh is Mesh => mesh instanceof Mesh && /^(trees|decor|impostors)-/.test(mesh.name),
-      ),
-    );
+    this.hider.track(sceneryMeshes);
     const sun = this.scene.getLightByName('sun');
     if (sun instanceof DirectionalLight) {
       this.shadows = addSunShadows(sun, {
@@ -453,7 +502,7 @@ export class LandscapeScene {
     });
     if (this.season) this.ambient.setSeason({ ...this.season.sound, ice: this.season.ice });
     this.renderBurst(1500);
-    this.engine.runRenderLoop(() => this.frame());
+    this.startLoop();
   }
 
   /** Zapne nebo vypne zvuky krajiny – volat přímo z kliknutí (prohlížeč pustí zvuk po gestu). */
@@ -607,6 +656,17 @@ export class LandscapeScene {
     return this.paths?.stats ?? null;
   }
 
+  /** Vývojový ukazatel výkonu – zapne měření (něco stojí, proto jen na vývojové stránce). */
+  enablePerfStats(): void {
+    if (this.disposed) return;
+    this.perf ??= new ScenePerf(this.scene, this.engine, this.renderer);
+  }
+
+  /** Čísla výkonu scény; bez `enablePerfStats` null. */
+  perfStats(): ScenePerfStats | null {
+    return this.perf?.stats(performance.now(), this.animationFps()) ?? null;
+  }
+
   /** Vývojová volba: dým ze všech hotových obydlí pořád (kontrola vzhledu dýmu). */
   setSmokeAlways(enabled: boolean): void {
     this.smokeAlways = enabled;
@@ -713,6 +773,7 @@ export class LandscapeScene {
     this.placement?.dispose();
     this.placement = null;
     this.village?.dispose();
+    this.culling?.dispose();
     this.livestock?.dispose();
     this.villagers?.dispose();
     this.paths?.dispose();
@@ -721,12 +782,32 @@ export class LandscapeScene {
     this.canvas.removeEventListener('pointerleave', this.onPointerLeave);
     this.canvas.removeEventListener('pointerdown', this.onPointerDown);
     this.canvas.removeEventListener('pointerup', this.onPointerUp);
+    window.removeEventListener('focus', this.onFocus);
+    window.removeEventListener('blur', this.onBlur);
+    for (const type of INPUT_EVENTS) {
+      window.removeEventListener(type, this.onInput, { capture: true });
+    }
     this.ambient?.dispose();
     this.rtsCamera?.dispose();
-    this.engine.stopRenderLoop();
+    this.perf?.dispose();
+    if (this.loopHandle !== 0) cancelAnimationFrame(this.loopHandle);
+    this.loopHandle = 0;
     this.scene.dispose();
     this.engine.dispose();
   }
+
+  private readonly onFocus = (): void => {
+    this.focused = true;
+    this.lastInputAt = performance.now();
+  };
+
+  private readonly onBlur = (): void => {
+    this.focused = false;
+  };
+
+  private readonly onInput = (): void => {
+    this.lastInputAt = performance.now();
+  };
 
   private readonly onPointerMove = (): void => {
     this.pointerInside = true;
@@ -869,7 +950,8 @@ export class LandscapeScene {
     }
     // Dým hned na místě – i při omezeném pohybu, kdy se pak už nehýbe.
     village.animateSmoke(Date.now(), null);
-    this.shadows?.refresh();
+    const scene = { village: changed, hidden, felled, logs, shade: shaded, canopy: cleared };
+    if (castersChanged({ ...scene, animals, people })) this.shadows?.refresh();
     this.renderWhenReady();
   }
 
@@ -886,50 +968,69 @@ export class LandscapeScene {
 
   /** Bod terénu pod pixelem plátna (CSS px) jako [x, z], nebo null mimo krajinu. */
   private pickGround(x: number, y: number): [number, number] | null {
-    const terrain = this.terrain;
-    if (!terrain || !this.landscape) return null;
-    const pick = this.scene.pick(x, y, (mesh) => mesh === terrain);
-    const point = pick?.hit ? pick.pickedPoint : null;
+    const ground = this.terrainGround;
+    const camera = this.rtsCamera?.camera;
+    if (!ground || !camera || !this.landscape) return null;
+    const started = this.perf ? performance.now() : 0;
+    // Stejný paprsek jako `scene.pick` a stejné trojúhelníky, jen po výškové síti – jen políčka
+    // pod paprskem místo celé sítě terénu (terrain-pick.ts).
+    this.scene.createPickingRayToRef(x, y, Matrix.Identity(), this.pickRay, camera, false);
+    const point = ground.pick(this.pickRay);
+    this.perf?.pick(performance.now() - started);
     if (!point || !tileAt(this.landscape, point.x, point.z)) return null;
     return [point.x, point.z];
   }
 
   /**
+   * Vlastní smyčka místo `engine.runRenderLoop`: ta otevírá a uzavírá snímek enginu
+   * (`beginFrame` / `endFrame`) při každém snímku displeje, i když se nic nekreslí – WebGPU pak
+   * pokaždé odešle příkazy (`flushFramebuffer`). Tady vzniká snímek enginu jen při kreslení.
+   */
+  private startLoop(): void {
+    this.engine.onContextLostObservable.add(() => {
+      this.contextLost = true;
+    });
+    this.engine.onContextRestoredObservable.add(() => {
+      this.contextLost = false;
+      this.renderBurst(300);
+    });
+    const tick = (): void => {
+      this.loopHandle = 0;
+      if (this.disposed) return;
+      this.frame();
+      if (!this.disposed) this.loopHandle = requestAnimationFrame(tick);
+    };
+    this.loopHandle = requestAnimationFrame(tick);
+  }
+
+  /**
    * Krajina je statická – kreslí se jen při změně pohledu nebo velikosti okna. Šetří to
-   * výkon i baterii (tisíce stromů) a nezahlcuje prohlížeč bez grafické karty.
+   * výkon i baterii (tisíce stromů) a nezahlcuje prohlížeč bez grafické karty. Animace
+   * a dokreslování po načtení (`renderBurst`) jdou v taktu WATER_FPS (na pozadí méně), ne
+   * s displejem; pohyb kamery se kreslí s displejem.
    */
   private frame(): void {
     const camera = this.rtsCamera;
     if (!camera) return;
     const now = performance.now();
+    const step = loopStep(now, this.lastLoopAt);
+    this.lastLoopAt = now;
+    this.perf?.loop(now);
     if (now >= this.seasonCheckAt) this.updateSeason(false);
-    if (now < this.renderBurstUntil) this.needsRender = true;
-    // Voda teče a zvířata se hýbou sama – výjimka z kreslení jen při změně, dokud jsou v záběru.
+    // na pozadí (okno bez fokusu, hráč dvě minuty nic nedělá) jdou animace pomaleji; při
+    // omezeném pohybu animace stojí a takt slouží jen dokreslování po načtení
     const moving = !this.reducedMotion?.matches;
-    if (moving && now - this.lastWaterFrame >= 1000 / WATER_FPS) {
-      let animated = false;
-      // zamrzlá voda neteče – v záběru jen led a stojí, nepřekresluje se
-      if (this.water?.flowsInView(camera.camera)) {
-        this.water.animate(now / 1000);
-        animated = true;
-      }
-      if (this.fauna?.animate(now / 1000, camera.camera)) animated = true;
-      // dým z obydlí – rozvrh ohně podle herního dne, proto skutečný čas
-      if (this.village?.animateSmoke(Date.now(), camera.camera)) animated = true;
-      // domácí zvířata – skutečný čas (epoch ms), ne herní: stejný okamžik = stejná póza
-      if (this.livestock?.animate(Date.now(), camera.camera)) animated = true;
-      // lidé ve vsi – skutečný čas jako zvířata
-      if (this.villagers?.animate(Date.now(), camera.camera)) animated = true;
-      // voli a krávy v ohradách a spřežení na poli (oxen.md) – skutečný čas jako zvířata
-      if (this.village?.animateOxen(Date.now(), camera.camera)) animated = true;
-      // obilí ve větru – jen zralé a zelené v záběru
-      if (this.village?.animateFields(Date.now(), camera.camera)) animated = true;
-      if (animated) {
-        this.lastWaterFrame = now;
+    const fps = moving ? this.animationFps() : WATER_FPS;
+    if (tickDue(now, this.lastAnimationTick, fps)) {
+      // takt se posouvá při každé kontrole – kontroly animací nejvýš `fps` za sekundu
+      this.lastAnimationTick = nextTick(now, this.lastAnimationTick, fps);
+      if (now < this.renderBurstUntil) this.needsRender = true;
+      // Voda teče a zvířata se hýbou sama – výjimka z kreslení jen při změně, dokud jsou v záběru.
+      if (moving && this.animate(now, camera.camera)) {
         this.needsRender = true;
       }
     }
-    if (camera.update(this.engine.getDeltaTime() / 1000)) {
+    if (camera.update(step)) {
       this.needsRender = true;
       // obilí z dálky řídne (trsy), pole pak nese obtisk porostu
       this.village?.setView(camera.camera.radius);
@@ -944,9 +1045,47 @@ export class LandscapeScene {
     }
     this.pickHoveredTile();
     this.placement?.tick(now);
-    if (!this.needsRender) return;
+    if (!this.needsRender || this.contextLost || this.engine.isDisposed) return;
     this.needsRender = false;
+    this.engine.beginFrame();
     this.scene.render(false);
+    this.engine.endFrame();
+    this.perf?.frameDrawn(now);
+  }
+
+  /** Voda, ryby a ptáci, dým, zvířata, lidé, voli a obilí – true, když se něco v záběru hnulo. */
+  private animate(now: number, camera: Camera): boolean {
+    let animated = false;
+    // zamrzlá voda neteče – v záběru jen led a stojí, nepřekresluje se
+    if (this.water?.flowsInView(camera)) {
+      this.water.animate(now / 1000);
+      animated = true;
+    }
+    if (this.fauna?.animate(now / 1000, camera)) animated = true;
+    // dým z obydlí – rozvrh ohně podle herního dne, proto skutečný čas
+    const epochMs = Date.now();
+    if (this.village?.animateSmoke(epochMs, camera)) animated = true;
+    // domácí zvířata – skutečný čas (epoch ms), ne herní: stejný okamžik = stejná póza
+    if (this.livestock?.animate(epochMs, camera)) animated = true;
+    // lidé ve vsi – skutečný čas jako zvířata
+    if (this.villagers?.animate(epochMs, camera)) animated = true;
+    // voli a krávy v ohradách a spřežení na poli (oxen.md) – skutečný čas jako zvířata
+    if (this.village?.animateOxen(epochMs, camera)) animated = true;
+    // obilí ve větru – jen zralé a zelené v záběru
+    if (this.village?.animateFields(epochMs, camera)) animated = true;
+    return animated;
+  }
+
+  /**
+   * Plynulost animací (snímků za sekundu) – při omezeném pohybu stojí, na pozadí méně
+   * (render-loop.ts – `animationFps`).
+   */
+  private animationFps(): number {
+    if (this.reducedMotion?.matches) return 0;
+    return animationFps({
+      focused: this.focused,
+      idleMs: performance.now() - this.lastInputAt,
+    });
   }
 
   /**
@@ -1019,8 +1158,9 @@ export class LandscapeScene {
   }
 
   /**
-   * Chvíli kreslit každý snímek: WebGL kompiluje shadery paralelně a první snímky po načtení
-   * nebo změně velikosti nemusí obsahovat vše – bez toho by na obrazovce zůstal neúplný obraz.
+   * Chvíli kreslit v taktu animací (WATER_FPS): WebGL kompiluje shadery paralelně a první snímky
+   * po načtení nebo změně velikosti nemusí obsahovat vše – bez toho by na obrazovce zůstal
+   * neúplný obraz. Hned teď se kreslí vždy.
    */
   private renderBurst(durationMs: number): void {
     this.renderBurstUntil = Math.max(this.renderBurstUntil, performance.now() + durationMs);
@@ -1062,6 +1202,9 @@ export class LandscapeScene {
     for (const listener of this.listeners) listener(tile);
   }
 }
+
+/** Vstupy hráče, po kterých jdou animace zase plně (nižší plynulost po nečinnosti). */
+const INPUT_EVENTS = ['pointermove', 'pointerdown', 'keydown', 'wheel', 'touchstart'] as const;
 
 /** Kroky přípravy scény – texty k nim ukazuje rozhraní. */
 export type SceneStep = 'terrain' | 'forest' | 'surface' | 'models' | 'shaders';

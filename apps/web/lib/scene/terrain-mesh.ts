@@ -6,20 +6,26 @@ import { HEIGHT_SCALE } from './constants';
 import type { ForestGround } from './ground-layers';
 import type { RenderSurface } from './render-surface';
 import { createTerrainMaterial } from './terrain-material';
+import { createTerrainPicker, type TerrainPicker } from './terrain-pick';
 
-/** Síť terénu a přepočet ztmavení pod vykácenými stromy (`TerrainMaterial.setHiddenTrees`). */
+/** Síť terénu, pick po výškové síti a přepočet ztmavení pod vykácenými stromy. */
 export interface TerrainMesh {
   mesh: Mesh;
+  /** Bod terénu na paprsku – stejné trojúhelníky jako `scene.pick` na síti (terrain-pick.ts). */
+  pick: TerrainPicker;
   setHiddenTrees(hidden: ReadonlySet<number>): boolean;
 }
 
-/** Terén z hustší výškové sítě (hladké kopce, vyhloubené koryto), povrch míchá terénní materiál. */
-export function createTerrainMesh(
-  scene: Scene,
-  l: Landscape,
-  surface: RenderSurface,
-  forest?: ForestGround,
-): TerrainMesh {
+/**
+ * Vrcholy a trojúhelníky terénu z výškové sítě: mřížka `resolution` × `resolution`, čtverec
+ * (i, j) dělí úhlopříčka z (i + 1, j) do (i, j + 1) – trojúhelníky (a, b, c) a (b, d, c).
+ */
+export function terrainGeometry(
+  surface: Pick<RenderSurface, 'resolution' | 'heights' | 'position'>,
+): {
+  positions: Float32Array;
+  indices: Uint32Array;
+} {
   const n = surface.resolution;
   const positions = new Float32Array(n * n * 3);
   for (let v = 0; v < n * n; v++) {
@@ -41,7 +47,17 @@ export function createTerrainMesh(
       k += 6;
     }
   }
+  return { positions, indices };
+}
 
+/** Terén z hustší výškové sítě (hladké kopce, vyhloubené koryto), povrch míchá terénní materiál. */
+export function createTerrainMesh(
+  scene: Scene,
+  l: Landscape,
+  surface: RenderSurface,
+  forest?: ForestGround,
+): TerrainMesh {
+  const { positions, indices } = terrainGeometry(surface);
   const normals = new Float32Array(positions.length);
   VertexData.ComputeNormals(positions, indices, normals);
   const vertexData = new VertexData();
@@ -54,5 +70,9 @@ export function createTerrainMesh(
   const material = createTerrainMaterial(scene, l, surface.stream, forest);
   mesh.material = material.material;
   mesh.freezeWorldMatrix();
-  return { mesh, setHiddenTrees: (hidden) => material.setHiddenTrees(hidden) };
+  return {
+    mesh,
+    pick: createTerrainPicker(positions, surface.resolution),
+    setHiddenTrees: (hidden) => material.setHiddenTrees(hidden),
+  };
 }

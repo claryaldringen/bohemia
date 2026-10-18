@@ -1,0 +1,51 @@
+import { renderToStaticMarkup } from 'react-dom/server';
+import { describe, expect, it } from 'vitest';
+import type { ScenePerfStats } from '@/lib/scene/perf-stats';
+import { ScenePerfReadout } from '../ScenePerfPanel';
+
+const STATS: ScenePerfStats = {
+  renderer: 'webgpu',
+  loopFps: 120,
+  drawnFps: 30,
+  animationFps: 30,
+  frameMs: 4.256,
+  activeMeshesMs: 0.5,
+  gpuMs: null,
+  drawCalls: 412,
+  activeMeshes: 230,
+  triangles: 1_234_567,
+  pickMs: 0.031,
+};
+
+/** Dvojice popisek – hodnota ze statického renderu. */
+function rows(html: string): [string, string][] {
+  return [...html.matchAll(/<dt[^>]*>([^<]*)<\/dt><dd[^>]*>([^<]*)<\/dd>/g)].map((m) => [
+    m[1]!,
+    m[2]!,
+  ]);
+}
+
+describe('ScenePerfReadout – vývojový ukazatel výkonu', () => {
+  it('bez čísel ukáže, že se měří', () => {
+    const html = renderToStaticMarkup(<ScenePerfReadout stats={null} />);
+    expect(html).toContain('data-testid="dev-perf"');
+    expect(html).toContain('měří se');
+  });
+
+  it('ukáže kreslící snímky, smyčku, dobu snímku, draw cally a trojúhelníky', () => {
+    const html = renderToStaticMarkup(<ScenePerfReadout stats={STATS} />);
+    expect(rows(html)).toEqual([
+      ['Engine', 'webgpu'],
+      ['Kreslí', '30 sn./s'],
+      ['Smyčka', '120 /s'],
+      ['Animace', '30 sn./s'],
+      ['CPU snímku', '4.26 ms'],
+      ['Výběr meshů', '0.50 ms'],
+      ['GPU snímku', '–'],
+      ['Draw cally', '412'],
+      ['Meshe', '230'],
+      ['Trojúhelníky', '1.23 M'],
+      ['Pick', '0.03 ms'],
+    ]);
+  });
+});
