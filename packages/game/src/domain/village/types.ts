@@ -427,6 +427,12 @@ export interface VillageState {
    */
   extinctDay?: number;
   commonLaborHistory: number[]; // společná práce posledních 30 dní (pro „má na to“)
+  /**
+   * Roční průměr denní společné práce (člověkodny za den) – klouzavý exponenciální průměr
+   * s časovou konstantou COMMON_LABOR_YEAR_DAYS; podle něj se obyvatelé rozhodují o přestavbě na
+   * lepší obydlí. U vsí uložených před ním chybí – začne průměrem `commonLaborHistory`.
+   */
+  commonLaborYearly?: number;
   chronicle: ChronicleEvent[];
   /** Pohřebiště – u vsí uložených před zavedením pohřebišť chybí (= žádné). */
   cemeteries?: Cemetery[];
@@ -463,6 +469,11 @@ export interface VillageState {
   sacredBuildings?: SacredBuilding[];
   /** Zásoby výrobků řemeslníků (crafts.md) – u vsí uložených před řemesly chybí (= 0). */
   crafts?: CraftStocks;
+  /**
+   * Starší polozemnice už dostaly pozemky (`withPlots`, Martin 18. 10. 2026). Chybí u vsí
+   * uložených před převodem – při načtení se jednou převedou.
+   */
+  plotsMigrated?: true;
 }
 
 /**

@@ -173,6 +173,31 @@ describe('loadVillage', () => {
     expect(villages.saves).toBe(0);
   });
 
+  it('starší polozemnice bez pozemku dostane při načtení pozemek – před dopočtem, jednou', async () => {
+    const villages = await foundedVillages();
+    expect(villages.records.get(ID)!.state.plotsMigrated).toBe(true);
+    villages.edit(ID, (s) => {
+      delete s.plotsMigrated;
+      // políčko (12, 3) = svět x 60 … 75, z −75 … −60
+      s.dwellings.push({
+        id: s.nextId++,
+        type: 'polozemnice',
+        builtDay: TODAY - 300,
+        condition: 1,
+        position: at(68.2, -66.9, 1),
+      });
+    });
+    const record = await loadVillage(
+      { villages },
+      { settlementId: ID, today: TODAY + 1, landscape },
+    );
+    const old = record!.state.dwellings.find((d) => d.type === 'polozemnice')!;
+    expect(old.plot).toEqual({ cell: { x: 12, y: 3 }, variant: 'center' });
+    expect(old.position).toEqual(at(67.5, -67.5, 1));
+    expect(record!.state.plotsMigrated).toBe(true);
+    expect(villages.records.get(ID)!.state.dwellings.at(-1)!.plot).toBeDefined();
+  });
+
   it('při souběžném uložení to zkusí znovu nad čerstvou vsí', async () => {
     const villages = await foundedVillages();
     let interfered = false;

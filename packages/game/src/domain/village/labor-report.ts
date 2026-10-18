@@ -275,8 +275,10 @@ function constructionShares(work: ConstructionWork): LaborShare[] {
           },
         ];
   }
+  // přestavba na místě pracuje u obydlí, přestavba na novém pozemku (polozemnice bez pozemku) na
+  // staveništi
   const place: LaborTarget | null =
-    c.kind === 'rebuild'
+    c.kind === 'rebuild' && c.position === null
       ? c.dwellingId === null
         ? null
         : { kind: 'dwelling', id: c.dwellingId }

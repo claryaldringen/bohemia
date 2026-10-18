@@ -4,16 +4,18 @@
 // branky ke dveřím a ve zbytku záhony se zeleninou. Souřadnice světa scény v metrech (x, z).
 // Polský plot je pletený plot společný s hřbitovem (woven-fence.ts), tady jen jeho hustota.
 import {
+  DWELLING_FOOTPRINT_M,
   PLOT_HOUSE_OFFSET_M,
   PLOT_HOUSE_ROTATION,
   PLOT_VARIANTS,
   type PlotVariant,
   type Position,
 } from '@bohemia/game';
-import { seededRandom, type Point } from './village-layout';
+import { localToWorld, seededRandom, type Point } from './village-layout';
 import {
   fenceStage,
   wovenFence,
+  type FenceRun,
   type FenceStage,
   type FenceStyle,
   type WovenFence,
@@ -96,12 +98,15 @@ export interface HomesteadLayout {
   house: Position;
   /** Obdélník plotu (osy kůlů na rovných stranách). */
   fenceRect: Rect;
-  /** Plot – jeden kus od kůlu branky dokola k druhému. */
+  /**
+   * Plot – jeden kus od kůlu branky dokola k druhému; u domu stojícího přes plot přerušený
+   * (stěna domu je ohradou, s vchodem ven z pozemku i bez branky).
+   */
   fence: WovenFence;
   beds: PlotBed[];
   plants: PlotPlant[];
-  /** Cestička od branky ke dvorku před dveřmi (obdélník). */
-  path: Point[];
+  /** Cestička od branky ke dvorku před dveřmi (obdélník); bez branky null. */
+  path: Point[] | null;
 }
 
 /** Obdélník plotu na políčku. */
@@ -169,35 +174,55 @@ export function homesteadLayout(
   square: PlotSquare,
   variant: PlotVariant,
   seed = 0,
+  actualHouse?: Position,
 ): HomesteadLayout {
-  const house = plotHouse(square, variant);
+  const house = actualHouse ?? plotHouse(square, variant);
   const fenceRect = plotFenceRect(square);
-  // branka na přední straně proti vchodu
-  const fence = wovenFence([rectPath(fenceRect)], PLOT_FENCE, {
-    toward: { x: house.x, z: fenceRect.minZ - 1 },
-  });
-  const gatePosts = fence.runs[0]!.posts;
-  const gateX = (gatePosts[0]!.x + gatePosts[gatePosts.length - 1]!.x) / 2;
-  const doorZ = house.z - HOUSE_RECT_M.front;
+  // vchod míří do (sin r, cos r) – branka na straně plotu, kam vchod míří (u varianty vpředu, −z)
+  const door = localToWorld(house, 0, HOUSE_RECT_M.front);
+  const facing: Point = [Math.sin(house.rotation), Math.cos(house.rotation)];
+  const toward =
+    Math.abs(facing[1]) >= Math.abs(facing[0])
+      ? { x: door[0], z: facing[1] < 0 ? fenceRect.minZ - 1 : fenceRect.maxZ + 1 }
+      : { x: facing[0] < 0 ? fenceRect.minX - 1 : fenceRect.maxX + 1, z: door[1] };
+  // dům převedené starší polozemnice může stát přes plot – tam plot nahradí stěna domu; když
+  // vchod vede ven z ohrazení, branka ani cestička nejsou
+  const doorInside =
+    door[0] > fenceRect.minX &&
+    door[0] < fenceRect.maxX &&
+    door[1] > fenceRect.minZ &&
+    door[1] < fenceRect.maxZ;
+  const fence = withoutPostsUnder(
+    wovenFence([rectPath(fenceRect)], PLOT_FENCE, doorInside ? { toward } : null),
+    house,
+  );
+  // kůly branky – první a poslední kůl plotu (i když se plot u domu rozdělil na víc kusů)
+  const [first, last] = fence.runs.flatMap((run) => run.posts).filter((p) => p.gate);
+  const gate =
+    first && last
+      ? {
+          at: [(first.x + last.x) / 2, (first.z + last.z) / 2] as Point,
+          out: [first.outX, first.outZ] as Point,
+        }
+      : null;
+  const local = (lx: number, lz: number): Point => localToWorld(house, lx, lz);
+  const { halfX, front, back } = HOUSE_RECT_M;
   const exclusions: Rect[] = [
-    {
-      minX: house.x - HOUSE_RECT_M.halfX,
-      maxX: house.x + HOUSE_RECT_M.halfX,
-      minZ: doorZ,
-      maxZ: house.z + HOUSE_RECT_M.back,
-    },
-    {
-      minX: house.x - YARD_M.halfX,
-      maxX: house.x + YARD_M.halfX,
-      minZ: doorZ - YARD_M.depth,
-      maxZ: doorZ,
-    },
-    {
-      minX: gateX - PATH_HALF_M,
-      maxX: gateX + PATH_HALF_M,
-      minZ: fenceRect.minZ - 1,
-      maxZ: doorZ,
-    },
+    boundsOf([
+      local(-halfX, front),
+      local(halfX, front),
+      local(halfX, -back),
+      local(-halfX, -back),
+    ]),
+    boundsOf([
+      local(-YARD_M.halfX, front),
+      local(YARD_M.halfX, front),
+      local(YARD_M.halfX, front + YARD_M.depth),
+      local(-YARD_M.halfX, front + YARD_M.depth),
+    ]),
+    ...(gate
+      ? [widen(boundsOf([[gate.at[0] + gate.out[0], gate.at[1] + gate.out[1]], door]), PATH_HALF_M)]
+      : []),
   ];
   const inner: Rect = {
     minX: fenceRect.minX + BED_MARGIN_M,
@@ -246,13 +271,90 @@ export function homesteadLayout(
       }
     });
   });
-  const path: Point[] = [
-    [gateX - PATH_HALF_M + 0.2, fenceRect.minZ - 0.6],
-    [gateX + PATH_HALF_M - 0.2, fenceRect.minZ - 0.6],
-    [gateX + PATH_HALF_M - 0.2, doorZ - 0.5],
-    [gateX - PATH_HALF_M + 0.2, doorZ - 0.5],
+  return {
+    house,
+    fenceRect,
+    fence,
+    beds,
+    plants,
+    path: gate ? plotPath(gate, door, facing) : null,
+  };
+}
+
+/** Cestička od branky (kousek za plotem) ke dvorku před dveřmi – pás široký 1,1 m. */
+function plotPath(gate: { at: Point; out: Point }, door: Point, facing: Point): Point[] {
+  const from: Point = [gate.at[0] + gate.out[0] * 0.6, gate.at[1] + gate.out[1] * 0.6];
+  const to: Point = [door[0] + facing[0] * 0.5, door[1] + facing[1] * 0.5];
+  const length = Math.hypot(to[0] - from[0], to[1] - from[1]) || 1;
+  const w = PATH_HALF_M - 0.2;
+  const px = (-(to[1] - from[1]) / length) * w;
+  const pz = ((to[0] - from[0]) / length) * w;
+  return [
+    [from[0] + px, from[1] + pz],
+    [from[0] - px, from[1] - pz],
+    [to[0] - px, to[1] - pz],
+    [to[0] + px, to[1] + pz],
   ];
-  return { house, fenceRect, fence, beds, plants, path };
+}
+
+function boundsOf(points: readonly Point[]): Rect {
+  const xs = points.map((p) => p[0]);
+  const zs = points.map((p) => p[1]);
+  return {
+    minX: Math.min(...xs),
+    maxX: Math.max(...xs),
+    minZ: Math.min(...zs),
+    maxZ: Math.max(...zs),
+  };
+}
+
+function widen(rect: Rect, by: number): Rect {
+  return { minX: rect.minX - by, maxX: rect.maxX + by, minZ: rect.minZ - by, maxZ: rect.maxZ + by };
+}
+
+/** Rezerva kolem stěn domu, ve které kůl plotu nestojí (m). */
+const HOUSE_WALL_GAP_M = 0.3;
+
+/**
+ * Plot bez kůlů, které by stály v domě (dům převedené starší polozemnice stojí přes plot): kus
+ * plotu se v domě přeruší – stěna domu je tam ohradou. Dům uvnitř plotu nic nezmění.
+ */
+function withoutPostsUnder(fence: WovenFence, house: Position): WovenFence {
+  const { width, depth } = DWELLING_FOOTPRINT_M.polozemnice;
+  const c = Math.cos(house.rotation);
+  const s = Math.sin(house.rotation);
+  const inside = (x: number, z: number): boolean => {
+    const dx = x - house.x;
+    const dz = z - house.z;
+    return (
+      Math.abs(dx * c - dz * s) <= width / 2 + HOUSE_WALL_GAP_M &&
+      Math.abs(dx * s + dz * c) <= depth / 2 + HOUSE_WALL_GAP_M
+    );
+  };
+  if (!fence.runs.some((run) => run.posts.some((p) => inside(p.x, p.z)))) return fence;
+  const runs: FenceRun[] = [];
+  for (const run of fence.runs) {
+    const posts = run.posts;
+    const removed = posts.map((p) => inside(p.x, p.z));
+    if (!removed.some(Boolean)) {
+      runs.push(run);
+      continue;
+    }
+    // uzavřený kus začne za prvním vynechaným kůlem, aby se kusy nerozpadly přes začátek
+    const start = run.closed ? removed.indexOf(true) + 1 : 0;
+    const order = posts.map((_, i) => (start + i) % posts.length);
+    let current: FenceRun['posts'] = [];
+    for (const i of order) {
+      if (removed[i]) {
+        if (current.length > 0) runs.push({ posts: current, closed: false });
+        current = [];
+      } else {
+        current.push(posts[i]!);
+      }
+    }
+    if (current.length > 0) runs.push({ posts: current, closed: false });
+  }
+  return { runs };
 }
 
 /** Bod uvnitř ohrazení pozemku (s okrajem `margin` od plotu, m)? */

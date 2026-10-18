@@ -1055,7 +1055,7 @@ function plotViews(dwellings: readonly SceneDwelling[]): PlotView[] {
   return dwellings.flatMap((d) => {
     if (!d.plot) return [];
     const progress = d.built ? PLOT_BUILT : constructionState(d.type, d.progress).plot;
-    return [{ id: d.id, square: d.plot, variant: d.plot.variant, progress }];
+    return [{ id: d.id, square: d.plot, variant: d.plot.variant, progress, house: d.position }];
   });
 }
 

@@ -19,6 +19,7 @@ import {
 } from '../placement';
 import { NO_CRAFTS } from '../productivity';
 import { CRAFT_BASE, workshopBuildLabor, workshopCost, workshopTrees } from '../rules';
+import { withPlots } from '../plots';
 import { advanceVillage } from '../simulate';
 import { summarizeVillage } from '../summary';
 import type { Craft, Person, VillageState } from '../types';
@@ -415,6 +416,33 @@ describe('dílny ve vsi – simulace', () => {
     const dwelling = rebuilt.dwellings.find((d) => d.id === WORKSHOP_ID)!;
     expect(dwelling.workshop?.craft).toBe('burner');
     expect(dwelling.type).toBe('zemnice');
+  });
+});
+
+describe('dílny a pozemky polozemnic', () => {
+  const land = makeLandscape();
+  const empty = packObstacles([], 16, 15);
+  const smithVillage = (): VillageState => {
+    const s = withWorkshop(fullVillage(), 'smith', WORKSHOP_ID, { x: 7.5, z: 7.5, rotation: 0 });
+    s.dwellings.find((d) => d.id === 1)!.position = { x: -60, z: -60, rotation: 0 };
+    return s;
+  };
+
+  it('převod starších polozemnic na pozemky dílnu vynechá – stojí volně', () => {
+    const migrated = withPlots(smithVillage(), land, empty);
+    expect(migrated.plotsMigrated).toBe(true);
+    expect(migrated.dwellings.find((d) => d.id === WORKSHOP_ID)?.plot).toBeUndefined();
+  });
+
+  it('přestavba dílny na polozemnici se nestěhuje na pozemek', () => {
+    const s = smithVillage();
+    s.dwellings.find((d) => d.id === WORKSHOP_ID)!.builtDay = DAY - Math.ceil(30 * YEAR);
+    const after = advanceVillage(s, DAY + 1, empty, land);
+    const rebuild = after.constructions.find(
+      (c) => c.kind === 'rebuild' && c.dwellingId === WORKSHOP_ID,
+    );
+    expect(rebuild).toMatchObject({ dwellingType: 'polozemnice', position: null });
+    expect(rebuild?.plot).toBeUndefined();
   });
 });
 
