@@ -245,6 +245,11 @@ export interface SceneVillage {
     progress: number;
     /** Bydlí v něm někdo – jen z obydlí s obyvateli stoupá dým. Bez údaje = obývané. */
     inhabited?: boolean;
+    /**
+     * Herní den, od kdy obydlí stojí (hotové – dostavění, staveniště – zahájení stavby): pěšiny
+     * domácnosti se vyšlapávají postupně (paths.md). Bez údaje = odjakživa.
+     */
+    since?: number;
   }[];
   /**
    * Pole po čtvercích – díl = políčko krajiny `cell`, jeho střed (x, z) ve světě, strana
@@ -497,12 +502,22 @@ function sceneVillage(
     built: true,
     progress: 1,
     inhabited: occupied.has(d.id),
+    since: d.builtDay,
   }));
   // staveniště ukazuje samotnou stavbu – dřevo se kácí v lese, než se začne stavět
   const sites = state.constructions.flatMap((c) => {
     if (c.kind !== 'dwelling' || c.dwellingType === null || c.position === null) return [];
     const progress = constructions.find((s) => s.id === c.id)?.buildProgress ?? 0;
-    return [{ id: c.id, type: c.dwellingType, position: c.position, built: false, progress }];
+    return [
+      {
+        id: c.id,
+        type: c.dwellingType,
+        position: c.position,
+        built: false,
+        progress,
+        since: c.startedDay,
+      },
+    ];
   });
   const fields = state.fields.map((f) => ({
     id: f.id,

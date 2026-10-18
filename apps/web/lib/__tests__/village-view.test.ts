@@ -264,6 +264,8 @@ describe('buildVillageView', () => {
         position: { x: -50, z: -50, rotation: 0.5 },
         built: false,
         progress: 0.25,
+        // od zahájení stavby se vyšlapávají pěšiny (paths.md)
+        since: site.startedDay,
       },
     ]);
   });
@@ -307,6 +309,7 @@ describe('buildVillageView', () => {
         built: true,
         progress: 1,
         inhabited: true,
+        since: s.dwellings[0]!.builtDay,
       },
       {
         id: 99,
@@ -314,6 +317,7 @@ describe('buildVillageView', () => {
         position: { x: 30, z: 40, rotation: 0 },
         built: false,
         progress: 0.25,
+        since: DAY,
       },
     ]);
     expect(constructions.find((c) => c.id === 99)).toEqual({

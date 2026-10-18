@@ -40,6 +40,7 @@ import { terrainMeshHeight } from './drape';
 import { InstanceHider } from './instance-hider';
 import { VillageLivestock } from './livestock';
 import { VillageVillagers } from './villagers';
+import { VillagePaths, type PathStats } from './path-renderer';
 import { PitCuts, applyPitCut } from './pit-cut';
 import { seasonDayAt, seasonLook, seasonLookDistance, type SeasonLook } from './season-look';
 import { isDeciduousMesh } from './season-foliage';
@@ -149,6 +150,8 @@ export class LandscapeScene {
   private livestock: VillageLivestock | null = null;
   /** Lidé ve vsi – kde ves dnes pracuje (rozdělení práce dne, villagers.md). */
   private villagers: VillageVillagers | null = null;
+  /** Vyšlapané pěšiny vsi (paths.md) – lidé po nich chodí. */
+  private paths: VillagePaths | null = null;
   /** Poslední stav vsi od rozhraní – vykreslí se, jakmile je krajina hotová. */
   private villageState: SceneVillage | null = null;
   private placement: ActivePlacement | null = null;
@@ -306,6 +309,28 @@ export class LandscapeScene {
       baseUrl: '/models/people/',
       herds: (nowMs) => this.livestock?.herdViews(nowMs) ?? [],
       onLoaded: () => this.renderWhenReady(),
+    });
+    // Vyšlapané pěšiny – síť se počítá z vsi a krajiny (odloženě), lidé po ní chodí.
+    this.paths?.dispose();
+    this.paths = new VillagePaths(this.scene, {
+      landscape,
+      surface,
+      field,
+      layer: obstacles,
+      decalHeight: (x, z) => terrainMeshHeight(surface, x, z),
+      groundHeight,
+      pitCuts: this.pitCuts,
+      addShadowCaster: (mesh) => this.addVillageCaster(mesh),
+      onChange: () => {
+        this.villagers?.setPaths(this.paths?.paths() ?? null, Date.now());
+        this.shadows?.refresh();
+        this.renderWhenReady();
+      },
+      requestRender: () => this.renderWhenReady(),
+      refreshShadows: () => {
+        this.shadows?.refresh();
+        this.renderWhenReady();
+      },
     });
     // Ozdobná zvířata podle 0 A.D.: hejna ryb v tůních, kroužící vrány a káně.
     const fauna = {
@@ -520,6 +545,21 @@ export class LandscapeScene {
     this.updateSeason(true);
   }
 
+  /** Vývojová volba: vyšlapané pěšiny (a stromy podél nich) vidět / skrýt. */
+  setPathsVisible(visible: boolean): void {
+    this.paths?.setVisible(visible);
+  }
+
+  /** Vývojová volba: teplotní mapa provozu na pěšinách (cest za den). */
+  setPathHeatmap(enabled: boolean): void {
+    this.paths?.setHeatmap(enabled);
+  }
+
+  /** Čísla posledního výpočtu pěšin (doba, buňky, trasy, pěšiny, stromy); bez výpočtu null. */
+  pathStats(): PathStats | null {
+    return this.paths?.stats ?? null;
+  }
+
   /** Vývojová volba: dým ze všech hotových obydlí pořád (kontrola vzhledu dýmu). */
   setSmokeAlways(enabled: boolean): void {
     this.smokeAlways = enabled;
@@ -625,6 +665,7 @@ export class LandscapeScene {
     this.village?.dispose();
     this.livestock?.dispose();
     this.villagers?.dispose();
+    this.paths?.dispose();
     this.resizeObserver.disconnect();
     this.canvas.removeEventListener('pointermove', this.onPointerMove);
     this.canvas.removeEventListener('pointerleave', this.onPointerLeave);
@@ -752,6 +793,8 @@ export class LandscapeScene {
     const logs = this.logPile?.update(this.villageState, changes) ?? false;
     const animals = this.livestock?.update(this.villageState, Date.now()) ?? false;
     const people = this.villagers?.update(this.villageState, Date.now()) ?? false;
+    // pěšiny se přepočítají odloženě a překreslí samy (onChange)
+    this.paths?.update(this.villageState);
     // Rozhraní posílá stav vsi opakovaně (dotaz každých pár sekund) – beze změny nic.
     // Vybrané pole mohlo změnit čtverce (zarůstání), vybrané obydlí zaniknout.
     if (changed) this.highlight?.show(this.villageState, this.selection);

@@ -162,11 +162,27 @@ export interface VillagerGround {
   treesIn(x: number, z: number, half: number, max: number): { x: number; z: number }[];
 }
 
+/**
+ * Vyšlapané pěšiny vsi pro postavy (path-network.ts, paths.md): trasa po pěšinách a kam chodí
+ * domácnost pro vodu a dřevo. Bez nich se chodí rovnou.
+ */
+export interface VillagerPaths {
+  /** Trasa z `a` do `b` po pěšinách (body [x, z] od `a` do `b`), nebo null – jde se rovnou. */
+  route(
+    a: { x: number; z: number },
+    b: { x: number; z: number },
+  ): readonly (readonly [number, number])[] | null;
+  /** Kam chodí domácnost (id obydlí) pro vodu nebo dřevo – konec její pěšiny, nebo null. */
+  errand(dwellingId: number, kind: 'water' | 'wood'): { x: number; z: number } | null;
+}
+
 export interface VillagerPlanOptions {
   seed: number;
   /** Kolik stád se pase (pasáčci – jeden na stádo, když jsou děti). */
   herds: number;
   maxWorkers?: number;
+  /** Vyšlapané pěšiny – nosiči a ženy pro vodu a dřevo chodí po nich. */
+  paths?: VillagerPaths | null;
 }
 
 /** Obdélník domu v jeho souřadnicích (x napříč, z k vchodu). */
@@ -214,6 +230,7 @@ interface Context {
   /** Obydlí, kde se bydlí (bez nich staveniště zakladatelů). */
   homes: House[];
   graves: CellSquare[];
+  paths: VillagerPaths | null;
 }
 
 type Placer = (index: number, who: Identity) => PoseFn | null;
@@ -230,7 +247,7 @@ export function planVillagers(
 ): PlannedVillager[] {
   const labor = village.labor;
   if (!labor || village.dwellings.length === 0) return [];
-  const ctx = context(village, ground, options.seed, labor.day);
+  const ctx = context(village, ground, options.seed, labor.day, options.paths ?? null);
   const counts = shareCounts(labor.shares, labor.month, options.maxWorkers ?? MAX_WORKERS);
   const people: PlannedVillager[] = [];
   labor.shares.forEach((share, s) => {
@@ -358,6 +375,7 @@ function context(
   ground: VillagerGround,
   seed: number,
   day: number,
+  paths: VillagerPaths | null,
 ): Context {
   const dwellings: House[] = village.dwellings.map((d) => ({
     id: d.id,
@@ -387,14 +405,14 @@ function context(
     z: settled.reduce((s, h) => s + h.position.z, 0) / settled.length,
   };
   const graves = (village.cemeteries ?? []).flatMap((c) => c.squares);
-  return { village, ground, seed, day, center, houses, homes: settled, graves };
+  return { village, ground, seed, day, center, houses, homes: settled, graves, paths };
 }
 
 /**
  * Staveniště zabere i s hromadou hlíny, drnem, dřevem a nářadím kolem jámy celou vyklízenou
  * plochu (village-construction.ts) – stavitelé stojí za ní.
  */
-function siteBox(type: DwellingType): Box {
+export function siteBox(type: DwellingType): Box {
   const clearance = DWELLING_CLEARING_M[type];
   // vyklízená plocha polozemnice sahá doleva i přes budoucí zahrádku – nářadí leží souměrně
   return {
@@ -409,7 +427,7 @@ function siteBox(type: DwellingType): Box {
  * Hotové obydlí: dům se střechou a šíjí (jako pro slepice – `chickenBox`) a u polozemnice
  * i oplocená zahrádka vedle domu (`DWELLING_GARDEN_M`) – obdélník přes obojí.
  */
-function houseBox(type: DwellingType): Box {
+export function houseBox(type: DwellingType): Box {
   const house = chickenBox(type);
   const garden = DWELLING_GARDEN_M[type];
   return {
@@ -1075,8 +1093,17 @@ function domestic(ctx: Context): Placer {
     const side = turn % 2 === 0 ? -gap(1.3) : gap(1.3);
     const door = nearestFree(ctx, doorPoint(home, side).x, doorPoint(home, side).z, 1.5);
     if (!door) return null;
+    // s pěšinami chodí pro vodu a dřevo i každá třetí žena od domu (je je vidět na pěšině)
+    const errandTurn = ctx.paths !== null && i % 3 === 2;
+    if (errandTurn) {
+      const errand = errandRoute(ctx, home, door, who);
+      if (errand) return fetcher(errand, who.kind, who.scale, 10 + who.phase * 8, who.phase);
+    }
     if (turn % 2 === 1) {
-      // pro vodu / dřevo: 6–12 m od domu směrem od vsi
+      // pro vodu k potoku nebo pro dřevo k okraji lesa po vyšlapané pěšině (paths.md)
+      const errand = errandTurn ? null : errandRoute(ctx, home, door, who);
+      if (errand) return fetcher(errand, who.kind, who.scale, 10 + who.phase * 8, who.phase);
+      // bez pěšiny: 6–12 m od domu směrem od vsi
       const away = unit(
         home.position.x - ctx.center.x + (who.phase - 0.5) * 6,
         home.position.z - ctx.center.z + 1,
@@ -1089,6 +1116,32 @@ function domestic(ctx: Context): Placer {
     const out = unit(door.x - home.position.x, door.z - home.position.z);
     return stand(door.x, door.z, out.x, out.z, 'idle');
   };
+}
+
+/** Pochůzka pro vodu nebo dřevo nejvýš tak daleko (m po pěšině) – dál chodí jen kousek od domu. */
+const ERRAND_MAX_M = 220;
+
+/**
+ * Trasa pro vodu nebo dřevo po pěšině domácnosti (podle fáze postavy jedno nebo druhé), nebo
+ * null – bez pěšin, moc daleko, nebo cíl ve vodě.
+ */
+function errandRoute(ctx: Context, home: House, door: Point, who: Identity): Route | null {
+  const paths = ctx.paths;
+  if (!paths) return null;
+  const kinds: ('water' | 'wood')[] = who.phase < 0.5 ? ['water', 'wood'] : ['wood', 'water'];
+  for (const kind of kinds) {
+    const end = paths.errand(home.id, kind);
+    if (!end) continue;
+    // pěšina končí u vody / pod stromy – postava se zastaví na nejbližším volném místě
+    const goal = nearestFree(ctx, end.x, end.z, 4);
+    const along = paths.route(door, end);
+    if (!goal || !along || along.length < 2) continue;
+    const points = [...along.slice(0, -1), [goal.x, goal.z] as const];
+    if (!pathRouteOk(ctx, points, false)) continue;
+    const path = route(points.map(([x, z]) => [x, z] as const));
+    if (path.length <= ERRAND_MAX_M) return path;
+  }
+  return null;
 }
 
 /** Nečinní (společná práce bez staveb): dvojice u domů natočené k sobě. */
@@ -1152,10 +1205,14 @@ function herders(ctx: Context, count: number): PlannedVillager[] {
  * stranou od domu (až třikrát). Když trasa vede vodou, hrobem nebo domem, null.
  */
 export function walkRoute(
-  ctx: Pick<Context, 'houses' | 'ground' | 'graves'>,
+  ctx: Pick<Context, 'houses' | 'ground' | 'graves'> & { paths?: VillagerPaths | null },
   a: Point,
   b: Point,
 ): Route | null {
+  const along = ctx.paths?.route(a, b);
+  if (along && along.length >= 2 && pathRouteOk(ctx, along)) {
+    return route(along.map(([x, z]) => [x, z] as const));
+  }
   let points: Point[] = [a, b];
   for (let pass = 0; pass < 4; pass++) {
     const next: Point[] = [points[0]!];
@@ -1188,6 +1245,32 @@ export function walkRoute(
     }
   }
   return route(points.map((p) => [p.x, p.z] as const));
+}
+
+/**
+ * Trasa po pěšinách projde: odbočka na pěšinu a z ní k cíli po suchu mimo hroby a domy, celá
+ * trasa mimo domy (pěšina sama smí přes brod a prudší svah).
+ */
+function pathRouteOk(
+  ctx: Pick<Context, 'houses' | 'ground' | 'graves'>,
+  points: readonly (readonly [number, number])[],
+  lastLeg = true,
+): boolean {
+  const last = points.length - 1;
+  for (let i = 1; i <= last; i++) {
+    const [px, pz] = points[i - 1]!;
+    const [qx, qz] = points[i]!;
+    const leg = i === 1 || (lastLeg && i === last);
+    const length = Math.hypot(qx - px, qz - pz);
+    const steps = Math.max(1, Math.ceil(length / ROUTE_STEP_M));
+    for (let s = 0; s <= steps; s++) {
+      const x = px + ((qx - px) * s) / steps;
+      const z = pz + ((qz - pz) * s) / steps;
+      if (ctx.houses.some((h) => inBox(h, x, z, 0))) return false;
+      if (leg && (!ctx.ground.walkable(x, z) || onGrave(ctx.graves, x, z))) return false;
+    }
+  }
+  return true;
 }
 
 /** Úsečka p–q protne obdélník domu (s okrajem) – Liangův–Barskyho ořez v souřadnicích domu. */

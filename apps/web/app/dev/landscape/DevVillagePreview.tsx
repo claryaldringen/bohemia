@@ -66,6 +66,8 @@ const STAGES: PartStage[] = [
   'forest',
 ];
 const SEASON_NAMES = { spring: 'jaro', summer: 'léto', autumn: 'podzim', winter: 'zima' } as const;
+/** Stáří obydlí pro pěšiny na vývojové stránce (let; null = odjakživa). */
+const PATH_AGES: (number | null)[] = [null, 0.5, 1, 2, 8, 20, 40];
 /** „Přehrát rok“ – celý rok za tolik sekund. */
 const YEAR_PLAY_S = 60;
 const buttonClass =
@@ -138,6 +140,11 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   const [playingYear, setPlayingYear] = useState(false);
   // lidé ve vsi – ukázkové rozdělení práce podle měsíce (dev-labor.ts)
   const [people, setPeople] = useState(false);
+  // vyšlapané pěšiny (paths.md): vidět, teplotní mapa provozu a stáří obydlí (s „Lidé“)
+  const [paths, setPaths] = useState(true);
+  const [heatmap, setHeatmap] = useState(false);
+  const [pathAge, setPathAge] = useState<number | null>(null);
+  const [pathInfo, setPathInfo] = useState('');
   const nextId = useRef(1);
 
   const village = useMemo<SceneVillage>(() => {
@@ -169,7 +176,12 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
       day,
       trees.map((t) => t.id),
     );
-    return { ...base, labor };
+    // stáří vsi pro pěšiny: obydlí stojí `pathAge` let (bez volby odjakživa)
+    const aged =
+      pathAge === null
+        ? base.dwellings
+        : base.dwellings.map((d) => ({ ...d, since: day - Math.round(pathAge * 365.25) }));
+    return { ...base, dwellings: aged, labor };
   }, [
     decoded,
     dwellings,
@@ -186,11 +198,35 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     sacredOaks,
     groves,
     sacredBuildings,
+    pathAge,
   ]);
 
   useEffect(() => {
     scene?.setVillage(village);
   }, [scene, village]);
+
+  useEffect(() => {
+    scene?.setPathsVisible(paths);
+  }, [scene, paths]);
+
+  useEffect(() => {
+    scene?.setPathHeatmap(heatmap);
+  }, [scene, heatmap]);
+
+  // čísla posledního výpočtu pěšin (přepočítají se odloženě po změně vsi)
+  useEffect(() => {
+    if (!scene) return;
+    const timer = setInterval(() => {
+      const stats = scene.pathStats();
+      setPathInfo(
+        stats
+          ? `${stats.lines} úseků · ${stats.trips} tras · ${stats.trees} stromů · ${stats.ms.toFixed(0)} ms` +
+              (stats.terrainMs > 0 ? ` (+ terén ${stats.terrainMs.toFixed(0)} ms)` : '')
+          : '',
+      );
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [scene]);
 
   useEffect(() => {
     scene?.setSmokeAlways(smokeAlways);
@@ -982,6 +1018,38 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         >
           {people ? 'Lidé ✓' : 'Lidé'}
         </button>
+        <button
+          className={buttonClass}
+          disabled={!scene}
+          onClick={() => setPaths((on) => !on)}
+          data-testid="dev-paths"
+        >
+          {paths ? 'Pěšiny ✓' : 'Pěšiny'}
+        </button>
+        <button
+          className={buttonClass}
+          disabled={!scene}
+          onClick={() => setHeatmap((on) => !on)}
+          data-testid="dev-path-heatmap"
+        >
+          {heatmap ? 'Provoz ✓' : 'Provoz'}
+        </button>
+        <button
+          className={buttonClass}
+          title="Stáří obydlí pro pěšiny (jen s „Lidé“ – den práce)"
+          onClick={() =>
+            setPathAge((age) => PATH_AGES[(PATH_AGES.indexOf(age) + 1) % PATH_AGES.length]!)
+          }
+          data-testid="dev-path-age"
+        >
+          Stáří:{' '}
+          {pathAge === null
+            ? 'odjakživa'
+            : pathAge < 1
+              ? 'půl roku'
+              : `${pathAge} ${plural(pathAge, 'rok', 'roky', 'let')}`}
+        </button>
+        {pathInfo && <span data-testid="dev-path-info">{pathInfo}</span>}
         <button className={buttonClass} onClick={() => setWoodLogs((n) => Math.max(0, n - 10))}>
           Klády −10
         </button>

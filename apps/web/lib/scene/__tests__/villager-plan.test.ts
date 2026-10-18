@@ -16,6 +16,7 @@ import {
   walkRoute,
   type PlannedVillager,
   type VillagerGround,
+  type VillagerPaths,
 } from '../villager-plan';
 
 /** Potok v pásu z ∈ (60, 70) – jinak všude suchá schůdná louka; strom 501 a 502 v lese. */
@@ -460,5 +461,88 @@ describe('walkRoute – trasa kolem domů', () => {
 
   it('přes vodu cesta nevede', () => {
     expect(walkRoute(ctx, { x: 100, z: 50 }, { x: 100, z: 80 })).toBeNull();
+  });
+});
+
+describe('pěšiny – postavy chodí po vyšlapaných pěšinách (paths.md)', () => {
+  const houses = village([]).dwellings.map((d) => ({
+    id: d.id,
+    type: d.type,
+    position: d.position,
+    built: d.built,
+    progress: d.progress,
+    inhabited: d.built,
+    box: {
+      minX: -chickenBox(d.type).halfX,
+      maxX: chickenBox(d.type).halfX,
+      minZ: chickenBox(d.type).minZ,
+      maxZ: chickenBox(d.type).maxZ,
+    },
+  }));
+  /** Pěšina oklikou přes bod (30, −20); voda je u (40, 55), dřevo u (−40, −30). */
+  const paths: VillagerPaths = {
+    route: (a, b) => [
+      [a.x, a.z],
+      [30, -20],
+      [b.x, b.z],
+    ],
+    errand: (_id, kind) => (kind === 'water' ? { x: 40, z: 55 } : { x: -40, z: -26 }),
+  };
+
+  it('trasa vede po pěšině, když jde po suchu mimo domy', () => {
+    const route = walkRoute(
+      { houses, ground: GROUND, graves: [], paths },
+      { x: 20, z: -30 },
+      {
+        x: 40,
+        z: -10,
+      },
+    )!;
+    expect(route.points).toEqual([
+      [20, -30],
+      [30, -20],
+      [40, -10],
+    ]);
+  });
+
+  it('pěšina přes vodu neprojde – jde se rovnou', () => {
+    const wet: VillagerPaths = {
+      ...paths,
+      route: (a, b) => [
+        [a.x, a.z],
+        [100, 65],
+        [b.x, b.z],
+      ],
+    };
+    const route = walkRoute(
+      { houses, ground: GROUND, graves: [], paths: wet },
+      { x: 20, z: -30 },
+      {
+        x: 40,
+        z: -10,
+      },
+    )!;
+    expect(route.points.length).toBe(2);
+  });
+
+  it('ženy pro vodu a dřevo dojdou na konec pěšiny domácnosti', () => {
+    const shares: LaborShare[] = [
+      { activity: 'domestic', target: { kind: 'village' }, manDays: 12 },
+    ];
+    const people = planVillagers(village(shares), GROUND, { seed: 7, herds: 0, paths });
+    const without = planVillagers(village(shares), GROUND, { seed: 7, herds: 0 });
+    const far = (list: PlannedVillager[]): number =>
+      Math.max(
+        ...list
+          .filter((p) => p.key.startsWith('domestic:'))
+          .flatMap((p) =>
+            [0, 10, 20, 30, 40, 60, 80, 100].map((t) => {
+              const pose = at(p, t);
+              return Math.hypot(pose.x, pose.z);
+            }),
+          ),
+      );
+    expect(far(people)).toBeGreaterThan(35);
+    expect(far(without)).toBeLessThan(35);
   });
 });
