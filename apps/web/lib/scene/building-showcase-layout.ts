@@ -1,6 +1,7 @@
 // Rozestavění staveb na vývojové stránce /dev/buildings – bez Babylonu (smí i do stránky).
-// Jen pro prohlídku modelů: řemesla zatím nemají herní pravidla ani místo ve hře. Za řadou
-// staveb pole, hřbitov a sad po čtvercích – jejich fáze podle průběhu stavby (showcaseGrounds).
+// Jen pro prohlídku modelů: řemesla a posvátná místa zatím nemají místo ve hře. Za řadou
+// staveb pole, hřbitov a sad po čtvercích – jejich fáze podle průběhu stavby (showcaseGrounds);
+// vpravo modla, svatyně, posvátný dub a dubový háj (dekorace bez staveniště).
 import { CEMETERY, type TileCell } from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
 import { CEMETERY_PHASES } from './cemetery-layout';
@@ -48,13 +49,31 @@ function offset(
   return { x: x + local.x * c + local.z * s, z: z - local.x * s + local.z * c };
 }
 
-function building(id: string, label: string, kind: ConstructionKind, x: number): ShowcaseBuilding {
+/** Hotové modely posvátných míst (tools/blender/sacred.py). */
+export const SACRED_MODEL_URLS = {
+  modla: '/models/sacred/idol.glb',
+  svatyne: '/models/sacred/shrine.glb',
+} as const;
+
+/** Cesta k hotovému modelu stavby v `public/`. */
+function modelUrl(kind: ConstructionKind): string {
+  if (kind === 'modla' || kind === 'svatyne') return SACRED_MODEL_URLS[kind];
   const folder = kind === 'zemnice' || kind === 'polozemnice' ? 'dwellings' : 'crafts';
+  return `/models/${folder}/${kind}.glb`;
+}
+
+function building(
+  id: string,
+  label: string,
+  kind: ConstructionKind,
+  x: number,
+  radius = 18,
+): ShowcaseBuilding {
   return {
     id,
     label,
-    models: [{ kind, url: `/models/${folder}/${kind}.glb`, x, z: 0, rotation: FACING }],
-    focus: { x, z: -1.5, radius: 18 },
+    models: [{ kind, url: modelUrl(kind), x, z: 0, rotation: FACING }],
+    focus: { x, z: -1.5, radius },
   };
 }
 
@@ -74,6 +93,102 @@ export const SHOWCASE_BUILDINGS: readonly ShowcaseBuilding[] = [
       { kind: 'milir', url: '/models/crafts/milir.glb', x: milir.x, z: milir.z, rotation: 0 },
     ],
     focus: { x: (UHLIR_X + milir.x) / 2, z: -1.5, radius: 26 },
+  },
+  // posvátná místa: modla (4 × 4 m) a svatyně (30 × 30 m) – vpravo za milířem, před sadem
+  building('modla', 'Modla', 'modla', 50, 14),
+  building('svatyne', 'Svatyně', 'svatyne', 80, 46),
+];
+
+// --- Posvátný dub a dubový háj (dekorace – vznikají samy, staveniště nemají) ---
+
+export interface ShowcaseDecorModel {
+  /** GLB v `public/`. */
+  url: string;
+  /** Uzel GLB (kameny háje jsou v jednom souboru – stone-a, stone-b, altar), jinak celý model. */
+  part?: string;
+  /** Strom z lesa (obarví se jako v krajině – trees.ts), jinak model s atlasem. */
+  tree?: boolean;
+  x: number;
+  z: number;
+  rotation: number;
+  scale: number;
+}
+
+export interface ShowcaseDecorGroup {
+  id: string;
+  label: string;
+  models: ShowcaseDecorModel[];
+  focus: { x: number; z: number; radius: number };
+}
+
+const OAK_X = 110;
+const GROVE = { x: 140, z: 8 };
+/** Duby háje (souřadnice od středu háje) – aspoň 6 dospělých dubů v okruhu 25 m. */
+const GROVE_OAKS: readonly [number, number, number][] = [
+  [-9, -2, 1],
+  [-3, 6, 2],
+  [5, 9, 3],
+  [10, 0, 1],
+  [3, -4, 2],
+  [-6, 12, 3],
+  [13, 10, 2],
+];
+
+function oak(
+  variant: number,
+  x: number,
+  z: number,
+  rotation: number,
+  scale = 1,
+): ShowcaseDecorModel {
+  return { url: `/models/trees/oak-large-${variant}.glb`, tree: true, x, z, rotation, scale };
+}
+
+function groveStone(
+  part: string,
+  x: number,
+  z: number,
+  rotation: number,
+  scale = 1,
+): ShowcaseDecorModel {
+  return {
+    url: '/models/sacred/grove-stones.glb',
+    part,
+    x: GROVE.x + x,
+    z: GROVE.z + z,
+    rotation,
+    scale,
+  };
+}
+
+export const SHOWCASE_DECOR: readonly ShowcaseDecorGroup[] = [
+  {
+    id: 'dub',
+    label: 'Posvátný dub',
+    models: [
+      oak(1, OAK_X, 0, 0.4),
+      // obětiny míří pahýlem se stužkami ke kameře (+z modelu jako vchod staveb)
+      { url: '/models/sacred/oak-offerings.glb', x: OAK_X, z: 0, rotation: FACING, scale: 1 },
+    ],
+    focus: { x: OAK_X, z: -1, radius: 24 },
+  },
+  {
+    id: 'haj',
+    label: 'Dubový háj',
+    models: [
+      ...GROVE_OAKS.map(([x, z, v], i) =>
+        oak(v, GROVE.x + x, GROVE.z + z, i * 1.3, 0.9 + 0.05 * (i % 3)),
+      ),
+      // kamenný oltář a hraniční kameny na okraji háje (strana ke kameře)
+      groveStone('altar', 0, -9.5, FACING + 0.2),
+      groveStone('stone-a', -6, -8.5, 0.3),
+      groveStone('stone-a', 7.5, -6.5, 1.9, 0.9),
+      groveStone('stone-b', -3, -11, 2.4),
+      groveStone('stone-b', 4, -11.5, 0.8, 0.8),
+      groveStone('stone-a', 15, 2, 1.1, 0.85),
+      groveStone('stone-b', -13, 4, 0.2),
+    ],
+    focus: { x: GROVE.x + 2, z: GROVE.z - 6, radius: 48 },
   },
 ];
 

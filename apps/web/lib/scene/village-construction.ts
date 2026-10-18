@@ -1,6 +1,6 @@
 // Fáze stavby bez Babylonu: co staveniště ukáže při průběhu 0–1 – díly modelu z construction.glb
-// (obydlí: tools/blender/dwellings.py, řemeslné dílny a milíř: tools/blender/crafts.py), hloubka
-// jámy, obtisky a rekvizity. Každý druh stavby má svou tabulku fází; řemeslné dílny stojí na
+// (obydlí: tools/blender/dwellings.py, řemeslné dílny a milíř: tools/blender/crafts.py, modla
+// a svatyně: tools/blender/sacred.py), hloubka jámy, obtisky a rekvizity. Každý druh stavby má svou tabulku fází; řemeslné dílny stojí na
 // fázích obydlí (hrnčíř a kovář polozemnice, uhlíř zemnice) a přidávají své. Souřadnice modelu
 // jako `localToWorld` (x napříč, z k vchodu).
 import { PIT_SHAPES } from './dwelling-pit';
@@ -12,10 +12,20 @@ import type { DwellingType } from '@bohemia/game';
  */
 export type CraftKind = 'hrncir' | 'kovar' | 'uhlir' | 'milir';
 export const CRAFT_KINDS: readonly CraftKind[] = ['hrncir', 'kovar', 'uhlir', 'milir'];
-/** Druh stavby, který umí staveniště: obydlí nebo řemeslná stavba. */
-export type ConstructionKind = DwellingType | CraftKind;
+/**
+ * Posvátná místa, která staví hráč (docs/design/happiness.md): dřevěná modla a svatyně podle
+ * Perynu. Díly staveniště v public/models/sacred/idol-construction.glb („modla-…“)
+ * a shrine-construction.glb („svatyne-…“).
+ */
+export type SacredKind = 'modla' | 'svatyne';
+export const SACRED_KINDS: readonly SacredKind[] = ['modla', 'svatyne'];
+/** Druh stavby, který umí staveniště: obydlí, řemeslná stavba nebo posvátné místo. */
+export type ConstructionKind = DwellingType | CraftKind | SacredKind;
 
-/** Obydlí, na jehož fázích (a v jehož jámě) stavba stojí; milíř nemá jámu ani obydlí. */
+/**
+ * Obydlí, na jehož fázích (a v jehož jámě) stavba stojí; milíř, modla a svatyně nemají jámu
+ * ani obydlí (kruhová staveniště – ROUND_SITE_M).
+ */
 export const CONSTRUCTION_BASE: Record<ConstructionKind, DwellingType | null> = {
   zemnice: 'zemnice',
   polozemnice: 'polozemnice',
@@ -23,6 +33,20 @@ export const CONSTRUCTION_BASE: Record<ConstructionKind, DwellingType | null> = 
   kovar: 'polozemnice',
   uhlir: 'zemnice',
   milir: null,
+  modla: null,
+  svatyne: null,
+};
+
+/**
+ * Kruhová staveniště bez jámy: poloměr světlé čáry vytyčení a ušlapané trávy kolem (m, od
+ * počátku modelu). Modla: udusaný kruh Ø 4 m; svatyně: vnitřní okraj příkopu (R_IN
+ * v tools/blender/sacred_layout.py), ušlapaná tráva jen uvnitř – obtisk by jinak překryl dno
+ * příkopu (leží těsně nad terénem).
+ */
+export const ROUND_SITE_M: Record<'milir' | SacredKind, { outline: number; trampled: number }> = {
+  milir: { outline: 2.65, trampled: 4.6 },
+  modla: { outline: 2.0, trampled: 3.4 },
+  svatyne: { outline: 11.1, trampled: 9.8 },
 };
 
 export type ConstructionPhaseId =
@@ -47,7 +71,14 @@ export type ConstructionPhaseId =
   | 'stack'
   | 'cover'
   | 'top'
-  | 'vents';
+  | 'vents'
+  | 'log'
+  | 'raise'
+  | 'hew'
+  | 'carve'
+  | 'platform'
+  | 'tamp'
+  | 'fires';
 
 export interface ConstructionPhase {
   id: ConstructionPhaseId;
@@ -140,7 +171,32 @@ export const CONSTRUCTION_PHASES: Record<ConstructionKind, readonly Construction
     { id: 'vents', label: 'průduchy a zapálení', from: 0.86, to: 0.93 },
     { id: 'finish', label: 'žebřík, hrabice a drny', from: 0.93, to: 1 },
   ],
+  // modla: kruh, kmen, vztyčení, tesání a řezba po stupních (hewn → carved → idol), obětiny
+  modla: [
+    { id: 'layout', label: 'vytyčení kruhu – kolíky a provázek', from: 0, to: 0.08 },
+    { id: 'ground', label: 'udusaný kruh – srovnání a ušlapání země', from: 0.08, to: 0.18 },
+    { id: 'log', label: 'dubový kmen – přivlečení na podložky', from: 0.18, to: 0.3 },
+    { id: 'raise', label: 'vztyčení kůlu – vzpěry a klínové kameny', from: 0.3, to: 0.44 },
+    { id: 'hew', label: 'osekání kůlu do čtyřhranu, čepice nahrubo', from: 0.44, to: 0.62 },
+    { id: 'carve', label: 'řezba – čtyři tváře, paže, roh a opasek', from: 0.62, to: 0.88 },
+    { id: 'finish', label: 'obětiny – stužka, misky, snop a kameny', from: 0.88, to: 1 },
+  ],
+  // svatyně (Peryn): vytyčení, příkop po výběžcích, navážka a udusání plochy, ohniště, modla
+  svatyne: [
+    { id: 'layout', label: 'vytyčení – kolík uprostřed, provaz, kolíky okvětí', from: 0, to: 0.05 },
+    { id: 'dig', label: 'kopání příkopu – výběžek po výběžku', from: 0.05, to: 0.4 },
+    { id: 'platform', label: 'navážka – vyvýšený kruh z vykopané hlíny', from: 0.4, to: 0.52 },
+    { id: 'tamp', label: 'udusání plochy', from: 0.52, to: 0.58 },
+    { id: 'fires', label: 'ohniště ve výběžcích – kameny a dřevo', from: 0.58, to: 0.68 },
+    { id: 'log', label: 'dubový kmen na modlu', from: 0.68, to: 0.74 },
+    { id: 'raise', label: 'vztyčení kůlu modly – vzpěry a kameny', from: 0.74, to: 0.8 },
+    { id: 'carve', label: 'řezba modly – osekání, tváře, čepice', from: 0.8, to: 0.93 },
+    { id: 'finish', label: 'kamenná dlažba kolem modly a obětiny', from: 0.93, to: 1 },
+  ],
 };
+
+/** Výběžky příkopu svatyně a ohniště v nich (tools/blender/sacred_layout.py – N_PETALS). */
+export const SHRINE_PETALS = 8;
 
 /** Řad došků (u uhlíře mechu) na model (podle atlasu – tools/blender/atlas.py); milíř nemá střechu. */
 export const THATCH_COURSES: Record<ConstructionKind, number> = {
@@ -150,6 +206,8 @@ export const THATCH_COURSES: Record<ConstructionKind, number> = {
   kovar: 9,
   uhlir: 8,
   milir: 0,
+  modla: 0,
+  svatyne: 0,
 };
 const RAFTER_PAIRS = 5;
 const LOG_COURSES = 6;
@@ -228,6 +286,30 @@ export const SITE_PROP_PLACES: Record<ConstructionKind, PropPlaces> = {
     spade: { x: 2.4, z: 1.2, rotation: 0.6 },
     basket: { x: 2.6, z: 2.55, rotation: 0 },
     stones: { x: 0, z: 0, rotation: 0 },
+    clay: { x: 0, z: 0, rotation: 0 },
+  },
+  // modla: rýč a koš vedle kruhu, kameny na klínování kůlu (nepoužité rekvizity v bodě 0)
+  modla: {
+    spoil: { x: 0, z: 0, rotation: 0 },
+    turf: { x: 0, z: 0, rotation: 0 },
+    timber: { x: 0, z: 0, rotation: 0 },
+    rods: { x: 0, z: 0, rotation: 0 },
+    straw: { x: 0, z: 0, rotation: 0 },
+    spade: { x: 2.7, z: 0.9, rotation: 0.6 },
+    basket: { x: -2.6, z: 1.4, rotation: 0 },
+    stones: { x: 2.4, z: -1.9, rotation: 0.4 },
+    clay: { x: 0, z: 0, rotation: 0 },
+  },
+  // svatyně: v rozích půdorysu za valem (hroty okvětí na úhlopříčkách – tam je místo)
+  svatyne: {
+    spoil: { x: 0, z: 0, rotation: 0 },
+    turf: { x: 11.4, z: 11.2, rotation: 0.3 },
+    timber: { x: 0, z: 0, rotation: 0 },
+    rods: { x: 0, z: 0, rotation: 0 },
+    straw: { x: 0, z: 0, rotation: 0 },
+    spade: { x: -11.4, z: 11.0, rotation: 0.6 },
+    basket: { x: -12.1, z: 10.2, rotation: 0 },
+    stones: { x: 11.2, z: -11.5, rotation: 0.4 },
     clay: { x: 0, z: 0, rotation: 0 },
   },
 };
@@ -368,6 +450,10 @@ export function partSchedule(kind: ConstructionKind): PartRule[] {
     }));
   const rules: PartRule[] = [];
   const base = CONSTRUCTION_BASE[kind];
+  if (kind === 'modla' || kind === 'svatyne') {
+    sacredSchedule(kind, rules, within, series);
+    return rules;
+  }
   if (base === null) {
     // milíř: kolíky po obvodu a fíra uprostřed, milířiště, věnec, polena, kryt, komín, průduchy
     rules.push({ part: 'stakes', from: 0, to: within('ring', 0.1) });
@@ -417,6 +503,56 @@ export function partSchedule(kind: ConstructionKind): PartRule[] {
   return rules;
 }
 
+/**
+ * Díly modly a svatyně (tools/blender/sacred.py). Řezba jde po stupních: kmen v kůře (post)
+ * → osekaný čtyřhran (hewn) → tváře nahrubo (carved) → hotová modla (idol); kolíky, kmen na
+ * podložkách, vzpěry, třísky a hrubá navážka svatyně (platform-1) zase zmizí.
+ */
+function sacredSchedule(
+  kind: SacredKind,
+  rules: PartRule[],
+  within: (id: ConstructionPhaseId, t: number) => number,
+  series: (
+    name: string,
+    count: number,
+    id: ConstructionPhaseId,
+    from: number,
+    to: number,
+  ) => PartRule[],
+): void {
+  if (kind === 'modla') {
+    rules.push({ part: 'stakes', from: 0, to: within('log', 0.05) });
+    rules.push({ part: 'ground', from: within('ground', 0.35) });
+    rules.push({ part: 'log', from: within('log', 0.2), to: within('raise', 0.45) });
+    rules.push({ part: 'struts', from: within('raise', 0.3), to: within('hew', 0.2) });
+    rules.push({ part: 'post', from: within('raise', 0.45), to: within('hew', 0.35) });
+    rules.push({ part: 'stones', from: within('raise', 0.75) });
+    rules.push({ part: 'chips', from: within('hew', 0.1), to: within('finish', 0.25) });
+    rules.push({ part: 'hewn', from: within('hew', 0.35), to: within('carve', 0.1) });
+    rules.push({ part: 'carved', from: within('carve', 0.1), to: within('carve', 0.6) });
+    rules.push({ part: 'idol', from: within('carve', 0.6) });
+    rules.push({ part: 'ribbon', from: within('finish', 0.25) });
+    rules.push({ part: 'offerings', from: within('finish', 0.55) });
+    return;
+  }
+  rules.push({ part: 'stakes', from: 0, to: within('platform', 0.1) });
+  rules.push(...series('ditch', SHRINE_PETALS, 'dig', 0.04, 0.94));
+  rules.push({ part: 'platform-1', from: within('platform', 0.15), to: within('tamp', 0.4) });
+  rules.push({ part: 'platform-2', from: within('tamp', 0.4) });
+  rules.push(...series('fire', SHRINE_PETALS, 'fires', 0.05, 0.92));
+  rules.push({ part: 'log', from: within('log', 0.2), to: within('raise', 0.45) });
+  rules.push({ part: 'struts', from: within('raise', 0.3), to: within('carve', 0.15) });
+  rules.push({ part: 'post', from: within('raise', 0.45), to: within('carve', 0.2) });
+  rules.push({ part: 'stones', from: within('raise', 0.75) });
+  rules.push({ part: 'chips', from: within('carve', 0.1), to: within('finish', 0.3) });
+  rules.push({ part: 'hewn', from: within('carve', 0.2), to: within('carve', 0.5) });
+  rules.push({ part: 'carved', from: within('carve', 0.5), to: within('carve', 0.85) });
+  rules.push({ part: 'idol', from: within('carve', 0.85) });
+  rules.push({ part: 'paving', from: within('finish', 0.15) });
+  rules.push({ part: 'ribbon', from: within('finish', 0.4) });
+  rules.push({ part: 'offerings', from: within('finish', 0.6) });
+}
+
 /** Všechny díly staveniště daného druhu (jména v construction.glb bez předpony). */
 export function constructionParts(kind: ConstructionKind): string[] {
   return partSchedule(kind).map((rule) => rule.part);
@@ -434,6 +570,7 @@ export function constructionState(kind: ConstructionKind, progress: number): Con
     if (visible && scale > 0) props.push({ prop, scale });
   };
   const base = CONSTRUCTION_BASE[kind];
+  if (kind === 'modla' || kind === 'svatyne') return sacredState(kind, p, parts);
   if (base === null) {
     // milíř: bez jámy a drnu, vytyčený kruh zmizí s milířištěm; dřevo ubývá se skládáním,
     // drny přibývají a s krytem ubývají
@@ -500,6 +637,60 @@ export function constructionState(kind: ConstructionKind, progress: number): Con
     outline: 1 - ramp(p, dig.from, dig.from + 0.04),
     turf: ramp(p, turf.from, turf.to),
     trampled: 0.85 * ramp(p, 0.01, dig.from + 0.04),
+    props,
+  };
+}
+
+/**
+ * Modla a svatyně: bez jámy; vytyčený kruh zmizí s udusáním (modla), nebo s prvním výkopem
+ * (svatyně). Rekvizity: rýč a koš, u modly kameny na klínování kůlu, u svatyně stoh drnů
+ * z příkopu a kameny na ohniště a dlažbu.
+ */
+function sacredState(kind: SacredKind, p: number, parts: string[]): ConstructionState {
+  const phase = (id: ConstructionPhaseId): ConstructionPhase => phaseOf(kind, id);
+  const props: { prop: SiteProp; scale: number }[] = [];
+  const add = (prop: SiteProp, visible: boolean, scale: number): void => {
+    if (visible && scale > 0) props.push({ prop, scale });
+  };
+  const finish = phase('finish');
+  if (kind === 'modla') {
+    const ground = phase('ground');
+    const log = phase('log');
+    const raise = phase('raise');
+    add('spade', p >= ground.from, 1);
+    add('basket', p >= log.from && p < finish.from, 1);
+    add('stones', p >= log.from && p < raise.to, 1 - 0.7 * ramp(p, raise.from, raise.to));
+    return {
+      phase: constructionPhase(kind, p),
+      parts,
+      pitDepth: 0,
+      roofCover: 0,
+      outline: 1 - ramp(p, ground.from, ground.to),
+      turf: 0,
+      trampled: 0.85 * ramp(p, 0.01, ground.to),
+      props,
+    };
+  }
+  const dig = phase('dig');
+  const platform = phase('platform');
+  const tamp = phase('tamp');
+  const fires = phase('fires');
+  add('spade', p >= dig.from && p < tamp.to, 1);
+  add('basket', p >= dig.from && p < platform.to, 1);
+  add('turf', p >= dig.from && p < platform.to, 0.4 + 0.6 * ramp(p, dig.from, dig.to));
+  add(
+    'stones',
+    p >= tamp.from && p < finish.to,
+    (0.6 + 0.4 * ramp(p, tamp.from, fires.from)) * (1 - 0.6 * ramp(p, fires.from, finish.to)),
+  );
+  return {
+    phase: constructionPhase(kind, p),
+    parts,
+    pitDepth: 0,
+    roofCover: 0,
+    outline: 1 - ramp(p, dig.from, dig.from + 0.08),
+    turf: 0,
+    trampled: 0.85 * ramp(p, 0.01, dig.from + 0.05),
     props,
   };
 }
