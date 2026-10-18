@@ -63,6 +63,7 @@ import {
   type PlacementVillage,
   type PlotVariant,
   type Position,
+  type RelocationBlock,
   type Road,
   type RoadAppleStage,
   type RoadApplesOption,
@@ -79,6 +80,8 @@ import {
   type VillageState,
   type VillageSummary,
   type WorkshopActivity,
+  type KilnStage,
+  saplingGrowth,
   hasShrine,
   villageCemeteries,
   villageLifespan,
@@ -89,7 +92,14 @@ import {
 import { formatGameDate } from './game-date';
 import { fruitVisible, treeGrowth } from './orchard-look';
 import { sacredOakGrowth } from './sacred-look';
+import {
+  householdRelocation,
+  householdRelocationBlock,
+  relocationOptions,
+  type HouseholdRelocation,
+} from './relocation-view';
 import { formatCells, formatHa, formatInteger } from './village-format';
+import type { VillageListItem } from './village-list';
 
 // Pohled na ves pro panel a scénu (DTO server actions). Čistý modul – smí ho importovat
 // i klient (typy, převod scény na data pro kontrolu umístění).
@@ -107,6 +117,7 @@ export type {
   SacredBuildingKind,
   StockResource,
   WorkshopActivity,
+  KilnStage,
 } from '@bohemia/game';
 
 /**
@@ -247,6 +258,13 @@ export interface VillageWorkshop {
   laborPerDay: number;
   /** Výroba za den při této práci, když jsou vstupy (kg výrobku). */
   outputPerDayKg: number;
+  /**
+   * Uhlíř: rozdělaný milíř – fáze, připravené buky z kolika, průběh fáze 0–1 a jestli stojí
+   * v lese (crafts.md – Uhlíř); ostatní dílny a uhlíř bez milíře null.
+   */
+  kiln: VillageSummary['crafts']['workshops'][number]['kiln'];
+  /** Uhlíř: pařezy buků, na které ještě zasadí mladý buk; ostatní 0. */
+  toPlant: number;
 }
 
 /**
@@ -263,7 +281,16 @@ export interface VillageCrafts {
 }
 
 export interface VillageView {
+  /** Id vsi – akce i dotazy jdou podle něj (migration.md – Víc vsí jednoho hráče). */
+  id: string;
+  /** Sídlo (mapa), na jehož krajině ves stojí. */
+  settlementId: string;
   name: string;
+  /**
+   * Všechny vsi hráče (i tahle) pro přepínač v horní liště – sídelní první, pak podle založení.
+   * Upozornění z jiných vsí se ukážou krátkým řádkem se jménem vsi.
+   */
+  villages: VillageListItem[];
   dayIndex: number;
   people: { children: number; adults: number; elders: number };
   households: {
@@ -280,6 +307,10 @@ export interface VillageView {
     ages: number[];
     /** Stáří obydlí v celých letech. */
     ageYears: number;
+    /** Domácnost si staví nový dům (migration.md – Přestěhování domácnosti); jinak null. */
+    relocation: HouseholdRelocation | null;
+    /** Proč se domácnost teď přestěhovat nemůže (null = může). */
+    relocationBlock: RelocationBlock | null;
   }[];
   storesKg: number;
   /** Zásoby ovoce – jablek (kg; v rozhraní „ovoce“ – diet.md). */
@@ -312,6 +343,8 @@ export interface VillageView {
   fullHousehold: boolean;
   /** Nabídka staveb – hráč staví kdy chce, předem musí ves mít suroviny a lidi k osídlení. */
   build: Record<BuildKind, BuildOption>;
+  /** Nový dům stěhující se domácnosti – cena bez lidí k osídlení (migration.md). */
+  relocation: Record<DwellingType, BuildOption>;
   constructions: {
     id: number;
     kind: ConstructionKind;
@@ -323,6 +356,8 @@ export interface VillageView {
     craft: Craft | null;
     /** Přestavované obydlí (rebuild), jinak null. */
     dwellingId: number | null;
+    /** Nový dům stěhující se domácnosti – id jejího obydlí (migration.md); jinak null. */
+    relocates: number | null;
     /** Zakládané pole (field), jinak null. */
     fieldId: number | null;
     /** Zakládaný nebo rozšiřovaný hřbitov (cemetery), jinak null. */
@@ -444,6 +479,18 @@ export function scenePlot(landscape: Landscape, plot: DwellingPlot): ScenePlot {
   };
 }
 
+/** Milíř uhlíře v lese ve scéně (crafts.md – Uhlíř). */
+export interface SceneKiln {
+  /** Id dílny uhlíře. */
+  id: number;
+  x: number;
+  z: number;
+  /** Fáze: kácení a příprava dřeva (hromada polen), stavba, pálení (kouří), vytahání. */
+  stage: KilnStage;
+  /** Průběh fáze 0–1 (stavba po fázích staveniště milíře). */
+  progress: number;
+}
+
 export interface SceneVillage {
   /**
    * Hotová obydlí (`built: true`, id obydlí) i rozestavěná (`built: false`, id stavby); řemeslná
@@ -561,6 +608,18 @@ export interface SceneVillage {
    * založení jako server. Bez údaje 0.
    */
   toolCoverage?: number;
+  /**
+   * Milíře uhlíře v lese (crafts.md – Uhlíř) – id dílny, střed (m), fáze a její průběh 0–1
+   * (stavba po fázích staveniště, pálení kouří). Milíř u dílny nese dílna (`working`). Bez údaje
+   * žádné.
+   */
+  kilns?: SceneKiln[];
+  /**
+   * Mladé buky, které zasadil uhlíř (crafts.md – Uhlíř, obnova lesa): id stromu z vrstvy
+   * překážek a velikost 0–1 podle stáří (za 60 let dospělý). Bez údaje žádné – ostatní nálet
+   * má pevnou velikost.
+   */
+  plantedSaplings?: { id: number; growth: number }[];
   /**
    * Pevné cesty (roads.md) – úseky mezi rozcestími: osa a stupeň. Kreslí se stále stejně (ne
    * podle pěšin dne) a pěšiny dne se k nim stahují. Bez údaje žádné.
@@ -883,6 +942,12 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       return finishedText(event.constructionKind, event.craft);
     case 'rebuild-decided':
       return `Obyvatelé se rozhodli přestavět dožilé obydlí na ${DWELLING_NAMES[event.type].accusative}.`;
+    case 'relocation-started':
+      return `Domácnost si začala stavět novou ${DWELLING_NAMES[event.type].accusative} – přestěhuje se.`;
+    case 'relocation-cancelled':
+      return 'Stěhování domácnosti se zrušilo – zůstává ve starém domě.';
+    case 'household-relocated':
+      return 'Domácnost se přestěhovala do nového domu – starý zůstal prázdný.';
     case 'harvest':
       return `${HARVEST_NAMES[event.crop ?? 'any']}: ${formatInteger(event.kg)} kg ${event.crop === 'legume' ? 'luštěnin' : 'obilí'}.`;
     case 'apple-harvest':
@@ -970,9 +1035,7 @@ function sceneVillage(
     // stav po tisícinách – rozpad ve scéně jde po stupních (dwelling-decay.ts)
     ...(d.condition < 1 ? { condition: Math.round(d.condition * 1000) / 1000 } : {}),
     ...(d.workshop ? { craft: d.workshop.craft } : {}),
-    ...(d.workshop && occupied.has(d.id) && d.workshop.activity === 'producing'
-      ? { working: true }
-      : {}),
+    ...(d.workshop && occupied.has(d.id) && workshopSmokes(d.workshop) ? { working: true } : {}),
   }));
   // staveniště ukazuje samotnou stavbu – dřevo se kácí v lese, než se začne stavět; přestavba
   // polozemnice bez pozemku stojí na novém pozemku (domácnost zatím bydlí ve starém domě)
@@ -1038,6 +1101,8 @@ function sceneVillage(
   const obstacles = obstacleChangesAt(state, day);
   const roads = sceneRoads(state, summary.constructions);
   const roadTrees = sceneRoadTrees(state, day, obstacles);
+  const kilns = sceneKilns(state, summary);
+  const plantedSaplings = plantedSaplingViews(state, day);
   const roadApples = sceneRoadApples(state, day, obstacles);
   const ruins = (state.ruins ?? []).map((r) => ({
     id: r.id,
@@ -1081,6 +1146,8 @@ function sceneVillage(
     ...(roads.length > 0 ? { roads } : {}),
     ...(roadTrees.length > 0 ? { roadTrees } : {}),
     ...(woods.length > 0 ? { woods } : {}),
+    ...(kilns.length > 0 ? { kilns } : {}),
+    ...(plantedSaplings.length > 0 ? { plantedSaplings } : {}),
     ...(roadApples.length > 0 ? { roadApples } : {}),
   };
 }
@@ -1244,6 +1311,45 @@ export function sceneRoadTrees(
   });
 }
 
+/**
+ * Kouří dílna u domu? Pec a výheň, když vyrábí; milíř uhlíře u zemnice, jen když pálí (u lesního
+ * milíře kouří milíř v lese – `sceneKilns`).
+ */
+function workshopSmokes(
+  workshop: NonNullable<VillageState['dwellings'][number]['workshop']>,
+): boolean {
+  if (workshop.craft !== 'burner') return workshop.activity === 'producing';
+  return workshop.kiln?.stage === 'burn' && workshop.kiln.site === null;
+}
+
+/** Milíře uhlířů v lese pro scénu – fáze a průběh (crafts.md – Uhlíř). */
+function sceneKilns(state: VillageState, summary: VillageSummary): SceneKiln[] {
+  return state.dwellings.flatMap((d) => {
+    const kiln = d.workshop?.kiln;
+    if (!kiln?.site) return [];
+    const info = summary.crafts.workshops.find((w) => w.dwellingId === d.id)?.kiln;
+    return [
+      {
+        id: d.id,
+        x: kiln.site.x,
+        z: kiln.site.z,
+        stage: kiln.stage,
+        // po 2 % – milíř se nepřestavuje při každém dotazu
+        progress: Math.round((info?.progress ?? 0) * 50) / 50,
+      },
+    ];
+  });
+}
+
+/** Velikost mladých buků od uhlíře 0–1 po setinách (instance se nepřestavují při každém dotazu). */
+function plantedSaplingViews(state: VillageState, day: number): { id: number; growth: number }[] {
+  return (state.felledTrees ?? []).flatMap((f) => {
+    if (f.planted === undefined) return [];
+    const growth = saplingGrowth(f, day);
+    return growth === null ? [] : [{ id: f.id, growth: Math.round(growth * 100) / 100 }];
+  });
+}
+
 /** Výroba dílny za den při práci `labor` (kg) – uhlíř bez kácení, kovář a hrnčíř s přirážkou. */
 function workshopOutputKg(craft: Craft, labor: number, oreFactor: number): number {
   if (craft === 'burner') return labor * CRAFT_PRODUCTION.charcoalKgPerManDay;
@@ -1270,6 +1376,8 @@ function craftsView(state: VillageState, summary: VillageSummary): VillageCrafts
       occupants: w.occupants,
       laborPerDay: w.laborPerDay,
       outputPerDayKg: workshopOutputKg(w.craft, w.laborPerDay, w.oreFactor),
+      kiln: w.kiln,
+      toPlant: w.toPlant,
     })),
   };
 }
@@ -1648,21 +1756,43 @@ function fieldViews(state: VillageState, day: number): VillageView['fields'] {
   });
 }
 
+/** Co pohled na jednu ves sám neví – zjistí ho vstupní bod přes `dynastyStatus`. */
+export interface VillageViewContext {
+  /** Hráči vymřely všechny vsi (ne jen tahle). */
+  gameOver?: boolean;
+  /** Všechny vsi hráče pro přepínač; bez nich jen tahle ves. */
+  villages?: VillageListItem[];
+}
+
 /**
- * Pohled na ves v den `day` (ves má být dopočítaná do tohoto dne). `gameOver` – hráči vymřely
- * všechny vsi (zjistí ho vstupní bod přes `dynastyStatus`, pohled na jednu ves to neví).
+ * Pohled na ves v den `day` (ves má být dopočítaná do tohoto dne). `context` – konec hry a vsi
+ * hráče pro přepínač (vstupní bod je zná ze všech vsí hráče).
  */
 export function buildVillageView(
   record: VillageRecord,
   landscape: Landscape,
   day: number,
-  gameOver = false,
+  context: VillageViewContext = {},
 ): VillageView {
   const { state, name } = record;
   const obstacles = obstaclesOf(landscape);
   const summary = summarizeVillage(state, day, obstacles);
+  const gameOver = context.gameOver ?? false;
   return {
+    id: record.id,
+    settlementId: record.settlementId,
     name,
+    villages: context.villages ?? [
+      {
+        id: record.id,
+        settlementId: record.settlementId,
+        name,
+        people: state.people.length,
+        extinct: state.extinctDay !== undefined,
+        hungry: summary.hungry,
+        starving: summary.starving,
+      },
+    ],
     dayIndex: day,
     people: summary.people,
     households: summary.households.map((h) => {
@@ -1674,6 +1804,8 @@ export function buildVillageView(
           .map((p) => ageYears(p.bornDay, day))
           .sort((a, b) => b - a),
         ageYears: dwelling ? Math.max(0, Math.floor((day - dwelling.builtDay) / DAYS_PER_YEAR)) : 0,
+        relocation: householdRelocation(state, summary.constructions, h.dwellingId),
+        relocationBlock: householdRelocationBlock(state, h.dwellingId),
       };
     }),
     storesKg: summary.storesKg,
@@ -1697,6 +1829,7 @@ export function buildVillageView(
     commonLaborPerDay: summary.commonLaborPerDay,
     fullHousehold: summary.fullHousehold,
     build: buildOptions(state, landscape, summary.crafts.coverage),
+    relocation: relocationOptions(state, landscape),
     constructions: summary.constructions.map((c) => ({
       id: c.id,
       kind: c.kind,
@@ -1709,6 +1842,7 @@ export function buildVillageView(
           ? (state.dwellings.find((d) => d.id === c.dwellingId)?.workshop?.craft ?? null)
           : null),
       dwellingId: c.kind === 'rebuild' ? c.dwellingId : null,
+      relocates: state.constructions.find((x) => x.id === c.id)?.relocates ?? null,
       fieldId: c.kind === 'field' ? c.fieldId : null,
       cemeteryId: c.cemeteryId,
       orchardId: c.orchardId,

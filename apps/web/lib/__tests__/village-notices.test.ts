@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { newNotices, villageNotices } from '../village-notices';
+import { newNotices, otherVillageNotices, villageNotices } from '../village-notices';
+import type { VillageListItem } from '../village-list';
 import type { VillageView } from '../village-view';
 
 const workshop = (laborManDays: number): VillageView['build']['potter'] => ({
@@ -12,7 +13,11 @@ const workshop = (laborManDays: number): VillageView['build']['potter'] => ({
 });
 
 const view = (overrides: Partial<VillageView> = {}): VillageView => ({
+  id: 'v-1',
+  settlementId: 's-1',
   name: 'Libice',
+  villages: [],
+  relocation: { zemnice: workshop(60), polozemnice: workshop(220) },
   dayIndex: 1000,
   people: { children: 2, adults: 2, elders: 0 },
   households: [],
@@ -324,6 +329,8 @@ describe('villageNotices – řemesla (crafts.md)', () => {
       occupants: 2,
       laborPerDay: 0.9,
       outputPerDayKg: 0.09,
+      kiln: null,
+      toPlant: 0,
     });
     const crafts = (activities: VillageView['crafts']['workshops'][number]['activity'][]) => ({
       ...view().crafts,
@@ -379,5 +386,51 @@ describe('newNotices – nepasené pole zarostlo lesem (fields.md – Zarůstán
     expect(newNotices(view({ dayIndex: 1300 }), after)).toEqual([
       { kind: 'part-forest', tone: 'warn', text: 'Nepasené pole zarostlo lesem' },
     ]);
+  });
+});
+
+describe('upozornění z jiných vsí (migration.md)', () => {
+  const item = (overrides: Partial<VillageListItem> = {}): VillageListItem => ({
+    id: 'v-2',
+    settlementId: 's-1',
+    name: 'Budeč',
+    people: 5,
+    extinct: false,
+    hungry: false,
+    starving: false,
+    ...overrides,
+  });
+  const self = item({ id: 'v-1', name: 'Libice' });
+
+  it('hlad, vymírání hladem a vymření jiné vsi – jednou, se jménem vsi', () => {
+    const before = view({ villages: [self, item()] });
+    const hungry = view({ villages: [self, item({ hungry: true })] });
+    expect(newNotices(before, hungry)).toEqual([
+      { kind: 'other-hungry', tone: 'warn', text: 'Budeč: ves hladoví' },
+    ]);
+    expect(newNotices(hungry, hungry)).toEqual([]);
+    const starving = view({ villages: [self, item({ hungry: true, starving: true })] });
+    expect(otherVillageNotices(hungry, starving)).toEqual([
+      { kind: 'other-starving', tone: 'warn', text: 'Budeč: lidé umírají hlady' },
+    ]);
+    const extinct = view({ villages: [self, item({ extinct: true, people: 0 })] });
+    expect(otherVillageNotices(starving, extinct)).toEqual([
+      { kind: 'other-extinct', tone: 'warn', text: 'Budeč: ves vymřela' },
+    ]);
+  });
+
+  it('vlastní ves ani nově přibylá ves upozornění z jiné vsi nedají', () => {
+    const before = view({ villages: [self] });
+    const after = view({
+      hungry: true,
+      villages: [{ ...self, hungry: true }, item({ hungry: true })],
+    });
+    expect(otherVillageNotices(before, after)).toEqual([]);
+  });
+
+  it('po přepnutí na jinou ves žádná nová upozornění', () => {
+    const libice = view({ villages: [self, item()] });
+    const budec = view({ id: 'v-2', name: 'Budeč', hungry: true, villages: [self, item()] });
+    expect(newNotices(libice, budec)).toEqual([]);
   });
 });

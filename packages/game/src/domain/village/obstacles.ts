@@ -16,6 +16,7 @@ import {
 } from './road-trees';
 import { villageWoods, woodMatureTrees, woodTreeSpots } from './woods';
 import {
+  BEECH_PLANTING,
   DWELLING_CLEARING_M,
   OBSTACLE_COST,
   OUTCROP_RADIUS_M,
@@ -71,6 +72,49 @@ export function treeRegrowth(felledDay: number, day: number): TreeRegrowth {
   return years >= TREE_SAPLING_AFTER_YEARS ? 'sapling' : 'stump';
 }
 
+/**
+ * Stav pokáceného stromu v den `day` i se sazenicí (crafts.md – Uhlíř, obnova lesa): zasazený
+ * mladý strom je od výsadby mladý stromek a za BEECH_PLANTING.matureYears zase dospělý strom;
+ * bez sazenice dorůstá z náletu (`treeRegrowth`).
+ */
+export function felledTreeStage(felled: ObstacleChange, day: number): TreeRegrowth {
+  if (felled.planted !== undefined && day >= felled.planted) {
+    const years = (day - felled.planted) / DAYS_PER_YEAR;
+    return years >= BEECH_PLANTING.matureYears ? 'grown' : 'sapling';
+  }
+  return treeRegrowth(felled.day, day);
+}
+
+/**
+ * Věk mladého stromku na místě pokáceného stromu v den `day` (roky, 0–1 jako podíl doby do
+ * dospělosti) – sazenice od výsadby, nálet od TREE_SAPLING_AFTER_YEARS; jinak null (pařez nebo
+ * dospělý strom). Jen vzhled – scéna podle něj stromek zvětšuje.
+ */
+export function saplingGrowth(felled: ObstacleChange, day: number): number | null {
+  if (felledTreeStage(felled, day) !== 'sapling') return null;
+  if (felled.planted !== undefined && day >= felled.planted) {
+    return Math.min(1, (day - felled.planted) / DAYS_PER_YEAR / BEECH_PLANTING.matureYears);
+  }
+  const years = (day - felled.day) / DAYS_PER_YEAR - TREE_SAPLING_AFTER_YEARS;
+  return Math.min(1, Math.max(0, years / (TREE_REGROWTH_YEARS - TREE_SAPLING_AFTER_YEARS)));
+}
+
+/**
+ * Zasadí mladý strom na pařez stromu `id` v den `day` (mutuje stav – volat na klonu): poslední
+ * záznam pokácení stromu dostane den výsadby. Vrátí false, když tam pařez není (strom nestojí
+ * pokácený, už je zasazený, dorostl, nebo ho stavba odstranila).
+ */
+export function plantOnStump(state: VillageState, id: number, day: number): boolean {
+  if ((state.clearedObstacles ?? []).some((c) => c.id === id)) return false;
+  let last: ObstacleChange | undefined;
+  for (const f of state.felledTrees ?? []) {
+    if (f.id === id && (!last || f.day >= last.day)) last = f;
+  }
+  if (!last || last.planted !== undefined || felledTreeStage(last, day) !== 'stump') return false;
+  last.planted = day;
+  return true;
+}
+
 type ChangeLists = Pick<VillageState, 'clearedObstacles' | 'felledTrees' | 'roads'> &
   Partial<Pick<VillageState, 'woods'>>;
 
@@ -81,16 +125,17 @@ type ChangeLists = Pick<VillageState, 'clearedObstacles' | 'felledTrees' | 'road
  */
 export function obstacleChangesAt(state: ChangeLists, day: number): ObstacleChanges {
   const removed = new Set((state.clearedObstacles ?? []).map((c) => c.id));
-  // u stromu pokáceného víckrát platí poslední kácení
-  const lastFelled = new Map<number, number>();
+  // u stromu pokáceného víckrát platí poslední kácení (i se sazenicí)
+  const lastFelled = new Map<number, ObstacleChange>();
   for (const f of state.felledTrees ?? []) {
-    lastFelled.set(f.id, Math.max(f.day, lastFelled.get(f.id) ?? -Infinity));
+    const known = lastFelled.get(f.id);
+    if (!known || f.day >= known.day) lastFelled.set(f.id, f);
   }
   const stumps: number[] = [];
   const saplings: number[] = [];
-  for (const [id, felledDay] of lastFelled) {
+  for (const [id, felled] of lastFelled) {
     if (removed.has(id)) continue;
-    const regrowth = treeRegrowth(felledDay, day);
+    const regrowth = felledTreeStage(felled, day);
     if (regrowth === 'stump') stumps.push(id);
     else if (regrowth === 'sapling') saplings.push(id);
   }
@@ -112,7 +157,8 @@ export function obstacleChangesAt(state: ChangeLists, day: number): ObstacleChan
     for (const spot of woodTreeSpots(wood)) {
       if (removed.has(spot.id)) continue;
       const felled = lastFelled.get(spot.id);
-      const regrowth = felled === undefined ? 'grown' : treeRegrowth(felled, day);
+      // pokácený strom lesa vsi dorůstá z pařezu, nebo ze sazenice jako strom krajiny
+      const regrowth = felled === undefined ? 'grown' : felledTreeStage(felled, day);
       const kind: RoadTreeObstacleKind =
         regrowth === 'stump'
           ? 'stump'
@@ -496,7 +542,7 @@ export function fellTrees(state: VillageState, ids: readonly number[], day: numb
     if (!Number.isInteger(id) || id < 0) throw new RangeError(`Neplatné id stromu ${id}.`);
     if (unavailable.has(id)) throw new RangeError(`Strom ${id} už nestojí.`);
   }
-  const kept = (state.felledTrees ?? []).filter((f) => treeRegrowth(f.day, day) !== 'grown');
+  const kept = (state.felledTrees ?? []).filter((f) => felledTreeStage(f, day) !== 'grown');
   return { ...state, felledTrees: [...kept, ...ids.map((id) => ({ id, day }))] };
 }
 

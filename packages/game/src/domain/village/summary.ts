@@ -40,7 +40,7 @@ import {
   villageOrchards,
 } from './orchard';
 import { ageGroup, foodNeedPerDay, occupants } from './people';
-import { CHRONICLE_MAX_EVENTS, DWELLINGS, STARVATION } from './rules';
+import { CHARCOAL_KILN, CHRONICLE_MAX_EVENTS, DWELLINGS, STARVATION } from './rules';
 import {
   groveHappiness,
   sacredBuildingHappiness,
@@ -50,6 +50,8 @@ import {
 } from './sacred';
 import { sacredOakNow, type SacredOakNow } from './sacred-life';
 import type {
+  CharcoalKiln,
+  KilnStage,
   Construction,
   ConstructionKind,
   Craft,
@@ -159,6 +161,19 @@ export interface WorkshopSummary {
   laborPerDay: number;
   /** Přirážka za rudu nebo hlínu dál od potoka (1 = voda blízko). */
   oreFactor: number;
+  /**
+   * Uhlíř: rozdělaný milíř (crafts.md – Uhlíř) – fáze, kolik buků dávky je připravených z kolika,
+   * průběh fáze 0–1 (u pálení dny ÷ CHARCOAL_KILN.burnDays) a jestli stojí v lese; jinak null.
+   */
+  kiln: {
+    stage: KilnStage;
+    prepared: number;
+    trees: number;
+    progress: number;
+    forest: boolean;
+  } | null;
+  /** Uhlíř: pařezy buků, na které ještě zasadí mladý buk; ostatní dílny 0. */
+  toPlant: number;
 }
 
 /** Řemesla vsi – zásoby, potřeba, pokrytí (meze produktivity) a dílny. */
@@ -579,9 +594,33 @@ function craftsSummary(state: VillageState, day: number): CraftsSummary {
               ? workshopLabor(state, day, d.id, coverage.pottery, productivity).craft
               : 0,
           oreFactor: oreFactor(workshop),
+          kiln: workshop.kiln ? kilnSummary(workshop.kiln) : null,
+          toPlant: workshop.toPlant?.length ?? 0,
         },
       ];
     }),
+  };
+}
+
+/** Rozdělaný milíř pro panel: fáze, buky a průběh fáze 0–1. */
+function kilnSummary(kiln: CharcoalKiln): NonNullable<WorkshopSummary['kiln']> {
+  const n = kiln.trees.length;
+  const total =
+    kiln.stage === 'wood'
+      ? 0
+      : kiln.stage === 'burn'
+        ? CHARCOAL_KILN.burnDays
+        : (kiln.stage === 'build'
+            ? CHARCOAL_KILN.buildManDaysPerTree
+            : CHARCOAL_KILN.drawManDaysPerTree) * n;
+  const progress =
+    kiln.stage === 'wood' ? (n > 0 ? kiln.prepared / n : 1) : total > 0 ? kiln.done / total : 1;
+  return {
+    stage: kiln.stage,
+    prepared: kiln.prepared,
+    trees: n,
+    progress: Math.min(1, Math.max(0, progress)),
+    forest: kiln.site !== null,
   };
 }
 

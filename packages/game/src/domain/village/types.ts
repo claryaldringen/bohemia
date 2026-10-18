@@ -59,10 +59,48 @@ export type Craft = 'potter' | 'smith' | 'burner';
 /**
  * Co dílna dělala poslední odsimulovaný den (crafts.md – Co hráč vidí): vyrábí, kácí dřevo na
  * uhlí nebo palivo, čeká na uhlí (kovář), čeká na dřevo (uhlíř a hrnčíř – není co kácet), nemá
- * kdo pracovat (domácnost bez práce po minimu a domácí výrobě), nebo je prázdná.
+ * kdo pracovat (domácnost bez práce po minimu a domácí výrobě), nebo je prázdná. Uhlíř
+ * (crafts.md – Uhlíř): kácí a připravuje dřevo (`felling`), staví milíř (`building`), pálí
+ * a hlídá ho (`burning`), vytahuje uhlí (`drawing`), sází mladé buky (`planting`), nebo má uhlí
+ * dost a pomáhá vsi (`resting`).
  */
 export type WorkshopActivity =
-  'producing' | 'felling' | 'no-charcoal' | 'no-wood' | 'idle' | 'empty';
+  | 'producing'
+  | 'felling'
+  | 'building'
+  | 'burning'
+  | 'drawing'
+  | 'planting'
+  | 'resting'
+  | 'no-charcoal'
+  | 'no-wood'
+  | 'idle'
+  | 'empty';
+/** Fáze milíře (crafts.md – Uhlíř): kácení a příprava dřeva, stavba, pálení, vytahání uhlí. */
+export type KilnStage = 'wood' | 'build' | 'burn' | 'draw';
+/**
+ * Milíř uhlíře – jedna dávka buků od výběru po vytahání uhlí (crafts.md – Uhlíř). Stojí u dílny
+ * (`site` null – milíř kus od zemnice), nebo v lese u dávky (`site` – střed milíře ve světě, m).
+ * Buky dávky jsou od výběru vyhrazené; kácí se a připravují strom po stromu v pořadí `trees`.
+ */
+export interface CharcoalKiln {
+  site: { x: number; z: number } | null;
+  /**
+   * Buky dávky: id z vrstvy překážek (null = kácení bez polohy – ves bez vrstvy, jen testy)
+   * a práce za skácení a dovoz k milíři (člověkodny, i se vzdáleností).
+   */
+  trees: { id: number | null; cost: number }[];
+  stage: KilnStage;
+  /** Kolik buků dávky je skácených a připravených (fáze `wood`). */
+  prepared: number;
+  /** Práce odvedená v rozdělané části fáze (čd; u buku kácení a pak příprava), u pálení dny. */
+  done: number;
+  /**
+   * Milíř v lese: vzdálenost chůze z dílny k němu (m – po pevných cestách s půdou, paths/walking.ts)
+   * pro přirážku za chůzi; bez údaje vzdušná vzdálenost (vsi bez krajiny, kalibrace).
+   */
+  walkM?: number;
+}
 /**
  * Strom, který dílna kácí (uhlíř na uhlí, hrnčíř na palivo pece – forest.md, kácení): id z vrstvy
  * překážek (null = kácení bez polohy – ves bez vrstvy, jen testy), práce za skácení a dovoz
@@ -87,6 +125,13 @@ export interface Workshop {
   fuelKg: number;
   /** Co dílna dělala poslední odsimulovaný den (panel výběru, dým ve scéně). */
   activity: WorkshopActivity;
+  /** Uhlíř: rozdělaný milíř (crafts.md – Uhlíř); bez údaje nebo null žádný. */
+  kiln?: CharcoalKiln | null;
+  /**
+   * Uhlíř: pařezy buků, které skácel a na které ještě zasadí mladý buk (id z vrstvy překážek,
+   * v pořadí kácení – obnova lesa). Bez údaje žádné.
+   */
+  toPlant?: number[];
 }
 /**
  * Zásoby výrobků řemeslníků (crafts.md, kg): uhlí pro kováře, nástroje a keramika. Co ves
@@ -320,6 +365,12 @@ export interface Construction {
   craft?: Craft;
   /** Nová dílna: vzdálenost k potoku (m) – dílna ji po dostavění převezme. */
   waterDistanceM?: number;
+  /**
+   * Přestěhování domácnosti (migration.md): id domácnosti (= id jejího obydlí), která si nové
+   * obydlí staví a po dostavění se do něj přestěhuje – starý dům zůstane prázdný. Jen u stavby
+   * `dwelling`, u ostatních staveb chybí.
+   */
+  relocates?: number;
 }
 /**
  * Dřevo stavby (forest.md – Stavby a kácení): kolik ho stavba spotřebuje, kolik klád vzala při
@@ -424,6 +475,12 @@ export type ChronicleEvent = { day: number } & (
       craft?: Craft;
     }
   | { kind: 'rebuild-decided'; dwellingId: number; type: DwellingType }
+  /** Domácnost obydlí `dwellingId` si začala stavět nový dům typu `type` (migration.md). */
+  | { kind: 'relocation-started'; dwellingId: number; type: DwellingType }
+  /** Hráč zrušil rozestavěné přestěhování domácnosti `dwellingId` (migration.md). */
+  | { kind: 'relocation-cancelled'; dwellingId: number }
+  /** Domácnost se přestěhovala do dostavěného domu – starý dům zůstal prázdný (migration.md). */
+  | { kind: 'household-relocated'; fromDwellingId: number; toDwellingId: number }
   /**
    * Sklizeň – plodina, když ves seje ozim i jař (ozim v červenci, jař v srpnu); bez ní jen jař
    * (ves bez ozimu, starší sklizně). `legume` – luštěniny (kg do zásoby luštěnin, ne obilí).
@@ -517,6 +574,8 @@ export type LaborActivity =
   | 'repair'
   /** Řemeslník v dílně (crafts.md) – výroba uhlí, nástrojů nebo keramiky. */
   | 'craft'
+  /** Uhlíř sází mladé buky na pařezy (crafts.md – Uhlíř, obnova lesa). */
+  | 'plant'
   /** Denní minimum domácností a domácí výroba (fields.md – Práce, body 1 a 4). */
   | 'domestic'
   /** Společná práce, na kterou nezbyla žádná stavba (propadla). */
@@ -543,8 +602,10 @@ export type LaborTarget =
   | { kind: 'road'; id: number }
   /** Přirozená louka – políčka, na kterých se dnes seče seno (oxen.md – Seno). */
   | { kind: 'meadow'; cells: TileCell[] }
-  /** Stromy z vrstvy překážek, které se pro stavbu právě kácejí. */
+  /** Stromy z vrstvy překážek, které se pro stavbu nebo dílnu právě kácejí (i pařezy k sázení). */
   | { kind: 'trees'; ids: number[] }
+  /** Milíř uhlíře v lese (crafts.md – Uhlíř) – dílna (id obydlí) a střed milíře ve světě (m). */
+  | { kind: 'kiln'; id: number; x: number; z: number }
   /** Ves celkově – výmlat, domácí práce, nevyužitá společná práce. */
   | { kind: 'village' };
 
@@ -963,4 +1024,10 @@ export interface SacredBuilding {
 export interface ObstacleChange {
   id: number;
   day: number;
+  /**
+   * Pokácený strom: den, kdy na pařez někdo zasadil mladý strom (uhlíř buk – crafts.md, Uhlíř).
+   * Sazenice je hned mladý stromek a dospěje za BEECH_PLANTING.matureYears; bez údaje strom
+   * dorůstá z náletu (TREE_SAPLING_AFTER_YEARS, TREE_REGROWTH_YEARS).
+   */
+  planted?: number;
 }

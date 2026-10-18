@@ -4,7 +4,8 @@ import { packObstacles, type ObstaclePlacement } from '../../landscape';
 import { foundField, foundVillage } from '../actions';
 import { cloneState } from '../clone';
 import { pastureHa, pigForestHa } from '../livestock';
-import { obstacleChangesAt } from '../obstacles';
+import { obstacleChangesAt, plantOnStump } from '../obstacles';
+import { BEECH_PLANTING } from '../rules';
 import { fallowGrazing, grazedPartIds, overgrowthDay } from '../overgrowth';
 import { isHayMeadow, mownPartIds } from '../hay';
 import { plantingBlocker } from '../paths/roads';
@@ -20,7 +21,7 @@ import {
 import { advanceVillage } from '../simulate';
 import { partStage } from '../summary';
 import type { FieldPart, HerdSpecies, VillageState, VillageWood } from '../types';
-import { availableTrees, nearestMatureTrees, woodSupply } from '../wood';
+import { availableTrees, isBeech, nearestMatureTrees, woodSupply } from '../wood';
 import {
   WOOD_TREE_ID_BASE,
   clearWoodAt,
@@ -314,6 +315,20 @@ describe('les vsi – stromy', () => {
     expect((obstacleChangesAt(s, at(625, 11, 1)).added ?? [])[0]?.kind).toBe('stump');
   });
 
+  it('pařez stromu lesa vsi se sazenicí od uhlíře dorůstá jako strom krajiny', () => {
+    const s = village();
+    s.woods = [wood];
+    const id = woodTreeSpots(wood)[0]!.id;
+    s.felledTrees = [{ id, day: NOV1 }];
+    const kindAt = (day: number): string | undefined =>
+      (obstacleChangesAt(s, day).added ?? []).find((o) => o.id === id)?.kind;
+    expect(kindAt(NOV1 + 10)).toBe('stump');
+    expect(plantOnStump(s, id, NOV1 + 10)).toBe(true);
+    expect(kindAt(NOV1 + 20)).toBe('youngTree');
+    const grown = NOV1 + 10 + Math.ceil(BEECH_PLANTING.matureYears * 365.25) + 1;
+    expect(kindAt(grown)).toBe('tree');
+  });
+
   it('dospělé stromy lesa jde kácet na dřevo – nejbližší první, počítají se do zásoby', () => {
     const placements: ObstaclePlacement[] = [
       { id: 7, kind: 'tree', look: 'beech-1', x: -100, z: -100, rotation: 0, scale: 1 },
@@ -327,7 +342,11 @@ describe('les vsi – stromy', () => {
     expect(near).toHaveLength(3);
     expect(availableTrees(layer, s, s.lastDay)).toBe(6);
     // duby pro modlu a svatyni jen z lesa krajiny
-    expect(availableTrees(layer, s, s.lastDay, true)).toBe(0);
+    expect(availableTrees(layer, s, s.lastDay, 'oaks')).toBe(0);
+    // uhlíř pálí i les vsi (smíšený les, dřevo vsi) – buk krajiny a pět stromů lesa vsi
+    expect(availableTrees(layer, s, s.lastDay, 'beeches')).toBe(6);
+    const forBurner = nearestMatureTrees(layer, changes, { x: 60, z: -60 }, 2, new Set(), isBeech);
+    expect(forBurner.every((t) => t.id >= WOOD_TREE_ID_BASE)).toBe(true);
     expect(woodSupply(s, layer)).toBe(6);
   });
 

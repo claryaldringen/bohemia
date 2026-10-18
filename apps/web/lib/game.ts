@@ -8,10 +8,17 @@ import {
 import {
   dynastyStatus,
   enterGame,
+  findPlayerVillage,
+  firstPlayerVillage,
   playerTime,
   restartGame,
+  settlementLandscape,
   skipTime,
+  type DynastyStatus,
   type EnterGameResult,
+  type Landscape,
+  type PlayerVillage,
+  type Settlement,
   type TimeOffsetRepository,
   type TimeSkip,
 } from '@bohemia/game';
@@ -42,6 +49,60 @@ export function enterGameForPlayer(playerId: string): Promise<EnterGameResult> {
   );
 }
 
+/** Krajina sídla (mapy) z mezipaměti serveru. */
+export function landscapeOfSettlement(settlement: Settlement): Landscape {
+  return settlementLandscape(settlement, landscapes);
+}
+
+/** Hra, jak ji hráč uvidí: sídlo (mapa) s krajinou a vybraná ves (null = zakládá ves). */
+export interface GameEntry {
+  settlement: Settlement;
+  landscape: Landscape;
+  villageId: string | null;
+}
+
+/**
+ * Kam hráč vstoupí do hry (stránka /game): vybraná ves `preferredVillageId` (zapamatovaná
+ * v cookie), když patří hráči; jinak jeho první ves (sídelní sídlo první – `firstPlayerVillage`);
+ * bez vsí sídelní sídlo k založení vsi (hráči bez sídla ho `enterGame` založí).
+ */
+export async function gameEntryForPlayer(
+  playerId: string,
+  preferredVillageId: string | null,
+): Promise<GameEntry> {
+  const seat = await enterGameForPlayer(playerId);
+  const deps = playerVillagesDeps();
+  const preferred =
+    preferredVillageId === null
+      ? null
+      : await findPlayerVillage(deps, { playerId, villageId: preferredVillageId });
+  const chosen = preferred ?? (await firstPlayerVillage(deps, playerId));
+  if (chosen === null) return { ...seat, villageId: null };
+  return {
+    settlement: chosen.settlement,
+    landscape:
+      chosen.settlement.id === seat.settlement.id
+        ? seat.landscape
+        : landscapeOfSettlement(chosen.settlement),
+    villageId: chosen.village.id,
+  };
+}
+
+function playerVillagesDeps(): Parameters<typeof findPlayerVillage>[0] {
+  const db = getDatabase();
+  return { settlements: createSettlementRepository(db), villages: createVillageRepository(db) };
+}
+
+/** Ves `villageId`, když patří hráči (její sídlo je mezi jeho aktivními sídly); jinak null. */
+export function playerVillage(playerId: string, villageId: string): Promise<PlayerVillage | null> {
+  return findPlayerVillage(playerVillagesDeps(), { playerId, villageId });
+}
+
+/** První ves hráče (sídelní sídlo první); bez vsí null. */
+export function firstVillageOfPlayer(playerId: string): Promise<PlayerVillage | null> {
+  return firstPlayerVillage(playerVillagesDeps(), playerId);
+}
+
 function timeOffsets(): TimeOffsetRepository {
   return createTimeOffsetRepository(getDatabase());
 }
@@ -70,9 +131,17 @@ function dynastyDeps(): Parameters<typeof dynastyStatus>[0] {
   };
 }
 
-/** Hráči vymřely všechny vsi (dopočítané do dneška `today`) – konec hry. */
-export async function isGameOverForPlayer(playerId: string, today: number): Promise<boolean> {
-  return (await dynastyStatus(dynastyDeps(), { playerId, today })).gameOver;
+/**
+ * Všechny vsi hráče dopočítané do dneška `today` (přepínač vsí) a jestli mu vymřely všechny –
+ * konec hry.
+ */
+export function dynastyOfPlayer(playerId: string, today: number): Promise<DynastyStatus> {
+  return dynastyStatus(dynastyDeps(), { playerId, today });
+}
+
+/** Závislosti use-casů nad vsemi hráče (sídla, vsi, mezipaměť krajin, seedy). */
+export function gameDeps(): ReturnType<typeof dynastyDeps> & { seeds: { nextSeed: () => number } } {
+  return { ...dynastyDeps(), seeds: seeds() };
 }
 
 /**

@@ -10,6 +10,10 @@ import {
   parseRestartGameInput,
   parsePosition,
   parseSkipTimeInput,
+  parseCancelRelocationInput,
+  parseRelocateHouseholdInput,
+  parseVillageId,
+  villageIdOf,
   parsePlantRoadApplesInput,
   parseUpgradeRoadInput,
 } from '../village-input';
@@ -147,6 +151,50 @@ describe('vstup stavby řemeslné dílny', () => {
       parsePlaceWorkshopInput({ craft: 'potter', position: { x: 1, z: 2, rotation: Infinity } }),
     ).toBeNull();
     expect(parsePlaceWorkshopInput('potter')).toBeNull();
+  });
+});
+
+describe('vstupy víc vsí a přestěhování (migration.md)', () => {
+  const ID = '0f8fad5b-d9cb-469f-a165-70867728950e';
+
+  it('id vsi je UUID z vstupu akce, jiný řetězec ne', () => {
+    expect(villageIdOf({ villageId: ID, cells: [] })).toBe(ID);
+    expect(villageIdOf({ villageId: ID.toUpperCase() })).toBe(ID);
+    expect(villageIdOf({ villageId: "1' OR 1=1" })).toBeNull();
+    expect(villageIdOf({ villageId: 42 })).toBeNull();
+    expect(villageIdOf({})).toBeNull();
+    expect(villageIdOf(null)).toBeNull();
+    expect(parseVillageId(undefined)).toBeNull();
+  });
+
+  it('přestěhování: id obydlí a nový dům jako stavba obydlí', () => {
+    const position = { x: 1, z: 2, rotation: 0 };
+    expect(
+      parseRelocateHouseholdInput({ villageId: ID, dwellingId: 3, type: 'zemnice', position }),
+    ).toEqual({ dwellingId: 3, type: 'zemnice', position });
+    expect(
+      parseRelocateHouseholdInput({
+        dwellingId: 3,
+        type: 'polozemnice',
+        position,
+        plot: { cell: { x: 4, y: 5 }, variant: 'center' },
+      }),
+    ).toEqual({
+      dwellingId: 3,
+      type: 'polozemnice',
+      position,
+      plot: { cell: { x: 4, y: 5 }, variant: 'center' },
+    });
+    expect(parseRelocateHouseholdInput({ dwellingId: 0, type: 'zemnice', position })).toBeNull();
+    expect(parseRelocateHouseholdInput({ dwellingId: 1.5, type: 'zemnice', position })).toBeNull();
+    expect(parseRelocateHouseholdInput({ dwellingId: 2, type: 'hrad', position })).toBeNull();
+  });
+
+  it('zrušení přestěhování: kladné celé id stavby', () => {
+    expect(parseCancelRelocationInput({ constructionId: 12 })).toEqual({ constructionId: 12 });
+    expect(parseCancelRelocationInput({ constructionId: -1 })).toBeNull();
+    expect(parseCancelRelocationInput({ constructionId: '12' })).toBeNull();
+    expect(parseCancelRelocationInput(undefined)).toBeNull();
   });
 });
 

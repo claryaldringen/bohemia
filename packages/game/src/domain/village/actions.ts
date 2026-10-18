@@ -19,6 +19,7 @@ import { obstacleChangesAt, recordClearedObstacles } from './obstacles';
 import { orchardPlantingCost, villageOrchards } from './orchard';
 import type { Walk } from './paths/walking';
 import { ageGroup } from './people';
+import { relocationAffordability, relocationBlock, returnConstructionWood } from './relocation';
 import {
   CRAFTS,
   CRAFT_BASE,
@@ -437,6 +438,81 @@ export function startNewDwelling(
   obstacleIds: readonly number[] = [],
   site: DwellingSiteOptions = {},
 ): VillageState {
+  validateDwellingSite(state, day, position, obstacleCost, obstacleIds, site);
+  requireAffordable(state, type, site.obstacles);
+  return addDwellingSite(state, day, type, position, obstacleCost, obstacleIds, site, null);
+}
+
+/**
+ * Domácnost obydlí `householdId` si začne stavět nový dům jinde ve vsi (migration.md –
+ * Přestěhování domácnosti). Stejné jako `startNewDwelling` – kontroly vstupu, dřevo, pozemek,
+ * překážky a cena –, jen bez lidí k osídlení: stavba nese `relocates` a po dostavění se do ní
+ * domácnost přestěhuje (`moveRelocatedHousehold`), starý dům zůstane prázdný. RangeError, když
+ * domácnost neexistuje, nový dům si už staví nebo svůj dům přestavuje (`relocationBlock`), když
+ * ves nemá dřevo předem nebo je vstup neplatný. Konvence dne jako u `startNewDwelling`.
+ */
+export function startRelocation(
+  state: VillageState,
+  day: number,
+  householdId: number,
+  type: DwellingType,
+  position: Position,
+  obstacleCost: number,
+  obstacleIds: readonly number[] = [],
+  site: DwellingSiteOptions = {},
+): VillageState {
+  validateDwellingSite(state, day, position, obstacleCost, obstacleIds, site);
+  const block = relocationBlock(state, householdId);
+  if (block !== null) throw new RangeError(`Domácnost ${householdId} se teď nestěhuje (${block}).`);
+  if (!relocationAffordability(state, type, site.obstacles).affordable) {
+    throw new RangeError('Na nový dům ves nemá dřevo.');
+  }
+  const next = addDwellingSite(
+    state,
+    day,
+    type,
+    position,
+    obstacleCost,
+    obstacleIds,
+    site,
+    householdId,
+  );
+  next.chronicle.push({ day, kind: 'relocation-started', dwellingId: householdId, type });
+  return next;
+}
+
+/**
+ * Hráč zruší rozestavěné přestěhování (stavba `constructionId`, migration.md): stavba zmizí,
+ * klády, které vzala z hromady, i už skácené stromy se vrátí na hromadu, vyhrazené stromy se
+ * uvolní. Odvedená práce a odstraněné překážky staveniště zůstanou. RangeError, když taková
+ * stavba není (dostavěná, jiná stavba), nebo pro den do minulosti vsi.
+ */
+export function cancelRelocation(
+  state: VillageState,
+  day: number,
+  constructionId: number,
+): VillageState {
+  validateActionDay(state, day);
+  const c = state.constructions.find((x) => x.id === constructionId);
+  if (!c || c.relocates === undefined) {
+    throw new RangeError(`Stavba ${constructionId} není rozestavěné přestěhování.`);
+  }
+  const next = structuredClone(state);
+  returnConstructionWood(next, c);
+  next.constructions = next.constructions.filter((x) => x.id !== constructionId);
+  next.chronicle.push({ day, kind: 'relocation-cancelled', dwellingId: c.relocates });
+  return next;
+}
+
+/** Ověří vstup staveniště obydlí (den, poloha, překážky, pozemek…); jinak RangeError. */
+function validateDwellingSite(
+  state: VillageState,
+  day: number,
+  position: Position,
+  obstacleCost: number,
+  obstacleIds: readonly number[],
+  site: DwellingSiteOptions,
+): void {
   validateActionDay(state, day);
   validatePosition(position);
   validateObstacleCost(obstacleCost);
@@ -446,7 +522,23 @@ export function startNewDwelling(
   if (site.plot) validatePlot(site.plot);
   if (site.sacred) validateSpared(site.sacred);
   validateTakenLand(site.takenLand ?? []);
-  requireAffordable(state, type, site.obstacles);
+}
+
+/**
+ * Staveniště obydlí na klonu stavu: dřevo (klády z hromady, zbytek vyhrazené stromy), překážky
+ * na vyklízené ploše, ušetřená posvátná místa a pole či sady pod obydlím. `relocates` – domácnost,
+ * která se do obydlí po dostavění přestěhuje (null = nové obydlí pro novou domácnost).
+ */
+function addDwellingSite(
+  state: VillageState,
+  day: number,
+  type: DwellingType,
+  position: Position,
+  obstacleCost: number,
+  obstacleIds: readonly number[],
+  site: DwellingSiteOptions,
+  relocates: number | null,
+): VillageState {
   const plan: WoodPlan = planDwellingWood(state, type, position, day, {
     ...(site.obstacles ? { obstacles: site.obstacles } : {}),
     clearedTrees: site.clearedTrees ?? 0,
@@ -471,6 +563,7 @@ export function startNewDwelling(
     fieldId: null,
     wood,
     ...(site.forestDistanceM === undefined ? {} : { forestDistanceM: site.forestDistanceM }),
+    ...(relocates === null ? {} : { relocates }),
   });
   if (site.sacred) recordSpared(next, site.sacred, day);
   giveWayToDwelling(next, day, site.takenLand ?? []);

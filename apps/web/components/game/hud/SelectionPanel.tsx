@@ -28,6 +28,12 @@ import {
   type WorkshopActivity,
 } from '@/lib/village-view';
 import type { RoadGrade, RoadUpgrade } from '@bohemia/game';
+import {
+  CancelRelocationButton,
+  LeaveButton,
+  RelocateButtons,
+  RelocationProgress,
+} from './RelocationControls';
 import { Tooltip } from './Tooltip';
 
 function Portrait({ icon, name }: { icon: string; name: string }): ReactElement {
@@ -123,20 +129,42 @@ function activityLook(workshop: SelectionWorkshop): {
 } {
   const product = CRAFT_LOOKS[workshop.craft].product;
   const perDay = `${formatDecimal(workshop.outputPerDayKg, 1)} kg/den`;
+  const kiln = workshop.kiln;
+  const percent = kiln ? formatPercent(kiln.progress) : '–';
   const looks: Record<WorkshopActivity, { icon: string; name: string; value: string }> = {
     producing: {
       icon: product.icon,
       name: `Vyrábí – ${product.name.toLowerCase()}`,
       value: perDay,
     },
-    felling: { icon: 'wood', name: 'Kácí dřevo', value: perDay },
+    felling: {
+      icon: 'wood',
+      name: workshop.craft === 'burner' ? 'Kácí a připravuje buky na milíř' : 'Kácí dřevo',
+      value: kiln ? `${kiln.prepared}/${kiln.trees}` : perDay,
+    },
+    building: { icon: 'wood', name: 'Staví milíř', value: percent },
+    burning: { icon: 'charcoal', name: 'Pálí milíř – hlídá ve dne i v noci', value: percent },
+    drawing: { icon: 'charcoal', name: 'Vytahuje uhlí z milíře', value: percent },
+    planting: { icon: 'labor', name: 'Sází mladé buky na pařezy', value: `${workshop.toPlant}` },
+    resting: { icon: 'people', name: 'Uhlí je dost – pomáhá vsi', value: '–' },
     'no-charcoal': { icon: 'charcoal', name: 'Čeká na uhlí', value: '0' },
-    'no-wood': { icon: 'wood', name: 'Čeká na dřevo – není co kácet', value: '0' },
+    'no-wood': {
+      icon: 'wood',
+      name:
+        workshop.craft === 'burner'
+          ? 'Čeká na dřevo – nejsou dospělé buky'
+          : 'Čeká na dřevo – není co kácet',
+      value: '0',
+    },
     idle: { icon: 'labor', name: 'Nemá kdo pracovat', value: '0' },
     empty: { icon: 'people', name: 'Prázdná – nikdo tu nebydlí', value: '0' },
   };
   const look = looks[workshop.activity];
-  const stalled = workshop.activity !== 'producing' && workshop.activity !== 'felling';
+  const stalled =
+    workshop.activity === 'no-charcoal' ||
+    workshop.activity === 'no-wood' ||
+    workshop.activity === 'idle' ||
+    workshop.activity === 'empty';
   return { ...look, stalled };
 }
 
@@ -167,15 +195,39 @@ function WorkshopRow({ workshop }: { workshop: SelectionWorkshop }): ReactElemen
       >
         {formatInteger(workshop.stockKg)}
       </Stat>
+      {workshop.kiln?.forest && (
+        <Stat icon="wood" name="Milíř stojí v lese u těžby" testId="selection-workshop-forest">
+          les
+        </Stat>
+      )}
+      {workshop.craft === 'burner' && workshop.toPlant > 0 && workshop.activity !== 'planting' && (
+        <Stat
+          icon="labor"
+          name="Pařezy buků, na které ještě zasadí mladý buk (sází na jaře a na podzim)"
+          testId="selection-workshop-to-plant"
+        >
+          {workshop.toPlant}
+        </Stat>
+      )}
     </div>
   );
 }
 
+/** Akce panelu nad obydlími – přestěhování domácnosti a jeho zrušení (migration.md). */
+interface RelocationActions {
+  /** Začne umisťovat nové domy domácností `householdIds` (postupně, jeden za druhým). */
+  onRelocate?: (type: DwellingType, householdIds: readonly number[]) => void;
+  /** Zruší rozestavěné stěhování (stavba nového domu) – hotovo, až se vrátí. */
+  onCancelRelocation?: (constructionId: number) => Promise<void>;
+}
+
 function DwellingBody({
   details,
+  onRelocate,
+  onCancelRelocation,
 }: {
   details: Extract<SelectionDetails, { kind: 'dwelling' }>;
-}): ReactElement {
+} & RelocationActions): ReactElement {
   const tone = details.overcrowded ? 'text-red-400' : details.full ? 'text-[#f3cf86]' : '';
   return (
     <div className="flex min-w-0 flex-col gap-1.5">
@@ -207,6 +259,57 @@ function DwellingBody({
           {details.rebuild.treesToFell > 0 && <WoodToFell trees={details.rebuild.treesToFell} />}
         </div>
       )}
+      {details.relocation && (
+        <RelocationProgress
+          constructionId={details.relocation.constructionId}
+          progress={details.relocation.progress}
+          onCancel={onCancelRelocation}
+        />
+      )}
+      {details.relocate && (
+        <div className="flex items-center gap-2">
+          <RelocateButtons
+            options={details.relocate}
+            households={1}
+            onRelocate={onRelocate ? (type) => onRelocate(type, [details.id]) : undefined}
+          />
+          <LeaveButton />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Víc vybraných obydlí (migration.md – Výběr víc obydlí): kolik domácností a lidí, Přestěhovat
+ * (nový dům postupně každé domácnosti, která se může stěhovat) a Odejít (zatím zašedlé).
+ */
+function DwellingsBody({
+  details,
+  onRelocate,
+}: {
+  details: Extract<SelectionDetails, { kind: 'dwellings' }>;
+} & RelocationActions): ReactElement {
+  return (
+    <div className="flex min-w-0 flex-col justify-center gap-1.5">
+      <div className="flex items-center gap-3">
+        <Stat src="/icons/build/zemnice.png" name="Domácnosti" testId="selection-households">
+          {details.households}
+        </Stat>
+        <Stat icon="people" name="Lidé" testId="selection-people">
+          {details.people}
+        </Stat>
+      </div>
+      <div className="flex items-center gap-2">
+        {details.relocate && (
+          <RelocateButtons
+            options={details.relocate}
+            households={details.relocatable.length}
+            onRelocate={onRelocate ? (type) => onRelocate(type, details.relocatable) : undefined}
+          />
+        )}
+        <LeaveButton />
+      </div>
     </div>
   );
 }
@@ -814,11 +917,15 @@ function SacredBody({
  * posvátný dub, háj, modla a svatyně: kolik přidávají štěstí (háj i počet dubů), rozestavěná
  * modla a svatyně průběh stavby a duby ke skácení; ohrada: zvířata, seno, stáda, spřežení
  * a výcvik (`onTrainTeam` – akce „Vycvičit spřežení“); pevná cesta: délka, stáří, stromy,
- * vylepšení (`onUpgradeRoad`) a výsadba jabloní (`onPlantRoadApples`).
+ * vylepšení (`onUpgradeRoad`) a výsadba jabloní (`onPlantRoadApples`). Obydlí a víc vybraných
+ * obydlí: Přestěhovat (`onRelocate`), Odejít (zatím zašedlé) a průběh stěhování se zrušením
+ * (`onCancelRelocation` – migration.md).
  */
 export function SelectionPanel({
   details,
   onTrainTeam,
+  onRelocate,
+  onCancelRelocation,
   onUpgradeRoad,
   onPlantRoadApples,
 }: {
@@ -829,7 +936,7 @@ export function SelectionPanel({
   onUpgradeRoad?: (roadId: number, upgrade: RoadUpgrade) => Promise<void>;
   /** Zadá výsadbu jabloní podél pevné cesty (server action) – hotovo, až se vrátí. */
   onPlantRoadApples?: (roadId: number) => Promise<void>;
-}): ReactElement | null {
+} & RelocationActions): ReactElement | null {
   if (!details) return null;
   let portrait: ReactElement;
   let body: ReactElement;
@@ -898,11 +1005,23 @@ export function SelectionPanel({
           {details.treesToFell > 0 && <WoodToFell trees={details.treesToFell} />}
         </div>
         <Bar value={details.progress} name="Stavba" testId="selection-progress" />
+        {details.relocates !== null && (
+          <CancelRelocationButton constructionId={details.id} onCancel={onCancelRelocation} />
+        )}
       </div>
     );
+  } else if (details.kind === 'dwellings') {
+    portrait = <Portrait icon="zemnice" name={`Obydlí (${details.ids.length})`} />;
+    body = <DwellingsBody details={details} onRelocate={onRelocate} />;
   } else {
     portrait = dwellingPortrait(details.type, details.workshop?.craft ?? null);
-    body = <DwellingBody details={details} />;
+    body = (
+      <DwellingBody
+        details={details}
+        onRelocate={onRelocate}
+        onCancelRelocation={onCancelRelocation}
+      />
+    );
   }
   return (
     <section

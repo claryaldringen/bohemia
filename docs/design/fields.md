@@ -497,7 +497,9 @@ povrch při založení a den vypadnutí z pole – les je tehdy 30 let starý).
   ostatní jsou mladé stromky.
 - **Dřevo:** dospělé stromy lesa vsi jde kácet pro stavby a dílny jako stromy krajiny (nejbližší
   první; duby pro modlu a svatyni jen z lesa krajiny) a počítají se do dřeva, které ves má.
-  Pokácený strom nechá pařez a dorůstá jako strom krajiny.
+  Uhlíř, který pálí buky, smí pálit i les vsi – je to smíšený les a dřevo vsi (rozhodnutí
+  Clauda). Pokácený strom nechá pařez a dorůstá jako strom krajiny, i ze sazenice, kterou
+  uhlíř na pařez zasadí.
 - **Stavba:** pole na lese vsi ho **vymýtí jako les** – povrch les (250, s řemesly 150 člověkodní
   na hektar, stromy v ceně), dospělé stromy dají klády a vymýcená půda popel (viz Úroda); les
   zmizí, až se díl založí. Ostatní stavby (obydlí, pozemek, ohrada, sad, hřbitov, modla

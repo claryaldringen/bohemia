@@ -34,6 +34,7 @@ async function playerWithVillage(kill: boolean): Promise<{
   settlements: InMemorySettlements;
   villages: InMemoryVillages;
   settlementId: string;
+  villageId: string;
 }> {
   const settlements = new InMemorySettlements();
   const villages = new InMemoryVillages();
@@ -54,8 +55,8 @@ async function playerWithVillage(kill: boolean): Promise<{
     },
   );
   if (!founded.ok) throw new Error(founded.reason);
-  if (kill) villages.edit(seat.id, dieOut);
-  return { settlements, villages, settlementId: seat.id };
+  if (kill) villages.edit(founded.village.id, dieOut);
+  return { settlements, villages, settlementId: seat.id, villageId: founded.village.id };
 }
 
 /** Všichni zemřou – ves vymře příští dopočítaný den (jako ves uložená bez lidí). */
@@ -65,7 +66,7 @@ function dieOut(state: VillageState): void {
 
 describe('dynastyStatus', () => {
   it('dopočítá vsi do dneška – ves bez lidí vymře, uloží se a hra končí', async () => {
-    const { settlements, villages, settlementId } = await playerWithVillage(true);
+    const { settlements, villages, villageId } = await playerWithVillage(true);
     const status = await dynastyStatus(
       { settlements, villages, landscapes },
       { playerId: PLAYER, today: TODAY },
@@ -73,7 +74,7 @@ describe('dynastyStatus', () => {
     expect(status.gameOver).toBe(true);
     expect(status.villages).toHaveLength(1);
     expect(status.villages[0]?.state.extinctDay).toBe(TODAY - 39);
-    expect(villages.records.get(settlementId)?.state.extinctDay).toBe(TODAY - 39);
+    expect(villages.records.get(villageId)?.state.extinctDay).toBe(TODAY - 39);
   });
 
   it('se živou vsí ani bez vsi hra nekončí', async () => {
@@ -93,7 +94,7 @@ describe('dynastyStatus', () => {
 
 describe('restartGame', () => {
   it('po vymření archivuje sídlo a založí nové s novým seedem – bez vsi', async () => {
-    const { settlements, villages, settlementId } = await playerWithVillage(true);
+    const { settlements, villages, settlementId, villageId } = await playerWithVillage(true);
     const result = await restartGame(
       { settlements, villages, landscapes, seeds: seedsFrom(777) },
       { playerId: PLAYER, today: TODAY },
@@ -107,7 +108,7 @@ describe('restartGame', () => {
     expect(await settlements.findSeat(PLAYER)).toEqual(result.settlement);
     expect(await settlements.listActive(PLAYER)).toEqual([result.settlement]);
     // vymřelá ves zůstane v archivu, nové sídlo zakládá ves jako nový hráč
-    expect(villages.records.get(settlementId)?.state.extinctDay).toBeDefined();
+    expect(villages.records.get(villageId)?.state.extinctDay).toBeDefined();
     expect(villages.records.has(result.settlement.id)).toBe(false);
     const after = await dynastyStatus(
       { settlements, villages, landscapes },
@@ -164,7 +165,7 @@ describe('restartGame', () => {
 
 describe('restartGame s abandon (nabídka hry)', () => {
   it('se živou vsí archivuje sídlo i se vsí a založí nové s novým seedem', async () => {
-    const { settlements, villages, settlementId } = await playerWithVillage(false);
+    const { settlements, villages, settlementId, villageId } = await playerWithVillage(false);
     const result = await restartGame(
       { settlements, villages, landscapes, seeds: seedsFrom(777) },
       { playerId: PLAYER, today: TODAY, abandon: true },
@@ -177,7 +178,7 @@ describe('restartGame s abandon (nabídka hry)', () => {
     expect(settlements.archived.has(settlementId)).toBe(true);
     expect(await settlements.listActive(PLAYER)).toEqual([result.settlement]);
     // opuštěná ves zůstane v archivu, jak byla – živá, jen se dál nedopočítává
-    const abandoned = villages.records.get(settlementId)?.state;
+    const abandoned = villages.records.get(villageId)?.state;
     expect(abandoned?.extinctDay).toBeUndefined();
     expect(abandoned?.people.length).toBeGreaterThan(0);
     expect(villages.records.has(result.settlement.id)).toBe(false);
@@ -237,8 +238,8 @@ describe('restartGame s abandon (nabídka hry)', () => {
 
 describe('akce ve vymřelé vsi', () => {
   it('stavby i přejmenování odmítne česky, načíst ves jde', async () => {
-    const { villages, settlementId } = await playerWithVillage(true);
-    const base = { settlementId, landscape, today: TODAY };
+    const { villages, villageId } = await playerWithVillage(true);
+    const base = { villageId, landscape, today: TODAY };
     const deps = { villages };
     const dwelling = await placeDwelling(deps, {
       ...base,
@@ -262,7 +263,7 @@ describe('akce ve vymřelé vsi', () => {
       ok: false,
       reason: VILLAGE_EXTINCT,
     });
-    expect(villages.records.get(settlementId)?.name).toBe('Libice');
+    expect(villages.records.get(villageId)?.name).toBe('Libice');
     const loaded = await loadVillage(deps, base);
     expect(loaded?.state.extinctDay).toBe(TODAY - 39);
   });

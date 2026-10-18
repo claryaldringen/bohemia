@@ -1,18 +1,14 @@
 'use client';
 
 import { useEffect, useState, type ReactElement, type ReactNode } from 'react';
-import {
-  VILLAGE_NAME_MAX_LENGTH,
-  checkVillageName,
-  getWorldState,
-  type TimeSkip,
-  type WorldClock,
-} from '@bohemia/game';
+import { getWorldState, type TimeSkip, type WorldClock } from '@bohemia/game';
 import { formatWorldState } from '@/lib/game-date';
 import { MENU_HOTKEY } from '@/lib/game-menu';
 import { formatDecimal, formatHa, formatInteger, formatPercent } from '@/lib/village-format';
+import type { VillageListItem } from '@/lib/village-list';
 import type { VillageView } from '@/lib/village-view';
 import { Tooltip } from './Tooltip';
+import { VillageSwitcher } from './VillageSwitcher';
 
 // Herní den trvá v ostrém světě ≈ 86 s, v zrychlených testovacích světech i zlomek sekundy.
 const DATE_REFRESH_MS = 1000;
@@ -166,75 +162,6 @@ function CraftStocks({ crafts }: { crafts: VillageView['crafts'] }): ReactElemen
   );
 }
 
-/** Jméno vsi – kliknutím se přepíše na místě, Enter uloží, Esc zruší. */
-function VillageName({
-  name,
-  onRename,
-}: {
-  name: string;
-  onRename: (name: string) => Promise<string | null>;
-}): ReactElement {
-  const [draft, setDraft] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-
-  if (draft === null) {
-    return (
-      <button
-        type="button"
-        data-testid="village-name"
-        data-hud-block
-        onClick={() => {
-          setDraft(name);
-          setError(null);
-        }}
-        className="max-w-56 truncate rounded px-2 py-0.5 font-serif text-lg text-[#f3dfb0] hover:text-[#ffe9b8] focus-visible:outline-2 focus-visible:outline-[#f3cf86]"
-      >
-        {name}
-      </button>
-    );
-  }
-  const check = checkVillageName(draft);
-  const reason = error ?? (check.ok ? null : check.reason);
-  return (
-    <Tooltip content={reason} placement="below">
-      <input
-        data-hud-block
-        aria-label="Jméno vsi"
-        aria-invalid={reason !== null}
-        value={draft}
-        autoFocus
-        maxLength={VILLAGE_NAME_MAX_LENGTH}
-        disabled={saving}
-        onFocus={(event) => event.target.select()}
-        onChange={(event) => {
-          setDraft(event.target.value);
-          setError(null);
-        }}
-        onBlur={() => {
-          if (!saving) setDraft(null);
-        }}
-        onKeyDown={(event) => {
-          if (event.key === 'Escape') {
-            event.preventDefault();
-            setDraft(null);
-          } else if (event.key === 'Enter') {
-            event.preventDefault();
-            if (!check.ok || saving) return;
-            setSaving(true);
-            void onRename(draft).then((failure) => {
-              setSaving(false);
-              if (failure === null) setDraft(null);
-              else setError(failure);
-            });
-          }
-        }}
-        className={`w-56 rounded border bg-[#15100b] px-2 py-0.5 font-serif text-lg text-[#f3dfb0] outline-none ${reason ? 'border-red-500' : 'border-[#8a6a3c] focus:border-[#e0b062]'}`}
-      />
-    </Tooltip>
-  );
-}
-
 function IconButton({
   label,
   tooltip,
@@ -323,11 +250,38 @@ export function DevTimeButtons({
 }
 
 /**
- * Horní lišta jako v 0 A.D.: jméno vsi (klik = přejmenovat), ikony s čísly – lidé, obilí, maso,
- * mléko a sýr (když je sýr nebo se dojí), ovoce (když nějaké je, nebo ves má sad – diet.md),
- * seno (když ves má ohradu nebo seno – oxen.md), pole, klády na hromadě, uhlí, nástroje
- * a keramika (jen ves s řemesly – crafts.md), volná práce, nasycení (barva ikony podle energie,
- * v popisku energie, bílkoviny a podíly stravy),
+ * Vývojový režim: druhá ves na téže mapě (jen pro vyzkoušení přepínače vsí – migration.md).
+ * Dokud server ves zakládá, tlačítko čeká.
+ */
+export function DevVillageButton({
+  pending,
+  onFound,
+}: {
+  pending: boolean;
+  onFound: () => void;
+}): ReactElement {
+  return (
+    <IconButton
+      label="Druhá ves na téže mapě"
+      tooltip={<span className="whitespace-nowrap">Druhá ves na téže mapě</span>}
+      testId="dev-second-village"
+      disabled={pending}
+      busy={pending}
+      onClick={onFound}
+    >
+      <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
+        <path d="M3 11l7-6 7 6v8H3zM17 3h2v3h3v2h-3v3h-2V8h-3V6h3z" />
+      </svg>
+    </IconButton>
+  );
+}
+
+/**
+ * Horní lišta jako v 0 A.D.: jméno vsi (přepínač vsí hráče – migration.md; dvojklik nebo tužka =
+ * přejmenovat), ikony s čísly – lidé, obilí, maso, mléko a sýr (když je sýr nebo se dojí), ovoce
+ * (když nějaké je, nebo ves má sad – diet.md), seno (když ves má ohradu nebo seno – oxen.md),
+ * pole, klády na hromadě, uhlí, nástroje a keramika (jen ves s řemesly – crafts.md), volná práce,
+ * nasycení (barva ikony podle energie, v popisku energie, bílkoviny a podíly stravy),
  * štěstí (happiness.md), herní datum (ve vývojovém režimu se šipkami přeskočení času) – a vpravo
  * zvuk a nabídka hry (F10: Začít znovu, Odhlásit).
  */
@@ -340,7 +294,9 @@ export function TopBar({
   menuOpen,
   onToggleMenu,
   onRename,
+  onSelectVillage,
   devTime,
+  devVillage = null,
 }: {
   view: VillageView | null;
   /** Hodiny světa hráče – ve vývojovém režimu posunuté o jeho posun času. */
@@ -352,8 +308,12 @@ export function TopBar({
   menuOpen: boolean;
   onToggleMenu: () => void;
   onRename: (name: string) => Promise<string | null>;
+  /** Přepne na jinou ves hráče (přepínač vsí). */
+  onSelectVillage?: (village: VillageListItem) => void;
   /** Vývojový režim – šipky přeskočení času vedle data; bez něj null. */
   devTime: { pending: TimeSkip | null; onSkip: (skip: TimeSkip) => void } | null;
+  /** Vývojový režim – druhá ves na téže mapě; bez něj (nebo bez vsi) null. */
+  devVillage?: { pending: boolean; onFound: () => void } | null;
 }): ReactElement {
   const [nowMs, setNowMs] = useState(initialNowMs);
   useEffect(() => {
@@ -369,7 +329,15 @@ export function TopBar({
       data-testid="top-bar"
       className="hud-panel fixed inset-x-0 top-0 z-20 flex h-11 items-center gap-1 rounded-none border-x-0 border-t-0 px-2"
     >
-      {view && <VillageName name={view.name} onRename={onRename} />}
+      {view && (
+        <VillageSwitcher
+          name={view.name}
+          currentId={view.id}
+          villages={view.villages}
+          onSelect={(village) => onSelectVillage?.(village)}
+          onRename={onRename}
+        />
+      )}
       {view && (
         <div className="ml-2 flex items-center gap-1 border-l border-[#5c4526] pl-2">
           <Resource icon="people" name="Lidé" testId="village-people">
@@ -431,6 +399,9 @@ export function TopBar({
           </span>
         </Resource>
         {devTime && <DevTimeButtons pending={devTime.pending} onSkip={devTime.onSkip} />}
+        {devVillage && (
+          <DevVillageButton pending={devVillage.pending} onFound={devVillage.onFound} />
+        )}
         <span className="mx-1 h-6 border-l border-[#5c4526]" aria-hidden />
         <IconButton
           label="Zvuky krajiny"
