@@ -27,7 +27,7 @@ const KIND_LABELS: Record<ConstructionKind, string> = {
   modla: 'Modla',
   svatyne: 'Svatyně',
 };
-const KINDS = SHOWCASE_BUILDINGS.flatMap((b) => b.models.map((m) => m.kind));
+const KINDS = [...new Set(SHOWCASE_BUILDINGS.flatMap((b) => b.models.map((m) => m.kind)))];
 
 const buttonClass =
   'rounded bg-stone-800 px-2 py-0.5 text-stone-50 hover:bg-stone-700 disabled:opacity-40 dark:bg-stone-200 dark:text-stone-900 dark:hover:bg-stone-300';

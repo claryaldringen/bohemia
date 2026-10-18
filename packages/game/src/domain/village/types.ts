@@ -15,12 +15,28 @@ export interface Person {
    */
   dwellingId: number;
 }
+/**
+ * Kde na pozemku stojí dům: uprostřed, nebo v jednom ze čtyř rohů (population.md – Umístění
+ * obydlí, Martin 18. 10. 2026). „Vpředu“ = strana s brankou, ke které míří vchod (−z světa),
+ * „vlevo“ = −x světa.
+ */
+export type PlotVariant = 'center' | 'back-left' | 'back-right' | 'front-right' | 'front-left';
+/**
+ * Pozemek obydlí – celé políčko krajiny obehnané plotem a varianta, kde na něm dům stojí.
+ * Polozemnice postavené dřív pozemek nemají (volná poloha bez plotu).
+ */
+export interface DwellingPlot {
+  cell: TileCell;
+  variant: PlotVariant;
+}
 export interface Dwelling {
   id: number;
   type: DwellingType;
   builtDay: number;
   condition: number /* 0–1 */;
   position: Position;
+  /** Pozemek (polozemnice od 18. 10. 2026); `position` je pak poloha domu na něm. */
+  plot?: DwellingPlot;
   /**
    * Vzdálenost obydlí k nejbližšímu okraji lesa (m) – z krajiny při zahájení stavby (simulace
    * krajinu nemá); prodražuje palivo (forest.md – Palivo). U starších obydlí chybí (= les blízko).
@@ -145,6 +161,8 @@ export interface Construction {
   done: number;
   dwellingType: DwellingType | null;
   position: Position | null; // dwelling, idol, shrine
+  /** Nové obydlí na pozemku – obydlí ho po dostavění převezme (u volných obydlí chybí). */
+  plot?: DwellingPlot;
   /** rebuild: přestavované obydlí; dwelling: domácnost zakladatelů (první zemnice), jinak null. */
   dwellingId: number | null;
   fieldId: number | null; // field – zakládá díly od nejbližšího

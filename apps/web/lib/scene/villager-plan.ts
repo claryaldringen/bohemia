@@ -1,6 +1,5 @@
 import {
   DWELLING_CLEARING_M,
-  DWELLING_GARDEN_M,
   SACRED_BUILDINGS,
   dateOfDayIndex,
   type DwellingType,
@@ -365,7 +364,7 @@ function context(
     built: d.built,
     progress: d.progress,
     inhabited: d.built && d.inhabited !== false,
-    box: d.built ? houseBox(d.type) : siteBox(d.type),
+    box: d.plot ? plotBox(d.position, d.plot) : d.built ? houseBox(d.type) : siteBox(d.type),
   }));
   // modla a svatyně: stavitelé stojí kolem půdorysu, hotové lidé obcházejí (happiness.md)
   const sacred: House[] = (village.sacred?.buildings ?? []).map((b) => {
@@ -396,27 +395,44 @@ function context(
  */
 function siteBox(type: DwellingType): Box {
   const clearance = DWELLING_CLEARING_M[type];
-  // vyklízená plocha polozemnice sahá doleva i přes budoucí zahrádku – nářadí leží souměrně
   return {
-    minX: -clearance.maxX,
+    minX: clearance.minX,
     maxX: clearance.maxX,
     minZ: clearance.minZ,
     maxZ: Math.max(chickenBox(type).maxZ, SITE_FRONT_M),
   };
 }
 
-/**
- * Hotové obydlí: dům se střechou a šíjí (jako pro slepice – `chickenBox`) a u polozemnice
- * i oplocená zahrádka vedle domu (`DWELLING_GARDEN_M`) – obdélník přes obojí.
- */
+/** Hotové volné obydlí: dům se střechou a šíjí (jako pro slepice – `chickenBox`). */
 function houseBox(type: DwellingType): Box {
   const house = chickenBox(type);
-  const garden = DWELLING_GARDEN_M[type];
+  return { minX: -house.halfX, maxX: house.halfX, minZ: house.minZ, maxZ: house.maxZ };
+}
+
+/**
+ * Obydlí na pozemku (hotové i staveniště): celé oplocené políčko v osách modelu domu – lidé
+ * stojí za plotem (před brankou), dovnitř cizích pozemků nechodí.
+ */
+function plotBox(position: Position, plot: { x: number; z: number; size: number }): Box {
+  const h = plot.size / 2;
+  const c = Math.cos(position.rotation);
+  const s = Math.sin(position.rotation);
+  // rohy políčka do os modelu (inverze localToWorld)
+  const local = [
+    [plot.x - h, plot.z - h],
+    [plot.x + h, plot.z - h],
+    [plot.x + h, plot.z + h],
+    [plot.x - h, plot.z + h],
+  ].map(([x, z]) => {
+    const dx = x! - position.x;
+    const dz = z! - position.z;
+    return [dx * c - dz * s, dx * s + dz * c] as const;
+  });
   return {
-    minX: Math.min(-house.halfX, garden?.minX ?? 0),
-    maxX: Math.max(house.halfX, garden?.maxX ?? 0),
-    minZ: Math.min(house.minZ, garden?.minZ ?? 0),
-    maxZ: Math.max(house.maxZ, garden?.maxZ ?? 0),
+    minX: Math.min(...local.map((p) => p[0])),
+    maxX: Math.max(...local.map((p) => p[0])),
+    minZ: Math.min(...local.map((p) => p[1])),
+    maxZ: Math.max(...local.map((p) => p[1])),
   };
 }
 

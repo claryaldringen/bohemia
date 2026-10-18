@@ -5,6 +5,7 @@ import {
   shiftWorldClock,
   suggestVillageName,
   type BuildKind,
+  type DwellingPlot,
   type DwellingType,
   type Position,
   type SacredBuildingKind,
@@ -33,12 +34,15 @@ import { opensMenu } from '@/lib/game-menu';
 import { decodeLandscape, type LandscapeTransfer } from '@/lib/landscape-transfer';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
 import { targetExists, type VillageTarget } from '@/lib/scene/village-picking';
+import type { PlacementResult } from '@/lib/scene/village-types';
 import { selectionDetails } from '@/lib/selection-details';
 import { useSoundPreference } from './SoundToggle';
 import { newNotices } from '@/lib/village-notices';
 import {
   placementVillageFromScene,
+  scenePlot,
   type BuildOption,
+  type ScenePlot,
   type SceneVillage,
   type VillageView,
 } from '@/lib/village-view';
@@ -80,10 +84,10 @@ function isVillageView(state: VillageData): state is VillageView {
 
 /**
  * Obydlí, modla nebo svatyně odeslané na server, na jehož odpověď se čeká – ve scéně už stojí
- * jako staveniště (záporné id).
+ * jako staveniště (záporné id). Obydlí na pozemku nese i pozemek.
  */
 type PendingSite =
-  | { kind: 'dwelling'; id: number; type: DwellingType; position: Position }
+  | { kind: 'dwelling'; id: number; type: DwellingType; position: Position; plot?: ScenePlot }
   | { kind: 'sacred'; id: number; type: SacredBuildingKind; position: Position };
 
 /** Ves pro scénu: stav ze serveru a stavby, které ještě čekají na odpověď serveru. */
@@ -96,6 +100,7 @@ function withPending(scene: SceneVillage, pending: readonly PendingSite[]): Scen
             id: d.id,
             type: d.type,
             position: d.position,
+            ...(d.plot ? { plot: d.plot } : {}),
             built: false,
             progress: 0,
             inhabited: false,
@@ -307,14 +312,23 @@ export function VillageGame({
     setPending(list);
   };
 
-  /** Postaví obydlí – první zemnice ves založí (osadníci si ji postaví), další jsou stavby. */
-  const buildDwelling = (type: DwellingType, position: Position): void => {
-    const entry: PendingSite = { kind: 'dwelling', id: -1 - pendingId.current++, type, position };
+  /**
+   * Postaví obydlí – první zemnice ves založí (osadníci si ji postaví), další jsou stavby;
+   * polozemnice na pozemku (`plot`).
+   */
+  const buildDwelling = (type: DwellingType, position: Position, plot?: DwellingPlot): void => {
+    const entry: PendingSite = {
+      kind: 'dwelling',
+      id: -1 - pendingId.current++,
+      type,
+      position,
+      ...(plot ? { plot: scenePlot(decoded, plot) } : {}),
+    };
     setPendingList([...pendingRef.current, entry]);
     void runBuildAction(() =>
       viewRef.current === null
         ? foundVillage({ name: suggestVillageName(seed), dwelling: position })
-        : placeDwelling({ type, position }),
+        : placeDwelling({ type, position, ...(plot ? { plot } : {}) }),
     ).finally(() => setPendingList(pendingRef.current.filter((d) => d.id !== entry.id)));
   };
 
@@ -357,6 +371,21 @@ export function VillageGame({
       );
       return;
     }
+    const onDwelling = (result: PlacementResult): void => {
+      if (result.kind === 'dwelling') buildDwelling(result.type, result.position, result.plot);
+    };
+    if (item.placement === 'plot') {
+      placement.start(
+        {
+          kind: 'plot',
+          type: item.dwellingType,
+          check: (plot) =>
+            item.check(decoded, placementVillage(), plot, viewRef.current?.woodLogs ?? 0),
+        },
+        onDwelling,
+      );
+      return;
+    }
     if (item.placement === 'sacred') {
       placement.start(
         {
@@ -377,9 +406,7 @@ export function VillageGame({
         check: (position) =>
           item.check(decoded, placementVillage(), position, viewRef.current?.woodLogs ?? 0),
       },
-      (result) => {
-        if (result.kind === 'dwelling') buildDwelling(result.type, result.position);
-      },
+      onDwelling,
     );
   };
   const startBuildRef = useRef(startBuild);

@@ -1,4 +1,12 @@
-import type { DwellingType, Position, SacredBuildingKind, TileCell, TimeSkip } from '@bohemia/game';
+import {
+  PLOT_VARIANTS,
+  type DwellingPlot,
+  type DwellingType,
+  type Position,
+  type SacredBuildingKind,
+  type TileCell,
+  type TimeSkip,
+} from '@bohemia/game';
 
 // Ověření tvaru vstupu server actions vsi – data od klienta jsou nedůvěryhodná. Herní pravidla
 // (kde smí stavba stát) ověřují až use-casy.
@@ -70,11 +78,23 @@ export function parseRenameVillageInput(value: unknown): { name: string } | null
 /** Vstup stavby obydlí `{ type, position }`, jinak null. */
 export function parsePlaceDwellingInput(
   value: unknown,
-): { type: DwellingType; position: Position } | null {
+): { type: DwellingType; position: Position; plot?: DwellingPlot } | null {
   if (!isRecord(value)) return null;
   const type = parseDwellingType(value.type);
   const position = parsePosition(value.position);
-  return type !== null && position !== null ? { type, position } : null;
+  if (type === null || position === null) return null;
+  if (value.plot === undefined) return { type, position };
+  const plot = parsePlot(value.plot);
+  return plot !== null ? { type, position, plot } : null;
+}
+
+/** Pozemek `{ cell: { x, y }, variant }` – celočíselné políčko a známá varianta, jinak null. */
+export function parsePlot(value: unknown): DwellingPlot | null {
+  if (!isRecord(value) || !isRecord(value.cell)) return null;
+  const { x, y } = value.cell;
+  if (!Number.isInteger(x) || !Number.isInteger(y)) return null;
+  const variant = PLOT_VARIANTS.find((v) => v === value.variant);
+  return variant ? { cell: { x: x as number, y: y as number }, variant } : null;
 }
 
 /** Vstup založení pole `{ cells }`, jinak null. */

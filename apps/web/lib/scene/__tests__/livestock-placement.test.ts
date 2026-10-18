@@ -11,7 +11,7 @@ import {
   type LivestockGround,
   type LivestockVillage,
 } from '../livestock-placement';
-import { inGarden } from '../dwelling-decor';
+import { insidePlot, plotHouse } from '../homestead-layout';
 import { GROUND, VILLAGE, dwelling, inSquares } from './livestock-fixtures';
 import { buildRenderSurface } from '../render-surface';
 import { tileCenter } from '../tile-at';
@@ -95,18 +95,47 @@ describe('planLivestock – kde', () => {
     }
   });
 
-  it('slepice nechodí do oplocené zahrádky polozemnice', () => {
+  it('slepice polozemnice zůstávají uvnitř plotu pozemku – uprostřed i v rohu', () => {
+    for (const variant of ['center', 'back-left', 'front-right'] as const) {
+      const plot = { x: 0, z: 0, size: 15, variant };
+      const house = plotHouse(plot, variant);
+      const village: LivestockVillage = {
+        dwellings: [{ ...dwelling(1, 'polozemnice', house.x, house.z), position: house, plot }],
+        fields: [],
+      };
+      const [flock] = planLivestock(village, GROUND, 3).chickens;
+      expect(flock, variant).toBeDefined();
+      const samples = flock!.arc
+        ? Array.from(
+            { length: 41 },
+            (_, i) => flock!.arc!.from + ((flock!.arc!.to - flock!.arc!.from) * i) / 40,
+          )
+        : Array.from({ length: 40 }, (_, i) => (i / 40) * Math.PI * 2);
+      for (const theta of samples) {
+        for (const d of [flock!.reachM.from, flock!.reachM.to]) {
+          const [x, z] = chickenPoint(flock!, theta, d);
+          expect(insidePlot(plot, x, z), `${variant} ${theta}`).toBe(true);
+        }
+      }
+    }
+  });
+
+  it('cizí slepice do oploceného pozemku nechodí', () => {
+    const plot = { x: 12, z: 0, size: 15, variant: 'center' as const };
     const village: LivestockVillage = {
-      dwellings: [dwelling(1, 'polozemnice', 0, 0, { rotation: 0.7 })],
+      dwellings: [
+        dwelling(1, 'zemnice', 0, 0),
+        { ...dwelling(2, 'polozemnice', 12, 0), position: plotHouse(plot, 'center'), plot },
+      ],
       fields: [],
     };
-    const [flock] = planLivestock(village, GROUND, 3).chickens;
-    expect(flock?.arc).not.toBeNull();
+    const flock = planLivestock(village, GROUND, 3).chickens.find((f) => f.position.x === 0)!;
+    expect(flock.arc).not.toBeNull();
     for (let i = 0; i <= 40; i++) {
-      const theta = flock!.arc!.from + ((flock!.arc!.to - flock!.arc!.from) * i) / 40;
-      for (const d of [flock!.reachM.from, 2.4, flock!.reachM.to]) {
-        const [x, z] = chickenPoint(flock!, theta, d);
-        expect(inGarden('polozemnice', flock!.position, x, z)).toBe(false);
+      const theta = flock.arc!.from + ((flock.arc!.to - flock.arc!.from) * i) / 40;
+      for (const d of [flock.reachM.from, flock.reachM.to]) {
+        const [x, z] = chickenPoint(flock, theta, d);
+        expect(insidePlot(plot, x, z)).toBe(false);
       }
     }
   });

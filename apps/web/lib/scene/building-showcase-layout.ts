@@ -3,10 +3,11 @@
 // staveb pole, hřbitov, sad a louka na seno po čtvercích – jejich fáze podle průběhu stavby
 // (showcaseGrounds); vpravo modla, svatyně, posvátný dub a dubový háj (dekorace bez staveniště);
 // vlevo od pole čtverec, který orá spřežení volů s rádlem (ukázka „Orání“, plough-team.ts).
-import { CEMETERY, type TileCell } from '@bohemia/game';
+import { CEMETERY, PLOT_VARIANTS, type PlotVariant, type TileCell } from '@bohemia/game';
 import type { FieldLook, SceneFieldPart, SceneVillage } from '../village-view';
 import { CEMETERY_PHASES } from './cemetery-layout';
 import { hayPhase, meadowLook, type HayMeadow } from './hay-meadows';
+import { plotHouse } from './homestead-layout';
 import { TREE_GROWTH_YEARS, treeGrowth } from './orchard-layout';
 import type { PloughField } from './plough-team';
 import type { ConstructionKind } from './village-construction';
@@ -27,6 +28,8 @@ export interface ShowcaseModel {
   z: number;
   /** Natočení kolem svislé osy (rad) – jako `Position.rotation`. */
   rotation: number;
+  /** Pozemek polozemnice – políčko (střed, strana) a varianta, kde na něm dům stojí. */
+  plot?: { x: number; z: number; size: number; variant: PlotVariant };
 }
 
 export interface ShowcaseBuilding {
@@ -80,12 +83,34 @@ function building(
   };
 }
 
+/** Polozemnice na pozemku 15 × 15 m (jako políčko pole) – dům podle varianty. */
+function plotModel(x: number, z: number, variant: PlotVariant): ShowcaseModel {
+  const plot = { x, z, size: 15, variant };
+  const house = plotHouse(plot, variant);
+  return {
+    kind: 'polozemnice',
+    url: '/models/dwellings/polozemnice.glb',
+    x: house.x,
+    z: house.z,
+    rotation: house.rotation,
+    plot,
+  };
+}
+
 const UHLIR_X = 26;
 const milir = offset(UHLIR_X, 0, FACING, MILIR_OFFSET_M);
+/** Řada pěti variant pozemku polozemnice před stavbami (z) a rozestup středů (m). */
+const VARIANTS_Z = -26;
+const VARIANTS_STEP = 17;
 
 export const SHOWCASE_BUILDINGS: readonly ShowcaseBuilding[] = [
   building('zemnice', 'Zemnice', 'zemnice', -27),
-  building('polozemnice', 'Polozemnice', 'polozemnice', -14),
+  {
+    id: 'polozemnice',
+    label: 'Polozemnice',
+    models: [plotModel(-14, 0, 'center')],
+    focus: { x: -14, z: -1.5, radius: 24 },
+  },
   building('hrncir', 'Hrnčíř', 'hrncir', -1),
   building('kovar', 'Kovář', 'kovar', 12),
   {
@@ -96,6 +121,14 @@ export const SHOWCASE_BUILDINGS: readonly ShowcaseBuilding[] = [
       { kind: 'milir', url: '/models/crafts/milir.glb', x: milir.x, z: milir.z, rotation: 0 },
     ],
     focus: { x: (UHLIR_X + milir.x) / 2, z: -1.5, radius: 26 },
+  },
+  {
+    id: 'pozemky',
+    label: 'Pozemky (5 variant)',
+    models: PLOT_VARIANTS.map((variant, i) =>
+      plotModel((i - (PLOT_VARIANTS.length - 1) / 2) * VARIANTS_STEP, VARIANTS_Z, variant),
+    ),
+    focus: { x: 0, z: VARIANTS_Z, radius: 62 },
   },
   // posvátná místa: modla (4 × 4 m) a svatyně (30 × 30 m) – vpravo za milířem, před sadem
   building('modla', 'Modla', 'modla', 50, 14),

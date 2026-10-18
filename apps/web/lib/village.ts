@@ -11,6 +11,7 @@ import {
   placeOrchard,
   placeSacredBuilding,
   renameVillage,
+  type DwellingPlot,
   type DwellingType,
   type EnterGameResult,
   type Landscape,
@@ -148,7 +149,7 @@ export async function foundVillageForPlayer(
 
 export async function placeDwellingForPlayer(
   playerId: string,
-  input: { type: DwellingType; position: Position },
+  input: { type: DwellingType; position: Position; plot?: DwellingPlot },
 ): Promise<VillageActionResult> {
   const ctx = await context(playerId);
   if (!ctx.ok) return { error: ctx.error };

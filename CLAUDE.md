@@ -308,21 +308,40 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   Staveniště jde po fázích (`village-construction.ts`, ≥ 8 fází, průběh 0–1) z dílů
   `construction.glb` v instancích. U obydlí **není hráň polen** (Martin: tak vyskládané dřevo
   tehdy neměli, navíc na dešti) ani samostatný kus pleteného plotu vedle polozemnice (Martin).
-  **Zahrádka polozemnice** (Martin): samostatný model `models/dwellings/garden.glb` (počátek
-  uprostřed zahrádky; `build_garden` v `dwellings.py`) po straně domu – polský plot (řidší kůly, vodorovně proplétané větve, mezera branky u domu)
-  a čtyři záhony (zelí, řepa, cibule, kopr; oblasti atlasu `veg` a `soil`). Scéna ji klade zvlášť
-  na terén a nakloní podle svahu (`gardenInstance` v `dwelling-decor.ts` – jinak by na svahu
-  s převýšením 3× visela i přes metr); díly staveniště `polozemnice-garden-*` se kladou stejně,
-  fáze `garden` je poslední (kůly → proplétání → záhony → zelenina). Obdélník zahrádky je
-  v jádru (`DWELLING_GARDEN_M`, `dwellingGarden` / `dwellingPlot` v `placement.ts`): musí na
-  louku, nesmí na obydlí, pole, hřbitov, sad ani výchoz, leží na vyklízené ploše
-  (`DWELLING_CLEARING_M` polozemnice minX −7,9); duch při umisťování ukazuje její obrys,
-  slepice do ní nechodí (`inGarden`). Rozměry musí sedět s `GARDEN` v `dwellings.py` (hlídá test
-  podle `garden.glb`). **Hřbitov** (`cemetery-renderer.ts`, geometrie bez Babylonu
-  v `cemetery-layout.ts`): nízký proutěný plot kolem čtverců (kůly v instancích, pletení z vlastní
-  sítě a textury z kódu) s brankou k nejbližšímu hotovému obydlí (při rozšíření jinam zůstane),
-  uvnitř mohylky po hrobech (mřížka 7 × 8 na čtverec, poslední čerstvé z hlíny); založení
-  vytyčení → kůly → pletení, rozšíření ve stavbě má vlastní plot, pak plot obepne celý hřbitov.
+  **Pozemek polozemnice** (Martin, 18. 10. 2026): celé políčko krajiny (15 × 15 m, v mřížce
+  jako čtverec pole) obehnané polským plotem, dům uprostřed nebo v jednom ze 4 rohů (5 variant,
+  vchod vždy k brance na přední straně −z, natočení π), ve zbytku záhony a cestička od branky
+  ke dveřím. Jádro: `DwellingPlot` (`cell`, `variant`) na obydlí i stavbě (nepovinné – starší
+  polozemnice zůstanou volně bez pozemku), `PLOT_TYPES`, `PLOT_VARIANTS`, `PLOT_HOUSE_OFFSET_M`,
+  `plotHousePosition` a `checkPlotPlacement` v `placement.ts` (louka, bez výchozu, bez
+  posvátného dubu a čtverce háje, dům ne pod korunou dubu, nezabrané polem, hřbitovem, sadem ani
+  jiným obydlím či pozemkem, rovno jen pod domem, `spared` vždy prázdné; překážky celého
+  políčka jako u čtverce pole, stromy dají klády); `dwellingPlot` zabírá celé políčko
+  a `placeDwelling` u polozemnice pozemek vyžaduje (`NO_PLOT`). **Pletený plot** je jeden pro
+  celou hru – polský plot pozemku i proutěný plot hřbitova (Martin): `woven-fence.ts` bez
+  Babylonu (`wovenFence` podél čar s ohrazením vlevo – **všechny rohy zakulacené**, vnější
+  poloměr 1,25 m, vnitřní roh tvaru L 0,5 m, kůly nejvýš po kroku i po oblouku, branka na rovném
+  úseku nejblíž k cíli; `fenceStage` – kůly, pak větve zdola, střídavě vně a uvnitř kůlu), hustota
+  je `FenceStyle` (`PLOT_FENCE` 7 větví, `CEMETERY_FENCE` 11 větví a širší branka). Kreslí ho
+  jeden `WovenFenceRenderer` (`woven-fence-renderer.ts`, vlastníci `set` + `commit`) v instancích
+  z `models/dwellings/woven-fence.glb` (kůl, kůl branky, kus větve 1 m natažený od kůlu ke kůlu –
+  `woven_fence_parts` v `dwellings.py`, poloviční atlas). Pozemek: rozmístění bez Babylonu
+  `homestead-layout.ts` (záhony, rostliny, cestička, `plotStage` podle stavby), kreslí
+  `homestead.ts` v instancích z dílů `models/dwellings/homestead.glb` (záhon 1 × 0,8 m natažený
+  na délku, zelí, řepa, cibule, kopr – `homestead_parts`, oblasti atlasu `veg` a `soil`); každý
+  díl stojí na terénu sám. Fáze polozemnice po hřebeni: `fence` (kůly, pak větve zdola)
+  a `beds` (`ConstructionState.plot`). Umisťování: režim `plot` (políčko pod kurzorem, [ a ]
+  přepínají variantu místo otáčení), vytyčení při 0 % kolíky a provázkem kolem pozemku
+  (`plotStakingLine`), výběr i kliknutí kamkoli na pozemek označí celé políčko, rekvizity
+  staveniště rohového domu se zrcadlí dovnitř (`sitePropPlace`), slepice zůstávají uvnitř
+  plotu, cizí ani lidé do pozemku nechodí, hromada klád leží za plotem. Dílny z polozemnice
+  (hrnčíř, kovář) pozemek nemají – stojí volně jako dřív. **Hřbitov** (`cemetery-renderer.ts`,
+  geometrie bez Babylonu v `cemetery-layout.ts`): nízký pletený plot po obrysu čtverců (sdílený
+  pletený plot, zakulacené rohy) s brankou k nejbližšímu hotovému obydlí (při rozšíření jinam
+  zůstane), uvnitř mohylky po hrobech (mřížka 7 × 8 na čtverec, poslední čerstvé z hlíny);
+  založení vytyčení (kolíky a provázek po ostrém obrysu) → kůly → pletení; rozšíření ve stavbě
+  má vlastní kus plotu bez branky jen tam, kde plot ještě není (na starý jen navazuje), po
+  dokončení plot obepne celý hřbitov.
   **Sad** (`orchard-renderer.ts`, bez Babylonu `orchard-layout.ts`): jabloně z 0 A.D.
   (`models/trees/apple-1…4.glb`, s plody `apple-fruit-1…4.glb` – převod
   `tools/blender/orchard.json`, textura bez plodů `apple_leaves.py`, zralá `apple_ripe.py`)
@@ -638,7 +657,7 @@ rozhraní částí v
   staveništěm (`siteBox` = vyklízená plocha), dřevorubci u vyhrazených stromů, sad, obvod
   hřbitova, výmlat u vsi, ženy u vchodu, starší (šediny) u domů a děti u stád (`herdViews`
   ze zvířat). Nikdo nestojí ve vodě (rastr schůdné země sdílený se zvířaty – `groundFor`),
-  v domě se šíjí, v zahrádce polozemnice ani na hrobech. Pohyb `villager-motion.ts` – čisté funkce skutečného času
+  v domě se šíjí, na pozemku polozemnice ani na hrobech. Pohyb `villager-motion.ts` – čisté funkce skutečného času
   jako u zvířat. Kreslení `villagers.ts`: GLB z `tools/blender/people_from_0ad.py`
   (`people.json` – klipy z 0 A.D., rotace klíčů jako int16, maska látky a vlasů jako
   occlusionTexture), animace zapečené do textury matic kostí (Babylon VAT) a postavy jako thin

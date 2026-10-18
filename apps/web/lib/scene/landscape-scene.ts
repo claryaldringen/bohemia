@@ -491,6 +491,12 @@ export class LandscapeScene {
               pickGround: (x, y) => this.pickGround(x, y),
               decalHeight: (x, z) => village.decalHeight(x, z),
               cameraAlpha: () => camera.camera.alpha,
+              cellAt: (x, z) => {
+                const cell = tileAt(landscape, x, z);
+                if (!cell) return null;
+                const center = tileCenter(landscape, cell.x, cell.y);
+                return { cell, x: center.worldX, z: center.worldZ, size: landscape.cellSizeM };
+              },
               ghostModel: (type) => village.ghostModel(type),
               baseHeight: (type, position) =>
                 type === 'idol' || type === 'shrine'

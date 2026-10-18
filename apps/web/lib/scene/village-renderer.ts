@@ -18,15 +18,7 @@ import {
 } from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
 import { CemeteryRenderer } from './cemetery-renderer';
-import {
-  EARTH_LAYERS,
-  GARDEN_MODEL_URL,
-  SMOKE_VENT,
-  earthPatch,
-  eaveTufts,
-  gardenInstance,
-  type TuftModel,
-} from './dwelling-decor';
+import { EARTH_LAYERS, SMOKE_VENT, earthPatch, eaveTufts, type TuftModel } from './dwelling-decor';
 import {
   PIT_SHAPES,
   pitMeshData,
@@ -38,6 +30,8 @@ import {
 import { FieldRenderer } from './field-renderer';
 import type { HayMeadow } from './hay-meadows';
 import { applyGammaFog } from './gamma-fog';
+import { HomesteadRenderer, type PlotView } from './homestead';
+import { plotInward, plotStakingLine } from './homestead-layout';
 import {
   instanceMatrices,
   loadMergedModel,
@@ -49,8 +43,9 @@ import { SACRED_SITE_KIND, sacredBuildingKey } from './sacred-layout';
 import { SacredRenderer } from './sacred-renderer';
 import { applyPitCut, type PitCuts } from './pit-cut';
 import {
-  SITE_PROP_PLACES,
+  PLOT_BUILT,
   constructionState,
+  sitePropPlace,
   type ConstructionState,
 } from './village-construction';
 import {
@@ -77,6 +72,7 @@ import { closedLine } from './staking-layout';
 import { applySeasonGround, applySeasonModel, applySeasonSnow } from './season-materials';
 import { VillageSmoke, type SmokeSource } from './village-smoke';
 import type { SceneDwelling } from './village-types';
+import { WovenFenceRenderer } from './woven-fence-renderer';
 
 const MODEL_BASE_URL = '/models/dwellings/';
 const SMOKE_TEXTURE_URL = '/textures/particles/smoke.png';
@@ -145,8 +141,10 @@ export class VillageRenderer {
   private readonly models = new Map<DwellingType, Mesh | null>();
   private readonly ghosts = new Map<DwellingType, Mesh>();
   private readonly tufts = new Map<TuftModel, Mesh | null>();
-  /** Zahrádka polozemnice – samostatný model položený na terén vedle domu. */
-  private garden: Mesh | null = null;
+  /** Pozemky polozemnic – plot, záhony a cestička (homestead.ts). */
+  private readonly plots: HomesteadRenderer;
+  /** Pletené ploty pozemků a hřbitovů (woven-fence-renderer.ts). */
+  private readonly fences: WovenFenceRenderer;
   private readonly materials = new Map<string, Material>();
   private loading: Promise<void> | null = null;
   private builtKey = '';
@@ -169,8 +167,29 @@ export class VillageRenderer {
   ) {
     this.smoke = new VillageSmoke(scene, SMOKE_TEXTURE_URL);
     this.pegs = new StakingPegs(scene, (mesh) => context.addShadowCaster(mesh));
-    this.cemeteries = new CemeteryRenderer(scene, context);
+    this.fences = new WovenFenceRenderer(scene, {
+      height: context.decalHeight,
+      addShadowCaster: (mesh) => context.addShadowCaster(mesh),
+      onAsyncChange: () => context.onAsyncChange(),
+      prepareMaterial: prepareDwellingMaterial,
+    });
+    this.cemeteries = new CemeteryRenderer(scene, {
+      decalHeight: context.decalHeight,
+      groundHeight: context.groundHeight,
+      addShadowCaster: (mesh) => context.addShadowCaster(mesh),
+      requestRender: () => context.requestRender(),
+      fences: this.fences,
+    });
     this.orchards = new OrchardRenderer(scene, context);
+    this.plots = new HomesteadRenderer(scene, {
+      groundHeight: context.groundHeight,
+      decalHeight: context.decalHeight,
+      addShadowCaster: (mesh) => context.addShadowCaster(mesh),
+      onAsyncChange: () => context.onAsyncChange(),
+      pathMaterial: () => this.decalMaterial('grass-dirt'),
+      prepareMaterial: prepareDwellingMaterial,
+      fences: this.fences,
+    });
     this.sacred = new SacredRenderer(scene, context);
     this.fields = new FieldRenderer(scene, context);
     if (context.landscape) this.fields.setLandscape(context.landscape, null);
@@ -184,11 +203,14 @@ export class VillageRenderer {
     const fields = this.fields.update(village);
     const cemeteries = this.cemeteries.update(village.cemeteries ?? [], village.dwellings);
     const orchards = this.orchards.update(village.orchards ?? []);
+    const plots = this.plots.update(plotViews(village.dwellings));
     const sacred = this.sacred.update(village.sacred);
     const models = this.updateModels();
     const sites = this.updateConstruction();
     const smoke = this.updateSmokeSources();
-    return dwellings || fields || cemeteries || orchards || sacred || models || sites || smoke;
+    return (
+      dwellings || fields || cemeteries || orchards || plots || sacred || models || sites || smoke
+    );
   }
 
   /**
@@ -286,6 +308,8 @@ export class VillageRenderer {
     this.disposed = true;
     this.smoke.dispose();
     this.cemeteries.dispose();
+    this.plots.dispose();
+    this.fences.dispose();
     this.orchards.dispose();
     this.sacred.dispose();
     this.pegs.dispose();
@@ -325,22 +349,6 @@ export class VillageRenderer {
           this.models.set(type, null);
         }
       }),
-      (async () => {
-        try {
-          const garden = await loadMergedModel(
-            this.scene,
-            GARDEN_MODEL_URL,
-            'village-garden',
-            prepareDwellingMaterial,
-          );
-          if (!garden) return;
-          garden.setEnabled(false);
-          this.context.addShadowCaster(garden);
-          this.garden = garden;
-        } catch (error) {
-          console.warn('Model zahrádky se nepodařilo načíst.', error);
-        }
-      })(),
       ...TUFT_MODELS.map(async (name) => {
         try {
           const tuft = await loadMergedModel(
@@ -382,14 +390,11 @@ export class VillageRenderer {
         key,
         dwelling,
         meshes: state ? this.constructionSite(dwelling, state) : this.dwellingGround(dwelling),
-        shape: dwellingHideShape(dwelling.type, dwelling.position),
+        shape: dwellingHideShape(dwelling),
         cut: dug ? { position: dwelling.position, shape: PIT_SHAPES[dwelling.type] } : null,
         pegs:
           state && state.outline > 0
-            ? pegInstances(
-                [closedLine(this.pitOutlineWorld(dwelling, 0))],
-                this.context.groundHeight,
-              )
+            ? pegInstances([this.stakingLine(dwelling)], this.context.groundHeight)
             : [],
       });
     }
@@ -447,15 +452,12 @@ export class VillageRenderer {
       const base = this.baseHeight(d);
       const rotationY = d.position.rotation;
       const house = { x: d.position.x, y: base, z: d.position.z, rotationY, scale: 1 };
-      // díly zahrádky stojí na jejím vlastním místě na terénu (gardenInstance)
-      const garden = gardenInstance(d.type, d.position, this.context.groundHeight);
-      for (const part of state.parts) {
-        push(`${d.type}-${part}`, part.startsWith('garden-') && garden ? garden : house);
-      }
+      for (const part of state.parts) push(`${d.type}-${part}`, house);
+      const inward = d.plot ? plotInward(d.plot.variant) : undefined;
       for (const { prop, scale } of state.props) {
         // hromada hlíny je vlastní síť staveniště (leží na terénu, barvy jako jáma)
         if (prop === 'spoil') continue;
-        const place = SITE_PROP_PLACES[d.type][prop];
+        const place = sitePropPlace(d.type, prop, inward);
         const [x, z] = localToWorld(d.position, place.x, place.z);
         push(`site-${prop}`, {
           x,
@@ -469,7 +471,7 @@ export class VillageRenderer {
     for (const b of sacredSites) {
       const kind = SACRED_SITE_KIND[b.kind];
       for (const { prop, scale } of constructionState(kind, b.progress).props) {
-        const place = SITE_PROP_PLACES[kind][prop];
+        const place = sitePropPlace(kind, prop);
         const [x, z] = localToWorld(b.position, place.x, place.z);
         push(`site-${prop}`, {
           x,
@@ -532,15 +534,6 @@ export class VillageRenderer {
           scale: 1,
         }));
       setInstances(model, instances);
-    }
-    if (this.garden) {
-      setInstances(
-        this.garden,
-        built.flatMap((d) => {
-          const garden = gardenInstance(d.type, d.position, this.context.groundHeight);
-          return garden ? [garden] : [];
-        }),
-      );
     }
     const tufts = built.flatMap((d) => eaveTufts(d.type, d.position, d.id));
     for (const name of TUFT_MODELS) {
@@ -640,6 +633,14 @@ export class VillageRenderer {
     return mesh;
   }
 
+  /**
+   * Čára vytyčení s kolíky a provázkem: kolem celého pozemku (po budoucím plotu), u volného
+   * obydlí kolem jámy se šíjí.
+   */
+  private stakingLine(d: SceneDwelling): Point[] {
+    return d.plot ? plotStakingLine(d.plot) : closedLine(this.pitOutlineWorld(d, 0));
+  }
+
   /** Obvod jámy se šíjí ve světě (rozšířený o `margin`). */
   private pitOutlineWorld(d: SceneDwelling, margin: number): Point[] {
     return pitOutline(PIT_SHAPES[d.type], margin).map(([x, z]) => localToWorld(d.position, x, z));
@@ -653,14 +654,7 @@ export class VillageRenderer {
   private constructionSite(d: SceneDwelling, state: ConstructionState): Mesh[] {
     const meshes: Mesh[] = [];
     if (state.trampled > 0) {
-      const c = DWELLING_CLEARANCE_M[d.type];
-      const inset = TRAMPLED_INSET_M + TRAMPLED_SOFT_M / 2;
-      const area: Point[] = [
-        localToWorld(d.position, c.minX + inset, c.minZ + inset),
-        localToWorld(d.position, c.maxX - inset, c.minZ + inset),
-        localToWorld(d.position, c.maxX - inset, c.maxZ - inset - 2),
-        localToWorld(d.position, c.minX + inset, c.maxZ - inset - 2),
-      ];
+      const area = trampledArea(d);
       const b = polygonBounds(area);
       const pad = TRAMPLED_SOFT_M;
       const trampled = createDecalMesh(
@@ -734,7 +728,7 @@ export class VillageRenderer {
         createStringMesh(
           this.scene,
           `village-string-${d.id}`,
-          [closedLine(this.pitOutlineWorld(d, 0))],
+          [this.stakingLine(d)],
           this.context.groundHeight,
           string,
         ),
@@ -748,7 +742,7 @@ export class VillageRenderer {
 
   /** Hromada vykopané hlíny vedle jámy – roste s kopáním, ubývá na valy. */
   private spoilHeap(d: SceneDwelling, scale: number): Mesh {
-    const place = SITE_PROP_PLACES[d.type].spoil;
+    const place = sitePropPlace(d.type, 'spoil', d.plot ? plotInward(d.plot.variant) : undefined);
     const [x, z] = localToWorld(d.position, place.x, place.z);
     const data = spoilHeapData({
       seed: d.id,
@@ -829,6 +823,37 @@ export class VillageRenderer {
     }
     return material;
   }
+}
+
+/** Pozemky obydlí pro scénu: hotové celé, staveniště podle fáze plotu a záhonů. */
+function plotViews(dwellings: readonly SceneDwelling[]): PlotView[] {
+  return dwellings.flatMap((d) => {
+    if (!d.plot) return [];
+    const progress = d.built ? PLOT_BUILT : constructionState(d.type, d.progress).plot;
+    return [{ id: d.id, square: d.plot, variant: d.plot.variant, progress }];
+  });
+}
+
+/** Ušlapaná tráva staveniště: pozemek, nebo místo kolem modelu (bez kusu před vchodem). */
+function trampledArea(d: SceneDwelling): Point[] {
+  const inset = TRAMPLED_INSET_M + TRAMPLED_SOFT_M / 2;
+  if (d.plot) {
+    const h = d.plot.size / 2 - inset;
+    const { x, z } = d.plot;
+    return [
+      [x - h, z - h],
+      [x + h, z - h],
+      [x + h, z + h],
+      [x - h, z + h],
+    ];
+  }
+  const c = DWELLING_CLEARANCE_M[d.type];
+  return [
+    localToWorld(d.position, c.minX + inset, c.minZ + inset),
+    localToWorld(d.position, c.maxX - inset, c.minZ + inset),
+    localToWorld(d.position, c.maxX - inset, c.maxZ - inset - 2),
+    localToWorld(d.position, c.minX + inset, c.maxZ - inset - 2),
+  ];
 }
 
 function dwellingKey(d: SceneDwelling): string {

@@ -194,3 +194,9 @@ export function instanceMatrices(instances: readonly ModelInstance[]): Float32Ar
   });
   return matrices;
 }
+
+/** Přidá matici instance na konec bufferu (díly skládané po jedné instanci). */
+export function appendMatrix(target: number[], matrix: Matrix): void {
+  const m = matrix.m;
+  for (let i = 0; i < 16; i++) target.push(m[i]!);
+}
