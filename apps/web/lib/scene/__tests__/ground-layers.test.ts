@@ -6,7 +6,13 @@ import {
   obstaclesOf,
   SURFACE_CODES,
 } from '@bohemia/game';
-import { GROUND_LAYERS, groundWeights, packSplatTextures } from '../ground-layers';
+import {
+  GROUND_LAYERS,
+  groundWeights,
+  packShade,
+  packSplatTextures,
+  treeShade,
+} from '../ground-layers';
 import { streamCenterline } from '../stream-geometry';
 import { tileCenter } from '../tile-at';
 import { obstacleScenery } from '../obstacle-scenery';
@@ -241,6 +247,44 @@ describe('groundWeights s vyhlazenou hranicí lesa a stromy', () => {
       if (++checked > 300) break;
     }
     expect(checked).toBeGreaterThan(100);
+  });
+});
+
+describe('ztmavení pod stromy po vykácení', () => {
+  const trees = obstacleScenery(obstaclesOf(landscape)).trees;
+  const resolution = landscape.size * 4;
+  const all = treeShade(landscape, trees, resolution);
+
+  it('pod vykáceným stromem se tráva neztmaví, ostatní stromy stín nechají', () => {
+    const felled = trees.slice(0, 50);
+    const hidden = new Set(felled.map((t) => t.id!));
+    const shade = treeShade(landscape, trees, resolution, hidden);
+    const half = (landscape.size * landscape.cellSizeM) / 2;
+    const step = (landscape.size * landscape.cellSizeM) / resolution;
+    const texel = (x: number, z: number): number =>
+      Math.floor((z + half) / step) * resolution + Math.floor((x + half) / step);
+    let lighter = 0;
+    for (const t of felled)
+      if (shade[texel(t.worldX, t.worldZ)]! < all[texel(t.worldX, t.worldZ)]!) lighter++;
+    expect(lighter).toBeGreaterThan(felled.length / 2);
+    // nikde tmavší než se všemi stromy, u stojících stromů beze změny
+    for (let i = 0; i < shade.length; i++) expect(shade[i]).toBeLessThanOrEqual(all[i]!);
+    for (const t of trees.slice(500, 600)) {
+      if (felled.some((f) => Math.hypot(f.worldX - t.worldX, f.worldZ - t.worldZ) < 15)) continue;
+      expect(shade[texel(t.worldX, t.worldZ)]).toBe(all[texel(t.worldX, t.worldZ)]);
+    }
+  });
+
+  it('packShade přepíše jen modrý kanál druhé splat textury', () => {
+    const [, second] = packSplatTextures(groundWeights(landscape));
+    const before = second.slice();
+    const shade = new Uint8Array(second.length / 4).fill(77);
+    packShade(second, shade);
+    for (let i = 0; i < shade.length; i++) {
+      expect(second[i * 4 + 2]).toBe(77);
+      expect(second[i * 4]).toBe(before[i * 4]);
+      expect(second[i * 4 + 3]).toBe(before[i * 4 + 3]);
+    }
   });
 });
 

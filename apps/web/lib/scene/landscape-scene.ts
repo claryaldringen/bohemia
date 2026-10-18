@@ -30,10 +30,11 @@ import { addFauna, type Fauna } from './fauna';
 import { birdFlocks, fishSchools } from './fauna-placement';
 import { FelledTrees } from './felled-trees';
 import { LogPile } from './log-pile';
-import { createCanopyMesh } from './forest-canopy';
+import { sameClearing, villageClearedForest, type ClearedForest } from './cleared-forest';
+import { createForestCanopy, type ForestCanopy } from './forest-canopy';
 import { addImpostors } from './impostors';
 import { obstacleScenery } from './obstacle-scenery';
-import { createTerrainMesh } from './terrain-mesh';
+import { createTerrainMesh, type TerrainMesh } from './terrain-mesh';
 import { buildRenderSurface } from './render-surface';
 import { terrainMeshHeight } from './drape';
 import { InstanceHider } from './instance-hider';
@@ -64,6 +65,8 @@ export interface ViewFootprint {
   alpha: number;
 }
 type ViewListener = (view: ViewFootprint) => void;
+/** Vymýcený les vsi (null = žádný) – minimapa ho kreslí jako paseku. */
+type ClearedListener = (cleared: ClearedForest | null) => void;
 
 /** 3D scéna krajiny – obyčejná třída bez Reactu (adaptér zobrazení). */
 /**
@@ -88,6 +91,9 @@ export class LandscapeScene {
   private readonly listeners = new Set<HoverListener>();
   private readonly selectListeners = new Set<SelectListener>();
   private readonly viewListeners = new Set<ViewListener>();
+  private readonly clearedListeners = new Set<ClearedListener>();
+  /** Vymýcený les podle posledního stavu vsi (applyVillage). */
+  private cleared: ClearedForest | null = null;
   /** Stisknutá tlačítka myši nad plátnem: kde a jestli zrovna běželo umisťování. */
   private readonly downs = new Map<number, { x: number; y: number; placing: boolean }>();
   private selection: VillageTarget | null = null;
@@ -96,6 +102,10 @@ export class LandscapeScene {
   private readonly resizeObserver: ResizeObserver;
   private landscape: Landscape | null = null;
   private terrain: Mesh | null = null;
+  /** Terén s přepočtem ztmavení pod vykácenými stromy. */
+  private terrainGround: TerrainMesh | null = null;
+  /** Plocha korun vnitřku lesa – nad pasekou zapadne pod zem. */
+  private canopy: ForestCanopy | null = null;
   private water: WaterSurface | null = null;
   /** Ozdobné ryby a ptáci – hýbou se jako voda, dokud jsou v záběru. */
   private fauna: Fauna | null = null;
@@ -285,10 +295,11 @@ export class LandscapeScene {
     };
     await report('surface', 0.5);
     if (this.disposed) return;
-    this.terrain = createTerrainMesh(this.scene, landscape, surface, { field, trees });
+    this.terrainGround = createTerrainMesh(this.scene, landscape, surface, { field, trees });
+    this.terrain = this.terrainGround.mesh;
     if (this.terrain.material) applyPitCut(this.terrain.material, this.pitCuts);
     this.water = createWaterMesh(this.scene, surface);
-    createCanopyMesh(this.scene, surface, field);
+    this.canopy = createForestCanopy(this.scene, surface, field);
     const site = tileCenter(landscape, landscape.villageSite.x, landscape.villageSite.y);
     this.rtsCamera = createRtsCamera(this.scene, this.canvas, {
       halfExtent: (landscape.size * landscape.cellSizeM) / 2,
@@ -519,6 +530,16 @@ export class LandscapeScene {
     return () => this.viewListeners.delete(listener);
   }
 
+  /**
+   * Změny vymýceného lesa (minimapa) – hned ohlásí ten současný, pak jen při znatelné změně
+   * (`sameClearing`). Počítá se jednou ve scéně z její vrstvy překážek.
+   */
+  onClearedForestChange(listener: ClearedListener): () => void {
+    this.clearedListeners.add(listener);
+    listener(this.cleared);
+    return () => this.clearedListeners.delete(listener);
+  }
+
   /** Přesune pohled na bod krajiny (klik do minimapy). */
   moveCameraTo(x: number, z: number): void {
     this.rtsCamera?.moveTo(x, z);
@@ -560,6 +581,7 @@ export class LandscapeScene {
     this.listeners.clear();
     this.selectListeners.clear();
     this.viewListeners.clear();
+    this.clearedListeners.clear();
     this.highlight?.dispose();
     this.placement?.dispose();
     this.placement = null;
@@ -663,7 +685,9 @@ export class LandscapeScene {
   /**
    * Překreslí ves podle posledního stavu: skryje stromy, keře a kameny, které ves odstranila
    * nebo vykácela (podle id ze stavu vsi), na místo pokácených stromů dá pařez nebo nálet,
-   * u obydlí nejblíž lesu složí hromadu klád.
+   * u obydlí nejblíž lesu složí hromadu klád. Kde les zmizel, přestane ho kreslit: tráva se pod
+   * vykácenými stromy neztmaví, plocha korun nad pasekou zapadne pod zem a stínová mapa se
+   * jednou překreslí.
    */
   private applyVillage(): void {
     const village = this.village;
@@ -672,13 +696,23 @@ export class LandscapeScene {
     const changes = this.villageState.obstacles ?? NO_OBSTACLE_CHANGES;
     const hiddenIds = new Set([...changes.removed, ...changes.stumps, ...changes.saplings]);
     const hidden = this.hider.apply(village.hideShapes(), hiddenIds);
+    const shaded = this.terrainGround?.setHiddenTrees(hiddenIds) ?? false;
+    const clearing =
+      this.obstacles && this.landscape
+        ? villageClearedForest(this.landscape, this.obstacles, this.villageState)
+        : null;
+    const cleared = this.canopy?.setCleared(clearing) ?? false;
+    if (!sameClearing(this.cleared, clearing)) {
+      this.cleared = clearing;
+      for (const listener of this.clearedListeners) listener(clearing);
+    }
     const felled = this.obstacles ? (this.felled?.update(this.obstacles, changes) ?? false) : false;
     const logs = this.logPile?.update(this.villageState, changes) ?? false;
     const animals = this.livestock?.update(this.villageState, Date.now()) ?? false;
     // Rozhraní posílá stav vsi opakovaně (dotaz každých pár sekund) – beze změny nic.
     // Vybrané pole mohlo změnit čtverce (zarůstání), vybrané obydlí zaniknout.
     if (changed) this.highlight?.show(this.villageState, this.selection);
-    if (!changed && !hidden && !felled && !logs && !animals) return;
+    if (!changed && !hidden && !shaded && !cleared && !felled && !logs && !animals) return;
     // Dým hned na místě – i při omezeném pohybu, kdy se pak už nehýbe.
     village.animateSmoke(Date.now(), null);
     this.shadows?.refresh();

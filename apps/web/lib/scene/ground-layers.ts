@@ -183,12 +183,21 @@ export function groundWeights(
   };
 }
 
-/** Kruhové ztmavení pod každým stromem a keřem (silnější uprostřed, k okraji slábne). */
-function treeShade(l: Landscape, trees: readonly TreePlacement[], resolution: number): Uint8Array {
+/**
+ * Kruhové ztmavení pod každým stromem (silnější uprostřed, k okraji slábne). Stromy s id
+ * v `hidden` (vykácené, odstraněné – pařez ani nálet stín koruny nedělá) se vynechají.
+ */
+export function treeShade(
+  l: Landscape,
+  trees: readonly TreePlacement[],
+  resolution: number,
+  hidden: ReadonlySet<number> = new Set(),
+): Uint8Array {
   const shade = new Float32Array(resolution * resolution);
   const extent = l.size * l.cellSizeM;
   const step = extent / resolution;
   for (const tree of trees) {
+    if (tree.id !== undefined && hidden.has(tree.id)) continue;
     const { radiusM, strength } = TREE_SHADE;
     const r = radiusM * tree.scale;
     const ci = (tree.worldX + extent / 2) / step - 0.5;
@@ -212,6 +221,11 @@ function treeShade(l: Landscape, trees: readonly TreePlacement[], resolution: nu
     }
   }
   return Uint8Array.from(shade, (v) => Math.round(v * 255));
+}
+
+/** Ztmavení pod stromy do modrého kanálu druhé splat textury (`packSplatTextures`). */
+export function packShade(second: Uint8Array, shade: Uint8Array): void {
+  for (let i = 0; i < shade.length; i++) second[i * 4 + 2] = shade[i]!;
 }
 
 /**

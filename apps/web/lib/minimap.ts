@@ -1,4 +1,11 @@
-import { buildRelief, SURFACE_CODES, type Landscape, type PartStage } from '@bohemia/game';
+import {
+  buildRelief,
+  SURFACE_CODES,
+  type FieldSurface,
+  type Landscape,
+  type PartStage,
+} from '@bohemia/game';
+import { CLEARED_SHARE, type ClearedForest } from './scene/cleared-forest';
 import { SUN_DIRECTION } from './scene/constants';
 import { sampleTiles } from './scene/tile-at';
 
@@ -12,6 +19,8 @@ const COLORS = {
   deepWater: [44, 78, 112],
   forest: [44, 76, 38],
   meadow: [118, 140, 72],
+  /** Paseka – vykácený les s pařezy, o něco tmavší a hnědší než louka. */
+  clearing: [112, 124, 66],
   rock: [138, 130, 116],
 } as const satisfies Record<string, Rgb>;
 
@@ -25,6 +34,13 @@ export const PART_COLORS: Record<PartStage, Rgb> = {
   'young-growth': [104, 128, 66],
   shrub: [84, 108, 56],
   forest: [56, 86, 46],
+};
+
+/** Povrch, na kterém se díl pole zakládal (panel pole) – louka, křoviny, les jako na minimapě. */
+export const SURFACE_COLORS: Record<FieldSurface, Rgb> = {
+  meadow: COLORS.meadow,
+  shrub: [84, 108, 56],
+  forest: COLORS.forest,
 };
 
 /** Hřbitov na minimapě – šedavá zeleň (mohylky v trávě, plot). */
@@ -72,9 +88,14 @@ function mix(a: Rgb, b: Rgb, t: number): [number, number, number] {
 
 /**
  * Obrázek krajiny pro minimapu (`sizePx` × `sizePx`, RGBA po řádcích shora): voda, les, louka,
- * skála podle sklonu a hřbetů jako ve scéně, stínování svahů podle slunce scény.
+ * skála podle sklonu a hřbetů jako ve scéně, stínování svahů podle slunce scény. Les, který ves
+ * vykácela nebo vymýtila (`cleared`), řídne do barvy paseky – vymýcené políčko je celé paseka.
  */
-export function minimapImage(l: Landscape, sizePx: number): Uint8ClampedArray {
+export function minimapImage(
+  l: Landscape,
+  sizePx: number,
+  cleared: ClearedForest | null = null,
+): Uint8ClampedArray {
   const relief = buildRelief(l);
   const extent = extentM(l);
   const half = extent / 2;
@@ -89,14 +110,21 @@ export function minimapImage(l: Landscape, sizePx: number): Uint8ClampedArray {
       const z = (1 - (py + 0.5) / sizePx) * extent - half;
       const tx = Math.min(l.size - 1, Math.floor((x + half) / l.cellSizeM));
       const ty = Math.min(l.size - 1, Math.floor((z + half) / l.cellSizeM));
-      const code = l.surface[ty * l.size + tx];
+      const tile = ty * l.size + tx;
+      const code = l.surface[tile];
       let color: [number, number, number];
       if (code === SURFACE_CODES.water) {
         // u břehu světlejší voda, uprostřed tmavší
         const wet = sampleTiles(l, surface, x, z);
         color = mix(COLORS.water, COLORS.deepWater, Math.min(1, Math.max(0, wet * 2 - 1)));
       } else {
-        const base = code === SURFACE_CODES.forest ? COLORS.forest : COLORS.meadow;
+        const thinned = cleared ? Math.min(1, cleared.share[tile]! / CLEARED_SHARE) : 0;
+        const base =
+          code !== SURFACE_CODES.forest
+            ? COLORS.meadow
+            : thinned > 0
+              ? mix(COLORS.forest, COLORS.clearing, thinned)
+              : COLORS.forest;
         color = mix(base, COLORS.rock, relief.rockinessAt(x, z) * 0.85);
         // svah ke slunci světlejší, odvrácený tmavší
         const light = 1 + Math.max(-0.35, Math.min(0.35, relief.sunwardAt(x, z) * 3 * sunLength));

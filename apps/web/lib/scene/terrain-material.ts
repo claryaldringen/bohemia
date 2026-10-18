@@ -11,7 +11,9 @@ import type { Landscape } from '@bohemia/game';
 import {
   GROUND_LAYERS,
   groundWeights,
+  packShade,
   packSplatTextures,
+  treeShade,
   type ForestGround,
   type GroundLayer,
 } from './ground-layers';
@@ -42,6 +44,17 @@ const LAYER_TEXTURES: Record<GroundLayer, { file: string; repeatM: number }> = {
   rocky: { file: 'rocky.jpg', repeatM: 22 },
 };
 
+/** Materiál terénu a přepočet ztmavení pod stromy po vykácení. */
+export interface TerrainMaterial {
+  material: StandardMaterial;
+  /**
+   * Ztmavení půdy pod stromy bez stromů `hidden` (vykácené, odstraněné – fields.md, forest.md):
+   * přepočítá se a modrý kanál druhé splat textury se nahraje znovu – žádný sampler navíc.
+   * Vrátí true, když se ztmavení změnilo.
+   */
+  setHiddenTrees(hidden: ReadonlySet<number>): boolean;
+}
+
 /**
  * Materiál terénu: StandardMaterial, jehož barvu míchá TerrainSplatPlugin z 11 textur
  * a ztmavuje pod stromy.
@@ -51,11 +64,12 @@ export function createTerrainMaterial(
   l: Landscape,
   stream?: StreamCenterline,
   forest?: ForestGround,
-): StandardMaterial {
+): TerrainMaterial {
   const material = new StandardMaterial('terrain-material', scene);
   material.specularColor = Color3.Black();
-  const [first, second, third] = packSplatTextures(groundWeights(l, stream, forest));
-  const resolution = l.size * 4;
+  const weights = groundWeights(l, stream, forest);
+  const [first, second, third] = packSplatTextures(weights);
+  const resolution = weights.resolution;
   const splat = (data: Uint8Array, name: string): RawTexture => {
     const texture = RawTexture.CreateRGBATexture(
       data,
@@ -76,17 +90,29 @@ export function createTerrainMaterial(
     texture.anisotropicFilteringLevel = 8;
     return texture;
   });
+  const shaded = splat(second, 'terrain-splat-1');
   new TerrainSplatPlugin(material, {
-    splats: [
-      splat(first, 'terrain-splat-0'),
-      splat(second, 'terrain-splat-1'),
-      splat(third, 'terrain-splat-2'),
-    ],
+    splats: [splat(first, 'terrain-splat-0'), shaded, splat(third, 'terrain-splat-2')],
     layers,
     extentM: l.size * l.cellSizeM,
     repeatsM: GROUND_LAYERS.map((layer) => LAYER_TEXTURES[layer].repeatM),
   });
-  return material;
+  // podpis právě skrytých stromů s ztmavením – při beze změny se textura nepřepočítává
+  let hiddenKey = '';
+  return {
+    material,
+    setHiddenTrees(hidden) {
+      if (!forest) return false;
+      const key = forest.trees
+        .flatMap((tree) => (tree.id !== undefined && hidden.has(tree.id) ? [tree.id] : []))
+        .join(',');
+      if (key === hiddenKey) return false;
+      hiddenKey = key;
+      packShade(second, treeShade(l, forest.trees, resolution, hidden));
+      shaded.update(second);
+      return true;
+    },
+  };
 }
 
 /**
