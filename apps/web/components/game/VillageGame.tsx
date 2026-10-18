@@ -34,6 +34,7 @@ import {
   renameVillage,
   restartGame,
   selectVillage,
+  sendExpedition,
   skipTime,
   trainTeam,
   upgradeRoad,
@@ -805,6 +806,12 @@ export function VillageGame({
           const villageId = viewRef.current?.id;
           return villageId
             ? runBuildAction(() => buildTrail({ villageId, direction }))
+            : Promise.resolve();
+        }}
+        onSendExpedition={(direction, give, get) => {
+          const villageId = viewRef.current?.id;
+          return villageId
+            ? runBuildAction(() => sendExpedition({ villageId, direction, give, get }))
             : Promise.resolve();
         }}
       />

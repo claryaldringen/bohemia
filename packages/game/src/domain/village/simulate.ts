@@ -76,6 +76,7 @@ import { inLuckyYears, nextStarvationDays, populationDay } from './population';
 import { dailyMinPerHousehold } from './productivity';
 import { moveRelocatedHousehold, relocatingHouseholds } from './relocation';
 import { keepManor, villageManorId } from './manor';
+import { finishExpeditions, workExpeditions } from './trade';
 import { finishTrail, trailsDay } from './trail';
 import { recordRuins, updateRuins } from './ruins';
 import {
@@ -253,8 +254,9 @@ function simulateDay(
   const { toil, milking } = work(state, day, obstacles, coverage, landscape);
   // nástroje a nádoby v užívání se opotřebí (crafts.md – Účinek)
   wearCraftStocks(state, day);
-  // zemské stezky – dostavěné úseky od vsi ven hned vylepšené (trade.md)
+  // zemské stezky – dostavěné úseky od vsi ven hned vylepšené, vrácené výpravy (trade.md)
   trailsDay(state);
+  state.chronicle.push(...finishExpeditions(state, day));
   finishConstructions(state, day);
   // dvorec vojvody – po zániku dvorce nejstarší obydlí, starší ves dvorec dostane (trade.md)
   keepManor(state);
@@ -686,7 +688,9 @@ function work(
   });
   decayEmptyDwellings(state, day, new Set(households.map((d) => d.id)));
   state.domesticBacklog = allocation.domesticBacklog;
-  const constructions = build(state, day, allocation.common);
+  // nosiči výprav k sousedům jdou ze společné práce před stavbami (trade.md – Doprava)
+  const trade = workExpeditions(state, allocation.common);
+  const constructions = build(state, day, allocation.common - trade.used);
   const workshops = workCrafts(state, day, obstacles, coverage, productivity, resting, landscape);
   const hayMowing = state.hay?.mowing;
   state.labor = laborDay(state, day, {
@@ -695,6 +699,7 @@ function work(
     repairs,
     constructions,
     workshops,
+    trade: trade.shares,
     toolCoverage: coverage.tools,
     ...(hayMowing
       ? { mowing: { mowing: hayMowing, before: mowingBefore, after: hayMowing.done } }

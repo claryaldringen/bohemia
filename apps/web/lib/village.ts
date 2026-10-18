@@ -19,11 +19,13 @@ import {
   trainTeamInPen,
   upgradeRoad,
   buildTrail,
+  sendExpedition,
   villageViewStamp,
   type Craft,
   type DwellingPlot,
   type BuildableDwellingType,
   type Direction8,
+  type TradeGoods,
   type Landscape,
   type Position,
   type SacredBuildingKind,
@@ -473,6 +475,27 @@ export function buildTrailForPlayer(
         landscape: ctx.landscape,
         today: ctx.day,
         direction: input.direction,
+      },
+    ),
+  );
+}
+
+/** Výprava nosičů k sousedovi po hotové stezce (trade.md – Obchod). */
+export function sendExpeditionForPlayer(
+  playerId: string,
+  villageId: string,
+  input: { direction: Direction8; give: TradeGoods; get: TradeGoods },
+): Promise<VillageActionResult> {
+  return actOn(playerId, villageId, (ctx) =>
+    sendExpedition(
+      { villages: villages() },
+      {
+        villageId: ctx.villageId,
+        landscape: ctx.landscape,
+        today: ctx.day,
+        direction: input.direction,
+        give: input.give,
+        get: input.get,
       },
     ),
   );

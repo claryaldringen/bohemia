@@ -58,6 +58,8 @@ export interface DayWork {
   workshops?: WorkshopDay[];
   /** Pokrytí nástroji dne – podíl žně a odnosu na sklizni (meze); bez údaje 0. */
   toolCoverage?: number;
+  /** Nosiči výprav k sousedům po zemských stezkách (trade.md); bez údaje žádní. */
+  trade?: { trailId: number; manDays: number }[];
 }
 
 /** Kolik kácených stromů jedné stavby rozdělení ukáže. */
@@ -156,6 +158,11 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
   }
 
   let invested = 0;
+  // nosiči výprav k sousedům – po zemské stezce (trade.md)
+  for (const t of work.trade ?? []) {
+    invested += t.manDays;
+    add('trade', { kind: 'trail', id: t.trailId }, t.manDays);
+  }
   for (const c of work.constructions) {
     invested += c.manDays;
     for (const share of constructionShares(c, state)) {

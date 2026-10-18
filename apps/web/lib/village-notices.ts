@@ -31,6 +31,10 @@ export type NoticeKind =
   | 'orchard-renewal'
   | 'orchard-gone'
   | 'part-forest'
+  /** Zemská stezka a obchod se sousedy (trade.md). */
+  | 'trail-built'
+  | 'trade-departed'
+  | 'trade-returned'
   /** Upozornění z jiné vsi hráče (migration.md – Víc vsí jednoho hráče). */
   | 'other-hungry'
   | 'other-starving'
@@ -152,6 +156,10 @@ const CHRONICLE_NOTICES: Partial<
     text: 'Vesničané obnovují starý sad',
   }),
   'orchard-gone': () => ({ kind: 'orchard-gone', tone: 'warn', text: 'Starý sad dosloužil' }),
+  // zemská stezka a výpravy k sousedům (trade.md – Kronika)
+  'trail-built': () => ({ kind: 'trail-built', tone: 'info', text: 'Zemská stezka je dostavěná' }),
+  'trade-departed': () => ({ kind: 'trade-departed', tone: 'info', text: 'Výprava vyrazila' }),
+  'trade-returned': () => ({ kind: 'trade-returned', tone: 'info', text: 'Výprava se vrátila' }),
   // nepasený příloh zarostl lesem a vypadl z pole (fields.md – Zarůstání)
   'part-became-forest': () => ({
     kind: 'part-forest',

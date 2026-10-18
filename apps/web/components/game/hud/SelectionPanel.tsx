@@ -27,8 +27,9 @@ import {
   type Craft,
   type WorkshopActivity,
 } from '@/lib/village-view';
-import type { Direction8, RoadGrade, RoadUpgrade } from '@bohemia/game';
+import type { Direction8, RoadGrade, RoadUpgrade, TradeGoods } from '@bohemia/game';
 import { ManorUpgrades } from './ManorPanel';
+import { TradePanel } from './TradePanel';
 import {
   CancelRelocationButton,
   LeaveButton,
@@ -233,8 +234,8 @@ interface RelocationActions {
 interface ManorActions {
   /** Zadá stavbu zemské stezky do směru (server action) – hotovo, až se vrátí. */
   onBuildTrail?: (direction: Direction8) => Promise<void>;
-  /** Obsah panelu obchodu (TradePanel) – `close` ho zavře. */
-  trade?: (close: () => void) => ReactNode;
+  /** Vyšle výpravu k sousedovi (server action) – hotovo, až se vrátí. */
+  onSendExpedition?: (direction: Direction8, give: TradeGoods, get: TradeGoods) => Promise<void>;
 }
 
 function DwellingBody({
@@ -242,7 +243,7 @@ function DwellingBody({
   onRelocate,
   onCancelRelocation,
   onBuildTrail,
-  trade,
+  onSendExpedition,
 }: {
   details: Extract<SelectionDetails, { kind: 'dwelling' }>;
 } & RelocationActions &
@@ -286,7 +287,17 @@ function DwellingBody({
         />
       )}
       {details.manor && (
-        <ManorUpgrades manor={details.manor} onBuildTrail={onBuildTrail} trade={trade} />
+        <ManorUpgrades
+          manor={details.manor}
+          onBuildTrail={onBuildTrail}
+          trade={(close) => (
+            <TradePanel
+              neighbours={details.manor?.neighbours ?? []}
+              onSend={onSendExpedition}
+              onClose={close}
+            />
+          )}
+        />
       )}
       {details.relocate && (
         <div className="flex items-center gap-2">
@@ -951,7 +962,7 @@ export function SelectionPanel({
   onUpgradeRoad,
   onPlantRoadApples,
   onBuildTrail,
-  trade,
+  onSendExpedition,
 }: {
   details: SelectionDetails | null;
   /** Zadá v ohradě výcvik spřežení (server action) – hotovo, až se vrátí. */
@@ -1051,7 +1062,7 @@ export function SelectionPanel({
         onRelocate={onRelocate}
         onCancelRelocation={onCancelRelocation}
         onBuildTrail={onBuildTrail}
-        trade={trade}
+        onSendExpedition={onSendExpedition}
       />
     );
   }

@@ -1059,3 +1059,39 @@ describe('uhlíř – milíř v lese a sázení buků (crafts.md – Uhlíř)', 
     }
   });
 });
+
+describe('nosiči výpravy po zemské stezce (trade.md)', () => {
+  it('s nákladem jdou po stezce od dvorce ke kraji mapy a zpět', () => {
+    const base = village([{ activity: 'trade', target: { kind: 'trail', id: 5 }, manDays: 4 }]);
+    const v: SceneVillage = {
+      ...base,
+      trails: [
+        {
+          id: 5,
+          direction: 's',
+          points: [
+            { x: 0, z: -8 },
+            { x: 0, z: -300 },
+          ],
+          built: true,
+        },
+      ],
+    };
+    const porters = planVillagers(v, GROUND, { seed: 3, herds: 0 }).filter((p) =>
+      p.key.startsWith('trade:'),
+    );
+    expect(porters.length).toBe(4);
+    for (const p of porters) {
+      for (const t of [0, 40, 200]) {
+        const pose = at(p, t);
+        expect(Math.abs(pose.x)).toBeLessThan(0.5);
+        expect(pose.z).toBeLessThanOrEqual(-7.9);
+        expect(pose.z).toBeGreaterThanOrEqual(-300.1);
+      }
+    }
+    // bez stezky nikdo
+    expect(
+      planVillagers(base, GROUND, { seed: 3, herds: 0 }).some((p) => p.key.startsWith('trade:')),
+    ).toBe(false);
+  });
+});
