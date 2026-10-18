@@ -41,6 +41,15 @@ const scene: SceneVillage = {
   },
 };
 
+const RELOCATE_OPTION = {
+  laborManDays: 60,
+  perHa: false,
+  perSquare: false,
+  upfront: [{ resource: 'wood', amount: 7, missing: 0 }],
+  blocked: null,
+  affordable: true,
+};
+
 const view = {
   crafts: {
     present: true,
@@ -55,6 +64,8 @@ const view = {
         occupants: 2,
         laborPerDay: 0.9,
         outputPerDayKg: 0.09,
+        kiln: null,
+        toPlant: 0,
       },
     ],
   },
@@ -69,6 +80,8 @@ const view = {
       condition: 0.8,
       ages: [27, 26, 15, 3],
       ageYears: 2,
+      relocation: null,
+      relocationBlock: null,
     },
     {
       dwellingId: 2,
@@ -81,8 +94,15 @@ const view = {
       condition: 1,
       ages: [24, 22],
       ageYears: 1,
+      // kovářova domácnost si staví nový dům (stavba 9 – migration.md)
+      relocation: { constructionId: 9, type: 'polozemnice', progress: 0.4, treesToFell: 5 },
+      relocationBlock: 'relocating',
     },
   ],
+  relocation: {
+    zemnice: RELOCATE_OPTION,
+    polozemnice: { ...RELOCATE_OPTION, affordable: false },
+  },
   constructions: [
     {
       id: 9,
@@ -91,6 +111,7 @@ const view = {
       progress: 0.4,
       dwellingType: 'polozemnice',
       dwellingId: null,
+      relocates: 2,
       fieldId: null,
       treesToFell: 5,
     },
@@ -111,7 +132,7 @@ const view = {
       fertility: 61.4,
       stages: { sown: 6, founding: 4 },
       surfaces: { meadow: 10 },
-      crops: { spring: 2, winter: 4 },
+      crops: { spring: 1, legume: 1, winter: 4 },
       ashParts: 0,
       ashBonus: 0,
     },
@@ -169,7 +190,10 @@ const view = {
     },
   ],
   sacred: {
-    oaks: [{ id: 700, happiness: 5, ageYears: 312 }],
+    oaks: [
+      { id: 700, happiness: 5, ageYears: 312, snag: false },
+      { id: 701, happiness: 1, ageYears: 1180, snag: true },
+    ],
     groves: [{ id: 800, oaks: 11, squares: 9, happiness: 12, ageYears: 254 }],
     buildings: [
       { id: 40, kind: 'idol', built: true, happiness: 8, progress: 1, oaksToFell: 0 },
@@ -233,6 +257,33 @@ describe('selectionDetails', () => {
       overcrowded: false,
       rebuild: null,
       workshop: null,
+      relocation: null,
+      relocate: view.relocation,
+    });
+  });
+
+  it('obydlí, jehož domácnost se stěhuje: průběh stavby nového domu, přestěhovat znovu nejde', () => {
+    expect(selectionDetails(view, scene, { kind: 'dwelling', id: 2 })).toMatchObject({
+      kind: 'dwelling',
+      relocation: { constructionId: 9, progress: 0.4 },
+      relocate: null,
+    });
+  });
+
+  it('víc obydlí: domácnosti, lidé a kdo se může přestěhovat (migration.md)', () => {
+    expect(selectionDetails(view, scene, { kind: 'dwellings', ids: [1, 2, 77] })).toEqual({
+      kind: 'dwellings',
+      ids: [1, 2],
+      households: 2,
+      people: 6,
+      relocatable: [1],
+      relocate: view.relocation,
+    });
+    expect(selectionDetails(view, scene, { kind: 'dwellings', ids: [77, 78] })).toBeNull();
+    // jen stěhující se domácnost – přestěhovat nejde
+    expect(selectionDetails(view, scene, { kind: 'dwellings', ids: [2, 9] })).toMatchObject({
+      relocatable: [],
+      relocate: null,
     });
   });
 
@@ -246,6 +297,8 @@ describe('selectionDetails', () => {
         activity: 'no-charcoal',
         laborPerDay: 0.9,
         outputPerDayKg: 0.09,
+        kiln: null,
+        toPlant: 0,
         stockKg: 6,
         coverage: 0.5,
       },
@@ -260,6 +313,8 @@ describe('selectionDetails', () => {
       craft: null,
       progress: 0.4,
       treesToFell: 5,
+      // nový dům kovářovy domácnosti – jde zrušit
+      relocates: 2,
     });
     expect(selectionDetails(null, scene, { kind: 'dwelling', id: 9 })).toEqual({
       kind: 'site',
@@ -268,6 +323,7 @@ describe('selectionDetails', () => {
       craft: null,
       progress: 0.1,
       treesToFell: 0,
+      relocates: null,
     });
   });
 
@@ -282,9 +338,11 @@ describe('selectionDetails', () => {
         { stage: 'sown', count: 6 },
       ],
       surfaces: [],
+      // pořadí ozim, jař, luštěniny (CROP_ORDER)
       crops: [
         { crop: 'winter', count: 4 },
-        { crop: 'spring', count: 2 },
+        { crop: 'spring', count: 1 },
+        { crop: 'legume', count: 1 },
       ],
       ashParts: 0,
       ashBonus: 0,
@@ -357,6 +415,14 @@ describe('selectionDetails – posvátná místa', () => {
       id: 700,
       happiness: 5,
       ageYears: 312,
+      snag: false,
+    });
+    expect(selectionDetails(view, scene, { kind: 'sacred-oak', id: 701 })).toEqual({
+      kind: 'sacred-oak',
+      id: 701,
+      happiness: 1,
+      ageYears: 1180,
+      snag: true,
     });
     expect(selectionDetails(view, scene, { kind: 'grove', id: 800 })).toEqual({
       kind: 'grove',

@@ -1,14 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
-import type { FieldPart } from '../types';
+import type { FallowStage, FieldPart } from '../types';
 import {
   distanceFactor,
   effectiveFertility,
   endOfSeason,
+  fallowStage,
   fallowYears,
   forestBonus,
   grossYieldPerHa,
+  isOvergrown,
   isWeedFree,
+  overgrowthStage,
   partFoundingCost,
   reclaimCostPerHa,
   selectPartsToSow,
@@ -88,19 +91,39 @@ describe('vymýcený les (Rösch a kol. 2017)', () => {
 });
 
 describe('náklady', () => {
-  it('vrácení přílohu: 1–2 roky nic, pak drn pastviny jako louka – bez řemesel horní mez', () => {
-    const cost = (years: number): number => reclaimCostPerHa(years, NO_CRAFTS.tools);
-    expect(cost(1)).toBe(0);
-    expect(cost(2)).toBe(0);
-    expect(cost(3)).toBe(100);
-    expect(cost(13)).toBe(100);
-    // na přílohu se pase – nezaroste náletem ani lesem, dražší už nebude
-    expect(cost(40)).toBe(100);
+  it('vrácení přílohu podle stadia: mladý příloh nic, louka drn, křoviny a mladý les jejich založení', () => {
+    const cost = (stage: FallowStage): number => reclaimCostPerHa(stage, NO_CRAFTS.tools);
+    expect(cost('young-fallow')).toBe(0);
+    expect(cost('meadow')).toBe(100);
+    expect(cost('shrubs')).toBe(100);
+    expect(cost('young-forest')).toBe(250);
   });
-  it('s plným pokrytím nástroji dolní mez louky 90', () => {
-    expect(reclaimCostPerHa(4, 1)).toBe(90);
-    expect(reclaimCostPerHa(16, 1)).toBe(90);
-    expect(reclaimCostPerHa(16, 0.5)).toBe(95);
+  it('s plným pokrytím nástroji nejlepší meze – louka 90, křoviny 60, mladý les 150', () => {
+    expect(reclaimCostPerHa('meadow', 1)).toBe(90);
+    expect(reclaimCostPerHa('meadow', 0.5)).toBe(95);
+    expect(reclaimCostPerHa('shrubs', 1)).toBe(60);
+    expect(reclaimCostPerHa('young-forest', 1)).toBe(150);
+  });
+  it('stadium přílohu: mladý příloh 1–2 roky ladem, pak louka; zarůstání podle let bez pastvy a seče', () => {
+    const since = sept(600);
+    const fallow = (overgrowthYears?: number): FieldPart =>
+      part({
+        state: 'fallow',
+        fallowSinceDay: since,
+        ...(overgrowthYears ? { overgrowthYears } : {}),
+      });
+    expect(fallowStage(fallow(), sept(602))).toBe('young-fallow');
+    expect(fallowStage(fallow(), sept(603))).toBe('meadow');
+    expect(fallowStage(fallow(4), sept(640))).toBe('meadow');
+    expect(fallowStage(fallow(5), sept(640))).toBe('shrubs');
+    expect(fallowStage(fallow(14), sept(640))).toBe('shrubs');
+    expect(fallowStage(fallow(15), sept(640))).toBe('young-forest');
+    // les vypadne z pole při ročním kroku – do té doby mladý les
+    expect(fallowStage(fallow(30), sept(640))).toBe('young-forest');
+    expect(overgrowthStage(29)).toBe('young-forest');
+    expect(overgrowthStage(30)).toBe('forest');
+    expect(isOvergrown(fallow(4))).toBe(false);
+    expect(isOvergrown(fallow(5))).toBe(true);
   });
   it('cena založení dílu = povrch × hektary + překážky', () => {
     expect(partFoundingCost('shrub', 5000, 12, NO_CRAFTS.tools)).toBeCloseTo(100 * 0.5 + 12, 9);

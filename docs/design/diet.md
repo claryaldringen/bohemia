@@ -1,4 +1,4 @@
-# Strava a dobytek – obilí, maso, mléko a sýr, vejce, ovoce
+# Strava a dobytek – obilí, luštěniny, maso, mléko a sýr, vejce, ovoce
 
 Stav: schváleno 18. 10. 2026 (Martin: „Ano“), **implementováno 18. 10. 2026** – jádro
 `domain/village/diet.ts` (jídlo dne), `dairy.ts` (mléko, sýr, práce se zvířaty), `livestock.ts`
@@ -6,7 +6,10 @@ Stav: schváleno 18. 10. 2026 (Martin: „Ano“), **implementováno 18. 10. 202
 **Týž den změna (Martin):** maso není kvůli energii, ale kvůli **bílkovinám – 1,6 g na kg tělesné
 váhy**; bílkoviny dává obilí, mléko a sýr, maso a vejce („Ovce, kozy i krávy jsou mléčná
 zvířata“) a **práce se zvířaty se počítá** – viz Bílkoviny, Mléko a sýr, Práce se zvířaty
-(implementováno; čísla z [rešerše](research/2026-10-18-dairy-protein.md)). Rozhodnutí
+(implementováno; čísla z [rešerše](research/2026-10-18-dairy-protein.md)). **Další změna
+(Martin, 18. 10. 2026):** „c) ale maso bude mírně zvyšovat štěstí“ – 1,6 g/kg zůstává, přidají
+se **luštěniny** jako plodina na poli a **maso mírně zvyšuje štěstí** – viz Luštěniny
+(implementováno, `legumes.ts`; [rešerše](research/2026-10-18-legumes.md)). Rozhodnutí
 z implementace jsou v tabulce Rozhodnutí jako „návrh Clauda“ nebo „rozhodnutí kontroléru“.
 
 ## Proč
@@ -60,6 +63,24 @@ Raně středověká strava nebyla jen obilí. Plné nasycení potřebuje kombina
   přednostně, dokud nezkazí (k 1. 3. – [sad](orchard.md)), čerstvé mléko a vejce, jak přibývají,
   maso rovným dílem do porážky a sýr do příštího dojení; obilí dorovná energii.
 - **Ovoce a štěstí:** když lidé jedí ovoce, štěstí **+5** (sladké – Martin; [štěstí](happiness.md)).
+
+### Luštěniny a štěstí z masa (Martin, 18. 10. 2026; čísla rešerše a návrh Clauda)
+
+- **Luštěniny** (hrách a čočka – pole: [fields.md](fields.md), Luštěniny): **22 % bílkovin**,
+  energie jako obilí (3 400 kcal/kg). Strop **25 % energie** ze stravy (dospělý ≈ 45 kg ročně;
+  rešerše: chléb čeledi v Mordenu 17–26 % hrachu – strop je návrh Clauda).
+- **Kolik jich ves chce:** bílkoviny, které chybí po obilí (odhad obilí na 70 % energie), mléku
+  stád a vejcích – každý kg luštěnin místo obilí se stejnou energií dá o **12 dkg bílkovin víc**
+  (22 % proti 10 %) – nejvýš strop. S 1,6 g/kg chybí tolik, že luštěniny jdou ke stropu skoro
+  vždy; ves je oseje k 1. 9. (cíl + rezerva 15 %), obilí má přednost.
+- **Jí se** rovným dílem celý rok do příští sklizně (31. 7.), nejvýš strop; počítají se do výhledu
+  energie jako maso a sýr. Ztráta skladováním jako obilí.
+- **Maso a stáda:** potřeba masa = bílkoviny, které zbudou i po luštěninách – luštěniny podle
+  zásoby (rovným dílem do sklizně, přepočteno na rok, nejvýš strop). Ves s luštěninami tak chová
+  menší stáda (pravidlo „ves chová, kolik potřebuje“ beze změny); první rok, než luštěniny
+  sklidí, počítá jen s obilím, mlékem a vejci.
+- **Maso a štěstí** (Martin – „mírně“): až **+3** – plně od **20 % energie z masa**, méně poměrně
+  (10 % → +1,5); ovoce dál +5 ([štěstí](happiness.md)).
 
 ### Hlad
 
@@ -135,10 +156,19 @@ Rozhodnutí kontroléru tam, kde návrh nedává číslo nebo postup (Martin je 
   a scéna je zaokrouhlí. Výchozí stádo dostane nová ves i ves uložená před dobytkem (z domácností,
   jako dřív ozdoba scény). **Mláďata 1. 4.** (stádo × roční růst).
 - **Nosnost:** pastva = louka do 600 m od první zemnice (z krajiny při založení, simulace krajinu
-  nemá) bez toho, co zabírají pole mimo příloh, sady, hřbitovy, pozemky a ohrady, plus příloh na
-  vymýceném lese (pase se na celém přílohu – mladém, pastvině i po seči); voli mají na pastvě
-  přednost, ovce, kozy a krávy se o zbytek podělí poměrně. Les pro prasata = les do 600 m bez
-  dílů polí založených v lese. Krávy přes zimu jen tolik, kolik uživí seno po volech.
+  nemá) bez toho, co zabírají pole mimo příloh, zarůstající příloh (křoviny, mladý les), les vsi,
+  sady, hřbitovy, pozemky a ohrady, plus příloh na vymýceném lese (pase se na celém přílohu ve
+  fázi louky – mladém, pastvině i po seči); voli mají na pastvě přednost, ovce, kozy a krávy se
+  o zbytek podělí poměrně. Les pro prasata = les do 600 m bez dílů polí založených v lese, s lesem
+  vsi na bývalé louce ([pole – Les vsi](fields.md)). Krávy přes zimu jen tolik, kolik uživí seno
+  po volech.
+- **Pastva po dílech** (18. 10. 2026 – [pole – Zarůstání](fields.md), návrh Clauda): potřeba
+  pastvy stád (≈ 1 ha na krávu a vola, 0,2 ha na ovci a kozu) se rozdělí po dílech přílohu ve
+  fázi louky od nejbližšího k obydlí, každému nejvýš jeho plocha; zbytek se pase na loukách
+  krajiny (ty nezarůstají). Díl, na který připadla aspoň polovina jeho plochy, se spásl – za rok
+  nezaroste. Roční krok zarůstání (1. 11.) bere letní stáda před porážkou; síť pěšin a scéna
+  berou stáda dne (v zimě krávy a voli v ohradě). Když stáda nestačí na celý příloh, vzdálené díly
+  zarůstají, přestanou být pastvinou a nosnost klesne.
 - **Porážka 1. 11.** (ráno, před jídlem): na maso jde, co přeroste nosnost; když zásoba masa
   s vejci na rok nepokryje potřebu, i letošní mláďata – prasata první (nejvíc masa), pak ovce,
   kozy, krávy – ale **nejvýš polovina mláďat** (druhá polovina stádo rozšíří; bez toho by ves
@@ -186,11 +216,27 @@ dlouhá kalibrace poběží v noci):
   porážce), nadojí ≈ 700 l mléka ročně a potřebuje ≈ 470 kg masa ročně; maso jde ke stropu 40 %
   energie.
 
+## Naměřeno s luštěninami (18. 10. 2026)
+
+Krátké `measure-village.ts 20 20` (skutečné krajiny; nová kalibrace – čísla jen orientačně, dlouhá
+kalibrace poběží v noci):
+
+- **bílkoviny** medián 100 %, **nasycení** medián 0,94 (p10 0,84); energie (hráč staví) z masa
+  **27 %** (dřív 34 %), z mléka a sýra 18 %, z luštěnin **19 %** (ves bez staveb 25 % – strop),
+- **práce na obživu** startovní ves 94 % (dřív 95 %), plná domácnost 91 % (92 %) – luštěniny
+  vezmou trochu víc práce (pletí, sklizeň), menší stáda ubudou péče,
+- nasycení ≥ 0,95 celý rok 98,9 % let, nic nevymřelo; zásoby po sklizni medián 2,2 roční potřeby;
+  štěstí medián 57,5 (hráč staví),
+- jedna domácnost (7–8 lidí, 4 dospělí) po 13 letech chová ≈ **10 prasat, 6 ovcí, 3 kozy a 4–5
+  krav** (dřív ≈ 15 prasat), nadojí ≈ 630–790 l mléka ročně, potřebuje ≈ 280–330 kg masa a ≈ 255–280
+  kg luštěnin ročně; na dospělého (výpočet při ≈ 100 l mléka) ≈ **80 kg masa** (dřív ≈ 110)
+  a ≈ 45 kg luštěnin (strop) ročně.
+
 ## Co hráč vidí
 
-- V horní liště **obilí, maso, mléko a sýr, ovoce** (ikony + čísla) a nasycení; tooltip nasycení
-  ukáže energii a bílkoviny a podíly (ikony obilí / maso / mléko a sýr / vejce / ovoce
-  s procenty).
+- V horní liště **obilí, luštěniny, maso, mléko a sýr, ovoce** (ikony + čísla) a nasycení;
+  tooltip nasycení ukáže energii a bílkoviny a podíly (ikony obilí / luštěniny / maso / mléko
+  a sýr / vejce / ovoce s procenty).
 - Stáda ve scéně odpovídají skutečnému počtu zvířat; na podzim porážka (krátká zpráva).
 - V panelu ohrady a u stád počty zvířat a nosnost (ikony + čísla).
 
@@ -213,3 +259,8 @@ dlouhá kalibrace poběží v noci):
 | Ovoce do zkažení a maso do porážky rovným dílem; stropy z potřeby energie                         | rozhodnutí kontroléru  |
 | Pastva = louka do 600 m bez polí a staveb + příloh; na maso navíc nejvýš polovina mláďat          | rozhodnutí kontroléru  |
 | Ves chová, kolik potřebuje – stádo dávající 1,5× potřeby masa neroste (krávy ano)                 | rozhodnutí kontroléru  |
+| Pastva po dílech přílohu od nejbližšího; zarůstající příloh a les vsi nejsou pastvinou            | návrh Clauda           |
+| 1,6 g/kg zůstává, přidají se luštěniny jako plodina na poli; maso mírně zvyšuje štěstí            | Martin (18. 10. 2026)  |
+| Luštěniny 22 % bílkovin, energie jako obilí; strop 25 % energie; jí se rovným dílem do sklizně    | návrh Clauda (rešerše) |
+| Cíl luštěnin z bílkovin po obilí, mléku a vejcích; potřeba masa až po luštěninách (podle zásoby)  | návrh Clauda           |
+| Maso štěstí až +3 – plně od 20 % energie z masa, méně poměrně                                     | návrh Clauda           |

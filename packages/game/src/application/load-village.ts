@@ -3,7 +3,8 @@ import { updateVillage } from './update-village';
 import type { Pause, VillageRecord, VillageRepository } from './villages';
 
 export interface LoadVillageInput {
-  settlementId: string;
+  /** Ves (id), ve které hráč jedná – její sídlo dává krajinu `landscape`. */
+  villageId: string;
   /** Dnešní herní den (index dne). */
   today: number;
   /**
@@ -14,8 +15,8 @@ export interface LoadVillageInput {
 }
 
 /**
- * Načte ves sídla dopočítanou do dneška (dopočítaný stav uloží); bez vsi null. S `pause` dělá
- * dlouhý dopočet mezi dny přestávky (server mezi tím obslouží jiné požadavky).
+ * Načte ves (podle id) dopočítanou do dneška (dopočítaný stav uloží); bez vsi null. S `pause`
+ * dělá dlouhý dopočet mezi dny přestávky (server mezi tím obslouží jiné požadavky).
  */
 export async function loadVillage(
   deps: { villages: VillageRepository; pause?: Pause },
@@ -23,7 +24,7 @@ export async function loadVillage(
 ): Promise<VillageRecord | null> {
   const result = await updateVillage(
     deps.villages,
-    input.settlementId,
+    input.villageId,
     input.today,
     input.landscape,
     (state) => ({

@@ -21,10 +21,19 @@ import {
 import {
   CRAFT_LOOKS,
   DWELLING_NAMES,
+  ROAD_GRADE_NAMES,
+  ROAD_UPGRADE_NAMES,
   SACRED_BUILDING_NAMES,
   type Craft,
   type WorkshopActivity,
 } from '@/lib/village-view';
+import type { RoadGrade, RoadUpgrade } from '@bohemia/game';
+import {
+  CancelRelocationButton,
+  LeaveButton,
+  RelocateButtons,
+  RelocationProgress,
+} from './RelocationControls';
 import { Tooltip } from './Tooltip';
 
 function Portrait({ icon, name }: { icon: string; name: string }): ReactElement {
@@ -120,20 +129,42 @@ function activityLook(workshop: SelectionWorkshop): {
 } {
   const product = CRAFT_LOOKS[workshop.craft].product;
   const perDay = `${formatDecimal(workshop.outputPerDayKg, 1)} kg/den`;
+  const kiln = workshop.kiln;
+  const percent = kiln ? formatPercent(kiln.progress) : '–';
   const looks: Record<WorkshopActivity, { icon: string; name: string; value: string }> = {
     producing: {
       icon: product.icon,
       name: `Vyrábí – ${product.name.toLowerCase()}`,
       value: perDay,
     },
-    felling: { icon: 'wood', name: 'Kácí dřevo', value: perDay },
+    felling: {
+      icon: 'wood',
+      name: workshop.craft === 'burner' ? 'Kácí a připravuje buky na milíř' : 'Kácí dřevo',
+      value: kiln ? `${kiln.prepared}/${kiln.trees}` : perDay,
+    },
+    building: { icon: 'wood', name: 'Staví milíř', value: percent },
+    burning: { icon: 'charcoal', name: 'Pálí milíř – hlídá ve dne i v noci', value: percent },
+    drawing: { icon: 'charcoal', name: 'Vytahuje uhlí z milíře', value: percent },
+    planting: { icon: 'labor', name: 'Sází mladé buky na pařezy', value: `${workshop.toPlant}` },
+    resting: { icon: 'people', name: 'Uhlí je dost – pomáhá vsi', value: '–' },
     'no-charcoal': { icon: 'charcoal', name: 'Čeká na uhlí', value: '0' },
-    'no-wood': { icon: 'wood', name: 'Čeká na dřevo – není co kácet', value: '0' },
+    'no-wood': {
+      icon: 'wood',
+      name:
+        workshop.craft === 'burner'
+          ? 'Čeká na dřevo – nejsou dospělé buky'
+          : 'Čeká na dřevo – není co kácet',
+      value: '0',
+    },
     idle: { icon: 'labor', name: 'Nemá kdo pracovat', value: '0' },
     empty: { icon: 'people', name: 'Prázdná – nikdo tu nebydlí', value: '0' },
   };
   const look = looks[workshop.activity];
-  const stalled = workshop.activity !== 'producing' && workshop.activity !== 'felling';
+  const stalled =
+    workshop.activity === 'no-charcoal' ||
+    workshop.activity === 'no-wood' ||
+    workshop.activity === 'idle' ||
+    workshop.activity === 'empty';
   return { ...look, stalled };
 }
 
@@ -164,15 +195,39 @@ function WorkshopRow({ workshop }: { workshop: SelectionWorkshop }): ReactElemen
       >
         {formatInteger(workshop.stockKg)}
       </Stat>
+      {workshop.kiln?.forest && (
+        <Stat icon="wood" name="Milíř stojí v lese u těžby" testId="selection-workshop-forest">
+          les
+        </Stat>
+      )}
+      {workshop.craft === 'burner' && workshop.toPlant > 0 && workshop.activity !== 'planting' && (
+        <Stat
+          icon="labor"
+          name="Pařezy buků, na které ještě zasadí mladý buk (sází na jaře a na podzim)"
+          testId="selection-workshop-to-plant"
+        >
+          {workshop.toPlant}
+        </Stat>
+      )}
     </div>
   );
 }
 
+/** Akce panelu nad obydlími – přestěhování domácnosti a jeho zrušení (migration.md). */
+interface RelocationActions {
+  /** Začne umisťovat nové domy domácností `householdIds` (postupně, jeden za druhým). */
+  onRelocate?: (type: DwellingType, householdIds: readonly number[]) => void;
+  /** Zruší rozestavěné stěhování (stavba nového domu) – hotovo, až se vrátí. */
+  onCancelRelocation?: (constructionId: number) => Promise<void>;
+}
+
 function DwellingBody({
   details,
+  onRelocate,
+  onCancelRelocation,
 }: {
   details: Extract<SelectionDetails, { kind: 'dwelling' }>;
-}): ReactElement {
+} & RelocationActions): ReactElement {
   const tone = details.overcrowded ? 'text-red-400' : details.full ? 'text-[#f3cf86]' : '';
   return (
     <div className="flex min-w-0 flex-col gap-1.5">
@@ -204,6 +259,57 @@ function DwellingBody({
           {details.rebuild.treesToFell > 0 && <WoodToFell trees={details.rebuild.treesToFell} />}
         </div>
       )}
+      {details.relocation && (
+        <RelocationProgress
+          constructionId={details.relocation.constructionId}
+          progress={details.relocation.progress}
+          onCancel={onCancelRelocation}
+        />
+      )}
+      {details.relocate && (
+        <div className="flex items-center gap-2">
+          <RelocateButtons
+            options={details.relocate}
+            households={1}
+            onRelocate={onRelocate ? (type) => onRelocate(type, [details.id]) : undefined}
+          />
+          <LeaveButton />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Víc vybraných obydlí (migration.md – Výběr víc obydlí): kolik domácností a lidí, Přestěhovat
+ * (nový dům postupně každé domácnosti, která se může stěhovat) a Odejít (zatím zašedlé).
+ */
+function DwellingsBody({
+  details,
+  onRelocate,
+}: {
+  details: Extract<SelectionDetails, { kind: 'dwellings' }>;
+} & RelocationActions): ReactElement {
+  return (
+    <div className="flex min-w-0 flex-col justify-center gap-1.5">
+      <div className="flex items-center gap-3">
+        <Stat src="/icons/build/zemnice.png" name="Domácnosti" testId="selection-households">
+          {details.households}
+        </Stat>
+        <Stat icon="people" name="Lidé" testId="selection-people">
+          {details.people}
+        </Stat>
+      </div>
+      <div className="flex items-center gap-2">
+        {details.relocate && (
+          <RelocateButtons
+            options={details.relocate}
+            households={details.relocatable.length}
+            onRelocate={onRelocate ? (type) => onRelocate(type, details.relocatable) : undefined}
+          />
+        )}
+        <LeaveButton />
+      </div>
     </div>
   );
 }
@@ -261,6 +367,11 @@ function FieldBody({
             {count}
           </Stat>
         ))}
+        {details.overgrowingM2 > 0 && (
+          <Stat icon="overgrowth" name="Zarůstá" testId="selection-overgrowing">
+            {formatHa(details.overgrowingM2)}
+          </Stat>
+        )}
       </div>
       <ul aria-label="Díly pole" className="flex flex-wrap gap-1.5">
         {details.stages.map(({ stage, count }) => (
@@ -528,7 +639,7 @@ function PenBody({
           <Stat icon="ox" name="Spřežení – stáří (roky)" testId="selection-team-age">
             {details.team.ageYears}
           </Stat>
-          <Stat icon="date" name="Spřežení – slouží ještě (roky)" testId="selection-team-left">
+          <Stat icon="hourglass" name="Spřežení – slouží ještě (roky)" testId="selection-team-left">
             {details.team.yearsLeft}
           </Stat>
         </div>
@@ -540,7 +651,7 @@ function PenBody({
             name="Výcvik spřežení"
             testId="selection-training"
           />
-          <Stat icon="date" name="Výcvik – zbývá dní" testId="selection-training-days">
+          <Stat icon="hourglass" name="Výcvik – zbývá dní" testId="selection-training-days">
             {formatInteger(details.training.daysLeft)}
           </Stat>
         </div>
@@ -570,6 +681,195 @@ function PenBody({
           </button>
         </Tooltip>
       )}
+    </div>
+  );
+}
+
+/** Portréty stupňů cesty a ikony tlačítek vylepšení (`/icons/build/<ikona>.png`). */
+export const ROAD_GRADE_ICONS: Record<RoadGrade, string> = {
+  trodden: 'cesta',
+  improved: 'cesta-upravena',
+  causeway: 'hat',
+};
+
+/**
+ * Pevná cesta (roads.md – Co hráč vidí): délka, stáří, stromy u ní, jabloně (z nich plodící),
+ * mokřina a brody; rozestavěné vylepšení a výsadba jabloní průběh; tlačítka vylepšení a „Vysadit
+ * jabloně“ (ikony, cena v popisku jako v 0 A.D.) – když nejde, zašedlé s důvodem červeně.
+ */
+function RoadBody({
+  details,
+  onUpgrade,
+  onPlantApples,
+}: {
+  details: Extract<SelectionDetails, { kind: 'road' }>;
+  onUpgrade?: (roadId: number, upgrade: RoadUpgrade) => Promise<void>;
+  onPlantApples?: (roadId: number) => Promise<void>;
+}): ReactElement {
+  const [busy, setBusy] = useState(false);
+  const run = (upgrade: RoadUpgrade): void => {
+    if (!onUpgrade || busy) return;
+    setBusy(true);
+    void onUpgrade(details.id, upgrade).finally(() => setBusy(false));
+  };
+  const plant = (): void => {
+    if (!onPlantApples || busy) return;
+    setBusy(true);
+    void onPlantApples(details.id).finally(() => setBusy(false));
+  };
+  const { apples } = details;
+  return (
+    <div className="flex min-w-0 flex-col gap-1.5">
+      <div className="flex items-center gap-3">
+        <Tooltip content="Délka" placement="above">
+          <span
+            data-testid="selection-length"
+            tabIndex={0}
+            className="text-sm font-semibold tabular-nums"
+          >
+            {formatInteger(details.lengthM)} m
+          </span>
+        </Tooltip>
+        <Stat icon="date" name="Stáří (roky)" testId="selection-road-age">
+          {details.ageYears}
+        </Stat>
+        <Oaks count={details.trees} name="Stromy u cesty" testId="selection-road-trees" />
+        {apples.trees > 0 && (
+          <Stat icon="apples" name="Jabloně (plodí)" testId="selection-road-apples">
+            {apples.trees}
+            {apples.bearing < apples.trees ? ` (${apples.bearing})` : ''}
+          </Stat>
+        )}
+        {(details.wetM > 0 || details.fords > 0) && (
+          <Tooltip content="Mokřina a brody" placement="above">
+            <span
+              data-testid="selection-wet"
+              tabIndex={0}
+              className="text-xs font-semibold tabular-nums"
+            >
+              {formatInteger(details.wetM)} m · {details.fords}×
+            </span>
+          </Tooltip>
+        )}
+      </div>
+      {details.building && (
+        <div className="flex items-center gap-1.5">
+          <Bar value={details.building.progress} name="Vylepšení" testId="selection-progress" />
+          {details.building.treesToFell > 0 && <WoodToFell trees={details.building.treesToFell} />}
+        </div>
+      )}
+      {apples.planting && (
+        <div className="flex items-center gap-1.5">
+          <Bar
+            value={apples.planting.progress}
+            name="Výsadba jabloní"
+            testId="selection-apples-progress"
+          />
+          {apples.planting.waits && (
+            <Tooltip content="Sází se na jaře a na podzim" placement="above">
+              <img
+                data-testid="selection-apples-waits"
+                src="/icons/resources/date.png"
+                alt="Sází se na jaře a na podzim"
+                width={18}
+                height={18}
+                tabIndex={0}
+              />
+            </Tooltip>
+          )}
+        </div>
+      )}
+      <div className="flex items-center gap-1.5">
+        {details.upgrades.map((option) => (
+          <Tooltip
+            key={option.upgrade}
+            placement="above"
+            content={
+              <span className="flex flex-col gap-0.5">
+                <span>{ROAD_UPGRADE_NAMES[option.upgrade]}</span>
+                <span className="flex items-center gap-2 tabular-nums">
+                  <span className="flex items-center gap-1">
+                    <img src="/icons/resources/labor.png" alt="" width={16} height={16} />
+                    {formatDecimal(option.laborManDays, 0)}
+                  </span>
+                  {option.trees > 0 && (
+                    <span className="flex items-center gap-1">
+                      <img src="/icons/resources/wood.png" alt="" width={16} height={16} />
+                      {option.trees}
+                    </span>
+                  )}
+                </span>
+                {option.blocked && (
+                  <span data-testid="road-upgrade-blocked" className="font-semibold text-red-400">
+                    {option.blocked}
+                  </span>
+                )}
+              </span>
+            }
+          >
+            <button
+              type="button"
+              data-testid={`road-upgrade-${option.upgrade}`}
+              aria-label={ROAD_UPGRADE_NAMES[option.upgrade]}
+              disabled={option.blocked !== null || busy || !onUpgrade}
+              aria-busy={busy}
+              onClick={() => run(option.upgrade)}
+              className={`hud-inset h-10 w-10 overflow-hidden rounded ${busy ? 'disabled:cursor-wait disabled:opacity-60' : 'disabled:cursor-not-allowed disabled:opacity-45 disabled:grayscale'}`}
+            >
+              <img
+                src={`/icons/build/${ROAD_GRADE_ICONS[option.upgrade]}.png`}
+                alt=""
+                width={40}
+                height={40}
+                className="h-full w-full"
+              />
+            </button>
+          </Tooltip>
+        ))}
+        <Tooltip
+          placement="above"
+          content={
+            <span className="flex flex-col gap-0.5">
+              <span>Vysadit jabloně</span>
+              <span className="flex items-center gap-2 tabular-nums">
+                <span className="flex items-center gap-1">
+                  <img src="/icons/resources/labor.png" alt="" width={16} height={16} />
+                  {formatDecimal(apples.option.laborManDays, 0)}
+                </span>
+                {apples.option.trees > 0 && (
+                  <span className="flex items-center gap-1">
+                    <img src="/icons/resources/apples.png" alt="" width={16} height={16} />
+                    {apples.option.trees}
+                  </span>
+                )}
+              </span>
+              {apples.option.blocked && (
+                <span data-testid="road-apples-blocked" className="font-semibold text-red-400">
+                  {apples.option.blocked}
+                </span>
+              )}
+            </span>
+          }
+        >
+          <button
+            type="button"
+            data-testid="road-plant-apples"
+            aria-label="Vysadit jabloně"
+            disabled={apples.option.blocked !== null || busy || !onPlantApples}
+            aria-busy={busy}
+            onClick={plant}
+            className={`hud-inset h-10 w-10 overflow-hidden rounded ${busy ? 'disabled:cursor-wait disabled:opacity-60' : 'disabled:cursor-not-allowed disabled:opacity-45 disabled:grayscale'}`}
+          >
+            <img
+              src="/icons/build/jablone.png"
+              alt=""
+              width={40}
+              height={40}
+              className="h-full w-full"
+            />
+          </button>
+        </Tooltip>
+      </div>
     </div>
   );
 }
@@ -616,20 +916,43 @@ function SacredBody({
  * a průběh založení / rozšíření; sad: výměra, stáří, úroda příští sklizně a průběh výsadby;
  * posvátný dub, háj, modla a svatyně: kolik přidávají štěstí (háj i počet dubů), rozestavěná
  * modla a svatyně průběh stavby a duby ke skácení; ohrada: zvířata, seno, stáda, spřežení
- * a výcvik (`onTrainTeam` – akce „Vycvičit spřežení“).
+ * a výcvik (`onTrainTeam` – akce „Vycvičit spřežení“); pevná cesta: délka, stáří, stromy,
+ * vylepšení (`onUpgradeRoad`) a výsadba jabloní (`onPlantRoadApples`). Obydlí a víc vybraných
+ * obydlí: Přestěhovat (`onRelocate`), Odejít (zatím zašedlé) a průběh stěhování se zrušením
+ * (`onCancelRelocation` – migration.md).
  */
 export function SelectionPanel({
   details,
   onTrainTeam,
+  onRelocate,
+  onCancelRelocation,
+  onUpgradeRoad,
+  onPlantRoadApples,
 }: {
   details: SelectionDetails | null;
   /** Zadá v ohradě výcvik spřežení (server action) – hotovo, až se vrátí. */
   onTrainTeam?: (penId: number) => Promise<void>;
-}): ReactElement | null {
+  /** Zadá vylepšení pevné cesty (server action) – hotovo, až se vrátí. */
+  onUpgradeRoad?: (roadId: number, upgrade: RoadUpgrade) => Promise<void>;
+  /** Zadá výsadbu jabloní podél pevné cesty (server action) – hotovo, až se vrátí. */
+  onPlantRoadApples?: (roadId: number) => Promise<void>;
+} & RelocationActions): ReactElement | null {
   if (!details) return null;
   let portrait: ReactElement;
   let body: ReactElement;
-  if (details.kind === 'pen') {
+  if (details.kind === 'road') {
+    portrait = (
+      <Portrait icon={ROAD_GRADE_ICONS[details.grade]} name={ROAD_GRADE_NAMES[details.grade]} />
+    );
+    body = (
+      <RoadBody
+        key={details.id}
+        details={details}
+        onUpgrade={onUpgradeRoad}
+        onPlantApples={onPlantRoadApples}
+      />
+    );
+  } else if (details.kind === 'pen') {
     portrait = <Portrait icon="ohrada" name="Ohrada" />;
     body = <PenBody key={details.id} details={details} onTrainTeam={onTrainTeam} />;
   } else if (details.kind === 'field') {
@@ -642,7 +965,11 @@ export function SelectionPanel({
     portrait = <Portrait icon="sad" name="Sad" />;
     body = <OrchardBody details={details} />;
   } else if (details.kind === 'sacred-oak') {
-    portrait = <Portrait icon="dub" name="Posvátný dub" />;
+    portrait = details.snag ? (
+      <Portrait icon="sous" name="Posvátná souš" />
+    ) : (
+      <Portrait icon="dub" name="Posvátný dub" />
+    );
     body = (
       <div className="flex flex-col justify-center gap-1.5">
         <div className="flex items-center gap-3">
@@ -678,11 +1005,23 @@ export function SelectionPanel({
           {details.treesToFell > 0 && <WoodToFell trees={details.treesToFell} />}
         </div>
         <Bar value={details.progress} name="Stavba" testId="selection-progress" />
+        {details.relocates !== null && (
+          <CancelRelocationButton constructionId={details.id} onCancel={onCancelRelocation} />
+        )}
       </div>
     );
+  } else if (details.kind === 'dwellings') {
+    portrait = <Portrait icon="zemnice" name={`Obydlí (${details.ids.length})`} />;
+    body = <DwellingsBody details={details} onRelocate={onRelocate} />;
   } else {
     portrait = dwellingPortrait(details.type, details.workshop?.craft ?? null);
-    body = <DwellingBody details={details} />;
+    body = (
+      <DwellingBody
+        details={details}
+        onRelocate={onRelocate}
+        onCancelRelocation={onCancelRelocation}
+      />
+    );
   }
   return (
     <section

@@ -38,6 +38,27 @@ export const EARTH_LAYER: RibbonLayer = {
   widthFactor: 0.55,
 };
 
+/** Upravená cesta (roads.md) – širší udusaný pás (2,6 m), hlína skoro po celé šířce. */
+export const IMPROVED_WORN_LAYER: RibbonLayer = {
+  width: { weak: 2.6, strong: 2.6 },
+  softM: 0.55,
+  alpha: () => 0.92,
+  widthFactor: 1,
+};
+export const IMPROVED_EARTH_LAYER: RibbonLayer = {
+  width: { weak: 2.6, strong: 2.6 },
+  softM: 0.3,
+  alpha: () => 0.95,
+  widthFactor: 0.8,
+};
+/** Strouha po straně upravené cesty – úzký tmavý pás bahna. */
+export const DITCH_LAYER: RibbonLayer = {
+  width: { weak: 0.55, strong: 0.55 },
+  softM: 0.18,
+  alpha: () => 0.9,
+  widthFactor: 1,
+};
+
 /** Krok průřezů podél osy (m). */
 const STEP_M = 0.9;
 /** Jak moc se osa vlní do stran (m) a na jakou délku vlny (m). */
@@ -172,36 +193,6 @@ function addRibbon(
  * (trasy vedou po buňkách sítě – osa pěšiny je od osy cesty až o půl buňky vedle).
  */
 const ROAD_FADE_M = { hidden: 1.4, full: 3.2 } as const;
-/** Pevná cesta (vyšlapaná) se kreslí jako plně vyšlapaná pěšina (síla 0–1). */
-const ROAD_STRENGTH = 1;
-/** Konec pevné cesty, u kterého nekončí jiná cesta, se vytrácí (volný konec – brána, pole). */
-const ROAD_JOIN_M = 0.5;
-
-/** Pevné cesty jako pěšiny pro obtisk: plně vyšlapané, volný konec se vytrácí. */
-export function roadLines(roads: readonly SceneRoad[]): PathLine[] {
-  const ends = roads.flatMap((r) => [r.points[0], r.points[r.points.length - 1]]);
-  const joined = (p: { x: number; z: number } | undefined, own: number): boolean =>
-    p !== undefined &&
-    ends.some(
-      (q, i) =>
-        Math.floor(i / 2) !== own &&
-        q !== undefined &&
-        Math.hypot(q.x - p.x, q.z - p.z) <= ROAD_JOIN_M,
-    );
-  // napojení doprostřed jiné cesty se v datech vždy rozdělí – stačí porovnat konce
-  return roads
-    .filter((r) => r.points.length >= 2)
-    .map((r) => {
-      const k = roads.indexOf(r);
-      return {
-        points: r.points,
-        strength: r.points.map(() => ROAD_STRENGTH),
-        years: r.points.map(() => 0),
-        openStart: !joined(r.points[0], k),
-        openEnd: !joined(r.points[r.points.length - 1], k),
-      };
-    });
-}
 
 /**
  * Krytí pěšiny dne u pevné cesty: u osy cesty 0, od ROAD_FADE_M.full plné – pěšina, která vede

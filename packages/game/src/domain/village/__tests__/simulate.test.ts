@@ -186,12 +186,13 @@ describe('advanceVillage – dopočítání', () => {
     // (≥ 0,95 po 95 % let), je cíl kalibrace v Task 10 – startovní pole 1,7 ha je po třech
     // osevech vyčerpané a potřeba roste (dospívající → dospělí, porody).
     const s = advanceVillage(found(at(600, 10, 1)), at(602, 8, 31), null);
-    // jař 601 (díly hotové po plánu jdou do jaře), pak ozim v červenci a jař v srpnu 602
+    // jař 601 (díly hotové po plánu jdou do jaře), pak luštěniny a ozim v červenci a jař
+    // v srpnu 602 (luštěniny až z ročního plánu – fields.md, Luštěniny)
     expect(
       harvests(s)
         .filter((e) => e.kg > 0)
         .map((e) => e.crop ?? 'spring'),
-    ).toEqual(['spring', 'winter', 'spring']);
+    ).toEqual(['spring', 'legume', 'winter', 'spring']);
     expect(count(s, 'hunger-began')).toBe(0);
     expect(s.hungry).toBe(false);
   });
@@ -342,7 +343,7 @@ describe('advanceVillage – roční plán a sklizeň', () => {
   }
 
   it('1. 9. příloh 16 let se vrací jako pastvina: drn v plánu, bez bonusu, plete se', () => {
-    // na přílohu se pase – nezaroste v les, vrátit ho stojí drn jako louka (Martin, 18. 10. 2026)
+    // spásaný příloh (bez let bez pastvy) nezaroste, vrátit ho stojí drn jako louka
     const { s } = returningFallow(604);
     const crops = planCrops(s.plan!);
     expect(planPartIds(s.plan!).length).toBeGreaterThan(0);
@@ -360,6 +361,34 @@ describe('advanceVillage – roční plán a sklizeň', () => {
       expect(part).toMatchObject({ state: 'sown', fallowSinceDay: null, bonusUntilDay: null });
     }
     expect(s.chronicle.some((e) => e.kind === 'part-became-forest')).toBe(false);
+  });
+
+  it('1. 9. vrácený mladý les (25 let bez pastvy): mýcení jako les, za dospělé stromy klády', () => {
+    // fields.md – Zarůstání: mladý les se vrací za sazbu lesa, dospělé stromy dají klády
+    const day = at(620, 9, 1);
+    const start = found(at(600, 6, 1));
+    start.constructions = [];
+    start.lastDay = day - 1;
+    start.woodLogs = 0;
+    for (const p of start.parts) {
+      p.foundingDone = p.foundingCost;
+      p.state = 'fallow';
+      p.fallowSinceDay = at(595, 9, 1);
+      p.overgrowthYears = 25;
+    }
+    const s = advanceVillage(start, day, null);
+    const crops = planCrops(s.plan!);
+    expect(planPartIds(s.plan!).length).toBeGreaterThan(0);
+    const ha = (work: (typeof crops)[number]['work']): number =>
+      work.partIds.reduce((sum, id) => sum + s.parts.find((p) => p.id === id)!.areaM2, 0) / 10_000;
+    for (const { work } of crops) {
+      if (work.partIds.length === 0) continue;
+      expect(work.required.reclaim).toBeGreaterThanOrEqual(250 * ha(work) - 1e-6);
+    }
+    for (const id of planPartIds(s.plan!)) {
+      expect(s.parts.find((p) => p.id === id)?.overgrowthYears).toBeUndefined();
+    }
+    expect(s.woodLogs ?? 0).toBeGreaterThan(0);
   });
 
   it('1. 9. příloh 15 let: vrátí se bez bonusu úrodnosti', () => {

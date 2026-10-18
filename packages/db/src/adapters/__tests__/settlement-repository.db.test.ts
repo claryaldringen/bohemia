@@ -32,7 +32,7 @@ const seat = { ownerId: 'hrac-1', landscapeSeed: 1234, layerVersions: CURRENT_LA
 describe('createSettlementRepository', () => {
   it('createSeat založí sídlo a findSeat ho najde', async () => {
     const created = await repository.createSeat(seat);
-    expect(created).toMatchObject({ ...seat, isSeat: true });
+    expect(created).toMatchObject({ ...seat, isSeat: true, worldCell: null });
     expect(created.createdAt).toBeInstanceOf(Date);
     expect(await repository.findSeat('hrac-1')).toEqual(created);
   });
@@ -94,6 +94,45 @@ describe('createSettlementRepository', () => {
     const created = await repository.createSeat(seat);
     const results = await Promise.all([1, 2, 3].map(() => repository.archive(created.id)));
     expect(results.filter(Boolean)).toHaveLength(1);
+  });
+
+  it('create založí nesídelní sídlo na políčku mřížky světa, obsazené políčko odmítne', async () => {
+    const home = await repository.createSeat(seat);
+    const created = await repository.create({
+      ...seat,
+      landscapeSeed: 77,
+      worldCell: { x: 3, y: -2 },
+    });
+    expect(created).toMatchObject({
+      ownerId: 'hrac-1',
+      isSeat: false,
+      landscapeSeed: 77,
+      worldCell: { x: 3, y: -2 },
+    });
+    expect((await repository.listActive('hrac-1')).map((s) => s.id)).toEqual([
+      home.id,
+      created!.id,
+    ]);
+    // políčko je jedno na celý svět – ani jiný hráč na něj nesmí
+    await addPlayer('hrac-2');
+    const taken = await repository.create({
+      ownerId: 'hrac-2',
+      landscapeSeed: 78,
+      layerVersions: CURRENT_LAYER_VERSIONS,
+      worldCell: { x: 3, y: -2 },
+    });
+    expect(taken).toBeNull();
+    expect(await repository.findSeat('hrac-1')).toEqual(home);
+  });
+
+  it('archivované sídlo políčko mřížky uvolní', async () => {
+    const cell = { x: 0, y: 1 };
+    const created = await repository.create({ ...seat, worldCell: cell });
+    expect(await repository.create({ ...seat, worldCell: cell })).toBeNull();
+    await repository.archive(created!.id);
+    expect(await repository.create({ ...seat, worldCell: cell })).toMatchObject({
+      worldCell: cell,
+    });
   });
 
   it('smazání hráče smaže i jeho sídla', async () => {

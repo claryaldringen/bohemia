@@ -22,9 +22,14 @@ A po vyšlapané pěšině se chodí lépe – cesta na vzdálené pole po ní s
 - **Kolik se kam chodí:** voda podle lidí v domácnosti, dřevo na domácnost (v zimní půlce roku
   víc), na pole, do sadu a na stavby podle dnešní práce (rozdělení práce dne z jádra, jeden
   člověkoden = jedna cesta) a k zavedeným místům trochu navíc, ať pěšina mezi pracemi nezaroste.
-  Ke hřbitovu se chodí často – hroby předků raní Slované navštěvovali pravidelně (obětiny,
-  hostiny za mrtvé): 1,5 cesty za den celé vsi (návrh Clauda, dřív 0,7 – ves se dvěma
-  domácnostmi pak pěšinu ke hřbitovu neměla).
+  Ke hřbitovu se chodí podle počtu lidí – hroby předků raní Slované navštěvovali pravidelně
+  (obětiny, hostiny za mrtvé): 0,15 cesty za den na člověka, každá domácnost k nejbližšímu
+  hřbitovu (Martin schválil, návrh Clauda; ves se 7 lidmi ≈ 1 cesta denně, se 40 lidmi ≈ 6).
+  K zavedeným místům – posvátnému dubu, háji, modle, svatyni, hřbitovu a sadu – chodí každá
+  domácnost jen k nejbližšímu místu daného druhu (Martin: lidé chodí jen k nejbližším věcem;
+  nejbližší vzdušnou čarou od domu – návrh Clauda); práce dne (pole, stavby, kácení, práce
+  v sadu) jde tam, kde se dnes pracuje – vylepšení pevné cesty a práce u jabloní podél ní
+  ([roads.md](roads.md)) k polovině úseku.
   Daleko (voda, les) se chodí méně často – pěšina tam vznikne, až když se cesty víc domácností
   slijí. Ohrada (oxen.md) má k práci dne trochu navíc jako zavedené místo. Stáda (diet.md – ovce
   s kozami po 20 kusech, krávy po 6, jako ve scéně) se denně vyženou na úhor a zpět – jedna cesta
@@ -60,17 +65,21 @@ Stav: Martin 18. 10. 2026 („Tam, kde bude vyšlapaná cesta, ať se chodí o n
 není.“), čísla návrh Clauda.
 
 - **Po vyšlapané pěšině se chodí o čtvrtinu rychleji** (podle síly pěšiny – plná pěšina 25 %,
-  slabá úměrně méně; `PATH_WALK` v `rules.ts`).
+  slabá úměrně méně; `PATH_WALK` v `rules.ts`). Po pevné cestě podle stupně, mokřina a brody –
+  [roads.md](roads.md) – Rychlejší chůze.
 - **Vzdálenost dílu pole pro práci** (fields.md – Vzdálenost) se měří chůzí z nejbližšího
   obydlí: rovně, nebo rovně k pěšině, po ní (úsek se počítá 0,75–1 × délka podle síly) a rovně
-  od ní na díl – kratší z obou. **Nikdy víc než přímá vzdálenost** – pěšina práci jen zlevní.
+  od ní na díl – kratší z obou. Pěšina práci jen zlevní – nikdy víc než chůze rovně; chůze rovně
+  ale počítá mokřinu a brody ([roads.md](roads.md)), takže díl za potokem může být dál než
+  vzdušnou čarou. Stejně se měří čtverce sadu a palivo (obydlí → okraj lesa).
 - **Kdy se přepočítá:** když se změní rozložení vsi – nové obydlí nebo staveniště, nová pole
   a díly, změna stadia dílu (osev, úhor), sady, hřbitovy, posvátná místa, kdo kde bydlí a stáří
   spojení (nová pěšina se vyšlapává dva roky). Simulace to kontroluje den po dni, výsledek tak
   nezávisí na tom, po jakých kouscích se ves dopočítá. Do sítě jde i práce posledního dne (kam
   ves chodí), ale kvůli ní samotné se nepřepočítává.
-- **Uložení:** vzdálenost chůze každého dílu (`walkDistanceM`); vsi uložené dřív si ji spočítají
-  při prvním dopočítání s krajinou. Kalibrace (bez krajiny) počítá dál s přímou vzdáleností.
+- **Uložení:** vzdálenost chůze každého dílu a čtverce sadu (`walkDistanceM`) a obydlí k okraji
+  lesa (`forestWalkM`); vsi uložené dřív si je spočítají při prvním dopočítání s krajinou.
+  Kalibrace (bez krajiny) počítá dál s přímou vzdáleností.
 - Server i prohlížeč počítají stejnou funkcí – pěšiny ve scéně jsou tytéž, po kterých se
   počítá práce (v prohlížeči z dnešní práce dne, na serveru z rozložení při poslední změně).
 
@@ -80,7 +89,7 @@ není.“), čísla návrh Clauda.
   obydlí jako by stála odjakživa); opuštěná pěšina hned zmizí, nezarůstá postupně. Pamatují si ji
   až pevné cesty ([roads.md](roads.md)) – vznikají z celoročního provozu a zarůstají za 5 let.
 - Ke hromadě klád se pěšina nekreslí (její místo zná jen scéna).
-- Sady zatím počítají přímou vzdálenost (zrychlení po pěšině jen u polí).
 - Stáří pole server zatím neposílá – nově zakládané pole má pěšinu napoloviční.
-- Brody jsou jen mělké úzké úseky potoka; lávky a mosty nejsou.
+- Brody jsou jen mělké úzké úseky potoka; lávku staví hráč na pevné cestě ([roads.md](roads.md)),
+  mosty pro vozy nejsou.
 - Pěšina sama nic neodstraní (keře a kameny na ní stojí dál – jen se jim vyhne).

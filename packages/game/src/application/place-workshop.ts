@@ -1,5 +1,6 @@
 import { obstaclesOf, tileOfWorldPoint, type Landscape } from '../domain/landscape';
 import {
+  villageRoadWalk,
   CRAFTS,
   buildAffordability,
   checkWorkshopPlacement,
@@ -15,7 +16,8 @@ import { updateLivingVillage } from './update-village';
 import type { VillageRepository, VillageResult } from './villages';
 
 export interface PlaceWorkshopInput {
-  settlementId: string;
+  /** Ves (id), ve které hráč jedná – její sídlo dává krajinu `landscape`. */
+  villageId: string;
   landscape: Landscape;
   /** Dnešní herní den (index dne). */
   today: number;
@@ -38,7 +40,7 @@ export function placeWorkshop(
 ): Promise<VillageResult> {
   return updateLivingVillage(
     deps.villages,
-    input.settlementId,
+    input.villageId,
     input.today,
     input.landscape,
     (state) => {
@@ -79,6 +81,7 @@ export function placeWorkshop(
             sacred: check.spared,
             // pole a sady pod obydlím se o zabranou plochu zmenší
             takenLand: check.takenLand,
+            walk: villageRoadWalk(state, input.landscape),
           },
         ),
       };

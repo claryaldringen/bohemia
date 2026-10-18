@@ -3,11 +3,14 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { fallbackGeometry } from '../sacred-fallback';
 import {
+  DEAD_OAK_MODELS,
   IDOL_RING_M,
   SACRED_SITE_KIND,
   SHRINE_FIRE_RADIUS_M,
   SHRINE_RING_M,
+  fallenOakInstance,
   groveStones,
+  sacredSnagInstance,
   sacredStakeLines,
   shrineFireSpots,
 } from '../sacred-layout';
@@ -126,5 +129,45 @@ describe('náhradní tvary', () => {
       expect(Math.max(...geometry!.indices)).toBeLessThan(vertices);
     }
     expect(fallbackGeometry('neznámý')).toBeNull();
+  });
+});
+
+describe('uschlý a padlý posvátný dub', () => {
+  /** Rozměry modelu dekorace z GLB (min a max pozic všech meshů). */
+  const bounds = (model: string): { height: number; length: number } => {
+    const data = readFileSync(join(__dirname, `../../../public/models/decor/${model}.glb`));
+    const length = data.readUInt32LE(12);
+    const json = JSON.parse(data.subarray(20, 20 + length).toString('utf8')) as {
+      meshes: { primitives: { attributes: { POSITION: number } }[] }[];
+      accessors: { min?: number[]; max?: number[] }[];
+    };
+    const min = [Infinity, Infinity, Infinity];
+    const max = [-Infinity, -Infinity, -Infinity];
+    for (const mesh of json.meshes) {
+      for (const p of mesh.primitives) {
+        const accessor = json.accessors[p.attributes.POSITION]!;
+        for (let i = 0; i < 3; i++) {
+          min[i] = Math.min(min[i]!, accessor.min![i]!);
+          max[i] = Math.max(max[i]!, accessor.max![i]!);
+        }
+      }
+    }
+    return { height: max[1]! - min[1]!, length: max[0]! - min[0]! };
+  };
+  const oak = { id: 7, x: 10, z: -4, growth: 1.1, sizeM: 22 };
+
+  it('souš stojí na místě dubu, o čtvrtinu nižší než dub v den uschnutí', () => {
+    const snag = sacredSnagInstance({ ...oak, snag: true });
+    expect(snag).toMatchObject({ x: 10, z: -4 });
+    expect(bounds(DEAD_OAK_MODELS.snag).height * snag.scale).toBeCloseTo(0.75 * 22 * 1.1, 1);
+    // stejný dub = stejné natočení
+    expect(sacredSnagInstance({ ...oak, snag: true })).toEqual(snag);
+  });
+
+  it('padlý kmen leží přes místo dubu na délku ≈ 70 % výšky dubu; bez velikosti odhad', () => {
+    const fallen = fallenOakInstance(oak);
+    expect(fallen).toMatchObject({ x: 10, z: -4 });
+    expect(bounds(DEAD_OAK_MODELS.fallen).length * fallen.scale).toBeCloseTo(0.7 * 22 * 1.1, 1);
+    expect(fallenOakInstance({ id: 7, x: 0, z: 0 }).scale).toBeGreaterThan(0.5);
   });
 });

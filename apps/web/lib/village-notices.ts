@@ -6,8 +6,8 @@ import type { VillageView } from './village-view';
 // nebo dubový háj (happiness.md – jen když přibude), kovář nemá uhlí a dílna nemá co kácet
 // (crafts.md), svatba mezi domy (population.md – Sňatky mezi domy, když přibude), podzimní
 // porážka (diet.md), spřežení volů – vycvičené, dosloužilo, vůl uhynul pro nedostatek sena
-// (oxen.md) – a vesničané obnovují starý sad a starý sad dosloužil (orchard.md – Obnova sadu)
-// – nové události kroniky. Vymřelá ves žádná nemá.
+// (oxen.md) –, vesničané obnovují starý sad a starý sad dosloužil (orchard.md – Obnova sadu)
+// a posvátný dub uschl a posvátná souš padla (happiness.md) – nové události kroniky. Vymřelá ves žádná nemá.
 // Odvozují se z pohledu na ves a ukážou se jednou, když nově vzniknou – jako krátký mizející
 // řádek nahoře uprostřed (jako oznámení v 0 A.D.). Jen fakt, žádná rada.
 
@@ -21,13 +21,20 @@ export type NoticeKind =
   | 'no-wood'
   | 'sacred-oak'
   | 'sacred-grove'
+  | 'sacred-oak-died'
+  | 'sacred-snag-fell'
   | 'marriage'
   | 'slaughter'
   | 'team-ready'
   | 'team-retired'
   | 'ox-died'
   | 'orchard-renewal'
-  | 'orchard-gone';
+  | 'orchard-gone'
+  | 'part-forest'
+  /** Upozornění z jiné vsi hráče (migration.md – Víc vsí jednoho hráče). */
+  | 'other-hungry'
+  | 'other-starving'
+  | 'other-extinct';
 
 export interface VillageNotice {
   kind: NoticeKind;
@@ -65,10 +72,41 @@ export function villageNotices(view: VillageView): VillageNotice[] {
 
 /**
  * Upozornění, která mezi dvěma pohledy na ves nově vznikla (dřív neplatila). Bez předchozího
- * pohledu (první načtení) žádná.
+ * pohledu (první načtení) žádná; po přepnutí na jinou ves (jiné id) také žádná – porovnává se ves
+ * sama se sebou. Přidá i upozornění z ostatních vsí hráče (`otherVillageNotices`).
  */
 export function newNotices(previous: VillageView | null, next: VillageView): VillageNotice[] {
-  if (previous === null) return [];
+  if (previous === null || previous.id !== next.id) return [];
+  return [...ownNotices(previous, next), ...otherVillageNotices(previous, next)];
+}
+
+/**
+ * Upozornění z jiných vsí hráče (migration.md – návrh Clauda): hlad, vymírání hladem a vymření –
+ * krátký řádek se jménem vsi, jen když u té vsi nově vzniklo.
+ */
+export function otherVillageNotices(previous: VillageView, next: VillageView): VillageNotice[] {
+  const notices: VillageNotice[] = [];
+  for (const village of next.villages) {
+    if (village.id === next.id) continue;
+    const before = previous.villages.find((v) => v.id === village.id);
+    if (!before) continue;
+    if (village.extinct && !before.extinct) {
+      notices.push({ kind: 'other-extinct', tone: 'warn', text: `${village.name}: ves vymřela` });
+    } else if (village.starving && !before.starving) {
+      notices.push({
+        kind: 'other-starving',
+        tone: 'warn',
+        text: `${village.name}: lidé umírají hlady`,
+      });
+    } else if (village.hungry && !before.hungry) {
+      notices.push({ kind: 'other-hungry', tone: 'warn', text: `${village.name}: ves hladoví` });
+    }
+  }
+  return notices;
+}
+
+/** Nová upozornění vsi samotné mezi dvěma jejími pohledy. */
+function ownNotices(previous: VillageView, next: VillageView): VillageNotice[] {
   const before = new Set(villageNotices(previous).map((n) => n.kind));
   const notices = villageNotices(next).filter((n) => !before.has(n.kind));
   // posvátná místa vznikají jednou – fakt, když přibudou (happiness.md)
@@ -89,8 +127,8 @@ export function newNotices(previous: VillageView | null, next: VillageView): Vil
 }
 
 /**
- * Události kroniky, které se ohlásí jako fakt (diet.md, oxen.md, orchard.md – Obnova sadu) – nejvýš
- * jednou za druh.
+ * Události kroniky, které se ohlásí jako fakt (diet.md, oxen.md, orchard.md – Obnova sadu,
+ * fields.md – Zarůstání) – nejvýš jednou za druh.
  */
 type ChronicleEntry = VillageView['chronicle'][number];
 
@@ -114,6 +152,23 @@ const CHRONICLE_NOTICES: Partial<
     text: 'Vesničané obnovují starý sad',
   }),
   'orchard-gone': () => ({ kind: 'orchard-gone', tone: 'warn', text: 'Starý sad dosloužil' }),
+  // nepasený příloh zarostl lesem a vypadl z pole (fields.md – Zarůstání)
+  'part-became-forest': () => ({
+    kind: 'part-forest',
+    tone: 'warn',
+    text: 'Nepasené pole zarostlo lesem',
+  }),
+  // posvátný dub stářím uschl, posvátná souš padla (happiness.md – Posvátný dub)
+  'sacred-oak-died': () => ({
+    kind: 'sacred-oak-died',
+    tone: 'warn',
+    text: 'Posvátný dub uschl',
+  }),
+  'sacred-snag-fell': () => ({
+    kind: 'sacred-snag-fell',
+    tone: 'warn',
+    text: 'Posvátná souš padla',
+  }),
 };
 
 /** Nové události kroniky od předchozího pohledu (den po něm), které se ohlásí jako fakt. */

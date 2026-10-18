@@ -13,9 +13,12 @@ export interface Placement {
   preview: PlacementPreview | null;
   /**
    * Spustí umisťování ve scéně; běžící se zruší. `onConfirm` dostane jen prošlé umístění –
-   * se Shiftem i víckrát za sebou (umisťování pak běží dál).
+   * se Shiftem i víckrát za sebou (umisťování pak běží dál – `keepPlacing`).
    */
-  start(mode: PlacementMode, onConfirm: (result: PlacementResult) => void): void;
+  start(
+    mode: PlacementMode,
+    onConfirm: (result: PlacementResult, keepPlacing: boolean) => void,
+  ): void;
   /** Potvrdí umisťování jako Enter; neprošlé běží dál. */
   confirm(): void;
   cancel(): void;
@@ -50,7 +53,10 @@ export function usePlacement(scene: LandscapeScene | null): Placement {
   const tokenRef = useRef(0);
 
   const start = useCallback(
-    (mode: PlacementMode, onConfirm: (result: PlacementResult) => void): void => {
+    (
+      mode: PlacementMode,
+      onConfirm: (result: PlacementResult, keepPlacing: boolean) => void,
+    ): void => {
       if (!scene) return;
       const token = ++tokenRef.current;
       /** Ukončí toto umisťování v rozhraní; false = už neběží (nahradilo ho jiné). */
@@ -65,10 +71,10 @@ export function usePlacement(scene: LandscapeScene | null): Placement {
       scene.startPlacement(mode, {
         onConfirm: (result, keepPlacing) => {
           if (keepPlacing) {
-            if (tokenRef.current === token) onConfirm(result);
+            if (tokenRef.current === token) onConfirm(result, true);
             return;
           }
-          if (finish()) onConfirm(result);
+          if (finish()) onConfirm(result, false);
         },
         onCancel: () => {
           finish();
@@ -85,7 +91,7 @@ export function usePlacement(scene: LandscapeScene | null): Placement {
         if (!check.ok) throw new Error(check.reason ?? 'Umístění neprošlo kontrolou.');
         finish();
         scene.cancelPlacement(); // uklidí ducha ve scéně; jeho onCancel se už zahodí
-        onConfirm(result);
+        onConfirm(result, false);
       });
     },
     [scene],

@@ -12,6 +12,7 @@ function toSettlement(row: SettlementRow): Settlement {
     isSeat: row.isSeat,
     landscapeSeed: row.landscapeSeed,
     layerVersions: row.layerVersions,
+    worldCell: row.gridX === null || row.gridY === null ? null : { x: row.gridX, y: row.gridY },
     createdAt: row.createdAt,
   };
 }
@@ -60,6 +61,18 @@ export function createSettlementRepository(db: Database): SettlementRepository {
       if (!existing)
         throw new Error(`Sídelní sídlo hráče ${input.ownerId} nešlo založit ani najít.`);
       return existing;
+    },
+    async create({ worldCell, ...input }): Promise<Settlement | null> {
+      // Atomicky: obsazené políčko mřížky světa hlídá unikátní index – druhý INSERT nic nezmění.
+      const [created] = await db
+        .insert(settlement)
+        .values({ ...input, isSeat: false, gridX: worldCell.x, gridY: worldCell.y })
+        .onConflictDoNothing({
+          target: [settlement.gridX, settlement.gridY],
+          where: sql`${settlement.archivedAt} IS NULL`,
+        })
+        .returning();
+      return created ? toSettlement(created) : null;
     },
   };
 }

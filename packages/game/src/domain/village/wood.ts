@@ -3,6 +3,7 @@ import {
   obstacleIndex,
   obstacleKind,
   obstacleLook,
+  obstacleSpecies,
   obstaclesNear,
   type ObstacleLayer,
 } from '../landscape';
@@ -11,7 +12,7 @@ import {
   fellTrees,
   obstacleChangesAt,
   obstacleStatus,
-  treeRegrowth,
+  felledTreeStage,
   type ObstacleChanges,
   type TreeAtDistance,
 } from './obstacles';
@@ -25,10 +26,13 @@ import {
   OAK_MODEL_HEIGHT_M,
   SACRED_BUILDINGS,
 } from './rules';
+import type { Walk } from './paths/walking';
 import { sacredSitesOf } from './sacred';
+import { isWoodTreeId } from './woods';
 import type {
   Construction,
   ConstructionWood,
+  Dwelling,
   DwellingType,
   SacredBuildingKind,
   VillageState,
@@ -90,7 +94,7 @@ export function treesToFell(c: Pick<Construction, 'wood'>): number {
 
 /**
  * Stromy vyhrazené rozestavěnými stavbami, které ještě stojí (nepokácené), a stromy, které právě
- * kácejí řemeslné dílny (uhlíř, hrnčíř – crafts.md). Patří své stavbě nebo dílně: nepočítají se
+ * kácejí řemeslné dílny (hrnčíř, buky milíře uhlíře – crafts.md). Patří své stavbě nebo dílně: nepočítají se
  * do klád z mýcení (pole, hřbitov, staveniště) a nekácí je nikdo jiný.
  */
 export function reservedTrees(
@@ -107,6 +111,13 @@ export function reservedTrees(
   for (const d of state.dwellings ?? []) {
     const id = d.workshop?.felling?.id;
     if (id !== undefined && id !== null) reserved.add(id);
+    // buky rozdělaného milíře uhlíře, které ještě nejsou připravené (crafts.md – Uhlíř)
+    const kiln = d.workshop?.kiln;
+    if (!kiln) continue;
+    for (let i = kiln.prepared; i < kiln.trees.length; i++) {
+      const tree = kiln.trees[i]!.id;
+      if (tree !== null) reserved.add(tree);
+    }
   }
   return reserved;
 }
@@ -137,12 +148,30 @@ export function isOak(layer: ObstacleLayer, index: number): boolean {
   return OAK_MODEL_HEIGHT_M[obstacleLook(layer, index)] !== undefined;
 }
 
+/** Výchozí výběr stromů – všechny dospělé (i les vsi). */
+const ACCEPT_ALL = (): boolean => true;
+
+/**
+ * Dospělé stromy lesa vsi (fields.md – Les vsi), které v den změn stojí – mezi překážkami
+ * přidanými vsí (`changes.added`), bez stromů z `exclude`.
+ */
+function woodTreesStanding(
+  changes: ObstacleChanges,
+  exclude: ReadonlySet<number>,
+): { id: number; x: number; z: number }[] {
+  return (changes.added ?? []).filter(
+    (o) => o.kind === 'tree' && isWoodTreeId(o.id) && !exclude.has(o.id),
+  );
+}
+
 /**
  * Nejbližší stojící dospělé stromy k bodu (nejbližší první, při shodě menší id) bez stromů
  * z `exclude` a bez posvátných dubů a stromů hájů (ty se pro stavby nekácí – happiness.md) –
  * jako `matureTreesByDistance`, ale hledá po políčkách v rostoucím čtverci, takže neprochází
- * celou vrstvu. `accept` zúží výběr (jen duby pro modlu a svatyni). Když dospělých stromů není
- * dost, vrátí všechny.
+ * celou vrstvu. Patří k nim i dospělé stromy lesa vsi (`changes.added` – fields.md, Les vsi):
+ * pro stavby i pro uhlíře (`isBeech` – les vsi je smíšený les a dřevo vsi, uhlíř ho pálí jako buk),
+ * duby pro modlu a svatyni rostou jen v lese krajiny. `accept` zúží výběr (duby pro modlu
+ * a svatyni, buky pro uhlíře). Když dospělých stromů není dost, vrátí všechny.
  */
 export function nearestMatureTrees(
   layer: ObstacleLayer,
@@ -150,9 +179,32 @@ export function nearestMatureTrees(
   from: { x: number; z: number },
   count: number,
   exclude: ReadonlySet<number> = new Set(),
-  accept: (layer: ObstacleLayer, index: number) => boolean = () => true,
+  accept: (layer: ObstacleLayer, index: number) => boolean = ACCEPT_ALL,
 ): TreeAtDistance[] {
   if (count <= 0) return [];
+  const fromLayer = nearestLayerTrees(layer, changes, from, count, exclude, accept);
+  if (accept !== ACCEPT_ALL && accept !== isBeech) return fromLayer;
+  const woods = woodTreesStanding(changes, exclude).map((t) => ({
+    id: t.id,
+    x: t.x,
+    z: t.z,
+    distanceM: length2(t.x - from.x, t.z - from.z),
+  }));
+  if (woods.length === 0) return fromLayer;
+  return [...fromLayer, ...woods]
+    .sort((a, b) => a.distanceM - b.distanceM || a.id - b.id)
+    .slice(0, count);
+}
+
+/** Nejbližší dospělé stromy vrstvy krajiny (`nearestMatureTrees` bez lesa vsi). */
+function nearestLayerTrees(
+  layer: ObstacleLayer,
+  changes: ObstacleChanges,
+  from: { x: number; z: number },
+  count: number,
+  exclude: ReadonlySet<number>,
+  accept: (layer: ObstacleLayer, index: number) => boolean,
+): TreeAtDistance[] {
   const status = obstacleStatus(changes);
   const sacred = sacredSitesOf(layer).protectedTrees;
   const extent = layer.size * layer.cellSizeM;
@@ -186,18 +238,33 @@ export function nearestMatureTrees(
   }
 }
 
-/** Dospělé stromy a duby vygenerované vrstvy, které jde kácet (bez posvátných) – jednou na vrstvu. */
-const layerTreeCounts = new WeakMap<ObstacleLayer, { trees: number; oaks: number }>();
+/** Je strom vrstvy buk (podle modelu – `lookSpecies`)? Uhlíř pálí jen buky (crafts.md – Uhlíř). */
+export function isBeech(layer: ObstacleLayer, index: number): boolean {
+  return obstacleSpecies(layer, index) === 'beech';
+}
 
-function layerFellableTrees(layer: ObstacleLayer): { trees: number; oaks: number } {
+/** Které dospělé stromy se počítají: všechny, duby (modla, svatyně), nebo buky (uhlíř). */
+export type TreeFilter = 'all' | 'oaks' | 'beeches';
+
+const TREE_FILTERS: Record<TreeFilter, (layer: ObstacleLayer, index: number) => boolean> = {
+  all: () => true,
+  oaks: isOak,
+  beeches: isBeech,
+};
+
+/** Dospělé stromy, duby a buky vrstvy, které jde kácet (bez posvátných) – jednou na vrstvu. */
+const layerTreeCounts = new WeakMap<ObstacleLayer, Record<TreeFilter, number>>();
+
+function layerFellableTrees(layer: ObstacleLayer): Record<TreeFilter, number> {
   let counts = layerTreeCounts.get(layer);
   if (counts === undefined) {
     const sacred = sacredSitesOf(layer).protectedTrees;
-    counts = { trees: 0, oaks: 0 };
+    counts = { all: 0, oaks: 0, beeches: 0 };
     for (let i = 0; i < layer.count; i++) {
       if (obstacleKind(layer, i) !== 'tree' || sacred.has(layer.id[i]!)) continue;
-      counts.trees++;
+      counts.all++;
       if (isOak(layer, i)) counts.oaks++;
+      if (isBeech(layer, i)) counts.beeches++;
     }
     layerTreeCounts.set(layer, counts);
   }
@@ -205,7 +272,7 @@ function layerFellableTrees(layer: ObstacleLayer): { trees: number; oaks: number
 }
 
 /**
- * Kolik dospělých stromů (`oaksOnly` – dubů) krajiny sídla jde ještě skácet – stojící dospělé
+ * Kolik dospělých stromů (`filter` – všech, dubů, nebo buků) krajiny sídla jde ještě skácet – stojící dospělé
  * stromy bez těch, které patří jiné stavbě (`claimedObstacles`), a bez posvátných dubů a hájů,
  * bez ohledu na vzdálenost (forest.md – dá se ještě stavět?). Počet stromů vrstvy je
  * v mezipaměti, odečítají se jen změny vsi – celá vrstva se neprochází.
@@ -214,15 +281,15 @@ export function availableTrees(
   layer: ObstacleLayer,
   state: VillageState,
   day: number,
-  oaksOnly = false,
+  filter: TreeFilter = 'all',
 ): number {
   const changes = obstacleChangesAt(state, day);
   const status = obstacleStatus(changes);
   const sacred = sacredSitesOf(layer).protectedTrees;
-  const counts = layerFellableTrees(layer);
-  let count = oaksOnly ? counts.oaks : counts.trees;
+  let count = layerFellableTrees(layer)[filter];
+  const accept = TREE_FILTERS[filter];
   const counted = (index: number): boolean =>
-    index >= 0 && !sacred.has(layer.id[index]!) && (!oaksOnly || isOak(layer, index));
+    index >= 0 && !sacred.has(layer.id[index]!) && accept(layer, index);
   // odstraněné, pokácené a dorůstající stromy (seznamy změn se nepřekrývají)
   for (const list of [changes.removed, changes.stumps, changes.saplings]) {
     for (const id of list) {
@@ -230,10 +297,13 @@ export function availableTrees(
       if (counted(index) && obstacleKind(layer, index) === 'tree') count--;
     }
   }
-  for (const id of claimedObstacles(state)) {
+  const claimed = claimedObstacles(state);
+  for (const id of claimed) {
     const index = obstacleIndex(layer, id);
     if (counted(index) && status.kindOf(layer, index) === 'tree') count--;
   }
+  // dospělé stromy lesa vsi (fields.md – Les vsi) – dřevo vsi i pro uhlíře; duby jen z lesa krajiny
+  if (filter !== 'oaks') count += woodTreesStanding(changes, claimed).length;
   return Math.max(0, count);
 }
 
@@ -246,7 +316,7 @@ export function oakSupply(
   obstacles: ObstacleLayer | null | undefined,
   day: number = state.lastDay,
 ): number {
-  return obstacles ? availableTrees(obstacles, state, day, true) : Infinity;
+  return obstacles ? availableTrees(obstacles, state, day, 'oaks') : Infinity;
 }
 
 /**
@@ -298,6 +368,11 @@ export interface WoodPlanOptions {
   clearedIds?: readonly number[];
   /** Kolik dřeva (stromů) stavba chce – řemeslná dílna víc (crafts.md); bez údaje podle obydlí. */
   trees?: number;
+  /**
+   * Chůze ke stromům po pevných cestách s půdou (roads.md – kácení chůzí, `roadWalk`): cena
+   * kácení podle ní místo vzdušné vzdálenosti. Bez ní (kalibrace, testy) vzdušná vzdálenost.
+   */
+  walk?: Walk;
 }
 
 /**
@@ -378,11 +453,7 @@ export function planWoodFrom(
   const exclude = source.claimed();
   for (const id of options.clearedIds ?? []) exclude.add(id);
   const trees = nearestMatureTrees(options.obstacles, source.changes(), position, toFell, exclude);
-  const fell = trees.map((t) => ({
-    id: t.id,
-    distanceM: t.distanceM,
-    cost: fellingCost(t.distanceM),
-  }));
+  const fell = fellingsOf(trees, position, options.walk);
   return { clearedTrees, fromPile, fell, missing: toFell - fell.length };
 }
 
@@ -410,7 +481,7 @@ export function planSacredWood(
   kind: SacredBuildingKind,
   position: { x: number; z: number },
   source: Pick<WoodSource, 'changes' | 'claimed'>,
-  options: { obstacles?: ObstacleLayer | null; clearedIds?: readonly number[] } = {},
+  options: { obstacles?: ObstacleLayer | null; clearedIds?: readonly number[]; walk?: Walk } = {},
 ): WoodPlan {
   const need = SACRED_BUILDINGS[kind].oaks;
   if (!options.obstacles) {
@@ -431,20 +502,30 @@ export function planSacredWood(
     exclude,
     isOak,
   );
-  const fell = oaks.map((t) => ({
-    id: t.id,
-    distanceM: t.distanceM,
-    cost: fellingCost(t.distanceM),
-  }));
+  const fell = fellingsOf(oaks, position, options.walk);
   return { clearedTrees: 0, fromPile: 0, fell, missing: need - fell.length };
+}
+
+/**
+ * Stromy ke kácení s cenou: vzdálenost chůze ke stromu (`walk` – po pevných cestách s půdou,
+ * roads.md), bez ní vzdušná vzdálenost.
+ */
+export function fellingsOf(
+  trees: readonly TreeAtDistance[],
+  position: { x: number; z: number },
+  walk: Walk | undefined,
+): PlannedFelling[] {
+  const walks = walk && trees.length > 0 ? walk(position, trees) : null;
+  return trees.map((t, k) => {
+    const distanceM = walks ? walks[k]! : t.distanceM;
+    return { id: t.id, distanceM, cost: fellingCost(distanceM) };
+  });
 }
 
 /** Stojí strom v den `day` – není odstraněný ani pokácený (nebo už dorostl)? */
 export function isTreeStanding(state: VillageState, id: number, day: number): boolean {
   if ((state.clearedObstacles ?? []).some((c) => c.id === id)) return false;
-  return !(state.felledTrees ?? []).some(
-    (f) => f.id === id && treeRegrowth(f.day, day) !== 'grown',
-  );
+  return !(state.felledTrees ?? []).some((f) => f.id === id && felledTreeStage(f, day) !== 'grown');
 }
 
 /**
@@ -470,6 +551,16 @@ export function fellAsWorked(state: VillageState, c: Construction, day: number):
 }
 
 /**
+ * Vzdálenost obydlí k okraji lesa pro palivo (m): chůze (`forestWalkM` – po pěšinách a pevných
+ * cestách, roads.md), bez ní (kalibrace, starší obydlí) vzdušná vzdálenost z krajiny.
+ */
+export function dwellingForestDistance(
+  d: Pick<Dwelling, 'forestDistanceM' | 'forestWalkM'>,
+): number | undefined {
+  return d.forestWalkM ?? d.forestDistanceM;
+}
+
+/**
  * Práce navíc na palivu za den (forest.md – Palivo): palivová část domácí výroby domácnosti je
  * o 1 % dražší za každých 10 m nad 100 m od jejího obydlí k nejbližšímu okraji lesa.
  * Zakladatelé, kteří bydlí na staveništi první zemnice, se počítají od staveniště. `include`
@@ -483,7 +574,7 @@ export function fuelExtraPerDay(
   // běžný případ (les blízko všech obydlí) bez počítání domácností – volá se každý den
   const far = (distance: number | undefined): boolean => distanceFactor(distance ?? 0) > 1;
   if (
-    !state.dwellings.some((d) => far(d.forestDistanceM)) &&
+    !state.dwellings.some((d) => far(dwellingForestDistance(d))) &&
     !state.constructions.some((c) => far(c.forestDistanceM))
   ) {
     return 0;
@@ -493,8 +584,9 @@ export function fuelExtraPerDay(
   let extra = 0;
   for (const [householdId, count] of members) {
     if (!include(householdId)) continue;
+    const dwelling = state.dwellings.find((d) => d.id === householdId);
     const distance =
-      state.dwellings.find((d) => d.id === householdId)?.forestDistanceM ??
+      (dwelling ? dwellingForestDistance(dwelling) : undefined) ??
       state.constructions.find((c) => c.kind === 'dwelling' && c.dwellingId === householdId)
         ?.forestDistanceM ??
       0;

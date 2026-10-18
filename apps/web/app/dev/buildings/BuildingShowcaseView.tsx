@@ -12,6 +12,7 @@ import {
   MILIR_OFFSET_M,
   SHOWCASE_BUILDINGS,
   SHOWCASE_DECAY,
+  SHOWCASE_ROADS,
   SHOWCASE_DECOR,
   SHOWCASE_GROUNDS,
   SHOWCASE_PEN,
@@ -169,6 +170,7 @@ export function BuildingShowcaseView(): ReactElement {
           ...SHOWCASE_DECOR,
           SHOWCASE_PEN,
           ...SHOWCASE_DECAY,
+          SHOWCASE_ROADS,
         ].map((target) => (
           <button
             key={target.id}

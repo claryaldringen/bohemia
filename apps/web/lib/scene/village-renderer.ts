@@ -17,7 +17,7 @@ import {
   type SacredBuildingKind,
   type WorldClock,
 } from '@bohemia/game';
-import type { SceneVillage } from '../village-view';
+import type { SceneKiln, SceneVillage } from '../village-view';
 import { buildingClearings } from './building-clearings';
 import { CemeteryRenderer } from './cemetery-renderer';
 import {
@@ -92,10 +92,12 @@ import {
 import { StakingPegs, createStringMaterial, createStringMesh, pegInstances } from './staking';
 import { closedLine } from './staking-layout';
 import { applySeasonGround, applySeasonModel, applySeasonSnow } from './season-materials';
+import { WildGrowthRenderer } from './wild-growth-renderer';
 import { VillageSmoke, type SmokeSource } from './village-smoke';
 import type { SceneDwelling, SceneRuin } from './village-types';
 import {
   CRAFT_MODEL,
+  forestKilnAnchor,
   milirCircle,
   milirFootPoints,
   milirHideShape,
@@ -198,6 +200,11 @@ interface VillageContext {
  */
 export class VillageRenderer {
   private readonly dwellings = new Map<number, DwellingView>();
+  /** Milíře uhlířů v lese (crafts.md – Uhlíř) – ušlapaná zem, vytyčení a kolíky podle fáze. */
+  private readonly kilns = new Map<
+    number,
+    { key: string; meshes: Mesh[]; shape: HideShape; pegs: ModelInstance[] }
+  >();
   private readonly models = new Map<ModelKey, Mesh | null>();
   private readonly ghosts = new Map<ModelKey, Mesh>();
   /** Modely dílen a milíře se načítají, až jsou potřeba (dílna ve vsi, duch při umisťování). */
@@ -227,6 +234,8 @@ export class VillageRenderer {
   private readonly orchards: OrchardRenderer;
   private readonly sacred: SacredRenderer;
   private readonly fields: FieldRenderer;
+  /** Keře a stromky na zarůstajícím přílohu a les vsi (fields.md – Zarůstání). */
+  private readonly wild: WildGrowthRenderer;
   /** Ohrady s přístřeškem, zvířata v nich a spřežení na poli (oxen.md – village-pens.ts). */
   private readonly pens: PenRenderer;
   private readonly penAnimals: PenAnimals;
@@ -267,6 +276,11 @@ export class VillageRenderer {
     });
     this.sacred = new SacredRenderer(scene, context);
     this.fields = new FieldRenderer(scene, context);
+    this.wild = new WildGrowthRenderer(scene, {
+      groundHeight: context.groundHeight,
+      addShadowCaster: (mesh) => context.addShadowCaster(mesh),
+      onAsyncChange: () => context.onAsyncChange(),
+    });
     if (context.landscape) this.fields.setLandscape(context.landscape, null);
     // ozdobné louky na seno vypnuté – seč úhoru i přirozených luk posílá herní jádro po dílech
     // a políčkách (`SceneVillage.hayMeadows` – oxen.md, Seno)
@@ -297,9 +311,11 @@ export class VillageRenderer {
     if (this.disposed) return false;
     this.village = village;
     const dwellings = this.updateDwellings(village.dwellings);
+    const kilns = this.updateKilns(village.kilns ?? []);
     const ruins = this.updateRuins(village.ruins ?? []);
     if (dwellings || ruins) this.updatePitCuts();
     const fields = this.fields.update(village);
+    const wild = this.wild.update(village);
     const cemeteries = this.cemeteries.update(village.cemeteries ?? [], village.dwellings);
     const orchards = this.orchards.update(
       village.orchards ?? [],
@@ -316,6 +332,7 @@ export class VillageRenderer {
       dwellings ||
       ruins ||
       fields ||
+      wild ||
       cemeteries ||
       orchards ||
       plots ||
@@ -324,7 +341,8 @@ export class VillageRenderer {
       models ||
       sites ||
       decay ||
-      smoke
+      smoke ||
+      kilns
     );
   }
 
@@ -422,6 +440,7 @@ export class VillageRenderer {
   hideShapes(): HideShape[] {
     const shapes: HideShape[] = [];
     for (const view of this.dwellings.values()) shapes.push(...view.shapes);
+    for (const view of this.kilns.values()) shapes.push(view.shape);
     for (const view of this.ruins.values()) shapes.push(view.shape);
     shapes.push(...this.fields.hideShapes());
     shapes.push(...this.cemeteries.hideShapes());
@@ -496,10 +515,60 @@ export class VillageRenderer {
     this.teams.dispose();
     this.pegs.dispose();
     this.fields.dispose();
+    this.wild.dispose();
     for (const view of this.dwellings.values()) for (const mesh of view.meshes) mesh.dispose();
     this.dwellings.clear();
+    for (const view of this.kilns.values()) for (const mesh of view.meshes) mesh.dispose();
+    this.kilns.clear();
     for (const view of this.ruins.values()) for (const mesh of view.meshes) mesh.dispose();
     this.ruins.clear();
+  }
+
+  /**
+   * Milíře uhlířů v lese (crafts.md – Uhlíř): kruh ušlapané země a vytyčení podle fáze milíře
+   * (staveniště milíře `constructionState('milir', …)`), hotový milíř jen ušlapaná zem. Díly a model
+   * kreslí `updateConstruction` a `updateModels`, dým `updateSmokeSources`. Vrátí true při změně.
+   */
+  private updateKilns(kilns: readonly SceneKiln[]): boolean {
+    let changed = false;
+    const seen = new Set<number>();
+    for (const kiln of kilns) {
+      seen.add(kiln.id);
+      const key = kilnKey(kiln);
+      const current = this.kilns.get(kiln.id);
+      if (current?.key === key) continue;
+      changed = true;
+      if (current) for (const mesh of current.meshes) mesh.dispose();
+      const pseudo = kilnDwelling(kiln);
+      const state = kilnBuilding(kiln) ? constructionState('milir', kilnSiteProgress(kiln)) : null;
+      const meshes = state ? this.milirSite(pseudo, state) : [this.milirGround(pseudo)];
+      const lines =
+        state && state.outline > 0
+          ? [closedLine(milirCircle(pseudo.position, ROUND_SITE_M.milir.outline))]
+          : [];
+      this.kilns.set(kiln.id, {
+        key,
+        meshes,
+        shape: milirHideShape(pseudo.position),
+        pegs: lines.length > 0 ? pegInstances(lines, this.context.groundHeight) : [],
+      });
+    }
+    for (const [id, view] of this.kilns) {
+      if (seen.has(id)) continue;
+      for (const mesh of view.meshes) mesh.dispose();
+      this.kilns.delete(id);
+      changed = true;
+    }
+    if (changed) this.refreshPegs();
+    return changed;
+  }
+
+  /** Kolíky vytyčení stavenišť obydlí a milířů v lese. */
+  private refreshPegs(): void {
+    this.pegs.set([
+      ...[...this.dwellings.values()].flatMap((view) => view.pegs),
+      ...[...this.kilns.values()].flatMap((view) => view.pegs),
+    ]);
   }
 
   /** Načte jeden hotový model (obydlí, dílna, milíř) i s duchem pro umisťování. */
@@ -604,7 +673,7 @@ export class VillageRenderer {
       this.dwellings.delete(id);
       changed = true;
     }
-    if (changed) this.pegs.set([...this.dwellings.values()].flatMap((view) => view.pegs));
+    if (changed) this.refreshPegs();
     return changed;
   }
 
@@ -814,6 +883,20 @@ export class VillageRenderer {
         });
       }
     }
+    // milíře uhlířů v lese – dým jen při pálení (crafts.md – Uhlíř)
+    for (const kiln of this.village.kilns ?? []) {
+      if (kiln.stage !== 'burn') continue;
+      const anchor = forestKilnAnchor(kiln);
+      for (const vent of workshopVents('burner', anchor)) {
+        sources.push({
+          seed: CRAFT_SMOKE_SEED + kiln.id * 4 + 3,
+          x: vent.x,
+          y: this.milirBaseHeight(anchor) + vent.y,
+          z: vent.z,
+          kind: vent.kind,
+        });
+      }
+    }
     // ohniště hotových svatyní – občas dým jako z obydlí (happiness.md)
     sources.push(...this.sacred.smokeSources());
     return this.smoke.setSources(sources);
@@ -828,10 +911,17 @@ export class VillageRenderer {
     // rekvizity stavenišť modly a svatyně (rýč, koš, drny) jsou díly téhož GLB; hromádka
     // kamenů (site-stones) je jen v construction.glb řemesel, který ves nenačítá – nekreslí se
     const sacredSites = (this.village.sacred?.buildings ?? []).filter((b) => !b.built);
-    const key = [...sites.map(dwellingKey), ...sacredSites.map(sacredBuildingKey)].join(';');
+    const kilnSites = (this.village.kilns ?? []).filter(kilnBuilding);
+    const key = [
+      ...sites.map(dwellingKey),
+      ...sacredSites.map(sacredBuildingKey),
+      ...kilnSites.map(kilnKey),
+    ].join(';');
     if (key === this.siteKey) return false;
-    if (sites.length > 0 || sacredSites.length > 0) void this.loadConstruction();
-    if (sites.some((d) => d.craft)) void this.loadCraftConstruction();
+    if (sites.length > 0 || sacredSites.length > 0 || kilnSites.length > 0) {
+      void this.loadConstruction();
+    }
+    if (sites.some((d) => d.craft) || kilnSites.length > 0) void this.loadCraftConstruction();
     if (!this.siteLoading) return false;
     this.siteKey = key;
     const instances = new Map<string, ModelInstance[]>();
@@ -882,6 +972,32 @@ export class VillageRenderer {
           z,
           rotationY: milir.rotation + place.rotation,
           scale,
+        });
+      }
+    }
+    // milíře v lese: hromada polen roste s připravenými buky, pak se milíř staví po fázích
+    for (const kiln of kilnSites) {
+      const anchor = forestKilnAnchor(kiln);
+      const milir = milirPlace(anchor);
+      const state = constructionState('milir', kilnSiteProgress(kiln));
+      const heap = {
+        x: milir.x,
+        y: this.milirBaseHeight(anchor),
+        z: milir.z,
+        rotationY: milir.rotation,
+        scale: 1,
+      };
+      for (const part of state.parts) push(`milir-${part}`, heap);
+      for (const { prop, scale } of state.props) {
+        const place = sitePropPlace('milir', prop);
+        const [x, z] = localToWorld(milir, place.x, place.z);
+        const pile = prop === 'timber' && kiln.stage === 'wood' ? 0.3 + 0.7 * kiln.progress : scale;
+        push(`site-${prop}`, {
+          x,
+          y: this.context.groundHeight(x, z) - 0.02,
+          z,
+          rotationY: milir.rotation + place.rotation,
+          scale: pile,
         });
       }
     }
@@ -975,10 +1091,12 @@ export class VillageRenderer {
    */
   private updateModels(): boolean {
     const built = this.village.dwellings.filter((d) => d.built);
-    const key = built.map(dwellingKey).join(';');
+    // milíře v lese, které už stojí – pálí se, nebo se z nich vytahuje uhlí
+    const kilns = (this.village.kilns ?? []).filter((k) => !kilnBuilding(k));
+    const key = [...built.map(dwellingKey), ...kilns.map(kilnKey)].join(';');
     if (key === this.builtKey) return false;
-    if (built.length > 0) void this.loadModels();
-    if (built.some((d) => d.craft)) void this.loadCraftModels();
+    if (built.length > 0 || kilns.length > 0) void this.loadModels();
+    if (built.some((d) => d.craft) || kilns.length > 0) void this.loadCraftModels();
     if (!this.loading) return false;
     this.builtKey = key;
     const instances = new Map<ModelKey, ModelInstance[]>();
@@ -1003,6 +1121,17 @@ export class VillageRenderer {
       push('milir', {
         x: milir.x,
         y: this.milirBaseHeight(d.position),
+        z: milir.z,
+        rotationY: milir.rotation,
+        scale: 1,
+      });
+    }
+    for (const kiln of kilns) {
+      const anchor = forestKilnAnchor(kiln);
+      const milir = milirPlace(anchor);
+      push('milir', {
+        x: milir.x,
+        y: this.milirBaseHeight(anchor),
         z: milir.z,
         rotationY: milir.rotation,
         scale: 1,
@@ -1379,6 +1508,39 @@ export class VillageRenderer {
     }
     return material;
   }
+}
+
+/** Id meshů milíře v lese – mimo id obydlí a staveb (jména meshů a dým). */
+const FOREST_KILN_MESH_ID = 3_000_000;
+
+/** Klíč milíře v lese – přestaví se při změně místa, fáze nebo průběhu (po 2 %). */
+function kilnKey(kiln: SceneKiln): string {
+  return [kiln.id, kiln.x, kiln.z, kiln.stage, kiln.progress].join('|');
+}
+
+/** Milíř v lese se teprve chystá – připravuje se dřevo, nebo se staví. */
+function kilnBuilding(kiln: SceneKiln): boolean {
+  return kiln.stage === 'wood' || kiln.stage === 'build';
+}
+
+/**
+ * Průběh staveniště milíře v lese (`constructionState('milir', …)`): při přípravě dřeva jen
+ * vytyčení a milířiště, při stavbě věnec, polena a kryt až po průduchy.
+ */
+function kilnSiteProgress(kiln: SceneKiln): number {
+  return kiln.stage === 'wood' ? 0.13 * kiln.progress : 0.14 + 0.79 * kiln.progress;
+}
+
+/** Milíř v lese jako „dílna uhlíře“ s polohou kotvy – funkce milíře u dílny ho kreslí stejně. */
+function kilnDwelling(kiln: SceneKiln): SceneDwelling {
+  return {
+    id: FOREST_KILN_MESH_ID + kiln.id,
+    type: 'zemnice',
+    position: forestKilnAnchor(kiln),
+    built: true,
+    progress: 1,
+    craft: 'burner',
+  };
 }
 
 /** Pozemky obydlí pro scénu: hotové celé, staveniště podle fáze plotu a záhonů. */
