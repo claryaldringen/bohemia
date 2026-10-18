@@ -19,9 +19,11 @@ import {
 import { dailyMilk, villageCheeseKg, yearlyMilk } from './dairy';
 import { villageMeal, villageMeatKg } from './diet';
 import { villageHayKg } from './hay';
+import { villageLegumesKg } from './legumes';
 import {
   dailyEggsKg,
   grazingDemandHa,
+  legumeNeedPerYear,
   meatNeedPerYear,
   pastureHa,
   pigForestHa,
@@ -202,8 +204,10 @@ export interface LivestockSummary {
   grazingHa: number;
   /** Les pro prasata (ha, 1 ha na prase). */
   pigForestHa: number;
-  /** Roční potřeba masa vsi (kg) – bílkoviny, které chybí po obilí, mléku a vejcích. */
+  /** Roční potřeba masa vsi (kg) – bílkoviny, které chybí po obilí, mléku, vejcích a luštěninách. */
   meatNeedKg: number;
+  /** Kolik luštěnin ves chce za rok sníst (kg – cíl osevu luštěnin bez rezervy). */
+  legumeNeedKg: number;
   /** Mléko dnes (l, když se podojí všechny dojné samice) a za rok. */
   milkLPerDay: number;
   milkLPerYear: number;
@@ -242,6 +246,8 @@ export interface VillageSummary {
   meatKg: number;
   /** Zásoba sýra (kg). */
   cheeseKg: number;
+  /** Zásoba luštěnin (kg – diet.md, Luštěniny). */
+  legumesKg: number;
   /** Zásoba sena (kg). */
   hayKg: number;
   /** Dobytek – stáda, slepice, voli a nosnost. */
@@ -388,6 +394,7 @@ function livestockSummary(state: VillageState, day: number): LivestockSummary {
     grazingHa: grazingDemandHa(herds, oxen),
     pigForestHa: pigForestHa(state),
     meatNeedKg: meatNeedPerYear(state, day),
+    legumeNeedKg: legumeNeedPerYear(state, day),
     milkLPerDay: dailyMilk(herds, day).liters,
     milkLPerYear: yearlyMilk(herds).liters,
   };
@@ -505,6 +512,7 @@ export function summarizeVillage(state: VillageState, day: number): VillageSumma
     diet,
     meatKg: villageMeatKg(state),
     cheeseKg: villageCheeseKg(state),
+    legumesKg: villageLegumesKg(state),
     hayKg: villageHayKg(state),
     livestock: livestockSummary(state, day),
     pens: penSummaries(state, day),
@@ -564,7 +572,13 @@ function craftsSummary(state: VillageState, day: number): CraftsSummary {
 /** Štěstí, jeho cíl a složky (cíl při jídle příštího dne). */
 function happinessSummary(state: VillageState, day: number, diet: DietDay): HappinessSummary {
   const value = villageHappiness(state);
-  const factors = happinessFactors(state, day, diet.satiation, diet.shares.fruit > 0);
+  const factors = happinessFactors(
+    state,
+    day,
+    diet.satiation,
+    diet.shares.fruit > 0,
+    diet.shares.meat,
+  );
   return {
     value,
     target: happinessTarget(factors),
