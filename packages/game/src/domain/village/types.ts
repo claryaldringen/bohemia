@@ -93,11 +93,12 @@ export interface CraftStocks {
 }
 export type PartState = 'founding' | 'ready' | 'sown' | 'fallow';
 /**
- * Plodina osetého dílu (fields.md – Ozim a jař): **ozim** (`winter` – žito a pšenice, kopá se
- * a seje na podzim, sklízí v červenci) a **jař** (`spring` – ječmen, kopá se na podzim nebo na
- * jaře, seje na jaře, sklízí v srpnu).
+ * Plodina osetého dílu (fields.md – Ozim a jař, Luštěniny): **ozim** (`winter` – žito a pšenice,
+ * kopá se a seje na podzim, sklízí v červenci), **jař** (`spring` – ječmen, kopá se na podzim nebo
+ * na jaře, seje na jaře, sklízí v srpnu) a **luštěniny** (`legume` – hrách a čočka; jař – kopá
+ * se jako jař, seje na jaře, sklízí v červenci; diet.md – Luštěniny).
  */
-export type Crop = 'winter' | 'spring';
+export type Crop = 'winter' | 'spring' | 'legume';
 /** Políčko krajiny – sloupec x a řádek y mřížky. */
 export interface TileCell {
   x: number;
@@ -342,6 +343,8 @@ export interface PloughWork {
 export interface YearPlan extends CropWork {
   plannedDay: number;
   winter?: CropWork;
+  /** Luštěniny (fields.md – Luštěniny) – chybí u plánů bez luštěnin (i u starších vsí). */
+  legume?: CropWork;
 }
 export type ChronicleEvent = { day: number } & (
   | { kind: 'village-founded' }
@@ -364,8 +367,8 @@ export type ChronicleEvent = { day: number } & (
     }
   | { kind: 'rebuild-decided'; dwellingId: number; type: DwellingType }
   /**
-   * Sklizeň obilí – plodina, když ves seje ozim i jař (ozim v červenci, jař v srpnu); bez ní jen
-   * jař (ves bez ozimu, starší sklizně).
+   * Sklizeň – plodina, když ves seje ozim i jař (ozim v červenci, jař v srpnu); bez ní jen jař
+   * (ves bez ozimu, starší sklizně). `legume` – luštěniny (kg do zásoby luštěnin, ne obilí).
    */
   | { kind: 'harvest'; kg: number; crop?: Crop }
   /** Konec sklizně jablek (1. 11.) – kolik kg se sklidilo. */
@@ -569,6 +572,8 @@ export interface VillageState {
   meatKg?: number;
   /** Zásoba sýra (kg) – z mléka, které se nevypije čerstvé (diet.md). Chybí = žádná. */
   cheeseKg?: number;
+  /** Zásoba luštěnin (kg suchého semene – diet.md, Luštěniny). Chybí = žádná. */
+  legumesKg?: number;
   /** Seno (oxen.md – Seno): zásoba, sečení a zima. Chybí = žádné. */
   hay?: HayState;
   /** Ohrady s přístřeškem (oxen.md); chybí = žádné. */
@@ -788,8 +793,18 @@ export interface DietDay {
   diversity: number;
   /** Nasycení = energie × kvalita stravy. */
   satiation: number;
-  /** Podíly na potřebě energie 0–1 – obilí, maso, mléko a sýr, vejce, ovoce. */
-  shares: { grain: number; meat: number; dairy: number; eggs: number; fruit: number };
+  /**
+   * Podíly na potřebě energie 0–1 – obilí, maso, mléko a sýr, vejce, ovoce a luštěniny (chybí
+   * u jídla uloženého před luštěninami = 0).
+   */
+  shares: {
+    grain: number;
+    meat: number;
+    dairy: number;
+    eggs: number;
+    fruit: number;
+    legumes?: number;
+  };
 }
 
 /**

@@ -1,15 +1,23 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import type { VillageView } from '@/lib/village-view';
-import { SatiationTooltip, dairyName, satiationState, showsDairy, showsHay } from '../TopBar';
+import {
+  SatiationTooltip,
+  dairyName,
+  satiationState,
+  showsDairy,
+  showsHay,
+  showsLegumes,
+} from '../TopBar';
 
-// Horní lišta (diet.md, oxen.md): barva nasycení podle energie, podíly stravy v tooltipu, seno.
+// Horní lišta (diet.md, oxen.md): barva nasycení podle energie, podíly stravy v tooltipu, seno,
+// luštěniny.
 
 const diet = (energy: number): VillageView['diet'] => ({
   energy,
   protein: 0.85,
   diversity: 0.89,
-  shares: { grain: 0.7, meat: 0.15, dairy: 0.1, eggs: 0.05, fruit: 0 },
+  shares: { grain: 0.6, legumes: 0.1, meat: 0.15, dairy: 0.1, eggs: 0.05, fruit: 0 },
 });
 
 describe('satiationState – barva ikony podle energie, ne nasycení', () => {
@@ -34,11 +42,57 @@ describe('SatiationTooltip', () => {
     const html = renderToStaticMarkup(<SatiationTooltip view={view} />);
     expect(html).toContain('Nasycení 89 %');
     expect(html).toContain('energie 100 % · bílkoviny 85 %');
-    expect(html).toMatch(/data-share="grain".*food\.png.*70 %/);
+    expect(html).toMatch(/data-share="grain".*food\.png.*60 %/);
+    expect(html).toMatch(/data-share="legumes".*legumes\.png.*10 %/);
+    // pořadí: obilí, luštěniny, maso, mléko a sýr, vejce, ovoce
+    const order = [...html.matchAll(/data-share="(\w+)"/g)].map((m) => m[1]);
+    expect(order).toEqual(['grain', 'legumes', 'meat', 'dairy', 'eggs', 'fruit']);
     expect(html).toMatch(/data-share="meat".*meat\.png.*15 %/);
     expect(html).toMatch(/data-share="dairy".*cheese\.png.*10 %/);
     expect(html).toMatch(/data-share="eggs".*eggs\.png.*5 %/);
     expect(html).toMatch(/data-share="fruit".*apples\.png.*0 %/);
+  });
+});
+
+describe('SatiationTooltip – jídlo uložené před luštěninami', () => {
+  it('podíl luštěnin chybí → 0 %', () => {
+    const old = diet(1);
+    const view = {
+      satiation: 0.8,
+      diet: { ...old, shares: { grain: 1, meat: 0, dairy: 0, eggs: 0, fruit: 0 } },
+    } as VillageView;
+    const html = renderToStaticMarkup(<SatiationTooltip view={view} />);
+    expect(html).toMatch(/data-share="legumes".*legumes\.png.*0 %/);
+    expect(html).not.toContain('NaN');
+  });
+});
+
+describe('luštěniny v liště', () => {
+  const field = (legume: number): VillageView['fields'][number] => ({
+    id: 1,
+    areaM2: 10_000,
+    fertility: 70,
+    stages: {},
+    surfaces: {},
+    crops: legume > 0 ? { spring: 3, legume } : { spring: 3 },
+    ashParts: 0,
+    ashBonus: 0,
+  });
+  const noLegumes = diet(1);
+  const shares = { grain: 1, meat: 0, dairy: 0, eggs: 0, fruit: 0 };
+
+  it('bez zásoby, osevu i jídla luštěnin se neukáže', () => {
+    expect(
+      showsLegumes({ legumesKg: 0.4, fields: [field(0)], diet: { ...noLegumes, shares } }),
+    ).toBe(false);
+  });
+
+  it('ukáže se se zásobou, s oseným dílem nebo když se luštěniny jí', () => {
+    expect(showsLegumes({ legumesKg: 120, fields: [], diet: { ...noLegumes, shares } })).toBe(true);
+    expect(showsLegumes({ legumesKg: 0, fields: [field(2)], diet: { ...noLegumes, shares } })).toBe(
+      true,
+    );
+    expect(showsLegumes({ legumesKg: 0, fields: [], diet: noLegumes })).toBe(true);
   });
 });
 
