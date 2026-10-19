@@ -60,7 +60,8 @@ const SNOW_GAMMA: Rgb = [0.9, 0.92, 0.96];
  * Pomocné funkce shaderů: hash a hodnotový šum (bez textury, bez sin – stejný vzor na všech
  * GPU), sněhová pokrývka bodu země a maska listí (zelené pixely textury – větvičky a kůra jsou
  * hnědé a šedé). Sníh: šum ve dvou měřítkách (22 m závěje, 6 m skvrny) – při tání a sněžení
- * se pokrývka trhá na skvrny, pak je souvislá. Tráva (`veg` = podíl trávy): na jaře svěží, na
+ * se pokrývka trhá na skvrny, pak je souvislá; na strmém svahu neleží (`seasonSnowSlope` podle
+ * svislé složky normály – terén i tvary na zemi). Tráva (`veg` = podíl trávy): na jaře svěží, na
  * podzim usychá ve skvrnách (50 m) do slámově hnědé – stejně na terénu i obtiscích polí.
  */
 export const SEASON_HELPERS_GLSL = `float seasonHash(vec2 p) {
@@ -78,6 +79,9 @@ float seasonNoise(vec2 p) {
 float seasonSnowCover(vec2 xz, float amount) {
   float n = 0.65 * seasonNoise(xz * 0.045) + 0.35 * seasonNoise(xz * 0.16 + 17.0);
   return smoothstep(n - 0.08, n + 0.08, amount * 1.35 - 0.2);
+}
+float seasonSnowSlope(float normalY) {
+  return smoothstep(0.55, 0.8, normalY);
 }
 float seasonLeafMask(vec3 c) {
   return smoothstep(0.04, 0.18, (c.g - max(c.r, c.b)) / max(c.g, 0.04));
@@ -107,6 +111,9 @@ fn seasonNoise(p: vec2f) -> f32 {
 fn seasonSnowCover(xz: vec2f, amount: f32) -> f32 {
   let n = 0.65 * seasonNoise(xz * 0.045) + 0.35 * seasonNoise(xz * 0.16 + 17.0);
   return smoothstep(n - 0.08, n + 0.08, amount * 1.35 - 0.2);
+}
+fn seasonSnowSlope(normalY: f32) -> f32 {
+  return smoothstep(0.55, 0.8, normalY);
 }
 fn seasonLeafMask(c: vec3f) -> f32 {
   return smoothstep(0.04, 0.18, (c.g - max(c.r, c.b)) / max(c.g, 0.04));
@@ -188,6 +195,18 @@ export function applySeasonGround(material: Material, snowCoverage = 1): void {
   if (!(material instanceof StandardMaterial)) return;
   if (material.pluginManager?.getPlugin('SeasonStandard')) return;
   new SeasonStandardPlugin(material, 'ground', snowCoverage);
+}
+
+/**
+ * Tvar na zemi se StandardMaterial (mohyly hřbitova, kůl na mohyle): sníh jako na terénu –
+ * stejný šum a časování, na strmých plochách méně (sklon jako terén) a nasvícený jako terén:
+ * bez vlastní barvy (`diffuseColor`) a okolního světla (`ambientColor`) materiálu, ať tvar pod
+ * sněhem nevystoupí ze zasněžené plochy kolem. `snowCoverage` < 1 nechá tvar zimou prosvítat.
+ */
+export function applySeasonRelief(material: Material, snowCoverage = 1): void {
+  if (!(material instanceof StandardMaterial)) return;
+  if (material.pluginManager?.getPlugin('SeasonStandard')) return;
+  new SeasonStandardPlugin(material, 'relief', snowCoverage);
 }
 
 /** Letní a zimní atlas impostorů (stejné buňky) – zimní se načítá na pozadí. */
@@ -416,11 +435,12 @@ const PBR_WGSL = `{
   }
 }`;
 
-type StandardMode = 'ground' | 'canopy';
+type StandardMode = 'ground' | 'canopy' | 'relief';
 
 /**
- * StandardMaterial (obtisky polí a cest, impostory, plocha korun): barva se upraví po textuře
- * a barvě vrcholů / instance (CUSTOM_FRAGMENT_UPDATE_DIFFUSE, gama prostor).
+ * StandardMaterial (obtisky polí a cest, plocha korun, mohyly): barva se upraví po textuře
+ * a barvě vrcholů / instance (CUSTOM_FRAGMENT_UPDATE_DIFFUSE, gama prostor); tvar na zemi
+ * (relief) až po osvětlení (CUSTOM_FRAGMENT_BEFORE_FOG).
  */
 class SeasonStandardPlugin extends MaterialPluginBase {
   constructor(
@@ -432,6 +452,7 @@ class SeasonStandardPlugin extends MaterialPluginBase {
       SEASON_STD: false,
       SEASON_STD_GROUND: false,
       SEASON_STD_CANOPY: false,
+      SEASON_STD_RELIEF: false,
     });
     this._enable(true);
   }
@@ -440,6 +461,7 @@ class SeasonStandardPlugin extends MaterialPluginBase {
     defines['SEASON_STD'] = true;
     defines['SEASON_STD_GROUND'] = this.mode === 'ground';
     defines['SEASON_STD_CANOPY'] = this.mode === 'canopy';
+    defines['SEASON_STD_RELIEF'] = this.mode === 'relief';
   }
 
   override getClassName(): string {
@@ -496,13 +518,31 @@ ${wgsl ? SEASON_HELPERS_WGSL : SEASON_HELPERS_GLSL}
       CUSTOM_FRAGMENT_UPDATE_DIFFUSE: `#ifdef SEASON_STD
 ${modes}
 #endif`,
+      CUSTOM_FRAGMENT_BEFORE_FOG: `#ifdef SEASON_STD_RELIEF
+${code.relief}
+#endif`,
     };
   }
 }
 
 /**
+ * Tvar na zemi (relief) – po osvětlení, před oparem: zasněžený pixel má barvu sněhu nasvícenou
+ * jako terén (`diffuseBase` se stíny, bez vlastní barvy a okolního světla materiálu – terén je
+ * nemá), jas sněhu podle barvy povrchu jako všude (`seasonSnowColor`). Šum a sklon jako terén.
+ */
+const RELIEF_GLSL = `if (seasonA.x > 0.0) {
+  float seasonCover = seasonSnowCover(vPositionW.xz, seasonA.x) * seasonSnowSlope(normalW.y) * seasonCoverage;
+  color.rgb = mix(color.rgb, clamp(diffuseBase, 0.0, 1.0) * seasonSnowColor(baseColor.rgb * diffuseColor), seasonCover);
+}`;
+const RELIEF_WGSL = `if (uniforms.seasonA.x > 0.0) {
+  let seasonCover = seasonSnowCover(fragmentInputs.vPositionW.xz, uniforms.seasonA.x) * seasonSnowSlope(normalW.y) * uniforms.seasonCoverage;
+  color = vec4f(mix(color.rgb, clamp(diffuseBase, vec3f(0.0), vec3f(1.0)) * seasonSnowColor(baseColor.rgb * diffuseColor), seasonCover), color.a);
+}`;
+
+/**
  * Kód podle druhu materiálu (gama prostor, `baseColor` už s barvou vrcholů / instance):
  * - ground: obtisk na zemi – tráva (zelené pixely) usychá a sníh jako na terénu,
+ * - relief: tvar na zemi – jen sníh jako na terénu (RELIEF_GLSL, až po osvětlení),
  * - canopy: plocha korun – podzimní skvrny, s opadem listí mizí po skvrnách (12 m) a drobných
  *   dírách (2,5 m), v zimě úplně – pod holými stromy je vidět zem.
  */
@@ -515,6 +555,7 @@ if (seasonA.x > 0.0) {
   float seasonCover = seasonSnowCover(vPositionW.xz, seasonA.x) * seasonCoverage;
   baseColor.rgb = mix(baseColor.rgb, seasonSnowColor(baseColor.rgb), seasonCover);
 }`,
+  relief: RELIEF_GLSL,
   canopy: `{
   float seasonLuma = dot(baseColor.rgb, vec3(0.299, 0.587, 0.114));
   float seasonPatch = seasonNoise(vPositionW.xz * 0.08);
@@ -537,6 +578,7 @@ if (uniforms.seasonA.x > 0.0) {
   let seasonCover = seasonSnowCover(fragmentInputs.vPositionW.xz, uniforms.seasonA.x) * uniforms.seasonCoverage;
   baseColor = vec4f(mix(baseColor.rgb, seasonSnowColor(baseColor.rgb), seasonCover), baseColor.a);
 }`,
+  relief: RELIEF_WGSL,
   canopy: `{
   let seasonLuma = dot(baseColor.rgb, vec3f(0.299, 0.587, 0.114));
   let seasonXz = fragmentInputs.vPositionW.xz;

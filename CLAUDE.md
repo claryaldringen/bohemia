@@ -284,7 +284,11 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   (`applySeasonGround`), PBR stromy a dekorace (`applySeasonModel` podle jména modelu –
   druhy v `season-foliage.ts`: listnáče se barví a opadávají, z koruny zbudou větvičky, kůra
   ztratí zelený tón; jehličí a kameny pod sněhem; rákos stojí suchý; trnka a jabloně kvetou),
-  střechy (`applySeasonSnow`). Impostory (`applySeasonImpostors`) mají druhý sampler se
+  střechy (`applySeasonSnow`), tvary na zemi se StandardMaterial (`applySeasonRelief`) –
+  mohyly a staré hroby hřbitova, zarostlé i čerstvé, a kůl vojvody jen poprášený
+  (Martin, 19. 10. 2026: „V zimě by i mohyly na hřbitově měly zapadat sněhem.“): šum a sklon
+  `seasonSnowSlope` jako terén, sníh až po osvětlení nasvícený jako terén, bez vlastní barvy
+  a okolního světla materiálu. Impostory (`applySeasonImpostors`) mají druhý sampler se
   zimním atlasem (stahuje se souběžně, nečeká se na něj): listnáč s opadem listí přechází po
   pixelech na holý obrázek, smrk se sněhem na zasněžený; podzim barví letní obrázek. Plocha
   korun s opadem po skvrnách mizí – v zimě je pod holými stromy vidět zasněžená zem (u kmenů
