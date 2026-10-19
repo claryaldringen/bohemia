@@ -340,7 +340,9 @@ export interface FieldPart {
 /**
  * Les vsi (fields.md – Zarůstání, Les vsi): čtverec pole, který zarostl lesem a z pole vypadl. Les
  * dál roste – dospělé stromy na něm přibývají se stářím (VILLAGE_WOOD) a jde je kácet na dřevo;
- * pole na čtverci ho vymýtí jako les. Prasatům je lesem, stádům pastvinou už není.
+ * pole na čtverci ho vymýtí jako les, ostatní stavby ho vyklučí jako les krajiny – les, ze kterého
+ * stavby odstranily všechny stromy, zmizí (`dropClearedWoods`). Prasatům je lesem, stádům
+ * pastvinou už není.
  */
 export interface VillageWood {
   /** Čtverec dílu – políčko krajiny, u lesa z natočeného pole čtverec v jeho mřížce (`grid`). */

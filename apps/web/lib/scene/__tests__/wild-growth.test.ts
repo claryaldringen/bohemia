@@ -127,4 +127,30 @@ describe('les vsi – stromy z herního jádra, rostou do 70 let', () => {
     expect(wildKey({ ...village, fields: [{ id: 1, parts: [part(10)] }] })).not.toBe(key);
     expect(wildKey({ ...village, woods: [{ ...forest.scene, age: 41 }] })).not.toBe(key);
   });
+
+  it('pod stavbou v lese vsi podrost neroste (Martin 19. 10. 2026 – les se vyklučí)', () => {
+    const forest = wood(40);
+    const village: Pick<SceneVillage, 'fields' | 'woods' | 'obstacles' | 'dwellings'> = {
+      fields: [],
+      woods: [forest.scene],
+      obstacles: { removed: [], stumps: [], saplings: [], added: forest.added },
+      dwellings: [],
+    };
+    const all = wildPlants(village);
+    // zemnice uprostřed lesa vsi – vyklízená plocha x 92,7–102,3, z 33,1–45
+    const house = {
+      id: 1,
+      type: 'zemnice' as const,
+      position: { x: 97.5, z: 37.5, rotation: 0 },
+      built: true,
+      progress: 1,
+    };
+    const built = { ...village, dwellings: [house] };
+    const left = wildPlants(built);
+    expect(left.length).toBeLessThan(all.length);
+    const inside = (p: { x: number; z: number }): boolean =>
+      p.x > 92.7 && p.x < 102.3 && p.z > 33.1 && p.z < 45;
+    expect(left.some(inside)).toBe(false);
+    expect(wildKey(built)).not.toBe(wildKey(village));
+  });
 });

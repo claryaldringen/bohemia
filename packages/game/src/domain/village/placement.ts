@@ -198,8 +198,8 @@ export interface PlacementVillage {
   readonly pens?: readonly { readonly cell: TileCell; readonly grid?: SquareGrid }[];
   /**
    * Les vsi – čtverce polí zarostlé lesem (fields.md – Les vsi; bez údaje žádný): pole ho vymýtí
-   * jako les (stromy lesa jsou v `obstacleChanges.added`), ostatní stavby jen na louku. Les
-   * z natočeného pole leží v jeho mřížce (`grid`).
+   * jako les (stromy lesa jsou v `obstacleChanges.added`), ostatní stavby ho vyklučí jako les
+   * krajiny (`ForestUse`). Les z natočeného pole leží v jeho mřížce (`grid`).
    */
   readonly woods?: readonly { readonly cell: TileCell; readonly grid?: SquareGrid }[];
   /** Překážky, které ves už odstranila nebo pokácela (`obstacleChangesAt`); bez nich žádné. */
