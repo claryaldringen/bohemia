@@ -159,6 +159,8 @@ export function partFoundingCost(
  * Luštěniny), příloh ji obnoví.
  */
 export function endOfSeason(part: FieldPart, day: number): void {
+  // příloh, ze kterého se díl loni vracel, už plán zkrátit nemůže (fields.md – Osev podle zásob)
+  delete part.fallowBeforePlan;
   if (part.state === 'sown') {
     part.fertilityShare =
       part.crop === 'legume'

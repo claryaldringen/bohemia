@@ -247,6 +247,9 @@ describe('orba rádlem', () => {
     s.parts = Array.from({ length: 8 }, (_, i) =>
       part(i + 1, { areaM2: 2250, distanceM: 100 + i, cell: { x: i, y: 0 } }),
     );
+    // zásoby jen na pár měsíců – s velkými by ves podle zásob nic nezasela (fields.md – Osev podle
+    // zásob)
+    s.storesKg = 300;
     // 1. 9. – plán osevu a první den orby (setí jde za zoranou částí od dalšího dne)
     const sept = advanceVillage(s, at(600, 9, 1), null);
     const plan = sept.plan!;

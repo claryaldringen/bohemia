@@ -39,8 +39,8 @@ import {
   closeFieldFoodYear,
   fieldFoodShare,
   recordFieldFood,
-  sowingTargetKg,
-  yearlyFieldNeed,
+  sowingTargets,
+  type SowingTargets,
 } from './field-food';
 import { endOfSeason, expectedNetKg, fallowStage, partOvergrowthYears } from './fields';
 import { daysUntilAppleRot } from './food';
@@ -50,7 +50,7 @@ import { sowingBlocks, villageHoldings, workOrder } from './holdings';
 import { occupyEmptyDwellings, settleNewDwelling } from './households';
 import { withKinship } from './kinship';
 import { husbandryDay } from './husbandry';
-import { daysUntilLegumeHarvest, legumeEnergy, villageLegumesKg } from './legumes';
+import { daysUntilLegumeHarvest, villageLegumesKg } from './legumes';
 import {
   SLAUGHTER_MONTH,
   dailyEggsKg,
@@ -71,6 +71,7 @@ import { finishRoadApples, workRoadApples, roadApplesNeed } from './road-apples'
 import { finishRoadUpgrade } from './road-upgrades';
 import { finishRepair, isRepairFinished, repairNeed, workRepair } from './repair';
 import { copyPlot, relocationPlot } from './plots';
+import { trimPlanToTarget } from './plan-trim';
 import { villageSacredOaks } from './sacred';
 import { sacredOakEvents } from './sacred-life';
 import { allocateDay, type LaborTaskName } from './labor';
@@ -99,13 +100,12 @@ import {
   CHRONICLE_MAX_EVENTS,
   COMMON_LABOR_HISTORY_DAYS,
   CROP_ORDER,
+  FIELD_STORES,
   FOREST_BONUS,
   HARVEST_DAY,
   ORCHARD_WINDOWS,
   PEAK_CAPACITY_SHARE,
   PLANNING_DAY,
-  SOW_RESERVE,
-  STORES_HIGH_YEARS,
   THRESH_END_DAY,
   WINDOWS,
   WINTER_HARVEST_DAY,
@@ -267,6 +267,8 @@ function simulateDay(
   if (isOn(date, PLANNING_DAY)) planYear(state, day, coverage);
   if (date.month >= PLANNING_DAY.month || date.month <= LAST_JOIN_MONTH) {
     joinFinishedParts(state, day, coverage);
+    // má-li ves zásob dost, rozjetý plán se zkrátí hned, ne až 1. 9. (fields.md – Osev podle zásob)
+    trimPlan(state, day, coverage);
   }
   const { toil, milking } = work(state, day, obstacles, coverage, landscape);
   // nástroje a nádoby v užívání se opotřebí (crafts.md – Účinek)
@@ -337,8 +339,10 @@ function planYear(state: VillageState, day: number, coverage: CraftCoverage): vo
   const plough = ableTeams(state) > 0;
   // díly po úsecích hospodářství od domu ven (fields.md – Hospodaření podle polohy domů)
   const holdings = villageHoldings(state);
+  // kolik zasít podle zásob a potřeby z pole (fields.md – Kolik ves oseje, Osev podle zásob)
+  const targets = fieldSowingTargets(state, day, coverage);
   const crops = chooseCrops(sowingBlocks(state.parts, holdings), {
-    targetKg: fieldSowingTarget(state, day),
+    targetKg: targets.targetKg,
     startKg: 0,
     capacity: sowingCapacity(state, day, coverage),
     load: orchardOnlyLoad(orchardHarvestLoad(state)),
@@ -346,10 +350,10 @@ function planYear(state: VillageState, day: number, coverage: CraftCoverage): vo
     day,
     toolCoverage: coverage.tools,
     plough,
-    // luštěniny podle bílkovin, které chybí po obilí, mléku a vejcích (fields.md – Luštěniny);
-    // smějí jít na rezervu osevu, ne pod roční potřebu z pole
-    legumeTargetKg: legumeSowingTarget(state, day),
-    energyFloorKg: yearlyFieldNeed(state, day),
+    // luštěniny podle bílkovin, které chybí po obilí, mléku a vejcích, a podle své zásoby
+    // (fields.md – Luštěniny); smějí jít na doplnění pojistky, ne pod roční potřebu z pole
+    legumeTargetKg: targets.legumeKg,
+    energyFloorKg: targets.energyFloorKg,
   });
   // plán vzniká před změnou stavu dílů – vrácení přílohu se počítá jen u dílů v přílohu; práce
   // plánu (i orba – železná špička rádla od kováře) platí podle dnešního pokrytí nástroji celý
@@ -389,7 +393,7 @@ function joinFinishedParts(state: VillageState, day: number, coverage: CraftCove
   const holdings = villageHoldings(state);
   // hotové díly (skupina 2 přílohové soustavy) po úsecích hospodářství
   const { spring } = chooseCrops(sowingBlocks(state.parts, holdings, 2), {
-    targetKg: fieldSowingTarget(state, day),
+    targetKg: fieldSowingTargets(state, day, coverage).targetKg,
     startKg,
     capacity: sowingCapacity(state, day, coverage),
     load: planLoad(plan, orchardHarvestLoad(state)),
@@ -409,22 +413,27 @@ function joinFinishedParts(state: VillageState, day: number, coverage: CraftCove
 }
 
 /**
- * Cíl luštěnin (fields.md – Luštěniny): kolik jich ves za rok chce sníst (bílkoviny, které chybí
- * po obilí, mléku a vejcích, nejvýš strop – `legumeNeedPerYear`) + rezerva jako u obilí, při
- * velké zásobě luštěnin jen potřeba.
+ * Cíle osevu (fields.md – Kolik ves oseje, Osev podle zásob): úroda na rok spotřeby z pole
+ * a pojistku bez toho, co ze zásob k příští sklizni zbude; luštěniny podle bílkovin, které chybí po
+ * obilí, mléku a vejcích (`legumeNeedPerYear`), a podle své zásoby.
  */
-function legumeSowingTarget(state: VillageState, day: number): number {
-  const need = legumeNeedPerYear(state, day);
-  return villageLegumesKg(state) > STORES_HIGH_YEARS * need ? need : need * (1 + SOW_RESERVE);
+function fieldSowingTargets(
+  state: VillageState,
+  day: number,
+  coverage: CraftCoverage,
+): SowingTargets {
+  return sowingTargets(state, day, legumeNeedPerYear(state, day), coverage.pottery);
 }
 
 /**
- * Cíl osevu obilí a luštěnin (fields.md – Kolik ves oseje, Osev podle stravy): potřeba z pole
- * s rezervou obilí a k ní rezerva luštěnin (energií), aby luštěniny rezervu obilí neubraly.
+ * Krok 3 (1. 9. – 30. 4., každý den po přidání hotových dílů): když letošní plán převyšuje cíl
+ * podle zásob o víc než FIELD_STORES.trimMarginYears roční potřeby z pole, ubere díly, na kterých
+ * ještě nezačala práce – od konce pořadí práce (fields.md – Kolik ves oseje, Osev podle zásob).
  */
-function fieldSowingTarget(state: VillageState, day: number): number {
-  const legumeReserve = legumeSowingTarget(state, day) - legumeNeedPerYear(state, day);
-  return sowingTargetKg(state, day, legumeEnergy(legumeReserve));
+function trimPlan(state: VillageState, day: number, coverage: CraftCoverage): void {
+  if (!state.plan) return;
+  const targets = fieldSowingTargets(state, day, coverage);
+  trimPlanToTarget(state, day, targets.targetKg, FIELD_STORES.trimMarginYears * targets.needKg);
 }
 
 /**
@@ -495,6 +504,11 @@ function reclaimedLogs(parts: readonly FieldPart[], day: number): number {
 function sow(parts: FieldPart[], day: number, crop: Crop): void {
   for (const part of parts) {
     if (part.state === 'fallow') {
+      // kdyby plán podle zásob díl ubral dřív, než na něm začne práce, vrátí se do přílohu, jak byl
+      part.fallowBeforePlan = {
+        sinceDay: part.fallowSinceDay,
+        ...(part.overgrowthYears !== undefined ? { overgrowthYears: part.overgrowthYears } : {}),
+      };
       part.fallowSinceDay = null;
       part.sownYears = 0;
       delete part.overgrowthYears;

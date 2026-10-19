@@ -2,7 +2,7 @@ import { TOTAL_GAME_DAYS, dateOfDayIndex, dayIndexOf } from '../calendar';
 import type { ObstacleLayer } from '../landscape';
 import { DIET, meatHappiness } from './diet';
 import { isOvercrowded } from './dwellings';
-import { fieldFoodShare } from './field-food';
+import { fieldFoodShare, fieldStoresKg } from './field-food';
 import { foodNeedPerDay } from './people';
 import {
   HAPPINESS,
@@ -129,13 +129,14 @@ export function crowdedShare(state: VillageState, day: number): number {
 }
 
 /**
- * Zásoby obilí vystačí na víc než rok toho, co ves jí z pole (dnešní potřeba × podíl z pole –
- * fields.md, Osev podle stravy)? Ves bez změřeného podílu jako dřív – proti celé potřebě.
+ * Zásoby z pole (obilí a luštěniny) vystačí na víc než rok toho, co ves jí z pole (dnešní potřeba
+ * × podíl z pole – fields.md, Osev podle stravy a podle zásob)? Ves bez změřeného podílu proti
+ * celé potřebě.
  */
 export function hasGoodStores(state: VillageState, day: number): boolean {
   const need =
     state.people.reduce((sum, p) => sum + foodNeedPerDay(p, day), 0) * fieldFoodShare(state);
-  return need > 0 && state.storesKg > need * DAYS_PER_YEAR * HAPPINESS_BONUS.storesYears;
+  return need > 0 && fieldStoresKg(state) > need * DAYS_PER_YEAR * HAPPINESS_BONUS.storesYears;
 }
 
 /**

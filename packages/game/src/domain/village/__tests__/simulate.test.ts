@@ -474,7 +474,10 @@ describe('advanceVillage – roční plán a sklizeň', () => {
     const s0 = found(at(600, 6, 1), 42, field(133));
     s0.constructions = [];
     s0.lastDay = at(601, 2, 28);
-    s0.storesKg = 5000;
+    // zásoby obilí jen do sklizně (s větší zásobou by ves plán podle zásob hned zkrátila – fields.md,
+    // Osev podle zásob) a maso, ať nehladoví
+    s0.storesKg = 300;
+    s0.meatKg = 300;
     for (const p of s0.parts) {
       p.foundingDone = p.foundingCost;
       p.state = 'sown';
@@ -490,7 +493,8 @@ describe('advanceVillage – roční plán a sklizeň', () => {
     const dugShare = dig.done / dig.required;
     const sownShare = sow.done / sow.required;
     expect(sownShare).toBeLessThanOrEqual(dugShare + 1e-9);
-    expect(sownShare).toBeGreaterThan(dugShare - 0.01);
+    // pruh posledního dne – u plánu zkráceného podle zásob je větší díl plánu
+    expect(sownShare).toBeGreaterThan(dugShare - 0.02);
 
     const s = advanceVillage(spring, at(601, 8, 31), null);
     expect(harvests(s).at(-1)?.kg).toBeGreaterThan(0);
@@ -500,7 +504,10 @@ describe('advanceVillage – roční plán a sklizeň', () => {
     const s0 = found(at(600, 6, 1), 42, field(133));
     s0.constructions = [];
     s0.lastDay = at(601, 2, 28);
-    s0.storesKg = 5000;
+    // zásoby obilí jen do sklizně (s větší zásobou by ves plán podle zásob hned zkrátila – fields.md,
+    // Osev podle zásob) a maso, ať nehladoví
+    s0.storesKg = 300;
+    s0.meatKg = 300;
     for (const p of s0.parts) {
       p.foundingDone = p.foundingCost;
       p.state = 'sown';
@@ -517,7 +524,10 @@ describe('advanceVillage – roční plán a sklizeň', () => {
     expect(plan.done.harvest).toBeCloseTo(plan.required.harvest * sownShare, 6);
 
     const s = advanceVillage(summerEnd, at(601, 8, 31), null);
-    const ha = s0.parts.reduce((sum, p) => sum + p.areaM2, 0) / 10_000;
+    // plán mohl ves podle zásob zkrátit – úroda jen z dílů, které v něm zůstaly
+    const inPlan = new Set(plan.partIds);
+    const ha =
+      s0.parts.filter((p) => inPlan.has(p.id)).reduce((sum, p) => sum + p.areaM2, 0) / 10_000;
     const fullYield = ha * sownShare * (760 * (0.4 + 0.6 * 0.7) - 175);
     expect(harvests(s).at(-1)?.kg).toBe(Math.round(fullYield));
   });

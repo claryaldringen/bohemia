@@ -285,6 +285,12 @@ export interface FieldPart {
    * křovin už ne. Chybí = 0 (díly mimo příloh, vsi uložené dřív).
    */
   overgrowthYears?: number;
+  /**
+   * Příloh, ze kterého se díl letos vrací do osevu (od kdy ležel ladem a roky bez pastvy) – kdyby
+   * ho ves podle zásob z plánu ubrala dřív, než na něm začne práce, vrátí se do přílohu, jak byl
+   * (fields.md – Osev podle zásob). Smaže se na konci hospodářského roku; chybí = díl se nevrací.
+   */
+  fallowBeforePlan?: { sinceDay: number | null; overgrowthYears?: number };
 }
 /**
  * Les vsi (fields.md – Zarůstání, Les vsi): čtverec pole, který zarostl lesem a z pole vypadl. Les

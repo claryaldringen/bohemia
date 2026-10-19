@@ -496,6 +496,9 @@ describe('advanceVillage – sad', () => {
   it('sklizeň jablek má přednost před podzimními pracemi v poli (i ozimem)', () => {
     const base = village(at(601, 8, 31));
     const s = withOrchard(base, 400, at(570, 4, 1)); // 9 ha – sklizeň ≈ 72 člověkodní
+    // zásoby přes rok spotřeby – ves podle zásob oseje menší plán (fields.md – Osev podle zásob),
+    // první úsek od domu se tak vejde do podzimu a v plánu je i ozim
+    s.storesKg = 1200;
     const day = advanceVillage(s, at(601, 9, 2), null);
     expect(day.orchardWork!.done).toBeGreaterThan(1);
     // i před ozimem – jablka se sklízejí první, ozim dostane zbytek podzimu
