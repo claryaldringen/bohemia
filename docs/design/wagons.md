@@ -113,6 +113,35 @@ Z 0 A.D. (CC BY-SA 3.0, převod jako spřežení – `tools/blender/people_from_
 `wagon_four_wheel_empty`) – s loukoťovými koly, ojí a jhem; ruční vozíky jen jako ozdoba. Měřítko
 0 A.D. se zmenší na skutečnou velikost (dvoukolák ≈ 3,5 m i s ojí, čtyřkolák ≈ 5 m).
 
+## Jak je postavené – modely (fáze 3a)
+
+Zatím jen grafika a ukázka na `/dev/buildings` (tlačítka **Vozy**, **Tesař**, **Další vůz
+zblízka**, **Sledovat vůz**) – herní logika vozů ani tesaře v jádru není.
+
+- **Vozy:** `tools/blender/wagons_from_0ad.py` převádí `wagon_two_wheel_empty.dae`
+  a `wagon_four_wheel_empty.dae` (skinované – kola na kostech) do
+  `apps/web/public/models/wagons/wagons.glb`. Model se rozdělí podle kostí na korbu, předek
+  čtyřkoláku a kolo; zmenší se na skutečnou velikost (kolo ⌀ 0,98 m – dvoukolák ≈ 1,0 × 2,0 m,
+  čtyřkolák ≈ 1,25 × 3,2 m, rozvor 1,5 m). Koňský postroj 0 A.D. (oje s chomoutem) je pryč, vozy
+  mají vlastní oj ke **šíjovému jhu spřežení** (stejné jho a stejný pár volů jako u rádla – jho
+  1,19 m nad zemí): dvoukolák pevnou (korba se podle jha naklápí), čtyřkolák na čepu předku. Korba
+  je ≈ 2 m za jhem (zadky volů ≈ 1,6 m), dvoukolák i s ojí ≈ 3,9 m.
+- **Kola** se točí podle ujeté dráhy (matice instance – animace jízdy 0 A.D. jen točí kola, korba
+  stojí); vnější kolo v oblouku víc než vnitřní.
+- **Náklad** jako samostatné díly na korbě: seno (kupa přes korbu s pavuzou – sláma z textury
+  `iber_struct.png` jako `hay_cart` 0 A.D., přebarvená do olivova), snopy (napříč, klasy dovnitř,
+  po vrstvách), klády (v pyramidě, přečnívají dozadu, kůra a čela jako hromada klád a polena
+  řemesel), zboží (pytle, soudek medu, balík kožešin). Prázdný vůz bez nákladu.
+- **Ve scéně:** `cart-layout.ts` (čisté funkce – trasa, póza vozu se spřežením v čase t, sklon
+  a náklon podle terénu pod koly) a `cart-renderer.ts` (kreslení v instancích). Data přijdou
+  z jádra jako trasa vozu (lomená čára), druh a náklad.
+- **Tesař:** `tools/blender/crafts.py` (`tesar.glb`) – polozemnice s předsazeným přístřeškem jako
+  hrnčíř a kovář, pod ním dva kozlíky s otesávaným trámem, špalek se zaseknutou sekerou,
+  rozdělané kolo na špalcích, hotová kola opřená o stěnu a o zásobu trámů, hobliny. Staveniště po
+  fázích (`village-construction.ts` – druh `tesar`, fáze `carpentry` a `workshop`), ikona
+  `icons/build/tesar.png`. Herní řemeslo `carpenter` stačí ve scéně přiřadit k modelu `tesar`
+  (`CRAFT_MODEL` v `workshop-layout.ts`).
+
 ## Rozhodnutí
 
 | Rozhodnutí                                                                                | Kdo                   |
@@ -129,3 +158,4 @@ Z 0 A.D. (CC BY-SA 3.0, převod jako spřežení – `tools/blender/people_from_
 | Most zatím ne – vůz přejede potok brodem nebo po hati                                     | Martin (19. 10. 2026) |
 | Jeden vůz na spřežení                                                                     | návrh Clauda          |
 | Dva vozy z 0 A.D. – dvoukolák (základní) a čtyřkolák (víc nákladu, obchod)                | Martin (19. 10. 2026) |
+| Kola vozů točí matice instance podle ujeté dráhy (ne VAT); vlastní oj ke jhu volů         | návrh Clauda          |
