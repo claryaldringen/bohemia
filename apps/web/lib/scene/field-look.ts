@@ -62,6 +62,12 @@ export interface PartView {
   staked: boolean;
   /** Pořadí dílu v práci na poli (0 = první, od obydlí). */
   order: number;
+  /**
+   * Na posečeném dílu (`mown`) leží řádky sena – je čerstvě posečený, seno ještě schne (díl dnešní
+   * seče nebo rozpracovaný, v odhadu posečený před méně než SWATH_DAYS dny). Ostatní posečené díly
+   * mají seno shrabané v kupkách. Bez údaje ne.
+   */
+  swaths?: boolean;
 }
 
 /** Kolik řádků (pruhů napříč dílem) se zobrazí jako hotových – po krocích sítě obtisku. */
@@ -175,10 +181,13 @@ export function workOrder(
   return [...parts].sort((a, b) => distances.get(a)! - distances.get(b)! || a.x - b.x || a.z - b.z);
 }
 
-/** Kontext odhadu: den v roce (1–366) a ves (obydlí určí pořadí a směr práce). */
+/**
+ * Kontext odhadu: den v roce (1–366) a ves (obydlí určí pořadí a směr práce, rozdělení práce dne
+ * díly dnešní seče – řádky sena).
+ */
 export interface LookContext {
   dayOfYear: number;
-  village: Pick<SceneVillage, 'dwellings'>;
+  village: Pick<SceneVillage, 'dwellings'> & Partial<Pick<SceneVillage, 'labor'>>;
 }
 
 /**
@@ -194,6 +203,7 @@ export function fieldPartViews(
   if (
     cached &&
     cached.dwellings === context.village.dwellings &&
+    cached.labor === context.village.labor &&
     cached.day === context.dayOfYear
   ) {
     return cached.views;
@@ -201,6 +211,7 @@ export function fieldPartViews(
   const views = computePartViews(field, context);
   viewsCache.set(field.parts, {
     dwellings: context.village.dwellings,
+    labor: context.village.labor,
     day: context.dayOfYear,
     views,
   });
@@ -210,8 +221,30 @@ export function fieldPartViews(
 /** Vzhled dílů podle pole (pole dílů ze stavu vsi) – výsledek se nemění, jen se čte. */
 const viewsCache = new WeakMap<
   readonly SceneFieldPart[],
-  { dwellings: LookContext['village']['dwellings']; day: number; views: PartView[] }
+  {
+    dwellings: LookContext['village']['dwellings'];
+    labor: LookContext['village']['labor'];
+    day: number;
+    views: PartView[];
+  }
 >();
+
+/**
+ * Díly dnešní seče z rozdělení práce (`mow` – díly polí podle id, přirozené louky podle políčka):
+ * na nich leží řádky sena.
+ */
+function mownToday(village: LookContext['village']): (part: SceneFieldPart) => boolean {
+  const ids = new Set<number>();
+  const cells = new Set<string>();
+  for (const share of village.labor?.shares ?? []) {
+    if (share.activity !== 'mow') continue;
+    const target = share.target;
+    if (target.kind === 'field') for (const id of target.parts ?? []) ids.add(id);
+    else if (target.kind === 'meadow') for (const c of target.cells) cells.add(`${c.x},${c.y}`);
+  }
+  return (part) =>
+    (part.id !== undefined && ids.has(part.id)) || cells.has(`${part.cell.x},${part.cell.y}`);
+}
 
 function computePartViews(
   field: { parts: readonly SceneFieldPart[] },
@@ -225,6 +258,7 @@ function computePartViews(
   const sownIndex = new Map(sown.map((p, i) => [p, i]));
   const hay = ordered.filter((p) => isHayStage(p.stage));
   const hayIndex = new Map(hay.map((p, i) => [p, i]));
+  const fresh = mownToday(context.village);
   return field.parts.map((part) => {
     const index = order.get(part) ?? 0;
     if (part.look) {
@@ -234,6 +268,8 @@ function computePartViews(
         return { part, look: part.before ?? null, work: null, before: null, staked, order: index };
       }
       const work = part.work !== undefined && part.work < 1 ? part.work : null;
+      // řádky sena na rozpracovaném dílu a dílech dnešní seče, jinde shrabáno do kupek
+      const swaths = part.look === 'mown' && (work !== null || fresh(part));
       return {
         part,
         look: part.look,
@@ -241,6 +277,7 @@ function computePartViews(
         before: work !== null ? (part.before ?? null) : null,
         staked: part.stage === 'founding' && (part.work ?? 0) < 1,
         order: index,
+        ...(swaths ? { swaths: true } : {}),
       };
     }
     const estimate = isHayStage(part.stage)
@@ -305,7 +342,10 @@ function estimateHay(day: number, index: number, count: number): Omit<PartView, 
   const phase = hayPhase(day);
   if (!phase) return { look: 'meadow', work: null, before: null, staked: false };
   if (phase.hay === 'stacks') return { look: 'haystacks', work: null, before: null, staked: false };
-  return frontier(index, phase.mown * count, 'mown', 'meadow');
+  const view = frontier(index, phase.mown * count, 'mown', 'meadow');
+  // seno posečené před méně než SWATH_DAYS dny leží v řádcích, starší je v kupkách
+  const swaths = view.look === 'mown' && index + 1 > Math.floor(phase.raked * count);
+  return swaths ? { ...view, swaths: true } : view;
 }
 
 /** Podíl okna `from`–`to` (dny v roce), které uplynulo v den `day` (0–1). */

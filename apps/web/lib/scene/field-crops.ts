@@ -12,7 +12,7 @@ import {
   type PartView,
   type WorkFrame,
 } from './field-look';
-import { hayOnSquares, hayPhase } from './hay-meadows';
+import { hayOnSquares } from './hay-meadows';
 import { seededRandom, smoothstep, type Bounds, type Point } from './village-layout';
 
 export type Rgb = readonly [number, number, number];
@@ -288,6 +288,7 @@ export function partViewsKey(views: readonly PartView[]): unknown[] {
     v.before,
     v.staked,
     v.part.crop ?? null,
+    v.swaths ?? false,
   ]);
 }
 
@@ -419,15 +420,13 @@ export function fieldPlants(
     weeds: [],
     hay: [],
   };
-  // seno jen na celých posečených dílech (na rozpracovaném se ještě seče)
-  const hayParts = views.filter((v) => v.look && LOOK_STYLES[v.look].hay && v.work === null);
-  plants.hay.push(
-    ...hayOnSquares(
-      hayParts.map((v) => v.part),
-      hayPhase(dayOfYear),
-      dayOfYear,
-    ),
-  );
+  // seno jen na celých posečených dílech (na rozpracovaném se ještě seče): shrabané v kupkách
+  // (kde ještě schne v řádcích, kupky nejsou), od poloviny července stohy
+  for (const view of views) {
+    if (!view.look || !LOOK_STYLES[view.look].hay || view.work !== null || view.swaths) continue;
+    const hay = view.look === 'haystacks' ? 'stacks' : 'heaps';
+    plants.hay.push(...hayOnSquares([view.part], hay, dayOfYear));
+  }
   for (const view of views) {
     if (!view.look && !view.before) continue;
     const part = view.part;

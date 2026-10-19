@@ -360,4 +360,5 @@ a nechávalo za sebou brázdu. Tak budu moci určit, jak se to chová.“ – **
 | Kráva 5, vůl 6, ovce a koza 1 kg denně; seč 15 → 10 čd/ha; stoh 10 %/rok                    | návrh Clauda (rešerše)        |
 | Staré seno se k nové seči zkazí; seče se na zimní stádo podle potřeby                       | návrh Clauda                  |
 | Spřežení se cvičí samo – co ulehčí práci a ves to má, vesničané používají sami              | Martin (19. 10. 2026)         |
+| Řádky sena zelenožluté, širší a nepravidelné, jen pár dní po seči, pak kupky (fields.md)    | Martin (19. 10. 2026)         |
 | Výcvik začne první vhodný den (telata, dřevo, v zimě seno), rádlo staví ves sama            | návrh Clauda                  |

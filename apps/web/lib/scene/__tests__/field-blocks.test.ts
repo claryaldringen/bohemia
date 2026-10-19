@@ -38,6 +38,8 @@ function fieldViews(): PartView[] {
         before: working ? 'plowed' : null,
         staked: k % 11 === 0,
         order: k,
+        // čerstvě posečené díly – řádky sena (ostatní posečené mají kupky)
+        ...(look === 'mown' && k % 2 === 0 ? { swaths: true } : {}),
       });
       k++;
     }
@@ -94,7 +96,7 @@ describe('pole po blocích dílů', () => {
       expect(merged.plants).toEqual(fieldPlants(views, ROWS, CENTER, coverage, day));
       expect(mergeFieldBlocks(views, [whole]).plants).toEqual(merged.plants);
       expect(layerGrids(merged)).toEqual(layerGrids(whole));
-      if (day === 165) expect(merged.swaths.length).toBeGreaterThan(0);
+      expect(merged.swaths.length).toBeGreaterThan(0);
       expect(merged.swaths.map((g) => [...g.positions].join()).sort()).toEqual(
         whole.swaths.map((g) => [...g.positions].join()).sort(),
       );

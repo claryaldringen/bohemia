@@ -1239,7 +1239,10 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   (vertex shader `CropSwayPlugin`, jen v záběru, `WATER_FPS`, při omezeném pohybu stojí), pod
   sněhem nízké trsy zmizí; panáky (`stook.glb`) na sklizené části, plevel (trsy trávy) na
   úhoru a louce, seno – řádky, kupky a stohy (`haystack.glb`) přes podzim a zimu postupně mizí
-  (`hay-meadows.ts`: `hayPhase`, `stackStands`); kolíky a provázek kolem vytyčeného pole
+  (`hay-meadows.ts`: `hayPhase`, `stackStands`; řádky sena jen na čerstvě posečených dílech –
+  `PartView.swaths`: rozpracovaný díl a díly dnešní seče z rozdělení práce, v odhadu do
+  `SWATH_DAYS` po seči, jinak kupky; zelenožluté, zvlněné a trhané – `swathTexture`, `swathAlpha`,
+  `SWATH_COLOR`); kolíky a provázek kolem vytyčeného pole
   (Martin: hned po zadání, `fieldStaking`). Rozmístění trsů a panáků je v `field-crops.ts`
   (čisté funkce, deterministicky po políčkách). **Vystouplé obilí** (fields.md – Co hráč vidí;
   Martin 19. 10. 2026, dvouzrnka): zelené a zralé obilí má nad sebou neprůhlednou „korunu“

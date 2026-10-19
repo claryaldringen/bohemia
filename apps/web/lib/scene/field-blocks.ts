@@ -10,7 +10,7 @@ import {
 } from './field-crops';
 import { emptyCanopy, fieldCanopy, mergeCanopies, type CanopyMesh } from './field-canopy';
 import type { PartView } from './field-look';
-import { hayPhase } from './hay-meadows';
+import { swathAlpha } from './hay-meadows';
 import { decalGrid, type Bounds, type DecalGrid } from './village-layout';
 
 /**
@@ -140,19 +140,16 @@ export function fieldBlockContent(
       }
     }
   }
-  // posečená louka na seno: řádky sena na posečené části (v době sušení)
-  const swaths =
-    hayPhase(day)?.hay === 'swaths'
-      ? pieces
-          .filter((piece) => piece.look === 'mown')
-          .map((piece) =>
-            decalGrid(piece.bounds, piece.part.size / GRID_PER_CELL / 2, (x, z) => {
-              const n = patchNoise(x * 1.7, z * 1.7);
-              return coverage(x, z) * (0.55 + 0.45 * n);
-            }),
-          )
-          .filter((grid) => grid.indices.length > 0)
-      : [];
+  // posečená louka na seno: řádky sena na čerstvě posečené části (seno schne – `swaths`)
+  const drying = new Set(views.filter((v) => v.swaths).map((v) => cellKey(v.part.cell)));
+  const swaths = pieces
+    .filter((piece) => piece.look === 'mown' && drying.has(cellKey(piece.part.cell)))
+    .map((piece) =>
+      decalGrid(piece.bounds, piece.part.size / GRID_PER_CELL / 2, (x, z) =>
+        swathAlpha(x, z, coverage(x, z)),
+      ),
+    )
+    .filter((grid) => grid.indices.length > 0);
   // rostliny po dílech – pole je pak spojí v pořadí dílů jako fieldPlants celého pole (plevel
   // se dělí do dvou modelů trsů podle pořadí)
   const plants = new Map<string, FieldPlants>();

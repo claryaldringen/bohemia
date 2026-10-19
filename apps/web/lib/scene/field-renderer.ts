@@ -51,6 +51,9 @@ import {
   hayMeadowFields,
   hayPhase,
   meadowHay,
+  meadowReached,
+  swathAlpha,
+  swathTexture,
   type HayMeadow,
   type HayPhase,
 } from './hay-meadows';
@@ -89,6 +92,13 @@ const MEADOW_EDGE_SOFT_M = 3;
  * (population.md – Obydlí na poli a v sadu), obtisk ani trsy pod ní nejsou.
  */
 const CLEARING_SOFT_M = 1.2;
+/**
+ * Barva řádků sena – zelenožlutá jako schnoucí seno (Martin, 19. 10. 2026: dřív skoro bílé čáry
+ * – „Proč jsou na tom ty čáry?“); textura řádků ji jen ztmaví ve stéblech.
+ */
+const SWATH_COLOR = [0.7, 0.68, 0.24] as const;
+/** Textura řádku sena: podél řádku 4 m, napříč rozestup řádků (SWATH_SPACING_M). */
+const SWATH_TEXTURE = { width: 32, height: 64 } as const;
 /**
  * Měkký okraj masky pod pevnou cestou a pěšinou dne (m) – za okrajem pásu se obilí vrací
  * a koruna porostu vystoupá ze země svahem jako na okraji pole (field-canopy.ts – EDGE). U pěšiny
@@ -897,17 +907,10 @@ export class FieldRenderer {
   private meadowMeshes(meadow: HayMeadow, phase: HayPhase | null): Mesh[] {
     if (!phase || phase.mown <= 0 || phase.regrowth >= 1) return [];
     const coverage = raggedCoverage(meadow.squares, MEADOW_EDGE_SOFT_M);
-    const mown = workSteps(phase.mown);
-    // seče se od jednoho kraje louky napříč řádky
-    const [dx, dz] = meadow.rows;
-    const across: [number, number] = [-dz, dx];
-    const values = meadow.squares.map((s) => s.x * across[0] + s.z * across[1]);
+    // seče se od jednoho kraje louky napříč řádky; za čarou shrabání už je seno v kupkách
     const half = meadow.squares[0]!.size / 2;
-    const from = Math.min(...values) - half;
-    const to = Math.max(...values) + half;
-    const limit = from + (to - from) * mown;
-    const mownAt = (x: number, z: number): number =>
-      smooth01((limit - (x * across[0] + z * across[1])) / 1.2);
+    const mownAt = meadowReached(meadow, workSteps(phase.mown));
+    const rakedAt = meadowReached(meadow, workSteps(phase.raked));
     const grids: DecalGrid[] = meadow.squares.map((s) =>
       decalGrid(
         { minX: s.x - half, maxX: s.x + half, minZ: s.z - half, maxZ: s.z + half },
@@ -929,12 +932,13 @@ export class FieldRenderer {
     mesh.alphaIndex = 1;
     meshes.push(mesh);
     if (phase.hay === 'swaths') {
-      // řádky sena: jemnější síť, krytí ve skvrnách (řádek není všude stejně hustý)
+      // řádky sena jen na čerstvě posečené části (mezi čarou seče a shrabání) – jemnější síť,
+      // krytí ve skvrnách a místy trhliny (`swathAlpha`)
       const swathGrids = meadow.squares.map((s) =>
         decalGrid(
           { minX: s.x - half, maxX: s.x + half, minZ: s.z - half, maxZ: s.z + half },
           s.size / GRID_PER_CELL / 2,
-          (x, z) => coverage(x, z) * mownAt(x, z) * (0.55 + 0.45 * patchNoise(x * 1.7, z * 1.7)),
+          (x, z) => swathAlpha(x, z, coverage(x, z) * Math.max(0, mownAt(x, z) - rakedAt(x, z))),
         ),
       );
       meshes.push(this.swathMesh(`meadow-${meadow.id}`, swathGrids, meadow.rows));
@@ -942,23 +946,29 @@ export class FieldRenderer {
     return meshes;
   }
 
-  /** Řádky posečeného sena – trochu zvlněné (kosa nejde po pravítku), napříč `rows`. */
+  /**
+   * Řádky posečeného sena – zelenožluté jako schnoucí seno, zvlněné (kosa nejde po pravítku)
+   * a ne přesně rovnoběžné (každý řádek se vlní jinak), napříč `rows`.
+   */
   private swathMesh(name: string, grids: DecalGrid[], rows: readonly [number, number]): Mesh {
     const [dx, dz] = rows;
     const swaths: DecalLayer = {
       texture: 'grass',
       patches: false,
       grids,
-      colors: grids.map(() => [0.8, 0.78, 0.5] as const),
+      colors: grids.map(() => SWATH_COLOR),
       alphas: grids.map(() => 0.95),
     };
     const mesh = this.mergedDecal(`village-swaths-${name}`, swaths, LIFT.swaths, (x, z) => {
       const along = x * dx + z * dz;
       const across = -x * dz + z * dx;
-      return [
-        along / 4,
-        (across + 0.5 * Math.sin(along / 7.3) + 0.25 * Math.sin(along / 2.9)) / SWATH_SPACING_M,
-      ];
+      // posun napříč závisí i na poloze napříč – rozestup řádků kolísá ±15 % (stále rostoucí)
+      const wave =
+        0.5 * Math.sin(along / 7.3) +
+        0.25 * Math.sin(along / 2.9) +
+        0.45 * Math.sin(along / 6.1 + across / 3.3) +
+        0.2 * Math.sin(along / 2.3 - across / 5.7);
+      return [along / 4, (across + wave) / SWATH_SPACING_M];
     });
     mesh.material = this.swathMaterial();
     mesh.alphaIndex = 2;
@@ -1305,21 +1315,11 @@ export class FieldRenderer {
     let material = this.materials.get('swaths');
     if (!material) {
       const standard = createDecalMaterial(this.scene, 'village-meadow-swaths', { zOffset: -3 });
-      const height = 64;
-      const data = new Uint8Array(4 * height * 4);
-      for (let y = 0; y < height; y++) {
-        // řádek sena zabírá asi pětinu rozteče, kraje měkké a roztřepené
-        const t = Math.abs(y / height - 0.5) * 2;
-        const alpha = Math.round(255 * (1 - Math.min(1, Math.max(0, (t - 0.12) / 0.14))));
-        for (let x = 0; x < 4; x++) {
-          const fray = (x * 37 + y * 11) % 7 === 0 ? 0.7 : 1;
-          data.set([255, 255, 255, Math.round(alpha * fray)], (y * 4 + x) * 4);
-        }
-      }
+      const data = swathTexture(SWATH_TEXTURE.width, SWATH_TEXTURE.height);
       const texture = RawTexture.CreateRGBATexture(
         data,
-        4,
-        height,
+        SWATH_TEXTURE.width,
+        SWATH_TEXTURE.height,
         this.scene,
         true,
         false,
@@ -1364,11 +1364,6 @@ export function cropDensity(radius: number): number {
   if (radius >= CROP_RANGE_M.far) return FAR_DENSITY;
   const t = (radius - CROP_RANGE_M.near) / (CROP_RANGE_M.far - CROP_RANGE_M.near);
   return 1 - (1 - FAR_DENSITY) * t;
-}
-
-function smooth01(x: number): number {
-  const t = Math.min(1, Math.max(0, x));
-  return t * t * (3 - 2 * t);
 }
 
 /**

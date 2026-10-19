@@ -1172,6 +1172,13 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
   (Martin) – na jaře vysoká kvetoucí tráva, v červnu se seče po dílech (řádky sena), pak kupky
   a od poloviny července stohy na otavě, které přes podzim a zimu postupně mizí (zkrmují se);
   na otavě se od srpna do konce listopadu pase. Z dálky trsy řídnou a pole nese barva obtisku.
+  **Řádky sena** (Martin, 19. 10. 2026, ke snímku posečené louky: „Proč jsou na tom ty čáry?“;
+  k návrhu úpravy: „Udělej to tak, jak říkáš“; podrobnosti návrh Clauda): řádky jsou
+  zelenožluté jako schnoucí seno (dřív skoro bílé), široké ≈ 1,1 m s měkkým roztřepeným okrajem
+  do ≈ 2 m, vlní se a nejsou přesně rovnoběžné (rozestup 4,5 m ± 15 %), místy se trhají. Leží jen
+  na čerstvě posečených dílech – seno v řádcích schne ≈ 3 dny (`SWATH_DAYS`), pak se shrabe do
+  kupek; ve vsi podle dat jádra jsou řádky na rozpracovaném dílu a na dílech dnešní seče, ostatní
+  posečené díly mají kupky.
   **Vystouplé obilí** (Martin, 19. 10. 2026: „Zrající a dozrálé obilí by mělo být také mírně
   vystouplé – pšenice dvouzrnka má nějakou výšku.“): zelené a zralé obilí je vyvýšená hmota –
   nad dílem leží „koruna“ porostu (textura porostu shora) ve výšce 0,62 m (zelené) a 0,88 m
@@ -1345,6 +1352,8 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 | Drn orbou křížem 2,5×; zaseje se, co spřežení zorají; ztráta spřežení – letošní plán dokončí motyka; rohy podle stavu vsi         | návrh Clauda                                    |
 | Koruna porostu 0,62 / 0,88 m, luštěniny 0,3 m, schod na čáře žně; roh 5 m jen vnější rohy oraných dílů, jen vzhled                | návrh Clauda                                    |
 | Pod cestou obilí neroste – pod pevnou cestou i pěšinou dne                                                                        | Martin (19. 10. 2026)                           |
+| Řádky sena zelenožluté, širší, nepravidelné, kratší dobu – pak kupky                                                              | Martin (19. 10. 2026)                           |
+| Řádky ≈ 1,1 m (okraj do 2 m), rozestup ± 15 %, trhliny; seno v řádcích 3 dny, ve vsi jen díly dnešní seče                         | návrh Clauda                                    |
 | Maska v šířce obtisku cesty, okraj 0,8 m (pěšina 0,5 m) svahem; přestavba jen bloků u změněných pásů; jemnější síť pod pásem      | návrh Clauda                                    |
 | Cíl = rok spotřeby z pole a pojistka po příští sklizni bez toho, co zbude; pojistka ~~0,3~~ 0,5 roční potřeby celé energie        | návrh Clauda                                    |
 | Volná práce pro plán osevu po dospělých pasácích (se stády podle bílkovin)                                                        | návrh Clauda                                    |
