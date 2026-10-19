@@ -495,8 +495,8 @@ rozhraní částí v
   Ves se dopočítá při každém načtení a akci (worker zatím není).
 - **API jádra:** `foundVillage` (4 lidé, zásoby, stavba první zemnice, volitelně první pole),
   `advanceVillage(state, toDay)` (dopočítá ves do dne včetně) a akce hráče `startNewDwelling`,
-  `startWorkshop`, `foundField`, `foundCemetery`, `foundOrchard`, `foundPen`, `trainTeam`,
-  `startTrail` a `startExpedition` (trade.md). Stav
+  `startWorkshop`, `foundField`, `foundCemetery`, `foundOrchard`, `foundPen`, `startTrail`
+  a `startExpedition` (trade.md); spřežení se cvičí samo (`trainTeamsWhenReady`). Stav
   vsi je JSON-serializovatelný, funkce vstupní stav nemění. Nové části stavu jsou volitelné
   (`VillageState.cemeteries?`, `orchards?`, `applesKg?`, `orchardWork?`, `starvationDays?`,
   `extinctDay?`, `crafts?`, `Dwelling.workshop?`, `livestock?`, `meatKg?`, `cheeseKg?`,
@@ -877,10 +877,15 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   mláďata, zkažené staré seno a plán seče, zkažené maso, porážka, zimní seno.
 - **Ohrada, spřežení a orba rádlem** ([oxen.md](docs/design/oxen.md), `oxen.ts`, `plough.ts`,
   `hay.ts`): ohrada (`BuildKind` `'pen'`, `checkPenPlacement`, `foundPen`, use-case `placePen`)
-  je čtverec louky, stavba se dřevem jako obydlí; `trainTeam` (use-case `trainTeamInPen`,
-  `trainingBlock` = důvod pro tlačítko) vezme 2 telata ze stáda a postaví rádlo (stavba `'ard'`);
-  po 2 letech `Pen.team`, po 10 letech na maso; náhradu jde cvičit jen v posledních 2 letech
-  služby (`serviceYearsBeforeTraining`, Martin – druhé spřežení = druhá ohrada). Seno `VillageState.hay` (seč 1. 6. z úhoru ve
+  je čtverec louky, stavba se dřevem jako obydlí. **Výcvik spřežení začne sám** (Martin:
+  „ve chvíli, kdy mají vesničané k dispozici cokoliv, co jim ulehčí práci – zde
+  rádlo a voly – začnou to automaticky používat“ – princip pro celou hru, oxen.md – Spřežení):
+  `trainTeamsWhenReady` v `husbandryDay` (po mláďatech 1. 4.) každý den, kdy `trainingBlock` je
+  null – ohrada stojí, nic se necvičí, spřežení není nebo je v posledních 2 letech služby
+  (`serviceYearsBeforeTraining`), aspoň 3 krávy, dřevo na rádlo, v zimě seno volům i telatům do
+  konce března (`hayWinterDaysLeft`) – vezme 2 telata ze stáda a postaví rádlo (stavba `'ard'`
+  ze společné práce); po 2 letech `Pen.team`, po 10 letech na maso; druhé spřežení = druhá ohrada.
+  Hráč výcvik nezadává (akce, use-case i tlačítko zmizely). Seno `VillageState.hay` (seč 1. 6. z úhoru ve
   fázi louky a přirozených luk do 600 m od obydlí – `planMowing` s potřebou `winterHayNeedKg`
   (zimní stádo podle potřeby `wantedWinterHerds` + voli ohrad, se ztrátou do zkrmení
   `PLAN_HAY_KEEP`), práce `HAY_WORK_PER_HA` meze 15 → 10 čd/ha
@@ -1023,7 +1028,7 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
 - **Web:** server actions `app/game/actions.ts` (`getVillageView`, `selectVillage`, `foundVillage`,
   `foundDevVillage`, `placeDwelling`, `relocateHousehold`, `cancelRelocation`, `leaveVillage`,
   `settleJourney`, `placeWorkshop`,
-  `placeField`, `placeCemetery`, `placeOrchard`, `placeSacred`, `placePen`, `trainTeam`,
+  `placeField`, `placeCemetery`, `placeOrchard`, `placeSacred`, `placePen`,
   `buildTrail`, `sendExpedition`, `renameVillage` → `VillageView` / `null` / `{ error }`; `restartGame(input?)` → `{ ok: true }` /
   `{ error }`). **Každá akce nad vsí nese `villageId`** (UUID – `villageIdOf` v
   `lib/village-input.ts`) a server ověří, že ves patří hráči (`context` v `lib/village.ts` →
@@ -1576,7 +1581,8 @@ směr)` – stálá povaha podle druhu souseda (`neighbourKind` – obilnáři, 
   `village-pens.ts` ve `VillageRenderer`: fáze podle `progress`, branka k nejbližšímu obydlí
   (vchod z jádra – `penEntrance`, `penEntranceFacing`; paths.md – Vchody),
   zvířata `penAnimalsFor` na místa `spots` – voli spřežení (v den orby na poli), telata ve
-  výcviku menší, v zimě krávy; výběr `{ kind: 'pen' }`, panel s tlačítkem „Vycvičit spřežení“;
+  výcviku menší, v zimě krávy; výběr `{ kind: 'pen' }`, panel se stářím spřežení a průběhem
+  výcviku (bez tlačítka – cvičí se samo);
   ukázka **Ohrada** na `/dev/buildings`): přístřešek s pultovou doškovou střechou, jesle,
   žlab a branka ze žerdí z `tools/blender/pen.py` (`models/pen/pen.glb`, díly staveniště
   `pen-construction.glb` „ohrada-…“; materiál `…-low` = jen poprašek sněhu – pod střechou
