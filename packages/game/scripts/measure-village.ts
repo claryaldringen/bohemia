@@ -113,6 +113,7 @@ import type {
   ChronicleEvent,
   DwellingType,
   FieldSurface,
+  HerdSpecies,
   Person,
   VillageState,
 } from '../src/domain/village';
@@ -368,6 +369,17 @@ interface RunResult {
   }[];
   /** Založená pole podle povrchu (ha) – i první pole při založení vsi. */
   foundedHa: Record<FieldSurface, number>;
+  /**
+   * Dobytek (diet.md – Dobytek): maso z porážek a zkažené maso (kg za běh), kusy uhynulé v zimě
+   * bez sena, stáda a zásoba masa na konci běhu.
+   */
+  livestock: {
+    slaughterKg: number;
+    spoiledKg: number;
+    starved: number;
+    herds: Record<HerdSpecies, number>;
+    meatKg: number;
+  };
 }
 
 function harvestYear(day: number): number {
@@ -501,6 +513,13 @@ function emptyResult(): RunResult {
     winterShare: new Map(),
     happiness: [],
     foundedHa: { meadow: 0, shrub: 0, forest: 0 },
+    livestock: {
+      slaughterKg: 0,
+      spoiledKg: 0,
+      starved: 0,
+      herds: { sheep: 0, goat: 0, pig: 0, cow: 0 },
+      meatKg: 0,
+    },
   };
 }
 
@@ -693,6 +712,12 @@ function runVillage(start: VillageState, startLand: number, opts: RunOptions): R
         result.rebuilds.push({ type: dwelling.type, ageYears, early: ageYears < lifespan - 1e-6 });
       } else if (e.kind === 'apple-harvest') {
         result.appleHarvests.set(dateOfDayIndex(e.day).year, e.kg);
+      } else if (e.kind === 'slaughter') {
+        result.livestock.slaughterKg += e.kg;
+      } else if (e.kind === 'meat-spoiled') {
+        result.livestock.spoiledKg += e.kg;
+      } else if (e.kind === 'herd-starved') {
+        result.livestock.starved += Object.values(e.animals).reduce((sum, n) => sum + n, 0);
       }
     }
     if (firstConstruction && !after.constructions.some((c) => c.id === firstConstruction?.id)) {
@@ -800,6 +825,8 @@ function runVillage(start: VillageState, startLand: number, opts: RunOptions): R
   result.finalFieldHa = lastPlan?.fieldHa ?? 0;
   result.finalSownHa = lastPlan?.sownHa ?? 0;
   result.wood.finalLogs = state.woodLogs ?? 0;
+  if (state.livestock) result.livestock.herds = { ...state.livestock.herds };
+  result.livestock.meatKg = state.meatKg ?? 0;
   return result;
 }
 
@@ -1409,6 +1436,40 @@ function report(villages: VillageResult[], probes: Record<ProbeName, ProbeSummar
       ),
       0,
     )}`,
+    'info',
+  );
+  // dobytek (diet.md – Dobytek): stáda a maso na konci na lidi vsi, porážky, zkažené maso, úhyn
+  const herdVillages = builders.filter((r) => r.finalPeople > 0);
+  const perTen = (species: HerdSpecies): string =>
+    fmt(
+      quantile(
+        herdVillages.map((r) => (10 * r.livestock.herds[species]) / r.finalPeople),
+        0.5,
+      ),
+      1,
+    );
+  const slaughtered = herdVillages.reduce((sum, r) => sum + r.livestock.slaughterKg, 0);
+  const spoiled = herdVillages.reduce((sum, r) => sum + r.livestock.spoiledKg, 0);
+  row(
+    `Dobytek – hráč staví (${config.years} let)`,
+    'jen informace (diet.md – Dobytek)',
+    `na konci na 10 lidí medián: krávy ${perTen('cow')}, prasata ${perTen('pig')}, ovce ${perTen('sheep')}, kozy ${perTen('goat')} | maso v zásobě na člověka medián ${fmt(
+      quantile(
+        herdVillages.map((r) => r.livestock.meatKg / r.finalPeople),
+        0.5,
+      ),
+      0,
+    )} kg | porážka na člověka a rok medián ${fmt(
+      quantile(
+        herdVillages.map((r) => r.livestock.slaughterKg / r.finalPeople / config.years),
+        0.5,
+      ),
+      0,
+    )} kg | zkazilo se ${pct(spoiled / Math.max(1, slaughtered))} masa z porážek | zimní úhyn ${fmt(
+      herdVillages.reduce((sum, r) => sum + r.livestock.starved, 0) /
+        Math.max(1, herdVillages.length),
+      1,
+    )} kusů na ves`,
     'info',
   );
   const landGone = builders.filter((r) => r.landGoneYear !== null).length;

@@ -21,7 +21,7 @@ import {
   type PlacementVillage,
 } from '../placement';
 import { relocationPlot } from '../plots';
-import { TAKEN_LAND_MIN_SHARE } from '../rules';
+import { HAY_WORK_PER_HA, TAKEN_LAND_MIN_SHARE } from '../rules';
 import { advanceVillage } from '../simulate';
 import type { ChronicleEvent, CropWork, TileCell, VillageState } from '../types';
 import { returnPloughToHoe } from '../oxen';
@@ -247,7 +247,7 @@ describe('giveWayToBuilding – orba rádlem a seč sena', () => {
       delete p.crop;
     }
     const day = at(601, 6, 20);
-    const mowing = planMowing(s, day, 100)!;
+    const mowing = planMowing(s, day, 150_000)!;
     expect(mowing.partIds).toHaveLength(12);
     mowing.done = mowing.required * 0.3;
     s.hay = { kg: 0, mowing };
@@ -265,9 +265,9 @@ describe('giveWayToBuilding – orba rádlem a seč sena', () => {
       expect(after.get(id)).toEqual(before.get(id));
     }
     expect(next.yieldKg).toBeCloseTo(yieldKg - (1.5 * CELL * HAY.yieldKgPerHa) / 10_000, 9);
-    // práce seče zbylých dílů = jejich váha × 6 člověkodní na hektar
+    // práce seče zbylých dílů = jejich váha × člověkodny na hektar (bez kovářových kos)
     const weight = next.partIds.reduce((sum, x) => sum + partWeight(partOf(s, x)!), 0);
-    expect(next.required / weight).toBeCloseTo(HAY.mowManDaysPerHa, 9);
+    expect(next.required / weight).toBeCloseTo(HAY_WORK_PER_HA.worst, 9);
   });
 });
 

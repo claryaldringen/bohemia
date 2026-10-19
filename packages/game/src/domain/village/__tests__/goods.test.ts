@@ -58,7 +58,7 @@ describe('med', () => {
       needPerDay: 2,
       daysToHarvest: 100,
       daysToRot: 0,
-      daysToSlaughter: 100,
+      daysToMeatEnd: 100,
       potteryCoverage: 0,
     };
     const plain = eatDiet(base);

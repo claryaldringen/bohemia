@@ -100,6 +100,7 @@ const WOMEN: Record<LaborActivity, number> = {
   slaughter: 0.4,
   milking: 0.9,
   'animal-care': 0.4,
+  herding: 0.2,
   'orchard-care': 0.3,
   'orchard-harvest': 0.6,
   build: 0.15,
@@ -311,9 +312,34 @@ export function planVillagers(
     }
   });
   const winter = WINTER_MONTHS.includes(labor.month);
-  people.push(...elders(ctx, elderCount(labor.people.elders, winter)));
-  people.push(...herders(ctx, Math.min(options.herds, labor.people.children)));
+  const tending = herderKinds(labor, options.herds);
+  const elderHerders = tending.filter((kind) => kind === 'elder').length;
+  people.push(...elders(ctx, elderCount(Math.max(0, labor.people.elders - elderHerders), winter)));
+  people.push(...herders(ctx, tending));
   return people;
+}
+
+/**
+ * Kdo stojí u stád (diet.md – Pasáci): pasáci z jádra – děti od 7 let, starší a dospělí (podíl
+ * `herding`, člověkoden = pasák) –, nejvýš jeden u každého stáda ve scéně. Rozdělení práce
+ * z doby před pasáky je nemá – pak děti jako dřív.
+ */
+export function herderKinds(
+  labor: Pick<SceneLabor, 'people' | 'shares' | 'herders'>,
+  herds: number,
+): ('child' | 'elder' | 'adult')[] {
+  const free = labor.herders ?? { children: labor.people.children, elders: 0 };
+  const adults = Math.ceil(
+    labor.shares
+      .filter((share) => share.activity === 'herding')
+      .reduce((sum, share) => sum + share.manDays, 0) - 1e-6,
+  );
+  const kinds: ('child' | 'elder' | 'adult')[] = [
+    ...Array<'child'>(free.children).fill('child'),
+    ...Array<'elder'>(free.elders).fill('elder'),
+    ...Array<'adult'>(Math.max(0, adults)).fill('adult'),
+  ];
+  return kinds.slice(0, Math.max(0, herds));
 }
 
 /**
@@ -821,6 +847,9 @@ function placer(ctx: Context, share: SceneLaborShare, count: number): Placer {
     case 'slaughter':
       // porážka a uzení u vsi (diet.md) – na udusané zemi kousek od domů jako výmlat
       return threshing(ctx, count);
+    case 'herding':
+      // dospělí pasáci stojí u stád spolu s dětmi (`herders`, diet.md – Pasáci)
+      return none;
     case 'pen':
       return t.kind === 'pen' ? penFence(ctx, t.id) : none;
     case 'orchard-harvest':
@@ -1939,18 +1968,30 @@ function elders(ctx: Context, count: number): PlannedVillager[] {
   return out;
 }
 
-/** Pasáčci – děti (zmenšený muž nebo žena), jeden u každého stáda. */
-function herders(ctx: Context, count: number): PlannedVillager[] {
+/**
+ * Pasáci u stád – děti (zmenšený muž nebo žena), starší (šediny) a dospělí, jeden u každého
+ * stáda (`herderKinds`).
+ */
+function herders(ctx: Context, kinds: readonly ('child' | 'elder' | 'adult')[]): PlannedVillager[] {
   const out: PlannedVillager[] = [];
-  for (let k = 0; k < count; k++) {
+  kinds.forEach((kind, k) => {
     const who = identity(ctx.seed, `herder:${k}`, {
-      women: womenChance(0.4, ctx.sexes.girls),
-      child: true,
+      women: womenChance(
+        kind === 'child' ? 0.4 : WOMEN.herding,
+        kind === 'child'
+          ? ctx.sexes.girls
+          : kind === 'elder'
+            ? ctx.sexes.elderWomen
+            : ctx.sexes.women,
+      ),
+      child: kind === 'child',
     });
     const speed = walkSpeed(who.kind, 'walk', who.scale) * 0.8;
     const home = nearestFree(ctx, ctx.center.x + 12 + k * 2, ctx.center.z + 12, 6) ?? ctx.center;
-    out.push(villager(who, herder(k, home, who.seed, who.phase, speed, 0.8), 'natural'));
-  }
+    const hair =
+      kind === 'elder' ? 'grey' : kind === 'adult' ? adultHair(who, ctx.sexes.married) : 'natural';
+    out.push(villager(who, herder(k, home, who.seed, who.phase, speed, 0.8), hair));
+  });
   return out;
 }
 
