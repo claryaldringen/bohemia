@@ -60,7 +60,7 @@ import {
   scenePoints,
   withNeighbourVillages,
 } from '@/lib/scene/neighbour-villages';
-import type { VillageTarget } from '@/lib/scene/village-picking';
+import { wholeTarget, type VillageTarget } from '@/lib/scene/village-picking';
 import { DIRECTION_NAMES } from '@/lib/trade-names';
 import {
   allDwellingsTarget,
@@ -343,14 +343,20 @@ export function VillageGame({
     if (scene && home) scene.setCameraHome(home.x, home.z);
   }, [scene, home]);
 
-  // Výběr kliknutím do scény (s Ctrl / Shift přidá nebo ubere obydlí); zaniklý cíl (dostavěné
-  // staveniště, zarostlé pole) se zruší, z víc obydlí zbydou jen ta, která ještě stojí.
+  // Výběr kliknutím do scény (s Ctrl / Shift přidá nebo ubere obydlí; klik na pole či sad vybere
+  // díl, dvojklik celé – fields.md, Co hráč vidí); zaniklý cíl (dostavěné staveniště, zarostlé
+  // pole) se zruší, z víc obydlí zbydou jen ta, která ještě stojí.
   useEffect(
     () =>
-      scene?.onSelect((target, additive) =>
+      scene?.onSelect((target, additive, double) =>
         // stavby jiné vsi na téže mapě se nevybírají – klik na ně jako na prázdnou zem
         setSelected((prev) =>
-          nextSelection(prev, target && isNeighbourTarget(target) ? null : target, additive),
+          nextSelection(
+            prev,
+            target && isNeighbourTarget(target) ? null : target,
+            additive,
+            double,
+          ),
         ),
       ),
     [scene],
@@ -655,7 +661,8 @@ export function VillageGame({
     if (!scene || !(kind in options)) return;
     const option = options[kind];
     if (option && !option.affordable) return;
-    const chosen = selected;
+    // vybraný díl pole či čtverec sadu patří své stavbě (mřížka rozšíření)
+    const chosen = selected && wholeTarget(selected);
     setSelected(null);
     setPlacingItem(kind);
     const item = buildItem(kind);
@@ -929,6 +936,7 @@ export function VillageGame({
       <Minimap landscape={decoded} scene={scene} village={drawnVillage} />
       <SelectionPanel
         details={selectionDetails(view, sceneVillage, current)}
+        onSelectTarget={setSelected}
         onRelocate={relocate}
         onLeave={leave}
         onCancelRelocation={(constructionId) => {

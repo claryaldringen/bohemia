@@ -129,9 +129,14 @@ sad v 60. roce naráz zmizel – bez upozornění a nikdo ho neobnovil.
   Velikost stromů a jablka jsou po čtvercích – při obnově se vytyčí jen obnovovaný čtverec, po
   skácení starých stromů na něm přibývají kůly a sazenice jako při výsadbě a mladé stromky
   rostou vedle starých stromů zbytku sadu.
-- U vybraného sadu: plocha, stáří (průměr čtverců vážený plochou – obnovou sad mládne) a odhad
-  úrody nejbližší sklizně (kg jablek), během výsadby i obnovy průběh – a když čeká na okno, ikona
-  s popiskem „Sází se na jaře a na podzim“. Horní lišta ukáže jablka vedle obilí, jen když nějaká jsou. Minimapa kreslí sady.
+- Kliknutí na sad vybere jen čtverec pod kurzorem, dvojklik celý sad (jako pole – fields.md, Co
+  hráč vidí; Martin, 19. 10. 2026). U vybraného čtverce: plocha, stáří, odhad úrody čtverce
+  nejbližší sklizně a cesta z domu (m); čtverce se liší stářím obnovou – název pod portrétem
+  (mladé jabloně do 12 let, jabloně, staré jabloně od 50. roku a ve frontě obnovy – ikona
+  přesýpacích hodin „Čeká na obnovu“, výsadba / obnova jabloní s průběhem).
+- U vybraného sadu (dvojklik): plocha, stáří (průměr čtverců vážený plochou – obnovou sad mládne)
+  a odhad úrody nejbližší sklizně (kg jablek), během výsadby i obnovy průběh – a když čeká na okno,
+  ikona s popiskem „Sází se na jaře a na podzim“. Horní lišta ukáže jablka vedle obilí, jen když nějaká jsou. Minimapa kreslí sady.
 - Kronika: sad je vysazený, sklizeň jablek (kg), vesničané obnovují starý sad (kolik čtverců
   vysadí znovu), starý sad dosloužil, sad ustoupil stavbě obydlí (o kolik m², nebo zanikl).
   Krátký mizející řádek nahoře: „Vesničané obnovují starý sad“ (jednou za rok sadu, když zařadí
@@ -181,3 +186,4 @@ Obnova sadu (18. 10. 2026) se zatím neměřila – v 60letém běhu se týká j
 | Obydlí jde stavět do sadu – sad se zmenší o plochu domu                                       | Martin, 18. 10. 2026                       |
 | Pozemek sebere celý čtverec, obydlí bez pozemku průnik; pod 20 % zmizí; jablka a práce úměrně | návrh Clauda                               |
 | Sad smí na pole – čtverec pole pod ním z pole zmizí (pole jako krajina)                       | Martin, 18. 10. 2026                       |
+| Klik na sad vybere čtverec (stáří, úroda, obnova), dvojklik celý sad – jako u pole            | Martin (pole), sad návrh Clauda            |

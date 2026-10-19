@@ -287,6 +287,131 @@ describe('panel pole – plodiny (fields.md – Luštěniny)', () => {
   });
 });
 
+describe('SelectionPanel – díl pole a čtverec sadu (klik – fields.md, Co hráč vidí)', () => {
+  const part = (
+    over: Partial<Extract<SelectionDetails, { kind: 'field-part' }>> = {},
+  ): SelectionDetails => ({
+    kind: 'field-part',
+    id: 5,
+    cell: { x: 2, y: 0 },
+    look: 'ripe',
+    stage: 'sown',
+    legume: false,
+    ploughed: true,
+    areaM2: 225,
+    fertility: 48,
+    naturalFertility: 64,
+    ashBonus: 0,
+    surface: 'meadow',
+    walkM: 1240,
+    holding: { dwellingId: 3, type: 'polozemnice' },
+    sownYears: 1,
+    fallowYears: null,
+    overgrowthYears: 0,
+    grazed: null,
+    crop: { crop: 'winter', prep: { task: 'plough', share: 1 }, sow: 1, harvest: 0.4 },
+    mow: null,
+    founding: null,
+    ...over,
+  });
+
+  it('osetý díl: název podle vzhledu, výměra, úrodnost, cesta, dům, letošní práce', () => {
+    const html = render(part());
+    expect(html).toContain('data-kind="field-part"');
+    expect(html).toContain('/icons/build/pole.png');
+    expect(html).toContain('>Zralé obilí</h2>');
+    expect(text(html, 'selection-area')).toBe('225 m²');
+    expect(text(html, 'selection-fertility')).toBe('48');
+    expect(html).toContain('Úrodnost – přirozená 64');
+    expect(text(html, 'selection-walk')).toBe('1 240 m');
+    expect(html).toMatch(
+      /data-testid="selection-holding"[^>]*><img src="\/icons\/build\/polozemnice\.png"/,
+    );
+    // příprava půdy orbou (vůl), setí s ikonou plodiny, sklizeň
+    expect(html).toMatch(/ox\.png.*data-testid="selection-prep"[^>]*>100 %</);
+    expect(html).toContain('Orba rádlem');
+    expect(html).toMatch(/ozim\.png.*data-testid="selection-sow-winter"[^>]*>100 %</);
+    expect(html).toMatch(/harvest\.png.*data-testid="selection-harvest"[^>]*>40 %</);
+    expect(text(html, 'selection-sown-years')).toBe('2.');
+    // příloh ani zakládání se neukazují
+    expect(html).not.toContain('selection-fallow-years');
+    expect(html).not.toContain('selection-progress');
+  });
+
+  it('příloh: roky ladem, zarůstání, pastva a seč; bez hospodářství bez domu', () => {
+    const html = render(
+      part({
+        look: 'meadow',
+        stage: 'meadow',
+        holding: null,
+        sownYears: null,
+        fallowYears: 6,
+        overgrowthYears: 2,
+        grazed: true,
+        crop: null,
+        mow: 0.25,
+      }),
+    );
+    expect(html).toContain('>Louka na seno</h2>');
+    expect(text(html, 'selection-fallow-years')).toBe('6');
+    expect(text(html, 'selection-overgrowth')).toBe('2');
+    expect(html).toContain('data-testid="selection-grazed"');
+    expect(text(html, 'selection-mow')).toBe('25 %');
+    expect(html).not.toContain('selection-holding');
+    expect(html).not.toContain('selection-sow-');
+  });
+
+  it('zakládaný díl v lese: průběh, zbývající práce, stromy na klády a povrch', () => {
+    const html = render(
+      part({
+        look: 'bare',
+        stage: 'founding',
+        surface: 'forest',
+        sownYears: null,
+        crop: null,
+        founding: { progress: 0.3, laborLeft: 4.25, trees: 3 },
+      }),
+    );
+    expect(html).toContain('>Zakládá se</h2>');
+    expect(html).toContain('aria-valuenow="30"');
+    expect(text(html, 'selection-labor-left')).toBe('4,3');
+    expect(text(html, 'selection-trees')).toBe('3');
+    expect(html).toContain('data-surface="forest"');
+  });
+
+  it('čtverec sadu: stáří, úroda čtverce, cesta; obnova čeká, výsadba s průběhem', () => {
+    const square = (
+      over: Partial<Extract<SelectionDetails, { kind: 'orchard-square' }>> = {},
+    ): SelectionDetails => ({
+      kind: 'orchard-square',
+      id: 60,
+      cell: { x: 0, y: 4 },
+      areaM2: 225,
+      ageYears: 53,
+      expectedYieldKg: 40,
+      planting: null,
+      plantingWaits: false,
+      renewal: true,
+      walkM: 40,
+      ...over,
+    });
+    const old = render(square());
+    expect(old).toContain('data-kind="orchard-square"');
+    expect(old).toContain('/icons/build/sad.png');
+    expect(old).toContain('>Staré jabloně</h2>');
+    expect(text(old, 'selection-age')).toBe('53');
+    expect(text(old, 'selection-yield')).toBe('40');
+    expect(old).toContain('data-testid="selection-renewal"');
+    const planting = render(
+      square({ ageYears: null, expectedYieldKg: 0, planting: 0.5, plantingWaits: true }),
+    );
+    expect(planting).toContain('>Obnova jabloní</h2>');
+    expect(planting).toContain('aria-valuenow="50"');
+    expect(planting).toContain('data-testid="selection-planting-waits"');
+    expect(planting).not.toContain('selection-age');
+  });
+});
+
 describe('SelectionPanel – opuštěné stavby (abandonment.md)', () => {
   const sacred = (
     over: Partial<Extract<SelectionDetails, { kind: 'sacred' }>> = {},

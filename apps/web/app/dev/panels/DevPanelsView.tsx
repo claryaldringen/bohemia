@@ -106,6 +106,7 @@ export function DevPanelsView({ initial }: { initial: string | null }): ReactEle
       <SelectionPanel
         key={sample.key}
         details={sample.details}
+        onSelectTarget={() => undefined}
         onRelocate={() => undefined}
         onCancelRelocation={wait}
         onLeave={() => undefined}

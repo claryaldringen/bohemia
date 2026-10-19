@@ -27,7 +27,7 @@ import {
 import type { TileInfo } from '../tile-info';
 import { AmbientSound } from './ambient-sound';
 import { createRtsCamera, type RtsCamera } from './camera';
-import { isDrag } from './camera-input';
+import { isDrag, nextClick, type ClickRecord } from './camera-input';
 import { HEIGHT_SCALE, SUN_DIRECTION, WATER_FPS } from './constants';
 import { createEngine, type RendererName } from './create-engine';
 import { decorPlacements } from './decor-placement';
@@ -73,10 +73,11 @@ import { createWaterMesh, type WaterSurface } from './water';
 type HoverListener = (tile: TileInfo | null) => void;
 /** Kliknutí do scény mimo umisťování: vybrané obydlí / pole, nebo null (zrušit výběr). */
 /**
- * Výběr kliknutím: co je pod kurzorem a jestli hráč držel Ctrl (Cmd) nebo Shift – přidá / ubere
- * obydlí z výběru (migration.md – Výběr víc obydlí).
+ * Výběr kliknutím: co je pod kurzorem, jestli hráč držel Ctrl (Cmd) nebo Shift – přidá / ubere
+ * obydlí z výběru (migration.md – Výběr víc obydlí) – a dvojklik (`double` – druhé kliknutí řady,
+ * celé pole či sad – fields.md, Co hráč vidí).
  */
-type SelectListener = (target: VillageTarget | null, additive: boolean) => void;
+type SelectListener = (target: VillageTarget | null, additive: boolean, double: boolean) => void;
 /** Záběr kamery na zemi (4 rohy obrazovky jako body krajiny [x, z]) a natočení kamery. */
 export interface ViewFootprint {
   corners: [number, number][];
@@ -112,6 +113,8 @@ export class LandscapeScene {
   private cleared: ClearedForest | null = null;
   /** Stisknutá tlačítka myši nad plátnem: kde a jestli zrovna běželo umisťování. */
   private readonly downs = new Map<number, { x: number; y: number; placing: boolean }>();
+  /** Poslední kliknutí levým tlačítkem mimo umisťování – dvojklik (`nextClick`). */
+  private lastClick: ClickRecord | null = null;
   private selection: VillageTarget | null = null;
   private highlight: SelectionHighlight | null = null;
   /** Vývojový překryv úseků hospodářství (fields.md – Hospodaření podle polohy domů). */
@@ -713,10 +716,10 @@ export class LandscapeScene {
   }
 
   /**
-   * Kliknutí do scény mimo umisťování (jako v 0 A.D.): levé na obydlí, pole nebo hřbitov ho
+   * Kliknutí do scény mimo umisťování (jako v 0 A.D.): levé na obydlí, díl pole nebo hřbitov ho
    * vybere, na prázdnou zem a pravé výběr zruší (null); s Ctrl (Cmd) nebo Shiftem ohlásí
-   * `additive` – rozhraní obydlí přidá k výběru nebo ho ubere. Zvýraznění nastaví až rozhraní
-   * (`setSelection`).
+   * `additive` – rozhraní obydlí přidá k výběru nebo ho ubere; druhé kliknutí řady ohlásí
+   * `double` – rozhraní vybere celé pole či sad. Zvýraznění nastaví až rozhraní (`setSelection`).
    */
   onSelect(listener: SelectListener): () => void {
     this.selectListeners.add(listener);
@@ -856,17 +859,25 @@ export class LandscapeScene {
   private readonly onPointerUp = (event: PointerEvent): void => {
     const down = this.downs.get(event.button);
     this.downs.delete(event.button);
-    if (!down || down.placing || this.placement !== null) return;
-    if (isDrag(down, { x: event.offsetX, y: event.offsetY })) return;
-    if (event.button === 0 && this.rtsCamera?.leftPressPanned()) return;
+    const at = { x: event.offsetX, y: event.offsetY };
+    const clicked =
+      down !== undefined &&
+      !down.placing &&
+      this.placement === null &&
+      !isDrag(down, at) &&
+      !(event.button === 0 && this.rtsCamera?.leftPressPanned());
+    // dvojklik jen ze dvou levých kliknutí po sobě – tah, pravé tlačítko i umisťování řadu přeruší
+    if (!clicked || event.button !== 0) this.lastClick = null;
+    if (!clicked) return;
     if (event.button === 0) {
+      this.lastClick = nextClick(this.lastClick, { ...at, at: event.timeStamp });
       const additive = event.ctrlKey || event.metaKey || event.shiftKey;
-      this.emitSelect(this.pickTarget(event.offsetX, event.offsetY), additive);
-    } else if (event.button === 2) this.emitSelect(null, false);
+      this.emitSelect(this.pickTarget(at.x, at.y), additive, this.lastClick.count >= 2);
+    } else if (event.button === 2) this.emitSelect(null, false, false);
   };
 
-  private emitSelect(target: VillageTarget | null, additive: boolean): void {
-    for (const listener of this.selectListeners) listener(target, additive);
+  private emitSelect(target: VillageTarget | null, additive: boolean, double: boolean): void {
+    for (const listener of this.selectListeners) listener(target, additive, double);
   }
 
   /** Obydlí, pole nebo hřbitov pod pixelem plátna (CSS px). */

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { selectionDetails } from '../selection-details';
+import { fieldPartName, orchardSquareName, selectionDetails } from '../selection-details';
 import type { SceneVillage, VillageView } from '../village-view';
 
 const scene: SceneVillage = {
@@ -413,6 +413,199 @@ describe('selectionDetails', () => {
       ashBonus: 40,
       founding: null,
     });
+  });
+});
+
+describe('selectionDetails – díl pole a čtverec sadu (klik – fields.md, Co hráč vidí)', () => {
+  const partScene: SceneVillage = {
+    dwellings: [
+      {
+        id: 1,
+        type: 'polozemnice',
+        position: { x: 0, z: 0, rotation: 0 },
+        built: true,
+        progress: 1,
+      },
+    ],
+    fields: [
+      {
+        id: 5,
+        parts: [
+          {
+            id: 51,
+            cell: { x: 2, y: 0 },
+            x: 37.5,
+            z: 7.5,
+            size: 15,
+            stage: 'sown',
+            look: 'ripe',
+            crop: 'legume',
+          },
+          {
+            id: 52,
+            cell: { x: 3, y: 0 },
+            x: 52.5,
+            z: 7.5,
+            size: 15,
+            stage: 'meadow',
+            look: 'meadow',
+            overgrowth: 2,
+            grazed: true,
+          },
+        ],
+      },
+    ],
+    orchards: [
+      {
+        id: 60,
+        squares: [
+          { cell: { x: 0, y: 4 }, x: 7.5, z: 67.5, size: 15, planting: 1, growth: 1, fruit: false },
+        ],
+      },
+    ],
+  };
+  const partView = {
+    fields: [
+      {
+        id: 5,
+        parts: [
+          {
+            id: 51,
+            fertility: 48,
+            naturalFertility: 64,
+            ashBonus: 20,
+            walkM: 85,
+            holding: 1,
+            sownYears: 1,
+            work: {
+              crop: {
+                crop: 'legume',
+                prep: { task: 'plough', share: 1 },
+                sow: 1,
+                harvest: 0.4,
+              },
+            },
+          },
+          { id: 52, areaM2: 180, fertility: 70, walkM: 120, fallowYears: 6, work: { mow: 0.25 } },
+        ],
+      },
+    ],
+    orchards: [
+      {
+        id: 60,
+        cells: [
+          {
+            cell: { x: 0, y: 4 },
+            areaM2: 225,
+            ageYears: 53,
+            expectedYieldKg: 40,
+            planting: null,
+            plantingWaits: false,
+            renewal: true,
+            walkM: 40,
+          },
+        ],
+      },
+    ],
+  } as unknown as VillageView;
+
+  it('osetý díl: co je vidět ze scény, čísla dílu z pohledu, dům hospodářství', () => {
+    const details = selectionDetails(partView, partScene, {
+      kind: 'field-part',
+      id: 5,
+      cell: { x: 2, y: 0 },
+    });
+    expect(details).toEqual({
+      kind: 'field-part',
+      id: 5,
+      cell: { x: 2, y: 0 },
+      look: 'ripe',
+      stage: 'sown',
+      legume: true,
+      ploughed: false,
+      // celý čtverec – výměra ze strany čtverce ve scéně
+      areaM2: 225,
+      fertility: 48,
+      naturalFertility: 64,
+      ashBonus: 20,
+      surface: 'meadow',
+      walkM: 85,
+      holding: { dwellingId: 1, type: 'polozemnice' },
+      sownYears: 1,
+      fallowYears: null,
+      overgrowthYears: 0,
+      grazed: null,
+      crop: { crop: 'legume', prep: { task: 'plough', share: 1 }, sow: 1, harvest: 0.4 },
+      mow: null,
+      founding: null,
+    });
+    expect(fieldPartName(details as Extract<typeof details, { kind: 'field-part' }>)).toBe(
+      'Zralé luštěniny',
+    );
+  });
+
+  it('příloh: roky ladem, zarůstání a pastva ze scény, seč; bez hospodářství', () => {
+    const details = selectionDetails(partView, partScene, {
+      kind: 'field-part',
+      id: 5,
+      cell: { x: 3, y: 0 },
+    });
+    expect(details).toMatchObject({
+      areaM2: 180,
+      naturalFertility: 70,
+      holding: null,
+      fallowYears: 6,
+      overgrowthYears: 2,
+      grazed: true,
+      crop: null,
+      mow: 0.25,
+    });
+  });
+
+  it('zaniklý díl, díl bez údajů v pohledu a ves bez pohledu nic', () => {
+    const gone = { kind: 'field-part', id: 5, cell: { x: 9, y: 9 } } as const;
+    expect(selectionDetails(partView, partScene, gone)).toBeNull();
+    const part = { kind: 'field-part', id: 5, cell: { x: 2, y: 0 } } as const;
+    expect(selectionDetails(null, partScene, part)).toBeNull();
+    const empty = { fields: [{ id: 5, parts: [] }], orchards: [] } as unknown as VillageView;
+    expect(selectionDetails(empty, partScene, part)).toBeNull();
+  });
+
+  it('čtverec sadu: výměra, stáří, úroda čtverce, obnova', () => {
+    const target = { kind: 'orchard-square', id: 60, cell: { x: 0, y: 4 } } as const;
+    expect(selectionDetails(partView, partScene, target)).toEqual({
+      kind: 'orchard-square',
+      id: 60,
+      cell: { x: 0, y: 4 },
+      areaM2: 225,
+      ageYears: 53,
+      expectedYieldKg: 40,
+      planting: null,
+      plantingWaits: false,
+      renewal: true,
+      walkM: 40,
+    });
+    expect(selectionDetails(partView, partScene, { ...target, cell: { x: 1, y: 4 } })).toBeNull();
+  });
+
+  it('název dílu podle vzhledu, zakládaný a připravený podle stadia; čtverec sadu podle stáří', () => {
+    const name = (over: Partial<Parameters<typeof fieldPartName>[0]>): string =>
+      fieldPartName({ look: 'green', stage: 'sown', legume: false, ploughed: false, ...over });
+    expect(name({})).toBe('Zelené obilí');
+    expect(name({ look: 'plowed' })).toBe('Zkopáno');
+    expect(name({ look: 'plowed', ploughed: true })).toBe('Zoráno');
+    expect(name({ look: 'bare', stage: 'founding' })).toBe('Zakládá se');
+    expect(name({ look: 'bare', stage: 'ready' })).toBe('Připraveno k osevu');
+    expect(name({ look: null, stage: 'meadow' })).toBe('Příloh – pastvina');
+    expect(name({ look: 'young-forest', stage: 'young-forest' })).toBe('Mladý les');
+    const square = (over: Partial<Parameters<typeof orchardSquareName>[0]>): string =>
+      orchardSquareName({ planting: null, renewal: false, ageYears: 20, ...over });
+    expect(square({})).toBe('Jabloně');
+    expect(square({ ageYears: 3 })).toBe('Mladé jabloně');
+    expect(square({ ageYears: 51 })).toBe('Staré jabloně');
+    expect(square({ renewal: true })).toBe('Staré jabloně');
+    expect(square({ planting: 0.2, ageYears: null })).toBe('Výsadba jabloní');
+    expect(square({ planting: 0.2, renewal: true, ageYears: null })).toBe('Obnova jabloní');
   });
 });
 

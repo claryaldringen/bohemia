@@ -1,5 +1,6 @@
 import {
   LEAVING,
+  ORCHARD,
   sacredBuildingHappiness,
   type CartKind,
   type Craft,
@@ -10,27 +11,36 @@ import {
   type FieldSurface,
   type HerdSpecies,
   type PartStage,
+  type PartYearWork,
   type RoadGrade,
   type RoadUpgradeOption,
   type SacredBuildingKind,
+  type TileCell,
   type WorkshopActivity,
 } from '@bohemia/game';
 import type { LeaveDirection } from './departure-view';
 import type { VillageManor } from './manor-view';
 import type { HouseholdRelocation } from './relocation-view';
-import type { VillageTarget } from './scene/village-picking';
+import { TREE_GROWTH_YEARS } from './orchard-look';
+import {
+  selectedFieldPart,
+  selectedOrchardSquare,
+  type VillageTarget,
+} from './scene/village-picking';
 import {
   CRAFT_LOOKS,
   type BuildOption,
+  type FieldLook,
   type SceneVillage,
   type VillageRoad,
   type VillageView,
 } from './village-view';
 
 // Co ukáže panel výběru (dole uprostřed, jako v 0 A.D.) o vybraném obydlí (i řemeslné dílně –
-// crafts.md), poli, hřbitovu, sadu, posvátném místě (posvátný dub, dubový háj, modla, svatyně –
-// happiness.md) nebo ohradě (oxen.md – zvířata, spřežení, výcvik a seno; diet.md – stáda vsi).
-// Čistý modul – data z pohledu na ves a scény vsi.
+// crafts.md), dílu pole a celém poli (fields.md – Co hráč vidí), hřbitovu, čtverci sadu a celém
+// sadu, posvátném místě (posvátný dub, dubový háj, modla, svatyně – happiness.md) nebo ohradě
+// (oxen.md – zvířata, spřežení, výcvik a seno; diet.md – stáda vsi). Čistý modul – data z pohledu
+// na ves a scény vsi.
 
 /** Řemeslná dílna v panelu výběru – co dělá, kolik vyrobí a zásoba jejího výrobku. */
 export interface SelectionWorkshop {
@@ -149,6 +159,46 @@ export type SelectionDetails =
       founding: number | null;
     }
   | {
+      /**
+       * Díl pole (klik na pole – fields.md, Co hráč vidí; Martin 19. 10. 2026): co na něm je,
+       * úrodnost, letošní práce, příloh, cesta a hospodářství. Id pole a čtverec dílu.
+       */
+      kind: 'field-part';
+      id: number;
+      cell: TileCell;
+      /** Co je na dílu vidět (vzhled ze scény); bez vzhledu null – název podle stadia. */
+      look: FieldLook | null;
+      stage: PartStage;
+      /** Oseto luštěninami – zelené a zralé luštěniny místo obilí. */
+      legume: boolean;
+      /** Díl letos oralo spřežení rádlem (zoráno místo zkopáno). */
+      ploughed: boolean;
+      areaM2: number;
+      fertility: number;
+      naturalFertility: number;
+      /** Letošní bonus z popela vymýceného lesa; jinak 0. */
+      ashBonus: number;
+      surface: FieldSurface;
+      /** Chůze z nejbližšího obydlí (m). */
+      walkM: number;
+      /** Hospodářství – obydlí, ke kterému díl patří (typ kvůli ikoně); bez hospodářství null. */
+      holding: { dwellingId: number; type: DwellingType } | null;
+      /** Osetý díl: kolik let v řadě je oset; jinak null. */
+      sownYears: number | null;
+      /** Příloh: celé roky ladem; jinak null. */
+      fallowYears: number | null;
+      /** Roky přílohu bez pastvy a seče (fields.md – Zarůstání); 0 = nezarůstá. */
+      overgrowthYears: number;
+      /** Pasou se na dílu stáda (příloh ve fázi louky); jinde null. */
+      grazed: boolean | null;
+      /** Letošní osev: plodina, příprava půdy, setí a sklizeň (podíly 0–1); mimo osev null. */
+      crop: NonNullable<PartYearWork['crop']> | null;
+      /** Letošní seč sena – kolik je posečeno 0–1; díl, který se neseče, null. */
+      mow: number | null;
+      /** Zakládá se – průběh, zbývající práce (člověkodny) a stromy na klády; jinak null. */
+      founding: { progress: number; laborLeft: number; trees: number } | null;
+    }
+  | {
       kind: 'cemetery';
       id: number;
       squares: number;
@@ -183,6 +233,23 @@ export type SelectionDetails =
       planting: number | null;
       /** Výsadba čeká na okno (jaro, podzim). */
       plantingWaits: boolean;
+    }
+  | {
+      /** Čtverec sadu (klik na sad – orchard.md, Co hráč vidí). Id sadu a čtverec. */
+      kind: 'orchard-square';
+      id: number;
+      cell: TileCell;
+      areaM2: number;
+      /** Stáří v celých letech od výsadby; dokud se sází, null. */
+      ageYears: number | null;
+      /** Úroda čtverce nejbližší sklizně (kg jablek). */
+      expectedYieldKg: number;
+      /** Výsadba (i znovu při obnově) 0–1; vysazený null. */
+      planting: number | null;
+      plantingWaits: boolean;
+      /** V obnově – staré stromy čekají na skácení, nebo se sází znovu (orchard.md – Obnova sadu). */
+      renewal: boolean;
+      walkM: number;
     }
   | {
       kind: 'sacred-oak';
@@ -328,6 +395,62 @@ export const PART_STAGE_NAMES: Record<PartStage, string> = {
   'young-forest': 'Příloh zarostlý mladým lesem',
 };
 
+/**
+ * Co je na dílu pole vidět – název pod portrétem panelu dílu (fields.md – Co hráč vidí; podle
+ * `FieldLook`, luštěniny a orba rádlem zvlášť).
+ */
+const FIELD_LOOK_NAMES: Record<FieldLook, string> = {
+  bare: 'Rozrytý drn',
+  plowed: 'Zkopáno',
+  sown: 'Zaseto',
+  sprouted: 'Vzešlé osení',
+  green: 'Zelené obilí',
+  ripe: 'Zralé obilí',
+  harvesting: 'Žeň',
+  stubble: 'Strniště',
+  'young-fallow': 'Mladý příloh',
+  pasture: 'Pastvina',
+  meadow: 'Louka na seno',
+  mown: 'Posečená louka',
+  haystacks: 'Stohy sena',
+  shrubs: 'Křoviny',
+  'young-forest': 'Mladý les',
+};
+
+/** Název dílu pole pod portrétem – co na něm je (zakládaný a připravený díl podle stadia). */
+export function fieldPartName(
+  details: Pick<
+    Extract<SelectionDetails, { kind: 'field-part' }>,
+    'look' | 'stage' | 'legume' | 'ploughed'
+  >,
+): string {
+  const { look, stage } = details;
+  if (stage === 'founding' || stage === 'ready' || look === null) return PART_STAGE_NAMES[stage];
+  if (look === 'plowed' && details.ploughed) return 'Zoráno';
+  if (details.legume) {
+    if (look === 'green') return 'Zelené luštěniny';
+    if (look === 'ripe') return 'Zralé luštěniny';
+    if (look === 'harvesting') return 'Sklizeň luštěnin';
+  }
+  return FIELD_LOOK_NAMES[look];
+}
+
+/**
+ * Název čtverce sadu pod portrétem: výsadba, mladé jabloně (rostou TREE_GROWTH_YEARS let), staré
+ * jabloně (od roku obnovy – orchard.md, Obnova sadu, i čekající na obnovu), jinak jabloně.
+ */
+export function orchardSquareName(
+  details: Pick<
+    Extract<SelectionDetails, { kind: 'orchard-square' }>,
+    'planting' | 'renewal' | 'ageYears'
+  >,
+): string {
+  if (details.planting !== null) return details.renewal ? 'Obnova jabloní' : 'Výsadba jabloní';
+  const age = details.ageYears ?? 0;
+  if (details.renewal || age >= ORCHARD.declineAfterYear) return 'Staré jabloně';
+  return age < TREE_GROWTH_YEARS ? 'Mladé jabloně' : 'Jabloně';
+}
+
 /** Údaje o vybraném cíli, nebo null (nic nevybráno, cíl zanikl, ves ještě není). */
 export function selectionDetails(
   view: VillageView | null,
@@ -427,6 +550,14 @@ export function selectionDetails(
       : null;
   }
   if (target.kind === 'sacred') return sacredDetails(view, scene, target.id);
+  if (target.kind === 'field-part') return fieldPartDetails(view, scene, target);
+  if (target.kind === 'orchard-square') {
+    if (!selectedOrchardSquare(scene, target)) return null;
+    const square = view?.orchards
+      .find((o) => o.id === target.id)
+      ?.cells.find((c) => c.cell.x === target.cell.x && c.cell.y === target.cell.y);
+    return square ? { kind: 'orchard-square', id: target.id, ...square } : null;
+  }
   if (target.kind === 'pen') return penDetails(view, target.id);
   if (target.kind === 'road') {
     const road = view?.roads.find((r) => r.id === target.id);
@@ -471,6 +602,46 @@ export function selectionDetails(
     ashBonus: field.ashBonus,
     overgrowingM2: field.overgrowingM2,
     founding: founding ? founding.progress : null,
+  };
+}
+
+/**
+ * Díl pole: co je vidět (stadium, vzhled, zarůstání, pastva) ze scény, čísla dílu z pohledu na ves
+ * (díl podle id ze scény).
+ */
+function fieldPartDetails(
+  view: VillageView | null,
+  scene: SceneVillage,
+  target: Extract<VillageTarget, { kind: 'field-part' }>,
+): SelectionDetails | null {
+  const shown = selectedFieldPart(scene, target);
+  if (!shown || shown.id === undefined) return null;
+  const part = view?.fields.find((f) => f.id === target.id)?.parts.find((p) => p.id === shown.id);
+  if (!part) return null;
+  const house =
+    part.holding === undefined ? undefined : scene.dwellings.find((d) => d.id === part.holding);
+  return {
+    kind: 'field-part',
+    id: target.id,
+    cell: { x: target.cell.x, y: target.cell.y },
+    look: shown.look ?? null,
+    stage: shown.stage,
+    legume: shown.crop === 'legume',
+    ploughed: shown.ploughed === true,
+    areaM2: part.areaM2 ?? shown.size * shown.size,
+    fertility: part.fertility,
+    naturalFertility: part.naturalFertility ?? part.fertility,
+    ashBonus: part.ashBonus ?? 0,
+    surface: part.surface ?? 'meadow',
+    walkM: part.walkM,
+    holding: house ? { dwellingId: house.id, type: house.type } : null,
+    sownYears: part.sownYears ?? null,
+    fallowYears: part.fallowYears ?? null,
+    overgrowthYears: shown.overgrowth ?? 0,
+    grazed: shown.grazed ?? null,
+    crop: part.work?.crop ?? null,
+    mow: part.work?.mow ?? null,
+    founding: part.founding ?? null,
   };
 }
 

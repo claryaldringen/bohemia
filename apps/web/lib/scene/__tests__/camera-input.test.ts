@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { CLICK_SLOP_PX, isDrag, pinchZoomFactor } from '../camera-input';
+import {
+  CLICK_SLOP_PX,
+  DOUBLE_CLICK_MS,
+  isDrag,
+  nextClick,
+  pinchZoomFactor,
+} from '../camera-input';
 
 describe('isDrag', () => {
   it('do meze kliknutí je to kliknutí, dál tah', () => {
@@ -7,6 +13,23 @@ describe('isDrag', () => {
     expect(isDrag({ x: 10, y: 10 }, { x: 10 + CLICK_SLOP_PX, y: 10 })).toBe(false);
     expect(isDrag({ x: 10, y: 10 }, { x: 10 + CLICK_SLOP_PX + 1, y: 10 })).toBe(true);
     expect(isDrag({ x: 0, y: 0 }, { x: 5, y: 5 })).toBe(true);
+  });
+});
+
+describe('nextClick – dvojklik (fields.md – Co hráč vidí)', () => {
+  it('druhé kliknutí do DOUBLE_CLICK_MS a CLICK_SLOP_PX je dvojklik, třetí trojklik', () => {
+    const first = nextClick(null, { x: 100, y: 100, at: 1000 });
+    expect(first.count).toBe(1);
+    const second = nextClick(first, { x: 103, y: 99, at: 1000 + DOUBLE_CLICK_MS });
+    expect(second.count).toBe(2);
+    expect(nextClick(second, { x: 103, y: 99, at: 1200 + DOUBLE_CLICK_MS }).count).toBe(3);
+  });
+
+  it('pozdě, jinde nebo s časem pozpátku začíná nová řada', () => {
+    const first = nextClick(null, { x: 100, y: 100, at: 1000 });
+    expect(nextClick(first, { x: 100, y: 100, at: 1001 + DOUBLE_CLICK_MS }).count).toBe(1);
+    expect(nextClick(first, { x: 101 + CLICK_SLOP_PX, y: 100, at: 1100 }).count).toBe(1);
+    expect(nextClick(first, { x: 100, y: 100, at: 900 }).count).toBe(1);
   });
 });
 

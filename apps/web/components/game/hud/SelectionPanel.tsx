@@ -8,12 +8,15 @@ import {
 } from '@bohemia/game';
 import { useOverflowScroll } from '@/hooks/use-overflow-scroll';
 import { PART_COLORS, SURFACE_COLORS } from '@/lib/minimap';
+import type { VillageTarget } from '@/lib/scene/village-picking';
 import {
   CROP_LABELS,
   FIELD_SURFACE_NAMES,
   HERD_LABELS,
   HERD_ORDER,
   PART_STAGE_NAMES,
+  fieldPartName,
+  orchardSquareName,
   type SelectionDetails,
   type SelectionWorkshop,
 } from '@/lib/selection-details';
@@ -653,6 +656,254 @@ function FieldBody({
   );
 }
 
+/** Výměra dílu pole či čtverce sadu v m² – „225 m²“. */
+function formatM2(areaM2: number): string {
+  return `${formatInteger(areaM2)} m²`;
+}
+
+/** Chůze z nejbližšího obydlí po pěšinách a cestách – ikona šlépějí a metry (paths.md). */
+function Walk({ meters }: { meters: number }): ReactElement {
+  return (
+    <Stat icon="walk" name="Cesta z domu" testId="selection-walk">
+      {formatInteger(meters)} m
+    </Stat>
+  );
+}
+
+/** Ikona bez čísla s popiskem (pasou se stáda, čeká na obnovu…). */
+function Flag({
+  icon,
+  name,
+  testId,
+}: {
+  icon: string;
+  name: string;
+  testId: string;
+}): ReactElement {
+  return (
+    <Tooltip content={name} placement="above">
+      <img
+        src={`/icons/resources/${icon}.png`}
+        alt={name}
+        width={20}
+        height={20}
+        data-testid={testId}
+        tabIndex={0}
+      />
+    </Tooltip>
+  );
+}
+
+/** Příprava půdy dílu – ikona a popisek podle úlohy (fields.md – Práce, oxen.md). */
+const PREP_LOOKS: Record<'reclaim' | 'plough' | 'dig', { icon: string; name: string }> = {
+  reclaim: { icon: 'labor', name: 'Rozrytí drnu přílohu' },
+  plough: { icon: 'ox', name: 'Orba rádlem' },
+  dig: { icon: 'labor', name: 'Kopání motykou' },
+};
+
+/**
+ * Díl pole (fields.md – Co hráč vidí; Martin 19. 10. 2026: „Když kliknu na pole, zobrazí se mi
+ * jen to jedno políčko s parametry.“): výměra, úrodnost (v popisku přirozená), cesta z domu
+ * a hospodářství – ikona domu, kliknutím vybere dům; osetý díl letošní práci (příprava půdy,
+ * setí s ikonou plodiny, sklizeň) a kolikátý rok je v osevu; příloh roky ladem, zarůstání,
+ * pastvu a seč; zakládaný díl průběh, zbývající práci a stromy na klády.
+ */
+function FieldPartBody({
+  details,
+  onSelectTarget,
+}: {
+  details: Extract<SelectionDetails, { kind: 'field-part' }>;
+  onSelectTarget?: (target: VillageTarget) => void;
+}): ReactElement {
+  const { crop, holding, founding } = details;
+  const fallow = details.fallowYears !== null;
+  return (
+    <div className="flex min-w-0 flex-col gap-1.5">
+      <div className={ROW}>
+        <Tooltip content="Výměra" placement="above">
+          <span
+            data-testid="selection-area"
+            tabIndex={0}
+            className="text-sm font-semibold tabular-nums"
+          >
+            {formatM2(details.areaM2)}
+          </span>
+        </Tooltip>
+        <Stat
+          icon="food"
+          name={`Úrodnost – přirozená ${details.naturalFertility}`}
+          testId="selection-fertility"
+        >
+          {details.fertility}
+        </Stat>
+        {details.ashBonus > 0 && (
+          <Tooltip
+            content="Popel z vymýceného lesa – úrodnost +40 první sezónu osevu, +20 druhou"
+            placement="above"
+          >
+            <span
+              data-testid="selection-ash"
+              tabIndex={0}
+              className="text-xs font-semibold text-amber-300 tabular-nums"
+            >
+              +{details.ashBonus}
+            </span>
+          </Tooltip>
+        )}
+        <Walk meters={details.walkM} />
+        {holding && (
+          <Tooltip
+            content={`Hospodářství – ${DWELLING_NAMES[holding.type].nominative.toLowerCase()}`}
+            placement="above"
+          >
+            <button
+              type="button"
+              data-testid="selection-holding"
+              aria-label="Hospodářství"
+              className="hud-icon-button h-7 w-7"
+              onClick={() => onSelectTarget?.({ kind: 'dwelling', id: holding.dwellingId })}
+            >
+              <img
+                src={`/icons/build/${holding.type}.png`}
+                alt=""
+                width={128}
+                height={128}
+                className="h-full w-full"
+              />
+            </button>
+          </Tooltip>
+        )}
+        {details.surface !== 'meadow' && (
+          <Tooltip content={FIELD_SURFACE_NAMES[details.surface]} placement="above">
+            <span data-surface={details.surface} tabIndex={0} className="flex items-center">
+              <span
+                aria-hidden
+                className="inline-block h-3 w-3 rounded-full border border-black/50"
+                style={{ background: `rgb(${SURFACE_COLORS[details.surface].join(' ')})` }}
+              />
+            </span>
+          </Tooltip>
+        )}
+      </div>
+      {crop && (
+        <div className={ROW}>
+          {crop.prep && (
+            <Stat
+              icon={PREP_LOOKS[crop.prep.task].icon}
+              name={PREP_LOOKS[crop.prep.task].name}
+              testId="selection-prep"
+            >
+              {formatPercent(crop.prep.share)}
+            </Stat>
+          )}
+          <Stat
+            icon={CROP_LABELS[crop.crop].icon}
+            name={`Setí – ${CROP_LABELS[crop.crop].name}`}
+            testId={`selection-sow-${crop.crop}`}
+          >
+            {formatPercent(crop.sow)}
+          </Stat>
+          <Stat icon="harvest" name="Sklizeň" testId="selection-harvest">
+            {formatPercent(crop.harvest)}
+          </Stat>
+          {details.sownYears !== null && (
+            <Stat icon="date" name="Rok osevu za sebou" testId="selection-sown-years">
+              {details.sownYears + 1}.
+            </Stat>
+          )}
+        </div>
+      )}
+      {fallow && (
+        <div className={ROW}>
+          <Stat icon="date" name="Ladem (roky)" testId="selection-fallow-years">
+            {details.fallowYears}
+          </Stat>
+          {details.overgrowthYears > 0 && (
+            <Stat icon="overgrowth" name="Bez pastvy a seče (roky)" testId="selection-overgrowth">
+              {details.overgrowthYears}
+            </Stat>
+          )}
+          {details.grazed === true && (
+            <Flag icon="sheep" name="Pasou se tu stáda" testId="selection-grazed" />
+          )}
+          {details.mow !== null && (
+            <Stat icon="hay" name="Seč sena" testId="selection-mow">
+              {formatPercent(details.mow)}
+            </Stat>
+          )}
+        </div>
+      )}
+      {founding && (
+        <div className={ROW}>
+          <Bar value={founding.progress} name="Založení" testId="selection-progress" />
+          <Stat icon="labor" name="Zbývá práce (člověkodny)" testId="selection-labor-left">
+            {formatDecimal(founding.laborLeft, 1)}
+          </Stat>
+          {founding.trees > 0 && (
+            <Stat icon="wood" name="Stromy – dají klády" testId="selection-trees">
+              {founding.trees}
+            </Stat>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Čtverec sadu (orchard.md – Co hráč vidí): výměra, stáří, úroda čtverce a cesta z domu;
+ * výsadba či obnova průběhem, čtverec čekající na obnovu ikonou přesýpacích hodin.
+ */
+function OrchardSquareBody({
+  details,
+}: {
+  details: Extract<SelectionDetails, { kind: 'orchard-square' }>;
+}): ReactElement {
+  return (
+    <div className="flex min-w-0 flex-col gap-1.5">
+      <div className={ROW}>
+        <Tooltip content="Výměra" placement="above">
+          <span
+            data-testid="selection-area"
+            tabIndex={0}
+            className="text-sm font-semibold tabular-nums"
+          >
+            {formatM2(details.areaM2)}
+          </span>
+        </Tooltip>
+        {details.ageYears !== null && (
+          <Stat icon="date" name="Stáří (roky)" testId="selection-age">
+            {details.ageYears}
+          </Stat>
+        )}
+        <Stat icon="apples" name="Úroda (kg)" testId="selection-yield">
+          {formatInteger(details.expectedYieldKg)}
+        </Stat>
+        <Walk meters={details.walkM} />
+        {details.renewal && details.planting === null && (
+          <Flag icon="hourglass" name="Čeká na obnovu" testId="selection-renewal" />
+        )}
+      </div>
+      {details.planting !== null && (
+        <div className="flex items-center gap-1.5">
+          <Bar
+            value={details.planting}
+            name={details.renewal ? 'Obnova' : 'Výsadba'}
+            testId="selection-progress"
+          />
+          {details.plantingWaits && (
+            <Flag
+              icon="date"
+              name="Sází se na jaře a na podzim"
+              testId="selection-planting-waits"
+            />
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CemeteryBody({
   details,
 }: {
@@ -1132,8 +1383,11 @@ function SacredBody({
  * a ikony s čísly. Obydlí: obyvatelé, věk obyvatel, stav, stáří (u přestavby i stromy ke
  * skácení), dílna navíc co dělá, práci za den a zásobu výrobku (crafts.md); staveniště: průběh
  * stavby a stromy, které ještě musí skácet;
- * pole: výměra, úrodnost, díly podle stadia; hřbitov: hroby, na kolik let místo vystačí
- * a průběh založení / rozšíření; sad: výměra, stáří, úroda příští sklizně a průběh výsadby;
+ * díl pole (klik): co na něm je, výměra, úrodnost, cesta, hospodářství (`onSelectTarget` vybere
+ * dům), letošní práce nebo příloh; pole (dvojklik): výměra, úrodnost, díly podle stadia; hřbitov:
+ * hroby, na kolik let místo vystačí a průběh založení / rozšíření; čtverec sadu (klik): výměra,
+ * stáří, úroda a výsadba či obnova; sad (dvojklik): výměra, stáří, úroda příští sklizně a průběh
+ * výsadby;
  * posvátný dub, háj, modla a svatyně: kolik přidávají štěstí (háj i počet dubů), rozestavěná
  * modla a svatyně průběh stavby a duby ke skácení; ohrada: zvířata, seno, stáda, spřežení
  * a výcvik (cvičí se samo); pevná cesta: délka, stáří, stromy,
@@ -1143,6 +1397,7 @@ function SacredBody({
  */
 export function SelectionPanel({
   details,
+  onSelectTarget,
   onRelocate,
   onCancelRelocation,
   onLeave,
@@ -1152,6 +1407,8 @@ export function SelectionPanel({
   onSendExpedition,
 }: {
   details: SelectionDetails | null;
+  /** Vybere jiný cíl ve vsi – dům hospodářství z panelu dílu pole. */
+  onSelectTarget?: (target: VillageTarget) => void;
   /** Zadá vylepšení pevné cesty (server action) – hotovo, až se vrátí. */
   onUpgradeRoad?: (roadId: number, upgrade: RoadUpgrade) => Promise<void>;
   /** Zadá výsadbu jabloní podél pevné cesty (server action) – hotovo, až se vrátí. */
@@ -1180,6 +1437,12 @@ export function SelectionPanel({
   } else if (details.kind === 'field') {
     portrait = <Portrait icon="pole" name="Pole" />;
     body = <FieldBody details={details} />;
+  } else if (details.kind === 'field-part') {
+    portrait = <Portrait icon="pole" name={fieldPartName(details)} />;
+    body = <FieldPartBody details={details} onSelectTarget={onSelectTarget} />;
+  } else if (details.kind === 'orchard-square') {
+    portrait = <Portrait icon="sad" name={orchardSquareName(details)} />;
+    body = <OrchardSquareBody details={details} />;
   } else if (details.kind === 'cemetery') {
     portrait = <Portrait icon="hrbitov" name="Hřbitov" />;
     body = <CemeteryBody details={details} />;

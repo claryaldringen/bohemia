@@ -147,7 +147,9 @@ významní členové.“ **Implementováno 19. 10. 2026** – jádro `domain/vil
 - V nabídce staveb **Hřbitov** (cena za čtverec), umisťování po čtvercích jako pole; během
   umisťování varování, když je místo moc blízko obydlí nebo vody (důvod v bublině).
 - V panelu vsi u pohřebiště **kolik místa zbývá** (obsazená místa na hroby / všechna a odhad na
-  kolik let) – ne hygiena.
+  kolik let) – ne hygiena. Kliknutí na kterýkoli čtverec vybere **celý hřbitov** (na rozdíl od
+  pole a sadu, kde klik vybere čtverec – fields.md, Co hráč vidí): hroby se plní po celém
+  hřbitově a plot je jeden, čtverec by sám nic neřekl (návrh Clauda, 19. 10. 2026).
 - Ve scéně pohřebiště ohrazené nízkým pleteným plotem – stejný druh plotu jako polský plot kolem
   pozemku polozemnice, jen s hustším pletivem; rohy zakulacené (vnitřní roh tvaru L malým
   obloukem), branka k vsi (Martin). Podle doby by mohlo vypadat jinak – v 6.–8. století žárové

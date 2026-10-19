@@ -38,7 +38,9 @@ import {
   penMudBounds,
   penStakingLine,
 } from '../pen-layout';
+import { targetOutline } from '../selection-highlight';
 import { pickVillageTarget, type Ray } from '../village-picking';
+import { nextSelection } from '../village-selection';
 import { decalGrid } from '../village-layout';
 
 // Natočené stavby ve scéně (fields.md – Natočené stavby; Martin 18. 10. 2026): pozemek, pole
@@ -210,13 +212,19 @@ describe('výběr a stáda na natočených stavbách', () => {
     }),
   });
 
-  it('kliknutí na natočený díl vybere pole, roh políčka mimo díl ne', () => {
+  it('kliknutí na natočený díl vybere díl, dvojklik pole; roh políčka mimo díl nic', () => {
     const [c, s] = rotationCosSin(G30.rotation);
     const inside = { x: 7.5 + 6 * c, z: 7.5 - 6 * s };
-    expect(
-      pickVillageTarget(village, ray(inside.x, inside.z), options(inside.x, inside.z)),
-    ).toEqual({ kind: 'field', id: 4 });
+    const picked = pickVillageTarget(village, ray(inside.x, inside.z), options(inside.x, inside.z));
+    expect(picked).toEqual({ kind: 'field-part', id: 4, cell: { x: 0, y: 0 } });
+    expect(nextSelection(null, picked, false, true)).toEqual({ kind: 'field', id: 4 });
     expect(pickVillageTarget(village, ray(0.5, 0.5), options(0.5, 0.5))).toBeNull();
+    // obrys vybraného dílu je natočený čtverec dílu
+    const outline = targetOutline(village, picked!).flat();
+    const corners = squareCorners(GEO, G30, { x: 0, y: 0 });
+    for (const [x, z] of corners) {
+      expect(outline.some(([ox, oz]) => Math.hypot(ox - x, oz - z) < 1e-6)).toBe(true);
+    }
   });
 
   it('stáda poznají natočený čtverec podle jeho os', () => {
