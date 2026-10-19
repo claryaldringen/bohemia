@@ -5,6 +5,7 @@ import {
   appendAll,
   fieldBlockContent,
   fieldBlockOf,
+  fieldHay,
   groupFieldBlocks,
   mergeFieldBlocks,
   type FieldBlockContent,
@@ -87,14 +88,17 @@ describe('pole po blocích dílů', () => {
         views.map((v) => v.part),
         1.6,
       );
-      const whole = fieldBlockContent(views, ROWS, CENTER, coverage, day);
+      const whole = fieldBlockContent(views, ROWS, CENTER, coverage);
       const blocks = [...groupFieldBlocks(views).values()].map((blockViews) =>
-        fieldBlockContent(blockViews, ROWS, CENTER, coverage, day),
+        fieldBlockContent(blockViews, ROWS, CENTER, coverage),
       );
-      const merged = mergeFieldBlocks(views, blocks);
+      const merged = mergeFieldBlocks(views, blocks, day);
       // rostliny přesně jako fieldPlants celého pole – i pořadí (plevel se dělí podle pořadí)
       expect(merged.plants).toEqual(fieldPlants(views, ROWS, CENTER, coverage, day));
-      expect(mergeFieldBlocks(views, [whole]).plants).toEqual(merged.plants);
+      expect(mergeFieldBlocks(views, [whole], day).plants).toEqual(merged.plants);
+      // bez sena (pole ho skládá zvlášť) + seno zvlášť = totéž
+      const bare = mergeFieldBlocks(views, blocks, null);
+      expect({ ...bare.plants, hay: fieldHay(views, day) }).toEqual(merged.plants);
       expect(layerGrids(merged)).toEqual(layerGrids(whole));
       expect(merged.swaths.length).toBeGreaterThan(0);
       expect(merged.swaths.map((g) => [...g.positions].join()).sort()).toEqual(

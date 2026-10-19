@@ -87,3 +87,38 @@ describe('co pole pod sebou nekreslí (pole jako krajina)', () => {
     expect(Math.PI * TREE_LAND_RADIUS_M ** 2).toBeCloseTo(20, 9);
   });
 });
+
+describe('maska ploch s rejstříkem (mnoho ploch pod velkým polem)', () => {
+  it('= nejmenší z masek jednotlivých ploch', () => {
+    const clearings = Array.from({ length: 60 }, (_, i) => {
+      const x = (i * 37) % 300;
+      const z = (i * 53) % 200;
+      const r = 2 + (i % 5);
+      const polygon: [number, number][] = [
+        [x - r, z - r],
+        [x + r, z - r * 0.5],
+        [x + r * 0.7, z + r],
+        [x - r * 0.4, z + r * 0.8],
+      ];
+      return {
+        polygon,
+        minX: Math.min(...polygon.map((p) => p[0])),
+        maxX: Math.max(...polygon.map((p) => p[0])),
+        minZ: Math.min(...polygon.map((p) => p[1])),
+        maxZ: Math.max(...polygon.map((p) => p[1])),
+      };
+    });
+    const soft = 1.5;
+    const mask = clearingMask(clearings, soft);
+    const singles = clearings.map((c) => clearingMask([c], soft));
+    let partial = 0;
+    for (let i = 0; i < 20_000; i++) {
+      const x = -10 + ((i * 1.37) % 320);
+      const z = -10 + ((i * 0.91) % 220);
+      const value = mask(x, z);
+      expect(value).toBe(Math.min(1, ...singles.map((m) => m(x, z))));
+      if (value > 0 && value < 1) partial++;
+    }
+    expect(partial).toBeGreaterThan(50);
+  });
+});

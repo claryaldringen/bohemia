@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import type { SceneFieldPart } from '../../village-view';
 import { CANOPY_M, canopyHeight, fieldCanopy, type CanopyMesh } from '../field-canopy';
-import { cellsCoverage, outerCorners, type CellSquare } from '../field-cells';
+import {
+  cellsCoverage,
+  gridFrame,
+  outerCorners,
+  type CellSquare,
+  type CornerRounding,
+  type EdgeInset,
+} from '../field-cells';
 import { fieldPlants } from '../field-crops';
 import type { FieldLook, PartView } from '../field-look';
 import { PLOUGH_CORNER_M } from '../plough-team';
@@ -276,6 +283,101 @@ describe('vystouplé obilí – koruna porostu', () => {
       // styk dílů (x = 15) mimo vnější okraj pole (z = 0 a z = 15 – tam stěna je)
       if (Math.abs(mesh.positions[i * 2]! - 15) < 1e-6 && z > 1e-6 && z < 15 - 1e-6) {
         expect(mesh.offsets[i]).toBeCloseTo(CANOPY_M.ripe!.grain, 5);
+      }
+    }
+  });
+});
+
+describe('krytí pole po čtvercích (cellsCoverage)', () => {
+  /** Přímý výpočet jako dřív – sousedé čtverce dotazem na každý bod (vzor pro rychlou verzi). */
+  function reference(
+    squares: readonly CellSquare[],
+    softM: number,
+    rounding?: CornerRounding,
+    inset?: EdgeInset,
+  ): (x: number, z: number) => number {
+    const frame = gridFrame(squares[0]!);
+    const key = (x: number, y: number): string => `${x},${y}`;
+    const inside = new Set(squares.map((s) => key(s.cell.x, s.cell.y)));
+    const half = frame.size / 2;
+    const radius = Math.min(half, rounding?.radius ?? 0);
+    const deepest = softM + (inset?.maxM ?? 0);
+    const smooth = (x: number): number => {
+      const t = Math.min(1, Math.max(0, x / softM));
+      return t * t * (3 - 2 * t);
+    };
+    return (wx, wz) => {
+      const [x, z] = frame.toSpace(wx, wz);
+      const cell = frame.cellAt(x, z);
+      if (!inside.has(key(cell.x, cell.y))) return 0;
+      let distance = deepest;
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          if ((dx === 0 && dy === 0) || inside.has(key(cell.x + dx, cell.y + dy))) continue;
+          const [nx, nz] = frame.center(cell.x + dx, cell.y + dy);
+          const ox = Math.max(0, Math.abs(x - nx) - half);
+          const oz = Math.max(0, Math.abs(z - nz) - half);
+          distance = Math.min(distance, Math.hypot(ox, oz));
+        }
+      }
+      if (radius > 0 && rounding!.rounded(cell)) {
+        const [cx, cz] = frame.center(cell.x, cell.y);
+        for (const sx of [-1, 1]) {
+          for (const sz of [-1, 1]) {
+            if (inside.has(key(cell.x + sx, cell.y)) || inside.has(key(cell.x, cell.y + sz))) {
+              continue;
+            }
+            const a = half - sx * (x - cx);
+            const b = half - sz * (z - cz);
+            if (a < radius && b < radius) {
+              distance = Math.min(distance, radius - Math.hypot(radius - a, radius - b));
+            }
+          }
+        }
+      }
+      return smooth(distance - (inset ? inset.at(wx, wz) : 0));
+    };
+  }
+
+  /** Nepravidelné pole s dírou a schody, volitelně natočené (mřížka stavby). */
+  function shape(rotation?: number): CellSquare[] {
+    const out: CellSquare[] = [];
+    for (let y = -3; y < 6; y++) {
+      for (let x = -4; x < 7; x++) {
+        if ((x * 7 + y * 3) % 5 === 0 || (x === 1 && y === 1)) continue;
+        out.push({
+          cell: { x, y },
+          x: 300 + x * CELL,
+          z: -120 + y * CELL,
+          size: CELL,
+          ...(rotation === undefined ? {} : { rotation }),
+        });
+      }
+    }
+    return out;
+  }
+
+  it('bit po bitu jako přímý výpočet (rohy, nepravidelný okraj, natočená mřížka)', () => {
+    const inset: EdgeInset = { maxM: 2, at: (x, z) => 1 + Math.sin(x * 0.37) * Math.cos(z * 0.23) };
+    const someRounded: CornerRounding = { radius: 5, rounded: (c) => (c.x + c.y) % 2 === 0 };
+    for (const rotation of [undefined, Math.PI / 6]) {
+      const squares = shape(rotation);
+      for (const [rounding, edge] of [
+        [undefined, undefined],
+        [someRounded, inset],
+        [all, undefined],
+      ] as const) {
+        const fast = cellsCoverage(squares, SOFT, rounding, edge);
+        const slow = reference(squares, SOFT, rounding, edge);
+        let edgePoints = 0;
+        for (let i = 0; i < 4000; i++) {
+          const x = 200 + ((i * 37) % 200) + (i % 13) * 0.173;
+          const z = -200 + ((i * 53) % 220) + (i % 7) * 0.311;
+          const value = fast(x, z);
+          expect(value).toBe(slow(x, z));
+          if (value > 0 && value < 1) edgePoints++;
+        }
+        expect(edgePoints).toBeGreaterThan(100);
       }
     }
   });

@@ -461,6 +461,22 @@ export function emptyCrops(): Record<CropKind, PlantInstance[]> {
   };
 }
 
+/**
+ * Kupky a stohy sena dílu (přidá je na konec `out`). Seno jen na celých posečených dílech (na
+ * rozpracovaném se ještě seče): shrabané v kupkách (kde ještě schne v řádcích, kupky nejsou), od
+ * poloviny července stohy, přes zimu ubývají – jediná část rostlin pole, která závisí na dni.
+ */
+export function appendHay(out: PlantInstance[], view: PartView, dayOfYear: number): void {
+  if (!hasHay(view)) return;
+  const hay = view.look === 'haystacks' ? 'stacks' : 'heaps';
+  for (const plant of hayOnSquares([view.part], hay, dayOfYear)) out.push(plant);
+}
+
+/** Nese díl kupky nebo stohy sena (`appendHay`)? */
+export function hasHay(view: PartView): boolean {
+  return !!view.look && !!LOOK_STYLES[view.look].hay && view.work === null && !view.swaths;
+}
+
 /** Semínko náhody pro políčko (a druh věci na něm). */
 function cellSeed(part: CellSquare, salt: number): number {
   return (Math.imul(part.cell.x, 73856093) ^ Math.imul(part.cell.y, 19349663) ^ salt) >>> 0;
@@ -470,14 +486,15 @@ function cellSeed(part: CellSquare, salt: number): number {
  * Trsy obilí, panáky, plevel a seno všech dílů pole. Trsy stojí v řádcích podél `rows` (ROW_M od
  * sebe, v řádku po STEP_M s rozptylem), u meze řídnou podle krytí obtisku `coverage`. Na
  * rozpracovaném dílu má hotová část (po pruzích jako obtisk) trsy podle `look`, zbytek podle
- * `before`; panáky stojí jen na sklizené části, kus za čarou žně.
+ * `before`; panáky stojí jen na sklizené části, kus za čarou žně. Seno podle dne v roce
+ * `dayOfYear` (`appendHay`); null = bez sena (pole po blocích ho přidá až při spojení).
  */
 export function fieldPlants(
   views: readonly PartView[],
   rows: readonly [number, number],
   center: { x: number; z: number },
   coverage: (x: number, z: number) => number,
-  dayOfYear = 196,
+  dayOfYear: number | null = 196,
 ): FieldPlants {
   const plants: FieldPlants = {
     crops: emptyCrops(),
@@ -486,13 +503,7 @@ export function fieldPlants(
     weeds: [],
     hay: [],
   };
-  // seno jen na celých posečených dílech (na rozpracovaném se ještě seče): shrabané v kupkách
-  // (kde ještě schne v řádcích, kupky nejsou), od poloviny července stohy
-  for (const view of views) {
-    if (!view.look || !LOOK_STYLES[view.look].hay || view.work !== null || view.swaths) continue;
-    const hay = view.look === 'haystacks' ? 'stacks' : 'heaps';
-    plants.hay.push(...hayOnSquares([view.part], hay, dayOfYear));
-  }
+  if (dayOfYear !== null) for (const view of views) appendHay(plants.hay, view, dayOfYear);
   for (const view of views) {
     if (!view.look && !view.before) continue;
     const part = view.part;

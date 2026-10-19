@@ -236,6 +236,8 @@ export class LandscapeScene {
   private readonly pickRay = PickingRay.Zero();
   /** Vývojový ukazatel výkonu (jen /dev/landscape – `enablePerfStats`). */
   private perf: ScenePerf | null = null;
+  /** Odložené předání pásu pěšin dne polím (`VillagePaths.onChange`). */
+  private pathTrackTimer: ReturnType<typeof setTimeout> | null = null;
 
   private constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -412,9 +414,16 @@ export class LandscapeScene {
       // (refreshShadows), stínová mapa se kvůli pěšinám nepřekresluje
       onChange: () => {
         this.villagers?.setPaths(this.paths?.paths() ?? null, Date.now());
-        // pod pěšinami dne obilí neroste – bloky polí se přestaví jen s novou sítí pěšin
-        this.village?.setPathTrack(this.paths?.pathTrack() ?? null);
         this.renderWhenReady();
+        // Pod pěšinami dne obilí neroste – bloky polí se přestaví jen s novou sítí pěšin, a to až
+        // v další úloze: výpočet sítě a přestavba polí jsou dvě kratší úlohy, mezi které se vejde
+        // snímek (pohyb kamery se nezasekne na jejich součet).
+        if (this.pathTrackTimer !== null) clearTimeout(this.pathTrackTimer);
+        this.pathTrackTimer = setTimeout(() => {
+          this.pathTrackTimer = null;
+          if (this.disposed) return;
+          if (this.village?.setPathTrack(this.paths?.pathTrack() ?? null)) this.renderWhenReady();
+        }, 0);
       },
       requestRender: () => this.renderWhenReady(),
       refreshShadows: () => {
@@ -844,6 +853,7 @@ export class LandscapeScene {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
+    if (this.pathTrackTimer !== null) clearTimeout(this.pathTrackTimer);
     this.listeners.clear();
     this.selectListeners.clear();
     this.viewListeners.clear();

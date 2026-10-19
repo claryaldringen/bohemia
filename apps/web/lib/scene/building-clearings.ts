@@ -168,9 +168,9 @@ export function clearingMask(
   softM: number,
 ): (x: number, z: number) => number {
   if (clearings.length === 0) return () => 1;
-  return (x, z) => {
+  const at = (list: readonly Clearing[], x: number, z: number): number => {
     let mask = 1;
-    for (const c of clearings) {
+    for (const c of list) {
       if (x < c.minX - softM || x > c.maxX + softM || z < c.minZ - softM || z > c.maxZ + softM) {
         continue;
       }
@@ -180,7 +180,35 @@ export function clearingMask(
     }
     return mask;
   };
+  if (clearings.length <= MASK_BIN_MIN) return (x, z) => at(clearings, x, z);
+  // prostorový rejstřík – velké pole (Vlkov) má pod sebou stovky ploch (stromy u cest, obydlí)
+  // a krytí se ptá pro statisíce bodů; bod projde jen plochy své přihrádky (výsledek stejný –
+  // přihrádka má všechny plochy, jejichž obdélník s okrajem do ní zasahuje)
+  const binOf = (v: number): number => Math.floor(v / MASK_BIN_M);
+  const binKey = (i: number, j: number): number =>
+    (i + MASK_BIN_OFFSET) * MASK_BIN_SPAN + (j + MASK_BIN_OFFSET);
+  const bins = new Map<number, Clearing[]>();
+  for (const c of clearings) {
+    for (let i = binOf(c.minX - softM); i <= binOf(c.maxX + softM); i++) {
+      for (let j = binOf(c.minZ - softM); j <= binOf(c.maxZ + softM); j++) {
+        const key = binKey(i, j);
+        const list = bins.get(key);
+        if (list) list.push(c);
+        else bins.set(key, [c]);
+      }
+    }
+  }
+  return (x, z) => {
+    const list = bins.get(binKey(binOf(x), binOf(z)));
+    return list ? at(list, x, z) : 1;
+  };
 }
+
+/** Od kolika ploch má `clearingMask` prostorový rejstřík; strana přihrádky (m) a číselný klíč. */
+const MASK_BIN_MIN = 8;
+const MASK_BIN_M = 16;
+const MASK_BIN_OFFSET = 2 ** 20;
+const MASK_BIN_SPAN = 2 ** 21;
 
 /** Kmen jabloně stojí aspoň tolik (m) od vyklízené plochy obydlí – jinak tam strom není. */
 export const TREE_CLEARANCE_M = 1.5;
