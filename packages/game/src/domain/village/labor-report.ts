@@ -207,12 +207,12 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
     }
   }
 
-  let invested = 0;
-  // nosiči výprav k sousedům – po zemské stezce (trade.md)
+  // nosiči výprav k sousedům – po zemské stezce (trade.md); mají vlastní podíl práce
+  // (`allocation.away`), společnou práci neberou
   for (const t of work.trade ?? []) {
-    invested += t.manDays;
     add('trade', { kind: 'trail', id: t.trailId }, t.manDays, undefined, t.carts);
   }
+  let invested = 0;
   // honáci a nakladači klád jdou ze společné práce (wagons.md)
   for (const haul of hauls) if (haul.job === 'logs') invested += haul.manDays;
   for (const c of work.constructions) {

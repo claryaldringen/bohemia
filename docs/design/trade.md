@@ -83,7 +83,8 @@ a smysl přebytkům (obilí, sýr, maso, klády po mýcení) – jen se surovina
   bere s přirážkou **≈ 20 %**; co shání, za to dá o ≈ 20 % víc, co nabízí, dá o ≈ 20 % levněji.
 - **Doprava:** zboží nesou lidé po stezce – **≈ 25 kg na člověka a cestu** (dobytek se žene);
   cesta tam a zpět trvá **2–6 dní** podle délky stezky (+ cesta za krajem mapy 1 den). Práce
-  nosičů = lidé × dny (ze společné práce vsi, jako stavba); zboží dorazí, až se nosiči vrátí.
+  nosičů = lidé × dny – od 19. 10. 2026 vlastní podíl práce vsi hned po denním minimu (viz Jak je
+  postavené – Doprava); zboží dorazí, až se nosiči vrátí.
 - **Panel obchodu** (dvorec, po dostavění stezky): soused (jméno, směr), ikony zboží – co dáš,
   co dostaneš, posuvníky, bilance hodnoty (musí být ≥ 0 pro souseda), cena v práci a dny cesty.
   Potvrdit → výprava vyrazí. Jedna výprava na souseda naráz.
@@ -276,9 +277,20 @@ Návrh Clauda (18. 10. 2026) – detaily, které návrh výš nechal otevřené:
   (ves dává) a nabízeným (ves dostává) zboží – jinak by soused byl nekonečný zdroj.
 - **Doprava:** nosiči = víc z cest tam a zpět: náklad ÷ 25 kg (kláda váží pro nosiče 100 kg –
   vlečou ji čtyři) + honák na každých 10 kusů dobytka; aspoň 1. Práce = nosiči
-  × dny; každý den výprava vezme ze společné práce nejvýš počet nosičů (před stavbami), takže
-  trvá aspoň daný počet dní, s málo prací déle. Zboží, které ves dává, odejde hned, přinesené
-  dorazí po návratu. Ves si nechá aspoň 2 krávy.
+  × dny. **Lidé na výpravě mají vlastní podíl práce** (Martin 19. 10. 2026: „Ano, udělej to
+  tak.“ – na návrh Clauda níž): každý den výprava vezme tolik člověkodní, kolik s ní jde lidí
+  (nosiči, s vozy honáci a pomocníci), hned **po denním minimu domácností a před rozdělením dne**
+  (`allocateDay` – `away`, `expeditionLaborToday`), takže trvá přesně dny z náhledu – i o žních,
+  kdy ves nemá volnou práci. Dřív brala práci až ze společné práce (po polních pracích, opravách
+  a domácí práci) a bez ní stála (Vlkov: ≈ 7 člověkodní volné práce na 12 nosičů – 9 dní místo 5).
+  Rozhodnutí Clauda k Martinovu „ano“: **nosiči jsou dospělí** – výprava vezme nejvýš tolik, kolik
+  má ves (bez řemeslníků v dílnách) dospělých (14–44 let); děti a starší náklad 25 kg na několik dní
+  cesty neponesou a jejich práce ve vsi je jen zlomek. **Denní minimum domácností má přednost** –
+  vaření, voda, oheň a péče o malé děti (fields.md – Práce) se neodkládají, výprava je dobrovolná;
+  zdržet se tak může jen malá ves, která po denním minimu nemá dost dospělých (panel to ukáže).
+  Platí pro každou výpravu ve vsi, i pro nákup u sousedů. Zboží, které ves dává, odejde hned,
+  přinesené dorazí po návratu. Ves si nechá aspoň 2 krávy. Kalibrace se nemění (běží bez obchodu
+  – ověřeno `measure-village 20 20`).
 - ~~**Zboží zvenku:** sůl 3 kg na člověka a rok (≈ 8 g denně), dokud je, štěstí +3; kožešiny se
   opotřebí 20 % ročně, štěstí +2 × (kožešiny ÷ lidé, nejvýš 1); med rovným dílem do roka,
   nejvýš 5 % potřeby energie (0,9 kg obilí na kg), štěstí jako ovoce (+5, se zralým ovocem se
@@ -313,19 +325,17 @@ Návrh Clauda (18. 10. 2026) – detaily, které návrh výš nechal otevřené:
   - **panel zůstane otevřený** a po úspěchu ukáže **výpravu na cestě**: soused a směr, co nese
     a koho vede (Dáš), co přinese a kdo přijde (Dostaneš), průběh, nosiči a vozy a za kolik dní se
     vrátí dnešním tempem;
-  - **tempo dne:** výprava bere nosiče ze společné práce vsi – když ves nemá volné ruce, stojí;
-    panel to ukáže přesýpacími hodinami s popiskem „Čeká na volné ruce – ves dnes neměla volnou
-    práci, nosiči stojí.“ (návrat „?“), s menší prací „Málo volných rukou – dnes šlo 7 z 12
-    nosičů, výprava se zdrží.“; výprava vyslaná dnes „vyrazí zítra“;
+  - **tempo dne:** lidé na výpravě mají vlastní podíl práce (viz Doprava) – výprava jde plným
+    tempem; jen ves, která po denním minimu nemá dost dospělých, se zdrží – panel to ukáže
+    přesýpacími hodinami s popiskem „Málo dospělých – dnes šlo 1 z 2 lidí výpravy, výprava se
+    zdrží.“, bez nikoho „Výprava stojí – po denním minimu domácností dnes ve vsi nezbyl nikdo, kdo
+    by šel.“ (návrat „?“); výprava vyslaná dnes „vyrazí zítra“;
   - **vozy:** u práce panel zeleně ukáže, kolik člověkodní vozy ušetří proti nosičům.
-- **Návrh Clauda – nosiči jako vlastní podíl práce (čeká na Martina):** výprava dnes bere práci až
-  ze společné práce vsi – po polních pracích, opravách a domácí práci, jen před stavbami. Bez
-  volné práce proto stojí uprostřed cesty (Vlkov 19. 10. 2026: volná práce ≈ 7 člověkodní denně na
-  12 nosičů – výprava za 60 člověkodní trvá 9 dní místo 5; o žních by stála úplně). Návrh: nosiči
-  výpravy jsou celé dny cesty pryč – jejich člověkodny se odečtou z práce vsi **před** rozdělením
-  dne, takže výprava jde vždy plným tempem a ves má ty dny méně lidí na poli. Proč: zboží už
-  odešlo a nosiči jsou fyzicky na stezce – nedává smysl, aby stáli, když se doma žne; cenu v práci
-  hráč vidí v panelu předem a výpravu vysílá vědomě. Kalibrace se nezmění (běží bez obchodu).
+- **Nosiči jako vlastní podíl práce – Martin schválil 19. 10. 2026** („Ano, udělej to tak.“):
+  výprava dřív brala práci až ze společné práce vsi a bez ní stála uprostřed cesty (Vlkov: volná
+  práce ≈ 7 člověkodní denně na 12 nosičů – výprava za 60 člověkodní trvala 9 dní místo 5; o žních
+  by stála úplně). Teď jsou lidé na výpravě celé dny cesty pryč – jejich člověkodny jdou z práce
+  vsi hned po denním minimu, před rozdělením dne (viz Jak je postavené – Doprava).
 - **Ve scéně – karavana** (Martin 19. 10. 2026: „Měl bych vidět skupinu lidí, jak jde po té zemské
   stezce s nákladem pro sousední vesnici. Zpátky by se mělo vracet o dva lidi víc, když jsem si je
   objednal. Až bude vůz, pojedou zásoby na voze a ušetří se člověkodny.“; návrh Clauda –
@@ -348,8 +358,8 @@ Návrh Clauda (18. 10. 2026) – detaily, které návrh výš nechal otevřené:
     je karavana u souseda a není vidět. Skutečnou chůzí by 1 km trval čtvrt hodiny a výprava by se
     vrátila dřív, než by karavana došla na kraj mapy – jde proto zrychleně (časosběr jako jednotky
     v 0 A.D.), krok se přehrává rychleji (nejvýš 3×);
-  - před odchodem a po návratu stojí karavana v hloučku u začátku stezky; bez volných rukou stojí
-    na cestě (panel obchodu ukáže „Čeká na volné ruce“);
+  - před odchodem a po návratu stojí karavana v hloučku u začátku stezky; lidé na výpravě mají
+    vlastní podíl práce, takže jde plným tempem – stojí jen výjimečně (ves bez dospělých);
   - ukázka na `/dev/landscape` – tlačítko **Karavana** (nosiči, pak vůz; výprava trvá 90 s).
 
 ## Rozhodnutí
@@ -378,3 +388,5 @@ Návrh Clauda (18. 10. 2026) – detaily, které návrh výš nechal otevřené:
 | Karavana výpravy ve scéně – skupina podle postupu výpravy, lidé tam i zpět, s vozem náklad na voze | Martin (19. 10.) / návrh Clauda |
 | Kde stezka prochází lesem, les se vykácí (19. 10.)                                                 | Martin                          |
 | Průsek 3,5 m od osy, kácení v ceně úseku, trasa se vyhne posvátným dubům a hájům                   | návrh Clauda                    |
+| Lidé na výpravě mají vlastní podíl práce – po denním minimu, před rozdělením dne (19. 10.)         | Martin                          |
+| Nosiči jen dospělí (nejvýš kolik jich ves má), denní minimum domácností má přednost                | návrh Clauda                    |

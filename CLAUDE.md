@@ -1835,13 +1835,19 @@ směr)` – stálá povaha podle druhu souseda (`neighbourKind` – obilnáři, 
   `TRADE_GOOD_VALUES` (rešerše `research/2026-10-18-trade-values.md`), ceny `sellPrice` / `buyPrice`
   (přirážka a příplatky `TRADE`), `tradeQuote` – kontrola a ocenění (bilance pro souseda ≥ 0,
   nosiči `expeditionPorters`, dny, práce; důvody česky). `startExpedition` odebere zboží a zapíše
-  výpravu (`TradeExpedition`), `workExpeditions` (v kroku práce před stavbami – nejvýš nosiči za
-  den ze společné práce) a `finishExpeditions` (po práci – zboží do zásob, kronika
+  výpravu (`TradeExpedition`). **Lidé na výpravě mají vlastní podíl práce** (Martin 19. 10. 2026):
+  jediné pravidlo pro každou výpravu ve `state.trade.expeditions` (i nákup u sousedů) –
+  `expeditionLaborToday` = `expeditionLaborNeed` (každá výprava kolik s ní jde lidí – nosiči,
+  honáci, posádky vozů –, nejvýš co jí zbývá), nejvýš kolik je dospělých mimo dílny; jde do
+  `allocateDay` jako `away` hned po denním minimu domácností (to má přednost), před úlohami dne –
+  výprava trvá přesně dny z náhledu, zdrží se jen ves bez dost dospělých;
+  `workExpeditions(state, allocation.away)` ho rozdělí mezi výpravy (v rozdělení práce dne nejde
+  ze společné práce – `idle` nezmenší); `finishExpeditions` (po práci – zboží do zásob, kronika
   `trade-departed` / `trade-returned`). Rozdělení práce: činnost `trade`, cíl `{ kind: 'trail' }`
   – ve scéně jde výprava jako **karavana** (`scene/caravan.ts`, data `SceneVillage.expeditions`
   z `lib/caravan-view.ts`): jedna skupina po zemské stezce podle postupu výpravy v herním čase
   (`caravanProgress` – postup dne plynule dnešním tempem, `caravanHead` – tam, den za krajem mapy
-  pryč, zpátky), ne podle práce dne – nosiči nezmizí, když výprava nedostala volné ruce; tam
+  pryč, zpátky), ne podle práce dne – nosiči nezmizí, ani když výprava dnes nepostoupila; tam
   nosiči s nákladem a lidé, kteří odcházejí (`givePeople.members`), zpátky nosiči a lidé od
   souseda (`newcomerProfiles`); postavy `caravanFigures` ve `villager-plan.ts` (podíl `trade`
   se pak nekreslí; `VillagerPose.hidden` za krajem mapy), vůz v čele `caravanCartPlan`
@@ -1860,8 +1866,9 @@ směr)` – stálá povaha podle druhu souseda (`neighbourKind` – obilnáři, 
   všechny kontroly `tradeQuote` se stejnými důvody (konstanty z jádra), `onSend` vrací důvod
   odmítnutí – panel zůstane otevřený a ukáže ho červeně (`trade-error`), dokud se výběr nezmění;
   výprava na cestě `ExpeditionView` (`expeditionView` v `manor-view.ts`: `daysLeft`, `pace`
-  `full` / `slow` / `waiting` / `starting` z podílu `trade` v rozdělení práce dne, přesýpací
-  hodiny „Čeká na volné ruce“); u práce kolik vozy ušetří (`savedManDays`).
+  `full` / `slow` / `waiting` / `starting` z podílu `trade` v rozdělení práce dne; `slow`
+  a `waiting` jen výjimečně – málo dospělých, přesýpací hodiny „Výprava stojí“ / „Málo
+  dospělých“); u práce kolik vozy ušetří (`savedManDays`).
 - **Jen společné suroviny** (trade.md – Jen společné suroviny; Martin 19. 10. 2026: „Nech jen
   společné suroviny, nezaváděj nové.“): obchod zná jen zboží, které má i ves (`TradeGood` – obilí,
   luštěniny, maso, sýr, dobytek, klády, keramika, nástroje, uhlí; `TRADE_GOODS`). Zboží zvenku

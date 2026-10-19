@@ -18,6 +18,7 @@ const DAILY_MIN = dailyMinPerHousehold(NO_CRAFTS.pottery);
 function sum(r: ReturnType<typeof allocateDay>): number {
   return (
     r.dailyMin +
+    r.away +
     Object.values(r.tasks).reduce((a, b) => a + b, 0) +
     r.repairs +
     r.domestic +
@@ -80,6 +81,19 @@ describe('allocateDay', () => {
     expect(r.tasks.dig).toBeCloseTo(0.6);
     expect(r.tasks['orchard-care']).toBe(0);
     expect(sum(r)).toBeCloseTo(2.6);
+  });
+  it('lidé na výpravách: po denním minimu, před úlohami dne (trade.md – Doprava)', () => {
+    const r = allocateDay({ ...base, away: 1.5, tasks: [{ name: 'dig', remaining: 5 }] });
+    expect(r.dailyMin).toBeCloseTo(DAILY_MIN);
+    expect(r.away).toBeCloseTo(1.5);
+    expect(r.tasks.dig).toBeCloseTo(2.6 - DAILY_MIN - 1.5);
+    expect(sum(r)).toBeCloseTo(2.6);
+    // bez práce navíc dostane výprava jen to, co zbude po denním minimu
+    const short = allocateDay({ ...base, capacity: 1, away: 3 });
+    expect(short.dailyMin).toBeCloseTo(DAILY_MIN);
+    expect(short.away).toBeCloseTo(1 - DAILY_MIN);
+    expect(short.common).toBe(0);
+    expect(allocateDay(base).away).toBe(0);
   });
   it('opravy před domácí výrobou', () => {
     const r = allocateDay({ ...base, repairNeed: 1 });
