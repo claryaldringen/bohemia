@@ -66,7 +66,8 @@ Vzhled podle Martina (modely se připravují v `tools/blender/`):
 ## Práce a jídlo
 
 - **Řemeslník pracuje v dílně na plný úvazek, dokud je co dělat** (Martin): dospělí domácnosti
-  dílny dávají řemeslu všechnu svou práci po denním minimu a domácí výrobě. Jedí ze společných
+  dílny dávají řemeslu všechnu svou práci po denním minimu (domácí výroba jde bokem – population.md,
+  Práce). Jedí ze společných
   zásob jako všichni.
 - **Volný čas pracují pro ves** (Martin 18. 10. 2026: „Ano, pokud uhlíř a kovář budou mít volný
   čas, ať pracují na poli jako zbytek vesnice.“): když řemeslník nemá v dílně co dělat, jeho
@@ -375,10 +376,10 @@ Rozhodnutí kontroléru při implementaci (18. 10. 2026) – kde návrh necháva
   `MILIR` v `rules.ts`); místo pod ním (6 × 6 m) musí být louka nebo les (les se vyklučí –
   [populace](population.md), Stavba v lese, Martin 19. 10. 2026), dost rovné a volné, překážky
   v kruhu o poloměru 4,6 m osadníci odstraní a zaplatí jako u obydlí.
-- **Celá domácnost dílny pracuje v dílně** – i starší děti a starší pomáhají jako na poli; po
-  denním minimu (meze podle nádob) a domácí výrobě (i palivo dál od lesa) dostane řemeslo
+- **Celá domácnost dílny pracuje v dílně** – dospělí (starší kryjí denní minimum domácnosti,
+  výrostci pasou – population.md, Práce); po denním minimu (meze podle nádob) dostane řemeslo
   všechno, nikdy pole ani společnou práci. **Opravy dílny platí ves** (jako u ostatních obydlí –
-  opravy jdou před domácí výrobou). Do sil vsi pro plán osevu se domácnosti dílen nepočítají.
+  opravy jdou po stavbách). Do sil vsi pro plán osevu se domácnosti dílen nepočítají.
 - **Výroba den po dni** (na kouscích nezávisí): uhlíř a hrnčíř vyberou nejbližší stojící dospělý
   strom, který nepatří jiné stavbě ani dílně a není posvátný (vyhradí ho), skácí ho (2 čd + 1 %
   za 10 m nad 100 m – uhlíř od milíře, hrnčíř od dílny, zůstane pařez) a teprve pak z něj vyrábějí

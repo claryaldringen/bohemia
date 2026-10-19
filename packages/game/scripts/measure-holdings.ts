@@ -122,7 +122,6 @@ function village(l: Landscape, layout: Layout): VillageState | null {
     plan: null,
     threshingFromPlan: null,
     storesKg: 2000,
-    domesticBacklog: 0,
     hungry: false,
     commonLaborHistory: [],
     chronicle: [],

@@ -114,6 +114,19 @@ describe('buildVillageView – práce vsi pro postavy', () => {
     const domestic = labor.shares.find((x) => x.activity === 'domestic');
     expect(domestic?.target).toEqual({ kind: 'village' });
   });
+
+  it('práce bokem (domácí výroba žen, zvířata) jde mezi podíly pro postavy', () => {
+    const s = advanceVillage(state(), DAY + 1, null);
+    const aside = s.labor!.aside!;
+    expect(aside.length).toBeGreaterThan(0);
+    const view = buildVillageView(record(s), landscape, DAY + 1);
+    const shares = view.scene.labor!.shares;
+    const sum = (list: readonly { activity: string; manDays: number }[]): number =>
+      list.filter((x) => x.activity === 'domestic').reduce((total, x) => total + x.manDays, 0);
+    // denní minimum z práce vsi + domácí výroba bokem (ženy u domů – population.md, Práce)
+    expect(sum(shares)).toBeCloseTo(sum(s.labor!.shares) + sum(aside), 1);
+    expect(sum(aside)).toBeGreaterThan(0);
+  });
 });
 
 describe('buildVillageView – díl pole pro panel (fields.md – Co hráč vidí)', () => {

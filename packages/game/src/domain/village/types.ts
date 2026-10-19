@@ -132,7 +132,7 @@ export type Craft = 'potter' | 'smith' | 'burner' | 'carpenter';
 /**
  * Co dílna dělala poslední odsimulovaný den (crafts.md – Co hráč vidí): vyrábí, kácí dřevo na
  * uhlí nebo palivo, čeká na uhlí (kovář), čeká na dřevo (uhlíř a hrnčíř – není co kácet), nemá
- * kdo pracovat (domácnost bez práce po minimu a domácí výrobě), nebo je prázdná. Uhlíř
+ * kdo pracovat (domácnost bez práce po denním minimu), nebo je prázdná. Uhlíř
  * (crafts.md – Uhlíř): kácí a připravuje dřevo (`felling`), staví milíř (`building`), pálí
  * a hlídá ho (`burning`), rozebírá vypálený milíř a nosí uhlí kováři (`drawing`), sází mladé buky
  * (`planting`), nebo má vypálený milíř a uhlí u kováře dost a pomáhá vsi (`resting`). Tesař (wagons.md – Tesař) dnes jen pomáhá stavbám (`helping`).
@@ -991,11 +991,17 @@ export type LaborActivity =
   | 'mow'
   /** Porážka a uzení masa (diet.md). */
   | 'slaughter'
-  /** Dojení a zpracování mléka na sýr (diet.md – Práce se zvířaty). */
+  /**
+   * Dojení a zpracování mléka na sýr (diet.md – Práce se zvířaty) – bokem, ne z práce vsi
+   * (`LaborDay.aside`).
+   */
   | 'milking'
-  /** Pasení – dospělí pasáci, kde děti a starší nestačí (diet.md – Pasáci). */
+  /** Pasení dospělými – jen v rozdělení práce z doby před 19. 10. 2026 (pasou výrostci). */
   | 'herding'
-  /** Péče o zvířata – zimní krmení, voda a kydání krav a volů, prasata a slepice. */
+  /**
+   * Péče o zvířata – zimní krmení, voda a kydání krav a volů, prasata a slepice; bokem
+   * (`LaborDay.aside`).
+   */
   | 'animal-care'
   /** Sezónní práce v sadech (orchard.md). */
   | 'orchard-care'
@@ -1014,7 +1020,10 @@ export type LaborActivity =
   | 'craft'
   /** Uhlíř sází mladé buky na pařezy (crafts.md – Uhlíř, obnova lesa). */
   | 'plant'
-  /** Denní minimum domácností a domácí výroba (fields.md – Práce, body 1 a 4). */
+  /**
+   * Denní minimum domácností (fields.md – Práce, bod 1); domácí výroba žen jde bokem
+   * (`LaborDay.aside`).
+   */
   | 'domestic'
   /** Nosiči výpravy k sousedovi po zemské stezce (trade.md – Obchod). */
   | 'trade'
@@ -1023,7 +1032,7 @@ export type LaborActivity =
    * stavbám. Kolik vozů jede, je v `LaborShare.carts`.
    */
   | 'haul'
-  /** Společná práce, na kterou nezbyla žádná stavba (propadla). */
+  /** Společná práce, na kterou nezbyla žádná stavba ani oprava (propadla). */
   | 'idle';
 
 /** Kde se práce dělá. */
@@ -1092,10 +1101,17 @@ export interface LaborDay {
   day: number;
   shares: LaborShare[];
   /**
-   * Kolik dětí od 7 let a starších dnes pase (diet.md – Pasáci) – pasou bez práce vsi, proto nejsou
-   * v `shares`; dospělí pasáci jsou podíl `herding`. Bez údaje se neví (dřívější rozdělení).
+   * Kolik výrostků 7–13 let dnes pase (diet.md – Pasáci) – pasou bez práce vsi, proto nejsou
+   * v `shares`. Starší (`elders`) jen v rozdělení práce z doby před 19. 10. 2026. Bez údaje se
+   * neví (dřívější rozdělení).
    */
-  herders?: { children: number; elders: number };
+  herders?: { children: number; elders?: number };
+  /**
+   * Práce bokem – mimo práci vsi (population.md – Práce; Martin 19. 10. 2026): dojení a péče
+   * o zvířata a domácí výroba (ženy), denní minimum, které pokryli starší – jen pro postavy ve
+   * scéně, v `shares` nejsou.
+   */
+  aside?: LaborShare[];
 }
 
 export interface VillageState {
@@ -1111,7 +1127,11 @@ export interface VillageState {
   plan: YearPlan | null;
   threshingFromPlan: YearPlan | null;
   storesKg: number;
-  domesticBacklog: number;
+  /**
+   * Nedodělek domácí výroby – jen ve vsích uložených před 19. 10. 2026; domácí výroba z práce
+   * vsi nebere (population.md – Práce), simulace ho nečte ani nepíše.
+   */
+  domesticBacklog?: number;
   hungry: boolean;
   /**
    * Příděl energie do sklizně podle výhledu z jídla posledního dne (0–1) – jen když ves šetří
@@ -1740,8 +1760,8 @@ export interface LivestockState {
    */
   slaughterWork?: { required: number; done: number; emergency?: boolean } | null;
   /**
-   * Pasení od poslední porážky (diet.md – Pasáci): součet denní potřeby pasáků a co z ní děti,
-   * starší a dospělí uhlídali (v plných pasácích). Chybí = zatím nic (vsi uložené dřív).
+   * Pasení od poslední porážky (diet.md – Pasáci): součet denní potřeby pasáků a co z ní
+   * výrostci uhlídali (v plných pasácích). Chybí = zatím nic (vsi uložené dřív).
    */
   herding?: { needDays: number; watchedDays: number };
   /**

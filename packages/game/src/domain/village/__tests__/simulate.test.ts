@@ -1,12 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { TOTAL_GAME_DAYS, dayIndexOf } from '../../calendar';
-import { foundField, foundVillage, startNewDwelling } from '../actions';
+import { foundField, foundVillage, startNewDwelling, startRelocation } from '../actions';
 import type { PartInput } from '../actions';
 import { daysUntilMeatEnd, eatDiet } from '../diet';
 import { daysUntilHarvest } from '../food';
-import { animalCareNeed } from '../dairy';
-import { LIVESTOCK, herdLosses, villageChickens, villageHerds } from '../livestock';
-import { cloneState } from '../clone';
+import { LIVESTOCK, villageChickens } from '../livestock';
 import { ageYears, foodNeedPerDay, occupants } from '../people';
 import { NO_CRAFTS } from '../productivity';
 import {
@@ -626,19 +624,15 @@ describe('advanceVillage – založení vsi', () => {
     expect(s.people.length).toBeGreaterThanOrEqual(4);
     expect(count(s, 'death')).toBe(0);
     expect(count(s, 'household-merged')).toBe(0);
-    // společná práce = síla 2,6 × štěstí na začátku dne (happiness.md) − denní minimum 0,5
-    // − práce se zvířaty (dojení krávy v říjnu, prasata, slepice – diet.md) − domácí práce 0,9
-    // (jedna domácnost)
+    // společná práce = dva dospělí × štěstí na začátku dne (happiness.md) − denní minimum 0,5;
+    // výrostci (13 a 12 let) pasou, zvířata a domácí výroba jdou bokem (population.md – Práce)
     const before = advanceVillage(s0, day + 29, null);
     const factor = villageLaborFactor(before);
-    // stáda dne po jeho ztrátách (diet.md – Roční ztráty stáda); pasou děti, práce vsi nic
-    const today = cloneState(before);
-    herdLosses(today);
-    const animals = animalCareNeed(villageHerds(today), 0, villageChickens(before), day + 30);
-    expect(s.commonLaborHistory.at(-1)).toBeCloseTo(
-      2.6 * factor - 0.5 - animals.milking - animals.care - 0.3 - 4 * 0.15,
-      9,
-    );
+    expect(s.commonLaborHistory.at(-1)).toBeCloseTo(2 * factor - 0.5, 9);
+    // práce bokem je v rozdělení dne jen pro postavy – dojení krávy v říjnu, domácí výroba
+    const aside = s.labor!.aside!;
+    expect(aside.some((share) => share.activity === 'domestic')).toBe(true);
+    expect(s.labor!.shares.some((share) => share.activity === 'milking')).toBe(false);
   });
 
   it('stavbu první zemnice a první pole staví zakladatelé společnou prací rovným dílem', () => {
@@ -1174,6 +1168,22 @@ describe('advanceVillage – obydlí', () => {
     (s.labor?.shares ?? [])
       .filter((share) => share.activity === 'repair')
       .reduce((sum, share) => sum + share.manDays, 0);
+
+  it('opravy obydlí až po stavbách – co stavba spotřebuje, na opravy nezbude (Martin)', () => {
+    const day = at(600, 10, 1);
+    const s0 = withoutFields(day);
+    // stará zemnice potřebuje opravy
+    s0.dwellings[0]!.builtDay = day - 17 * 365;
+    const quiet = advanceVillage(s0, day + 1, null);
+    expect(repairLabor(quiet)).toBeGreaterThan(0);
+    // stavba nového domu vezme celou společnou práci dne – opravy dostanou jen zbytek, tady nic
+    const building = startRelocation(s0, day, 1, 'polozemnice', { x: 30, z: 30, rotation: 0 }, 0);
+    const busy = advanceVillage(building, day + 1, null);
+    expect(repairLabor(busy)).toBe(0);
+    expect(busy.labor!.shares.some((share) => share.construction !== undefined)).toBe(true);
+    // volná práce (před stavbami) je stejná – stavba ji jen využije
+    expect(busy.commonLaborHistory.at(-1)).toBeCloseTo(quiet.commonLaborHistory.at(-1)!, 9);
+  });
 
   it('obydlený dům nechátrá ani bez práce na opravy, prázdný vedle něj chátrá (Martin)', () => {
     const day = at(600, 10, 1);

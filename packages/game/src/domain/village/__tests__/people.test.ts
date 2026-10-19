@@ -30,12 +30,14 @@ describe('věk', () => {
 });
 
 describe('práce', () => {
-  it('dítě do 7 let nepracuje, starší dítě 0,3, dospělý 1, starší 0,5', () => {
+  it('na polích a stavbách jen dospělí – děti (i výrostci u stád) a starší 0', () => {
     expect(laborPerDay(person(1), atAge(6))).toBe(0);
-    expect(laborPerDay(person(1), atAge(7))).toBe(0.3);
-    expect(laborPerDay(person(1), atAge(13))).toBe(0.3);
+    // výrostci 7–13 let pasou (diet.md – Pasáci), do práce vsi nejdou
+    expect(laborPerDay(person(1), atAge(7))).toBe(0);
+    expect(laborPerDay(person(1), atAge(13))).toBe(0);
     expect(laborPerDay(person(1), atAge(14))).toBe(1);
-    expect(laborPerDay(person(1), atAge(45))).toBe(0.5);
+    // starší kryjí jen denní minimum své domácnosti (labor.ts – adultDailyMin)
+    expect(laborPerDay(person(1), atAge(45))).toBe(0);
   });
 });
 

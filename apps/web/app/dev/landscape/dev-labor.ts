@@ -77,5 +77,5 @@ export function demoLabor(
   }
   add({ activity: 'idle', target: atVillage, manDays: 1.5 });
   // pasáci (diet.md – Pasáci): dítě z každé domácnosti – stáda bez pasáka stojí u domů
-  return { day, month, people, shares, herders: { children: homes, elders: 0 } };
+  return { day, month, people, shares, herders: { children: homes } };
 }

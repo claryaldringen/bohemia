@@ -426,9 +426,9 @@ function caravanFigures(
 }
 
 /**
- * Kdo stojí u stád (diet.md – Pasáci): pasáci z jádra – děti od 7 let, starší a dospělí (podíl
- * `herding`, člověkoden = pasák) –, nejvýš jeden u každého stáda ve scéně. Rozdělení práce
- * z doby před pasáky je nemá – pak děti jako dřív.
+ * Kdo stojí u stád (diet.md – Pasáci): pasáci z jádra – výrostci 7–13 let (v rozdělení práce
+ * z doby před 19. 10. 2026 i starší a dospělí – podíl `herding`, člověkoden = pasák) –, nejvýš
+ * jeden u každého stáda ve scéně. Rozdělení práce z doby před pasáky je nemá – pak děti jako dřív.
  */
 export function herderKinds(
   labor: Pick<SceneLabor, 'people' | 'shares' | 'herders'>,
@@ -442,7 +442,7 @@ export function herderKinds(
   );
   const kinds: ('child' | 'elder' | 'adult')[] = [
     ...Array<'child'>(free.children).fill('child'),
-    ...Array<'elder'>(free.elders).fill('elder'),
+    ...Array<'elder'>(free.elders ?? 0).fill('elder'),
     ...Array<'adult'>(Math.max(0, adults)).fill('adult'),
   ];
   return kinds.slice(0, Math.max(0, herds));

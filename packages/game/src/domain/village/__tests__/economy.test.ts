@@ -193,15 +193,17 @@ describe('rovnovážná skladba stád', () => {
       costs: COSTS,
     });
     expect(cheap.coverage).toBeGreaterThanOrEqual(1 - 1e-9);
-    // bez prasat: mléko narazí na strop podílu energie a bílkoviny z masa ovcí a koz stojí víc
-    // práce než bílkoviny z obilí – ves skončí mezi 88 % a potřebou
+    // bez prasat a s drahým senem: mléko narazí na strop podílu energie a bílkoviny z masa ovcí
+    // a koz stojí víc práce než bílkoviny z obilí (dojení a péče jdou bokem – práce vsi je jen
+    // seno a porážka) – ves skončí mezi 88 % a potřebou
     const keep = herds({ sheep: 40, goat: 20, pig: 2, cow: 10 });
-    const dear = sizeHerdsToNeed(s, day, keep, { costs: COSTS });
+    const dearHay = { ...COSTS, hayPerKg: 0.2 };
+    const dear = sizeHerdsToNeed(s, day, keep, { costs: dearHay });
     expect(dear.coverage).toBeGreaterThanOrEqual(BALANCE.minProteinCoverage - 1e-9);
     expect(dear.coverage).toBeLessThan(1);
     expect(dear.keep.goat).toBeLessThan(20);
     // s levnějším obilím je hranice „levnější než z obilí“ níž – ves přidá míň
-    const grainCheap = sizeHerdsToNeed(s, day, keep, { costs: { ...COSTS, grainPerKg: 0.2 } });
+    const grainCheap = sizeHerdsToNeed(s, day, keep, { costs: { ...dearHay, grainPerKg: 0.2 } });
     expect(grainCheap.coverage).toBeGreaterThanOrEqual(BALANCE.minProteinCoverage - 1e-9);
     expect(grainCheap.coverage).toBeLessThanOrEqual(dear.coverage + 1e-9);
   });
@@ -233,13 +235,17 @@ describe('rovnovážná skladba stád', () => {
     expect(herd.coverage).toBeGreaterThanOrEqual(1 - 1e-9);
   });
 
-  it('dospělí pasáci zdraží stádo – bez dětí a starších méně kusů', () => {
+  it('stádo omezí jen výrostci – bez dětí jen chovné páry, pasáci práci nestojí', () => {
     const s = village(day);
     const keep = herds({ sheep: 60, goat: 2, pig: 2, cow: 2 });
     const free = sizeHerdsToNeed(s, day, keep, { costs: COSTS });
-    const adults = sizeHerdsToNeed(s, day, keep, { costs: COSTS, freeHerders: 0 });
-    expect(adults.keep.sheep).toBeLessThan(free.keep.sheep);
-    expect(adults.coverage).toBeGreaterThanOrEqual(BALANCE.minProteinCoverage - 1e-9);
+    const none = sizeHerdsToNeed(s, day, keep, { costs: COSTS, freeHerders: 0 });
+    expect(none.keep.sheep).toBeCloseTo(LIVESTOCK.breedingMin, 9);
+    expect(none.keep.sheep).toBeLessThan(free.keep.sheep);
+    expect(none.coverage).toBeLessThan(free.coverage);
+    // dost výrostků – stejně jako bez omezení (pasáci nic nestojí)
+    const many = sizeHerdsToNeed(s, day, keep, { costs: COSTS, freeHerders: 10 });
+    expect(many.keep).toEqual(free.keep);
   });
 
   it('je deterministická a stav nemění', () => {

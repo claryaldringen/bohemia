@@ -129,7 +129,7 @@ Návrh Clauda (19. 10. 2026) – detaily, které návrh výš nechal otevřené;
 - **Co tesař dělá – v tomto pořadí:**
   1. **Pomoc stavbám** (stavby nečekají): člověkoden tesaře vede **4 čd dřevěné práce** vsi
      (tesařská parta – mistr a 3 pomocníci, i jeho vlastní). Tesaři dají stavbám tolik, kolik
-     dřevěná práce dne chce (nejvýš svou práci po minimu a domácí výrobě); tesař, který nemá co
+     dřevěná práce dne chce (nejvýš svou práci po denním minimu); tesař, který nemá co
      vyrábět, je na stavbě celý den. Jeho práce jde do staveb se společnou prací vsi.
      **Pokrytí tesařem** = vedení, které tesaři dali ÷ kolik ho dřevěná práce dne chtěla (nejvýš
      1); dřevěná práce dne = podíl dřevěné práce staveb z práce, kterou stavby dnes dostanou

@@ -383,14 +383,16 @@ interface LaborYear {
 
 /**
  * Práce roku po skupinách činností (člověkodny, z rozdělení práce dne) – jen u běhu s `trackLabor`.
- * `personDays` = lidé × dny (na člověka a rok), `herders` = dny dětí a starších u stád.
+ * `personDays` = lidé × dny (na člověka a rok), `herders` = dny výrostků u stád. Zvířata (dojení,
+ * péče, pasení) a domácí výroba jdou bokem – v práci vsi nejsou (population.md – Práce).
  */
 interface ActivityYear {
   field: number;
   hay: number;
+  /** Porážka a uzení. */
   animals: number;
-  herding: number;
   orchard: number;
+  /** Denní minimum domácností (co po starších zbude na dospělé). */
   domestic: number;
   foundField: number;
   free: number;
@@ -413,9 +415,6 @@ const ACTIVITY_GROUPS: Partial<
   haul: 'field',
   mow: 'hay',
   slaughter: 'animals',
-  milking: 'animals',
-  'animal-care': 'animals',
-  herding: 'herding',
   'orchard-care': 'orchard',
   'orchard-harvest': 'orchard',
   domestic: 'domestic',
@@ -819,7 +818,6 @@ function addActivities(result: RunResult, state: VillageState, day: number): voi
     field: 0,
     hay: 0,
     animals: 0,
-    herding: 0,
     orchard: 0,
     domestic: 0,
     foundField: 0,
@@ -835,7 +833,7 @@ function addActivities(result: RunResult, state: VillageState, day: number): voi
       else a.free += share.manDays;
     }
     const herders = state.labor.herders;
-    if (herders) a.herders += herders.children + herders.elders;
+    if (herders) a.herders += herders.children + (herders.elders ?? 0);
   }
   result.activities.set(year, a);
 }
@@ -1739,7 +1737,7 @@ function report(villages: VillageResult[], probes: Record<ProbeName, ProbeSummar
     const personYears = sum((a) => a.personDays) / DAYS_PER_YEAR;
     const perPerson = (pick: (a: ActivityYear) => number): number => sum(pick) / personYears;
     const subsistence = (a: ActivityYear): number =>
-      a.field + a.hay + a.animals + a.herding + a.orchard + a.domestic;
+      a.field + a.hay + a.animals + a.orchard + a.domestic;
     const total = (a: ActivityYear): number => subsistence(a) + a.foundField + a.free;
     const freeYear = activityYears.map((a) => (a.free / a.personDays) * DAYS_PER_YEAR);
     row(
@@ -1751,19 +1749,16 @@ function report(villages: VillageResult[], probes: Record<ProbeName, ProbeSummar
       )} (${pct(sum((a) => a.free) / sum(total))} práce; roky vsí p50 ${fmt(quantile(freeYear, 0.5), 1)}, p90 ${fmt(quantile(freeYear, 0.9), 1)}) | obživa ${fmt(perPerson(subsistence))} (${pct(sum(subsistence) / sum(total))}): pole ${fmt(perPerson((a) => a.field))}, seč ${fmt(
         perPerson((a) => a.hay),
         1,
-      )}, zvířata ${fmt(
+      )}, porážka ${fmt(
         perPerson((a) => a.animals),
         1,
-      )}, dospělí pasáci ${fmt(
-        perPerson((a) => a.herding),
-        1,
-      )}, domácí ${fmt(perPerson((a) => a.domestic))}, sad ${fmt(
+      )}, denní minimum ${fmt(perPerson((a) => a.domestic))}, sad ${fmt(
         perPerson((a) => a.orchard),
         1,
       )} | zakládání polí ${fmt(
         perPerson((a) => a.foundField),
         1,
-      )} | děti a starší u stád ${fmt(
+      )} | výrostci u stád ${fmt(
         perPerson((a) => a.herders),
         1,
       )} dní (n ${activityYears.length} let)`,

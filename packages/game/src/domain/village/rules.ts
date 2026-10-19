@@ -72,10 +72,12 @@ export const BETTER_DWELLING: Record<DwellingType, DwellingType> = {
   polozemnice: 'polozemnice',
   dvorec: 'dvorec',
 };
-// population.md – Pojmy a Práce (věkové hranice, pracovní síla), Růst populace (porody od 16 let –
-// oprava podle rešerše, dospělý pro práci a odemčení zůstává 14–44); START_AGES: Založení vsi (4 lidé)
+// population.md – Pojmy a Práce (věkové hranice, pracovní síla – Martin 19. 10. 2026: na polích
+// a stavbách jen dospělí; výrostci 7–13 let pasou, starší kryjí `elder` čd denní minimum své
+// domácnosti), Růst populace (porody od 16 let – oprava podle rešerše, dospělý pro práci
+// a odemčení zůstává 14–44); START_AGES: Založení vsi (4 lidé)
 export const AGE = { olderChild: 7, adult: 14, fertile: 16, elder: 45 } as const;
-export const LABOR_PER_DAY = { olderChild: 0.3, adult: 1, elder: 0.5 } as const;
+export const LABOR_PER_DAY = { adult: 1, elder: 0.5 } as const;
 export const START_AGES = [25, 25, 13, 12] as const;
 // kinship.md – Pohlaví (návrh Clauda): zakladatelé jsou dva páry – muž a žena 25 let (manželé)
 // a chlapec 13 a dívka 12 let (nepříbuzní, rodiče neznámí – vezmou se, až dorostou); pohlaví
@@ -398,10 +400,11 @@ export const ROAD_WALK = {
 export const FIELD_LIMITS = { maxDistanceM: 800, minAreaM2: 1000 } as const;
 // fields.md – Práce (denní minimum domácností – meze: s hrnčířem 0,45); population.md – Práce
 export const DAILY_MIN_PER_HOUSEHOLD: Bounds = { worst: 0.5, best: 0.45 };
-// fields.md – Práce (domácí výroba, přenos nedodělané práce nejvýš 60 dní); oděv z vlny a lnu
+// population.md – Práce (domácí výroba – obstarají ji z většiny ženy bokem, z práce vsi nebere:
+// Martin 19. 10. 2026; čísla jen pro postavy žen u domů – labor-report.ts); oděv z vlny a lnu
 // – praní, česání, předení, tkaní a šití – je její součástí (diet.md – Oděv: vlna ≈ 21 čd na
 // dospělého a rok z 55 čd `perPerson`), stříž ovcí taky
-export const DOMESTIC = { perHousehold: 0.3, perPerson: 0.15, backlogMaxDays: 60 } as const;
+export const DOMESTIC = { perHousehold: 0.3, perPerson: 0.15 } as const;
 /**
  * diet.md – Oděv, Vlna (Martin 19. 10. 2026: „Ovce jsou hlavně kvůli vlně, aby se lidé mohli vůbec
  * oblékat.“; čísla návrh Clauda podle rešerše research/2026-10-19-herds-hay-meat.md – Vlna):
@@ -776,9 +779,6 @@ export const FELLING_MAN_DAYS_PER_TREE = 2;
 export const LOGS_PER_CLEARED_TREE = 1;
 // forest.md – Klády hnijí (Martin – oprava podle rešerše 17. 10. 2026): ≈ 4 % ročně
 export const LOG_ROT_PER_YEAR = 0.04;
-// forest.md – Palivo: palivová část domácí výroby (návrh Clauda: třetina) je o 1 % dražší za
-// každých 10 m nad 100 m od obydlí k nejbližšímu okraji lesa (vzdálenost jako u polí – DISTANCE)
-export const FUEL_DOMESTIC_SHARE = 1 / 3;
 
 /** Práce na obydlí bez dřeva – cena obydlí minus kácení jeho stromů u blízkého lesa. */
 export function dwellingBuildLabor(type: DwellingType): number {

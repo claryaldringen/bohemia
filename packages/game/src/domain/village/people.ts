@@ -17,12 +17,13 @@ export function ageGroup(person: Person, day: number): 'child' | 'adult' | 'elde
   return 'elder';
 }
 
-/** Pracovní síla za den: dítě do 7 let 0, starší dítě 0,3, dospělý 1, starší 0,5. */
+/**
+ * Pracovní síla vsi (pole a stavby) za den (population.md – Práce): dospělý 1; starší 0 – kryjí jen
+ * denní minimum své domácnosti (`adultDailyMin` v labor.ts); dítě 0 – výrostci 7–13 let pasou
+ * (herding.ts).
+ */
 export function laborPerDay(person: Person, day: number): number {
-  const group = ageGroup(person, day);
-  if (group === 'adult') return LABOR_PER_DAY.adult;
-  if (group === 'elder') return LABOR_PER_DAY.elder;
-  return ageYears(person.bornDay, day) >= AGE.olderChild ? LABOR_PER_DAY.olderChild : 0;
+  return ageGroup(person, day) === 'adult' ? LABOR_PER_DAY.adult : 0;
 }
 
 /** Potřeba jídla na den v kg podle věkové skupiny. */

@@ -341,8 +341,8 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   člověk. Ten je bude primárně vodit na louky, určené ke spásání. Domácí zvířata by neměla spásat
   jídlo pro lidi ani ho pošlapat a na čerstvém úhoru toho k pastvě také asi moc není.“ – mění
   dřívější „mladý úhor vždy“): na pastvu jde jen tolik stád, kolik je dnes pasáků
-  (`herderCount` – děti a starší z `SceneLabor.herders`, dospělí po člověkodnech `herding`; bez
-  údaje neomezeně), málo pasáků → pasák vede víc zvířat (`tendedHerds`); stádo bez pasáka
+  (`herderCount` – výrostci z `SceneLabor.herders`, ve starších datech i starší a dospělí po
+  člověkodnech `herding`; bez údaje neomezeně), málo pasáků → pasák vede víc zvířat (`tendedHerds`); stádo bez pasáka
   (`Herd.tended` false) stojí u domů s trasou o jedné pastvině; v zimě ovce, kozy a krávy u domů,
   s pasákem jen prasata. Stáda s pasákem jsou v plánu napřed – pasák `k` patří ke stádu `k`
   (`herderKinds` dostane jen jejich počet). Prasata na okraji lesa (−7 až +5 m od hranice, hlouběji je
@@ -538,6 +538,15 @@ rozhraní částí v
   `CraftStocks.woodToolsKg?`, `Workshop.timber?` / `cart?`) – vsi
   `sacredRuins?`, `SacredBuilding.wear?`, `Cemetery.fenceWear?`, `Pen.wear?`) – vsi
   uložené dřív se načtou a beze sadů či dílen se jejich stav nemění.
+- **Pořadí práce dne** (population.md a fields.md – Práce; Martin 19. 10. 2026: „pokud se něco
+  staví, tak čas věnují primárně té stavbě – zemědělství jenom natolik, aby vesnice neměla
+  hlad“): pracovní síla vsi = dospělí (`laborPerDay`); starší kryjí jen denní minimum své
+  domácnosti (`adultDailyMin`, `householdElders` – přebytek propadne), výrostci 7–13 let pasou.
+  `allocateDay`: denní minimum → výpravy (`away`) → potřebné sezónní úlohy → `common` (volná práce
+  v liště, `commonLaborHistory`) do staveb (`build`) → z toho, co stavby nespotřebovaly, opravy
+  obydlí (`afterConstructions`) → zbytek (místo pro polní práci navíc – fields.md, Osev navíc)
+  propadne. Zvířata a domácí výroba (`DOMESTIC`) jdou bokem – jen `LaborDay.aside` pro postavy;
+  `domesticBacklog` a přirážka paliva zmizely (starší vsi pole jen nesou).
 - **Hlad a vymření** (population.md, Martin 18. 10. 2026): nahromaděný hlad
   `VillageState.starvationDays` (`nextStarvationDays` po jídle dne – pod 90 % přídělu
   přibývá, od 90 % ubývá, čísla `STARVATION` v `rules.ts`) přidá k běžnému riziku úmrtí riziko hladem
@@ -701,8 +710,8 @@ rozhraní částí v
   `checkWorkshopPlacement` (volně jako zemnice; půdorys `workshopFootprints` i s přístřeškem
   a u uhlíře s milířem kus od zemnice – `MILIR`, `milirPosition`; `PlacementVillage.dwellings`
   nese `workshop.craft`, ať se do milíře nestaví). Domácnosti obývaných dílen (`craftHouseholds`)
-  pracují v dílně (`workshopLabor`, `workCrafts` v kroku práce – mimo `allocateDay`, do sil
-  plánu osevu se nepočítají), jen dokud je co dělat: **podle potřeby** (Martin 18. 10. 2026 –
+  pracují v dílně (`workshopLabor` – po denním minimu, domácí výroba bokem; `workCrafts` v kroku
+  práce – mimo `allocateDay`, do sil plánu osevu se nepočítají), jen dokud je co dělat: **podle potřeby** (Martin 18. 10. 2026 –
   volný čas na poli) kovář a hrnčíř vyrábějí do zásoby `craftTargets` (potřeba + opotřebení za
   rok), uhlíř má vždy milíř a z vypáleného nosí uhlí podle kování (Uhlíř níž); s plnou zásobou
   nebo bez vstupu je dílna v `restingCrafters`
@@ -837,8 +846,8 @@ rozhraní částí v
   `FieldPart.fallowBeforePlan`). Potřebou z pole jde i `energyFloorKg`, odhad ozimu na srpen
   (`daysUntilFoodHarvest`) a dobré zásoby štěstí; ustálená úroda `steadyHarvestKg` (kalibrace,
   kalkulačka – zásoba na cílové zásobě). Kalibrace vypisuje práci na poli a volnou práci po rocích
-  (průměr, variační koeficient, změna z roku na rok). Volná práce plánu (`sowingCapacity`) je po denním minimu, práci se zvířaty
-  a dospělých pasácích (`herdingDay`). Výhled jídla do sklizně (`eatDiet`) počítá s mlékem stád do sklizně
+  (průměr, variační koeficient, změna z roku na rok). Volná práce plánu (`sowingCapacity`) je po
+  denním minimu dospělých (`adultDailyMin` – zvířata a domácí výroba bokem). Výhled jídla do sklizně (`eatDiet`) počítá s mlékem stád do sklizně
   (`milkAheadEnergy` z `milkEnergyBetween`) a celou zásobou sýra.
   Polní úlohy obou plodin řadí `fieldTasks` v `simulate.ts`
   (konec okna, ozim před jaří); `allocateDay` vrací i `taskAmounts` po úlohách vstupu (stejný
@@ -1038,8 +1047,9 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   0,06 × ovoce; jen obilí ≈ 80 %). **Mléko a sýr** (`dairy.ts`): dojí se 40 % skotu a 50 % ovcí
   a koz v době dojení (`dailyMilk`, `DAIRY`), nevypité mléko → sýr (`cheeseFromMilk`,
   `VillageState.cheeseKg`, ztráta 15 %/rok). **Práce se zvířaty** (`animalCareNeed`,
-  `ANIMAL_CARE`): úlohy `milking` a `animal-care` jdou v `allocateDay` hned po denním minimu
-  (činnosti `milking`, `animal-care` v rozdělení práce; zimní péče i o ovce a kozy).
+  `ANIMAL_CARE`) jde **bokem** (Martin 19. 10. 2026 – dojení a péče ženy, pasení výrostci;
+  population.md – Práce): z práce vsi nebere, dojí se vždy celé stádo; činnosti `milking`
+  a `animal-care` jsou jen v `LaborDay.aside` (`asideWork` v `simulate.ts`) pro postavy.
   `VillageState.diet` nese jídlo posledního dne (energie, bílkoviny, kvalita, nasycení, podíly
   obilí / maso / mléko / vejce / ovoce / luštěniny – `legumes?`, starší jídlo bez něj). **Hlad z energie:**
   `nextStarvationDays` a přirážka úmrtnosti dostávají energii, porody a štěstí nasycení
@@ -1059,9 +1069,9 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   hospodaření; Martin 19. 10. 2026: „aby byla sytá, měla ± ideální kombinaci stravy, ale aby jí
   zároveň zbylo co nejvíc volného času na rozvoj“): cena jídla v práci `foodCosts` (`economy.ts` –
   čd na kg obilí a luštěnin z dílů v osevu, sena z plánu seče; ve vsi `villageFoodCosts`
-  v husbandry.ts), kus za rok `headEconomy` (maso z mláďat, mléko × 0,85, práce sena, péče,
-  dojení, sýra a porážky, pasáci – dospělí stojí 365 čd, děti a starší `freeHerderCapacity`
-  zdarma); hladový výběr po kusech (luštěniny po `BALANCE.legumeStepKg`) podle práce mínus
+  v husbandry.ts), kus za rok `headEconomy` (maso z mláďat, mléko × 0,85, práce vsi jen na seno
+  a porážku; pasáci nic nestojí, ale `sizeHerdsToNeed` přidá nejvýš kolik kusů uhlídají výrostci
+  – `childHerderCapacity`, `HeadEconomy.herders` v době pastvy); hladový výběr po kusech (luštěniny po `BALANCE.legumeStepKg`) podle práce mínus
   ušetřené obilí na kg bílkovin navíc proti obilí – napřed co práci šetří, vždy, v pořadí
   `BREEDING_ORDER` (ovce → kozy → krávy → prasata – Martin: ovce napřed) do nosnosti a stropů
   `DIET.caps`; pak do potřeby × 1,1 (`BALANCE.proteinReserve`) nejlevnější (přežvýkavci
@@ -1089,12 +1099,13 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   upozornění „Chybí vlna na oděv“ pod `WOOL.noticeBelow`), štěstí `HappinessFactors.wool` až −6 (`woolUnhappiness`); vsi
   bez zápisu (dřívější) beze změny do porážky 1. 11. Práce na vlně je v `DOMESTIC` (přerozdělení). Zimní úhyn 1. 3.
   (`starveHerds` z `herdHayCoverage` – pod polovinou přídělu, chovný pár přežije, kronika
-  `herd-starved`). **Pasáci** (`herding.ts`, `HERDING`): dospělý pasák 40 krav (i voli), 100 ovcí či
-  koz, 50 prasat, dítě 7–13 40 %, starší 75 %; `herdingDay` – děti a starší bez práce vsi, zbytek
-  dospělí (nejvýš jeden z domácnosti) úlohou `herding` hned po dojení; přežvýkavci duben–říjen,
-  prasata celý rok; `recordHerding` sčítá `LivestockState.herding` od porážky do porážky,
-  `herdingCoverage` jde do porážky; `LaborDay.herders` (děti a starší u stád) → `SceneLabor.herders`
-  → `herderKinds` ve `villager-plan.ts`. Porážka a uzení jdou před polními úlohami listopadu.
+  `herd-starved`). **Pasáci** (`herding.ts`, `HERDING`): plný pasák 40 krav (i voli), 100 ovcí či
+  koz, 50 prasat, výrostek 7–13 let `childShare` 40 %; **pasou jen výrostci** (`isYoungster`,
+  mimo práci vsi; dospělí ani starší ne – Martin 19. 10. 2026: „Když bude ve vsi málo vhodných
+  dětí na pasení, tak to omezí i velikost stád.“); `herdingDay` – kolik výrostků dnes pase;
+  přežvýkavci duben–říjen, prasata celý rok; `recordHerding` sčítá `LivestockState.herding` od
+  porážky do porážky, `herdingCoverage` jde do porážky, `pastureGrazing` a pastvy; `LaborDay.herders`
+  (výrostci u stád) → `SceneLabor.herders` → `herderKinds` ve `villager-plan.ts`. Porážka a uzení jdou před polními úlohami listopadu.
   Louka a les do 600 m pro pastvu jsou z krajiny ve stavu
   (`LivestockState.land`) – doplní je `withLivestockLand` (založení vsi i migrace v
   `updateVillage`); bez nich výchozí `LIVESTOCK.defaultLand`. Den hospodářství `husbandryDay`
@@ -1277,7 +1288,7 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   změně pravidel nový soubor; `--report-only` vypíše tabulku z hotových vsí bez počítání (i u
   běhu, který stojí). Varianty pravidel jen pro kalibraci: `--variant meadow-burn` (pálení
   drnu). Řádek **Práce – hráč staví** sčítá rozdělení práce dne po skupinách (volná práce, pole,
-  seč, zvířata, pasáci, domácí – hráč, který staví, se proto dopočítává den po dni – `trackLabor`).
+  seč, porážka, denní minimum – hráč, který staví, se proto dopočítává den po dni – `trackLabor`).
   Ustálený stav bez simulace (osev, pole, práce po měsících, špičky, zásoby, dřevo, sad)
   okamžitě: `village-calculator.ts` (jádro `scripts/lib/steady-state.ts`). Kopii stavu na začátku
   `advanceVillage` dělá `cloneState` (`clone.ts` – ručně, stav jsou data jako v JSON) a stavby polí
@@ -1586,8 +1597,8 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   (`claimedObstacles`). Dospělé stromy lesa vsi (fields.md – Les vsi) se kácí jako stromy krajiny.
   Mýcení (díly polí, čtverce hřbitova, staveniště) dá kládu za dospělý
   strom (`trees` u dílu / čtverce). Dřevo je surovina předem (`villageStock` s vrstvou překážek:
-  klády + stromy, které jde skácet – počet stromů vrstvy v mezipaměti). Palivo: přirážka domácí
-  práce podle `forestDistanceM` obydlí. Scéna: hromada klád `lib/scene/log-pile.ts` (místo
+  klády + stromy, které jde skácet – počet stromů vrstvy v mezipaměti). Palivo je v domácí výrobě
+  bokem – přirážka za les daleko zmizela (`forestDistanceM` / `forestWalkM` se dál měří). Scéna: hromada klád `lib/scene/log-pile.ts` (místo
   a hranice v `log-pile-layout.ts`, bez volného místa se nekreslí), staveniště ukazuje průběh
   bez kácení (`buildProgress`).
 - **Upozornění** (`lib/village-notices.ts`): rodina čeká na dům (fakt), stupně hladu (šetří
@@ -1628,7 +1639,8 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   člověkodny na postavy (jedna na pracujícího, nejvýš `MAX_WORKERS` = 60, po skupinách až 4
   v činnosti – `shareCounts`; muž nebo žena podle podílu činnosti posunutého podílem žen ve vsi –
   `figureSexes` a `womenChance` ze `SceneLabor.people`, kinship.md; domácí práce a nečinní venku
-  jen z části, v zimě méně; **každá
+  jen z části, v zimě méně; práce bokem – dojení, péče o zvířata, domácí výroba žen a denní
+  minimum starších – přijde z `LaborDay.aside` mezi podíly, `sceneLabor` ji připojí; **každá
   stavba s dnešní prací má aspoň jednoho člověka** – `LaborShare.construction` z jádra,
   `withBuilderAtEachConstruction`, náhradní místo `builderNearby`) a rozestaví
   je (postavy stylizovaně o 20 % větší – `FIGURE_SCALE`, rozestupy s nimi): řady na polích

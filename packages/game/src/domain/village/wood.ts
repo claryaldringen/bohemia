@@ -17,10 +17,8 @@ import {
   type TreeAtDistance,
 } from './obstacles';
 import {
-  DOMESTIC,
   DWELLING_TREES,
   FELLING_MAN_DAYS_PER_TREE,
-  FUEL_DOMESTIC_SHARE,
   LOG_ROT_PER_YEAR,
   LOGS_PER_CLEARED_TREE,
   OAK_MODEL_HEIGHT_M,
@@ -556,49 +554,11 @@ export function fellAsWorked(state: VillageState, c: Construction, day: number):
 }
 
 /**
- * Vzdálenost obydlí k okraji lesa pro palivo (m): chůze (`forestWalkM` – po pěšinách a pevných
+ * Vzdálenost obydlí k okraji lesa (m): chůze (`forestWalkM` – po pěšinách a pevných
  * cestách, roads.md), bez ní (kalibrace, starší obydlí) vzdušná vzdálenost z krajiny.
  */
 export function dwellingForestDistance(
   d: Pick<Dwelling, 'forestDistanceM' | 'forestWalkM'>,
 ): number | undefined {
   return d.forestWalkM ?? d.forestDistanceM;
-}
-
-/**
- * Práce navíc na palivu za den (forest.md – Palivo): palivová část domácí výroby domácnosti je
- * o 1 % dražší za každých 10 m nad 100 m od jejího obydlí k nejbližšímu okraji lesa.
- * Zakladatelé, kteří bydlí na staveništi první zemnice, se počítají od staveniště. `include`
- * vybere domácnosti (id obydlí) – řemeslníci si domácí výrobu dělají sami (crafts.md); bez
- * údaje všechny.
- */
-export function fuelExtraPerDay(
-  state: VillageState,
-  include: (householdId: number) => boolean = () => true,
-): number {
-  // běžný případ (les blízko všech obydlí) bez počítání domácností – volá se každý den
-  const far = (distance: number | undefined): boolean => distanceFactor(distance ?? 0) > 1;
-  if (
-    !state.dwellings.some((d) => far(dwellingForestDistance(d))) &&
-    !state.constructions.some((c) => far(c.forestDistanceM))
-  ) {
-    return 0;
-  }
-  const members = new Map<number, number>();
-  for (const p of state.people) members.set(p.dwellingId, (members.get(p.dwellingId) ?? 0) + 1);
-  let extra = 0;
-  for (const [householdId, count] of members) {
-    if (!include(householdId)) continue;
-    const dwelling = state.dwellings.find((d) => d.id === householdId);
-    const distance =
-      (dwelling ? dwellingForestDistance(dwelling) : undefined) ??
-      state.constructions.find((c) => c.kind === 'dwelling' && c.dwellingId === householdId)
-        ?.forestDistanceM ??
-      0;
-    const surcharge = distanceFactor(distance) - 1;
-    if (surcharge <= 0) continue;
-    const domestic = DOMESTIC.perHousehold + DOMESTIC.perPerson * count;
-    extra += FUEL_DOMESTIC_SHARE * domestic * surcharge;
-  }
-  return extra;
 }

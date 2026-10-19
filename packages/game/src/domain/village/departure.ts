@@ -284,7 +284,6 @@ export function travellingVillage(
     plan: null,
     threshingFromPlan: null,
     storesKg: food.grainKg,
-    domesticBacklog: 0,
     hungry: false,
     commonLaborHistory: [],
     chronicle: [

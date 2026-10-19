@@ -99,18 +99,21 @@ describe('práce se zvířaty', () => {
     );
   });
 
-  it('simulace: v létě se dojí (práce dne), přebytek mléka jde na sýr a v zimě se jí', () => {
+  it('simulace: v létě se dojí (bokem – mimo práci vsi), přebytek mléka jde na sýr a v zimě se jí', () => {
     const s = withBuiltFirstDwelling(
       foundVillage({ seed: 4, day: at(600, 3, 1), dwellingPosition: { x: 0, z: 0, rotation: 0 } }),
     );
     s.storesKg = 50_000;
     s.livestock!.herds = herds({ cow: 4, goat: 4, sheep: 12 });
     const summer = advanceVillage(s, at(600, 7, 1), null);
-    expect(summer.labor!.shares.some((share) => share.activity === 'milking')).toBe(true);
+    // dojení a péče jdou bokem (ženy – population.md, Práce): v práci vsi nejsou, jen pro postavy
+    expect(summer.labor!.shares.some((share) => share.activity === 'milking')).toBe(false);
+    expect(summer.labor!.aside!.some((share) => share.activity === 'milking')).toBe(true);
     expect(summer.cheeseKg).toBeGreaterThan(0);
     expect(summer.diet!.shares.dairy).toBeGreaterThan(0);
     const winter = advanceVillage(summer, at(601, 1, 15), null);
     expect(winter.diet!.shares.dairy).toBeGreaterThan(0);
-    expect(winter.labor!.shares.some((share) => share.activity === 'animal-care')).toBe(true);
+    expect(winter.labor!.shares.some((share) => share.activity === 'animal-care')).toBe(false);
+    expect(winter.labor!.aside!.some((share) => share.activity === 'animal-care')).toBe(true);
   });
 });

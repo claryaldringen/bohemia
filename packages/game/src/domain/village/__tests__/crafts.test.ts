@@ -163,15 +163,24 @@ describe('řemeslná dílna – cena a stavba (crafts.md – Budovy)', () => {
 });
 
 describe('řemeslník na plný úvazek (crafts.md – Práce a jídlo)', () => {
-  it('domácnost dílny dá řemeslu práci po denním minimu a domácí výrobě', () => {
+  it('domácnost dílny dá řemeslu práci po denním minimu (domácí výroba jde bokem)', () => {
     const s = withWorkshop(fullVillage(), 'smith');
     const labor = workshopLabor(s, DAY + 1, WORKSHOP_ID, 0);
     expect(labor.capacity).toBe(2);
     expect(labor.dailyMin).toBeCloseTo(0.5, 9);
-    expect(labor.domestic).toBeCloseTo(0.3 + 2 * 0.15, 9);
-    expect(labor.craft).toBeCloseTo(0.9, 9);
+    expect(labor.craft).toBeCloseTo(1.5, 9);
     // s plným pokrytím nádobami je denní minimum menší
-    expect(workshopLabor(s, DAY + 1, WORKSHOP_ID, 1).craft).toBeCloseTo(0.95, 9);
+    expect(workshopLabor(s, DAY + 1, WORKSHOP_ID, 1).craft).toBeCloseTo(1.55, 9);
+  });
+
+  it('starší v domácnosti dílny kryje denní minimum – řemeslo dostane celou práci dospělých', () => {
+    const s = withWorkshop(fullVillage(), 'smith');
+    s.people.push({ id: 999, bornDay: DAY + 1 - Math.ceil(60 * 365.25), dwellingId: WORKSHOP_ID });
+    const labor = workshopLabor(s, DAY + 1, WORKSHOP_ID, 0);
+    // starší do práce dílny nepřidá, minimum (0,5) ale pokryje celé
+    expect(labor.capacity).toBe(2);
+    expect(labor.dailyMin).toBe(0);
+    expect(labor.craft).toBeCloseTo(2, 9);
   });
 
   it('práce domácnosti dílny nejde na pole ani do společné práce vsi', () => {
@@ -179,12 +188,12 @@ describe('řemeslník na plný úvazek (crafts.md – Práce a jídlo)', () => {
     const empty = withWorkshop(fullVillage(), 'potter');
     empty.people = empty.people.filter((p) => p.dwellingId !== WORKSHOP_ID);
     const without = advanceVillage(empty, DAY + 1, null);
-    // slepice u dílny krmí ves (péče o zvířata – diet.md), jinak stejně
+    // zvířata a domácí výroba jdou bokem (population.md – Práce) – práce vsi stejná
     expect(withCraft.commonLaborHistory.at(-1)).toBeCloseTo(without.commonLaborHistory.at(-1)!, 2);
     // hrnčíř kácí strom na palivo bez polohy (ves bez vrstvy) – práce jde k dílně
     const fell = withCraft.labor!.shares.filter((s) => s.activity === 'fell');
     expect(fell).toEqual([
-      { activity: 'fell', target: { kind: 'dwelling', id: WORKSHOP_ID }, manDays: 0.9 },
+      { activity: 'fell', target: { kind: 'dwelling', id: WORKSHOP_ID }, manDays: 1.5 },
     ]);
     expect(without.dwellings.find((d) => d.id === WORKSHOP_ID)?.workshop?.activity).toBe('empty');
   });
@@ -195,15 +204,15 @@ describe('výroba (crafts.md – Výroba)', () => {
     const s = withWorkshop(fullVillage(), 'smith');
     s.crafts = { charcoalKg: 1000, toolsKg: 0, potteryKg: 0 };
     craftDays(s, 1, null);
-    expect(s.crafts.toolsKg).toBeCloseTo(0.09, 9);
-    expect(s.crafts.charcoalKg).toBeCloseTo(1000 - 0.09 * 50, 9);
+    expect(s.crafts.toolsKg).toBeCloseTo(0.15, 9);
+    expect(s.crafts.charcoalKg).toBeCloseTo(1000 - 0.15 * 50, 9);
     const workshop = s.dwellings.find((d) => d.id === WORKSHOP_ID)!.workshop!;
     expect(workshop.activity).toBe('producing');
     s.crafts.charcoalKg = 2;
     craftDays(s, 1, null);
-    expect(s.crafts.toolsKg).toBeCloseTo(0.09 + 0.04, 9);
+    expect(s.crafts.toolsKg).toBeCloseTo(0.15 + 0.04, 9);
     craftDays(s, 1, null);
-    expect(s.crafts.toolsKg).toBeCloseTo(0.13, 9);
+    expect(s.crafts.toolsKg).toBeCloseTo(0.19, 9);
     expect(workshop.activity).toBe('no-charcoal');
   });
 
@@ -212,15 +221,15 @@ describe('výroba (crafts.md – Výroba)', () => {
     s.dwellings.find((d) => d.id === WORKSHOP_ID)!.workshop!.waterDistanceM = 300;
     s.crafts = { charcoalKg: 1000, toolsKg: 0, potteryKg: 0 };
     craftDays(s, 1, null);
-    expect(s.crafts.toolsKg).toBeCloseTo(0.9 / 12, 9);
+    expect(s.crafts.toolsKg).toBeCloseTo(1.5 / 12, 9);
   });
 
   it('hrnčíř vypálí 1 kg keramiky za člověkoden a na 500 kg skácí strom', () => {
     const s = withWorkshop(fullVillage(), 'potter');
     craftDays(s, 10, forest);
     const workshop = s.dwellings.find((d) => d.id === WORKSHOP_ID)!.workshop!;
-    expect(craftStocks(s).potteryKg).toBeCloseTo(10 * 0.9 - 2, 6);
-    expect(workshop.fuelKg).toBeCloseTo(500 - (10 * 0.9 - 2), 6);
+    expect(craftStocks(s).potteryKg).toBeCloseTo(10 * 1.5 - 2, 6);
+    expect(workshop.fuelKg).toBeCloseTo(500 - (10 * 1.5 - 2), 6);
   });
 
   it('bez dospělých stromů uhlíř i hrnčíř čekají na dřevo', () => {
@@ -452,7 +461,7 @@ describe('souhrn řemesel pro panel (crafts.md – Co hráč vidí)', () => {
         craft: 'smith',
         activity: 'no-charcoal',
         occupants: 2,
-        laborPerDay: expect.closeTo(0.9, 1),
+        laborPerDay: expect.closeTo(1.5, 1),
         oreFactor: 1,
         kiln: null,
         toPlant: 0,

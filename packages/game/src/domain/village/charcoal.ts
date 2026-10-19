@@ -273,7 +273,7 @@ export function migrateBurner(workshop: Workshop, stocks: CraftStocks): void {
 }
 
 /**
- * Den uhlíře (mutuje stav): `labor` = práce domácnosti řemeslu (po minimu a domácí výrobě).
+ * Den uhlíře (mutuje stav): `labor` = práce domácnosti řemeslu (po denním minimu).
  * Pálící milíř zabere celý den (hlídání ve dne i v noci) – po CHARCOAL_KILN.burnDays dnech je
  * vypálený. Jinak v okně výsadby nejdřív sází mladé buky na pařezy, pak pokračuje v milíři (buky
  * strom po stromu: kácení a dovoz, pak příprava dřeva; stavba), a když žádný nemá, začne nový –

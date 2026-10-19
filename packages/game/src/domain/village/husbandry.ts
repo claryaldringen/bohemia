@@ -14,7 +14,7 @@ import {
   winterHayKg,
 } from './hay';
 import { foodCosts, type FoodCosts } from './economy';
-import { freeHerderCapacity, herdingCoverage } from './herding';
+import { childHerderCapacity, herdingCoverage } from './herding';
 import type { Landscape, ObstacleLayer } from '../landscape';
 import {
   BIRTH_DAY,
@@ -99,7 +99,7 @@ export function villageFoodCosts(
   return foodCosts(state, day, toolCoverage, ableTeams(state) > 0);
 }
 
-/** Co ves o chovu ví (voli, krávy na mléko a voly, pasáci, cena jídla v práci). */
+/** Co ves o chovu ví (voli, krávy na mléko a voly, pasáci – výrostci, cena jídla v práci). */
 function farmInput(
   state: VillageState,
   day: number,
@@ -118,7 +118,7 @@ function farmInput(
     minSheep: woolSheep(state, day),
     herding: herdingCoverage(state),
     costs: villageFoodCosts(state, day, toolCoverage),
-    freeHerders: freeHerderCapacity(state, day),
+    freeHerders: childHerderCapacity(state, day),
   };
 }
 
