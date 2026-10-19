@@ -295,6 +295,8 @@ potřebách celé energie):
   (práh zásob i s luštěninami, výhled jen s dnešním mlékem) měla nasycení ≥ 0,95 jen v 79 % let –
   část byla chyba měření (skript přehrával jídlo bez mléka dne); s výhledem s mlékem do sklizně
   a opraveným měřením 95,8 % let, se zásobami v obilí 100 %.
+- **Od 19. 10. 2026 osev podle zásob** ([pole – Osev podle zásob](fields.md)): pojistka zásob
+  z celé potřeby energie místo „zásoby obilí na 1–1,5 roku potřeby z pole“.
 
 ## Co hráč vidí
 

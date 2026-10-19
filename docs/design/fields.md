@@ -288,18 +288,20 @@ Clauda**; implementace v `square-grid.ts` a `squares.ts` (jádro), ve scéně `f
 ### Kolik ves oseje (rozhodují obyvatelé)
 
 - Každý rok k **1. září** (po sklizni, před podzimním kopáním) ves sama rozhodne, kolik na
-  příští rok oseje (návrh Clauda, vychází z Martinova cíle uvolňovat práci): tolik, aby úroda
-  pokryla **roční potřebu všech obyvatel a 15 % navíc** (rezerva na ztráty při skladování
-  a růst rodiny během roku – kalibrace), ale:
+  příští rok oseje (návrh Clauda, vychází z Martinova cíle uvolňovat práci): od 19. 10. 2026
+  **podle zásob** – tolik, aby po příští sklizni měla zásoby na rok spotřeby z pole a k tomu
+  pojistku, bez toho, co jí z dnešních zásob k příští sklizni zbude (viz Osev podle zásob níže;
+  dřív roční potřeba a 15 % navíc, nad 1,5 roční potřeby jen potřeba), ale:
   - nejvýš kolik je dílů, které smí osít (viz Přílohová soustava),
   - nejvýš kolik její práce stihne ve špičkách (podzim, jaro, červenec a srpen – viz Ozim a jař;
-    počítá se všechna práce po denním minimu – kalibrace z 80 %),
-  - když mají zásoby víc než 1,5 roční potřeby, jen potřebu bez rezervy.
+    počítá se všechna práce po denním minimu – kalibrace z 80 %).
 - Které díly oseje, určuje pořadí v Přílohové soustavě; čím je oseje (ozim, nebo jař), rozhodne
   ves zároveň (viz Ozim a jař).
-- **Od 19. 10. 2026 „potřeba“ znamená potřebu z pole podle stravy** (viz Osev podle stravy níže):
-  ves nejí jen obilí, takže seje obilí a luštěniny jen na tu část energie, kterou jí nedá maso,
-  mléko a sýr, vejce, ovoce a med.
+- **Spotřeba z pole podle stravy** (od 19. 10. 2026, viz Osev podle stravy níže): ves nejí jen
+  obilí, takže seje obilí a luštěniny jen na tu část energie, kterou jí nedá maso, mléko a sýr,
+  vejce, ovoce a med.
+- Když ves během roku zjistí, že má zásob dost, **rozjetý plán zkrátí hned** – díly, na kterých
+  ještě nezačala práce, nechá ladem (viz Osev podle zásob).
 
 #### Osev podle stravy
 
@@ -323,26 +325,22 @@ z luštěnin – obilí dorovná jen ≈ 16 %. Zásoby po sklizni proto vycháze
   když ves hladoví, sní obilí méně, ale pole jí pořád má dát celý zbytek (jinak by hlad snížil
   osev a s ním přinesl další hlad). Celý rok proto, že strava se během roku mění (ovoce září–únor,
   mléko květen–září, sýr přes zimu) – průměr celého roku ji nezkreslí.
-- **Rezerva jde do obilí, zásoby se drží v obilí:** cíl osevu = potřeba z pole + **rezerva obilí**
-  15 % potřeby z pole, dokud **zásoby obilí** nemají víc než 1,5 roční potřeby z pole (pak jen
-  potřeba), + rezerva luštěnin podle jejich pravidla (Luštěniny – přičte se, aby luštěniny rezervu
-  obilí neubraly). Luštěniny smějí jít na rezervu, ne pod potřebu z pole. Cíl luštěnin
-  (bílkoviny) se nemění. **Proč obilí:** jen obilí dorovná cokoli – luštěniny mají strop (25 %
-  energie) a ves je jí skoro na stropu, takže zásoba luštěnin výpadek masa nenahradí. Porážka
-  přitom kolísá: v ukázkové vsi dala jeden rok maso na 40 % energie a příští jen na 22 % – ves
-  se zásobami obilí jen na svůj malý podíl obilí (≈ 5–20 % energie) pak skoro rok hladověla.
-  Zásoby obilí na 1–1,5 roku celé potřeby z pole vydrží takový rok do další sklizně.
-- **Pojistka:** podíl nejméně **0,3 = 1 − strop masa (0,4) − strop mléka a sýra (0,3)** – pole
-  vždy uživí aspoň to, co maso a mléko na svých stropech nepokryjí; na ovoce (jen září–únor, sad
-  stárne), vejce (málo) a med (jen z výprav) ves osev nespoléhá. Se zásobami obilí na 1–1,5 roční
-  potřeby z pole tak ves drží vždy aspoň ≈ 0,3–0,45 roční potřeby energie v obilí (≈ 4–5 měsíců
-  celé stravy) – kdyby stáda přišla o maso, vydrží do další sklizně a příští plán podíl zvedne.
-  Když Martin stropy sníží, pojistka stoupne s nimi. Cena: ves se sadem (ovoce sníží podíl pod
-  0,3) seje o něco víc, než sní, a zásoby obilí jí rostou.
+- **Kolik ze zásob a kolik zasít** řeší od 19. 10. 2026 Osev podle zásob (níže). Do té doby
+  platilo: cíl osevu = potřeba z pole + rezerva obilí 15 % potřeby z pole, dokud zásoby obilí
+  nemají víc než 1,5 roční potřeby z pole, + rezerva luštěnin – rezerva šla do obilí, protože jen
+  obilí dorovná cokoli (luštěniny mají strop 25 % energie a ves je jí skoro na stropu, takže
+  zásoba luštěnin výpadek masa nenahradí; porážka v ukázkové vsi dala jeden rok maso na 40 %
+  energie a příští jen na 22 %).
+- **Pojistka podílu:** podíl nejméně **0,3 = 1 − strop masa (0,4) − strop mléka a sýra (0,3)** –
+  ves počítá, že z pole sní aspoň to, co maso a mléko na svých stropech nepokryjí; na ovoce (jen
+  září–únor, sad stárne), vejce (málo) a med (jen z výprav) svůj odhad spotřeby nespoléhá. Když
+  Martin stropy sníží, pojistka stoupne s nimi. Je to pojistka odhadu spotřeby – zásobu na výpadek
+  drží pojistka zásob (Osev podle zásob). Cena: ves se sadem (ovoce sníží podíl pod 0,3) má zásoby
+  o rozdíl vyšší.
 - **Starší vsi a nová ves:** podíl se měří od prvního 1. 9. po založení vsi (nebo po uložení starší
-  vsi), takže vždy pokrývá celý rok; do té doby ves seje přesně jako dřív – jako by jedla jen obilí
-  (bez rezervy luštěnin navíc). První rok nové vsi ještě nemá maso (první porážka v listopadu),
-  plán „jen obilí“ je pro něj opatrný.
+  vsi), takže vždy pokrývá celý rok; do té doby ves počítá, jako by jedla jen obilí (podíl 1 –
+  viz Osev podle zásob). První rok nové vsi ještě nemá maso (první porážka v listopadu), odhad
+  „jen obilí“ je pro něj opatrný.
 - **Co se tím nemění:** hlad, příděl a nasycení dál počítá [strava](diet.md) ze skutečné energie.
   Aby se ale řídily skutečnou energií i s menšími zásobami, upravily se tři odhady:
   - **výhled jídla do sklizně** počítá s mlékem stád do sklizně podle doby dojení a s celou zásobou
@@ -350,14 +348,102 @@ z luštěnin – obilí dorovná jen ≈ 16 %. Zásoby po sklizni proto vycháze
     podle stravy každý podzim zbytečně šetřila a hlásila hlad,
   - odhad, jestli **ozim uživí ves v srpnu** (Ozim a jař – přídělový systém počítá do 31. 7.),
     porovnává ozim s potřebou z pole, na kterou ves osévala, ne s potřebou celé energie,
-  - **dobré zásoby** ([štěstí](happiness.md), +5) = zásoby obilí na víc než rok potřeby z pole.
-- **Kalibrace** měří zásoby po sklizni jako zásoby obilí v ročních potřebách z pole (÷ potřeba
-  z pole, se kterou ves 1. 9. plánuje) – stejně jako pravidlo zásob; dřívější měřítko (v roční
-  potřebě celé energie) vypisuje jako informaci, i s podílem jídla z pole. Cíle osevu sond
-  z Ukázky (1,7 a 2,7 ha) platí pro ves, která jí jen obilí – skript je násobí podílem z pole, na
-  který sonda osévá, a pole sondy „o polovinu větší“ počítá z potřeby z pole. Nasycení dne bere
-  skript ze simulace (i s mlékem dne); dřív ho přehrával bez mléka a v létě by hlásil hlad, který
-  ves nemá.
+  - **dobré zásoby** ([štěstí](happiness.md), +5) = zásoby z pole (obilí a luštěniny energií) na
+    víc než rok potřeby z pole.
+- **Kalibrace** – viz Osev podle zásob. Cíle osevu sond z Ukázky (1,7 a 2,7 ha) platí pro ves,
+  která jí jen obilí – skript je násobí podílem z pole, na který sonda osévá, a pole sondy
+  „o polovinu větší“ počítá z potřeby z pole. Nasycení dne bere skript ze simulace (i s mlékem
+  dne); dřív ho přehrával bez mléka a v létě by hlásil hlad, který ves nemá.
+
+#### Osev podle zásob
+
+Stav: **Martin, 19. 10. 2026:** „Ať se osev řídí také zásobami. Samozřejmě, ať si ves drží nějakou
+rozumnou zásobu, kdyby byly hubené roky (až jednou přidáme nějaké pohromy), ale teď by mohla celý
+rok klidně stavět a byla by v klidu.“ A „Ano“ k návrhu „Rozjetá práce na poli půjde přerušit hned:
+když ves podle nového pravidla zjistí, že má zásob dost, přestane kopat nové díly už letos
+a neodloží to až na 1. září“. Podrobnosti a čísla **návrh Clauda**.
+
+**Proč:** dřívější pravidlo při velkých zásobách jen vynechalo rezervu a dál selo celou potřebu.
+Vlkov (24 lidí) měl v březnu 752 ≈ 11 200 kg obilí (3,4 roku celé potřeby energie) a 6 600 kg
+masa, a přesto od 1. 3. kopal ≈ 9,7 člověkodne denně – volná práce nulová, tři stavby stály na
+82–94 %.
+
+**Pravidla:**
+
+- **Cíl osevu k 1. 9.** (`sowingTargets` ve `field-food.ts`) = zásoby z pole, které má ves mít po
+  **příští sklizni** (31. 8.) – tolik, aby po roce spotřeby z pole a ztrát skladováním zbyla
+  **pojistka** –, bez toho, co z dnešních zásob k příští sklizni zbude (zásoba − spotřeba z pole do
+  sklizně − ztráty skladováním, spojitě jako den po dni v simulaci). Nejméně 0 – ves s velkou
+  zásobou obilí nezaseje nic a práce se uvolní na stavby.
+- **Zásoby z pole** = obilí a luštěniny jejich energií; z luštěnin se do jejich sklizně počítá jen
+  tolik, kolik se jich do ní stihne sníst (strop 25 % energie) – zbytek zůstane a sní se příště.
+- **Pojistka = 0,3 roční potřeby celé energie** (≈ 3,6 měsíce celé stravy) – zásoba, která má zbýt
+  před další sklizní. **Z celé potřeby, ne z potřeby z pole:** výpadek, kterého se pojistka týká
+  dnes, je výpadek masa a mléka (porážka kolísá – ve zkušební vsi spadlo maso ze 40 na ≈ 20 %
+  energie dva roky po sobě a lidí přibylo), tedy výpadek z celé stravy – ves, která víc jí ze
+  stád, potřebuje proti své potřebě z pole větší pojistku. Hubené roky (pohromy, neúroda) přijdou
+  později; pojistka se pak doladí s nimi. Proč 0,3: s 0,2 bylo v kalibraci 20 × 20 nasycení ≥ 0,95
+  v 98,7 % let (nejhorší 1 % let 0,93), s 0,3 v 99,7 % (0,99) – práce na obživu se tím skoro
+  nezmění (79,8 a 79,9 %).
+- **Pojistka podílu** (`FIELD_FOOD.minShare` 0,3, Osev podle stravy) dál hlídá odhad spotřeby:
+  ves počítá, že z pole sní aspoň 30 % energie. Obě pojistky se sčítají jen u vsí, které z pole
+  jedí méně (sad, med) – mají zásoby o rozdíl vyšší.
+- **Přebytek nad pojistku ves sní za 3 roky** (zasije o třetinu přebytku méně), chybějící pojistku
+  doplní hned. **Proč:** osev tak neskáče rok co rok mezi nulou a plnou plochou – ves s velkou
+  zásobou několik let neseje obilí a pak plynule přidává (ukázková ves se zásobou obilí na 6 let
+  celé potřeby zasela obilí na 0, 0, 180, 560, 610 kg a pak ≈ 290–390 kg ročně, jak lidí přibylo
+  a stáda dorostla), a přitom má pojistku plnou, kdyby přišel výpadek.
+- **Luštěniny podle své zásoby:** cíl luštěnin = jejich roční potřeba (bílkoviny, nejvýš strop) bez
+  toho, co ze zásoby luštěnin k jejich sklizni (31. 7.) zbude – bez rezervy, pojistku drží obilí
+  (luštěnin se nad strop nesní). Zasejí se, i když obilí ves nepotřebuje. Smějí jít na doplnění
+  pojistky, ne pod roční potřebu z pole.
+- **Vsi bez změřeného podílu z pole** (starší vsi, první rok nové vsi – Vlkov v březnu 752): počítá
+  se s podílem 1, tedy se zásobou proti celé potřebě energie. **Proč:** bezpečné – ves spotřebu
+  z pole nanejvýš přecení (o maso a mléko, které jí), takže jí zbude víc, než čekala; a když má
+  zásob tolik jako Vlkov, nezaseje obilí ani tak.
+- **Zkrácení rozjetého plánu** (`trimPlanToTarget` v `plan-trim.ts`, krok simulace `trimPlan`):
+  **každý den od 1. 9. do 30. 4.** (okna kopání a setí – výpočet je levný: cíl a součet úrody plánu)
+  ves spočítá cíl podle zásob znovu. Když očekávaná úroda plánu (obilí a luštěniny jako
+  při plánu k 1. 9.) převyšuje cíl o víc než **desetinu roční potřeby z pole**, ubírá z obilí (ozim
+  a jař – luštěniny se sejí podle bílkovin) **díly, na kterých ještě nezačala žádná práce**
+  (vrácení přílohu, orba, kopání, setí) – od konce pořadí práce (`CropWork.partIds`, nejdál od domu
+  první; z konců ozimu a jaře jde první díl dál od domu po pěšinách), dokud by úroda bez dalšího
+  dílu neklesla pod cíl. **Proč desetina:** na podzim ves jí obilí méně (mléko, ovoce) a zásoby
+  jsou chvíli nad průměrem roku – bez rezervy by plán ukrajovala po kouscích a v zimě by chybělo.
+  - Rozpracovaný a zasetý díl zůstane – zasetá práce nepropadne; hotová práce ostatních dílů,
+    čelo práce i vzhled dílů (postup po čtvercích) zůstanou, kde byly – práce plodiny ubude
+    o podíl ubraného dílu stejně, jako když díl zabere stavba (`shrinkInPlan`).
+  - **Ubraný díl leží ladem jako příloh** – díl, který se letos vracel z přílohu, jak ležel předtím
+    (den, od kdy ležel ladem, i roky bez pastvy – `FieldPart.fallowBeforePlan`, smaže se na konci
+    hospodářského roku), ostatní od 1. 9. jako nevybraný díl.
+  - Kontrola je čistá funkce stavu a dne, takže nezávisí na kouscích dopočtu (test).
+- **Ukázka – Vlkov** (kopie z DB jen čtená: stav z 18. 6. 751 dopočtený dosavadním kódem do 22. 3. 752 – plán z 1. 9. 751 podle dřívějšího pravidla, 22 lidí, 11 213 kg obilí, 6 724 kg
+  masa, stavby na 94, 94 a 82 %; pak dál dosavadním a novým kódem bez zásahu hráče):
+  - 22. 3. 752 ves z jaře ubere 13 nezačatých dílů (0,3 ha ze 2,58 ha) – zbylé jarní práce
+    (vrácení, kopání, setí) ubude z 212 na 113 člověkodní; ostatní díly jaře už podzim zkopal
+    (rozpracované zůstávají). Do 30. 4. tak ves odvede na jaři 123 místo 175 člověkodní.
+  - **Stavby dokončí 27. 4., 28. 4. a 31. 5. 752** – s dosavadním pravidlem až 5., 5. a 9. 2. 753.
+  - **K 1. 9. 752** zasije jen luštěniny 3,9 ha (bílkoviny – zásoba luštěnin je nulová), obilí nic;
+    dosavadní pravidlo 0,65 ha ozimu a 4,0 ha luštěnin. K 1. 9. 753 luštěniny 3,5 ha, obilí nic
+    (dosavadní 0,4 ha ozimu a 3,7 ha luštěnin). Hlad žádný, obilí 9 900 kg ještě o dva roky
+    později. Luštěniny ale berou ≈ 920 člověkodní vrácení přílohu, kopání a setí (a pak pletí
+    a sklizeň) – potřeba bílkovin, kterou chce Martin prověřit.
+- **Kalibrace** měří zásoby po sklizni vůči cíli osevu podle zásob (zásoby z pole po sklizni ÷
+  zásoba, kterou ves po sklizni chce mít: rok potřeby z pole a pojistka se ztrátami) – pásmo
+  0,8–1,25 (návrh Clauda); dřívější měřítko „1–1,5 roční potřeby z pole“ a zásoby obilí v roční
+  potřebě celé energie vypisuje jako informaci. Hráč skriptu zakládá pole na úrodu rok co rok se
+  zásobami na pojistce (`steadyHarvestKg`).
+- **Naměřeno s osevem podle zásob** (`measure-village.ts 20 20`, 19. 10. 2026, jen orientačně –
+  dlouhá kalibrace poběží v noci; v závorce před změnou, stejné vsi a krajiny): zásoby z pole po
+  sklizni ÷ cíl p10 0,84 / medián 1,02 / p90 1,32, v pásmu 0,8–1,25 80 % let (**MIMO** jen p90);
+  v ročních potřebách z pole 1,32 / 1,65 / 2,40 (dřív se měřilo jen obilí: 1,02 / 1,38 /
+  2,13), zásoby obilí v roční potřebě celé energie medián 0,76 (0,81); práce na obživu startovní
+  ves 80,0 % (80,6 %), plná domácnost 70,5 % (71,3 %); osev startovní ves 0,63 ha (0,63), plná
+  domácnost 1,15 ha (1,22); nasycení ≥ 0,95 celý rok, hráč staví 99,7 % let (100 %), nestaví
+  100 % (100 %), nejhorší 1 % let 0,99 (1,00); nic nevymřelo, po 20 letech medián 2 domácnosti
+  a 12 lidí (2 a 12); polozemnice čerstvě plnou domácností 236 dní (243) – o den pod pásmem. Kalibrační vsi velké přebytky nedrží (pole zakládá hráč na potřebu), takže osev ani práce
+  se skoro nezmění – rozdíl je u vsí jako Vlkov, které zásoby nasbíraly. Zkrácení plánu
+  v kalibraci skoro nenastane (plány vznikají už podle zásob).
 
 ### Přílohová soustava – co se oseje a co leží ladem
 
@@ -531,13 +617,14 @@ Luštěniny). Čísla podle [rešerše](research/2026-10-18-legumes.md), kde chy
   dusík, ≈ rok přílohu (nejvýš plná úrodnost). Opatrná hodnota: dnešní pokusy dávají obilí po
   luštěnině víc, středověké výnosy z Winchesteru přínos nenašly.
 - **Kolik ves oseje (k 1. 9.):** cíl luštěnin = kolik jich ves chce sníst za rok (bílkoviny, které
-  chybí po obilí, mléku stád a vejcích, nejvýš strop stravy – diet.md) + rezerva 15 % jako
-  u obilí (při zásobě nad 1,5 roku jen potřeba). **Obilí má přednost:** ves nejdřív vybere obilí
+  chybí po obilí, mléku stád a vejcích, nejvýš strop stravy – diet.md) bez toho, co ze zásoby
+  luštěnin k jejich sklizni zbude (od 19. 10. 2026 – Osev podle zásob; dřív + rezerva 15 %, při
+  zásobě nad 1,5 roku jen potřeba). **Obilí má přednost:** ves nejdřív vybere obilí
   na celý cíl osevu jako dřív, pak luštěniny dostanou díly toho výběru od domu (díly, které měly
   luštěniny loni, až nakonec – střídání plodin) a obilí doplní další díly, kolik energie
-  luštěniny dají méně. Když na doplnění nestačí půda nebo práce, smí plán jít na rezervu osevu,
-  ne pod roční potřebu (od 19. 10. 2026 potřebu z pole – Osev podle stravy) – jinak díl zůstane
-  obilím a luštěnin je méně. Díly hotové během roku
+  luštěniny dají méně. Když na doplnění nestačí půda nebo práce, smí plán jít na rezervu osevu
+  (od 19. 10. 2026 na doplnění pojistky zásob), ne pod roční potřebu (potřebu z pole – Osev podle
+  stravy) – jinak díl zůstane obilím a luštěnin je méně. Díly hotové během roku
   jdou jen do jaře (luštěniny až s ročním plánem).
 - **Zásoba luštěnin** (kg): sklizeň **31. 7.** (po jídle dne, jako ozim), nevymlácená část se
   1. 3. zkazí jako u obilí. Ztráta skladováním jako obilí (10 %, s hrnčířem 5 % ročně – zrnokaz
@@ -1180,4 +1267,9 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 | Střídání: díly s loňskými luštěninami až nakonec; díly hotové během roku jen do jaře                                              | návrh Clauda                                    |
 | Osev podle stravy – ves seje obilí a luštěniny jen na energii, kterou nedá maso, mléko a sýr, vejce, ovoce a med                  | Martin (19. 10. 2026)                           |
 | Podíl z pole za uplynulý hospodářský rok (potřeba, ne snědené obilí), pojistka 0,3                                                | návrh Clauda                                    |
-| Rezerva jde do obilí – zásoby obilí na 1–1,5 roku potřeby z pole (luštěniny mají strop); výhled jídla s mlékem do sklizně         | návrh Clauda                                    |
+| ~~Rezerva jde do obilí – zásoby obilí na 1–1,5 roku potřeby z pole~~; výhled jídla s mlékem do sklizně                            | návrh Clauda                                    |
+| Osev podle zásob – ves si drží rozumnou zásobu na hubené roky, s velkou zásobou seje méně a staví                                 | Martin (19. 10. 2026)                           |
+| Rozjetý plán se zkrátí hned, ne až 1. 9. – ves přestane kopat nové díly                                                           | Martin (19. 10. 2026)                           |
+| Cíl = rok spotřeby z pole a pojistka po příští sklizni bez toho, co zbude; pojistka 0,3 roční potřeby celé energie                | návrh Clauda                                    |
+| Přebytek nad pojistku za 3 roky, chybějící hned; luštěniny podle své zásoby bez rezervy; bez měření podílu podíl 1                | návrh Clauda                                    |
+| Zkrácení plánu denně 1. 9. – 30. 4. nad cíl + desetinu potřeby z pole; jen nezačaté díly od konce pořadí, ladem jako příloh       | návrh Clauda                                    |

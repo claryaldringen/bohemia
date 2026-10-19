@@ -38,7 +38,7 @@ Slovanů: posvátné duby, dubové háje, dřevěné modly a nakonec svatyni jak
     a zbývající práce se sčítá (co končí dřív, musí být hotové dřív). Plná práce ve špičce, která
     se stihne, dřinou není.
 - **Co přidává:** posvátná místa (níže), dobré zásoby (zásoby na víc než rok; od 19. 10. 2026
-  zásoby obilí na víc než rok potřeby z pole – [pole](fields.md), Osev podle stravy)
+  zásoby obilí a luštěnin na víc než rok potřeby z pole – [pole](fields.md), Osev podle stravy)
   **+5**, ovoce **+5** – dokud lidé jedí ovoce, je sladké (Martin – [strava](diet.md), od 18. 10. 2026), maso
   až **+3** – plně od 20 % energie z masa, méně poměrně (Martin: „maso bude mírně zvyšovat
   štěstí“, čísla návrh Clauda).
