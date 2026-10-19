@@ -1,3 +1,4 @@
+import { penCells } from './pens';
 import { abandonedVillageAt, isVillageTravelling } from './departure';
 import { plotCells } from './plot-cells';
 import { gridKey, squareKey } from './square-grid';
@@ -77,7 +78,7 @@ export function neighbourSnapshot(
     for (const p of state.parts) if (p.cell) addCell(p.cell, grids.get(p.fieldId));
     for (const c of state.cemeteries ?? []) for (const s of c.squares) addCell(s.cell, c.grid);
     for (const o of state.orchards ?? []) for (const s of o.squares) addCell(s.cell, o.grid);
-    for (const pen of state.pens ?? []) addCell(pen.cell, pen.grid);
+    for (const pen of state.pens ?? []) for (const c of penCells(pen)) addCell(c, pen.grid);
     for (const wood of state.woods ?? []) addCell(wood.cell, wood.grid);
     snapshot.cleared.push(...(original.clearedObstacles ?? []).map((c) => ({ ...c })));
     snapshot.felled.push(...(original.felledTrees ?? []).map((f) => ({ ...f })));

@@ -14,13 +14,7 @@ import { isVillageExtinct } from './extinction';
 import { winterHayKg } from './hay';
 import { foundingLivestock } from './livestock';
 import { ableTeams, startPen, type PenInput } from './oxen';
-import {
-  MAX_PEN_SQUARES,
-  PEN_SPECIES,
-  connectedCells,
-  penSquares,
-  touchingPens,
-} from './pens';
+import { MAX_PEN_SQUARES, PEN_SPECIES, connectedCells, penSquares, touchingPens } from './pens';
 import { fieldsTouching, mergeFields, partFoundingCost } from './fields';
 import { normalizeGrid, rotationTurn, squareKey } from './square-grid';
 import { fieldGrids } from './squares';

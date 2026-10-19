@@ -61,6 +61,7 @@ import { herdingDay, recordHerding } from './herding';
 import { EMERGENCY_GROUP, sowingBlocks, villageHoldings, workOrder } from './holdings';
 import { occupyEmptyDwellings, settleNewDwelling } from './households';
 import { withKinship } from './kinship';
+import { withPenSpecies } from './pens';
 import { flaxNeedKg, harvestFlax } from './flax';
 import { husbandryDay, plannedLegumeKg } from './husbandry';
 import { dayMealInput, emergencySlaughter } from './emergency-slaughter';
@@ -259,7 +260,7 @@ export function* advanceVillageSteps(
   }
   // ves z doby před příbuzenstvím dostane pohlaví a manžele (kinship.md) a ves ze zboží zvenku
   // o něj přijde (trade.md – Jen společné suroviny) – jednou, idempotentně
-  const next = cloneState(withoutForeignGoods(withKinship(state)));
+  const next = cloneState(withPenSpecies(withoutForeignGoods(withKinship(state))));
   // vymřelá, opuštěná a ves na cestě se nesimulují – jen se posune den (migration.md)
   for (let day = next.lastDay + 1; day <= toDay && !isVillageDormant(next); day++) {
     simulateDay(next, day, obstacles, landscape);
@@ -1383,7 +1384,8 @@ function finishConstructions(state: VillageState, day: number): void {
     if (c.kind === 'pen' || c.kind === 'ard') {
       // dostavěná ohrada přijme dobytek, hotové rádlo čeká na vycvičené voly (oxen.md)
       if (c.kind === 'pen' && c.penId !== null && c.penId !== undefined) {
-        finishPen(state, c.penId, day);
+        // založení celé ohrady, nebo rozšíření o čtverce (oxen.md – Ohrady podle druhu)
+        finishPen(state, c.penId, day, c.id);
       }
       state.chronicle.push(finishedEvent(day, c, null));
       continue;

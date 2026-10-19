@@ -60,7 +60,7 @@ export function villageOxen(state: Pick<VillageState, 'pens'>): number {
 }
 
 /** Ohrady spřežení (oxen.md – Ohrady podle druhu: voli a výcvik mají vlastní ohradu). */
-export function teamPens(state: Pick<VillageState, 'pens'>): Pen[] {
+export function oxPens(state: Pick<VillageState, 'pens'>): Pen[] {
   return villagePens(state).filter((pen) => penSpecies(pen) === 'team');
 }
 
@@ -293,7 +293,7 @@ export function trainTeamsWhenReady(
   obstacles: ObstacleLayer | null,
   walk?: () => Walk,
 ): void {
-  for (const pen of teamPens(state)) {
+  for (const pen of oxPens(state)) {
     if (trainingBlock(state, pen.id, day, obstacles) === null) {
       startTraining(state, day, pen, obstacles, walk?.());
     }

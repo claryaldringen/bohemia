@@ -31,7 +31,7 @@ import {
 } from '../livestock';
 import { advanceVillage } from '../simulate';
 import type { FieldPart, HerdSpecies, VillageState } from '../types';
-import { withBuiltFirstDwelling } from './village-fixtures';
+import { withBuiltFirstDwelling, withRoomyPens } from './village-fixtures';
 
 // Dobytek (diet.md – Dobytek): výchozí stádo, růst, ztráty, nosnost, chovné stádo podle potřeby,
 // porážka, zimní úhyn, vejce a staré vsi.
@@ -409,7 +409,8 @@ describe('zimní úhyn (1. 3.)', () => {
 
 describe('simulace – stáda za rok', () => {
   it('startovní ves: na jaře mláďata, v listopadu porážka a maso v zásobě, vejce celý rok', () => {
-    const s = village(at(600, 3, 1));
+    // ohrady všech druhů – stáda neomezí místa na noc (oxen.md – Ohrady podle druhu)
+    const s = withRoomyPens(village(at(600, 3, 1)));
     const end = advanceVillage(s, at(600, 11, 2), null);
     const event = end.chronicle.find((e) => e.kind === 'slaughter');
     expect(event).toBeDefined();

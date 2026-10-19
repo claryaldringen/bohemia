@@ -18,8 +18,8 @@ import type {
 } from '../types';
 import {
   cemeteryEntrance,
-  penEntrance,
-  penEntranceFacing,
+  penGateToward,
+  penSquaresEntrance,
   sacredEntrance,
   type Entrance,
 } from './entrances';
@@ -205,7 +205,13 @@ export interface PathVillage {
    * krmit dobytek. `stocked: false` – hotová ohrada bez zvířat (abandonment.md): krmit se tam
    * nechodí, jen za prací dne. Bez údaje žádné (u ohrady bez `stocked` se zvířaty).
    */
-  pens?: readonly (PathSquare & { id: number; built: boolean; stocked?: boolean })[];
+  pens?: readonly (PathSquare & {
+    id: number;
+    built: boolean;
+    stocked?: boolean;
+    /** Další čtverce ohrady (oxen.md – Ohrady podle druhu); bez údaje jen jeden. */
+    extra?: readonly PathSquare[];
+  })[];
   /**
    * Stáda na pastvě (diet.md – kusy po druzích, krávy v zimě v ohradě nepočítané): pasáček je
    * denně vyžene na úhor. Bez údaje žádná.
@@ -399,7 +405,7 @@ export function pathBounds(
   for (const o of village.sacred?.oaks ?? []) add(o.x, o.z);
   for (const g of village.sacred?.groves ?? []) add(g.x, g.z);
   for (const b of village.sacred?.buildings ?? []) add(b.position.x, b.position.z);
-  for (const p of village.pens ?? []) add(p.x, p.z);
+  for (const p of village.pens ?? []) for (const q of penPathSquares(p)) add(q.x, q.z);
   for (const m of mowedMeadows(village)) add(m.x, m.z);
   const clampX = (x: number): number =>
     Math.min(cx + MAX_WINDOW_HALF_M, Math.max(cx - MAX_WINDOW_HALF_M, x));
@@ -463,6 +469,13 @@ function mowedMeadows(village: PathVillage): PathSquare[] {
  * Klíč čtverce do klíče sítě: políčko, u natočeného čtverce (fields.md – Natočené stavby) i střed
  * a natočení (souřadnice v různých mřížkách se mohou shodovat).
  */
+/** Čtverce ohrady v síti – první a další (oxen.md – Ohrady podle druhu). */
+export function penPathSquares(
+  pen: PathSquare & { readonly extra?: readonly PathSquare[] },
+): PathSquare[] {
+  return [pen, ...(pen.extra ?? [])];
+}
+
 function squareKeyOf(s: Square): string {
   return s.rotation === undefined
     ? `${s.cell.x},${s.cell.y}`
@@ -532,7 +545,8 @@ export function pathNetworkKey(village: PathVillage): string {
     ? `${village.obstacles.removed.length},${village.obstacles.stumps.length}`
     : '';
   const pens = (village.pens ?? []).map(
-    (p) => `${p.id}:${squareKeyOf(p)}:${p.built ? 1 : 0}${p.stocked === false ? ':-' : ''}`,
+    (p) =>
+      `${p.id}:${penPathSquares(p).map(squareKeyOf).join(';')}:${p.built ? 1 : 0}${p.stocked === false ? ':-' : ''}`,
   );
   return JSON.stringify([
     dwellings,
@@ -1000,7 +1014,7 @@ function villageGrid(input: PathNetworkInput, buildings: readonly Building[]): G
     }
   }
   for (const pen of v.pens ?? []) {
-    for (const c of squareCells(grid, [pen]).inside) {
+    for (const c of squareCells(grid, penPathSquares(pen)).inside) {
       grid.base[c] = grid.base[c]! * PEN_COST;
       grid.village[c] = 1;
     }
@@ -1361,11 +1375,12 @@ function tripGroups(
   // hotová ohrada brankou (paths.md – Vchody), staveniště ze všech stran
   for (const pen of v.pens ?? []) {
     const base = pen.built ? (pen.stocked === false ? 0 : BASE_TRIPS.pen) : BASE_TRIPS.site;
+    const squares = penPathSquares(pen);
     const sources = pen.built
-      ? entranceTarget(penEntrance(pen, penEntranceFacing(pen, v.dwellings)))
-      : squaresTarget([pen]);
+      ? entranceTarget(penSquaresEntrance(squares, penGateToward(squares, v.dwellings)))
+      : squaresTarget(squares);
     target(
-      sources.length > 0 ? sources : squaresTarget([pen]),
+      sources.length > 0 ? sources : squaresTarget(squares),
       base + work(`pen:${pen.id}`),
       1,
       `pen:${pen.id}`,

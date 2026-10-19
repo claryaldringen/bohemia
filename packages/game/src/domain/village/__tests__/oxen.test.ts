@@ -14,6 +14,7 @@ import {
   ploughCapacityPerDay,
   trainTeamsWhenReady,
   trainingBlock,
+  type PenInput,
 } from '../oxen';
 import { PLOUGH_HA_PER_DAY, PLOUGH_SOD_FACTOR, hasSod, ploughWorkPerHa } from '../plough';
 import { NO_CRAFTS } from '../productivity';
@@ -36,13 +37,18 @@ import { withBuiltFirstDwelling } from './village-fixtures';
 // Ohrada, spřežení a orba rádlem (oxen.md).
 
 const at = (year: number, month: number, day: number): number => dayIndexOf({ year, month, day });
-const PEN_INPUT = {
-  cell: { x: 3, y: 4 },
-  x: 50,
-  z: 60,
-  obstacleCost: 0,
-  obstacleIds: [],
-  clearedTrees: 0,
+const PEN_INPUT: PenInput = {
+  species: 'team',
+  squares: [
+    {
+      cell: { x: 3, y: 4 },
+      x: 50,
+      z: 60,
+      obstacleCost: 0,
+      obstacleIds: [],
+      clearedTrees: 0,
+    },
+  ],
 };
 
 function village(day: number): VillageState {
@@ -90,17 +96,31 @@ function part(id: number, over: Partial<FieldPart> = {}): FieldPart {
   };
 }
 
-/** Ves s hotovou ohradou a vycvičeným spřežením. */
+/**
+ * Ves s hotovou ohradou spřežení a vycvičeným spřežením a s ohradou skotu (krávy stojí na noc
+ * v ohradě – oxen.md, Ohrady podle druhu).
+ */
 function withTeam(day: number): VillageState {
   const s = village(day);
   s.pens = [
     {
       id: 900,
+      species: 'team',
       cell: { x: 3, y: 4 },
       x: 50,
       z: 60,
       builtDay: day - 800,
       team: { readyDay: day - 10 },
+      training: null,
+    },
+    {
+      id: 901,
+      species: 'cattle',
+      cell: { x: 4, y: 4 },
+      x: 65,
+      z: 60,
+      builtDay: day - 800,
+      team: null,
       training: null,
     },
   ];

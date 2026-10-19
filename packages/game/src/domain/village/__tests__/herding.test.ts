@@ -13,7 +13,7 @@ import {
 } from '../livestock';
 import { advanceVillage } from '../simulate';
 import type { HerdSpecies, Person, VillageState } from '../types';
-import { withBuiltFirstDwelling } from './village-fixtures';
+import { withBuiltFirstDwelling, withRoomyPens } from './village-fixtures';
 
 // Pasáci (diet.md – Pasáci; Martin 19. 10. 2026): jeden pasák uhlídá jen omezené stádo, pasou jen
 // výrostci 7–13 let (bez práce vsi), dospělí ani starší ne; co nikdo neuhlídá, jde na maso.
@@ -33,6 +33,8 @@ function village(day: number): VillageState {
   );
   s.lastDay = day;
   s.storesKg = 50_000;
+  // ohrady všech druhů – stáda neomezí místa na noc (oxen.md – Ohrady podle druhu)
+  withRoomyPens(s);
   return s;
 }
 

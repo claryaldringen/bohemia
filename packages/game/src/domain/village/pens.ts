@@ -48,9 +48,7 @@ export function penSpecies(pen: {
 }
 
 /** Všechny čtverce ohrady – první (přístřešek a jesle) a další (`extraSquares`). */
-export function penSquares(
-  pen: Pick<Pen, 'cell' | 'x' | 'z' | 'extraSquares'>,
-): PenSquare[] {
+export function penSquares(pen: Pick<Pen, 'cell' | 'x' | 'z' | 'extraSquares'>): PenSquare[] {
   return [{ cell: pen.cell, x: pen.x, z: pen.z }, ...(pen.extraSquares ?? [])];
 }
 

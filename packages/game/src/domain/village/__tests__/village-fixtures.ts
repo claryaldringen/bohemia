@@ -41,3 +41,34 @@ export function withManorElsewhere(state: VillageState): VillageState {
   next.manorId = id;
   return next;
 }
+
+/**
+ * Ves s velkými hotovými ohradami ovcí, koz, prasat a skotu (4 čtverce každá, daleko od vsi) –
+ * stáda pak kapacita ohrad neomezí (oxen.md – Ohrady podle druhu); pro testy pravidel stád, které
+ * na ohradách nestojí. Mutuje stav.
+ */
+export function withRoomyPens(state: VillageState): VillageState {
+  const species = ['sheep', 'goat', 'pig', 'cattle'] as const;
+  state.pens = species.map((s, k) => {
+    const y = 100 + k * 3;
+    const square = (
+      x: number,
+      dy: number,
+    ): { cell: { x: number; y: number }; x: number; z: number } => ({
+      cell: { x, y: y + dy },
+      x: x * 15,
+      z: (y + dy) * 15,
+    });
+    const first = square(100, 0);
+    return {
+      id: 50_000 + k,
+      species: s,
+      ...first,
+      extraSquares: [square(101, 0), square(100, 1), square(101, 1)],
+      builtDay: state.lastDay - 400,
+      team: null,
+      training: null,
+    };
+  });
+  return state;
+}

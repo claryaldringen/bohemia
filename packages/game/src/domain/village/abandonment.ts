@@ -1,7 +1,7 @@
 import type { Landscape } from '../landscape';
 import { villageCemeteries } from './cemetery';
-import { villageHerds } from './livestock';
 import { villagePens } from './oxen';
+import { penOccupancy } from './pens';
 import { dwellingFootprint } from './placement';
 import { plotShapes } from './plot-cells';
 import { pointsBounds, squareCenter, squareCorners } from './square-grid';
@@ -81,20 +81,17 @@ export function structureFallDay(
 }
 
 /**
- * Ohrady se zvířaty (abandonment.md – ohrada se zvířaty opuštěná není): spřežení, telata ve
- * výcviku, nebo krávy, které v ní přes zimu stojí – krávy stáda rovným dílem do hotových ohrad
- * jako ve scéně (oxen.md – přes zimu stojí v ohradě).
+ * Ohrady se zvířaty (abandonment.md – ohrada se zvířaty opuštěná není): hotová ohrada, ve které
+ * v noci stojí zvířata jejího druhu (oxen.md – Ohrady podle druhu: stádo do ohrad svého druhu podle
+ * míst – `penOccupancy`), ohrada spřežení se spřežením nebo telaty ve výcviku.
  */
 export function stockedPenIds(state: Pick<VillageState, 'pens' | 'livestock'>): Set<number> {
-  const pens = villagePens(state);
-  const stocked = new Set<number>();
-  const built = pens.filter((p) => p.builtDay !== null);
-  const cows = Math.round(villageHerds(state).cow);
-  built.forEach((pen, index) => {
-    const share = Math.floor(cows / built.length) + (index < cows % built.length ? 1 : 0);
-    if (pen.team !== null || pen.training !== null || share > 0) stocked.add(pen.id);
-  });
-  return stocked;
+  const occupancy = penOccupancy(state);
+  return new Set(
+    villagePens(state)
+      .filter((p) => p.builtDay !== null && (occupancy.get(p.id) ?? 0) > 0)
+      .map((p) => p.id),
+  );
 }
 
 /**
@@ -237,6 +234,12 @@ export function abandonmentDay(
     if (gone.length > 0) {
       state.pens = pens.filter((p) => !gone.includes(p));
       if (state.pens.length === 0) delete state.pens;
+      // rozestavěné rozšíření spadlé ohrady zmizí s ní
+      const goneIds = new Set(gone.map((p) => p.id));
+      state.constructions = state.constructions.filter(
+        (c) =>
+          c.kind !== 'pen' || c.penId === null || c.penId === undefined || !goneIds.has(c.penId),
+      );
       for (const p of gone)
         events.push({ day, kind: 'structure-fell', structure: 'pen', id: p.id });
     }

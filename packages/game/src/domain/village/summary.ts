@@ -49,6 +49,7 @@ import {
   villageHerds,
 } from './livestock';
 import { OXEN, teamAgeYears, trainingProgress, villagePens } from './oxen';
+import { penOccupancy, penPlaces, penSpecies } from './pens';
 import {
   orchardAgeYears,
   orchardAreaM2,
@@ -81,6 +82,7 @@ import type {
   FallowStage,
   FieldPart,
   HerdSpecies,
+  PenSpecies,
   Position,
   SacredBuildingKind,
   SquareGrid,
@@ -294,8 +296,16 @@ export interface LivestockSummary {
 /** Ohrada pro panel výběru a scénu (oxen.md – Co hráč vidí). */
 export interface PenSummary {
   id: number;
-  /** Čtverec ohrady v mřížce `grid`; bez ní políčko krajiny. */
+  /** Druh zvířat ohrady (oxen.md – Ohrady podle druhu). */
+  species: PenSpecies;
+  /** První čtverec ohrady (přístřešek) v mřížce `grid`; bez ní políčko krajiny. */
   cell: TileCell;
+  /** Další čtverce ohrady (`pending` – rozšíření ve stavbě); bez údaje jen první. */
+  extraSquares?: { cell: TileCell; x: number; z: number; pending?: true }[];
+  /** Místa na noc pro stádo svého druhu (hotové čtverce – `penPlaces`); spřežení 0. */
+  places: number;
+  /** Kolik zvířat v ohradě v noci stojí (`penOccupancy` – u spřežení voli a telata). */
+  animals: number;
   /** Natočená mřížka ohrady (fields.md – Natočené stavby); bez ní políčko krajiny. */
   grid?: SquareGrid;
   x: number;
@@ -469,12 +479,26 @@ const DAYS_PER_SERVICE_YEAR = 365.25;
 
 /** Ohrady pro panel a scénu. */
 function penSummaries(state: VillageState, day: number): PenSummary[] {
+  const occupancy = penOccupancy(state);
   return villagePens(state).map((pen) => {
     const age = teamAgeYears(pen, day);
     const progress = trainingProgress(pen, day);
     return {
       id: pen.id,
+      species: penSpecies(pen),
       cell: { x: pen.cell.x, y: pen.cell.y },
+      ...(pen.extraSquares?.length
+        ? {
+            extraSquares: pen.extraSquares.map((q) => ({
+              cell: { x: q.cell.x, y: q.cell.y },
+              x: q.x,
+              z: q.z,
+              ...(q.constructionId === undefined ? {} : { pending: true as const }),
+            })),
+          }
+        : {}),
+      places: penPlaces(pen),
+      animals: occupancy.get(pen.id) ?? 0,
       ...(pen.grid ? { grid: copyGrid(pen.grid) } : {}),
       x: pen.x,
       z: pen.z,

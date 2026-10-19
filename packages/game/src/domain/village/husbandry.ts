@@ -30,18 +30,11 @@ import {
   winterSlaughterDay,
   winterWaitHayKg,
 } from './livestock';
-import {
-  OXEN,
-  ableTeams,
-  penDay,
-  penOxen,
-  trainTeamsWhenReady,
-  villageOxen,
-  villagePens,
-} from './oxen';
+import { OXEN, ableTeams, penDay, penOxen, oxPens, trainTeamsWhenReady, villageOxen } from './oxen';
+import { herdRoom } from './pens';
 import { walkDistancesTo } from './paths/village';
 import { villageRoadWalk } from './paths/walking';
-import type { ChronicleEvent, VillageState } from './types';
+import type { ChronicleEvent, HerdSpecies, VillageState } from './types';
 import { recordWool, woolSheep } from './wool';
 
 // Den hospodářství vsi (diet.md, oxen.md) – stáda, seno a ohrady v pevném pořadí, před plánem
@@ -60,23 +53,25 @@ function isOn(date: CalendarDate, target: { month: number; day: number }): boole
 
 /**
  * Krávy, které ves drží vždy (diet.md – Skladba stáda; Martin 19. 10. 2026: krávy „potřebujeme
- * kvůli tažným volům“): kráva na 2 domácnosti (mléko – jako výchozí stádo) a na každou ohradu tolik
- * krav, aby šlo cvičit spřežení (OXEN.minCows – dvě telata a chovná kráva); aspoň chovný pár.
+ * kvůli tažným volům“): kráva na 2 domácnosti (mléko – jako výchozí stádo) a na každou ohradu
+ * spřežení tolik krav, aby šlo cvičit spřežení (OXEN.minCows – dvě telata a chovná kráva); aspoň
+ * chovný pár. Krávy stojí na noc jen v ohradě skotu – bez ní jen chovný pár (oxen.md – Ohrady
+ * podle druhu).
  */
 export function breedingCows(state: VillageState): number {
   return Math.max(
     LIVESTOCK.breedingMin,
     householdCount(state) / LIVESTOCK.householdsPerCow,
-    villagePens(state).length * OXEN.minCows,
+    oxPens(state).length * OXEN.minCows,
   );
 }
 
 /**
- * Voli, kteří budou přes zimu žrát seno – ohrada bez spřežení a výcviku počítá se dvěma voly
- * (výcvik se dá zadat kdykoli a telata seno potřebují – oxen.md).
+ * Voli, kteří budou přes zimu žrát seno – ohrada spřežení bez spřežení a výcviku počítá se dvěma
+ * voly (výcvik začne sám a telata seno potřebují – oxen.md).
  */
 function hayOxen(state: VillageState): number {
-  return villagePens(state).reduce((sum, pen) => sum + Math.max(penOxen(pen), OXEN.teamSize), 0);
+  return oxPens(state).reduce((sum, pen) => sum + Math.max(penOxen(pen), OXEN.teamSize), 0);
 }
 
 /**
@@ -88,7 +83,9 @@ function hayOxen(state: VillageState): number {
 export function winterHayNeedKg(state: VillageState, day: number, toolCoverage = 0): number {
   const input = farmInput(state, day, toolCoverage);
   const herds = wantedWinterHerds(state, day, input);
-  return winterHayKg(herds, hayOxen(state)) + winterWaitHayKg(state, day, herds, input.oxen);
+  return (
+    winterHayKg(herds, hayOxen(state)) + winterWaitHayKg(state, day, herds, input.oxen, input.room)
+  );
 }
 
 /**
@@ -114,6 +111,7 @@ function farmInput(
   minSheep: number;
   herding: number;
   costs: FoodCosts;
+  room: Record<HerdSpecies, number>;
 } {
   return {
     oxen: villageOxen(state),
@@ -121,6 +119,8 @@ function farmInput(
     minSheep: woolSheep(state, day),
     herding: herdingCoverage(state),
     costs: villageFoodCosts(state, day, toolCoverage),
+    // místa na noc – ohrady svého druhu a pár kusů u domů (oxen.md – Ohrady podle druhu)
+    room: herdRoom(state),
   };
 }
 

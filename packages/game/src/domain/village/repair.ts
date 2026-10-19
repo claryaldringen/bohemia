@@ -1,5 +1,6 @@
 import { readySquares, villageCemeteries } from './cemetery';
 import { sacredBuildLabor } from './costs';
+import { builtPenSquares } from './pens';
 import { penBuildLabor, villagePens } from './oxen';
 import { CEMETERY, STRUCTURE_REPAIR } from './rules';
 import type {
@@ -71,7 +72,9 @@ export function fullRepairManDays(state: VillageState, ref: StructureRef): numbe
     return c ? share * CEMETERY.costPerSquare * readySquares(c.squares).length : 0;
   }
   if (ref.structure === 'pen') {
-    return villagePens(state).some((p) => p.id === ref.id) ? share * penBuildLabor() : 0;
+    // plot a přístřešek po hotových čtvercích (oxen.md – Ohrady podle druhu)
+    const pen = villagePens(state).find((p) => p.id === ref.id);
+    return pen ? share * penBuildLabor() * Math.max(1, builtPenSquares(pen).length) : 0;
   }
   const kind = ref.structure;
   const stands = (state.sacredBuildings ?? []).some((b) => b.id === ref.id && b.kind === kind);
