@@ -316,9 +316,11 @@ export function VillageGame({
       setVillage(next);
       if (!isVillageView(next)) return;
       viewRef.current = next;
-      const fresh = newNotices(noticedRef.current, next);
+      // nový pohled napřed – chyba při porovnání (pohled z doby před změnou kódu) se nesmí
+      // opakovat při každém dalším dotazu
+      const previous = noticedRef.current;
       noticedRef.current = next;
-      for (const notice of fresh) pushNotice(notice);
+      for (const notice of newNotices(previous, next)) pushNotice(notice);
     },
     [pushNotice],
   );
