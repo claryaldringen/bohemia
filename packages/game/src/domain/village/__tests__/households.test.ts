@@ -68,6 +68,29 @@ describe('rodiny, které se mohou oddělit', () => {
     expect(leavingFamilies(brothers, DAY).map((f) => ids(f.people))).toEqual([[30, 31, 41]]);
   });
 
+  it('vedle dědice smí odejít i ženatý muž bez rodičů v domě (Vlkov – přeplněný dvorec)', () => {
+    // vdova s ženatým synem (dědic) a ženatý muž s neznámými rodiči (starší ves) – ten odejde
+    const s = build([
+      { id: 11, age: 50, sex: 'female' },
+      ...couple({ id: 20, age: 20, mother: 11 }, { id: 21, age: 22 }),
+      { id: 22, age: 3, sex: 'male', mother: 21, father: 20 },
+      ...couple({ id: 30, age: 25 }, { id: 31, age: 25 }),
+      { id: 32, age: 4, sex: 'male', mother: 31, father: 30 },
+    ]);
+    expect(familiesOf(s, s.dwellings[0]!, DAY).map((f) => ids(f.people))).toEqual([[30, 31, 32]]);
+    expect(availableSettlers(s, DAY)).toBe(1);
+  });
+
+  it('otec dědice zůstává s ním – rodiče se neoddělí', () => {
+    const s = build([
+      ...parents(),
+      ...couple({ id: 20, age: 26, mother: 11, father: 10 }, { id: 21, age: 22 }),
+      child(40, 12, 'female'),
+      child(41, 10, 'female'),
+    ]);
+    expect(familiesOf(s, s.dwellings[0]!, DAY)).toEqual([]);
+  });
+
   it('z neplného domu žádná rodina – lidé k osídlení jen z plné domácnosti', () => {
     // dva páry ve 4 lidech v zemnici pro 6 – jako zakladatelé, když se jejich děti vezmou
     const notFull = build([

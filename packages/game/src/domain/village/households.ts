@@ -41,19 +41,25 @@ export interface Family {
 }
 
 /**
- * Rodiny, které se mohou oddělit z domácnosti obydlí `dwelling` (kinship.md – Domácnosti):
- * ženatí synové (matka nebo otec bydlí v domě) kromě nejstaršího – dědic zůstává s rodiči; když
- * v domě žije víc ženatých mužů bez rodičů (bratři po smrti rodičů), zůstává nejstarší z nich.
- * Odchází muž, žena a jejich svobodné děti z domu – jen když se zbytek domácnosti nerozpadne
- * (`householdBreaksUp`). Od nejstaršího muže.
+ * Rodiny, které se mohou oddělit z domácnosti obydlí `dwelling` (kinship.md – Domácnosti): dům
+ * drží jeden dědic – nejstarší ženatý syn (matka nebo otec bydlí v domě) a s ním jeho rodiče;
+ * v domě bez ženatého syna (bratři po smrti rodičů) nejstarší ženatý muž. Všichni ostatní ženatí
+ * muži se se ženou a dětmi smí oddělit – i ženatý muž bez rodičů v domě vedle dědice (starší vsi
+ * mají rodiče neznámé). Odchází muž, žena a jejich svobodné děti z domu – jen když se zbytek
+ * domácnosti nerozpadne (`householdBreaksUp`). Od nejstaršího muže.
  */
 export function familiesOf(state: VillageState, dwelling: Dwelling, day: number): Family[] {
   const members = occupants(state, dwelling.id);
   const husbands = members.filter((m) => wifeHere(m, members)).sort(byAge);
   const sons = husbands.filter((h) => parentHere(h, members));
-  const heads = husbands.filter((h) => !parentHere(h, members));
+  const heir = sons[0];
+  // s dědicem zůstávají jeho rodiče (otec nebo muž matky), bez něj nejstarší ženatý muž
+  const stays = (h: Person): boolean =>
+    heir
+      ? h === heir || sons.some((s) => s.fatherId === h.id || s.motherId === h.spouseId)
+      : h === husbands[0];
   const families: Family[] = [];
-  for (const husband of [...sons.slice(1), ...heads.slice(1)].sort(byAge)) {
+  for (const husband of husbands.filter((h) => !stays(h))) {
     const wife = wifeHere(husband, members);
     if (!wife) continue;
     const children = members.filter(

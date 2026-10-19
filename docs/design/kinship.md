@@ -121,8 +121,10 @@ vsi blízké příbuzné, nebudou chtít útočit):
   nerozpadne.
 - **Vdova s vlastními dětmi do 14 let** se nevdává – zůstává v domě manžela.
 - **Domácnosti:** rodina = muž, žena a jejich svobodné děti z domu. Ženatý syn = muž, jehož matka
-  nebo otec bydlí v domě; dědic = nejstarší ženatý syn; v domě bez rodičů zůstává nejstarší
-  ženatý muž a ostatní ženatí (bratři) se oddělí. Svobodný syn smí odejít sám jen z plného nebo
+  nebo otec bydlí v domě; dědic = nejstarší ženatý syn a s ním zůstávají jeho rodiče; v domě bez
+  ženatého syna zůstává nejstarší ženatý muž. Všichni ostatní ženatí se oddělí – i ženatý muž bez
+  rodičů v domě vedle dědice (starší vsi mají rodiče neznámé; oprava 19. 10. 2026 – ve Vlkově
+  takhle přeplněný dvorec nedal nikoho k osídlení). Svobodný syn smí odejít sám jen z plného nebo
   přeplněného domu (Martin – i plná domácnost), od 16 let; když dědic ještě není a matka synů už
   nemůže rodit, zůstává nejstarší syn (Martinův dědic u neplodných rodičů) a odejde druhý. Zpátky
   ho nic nevrátí – sňatkem se stěhuje žena k muži a sestra ani matka si ho nevezme (bez
