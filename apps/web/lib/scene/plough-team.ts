@@ -399,8 +399,15 @@ function uTurn(
   arc(0, w + r, r, -phi, -alpha);
 }
 
-/** Bod dráhy ve vzdálenosti `s` od začátku (dráha je uzavřená – `s` se opakuje). */
-export function pathAt(path: PloughPath, s: number, out: PathPoint): PathPoint {
+/**
+ * Bod dráhy ve vzdálenosti `s` od začátku (dráha je uzavřená – `s` se opakuje). Umí každou dráhu
+ * z rovných úseků a oblouků – i trasu vozu (cart-layout.ts).
+ */
+export function pathAt(
+  path: Pick<PloughPath, 'segments' | 'starts' | 'length'>,
+  s: number,
+  out: PathPoint,
+): PathPoint {
   const L = path.length;
   let d = ((s % L) + L) % L;
   // úseků je pár desítek – binární hledání podle počátků
@@ -626,38 +633,9 @@ function composePose(
   const p = TEAM_PARTS;
   const k = TEAM_SCALE;
   const tempo = speed / TEAM_SPEED_M_S;
-  const fx = yoke.hx;
-  const fz = yoke.hz;
-  // vpravo od směru jízdy (osy scény: x vpravo, z vpřed)
-  const rx = fz;
-  const rz = -fx;
-
-  // Voli: počátek o kus za jhem, do stran od středu.
-  out.oxen.forEach((ox, i) => {
-    const side = i === 0 ? -1 : 1;
-    ox.x = yoke.x - fx * p.oxYokeZ * k + rx * side * p.oxSpan * k;
-    ox.z = yoke.z - fz * p.oxYokeZ * k + rz * side * p.oxSpan * k;
-    ox.y = ground(ox.x, ox.z);
-    ox.hx = fx;
-    ox.hz = fz;
-    ox.pace = TEAM_PACE.ox * tempo;
-  });
-
-  // Jho: na šíjích volů, kymácí se s jejich krokem.
-  const neckBob = 0.012 * Math.sin((2 * Math.PI * t) / 1.13);
-  const yokeRoll = ((1.2 * Math.PI) / 180) * Math.sin((2 * Math.PI * t) / 2.26);
-  const yokeGround = (out.oxen[0].y + out.oxen[1].y) / 2;
+  // voli pod jhem, jho, honáček s provazem (společné s vozem – cart-layout.ts)
+  composeDraft(yoke, t, tempo, out, ground);
   const yf = out.yoke;
-  yf.x = yoke.x;
-  yf.z = yoke.z;
-  yf.y = yokeGround + (p.yokeY + neckBob) * k;
-  yf.fx = fx;
-  yf.fy = 0;
-  yf.fz = fz;
-  rotate(0, 1, 0, fx, 0, fz, yokeRoll, V1);
-  yf.ux = V1[0];
-  yf.uy = V1[1];
-  yf.uz = V1[2];
 
   // Rádlo: počátek za jhem, natočené ke jhu (oj a hřídel v jedné čáře).
   let ahx = yoke.x - back.x;
@@ -721,16 +699,79 @@ function composePose(
   pl.hx = ahx;
   pl.hz = ahz;
   pl.pace = TEAM_PACE.plowman * tempo;
+  return out;
+}
 
-  // Honáček vlevo od levého vola, kousek vpředu; provaz z ruky k hlavě vola.
+/** Kdo vede spřežení za provaz: poloha od středu jha (x vpravo, z vpřed, m) a měřítko postavy. */
+export interface TeamLeader {
+  x: number;
+  z: number;
+  scale: number;
+}
+
+/**
+ * Část pózy, kterou má spřežení s rádlem i s vozem (cart-layout.ts): voli pod jhem, jho, honák
+ * (`boy` – u rádla chlapec, u vozu dospělý) a vodicí provaz.
+ */
+export type DraftPose = Pick<TeamPose, 'oxen' | 'boy' | 'yoke' | 'rope'>;
+
+/**
+ * Voli pod jhem v bodě dráhy `yoke`, jho na jejich šíjích (kymácí se s krokem), honák vlevo od
+ * levého vola a provaz z jeho ruky k hlavě vola. `tempo` = rychlost chůze ÷ TEAM_SPEED_M_S (podle
+ * ní se přehrávají klipy chůze). Zapisuje do `out`, nic nealokuje.
+ */
+export function composeDraft(
+  yoke: PathPoint,
+  t: number,
+  tempo: number,
+  out: DraftPose,
+  ground: GroundFn = FLAT,
+  leader: TeamLeader = TEAM_PARTS.boy,
+): DraftPose {
+  const p = TEAM_PARTS;
+  const k = TEAM_SCALE;
+  const fx = yoke.hx;
+  const fz = yoke.hz;
+  // vpravo od směru jízdy (osy scény: x vpravo, z vpřed)
+  const rx = fz;
+  const rz = -fx;
+
+  // Voli: počátek o kus za jhem, do stran od středu.
+  out.oxen.forEach((ox, i) => {
+    const side = i === 0 ? -1 : 1;
+    ox.x = yoke.x - fx * p.oxYokeZ * k + rx * side * p.oxSpan * k;
+    ox.z = yoke.z - fz * p.oxYokeZ * k + rz * side * p.oxSpan * k;
+    ox.y = ground(ox.x, ox.z);
+    ox.hx = fx;
+    ox.hz = fz;
+    ox.pace = TEAM_PACE.ox * tempo;
+  });
+
+  // Jho: na šíjích volů, kymácí se s jejich krokem.
+  const neckBob = 0.012 * Math.sin((2 * Math.PI * t) / 1.13);
+  const yokeRoll = ((1.2 * Math.PI) / 180) * Math.sin((2 * Math.PI * t) / 2.26);
+  const yokeGround = (out.oxen[0].y + out.oxen[1].y) / 2;
+  const yf = out.yoke;
+  yf.x = yoke.x;
+  yf.z = yoke.z;
+  yf.y = yokeGround + (p.yokeY + neckBob) * k;
+  yf.fx = fx;
+  yf.fy = 0;
+  yf.fz = fz;
+  rotate(0, 1, 0, fx, 0, fz, yokeRoll, V1);
+  yf.ux = V1[0];
+  yf.uy = V1[1];
+  yf.uz = V1[2];
+
+  // Honák vlevo od levého vola, kousek vpředu; provaz z ruky k hlavě vola.
   const boy = out.boy;
-  boy.x = yoke.x + rx * p.boy.x * k + fx * p.boy.z * k;
-  boy.z = yoke.z + rz * p.boy.x * k + fz * p.boy.z * k;
+  boy.x = yoke.x + rx * leader.x * k + fx * leader.z * k;
+  boy.z = yoke.z + rz * leader.x * k + fz * leader.z * k;
   boy.y = ground(boy.x, boy.z);
   boy.hx = fx;
   boy.hz = fz;
-  boy.pace = TEAM_PACE.boy * tempo;
-  const bs = k * p.boy.scale;
+  boy.pace = (TEAM_SPEED_M_S / (CLIP_WALK_M_S.man * TEAM_SCALE * leader.scale)) * tempo;
+  const bs = k * leader.scale;
   const rope = out.rope;
   rope.ax = boy.x + (rx * p.boyHand.x + fx * p.boyHand.z) * bs;
   rope.ay = boy.y + p.boyHand.y * bs;

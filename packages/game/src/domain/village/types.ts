@@ -387,8 +387,16 @@ export interface Cemetery {
   grid?: SquareGrid;
   /** Strana čtverce (m) – vzdálenost od obydlí se měří k okraji čtverce. */
   squareSizeM: number;
-  /** Obsazené hroby. */
+  /**
+   * Pohřbení – kolik lidí tu leží. Hroby uložené před mohylami (`graves` − `mounds.length`, staré
+   * hroby) leží po jednom místě na prvních místech po řadách (cemetery.md – Mohyly podle významu).
+   */
   graves: number;
+  /**
+   * Mohyly pohřbených od zavedení mohyl podle významu (cemetery.md) – místo, velikost, den a druh;
+   * u hřbitovů uložených dřív chybí (jen staré hroby).
+   */
+  mounds?: GraveMound[];
   /** Den dokončení (vytyčení a ohrazení); dokud se zakládá, null. */
   builtDay: number | null;
   /**
@@ -396,6 +404,29 @@ export interface Cemetery {
    * a rozpadne se – hroby zůstávají a pohřbívá se dál. Chybí = celý plot.
    */
   fenceWear?: StructureWear;
+}
+/**
+ * Druh pohřbeného (cemetery.md – Mohyly podle významu): vojvoda a jeho žena (`voivode`), ostatní
+ * dospělí a děti vojvodovy rodiny (`manor-adult`, `manor-child` – domácnost dvorce), zasloužilá
+ * hlava rodiny, ostatní dospělí a dítě (zemřelé v dětském věku). `manor` = celá vojvodova rodina
+ * podle prvního pravidla (19. 10. 2026, před odstupňováním) – jen v mohylách uložených tehdy.
+ */
+export type GraveRank =
+  'voivode' | 'manor-adult' | 'manor-child' | 'manor' | 'head' | 'adult' | 'child';
+/** Velikost mohyly – kolik míst na hroby zabere (`MOUND_SIZES` v rules.ts). */
+export type MoundSize = 'great' | 'large' | 'normal' | 'small';
+/**
+ * Mohyla na hřbitově (cemetery.md – Mohyly podle významu): čtverec hřbitova (v jeho mřížce), první
+ * místo mřížky 7 × 8 (sloupec, řada) a velikost – zabere `MOUND_SIZES[size]` míst od něj; den
+ * pohřbu a druh pohřbeného. Velikost je menší než druhu, když se větší mohyla nevešla.
+ */
+export interface GraveMound {
+  cell: TileCell;
+  column: number;
+  row: number;
+  size: MoundSize;
+  rank: GraveRank;
+  day: number;
 }
 /**
  * Čtverec jabloňového sadu – políčko krajiny (orchard.md). Sází se jako stavba ze společné práce

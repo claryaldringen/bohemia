@@ -73,8 +73,14 @@ krajina si pamatuje, kudy ves žila, a hráč vidí, co opustil.
   let, archeologicky by zůstal staletí – ve hře zmizí kvůli přehlednosti). Zbytky jsou jen vzhled
   – na jejich místo jde stavět a stavba je odstraní (jako zbytek jámy obydlí).
 - **Hřbitov:** rozpadne se jen **plot** – mohylky zůstanou a zarostou, **pohřbívat se dá dál**
-  a hygiena se nemění. Když se ke hřbitovu začne znovu chodit, vesničané plot opraví a **spadlý
-  postaví znovu** (sekce Oprava – Martin, 19. 10. 2026).
+  a hygiena se nemění. **Spadlý plot zmizí úplně** – žádné pahýly ani kůly (Martin, 19. 10. 2026:
+  „Úpravy hřbitova – starému hřbitovu plot zmizí úplně, zůstanou jen mohylky.“). Když se ke
+  hřbitovu začne znovu chodit, vesničané plot opraví a **spadlý postaví znovu** (sekce Oprava –
+  Martin, 19. 10. 2026).
+- **Námět (nerozhodnuto – Martin mluvil jen o hřbitovu):** stejně by mohl úplně zmizet i plot
+  ohrady. Ta ale dnes po pádu zmizí celá (i přístřešek), takže pahýly zůstávají jen u rozpadlé
+  ohrady, která ještě stojí – mezi 10 % a pádem. Kdyby měla rozpadající se ohrada působit
+  čistěji, stačí jí plot schovat od nejnižšího stupně rozpadu.
 - **Ohrada** se rozpadne a **zmizí** – čtverec je volný.
 - **Kronika a krátké mizející řádky** (fakt): „Modla padla“, „Svatyně se rozpadla“, „Plot hřbitova
   se rozpadl“, „Ohrada se rozpadla“; po opravě „Modla opravena“, „Svatyně opravena“, „Plot
@@ -139,7 +145,7 @@ návrh Clauda.
     (modla se kácí, dlažba zarůstá) → **zarostlý příkop** s valem,
   - **plot hřbitova a ohrady:** stejný pletený plot jako u pozemku polozemnice – nejdřív
     vypadávají větve, kůly se kloní, nakonec zbudou pahýly (`decayFence`), mohylky na hřbitově
-    zarůstají trávou,
+    zarůstají trávou; spadlý plot hřbitova zmizí úplně, mohylky zůstanou (Martin, 19. 10. 2026),
   - **ohrada:** přístřešek s vybledlými a prořídlými došky, pak propadlá střecha a nakonec jen
     sloupy; jesle a žlab zarůstají.
 - **Panel výběru** modly, svatyně, hřbitova a ohrady: ikona stavu s procenty (jako u obydlí)
@@ -173,6 +179,7 @@ domů u potoka a jednu ≈ 330 m. Každý dům má nejblíž tu jednu – ke sku
 | Do ohrady bez zvířat se krmit nechodí (síť pěšin) – zvířata se vrátí → chátrání se zastaví hned      | návrh Clauda           |
 | Stavba dokončená za poslední rok opuštěná není                                                       | návrh Clauda           |
 | Plot hřbitova vesničané opraví sami, jakmile se ke hřbitovu zase chodí – z práce vsi, i spadlý       | Martin, 19. 10. 2026   |
+| Spadlý plot starého hřbitova zmizí úplně, zůstanou jen mohylky                                       | Martin, 19. 10. 2026   |
 | Stejně se opravuje modla, svatyně a ohrada; spadlé se neobnovují (staví se znovu)                    | Martin, 19. 10. 2026   |
 | Oprava od roční kontroly (ohrada i po návratu zvířat), stavba ze společné práce kdykoli v roce       | návrh Clauda           |
 | Cena = podíl ceny bez kácení × chybějící stav: plot 0,3, modla a svatyně 0,25, ohrada 0,5; bez dřeva | návrh Clauda           |

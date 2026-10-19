@@ -6,24 +6,37 @@
 // orba postupuje po dnech ukázky jako ve hře, plough-front.ts),
 // vlevo od zemnice ohrada s přístřeškem (ukázka „Ohrada“, pen-layout.ts); před pozemky rozpad
 // obydlí – opuštěná zemnice a polozemnice podle posuvníku stavu a řada všech stupňů rozpadu
-// (showcaseDecay, dwelling-decay.ts).
+// (showcaseDecay, dwelling-decay.ts); vpravo vzadu dílna tesaře a pahorek s vozy (showcaseCarts,
+// cart-layout.ts).
 import {
   ABANDONMENT,
   CEMETERY,
   MILIR,
   PLOT_VARIANTS,
   RUIN_YEARS,
+  placeMound,
+  usedPlaces,
+  type Cemetery,
   type DwellingType,
+  type GraveRank,
   type PlotVariant,
   type TileCell,
 } from '@bohemia/game';
 import type {
   FieldLook,
   SceneFieldPart,
+  SceneGraveMound,
   SceneLabor,
   SceneRoad,
   SceneVillage,
 } from '../village-view';
+import {
+  cartRoute,
+  type CartCargo,
+  type CartKind,
+  type CartRoute,
+  type CartTrack,
+} from './cart-layout';
 import { CEMETERY_PHASES } from './cemetery-layout';
 import { DECAY_LABELS, DECAY_STAGES, decayStage, type DecayStage } from './dwelling-decay';
 import { hayPhase, meadowLook, type HayMeadow } from './hay-meadows';
@@ -148,6 +161,8 @@ function manorModel(x: number, z: number): ShowcaseModel {
 const MANOR_AT = { x: -82, z: -4 };
 
 const UHLIR_X = 26;
+/** Dílna tesaře – vlevo od pahorku s vozy (SHOWCASE_CARTS), vchodem ke kameře. */
+const TESAR_AT = { x: 86, z: -42 };
 const milir = offset(UHLIR_X, 0, FACING, MILIR_OFFSET_M);
 /** Řada pěti variant pozemku polozemnice před stavbami (z) a rozestup středů (m). */
 const VARIANTS_Z = -26;
@@ -185,6 +200,15 @@ export const SHOWCASE_BUILDINGS: readonly ShowcaseBuilding[] = [
     label: 'Dvorec vojvody',
     models: [manorModel(MANOR_AT.x, MANOR_AT.z)],
     focus: { x: MANOR_AT.x, z: MANOR_AT.z - 7.5, radius: 34 },
+  },
+  // tesař (wagons.md) – vpravo vzadu u vozů, které vyrábí (v řadě dílen už není místo)
+  {
+    id: 'tesar',
+    label: 'Tesař',
+    models: [
+      { kind: 'tesar', url: modelUrl('tesar'), x: TESAR_AT.x, z: TESAR_AT.z, rotation: FACING },
+    ],
+    focus: { x: TESAR_AT.x, z: TESAR_AT.z - 1.5, radius: 20 },
   },
   // posvátná místa: modla (4 × 4 m) a svatyně (30 × 30 m) – vpravo za milířem, před sadem
   building('modla', 'Modla', 'modla', 50, 14),
@@ -556,8 +580,67 @@ export const LEGUME_SHOWCASE_PHASES: readonly (ShowcasePhase & {
   { label: 'po sklizni – skoro holá zem', from: 0.82, to: 1, look: 'stubble' },
 ];
 
-/** Hřbitov: do poloviny založení (fáze `CEMETERY_PHASES`), pak přibývají hroby. */
+/** Hřbitov: do poloviny založení (fáze `CEMETERY_PHASES`), pak přibývají mohyly. */
 const CEMETERY_FOUNDED_AT = 0.5;
+/**
+ * Kdo umírá v ukázce hřbitova (cemetery.md – Mohyly podle významu): dokola dospělí, děti, hlavy
+ * rodin a občas někdo z vojvodovy rodiny – vojvoda, dospělý a dítě z dvorce.
+ */
+const SHOWCASE_DEATHS: readonly GraveRank[] = [
+  'head',
+  'child',
+  'adult',
+  'child',
+  'voivode',
+  'adult',
+  'manor-child',
+  'adult',
+  'head',
+  'manor-adult',
+  'child',
+  'adult',
+];
+/** Kolik posledních mohyl ukázky je čerstvých (z holé hlíny). */
+const SHOWCASE_FRESH_MOUNDS = 3;
+
+/**
+ * Mohyly ukázky: pohřby v pořadí SHOWCASE_DEATHS, dokud obsazená místa nedosáhnou `places`
+ * (nebo není kam) – místo a velikost vybírá herní jádro (`placeMound`) s brankou k bodu `toward`
+ * (jako k nejbližšímu obydlí ve vsi). Vrátí mohyly pro scénu a počet pohřbených.
+ */
+export function showcaseMounds(
+  squares: readonly { cell: TileCell; x: number; z: number; size: number }[],
+  places: number,
+  toward: { x: number; z: number },
+): { mounds: SceneGraveMound[]; burials: number } {
+  const cemetery: Cemetery = {
+    id: 1,
+    squares: squares.map((q) => ({ cell: q.cell, x: q.x, z: q.z, waterDistanceM: 100 })),
+    squareSizeM: squares[0]?.size ?? SQUARE_M,
+    graves: 0,
+    builtDay: 0,
+    mounds: [],
+  };
+  const dwellings = [{ x: toward.x, z: toward.z, rotation: 0 }];
+  for (let i = 0; usedPlaces(cemetery) < places; i++) {
+    const rank = SHOWCASE_DEATHS[i % SHOWCASE_DEATHS.length]!;
+    const mound = placeMound(cemetery, rank, i, dwellings);
+    if (!mound) break;
+    cemetery.mounds!.push(mound);
+    cemetery.graves += 1;
+  }
+  const all = cemetery.mounds!;
+  return {
+    mounds: all.map((m, i) => ({
+      cell: m.cell,
+      column: m.column,
+      row: m.row,
+      size: m.size,
+      ...(i >= all.length - SHOWCASE_FRESH_MOUNDS ? { fresh: true as const } : {}),
+    })),
+    burials: cemetery.graves,
+  };
+}
 /** Sad: vytyčení, kůly, sazenice (výsadba jako ve hře), mladé stromky rostou, plodící sad. */
 export const ORCHARD_SHOWCASE_PHASES: readonly ShowcasePhase[] = [
   { label: 'vytyčení – čára kolem sadu', from: 0, to: 0.06 },
@@ -673,11 +756,18 @@ export function showcaseGrounds(progress: number): {
   const capacity = cemetery.length * CEMETERY.gravesPerSquare;
   const founding = ramp(p, 0, CEMETERY_FOUNDED_AT);
   const built = p >= CEMETERY_FOUNDED_AT;
-  const graves = built ? Math.round(capacity * ramp(p, CEMETERY_FOUNDED_AT, 1)) : 0;
+  // mohyly podle významu – branka k vsi před hřbitovem (−z), jako by tam stálo obydlí
+  const toward = {
+    x: cemetery.reduce((sum, q) => sum + q.x, 0) / cemetery.length,
+    z: cemetery[0]!.z - 60,
+  };
+  const { mounds, burials } = built
+    ? showcaseMounds(cemetery, Math.round(capacity * ramp(p, CEMETERY_FOUNDED_AT, 1)), toward)
+    : { mounds: [], burials: 0 };
   const cemeteryLabel = built
     ? p >= 1
-      ? `plný hřbitov – ${capacity} hrobů`
-      : `pohřby – mohylky přibývají (${graves} z ${capacity})`
+      ? `plný hřbitov – ${burials} pohřbených na ${capacity} místech (u branky vojvoda a jeho rodina, po ose hlavy rodin, vzadu děti)`
+      : `pohřby – mohyly podle významu přibývají (${burials} pohřbených)`
     : (CEMETERY_PHASES.find((phase) => founding < phase.to)?.label ?? '');
 
   const [, staking, planting, growing, bearing] = ORCHARD_SHOWCASE_PHASES as [
@@ -715,7 +805,16 @@ export function showcaseGrounds(progress: number): {
         { id: 1, parts },
         { id: 3, parts: legumes },
       ],
-      cemeteries: [{ id: 1, squares: cemetery, built, progress: built ? 1 : founding, graves }],
+      cemeteries: [
+        {
+          id: 1,
+          squares: cemetery,
+          built,
+          progress: built ? 1 : founding,
+          graves: 0,
+          ...(mounds.length > 0 ? { mounds } : {}),
+        },
+      ],
       orchards: [
         {
           id: 1,
@@ -811,7 +910,7 @@ export function structureDecayLabel(t: number): string {
   if (at.overgrowth >= 1) return 'zbytky zarostly a zmizely';
   const idol = Math.round(at.overgrowth * ABANDONMENT.remnantYears.idol);
   const shrine = Math.round(at.overgrowth * ABANDONMENT.remnantYears.shrine);
-  return `padlá modla ${idol} / příkop svatyně ${shrine} let po pádu, plot hřbitova rozpadlý, ohrada zmizela`;
+  return `padlá modla ${idol} / příkop svatyně ${shrine} let po pádu, plot hřbitova zmizel – zůstaly mohyly, ohrada zmizela`;
 }
 
 /** Stav ukázky každého stupně (uprostřed jeho rozpětí) a zbytek jámy ve třetině zarůstání. */
@@ -961,7 +1060,7 @@ export function showcaseRepair(t: number): Pick<SceneVillage, 'sacred' | 'cemete
         squares: [square(STRUCTURES_X.cemetery)],
         built: true,
         progress: 1,
-        graves: 34,
+        ...oldCemeteryGraves(square(STRUCTURES_X.cemetery)),
         ...wear(fence, 'fence'),
       },
     ],
@@ -981,9 +1080,29 @@ export function showcaseRepair(t: number): Pick<SceneVillage, 'sacred' | 'cemete
 }
 
 /**
+ * Starý hřbitov na ukázce rozpadu a opravy: 34 míst mohyl podle významu (vojvodova rodina, hlavy
+ * rodin, dospělí, děti) – plot se rozpadne a spadlý zmizí úplně, mohyly zůstanou (Martin,
+ * 19. 10. 2026).
+ */
+function oldCemeteryGraves(square: {
+  cell: TileCell;
+  x: number;
+  z: number;
+  size: number;
+}): Pick<NonNullable<SceneVillage['cemeteries']>[number], 'graves' | 'mounds'> {
+  // branka k obydlím ukázky rozpadu (řady domů za hřbitovem, +z) – jako ve scéně
+  const { mounds } = showcaseMounds([square], 34, { x: square.x, z: square.z + 60 });
+  // starý hřbitov – žádná mohyla není čerstvá
+  return {
+    graves: 0,
+    mounds: mounds.map((m) => ({ cell: m.cell, column: m.column, row: m.row, size: m.size })),
+  };
+}
+
+/**
  * Opuštěná modla, svatyně, hřbitov a ohrada na ukázce rozpadu (abandonment.md – Co hráč vidí):
- * stav podle posuvníku, po pádu zbytek padlé modly a zarůstající příkop svatyně; plot hřbitova
- * zůstane rozpadlý, ohrada zmizí.
+ * stav podle posuvníku, po pádu zbytek padlé modly a zarůstající příkop svatyně; spadlý plot
+ * hřbitova zmizí úplně a zůstanou mohyly, ohrada zmizí.
  */
 function showcaseAbandoned(
   at: { condition: number } | { overgrowth: number },
@@ -1037,7 +1156,7 @@ function showcaseAbandoned(
         squares: [square(STRUCTURES_X.cemetery)],
         built: true,
         progress: 1,
-        graves: 34,
+        ...oldCemeteryGraves(square(STRUCTURES_X.cemetery)),
         ...(condition < 1 ? { fence: Math.floor(condition * 100) / 100 } : {}),
       },
     ],
@@ -1102,5 +1221,67 @@ export function showcaseRoads(progress: number): SceneRoad[] {
       ground: { wet: [[6, 20]], fords: [30] },
       ...building('causeway'),
     },
+  ];
+}
+
+// --- vozy se spřežením (wagons.md – zatím jen modely, ve hře nejsou) -------------------------
+
+/**
+ * Pahorek ukázky vozů (vpravo vzadu, kde nic nestojí): zvon `height` m vysoký o poloměru
+ * `radius` – vozy na něm ukážou sklon a náklon korby podle terénu.
+ */
+const CART_HILL = { x: 122, z: -70, radius: 28, height: 2.6 } as const;
+/** O kolik je pahorek nad loukou ukázky (m) – obě sítě mají stejnou trávu, ať se nebijí. */
+const CART_HILL_LIFT_M = 0.02;
+
+/** Ukázka vozů na /dev/buildings: dvoukoláky dokola přes vrchol pahorku, čtyřkoláky tam a zpět. */
+export const SHOWCASE_CARTS = {
+  id: 'vozy',
+  label: 'Vozy',
+  hill: CART_HILL,
+  focus: { x: 120, z: -74, radius: 48 },
+} as const;
+
+/** Výška pahorku ukázky vozů (m nad loukou; mimo pahorek 0). */
+export function showcaseCartGround(x: number, z: number): number {
+  const r = Math.hypot(x - CART_HILL.x, z - CART_HILL.z);
+  if (r >= CART_HILL.radius) return 0;
+  const bell = (CART_HILL.height / 2) * (1 + Math.cos((Math.PI * r) / CART_HILL.radius));
+  const edge = Math.min(1, (CART_HILL.radius - r) / 1.5);
+  return bell + CART_HILL_LIFT_M * edge;
+}
+
+/**
+ * Vozy ukázky: tři dvoukoláky po kruhu přes úbočí pahorku (prázdný, se senem a se snopy) a tři
+ * čtyřkoláky tam a zpět přes jeho úpatí (klády, zboží obchodní výpravy a seno) – na každé trase
+ * rovnoměrně za sebou.
+ */
+export function showcaseCarts(): CartTrack[] {
+  const circle = cartRoute(
+    Array.from({ length: 36 }, (_, i) => {
+      const a = (2 * Math.PI * i) / 36;
+      return { x: 112 + 12 * Math.cos(a), z: -58 + 12 * Math.sin(a) };
+    }),
+    { closed: true, turnRadius: 3 },
+  );
+  const shuttle = cartRoute(
+    [
+      { x: 92, z: -82 },
+      { x: 150, z: -82 },
+      { x: 150, z: -92 },
+      { x: 92, z: -92 },
+    ],
+    { closed: true, turnRadius: 5 },
+  );
+  const along = (route: CartRoute, kind: CartKind, cargoes: readonly CartCargo[]): CartTrack[] =>
+    cargoes.map((cargo, i) => ({
+      kind,
+      cargo,
+      route,
+      offsetM: (route.length * i) / cargoes.length,
+    }));
+  return [
+    ...along(circle, 'two', ['empty', 'hay', 'sheaves']),
+    ...along(shuttle, 'four', ['logs', 'goods', 'hay']),
   ];
 }

@@ -7,11 +7,12 @@ import { PIT_SHAPES } from './dwelling-pit';
 import type { DwellingType } from '@bohemia/game';
 
 /**
- * Řemeslné stavby (docs/design/crafts.md): hrnčíř, kovář, uhlíř a milíř, který stojí kus od
- * uhlířovy zemnice – ve vsi se staví spolu s ní (stejný průběh, workshop-layout.ts).
+ * Řemeslné stavby (docs/design/crafts.md): hrnčíř, kovář, tesař (docs/design/wagons.md – Tesař),
+ * uhlíř a milíř, který stojí kus od uhlířovy zemnice – ve vsi se staví spolu s ní (stejný
+ * průběh, workshop-layout.ts).
  */
-export type CraftKind = 'hrncir' | 'kovar' | 'uhlir' | 'milir';
-export const CRAFT_KINDS: readonly CraftKind[] = ['hrncir', 'kovar', 'uhlir', 'milir'];
+export type CraftKind = 'hrncir' | 'kovar' | 'tesar' | 'uhlir' | 'milir';
+export const CRAFT_KINDS: readonly CraftKind[] = ['hrncir', 'kovar', 'tesar', 'uhlir', 'milir'];
 /**
  * Posvátná místa, která staví hráč (docs/design/happiness.md): dřevěná modla a svatyně podle
  * Perynu. Díly staveniště v public/models/sacred/idol-construction.glb („modla-…“)
@@ -32,6 +33,7 @@ export const CONSTRUCTION_BASE: Record<ConstructionKind, DwellingType | null> = 
   dvorec: 'dvorec',
   hrncir: 'polozemnice',
   kovar: 'polozemnice',
+  tesar: 'polozemnice',
   uhlir: 'zemnice',
   milir: null,
   modla: null,
@@ -67,6 +69,7 @@ export type ConstructionPhaseId =
   | 'beds'
   | 'kiln'
   | 'forge'
+  | 'carpentry'
   | 'workshop'
   | 'ground'
   | 'ring'
@@ -90,7 +93,10 @@ export interface ConstructionPhase {
   to: number;
 }
 
-/** Fáze polozemnice s přístřeškem (hrnčíř, kovář) až po hřeben – pak pec / výheň a dílna. */
+/**
+ * Fáze polozemnice s přístřeškem (hrnčíř, kovář, tesař) až po hřeben – pak pec / výheň /
+ * tesařské pracoviště a dílna.
+ */
 function porchHousePhases(
   craft: ConstructionPhase,
   workshop: ConstructionPhase,
@@ -169,6 +175,17 @@ export const CONSTRUCTION_PHASES: Record<ConstructionKind, readonly Construction
     { id: 'forge', label: 'výheň – ohniště, měchy, kovadlina', from: 0.77, to: 0.93 },
     { id: 'workshop', label: 'dílna – uhlí, koryto, železo a koše', from: 0.93, to: 1 },
   ),
+  // tesař (wagons.md): pod přístřeškem kozlíky s otesávaným trámem a špalek se sekerou, pak
+  // zásoba trámů, kola (rozdělané a hotová) a hobliny
+  tesar: porchHousePhases(
+    {
+      id: 'carpentry',
+      label: 'tesařské pracoviště – kozlíky, trám a špalek se sekerou',
+      from: 0.77,
+      to: 0.9,
+    },
+    { id: 'workshop', label: 'dílna – zásoba trámů, kola a hobliny', from: 0.9, to: 1 },
+  ),
   uhlir: [
     { id: 'layout', label: 'vytyčení – kolíky a provázek', from: 0, to: 0.05 },
     { id: 'turf', label: 'sejmutí drnu', from: 0.05, to: 0.11 },
@@ -225,6 +242,7 @@ export const THATCH_COURSES: Record<ConstructionKind, number> = {
   dvorec: 9,
   hrncir: 9,
   kovar: 9,
+  tesar: 9,
   uhlir: 8,
   milir: 0,
   modla: 0,
@@ -296,10 +314,11 @@ export const SITE_PROP_PLACES: Record<ConstructionKind, PropPlaces> = {
     stones: { x: 3.9, z: 5.3, rotation: 0.4 },
     clay: { x: -3.9, z: 6.3, rotation: 0.2 },
   },
-  // pod přístřeškem stojí pec / výheň a police – koš stranou před dílnou, kameny a hlína
-  // vedle přístřešku (mimo polena u pece a uhlí u výhně)
+  // pod přístřeškem stojí pec / výheň a police (u tesaře kozlíky, kola a trámy) – koš stranou
+  // před dílnou, kameny a hlína vedle přístřešku (mimo polena u pece a uhlí u výhně)
   hrncir: { ...POLOZEMNICE_PLACES, basket: { x: -3.3, z: 2.9, rotation: 0 } },
   kovar: { ...POLOZEMNICE_PLACES, basket: { x: -3.3, z: 2.9, rotation: 0 } },
+  tesar: { ...POLOZEMNICE_PLACES, basket: { x: -3.3, z: 2.9, rotation: 0 } },
   uhlir: {
     spoil: { x: -3.55, z: -0.4, rotation: Math.PI / 2 },
     turf: { x: 3.45, z: -2.7, rotation: 0.3 },
@@ -453,6 +472,24 @@ const CRAFT_STEPS: Partial<Record<ConstructionKind, [ConstructionPhaseId, [strin
           ['trough', 0.35],
           ['iron', 0.6],
           ['yard', 0.8],
+        ],
+      ],
+    ],
+    tesar: [
+      [
+        'carpentry',
+        [
+          ['trestles', 0.05],
+          ['beam', 0.4],
+          ['block', 0.75],
+        ],
+      ],
+      [
+        'workshop',
+        [
+          ['beams', 0.1],
+          ['wheels', 0.45],
+          ['chips', 0.8],
         ],
       ],
     ],

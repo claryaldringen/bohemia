@@ -4,6 +4,8 @@ import type {
   CartKind,
   ConstructionKind,
   Craft,
+  GraveRank,
+  MoundSize,
   Crop,
   DwellingType,
   FallowStage,
@@ -340,8 +342,45 @@ export const COMMON_LABOR_YEAR_DAYS = 365;
 // jámy po zaniklém obydlí (zarostlá prohlubeň s kopřivami a pár trámy) zarůstá ≈ 10 let, pak zmizí
 export const RUIN_YEARS = 10;
 // cemetery.md – Pravidla (stavba: vytyčení a ohrazení 10 člověkodní na čtverec; hrob i s uličkami
-// 4 m², na čtverec 15 × 15 m se vejde 56 hrobů)
+// 4 m², na čtverec 15 × 15 m se vejde 56 míst na hroby)
 export const CEMETERY = { costPerSquare: 10, graveM2: 4, gravesPerSquare: 56 } as const;
+// cemetery.md – Mohyly podle významu (Martin 19. 10. 2026: „Významnější lidé budou mít větší
+// mohyly a na prominentnějších místech… Největší mohyly bude mít vojvodova rodina.“; velikosti
+// „Ano, udělej to tak.“): místa na hroby ve čtverci po řadách 7 × 8 (= CEMETERY.gravesPerSquare)
+// s okrajem 0,5 m od plotu; mohyla zabere `MOUND_SIZES` míst – 2 × 2 (`great`), 2 místa za sebou
+// (`large`), 1 (`normal`), 1 malá (`small`).
+export const GRAVE_PLACES = { columns: 7, rows: 8, marginM: 0.5 } as const;
+export const MOUND_SIZES = {
+  great: { columns: 2, rows: 2 },
+  large: { columns: 1, rows: 2 },
+  normal: { columns: 1, rows: 1 },
+  small: { columns: 1, rows: 1 },
+} as const;
+// cemetery.md – Mohyly podle významu (návrh Clauda): zasloužilá hlava rodiny = nejstarší muž
+// domácnosti (bez muže nejstarší žena) nebo jeho manželka, od 35 let a s dítětem; prominence místa
+// = hloubka od branky + 2 × vzdálenost od hlavní osy (m – menší je prominentnější); pruh podél osy
+// do 2 m (dvě místa) drží běžní dospělí volný pro velké mohyly, dokud mají místo jinde.
+export const GRAVE_RANKS = {
+  headMinAgeYears: 35,
+  lateralWeight: 2,
+  laneHalfWidthM: 2,
+  manorFrontM: 4,
+} as const;
+// cemetery.md – Mohyly podle významu, Vojvodova rodina (Martin 19. 10. 2026: „I ve vojvodově
+// rodině jsou významnější a méně významní členové.“): velikost mohyly podle druhu pohřbeného
+// a menší náhrady, když se nevejde. Vojvoda a jeho žena 2 × 2 s kůlem, ostatní dospělí z dvorce
+// 2 místa (jako hlava rodiny), děti z dvorce běžná mohyla na 1 místo, hlava rodiny 2 místa, ostatní
+// dospělí 1, děti 1 malá; `manor` – celá vojvodova rodina podle prvního pravidla (jen staré mohyly)
+// a pruh podél osy do `manorFrontM` od branky drží vojvodově rodině, dokud mají hlavy rodin jinde.
+export const GRAVE_RANK_MOUNDS: Readonly<Record<GraveRank, readonly MoundSize[]>> = {
+  voivode: ['great', 'large', 'normal'],
+  'manor-adult': ['large', 'normal'],
+  'manor-child': ['normal'],
+  manor: ['great', 'large', 'normal'],
+  head: ['large', 'normal'],
+  adult: ['normal'],
+  child: ['small'],
+};
 // cemetery.md – Hygiena (pohřebiště s volným místem: od nejbližšího obydlí v pořádku od 150 m,
 // nejhorší pod 50 m; od vody v pořádku od 100 m, nejhorší pod 30 m; mezi tím plynule, násobí se)
 export const CEMETERY_DISTANCE_M = {

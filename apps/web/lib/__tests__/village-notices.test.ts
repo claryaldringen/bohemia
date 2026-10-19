@@ -221,14 +221,15 @@ describe('newNotices', () => {
 });
 
 describe('hřbitov je plný', () => {
-  const cemetery = (built: boolean, freeGraves: number): VillageView['cemeteries'][number] => ({
+  const cemetery = (built: boolean, freePlaces: number): VillageView['cemeteries'][number] => ({
     id: 1,
     squares: 1,
     built,
     progress: built ? 1 : 0.3,
     capacity: 56,
-    graves: 56 - freeGraves,
-    freeGraves,
+    graves: 56 - freePlaces,
+    usedPlaces: 56 - freePlaces,
+    freePlaces,
     yearsLeft: null,
     fenceCondition: 1,
     abandoned: false,

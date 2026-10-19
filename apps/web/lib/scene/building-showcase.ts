@@ -8,16 +8,21 @@ import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { Color3, Color4 } from '@babylonjs/core/Maths/math.color';
 import { Matrix, Vector3 } from '@babylonjs/core/Maths/math.vector';
+import { VertexBuffer } from '@babylonjs/core/Buffers/buffer';
 import { CreateGround } from '@babylonjs/core/Meshes/Builders/groundBuilder';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
+import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import { Scene } from '@babylonjs/core/scene';
 import {
   SHOWCASE_BUILDINGS,
+  SHOWCASE_CARTS,
   SHOWCASE_DECAY,
   SHOWCASE_ROADS,
   SHOWCASE_DECOR,
   SHOWCASE_GROUNDS,
   SHOWCASE_PEN,
+  showcaseCartGround,
+  showcaseCarts,
   showcaseDecay,
   showcaseRoads,
   showcaseGrounds,
@@ -28,6 +33,7 @@ import {
   showcasePloughWindow,
   type ShowcaseDecorModel,
 } from './building-showcase-layout';
+import { CartRenderer } from './cart-renderer';
 import { SUN_DIRECTION, WATER_FPS } from './constants';
 import { createEngine, type RendererName } from './create-engine';
 import type { PitCut } from './dwelling-pit';
@@ -183,6 +189,14 @@ export class BuildingShowcase {
   private ploughDemo: VillageRenderer | null = null;
   /** Den ukázky orby (showcasePloughDay) – po něm se posune čelo orby a spřežení dojde dál. */
   private ploughDay = showcasePloughDay(Date.now());
+  /** Vozy se spřežením na pahorku (ukázka „Vozy“ – wagons.md). */
+  private carts: CartRenderer | null = null;
+  /** Poslední snímek vozů (ms) a stálá póza při omezeném pohybu. */
+  private lastCartAnimation = 0;
+  private cartsFrozen = false;
+  /** Vůz, za kterým jede kamera (null = žádný), a vůz, na který se kamera podívala naposledy. */
+  private followedCart: number | null = null;
+  private focusedCart = -1;
   /** Ohrada s přístřeškem a zvířata v ní (ukázka „Ohrada“). */
   private pens: PenRenderer | null = null;
   private penAnimals: PenAnimals | null = null;
@@ -284,16 +298,27 @@ export class BuildingShowcase {
       SHOWCASE_PEN,
       ...SHOWCASE_DECAY,
       SHOWCASE_ROADS,
+      SHOWCASE_CARTS,
     ].find((b) => b.id === id);
     if (!target) return;
     this.setView(target.focus);
   }
 
-  /** Pohled kamery – cíl na zemi, vzdálenost, natočení a náklon (rad); chybějící zůstanou. */
-  setView(view: { x?: number; z?: number; radius?: number; alpha?: number; beta?: number }): void {
+  /**
+   * Pohled kamery – cíl na zemi (výška `y`, jinak louka), vzdálenost, natočení a náklon (rad);
+   * chybějící zůstanou.
+   */
+  setView(view: {
+    x?: number;
+    y?: number;
+    z?: number;
+    radius?: number;
+    alpha?: number;
+    beta?: number;
+  }): void {
     const { camera } = this;
     // cíl měnit na místě – přiřazení nového cíle by Babylon přepočítal na úhly ze staré polohy
-    camera.target.set(view.x ?? camera.target.x, 0, view.z ?? camera.target.z);
+    camera.target.set(view.x ?? camera.target.x, view.y ?? 0, view.z ?? camera.target.z);
     if (view.radius !== undefined) camera.radius = view.radius;
     if (view.alpha !== undefined) camera.alpha = view.alpha;
     if (view.beta !== undefined) camera.beta = view.beta;
@@ -345,8 +370,36 @@ export class BuildingShowcase {
   /** Kamera jede za spřežením (zapnuto / vypnuto); vrátí nový stav. */
   followTeam(on: boolean): boolean {
     this.following = on && this.ploughDemo !== null;
+    if (this.following) this.followedCart = null;
     if (this.following) this.focusTeam(this.camera.radius > 60 ? 24 : this.camera.radius);
     return this.following;
+  }
+
+  /**
+   * Kamera na vůz `index` (bez čísla další vůz po tom, na který se dívala naposledy);
+   * `radius` = vzdálenost kamery (m). Vrátí index vozu.
+   */
+  focusCart(index?: number, radius = 14): number {
+    const count = showcaseCarts().length;
+    const i = index ?? (this.focusedCart + 1) % count;
+    this.focusedCart = i;
+    if (this.followedCart !== null) this.followedCart = i;
+    const center = this.carts?.center(i);
+    if (center) {
+      const y = showcaseCartGround(center.x, center.z);
+      this.setView({ x: center.x, y, z: center.z, radius });
+    }
+    return i;
+  }
+
+  /** Kamera jede za vozem, na který se dívá (zapnuto / vypnuto); vrátí nový stav. */
+  followCart(on: boolean): boolean {
+    this.followedCart = on && this.carts ? Math.max(0, this.focusedCart) : null;
+    if (this.followedCart !== null) {
+      this.following = false;
+      this.focusCart(this.followedCart, this.camera.radius > 60 ? 18 : this.camera.radius);
+    }
+    return this.followedCart !== null;
   }
 
   dispose(): void {
@@ -359,6 +412,7 @@ export class BuildingShowcase {
     this.plots?.dispose();
     this.fences?.dispose();
     this.ploughDemo?.dispose();
+    this.carts?.dispose();
     this.pens?.dispose();
     this.penAnimals?.dispose();
     this.roadWorks?.dispose();
@@ -429,6 +483,7 @@ export class BuildingShowcase {
     // v zimě zasněžená louka (vzor sněhu jako na terénu)
     applySeasonGround(grassMaterial);
     ground.material = grassMaterial;
+    const hill = createCartHill(scene, grassMaterial);
 
     const casters = this.pendingCasters;
     const parts = new Map<string, Mesh>();
@@ -615,6 +670,13 @@ export class BuildingShowcase {
       prepareWeedMaterial: prepareTuftMaterial,
       fences: this.fences,
     });
+    this.carts = new CartRenderer(scene, {
+      baseUrl: '/models/',
+      groundHeight: showcaseCartGround,
+      prepareMaterial: prepareModelMaterial,
+      onLoaded: () => this.burst(600),
+    });
+    this.carts.setCarts(showcaseCarts());
     const mudMaterial = createDecalMaterial(scene, 'showcase-pen-mud', { texture: 'mud' });
     // ušlapaný sníh v ohradě – bláto pod ním prosvítá
     applySeasonGround(mudMaterial, 0.45);
@@ -652,7 +714,11 @@ export class BuildingShowcase {
         this.burst(600);
       },
     });
-    this.shadows = addSunShadows(sun, { casters, receivers: [ground], extentM: GROUND_SIZE.width });
+    this.shadows = addSunShadows(sun, {
+      casters,
+      receivers: [ground, hill],
+      extentM: GROUND_SIZE.width,
+    });
     this.applyProgress();
     await scene.whenReadyAsync();
     if (this.disposed) return;
@@ -759,6 +825,28 @@ export class BuildingShowcase {
         if (center) this.camera.target.set(center.x, 0, center.z);
       }
     }
+    if (this.carts) {
+      if (this.reducedMotion?.matches) {
+        if (!this.cartsFrozen && this.carts.animate(0, null, true)) {
+          this.cartsFrozen = true;
+          animated = true;
+        }
+      } else if (now - this.lastCartAnimation >= 1000 / WATER_FPS) {
+        this.cartsFrozen = false;
+        const camera = this.followedCart !== null ? null : this.camera;
+        if (this.carts.animate(Date.now(), camera)) {
+          this.lastCartAnimation = now;
+          animated = true;
+        }
+      }
+      if (this.followedCart !== null) {
+        const center = this.carts.center(this.followedCart);
+        if (center) {
+          const y = showcaseCartGround(center.x, center.z);
+          this.camera.target.set(center.x, y, center.z);
+        }
+      }
+    }
     if (this.penAnimals) {
       if (this.reducedMotion?.matches) {
         if (!this.penFrozen && this.penAnimals.animate(0, null, true)) {
@@ -785,6 +873,40 @@ export class BuildingShowcase {
   private burst(ms: number): void {
     this.burstUntil = Math.max(this.burstUntil, performance.now() + ms);
   }
+}
+
+/**
+ * Pahorek ukázky vozů: síť nad loukou (výška `showcaseCartGround`, mimo pahorek pod loukou),
+ * tráva se stejným materiálem a uv jako louka (`GROUND_SIZE`), ať na sebe navazují.
+ */
+function createCartHill(scene: Scene, material: StandardMaterial): Mesh {
+  const { x: cx, z: cz, radius } = SHOWCASE_CARTS.hill;
+  const size = 2 * radius + 4;
+  const mesh = CreateGround(
+    'showcase-cart-hill',
+    { width: size, height: size, subdivisions: 72 },
+    scene,
+  );
+  mesh.position.set(cx, 0, cz);
+  const positions = mesh.getVerticesData(VertexBuffer.PositionKind)!;
+  const uvs = mesh.getVerticesData(VertexBuffer.UVKind)!;
+  for (let i = 0; i < positions.length / 3; i++) {
+    const x = cx + positions[i * 3]!;
+    const z = cz + positions[i * 3 + 2]!;
+    const inside = Math.hypot(x - cx, z - cz) < radius;
+    positions[i * 3 + 1] = inside ? showcaseCartGround(x, z) : -0.05;
+    uvs[i * 2] = (x + GROUND_SIZE.width / 2) / GROUND_SIZE.width;
+    uvs[i * 2 + 1] = (z + GROUND_SIZE.depth / 2) / GROUND_SIZE.depth;
+  }
+  const normals: number[] = [];
+  VertexData.ComputeNormals(positions, mesh.getIndices()!, normals);
+  mesh.setVerticesData(VertexBuffer.PositionKind, positions);
+  mesh.setVerticesData(VertexBuffer.UVKind, uvs);
+  mesh.setVerticesData(VertexBuffer.NormalKind, normals);
+  mesh.refreshBoundingInfo();
+  mesh.isPickable = false;
+  mesh.material = material;
+  return mesh;
 }
 
 function prepareModelMaterial(material: Material): void {

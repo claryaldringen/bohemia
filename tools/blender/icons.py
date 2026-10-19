@@ -6,15 +6,16 @@ Celé jedním příkazem z kořene repa (Blender 5, ImageMagick `magick`, intern
 
 Výstup (128 × 128 PNG, průhledné rohy) – `build/` zemnice, polozemnice, dvorec (dvorec vojvody –
 trade.md), pole, hrbitov,
-hrncir, kovar, uhlir (řemeslné dílny z `apps/web/public/models/crafts/`, uhlíř s milířem), sad
+hrncir, kovar, tesar, uhlir (řemeslné dílny z `apps/web/public/models/crafts/`, tesař pod
+přístřeškem s kozlíky a koly – wagons.md, uhlíř s milířem), sad
 (jabloňový sad), modla, svatyne (posvátná místa z `apps/web/public/models/sacred/`), dub
 (posvátný dub s obětinami), sous (posvátná souš – uschlý dub z `apps/web/public/models/decor/`
 s obětinami), haj (dubový háj s kameny) a ohrada (přístřešek, žlab a branka
 z `apps/web/public/models/pen/`, kráva ze stáda vsi, stoh sena), cesta, cesta-upravena a hat
 (stupně pevné cesty – pás cesty, upravená širší, hať a lávka z `apps/web/public/models/roads/`)
 a jablone (jabloně s jablky střídavě podél cesty – tlačítko „Vysadit jabloně“), stezka (zemská
-stezka od brány dvorce – trade.md), obchod (pytle obilí, hrnce, klády a sýr) a tesar (polozemnice
-s kozlíky, trámem a rozdělaným dvoukolákem – wagons.md) – portréty do panelu výběru;
+stezka od brány dvorce – trade.md) a obchod (pytle obilí, hrnce, klády a sýr) – portréty do
+panelu výběru;
 (64 × 64 PNG) – `resources/` people, food, wood, labor, satiation, date, apples, happiness
 (štěstí – plamen ohniště nad zkříženými poleny v kruhu kamenů), hay (seno – kupka sena
 z `apps/web/public/models/fields/haystack.glb`), meat (maso – uzená kýta s kostí a provázkem),
@@ -25,7 +26,8 @@ bilance obchodu se sousedem, trade.md),
 ozim (osení pod sněhem), jar (klasy jarního ječmene), charcoal (hromádka dřevěného uhlí), tools
 (kovaná sekera zkřížená se srpem) a pottery (dva hrnce pražského typu, větší s vlnovkou) –
 suroviny řemesel (crafts.md) –, cart (dvoukolák s loukoťovými koly) a wood-tools (hrábě zkřížené
-s dřevěnými vidlemi) – vozy a dřevěné nářadí od tesaře (wagons.md) –, overgrowth (zarůstání – keře a mladá bříza z modelů krajiny
+s dřevěnými vidlemi) – vozy a dřevěné nářadí od tesaře (wagons.md) –, overgrowth (zarůstání – keře
+a mladá bříza z modelů krajiny
 `apps/web/public/models/decor/` a `trees/`, fields.md – Zarůstání), condition (stav stavby –
 zšedlý rozštípnutý kůl s prasklinou a mechem) a abandoned (opuštěná stavba – padlý kůl
 v kopřivách z `apps/web/public/models/dwellings/decay.glb`, abandonment.md) a zvířata stád do panelu
@@ -306,8 +308,8 @@ def icon_dwelling(name):
 
 
 def icon_craft(name):
-    """Řemeslná dílna (tools/blender/crafts.py) jako portrét obydlí. Hrnčíř a kovář zepředu
-    do přístřešku (pec / výheň musí být v ikoně vidět), uhlíř i s kouřícím milířem – blíž
+    """Řemeslná dílna (tools/blender/crafts.py) jako portrét obydlí. Hrnčíř, kovář a tesař
+    zepředu do přístřešku (pec / výheň / kozlíky s koly musí být v ikoně vidět), uhlíř i s kouřícím milířem – blíž
     a vzadu vlevo (ve vsi je MILIR_OFFSET v crafts.py), ať se do čtverce vejde obojí."""
     objs = place_model(name, folder=CRAFTS)
     if name == "uhlir":
@@ -1787,9 +1789,8 @@ def icon_obchod():
     camera([Vector((-1.4, -1.2, 0)), Vector((1.4, 1.2, 0.95))], az=22, el=40, margin=1.02)
 
 
-# ------------------------------------------------------------ tesař a vozy ----
-# wagons.md – Tesař (dílna, vozy, dřevěné nářadí). Model dílny tesaře zatím není (připravuje ho
-# tools/blender/crafts.py) – portrét je polozemnice s tesařským dvorkem před vchodem.
+# ------------------------------------------------------------------ vozy ----
+# wagons.md – vůz a dřevěné nářadí od tesaře (ikony surovin; portrét dílny tesaře je icon_craft).
 
 
 def box(bm, centre, size, rot=(0.0, 0.0, 0.0)):
@@ -1836,43 +1837,6 @@ def two_wheel_cart(wood, rot=0.0, at=(0.0, 0.0, 0.0)):
     # oj od korby k jhu, jho napříč
     cyl(wood, P(0.6, 0.0, R + 0.12), P(2.6, 0.0, R + 0.32), 0.06, 0.05, 10)
     cyl(wood, P(2.55, -0.6, R + 0.36), P(2.55, 0.6, R + 0.36), 0.06, 0.06, 10)
-
-
-def icon_tesar():
-    """Tesař: přední část polozemnice, před ní kozlíky s otesaným trámem, rozdělaný dvoukolák,
-    kolo opřené o stěnu a hranice kulatiny – dílna tesaře (wagons.md). Pohled skoro zepředu jako
-    u hrnčíře a kováře, aby byl tesařský dvorek v ikoně vidět."""
-    objs = place_model("polozemnice")
-    pts = world_points(objs)
-    front = min(p.y for p in pts)
-    rng = random.Random(3)
-    wood, hewn, bark = bmesh.new(), bmesh.new(), bmesh.new()
-    # kozlíky (dvě kozy do X) a otesaný trám na nich – vlevo před domem
-    for x in (-2.2, -0.6):
-        for s in (-1, 1):
-            cyl(wood, (x - 0.3 * s, front - 1.4, 0.0), (x + 0.3 * s, front - 1.4, 0.9), 0.06, 0.06, 6)
-        cyl(wood, (x, front - 1.65, 0.75), (x, front - 1.15, 0.75), 0.06, 0.06, 6)
-    box(hewn, (-1.4, front - 1.4, 0.98), (2.8, 0.26, 0.24))
-    # rozdělaný dvoukolák vpravo a kolo opřené o stěnu u vchodu
-    two_wheel_cart(wood, rot=-2.4, at=(1.9, front - 1.6, -0.02))
-    cart_wheel(wood, (-0.2, front - 0.2, 0.55), 0.55, Vector((0.15, 1.0, -0.35)))
-    # hranice kulatiny vpravo u stěny
-    for y, z in ((0.0, 0.17), (0.36, 0.17), (0.18, 0.47)):
-        cyl(bark, (2.0 + rng.uniform(-0.1, 0.1), front + 0.3 + y, z), (4.0, front + 0.3 + y, z), 0.17, 0.16, 12)
-    # hobliny a třísky pod kozlíky
-    for i in range(16):
-        blob(hewn, ((rng.uniform(-2.6, -0.2), front - 1.4 + rng.uniform(-0.6, 0.6), 0.02), (0, 0, rng.uniform(0, 3))),
-             (0.09, 0.04, 0.015), 6, 3)
-    to_obj(wood, "wood", mat("oak", (0.5, 0.34, 0.19), 0.8, noise=24, bump=0.3))
-    to_obj(hewn, "hewn", mat("hewn", (0.86, 0.66, 0.42), 0.75, noise=30, bump=0.25))
-    to_obj(bark, "bark", mat("bark", (0.24, 0.17, 0.11), 0.9, noise=60, bump=0.8))
-    ground(10.5, mat("g", tex=f"{TEX}/grass-dirt.jpg", scale=0.22, tint=(0.8, 0.74, 0.6)), z=0.0, fade=0.6)
-    sun(az=-55, el=46)
-    # přední polovina domu a dvorek před ním
-    house = [o.matrix_world @ v.co for o in objs for v in o.data.vertices]
-    house = [p for p in house if p.y < front + 2.2 and p.z > -0.1]
-    props = [Vector((-2.8, front - 2.2, 0.0)), Vector((3.2, front - 3.4, 0.0)), Vector((3.6, front - 2.0, 1.0))]
-    camera(house + props, az=14, el=29, margin=1.02, shift=(0, -0.03))
 
 
 def icon_cart():
@@ -1926,6 +1890,7 @@ BUILD = {
     "hrbitov": icon_hrbitov,
     "hrncir": lambda: icon_craft("hrncir"),
     "kovar": lambda: icon_craft("kovar"),
+    "tesar": lambda: icon_craft("tesar"),
     "uhlir": lambda: icon_craft("uhlir"),
     "sad": icon_sad,
     "modla": icon_modla,
@@ -1940,7 +1905,6 @@ BUILD = {
     "jablone": icon_jablone,
     "stezka": icon_stezka,
     "obchod": icon_obchod,
-    "tesar": icon_tesar,
 }
 
 # ------------------------------------------------------------- rodiny ----

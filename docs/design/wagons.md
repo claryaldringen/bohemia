@@ -125,8 +125,7 @@ Návrh Clauda (19. 10. 2026) – detaily, které návrh výš nechal otevřené;
 
 - **Dílna tesaře** jako hrnčíř a kovář: polozemnice s předsazenou střechou (přístřešek 3,2 m),
   cena 286 čd a 23 stromů (obydlí + 30 %), jedna domácnost k osídlení, v mřížce staveb **Tesař
-  [T]**. Ve scéně se zatím kreslí a staví jako polozemnice (model dílny tesaře přidá jen záznam
-  v `CRAFT_MODEL`), dílna nekouří.
+  [T]**. Ve scéně model `tesar` (`CRAFT_MODEL.carpenter` – část Grafika, Tesař), dílna nekouří.
 - **Co tesař dělá – v tomto pořadí:**
   1. **Pomoc stavbám** (stavby nečekají): člověkoden tesaře vede **4 čd dřevěné práce** vsi
      (tesařská parta – mistr a 3 pomocníci, i jeho vlastní). Tesaři dají stavbám tolik, kolik
@@ -206,11 +205,11 @@ Návrh Clauda (19. 10. 2026) – detaily, které návrh výš nechal otevřené;
 - **Scéna (data pro fázi 3):** `SceneVillage.carts` – vůz, kde stojí (u ohrady), stav a cíl dne
   (svoz – pole, louka, stromy; výprava – stezka). Postavy posádky vozu stojí u svozu jako nosiči,
   sekáči a dřevorubci; vozy se zatím nekreslí.
-- **Ikony:** `build/tesar.png` (polozemnice s kozlíky, trámem a dvoukolákem), `resources/cart.png`,
-  `resources/wood-tools.png` – `tools/blender/icons.py`.
+- **Ikony:** `build/tesar.png` (z modelu `tesar.glb`), `resources/cart.png` (dvoukolák),
+  `resources/wood-tools.png` (hrábě a vidle) – `tools/blender/icons.py`.
 
 **Zbývá:** fáze 3 – vozy se spřežením a honákem ve scéně podle `SceneVillage.carts` (trasu po síti
-scéně dá `villageCartRoutes`), model dílny tesaře; jízdy výprav do provozu stezky.
+dá `villageCartRoutes`, kreslí `cart-renderer.ts`); jízdy výprav do provozu stezky.
 
 ## Jak je postavené – fáze 2 (vozová síť a vyjeté cesty)
 
@@ -233,7 +232,8 @@ v `paths/roads.ts`, čísla `CART_ROUTES` a `CART_ROADS` v `rules.ts`.
   43, 44 a Vlkov); scéna terén převyšuje 3× (`HEIGHT_SCALE`), takže svah, který na obrazovce
   vypadá na 30 %, má ve hře 10 %. **Při 12 % by se serpentiny u vsí skoro neobjevily** (u Vlkova
   je nejprudší svah do 300 m od vsi 9 %) – kdo chce serpentiny vidět častěji, musí mez snížit
-  (jedno číslo v `rules.ts`), nebo ji vztáhnout k převýšené scéně (k rozhodnutí).
+  (jedno číslo v `rules.ts`), nebo ji vztáhnout k převýšené scéně. **Martin (19. 10. 2026): „sklon
+  zatím nechme tak, jak je. Později si budeme hrát ještě s modelací krajiny“** – mez zůstává 10 %.
   Pěšák jde dál rovně (jeho síť se nemění).
 - **Poloměr otáčení:** hledání nese **směr jízdy** (stav = buňka × 16 směrů). Dvoukolák zatočí
   na krok nejvýš o 2 směry (≤ 53°, poloměr ≈ 4–5 m), čtyřkolák o 1 (≤ 27°, ≈ 8–11 m – širší
@@ -294,6 +294,35 @@ v `paths/roads.ts`, čísla `CART_ROUTES` a `CART_ROADS` v `rules.ts`.
 - **Zatím není:** vozy ve scéně, ikona vozu v panelu cesty. Svoz fáze 1 už jezdí po síti
   (část fáze 1 – Dosah vozu).
 
+## Jak je postavené – modely (fáze 3a)
+
+Zatím jen grafika a ukázka na `/dev/buildings` (tlačítka **Vozy**, **Tesař**, **Další vůz
+zblízka**, **Sledovat vůz**) – herní logika vozů ani tesaře v jádru není.
+
+- **Vozy:** `tools/blender/wagons_from_0ad.py` převádí `wagon_two_wheel_empty.dae`
+  a `wagon_four_wheel_empty.dae` (skinované – kola na kostech) do
+  `apps/web/public/models/wagons/wagons.glb`. Model se rozdělí podle kostí na korbu, předek
+  čtyřkoláku a kolo; zmenší se na skutečnou velikost (kolo ⌀ 0,98 m – dvoukolák ≈ 1,0 × 2,0 m,
+  čtyřkolák ≈ 1,25 × 3,2 m, rozvor 1,5 m). Koňský postroj 0 A.D. (oje s chomoutem) je pryč, vozy
+  mají vlastní oj ke **šíjovému jhu spřežení** (stejné jho a stejný pár volů jako u rádla – jho
+  1,19 m nad zemí): dvoukolák pevnou (korba se podle jha naklápí), čtyřkolák na čepu předku. Korba
+  je ≈ 2 m za jhem (zadky volů ≈ 1,6 m), dvoukolák i s ojí ≈ 3,9 m.
+- **Kola** se točí podle ujeté dráhy (matice instance – animace jízdy 0 A.D. jen točí kola, korba
+  stojí); vnější kolo v oblouku víc než vnitřní.
+- **Náklad** jako samostatné díly na korbě: seno (kupa přes korbu s pavuzou – sláma z textury
+  `iber_struct.png` jako `hay_cart` 0 A.D., přebarvená do olivova), snopy (napříč, klasy dovnitř,
+  po vrstvách), klády (v pyramidě, přečnívají dozadu, kůra a čela jako hromada klád a polena
+  řemesel), zboží (pytle, soudek medu, balík kožešin). Prázdný vůz bez nákladu.
+- **Ve scéně:** `cart-layout.ts` (čisté funkce – trasa, póza vozu se spřežením v čase t, sklon
+  a náklon podle terénu pod koly) a `cart-renderer.ts` (kreslení v instancích). Data přijdou
+  z jádra jako trasa vozu (lomená čára), druh a náklad.
+- **Tesař:** `tools/blender/crafts.py` (`tesar.glb`) – polozemnice s předsazeným přístřeškem jako
+  hrnčíř a kovář, pod ním dva kozlíky s otesávaným trámem, špalek se zaseknutou sekerou,
+  rozdělané kolo na špalcích, hotová kola opřená o stěnu a o zásobu trámů, hobliny. Staveniště po
+  fázích (`village-construction.ts` – druh `tesar`, fáze `carpentry` a `workshop`), ikona
+  `icons/build/tesar.png`. Herní řemeslo `carpenter` má ve scéně model `tesar`
+  (`CRAFT_MODEL` v `workshop-layout.ts`).
+
 ## Rozhodnutí
 
 | Rozhodnutí                                                                                | Kdo                   |
@@ -318,3 +347,5 @@ v `paths/roads.ts`, čísla `CART_ROUTES` a `CART_ROADS` v `rules.ts`.
 | Fáze 2: 16 směrů na mřížce pěšin, směr jízdy ve stavu hledání, mez sklonu 10 %            | návrh Clauda          |
 | Pevná cesta pro vůz sjízdná vždy; vůz vyjede kdekoli u ohrady se spřežením                | návrh Clauda          |
 | Vyjetá cesta 0,25 jízdy denně 2 roky; jedna zemská stezka, sjízdnost `axisCartCheck`      | návrh Clauda          |
+
+| Kola vozů točí matice instance podle ujeté dráhy (ne VAT); vlastní oj ke jhu volů | návrh Clauda |

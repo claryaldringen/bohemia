@@ -1,3 +1,4 @@
+import { graveRank, placeMound, usedPlaces } from './burials';
 import { BUILD_COSTS } from './costs';
 import { CEMETERY, CEMETERY_DISTANCE_M, HYGIENE_DEATH_EXTRA } from './rules';
 import { rotationCosSin, sameGrid } from './square-grid';
@@ -5,6 +6,7 @@ import type {
   Cemetery,
   CemeterySquare,
   ChronicleEvent,
+  Person,
   Position,
   SquareGrid,
   TileCell,
@@ -13,7 +15,8 @@ import type {
 
 // Hřbitovy (cemetery.md): kapacita, hygiena podle vzdálenosti od obydlí a od vody, pohřeb
 // zemřelých a rozšiřování. Hygiena je vnitřní číslo simulace – hráč ji nevidí (Martin), jen její
-// následky. Čtverce rozšíření ve stavbě (`constructionId`) se nepočítají.
+// následky. Čtverce rozšíření ve stavbě (`constructionId`) se nepočítají. Kapacita se počítá
+// v místech na hroby – mohyla významného zabere víc míst (burials.ts – Mohyly podle významu).
 
 type AgeGroup = 'child' | 'adult' | 'elder';
 type DistanceLimits = { readonly worst: number; readonly ok: number };
@@ -35,19 +38,19 @@ export function isCemeteryBuilding(cemetery: Cemetery): boolean {
   return cemetery.builtDay === null || cemetery.squares.some((s) => s.constructionId !== undefined);
 }
 
-/** Kolik hrobů se do hřbitova vejde (56 na hotový čtverec). */
+/** Kolik míst na hroby hřbitov má (56 na hotový čtverec). */
 export function cemeteryCapacity(cemetery: Pick<Cemetery, 'squares'>): number {
   return readySquares(cemetery.squares).length * CEMETERY.gravesPerSquare;
 }
 
-/** Volné hroby pohřebiště. */
-export function freeGraves(cemetery: Pick<Cemetery, 'squares' | 'graves'>): number {
-  return Math.max(0, cemeteryCapacity(cemetery) - cemetery.graves);
+/** Volná místa na hroby (staré hroby po jednom místě, mohyly podle velikosti). */
+export function freePlaces(cemetery: Pick<Cemetery, 'squares' | 'graves' | 'mounds'>): number {
+  return Math.max(0, cemeteryCapacity(cemetery) - usedPlaces(cemetery));
 }
 
-/** Pohřebiště přijímá mrtvé: je vytyčené a ohrazené a má volný hrob. */
+/** Pohřebiště přijímá mrtvé: je vytyčené a ohrazené a má volné místo. */
 export function acceptsBurials(cemetery: Cemetery): boolean {
-  return cemetery.builtDay !== null && freeGraves(cemetery) > 0;
+  return cemetery.builtDay !== null && freePlaces(cemetery) > 0;
 }
 
 /** Cena založení nebo rozšíření hřbitova v člověkodnech: 10 na čtverec (`BUILD_COSTS`) + překážky. */
@@ -164,17 +167,24 @@ export function burialOrder(
 }
 
 /**
- * Pohřeb zemřelého (mutuje stav): obsadí hrob v hotovém pohřebišti s volným místem nejblíž
- * k obydlím. Když se tím pohřebiště zaplní, vrátí událost kroniky. Bez volného místa se nic
- * nestane – je to, jako by ves pohřebiště neměla.
+ * Pohřeb zemřelého (mutuje stav – volá se za života, člověk je ještě ve stavu): v hotovém
+ * pohřebišti s volným místem nejblíž k obydlím dostane mohylu podle významu (burials.ts –
+ * vojvodova rodina, hlava rodiny, dospělý, dítě; velká se zmenší, když se nevejde). Když se tím
+ * pohřebiště zaplní (žádné volné místo), vrátí událost kroniky. Bez volného místa se nic nestane
+ * – je to, jako by ves pohřebiště neměla. Bez člověka (testy) běžná mohyla dospělého.
  */
-export function bury(state: VillageState, day: number): ChronicleEvent | null {
+export function bury(state: VillageState, day: number, person?: Person): ChronicleEvent | null {
   const open = villageCemeteries(state).filter(acceptsBurials);
   if (open.length === 0) return null;
-  const target = burialOrder(open, dwellingPositions(state))[0];
+  const dwellings = dwellingPositions(state);
+  const target = burialOrder(open, dwellings)[0];
   if (!target) return null;
+  const rank = person ? graveRank(state, person, day) : 'adult';
+  const mound = placeMound(target, rank, day, dwellings);
+  if (!mound) return null;
+  (target.mounds ??= []).push(mound);
   target.graves += 1;
-  if (freeGraves(target) > 0) return null;
+  if (freePlaces(target) > 0) return null;
   return {
     day,
     kind: 'cemetery-full',
