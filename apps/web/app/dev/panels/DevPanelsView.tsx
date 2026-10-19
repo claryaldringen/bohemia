@@ -21,6 +21,10 @@ const BUILD_OPTIONS: Partial<Record<BuildItem['kind'], null>> = Object.fromEntri
 /** Akce panelu – chvíli „běží“ a nic neudělají. */
 const wait = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 300));
 
+/** Výprava – server ji odmítne (ukázka chyby v panelu obchodu, trade.md – Rozhraní). */
+const refuse = (): Promise<string> =>
+  new Promise((resolve) => setTimeout(() => resolve('Tolik lidí soused letos nemá.'), 300));
+
 export function DevPanelsView({ initial }: { initial: string | null }): ReactElement {
   const [menu, setMenu] = useState<GameMenuStep | null>(null);
   const [villages, setVillages] = useState(false);
@@ -113,7 +117,7 @@ export function DevPanelsView({ initial }: { initial: string | null }): ReactEle
         onUpgradeRoad={wait}
         onPlantRoadApples={wait}
         onBuildTrail={wait}
-        onSendExpedition={wait}
+        onSendExpedition={refuse}
       />
       <BuildGrid options={BUILD_OPTIONS} active={null} disabled={false} onBuild={() => undefined} />
     </>

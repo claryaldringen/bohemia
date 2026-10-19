@@ -1041,7 +1041,8 @@ export const TRADE_GOOD_VALUES = {
 // (0–2 rodiny a 0–3 svobodné dospělé, aspoň jednoho člověka), s 30 % lidi shání (vezme 0–2 rodiny
 // a 0–3 dospělé, aspoň jednoho), jinak lidi nemění. Rodina souseda: muž 24–38 let, žena o 0–6 let
 // mladší (nejméně 18 + 3 roky na dítě), 0–3 děti – nejmladší 0–2 roky, mezi dětmi 2–3 roky;
-// svobodný dospělý muž nebo žena 16–26 let.
+// svobodný dospělý muž nebo žena 16–26 let. Muži a ženy zvlášť (Martin 19. 10. 2026): pohlaví
+// každého svobodného dospělého souseda se losuje 1 : 1 už v nabídce a poptávce.
 export const PEOPLE_TRADE = {
   adultValueKg: 360,
   childShare: 0.5,

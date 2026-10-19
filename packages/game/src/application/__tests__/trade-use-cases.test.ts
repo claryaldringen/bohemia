@@ -118,7 +118,12 @@ describe('sendExpedition s lidmi (trade.md – Výměna lidí)', () => {
             season: tradeSeason(TODAY),
             supply: { ...n.supply },
             demand: { ...n.demand },
-            people: { families: [], adults: 1, takes: { families: 0, adults: 0 } },
+            people: {
+              families: [],
+              men: 0,
+              women: 1,
+              takes: { families: 0, men: 0, women: 0 },
+            },
           },
         ],
         expeditions: [],
@@ -127,7 +132,7 @@ describe('sendExpedition s lidmi (trade.md – Výměna lidí)', () => {
     });
     const state = (await villages.find(villageId))!.state;
     const n = neighbourOf(state.seed, 'S');
-    const getPeople = { families: 0, adults: 1 };
+    const getPeople = { families: 0, men: 0, women: 1 };
     expect(
       await sendExpedition({ villages }, { ...base, direction: 'S', give: {}, get: {}, getPeople }),
     ).toEqual({ ok: false, reason: UNFAIR });
@@ -141,7 +146,8 @@ describe('sendExpedition s lidmi (trade.md – Výměna lidí)', () => {
     if (!sent.ok) return;
     expect(sent.village.state.trade!.expeditions[0]!.getPeople).toEqual({
       families: [],
-      adults: 1,
+      men: 0,
+      women: 1,
     });
   });
 });

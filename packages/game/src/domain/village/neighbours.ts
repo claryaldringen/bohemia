@@ -7,7 +7,7 @@
 import { dateOfDayIndex } from '../calendar';
 import { createRandom, deriveSeed, type Random } from '../landscape/random';
 import { suggestVillageName } from './names';
-import { neighbourPeople } from './people-trade';
+import { neighbourPeople, storedNeighbourPeople } from './people-trade';
 import { NEIGHBOR_DIRECTIONS, NEIGHBOURS, TRADE, TRADE_GOOD_VALUES } from './rules';
 import type { Direction8, NeighbourStock, TradeGood, TradeGoods, VillageState } from './types';
 
@@ -131,9 +131,11 @@ export function neighbourStock(
   const season = tradeSeason(day);
   const stored = state.trade?.neighbours.find((n) => n.direction === direction);
   if (stored && stored.season === season) {
-    return stored.people
-      ? stored
-      : { ...stored, people: neighbourPeople(state.seed, direction, season) };
+    if (!stored.people)
+      return { ...stored, people: neighbourPeople(state.seed, direction, season) };
+    // zbytek roku uložený před muži a ženami zvlášť – dospělí se převedou (trade.md)
+    const people = storedNeighbourPeople(stored.people, state.seed, direction, season);
+    return people === stored.people ? stored : { ...stored, people };
   }
   const neighbour = neighbourOf(state.seed, direction);
   return {

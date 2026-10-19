@@ -1240,25 +1240,43 @@ export interface NeighbourStock {
   people?: NeighbourPeople;
 }
 
-/** Lidé ve výměně se sousedem (trade.md – Výměna lidí): rodiny a svobodní dospělí. */
+/**
+ * Lidé ve výměně se sousedem (trade.md – Výměna lidí): rodiny a svobodní muži a ženy zvlášť
+ * (Martin 19. 10. 2026). Kronika uložená dřív může mít místo mužů a žen `adults`.
+ */
 export interface TradePeople {
   families: number;
-  adults: number;
+  men: number;
+  women: number;
+}
+
+/**
+ * Kdo s výpravou přijde (`TradeExpedition.getPeople`): rodiny souseda (počet dětí v každé)
+ * a svobodní muži a ženy; výprava uložená před muži a ženami zvlášť má `adults` (pohlaví se losuje
+ * při příchodu jako dřív).
+ */
+export interface ComingPeople {
+  families: readonly number[];
+  men?: number;
+  women?: number;
+  adults?: number;
 }
 
 /** Kdo přišel od souseda (trade.md – Výměna lidí): rodina, svobodný muž, svobodná žena. */
 export type NewcomerGroup = 'family' | 'man' | 'woman';
 
 /**
- * Lidé souseda na rok obchodu (trade.md – Výměna lidí): rodiny a svobodní dospělí, které neuživí
- * a dá je, a kolik lidí naopak vezme.
+ * Lidé souseda na rok obchodu (trade.md – Výměna lidí): rodiny a svobodní muži a ženy, které
+ * neuživí a dá je, a kolik lidí naopak vezme. Zbytek roku uložený před muži a ženami zvlášť má
+ * `adults` – převede ho `storedNeighbourPeople`.
  */
 export interface NeighbourPeople {
   /** Rodiny, které soused dá – počet dětí v každé; ves bere od první. */
   families: number[];
-  /** Svobodní dospělí, které soused dá. */
-  adults: number;
-  /** Kolik rodin a svobodných dospělých soused vezme. */
+  /** Svobodní muži a ženy, které soused dá. */
+  men: number;
+  women: number;
+  /** Kolik rodin a svobodných mužů a žen soused vezme. */
   takes: TradePeople;
 }
 
@@ -1281,15 +1299,20 @@ export interface TradeExpedition {
   cost: number;
   done: number;
   /**
-   * Kdo s výpravou odešel do sousední vsi (trade.md – Výměna lidí) – rodiny, dospělí a lidí
-   * celkem; už nejsou ve vsi. Chybí = nikdo (i u výprav uložených dřív).
+   * Kdo s výpravou odešel do sousední vsi (trade.md – Výměna lidí) – rodiny, muži, ženy a lidí
+   * celkem; už nejsou ve vsi. `members` – pohlaví a den narození každého (postavy karavany ve
+   * scéně jdou tam s ní). Chybí = nikdo; výprava uložená dřív má místo mužů a žen `adults` a nemá
+   * `members`.
    */
-  givePeople?: TradePeople & { people: number };
+  givePeople?: TradePeople & {
+    people: number;
+    members?: { sex: Sex; bornDay: number; group: NewcomerGroup }[];
+  };
   /**
-   * Kdo s výpravou přijde – rodiny souseda (počet dětí v každé) a svobodní dospělí; ve vsi se
+   * Kdo s výpravou přijde – rodiny souseda (počet dětí v každé) a svobodní muži a ženy; ve vsi se
    * objeví po návratu. Chybí = nikdo.
    */
-  getPeople?: { families: number[]; adults: number };
+  getPeople?: { families: number[]; men?: number; women?: number; adults?: number };
   /**
    * Vozy, které jedou s výpravou (wagons.md – Vůz, id) – s nimi jejich spřežení; doma nevozí ani
    * neorají, dokud se výprava nevrátí. Chybí = výprava bez vozů.

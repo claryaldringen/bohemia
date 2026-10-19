@@ -31,6 +31,7 @@ import {
   type Landscape,
   type PartInput,
   type VillageRecord,
+  type TradePeople,
   type VillageState,
 } from '@bohemia/game';
 import {
@@ -979,12 +980,12 @@ describe('kronika – výměna lidí (trade.md – Výměna lidí)', () => {
           kind: 'trade-departed',
           direction: 'S',
           give: { grain: 100 },
-          people: { families: 1, adults: 2 },
+          people: { families: 1, men: 2, women: 1 },
         },
         'X',
       ),
     ).toBe(
-      'Nosiči vyrazili po stezce na jih – nesou 100 kg obilí; odchází s nimi 1 rodina a 2 dospělí.',
+      'Nosiči vyrazili po stezce na jih – nesou 100 kg obilí; odchází s nimi 1 rodina, 2 muži a 1 žena.',
     );
     expect(
       chronicleText(
@@ -993,11 +994,24 @@ describe('kronika – výměna lidí (trade.md – Výměna lidí)', () => {
           kind: 'trade-returned',
           direction: 'N',
           get: {},
-          people: { families: 0, adults: 1 },
+          people: { families: 0, men: 0, women: 1 },
         },
         'X',
       ),
-    ).toBe('Nosiči se vrátili ze severu – přišli s nimi 1 dospělý.');
+    ).toBe('Nosiči se vrátili ze severu – přišli s nimi 1 žena.');
+    // kronika uložená před muži a ženami zvlášť (`adults`)
+    expect(
+      chronicleText(
+        {
+          day: DAY,
+          kind: 'trade-returned',
+          direction: 'N',
+          get: {},
+          people: { families: 0, adults: 2 } as unknown as TradePeople,
+        },
+        'X',
+      ),
+    ).toBe('Nosiči se vrátili ze severu – přišli s nimi 2 dospělí.');
     expect(
       chronicleText({ day: DAY, kind: 'trade-returned', direction: 'N', get: { grain: 5 } }, 'X'),
     ).toBe('Nosiči se vrátili ze severu – přinesli 5 kg obilí.');
