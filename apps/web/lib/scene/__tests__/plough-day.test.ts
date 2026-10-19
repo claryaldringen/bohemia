@@ -28,7 +28,6 @@ const part = (id: number, cx: number, extra: Partial<SceneFieldPart> = {}): Scen
   size: CELL,
   stage: 'sown',
   look: 'plowed',
-  ploughed: true,
   ...extra,
 });
 
@@ -38,7 +37,8 @@ function village(parts: SceneFieldPart[], share: Partial<SceneLaborShare>): Scen
     dwellings: [
       { id: 1, type: 'zemnice', position: { x: 0, z: -20, rotation: 0 }, built: true, progress: 1 },
     ],
-    fields: [{ id: 5, parts }],
+    // ves letos orá rádlem – celé pole má kulaté rohy (oxen.md – Jen rádlo)
+    fields: [{ id: 5, parts, ard: true }],
     labor: {
       day: 250,
       month: 9,
@@ -55,7 +55,7 @@ const today = (): SceneVillage =>
       part(51, 0, { before: 'stubble' }),
       part(52, 1, { before: 'stubble' }),
       part(53, 2, { work: 0.6, before: 'stubble' }),
-      part(54, 3, { look: 'stubble', ploughed: undefined }),
+      part(54, 3, { look: 'stubble' }),
     ],
     {
       parts: [51, 52, 53],

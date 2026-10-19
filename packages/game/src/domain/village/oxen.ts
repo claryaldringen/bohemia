@@ -4,28 +4,20 @@ import { HAY, isHayWinter, oxenHayCoverage, villageHayKg } from './hay';
 import { butcher, ensureLivestock, LIVESTOCK } from './livestock';
 import { obstacleChangesAt, recordClearedObstacles } from './obstacles';
 import { PLOUGH_HA_PER_DAY, ploughWorkPerHa } from './plough';
-import { fieldWorkPerHa } from './productivity';
-import { FELLING_MAN_DAYS_PER_TREE } from './rules';
+import { FELLING_MAN_DAYS_PER_TREE, PLANNING_DAY } from './rules';
 import { copyGrid } from './square-grid';
-import type {
-  ChronicleEvent,
-  CropWork,
-  FieldPart,
-  Pen,
-  SquareGrid,
-  TileCell,
-  VillageState,
-} from './types';
+import type { ChronicleEvent, Pen, SquareGrid, TileCell, VillageState } from './types';
 import type { Walk } from './paths/walking';
 import { addLogs, claimedObstacles, planWoodFrom, takeWood, woodLogs, type WoodPlan } from './wood';
-import { partWeight, planCrops } from './year-plan';
+import { planCrops, ploughToHoe } from './year-plan';
 
 // Ohrada, spřežení volů a orba rádlem (oxen.md, schváleno 18. 10. 2026). Ohrada je stavba na
 // jednom čtverci louky (40 člověkodní a 6 stromů). V ohradě hráč zadá výcvik spřežení: dvě telata
 // z vlastního stáda krav se za 2 roky vycvičí, vesničané k tomu vyrobí rádlo (1 strom
 // a 5 člověkodní). Spřežení orá ≈ 10 let, pak voli zestárnou a jdou na maso. Přes zimu voli žerou
 // seno – když chybí přes polovinu, jeden uhyne a spřežení se rozpadne; když chybí méně, slabí voli
-// na jaře zorají jen podíl podle pokrytí a zbytek se dokope motykou.
+// orají na jaře pomaleji (podíl kapacity podle pokrytí). Ves se spřežením orá všechno a nekope
+// (oxen.md – Jen rádlo); přijde-li o poslední spřežení, letošní plán dokončí motyka.
 
 /**
  * oxen.md (návrh Clauda, Martin schválil): výcvik ≈ 2 roky, spřežení slouží ≈ 10 let, 2 voli;
@@ -64,13 +56,20 @@ export function ableTeams(state: Pick<VillageState, 'pens'>): number {
 
 /**
  * Kolik orby spřežení vsi za den zvládnou (člověkodny): ≈ 0,3 ha na spřežení za sazbu orby
- * podle pokrytí nástroji.
+ * podle pokrytí nástroji. Slabí voli po zimě bez dost sena (`team.weak`) orají v den `day` od
+ * 1. 3. do konce hospodářského roku jen podílem; bez dne plnou silou.
  */
 export function ploughCapacityPerDay(
   state: Pick<VillageState, 'pens'>,
   toolCoverage: number,
+  day?: number,
 ): number {
-  return ableTeams(state) * PLOUGH_HA_PER_DAY * ploughWorkPerHa(toolCoverage);
+  const afterWinter = day !== undefined && dateOfDayIndex(day).month < PLANNING_DAY.month;
+  const teams = villagePens(state).reduce(
+    (sum, pen) => sum + (pen.team ? (afterWinter ? (pen.team.weak ?? 1) : 1) : 0),
+    0,
+  );
+  return teams * PLOUGH_HA_PER_DAY * ploughWorkPerHa(toolCoverage);
 }
 
 /** Průběh výcviku 0–1 (bez výcviku null). */
@@ -102,72 +101,15 @@ function dropArd(state: VillageState, penId: number): void {
 }
 
 /**
- * Vrátí orbu motyce (mutuje `work`): díly od konce řady orby, které spřežení ještě nezačalo – tolik,
- * kolik po celých dílech nejlépe odpovídá podílu `fraction` zbývající orby; s `all` všechny
- * nezorané i rozpracovaný díl (spřežení už není). Vrácené díly se kopou motykou na konci řady
- * kopání – kopání dílů před nimi se tím nemění (oxen.md: zbytek se dokope motykou).
+ * Letošní plán, který oralo spřežení, dokončí motyka – ves už žádné spřežení nemá (mutuje stav;
+ * oxen.md – Jen rádlo). Jen letos: plán k 1. 9. už vznikne bez orby.
  */
-export function returnPloughToHoe(
-  work: CropWork,
-  partsById: ReadonlyMap<number, FieldPart>,
-  toolCoverage: number,
-  fraction: number,
-  all = false,
-): void {
-  const plough = work.plough;
-  if (!plough || plough.partIds.length === 0 || fraction <= EPSILON) return;
-  const position = plough.required > 0 ? Math.min(1, plough.done / plough.required) : 1;
-  const weights = plough.partIds.map((id) => {
-    const part = partsById.get(id);
-    return part ? partWeight(part) : 0;
-  });
-  const total = weights.reduce((sum, w) => sum + w, 0);
-  if (total <= EPSILON) return;
-  const starts: number[] = [];
-  let acc = 0;
-  for (const w of weights) {
-    starts.push(acc / total);
-    acc += w;
-  }
-  const remainingWeight = (1 - position) * total;
-  const goal = all ? Infinity : fraction * remainingWeight;
-  const moved: number[] = [];
-  let movedWeight = 0;
-  for (let i = plough.partIds.length - 1; i >= 0; i--) {
-    const end = i + 1 < starts.length ? starts[i + 1]! : 1;
-    const started = starts[i]! < position - EPSILON;
-    if (all ? end <= position + EPSILON : started) break;
-    // díl se vrátí, když se aspoň polovinou vejde do vraceného podílu (zaokrouhlení po dílech)
-    if (!all && movedWeight + weights[i]! / 2 > goal + EPSILON) break;
-    moved.unshift(i);
-    movedWeight += weights[i]!;
-  }
-  if (moved.length === 0) return;
-  const ploughPerWeight = plough.weight > EPSILON ? plough.required / plough.weight : 0;
-  const hoe = fieldWorkPerHa('dig', toolCoverage);
-  const movedIds = moved.map((i) => plough.partIds[i]!);
-  const movedSet = new Set(movedIds);
-  plough.partIds = plough.partIds.filter((id) => !movedSet.has(id));
-  plough.required = Math.max(0, plough.required - movedWeight * ploughPerWeight);
-  plough.done = Math.min(plough.done, plough.required);
-  plough.weight = Math.max(0, plough.weight - movedWeight);
-  plough.digWeight += movedWeight;
-  plough.returned = [...(plough.returned ?? []), ...movedIds];
-  work.required.dig += movedWeight * hoe;
-}
-
-/** Vrátí motyce orbu všech plodin plánu (mutuje stav) – `fraction` a `all` jako u jedné. */
-function returnPlanPlough(
-  state: VillageState,
-  toolCoverage: number,
-  fraction: number,
-  all: boolean,
-): void {
-  if (!state.plan) return;
+function finishPlanByHoe(state: VillageState, toolCoverage: number): void {
+  if (!state.plan || ableTeams(state) > 0) return;
+  const crops = planCrops(state.plan);
+  if (!crops.some(({ work }) => work.plough)) return;
   const partsById = new Map(state.parts.map((p) => [p.id, p]));
-  for (const { work } of planCrops(state.plan)) {
-    returnPloughToHoe(work, partsById, toolCoverage, fraction, all);
-  }
+  for (const { crop, work } of crops) ploughToHoe(work, partsById, toolCoverage, crop);
 }
 
 /** Spřežení dosloužilo nebo se rozpadlo – voli (živí) jdou na maso (mutuje stav). */
@@ -180,8 +122,8 @@ function retireTeam(state: VillageState, pen: Pen, oxen: number): void {
  * Den ohrad (mutuje stav): výcvik je hotový (2 roky a hotové rádlo) – staré spřežení dosloužilo,
  * nové orá; spřežení starší než 10 let zestárlo a jde na maso. 1. 3. (konec zimy) rozhodne
  * pokrytí sena: pod polovinu jeden vůl uhyne a spřežení i výcvik se rozpadnou, jinak slabí voli
- * na jaře zorají jen podíl podle pokrytí. Když ves přijde o poslední spřežení, zbylou orbu kopou
- * motyky. Vrátí události kroniky.
+ * orají na jaře jen podílem kapacity podle pokrytí (`team.weak`). Když ves přijde o poslední
+ * spřežení, letošní plán dokončí motyka (`finishPlanByHoe`). Vrátí události kroniky.
  */
 export function penDay(
   state: VillageState,
@@ -190,9 +132,11 @@ export function penDay(
   toolCoverage: number,
 ): ChronicleEvent[] {
   const pens = villagePens(state);
-  if (pens.length === 0) return [];
+  if (pens.length === 0) {
+    finishPlanByHoe(state, toolCoverage);
+    return [];
+  }
   const events: ChronicleEvent[] = [];
-  const teamsBefore = ableTeams(state);
   if (winterEnd) {
     const oxen = villageOxen(state);
     const coverage = oxenHayCoverage(state, oxen);
@@ -209,8 +153,13 @@ export function penDay(
           events.push({ day, kind: 'ox-died', penId: pen.id, training: true });
         }
       }
-    } else if (ableTeams(state) > 0 && coverage < 1 - EPSILON) {
-      returnPlanPlough(state, toolCoverage, 1 - coverage, false);
+    } else {
+      // slabí voli orají na jaře pomaleji – nekope se, co nezorají, se nezaseje (oxen.md – Jen rádlo)
+      for (const pen of pens) {
+        if (!pen.team) continue;
+        if (coverage < 1 - EPSILON) pen.team.weak = coverage;
+        else delete pen.team.weak;
+      }
     }
   }
   for (const pen of pens) {
@@ -229,7 +178,7 @@ export function penDay(
       events.push({ day, kind: 'team-ready', penId: pen.id });
     }
   }
-  if (teamsBefore > 0 && ableTeams(state) === 0) returnPlanPlough(state, toolCoverage, 1, true);
+  finishPlanByHoe(state, toolCoverage);
   return events;
 }
 

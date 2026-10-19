@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { dateOfDayIndex, dayIndexOf } from '../../calendar';
-import { foundPen, foundVillage } from '../actions';
-import { fieldPartLooks } from '../field-progress';
+import { foundField, foundPen, foundVillage } from '../actions';
+import { fieldPartLooks, taskPosition, taskSpans } from '../field-progress';
+import { partFoundingCost } from '../fields';
 import { LIVESTOCK } from '../livestock';
 import {
   ARD,
@@ -11,16 +12,25 @@ import {
   penBuildLabor,
   penDay,
   ploughCapacityPerDay,
-  returnPloughToHoe,
   trainTeamsWhenReady,
   trainingBlock,
 } from '../oxen';
-import { PLOUGH_HA_PER_DAY, isPloughable, ploughWorkPerHa } from '../plough';
+import { PLOUGH_HA_PER_DAY, PLOUGH_SOD_FACTOR, hasSod, ploughWorkPerHa } from '../plough';
 import { NO_CRAFTS } from '../productivity';
 import { cloneState } from '../clone';
 import { advanceVillage } from '../simulate';
+import { chooseCrops, orchardOnlyLoad } from '../sowing';
 import type { ChronicleEvent, FieldPart, VillageState } from '../types';
-import { createCropWork, partWork, tilledShare } from '../year-plan';
+import {
+  createCropWork,
+  createPlan,
+  partWeight,
+  partWork,
+  planCrops,
+  planPartIds,
+  ploughToHoe,
+  tilledShare,
+} from '../year-plan';
 import { withBuiltFirstDwelling } from './village-fixtures';
 
 // Ohrada, spřežení a orba rádlem (oxen.md).
@@ -268,58 +278,105 @@ describe('orba rádlem', () => {
     expect(ploughWorkPerHa(1)).toBe(6);
     const s = withTeam(at(600, 9, 1));
     expect(ploughCapacityPerDay(s, 0)).toBeCloseTo(PLOUGH_HA_PER_DAY * 10, 9);
+    // víc ohrad se spřežením = víc kapacity
+    s.pens!.push({ ...s.pens![0]!, id: 901, team: { readyDay: at(599, 1, 1) } });
+    expect(ploughCapacityPerDay(s, 0)).toBeCloseTo(2 * PLOUGH_HA_PER_DAY * 10, 9);
   });
 
-  it('rádlo zorá díl po sklizni, mladý příloh i založený díl; drn pastviny kope motyka', () => {
+  it('ves se spřežením orá všechno (Martin 19. 10. 2026): i drn, motyka nekope; křoviny se klučí', () => {
     const day = at(600, 9, 1);
-    expect(isPloughable(part(1), day)).toBe(true);
-    expect(isPloughable(part(2, { state: 'ready', sownYears: 0 }), day)).toBe(true);
-    expect(isPloughable(part(3, { state: 'fallow', fallowSinceDay: at(599, 9, 1) }), day)).toBe(
-      true,
-    );
-    const sod = part(4, { state: 'fallow', fallowSinceDay: at(590, 9, 1) });
-    expect(isPloughable(sod, day)).toBe(false);
-    const work = partWork(part(1), day, 0, true);
-    expect(work.dig).toBe(0);
-    expect(work.plough).toBeCloseTo(10, 9);
-    const hoe = partWork(sod, day, 0, true);
+    const plain = [
+      part(1),
+      part(2, { state: 'ready', sownYears: 0 }),
+      part(3, { state: 'fallow', fallowSinceDay: at(599, 9, 1) }),
+    ];
+    for (const p of plain) {
+      expect(hasSod(p, day)).toBe(false);
+      const work = partWork(p, day, 0, true);
+      expect(work.dig).toBe(0);
+      expect(work.reclaim).toBe(0);
+      expect(work.plough).toBeCloseTo(10, 9);
+    }
+    // drn – příloh ve fázi louky i louka založená rádlem: orba křížem, víc práce, bez motyky
+    const meadow = part(4, { state: 'fallow', fallowSinceDay: at(590, 9, 1) });
+    const founded = part(5, { state: 'ready', sownYears: 0, sod: true });
+    for (const p of [meadow, founded]) {
+      expect(hasSod(p, day)).toBe(true);
+      const work = partWork(p, day, 0, true);
+      expect(work.dig).toBe(0);
+      expect(work.reclaim).toBe(0);
+      expect(work.plough).toBeCloseTo(10 * PLOUGH_SOD_FACTOR, 9);
+    }
+    // křoviny vyklučí lidé jako dřív, pak se orá běžně
+    const shrubs = part(6, { state: 'fallow', fallowSinceDay: at(590, 9, 1), overgrowthYears: 6 });
+    const cleared = partWork(shrubs, day, 0, true);
+    expect(cleared.reclaim).toBeCloseTo(100, 9);
+    expect(cleared.plough).toBeCloseTo(10, 9);
+    // bez spřežení kope motyka – drn louky založené rádlem jako vrácení louky
+    const hoe = partWork(founded, day, 0, false);
     expect(hoe.plough).toBe(0);
     expect(hoe.dig).toBeCloseTo(100, 9);
     expect(hoe.reclaim).toBeCloseTo(100, 9);
   });
 
-  it('setí jde za zkopanou i zoranou částí podle vah dílů', () => {
+  it('setí jde za zoranou částí; díl s drnem nese orba s větší vahou', () => {
     const day = at(600, 9, 1);
     const sod = part(2, { state: 'fallow', fallowSinceDay: at(590, 9, 1) });
     const work = createCropWork([part(1), sod], day, 0, true);
-    expect(work.plough).toMatchObject({ partIds: [1], required: 10, weight: 1, digWeight: 1 });
-    expect(work.required.dig).toBeCloseTo(100, 9);
+    expect(work.plough).toEqual({
+      partIds: [1, 2],
+      required: 10 + 10 * PLOUGH_SOD_FACTOR,
+      done: 0,
+      weight: 2,
+      sodIds: [2],
+    });
+    expect(work.required.dig).toBe(0);
     expect(tilledShare(work)).toBe(0);
-    work.plough!.done = 10;
+    work.plough!.done = work.plough!.required / 2;
     expect(tilledShare(work)).toBeCloseTo(0.5, 9);
-    work.done.dig = 50;
-    expect(tilledShare(work)).toBeCloseTo(0.75, 9);
+    // plán vsi bez spřežení orbu nemá
+    expect(createCropWork([part(1), sod], day, 0, false).plough).toBeUndefined();
   });
 
-  it('vrácení motyce: nezačaté díly z konce orby se kopou na konci řady kopání', () => {
+  it('plán osevu nevybere víc, než spřežení v oknech orby stihnou zorat', () => {
     const day = at(600, 9, 1);
-    const parts = [part(1), part(2, { distanceM: 110 }), part(3, { distanceM: 120 })];
-    const work = createCropWork(parts, day, 0, true);
-    const byId = new Map(parts.map((p) => [p.id, p]));
-    work.plough!.done = work.plough!.required * 0.2; // rozpracovaný první díl
-    returnPloughToHoe(work, byId, 0, 0.5, false);
-    // polovina zbývající orby = díl 3 (poslední)
-    expect(work.plough!.partIds).toEqual([1, 2]);
-    expect(work.plough!.returned).toEqual([3]);
-    expect(work.required.dig).toBeCloseTo(100 * 1.02, 9);
-    // spřežení už není – vrátí se i rozpracovaný díl
-    returnPloughToHoe(work, byId, 0, 1, true);
-    expect(work.plough!.partIds).toEqual([]);
-    expect(work.plough!.returned).toEqual([3, 1, 2]);
-    expect(work.plough!.required).toBe(0);
+    const parts = Array.from({ length: 30 }, (_, i) => part(i + 1, { distanceM: 100 + i }));
+    const people = 1e9;
+    const crops = chooseCrops(parts, {
+      targetKg: 1e9,
+      startKg: 0,
+      capacity: {
+        autumnWinter: people,
+        autumn: people,
+        spring: people,
+        july: people,
+        august: people,
+        plough: { autumnWinter: 25, autumn: 45, spring: 30 },
+      },
+      load: orchardOnlyLoad(0),
+      allowWinter: true,
+      day,
+      toolCoverage: 0,
+      plough: true,
+    });
+    // 10 čd orby na díl: ozim do 25 (2 díly), jař na podzim zbytek do 45 a na jaře 30 (5 dílů)
+    expect(crops.winter).toHaveLength(2);
+    expect(crops.spring).toHaveLength(5);
   });
 
-  it('ves se spřežením orá: plán k 1. 9. bez kopání oraných dílů, spřežení na čele orby', () => {
+  it('slabí voli po zimě orají na jaře jen podílem; na podzim zase plnou silou', () => {
+    const day = at(601, 2, 28);
+    const s = withTeam(day);
+    s.hay = { kg: 0, mowing: null, winter: { oxenNeedKg: 2000, oxenEatenKg: 1500 } };
+    const spring = advanceVillage(s, at(601, 3, 1), null);
+    const weak = spring.pens![0]!.team!.weak!;
+    expect(weak).toBeGreaterThan(0.5);
+    expect(weak).toBeLessThan(1);
+    expect(ploughCapacityPerDay(spring, 0, at(601, 4, 10))).toBeCloseTo(weak * 3, 9);
+    expect(ploughCapacityPerDay(spring, 0, at(601, 10, 10))).toBeCloseTo(3, 9);
+  });
+
+  it('ves se spřežením orá: plán k 1. 9. bez kopání, spřežení na čele orby', () => {
     const day = at(600, 8, 31);
     const s = withTeam(day);
     s.fields = [{ id: 1 }];
@@ -332,10 +389,15 @@ describe('orba rádlem', () => {
     // 1. 9. – plán osevu a první den orby (setí jde za zoranou částí od dalšího dne)
     const sept = advanceVillage(s, at(600, 9, 1), null);
     const plan = sept.plan!;
-    const crops = [plan, ...(plan.winter ? [plan.winter] : [])];
-    expect(crops.some((w) => (w.plough?.partIds.length ?? 0) > 0)).toBe(true);
+    expect(plan.ard).toBe(true);
+    for (const { work } of planCrops(plan)) {
+      expect(work.plough!.partIds).toEqual(work.partIds);
+      expect(work.required.dig).toBe(0);
+    }
+    expect(planPartIds(plan).length).toBeGreaterThan(0);
     const ploughShares = sept.labor!.shares.filter((share) => share.activity === 'plough');
     expect(ploughShares.length).toBeGreaterThan(0);
+    expect(sept.labor!.shares.some((share) => share.activity === 'dig')).toBe(false);
     // spřežení zorá nejvýš 0,3 ha za den
     const ploughed = ploughShares.reduce((sum, share) => sum + share.manDays, 0);
     expect(ploughed).toBeLessThanOrEqual(ploughCapacityPerDay(sept, 0) + 1e-3);
@@ -344,13 +406,93 @@ describe('orba rádlem', () => {
     expect([...looks.values()].some((v) => v.look === 'plowed')).toBe(true);
   });
 
-  it('zima bez sena: vůl uhyne, spřežení se rozpadne a orbu dokopou motyky', () => {
+  it('louku zakládá ves se spřežením bez motyky – jen překážky, drn rozorá první orba', () => {
+    const day = at(600, 5, 1);
+    const s = withTeam(day);
+    const input = {
+      parts: Array.from({ length: 4 }, (_, i) => ({
+        areaM2: 2250,
+        distanceM: 100 + i,
+        naturalFertility: 70,
+        surface: 'meadow' as const,
+        obstacleCost: i === 0 ? 3 : 0,
+        cell: { x: i, y: 0 },
+      })),
+    };
+    const founded = foundField(s, day, input);
+    const parts = founded.parts.filter((p) => p.state === 'founding');
+    expect(parts.map((p) => p.foundingCost)).toEqual([3, 0, 0, 0]);
+    for (const p of parts) expect(p.sod).toBe(true);
+    expect(partFoundingCost('meadow', 2250, 3, 0, true)).toBe(3);
+    expect(partFoundingCost('meadow', 2250, 3, 0)).toBeCloseTo(100 * 0.225 + 3, 9);
+    // díly bez překážek jsou založené hned, díl s překážkami po jejich vyklizení – drn zůstal
+    // (pastvina) a čeká na orbu
+    const first = advanceVillage(founded, day + 1, null);
+    expect(first.parts.filter((p) => p.state === 'founding').length).toBeLessThanOrEqual(1);
+    const next = advanceVillage(founded, day + 20, null);
+    const ready = next.parts.filter((p) => parts.some((x) => x.id === p.id));
+    for (const p of ready) {
+      expect(p.state).toBe('ready');
+      expect(fieldPartLooks(next, next.lastDay).get(p.id)!.look).toBe('pasture');
+    }
+    expect(next.constructions.some((c) => c.kind === 'field')).toBe(false);
+    // ves bez spřežení zakládá motykou jako dřív
+    const hoe = foundField(village(day), day, input);
+    for (const p of hoe.parts.filter((x) => x.state === 'founding')) {
+      expect(p.sod).toBeUndefined();
+      expect(p.foundingCost).toBeGreaterThan(20);
+    }
+  });
+
+  it('ves přijde o poslední spřežení: letošní plán dokončí motyka, zorané díly zůstanou', () => {
+    const day = at(600, 9, 1);
+    const parts = [
+      part(1),
+      part(2, { distanceM: 110, state: 'fallow', fallowSinceDay: at(590, 9, 1) }),
+      part(3, { distanceM: 120 }),
+    ];
+    const byId = new Map(parts.map((p) => [p.id, p]));
+    const work = createCropWork(parts, day, 0, true);
+    work.plough!.done = work.plough!.required * 0.2; // rozpracovaný druhý díl (drn)
+    const ploughSpans = taskSpans(work, byId, 'plough', day);
+    const ploughAt = taskPosition(work, 'plough');
+    ploughToHoe(work, byId, 0, 'spring');
+    expect(work.plough).toBeUndefined();
+    // motyka: kopání všech dílů a drn louky jako vrácení
+    const weights = parts.map((p) => partWeight(p));
+    expect(work.required.dig).toBeCloseTo(
+      100 * (weights[0]! + weights[1]! + weights[2]!) + 100 * weights[1]!,
+      6,
+    );
+    // díly, kam orba došla, jsou zoraně stejně daleko i v kopání
+    const digSpans = taskSpans(work, byId, 'dig', day);
+    const digAt = taskPosition(work, 'dig');
+    for (const span of ploughSpans) {
+      const dig = digSpans.find((x) => x.id === span.id)!;
+      const share = (at: number, x: { start: number; end: number }): number =>
+        Math.min(1, Math.max(0, (at - x.start) / (x.end - x.start)));
+      expect(share(digAt, dig)).toBeCloseTo(share(ploughAt, span), 9);
+    }
+    expect(tilledShare(work)).toBeCloseTo(digAt, 9);
+  });
+
+  it('zima bez sena: vůl uhyne, spřežení se rozpadne a letošní plán dokončí motyka', () => {
     const day = at(601, 2, 28);
     const s = withTeam(day);
+    s.fields = [{ id: 1 }];
+    s.parts = Array.from({ length: 4 }, (_, i) =>
+      part(i + 1, { areaM2: 2250, distanceM: 100 + i, cell: { x: i, y: 0 } }),
+    );
+    s.plan = createPlan(s.parts, at(600, 9, 1), 0, true);
     s.hay = { kg: 0, mowing: null, winter: { oxenNeedKg: 2400, oxenEatenKg: 0 } };
     const spring = advanceVillage(s, at(601, 3, 1), null);
     expect(spring.pens![0]!.team).toBeNull();
     expect(spring.chronicle.some((e) => e.kind === 'ox-died')).toBe(true);
+    // jaro kopou motyky – plán orbu nemá, ves letos ale orala (kulaté rohy zůstanou)
+    expect(spring.plan!.plough).toBeUndefined();
+    expect(spring.plan!.required.dig).toBeGreaterThan(0);
+    expect(spring.plan!.ard).toBe(true);
+    expect(spring.labor!.shares.some((share) => share.activity === 'dig')).toBe(true);
   });
 });
 
@@ -379,6 +521,74 @@ describe('dopočet a staré vsi', () => {
     // seno se sklízelo a spřežení oralo
     expect(whole.chronicle.some((e) => e.kind === 'slaughter')).toBe(true);
     expect(whole.hay?.kg ?? 0).toBeGreaterThanOrEqual(0);
+  });
+
+  it('spřežení doslouží uprostřed plánu: motyka dokončí rok, výsledek nezávisí na kouscích', () => {
+    const day = at(600, 8, 1);
+    const s = withTeam(day);
+    // spřežení doslouží v říjnu – náhrada se cvičit nestihne (krávy nejsou)
+    s.pens![0]!.team = { readyDay: at(590, 10, 15) };
+    s.livestock!.herds.cow = 0;
+    s.fields = [{ id: 1 }];
+    s.parts = Array.from({ length: 24 }, (_, i) =>
+      part(i + 1, {
+        areaM2: 2250,
+        distanceM: 100 + 5 * i,
+        cell: { x: i, y: 0 },
+        ...(i >= 16
+          ? { state: 'fallow' as const, sownYears: 0, fallowSinceDay: at(594, 9, 1) }
+          : {}),
+      }),
+    );
+    s.storesKg = 800;
+    const end = at(601, 10, 1);
+    const whole = advanceVillage(s, end, null);
+    let chunked = s;
+    for (let d = s.lastDay + 17; d < end; d += 17) chunked = advanceVillage(chunked, d, null);
+    chunked = advanceVillage(chunked, end, null);
+    expect(chunked).toEqual(whole);
+    const retired = whole.chronicle.find((e) => e.kind === 'team-retired')!;
+    expect(retired.day).toBeGreaterThan(at(600, 9, 1));
+    // letošní plán po odchodu spřežení kopala motyka, další plán už orbu nemá
+    const october = advanceVillage(s, retired.day, null);
+    expect(october.plan!.ard).toBe(true);
+    expect(planCrops(october.plan!).some(({ work }) => work.plough)).toBe(false);
+    expect(whole.plan!.ard).toBeUndefined();
+    expect(planCrops(whole.plan!).some(({ work }) => work.plough)).toBe(false);
+  });
+
+  it('ves s plánem z doby, kdy rádlo nebralo drn: plán doběhne, od 1. 9. orá všechno', () => {
+    const day = at(600, 10, 1);
+    const s = withTeam(day);
+    s.fields = [{ id: 1 }];
+    s.parts = Array.from({ length: 6 }, (_, i) =>
+      part(i + 1, { areaM2: 2250, distanceM: 100 + i, cell: { x: i, y: 0 } }),
+    );
+    // starý plán: spřežení oralo první čtyři díly, poslední dva kopala motyka (jeden vrácený)
+    const plan = createPlan(s.parts, at(600, 9, 1), 0, false);
+    const ploughed = createCropWork(s.parts.slice(0, 4), at(600, 9, 1), 0, true).plough!;
+    plan.plough = { ...ploughed, digWeight: 2 * partWeight(s.parts[4]!) };
+    plan.required.dig = 2 * 100 * partWeight(s.parts[4]!);
+    (plan.plough as { returned?: number[] }).returned = [6];
+    s.plan = JSON.parse(JSON.stringify(plan)) as typeof plan;
+    s.storesKg = 300;
+    // seno na zimu – voli přežijí a orají dál
+    s.hay = { kg: 20_000, mowing: null };
+    const end = at(601, 9, 3);
+    const whole = advanceVillage(s, end, null);
+    let chunked = s;
+    for (let d = s.lastDay + 23; d < end; d += 23) chunked = advanceVillage(chunked, d, null);
+    chunked = advanceVillage(chunked, end, null);
+    expect(chunked).toEqual(whole);
+    // jaro: kopání starého plánu doběhlo
+    const spring = advanceVillage(s, at(601, 5, 1), null);
+    expect(spring.plan!.done.dig).toBeCloseTo(spring.plan!.required.dig, 6);
+    // nový plán orá všechno
+    expect(whole.plan!.ard).toBe(true);
+    for (const { work } of planCrops(whole.plan!)) {
+      expect(work.plough!.partIds).toEqual(work.partIds);
+      expect(work.required.dig).toBe(0);
+    }
   });
 
   it('ves uložená před dobytkem a orbou (plán bez orby, bez stád a sena) se dopočítá', () => {
@@ -421,10 +631,10 @@ describe('kopie stavu', () => {
     s.meatKg = 50;
     s.cheeseKg = 20;
     const state = advanceVillage(s, at(600, 11, 20), null);
-    // orba s vrácenými díly, zimní seno a porážka – všechna nová pole stavu jsou vyplněná
+    // orba s drnem, zimní seno a porážka – všechna nová pole stavu jsou vyplněná
     const work = state.plan!.winter ?? state.plan!;
-    work.plough ??= { partIds: [1], required: 1, done: 0, weight: 0.1, digWeight: 0 };
-    work.plough.returned = [2];
+    work.plough ??= { partIds: [1], required: 1, done: 0, weight: 0.1 };
+    work.plough.sodIds = [2];
     expect(state.livestock?.slaughterWork).toBeDefined();
     expect(state.hay?.winter).toBeDefined();
     expect(state.diet).toBeDefined();
@@ -435,10 +645,10 @@ describe('kopie stavu', () => {
     copy.livestock!.herds.sheep = 999;
     copy.pens![0]!.team!.readyDay = -1;
     copy.hay!.winter!.oxenEatenKg = -1;
-    work.plough.returned.push(3);
+    work.plough.sodIds.push(3);
     expect(state.livestock!.herds.sheep).not.toBe(999);
     expect(state.pens![0]!.team!.readyDay).not.toBe(-1);
     expect(state.hay!.winter!.oxenEatenKg).not.toBe(-1);
-    expect((copy.plan!.winter ?? copy.plan!).plough!.returned).toEqual([2]);
+    expect((copy.plan!.winter ?? copy.plan!).plough!.sodIds).toEqual([2]);
   });
 });

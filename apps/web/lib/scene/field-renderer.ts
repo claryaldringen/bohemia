@@ -544,6 +544,7 @@ export class FieldRenderer {
         hay ? day : null,
         neighbours.map((p) => [p.cell.x, p.cell.y]),
         clearingsKey(built),
+        field.ard ?? false,
       ]);
       const grouped = groupFieldBlocks(views);
       // pásy cest a pěšin v bloku – blok se přestaví, jen když se změní ty jeho
@@ -571,17 +572,12 @@ export class FieldRenderer {
       const coverageOf = (): ((x: number, z: number) => number) => {
         if (coverage) return coverage;
         const edge = [...drawn, ...neighbours].map((p) => (space ? space.square(p) : p));
-        // díly orané rádlem mají kulaté vnější rohy podle obratu spřežení (oxen.md – Kulaté
-        // rohy); kopané ostré, styky s jinými poli a vnitřní rohy taky
-        const ploughed = new Set(
-          drawn.filter((p) => p.ploughed).map((p) => `${p.cell.x},${p.cell.y}`),
-        );
+        // pole orané rádlem má kulaté vnější rohy podle obratu spřežení (oxen.md – Kulaté rohy,
+        // Jen rádlo); kopané ostré, styky s jinými poli a vnitřní rohy taky
         const ragged = raggedCoverage(
           edge,
           EDGE_SOFT_M,
-          ploughed.size > 0
-            ? { radius: PLOUGH_CORNER_M, rounded: (cell) => ploughed.has(`${cell.x},${cell.y}`) }
-            : undefined,
+          field.ard ? { radius: PLOUGH_CORNER_M, rounded: () => true } : undefined,
         );
         const clearing = clearingMask(built, CLEARING_SOFT_M);
         // obydlí na poli a pásy cest a pěšin (ve světě)

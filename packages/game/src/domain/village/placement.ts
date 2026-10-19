@@ -15,6 +15,7 @@ import { fieldSquareSurface, fieldsTouching, partFoundingCost } from './fields';
 import { TAKEN_LAND_EPSILON_M2, landTakenWarning, type TakenLand } from './land-taken';
 import { LIVESTOCK, withLivestock } from './livestock';
 import { orchardPlantingCost } from './orchard';
+import { ableTeams } from './oxen';
 import { roadWalk, walkGroundOf, type Walk, type WalkRoad } from './paths/walking';
 import {
   cellObstacles,
@@ -219,6 +220,11 @@ export interface PlacementVillage {
    * produktivity. Bez údaje 0 (ves bez kováře).
    */
   readonly toolCoverage?: number;
+  /**
+   * Ves má vycvičené spřežení s rádlem (oxen.md – Jen rádlo) – louku zakládá bez motyky, cena
+   * založení jen za překážky (drn rozorá první orba). Bez údaje ne.
+   */
+  readonly ploughTeam?: boolean;
   /**
    * Pevné cesty pro chůzi ke stromům ke kácení (roads.md – osa, stupeň, mokřina a brody) – cena
    * kácení u kurzoru jako na serveru (`placementWalk`). Bez údaje žádné.
@@ -1630,6 +1636,7 @@ export function placementVillageOf(state: VillageState, day: number): PlacementV
     reservedTrees: [...reservedTrees(state)],
     sacredBuildings: sacredBuildingPlots(state),
     toolCoverage: craftCoverage(state, day).tools,
+    ploughTeam: ableTeams(state) > 0,
     walkRoads: state.roads?.roads ?? [],
   };
 }
@@ -2291,7 +2298,14 @@ export function fieldPartsFromCells(
     areaM2 > 0 ? parts.reduce((sum, p) => sum + p.naturalFertility * p.areaM2, 0) / areaM2 : 0;
   const foundingCost = parts.reduce(
     (sum, p) =>
-      sum + partFoundingCost(p.surface, p.areaM2, p.obstacleCost, village?.toolCoverage ?? 0),
+      sum +
+      partFoundingCost(
+        p.surface,
+        p.areaM2,
+        p.obstacleCost,
+        village?.toolCoverage ?? 0,
+        village?.ploughTeam ?? false,
+      ),
     0,
   );
   const obstacleCost = parts.reduce((sum, p) => sum + p.obstacleCost, 0);

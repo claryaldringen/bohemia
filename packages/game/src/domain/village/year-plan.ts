@@ -9,10 +9,18 @@ import {
   reclaimCostPerHa,
 } from './fields';
 import { daysUntilHarvest, daysUntilWinterHarvest } from './food';
-import { isPloughable, ploughWorkPerHa } from './plough';
+import { PLOUGH_SOD_FACTOR, hasSod, ploughWorkPerHa } from './plough';
 import { fieldWorkPerHa } from './productivity';
 import { CROP_WINDOWS, LEGUMES, SEED_KG_PER_HA, UNWEEDED_YIELD, type WindowSegment } from './rules';
-import type { Crop, CropWork, FieldPart, FieldTask, TaskName, YearPlan } from './types';
+import type {
+  Crop,
+  CropWork,
+  FieldPart,
+  FieldTask,
+  TaskName,
+  VillageState,
+  YearPlan,
+} from './types';
 
 const M2_PER_HA = 10_000;
 const MONTHS_PER_YEAR = 12;
@@ -35,7 +43,7 @@ export function emptyTaskRecord(): Record<TaskName, number> {
   return { reclaim: 0, dig: 0, sow: 0, weed: 0, harvest: 0, thresh: 0 };
 }
 
-/** Práce dílu za rok po úlohách a orba rádlem (`plough` – jen díly, které orá spřežení). */
+/** Práce dílu za rok po úlohách a orba rádlem (`plough` – jen ves, která orá spřežením). */
 export type PartWork = Record<TaskName, number> & { plough: number };
 
 /**
@@ -49,8 +57,10 @@ export function partWeight(part: FieldPart): number {
 /**
  * Člověkodny prací jednoho dílu za rok podle sazeb (meze podle pokrytí nástroji) a vzdálenosti.
  * První sezónu po vymýcení lesa se díl neplete; příloh stojí navíc vrácení podle stadia (mladý
- * příloh nic, louka drn, křoviny a mladý les jako jejich založení – fields.md, Zarůstání).
- * S `plough` (ves má spřežení – oxen.md) díl, který rádlo zvládne, místo kopání orá.
+ * příloh nic, louka drn, křoviny a mladý les jako jejich založení – fields.md, Zarůstání), drn
+ * louky založené rádlem jako vrácení louky. S `plough` (ves má spřežení – oxen.md, Jen rádlo) se
+ * díl orá místo kopání, i drn: ten rozorá orba křížem (`PLOUGH_SOD_FACTOR`× víc orby, motyka na
+ * drn nejde); křoviny a mladý les se klučí ručně jako dřív.
  */
 export function partWork(
   part: FieldPart,
@@ -69,12 +79,58 @@ export function partWork(
   }
   if (part.state === 'fallow') {
     work.reclaim = reclaimCostPerHa(fallowStage(part, day), toolCoverage) * ha * factor;
+  } else if (part.sod) {
+    work.reclaim = reclaimCostPerHa('meadow', toolCoverage) * ha * factor;
   }
-  if (plough && isPloughable(part, day)) {
-    work.plough = ha * ploughWorkPerHa(toolCoverage) * factor;
+  if (plough) {
+    const sod = hasSod(part, day);
+    if (sod) work.reclaim = 0;
+    work.plough = ha * ploughWorkPerHa(toolCoverage) * factor * (sod ? PLOUGH_SOD_FACTOR : 1);
     work.dig = 0;
   }
   return work;
+}
+
+/**
+ * Plodina, kterou letos oralo spřežení, dokončí motyka (mutuje `work`) – ves přišla o poslední
+ * spřežení (oxen.md – Jen rádlo). Díly, kam orba došla, zůstanou zorané; zbytek se dokope:
+ * kopání celé plodiny podle sazby motyky (drn s vrácením louky) s hotovým podílem, kam došla
+ * orba – po dílech stejně (díl s drnem má v orbě větší váhu, v kopání ne). Plodina pak orbu nemá.
+ */
+export function ploughToHoe(
+  work: CropWork,
+  partsById: ReadonlyMap<number, FieldPart>,
+  toolCoverage: number,
+  crop: Crop,
+): void {
+  const plough = work.plough;
+  if (!plough) return;
+  const sod = new Set(plough.sodIds ?? []);
+  const parts = plough.partIds.flatMap((id) => {
+    const part = partsById.get(id);
+    return part ? [part] : [];
+  });
+  const ploughWeights = parts.map((p) => partWeight(p) * (sod.has(p.id) ? PLOUGH_SOD_FACTOR : 1));
+  const ploughTotal = ploughWeights.reduce((sum, w) => sum + w, 0);
+  const position = plough.required > 0 ? Math.min(1, plough.done / plough.required) : 1;
+  const dig = fieldWorkPerHa('dig', toolCoverage, crop);
+  const drn = reclaimCostPerHa('meadow', toolCoverage);
+  let hoe = 0;
+  let weight = 0;
+  let doneWeight = 0;
+  let start = 0;
+  parts.forEach((part, i) => {
+    const w = partWeight(part);
+    const span = ploughTotal > 0 ? ploughWeights[i]! / ploughTotal : 0;
+    const done = span > 0 ? Math.min(1, Math.max(0, (position - start) / span)) : 1;
+    start += span;
+    hoe += w * (dig + (sod.has(part.id) ? drn : 0));
+    weight += w;
+    doneWeight += w * done;
+  });
+  work.required.dig += hoe;
+  work.done.dig += weight > 0 ? (doneWeight / weight) * hoe : hoe;
+  delete work.plough;
 }
 
 /** Pořadí dílů, ve kterém k nim postupuje práce plodiny. */
@@ -88,7 +144,7 @@ export const nearestFirst: WorkOrder = (parts) =>
  * Práce jedné plodiny pro vybrané díly (viz `partWork`). Díly se seřadí, jak k nim práce
  * postupuje (fields.md – Postup práce po čtvercích): ves s hospodářstvími po úsecích od domu ven
  * (`workOrder` v holdings.ts), jinak nejblíž obydlím první, při shodě podle id. S `plough` orá
- * spřežení díly, které rádlo zvládne (`plough` v práci plodiny).
+ * spřežení všechny díly (`plough` v práci plodiny – i bez dílů, ať k ní přidané díly orá taky).
  */
 export function createCropWork(
   selected: FieldPart[],
@@ -101,43 +157,43 @@ export function createCropWork(
   const required = emptyTaskRecord();
   const ordered = order(selected);
   const reclaimIds: number[] = [];
-  const ploughIds: number[] = [];
+  const sodIds: number[] = [];
   let ploughRequired = 0;
   let ploughWeight = 0;
-  let digWeight = 0;
   for (const part of ordered) {
     const work = partWork(part, day, toolCoverage, plough, crop);
     for (const task of TASK_ORDER) required[task] += work[task];
     if (work.reclaim > 0) reclaimIds.push(part.id);
-    if (work.plough > 0) {
-      ploughIds.push(part.id);
-      ploughRequired += work.plough;
-      ploughWeight += partWeight(part);
-    } else {
-      digWeight += partWeight(part);
-    }
+    if (!plough) continue;
+    ploughRequired += work.plough;
+    ploughWeight += partWeight(part);
+    if (hasSod(part, day)) sodIds.push(part.id);
   }
+  const partIds = ordered.map((p) => p.id);
   return {
-    partIds: ordered.map((p) => p.id),
+    partIds,
     ...(reclaimIds.length > 0 ? { reclaimIds } : {}),
     required,
     done: emptyTaskRecord(),
     harvestedKg: null,
-    ...(ploughIds.length > 0
+    ...(plough
       ? {
           plough: {
-            partIds: ploughIds,
+            partIds: [...partIds],
             required: ploughRequired,
             done: 0,
             weight: ploughWeight,
-            digWeight,
+            ...(sodIds.length > 0 ? { sodIds } : {}),
           },
         }
       : {}),
   };
 }
 
-/** Plán prací na rok jen s jaří (tvar plánu z doby před ozimem). */
+/**
+ * Plán prací na rok jen s jaří (tvar plánu z doby před ozimem); s `plough` ves letos orá rádlem
+ * (`ard`).
+ */
 export function createPlan(
   selected: FieldPart[],
   day: number,
@@ -145,7 +201,11 @@ export function createPlan(
   plough = false,
   order: WorkOrder = nearestFirst,
 ): YearPlan {
-  return { plannedDay: day, ...createCropWork(selected, day, toolCoverage, plough, order) };
+  return {
+    plannedDay: day,
+    ...(plough ? { ard: true as const } : {}),
+    ...createCropWork(selected, day, toolCoverage, plough, order),
+  };
 }
 
 /**
@@ -171,42 +231,26 @@ export function createYearPlan(
 
 /**
  * Přidá do práce plodiny další díly (mutuje `work`) – nová dávka jde na konec, seřazená `order`.
- * S `plough` je orá spřežení (díly, které
- * rádlo zvládne) – plodina bez orby ji dostane; `parts` (díly vsi) pak určí váhu dílů, které se
- * u ní dosud kopaly (bez nich 0 – setí jde jen za orbou přidaných dílů).
+ * Plodina, kterou orá spřežení (`plough`), přidané díly orá taky, jinak je kope motyka (oxen.md –
+ * Jen rádlo: plodina se buď celá orá, nebo celá kope).
  */
 export function addToCropWork(
   work: CropWork,
   added: FieldPart[],
   day: number,
   toolCoverage: number,
-  plough = false,
-  parts?: ReadonlyMap<number, FieldPart>,
   order: WorkOrder = nearestFirst,
 ): void {
-  const extra = createCropWork(added, day, toolCoverage, plough, order);
-  // váha dílů, které se u plodiny dosud kopaly – před přidáním nových dílů
-  const dugBefore = work.plough
-    ? work.plough.digWeight
-    : work.partIds.reduce((sum, id) => {
-        const part = parts?.get(id);
-        return sum + (part ? partWeight(part) : 0);
-      }, 0);
+  const plough = work.plough;
+  const extra = createCropWork(added, day, toolCoverage, plough !== undefined, order);
   for (const task of TASK_ORDER) work.required[task] += extra.required[task];
   work.partIds.push(...extra.partIds);
   if (extra.reclaimIds) work.reclaimIds = [...(work.reclaimIds ?? []), ...extra.reclaimIds];
-  const addedDig =
-    extra.plough?.digWeight ?? added.reduce((sum, part) => sum + partWeight(part), 0);
-  if (work.plough) {
-    work.plough.digWeight = dugBefore + addedDig;
-    if (extra.plough) {
-      work.plough.partIds.push(...extra.plough.partIds);
-      work.plough.required += extra.plough.required;
-      work.plough.weight += extra.plough.weight;
-    }
-  } else if (extra.plough) {
-    work.plough = { ...extra.plough, digWeight: dugBefore + addedDig };
-  }
+  if (!plough || !extra.plough) return;
+  plough.partIds.push(...extra.plough.partIds);
+  plough.required += extra.plough.required;
+  plough.weight += extra.plough.weight;
+  if (extra.plough.sodIds) plough.sodIds = [...(plough.sodIds ?? []), ...extra.plough.sodIds];
 }
 
 /**
@@ -219,6 +263,17 @@ export function planCrops(plan: YearPlan): { crop: Crop; work: CropWork }[] {
   if (plan.legume) crops.push({ crop: 'legume', work: plan.legume });
   crops.push({ crop: 'spring', work: plan });
   return crops;
+}
+
+/**
+ * Ves letos orá rádlem (oxen.md – Jen rádlo): letošní plán (po sklizni ten, který se mlátí)
+ * vznikl se spřežením – i když ho po ztrátě spřežení dokončila motyka; plán starší vsi, když
+ * v něm spřežení oralo. Ve scéně má pak celé pole kulaté rohy.
+ */
+export function ploughsThisYear(state: Pick<VillageState, 'plan' | 'threshingFromPlan'>): boolean {
+  const plan = state.plan ?? state.threshingFromPlan;
+  if (!plan) return false;
+  return plan.ard === true || planCrops(plan).some(({ work }) => work.plough !== undefined);
 }
 
 /** Všechny díly plánu – ozim, luštěniny i jař. */
@@ -238,15 +293,16 @@ function ploughShare(work: CropWork): number {
 }
 
 /**
- * Zpracovaný podíl půdy plodiny (0–1) – zkopaná a zoraná část podle vah dílů (oxen.md: seje se,
- * co je zkopané nebo zorané). Bez orby podíl kopání.
+ * Zpracovaný podíl půdy plodiny (0–1) – seje se, co je zorané, bez orby co je zkopané (oxen.md –
+ * Jen rádlo). Plán starší vsi, kde spřežení oralo jen část dílů, váží orbu a kopání vahami dílů.
  */
 export function tilledShare(work: CropWork): number {
   const plough = work.plough;
   if (!plough) return planShare(work, 'dig');
-  const total = plough.weight + plough.digWeight;
-  if (total <= 0) return 1;
-  return (planShare(work, 'dig') * plough.digWeight + ploughShare(work) * plough.weight) / total;
+  const digWeight = plough.digWeight ?? 0;
+  if (digWeight <= 0) return ploughShare(work);
+  const total = plough.weight + digWeight;
+  return (planShare(work, 'dig') * digWeight + ploughShare(work) * plough.weight) / total;
 }
 
 /**

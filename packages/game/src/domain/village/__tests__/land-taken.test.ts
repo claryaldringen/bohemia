@@ -24,7 +24,6 @@ import { relocationPlot } from '../plots';
 import { HAY_WORK_PER_HA, TAKEN_LAND_MIN_SHARE } from '../rules';
 import { advanceVillage } from '../simulate';
 import type { ChronicleEvent, CropWork, TileCell, VillageState } from '../types';
-import { returnPloughToHoe } from '../oxen';
 import { logsFromClearedTrees } from '../wood';
 import {
   createCropWork,
@@ -199,26 +198,25 @@ describe('giveWayToBuilding – díl pole v plánu osevu', () => {
 });
 
 describe('giveWayToBuilding – orba rádlem a seč sena', () => {
-  it('díl oraný i kopaný (vrácený motyce): orba i kopání zbylých dílů zůstanou, kde byly', () => {
+  it('díl oraný rádlem (i s drnem): orba a setí zbylých dílů zůstanou, kde byly', () => {
     const base = advanceVillage(village(), at(600, 9, 2), null);
     const day = base.lastDay;
     const byId = new Map(base.parts.map((p) => [p.id, p]));
     const ids = base.plan!.winter!.partIds;
-    // ozim orá spřežení, polovinu orby vrátí motyce (vůl uhynul) – oraná i kopaná část
+    // ozim orá spřežení celý (oxen.md – Jen rádlo), třetí díl je drn louky založené rádlem
+    const sod = ids[2]!;
+    byId.get(sod)!.sod = true;
     const work = createCropWork(
       ids.map((id) => byId.get(id)!),
       day,
       0,
       true,
     );
-    returnPloughToHoe(work, byId, 0, 0.5);
+    expect(work.plough!.sodIds).toEqual([sod]);
     work.plough!.done = work.plough!.required * 0.4;
-    work.done.dig = work.required.dig * 0.3;
     work.done.sow = work.required.sow * tilledShare(work) * 0.5;
     base.plan!.winter = work;
-    const ploughed = work.plough!.partIds[1]!;
-    const dug = work.plough!.returned![0]!;
-    for (const id of [ploughed, dug]) {
+    for (const id of [ids[1]!, sod]) {
       const s = structuredClone(base);
       const before = fieldPartLooks(s, day);
       giveWayToBuilding(s, day, [whole(partOf(s, id)!.cell!)]);
@@ -227,14 +225,12 @@ describe('giveWayToBuilding – orba rádlem a seč sena', () => {
       for (const other of rest) expect(after.get(other)).toEqual(before.get(other));
       const plough = s.plan!.winter!.plough!;
       expect(plough.partIds).not.toContain(id);
-      expect(plough.returned ?? []).not.toContain(id);
-      // váhy orby a kopání dohromady = váha zbylých dílů; orba úměrná oraným dílům
+      expect(plough.sodIds ?? []).not.toContain(id);
+      // váha orby = váha zbylých dílů, kopání plodina nemá
       const restWeight = rest.reduce((sum, x) => sum + partWeight(partOf(s, x)!), 0);
-      expect(plough.weight + plough.digWeight).toBeCloseTo(restWeight, 9);
-      expect(plough.required / plough.weight).toBeCloseTo(
-        work.plough!.required / work.plough!.weight,
-        9,
-      );
+      expect(plough.weight).toBeCloseTo(restWeight, 9);
+      expect(plough.digWeight).toBeUndefined();
+      expect(s.plan!.winter!.required.dig).toBe(0);
     }
   });
 

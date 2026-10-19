@@ -897,10 +897,20 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   `FASTEST_WALK_SHARE`), jen kolik je třeba; pěšina k sečeným loukám – `PathVillage.hayMeadows`
   a práce `meadow`; sezónní úloha `mow`, vzhled políček `hayMeadowLooks`; zimní krmení `feedHay` –
   voli první, krávy, ovce a kozy poměrně; pokrytí volů `oxenHayCoverage` a stáda
-  `herdHayCoverage` k 1. 3.). **Orba:** plán s vycvičeným spřežením dá díly bez drnu (`isPloughable`) do
-  `CropWork.plough` (jejich kopání v `required.dig` není); úloha `plough` v oknech kopání, nejvýš
-  `ploughCapacityPerDay`; setí jde za `tilledShare`; `returnPloughToHoe` vrátí díly motyce
-  (konec řady kopání – `PloughWork.returned`). Postup po dílech zná úlohu `plough`
+  `herdHayCoverage` k 1. 3.). **Orba – jen rádlo** (oxen.md – Jen rádlo; Martin 19. 10. 2026:
+  „Pokud je k dispozici rádlo, kopání motykou úplně vynech.“): plán s vycvičeným spřežením
+  (`YearPlan.ard`) orá všechny díly všech plodin (`CropWork.plough` – `partIds` = díly plodiny,
+  `required.dig` 0, i prázdná plodina orbu má, ať přidané díly orá – `addToCropWork` podle
+  `work.plough`); drn (`hasSod` – příloh ve fázi louky, louka založená rádlem `FieldPart.sod`)
+  `PLOUGH_SOD_FACTOR` (2,5×) práce a ve váze orby (`PloughWork.sodIds`), křoviny a mladý les
+  vrácení ručně a pak běžná orba. Založení louky vsí se spřežením jen za překážky
+  (`partFoundingCost(…, ard)`, díl dostane `sod`, bez překážek hotový hned – `foundPart` v `build`;
+  u kurzoru `PlacementVillage.ploughTeam`). Plán osevu hlídá kapacitu spřežení
+  (`SowingCapacity.plough` – okna orby, `fitsWinter` / `fitsSpringPlough`), co nezorají, se
+  nezaseje (setí za `tilledShare`). Úloha `plough` v oknech kopání, nejvýš `ploughCapacityPerDay`
+  (slabí voli po zimě `team.weak` od 1. 3.). Ztráta posledního spřežení: `finishPlanByHoe` →
+  `ploughToHoe` – letošní plán dokončí motyka (kopání s hotovým podílem, kam došla orba). Starší
+  plán s částí kopanou motykou doběhne (`digWeight`). Postup po dílech zná úlohu `plough`
   (`field-progress.ts`), rozdělení práce posílá činnosti `plough`, `mow`, `slaughter`, `pen`.
 - **Hráč staví kdy chce** (Martin) – stavbu smí zablokovat jen **cena předem** (`costs.ts`:
   `BUILD_COSTS`, `buildAffordability`): suroviny ze zásob (dnes žádné) a u obydlí **lidé
@@ -1239,11 +1249,14 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   `FieldBlockContent.canopy`, natočené pole `FieldSpace.canopy`, mesh `village-field-canopy-<id>`
   s texturou porostu, `applySeasonGround`); 3D trsy (zelené 0,85, zralé 1,15 m) z ní vyčnívají.
   Pole s 1 566 zralými díly: +1 draw call, ≈ +0,2 M trojúhelníků. **Kulaté rohy** (oxen.md –
-  Kulaté rohy): díl oraný rádlem (`SceneFieldPart.ploughed` z jádra – `PartView.ploughed`, orba
-  plodiny na něm začala) má vnější rohy pole zakulacené obloukem `PLOUGH_CORNER_M` (5 m) –
+  Kulaté rohy, Jen rádlo): pole vsi, která letos orá rádlem (`SceneVillage.fields[].ard` z
+  `ploughsThisYear` v jádru – stav vsi, ne díly), má vnější rohy zakulacené obloukem
+  `PLOUGH_CORNER_M` (5 m) –
   `cellsCoverage(…, rounding)` / `raggedCoverage(…, rounding)` v `field-cells.ts`, vnější rohy
   `outerCorners`; obtisk, trsy i koruna podle krytí, v klíči bloku (`partViewsKey`). Jen vzhled –
-  plochu dílu roh neubírá. **Pod cestou obilí neroste** (fields.md – Co hráč vidí, Martin 19. 10. 2026): maska `track-mask.ts` (`trackMask` – úsečky a plácky rozcestí s hloubkou,
+  plochu dílu roh neubírá. **Pod cestou obilí neroste**
+  (fields.md – Co hráč vidí, Martin 19. 10. 2026): maska `track-mask.ts` (`trackMask` – úsečky
+  a plácky rozcestí s hloubkou,
   přihrádky po 8 m, `keyNear` = klíč pásů v bloku) z průřezů obtisku (`ribbonSections` /
   `ribbonTrack` v `path-ribbon.ts`) – pevné cesty `roadTrack` (`road-works-layout.ts`, klíč cest
   `roadsKey` + `roadWorksKey`) s okrajem 0,8 m a pěšiny dne z `VillagePaths.pathTrack()` (síla po

@@ -1,6 +1,7 @@
 import { dateOfDayIndex } from '../calendar';
 import { distanceFactor, fallowStage, isOvergrown, isWeedFree, partWalkDistance } from './fields';
 import { isHayMeadow, mowingPosition, mowingSpans } from './hay';
+import { PLOUGH_SOD_FACTOR } from './plough';
 import { partStage } from './summary';
 import type { Crop, CropWork, FieldPart, TileCell, VillageState } from './types';
 import { cropTaskRemaining, cropTaskWindows, planCrops } from './year-plan';
@@ -53,15 +54,12 @@ export type FieldPartLook =
 
 /**
  * Vzhled dílu: `look`, u rozpracovaného dílu (čelo práce) i `work` – kolik práce dnešní úlohy je
- * na něm hotovo 0–1 (hotová část má `look`) a `before` – vzhled zbytku. `ploughed` – díl letošní
- * plodiny oralo spřežení rádlem (orba na něm začala – oxen.md, Kulaté rohy): ve scéně má pole
- * v jeho vnějších rozích kulaté rohy podle obratu spřežení; kopaný díl údaj nemá.
+ * na něm hotovo 0–1 (hotová část má `look`) a `before` – vzhled zbytku.
  */
 export interface PartView {
   look: FieldPartLook;
   work?: number;
   before?: FieldPartLook;
-  ploughed?: true;
 }
 
 /** Úsek dílu v pořadí úlohy – od–do jako podíl celé práce úlohy (0–1). */
@@ -76,24 +74,34 @@ const M2_PER_HA = 10_000;
 /** Tolerance proti chybám desetinných čísel u hranic úseků. */
 const EPSILON = 1e-9;
 
-/** Váha dílu v úloze – jeho práce (plocha × vzdálenost); díl, kterého se úloha netýká, 0. */
-function partWeight(work: CropWork, part: FieldPart, task: PartTask, day: number): number {
+/**
+ * Váha dílu v úloze – jeho práce (plocha × vzdálenost, orba drnu `PLOUGH_SOD_FACTOR`× víc –
+ * `sod`); díl, kterého se úloha netýká, 0.
+ */
+function partWeight(
+  work: CropWork,
+  part: FieldPart,
+  task: PartTask,
+  day: number,
+  sod: ReadonlySet<number>,
+): number {
   if (task === 'reclaim' && !(work.reclaimIds ?? []).includes(part.id)) return 0;
   if (task === 'weed' && isWeedFree(part, day)) return 0;
-  return (part.areaM2 / M2_PER_HA) * distanceFactor(partWalkDistance(part));
+  const weight = (part.areaM2 / M2_PER_HA) * distanceFactor(partWalkDistance(part));
+  return task === 'plough' && sod.has(part.id) ? weight * PLOUGH_SOD_FACTOR : weight;
 }
 
 /**
- * Díly úlohy v pořadí postupu: orba jen díly spřežení, kopání díly motyky (díly vrácené motyce
- * na konci – oxen.md), ostatní úlohy všechny díly plodiny.
+ * Díly úlohy v pořadí postupu: orba díly spřežení (oxen.md – Jen rádlo: všechny díly plodiny),
+ * kopání díly motyky (v plánu starší vsi, kde spřežení oralo jen část, ty ostatní), ostatní úlohy
+ * všechny díly plodiny.
  */
 function taskPartIds(work: CropWork, task: PartTask): readonly number[] {
   const plough = work.plough;
   if (task === 'plough') return plough?.partIds ?? [];
   if (task !== 'dig' || !plough) return work.partIds;
-  const returned = plough.returned ?? [];
-  const elsewhere = new Set([...plough.partIds, ...returned]);
-  return [...work.partIds.filter((id) => !elsewhere.has(id)), ...returned];
+  const ploughed = new Set(plough.partIds);
+  return work.partIds.filter((id) => !ploughed.has(id));
 }
 
 /** Úseky dílů práce plodiny v úloze v pořadí postupu (díly s nulovou vahou vynechané). */
@@ -103,9 +111,10 @@ export function taskSpans(
   task: PartTask,
   day: number,
 ): PartSpan[] {
+  const sod = new Set(task === 'plough' ? (work.plough?.sodIds ?? []) : []);
   const weighted = taskPartIds(work, task).flatMap((id) => {
     const part = partsById.get(id);
-    const weight = part ? partWeight(work, part, task, day) : 0;
+    const weight = part ? partWeight(work, part, task, day, sod) : 0;
     return part && weight > 0 ? [{ part, weight }] : [];
   });
   const total = weighted.reduce((sum, w) => sum + w.weight, 0);
@@ -267,10 +276,10 @@ function spansById(
 const DONE = 1 - EPSILON;
 
 /**
- * Vzhled dílů jedné plodiny plánu: sklizeň > setí > kopání (a vrácení přílohu) – co je nejdál,
- * to je vidět; rozpracovaný díl úlohy má `work` a `before`. Před kopáním je díl, jak ho práce
- * zastihla: loňské strniště (díl v osevu), drn pastviny (vrací se z přílohu), nebo rozrytý drn
- * (nově založený díl).
+ * Vzhled dílů jedné plodiny plánu: sklizeň > setí > kopání či orba (a vrácení přílohu) – co je
+ * nejdál, to je vidět; rozpracovaný díl úlohy má `work` a `before`. Před kopáním je díl, jak ho
+ * práce zastihla: loňské strniště (díl v osevu), drn pastviny (vrací se z přílohu, drn louky
+ * založené rádlem), nebo rozrytý drn (nově založený díl).
  */
 function cropLooks(
   crop: Crop,
@@ -292,11 +301,11 @@ function cropLooks(
   >;
   const share = (task: keyof typeof spans, id: number): number | null =>
     shareOn(spans[task].byId.get(id), spans[task].at);
-  const reclaimIds = new Set(work.reclaimIds ?? []);
+  const sodIds = new Set([...(work.reclaimIds ?? []), ...(work.plough?.sodIds ?? [])]);
   for (const id of work.partIds) {
     const part = partsById.get(id);
     if (!part || part.state !== 'sown') continue;
-    const untouched: FieldPartLook = reclaimIds.has(id)
+    const untouched: FieldPartLook = sodIds.has(id)
       ? 'pasture'
       : part.sownYears > 0
         ? 'stubble'
@@ -308,8 +317,6 @@ function cropLooks(
       share('reclaim', id) ?? 0,
       share('plough', id) ?? 0,
     );
-    // orané rádlem – orba plodiny na dílu začala (kopaný díl a díl, ke kterému orba nedošla, ne)
-    const ard = (share('plough', id) ?? 0) > EPSILON ? ({ ploughed: true } as const) : {};
     let view: PartView;
     if (harvested) view = { look: 'stubble' };
     else if (harvest >= DONE) view = { look: 'harvesting' };
@@ -324,7 +331,7 @@ function cropLooks(
     if (view.look === 'plowed' && view.before === undefined && share('plough', id) !== null) {
       view.before = untouched;
     }
-    views.set(id, { ...view, ...ard });
+    views.set(id, view);
   }
 }
 
@@ -415,9 +422,10 @@ export function fieldPartLooks(state: VillageState, day: number): Map<number, Pa
     if (views.has(part.id)) continue;
     if (part.state === 'founding') {
       const work = part.foundingCost > 0 ? part.foundingDone / part.foundingCost : 0;
-      views.set(part.id, { look: 'bare', work: Math.min(1, work) });
+      // louku zakládanou rádlem jen vyklízí od překážek – drn zůstane do orby (oxen.md – Jen rádlo)
+      views.set(part.id, { look: part.sod ? 'pasture' : 'bare', work: Math.min(1, work) });
     } else if (part.state === 'ready' || part.state === 'sown') {
-      views.set(part.id, { look: 'bare' });
+      views.set(part.id, { look: part.sod ? 'pasture' : 'bare' });
     } else if (isOvergrown(part)) {
       // zarůstající příloh (fields.md – Zarůstání) – křoviny a mladý les
       views.set(part.id, { look: fallowStage(part, day) === 'shrubs' ? 'shrubs' : 'young-forest' });

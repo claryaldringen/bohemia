@@ -143,13 +143,19 @@ export function fieldSquareSurface(
   return shrubs > 0 && shrubs * OBSTACLE_COST.shrub >= premium - EPSILON ? 'shrub' : 'meadow';
 }
 
-/** Cena založení dílu: povrch × hektary (podle pokrytí nástroji) + překážky. */
+/**
+ * Cena založení dílu: povrch × hektary (podle pokrytí nástroji) + překážky. Ves se spřežením
+ * (`ard`) louku motykou nezakládá – drn rozorá rádlo při první orbě (díl dostane `sod`, oxen.md –
+ * Jen rádlo), platí se jen překážky; křoviny a les se klučí ručně jako dřív.
+ */
 export function partFoundingCost(
   surface: FieldSurface,
   areaM2: number,
   obstacleCost: number,
   toolCoverage: number,
+  ard = false,
 ): number {
+  if (ard && surface === 'meadow') return obstacleCost;
   return foundingCostPerHa(surface, toolCoverage) * (areaM2 / M2_PER_HA) + obstacleCost;
 }
 
@@ -162,6 +168,8 @@ export function endOfSeason(part: FieldPart, day: number): void {
   // příloh, ze kterého se díl loni vracel, už plán zkrátit nemůže (fields.md – Osev podle zásob)
   delete part.fallowBeforePlan;
   if (part.state === 'sown') {
+    // díl prošel orbou – drn louky založené rádlem je rozoraný (oxen.md – Jen rádlo)
+    delete part.sod;
     part.fertilityShare =
       part.crop === 'legume'
         ? Math.min(1, part.fertilityShare + LEGUMES.fertilityGain)

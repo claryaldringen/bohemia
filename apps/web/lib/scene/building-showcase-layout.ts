@@ -409,10 +409,8 @@ export function showcasePlough(day: number): Pick<SceneVillage, 'fields' | 'dwel
   const to = (d + 1) * SHOWCASE_PLOUGH_STEP;
   const parts = squares.map((square, i): SceneFieldPart => {
     const base = { ...square, id: PLOUGH_PART_ID + i, stage: 'sown' as const };
-    // orá spřežení rádlem – zoraná plocha má kulaté vnější rohy (oxen.md – Kulaté rohy)
-    const ard = { ploughed: true as const };
-    if (to >= i + 1 - 1e-9) return { ...base, ...ard, look: 'plowed' };
-    if (to > i) return { ...base, ...ard, look: 'plowed', work: to - i, before: 'stubble' };
+    if (to >= i + 1 - 1e-9) return { ...base, look: 'plowed' };
+    if (to > i) return { ...base, look: 'plowed', work: to - i, before: 'stubble' };
     return { ...base, look: 'stubble' };
   });
   const today = parts.flatMap((p, i) =>
@@ -423,7 +421,8 @@ export function showcasePlough(day: number): Pick<SceneVillage, 'fields' | 'dwel
   return {
     dwellings: [],
     pens: [],
-    fields: [{ id: PLOUGH_FIELD_ID, parts }],
+    // orá spřežení rádlem – pole má kulaté vnější rohy (oxen.md – Kulaté rohy, Jen rádlo)
+    fields: [{ id: PLOUGH_FIELD_ID, parts, ard: true }],
     labor: {
       // den ukázky (okno dne – showcasePloughWindow)
       day,

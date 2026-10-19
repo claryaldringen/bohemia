@@ -279,8 +279,7 @@ export type CropSquare = CellSquare & { readonly crop?: FieldCrop };
 
 /**
  * Část klíče změn pole (field-renderer.ts) za vzhled dílů: vzhled, rozpracovanost po pruzích,
- * vzhled zbytku, vytyčení, plodina a orba rádlem (kulaté rohy) – pole se přestaví, jen když se
- * některé z nich změní.
+ * vzhled zbytku, vytyčení a plodina – pole se přestaví, jen když se některé z nich změní.
  */
 export function partViewsKey(views: readonly PartView[]): unknown[] {
   return views.map((v) => [
@@ -289,7 +288,6 @@ export function partViewsKey(views: readonly PartView[]): unknown[] {
     v.before,
     v.staked,
     v.part.crop ?? null,
-    v.part.ploughed ?? false,
   ]);
 }
 
