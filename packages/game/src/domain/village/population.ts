@@ -2,9 +2,10 @@ import { createRandom, deriveSeed } from '../landscape/random';
 import { bury, hygieneDeathFactor, villageHygiene } from './cemetery';
 import { isOvercrowded } from './dwellings';
 import { removePeople } from './kinship';
-import { ageGroup, canBear, canFather, householdBreaksUp, occupants } from './people';
+import { ageGroup, ageYears, canBear, canFather, householdBreaksUp, occupants } from './people';
 import {
   ADULT_DEATHS_PER_YEAR,
+  AGE,
   BIRTHS_PER_PAIR_PER_YEAR,
   BOY_SHARE,
   CROWDED_BIRTH_FACTOR,
@@ -143,11 +144,15 @@ export function deathChancePerDay(person: Person, ctx: DeathContext): number {
   return Math.min(1, base + starvation);
 }
 
-/** Z obývaných obydlí `homes` (kromě `fromId`) to s nejvíc volnými místy, při shodě nižší id. */
+/**
+ * Z obývaných obydlí `homes` (kromě `fromId`) to s nejvíc volnými místy, při shodě nižší id; jen
+ * obydlí s aspoň `minFree` volnými místy.
+ */
 function roomiest(
   state: VillageState,
   homes: readonly Dwelling[],
   fromId: number,
+  minFree: number,
 ): { id: number; free: number } | null {
   let target: { id: number; free: number } | null = null;
   for (const d of homes) {
@@ -155,6 +160,7 @@ function roomiest(
     const count = occupants(state, d.id).length;
     if (count === 0) continue;
     const free = DWELLINGS[d.type].capacity - count;
+    if (free < minFree) continue;
     if (target === null || free > target.free || (free === target.free && d.id < target.id)) {
       target = { id: d.id, free };
     }
@@ -165,13 +171,19 @@ function roomiest(
 /**
  * Kam se rozpadlá domácnost přestěhuje (kinship.md – Domácnosti): k nejbližším příbuzným – do domu
  * syna, pak dcery, pak sourozence někoho z ní (v každé skupině dům s nejvíc volnými místy), jinak
- * do obydlí s nejvíc volnými místy (population.md – Rozpad domácnosti). Smí ho i přeplnit.
+ * do obydlí s nejvíc volnými místy (population.md – Rozpad domácnosti). Jen tam, kde se všichni
+ * vejdou bez přeplnění (Martin, 19. 10. 2026: „Pokud by byla domácnost kam přijde přeplněná, ať
+ * radši zůstane ve starém domě.“) – jinak null a domácnost zůstane doma. Samotné děti (nikdo od
+ * 16 let) jdou k příbuzným i do přeplněného domu – samy bydlet nemohou (návrh Clauda).
  */
 function dissolveTarget(
   state: VillageState,
+  day: number,
   members: readonly Person[],
   fromId: number,
 ): { id: number } | null {
+  const onlyChildren = members.every((p) => ageYears(p.bornDay, day) < AGE.fertile);
+  const minFree = onlyChildren ? -Infinity : members.length;
   const ids = new Set(members.map((m) => m.id));
   const mothers = new Set(members.flatMap((m) => (m.motherId === undefined ? [] : [m.motherId])));
   const fathers = new Set(members.flatMap((m) => (m.fatherId === undefined ? [] : [m.fatherId])));
@@ -193,15 +205,18 @@ function dissolveTarget(
       state,
       state.dwellings.filter((d) => homes.has(d.id)),
       fromId,
+      minFree,
     );
     if (target) return target;
   }
-  return roomiest(state, state.dwellings, fromId);
+  return roomiest(state, state.dwellings, fromId, minFree);
 }
 
 /**
  * Rozpadlé domácnosti (nikdo 16–44 – `householdBreaksUp`) se přestěhují k příbuzným, jinak do
- * obydlí s nejvíc volnými místy (`dissolveTarget`); obydlí podle id.
+ * obydlí s nejvíc volnými místy (`dissolveTarget`); obydlí podle id. Když by kdekoli přeplnily
+ * dům, zůstanou ve svém – dům udrží i jediný obyvatel, dokud nezemře, pomáhají mu sousedé
+ * (Martin, 19. 10. 2026); obydlený dům nechátrá.
  */
 function dissolveHouseholds(state: VillageState, day: number): ChronicleEvent[] {
   const events: ChronicleEvent[] = [];
@@ -209,7 +224,7 @@ function dissolveHouseholds(state: VillageState, day: number): ChronicleEvent[] 
   for (const fromId of ids) {
     const members = occupants(state, fromId);
     if (!householdBreaksUp(members, day)) continue;
-    const target = dissolveTarget(state, members, fromId);
+    const target = dissolveTarget(state, day, members, fromId);
     if (target === null) continue;
     for (const p of state.people) {
       if (p.dwellingId === fromId) p.dwellingId = target.id;

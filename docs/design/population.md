@@ -223,7 +223,11 @@ zmenší o plochu domu“. Podrobnosti jsou návrh Clauda:
 - **Rozpad domácnosti** ([kinship.md](kinship.md) – Domácnosti): domácnost, ve které nikdo není
   16–44 let (jen děti, nebo jen starší), se přestěhuje **k nejbližším příbuzným** – do domu syna,
   pak dcery, pak sourozence někoho z ní –, a když žádné nejsou, do domácnosti s nejvíc volnými
-  místy (smí ji i přeplnit). Kronika to zapíše. **Osamělý člověk 16–44 zůstává** – je svobodný
+  místy. **Jen když tam dům nepřeplní** (Martin, 19. 10. 2026: „Pokud by byla domácnost kam přijde
+  přeplněná, ať radši zůstane ve starém domě. I jeden obyvatel domu by jej měl být schopný
+  udržovat, dokud nezemře. Pomáhají mu v tom sousedé“) – jinak zůstane doma, dům je obydlený
+  a nechátrá. Samotné děti (nikdo od 16 let) jdou i do přeplněného domu (návrh Clauda – samy
+  bydlet nemohou). Kronika přestěhování zapíše. **Osamělý člověk 16–44 zůstává** – je svobodný
   a vezme se (návrh Clauda k Martinovu „nejstarší dítě může odejít“, 18. 10. 2026; dřív se
   stěhoval taky a domácnost držel pohromadě už člověk 14–44).
   Opuštěné obydlí se neopravuje a chátrá rychleji (zemnice ≈ 5 let, polozemnice ≈ 8 let – viz

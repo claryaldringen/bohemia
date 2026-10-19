@@ -80,7 +80,10 @@ rodiny (návrh Clauda – Martin uvidí):
 - **Lidé k osídlení** = ženatí synové plných a přeplněných domů (a svobodní nejstarší synové
   plných domů), na které nečeká dům.
 - **Rozpad domácnosti:** dům bez dospělého muže i ženy 16+ (jen děti, nebo jen starší) se
-  přestěhuje k nejbližším příbuzným (syn, dcera, sourozenec), jinak do domu s nejvíc místy.
+  přestěhuje k nejbližším příbuzným (syn, dcera, sourozenec), jinak do domu s nejvíc místy – jen
+  když tam dům nepřeplní (Martin, 19. 10. 2026: „Pokud by byla domácnost kam přijde přeplněná, ať
+  radši zůstane ve starém domě. I jeden obyvatel domu by jej měl být schopný udržovat, dokud
+  nezemře. Pomáhají mu v tom sousedé“). Jinak zůstane doma a dům nechátrá.
 
 ## Příbuzní v sousedních vsích (kvůli válce)
 
@@ -108,7 +111,9 @@ vsi blízké příbuzné, nebudou chtít útočit):
   starší) se rozpadne; dřív stačil člověk 14–44. Osamělý člověk 16–44 se nerozpadá – je svobodný
   a vezme se.
 - **Rozpad k příbuzným:** do domu syna, pak dcery, pak sourozence kohokoli z rozpadlé domácnosti
-  (v každé skupině dům s nejvíc volnými místy), jinak do domu s nejvíc volnými místy.
+  (v každé skupině dům s nejvíc volnými místy), jinak do domu s nejvíc volnými místy – vždy jen do
+  domu, kam se všichni vejdou bez přeplnění; když takový není, zůstanou doma (Martin). Samotné děti
+  (nikdo od 16 let) jdou k příbuzným i do přeplněného domu – samy bydlet nemohou.
 - **Svatba ve vsi:** nevěsta se smí přestěhovat, jen když se její domácnost odchodem nerozpadne,
   a ženichův dům nesmí být přeplněný (po svatbě nejvýš o jednoho přes kapacitu). Ženich se
   nestěhuje, takže svatba nikoho nevrací do domu, ze kterého odešel – stěhování tam a zpět

@@ -382,6 +382,54 @@ describe('populationDay', () => {
     });
   });
 
+  it('starší zůstanou doma, když by u příbuzných i jinde přeplnili dům (Martin, 19. 10. 2026)', () => {
+    const day = FOUNDED + 5 * YEAR; // hájení: nikdo dospělý neumře
+    const state = village(
+      1,
+      [
+        // dům 1: starší rodiče – nikdo 16–44, domácnost se rozpadá
+        { ...ofAge(1, 62, 1, day), sex: 'male', spouseId: 2 },
+        { ...ofAge(2, 58, 1, day), sex: 'female', spouseId: 1 },
+        // dům 2: syn s rodinou – 5 z 6, oba rodiče by ho přeplnili
+        { ...ofAge(3, 30, 2, day), sex: 'male', spouseId: 4, fatherId: 1, motherId: 2 },
+        { ...ofAge(4, 27, 2, day), sex: 'female', spouseId: 3 },
+        { ...ofAge(5, 6, 2, day), sex: 'female', fatherId: 3, motherId: 4 },
+        { ...ofAge(6, 4, 2, day), sex: 'male', fatherId: 3, motherId: 4 },
+        { ...ofAge(7, 2, 2, day), sex: 'male', fatherId: 3, motherId: 4 },
+      ],
+      [dwelling(1), dwelling(2)],
+    );
+    const events = populationDay(state, day, 1);
+    expect(events.filter((e) => e.kind === 'household-merged')).toEqual([]);
+    expect(state.people.filter((p) => p.dwellingId === 1).map((p) => p.id)).toEqual([1, 2]);
+  });
+
+  it('osamělý starší zůstane doma, když se jinam nevejde bez přeplnění', () => {
+    const day = FOUNDED + 5 * YEAR;
+    const full = [1, 2, 3, 4, 5, 6].map((id) => ofAge(id, 30, 1, day));
+    const state = village(1, [...full, ofAge(7, 60, 2, day)], [dwelling(1), dwelling(2)]);
+    const events = populationDay(state, day, 0);
+    expect(events.filter((e) => e.kind === 'household-merged')).toEqual([]);
+    expect(state.people.find((p) => p.id === 7)?.dwellingId).toBe(2);
+  });
+
+  it('samotné děti jdou k příbuzným i do přeplněného domu – samy bydlet nemohou', () => {
+    const day = FOUNDED + 5 * YEAR;
+    const full = [1, 2, 3, 4, 5, 6].map((id) => ofAge(id, 30, 1, day));
+    const state = village(
+      1,
+      [...full, ofAge(7, 8, 2, day), ofAge(8, 5, 2, day)],
+      [dwelling(1), dwelling(2)],
+    );
+    const events = populationDay(state, day, 0);
+    expect(events).toContainEqual({
+      day,
+      kind: 'household-merged',
+      fromDwellingId: 2,
+      toDwellingId: 1,
+    });
+  });
+
   it('jediný člověk 16–44 v domě zůstává (svobodný), samotný starší se přestěhuje', () => {
     const day = FOUNDED + 5 * YEAR;
     const state = village(
