@@ -156,12 +156,14 @@ export class PloughTeams {
    * Trasy celé dnešní orby (ladicí – oxen.md, Orba za herní den): `i`-té spřežení projede pruhy
    * `teams[i]` v pořadí práce od okamžiku `nowMs` (nejdřív na začátku dne `window.startMs`) do
    * konce herního dne `window.endMs` – zrychleně. Spřežení, které už ve scéně je a hýbe se,
-   * k první řadě dojde z místa, kde právě je. Vrátí trasy (pro brázdu – `furrows`).
+   * dojde z místa, kde právě je; s cestou `approach` jde napřed do ohrady, po cestě k bloku
+   * a večer po ní zpět. Vrátí trasy (pro brázdu – `furrows`).
    */
   setRoutes(
     teams: readonly (readonly RouteStint[])[],
     window: { startMs: number; endMs: number },
     nowMs = Date.now(),
+    approach: readonly { x: number; z: number }[] | null = null,
   ): RouteTrack[] {
     const live = nowMs - this.liveAt < LIVE_MS && this.count > 0;
     const probe = createTeamPose();
@@ -178,7 +180,8 @@ export class PloughTeams {
             : routePose(old.route, nowMs, probe, this.env.groundHeight);
         from = { x: pose.yoke.x, z: pose.yoke.z };
       }
-      return { route: { route: ploughRoute(stints, from), startMs, endMs } };
+      // z ohrady po cestě k bloku a večer zpět (oxen.md – Co nejdelší brázda)
+      return { route: { route: ploughRoute(stints, from, undefined, approach), startMs, endMs } };
     });
     this.frozenMs = nowMs;
     this.applyTracks(nowMs, live);

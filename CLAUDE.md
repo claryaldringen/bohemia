@@ -997,7 +997,16 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   nezaseje (setí za `tilledShare`). Úloha `plough` v oknech kopání, nejvýš `ploughCapacityPerDay`
   (slabí voli po zimě `team.weak` od 1. 3.). Ztráta posledního spřežení: `finishPlanByHoe` →
   `ploughToHoe` – letošní plán dokončí motyka (kopání s hotovým podílem, kam došla orba). Starší
-  plán s částí kopanou motykou doběhne (`digWeight`). Postup po dílech zná úlohu `plough`
+  plán s částí kopanou motykou doběhne (`digWeight`). **Co nejdelší brázda** (oxen.md; Martin 19. 10. 2026): `plough-blocks.ts` – `ploughLayout` rozloží díly plodiny na bloky (sousední díly
+  pole) a pásy podél osy pole (`furrowAxis` – delší rozloha, jako řádky ve scéně), bloky od
+  nejbližšího, pásy napříč od vsi (`sweep`), U rameno po rameni; `CropWork.partIds` ve vsi s orbou
+  v pořadí orby, `PloughWork.bands` (`PloughBand` – díly, osa, směr, blok). Díly pásu mají ve
+  `field-progress` úsek celého pásu (`bandSpans`, `PartSpan.share` – podíl dílu; orba i setí),
+  `PartView.furrow` → `SceneFieldPart.furrow`. Výkon `furrowEfficiency` (L / (L + v·t), `FURROW`)
+  a cesta k bloku `plough-trip.ts` (`ploughDayFactor` – pás na čele orby, `PloughWork.trip` se
+  spočítá při začátku bloku vozovou sítí `villageCartRoutes` jako dvoukolák, `travelShare`,
+  `TEAM_TRAVEL`) násobí denní kapacitu v `fieldTasks`; plán osevu `plannedFurrowEfficiency`.
+  Postup po dílech zná úlohu `plough`
   (`field-progress.ts`), rozdělení práce posílá činnosti `plough`, `mow`, `slaughter`, `pen`.
 - **Hráč staví kdy chce** (Martin) – stavbu smí zablokovat jen **cena předem** (`costs.ts`:
   `BUILD_COSTS`, `buildAffordability`): suroviny ze zásob (dnes žádné) a u obydlí **lidé
@@ -1366,7 +1375,10 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   Pole s 1 566 zralými díly: +1 draw call, ≈ +0,2 M trojúhelníků. **Kulaté rohy** (oxen.md –
   Kulaté rohy, Jen rádlo): pole vsi, která letos orá rádlem (`SceneVillage.fields[].ard` z
   `ploughsThisYear` v jádru – stav vsi, ne díly), má vnější rohy zakulacené obloukem
-  `PLOUGH_CORNER_M` (5 m) –
+  `PLOUGH_CORNER_M` (5 m) – každý vypouklý roh, i schod obrysu (`outerCorners` a rohy
+  v `cellsCoverage` – stačí, že oba čtverce po stranách rohu chybí, kulatější pole, fields.md);
+  okraj každého pole se místy odsune až o `EDGE_WOBBLE_M` (2 m) dovnitř (`EdgeInset`,
+  `raggedCoverage(…, wobbleM)`) –
   `cellsCoverage(…, rounding)` / `raggedCoverage(…, rounding)` v `field-cells.ts`, vnější rohy
   `outerCorners`; obtisk, trsy i koruna podle krytí, v klíči bloku (`partViewsKey`). Jen vzhled –
   plochu dílu roh neubírá. **Pod cestou obilí neroste**
@@ -1380,7 +1392,8 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   snímek). Násobí krytí pole (obtisk, trsy, panáky, plevel, koruna svahem); klíč bloku nese pásy
   bloku, takže se přestaví jen bloky, kudy pás vede nebo vedl; kusy pod pásem mají jemnější síť
   (`TRACK_DETAIL` – koruna 4×, obtisk 2×). Ukázka: /dev/landscape **Cesta** se zralým polem
-  15 × 15 přes rozcestí. Jen vzhled – plochu dílu cesta neubírá (roads.md – Cesta je cesta).
+  15 × 15 přes rozcestí; **Velké pole** – zralé pole ≈ 10 ha se schody v obrysu (tvar polí z
+  výchozí kamery). Jen vzhled – plochu dílu cesta neubírá (roads.md – Cesta je cesta).
   **Louky na seno** ve vsi jsou data – políčka
   přirozených luk v seči (`SceneVillage.hayMeadows`, `hayMeadowFields` je kreslí jako pole
   se vzhledem `meadow` / `mown` / `haystacks`, postavy sečou po čele práce); dekorativní
@@ -1497,9 +1510,11 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   všechna obdělávaná políčka a nechávalo za sebou brázdu“): přepínač `PLOUGH_DAY_DEBUG`
   v `plough-day.ts` (false = skutečné tempo, jen čelo dne). Jádro dává k orbě v rozdělení práce
   `progress` (ráno a večer na dílu – `partsWorked` vrací `from` / `to`) a zoraný díl rádlem nese
-  `before`; `dayStints` (pruhy po pruzích obtisku), `splitStints` (souvislé kusy fronty mezi
-  spřežení), `startOfDayVillage` (pole na začátku dne); trasa `ploughRoute` (řady všech pruhů
-  s obraty, přesuny se zvednutým rádlem, otevřená), `RouteTrack` (od příchodu plánu do konce
+  `before`; `dayStints` (pruhy po pruzích obtisku; sousední díly pásu se stejným postupem jeden
+  pruh přes celý pás – `bandCandidates`, `PloughField.length`, `DayStint.partIds`), `splitStints`
+  (souvislé kusy fronty mezi spřežení), `startOfDayVillage` (pole na začátku dne); trasa
+  `ploughRoute` (z ohrady po cestě `SceneVillage.ploughApproach` – vozová síť z `village-view`,
+  řady všech pruhů s obraty, přesuny se zvednutým rádlem, večer po cestě zpět), `RouteTrack` (od příchodu plánu do konce
   herního dne – okno z hodin světa, `realTimeOf`, nebo `VillageRenderer.setPloughClock`),
   `routePose`, brázda `routeFurrows` (pásy řad, kudy radlice projela – čistá funkce času)
   → `FieldRenderer.setFurrows` (obtisk `village-field-furrow-<id>` s krytím pole, v
@@ -1507,7 +1522,7 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   – při omezeném pohybu konec dne a čelo jako dřív). Ukázka **Orání** na `/dev/buildings`: tři
   čtverce, vlastní `VillageRenderer` (`ploughDemo`) s polem a orbou dne ukázky (40 s –
   `showcasePloughDay`, `showcasePloughWindow`, díly a `progress` jako od jádra – `showcasePlough`),
-  orba postoupí za den o 3/8 čtverce. Voli a oráč z `people_from_0ad.py` s `tools/blender/plough-team.json` – vůl
+  tři čtverce jsou jeden pás (`furrow`) – orba postoupí za den napříč o 3/8 čtverce plochy. Voli a oráč z `people_from_0ad.py` s `tools/blender/plough-team.json` – vůl
   `cattle_male_c` (srst přebarvená, maska srsti), oráč = muž s klipy `plough` (předklon + ruce
   dvoukloubovou IK na rukojeti, „pose“ v JSON) a `lead` (honáček s provazem); rádlo, jho, oj
   a provaz `tools/blender/plough.py` (malý atlas vyříznutý z atlasu obydlí). Rozestavění

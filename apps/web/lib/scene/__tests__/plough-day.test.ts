@@ -214,3 +214,57 @@ describe('trasa dne a brázda za rádlem', () => {
     expect(PLOUGH_CORNER_M).toBeGreaterThanOrEqual(TURN_RADIUS_M + ardReach() - 0.5);
   });
 });
+
+describe('pás orby přes víc dílů (oxen.md – Co nejdelší brázda)', () => {
+  const furrow = { axis: 'x' as const, sweep: 1 as const };
+  /** Dnes: díly 61–63 jednoho pásu zorané z 1/4 na 3/4 (stejně – orají se spolu). */
+  const band = (): SceneVillage =>
+    village(
+      [61, 62, 63].map((id, i) => part(id, i, { furrow, work: 0.75, before: 'stubble' })),
+      {
+        parts: [61, 62, 63],
+        progress: [
+          [0.25, 0.75],
+          [0.25, 0.75],
+          [0.25, 0.75],
+        ],
+      },
+    );
+
+  it('díly pásu jsou jeden pruh – brázda přes celý pás, obraty jen na jeho koncích', () => {
+    const stints = dayStints(band());
+    expect(stints).toHaveLength(1);
+    const [stint] = stints;
+    expect(stint!.partIds).toEqual([61, 62, 63]);
+    expect(stint!.field.length).toBeCloseTo(3 * CELL, 9);
+    expect(stint!.field.x).toBeCloseTo(1.5 * CELL, 9);
+    // řady jdou přes celý pás
+    const route = ploughRoute(stints);
+    const rows = route.stints[0]!.rows;
+    expect(rows.length).toBeGreaterThan(1);
+    // (krajní řady u kulatých rohů pásu kratší)
+    for (const row of rows) expect(row.hi - row.lo).toBeLessThanOrEqual(3 * CELL + 1e-6);
+    expect(Math.max(...rows.map((row) => row.hi - row.lo))).toBeCloseTo(3 * CELL, 6);
+    // pole na začátku dne – všechny díly pásu zorané ráno z 1/4
+    const start = startOfDayVillage(band(), stints);
+    for (const p of start.fields[0]!.parts) expect(p.work).toBe(0.25);
+  });
+
+  it('s cestou z ohrady: spřežení vyjde z ohrady, dojede po cestě a večer se vrátí', () => {
+    const stints = dayStints(band());
+    const approach = [
+      { x: -40, z: -30 },
+      { x: -20, z: -30 },
+      { x: -5, z: 0 },
+    ];
+    const route = ploughRoute(stints, { x: -40, z: -31 }, TURN_RADIUS_M, approach);
+    const track: RouteTrack = { route, startMs: 0, endMs: 1000 };
+    const pose = createTeamPose();
+    routePose(track, 0, pose, () => 0);
+    expect(Math.hypot(pose.yoke.x + 40, pose.yoke.z + 31)).toBeLessThan(1.5);
+    routePose(track, 1000, pose, () => 0);
+    expect(Math.hypot(pose.yoke.x + 40, pose.yoke.z + 30)).toBeLessThan(1.5);
+    // cesta tam a zpět rádlo v zemi nemá – brázda jen na pásu
+    expect(route.segmentStint.filter((s) => s < 0).length).toBeGreaterThanOrEqual(5);
+  });
+});

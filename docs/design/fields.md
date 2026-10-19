@@ -543,7 +543,9 @@ podle rešerše, dřív 200 – kopání 80, výmlat 30). Ves bez spřežení ko
 spřežením orá rádlem všechno a motykou nekope** (Martin, 19. 10. 2026: „Pokud je k dispozici
 rádlo, kopání motykou úplně vynech. Je to neefektivní a aspoň si nebudeme muset pamatovat, co
 čím bylo kopáno.“) – orba 10 → 6 člověkodní na hektar, drn 2,5× víc (orba křížem), a zaseje se
-jen, co spřežení v oknech orby stihnou zorat ([oxen.md](oxen.md) – Jen rádlo).
+jen, co spřežení v oknech orby stihnou zorat ([oxen.md](oxen.md) – Jen rádlo). Spřežení orá po
+souvislých blocích a pásech podél delší strany pole – dlouhá brázda (méně obratů) zorá za den víc
+(Martin: „Volské spřežení chce rýt co nejdelší brázdu“ – oxen.md, Co nejdelší brázda).
 
 | Práce                      | Kdy – ozim    | Kdy – jař                                   | Člověkodny / ha | Zdroj                 |
 | -------------------------- | ------------- | ------------------------------------------- | --------------- | --------------------- |
@@ -1226,6 +1228,15 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
   zůstane tráva louky a nestojí tam trsy. Vnitřní rohy a styk s jiným polem zůstanou jako dřív;
   pole vsi, která kope motykou, mají rohy ostré – i pole z doby před spřežením, dokud je ves
   neoře (stav vsi „letos orá rádlem“, ne paměť po dílech).
+  **Kulatější pole** (Martin, 19. 10. 2026: „Také mi přijde, že jsou pole stále moc hranatá, na
+  to, že by měla mít kulaté rohy podle toho, jak se spřežení otáčí.“; podrobnosti návrh Clauda):
+  zakulacený je **každý vypouklý roh** obrysu – i schod tvaru L, kde úhlopříčný čtverec pole je
+  (konec pásu orby – spřežení se otáčí na konci každého pásu, oxen.md – Co nejdelší brázda),
+  poloměr dál 5 m (obrat spřežení). Okraj každého pole se navíc místy odsune až o 2 m dovnitř
+  (vlna ≈ 14 m – nepravidelný obrys, hranice čtverců nejsou rovné čáry; kde pole navazuje na pole,
+  okraj není). Souvrať jako pás trávy na koncích pásů ne: z výchozí kamery by udělala z polí
+  rámečky ze světlých pruhů – obrys by byl ještě pravidelnější; souvrať se navíc nakonec zorala
+  napříč.
   **Pod cestou obilí neroste** (Martin, 19. 10. 2026: „Vzrostlé obilí přerůstá cestu. Tam, kde je
   cesta, prostě obilí neroste.“; podrobnosti návrh Clauda – plochu dílu cesta od 19. 10. 2026
   ubírá, viz Cesta přes pole níž): pod pásem pevné cesty (vyšlapaná 1,9 m, vozová 2,6 m,
@@ -1387,6 +1398,8 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 | Rozjetý plán se zkrátí hned, ne až 1. 9. – ves přestane kopat nové díly                                                           | Martin (19. 10. 2026)                           |
 | Zrající a zralé obilí vystouplé (dvouzrnka); kulaté rohy pole oraného rádlem                                                      | Martin (19. 10. 2026)                           |
 | Ves se spřežením orá všechno, motykou nekope – i drn a louku při založení                                                         | Martin (19. 10. 2026)                           |
+| Pole jsou moc hranatá – kulaté rohy podle obratu spřežení                                                                         | Martin (19. 10. 2026)                           |
+| Zakulacený každý vypouklý roh (i schod L), poloměr 5 m; okraj místy o 2 m dovnitř; souvrať jako pás trávy ne                      | návrh Clauda                                    |
 | Drn orbou křížem 2,5×; zaseje se, co spřežení zorají; ztráta spřežení – letošní plán dokončí motyka; rohy podle stavu vsi         | návrh Clauda                                    |
 | Koruna porostu 0,62 / 0,88 m, luštěniny 0,3 m, schod na čáře žně; roh 5 m jen vnější rohy oraných dílů, jen vzhled                | návrh Clauda                                    |
 | Pod cestou obilí neroste – pod pevnou cestou i pěšinou dne                                                                        | Martin (19. 10. 2026)                           |

@@ -708,6 +708,29 @@ export interface PloughWork {
    * a zbytek kopala motyka; chybí = 0.
    */
   digWeight?: number;
+  /**
+   * Pásy orby v pořadí (oxen.md – Co nejdelší brázda): souvislé řady dílů podél brázdy, které
+   * spřežení orá spolu, pruh po pruhu – díly pásu postupují stejně. Chybí = každý díl sám (plány
+   * starších vsí).
+   */
+  bands?: PloughBand[];
+  /**
+   * Cesta spřežení k bloku, který právě orá (oxen.md – Co nejdelší brázda): blok (`PloughBand.block`)
+   * a cena cesty tam (m jízdy po louce – vozová síť, bez krajiny vzdálenost dílů od obydlí). Spočítá
+   * se, když spřežení začne nový blok.
+   */
+  trip?: { block: number; costM: number };
+}
+/**
+ * Pás orby: díly v řadě podél brázdy (v pořadí podél), osa brázd v mřížce pole (`x` – podél
+ * sloupců políček, `y` – podél řad), směr postupu napříč (+1 rostoucí souřadnice, −1 klesající)
+ * a blok (souvislé díly pole – pořadí bloku v plodině).
+ */
+export interface PloughBand {
+  partIds: number[];
+  axis: 'x' | 'y';
+  sweep: 1 | -1;
+  block: number;
 }
 /**
  * Roční plán osevu (k 1. 9.): na nejvyšší úrovni jař (tvar plánu z doby před ozimem), ozim

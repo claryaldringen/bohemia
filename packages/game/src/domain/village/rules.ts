@@ -250,6 +250,18 @@ export const ROADS = {
 // kolem domů a plotů se vejde jen tam, kde je místo. Dvoukolák zatočí na krok mřížky o 2 směry ze
 // 16 (≤ 53°, poloměr ≈ 4–5 m), čtyřkolák o 1 (≤ 27°, ≈ 8–11 m); každá změna směru trochu stojí
 // (`turnCost` m za směr).
+// oxen.md – Co nejdelší brázda (Martin, 19. 10. 2026: „Volské spřežení chce rýt co nejdelší
+// brázdu – otáčení zabírá čas a snižuje produktivitu.“; čísla návrh Clauda podle rešerše):
+// voli s rádlem jdou ≈ 0,64 m/s (pokusy s tažnými voly v Burkině Faso a Etiopii); obrat na
+// souvrati ≈ 45 s (vytáhnout rádlo, otočit pár, zarovnat – měření pro voly rešerše nenašla,
+// traktory jsou jinde); výkon 0,3 ha za den (PLOUGH_HA_PER_DAY) platí pro brázdu 100 m – kratší
+// brázda víc obratů, delší (středověká brázda „furlong“ ≈ 200 m) nejvýš o 15 % víc
+export const FURROW = { speedMps: 0.64, turnS: 45, referenceM: 100, maxGain: 1.15 } as const;
+// oxen.md – Co nejdelší brázda (Martin, 19. 10. 2026: „na místo se dostane ideálně po nějaké už
+// hotové cestě“; návrh Clauda): spřežení jde ráno z ohrady k bloku a večer zpět vozovou sítí jako
+// dvoukolák bez nákladu ≈ 0,8 m/s po louce (cesta rychleji); orá se ≈ 6 h denně – cesta tam
+// a zpět ubírá orbě dne poměrný díl (nejvýš polovinu)
+export const TEAM_TRAVEL = { speedMps: 0.8, dayS: 6 * 3600, maxShare: 0.5 } as const;
 export const CART_ROUTES = {
   maxGrade: 0.1,
   gradeCost: 4,

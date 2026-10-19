@@ -300,8 +300,9 @@ export function cellsBoundary(squares: readonly CellSquare[]): Point[][] {
 
 /**
  * Kulaté vnější rohy (oxen.md – Kulaté rohy): poloměr (m) a které čtverce je mají (políčko
- * v mřížce sjednocení – díly orané rádlem). Roh je vnější, když ani jeden ze tří čtverců kolem
- * něj (dva po stranách, jeden úhlopříčně) do sjednocení nepatří.
+ * v mřížce sjednocení – pole orané rádlem). Roh je vnější (vypouklý), když ani jeden ze dvou
+ * čtverců po jeho stranách do sjednocení nepatří – i schod obrysu, kde úhlopříčný čtverec pole je
+ * (konec pásu orby – spřežení se otáčí na každém konci pásu, fields.md – Co hráč vidí).
  */
 export interface CornerRounding {
   radius: number;
@@ -319,6 +320,7 @@ export function cellsCoverage(
   squares: readonly CellSquare[],
   softM: number,
   rounding?: CornerRounding,
+  inset?: EdgeInset,
 ): (x: number, z: number) => number {
   const first = squares[0];
   if (!first) return () => 0;
@@ -326,11 +328,12 @@ export function cellsCoverage(
   const inside = new Set(squares.map((s) => key(s.cell.x, s.cell.y)));
   const half = frame.size / 2;
   const radius = Math.min(half, rounding?.radius ?? 0);
+  const deepest = softM + (inset?.maxM ?? 0);
   return (wx, wz) => {
     const [x, z] = frame.toSpace(wx, wz);
     const cell = frame.cellAt(x, z);
     if (!inside.has(key(cell.x, cell.y))) return 0;
-    let distance = softM;
+    let distance = deepest;
     for (let dy = -1; dy <= 1; dy++) {
       for (let dx = -1; dx <= 1; dx++) {
         if ((dx === 0 && dy === 0) || inside.has(key(cell.x + dx, cell.y + dy))) continue;
@@ -344,11 +347,7 @@ export function cellsCoverage(
       const [cx, cz] = frame.center(cell.x, cell.y);
       for (const sx of [-1, 1]) {
         for (const sz of [-1, 1]) {
-          if (
-            inside.has(key(cell.x + sx, cell.y)) ||
-            inside.has(key(cell.x, cell.y + sz)) ||
-            inside.has(key(cell.x + sx, cell.y + sz))
-          ) {
+          if (inside.has(key(cell.x + sx, cell.y)) || inside.has(key(cell.x, cell.y + sz))) {
             continue;
           }
           // vzdálenost od obou vnějších stran rohu; v rohovém čtverci R × R k oblouku
@@ -360,14 +359,24 @@ export function cellsCoverage(
         }
       }
     }
-    return smoothstep(0, softM, distance);
+    // nepravidelný okraj – hranice se místy odsune dovnitř (pole není jako podle pravítka)
+    return smoothstep(0, softM, distance - (inset ? inset.at(wx, wz) : 0));
   };
 }
 
 /**
+ * O kolik je okraj pole v bodě odsunutý dovnitř (m, 0–`maxM`) – nepravidelný okraj, ať hranice
+ * čtverců nejsou rovné čáry.
+ */
+export interface EdgeInset {
+  maxM: number;
+  at(x: number, z: number): number;
+}
+
+/**
  * Vnější rohy čtverce `square` ve sjednocení `squares` (stejná mřížka) – body ve světě. Roh je
- * vnější, když ani jeden ze tří čtverců kolem něj do sjednocení nepatří (kulaté rohy pole oraného
- * rádlem – oxen.md).
+ * vnější (vypouklý), když ani jeden ze dvou čtverců po jeho stranách do sjednocení nepatří – i schod
+ * obrysu (kulaté rohy pole oraného rádlem – oxen.md; viz `CornerRounding`).
  */
 export function outerCorners(squares: readonly CellSquare[], square: CellSquare): Point[] {
   const first = squares[0];
@@ -380,13 +389,7 @@ export function outerCorners(squares: readonly CellSquare[], square: CellSquare)
   const corners: Point[] = [];
   for (const sx of [-1, 1]) {
     for (const sz of [-1, 1]) {
-      if (
-        inside.has(key(cx + sx, cy)) ||
-        inside.has(key(cx, cy + sz)) ||
-        inside.has(key(cx + sx, cy + sz))
-      ) {
-        continue;
-      }
+      if (inside.has(key(cx + sx, cy)) || inside.has(key(cx, cy + sz))) continue;
       corners.push(frame.toWorld(ux + sx * half, uz + sz * half));
     }
   }

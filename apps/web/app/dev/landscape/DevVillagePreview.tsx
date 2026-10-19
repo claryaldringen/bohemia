@@ -1107,6 +1107,35 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   };
 
   /**
+   * Velké pole (fields.md – Co hráč vidí, oxen.md – Kulaté rohy): zralé pole vsi, která orá
+   * rádlem, ≈ 12 ha nepravidelného tvaru se schody v obrysu kus od místa vsi – na tvar polí
+   * z výchozí kamery (120 m). Kamera k němu.
+   */
+  const showBigField = (): void => {
+    scene?.cancelPlacement();
+    const { x: sx, y: sy } = decoded.villageSite;
+    const cells: TileCell[] = [];
+    // elipsa 30 × 22 čtverců se zvlněným okrajem (schody po čtvercích)
+    for (let dy = -11; dy <= 11; dy++) {
+      for (let dx = -15; dx <= 15; dx++) {
+        const wave = 0.12 * Math.sin(dx * 0.7 + dy * 0.4) + 0.08 * Math.cos(dy * 1.3 - dx * 0.2);
+        if ((dx / 15) ** 2 + (dy / 11) ** 2 <= 1 + wave) {
+          cells.push({ x: sx + 22 + dx, y: sy + dy });
+        }
+      }
+    }
+    const parts = fieldParts(decoded, cells);
+    if (parts.length === 0) return;
+    setFields((list) => [...list, { id: nextId.current++, parts, sample: { look: 'ripe' } }]);
+    const xs = parts.map((p) => p.x);
+    const zs = parts.map((p) => p.z);
+    scene?.moveCameraTo(
+      (Math.min(...xs) + Math.max(...xs)) / 2,
+      (Math.min(...zs) + Math.max(...zs)) / 2,
+    );
+  };
+
+  /**
    * Ukázka polí: obydlí u místa vsi a vedle sebe pole 2 × 2 čtverce v každém vzhledu – vytyčené,
    * zakládané (rozpracovaný čtverec), zorané, oseté, vzcházející, zelené, zralé, žeň s panáky,
    * strniště, mladý úhor, pastvina a louka na seno (tráva, seč, stohy – řádky sena, kupky
@@ -1617,6 +1646,9 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         </button>
         <button className={buttonClass} disabled={!scene} onClick={showFields}>
           Ukázka polí
+        </button>
+        <button className={buttonClass} disabled={!scene} onClick={showBigField}>
+          Velké pole
         </button>
         <button className={buttonClass} disabled={!scene} onClick={showRotated}>
           Natočené stavby

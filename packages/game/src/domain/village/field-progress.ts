@@ -3,7 +3,7 @@ import { distanceFactor, fallowStage, isOvergrown, isWeedFree, partWalkDistance 
 import { isHayMeadow, mowingPosition, mowingSpans } from './hay';
 import { PLOUGH_SOD_FACTOR } from './plough';
 import { partStage } from './summary';
-import type { Crop, CropWork, FieldPart, TileCell, VillageState } from './types';
+import type { Crop, CropWork, FieldPart, PloughBand, TileCell, VillageState } from './types';
 import { cropTaskRemaining, cropTaskWindows, planCrops } from './year-plan';
 
 // Postup práce po čtvercích (fields.md – Postup práce po čtvercích; Martin, 18. 10. 2026): plán
@@ -54,20 +54,28 @@ export type FieldPartLook =
 
 /**
  * Vzhled dílu: `look`, u rozpracovaného dílu (čelo práce) i `work` – kolik práce dnešní úlohy je
- * na něm hotovo 0–1 (hotová část má `look`) a `before` – vzhled zbytku.
+ * na něm hotovo 0–1 (hotová část má `look`) a `before` – vzhled zbytku. `furrow` – díl plodiny,
+ * kterou orá spřežení (oxen.md – Co nejdelší brázda): osa brázd v mřížce pole a směr, kterým orba
+ * a setí za ní postupují napříč (`work` se měří od té strany).
  */
 export interface PartView {
   look: FieldPartLook;
   work?: number;
   before?: FieldPartLook;
+  furrow?: { axis: 'x' | 'y'; sweep: 1 | -1 };
 }
 
-/** Úsek dílu v pořadí úlohy – od–do jako podíl celé práce úlohy (0–1). */
+/**
+ * Úsek dílu v pořadí úlohy – od–do jako podíl celé práce úlohy (0–1). Díly pásu orby (oxen.md –
+ * Co nejdelší brázda) mají úsek celého pásu (postupují spolu, pruh po pruhu) a `share` – kolik
+ * z práce úseku připadá na díl (bez údaje celý úsek).
+ */
 export interface PartSpan {
   id: number;
   fieldId: number;
   start: number;
   end: number;
+  share?: number;
 }
 
 const M2_PER_HA = 10_000;
@@ -118,6 +126,9 @@ export function taskSpans(
     return part && weight > 0 ? [{ part, weight }] : [];
   });
   const total = weighted.reduce((sum, w) => sum + w.weight, 0);
+  // orba a setí za ní jdou po pásech – díly pásu postupují spolu (oxen.md – Co nejdelší brázda)
+  const bands = task === 'plough' || task === 'sow' ? work.plough?.bands : undefined;
+  if (bands) return bandSpans(weighted, total, bands);
   let start = 0;
   return weighted.map(({ part, weight }) => {
     const end = start + weight / total;
@@ -125,6 +136,45 @@ export function taskSpans(
     start = end;
     return span;
   });
+}
+
+/**
+ * Úseky po pásech: po sobě jdoucí díly téhož pásu dostanou úsek celého pásu (podle součtu vah)
+ * a podíl své váhy; díl mimo pás je úsek sám.
+ */
+function bandSpans(
+  weighted: readonly { part: FieldPart; weight: number }[],
+  total: number,
+  bands: readonly PloughBand[],
+): PartSpan[] {
+  const bandOf = new Map<number, number>();
+  bands.forEach((band, k) => {
+    for (const id of band.partIds) bandOf.set(id, k);
+  });
+  const spans: PartSpan[] = [];
+  let start = 0;
+  for (let i = 0; i < weighted.length;) {
+    const band = bandOf.get(weighted[i]!.part.id);
+    let j = i + 1;
+    while (j < weighted.length && band !== undefined && bandOf.get(weighted[j]!.part.id) === band) {
+      j++;
+    }
+    const group = weighted.slice(i, j);
+    const weight = group.reduce((sum, w) => sum + w.weight, 0);
+    const end = start + weight / total;
+    for (const w of group) {
+      spans.push({
+        id: w.part.id,
+        fieldId: w.part.fieldId,
+        start,
+        end,
+        ...(group.length > 1 ? { share: w.weight / weight } : {}),
+      });
+    }
+    start = end;
+    i = j;
+  }
+  return spans;
 }
 
 /** Kam úloha došla – podíl hotové práce úlohy 0–1 (úloha bez práce 1). */
@@ -162,7 +212,7 @@ export function partsWorked(
           {
             id: span.id,
             fieldId: span.fieldId,
-            share: overlap / (to - from),
+            share: (overlap / (to - from)) * (span.share ?? 1),
             from: shareOn(span, from) ?? 0,
             to: shareOn(span, to) ?? 1,
           },
@@ -302,6 +352,10 @@ function cropLooks(
   const share = (task: keyof typeof spans, id: number): number | null =>
     shareOn(spans[task].byId.get(id), spans[task].at);
   const sodIds = new Set([...(work.reclaimIds ?? []), ...(work.plough?.sodIds ?? [])]);
+  const furrows = new Map<number, { axis: 'x' | 'y'; sweep: 1 | -1 }>();
+  for (const band of work.plough?.bands ?? []) {
+    for (const id of band.partIds) furrows.set(id, { axis: band.axis, sweep: band.sweep });
+  }
   for (const id of work.partIds) {
     const part = partsById.get(id);
     if (!part || part.state !== 'sown') continue;
@@ -331,7 +385,8 @@ function cropLooks(
     if (view.look === 'plowed' && view.before === undefined && share('plough', id) !== null) {
       view.before = untouched;
     }
-    views.set(id, view);
+    const furrow = furrows.get(id);
+    views.set(id, furrow ? { ...view, furrow } : view);
   }
 }
 

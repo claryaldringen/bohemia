@@ -420,7 +420,7 @@ export class VillageRenderer {
       ]);
       if (key !== this.teamsKey) {
         this.teamsKey = key;
-        this.teams.setRoutes(routes, day.window, Date.now());
+        this.teams.setRoutes(routes, day.window, Date.now(), village.ploughApproach ?? null);
         teams = true;
       }
       if (this.fields.setFurrows(this.teams.furrows(Date.now()))) teams = true;

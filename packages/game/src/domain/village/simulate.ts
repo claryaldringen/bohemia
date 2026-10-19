@@ -66,7 +66,14 @@ import {
   sowingTargets,
   type SowingTargets,
 } from './field-food';
-import { endOfSeason, expectedNetKg, fallowStage, partOvergrowthYears } from './fields';
+import {
+  endOfSeason,
+  expectedNetKg,
+  fallowStage,
+  partOvergrowthYears,
+  sowingGroup,
+} from './fields';
+import { plannedFurrowEfficiency, ploughDayFactor } from './plough-trip';
 import { daysUntilAppleRot } from './food';
 import { isToilDay, updateHappiness, villageLaborFactor, windowEndDay } from './happiness';
 import { MOWING_WINDOWS, mow, mowingRemaining } from './hay';
@@ -175,6 +182,7 @@ import {
   activeTasks,
   addCropTaskWork,
   addToCropWork,
+  partsOfFields,
   createPlan,
   createYearPlan,
   cropTaskDone,
@@ -388,7 +396,14 @@ function planYear(state: VillageState, day: number, coverage: CraftCoverage): vo
   // plán vzniká před změnou stavu dílů – vrácení přílohu se počítá jen u dílů v přílohu; práce
   // plánu (i orba – železná špička rádla od kováře) platí podle dnešního pokrytí nástroji celý
   // hospodářský rok
-  state.plan = createYearPlan(crops, day, coverage.tools, plough, workOrder(holdings));
+  state.plan = createYearPlan(
+    crops,
+    day,
+    coverage.tools,
+    plough,
+    workOrder(holdings),
+    partsOfFields(state.parts),
+  );
   const chosen = new Set([...crops.winter, ...crops.spring, ...crops.legume].map((p) => p.id));
   // vrácený mladý les dá za dospělé stromy klády (fields.md – Zarůstání, forest.md – Mýcení)
   addLogs(state, reclaimedLogs([...crops.winter, ...crops.spring, ...crops.legume], day));
@@ -436,8 +451,10 @@ function joinFinishedParts(state: VillageState, day: number, coverage: CraftCove
   });
   if (spring.length === 0) return;
   const order = workOrder(holdings);
-  if (plan === null) state.plan = createPlan(spring, day, coverage.tools, plough, order);
-  else addToCropWork(plan, spring, day, coverage.tools, order);
+  const fieldParts = partsOfFields(state.parts);
+  if (plan === null) {
+    state.plan = createPlan(spring, day, coverage.tools, plough, order, fieldParts);
+  } else addToCropWork(plan, spring, day, coverage.tools, order, fieldParts);
   sow(spring, day, 'spring');
 }
 
@@ -515,7 +532,10 @@ function sowingCapacity(
     august: days(WINDOWS.harvest),
   };
   if (!plough) return people;
-  const perDay = ploughCapacityPerDay(state, coverage.tools, day);
+  // výkon podle délky brázd polí, na která ves může zasít (oxen.md – Co nejdelší brázda)
+  const perDay =
+    ploughCapacityPerDay(state, coverage.tools, day) *
+    plannedFurrowEfficiency(state.parts.filter((p) => sowingGroup(p) !== null));
   const ploughDays = (segments: Parameters<typeof windowDaysLeft>[1], sowing = false): number =>
     perDay * Math.max(0, windowDaysLeft(day, segments) - (sowing ? SOW_AFTER_DIG_DAYS : 0));
   // okna kopání jaře: podzim jako vracení přílohu, jaro jako setí
@@ -612,7 +632,12 @@ interface FieldTaskEntry {
  * a výmlat loňské úrody obou plodin. Nejbližší konec okna první, při shodě ozim před jaří
  * a pořadí úloh (TASK_ORDER; orba před kopáním).
  */
-function fieldTasks(state: VillageState, day: number, ploughCap: number): FieldTaskEntry[] {
+function fieldTasks(
+  state: VillageState,
+  day: number,
+  ploughCap: number,
+  ploughFactor: (work: CropWork) => number = () => 1,
+): FieldTaskEntry[] {
   const month = dateOfDayIndex(day).month;
   const entries: FieldTaskEntry[] = [];
   const add = (crop: Crop, work: CropWork, name: CropTask): void => {
@@ -635,12 +660,14 @@ function fieldTasks(state: VillageState, day: number, ploughCap: number): FieldT
     }
   }
   entries.sort((a, b) => a.end - b.end || a.rank - b.rank);
-  // spřežení orají obě plodiny – dohromady nejvýš jejich denní kapacitu
+  // spřežení orají obě plodiny – dohromady nejvýš jejich denní kapacitu; výkon podle brázdy pásu
+  // a cesty k bloku (oxen.md – Co nejdelší brázda)
   let capLeft = ploughCap;
   for (const entry of entries) {
     if (entry.name !== 'plough') continue;
-    entry.remaining = Math.min(entry.remaining, capLeft);
-    capLeft -= entry.remaining;
+    const factor = capLeft > 0 ? ploughFactor(entry.work) : 1;
+    entry.remaining = Math.min(entry.remaining, capLeft * factor);
+    capLeft = Math.max(0, capLeft - entry.remaining / factor);
   }
   return entries.filter((e) => e.name !== 'plough' || e.remaining > 0);
 }
@@ -681,10 +708,12 @@ function work(
   const month = dateOfDayIndex(day).month;
   // orba: spřežení s rádlem, se železnou špičkou od kováře rychleji (oxen.md); slabí voli po
   // zimě pomaleji; spřežení s vozem na výpravě neorá (wagons.md)
+  const partsById = new Map(state.parts.map((p) => [p.id, p]));
   const owned = fieldTasks(
     state,
     day,
     ploughCapacityPerDay(state, coverage.tools, day) * teamsHomeShare(state),
+    (cropWork) => ploughDayFactor(state, day, cropWork, partsById, landscape, obstacles),
   );
   const dayTasks: DayTask[] = owned.map((field) => ({
     name: field.name,

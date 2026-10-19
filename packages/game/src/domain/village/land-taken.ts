@@ -378,12 +378,14 @@ export function shrinkInPlan(
       if (!span) continue;
       const { required, done } = taskWork(work, task);
       const position = taskPosition(work, task);
+      // díl pásu orby nese jen svůj podíl úseku pásu (oxen.md – Co nejdelší brázda)
+      const own = span.share ?? 1;
       const doneOnPart =
-        (Math.min(span.end, Math.max(span.start, position)) - span.start) * required;
+        (Math.min(span.end, Math.max(span.start, position)) - span.start) * required * own;
       setTaskWork(
         work,
         task,
-        Math.max(0, required - share * (span.end - span.start) * required),
+        Math.max(0, required - share * (span.end - span.start) * required * own),
         Math.max(0, done - share * doneOnPart),
       );
     }
@@ -413,6 +415,11 @@ export function dropFromWork(work: CropWork, removed: ReadonlySet<number>): void
     const sodIds = (plough.sodIds ?? []).filter((id) => !removed.has(id));
     if (sodIds.length > 0) plough.sodIds = sodIds;
     else delete plough.sodIds;
+    if (plough.bands) {
+      plough.bands = plough.bands
+        .map((band) => ({ ...band, partIds: band.partIds.filter((id) => !removed.has(id)) }))
+        .filter((band) => band.partIds.length > 0);
+    }
   }
   if (!work.reclaimIds) return;
   const reclaimIds = work.reclaimIds.filter((id) => !removed.has(id));
