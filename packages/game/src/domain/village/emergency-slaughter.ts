@@ -35,7 +35,9 @@ import { daysUntilFoodHarvest } from './year-plan';
 // zvířata navíc a teprve potom, když maso nestačí, ubírá z přídělu. Prasata první (žerou les,
 // ne seno) nad chovné prasnice (polovina toho, kolik prasat uživí les – Martin 19. 10. 2026), pak
 // kozy, krávy nad chovné (mléko a voly) a ovce nad ovce na vlnu; chovný pár každého druhu zůstává,
-// spřežení a telata ve výcviku jsou v ohradách mimo stáda. Maso jde do zásoby jako z podzimní
+// spřežení a telata ve výcviku jsou v ohradách mimo stáda. Letošní mláďata ne – kromě selat od 1. 9.
+// (Martin 19. 10. 2026: „Ano ke všem návrhům“ – maso se 1. 9. kazí a do podzimní porážky ves
+// hladoví; nad chovnými prasnicemi jsou v září skoro jen selata). Maso jde do zásoby jako z podzimní
 // porážky (stejná výtěžnost, uzení, zkažení 1. 9.) a jí se rovným dílem do zkažení – nejvýš strop
 // masa ve stravě (DIET.caps.meat), ten platí i v nouzi. Osev podle stravy ho počítá jako jídlo
 // z pole.
@@ -110,10 +112,25 @@ export function emergencyPigFloor(state: VillageState): number {
 }
 
 /**
+ * Smějí dnes na nouzovou porážku letošní selata? Od 1. 9. (EMERGENCY_SLAUGHTER.pigletsFromMonth)
+ * do konce roku – po podzimní porážce (1. 11.) letošní mláďata nejsou (diet.md – Nouzová porážka).
+ */
+export function pigletsSpared(day: number): boolean {
+  return dateOfDayIndex(day).month < EMERGENCY_SLAUGHTER.pigletsFromMonth;
+}
+
+/** Letošní mláďata druhu, která nouzová porážka dnes chrání (selata od 1. 9. ne). */
+function protectedYoung(state: VillageState, species: HerdSpecies, day: number): number {
+  if (species === 'pig' && !pigletsSpared(day)) return 0;
+  return state.livestock?.young[species] ?? 0;
+}
+
+/**
  * Kolik kusů každého druhu smí jít na nouzovou porážku: u prasat nad chovné prasnice
  * (`emergencyPigFloor`), u koz nad chovný pár, u krav nad krávy na mléko a voly
  * (`breedingCows`), u ovcí nad ovce na vlnu (`woolSheep` – diet.md, Oděv). Letošní mláďata (od
- * jara do podzimní porážky) ne – jsou malá a dorůstají v příští stádo.
+ * jara do podzimní porážky) ne – jsou malá a dorůstají v příští stádo; kromě selat od 1. 9.
+ * (`pigletsSpared`), ta se do prasat nad chovnými prasnicemi počítají.
  */
 export function emergencySpare(state: VillageState, day: number): Record<HerdSpecies, number> {
   const herds = villageHerds(state);
@@ -123,10 +140,12 @@ export function emergencySpare(state: VillageState, day: number): Record<HerdSpe
     cow: Math.max(LIVESTOCK.breedingMin, breedingCows(state)),
     sheep: Math.max(LIVESTOCK.breedingMin, woolSheep(state, day)),
   };
-  const young = state.livestock?.young;
   const spare = { sheep: 0, goat: 0, pig: 0, cow: 0 };
   for (const species of HERD_SPECIES) {
-    spare[species] = Math.max(0, herds[species] - (young?.[species] ?? 0) - floor[species]);
+    spare[species] = Math.max(
+      0,
+      herds[species] - protectedYoung(state, species, day) - floor[species],
+    );
   }
   return spare;
 }

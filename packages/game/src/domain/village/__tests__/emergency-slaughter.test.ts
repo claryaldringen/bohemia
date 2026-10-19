@@ -8,6 +8,7 @@ import {
   emergencyPigFloor,
   emergencySlaughterPlan,
   emergencySpare,
+  pigletsSpared,
 } from '../emergency-slaughter';
 import { breedingCows } from '../husbandry';
 import { LIVESTOCK, pigForestHa, slaughterRemaining } from '../livestock';
@@ -154,6 +155,62 @@ describe('nouzová porážka', () => {
     expect(spare.sheep).toBeCloseTo(Math.max(0, 30 - 8 - woolSheep(s, at(601, 5, 1))), 9);
     emergencySlaughter(s, at(601, 5, 1), 0, 1);
     expect(s.livestock!.herds.pig).toBeGreaterThanOrEqual(6 + LIVESTOCK.breedingMin - 1e-9);
+  });
+
+  it('letošní selata od 1. 9. smějí na nouzovou porážku – v srpnu ne, jehňata a kůzlata nikdy', () => {
+    const aug = at(601, 8, 31);
+    const sep = at(601, 9, 1);
+    expect(pigletsSpared(aug)).toBe(true);
+    expect(pigletsSpared(sep)).toBe(false);
+    expect(pigletsSpared(at(601, 12, 31))).toBe(false);
+    expect(pigletsSpared(at(602, 1, 1))).toBe(true);
+    const s = withForest(village(aug), 4);
+    s.livestock!.herds = herds({ pig: 20, sheep: 40, goat: 8 });
+    s.livestock!.young = herds({ pig: 10, sheep: 8, goat: 3 });
+    const floor = emergencyPigFloor(s);
+    expect(floor).toBe(LIVESTOCK.breedingMin);
+    // selata se od 1. 9. počítají do prasat nad chovnými prasnicemi
+    expect(emergencySpare(s, aug).pig).toBeCloseTo(20 - 10 - floor, 9);
+    expect(emergencySpare(s, sep).pig).toBeCloseTo(20 - floor, 9);
+    // jehňata a kůzlata chráněná dál
+    expect(emergencySpare(s, sep).sheep).toBeCloseTo(emergencySpare(s, aug).sheep, 9);
+    expect(emergencySpare(s, sep).goat).toBeCloseTo(8 - 3 - LIVESTOCK.breedingMin, 9);
+    // v srpnu hladová ves selata nechá – prasat zůstane aspoň na selata a chovné prasnice
+    s.storesKg = 0;
+    emergencySlaughter(s, aug, 0, 1);
+    expect(s.livestock!.herds.pig).toBeGreaterThanOrEqual(10 + floor - 1e-9);
+  });
+
+  it('v září sáhne hladová ves i na selata – jehňata a kůzlata zůstanou chráněná', () => {
+    const sep = at(601, 9, 10);
+    const s = withForest(village(sep), 4);
+    // dospělá prasata jen na chovné prasnice (pár), nad nimi 8 letošních selat
+    s.livestock!.herds = herds({ pig: 10, sheep: 30, goat: 6 });
+    s.livestock!.young = herds({ pig: 8, sheep: 8, goat: 2 });
+    const input = dayMealInput(s, sep, 0, 1);
+    s.storesKg = 0.75 * input.needPerDay * input.daysToHarvest;
+    expect(emergencySpare(s, sep).pig).toBeCloseTo(8, 9);
+    const event = emergencySlaughter(s, sep, 0, 1);
+    if (event?.kind !== 'emergency-slaughter') throw new Error('bez porážky');
+    const pigs = event.animals.pig ?? 0;
+    expect(pigs).toBeGreaterThan(0);
+    // dospělých prasat je jen na chovné prasnice – porazila se selata; spodní hranice zůstane
+    expect(s.livestock!.herds.pig).toBeCloseTo(10 - pigs, 1);
+    expect(s.livestock!.herds.pig).toBeGreaterThanOrEqual(LIVESTOCK.breedingMin - 1e-9);
+    // kozy jen nad chovný pár a kůzlata – stádo koz zůstane aspoň na nich
+    expect(s.livestock!.herds.goat).toBeGreaterThanOrEqual(2 + LIVESTOCK.breedingMin - 1e-9);
+    // týž stav v srpnu – selata nejdou, ves sáhne po kozách
+    const aug = at(601, 8, 20);
+    const a = withForest(village(aug), 4);
+    a.livestock!.herds = herds({ pig: 10, sheep: 30, goat: 6 });
+    a.livestock!.young = herds({ pig: 8, sheep: 8, goat: 2 });
+    const augInput = dayMealInput(a, aug, 0, 1);
+    a.storesKg = 0.75 * augInput.needPerDay * augInput.daysToHarvest;
+    expect(emergencySpare(a, aug).pig).toBe(0);
+    const augEvent = emergencySlaughter(a, aug, 0, 1);
+    expect(a.livestock!.herds.pig).toBe(10);
+    expect(a.livestock!.young.pig).toBe(8);
+    if (augEvent?.kind === 'emergency-slaughter') expect(augEvent.animals.pig).toBeUndefined();
   });
 
   it('chovné prasnice: prasata jen nad polovinou toho, kolik jich uživí les', () => {
