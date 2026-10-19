@@ -65,6 +65,11 @@ function freeHerderShare(person: Person, day: number): number {
   return 0;
 }
 
+/** Kolik pasáků (plných) dají děti od 7 let a starší – pasou bez práce vsi. */
+export function freeHerderCapacity(state: Pick<VillageState, 'people'>, day: number): number {
+  return state.people.reduce((sum, p) => sum + freeHerderShare(p, day), 0);
+}
+
 /** Pasení dne – potřeba, kdo pase bez práce vsi a co zbude na dospělé. */
 export interface HerdingDay {
   /** Potřeba pasáků (plných). */

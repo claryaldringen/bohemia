@@ -13,11 +13,13 @@ import {
   villageHayKg,
   winterHayKg,
 } from './hay';
-import { herdingCoverage } from './herding';
+import { foodCosts, type FoodCosts } from './economy';
+import { freeHerderCapacity, herdingCoverage } from './herding';
 import type { Landscape, ObstacleLayer } from '../landscape';
 import {
   BIRTH_DAY,
   LIVESTOCK,
+  balancedPlan,
   ensureLivestock,
   herdBirths,
   herdLosses,
@@ -26,7 +28,15 @@ import {
   starveHerds,
   wantedWinterHerds,
 } from './livestock';
-import { OXEN, penDay, penOxen, trainTeamsWhenReady, villageOxen, villagePens } from './oxen';
+import {
+  OXEN,
+  ableTeams,
+  penDay,
+  penOxen,
+  trainTeamsWhenReady,
+  villageOxen,
+  villagePens,
+} from './oxen';
 import { walkDistancesTo } from './paths/village';
 import { villageRoadWalk } from './paths/walking';
 import type { ChronicleEvent, VillageState } from './types';
@@ -71,13 +81,44 @@ function hayOxen(state: VillageState): number {
  * (nosnost pastvy, lesa a pasáků zmenšená podle potřeby – `wantedWinterHerds`), a voli ohrad, po
  * zimní dávce celou zimu.
  */
-export function winterHayNeedKg(state: VillageState, day: number): number {
-  const herds = wantedWinterHerds(state, day, {
+export function winterHayNeedKg(state: VillageState, day: number, toolCoverage = 0): number {
+  const herds = wantedWinterHerds(state, day, farmInput(state, day, toolCoverage));
+  return winterHayKg(herds, hayOxen(state));
+}
+
+/**
+ * Cena jídla v práci za dnešních podmínek vsi (diet.md – Rovnovážné hospodaření) – s orbou, když
+ * ves má spřežení.
+ */
+export function villageFoodCosts(
+  state: VillageState,
+  day: number,
+  toolCoverage: number,
+): FoodCosts {
+  return foodCosts(state, day, toolCoverage, ableTeams(state) > 0);
+}
+
+/** Co ves o chovu ví (voli, krávy na mléko a voly, pasáci, cena jídla v práci). */
+function farmInput(
+  state: VillageState,
+  day: number,
+  toolCoverage: number,
+): { oxen: number; minCows: number; herding: number; costs: FoodCosts; freeHerders: number } {
+  return {
     oxen: villageOxen(state),
     minCows: breedingCows(state),
     herding: herdingCoverage(state),
-  });
-  return winterHayKg(herds, hayOxen(state));
+    costs: villageFoodCosts(state, day, toolCoverage),
+    freeHerders: freeHerderCapacity(state, day),
+  };
+}
+
+/**
+ * Kolik luštěnin ves chce sníst za rok (kg – diet.md, Rovnovážné hospodaření): luštěniny v plánu
+ * chovu a osevu, kde soupeří cenou v práci s prasaty a přežvýkavci o bílkoviny (osev 1. 9.).
+ */
+export function plannedLegumeKg(state: VillageState, day: number, toolCoverage: number): number {
+  return balancedPlan(state, day, farmInput(state, day, toolCoverage)).legumeKg;
 }
 
 /**
@@ -126,7 +167,7 @@ export function husbandryDay(
     const mowing = planMowing(
       state,
       day,
-      winterHayNeedKg(state, day),
+      winterHayNeedKg(state, day, toolCoverage),
       toolCoverage,
       landscape,
       walk,
@@ -138,10 +179,8 @@ export function husbandryDay(
   if (spoiled) events.push(spoiled);
   if (isOn(date, SLAUGHTER_DAY)) {
     const event = slaughter(state, day, {
-      oxen: villageOxen(state),
+      ...farmInput(state, day, toolCoverage),
       hayKg: villageHayKg(state),
-      minCows: breedingCows(state),
-      herding: herdingCoverage(state),
     });
     if (event) events.push(event);
     // nový rok pasení – od porážky do porážky

@@ -74,12 +74,11 @@ import { herdingDay, recordHerding } from './herding';
 import { sowingBlocks, villageHoldings, workOrder } from './holdings';
 import { occupyEmptyDwellings, settleNewDwelling } from './households';
 import { withKinship } from './kinship';
-import { husbandryDay } from './husbandry';
+import { husbandryDay, plannedLegumeKg } from './husbandry';
 import { daysUntilLegumeHarvest, villageLegumesKg } from './legumes';
 import {
   SLAUGHTER_MONTH,
   dailyEggsKg,
-  legumeNeedPerYear,
   slaughterRemaining,
   villageChickens,
   villageHerds,
@@ -440,15 +439,15 @@ function joinFinishedParts(state: VillageState, day: number, coverage: CraftCove
 
 /**
  * Cíle osevu (fields.md – Kolik ves oseje, Osev podle zásob): úroda na rok spotřeby z pole
- * a pojistku bez toho, co ze zásob k příští sklizni zbude; luštěniny podle bílkovin, které chybí po
- * obilí, mléku a vejcích (`legumeNeedPerYear`), a podle své zásoby.
+ * a pojistku bez toho, co ze zásob k příští sklizni zbude; luštěniny podle rovnovážného hospodaření
+ * (`plannedLegumeKg` – soupeří cenou v práci se stády, diet.md) a podle své zásoby.
  */
 function fieldSowingTargets(
   state: VillageState,
   day: number,
   coverage: CraftCoverage,
 ): SowingTargets {
-  return sowingTargets(state, day, legumeNeedPerYear(state, day), coverage.pottery);
+  return sowingTargets(state, day, plannedLegumeKg(state, day, coverage.tools), coverage.pottery);
 }
 
 /**

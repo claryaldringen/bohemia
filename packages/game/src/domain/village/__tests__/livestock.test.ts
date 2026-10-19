@@ -4,6 +4,7 @@ import { foundVillage } from '../actions';
 import { PROTEIN } from '../diet';
 import { winterHayAvailable } from '../hay';
 import {
+  BALANCE,
   BREEDING_ORDER,
   LIVESTOCK,
   goatBrowseHa,
@@ -13,7 +14,6 @@ import {
   herdProteinNeed,
   meatNeedPerYear,
   proteinBudget,
-  proteinPerHead,
   pastureHa,
   pigForestHa,
   sizeHerdsToNeed,
@@ -193,31 +193,27 @@ describe('růst a nosnost', () => {
 });
 
 describe('chovné stádo podle potřeby (Martin 19. 10. 2026)', () => {
-  it('zmenší se na bílkoviny, které ves potřebuje, a čtvrtinu navíc – ovce napřed, prasata naposled', () => {
+  it('zmenší se na potřebu bílkovin a co práci šetří – nad nosnost nic', () => {
     const s = village(at(600, 11, 1));
     const day = at(600, 11, 1);
-    const keep = herds({ sheep: 6, goat: 2, pig: 18, cow: 3 });
+    const keep = herds({ sheep: 60, goat: 6, pig: 60, cow: 8 });
     const sized = sizeHerdsToNeed(s, day, keep);
-    const required = herdProteinNeed(s, day) * (1 + LIVESTOCK.needReserve);
     expect(BREEDING_ORDER).toEqual(['sheep', 'goat', 'cow', 'pig']);
-    expect(sized.sufficient).toBe(true);
-    // chovné páry, pak ovce, kozy a krávy celé; prasata jen na zbytek potřeby
-    expect(sized.keep.sheep).toBeCloseTo(6, 9);
-    expect(sized.keep.goat).toBeCloseTo(2, 9);
-    expect(sized.keep.cow).toBeCloseTo(3, 9);
-    const withoutPigs =
-      6 * proteinPerHead('sheep') + 2 * proteinPerHead('goat') + 3 * proteinPerHead('cow');
-    expect(sized.keep.pig).toBeCloseTo((required - withoutPigs) / proteinPerHead('pig'), 9);
-    expect(sized.keep.pig).toBeLessThan(18);
+    expect(sized.coverage).toBeGreaterThanOrEqual(BALANCE.minProteinCoverage - 1e-9);
+    // ves potřebu pokryje s menším stádem, než unese
+    for (const sp of BREEDING_ORDER) expect(sized.keep[sp]).toBeLessThanOrEqual(keep[sp]);
+    expect(sized.keep.sheep + sized.keep.goat + sized.keep.cow).toBeLessThan(74);
+    expect(herdProteinNeed(s, day)).toBeGreaterThan(0);
   });
 
   it('krávy na mléko a voly zůstanou, i když potřebu pokryjí ovce', () => {
     const s = village(at(600, 11, 1));
     const day = at(600, 11, 1);
-    const sized = sizeHerdsToNeed(s, day, herds({ sheep: 500, goat: 9, pig: 9, cow: 6 }), 4);
-    expect(sized.keep.cow).toBeCloseTo(4, 9);
-    expect(sized.keep.goat).toBeCloseTo(LIVESTOCK.breedingMin, 9);
-    expect(sized.keep.pig).toBeCloseTo(LIVESTOCK.breedingMin, 9);
+    const sized = sizeHerdsToNeed(s, day, herds({ sheep: 500, goat: 9, pig: 9, cow: 6 }), {
+      minCows: 4,
+    });
+    expect(sized.keep.cow).toBeGreaterThanOrEqual(4 - 1e-9);
+    expect(sized.keep.goat).toBeGreaterThanOrEqual(LIVESTOCK.breedingMin - 1e-9);
     expect(sized.keep.sheep).toBeLessThan(500);
     // stádo pod potřebou se nezvětší nad nosnost
     const small = sizeHerdsToNeed(s, day, herds({ sheep: 3, pig: 1 }));
@@ -268,14 +264,21 @@ describe('porážka (1. 11.)', () => {
     s.livestock!.herds = herds({ pig: 40, sheep: 6, cow: 3 });
     s.livestock!.young = herds({ pig: 20, sheep: 2, cow: 0.5 });
     s.meatKg = 0;
-    const kept = sizeHerdsToNeed(s, day, herds({ pig: 40, sheep: 6, cow: 3 })).keep;
+    // porážka plánuje jako osev – i s luštěninami (Rovnovážné hospodaření)
+    const kept = sizeHerdsToNeed(s, day, herds({ pig: 40, sheep: 6, cow: 3 }), {
+      planLegumes: true,
+    }).keep;
     const event = slaughter(s, day, { oxen: 0, hayKg: Infinity });
     expect(s.livestock!.herds.pig).toBeCloseTo(kept.pig, 9);
     // i dospělá prasata – víc než letošní mláďata
     expect(40 - kept.pig).toBeGreaterThan(20);
-    expect(event).toMatchObject({ kind: 'slaughter', kg: Math.round((40 - kept.pig) * 50) });
-    expect(s.livestock!.herds.sheep).toBeCloseTo(6, 9);
-    expect(s.livestock!.herds.cow).toBeCloseTo(3, 9);
+    const kg =
+      (40 - kept.pig) * LIVESTOCK.meatKg.pig +
+      (6 - kept.sheep) * LIVESTOCK.meatKg.sheep +
+      (3 - kept.cow) * LIVESTOCK.meatKg.cow;
+    expect(event).toMatchObject({ kind: 'slaughter', kg: Math.round(kg) });
+    expect(s.livestock!.herds.sheep).toBeCloseTo(kept.sheep, 9);
+    expect(s.livestock!.herds.cow).toBeCloseTo(kept.cow, 9);
   });
 
   it('chovný pár zůstane, i když nosnost nic neunese', () => {
