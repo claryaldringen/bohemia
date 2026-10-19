@@ -137,6 +137,17 @@ describe('nouzová porážka', () => {
     expect(outlook(s, day)).toBeLessThan(1);
   });
 
+  it('letošní mláďata na nouzovou porážku nejdou – dorůstají v příští stádo', () => {
+    const s = village(at(601, 5, 1));
+    s.livestock!.herds = herds({ pig: 12, sheep: 30 });
+    s.livestock!.young = herds({ pig: 6, sheep: 8 });
+    const spare = emergencySpare(s, at(601, 5, 1));
+    expect(spare.pig).toBeCloseTo(12 - 6 - LIVESTOCK.breedingMin, 9);
+    expect(spare.sheep).toBeCloseTo(Math.max(0, 30 - 8 - woolSheep(s, at(601, 5, 1))), 9);
+    emergencySlaughter(s, at(601, 5, 1), 0, 1);
+    expect(s.livestock!.herds.pig).toBeGreaterThanOrEqual(6 + LIVESTOCK.breedingMin - 1e-9);
+  });
+
   it('pár kusů navíc, které příděl skoro nezvednou, ves neporáží – nepokryje-li schodek', () => {
     const s = village(day);
     const input = dayMealInput(s, day, 0, 1);

@@ -99,7 +99,8 @@ export function dayMealInput(
 
 /**
  * Kolik kusů každého druhu smí jít na nouzovou porážku: nad chovný pár, u krav nad krávy na mléko
- * a voly (`breedingCows`), u ovcí nad ovce na vlnu (`woolSheep` – diet.md, Oděv).
+ * a voly (`breedingCows`), u ovcí nad ovce na vlnu (`woolSheep` – diet.md, Oděv). Letošní mláďata
+ * (od jara do podzimní porážky) ne – jsou malá a dorůstají v příští stádo.
  */
 export function emergencySpare(state: VillageState, day: number): Record<HerdSpecies, number> {
   const herds = villageHerds(state);
@@ -109,8 +110,11 @@ export function emergencySpare(state: VillageState, day: number): Record<HerdSpe
     cow: Math.max(LIVESTOCK.breedingMin, breedingCows(state)),
     sheep: Math.max(LIVESTOCK.breedingMin, woolSheep(state, day)),
   };
+  const young = state.livestock?.young;
   const spare = { sheep: 0, goat: 0, pig: 0, cow: 0 };
-  for (const species of HERD_SPECIES) spare[species] = Math.max(0, herds[species] - floor[species]);
+  for (const species of HERD_SPECIES) {
+    spare[species] = Math.max(0, herds[species] - (young?.[species] ?? 0) - floor[species]);
+  }
   return spare;
 }
 

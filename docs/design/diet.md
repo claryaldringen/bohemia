@@ -321,7 +321,9 @@ zásoby ≈ 3,6 t na ≈ 4,2 t potřeby do žní, jí 94 % přídělu – a při
 - **Pořadí:** napřed **prasata** (žerou les, ne seno), pak **kozy**, **krávy** nad chovné (kráva
   na 2 domácnosti a 3 na ohradu – mléko a voly) a **ovce** nad ovce na vlnu (Oděv – ty nikdy).
   **Chovný pár** každého druhu zůstane. Spřežení a telata ve výcviku jsou v ohradě, mimo stáda –
-  na nouzovou porážku nejdou.
+  na nouzovou porážku nejdou. Nejdou ani **letošní mláďata** (od jara do podzimní porážky – jsou
+  malá a dorůstají v příští stádo; rozhodnutí Clauda – bez toho ves v nouzi snědla každé jaro
+  všechna selata a jehňata hned po narození a stádo se nikdy neobnovilo).
 - **Kolik:** nejméně masa, se kterým výhled vyjde **i s rezervou 5 % potřeby energie do
   sklizně**. Výhled nezná ztráty zásob skladováním ani úbytek masa uzením – bez rezervy by ves
   porážela den co den po kouscích, s ní obvykle jednou za zimu (Vlkov: jednou, 23 prasat). Zabitím
@@ -333,8 +335,7 @@ zásoby ≈ 3,6 t na ≈ 4,2 t potřeby do žní, jí 94 % přídělu – a při
 - **Strop masa ve stravě 40 % energie platí i v nouzi.** Ves porazí jen tolik, kolik pod stropem
   pomůže; když schodek ani tak nepokryje (nebo jí dojdou zvířata navíc), dál šetří přídělem.
   Taková porážka, která schodek celý nepokryje, se udělá, jen když zvedne příděl **aspoň o 2
-  procentní body** – jinak by ves po každém úmrtí (ubude ovcí na vlnu) a po jarních mláďatech
-  porážela po kusech.
+  procentní body** – jinak by ves po každém úmrtí (ubude ovcí na vlnu) porážela po kusech.
   Proč strop nezvedat (rozhodnutí Clauda): 40 % energie z masa přes celou zimu je už na hraně
   toho, co raně středověká ves jedla (obvykle 10–20 %); větší porážka by snědla chovné stádo, ze
   kterého má příští rok mléko a mláďata, takže by si ves hlad jen přesunula na další zimu; a jedno
@@ -774,6 +775,28 @@ Krátké `measure-village.ts 20 20` před a po (skutečné krajiny; jen orienta�
   na první zimu a bez ochrany jehňat ovcí na vlnu to byla polovina porážek (prvních ≈ 10 let).
 - **Vlkov** (kopie stavu 3. 3. 770, 33 lidí, 5 let bez krajiny): ≈ 100 ovcí, hranice ≈ 50 –
   beze změny (vlna 100 % každý rok, práce, strava i stáda stejně jako před).
+
+## Naměřeno – nouzová porážka (19. 10. 2026)
+
+**Vlkov** (kopie stavu z 16. 11. 781, 47 lidí, 2 862 kg obilí, 2 046 kg masa, 379 kg jablek,
+52,6 prasete, 71,6 ovce, 15,8 t sena; DB jen čtená, dopočet bez hráče do 31. 8. 782):
+
+|                                   | bez nouzové porážky | s nouzovou porážkou        |
+| --------------------------------- | ------------------- | -------------------------- |
+| porážka navíc                     | –                   | 17. 11. 781: 22,7 prasete  |
+| maso navíc                        | –                   | 1 133 kg                   |
+| příděl do sklizně (nejnižší)      | 94 → 91 %           | 100 % celý rok             |
+| dní, kdy ves šetří jídlem         | 257                 | 0                          |
+| energie / nasycení (průměr)       | 0,938 / 0,841       | 1,000 / 0,947              |
+| energie z masa                    | 21–24 %             | 33–37 % (pod stropem 40 %) |
+| obilí 1. 7. / 31. 8. 782          | 251 / 2 072 kg      | 475 / 2 373 kg             |
+| prasata 31. 8. 782 (po mláďatech) | 95,1                | 54,1                       |
+
+Jedna porážka na celou zimu – rezerva 5 % stačila. Ovce, kozy a krávy zůstaly.
+
+**Kalibrace** `measure-village.ts 20 20` (jen orientačně, malé vsi ≈ 12 lidí nouzi skoro neznají):
+nasycení ≥ 0,95 celý rok 96,6 → 96,8 % let, nejnižší nasycení roku p1 0,49 → 0,56, prasat na
+10 lidí na konci 25,6 → 23,5, porážka na člověka a rok 43 → 41 kg, volná práce 5,8 čd beze změny.
 
 ## Co hráč vidí
 

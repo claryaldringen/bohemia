@@ -425,8 +425,8 @@ export const WOOL = {
  * (ztráty zásob skladováním a uzením výhled nezná – bez rezervy by ves porážela den co den po
  * kouscích), a nejvýš tolik, kolik pod stropem masa ve stravě (DIET.caps.meat) pomůže. Když
  * schodek celý nepokryje (málo zvířat navíc, strop masa), porazí jen tehdy, zvedne-li příděl
- * aspoň o `minGain` (2 procentní body) – jinak by po každém úmrtí (méně ovcí na vlnu) a jarních
- * mláďatech porážela po kusech.
+ * aspoň o `minGain` (2 procentní body) – jinak by po každém úmrtí (méně ovcí na vlnu) porážela
+ * po kusech. Letošní mláďata na nouzovou porážku nejdou.
  */
 export const EMERGENCY_SLAUGHTER = {
   order: ['pig', 'goat', 'cow', 'sheep'],
