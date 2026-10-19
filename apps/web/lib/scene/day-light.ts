@@ -166,6 +166,8 @@ interface Palette {
   /** Barva pozadí (obloha) a oparu. */
   clear: Rgb;
   fog: Rgb;
+  /** Násobek hustoty oparu – za soumraku víc, ať je u obzoru teplý opar vidět. */
+  haze: number;
   /** Filtr obrazu – odstín a síla jako vektor (mezi fázemi se míchá vektorově, ne přes zelenou). */
   filterA: number;
   filterB: number;
@@ -175,11 +177,12 @@ interface Palette {
 const WHITE: Rgb = [1, 1, 1];
 
 function palette(
-  values: Omit<Palette, 'filterA' | 'filterB' | 'saturation'>,
+  values: Omit<Palette, 'filterA' | 'filterB' | 'saturation' | 'haze'> & { haze?: number },
   grade: Grade = NO_GRADE,
 ): Palette {
   return {
     ...values,
+    haze: values.haze ?? 1,
     filterA: grade.density * Math.cos(grade.hue * RAD),
     filterB: grade.density * Math.sin(grade.hue * RAD),
     saturation: grade.saturation,
@@ -211,60 +214,73 @@ const GOLDEN = palette(
   },
   { hue: 38, density: 32, saturation: 8 },
 );
-/** Slunce na obzoru – oranžové, obloha do růžova. */
+/**
+ * Slunce na obzoru – silné nízké zlatavé slunce (na sněhu broskvový až zlatý nádech), slabší
+ * modrofialové světlo oblohy (stíny a svahy od slunce), broskvový opar. Slunce svítí ve scéně
+ * z ≈ 8° – na rovině krajiny by běžná síla nebyla vidět, proto ji zesiluje. Ne do růžova:
+ * oranžové slunce s fialovou oblohou dělalo ze sněhu růžovou omítku (ladění 19. 10. 2026).
+ */
 const SUNSET = palette(
   {
-    sun: 0.85,
-    sunTint: [1, 0.62, 0.36],
-    sky: 1.1,
-    skyTint: [1, 0.84, 0.8],
-    ground: [0.9, 0.76, 0.68],
-    clear: [1.16, 0.82, 0.68],
-    fog: [1.14, 0.84, 0.72],
+    sun: 2.2,
+    sunTint: [1, 0.85, 0.52],
+    sky: 0.72,
+    skyTint: [0.76, 0.83, 1.1],
+    ground: [0.85, 0.84, 0.88],
+    clear: [1.16, 0.9, 0.74],
+    fog: [1.14, 0.92, 0.78],
+    haze: 1.2,
   },
-  { hue: 25, density: 40, saturation: 5 },
+  { hue: 42, density: 34, saturation: 0 },
 );
-/** Soumrak – slunce zapadlo, obloha fialová. */
+/**
+ * Soumrak – slunce zapadlo: šero se studeným modrým světlem oblohy (stíny i nasvícená strana),
+ * u obzoru oranžovorůžová obloha a hustší teplý opar, zem méně sytá. Obloha svítí víc než
+ * přes den, ať je ves čitelná (dřív hnědá „bahnitá“ zem – ladění 19. 10. 2026).
+ */
 const DUSK = palette(
   {
     sun: 0,
-    sunTint: [1, 0.62, 0.36],
-    sky: 1.3,
-    skyTint: [0.9, 0.82, 0.97],
-    ground: [0.7, 0.64, 0.7],
-    clear: [0.84, 0.6, 0.72],
-    fog: [0.82, 0.62, 0.74],
+    sunTint: [1, 0.85, 0.52],
+    sky: 1.45,
+    skyTint: [0.72, 0.82, 1.16],
+    ground: [0.6, 0.64, 0.82],
+    clear: [1.28, 0.8, 0.66],
+    fog: [1.3, 0.82, 0.7],
+    haze: 1.7,
   },
-  { hue: 250, density: 28, saturation: -20 },
+  { hue: 222, density: 90, saturation: -55 },
 );
-/** Modrá hodinka. */
+/** Modrá hodinka – přechod soumraku do studené modré noci. */
 const BLUE = palette(
   {
     sun: 0,
-    sunTint: [1, 0.62, 0.36],
-    sky: 1.15,
-    skyTint: [0.76, 0.84, 1.05],
-    ground: [0.55, 0.58, 0.7],
-    clear: [0.4, 0.46, 0.7],
-    fog: [0.42, 0.48, 0.7],
+    sunTint: [1, 0.8, 0.56],
+    sky: 1.55,
+    skyTint: [0.66, 0.74, 1.2],
+    ground: [0.52, 0.56, 0.74],
+    clear: [0.55, 0.5, 0.72],
+    fog: [0.56, 0.52, 0.72],
+    haze: 1.3,
   },
-  { hue: 225, density: 78, saturation: -30 },
+  { hue: 226, density: 85, saturation: -60 },
 );
 /**
  * Měsíční noc – modrá a čitelná, ne černá: hráč v noci dál hraje (noc je každou minutu a půl).
- * Hlavní světlo je měsíc (MOON), obloha rozptýlí slabé světlo, obraz zmodrá a ztratí sytost.
+ * Hlavní světlo je měsíc (MOON), obloha rozptýlí modré světlo, obraz zmodrá a ztratí sytost.
+ * Světlo má málo zelené – na zelené trávě by noc vyšla tyrkysová, ne studeně modrá jako na sněhu.
  */
 const NIGHT = palette(
   {
     sun: 0,
-    sunTint: [1, 0.62, 0.36],
-    sky: 1.2,
-    skyTint: [0.72, 0.86, 1.12],
-    ground: [0.5, 0.54, 0.66],
+    sunTint: [1, 0.8, 0.56],
+    sky: 1.6,
+    skyTint: [0.58, 0.66, 1.25],
+    ground: [0.46, 0.5, 0.74],
     clear: [0.2, 0.25, 0.42],
     fog: [0.22, 0.27, 0.43],
   },
-  { hue: 220, density: 90, saturation: -40 },
+  { hue: 230, density: 100, saturation: -66 },
 );
 
 /** Fáze dne podle skutečné výšky slunce (°, sestupně) – mezi nimi plynule. */
@@ -278,16 +294,17 @@ const PALETTE_KEYS: readonly (readonly [elevationDeg: number, palette: Palette])
 ];
 
 /** Měsíc (pro čitelnou noc vždy v úplňku, naproti slunci) – síla a barva hlavního světla v noci. */
-const MOON = { intensity: 0.55, color: [0.72, 0.82, 1] as Rgb };
+const MOON = { intensity: 0.55, color: [0.62, 0.7, 1] as Rgb };
 /**
- * Slunce svítí od výšky SUN_GONE_DEG (0) do SUN_FULL_DEG (plně); měsíc od výšky 2° do 14° nad
- * obzorem (úplněk je naproti slunci – jeho výška je minus výška slunce). Mezi nimi (slunce těsně
- * pod obzorem) hlavní světlo nesvítí a přepne se ze slunce na měsíc (SWITCH_DEG) – bez skoku.
+ * Slunce svítí od výšky SUN_GONE_DEG (0) do SUN_FULL_DEG (plně) – i těsně pod obzorem dosvit
+ * západu, ať slunce při západu nezhasne naráz (síla se mění ≈ 2 s); měsíc od výšky 4° do 14° nad
+ * obzorem (úplněk je naproti slunci – jeho výška je minus výška slunce). Mezi nimi (slunce pod
+ * obzorem) hlavní světlo nesvítí a přepne se ze slunce na měsíc (SWITCH_DEG) – bez skoku.
  */
-const SUN_GONE_DEG = -1;
+const SUN_GONE_DEG = -3.5;
 const SUN_FULL_DEG = 2;
-const SWITCH_DEG = -1.5;
-const MOON_RISE_DEG: readonly [number, number] = [2, 14];
+const SWITCH_DEG = -3.7;
+const MOON_RISE_DEG: readonly [number, number] = [4, 14];
 /** Stíny slunce sílí od výšky (°) – při západu jsou dlouhé a slabé. */
 const SUN_SHADOW_DEG: readonly [number, number] = [-0.5, 4];
 /** Stíny od měsíce jsou slabší než od slunce (podíl síly stínu) a sílí s jeho výškou (°). */
@@ -371,7 +388,7 @@ export function dayLight(season: SeasonLook, day: DayOfYear, hour: number | null
     groundColor: times(base.groundColor, palette.ground),
     clearColor: times(base.clearColor, palette.clear),
     fogColor: times(base.fogColor, palette.fog),
-    fogDensity: base.fogDensity * (1 + MORNING_MIST * morningMist(h, elevation)),
+    fogDensity: base.fogDensity * palette.haze * (1 + MORNING_MIST * morningMist(h, elevation)),
   };
   // tón = osvětlení teď / osvětlení období v referenčním poledni (výška světla ve scéně)
   const sinKey = Math.sin(key.elevation);
@@ -488,6 +505,7 @@ function paletteAt(elevation: number): Palette {
         ground: mixRgb(from.ground, to.ground, t),
         clear: mixRgb(from.clear, to.clear, t),
         fog: mixRgb(from.fog, to.fog, t),
+        haze: mix(from.haze, to.haze, t),
         filterA: mix(from.filterA, to.filterA, t),
         filterB: mix(from.filterB, to.filterB, t),
         saturation: mix(from.saturation, to.saturation, t),

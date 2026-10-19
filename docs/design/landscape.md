@@ -230,15 +230,18 @@ Herní den trvá ve skutečném čase ≈ 86 s, hodina dne je část dne, která
    nízké slunce) a dráha je otočená kolem svislé osy tak, aby poledne svítilo ze směru
    `SUN_DIRECTION`. V zimě je polední slunce níž (stíny delší).
 2. **Svítání a soumrak** trvají pár sekund skutečného času (od výšky slunce 10° po plnou noc
-   −12° v létě ≈ 10 s): zlatá hodinka (teplé slunce, opar do zlatova), západ (oranžové slunce,
-   růžová obloha), soumrak (fialová obloha), modrá hodinka, noc. Fáze se míchají podle skutečné
-   výšky slunce; ráno je navíc hustší opar.
+   −12° v létě ≈ 10 s): zlatá hodinka (teplé slunce, opar do zlatova), západ (silné nízké
+   zlatavé slunce – na sněhu broskvový až zlatý nádech, modrofialové stíny), soumrak (šero se
+   studeným modrým světlem, u obzoru oranžovorůžová obloha a hustší teplý opar, zem méně sytá
+   a čitelná), modrá hodinka, noc. Fáze se míchají podle skutečné výšky slunce; ráno je navíc
+   hustší opar. Druhé kolo ladění (19. 10. 2026): soumrak byl hnědý „bahnitý“, zimní západ
+   růžový jako omítka a letní noc do tyrkysova – noc má teď v létě i v zimě studenou modrou.
 3. **Noc měsíčně modrá a čitelná**, ne černá – hráč v noci dál hraje (noc je každou minutu a
    půl). Hlavní světlo je v noci měsíc (vždy úplněk naproti slunci – v zimě vysoko, v létě
    nízko) se slabším stínem, obloha rozptýlí modré světlo a obraz dostane filtr jako ve filmu
    („day for night“ – `ColorCurves` zpracování obrazu: zmodrá a ztratí sytost; samotné modré
-   světlo zelenou trávu jen ztmaví). Slunce se na měsíc přepne těsně pod obzorem, když hlavní
-   světlo nesvítí – bez skoku.
+   světlo zelenou trávu jen ztmaví). Slunce dosvítí ještě kus pod obzorem (do −3,5°, síla
+   slábne ≈ 2 s) a na měsíc se přepne, když hlavní světlo nesvítí – bez skoku.
 4. **Materiály bez světla** (impostory se světlem zapečeným v atlasu, dým) se v soumraku a v noci
    jen přibarví a ztmaví tónem (podíl osvětlení roviny teď a v poledne) – atlas se
    nepřekresluje. Voda odráží barvu oblohy fáze, třpytí se v barvě slunce nebo měsíce; opar

@@ -20,6 +20,11 @@ const SOLSTICE_SUMMER = 172;
 const SOLSTICE_WINTER = 355;
 const EQUINOX = 80;
 
+/** Jas barvy (Rec. 709). */
+function luma(c: readonly [number, number, number]): number {
+  return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+}
+
 /** Délka světla (h) – kolik hodin dne je slunce nad obzorem (po minutách). */
 function daylightHours(day: number): number {
   let minutes = 0;
@@ -140,13 +145,62 @@ describe('den a noc – světlo scény', () => {
       expect(color[2]).toBeGreaterThan(color[0]);
     }
     expect(night.tone[2]).toBeGreaterThan(night.tone[0]);
-    // čitelná: osvětlení noci aspoň pětina dne, obloha není černá
-    expect(night.tone[2]).toBeGreaterThan(0.25);
-    expect(night.tone[2]).toBeLessThan(0.9);
+    // čitelná, ale tmavší než den: jas tónu (materiály bez světla) mezi třetinou a třemi čtvrtinami
+    expect(luma(night.tone)).toBeGreaterThan(0.3);
+    expect(luma(night.tone)).toBeLessThan(0.75);
     expect(Math.max(...night.light.clearColor)).toBeGreaterThan(0.25);
     expect(night.light.sunIntensity).toBeGreaterThan(0.2);
     expect(night.light.sunIntensity).toBeLessThan(noon.light.sunIntensity);
-    expect(night.ambient[2]).toBeLessThan(1);
+    expect(luma(night.ambient)).toBeLessThan(0.8);
+  });
+
+  it('letní soumrak: šero se studeným světlem, u obzoru teplý opar, zem méně sytá a čitelná', () => {
+    const season = seasonLook(REFERENCE_DAY);
+    const dusk = dayLight(season, REFERENCE_DAY, 20.25);
+    expect(dusk.sunElevationDeg).toBeLessThan(-2);
+    // obloha a opar u obzoru oranžovorůžové
+    for (const color of [dusk.light.clearColor, dusk.light.fogColor]) {
+      expect(color[0]).toBeGreaterThan(color[2] * 1.05);
+    }
+    expect(dusk.light.fogDensity).toBeGreaterThan(season.light.fogDensity * 1.4);
+    // stíny a nasvícená strana (světlo oblohy) do modra, obraz méně sytý a do modra
+    expect(dusk.light.skyColor[2]).toBeGreaterThan(dusk.light.skyColor[0] * 1.3);
+    expect(dusk.grade.saturation).toBeLessThan(-40);
+    expect(dusk.grade.hue).toBeGreaterThan(200);
+    expect(dusk.grade.hue).toBeLessThan(240);
+    // o něco světlejší než soumrak první verze (obloha × 1,3): ves je čitelná
+    expect(dusk.light.skyIntensity).toBeGreaterThan(season.light.skyIntensity * 1.3);
+  });
+
+  it('zimní západ: broskvové až zlaté slunce na sněhu, modrofialové stíny – ne růžový', () => {
+    const season = seasonLook(MID_WINTER);
+    let sunset = 15;
+    while (sunElevationDeg(MID_WINTER, sunset) > 0.5) sunset += 1 / 60;
+    const light = dayLight(season, MID_WINTER, sunset);
+    expect(light.source).toBe('sun');
+    const [r, g, b] = light.light.sunColor;
+    // zlatavé: zelená drží blízko červené (růžové / oranžové slunce by ji ztratilo)
+    expect(g).toBeGreaterThan(r * 0.78);
+    expect(b).toBeLessThan(g * 0.7);
+    // stíny (jen světlo oblohy) modrofialové
+    const [sr, sg, sb] = light.light.skyColor;
+    expect(sb).toBeGreaterThan(sr * 1.25);
+    expect(sb).toBeGreaterThan(sg * 1.2);
+    // filtr obrazu zlatavý, ne růžový
+    expect(light.grade.hue).toBeGreaterThan(30);
+    expect(light.grade.hue).toBeLessThan(55);
+  });
+
+  it('letní noc je studeně modrá jako zimní, ne tyrkysová', () => {
+    for (const day of [REFERENCE_DAY, MID_WINTER]) {
+      const night = dayLight(seasonLook(day), day, 23);
+      for (const color of [night.light.sunColor, night.light.skyColor]) {
+        // modrá převládá i nad zelenou – tyrkysová by měla zelenou skoro jako modrou
+        expect(color[2]).toBeGreaterThan(color[1] * 1.35);
+      }
+      expect(night.grade.hue).toBeGreaterThan(220);
+      expect(night.grade.hue).toBeLessThan(240);
+    }
   });
 
   it('svítání a soumrak trvají jen pár sekund skutečného času', () => {
@@ -174,7 +228,8 @@ describe('den a noc – světlo scény', () => {
           expect(current.light.sunIntensity).toBeLessThan(1e-6);
           expect(previous.light.sunIntensity).toBeLessThan(1e-6);
         } else {
-          expect(dayLightDistance(current, previous)).toBeLessThan(0.08);
+          // herní minuta je 0,06 s – nejrychleji se mění síla slunce při západu (≈ 2 s)
+          expect(dayLightDistance(current, previous)).toBeLessThan(0.15);
         }
         previous = current;
       }
