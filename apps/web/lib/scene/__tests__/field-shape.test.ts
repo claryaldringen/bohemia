@@ -69,6 +69,34 @@ describe('kulaté rohy pole oraného rádlem', () => {
     );
   });
 
+  it('schod obrysu (konec pásu orby) je zakulacený, i když úhlopříčný čtverec pole je', () => {
+    // schody: (0,0), (1,0), (1,1) a (2,1) – roh mezi (0,0) a (2,1)… roh čtverce (1,0) vpravo dole
+    // má (2,0) i (1,−1) mimo pole, úhlopříčný (2,1) v poli: schod se zakulatí
+    const stairs = [square(0, 0), square(1, 0), square(1, 1), square(2, 1)];
+    const round = cellsCoverage(stairs, SOFT, all);
+    const sharp = cellsCoverage(stairs, SOFT);
+    // kousek od rohu (30, 0) uvnitř čtverce (1, 0)
+    expect(sharp(28.8, 1.2)).toBeGreaterThan(0.5);
+    expect(round(28.8, 1.2)).toBe(0);
+    expect(outerCorners(stairs, stairs[1]!)).toContainEqual([30, 0]);
+    // vnitřní roh schodu (styk (1,0) a (1,1) s (0,0)) zůstane
+    expect(outerCorners(stairs, stairs[2]!)).not.toContainEqual([15, 15]);
+  });
+
+  it('okraj pole se místy odsune dovnitř – nepravidelný obrys, uvnitř pole beze změny', () => {
+    const squares = block();
+    const plain = cellsCoverage(squares, SOFT);
+    const inset = cellsCoverage(squares, SOFT, undefined, {
+      maxM: 2,
+      at: (x) => (x < 15 ? 2 : 0),
+    });
+    // vlevo okraj o 2 m dovnitř, vpravo jako dřív
+    expect(inset(2.5, 15)).toBeLessThan(plain(2.5, 15));
+    expect(inset(3.7, 15)).toBeCloseTo(1, 9);
+    expect(inset(28, 15)).toBeCloseTo(plain(28, 15), 9);
+    expect(inset(15, 15)).toBe(1);
+  });
+
   it('roh u sousedního pole se nezakulatí (pole navazují bez švu)', () => {
     const own = [square(0, 0)];
     // sousední pole kolem rohu (−1, −1): krytí okraje počítá pole i se styky

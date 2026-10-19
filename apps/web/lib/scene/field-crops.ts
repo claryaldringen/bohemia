@@ -616,14 +616,25 @@ export function patchNoise(x: number, z: number): number {
 /**
  * Krytí pole s měkkým a nepravidelným okrajem: uvnitř 1, k hranici čtverců klesá na 0 (venku 0);
  * v pásu okraje ho šum zvlní, ať mez není rovná čára jako pravítkem. S `rounding` mají díly orané
- * rádlem kulaté vnější rohy (field-cells.ts – `cellsCoverage`).
+ * rádlem kulaté vnější rohy (field-cells.ts – `cellsCoverage`), s `wobbleM` se okraj místy odsune
+ * dovnitř (nepravidelný obrys).
  */
 export function raggedCoverage(
   squares: readonly CellSquare[],
   softM: number,
   rounding?: CornerRounding,
+  wobbleM = 0,
 ): (x: number, z: number) => number {
-  const coverage = cellsCoverage(squares, softM, rounding);
+  // s `wobbleM` se okraj místy odsune dovnitř (vlna ≈ 14 m) – pole není jako podle pravítka
+  const inset =
+    wobbleM > 0
+      ? {
+          maxM: wobbleM,
+          at: (x: number, z: number): number =>
+            wobbleM * (0.5 + 0.5 * noise(x / 14 + 3.1, z / 14 - 8.2)),
+        }
+      : undefined;
+  const coverage = cellsCoverage(squares, softM, rounding, inset);
   return (x, z) => {
     const c = coverage(x, z);
     if (c <= 0 || c >= 1) return c;

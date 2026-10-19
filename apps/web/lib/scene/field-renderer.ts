@@ -86,6 +86,12 @@ const HEAP_NODE = 'pea-heap';
 const WEED_URLS = ['/models/dwellings/grass-tuft-1.glb', '/models/dwellings/grass-tuft-2.glb'];
 /** Šířka měkkého okraje pole a louky na seno (m). */
 const EDGE_SOFT_M = 1.6;
+/**
+ * Jak hluboko se okraj pole místy odsune dovnitř (m) – nepravidelný obrys, ať pole z čtverců
+ * nemá hranice jako podle pravítka (fields.md – Co hráč vidí, Martin 19. 10. 2026: „pole jsou
+ * stále moc hranatá“).
+ */
+const EDGE_WOBBLE_M = 2;
 const MEADOW_EDGE_SOFT_M = 3;
 /**
  * Měkký okraj pole u obydlí (m) – vyklízenou plochu obydlí na poli herní jádro z dílu odečte
@@ -588,6 +594,7 @@ export class FieldRenderer {
           edge,
           EDGE_SOFT_M,
           field.ard ? { radius: PLOUGH_CORNER_M, rounded: () => true } : undefined,
+          EDGE_WOBBLE_M,
         );
         const clearing = clearingMask(built, CLEARING_SOFT_M);
         // obydlí na poli a pásy cest a pěšin (ve světě)

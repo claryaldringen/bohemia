@@ -331,8 +331,11 @@ otáčí.“ Podrobnosti **návrh Clauda** (jen vzhled):
 - **Jen vnější rohy celého pole** – roh, u kterého ani jeden ze tří sousedních čtverců do pole
   (ani do sousedního pole) nepatří. Vnitřní rohy, styky dílů a styk s jiným polem zůstanou jako
   dřív. ~~**Rozhoduje díl, kterému roh patří:** díl oraný rádlem (orba plodiny na něm letos
-  začala – `PartView.ploughed` z herního jádra) má roh kulatý, díl kopaný motykou ostrý.~~ Od 19. 10. 2026 (Jen rádlo) rozhoduje stav vsi: ves, která letos orá, má kulaté rohy všech polí,
-  ves, která kope, ostré. V rohu zůstane tráva louky a nestojí tam trsy obilí.
+  začala – `PartView.ploughed` z herního jádra) má roh kulatý, díl kopaný motykou ostrý.~~
+  Od 19. 10. 2026 (Jen rádlo) rozhoduje stav vsi: ves, která letos orá, má kulaté rohy všech
+  polí, ves, která kope, ostré. V rohu zůstane tráva louky a nestojí tam trsy obilí. **Od 19. 10. 2026 (kulatější pole – Martin: „pole jsou stále moc hranatá“)** se zakulatí každý
+  vypouklý roh obrysu, i schod tvaru L (konec pásu orby – Co nejdelší brázda), a okraj pole je
+  nepravidelný (místy až 2 m dovnitř) – fields.md, Co hráč vidí.
 - **Plochu dílu (úrodu) roh neubírá:** roh vezme (1 − π/4) · 5² ≈ 5,4 m² – u čtverce 225 m² 2,4 %
   na roh, ale pole o desítkách dílů má rohů jen pár (obdélník 4) – desetiny procenta úrody, a to
   jen u polí oraných rádlem. Jádro proto počítá s celou plochou.
@@ -400,6 +403,7 @@ a nechávalo za sebou brázdu. Tak budu moci určit, jak se to chová.“ – **
 | Ztráta spřežení během roku – letošní plán dokončí motyka; kulaté rohy podle stavu vsi       | návrh Clauda                  |
 | Co nejdelší brázda; souvislá plocha, ne z dílce na dílec; na místo po cestě či přes neoseté | Martin (19. 10. 2026)         |
 | Bloky a pásy podél delší strany pole, od nejbližšího; výkon L/(L + v·t), obrat 45 s         | návrh Clauda                  |
+| Kulatější pole – zakulacené i schody obrysu, nepravidelný okraj, bez travnaté souvratě      | Martin, návrh Clauda          |
 | Ladicí přepínač, pruhy po pruzích obtisku, víc spřežení po souvislých kusech                | návrh Clauda                  |
 | Pruh u čáry práce (2–4 řady), jen čelo dne, přechod pěšky do 60 m, dvě spřežení na díl      | návrh Clauda                  |
 | Seno i pro ovce a kozy; dávky malého dobytka; práce seče se sušením a svozem                | Martin (19. 10. 2026)         |

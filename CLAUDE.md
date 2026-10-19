@@ -1375,7 +1375,10 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   Pole s 1 566 zralými díly: +1 draw call, ≈ +0,2 M trojúhelníků. **Kulaté rohy** (oxen.md –
   Kulaté rohy, Jen rádlo): pole vsi, která letos orá rádlem (`SceneVillage.fields[].ard` z
   `ploughsThisYear` v jádru – stav vsi, ne díly), má vnější rohy zakulacené obloukem
-  `PLOUGH_CORNER_M` (5 m) –
+  `PLOUGH_CORNER_M` (5 m) – každý vypouklý roh, i schod obrysu (`outerCorners` a rohy
+  v `cellsCoverage` – stačí, že oba čtverce po stranách rohu chybí, kulatější pole, fields.md);
+  okraj každého pole se místy odsune až o `EDGE_WOBBLE_M` (2 m) dovnitř (`EdgeInset`,
+  `raggedCoverage(…, wobbleM)`) –
   `cellsCoverage(…, rounding)` / `raggedCoverage(…, rounding)` v `field-cells.ts`, vnější rohy
   `outerCorners`; obtisk, trsy i koruna podle krytí, v klíči bloku (`partViewsKey`). Jen vzhled –
   plochu dílu roh neubírá. **Pod cestou obilí neroste**
@@ -1389,7 +1392,8 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   snímek). Násobí krytí pole (obtisk, trsy, panáky, plevel, koruna svahem); klíč bloku nese pásy
   bloku, takže se přestaví jen bloky, kudy pás vede nebo vedl; kusy pod pásem mají jemnější síť
   (`TRACK_DETAIL` – koruna 4×, obtisk 2×). Ukázka: /dev/landscape **Cesta** se zralým polem
-  15 × 15 přes rozcestí. Jen vzhled – plochu dílu cesta neubírá (roads.md – Cesta je cesta).
+  15 × 15 přes rozcestí; **Velké pole** – zralé pole ≈ 10 ha se schody v obrysu (tvar polí z
+  výchozí kamery). Jen vzhled – plochu dílu cesta neubírá (roads.md – Cesta je cesta).
   **Louky na seno** ve vsi jsou data – políčka
   přirozených luk v seči (`SceneVillage.hayMeadows`, `hayMeadowFields` je kreslí jako pole
   se vzhledem `meadow` / `mown` / `haystacks`, postavy sečou po čele práce); dekorativní
