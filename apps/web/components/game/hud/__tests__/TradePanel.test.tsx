@@ -187,3 +187,85 @@ describe('výměna lidí (trade.md – Výměna lidí)', () => {
     );
   });
 });
+
+describe('čitelnost panelu (Martin 19. 10. 2026 – „co je nabídka a co poptávka“)', () => {
+  /** Text uvnitř prvku s `data-testid` (bez značek) – i s vnořenými prvky téhož druhu. */
+  const textOf = (html: string, testId: string): string => {
+    const at = html.indexOf(`data-testid="${testId}"`);
+    expect(at).toBeGreaterThanOrEqual(0);
+    const open = html.lastIndexOf('<', at);
+    const tag = /^<(\w+)/.exec(html.slice(open))![1]!;
+    const re = new RegExp(`<(/?)${tag}\\b[^>]*>`, 'g');
+    re.lastIndex = open;
+    let depth = 0;
+    let end = html.length;
+    for (let m = re.exec(html); m; m = re.exec(html)) {
+      depth += m[1] ? -1 : 1;
+      if (depth === 0) {
+        end = m.index;
+        break;
+      }
+    }
+    return html.slice(html.indexOf('>', at) + 1, end).replace(/<[^>]+>/g, '');
+  };
+
+  it('viditelné hlavičky „Dáš“ (ze vsi ven) a „Dostaneš“ (do vsi), nezalomené', () => {
+    const html = renderToStaticMarkup(<NeighbourTrade neighbour={neighbour()} />);
+    expect(textOf(html, 'trade-give-heading')).toBe('→Dáš');
+    expect(textOf(html, 'trade-get-heading')).toBe('Dostaneš→');
+    expect(html).toMatch(/<h3 data-testid="trade-give-heading" class="[^"]*whitespace-nowrap/);
+    // ikona vsi – portrét dvorce na obou stranách šipky
+    expect(html.match(/<img[^>]*src="\/icons\/build\/dvorec\.png"/g)).toHaveLength(2);
+    // soused a směr nad sloupci
+    expect(textOf(html, 'trade-neighbour')).toBe('Kouřim (jih)');
+  });
+
+  it('popisek řádku: kolik soused ještě vezme nebo má, s jednotkou', () => {
+    const html = renderToStaticMarkup(
+      <NeighbourTrade
+        neighbour={neighbour({
+          offers: [{ good: 'logs', price: 38.4, left: 4 }],
+          people: {
+            offers: { families: [{ people: 4, price: 1036.8 }], adults: 0, adultPrice: 345.6 },
+            takes: { families: 0, adults: 2 },
+            have: { families: [], adults: 1, adultCredit: 360 },
+          },
+        })}
+      />,
+    );
+    expect(textOf(html, 'trade-give-grain-tooltip')).toContain(
+      'Soused shání – vezme ještě 1 500 kg',
+    );
+    expect(textOf(html, 'trade-get-logs-tooltip')).toContain('Soused nabízí – má ještě 4 kusy');
+    expect(textOf(html, 'trade-get-family-tooltip')).toContain('Soused nabízí – má ještě 1 rodinu');
+    expect(textOf(html, 'trade-give-adult-tooltip')).toContain(
+      'Soused shání – vezme ještě 2 dospělé',
+    );
+    expect(textOf(html, 'trade-get-family-tooltip')).toContain('1 037 / rodina');
+  });
+
+  it('bilance – váhy, zeleně v pořádku, červeně záporná; popisek s pravidlem', () => {
+    const fair = renderToStaticMarkup(
+      <NeighbourTrade neighbour={neighbour()} initial={{ give: { grain: 100 }, get: {} }} />,
+    );
+    expect(fair).toMatch(/data-testid="trade-balance" data-fair="true"[^>]*text-\[#a8d46f\]/);
+    expect(fair).toContain('/icons/resources/balance.png');
+    expect(fair).toContain('Bilance pro souseda (kg obilí) – musí být aspoň 0');
+    const unfair = renderToStaticMarkup(
+      <NeighbourTrade neighbour={neighbour()} initial={{ give: {}, get: { tools: 1 } }} />,
+    );
+    expect(unfair).toMatch(/data-testid="trade-balance" data-fair="false"[^>]*text-red-400/);
+    expect(textOf(unfair, 'trade-balance')).toBe('-58');
+  });
+
+  it('jediný soused bez záložek, víc sousedů se záložkami', () => {
+    expect(renderToStaticMarkup(<TradePanel neighbours={[neighbour()]} />)).not.toContain(
+      'role="tablist"',
+    );
+    expect(
+      renderToStaticMarkup(
+        <TradePanel neighbours={[neighbour(), neighbour({ direction: 'E', name: 'Mokrá' })]} />,
+      ),
+    ).toContain('role="tablist"');
+  });
+});

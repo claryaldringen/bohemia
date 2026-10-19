@@ -267,6 +267,16 @@ Návrh Clauda (18. 10. 2026) – detaily, které návrh výš nechal otevřené:
   a „dostaneš“ (nejvýš zásoba souseda), bilance pro souseda, nosiči, dny a práce, tlačítko
   vyslat výpravu; výprava na cestě ukáže náklad a průběh. ~~Zboží zvenku v horní liště, med
   v popisku nasycení.~~ (zrušeno 19. 10. 2026)
+- **Čitelnost panelu obchodu** (Martin 19. 10. 2026: „U toho obchodu – absolutně netuším, co je
+  nabídka a co poptávka.“; návrh Clauda, Martin: „Ano, udělej to tak“): nahoře soused se směrem
+  („Lužany (sever)“) a vpravo bilance pro souseda s ikonou vah – zeleně, když je výměna pro
+  souseda v pořádku (≥ 0), červeně, když je záporná; popisek „Bilance pro souseda (kg obilí) –
+  musí být aspoň 0“. Pod tím dva sloupce s **viditelnými hlavičkami** „Dáš“ (portrét dvorce →,
+  ze vsi ven) a „Dostaneš“ (→ portrét dvorce, do vsi) – jediná slova v panelu, výjimka z pravidla
+  bez popisků jako „Prodat“ a „Koupit“ v 0 A.D. Popisek řádku řekne, co soused chce: u „Dáš“
+  „Soused shání – vezme ještě 1 500 kg“, u „Dostaneš“ „Soused nabízí – má ještě 4 kusy“
+  (jednotky kg, kusy, rodiny, dospělí), pod tím cena v kg obilí. Dole nosiči, dny cesty, práce
+  a tlačítko vyslat výpravu. Záložky sousedů jen, když je jich víc.
 - **Ve scéně:** nosiči chodí s nákladem po stezce od dvorce ke kraji mapy a zpět (skutečný čas
   jako ostatní postavy – karavana po celé stezce).
 
