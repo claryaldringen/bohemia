@@ -305,7 +305,8 @@ describe('chůze k vodě (waterWalkM, waterWalkDistance)', () => {
     const far = makeLandscape({ size: 50, surface: (_x, y) => (y === 46 ? 'water' : 'meadow') });
     const away = advanceVillage(settled(), DAY + 1, null, far);
     const walk = away.dwellings[0]!.waterWalkM!;
-    expect(walk).toBeGreaterThan(330);
+    // rovně ≈ 355 m, po pěšině k vodě (okno sítě sahá k vodě) až 1,3× rychleji
+    expect(walk).toBeGreaterThan(355 / 1.3);
     expect(walk).toBeLessThan(380);
     const extra = domestic(away) - domestic(plain);
     expect(extra).toBeGreaterThan(0.015);

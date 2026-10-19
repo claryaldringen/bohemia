@@ -9,12 +9,13 @@ import {
   pathStrength,
   simplifyPathLine,
   smoothPathLine,
+  villagePathBounds,
   type PathLine,
   type PathNetwork,
   type PathVillage,
 } from '../paths/network';
 import { WATER_FETCHING } from '../rules';
-import { pathTerrainOf, pathWindowFor } from '../paths/terrain';
+import { nearestWaterTiles, pathTerrainOf, pathWindowFor } from '../paths/terrain';
 import { house, part, pathTestTerrain } from './paths-fixtures';
 import { makeLandscape } from './placement-fixtures';
 
@@ -567,6 +568,53 @@ describe('pathBounds', () => {
     expect(b.minX).toBeLessThan(-200);
     expect(b.maxX).toBeGreaterThan(200);
     expect(Math.abs(b.minX % 90)).toBe(0);
+  });
+
+  it('voda mimo okno ho rozšíří jen k sobě, voda v okně ho nemění (paths.md – Pochůzky pro vodu)', () => {
+    const v = village();
+    const b = pathBounds(v)!;
+    // voda v okně – beze změny
+    expect(pathBounds(v, [{ x: 0, z: b.maxZ - 10 }])).toEqual(b);
+    // voda 600 m na sever – okno sahá k ní (s okrajem, zaokrouhleno), do stran se nemění
+    const far = pathBounds(v, [{ x: 10, z: 600 }])!;
+    expect(far.maxZ).toBeGreaterThanOrEqual(600 + 30);
+    expect(far.maxZ).toBeLessThanOrEqual(720);
+    expect([far.minX, far.minZ, far.maxX]).toEqual([b.minX, b.minZ, b.maxX]);
+    expect(Math.abs(far.maxZ % 90)).toBe(0);
+  });
+});
+
+describe('villagePathBounds, nearestWaterTiles – okno sítě až k vodě', () => {
+  // louka 900 × 900 m, potok v řadě políček z ∈ (375, 390); ves 670 m od vody bez staveb k ní
+  const far = makeLandscape({ size: 60, surface: (_x, y) => (y === 55 ? 'water' : 'meadow') });
+  const v = village({
+    dwellings: [house(1, 0, -300), house(2, 14, -296), house(3, -13, -295)],
+  });
+
+  it('nejbližší vodní políčko ke každému obydlí, každé jednou; dál než 1 000 m nic', () => {
+    const tiles = nearestWaterTiles(
+      far,
+      v.dwellings.map((d) => d.position),
+    );
+    expect(tiles.length).toBeGreaterThan(0);
+    for (const t of tiles) expect(t.z).toBe(382.5);
+    expect(new Set(tiles.map((t) => t.x)).size).toBe(tiles.length);
+    expect(nearestWaterTiles(far, [{ x: 0, z: -700 }])).toEqual([]);
+  });
+
+  it('pěšina k vodě vznikne, i když voda leží daleko za okolím staveb', () => {
+    const narrow = pathBounds(v)!;
+    const wide = villagePathBounds(v, far)!;
+    expect(narrow.maxZ).toBeLessThan(375);
+    expect(wide.maxZ).toBeGreaterThan(390);
+    expect([wide.minX, wide.minZ, wide.maxX]).toEqual([narrow.minX, narrow.minZ, narrow.maxX]);
+    const network = (b: typeof wide): PathNetwork =>
+      computePathNetwork({ village: v, terrain: pathTerrainOf(far, pathWindowFor(far, b)) });
+    expect([...network(narrow).errands.values()].some((e) => e.water)).toBe(false);
+    const errands = [...network(wide).errands.values()];
+    expect(errands.length).toBe(3);
+    for (const e of errands) expect(e.water!.z).toBeGreaterThan(360);
+    expect(network(wide).lines.some((l) => l.points.some((p) => p.z > 340))).toBe(true);
   });
 });
 

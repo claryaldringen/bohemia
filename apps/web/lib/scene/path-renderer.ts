@@ -10,11 +10,11 @@ import {
   isWoodTreeId,
   type ObstacleChanges,
   obstaclePosition,
-  pathBounds,
   pathNetworkKey,
   pathTerrainOf,
   pathWindowFor,
   roadsKey,
+  villagePathBounds,
   withObstacles,
   type Landscape,
   type ObstacleLayer,
@@ -297,7 +297,8 @@ export class VillagePaths {
   private recompute(): void {
     const village = this.village;
     if (!village || this.disposed) return;
-    const bounds = pathBounds(village);
+    // okno i s nejbližší vodou – pěšina k potoku je vidět vždy (paths.md – Pochůzky pro vodu)
+    const bounds = villagePathBounds(village, this.env.landscape);
     const counts = { roads: this.roads.length, trees: this.trees.length };
     if (!bounds) {
       this.show(null, { ms: 0, terrainMs: 0, cells: 0, trips: 0, lines: 0, ...counts });

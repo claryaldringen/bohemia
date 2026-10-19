@@ -1,4 +1,4 @@
-import { detCos, detSin, length2 } from '../../landscape';
+import { detCos, detSin, length2, type Landscape } from '../../landscape';
 import { milirPosition } from '../crafts';
 import { rotatedSquareCorners, rotationCosSin, rotationTurn } from '../square-grid';
 import { DWELLING_CLEARING_M, ROAD_WALK, SACRED_BUILDINGS, WATER_FETCHING } from '../rules';
@@ -28,6 +28,7 @@ import {
   PATH_WATER,
   PATH_WATER_SPOT,
   PATH_WETLAND,
+  nearestWaterTiles,
   type PathTerrain,
 } from './terrain';
 import {
@@ -364,13 +365,22 @@ export const PATH_REACH_M = 240;
 const MAX_WINDOW_HALF_M = 650;
 /** Okno se zaokrouhluje ven na tolik (m) – terén se nepřepočítá při každé nové stavbě. */
 const WINDOW_ROUND_M = 90;
+/**
+ * Voda mimo okno: okno se rozšíří k ní o tolik kolem středu vodního políčka (m) – suchý břeh u něj
+ * (políčko 15 m, voda i v sousedních políčkách podle osy potoka) bude v okně.
+ */
+const WATER_WINDOW_MARGIN_M = 45;
 
 /**
  * Obdélník světa, který pěšiny vsi potřebují: stavby vsi a okolí pro vodu a dřevo, zaokrouhlený
- * ven (stabilní okno) a nejvýš MAX_WINDOW_HALF_M od středu obydlí. Ves bez obydlí null.
+ * ven (stabilní okno) a nejvýš MAX_WINDOW_HALF_M od středu obydlí. Voda `water` (nejbližší vodní
+ * políčka k obydlím – `villagePathBounds`), která v tom okolí neleží, ho rozšíří jen k sobě
+ * (± WATER_WINDOW_MARGIN_M, bez meze od středu) – pro vodu se chodí vždy (paths.md – Pochůzky pro
+ * vodu). Ves bez obydlí null.
  */
 export function pathBounds(
   village: PathVillage,
+  water: readonly PathPoint[] = [],
 ): { minX: number; minZ: number; maxX: number; maxZ: number } | null {
   if (village.dwellings.length === 0) return null;
   const xs: number[] = [];
@@ -396,12 +406,36 @@ export function pathBounds(
     Math.min(cz + MAX_WINDOW_HALF_M, Math.max(cz - MAX_WINDOW_HALF_M, z));
   const down = (v: number): number => Math.floor(v / WINDOW_ROUND_M) * WINDOW_ROUND_M;
   const up = (v: number): number => Math.ceil(v / WINDOW_ROUND_M) * WINDOW_ROUND_M;
-  return {
-    minX: down(clampX(Math.min(...xs) - PATH_REACH_M)),
-    minZ: down(clampZ(Math.min(...zs) - PATH_REACH_M)),
-    maxX: up(clampX(Math.max(...xs) + PATH_REACH_M)),
-    maxZ: up(clampZ(Math.max(...zs) + PATH_REACH_M)),
-  };
+  let minX = down(clampX(Math.min(...xs) - PATH_REACH_M));
+  let minZ = down(clampZ(Math.min(...zs) - PATH_REACH_M));
+  let maxX = up(clampX(Math.max(...xs) + PATH_REACH_M));
+  let maxZ = up(clampZ(Math.max(...zs) + PATH_REACH_M));
+  // voda mimo okno staveb – okno jen k ní (voda v okně ho nemění)
+  const outside = water.filter((w) => w.x < minX || w.x > maxX || w.z < minZ || w.z > maxZ);
+  for (const w of outside) {
+    minX = Math.min(minX, w.x - WATER_WINDOW_MARGIN_M);
+    minZ = Math.min(minZ, w.z - WATER_WINDOW_MARGIN_M);
+    maxX = Math.max(maxX, w.x + WATER_WINDOW_MARGIN_M);
+    maxZ = Math.max(maxZ, w.z + WATER_WINDOW_MARGIN_M);
+  }
+  return { minX: down(minX), minZ: down(minZ), maxX: up(maxX), maxZ: up(maxZ) };
+}
+
+/**
+ * Okno sítě pěšin vsi v krajině sídla (`pathBounds` s nejbližší vodou k obydlím –
+ * `nearestWaterTiles`): stejně na serveru (denní i roční síť) i ve scéně.
+ */
+export function villagePathBounds(
+  village: PathVillage,
+  landscape: Landscape,
+): { minX: number; minZ: number; maxX: number; maxZ: number } | null {
+  return pathBounds(
+    village,
+    nearestWaterTiles(
+      landscape,
+      village.dwellings.map((d) => d.position),
+    ),
+  );
 }
 
 /**

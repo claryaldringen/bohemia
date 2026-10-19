@@ -27,7 +27,7 @@ import {
   computePathNetwork,
   pathAgeFactor,
   pastureHerds,
-  pathBounds,
+  villagePathBounds,
   roadsKey,
   type PathNetwork,
   type PathPoint,
@@ -354,7 +354,7 @@ function computeVillageNetwork(
   obstacles: ObstacleLayer | null,
   village: PathVillage,
 ): PathNetwork | null {
-  const bounds = pathBounds(village);
+  const bounds = villagePathBounds(village, landscape);
   if (!bounds) return null;
   const base = pathTerrainOf(landscape, pathWindowFor(landscape, bounds));
   const terrain = obstacles ? withObstacles(base, obstacles, obstacleChangesAt(state, day)) : base;

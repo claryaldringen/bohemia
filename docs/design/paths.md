@@ -159,8 +159,14 @@ Ve Vlkově stály všechny domy 465–790 m od vody vzdušnou čarou, pochůzky 
 chůze po louce (a za 130 m se chodilo úměrně méně často) – pro vodu se nechodilo vůbec, pěšina ani
 pevná cesta k potoku nevznikla a čas na vodu byl jen v pevném denním minimu.
 
-- **Kam:** vždy k nejbližší vodě – suchý břeh u potoka (místo na břehu mimo stavby vsi) v okně
-  pěšin, bez horní meze vzdálenosti. Ves bez vody v okně nechodí nikam (jako dřív).
+- **Kam:** vždy k nejbližší vodě – suchý břeh u potoka (místo na břehu mimo stavby vsi), bez
+  horní meze vzdálenosti. **Okno sítě pěšin sahá vždy k vodě** (Martin chce pěšinu k potoku
+  vidět vždy): leží-li nejbližší vodní políčko některého obydlí mimo okno staveb (stavby ± 240 m),
+  okno se rozšíří jen k němu (± 45 m kolem středu políčka, zaokrouhleno na 90 m) – ne o celé okolí
+  (`villagePathBounds`, stejně na serveru, v roční síti i ve scéně). Voda dál než 1 000 m od obydlí
+  se do okna nebere (výpočet zůstane krátký) – taková ves pro vodu nechodí nikam. Ves 525 m od
+  vody bez staveb k ní: okno 540 × 630 m → 540 × 900 m, síť ≈ 2 → 12 ms; Vlkov (voda v okně už
+  byla) beze změny.
 - **Kolik:** 0,4 cesty (tam a zpět) na člověka domácnosti a den – i daleko naplno, v denní
   i roční síti stejně (`WATER_FETCHING` v `rules.ts`). Pro dřevo beze změny.
 - **Pěšina a cesta:** pochůzky domácností se slévají na společnou pěšinu jako dřív; kudy se chodí
