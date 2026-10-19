@@ -106,8 +106,8 @@ describe('nouzová porážka', () => {
     expect(
       eatDiet({ ...after, grainKg: after.grainKg - reserve, meatKg: after.meatKg - 5 }).outlook,
     ).toBeLessThan(1);
-    // práce porážky a uzení mimo listopad – nouzová, dělá se hned
-    expect(s.livestock!.slaughterWork).toMatchObject({ done: 0, emergency: true });
+    // práce porážky a uzení – v zimě s porážkou po dnech (diet.md – Porážka v zimě), dělá se hned
+    expect(s.livestock!.slaughterWork).toMatchObject({ done: 0 });
     expect(s.livestock!.slaughterWork!.required).toBeCloseTo(
       s.meatKg! / LIVESTOCK.slaughterKgPerManDay,
       9,
@@ -194,6 +194,8 @@ describe('nouzová porážka', () => {
     if (event?.kind !== 'emergency-slaughter') throw new Error('bez porážky');
     const pigs = event.animals.pig ?? 0;
     expect(pigs).toBeGreaterThan(0);
+    // mimo zimní porážku je práce nouzová – dělá se hned
+    expect(s.livestock!.slaughterWork).toMatchObject({ done: 0, emergency: true });
     // dospělých prasat je jen na chovné prasnice – porazila se selata; spodní hranice zůstane
     expect(s.livestock!.herds.pig).toBeCloseTo(10 - pigs, 1);
     expect(s.livestock!.herds.pig).toBeGreaterThanOrEqual(LIVESTOCK.breedingMin - 1e-9);

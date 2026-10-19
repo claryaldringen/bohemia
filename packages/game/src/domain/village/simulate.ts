@@ -65,7 +65,13 @@ import { flaxNeedKg, harvestFlax } from './flax';
 import { husbandryDay, plannedLegumeKg } from './husbandry';
 import { dayMealInput, emergencySlaughter } from './emergency-slaughter';
 import { villageLegumesKg } from './legumes';
-import { slaughterRemaining, villageChickens, villageHerds, workSlaughter } from './livestock';
+import {
+  slaughterRemaining,
+  villageChickens,
+  villageDams,
+  villageHerds,
+  workSlaughter,
+} from './livestock';
 import { arrangeMarriages } from './marriage';
 import { ableTeams, finishPen, ploughCapacityPerDay, villageOxen } from './oxen';
 import { recordClearedObstacles } from './obstacles';
@@ -754,7 +760,7 @@ function work(
     dayTasks.push({
       name: 'slaughter',
       remaining: butchery,
-      // v listopadu, nouzová porážka i mimo něj – vždy v měsíci, kdy se porazilo (diet.md)
+      // přes zimu po dnech, nouzová porážka i mimo ni – vždy v měsíci, kdy se porazilo (diet.md)
       end: month,
       tie: 0,
       rank: 1,
@@ -957,7 +963,8 @@ function work(
  */
 function asideWork(state: VillageState, day: number, eldersDailyMin: number): AsideWork {
   const herds = villageHerds(state);
-  const milk = dailyMilk(herds, day);
+  const dams = villageDams(state);
+  const milk = dailyMilk(dams, day);
   const drinkable = DIET.caps.dairy * villageFoodNeed(state, day);
   const cheeseMilkL = milk.energy > drinkable ? milk.liters * (1 - drinkable / milk.energy) : 0;
   const animals = animalCareNeed(
@@ -966,6 +973,7 @@ function asideWork(state: VillageState, day: number, eldersDailyMin: number): As
     villageChickens(state),
     day,
     cheeseMilkL,
+    dams,
   );
   return {
     milking: animals.milking,
@@ -1629,6 +1637,8 @@ function eat(
   if (emergency) state.chronicle.push(emergency);
   const meal = eatDiet(dayMealInput(state, day, coverage.pottery, milked));
   state.storesKg = meal.grainKg;
+  // čerstvé maso dne se snědlo, zbytek je v uzeném (diet.md – Porážka v zimě)
+  delete state.freshMeatKg;
   if (state.meatKg !== undefined || meal.meatKg > 0) state.meatKg = meal.meatKg;
   if (state.cheeseKg !== undefined || meal.cheeseKg > 0) state.cheeseKg = meal.cheeseKg;
   if (state.legumesKg !== undefined || meal.legumesKg > 0) state.legumesKg = meal.legumesKg;

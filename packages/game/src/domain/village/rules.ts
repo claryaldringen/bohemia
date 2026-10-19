@@ -482,6 +482,31 @@ export const WOOL = {
  * `pigForestShare` nosnosti lesa pro prasata (tatáž nosnost jako u podzimní porážky –
  * `winterTargets`), aspoň chovný pár – na jaře se stádo zdvojnásobí a obnoví se.
  */
+/**
+ * diet.md – Rodí všechny samice (Martin 19. 10. 2026: „A pastevci by se měli snažit, aby rodily
+ * všechny samice.“; čísla návrh Clauda podle rešerše research/2026-10-19-breeding-culling.md):
+ * každá chovná samice rodí jednou za rok. `femaleShare` – chovné samice ve stádu přes zimu (zbytek
+ * býci, berani, kanci, skopci a mladé kusy; u prasat i čuníci na druhý podzim – prasata se
+ * porážela do dvou let), `youngPerDam` – odchovaná mláďata na samici: narozená × přežití prvních
+ * týdnů – kráva 1 tele × 0,8 (úhyn telat 21–23 %), ovce 1,15 jehněte × 0,8 (primitivní plemena
+ * 0,8–0,9 bez péče, s péčí až 1,5; úhyn jehňat 17–25 %), koza 1,4 kůzlete × 0,8 (tradiční chovy
+ * 1,3–1,45), prasnice jeden vrh 6 selat × 0,6 (nešlechtěná plemena 5–6 ve vrhu). Mláďata na kus
+ * stáda (`LIVESTOCK.growth`) = `femaleShare` × `youngPerDam`; dřív bez rozlišení samic ovce a kozy
+ * +40 %, prasata +100 %, krávy +20 % ročně.
+ */
+export const HERD_BREEDING = {
+  femaleShare: { sheep: 0.7, goat: 0.7, pig: 0.4, cow: 0.5 },
+  youngPerDam: { sheep: 0.92, goat: 1.12, pig: 3.6, cow: 0.8 },
+} as const;
+/**
+ * diet.md – Porážka v zimě, Staré kusy (Martin 19. 10. 2026: „Tak většinou se v zimě porážejí
+ * staré kusy a na jaře některá mláďata pokud je jich moc.“; čísla návrh Clauda podle rešerše
+ * research/2026-10-19-breeding-culling.md): podíl dospělých kusů, který ročně doslouží a jde
+ * 1. 11. na maso – letošní mláďata je nahradí. Ovce a kozy 1/8 (bahnice ≈ 6–8 let), krávy 1/10
+ * (dojnice a tažný skot do ≈ 9–10 let), prasnice 1/4 (prasata se porážela do dvou let, chovné
+ * prasnice pár vrhů).
+ */
+export const HERD_RETIREMENT = { sheep: 1 / 8, goat: 1 / 8, pig: 1 / 4, cow: 1 / 10 } as const;
 export const EMERGENCY_SLAUGHTER = {
   order: ['pig', 'goat', 'cow', 'sheep'],
   reserveShare: 0.05,

@@ -135,13 +135,15 @@ describe('rovnovážná skladba stád', () => {
 
   it('co práci šetří, i nad potřebu – v pořadí chovu (ovce napřed), do stropu masa', () => {
     const s = village(day);
-    const keep = herds({ sheep: 6, goat: 4, pig: 60, cow: 5 });
+    // krávy jen dvě – s mláďaty všech samic dají ovce, kozy a krávy hodně masa (Rodí všechny
+    // samice) a prasata by se pod strop masa nevešla
+    const keep = herds({ sheep: 6, goat: 4, pig: 60, cow: 2 });
     const sized = sizeHerdsToNeed(s, day, keep, { costs: COSTS });
     const energy = yearlyFoodNeed(s, day);
     // ovce, kozy a krávy práci šetří (obilí za 0,6 čd/kg) – všechny; prasata pak do stropu masa
     expect(sized.keep.sheep).toBeCloseTo(6, 9);
     expect(sized.keep.goat).toBeCloseTo(4, 9);
-    expect(sized.keep.cow).toBeCloseTo(5, 9);
+    expect(sized.keep.cow).toBeCloseTo(2, 9);
     expect(sized.keep.pig).toBeGreaterThan(LIVESTOCK.breedingMin);
     expect(sized.keep.pig).toBeLessThan(60);
     const meat = (['sheep', 'goat', 'pig', 'cow'] as const).reduce(

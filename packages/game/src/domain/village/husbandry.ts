@@ -27,6 +27,8 @@ import {
   slaughter,
   starveHerds,
   wantedWinterHerds,
+  winterSlaughterDay,
+  winterWaitHayKg,
 } from './livestock';
 import {
   OXEN,
@@ -79,12 +81,14 @@ function hayOxen(state: VillageState): number {
 
 /**
  * Seno, které ves na zimu potřebuje (kg – oxen.md, Seno): zimní stádo, které si chce nechat
- * (nosnost pastvy, lesa a pasáků zmenšená podle potřeby – `wantedWinterHerds`), a voli ohrad, po
- * zimní dávce celou zimu.
+ * (nosnost pastvy, lesa, pasáků a místo pro mláďata zmenšená podle potřeby – `wantedWinterHerds`),
+ * a voli ohrad, po zimní dávce celou zimu, a kusy na maso, dokud nepřijdou na řadu zimní porážky
+ * (`winterWaitHayKg` – diet.md, Porážka v zimě).
  */
 export function winterHayNeedKg(state: VillageState, day: number, toolCoverage = 0): number {
-  const herds = wantedWinterHerds(state, day, farmInput(state, day, toolCoverage));
-  return winterHayKg(herds, hayOxen(state));
+  const input = farmInput(state, day, toolCoverage);
+  const herds = wantedWinterHerds(state, day, input);
+  return winterHayKg(herds, hayOxen(state)) + winterWaitHayKg(state, day, herds, input.oxen);
 }
 
 /**
@@ -190,14 +194,22 @@ export function husbandryDay(
       hayKg: villageHayKg(state),
     });
     if (event) events.push(event);
-    // vlna na oděv do další porážky – podle ovcí, které ves nechala přes zimu (diet.md – Oděv)
-    const wool = recordWool(state, livestock, day);
+    // vlna na oděv do další porážky – podle ovcí, které ves nechala přes zimu (diet.md – Oděv);
+    // ovce na zimní porážku se do jara nedožijí
+    const wool = recordWool(
+      state,
+      livestock,
+      day,
+      livestock.herds.sheep - (livestock.culling?.sheep ?? 0),
+    );
     if (wool) events.push(wool);
     // nový rok pasení – od porážky do porážky
     delete livestock.herding;
     if (state.hay)
       state.hay.winter = { oxenNeedKg: 0, oxenEatenKg: 0, herdNeedKg: 0, herdEatenKg: 0 };
   }
+  // zimní porážka po dnech – čerstvé maso dne; zbytek 31. 3. do uzení (diet.md – Porážka v zimě)
+  winterSlaughterDay(state, day);
   if (isHayWinter(day)) feedHay(state, villageOxen(state), livestock.herds);
   return events;
 }

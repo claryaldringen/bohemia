@@ -5,6 +5,7 @@ import { villageApplesKg } from './orchard';
 import {
   DAIRY,
   cheeseFromMilk,
+  dairyDams,
   daysUntilMilking,
   milkEnergyBetween,
   villageCheeseKg,
@@ -122,7 +123,10 @@ export function dietQuality(proteinCoverage: number, fruitCoverage: number): num
  */
 export interface Eaten {
   grainKg: number;
+  /** Maso celkem (kg) – uzené i čerstvé. */
   meatKg: number;
+  /** Z toho čerstvé maso ze zimní porážky (kg – diet.md, Porážka v zimě); chybí = žádné. */
+  freshMeatKg?: number;
   fruitKg: number;
   milkL: number;
   milkProteinKg: number;
@@ -159,9 +163,11 @@ export function dietOf(needPerDay: number, proteinNeedKg: number, eaten: Eaten):
       shares: { grain: 0, meat: 0, dairy: 0, eggs: 0, fruit: 0, legumes: 0 },
     };
   }
+  const fresh = eaten.freshMeatKg ?? 0;
   const shares = {
     grain: eaten.grainKg / needPerDay,
     meat: meatEnergy(eaten.meatKg) / needPerDay,
+    ...(fresh > 0 ? { freshMeat: meatEnergy(fresh) / needPerDay } : {}),
     dairy: (eaten.milkEnergy + eaten.cheeseKg * DAIRY.cheeseEnergy) / needPerDay,
     eggs: (eaten.eggsKg * DIET.energy.eggs) / needPerDay,
     fruit: fruitEnergy(eaten.fruitKg) / needPerDay,
@@ -188,6 +194,16 @@ export interface DietInput {
   grainKg: number;
   meatKg: number;
   fruitKg: number;
+  /**
+   * Čerstvé maso dne ze zimní porážky (kg – diet.md, Porážka v zimě): jí se napřed, uzené
+   * (`meatKg`) až do stropu masa; co se nesní, se udí. Bez údaje žádné.
+   */
+  freshMeatKg?: number;
+  /**
+   * Čerstvé maso od zítřka do konce zimní porážky (energie v kg obilí, za den nejvýš strop masa –
+   * `freshMeatAheadEnergy`) – výhled s ním počítá. Bez údaje žádné.
+   */
+  freshAheadEnergy?: number;
   /** Zásoba sýra (kg). */
   cheeseKg?: number;
   /** Dnes nadojené mléko (l), jeho bílkoviny (kg) a energie (kg obilí). */
@@ -255,6 +271,8 @@ export interface DietResult {
 export function eatDiet(input: DietInput): DietResult {
   const grain = input.grainKg * (1 - storageLossPerYear(input.potteryCoverage)) ** (1 / 365);
   const meat = Math.max(0, input.meatKg) * DAILY_MEAT_KEEP;
+  const fresh = Math.max(0, input.freshMeatKg ?? 0);
+  const freshAhead = Math.max(0, input.freshAheadEnergy ?? 0);
   const fruit = Math.max(0, input.fruitKg);
   const cheese = Math.max(0, input.cheeseKg ?? 0) * DAILY_CHEESE_KEEP;
   const milkL = Math.max(0, input.milkL ?? 0);
@@ -270,7 +288,7 @@ export function eatDiet(input: DietInput): DietResult {
     const made = cheeseFromMilk(milkProtein);
     return {
       grainKg: grain,
-      meatKg: meat,
+      meatKg: meat + fresh,
       fruitKg: fruit,
       cheeseKg: cheese + made,
       cheeseMadeKg: made,
@@ -291,9 +309,19 @@ export function eatDiet(input: DietInput): DietResult {
   const milkDrunk = milkL * drunkShare;
   const eggsEnergy = eggs * DIET.energy.eggs;
   const meatDays = Math.max(1, input.daysToMeatEnd);
-  const meatRation = Math.min(DIET.caps.meat * need, meatEnergy(meat) / meatDays);
-  // maso jen do zkažení – do sklizně počítá jen dny, kdy ještě bude
-  const meatUntilHarvest = meatRation * Math.min(days, meatDays);
+  // čerstvé maso ze zimní porážky napřed, uzené do stropu – rovným dílem do zkažení (diet.md –
+  // Porážka v zimě); uzené, které dnes nepřijde na řadu, počká
+  const freshRation = Math.min(DIET.caps.meat * need, meatEnergy(fresh));
+  const smokedEven = Math.min(DIET.caps.meat * need, meatEnergy(meat) / meatDays);
+  const smokedRation = Math.min(DIET.caps.meat * need - freshRation, smokedEven);
+  const meatRation = freshRation + smokedRation;
+  // maso jen do zkažení – do sklizně počítá jen dny, kdy ještě bude; čerstvé do konce zimní
+  // porážky, vše nejvýš strop masa
+  const smokedUntilHarvest = smokedEven * Math.min(days, meatDays);
+  const meatUntilHarvest =
+    fresh > 0 || freshAhead > 0
+      ? Math.min(DIET.caps.meat * need * days, freshRation + freshAhead + smokedUntilHarvest)
+      : smokedUntilHarvest;
   const cheeseRation = Math.min(
     Math.max(0, DIET.caps.dairy * need - milkEnergy),
     (cheese * DAIRY.cheeseEnergy) / Math.max(1, input.daysToMilking ?? COMMON_YEAR_DAYS),
@@ -348,6 +376,7 @@ export function eatDiet(input: DietInput): DietResult {
   const eaten: Eaten = {
     grainKg: grainToday,
     meatKg: meatRation / DIET.meatEnergy,
+    ...(freshRation > 0 ? { freshMeatKg: freshRation / DIET.meatEnergy } : {}),
     fruitKg: fruitRation / APPLE_FOOD_VALUE,
     milkL: milkDrunk,
     milkProteinKg: milkProtein * drunkShare,
@@ -360,7 +389,10 @@ export function eatDiet(input: DietInput): DietResult {
   return {
     // poslední den před sklizní se snědí celé zásoby – ořez chyb zaokrouhlení pod nulu
     grainKg: Math.max(0, grain - grainToday),
-    meatKg: Math.max(0, meat - eaten.meatKg),
+    // co se z čerstvého masa nesnědlo, se udí
+    meatKg:
+      Math.max(0, meat - smokedRation / DIET.meatEnergy) +
+      Math.max(0, fresh - freshRation / DIET.meatEnergy),
     fruitKg: Math.max(0, fruit - eaten.fruitKg),
     cheeseKg: Math.max(0, cheese - eaten.cheeseKg) + made,
     cheeseMadeKg: made,
@@ -439,7 +471,13 @@ export function villageMeal(
   state: VillageState,
   day: number,
   potteryCoverage: number = NO_CRAFTS.pottery,
-  fresh: { milk: MilkYield; eggsKg: number } = {
+  fresh: {
+    milk: MilkYield;
+    eggsKg: number;
+    /** Čerstvé maso dne a od zítřka ze zimní porážky (diet.md – Porážka v zimě). */
+    meatKg?: number;
+    meatAheadEnergy?: number;
+  } = {
     milk: { liters: 0, proteinKg: 0, energy: 0 },
     eggsKg: 0,
   },
@@ -455,6 +493,8 @@ export function villageMeal(
   return eatDiet({
     grainKg: state.storesKg,
     meatKg: isMeatSpoilDay(day) ? 0 : villageMeatKg(state),
+    freshMeatKg: fresh.meatKg ?? 0,
+    freshAheadEnergy: fresh.meatAheadEnergy ?? 0,
     fruitKg: applesSpoiled(day, potteryCoverage) ? 0 : villageApplesKg(state),
     cheeseKg: villageCheeseKg(state),
     milkL: fresh.milk.liters,
@@ -470,7 +510,7 @@ export function villageMeal(
     // stáda přímo ze stavu – livestock.ts importuje tento soubor
     milkAheadEnergy: state.livestock
       ? milkEnergyBetween(
-          state.livestock.herds,
+          dairyDams(state.livestock.herds, state.livestock.young),
           day + 1,
           day + daysToHarvest - 1,
           DIET.caps.dairy * need,

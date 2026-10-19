@@ -29,7 +29,7 @@ import {
   villageHappiness,
   type HappinessFactors,
 } from './happiness';
-import { dailyMilk, villageCheeseKg, yearlyMilk } from './dairy';
+import { dailyMilk, dairyDams, villageCheeseKg, yearlyMilk } from './dairy';
 import { villageMeal, villageMeatKg } from './diet';
 import { villageHayKg } from './hay';
 import { villageLegumesKg } from './legumes';
@@ -41,6 +41,11 @@ import {
   pastureHa,
   pigForestHa,
   villageChickens,
+  cullingMeatKg,
+  freshMeatAheadEnergy,
+  freshMeatPerDayKg,
+  isSlaughterSeason,
+  villageDams,
   villageHerds,
 } from './livestock';
 import { OXEN, teamAgeYears, trainingProgress, villagePens } from './oxen';
@@ -450,8 +455,13 @@ function households(state: VillageState, day: number): HouseholdSummary[] {
 function nextDayDiet(state: VillageState, day: number): DietDay {
   const next = Math.min(day + 1, TOTAL_GAME_DAYS - 1);
   return villageMeal(state, next, craftCoverage(state, next).pottery, {
-    milk: dailyMilk(villageHerds(state), next),
+    milk: dailyMilk(villageDams(state), next),
     eggsKg: dailyEggsKg(state),
+    // zítřejší zimní porážka (diet.md – Porážka v zimě)
+    meatKg: isSlaughterSeason(next)
+      ? Math.min(cullingMeatKg(state), freshMeatPerDayKg(state, next))
+      : 0,
+    meatAheadEnergy: freshMeatAheadEnergy(state, next),
   }).diet;
 }
 
@@ -506,8 +516,8 @@ function livestockSummary(state: VillageState, day: number): LivestockSummary {
     pigForestHa: pigForestHa(state),
     meatNeedKg: meatNeedPerYear(state, day),
     legumeNeedKg: legumeNeedPerYear(state, day),
-    milkLPerDay: dailyMilk(herds, day).liters,
-    milkLPerYear: yearlyMilk(herds).liters,
+    milkLPerDay: dailyMilk(villageDams(state), day).liters,
+    milkLPerYear: yearlyMilk(dairyDams(herds)).liters,
   };
 }
 

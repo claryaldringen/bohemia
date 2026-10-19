@@ -3,6 +3,8 @@ import { dayIndexOf } from '../../calendar';
 import { foundVillage } from '../actions';
 import { PROTEIN } from '../diet';
 import { winterHayAvailable } from '../hay';
+import { youngsterHerders } from '../herding';
+import { HERD_BREEDING } from '../rules';
 import {
   BALANCE,
   BREEDING_ORDER,
@@ -17,6 +19,7 @@ import {
   proteinBudget,
   pastureHa,
   pigForestHa,
+  retiringHeads,
   sizeHerdsToNeed,
   slaughter,
   starveHerds,
@@ -49,6 +52,31 @@ function village(day = at(600, 9, 2)): VillageState {
   s.lastDay = day;
   s.storesKg = 50_000;
   return s;
+}
+
+/** Děti v prvním domě, které budou mít v den `day` daný věk (let). */
+function addChildren(s: VillageState, ages: readonly number[], day: number): void {
+  const home = s.people[0]!.dwellingId;
+  for (const age of ages) {
+    s.people.push({
+      id: s.nextId++,
+      bornDay: day - Math.round(age * 365.25),
+      dwellingId: home,
+      sex: s.nextId % 2 === 0 ? 'male' : 'female',
+    });
+  }
+}
+
+/** Stádo, které ves nechala přes zimu – bez kusů čekajících na zimní porážku. */
+function kept(s: VillageState): Record<HerdSpecies, number> {
+  const h = s.livestock!.herds;
+  const c = s.livestock!.culling;
+  return herds({
+    sheep: h.sheep - (c?.sheep ?? 0),
+    goat: h.goat - (c?.goat ?? 0),
+    pig: h.pig - (c?.pig ?? 0),
+    cow: h.cow - (c?.cow ?? 0),
+  });
 }
 
 function part(id: number, over: Partial<FieldPart> = {}): FieldPart {
@@ -105,12 +133,35 @@ describe('výchozí stádo', () => {
 });
 
 describe('růst a nosnost', () => {
-  it('na jaře mláďata: ovce a kozy +40 %, prasata +100 %, krávy +20 %', () => {
+  it('na jaře rodí každá chovná samice – mláďata = samice × odchovaná mláďata na samici', () => {
     const s = village();
-    s.livestock!.herds = herds({ sheep: 10, goat: 5, pig: 4, cow: 5 });
+    const before = herds({ sheep: 10, goat: 5, pig: 4, cow: 5 });
+    s.livestock!.herds = { ...before };
     herdBirths(s);
-    expect(s.livestock!.herds).toEqual(herds({ sheep: 14, goat: 7, pig: 8, cow: 6 }));
-    expect(s.livestock!.young).toEqual(herds({ sheep: 4, goat: 2, pig: 4, cow: 1 }));
+    const { femaleShare, youngPerDam } = HERD_BREEDING;
+    for (const species of ['sheep', 'goat', 'pig', 'cow'] as const) {
+      const young = before[species] * femaleShare[species] * youngPerDam[species];
+      expect(LIVESTOCK.growth[species]).toBeCloseTo(femaleShare[species] * youngPerDam[species], 9);
+      expect(s.livestock!.young[species]).toBeCloseTo(young, 9);
+      expect(s.livestock!.herds[species]).toBeCloseTo(before[species] + young, 9);
+    }
+    // ovce +64 %, kozy +78 %, prasata +144 %, krávy +40 % (dřív 40 / 40 / 100 / 20 %)
+    expect(LIVESTOCK.growth.sheep).toBeCloseTo(0.644, 9);
+    expect(LIVESTOCK.growth.goat).toBeCloseTo(0.784, 9);
+    expect(LIVESTOCK.growth.pig).toBeCloseTo(1.44, 9);
+    expect(LIVESTOCK.growth.cow).toBeCloseTo(0.4, 9);
+  });
+
+  it('porody nejsou omezené výrostky – rodí i stádo, které nikdo nepase', () => {
+    const s = village();
+    // bez dětí – výrostci nebudou
+    s.people = s.people.slice(0, 2);
+    expect(youngsterHerders(s, s.lastDay)).toBe(0);
+    s.livestock!.herds = herds({ sheep: 80, pig: 50, cow: 20 });
+    herdBirths(s);
+    expect(s.livestock!.young.sheep).toBeCloseTo(80 * LIVESTOCK.growth.sheep, 9);
+    expect(s.livestock!.young.pig).toBeCloseTo(50 * LIVESTOCK.growth.pig, 9);
+    expect(s.livestock!.young.cow).toBeCloseTo(20 * LIVESTOCK.growth.cow, 9);
   });
 
   it('pastva = louka bez polí mimo příloh + příloh na vymýceném lese', () => {
@@ -189,8 +240,11 @@ describe('růst a nosnost', () => {
     expect(s.livestock!.herds.pig).toBeCloseTo(88, 6);
     expect(s.livestock!.herds.cow).toBeCloseTo(94, 6);
     expect(s.livestock!.young.sheep).toBeCloseTo(8.8, 6);
-    // stálé stádo dá mláďaty po ztrátách maso: ovce (1,4 × 0,88 − 1) × 15 kg
-    expect(yearlyMeatPerHead('sheep')).toBeCloseTo((1.4 * 0.88 - 1) * 15, 9);
+    // stálé stádo dá mláďaty po ztrátách maso: ovce ((1 + růst) × 0,88 − 1) × 15 kg
+    expect(yearlyMeatPerHead('sheep')).toBeCloseTo(
+      ((1 + LIVESTOCK.growth.sheep) * 0.88 - 1) * 15,
+      9,
+    );
   });
 });
 
@@ -253,66 +307,78 @@ describe('porážka (1. 11.)', () => {
     expect(need).toBeCloseTo((b.need - b.grain - b.milk - b.eggs) / PROTEIN.perKg.meat, 9);
     expect(need).toBeGreaterThan(150);
     slaughter(s, at(600, 11, 1), { oxen: 0, hayKg: Infinity });
-    // polovina mláďat prasat (50 kg) nepokryje potřebu – i polovina jehňat
-    expect(s.livestock!.herds.pig).toBeCloseTo(3, 9);
-    expect(s.livestock!.herds.sheep).toBeCloseTo(5, 9);
+    // polovina mláďat prasat (50 kg) nepokryje potřebu – i polovina jehňat; přes zimu ves nechá
+    // jen mladší kusy (staré jdou na maso – čtvrtina prasnic, osmina ovcí)
+    expect(kept(s).pig).toBeCloseTo(3, 9);
+    expect(kept(s).sheep).toBeCloseTo(5, 9);
     expect(s.livestock!.young).toEqual(herds({}));
+    // kusy na maso čekají na zimní porážku – ves je sní čerstvé
+    expect(s.livestock!.culling).toEqual(herds({ pig: 1, sheep: 1 }));
   });
 
   it('chovné stádo nad potřebu jde na maso jen tolik, kolik ves do zkažení sní (diet.md)', () => {
     const s = village(at(600, 11, 1));
     const day = at(600, 11, 1);
+    // výrostků dost – stádo neomezí místo pro mláďata
+    addChildren(s, [8, 8, 9, 9, 10, 10], day);
     s.livestock!.land = { meadowHa: 1000, forestHa: 1000 };
     s.livestock!.herds = herds({ pig: 40, sheep: 6, cow: 3 });
     s.livestock!.young = herds({ pig: 20, sheep: 2, cow: 0.5 });
     s.meatKg = 0;
     // porážka plánuje jako osev – i s luštěninami (Rovnovážné hospodaření)
-    const kept = sizeHerdsToNeed(s, day, herds({ pig: 40, sheep: 6, cow: 3 }), {
+    const plan = sizeHerdsToNeed(s, day, herds({ pig: 40, sheep: 6, cow: 3 }), {
       planLegumes: true,
     }).keep;
     // plán by porazil i dospělá prasata – víc masa, než ves do 31. 8. sní
-    const planned = (40 - kept.pig) * LIVESTOCK.meatKg.pig;
+    const planned = (40 - plan.pig) * LIVESTOCK.meatKg.pig;
     const eatable = meatEatableKg(s, day);
     expect(planned).toBeGreaterThan(eatable);
+    // staré kusy jdou na maso vždy (prasnice, ovce, krávy)
+    const old = retiringHeads(s.livestock!.herds, s.livestock!.young);
     const event = slaughter(s, day, { oxen: 0, hayKg: Infinity });
     // na maso jen, co ves sní – napřed prasata; zbytek v nosnosti žije
     expect(event).toMatchObject({ kind: 'slaughter' });
     expect(event && 'kg' in event ? event.kg : 0).toBeLessThanOrEqual(Math.round(eatable) + 1);
-    expect(s.livestock!.herds.pig).toBeCloseTo(40 - eatable / LIVESTOCK.meatKg.pig, 6);
-    expect(s.livestock!.herds.pig).toBeGreaterThan(kept.pig);
-    expect(s.livestock!.herds.sheep).toBeGreaterThanOrEqual(kept.sheep - 1e-9);
-    expect(s.livestock!.herds.cow).toBeGreaterThanOrEqual(kept.cow - 1e-9);
+    const oldOther = old.sheep * LIVESTOCK.meatKg.sheep + old.cow * LIVESTOCK.meatKg.cow;
+    expect(kept(s).pig).toBeCloseTo(40 - (eatable - oldOther) / LIVESTOCK.meatKg.pig, 6);
+    expect(kept(s).pig).toBeGreaterThan(plan.pig);
+    expect(kept(s).sheep).toBeCloseTo(6 - old.sheep, 9);
+    expect(kept(s).cow).toBeCloseTo(3 - old.cow, 9);
   });
 
-  it('stádo, které nic nestojí, porážka nezredukuje – maso se do zkažení nesní (Martin)', () => {
-    // vesničané se snaží vyrobit co nejvíc jídla: prasata uživí les a práci nestojí
+  it('stádo v nosnosti porážka nezredukuje nad to, co ves sní – staré kusy jdou na maso vždy', () => {
+    // vesničané se snaží vyrobit co nejvíc jídla: prasata uživí les a práci nestojí (Martin);
+    // staré kusy ale na maso jdou, i když se maso nestihne sníst (Martin 19. 10. 2026)
     const day = at(600, 11, 1);
     const s = village(day);
+    addChildren(s, [8, 8, 9, 9, 10, 10, 11, 11], day);
     s.livestock!.land = { meadowHa: 1000, forestHa: 1000 };
-    s.livestock!.herds = herds({ pig: 200, sheep: 6 });
+    s.livestock!.herds = herds({ pig: 60, sheep: 6 });
     s.meatKg = 100;
-    slaughter(s, day, { oxen: 0, hayKg: Infinity });
-    // maso z porážky a v zásobě ves do 31. 8. sní pod stropem – nic se nezkazí
-    expect(s.meatKg!).toBeLessThanOrEqual(meatEatableKg(s, day) + 1e-6);
-    expect(s.livestock!.herds.pig).toBeGreaterThan(150);
-    // a do zkažení se to opravdu sní
-    const spoiled = advanceVillage(s, at(601, 9, 1), null).chronicle.filter(
-      (e) => e.kind === 'meat-spoiled',
-    );
-    expect(spoiled.reduce((sum, e) => sum + ('kg' in e ? e.kg : 0), 0)).toBeLessThan(5);
+    const old = retiringHeads(s.livestock!.herds, s.livestock!.young);
+    expect(old.pig).toBeCloseTo(15, 9);
+    const oldMeat = old.pig * LIVESTOCK.meatKg.pig + old.sheep * LIVESTOCK.meatKg.sheep;
+    // staré kusy dají víc masa, než ves do 31. 8. sní
+    expect(oldMeat + 100).toBeGreaterThan(meatEatableKg(s, day));
+    const event = slaughter(s, day, { oxen: 0, hayKg: Infinity });
+    expect(event).toMatchObject({ kind: 'slaughter', kg: Math.round(oldMeat) });
+    // nic víc – zbytek v nosnosti žije
+    expect(kept(s).pig).toBeCloseTo(60 - old.pig, 6);
+    expect(kept(s).sheep).toBeCloseTo(6 - old.sheep, 6);
   });
 
-  it('prasata, která uživí les, porážka nesníží na pár, i když je výrostků málo (Vlkov)', () => {
-    // Vlkov 1. 11. 792: dva výrostci, 65 ovcí (38 na vlnu), 83 prasat, les asi pro 53 –
-    // dřív plán podle dnešních výrostků nechal jen chovný pár prasat
+  it('prasata, která uživí les, porážka nesníží na pár, když na ně výrostci stačí (Vlkov)', () => {
+    // Vlkov 1. 11. 792: 65 ovcí (38 na vlnu), 83 prasat, les asi pro 53 – dřív plán podle dnešních
+    // výrostků nechal jen chovný pár prasat; příští léto tu výrostci stáda i s mláďaty uhlídají
     const day = at(600, 11, 1);
     const s = village(day);
+    addChildren(s, [7, 7, 8, 8, 8, 9, 9, 9, 10, 10, 10, 11, 11, 12], day);
     s.livestock!.land = { meadowHa: 1000, forestHa: 1000 };
     s.livestock!.herds = herds({ pig: 83, sheep: 65, goat: 4, cow: 2 });
     s.livestock!.herding = { needDays: 100, watchedDays: 90 };
     slaughter(s, day, { oxen: 0, hayKg: Infinity, minSheep: 38 });
-    expect(s.livestock!.herds.pig).toBeGreaterThan(40);
-    expect(s.livestock!.herds.sheep).toBeGreaterThan(38);
+    expect(kept(s).pig).toBeGreaterThan(40);
+    expect(kept(s).sheep).toBeGreaterThan(38);
   });
 
   it('chovný pár zůstane, i když nosnost nic neunese', () => {
