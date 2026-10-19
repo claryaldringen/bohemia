@@ -1307,8 +1307,13 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   `pathNetworkKey`, odloženě) – obtisky `paths-worn` / `paths-earth` z `path-ribbon.ts` **nad**
   obtisky polí a vsi (alphaIndex 3 / 3,5, lift 0,05 / 0,055, zOffset −3,5 / −4; přes osetý díl
   úzká stopa; v pevné cestě se pěšina dne ztrácí – `roadFade`; rozcestí – konec aspoň tří čar –
-  je udusaný plácek `ribbonJunctions` / `JUNCTION`, u pevných cest `roadJunctions`), sníh přes
-  `applySeasonGround` (0,55 – stopa prosvítá). Pěšiny dne stromy nemají (stromy jsou jen u pevných cest – níž).
+  je udusaný plácek `ribbonJunctions` / `JUNCTION`, u pevných cest `roadJunctions`). **Pěšina dne
+  je nevýrazná** (Martin, 19. 10. 2026: „denní pěšina ať je nevýrazná“): vrstvy `PATH_WORN_LAYER`
+  / `PATH_EARTH_LAYER` – slabě prošlapaná tráva 0,6–1,2 m, krytí 0,2–0,45, holá hlína jen u silné
+  pěšiny, úzká a slabá, rozcestí jen jemně (`RibbonLayer.junction`); pevná cesta (`ROAD_*`) je vedle
+  ní jasně výraznější. Sníh přes `applySeasonGround` – materiály pěšin a cest zvlášť
+  (`decalMaterial(group, kind)`, `SNOW`: pěšina dne 0,3, ať stopa ve sněhu trochu prosvítá, cesta
+  0,55). Pěšiny dne stromy nemají (stromy jsou jen u pevných cest – níž).
   Postavy: `path-router.ts` (trasa s tempem úseků) → `VillagerPaths.route` →
   `route(points, pace)` – `shuttle` jde po pěšině rychleji. Vývojová stránka: tlačítka
   **Pěšiny**, **Cesta** (ukázka pevné cesty se stromy v každém stadiu – `dev-road.ts`), **Provoz**
@@ -1350,9 +1355,11 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   zapíše do `clearedObstacles`. Na dřevo se nekácí (nejsou ve vrstvě – `nearestMatureTrees` je
   nevidí). Kronika `road-formed`, `road-overgrown`. Web: `SceneVillage.roads` (`SceneRoad`)
   a `roadTrees` (`SceneRoadTree` – stadium a velikost po dvacetinách z `sceneRoadTrees`), typy
-  odvozené z jádra. Scéna `path-renderer.ts`: pevné cesty z dat (`roadLines` v `path-ribbon.ts`
-  – plně vyšlapaná pěšina `roads-worn` / `roads-earth`, volný konec se vytrácí, přestaví se jen
-  při změně `roadsKey`), stromy z dat (`path-trees.ts`: `roadsideInstance` – keř `shrub-*`
+  odvozené z jádra. Scéna `path-renderer.ts`: pevné cesty z dat (`roadBands` v
+  `road-works-layout.ts` – plně vyšlapaný pás `roads-worn` / `roads-earth`, vrstvy `ROAD_WORN_LAYER`
+  / `ROAD_EARTH_LAYER` v `path-ribbon.ts` – vzhled jako dřív silná pěšina, Martin 19. 10. 2026:
+  „Vyšlapanou cestu nechme jako teď“; volný konec se vytrácí, přestaví se jen při změně
+  `roadsKey`), stromy z dat (`path-trees.ts`: `roadsideInstance` – keř `shrub-*`
   z dekorací, strom podle druhu z `ROAD_TREE_MODELS`, souš `snag-*` / `snag-oak`, pařez `stump`;
   meshe `pathside-<model>` – roční období a stíny jako stromy krajiny; přestaví se jen při změně
   `roadTreesKey`).
@@ -1375,11 +1382,16 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   s `PlacementVillage.walkRoads`). Bez krajiny (kalibrace) se nic z toho nepočítá. Web:
   `VillageView.roads` (`VillageRoad` – panel), `SceneRoad.ground` a `upgrade` (průběh pro fáze),
   výběr `{ kind: 'road' }` (`nearestRoad`, `ROAD_PICK_M`), panel `RoadBody` (ikony `cesta`,
-  `cesta-upravena`, `hat`). Scéna: `road-works-layout.ts` (čisté funkce – pásy `roadBands`,
-  strouha `ditchLines`, kameny, kmeny hatě, lávky, vytyčení), `road-works.ts` (`RoadWorks` –
-  modely `public/models/roads/` z `tools/blender/roads.py` v instancích, `roadRibbonMeshes`
-  i pro `/dev/buildings` – ukázka **Cesty** s posuvníkem stavby); `/dev/landscape` tlačítko
-  **Cesta: …** přepíná stupně a rozestavěné fáze (i cesta k nejbližšímu brodu).
+  `cesta-upravena`, `hat`). **Upravená cesta je jen širší vyšlapaná** (Martin, 19. 10. 2026:
+  „upravená cesta ať je prostě jenom širší – ta odvodňovací strouha vypadá divně, zrušíme ji“):
+  tytéž obtisky, pás `ROAD_WIDTH_M.improved` 3 m místo 1,9 m (`IMPROVED_WORN_LAYER` /
+  `IMPROVED_EARTH_LAYER`), žádná strouha ani kameny (zrušené i s `road-stone.glb`). Scéna:
+  `road-works-layout.ts` (čisté funkce – pásy `roadBands` – rozestavěná úprava širší od začátku
+  úseku –, kmeny hatě na šířku upravené cesty – `LOG_SCALE`, lávky, vytyčení po okrajích širší
+  cesty – `STAKING_OFFSET_M`), `road-works.ts` (`RoadWorks` – modely `public/models/roads/`
+  z `tools/blender/roads.py` v instancích, `roadRibbonMeshes` i pro `/dev/buildings` – ukázka
+  **Cesty** s posuvníkem stavby); `/dev/landscape` tlačítko **Cesta: …** přepíná stupně
+  a rozestavěné fáze (i cesta k nejbližšímu brodu).
 - **Jabloně podél pevné cesty** ([roads.md](docs/design/roads.md) – fáze 3): `VillageRoads.apples`
   (`RoadApple` – místo, úsek, `distanceM` vzdušnou čarou, `plantedDay` null = čeká na výsadbu,
   `constructionId`). `road-apples.ts`: `roadAppleSpots` (po 10 m střídavě – `roadTreeSpots`

@@ -1,14 +1,15 @@
-"""Vylepšení pevné cesty (raně slovanská ves, 6.–9. st. – docs/design/roads.md): kmen hatě,
-plochý kámen do bláta a brodu a lávka z kmenů přes potok – malý atlas z textur 0 A.D., jeden
-materiál.
+"""Vylepšení pevné cesty (raně slovanská ves, 6.–9. st. – docs/design/roads.md): kmen hatě
+a lávka z kmenů přes potok – malý atlas z textur 0 A.D., jeden materiál. Upravená cesta žádné
+díly nemá – je jen širší pás (Martin, 19. 10. 2026: strouha a kameny do bláta zrušené).
 
 blender -b --factory-startup --python tools/blender/roads.py -- \
     <0ad_textures> apps/web/public/models/roads <render_dir|->
 
 0ad_textures: složka textur 0 A.D. (…/art/textures) – skript z ní vezme kůru buku
 (skins/gaia/trunk_beech_a.dds) a kámen (skins/gaia/stone_temperate_01.png) a složí atlas
-512 × 512: vlevo kůra (pás 256 × 512, opakuje se podél kmene), vpravo nahoře kámen, vpravo dole
-čelo kmene (letokruhy – procedurálně). render_dir: náhled ve Workbenchi, "-" = bez náhledu.
+512 × 512: vlevo kůra (pás 256 × 512, opakuje se podél kmene), vpravo nahoře kámen (zbyl po
+kamenech do bláta – modely ho už nepoužívají, atlas zůstal stejný), vpravo dole čelo kmene
+(letokruhy – procedurálně). render_dir: náhled ve Workbenchi, "-" = bez náhledu.
 
 Souřadnice Blenderu: Z nahoru; ve scéně je bod Blenderu (x, y) v osách (−x, −y) a glTF má Y nahoru.
 Rozměry jsou skutečné (m), počátek každého dílu leží na zemi. Kam se díly kladou, počítá scéna
@@ -16,8 +17,8 @@ Rozměry jsou skutečné (m), počátek každého dílu leží na zemi. Kam se d
 
 Výstup (apps/web/public/models/roads):
   road-log.glb          kmen hatě napříč cestou: délka LOG_LENGTH (2,6 m) podél x, průměr
-                        0,2 m, leží na zemi (počátek pod středem kmene)
-  road-stone.glb        plochý kámen ≈ 0,5 × 0,4 m, zapuštěný do bláta (počátek na zemi)
+                        0,2 m, leží na zemi (počátek pod středem kmene); scéna ho zvětší na
+                        šířku upravené cesty (LOG_SCALE v road-works-layout.ts)
   road-bridge.glb       lávka přes brod: tři kmeny podélně (y) délky BRIDGE_LENGTH (5,2 m) na
                         dvou příčných prazích, ty na čtyřech kůlech; zábradlí z tyče na jedné
                         straně (+x). Počátek na zemi pod středem lávky.
@@ -44,7 +45,6 @@ BRIDGE_LENGTH = 5.2
 BRIDGE_DECK_Z = 0.62
 # oblasti atlasu (u0, v0, u1, v1) v 0–1, v odspodu jako v Blenderu
 BARK = (0.0, 0.0, 0.5, 1.0)
-STONE = (0.5, 0.5, 1.0, 1.0)
 ENDGRAIN = (0.5, 0.0, 1.0, 0.5)
 
 random.seed(7)
@@ -168,18 +168,6 @@ def build_log(bm, uv):
     rod(bm, uv, (-LOG_LENGTH / 2, 0, LOG_RADIUS * 0.8), (LOG_LENGTH / 2, 0, LOG_RADIUS * 0.8), LOG_RADIUS)
 
 
-def build_stone(bm, uv):
-    ico = bmesh.ops.create_icosphere(bm, subdivisions=1, radius=0.25)
-    for v in ico["verts"]:
-        x, y, z = v.co
-        s = 1 + random.uniform(-0.15, 0.15)
-        v.co = (x * 1.1 * s, y * 0.9 * s, max(-0.02, z * 0.32 * s))
-    for face in bm.faces:
-        for loop in face.loops:
-            x, y, _ = loop.vert.co
-            loop[uv].uv = in_region(STONE, 0.5 + x / 0.7, 0.5 + y / 0.7)
-
-
 def posts_and_sills(bm, uv):
     for y in (-BRIDGE_LENGTH / 2 + 0.3, BRIDGE_LENGTH / 2 - 0.3):
         for x in (-0.7, 0.7):
@@ -259,7 +247,6 @@ def main():
     material = make_material(build_atlas())
     parts = {
         "road-log": build_log,
-        "road-stone": build_stone,
         "road-bridge": build_bridge,
         "road-bridge-posts": posts_and_sills,
     }

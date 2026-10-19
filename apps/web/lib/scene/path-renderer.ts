@@ -33,7 +33,13 @@ import {
   prepareAppleMaterial,
   setInstances,
 } from './orchard-renderer';
-import { EARTH_LAYER, WORN_LAYER, pathRibbons, roadFade, type RibbonLayer } from './path-ribbon';
+import {
+  PATH_EARTH_LAYER,
+  PATH_WORN_LAYER,
+  pathRibbons,
+  roadFade,
+  type RibbonLayer,
+} from './path-ribbon';
 import { RoadWorks, roadRibbonMeshes } from './road-works';
 import { roadWorksKey } from './road-works-layout';
 import { pathRouter } from './path-router';
@@ -59,9 +65,11 @@ import type { VillagerPaths } from './villager-plan';
 // Vyšlapané pěšiny a pevné cesty ve scéně (docs/design/paths.md, roads.md). Síť pěšin dne
 // spočítá v prohlížeči stejná funkce herního jádra jako na serveru (`computePathNetwork` –
 // vzdálenost chůze na pole), jen když se změní rozložení vsi nebo místa práce dne – odloženě
-// a nikdy za snímek. Kreslí se jako obtisky nad poli a obtisky vsi (prošlapaná tráva a holá hlína
-// uprostřed silných pěšin; přes osetý díl jen úzká stopa). Pevné cesty jsou herní data
-// (`SceneVillage.roads`) – kreslí se stále stejně jako silná pěšina a pěšina dne se v nich ztrácí;
+// a nikdy za snímek. Kreslí se jako obtisky nad poli a obtisky vsi – pěšina dne nevýrazně (slabě
+// prošlapaná tráva, holá hlína jen úzká a slabá u silné pěšiny; přes osetý díl jen úzká stopa –
+// Martin, 19. 10. 2026: „denní pěšina ať je nevýrazná“). Pevné cesty jsou herní data
+// (`SceneVillage.roads`) – kreslí se stále stejně jako plně vyšlapaný pás (upravená širší) a jsou
+// vedle pěšin dne jasně výraznější; pěšina dne se v nich ztrácí;
 // stromy u nich (`SceneVillage.roadTrees`, path-trees.ts) se mění jen se změnou dat. Postavy po
 // pěšinách chodí a jdou po nich rychleji (`paths()` pro villager-plan.ts).
 
@@ -76,8 +84,12 @@ const LIFT = { worn: 0.05, earth: 0.055, heatmap: 0.12 };
 const ALPHA_INDEX = { worn: 3, earth: 3.5 };
 /** Posun hloubky – vyhraje nad poli (−2 / −3) i v dálce. */
 const Z_OFFSET = { worn: -3.5, earth: -4 };
-/** Sníh na pěšinách – vyšlapaná pěšina pod sněhem zřetelně prosvítá (ušlapaný sníh). */
-const PATH_SNOW = 0.55;
+/**
+ * Sníh na obtiscích (podíl zasypání – menší = víc prosvítá): pevná cesta pod sněhem zřetelně
+ * prosvítá (ušlapaný sníh), nevýrazná pěšina dne se zasype méně, ať její stopa ve sněhu pořád
+ * trochu prosvítá.
+ */
+const SNOW = { roads: 0.55, paths: 0.3 } as const;
 /** Přes osetý díl (pěšina ho obchází – výjimečně) jen úzká stopa: násobek šířky. */
 const SOWN_WIDTH = 0.45;
 
@@ -231,11 +243,11 @@ export class VillagePaths {
       for (const mesh of this.roadMeshes) mesh.dispose();
       this.roadMeshes = [];
       // pevná cesta má stále plnou šířku – kreslí se jen z dat cest (ne podle polí dne);
-      // upravená je širší a má po straně strouhu (rozestavěná úprava od začátku úseku)
+      // upravená je jen širší (rozestavěná úprava od začátku úseku)
       this.roadMeshes = roadRibbonMeshes(this.scene, roads, {
         height: this.env.decalHeight,
         smoothHeight: this.env.groundHeight,
-        material: (kind) => this.decalMaterial(kind),
+        material: (kind) => this.decalMaterial('roads', kind),
         lift: { worn: LIFT.worn, earth: LIFT.earth },
         alphaIndex: ALPHA_INDEX,
       });
@@ -358,7 +370,7 @@ export class VillagePaths {
     kind: 'worn' | 'earth',
     widthAt: (x: number, z: number) => number,
     alphaAt?: (x: number, z: number) => number,
-    layer: RibbonLayer = kind === 'worn' ? WORN_LAYER : EARTH_LAYER,
+    layer: RibbonLayer = kind === 'worn' ? PATH_WORN_LAYER : PATH_EARTH_LAYER,
     color?: [number, number, number],
   ): Mesh {
     const grid = pathRibbons(lines, layer, widthAt, alphaAt);
@@ -370,28 +382,30 @@ export class VillagePaths {
       color: color ?? (kind === 'worn' ? [0.92, 0.84, 0.7] : [0.9, 0.74, 0.58]),
       uv: kind === 'worn' ? 20 : 14,
     });
-    mesh.material = this.decalMaterial(kind);
+    mesh.material = this.decalMaterial('paths', kind);
     // nad obtisky polí a vsi (alphaIndex 1–2) – pěšina přes úhor zůstane vidět
     mesh.alphaIndex = ALPHA_INDEX[kind];
     return mesh;
   }
 
-  private decalMaterial(kind: 'worn' | 'earth'): Material {
-    let material = this.materials.get(kind);
+  /** Materiál obtisku pěšin dne (`paths`) nebo pevných cest (`roads`) – liší se sněhem. */
+  private decalMaterial(group: 'paths' | 'roads', kind: 'worn' | 'earth'): Material {
+    const name = `${group}-${kind}`;
+    let material = this.materials.get(name);
     if (!material) {
-      const decal = createDecalMaterial(this.scene, `paths-${kind}`, {
+      const decal = createDecalMaterial(this.scene, name, {
         texture: kind === 'worn' ? 'grass-dirt' : 'mud',
         zOffset: Z_OFFSET[kind],
       });
       applyPitCut(decal, this.env.pitCuts);
       // tráva usychá jako terén, v zimě pěšinu zasype sníh – ušlapaná stopa prosvítá
-      applySeasonGround(decal, PATH_SNOW);
+      applySeasonGround(decal, SNOW[group]);
       const texture = decal.diffuseTexture;
       if (texture instanceof Texture && !texture.isReady()) {
         texture.onLoadObservable.addOnce(() => this.env.requestRender());
       }
       material = decal;
-      this.materials.set(kind, material);
+      this.materials.set(name, material);
     }
     return material;
   }

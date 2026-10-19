@@ -1769,8 +1769,8 @@ function penFence(ctx: Context, penId: number): Placer {
 }
 
 /**
- * Vylepšení pevné cesty (roads.md): lidé podél úseku po obou stranách osy – kopou strouhu,
- * kladou kameny a kmeny hatě (motyka a stavba střídavě), čelem k ose.
+ * Vylepšení pevné cesty (roads.md): lidé podél úseku po obou okrajích pásu – rozšiřují
+ * a srovnávají cestu, kladou kmeny hatě (motyka a stavba střídavě), čelem k ose.
  */
 function roadWork(ctx: Context, roadId: number): Placer {
   const road = (ctx.village.roads ?? []).find((r) => r.id === roadId);

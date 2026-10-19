@@ -1,27 +1,30 @@
 import type { PathLine, RoadGrade } from '@bohemia/game';
 import type { SceneRoad, SceneRoadApple } from '../village-view';
-import { JUNCTION, type RibbonJunction } from './path-ribbon';
+import { JUNCTION, ROAD_WIDTH_M, type RibbonJunction } from './path-ribbon';
 import { hash01 } from './smoke-schedule';
 import type { Point } from './village-layout';
 
 // Vylepšené pevné cesty ve scéně bez Babylonu (docs/design/roads.md – Co hráč vidí): upravená
-// cesta je širší se strouhou po jedné straně a kameny v blátě a v brodu, hať jsou kmeny napříč
-// přes mokřinu, lávka z kmenů přes brod. Rozestavěné vylepšení: vytyčení kolíky a provázkem od
-// zadání (Martin – u všech staveb), upravená cesta roste od začátku úseku, kmeny hatě se kladou
-// po mokřině, lávka nejdřív kůly a prahy, pak kmeny. Čisté funkce – rozměry dílů musí sedět
+// cesta je jen širší vyšlapaná cesta (Martin, 19. 10. 2026: „upravená cesta ať je prostě jenom
+// širší – ta odvodňovací strouha vypadá divně, zrušíme ji“ – pás kreslí obtisky, tady nic), hať
+// jsou kmeny napříč přes mokřinu na celou šířku upravené cesty, lávka z kmenů přes brod.
+// Rozestavěné vylepšení: vytyčení kolíky a provázkem od zadání (Martin – u všech staveb) po
+// okrajích širší cesty, upravená cesta roste od začátku úseku, kmeny hatě se kladou po mokřině,
+// lávka nejdřív kůly a prahy, pak kmeny. Čisté funkce – rozměry dílů musí sedět
 // s tools/blender/roads.py.
 
-/** Kmen hatě (road-log.glb): délka napříč cestou (m) a rozestup kmenů podél osy (m). */
+/** Kmen hatě (road-log.glb): délka modelu napříč cestou (m) a rozestup kmenů podél osy (m). */
 export const LOG_LENGTH_M = 2.6;
 export const LOG_SPACING_M = 0.24;
+/**
+ * Kmeny hatě se zvětší na šířku upravené cesty (hať na ni navazuje bez zúžení) – i rozestup,
+ * ať se silnější kmeny nepřekrývají.
+ */
+export const LOG_SCALE = ROAD_WIDTH_M.improved / LOG_LENGTH_M;
 /** Lávka (road-bridge.glb) – délka podél osy (m). */
 export const BRIDGE_LENGTH_M = 5.2;
-/** Strouha upravené cesty: vzdálenost od osy (m, vlevo) a šířka (m). */
-export const DITCH = { offsetM: 1.75, widthM: 0.55 } as const;
-/** Kameny upravené cesty: v mokřině a brodu hustě (na m osy), jinde řídce. */
-const STONES_PER_M = { wet: 0.9, dry: 0.12 } as const;
-/** Vytyčení: provázek po obou stranách pásu (m od osy). */
-const STAKING_OFFSET_M = 1.7;
+/** Vytyčení: provázek po obou okrajích upravené cesty (m od osy). */
+export const STAKING_OFFSET_M = ROAD_WIDTH_M.improved / 2 + 0.2;
 /** Lávka: kůly a prahy od takového průběhu stavby hatě a lávky, celá lávka od takového. */
 const BRIDGE_STAGES = { posts: 0.25, deck: 0.9 } as const;
 
@@ -195,37 +198,6 @@ export function offsetPolyline(
   });
 }
 
-/** Strouhy upravených částí úseků – čáry vlevo od osy (mimo brody). */
-export function ditchLines(roads: readonly SceneRoad[]): { x: number; z: number }[][] {
-  const out: { x: number; z: number }[][] = [];
-  for (const road of roads) {
-    const length = roadLength(road);
-    const until =
-      road.grade !== 'trodden'
-        ? length
-        : road.upgrade?.grade === 'improved'
-          ? road.upgrade.progress * length
-          : 0;
-    if (until < 2) continue;
-    // přes brod strouha nevede – rozdělí se kolem brodu (±3 m)
-    const cuts = (road.ground?.fords ?? []).filter((f) => f < until).sort((a, b) => a - b);
-    let from = 0;
-    for (const ford of [...cuts, until]) {
-      const to = ford === until ? until : Math.max(from, ford - 3);
-      if (to - from >= 2) {
-        out.push(
-          offsetPolyline(axisPart(road.points, from, to), DITCH.offsetM).map(([x, z]) => ({
-            x,
-            z,
-          })),
-        );
-      }
-      from = ford + 3;
-    }
-  }
-  return out;
-}
-
 /** Instance dílu cesty: poloha, natočení kolem svislé osy a měřítko. */
 export interface RoadPiece {
   x: number;
@@ -240,41 +212,6 @@ function acrossRotation(tx: number, tz: number): number {
   return Math.atan2(tx, tz);
 }
 
-/** Je vzdálenost `d` na ose v mokřině úseku? */
-function inWet(road: SceneRoad, d: number): boolean {
-  return (road.ground?.wet ?? []).some(([a, b]) => d >= a && d <= b);
-}
-
-/**
- * Kameny upravené cesty (kameny do bláta a brodu – roads.md): v mokřině a u brodů hustě,
- * jinde řídce, náhodně po šířce pásu – deterministicky podle id úseku a místa.
- */
-export function stonePieces(roads: readonly SceneRoad[]): RoadPiece[] {
-  const out: RoadPiece[] = [];
-  for (const road of roads) {
-    const length = roadLength(road);
-    const fords = road.ground?.fords ?? [];
-    for (let d = 0.5; d < length; d += 0.5) {
-      if (shownGrade(road, d) === 'trodden') continue;
-      const nearFord = fords.some((f) => Math.abs(f - d) < 2.5);
-      // po hati (hotové) jsou kameny jen u brodu – mokřinu kryjí kmeny
-      const wet = inWet(road, d) && road.grade !== 'causeway';
-      const density = wet || nearFord ? STONES_PER_M.wet : STONES_PER_M.dry;
-      const key = Math.round(d * 2);
-      if (hash01(road.id, key, 81) >= density * 0.5) continue;
-      const p = axisAt(road.points, d);
-      const across = (hash01(road.id, key, 82) - 0.5) * 2 * 1.1;
-      out.push({
-        x: p.x - p.tz * across,
-        z: p.z + p.tx * across,
-        rotationY: hash01(road.id, key, 83) * Math.PI * 2,
-        scale: 0.65 + hash01(road.id, key, 84) * 0.6,
-      });
-    }
-  }
-  return out;
-}
-
 /** Podíl hotové hatě a lávky 0–1 (hotová hať 1, rozestavěná podle průběhu, jinak 0). */
 function causewayShare(road: SceneRoad): number {
   if (road.grade === 'causeway') return 1;
@@ -282,8 +219,9 @@ function causewayShare(road: SceneRoad): number {
 }
 
 /**
- * Kmeny hatě napříč cestou po mokřině (roads.md – hať): po LOG_SPACING_M, rozestavěná hať je
- * položená od začátku mokřiny po podíl průběhu stavby (po celé délce mokřiny úseku).
+ * Kmeny hatě napříč cestou po mokřině (roads.md – hať): na šířku upravené cesty (LOG_SCALE) po
+ * LOG_SPACING_M × LOG_SCALE, rozestavěná hať je položená od začátku mokřiny po podíl průběhu
+ * stavby (po celé délce mokřiny úseku).
  */
 export function logPieces(roads: readonly SceneRoad[]): RoadPiece[] {
   const out: RoadPiece[] = [];
@@ -294,14 +232,15 @@ export function logPieces(roads: readonly SceneRoad[]): RoadPiece[] {
     const total = wet.reduce((sum, [a, b]) => sum + (b - a), 0);
     let laid = share * total;
     for (const [a, b] of wet) {
-      for (let d = a; d <= b && laid > 0; d += LOG_SPACING_M, laid -= LOG_SPACING_M) {
+      const step = LOG_SPACING_M * LOG_SCALE;
+      for (let d = a; d <= b && laid > 0; d += step, laid -= step) {
         const p = axisAt(road.points, d);
         const key = Math.round(d * 10);
         out.push({
           x: p.x,
           z: p.z,
           rotationY: acrossRotation(p.tx, p.tz) + (hash01(road.id, key, 85) - 0.5) * 0.12,
-          scale: 0.92 + hash01(road.id, key, 86) * 0.16,
+          scale: LOG_SCALE * (0.96 + hash01(road.id, key, 86) * 0.08),
         });
       }
     }

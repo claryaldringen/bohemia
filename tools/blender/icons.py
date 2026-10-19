@@ -11,7 +11,7 @@ hrncir, kovar, uhlir (řemeslné dílny z `apps/web/public/models/crafts/`, uhl�
 (posvátný dub s obětinami), sous (posvátná souš – uschlý dub z `apps/web/public/models/decor/`
 s obětinami), haj (dubový háj s kameny) a ohrada (přístřešek, žlab a branka
 z `apps/web/public/models/pen/`, kráva ze stáda vsi, stoh sena), cesta, cesta-upravena a hat
-(stupně pevné cesty – pás cesty, strouha a kameny, hať a lávka z `apps/web/public/models/roads/`)
+(stupně pevné cesty – pás cesty, upravená širší, hať a lávka z `apps/web/public/models/roads/`)
 a jablone (jabloně s jablky střídavě podél cesty – tlačítko „Vysadit jabloně“), stezka (zemská
 stezka od brány dvorce – trade.md) a obchod (pytle obilí, sůl, hřivny a kožešina) – portréty do
 panelu výběru;
@@ -696,20 +696,14 @@ def road_strip(width, length, material, z=0.004, wobble=0.12, seed=3):
 
 
 def icon_road(grade):
-    """Portrét stupně pevné cesty (roads.md): vyšlapaná, upravená se strouhou a kameny, hať a lávka."""
+    """Portrét stupně pevné cesty (roads.md): vyšlapaná, upravená (jen širší – Martin, 19. 10. 2026),
+    hať a lávka."""
     rng = random.Random(11)
     gr = ground(6.4, mat("g", tex=f"{TEX}/grass-dirt.jpg", scale=0.25, tint=(0.8, 0.82, 0.6)), z=-0.02, fade=0.72)
     earth = mat("earth", tex=f"{TEX}/mud.jpg", scale=0.5, tint=(0.82, 0.66, 0.48))
-    width = 1.6 if grade == "cesta" else 2.4
+    # upravená cesta je o 60 % širší než vyšlapaná (ROAD_WIDTH_M ve scéně)
+    width = 1.6 if grade == "cesta" else 2.56
     road_strip(width, 12.0, earth)
-    if grade != "cesta":
-        ditch = mat("ditch", tex=f"{TEX}/mud.jpg", scale=0.6, tint=(0.45, 0.36, 0.28))
-        strip = road_strip(0.45, 12.0, ditch, z=0.006, wobble=0.05, seed=5)
-        strip.location.x = width / 2 + 0.45
-        for k in range(14):
-            y = rng.uniform(-4.5, 4.5)
-            objs = place_model("road-stone", folder=ROADS)
-            place_root(objs, (rng.uniform(-0.9, 0.9) + math.sin(y * 0.6) * 0.25, y, 0.0), rng.uniform(0, 6.28), rng.uniform(0.8, 1.3))
     if grade == "hat":
         # hať přes mokřinu vpředu a lávka přes potok vzadu
         water = mat("water", (0.22, 0.32, 0.36), 0.15)
@@ -718,10 +712,12 @@ def icon_road(grade):
         for v in bm.verts:
             v.co = (v.co.x * 6.5, 2.6 + v.co.y * 1.0, -0.12)
         to_obj(bm, "water", water, smooth=False)
-        for k in range(16):
+        # kmeny hatě na šířku upravené cesty (model 2,6 m – jako LOG_SCALE ve scéně)
+        log_scale = width / 2.6
+        for k in range(14):
             objs = place_model("road-log", folder=ROADS)
-            y = -3.6 + k * 0.24
-            place_root(objs, (math.sin(y * 0.6) * 0.25, y, 0.0), rng.uniform(-0.06, 0.06), 1.0)
+            y = -3.6 + k * 0.24 * log_scale
+            place_root(objs, (math.sin(y * 0.6) * 0.25, y, 0.0), rng.uniform(-0.06, 0.06), log_scale)
         objs = place_model("road-bridge", folder=ROADS)
         place_root(objs, (math.sin(2.6 * 0.6) * 0.25, 2.6, -0.05), 0.0, 1.0)
     sun(az=-55, el=46)
@@ -1708,19 +1704,11 @@ def icon_pottery():
 
 
 def icon_stezka():
-    """Zemská stezka: upravená cesta se strouhou a kameny vede od brány dvorce do dálky."""
-    rng = random.Random(23)
+    """Zemská stezka: upravená (širší) cesta vede od brány dvorce do dálky."""
     ground(7.4, mat("g", tex=f"{TEX}/grass-dirt.jpg", scale=0.25, tint=(0.8, 0.82, 0.6)), z=-0.02, fade=0.72)
     earth = mat("earth", tex=f"{TEX}/mud.jpg", scale=0.5, tint=(0.82, 0.66, 0.48))
-    road = road_strip(2.4, 16.0, earth, seed=7)
+    road = road_strip(2.56, 16.0, earth, seed=7)
     road.location.y = 3.0
-    ditch = mat("ditch", tex=f"{TEX}/mud.jpg", scale=0.6, tint=(0.45, 0.36, 0.28))
-    strip = road_strip(0.45, 16.0, ditch, z=0.006, wobble=0.05, seed=5)
-    strip.location = (1.65, 3.0, 0)
-    for k in range(18):
-        y = rng.uniform(-3.5, 9.0)
-        objs = place_model("road-stone", folder=ROADS)
-        place_root(objs, (rng.uniform(-0.9, 0.9) + math.sin((y - 3.0) * 0.6) * 0.25, y, 0.0), rng.uniform(0, 6.28), rng.uniform(0.8, 1.3))
     gate = place_model("dvorec-gate")
     place_root(gate, (math.sin(-7.0 * 0.6) * 0.25, -4.2, 0.0), 0.0, 1.0)
     sun(az=-55, el=46)

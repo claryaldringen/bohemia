@@ -974,9 +974,9 @@ export const SHOWCASE_ROADS = {
 } as const;
 
 /**
- * Úseky ukázky cest: vyšlapaná, úprava (vyšlapaná → upravená podle průběhu stavby – široký pás,
- * strouha, kameny v mokřině) a hať s lávkou (upravená → hať přes mokřinu a lávka přes brod).
- * Při 100 % hotové; vytyčení provázkem od 0 %.
+ * Úseky ukázky cest: vyšlapaná, úprava (vyšlapaná → upravená podle průběhu stavby – jen širší
+ * pás, roste od začátku úseku) a hať s lávkou (upravená → hať přes mokřinu na šířku upravené
+ * cesty a lávka přes brod). Při 100 % hotové; vytyčení provázkem od 0 %.
  */
 export function showcaseRoads(progress: number): SceneRoad[] {
   const p = Math.min(1, Math.max(0, progress));
