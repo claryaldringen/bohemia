@@ -21,15 +21,28 @@ import {
   logsCartReach,
   mowingCartReach,
   retireCarts,
+  sowingCartReach,
   teamsHomeShare,
   villageCartAccess,
   type CartAccess,
   type HaulPlan,
 } from './carts';
+import {
+  kilnCartDrive,
+  kilnCartOffer,
+  villageCartDrives,
+  waterCartDrive,
+  waterCartPlan,
+  type CartDrives,
+  type KilnCart,
+  type WaterCartPlan,
+} from './cart-jobs';
+import { homeKilnCenter, kilnWalkFactor } from './charcoal';
 import { villageCemeteries } from './cemetery';
 import { finishPurchases, purchaseTravelers, startPurchases, walkPurchases } from './craft-buying';
 import { cloneState } from './clone';
 import {
+  burnerDraws,
   craftCoverage,
   craftHouseholds,
   newWorkshop,
@@ -76,7 +89,7 @@ import { arrangeMarriages } from './marriage';
 import { ableTeams, finishPen, ploughCapacityPerDay, villageOxen } from './oxen';
 import { recordClearedObstacles } from './obstacles';
 import { overgrowthDay } from './overgrowth';
-import { mergeRoadChains, roadsDay } from './paths/roads';
+import { addRoadCartTrips, mergeRoadChains, roadsDay } from './paths/roads';
 import { refreshWalkDistances } from './paths/village';
 import { roadFieldsDay } from './road-fields';
 import { roadWalk, walkGroundOf } from './paths/walking';
@@ -88,6 +101,7 @@ import { trimPlanToTarget } from './plan-trim';
 import {
   extraPartOf,
   extraSowingDay,
+  extraSowingWantsTeam,
   queueExtraParts,
   reclaimedLogs,
   sowParts,
@@ -100,7 +114,9 @@ import {
   afterConstructions,
   allocateDay,
   householdElders,
+  householdWater,
   householdWaterLabor,
+  type HouseholdWater,
   type LaborTaskName,
 } from './labor';
 import { laborDay, type AsideWork, type ConstructionWork, type HaulWork } from './labor-report';
@@ -130,6 +146,7 @@ import { isVillageDormant } from './departure';
 import { recordRuins, updateRuins } from './ruins';
 import {
   CARTS,
+  CART_JOBS,
   CHRONICLE_MAX_EVENTS,
   COMMON_LABOR_HISTORY_DAYS,
   CROP_ORDER,
@@ -787,11 +804,32 @@ function work(
   const crafts = craftHouseholds(state, resting);
   const villagers =
     crafts.size > 0 ? state.people.filter((p) => !crafts.has(p.dwellingId)) : state.people;
+  const waterNeeds = householdWater(villagers, state.dwellings);
+  // klády ke stavbám mají před ostatními jízdami přednost – kolik vozů si vezmou, se ví už teď
+  // (náklad až z práce, která zbude po úlohách dne); vozy, které zbudou, jedou pro uhlí, s osivem,
+  // nebo pro vodu (wagons.md – Co vozy vozí) – ne když voli orají půdu osevu navíc
+  const logs =
+    access && cartsLeft > 0 ? logHaulCandidates(state, day, access, landscape, obstacles) : [];
+  const jobs =
+    access && cartsLeft > 0 && !extraSowingWantsTeam(state, day)
+      ? planCartJobs(state, day, {
+          carts: cartsLeft - logHaulPlan(logs, cartsLeft).carts,
+          tasks: dayTasks,
+          hauls,
+          access,
+          landscape,
+          obstacles,
+          coverage,
+          productivity,
+          water: waterNeeds,
+        })
+      : NO_CART_JOBS;
   const allocation = allocateDay({
     capacity: villagers.reduce((sum, p) => sum + laborPerDay(p, day), 0),
     householdElders: householdElders(villagers, day),
-    // chůze pro vodu nad denní minimum (population.md – Práce, paths.md – Pochůzky pro vodu)
-    householdWater: householdWaterLabor(villagers, state.dwellings),
+    // chůze pro vodu nad denní minimum (population.md – Práce, paths.md – Pochůzky pro vodu); vodu,
+    // kterou přivezl vůz, nenosí a platí díl práce posádky (wagons.md – Co vozy vozí)
+    householdWater: jobs.water ? jobs.water.water : waterNeeds.map((h) => h.labor),
     tasks: dayTasks.map(({ name, remaining }) => ({ name, remaining })),
     potteryCoverage: coverage.pottery,
     productivity,
@@ -821,18 +859,25 @@ function work(
     const amount = haul ? haulProgress(labor, haul) : labor;
     const crew = haul ? Math.min(labor, haul.crew) : 0;
     if (haul && crew > 0) {
+      const seed = task.field?.name === 'sow';
       haulWork.push({
-        job: task.name === 'mow' ? 'mow' : 'harvest',
+        job: task.name === 'mow' ? 'mow' : seed ? 'seed' : 'harvest',
         manDays: crew,
         carts: haul.carts,
       });
       // co vozy převzaly – nejvýš podíl nošení celé úlohy (carts.ts – haulAvailable); jízdy svozu
-      // do ročního provozu cest (vyjeté cesty – roads.md)
-      const owner = task.field ? task.field.work : state.hay?.mowing;
-      if (owner) {
-        const hauled = hauledBy(labor, haul);
-        owner.hauled = (owner.hauled ?? 0) + hauled;
-        if (owner.cartReach) addHaulTrips(state, owner.cartReach, hauled);
+      // do ročního provozu cest (vyjeté cesty – roads.md); osivo zvlášť (wagons.md – Co vozy vozí)
+      const hauled = hauledBy(labor, haul);
+      if (seed) {
+        const work = task.field!.work;
+        work.seedHauled = (work.seedHauled ?? 0) + hauled;
+        if (work.seedReach) addHaulTrips(state, work.seedReach, hauled);
+      } else {
+        const owner = task.field ? task.field.work : state.hay?.mowing;
+        if (owner) {
+          owner.hauled = (owner.hauled ?? 0) + hauled;
+          if (owner.cartReach) addHaulTrips(state, owner.cartReach, hauled);
+        }
       }
     }
     if (task.field) {
@@ -870,13 +915,26 @@ function work(
   const trade = workExpeditions(state, allocation.away - purchaseLabor);
   let common = allocation.common;
   // klády ke stavbám vozem tam, kam vůz dojede (wagons.md – Vůz) – honák a nakladač ze společné
-  // práce
-  if (access && cartsLeft > 0) {
-    const logs = haulLogs(state, day, common, cartsLeft, access, landscape, obstacles);
-    if (logs) {
-      common -= logs.manDays;
-      haulWork.push(logs);
+  // práce; vozy, které jely jinam (Co vozy vozí), je nevozí
+  if (logs.length > 0) {
+    const logWork = haulLogs(state, day, common, cartsLeft - jobs.carts, logs);
+    if (logWork) {
+      common -= logWork.manDays;
+      haulWork.push(logWork);
     }
+  }
+  // voda v sudech (wagons.md – Co vozy vozí): posádka ve dnešním minimu, jízdy do provozu cest
+  if (jobs.water) {
+    const water = jobs.water;
+    if (state.roads) {
+      addRoadCartTrips(state.roads, [{ ...water.spot, kind: 'two-wheel', trips: water.trips }]);
+    }
+    haulWork.push({
+      job: 'water',
+      manDays: water.crew,
+      carts: water.carts,
+      target: { kind: 'water', ...water.spot },
+    });
   }
   // tesař pomáhá stavbám – jeho práce jde do staveb a zlevní jejich dřevěnou část (wagons.md)
   const help = carpentryHelp(state, day, coverage, productivity, resting, (extra) =>
@@ -904,7 +962,7 @@ function work(
   const extra = extraSowingDay(state, day, {
     labor: afterBuild.left,
     ploughCap:
-      haulWork.length > 0
+      haulWork.length > 0 || jobs.carts > 0
         ? 0
         : Math.max(0, ploughCap - owned.reduce((sum, t) => sum + (t.teamDays ?? 0), 0)),
     ploughFactor,
@@ -912,9 +970,15 @@ function work(
     order: () => workOrder(villageHoldings(state)),
   });
   const workshops = [
-    ...workCrafts(state, day, obstacles, coverage, productivity, resting, landscape),
+    ...workCrafts(state, day, obstacles, coverage, productivity, resting, landscape, jobs.kilns),
     ...workCarpenters(state, day, obstacles, coverage, productivity, resting, help),
   ];
+  // uhlí vozem z milíře ke kováři – jízdy do ročního provozu cest (wagons.md – Co vozy vozí)
+  for (const w of workshops) {
+    if (!w.cart || !state.roads) continue;
+    const trips = w.cart.kg / CART_JOBS.charcoal.loadKg;
+    addRoadCartTrips(state.roads, [{ x: w.cart.x, z: w.cart.z, kind: 'two-wheel', trips }]);
+  }
   const hayMowing = state.hay?.mowing;
   state.labor = laborDay(state, day, {
     allocation,
@@ -1200,24 +1264,26 @@ function planTaskHauls(
   return left;
 }
 
+/** Stavba, na kterou dnes vůz může vozit klády, a kolik dovozu smí převzít (čd). */
+interface LogHaul {
+  c: Construction;
+  haulable: number;
+}
+
 /**
- * Klády ke stavbám vozem (wagons.md – Vůz): vozy převezmou CARTS.haulShare.logs zbývajícího
- * kácení a dovozu u stromů, ke kterým dojedou, stavbu po stavbě v pořadí staveb; honáci
- * a nakladači jdou ze společné práce (když nestačí, vozy převezmou poměrně méně). Mutuje stav
- * (postup staveb – kácení jako u společné práce); bez práce null.
+ * Stavby, na které dnes vozy můžou vozit klády (wagons.md – Vůz): CARTS.haulShare.logs
+ * zbývajícího kácení a dovozu u stromů, ke kterým vůz dojede, v pořadí staveb. Dosah se spočítá
+ * jednou za stavbu, při prvním svozu klád (mutuje – `ConstructionWood.cartReach`).
  */
-function haulLogs(
+function logHaulCandidates(
   state: VillageState,
   day: number,
-  common: number,
-  carts: number,
   access: CartAccess,
   landscape: Landscape | null,
   obstacles: ObstacleLayer | null,
-): HaulWork | null {
-  if (common <= 0) return null;
+): LogHaul[] {
   const founding = foundingIndex(state);
-  const candidates = state.constructions.flatMap((c) => {
+  return state.constructions.flatMap((c) => {
     if (!c.wood || c.done + 1e-9 >= woodFellingCost(c.wood)) return [];
     if (constructionNeed(state, c, day, founding) <= 0) return [];
     // ke kterým stromům vůz dojede – jednou za stavbu, při prvním svozu klád
@@ -1231,11 +1297,33 @@ function haulLogs(
     );
     return haulable > 0 ? [{ c, haulable }] : [];
   });
-  const plan = haulPlan(
+}
+
+/** Svoz klád na stavby `candidates` nejvýš `carts` vozy (`haulPlan`). */
+function logHaulPlan(candidates: readonly LogHaul[], carts: number): HaulPlan {
+  return haulPlan(
     candidates.reduce((sum, x) => sum + x.haulable, 0),
     carts,
   );
+}
+
+/**
+ * Klády ke stavbám vozem (wagons.md – Vůz): vozy převezmou dovoz u staveb `candidates`
+ * (`logHaulCandidates`) stavbu po stavbě; honáci a nakladači jdou ze společné práce (když
+ * nestačí, vozy převezmou poměrně méně). Mutuje stav (postup staveb – kácení jako u společné
+ * práce); bez práce null.
+ */
+function haulLogs(
+  state: VillageState,
+  day: number,
+  common: number,
+  carts: number,
+  candidates: readonly LogHaul[],
+): HaulWork | null {
+  if (common <= 0) return null;
+  const plan = logHaulPlan(candidates, carts);
   if (plan.carts === 0) return null;
+  const founding = foundingIndex(state);
   const scale = plan.crew > common ? common / plan.crew : 1;
   let left = plan.work * scale;
   const trees: number[] = [];
@@ -1252,6 +1340,107 @@ function haulLogs(
     left -= work;
   }
   return { job: 'logs', manDays: plan.crew * scale, carts: plan.carts, trees };
+}
+
+/** Co vozy dnes vozí mimo svoz a klády (wagons.md – Co vozy vozí). */
+interface CartJobsDay {
+  /** Kolik vozů jede (uhlí, osivo, voda). */
+  carts: number;
+  /** Uhlíři, kterým dnes uhlí odveze vůz (id obydlí). */
+  kilns: Map<number, KilnCart>;
+  /** Voda v sudech; bez ní null. */
+  water: WaterCartPlan | null;
+}
+
+const NO_CART_JOBS: CartJobsDay = { carts: 0, kilns: new Map(), water: null };
+
+/**
+ * Jízdy vozů, které nesvážejí úrodu, seno ani klády (wagons.md – Co vozy vozí; mutuje `tasks`
+ * a `hauls` jako svoz): v pořadí CART_JOBS.order – uhlí z milíře uhlíři, který dnes nosí kováři
+ * (`burnerDraws`; jízda k milíři se uloží u milíře), osivo na pole (`planSeedHauls`), voda
+ * v sudech (`waterCartPlan`; břeh se uloží ve stavu). Vůz jede jen tam, kam dojede, a jen když
+ * ušetří práci.
+ */
+function planCartJobs(
+  state: VillageState,
+  day: number,
+  input: {
+    carts: number;
+    tasks: DayTask[];
+    hauls: Map<DayTask, HaulPlan>;
+    access: CartAccess;
+    landscape: Landscape | null;
+    obstacles: ObstacleLayer | null;
+    coverage: CraftCoverage;
+    productivity: number;
+    water: readonly HouseholdWater[];
+  },
+): CartJobsDay {
+  let left = input.carts;
+  if (left <= 0) return NO_CART_JOBS;
+  let drives: CartDrives | null | undefined;
+  const drivesOf = (): CartDrives | null =>
+    (drives ??= villageCartDrives(state, day, input.landscape, input.obstacles));
+  const kilns = new Map<number, KilnCart>();
+  for (const job of CART_JOBS.order) {
+    if (left <= 0) break;
+    if (job === 'charcoal') {
+      for (const id of burnerDraws(state, day, input.coverage, input.productivity).keys()) {
+        if (left <= 0) break;
+        const dwelling = state.dwellings.find((d) => d.id === id);
+        const kiln = dwelling?.workshop?.kiln;
+        const all = drivesOf();
+        if (!dwelling || !kiln || !all) continue;
+        if (kiln.cart === undefined) {
+          kiln.cart = kilnCartDrive(state, kiln.site ?? homeKilnCenter(dwelling.position), all);
+        }
+        const offer = kilnCartOffer(kiln.cart, kilnWalkFactor(kiln, dwelling.position));
+        if (!offer) continue;
+        kilns.set(id, offer);
+        left--;
+      }
+    } else if (job === 'seed') {
+      left = planSeedHauls(state, input.tasks, input.hauls, left, input.access, input.landscape);
+    } else {
+      const all = drivesOf();
+      const water = all
+        ? waterCartPlan(input.water, left, waterCartDrive(state, input.landscape, all))
+        : null;
+      if (water) return { carts: input.carts - left + water.carts, kilns, water };
+    }
+  }
+  return { carts: input.carts - left, kilns, water: null };
+}
+
+/**
+ * Osivo na pole vozem (wagons.md – Co vozy vozí; mutuje `tasks` a `hauls` jako svoz): na setí dne
+ * převezmou vozy nošení osiva – CART_JOBS.seed.carryShare setí na dílech, kam vůz s osivem dojede
+ * (dosah se spočítá při prvním odvozu osiva a uloží u plodiny – `CropWork.seedReach`). Úloha pak
+ * chce o převzaté nošení méně práce a o honáky a nakladače víc. Vrátí, kolik vozů zbylo.
+ */
+function planSeedHauls(
+  state: VillageState,
+  tasks: DayTask[],
+  hauls: Map<DayTask, HaulPlan>,
+  carts: number,
+  access: CartAccess,
+  landscape: Landscape | null,
+): number {
+  let left = carts;
+  for (const task of tasks) {
+    if (left <= 0) break;
+    if (task.field?.name !== 'sow' || hauls.has(task)) continue;
+    const work = task.field.work;
+    work.seedReach ??= sowingCartReach(state, work, landscape, access);
+    const share = CART_JOBS.seed.carryShare * work.seedReach.share;
+    const available = haulAvailable(work.required.sow, task.remaining, work.seedHauled ?? 0, share);
+    const haul = haulPlan(available, left);
+    if (haul.carts === 0) continue;
+    left -= haul.carts;
+    hauls.set(task, haul);
+    task.remaining = task.remaining - haul.work + haul.crew;
+  }
+  return left;
 }
 
 /** Vloží práci do stavby; `completes` = dostala vše, co jí chybělo. */

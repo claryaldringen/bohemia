@@ -267,7 +267,10 @@ zbytku rodiny.“
   chůze pro vodu nad 100 m – 0,4 cesty (tam a zpět) na člověka domácnosti a den, 1 m/s po louce,
   den 10 h: cesty × 2 × (chůze k vodě − 100 m, nejméně 0) ÷ 1 m/s ÷ 10 h. Prvních 100 m je
   v ceně minima. Patří do denního minima – starší ji kryjí jako jeho zbytek, platí i v plánu
-  osevu a v dílnách. Bez krajiny (kalibrace) se chůze neměří a přirážka není.
+  osevu a v dílnách. Bez krajiny (kalibrace) se chůze neměří a přirážka není. **S vozem**
+  ([wagons.md](wagons.md) – Co vozy vozí): vodu, kterou přivezl vůz v sudech, domácnost nenosí
+  a místo toho platí díl práce posádky vozu – vůz vozí jen domácnostem, kterým to ušetří práci
+  (domácnosti dílen nosí dál samy).
 - **Bokem – mimo práci vsi:** dojení a péče o zvířata (ženy), pasení (výrostci) a domácí výroba
   (z většiny ženy – i zpracování vlny a lnu na oděv a palivo, forest.md – Palivo). Práci vsi
   neberou; ve scéně jsou ženy dál u domů a dojí, výrostci u stád (jen zobrazení).

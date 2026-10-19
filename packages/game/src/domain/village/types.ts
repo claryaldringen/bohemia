@@ -194,6 +194,11 @@ export interface CharcoalKiln {
    * pro přirážku za chůzi; bez údaje vzdušná vzdálenost (vsi bez krajiny, kalibrace).
    */
   walkM?: number;
+  /**
+   * Jízda vozu k milíři (wagons.md – Co vozy vozí; spočítá se při prvním odvozu uhlí vozem a uloží):
+   * kudy vůz dojede, null = nedojede (uhlí se nosí v koších). Bez údaje se ještě nepočítala.
+   */
+  cart?: CartDrive | null;
 }
 /**
  * Strom, který dílna kácí (uhlíř na uhlí, hrnčíř na palivo pece – forest.md, kácení): id z vrstvy
@@ -714,6 +719,13 @@ export interface CropWork {
   /** Kam vůz při žni dojede – spočítá se při prvním svozu (wagons.md – Svoz). Chybí = ještě ne. */
   cartReach?: CartReach;
   /**
+   * Nošení osiva, které převzaly vozy (wagons.md – Co vozy vozí; člověkodny setí) – nejvýš podíl
+   * CART_JOBS.seed.carryShare setí na dílech, kam vůz dojede. Chybí = 0.
+   */
+  seedHauled?: number;
+  /** Kam vůz s osivem dojede – spočítá se při prvním odvozu osiva. Chybí = ještě ne. */
+  seedReach?: CartReach;
+  /**
    * Příprava půdy začatých dílů osevu navíc, která čeká na volnou práci (fields.md – Osev navíc):
    * vrácení přílohu, kopání a orba (člověkodny) – nemají přednost před stavbami, dostanou jen
    * práci, která po nich zbude. Setí, pletí, sklizeň a výmlat těch dílů jsou potřebné. Chybí = nic.
@@ -1066,7 +1078,8 @@ export type LaborActivity =
   | 'trade'
   /**
    * Svoz vozem (wagons.md – Vůz): honák a nakladač s vozem – snopy z pole, seno z luk, klády ke
-   * stavbám. Kolik vozů jede, je v `LaborShare.carts`.
+   * stavbám, a co vozy vozí mimo svoz (Co vozy vozí – `LaborShare.job`): uhlí z milíře, osivo na
+   * pole, vodu v sudech. Kolik vozů jede, je v `LaborShare.carts`.
    */
   | 'haul'
   /** Společná práce, na kterou nezbyla žádná stavba ani oprava (propadla). */
@@ -1115,6 +1128,8 @@ export type LaborTarget =
    * Nákup u sousedů); bod na kraji mapy (m).
    */
   | { kind: 'edge'; direction: Direction8; x: number; z: number }
+  /** Břeh vody, kam vůz jezdí pro vodu v sudech (wagons.md – Co vozy vozí); bod ve světě (m). */
+  | { kind: 'water'; x: number; z: number }
   /** Ves celkově – výmlat, domácí práce, nevyužitá společná práce. */
   | { kind: 'village' };
 
@@ -1131,6 +1146,11 @@ export interface LaborShare {
   construction?: number;
   /** Svoz a výprava s vozy (wagons.md): kolik vozů tu dnes jezdí; u ostatní práce chybí. */
   carts?: number;
+  /**
+   * Co vůz veze, když nesváží úrodu, seno ani klády (wagons.md – Co vozy vozí): uhlí z milíře,
+   * osivo na pole, vodu v sudech. U svozu a ostatní práce chybí.
+   */
+  job?: CartJob;
 }
 
 /** Rozdělení práce jednoho dne – uložené ve stavu vsi (`VillageState.labor`). */
@@ -1291,6 +1311,12 @@ export interface VillageState {
    * chůze se stadia promítají jen jednou za měsíc (Martin, 18. 10. 2026). Chybí jako výše.
    */
   walkStages?: string;
+  /**
+   * Jízda vozu pro vodu (wagons.md – Co vozy vozí): břeh nejblíž ohradě se spřežením, kam vůz
+   * sjede (null = nesjede nikam – voda se nosí), spočítaný pro rozložení vsi `key` (klíč chůze
+   * a ohrada – přepočítá se, když se změní). Chybí, dokud vůz pro vodu nejel.
+   */
+  waterCart?: { key: string; drive: CartDrive | null };
   /**
    * Pevné cesty, stromy u nich a roční součty práce (roads.md). Chybí u vsí uložených před nimi
    * a ve vsích simulovaných bez krajiny (kalibrace, testy) – začnou při prvním dopočtu s krajinou.
@@ -1737,6 +1763,23 @@ export interface VillageRoads {
 
 /** Druh vozu (wagons.md – Vůz): dvoukolák (svoz), čtyřkolák (obchod – hůř se otáčí). */
 export type CartKind = 'two-wheel' | 'four-wheel';
+
+/**
+ * Jízda vozu, když nesváží úrodu, seno ani klády (wagons.md – Co vozy vozí): uhlí z milíře ke
+ * kováři, osivo na pole, voda v sudech – v tomto pořadí přednosti (CART_JOBS.order).
+ */
+export type CartJob = 'charcoal' | 'seed' | 'water';
+
+/**
+ * Jízda vozu od ohrady se spřežením k cíli (wagons.md – Co vozy vozí): cena trasy vozové sítě (m
+ * jízdy po louce – cesta levněji, svah a strniště dráž) a kde trasa končí (m – sem jezdí jízdy do
+ * ročního provozu cest).
+ */
+export interface CartDrive {
+  costM: number;
+  x: number;
+  z: number;
+}
 
 /** Jízdy vozů k jednomu cíli za rok cest (wagons.md – Vozová síť). */
 export interface RoadCartTrips {

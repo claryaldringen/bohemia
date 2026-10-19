@@ -882,6 +882,7 @@ function targetKey(target: LaborTarget): string {
     return first ? `meadow-${first.x}-${first.y}` : 'meadow';
   }
   if (target.kind === 'edge') return `edge-${target.direction}`;
+  if (target.kind === 'water') return `water-${target.x}-${target.z}`;
   return `${target.kind}-${target.id}`;
 }
 
@@ -993,15 +994,19 @@ function placer(ctx: Context, share: SceneLaborShare, count: number): Placer {
       return t.kind === 'trail' ? porters(ctx, t.id) : none;
     case 'haul': {
       // honák a nakladač s vozem (wagons.md – Vůz): nakladač u svozu jako nosiči snopů, sekáči
-      // na louce a dřevorubci u stromů; honák jde s vozem (kreslí ho cart-renderer.ts – fáze 3)
+      // na louce a dřevorubci u stromů; honák jde s vozem (kreslí ho cart-renderer.ts – fáze 3);
+      // s uhlím a vodou (Co vozy vozí) jde posádka s vozem – nakladače nekreslí; s osivem stojí
+      // nakladač na poli jako nosiči
       const crew =
-        t.kind === 'field'
-          ? carriers(ctx, share, t.id)
-          : t.kind === 'meadow'
-            ? meadowRows(ctx, t.cells, count)
-            : t.kind === 'trees'
-              ? felling(ctx, t.ids, false)
-              : none;
+        share.job === 'charcoal' || share.job === 'water'
+          ? none
+          : t.kind === 'field'
+            ? carriers(ctx, share, t.id)
+            : t.kind === 'meadow'
+              ? meadowRows(ctx, t.cells, count)
+              : t.kind === 'trees'
+                ? felling(ctx, t.ids, false)
+                : none;
       const key = targetKey(t);
       const drovers = (ctx.village.carts ?? []).filter(
         (c) =>

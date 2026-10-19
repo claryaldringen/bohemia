@@ -910,13 +910,17 @@ export function parkedCartPose(
 
 // --- vůz ve scéně: na trase, na jízdě tam a zpět, nebo stojící ------------------------------
 
-/** Vůz na jízdě tam a zpět (svoz, výprava) – náklad veze zpátky (`loadedBothWays` – i tam). */
+/**
+ * Vůz na jízdě tam a zpět (svoz, výprava) – náklad veze zpátky (`loadedBothWays` – i tam,
+ * `loadedOut` – jen tam: osivo na pole, wagons.md – Co vozy vozí).
+ */
 export interface CartShuttle {
   kind: CartKind;
   cargo: CartCargo;
   shuttle: ShuttleRoute;
   schedule: CartSchedule;
   loadedBothWays?: boolean;
+  loadedOut?: boolean;
 }
 
 /** Vůz stojící u ohrady bez volů. */
@@ -971,7 +975,9 @@ export function cartPlanPose(
       ? { s: plan.shuttle.farM, speed: 0, loaded: true }
       : shuttleAt(plan.shuttle, plan.schedule, nowMs, TMP_SHUTTLE);
     poseOnRoute(plan.kind, plan.shuttle.route, at.s, t, at.speed, out, ground);
-    out.loaded = plan.cargo !== 'empty' && (at.loaded || plan.loadedBothWays === true);
+    // osivo (`loadedOut`): naložené od ohrady, u cíle se složí, zpátky prázdný
+    const loaded = plan.loadedOut === true ? !at.loaded || frozen : at.loaded;
+    out.loaded = plan.cargo !== 'empty' && (loaded || plan.loadedBothWays === true);
     return out;
   }
   return cartPose(plan, frozen ? CART_FROZEN_T : t, out, ground, frozen);

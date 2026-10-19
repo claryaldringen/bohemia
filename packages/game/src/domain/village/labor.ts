@@ -159,10 +159,32 @@ export function householdWaterLabor(
   dwellings: readonly Pick<Dwelling, 'id' | 'waterWalkM'>[],
   skip: ReadonlySet<number> = new Set(),
 ): number[] {
+  return householdWater(people, dwellings, skip).map((h) => h.labor);
+}
+
+/** Domácnost a její chůze pro vodu (`householdWater`). */
+export interface HouseholdWater {
+  dwellingId: number;
+  people: number;
+  /** Přirážka denního minima za chůzi pro vodu (čd za den – `waterFetchingLabor`). */
+  labor: number;
+}
+
+/**
+ * Domácnosti a jejich přirážka za chůzi pro vodu (ve stejném pořadí jako `householdElders`) –
+ * podklad pro vodu vozem (wagons.md – Co vozy vozí, cart-jobs.ts).
+ */
+export function householdWater(
+  people: readonly Person[],
+  dwellings: readonly Pick<Dwelling, 'id' | 'waterWalkM'>[],
+  skip: ReadonlySet<number> = new Set(),
+): HouseholdWater[] {
   const walks = new Map(dwellings.map((d) => [d.id, d.waterWalkM]));
-  return [...householdsOf(people, skip)].map(([id, members]) =>
-    waterFetchingLabor(members.length, walks.get(id)),
-  );
+  return [...householdsOf(people, skip)].map(([id, members]) => ({
+    dwellingId: id,
+    people: members.length,
+    labor: waterFetchingLabor(members.length, walks.get(id)),
+  }));
 }
 
 /**
