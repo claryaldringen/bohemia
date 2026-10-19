@@ -266,6 +266,8 @@ export type SelectionDetails =
       /** Mokřina na ose (m) a brody – kde se hodí hať a lávka. */
       wetM: number;
       fords: number;
+      /** Vozová cesta – vyjetá vozy (wagons.md – Vyjeté cesty); bez údaje pěší. */
+      cart?: boolean;
       /** Rozestavěné vylepšení (stupeň, průběh 0–1, stromy ke skácení); jinak null. */
       building: { grade: RoadGrade; progress: number; treesToFell: number } | null;
       /** Vylepšení, která úsek nabízí – cena a proč teď nejde. */

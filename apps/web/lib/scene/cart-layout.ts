@@ -12,6 +12,8 @@
 // se točí podle ujeté dráhy – vnější kolo v oblouku víc než vnitřní (dráha kola = dráha osy ±
 // polovina rozchodu × změna směru). Rozměry jsou skutečné (m) a celé spřežení se zvětší stejně
 // jako postavy (TEAM_SCALE).
+import type { CartKind } from '@bohemia/game';
+import { villagerSeconds } from './villager-motion';
 import {
   TEAM_PARTS,
   TEAM_SCALE,
@@ -32,8 +34,8 @@ export const CART_SCALE = TEAM_SCALE;
 /** Rychlost vozu s voly (m/s) – ≈ 3 km/h (wagons.md – Rychlost). */
 export const CART_SPEED_M_S = 0.85;
 
-/** Druh vozu (wagons.md – Dva druhy vozů): dvoukolák, nebo čtyřkolák. */
-export type CartKind = 'two' | 'four';
+/** Druh vozu (wagons.md – Dva druhy vozů): dvoukolák, nebo čtyřkolák – stejně jako herní jádro. */
+export type { CartKind };
 /** Náklad na korbě (wagons.md – Co vozí); prázdný vůz bez nákladu. */
 export type CartCargo = 'empty' | 'hay' | 'sheaves' | 'logs' | 'goods';
 export const CART_CARGOES: readonly CartCargo[] = ['empty', 'hay', 'sheaves', 'logs', 'goods'];
@@ -47,7 +49,7 @@ export const CART_PARTS = {
   /** Poloměr kola a výška středu náboje nad zemí (korba stojí na nápravách). */
   wheelR: 0.49,
   hubY: 0.4865,
-  two: {
+  'two-wheel': {
     /** Náboje kol od středu nápravy do stran. */
     track: 0.5762,
     /** Špička oje (střed jejího konce) od počátku korby – na zemi pod nápravou. */
@@ -57,7 +59,7 @@ export const CART_PARTS = {
     back: 0.98,
     halfWidth: 0.49,
   },
-  four: {
+  'four-wheel': {
     track: 0.7133,
     /** Rozvor – přední náprava je od počátku korby (uprostřed) o polovinu vpřed. */
     wheelbase: 1.5078,
@@ -76,7 +78,10 @@ export const CART_PARTS = {
 } as const;
 
 /** Díly wagons.glb podle druhu vozu (předpona dílů a nákladu). */
-export const CART_PREFIX: Record<CartKind, string> = { two: 'wagon2', four: 'wagon4' };
+export const CART_PREFIX: Record<CartKind, string> = {
+  'two-wheel': 'wagon2',
+  'four-wheel': 'wagon4',
+};
 
 // --- trasa ---------------------------------------------------------------------------------
 
@@ -287,8 +292,12 @@ export interface CartPose {
   pole: Segment3;
   /** Kola zleva doprava, u čtyřkoláku napřed přední (levé, pravé), pak zadní. */
   wheels: PartFrame[];
-  /** Jede (false = otevřená trasa skončila, voli stojí). */
+  /** Jede (false = stojí – otevřená trasa skončila, vůz nakládá / skládá, voli stojí). */
   moving: boolean;
+  /** Zapřažený – s voly a honákem (vůz bez jízdy stojí u ohrady, voli jsou v ohradě). */
+  hitched: boolean;
+  /** Veze náklad (prázdný jede tam, plný zpátky). */
+  loaded: boolean;
 }
 
 function figure(): FigurePose {
@@ -314,6 +323,8 @@ export function createCartPose(): CartPose {
     pole: segment(),
     wheels: [frame(), frame(), frame(), frame()],
     moving: true,
+    hitched: true,
+    loaded: true,
   };
 }
 
@@ -434,8 +445,6 @@ function wheel(
   out.fz = (axle.fz * c - axle.uz * s) * flip;
 }
 
-const DRAFT_TEMPO = CART_SPEED_M_S / TEAM_SPEED_M_S;
-
 /**
  * Póza vozu se spřežením v čase `t` (s): jho na trase ve vzdálenosti `cartDistance`, voli,
  * honák a vůz za nimi, kola natočená podle ujeté dráhy, korba podle terénu pod koly. Stejný čas =
@@ -450,10 +459,29 @@ export function cartPose(
 ): CartPose {
   const route = track.route;
   const s = cartDistance(track, t);
-  out.moving = !frozen && (route.closed || (s > 0 && s < route.length));
+  const moving = !frozen && (route.closed || (s > 0 && s < route.length));
+  out.loaded = track.cargo !== 'empty';
+  return poseOnRoute(track.kind, route, s, t, moving ? CART_SPEED_M_S : 0, out, ground);
+}
+
+/**
+ * Vůz se spřežením ve vzdálenosti `s` na trase (jho tam), v čase `t` (s – krok volů a kymácení
+ * jha), jedoucí rychlostí `speed` (m/s; 0 = stojí – voli bez kroku). Zapisuje do `out`.
+ */
+export function poseOnRoute(
+  kind: CartKind,
+  route: CartRoute,
+  s: number,
+  t: number,
+  speed: number,
+  out: CartPose,
+  ground: GroundFn = FLAT,
+): CartPose {
+  out.moving = speed > 0;
+  out.hitched = true;
   const yoke = routeAt(route, s, TMP_YOKE);
-  composeDraft(yoke, t, out.moving ? DRAFT_TEMPO : 0, out, ground, CART_PARTS.drover);
-  if (track.kind === 'two') twoWheeler(route, s, out, ground);
+  composeDraft(yoke, t, speed / TEAM_SPEED_M_S, out, ground, CART_PARTS.drover);
+  if (kind === 'two-wheel') twoWheeler(route, s, out, ground);
   else fourWheeler(route, s, out, ground);
   return out;
 }
@@ -464,8 +492,8 @@ function twoWheeler(route: CartRoute, s: number, out: CartPose, ground: GroundFn
   const k = CART_SCALE;
   const yf = out.yoke;
   // od středu nápravy ke špičce oje v modelu: vpřed a nahoru (pevná délka)
-  const tipF = p.two.poleTip.z;
-  const tipU = p.two.poleTip.y - p.hubY;
+  const tipF = p['two-wheel'].poleTip.z;
+  const tipU = p['two-wheel'].poleTip.y - p.hubY;
   const reach = Math.hypot(tipF, tipU) * k;
   const angle0 = Math.atan2(tipU, tipF);
   // vzdálenost v půdorysu závisí na převýšení jha nad nápravou – dvakrát dopočítat
@@ -483,8 +511,8 @@ function twoWheeler(route: CartRoute, s: number, out: CartPose, ground: GroundFn
     // levé kolo vlevo od směru ke jhu (vlevo = (−hz, hx))
     const lx = -hz() / len;
     const lz = hx() / len;
-    gl = ground(a.x + lx * p.two.track * k, a.z + lz * p.two.track * k);
-    gr = ground(a.x - lx * p.two.track * k, a.z - lz * p.two.track * k);
+    gl = ground(a.x + lx * p['two-wheel'].track * k, a.z + lz * p['two-wheel'].track * k);
+    gr = ground(a.x - lx * p['two-wheel'].track * k, a.z - lz * p['two-wheel'].track * k);
     hubY = (gl + gr) / 2 + p.hubY * k;
     const rise = yf.y - hubY;
     chord = Math.sqrt(Math.max(0.01, reach * reach - rise * rise));
@@ -497,16 +525,16 @@ function twoWheeler(route: CartRoute, s: number, out: CartPose, ground: GroundFn
   const cp = Math.cos(pitch);
   const sp = Math.sin(pitch);
   const body = out.body;
-  const w = 2 * p.two.track * k;
+  const w = 2 * p['two-wheel'].track * k;
   axes(fx * cp, sp, fz * cp, -fz * w, gl - gr, fx * w, body);
   // počátek korby: na „zemi“ pod středem nápravy v rámci korby
   body.x = a.x - body.ux * p.hubY * k;
   body.y = hubY - body.uy * p.hubY * k;
   body.z = a.z - body.uz * p.hubY * k;
   copyFrame(body, out.front);
-  const turn = a.heading * p.two.track * k;
-  wheel(body, 0, -1, p.two.track, sA - turn, out.wheels[0]!);
-  wheel(body, 0, 1, p.two.track, sA + turn, out.wheels[1]!);
+  const turn = a.heading * p['two-wheel'].track * k;
+  wheel(body, 0, -1, p['two-wheel'].track, sA - turn, out.wheels[0]!);
+  wheel(body, 0, 1, p['two-wheel'].track, sA + turn, out.wheels[1]!);
 }
 
 /**
@@ -515,7 +543,7 @@ function twoWheeler(route: CartRoute, s: number, out: CartPose, ground: GroundFn
  */
 function fourWheeler(route: CartRoute, s: number, out: CartPose, ground: GroundFn): void {
   const p = CART_PARTS;
-  const q = p.four;
+  const q = p['four-wheel'];
   const k = CART_SCALE;
   const yf = out.yoke;
   const f = TMP_A;
@@ -601,15 +629,335 @@ function copyFrame(from: PartFrame, to: PartFrame): void {
 
 /** Počet kol vozu. */
 export function cartWheelCount(kind: CartKind): number {
-  return kind === 'two' ? 2 : 4;
+  return kind === 'two-wheel' ? 2 : 4;
 }
 
 /** Jak daleko vůz sahá za jhem (m, ve scéně) – kvůli obalu a stínu. */
 export function cartLength(kind: CartKind): number {
   const p = CART_PARTS;
   const reach =
-    kind === 'two'
-      ? p.two.poleTip.z + p.two.back
-      : p.four.yokeReach + p.four.wheelbase / 2 + p.four.back;
+    kind === 'two-wheel'
+      ? p['two-wheel'].poleTip.z + p['two-wheel'].back
+      : p['four-wheel'].yokeReach + p['four-wheel'].wheelbase / 2 + p['four-wheel'].back;
   return reach * CART_SCALE;
+}
+
+// --- svoz: jízdy tam a zpět (wagons.md – fáze 3) --------------------------------------------
+
+/**
+ * Obratiště vozu (m): vůz se neotočí na místě – za cílem a u ohrady objede smyčku (dvoukolák
+ * menší, čtyřkolák širší oblouk – vozová síť, CART_ROUTES.turnSteps).
+ */
+export const CART_TURN_M: Record<CartKind, number> = { 'two-wheel': 3.5, 'four-wheel': 6 };
+
+/**
+ * Jízda tam a zpět jako uzavřená trasa: od ohrady po ose k cíli, smyčka obratiště za cílem, po
+ * ose zpět a smyčka u ohrady (`route` začíná u ohrady čelem k cíli). `farM` = kde na trase vůz
+ * u cíle stojí a nakládá (uprostřed smyčky za cílem).
+ */
+export interface ShuttleRoute {
+  route: CartRoute;
+  farM: number;
+}
+
+/**
+ * Smyčka obratiště za koncem `end` osy jedoucí směrem `dir` (jednotkový): kus doprava, velkým
+ * obloukem doleva přes osu a zpět na konec – vůz se vrací čelem vzad. Body bez konce osy.
+ */
+function turnLoop(end: Point, dir: Point, radius: number): { points: Point[]; middle: Point } {
+  // vpravo od směru (osy scény: x vpravo, z vpřed)
+  const rx = dir.z;
+  const rz = -dir.x;
+  const ahead = 3 * radius;
+  const side = 2 * radius;
+  const middle = { x: end.x + dir.x * ahead, z: end.z + dir.z * ahead };
+  return {
+    points: [
+      { x: middle.x + rx * side, z: middle.z + rz * side },
+      middle,
+      { x: middle.x - rx * side, z: middle.z - rz * side },
+    ],
+    middle,
+  };
+}
+
+function unit2(x: number, z: number): Point {
+  const l = Math.hypot(x, z) || 1;
+  return { x: x / l, z: z / l };
+}
+
+/** Kde je bod trasy nejblíž bodu `p` (m od začátku, po kroku `step`). */
+function nearestOnRoute(route: CartRoute, p: Point, step = 0.25): number {
+  const at: RoutePoint = { x: 0, z: 0, hx: 0, hz: 1, heading: 0 };
+  let best = 0;
+  let bestD = Infinity;
+  for (let s = 0; s <= route.length; s += step) {
+    routeAt(route, s, at);
+    const d = (at.x - p.x) ** 2 + (at.z - p.z) ** 2;
+    if (d < bestD) {
+      best = s;
+      bestD = d;
+    }
+  }
+  return best;
+}
+
+/**
+ * Jízda tam a zpět po ose `points` (od ohrady k cíli – trasa vozové sítě, SceneCart.route) se
+ * smyčkami obratišť za cílem a u ohrady; rohy osy zaoblené obloukem vozu (CART_TURN_M).
+ */
+export function shuttleRoute(points: readonly Point[], kind: CartKind): ShuttleRoute {
+  const axis = points.filter(
+    (p, i) => i === 0 || Math.hypot(p.x - points[i - 1]!.x, p.z - points[i - 1]!.z) > 0.01,
+  );
+  if (axis.length < 2) throw new Error('Jízda vozu potřebuje aspoň dva body osy.');
+  const radius = CART_TURN_M[kind];
+  const n = axis.length;
+  const end = axis[n - 1]!;
+  const far = turnLoop(end, unit2(end.x - axis[n - 2]!.x, end.z - axis[n - 2]!.z), radius);
+  const start = axis[0]!;
+  const home = turnLoop(start, unit2(start.x - axis[1]!.x, start.z - axis[1]!.z), radius);
+  const back = [...axis].reverse();
+  const route = cartRoute([...axis, ...far.points, ...back, ...home.points], {
+    closed: true,
+    turnRadius: radius,
+  });
+  return { route, farM: nearestOnRoute(route, far.middle) };
+}
+
+/** Jak dlouho vůz stojí u cíle (nakládá) a u ohrady (skládá) – s. */
+export const CART_STOP_S = { fast: 3, real: 20 } as const;
+/**
+ * Ladicí zrychlení svozu (s orbou za herní den – PLOUGH_DAY_DEBUG): jízd za herní den tolik, kolik
+ * se jich vejde při této rychlosti (m/s), nejvýš CARTS.loadsPerCartDay – a aspoň jedna (dlouhá
+ * trasa se pak jede rychleji).
+ */
+export const CART_FAST_M_S = 4;
+
+/** Kdy vůz jezdí: okno herního dne (ladicí – jízdy dne se do něj vejdou), nebo pořád dokola. */
+export interface CartSchedule {
+  /**
+   * Okno herního dne (skutečný čas, ms) – vůz za den udělá `trips` jízd (CART_FAST_M_S, nejvýš
+   * `maxTrips`); null = jezdí dokola skutečným tempem (CART_SPEED_M_S), jako nosiči na stezce.
+   */
+  window: { startMs: number; endMs: number } | null;
+  /** Nejvýš jízd za herní den (CARTS.loadsPerCartDay). */
+  maxTrips: number;
+  /** Posun fáze 0–1 (víc vozů na téže trase jede za sebou). */
+  phase: number;
+}
+
+/** Kde vůz na jízdě je: místo na trase, rychlost (0 = stojí), jestli veze náklad. */
+export interface ShuttleState {
+  s: number;
+  speed: number;
+  loaded: boolean;
+}
+
+/**
+ * Vůz na jízdě tam a zpět v okamžiku `nowMs` (čistá funkce skutečného času): od ohrady prázdný
+ * k cíli, tam stojí (nakládá – náklad se objeví v půlce), plný zpátky a u ohrady stojí (skládá).
+ * S oknem dne jízdy rovnoměrně přes den (kolik se jich vejde – CART_FAST_M_S; mimo okno se den
+ * opakuje – den končí i začíná u ohrady); bez okna dokola tempem volů. Zapisuje do `out`.
+ */
+export function shuttleAt(
+  shuttle: ShuttleRoute,
+  schedule: CartSchedule,
+  nowMs: number,
+  out: ShuttleState,
+): ShuttleState {
+  const L = shuttle.route.length;
+  const far = shuttle.farM;
+  const fast = schedule.window !== null;
+  const stop = fast ? CART_STOP_S.fast : CART_STOP_S.real;
+  let speed = CART_SPEED_M_S;
+  let cycle = L / speed + 2 * stop;
+  let time: number;
+  if (schedule.window) {
+    const dayS = Math.max(1, (schedule.window.endMs - schedule.window.startMs) / 1000);
+    const trips = Math.min(
+      Math.max(1, schedule.maxTrips),
+      Math.max(1, Math.floor(dayS / (L / CART_FAST_M_S + 2 * stop))),
+    );
+    cycle = dayS / trips;
+    speed = Math.max(CART_SPEED_M_S, L / Math.max(1, cycle - 2 * stop));
+    // den se opakuje: poslední jízda končí u ohrady a další den (nová trasa) začíná u ohrady –
+    // i když nová data přijdou až chvíli po začátku dne, vůz neskáče
+    const inDay = ((((nowMs - schedule.window.startMs) / 1000) % dayS) + dayS) % dayS;
+    time = (((inDay + schedule.phase * cycle) % cycle) + cycle) % cycle;
+  } else {
+    time = (((villagerSeconds(nowMs) + schedule.phase * cycle) % cycle) + cycle) % cycle;
+  }
+  const outS = far / speed;
+  const backS = (L - far) / speed;
+  if (time < outS) {
+    out.s = time * speed;
+    out.speed = speed;
+    out.loaded = false;
+  } else if (time < outS + stop) {
+    out.s = far;
+    out.speed = 0;
+    out.loaded = time >= outS + stop / 2;
+  } else if (time < outS + stop + backS) {
+    out.s = far + (time - outS - stop) * speed;
+    out.speed = speed;
+    out.loaded = true;
+  } else {
+    out.s = L;
+    out.speed = 0;
+    out.loaded = time < outS + stop + backS + stop / 2;
+  }
+  return out;
+}
+
+// --- stojící vůz u ohrady ------------------------------------------------------------------
+
+/** Kde vůz stojí: místo (střed korby na zemi) a směr, kam míří oj (jednotkový). */
+export interface CartSpot {
+  x: number;
+  z: number;
+  hx: number;
+  hz: number;
+}
+
+/**
+ * Nezapřažený vůz (stojí u ohrady): dvoukolák skloněný dopředu na špičku oje, čtyřkolák rovně
+ * s ojí na zemi před sebou; kola stojí. Bez volů a honáka (`hitched` false).
+ */
+export function parkedCartPose(
+  kind: CartKind,
+  spot: CartSpot,
+  out: CartPose,
+  ground: GroundFn = FLAT,
+): CartPose {
+  const p = CART_PARTS;
+  const k = CART_SCALE;
+  out.moving = false;
+  out.hitched = false;
+  out.loaded = false;
+  const h = unit2(spot.hx, spot.hz);
+  const body = out.body;
+  if (kind === 'two-wheel') {
+    // náprava v místě, špička oje na zemi před ní
+    const q = p['two-wheel'];
+    const gl = ground(spot.x - h.z * q.track * k, spot.z + h.x * q.track * k);
+    const gr = ground(spot.x + h.z * q.track * k, spot.z - h.x * q.track * k);
+    const hub = (gl + gr) / 2 + p.hubY * k;
+    const tipF = q.poleTip.z;
+    const tipU = q.poleTip.y - p.hubY;
+    const reach = Math.hypot(tipF, tipU) * k;
+    const tipX = spot.x + h.x * tipF * k;
+    const tipZ = spot.z + h.z * tipF * k;
+    const drop = ground(tipX, tipZ) + 0.05 * k - hub;
+    const pitch = Math.asin(Math.max(-1, Math.min(1, drop / reach))) - Math.atan2(tipU, tipF);
+    const w = 2 * q.track * k;
+    axes(
+      h.x * Math.cos(pitch),
+      Math.sin(pitch),
+      h.z * Math.cos(pitch),
+      -h.z * w,
+      gl - gr,
+      h.x * w,
+      body,
+    );
+    body.x = spot.x - body.ux * p.hubY * k;
+    body.y = hub - body.uy * p.hubY * k;
+    body.z = spot.z - body.uz * p.hubY * k;
+    copyFrame(body, out.front);
+    wheel(body, 0, -1, q.track, 0, out.wheels[0]!);
+    wheel(body, 0, 1, q.track, 0, out.wheels[1]!);
+    return out;
+  }
+  const q = p['four-wheel'];
+  const half = (q.wheelbase / 2) * k;
+  const fx = spot.x + h.x * half;
+  const fz = spot.z + h.z * half;
+  const rx = spot.x - h.x * half;
+  const rz = spot.z - h.z * half;
+  const t = q.track * k;
+  const gfl = ground(fx - h.z * t, fz + h.x * t);
+  const gfr = ground(fx + h.z * t, fz - h.x * t);
+  const grl = ground(rx - h.z * t, rz + h.x * t);
+  const grr = ground(rx + h.z * t, rz - h.x * t);
+  const hubF = (gfl + gfr) / 2 + p.hubY * k;
+  const hubR = (grl + grr) / 2 + p.hubY * k;
+  axes(fx - rx, hubF - hubR, fz - rz, -h.z * 2 * t, (gfl - gfr + grl - grr) / 2, h.x * 2 * t, body);
+  body.x = spot.x - body.ux * p.hubY * k;
+  body.y = (hubF + hubR) / 2 - body.uy * p.hubY * k;
+  body.z = spot.z - body.uz * p.hubY * k;
+  const front = out.front;
+  copyFrame(body, front);
+  front.x = body.x + body.fx * half;
+  front.y = body.y + body.fy * half;
+  front.z = body.z + body.fz * half;
+  // oj ze špičky rozvory dolů na zem před vozem
+  const pole = out.pole;
+  pole.ax = front.x + (front.fx * q.houndsTip.z + front.ux * q.houndsTip.y) * k;
+  pole.ay = front.y + (front.fy * q.houndsTip.z + front.uy * q.houndsTip.y) * k;
+  pole.az = front.z + (front.fz * q.houndsTip.z + front.uz * q.houndsTip.y) * k;
+  const horizontal = Math.sqrt(Math.max(0.01, (q.poleM * k) ** 2 - (q.houndsTip.y * k) ** 2));
+  pole.bx = pole.ax + h.x * horizontal;
+  pole.bz = pole.az + h.z * horizontal;
+  pole.by = ground(pole.bx, pole.bz) + 0.05 * k;
+  wheel(front, 0, -1, q.track, 0, out.wheels[0]!);
+  wheel(front, 0, 1, q.track, 0, out.wheels[1]!);
+  wheel(body, -q.wheelbase / 2, -1, q.track, 0, out.wheels[2]!);
+  wheel(body, -q.wheelbase / 2, 1, q.track, 0, out.wheels[3]!);
+  return out;
+}
+
+// --- vůz ve scéně: na trase, na jízdě tam a zpět, nebo stojící ------------------------------
+
+/** Vůz na jízdě tam a zpět (svoz, výprava) – náklad veze zpátky (`loadedBothWays` – i tam). */
+export interface CartShuttle {
+  kind: CartKind;
+  cargo: CartCargo;
+  shuttle: ShuttleRoute;
+  schedule: CartSchedule;
+  loadedBothWays?: boolean;
+}
+
+/** Vůz stojící u ohrady bez volů. */
+export interface CartParked {
+  kind: CartKind;
+  parked: CartSpot;
+}
+
+/** Co vůz ve scéně dělá: jede dokola po trase (ukázka), tam a zpět, nebo stojí. */
+export type CartPlan = CartTrack | CartShuttle | CartParked;
+
+/** Čas (s), ve kterém stojí vozy dokola po trase při omezeném pohybu. */
+export const CART_FROZEN_T = 23;
+
+const TMP_SHUTTLE: ShuttleState = { s: 0, speed: 0, loaded: false };
+
+/**
+ * Póza vozu podle plánu v okamžiku `nowMs` (skutečný čas): dokola po trase, tam a zpět
+ * (`shuttleAt`), nebo stojící. `frozen` = omezený pohyb – vůz na jízdě stojí u cíle naložený,
+ * vůz dokola v čase CART_FROZEN_T. Zapisuje do `out`, nic nealokuje.
+ */
+export function cartPlanPose(
+  plan: CartPlan,
+  nowMs: number,
+  out: CartPose,
+  ground: GroundFn = FLAT,
+  frozen = false,
+): CartPose {
+  if ('parked' in plan) return parkedCartPose(plan.kind, plan.parked, out, ground);
+  const t = villagerSeconds(nowMs);
+  if ('shuttle' in plan) {
+    const at = frozen
+      ? { s: plan.shuttle.farM, speed: 0, loaded: true }
+      : shuttleAt(plan.shuttle, plan.schedule, nowMs, TMP_SHUTTLE);
+    poseOnRoute(plan.kind, plan.shuttle.route, at.s, t, at.speed, out, ground);
+    out.loaded = plan.cargo !== 'empty' && (at.loaded || plan.loadedBothWays === true);
+    return out;
+  }
+  return cartPose(plan, frozen ? CART_FROZEN_T : t, out, ground, frozen);
+}
+
+/** Trasa, po které plán jede (kvůli obalu); stojící vůz žádnou. */
+export function cartPlanRoute(plan: CartPlan): CartRoute | null {
+  if ('parked' in plan) return null;
+  return 'shuttle' in plan ? plan.shuttle.route : plan.route;
 }

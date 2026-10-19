@@ -1818,10 +1818,55 @@ describe('buildVillageView – tesař a vozy (wagons.md)', () => {
         x: 50,
         z: 60,
         condition: 0.9,
-        job: { activity: 'haul', target: { kind: 'field', id: 1 } },
+        job: { activity: 'haul', target: { kind: 'field', id: 1 }, load: 'sheaves' },
       },
     ]);
     expect(buildVillageView(record(settled()), landscape, DAY).scene.carts).toBeUndefined();
+  });
+
+  it('vůz na svozu nese trasu dne vozovou sítí od ohrady k dílu na čele žně (fáze 3)', () => {
+    const s = carpenterVillage();
+    const part = s.parts.find((p) => p.cell?.x === 11)!;
+    s.labor = {
+      day: DAY,
+      shares: [
+        {
+          activity: 'haul',
+          target: { kind: 'field', id: part.fieldId, parts: [part.id] },
+          manDays: 2,
+          carts: 1,
+        },
+      ],
+    };
+    const view = buildVillageView(record(s), landscape, DAY);
+    const cart = view.scene.carts![0]!;
+    expect(cart.job).toMatchObject({ activity: 'haul', load: 'sheaves' });
+    const route = cart.route!;
+    expect(route.length).toBeGreaterThanOrEqual(2);
+    expect(route.length).toBeLessThanOrEqual(80);
+    // začíná u ohrady (vyjede do 15 m od jejího středu), končí u dílu (do CARTS.reachM)
+    const first = route[0]!;
+    const last = route[route.length - 1]!;
+    expect(Math.hypot(first.x - 50, first.z - 60)).toBeLessThanOrEqual(16);
+    const target = view.scene.fields.flatMap((f) => f.parts).find((p) => p.id === part.id)!;
+    expect(Math.hypot(last.x - target.x, last.z - target.z)).toBeLessThanOrEqual(10);
+    // po cm
+    for (const p of route) {
+      expect(Math.round(p.x * 100)).toBeCloseTo(p.x * 100, 6);
+      expect(Math.round(p.z * 100)).toBeCloseTo(p.z * 100, 6);
+    }
+    // seč – seno, klády ke stavbě; vůz bez úlohy trasu nemá
+    s.labor.shares[0] = {
+      activity: 'haul',
+      target: { kind: 'meadow', cells: [{ x: 11, y: 9 }] },
+      manDays: 2,
+      carts: 1,
+    };
+    const mowing = buildVillageView(record(s), landscape, DAY).scene.carts![0]!;
+    expect(mowing.job?.load).toBe('hay');
+    expect(mowing.route?.length).toBeGreaterThanOrEqual(2);
+    s.labor.shares = [];
+    expect(buildVillageView(record(s), landscape, DAY).scene.carts![0]!.route).toBeUndefined();
   });
 
   it('kronika – tesař vyrobil vůz, vůz dosloužil', () => {

@@ -197,6 +197,8 @@ export class LandscapeScene {
   /** Jámy obydlí – terén a obtisky se v nich prořezávají (pit-cut.ts). */
   private readonly pitCuts = new PitCuts();
   private worldClock: WorldClock | null = null;
+  /** Vývojové ukázky: vlastní okno herního dne pro práci za den (orba, svoz – ladicí). */
+  private workDayClock: ((day: number) => { startMs: number; endMs: number }) | null = null;
   private smokeAlways = false;
   /** Vývojový přepínač dne v roce (null = podle herního data). */
   private seasonDay: number | null = null;
@@ -299,6 +301,7 @@ export class LandscapeScene {
       animated: () => !this.reducedMotion?.matches,
     });
     if (this.worldClock) this.village.setWorldClock(this.worldClock);
+    if (this.workDayClock) this.village.setPloughClock(this.workDayClock);
     if (this.season) {
       this.village.setSeason(this.seasonDayOfYear(), this.season.snow);
     }
@@ -648,6 +651,17 @@ export class LandscapeScene {
     this.village?.setWorldClock(world);
     this.worldClock = world;
     this.updateSeason(true);
+  }
+
+  /**
+   * Vývojová volba: vlastní okno herního dne pro práci za den (orba a svoz projeté za herní den –
+   * PLOUGH_DAY_DEBUG), null = z hodin světa. Ukázky bez hodin světa (/dev/landscape) tak vozí
+   * zrychleně jako ve hře.
+   */
+  setWorkDayClock(clock: ((day: number) => { startMs: number; endMs: number }) | null): void {
+    this.workDayClock = clock;
+    this.village?.setPloughClock(clock);
+    if (this.villageState) this.setVillage(this.villageState);
   }
 
   /**

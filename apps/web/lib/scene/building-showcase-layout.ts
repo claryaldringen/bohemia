@@ -1281,7 +1281,7 @@ export function showcaseCarts(): CartTrack[] {
       offsetM: (route.length * i) / cargoes.length,
     }));
   return [
-    ...along(circle, 'two', ['empty', 'hay', 'sheaves']),
-    ...along(shuttle, 'four', ['logs', 'goods', 'hay']),
+    ...along(circle, 'two-wheel', ['empty', 'hay', 'sheaves']),
+    ...along(shuttle, 'four-wheel', ['logs', 'goods', 'hay']),
   ];
 }

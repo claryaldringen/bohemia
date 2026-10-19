@@ -5,14 +5,20 @@ import {
   CART_PARTS,
   CART_SCALE,
   CART_SPEED_M_S,
+  CART_TURN_M,
+  cartPlanPose,
   cartPose,
   cartRoute,
   createCartPose,
+  parkedCartPose,
   routeAt,
+  shuttleAt,
+  shuttleRoute,
   type CartKind,
   type CartPose,
   type CartRoute,
   type RoutePoint,
+  type ShuttleState,
 } from '../cart-layout';
 import { TEAM_PARTS, type GroundFn, type PartFrame } from '../plough-team';
 
@@ -101,23 +107,31 @@ describe('trasa vozu', () => {
 
 describe('dvoukolák', () => {
   it('na rovině: oj leží pod jhem, korba vodorovně, kola na zemi', () => {
-    const p = pose('two', STRAIGHT, 100);
-    const tip = inFrame(p.body, CART_PARTS.two.poleTip.z, CART_PARTS.two.poleTip.y);
+    const p = pose('two-wheel', STRAIGHT, 100);
+    const tip = inFrame(
+      p.body,
+      CART_PARTS['two-wheel'].poleTip.z,
+      CART_PARTS['two-wheel'].poleTip.y,
+    );
     expect(distance(tip, [p.yoke.x, p.yoke.y, p.yoke.z])).toBeLessThan(0.01);
     expect(p.body.uy).toBeGreaterThan(0.999);
     for (const w of p.wheels.slice(0, 2)) expect(w.y).toBeCloseTo(CART_PARTS.hubY * k, 2);
     // kola vlevo a vpravo od korby, levé má menší x (osy scény: x vpravo)
-    expect(p.wheels[0]!.x).toBeCloseTo(-CART_PARTS.two.track * k, 3);
-    expect(p.wheels[1]!.x).toBeCloseTo(CART_PARTS.two.track * k, 3);
+    expect(p.wheels[0]!.x).toBeCloseTo(-CART_PARTS['two-wheel'].track * k, 3);
+    expect(p.wheels[1]!.x).toBeCloseTo(CART_PARTS['two-wheel'].track * k, 3);
     // korba je za voly – zadky volů ≈ 1,6 m za jhem, předek korby dál
-    const front = p.yoke.z - (p.body.z + CART_PARTS.two.front * k);
+    const front = p.yoke.z - (p.body.z + CART_PARTS['two-wheel'].front * k);
     expect(front).toBeGreaterThan(1.7 * k);
   });
 
   it('do kopce: oj pořád pod jhem, korba nakloněná', () => {
     const slope = (_x: number, z: number): number => 0.12 * z;
-    const p = pose('two', STRAIGHT, 230, slope);
-    const tip = inFrame(p.body, CART_PARTS.two.poleTip.z, CART_PARTS.two.poleTip.y);
+    const p = pose('two-wheel', STRAIGHT, 230, slope);
+    const tip = inFrame(
+      p.body,
+      CART_PARTS['two-wheel'].poleTip.z,
+      CART_PARTS['two-wheel'].poleTip.y,
+    );
     expect(distance(tip, [p.yoke.x, p.yoke.y, p.yoke.z])).toBeLessThan(0.02);
     expect(p.body.fy).toBeGreaterThan(0.05);
     // kola na svahu na zemi (náboj ve výšce náboje nad zemí)
@@ -128,14 +142,14 @@ describe('dvoukolák', () => {
 
   it('na příčném svahu se korba naklopí k nižšímu kolu', () => {
     const side = (x: number): number => 0.15 * x;
-    const p = pose('two', STRAIGHT, 230, side);
+    const p = pose('two-wheel', STRAIGHT, 230, side);
     // vpravo (+x) je výš – osa nahoru se kloní doleva (−x)
     expect(p.body.ux).toBeLessThan(-0.05);
   });
 
   it('kola se točí podle ujeté dráhy, v oblouku vnější víc', () => {
-    const a = pose('two', STRAIGHT, 100);
-    const b = pose('two', STRAIGHT, 101);
+    const a = pose('two-wheel', STRAIGHT, 100);
+    const b = pose('two-wheel', STRAIGHT, 101);
     const turned = (w0: PartFrame, w1: PartFrame): number =>
       Math.acos(Math.min(1, w0.ux * w1.ux + w0.uy * w1.uy + w0.uz * w1.uz));
     // (korba se s krokem volů nepatrně kývá – jho na šíjích)
@@ -152,28 +166,36 @@ describe('dvoukolák', () => {
       })),
       { closed: true, turnRadius: 3 },
     );
-    const c0 = pose('two', circle, 50);
-    const c1 = pose('two', circle, 50.5);
+    const c0 = pose('two-wheel', circle, 50);
+    const c1 = pose('two-wheel', circle, 50.5);
     expect(turned(c0.wheels[0]!, c1.wheels[0]!)).toBeLessThan(turned(c0.wheels[1]!, c1.wheels[1]!));
   });
 
   it('stejný čas = stejná póza (i po mnoha kolech uzavřené trasy)', () => {
     const t = 3600 * 5 + 17.3;
-    expect(pose('two', LOOP, t)).toEqual(pose('two', LOOP, t));
-    const p = pose('two', LOOP, t);
-    const tip = inFrame(p.body, CART_PARTS.two.poleTip.z, CART_PARTS.two.poleTip.y);
+    expect(pose('two-wheel', LOOP, t)).toEqual(pose('two-wheel', LOOP, t));
+    const p = pose('two-wheel', LOOP, t);
+    const tip = inFrame(
+      p.body,
+      CART_PARTS['two-wheel'].poleTip.z,
+      CART_PARTS['two-wheel'].poleTip.y,
+    );
     expect(distance(tip, [p.yoke.x, p.yoke.y, p.yoke.z])).toBeLessThan(0.03);
   });
 });
 
 describe('čtyřkolák', () => {
   it('na rovině: nápravy po rozvoru za sebou, oj od rozvory ke jhu', () => {
-    const p = pose('four', STRAIGHT, 100);
+    const p = pose('four-wheel', STRAIGHT, 100);
     const front = p.wheels[0]!;
     const back = p.wheels[2]!;
-    expect(front.z - back.z).toBeCloseTo(CART_PARTS.four.wheelbase * k, 3);
-    expect(p.yoke.z - (front.z + 0)).toBeCloseTo(CART_PARTS.four.yokeReach * k, 2);
-    const tip = inFrame(p.front, CART_PARTS.four.houndsTip.z, CART_PARTS.four.houndsTip.y);
+    expect(front.z - back.z).toBeCloseTo(CART_PARTS['four-wheel'].wheelbase * k, 3);
+    expect(p.yoke.z - (front.z + 0)).toBeCloseTo(CART_PARTS['four-wheel'].yokeReach * k, 2);
+    const tip = inFrame(
+      p.front,
+      CART_PARTS['four-wheel'].houndsTip.z,
+      CART_PARTS['four-wheel'].houndsTip.y,
+    );
     expect(distance(tip, [p.pole.ax, p.pole.ay, p.pole.az])).toBeLessThan(1e-9);
     expect(p.pole.by).toBeCloseTo(p.yoke.y, 9);
     // oj zhruba délky modelu (scéna ji natáhne jen málo)
@@ -182,17 +204,17 @@ describe('čtyřkolák', () => {
       p.pole.by - p.pole.ay,
       p.pole.bz - p.pole.az,
     );
-    expect(poleLength / k).toBeGreaterThan(CART_PARTS.four.poleM * 0.9);
-    expect(poleLength / k).toBeLessThan(CART_PARTS.four.poleM * 1.15);
+    expect(poleLength / k).toBeGreaterThan(CART_PARTS['four-wheel'].poleM * 0.9);
+    expect(poleLength / k).toBeLessThan(CART_PARTS['four-wheel'].poleM * 1.15);
     expect(p.body.uy).toBeGreaterThan(0.999);
   });
 
   it('v oblouku se předek natáčí ke jhu víc než korba', () => {
-    const p = pose('four', LOOP, 12);
+    const p = pose('four-wheel', LOOP, 12);
     // někde v oblouku: předek a korba míří jinam
     let found = false;
     for (let t = 0; t < LOOP.length / CART_SPEED_M_S; t += 0.5) {
-      const q = pose('four', LOOP, t);
+      const q = pose('four-wheel', LOOP, t);
       const dot = q.front.fx * q.body.fx + q.front.fz * q.body.fz;
       if (dot < Math.cos((8 * Math.PI) / 180)) found = true;
     }
@@ -202,7 +224,7 @@ describe('čtyřkolák', () => {
 
   it('do kopce leží korba na obou nápravách', () => {
     const slope = (_x: number, z: number): number => 0.1 * z;
-    const p = pose('four', STRAIGHT, 230, slope);
+    const p = pose('four-wheel', STRAIGHT, 230, slope);
     expect(p.body.fy).toBeCloseTo(0.1 / Math.hypot(1, 0.1), 2);
     for (const w of p.wheels) expect(w.y - slope(w.x, w.z)).toBeCloseTo(CART_PARTS.hubY * k, 1);
   });
@@ -248,17 +270,120 @@ describe('rozměry sedí s modely (tools/blender/wagons_from_0ad.py)', () => {
     expect(-wheel.min[1]!).toBeCloseTo(CART_PARTS.wheelR, 2);
     const two = bounds('wagon2-body');
     // špička oje + poloměr oje
-    expect(two.max[2]! - 0.05).toBeCloseTo(CART_PARTS.two.poleTip.z, 1);
+    expect(two.max[2]! - 0.05).toBeCloseTo(CART_PARTS['two-wheel'].poleTip.z, 1);
     expect(two.max[1]).toBeGreaterThan(TEAM_PARTS.yokeY);
     expect(two.max[1]).toBeLessThan(TEAM_PARTS.yokeY + 0.1);
-    expect(two.max[0]).toBeCloseTo(CART_PARTS.two.halfWidth, 1);
+    expect(two.max[0]).toBeCloseTo(CART_PARTS['two-wheel'].halfWidth, 1);
     const front = bounds('wagon4-front');
-    expect(front.max[2]).toBeCloseTo(CART_PARTS.four.houndsTip.z, 2);
-    expect(front.max[1]).toBeGreaterThan(CART_PARTS.four.houndsTip.y);
+    expect(front.max[2]).toBeCloseTo(CART_PARTS['four-wheel'].houndsTip.z, 2);
+    expect(front.max[1]).toBeGreaterThan(CART_PARTS['four-wheel'].houndsTip.y);
     const pole = bounds('wagon4-pole');
-    expect(pole.max[2]).toBeCloseTo(CART_PARTS.four.poleM, 2);
+    expect(pole.max[2]).toBeCloseTo(CART_PARTS['four-wheel'].poleM, 2);
     const body4 = bounds('wagon4-body');
-    expect(body4.max[2]).toBeCloseTo(CART_PARTS.four.front, 1);
-    expect(-body4.min[2]!).toBeCloseTo(CART_PARTS.four.back, 1);
+    expect(body4.max[2]).toBeCloseTo(CART_PARTS['four-wheel'].front, 1);
+    expect(-body4.min[2]!).toBeCloseTo(CART_PARTS['four-wheel'].back, 1);
+  });
+});
+
+describe('jízda tam a zpět (svoz – fáze 3)', () => {
+  const AXIS = [
+    { x: 0, z: 0 },
+    { x: 0, z: 40 },
+    { x: 30, z: 70 },
+  ];
+  const shuttle = shuttleRoute(AXIS, 'two-wheel');
+  const WINDOW = { startMs: 1_000_000, endMs: 1_086_000 };
+  const schedule = { window: WINDOW, maxTrips: 8, phase: 0 };
+  const at = (ms: number): ShuttleState =>
+    shuttleAt(shuttle, schedule, ms, { s: 0, speed: 0, loaded: false });
+
+  it('uzavřená trasa: od ohrady k cíli, obratiště, zpět a obratiště u ohrady', () => {
+    expect(shuttle.route.closed).toBe(true);
+    // tam i zpět po ose, smyčky navíc
+    const axisM = 40 + Math.hypot(30, 30);
+    expect(shuttle.route.length).toBeGreaterThan(2 * axisM);
+    expect(shuttle.farM).toBeGreaterThan(axisM * 0.9);
+    expect(shuttle.farM).toBeLessThan(shuttle.route.length - axisM * 0.9);
+    // začátek u ohrady čelem k cíli, obrat za cílem
+    const p = routeAt(shuttle.route, 0, point());
+    expect(Math.hypot(p.x, p.z)).toBeLessThan(CART_TURN_M['two-wheel']);
+    expect(p.hz).toBeGreaterThan(0.9);
+    const far = routeAt(shuttle.route, shuttle.farM, point());
+    expect(Math.hypot(far.x - 30, far.z - 70)).toBeGreaterThan(5);
+    expect(Math.hypot(far.x - 30, far.z - 70)).toBeLessThan(15);
+  });
+
+  it('za herní den několik jízd: prázdný tam, u cíle nakládá, plný zpátky; den začíná i končí u ohrady', () => {
+    const home = (x: ShuttleState): boolean =>
+      x.speed === 0 && !x.loaded && (x.s === 0 || x.s === shuttle.route.length);
+    expect(home(at(WINDOW.startMs - 500))).toBe(true);
+    expect(home(at(WINDOW.endMs - 500))).toBe(true);
+    expect(at(WINDOW.startMs + 200).speed).toBeGreaterThan(0);
+    const samples = Array.from({ length: 860 }, (_, i) => at(WINDOW.startMs + i * 100));
+    // jede tam prázdný, zpátky plný, mezi tím stojí
+    const out = samples.filter((x) => x.speed > 0 && x.s < shuttle.farM);
+    const back = samples.filter((x) => x.speed > 0 && x.s > shuttle.farM);
+    expect(out.length).toBeGreaterThan(0);
+    expect(out.every((x) => !x.loaded)).toBe(true);
+    expect(back.length).toBeGreaterThan(0);
+    expect(back.every((x) => x.loaded)).toBe(true);
+    expect(samples.some((x) => x.speed === 0 && x.s === shuttle.farM)).toBe(true);
+    // počet obratů u cíle = počet jízd (aspoň 1, nejvýš 8), rychlost aspoň tempem volů
+    let trips = 0;
+    for (let i = 1; i < samples.length; i++) {
+      if (samples[i - 1]!.s < shuttle.farM && samples[i]!.s >= shuttle.farM) trips++;
+    }
+    expect(trips).toBeGreaterThanOrEqual(1);
+    expect(trips).toBeLessThanOrEqual(8);
+    expect(Math.max(...samples.map((x) => x.speed))).toBeGreaterThanOrEqual(CART_SPEED_M_S);
+    // spojitě – vůz neskáče
+    for (let i = 1; i < samples.length; i++) {
+      const a = samples[i - 1]!.s;
+      const b = samples[i]!.s;
+      const step = Math.min(Math.abs(b - a), shuttle.route.length - Math.abs(b - a));
+      expect(step).toBeLessThan(2);
+    }
+  });
+
+  it('bez okna dne jezdí dokola tempem volů; stejný okamžik = stejné místo', () => {
+    const real = { window: null, maxTrips: 8, phase: 0.3 };
+    const a = shuttleAt(shuttle, real, 5_000_000, { s: 0, speed: 0, loaded: false });
+    const b = shuttleAt(shuttle, real, 5_000_000, { s: 0, speed: 0, loaded: false });
+    expect(a).toEqual(b);
+    expect([0, CART_SPEED_M_S]).toContain(a.speed);
+  });
+
+  it('póza podle plánu: na jízdě zapřažený, náklad jen zpátky; stojící bez volů', () => {
+    const plan = { kind: 'two-wheel' as const, cargo: 'hay' as const, shuttle, schedule };
+    const samples = Array.from({ length: 86 }, (_, i) =>
+      cartPlanPose(plan, WINDOW.startMs + i * 1000, createCartPose()),
+    );
+    expect(samples.every((p) => p.hitched)).toBe(true);
+    expect(samples.some((p) => p.loaded)).toBe(true);
+    expect(samples.some((p) => !p.loaded)).toBe(true);
+    const parked = cartPlanPose(
+      { kind: 'four-wheel', parked: { x: 5, z: 6, hx: 1, hz: 0 } },
+      0,
+      createCartPose(),
+    );
+    expect(parked.hitched).toBe(false);
+    expect(parked.moving).toBe(false);
+  });
+
+  it('stojící dvoukolák se opírá ojí o zem, čtyřkolák stojí rovně s ojí na zemi', () => {
+    const two = parkedCartPose('two-wheel', { x: 0, z: 0, hx: 0, hz: 1 }, createCartPose());
+    const tip = inFrame(
+      two.body,
+      CART_PARTS['two-wheel'].poleTip.z,
+      CART_PARTS['two-wheel'].poleTip.y,
+    );
+    expect(tip[1]).toBeGreaterThan(0);
+    expect(tip[1]).toBeLessThan(0.15);
+    expect(two.body.fy).toBeLessThan(-0.2);
+    for (const w of two.wheels.slice(0, 2)) expect(w.y).toBeCloseTo(CART_PARTS.hubY * k, 2);
+    const four = parkedCartPose('four-wheel', { x: 0, z: 0, hx: 1, hz: 0 }, createCartPose());
+    expect(four.body.uy).toBeGreaterThan(0.999);
+    expect(four.pole.by).toBeLessThan(0.15);
+    expect(four.pole.bx).toBeGreaterThan(four.pole.ax);
   });
 });

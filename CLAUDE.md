@@ -741,8 +741,9 @@ rozhraní částí v
   Web: `VillageCrafts.carts` / `cartTargets`, `VillageWorkshop.carpenter`, lišta dřevěné nářadí
   a vozy (`showsWoodTools`, `cartsLabel`), panel dílny (`CarpenterStats`), upozornění
   `cart-made`, `cart-worn-out`, `carpenter-no-wood`, náhled obchodu s vozy
-  (`VillageNeighbour.carts`), `SceneVillage.carts` (`sceneCarts` – u ohrady a cíl dne; scéna
-  vozy z dat zatím nekreslí). Dílna tesaře má model `tesar` (Řemeslné dílny).
+  (`VillageNeighbour.carts`), `SceneVillage.carts` (`sceneCarts` – u ohrady, cíl dne, náklad
+  `job.load` a trasa dne `route` – osa `villageCartRoutes` zjednodušená `simplifiedRoute`; scéna
+  je kreslí – Vozy se spřežením). Dílna tesaře má model `tesar` (Řemeslné dílny).
 - **Ozim a jař** (fields.md – Ozim a jař): roční plán (`YearPlan`) nese práci jaře nahoře (tvar
   plánu z doby před ozimem) a ozimu v `winter?` (`CropWork`); díly osevu mají `crop?` (chybí =
   jař). Okna prací po plodinách `CROP_WINDOWS` (`WINDOWS` = jař, `WINTER_WINDOWS`) v `rules.ts`.
@@ -1459,8 +1460,8 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   souvrati nadzvednuté, oráč u rukojeti – `composePose`), kreslení
   `plough-team-renderer.ts` (VAT jako lidé + pevné díly v instancích). Rozměry rádla a jha musí
   sedět s `TEAM_PARTS` (hlídá test).
-- **Vozy se spřežením** ([docs/design/wagons.md](docs/design/wagons.md) – zatím jen modely
-  a ukázka **Vozy** na `/dev/buildings`, ve hře nejsou): dvoukolák a čtyřkolák z 0 A.D. převádí
+- **Vozy se spřežením** ([docs/design/wagons.md](docs/design/wagons.md) – modely fáze 3a, ve vsi
+  fáze 3; ukázka **Vozy** na `/dev/buildings`): dvoukolák a čtyřkolák z 0 A.D. převádí
   `tools/blender/wagons_from_0ad.py` (vlastní parser skinovaného COLLADA, model rozdělený podle
   kostí, koňský postroj pryč, vlastní oj ke jhu, náklad modelovaný ve skriptu) do
   `public/models/wagons/wagons.glb` – díly `wagon2-body`, `wagon4-body`, `wagon4-front` (předek na
@@ -1477,8 +1478,21 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   dráha kola = dráha osy ± polovina rozchodu × změna směru (vnější kolo v oblouku víc). Rozměry
   `CART_PARTS` musí sedět s modely (test čte obaly dílů z GLB). Kreslení `cart-renderer.ts`
   (`CartRenderer.setCarts(tracks)` / `animate` – voli a honák VAT z `plough/`, jho a provaz
-  z `ard.glb`, díly vozů v instancích, měkké stíny). Až jádro pošle vozy, herní scéna jen předá
-  trasy (`CartTrack` – druh, náklad, trasa, posun).
+  z `ard.glb`, díly vozů v instancích, měkké stíny; skrytý díl – náklad prázdného vozu, voli
+  stojícího – nulová matice). Druhy vozů jako v jádru (`two-wheel`, `four-wheel`). **Ve vsi**
+  (`village-carts.ts`, čisté funkce, testy): `villageCartPlans` z `SceneVillage.carts` – vůz s trasou
+  dne jede tam a zpět (`CartShuttle`: `shuttleRoute` – osa tam, smyčka obratiště za cílem
+  `CART_TURN_M`, zpět, smyčka u ohrady jako uzavřená trasa; `shuttleAt` – prázdný tam, u cíle
+  nakládá, plný zpět, u ohrady skládá; svoz v okně herního dne – ladicí `PLOUGH_DAY_DEBUG` jako
+  orba: jízd kolik se vejde při `CART_FAST_M_S`, nejvýš `CARTS.loadsPerCartDay`, den se opakuje;
+  výprava dokola tempem volů naložená tam i zpět), vůz bez jízdy stojí u ohrady (`CartParked`,
+  `parkedCartSpot`, `parkedCartPose` – dvoukolák na oji, bez volů). `cartPlanPose` = póza podle
+  plánu (`poseOnRoute`). `VillageRenderer.updateCarts` (klíč z vozů, okna dne a ohrad) a
+  `animateOxen`; voli táhnou buď vůz, nebo rádlo – `draftTeamsToday` (orba jen se spřežením, které
+  nevozí), `penHerds` bez volů na cestě; honák jde s vozem (`villager-plan.ts` – haul bez honáků).
+  Panel cesty: vozová cesta s ikonou `resources/cart.png` (`VillageRoad.cart`). `/dev/landscape`
+  **Vozy ve svahu** – vůz stojí, pak dvoukolák a čtyřkolák vozí snopy po vyjeté cestě
+  (`LandscapeScene.setWorkDayClock` – den ukázky 86 s).
 - **Vyšlapané pěšiny** ([docs/design/paths.md](docs/design/paths.md), Martin 18. 10. 2026 –
   i práce): síť počítá herní jádro `domain/village/paths/` stejně na serveru i v prohlížeči
   (soubory jsou v deterministické vrstvě – ESLint zakazuje Math.sin/cos/hypot/log, `**`; jen

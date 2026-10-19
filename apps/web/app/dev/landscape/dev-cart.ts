@@ -3,7 +3,9 @@
 // vyjde rovně a vůz ne (sklon 14–30 %): dole obydlí a ohrada se spřežením (tam stojí vůz),
 // nahoře díl pole na úhoru, kam se chodí pracovat. Trasu vozu spočítá herní jádro (`cartRoutes` –
 // stejná funkce jako vozová síť vsi) a ukáže se jako vozová cesta (dvě koleje); pěšinu na pole
-// počítá scéna jako vždy – ve svahu jde rovně, vozová cesta serpentinami.
+// počítá scéna jako vždy – ve svahu jde rovně, vozová cesta serpentinami. Vůz se spřežením
+// a honákem po ní sváží snopy z dílu nahoře (wagons.md – fáze 3: tam prázdný, zpátky plný,
+// zrychleně za den ukázky); bez vozové cesty stojí u ohrady.
 import {
   CART_ROUTES,
   cartObstacleMask,
@@ -17,7 +19,7 @@ import {
   type ObstacleLayer,
   type PathVillage,
 } from '@bohemia/game';
-import type { SceneRoad, SceneVillage } from '@/lib/village-view';
+import { simplifiedRoute, type SceneRoad, type SceneVillage } from '@/lib/village-view';
 
 /**
  * Svah, který se hledá: sklon přímo (pěšák) aspoň o desetinu nad mezí vozu a převýšení (m).
@@ -34,6 +36,8 @@ export interface CartDemo {
   field: SceneVillage['fields'][number];
   roads: SceneRoad[];
   labor: NonNullable<SceneVillage['labor']>;
+  /** Vůz u ohrady – jede po vozové cestě se svozem snopů, nebo stojí (jen pěšina). */
+  carts: NonNullable<SceneVillage['carts']>;
   focus: { x: number; z: number };
   /** Popis pro lištu – délka trasy vozu a pěšky. */
   note: string;
@@ -133,6 +137,7 @@ export function demoCartSlope(
     id: ids.field,
     parts: [
       {
+        id: ids.field,
         cell: { x: tx, y: ty },
         x: top.x,
         z: top.z,
@@ -163,6 +168,8 @@ export function demoCartSlope(
   });
   const route = routes[0]!;
   const direct = Math.hypot(top.x - penAt.x, top.z - penAt.z);
+  const driving = route.reached && kind !== 'none';
+  const target = { kind: 'field' as const, id: ids.field, parts: [ids.field] };
   const roads: SceneRoad[] =
     route.reached && kind !== 'none'
       ? [
@@ -185,8 +192,22 @@ export function demoCartSlope(
       day: 0,
       month: 7,
       people: { children: 0, adults: 6, elders: 0 },
-      shares: [{ activity: 'weed', target: { kind: 'field', id: ids.field }, manDays: 6 }],
+      shares: [
+        { activity: 'weed', target: { kind: 'field', id: ids.field }, manDays: 6 },
+        ...(driving ? [{ activity: 'haul' as const, target, manDays: 2, carts: 1 }] : []),
+      ],
     },
+    carts: [
+      {
+        id: ids.road,
+        kind: kind === 'none' ? 'two-wheel' : kind,
+        x: penAt.x,
+        z: penAt.z,
+        condition: 1,
+        job: driving ? { activity: 'haul', target, load: 'sheaves' } : null,
+        ...(driving ? { route: simplifiedRoute(route.points) } : {}),
+      },
+    ],
     focus: { x: (bottom.x + top.x) / 2, z: (bottom.z + top.z) / 2 },
     note:
       kind === 'none'

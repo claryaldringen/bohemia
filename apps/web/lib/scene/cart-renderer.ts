@@ -1,12 +1,13 @@
-// Vozy se spřežením volů ve scéně (docs/design/wagons.md; zatím ukázka „Vozy“ na /dev/buildings –
-// ve hře je přidá herní scéna, až jádro pošle vozy a jejich trasy). Voli a honák jako u spřežení
+// Vozy se spřežením volů ve scéně (docs/design/wagons.md – fáze 3): ve vsi svoz a výprava podle
+// `SceneVillage.carts` (village-carts.ts – jízda tam a zpět po trase dne, vůz bez jízdy stojí
+// u ohrady), na /dev/buildings ukázka „Vozy“ (dokola po trase). Voli a honák jako u spřežení
 // s rádlem (plough-team-renderer.ts – GLB s kostrou, animace ve VAT, thin instances), jho
 // a vodicí provaz z ard.glb (tools/blender/plough.py), vůz z wagons.glb
 // (tools/blender/wagons_from_0ad.py) po dílech: korba, předek a oj čtyřkoláku, kolo a náklad –
 // každý díl jeden mesh v instancích (jeden draw call na díl pro všechny vozy). Matice se každým
-// snímkem přestaví podle cartPose (cart-layout.ts) – kola se točí podle ujeté dráhy maticí
-// instance, ne zapečenou animací. Pod voly, honákem a vozem měkký stín (statická stínová mapa
-// pohyblivé věci nezachytí).
+// snímkem přestaví podle cartPlanPose (cart-layout.ts) – kola se točí podle ujeté dráhy maticí
+// instance, ne zapečenou animací; skrytý díl (náklad prázdného vozu, voli stojícího) má nulovou
+// matici. Pod voly, honákem a vozem měkký stín (statická stínová mapa pohyblivé věci nezachytí).
 import '@babylonjs/core/Meshes/thinInstanceMesh';
 import type { Camera } from '@babylonjs/core/Cameras/camera';
 import { BoundingInfo } from '@babylonjs/core/Culling/boundingInfo';
@@ -19,12 +20,13 @@ import {
   CART_PREFIX,
   CART_SCALE,
   cartLength,
-  cartPose,
+  cartPlanPose,
+  cartPlanRoute,
   cartWheelCount,
   createCartPose,
   routeAt,
+  type CartPlan,
   type CartPose,
-  type CartTrack,
   type RoutePoint,
 } from './cart-layout';
 import { loadModelParts } from './instanced-model';
@@ -43,8 +45,6 @@ import { loadBakedModel } from './villagers';
 const ANIMATE_RANGE_M = 700;
 /** Výška obalu vozu se spřežením nad zemí (m) – kupa sena čtyřkoláku. */
 const HEAD_ROOM_M = 2.6;
-/** Čas (s), ve kterém vozy stojí při omezeném pohybu. */
-const FROZEN_T = 23;
 /** Krok (m), po kterém se trasy projdou kvůli obalu. */
 const BOUNDS_STEP_M = 1;
 /** Kam spřežení sahá před jho (hlavy volů, m). */
@@ -79,11 +79,11 @@ interface PartSlots {
 }
 
 /**
- * Vozy se spřežením na trasách (`setCarts` – vůz, náklad, trasa, posun po trase). `animate` je
+ * Vozy (`setCarts` – plán každého vozu: dokola po trase, tam a zpět, nebo stojící). `animate` je
  * posune na okamžik `nowMs` (skutečný čas, jako zvířata) – jen v záběru; `frozen` = omezený pohyb.
  */
 export class CartRenderer {
-  private tracks: CartTrack[] = [];
+  private plans: CartPlan[] = [];
   private ox: BakedKind | null = null;
   private man: BakedKind | null = null;
   /** Díly wagons.glb a ard.glb podle jména uzlu (načtené, i když je zrovna žádný vůz nemá). */
@@ -100,26 +100,27 @@ export class CartRenderer {
     private readonly env: CartRendererEnvironment,
   ) {}
 
-  /** Vozy na trasách; modely se stáhnou s prvním vozem. */
-  setCarts(tracks: readonly CartTrack[]): void {
-    this.tracks = [...tracks];
-    while (this.poses.length < tracks.length) this.poses.push(createCartPose());
-    this.poses.length = tracks.length;
-    if (tracks.length > 0) void this.load();
+  /** Vozy a co dělají; modely se stáhnou s prvním vozem. `nowMs` – okamžik první pózy. */
+  setCarts(plans: readonly CartPlan[], nowMs = Date.now()): void {
+    this.plans = [...plans];
+    while (this.poses.length < plans.length) this.poses.push(createCartPose());
+    this.poses.length = plans.length;
+    if (plans.length > 0) void this.load();
     this.allocate();
     this.updateBounds();
-    if (this.count > 0) this.write(FROZEN_T, true);
+    if (this.count > 0) this.write(nowMs, false);
   }
 
   /** Počet vozů s načtenými modely (pro testy a měření). */
   get count(): number {
-    return this.ox && this.man && this.models.size > 0 ? this.tracks.length : 0;
+    return this.ox && this.man && this.models.size > 0 ? this.plans.length : 0;
   }
 
-  /** Střed vozu `index` (mezi jhem a korbou) v posledním zapsaném okamžiku – kam namířit kameru. */
+  /** Střed vozu `index` v posledním zapsaném okamžiku – kam namířit kameru. */
   center(index = 0): { x: number; z: number } | null {
     const pose = this.poses[index];
     if (!pose || this.count === 0) return null;
+    if (!pose.hitched) return { x: pose.body.x, z: pose.body.z };
     return { x: (pose.yoke.x + pose.body.x) / 2, z: (pose.yoke.z + pose.body.z) / 2 };
   }
 
@@ -134,7 +135,7 @@ export class CartRenderer {
       const c = this.bounds.boundingSphere.centerWorld;
       if (Vector3.Distance(camera.globalPosition, c) > ANIMATE_RANGE_M) return false;
     }
-    this.write(frozen ? FROZEN_T : villagerSeconds(nowMs), frozen);
+    this.write(nowMs, frozen);
     return true;
   }
 
@@ -156,7 +157,7 @@ export class CartRenderer {
     this.shadow = null;
   }
 
-  /** Obal všech vozů na celých trasách (stálý, dokud se trasy nezmění). */
+  /** Obal všech vozů na celých trasách i stojících (stálý, dokud se plány nezmění). */
   private updateBounds(): void {
     let minX = Infinity;
     let minZ = Infinity;
@@ -164,21 +165,28 @@ export class CartRenderer {
     let maxZ = -Infinity;
     let low = Infinity;
     let high = -Infinity;
+    const extend = (x: number, z: number): void => {
+      minX = Math.min(minX, x);
+      maxX = Math.max(maxX, x);
+      minZ = Math.min(minZ, z);
+      maxZ = Math.max(maxZ, z);
+      const y = this.env.groundHeight(x, z);
+      low = Math.min(low, y);
+      high = Math.max(high, y);
+    };
     const at: RoutePoint = { x: 0, z: 0, hx: 0, hz: 1, heading: 0 };
     let reach = 0;
-    for (const track of this.tracks) {
-      const route = track.route;
-      reach = Math.max(reach, cartLength(track.kind));
+    for (const plan of this.plans) {
+      reach = Math.max(reach, cartLength(plan.kind));
+      if ('parked' in plan) {
+        extend(plan.parked.x, plan.parked.z);
+        continue;
+      }
+      const route = cartPlanRoute(plan)!;
       const steps = Math.max(1, Math.ceil(route.length / BOUNDS_STEP_M));
       for (let i = 0; i <= steps; i++) {
         routeAt(route, (i / steps) * route.length, at);
-        minX = Math.min(minX, at.x);
-        maxX = Math.max(maxX, at.x);
-        minZ = Math.min(minZ, at.z);
-        maxZ = Math.max(maxZ, at.z);
-        const y = this.env.groundHeight(at.x, at.z);
-        low = Math.min(low, y);
-        high = Math.max(high, y);
+        extend(at.x, at.z);
       }
     }
     if (minX > maxX) return;
@@ -189,7 +197,10 @@ export class CartRenderer {
     );
   }
 
-  /** Které díly má který vůz: korba (a předek s ojí), kola, náklad; jho a provaz každý. */
+  /**
+   * Které díly má který vůz: korba (a předek s ojí), kola, náklad; jho a provaz jen vůz, který
+   * jezdí (stojící vůz voly nemá).
+   */
   private partSlots(): Map<string, { cart: number; index: number }[]> {
     const out = new Map<string, { cart: number; index: number }[]>();
     const add = (name: string, cart: number, index = 0): void => {
@@ -197,23 +208,24 @@ export class CartRenderer {
       list.push({ cart, index });
       out.set(name, list);
     };
-    this.tracks.forEach((track, cart) => {
-      const prefix = CART_PREFIX[track.kind];
+    this.plans.forEach((plan, cart) => {
+      const prefix = CART_PREFIX[plan.kind];
       add(`${prefix}-body`, cart);
-      if (track.kind === 'four') {
+      if (plan.kind === 'four-wheel') {
         add('wagon4-front', cart);
         add('wagon4-pole', cart);
       }
-      for (let w = 0; w < cartWheelCount(track.kind); w++) add('wagon-wheel', cart, w);
-      if (track.cargo !== 'empty') add(`${prefix}-${track.cargo}`, cart);
+      for (let w = 0; w < cartWheelCount(plan.kind); w++) add('wagon-wheel', cart, w);
+      if ('parked' in plan) return;
+      if (plan.cargo !== 'empty') add(`${prefix}-${plan.cargo}`, cart);
       for (const name of DRAFT_PARTS) add(name, cart);
     });
     return out;
   }
 
-  /** Buffery instancí podle vozů (voli 2, honák 1, díly podle vozu, stíny 4 na vůz). */
+  /** Buffery instancí podle vozů (voli 2, honák 1 – i u stojícího vozu skrytí –, díly, stíny 4). */
   private allocate(): void {
-    const n = this.tracks.length;
+    const n = this.plans.length;
     for (const [kind, per] of [
       [this.ox, 2],
       [this.man, 1],
@@ -260,41 +272,49 @@ export class CartRenderer {
     }
   }
 
-  /** Zapíše pózy všech vozů v čase `t` (s) do instancí. */
-  private write(t: number, frozen: boolean): void {
+  /** Zapíše pózy všech vozů v okamžiku `nowMs` do instancí. */
+  private write(nowMs: number, frozen: boolean): void {
     const ox = this.ox;
     const man = this.man;
     if (!ox || !man) return;
     const ground = this.env.groundHeight;
-    this.tracks.forEach((track, i) => {
-      const pose = cartPose(track, t, this.poses[i]!, ground, frozen);
+    this.plans.forEach((plan, i) => {
+      const pose = cartPlanPose(plan, nowMs, this.poses[i]!, ground, frozen);
       const still = frozen || !pose.moving;
-      pose.oxen.forEach((o, j) => {
+      if (pose.hitched) {
+        pose.oxen.forEach((o, j) => {
+          writeFigure(
+            ox,
+            i * 2 + j,
+            o,
+            CART_SCALE,
+            still ? 'idle' : 'walk',
+            j * 0.37 + i * 0.13,
+            still,
+          );
+          this.writeShadow(i * SHADOWS_PER_CART + j, o, SHADOW.ox[0], SHADOW.ox[1]);
+        });
         writeFigure(
-          ox,
-          i * 2 + j,
-          o,
-          CART_SCALE,
-          still ? 'idle' : 'walk',
-          j * 0.37 + i * 0.13,
+          man,
+          i,
+          pose.boy,
+          CART_SCALE * CART_PARTS.drover.scale,
+          still ? 'idle' : 'lead',
+          0.55 + i * 0.21,
           still,
         );
-        this.writeShadow(i * SHADOWS_PER_CART + j, o, SHADOW.ox[0], SHADOW.ox[1]);
-      });
-      writeFigure(
-        man,
-        i,
-        pose.boy,
-        CART_SCALE * CART_PARTS.drover.scale,
-        still ? 'idle' : 'lead',
-        0.55 + i * 0.21,
-        still,
-      );
-      this.writeShadow(i * SHADOWS_PER_CART + 2, pose.boy, SHADOW.man[0], SHADOW.man[1]);
+        this.writeShadow(i * SHADOWS_PER_CART + 2, pose.boy, SHADOW.man[0], SHADOW.man[1]);
+      } else {
+        // stojící vůz: voli jsou v ohradě, honák doma
+        hideFigure(ox, i * 2);
+        hideFigure(ox, i * 2 + 1);
+        hideFigure(man, i);
+        for (let j = 0; j < 3; j++) this.hideShadow(i * SHADOWS_PER_CART + j);
+      }
       // stín vozu: elipsa pod korbou ve směru korby
       const body = pose.body;
       const len = Math.hypot(body.fx, body.fz) || 1;
-      const kind = track.kind === 'two' ? CART_PARTS.two : CART_PARTS.four;
+      const kind = CART_PARTS[plan.kind];
       const middle = (kind.front - kind.back) / 2;
       this.writeShadow(
         i * SHADOWS_PER_CART + 3,
@@ -317,16 +337,29 @@ export class CartRenderer {
         if (name === 'yoke') writePartMatrix(part.matrices, o, pose.yoke, CART_SCALE);
         else if (name === 'rope') writeSegmentMatrix(part.matrices, o, pose.rope, 1, CART_SCALE);
         else if (name === 'wagon4-pole') {
-          writeSegmentMatrix(part.matrices, o, pose.pole, CART_PARTS.four.poleM, CART_SCALE);
+          writeSegmentMatrix(
+            part.matrices,
+            o,
+            pose.pole,
+            CART_PARTS['four-wheel'].poleM,
+            CART_SCALE,
+          );
         } else if (name === 'wagon-wheel') {
           writePartMatrix(part.matrices, o, pose.wheels[index]!, CART_SCALE);
         } else if (name === 'wagon4-front') {
           writePartMatrix(part.matrices, o, pose.front, CART_SCALE);
-        } else writePartMatrix(part.matrices, o, pose.body, CART_SCALE);
+        } else if (name.endsWith('-body') || pose.loaded) {
+          writePartMatrix(part.matrices, o, pose.body, CART_SCALE);
+        } else {
+          // náklad prázdného vozu (jede tam) – nulová matice, nekreslí se
+          part.matrices.fill(0, o, o + 16);
+        }
       });
       part.mesh.thinInstanceBufferUpdated('matrix');
     }
-    const time = frozen ? 0 : (t % 3600) + 3600;
+    // skutečný čas od stejného počátku jako lidé a zvířata (malá čísla – přesné siny)
+    const t = villagerSeconds(nowMs);
+    const time = frozen ? 0 : (((t % 3600) + 3600) % 3600) + 3600;
     for (const kind of [ox, man]) {
       kind.mesh.thinInstanceBufferUpdated('matrix');
       kind.mesh.thinInstanceBufferUpdated('bakedVertexAnimationSettingsInstanced');
@@ -358,6 +391,10 @@ export class CartRenderer {
     m[o + 13] = at.y + SHADOW_LIFT_M;
     m[o + 14] = at.z;
     m[o + 15] = 1;
+  }
+
+  private hideShadow(index: number): void {
+    this.shadow?.matrices.fill(0, index * 16, index * 16 + 16);
   }
 
   private load(): Promise<void> {
@@ -403,7 +440,7 @@ export class CartRenderer {
       this.shadow = createBlobShadow(this.scene, 'cart-shadow', SHADOW_OPACITY);
       this.allocate();
       if (this.count > 0) {
-        this.write(FROZEN_T, true);
+        this.write(Date.now(), false);
         this.env.onLoaded();
       }
     })();
@@ -416,4 +453,10 @@ export class CartRenderer {
     mesh.isPickable = false;
     this.models.set(name, mesh);
   }
+}
+
+/** Skrytá postava (vůz bez volů): nulová matice, animace stojí. */
+function hideFigure(kind: BakedKind, slot: number): void {
+  kind.matrices.fill(0, slot * 16, slot * 16 + 16);
+  kind.settings.fill(0, slot * 4, slot * 4 + 4);
 }

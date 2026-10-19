@@ -69,6 +69,8 @@ import {
 import { ploughFront, ploughTeamCount } from './plough-front';
 import { ploughPath } from './plough-team';
 import { PloughTeams } from './plough-team-renderer';
+import { CartRenderer } from './cart-renderer';
+import { draftTeamsToday, villageCartPlans } from './village-carts';
 import { penHerds, scenePenViews } from './village-pens';
 import { SACRED_SITE_KIND, sacredBuildingKey } from './sacred-layout';
 import { SacredRenderer } from './sacred-renderer';
@@ -264,6 +266,9 @@ export class VillageRenderer {
   private readonly penAnimals: PenAnimals;
   private readonly teams: PloughTeams;
   private teamsKey = '';
+  /** Vozy se spřežením – svoz a výprava, vůz bez jízdy u ohrady (wagons.md – village-carts.ts). */
+  private readonly carts: CartRenderer;
+  private cartsKey = '';
   /** Hodiny světa – kdy herní den rozdělení práce začíná a končí (orba za herní den). */
   private worldClock: WorldClock | null = null;
   /** Vlastní okno herního dne (vývojová ukázka „Orání“ – den ukázky), jinak z hodin světa. */
@@ -334,6 +339,12 @@ export class VillageRenderer {
       prepareMaterial: prepareDwellingMaterial,
       onLoaded: () => context.requestRender(),
     });
+    this.carts = new CartRenderer(scene, {
+      baseUrl: '/models/',
+      groundHeight: context.groundHeight,
+      prepareMaterial: prepareDwellingMaterial,
+      onLoaded: () => context.requestRender(),
+    });
   }
 
   /** Vrátí true, když se ve scéně něco změnilo (je co překreslit). */
@@ -388,9 +399,11 @@ export class VillageRenderer {
   private updatePens(village: SceneVillage): boolean {
     const pens = this.pens.update(scenePenViews(village));
     const day = this.ploughDay;
-    const routes = day ? splitStints(day.stints, ploughTeamCount(village)) : null;
-    const front = routes ? [] : ploughFront(village);
-    const herds = penHerds(village, routes ? routes.length : front.length);
+    // voli táhnou buď vůz, nebo rádlo (wagons.md) – orba jen se spřežením, které nevozí
+    const draft = draftTeamsToday(village, ploughTeamCount(village));
+    const routes = day ? splitStints(day.stints, draft.plough) : null;
+    const front = routes ? [] : ploughFront(village).slice(0, draft.plough);
+    const herds = penHerds(village, (routes ? routes.length : front.length) + draft.carts);
     const animals = this.penAnimals.set(
       this.pens.builtPens().flatMap(({ id, layout }) => {
         const herd = herds.get(id);
@@ -424,7 +437,26 @@ export class VillageRenderer {
       }
       if (this.fields.setFurrows([])) teams = true;
     }
-    return pens || animals || teams;
+    const carts = this.updateCarts(village);
+    return pens || animals || teams || carts;
+  }
+
+  /**
+   * Vozy (wagons.md – fáze 3): svoz tam a zpět po trase dne (ladicí – jízdy dne za herní den jako
+   * orba, PLOUGH_DAY_DEBUG), výprava po stezce, vůz bez jízdy u ohrady. Vrátí true při změně.
+   */
+  private updateCarts(village: SceneVillage): boolean {
+    const window = PLOUGH_DAY_DEBUG && village.labor ? this.dayWindow(village.labor.day) : null;
+    const pens = this.pens.builtPens();
+    const key = JSON.stringify([
+      village.carts ?? [],
+      window,
+      pens.map((p) => [p.id, p.layout.square, p.layout.front, p.layout.side]),
+    ]);
+    if (key === this.cartsKey) return false;
+    this.cartsKey = key;
+    this.carts.setCarts(villageCartPlans(village, pens, window), Date.now());
+    return true;
   }
 
   /**
@@ -467,6 +499,11 @@ export class VillageRenderer {
     this.ploughClock = clock;
   }
 
+  /** Střed vozu (mezi jhem a korbou, stojící vůz korba) – kam namířit kameru (vývojová ukázka). */
+  cartCenter(index = 0): { x: number; z: number } | null {
+    return this.carts.center(index);
+  }
+
   /** Střed spřežení (jho a rádlo) – kam namířit kameru (vývojová ukázka). */
   ploughTeamCenter(index = 0): { x: number; z: number } | null {
     return this.teams.center(index);
@@ -479,10 +516,11 @@ export class VillageRenderer {
   animateOxen(nowMs: number, camera: Camera | null, frozen = false): boolean {
     const animals = this.penAnimals.animate(nowMs, camera, frozen);
     const teams = this.teams.animate(nowMs, camera, frozen);
+    const carts = this.carts.animate(nowMs, camera, frozen);
     // brázda za rádlem přibývá s trasou spřežení (ladicí orba za herní den)
     const furrows =
       this.ploughDay !== null && !frozen && this.fields.setFurrows(this.teams.furrows(nowMs));
-    return animals || teams || furrows;
+    return animals || teams || carts || furrows;
   }
 
   /**
@@ -660,6 +698,7 @@ export class VillageRenderer {
     this.sacred.dispose();
     this.penAnimals.dispose();
     this.teams.dispose();
+    this.carts.dispose();
     this.pegs.dispose();
     this.fields.dispose();
     this.wild.dispose();
