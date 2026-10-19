@@ -5,3 +5,4 @@ export * from './network';
 export * from './walking';
 export * from './village';
 export * from './roads';
+export * from './entrances';

@@ -7,9 +7,10 @@ se chodí o něco lépe než tam, kde není.“). **Vzhled pěšin dne** – Mar
 pěšina ať je nevýrazná. Vyšlapanou cestu nechme jako teď“), viz Jak pěšiny vznikají – Síla
 pěšiny. **Po pevné cestě bez ohledu na povrch** – Martin 19. 10. 2026 („Když už někde vyšlapaná
 cesta je, ať po ní lidé chodí bez ohledu na to, na čem ta stezka leží.“), viz Jak pěšiny vznikají
-– Kudy. Síť počítá herní jádro
+– Kudy. **Vchody** – Martin 19. 10. 2026 („A ještě, každá budova by měla mít nějaký vchod, od
+kterého cesta povede.“), viz Vchody. Síť počítá herní jádro
 (`packages/game/src/domain/village/paths/` – `terrain.ts`, `network.ts`, `walking.ts`,
-`village.ts`) stejně na serveru i v prohlížeči; scéna `apps/web/lib/scene/path-renderer.ts`,
+`village.ts`, `entrances.ts`) stejně na serveru i v prohlížeči; scéna `apps/web/lib/scene/path-renderer.ts`,
 `path-ribbon.ts`, `path-router.ts`. Pevné cesty a stromy u nich: [roads.md](roads.md).
 
 ## Proč
@@ -82,6 +83,46 @@ A po vyšlapané pěšině se chodí lépe – cesta na vzdálené pole po ní s
 - **Lidé chodí po pěšinách:** nosiči z pole, nosiči dřeva ke stavbě a ženy pro vodu a dřevo jdou
   na nejbližší pěšinu, po ní a z ní k cíli; kde pěšina nevede (nebo by byla velká oklika), jdou
   rovnou. Po pěšině jdou viditelně rychleji (a rychleji kráčí).
+
+## Vchody
+
+Martin (19. 10. 2026): „A ještě, každá budova by měla mít nějaký vchod, od kterého cesta
+povede.“ Podrobnosti návrh Clauda.
+
+- **Každá stavba má vchod a pěšina vede k němu** – ne kamkoli k plotu. Vchod počítá jedna funkce
+  herního jádra (`paths/entrances.ts`) pro síť pěšin (server i prohlížeč) i pro scénu, která tam
+  kreslí branku – vchod v síti a branka ve scéně se nerozejdou.
+- **Obydlí:** brána před koncem šíje, u pozemku polozemnice branka v plotu proti vchodu domu, u
+  dvorce vojvody brána na vzdálené straně dvora, u dílen hrnčíře a kováře vchod pod přístřeškem
+  (brána 1 m před domem leží pod ním), u uhlíře vchod do zemnice – tak to síť dělala už dřív
+  (`gateOf`) a se scénou to sedí (ověřeno).
+- **Hřbitov:** branka v pleteném plotu na rovném úseku nejblíž k nejbližšímu hotovému obydlí (od
+  středu hotových čtverců), aspoň kůl od zakulaceného rohu. Dřív ji počítala jen scéna a nikde se
+  neukládala – teď ji počítá jádro (`cemeteryEntrance`) a scéna ji převezme. Hotový hřbitov má
+  branku v plotu hotových čtverců (rozšíření ve stavbě branku nemá – dokud se staví, branka
+  zůstává na místě), zakládaný v plotu všech čtverců. Branka se dál posune, když se postaví
+  obydlí blíž, nebo když se rozšíření dostaví – jako dřív ve scéně.
+- **Ohrada:** branka ze žerdí na straně k nejbližšímu obydlí, posunutá po té straně k němu
+  (`penEntrance`) – u natočené ohrady v jejích osách.
+- **Modla:** vstup na předku (+z modelu, kam hledí tváře a stojí obětiny) na okraji půdorysu
+  4 × 4 m. **Svatyně:** příkop nemá přerušení – vstup je na předku přes hrot okvětí, kde je příkop
+  nejužší, za valem 13,5 m od středu (`sacredEntrance`).
+- **Sad, pole a louky** budovy nejsou a vchod nemají: sad nemá plot, pracuje se v něm všude
+  (česání, péče u každého stromu), takže pěšina vede k nejbližšímu okraji jako dřív (rozhodnutí
+  Clauda).
+- **Kdo jde vchodem:** pěšiny dne i roční síť (pevné cesty) – návštěvy hřbitova, krmení dobytka
+  a práce v hotové ohradě, návštěvy a oprava modly a svatyně. **Staveniště** (zakládaný hřbitov
+  a jeho rozšíření, ohrada ve stavbě, rozestavěná modla a svatyně) mají práci ze všech stran jako
+  dřív – plot nebo příkop teprve vzniká. Postavy přes plot nechodily ani dřív (stavitelé a krmiči
+  stojí za plotem, hroby a ohrady obcházejí, zvířata v ohradě stojí na svých místech), takže se
+  jich změna netýká.
+- **Rozcestí a staré vsi:** pěšina k vchodu se napojí jako u brány domu a pevné cesty se k ní
+  stáhnou samy (sleva za pevnou cestu). Staré vsi se načtou beze změny, síť se přepočítá podle
+  klíče rozložení vsi (`walkLayoutKey` – hotový hřbitov má klíč jako dřív, nový je jen u
+  zakládaného hřbitova a rozšíření). Pevné cesty, které dnes končí jinde u plotu, se nechají být:
+  provoz se přesune k vchodu, cesta k vchodu vznikne z provozu sama a nepoužívaná vyšlapaná cesta
+  zaroste podle stávajících pravidel ([roads.md](roads.md)) – měnit hráči cesty naráz by bylo
+  proti pravidlu, že se cesta nikdy nehýbe sama od sebe.
 
 ## Pěšiny a práce
 

@@ -198,6 +198,7 @@ export function pathVillageOf(state: VillageState, day: number, landscape: Lands
     id: o.id,
     squares: o.squares.map((s) => square(landscape, s.cell, o.grid)),
   }));
+  // hotový hřbitov a rozšíření ve stavbě (`pending`) jako scéna – branka (paths.md – Vchody)
   const cemeteries = villageCemeteries(state).map((c) => ({
     id: c.id,
     squares: c.squares.map((s) => ({
@@ -207,7 +208,9 @@ export function pathVillageOf(state: VillageState, day: number, landscape: Lands
       size: c.squareSizeM,
       // natočený hřbitov (fields.md – Natočené stavby)
       ...(c.grid ? { rotation: c.grid.rotation } : {}),
+      ...(s.constructionId === undefined ? {} : { pending: true }),
     })),
+    built: c.builtDay !== null,
   }));
   const sites = state.constructions.flatMap((c) =>
     (c.kind === 'idol' || c.kind === 'shrine') && c.position !== null
@@ -365,8 +368,11 @@ export function walkLayoutKey(state: VillageState, day: number): string {
   const orchards = villageOrchards(state).map(
     (o) => `${o.id}${turned(o.grid)}:${o.squares.map((s) => `${s.cell.x},${s.cell.y}`).join(';')}`,
   );
+  // zakládaný hřbitov a rozšíření ve stavbě – branka se počítá z hotových čtverců (paths.md –
+  // Vchody); u hotového hřbitova klíč beze změny
   const cemeteries = villageCemeteries(state).map(
-    (c) => `${c.id}${turned(c.grid)}:${c.squares.map((s) => `${s.cell.x},${s.cell.y}`).join(';')}`,
+    (c) =>
+      `${c.id}${turned(c.grid)}:${c.squares.map((s) => `${s.cell.x},${s.cell.y}${s.constructionId === undefined ? '' : 'p'}`).join(';')}${c.builtDay === null ? ':-' : ''}`,
   );
   const sacred = [
     (state.sacredOaks ?? []).map((o) => o.id).join(','),

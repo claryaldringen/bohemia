@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CEMETERY } from '@bohemia/game';
+import { CEMETERY, cemeteryEntrance, rotationCosSin, turnRotation } from '@bohemia/game';
 import {
   CEMETERY_FENCE,
   CEMETERY_PHASES,
@@ -129,6 +129,72 @@ describe('fenceLayout', () => {
     const fence = fenceLayout([square(0, 0), square(1, 1)], null, { withGate: false }).fence;
     expect(fence.runs).toHaveLength(2);
     expect(fence.runs.every((run) => run.closed)).toBe(true);
+  });
+});
+
+describe('branka hřbitova = vchod z jádra (paths.md – Vchody)', () => {
+  /** Čtverec natočené mřížky (natočení po 15°) s počátkem v (ox, oz). */
+  const turned = (i: number, j: number, turn: number, ox = 37.5, oz = 37.5): CellSquare => {
+    const rotation = turnRotation(turn);
+    const [c, s] = rotationCosSin(rotation);
+    return {
+      cell: { x: i, y: j },
+      x: ox + i * 15 * c + j * 15 * s,
+      z: oz - i * 15 * s + j * 15 * c,
+      size: 15,
+      rotation,
+    };
+  };
+  /** Střed branky plotu (mezi kůly branky). */
+  const gateAt = (squares: CellSquare[], toward: { x: number; z: number }): [number, number] => {
+    const gate = fencePosts(fenceLayout(squares, toward).fence).filter((p) => p.gate);
+    expect(gate).toHaveLength(2);
+    return [(gate[0]!.x + gate[1]!.x) / 2, (gate[0]!.z + gate[1]!.z) / 2];
+  };
+  const shapes: [string, CellSquare[]][] = [
+    ['dva čtverce', two],
+    ['tvar L', [square(0, 0), square(1, 0), square(0, 1)]],
+    ['jen rohem', [square(0, 0), square(1, 1)]],
+    ['natočený 15°', [turned(0, 0, 1), turned(1, 0, 1)]],
+    ['natočený 90°', [turned(0, 0, 6), turned(0, 1, 6)]],
+    ['natočený 105° L', [turned(0, 0, 7), turned(1, 0, 7), turned(1, 1, 7)]],
+  ];
+  const homes = [
+    { x: 7.5, z: -100 },
+    { x: 60, z: 70 },
+    { x: -40, z: 12 },
+    { x: 8.2, z: 8.6 },
+  ];
+
+  it('scéna kreslí branku tam, kde ji jádro zná – a kde byla dřív (k nejbližšímu domu)', () => {
+    for (const [name, squares] of shapes) {
+      for (const home of homes) {
+        const entrance = cemeteryEntrance({ squares, built: true }, [
+          { position: home, built: true },
+        ]);
+        expect(entrance, name).not.toBeNull();
+        const core: [number, number] = [entrance!.x, entrance!.z];
+        const scene = gateAt(squares, { x: core[0], z: core[1] });
+        const before = gateAt(squares, home);
+        for (const [got, label] of [
+          [scene, 'scéna'],
+          [before, 'dřív'],
+        ] as const) {
+          expect(Math.hypot(got[0] - core[0], got[1] - core[1]), `${name} ${label}`).toBeLessThan(
+            1e-6,
+          );
+        }
+        // ven z hřbitova: kus za brankou žádný čtverec není
+        const out = { x: core[0] + entrance!.outX, z: core[1] + entrance!.outZ };
+        const inSquare = squares.some((q) => {
+          const [c, s] = rotationCosSin(q.rotation ?? 0);
+          const dx = out.x - q.x;
+          const dz = out.z - q.z;
+          return Math.abs(dx * c - dz * s) < q.size / 2 && Math.abs(dx * s + dz * c) < q.size / 2;
+        });
+        expect(inSquare, name).toBe(false);
+      }
+    }
   });
 });
 

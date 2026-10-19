@@ -5,6 +5,7 @@ import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import type { Scene } from '@babylonjs/core/scene';
+import { cemeteryEntrance } from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
 import {
   CEMETERY_FENCE,
@@ -92,7 +93,9 @@ export class CemeteryRenderer {
     const seen = new Set<number>();
     for (const cemetery of cemeteries) {
       seen.add(cemetery.id);
-      const gate = gateTarget(cemetery.squares, dwellings);
+      // branka = vchod z jádra (paths.md – Vchody), pěšina vede k ní
+      const entrance = cemeteryEntrance(cemetery, dwellings);
+      const gate: Point | null = entrance ? [entrance.x, entrance.z] : null;
       const key = cemeteryKey(cemetery, gate);
       const current = this.views.get(cemetery.id);
       if (current?.key === key) continue;
@@ -334,32 +337,6 @@ export class CemeteryRenderer {
     }
     return material;
   }
-}
-
-/**
- * Nejbližší hotové obydlí ke středu hotových čtverců hřbitova – k němu míří branka (obydlí
- * čekající na server ani staveniště ji neposunou); bez obydlí null.
- */
-function gateTarget(
-  squares: readonly { x: number; z: number; pending?: boolean }[],
-  dwellings: readonly SceneDwelling[],
-): Point | null {
-  const ready = squares.filter((s) => !s.pending);
-  const base = ready.length > 0 ? ready : squares;
-  if (base.length === 0) return null;
-  const cx = base.reduce((s, q) => s + q.x, 0) / base.length;
-  const cz = base.reduce((s, q) => s + q.z, 0) / base.length;
-  let best: Point | null = null;
-  let bestD = Infinity;
-  for (const d of dwellings) {
-    if (!d.built) continue;
-    const dist = Math.hypot(d.position.x - cx, d.position.z - cz);
-    if (dist < bestD) {
-      bestD = dist;
-      best = [d.position.x, d.position.z];
-    }
-  }
-  return best;
 }
 
 function cemeteryKey(c: SceneCemetery, gate: Point | null): string {

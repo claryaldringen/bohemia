@@ -3,8 +3,9 @@
 // ne v den orby, když jsou na poli –, telata ve výcviku, krávy v zimě). Kde orá spřežení, určuje
 // plough-front.ts. Kreslí village-renderer.ts (pen-renderer.ts, pen-animals.ts,
 // plough-team-renderer.ts).
+import { penEntranceFacing } from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
-import { penFacing, type PenHerd } from './pen-layout';
+import type { PenHerd } from './pen-layout';
 import type { PenView } from './pen-renderer';
 import { ploughingToday } from './plough-front';
 
@@ -21,19 +22,11 @@ export function scenePenViews(village: Pick<SceneVillage, 'pens' | 'dwellings'>)
       size: pen.size,
       ...(pen.rotation !== undefined ? { rotation: pen.rotation } : {}),
     };
-    let target: { x: number; z: number } = { x: pen.x, z: pen.z - 1 };
-    let best = Infinity;
-    for (const d of village.dwellings) {
-      const distance = Math.hypot(d.position.x - pen.x, d.position.z - pen.z);
-      if (distance < best) {
-        best = distance;
-        target = d.position;
-      }
-    }
     return {
       id: pen.id,
       square,
-      facing: penFacing(square, target),
+      // branka k nejbližšímu obydlí – stejně jako vchod v síti pěšin (paths.md – Vchody)
+      facing: penEntranceFacing(pen, village.dwellings),
       progress: pen.built ? 1 : Math.min(0.999, Math.max(0, pen.progress)),
       ...(pen.condition === undefined ? {} : { condition: pen.condition }),
     };

@@ -200,6 +200,11 @@ Každé místo přidá k cílovému štěstí; posvátná místa dohromady nejv�
   v okruhu 25 m od středu, stejný výpočet – rozhodnutí Clauda).
 - Upozornění (fakt): „Vesničané ušetřili posvátný dub“ / „… dubový háj“, „Posvátný dub uschl“,
   „Posvátná souš padla“.
+- **Vstup do modly a svatyně** (Martin, 19. 10. 2026: „každá budova by měla mít nějaký vchod, od
+  kterého cesta povede“; podrobnosti návrh Clauda): pěšina k hotové modle a svatyni vede na její
+  předek (+z modelu – tváře modly a obětiny), u modly na okraj půdorysu, u svatyně přes hrot
+  okvětí na předku, kde je příkop nejužší (příkop nemá přerušení), za valem 13,5 m od středu.
+  Návštěvy a oprava chodí vstupem, staveniště ze všech stran ([paths.md](paths.md) – Vchody).
 - Ve scéně stojí místo uschlého dubu souš (o čtvrtinu nižší než dub v den uschnutí), padlá souš
   je padlý kmen přes místo dubu (modely dekorací 0 A.D.).
 

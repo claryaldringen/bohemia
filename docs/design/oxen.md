@@ -28,7 +28,11 @@ půdy na seno. Dobytek, dosud jen ozdoba, se tím poprvé zapojí do hry.
 
 - **Stavba po čtvercích** jako pozemek polozemnice: jeden čtverec 15 × 15 m na louce, obehnaný
   **pleteným plotem se zakulacenými rohy** (Martin), v rohu jednoduchý přístřešek na sloupech
-  s doškovou střechou a žlab; branka (návrh Clauda).
+  s doškovou střechou a žlab; branka (návrh Clauda) na straně k nejbližšímu obydlí, posunutá
+  po té straně k němu. **Pěšina vede k brance** (Martin, 19. 10. 2026: „každá budova by měla mít
+  nějaký vchod, od kterého cesta povede“) – krmení a práce v hotové ohradě chodí brankou,
+  staveniště ze všech stran; branku počítá herní jádro (`penEntrance`) pro síť pěšin i scénu
+  ([paths.md](paths.md) – Vchody).
 - **Natočená ohrada** (Martin, 19. 10. 2026 – všechny plošné stavby jde natáčet;
   [fields.md](fields.md), Natočené stavby): ohrada je jeden čtverec mřížky natočené po 15°
   (návrh Clauda) – [ a ] před umístěním otáčejí mřížku kolem čtverce pod kurzorem, nad jinou

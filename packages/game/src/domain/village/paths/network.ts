@@ -15,6 +15,13 @@ import type {
   SacredBuildingKind,
   TileCell,
 } from '../types';
+import {
+  cemeteryEntrance,
+  penEntrance,
+  penEntranceFacing,
+  sacredEntrance,
+  type Entrance,
+} from './entrances';
 import { nearestPartFinder } from './nearest';
 import { PATH_FOREST_EDGE, PATH_WATER, PATH_WATER_SPOT, type PathTerrain } from './terrain';
 
@@ -139,7 +146,15 @@ export interface PathVillage {
     parts: readonly (PathSquare & { stage: PartStage; grazed?: boolean })[];
   }[];
   orchards?: readonly { id: number; squares: readonly PathSquare[] }[];
-  cemeteries?: readonly { id: number; squares: readonly PathSquare[] }[];
+  /**
+   * Hřbitovy – čtverce (`pending` – rozšíření ve stavbě) a jestli je hřbitov hotový (bez údaje
+   * hotový): k hotovému se chodí brankou (entrances.ts – `cemeteryEntrance`).
+   */
+  cemeteries?: readonly {
+    id: number;
+    squares: readonly (PathSquare & { pending?: boolean })[];
+    built?: boolean;
+  }[];
   sacred?: {
     oaks: readonly { id: number; x: number; z: number }[];
     groves: readonly { id: number; x: number; z: number; squares: readonly PathSquare[] }[];
@@ -291,6 +306,12 @@ const CEMETERY_COST = 15;
 const PEN_COST = 15;
 /** Svatyně – ohrazený posvátný okrsek (modla stojí na malém půdorysu – neprůchodná). */
 const SHRINE_COST = 2.5;
+/**
+ * Pěšina ke vchodu stavby (paths.md – Vchody) končí kus před ním (m) – v buňkách do
+ * ENTRANCE_REACH_M od toho bodu (jako u brány domu).
+ */
+const ENTRANCE_STEP_M = 1;
+const ENTRANCE_REACH_M = 2.5;
 /** Okraj domu, kam pěšina nesmí (m). */
 const HOUSE_MARGIN_M = 0.4;
 /** Brána před vchodem domu – kus před koncem šíje (m). */
@@ -430,7 +451,8 @@ export function pathNetworkKey(village: PathVillage): string {
     (o) => `${o.id}:${o.squares.map((s) => squareKeyOf(s)).join(';')}`,
   );
   const cemeteries = (village.cemeteries ?? []).map(
-    (c) => `${c.id}:${c.squares.map((s) => squareKeyOf(s)).join(';')}`,
+    (c) =>
+      `${c.id}:${c.squares.map((s) => `${squareKeyOf(s)}${s.pending ? 'p' : ''}`).join(';')}${c.built === false ? ':-' : ''}`,
   );
   const sacred = village.sacred
     ? [
@@ -1053,6 +1075,13 @@ function tripGroups(
     const { inside, edge } = squareCells(grid, squares);
     return [...inside, ...edge].filter((c) => Number.isFinite(grid.base[c]!));
   };
+  // vchod stavby (paths.md – Vchody): buňky kus před ním
+  const entranceTarget = (e: Entrance): number[] =>
+    cellsAround(
+      grid,
+      { x: e.x + e.outX * ENTRANCE_STEP_M, z: e.z + e.outZ * ENTRANCE_STEP_M },
+      ENTRANCE_REACH_M,
+    );
 
   for (const field of v.fields) {
     const sown = field.parts.some((p) => p.stage === 'sown' || p.stage === 'ready');
@@ -1076,27 +1105,37 @@ function tripGroups(
     if (weights.every((w) => w < MIN_TRIP)) return;
     groups.push({ sources, weights, maxCost: groupReach(grid, sources, homes) });
   });
-  // hřbitov: návštěvy hrobů podle lidí v domácnosti (k nejbližšímu hřbitovu) a práce dne
+  // hřbitov: návštěvy hrobů podle lidí v domácnosti (k nejbližšímu hřbitovu) brankou hotového
+  // hřbitova (paths.md – Vchody), práce dne (založení, rozšíření – plot) u ohrazovaných čtverců
   const cemeteries = v.cemeteries ?? [];
   const nearestCemetery = nearestOfKind(
     homes,
     cemeteries.map((c) => c.squares),
   );
   cemeteries.forEach((cemetery, k) => {
-    const sources = squaresTarget(cemetery.squares);
-    if (sources.length === 0) return;
-    const builders = shareWeights(homes, work(`cemetery:${cemetery.id}`));
-    const weights = homes.map(
-      (h, i) =>
-        builders[i]! + (nearestCemetery[i] === k ? CEMETERY_VISITS_PER_PERSON * h.size * h.age : 0),
+    const squares = squaresTarget(cemetery.squares);
+    if (squares.length === 0) return;
+    const gate = cemetery.built === false ? null : cemeteryEntrance(cemetery, v.dwellings);
+    const gateCells = gate ? entranceTarget(gate) : [];
+    const visitors = homes.map((h, i) =>
+      nearestCemetery[i] === k ? CEMETERY_VISITS_PER_PERSON * h.size * h.age : 0,
     );
-    if (weights.every((w) => w <= 0)) return;
-    groups.push({
-      sources,
-      weights,
-      maxCost: groupReach(grid, sources, homes),
-      visit: `cemetery:${cemetery.id}`,
-    });
+    const builders = shareWeights(homes, work(`cemetery:${cemetery.id}`));
+    const visit = `cemetery:${cemetery.id}`;
+    const push = (sources: number[], weights: number[]): void => {
+      if (sources.length === 0 || weights.every((w) => w <= 0)) return;
+      groups.push({ sources, weights, maxCost: groupReach(grid, sources, homes), visit });
+    };
+    if (gateCells.length > 0) {
+      push(gateCells, visitors);
+      const pending = cemetery.squares.filter((q) => q.pending);
+      push(pending.length > 0 ? squaresTarget(pending) : squares, builders);
+    } else {
+      push(
+        squares,
+        homes.map((_, i) => builders[i]! + visitors[i]!),
+      );
+    }
   });
   // vylepšení pevné cesty (roads.md) – nosí se k polovině úseku
   for (const road of v.roads ?? []) {
@@ -1106,9 +1145,18 @@ function tripGroups(
   }
   // ohrada: krmení a napájení dobytka, stavba a rádlo (práce dne na ohradě); do ohrady bez
   // zvířat se krmit nechodí (abandonment.md)
+  // hotová ohrada brankou (paths.md – Vchody), staveniště ze všech stran
   for (const pen of v.pens ?? []) {
     const base = pen.built ? (pen.stocked === false ? 0 : BASE_TRIPS.pen) : BASE_TRIPS.site;
-    target(squaresTarget([pen]), base + work(`pen:${pen.id}`), 1, `pen:${pen.id}`);
+    const sources = pen.built
+      ? entranceTarget(penEntrance(pen, penEntranceFacing(pen, v.dwellings)))
+      : squaresTarget([pen]);
+    target(
+      sources.length > 0 ? sources : squaresTarget([pen]),
+      base + work(`pen:${pen.id}`),
+      1,
+      `pen:${pen.id}`,
+    );
   }
   // stáda na pastvu – na úhor vsi (louka na seno až po seči; v roční síti obojí)
   const herds = pastureHerds(v.livestock);
@@ -1191,17 +1239,19 @@ function tripGroups(
       at: grove.squares,
     })),
   );
+  // hotová modla a svatyně – vstupem na předku (paths.md – Vchody), staveniště ze všech stran
   const sacredBuildings = v.sacred?.buildings ?? [];
+  const sacredEntranceCells = (b: (typeof sacredBuildings)[number]): number[] => {
+    const cells = entranceTarget(sacredEntrance(b));
+    const half = SACRED_BUILDINGS[b.kind].footprintM / 2;
+    return cells.length > 0 ? cells : cellsAround(grid, b.position, half + grid.cellM);
+  };
   for (const kind of ['idol', 'shrine'] as const) {
     visit(
       sacredBuildings
         .filter((b) => b.built && b.kind === kind)
         .map((b) => ({
-          sources: cellsAround(
-            grid,
-            b.position,
-            SACRED_BUILDINGS[b.kind].footprintM / 2 + grid.cellM,
-          ),
+          sources: sacredEntranceCells(b),
           at: [b.position],
           visit: `${b.kind}:${b.id}`,
         })),
@@ -1213,9 +1263,7 @@ function tripGroups(
       // oprava hotové modly a svatyně (abandonment.md – Oprava) – práce dne u stavby, i to je
       // provoz ke stavbě
       const repair = work(`sacred:${b.id}`);
-      if (repair > 0) {
-        target(cellsAround(grid, b.position, half + grid.cellM), repair, 1, `${b.kind}:${b.id}`);
-      }
+      if (repair > 0) target(sacredEntranceCells(b), repair, 1, `${b.kind}:${b.id}`);
       continue;
     }
     target(

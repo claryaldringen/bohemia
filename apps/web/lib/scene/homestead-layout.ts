@@ -5,6 +5,7 @@
 // Polský plot je pletený plot společný s hřbitovem (woven-fence.ts), tady jen jeho hustota.
 import {
   DWELLING_FOOTPRINT_M,
+  FENCE_INSET_M as CORE_FENCE_INSET_M,
   PLOT_HOUSE_OFFSET_M,
   PLOT_HOUSE_ROTATION,
   PLOT_VARIANTS,
@@ -78,7 +79,7 @@ export interface Rect {
 }
 
 /** Plot stojí kousek uvnitř políčka (m) – sousední pozemky mají mezi ploty uličku. */
-export const FENCE_INSET_M = 0.5;
+export const FENCE_INSET_M = CORE_FENCE_INSET_M;
 /**
  * Polský plot pozemku: kůly nejvýš po metru, sedm větví 0,16–0,88 m (řidší než plot hřbitova)
  * a branka 1,3 m proti vchodu.

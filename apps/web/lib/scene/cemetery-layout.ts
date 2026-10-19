@@ -5,6 +5,7 @@
 // s pozemkem polozemnice (woven-fence.ts) – zakulacené rohy, jen hustší pletivo. Natočený
 // hřbitov (fields.md – Natočené stavby): obrys a hroby se počítají v „rovném prostoru“ jeho
 // mřížky (field-cells.ts – `GridFrame`) a otočí se do světa; plot se plete už ve světě.
+import { CEMETERY_GATE } from '@bohemia/game';
 import { cellsBoundary, gridFrame, type CellSquare, type GridFrame } from './field-cells';
 import { seededRandom, type Point } from './village-layout';
 import { wovenFence, type FencePath, type FenceStyle, type WovenFence } from './woven-fence';
@@ -20,12 +21,13 @@ const GRAVE_MARGIN_M = 0.5;
 export const FRESH_GRAVES = 3;
 /**
  * Plot hřbitova: kůly nejvýš po metru jako u polského plotu, ale hustší pletivo – jedenáct větví
- * 0,1–0,8 m (nízký plot) – a širší branka 1,8 m (projde průvod s nebožtíkem).
+ * 0,1–0,8 m (nízký plot) – a širší branka 1,8 m (projde průvod s nebožtíkem). Branka a kůly
+ * z jádra (`CEMETERY_GATE` – vchod, ke kterému vede pěšina).
  */
 export const CEMETERY_FENCE: FenceStyle = {
-  postStep: 1,
+  postStep: CEMETERY_GATE.postStep,
   rails: [0.1, 0.17, 0.24, 0.31, 0.38, 0.45, 0.52, 0.59, 0.66, 0.73, 0.8],
-  gateWidth: 1.8,
+  gateWidth: CEMETERY_GATE.gateWidth,
 };
 
 export interface GravePlacement {
@@ -196,8 +198,9 @@ function outlinePaths(squares: readonly CellSquare[], fenced: readonly CellSquar
 
 /**
  * Plot kolem čtverců hřbitova: pletený plot po obrysu se zakulacenými rohy a branka v místě
- * plotu nejblíž k bodu `gateToward` (k vsi) na dost dlouhém rovném úseku – když se hřbitov
- * rozšíří jinam, branka zůstane, kde byla; bez bodu uprostřed prvního dost dlouhého úseku.
+ * plotu nejblíž k bodu `gateToward` na dost dlouhém rovném úseku – ve vsi je to vchod z jádra
+ * (`cemeteryEntrance` – branka sama, pěšina vede k ní); bez bodu uprostřed prvního dost dlouhého
+ * úseku.
  * Rozšíření ve stavbě: `withGate: false` a `fenced` = čtverce, kolem kterých plot už stojí –
  * strany sousedící s nimi se vynechají a plot rozšíření na starý plot jen navazuje.
  */
