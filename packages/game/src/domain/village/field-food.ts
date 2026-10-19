@@ -100,6 +100,11 @@ export function storesNeeded(
 export interface SowingTargets {
   /** Kolik energie (kg obilí, luštěniny svou energií) má dát úroda plánu – cíl `chooseCrops`. */
   targetKg: number;
+  /**
+   * Kolik energie má dát úroda kvůli jídlu (kg obilí) – cíl bez luštěnin navíc na bílkoviny; když
+   * ho díly od 70 % nepokryjí, ves seje i přílohy pod 70 % (fields.md – Nouzový osev).
+   */
+  harvestKg: number;
   /** Kolik luštěnin (kg čisté úrody) – jejich potřeba bez toho, co ze zásoby luštěnin zbude. */
   legumeKg: number;
   /** Pod kolik energie luštěniny plán nestáhnou – nejvýš potřeba z pole na rok. */
@@ -175,6 +180,7 @@ export function sowingTargets(
   const targetKg = Math.max(0, harvest, legumeEnergy(legumeKg));
   return {
     targetKg,
+    harvestKg: Math.max(0, harvest),
     legumeKg,
     energyFloorKg: Math.min(targetKg, needAfter),
     needKg: needAfter,

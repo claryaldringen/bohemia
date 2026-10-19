@@ -121,6 +121,25 @@ describe('zkrácení plánu podle zásob', () => {
     expect(after.partIds).toEqual(plan.partIds.filter((id) => !removed.includes(id)));
   });
 
+  it('ubrané díly čekají v osevu navíc – nejblíž domu první, osévané s léty v řadě', () => {
+    const s = withOldPlan(600);
+    s.parts.forEach((p) => {
+      if (!p.fallowBeforePlan) p.sownYears = 1;
+    });
+    const day = at(601, 3, 1);
+    const removed = trimPlanToTarget(s, day, targetOf(s, day).targetKg, 0);
+    expect(removed.length).toBeGreaterThan(20);
+    // ubírá se od konce – v osevu navíc v opačném pořadí (ve výběru byly před ostatními)
+    expect(s.plan!.extra!.map((e) => e.id)).toEqual([...removed].reverse());
+    for (const entry of s.plan!.extra!) {
+      const part = s.parts.find((p) => p.id === entry.id)!;
+      expect(part.state).toBe('fallow');
+      // díl, který se vracel z přílohu, se z něj vrátí znovu; osévaný se osévá dál
+      if (part.fallowSinceDay === at(590, 9, 1)) expect(entry.sownYears).toBeUndefined();
+      else expect(entry.sownYears).toBe(1);
+    }
+  });
+
   it('plán do cíle s rezervou se nezkrátí', () => {
     const s = withOldPlan(300);
     const day = at(601, 3, 1);

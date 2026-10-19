@@ -194,6 +194,25 @@ export function taskPosition(work: CropWork, task: PartTask, done?: number): num
   return required > 0 ? Math.min(1, doneNow / required) : 1;
 }
 
+/**
+ * Díly plodiny, na kterých už začala práce – některá úloha (i orba) přešla začátek jejich úseku
+ * (fields.md – Osev podle zásob, Osev navíc). Úseky dílů se spočítají jednou za úlohu.
+ */
+export function startedPartIds(
+  work: CropWork,
+  partsById: ReadonlyMap<number, FieldPart>,
+  day: number,
+): Set<number> {
+  const started = new Set<number>();
+  for (const task of PART_TASKS) {
+    const position = taskPosition(work, task);
+    for (const span of taskSpans(work, partsById, task, day)) {
+      if (position > span.start + EPSILON) started.add(span.id);
+    }
+  }
+  return started;
+}
+
 /** Díl je v úloze hotový – úloha došla za jeho konec. */
 function isDone(span: PartSpan, position: number): boolean {
   return span.end <= position + EPSILON;
@@ -504,6 +523,8 @@ export interface PartYearWork {
     harvest: number;
   };
   mow?: number;
+  /** Díl osevu navíc čeká na volnou práci (fields.md – Osev navíc) – práce na něm ještě nezačala. */
+  extra?: true;
 }
 
 /**
@@ -549,6 +570,10 @@ export function partYearWork(state: VillageState, day: number): Map<number, Part
   }
   for (const [id, mown] of mownShares(state, partsById)) {
     result.set(id, { ...result.get(id), mow: mown });
+  }
+  for (const { id } of state.plan?.extra ?? []) {
+    if (partsById.has(id) && !result.get(id)?.crop)
+      result.set(id, { ...result.get(id), extra: true });
   }
   return result;
 }

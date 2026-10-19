@@ -706,7 +706,15 @@ export interface CropWork {
   hauled?: number;
   /** Kam vůz při žni dojede – spočítá se při prvním svozu (wagons.md – Svoz). Chybí = ještě ne. */
   cartReach?: CartReach;
+  /**
+   * Příprava půdy začatých dílů osevu navíc, která čeká na volnou práci (fields.md – Osev navíc):
+   * vrácení přílohu, kopání a orba (člověkodny) – nemají přednost před stavbami, dostanou jen
+   * práci, která po nich zbude. Setí, pletí, sklizeň a výmlat těch dílů jsou potřebné. Chybí = nic.
+   */
+  extraLeft?: Partial<Record<ExtraTask, number>>;
 }
+/** Příprava půdy dílu osevu navíc, která čeká na volnou práci (`CropWork.extraLeft`). */
+export type ExtraTask = 'reclaim' | 'dig' | 'plough';
 /**
  * Kam vozy na úloze dojedou (wagons.md – Vůz, vozová síť): podíl práce úlohy na místech, kam vůz
  * dojede (0–1), a body jízd s vahou (podíl jízd) – do ročního provozu cest.
@@ -782,6 +790,22 @@ export interface YearPlan extends CropWork {
    * starších vsí a plánů mimo 1. 9. (ves založená během roku) – ty oděv nezapíší.
    */
   flaxNeedKg?: number;
+  /**
+   * Osev navíc (fields.md – Osev navíc): díly, které ves smí osít a do potřebného osevu je
+   * nevybrala, v pořadí výběru – dostanou jen práci, která zbude po stavbách. Na seznamu jsou,
+   * dokud na nich práce nezačne (pak patří k ozimu nebo jaři jako potřebné); po dubnu se seznam
+   * smaže. Chybí = žádné (i plány starších vsí).
+   */
+  extra?: ExtraPart[];
+}
+/**
+ * Díl osevu navíc, na kterém ještě nezačala práce (fields.md – Osev navíc). `sownYears` – díl se
+ * před plánem osíval nebo byl připravený (v přílohu leží jen od plánu): když na něm práce začne,
+ * osévá se dál s tolika lety v řadě; chybí = díl ležel v přílohu (vrací se z něj).
+ */
+export interface ExtraPart {
+  id: number;
+  sownYears?: number;
 }
 export type ChronicleEvent = { day: number } & (
   | { kind: 'village-founded' }

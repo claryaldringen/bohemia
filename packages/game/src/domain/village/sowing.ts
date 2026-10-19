@@ -1,5 +1,5 @@
 import { dateOfDayIndex, isLeapYear } from '../calendar';
-import { expectedNetKg } from './fields';
+import { expectedNetKg, isSowableFertility } from './fields';
 import { expectedFlaxKg } from './flax';
 import { expectedLegumeKg, legumeEnergy } from './legumes';
 import { PLANNING_DAY, type WindowSegment } from './rules';
@@ -421,7 +421,10 @@ function chooseSideCrop(
   let spare = crop === 'flax' ? (input.flaxSpareKg ?? 0) : 0;
   while (cropNet < targetKg - EPSILON) {
     const grain = new Set([...choice.winter, ...choice.spring]);
-    const fromHome = blocks.flatMap((block) => block.filter((p) => grain.has(p)));
+    // nouzový příloh pod 70 % (fields.md – Nouzový osev) jen na obilí – kvůli hladu
+    const fromHome = blocks.flatMap((block) =>
+      block.filter((p) => grain.has(p) && isSowableFertility(p)),
+    );
     // luštěniny od domu (půdu zlepší); len od konce výběru – vysiluje půdu, jeho delší příloh tak
     // neleží domům v cestě (fields.md – Len)
     const order = crop === 'flax' ? fromHome.reverse() : fromHome;
@@ -450,6 +453,21 @@ function chooseSideCrop(
     cropNet += sideCropKg(crop, next, input.day);
   }
   return choice;
+}
+
+/** Očekávaná energie výběru `chooseCrops` (kg obilí; luštěniny svou energií, len se nejí). */
+export function chosenEnergyKg(
+  crops: {
+    winter: readonly FieldPart[];
+    spring: readonly FieldPart[];
+    legume: readonly FieldPart[];
+  },
+  day: number,
+): number {
+  let energy = 0;
+  for (const part of [...crops.winter, ...crops.spring]) energy += expectedNetKg(part, day);
+  for (const part of crops.legume) energy += sideCropEnergy('legume', part, day);
+  return energy;
 }
 
 /**

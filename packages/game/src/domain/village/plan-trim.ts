@@ -1,8 +1,9 @@
-import { PART_TASKS, taskPosition, taskSpans } from './field-progress';
-import { expectedNetKg, partWalkDistance } from './fields';
+import { startedPartIds } from './field-progress';
+import { expectedNetKg, isSowableFertility, partWalkDistance } from './fields';
 import { dropFromWork, shrinkInPlan } from './land-taken';
 import { expectedLegumeKg, legumeEnergy } from './legumes';
-import type { Crop, CropWork, FieldPart, VillageState, YearPlan } from './types';
+import { extraPartOf, queueExtraParts } from './extra-sowing';
+import type { Crop, CropWork, ExtraPart, FieldPart, VillageState, YearPlan } from './types';
 import { planCrops } from './year-plan';
 
 // Zkrácení rozjetého plánu podle zásob (fields.md – Kolik ves oseje, Osev podle zásob; Martin
@@ -10,7 +11,8 @@ import { planCrops } from './year-plan';
 // pravidla zjistí, že má zásob dost, přestane kopat nové díly už letos a neodloží to až na
 // 1. září“). Z plánu zmizí jen díly, na kterých ještě nezačala žádná práce (vrácení přílohu, orba,
 // kopání, setí…) – od konce pořadí práce, nejdál od domu první; rozpracovaný a zasetý díl zůstane.
-// Ubraný díl leží ladem jako příloh (ten, který se vracel z přílohu, jak ležel předtím). Práce
+// Ubraný díl leží ladem jako příloh (ten, který se vracel z přílohu, jak ležel předtím) a čeká
+// v osevu navíc – oseje se, zbude-li po stavbách práce (fields.md – Osev navíc). Práce
 // plodiny ubude o jeho podíl a čelo práce ostatních dílů zůstane, kde bylo (`shrinkInPlan` – jako
 // když díl zabere stavba), takže postup po čtvercích a vzhled dílů dál sedí.
 
@@ -49,20 +51,18 @@ function lastUntouched(
   partsById: ReadonlyMap<number, FieldPart>,
   day: number,
 ): FieldPart | null {
-  // nejdál, kam která úloha na dílu došla: díl je nezačatý, když žádná úloha nepřešla jeho začátek
-  const started = new Set<number>();
-  for (const task of PART_TASKS) {
-    const position = taskPosition(work, task);
-    for (const span of taskSpans(work, partsById, task, day)) {
-      if (position > span.start + 1e-9) started.add(span.id);
-    }
-  }
+  // díl je nezačatý, když žádná úloha nepřešla jeho začátek; nouzový příloh pod 70 % první
+  // (fields.md – Nouzový osev: jen když díly od 70 % nestačí)
+  const started = startedPartIds(work, partsById, day);
+  let last: FieldPart | null = null;
   for (let i = work.partIds.length - 1; i >= 0; i--) {
     const id = work.partIds[i]!;
     const part = partsById.get(id);
-    if (part && !started.has(id)) return part;
+    if (!part || started.has(id)) continue;
+    if (!isSowableFertility(part)) return part;
+    last ??= part;
   }
-  return null;
+  return last;
 }
 
 /** Ubraný díl leží ladem – příloh, ze kterého se vracel, jak ležel; jinak příloh od plánu. */
@@ -80,7 +80,8 @@ function toFallow(part: FieldPart, plannedDay: number): void {
  * Zkrátí letošní plán na cíl podle zásob (mutuje stav – volat na klonu): když očekávaná úroda
  * plánu převyšuje `targetKg` o víc než `marginKg`, ubírá z obilí (ozim a jař – luštěniny se sejí
  * podle bílkovin) nezačaté díly od konce pořadí práce, dokud úroda bez dalšího dílu neklesne pod
- * cíl. Z konců obou plodin jde první díl dál od domu (chůze po pěšinách). Vrací id ubraných dílů.
+ * cíl. Z konců obou plodin jde první díl dál od domu (chůze po pěšinách). Ubrané díly jdou na
+ * začátek osevu navíc (`YearPlan.extra`). Vrací id ubraných dílů.
  */
 export function trimPlanToTarget(
   state: VillageState,
@@ -93,6 +94,7 @@ export function trimPlanToTarget(
   let energy = planEnergyKg(state, plan, day);
   if (energy <= targetKg + marginKg + EPSILON) return [];
   const removed: number[] = [];
+  const moved: ExtraPart[] = [];
   for (;;) {
     const partsById = new Map(state.parts.map((p) => [p.id, p]));
     let best: { part: FieldPart; crop: Crop; work: CropWork } | null = null;
@@ -101,8 +103,11 @@ export function trimPlanToTarget(
       if (crop === 'legume' || crop === 'flax' || work.harvestedKg !== null) continue;
       const part = lastUntouched(work, partsById, day);
       if (!part) continue;
-      // nejdál od domu první; při shodě jař (kope se a seje nejpozději)
-      if (
+      // nouzový příloh první, pak nejdál od domu; při shodě jař (kope se a seje nejpozději)
+      const emergency = !isSowableFertility(part);
+      if (emergency !== (best !== null && !isSowableFertility(best.part))) {
+        if (emergency) best = { part, crop, work };
+      } else if (
         !best ||
         partWalkDistance(part) > partWalkDistance(best.part) ||
         (partWalkDistance(part) === partWalkDistance(best.part) && crop === 'spring')
@@ -115,9 +120,14 @@ export function trimPlanToTarget(
     if (energy - lost < targetKg - EPSILON) break;
     shrinkInPlan(state, plan, best.part, 1, day);
     dropFromWork(best.work, new Set([best.part.id]));
+    // do osevu navíc jen díl od 70 % (nouzový příloh tam nesmí)
+    if (isSowableFertility(best.part)) moved.push(extraPartOf(best.part));
     toFallow(best.part, plan.plannedDay);
     energy -= lost;
     removed.push(best.part.id);
   }
+  // ubrané díly čekají v osevu navíc – ve výběru byly před ostatními, nejblíž domu první
+  // (fields.md – Osev navíc)
+  queueExtraParts(plan, moved.reverse(), true);
   return removed;
 }

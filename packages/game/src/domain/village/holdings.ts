@@ -1,5 +1,5 @@
 import { CELL_SIZE_M, LANDSCAPE_SIZE } from '../landscape';
-import { sowingGroup, sowingOrder, type SowingGroup } from './fields';
+import { isEmergencyFallow, sowingGroup, sowingOrder, type SowingGroup } from './fields';
 import { gridKey, squareCenter } from './square-grid';
 import { fieldGrids } from './squares';
 import type { FieldPart, SquareGrid, TileCell, VillageState } from './types';
@@ -319,10 +319,22 @@ function smoothLanes(
   });
 }
 
+/**
+ * Nouzový osev (fields.md – Přílohová soustava, Nouzový osev): přílohy pod 70 % přirozené
+ * úrodnosti – „pátá skupina“ pořadí, jen pro `sowingBlocks(…, EMERGENCY_GROUP)`.
+ */
+export const EMERGENCY_GROUP = 5;
+type BlockGroup = SowingGroup | typeof EMERGENCY_GROUP;
+
+/** Skupina dílu v pořadí bloků – i nouzový příloh pod 70 %. */
+function blockGroup(p: FieldPart): BlockGroup | null {
+  return sowingGroup(p) ?? (isEmergencyFallow(p) ? EMERGENCY_GROUP : null);
+}
+
 /** Blok osevu – díly jednoho úseku ve stejné skupině přílohové soustavy, od domu ven. */
 interface SowingBlock {
   parts: FieldPart[];
-  group: SowingGroup;
+  group: BlockGroup;
   sector: FieldSector;
   /** Hospodářství (id obydlí; díly bez políčka mají společné null). */
   holding: number | null;
@@ -349,7 +361,8 @@ function compareKeys(a: readonly number[], b: readonly number[]): number {
  * - čerstvě založené: nejdřív bloky, před kterými v úseku neleží příloh, pak nejblíž domu,
  * - přílohy ≥ 95 %: nejdřív bez přílohu před sebou, pak úseky, které se už osévají (ves úsek
  *   dokončí), pak nejvíc odpočaté a nejblíž domu,
- * - přílohy 70–95 %: nejvíc zotavené, pak bez přílohu před sebou, rozběhnuté úseky, nejblíž domu.
+ * - přílohy 70–95 %: nejvíc zotavené, pak bez přílohu před sebou, rozběhnuté úseky, nejblíž domu,
+ * - jen s `onlyGroup` = `EMERGENCY_GROUP` přílohy pod 70 % (nouzový osev) – stejně jako 70–95 %.
  * Mezi hospodářstvími se bloky střídají tak, aby každé mělo vybraný stejný podíl své plochy –
  * všechna hospodářství tak obíhají stejně rychle. Ves bez hospodářství (bez domů nebo jen
  * s díly bez políčka) bere díly po jednom v dřívějším pořadí `sowingOrder`. `onlyGroup` – jen
@@ -358,12 +371,22 @@ function compareKeys(a: readonly number[], b: readonly number[]): number {
 export function sowingBlocks(
   parts: readonly FieldPart[],
   holdings: FieldHoldings,
-  onlyGroup?: SowingGroup,
+  onlyGroup?: BlockGroup,
 ): FieldPart[][] {
   if (!holdings.active) {
+    if (onlyGroup === EMERGENCY_GROUP) {
+      // nejvíc zotavené první, při shodě nejbližší – jako přílohy 70–95 % (sowingOrder)
+      return parts
+        .filter(isEmergencyFallow)
+        .sort((a, b) => b.fertilityShare - a.fertilityShare || a.distanceM - b.distanceM)
+        .map((p) => [p]);
+    }
     const candidates = onlyGroup ? parts.filter((p) => sowingGroup(p) === onlyGroup) : [...parts];
     return sowingOrder(candidates).map((p) => [p]);
   }
+  // nouzový osev jen na vyžádání – běžné pořadí bere skupiny 1–4
+  const groups: readonly BlockGroup[] =
+    onlyGroup === EMERGENCY_GROUP ? [EMERGENCY_GROUP] : [1, 2, 3, 4];
   const byId = new Map(parts.map((p) => [p.id, p]));
   const area = new Map<number | null, number>();
   const blocks: SowingBlock[] = [];
@@ -376,10 +399,10 @@ export function sowingBlocks(
     area.set(holding, (area.get(holding) ?? 0) + list.reduce((sum, p) => sum + p.areaM2, 0));
     const inUse = list.some((p) => sowingGroup(p) === 1);
     const distance = new Map(sector.partIds.map((id, i) => [id, sector.distances[i]!]));
-    for (const group of [1, 2, 3, 4] as const) {
-      const first = list.findIndex((p) => sowingGroup(p) === group);
+    for (const group of groups) {
+      const first = list.findIndex((p) => blockGroup(p) === group);
       if (first < 0) continue;
-      const members = list.filter((p) => sowingGroup(p) === group);
+      const members = list.filter((p) => blockGroup(p) === group);
       // před blokem v úseku neleží příloh – sedlák k němu nemusí přes úhor
       const clear = list.slice(0, first).every((p) => p.state !== 'fallow') ? 0 : 1;
       const share =
@@ -407,7 +430,7 @@ export function sowingBlocks(
   }
   const taken = new Map<number | null, number>();
   const result: FieldPart[][] = [];
-  for (const group of [1, 2, 3, 4] as const) {
+  for (const group of groups) {
     if (onlyGroup !== undefined && group !== onlyGroup) continue;
     const queues = new Map<number | null, SowingBlock[]>();
     for (const block of blocks) {

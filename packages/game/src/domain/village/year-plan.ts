@@ -245,7 +245,8 @@ export function createYearPlan(
 }
 
 /**
- * Přidá do práce plodiny další díly (mutuje `work`) – nová dávka jde na konec, seřazená `order`.
+ * Přidá do práce plodiny `crop` další díly (mutuje `work`) – nová dávka jde na konec, seřazená
+ * `order`.
  * Plodina, kterou orá spřežení (`plough`), přidané díly orá taky, jinak je kope motyka (oxen.md –
  * Jen rádlo: plodina se buď celá orá, nebo celá kope).
  */
@@ -255,9 +256,10 @@ export function addToCropWork(
   day: number,
   toolCoverage: number,
   order: WorkOrder = nearestFirst,
+  crop: Crop = 'spring',
 ): void {
   const plough = work.plough;
-  const extra = createCropWork(added, day, toolCoverage, plough !== undefined, order, 'spring');
+  const extra = createCropWork(added, day, toolCoverage, plough !== undefined, order, crop);
   for (const task of TASK_ORDER) work.required[task] += extra.required[task];
   work.partIds.push(...extra.partIds);
   if (extra.reclaimIds) work.reclaimIds = [...(work.reclaimIds ?? []), ...extra.reclaimIds];
@@ -366,6 +368,16 @@ export function ploughRemaining(work: CropWork): number {
 /** Zbývající práce úlohy nebo orby (viz `taskRemaining`). */
 export function cropTaskRemaining(work: CropWork, task: CropTask): number {
   return task === 'plough' ? ploughRemaining(work) : taskRemaining(work, task);
+}
+
+/**
+ * Zbývající potřebná práce úlohy nebo orby – bez přípravy půdy dílů osevu navíc, která čeká na
+ * volnou práci po stavbách (`CropWork.extraLeft`, fields.md – Osev navíc).
+ */
+export function neededTaskRemaining(work: CropWork, task: CropTask): number {
+  const remaining = cropTaskRemaining(work, task);
+  if (task !== 'reclaim' && task !== 'dig' && task !== 'plough') return remaining;
+  return Math.max(0, remaining - (work.extraLeft?.[task] ?? 0));
 }
 
 /** Odvedená práce úlohy nebo orby (člověkodny). */

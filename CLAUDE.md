@@ -842,8 +842,20 @@ rozhraní částí v
   i schodek) vyrovná po třetinách, pod pojistkou doplní do pojistky hned; luštěniny potřeba bez
   zbytku zásoby.
   Rozjetý plán zkrátí `trimPlan` (každý den 1. 9. – 30. 4., `plan-trim.ts`: nezačaté díly obilí
-  od konce pořadí přes `shrinkInPlan` / `dropFromWork` z `land-taken.ts`, ladem jako příloh –
-  `FieldPart.fallowBeforePlan`). Potřebou z pole jde i `energyFloorKg`, odhad ozimu na srpen
+  od konce pořadí – nouzové první – přes `shrinkInPlan` / `dropFromWork` z `land-taken.ts`, ladem
+  jako příloh – `FieldPart.fallowBeforePlan` – a na začátek osevu navíc).
+  **Osev navíc** (fields.md – Osev navíc, Martin 19. 10. 2026; `extra-sowing.ts`): ostatní díly od
+  70 % v pořadí výběru čekají v `YearPlan.extra` (`ExtraPart` – `sownYears` u dílu, který se
+  osíval; plán k 1. 9., hotové díly `joinFinishedParts`, ubrané `trimPlanToTarget`); krok
+  `extraSowingDay` ve `work()` z `afterBuild.left` (práce po stavbách a opravách) a ze zbylé
+  kapacity spřežení (`FieldTaskEntry.teamDays`) začne díly navíc – ozim do 30. 10., pak jař
+  (`extraSowingCrop`), jen obilí – a přidá je k práci plodiny (`addToCropWork`); jejich příprava
+  půdy čeká v `CropWork.extraLeft` (potřebné úlohy berou `neededTaskRemaining`), setí až výmlat
+  jsou potřebné. Od 1. 5. se `extra` smaže. Volná práce v liště (`allocation.common`) je před
+  polem navíc; v rozdělení práce `DayWork.extraField`. **Nouzový osev** (fields.md – Přílohová
+  soustava, Martin 19. 10. 2026): když díly od 70 % nedají `SowingTargets.harvestKg`, plán vybere
+  znovu i s přílohy pod 70 % (`sowingBlocks(…, EMERGENCY_GROUP)`, `isEmergencyFallow`, čistá
+  úroda > 0), jen obilí; úrodnost dílu klesá nejvýš na nulu. Potřebou z pole jde i `energyFloorKg`, odhad ozimu na srpen
   (`daysUntilFoodHarvest`) a dobré zásoby štěstí; ustálená úroda `steadyHarvestKg` (kalibrace,
   kalkulačka – zásoba na cílové zásobě). Kalibrace vypisuje práci na poli a volnou práci po rocích
   (průměr, variační koeficient, změna z roku na rok). Volná práce plánu (`sowingCapacity`) je po

@@ -307,6 +307,25 @@ function pin(state: VillageState, day: number): void {
  * podle stravy a zásob (fields.md – Kolik ves oseje) tak dá oběma porovnávaným vsím stejný cíl rok
  * co rok, blízký dřívějšímu osevu; test měří pořadí osevu, ne kolik se oseje.
  */
+/**
+ * Hráč staví – stavba bere všechnu práci, která zbude po potřebných úlohách, takže ves oseje jen
+ * potřebný osev, ne osev navíc (fields.md – Osev navíc). Mutuje ves.
+ */
+function building<T extends { state: VillageState }>(v: T): T {
+  v.state.constructions.push({
+    id: 900,
+    kind: 'dwelling',
+    startedDay: START - 1,
+    cost: 1e9,
+    done: 0,
+    dwellingType: 'zemnice',
+    position: null,
+    dwellingId: null,
+    fieldId: null,
+  });
+  return v;
+}
+
 function seasons(start: VillageState, years: number): VillageState[] {
   let state = structuredClone(start);
   const out: VillageState[] = [];
@@ -363,8 +382,9 @@ function reachableShare(state: VillageState, holdings: FieldHoldings): number {
 
 describe('ves hospodaří podle domů', () => {
   it('za 20 let osévá souvislé úseky od domu – méně roztříštěné než dřív', () => {
-    const now = village(true);
-    const before = village(false);
+    // hráč staví – ves oseje jen potřebné (osev navíc by obdělal celé pole)
+    const now = building(village(true));
+    const before = building(village(false));
     const after = seasons(now.state, 20).slice(5);
     const old = seasons(before.state, 20).slice(5);
     const mean = (xs: number[]): number => xs.reduce((a, b) => a + b, 0) / xs.length;
@@ -390,7 +410,8 @@ describe('ves hospodaří podle domů', () => {
   }, 30_000);
 
   it('práce jde po úsecích, v úseku od domu ven – kopání ozimu je předpona pořadí', () => {
-    const [planned] = seasons(village().state, 2).slice(1);
+    // hráč staví – ves oseje jen potřebné, osev navíc ozim nezvětší ani nezmenší
+    const [planned] = seasons(building(village()).state, 2).slice(1);
     const holdings = villageHoldings(planned!);
     for (const { work } of planCrops(planned!.plan!)) {
       const sectors = work.partIds.map((id) => holdings.byPart.get(id)!.sector);

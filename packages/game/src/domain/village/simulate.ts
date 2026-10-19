@@ -53,18 +53,12 @@ import {
   sowingTargets,
   type SowingTargets,
 } from './field-food';
-import {
-  endOfSeason,
-  expectedNetKg,
-  fallowStage,
-  partOvergrowthYears,
-  sowingGroup,
-} from './fields';
+import { endOfSeason, expectedNetKg, sowingGroup } from './fields';
 import { plannedFurrowEfficiency, ploughDayFactor } from './plough-trip';
 import { isToilDay, updateHappiness, villageLaborFactor, windowEndDay } from './happiness';
 import { MOWING_WINDOWS, mow, mowingRemaining } from './hay';
 import { herdingDay, recordHerding } from './herding';
-import { sowingBlocks, villageHoldings, workOrder } from './holdings';
+import { EMERGENCY_GROUP, sowingBlocks, villageHoldings, workOrder } from './holdings';
 import { occupyEmptyDwellings, settleNewDwelling } from './households';
 import { withKinship } from './kinship';
 import { flaxNeedKg, harvestFlax } from './flax';
@@ -85,6 +79,14 @@ import { finishRoadUpgrade } from './road-upgrades';
 import { finishRepair, isRepairFinished, repairNeed, workRepair } from './repair';
 import { copyPlot, relocationPlot } from './plots';
 import { trimPlanToTarget } from './plan-trim';
+import {
+  extraPartOf,
+  extraSowingDay,
+  queueExtraParts,
+  reclaimedLogs,
+  sowParts,
+  unqueueExtraParts,
+} from './extra-sowing';
 import { villageSacredOaks } from './sacred';
 import { sacredOakEvents } from './sacred-life';
 import {
@@ -141,9 +143,11 @@ import {
 } from './rules';
 import {
   chooseCrops,
+  chosenEnergyKg,
   orchardOnlyLoad,
   planLoad,
   windowDaysLeft,
+  type CropChoiceInput,
   type SowingCapacity,
 } from './sowing';
 import type {
@@ -167,7 +171,7 @@ import {
   woodSupply,
 } from './wood';
 import { fieldGridOf } from './squares';
-import { clearWoodAt, woodMatureShare, woodTreesOnArea } from './woods';
+import { clearWoodAt } from './woods';
 import {
   TASK_ORDER,
   activeTasks,
@@ -176,12 +180,11 @@ import {
   createPlan,
   createYearPlan,
   cropTaskDone,
-  cropTaskRemaining,
   cropTaskWindows,
   harvestKg,
   planCrops,
   planPartIds,
-  ploughRemaining,
+  neededTaskRemaining,
   threshLossKg,
   windowEndOf,
   type CropTask,
@@ -200,6 +203,8 @@ const LAST_JOIN_MONTH = Math.max(...WINDOWS.sow.map(([, to]) => to));
 const DAYS_PER_BONUS_YEAR = 365;
 /** Tolerance, pod kterou se nasycení ještě bere jako plné. */
 const SATIATION_EPSILON = 1e-9;
+/** Tolerance porovnání energie úrody s cílem osevu (kg obilí). */
+const SOWING_EPSILON_KG = 1e-6;
 
 /**
  * Dopočítá ves do dne `toDay` včetně – den po dni od `lastDay + 1`. Vstup nemění.
@@ -380,7 +385,8 @@ function planYear(
   // kolik zasít podle zásob a potřeby z pole (fields.md – Kolik ves oseje, Osev podle zásob)
   const targets = fieldSowingTargets(state, day, coverage);
   const flaxNeed = flaxNeedKg(state, day);
-  const crops = chooseCrops(sowingBlocks(state.parts, holdings), {
+  const blocks = sowingBlocks(state.parts, holdings);
+  const choice: CropChoiceInput = {
     targetKg: targets.targetKg,
     startKg: 0,
     capacity: sowingCapacity(state, day, coverage, plough, landscape),
@@ -397,7 +403,17 @@ function planYear(
     // nad pojistku
     flaxTargetKg: flaxNeed,
     flaxSpareKg: Math.max(0, targets.leftKg - targets.bufferKg),
-  });
+  };
+  let crops = chooseCrops(blocks, choice);
+  // nouzový osev (fields.md – Přílohová soustava, Nouzový osev): když díly od 70 % nedají energii,
+  // kterou ves potřebuje sklidit, vezme i přílohy pod 70 % – za ostatními díly, jen s kladnou
+  // čistou úrodou; luštěniny, len ani osev navíc je neberou
+  if (chosenEnergyKg(crops, day) < targets.harvestKg - SOWING_EPSILON_KG) {
+    const emergency = sowingBlocks(state.parts, holdings, EMERGENCY_GROUP)
+      .map((block) => block.filter((p) => expectedNetKg(p, day) > 0))
+      .filter((block) => block.length > 0);
+    if (emergency.length > 0) crops = chooseCrops([...blocks, ...emergency], choice);
+  }
   // plán vzniká před změnou stavu dílů – vrácení přílohu se počítá jen u dílů v přílohu; práce
   // plánu (i orba – železná špička rádla od kováře) platí podle dnešního pokrytí nástroji celý
   // hospodářský rok
@@ -406,26 +422,33 @@ function planYear(
   state.plan.flaxNeedKg = flaxNeed;
   const sown = [...crops.winter, ...crops.spring, ...crops.legume, ...crops.flax];
   const chosen = new Set(sown.map((p) => p.id));
+  // osev navíc: ostatní díly, které ves smí osít, v pořadí výběru – dostanou práci, která zbude po
+  // stavbách (fields.md – Osev navíc); osévaný díl si pamatuje léta v řadě, než půjde ladem
+  const extra = blocks
+    .flat()
+    .filter((p) => !chosen.has(p.id))
+    .map(extraPartOf);
+  if (extra.length > 0) state.plan.extra = extra;
   // vrácený mladý les dá za dospělé stromy klády (fields.md – Zarůstání, forest.md – Mýcení)
   addLogs(state, reclaimedLogs(sown, day));
   for (const part of state.parts) {
     if (chosen.has(part.id) || (part.state !== 'sown' && part.state !== 'ready')) continue;
-    // nevybraný osev i nevyužitý hotový díl jdou do přílohu a začnou zarůstat
+    // nevybraný osev i nevyužitý hotový díl jdou do přílohu – osev navíc je může vrátit
     part.state = 'fallow';
     part.fallowSinceDay = day;
     part.sownYears = 0;
     delete part.crop;
   }
-  sow(crops.winter, day, 'winter');
-  sow(crops.spring, day, 'spring');
-  sow(crops.legume, day, 'legume');
-  sow(crops.flax, day, 'flax');
+  sowParts(crops.winter, 'winter');
+  sowParts(crops.spring, 'spring');
+  sowParts(crops.legume, 'legume');
+  sowParts(crops.flax, 'flax');
 }
 
 /**
  * Krok 2 (1. 9. – 30. 4.): díly hotové v předchozích dnech jdou do letošního plánu jako jař,
- * když plán cíl nepokrývá a jař se vejde do zbývající práce – bez plánu ho založí. Díly hotové
- * po dubnu čekají na 1. 9.
+ * když plán cíl nepokrývá a jař se vejde do zbývající práce – bez plánu ho založí. Ostatní hotové
+ * díly čekají v osevu navíc (fields.md – Osev navíc). Díly hotové po dubnu čekají na 1. 9.
  */
 function joinFinishedParts(
   state: VillageState,
@@ -446,7 +469,8 @@ function joinFinishedParts(
   const plough = plan ? plan.plough !== undefined : ableTeams(state) > 0;
   const holdings = villageHoldings(state);
   // hotové díly (skupina 2 přílohové soustavy) po úsecích hospodářství
-  const { spring } = chooseCrops(sowingBlocks(state.parts, holdings, 2), {
+  const blocks = sowingBlocks(state.parts, holdings, 2);
+  const { spring } = chooseCrops(blocks, {
     targetKg: fieldSowingTargets(state, day, coverage).targetKg,
     startKg,
     capacity: sowingCapacity(state, day, coverage, plough, landscape),
@@ -456,11 +480,22 @@ function joinFinishedParts(
     toolCoverage: coverage.tools,
     plough,
   });
-  if (spring.length === 0) return;
+  const taken = new Set(spring.map((p) => p.id));
+  const rest = blocks.flat().filter((p) => !taken.has(p.id));
+  if (spring.length === 0 && rest.length === 0) return;
   const order = workOrder(holdings);
-  if (plan === null) state.plan = createPlan(spring, day, coverage.tools, plough, order);
-  else addToCropWork(plan, spring, day, coverage.tools, order);
-  sow(spring, day, 'spring');
+  let target = plan;
+  if (target === null) {
+    // ves, která do 1. 9. plán neměla – i plán bez dílů, jen pro osev navíc
+    target = createPlan(spring, day, coverage.tools, plough, order);
+    state.plan = target;
+  } else if (spring.length > 0) {
+    addToCropWork(target, spring, day, coverage.tools, order);
+  }
+  sowParts(spring, 'spring');
+  // hotové díly, které potřebný osev nevzal, čekají v osevu navíc (fields.md – Osev navíc)
+  unqueueExtraParts(target, taken);
+  queueExtraParts(target, rest.map(extraPartOf));
 }
 
 /**
@@ -565,38 +600,6 @@ function forestBonusUntil(day: number): number {
   return day + FOREST_BONUS.windowYears * DAYS_PER_BONUS_YEAR;
 }
 
-/**
- * Klády z vracených dílů v mladém lese (fields.md – Zarůstání): dospělých stromů jako v lese vsi
- * stejného stáří (`woodMatureShare` × hustota lesa) – za každý celý strom kláda (forest.md –
- * Mýcení).
- */
-function reclaimedLogs(parts: readonly FieldPart[], day: number): number {
-  let trees = 0;
-  for (const part of parts) {
-    if (part.state !== 'fallow' || fallowStage(part, day) !== 'young-forest') continue;
-    trees += woodTreesOnArea(part.areaM2) * woodMatureShare(partOvergrowthYears(part));
-  }
-  return logsFromClearedTrees(Math.floor(trees + 1e-9));
-}
-
-/** Vybrané díly se osejí plodinou `crop` (příloh se vrací do osevu – zarůstání začne znovu). */
-function sow(parts: FieldPart[], day: number, crop: Crop): void {
-  for (const part of parts) {
-    if (part.state === 'fallow') {
-      // kdyby plán podle zásob díl ubral dřív, než na něm začne práce, vrátí se do přílohu, jak byl
-      part.fallowBeforePlan = {
-        sinceDay: part.fallowSinceDay,
-        ...(part.overgrowthYears !== undefined ? { overgrowthYears: part.overgrowthYears } : {}),
-      };
-      part.fallowSinceDay = null;
-      part.sownYears = 0;
-      delete part.overgrowthYears;
-    }
-    part.state = 'sown';
-    part.crop = crop;
-  }
-}
-
 // --- práce ------------------------------------------------------------------------------
 
 /**
@@ -629,6 +632,8 @@ interface FieldTaskEntry {
   work: CropWork;
   end: number;
   rank: number;
+  /** Orba: kolik kapacity spřežení úloha dnes bere (člověkodny orby při plném výkonu). */
+  teamDays?: number;
 }
 
 /**
@@ -651,12 +656,14 @@ function fieldTasks(
     const order =
       TASK_ORDER.indexOf(name === 'plough' ? 'dig' : name) - (name === 'plough' ? 0.5 : 0);
     const rank = CROP_ORDER.indexOf(crop) * TASK_ORDER.length + order;
-    entries.push({ name, crop, remaining: cropTaskRemaining(work, name), work, end, rank });
+    // příprava půdy dílů osevu navíc čeká na volnou práci (fields.md – Osev navíc)
+    const remaining = neededTaskRemaining(work, name);
+    if (remaining > 0) entries.push({ name, crop, remaining, work, end, rank });
   };
   if (state.plan !== null) {
     for (const { crop, work } of planCrops(state.plan)) {
       for (const name of activeTasks(work, day, crop)) if (name !== 'thresh') add(crop, work, name);
-      if (ploughRemaining(work) > 0) add(crop, work, 'plough');
+      if (neededTaskRemaining(work, 'plough') > 0) add(crop, work, 'plough');
     }
   }
   if (state.threshingFromPlan !== null) {
@@ -672,7 +679,8 @@ function fieldTasks(
     if (entry.name !== 'plough') continue;
     const factor = capLeft > 0 ? ploughFactor(entry.work) : 1;
     entry.remaining = Math.min(entry.remaining, capLeft * factor);
-    capLeft = Math.max(0, capLeft - entry.remaining / factor);
+    entry.teamDays = entry.remaining / factor;
+    capLeft = Math.max(0, capLeft - entry.teamDays);
   }
   return entries.filter((e) => e.name !== 'plough' || e.remaining > 0);
 }
@@ -715,12 +723,10 @@ function work(
   // orba: spřežení s rádlem, se železnou špičkou od kováře rychleji (oxen.md); slabí voli po
   // zimě pomaleji; spřežení s vozem na výpravě neorá (wagons.md)
   const partsById = new Map(state.parts.map((p) => [p.id, p]));
-  const owned = fieldTasks(
-    state,
-    day,
-    ploughCapacityPerDay(state, coverage.tools, day) * teamsHomeShare(state),
-    (cropWork) => ploughDayFactor(state, day, cropWork, partsById, landscape, obstacles),
-  );
+  const ploughCap = ploughCapacityPerDay(state, coverage.tools, day) * teamsHomeShare(state);
+  const ploughFactor = (cropWork: CropWork): number =>
+    ploughDayFactor(state, day, cropWork, partsById, landscape, obstacles);
+  const owned = fieldTasks(state, day, ploughCap, ploughFactor);
   const dayTasks: DayTask[] = owned.map((field) => ({
     name: field.name,
     remaining: field.remaining,
@@ -881,7 +887,19 @@ function work(
     return { dwellingId: d.id, manDays };
   });
   decayEmptyDwellings(state, day, new Set(households.map((d) => d.id)));
-  // co zbude po opravách, propadne (`afterBuild.left`)
+  // osev navíc (fields.md – Osev navíc): práce, která zbude po stavbách a opravách, jde na díly,
+  // které ves smí osít navíc; spřežení jen s kapacitou, která po potřebné orbě zbyla, a ne když
+  // dnes vozí – co zbude i potom, propadne
+  const extra = extraSowingDay(state, day, {
+    labor: afterBuild.left,
+    ploughCap:
+      haulWork.length > 0
+        ? 0
+        : Math.max(0, ploughCap - owned.reduce((sum, t) => sum + (t.teamDays ?? 0), 0)),
+    ploughFactor,
+    toolCoverage: coverage.tools,
+    order: () => workOrder(villageHoldings(state)),
+  });
   const workshops = [
     ...workCrafts(state, day, obstacles, coverage, productivity, resting, landscape),
     ...workCarpenters(state, day, obstacles, coverage, productivity, resting, help),
@@ -889,7 +907,8 @@ function work(
   const hayMowing = state.hay?.mowing;
   state.labor = laborDay(state, day, {
     allocation,
-    fieldWork,
+    fieldWork: [...fieldWork, ...extra.fieldWork],
+    extraField: extra.labor,
     repairs,
     constructions,
     workshops,
@@ -919,7 +938,7 @@ function work(
   // dřina: stihne ves dnešním tempem polní práce obou plodin do konce jejich oken?
   const pace = fieldWork.reduce((sum, task) => sum + task.amount, 0);
   const seasonTasks = owned.map((task) => ({
-    remaining: cropTaskRemaining(task.work, task.name),
+    remaining: neededTaskRemaining(task.work, task.name),
     endDay: windowEndDay(cropTaskWindows(task.crop, task.name), day) ?? day,
   }));
   return { toil: isToilDay(seasonTasks, pace, day) };

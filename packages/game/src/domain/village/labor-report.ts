@@ -68,6 +68,11 @@ export interface DayWork {
   allocation: DayAllocation;
   /** Polní úlohy dne po plodinách (bez nich se práce polí dělí podle plochy plánu). */
   fieldWork?: FieldTaskWork[];
+  /**
+   * Polní práce navíc ze společné práce – po stavbách (fields.md – Osev navíc); její úlohy jsou
+   * ve `fieldWork`. Bez údaje 0.
+   */
+  extraField?: number;
   /** Opravy po obydlích (poměrně k potřebě). */
   repairs: { dwellingId: number; manDays: number }[];
   constructions: ConstructionWork[];
@@ -221,8 +226,9 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
   }
   // nákup u sousedů – malá skupina po stezce nebo krajinou ke kraji mapy (crafts.md)
   for (const p of work.purchases ?? []) add('trade', p.target, p.manDays);
-  // opravy obydlí jdou ze společné práce po stavbách (population.md – Práce)
-  let invested = work.repairs.reduce((sum, r) => sum + r.manDays, 0);
+  // opravy obydlí jdou ze společné práce po stavbách (population.md – Práce), polní práce navíc
+  // z toho, co zbude po nich (fields.md – Osev navíc)
+  let invested = work.repairs.reduce((sum, r) => sum + r.manDays, 0) + (work.extraField ?? 0);
   // honáci a nakladači klád jdou ze společné práce (wagons.md)
   for (const haul of hauls) if (haul.job === 'logs') invested += haul.manDays;
   for (const c of work.constructions) {

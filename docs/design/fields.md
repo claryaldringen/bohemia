@@ -311,7 +311,11 @@ Clauda**; implementace v `square-grid.ts` a `squares.ts` (jádro), ve scéně `f
   obilí, takže seje obilí a luštěniny jen na tu část energie, kterou jí nedá maso, mléko a sýr,
   vejce a ovoce.
 - Když ves během roku zjistí, že má zásob dost, **rozjetý plán zkrátí hned** – díly, na kterých
-  ještě nezačala práce, nechá ladem (viz Osev podle zásob).
+  ještě nezačala práce, přesune do osevu navíc (viz Osev podle zásob).
+- To je **potřebný osev** – aby ves neměla hlad; jeho práce má přednost před stavbami. Od
+  Martinova rozhodnutí 19. 10. 2026 ves k tomu oseje i **všechny ostatní díly, které smí osít**,
+  ale jen prací, která zbude po stavbách a opravách obydlí (viz Osev navíc níže). Ves bez staveb
+  tak obdělá celé pole.
 
 #### Osev podle stravy
 
@@ -429,7 +433,10 @@ masa, a přesto od 1. 3. kopal ≈ 9,7 člověkodne denně – volná práce nul
     o podíl ubraného dílu stejně, jako když díl zabere stavba (`shrinkInPlan`).
   - **Ubraný díl leží ladem jako příloh** – díl, který se letos vracel z přílohu, jak ležel předtím
     (den, od kdy ležel ladem, i roky bez pastvy – `FieldPart.fallowBeforePlan`, smaže se na konci
-    hospodářského roku), ostatní od 1. 9. jako nevybraný díl.
+    hospodářského roku), ostatní od 1. 9. jako nevybraný díl. Od 19. 10. 2026 **čeká v osevu
+    navíc** (Osev navíc výše) – na začátku seznamu, nejblíž domu první (ve výběru byl před
+    ostatními); oseje se, zbude-li po stavbách práce. Nouzový příloh pod 70 % ubírá zkrácení
+    napřed a do osevu navíc nejde.
   - Kontrola je čistá funkce stavu a dne, takže nezávisí na kouscích dopočtu (test).
 - **Ukázka – Vlkov** (před sloučením se stády podle bílkovin, s pojistkou 0,3; kopie z DB jen
   čtená: stav z 18. 6. 751 dopočtený dosavadním kódem do 22. 3. 752 – plán z 1. 9. 751 podle
@@ -577,6 +584,49 @@ s nouzovou porážkou v obou): zásoby z pole po sklizni ÷ cíl v pásmu 79,7 %
 63,5 čd na člověka a rok (63,3), volná práce 6,2 (5,8); nasycení ≥ 0,95 celý rok 96,6 % let
 (96,8 %), nejnižší nasycení roku p1 0,60 (0,56).
 
+#### Osev navíc
+
+Stav: **Martin, 19. 10. 2026:** „Vesničané se snaží vyrobit co nejvíce jídla (později přibudou
+nejspíš i jiné suroviny), ale pokud se něco staví, tak čas věnují primárně té stavbě – zemědělství
+jenom natolik, aby vesnice neměla hlad.“ Martin schválil návrh, podrobnosti jsou **návrh Clauda**.
+
+- **Potřebný osev** je beze změny plán k 1. 9. – cíl podle zásob, kapacita plánu, luštěniny a len
+  podle potřeby, zkrácení rozjetého plánu. Jeho práce má přednost před stavbami (Práce, bod 3).
+- **Osev navíc** = všechny ostatní díly, které přílohová soustava dovolí osít (aktuální úrodnost
+  aspoň 70 % přirozené – nouzový příloh pod 70 % ne), v pořadí výběru (Přílohová soustava –
+  Pořadí, po úsecích hospodářství od domu ven), **jen obilí**. Dostanou jen práci, která zbude po
+  stavbách a opravách obydlí (Práce, bod 6); spřežení orají napřed potřebný osev, díly navíc jen
+  kapacitou, která zbude (a ne v den, kdy spřežení vozí). Bez kontroly kapacity plánu – je to
+  práce „když zbude čas“.
+- **Plodina:** díl navíc je napřed kandidát ozimu – dokud po dnešku zbývá den setí ozimu
+  (do 30. 10.; zaseje se, co je zkopané do včerejška); potom jař v oknech kopání jaře (31. 10.
+  – 30. 11. a 1. 3. – 29. 4., na jaře jen dokud po dnešku zbývá den setí). Příloh, který se musí
+  vracet (drn louky, křoviny, mladý les), začne jen v okně vrácení (na podzim) – na jaře ves začne
+  jen díly bez vrácení. Co ves do konce dubna nezačne, zůstane ladem jako příloh; od 1. 5. se
+  seznam dílů navíc smaže.
+- **Co ves na dílu navíc začala, dokončí jako potřebné:** jakmile na dílu začne práce (vrácení
+  přílohu, kopání, orba), díl patří k ozimu nebo jaři plánu a jeho **setí, pletí, sklizeň
+  a výmlat** jsou potřebná práce s předností před stavbami – zaseté obilí se vždy sklidí.
+  **Příprava půdy začatého dílu** (zbytek vrácení, kopání a orby) dál čeká na práci po stavbách
+  (rozhodnutí Clauda): jinak by malá ves, které po stavbách zbude méně, než stojí jeden díl,
+  každý druhý den brala práci stavbám a volná práce v liště by skákala mezi nulou a zbytkem.
+  Práce jde napřed na přípravu půdy začatých dílů, teprve pak na další díl – rozkopaný je tak
+  nejvýš jeden díl na plodinu; co ves zkopala, zaseje, a co zasela, sklidí.
+- **Volná práce** v liště je práce, kterou dostanou nebo by dostaly stavby – před polní prací
+  navíc. Ves bez staveb tak neukazuje nulu jen proto, že práci vzala pole navíc; stojící stavby se
+  poznají jako dřív.
+- **Zrušené pravidlo:** dřív díly, které ves pro svou potřebu nevybrala, ležely ladem, i když
+  měla volnou práci (Přílohová soustava – Příliš velké pole). Teď je bez staveb obdělá.
+- **Úroda a zásoby navíc:** žádná nová pravidla – zásoby porostou (ztráty skladováním jako dřív)
+  a příští rok díky nim potřebný osev klesne (osev podle zásob je odečte); osev navíc zase vezme,
+  co ves stihne.
+- **Ve hře:** díl navíc, na kterém práce ještě nezačala, vypadá jako příloh (díl, který se
+  osíval, leží od 1. 9. ladem jako mladý příloh) a v datech panelu nese, že čeká na volnou práci;
+  začatý díl postupuje jako ostatní díly plodiny (Postup práce po čtvercích). Díl, který se
+  osíval, se po začátku práce osévá dál s tolika lety v řadě, kolik měl.
+- **Starší vsi** (plán bez osevu navíc) dostanou osev navíc s dalším plánem 1. 9.; hotové díly
+  (připravené), které ves během roku do plánu nevezme, čekají v osevu navíc hned.
+
 ### Přílohová soustava – co se oseje a co leží ladem
 
 Výchozí osevní systém je přílohová soustava raných Slovanů (Martin). Pravidla (návrh Clauda):
@@ -594,23 +644,48 @@ Výchozí osevní systém je přílohová soustava raných Slovanů (Martin). Pr
   +2 % vede z 64 % na 95 % až za 16 let (12–13 let platí od 70 %) a každý příloh by tehdy
   zarostl v les – proto 2,5 % (rešerše uvádí 2–2,5 %). Od 18. 10. 2026 zarůstá jen příloh, který
   stáda nespásají a ves neposeče (viz Zarůstání) – délka přílohu sama les nehlídá.
-- **Smí se osít** díl, jehož aktuální úrodnost je aspoň 70 % přirozené.
+- **Smí se osít** díl, jehož aktuální úrodnost je aspoň 70 % přirozené – v nouzi i příloh pod
+  70 % (Pořadí, bod 5 – Nouzový osev níže).
 - **Pořadí:** k 1. září ves vybírá díly na příští rok v tomto pořadí, dokud nepokryje potřebu
   (viz Kolik ves oseje):
   1. díly, které se už osévají a smějí dál,
   2. čerstvě založené díly (plná úrodnost, vymýcený les s bonusem – viz Úroda),
   3. přílohy zotavené aspoň na 95 % – nejmladší první (nejlevnější vrácení), při shodě
      nejbližší,
-  4. když to nestačí, i přílohy zotavené na 70–95 % – nejvíc zotavené první.
+  4. když to nestačí, i přílohy zotavené na 70–95 % – nejvíc zotavené první,
+  5. **nouzově i přílohy pod 70 %** – jen pro potřebný osev, když díly od 70 % nedají energii,
+     kterou ves potřebuje sklidit; nejvíc zotavené první, při shodě nejbližší (viz Nouzový osev).
 
   Ves s hospodářstvími (díly na políčkách a aspoň jeden dům) bere skupiny ve stejném pořadí, ale
   po celých úsecích hospodářství od domu ven – viz Hospodaření podle polohy domů.
 
 - **Vrácení přílohu do osevu** stojí po 1–2 letech drn pastviny (viz Práce a Příloh a pastva).
   V přílohové soustavě je to běžná součást oběhu, ne trest.
-- **Příliš velké pole:** díly, které ves pro svou potřebu nevybere, dál leží jako pastvina. Práce
-  vložená do jejich založení přišla vniveč a až je ves bude potřebovat, zaplatí znovu drn. Tak ves
-  část pole „neobdělá“ (Martin), i když má volnou práci.
+- **Příliš velké pole:** dřív díly, které ves pro svou potřebu nevybrala, ležely jako pastvina,
+  i když ves měla volnou práci – ves část pole „neobdělala“ (Martin). **Od 19. 10. 2026 zrušeno**
+  (Martin – Kolik ves oseje, Osev navíc): ves bez staveb je oseje prací, která zbude po stavbách;
+  ladem leží jen díly, na které práce nezbude (ves staví, nebo je pole na její lidi velké).
+- **Nouzový osev** (Martin, 19. 10. 2026: „Ano, pusť na to agenta“ k návrhu Clauda: „když potřebný
+  osev nevychází, ves smí v nouzi osít i příloh pod 70 % (úroda podle jeho úrodnosti) – je
+  absurdní hladovět s 35 ha ladem“; podrobnosti návrh Clauda). **Proč:** Vlkov měl 40 ha polí,
+  z toho 35 ha přílohu s úrodností 50–70 % přirozené; smí osít jen 4,8 ha, úroda obilí byla
+  0,3–3 t ročně a za 11 let tam zemřelo hlady 28 lidí.
+  - Platí jen pro **potřebný osev**, ne pro osev navíc, a jen pro obilí – luštěniny a len na
+    nouzový příloh nejdou. Ves k 1. 9. vybere díly jako dřív (body 1–4); když jejich úroda nedá
+    energii, kterou ves potřebuje sklidit kvůli jídlu (cíl osevu bez luštěnin navíc na bílkoviny),
+    vybere znovu i s přílohy pod 70 % za nimi (bod 5, po úsecích hospodářství jako ostatní). Ves,
+    které díly od 70 % stačí, seje beze změny.
+  - Ves díl vezme, jen když je jeho očekávaná čistá úroda (hrubá podle úrodnosti − osivo) kladná.
+    S dnešní úrodou (základ 40 % i při nulové úrodnosti – 304 kg/ha proti 175 kg osiva) je vždy
+    kladná – mez se zatím neuplatní. Další mez Claude nepřidal: při úrodnosti 35 (přirozená 70,
+    podíl 0,5) dá louka ≈ 290 kg/ha čistého obilí za ≈ 305 člověkodní ručně (≈ 0,95 kg na
+    člověkoden; běžný příloh ≈ 1,45, osévaný díl ≈ 2,2) – v nouzi to pořád stojí za to.
+  - Kapacita plánu (práce ve špičkách, orba spřežením) platí jako u ostatních dílů potřebného
+    osevu. Úroda a pokles úrodnosti zůstávají: osetý rok ubere 12 % přirozené (nejvýš na nulu –
+    jinak by opakovaný nouzový osev šel pod nulu) a díl jde 1. 9. zase do přílohu.
+  - Zkrácení rozjetého plánu (Osev podle zásob) ubírá napřed nezačaté nouzové díly; do osevu navíc
+    nejdou.
+
 - Když ves nemá práci ani na potřebný osev (málo lidí na potřebu), oseje méně, než by
   potřebovala – ves pak hladoví (Zásoby a nasycení).
 
@@ -1617,3 +1692,8 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 | Pořadí práce: minimum, výpravy, potřebné úlohy, stavby, opravy obydlí, pole navíc, zbytek propadne                                | Martin, 19. 10. 2026                            |
 | Zvířata (dojení, péče – ženy; pasení – výrostci) a domácí výroba bokem, mimo práci vsi                                            | Martin, 19. 10. 2026                            |
 | Starší kryjí denní minimum své domácnosti (0,5 čd), dospělí dají zbytek; přebytek starších propadne                               | návrh Clauda                                    |
+| Osev navíc – bez staveb ves obdělá všechny díly, které smí osít (jen obilí); ruší „příliš velké pole“                             | Martin (19. 10. 2026)                           |
+| Díl navíc: ozim do 30. 10., pak jař; začatý díl – setí až výmlat potřebné, příprava půdy čeká na práci po stavbách                | návrh Clauda                                    |
+| Zkrácení plánu ubrané díly přesune do osevu navíc; volná práce v liště = práce pro stavby, před polem navíc                       | návrh Clauda                                    |
+| Nouzový osev – když potřebný osev nevychází, ves smí osít i příloh pod 70 % (úroda podle úrodnosti)                               | Martin (19. 10. 2026)                           |
+| Nouzově jen obilí potřebného osevu, nejvíc zotavené první, jen s kladnou čistou úrodou; úrodnost nejvýš na nulu                   | návrh Clauda                                    |

@@ -171,10 +171,15 @@ export function endOfSeason(part: FieldPart, day: number): void {
   if (part.state === 'sown') {
     // díl prošel orbou – drn louky založené rádlem je rozoraný (oxen.md – Jen rádlo)
     delete part.sod;
+    // nejvýš na nulu – nouzově osetý příloh pod 70 % (fields.md – Nouzový osev) může klesat dál
     part.fertilityShare =
       part.crop === 'legume'
         ? Math.min(1, part.fertilityShare + LEGUMES.fertilityGain)
-        : part.fertilityShare - (part.crop === 'flax' ? FLAX.sowDepletion : FERTILITY.sowDepletion);
+        : Math.max(
+            0,
+            part.fertilityShare -
+              (part.crop === 'flax' ? FLAX.sowDepletion : FERTILITY.sowDepletion),
+          );
     part.sownYears += 1;
     if (part.fertilityShare < FERTILITY.sowableMin - EPSILON) {
       part.state = 'fallow';
@@ -198,11 +203,24 @@ export function endOfSeason(part: FieldPart, day: number): void {
  */
 export type SowingGroup = 1 | 2 | 3 | 4;
 export function sowingGroup(p: FieldPart): SowingGroup | null {
-  const sowable = p.fertilityShare >= FERTILITY.sowableMin - EPSILON;
+  const sowable = isSowableFertility(p);
   if (p.state === 'sown') return sowable ? 1 : null;
   if (p.state === 'ready') return 2;
   if (p.state !== 'fallow' || !sowable) return null;
   return p.fertilityShare >= FERTILITY.fallowReady - EPSILON ? 3 : 4;
+}
+
+/** Úrodnost dílu stačí na běžný osev – aspoň 70 % přirozené (fields.md – Přílohová soustava). */
+export function isSowableFertility(p: FieldPart): boolean {
+  return p.fertilityShare >= FERTILITY.sowableMin - EPSILON;
+}
+
+/**
+ * Příloh pod 70 % přirozené úrodnosti – ves ho smí osít jen v nouzi, když díly od 70 % nepokryjí
+ * potřebný osev (fields.md – Přílohová soustava, Nouzový osev).
+ */
+export function isEmergencyFallow(p: FieldPart): boolean {
+  return p.state === 'fallow' && !isSowableFertility(p);
 }
 
 /**
