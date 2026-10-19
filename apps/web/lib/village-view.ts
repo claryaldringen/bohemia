@@ -1062,7 +1062,10 @@ export interface SceneTrail {
   built: boolean;
 }
 
-export type SceneRoad = Pick<Road, 'id' | 'points' | 'grade' | 'ground' | 'openEnds' | 'cart'> & {
+export type SceneRoad = Pick<
+  Road,
+  'id' | 'points' | 'grade' | 'ground' | 'openEnds' | 'cart' | 'swath'
+> & {
   /**
    * Rozestavěné vylepšení úseku – stupeň a průběh 0–1 na tomto úseku (vylepšení cesty hráče jde
    * po úsecích – `roadUpgradeProgress`); `fromEnd` – úsek leží v cestě obráceně, práce jde od
@@ -1808,6 +1811,8 @@ export function sceneRoads(
       grade: r.grade,
       // vozová cesta (wagons.md – Vyjeté cesty) – dvě koleje
       ...(r.cart ? { cart: true as const } : {}),
+      // průsek lesem (roads.md – Průsek lesem) – plocha korun nad ním zapadne
+      ...(r.swath ? { swath: true as const } : {}),
       ...(r.ground
         ? {
             ground: {
@@ -1923,7 +1928,7 @@ function roadViews(
         work && work.roadGrade
           ? { grade: work.roadGrade, progress: work.progress, treesToFell: work.treesToFell }
           : null,
-      upgrades: roadUpgradeOptions(state, r.id, day, obstacles, walk),
+      upgrades: roadUpgradeOptions(state, r.id, day, obstacles, walk, landscape),
       apples: {
         trees: living.length,
         bearing: living.filter((a) => roadAppleBearing(a, day)).length,

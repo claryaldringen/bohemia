@@ -1,8 +1,9 @@
-import type { ObstacleLayer } from '../landscape';
+import type { Landscape, ObstacleLayer } from '../landscape';
 import { obstacleChangesAt } from './obstacles';
 import { roadChain } from './paths/road-chains';
 import { roadLengthM, roadWetM, roadsInWork } from './paths/roads';
 import type { Walk } from './paths/walking';
+import { roadSwathTally } from './road-swath';
 import { ROAD_UPGRADES } from './rules';
 import type { Construction, Road, RoadGrade, VillageState } from './types';
 import { claimedObstacles, planWoodFrom, takeWood, woodLogs, type WoodPlan } from './wood';
@@ -14,7 +15,9 @@ import { claimedObstacles, planWoodFrom, takeWood, woodLogs, type WoodPlan } fro
 // mokřiny, lávka 4 stromy a 15 člověkodní na brod. Dřevo jako obydlí: klády z hromady, pak
 // nejbližší dospělé stromy k úseku. Rychlejší chůze po vylepšené cestě počítá walking.ts
 // (ROAD_WALK). Vylepšuje se celá cesta hráče – řetěz úseků (road-chains.ts): úseky, které to
-// vylepšení ještě nemají, jednou stavbou (cena za ně dohromady, stupeň po úsecích).
+// vylepšení ještě nemají, jednou stavbou (cena za ně dohromady, stupeň po úsecích). Upravená
+// cesta lesem vykácí průsek (road-swath.ts – kácení je součást práce, klády na hromadu); posvátný
+// dub v pásu cesty úpravu nedovolí.
 
 /** Vylepšení úseku – na upravenou cestu, nebo hať a lávka. */
 export type RoadUpgrade = Exclude<RoadGrade, 'trodden'>;
@@ -28,8 +31,35 @@ export interface RoadUpgradeOption {
   trees: number;
   /** Stromy ke kácení (dřevo, které hromada nepokryje). */
   treesToFell: number;
+  /** Dospělé stromy v průseku lesem (roads.md – Průsek lesem) – klády na hromadu. */
+  swathTrees: number;
   /** Proč vylepšení teď nejde (česky), nebo null. */
   blocked: string | null;
+}
+
+/** Úpravu cesty lesem nedovolí posvátný dub nebo strom háje v pásu cesty (happiness.md). */
+export const ROAD_SACRED = 'Úpravě cesty brání posvátný dub – kácet se nesmí.';
+
+/** Průsek lesem úseků upravované cesty (bez krajiny nic): práce, stromy a posvátný dub v pásu. */
+function chainSwath(
+  state: VillageState,
+  roads: readonly Road[],
+  upgrade: RoadUpgrade,
+  day: number,
+  obstacles: ObstacleLayer | null,
+  landscape: Landscape | undefined,
+): { manDays: number; trees: number; sacred: boolean } {
+  const out = { manDays: 0, trees: 0, sacred: false };
+  if (upgrade !== 'improved' || !obstacles || !landscape) return out;
+  for (const road of roads) {
+    if (road.swath) continue;
+    const tally = roadSwathTally(state, road, day, obstacles, landscape);
+    out.manDays += tally.cost;
+    out.trees += tally.trees;
+    out.sacred ||= tally.sacred;
+  }
+  out.manDays = tenths(out.manDays);
+  return out;
 }
 
 /** Na desetiny člověkodne. */
@@ -171,6 +201,7 @@ export function roadUpgradeOptions(
   day: number,
   obstacles: ObstacleLayer | null,
   walk?: Walk,
+  landscape?: Landscape,
 ): RoadUpgradeOption[] {
   const chain = roadChain(state.roads?.roads ?? [], roadId).map((link) => link.road);
   if (chain.length === 0) return [];
@@ -183,6 +214,7 @@ export function roadUpgradeOptions(
   return offered.map((upgrade) => {
     const targets = chainTargets(state, roadId, upgrade);
     const cost = chainCost(targets, upgrade);
+    const swath = chainSwath(state, targets, upgrade, day, obstacles, landscape);
     const wood =
       cost.trees > 0 ? upgradeWood(state, targets, cost.trees, day, obstacles, walk) : null;
     const felling = wood ? wood.fell.reduce((sum, t) => sum + t.cost, 0) : 0;
@@ -190,12 +222,14 @@ export function roadUpgradeOptions(
     if (working) blocked = 'Cesta se už vylepšuje.';
     else if (upgrade === 'causeway' && targets.some((road) => road.grade === 'trodden')) {
       blocked = 'Nejdřív je potřeba cestu upravit.';
-    } else if (wood && wood.missing > 0) blocked = 'Na hať a lávku chybí dřevo.';
+    } else if (swath.sacred) blocked = ROAD_SACRED;
+    else if (wood && wood.missing > 0) blocked = 'Na hať a lávku chybí dřevo.';
     return {
       upgrade,
-      laborManDays: tenths(cost.manDays + felling),
+      laborManDays: tenths(cost.manDays + swath.manDays + felling),
       trees: cost.trees,
       treesToFell: wood ? wood.fell.length : 0,
+      swathTrees: swath.trees,
       blocked,
     };
   });
@@ -215,8 +249,9 @@ export function startRoadUpgrade(
   upgrade: RoadUpgrade,
   obstacles: ObstacleLayer | null,
   walk?: Walk,
+  landscape?: Landscape,
 ): VillageState {
-  const option = roadUpgradeOptions(state, roadId, day, obstacles, walk).find(
+  const option = roadUpgradeOptions(state, roadId, day, obstacles, walk, landscape).find(
     (o) => o.upgrade === upgrade,
   );
   if (!option) throw new RangeError('Tohle vylepšení úsek nemá.');
@@ -224,6 +259,8 @@ export function startRoadUpgrade(
   const next = structuredClone(state);
   const targets = chainTargets(next, roadId, upgrade);
   const cost = chainCost(targets, upgrade);
+  // průsek lesem – kácí se, až práce na úsek dojde (roadSwathDay); cena předem
+  const swath = chainSwath(state, targets, upgrade, day, obstacles, landscape);
   const wood =
     cost.trees > 0
       ? takeWood(next, upgradeWood(next, targets, cost.trees, day, obstacles, walk))
@@ -232,7 +269,9 @@ export function startRoadUpgrade(
     id: next.nextId++,
     kind: 'road',
     startedDay: day,
-    cost: tenths(cost.manDays + (wood ? wood.fell.reduce((sum, t) => sum + t.cost, 0) : 0)),
+    cost: tenths(
+      cost.manDays + swath.manDays + (wood ? wood.fell.reduce((sum, t) => sum + t.cost, 0) : 0),
+    ),
     done: 0,
     dwellingType: null,
     position: null,

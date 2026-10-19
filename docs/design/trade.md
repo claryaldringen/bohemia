@@ -52,6 +52,13 @@ a smysl přebytkům (obilí, sýr, maso, klády po mýcení) – jen se surovina
   plus hať a lávka, kde vede mokřinou nebo přes potok. Kde už pevná cesta je, platí se jen
   vylepšení. Staví se ze společné práce vsi, po úsecích od vsi ven (vytyčení hned).
 - Hotová stezka je pevná cesta (nezaroste), stromy u ní rostou jako u ostatních pevných cest.
+- **Průsek lesem** (Martin, 19. 10. 2026: „Tam, kde zemská stezka prochází lesem, ať se les
+  vykácí.“; podrobnosti návrh Clauda, [roads.md](roads.md) – Průsek lesem): kde stezka vede
+  lesem, vykácí se pruh 3,5 m od osy (pás upravené cesty 3 m a 2 m z každé strany). Kácení je
+  práce úseku (tabulka překážek, v ceně stezky a v popisku růžice i se stromy v průseku), klády
+  za dospělé stromy jdou na hromadu, pařezy po stranách nedorostou. Trasa se vyhne posvátným
+  dubům a hájům – průsek by je musel vykácet, a ty se nekácí; kde by jinak stezka nevedla, směr
+  nejde.
 - Víc stezek = víc sousedů (každá stavba zvlášť).
 
 ## Sousedé (bez simulace – varianta a)
@@ -299,5 +306,7 @@ Návrh Clauda (18. 10. 2026) – detaily, které návrh výš nechal otevřené:
 | Druhy sousedů (obilnáři, pastevci, lesní ves, řemeslníci), každý dvakrát kolem vsi         | návrh Clauda |
 | Starší vsi: zboží zvenku propadne, výprava pro něj se ruší a nosiči vrátí, co nesli        | návrh Clauda |
 | Výměna lidí se sousedem – celé rodiny i jen dospělí, podle nabídky (19. 10.)               | Martin       |
+| Kde stezka prochází lesem, les se vykácí (19. 10.)                                         | Martin       |
+| Průsek 3,5 m od osy, kácení v ceně úseku, trasa se vyhne posvátným dubům a hájům           | návrh Clauda |
 | Lidé souseda na rok (40 % navíc, 30 % shání), dospělý 360 kg obilí, dítě polovina          | návrh Clauda |
 | Kdo přijde a kam, koho ves dá (ne dědic, dvorec, rozpad domácnosti), lidé nic nenesou      | návrh Clauda |

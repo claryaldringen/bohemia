@@ -527,7 +527,10 @@ export function fellingsOf(
 /** Stojí strom v den `day` – není odstraněný ani pokácený (nebo už dorostl)? */
 export function isTreeStanding(state: VillageState, id: number, day: number): boolean {
   if ((state.clearedObstacles ?? []).some((c) => c.id === id)) return false;
-  return !(state.felledTrees ?? []).some((f) => f.id === id && felledTreeStage(f, day) !== 'grown');
+  const swath = state.roads?.swath?.includes(id) ?? false;
+  return !(state.felledTrees ?? []).some(
+    (f) => f.id === id && (swath || felledTreeStage(f, day) !== 'grown'),
+  );
 }
 
 /**

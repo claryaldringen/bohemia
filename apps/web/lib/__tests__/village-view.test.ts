@@ -1699,6 +1699,14 @@ describe('pevné cesty v pohledu na ves (roads.md)', () => {
     expect(later.roads[0]!.building).toMatchObject({ grade: 'improved', progress: 0.25 });
   });
 
+  it('scéna: úsek s průsekem lesem nese příznak (plocha korun nad ním zapadne)', () => {
+    const s = withRoads();
+    s.roads!.roads[0]!.grade = 'improved';
+    s.roads!.roads[0]!.swath = true;
+    const view = buildVillageView(record(s), landscape, DAY);
+    expect(view.scene.roads![0]).toMatchObject({ grade: 'improved', swath: true });
+  });
+
   it('ves bez pevných cest je ve scéně nemá', () => {
     const view = buildVillageView(record(settled()), landscape, DAY);
     expect(view.scene.roads).toBeUndefined();

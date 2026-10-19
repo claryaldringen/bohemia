@@ -18,7 +18,7 @@ import type {
   Trail,
   VillageState,
 } from './types';
-import { trailTerrain } from './trail';
+import { trailTerrain } from './paths/terrain';
 import { woodFellingCost } from './wood';
 
 // Vozy (wagons.md – Vůz): zásoba vsi, kterou vyrábí tesař (carpentry.ts). Vůz stojí u ohrady se

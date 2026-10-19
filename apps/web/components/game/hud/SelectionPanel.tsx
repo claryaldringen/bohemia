@@ -39,7 +39,7 @@ import {
 } from '@/lib/village-view';
 import type { Direction8, RoadGrade, RoadUpgrade, TradeGoods } from '@bohemia/game';
 import type { PreviewPeople } from '@/lib/trade-quote';
-import { ManorUpgrades } from './ManorPanel';
+import { ManorUpgrades, SwathTrees } from './ManorPanel';
 import { TradePanel } from './TradePanel';
 import {
   CancelRelocationButton,
@@ -1286,6 +1286,7 @@ function RoadBody({
                       {option.trees}
                     </span>
                   )}
+                  {option.swathTrees > 0 && <SwathTrees trees={option.swathTrees} />}
                 </span>
                 {option.blocked && (
                   <span data-testid="road-upgrade-blocked" className="font-semibold text-red-400">

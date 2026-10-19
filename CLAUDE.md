@@ -1743,6 +1743,20 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   `VillageRoad` = cesta (`segments`, `grades`, `cartM`), výběr `{ kind: 'road', id }` s id
   prvního úseku (`pickVillageTarget`), zvýraznění celé cesty, `SceneRoad.upgrade.fromEnd`;
   přechod pásů různé šířky se zúží (`RibbonLine.narrowStart` / `narrowEnd`, `NARROW_M`).
+- **Průsek lesem** ([roads.md](docs/design/roads.md) – Průsek lesem, trade.md – Zemská stezka;
+  Martin 19. 10. 2026: „Tam, kde zemská stezka prochází lesem, ať se les vykácí.“): upravená
+  cesta a stezka lesem (`PATH_WOODLAND`, les vsi) vykácí pruh `ROAD_SWATH.halfM` (3,5 m) od osy
+  – v pásu cesty (`roadbedM` 1,5 m) i pařezy a kameny, po stranách pařezy (`road-swath.ts`:
+  `swathTally`, `roadSwathTally`, `cutRoadSwath`). Cena v úseku stezky (`pieceOf`) a vylepšení
+  (`roadUpgradeOptions(…, walk, landscape)`, `swathTrees`); kácí krok dne `roadSwathDay`
+  s `swathRoadsInWork` (trail.ts), klády na hromadu, `Road.swath`. Pařezy průseků
+  (`VillageRoads.swath`) nedorostou (`obstacleChangesAt`, `fellTrees`, `plantOnStump`,
+  `isTreeStanding`), nový les vsi do pruhu nevstoupí (`keepSwathsClearOfWoods`). Posvátné duby
+  a háje: trasa stezky se jim vyhne (`sacredMask` v `trailRoutes`), v pásu cesty úpravu
+  nedovolí (`ROAD_SACRED`, `TRAIL_SACRED`). Starší vsi `withRoadSwaths` (bez klád, příznak
+  `swathChecked`). `trailTerrain` je v `paths/terrain.ts`. Scéna: `SceneRoad.swath` →
+  `swath-bands.ts` (plocha korun `setCleared(…, swaths)`, zarůstání `wildPlants`), dev ukázka
+  Stezka lesem (`dev-forest-trail.ts`). Vozová cesta průsek nedostane.
 - **Cesta přes pole** ([roads.md](docs/design/roads.md) – Cesta přes pole; Martin 19. 10. 2026:
   „Ano má. … pokud oráč narazí na cestu, tak spřežení otočí. Nebude pak moci vzniknout takový
   růžek…“): pás pevné cesty (šířky `ROAD_LAND.widthM` = obtisk, i `ROAD_WIDTH_M` ve scéně)

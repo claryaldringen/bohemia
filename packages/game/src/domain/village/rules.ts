@@ -333,6 +333,14 @@ export const ROAD_LAND = {
   stripMinM: 3,
   cells: 30,
 } as const;
+/**
+ * roads.md – Průsek lesem a trade.md – Zemská stezka (Martin, 19. 10. 2026: „Tam, kde zemská
+ * stezka prochází lesem, ať se les vykácí.“; čísla návrh Clauda): kde upravená cesta nebo stezka
+ * vede lesem (i lemem do 6 m před ním), vykácí se pruh `halfM` od osy na každou stranu – pás
+ * upravené cesty 3 m a 2 m z každé strany, ať se vůz i lidé vejdou a nejdou pod větvemi. V pásu
+ * cesty (`roadbedM` od osy) se vyklučí i pařezy a vyberou kameny, po stranách zůstanou pařezy.
+ */
+export const ROAD_SWATH = { halfM: 3.5, roadbedM: 1.5 } as const;
 // roads.md – Vysazení jabloní (Martin; čísla návrh Clauda): podél úseku po obou stranách po 10 m
 // střídavě (2,6–3,4 m od osy), jabloně nejméně 8 m od sebe a 6 m od stromu u cesty; jako sad na
 // strom – ≈ 180 stromů na hektar (výsadba 80 čd/ha ≈ 0,45 čd na strom, péče a sklizeň jako v sadu,

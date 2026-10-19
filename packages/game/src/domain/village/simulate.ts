@@ -124,7 +124,8 @@ import { dailyMinPerHousehold, harvestCarryShare, woodToolsLaborFactor } from '.
 import { moveRelocatedHousehold, relocatingHouseholds } from './relocation';
 import { keepManor, villageManorId } from './manor';
 import { finishExpeditions, withoutForeignGoods, workExpeditions } from './trade';
-import { finishTrail, trailsDay } from './trail';
+import { finishTrail, swathRoadsInWork, trailsDay } from './trail';
+import { roadSwathDay } from './road-swath';
 import { isVillageDormant } from './departure';
 import { recordRuins, updateRuins } from './ruins';
 import {
@@ -314,6 +315,8 @@ function simulateDay(
   wearCraftStocks(state, day);
   // zemské stezky – dostavěné úseky od vsi ven hned vylepšené, vrácené výpravy (trade.md)
   trailsDay(state);
+  // průsek lesem – úseky, na které vylepšení cesty došlo (roads.md – Průsek lesem)
+  roadSwathDay(state, day, obstacles, landscape, swathRoadsInWork(state));
   state.chronicle.push(...finishExpeditions(state, day));
   finishConstructions(state, day);
   // dvorec vojvody – po zániku dvorce nejstarší obydlí, starší ves dvorec dostane (trade.md)

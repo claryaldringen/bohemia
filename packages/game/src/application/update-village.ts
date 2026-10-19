@@ -16,6 +16,7 @@ import {
   withMergedFields,
   withJoinedRoads,
   withMergedRoads,
+  withRoadSwaths,
   withObstacleClearing,
   withPlots,
   withoutBuiltOverRuins,
@@ -79,7 +80,8 @@ async function advancedToTodayWithPauses(
  * před pozemky pozemek (`withPlots`), stará navazující pole se sloučí (`withMergedFields`) a vsím
  * z doby před dobytkem se doplní výchozí stádo a louka a les pro pastvu (`withLivestockLand`)
  * a pevné cesty z doby před slučováním úseků se spojí ve falešných rozcestích (`withMergedRoads`)
- * a zacelí se díry mezi nimi (`withJoinedRoads`) a lidem z doby před příbuzenstvím se doplní
+ * a zacelí se díry mezi nimi (`withJoinedRoads`), hotové upravené cesty a stezky lesem dostanou
+ * průsek (`withRoadSwaths`) a lidem z doby před příbuzenstvím se doplní
  * pohlaví a manželé (`withKinship`) a ves přijde o zboží zvenku, které obchod už nezná
  * (`withoutForeignGoods`) – před dopočtem, aby se s nimi už počítalo; pak se uloží.
  * Ves se dopočítává s vrstvou překážek a krajinou sídla (přestavby kácí stromy, polozemnice bez
@@ -100,21 +102,26 @@ export async function updateVillage(
     if (record === null) return { ok: false, reason: NO_VILLAGE };
     const migrated = withoutForeignGoods(
       withKinship(
-        withJoinedRoads(
-          withMergedRoads(
-            withLivestockLand(
-              withMergedFields(
-                withPlots(
-                  withForestDistances(withObstacleClearing(record.state, obstacles), landscape),
-                  landscape,
-                  obstacles,
+        // hotové upravené cesty a stezky lesem dostanou průsek (roads.md – Průsek lesem)
+        withRoadSwaths(
+          withJoinedRoads(
+            withMergedRoads(
+              withLivestockLand(
+                withMergedFields(
+                  withPlots(
+                    withForestDistances(withObstacleClearing(record.state, obstacles), landscape),
+                    landscape,
+                    obstacles,
+                  ),
                 ),
+                landscape,
               ),
-              landscape,
             ),
+            landscape,
+            obstacles,
           ),
-          landscape,
           obstacles,
+          landscape,
         ),
       ),
     );
