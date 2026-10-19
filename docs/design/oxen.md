@@ -364,6 +364,17 @@ a nechávalo za sebou brázdu. Tak budu moci určit, jak se to chová.“ – **
   pokryjí dnešní pruhy – pole dalšího dne je stejné.
 - **Víc spřežení** si dnešní díly rozdělí po souvislých kusech fronty (zhruba stejně velkých),
   spřežení navíc zůstanou v ohradě.
+- **Zoraná zem jen kudy rádlo projelo** (Martin, 19. 10. 2026: „Pokud přes to pole se svým
+  pluhem neprojede, nesmí se změnit na zoráno. Teď se občas změnily na zoráno i čtverce, které
+  nenavštívil.“). Příčina: lidé sejí za pluhem týž den, takže díl dnešní orby měl večer vzhled
+  osetého a scéna ho do dnešní dráhy nezařadila – změnil se naráz bez spřežení; navíc setí po
+  pásech vážilo díly bez drnu a předbíhalo orbu přes drn a klučení křovin vypadalo jako zoraný
+  díl. Oprava (návrh Clauda – rozhoduje jádro, scéna jen projede jeho dnešní orbu): dráha dne
+  projede **každý díl, přes který dnes orba prošla** (podle `progress` od jádra, i když je večer
+  už zasetý), ráno je takový díl ve vzhledu před orbou (`unploughed` od jádra) a zoraná zem
+  přibývá jen brázdou za rádlem; co se za pluhem zaselo, je vidět další den. Setí po pásech váží
+  drn jako orba (nikdy před pluhem) a v plodině, kterou orá spřežení, ukazuje zoranou zem jen
+  orba.
 - **Při omezeném pohybu** (a bez hodin herního dne) se orba za den nepřehrává – pole ukáže
   konec dne a spřežení stojí na čele jako dřív.
 

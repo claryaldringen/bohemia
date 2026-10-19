@@ -268,3 +268,71 @@ describe('pás orby přes víc dílů (oxen.md – Co nejdelší brázda)', () =
     expect(route.segmentStint.filter((s) => s < 0).length).toBeGreaterThanOrEqual(5);
   });
 });
+
+describe('zoraná zem jen kudy rádlo projelo (Martin, 19. 10. 2026)', () => {
+  const furrow = { axis: 'x' as const, sweep: 1 as const };
+  /**
+   * Dnes: pás A (díly 71–73) dozorán z půlky do konce a za pluhem už i zaset, přejezd na pás B
+   * jiného bloku (81–83, kus dál) zoraný do půlky; díl 74 dnes nikdo neoral.
+   */
+  const day = (): SceneVillage =>
+    village(
+      [
+        ...[71, 72, 73].map((id, i) =>
+          part(id, i, { furrow, look: 'sown', unploughed: 'stubble', work: undefined }),
+        ),
+        part(74, 3, { look: 'stubble' }),
+        ...[81, 82, 83].map((id, i) =>
+          part(id, 6 + i, { furrow, work: 0.5, before: 'stubble', unploughed: 'stubble' }),
+        ),
+      ],
+      {
+        parts: [71, 72, 73, 81, 82, 83],
+        progress: [
+          [0.5, 1],
+          [0.5, 1],
+          [0.5, 1],
+          [0, 0.5],
+          [0, 0.5],
+          [0, 0.5],
+        ],
+      },
+    );
+
+  it('díly dnešní orby projede rádlo celé – i zasetý za pluhem; jiné díly se nezmění', () => {
+    const village = day();
+    const stints = dayStints(village);
+    expect(stints.map((s) => s.partIds)).toEqual([
+      [71, 72, 73],
+      [81, 82, 83],
+    ]);
+    const start = startOfDayVillage(village, stints);
+    const look = (v: SceneVillage, id: number): SceneFieldPart =>
+      v.fields[0]!.parts.find((p) => p.id === id)!;
+    // ráno: pás A zoraný do půlky, pás B ještě strniště, díl 74 beze změny
+    for (const id of [71, 72, 73])
+      expect(look(start, id)).toMatchObject({ look: 'plowed', work: 0.5 });
+    for (const id of [81, 82, 83]) expect(look(start, id).look).toBe('stubble');
+    expect(look(start, 74)).toEqual(look(village, 74));
+    // dvě spřežení – každé svůj pás; brázdy na konci dne pokryjí přesně dnešní pruhy
+    for (const team of splitStints(stints, 2)) {
+      const route = ploughRoute(team);
+      const track: RouteTrack = { route, startMs: 0, endMs: 1000 };
+      const bands = routeFurrows(track, 1000);
+      for (const stint of team) {
+        const own = bands.filter(
+          (b) => stint.partIds.includes(b.partId ?? -1) || b.partId === stint.partId,
+        );
+        const across = own.reduce((sum, b) => sum + 2 * b.half, 0);
+        expect(across).toBeCloseTo((stint.to - stint.from) * CELL, 6);
+        // brázda leží jen na dílech pásu (podél řad přes celý pás)
+        for (const b of own) {
+          expect(b.to - b.from).toBeLessThanOrEqual(3 * CELL + 1e-6);
+          expect(Math.abs(b.x - stint.field.x)).toBeLessThan(1e-6);
+        }
+      }
+      // přejezd mezi bloky rádlo nese – zvednuté, žádná brázda
+      expect(bands.every((b) => b.partId !== 74)).toBe(true);
+    }
+  });
+});
