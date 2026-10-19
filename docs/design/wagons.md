@@ -1,7 +1,7 @@
 # Vozy a tesař
 
-Stav: **návrh k odsouhlasení** (19. 10. 2026). Co řekl Martin, je u bodu označeno; ostatní je návrh
-Clauda. Čísla s poznámkou „rešerše“ se před implementací ověří v
+Stav: **schváleno** (Martin, 19. 10. 2026: „Ano, schvaluji“). Co řekl Martin, je u bodu označeno;
+ostatní je návrh Clauda. Čísla s poznámkou „rešerše“ se před implementací ověří v
 `docs/design/research/` (vzor: [řemesla](crafts.md) – Meze produktivity).
 
 ## Proč
@@ -61,8 +61,13 @@ serpentiny.“ Vozy vyrábí nový řemeslník **tesař** (Martin).
 - Vůz je **zásoba vsi** (počet, stav), ne stavba ve scéně – stojí u ohrady se spřežením.
 - **Táhnou ho voli ze spřežení** (oxen.md) – ve dny orby orají, jinak vozí; vůz bez spřežení
   stojí. Honák jde s vozem (práce svozu, menší než nošení).
-- **Náklad** (návrh – rešerše): ≈ 400–600 kg na vůz s párem volů; **rychlost** volů ≈ 3 km/h
-  (pomaleji než pěšák s nůší, ale nese 20×).
+- **Dva druhy vozů** (Martin – oba modely z 0 A.D. se mu líbí, role návrh Clauda, Martin schválil):
+  - **dvoukolák** – základní vůz od tesaře: náklad ≈ 400 kg, otočí se v malém oblouku, projede
+    i vyjetou cestou; vozí seno, snopy a klády,
+  - **čtyřkolák** – náklad ≈ dvojnásobek, ale delší a hůř se otáčí (větší poloměr otáčení –
+    mírnější serpentiny, nebo upravená cesta); hlavně na obchodní výpravy po zemské stezce.
+- **Rychlost** volů ≈ 3 km/h (pomaleji než pěšák s nůší, ale nese 15–30×); čísla nákladu
+  a otáčení podle rešerše.
 - **Co vozí** (Martin): **seno** z luk na stoh, **snopy** z pole na výmlat, **klády** z lesa na
   hromadu a ke stavbám, **zboží obchodní výpravy** po stezce. Vůz ušetří práci nošení jen tam,
   kam **dojede vozová cesta**; jinam se nosí jako dnes. Bez vozu (nebo bez spřežení) vše jako
@@ -103,9 +108,10 @@ Z 0 A.D. (CC BY-SA 3.0, převod jako spřežení – `tools/blender/people_from_
 `plough-team.json`, `plough.py`): `props/special/wagon_two_wheel_empty.dae` a
 `wagon_four_wheel_empty.dae` **s animací jízdy** (`animation/mechanical/…_move.dae`, kola se točí),
 `props/hay_cart(_large).dae` (vůz se senem), `props/wooden_cart(_big).dae`,
-`props/wrld_handcart(_broken).dae` (ruční dvoukolák, rozbitý – opuštěný dvůr). **Před převodem
-vyrenderovat a ukázat Martinovi** – řecké a římské vozy mohou mít nevhodná kola nebo zdobení; pro
-Slovany 6.–9. st. jednoduchý vůz s plnými nebo loukoťovými koly tažený voly. Jho a oj ze spřežení.
+`props/wrld_handcart(_broken).dae` (ruční dvoukolák, rozbitý – opuštěný dvůr). Martin vybral
+(19. 10. 2026, po náhledu) **dvoukolý a čtyřkolý vůz** (`wagon_two_wheel_empty`,
+`wagon_four_wheel_empty`) – s loukoťovými koly, ojí a jhem; ruční vozíky jen jako ozdoba. Měřítko
+0 A.D. se zmenší na skutečnou velikost (dvoukolák ≈ 3,5 m i s ojí, čtyřkolák ≈ 5 m).
 
 ## Rozhodnutí
 
@@ -122,3 +128,4 @@ Slovany 6.–9. st. jednoduchý vůz s plnými nebo loukoťovými koly tažený 
 | Vyjetá cesta = pevná cesta s příznakem vozová z ročního provozu vozů                      | návrh Clauda          |
 | Most zatím ne – vůz přejede potok brodem nebo po hati                                     | Martin (19. 10. 2026) |
 | Jeden vůz na spřežení                                                                     | návrh Clauda          |
+| Dva vozy z 0 A.D. – dvoukolák (základní) a čtyřkolák (víc nákladu, obchod)                | Martin (19. 10. 2026) |
