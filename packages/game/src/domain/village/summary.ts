@@ -332,8 +332,9 @@ export interface VillageSummary {
    */
   commonLaborPerDay: number;
   /**
-   * Některá domácnost je plná (4 dospělí 14–44) a nečeká na ni žádné nové obydlí – upozornění
-   * pro hráče, stavbu nepodmiňuje.
+   * Některá rodina se může oddělit (`waitingHouseholds` – ženatý pár, který dům nedrží, nebo
+   * svobodný syn plného domu) a nečeká na ni žádné nové ani prázdné obydlí – upozornění „Rodina
+   * čeká na dům“; jméno pole zůstalo z doby, kdy odcházeli jen lidé z plné domácnosti.
    */
   fullHousehold: boolean;
   constructions: ConstructionSummary[];

@@ -60,6 +60,8 @@ function village(day: number): VillageState {
   s.lastDay = day;
   s.storesKg = 50_000;
   s.fields = [{ id: 1 }];
+  // bez sena osadníků na první zimu (diet.md – Oděv) – plán seče od nuly
+  delete s.hay;
   return s;
 }
 

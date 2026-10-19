@@ -152,6 +152,8 @@ export function roadsDay(
 function laborKey(target: LaborTarget): string {
   if (target.kind === 'trees') return `trees:${target.ids.join('.')}`;
   if (target.kind === 'meadow') return 'meadow';
+  // cesta ke kraji mapy (nákup u souseda – crafts.md) podle směru
+  if (target.kind === 'edge') return `edge:${target.direction}`;
   return target.kind === 'village' ? 'village' : `${target.kind}:${target.id}`;
 }
 
@@ -661,6 +663,7 @@ function cutOvergrown(
       ...(road.ground ? { ground: groundPart(road.ground, a, b) } : {}),
       openEnds,
       ...(road.cart ? { cart: true as const } : {}),
+      ...(road.swath ? { swath: true as const } : {}),
       ...(road.cartTraffic ? { cartTraffic: [...road.cartTraffic] } : {}),
     };
   });
@@ -1146,6 +1149,7 @@ function splitRoad(roads: VillageRoads, hit: RoadHit, context: SpotContext): Roa
     spots: road.spots.filter((s) => secondAxis(s.x, s.z) < firstAxis(s.x, s.z)),
     ...(road.ground ? { ground: groundPart(road.ground, splitAt, total) } : {}),
     ...(road.cart ? { cart: true as const } : {}),
+    ...(road.swath ? { swath: true as const } : {}),
     ...(road.cartTraffic ? { cartTraffic: [...road.cartTraffic] } : {}),
   };
   road.spots = road.spots.filter((s) => secondAxis(s.x, s.z) >= firstAxis(s.x, s.z));
@@ -1379,6 +1383,8 @@ function joinRoads(
   }
   road.points = points.map((p) => ({ x: p.x, z: p.z }));
   road.spots = [...road.spots, ...other.spots];
+  // průsek lesem (roads.md) – spojený úsek ho má, když ho měl kterýkoli
+  if (other.swath) road.swath = true;
   if (ground) road.ground = ground;
   else delete road.ground;
   // tiché kusy obou (roads.md – Zarůstá jen nepoužívaný kus) – po bodech, osa se nemění
@@ -1560,6 +1566,7 @@ function cutRoad(roads: VillageRoads, road: Road, from: number, to: number, part
       spots: [],
       ...(road.ground ? { ground: groundPart(road.ground, a, b) } : {}),
       ...(road.cart ? { cart: true as const } : {}),
+      ...(road.swath ? { swath: true as const } : {}),
       ...(road.cartTraffic ? { cartTraffic: [...road.cartTraffic] } : {}),
     };
   });

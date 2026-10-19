@@ -174,13 +174,26 @@ describe('plán osevu se lnem (chooseCrops)', () => {
     expect(next.flax.some((p) => lastYear.has(p.id))).toBe(false);
   });
 
-  it('když půda na doplnění obilí nestačí, len ubere obilí jen o své díly', () => {
+  it('když půda na doplnění obilí nestačí, len ubere obilí o své díly – jen ze zásob nad pojistku', () => {
     const candidates = parts(40);
     const all = candidates.reduce((sum, p) => sum + expectedNetKg(p, DAY), 0);
-    const tight = chooseCrops(candidates, input({ targetKg: all, flaxTargetKg: 20 }));
-    const flaxKg = tight.flax.reduce((sum, p) => sum + expectedFlaxKg(p, DAY), 0);
+    const spare = chooseCrops(
+      candidates,
+      input({ targetKg: all, flaxTargetKg: 20, flaxSpareKg: BIG }),
+    );
+    const flaxKg = spare.flax.reduce((sum, p) => sum + expectedFlaxKg(p, DAY), 0);
     expect(flaxKg).toBeGreaterThanOrEqual(20);
-    expect(tight.winter.length + tight.spring.length + tight.flax.length).toBe(40);
+    expect(spare.winter.length + spare.spring.length + spare.flax.length).toBe(40);
+    // zásoby na pojistce – obilí má přednost, lnu je méně (nebo žádný)
+    const tight = chooseCrops(candidates, input({ targetKg: all, flaxTargetKg: 20 }));
+    expect(tight.flax).toEqual([]);
+    expect(tight.winter.length + tight.spring.length).toBe(40);
+    // zásoby nad pojistku jen na jeden díl obilí
+    const one = chooseCrops(
+      candidates,
+      input({ targetKg: all, flaxTargetKg: 20, flaxSpareKg: expectedNetKg(candidates[0]!, DAY) }),
+    );
+    expect(one.flax).toHaveLength(1);
   });
 
   it('práce: když se len nevejde na poslední díl (jař, červenec plný ozimu), zkusí ozim', () => {

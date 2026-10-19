@@ -121,11 +121,15 @@ describe('laborReport – rozdělení práce dne', () => {
       HARVEST_WORK_PER_HA.reap.worst / HARVEST_WORK_PER_HA.carry.worst,
       2,
     );
-    const winter = laborReport(advanceVillage(s, at(601, 11, 10), null))!;
-    expect(of(winter.shares, 'thresh')).toEqual([
-      expect.objectContaining({ target: { kind: 'village' } }),
-    ]);
-    expect(of(winter.shares, 'harvest')).toEqual([]);
+    // výmlat po sklizni (první den, kdy na něj zbude práce) jde ke vsi
+    let day = s;
+    let thresh: LaborShare[] = [];
+    for (let d = at(601, 9, 1); d <= at(602, 2, 28) && thresh.length === 0; d += 5) {
+      day = advanceVillage(day, d, null);
+      thresh = of(laborReport(day)!.shares, 'thresh');
+    }
+    expect(thresh).toEqual([expect.objectContaining({ target: { kind: 'village' } })]);
+    expect(of(laborReport(day)!.shares, 'harvest')).toEqual([]);
   });
 
   it('stavba obydlí nejdřív kácí – u stromů, které ještě stojí, v pořadí kácení', () => {

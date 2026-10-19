@@ -583,18 +583,22 @@ describe('advanceVillage – založení vsi', () => {
     const zemnice = s0.constructions[0]!;
     let s = s0;
     let last = -1;
+    let stalled = 0;
     let finishedDay: number | null = null;
     for (let d = day; d < day + 365 && finishedDay === null; d++) {
       s = advanceVillage(s, d, null);
       const site = s.constructions.find((c) => c.id === zemnice.id);
       if (site) {
-        // průběh stavby je vidět – roste, ale ne skokem
-        expect(site.done).toBeGreaterThan(last);
+        // průběh stavby je vidět – roste, ale ne skokem; jen porážka 1. 11. (osadníci nemají seno
+        // – na maso jdou ovce nad chovný pár) zabere den nebo dva všechnu práci
+        expect(site.done).toBeGreaterThanOrEqual(last);
+        if (site.done <= last) stalled++;
         expect(site.done).toBeLessThan(site.cost);
         last = site.done;
         expect(s.dwellings).toEqual([]);
       } else finishedDay = d;
     }
+    expect(stalled).toBeLessThanOrEqual(2);
     // ≈ 60 člověkodní ze společné práce startovní domácnosti – desítky dní, ne den
     expect(finishedDay).not.toBeNull();
     expect(finishedDay! - day).toBeGreaterThan(20);
@@ -838,7 +842,7 @@ describe('advanceVillage – obydlí', () => {
     );
   });
 
-  it('dva ženatí bratři bez rodičů – mladší se s rodinou oddělí do prázdného obydlí, jen z plného domu', () => {
+  it('dva ženatí bratři bez rodičů – mladší se s rodinou oddělí do prázdného obydlí, i z neplného domu', () => {
     const day = at(600, 10, 1);
     const brothers: Kin[] = [
       { id: 20, age: 30, sex: 'male', home: 1, spouse: 21, mother: 5, father: 4 },
@@ -846,10 +850,11 @@ describe('advanceVillage – obydlí', () => {
       { id: 30, age: 26, sex: 'male', home: 1, spouse: 31, mother: 5, father: 4 },
       { id: 31, age: 24, sex: 'female', home: 1, spouse: 30 },
     ];
-    // 4 lidé v zemnici pro 6 – dům není plný, nikdo neodchází
+    // 4 lidé v zemnici pro 6 – dům není plný, mladší bratr se ženou přesto odejde (Martin,
+    // 19. 10. 2026)
     const notFull = advanceVillage(kinVillage(day, brothers, [zemnice(50, day)]), day + 5, null);
-    expect(occupants(notFull, 50)).toEqual([]);
-    // s dvěma dětmi je plný – mladší bratr odejde i se svým dítětem
+    expect(originalOccupants(notFull, 50)).toEqual([30, 31]);
+    // s dětmi odejde mladší bratr i se svým dítětem
     const s0 = kinVillage(
       day,
       [
@@ -863,19 +868,15 @@ describe('advanceVillage – obydlí', () => {
     expect(originalOccupants(s, 50)).toEqual([30, 31, 41]);
   });
 
-  it('založená ves: lidé k osídlení 0, dokud dům zakladatelů není plný – i když se děti vezmou', () => {
+  it('založená ves: lidé k osídlení, jakmile se děti zakladatelů vezmou – i z neplného domu', () => {
     const day = at(600, 3, 15);
     let s = advanceVillage(foundVillage({ seed: 5, day, dwellingPosition: POSITION }), day, null);
     expect(availableSettlers(s, day)).toBe(0);
-    // za 5 let: zemnice stojí, chlapec a dívka zakladatelů jsou svoji – dva páry, ale ve 4–5 lidech
+    // za 5 let: zemnice stojí, chlapec a dívka zakladatelů jsou svoji – dva páry ve 4–5 lidech;
+    // mladší pár dům nedrží (zůstává nejstarší ženatý muž) a smí odejít (Martin, 19. 10. 2026)
     s = advanceVillage(s, day + Math.ceil(5 * YEAR), null);
     expect(s.people.filter((p) => p.sex === 'male' && p.spouseId !== undefined)).toHaveLength(2);
     expect(s.people.length).toBeLessThan(6);
-    expect(availableSettlers(s, s.lastDay)).toBe(0);
-    // dům plný – první pár může dát novou domácnost
-    for (let id = 900; s.people.length < 6; id++) {
-      s.people.push({ id, bornDay: s.lastDay - 100, dwellingId: 1, sex: 'female' });
-    }
     expect(availableSettlers(s, s.lastDay)).toBe(1);
   });
 
@@ -1039,6 +1040,62 @@ describe('advanceVillage – obydlí', () => {
         expect(occupants(s, 50)).toEqual([]);
       }
     }
+  });
+
+  // Martin, 19. 10. 2026: „Vdova by se měla snažit co nejdříve vdát, ideálně ve vesnici.“ – ve
+  // Vlkově se 21letá matka pětiletého syna a 30letá vdova s pěti dětmi nesměly vdát (vdova s dětmi
+  // do 14 let se nevdávala). Ves uložená dřív (bez příznaku ovdovění) se vdá podle nových pravidel.
+  it('vdova s dětmi se vdá hned, jak dospěje ženich ze vsi – přižení se k ní, dopočet po kouscích stejný', () => {
+    const day = at(600, 10, 1);
+    const s0 = kinVillage(
+      day,
+      [
+        // dům 1: rodiče 50 a 47 se synem 15 (za rok mu bude 16) a dcerami
+        ...parents(),
+        child(20, 15.5, 'male'),
+        child(21, 12, 'female'),
+        child(22, 9, 'female'),
+        // dům 2: vdova 30 s pěti dětmi (otec 90 zemřel)
+        { id: 30, age: 30, sex: 'female', home: 2 },
+        ...[11, 11, 10, 10, 9].map((age, i): Kin => ({
+          id: 31 + i,
+          age,
+          sex: 'male',
+          home: 2,
+          mother: 30,
+          father: 90,
+        })),
+      ],
+      [zemnice(2, day, 'polozemnice')],
+    );
+    s0.storesKg = 60_000;
+    const end = day + Math.ceil(3 * YEAR);
+    const whole = advanceVillage(s0, end, null);
+    const viaJson = (s: VillageState): VillageState =>
+      JSON.parse(JSON.stringify(s)) as VillageState;
+    let chunked = viaJson(s0);
+    for (const days of [1, 30, 7, 100, 3, 200, 365]) {
+      chunked = viaJson(advanceVillage(chunked, Math.min(end, chunked.lastDay + days), null));
+    }
+    chunked = advanceVillage(chunked, end, null);
+    expect(viaJson(chunked)).toEqual(viaJson(whole));
+    const wedding = whole.chronicle.find((e) => e.kind === 'marriage');
+    // syn dospěje (16) za půl roku a ožení se s vdovou (rozdíl 15 let – u vdovy smí 20); dům
+    // drží ona s dětmi, jeho otec doma zůstává – přižení se on
+    expect(wedding).toMatchObject({
+      kind: 'marriage',
+      fromDwellingId: 1,
+      toDwellingId: 2,
+      groomMoved: true,
+      widow: true,
+    });
+    expect(wedding!.day).toBeLessThan(day + YEAR);
+    const widow = whole.people.find((p) => p.id === 30);
+    expect(widow?.spouseId).toBe(20);
+    expect(originalOccupants(whole, 2)).toEqual([20, 30, 31, 32, 33, 34, 35]);
+    // první dítě nejdřív 9 měsíců po svatbě
+    const born = whole.people.filter((p) => p.motherId === 30 && p.fatherId === 20);
+    for (const b of born) expect(b.bornDay).toBeGreaterThanOrEqual(wedding!.day + 274);
   });
 
   it('Vlkov (stará ves bez pohlaví): převod udělá páry, 27letý si vezme 19letou a mají děti', () => {

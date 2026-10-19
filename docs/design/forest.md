@@ -10,7 +10,9 @@ v rozhraní klády v horní liště, dřevo v ceně staveb a stromy ke skácení
 klád a pařezy. Staví na vrstvě překážek (stromy jako herní data, kácení s pařezem a obnovou
 v `obstacles.ts`). **Pole v lese (18. 10. 2026):** pole jde zakládat i v lese a v křovinách
 ([fields.md](fields.md)) – mýcení dá klády za dospělé stromy dílů; scéna a minimapa vykácený
-a vymýcený les přestanou kreslit jako les (`apps/web/lib/scene/cleared-forest.ts`).
+a vymýcený les přestanou kreslit jako les (`apps/web/lib/scene/cleared-forest.ts`). **Stavby
+v lese (19. 10. 2026):** obydlí i ostatní stavby jdou stavět do lesa, les pod nimi se vyklučí
+(viz Mýcení a hromada klád – Stavba v lese).
 
 ## Proč
 
@@ -100,6 +102,16 @@ k lesu stojí práci a mýcení pro pole dá klády na stavby.
   přidá do zásoby vsi jednu kládu (strom = jedna jednotka dřeva – návrh Clauda), až osadníci díl
   založí. Stejně dospělé stromy na čtvercích hřbitova (po ohrazení) a na vyklízené ploše obydlí
   (při zahájení stavby – ta je pak hned spotřebuje).
+- **Stavba v lese** (Martin, 19. 10. 2026: „Oprav – obydlí může jít postavit i v lese – les se
+  prostě vyklučí.“; podrobnosti návrh Clauda – [populace](population.md), Stavba v lese): obydlí,
+  pozemek, dílny, modla, svatyně, ohrada, sad i hřbitov smí do lesa krajiny i lesa vsi. Les pod
+  stavbou se vyklučí za **sazbu lesa jako díl pole** (250, s řemesly 150 člověkodní na hektar –
+  stromy, pařezy a podrost v ní, kameny po kusech; klučení pařezů je v sazbě podle rešerše),
+  kolem volně stojící stavby i pruh 4 m pod korunami okolních stromů. Dospělé stromy dají klády
+  na hromadu – stavba je hned vezme, takže dům v lese si dřevo z velké části vykácí sám
+  (zemnice v hustém lese ≈ 8 stromů z pasek, potřebuje 7). Posvátné duby a háje se nekácí,
+  vyhrazené stromy jiné stavby klády nedají (jako u pole). Obyvatelé sami les nevyklučí.
+  Palivo má dům v lese u dveří (vzdálenost k okraji lesa ≈ 0).
 - **Hromada klád** leží viditelně složená stranou u vsi (Martin) – vesničané ji založí u obydlí
   nejblíž okraji lesa na volném místě vedle něj (návrh Clauda): hranice po 21 kládách, ve scéně
   nejvýš tři. Ubývá podle toho, jak se staví (Martin).
@@ -151,3 +163,5 @@ k lesu stojí práci a mýcení pro pole dá klády na stavby.
 | Vyhrazený strom patří své stavbě; opuštěná přestavba vrátí klády z hromady     | revize implementace 18. 10. 2026           |
 | Palivo jako třetina domácí výroby, dražší se vzdáleností k lesu                | návrh Clauda                               |
 | Stromy jako herní data (vrstva překážek) jsou předpoklad                       | návrh Clauda                               |
+| Obydlí i ostatní stavby smí do lesa – les se vyklučí                           | Martin, 19. 10. 2026                       |
+| Les pod stavbou za sazbu lesa jako pole, pruh 4 m pod korunami, stromy = klády | návrh Clauda                               |

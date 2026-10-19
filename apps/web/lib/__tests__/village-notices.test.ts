@@ -158,14 +158,14 @@ describe('villageNotices', () => {
     expect(villageNotices(view())).toEqual([]);
   });
 
-  it('hlad, stojící stavby a plná domácnost – problémy první, jen krátký fakt', () => {
+  it('hlad, stojící stavby a rodina čeká na dům – problémy první, jen krátký fakt', () => {
     const notices = villageNotices(
       view({ hungry: true, satiation: 0.72, constructionsStalled: true, fullHousehold: true }),
     );
     expect(notices).toEqual([
       { kind: 'hungry', tone: 'warn', text: 'Ves hladoví' },
       { kind: 'stalled', tone: 'warn', text: 'Stavby stojí' },
-      { kind: 'full-household', tone: 'info', text: 'Domácnost je plná' },
+      { kind: 'full-household', tone: 'info', text: 'Rodina čeká na dům' },
     ]);
   });
 });
@@ -320,16 +320,18 @@ describe('newNotices – porážka a spřežení (diet.md, oxen.md)', () => {
     ]);
   });
 
-  it('nevěsta z okolí a dcera vdaná pryč – fakt (kinship.md)', () => {
+  it('nevěsta a ženich z okolí a dcera vdaná pryč – fakt (kinship.md)', () => {
     const after = view({
       dayIndex: 1003,
       chronicle: [
         entry(1002, 'married-away', 'Dcera se vdala do sousední vsi.'),
+        entry(1002, 'groom-from-outside', 'K vdově se přiženil muž ze sousední vsi.'),
         entry(1001, 'bride-from-outside', 'Muž si přivedl nevěstu ze sousední vsi.'),
       ],
     });
     expect(newNotices(view({ dayIndex: 1000 }), after)).toEqual([
       { kind: 'bride-from-outside', tone: 'info', text: 'Nevěsta z okolí' },
+      { kind: 'groom-from-outside', tone: 'info', text: 'Ženich z okolí' },
       { kind: 'married-away', tone: 'info', text: 'Dcera se vdala pryč' },
     ]);
   });
@@ -589,6 +591,31 @@ describe('tesař a vozy (wagons.md)', () => {
     expect(newNotices(view({ dayIndex: 1000 }), after)).toEqual([
       { kind: 'cart-worn-out', tone: 'warn', text: 'Vůz dosloužil' },
       { kind: 'cart-made', tone: 'info', text: 'Tesař vyrobil vůz' },
+    ]);
+  });
+});
+
+describe('nákup u sousedů (crafts.md)', () => {
+  it('vesničané koupili výrobky u souseda – krátký fakt z kroniky', () => {
+    const after = view({
+      dayIndex: 1003,
+      chronicle: [
+        {
+          day: 1002,
+          kind: 'crafts-bought',
+          direction: 'N',
+          products: ['toolsKg', 'potteryKg'],
+          dateLabel: '',
+          text: '',
+        },
+      ],
+    });
+    expect(newNotices(view({ dayIndex: 1000 }), after)).toEqual([
+      {
+        kind: 'crafts-bought',
+        tone: 'info',
+        text: 'Vesničané koupili nástroje a keramiku u souseda (sever)',
+      },
     ]);
   });
 });

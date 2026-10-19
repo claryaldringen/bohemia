@@ -17,9 +17,11 @@ import {
   PART_STAGE_NAMES,
   fieldPartName,
   orchardSquareName,
+  type SelectionBuying,
   type SelectionDetails,
   type SelectionWorkshop,
 } from '@/lib/selection-details';
+import { DIRECTION_NAMES } from '@/lib/trade-names';
 import {
   formatDecimal,
   formatHa,
@@ -31,6 +33,10 @@ import {
 import {
   CRAFT_LOOKS,
   DWELLING_NAMES,
+  PRODUCT_ICONS,
+  PRODUCT_TITLES,
+  boughtProducts,
+  productList,
   ROAD_GRADE_NAMES,
   ROAD_UPGRADE_NAMES,
   SACRED_BUILDING_NAMES,
@@ -39,7 +45,7 @@ import {
 } from '@/lib/village-view';
 import type { Direction8, RoadGrade, RoadUpgrade, TradeGoods } from '@bohemia/game';
 import type { PreviewPeople } from '@/lib/trade-quote';
-import { ManorUpgrades } from './ManorPanel';
+import { ManorUpgrades, SwathTrees } from './ManorPanel';
 import { TradePanel } from './TradePanel';
 import {
   CancelRelocationButton,
@@ -292,6 +298,15 @@ function WorkshopRow({ workshop }: { workshop: SelectionWorkshop }): ReactElemen
         </Stat>
       )}
       {workshop.carpenter && <CarpenterStats carpenter={workshop.carpenter} />}
+      {workshop.buying && (
+        <Stat
+          icon={product.icon}
+          name={`Vlastní dílna nemá vstupy – vesničané dokupují u souseda (${DIRECTION_NAMES[workshop.buying.direction].name}, ${workshop.buying.days} dní cesty)`}
+          testId="selection-workshop-buying"
+        >
+          {DIRECTION_NAMES[workshop.buying.direction].arrow}
+        </Stat>
+      )}
       {workshop.craft === 'burner' && workshop.toPlant > 0 && workshop.activity !== 'planting' && (
         <Stat
           icon="labor"
@@ -345,6 +360,44 @@ function CarpenterStats({
   );
 }
 
+/**
+ * Dvorec: kde ves bere výrobky řemeslníků (crafts.md – Nákup u sousedů) – ikona výrobku se šipkou
+ * k sousedovi s řemeslníkem (vlastní dílna ✓) a nákupy na cestě (lidé a dny do návratu). Jen
+ * ikony, věty v popiscích.
+ */
+function BuyingRow({ buying }: { buying: SelectionBuying }): ReactElement {
+  return (
+    <div data-testid="selection-buying" className={ROW}>
+      {buying.sources.map((source) => (
+        <Stat
+          key={source.product}
+          icon={PRODUCT_ICONS[source.product]}
+          name={
+            source.own
+              ? `${PRODUCT_TITLES[source.product]} – vlastní řemeslník`
+              : source.direction
+                ? `${PRODUCT_TITLES[source.product]} – vesničané kupují u souseda (${DIRECTION_NAMES[source.direction].name}, ${source.days} dní cesty${source.trail ? ' po stezce' : ' krajinou'}), když se jim to vyplatí`
+                : `${PRODUCT_TITLES[source.product]} – žádný soused je nedělá`
+          }
+          testId={`selection-buying-${source.product}`}
+        >
+          {source.own ? '✓' : source.direction ? DIRECTION_NAMES[source.direction].arrow : '–'}
+        </Stat>
+      ))}
+      {buying.purchases.map((purchase, k) => (
+        <Stat
+          key={k}
+          icon="hourglass"
+          name={`Vesničané jdou koupit ${productList(boughtProducts(purchase.get))} k sousedovi (${DIRECTION_NAMES[purchase.direction].name}) – ${purchase.group} lidí, za ${formatInteger(purchase.payKg)} kg obilí; vrátí se za ${purchase.daysLeft} dní`}
+          testId="selection-buying-trip"
+        >
+          {DIRECTION_NAMES[purchase.direction].arrow} {purchase.daysLeft}
+        </Stat>
+      ))}
+    </div>
+  );
+}
+
 /** Řádek ikon s čísly – při nedostatku místa se zalomí po celých položkách, ne uvnitř textu. */
 const ROW = 'flex flex-wrap items-center gap-x-3 gap-y-1';
 
@@ -385,13 +438,16 @@ interface RelocationActions {
 interface ManorActions {
   /** Zadá stavbu zemské stezky do směru (server action) – hotovo, až se vrátí. */
   onBuildTrail?: (direction: Direction8) => Promise<void>;
-  /** Vyšle výpravu k sousedovi (server action) – hotovo, až se vrátí. */
+  /**
+   * Vyšle výpravu k sousedovi (server action) – hotovo, až se vrátí; vrátí důvod, proč ji server
+   * odmítl, nebo null (panel obchodu ho ukáže pod tlačítkem).
+   */
   onSendExpedition?: (
     direction: Direction8,
     give: TradeGoods,
     get: TradeGoods,
     people: PreviewPeople,
-  ) => Promise<void>;
+  ) => Promise<string | null | void>;
 }
 
 function DwellingBody({
@@ -411,6 +467,7 @@ function DwellingBody({
     <div className="hud-split">
       <div className="flex min-w-0 flex-col justify-center gap-1.5">
         {details.workshop && <WorkshopRow workshop={details.workshop} />}
+        {details.buying && <BuyingRow buying={details.buying} />}
         <div className={ROW}>
           <Stat icon="people" name="Obyvatelé" testId="selection-occupants">
             <span className={tone}>
@@ -458,11 +515,10 @@ function DwellingBody({
             <ManorUpgrades
               manor={details.manor}
               onBuildTrail={onBuildTrail}
-              trade={(close) => (
+              trade={() => (
                 <TradePanel
                   neighbours={details.manor?.neighbours ?? []}
                   onSend={onSendExpedition}
-                  onClose={close}
                 />
               )}
             />
@@ -1286,6 +1342,7 @@ function RoadBody({
                       {option.trees}
                     </span>
                   )}
+                  {option.swathTrees > 0 && <SwathTrees trees={option.swathTrees} />}
                 </span>
                 {option.blocked && (
                   <span data-testid="road-upgrade-blocked" className="font-semibold text-red-400">

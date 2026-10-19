@@ -11,13 +11,18 @@
 import type { Landscape } from '../landscape';
 import { tradeCarts, trailCartPassable } from './carts';
 import { removePeople } from './kinship';
+import { ageGroup } from './people';
 import { startingLivestock } from './livestock';
 import {
   NO_PEOPLE,
   emigrantGroups,
+  emigrantList,
   neighbourFamilyValue,
+  newcomerProfiles,
   peopleCount,
   settleNewcomers,
+  tradePeopleCount,
+  type Emigrants,
 } from './people-trade';
 import { addLogs, woodLogs } from './wood';
 import { TRADE_GOODS, neighbourOf, neighbourStock } from './neighbours';
@@ -26,10 +31,12 @@ import { builtTrail, trailTripDays } from './trail';
 import type {
   CartKind,
   ChronicleEvent,
+  ComingPeople,
   DietDay,
   Direction8,
   NeighbourPeople,
   NeighbourStock,
+  Person,
   TradeExpedition,
   TradeGood,
   TradeGoods,
@@ -269,13 +276,14 @@ export function tradeQuote(
   const leaving = emigrantGroups(state, day, givePeople);
   const credit =
     give.reduce((sum, [g, n]) => sum + n * sellPrice(g), 0) +
-    [...leaving.families, ...leaving.adults].reduce((sum, g) => sum + sellValue(g.valueKg), 0);
+    emigrantList(leaving).reduce((sum, g) => sum + sellValue(g.valueKg), 0);
   const price =
     get.reduce((sum, [g, n]) => sum + n * buyPrice(g), 0) +
     people.families
       .slice(0, getPeople.families)
       .reduce((sum, children) => sum + familyBuyPrice(children), 0) +
-    Math.min(getPeople.adults, people.adults) * adultBuyPrice();
+    (Math.min(getPeople.men, people.men) + Math.min(getPeople.women, people.women)) *
+      adultBuyPrice();
   const trail = builtTrail(state, offer.direction);
   const days = trail ? trailTripDays(trail.lengthM) : 0;
   // vozy se spřežením, které jsou doma – náklad místo nosičů, jen po sjízdné stezce (wagons.md –
@@ -296,8 +304,7 @@ export function tradeQuote(
   const blocked = ((): string | null => {
     if (!trail) return NO_TRAIL;
     if (expeditionTo(state, offer.direction)) return EXPEDITION_AWAY;
-    const noPeople =
-      givePeople.families + givePeople.adults + getPeople.families + getPeople.adults === 0;
+    const noPeople = tradePeopleCount(givePeople) + tradePeopleCount(getPeople) === 0;
     if (give.length === 0 && get.length === 0 && noPeople) return NOTHING_TO_TRADE;
     const peopleBlock = peopleBlocked(people, givePeople, getPeople, leaving);
     if (peopleBlock) return peopleBlock;
@@ -322,7 +329,7 @@ function round2(v: number): number {
 
 /** Lidé souseda ze zbytku roku (`neighbourStock` je doplní vždy). */
 function stockPeople(stock: NeighbourStock): NeighbourPeople {
-  return stock.people ?? { families: [], adults: 0, takes: { ...NO_PEOPLE } };
+  return stock.people ?? { families: [], men: 0, women: 0, takes: { ...NO_PEOPLE } };
 }
 
 /** Proč lidé ve výměně nejdou (trade.md – Výměna lidí), nebo null. */
@@ -330,20 +337,25 @@ function peopleBlocked(
   people: NeighbourPeople,
   give: TradePeople,
   get: TradePeople,
-  leaving: ReturnType<typeof emigrantGroups>,
+  leaving: Emigrants,
 ): string | null {
-  if (give.families + give.adults > 0) {
-    if (people.takes.families + people.takes.adults === 0) return NO_PEOPLE_WANTED;
-    if (give.families > people.takes.families || give.adults > people.takes.adults) {
+  const { takes } = people;
+  if (tradePeopleCount(give) > 0) {
+    if (tradePeopleCount(takes) === 0) return NO_PEOPLE_WANTED;
+    if (give.families > takes.families || give.men > takes.men || give.women > takes.women) {
       return OVER_PEOPLE_DEMAND;
     }
-    if (leaving.families.length < give.families || leaving.adults.length < give.adults) {
+    if (
+      leaving.families.length < give.families ||
+      leaving.men.length < give.men ||
+      leaving.women.length < give.women
+    ) {
       return NO_EMIGRANTS;
     }
   }
-  if (get.families + get.adults > 0) {
-    if (people.families.length + people.adults === 0) return NO_PEOPLE_OFFERED;
-    if (get.families > people.families.length || get.adults > people.adults) {
+  if (tradePeopleCount(get) > 0) {
+    if (people.families.length + people.men + people.women === 0) return NO_PEOPLE_OFFERED;
+    if (get.families > people.families.length || get.men > people.men || get.women > people.women) {
       return OVER_PEOPLE_SUPPLY;
     }
   }
@@ -392,24 +404,31 @@ export function startExpedition(
   const getPeople = offer.getPeople ?? NO_PEOPLE;
   const people = stockPeople(stock);
   const leaving = emigrantGroups(next, day, givePeople);
-  const groups = [...leaving.families, ...leaving.adults];
+  const groups = emigrantList(leaving);
+  // kdo odchází – pohlaví a den narození (postavy karavany ve scéně jdou s výpravou tam)
+  const members = groups.flatMap((g) =>
+    g.people.map((p) => ({ sex: p.sex ?? 'male', bornDay: p.bornDay, group: g.kind })),
+  );
   const emigrated = new Map(
     groups.flatMap((g) => g.people.map((p) => [p.id, offer.direction] as const)),
   );
   removePeople(next, new Set(emigrated.keys()), emigrated);
   people.takes = {
     families: people.takes.families - givePeople.families,
-    adults: people.takes.adults - givePeople.adults,
+    men: people.takes.men - givePeople.men,
+    women: people.takes.women - givePeople.women,
   };
   const coming = {
     families: people.families.slice(0, getPeople.families),
-    adults: getPeople.adults,
+    men: getPeople.men,
+    women: getPeople.women,
   };
   people.families = people.families.slice(getPeople.families);
-  people.adults -= getPeople.adults;
+  people.men -= getPeople.men;
+  people.women -= getPeople.women;
   storeStock(next, { ...stock, people });
-  const sent = givePeople.families + givePeople.adults > 0;
-  const fetched = getPeople.families + getPeople.adults > 0;
+  const sent = tradePeopleCount(givePeople) > 0;
+  const fetched = tradePeopleCount(getPeople) > 0;
   const trade = tradeOf(next);
   // vozy výpravy (s nimi jejich spřežení) jsou do návratu pryč (wagons.md – Obchod)
   const carts = tradeCarts(state)
@@ -427,7 +446,7 @@ export function startExpedition(
     days: quote.days,
     cost: quote.manDays,
     done: 0,
-    ...(sent ? { givePeople: { ...givePeople, people: peopleCount(groups) } } : {}),
+    ...(sent ? { givePeople: { ...givePeople, people: peopleCount(groups), members } } : {}),
     ...(fetched ? { getPeople: coming } : {}),
   });
   next.chronicle.push({
@@ -441,16 +460,50 @@ export function startExpedition(
 }
 
 /**
- * Práce nosičů dne (mutuje stav – krok práce před stavbami): každá výprava si ze společné práce
- * vezme nejvýš tolik, kolik má nosičů (jdou všichni naráz), v pořadí výprav. Když společné práce
- * nestačí, cesta trvá déle (nosiči jdou na víc cest). Vrátí použitou práci a podíly po stezkách.
+ * Kolik lidí je dnes na výpravách k sousedům (trade.md – Doprava; Martin 19. 10. 2026: „Ano,
+ * udělej to tak.“ – nosiči mají vlastní podíl práce): každá výprava na cestě chce denně tolik
+ * člověkodní, kolik s ní jde lidí (nosiči, honáci a pomocníci u vozů), nejvýš co jí zbývá. Krok
+ * práce je vezme po denním minimu a před rozdělením dne (`allocateDay` – `away`), takže výprava trvá
+ * přesně dny z náhledu. Platí pro každou výpravu ve `state.trade.expeditions` (i nákup u sousedů).
+ */
+export function expeditionLaborNeed(state: Pick<VillageState, 'trade'>): number {
+  return (state.trade?.expeditions ?? []).reduce(
+    (sum, e) => sum + Math.min(e.porters, Math.max(0, e.cost - e.done)),
+    0,
+  );
+}
+
+/**
+ * Práce lidí na výpravách dnes (trade.md – Doprava; jediné pravidlo pro všechny výpravy na cestě):
+ * `expeditionLaborNeed`, nejvýš kolik je mezi `people` (lidé, kteří dnes pracují se vsí – bez
+ * řemeslníků v dílnách) dospělých. Náklad 25 kg na několik dní cesty nesou dospělí; děti a starší
+ * zůstanou doma. Krok práce ji dá do `allocateDay` jako `away` – po denním minimu domácností, před
+ * úlohami dne – a `workExpeditions` ji rozdělí mezi výpravy. `extra` = lidé dalších cest
+ * k sousedům (skupiny nákupu výrobků řemeslníků – crafts.md, Nákup u sousedů).
+ */
+export function expeditionLaborToday(
+  state: Pick<VillageState, 'trade'>,
+  people: readonly Person[],
+  day: number,
+  extra = 0,
+): number {
+  const need = expeditionLaborNeed(state) + extra;
+  if (need <= 0) return 0;
+  return Math.min(need, people.filter((p) => ageGroup(p, day) === 'adult').length);
+}
+
+/**
+ * Práce nosičů dne (mutuje stav – krok práce): rozdělí práci lidí na výpravách (`allocateDay` –
+ * `away`, nejvýš `expeditionLaborToday`) – každá výprava nejvýš tolik, kolik má lidí, v pořadí
+ * výprav. Když ves lidí na výpravu nemá (po denním minimu, jen dospělí), cesta trvá déle. Vrátí
+ * použitou práci a podíly po stezkách.
  */
 export function workExpeditions(
   state: VillageState,
-  common: number,
+  away: number,
 ): { used: number; shares: { trailId: number; manDays: number; carts?: number }[] } {
   const shares: { trailId: number; manDays: number; carts?: number }[] = [];
-  let left = common;
+  let left = away;
   for (const e of state.trade?.expeditions ?? []) {
     if (left <= EPSILON) break;
     const take = Math.min(left, e.porters, Math.max(0, e.cost - e.done));
@@ -463,7 +516,7 @@ export function workExpeditions(
       ...(e.carts && e.carts.length > 0 ? { carts: e.carts.length } : {}),
     });
   }
-  return { used: common - left, shares };
+  return { used: away - left, shares };
 }
 
 /**
@@ -483,13 +536,29 @@ export function finishExpeditions(state: VillageState, day: number): ChronicleEv
       kind: 'trade-returned',
       direction: e.direction,
       get: { ...e.get },
-      ...(coming ? { people: { families: coming.families.length, adults: coming.adults } } : {}),
+      ...(coming ? { people: comingCounts(coming, state.seed, String(e.id)) } : {}),
     });
     // lidé od souseda přijdou s výpravou (trade.md – Výměna lidí)
     if (coming) events.push(...settleNewcomers(state, day, e.direction, coming, String(e.id)));
     return false;
   });
   return events;
+}
+
+/**
+ * Kolik lidí s výpravou přijde – rodiny, muži a ženy; u výpravy uložené dřív se svobodní dospělí
+ * bez pohlaví (`adults`) losují až při příchodu – v kronice podle losu (`newcomerProfiles`).
+ */
+function comingCounts(coming: ComingPeople, seed?: number, key?: string): TradePeople {
+  if (coming.adults && seed !== undefined && key !== undefined) {
+    const singles = newcomerProfiles(seed, key, coming).filter((p) => p.group !== 'family');
+    return {
+      families: coming.families.length,
+      men: singles.filter((p) => p.group === 'man').length,
+      women: singles.filter((p) => p.group === 'woman').length,
+    };
+  }
+  return { families: coming.families.length, men: coming.men ?? 0, women: coming.women ?? 0 };
 }
 
 /** Zboží, které obchod zná – uložené vsi mohou mít v obchodu ještě zboží zvenku (sůl, med…). */

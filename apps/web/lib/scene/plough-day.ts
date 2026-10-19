@@ -19,6 +19,7 @@ import {
   stripField,
   type PloughCandidate,
 } from './plough-front';
+import { roadPieces, villageRoadCapsules } from './plough-roads';
 import type { RouteStint } from './plough-team';
 
 /**
@@ -44,14 +45,18 @@ export interface DayStint extends RouteStint {
  * Pruhy dnešní orby v pořadí práce: z podílů práce `plough` (díly `parts` a u každého, kolik orby
  * bylo hotovo ráno a večer – `progress` od herního jádra; bez něj od začátku dílu k čáře orby).
  * Ráno i večer po pruzích obtisku (`workSteps`), ať brázda na konci dne přesně sedí s polem
- * dalšího dne. Díl, na kterém se už i selo (vzhled jiný než zoraný), se neprojíždí.
+ * dalšího dne. Projede se každý díl, přes který dnes orba prošla – i když se na něm za pluhem
+ * týž den už selo (Martin, 19. 10. 2026: „Pokud přes to pole se svým pluhem neprojede, nesmí se
+ * změnit na zoráno.“); bez `progress` od jádra jen díly se zoraným vzhledem.
  */
 export function dayStints(
-  village: Pick<SceneVillage, 'labor' | 'fields' | 'dwellings'>,
+  village: Pick<SceneVillage, 'labor' | 'fields' | 'dwellings' | 'roads'>,
 ): DayStint[] {
   const day = village.labor?.day ?? 0;
   const dayOfYear = dateOfDayIndex(day).dayOfYear;
   const stints: DayStint[] = [];
+  // brázdy končí na pevné cestě – pruh přes cestu se orá po kusech (plough-roads.ts)
+  const capsules = villageRoadCapsules(village);
   for (const share of village.labor?.shares ?? []) {
     if (share.activity !== 'plough' || share.manDays <= 0 || share.target.kind !== 'field') {
       continue;
@@ -71,12 +76,14 @@ export function dayStints(
     const pieces: { candidate: PloughCandidate; from: number; to: number }[] = [];
     share.parts.forEach((id, k) => {
       const view = views.get(id);
-      if (!view || view.look !== 'plowed') return;
-      const [rawFrom, rawTo] = share.progress?.[k] ?? [0, ploughedTo(view)];
+      const progress = share.progress?.[k];
+      if (!view || (!progress && view.look !== 'plowed')) return;
+      const [rawFrom, rawTo] = progress ?? [0, ploughedTo(view)];
       const from = workSteps(rawFrom);
       const to = rawTo >= 1 - 1e-9 ? 1 : workSteps(rawTo);
       if (to - from < 1e-6) return;
-      const candidate = ploughCandidate(fieldId, view, rows, center, edge);
+      // čára orby podle dnešního postupu od jádra (díl, kde se za pluhem už selo, má jiný vzhled)
+      const candidate = { ...ploughCandidate(fieldId, view, rows, center, edge), line: to };
       const last = pieces[pieces.length - 1];
       const merged =
         last && last.from === from && last.to === to
@@ -87,14 +94,17 @@ export function dayStints(
     });
     for (const { candidate, from, to } of pieces) {
       const size = candidate.part.size;
-      stints.push({
-        fieldId,
-        partId: candidate.part.id!,
-        partIds: candidate.parts.flatMap((p) => (p.id === undefined ? [] : [p.id])),
-        field: stripField(candidate, from * size, to * size),
-        from,
-        to,
-      });
+      const strip = stripField(candidate, from * size, to * size);
+      for (const piece of roadPieces(strip, capsules, candidate.parts)) {
+        stints.push({
+          fieldId,
+          partId: candidate.part.id!,
+          partIds: candidate.parts.flatMap((p) => (p.id === undefined ? [] : [p.id])),
+          field: piece,
+          from,
+          to,
+        });
+      }
     }
   }
   return stints;
@@ -128,8 +138,9 @@ export function splitStints<T extends { field: { size: number; from?: number; to
 
 /**
  * Pole na začátku dne: díly dnešní orby mají zoranou jen ranní část (`from`), zbytek vzhled před
- * orbou (`before` od herního jádra, jinak strniště) – zbytek dnešní orby přibývá brázdou za
- * rádlem (plough-team.ts – `routeFurrows`).
+ * orbou (`unploughed` od herního jádra, jinak `before`, jinak strniště) – zbytek dnešní orby
+ * přibývá brázdou za rádlem (plough-team.ts – `routeFurrows`); co se za pluhem dnes zaselo, je
+ * vidět až další den. Zoraná zem tak přibývá jen tam, kudy rádlo projelo.
  */
 export function startOfDayVillage<V extends Pick<SceneVillage, 'fields'>>(
   village: V,
@@ -146,7 +157,7 @@ export function startOfDayVillage<V extends Pick<SceneVillage, 'fields'>>(
         parts: field.parts.map((part): SceneFieldPart => {
           const stint = part.id === undefined ? undefined : byPart.get(part.id);
           if (!stint) return part;
-          const before: FieldLook = part.before ?? 'stubble';
+          const before: FieldLook = part.unploughed ?? part.before ?? 'stubble';
           const { work: _work, before: _before, ...rest } = part;
           void _work;
           void _before;

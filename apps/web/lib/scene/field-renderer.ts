@@ -601,13 +601,12 @@ export class FieldRenderer {
       if (current?.key === key) continue;
       changed = true;
       if (current) for (const mesh of current.meshes) mesh.dispose();
-      const rows = rowDirection(field.parts);
       // natočené pole (fields.md – Natočené stavby): obsah v rovném prostoru jeho mřížky, do
-      // světa se otočí až hotový (obtisky, rostliny, vytyčení); textury podle světových řádků
+      // světa se otočí až hotový (obtisky, rostliny, vytyčení i směry řádků textur)
       const space = fieldSpace(field.parts);
       const spaced = (list: readonly PartView[]): PartView[] =>
         space ? list.map((v) => ({ ...v, part: space.square(v.part) })) : [...list];
-      const rowsIn = space ? rowDirection(field.parts.map((p) => space.square(p))) : rows;
+      const rowsIn = rowDirection(space ? field.parts.map((p) => space.square(p)) : field.parts);
       const centerIn = space ? space.point(center) : center;
       let coverage: ((x: number, z: number) => number) | null = null;
       const coverageOf = (): ((x: number, z: number) => number) => {
@@ -692,7 +691,11 @@ export class FieldRenderer {
             layers: new Map(
               [...merged.layers].map(([k, layer]) => [
                 k,
-                { ...layer, grids: layer.grids.map((g) => space.grid(g)) },
+                {
+                  ...layer,
+                  grids: layer.grids.map((g) => space.grid(g)),
+                  rows: layer.rows.map((d) => space.direction(d)),
+                },
               ]),
             ),
             swaths: merged.swaths.map((g) => space.grid(g)),
@@ -712,7 +715,7 @@ export class FieldRenderer {
       this.fields.set(field.id, {
         key,
         coverage: worldCoverage,
-        meshes: this.fieldMeshes(field, content, rows, staking.lines),
+        meshes: this.fieldMeshes(field, content, staking.lines),
         shape: field.id < 0 ? null : fieldHideShape(field),
         plants: content.plants,
         pegs: staking.pegs,
@@ -787,23 +790,20 @@ export class FieldRenderer {
    * s měkkým nepravidelným okrajem do louky (bez meze – Martin: „Pole mají nějakou divnou
    * hranici. Můžeš ji zrušit?“) a u vytyčeného pole provázek s čarou naražené trávy.
    */
-  private fieldMeshes(
-    field: SceneField,
-    content: FieldContent,
-    rows: [number, number],
-    stakingLines: Point[][],
-  ): Mesh[] {
+  private fieldMeshes(field: SceneField, content: FieldContent, stakingLines: Point[][]): Mesh[] {
     if (field.parts.length === 0) return [];
     const layers = content.layers;
     const meshes: Mesh[] = [];
-    const [dx, dz] = rows;
+    // řádky sena napříč řádky pole (louka na seno se neorá – směr pole)
+    const rows = rowDirection(field.parts);
     for (const entry of layers.values()) {
       const texture = FIELD_TEXTURES[entry.texture];
+      // textura s řádky podél směru řádků kusu (díl orby podél své brázdy – oxen.md)
       const uv = texture.rows
-        ? (x: number, z: number): [number, number] => [
-            (-x * dz + z * dx) / texture.repeatM,
-            (x * dx + z * dz) / texture.repeatM,
-          ]
+        ? (x: number, z: number, g: number): [number, number] => {
+            const [dx, dz] = entry.rows[g]!;
+            return [(-x * dz + z * dx) / texture.repeatM, (x * dx + z * dz) / texture.repeatM];
+          }
         : texture.repeatM;
       const mesh = this.mergedDecal(
         `village-field-${field.id}-${entry.texture}${entry.patches ? '-patches' : ''}`,
@@ -821,7 +821,7 @@ export class FieldRenderer {
     }
     // zelené a zralé obilí jako vyvýšená hmota (field-canopy.ts)
     if (content.canopy.indices.length > 0) {
-      meshes.push(this.canopyMesh(`village-field-canopy-${field.id}`, content.canopy, rows));
+      meshes.push(this.canopyMesh(`village-field-canopy-${field.id}`, content.canopy));
     }
     if (stakingLines.length > 0) {
       const line = createStripMesh(
@@ -842,12 +842,11 @@ export class FieldRenderer {
    * ze sítě (stěny do strany), textura porostu shora podél řádků a barva vzhledu s kolísáním
    * ve skvrnách jako obtisk pole. Neprůhledná – obtisk a paty trsů pod ní zakryje.
    */
-  private canopyMesh(name: string, canopy: CanopyMesh, rows: [number, number]): Mesh {
+  private canopyMesh(name: string, canopy: CanopyMesh): Mesh {
     const count = canopy.offsets.length;
     const positions = new Float32Array(count * 3);
     const uvs = new Float32Array(count * 2);
     const colors = new Float32Array(count * 4);
-    const [dx, dz] = rows;
     const repeat = FIELD_TEXTURES.crop.repeatM;
     const height = this.context.decalHeight;
     for (let v = 0; v < count; v++) {
@@ -856,6 +855,9 @@ export class FieldRenderer {
       positions[v * 3] = x;
       positions[v * 3 + 1] = height(x, z) + canopy.offsets[v]!;
       positions[v * 3 + 2] = z;
+      // textura porostu podél řádků kusu (`CanopyMesh.rows`)
+      const dx = canopy.rows[v * 2]!;
+      const dz = canopy.rows[v * 2 + 1]!;
       uvs[v * 2] = (-x * dz + z * dx) / repeat;
       uvs[v * 2 + 1] = (x * dx + z * dz) / repeat;
       const n = 0.9 + 0.2 * patchNoise(x / 6 + 11.3, z / 6 - 3.7);
@@ -961,6 +963,7 @@ export class FieldRenderer {
       grids,
       colors: grids.map(() => [1.2, 1.12, 0.74] as const),
       alphas: grids.map(() => 0.92 * fade),
+      rows: grids.map(() => meadow.rows),
     };
     const mesh = this.mergedDecal(`village-meadow-${meadow.id}`, entry, LIFT.base, 18);
     mesh.material = this.decalMaterial('grass', -2);
@@ -993,6 +996,7 @@ export class FieldRenderer {
       grids,
       colors: grids.map(() => SWATH_COLOR),
       alphas: grids.map(() => 0.95),
+      rows: grids.map(() => rows),
     };
     const mesh = this.mergedDecal(`village-swaths-${name}`, swaths, LIFT.swaths, (x, z) => {
       const along = x * dx + z * dz;
@@ -1288,7 +1292,7 @@ export class FieldRenderer {
     name: string,
     layer: Pick<DecalLayer, 'grids' | 'colors' | 'alphas'>,
     lift: number,
-    uv: number | ((x: number, z: number) => [number, number]),
+    uv: number | ((x: number, z: number, grid: number) => [number, number]),
   ): Mesh {
     const total = layer.grids.reduce((sum, g) => sum + g.alphas.length, 0);
     const totalIndices = layer.grids.reduce((sum, g) => sum + g.indices.length, 0);
@@ -1296,6 +1300,8 @@ export class FieldRenderer {
     const alphas = new Float32Array(total);
     const indices = new Uint32Array(totalIndices);
     const colorOf: (readonly [number, number, number])[] = new Array(total);
+    // síť každého vrcholu – UV podle sítě (směr řádků kusu)
+    const gridOf = new Uint32Array(total);
     let v = 0;
     let k = 0;
     layer.grids.forEach((grid, g) => {
@@ -1304,6 +1310,7 @@ export class FieldRenderer {
       for (let i = 0; i < count; i++) {
         alphas[v + i] = grid.alphas[i]! * layer.alphas[g]!;
         colorOf[v + i] = layer.colors[g]!;
+        gridOf[v + i] = g;
       }
       for (let i = 0; i < grid.indices.length; i++) indices[k + i] = grid.indices[i]! + v;
       v += count;
@@ -1324,7 +1331,7 @@ export class FieldRenderer {
           const n = 0.9 + 0.2 * patchNoise(x / 6 + 11.3, z / 6 - 3.7);
           return [r * n, g * n, b * n];
         },
-        uv,
+        uv: typeof uv === 'number' ? uv : (x, z, i) => uv(x, z, gridOf[i]!),
       },
     );
   }

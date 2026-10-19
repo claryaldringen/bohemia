@@ -97,6 +97,11 @@ export interface CropChoiceInput {
   /** Cíl lnu (kg třeného lnu – fields.md, Len); bez údaje žádný len. */
   flaxTargetKg?: number;
   /**
+   * O kolik energie (kg obilí) smí len plán obilí ubrat, když ho obilí nedoplní – zásoby z pole,
+   * které k příští sklizni zbudou nad pojistku (fields.md – Len); bez údaje nic.
+   */
+  flaxSpareKg?: number;
+  /**
    * Pod kolik energie (kg obilí) luštěniny plán nesmí stáhnout – roční potřeba bez rezervy; bez
    * údaje celý cíl osevu.
    */
@@ -401,7 +406,7 @@ function fitsSideCrop(
  * nepokryje `targetKg`. Po každém dílu obilí doplní další díly, kolik energie díl dá méně (len
  * celou – nejí se); když energie plánu i tak klesne pod roční potřebu (`energyFloorKg` – smí jít
  * na rezervu osevu; obilí má přednost), díl zůstane obilím a výběr plodiny končí – len smí obilí
- * ubrat nejvýš o svůj díl (je ho málo, bez něj chybí oděv). Díly plodiny tak zůstanou souvislé.
+ * ubrat nejvýš o svůj díl ze zásob nad pojistku (`flaxSpareKg` – je ho málo, bez něj chybí oděv). Díly plodiny tak zůstanou souvislé.
  */
 function chooseSideCrop(
   blocks: readonly (readonly FieldPart[])[],
@@ -413,6 +418,7 @@ function chooseSideCrop(
 ): Choice {
   let choice = start;
   let cropNet = 0;
+  let spare = crop === 'flax' ? (input.flaxSpareKg ?? 0) : 0;
   while (cropNet < targetKg - EPSILON) {
     const grain = new Set([...choice.winter, ...choice.spring]);
     const fromHome = blocks.flatMap((block) => block.filter((p) => grain.has(p)));
@@ -434,11 +440,12 @@ function chooseSideCrop(
     const trial = copyChoice(choice);
     const floor = Math.min(input.energyFloorKg ?? input.targetKg, trial.net);
     // len smí ubrat obilí nejvýš o svůj díl, když ho obilí nedoplní (chybí půda či práce) – je ho
-    // málo (≈ 1–2 % osevu) a vyrovnají to zásoby (fields.md – Len, Osev podle zásob)
-    const energy = crop === 'flax' ? floor - expectedNetKg(next, input.day) : floor;
+    // málo (≈ 1–2 % osevu) – a jen ze zásob nad pojistku (fields.md – Len, Osev podle zásob)
+    const energy = floor - Math.min(expectedNetKg(next, input.day), spare);
     if (!moveToSideCrop(trial, next, crop, input, workOf)) break;
     chooseGrain(blocks, trial, input.targetKg, input, workOf);
     if (trial.net < energy - EPSILON) break;
+    spare = Math.max(0, spare - Math.max(0, floor - trial.net));
     choice = trial;
     cropNet += sideCropKg(crop, next, input.day);
   }

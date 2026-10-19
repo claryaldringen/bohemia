@@ -6,10 +6,11 @@ import type { FieldPart, PloughBand } from './types';
 // rýt co nejdelší brázdu – otáčení zabírá čas a snižuje produktivitu.“ a „Spřežení by mělo trávit
 // co nejvíce času orbou … Rozhodně nepřejíždí z dílce na dílec, ale snaží se zorat co největší
 // souvislou plochu.“). Spřežení orá plodinu po souvislých blocích dílů: blok jsou díly orby
-// jednoho pole, které spolu sousedí stranou; orá se podél delší strany pole (stejný směr jako
-// řádky obilí ve scéně – mění se jen se změnou pole) a pás je souvislá řada dílů bloku v tomto
-// směru – brázda vede přes celý pás. Blok se zorá celý, pás po pásu od strany blíž vsi, než
-// spřežení přejde k dalšímu bloku; bloky jdou od nejbližšího. Čisté funkce bez stavu vsi.
+// jednoho pole, které spolu sousedí stranou; každý blok se orá v ose (mřížky pole), ve které jsou
+// jeho brázdy v průměru delší (Martin: „oře jen v ose východ – západ, i když u spousty polí by
+// byla výhodnější sever – jih“), a pás je souvislá řada dílů bloku v tomto směru – brázda vede
+// přes celý pás. Blok se zorá celý, pás po pásu od strany blíž vsi, než spřežení přejde
+// k dalšímu bloku; bloky jdou od nejbližšího. Čisté funkce bez stavu vsi.
 
 /** Délka strany dílu podél brázdy (m) – díl je čtverec (zmenšený díl úměrně ploše). */
 function partLengthM(part: Pick<FieldPart, 'areaM2'>): number {
@@ -38,10 +39,48 @@ export function bandLengthM(
   }, 0);
 }
 
-/** Osa brázd pole – delší rozloha jeho čtverců (v mřížce pole; při shodě podél x). */
-export function furrowAxis(fieldParts: readonly Pick<FieldPart, 'cell'>[]): 'x' | 'y' {
-  const cells = fieldParts.flatMap((p) => (p.cell ? [p.cell] : []));
+/**
+ * Průměrná délka brázdy čtverců v ose (v čtvercích, vážená plochou – Σ délka² / Σ délka):
+ * souvislé úseky čtverců podél osy.
+ */
+function meanRun(cells: readonly { x: number; y: number }[], axis: 'x' | 'y'): number {
+  const along = (c: { x: number; y: number }): number => (axis === 'x' ? c.x : c.y);
+  const across = (c: { x: number; y: number }): number => (axis === 'x' ? c.y : c.x);
+  const lines = new Map<number, number[]>();
+  for (const c of cells) {
+    const list = lines.get(across(c));
+    if (list) list.push(along(c));
+    else lines.set(across(c), [along(c)]);
+  }
+  let sum = 0;
+  let squares = 0;
+  for (const list of lines.values()) {
+    list.sort((a, b) => a - b);
+    let run = 1;
+    for (let i = 1; i <= list.length; i++) {
+      if (i < list.length && list[i] === list[i - 1]! + 1) {
+        run++;
+        continue;
+      }
+      sum += run * run;
+      squares += run;
+      run = 1;
+    }
+  }
+  return squares > 0 ? sum / squares : 0;
+}
+
+/**
+ * Osa brázd souvislých čtverců (bloku orby, v mřížce pole): ta, ve které jsou brázdy v průměru
+ * delší (`meanRun` – víc orby mezi obraty, co nejdelší brázda); při shodě podél delší rozlohy,
+ * pak podél x.
+ */
+export function furrowAxis(parts: readonly Pick<FieldPart, 'cell'>[]): 'x' | 'y' {
+  const cells = parts.flatMap((p) => (p.cell ? [p.cell] : []));
   if (cells.length === 0) return 'x';
+  const runX = meanRun(cells, 'x');
+  const runY = meanRun(cells, 'y');
+  if (Math.abs(runX - runY) > 1e-9) return runX > runY ? 'x' : 'y';
   const xs = cells.map((c) => c.x);
   const ys = cells.map((c) => c.y);
   return Math.max(...xs) - Math.min(...xs) >= Math.max(...ys) - Math.min(...ys) ? 'x' : 'y';
@@ -55,15 +94,11 @@ export interface PloughLayout {
 
 /**
  * Rozvrží orbu dílů `selected` (díly jedné plodiny): bloky podle polí a sousedství stranou, pásy
- * podél osy pole (`furrowAxis` ze všech dílů pole – `fieldParts`), napříč postupně od strany blíž
- * vsi (`sweep` – podle vzdálenosti dílů od obydlí). Bloky od nejbližšího k obydlí (chůze), při
- * shodě podle id prvního dílu. Díl bez políčka (staré pole z obrysu) je pás sám pro sebe.
- * Deterministicky.
+ * podél osy bloku (`furrowAxis` – delší brázdy), napříč postupně od strany blíž vsi (`sweep` –
+ * podle vzdálenosti dílů od obydlí). Bloky od nejbližšího k obydlí (chůze), při shodě podle id
+ * prvního dílu. Díl bez políčka (staré pole z obrysu) je pás sám pro sebe. Deterministicky.
  */
-export function ploughLayout(
-  selected: readonly FieldPart[],
-  fieldParts: (fieldId: number) => readonly FieldPart[],
-): PloughLayout {
+export function ploughLayout(selected: readonly FieldPart[]): PloughLayout {
   const blocks: { parts: FieldPart[]; bands: PloughBand[]; near: number; first: number }[] = [];
   const byField = new Map<number, FieldPart[]>();
   for (const part of selected) {
@@ -71,13 +106,12 @@ export function ploughLayout(
     if (list) list.push(part);
     else byField.set(part.fieldId, [part]);
   }
-  for (const [fieldId, parts] of [...byField].sort((a, b) => a[0] - b[0])) {
-    const axis = furrowAxis(fieldParts(fieldId));
+  for (const [, parts] of [...byField].sort((a, b) => a[0] - b[0])) {
     const loose = parts.filter((p) => !p.cell);
     for (const part of loose) {
       blocks.push({
         parts: [part],
-        bands: [{ partIds: [part.id], axis, sweep: 1, block: 0 }],
+        bands: [{ partIds: [part.id], axis: 'x', sweep: 1, block: 0 }],
         near: partWalkDistance(part),
         first: part.id,
       });
@@ -109,7 +143,7 @@ export function ploughLayout(
           queue.push(next);
         }
       }
-      blocks.push(blockLayout(block, axis));
+      blocks.push(blockLayout(block, furrowAxis(block)));
     }
   }
   blocks.sort((a, b) => a.near - b.near || a.first - b.first);

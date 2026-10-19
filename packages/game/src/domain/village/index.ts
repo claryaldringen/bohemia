@@ -16,6 +16,7 @@ export * from './plough-trip';
 export * from './oxen';
 export { breedingCows, winterHayNeedKg } from './husbandry';
 export * from './herding';
+export { woolCoverage, woolNeedKg, woolSheep, woolUnhappiness } from './wool';
 export * from './dwellings';
 export * from './manor';
 export * from './relocation';
@@ -98,6 +99,26 @@ export * from './sacred-life';
 export * from './happiness';
 export * from './crafts';
 export * from './charcoal';
+// nákup u sousedů (crafts.md) – kroky simulace (odchod, cesta, návrat) volá simulate.ts
+export {
+  CRAFT_PRODUCTS,
+  PRODUCT_CRAFT,
+  craftSources,
+  neighbourCrafts,
+  ownCraftsmanWorks,
+  paymentValueKg,
+  planPurchases,
+  productPrice,
+  purchaseDaysLeft,
+  purchaseLine,
+  purchaseRoute,
+  purchaseTarget,
+  purchaseTravelers,
+  type CraftProduct,
+  type CraftSource,
+  type PurchasePlan,
+  type PurchaseRoute,
+} from './craft-buying';
 // tesař a vozy (wagons.md) – kroky simulace (pomoc stavbám, výroba, svoz) volá simulate.ts
 export {
   NO_HELP,
@@ -147,10 +168,17 @@ export * from './trade';
 export {
   NO_PEOPLE,
   emigrantGroups,
+  emigrantList,
   neighbourFamilyValue,
   neighbourPeople,
+  newcomerProfiles,
   personValue,
+  storedNeighbourPeople,
+  tradePeopleCount,
   type EmigrantGroup,
+  type Emigrants,
+  type NewcomerMember,
+  type NewcomerProfile,
 } from './people-trade';
 // jabloně u cest – kroky simulace (práce a dokončení výsadby) zůstávají uvnitř
 export {
@@ -166,3 +194,4 @@ export * from './overgrowth';
 export * from './pasture';
 export * from './woods';
 export * from './road-fields';
+export * from './road-swath';

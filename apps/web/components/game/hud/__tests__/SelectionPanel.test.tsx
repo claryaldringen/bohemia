@@ -686,3 +686,33 @@ describe('SelectionPanel – dílna tesaře (wagons.md – Tesař)', () => {
     expect(html).toContain('Pomáhá se stavbami');
   });
 });
+
+describe('SelectionPanel – nákup u sousedů (crafts.md)', () => {
+  it('dvorec ukáže, kde ves bere výrobky, a nákup na cestě – jen ikony', () => {
+    const html = render(
+      dwelling({
+        buying: {
+          sources: [
+            { product: 'toolsKg', own: false, direction: 'N', days: 6, trail: true },
+            { product: 'potteryKg', own: true, direction: null, days: null, trail: false },
+            { product: 'woodToolsKg', own: false, direction: null, days: null, trail: false },
+          ],
+          purchases: [
+            {
+              direction: 'N',
+              get: { toolsKg: 9 },
+              payKg: 520,
+              group: 3,
+              daysLeft: 4,
+              progress: 0.5,
+            },
+          ],
+        },
+      }),
+    );
+    expect(html).toMatch(/data-testid="selection-buying-toolsKg"[^>]*>↑</);
+    expect(html).toMatch(/data-testid="selection-buying-potteryKg"[^>]*>✓</);
+    expect(html).toMatch(/data-testid="selection-buying-trip"[^>]*>↑ 4</);
+    expect(html).toContain('/icons/resources/wood-tools.png');
+  });
+});

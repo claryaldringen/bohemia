@@ -52,6 +52,13 @@ a smysl přebytkům (obilí, sýr, maso, klády po mýcení) – jen se surovina
   plus hať a lávka, kde vede mokřinou nebo přes potok. Kde už pevná cesta je, platí se jen
   vylepšení. Staví se ze společné práce vsi, po úsecích od vsi ven (vytyčení hned).
 - Hotová stezka je pevná cesta (nezaroste), stromy u ní rostou jako u ostatních pevných cest.
+- **Průsek lesem** (Martin, 19. 10. 2026: „Tam, kde zemská stezka prochází lesem, ať se les
+  vykácí.“; podrobnosti návrh Clauda, [roads.md](roads.md) – Průsek lesem): kde stezka vede
+  lesem, vykácí se pruh 3,5 m od osy (pás upravené cesty 3 m a 2 m z každé strany). Kácení je
+  práce úseku (tabulka překážek, v ceně stezky a v popisku růžice i se stromy v průseku), klády
+  za dospělé stromy jdou na hromadu, pařezy po stranách nedorostou. Trasa se vyhne posvátným
+  dubům a hájům – průsek by je musel vykácet, a ty se nekácí; kde by jinak stezka nevedla, směr
+  nejde.
 - Víc stezek = víc sousedů (každá stavba zvlášť).
 
 ## Sousedé (bez simulace – varianta a)
@@ -76,12 +83,13 @@ a smysl přebytkům (obilí, sýr, maso, klády po mýcení) – jen se surovina
   bere s přirážkou **≈ 20 %**; co shání, za to dá o ≈ 20 % víc, co nabízí, dá o ≈ 20 % levněji.
 - **Doprava:** zboží nesou lidé po stezce – **≈ 25 kg na člověka a cestu** (dobytek se žene);
   cesta tam a zpět trvá **2–6 dní** podle délky stezky (+ cesta za krajem mapy 1 den). Práce
-  nosičů = lidé × dny (ze společné práce vsi, jako stavba); zboží dorazí, až se nosiči vrátí.
+  nosičů = lidé × dny – od 19. 10. 2026 vlastní podíl práce vsi hned po denním minimu (viz Jak je
+  postavené – Doprava); zboží dorazí, až se nosiči vrátí.
 - **Panel obchodu** (dvorec, po dostavění stezky): soused (jméno, směr), ikony zboží – co dáš,
   co dostaneš, posuvníky, bilance hodnoty (musí být ≥ 0 pro souseda), cena v práci a dny cesty.
   Potvrdit → výprava vyrazí. Jedna výprava na souseda naráz.
 - **Ve scéně:** nosiči odejdou po stezce ke kraji mapy a vrátí se s nákladem (postavy jako
-  ostatní – `villager-plan`).
+  ostatní – `villager-plan`) – od 19. 10. 2026 jako karavana (viz Jak je postavené – Ve scéně).
 - ~~**Zboží zvenku ve vsi** (návrh Clauda): sůl, železo, med, kožešiny jsou zásoby v horní liště
   (ikony – jen když nějaké jsou). **Železo** může kovář použít místo vlastní rudy (dnes jen
   bahenní ruda – [řemesla](crafts.md)). **Med** se jí (energie, štěstí jako ovoce). **Sůl**
@@ -137,13 +145,29 @@ K návrhu doplnil: „Mohou se stěhovat celé rodiny i jen dospělí. Podle toh
 to přistěhovalci, se kterými počítala část [Navazuje](#navazuje). Detaily níž jsou návrh Clauda.
 Implementace `people-trade.ts` (jádro) a panel obchodu.
 
+**Muži a ženy zvlášť – Martin schválil 19. 10. 2026.** Od souseda přišli dva „dospělí“, pohlaví se
+losovalo až při příchodu a byly to dvě ženy – ve vsi pak nebyl nikdo, s kým by založily domácnost,
+a nešla postavit dílna. Svobodné muže a ženy proto soused nabízí a shání zvlášť a hráč je zvlášť
+objednává i dává:
+
+- pohlaví každého svobodného dospělého souseda se losuje 1 : 1 už v nabídce a poptávce roku –
+  los je na konci, takže rodiny a počet dospělých jsou stejné jako dřív (`neighbourPeople`);
+- cena stejná pro muže i ženu (360 kg obilí);
+- koho ves dá, vybere jádro podle stejných pravidel – svobodné muže a ženy 16–44 zvlášť
+  (`emigrantGroups` – rodiny, pak muži, pak ženy);
+- starší uložený zbytek roku souseda s dospělými bez pohlaví se převede deterministicky podle
+  povahy roku – tolik mužů, kolik jich soused ten rok měl, zbytek ženy (`storedNeighbourPeople`);
+  výprava na cestě s dospělými bez pohlaví doběhne a pohlaví se losuje jako dřív
+  (`newcomerProfiles`);
+- kronika a krátké řádky se nemění („Přišel muž …“, „Přišla žena …“).
+
 - **Lidé souseda na rok obchodu** (od 1. 11.): s pravděpodobností **40 %** má soused lidi navíc,
   které neuživí – 0–2 rodiny s 0–3 dětmi a 0–3 svobodné dospělé (aspoň jednoho člověka); s **30 %**
   lidi shání a vezme 0–2 rodiny a 0–3 dospělé (aspoň jednoho); jinak lidi nemění. Deterministicky
   ze seedu vsi, směru a roku (`neighbourPeople`) – na rozdíl od zboží se rok od roku mění („občas“).
   Kdo dá lidi, ten je ten rok nevezme, a naopak. Co ves vezme nebo dá, soused do konce roku odepíše.
-- **Co se mění:** **rodina** = muž, žena a jejich svobodné děti; **svobodný dospělý** = muž nebo
-  žena 16–44 let bez manžela.
+- **Co se mění:** **rodina** = muž, žena a jejich svobodné děti; **svobodný muž** a **svobodná
+  žena** 16–44 let bez manžela (zvlášť – viz výš).
 - **Cena** (v kg obilí jako zboží): dospělý **360 kg** (≈ dvouletá spotřeba jídla – 2 × 180 kg),
   dítě do 14 let **polovina**. Přirážky jako u zboží: za naše lidi soused připíše plnou hodnotu,
   svoje prodá za 0,96 hodnoty – rodina souseda se dvěma dětmi stojí 3 × 360 × 0,96 ≈ 1 037 kg.
@@ -166,9 +190,9 @@ Implementace `people-trade.ts` (jádro) a panel obchodu.
     se podle pravidel sňatků (ve vsi, nebo z okolí);
   - kronika „Ze severu přišla rodina – 4 lidé.“ a krátký řádek „Přišla rodina ze severu“ /
     „Přišel muž …“ / „Přišla žena …“ (jen fakt).
-- **Lidé od nás:** hráč zvolí počet rodin a dospělých, koho přesně, vybere jádro deterministicky
+- **Lidé od nás:** hráč zvolí počet rodin, mužů a žen, koho přesně, vybere jádro deterministicky
   (`emigrantGroups`):
-  - nejdřív rodiny, pak dospělí, každá další skupina z vsi bez předchozích, vždy **z nejvíc
+  - nejdřív rodiny, pak muži, pak ženy, každá další skupina z vsi bez předchozích, vždy **z nejvíc
     přeplněného domu**;
   - **nikdy dědic domu** (rodinu vybírají pravidla domácností – dědic a jeho rodiče zůstávají;
     svobodný dědic neplodných rodičů také), **vojvodova domácnost** (nikdo z dvorce – rod hráče)
@@ -178,17 +202,23 @@ Implementace `people-trade.ts` (jádro) a panel obchodu.
     kolik soused za lidi připíše;
   - odejdou **hned s výpravou**; v rodokmenu zůstanou jako odešlí ve směru souseda (`emigrants`),
     dokud ve vsi žije jejich rodič, sourozenec nebo dítě – kvůli válce (příbuzní ve vsi souseda);
-  - kronika výpravy: „… nesou 100 kg obilí; odchází s nimi 1 rodina a 2 dospělí.“
+  - kronika výpravy: „… nesou 100 kg obilí; odchází s nimi 1 rodina, 2 muži a 1 žena.“
 - **Doprava:** lidé jdou s výpravou, nic nenesou a nosiče nepotřebují – výprava jen s lidmi má
   jednoho průvodce (nosiči aspoň 1). Děti jdou s rodiči, do nosičů ani práce se nepočítají a cestu
   neprodlužují. Jedna výprava na souseda naráz platí dál.
-- **Panel obchodu:** řádek rodiny (ikona muže, ženy a dítěte) a svobodného dospělého (ikona
-  vesničana) na straně „dáš“, když je soused shání (nejvýš kolik vezme a kolik ves smí dát), a na
-  straně „dostaneš“, když je nabízí; cena v popisku. Výprava na cestě ukáže i lidi.
+- **Panel obchodu:** řádky rodiny (ikona muže, ženy a dítěte), svobodného muže a svobodné ženy
+  (ikony vesničana a vesničanky) na straně „dáš“, když je soused shání (nejvýš kolik vezme a kolik
+  ves smí dát), a na straně „dostaneš“, když je nabízí; popisek „Soused nabízí / shání – …“ a cena.
+  Výprava na cestě ukáže i lidi.
 - **Starší vsi:** zbytek roku souseda uložený dřív lidi nemá – platí celý rok podle povahy;
   výprava na cestě bez lidí se vrátí beze změny.
 
 ## Navazuje
+
+- **Nákup u sousedů** (Martin 19. 10. 2026 – vesničané si výrobky řemeslníků kupují sami, když se
+  jim to vyplatí): [řemesla](crafts.md) – Nákup u sousedů. Sousedé mají řemeslníky podle druhu
+  (řemeslníci jistě, ostatní někdy); nákup jde mimo panel obchodu – bez hráče, po stezce nebo
+  krajinou.
 
 - **Přistěhovalci** (Martin, 18. 10. 2026): noví lidé do vsi z okolí přijdou přes obchod
   a vztahy se sousedy (např. rodina, která se se sousedem domluví a přistěhuje) – navrhne se
@@ -252,9 +282,20 @@ Návrh Clauda (18. 10. 2026) – detaily, které návrh výš nechal otevřené:
   (ves dává) a nabízeným (ves dostává) zboží – jinak by soused byl nekonečný zdroj.
 - **Doprava:** nosiči = víc z cest tam a zpět: náklad ÷ 25 kg (kláda váží pro nosiče 100 kg –
   vlečou ji čtyři) + honák na každých 10 kusů dobytka; aspoň 1. Práce = nosiči
-  × dny; každý den výprava vezme ze společné práce nejvýš počet nosičů (před stavbami), takže
-  trvá aspoň daný počet dní, s málo prací déle. Zboží, které ves dává, odejde hned, přinesené
-  dorazí po návratu. Ves si nechá aspoň 2 krávy.
+  × dny. **Lidé na výpravě mají vlastní podíl práce** (Martin 19. 10. 2026: „Ano, udělej to
+  tak.“ – na návrh Clauda níž): každý den výprava vezme tolik člověkodní, kolik s ní jde lidí
+  (nosiči, s vozy honáci a pomocníci), hned **po denním minimu domácností a před rozdělením dne**
+  (`allocateDay` – `away`, `expeditionLaborToday`), takže trvá přesně dny z náhledu – i o žních,
+  kdy ves nemá volnou práci. Dřív brala práci až ze společné práce (po polních pracích, opravách
+  a domácí práci) a bez ní stála (Vlkov: ≈ 7 člověkodní volné práce na 12 nosičů – 9 dní místo 5).
+  Rozhodnutí Clauda k Martinovu „ano“: **nosiči jsou dospělí** – výprava vezme nejvýš tolik, kolik
+  má ves (bez řemeslníků v dílnách) dospělých (14–44 let); děti a starší náklad 25 kg na několik dní
+  cesty neponesou a jejich práce ve vsi je jen zlomek. **Denní minimum domácností má přednost** –
+  vaření, voda, oheň a péče o malé děti (fields.md – Práce) se neodkládají, výprava je dobrovolná;
+  zdržet se tak může jen malá ves, která po denním minimu nemá dost dospělých (panel to ukáže).
+  Platí pro každou výpravu ve vsi, i pro nákup u sousedů. Zboží, které ves dává, odejde hned,
+  přinesené dorazí po návratu. Ves si nechá aspoň 2 krávy. Kalibrace se nemění (běží bez obchodu
+  – ověřeno `measure-village 20 20`).
 - ~~**Zboží zvenku:** sůl 3 kg na člověka a rok (≈ 8 g denně), dokud je, štěstí +3; kožešiny se
   opotřebí 20 % ročně, štěstí +2 × (kožešiny ÷ lidé, nejvýš 1); med rovným dílem do roka,
   nejvýš 5 % potřeby energie (0,9 kg obilí na kg), štěstí jako ovoce (+5, se zralým ovocem se
@@ -275,29 +316,82 @@ Návrh Clauda (18. 10. 2026) – detaily, které návrh výš nechal otevřené:
   ze vsi ven) a „Dostaneš“ (→ portrét dvorce, do vsi) – jediná slova v panelu, výjimka z pravidla
   bez popisků jako „Prodat“ a „Koupit“ v 0 A.D. Popisek řádku řekne, co soused chce: u „Dáš“
   „Soused shání – vezme ještě 1 500 kg“, u „Dostaneš“ „Soused nabízí – má ještě 4 kusy“
-  (jednotky kg, kusy, rodiny, dospělí), pod tím cena v kg obilí. Dole nosiči, dny cesty, práce
+  (jednotky kg, kusy, rodiny, muži, ženy), pod tím cena v kg obilí. Dole nosiči, dny cesty, práce
   a tlačítko vyslat výpravu. Záložky sousedů jen, když je jich víc.
-- **Ve scéně:** nosiči chodí s nákladem po stezce od dvorce ke kraji mapy a zpět (skutečný čas
-  jako ostatní postavy – karavana po celé stezce).
+- **Po odeslání** (Martin 19. 10. 2026: „Vyslal jsem obchodní výpravu, ale dál nějak nevím, co se
+  bude dít.“ – ve Vlkově server výpravu odmítl, protože posuvník zůstal z loňského roku obchodu
+  na 3 mužích a soused jich letos měl 2; chybu ukázal jen mizející řádek nahoře; návrh Clauda):
+  - **posuvníky se ořežou** na dnešní meze souseda s každým novým pohledem na ves (nový herní den,
+    nový rok obchodu od 1. 11.) – odeslat jde jen to, co panel ukazuje (`clampSelection`);
+  - **kontrola jádra už před odesláním**: náhled v prohlížeči dělá stejné kontroly a se stejnými
+    důvody jako server (`tradeQuote`) – tlačítko je zašedlé a důvod je v popisku, jako u staveb;
+  - **chyba serveru zůstane v panelu** červeně pod tlačítkem, dokud hráč výběr nezmění (a jako
+    krátký řádek nahoře);
+  - **panel zůstane otevřený** a po úspěchu ukáže **výpravu na cestě**: soused a směr, co nese
+    a koho vede (Dáš), co přinese a kdo přijde (Dostaneš), průběh, nosiči a vozy a za kolik dní se
+    vrátí dnešním tempem;
+  - **tempo dne:** lidé na výpravě mají vlastní podíl práce (viz Doprava) – výprava jde plným
+    tempem; jen ves, která po denním minimu nemá dost dospělých, se zdrží – panel to ukáže
+    přesýpacími hodinami s popiskem „Málo dospělých – dnes šlo 1 z 2 lidí výpravy, výprava se
+    zdrží.“, bez nikoho „Výprava stojí – po denním minimu domácností dnes ve vsi nezbyl nikdo, kdo
+    by šel.“ (návrat „?“); výprava vyslaná dnes „vyrazí zítra“;
+  - **vozy:** u práce panel zeleně ukáže, kolik člověkodní vozy ušetří proti nosičům.
+- **Nosiči jako vlastní podíl práce – Martin schválil 19. 10. 2026** („Ano, udělej to tak.“):
+  výprava dřív brala práci až ze společné práce vsi a bez ní stála uprostřed cesty (Vlkov: volná
+  práce ≈ 7 člověkodní denně na 12 nosičů – výprava za 60 člověkodní trvala 9 dní místo 5; o žních
+  by stála úplně). Teď jsou lidé na výpravě celé dny cesty pryč – jejich člověkodny jdou z práce
+  vsi hned po denním minimu, před rozdělením dne (viz Jak je postavené – Doprava).
+- **Ve scéně – karavana** (Martin 19. 10. 2026: „Měl bych vidět skupinu lidí, jak jde po té zemské
+  stezce s nákladem pro sousední vesnici. Zpátky by se mělo vracet o dva lidi víc, když jsem si je
+  objednal. Až bude vůz, pojedou zásoby na voze a ušetří se člověkodny.“; návrh Clauda –
+  `scene/caravan.ts`, data `SceneVillage.expeditions`):
+  - dřív chodili nosiči jako proud tam a zpět po celé stezce podle práce dne – kolik postav, tolik
+    člověkodní dne, skutečnou chůzí; bez volných rukou (práce dne 0) zmizeli úplně, karavanu jako
+    skupinu nebylo vidět a lidé, kteří se stěhují, nešli vůbec;
+  - teď je výprava **jedna skupina** podle stavu výpravy (ne podle práce dne – nezmizí): tam
+    nosiči s nákladem (klip nošení) a za nimi lidé, které ves dává sousedovi (rodina s dětmi, muž,
+    žena – pohlaví a věk z jádra, `givePeople.members`), zpátky nosiči (s nákladem, jen když
+    výprava něco veze) a o objednané lidi víc – rodiny s dětmi a svobodní (pohlaví a věk z jádra,
+    `newcomerProfiles` – stejní lidé, kteří se pak ve vsi objeví);
+  - **s vozem** jede náklad na voze v čele karavany, s vozem jdou jen dva lidé (honák u spřežení
+    a pomocník vedle vozu) a lidé, kteří se stěhují, jdou za vozem; vůz jede od ohrady na stezku,
+    za krajem mapy zmizí a vrátí se po stezce k ohradě čelem dopředu; panel obchodu ukáže, kolik
+    člověkodní vůz ušetřil;
+  - **časový rozvrh:** karavana jde podle postupu výpravy v herním čase (odvedená práce ÷ cena),
+    v herním dni plynule dnešním tempem – dojde domů právě, když se výprava v jádru vrátí. Dny
+    cesty bez dne za krajem mapy se dělí napůl tam a zpátky; den za krajem mapy (`beyondEdgeDays`)
+    je karavana u souseda a není vidět. Skutečnou chůzí by 1 km trval čtvrt hodiny a výprava by se
+    vrátila dřív, než by karavana došla na kraj mapy – jde proto zrychleně (časosběr jako jednotky
+    v 0 A.D.), krok se přehrává rychleji (nejvýš 3×);
+  - před odchodem a po návratu stojí karavana v hloučku u začátku stezky; lidé na výpravě mají
+    vlastní podíl práce, takže jde plným tempem – stojí jen výjimečně (ves bez dospělých);
+  - ukázka na `/dev/landscape` – tlačítko **Karavana** (nosiči, pak vůz; výprava trvá 90 s).
 
 ## Rozhodnutí
 
-| Rozhodnutí                                                                                 | Kdo          |
-| ------------------------------------------------------------------------------------------ | ------------ |
-| Dvorec vojvody – větší a honosnější obydlí; klik ukáže vylepšení vsi                       | Martin       |
-| První vylepšení: cesta do sousední vsi v jednom z 8 směrů; po ní obchod                    | Martin       |
-| Soused zatím bez simulace (stálá povaha), později skutečné vsi NPC vojvodů                 | Martin (a)   |
-| Dvorec = první / nejstarší obydlí, přestavba na dvorec, kapacita 10, cena ×1,5, jeden      | návrh Clauda |
-| Stezka = upravená cesta ke kraji mapy (+ hať a lávka), po úsecích od vsi                   | návrh Clauda |
-| Povaha souseda ze seedu: 2–3 nabízí, 2–3 shání; roční zásoby a poptávka                    | návrh Clauda |
-| Výměna podle hodnot v kg obilí, přirážka ≈ 20 %; nosiči 25 kg, 2–6 dní, práce vsi          | návrh Clauda |
-| ~~Zboží zvenku: sůl, železo (pro kováře), med (jídlo), kožešiny; štěstí~~ – zrušeno        | návrh Clauda |
-| Přistěhovalci přijdou přes obchod a vztahy se sousedy, ne jako samostatná mechanika        | Martin       |
-| Hodnoty zboží v kg obilí podle rešerše (kráva 600, nástroje 60, kláda 40, sýr 4…)          | návrh Clauda |
-| Jak je postavené: dvorec, pozemek se dvorem, trasa a úseky stezky, sousedé, ceny, doprava  | návrh Clauda |
-| Jen společné suroviny – se sousedem jen zboží, které má i ves; zboží zvenku pryč (19. 10.) | Martin       |
-| Druhy sousedů (obilnáři, pastevci, lesní ves, řemeslníci), každý dvakrát kolem vsi         | návrh Clauda |
-| Starší vsi: zboží zvenku propadne, výprava pro něj se ruší a nosiči vrátí, co nesli        | návrh Clauda |
-| Výměna lidí se sousedem – celé rodiny i jen dospělí, podle nabídky (19. 10.)               | Martin       |
-| Lidé souseda na rok (40 % navíc, 30 % shání), dospělý 360 kg obilí, dítě polovina          | návrh Clauda |
-| Kdo přijde a kam, koho ves dá (ne dědic, dvorec, rozpad domácnosti), lidé nic nenesou      | návrh Clauda |
+| Rozhodnutí                                                                                         | Kdo                             |
+| -------------------------------------------------------------------------------------------------- | ------------------------------- |
+| Dvorec vojvody – větší a honosnější obydlí; klik ukáže vylepšení vsi                               | Martin                          |
+| První vylepšení: cesta do sousední vsi v jednom z 8 směrů; po ní obchod                            | Martin                          |
+| Soused zatím bez simulace (stálá povaha), později skutečné vsi NPC vojvodů                         | Martin (a)                      |
+| Dvorec = první / nejstarší obydlí, přestavba na dvorec, kapacita 10, cena ×1,5, jeden              | návrh Clauda                    |
+| Stezka = upravená cesta ke kraji mapy (+ hať a lávka), po úsecích od vsi                           | návrh Clauda                    |
+| Povaha souseda ze seedu: 2–3 nabízí, 2–3 shání; roční zásoby a poptávka                            | návrh Clauda                    |
+| Výměna podle hodnot v kg obilí, přirážka ≈ 20 %; nosiči 25 kg, 2–6 dní, práce vsi                  | návrh Clauda                    |
+| ~~Zboží zvenku: sůl, železo (pro kováře), med (jídlo), kožešiny; štěstí~~ – zrušeno                | návrh Clauda                    |
+| Přistěhovalci přijdou přes obchod a vztahy se sousedy, ne jako samostatná mechanika                | Martin                          |
+| Hodnoty zboží v kg obilí podle rešerše (kráva 600, nástroje 60, kláda 40, sýr 4…)                  | návrh Clauda                    |
+| Jak je postavené: dvorec, pozemek se dvorem, trasa a úseky stezky, sousedé, ceny, doprava          | návrh Clauda                    |
+| Jen společné suroviny – se sousedem jen zboží, které má i ves; zboží zvenku pryč (19. 10.)         | Martin                          |
+| Druhy sousedů (obilnáři, pastevci, lesní ves, řemeslníci), každý dvakrát kolem vsi                 | návrh Clauda                    |
+| Starší vsi: zboží zvenku propadne, výprava pro něj se ruší a nosiči vrátí, co nesli                | návrh Clauda                    |
+| Výměna lidí se sousedem – celé rodiny i jen dospělí, podle nabídky (19. 10.)                       | Martin                          |
+| Lidé souseda na rok (40 % navíc, 30 % shání), dospělý 360 kg obilí, dítě polovina                  | návrh Clauda                    |
+| Kdo přijde a kam, koho ves dá (ne dědic, dvorec, rozpad domácnosti), lidé nic nenesou              | návrh Clauda                    |
+| Muži a ženy ve výměně lidí zvlášť – nabídka, poptávka i výběr hráče (19. 10.)                      | Martin                          |
+| Panel obchodu po odeslání: ořez posuvníků, kontrola předem, chyba v panelu, výprava na cestě       | návrh Clauda                    |
+| Karavana výpravy ve scéně – skupina podle postupu výpravy, lidé tam i zpět, s vozem náklad na voze | Martin (19. 10.) / návrh Clauda |
+| Kde stezka prochází lesem, les se vykácí (19. 10.)                                                 | Martin                          |
+| Průsek 3,5 m od osy, kácení v ceně úseku, trasa se vyhne posvátným dubům a hájům                   | návrh Clauda                    |
+| Lidé na výpravě mají vlastní podíl práce – po denním minimu, před rozdělením dne (19. 10.)         | Martin                          |
+| Nosiči jen dospělí (nejvýš kolik jich ves má), denní minimum domácností má přednost                | návrh Clauda                    |

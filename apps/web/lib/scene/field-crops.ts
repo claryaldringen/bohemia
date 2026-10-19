@@ -354,6 +354,11 @@ export interface DecalPiece {
   part: CropSquare;
   bounds: Bounds;
   look: FieldLook;
+  /**
+   * Směr řádků kusu (jednotkový vektor) – textury s řádky a koruna porostu vedou podél něj: díl,
+   * který orá spřežení, podél své brázdy (osa bloku orby – oxen.md), jinak podél řádků pole.
+   */
+  rows: readonly [number, number];
 }
 
 /** Rozteč řádků obilí (m) a trsů v řádku (m), odstup trsů od meze (krytí obtisku). */
@@ -401,17 +406,18 @@ export function decalPieces(
       minZ: part.z - half,
       maxZ: part.z + half,
     };
+    const frame = workFrame(part, rows, center);
+    const along = frame.along;
     if (view.work === null) {
-      if (view.look) pieces.push({ part, bounds: whole, look: view.look });
+      if (view.look) pieces.push({ part, bounds: whole, look: view.look, rows: along });
       continue;
     }
-    const frame = workFrame(part, rows, center);
     const done = workSteps(view.work);
     if (view.look && done > 0) {
-      pieces.push({ part, bounds: workRect(part, frame, 0, done), look: view.look });
+      pieces.push({ part, bounds: workRect(part, frame, 0, done), look: view.look, rows: along });
     }
     if (view.before && done < 1) {
-      pieces.push({ part, bounds: workRect(part, frame, done, 1), look: view.before });
+      pieces.push({ part, bounds: workRect(part, frame, done, 1), look: view.before, rows: along });
     }
   }
   return pieces;

@@ -41,7 +41,8 @@
 //   a ztráty skladováním – `steadyHarvestKg`) / čistá úroda hektaru v průměru tří let osevu (tak
 //   osev vybírá i ves – od 19. 10. 2026 podle stravy a podle zásob, fields.md – Kolik ves oseje:
 //   potřeba z pole = podíl jídla z pole za uplynulý rok × roční potřeba).
-// - Řemesla zatím nejsou – práce a ztráty se počítají s pokrytím NO_CRAFTS (horní meze).
+// - Dílny hráč skriptu nestaví. Ves ale od 19. 10. 2026 kupuje výrobky řemeslníků u sousedů sama
+//   (crafts.md – Nákup u sousedů – 15. 11., když se to vyplatí) – pokrytí pak nemusí být 0.
 // - Hřbitov (cemetery.md): hráč ho založí hned po dostavění první zemnice – jeden čtverec 200 m
 //   od obydlí a 150 m od vody, hygiena 1 – a rozšíří ho o čtverec, když je z 80 % plný a žádné
 //   rozšíření se zrovna nestaví.
@@ -81,6 +82,7 @@ import {
   FOOD_NEED_KG_PER_YEAR,
   HARVEST_DAY,
   NO_CRAFTS,
+  craftCoverage,
   PLANNING_DAY,
   PLOUGH_HA_PER_DAY,
   SEED_KG_PER_HA,
@@ -470,6 +472,18 @@ interface RunResult {
   orchardDay: number | null; // den založení sadu
   /** Dřevo staveb obydlí (i přestaveb): klády z hromady a pokácené stromy. */
   wood: { fromPile: number; felled: number; finalLogs: number };
+  /**
+   * Nákup u sousedů (crafts.md): kolik cest, co ves koupila (kg) a čím platila (kg obilí
+   * a luštěnin) z kroniky a pokrytí výrobky řemeslníků na konci běhu.
+   */
+  crafts?: {
+    trips: number;
+    toolsKg: number;
+    potteryKg: number;
+    woodToolsKg: number;
+    payKg: number;
+    coverage: { tools: number; pottery: number; woodTools: number };
+  };
   /** Rok sklizně → kopání jaře hotové do konce února (podzim) – pro rezervu práce na jaře. */
   autumnDig: Map<number, number>;
   /** Rok sklizně → podíl ozimu na osevu (ha). */
@@ -499,7 +513,21 @@ interface RunResult {
     starved: number;
     herds: Record<HerdSpecies, number>;
     meatKg: number;
+    /**
+     * Porážky, po kterých ovce nedaly vlnu na oděv pro všechny (`wool-short` – diet.md, Oděv),
+     * a podíl oděvu z vlny na konci běhu. Starší kontrolní body je nemají.
+     */
+    woolShort?: number;
+    woolEnd?: number;
+    /** Roky od založení vsi u porážek s nedostatkem vlny (celé roky). */
+    woolShortAges?: number[];
   };
+  /**
+   * Obyvatelstvo (population.md, kinship.md – Naměřeno): lidé a domácnosti v N. roce vsi, události
+   * kroniky podle druhu, ovdovění a nové sňatky, muži a ženy na konci. Starší kontrolní body ho
+   * nemají.
+   */
+  demography?: Demography;
   /**
    * Hřbitovy na konci běhu (cemetery.md – Mohyly podle významu): pohřbení, obsazená místa, mohyly
    * podle druhu pohřbeného a čtverce. Starší kontrolní body ho nemají.
@@ -511,6 +539,91 @@ interface RunResult {
     /** Mohyly podle druhu pohřbeného (starší kontrolní body nemají všechny druhy). */
     ranks: Partial<Record<GraveRank, number>>;
   };
+}
+
+/** Roky vsi, ve kterých se zapíše počet lidí a domácností (population.md – Naměřeno). */
+const SNAPSHOT_YEARS = [20, 40, 60, 100] as const;
+
+interface Demography {
+  /** Rok vsi → lidé a domácnosti na konci prvního kroku od N let (vymřelá ves 0). */
+  snapshots: Map<number, { people: number; households: number }>;
+  /** Události kroniky podle druhu (`death:<skupina>`, `death:hunger`, ostatní podle `kind`). */
+  events: Map<string, number>;
+  /**
+   * Ovdovění (manžel zemřel): pohlaví, věk při ovdovění a dny do nového sňatku (null – nevzal se
+   * do konce běhu, do smrti ani do odchodu); přesnost na krok skriptu.
+   */
+  widowed: { sex: 'male' | 'female'; age: number; days: number | null }[];
+  /** Muži a ženy na konci běhu – všichni a od 16 let. */
+  final: { males: number; females: number; adultMales: number; adultFemales: number };
+}
+
+function emptyDemography(): Demography {
+  return {
+    snapshots: new Map(),
+    events: new Map(),
+    widowed: [],
+    final: { males: 0, females: 0, adultMales: 0, adultFemales: 0 },
+  };
+}
+
+/** Události kroku do demografie – úmrtí podle skupiny a hladu, ostatní podle druhu. */
+function countEvents(demography: Demography, events: readonly ChronicleEvent[]): void {
+  const add = (key: string): void => {
+    demography.events.set(key, (demography.events.get(key) ?? 0) + 1);
+  };
+  for (const e of events) {
+    if (e.kind === 'death') {
+      add(`death:${e.group}`);
+      if (e.cause === 'hunger') add('death:hunger');
+    } else add(e.kind);
+  }
+}
+
+/**
+ * Ovdovění a nové sňatky v kroku: kdo měl na začátku žijícího manžela a na konci jiného nebo
+ * žádného, ovdověl (s novým manželem se v kroku i vzal); otevřené ovdovění se uzavře sňatkem.
+ * `open` – id člověka → index v `widowed`.
+ */
+function trackWidows(
+  demography: Demography,
+  open: Map<number, { index: number; day: number }>,
+  before: VillageState,
+  after: VillageState,
+): void {
+  const day = after.lastDay;
+  const alive = new Set(before.people.map((p) => p.id));
+  const afterById = new Map(after.people.map((p) => [p.id, p]));
+  for (const p of before.people) {
+    const now = afterById.get(p.id);
+    if (!now || now.sex === undefined) continue;
+    if (p.spouseId !== undefined && alive.has(p.spouseId) && now.spouseId !== p.spouseId) {
+      // manžel zemřel (rozvody ani odchod ženatých skript nezná)
+      if (afterById.has(p.spouseId)) continue;
+      const age = Math.floor((day - p.bornDay) / DAYS_PER_YEAR);
+      demography.widowed.push({ sex: now.sex, age, days: now.spouseId === undefined ? null : 0 });
+      if (now.spouseId === undefined) {
+        open.set(p.id, { index: demography.widowed.length - 1, day });
+      }
+      continue;
+    }
+    const waiting = open.get(p.id);
+    if (waiting && now.spouseId !== undefined) {
+      const entry = demography.widowed[waiting.index];
+      if (entry) entry.days = day - waiting.day;
+      open.delete(p.id);
+    }
+  }
+  for (const id of [...open.keys()]) if (!afterById.has(id)) open.delete(id);
+}
+
+/** Lidé a domácnosti v rocích SNAPSHOT_YEARS, které krok `day` právě překročil. */
+function recordSnapshots(demography: Demography, state: VillageState, day: number): void {
+  const years = (day - state.foundedDay) / DAYS_PER_YEAR;
+  for (const n of SNAPSHOT_YEARS) {
+    if (years + 1e-6 < n || demography.snapshots.has(n)) continue;
+    demography.snapshots.set(n, { people: state.people.length, households: occupiedCount(state) });
+  }
 }
 
 function harvestYear(day: number): number {
@@ -655,6 +768,7 @@ function emptyResult(): RunResult {
       herds: { sheep: 0, goat: 0, pig: 0, cow: 0 },
       meatKg: 0,
     },
+    demography: emptyDemography(),
   };
 }
 
@@ -888,6 +1002,8 @@ function runVillage(start: VillageState, startLand: number, opts: RunOptions): R
     }
   };
   countWood(start);
+  const demography = result.demography ?? emptyDemography();
+  const widows = new Map<number, { index: number; day: number }>();
   const finishedDwelling = (events: ChronicleEvent[]): ChronicleEvent | undefined =>
     events.find((e) => e.kind === 'construction-finished' && e.constructionKind === 'dwelling');
 
@@ -899,6 +1015,7 @@ function runVillage(start: VillageState, startLand: number, opts: RunOptions): R
     let after = step(result, before, stop, opts.land, opts.trackLabor);
     const events = after.chronicle;
     after.chronicle = []; // kronika patří jen tomuto kroku (stav skriptu, simulace ji nečte)
+    countPurchases(result, events);
     const day = after.lastDay;
     const date = dateOfDayIndex(day);
     // pálení drnu: po první sklizni má díl zase svou úrodnost (jen varianta meadow-burn)
@@ -920,6 +1037,11 @@ function runVillage(start: VillageState, startLand: number, opts: RunOptions): R
       }
     }
 
+    if (!opts.pinned) {
+      countEvents(demography, events);
+      trackWidows(demography, widows, before, after);
+      recordSnapshots(demography, after, day);
+    }
     for (const e of events) {
       if (e.kind === 'rebuild-decided') {
         const dwelling =
@@ -935,6 +1057,11 @@ function runVillage(start: VillageState, startLand: number, opts: RunOptions): R
         result.livestock.slaughterKg += e.kg;
       } else if (e.kind === 'meat-spoiled') {
         result.livestock.spoiledKg += e.kg;
+      } else if (e.kind === 'wool-short') {
+        result.livestock.woolShort = (result.livestock.woolShort ?? 0) + 1;
+        (result.livestock.woolShortAges ??= []).push(
+          Math.floor((e.day - start.foundedDay) / DAYS_PER_YEAR),
+        );
       } else if (e.kind === 'herd-starved') {
         result.livestock.starved += Object.values(e.animals).reduce((sum, n) => sum + n, 0);
       }
@@ -1048,10 +1175,58 @@ function runVillage(start: VillageState, startLand: number, opts: RunOptions): R
   result.finalFieldHa = lastPlan?.fieldHa ?? 0;
   result.finalSownHa = lastPlan?.sownHa ?? 0;
   result.wood.finalLogs = state.woodLogs ?? 0;
+  result.crafts = { ...(result.crafts ?? NO_PURCHASES), coverage: coverageAtEnd(state) };
   result.cemetery = cemeteryAtEnd(state);
+  if (result.extinctDay !== null) {
+    // vymřelá ves – v rocích, kam už nedoběhla, nemá nikoho
+    for (const n of SNAPSHOT_YEARS) {
+      if (!demography.snapshots.has(n) && n <= config.years) {
+        demography.snapshots.set(n, { people: 0, households: 0 });
+      }
+    }
+  }
+  for (const p of state.people) {
+    const adult = Math.floor((state.lastDay - p.bornDay) / DAYS_PER_YEAR) >= 16;
+    if (p.sex === 'male') {
+      demography.final.males++;
+      if (adult) demography.final.adultMales++;
+    } else if (p.sex === 'female') {
+      demography.final.females++;
+      if (adult) demography.final.adultFemales++;
+    }
+  }
   if (state.livestock) result.livestock.herds = { ...state.livestock.herds };
+  result.livestock.woolEnd = state.livestock?.wool ?? 1;
   result.livestock.meatKg = state.meatKg ?? 0;
   return result;
+}
+
+const NO_PURCHASES: NonNullable<RunResult['crafts']> = {
+  trips: 0,
+  toolsKg: 0,
+  potteryKg: 0,
+  woodToolsKg: 0,
+  payKg: 0,
+  coverage: { tools: 0, pottery: 0, woodTools: 0 },
+};
+
+/** Nákupy u sousedů v kronice kroku (crafts.md – Nákup u sousedů) – sečte do výsledku. */
+function countPurchases(result: RunResult, events: readonly ChronicleEvent[]): void {
+  for (const e of events) {
+    if (e.kind !== 'crafts-bought') continue;
+    const out = (result.crafts ??= structuredClone(NO_PURCHASES));
+    out.trips++;
+    out.toolsKg += e.get.toolsKg ?? 0;
+    out.potteryKg += e.get.potteryKg ?? 0;
+    out.woodToolsKg += e.get.woodToolsKg ?? 0;
+    out.payKg += (e.pay.grainKg ?? 0) + (e.pay.legumesKg ?? 0);
+  }
+}
+
+/** Pokrytí výrobky řemeslníků na konci běhu. */
+function coverageAtEnd(state: VillageState): NonNullable<RunResult['crafts']>['coverage'] {
+  const coverage = craftCoverage(state, state.lastDay);
+  return { tools: coverage.tools, pottery: coverage.pottery, woodTools: coverage.woodTools ?? 0 };
 }
 
 /** Hřbitovy na konci běhu – pohřbení, místa, mohyly podle druhu a čtverce. */
@@ -1458,6 +1633,68 @@ interface Row {
 }
 type VillageResult = Extract<TaskResult, { kind: 'village' }>;
 
+/** Řádky tabulky o obyvatelstvu jedné strategie (population.md, kinship.md – Naměřeno). */
+function demographyRows(label: string, runs: readonly RunResult[]): Row[] {
+  const rows: Row[] = [];
+  const all = runs.flatMap((r) => (r.demography ? [r.demography] : []));
+  if (all.length === 0) return rows;
+  const snapshots = SNAPSHOT_YEARS.filter((n) => n <= config.years).map((n) => {
+    const at = all.flatMap((d) => {
+      const s = d.snapshots.get(n);
+      return s ? [s] : [];
+    });
+    const people = at.map((s) => s.people);
+    const households = at.map((s) => s.households);
+    return `po ${n} letech lidí medián ${fmt(quantile(people, 0.5), 0)} (p10 ${fmt(quantile(people, 0.1), 0)}, p90 ${fmt(quantile(people, 0.9), 0)}), domácností ${fmt(quantile(households, 0.5), 0)}`;
+  });
+  rows.push({
+    name: `Obyvatelstvo (${label})`,
+    target: 'informace – kinship.md, Naměřeno',
+    measured: snapshots.join(' | '),
+    status: 'info',
+  });
+  const perVillage = (key: string): string => {
+    const values = all.map((d) => d.events.get(key) ?? 0);
+    const total = values.reduce((sum, v) => sum + v, 0);
+    return fmt(total / all.length);
+  };
+  rows.push({
+    name: `Porody, úmrtí a sňatky na ves (${label}, ${config.years} let)`,
+    target: 'informace – průměr na ves za běh',
+    measured: `porody ${perVillage('birth')} | úmrtí dětí ${perVillage('death:child')}, dospělých ${perVillage('death:adult')}, starších ${perVillage('death:elder')} (hladem ${perVillage('death:hunger')}) | svatby ve vsi ${perVillage('marriage')} | nevěsty z okolí ${perVillage('bride-from-outside')} | ženichové z okolí ${perVillage('groom-from-outside')} | vdané pryč ${perVillage('married-away')} | rozpady domácností ${perVillage('household-merged')}`,
+    status: 'info',
+  });
+  for (const [sex, title, maxAge] of [
+    ['female', 'Vdovy 16–44', 44],
+    ['male', 'Vdovci 16–59', 59],
+  ] as const) {
+    const widowed = all.flatMap((d) =>
+      d.widowed.filter((w) => w.sex === sex && w.age >= 16 && w.age <= maxAge),
+    );
+    const remarried = widowed.flatMap((w) => (w.days === null ? [] : [w.days / DAYS_PER_YEAR]));
+    rows.push({
+      name: `${title} (${label})`,
+      target: 'informace – ovdovění a nový sňatek',
+      measured:
+        widowed.length === 0
+          ? 'nikdo neovdověl'
+          : `ovdověli ${widowed.length} (na ves ${fmt(widowed.length / all.length)}) | znovu se vzali ${pct(remarried.length / widowed.length)} | doba do sňatku medián ${fmt(quantile(remarried, 0.5))} roku, p90 ${fmt(quantile(remarried, 0.9))}`,
+      status: 'info',
+    });
+  }
+  const sum = (pick: (d: Demography) => number): number =>
+    all.reduce((total, d) => total + pick(d), 0);
+  const adultMales = sum((d) => d.final.adultMales);
+  const adultFemales = sum((d) => d.final.adultFemales);
+  rows.push({
+    name: `Pohlaví na konci (${label})`,
+    target: 'informace – muži / ženy',
+    measured: `všichni ${sum((d) => d.final.males)} / ${sum((d) => d.final.females)} | od 16 let ${adultMales} / ${adultFemales} (mužů na 100 žen ${fmt((100 * adultMales) / Math.max(1, adultFemales), 0)})`,
+    status: 'info',
+  });
+  return rows;
+}
+
 function report(villages: VillageResult[], probes: Record<ProbeName, ProbeSummary>): Row[] {
   const rows: Row[] = [];
   const row = (name: string, target: string, measured: string, status: Status): void => {
@@ -1660,6 +1897,14 @@ function report(villages: VillageResult[], probes: Record<ProbeName, ProbeSummar
     )}`,
     'info',
   );
+
+  // obyvatelstvo, sňatky a vdovy (population.md, kinship.md – Naměřeno) – jen informace
+  for (const [label, runs] of [
+    ['hráč staví', builders],
+    ['nestaví', loners],
+  ] as const) {
+    rows.push(...demographyRows(label, runs));
+  }
 
   const { start, full, oversize } = probes;
   // pole v ustáleném oběhu = osev × oběh podle pravidel (dřív ≈ 3,3×, od rešerše ≈ 5,3×); cíle
@@ -1911,6 +2156,16 @@ function report(villages: VillageResult[], probes: Record<ProbeName, ProbeSummar
     )}`,
     'info',
   );
+  // nákup u sousedů (crafts.md – Nákup u sousedů): ves bez řemeslníků kupuje sama
+  const bought = builders.flatMap((r) => (r.crafts ? [r.crafts] : []));
+  const median = (pick: (c: NonNullable<RunResult['crafts']>) => number, digits = 0): string =>
+    fmt(quantile(bought.map(pick), 0.5), digits);
+  row(
+    `Nákup u sousedů – hráč staví (${config.years} let)`,
+    'jen informace (crafts.md – Nákup u sousedů)',
+    `cest na ves medián ${median((c) => c.trips)} | koupeno za běh medián nástroje ${median((c) => c.toolsKg)} kg, keramika ${median((c) => c.potteryKg)} kg, dřevěné nářadí ${median((c) => c.woodToolsKg)} kg za ${median((c) => c.payKg)} kg obilí | pokrytí na konci nástroje ${median((c) => c.coverage.tools, 2)}, nádoby ${median((c) => c.coverage.pottery, 2)}, dřevěné nářadí ${median((c) => c.coverage.woodTools, 2)} (n ${bought.length})`,
+    'info',
+  );
   // hřbitov (cemetery.md – Mohyly podle významu): kolik míst zabere pohřeb a podíl druhů
   const graveyards = builders.flatMap((r) =>
     r.cemetery && r.cemetery.graves > 0 ? [r.cemetery] : [],
@@ -1974,7 +2229,27 @@ function report(villages: VillageResult[], probes: Record<ProbeName, ProbeSummar
       herdVillages.reduce((sum, r) => sum + r.livestock.starved, 0) /
         Math.max(1, herdVillages.length),
       1,
-    )} kusů na ves`,
+    )} kusů na ves | ovcí chybělo na vlnu po ${pct(
+      herdVillages.reduce((sum, r) => sum + (r.livestock.woolShort ?? 0), 0) /
+        Math.max(1, herdVillages.length * config.years),
+    )} porážek (v roce vsi medián ${fmt(
+      quantile(
+        herdVillages.flatMap((r) => r.livestock.woolShortAges ?? []),
+        0.5,
+      ),
+      0,
+    )}, p90 ${fmt(
+      quantile(
+        herdVillages.flatMap((r) => r.livestock.woolShortAges ?? []),
+        0.9,
+      ),
+      0,
+    )}), vlna na oděv na konci medián ${pct(
+      quantile(
+        herdVillages.map((r) => r.livestock.woolEnd ?? 1),
+        0.5,
+      ),
+    )}`,
     'info',
   );
   const landGone = builders.filter((r) => r.landGoneYear !== null).length;

@@ -1,16 +1,16 @@
 import type { AbandonedStructure, NewcomerGroup } from '@bohemia/game';
 import { DIRECTION_NAMES, NEWCOMER_TEXTS } from './trade-names';
 import { formatInteger } from './village-format';
-import type { VillageView } from './village-view';
+import { productList, type VillageView } from './village-view';
 
-// Upozornění vsi (population.md – Co hráč vidí): plná domácnost, ves hladoví, lidé umírají hlady
+// Upozornění vsi (population.md – Co hráč vidí): rodina čeká na dům, ves hladoví, lidé umírají hlady
 // (Hlad a vymření), stavby stojí, hřbitov je plný (cemetery.md), vesničané ušetřili posvátný dub
 // nebo dubový háj (happiness.md – jen když přibude), kovář nemá uhlí a dílna nemá co kácet
 // (crafts.md), tesař nemá klády, vyrobil vůz a vůz dosloužil (wagons.md), svatba mezi domy (population.md – Sňatky mezi domy, když přibude), podzimní porážka,
 // zkažené maso a zimní úhyn stáda (diet.md), spřežení volů – vycvičené, dosloužilo, vůl uhynul pro
 // nedostatek sena (oxen.md) –, vesničané obnovují starý sad a starý sad dosloužil (orchard.md –
-// Obnova sadu), posvátný dub uschl a posvátná souš padla (happiness.md), nevěsta z okolí a dcera
-// vdaná pryč (kinship.md – Sňatky z okolí), lidé od souseda – rodina, muž, žena (trade.md – Výměna
+// Obnova sadu), posvátný dub uschl a posvátná souš padla (happiness.md), nevěsta a ženich z okolí
+// a dcera vdaná pryč (kinship.md – Sňatky z okolí), lidé od souseda – rodina, muž, žena (trade.md – Výměna
 // lidí), opuštěná modla padla, svatyně, plot hřbitova či ohrada
 // se rozpadly a vesničané je opravili (abandonment.md – Oprava) – nové události kroniky. Vymřelá
 // ves žádná nemá. Odvozují se z pohledu na ves a ukážou se jednou, když nově vzniknou – jako
@@ -28,6 +28,8 @@ export type NoticeKind =
   | 'carpenter-no-wood'
   | 'cart-made'
   | 'cart-worn-out'
+  /** Vesničané koupili výrobky řemeslníků u souseda (crafts.md – Nákup u sousedů). */
+  | 'crafts-bought'
   | 'sacred-oak'
   | 'sacred-grove'
   | 'sacred-oak-died'
@@ -38,12 +40,16 @@ export type NoticeKind =
   /** Lnu na oděv všech je málo (fields.md – Len, diet.md – Oděv). */
   | 'linen-short'
   | 'herd-starved'
+  /** Ovcí je málo na vlnu pro oděv všech (diet.md – Oděv). */
+  | 'wool-short'
   | 'team-ready'
   | 'team-retired'
   | 'ox-died'
   | 'orchard-renewal'
   | 'orchard-gone'
   | 'bride-from-outside'
+  /** K ženě se přiženil muž z okolí (kinship.md – Sňatky z okolí, Martin 19. 10. 2026). */
+  | 'groom-from-outside'
   | 'married-away'
   | 'part-forest'
   /** Zemská stezka a obchod se sousedy (trade.md). */
@@ -101,8 +107,10 @@ export function villageNotices(view: VillageView): VillageNotice[] {
   if (view.crafts.workshops.some((w) => w.activity === 'no-wood' && w.craft === 'carpenter')) {
     notices.push({ kind: 'carpenter-no-wood', tone: 'warn', text: 'Tesař nemá klády' });
   }
+  // rodina, která smí odejít, nemá kam (dřív „Domácnost je plná“ – od 19. 10. 2026 smí ženatý pár
+  // odejít i z neplného domu, kinship.md – Lidé k osídlení)
   if (view.fullHousehold) {
-    notices.push({ kind: 'full-household', tone: 'info', text: 'Domácnost je plná' });
+    notices.push({ kind: 'full-household', tone: 'info', text: 'Rodina čeká na dům' });
   }
   return notices;
 }
@@ -196,11 +204,18 @@ const CHRONICLE_NOTICES: Partial<
     tone: 'warn',
     text: 'Dobytek hynul – chybělo seno',
   }),
+  // ovcí přes zimu méně, než je třeba na vlnu pro oděv všech (diet.md – Oděv)
+  'wool-short': () => ({ kind: 'wool-short', tone: 'warn', text: 'Chybí vlna na oděv' }),
   'team-ready': () => ({ kind: 'team-ready', tone: 'info', text: 'Spřežení je vycvičené' }),
   'bride-from-outside': () => ({
     kind: 'bride-from-outside',
     tone: 'info',
     text: 'Nevěsta z okolí',
+  }),
+  'groom-from-outside': () => ({
+    kind: 'groom-from-outside',
+    tone: 'info',
+    text: 'Ženich z okolí',
   }),
   'married-away': () => ({ kind: 'married-away', tone: 'info', text: 'Dcera se vdala pryč' }),
   'team-retired': () => ({ kind: 'team-retired', tone: 'info', text: 'Spřežení dosloužilo' }),
@@ -218,6 +233,14 @@ const CHRONICLE_NOTICES: Partial<
   // vozy od tesaře (wagons.md – Vůz)
   'cart-made': () => ({ kind: 'cart-made', tone: 'info', text: 'Tesař vyrobil vůz' }),
   'cart-worn-out': () => ({ kind: 'cart-worn-out', tone: 'warn', text: 'Vůz dosloužil' }),
+  // nákup u sousedů (crafts.md) – jen fakt: co a u koho
+  'crafts-bought': (entry) => ({
+    kind: 'crafts-bought',
+    tone: 'info',
+    text: `Vesničané koupili ${productList(entry.products ?? [])} u souseda${
+      entry.direction ? ` (${DIRECTION_NAMES[entry.direction].name})` : ''
+    }`,
+  }),
   // lidé od souseda (trade.md – Výměna lidí) – fakt, odkud přišli
   newcomer: (entry) => newcomerNotice(entry.group ?? 'family', entry),
   // nepasený příloh zarostl lesem a vypadl z pole (fields.md – Zarůstání)

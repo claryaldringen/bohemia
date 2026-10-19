@@ -34,7 +34,7 @@ Raně středověká strava nebyla jen obilí. Plné nasycení potřebuje kombina
   ovce, kozy i krávy se dojí (Martin).
 - **Ne-cíl (teď):** lov a rybolov (později jako doplněk), zelenina ze zahrádek, sůl a uzení jako
   suroviny, nákazy dobytka jako události (běžné nemoci jsou v ročních ztrátách stáda), máslo
-  a syrovátka zvlášť, vlna (jen námět).
+  a syrovátka zvlášť, vlna a len jako zásoby (Oděv – zpracují se v rámci roku).
 - **Anti-cíl:** ves, která vymře jen proto, že nemá maso – nedostatek pestrosti strávníky oslabí,
   ale hladem se umírá jen z nedostatku energie (viz Hlad).
 
@@ -175,7 +175,7 @@ asi dává nejvíc mléka a masa, ale také bude asi nejnáročnější na chov,
 kvůli tažným volům.**“ a „**Prasata jsou jen na maso, ale zase zvládnou pást v lese po celý
 rok.**“
 
-- **Ovce na všechno** (vlna – zatím jen námět, mléko, maso) – mají přednost.
+- **Ovce na všechno** (vlna na oděv – Oděv, mléko, maso) – mají přednost.
 - **Kozy na mléko a pastvu na křovinách:** dávají víc mléka než ovce (60 proti 25 l pro lidi za
   rok – rešerše potvrdila, ovčí mléko je ale bohatší; na kus ≈ 2,2 proti 1,4 kg bílkovin). Okusují
   keře a výhonky, kam ovce ani krávy nejdou: **zarůstající příloh (křoviny, mladý les) je pastva
@@ -310,10 +310,8 @@ Martin: „**A uzené maso určitě také nevydrží 3 roky.**“
 
 #### Náměty (neimplementováno – Martin rozhodne)
 
-- **Vlna:** ovce dávají vlnu (přeslenky a závaží tkalcovských stavů jsou běžné nálezy). Mohla by
-  být zásobou (střiž v květnu, ≈ 1 kg na ovci), předení a tkaní by šlo do domácí práce (zimní
-  večery – dnes `DOMESTIC`), oděv by se opotřebovával (jako nástroje) a nedostatek by ubíral štěstí
-  nebo zvyšoval zimní úmrtnost; přebytek sukna jako zboží k sousedům (trade.md).
+- ~~**Vlna**~~ – od 19. 10. 2026 ve hře jako spodní hranice stáda ovcí (Oděv). Zůstává námětem
+  přebytek sukna jako zboží k sousedům (trade.md) a oděv z kůží z porážky.
 - **Kozy brzdí zarůstání:** pastva koz na křovinách by mohla zarůstání přílohu zpomalit (dnes ho
   zastaví jen pastva nebo seč ve fázi louky). Zasáhla by do zarůstání a sítě pěšin – zatím ne.
 - **Podzimní porážka jehňat a kůzlat:** čerstvé maso v září a říjnu, kdy uzené došlo.
@@ -396,6 +394,73 @@ podle zásob – beze změny), stropy podílů energie a 1,6 g/kg zůstávají.
   - Ovce mají přednost jen mezi zdroji, které práci šetří. Mají jít napřed vždy (do nosnosti
     pastvy), i když prasata v lese ušetří víc práce? Skladba by byla jako dřív (ovce ≈ 44 na 10
     lidí), volné práce méně.
+
+### Oděv (Martin, 19. 10. 2026; čísla návrh Clauda podle [rešerše](research/2026-10-19-herds-hay-meat.md))
+
+Martin k rovnovážnému hospodaření (ovcí ubylo ze 44 na 15 na 10 lidí, prasat přibylo): „**Ovce
+jsou hlavně kvůli vlně, aby se lidé mohli vůbec oblékat.**“
+
+Oděv má dva díly – **vlnu** (svrchní oděv, plášť, přikrývky) a **len** (plátno – spodní oděv).
+Ani jedno není zásoba v liště (Martin nechce nové suroviny): v rámci roku se zpracuje v domácí
+práci.
+
+#### Vlna
+
+- **Potřeba:** dospělý a starší **1,6 kg surové vlny za rok**, dítě **0,8 kg** (kabátec, kalhoty
+  nebo sukně, plášť, onuce a kápě, díl přikrývek podle doby nošení – rešerše, Vlna).
+- **Výnos:** chovná ovce **0,8 kg za rok** (malé nešlechtěné ovce, stříž nebo vyčesání v květnu).
+- **Ovce na vlnu** = potřeba ÷ výnos: **2 na dospělého, 1 na dítě** – ves ≈ 1,5–1,8 ovce na člověka
+  (`woolSheep`).
+- **Spodní hranice stáda:** ovce na vlnu si ves nechá vždy – při porážce, v plánu seče (seno na
+  zimu) i v plánu luštěnin; teprve nad ní rozhoduje Rovnovážné hospodaření.
+  - Pastva a seno: voli, **ovce na vlnu**, krávy na mléko a voly, další ovce, kozy, zbytek krav
+    (rozhodnutí Clauda: oděv je nutnost, krávy nad chovný pár jsou na mléko a budoucí voly).
+  - Pasáci hlídají napřed ovce na vlnu – když na celé stádo nestačí, ubude jiných kusů.
+  - Když porážka bere na maso i mláďata navíc (maso nestačí), ovce na vlnu nebere.
+- **Osadníci nové vsi** mají ovcí na vlnu pro všechny (2 dospělí a 2 děti – 6 ovcí místo 3)
+  a **seno na první zimu** pro své stádo (jako obilí na 18 měsíců; co nesnědí, shnije s příští
+  sečí – návrh Clauda, Martin potvrdil 19. 10. 2026): ves založená po seči by jinak v první zimě přišla o všechny ovce až
+  na chovný pár a ovce na vlnu by odchovávala roky.
+- **Kdy se rozhodne:** při porážce 1. 11. podle ovcí, které ves nechá přes zimu (stříž na jaře) –
+  platí do další porážky (`LivestockState.wool`). Vsi uložené dřív se do první porážky nemění –
+  stáda ani štěstí; hranici ale použije už plán seče 1. 6. a luštěnin 1. 9.
+- **Když ovcí na vlnu není dost** (ves je neuživí – pastva, seno, pasáci –, nebo je ještě nemá):
+  (Martin potvrdil 19. 10. 2026) kronika `wool-short` a krátký řádek **„Chybí vlna na oděv“** (až pod 95 % oděvu – ovce průběžně
+  hynou a stádo na hranici by hlásilo drobnosti); štěstí ubere **až 6** podle chybějícího podílu
+  (ovce na 2/3 oděvu → −2).
+- **Ves bez ovcí** (návrh Clauda, Martin potvrdil 19. 10. 2026): jen štěstí – lidé chodí v obnošeném oděvu a v kůžích.
+  Nemoci ani úmrtí ne (anti-cíl: ves nevymře kvůli oděvu), nákup vlny ne
+  (Martin nechce nové suroviny, obchod vlnu nenabízí), oděv z kůží z porážky hra nevede (námět).
+- **Práce:** stříž, praní, česání, předení, tkaní a šití jsou **součástí domácí výroby** (`DOMESTIC`
+  – fields.md, Práce, bod 4: „oděv, nádobí, …“) – přerozdělení, ne práce navíc (návrh Clauda,
+  Martin potvrdil 19. 10. 2026): domácí výroba dává 0,15 člověkodne na člověka denně ≈ 55 čd za rok, vlna z toho
+  ≈ 21–24 čd na dospělého (≈ 150 h na kg vlny – rešerše). Práce navíc by oděv počítala dvakrát
+  a ubrala volnou práci, se kterou kalibrace domácí výroby už počítá.
+
+#### Len
+
+Martin k ovcím na vlnu: „**A to mi připomíná, že na částech pole musí být zasetý len.**“ Pravidla
+pole jsou ve [fields.md](fields.md) – Len, čísla **návrh Clauda** podle
+[rešerše](research/2026-10-19-flax.md) (experimentální košile z Viborgu – Ribe 2011, historické
+výnosy vlákna ze Skotska a Irska).
+
+- **Potřeba:** dospělý a starší **2 kg třeného lnu za rok**, dítě **1 kg** – ≈ 3 m² hrubého plátna
+  (≈ 1 kg látky) na dospělého: košile (u žen dlouhá košile jako hlavní oděv), díl spodního oděvu,
+  šátků, ručníků a plachet; lněná košile nošená denně vydrží rok až dva. Na kg látky ≈ 2 kg
+  třeného lnu (z vochlování ≈ 46 % dlouhého vlákna, část koudele na hrubé plátno).
+- **Pole:** len je plodina na dílech pole (jař se setím na jaře a trháním v červenci), ≈ 550 kg
+  třeného lnu z hektaru při plné úrodnosti – ves 30 lidí ≈ 0,1 ha ≈ 5 dílů. Obilí má přednost, len ho ubere nejvýš o svou plochu.
+- **Kdy se rozhodne:** při trhání 31. 7. – sklizený len ÷ potřeba při plánu k 1. 9.
+  (`VillageState.linen`), platí do dalšího trhání. Vsi uložené dřív se do prvního trhání po plánu
+  se lnem nemění.
+- **Když lnu není dost:** kronika `linen-short` a krátký řádek **„Chybí len na oděv“**; štěstí
+  ubere **až 4** podle chybějícího podílu (vlna až 6 – svrchní oděv je proti zimě důležitější).
+  Nemoci ani úmrtí ne (anti-cíl: ves nevymře kvůli oděvu).
+- **Práce:** rosení, sušení, lámání, třepení, vochlování, předení, tkaní a šití jsou **součástí
+  domácí výroby** jako u vlny – přerozdělení, ne práce navíc (rozhodnutí Clauda): dospělý ≈ 1 kg
+  látky × ≈ 200 h ≈ 20 člověkodní za rok; s vlnou (≈ 21–24 čd) ≈ 45 z ≈ 125 člověkodní domácí výroby
+  na dospělého. Předení a tkaní jsou přes 85 % času na oděvu (Ribe 2011) – len je na zpracování
+  složitější než vlna, celkem ale vyjde podobně.
 
 ## Implementace (18. 10. 2026)
 
@@ -651,6 +716,30 @@ Nový řádek **Práce – hráč staví** sčítá rozdělení práce dne po sk
   39 čd na člověka a rok. Volnou práci Vlkova řídí hlavně kolísání osevu podle zásob (pole 30–89
   čd na člověka podle roku) – rovnovážné hospodaření ho nemění.
 
+## Naměřeno – ovce na vlnu (19. 10. 2026)
+
+Krátké `measure-village.ts 20 20` před a po (skutečné krajiny; jen orientačně – velký běh v noci):
+
+| Hráč staví                                       | před                     | po                       |
+| ------------------------------------------------ | ------------------------ | ------------------------ |
+| stáda na 10 lidí – ovce, kozy, krávy, prasata    | 14,9 / 13,9 / 5,0 / 31,6 | 50,7 / 2,5 / 2,1 / 27,7  |
+| porážek s nedostatkem vlny                       | –                        | 1,5 % (1.–2. rok vsi)    |
+| volná práce (čd na člověka a rok)                | 7,7                      | 7,5                      |
+| seč / zvířata / dospělí pasáci / domácí          | 5,4 / 10,9 / 10,5 / 98,6 | 8,7 / 12,5 / 13,0 / 95,7 |
+| nasycení / kvalita stravy (medián)               | 0,92 / 0,93              | 0,93 / 0,94              |
+| bílkoviny, energie z mléka a sýra                | 96,9 %, 5,7 %            | 98,6 %, 9,3 %            |
+| štěstí (medián)                                  | 53,5                     | 54,4                     |
+| nasycení ≥ 0,95 celý rok (cíl ≥ 95 %), bez hladu | 93,7 %, 91,6 % let       | 93,7 %, 93,2 % let       |
+
+- Ovce na vlnu berou pastvu a pasáky z dětí a starších napřed – nad hranicí pak práci šetří víc
+  než kozy a krávy, takže ovcí je víc než jen na vlnu (≈ 5 na člověka, hranice ≈ 1,6) a koz
+  a krav (mimo krávy na mléko a voly) méně. Práce na stáda a seno přibylo ≈ 5 čd na člověka
+  a rok, volná práce skoro beze změny (o 0,2 čd méně).
+- Nedostatek vlny zůstal jen v prvních dvou letech vsí, které ještě rostou; bez sena osadníků
+  na první zimu a bez ochrany jehňat ovcí na vlnu to byla polovina porážek (prvních ≈ 10 let).
+- **Vlkov** (kopie stavu 3. 3. 770, 33 lidí, 5 let bez krajiny): ≈ 100 ovcí, hranice ≈ 50 –
+  beze změny (vlna 100 % každý rok, práce, strava i stáda stejně jako před).
+
 ## Co hráč vidí
 
 - V horní liště **obilí, luštěniny, maso, mléko a sýr, ovoce** (ikony + čísla) a nasycení;
@@ -705,3 +794,10 @@ Nový řádek **Práce – hráč staví** sčítá rozdělení práce dne po sk
 | Cena jídla v práci za podmínek vsi; plán po kusech podle ceny kg bílkovin navíc proti obilí                                                     | návrh Clauda           |
 | Co práci šetří, vždy – v pořadí ovce → kozy → krávy → prasata, do nosnosti a stropů                                                             | návrh Clauda           |
 | Pak do potřeby + 10 % nejlevnější (prasata a luštěniny po 25 kg soupeří cenou), nad 88 % jen levnější než obilí; zásoba luštěnin stádo nezmenší | návrh Clauda           |
+| Ovce jsou hlavně kvůli vlně – aby se lidé mohli vůbec oblékat                                                                                   | Martin (19. 10. 2026)  |
+| Vlna 1,6 kg na dospělého (dítě 0,8), ovce 0,8 kg – 2 ovce na dospělého jako spodní hranice stáda                                                | návrh Clauda (rešerše) |
+| Pastva a seno: voli, ovce na vlnu, krávy na mléko a voly; pasáci napřed ovce na vlnu                                                            | návrh Clauda           |
+| Bez vlny jen štěstí až −6 a upozornění; práce na vlně v domácí výrobě (přerozdělení, ne navíc)                                                  | Martin (19. 10. 2026)  |
+| Osadníci mají ovce na vlnu a seno na první zimu; jehňata ovcí na vlnu nejdou na maso navíc                                                      | Martin (19. 10. 2026)  |
+| Na částech pole musí být zasetý len                                                                                                             | Martin (19. 10. 2026)  |
+| Len 2 kg třeného lnu na dospělého (dítě 1); bez lnu štěstí až −4; zpracování v domácí výrobě                                                    | návrh Clauda (rešerše) |

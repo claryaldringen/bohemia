@@ -448,14 +448,21 @@ export class VillageRenderer {
   private updateCarts(village: SceneVillage): boolean {
     const window = PLOUGH_DAY_DEBUG && village.labor ? this.dayWindow(village.labor.day) : null;
     const pens = this.pens.builtPens();
+    // vozy výprav jedou v karavaně podle postupu výpravy v herním čase (caravan.ts)
+    const caravans = (village.expeditions ?? []).filter((e) => e.carts.length > 0);
     const key = JSON.stringify([
       village.carts ?? [],
       window,
       pens.map((p) => [p.id, p.layout.square, p.layout.front, p.layout.side]),
+      caravans,
+      caravans.map((e) => this.dayWindow(e.day)),
     ]);
     if (key === this.cartsKey) return false;
     this.cartsKey = key;
-    this.carts.setCarts(villageCartPlans(village, pens, window), Date.now());
+    this.carts.setCarts(
+      villageCartPlans(village, pens, window, (day) => this.dayWindow(day)),
+      Date.now(),
+    );
     return true;
   }
 
@@ -474,6 +481,14 @@ export class VillageRenderer {
     if (!window) return null;
     const stints = dayStints(village);
     return stints.length > 0 ? { stints, window } : null;
+  }
+
+  /**
+   * Kdy herní den `day` začíná a končí (skutečný čas, ms) – z hodin světa, nebo z vlastního okna
+   * (vývojové ukázky); karavany výprav (caravan.ts) jdou podle něj.
+   */
+  gameDayWindow(day: number): { startMs: number; endMs: number } | null {
+    return this.dayWindow(day);
   }
 
   /** Kdy herní den `day` začíná a končí (skutečný čas, ms). */

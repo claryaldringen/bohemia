@@ -6,6 +6,9 @@ import {
   startRoadApples,
   startRoadUpgrade,
   checkDwellingPlacement,
+  checkPlotPlacement,
+  checkSacredBuildingPlacement,
+  checkWorkshopPlacement,
   createCropWork,
   dayIndexOf,
   fieldPartsFromCells,
@@ -31,6 +34,7 @@ import {
   type Landscape,
   type PartInput,
   type VillageRecord,
+  type TradePeople,
   type VillageState,
 } from '@bohemia/game';
 import {
@@ -294,6 +298,15 @@ describe('buildVillageView', () => {
         perHa: false,
         perSquare: false,
         upfront: [{ resource: 'wood', amount: 9, missing: 9 }, noSettlers],
+        blocked: null,
+        affordable: false,
+      },
+      // tesař – polozemnice s přístřeškem jako hrnčíř a kovář (wagons.md)
+      carpenter: {
+        laborManDays: 286,
+        perHa: false,
+        perSquare: false,
+        upfront: [{ resource: 'wood', amount: 23, missing: 23 }, noSettlers],
         blocked: null,
         affordable: false,
       },
@@ -904,7 +917,19 @@ describe('chronicleText', () => {
     { day: DAY, kind: 'household-founded', dwellingId: 2 },
     { day: DAY, kind: 'household-merged', fromDwellingId: 2, toDwellingId: 1 },
     { day: DAY, kind: 'marriage', fromDwellingId: 2, toDwellingId: 1 },
+    { day: DAY, kind: 'marriage', fromDwellingId: 2, toDwellingId: 2, widow: true },
+    { day: DAY, kind: 'marriage', fromDwellingId: 1, toDwellingId: 2, groomMoved: true },
+    {
+      day: DAY,
+      kind: 'marriage',
+      fromDwellingId: 1,
+      toDwellingId: 2,
+      groomMoved: true,
+      widow: true,
+    },
     { day: DAY, kind: 'bride-from-outside', dwellingId: 1 },
+    { day: DAY, kind: 'groom-from-outside', dwellingId: 1 },
+    { day: DAY, kind: 'groom-from-outside', dwellingId: 1, widow: true },
     { day: DAY, kind: 'married-away', dwellingId: 1 },
     {
       day: DAY,
@@ -954,6 +979,20 @@ describe('chronicleText', () => {
     for (const event of events) expect(chronicleText(event, 'Libice')).toMatch(/\S.*\.$/);
   });
 
+  it('svatba: kdo se stěhoval a vdova (kinship.md – Sňatky)', () => {
+    const texts = events
+      .filter((e) => e.kind === 'marriage' || e.kind === 'groom-from-outside')
+      .map((e) => chronicleText(e, 'Libice'));
+    expect(texts).toEqual([
+      'Svatba – nevěsta se přestěhovala k ženichovi.',
+      'Svatba – vdova se znovu vdala.',
+      'Svatba – ženich se přiženil k nevěstě.',
+      'Svatba – k vdově se přiženil muž ze vsi.',
+      'K ženě se přiženil muž ze sousední vsi.',
+      'K vdově se přiženil muž ze sousední vsi.',
+    ]);
+  });
+
   it('sklizeň s tisíci a přestavba ve 4. pádě', () => {
     expect(chronicleText({ day: DAY, kind: 'harvest', kg: 1250 }, 'X')).toBe(
       'Sklizeň: 1 250 kg obilí.',
@@ -979,12 +1018,12 @@ describe('kronika – výměna lidí (trade.md – Výměna lidí)', () => {
           kind: 'trade-departed',
           direction: 'S',
           give: { grain: 100 },
-          people: { families: 1, adults: 2 },
+          people: { families: 1, men: 2, women: 1 },
         },
         'X',
       ),
     ).toBe(
-      'Nosiči vyrazili po stezce na jih – nesou 100 kg obilí; odchází s nimi 1 rodina a 2 dospělí.',
+      'Nosiči vyrazili po stezce na jih – nesou 100 kg obilí; odchází s nimi 1 rodina, 2 muži a 1 žena.',
     );
     expect(
       chronicleText(
@@ -993,11 +1032,24 @@ describe('kronika – výměna lidí (trade.md – Výměna lidí)', () => {
           kind: 'trade-returned',
           direction: 'N',
           get: {},
-          people: { families: 0, adults: 1 },
+          people: { families: 0, men: 0, women: 1 },
         },
         'X',
       ),
-    ).toBe('Nosiči se vrátili ze severu – přišli s nimi 1 dospělý.');
+    ).toBe('Nosiči se vrátili ze severu – přišli s nimi 1 žena.');
+    // kronika uložená před muži a ženami zvlášť (`adults`)
+    expect(
+      chronicleText(
+        {
+          day: DAY,
+          kind: 'trade-returned',
+          direction: 'N',
+          get: {},
+          people: { families: 0, adults: 2 } as unknown as TradePeople,
+        },
+        'X',
+      ),
+    ).toBe('Nosiči se vrátili ze severu – přišli s nimi 2 dospělí.');
     expect(
       chronicleText({ day: DAY, kind: 'trade-returned', direction: 'N', get: { grain: 5 } }, 'X'),
     ).toBe('Nosiči se vrátili ze severu – přinesli 5 kg obilí.');
@@ -1699,6 +1751,14 @@ describe('pevné cesty v pohledu na ves (roads.md)', () => {
     expect(later.roads[0]!.building).toMatchObject({ grade: 'improved', progress: 0.25 });
   });
 
+  it('scéna: úsek s průsekem lesem nese příznak (plocha korun nad ním zapadne)', () => {
+    const s = withRoads();
+    s.roads!.roads[0]!.grade = 'improved';
+    s.roads!.roads[0]!.swath = true;
+    const view = buildVillageView(record(s), landscape, DAY);
+    expect(view.scene.roads![0]).toMatchObject({ grade: 'improved', swath: true });
+  });
+
   it('ves bez pevných cest je ve scéně nemá', () => {
     const view = buildVillageView(record(settled()), landscape, DAY);
     expect(view.scene.roads).toBeUndefined();
@@ -2073,6 +2133,57 @@ describe('buildVillageView – tesař a vozy (wagons.md)', () => {
     );
     expect(chronicleText({ day: DAY, kind: 'cart-worn-out', cart: 'four-wheel' }, 'Libice')).toBe(
       'Čtyřkolák dosloužil – tesař vyrobí nový.',
+    );
+  });
+});
+
+describe('placementVillageFromScene – stavby na poli založeném v lese (Martin 19. 10. 2026)', () => {
+  // „pokud jsem pole založil v lese, tak na něm nemohu postavit kovárnu“ – kurzor v prohlížeči
+  // (ves ze scény) i server (stav vsi) mají stejnou kontrolu: pole patří poli, za les se neplatí
+  const forest: Landscape = { ...landscape, surface: new Uint8Array(SIZE * SIZE).fill(1) };
+  const s = state();
+  const view = buildVillageView(record(s), forest, DAY);
+  const browser = placementVillageFromScene(view.scene);
+  const server = placementVillageOf(s, DAY);
+  // díly pole na políčkách (8–12, 8) = svět x 0–75, z 0–15
+  const center = tileCenterWorld(forest, 10, 8);
+  const position = { x: center.x, z: center.z, rotation: 0 };
+
+  it('kovárna, modla i pozemek projdou – v prohlížeči stejně jako na serveru', () => {
+    for (const village of [browser, server]) {
+      const smithy = checkWorkshopPlacement(forest, village, 'smith', position);
+      expect(smithy.ok).toBe(true);
+      expect(smithy.reason).toBeNull();
+      expect(smithy.warning).toContain('Pole se zmenší');
+      const idol = checkSacredBuildingPlacement(forest, village, 'idol', position);
+      expect(idol).toMatchObject({ ok: true, reason: null, obstacleCost: 0 });
+      const plot = checkPlotPlacement(forest, village, 'polozemnice', {
+        cell: { x: 10, y: 8 },
+        variant: 'center',
+      });
+      expect(plot).toMatchObject({ ok: true, reason: null, obstacleCost: 0 });
+    }
+    expect(checkWorkshopPlacement(forest, browser, 'smith', position).obstacleCost).toBeCloseTo(
+      checkWorkshopPlacement(forest, server, 'smith', position).obstacleCost,
+    );
+  });
+});
+
+describe('kronika – nákup u sousedů (crafts.md)', () => {
+  it('co ves koupila, u koho a za kolik obilí', () => {
+    expect(
+      chronicleText(
+        {
+          day: DAY,
+          kind: 'crafts-bought',
+          direction: 'NE',
+          get: { toolsKg: 9, woodToolsKg: 30 },
+          pay: { grainKg: 575 },
+        },
+        'Libice',
+      ),
+    ).toBe(
+      'Vesničané koupili nástroje a dřevěné nářadí u souseda (severovýchod) – zaplatili 575 kg obilí.',
     );
   });
 });

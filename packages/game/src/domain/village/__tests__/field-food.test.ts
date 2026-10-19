@@ -47,12 +47,12 @@ const field = (count = 180): PartInput[] =>
     obstacleCost: 0,
   }));
 
-const found = (day: number): VillageState =>
+const found = (day: number, parts = 180): VillageState =>
   foundVillage({
     seed: 42,
     day,
     dwellingPosition: POSITION,
-    firstField: { outline: OUTLINE, parts: field() },
+    firstField: { outline: OUTLINE, parts: field(parts) },
   });
 
 const diet = (shares: Partial<DietDay['shares']>): DietDay => ({
@@ -325,7 +325,9 @@ describe('osev podle stravy v simulaci', () => {
   });
 
   it('ves s velkou zásobou nejdřív obilí neseje, pak plynule přidává – nehladoví, nezávisí na kouscích', () => {
-    const start = found(at(600, 3, 15));
+    // ves za 10 let vyroste na 8 lidí – pole ≈ 6 ha, ať ani pak osev neomezuje půda (len
+    // vysiluje půdu a díly déle leží ladem – fields.md, Len)
+    const start = found(at(600, 3, 15), 270);
     start.storesKg = 6 * yearlyFoodNeed(start, start.foundedDay);
     const grain: number[] = [];
     let s = start;

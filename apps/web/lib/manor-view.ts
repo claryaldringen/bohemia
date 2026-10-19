@@ -28,6 +28,7 @@ import {
   type Direction8,
   type Landscape,
   type TradeGood,
+  type TradeExpedition,
   type TradeGoods,
   type TradePeople,
   type TrailOption,
@@ -35,8 +36,9 @@ import {
 } from '@bohemia/game';
 
 /**
- * Výprava na cestě – co nesou, co přinesou, kdo s ní odešel a kdo přijde (rodiny a svobodní
- * dospělí – trade.md, Výměna lidí) a průběh cesty 0–1.
+ * Výprava na cestě – co nesou, co přinesou, kdo s ní odešel a kdo přijde (rodiny, svobodní muži
+ * a ženy – trade.md, Výměna lidí), průběh cesty 0–1 a jak dnes postoupila (trade.md – Doprava:
+ * lidé na výpravě mají vlastní podíl práce po denním minimu – zdrží se jen ves bez dost dospělých).
  */
 export interface VillageExpedition {
   give: TradeGoods;
@@ -44,8 +46,23 @@ export interface VillageExpedition {
   givePeople: TradePeople;
   getPeople: TradePeople;
   porters: number;
+  /** Vozy s výpravou (wagons.md – Obchod). */
+  carts: number;
   days: number;
   progress: number;
+  /**
+   * Za kolik dní se vrátí dnešním tempem (null = dnes nepostoupila – ves neměla nikoho, kdo by
+   * šel); výprava vyslaná dnes počítá s plným tempem.
+   */
+  daysLeft: number | null;
+  /**
+   * Tempo dne: `full` – šli všichni (lidé na výpravě mají vlastní podíl práce – trade.md,
+   * Doprava), `slow` – ves po denním minimu neměla dost dospělých (výprava se zdrží), `waiting` –
+   * neměla nikoho, výprava stojí, `starting` – vyslaná dnes, vyrazí zítra.
+   */
+  pace: 'full' | 'slow' | 'waiting' | 'starting';
+  /** Kolik člověkodní dnes dostala (podíl `trade` v rozdělení práce), u nové null. */
+  today: number | null;
 }
 
 /**
@@ -56,9 +73,19 @@ export interface VillageExpedition {
  * odchodu všech nabízených rodin, takže posuvník nikdy nepustí víc, než server vezme).
  */
 export interface VillageNeighbourPeople {
-  offers: { families: { people: number; price: number }[]; adults: number; adultPrice: number };
+  offers: {
+    families: { people: number; price: number }[];
+    men: number;
+    women: number;
+    adultPrice: number;
+  };
   takes: TradePeople;
-  have: { families: { people: number; credit: number }[]; adults: number; adultCredit: number };
+  have: {
+    families: { people: number; credit: number }[];
+    men: number;
+    women: number;
+    adultCredit: number;
+  };
 }
 
 /** Soused po hotové stezce pro panel obchodu. */
@@ -112,15 +139,18 @@ export function neighbourViews(
       const neighbour = neighbourOf(state.seed, trail.direction);
       const stock = neighbourStock(state, trail.direction, day);
       const expedition = expeditionTo(state, trail.direction);
-      const people = stock.people ?? { families: [], adults: 0, takes: { ...NO_PEOPLE } };
+      const people = stock.people ?? { families: [], men: 0, women: 0, takes: { ...NO_PEOPLE } };
       const families = emigrantGroups(state, day, {
         families: people.takes.families,
-        adults: 0,
+        men: 0,
+        women: 0,
       }).families;
-      const adults = emigrantGroups(state, day, {
+      // muži a ženy po odchodu všech rodin, které soused vezme – posuvník nepustí víc, než server
+      const singles = emigrantGroups(state, day, {
         families: families.length,
-        adults: people.takes.adults,
-      }).adults;
+        men: people.takes.men,
+        women: people.takes.women,
+      });
       return {
         direction: trail.direction,
         name: neighbour.name,
@@ -144,7 +174,8 @@ export function neighbourViews(
               people: 2 + children,
               price: round2(familyBuyPrice(children)),
             })),
-            adults: people.adults,
+            men: people.men,
+            women: people.women,
             adultPrice: round2(adultBuyPrice()),
           },
           takes: { ...people.takes },
@@ -153,33 +184,85 @@ export function neighbourViews(
               people: f.people.length,
               credit: round2(sellValue(f.valueKg)),
             })),
-            adults: adults.length,
+            men: singles.men.length,
+            women: singles.women.length,
             adultCredit: round2(sellValue(PEOPLE_TRADE.adultValueKg)),
           },
         },
-        expedition: expedition
-          ? {
-              give: { ...expedition.give },
-              get: { ...expedition.get },
-              givePeople: {
-                families: expedition.givePeople?.families ?? 0,
-                adults: expedition.givePeople?.adults ?? 0,
-              },
-              getPeople: {
-                families: expedition.getPeople?.families.length ?? 0,
-                adults: expedition.getPeople?.adults ?? 0,
-              },
-              porters: expedition.porters,
-              days: expedition.days,
-              progress: expedition.cost > 0 ? Math.min(1, expedition.done / expedition.cost) : 1,
-            }
-          : null,
+        expedition: expedition ? expeditionView(state, expedition) : null,
       };
     });
 }
 
 function round2(v: number): number {
   return Math.round(v * 100) / 100;
+}
+
+/** Lidé výpravy uložení dřív s `adults` (bez pohlaví) – v panelu polovina muži, zbytek ženy. */
+function peopleOf(people: {
+  families: number;
+  men?: number;
+  women?: number;
+  adults?: number;
+}): TradePeople {
+  const adults = people.adults ?? 0;
+  return {
+    families: people.families,
+    men: (people.men ?? 0) + Math.ceil(adults / 2),
+    women: (people.women ?? 0) + Math.floor(adults / 2),
+  };
+}
+
+/**
+ * Kolik člověkodní výprava dostala posledního dne (podíl `trade` u její stezky v rozdělení práce
+ * dne); výprava vyslaná až po dni (dnes) nebo bez rozdělení práce null.
+ */
+export function expeditionToday(state: VillageState, e: TradeExpedition): number | null {
+  const labor = state.labor;
+  if (!labor || labor.day !== state.lastDay || e.startedDay >= labor.day) return null;
+  return labor.shares
+    .filter((s) => s.activity === 'trade' && s.target.kind === 'trail' && s.target.id === e.trailId)
+    .reduce((sum, s) => sum + s.manDays, 0);
+}
+
+/**
+ * Výprava pro panel: náklad a lidé tam i zpět, průběh a tempo posledního dne – kolik člověkodní
+ * jí dnes dala společná práce vsi (podíl `trade` u její stezky v rozdělení práce). Bez volných
+ * rukou stojí (`waiting`), s menší prací se zdrží (`slow`).
+ */
+export function expeditionView(state: VillageState, e: TradeExpedition): VillageExpedition {
+  const remaining = Math.max(0, e.cost - e.done);
+  const today = expeditionToday(state, e);
+  const EPS = 1e-6;
+  const pace: VillageExpedition['pace'] =
+    today === null
+      ? 'starting'
+      : today <= EPS
+        ? 'waiting'
+        : today + EPS < Math.min(e.porters, remaining + today)
+          ? 'slow'
+          : 'full';
+  const daysLeft =
+    remaining <= EPS
+      ? 0
+      : today === null
+        ? Math.ceil(remaining / Math.max(1, e.porters) - EPS)
+        : today > EPS
+          ? Math.ceil(remaining / today - EPS)
+          : null;
+  return {
+    give: { ...e.give },
+    get: { ...e.get },
+    givePeople: peopleOf(e.givePeople ?? { families: 0 }),
+    getPeople: peopleOf({ ...e.getPeople, families: e.getPeople?.families.length ?? 0 }),
+    porters: e.porters,
+    carts: e.carts?.length ?? 0,
+    days: e.days,
+    progress: e.cost > 0 ? Math.min(1, e.done / e.cost) : 1,
+    daysLeft,
+    pace,
+    today: today === null ? null : round2(today),
+  };
 }
 
 /** Dvorec vsi pro pohled na ves; dokud stojí jen staveniště první zemnice, null. */

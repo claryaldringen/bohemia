@@ -32,6 +32,7 @@ import type { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import type { Scene } from '@babylonjs/core/scene';
 import { obstacleIndex, obstacleStatus, obstaclesNear, type ObstacleLayer } from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
+import { caravanPoints } from './caravan';
 import type { LivestockGround } from './livestock-placement';
 import {
   createVillagerPose,
@@ -84,6 +85,8 @@ export interface VillagersEnvironment {
   herds(nowMs: number): readonly HerdView[];
   /** Dočetly se modely a lidé se objevili – překreslit. */
   onLoaded(): void;
+  /** Okno herního dne (skutečný čas) – karavany výprav (caravan.ts); bez hodin null. */
+  dayWindow?(day: number): { startMs: number; endMs: number } | null;
 }
 
 /** Zapečený model: geometrie, textura matic kostí a rozsahy snímků klipů v ní. */
@@ -117,6 +120,8 @@ export class VillageVillagers {
   private village: SceneVillage | null = null;
   private key = '';
   private herdCount = 0;
+  /** Obdélník zemských stezek s karavanami (caravan.ts) – patří do obalu postav. */
+  private extent: { minX: number; maxX: number; minZ: number; maxZ: number } | null = null;
   private people: PlannedVillager[] = [];
   private readonly kinds = new Map<VillagerKind, Kind>();
   private shadow: { mesh: Mesh; matrices: Float32Array } | null = null;
@@ -210,18 +215,12 @@ export class VillageVillagers {
       if (!kind) return;
       const slot = slots.get(person.kind) ?? 0;
       slots.set(person.kind, slot + 1);
+      this.pose.hidden = false;
       const pose = person.pose(t, herds, this.pose);
       const y = height(pose.x, pose.z);
-      writeFigure(
-        kind.matrices,
-        slot,
-        pose.x,
-        y,
-        pose.z,
-        pose.headingX,
-        pose.headingZ,
-        person.scale,
-      );
+      // karavana výpravy za krajem mapy (caravan.ts) – nulové měřítko, postava ani stín se nekreslí
+      const scale = pose.hidden ? 0 : person.scale;
+      writeFigure(kind.matrices, slot, pose.x, y, pose.z, pose.headingX, pose.headingZ, scale);
       const clip = kind.model.clips.get(pose.clip) ?? kind.model.clips.get('idle')!;
       const length = clip.end - clip.start + 1;
       const o = slot * 4;
@@ -229,7 +228,8 @@ export class VillageVillagers {
       kind.settings[o + 1] = clip.end;
       kind.settings[o + 2] = person.phase * length;
       kind.settings[o + 3] = BAKE_FPS * pose.pace;
-      if (this.shadow) this.writeShadow(index, pose.x, y, pose.z, person.scale);
+      if (this.shadow) this.writeShadow(index, pose.x, y, pose.z, scale);
+      if (pose.hidden) return;
       minX = Math.min(minX, pose.x);
       maxX = Math.max(maxX, pose.x);
       minZ = Math.min(minZ, pose.z);
@@ -245,6 +245,19 @@ export class VillageVillagers {
       kind.manager.time = time;
     }
     this.shadow?.mesh.thinInstanceBufferUpdated('matrix');
+    // karavany výprav jdou po celé zemské stezce (caravan.ts) – obal zahrne celé stezky, ať se
+    // postavy hýbou, kdykoli je kterákoli část stezky v záběru
+    const extent = this.extent;
+    if (extent) {
+      minX = Math.min(minX, extent.minX);
+      maxX = Math.max(maxX, extent.maxX);
+      minZ = Math.min(minZ, extent.minZ);
+      maxZ = Math.max(maxZ, extent.maxZ);
+      if (low > high) {
+        low = height(extent.minX, extent.minZ);
+        high = low;
+      }
+    }
     if (minX <= maxX) {
       this.bounds.reConstruct(
         new Vector3(minX - 2, low - 1, minZ - 2),
@@ -305,6 +318,7 @@ export class VillageVillagers {
     const probe = createVillagerPose();
     const before = new Map(
       this.people.map((p) => {
+        probe.hidden = false;
         const pose = p.pose(t, herds, probe);
         return [p.key, { x: pose.x, z: pose.z }] as const;
       }),
@@ -314,12 +328,16 @@ export class VillageVillagers {
       // pasák jen u stád na pastvě – ta jsou v plánu napřed (livestock-placement.ts)
       herds: herds.filter((h) => h.tended !== false).length,
       paths: this.paths,
+      dayWindow: (day) => this.env.dayWindow?.(day) ?? null,
     })
       .filter((p) => this.models?.has(p.kind))
       .map((p) => {
         const from = before.get(p.key);
         if (!from) return p;
+        probe.hidden = false;
         const to = p.pose(t, herds, probe);
+        // karavana (caravan.ts) jde podle výpravy – nepřechází pěšky
+        if (p.key.startsWith('caravan:')) return p;
         const distance = Math.hypot(to.x - from.x, to.z - from.z);
         if (distance < WALK_OVER_M.from || distance > WALK_OVER_M.to) return p;
         return {
@@ -327,6 +345,7 @@ export class VillageVillagers {
           pose: walkThen(from.x, from.z, p.pose, t, walkSpeed(p.kind, 'walk', p.scale)),
         };
       });
+    this.extent = caravanExtent(village);
     for (const name of KINDS) {
       const people = this.people.filter((p) => p.kind === name);
       const model = this.models.get(name);
@@ -570,12 +589,31 @@ function villageKey(village: SceneVillage): string {
     : '';
   return JSON.stringify([
     village.labor ?? null,
+    village.expeditions ?? null,
+    (village.trails ?? []).map((t) => [t.id, t.points.length]),
     dwellings,
     fields,
     orchards,
     cemeteries,
     obstacles,
   ]);
+}
+
+/**
+ * Obdélník cest, po kterých jdou karavany výprav a nákupů (zemské stezky, čáry krajinou ke kraji
+ * mapy – caravan.ts); bez výprav null.
+ */
+function caravanExtent(
+  village: SceneVillage,
+): { minX: number; maxX: number; minZ: number; maxZ: number } | null {
+  const points = (village.expeditions ?? []).flatMap((e) => caravanPoints(e, village.trails));
+  if (points.length === 0) return null;
+  return {
+    minX: Math.min(...points.map((p) => p.x)),
+    maxX: Math.max(...points.map((p) => p.x)),
+    minZ: Math.min(...points.map((p) => p.z)),
+    maxZ: Math.max(...points.map((p) => p.z)),
+  };
 }
 
 /** Náhoda postav podle vsi – první obydlí (stejná ves = stejní lidé). */

@@ -7,7 +7,7 @@ import { ploughDayFactor, plannedFurrowEfficiency, travelShare } from '../plough
 import { FURROW, TEAM_TRAVEL } from '../rules';
 import { advanceVillage } from '../simulate';
 import type { FieldPart, VillageState } from '../types';
-import { createCropWork, partsOfFields } from '../year-plan';
+import { createCropWork } from '../year-plan';
 import { withBuiltFirstDwelling } from './village-fixtures';
 
 // Co nejdelší brázda (oxen.md; Martin, 19. 10. 2026: „Volské spřežení chce rýt co nejdelší
@@ -78,7 +78,7 @@ describe('bloky a pásy orby', () => {
   it('pole se orá podél delší strany – pás přes celou řadu dílů, od strany blíž vsi', () => {
     const parts = rect(1, 0, 0, 6, 2);
     expect(furrowAxis(parts)).toBe('x');
-    const { order, bands } = ploughLayout(parts, partsOfFields(parts));
+    const { order, bands } = ploughLayout(parts);
     expect(bands.map((b) => b.partIds)).toEqual([
       [1, 2, 3, 4, 5, 6],
       [7, 8, 9, 10, 11, 12],
@@ -89,7 +89,7 @@ describe('bloky a pásy orby', () => {
     expect(bandLengthM(bands[0]!, byId)).toBeCloseTo(90, 9);
     // vyšší než širší – podél y; ves u pravého sloupce – pásy od něj
     const tall = rect(1, 0, 0, 2, 5).map((p) => ({ ...p, distanceM: 60 + 15 * (1 - p.cell!.x) }));
-    const layout = ploughLayout(tall, partsOfFields(tall));
+    const layout = ploughLayout(tall);
     expect(layout.bands[0]!.axis).toBe('y');
     expect(layout.bands[0]!.sweep).toBe(-1);
     expect(layout.bands[0]!.partIds).toEqual([2, 4, 6, 8, 10]);
@@ -100,34 +100,52 @@ describe('bloky a pásy orby', () => {
     const far = rect(100, 0, 4, 3, 2);
     const near = rect(200, 5, 0, 3, 2);
     const field = [...far, ...near];
-    const { bands } = ploughLayout(field, partsOfFields(field));
+    const { bands } = ploughLayout(field);
     expect(bands.map((b) => b.block)).toEqual([0, 0, 1, 1]);
     expect(bands[0]!.partIds[0]).toBe(200);
-    // U: dno y = 0 (x 0–4), ramena x 0 a x 4 (y 1–3)
+    // U: dno y = 0–1 (x 0–4), ramena x 0 a x 4 (y 2–3) – brázdy podél x delší
     const u = [
-      ...rect(1, 0, 0, 5, 1),
-      ...[1, 2, 3].flatMap((y) => [part(10 + y, 0, y), part(20 + y, 4, y)]),
+      ...rect(1, 0, 0, 5, 2),
+      ...[2, 3].flatMap((y) => [part(10 + y, 0, y), part(20 + y, 4, y)]),
     ];
-    const layout = ploughLayout(u, partsOfFields(u));
+    const layout = ploughLayout(u);
+    expect(layout.bands.every((b) => b.axis === 'x')).toBe(true);
     expect(layout.bands.map((b) => b.partIds)).toEqual([
       [1, 2, 3, 4, 5],
-      [11],
+      [6, 7, 8, 9, 10],
       [12],
       [13],
-      [21],
       [22],
       [23],
     ]);
-    // osa podle celého pole, ne jen vybraných dílů
-    const strip = rect(1, 0, 0, 1, 4);
-    const wide = [...strip, ...rect(50, 1, 0, 6, 1)];
-    expect(ploughLayout(strip, partsOfFields(wide)).bands[0]!.axis).toBe('x');
+  });
+
+  it('osa podle bloku – co nejdelší brázda, i sever – jih v širokém poli', () => {
+    // Martin (19. 10. 2026): „oře jen v ose východ – západ, i když u spousty polí by byla
+    // výhodnější sever – jih“ – pole protáhlé sever – jih (mřížka y = sever – jih)
+    const tall = rect(1, 0, 0, 3, 8);
+    expect(furrowAxis(tall)).toBe('y');
+    const { bands } = ploughLayout(tall);
+    expect(bands.every((b) => b.axis === 'y')).toBe(true);
+    expect(bands.map((b) => b.partIds.length)).toEqual([8, 8, 8]);
+    // blok plodiny v poli širším než vyšším (pole 8 × 3 + pruh 2 × 6 sever – jih): osa bloku,
+    // ne celého pole
+    const strip = rect(100, 0, 3, 2, 6);
+    expect(ploughLayout(strip).bands.every((b) => b.axis === 'y')).toBe(true);
+    // čtvercové pole (Vlkov 49 × 49): rozhodne délka brázd, ne rozloha – bez děr je shoda podél x
+    expect(furrowAxis(rect(1, 0, 0, 4, 4))).toBe('x');
+    // čtverec s výřezem v řadách: řady podél x přerušené, sloupce celé → sever – jih
+    const notched = rect(1, 0, 0, 5, 5).filter((p) => !(p.cell!.x === 2 && p.cell!.y % 2 === 1));
+    expect(furrowAxis(notched)).toBe('y');
+    // blok tvaru L se dvěma rameny – osa podle průměrné délky brázd (vážené plochou)
+    const l = [...rect(1, 0, 0, 2, 6), ...rect(50, 2, 0, 2, 2)];
+    expect(furrowAxis(l)).toBe('y');
   });
 
   it('díly pásu postupují spolu – stejná rozpracovanost, dnešní práce se dělí podle ploch', () => {
     const parts = rect(1, 0, 0, 4, 2);
     const byId = new Map(parts.map((p) => [p.id, p]));
-    const work = createCropWork(parts, DAY, 0, true, undefined, 'spring', partsOfFields(parts));
+    const work = createCropWork(parts, DAY, 0, true, undefined, 'spring');
     work.plough!.done = work.plough!.required * 0.25; // půlka prvního pásu
     const spans = taskSpans(work, byId, 'plough', DAY);
     expect(new Set(spans.slice(0, 4).map((s) => `${s.start}-${s.end}`)).size).toBe(1);
@@ -173,7 +191,7 @@ describe('výkon spřežení za den', () => {
     const factor = (parts: FieldPart[]): number => {
       const s = village(parts);
       const byId = new Map(parts.map((p) => [p.id, p]));
-      const work = createCropWork(parts, DAY, 0, true, undefined, 'spring', partsOfFields(parts));
+      const work = createCropWork(parts, DAY, 0, true, undefined, 'spring');
       return ploughDayFactor(s, DAY, work, byId, null, null);
     };
     expect(factor(long) / factor(scattered)).toBeCloseTo(
@@ -199,7 +217,7 @@ describe('výkon spřežení za den', () => {
     ];
     const s = village(parts);
     const byId = new Map(parts.map((p) => [p.id, p]));
-    const work = createCropWork(parts, DAY, 0, true, undefined, 'spring', partsOfFields(parts));
+    const work = createCropWork(parts, DAY, 0, true, undefined, 'spring');
     s.plan = { plannedDay: DAY, ard: true, ...work };
     const first = ploughDayFactor(s, DAY, s.plan, byId, null, null);
     expect(s.plan.plough!.trip).toEqual({ block: 0, costM: 60 });
@@ -215,5 +233,39 @@ describe('výkon spřežení za den', () => {
     expect(plannedFurrowEfficiency(rect(1, 0, 0, 8, 2))).toBeCloseTo(furrowEfficiency(120), 12);
     const single = [part(1, 0, 0), part(2, 5, 5)];
     expect(plannedFurrowEfficiency(single)).toBeCloseTo(furrowEfficiency(15), 12);
+  });
+});
+
+describe('zoraná zem jen kam došla orba (Martin, 19. 10. 2026)', () => {
+  it('setí za orbou po stejných úsecích i s drnem – nikdy před pluhem; klučení zem nezorá', () => {
+    // dva pásy: první bez drnu, druhý drn (orba ×2,5) a křoviny na posledním dílu
+    const parts = [
+      ...rect(1, 0, 0, 4, 1),
+      ...rect(11, 0, 1, 4, 1).map((p) => ({ ...p, sod: true as const })),
+    ];
+    parts[7] = {
+      ...parts[7]!,
+      sod: undefined,
+      state: 'fallow',
+      fallowSinceDay: at(590, 9, 1),
+      overgrowthYears: 6,
+    };
+    const byId = new Map(parts.map((p) => [p.id, p]));
+    const work = createCropWork(parts, DAY, 0, true, undefined, 'spring');
+    const ploughSpans = taskSpans(work, byId, 'plough', DAY);
+    const sowSpans = taskSpans(work, byId, 'sow', DAY);
+    for (const [k, span] of ploughSpans.entries()) {
+      expect(sowSpans[k]!.start).toBeCloseTo(span.start, 12);
+      expect(sowSpans[k]!.end).toBeCloseTo(span.end, 12);
+    }
+    // vrácení křovin (lidé) hotové, orba nezačala: díl není zoraný
+    const s = {
+      parts,
+      plan: { plannedDay: DAY, ard: true as const, ...work },
+    } as unknown as VillageState;
+    for (const p of parts) p.state = 'sown';
+    work.done.reclaim = work.required.reclaim;
+    const looks = fieldPartLooks({ ...s, threshingFromPlan: null } as VillageState, DAY + 1);
+    for (const p of parts) expect(looks.get(p.id)!.look).not.toBe('plowed');
   });
 });

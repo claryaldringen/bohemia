@@ -153,7 +153,8 @@ Původní pravidla (18. 10. 2026; dávka a práce výš nahrazeny):
 
 Rozhodnutí kontroléru tam, kde návrh nedává postup (Martin je může změnit):
 
-- **Ohrada** se staví jako pozemek polozemnice – jeden čtverec louky (ne voda, les, skalní
+- **Ohrada** se staví jako pozemek polozemnice – jeden čtverec louky nebo lesa (les se vyklučí –
+  Martin 19. 10. 2026, fields.md – Stavby v lese; ne voda, skalní
   výchoz, posvátné místo ani zabrané políčko – čtverec pole ano: z pole zmizí,
   Martin 18. 10. 2026 – [fields.md](fields.md), Pole jako krajina), v nabídce staveb zkratka O.
   Cena jako u obydlí: 40 člověkodní v sobě mají kácení 6 stromů u blízkého lesa – stavba vezme klády z hromady,
@@ -253,9 +254,17 @@ z dílce na dílec, ale snaží se zorat co největší souvislou plochu.“ –
 rychlejší než po cestě, ať jede napříč přes pole, pokud už nebude oseté.“ Podrobnosti **návrh
 Clauda**:
 
-- **Směr brázd:** pole se orá podél své delší rozlohy (rozsah čtverců v mřížce pole, při shodě
-  podél x) – stejný směr, jakým ve scéně vedou řádky obilí; mění se jen se změnou pole (přidané
-  nebo ubrané čtverce), ne denně. Natočené pole v osách své mřížky.
+- **Směr brázd po blocích** (Martin, 19. 10. 2026: „Teď mi přijde, že oře jen v ose východ –
+  západ, i když u spousty polí by byla výhodnější sever – jih.“): každý blok (níž) se orá v ose
+  mřížky pole, ve které má **v průměru delší brázdy** – průměr délek souvislých řad čtverců
+  vážený plochou (Σ délka² / Σ délka); při shodě podél delší rozlohy bloku, pak podél x
+  (`furrowAxis`). Dřív se osa brala z rozlohy celého pole – čtvercové pole (Vlkov 49 × 49
+  čtverců) tak oralo všechno východ – západ, i úzké bloky protažené sever – jih. Osa bloku se
+  určí s plánem osevu (rok od roku podle toho, kde plodina leží). Natočené pole v osách své
+  mřížky. Ve scéně vedou podél brázdy i řádky textur a koruna porostu dílu, který orá spřežení
+  (`DecalPiece.rows`); díly bez orby (motyka, příloh) podél delší strany pole jako dřív.
+  Ověření na Vlkově (stav 19. 10. 2026, ozim a luštěniny): 23 bloků, 9 sever – jih (175 z 285
+  dílů), průměrná brázda ozimu 88 → 127 m, luštěnin 97 → 123 m.
 - **Bloky a pásy:** spřežení orá plodinu po **souvislých blocích** – díly téže plodiny v jednom poli,
   které sousedí stranou. Blok se zorá celý, **pás po pásu** (souvislá řada dílů podél brázdy –
   brázda vede přes celý pás, obrat jen na jeho koncích), napříč od strany blíž vsi; blok tvaru U
@@ -287,6 +296,36 @@ Clauda**:
   a večer se po cestě vrátí.
 - **Kalibrace se nemění** – hráč skriptu ohrady nestaví; sonda „plná domácnost se spřežením“
   ukazuje průměrnou délku brázdy a její výkon.
+
+## Brázdy končí na cestě (19. 10. 2026)
+
+Stav: **Martin, 19. 10. 2026** ([roads.md](roads.md) – Cesta přes pole): „pokud oráč narazí na
+cestu, tak spřežení otočí“. Podrobnosti **návrh Clauda**:
+
+- **Pás přes cestu se láme:** brázda pásu (Co nejdelší brázda) končí na pásu pevné cesty a na
+  plácku rozcestí – stejná plocha, kterou cesty polím berou (`roadCapsules` – `roadLand`).
+  Kusy pásu mezi cestami spřežení orá zvlášť, každý s vlastními obraty; na cestě se otočí
+  stejným obloukem jako na souvrati a přes cestu neorá (mezi kusy přejede se zvednutým rádlem).
+  Kousek pole, který cesta oddělila a zůstal loukou (`roadCut`), se neorá. Kus brázdy kratší
+  než 2 m se neorá (spřežení se do něj nevejde).
+- **Výkon:** pás rozdělený cestami na n kusů má na každé řadě n brázd a n obratů – podíl času,
+  kdy rádlo ryje, je ΣL / (ΣL + n·v·t), tedy totéž jako jedna brázda průměrné délky kusu.
+  Herní jádro proto do L / (L + v·t) dosadí průměrnou délku kusu (`bandFurrowM` – osa pásu jeho
+  středem přes pásy cest, `roadFreeRuns`); stejně plán osevu (`plannedFurrowEfficiency` s krajinou
+  a cestami vsi). Pás, přes který cesta nevede, beze změny. Bez krajiny (kalibrace bez cest,
+  sondy) i ve vsi bez spřežení se nic nemění.
+- **Ve scéně** (`plough-roads.ts` – `roadPieces`): řady pruhu dne se přes pásy cest rozdělí na
+  úseky, úseky sousedních řad, které se podél řad překrývají aspoň polovinou kratšího, tvoří
+  kus (`PloughField.rowRuns`) – jinak by spřežení mezi řadami přejíždělo přes cestu. Rádlo jede
+  po ose řady k okraji pásu cesty, jho dojede o dosah oje dál – na cestu, kde se otočí. Po
+  projetí řady sahá brázda po celé šířce řady až k cestě (`fillLo` / `fillHi` – u šikmé cesty by
+  jinak zůstaly nezorané klínky, které by se druhý den samy „zoraly“, viz Martinovo „nesmí se
+  změnit na zoráno“ v Orbě za herní den); na cestě brázdu kryje maska pole. Kus s lichým počtem
+  řad končí na protější straně. Bez spřežení za den (skutečné tempo – čelo dne) orá spřežení
+  nejdelší kus pruhu. Ukázka na `/dev/landscape` – **Orba přes cestu** (pole ukázky Cesta po žni,
+  pás přes rozcestí, spřežení projede dnešní orbu za 4 minuty).
+- **Kalibrace:** 20 vsí na 20 let (`--land real`, vsi bez spřežení, i sonda „plná domácnost se
+  spřežením“ na syntetické louce bez cest) vyšla před i po změně stejně, číslo po čísle.
 
 ## Spřežení postupuje s orbou (19. 10. 2026)
 
@@ -364,6 +403,17 @@ a nechávalo za sebou brázdu. Tak budu moci určit, jak se to chová.“ – **
   pokryjí dnešní pruhy – pole dalšího dne je stejné.
 - **Víc spřežení** si dnešní díly rozdělí po souvislých kusech fronty (zhruba stejně velkých),
   spřežení navíc zůstanou v ohradě.
+- **Zoraná zem jen kudy rádlo projelo** (Martin, 19. 10. 2026: „Pokud přes to pole se svým
+  pluhem neprojede, nesmí se změnit na zoráno. Teď se občas změnily na zoráno i čtverce, které
+  nenavštívil.“). Příčina: lidé sejí za pluhem týž den, takže díl dnešní orby měl večer vzhled
+  osetého a scéna ho do dnešní dráhy nezařadila – změnil se naráz bez spřežení; navíc setí po
+  pásech vážilo díly bez drnu a předbíhalo orbu přes drn a klučení křovin vypadalo jako zoraný
+  díl. Oprava (návrh Clauda – rozhoduje jádro, scéna jen projede jeho dnešní orbu): dráha dne
+  projede **každý díl, přes který dnes orba prošla** (podle `progress` od jádra, i když je večer
+  už zasetý), ráno je takový díl ve vzhledu před orbou (`unploughed` od jádra) a zoraná zem
+  přibývá jen brázdou za rádlem; co se za pluhem zaselo, je vidět další den. Setí po pásech váží
+  drn jako orba (nikdy před pluhem) a v plodině, kterou orá spřežení, ukazuje zoranou zem jen
+  orba.
 - **Při omezeném pohybu** (a bez hodin herního dne) se orba za den nepřehrává – pole ukáže
   konec dne a spřežení stojí na čele jako dřív.
 
@@ -403,6 +453,10 @@ a nechávalo za sebou brázdu. Tak budu moci určit, jak se to chová.“ – **
 | Ztráta spřežení během roku – letošní plán dokončí motyka; kulaté rohy podle stavu vsi       | návrh Clauda                  |
 | Co nejdelší brázda; souvislá plocha, ne z dílce na dílec; na místo po cestě či přes neoseté | Martin (19. 10. 2026)         |
 | Bloky a pásy podél delší strany pole, od nejbližšího; výkon L/(L + v·t), obrat 45 s         | návrh Clauda                  |
+| Osa brázdy po blocích (i sever – jih), ne podle celého pole                                 | Martin (19. 10. 2026)         |
+| Osa bloku = delší průměrná brázda (vážená plochou), při shodě delší rozloha, pak x          | návrh Clauda                  |
+| Brázdy končí na cestě, spřežení se na ní otočí                                              | Martin (19. 10. 2026)         |
+| Výkon s průměrnou délkou kusu mezi cestami; kus pod 2 m se neorá; brázda řady až k cestě    | návrh Clauda                  |
 | Kulatější pole – zakulacené i schody obrysu, nepravidelný okraj, bez travnaté souvratě      | Martin, návrh Clauda          |
 | Ladicí přepínač, pruhy po pruzích obtisku, víc spřežení po souvislých kusech                | návrh Clauda                  |
 | Pruh u čáry práce (2–4 řady), jen čelo dne, přechod pěšky do 60 m, dvě spřežení na díl      | návrh Clauda                  |

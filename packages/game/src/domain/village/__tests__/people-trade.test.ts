@@ -4,12 +4,15 @@ import { foundVillage } from '../actions';
 import { availableSettlers, familiesOf } from '../households';
 import { hasCloseKinIn } from '../kinship';
 import { neighbourOf, neighbourStock, tradeSeason } from '../neighbours';
+import { createRandom, deriveSeed } from '../../landscape/random';
 import {
   emigrantGroups,
   neighbourFamilyValue,
   neighbourPeople,
+  newcomerProfiles,
   personValue,
   settleNewcomers,
+  storedNeighbourPeople,
 } from '../people-trade';
 import { ageYears } from '../people';
 import { PEOPLE_TRADE } from '../rules';
@@ -126,8 +129,18 @@ function payAll(state: VillageState): TradeGoods {
   ) as TradeGoods;
 }
 
-const TAKES: NeighbourPeople = { families: [], adults: 0, takes: { families: 1, adults: 2 } };
-const GIVES: NeighbourPeople = { families: [2, 0], adults: 2, takes: { families: 0, adults: 0 } };
+const TAKES: NeighbourPeople = {
+  families: [],
+  men: 0,
+  women: 0,
+  takes: { families: 1, men: 1, women: 1 },
+};
+const GIVES: NeighbourPeople = {
+  families: [2, 0],
+  men: 1,
+  women: 1,
+  takes: { families: 0, men: 0, women: 0 },
+};
 
 describe('lidé souseda na rok obchodu', () => {
   it('deterministicky ze seedu, směru a roku; lidi navíc, nebo je shání, nebo nic', () => {
@@ -139,16 +152,16 @@ describe('lidé souseda na rok obchodu', () => {
       for (const d of DIRECTIONS) {
         const p = neighbourPeople(seed, d, 600 + (seed % 5));
         total++;
-        const gives = p.families.length + p.adults;
-        const takes = p.takes.families + p.takes.adults;
+        const gives = p.families.length + p.men + p.women;
+        const takes = p.takes.families + p.takes.men + p.takes.women;
         // buď dá, nebo vezme – ne obojí
         expect(gives > 0 && takes > 0).toBe(false);
         if (gives > 0) surplus++;
         if (takes > 0) shortage++;
         expect(p.families.length).toBeLessThanOrEqual(PEOPLE_TRADE.families.max);
-        expect(p.adults).toBeLessThanOrEqual(PEOPLE_TRADE.adults.max);
+        expect(p.men + p.women).toBeLessThanOrEqual(PEOPLE_TRADE.adults.max);
         expect(p.takes.families).toBeLessThanOrEqual(PEOPLE_TRADE.families.max);
-        expect(p.takes.adults).toBeLessThanOrEqual(PEOPLE_TRADE.adults.max);
+        expect(p.takes.men + p.takes.women).toBeLessThanOrEqual(PEOPLE_TRADE.adults.max);
         for (const c of p.families) {
           expect(c).toBeGreaterThanOrEqual(PEOPLE_TRADE.children.min);
           expect(c).toBeLessThanOrEqual(PEOPLE_TRADE.children.max);
@@ -185,10 +198,11 @@ describe('lidé souseda na rok obchodu', () => {
 describe('koho ves dá', () => {
   it('rodinu mladšího ženatého syna – dědic a rodiče zůstávají, dvorec ne', () => {
     const s = trading();
-    const { families, adults } = emigrantGroups(s, DAY, { families: 2, adults: 0 });
+    const { families, men, women } = emigrantGroups(s, DAY, { families: 2, men: 0, women: 0 });
     // jediná rodina, která se smí oddělit; dvorec (zakladatelé) nedá nikoho
     expect(families.map((f) => f.people.map((p) => p.id))).toEqual([[504, 505, 506]]);
-    expect(adults).toEqual([]);
+    expect(men).toEqual([]);
+    expect(women).toEqual([]);
     // dítě za polovinu
     expect(families[0]!.valueKg).toBe(PEOPLE_TRADE.adultValueKg * 2.5);
     expect(
@@ -200,19 +214,21 @@ describe('koho ves dá', () => {
     ).toHaveLength(1);
   });
 
-  it('svobodného dospělého 16–44 – dcera 18; dvanáctiletý ne', () => {
+  it('svobodné muže a ženy 16–44 zvlášť – dcera 18 je žena; dvanáctiletý syn ne', () => {
     const s = trading();
-    const { adults } = emigrantGroups(s, DAY, { families: 0, adults: 3 });
-    expect(adults.map((a) => a.people.map((p) => p.id))).toEqual([[507]]);
-    expect(adults[0]!.valueKg).toBe(PEOPLE_TRADE.adultValueKg);
+    const { men, women } = emigrantGroups(s, DAY, { families: 0, men: 3, women: 3 });
+    expect(women.map((a) => a.people.map((p) => p.id))).toEqual([[507]]);
+    expect(women[0]!.kind).toBe('woman');
+    expect(women[0]!.valueKg).toBe(PEOPLE_TRADE.adultValueKg);
+    expect(men).toEqual([]);
   });
 
   it('výběr je postupný – prvních n skupin je pro každé větší n stejných', () => {
     const s = trading();
-    const one = emigrantGroups(s, DAY, { families: 1, adults: 1 });
-    const more = emigrantGroups(s, DAY, { families: 2, adults: 3 });
+    const one = emigrantGroups(s, DAY, { families: 1, men: 0, women: 1 });
+    const more = emigrantGroups(s, DAY, { families: 2, men: 3, women: 3 });
     expect(more.families.slice(0, 1)).toEqual(one.families);
-    expect(more.adults.slice(0, 1)).toEqual(one.adults);
+    expect(more.women.slice(0, 1)).toEqual(one.women);
   });
 
   it('nikdy ne svobodného dědice neplodných rodičů ani člověka, bez kterého se dům rozpadne', () => {
@@ -226,7 +242,7 @@ describe('koho ves dá', () => {
       person(503, 18, 'male', { motherId: 501, fatherId: 500 }),
     );
     expect(
-      emigrantGroups(s, DAY, { families: 0, adults: 2 }).adults.map((a) => a.people[0]!.id),
+      emigrantGroups(s, DAY, { families: 0, men: 2, women: 0 }).men.map((a) => a.people[0]!.id),
     ).toEqual([503]);
     // dům se dvěma staršími a jednou dcerou – bez ní by se domácnost rozpadla
     s.people = s.people.filter((p) => p.dwellingId !== HOUSE);
@@ -235,7 +251,7 @@ describe('koho ves dá', () => {
       person(501, 58, 'female', { spouseId: 500 }),
       person(507, 18, 'female', { motherId: 501, fatherId: 500 }),
     );
-    expect(emigrantGroups(s, DAY, { families: 0, adults: 1 }).adults).toEqual([]);
+    expect(emigrantGroups(s, DAY, { families: 0, men: 0, women: 1 }).women).toEqual([]);
   });
 });
 
@@ -253,38 +269,39 @@ describe('ocenění a kontrola výměny lidí', () => {
     const s = trading();
     const none = withNeighbourPeople(s, {
       families: [],
-      adults: 0,
-      takes: { families: 0, adults: 0 },
+      men: 0,
+      women: 0,
+      takes: { families: 0, men: 0, women: 0 },
     });
     const giveOne = {
       direction: 'S' as const,
       give: {},
       get: {},
-      givePeople: { families: 0, adults: 1 },
+      givePeople: { families: 0, men: 0, women: 1 },
     };
     expect(tradeQuote(none, giveOne, DAY).blocked).toBe(NO_PEOPLE_WANTED);
     const getOne = {
       direction: 'S' as const,
       give: {},
       get: {},
-      getPeople: { families: 0, adults: 1 },
+      getPeople: { families: 0, men: 1, women: 0 },
     };
     expect(tradeQuote(none, getOne, DAY).blocked).toBe(NO_PEOPLE_OFFERED);
     const takes = withNeighbourPeople(s, TAKES);
     expect(
-      tradeQuote(takes, { ...giveOne, givePeople: { families: 2, adults: 0 } }, DAY).blocked,
+      tradeQuote(takes, { ...giveOne, givePeople: { families: 2, men: 0, women: 0 } }, DAY).blocked,
     ).toBe(OVER_PEOPLE_DEMAND);
     // dva dospělí soused vezme, ale ves má jen jednoho, koho smí dát
     expect(
-      tradeQuote(takes, { ...giveOne, givePeople: { families: 0, adults: 2 } }, DAY).blocked,
+      tradeQuote(takes, { ...giveOne, givePeople: { families: 0, men: 1, women: 0 } }, DAY).blocked,
     ).toBe(NO_EMIGRANTS);
     const gives = withNeighbourPeople(s, GIVES);
     expect(
-      tradeQuote(gives, { ...getOne, getPeople: { families: 3, adults: 0 } }, DAY).blocked,
+      tradeQuote(gives, { ...getOne, getPeople: { families: 3, men: 0, women: 0 } }, DAY).blocked,
     ).toBe(OVER_PEOPLE_SUPPLY);
     // za rodinu je třeba zaplatit
     expect(
-      tradeQuote(gives, { ...getOne, getPeople: { families: 1, adults: 0 } }, DAY).blocked,
+      tradeQuote(gives, { ...getOne, getPeople: { families: 1, men: 0, women: 0 } }, DAY).blocked,
     ).toBe(UNFAIR);
   });
 
@@ -293,7 +310,12 @@ describe('ocenění a kontrola výměny lidí', () => {
     const gives = withNeighbourPeople(s, GIVES);
     const quote = tradeQuote(
       gives,
-      { direction: 'S', give: payAll(gives), get: {}, getPeople: { families: 1, adults: 1 } },
+      {
+        direction: 'S',
+        give: payAll(gives),
+        get: {},
+        getPeople: { families: 1, men: 1, women: 0 },
+      },
       DAY,
     );
     expect(quote.blocked).toBeNull();
@@ -301,14 +323,14 @@ describe('ocenění a kontrola výměny lidí', () => {
     // lidé nosiče nepotřebují
     const empty = tradeQuote(
       gives,
-      { direction: 'S', give: {}, get: {}, getPeople: { families: 1, adults: 0 } },
+      { direction: 'S', give: {}, get: {}, getPeople: { families: 1, men: 0, women: 0 } },
       DAY,
     );
     expect(empty.porters).toBe(1);
     const takes = withNeighbourPeople(s, TAKES);
     const sell = tradeQuote(
       takes,
-      { direction: 'S', give: {}, get: {}, givePeople: { families: 1, adults: 1 } },
+      { direction: 'S', give: {}, get: {}, givePeople: { families: 1, men: 0, women: 1 } },
       DAY,
     );
     expect(sell.blocked).toBeNull();
@@ -323,7 +345,7 @@ describe('výprava s lidmi', () => {
       direction: 'S',
       give: {},
       get: {},
-      givePeople: { families: 1, adults: 1 },
+      givePeople: { families: 1, men: 0, women: 1 },
     });
     const gone = [504, 505, 506, 507];
     expect(next.people.some((p) => gone.includes(p.id))).toBe(false);
@@ -333,13 +355,20 @@ describe('výprava s lidmi', () => {
     // rodiče, kteří zůstali, mají příbuzné ve vsi souseda (válka – war.md)
     expect(hasCloseKinIn(next, 500, 'S')).toBe(true);
     const stock = neighbourStock(next, 'S', DAY);
-    expect(stock.people!.takes).toEqual({ families: 0, adults: 1 });
+    expect(stock.people!.takes).toEqual({ families: 0, men: 1, women: 0 });
     const e = next.trade!.expeditions[0]!;
-    expect(e.givePeople).toEqual({ families: 1, adults: 1, people: 4 });
+    expect(e.givePeople).toMatchObject({ families: 1, men: 0, women: 1, people: 4 });
+    // kdo odešel – pohlaví a den narození (postavy karavany ve scéně)
+    expect(e.givePeople!.members!.map((m) => [m.sex, m.group])).toEqual([
+      ['male', 'family'],
+      ['female', 'family'],
+      ['male', 'family'],
+      ['female', 'woman'],
+    ]);
     expect(e.getPeople).toBeUndefined();
     expect(next.chronicle.at(-1)).toMatchObject({
       kind: 'trade-departed',
-      people: { families: 1, adults: 1 },
+      people: { families: 1, men: 0, women: 1 },
     });
   });
 
@@ -356,10 +385,10 @@ describe('výprava s lidmi', () => {
       direction: 'S',
       give: payAll(base),
       get: {},
-      getPeople: { families: 1, adults: 1 },
+      getPeople: { families: 1, men: 1, women: 0 },
     });
-    expect(s.trade!.expeditions[0]!.getPeople).toEqual({ families: [2], adults: 1 });
-    expect(neighbourStock(s, 'S', DAY).people).toMatchObject({ families: [0], adults: 1 });
+    expect(s.trade!.expeditions[0]!.getPeople).toEqual({ families: [2], men: 1, women: 0 });
+    expect(neighbourStock(s, 'S', DAY).people).toMatchObject({ families: [0], men: 0, women: 1 });
     const before = s.people.length;
     const e = s.trade!.expeditions[0]!;
     e.done = e.cost;
@@ -400,7 +429,7 @@ describe('výprava s lidmi', () => {
     ]);
     expect(events[0]).toMatchObject({
       kind: 'trade-returned',
-      people: { families: 1, adults: 1 },
+      people: { families: 1, men: 1, women: 0 },
     });
   });
 
@@ -418,7 +447,7 @@ describe('výprava s lidmi', () => {
     // dvorec (zemnice 6) má 4 lidi, dům 960 (polozemnice 8) jednoho – rodina jde do 960, do
     // dvorce rodina nejde, dokud může jinam
     const settlers = availableSettlers(s, DAY);
-    const events = settleNewcomers(s, DAY, 'S', { families: [1], adults: 0 }, 'x');
+    const events = settleNewcomers(s, DAY, 'S', { families: [1] }, 'x');
     expect(events).toEqual([
       { day: DAY, kind: 'newcomer', direction: 'S', group: 'family', people: 3, dwellingId: 960 },
     ]);
@@ -426,7 +455,7 @@ describe('výprava s lidmi', () => {
     // přeplněný dům: rodina jde k plné rodině HOUSE – ženatý muž bez rodičů v domě se smí oddělit
     const crowded = trading();
     const before = availableSettlers(crowded, DAY);
-    settleNewcomers(crowded, DAY, 'S', { families: [1], adults: 0 }, 'y');
+    settleNewcomers(crowded, DAY, 'S', { families: [1] }, 'y');
     const house = crowded.dwellings.find((d) => d.id === HOUSE)!;
     const manor = crowded.dwellings[0]!.id;
     expect(crowded.people.filter((p) => p.dwellingId === manor)).toHaveLength(4);
@@ -446,7 +475,7 @@ describe('výprava s lidmi', () => {
       direction: 'S',
       give: { meat: 359 },
       get: {},
-      getPeople: { families: 1, adults: 0 },
+      getPeople: { families: 1, men: 0, women: 0 },
     });
     const whole = advanceVillage(s, DAY + 60, null, LANDSCAPE);
     const arrived = whole.chronicle.filter((ev) => ev.kind === 'newcomer');
@@ -475,5 +504,74 @@ describe('výprava s lidmi', () => {
     const events = finishExpeditions(s, DAY + 9);
     expect(events).toEqual([{ day: DAY + 9, kind: 'trade-returned', direction: 'S', get: e.get }]);
     expect(s.people).toHaveLength(people);
+  });
+});
+
+describe('muži a ženy zvlášť (Martin 19. 10. 2026)', () => {
+  it('zbytek roku uložený s dospělými bez pohlaví se převede podle povahy roku', () => {
+    const s = trading();
+    const season = tradeSeason(DAY);
+    const nature = neighbourPeople(s.seed, 'S', season);
+    const n = neighbourOf(s.seed, 'S');
+    const legacy = {
+      families: [1],
+      adults: 2,
+      takes: { families: 0, adults: 1 },
+    } as unknown as NeighbourPeople;
+    s.trade = {
+      neighbours: [{ direction: 'S', season, supply: { ...n.supply }, demand: {}, people: legacy }],
+      expeditions: [],
+      nextId: 1,
+    };
+    const people = neighbourStock(s, 'S', DAY).people!;
+    expect(people.families).toEqual([1]);
+    expect(people.men + people.women).toBe(2);
+    expect(people.men).toBe(Math.min(nature.men, 2));
+    expect(people.takes.men + people.takes.women).toBe(1);
+    expect(people.takes.men).toBe(Math.min(nature.takes.men, 1));
+    expect('adults' in people).toBe(false);
+    // deterministicky – stejný převod pokaždé, nový zbytek roku se nemění
+    expect(neighbourStock(s, 'S', DAY).people).toEqual(people);
+    const fresh = neighbourPeople(s.seed, 'S', season);
+    expect(storedNeighbourPeople(fresh, s.seed, 'S', season)).toBe(fresh);
+  });
+
+  it('výprava uložená s dospělými bez pohlaví doběhne – pohlaví se losuje jako dřív', () => {
+    const seed = 77;
+    // dřívější los: pro každého dospělého pohlaví, věk 16–26 a den narození
+    const rnd = createRandom(deriveSeed(seed, 'newcomers:5'));
+    const old = [0, 1].map(() => {
+      const sex = rnd.next() < 0.5 ? 'male' : 'female';
+      const age = 16 + Math.floor(rnd.next() * 11);
+      return { sex, age, extra: Math.floor(rnd.next() * 365) };
+    });
+    const profiles = newcomerProfiles(seed, '5', { families: [], adults: 2 });
+    expect(
+      profiles.map((p) => [p.members[0]!.sex, p.members[0]!.ageYears, p.members[0]!.extraDays]),
+    ).toEqual(old.map((o) => [o.sex, o.age, o.extra]));
+    expect(profiles.map((p) => p.group)).toEqual(
+      old.map((o) => (o.sex === 'male' ? 'man' : 'woman')),
+    );
+  });
+
+  it('objednaní muži a ženy přijdou s daným pohlavím; postavy karavany jsou stejní lidé', () => {
+    const s = trading();
+    const key = '9';
+    const coming = { families: [2], men: 1, women: 2 };
+    const profiles = newcomerProfiles(s.seed, key, coming);
+    expect(profiles.map((p) => p.group)).toEqual(['family', 'man', 'woman', 'woman']);
+    const before = s.people.length;
+    const events = settleNewcomers(s, DAY, 'S', coming, key);
+    const arrived = s.people.slice(before);
+    expect(arrived.map((p) => p.sex)).toEqual(profiles.flatMap((p) => p.members.map((m) => m.sex)));
+    expect(arrived.map((p) => ageYears(p.bornDay, DAY))).toEqual(
+      profiles.flatMap((p) => p.members.map((m) => m.ageYears)),
+    );
+    expect(events.map((e) => (e.kind === 'newcomer' ? e.group : null))).toEqual([
+      'family',
+      'man',
+      'woman',
+      'woman',
+    ]);
   });
 });

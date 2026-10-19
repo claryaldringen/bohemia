@@ -11,7 +11,8 @@ import {
 } from './costs';
 import { craftCoverage } from './crafts';
 import { isVillageExtinct } from './extinction';
-import { startingLivestock } from './livestock';
+import { winterHayKg } from './hay';
+import { foundingLivestock } from './livestock';
 import { ableTeams, startPen, type PenInput } from './oxen';
 import { fieldsTouching, mergeFields, partFoundingCost } from './fields';
 import { normalizeGrid, rotationTurn, squareKey } from './square-grid';
@@ -32,6 +33,7 @@ import {
   PLOT_VARIANTS,
   START_AGES,
   START_SEXES,
+  BIRTH_SPACING,
   START_STORES_MONTHS,
   dwellingBuildLabor,
   workshopTrees,
@@ -394,10 +396,15 @@ export function foundVillage(input: {
         dwellingId: householdId,
         sex: START_SEXES[i] ?? 'male',
       }));
+  const livestock = settlers
+    ? { herds: { ...settlers.herds }, young: { ...settlers.young } }
+    : foundingLivestock({ people }, day);
   const [husband, wife] = people;
   if (!settlers && husband && wife) {
     husband.spouseId = wife.id;
     wife.spouseId = husband.id;
+    // první dítě nejdřív za 9 měsíců jako po svatbě (population.md – rozestup porodů)
+    wife.nextBirthFrom = day + BIRTH_SPACING.afterWeddingDays;
   }
   const constructionId = settlers ? householdId + 1 : householdId + 1 + people.length;
   const annualNeed = people.reduce((sum, p) => sum + FOOD_NEED_KG_PER_YEAR[ageGroup(p, day)], 0);
@@ -437,9 +444,10 @@ export function foundVillage(input: {
     woodLogs: 0,
     // výchozí stádo osadníků (diet.md – Dobytek), u odešlých jejich díl stád; krajinu pro pastvu
     // doplní use-case
-    livestock: settlers
-      ? { herds: { ...settlers.herds }, young: { ...settlers.young } }
-      : startingLivestock({ people }),
+    livestock,
+    // noví osadníci si přivedli i seno na první zimu stáda (diet.md – Oděv: jinak by ves založená
+    // po seči přišla v zimě o ovce na vlnu); co nesnědí, shnije s příští sečí
+    ...(settlers ? {} : { hay: { kg: winterHayKg(livestock.herds, 0), mowing: null } }),
     meatKg: food ? food.meatKg : 0,
     ...(food && food.cheeseKg > 0 ? { cheeseKg: food.cheeseKg } : {}),
     ...(food && food.legumesKg > 0 ? { legumesKg: food.legumesKg } : {}),

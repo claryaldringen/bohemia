@@ -3,18 +3,27 @@
 // nejlevnější chůze po terénu pěšin (svahy, brody, les, kmeny a balvany) se slevou po pevných
 // cestách, osa se uloží jako pevné cesty (`addTrailRoads` – kde už pevná cesta je, stezka vede po
 // ní). Stavba je vylepšení cesty na stupeň upravená (a hať s lávkou přes mokřinu a brod) po
-// úsecích od vsi ven; dostavěný úsek hned dostane nový stupeň, hotová stezka nezaroste. Čisté
-// funkce bez I/O – trasu počítá jen server (prohlížeč dostane uložené osy).
+// úsecích od vsi ven; dostavěný úsek hned dostane nový stupeň, hotová stezka nezaroste. Kde vede
+// lesem, vykácí se průsek (road-swath.ts – Martin, 19. 10. 2026: „Tam, kde zemská stezka prochází
+// lesem, ať se les vykácí.“) – kácení je práce úseku, posvátným dubům a hájům se trasa vyhne.
+// Čisté funkce bez I/O – trasu počítá jen server (prohlížeč dostane uložené osy).
 import type { Landscape, ObstacleLayer } from '../landscape';
 import { villageManor } from './manor';
 import { obstacleChangesAt } from './obstacles';
 import { DWELLING_PATH_BOX_M, PathHeap, simplifyPathLine, smoothPathLine } from './paths/network';
 import { addTrailRoads, roadLengthM, roadsInWork } from './paths/roads';
-import { pathTerrainOf, pathWindowFor, withObstacles, type PathTerrain } from './paths/terrain';
+import { trailTerrain, type PathTerrain } from './paths/terrain';
 import type { Walk } from './paths/walking';
 import { plotCells } from './plot-cells';
-import { roadMidpoint, roadNeedsCauseway, roadUpgradeCost } from './road-upgrades';
-import { TRADE, TRAIL } from './rules';
+import {
+  roadMidpoint,
+  roadNeedsCauseway,
+  roadUpgradeCost,
+  roadUpgradeProgress,
+} from './road-upgrades';
+import { roadSwathTally } from './road-swath';
+import { ROAD_SWATH, TRADE, TRAIL } from './rules';
+import { sacredSitesOf } from './sacred';
 import type {
   ChronicleEvent,
   Construction,
@@ -88,26 +97,6 @@ export function trailStart(landscape: Landscape, manor: Dwelling): { x: number; 
   }
   const front = DWELLING_PATH_BOX_M[manor.type].maxZ + 2;
   return { x: position.x + fx * front, z: position.z + fz * front };
-}
-
-/** Terén pěšin přes celou krajinu s překážkami (bez změn vsi – trasa se nemění s kácením). */
-const terrainCache = new WeakMap<Landscape, Map<ObstacleLayer | null, PathTerrain>>();
-
-/** Terén pro stezky – celá krajina, v mezipaměti podle krajiny a vrstvy překážek. */
-export function trailTerrain(landscape: Landscape, obstacles: ObstacleLayer | null): PathTerrain {
-  let byLayer = terrainCache.get(landscape);
-  if (!byLayer) {
-    byLayer = new Map();
-    terrainCache.set(landscape, byLayer);
-  }
-  const cached = byLayer.get(obstacles);
-  if (cached) return cached;
-  const half = (landscape.size * landscape.cellSizeM) / 2;
-  const window = pathWindowFor(landscape, { minX: -half, minZ: -half, maxX: half, maxZ: half });
-  const base = pathTerrainOf(landscape, window);
-  const terrain = obstacles ? withObstacles(base, obstacles) : base;
-  byLayer.set(obstacles, terrain);
-  return terrain;
 }
 
 /** Buňky terénu u os pevných cest – chůze po nich je levnější (TRAIL.roadDiscount). */
@@ -185,6 +174,7 @@ function walkAll(
   terrain: PathTerrain,
   mask: Uint8Array,
   start: number,
+  blocked: Uint8Array | null = null,
 ): { dist: Float64Array; prev: Int32Array } {
   const n = terrain.width * terrain.height;
   const dist = new Float64Array(n).fill(Infinity);
@@ -205,7 +195,7 @@ function walkAll(
       if (ii < 0 || jj < 0 || ii >= width || jj >= height) continue;
       const nb = jj * width + ii;
       const k = cost[nb]!;
-      if (k === Infinity) continue;
+      if (k === Infinity || blocked?.[nb]) continue;
       const discount = mask[c] && mask[nb] ? TRAIL.roadDiscount : 1;
       const nd = d + step * cellM * ((cost[c]! + k) / 2) * discount;
       if (nd < dist[nb]!) {
@@ -264,6 +254,44 @@ function targetCell(
   return best;
 }
 
+/**
+ * Buňky terénu do průseku od posvátného dubu nebo stromu háje (`protectedTrees` – happiness.md):
+ * tudy stezka nevede, průsek by je musel vykácet (roads.md – Průsek lesem). V mezipaměti podle
+ * terénu (vrstva překážek je pevná).
+ */
+const sacredMaskCache = new WeakMap<PathTerrain, Uint8Array>();
+
+function sacredMask(terrain: PathTerrain, layer: ObstacleLayer): Uint8Array {
+  const cached = sacredMaskCache.get(terrain);
+  if (cached) return cached;
+  const mask = new Uint8Array(terrain.width * terrain.height);
+  // i se zjednodušením osy (SIMPLIFY_M) – vyhlazená osa se od buněk trasy odchýlí
+  const reach = ROAD_SWATH.halfM + SIMPLIFY_M;
+  const cells = Math.ceil(reach / terrain.cellM);
+  const index = new Map<number, number>();
+  for (let i = 0; i < layer.count; i++) index.set(layer.id[i]!, i);
+  for (const id of sacredSitesOf(layer).protectedTrees) {
+    const i = index.get(id);
+    if (i === undefined) continue;
+    const x = layer.x[i]!;
+    const z = layer.z[i]!;
+    const ci = Math.round((x - terrain.originX) / terrain.cellM);
+    const cj = Math.round((z - terrain.originZ) / terrain.cellM);
+    for (let dj = -cells; dj <= cells; dj++) {
+      for (let di = -cells; di <= cells; di++) {
+        const ii = ci + di;
+        const jj = cj + dj;
+        if (ii < 0 || jj < 0 || ii >= terrain.width || jj >= terrain.height) continue;
+        const dx = terrain.originX + ii * terrain.cellM - x;
+        const dz = terrain.originZ + jj * terrain.cellM - z;
+        if (dx * dx + dz * dz <= reach * reach) mask[jj * terrain.width + ii] = 1;
+      }
+    }
+  }
+  sacredMaskCache.set(terrain, mask);
+  return mask;
+}
+
 /** Trasy stezek do všech směrů – osa od výchozího bodu ke kraji mapy, nebo null (tudy nejde). */
 export type TrailRoutes = Readonly<Record<Direction8, RoadPoint[] | null>>;
 
@@ -283,7 +311,8 @@ function roadsKey(roads: readonly Road[]): string {
 /**
  * Trasy stezek od bodu `from` ke kraji mapy do všech 8 směrů (jedno hledání pro všechny směry –
  * v mezipaměti podle krajiny, bodu a sítě pevných cest). Trasa se vyhne vodě mimo brody, srázům
- * a balvanům, les a kmeny ji prodraží, po pevné cestě je chůze poloviční (stezka po ní vede).
+ * a balvanům a posvátným dubům a hájům (průsek by je musel vykácet – `sacredMask`), les a kmeny
+ * ji prodraží, po pevné cestě je chůze poloviční (stezka po ní vede).
  */
 export function trailRoutes(
   landscape: Landscape,
@@ -305,7 +334,8 @@ export function trailRoutes(
   if (start < 0) {
     for (const d of DIRECTIONS) routes[d] = null;
   } else {
-    const { dist, prev } = walkAll(terrain, roadMask(terrain, roads), start);
+    const blocked = obstacles ? sacredMask(terrain, obstacles) : null;
+    const { dist, prev } = walkAll(terrain, roadMask(terrain, roads), start, blocked);
     for (const direction of DIRECTIONS) {
       let target = targetCell(terrain, dist, landscape, from, direction, TRAIL.coneDeg);
       if (target < 0) {
@@ -377,8 +407,14 @@ function upgradedGrade(current: RoadGrade, target: TrailPiece['grade']): RoadGra
   return 'improved';
 }
 
-/** Úsek stezky – cílový stupeň, práce na cestě (bez kácení) a dřevo hatě a lávky. */
-function pieceOf(road: Road): { piece: TrailPiece; trees: number } {
+/**
+ * Úsek stezky – cílový stupeň, práce na cestě i s průsekem lesem (bez kácení dřeva hatě), dřevo
+ * hatě a lávky, stromy v průseku a jestli průsek nebrání posvátný dub (`swath` – bez krajiny nic).
+ */
+function pieceOf(
+  road: Road,
+  swath: { cost: number; trees: number; sacred: boolean } | null,
+): { piece: TrailPiece; trees: number; swathTrees: number; sacred: boolean } {
   const grade = roadNeedsCauseway(road) ? 'causeway' : 'improved';
   const improve = road.grade === 'trodden' ? roadUpgradeCost(road, 'improved') : null;
   const causeway =
@@ -387,9 +423,11 @@ function pieceOf(road: Road): { piece: TrailPiece; trees: number } {
     piece: {
       roadId: road.id,
       grade,
-      manDays: tenths((improve?.manDays ?? 0) + (causeway?.manDays ?? 0)),
+      manDays: tenths((improve?.manDays ?? 0) + (causeway?.manDays ?? 0) + (swath?.cost ?? 0)),
     },
     trees: causeway?.trees ?? 0,
+    swathTrees: swath?.trees ?? 0,
+    sacred: swath?.sacred ?? false,
   };
 }
 
@@ -408,6 +446,8 @@ export type TrailPlan =
       wood: WoodPlan | null;
       /** Práce celkem i s kácením (člověkodny). */
       laborManDays: number;
+      /** Dospělé stromy v průseku lesem – vykácí se se stavbou úseků (klády na hromadu). */
+      swathTrees: number;
     }
   | { ok: false; reason: string };
 
@@ -417,6 +457,7 @@ export const TRAIL_BUILDING = 'Stezka tímto směrem se už staví.';
 export const TRAIL_BLOCKED = 'Ke kraji mapy tudy cesta nevede – zahrazuje ji voda nebo sráz.';
 export const TRAIL_ROAD_IN_WORK = 'Část cesty se už vylepšuje.';
 export const TRAIL_NO_WOOD = 'Na hať a lávku chybí dřevo.';
+export const TRAIL_SACRED = 'Stezce v cestě stojí posvátný dub – kácet se nesmí.';
 
 /**
  * Naplánuje stezku ve směru `direction` (bez změny vstupního stavu): trasa od dvorce, osy jako
@@ -463,13 +504,19 @@ export function planTrail(
   const roads = next.roads?.roads ?? [];
   const pieces: TrailPiece[] = [];
   let trees = 0;
+  let swathTrees = 0;
   const wet: { x: number; z: number }[] = [];
   for (const id of ids) {
     const road = roads.find((r) => r.id === id);
     if (!road) continue;
-    const { piece, trees: pieceTrees } = pieceOf(road);
+    // průsek lesem (roads.md) – úsek, který ho ještě nemá
+    const swath =
+      obstacles && !road.swath ? roadSwathTally(next, road, day, obstacles, landscape) : null;
+    const { piece, trees: pieceTrees, swathTrees: cut, sacred } = pieceOf(road, swath);
+    if (sacred) return { ok: false, reason: TRAIL_SACRED };
     pieces.push(piece);
     trees += pieceTrees;
+    swathTrees += cut;
     if (pieceTrees > 0) wet.push(roadMidpoint(road));
   }
   let wood: WoodPlan | null = null;
@@ -501,6 +548,7 @@ export function planTrail(
     trees,
     wood,
     laborManDays: tenths(pieces.reduce((sum, p) => sum + p.manDays, 0) + felling),
+    swathTrees,
   };
 }
 
@@ -512,10 +560,12 @@ export interface TrailOption {
   progress: number;
   /** Délka trasy (m); bez trasy null. */
   lengthM: number | null;
-  /** Práce celkem i s kácením (člověkodny) a dřevo (stromy) – u nové stezky. */
+  /** Práce celkem i s kácením a průsekem lesem (člověkodny) a dřevo (stromy) – u nové stezky. */
   laborManDays: number;
   trees: number;
   treesToFell: number;
+  /** Dospělé stromy v průseku lesem (klády na hromadu) – u nové stezky. */
+  swathTrees: number;
   /** Dny cesty nosičů tam a zpět (i za krajem mapy); bez trasy null. */
   tripDays: number | null;
   /** Proč stezku teď stavět nejde (česky); hotová i rozestavěná mají důvod taky. */
@@ -548,6 +598,7 @@ export function trailOptions(
         laborManDays: 0,
         trees: 0,
         treesToFell: 0,
+        swathTrees: 0,
         tripDays: trailTripDays(trail.lengthM),
         blocked: trail.builtDay === null ? TRAIL_BUILDING : TRAIL_EXISTS,
       };
@@ -562,6 +613,7 @@ export function trailOptions(
         laborManDays: 0,
         trees: 0,
         treesToFell: 0,
+        swathTrees: 0,
         tripDays: null,
         blocked: plan.reason,
       };
@@ -574,6 +626,7 @@ export function trailOptions(
       laborManDays: plan.laborManDays,
       trees: plan.trees,
       treesToFell: plan.wood?.fell.length ?? 0,
+      swathTrees: plan.swathTrees,
       tripDays: trailTripDays(plan.lengthM),
       blocked: null,
     };
@@ -669,6 +722,31 @@ export function trailWorkRoad(state: Pick<VillageState, 'trails'>, c: Constructi
   const front = trailWorkFront(trail, c, c.done);
   const piece = trail.pieces[front.current ?? trail.pieces.length - 1];
   return piece?.roadId ?? c.roadIds?.[0] ?? null;
+}
+
+/**
+ * Úseky, kde vylepšení cesty už pracuje – průsek lesem se vykácí (road-swath.ts, `roadSwathDay`):
+ * u stezky dostavěné úseky a úsek, na kterém se pracuje, u vylepšení na upravenou cestu úseky
+ * s nějakou prací (`roadUpgradeProgress`). Bez průseku jen (úsek ho ještě nemá).
+ */
+export function swathRoadsInWork(state: VillageState): number[] {
+  const ids: number[] = [];
+  for (const c of state.constructions) {
+    if (c.kind !== 'road') continue;
+    if (c.trail !== undefined) {
+      const trail = villageTrails(state).find((t) => t.id === c.trail);
+      if (!trail) continue;
+      const front = trailWorkFront(trail, c, c.done);
+      const reached = front.finished + (front.current !== null && front.progress > 0 ? 1 : 0);
+      for (const piece of trail.pieces.slice(0, reached)) ids.push(piece.roadId);
+      continue;
+    }
+    if (c.roadGrade !== 'improved') continue;
+    const done = c.cost > 0 ? Math.min(c.cost, c.done) / c.cost : 0;
+    for (const [id, p] of roadUpgradeProgress(state, c, done)) if (p > 0) ids.push(id);
+  }
+  const roads = state.roads?.roads ?? [];
+  return ids.filter((id) => roads.some((r) => r.id === id && !r.swath));
 }
 
 /** Úseky prvních `count` kusů stezky dostanou svůj stupeň (mutuje stav). */

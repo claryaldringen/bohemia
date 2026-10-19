@@ -32,10 +32,18 @@ export interface DayAllocationInput {
    * produktivity; bez údaje 1.
    */
   productivity?: number;
+  /**
+   * Lidé na výpravách k sousedům (trade.md – Doprava, Martin 19. 10. 2026): nosiči, honáci
+   * a pomocníci u vozů jsou na cestě – jejich člověkodny jdou hned po denním minimu, před
+   * úlohami dne (`expeditionLaborToday`); bez údaje 0.
+   */
+  away?: number;
 }
 
 export interface DayAllocation {
   dailyMin: number;
+  /** Práce lidí na výpravách (nejvýš `away`, po denním minimu). */
+  away: number;
   tasks: Record<LaborTaskName, number>;
   /** Práce pro jednotlivé úlohy vstupu v jejich pořadí (stejný název může být víckrát – plodiny). */
   taskAmounts: number[];
@@ -46,8 +54,8 @@ export interface DayAllocation {
 }
 
 /**
- * Denní rozdělení práce: minimum → sezónní úlohy (polní i v sadech) v daném pořadí → opravy →
- * domácí výroba → společná práce.
+ * Denní rozdělení práce: minimum → lidé na výpravách → sezónní úlohy (polní i v sadech) v daném
+ * pořadí → opravy → domácí výroba → společná práce.
  */
 export function allocateDay(input: DayAllocationInput): DayAllocation {
   let left = Math.max(0, input.capacity * (input.productivity ?? 1));
@@ -57,6 +65,9 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
     return amount;
   };
   const dailyMin = take(dailyMinPerHousehold(input.potteryCoverage) * input.households);
+  // výpravy (trade.md – Doprava): nosiči jsou na cestě celé dny – po denním minimu, před vším
+  // ostatním
+  const away = take(input.away ?? 0);
   const tasks: Record<LaborTaskName, number> = {
     reclaim: 0,
     dig: 0,
@@ -88,5 +99,5 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
     0,
     Math.min(DOMESTIC.backlogMaxDays * todayNeed, input.domesticBacklog + todayNeed - domestic),
   );
-  return { dailyMin, tasks, taskAmounts, repairs, domestic, domesticBacklog, common: left };
+  return { dailyMin, away, tasks, taskAmounts, repairs, domestic, domesticBacklog, common: left };
 }

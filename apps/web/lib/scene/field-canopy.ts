@@ -38,11 +38,15 @@ const MIN_STEP_M = 0.03;
 /** Stěna je ve stínu – tmavší než koruna shora. */
 const WALL_SHADE = 0.72;
 
-/** Síť koruny: body x, z po dvojicích, výška nad zemí, barva (r, g, b) a trojúhelníky. */
+/**
+ * Síť koruny: body x, z po dvojicích, výška nad zemí, barva (r, g, b), směr řádků (x, z – textura
+ * porostu podél něj, `DecalPiece.rows`) a trojúhelníky.
+ */
 export interface CanopyMesh {
   positions: Float32Array;
   offsets: Float32Array;
   colors: Float32Array;
+  rows: Float32Array;
   indices: Uint32Array;
 }
 
@@ -52,6 +56,7 @@ export function emptyCanopy(): CanopyMesh {
     positions: new Float32Array(0),
     offsets: new Float32Array(0),
     colors: new Float32Array(0),
+    rows: new Float32Array(0),
     indices: new Uint32Array(0),
   };
 }
@@ -105,7 +110,9 @@ export function fieldCanopy(
   const positions: number[] = [];
   const offsets: number[] = [];
   const colors: number[] = [];
+  const directions: number[] = [];
   const indices: number[] = [];
+  let direction: readonly [number, number] = rows;
   const pieces = decalPieces(views, rows, center).filter(
     (p) => canopyHeight(p.look, p.part.crop) > 0,
   );
@@ -130,6 +137,7 @@ export function fieldCanopy(
     positions.push(x, z);
     offsets.push(offset);
     colors.push(tint[0] * shade, tint[1] * shade, tint[2] * shade);
+    directions.push(direction[0], direction[1]);
     return offsets.length - 1;
   };
   /** Trojúhelník s normálou ve směru `want` (x, y, z) – pořadí bodů se případně otočí. */
@@ -163,6 +171,7 @@ export function fieldCanopy(
   for (const piece of pieces) {
     const h = canopyHeight(piece.look, piece.part.crop);
     const tint = lookStyle(piece.look, piece.part.crop, piece.part.bloom).tint;
+    direction = piece.rows;
     const b: Bounds = piece.bounds;
     // kus, přes který vede cesta, jemněji (`detail` – pás bez obilí užší než krok sítě)
     const pieceStep = step * detail(b);
@@ -257,6 +266,7 @@ export function fieldCanopy(
     positions: Float32Array.from(positions),
     offsets: Float32Array.from(offsets),
     colors: Float32Array.from(colors),
+    rows: Float32Array.from(directions),
     indices: Uint32Array.from(indices),
   };
 }
@@ -269,6 +279,7 @@ export function mergeCanopies(parts: readonly CanopyMesh[]): CanopyMesh {
     positions: new Float32Array(vertices * 2),
     offsets: new Float32Array(vertices),
     colors: new Float32Array(vertices * 3),
+    rows: new Float32Array(vertices * 2),
     indices: new Uint32Array(triangles),
   };
   let v = 0;
@@ -277,6 +288,7 @@ export function mergeCanopies(parts: readonly CanopyMesh[]): CanopyMesh {
     out.positions.set(p.positions, v * 2);
     out.offsets.set(p.offsets, v);
     out.colors.set(p.colors, v * 3);
+    out.rows.set(p.rows, v * 2);
     for (let i = 0; i < p.indices.length; i++) out.indices[k + i] = p.indices[i]! + v;
     v += p.offsets.length;
     k += p.indices.length;

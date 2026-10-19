@@ -268,3 +268,104 @@ describe('pás orby přes víc dílů (oxen.md – Co nejdelší brázda)', () =
     expect(route.segmentStint.filter((s) => s < 0).length).toBeGreaterThanOrEqual(5);
   });
 });
+
+describe('osa brázdy podle bloku (Martin, 19. 10. 2026 – orba i sever – jih)', () => {
+  it('pás podél y (sever – jih): spřežení jede sever – jih, brázda přes celý pás', () => {
+    // díly 71–74 v jednom sloupci pole (y 0–3), herní jádro dalo osu y
+    const furrow = { axis: 'y' as const, sweep: 1 as const };
+    const parts = [71, 72, 73, 74].map((id, y) => ({
+      ...part(id, 0, { furrow, work: 0.5, before: 'stubble' as const }),
+      cell: { x: 0, y },
+      z: y * CELL + CELL / 2,
+    }));
+    const stints = dayStints(
+      village(parts, {
+        parts: [71, 72, 73, 74],
+        progress: parts.map(() => [0, 0.5] as [number, number]),
+      }),
+    );
+    expect(stints).toHaveLength(1);
+    const field = stints[0]!.field;
+    // řady podél z (sever – jih), pás přes 4 díly
+    expect(Math.abs(field.dirZ)).toBeCloseTo(1, 9);
+    expect(field.dirX).toBeCloseTo(0, 9);
+    expect(field.length).toBeCloseTo(4 * CELL, 9);
+    const route = ploughRoute(stints);
+    const lines = route.segments.filter(
+      (seg, i) => seg.kind === 'line' && route.segmentStint[i]! >= 0 && seg.length > CELL,
+    );
+    expect(lines.length).toBeGreaterThan(1);
+    for (const seg of lines) {
+      if (seg.kind !== 'line') continue;
+      expect(Math.abs(seg.dz)).toBeCloseTo(1, 6);
+    }
+  });
+});
+
+describe('zoraná zem jen kudy rádlo projelo (Martin, 19. 10. 2026)', () => {
+  const furrow = { axis: 'x' as const, sweep: 1 as const };
+  /**
+   * Dnes: pás A (díly 71–73) dozorán z půlky do konce a za pluhem už i zaset, přejezd na pás B
+   * jiného bloku (81–83, kus dál) zoraný do půlky; díl 74 dnes nikdo neoral.
+   */
+  const day = (): SceneVillage =>
+    village(
+      [
+        ...[71, 72, 73].map((id, i) =>
+          part(id, i, { furrow, look: 'sown', unploughed: 'stubble', work: undefined }),
+        ),
+        part(74, 3, { look: 'stubble' }),
+        ...[81, 82, 83].map((id, i) =>
+          part(id, 6 + i, { furrow, work: 0.5, before: 'stubble', unploughed: 'stubble' }),
+        ),
+      ],
+      {
+        parts: [71, 72, 73, 81, 82, 83],
+        progress: [
+          [0.5, 1],
+          [0.5, 1],
+          [0.5, 1],
+          [0, 0.5],
+          [0, 0.5],
+          [0, 0.5],
+        ],
+      },
+    );
+
+  it('díly dnešní orby projede rádlo celé – i zasetý za pluhem; jiné díly se nezmění', () => {
+    const village = day();
+    const stints = dayStints(village);
+    expect(stints.map((s) => s.partIds)).toEqual([
+      [71, 72, 73],
+      [81, 82, 83],
+    ]);
+    const start = startOfDayVillage(village, stints);
+    const look = (v: SceneVillage, id: number): SceneFieldPart =>
+      v.fields[0]!.parts.find((p) => p.id === id)!;
+    // ráno: pás A zoraný do půlky, pás B ještě strniště, díl 74 beze změny
+    for (const id of [71, 72, 73])
+      expect(look(start, id)).toMatchObject({ look: 'plowed', work: 0.5 });
+    for (const id of [81, 82, 83]) expect(look(start, id).look).toBe('stubble');
+    expect(look(start, 74)).toEqual(look(village, 74));
+    // dvě spřežení – každé svůj pás; brázdy na konci dne pokryjí přesně dnešní pruhy
+    for (const team of splitStints(stints, 2)) {
+      const route = ploughRoute(team);
+      const track: RouteTrack = { route, startMs: 0, endMs: 1000 };
+      const bands = routeFurrows(track, 1000);
+      for (const stint of team) {
+        const own = bands.filter(
+          (b) => stint.partIds.includes(b.partId ?? -1) || b.partId === stint.partId,
+        );
+        const across = own.reduce((sum, b) => sum + 2 * b.half, 0);
+        expect(across).toBeCloseTo((stint.to - stint.from) * CELL, 6);
+        // brázda leží jen na dílech pásu (podél řad přes celý pás)
+        for (const b of own) {
+          expect(b.to - b.from).toBeLessThanOrEqual(3 * CELL + 1e-6);
+          expect(Math.abs(b.x - stint.field.x)).toBeLessThan(1e-6);
+        }
+      }
+      // přejezd mezi bloky rádlo nese – zvednuté, žádná brázda
+      expect(bands.every((b) => b.partId !== 74)).toBe(true);
+    }
+  });
+});

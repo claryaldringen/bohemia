@@ -23,7 +23,8 @@ rozhoduje, kolik louky a práce dá do jistoty na dlouho dopředu místo obilí 
 
 ## Pravidla
 
-- **Stavba** (Martin): po čtvercích jako pole – políčka krajiny 15 × 15 m, jen louka, do 800 m od
+- **Stavba** (Martin): po čtvercích jako pole – políčka krajiny 15 × 15 m, louka i les (les se
+  vyklučí za sazbu lesa – Martin 19. 10. 2026, fields.md – Stavby v lese), do 800 m od
   obydlí, čtverce souvislé, nesmí ležet na obydlí, hřbitově ani jiném sadu (a naopak pole ani
   hřbitov nesmí na sad – obydlí ano, viz Obydlí v sadu). **Na pole smí** (Martin, 18. 10. 2026 –
   [fields.md](fields.md), Pole jako krajina): čtverec pole pod sadem z pole zmizí (úroda, plán

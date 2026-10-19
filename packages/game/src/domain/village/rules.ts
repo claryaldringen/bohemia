@@ -81,8 +81,27 @@ export const START_AGES = [25, 25, 13, 12] as const;
 // a chlapec 13 a dívka 12 let (nepříbuzní, rodiče neznámí – vezmou se, až dorostou); pohlaví
 // v pořadí START_AGES
 export const START_SEXES = ['male', 'female', 'male', 'female'] as const;
-// population.md – Růst populace (porodnost, úmrtnost dětí a dospělých, štěstí)
-export const BIRTHS_PER_PAIR_PER_YEAR = 1 / 3;
+// population.md – Růst populace (porodnost podle věku ženy a rozestup porodů – rešerše
+// research/2026-10-19-population-growth.md, návrh Clauda 19. 10. 2026; dřív 1/3 porodu ročně
+// v každém věku a bez rozestupu): přirozená manželská plodnost (Coale a Trussell 1974 – Henryho
+// průměr 13 populací bez plánování rodiny; 16–19 let ≈ 0,9 × 20–24 kvůli nižší plodnosti
+// dospívajících) × MARITAL_FERTILITY_LEVEL – manželská plodnost 20–44 let ≈ 7,5 dítěte jako ve
+// středoevropských vsích před plánováním rodiny (Henryho průměr ≈ 8,9). Porody na vdanou ženu za
+// rok od věku `fromAge` do dalšího pásma, od AGE.elder žádné.
+export const NATURAL_MARITAL_FERTILITY = [
+  { fromAge: 16, perYear: 0.41 },
+  { fromAge: 20, perYear: 0.46 },
+  { fromAge: 25, perYear: 0.431 },
+  { fromAge: 30, perYear: 0.395 },
+  { fromAge: 35, perYear: 0.322 },
+  { fromAge: 40, perYear: 0.167 },
+] as const;
+export const MARITAL_FERTILITY_LEVEL = 0.85;
+// Rozestup porodů: po porodu nejdřív za 21 měsíců (9 měsíců těhotenství + rok neplodnosti při
+// kojení – kojilo se 2–3 roky), po svatbě za 9 měsíců (těhotenství); mezitím žena nerodí, potom
+// rodí s denní šancí, při které průměrný odstup porodů vyjde 1 / plodnost věku (při 20–24 letech
+// ≈ 31 měsíců – Macfarlane 2002: 24–39 měsíců).
+export const BIRTH_SPACING = { afterBirthDays: 639, afterWeddingDays: 274 } as const;
 export const CHILD_DEATH_BEFORE_ADULT = 0.4; // → ročně 1 − 0,6^(1/14)
 export const ADULT_DEATHS_PER_YEAR = 0.02; // oprava podle rešerše (bylo 0,015; Lahovice)
 export const ELDER_DEATHS_PER_YEAR = 0.08;
@@ -112,15 +131,23 @@ export const STARVATION = {
 // kinship.md – Pohlaví (návrh Clauda): chlapců se rodí 105 na 100 dívek; rodit může žena 16–44
 // s manželem, muž je plodný od 16 let bez horní meze (AGE.fertile, AGE.elder)
 export const BOY_SHARE = 105 / 205;
-// kinship.md – Sňatky (návrh Clauda): věkový rozdíl snoubenců nejvýš 15 let; z okolí si svobodný
-// muž od 18 let bez možné nevěsty ve vsi přivede ženu 16–22 let s pravděpodobností 30 % ročně,
-// svobodná žena od 18 let bez možného ženicha se s 30 % ročně vdá pryč (Martin – varianta c,
-// čísla návrh Clauda); vdova s dětmi do 14 let (AGE.adult) zůstává v domě manžela a nevdává se
+// kinship.md – Sňatky (návrh Clauda): věkový rozdíl snoubenců nejvýš 15 let, když je jeden z nich
+// vdovec nebo vdova (už má děti), nejvýš 20 let (Martin, 19. 10. 2026: „Vdova by se měla snažit co
+// nejdříve vdát, ideálně ve vesnici.“ – vdovec si bral mladší ženu, mladý muž se přiženil
+// k vdově). Z okolí (Martin – varianta c, čísla návrh Clauda): svobodný muž od 18 let bez možné
+// nevěsty ve vsi si přivede ženu (16–22 let, starší muž nejvýš o povolený rozdíl mladší, ale do
+// 44 let) s pravděpodobností 30 % ročně. Ke svobodné ženě od 18 let bez možného ženicha ve vsi se
+// přižení muž z okolí (o 2 roky mladší až o 8 let starší, od 18 let) s 10 % ročně, nebo se s 20 %
+// ročně vdá pryč; k vdově, dědičce, která drží dům, nebo k ženě z domu bez mužů se přižení
+// s 50 % ročně a pryč se nevdává (Martin, 19. 10. 2026: „aby se populace co nejvíce rozrůstala“ –
+// dřív 30 % ročně jen pryč).
 export const MARRIAGE = {
   maxAgeGapYears: 15,
-  outsidePerYear: 0.3,
+  maxAgeGapWidowedYears: 20,
   outsideFromAge: 18,
   brideAge: { from: 16, to: 22 },
+  groomAge: { below: 2, above: 8 },
+  outside: { bridePerYear: 0.3, groomPerYear: 0.1, awayPerYear: 0.2, favouredGroomPerYear: 0.5 },
 } as const;
 // kinship.md – Sňatky z okolí (návrh Clauda, kvůli válce – war.md): nevěsta z okolí si pamatuje,
 // ze které sousední vsi přišla, a dcera, kam se vdala – směr je los z osmi sousedů
@@ -337,6 +364,14 @@ export const ROAD_LAND = {
   stripMinM: 3,
   cells: 30,
 } as const;
+/**
+ * roads.md – Průsek lesem a trade.md – Zemská stezka (Martin, 19. 10. 2026: „Tam, kde zemská
+ * stezka prochází lesem, ať se les vykácí.“; čísla návrh Clauda): kde upravená cesta nebo stezka
+ * vede lesem (i lemem do 6 m před ním), vykácí se pruh `halfM` od osy na každou stranu – pás
+ * upravené cesty 3 m a 2 m z každé strany, ať se vůz i lidé vejdou a nejdou pod větvemi. V pásu
+ * cesty (`roadbedM` od osy) se vyklučí i pařezy a vyberou kameny, po stranách zůstanou pařezy.
+ */
+export const ROAD_SWATH = { halfM: 3.5, roadbedM: 1.5 } as const;
 // roads.md – Vysazení jabloní (Martin; čísla návrh Clauda): podél úseku po obou stranách po 10 m
 // střídavě (2,6–3,4 m od osy), jabloně nejméně 8 m od sebe a 6 m od stromu u cesty; jako sad na
 // strom – ≈ 180 stromů na hektar (výsadba 80 čd/ha ≈ 0,45 čd na strom, péče a sklizeň jako v sadu,
@@ -363,8 +398,25 @@ export const ROAD_WALK = {
 export const FIELD_LIMITS = { maxDistanceM: 800, minAreaM2: 1000 } as const;
 // fields.md – Práce (denní minimum domácností – meze: s hrnčířem 0,45); population.md – Práce
 export const DAILY_MIN_PER_HOUSEHOLD: Bounds = { worst: 0.5, best: 0.45 };
-// fields.md – Práce (domácí výroba, přenos nedodělané práce nejvýš 60 dní)
+// fields.md – Práce (domácí výroba, přenos nedodělané práce nejvýš 60 dní); oděv z vlny a lnu
+// – praní, česání, předení, tkaní a šití – je její součástí (diet.md – Oděv: vlna ≈ 21 čd na
+// dospělého a rok z 55 čd `perPerson`), stříž ovcí taky
 export const DOMESTIC = { perHousehold: 0.3, perPerson: 0.15, backlogMaxDays: 60 } as const;
+/**
+ * diet.md – Oděv, Vlna (Martin 19. 10. 2026: „Ovce jsou hlavně kvůli vlně, aby se lidé mohli vůbec
+ * oblékat.“; čísla návrh Clauda podle rešerše research/2026-10-19-herds-hay-meat.md – Vlna):
+ * surové (nepráné) vlny na oděv za rok – dospělý a starší 1,6 kg, dítě 0,8 kg (kabátec, kalhoty
+ * nebo sukně, plášť, onuce, kápě a díl přikrývek s dobou nošení; spodní oděv je ze lnu); chovná
+ * ovce dá za rok 0,8 kg (malé ovce raného středověku, stříž nebo vyčesání v květnu); bez vlny
+ * ubere štěstí až 6 (jako ovoce přidá); kronika a upozornění až pod 95 % oděvu (ovce průběžně
+ * hynou – stádo právě na hranici by hlásilo drobnosti).
+ */
+export const WOOL = {
+  kgPerYear: { child: 0.8, adult: 1.6, elder: 1.6 },
+  kgPerSheep: 0.8,
+  unhappiness: 6,
+  noticeBelow: 0.95,
+} as const;
 // population.md – Nové obydlí (společná práce za posledních 30 dní pro „má na to“)
 export const COMMON_LABOR_HISTORY_DAYS = 30;
 // population.md – Chátrání a přestavba (oprava podle hlášení Martina 18. 10. 2026): přestavba na
@@ -596,6 +648,15 @@ export function childDeathsPerYear(): number {
   return 1 - (1 - CHILD_DEATH_BEFORE_ADULT) ** (1 / AGE.adult);
 }
 
+// population.md – Růst populace (porodnost podle věku ženy, NATURAL_MARITAL_FERTILITY)
+/** Porody na vdanou ženu věku `age` za rok (0 mimo 16–44 let). */
+export function maritalFertility(age: number): number {
+  if (age < AGE.fertile || age >= AGE.elder) return 0;
+  let perYear = 0;
+  for (const band of NATURAL_MARITAL_FERTILITY) if (age >= band.fromAge) perYear = band.perYear;
+  return perYear * MARITAL_FERTILITY_LEVEL;
+}
+
 // population.md – Umístění obydlí (půdorys zemnice ≈ 4 × 4 m, polozemnice 5 × 5 m, rovina ≤ 0,5 m)
 export const DWELLING_FOOTPRINT_M: Record<DwellingType, { width: number; depth: number }> = {
   zemnice: { width: 4, depth: 4 },
@@ -617,6 +678,12 @@ export const DWELLING_CLEARING_M: Record<
   polozemnice: { minX: -5.1, maxX: 5.1, minZ: -4.7, maxZ: 7.5 },
   dvorec: { minX: -5.4, maxX: 5.4, minZ: -6.4, maxZ: 9.5 },
 };
+// population.md – Umístění obydlí, Stavba v lese (Martin, 19. 10. 2026: „obydlí může jít postavit
+// i v lese – les se prostě vyklučí“; šířka návrh Clauda): v lese osadníci kolem volně stojící
+// stavby (obydlí, dílna, modla, svatyně) vyklučí i pruh, nad který by sahaly koruny okolních
+// stromů – koruna ≈ 50 m² jako u posvátného dubu (SACRED_OAK.crownM2), poloměr ≈ 4 m. Dům pod
+// korunami by stál ve stínu a vlhku a hráč by ho ve scéně neviděl.
+export const FOREST_CROWN_MARGIN_M = 4;
 // population.md – Umístění obydlí (Martin, 18. 10. 2026): polozemnice stojí na pozemku velkém
 // jako jedno políčko pole (15 × 15 m, v mřížce políček), obehnaném polským plotem; dům uprostřed
 // nebo v jednom ze čtyř rohů (5 variant), vchodem vždy k brance na přední straně (−z světa,
@@ -995,6 +1062,40 @@ export const CARPENTER_TOOLS_WORK: Bounds = { worst: 1.5, best: 1 };
 // pokrytí – meze 1 → 0,95 (mírně, o jednotky procent – Martin).
 export const WOOD_TOOLS = { kgPerWorker: 4, wearPerYear: 0.3, reserveYears: 1 } as const;
 export const WOOD_TOOLS_LABOR: Bounds = { worst: 1, best: 0.95 };
+// crafts.md – Nákup u sousedů (Martin 19. 10. 2026: „Nástroje ať vesničané obchodují individuálně…
+// Sami si spočítají, jestli se jim to vyplatí. Až bude kovář u nás, budou pravděpodobněji nakupovat
+// u něj, protože si ušetří cestu. S ostatními řemesly to bude stejné.“; čísla návrh Clauda podle
+// rešerše research/2026-10-19-craft-buying.md):
+// - `day` – ves se rozhoduje jednou za rok po sklizni, kdy je volno a přebytek (15. 11. – po ozimu,
+//   sklizni jablek a porážce),
+// - `crafts` – řemeslníci souseda podle toho, čím se živí (trade.md – Sousedé): řemeslníci mají
+//   kováře, hrnčíře i tesaře jistě, ostatní někdy (pravděpodobnost, ze seedu vsi a směru),
+// - `woodToolsValueKg` – hodnota kg dřevěného nářadí v kg obilí (≈ 0,5 čd na kg – rešerše vozů;
+//   nástroje 60 a keramika 3 – TRADE_GOOD_VALUES),
+// - cesta po hotové zemské stezce `trailTripDays`, bez stezky lidé jdou krajinou ke kraji mapy –
+//   delší cesta (× `offTrailFactor`) a den navíc (`offTrailExtraDays`),
+// - jde malá skupina – nejvýš `groupShare` dospělých vsi (aspoň 1, nejvýš `maxGroup`); kdo nese
+//   víc, jde vícekrát (dny × kola), ale nejvýš `maxDays` dní (přes zimu) – víc ves koupí příští
+//   rok; nosič unese TRADE.porterKg,
+// - výrobek slouží 1 ÷ opotřebení let – ves porovná práci ušetřenou za ty roky s prací za platbu
+//   (obilí a luštěniny – cena jídla v práci, economy.ts) a cestu (lidé × dny tam a zpět),
+// - `minKg` – menší nákup nemá smysl.
+export const CRAFT_BUYING = {
+  day: { month: 11, day: 15 },
+  crafts: {
+    crafters: { smith: 1, potter: 1, carpenter: 1 },
+    farmers: { smith: 0.5, potter: 0.4, carpenter: 0.3 },
+    herders: { smith: 0.3, potter: 0.4, carpenter: 0.2 },
+    woodsmen: { smith: 0.4, potter: 0.2, carpenter: 0.6 },
+  },
+  woodToolsValueKg: 2,
+  offTrailFactor: 1.5,
+  offTrailExtraDays: 1,
+  groupShare: 0.5,
+  maxGroup: 8,
+  maxDays: 60,
+  minKg: 0.5,
+} as const;
 // wagons.md – Vůz (Martin 19. 10. 2026: vozy vozí seno, snopy, klády a zboží výprav místo nosičů;
 // jeden vůz na spřežení – návrh Clauda; čísla návrh Clauda podle rešerše): dvoukolák 400 kg,
 // čtyřkolák 800 kg (jen po stezce – obchod), vůz slouží 10 let. Vůz za den odveze tolik jako
@@ -1112,7 +1213,8 @@ export const TRADE_GOOD_VALUES = {
 // (0–2 rodiny a 0–3 svobodné dospělé, aspoň jednoho člověka), s 30 % lidi shání (vezme 0–2 rodiny
 // a 0–3 dospělé, aspoň jednoho), jinak lidi nemění. Rodina souseda: muž 24–38 let, žena o 0–6 let
 // mladší (nejméně 18 + 3 roky na dítě), 0–3 děti – nejmladší 0–2 roky, mezi dětmi 2–3 roky;
-// svobodný dospělý muž nebo žena 16–26 let.
+// svobodný dospělý muž nebo žena 16–26 let. Muži a ženy zvlášť (Martin 19. 10. 2026): pohlaví
+// každého svobodného dospělého souseda se losuje 1 : 1 už v nabídce a poptávce.
 export const PEOPLE_TRADE = {
   adultValueKg: 360,
   childShare: 0.5,
