@@ -271,7 +271,7 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   navíc), stínová mapa se jednou překreslí a minimapa kreslí vykácený les jako paseku. Vše jen
   při změně (`applyVillage`).
 - **Světlo:** letní slunce a obloha podle 0 A.D., kontrast 1,1. **Stíny od slunce**
-  (`sun-shadows.ts`) – stínová mapa 4096 přes celou krajinu se vykreslí jednou; vrhají je meshe
+  (`sun-shadows.ts`) – stínová mapa 4096 přes celou krajinu se vykreslí jednou (s denní dobou po krocích – Den a noc); vrhají je meshe
   pojmenované `trees-*`, `impostors-*` a `decor-*` (při přejmenování zachovat prefix). Znovu se
   kreslí **jen při změně vrhačů** (`castersChanged`: stavby a pole vsi, skryté stromy, pařezy,
   klády, stromy u cest přes `refreshShadows`) – ne kvůli zvířatům, lidem, ztmavení trávy, ploše
@@ -306,6 +306,19 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   (`isDeciduousMesh`) ze stínové mapy vypadnou a impostory dostanou do `diffuseTexture` zimní
   atlas (stín kmenů a větví), mapa se překreslí jednou. Vývojový náhled má posuvník dne v roce
   a „přehrát rok“ (`setSeasonDay`).
+- **Den a noc** (landscape.md – Den a noc; Martin 19. 10. 2026, **zatím jen `/dev/landscape`**,
+  hra `/game` beze změny – do hry po Martinově schválení): `day-light.ts` (čisté funkce, testy) –
+  z dne v roce a hodiny (`dayLight(season, day, hour)`) směr slunce (50° s. š., v poledne
+  referenčního dne přesně `SUN_DIRECTION`, dráha otočená a výška měkce převedená), v noci měsíc
+  (úplněk naproti slunci), fáze podle skutečné výšky slunce (zlatá hodinka, západ, soumrak, modrá
+  hodinka, noc) jako násobky světla období, okolní světlo, tón materiálů bez světla (impostory –
+  `ImpostorForest.setTone`, dým – `VillageRenderer.setLightTone`), odraz oblohy na vodě, síla
+  stínů a filtr obrazu (`Grade` → `ColorCurves`, zapne se s prvními hodinami dne – přeloží
+  shadery). `hour` null = bez denní doby (pevné světlo jako dřív). Scéna: `setDayClock(clock)`
+  (hodiny dne – epoch ms → hodina; fáze 2 `dayHourAt`), `applyLight` v `animate()` po
+  `DAY_LIGHT_MS` (při omezeném pohybu jednou za sekundu), stínová mapa `SunShadows.aim` – obnoví se
+  po `SHADOW_STEP_DEG` (1,5°), mezi obnovami stíny čtou matici vykreslené mapy. Náhled: posuvník
+  **Hodina**, **▶ Přehrát den** (≈ 86 s), **Bez denní doby** (`DayTimeControls`).
 - **Ukazatel načítání:** `setLandscape(landscape, onProgress)` hlásí kroky přípravy a mezi
   náročnými kroky pustí prohlížeč překreslit; `GameView` ukazuje `SceneLoading`.
 - **Zvuky** (podle 0 A.D.): `ambient-mix.ts` (čisté funkce, testy) spočítá z cíle a přiblížení

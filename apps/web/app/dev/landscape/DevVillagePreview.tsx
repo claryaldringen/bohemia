@@ -91,6 +91,7 @@ import { FOREST_TRAIL_STAGES, forestTrailDemo, type ForestTrailDemo } from './de
 import { demoCartSlope, type CartDemo } from './dev-cart';
 import { demoCaravan, type CaravanDemo } from './dev-caravan';
 import { devSelectionView } from './dev-selection';
+import { DayTimeControls } from './DayTimeControls';
 import type { CartKind } from '@bohemia/game';
 import {
   placementVillageFromScene,
@@ -1860,6 +1861,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         >
           Období podle data
         </button>
+        <DayTimeControls scene={scene} seasonDay={seasonDay} buttonClass={buttonClass} />
         <button
           className={buttonClass}
           onClick={() => {

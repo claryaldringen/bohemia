@@ -107,6 +107,7 @@ import { StakingPegs, createStringMaterial, createStringMesh, pegInstances } fro
 import { closedLine } from './staking-layout';
 import { applySeasonGround, applySeasonModel, applySeasonSnow } from './season-materials';
 import { WildGrowthRenderer } from './wild-growth-renderer';
+import type { Rgb } from './season-look';
 import { VillageSmoke, type SmokeSource } from './village-smoke';
 import type { SceneDwelling, SceneRuin } from './village-types';
 import {
@@ -553,6 +554,11 @@ export class VillageRenderer {
   /** Vývojová volba: dým ze všech hotových obydlí pořád. */
   setSmokeAlways(enabled: boolean): void {
     this.smoke.setAlways(enabled);
+  }
+
+  /** Den a noc: tón materiálů bez světla (dým) – day-light.ts. */
+  setLightTone(tone: Rgb): void {
+    this.smoke.setTone(tone);
   }
 
   /**

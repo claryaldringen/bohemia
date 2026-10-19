@@ -2,12 +2,19 @@ import '@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent';
 import type { DirectionalLight } from '@babylonjs/core/Lights/directionalLight';
 import { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGenerator';
 import { RenderTargetTexture } from '@babylonjs/core/Materials/Textures/renderTargetTexture';
+import { Matrix } from '@babylonjs/core/Maths/math.vector';
 import type { Mesh } from '@babylonjs/core/Meshes/mesh';
+import { raysAngleDeg, type Rays } from './day-light';
 
 /** Rozlišení stínové mapy – na krajinu 1,9 km vychází ≈ 0,7 m na texel. */
 const SHADOW_MAP_SIZE = 4096;
 /** Jak tmavé jsou stíny (0 = černé) – okolní světlo z oblohy je prosvětlí. */
 export const SHADOW_DARKNESS = 0.35;
+/**
+ * Den a noc: stínová mapa se s pohybem slunce obnoví, až se směr světla od posledního vykreslení
+ * mapy pootočí o tolik stupňů (stíny poskočí o ≈ 1 m u 25m stromu); osvětlení se mění plynule.
+ */
+export const SHADOW_STEP_DEG = 1.5;
 
 /**
  * Stíny od slunce jako v 0 A.D.: stromy, keře a skály vrhají stín na terén. Krajina i slunce
@@ -42,19 +49,46 @@ export function addSunShadows(
 
   const map = generator.getShadowMap();
   if (map) map.refreshRate = RenderTargetTexture.REFRESHRATE_RENDER_ONCE;
+  // Den a noc: směr světla se mění plynule (osvětlení), stínová mapa jen po krocích. Mezi
+  // vykresleními mapy čtou stíny matici, se kterou se mapa kreslila – jinak by stíny ujížděly
+  // od svých stromů. Při obnově mapy platí zase živá matice (podle současného směru).
+  const liveMatrix = generator.getTransformMatrix.bind(generator);
+  const heldMatrix = Matrix.Identity();
+  let holding = false;
+  generator.getTransformMatrix = (): Matrix => (holding ? heldMatrix : liveMatrix());
+  /** Směr světla, se kterým se mapa naposledy kreslila (nebo kreslit bude). */
+  let mapDirection: Rays = { x: sun.direction.x, y: sun.direction.y, z: sun.direction.z };
+  let stale = false;
+  map?.onAfterRenderObservable.add(() => {
+    heldMatrix.copyFrom(liveMatrix());
+    holding = true;
+  });
+  const refresh = (): void => {
+    holding = false;
+    stale = false;
+    mapDirection = { x: sun.direction.x, y: sun.direction.y, z: sun.direction.z };
+    map?.resetRefreshCounter();
+  };
   return {
-    refresh: () => map?.resetRefreshCounter(),
+    refresh,
+    aim: (direction, visible) => {
+      sun.direction.set(direction.x, direction.y, direction.z);
+      sun.direction.scaleToRef(-options.extentM, sun.position);
+      const due = shadowRefreshDue(mapDirection, direction, visible, stale);
+      if (due === 'refresh') refresh();
+      else if (due === 'stale') stale = true;
+    },
     setDarkness: (darkness) => generator.setDarkness(darkness),
     setCastersEnabled: (meshes, enabled) => {
       for (const mesh of meshes) {
         if (enabled) generator.addShadowCaster(mesh, false);
         else generator.removeShadowCaster(mesh, false);
       }
-      map?.resetRefreshCounter();
+      refresh();
     },
     addCaster: (mesh) => {
       generator.addShadowCaster(mesh, false);
-      map?.resetRefreshCounter();
+      refresh();
     },
     dispose: () => generator.dispose(),
   };
@@ -88,9 +122,31 @@ export function castersChanged(changes: VillageSceneChanges): boolean {
   return changes.village || changes.hidden || changes.felled || changes.logs;
 }
 
+/**
+ * Obnovit stínovou mapu po pootočení světla (den a noc)? `refresh` – směr se od mapy pootočil
+ * aspoň o SHADOW_STEP_DEG a stíny jsou vidět (nebo mapa zastarala, dokud vidět nebyly); `stale` –
+ * pootočil se, ale stíny teď vidět nejsou (soumrak, nízké slunce) – obnoví se, až budou;
+ * `keep` – mapa platí.
+ */
+export function shadowRefreshDue(
+  mapDirection: Rays,
+  direction: Rays,
+  visible: boolean,
+  stale: boolean,
+): 'refresh' | 'stale' | 'keep' {
+  const turned = stale || raysAngleDeg(mapDirection, direction) >= SHADOW_STEP_DEG;
+  if (!turned) return 'keep';
+  return visible ? 'refresh' : 'stale';
+}
+
 export interface SunShadows {
   /** Vykreslí stínovou mapu znovu (po změně vrhačů – stavby, skryté stromy). */
   refresh(): void;
+  /**
+   * Natočí světlo (den a noc). Stínová mapa se obnoví, až se směr pootočí o SHADOW_STEP_DEG
+   * a stíny jsou vidět (`visible`).
+   */
+  aim(direction: Rays, visible: boolean): void;
   /** Jak tmavé jsou stíny (0 = černé) – jen uniforma, mapa se nepřekresluje. */
   setDarkness(darkness: number): void;
   /** Vyřadí vrhače ze stínové mapy, nebo je vrátí (holé listnáče v zimě), a mapu obnoví. */

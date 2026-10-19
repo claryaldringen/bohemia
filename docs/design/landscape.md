@@ -212,6 +212,68 @@ na který se později přidávají další prvky (černozem, naleziště kovů, 
   stránky. Generování ze seedu musí být rychlé (cíl desítky ms); případně si server hotovou
   krajinu drží v paměti.
 
+## Den a noc
+
+Martin (19. 10. 2026): „A pokud tedy den trvá 86 sekund, zkusil bys tam přidat i pohyb slunce po
+obloze a tím pádem i noc?“ – a k návrhu níž: „Ok, uděláme to, jak říkáš.“
+
+Herní den trvá ve skutečném čase ≈ 86 s, hodina dne je část dne, která od jeho začátku uplynula
+(`realTimeOf` – `dayHourAt` v `apps/web/lib/scene/day-light.ts`). Jen vzhled, žádná pravidla.
+
+**Návrh (schválený; podrobnosti návrh Clauda):**
+
+1. **Délka dne podle ročního období** jako v Čechách (50° s. š.): v létě světlo ≈ 16 h, v zimě
+   ≈ 8 h. Slunce jde po obloze podle dne v roce a hodiny (deklinace a hodinový úhel – jednoduchý
+   astronomický výpočet, pravý sluneční čas). Ve scéně je dráha stylizovaná: slunce v poledne
+   referenčního dne svítí přesně jako dřív (`SUN_DIRECTION`, výška ≈ 34,5°), skutečná výška se
+   na výšku ve scéně převádí měkce (na obzoru 8°, výš se sbíhá k 34,5° – krajina je laděná na
+   nízké slunce) a dráha je otočená kolem svislé osy tak, aby poledne svítilo ze směru
+   `SUN_DIRECTION`. V zimě je polední slunce níž (stíny delší).
+2. **Svítání a soumrak** trvají pár sekund skutečného času (od výšky slunce 10° po plnou noc
+   −12° v létě ≈ 10 s): zlatá hodinka (teplé slunce, opar do zlatova), západ (oranžové slunce,
+   růžová obloha), soumrak (fialová obloha), modrá hodinka, noc. Fáze se míchají podle skutečné
+   výšky slunce; ráno je navíc hustší opar.
+3. **Noc měsíčně modrá a čitelná**, ne černá – hráč v noci dál hraje (noc je každou minutu a
+   půl). Hlavní světlo je v noci měsíc (vždy úplněk naproti slunci – v zimě vysoko, v létě
+   nízko) se slabším stínem, obloha rozptýlí modré světlo a obraz dostane filtr jako ve filmu
+   („day for night“ – `ColorCurves` zpracování obrazu: zmodrá a ztratí sytost; samotné modré
+   světlo zelenou trávu jen ztmaví). Slunce se na měsíc přepne těsně pod obzorem, když hlavní
+   světlo nesvítí – bez skoku.
+4. **Materiály bez světla** (impostory se světlem zapečeným v atlasu, dým) se v soumraku a v noci
+   jen přibarví a ztmaví tónem (podíl osvětlení roviny teď a v poledne) – atlas se
+   nepřekresluje. Voda odráží barvu oblohy fáze, třpytí se v barvě slunce nebo měsíce; opar
+   a pozadí (obloha) jdou s fází.
+5. **Roční období se s denní dobou skládají:** přes den platí světlo ročního období beze změny
+   (`season-look.ts`), denní doba ho jen přebarví a ztlumí; sníh, led a listí se nemění.
+
+**Fáze 1 (hotovo 19. 10. 2026):** jen vývojový náhled `/dev/landscape` – posuvník „Hodina“
+(0–24 h, s výškou slunce), „▶ Přehrát den“ (den za ≈ 86 s, i spolu s „přehrát rok“) a „Bez
+denní doby“. Hra `/game` zůstává beze změny – pevné odpolední slunce a světlo ročního období.
+**Do hry až po Martinově schválení vzhledu.**
+
+**Fáze 2 (až po schválení):** hra dostane hodiny dne ze světa (`setDayClock` s `dayHourAt`;
+filtr obrazu zapnout hned při vytvoření scény, ať se shadery nepřekládají za hry); v noci lidé
+jdou domů (postavy z polí k domům), z dýmníků dým, z domů prosvítá oheň, zvířata u domů a
+v ohradách – `DayLight.night` (0–1) je k tomu připravené. Zvuky noci (cvrkot, sova, ticho ptáků)
+později.
+
+**Výkon:**
+
+- Světlo se při pohybu přepočítá 10× za sekundu (`DAY_LIGHT_MS`, slunce se mezi tím pootočí
+  o méně než půl stupně) a scéna se překreslí jen při znatelné změně – v taktu animací, na
+  pozadí a v nečinnosti méně, ve skryté záložce vůbec; při omezeném pohybu po krocích jednou za
+  sekundu. Výpočet světla ≈ 0,1 ms.
+- **Stínová mapa** (4096², celá krajina, ≈ 7,7 M trojúhelníků vrhačů) se obnoví, až se směr
+  světla od posledního vykreslení mapy pootočí o 1,5° (`SHADOW_STEP_DEG` – stín 25m stromu
+  poskočí o ≈ 1 m); při přehrávání dne ≈ 2× za sekundu. Osvětlení se mění plynule, stíny mezi
+  obnovami čtou matici, se kterou se mapa kreslila (nesjedou od stromů). Když stíny nejsou vidět
+  (soumrak, slunce těsně nad obzorem), mapa se neobnovuje a obnoví se, až budou. Jedno vykreslení
+  mapy stojí na Apple M1 Pro ≈ 6–9 ms (WebGL 2 přes Metal, s čekáním na GPU), CPU záznamu ≈ 1 ms;
+  běžný snímek ≈ 3–4 ms. Mapa jen „kolem kamery“ by levnější nebyla: Babylon vrhače do stínové
+  mapy neořezává, vrcholů by bylo stejně (výřez kolem kamery by potřeboval vlastní ořez instancí
+  po čtvercích jako `scenery-culling.ts` – námět, kdyby obnova na slabších GPU drhla).
+- Vývojový ukazatel výkonu ukazuje obnovy stínové mapy za sekundu a CPU jednoho vykreslení.
+
 ## Testy
 
 - **Doména:** stejný seed → shodná krajina, jiný seed → jiná; na stovkách seedů splněny dolní
@@ -225,26 +287,28 @@ na který se později přidávají další prvky (černozem, naleziště kovů, 
 
 ## Rozhodnutí
 
-| Rozhodnutí                                                                 | Kdo                                          |
-| -------------------------------------------------------------------------- | -------------------------------------------- |
-| Každé sídlo má vlastní krajinu jako samostatný ostrov                      | Martin                                       |
-| Krajina ve 3D, vzhled jako AoE2: mírně zvlněná, louky, hodně lesa, potok   | Martin                                       |
-| Objekty jako 3D modely – stažené nebo vytvořené přes Blender MCP           | Martin                                       |
-| Startovní krajiny srovnatelně dobré, rozdíly později přes bonusové prvky   | Martin                                       |
-| Krajina vzniká se sídlem, kamera šikmo shora s posunem a přiblížením       | návrh Clauda, Martin potvrdil                |
-| Orná půda jako úrodnost terénu, pole až s vesnicí                          | návrh Clauda                                 |
-| Mřížka 128 × 128 po 15 m, ukládá se jen seed a verze vrstev                | návrh Clauda                                 |
-| Generuje server, klient dostane hotová data                                | návrh Clauda                                 |
-| Srovnatelnost jako pásmo (dolní i horní meze), místo pro vesnici je louka  | návrh Clauda (z „srovnatelně“)               |
-| Generování po vrstvách s vlastními verzemi                                 | návrh Clauda                                 |
-| Babylon.js (WebGPU se záložním WebGL 2)                                    | Martin                                       |
-| Scéna jako samostatná třída bez Reactu, rozhraní nad ní v Reactu (HTML)    | návrh Clauda                                 |
-| Grafika terénu a stromů z 0 A.D. (CC BY-SA 3.0)                            | Martin                                       |
-| Ovládání kamery (myš + WASD/Q/E), info o políčku pod kurzorem              | návrh Clauda                                 |
-| Zvlněnější terén, meandrující potok s proměnnou šířkou, tůněmi a mělčinami | návrh Clauda na Martinův požadavek z 16. 10. |
-| Výchozí a nejbližší přiblížení kamery jako v 0 A.D. (120 m, 50 m, 45°)     | Martin (17. 10.)                             |
-| Do 600 m od vsi ≈ 60 ha louky (≈ 30 ha úrodné), lužní louky v nivě potoka  | Martin – víc kvalitní louky, 18. 10. 2026    |
-| Jako nové verze vegetace a úrodnosti – stávající sídla si krajinu nechají  | návrh Clauda (podle pravidla o verzích)      |
+| Rozhodnutí                                                                   | Kdo                                             |
+| ---------------------------------------------------------------------------- | ----------------------------------------------- |
+| Každé sídlo má vlastní krajinu jako samostatný ostrov                        | Martin                                          |
+| Krajina ve 3D, vzhled jako AoE2: mírně zvlněná, louky, hodně lesa, potok     | Martin                                          |
+| Objekty jako 3D modely – stažené nebo vytvořené přes Blender MCP             | Martin                                          |
+| Startovní krajiny srovnatelně dobré, rozdíly později přes bonusové prvky     | Martin                                          |
+| Krajina vzniká se sídlem, kamera šikmo shora s posunem a přiblížením         | návrh Clauda, Martin potvrdil                   |
+| Orná půda jako úrodnost terénu, pole až s vesnicí                            | návrh Clauda                                    |
+| Mřížka 128 × 128 po 15 m, ukládá se jen seed a verze vrstev                  | návrh Clauda                                    |
+| Generuje server, klient dostane hotová data                                  | návrh Clauda                                    |
+| Srovnatelnost jako pásmo (dolní i horní meze), místo pro vesnici je louka    | návrh Clauda (z „srovnatelně“)                  |
+| Generování po vrstvách s vlastními verzemi                                   | návrh Clauda                                    |
+| Babylon.js (WebGPU se záložním WebGL 2)                                      | Martin                                          |
+| Scéna jako samostatná třída bez Reactu, rozhraní nad ní v Reactu (HTML)      | návrh Clauda                                    |
+| Grafika terénu a stromů z 0 A.D. (CC BY-SA 3.0)                              | Martin                                          |
+| Ovládání kamery (myš + WASD/Q/E), info o políčku pod kurzorem                | návrh Clauda                                    |
+| Zvlněnější terén, meandrující potok s proměnnou šířkou, tůněmi a mělčinami   | návrh Clauda na Martinův požadavek z 16. 10.    |
+| Výchozí a nejbližší přiblížení kamery jako v 0 A.D. (120 m, 50 m, 45°)       | Martin (17. 10.)                                |
+| Do 600 m od vsi ≈ 60 ha louky (≈ 30 ha úrodné), lužní louky v nivě potoka    | Martin – víc kvalitní louky, 18. 10. 2026       |
+| Jako nové verze vegetace a úrodnosti – stávající sídla si krajinu nechají    | návrh Clauda (podle pravidla o verzích)         |
+| Den a noc: pohyb slunce podle dne v roce a hodiny, měsíčně modrá čitelná noc | Martin (19. 10. 2026), podrobnosti návrh Clauda |
+| Den a noc nejdřív jen na vývojovém náhledu, do hry po schválení vzhledu      | Martin (19. 10. 2026)                           |
 
 ## Stav implementace (v1)
 
