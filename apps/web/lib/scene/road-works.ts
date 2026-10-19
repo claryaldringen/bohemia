@@ -7,11 +7,10 @@ import type { SceneRoad, SceneRoadApple } from '../village-view';
 import { applyGammaFog } from './gamma-fog';
 import { instanceMatrices, loadMergedModel, type ModelInstance } from './instanced-model';
 import {
-  DITCH_LAYER,
-  EARTH_LAYER,
   IMPROVED_EARTH_LAYER,
   IMPROVED_WORN_LAYER,
-  WORN_LAYER,
+  ROAD_EARTH_LAYER,
+  ROAD_WORN_LAYER,
   pathRibbons,
   type RibbonJunction,
   type RibbonLayer,
@@ -20,30 +19,28 @@ import {
   appleStaking,
   appleStakingKey,
   bridgePieces,
-  ditchLines,
   logPieces,
   roadBands,
   roadJunctions,
   roadWorksKey,
   stakingLines,
-  stonePieces,
   type RoadPiece,
 } from './road-works-layout';
 import { applySeasonSnow } from './season-materials';
 import { StakingPegs, createStringMaterial, createStringMesh, pegInstances } from './staking';
 import { createDecalMesh, type HeightFn } from './village-meshes';
 
-// Díly vylepšených pevných cest ve scéně (docs/design/roads.md): kameny upravené cesty, kmeny
-// hatě, lávky přes brody (modely z tools/blender/roads.py v instancích), vytyčení rozestavěného
-// vylepšení a výsadby jabloní. Kde co leží, počítá road-works-layout.ts z dat vsi; přestaví se
-// jen při změně dat.
+// Díly vylepšených pevných cest ve scéně (docs/design/roads.md): kmeny hatě, lávky přes brody
+// (modely z tools/blender/roads.py v instancích), vytyčení rozestavěného vylepšení a výsadby
+// jabloní. Upravená cesta žádné díly nemá – je jen širší pás (obtisky `roadRibbonMeshes`; Martin,
+// 19. 10. 2026 – strouha a kameny zrušené). Kde co leží, počítá road-works-layout.ts z dat vsi;
+// přestaví se jen při změně dat.
 
-type RoadModel = 'road-log' | 'road-stone' | 'road-bridge' | 'road-bridge-posts';
-const MODELS: readonly RoadModel[] = ['road-log', 'road-stone', 'road-bridge', 'road-bridge-posts'];
-/** Kmeny a kameny kousek zapuštěné do bláta (m). */
+type RoadModel = 'road-log' | 'road-bridge' | 'road-bridge-posts';
+const MODELS: readonly RoadModel[] = ['road-log', 'road-bridge', 'road-bridge-posts'];
+/** Kmeny kousek zapuštěné do bláta, lávka do břehů (m). */
 const SINK_M = {
   'road-log': 0.06,
-  'road-stone': 0.05,
   'road-bridge': 0.05,
   'road-bridge-posts': 0.05,
 };
@@ -94,7 +91,6 @@ export class RoadWorks {
     const bridgeY = (b: (typeof bridges)[number]): number =>
       Math.max(h(b.ends[0][0], b.ends[0][1]), h(b.ends[1][0], b.ends[1][1]));
     this.instances = new Map<RoadModel, ModelInstance[]>([
-      ['road-stone', stonePieces(roads).map((p) => at('road-stone', p))],
       ['road-log', logPieces(roads).map((p) => at('road-log', p))],
       [
         'road-bridge',
@@ -188,7 +184,7 @@ export class RoadWorks {
         if (!mesh) return null;
         mesh.isPickable = false;
         mesh.setEnabled(false);
-        if (model !== 'road-stone') this.env.addShadowCaster(mesh);
+        this.env.addShadowCaster(mesh);
         return mesh;
       },
       (error: unknown) => {
@@ -211,8 +207,8 @@ export interface RoadRibbonOptions {
 }
 
 /**
- * Obtisky pevných cest (roads.md): vyšlapaná jako plně vyšlapaná pěšina, upravená širší, strouha
- * upravené cesty – meshe `roads-*` (prázdné se nevytvoří).
+ * Obtisky pevných cest (roads.md): vyšlapaná jako plně vyšlapaná pěšina, upravená tytéž obtisky,
+ * jen širší (ROAD_WIDTH_M) – meshe `roads-*` (prázdné se nevytvoří).
  */
 export function roadRibbonMeshes(
   scene: Scene,
@@ -222,13 +218,6 @@ export function roadRibbonMeshes(
   const bands = roadBands(roads);
   // rozcestí – udusaný plácek v pásu cesty, která do něj vbíhá nejširší
   const junctions = roadJunctions(roads);
-  const ditches: PathLine[] = ditchLines(roads).map((points) => ({
-    points,
-    strength: points.map(() => 1),
-    years: points.map(() => 0),
-    openStart: true,
-    openEnd: true,
-  }));
   const ribbons: [
     string,
     readonly PathLine[],
@@ -237,8 +226,8 @@ export function roadRibbonMeshes(
     [number, number, number],
     readonly RibbonJunction[],
   ][] = [
-    ['roads-worn', bands.trodden, 'worn', WORN_LAYER, WORN_COLOR, junctions.trodden],
-    ['roads-earth', bands.trodden, 'earth', EARTH_LAYER, EARTH_COLOR, junctions.trodden],
+    ['roads-worn', bands.trodden, 'worn', ROAD_WORN_LAYER, WORN_COLOR, junctions.trodden],
+    ['roads-earth', bands.trodden, 'earth', ROAD_EARTH_LAYER, EARTH_COLOR, junctions.trodden],
     [
       'roads-improved-worn',
       bands.improved,
@@ -255,8 +244,6 @@ export function roadRibbonMeshes(
       EARTH_COLOR,
       junctions.improved,
     ],
-    // strouha – tmavší vlhké bláto
-    ['roads-ditch', ditches, 'earth', DITCH_LAYER, [0.58, 0.48, 0.38], []],
   ];
   const meshes: Mesh[] = [];
   for (const [name, lines, kind, layer, color, nodes] of ribbons) {

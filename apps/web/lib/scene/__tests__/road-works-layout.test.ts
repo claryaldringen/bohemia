@@ -1,19 +1,24 @@
+import { NullEngine } from '@babylonjs/core/Engines/nullEngine';
+import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
+import { Scene } from '@babylonjs/core/scene';
 import { describe, expect, it } from 'vitest';
 import type { SceneRoad, SceneRoadApple } from '../../village-view';
+import { ROAD_WIDTH_M } from '../path-ribbon';
+import { roadRibbonMeshes } from '../road-works';
 import {
   BRIDGE_LENGTH_M,
-  DITCH,
+  LOG_LENGTH_M,
+  LOG_SCALE,
   LOG_SPACING_M,
+  STAKING_OFFSET_M,
   appleStaking,
   appleStakingKey,
   axisPart,
   bridgePieces,
-  ditchLines,
   logPieces,
   roadBands,
   roadWorksKey,
   stakingLines,
-  stonePieces,
 } from '../road-works-layout';
 import { nearestRoad, pickVillageTarget } from '../village-picking';
 
@@ -53,30 +58,37 @@ describe('vylepšené cesty ve scéně (road-works-layout)', () => {
     expect(half.improved[0]!.openStart).toBe(true);
   });
 
-  it('strouha vlevo od osy jen u upravené části a ne přes brod', () => {
-    expect(ditchLines([road()])).toEqual([]);
-    const lines = ditchLines([road({ grade: 'improved' })]);
-    expect(lines).toHaveLength(2);
-    for (const line of lines) for (const p of line) expect(p.z).toBeCloseTo(DITCH.offsetM, 9);
-    expect(lines[0]!.at(-1)!.x).toBeCloseTo(67, 6);
-    expect(lines[1]![0]!.x).toBeCloseTo(73, 6);
+  it('upravená cesta je jen širší pás – bez strouhy a kamenů (Martin, 19. 10. 2026)', () => {
+    const engine = new NullEngine();
+    const scene = new Scene(engine);
+    const material = new StandardMaterial('decal', scene);
+    const meshes = (grade: SceneRoad['grade'], upgrade?: SceneRoad['upgrade']): string[] =>
+      roadRibbonMeshes(scene, [road({ grade, ...(upgrade ? { upgrade } : {}) })], {
+        height: () => 0,
+        smoothHeight: () => 0,
+        material: () => material,
+        lift: { worn: 0.05, earth: 0.055 },
+        alphaIndex: { worn: 3, earth: 3.5 },
+      }).map((m) => m.name);
+    expect(meshes('trodden')).toEqual(['roads-worn', 'roads-earth']);
+    expect(meshes('improved')).toEqual(['roads-improved-worn', 'roads-improved-earth']);
+    // rozestavěná úprava: od začátku úseku širší, dál vyšlapaná – žádný další pás
+    expect(meshes('trodden', { grade: 'improved', progress: 0.4 }).sort()).toEqual(
+      ['roads-earth', 'roads-improved-earth', 'roads-improved-worn', 'roads-worn'].sort(),
+    );
+    // mimo mokřinu a brod žádné díly (kameny ani strouha nejsou)
+    expect(logPieces([road({ grade: 'improved' })])).toEqual([]);
+    expect(bridgePieces([road({ grade: 'improved' })])).toEqual([]);
+    engine.dispose();
   });
 
-  it('kameny upravené cesty hustě v mokřině a u brodu, na pásu cesty, deterministicky', () => {
-    expect(stonePieces([road()])).toEqual([]);
-    const stones = stonePieces([road({ grade: 'improved' })]);
-    const wet = stones.filter((s) => s.x >= 40 && s.x <= 60).length / 20;
-    const dry = stones.filter((s) => s.x >= 5 && s.x <= 35).length / 30;
-    expect(wet).toBeGreaterThan(dry * 3);
-    for (const s of stones) expect(Math.abs(s.z)).toBeLessThanOrEqual(1.1 + 1e-9);
-    expect(stonePieces([road({ grade: 'improved' })])).toEqual(stones);
-  });
-
-  it('hať: kmeny napříč po mokřině, rozestavěná po podílu průběhu', () => {
+  it('hať: kmeny napříč po mokřině na šířku upravené cesty, rozestavěná po podílu průběhu', () => {
     expect(logPieces([road({ grade: 'improved' })])).toEqual([]);
     const full = logPieces([road({ grade: 'causeway' })]);
-    expect(full.length).toBeCloseTo(20 / LOG_SPACING_M, -1);
+    expect(full.length).toBeCloseTo(20 / (LOG_SPACING_M * LOG_SCALE), -1);
     for (const log of full) {
+      // kmen dlouhý jako upravená cesta široká (±4 %) – hať navazuje bez zúžení
+      expect(Math.abs((LOG_LENGTH_M * log.scale) / ROAD_WIDTH_M.improved - 1)).toBeLessThan(0.041);
       expect(log.x).toBeGreaterThanOrEqual(40);
       expect(log.x).toBeLessThanOrEqual(60);
       // kmen napříč osou x: natočení ≈ 90°
@@ -112,6 +124,9 @@ describe('vylepšené cesty ve scéně (road-works-layout)', () => {
       road({ grade: 'improved', upgrade: { grade: 'causeway', progress: 0.2 } }),
     ]);
     expect(causeway).toHaveLength(4);
+    // provázek po okrajích širší upravené cesty
+    for (const [, z] of improve[0]!) expect(Math.abs(z)).toBeCloseTo(STAKING_OFFSET_M, 9);
+    expect(STAKING_OFFSET_M).toBeGreaterThan(ROAD_WIDTH_M.improved / 2);
   });
 
   it('klíč se mění s průběhem po setinách a se stupněm', () => {

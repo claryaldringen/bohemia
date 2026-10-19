@@ -1,12 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import type { PathLine } from '@bohemia/game';
 import {
-  EARTH_LAYER,
+  IMPROVED_EARTH_LAYER,
+  IMPROVED_WORN_LAYER,
   JUNCTION,
-  WORN_LAYER,
+  PATH_EARTH_LAYER,
+  PATH_WORN_LAYER,
+  ROAD_EARTH_LAYER,
+  ROAD_WIDTH_M,
+  ROAD_WORN_LAYER,
   pathRibbons,
   ribbonJunctions,
   roadFade,
+  type RibbonLayer,
 } from '../path-ribbon';
 import { roadBands, roadJunctions } from '../road-works-layout';
 
@@ -32,7 +38,7 @@ function width(grid: ReturnType<typeof pathRibbons>, k: number): number {
 
 describe('pathRibbons – pás pěšiny', () => {
   it('průřez ze čtyř bodů: měkké okraje průhledné, střed kryje', () => {
-    const grid = pathRibbons([line(0.6)], WORN_LAYER);
+    const grid = pathRibbons([line(0.6)], PATH_WORN_LAYER);
     const sections = grid.alphas.length / 4;
     expect(sections).toBeGreaterThan(30);
     expect(grid.positions.length).toBe(grid.alphas.length * 2);
@@ -40,28 +46,110 @@ describe('pathRibbons – pás pěšiny', () => {
     const mid = Math.floor(sections / 2) * 4;
     expect(grid.alphas[mid]).toBe(0);
     expect(grid.alphas[mid + 3]).toBe(0);
-    expect(grid.alphas[mid + 1]).toBeGreaterThan(0.5);
+    expect(grid.alphas[mid + 1]).toBeGreaterThan(0.2);
   });
 
   it('volný konec se vytrácí, v rozcestí ne', () => {
-    const open = pathRibbons([line(0.6, true)], WORN_LAYER);
-    const joined = pathRibbons([line(0.6, false)], WORN_LAYER);
+    const open = pathRibbons([line(0.6, true)], PATH_WORN_LAYER);
+    const joined = pathRibbons([line(0.6, false)], PATH_WORN_LAYER);
     expect(open.alphas[1]).toBe(0);
-    expect(joined.alphas[1]).toBeGreaterThan(0.5);
+    expect(joined.alphas[1]).toBeGreaterThan(0.2);
   });
 
   it('silnější pěšina je širší a výraznější, holá hlína jen u silné', () => {
-    const weak = pathRibbons([line(0.2)], WORN_LAYER);
-    const strong = pathRibbons([line(1)], WORN_LAYER);
+    const weak = pathRibbons([line(0.2)], PATH_WORN_LAYER);
+    const strong = pathRibbons([line(1)], PATH_WORN_LAYER);
     const k = Math.floor(weak.alphas.length / 8);
     expect(width(strong, k)).toBeGreaterThan(width(weak, k));
     expect(strong.alphas[k * 4 + 1]).toBeGreaterThan(weak.alphas[k * 4 + 1]!);
-    expect(Math.max(...pathRibbons([line(0.2)], EARTH_LAYER).alphas)).toBe(0);
-    expect(Math.max(...pathRibbons([line(1)], EARTH_LAYER).alphas)).toBeGreaterThan(0.5);
+    expect(Math.max(...pathRibbons([line(0.4)], PATH_EARTH_LAYER).alphas)).toBe(0);
+    expect(Math.max(...pathRibbons([line(1)], PATH_EARTH_LAYER).alphas)).toBeGreaterThan(0.25);
   });
 
   it('stejná pěšina = stejný pás (vlnění ze souřadnic konců)', () => {
-    expect(pathRibbons([line(0.6)], WORN_LAYER)).toEqual(pathRibbons([line(0.6)], WORN_LAYER));
+    expect(pathRibbons([line(0.6)], PATH_WORN_LAYER)).toEqual(
+      pathRibbons([line(0.6)], PATH_WORN_LAYER),
+    );
+  });
+});
+
+describe('vzhled pěšin a cest (Martin, 19. 10. 2026)', () => {
+  /** Největší krytí a šířka středu (bez měkkého okraje) vrstvy u síly `s`. */
+  const look = (layer: RibbonLayer, s: number): { alpha: number; width: number } => ({
+    alpha: layer.alpha(s),
+    width: (layer.width.weak + (layer.width.strong - layer.width.weak) * s) * layer.widthFactor,
+  });
+
+  it('pěšina dne je nevýrazná – užší a průhlednější než pevná cesta i u nejsilnější', () => {
+    for (const s of [0.2, 0.6, 1]) {
+      expect(look(PATH_WORN_LAYER, s).alpha).toBeLessThanOrEqual(0.45 + 1e-9);
+      expect(look(PATH_WORN_LAYER, s).alpha).toBeLessThan(look(ROAD_WORN_LAYER, 1).alpha / 2);
+      expect(look(PATH_WORN_LAYER, s).width).toBeLessThan(look(ROAD_WORN_LAYER, 1).width * 0.7);
+    }
+    expect(PATH_WORN_LAYER.softM).toBeLessThan(ROAD_WORN_LAYER.softM);
+    // holá hlína nanejvýš úzká a slabá i u silné pěšiny
+    expect(look(PATH_EARTH_LAYER, 1).width).toBeLessThanOrEqual(0.4);
+    expect(look(PATH_EARTH_LAYER, 1).alpha).toBeLessThanOrEqual(0.35 + 1e-9);
+    expect(look(PATH_EARTH_LAYER, 0.4).alpha).toBe(0);
+  });
+
+  it('vyšlapaná cesta zůstává, jak byla (plný pás 1,9 m, hlína 55 %)', () => {
+    expect(look(ROAD_WORN_LAYER, 1)).toEqual({ alpha: 0.95, width: 1.9 });
+    expect(look(ROAD_EARTH_LAYER, 1).alpha).toBeCloseTo(0.95, 9);
+    expect(look(ROAD_EARTH_LAYER, 1).width).toBeCloseTo(1.9 * 0.55, 9);
+    expect([ROAD_WORN_LAYER.softM, ROAD_EARTH_LAYER.softM]).toEqual([0.6, 0.35]);
+    expect(ROAD_WIDTH_M.trodden).toBe(1.9);
+  });
+
+  it('upravená cesta jsou tytéž obtisky, jen širší (bez strouhy)', () => {
+    for (const [improved, trodden] of [
+      [IMPROVED_WORN_LAYER, ROAD_WORN_LAYER],
+      [IMPROVED_EARTH_LAYER, ROAD_EARTH_LAYER],
+    ] as const) {
+      expect(improved.alpha(1)).toBe(trodden.alpha(1));
+      expect(improved.softM).toBe(trodden.softM);
+      expect(improved.widthFactor).toBe(trodden.widthFactor);
+      expect(improved.width).toEqual({
+        weak: ROAD_WIDTH_M.improved,
+        strong: ROAD_WIDTH_M.improved,
+      });
+    }
+    expect(ROAD_WIDTH_M.improved).toBeGreaterThanOrEqual(ROAD_WIDTH_M.trodden * 1.5);
+  });
+
+  it('rozcestí pěšin dne jen jemně – menší a slabší plácek než u pevné cesty', () => {
+    const arms = (s: number): PathLine[] =>
+      [
+        [20, 0],
+        [-20, 0],
+        [0, 20],
+      ].map(([x, z]) => ({
+        points: [
+          { x: 0, z: 0 },
+          { x: x!, z: z! },
+        ],
+        strength: [s, s],
+        years: [5, 5],
+        openStart: false,
+        openEnd: true,
+      }));
+    /** Krytí a největší poloměr plácku v počátku. */
+    const plaza = (layer: RibbonLayer, lines: PathLine[]): { alpha: number; radius: number } => {
+      const grid = pathRibbons(lines, layer);
+      const first = pathRibbons(lines, layer, undefined, undefined, []).alphas.length;
+      let radius = 0;
+      for (let v = first + 1; v < grid.alphas.length; v += 2) {
+        radius = Math.max(radius, Math.hypot(grid.positions[v * 2]!, grid.positions[v * 2 + 1]!));
+      }
+      return { alpha: grid.alphas[first]!, radius };
+    };
+    const day = plaza(PATH_WORN_LAYER, arms(1));
+    const road = plaza(ROAD_WORN_LAYER, arms(1));
+    expect(day.alpha).toBeLessThan(PATH_WORN_LAYER.alpha(1));
+    expect(day.alpha).toBeLessThan(road.alpha / 2);
+    expect(day.radius).toBeLessThan(road.radius / 1.5);
+    // plácek je pořád aspoň tak široký jako pěšina – pásy do něj vbíhají bez zúžení
+    expect(2 * day.radius).toBeGreaterThan(PATH_WORN_LAYER.width.strong);
   });
 });
 
@@ -89,8 +177,8 @@ describe('pevné cesty z dat (roads.md)', () => {
     expect(second!.openStart).toBe(false);
     expect(second!.openEnd).toBe(true);
     // stejná data = stejný pás (kreslí se stabilně, ne podle pěšin dne)
-    expect(pathRibbons(roadBands([a, b]).trodden, EARTH_LAYER)).toEqual(
-      pathRibbons(roadBands([a, b]).trodden, EARTH_LAYER),
+    expect(pathRibbons(roadBands([a, b]).trodden, ROAD_EARTH_LAYER)).toEqual(
+      pathRibbons(roadBands([a, b]).trodden, ROAD_EARTH_LAYER),
     );
   });
 
@@ -101,10 +189,10 @@ describe('pevné cesty z dat (roads.md)', () => {
     expect(fade(20, 2.3)).toBeGreaterThan(0);
     expect(fade(20, 2.3)).toBeLessThan(1);
     expect(fade(20, 10)).toBe(1);
-    const along = pathRibbons([line(0.6)], WORN_LAYER, () => 1, fade);
+    const along = pathRibbons([line(0.6)], PATH_WORN_LAYER, () => 1, fade);
     // pěšina po ose cesty (z = 0) až k x = 20 zmizí, za ohybem se objeví
     expect(along.alphas[1 + 4 * 5]).toBe(0);
-    expect(Math.max(...along.alphas)).toBeGreaterThan(0.5);
+    expect(Math.max(...along.alphas)).toBeGreaterThan(0.2);
   });
 
   it('pás se vytrácí jen na skutečném volném konci (brána, cíl), ne kde pokračuje pěšina dne', () => {
@@ -156,17 +244,19 @@ describe('rozcestí – udusaný plácek (Martin: „rozcestí by mělo být nej
 
   it('plácek je kruh širší než nejsilnější pěšina – uvnitř kryje plně, okraj měkký', () => {
     const lines = [arm(20, 0, 0.6), arm(-20, 0, 0.4), arm(0, 20, 0.4)];
-    const plain = pathRibbons(lines, WORN_LAYER, undefined, undefined, []);
-    const grid = pathRibbons(lines, WORN_LAYER);
+    // pevná cesta – plný plácek (pěšiny dne mají jen jemný – test výš)
+    const plain = pathRibbons(lines, ROAD_WORN_LAYER, undefined, undefined, []);
+    const grid = pathRibbons(lines, ROAD_WORN_LAYER);
     const first = plain.alphas.length;
     const added = grid.alphas.length - first;
     expect(added).toBe(1 + JUNCTION.segments * 2);
     const strength = ribbonJunctions(lines)[0]!.strength;
     // střed plácku – plné krytí podle síly plácku (víc než nejsilnější pěšina)
-    expect(grid.alphas[first]).toBeCloseTo(WORN_LAYER.alpha(strength), 6);
-    expect(grid.alphas[first]!).toBeGreaterThan(WORN_LAYER.alpha(0.6));
+    expect(grid.alphas[first]).toBeCloseTo(ROAD_WORN_LAYER.alpha(strength), 6);
+    expect(grid.alphas[first]!).toBeGreaterThan(ROAD_WORN_LAYER.alpha(0.6));
     const width =
-      WORN_LAYER.width.weak + (WORN_LAYER.width.strong - WORN_LAYER.width.weak) * strength;
+      ROAD_WORN_LAYER.width.weak +
+      (ROAD_WORN_LAYER.width.strong - ROAD_WORN_LAYER.width.weak) * strength;
     for (let k = 0; k < JUNCTION.segments; k++) {
       const v = first + 1 + k * 2;
       const r = Math.hypot(grid.positions[v * 2]!, grid.positions[v * 2 + 1]!);
@@ -176,7 +266,9 @@ describe('rozcestí – udusaný plácek (Martin: „rozcestí by mělo být nej
     }
     // průměr plácku víc než dvojnásobek šířky nejsilnější pěšiny (i s kolísáním okraje)
     expect(2 * width * JUNCTION.scale * (1 - JUNCTION.jitter)).toBeGreaterThan(
-      2 * (WORN_LAYER.width.weak + (WORN_LAYER.width.strong - WORN_LAYER.width.weak) * 0.6),
+      2 *
+        (ROAD_WORN_LAYER.width.weak +
+          (ROAD_WORN_LAYER.width.strong - ROAD_WORN_LAYER.width.weak) * 0.6),
     );
   });
 
