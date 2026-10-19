@@ -122,8 +122,9 @@ z [rešerše uhlířství](research/2026-10-18-charcoal.md).
   3. **stavba milíře** (věnec, polena kolem fíry, kryt z chvojí, drnů a hlíny) – 2 čd na buk,
   4. **pálení** – 8 dní (20 prm ≈ 8 dní, Gronke 2012), milíř se hlídá ve dne i v noci: celá
      práce domácnosti uhlíře,
-  5. **vytahání, třídění a odnos uhlí** – 2 čd na buk; uhlí jde do zásoby až s vytahaným
-     milířem.
+  5. **vytahání, třídění a odnos uhlí** – 2 čd na buk (120 kg uhlí); vypálený milíř se
+     rozebírá postupně, jak kovář uhlí odebírá ([Milíř stojí vždy](#milíř-stojí-vždy)).
+     Rozebraný milíř zmizí a uhlíř staví další.
 - **Kde milíř stojí** (rešerše – milíře se stavěly v lesích u těžby, dřevo se nevyplatilo
   vozit, Szabó a kol. 2022): leží-li první buk dávky do **150 m** od milíře u zemnice, pálí
   uhlíř doma a dřevo dováží. Dál staví **milíř v lese** u prvního buku dávky (dávka = buky
@@ -132,7 +133,7 @@ z [rešerše uhlířství](research/2026-10-18-charcoal.md).
   i dovoz dřeva k milíři se měří jako kácení staveb – po pevných cestách s půdou (mokřina,
   brody – `paths/walking.ts`); bez krajiny (kalibrace) vzdušně. Sázení na pařezy vzdušně od
   dílny. Stromy a jabloně u cest jsou data cest, ne vrstva lesa – uhlíř je nekácí. Ve scéně se lesní milíř
-  staví po fázích, při pálení kouří a po vytahání zmizí.
+  staví po fázích, při pálení kouří, při rozebírání se zmenšuje a rozebraný zmizí.
 - **Mýtina roste, uhlíř chodí dál** (Martin): vykácené buky nechají pařezy, další dávka je dál –
   přirážka za vzdálenost roste, až uhlíř přejde k lesním milířům.
 - **Obnova lesa – mladé buky** (Martin; čísla návrh Clauda podle rešerše): na pařez každého
@@ -142,17 +143,75 @@ z [rešerše uhlířství](research/2026-10-18-charcoal.md).
   60–80 let – na pasece nečeká na nálet; pařeziny buku se těžily po 10–40 letech, ale tenčí
   dřevo). Pařez, na který nikdo nezasadí, dorůstá z náletu jako dosud (30 let pařez, za 70 let
   strom – [les](forest.md)).
-- **Pálí jen kolik je potřeba** (návrh Clauda): uhlíř začne nový milíř, jen když zásoba uhlí
-  i s rozdělanými milíři nestačí na **rok spotřeby kovářů** – uhlí na nástroje, které ves za rok
-  opotřebí, a na to, co chybí do zásoby nástrojů (nejvýš kolik kovář na plný úvazek vykove,
-  ≈ 2,2 t ročně; ves s 18 pracujícími a plnou zásobou nástrojů ≈ 0,8 t ročně).
-  S plnou zásobou sází mladé buky; když není kdy (mimo okna výsadby) ani co sázet, jeho domácnost
-  ten den **pracuje se vsí** (pole, stavby). Rozdělaný milíř vždy dodělá. Bez kováře uhlíř
-  nepálí.
-- **Kolik buků pro jednoho kováře** (sonda, skutečná krajina sídla, uhlíř 60 m od lesa): ≈ 18
+- ~~**Pálí jen kolik je potřeba** (návrh Clauda, 18. 10. 2026): uhlíř začne nový milíř, jen když
+  zásoba uhlí i s rozdělanými milíři nestačí na rok spotřeby kovářů; bez kováře nepálí.~~ –
+  nahrazeno 19. 10. 2026: milíř stojí vždy a zásobou uhlí je vypálený milíř
+  ([Milíř stojí vždy](#milíř-stojí-vždy)).
+- **Kolik buků pro jednoho kováře** (sonda 18. 10. 2026 – ještě s pálením do zásoby na rok,
+  skutečná krajina sídla, uhlíř 60 m od lesa): ≈ 18
   buků ročně skácí a zasadí; mýtina (90 % pařezů) roste ≈ 115 m → 190 m za 10 let → 275 m za
   30 let → 345 m za 60 let, lesní milíře od ≈ 7. roku; v 61. roce dospějí první zasazené buky
   a uhlíř se vrátí k dílně (≈ 145 m).
+
+### Milíř stojí vždy
+
+Martin (19. 10. 2026): „Uhlíř: měl by vždy postavit milíř, z hotového milíře by se mělo kouřit
+a pak by jej měl rozebírat podle toho, jak mu bude uhlí odebírat kovář.“ Detaily níž jsou návrh
+Clauda; čísla v `rules.ts` (`CHARCOAL_KILN`).
+
+- **Milíř stojí vždy** (Martin): uhlíř, který má z čeho pálit (dospělé buky), má vždy svůj
+  milíř – u dílny, nebo v lese jako dosud. Dokud ho nemá postavený, kácí a připravuje buky
+  a staví ho. Uhlíř má **jeden milíř**: nový začne, až je starý rozebraný (na milířišti u dílny je
+  místo jen pro jeden; dávka 15 buků ≈ 1,8 t uhlí vydrží kováři vsi obvykle přes rok). Dřívější
+  pálení do zásoby na rok spotřeby kovářů tím odpadá – zásobou uhlí je vypálený milíř.
+- **Kouří jen při pálení** (Martin): postavený milíř se zapálí a 8 dní pálí – celou dobu z něj
+  stoupá dým jako z obydlí a uhlíř ho hlídá ve dne i v noci. Vypálený milíř už nekouří.
+- **Rozebírá se podle odběru** (Martin): uhlí se z vypáleného milíře nevytahá najednou – milíř
+  stojí pod krytem z hlíny a uhlíř z něj bere, jak kovář uhlí spotřebuje. Když uhlí u kováře
+  nestačí na dnešní kování, uhlíř ten den vytahá, protřídí a donese uhlí na **30 dní kování**
+  (všech kovářů vsi na plný úvazek; nejvýš kolik dnes stihne a kolik v milíři zbývá). Práce je
+  jako dřív 2 čd na 120 kg (na buk), u lesního milíře s přirážkou za chůzi. Uhlíř tak nosí uhlí
+  jednou za čas po celém dni a mezitím jeho domácnost pracuje se vsí – domácnost řemeslníka
+  pracuje celý den buď v dílně, nebo se vsí, takže nošení hrsti uhlí každý den by vsi vzalo
+  celou domácnost.
+- **Zásoba uhlí vsi** = uhlí ve vypálených milířích + uhlí u kováře (co uhlíř donesl a kovář ještě
+  nespálil, uhlí koupené od souseda, zásoba ze starších vsí). Tak ji ukazuje lišta i panel dílny.
+- **Rozebraný milíř** (vytahané poslední uhlí) zmizí a uhlíř od dalšího dne staví nový – skácí
+  buky, postaví ho a vypálí. **Zbytek vytahá včas:** zbývá-li v milíři a u kováře jen tolik uhlí,
+  kolik kováři spálí, než uhlíř připraví a vypálí další milíř, vytahá uhlíř zbytek celý ke kováři
+  (den po dni, kolik stihne) a začne nový. Spotřeba kovářů = uhlí na nástroje, které ves za rok
+  opotřebí, a na to, co chybí do zásoby nástrojů (nejvýš kolik kováři vykovají na plný úvazek),
+  doba = práce dávky jako u dosavadního milíře (kácení a dovoz, příprava, stavba, s přirážkou za
+  chůzi) při dnešní práci uhlíře + 8 dní pálení. Bez toho kovář na nový milíř čekal (sonda níž:
+  12 % dní bez uhlí místo 3 %). U kováře je tak uhlí nejvýš na 30 dní kování z poslední dávky,
+  nebo zbytek milíře na dobu přípravy nového (u vsi s jedním kovářem obvykle 100–300 kg).
+- **Bez kováře** (rozhodnutí Clauda): uhlí nikdo neodebírá – vypálený milíř stojí a čeká a uhlíř
+  další nestaví, uhlí není kam dát. Proč: uhlí je jen pro kováře, další milíř by zbytečně skácel
+  15 buků (mýtina by rostla bez užitku) a domácnost uhlíře je pro ves užitečnější na poli. První
+  milíř ale postaví a vypálí i bez kováře (milíř stojí vždy) – kovář, který přijde, má uhlí hned.
+  Uhlí ves smí **prodat sousedovi** ([obchod](trade.md) – uhlí je společná surovina): bere se
+  napřed u kováře, pak z vypáleného milíře, který se tím rozebírá (vytahají ho nosiči výpravy,
+  v práci výpravy); rozebraný milíř uhlíř postaví znovu. Koupené uhlí jde ke kováři.
+- **Kdy uhlíř pracuje v dílně:** kácí a připravuje buky, staví milíř, pálí, nosí uhlí kováři
+  (v den, kdy u kováře nestačí na dnešní kování), vytahá zbytek milíře před novým a v okně
+  výsadby sází mladé buky. Jinak –
+  vypálený milíř a uhlí u kováře dost – pracuje se vsí; bez dospělých buků, když milíř nemá,
+  taky (čeká na dřevo).
+- **Uhlí neubývá** – ani v milíři pod krytem, ani u kováře (jako dosud; opotřebení se týká
+  nástrojů a nádob). Ves uhlí u sousedů nekupuje ([Nákup u sousedů](#nákup-u-sousedů) – uhlí je
+  jen pro kováře; kovář bez uhlí se nepočítá a ves koupí nástroje).
+- **Starší vsi** (převod při prvním dopočítaném dni, jednou): milíř, ze kterého se uhlí zrovna
+  vytahovalo, je vypálený milíř s celou dávkou uhlí (rozdělané vytahání se zapomene – to uhlí
+  ještě nebylo doma); uhlí v zásobě je uhlí u kováře. Uhlíř, který dřív s plnou zásobou odpočíval,
+  začne nový milíř.
+- **Sonda** (19. 10. 2026, ves z testů na syntetickém bukovém lese, 30 lidí, uhlíř a kovář po
+  2 dospělých a dítěti, 20 let – před změnou → po ní): uhlíř pracuje se vsí 81,9 → 83,2 % dní,
+  kovář bez uhlí 2,3 → 2,8 % dní, buků ročně 10,1 → 9,3, pokrytí nástroji 0,95 → 0,96, uhlí ve vsi
+  na konci 2,1 t → 0,25 t (dřív hromada na rok dopředu, teď jen vypálený milíř).
+- **Ve scéně** (milíř u dílny i v lese stejně): příprava dřeva – vytyčený kruh, milířiště
+  a rostoucí hráň polen; stavba po fázích staveniště; pálení – hotový milíř s dýmem; vypálený –
+  bez dýmu a trochu sesedlý; rozebírání – milíř se zmenšuje podle podílu uhlí, které v něm
+  zbývá (nižší a užší), vedle koše na uhlí; rozebraný – jen ušlapané milířiště, než začne další.
 
 ## Podle potřeby a volný čas
 
@@ -165,8 +224,9 @@ vesnici. A časem, až bude finanční systém, bude přebytky prodávat.“
   má ves potřebu pokrytou i po roce opotřebení. Když zásoba dosáhne hranice, řemeslník přestane
   a jeho domácnost pracuje pro ves; jakmile se zásoba opotřebením nebo růstem vsi sníží, vyrábí
   dál. Rozhoduje se na začátku dne ze včerejších zásob.
-- **Uhlíř** pálí podle potřeby kovářů (část [Uhlíř](#uhlíř--buky-milíř-a-obnova-lesa)) – s plnou
-  zásobou uhlí sází mladé buky, a když není co sázet, pracuje pro ves.
+- **Uhlíř** má vždy jeden milíř a z vypáleného nosí uhlí, jak ho kovář spotřebuje (část
+  [Milíř stojí vždy](#milíř-stojí-vždy)) – s vypáleným milířem a uhlím u kováře sází mladé buky,
+  a když není co sázet, pracuje pro ves.
 - **Volný čas = práce pro ves:** domácnost řemeslníka, který dnes nemá v dílně co dělat (plná
   zásoba, nebo chybí vstup – uhlí, dřevo), pracuje jako ostatní domácnosti – v rozdělení práce
   dne je na poli a na stavbách. Do plánu osevu (k 1. 9.) se řemeslníci nepočítají – ves s nimi
@@ -296,10 +356,12 @@ zatím neřešit – letopočet začátku hry se může posunout.
   jen podle surovin (dřevo – [les](forest.md)).
 - V horní liště zásoby **uhlí, nástrojů a keramiky** (ikona + číslo).
 - U vybrané dílny: domácnost, co právě dělá (vyrábí / čeká na uhlí), zásoba výrobku; uhlíř:
-  kácí a připravuje buky (kolik z dávky), staví milíř, pálí (průběh), vytahuje uhlí, sází mladé
-  buky, má uhlí dost a pomáhá vsi; milíř v lese a pařezy, které čekají na sazenici.
-- Ve scéně: dým z pece a z milíře, když se pracuje; pařezy a rostoucí mladé buky, mýtina kolem
-  uhlíře, lesní milíř po fázích, uhlíř u buků, u milíře a se sazenicemi.
+  kácí a připravuje buky (kolik z dávky), staví milíř, pálí (průběh), rozebírá milíř a nosí
+  uhlí kováři (kolik uhlí v milíři zbývá), sází mladé buky, má vypálený milíř a pomáhá vsi;
+  milíř v lese a pařezy, které čekají na sazenici.
+- Ve scéně: dým z pece a výhně, když se pracuje, a z milíře, když pálí; pařezy a rostoucí mladé
+  buky, mýtina kolem uhlíře, milíř u dílny i v lese po fázích (vypálený se při rozebírání
+  zmenšuje), uhlíř u buků, u milíře a se sazenicemi.
 
 ## Implementace
 
@@ -364,7 +426,7 @@ Rozhodnutí kontroléru při implementaci (18. 10. 2026) – kde návrh necháva
 | Milíř = 15 buků; práce: kácení 2, příprava 6, stavba 2, pálení 8 dní, vytahání 2 čd/buk                  | návrh Clauda podle rešerše 18. 10. 2026      |
 | Milíř u dílny do 150 m, dál v lese u dávky s přirážkou za chůzi                                          | návrh Clauda podle rešerše 18. 10. 2026      |
 | Sazenice buku 0,1 čd v oknech výsadby, dospělá za 60 let                                                 | návrh Clauda podle rešerše 18. 10. 2026      |
-| Uhlíř pálí jen do zásoby na rok spotřeby kovářů, s plnou zásobou sází nebo pracuje se vsí                | návrh Clauda (18. 10. 2026)                  |
+| ~~Uhlíř pálí jen do zásoby na rok spotřeby kovářů~~ – nahrazeno: milíř stojí vždy                        | návrh Clauda (18. 10. 2026)                  |
 | Řemeslník s volným časem pracuje na poli jako zbytek vsi; vyrábí podle potřeby (místo výroby bez konce)  | Martin (18. 10. 2026)                        |
 | Kovář a hrnčíř vyrábějí do zásoby = potřeba + opotřebení za rok (× 1,3 nástroje, × 1,4 keramika)         | návrh Clauda (18. 10. 2026)                  |
 | Bez vstupu (uhlí, dřevo) má řemeslník volný čas a pracuje se vsí                                         | návrh Clauda – výklad Martina (18. 10. 2026) |
@@ -373,3 +435,7 @@ Rozhodnutí kontroléru při implementaci (18. 10. 2026) – kde návrh necháva
 | Výrobky řemeslníků vesničané kupují u sousedů sami, když se jim to vyplatí; vlastní řemeslník přednost   | Martin (19. 10. 2026)                        |
 | Nákup 15. 11., u nejbližšího souseda, platba obilím z přebytku, skupina s předností, doba služby         | návrh Clauda (19. 10. 2026)                  |
 | Pořadí nákupu podle poměru ušetřené práce k ceně (z jednoho přebytku)                                    | rozhodnutí Clauda (19. 10. 2026)             |
+| Milíř stojí vždy, kouří při pálení, vypálený se rozebírá podle toho, jak kovář uhlí odebírá              | Martin (19. 10. 2026)                        |
+| Jeden milíř na uhlíře, nový až po rozebrání; uhlí na 30 dní kování, když u kováře nestačí na dnešek      | návrh Clauda (19. 10. 2026)                  |
+| Zbytek milíře, který stačí jen na přípravu dalšího, uhlíř vytahá celý a začne nový (kovář nečeká)        | návrh Clauda (19. 10. 2026)                  |
+| Bez kováře vypálený milíř čeká, další se nestaví; uhlí z milíře jde prodat sousedovi                     | rozhodnutí Clauda (19. 10. 2026)             |
