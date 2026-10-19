@@ -91,7 +91,7 @@ export function ploughDayFactor(
  * délky brázdy přes pásy, na které by se díly polí `parts` rozpadly (váhou dílů). Bez dílů 1.
  */
 export function plannedFurrowEfficiency(parts: readonly FieldPart[]): number {
-  const { bands } = ploughLayout(parts, (fieldId) => parts.filter((p) => p.fieldId === fieldId));
+  const { bands } = ploughLayout(parts);
   const byId = new Map(parts.map((p) => [p.id, p]));
   let weight = 0;
   let sum = 0;

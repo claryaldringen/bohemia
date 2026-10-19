@@ -269,6 +269,39 @@ describe('pás orby přes víc dílů (oxen.md – Co nejdelší brázda)', () =
   });
 });
 
+describe('osa brázdy podle bloku (Martin, 19. 10. 2026 – orba i sever – jih)', () => {
+  it('pás podél y (sever – jih): spřežení jede sever – jih, brázda přes celý pás', () => {
+    // díly 71–74 v jednom sloupci pole (y 0–3), herní jádro dalo osu y
+    const furrow = { axis: 'y' as const, sweep: 1 as const };
+    const parts = [71, 72, 73, 74].map((id, y) => ({
+      ...part(id, 0, { furrow, work: 0.5, before: 'stubble' as const }),
+      cell: { x: 0, y },
+      z: y * CELL + CELL / 2,
+    }));
+    const stints = dayStints(
+      village(parts, {
+        parts: [71, 72, 73, 74],
+        progress: parts.map(() => [0, 0.5] as [number, number]),
+      }),
+    );
+    expect(stints).toHaveLength(1);
+    const field = stints[0]!.field;
+    // řady podél z (sever – jih), pás přes 4 díly
+    expect(Math.abs(field.dirZ)).toBeCloseTo(1, 9);
+    expect(field.dirX).toBeCloseTo(0, 9);
+    expect(field.length).toBeCloseTo(4 * CELL, 9);
+    const route = ploughRoute(stints);
+    const lines = route.segments.filter(
+      (seg, i) => seg.kind === 'line' && route.segmentStint[i]! >= 0 && seg.length > CELL,
+    );
+    expect(lines.length).toBeGreaterThan(1);
+    for (const seg of lines) {
+      if (seg.kind !== 'line') continue;
+      expect(Math.abs(seg.dz)).toBeCloseTo(1, 6);
+    }
+  });
+});
+
 describe('zoraná zem jen kudy rádlo projelo (Martin, 19. 10. 2026)', () => {
   const furrow = { axis: 'x' as const, sweep: 1 as const };
   /**

@@ -253,9 +253,17 @@ z dílce na dílec, ale snaží se zorat co největší souvislou plochu.“ –
 rychlejší než po cestě, ať jede napříč přes pole, pokud už nebude oseté.“ Podrobnosti **návrh
 Clauda**:
 
-- **Směr brázd:** pole se orá podél své delší rozlohy (rozsah čtverců v mřížce pole, při shodě
-  podél x) – stejný směr, jakým ve scéně vedou řádky obilí; mění se jen se změnou pole (přidané
-  nebo ubrané čtverce), ne denně. Natočené pole v osách své mřížky.
+- **Směr brázd po blocích** (Martin, 19. 10. 2026: „Teď mi přijde, že oře jen v ose východ –
+  západ, i když u spousty polí by byla výhodnější sever – jih.“): každý blok (níž) se orá v ose
+  mřížky pole, ve které má **v průměru delší brázdy** – průměr délek souvislých řad čtverců
+  vážený plochou (Σ délka² / Σ délka); při shodě podél delší rozlohy bloku, pak podél x
+  (`furrowAxis`). Dřív se osa brala z rozlohy celého pole – čtvercové pole (Vlkov 49 × 49
+  čtverců) tak oralo všechno východ – západ, i úzké bloky protažené sever – jih. Osa bloku se
+  určí s plánem osevu (rok od roku podle toho, kde plodina leží). Natočené pole v osách své
+  mřížky. Ve scéně vedou podél brázdy i řádky textur a koruna porostu dílu, který orá spřežení
+  (`DecalPiece.rows`); díly bez orby (motyka, příloh) podél delší strany pole jako dřív.
+  Ověření na Vlkově (stav 19. 10. 2026, ozim a luštěniny): 23 bloků, 9 sever – jih (175 z 285
+  dílů), průměrná brázda ozimu 88 → 127 m, luštěnin 97 → 123 m.
 - **Bloky a pásy:** spřežení orá plodinu po **souvislých blocích** – díly téže plodiny v jednom poli,
   které sousedí stranou. Blok se zorá celý, **pás po pásu** (souvislá řada dílů podél brázdy –
   brázda vede přes celý pás, obrat jen na jeho koncích), napříč od strany blíž vsi; blok tvaru U
@@ -414,6 +422,8 @@ a nechávalo za sebou brázdu. Tak budu moci určit, jak se to chová.“ – **
 | Ztráta spřežení během roku – letošní plán dokončí motyka; kulaté rohy podle stavu vsi       | návrh Clauda                  |
 | Co nejdelší brázda; souvislá plocha, ne z dílce na dílec; na místo po cestě či přes neoseté | Martin (19. 10. 2026)         |
 | Bloky a pásy podél delší strany pole, od nejbližšího; výkon L/(L + v·t), obrat 45 s         | návrh Clauda                  |
+| Osa brázdy po blocích (i sever – jih), ne podle celého pole                                 | Martin (19. 10. 2026)         |
+| Osa bloku = delší průměrná brázda (vážená plochou), při shodě delší rozloha, pak x          | návrh Clauda                  |
 | Kulatější pole – zakulacené i schody obrysu, nepravidelný okraj, bez travnaté souvratě      | Martin, návrh Clauda          |
 | Ladicí přepínač, pruhy po pruzích obtisku, víc spřežení po souvislých kusech                | návrh Clauda                  |
 | Pruh u čáry práce (2–4 řady), jen čelo dne, přechod pěšky do 60 m, dvě spřežení na díl      | návrh Clauda                  |

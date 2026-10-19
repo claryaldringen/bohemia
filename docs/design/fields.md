@@ -544,7 +544,8 @@ spřežením orá rádlem všechno a motykou nekope** (Martin, 19. 10. 2026: „
 rádlo, kopání motykou úplně vynech. Je to neefektivní a aspoň si nebudeme muset pamatovat, co
 čím bylo kopáno.“) – orba 10 → 6 člověkodní na hektar, drn 2,5× víc (orba křížem), a zaseje se
 jen, co spřežení v oknech orby stihnou zorat ([oxen.md](oxen.md) – Jen rádlo). Spřežení orá po
-souvislých blocích a pásech podél delší strany pole – dlouhá brázda (méně obratů) zorá za den víc
+souvislých blocích a pásech v ose s delší brázdou (po blocích, i sever – jih) – dlouhá brázda
+(méně obratů) zorá za den víc
 (Martin: „Volské spřežení chce rýt co nejdelší brázdu“ – oxen.md, Co nejdelší brázda).
 
 | Práce                      | Kdy – ozim    | Kdy – jař                                   | Člověkodny / ha | Zdroj                 |
@@ -1194,7 +1195,8 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
   provázkem a kolíky.“). Čtverec, na kterém osadníci začnou, se rozrývá po řádcích; hotové díly
   vytyčení ztratí.
 - **Ve scéně** (podle 0 A.D., Martin: tvrdé pruhy brázd a vzcházejícího obilí byly „hnusné“):
-  zem s měkkými brázdami (textura pole z 0 A.D.) natočenými podél delší strany pole, okraj
+  zem s měkkými brázdami (textura pole z 0 A.D.) natočenými podél delší strany pole (díl, který
+  orá spřežení, podél své brázdy – oxen.md, Směr brázd po blocích), okraj
   pole měkký a nepravidelný, bez meze (Martin 18. 10. 2026: „Pole mají nějakou divnou hranici.
   Můžeš ji zrušit?“); sousední pole na sebe navazují bez švu. Obilí jsou 3D trsy v řádcích (pšenice z 0 A.D.),
   které rostou: oseto (zavláčená tmavá zem) → vzchází (řídké nízké zelené trsy v řádcích) →

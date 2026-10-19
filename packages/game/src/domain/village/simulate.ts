@@ -182,7 +182,6 @@ import {
   activeTasks,
   addCropTaskWork,
   addToCropWork,
-  partsOfFields,
   createPlan,
   createYearPlan,
   cropTaskDone,
@@ -396,14 +395,7 @@ function planYear(state: VillageState, day: number, coverage: CraftCoverage): vo
   // plán vzniká před změnou stavu dílů – vrácení přílohu se počítá jen u dílů v přílohu; práce
   // plánu (i orba – železná špička rádla od kováře) platí podle dnešního pokrytí nástroji celý
   // hospodářský rok
-  state.plan = createYearPlan(
-    crops,
-    day,
-    coverage.tools,
-    plough,
-    workOrder(holdings),
-    partsOfFields(state.parts),
-  );
+  state.plan = createYearPlan(crops, day, coverage.tools, plough, workOrder(holdings));
   const chosen = new Set([...crops.winter, ...crops.spring, ...crops.legume].map((p) => p.id));
   // vrácený mladý les dá za dospělé stromy klády (fields.md – Zarůstání, forest.md – Mýcení)
   addLogs(state, reclaimedLogs([...crops.winter, ...crops.spring, ...crops.legume], day));
@@ -451,10 +443,8 @@ function joinFinishedParts(state: VillageState, day: number, coverage: CraftCove
   });
   if (spring.length === 0) return;
   const order = workOrder(holdings);
-  const fieldParts = partsOfFields(state.parts);
-  if (plan === null) {
-    state.plan = createPlan(spring, day, coverage.tools, plough, order, fieldParts);
-  } else addToCropWork(plan, spring, day, coverage.tools, order, fieldParts);
+  if (plan === null) state.plan = createPlan(spring, day, coverage.tools, plough, order);
+  else addToCropWork(plan, spring, day, coverage.tools, order);
   sow(spring, day, 'spring');
 }
 
