@@ -10,7 +10,7 @@
 //   --forest M             obydlí – okraj lesa (výchozí 50 m, palivo bez přirážky)
 //   --dwelling zemnice|polozemnice   (výchozí zemnice)
 //   --orchard HA           sad v plné úrodě (výchozí 0)
-//   --no-reserve           osev jen na potřebu (zásoby nad 1,5 roční potřeby)
+//   --no-reserve           osev jen na potřebu (bez ztrát skladováním a pojistky zásob)
 //   --field-share S        podíl jídla z pole 0–1 (osev podle stravy – fields.md, Kolik ves
 //                          oseje; kalibrace vypíše změřený podíl); výchozí 1 = ves jí jen obilí
 //
@@ -20,13 +20,21 @@ import {
   ROTATION,
   ROTATION_FACTOR,
   equilibriumStores,
+  foodNeedKg,
   harvestForStores,
   maxSownHa,
   steadyState,
   type Household,
   type SteadyInput,
 } from './lib/steady-state';
-import { SOW_RESERVE, type DwellingType, type TaskName } from '../src/domain/village';
+import {
+  FIELD_STORES,
+  NO_CRAFTS,
+  bufferKg,
+  steadyHarvestKg,
+  type DwellingType,
+  type TaskName,
+} from '../src/domain/village';
 
 const PRESETS: Record<string, Household> = {
   start: { adults: 2, elders: 0, olderChildren: 2, smallChildren: 0 },
@@ -117,6 +125,15 @@ function table(rows: string[][]): string {
     .join('\n');
 }
 
+/**
+ * Zásoby z pole po sklizni v ročních potřebách z pole, když ves seje podle zásob a má je na
+ * pojistce: úroda rok co rok + pojistka (z roční potřeby celé energie).
+ */
+function steadyStores(needKg: number, input: SteadyInput): number {
+  const buffer = bufferKg(foodNeedKg(input.household) * input.households);
+  return needKg > 0 ? (steadyHarvestKg(needKg, buffer, NO_CRAFTS.pottery) + buffer) / needKg : 0;
+}
+
 function main(): void {
   const input = parseArgs(process.argv.slice(2));
   const r = steadyState(input);
@@ -126,14 +143,14 @@ function main(): void {
     `Ves: ${input.households} × (dospělí ${h.adults}, starší ${h.elders}, děti 7–13 ${h.olderChildren}, malé ${h.smallChildren}) = ${r.people} lidí | úrodnost ${input.fertility} | díly ${input.distanceM} m od obydlí | les ${input.forestDistanceM} m | ${input.dwelling}`,
   );
   console.log(
-    `Potřeba${input.fieldShare !== undefined && input.fieldShare < 1 ? ` z pole (podíl ${fmt(input.fieldShare, 2)})` : ''} ${fmt(r.needKg, 0)} kg/rok | čistá úroda ${fmt(r.netPerHa, 0)} kg/ha (průměr ${ROTATION.sown} let osevu) | cíl osevu ${input.reserve ? `potřeba + ${fmt(SOW_RESERVE * 100, 0)} %` : 'jen potřeba'}`,
+    `Potřeba${input.fieldShare !== undefined && input.fieldShare < 1 ? ` z pole (podíl ${fmt(input.fieldShare, 2)})` : ''} ${fmt(r.needKg, 0)} kg/rok | čistá úroda ${fmt(r.netPerHa, 0)} kg/ha (průměr ${ROTATION.sown} let osevu) | cíl osevu ${input.reserve ? `podle zásob – potřeba, ztráty a pojistka ${fmt(FIELD_STORES.bufferEnergyYears, 2)} roční potřeby energie` : 'jen potřeba'}`,
   );
   const limit = maxSownHa(input);
   console.log(
     `Osev ${ha(r.sownHa)} (ozim ${ha(r.winterHa)}, jař ${ha(r.sownHa - r.winterHa)}) | pole s přílohem ${ha(r.fieldHa)} (× ${fmt(ROTATION_FACTOR, 2)}, oběh ${ROTATION.sown} + ${ROTATION.fallow} let) | práce stihne nejvýš ${ha(limit)} osevu${r.unfinished > 1e-6 ? ` – NESTIHNE ${fmt(r.unfinished, 0)} člověkodní` : ''}`,
   );
   console.log(
-    `Zásoby po sklizni v rovnováze: s rezervou ${fmt(equilibriumStores(1 + SOW_RESERVE), 2)}, jen potřeba ${fmt(equilibriumStores(1), 2)} roční potřeby | pásmo 1–1,5 chce sklizeň ${fmt(harvestForStores(1), 3)}–${fmt(harvestForStores(1.5), 3)} × potřeba`,
+    `Zásoby po sklizni v rovnováze: podle zásob ${fmt(steadyStores(r.needKg, input), 2)}, jen potřeba ${fmt(equilibriumStores(1), 2)} roční potřeby z pole | pásmo 1–1,5 chce sklizeň ${fmt(harvestForStores(1), 3)}–${fmt(harvestForStores(1.5), 3)} × potřeba`,
   );
 
   const tasks = Object.keys(TASK_LABELS) as TaskName[];

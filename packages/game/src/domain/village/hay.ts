@@ -9,28 +9,96 @@ import {
 import { distanceFactor, fallowStage, partWalkDistance } from './fields';
 import { FASTEST_WALK_SHARE } from './paths/walking';
 import { plotShapes } from './plot-cells';
+import { NO_CRAFTS, hayWorkPerHa } from './productivity';
 import { tilesUnder, villageLandSquares } from './squares';
 import type { WindowSegment } from './rules';
-import type { FieldPart, HayMowing, HaySquare, HayState, TileCell, VillageState } from './types';
+import type {
+  FieldPart,
+  HayMowing,
+  HaySquare,
+  HayState,
+  HerdSpecies,
+  TileCell,
+  VillageState,
+} from './types';
 
-// Seno (oxen.md – Seno, diet.md – Dobytek): krávy a voli přes zimu (listopad–březen) sežerou
-// ≈ 1,5 t sena na kus. Seno dává úhor ve fázi louky (≈ 1,5 t/ha); ves seče jen tolik, kolik
-// stádo na zimu potřebuje – v červnu–červenci po loukách od obydlí jako polní práce (6 člověkodní
-// na hektar). Seče se úhor ve fázi louky i přirozené louky krajiny do 600 m od vsi (Martin
-// 18. 10. 2026: „měly by jít posekat všechny louky“), nejbližší napřed.
+// Seno (oxen.md – Seno, diet.md – Dobytek): přes zimu (listopad–březen) žerou seno krávy, voli,
+// ovce a kozy (Martin 19. 10. 2026 – ovce a kozy v zimě taky). Seno dává úhor ve fázi louky
+// a přirozené louky krajiny do 600 m od vsi (Martin 18. 10. 2026: „měly by jít posekat všechny
+// louky“) – ≈ 1,5 t/ha; ves seče jen tolik, kolik zimní stádo potřebuje, nejbližší louky napřed,
+// v červnu–červenci jako polní práce (seč, sušení, svoz a stohování 10–15 člověkodní na hektar).
+// Stoh ztrácí počasím a plísní (10 % ročně) a zbytek loňského sena se do nové seče zkazí.
 
 /**
- * oxen.md – Seno (návrh Clauda, Martin schválil): 1,5 t sena na kus za zimu (≈ 10 kg denně
- * listopad–březen), louka 1,5 t/ha, sečení, sušení a stohování 6 člověkodní/ha v červnu–červenci;
- * když chybí přes polovinu sena voli, jeden uhyne.
+ * oxen.md – Seno (Martin 19. 10. 2026; čísla návrh Clauda podle rešerše
+ * research/2026-10-19-herds-hay-meat.md): denní dávka sena v zimě (kg) – malý raně středověký
+ * skot (≈ 200–250 kg živé váhy) kráva 5, vůl 6 (na jaře orá), ovce a koza 1 (část mohla být
+ * letnina – hra ji počítá jako seno); prasata seno nežerou (přes zimu se drží jen chovná u domů –
+ * diet.md). Louka 1,5 t/ha (nehnojená jednosečná – dřív i tak), stoh ztrácí 10 % ročně; když chybí
+ * přes polovinu sena, voli i stádo hynou (oxen.md, diet.md – Zimní úhyn). Práce seče
+ * HAY_WORK_PER_HA (rules.ts). Dřív 10 kg denně na krávu i vola, ovce a kozy nic.
  */
 export const HAY = {
-  perHeadKg: 1500,
-  dailyKgPerHead: 10,
+  dailyKg: { cow: 5, ox: 6, sheep: 1, goat: 1 },
   yieldKgPerHa: 1500,
-  mowManDaysPerHa: 6,
+  storageLossPerYear: 0.1,
   deathBelowCoverage: 0.5,
 } as const;
+/** Dní zimního krmení (listopad–březen, nepřestupný rok). */
+export const HAY_WINTER_DAYS = 151;
+/** Druhy stád, které v zimě žerou seno. */
+export const HAY_EATERS: readonly Exclude<HerdSpecies, 'pig'>[] = ['cow', 'sheep', 'goat'];
+/**
+ * Průměrně tolik dní leží seno ve stohu od seče (≈ 1. 7.) do zkrmení (≈ 15. 1.) – plán seče
+ * počítá se ztrátou za tu dobu.
+ */
+const PLAN_STORAGE_DAYS = 198;
+/** Od začátku zimy (1. 11.) do zkrmení leží seno průměrně polovinu zimy. */
+const WINTER_STORAGE_DAYS = 76;
+const DAYS_PER_YEAR = 365;
+/** Za den ve stohu zůstane tento podíl sena. */
+const DAILY_HAY_KEEP = (1 - HAY.storageLossPerYear) ** (1 / DAYS_PER_YEAR);
+
+/** Podíl sena, který ve stohu zůstane po `days` dnech. */
+function hayKeep(days: number): number {
+  return DAILY_HAY_KEEP ** days;
+}
+
+/** Podíl sena, který ze seče zbude do zkrmení – plán seče o tolik seče víc. */
+export const PLAN_HAY_KEEP = hayKeep(PLAN_STORAGE_DAYS);
+
+/** Seno na zimu (kg) – stáda a voli celou zimu po denní dávce (bez ztrát ve stohu). */
+export function winterHayKg(herds: Readonly<Record<HerdSpecies, number>>, oxen: number): number {
+  return dailyHerdHayKg(herds) * HAY_WINTER_DAYS + oxen * HAY.dailyKg.ox * HAY_WINTER_DAYS;
+}
+
+/** Seno stád za den zimy (kg) – krávy, ovce a kozy, bez volů. */
+export function dailyHerdHayKg(herds: Readonly<Record<HerdSpecies, number>>): number {
+  return HAY_EATERS.reduce((sum, s) => sum + herds[s] * HAY.dailyKg[s], 0);
+}
+
+/**
+ * Seno, které zimě zbude ze zásoby k 1. 11. (kg) – po ztrátách ve stohu za průměrnou dobu do
+ * zkrmení (nosnost přes zimu, livestock.ts).
+ */
+export function winterHayAvailable(hayKg: number): number {
+  return hayKg * hayKeep(WINTER_STORAGE_DAYS);
+}
+
+/** Den ve stohu (mutuje stav): seno ztrácí počasím a plísní (HAY.storageLossPerYear). */
+export function rotHay(state: VillageState): void {
+  if (state.hay && state.hay.kg > 0) state.hay.kg *= DAILY_HAY_KEEP;
+}
+
+/**
+ * Den plánu seče (1. 6., mutuje stav): zbytek loňského sena se zkazil – stoh přes rok zplesniví
+ * a vyluhuje (oxen.md – Seno). Vrátí zkažené kg.
+ */
+export function spoilOldHay(state: VillageState): number {
+  const kg = state.hay?.kg ?? 0;
+  if (state.hay && kg > 0) state.hay.kg = 0;
+  return kg;
+}
 /** Okno sečení (červen–červenec) – práce se plánuje 1. 6. */
 export const MOWING_WINDOWS: readonly WindowSegment[] = [[6, 7]];
 export const MOWING_DAY = { month: 6, day: 1 } as const;
@@ -196,20 +264,22 @@ function walkMeadows(
 const WALK_ROUNDS = 3;
 
 /**
- * Plán seče (1. 6.): seno, které stádo na zimu potřebuje (`heads` kusů dobytka × 1,5 t) bez
- * zásoby, z luk od nejbližší k obydlí – dílů úhoru ve fázi louky a s krajinou i přirozených luk
- * (`naturalMeadows`) –, dokud úroda sena potřebu nepokryje. Vzdálenost je chůze po pěšinách jako
- * u polních prací: díly `partWalkDistance`, přirozené louky přes `walk` (bez něj rovně). Bez
- * potřeby nebo bez luk null.
+ * Plán seče (1. 6.): seno, které zimní stádo potřebuje (`needKg` – `winterHayKg`), se ztrátou ve
+ * stohu do zkrmení a bez zásoby, z luk od nejbližší k obydlí – dílů úhoru ve fázi louky
+ * a s krajinou i přirozených luk (`naturalMeadows`) –, dokud úroda sena potřebu nepokryje. Práce na hektar
+ * podle pokrytí nástroji (kosy – `hayWorkPerHa`). Vzdálenost je chůze po pěšinách jako u polních
+ * prací: díly `partWalkDistance`, přirozené louky přes `walk` (bez něj rovně). Bez potřeby nebo
+ * bez luk null.
  */
 export function planMowing(
   state: VillageState,
   day: number,
-  heads: number,
+  needKg: number,
+  toolCoverage: number = NO_CRAFTS.tools,
   landscape: Landscape | null = null,
   walk: MeadowWalk | null = null,
 ): HayMowing | null {
-  const need = heads * HAY.perHeadKg - villageHayKg(state);
+  const need = needKg / PLAN_HAY_KEEP - villageHayKg(state);
   if (need <= EPSILON) return null;
   const parts = state.parts
     .filter((p) => isHayMeadow(p, day))
@@ -225,12 +295,13 @@ export function planMowing(
     })),
   ].sort(byDistance);
   const squares: HaySquare[] = [];
+  const workPerHa = hayWorkPerHa(toolCoverage);
   let required = 0;
   let yieldKg = 0;
   for (const square of candidates) {
     if (yieldKg >= need - EPSILON) break;
     squares.push(square);
-    required += mowWeight(square) * HAY.mowManDaysPerHa;
+    required += mowWeight(square) * workPerHa;
     yieldKg += (square.areaM2 / M2_PER_HA) * HAY.yieldKgPerHa;
   }
   if (squares.length === 0) return null;
@@ -355,19 +426,28 @@ export function isHayWinter(day: number): boolean {
 }
 
 /**
- * Den zimního krmení (mutuje stav): voli dostanou seno první (orají), krávy zbytek – každý kus
- * HAY.dailyKgPerHead. Pamatuje si, kolik sena voli potřebovali a dostali (`winter`).
+ * Den zimního krmení (mutuje stav): voli dostanou seno první (orají), krávy, ovce a kozy se
+ * podělí o zbytek poměrně k dávce (HAY.dailyKg). Pamatuje si, kolik sena voli a stádo
+ * potřebovali a dostali (`winter`).
  */
-export function feedHay(state: VillageState, oxen: number, cows: number): void {
-  if (oxen <= 0 && cows <= 0 && !state.hay) return;
+export function feedHay(
+  state: VillageState,
+  oxen: number,
+  herds: Readonly<Record<HerdSpecies, number>>,
+): void {
+  const herdNeed = dailyHerdHayKg(herds);
+  if (oxen <= 0 && herdNeed <= 0 && !state.hay) return;
   const hay = (state.hay ??= { kg: 0, mowing: null });
   const winter = (hay.winter ??= { oxenNeedKg: 0, oxenEatenKg: 0 });
-  const oxenNeed = oxen * HAY.dailyKgPerHead;
+  const oxenNeed = oxen * HAY.dailyKg.ox;
   const oxenEaten = Math.min(hay.kg, oxenNeed);
   hay.kg -= oxenEaten;
   winter.oxenNeedKg += oxenNeed;
   winter.oxenEatenKg += oxenEaten;
-  hay.kg = Math.max(0, hay.kg - Math.min(hay.kg, cows * HAY.dailyKgPerHead));
+  const herdEaten = Math.min(hay.kg, herdNeed);
+  hay.kg = Math.max(0, hay.kg - herdEaten);
+  winter.herdNeedKg = (winter.herdNeedKg ?? 0) + herdNeed;
+  winter.herdEatenKg = (winter.herdEatenKg ?? 0) + herdEaten;
 }
 
 /** Dní v březnu – zbytek zimy, se kterým počítá pokrytí sena k 1. 3. */
@@ -379,9 +459,28 @@ const MARCH_DAYS = 31;
  */
 export function oxenHayCoverage(state: VillageState, oxen: number): number {
   const winter = state.hay?.winter;
-  const march = oxen * HAY.dailyKgPerHead * MARCH_DAYS;
+  const march = oxen * HAY.dailyKg.ox * MARCH_DAYS;
   const need = (winter?.oxenNeedKg ?? 0) + march;
   if (need <= EPSILON) return 1;
   const eaten = (winter?.oxenEatenKg ?? 0) + Math.min(villageHayKg(state), march);
+  return Math.min(1, eaten / need);
+}
+
+/**
+ * Pokrytí sena krav, ovcí a koz za zimu k 1. 3. (0–1, diet.md – Zimní úhyn): co dostaly do
+ * včerejška a co jim ze zásoby po volech zbývá na březen, proti potřebě celé zimy (zima začatá
+ * před senem pro ovce a kozy počítá jen svůj zbytek). Bez stáda 1.
+ */
+export function herdHayCoverage(
+  state: VillageState,
+  oxen: number,
+  herds: Readonly<Record<HerdSpecies, number>>,
+): number {
+  const winter = state.hay?.winter;
+  const march = dailyHerdHayKg(herds) * MARCH_DAYS;
+  const need = (winter?.herdNeedKg ?? 0) + march;
+  if (need <= EPSILON) return 1;
+  const left = Math.max(0, villageHayKg(state) - oxen * HAY.dailyKg.ox * MARCH_DAYS);
+  const eaten = (winter?.herdEatenKg ?? 0) + Math.min(left, march);
   return Math.min(1, eaten / need);
 }

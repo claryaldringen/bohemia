@@ -397,9 +397,10 @@ describe('advanceVillage – sad', () => {
   });
 
   it('překážky zmizí s první prací na čtverci – sazenice nestojí mezi kameny', () => {
-    // velká cena čtverce (překážky 400 čd) – za jeden den se nevysadí
+    // velká cena čtverce (překážky 400 čd) – za jeden den se nevysadí; menší pole – jaro nechá
+    // práci na výsadbu (s pojistkou zásob seje ves víc – fields.md, Osev podle zásob)
     const input = [{ ...squares(1)[0]!, obstacleCost: 400, obstacleIds: [7] }];
-    const s = foundOrchard(village(at(602, 1, 5)), at(602, 1, 5), { squares: input });
+    const s = foundOrchard(village(at(602, 1, 5), LIGHT_FIELD), at(602, 1, 5), { squares: input });
     const spring = advanceVillage(s, at(602, 4, 30), null);
     const square = villageOrchards(spring)[0]!.squares[0]!;
     expect(square.plantingDone).toBeGreaterThan(0);
@@ -411,7 +412,7 @@ describe('advanceVillage – sad', () => {
 
   it('dospělé stromy z vyklizeného čtverce dají klády jako u pole; do té doby je nekácí stavba', () => {
     const input = [{ ...squares(1)[0]!, obstacleCost: 6, obstacleIds: [7, 8], trees: 2 }];
-    const s = foundOrchard(village(at(602, 1, 5)), at(602, 1, 5), { squares: input });
+    const s = foundOrchard(village(at(602, 1, 5), LIGHT_FIELD), at(602, 1, 5), { squares: input });
     expect(villageOrchards(s)[0]!.squares[0]!.trees).toBe(2);
     // stromy čtverce, který se ještě nezačal sázet, patří sadu – obydlí je pro dřevo nekácí
     expect([...claimedObstacles(s)]).toEqual(expect.arrayContaining([7, 8]));
@@ -496,6 +497,9 @@ describe('advanceVillage – sad', () => {
   it('sklizeň jablek má přednost před podzimními pracemi v poli (i ozimem)', () => {
     const base = village(at(601, 8, 31));
     const s = withOrchard(base, 400, at(570, 4, 1)); // 9 ha – sklizeň ≈ 72 člověkodní
+    // zásoby přes rok spotřeby – ves podle zásob oseje menší plán (fields.md – Osev podle zásob),
+    // první úsek od domu se tak vejde do podzimu a v plánu je i ozim
+    s.storesKg = 1200;
     const day = advanceVillage(s, at(601, 9, 2), null);
     expect(day.orchardWork!.done).toBeGreaterThan(1);
     // i před ozimem – jablka se sklízejí první, ozim dostane zbytek podzimu

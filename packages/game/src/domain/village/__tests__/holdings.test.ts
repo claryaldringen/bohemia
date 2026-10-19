@@ -301,7 +301,12 @@ function pin(state: VillageState, day: number): void {
   );
 }
 
-/** Ves po `years` letech (každý rok po plánu osevu 2. 9.), vrací stavy po plánech. */
+/**
+ * Ves po `years` letech (každý rok po plánu osevu 2. 9.), vrací stavy po plánech. Zásoby obilí se
+ * jako lidé drží na výchozí hodnotě a ves jí jen obilí (bez změřeného podílu jídla z pole) – osev
+ * podle stravy a zásob (fields.md – Kolik ves oseje) tak dá oběma porovnávaným vsím stejný cíl rok
+ * co rok, blízký dřívějšímu osevu; test měří pořadí osevu, ne kolik se oseje.
+ */
 function seasons(start: VillageState, years: number): VillageState[] {
   let state = structuredClone(start);
   const out: VillageState[] = [];
@@ -309,6 +314,8 @@ function seasons(start: VillageState, years: number): VillageState[] {
     const planDay = at(600 + year, 9, 2);
     while (state.lastDay < planDay) {
       pin(state, state.lastDay + 1);
+      state.storesKg = start.storesKg;
+      delete state.fieldFood;
       state = advanceVillage(state, Math.min(planDay, state.lastDay + 28), null);
     }
     out.push(state);

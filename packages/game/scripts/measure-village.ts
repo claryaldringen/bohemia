@@ -37,9 +37,10 @@
 // - 1. 9. (po plánu osevu) hráč založí nové díly, když pole – zakládané, připravené a oseté díly
 //   a přílohy s úrodností aspoň 0,7 – nepokryje potřebu celého oběhu: osev × (roky osevu + roky
 //   přílohu) / roky osevu podle pravidel (od opravy podle rešerše 17. 10. 2026 16 / 3 ≈ 5,3,
-//   dřív 3,3), kde osev = roční potřeba z pole × (1 + rezerva) / čistá úroda hektaru v průměru
-//   tří let osevu (tak osev vybírá i ves – od 19. 10. 2026 podle stravy, fields.md – Kolik ves
-//   oseje: potřeba z pole = podíl jídla z pole za uplynulý rok × roční potřeba).
+//   dřív 3,3), kde osev = úroda rok co rok se zásobami na pojistce (roční potřeba z pole
+//   a ztráty skladováním – `steadyHarvestKg`) / čistá úroda hektaru v průměru tří let osevu (tak
+//   osev vybírá i ves – od 19. 10. 2026 podle stravy a podle zásob, fields.md – Kolik ves oseje:
+//   potřeba z pole = podíl jídla z pole za uplynulý rok × roční potřeba).
 // - Řemesla zatím nejsou – práce a ztráty se počítají s pokrytím NO_CRAFTS (horní meze).
 // - Hřbitov (cemetery.md): hráč ho založí hned po dostavění první zemnice – jeden čtverec 200 m
 //   od obydlí a 150 m od vody, hygiena 1 – a rozšíří ho o čtverec, když je z 80 % plný a žádné
@@ -55,11 +56,12 @@
 //   nepřidává), měří zarůstání. Ustálené vzorce bez simulace: village-calculator.ts.
 //
 // Strava a dobytek (diet.md): hráč skriptu ohrady nestaví (orba ne), stáda rostou a porážka dává
-// maso samo. Zásoby po sklizni se měří jako zásoby obilí v ročních potřebách z pole, se kterými ves
-// 1. 9. plánuje osev (stejně jako pravidlo zásob v plánu osevu – fields.md, Osev podle stravy);
-// informačně i dřívějším měřítkem – v ročních potřebách celé energie. Cíle „nasycení ≥ 0,95“
-// a hlad měří energii (dost jídla – jako před stravou), nasycení se stravou (energie × pestrost)
-// a podíly masa a ovoce jsou informace na konci kroků.
+// maso samo. Zásoby po sklizni (obilí a luštěniny energií) se měří vůči cíli osevu podle zásob
+// (rok potřeby z pole, se kterou ves 1. 9. plánuje, a pojistka – fields.md, Osev podle zásob);
+// informačně i v ročních potřebách z pole a zásoby obilí v ročních potřebách celé energie.
+// Hráč zakládá pole na úrodu rok co rok se zásobami na pojistce (`steadyHarvestKg`). Cíle
+// „nasycení ≥ 0,95“ a hlad měří energii (dost jídla – jako před stravou), nasycení se stravou
+// (energie × pestrost) a podíly masa a ovoce jsou informace na konci kroků.
 // Nasycení dne se počítá stejně jako v simulaci – ze stavu na konci předchozího dne. V krocích,
 // kde ves hladověla, skript přehraje jídlo den po dni ze začátku kroku a kroniky; když přehrané
 // zásoby nesedí s koncem kroku (nebo ves má jablka, maso – sklízejí se postupně), přepočítá krok
@@ -78,12 +80,14 @@ import {
   NO_CRAFTS,
   PLANNING_DAY,
   SEED_KG_PER_HA,
-  SOW_RESERVE,
   THRESH_END_DAY,
   WINTER_HARVEST_DAY,
   advanceVillage,
+  bufferKg,
   closeFieldFoodYear,
   fieldFoodShare,
+  fieldStoresKg,
+  steadyHarvestKg,
   yearlyFieldNeed,
   villageHappiness,
   livestockLandAt,
@@ -113,6 +117,7 @@ import type {
   ChronicleEvent,
   DwellingType,
   FieldSurface,
+  HerdSpecies,
   Person,
   VillageState,
 } from '../src/domain/village';
@@ -227,7 +232,10 @@ const PROBE_SEEDS = 5;
 const PROBE_YEARS = 50;
 const PROBE_STEP_DAYS = 28; // sonda nestaví – stačí krok 4 týdny
 const PROBE_FROM_YEAR = 20; // ustálený oběh se měří od 20. roku
-const BAND = { low: 1, high: 1.5 }; // zásoby po sklizni v ročních potřebách
+const BAND = { low: 1, high: 1.5 }; // zásoby po sklizni v ročních potřebách (dřívější cíl)
+// zásoby z pole po sklizni vůči cíli osevu – rok potřeby z pole a pojistka (fields.md – Osev podle
+// zásob, návrh Clauda)
+const TARGET_BAND = { low: 0.8, high: 1.25 };
 const SATIATION_OK = 0.95;
 
 // --- krajina a hráč -----------------------------------------------------------------------
@@ -237,13 +245,16 @@ function annualNeed(people: Person[], day: number): number {
 }
 
 /**
- * Pole podle potřeby celého oběhu (ha): osev × ROTATION_FACTOR. Osev hráč odhadne jako ves – cíl osevu
- * (potřeba z pole `need` + rezerva) / čistá úroda hektaru v průměru tří let osevu.
+ * Pole podle potřeby celého oběhu (ha): osev × ROTATION_FACTOR. Osev hráč odhadne jako ves se
+ * zásobami na pojistce – úroda rok co rok (`steadyHarvestKg`: potřeba z pole `need`, pojistka
+ * z roční potřeby celé energie `yearly`, ztráty skladováním) / čistá úroda hektaru v průměru tří
+ * let osevu.
  */
-function neededFieldHa(need: number, fertility: number): number {
+function neededFieldHa(need: number, yearly: number, fertility: number): number {
   const averageShare = 1 - FERTILITY.sowDepletion; // průměr tří let osevu (1, 0,88, 0,76)
   const netPerHa = grossYieldPerHa(fertility * averageShare) - SEED_KG_PER_HA;
-  return ((need * (1 + SOW_RESERVE)) / netPerHa) * ROTATION_FACTOR;
+  const harvest = steadyHarvestKg(need, bufferKg(yearly), NO_CRAFTS.pottery);
+  return (harvest / netPerHa) * ROTATION_FACTOR;
 }
 
 /** Plocha pole, kterou hráč počítá: zakládané, připravené, oseté díly a přílohy ≥ 0,7. */
@@ -325,8 +336,13 @@ interface RunResult {
   stopDay: number | null;
   rebuilds: { type: DwellingType; ageYears: number; early: boolean }[];
   minSatiation: Map<number, number>; // hospodářský rok (1. 9. – 31. 8.) → nejnižší nasycení
-  /** Rok sklizně → zásoby obilí po sklizni / roční potřeba z pole, se kterou ves plánuje osev. */
+  /** Rok sklizně → zásoby z pole po sklizni / roční potřeba z pole, se kterou ves plánuje osev. */
   storesRatio: Map<number, number>;
+  /**
+   * Rok sklizně → zásoby z pole po sklizni / zásoba, kterou osev podle zásob po sklizni chce mít
+   * (rok potřeby z pole a pojistka se ztrátami – fields.md, Osev podle zásob).
+   */
+  storesToTarget: Map<number, number>;
   /** Rok sklizně → zásoby obilí po sklizni / roční potřeba celé energie (dřívější měřítko). */
   grainStoresRatio: Map<number, number>;
   /**
@@ -368,6 +384,17 @@ interface RunResult {
   }[];
   /** Založená pole podle povrchu (ha) – i první pole při založení vsi. */
   foundedHa: Record<FieldSurface, number>;
+  /**
+   * Dobytek (diet.md – Dobytek): maso z porážek a zkažené maso (kg za běh), kusy uhynulé v zimě
+   * bez sena, stáda a zásoba masa na konci běhu.
+   */
+  livestock: {
+    slaughterKg: number;
+    spoiledKg: number;
+    starved: number;
+    herds: Record<HerdSpecies, number>;
+    meatKg: number;
+  };
 }
 
 function harvestYear(day: number): number {
@@ -480,6 +507,7 @@ function emptyResult(): RunResult {
     minSatiation: new Map(),
     diet: [],
     storesRatio: new Map(),
+    storesToTarget: new Map(),
     grainStoresRatio: new Map(),
     fieldShares: [],
     labor: new Map(),
@@ -501,6 +529,13 @@ function emptyResult(): RunResult {
     winterShare: new Map(),
     happiness: [],
     foundedHa: { meadow: 0, shrub: 0, forest: 0 },
+    livestock: {
+      slaughterKg: 0,
+      spoiledKg: 0,
+      starved: 0,
+      herds: { sheep: 0, goat: 0, pig: 0, cow: 0 },
+      meatKg: 0,
+    },
   };
 }
 
@@ -563,7 +598,10 @@ function recordHarvest(
   const planning = { ...after };
   closeFieldFoodYear(planning);
   const fieldNeed = yearlyFieldNeed(planning, day + 1);
-  if (fieldNeed > 0) result.storesRatio.set(year, after.storesKg / fieldNeed);
+  if (fieldNeed > 0) result.storesRatio.set(year, fieldStoresKg(after) / fieldNeed);
+  const buffer = bufferKg(need);
+  const target = steadyHarvestKg(fieldNeed, buffer, NO_CRAFTS.pottery) + buffer;
+  if (target > 0) result.storesToTarget.set(year, fieldStoresKg(after) / target);
   const plan = after.threshingFromPlan;
   const record = result.plans.find((p) => p.year === year);
   if (!plan || !pinned || !record) return;
@@ -693,6 +731,12 @@ function runVillage(start: VillageState, startLand: number, opts: RunOptions): R
         result.rebuilds.push({ type: dwelling.type, ageYears, early: ageYears < lifespan - 1e-6 });
       } else if (e.kind === 'apple-harvest') {
         result.appleHarvests.set(dateOfDayIndex(e.day).year, e.kg);
+      } else if (e.kind === 'slaughter') {
+        result.livestock.slaughterKg += e.kg;
+      } else if (e.kind === 'meat-spoiled') {
+        result.livestock.spoiledKg += e.kg;
+      } else if (e.kind === 'herd-starved') {
+        result.livestock.starved += Object.values(e.animals).reduce((sum, n) => sum + n, 0);
       }
     }
     if (firstConstruction && !after.constructions.some((c) => c.id === firstConstruction?.id)) {
@@ -721,8 +765,11 @@ function runVillage(start: VillageState, startLand: number, opts: RunOptions): R
       recordPlan(result, after, opts.pinned !== null);
       if (opts.foundFields) {
         const missing =
-          neededFieldHa(yearlyFieldNeed(after, day), averageFertility(after, opts.land, land)) -
-          countedFieldHa(after);
+          neededFieldHa(
+            yearlyFieldNeed(after, day),
+            annualNeed(after.people, day),
+            averageFertility(after, opts.land, land),
+          ) - countedFieldHa(after);
         const count = Math.max(MIN_FIELD_PARTS, Math.ceil((missing * M2_PER_HA) / PART_M2));
         const batch = missing > 0 ? opts.land.take(after, day, land, count) : null;
         if (batch && batch.parts.length >= MIN_FIELD_PARTS) {
@@ -800,6 +847,8 @@ function runVillage(start: VillageState, startLand: number, opts: RunOptions): R
   result.finalFieldHa = lastPlan?.fieldHa ?? 0;
   result.finalSownHa = lastPlan?.sownHa ?? 0;
   result.wood.finalLogs = state.woodLogs ?? 0;
+  if (state.livestock) result.livestock.herds = { ...state.livestock.herds };
+  result.livestock.meatKg = state.meatKg ?? 0;
   return result;
 }
 
@@ -985,7 +1034,7 @@ function runProbe(name: ProbeName): TaskResult {
   // pole o polovinu větší než potřeba z pole v ustáleném oběhu (osev podle stravy)
   const firstParts = fixedField
     ? Math.round(
-        (neededFieldHa(startNeed * steadyFieldShare(ages, land), V1_MEADOW_FERTILITY) *
+        (neededFieldHa(startNeed * steadyFieldShare(ages, land), startNeed, V1_MEADOW_FERTILITY) *
           oversize *
           M2_PER_HA) /
           PART_M2,
@@ -1348,16 +1397,24 @@ function report(villages: VillageResult[], probes: Record<ProbeName, ProbeSummar
       .map((y) => ({
         satiation: builder.minSatiation.get(y) ?? 1,
         stores: builder.storesRatio.get(y),
+        toTarget: builder.storesToTarget.get(y),
       })),
   );
-  const stores = builderYears.map((y) => y.stores).filter((v) => v !== undefined);
-  const storesP10 = quantile(stores, 0.1);
-  const storesP90 = quantile(stores, 0.9);
+  const toTarget = builderYears.map((y) => y.toTarget).filter((v) => v !== undefined);
+  const targetP10 = quantile(toTarget, 0.1);
+  const targetP90 = quantile(toTarget, 0.9);
   row(
-    'Zásoby obilí po sklizni (roční potřeby z pole), hráč staví',
-    'mezi 1 a 1,5 (p10 ≥ 1, p90 ≤ 1,5)',
-    `p10 ${fmt(storesP10, 2)} | medián ${fmt(quantile(stores, 0.5), 2)} | p90 ${fmt(storesP90, 2)} | v pásmu ${pct(share(stores.map((v) => v >= BAND.low && v <= BAND.high)))}`,
-    ok(storesP10 >= BAND.low && storesP90 <= BAND.high),
+    'Zásoby z pole po sklizni ÷ cíl (rok potřeby z pole + pojistka), hráč staví',
+    `${fmt(TARGET_BAND.low, 2)}–${fmt(TARGET_BAND.high, 2)} (p10 ≥ ${fmt(TARGET_BAND.low, 2)}, p90 ≤ ${fmt(TARGET_BAND.high, 2)})`,
+    `p10 ${fmt(targetP10, 2)} | medián ${fmt(quantile(toTarget, 0.5), 2)} | p90 ${fmt(targetP90, 2)} | v pásmu ${pct(share(toTarget.map((v) => v >= TARGET_BAND.low && v <= TARGET_BAND.high)))}`,
+    ok(targetP10 >= TARGET_BAND.low && targetP90 <= TARGET_BAND.high),
+  );
+  const stores = builderYears.map((y) => y.stores).filter((v) => v !== undefined);
+  row(
+    'Zásoby z pole po sklizni (roční potřeby z pole), hráč staví',
+    `informace – dřívější cíl ${fmt(BAND.low, 0)}–${fmt(BAND.high, 1)}; s pojistkou z celé energie víc u vsí, které víc jedí ze stád`,
+    `p10 ${fmt(quantile(stores, 0.1), 2)} | medián ${fmt(quantile(stores, 0.5), 2)} | p90 ${fmt(quantile(stores, 0.9), 2)} | v pásmu ${pct(share(stores.map((v) => v >= BAND.low && v <= BAND.high)))}`,
+    'info',
   );
   // dřívější měřítko a podíl jídla z pole – jen informace
   const grainStores = villages.flatMap(({ builder, foundDay, endDay }) =>
@@ -1409,6 +1466,40 @@ function report(villages: VillageResult[], probes: Record<ProbeName, ProbeSummar
       ),
       0,
     )}`,
+    'info',
+  );
+  // dobytek (diet.md – Dobytek): stáda a maso na konci na lidi vsi, porážky, zkažené maso, úhyn
+  const herdVillages = builders.filter((r) => r.finalPeople > 0);
+  const perTen = (species: HerdSpecies): string =>
+    fmt(
+      quantile(
+        herdVillages.map((r) => (10 * r.livestock.herds[species]) / r.finalPeople),
+        0.5,
+      ),
+      1,
+    );
+  const slaughtered = herdVillages.reduce((sum, r) => sum + r.livestock.slaughterKg, 0);
+  const spoiled = herdVillages.reduce((sum, r) => sum + r.livestock.spoiledKg, 0);
+  row(
+    `Dobytek – hráč staví (${config.years} let)`,
+    'jen informace (diet.md – Dobytek)',
+    `na konci na 10 lidí medián: krávy ${perTen('cow')}, prasata ${perTen('pig')}, ovce ${perTen('sheep')}, kozy ${perTen('goat')} | maso v zásobě na člověka medián ${fmt(
+      quantile(
+        herdVillages.map((r) => r.livestock.meatKg / r.finalPeople),
+        0.5,
+      ),
+      0,
+    )} kg | porážka na člověka a rok medián ${fmt(
+      quantile(
+        herdVillages.map((r) => r.livestock.slaughterKg / r.finalPeople / config.years),
+        0.5,
+      ),
+      0,
+    )} kg | zkazilo se ${pct(spoiled / Math.max(1, slaughtered))} masa z porážek | zimní úhyn ${fmt(
+      herdVillages.reduce((sum, r) => sum + r.livestock.starved, 0) /
+        Math.max(1, herdVillages.length),
+      1,
+    )} kusů na ves`,
     'info',
   );
   const landGone = builders.filter((r) => r.landGoneYear !== null).length;

@@ -1,0 +1,118 @@
+import { PART_TASKS, taskPosition, taskSpans } from './field-progress';
+import { expectedNetKg, partWalkDistance } from './fields';
+import { dropFromWork, shrinkInPlan } from './land-taken';
+import { expectedLegumeKg, legumeEnergy } from './legumes';
+import type { Crop, CropWork, FieldPart, VillageState, YearPlan } from './types';
+import { planCrops } from './year-plan';
+
+// Zkrácení rozjetého plánu podle zásob (fields.md – Kolik ves oseje, Osev podle zásob; Martin
+// 19. 10. 2026: „Ano“ k návrhu „Rozjetá práce na poli půjde přerušit hned: když ves podle nového
+// pravidla zjistí, že má zásob dost, přestane kopat nové díly už letos a neodloží to až na
+// 1. září“). Z plánu zmizí jen díly, na kterých ještě nezačala žádná práce (vrácení přílohu, orba,
+// kopání, setí…) – od konce pořadí práce, nejdál od domu první; rozpracovaný a zasetý díl zůstane.
+// Ubraný díl leží ladem jako příloh (ten, který se vracel z přílohu, jak ležel předtím). Práce
+// plodiny ubude o jeho podíl a čelo práce ostatních dílů zůstane, kde bylo (`shrinkInPlan` – jako
+// když díl zabere stavba), takže postup po čtvercích a vzhled dílů dál sedí.
+
+/** Tolerance porovnání energie (kg obilí). */
+const EPSILON = 1e-6;
+
+/** Očekávaná energie úrody dílu plodiny (kg obilí, luštěniny svou energií) – jako `chooseCrops`. */
+function partEnergy(part: FieldPart, crop: Crop, day: number): number {
+  return crop === 'legume' ? legumeEnergy(expectedLegumeKg(part, day)) : expectedNetKg(part, day);
+}
+
+/** Očekávaná energie úrody plánu (kg obilí) – plodiny, které se ještě nesklidily. */
+export function planEnergyKg(state: VillageState, plan: YearPlan, day: number): number {
+  const partsById = new Map(state.parts.map((p) => [p.id, p]));
+  let energy = 0;
+  for (const { crop, work } of planCrops(plan)) {
+    if (work.harvestedKg !== null) continue;
+    for (const id of work.partIds) {
+      const part = partsById.get(id);
+      if (part) energy += partEnergy(part, crop, day);
+    }
+  }
+  return energy;
+}
+
+/**
+ * Poslední díl obilí plodiny v pořadí práce, na kterém ještě nezačala žádná práce (žádná úloha
+ * nedošla na jeho začátek), nebo null. Úseky dílů se spočítají jednou za úlohu.
+ */
+function lastUntouched(
+  work: CropWork,
+  partsById: ReadonlyMap<number, FieldPart>,
+  day: number,
+): FieldPart | null {
+  // nejdál, kam která úloha na dílu došla: díl je nezačatý, když žádná úloha nepřešla jeho začátek
+  const started = new Set<number>();
+  for (const task of PART_TASKS) {
+    const position = taskPosition(work, task);
+    for (const span of taskSpans(work, partsById, task, day)) {
+      if (position > span.start + 1e-9) started.add(span.id);
+    }
+  }
+  for (let i = work.partIds.length - 1; i >= 0; i--) {
+    const id = work.partIds[i]!;
+    const part = partsById.get(id);
+    if (part && !started.has(id)) return part;
+  }
+  return null;
+}
+
+/** Ubraný díl leží ladem – příloh, ze kterého se vracel, jak ležel; jinak příloh od plánu. */
+function toFallow(part: FieldPart, plannedDay: number): void {
+  const before = part.fallowBeforePlan;
+  part.state = 'fallow';
+  part.fallowSinceDay = before ? before.sinceDay : plannedDay;
+  part.sownYears = 0;
+  delete part.crop;
+  if (before?.overgrowthYears !== undefined) part.overgrowthYears = before.overgrowthYears;
+  delete part.fallowBeforePlan;
+}
+
+/**
+ * Zkrátí letošní plán na cíl podle zásob (mutuje stav – volat na klonu): když očekávaná úroda
+ * plánu převyšuje `targetKg` o víc než `marginKg`, ubírá z obilí (ozim a jař – luštěniny se sejí
+ * podle bílkovin) nezačaté díly od konce pořadí práce, dokud úroda bez dalšího dílu neklesne pod
+ * cíl. Z konců obou plodin jde první díl dál od domu (chůze po pěšinách). Vrací id ubraných dílů.
+ */
+export function trimPlanToTarget(
+  state: VillageState,
+  day: number,
+  targetKg: number,
+  marginKg: number,
+): number[] {
+  const plan = state.plan;
+  if (!plan) return [];
+  let energy = planEnergyKg(state, plan, day);
+  if (energy <= targetKg + marginKg + EPSILON) return [];
+  const removed: number[] = [];
+  for (;;) {
+    const partsById = new Map(state.parts.map((p) => [p.id, p]));
+    let best: { part: FieldPart; crop: Crop; work: CropWork } | null = null;
+    for (const { crop, work } of planCrops(plan)) {
+      if (crop === 'legume' || work.harvestedKg !== null) continue;
+      const part = lastUntouched(work, partsById, day);
+      if (!part) continue;
+      // nejdál od domu první; při shodě jař (kope se a seje nejpozději)
+      if (
+        !best ||
+        partWalkDistance(part) > partWalkDistance(best.part) ||
+        (partWalkDistance(part) === partWalkDistance(best.part) && crop === 'spring')
+      ) {
+        best = { part, crop, work };
+      }
+    }
+    if (!best) break;
+    const lost = partEnergy(best.part, best.crop, day);
+    if (energy - lost < targetKg - EPSILON) break;
+    shrinkInPlan(state, plan, best.part, 1, day);
+    dropFromWork(best.work, new Set([best.part.id]));
+    toFallow(best.part, plan.plannedDay);
+    energy -= lost;
+    removed.push(best.part.id);
+  }
+  return removed;
+}

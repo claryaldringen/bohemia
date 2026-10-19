@@ -2,10 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { TOTAL_GAME_DAYS, dayIndexOf } from '../../calendar';
 import { foundField, foundVillage, startNewDwelling } from '../actions';
 import type { PartInput } from '../actions';
-import { daysUntilSlaughter, eatDiet } from '../diet';
+import { daysUntilMeatEnd, eatDiet } from '../diet';
 import { daysUntilHarvest } from '../food';
 import { animalCareNeed } from '../dairy';
-import { LIVESTOCK, villageChickens, villageHerds } from '../livestock';
+import { LIVESTOCK, herdLosses, villageChickens, villageHerds } from '../livestock';
+import { cloneState } from '../clone';
 import { ageYears, foodNeedPerDay, occupants } from '../people';
 import { NO_CRAFTS } from '../productivity';
 import {
@@ -103,9 +104,11 @@ describe('advanceVillage – dopočítání', () => {
     while (daily.lastDay < end) daily = advanceVillage(daily, daily.lastDay + 1, null);
     expect(daily).toEqual(whole);
 
-    // ves za 10 let opravdu žila – jinak by shoda nic neznamenala
+    // ves za 10 let opravdu žila – jinak by shoda nic neznamenala (porody na startovním poli bez
+    // nových dílů jsou náhoda – od stád realističtěji je méně masa a mléka; diet.md)
     expect(harvests(whole).length).toBeGreaterThanOrEqual(10);
-    expect(count(whole, 'birth')).toBeGreaterThan(0);
+    expect(count(whole, 'slaughter')).toBeGreaterThanOrEqual(5);
+    expect(count(whole, 'hunger-began')).toBeGreaterThan(0);
     expect(whole.lastDay).toBe(end);
   });
 
@@ -459,7 +462,7 @@ describe('advanceVillage – roční plán a sklizeň', () => {
       needPerDay: need,
       daysToHarvest: daysUntilHarvest(day),
       daysToRot: 0,
-      daysToSlaughter: daysUntilSlaughter(day),
+      daysToMeatEnd: daysUntilMeatEnd(day),
       potteryCoverage: NO_CRAFTS.pottery,
     }).grainKg;
     expect(threshLossKg(threshing, 500)).toBeCloseTo(250, 9);
@@ -474,7 +477,10 @@ describe('advanceVillage – roční plán a sklizeň', () => {
     const s0 = found(at(600, 6, 1), 42, field(133));
     s0.constructions = [];
     s0.lastDay = at(601, 2, 28);
-    s0.storesKg = 5000;
+    // zásoby obilí jen do sklizně (s větší zásobou by ves plán podle zásob hned zkrátila – fields.md,
+    // Osev podle zásob) a maso, ať nehladoví
+    s0.storesKg = 300;
+    s0.meatKg = 300;
     for (const p of s0.parts) {
       p.foundingDone = p.foundingCost;
       p.state = 'sown';
@@ -490,7 +496,8 @@ describe('advanceVillage – roční plán a sklizeň', () => {
     const dugShare = dig.done / dig.required;
     const sownShare = sow.done / sow.required;
     expect(sownShare).toBeLessThanOrEqual(dugShare + 1e-9);
-    expect(sownShare).toBeGreaterThan(dugShare - 0.01);
+    // pruh posledního dne – u plánu zkráceného podle zásob je větší díl plánu
+    expect(sownShare).toBeGreaterThan(dugShare - 0.02);
 
     const s = advanceVillage(spring, at(601, 8, 31), null);
     expect(harvests(s).at(-1)?.kg).toBeGreaterThan(0);
@@ -500,7 +507,10 @@ describe('advanceVillage – roční plán a sklizeň', () => {
     const s0 = found(at(600, 6, 1), 42, field(133));
     s0.constructions = [];
     s0.lastDay = at(601, 2, 28);
-    s0.storesKg = 5000;
+    // zásoby obilí jen do sklizně (s větší zásobou by ves plán podle zásob hned zkrátila – fields.md,
+    // Osev podle zásob) a maso, ať nehladoví
+    s0.storesKg = 300;
+    s0.meatKg = 300;
     for (const p of s0.parts) {
       p.foundingDone = p.foundingCost;
       p.state = 'sown';
@@ -517,7 +527,10 @@ describe('advanceVillage – roční plán a sklizeň', () => {
     expect(plan.done.harvest).toBeCloseTo(plan.required.harvest * sownShare, 6);
 
     const s = advanceVillage(summerEnd, at(601, 8, 31), null);
-    const ha = s0.parts.reduce((sum, p) => sum + p.areaM2, 0) / 10_000;
+    // plán mohl ves podle zásob zkrátit – úroda jen z dílů, které v něm zůstaly
+    const inPlan = new Set(plan.partIds);
+    const ha =
+      s0.parts.filter((p) => inPlan.has(p.id)).reduce((sum, p) => sum + p.areaM2, 0) / 10_000;
     const fullYield = ha * sownShare * (760 * (0.4 + 0.6 * 0.7) - 175);
     expect(harvests(s).at(-1)?.kg).toBe(Math.round(fullYield));
   });
@@ -613,7 +626,10 @@ describe('advanceVillage – založení vsi', () => {
     // (jedna domácnost)
     const before = advanceVillage(s0, day + 29, null);
     const factor = villageLaborFactor(before);
-    const animals = animalCareNeed(villageHerds(before), 0, villageChickens(before), day + 30);
+    // stáda dne po jeho ztrátách (diet.md – Roční ztráty stáda); pasou děti, práce vsi nic
+    const today = cloneState(before);
+    herdLosses(today);
+    const animals = animalCareNeed(villageHerds(today), 0, villageChickens(before), day + 30);
     expect(s.commonLaborHistory.at(-1)).toBeCloseTo(
       2.6 * factor - 0.5 - animals.milking - animals.care - 0.3 - 4 * 0.15,
       9,

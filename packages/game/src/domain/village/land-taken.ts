@@ -300,7 +300,7 @@ function setTaskWork(work: CropWork, task: PartTask, required: number, done: num
  * zůstanou tam, kde byly. Výmlat jako sklizeň; váha oraných či kopaných dílů orby (setí jde za
  * obojím) ubude o váhu dílu. Sklizená plodina (úroda už je v zásobách) se nemění.
  */
-function shrinkInPlan(
+export function shrinkInPlan(
   state: VillageState,
   plan: YearPlan,
   part: FieldPart,
@@ -340,7 +340,7 @@ function shrinkInPlan(
 }
 
 /** Odebrané díly zmizí z pořadí práce plodiny (i z vracených přílohů a z orby). */
-function dropFromWork(work: CropWork, removed: ReadonlySet<number>): void {
+export function dropFromWork(work: CropWork, removed: ReadonlySet<number>): void {
   work.partIds = work.partIds.filter((id) => !removed.has(id));
   const plough = work.plough;
   if (plough) {

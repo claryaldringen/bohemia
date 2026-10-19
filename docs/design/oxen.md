@@ -65,6 +65,31 @@ půdy na seno. Dobytek, dosud jen ozdoba, se tím poprvé zapojí do hry.
 
 ## Seno
 
+**Změna (Martin, 19. 10. 2026):** „Nezdá se mi, že bychom sklízeli tolik sena, že by to stáda
+uživilo.“ – seno jedí v zimě i ovce a kozy, dávky odpovídají malému raně středověkému dobytku,
+práce seče počítá sušení a svoz a stoh se kazí (návrh Clauda podle
+[rešerše](research/2026-10-19-herds-hay-meat.md); [strava – Stáda realističtěji](diet.md)):
+
+- **Denní dávka v zimě** (listopad–březen, 151 dní): **kráva 5 kg, vůl 6 kg** (na jaře orá),
+  **ovce a koza 1 kg** (letnina počítaná jako seno), prasata nic (pasou se v lese celý rok). Za
+  zimu kráva ≈ 0,75 t, vůl ≈ 0,9 t, ovce ≈ 0,15 t. Dřív 10 kg denně (1,5 t za zimu) na krávu
+  i vola a ovce a kozy nic.
+- **Kolik se seče:** 1. 6. ves naplánuje seno na zimní stádo, které si chce nechat (nosnost pastvy,
+  lesa a pasáků zmenšená podle potřeby – diet.md), a na voly ohrad (ohrada bez spřežení počítá se
+  dvěma), se ztrátou ve stohu do zkrmení (≈ 6 %).
+- **Práce seče:** seč kosou (≈ akr – 0,4 ha – za den na sekáče), obracení a sušení, hrabání do
+  kup, svoz a stohování – **meze 15 → 10 člověkodní na hektar** (bez kos od kováře → s nimi).
+  Dřív 6 čd/ha jen za seč.
+- **Stoh** ztrácí **10 % ročně** (počasí, plíseň ve vnější vrstvě) a **zbytek loňského sena se
+  k nové seči (1. 6.) zkazí**.
+- **Přes zimu** dostanou seno první voli, krávy, ovce a kozy se podělí o zbytek poměrně k dávce.
+  **Nosnost** k porážce (1. 11.) bere seno pro všechny, kdo ho jedí – voli, krávy na mléko a voly,
+  ovce, kozy, zbytek krav (diet.md – Skladba stáda). **Zimní úhyn** (1. 3.): krávy, ovce a kozy,
+  které dostaly za zimu méně než polovinu přídělu, uhynou tak, aby polovinu měly ostatní; chovný pár
+  přežije (diet.md – Zimní krmení a zimní úhyn). Voli beze změny (níž).
+
+Původní pravidla (18. 10. 2026; dávka a práce výš nahrazeny):
+
 - Voli přes zimu (listopad–březen, ≈ 150 dní) sežerou **≈ 1,5 t sena na vola**, tedy **≈ 3 t na
   spřežení** (návrh Clauda – ≈ 10 kg denně).
 - Seno dávají **všechny louky** (Martin, 18. 10. 2026): přirozené louky z krajiny do **600 m**
@@ -119,6 +144,8 @@ Rozhodnutí kontroléru tam, kde návrh nedává postup (Martin je může změni
   zůstaly jen ve vývojové ukázce. K políčkům, kde se ten den seče, vede pěšina (sekáči – práce
   dne), pevné cesty sčítají seč za rok jako jedno místo. V listopadu–březnu žere každý kus ≈ 10 kg denně, voli první.
   Zimní krmení, voda a kydání krav a volů je práce ([strava – Práce se zvířaty](diet.md)).
+  **Od 19. 10. 2026** seno na zimní stádo podle potřeby i s ovcemi a kozami, dávky, práce seče
+  a ztráty ve stohu podle části Seno výš.
 - **Pokrytí sena** se rozhodne **1. 3.**: co voli za zimu dostali a co jim ze zásoby zbývá na
   březen, proti potřebě celé zimy. Pod polovinu jeden vůl (nebo tele ve výcviku) uhyne,
   spřežení i výcvik se rozpadnou a druhý vůl jde na maso. Mezi polovinou a plným pokrytím vrátí
@@ -194,3 +221,6 @@ orba skutečně postupuje, stejně jako se mění vzhled dílů ([fields.md](fie
 | Ohrada smí na pole – čtverec pole pod ní z pole zmizí                                       | Martin (18. 10. 2026)         |
 | Spřežení postupuje s orbou po čtvercích                                                     | Martin (19. 10. 2026)         |
 | Pruh u čáry práce (2–4 řady), jen čelo dne, přechod pěšky do 60 m, dvě spřežení na díl      | návrh Clauda                  |
+| Seno i pro ovce a kozy; dávky malého dobytka; práce seče se sušením a svozem                | Martin (19. 10. 2026)         |
+| Kráva 5, vůl 6, ovce a koza 1 kg denně; seč 15 → 10 čd/ha; stoh 10 %/rok                    | návrh Clauda (rešerše)        |
+| Staré seno se k nové seči zkazí; seče se na zimní stádo podle potřeby                       | návrh Clauda                  |

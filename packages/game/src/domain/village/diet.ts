@@ -20,7 +20,7 @@ import { ageGroup, foodNeedPerDay } from './people';
 import { NO_CRAFTS, storageLossPerYear } from './productivity';
 import { honeyEnergy } from './goods';
 import { APPLE_FOOD_VALUE, FOREIGN_GOODS, LEGUMES } from './rules';
-import type { DietDay, Person, VillageState } from './types';
+import type { ChronicleEvent, DietDay, Person, VillageState } from './types';
 import { daysUntilFoodHarvest } from './year-plan';
 
 // Strava – obilí, luštěniny, maso, mléko a sýr, vejce, ovoce (diet.md). Energie (v obilních
@@ -28,7 +28,8 @@ import { daysUntilFoodHarvest } from './year-plan';
 // z bílkovin a ovoce (Martin 18. 10. 2026: maso a mléko kvůli bílkovinám – 1,6 g na kg tělesné
 // váhy; luštěniny jako plodina na poli). Ovoce se jí přednostně, dokud nezkazí (rovným dílem do
 // 1. 3.), čerstvé mléko a vejce, jak přibývají (přebytek mléka na sýr), maso rovným dílem do
-// příští porážky, sýr do příštího dojení a luštěniny do příští sklizně; obilí dorovná energii.
+// zkažení (31. 8. – uzené z podzimní porážky se šetřilo na žně; maso ze září a října do
+// porážky), sýr do příštího dojení a luštěniny do příští sklizně; obilí dorovná energii.
 // Ovoce smí pokrýt nejvýš čtvrtinu potřeby energie, maso 40 %, mléko a sýr 30 %, luštěniny
 // LEGUMES.energyCap.
 // Hladem se umírá jen z nedostatku energie (population.md – Hlad a vymření), bílkoviny a ovoce
@@ -41,7 +42,8 @@ import { daysUntilFoodHarvest } from './year-plan';
  * 0,60 + 0,34 × pokrytí bílkovin + 0,06 × pokrytí ovoce (nejvýš 1 – samo obilí ≈ 0,8); ovoce plně
  * při 5 % energie; ovoce přidá štěstí +5; maso štěstí až +3 – plně od 20 % energie z masa, méně
  * poměrně (Martin 18. 10. 2026: „maso bude mírně zvyšovat štěstí“, čísla návrh Clauda); zásoba
- * masa se uzí a suší – ztratí 20 % ročně (návrh Clauda, Martin).
+ * masa se uzí a suší – ztratí 20 % ročně (návrh Clauda, Martin) – a 1. 9. se zbytek zkazí
+ * (MEAT_SPOIL_DAY).
  */
 export const DIET = {
   caps: { meat: 0.4, fruit: 0.25, dairy: 0.3, legumes: LEGUMES.energyCap },
@@ -71,8 +73,15 @@ export const PROTEIN = {
   },
 } as const;
 
-/** Porážka (diet.md – listopad): 1. 11. ráno, před jídlem dne – maso se jí rovným dílem do ní. */
+/** Porážka (diet.md – listopad): 1. 11. ráno, před jídlem dne. */
 export const SLAUGHTER_DAY = { month: 11, day: 1 } as const;
+/**
+ * diet.md – Trvanlivost masa (Martin 19. 10. 2026: „uzené maso určitě také nevydrží 3 roky“;
+ * datum návrh Clauda podle rešerše research/2026-10-19-herds-hay-meat.md): uzené a sušené maso
+ * z podzimní porážky vydrží přes zimu a jaro a šetří se na žně – 1. 9. ráno se zbytek zkazí
+ * (v létě žlukne tuk a maso napadá hmyz; soli bylo málo).
+ */
+export const MEAT_SPOIL_DAY = { month: 9, day: 1 } as const;
 
 const COMMON_YEAR_DAYS = 365;
 /** Maso se uzí rovnoměrně po dnech – za rok ubude DIET.meatLossPerYear. */
@@ -206,8 +215,11 @@ export interface DietInput {
   daysToHarvest: number;
   /** Dní, kdy ještě jde jíst ovoce, včetně dneška (`daysUntilAppleRot`); 0 = žádné. */
   daysToRot: number;
-  /** Dní do příští porážky (bez jejího dne) – maso se jí rovným dílem do ní. */
-  daysToSlaughter: number;
+  /**
+   * Dní, kdy se ještě jí maso, včetně dneška (`daysUntilMeatEnd` – do zkažení, v září a říjnu
+   * do porážky) – jí se rovným dílem do konce.
+   */
+  daysToMeatEnd: number;
   /** Dní do příštího začátku dojení – sýr se jí rovným dílem do něj; bez údaje rok. */
   daysToMilking?: number;
   /**
@@ -244,7 +256,7 @@ export interface DietResult {
 /**
  * Jeden den jídla (diet.md): ztráta zásob (obilí podle nádob, maso uzením, sýr sušením), pak
  * příděl. Ovoce rovným dílem do zkažení, čerstvé mléko (co se nevypije do stropu mléka a sýra,
- * zpracuje se na sýr) a vejce, maso rovným dílem do porážky a sýr do příštího dojení, vše nejvýš
+ * zpracuje se na sýr) a vejce, maso rovným dílem do zkažení a sýr do příštího dojení, vše nejvýš
  * do svých stropů; obilí dorovná potřebu energie. Vystačí-li obilí do sklizně (s tím, co ještě
  * přijde na řadu), jí se dosyta; jinak se energie dělí rovně do sklizně – a když by ani tak obilí
  * do zkažení ovoce nebylo potřeba, jí se do té doby jen ostatní a obilí zůstane na dobu po něm.
@@ -289,10 +301,10 @@ export function eatDiet(input: DietInput): DietResult {
   const drunkShare = milkTotalEnergy > 0 ? milkEnergy / milkTotalEnergy : 0;
   const milkDrunk = milkL * drunkShare;
   const eggsEnergy = eggs * DIET.energy.eggs;
-  const meatRation = Math.min(
-    DIET.caps.meat * need,
-    meatEnergy(meat) / Math.max(1, input.daysToSlaughter),
-  );
+  const meatDays = Math.max(1, input.daysToMeatEnd);
+  const meatRation = Math.min(DIET.caps.meat * need, meatEnergy(meat) / meatDays);
+  // maso jen do zkažení – do sklizně počítá jen dny, kdy ještě bude
+  const meatUntilHarvest = meatRation * Math.min(days, meatDays);
   const cheeseRation = Math.min(
     Math.max(0, DIET.caps.dairy * need - milkEnergy),
     (cheese * DAIRY.cheeseEnergy) / Math.max(1, input.daysToMilking ?? COMMON_YEAR_DAYS),
@@ -306,9 +318,10 @@ export function eatDiet(input: DietInput): DietResult {
     FOREIGN_GOODS.honeyCap * need,
     honeyEnergy(honey) / FOREIGN_GOODS.honeyDays,
   );
-  // maso, sýr, luštěniny, med a vejce se počítají i do dalších dní, ovoce jen do zkažení
-  const daily = meatRation + cheeseRation + legumeRation + honeyRation + eggsEnergy;
-  const today = fruitRation + milkEnergy + daily;
+  // sýr, luštěniny, med a vejce se počítají i do dalších dní, maso do svého zkažení, mléko
+  // a ovoce jen, jak opravdu přijdou
+  const daily = cheeseRation + legumeRation + honeyRation + eggsEnergy;
+  const today = fruitRation + milkEnergy + meatRation + daily;
   const made = cheeseFromMilk(milkProtein * (1 - drunkShare));
   // mléko a sýr od zítřka do sklizně: s mlékem stád se počítá celá zásoba sýra (i dnešní), nejvýš
   // strop; bez mléka stád sýr dnešním přídělem (dřívější výhled) – `extraDairy` je rozdíl proti němu
@@ -322,14 +335,16 @@ export function eatDiet(input: DietInput): DietResult {
             Math.max(0, input.milkAheadEnergy),
         ) -
         cheeseRation * daysAhead;
-  const grainNeed = (need - daily) * days - fruitRation * rotDays - milkEnergy - extraDairy;
+  const grainNeed =
+    (need - daily) * days - meatUntilHarvest - fruitRation * rotDays - milkEnergy - extraDairy;
   let outlook = 1;
   let grainToday: number;
   if (grain >= grainNeed) {
     grainToday = need - today;
   } else {
     const even =
-      (grain + fruitRation * rotDays + milkEnergy + daily * days + extraDairy) / (need * days);
+      (grain + fruitRation * rotDays + milkEnergy + meatUntilHarvest + daily * days + extraDairy) /
+      (need * days);
     if (even * need >= today) {
       outlook = even;
       grainToday = even * need - today;
@@ -339,7 +354,9 @@ export function eatDiet(input: DietInput): DietResult {
       const now = today / need;
       const after = days - rotDays;
       const laterDairy = daysAhead > 0 ? (extraDairy * after) / daysAhead : 0;
-      const later = after > 0 ? (grain + daily * after + laterDairy) / (need * after) : now;
+      const meatAfter = meatRation * Math.max(0, Math.min(days, meatDays) - rotDays);
+      const later =
+        after > 0 ? (grain + daily * after + laterDairy + meatAfter) / (need * after) : now;
       outlook = Math.min(now, later);
     }
   }
@@ -372,17 +389,48 @@ export function eatDiet(input: DietInput): DietResult {
 }
 
 /**
- * Dní do příští porážky bez jejího dne: 31. 10. → 1, 1. 11. (porážka už proběhla ráno) → celý
- * rok. Bez dayIndexOf za koncem světa (podzim 1499).
+ * Dní do příštího výročního dne `target` (měsíc a den po únoru) bez jeho dne: den před ním → 1,
+ * on sám → celý rok. Bez dayIndexOf za koncem světa (podzim 1499).
  */
-export function daysUntilSlaughter(day: number): number {
+function daysBefore(day: number, target: { month: number; day: number }): number {
   const { year, month, day: dayOfMonth } = dateOfDayIndex(day);
-  const passed =
-    month > SLAUGHTER_DAY.month ||
-    (month === SLAUGHTER_DAY.month && dayOfMonth >= SLAUGHTER_DAY.day);
-  const thisYear = dayIndexOf({ year, ...SLAUGHTER_DAY });
+  const passed = month > target.month || (month === target.month && dayOfMonth >= target.day);
+  const thisYear = dayIndexOf({ year, ...target });
   const next = passed ? thisYear + COMMON_YEAR_DAYS + (isLeapYear(year + 1) ? 1 : 0) : thisYear;
   return next - day;
+}
+
+/**
+ * Dní do příští porážky bez jejího dne: 31. 10. → 1, 1. 11. (porážka už proběhla ráno) → celý
+ * rok.
+ */
+export function daysUntilSlaughter(day: number): number {
+  return daysBefore(day, SLAUGHTER_DAY);
+}
+
+/**
+ * Dní, kdy se ještě jí maso, včetně dneška (diet.md – Trvanlivost masa): od porážky do zkažení
+ * (31. 8. → 1, 1. 11. → 304), v září a říjnu (maso ze spřežení) do porážky.
+ */
+export function daysUntilMeatEnd(day: number): number {
+  return Math.min(daysBefore(day, MEAT_SPOIL_DAY), daysUntilSlaughter(day));
+}
+
+/** Zkazí se v tento den ráno zbytek masa (1. 9.)? */
+export function isMeatSpoilDay(day: number): boolean {
+  const { month, day: dayOfMonth } = dateOfDayIndex(day);
+  return month === MEAT_SPOIL_DAY.month && dayOfMonth === MEAT_SPOIL_DAY.day;
+}
+
+/**
+ * 1. 9. ráno (mutuje stav – diet.md, Trvanlivost masa): zbytek uzeného masa se zkazil. Vrátí
+ * událost kroniky (od kila), nebo null.
+ */
+export function spoilMeat(state: VillageState, day: number): ChronicleEvent | null {
+  const kg = state.meatKg ?? 0;
+  if (!isMeatSpoilDay(day) || kg <= 0) return null;
+  state.meatKg = 0;
+  return kg >= 1 ? { day, kind: 'meat-spoiled', kg: Math.round(kg) } : null;
 }
 
 /** Potřeba energie vsi za den (kg obilí). */
@@ -403,7 +451,7 @@ export function villageMeatKg(state: Pick<VillageState, 'meatKg'>): number {
 /**
  * Jídlo dne `day` ze stavu na konci předchozího dne – bez změny stavu (stejně jako krok jídla
  * simulace; mléko a vejce dne bez ohledu na práci). 1. 3. ráno ovoce shnije, v nádobách později
- * (`potteryCoverage` – crafts.md).
+ * (`potteryCoverage` – crafts.md), 1. 9. ráno maso.
  */
 export function villageMeal(
   state: VillageState,
@@ -424,7 +472,7 @@ export function villageMeal(
   );
   return eatDiet({
     grainKg: state.storesKg,
-    meatKg: villageMeatKg(state),
+    meatKg: isMeatSpoilDay(day) ? 0 : villageMeatKg(state),
     fruitKg: applesSpoiled(day, potteryCoverage) ? 0 : villageApplesKg(state),
     cheeseKg: villageCheeseKg(state),
     milkL: fresh.milk.liters,
@@ -448,7 +496,7 @@ export function villageMeal(
       : 0,
     daysToHarvest,
     daysToRot: daysUntilAppleRot(day, potteryCoverage),
-    daysToSlaughter: daysUntilSlaughter(day),
+    daysToMeatEnd: daysUntilMeatEnd(day),
     potteryCoverage,
   });
 }

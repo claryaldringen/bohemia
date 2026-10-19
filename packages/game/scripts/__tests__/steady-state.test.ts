@@ -4,10 +4,11 @@ import {
   FERTILITY,
   FIELD_WORK_PER_HA,
   FOOD_NEED_KG_PER_YEAR,
+  NO_CRAFTS,
   SEED_KG_PER_HA,
-  SOW_RESERVE,
   STORAGE_LOSS_PER_YEAR,
   YIELD_BASE_KG_PER_HA,
+  steadyHarvestKg,
 } from '../../src/domain/village';
 import {
   ROTATION,
@@ -44,14 +45,15 @@ describe('ustálený oběh z pravidel', () => {
     expect(ROTATION_FACTOR).toBeCloseTo((ROTATION.sown + ROTATION.fallow) / ROTATION.sown);
   });
 
-  it('osev pokryje potřebu s rezervou čistou úrodou průměru let osevu', () => {
+  it('osev pokryje potřebu s pojistkou čistou úrodou průměru let osevu', () => {
     const need = foodNeedKg(START.household);
     expect(need).toBe(2 * FOOD_NEED_KG_PER_YEAR.adult + 2 * FOOD_NEED_KG_PER_YEAR.child);
     const net =
       YIELD_BASE_KG_PER_HA * (0.4 + (0.6 * 70 * averageSownShare()) / 100) - SEED_KG_PER_HA;
     expect(netYieldPerHa(70)).toBeCloseTo(net);
-    expect(sownHa(need, 70)).toBeCloseTo((need * (1 + SOW_RESERVE)) / net);
-    expect(sownHa(need, 70, false)).toBeCloseTo(need / net);
+    expect(sownHa(need, 70, 100)).toBeCloseTo(steadyHarvestKg(need, 100, NO_CRAFTS.pottery) / net);
+    expect(sownHa(need, 70, 100)).toBeGreaterThan(need / net);
+    expect(sownHa(need, 70)).toBeCloseTo(need / net);
   });
 
   it('zásoby po sklizni v rovnováze a sklizeň pro ně jsou inverzní', () => {

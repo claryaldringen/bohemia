@@ -5,15 +5,14 @@ import type { VillageView } from './village-view';
 // Upozornění vsi (population.md – Co hráč vidí): plná domácnost, ves hladoví, lidé umírají hlady
 // (Hlad a vymření), stavby stojí, hřbitov je plný (cemetery.md), vesničané ušetřili posvátný dub
 // nebo dubový háj (happiness.md – jen když přibude), kovář nemá uhlí a dílna nemá co kácet
-// (crafts.md), svatba mezi domy (population.md – Sňatky mezi domy, když přibude), podzimní
-// porážka (diet.md), spřežení volů – vycvičené, dosloužilo, vůl uhynul pro nedostatek sena
-// (oxen.md) –, vesničané obnovují starý sad a starý sad dosloužil (orchard.md – Obnova sadu),
-// posvátný dub uschl a posvátná souš padla (happiness.md), nevěsta z okolí a dcera vdaná pryč
-// (kinship.md – Sňatky z okolí), opuštěná modla padla, svatyně, plot hřbitova či ohrada se
-// rozpadly a vesničané je opravili (abandonment.md – Oprava) – nové události kroniky. Vymřelá ves
-// žádná nemá.
-// Odvozují se z pohledu na ves a ukážou se jednou, když nově vzniknou – jako krátký mizející
-// řádek nahoře uprostřed (jako oznámení v 0 A.D.). Jen fakt, žádná rada.
+// (crafts.md), svatba mezi domy (population.md – Sňatky mezi domy, když přibude), podzimní porážka,
+// zkažené maso a zimní úhyn stáda (diet.md), spřežení volů – vycvičené, dosloužilo, vůl uhynul pro
+// nedostatek sena (oxen.md) –, vesničané obnovují starý sad a starý sad dosloužil (orchard.md –
+// Obnova sadu), posvátný dub uschl a posvátná souš padla (happiness.md), nevěsta z okolí a dcera
+// vdaná pryč (kinship.md – Sňatky z okolí), opuštěná modla padla, svatyně, plot hřbitova či ohrada
+// se rozpadly a vesničané je opravili (abandonment.md – Oprava) – nové události kroniky. Vymřelá
+// ves žádná nemá. Odvozují se z pohledu na ves a ukážou se jednou, když nově vzniknou – jako
+// krátký mizející řádek nahoře uprostřed (jako oznámení v 0 A.D.). Jen fakt, žádná rada.
 
 export type NoticeKind =
   | 'full-household'
@@ -29,6 +28,8 @@ export type NoticeKind =
   | 'sacred-snag-fell'
   | 'marriage'
   | 'slaughter'
+  | 'meat-spoiled'
+  | 'herd-starved'
   | 'team-ready'
   | 'team-retired'
   | 'ox-died'
@@ -162,6 +163,20 @@ const CHRONICLE_NOTICES: Partial<
       entry.kg !== undefined
         ? `Podzimní porážka – ${formatInteger(entry.kg)} kg masa`
         : 'Podzimní porážka',
+  }),
+  // zbytek uzeného masa se do žní nesnědl, přes zimu chybělo seno (diet.md)
+  'meat-spoiled': (entry) => ({
+    kind: 'meat-spoiled',
+    tone: 'warn',
+    text:
+      entry.kg !== undefined
+        ? `Maso se zkazilo – ${formatInteger(entry.kg)} kg`
+        : 'Maso se zkazilo',
+  }),
+  'herd-starved': () => ({
+    kind: 'herd-starved',
+    tone: 'warn',
+    text: 'Dobytek hynul – chybělo seno',
   }),
   'team-ready': () => ({ kind: 'team-ready', tone: 'info', text: 'Spřežení je vycvičené' }),
   'bride-from-outside': () => ({

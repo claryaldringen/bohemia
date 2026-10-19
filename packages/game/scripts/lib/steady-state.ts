@@ -19,15 +19,16 @@ import {
   ORCHARD,
   ORCHARD_WINDOWS,
   SEED_KG_PER_HA,
-  SOW_RESERVE,
   TASK_ORDER,
   YOUNG_FALLOW_YEARS,
+  bufferKg,
   dailyMinPerHousehold,
   distanceFactor,
   dwellingBuildLabor,
   fieldWorkPerHa,
   grossYieldPerHa,
   reclaimCostPerHa,
+  steadyHarvestKg,
   storageLossPerYear,
   windowEndOf,
   type Crop,
@@ -119,9 +120,16 @@ export function laborPerDay(h: Household): number {
   );
 }
 
-/** Osev (ha), který pokryje cíl osevu – potřeba × (1 + rezerva), nebo jen potřeba. */
-export function sownHa(needKg: number, fertility: number, reserve = true): number {
-  return (needKg * (reserve ? 1 + SOW_RESERVE : 1)) / netYieldPerHa(fertility);
+/**
+ * Osev (ha) na úrodu rok co rok – s pojistkou `bufferKgValue` (osev podle zásob: potřeba z pole
+ * a ztráty skladováním, `steadyHarvestKg`), bez ní jen potřeba.
+ */
+export function sownHa(needKg: number, fertility: number, bufferKgValue?: number): number {
+  const harvest =
+    bufferKgValue === undefined
+      ? needKg
+      : steadyHarvestKg(needKg, bufferKgValue, NO_CRAFTS.pottery);
+  return harvest / netYieldPerHa(fertility);
 }
 
 /**
@@ -155,7 +163,10 @@ export interface SteadyInput {
   dwelling: DwellingType;
   /** Plocha sadu v plné úrodě (ha) – nejí se místo obilí, jen práce a jablka navíc. */
   orchardHa: number;
-  /** Cíl osevu s rezervou 15 % (zásoby do 1,5 roční potřeby), jinak jen potřeba. */
+  /**
+   * Osev podle zásob se zásobami na pojistce (potřeba z pole a ztráty skladováním – fields.md,
+   * Osev podle zásob), jinak jen potřeba.
+   */
   reserve: boolean;
   /**
    * Podíl jídla z pole (fields.md – Osev podle stravy): osev jen na tuto část roční potřeby
@@ -267,9 +278,10 @@ export function steadyState(input: SteadyInput): SteadyResult {
   const h = input.household;
   const count = input.households;
   const persons = people(h) * count;
-  // potřeba z pole – osev podle stravy (fields.md – Kolik ves oseje)
+  // potřeba z pole – osev podle stravy, pojistka z celé energie (fields.md – Kolik ves oseje)
   const need = foodNeedKg(h) * count * (input.fieldShare ?? 1);
-  const sown = input.sownHaOverride ?? sownHa(need, input.fertility, input.reserve);
+  const buffer = input.reserve ? bufferKg(foodNeedKg(h) * count) : undefined;
+  const sown = input.sownHaOverride ?? sownHa(need, input.fertility, buffer);
   const factor = distanceFactor(input.distanceM);
   const capacityPerDay = laborPerDay(h) * count;
   const dailyMinPerDay = dailyMinPerHousehold(NO_CRAFTS.pottery) * count;

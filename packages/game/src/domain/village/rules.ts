@@ -125,14 +125,24 @@ export const FOOD_NEED_KG_PER_YEAR = { child: 100, adult: 180, elder: 140 } as c
 // fields.md – Zásoby a nasycení (ztráty při skladování – meze: s hrnčířem 5 %, start se zásobami)
 export const STORAGE_LOSS_PER_YEAR: Bounds = { worst: 0.1, best: 0.05 };
 export const START_STORES_MONTHS = 18;
-// fields.md – Kolik ves oseje (potřeba + rezerva 15 %, nad 1,5 roční potřeby jen potřeba)
-export const SOW_RESERVE = 0.15;
-export const STORES_HIGH_YEARS = 1.5;
 // fields.md – Kolik ves oseje, Osev podle stravy (návrh Clauda, Martin schválil směr 19. 10. 2026):
 // potřeba z pole = podíl energie, který ves za uplynulý hospodářský rok potřebovala z obilí
 // a luštěnin, × dnešní roční potřeba; podíl nejméně minShare = 1 − strop masa (0,4) − strop
 // mléka a sýra (0,3) z diet.md – ovoce, vejce a med se do pojistky nepočítají (hlídá test)
 export const FIELD_FOOD = { minShare: 0.3 } as const;
+// fields.md – Kolik ves oseje, Osev podle zásob (Martin 19. 10. 2026: „Ať se osev řídí také
+// zásobami“ a „Ano“ ke zkrácení plánu uprostřed sezóny; čísla návrh Clauda): po příští sklizni má
+// ves zásoby z pole na rok spotřeby a k tomu pojistku, která zbude před další sklizní – 0,5 roční
+// potřeby celé energie (≈ půl roku celé stravy; se stády podle bílkovin – maso ≈ 11 %, mléko ≈ 10 %
+// energie – rostoucí ves, které nestačí práce, ji vybere; kalibrace 20 × 20: hráč staví nasycení
+// ≥ 0,95 v 97,1 % let, s 0,3 v 94,2 %); přebytek nad pojistku ves sní za 3 roky; rozjetý plán
+// zkrátí, když převyšuje cíl o víc než desetinu roční potřeby z pole (ať ho podzimní mléko a ovoce
+// neubírají po kouscích)
+export const FIELD_STORES = {
+  bufferEnergyYears: 0.5,
+  surplusYears: 3,
+  trimMarginYears: 0.1,
+} as const;
 // fields.md – Kolik ves oseje (návrh Clauda)
 export const PEAK_CAPACITY_SHARE = 1; // ve špičce smí jít na pole všechna práce po denním minimu (kalibrace z 0,8)
 // fields.md – Úroda (hrubá úroda na hektar podle úrodnosti)
@@ -900,3 +910,10 @@ export const LEAVING = {
   carryFromAge: 7,
   travelDays: { min: 1, max: 3, perDayM: 400 },
 } as const;
+
+// oxen.md – Seno (Martin 19. 10. 2026: „Nezdá se mi, že bychom sklízeli tolik sena, že by to stáda
+// uživilo“; čísla návrh Clauda podle rešerše research/2026-10-19-herds-hay-meat.md): seč kosou
+// ≈ akr (0,4 ha) za den, krátkou kosou a srpem méně, obracení, sušení, hrabání do kup, svoz
+// a stohování – celkem 10–15 člověkodní na hektar louky. Nejlepší mez s nástroji od kováře (kosy),
+// nejhorší bez nich. Dřív 6 člověkodní (jen seč).
+export const HAY_WORK_PER_HA: Bounds = { worst: 15, best: 10 };
