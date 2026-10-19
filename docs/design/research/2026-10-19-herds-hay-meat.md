@@ -121,6 +121,19 @@ Ovce se v raném středověku chovaly hlavně pro vlnu – přeslenky a závaž�
 k nejběžnějším nálezům na slovanských sídlištích **(odhad – obecně známé)**. Návrh zapojení je
 v diet.md (Námět – vlna).
 
+## 9. Pastva na přílohu, otavě a strništi (doplněno 19. 10. 2026)
+
+- **Mladý příloh** (první 1–2 roky po obilí): porost tvoří plevele, výmladky obilí a řídký drn, který
+  se teprve zapojuje; na jednoletém úhoru (set-aside) kryje půdu plevel ze ≈ 74–79 % proti ≈ 89–94 %
+  na dlouhodobém (německá studie) – píce je málo a horší **(jen výtah)**. Přímé číslo výnosu
+  pastvy jsem nenašel. **Hra:** třetina píce louky.
+- **Otava:** louka posečená v červnu–červenci obrůstá pomaleji, pase se od srpna do konce sezóny –
+  zhruba třetina sezóny **(odhad)**. **Hra:** třetina.
+- **Strniště po sklizni:** paběrky (vypadlé klasy, plevel) pásl dobytek ve středověkých vsích
+  běžně až do zorání **(odhad – obecně známé)**; do nosnosti hra strniště nepočítá (pár týdnů).
+- **Osetý díl a louka před sečí** jsou jídlo – dobytek se z nich vyháněl (pasák, ploty) –
+  Martin 19. 10. 2026.
+
 ## Zdroje
 
 - FAO, _Cattle production parameters of pastoral and mixed systems in sub-Saharan Africa_ (tab.
@@ -149,3 +162,5 @@ v diet.md (Námět – vlna).
 - Uzené maso bez chlazení (praxe) –
   https://www.smokingmeatforums.com/threads/shelf-life-of-home-cured-bacon.285261/
 - Mléko, sýr, bílkoviny, velikost skotu: rešerše 2026-10-18-dairy-protein.md
+- Plevel na jednoletém a dlouhodobém úhoru (set-aside) –
+  https://conservationevidencejournal.com/individual-study/2628

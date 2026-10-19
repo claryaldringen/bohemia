@@ -737,6 +737,14 @@ nepasený a nesečený příloh zarůstá (viz Zarůstání).
   krávu a vola, 0,2 ha na ovci a kozu); co zbude, pasou na přirozených loukách krajiny. Díl se
   **spásl**, když na něj připadla aspoň **polovina** jeho plochy. Stejné rozdělení určuje, kam
   chodí pasáček (síť pěšin) a kde se stáda pasou ve scéně.
+- **Změna (Martin, 19. 10. 2026):** „Stáda domácího zvířectva se nesmí potulovat sama. Vždycky
+  s nimi musí být nějaký člověk. Ten je bude primárně vodit na louky, určené ke spásání. Domácí
+  zvířata by neměla spásat jídlo pro lidi ani ho pošlapat a na čerstvém úhoru toho k pastvě také
+  asi moc není.“ Pase se napřed na přílohu ve fázi louky, který se letos neseče, pak na
+  přirozených loukách, pak na **mladém přílohu – jen třetinou píce** – a nakonec na otavě
+  posečených luk; louka letošní seče se před sečí nepase. Osetý díl nikdy, strniště po sklizni
+  ano (do nosnosti se nepočítá). Pase se jen podíl stáda, který pasáci uhlídali. Podrobně
+  [strava – Pastva a vždy s pasákem](diet.md).
 - **Seno** ([orání rádlem](oxen.md)): úhor ve fázi louky se seče na seno pro krávy a voly – práce
   v červnu–červenci a seno v zásobách. Díl, ke kterému letos došla seč, se **posekl**.
 - **Starší vsi:** roky bez pastvy a seče se začnou počítat od zavedení pravidla – žádný díl

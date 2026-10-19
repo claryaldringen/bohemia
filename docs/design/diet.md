@@ -240,6 +240,43 @@ mohou pást jen 2 malí kluci, nezvládne udržet stádo 100 krav**“.
   (člověkoden = jeden), nejvýš jeden u každého stáda; rozdělení práce z doby před pasáky ukáže děti
   jako dřív.
 
+#### Pastva a vždy s pasákem
+
+Martin (19. 10. 2026): „**Stáda domácího zvířectva se nesmí potulovat sama. Vždycky s nimi musí
+být nějaký člověk. Ten je bude primárně vodit na louky, určené ke spásání. Domácí zvířata by
+neměla spásat jídlo pro lidi ani ho pošlapat a na čerstvém úhoru toho k pastvě také asi moc
+není.**“ Mění dřívější pravidlo „na úhoru pasáček se zvířaty – mladý úhor vždy, louka na seno
+jen po seči na otavě“ (18. 10. 2026). Detaily návrh Clauda:
+
+- **Pastviny – louky určené ke spásání:** přirozené louky do 600 m a příloh ve fázi louky, kromě
+  luk, které ves letos potřebuje na seno (plán seče 1. 6.; do něj loňský) – ty až po seči na
+  otavě.
+- **Mladý příloh (1–2 roky)** dá jen **třetinu píce** louky (plevel, výmladky obilí, řídký drn –
+  rešerše: první roky přílohu porost teprve zapojuje); **louka letošní seče** jen **třetinu** –
+  otavu od srpna do konce sezóny.
+- **Osetý díl ani zralé obilí se nespásá nikdy** (ani strniště před sklizní – to ještě je obilí).
+  **Strniště po sklizni ano** – paběrky do zorání; do nosnosti se nepočítá (pár týdnů, málo píce).
+- **Jak se pastviny určí** (deterministicky, `pasture.ts` – `pastureGrazing`): potřeba pastvy stád
+  (≈ 1 ha na krávu a vola, 0,2 ha na ovci a kozu) jde napřed na příloh ve fázi louky, který se
+  letos neseče (od nejbližšího k obydlí, při shodě id), pak na přirozené louky mimo seč, pak na
+  mladý příloh (třetinou) a nakonec na otavu posečených dílů. Díl, na který připadla aspoň
+  polovina jeho plochy, se spásl a nezaroste. Totéž rozdělení určuje, kam chodí pasáček (síť
+  pěšin) a kde se stáda pasou ve scéně.
+- **Nosnost pastvy** (`pastureHa`): přirozená louka a louka přílohu mimo seč celé, mladý příloh
+  a otava luk letošní seče třetinou; voli a pak krávy na mléko a voly, ovce, kozy, krávy (Skladba
+  stáda). Dřív se pásl celý příloh (i mladý) naplno a louky na seno se počítaly i do pastvy.
+- **Vždy s pasákem:** stádo bez pasáka se nepase. Jádro – pastva po dílech i roční zarůstání
+  počítají jen s podílem stáda, který pasáci uhlídali (Pasáci), a co nikdo neuhlídal, jde při
+  porážce na maso. Scéna – na pastvu jde jen tolik stád, kolik je dnes pasáků (děti a starší
+  z jádra, dospělí podle člověkodní); když pasáků není dost, pasák vede víc zvířat najednou (ovce,
+  kozy i krávy v jednom stádě, s prasaty jde do lesa jeden, až když jsou pasáci aspoň dva);
+  stádo bez pasáka stojí u domů a nikam se nestěhuje. Pasák u stáda stojí a stádo se stěhuje jen
+  s ním. V zimě (listopad–březen) jsou ovce, kozy a krávy u domů na seně (krávy s ohradou v ní),
+  s pasákem jen prasata v lese.
+- **Mimo jídlo pro lidi ve scéně:** stáda nikdy na osetém nebo zralém dílu, na louce před sečí,
+  v sadu ani na záhonech pozemků (pozemek je oplocený); přechody mezi pastvinami vedou kolem.
+- Slepice kolem domů a voli nebo krávy v ohradě pasáka nepotřebují.
+
 #### Zimní krmení a zimní úhyn
 
 Martin: „**Nezdá se mi, že bychom sklízeli tolik sena, že by to stáda uživilo.**“
@@ -484,6 +521,16 @@ Bílkoviny klesly pod potřebu: stáda omezuje seno (práce seče je víc než d
 s velkým mlékem ubyly; v září a říjnu ves uzené maso nemá. Martinova potřeba 1,6 g/kg a stropy
 masa a mléka zůstaly beze změny (rozhodne Martin).
 
+## Naměřeno – pastviny a vždy s pasákem (19. 10. 2026)
+
+Krátké `measure-village.ts 20 20` před a po (skutečné krajiny; jen orientačně): nasycení medián
+0,91 → 0,91, bílkoviny 91,1 → 91,4 %, maso 11,3 → 11,1 % energie, stádo na konci na 10 lidí
+krávy 2,0 → 2,1, prasata 9,5 → 9,2, ovce 45,0 → 43,8, kozy 6,1 → 10,3, porážka 27 kg na člověka
+a rok beze změny, zarůstání („pole o polovinu větší“) 65,2 % beze změny. Vsi kalibrace mají louky
+navíc a stáda menší než nosnost (chovné stádo podle potřeby) – úbytek pastvy (mladý příloh
+a louky na seno jen třetinou) se projeví hlavně v menší skladbě ovcí, místo nich víc koz
+(spasou křoviny).
+
 ## Co hráč vidí
 
 - V horní liště **obilí, luštěniny, maso, mléko a sýr, ovoce** (ikony + čísla) a nasycení;
@@ -530,3 +577,7 @@ masa a mléka zůstaly beze změny (rozhodne Martin).
 | Seno denně: kráva 5, vůl 6, ovce a koza 1 kg; zimní úhyn pod půlkou přídělu, pár přežije          | návrh Clauda (rešerše) |
 | Uzené maso se jí do 31. 8., pak se zkazí; seno ztrácí 10 % ročně, staré do nové seče shnije       | návrh Clauda (rešerše) |
 | Mláďata navíc na maso: prasata, krávy, kozy, ovce; porážka před polními úlohami listopadu         | návrh Clauda           |
+| Stádo vždy s pasákem; pase se na loukách určených ke spásání, ne na jídle pro lidi                | Martin (19. 10. 2026)  |
+| Mladý příloh a otava luk letošní seče třetinou píce; strniště po sklizni ano, bez nosnosti        | návrh Clauda (rešerše) |
+| Pastviny: louka přílohu mimo seč, přirozené louky, mladý příloh, otava – od nejbližšího           | návrh Clauda           |
+| Málo pasáků – pasák vede víc zvířat; bez pasáka stádo stojí u domů; v zimě u domů                 | návrh Clauda           |
