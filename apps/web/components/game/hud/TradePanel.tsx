@@ -31,7 +31,8 @@ import { Tooltip } from './Tooltip';
 // posuvníky se s novým pohledem ořežou na dnešní meze souseda (`clampSelection`), tlačítko je
 // zašedlé s důvodem jádra ještě před odesláním (`tradePreview`), chyba serveru zůstane v panelu
 // červeně, dokud hráč něco nezmění, a po odeslání panel ukáže výpravu na cestě – kam, co nese,
-// koho vede, průběh, za kolik dní se vrátí a jestli nečeká na volné ruce.
+// koho vede, průběh a za kolik dní se vrátí. Lidé na výpravě mají vlastní podíl práce (Martin
+// 19. 10. 2026) – zdrží se jen ves, která nemá dost dospělých po denním minimu.
 
 /** Ikona zboží s množstvím (kg nebo kusy) a názvem v popisku. */
 function Good({ good, amount }: { good: TradeGood; amount: number }): ReactElement {
@@ -310,13 +311,16 @@ function Figure({
   );
 }
 
-/** Popisek tempa výpravy (trade.md – Obchod: nosiči jdou ze společné práce vsi). */
+/**
+ * Popisek tempa výpravy (trade.md – Doprava: lidé na výpravě mají vlastní podíl práce po denním
+ * minimu – zdržet se může jen ves, která nemá dost dospělých).
+ */
 function paceText(e: VillageExpedition): string {
   switch (e.pace) {
     case 'waiting':
-      return 'Čeká na volné ruce – ves dnes neměla volnou práci, nosiči stojí.';
+      return 'Výprava stojí – po denním minimu domácností dnes ve vsi nezbyl nikdo, kdo by šel.';
     case 'slow':
-      return `Málo volných rukou – dnes šlo ${formatInteger(e.today ?? 0)} z ${formatInteger(e.porters)} nosičů, výprava se zdrží.`;
+      return `Málo dospělých – dnes šlo ${formatInteger(e.today ?? 0)} z ${formatInteger(e.porters)} lidí výpravy, výprava se zdrží.`;
     case 'starting':
       return 'Výprava vyrazí zítra.';
     case 'full':
@@ -326,8 +330,8 @@ function paceText(e: VillageExpedition): string {
 
 /**
  * Výprava na cestě (trade.md – Obchod): kam (soused a směr), co nese a koho vede tam (Dáš), co
- * přinese a kdo přijde (Dostaneš), průběh, nosiči a vozy, za kolik dní se vrátí a tempo – bez
- * volných rukou čeká (přesýpací hodiny).
+ * přinese a kdo přijde (Dostaneš), průběh, nosiči a vozy, za kolik dní se vrátí a tempo – jen
+ * výjimečně (málo dospělých) se zdrží (přesýpací hodiny).
  */
 function ExpeditionView({
   neighbour,

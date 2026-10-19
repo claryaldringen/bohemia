@@ -95,7 +95,7 @@ const neighbours: VillageNeighbour[] = [
       takes: { families: 1, men: 1, women: 1 },
       have: { families: [{ people: 3, credit: 900 }], men: 0, women: 1, adultCredit: 360 },
     },
-    // výprava čeká na volné ruce – ves dnes neměla volnou práci (Vlkov 19. 10. 2026)
+    // výprava stojí – po denním minimu nezbyl nikdo, kdo by šel (výjimka – malá ves)
     expedition: {
       give: { meat: 289 },
       get: {},

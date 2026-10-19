@@ -315,7 +315,7 @@ export function planVillagers(
   const counts = shareCounts(labor.shares, labor.month, options.maxWorkers ?? MAX_WORKERS);
   const people: PlannedVillager[] = [];
   // výpravy k sousedům jdou jako karavany podle stavu výpravy (trade.md – Ve scéně), ne podle
-  // práce dne – nosiči nezmizí, když výprava dnes nedostala volné ruce
+  // práce dne – nosiči nezmizí, ani když výprava dnes nepostoupila
   const caravans = village.expeditions !== undefined;
   labor.shares.forEach((share, s) => {
     const count = counts[s] ?? 0;
@@ -354,7 +354,8 @@ function caravanClip(member: CaravanMember): VillagerClip {
  * stezce podle postupu výpravy v herním čase – tam nosiči se zbožím (s vozy jen pomocníci, náklad
  * veze vůz – kreslí village-carts.ts) a lidé, kteří odcházejí k sousedovi; za krajem mapy zmizí
  * a za dny výpravy se objeví na cestě zpátky – nosiči a lidé od souseda (pohlaví a věk z jádra).
- * Před odchodem a po návratu stojí v hloučku u začátku stezky; bez volných rukou stojí na cestě.
+ * Před odchodem a po návratu stojí v hloučku u začátku stezky; výjimečně (ves bez dospělých) stojí
+ * na cestě.
  */
 function caravanFigures(
   ctx: Context,
