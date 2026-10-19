@@ -21,6 +21,7 @@ import {
   SLAUGHTER_MONTH,
   butcher,
   dailyEggsKg,
+  pigForestHa,
   villageHerds,
 } from './livestock';
 import { villageApplesKg } from './orchard';
@@ -32,11 +33,12 @@ import { daysUntilFoodHarvest } from './year-plan';
 // Nouzová porážka (diet.md – Nouzová porážka; Martin 19. 10. 2026: „Ano, udělej to všechno“,
 // podrobnosti návrh Clauda). Ves, které výhled jídla do sklizně nevychází, nejdřív porazí
 // zvířata navíc a teprve potom, když maso nestačí, ubírá z přídělu. Prasata první (žerou les,
-// ne seno), pak kozy, krávy nad chovné (mléko a voly) a ovce nad ovce na vlnu; chovný pár každého
-// druhu zůstává, spřežení a telata ve výcviku jsou v ohradách mimo stáda. Maso jde do zásoby jako
-// z podzimní porážky (stejná výtěžnost, uzení, zkažení 1. 9.) a jí se rovným dílem do zkažení
-// – nejvýš strop masa ve stravě (DIET.caps.meat), ten platí i v nouzi. Osev podle stravy ho
-// počítá jako jídlo z pole.
+// ne seno) nad chovné prasnice (polovina toho, kolik prasat uživí les – Martin 19. 10. 2026), pak
+// kozy, krávy nad chovné (mléko a voly) a ovce nad ovce na vlnu; chovný pár každého druhu zůstává,
+// spřežení a telata ve výcviku jsou v ohradách mimo stáda. Maso jde do zásoby jako z podzimní
+// porážky (stejná výtěžnost, uzení, zkažení 1. 9.) a jí se rovným dílem do zkažení – nejvýš strop
+// masa ve stravě (DIET.caps.meat), ten platí i v nouzi. Osev podle stravy ho počítá jako jídlo
+// z pole.
 
 /** Méně masa (kg) se jako porážka nebere – chyby desetinných čísel. */
 const MIN_KG = 0.5;
@@ -98,14 +100,25 @@ export function dayMealInput(
 }
 
 /**
- * Kolik kusů každého druhu smí jít na nouzovou porážku: nad chovný pár, u krav nad krávy na mléko
- * a voly (`breedingCows`), u ovcí nad ovce na vlnu (`woolSheep` – diet.md, Oděv). Letošní mláďata
- * (od jara do podzimní porážky) ne – jsou malá a dorůstají v příští stádo.
+ * Chovné prasnice – kolik prasat nouzová porážka nechá: EMERGENCY_SLAUGHTER.pigForestShare toho,
+ * kolik prasat uživí les (tatáž nosnost jako u podzimní porážky – `winterTargets`), aspoň chovný
+ * pár. Stádo se z nich na jaře obnoví (diet.md – Nouzová porážka).
+ */
+export function emergencyPigFloor(state: VillageState): number {
+  const forestPigs = pigForestHa(state) / LIVESTOCK.forestHaPerPig;
+  return Math.max(LIVESTOCK.breedingMin, EMERGENCY_SLAUGHTER.pigForestShare * forestPigs);
+}
+
+/**
+ * Kolik kusů každého druhu smí jít na nouzovou porážku: u prasat nad chovné prasnice
+ * (`emergencyPigFloor`), u koz nad chovný pár, u krav nad krávy na mléko a voly
+ * (`breedingCows`), u ovcí nad ovce na vlnu (`woolSheep` – diet.md, Oděv). Letošní mláďata (od
+ * jara do podzimní porážky) ne – jsou malá a dorůstají v příští stádo.
  */
 export function emergencySpare(state: VillageState, day: number): Record<HerdSpecies, number> {
   const herds = villageHerds(state);
   const floor: Record<HerdSpecies, number> = {
-    pig: LIVESTOCK.breedingMin,
+    pig: emergencyPigFloor(state),
     goat: LIVESTOCK.breedingMin,
     cow: Math.max(LIVESTOCK.breedingMin, breedingCows(state)),
     sheep: Math.max(LIVESTOCK.breedingMin, woolSheep(state, day)),

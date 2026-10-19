@@ -5,11 +5,12 @@ import { DIET, eatDiet, meatEnergy } from '../diet';
 import {
   dayMealInput,
   emergencySlaughter,
+  emergencyPigFloor,
   emergencySlaughterPlan,
   emergencySpare,
 } from '../emergency-slaughter';
 import { breedingCows } from '../husbandry';
-import { LIVESTOCK, slaughterRemaining } from '../livestock';
+import { LIVESTOCK, pigForestHa, slaughterRemaining } from '../livestock';
 import { EMERGENCY_SLAUGHTER } from '../rules';
 import { advanceVillage } from '../simulate';
 import type { HerdSpecies, Pen, Person, VillageState } from '../types';
@@ -52,6 +53,12 @@ function village(day: number): VillageState {
   s.legumesKg = 0;
   s.livestock!.herds = herds({});
   s.livestock!.young = herds({});
+  return s;
+}
+
+/** Les do 600 m pro prasata (ha) – nosnost lesa, ze které jsou chovné prasnice. */
+function withForest(s: VillageState, forestHa: number): VillageState {
+  s.livestock!.land = { meadowHa: 60, forestHa };
   return s;
 }
 
@@ -120,7 +127,8 @@ describe('nouzová porážka', () => {
   });
 
   it('pořadí prasata, kozy, krávy, ovce – chovný pár, krávy na mléko a voly a ovce na vlnu zůstanou', () => {
-    const s = village(day);
+    // les jen pro chovný pár – prasnice nad něj nejdou
+    const s = withForest(village(day), 1);
     s.livestock!.herds = herds({ pig: 5, goat: 6, cow: 9, sheep: 40 });
     s.storesKg = 0;
     const spare = emergencySpare(s, day);
@@ -138,7 +146,7 @@ describe('nouzová porážka', () => {
   });
 
   it('letošní mláďata na nouzovou porážku nejdou – dorůstají v příští stádo', () => {
-    const s = village(at(601, 5, 1));
+    const s = withForest(village(at(601, 5, 1)), 1);
     s.livestock!.herds = herds({ pig: 12, sheep: 30 });
     s.livestock!.young = herds({ pig: 6, sheep: 8 });
     const spare = emergencySpare(s, at(601, 5, 1));
@@ -146,6 +154,40 @@ describe('nouzová porážka', () => {
     expect(spare.sheep).toBeCloseTo(Math.max(0, 30 - 8 - woolSheep(s, at(601, 5, 1))), 9);
     emergencySlaughter(s, at(601, 5, 1), 0, 1);
     expect(s.livestock!.herds.pig).toBeGreaterThanOrEqual(6 + LIVESTOCK.breedingMin - 1e-9);
+  });
+
+  it('chovné prasnice: prasata jen nad polovinou toho, kolik jich uživí les', () => {
+    const s = withForest(village(day), 40);
+    // tatáž nosnost lesa jako u podzimní porážky (winterTargets)
+    const floor = (EMERGENCY_SLAUGHTER.pigForestShare * pigForestHa(s)) / LIVESTOCK.forestHaPerPig;
+    expect(floor).toBeCloseTo(20, 9);
+    expect(emergencyPigFloor(s)).toBeCloseTo(floor, 9);
+    // pod spodní hranicí žádná prasata – ani hladová ves bez obilí
+    s.livestock!.herds = herds({ pig: floor - 1 });
+    s.storesKg = 0;
+    expect(emergencySpare(s, day).pig).toBe(0);
+    expect(emergencySlaughterPlan(s, day, 0, 1)).toBeNull();
+    // nad ní ano – hladová ves porazí všechna prasata navíc (pod stropem masa) a stádo zůstane na
+    // spodní hranici
+    s.livestock!.herds = herds({ pig: floor + 10 });
+    expect(emergencySpare(s, day).pig).toBeCloseTo(10, 9);
+    const event = emergencySlaughter(s, day, 0, 1);
+    if (event?.kind !== 'emergency-slaughter') throw new Error('bez porážky');
+    expect(event.animals.pig).toBeCloseTo(10, 1);
+    expect(s.livestock!.herds.pig).toBeCloseTo(floor, 6);
+  });
+
+  it('les pro méně prasat než chovný pár – chovný pár zůstane', () => {
+    const s = withForest(village(day), 2);
+    expect(emergencyPigFloor(s)).toBe(LIVESTOCK.breedingMin);
+    s.livestock!.herds = herds({ pig: 10 });
+    s.storesKg = 0;
+    expect(emergencySpare(s, day).pig).toBeCloseTo(10 - LIVESTOCK.breedingMin, 9);
+    emergencySlaughter(s, day, 0, 1);
+    expect(s.livestock!.herds.pig).toBeCloseTo(LIVESTOCK.breedingMin, 6);
+    // bez lesa taky
+    withForest(s, 0);
+    expect(emergencyPigFloor(s)).toBe(LIVESTOCK.breedingMin);
   });
 
   it('pár kusů navíc, které příděl skoro nezvednou, ves neporáží – nepokryje-li schodek', () => {
