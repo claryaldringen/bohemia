@@ -402,7 +402,7 @@ describe('les vsi – stromy', () => {
     expect(woodSupply(s, layer)).toBe(6);
   });
 
-  it('pole vymýtí les vsi: povrch les, stromy v ceně, za dospělé klády; jiné stavby ne', () => {
+  it('pole vymýtí les vsi: povrch les, stromy v ceně, za dospělé klády; jiné stavby ho vyklučí', () => {
     const landscape = makeLandscape();
     const layer = packObstacles([], 16, 15);
     const s = village(at(660, 11, 1));
@@ -423,7 +423,8 @@ describe('les vsi – stromy', () => {
     expect(onWood.trees).toBe(5);
     expect(onWood.obstacleCost).toBe(0);
     expect(preview.surfaceCounts).toEqual({ meadow: 5, forest: 1 });
-    // sad ani obydlí na les vsi nesmí
+    // sad i obydlí smí do lesa vsi – vyklučí ho za sazbu lesa, stromy lesa v ní (Martin 19. 10.)
+    const forestSquare = (250 * 225) / 10_000;
     const orchard = orchardPartsFromCells(
       landscape,
       placementVillageOf(s, s.lastDay),
@@ -431,7 +432,9 @@ describe('les vsi – stromy', () => {
       home,
       layer,
     );
-    expect(orchard.check.ok).toBe(false);
+    expect(orchard.check.ok).toBe(true);
+    expect(orchard.squares[0]!.obstacleCost).toBeCloseTo(forestSquare);
+    expect(orchard.squares[0]!.trees).toBe(5);
     const dwelling = checkDwellingPlacement(
       landscape,
       placementVillageOf(s, s.lastDay),
@@ -439,8 +442,11 @@ describe('les vsi – stromy', () => {
       { x: 22.5, z: 22.5, rotation: 0 },
       layer,
     );
-    expect(dwelling.ok).toBe(false);
-    expect(dwelling.reason).toContain('les');
+    expect(dwelling.ok).toBe(true);
+    // plocha lesa vsi z bodů po 0,5 m (vyklízená plocha 9,6 × 11,9 m ≈ 2,86 čd)
+    expect(dwelling.obstacleCost).toBeGreaterThan(2.7);
+    expect(dwelling.obstacleCost).toBeLessThan(3.1);
+    expect(dwelling.obstacleIds.length).toBeGreaterThan(0);
 
     // založení pole: díl na lese se vymýtí, les zmizí, stromy dají klády
     const founded = foundField(s, s.lastDay, { parts: preview.parts });

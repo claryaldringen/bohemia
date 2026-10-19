@@ -63,14 +63,23 @@ describe('checkDwellingPlacement – terén', () => {
     expect(check.reason).toMatch(/vod/);
   });
 
-  it('v lese stavět nejde – ani když do lesa zasahuje jen roh půdorysu', () => {
+  it('v lese jde stavět – les osadníci vyklučí za sazbu lesa (Martin 19. 10. 2026)', () => {
     const l = makeLandscape({ surface: (x) => (x === 8 ? 'forest' : 'meadow') });
     const inForest = checkDwellingPlacement(l, null, 'zemnice', at(7.5, 7.5));
-    expect(inForest.ok).toBe(false);
-    expect(inForest.reason).toMatch(/louce/);
-    // políčko 8 začíná na x = 0, půdorys u x = −1 zasahuje 1 m do lesa
-    expect(checkDwellingPlacement(l, null, 'zemnice', at(-1, 7.5)).ok).toBe(false);
-    expect(checkDwellingPlacement(l, null, 'zemnice', at(-3, 7.5)).ok).toBe(true);
+    expect(inForest.ok).toBe(true);
+    // vyklízená plocha zemnice 9,6 × 11,9 m celá v lese – 250 čd/ha bez řemesel
+    expect(inForest.obstacleCost).toBeCloseTo((250 * 9.6 * 11.9) / 10_000, 1);
+    // na louce les neplatí; políčko 8 začíná na x = 0 – plocha u x = −3 zasahuje 1,8 m do lesa
+    expect(checkDwellingPlacement(l, null, 'zemnice', at(-10, 7.5)).obstacleCost).toBe(0);
+    const edge = checkDwellingPlacement(l, null, 'zemnice', at(-3, 7.5));
+    expect(edge.ok).toBe(true);
+    expect(edge.obstacleCost).toBeCloseTo((250 * 1.8 * 11.9) / 10_000, 1);
+    // vesničané si místo sami (bez hráče) v lese nevyberou – ani roh půdorysu
+    const auto = { clearForest: false };
+    const own = checkDwellingPlacement(l, null, 'zemnice', at(-1, 7.5), undefined, auto);
+    expect(own.ok).toBe(false);
+    expect(own.reason).toMatch(/les/);
+    expect(checkDwellingPlacement(l, null, 'zemnice', at(-3, 7.5), undefined, auto).ok).toBe(true);
   });
 
   it('na příliš prudkém svahu stavět nejde, na mírném ano', () => {
@@ -187,8 +196,15 @@ describe('pozemek polozemnice', () => {
   it('ne do vody, lesa ani mimo krajinu; neplatná varianta neprojde', () => {
     const water = makeLandscape({ surface: (x) => (x === 8 ? 'water' : 'meadow') });
     expect(checkPlotPlacement(water, null, 'polozemnice', plot()).reason).toMatch(/vod/);
+    // v lese pozemek jde (les se vyklučí – sazba lesa za celé políčko), přestavba obyvatel ne
     const forest = makeLandscape({ surface: (x) => (x === 8 ? 'forest' : 'meadow') });
-    expect(checkPlotPlacement(forest, null, 'polozemnice', plot()).reason).toMatch(/louku/);
+    const inForest = checkPlotPlacement(forest, null, 'polozemnice', plot());
+    expect(inForest.ok).toBe(true);
+    expect(inForest.obstacleCost).toBeCloseTo((250 * 225) / 10_000);
+    const own = checkPlotPlacement(forest, null, 'polozemnice', plot(), undefined, {
+      takeLand: false,
+    });
+    expect(own.reason).toMatch(/les/);
     expect(checkPlotPlacement(landscape, null, 'polozemnice', plot('center', 16, 8)).ok).toBe(
       false,
     );
@@ -546,7 +562,7 @@ describe('cemeteryPartsFromCells', () => {
     expect(both.check.warning).toBe('Blízko obydlí (30 m)\nBlízko vody (30 m)');
   });
 
-  it('voda, les, obydlí a jiný hřbitov blokují; zakázané čtverce do náhledu; pole ne', () => {
+  it('voda, obydlí a jiný hřbitov blokují; zakázané čtverce do náhledu; pole a les ne', () => {
     const village: PlacementVillage = {
       dwellings: [{ type: 'zemnice', position: at(0, 0) }],
       constructions: [],
@@ -556,7 +572,11 @@ describe('cemeteryPartsFromCells', () => {
     const check = (cells: TileCell[]): string | null =>
       cemeteryPartsFromCells(landscape, village, cells, home).check.reason;
     expect(check(block(30, 5, 2, 1))).toBe('Hřbitov nesmí zasahovat do vody.');
-    expect(check(block(1, 1, 2, 1))).toMatch(/jen na louce/);
+    // les osadníci vyklučí – sazba lesa za čtverec v lese (fields.md – Krajina sídla a scéna)
+    const forest = cemeteryPartsFromCells(landscape, village, block(1, 1, 2, 1), home);
+    expect(forest.check.ok).toBe(true);
+    expect(forest.squares[0]!.obstacleCost).toBeCloseTo((250 * 225) / 10_000);
+    expect(forest.squares[1]!.obstacleCost).toBe(0);
     expect(check(block(15, 15, 2, 2))).toBe('Hřbitov se překrývá s obydlím.');
     expect(check(block(11, 20, 2, 1))).toBe('Hřbitov se překrývá s jiným hřbitovem.');
     // na pole smí (fields.md – Pole jako krajina) – čtverec pole z pole zmizí, oranžově varuje

@@ -585,10 +585,11 @@ describe('modla a svatyně', () => {
     expect(
       checkSacredBuildingPlacement(landscape, withShrine, 'idol', at(60, 60), layer).reason,
     ).toBe('Překrývá se se svatyní.');
+    // v lese modla jde – les se vyklučí za sazbu lesa (Martin 19. 10. 2026), 4 × 4 m = 16 m²
     const forest = makeLandscape({ surface: (x) => (x >= 8 ? 'forest' : 'meadow') });
-    expect(checkSacredBuildingPlacement(forest, null, 'idol', at(30, -100), layer).reason).toBe(
-      'Modla jde stavět jen na louce.',
-    );
+    const inForest = checkSacredBuildingPlacement(forest, null, 'idol', at(30, -100), layer);
+    expect(inForest.ok).toBe(true);
+    expect(inForest.obstacleCost).toBeCloseTo((250 * 16) / 10_000);
     const slope = makeLandscape({ height: (x) => x * 0.6 });
     expect(checkSacredBuildingPlacement(slope, null, 'shrine', at(-60, -60), layer).ok).toBe(false);
     expect(checkSacredBuildingPlacement(slope, null, 'idol', at(-60, -60), layer).ok).toBe(true);

@@ -218,17 +218,28 @@ describe('fieldPartsFromCells – pole v křovinách a v lese', () => {
     expect(preview(null, [...CELLS].reverse())).toEqual(result);
   });
 
-  it('sad zůstává jen na louce, hřbitov taky', () => {
+  it('sad a hřbitov v lese: les se vyklučí za sazbu lesa jako díl pole (Martin 19. 10. 2026)', () => {
+    const forestSquare = foundingCostPerHa('forest', NO_CRAFTS.tools) * SQUARE_HA;
     const orchard = orchardPartsFromCells(landscape, null, CELLS, [HOME], layer);
-    expect(orchard.check).toEqual({ ok: false, reason: 'Sad jde zakládat jen na louce.' });
-    expect(orchard.blockedCells.every((c) => c.x >= 8)).toBe(true);
-    expect(orchard.squares.map((s) => s.cell.x).every((x) => x < 8)).toBe(true);
+    expect(orchard.check).toEqual({ ok: true, reason: null });
+    expect(orchard.blockedCells).toEqual([]);
+    expect(orchard.squares).toHaveLength(8);
+    const square = (x: number, y: number) =>
+      orchard.squares.find((s) => s.cell.x === x && s.cell.y === y)!;
     // keře na louce platí sad po kusech jako dřív
-    const scrub = orchard.squares.find((s) => s.cell.x === 6 && s.cell.y === 8)!;
-    expect(scrub.obstacleCost).toBe(5 * OBSTACLE_COST.shrub + OBSTACLE_COST.tree);
+    expect(square(6, 8).obstacleCost).toBe(5 * OBSTACLE_COST.shrub + OBSTACLE_COST.tree);
+    // v lese sazba lesa, stromy, souš, pařez, padlý kmen a keř v ní, kámen a balvan po kusech;
+    // dospělé stromy dají klády
+    expect(square(8, 8).obstacleCost).toBeCloseTo(forestSquare + OBSTACLE_COST.stone);
+    expect(square(8, 8).obstacleIds).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+    expect(square(8, 8).trees).toBe(2);
+    expect(square(9, 8).obstacleCost).toBeCloseTo(forestSquare + OBSTACLE_COST.boulder);
+    expect(square(8, 9).obstacleCost).toBeCloseTo(forestSquare);
     const cemetery = cemeteryPartsFromCells(landscape, null, CELLS, [HOME], layer);
-    expect(cemetery.check.ok).toBe(false);
-    expect(cemetery.check.reason).toMatch(/jen na louce/);
+    expect(cemetery.check.ok).toBe(true);
+    const grave = cemetery.squares.find((s) => s.cell.x === 8 && s.cell.y === 8)!;
+    expect(grave.obstacleCost).toBeCloseTo(forestSquare + OBSTACLE_COST.stone);
+    expect(grave.trees).toBe(2);
   });
 });
 

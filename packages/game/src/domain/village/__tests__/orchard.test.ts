@@ -257,7 +257,7 @@ describe('orchardPartsFromCells – staví se jako pole', () => {
     expect(orchardPartsFromCells(landscape, null, [{ x: 18, y: 18 }], home).check.ok).toBe(true);
   });
 
-  it('voda, les, obydlí, hřbitov, jiný sad a vzdálenost blokují; pole ne', () => {
+  it('voda, obydlí, hřbitov, jiný sad a vzdálenost blokují; pole a les ne', () => {
     const village: PlacementVillage = {
       dwellings: [{ type: 'zemnice', position: { x: 0, z: 0, rotation: 0 } }],
       constructions: [],
@@ -268,7 +268,12 @@ describe('orchardPartsFromCells – staví se jako pole', () => {
     const check = (cells: TileCell[], positions = home): string | null =>
       orchardPartsFromCells(landscape, village, cells, positions).check.reason;
     expect(check(block(30, 5, 2, 1))).toBe('Sad nesmí zasahovat do vody.');
-    expect(check(block(1, 1, 2, 1))).toMatch(/jen na louce/);
+    // les osadníci vyklučí – k výsadbě sazba lesa za čtverec v lese
+    const forest = orchardPartsFromCells(landscape, village, block(1, 1, 2, 1), home);
+    expect(forest.check.ok).toBe(true);
+    expect(forest.blockedCells).toEqual([]);
+    expect(forest.squares[0]!.obstacleCost).toBeCloseTo((250 * 225) / 10_000);
+    expect(forest.squares[1]!.obstacleCost).toBe(0);
     expect(check(block(15, 15, 2, 2))).toBe('Sad se překrývá s obydlím.');
     expect(check(block(11, 20, 2, 1))).toBe('Sad se překrývá s hřbitovem.');
     expect(check(block(6, 20, 2, 1))).toBe('Sad se překrývá s jiným sadem.');

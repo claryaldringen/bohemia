@@ -14,7 +14,7 @@ import {
   roadTreeObstacleKind,
   type RoadTreeObstacleKind,
 } from './road-trees';
-import { villageWoods, woodMatureTrees, woodTreeSpots } from './woods';
+import { dropClearedWoods, villageWoods, woodMatureTrees, woodTreeSpots } from './woods';
 import {
   BEECH_PLANTING,
   DWELLING_CLEARING_M,
@@ -237,11 +237,33 @@ function emptyTally(): ObstacleTally {
   return { cost: 0, ids: [], treeIds: [], counts: {}, outcropAreaM2: 0 };
 }
 
+/**
+ * Kde se překážky po kusech neplatí, protože jsou v sazbě povrchu za hektar (fields.md – Co je
+ * v sazbě povrchu): stavba v lese platí za plochu lesa sazbu lesa a stromy, podrost a pařezy
+ * s patou v lese (`at`) jsou v ní (`kinds` – SURFACE_INCLUDED_OBSTACLES.forest). Odstraní se
+ * a počítají dál, dospělé stromy dají klády; jen cena po kusech za ně odpadne.
+ */
+export interface RatedLand {
+  readonly at: (x: number, z: number) => boolean;
+  readonly kinds: readonly ObstacleKind[];
+}
+
+/** Platí se překážka druhu `kind` s patou (x, z) po kusech? */
+function paidPerPiece(
+  rated: RatedLand | undefined,
+  kind: ObstacleKind,
+  x: number,
+  z: number,
+): boolean {
+  return !rated || !rated.kinds.includes(kind) || !rated.at(x, z);
+}
+
 function addToTally(
   tally: ObstacleTally,
   layer: ObstacleLayer,
   index: number,
   kind: ObstacleKind,
+  rated?: RatedLand,
 ): void {
   tally.counts[kind] = (tally.counts[kind] ?? 0) + 1;
   if (kind === 'outcrop') {
@@ -251,15 +273,19 @@ function addToTally(
   }
   tally.ids.push(layer.id[index]!);
   if (kind === 'tree') tally.treeIds.push(layer.id[index]!);
-  tally.cost += OBSTACLE_COST[kind];
+  if (paidPerPiece(rated, kind, layer.x[index]!, layer.z[index]!)) {
+    tally.cost += OBSTACLE_COST[kind];
+  }
 }
 
 /** Přičte překážku přidanou vsí (strom u pevné cesty – dospělý dá kládu jako strom z vrstvy). */
-function addAddedToTally(tally: ObstacleTally, obstacle: AddedObstacle): void {
+function addAddedToTally(tally: ObstacleTally, obstacle: AddedObstacle, rated?: RatedLand): void {
   tally.counts[obstacle.kind] = (tally.counts[obstacle.kind] ?? 0) + 1;
   tally.ids.push(obstacle.id);
   if (obstacle.kind === 'tree') tally.treeIds.push(obstacle.id);
-  tally.cost += OBSTACLE_COST[obstacle.kind];
+  if (paidPerPiece(rated, obstacle.kind, obstacle.x, obstacle.z)) {
+    tally.cost += OBSTACLE_COST[obstacle.kind];
+  }
 }
 
 /** Políčko krajiny (index po ose) bodu světa – jako `obstaclesInTile` vrstvy. */
@@ -424,9 +450,10 @@ function obstaclesInPolygon(layer: ObstacleLayer, polygon: readonly Point[]): nu
 }
 
 /**
- * Překážky na vyklízené ploše obydlí – platí se po kusech (i v lese, fields.md). Překážky
- * v políčkách `fieldTiles` (index y × size + x) patří polím – odstraní je založení dílu, obydlí
- * je neplatí. Stromy z `keep` (posvátné duby, happiness.md) zůstanou stát.
+ * Překážky na vyklízené ploše obydlí – platí se po kusech, v lese (`rated`) stromy, podrost
+ * a pařezy v sazbě lesa (fields.md – Krajina sídla a scéna). Překážky v políčkách `fieldTiles`
+ * (index y × size + x) patří polím – odstraní je založení dílu, obydlí je neplatí. Stromy z `keep`
+ * (posvátné duby, happiness.md) zůstanou stát.
  */
 export function dwellingObstacles(
   layer: ObstacleLayer,
@@ -435,15 +462,17 @@ export function dwellingObstacles(
   position: Position,
   fieldTiles: OwnedLand = new Set(),
   keep: ReadonlySet<number> = NO_IDS,
+  rated?: RatedLand,
 ): ObstacleTally {
-  return polygonObstacles(layer, status, dwellingClearing(type, position), fieldTiles, keep);
+  return polygonObstacles(layer, status, dwellingClearing(type, position), fieldTiles, keep, rated);
 }
 
 /**
- * Překážky, jejichž pata leží v mnohoúhelníku (vyklízená plocha stavby) – platí se po kusech,
- * bez překážek vrstvy v políčkách `skipTiles` (index y × size + x – patří poli, hřbitovu, sadu)
- * a stromů z `keep`. Stromy u cest a jabloně přidané vsí se počítají i tam – smí stát i na poli
- * (fields.md – Pole jako krajina) a odstraní je až stavba.
+ * Překážky, jejichž pata leží v mnohoúhelníku (vyklízená plocha stavby) – platí se po kusech
+ * (kromě druhů v sazbě lesa tam, kde je les – `rated`), bez překážek vrstvy v políčkách
+ * `skipTiles` (index y × size + x – patří poli, hřbitovu, sadu) a stromů z `keep`. Stromy u cest
+ * a jabloně přidané vsí se počítají i tam – smí stát i na poli (fields.md – Pole jako krajina)
+ * a odstraní je až stavba.
  */
 export function polygonObstacles(
   layer: ObstacleLayer,
@@ -451,6 +480,7 @@ export function polygonObstacles(
   polygon: readonly Point[],
   skipTiles: OwnedLand = new Set(),
   keep: ReadonlySet<number> = NO_IDS,
+  rated?: RatedLand,
 ): ObstacleTally {
   const tally = emptyTally();
   const half = (layer.size * layer.cellSizeM) / 2;
@@ -462,11 +492,11 @@ export function polygonObstacles(
     if (owns(skipTiles, x, z, tileOf(z) * layer.size + tileOf(x))) continue;
     if (keep.has(layer.id[index]!)) continue;
     const kind = status.kindOf(layer, index);
-    if (kind !== null) addToTally(tally, layer, index, kind);
+    if (kind !== null) addToTally(tally, layer, index, kind, rated);
   }
   for (const o of addedInPolygon(status, polygon)) {
     if (keep.has(o.id)) continue;
-    addAddedToTally(tally, o);
+    addAddedToTally(tally, o, rated);
   }
   return tally;
 }
@@ -481,6 +511,7 @@ export function polygonsObstacles(
   polygons: readonly (readonly Point[])[],
   skipTiles: OwnedLand = new Set(),
   keep: ReadonlySet<number> = NO_IDS,
+  rated?: RatedLand,
 ): ObstacleTally {
   const tally = emptyTally();
   const seen = new Set<number>();
@@ -496,7 +527,7 @@ export function polygonsObstacles(
       if (owns(skipTiles, x, z, tileOf(z) * layer.size + tileOf(x))) continue;
       if (keep.has(layer.id[index]!)) continue;
       const kind = status.kindOf(layer, index);
-      if (kind !== null) addToTally(tally, layer, index, kind);
+      if (kind !== null) addToTally(tally, layer, index, kind, rated);
     }
   }
   const seenAdded = new Set<number>();
@@ -505,7 +536,7 @@ export function polygonsObstacles(
       if (seenAdded.has(o.id)) continue;
       seenAdded.add(o.id);
       if (keep.has(o.id)) continue;
-      addAddedToTally(tally, o);
+      addAddedToTally(tally, o, rated);
     }
   }
   return tally;
@@ -620,7 +651,10 @@ export function fellTrees(state: VillageState, ids: readonly number[], day: numb
   return { ...state, felledTrees: [...kept, ...ids.map((id) => ({ id, day }))] };
 }
 
-/** Přidá odstraněné překážky (pole, obydlí, hřbitovy, sady) – mutuje stav, volat na klonu. */
+/**
+ * Přidá odstraněné překážky (pole, obydlí, hřbitovy, sady) – mutuje stav, volat na klonu. Les vsi,
+ * ze kterého tím zmizel poslední strom, zmizí (`dropClearedWoods` – stavba les vyklučila).
+ */
 export function recordClearedObstacles(
   state: VillageState,
   ids: readonly number[],
@@ -629,6 +663,7 @@ export function recordClearedObstacles(
   if (ids.length === 0) return;
   const cleared = (state.clearedObstacles ??= []);
   for (const id of ids) cleared.push({ id, day } satisfies ObstacleChange);
+  dropClearedWoods(state, ids);
 }
 
 /**

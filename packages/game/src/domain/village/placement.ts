@@ -1,4 +1,5 @@
 import {
+  SURFACE_CODES,
   heightAtWorld,
   obstaclesOf,
   surfaceAt,
@@ -16,6 +17,7 @@ import { TAKEN_LAND_EPSILON_M2, landTakenWarning, type TakenLand } from './land-
 import { LIVESTOCK, withLivestock } from './livestock';
 import { orchardPlantingCost } from './orchard';
 import { ableTeams } from './oxen';
+import { foundingCostPerHa } from './productivity';
 import { roadWalk, walkGroundOf, type Walk, type WalkRoad } from './paths/walking';
 import {
   cellObstacles,
@@ -30,11 +32,13 @@ import {
   tallyCost,
   type ObstacleChanges,
   type ObstacleTally,
+  type RatedLand,
 } from './obstacles';
 import { plotShapes, type Shape } from './plot-cells';
 import {
   convexDistance,
   coveredArea,
+  pointInPolygon,
   polygonsOverlap,
   rectangleCorners,
   type Point,
@@ -768,13 +772,15 @@ function rectangleSamples(width: number, depth: number, position: Position): Poi
 }
 
 /**
- * Půdorys celý v krajině, ne ve vodě, jen na louce a dost rovný. `what` = co se staví (důvod
- * česky – obydlí, nebo milíř uhlíře).
+ * Půdorys celý v krajině, ne ve vodě a dost rovný – na louce i v lese (les osadníci vyklučí –
+ * `ForestUse`); bez `clearForest` jen na louce. `what` = co se staví (důvod česky – obydlí, nebo
+ * milíř uhlíře).
  */
 function checkFootprintTerrain(
   landscape: Landscape,
   samples: readonly Point[],
   what: 'Obydlí' | 'Milíř' = 'Obydlí',
+  clearForest = true,
 ): PlacementCheck {
   let lowest = Infinity;
   let highest = -Infinity;
@@ -789,7 +795,7 @@ function checkFootprintTerrain(
     lowest = Math.min(lowest, height);
     highest = Math.max(highest, height);
   }
-  if (offMeadow) return fail(`${what} jde zatím stavět jen na louce.`);
+  if (offMeadow && !clearForest) return fail(`Roste tu les – ${what.toLowerCase()} sem nepatří.`);
   const difference = highest - lowest;
   if (difference > DWELLING_MAX_HEIGHT_DIFF_M) {
     return fail(
@@ -803,21 +809,23 @@ function checkFootprintTerrain(
 /**
  * Co smí stavba zabrat: `fields` – čtverce polí (fields.md – Pole jako krajina: na pole smí
  * cokoli kromě pole), `orchards` – čtverce sadu (jen obydlí – population.md, Obydlí na poli
- * a v sadu). Bez údaje ani jedno.
+ * a v sadu), `woods` – čtverce lesa vsi (fields.md – Les vsi: les osadníci vyklučí jako les
+ * krajiny – `ForestUse`). Bez údaje ani jedno.
  */
 interface LandUse {
   fields?: boolean;
   orchards?: boolean;
+  woods?: boolean;
 }
-/** Obydlí smí na pole i do sadu. */
-const DWELLING_LAND: LandUse = { fields: true, orchards: true };
-/** Ostatní stavby jen na pole (Martin – pole jako krajina). */
-const FIELD_LAND: LandUse = { fields: true };
+/** Obydlí smí na pole, do sadu i do lesa vsi. */
+const DWELLING_LAND: LandUse = { fields: true, orchards: true, woods: true };
+/** Ostatní stavby na pole (Martin – pole jako krajina) a do lesa vsi. */
+const FIELD_LAND: LandUse = { fields: true, woods: true };
 
 /**
  * Půdorys nebo pozemek (tvary `shapes`) se nepřekrývá s obydlím či rozestavěným obydlím (i jejich
- * pozemky), modlou, svatyní, ohradou ani se čtvercem pohřebiště či lesa vsi – a podle `land` ani
- * se čtvercem pole či sadu. Čtverce staveb i natočené (fields.md – Natočené stavby).
+ * pozemky), modlou, svatyní, ohradou ani se čtvercem pohřebiště – a podle `land` ani se čtvercem
+ * pole, sadu či lesa vsi. Čtverce staveb i natočené (fields.md – Natočené stavby).
  */
 function checkFootprintFree(
   landscape: Landscape,
@@ -859,8 +867,190 @@ function checkFootprintFree(
   if (under.has('cemetery')) return fail('Překrývá se s hřbitovem.');
   if (!land.orchards && under.has('orchard')) return fail('Překrývá se se sadem.');
   if (under.has('pen')) return fail('Překrývá se s ohradou.');
-  if (under.has('wood')) return fail('Roste tu les – stavět jde zatím jen na louce.');
+  if (!land.woods && under.has('wood')) return fail('Roste tu les vsi.');
   return OK;
+}
+
+/**
+ * Stavba v lese (Martin, 19. 10. 2026: „obydlí může jít postavit i v lese – les se prostě
+ * vyklučí“; cena návrh Clauda – fields.md, Krajina sídla a scéna): les krajiny i les vsi pod
+ * stavbou osadníci vyklučí jako díl pole v lese – za plochu lesa sazba lesa za hektar
+ * (`foundingCostPerHa('forest')`, s řemesly levněji), stromy, mladé stromky, souše, padlé kmeny,
+ * pařezy i podrost s patou v lese jsou v ní (SURFACE_INCLUDED_OBSTACLES.forest), kameny a balvany
+ * se platí po kusech. Odstraní se všechno, dospělé stromy dají klády. Půda, která patří jiné
+ * stavbě (pole, sad, hřbitov, ohrada), a háje se nepočítají. `clearForest: false` – stavba jen na
+ * louku (obyvatelé si les sami nevyklučí – přestavba na novém pozemku, převod starých vsí).
+ */
+interface ForestUse {
+  clearForest?: boolean;
+}
+
+/** Les pod stavbou: test paty pro sazbu lesa (`rated`) a cena za plochu lesa. */
+interface ForestClearing {
+  rated?: RatedLand;
+  cost: number;
+}
+const NO_FOREST: ForestClearing = { cost: 0 };
+
+/** Krok vzorkování plochy lesa pod volnou stavbou na políčku se čtverci staveb či lesa vsi (m). */
+const FOREST_SAMPLE_M = 0.5;
+
+/**
+ * Leží bod na lese – políčku lesa krajiny nebo čtverci lesa vsi – mimo půdu, která patří jiné
+ * stavbě (`owned` – index políčka y × size + x jako u překážek)?
+ */
+function forestLandAt(
+  landscape: Landscape,
+  village: PlacementVillage | null,
+  owned: (x: number, z: number, tile: number) => boolean,
+): (x: number, z: number) => boolean {
+  const index = landIndex(landscape, village);
+  const half = (landscape.size * landscape.cellSizeM) / 2;
+  return (x, z) => {
+    const tx = Math.floor((x + half) / landscape.cellSizeM);
+    const ty = Math.floor((z + half) / landscape.cellSizeM);
+    if (tx < 0 || ty < 0 || tx >= landscape.size || ty >= landscape.size) return false;
+    if (owned(x, z, ty * landscape.size + tx)) return false;
+    if (surfaceAt(landscape, tx, ty) === 'forest') return true;
+    return !index.empty && index.containing(x, z).some((square) => square.kind === 'wood');
+  };
+}
+
+/** Je pod obdélníkem bodů `points` vůbec les (políčko lesa krajiny, nebo čtverec lesa vsi)? */
+function forestNear(
+  landscape: Landscape,
+  village: PlacementVillage | null,
+  points: readonly Point[],
+): boolean {
+  const [minX, minZ, maxX, maxZ] = pointsBounds(points);
+  const box: Point[] = [
+    [minX, minZ],
+    [maxX, minZ],
+    [maxX, maxZ],
+    [minX, maxZ],
+  ];
+  const forest = SURFACE_CODES.forest;
+  if (cellsUnderPolygon(landscape, box).some((tile) => landscape.surface[tile] === forest)) {
+    return true;
+  }
+  return squaresUnder(landscape, village, freeShape(box)).some((square) => square.kind === 'wood');
+}
+
+/**
+ * Plocha lesa (m²) pod sjednocením konvexních mnohoúhelníků `polygons`: na políčku lesa krajiny
+ * bez čtverců staveb a lesa vsi přesně (průnik ploch), na políčku se čtverci body ve středech buněk
+ * mřížky po FOREST_SAMPLE_M zarovnané s políčkem (`forestAt`).
+ */
+function forestAreaUnder(
+  landscape: Landscape,
+  village: PlacementVillage | null,
+  polygons: readonly (readonly Point[])[],
+  owned: (x: number, z: number, tile: number) => boolean,
+  forestAt: (x: number, z: number) => boolean,
+): number {
+  const index = landIndex(landscape, village);
+  const { size, cellSizeM } = landscape;
+  const half = (size * cellSizeM) / 2;
+  const [minX, minZ, maxX, maxZ] = pointsBounds(polygons.flat());
+  const toTile = (v: number): number =>
+    Math.min(size - 1, Math.max(0, Math.floor((v + half) / cellSizeM)));
+  const n = Math.max(1, Math.floor(cellSizeM / FOREST_SAMPLE_M));
+  const step = cellSizeM / n;
+  let area = 0;
+  for (let ty = toTile(minZ); ty <= toTile(maxZ); ty++) {
+    for (let tx = toTile(minX); tx <= toTile(maxX); tx++) {
+      const tile = ty * size + tx;
+      const corners = cellCorners(landscape, { x: tx, y: ty });
+      if (!polygons.some((polygon) => polygonsOverlap(polygon, corners))) continue;
+      if (index.overlapping(corners, tile).length === 0) {
+        // jen krajina (háj patří celému políčku)
+        const center = tileCenterWorld(landscape, tx, ty);
+        if (landscape.surface[tile] !== SURFACE_CODES.forest) continue;
+        if (owned(center.x, center.z, tile)) continue;
+        area += Math.min(cellSizeM * cellSizeM, coveredArea(polygons, corners));
+        continue;
+      }
+      const x0 = -half + tx * cellSizeM;
+      const z0 = -half + ty * cellSizeM;
+      let count = 0;
+      for (let j = 0; j < n; j++) {
+        const z = z0 + (j + 0.5) * step;
+        if (z < minZ || z > maxZ) continue;
+        for (let i = 0; i < n; i++) {
+          const x = x0 + (i + 0.5) * step;
+          if (x < minX || x > maxX) continue;
+          if (!polygons.some((polygon) => pointInPolygon([x, z], polygon))) continue;
+          if (forestAt(x, z)) count++;
+        }
+      }
+      area += count * step * step;
+    }
+  }
+  return area;
+}
+
+/** Práce za vyklučení `areaM2` lesa – sazba lesa jako u dílu pole (podle pokrytí nástroji). */
+function forestClearingCost(village: PlacementVillage | null, areaM2: number): number {
+  if (areaM2 <= 0) return 0;
+  return (foundingCostPerHa('forest', village?.toolCoverage ?? 0) * areaM2) / M2_PER_HA;
+}
+
+/** Druhy překážek v sazbě lesa s patou tam, kde platí `at`. */
+function forestRated(at: (x: number, z: number) => boolean): RatedLand {
+  return { at, kinds: SURFACE_INCLUDED_OBSTACLES.forest };
+}
+
+/**
+ * Les pod volnou stavbou (obydlí, dílna, modla, svatyně – vyklízené plochy `polygons`): sazba lesa
+ * za plochu lesa a překážky v ní; bez lesa pod stavbou nic.
+ */
+function freeForestClearing(
+  landscape: Landscape,
+  village: PlacementVillage | null,
+  polygons: readonly (readonly Point[])[],
+  owned: (x: number, z: number, tile: number) => boolean,
+): ForestClearing {
+  if (!forestNear(landscape, village, polygons.flat())) return NO_FOREST;
+  const at = forestLandAt(landscape, village, owned);
+  return {
+    rated: forestRated(at),
+    cost: forestClearingCost(village, forestAreaUnder(landscape, village, polygons, owned, at)),
+  };
+}
+
+/**
+ * Leží čtverec stavby (pozemek, ohrada, sad, hřbitov) v lese – jako díl pole (`buildSquares`):
+ * políčko lesa krajiny, natočený čtverec většinou bodů v lese, nebo zasahuje do lesa vsi.
+ */
+function squareInForest(
+  landscape: Landscape,
+  village: PlacementVillage | null,
+  shape: Shape,
+  ground: Pick<SampledGround, 'forest'>,
+): boolean {
+  return ground.forest || squaresUnder(landscape, village, shape).some((q) => q.kind === 'wood');
+}
+
+/**
+ * Cena překážek a lesa na čtverci stavby: v lese sazba lesa za plochu `forestAreaM2` (čtverec bez
+ * půdy, kterou bere poli či sadu) a po kusech jen druhy mimo ni, jinak všechno po kusech.
+ */
+function squareObstacleCost(
+  village: PlacementVillage | null,
+  tally: ObstacleTally,
+  forest: boolean,
+  forestAreaM2: number,
+): number {
+  if (!forest) return tally.cost;
+  return (
+    tallyCost(tally, SURFACE_INCLUDED_OBSTACLES.forest) + forestClearingCost(village, forestAreaM2)
+  );
+}
+
+/** Plocha čtverce (políčka) bez kusů, které stavba bere polím a sadům (`taken`). */
+function squareFreeArea(landscape: Landscape, taken: readonly TakenLand[]): number {
+  const cellArea = landscape.cellSizeM * landscape.cellSizeM;
+  return Math.max(0, cellArea - taken.reduce((sum, t) => sum + t.areaM2, 0));
 }
 
 /**
@@ -989,10 +1179,11 @@ function nearCemeteryWarning(
 
 /**
  * Smí obydlí stát na místě volně (bez pozemku – zemnice)? Rozdíl výšek pod půdorysem nejvýš
- * 0,5 m, všechna políčka pod ním louka (ne voda, zatím ani les), žádný překryv s obydlími,
- * rozestavěnými obydlími (i jejich pozemky), hřbitovy ani se skalním výchozem. Ostatní
- * překážky na vyklízené ploše (`DWELLING_CLEARING_M`) osadníci odstraní – cena po kusech podle
- * tabulky ve fields.md. Na pole a do sadu obydlí smí (population.md – Obydlí na poli a v sadu):
+ * 0,5 m, políčka pod ním louka nebo les (ne voda), žádný překryv s obydlími, rozestavěnými
+ * obydlími (i jejich pozemky), hřbitovy ani se skalním výchozem. Ostatní překážky na vyklízené
+ * ploše (`DWELLING_CLEARING_M`) osadníci odstraní – cena po kusech podle tabulky ve fields.md,
+ * les (i les vsi) vyklučí za sazbu lesa (`ForestUse`; bez `clearForest` jen louka). Na pole a do
+ * sadu obydlí smí (population.md – Obydlí na poli a v sadu):
  * díly a čtverce pod vyklízenou plochou se o průnik zmenší (`takenLand`, varování „Pole se
  * zmenší“), překážky na nich obydlí neplatí – patří poli a sadu. Blíž hřbitovu než 150 m jen
  * varuje (`warning`). `obstacles` = vrstva překážek krajiny. Polozemnice se staví na pozemku –
@@ -1004,7 +1195,9 @@ export function checkDwellingPlacement(
   type: DwellingType,
   position: Position,
   obstacles: ObstacleLayer = obstaclesOf(landscape),
+  options: ForestUse = {},
 ): DwellingPlacementCheck {
+  const clearForest = options.clearForest ?? true;
   const none = {
     obstacleCost: 0,
     obstacleIds: [],
@@ -1016,10 +1209,12 @@ export function checkDwellingPlacement(
   if (![position.x, position.z, position.rotation].every(Number.isFinite)) {
     return { ...fail('Neplatná poloha obydlí.'), ...none };
   }
-  const terrain = checkFootprintTerrain(landscape, footprintSamples(type, position));
+  const samples = footprintSamples(type, position);
+  const terrain = checkFootprintTerrain(landscape, samples, 'Obydlí', clearForest);
   if (!terrain.ok) return { ...terrain, ...none };
   const footprint = dwellingFootprint(type, position);
-  const free = checkFootprintFree(landscape, village, [freeShape(footprint)], DWELLING_LAND);
+  const land = clearForest ? DWELLING_LAND : { ...DWELLING_LAND, woods: false };
+  const free = checkFootprintFree(landscape, village, [freeShape(footprint)], land);
   if (!free.ok) return { ...free, ...none };
   const status = obstacleStatus(village?.obstacleChanges);
   if (outcropUnder(obstacles, status, footprint)) {
@@ -1033,18 +1228,23 @@ export function checkDwellingPlacement(
   const clearing = dwellingClearing(type, position);
   const clearingTiles = cellsUnderPolygon(landscape, clearing);
   const groves = grovesOfTiles(sites, clearingTiles);
+  const owned = ownedLand(
+    landscape,
+    village,
+    ['field', 'cemetery', 'orchard', 'pen'],
+    clearingTiles.filter((tile) => sites.groveByTile.has(tile)),
+  );
+  const forest = clearForest
+    ? freeForestClearing(landscape, village, [clearing], owned)
+    : NO_FOREST;
   const tally = dwellingObstacles(
     obstacles,
     status,
     type,
     position,
-    ownedLand(
-      landscape,
-      village,
-      ['field', 'cemetery', 'orchard', 'pen'],
-      clearingTiles.filter((tile) => sites.groveByTile.has(tile)),
-    ),
+    owned,
     sites.protectedTrees,
+    forest.rated,
   );
   const spared = sparedSacred(sacredOaksNear(sites, obstacles, clearing, 0), groves);
   const takenLand = takenLandUnder(landscape, village, [clearing]);
@@ -1057,7 +1257,7 @@ export function checkDwellingPlacement(
     ok: true,
     reason: null,
     ...(warning ? { warning } : {}),
-    obstacleCost: tally.cost,
+    obstacleCost: tally.cost + forest.cost,
     obstacleIds: tally.ids,
     clearedTrees: unreservedTrees(village, tally.treeIds),
     obstacleCounts: tally.counts,
@@ -1076,10 +1276,11 @@ function centroid(polygon: readonly Point[]): { x: number; z: number } {
 /**
  * Smí řemeslná dílna `craft` stát na místě (crafts.md – Budovy)? Umisťuje se volně jako zemnice:
  * obydlí řemesla (hrnčíř a kovář polozemnice s přístřeškem vpředu, uhlíř zemnice) jako
- * `checkDwellingPlacement` a u uhlíře navíc milíř kus od zemnice (MILIR) – i pod ním louka, dost
- * rovná zem, žádný překryv, skalní výchoz ani posvátné místo. Překážky na vyklízené ploše dílny
- * a v kruhu kolem milíře osadníci odstraní (cena po kusech). Na pole a do sadu smí jako zemnice –
- * zmenší je o průnik vyklízených ploch (`takenLand`).
+ * `checkDwellingPlacement` a u uhlíře navíc milíř kus od zemnice (MILIR) – i pod ním louka nebo
+ * les (ne voda), dost rovná zem, žádný překryv, skalní výchoz ani posvátné místo. Překážky na
+ * vyklízené ploše dílny a v kruhu kolem milíře osadníci odstraní (cena po kusech), les vyklučí za
+ * sazbu lesa (`ForestUse`). Na pole a do sadu smí jako zemnice – zmenší je o průnik vyklízených
+ * ploch (`takenLand`).
  */
 export function checkWorkshopPlacement(
   landscape: Landscape,
@@ -1125,17 +1326,20 @@ export function checkWorkshopPlacement(
   const clearings = freeDwellingClearings(type, position, craft);
   const clearingTiles = clearings.flatMap((c) => cellsUnderPolygon(landscape, c));
   const groves = grovesOfTiles(sites, clearingTiles);
+  const owned = ownedLand(
+    landscape,
+    village,
+    ['field', 'cemetery', 'orchard'],
+    clearingTiles.filter((tile) => sites.groveByTile.has(tile)),
+  );
+  const forest = freeForestClearing(landscape, village, clearings, owned);
   const tally = polygonsObstacles(
     obstacles,
     status,
     clearings,
-    ownedLand(
-      landscape,
-      village,
-      ['field', 'cemetery', 'orchard'],
-      clearingTiles.filter((tile) => sites.groveByTile.has(tile)),
-    ),
+    owned,
     sites.protectedTrees,
+    forest.rated,
   );
   const oaks = clearings.flatMap((c) => sacredOaksNear(sites, obstacles, c, 0));
   const spared = sparedSacred([...new Map(oaks.map((o) => [o.id, o])).values()], groves);
@@ -1149,7 +1353,7 @@ export function checkWorkshopPlacement(
     ok: true,
     reason: null,
     ...(warning ? { warning } : {}),
-    obstacleCost: tally.cost,
+    obstacleCost: tally.cost + forest.cost,
     obstacleIds: tally.ids,
     clearedTrees: unreservedTrees(village, tally.treeIds),
     obstacleCounts: tally.counts,
@@ -1165,18 +1369,19 @@ export interface PlotPlacementCheck extends DwellingPlacementCheck {
 
 /**
  * Smí obydlí stát na pozemku `plot` (population.md – Umístění obydlí, Martin 18. 10. 2026)?
- * Pozemek je celé políčko krajiny jako čtverec pole: louka (ne voda, zatím ani les), bez
- * skalního výchozu, nezabrané hřbitovem, jiným pozemkem ani obydlím; dům stojí uprostřed nebo
- * v rohu podle varianty a pod jeho půdorysem musí být dost rovná zem (≤ 0,5 m). Na pozemku
- * nesmí být posvátný dub ani čtverec háje a dům nestojí pod korunou dubu ze sousedního políčka
- * (happiness.md – jako u obydlí), takže vesničané nemusí nic nechat stát. Překážky platí jako
- * u čtverce pole – všechny kusy na políčku (cena po kusech, dospělé stromy nevyhrazené jinou
- * stavbou dají klády). Blíž hřbitovu než 150 m jen varuje.
+ * Pozemek je celé políčko krajiny jako čtverec pole: louka nebo les (ne voda), bez skalního
+ * výchozu, nezabrané hřbitovem, jiným pozemkem ani obydlím; dům stojí uprostřed nebo v rohu podle
+ * varianty a pod jeho půdorysem musí být dost rovná zem (≤ 0,5 m). Na pozemku nesmí být posvátný
+ * dub ani čtverec háje a dům nestojí pod korunou dubu ze sousedního políčka (happiness.md – jako
+ * u obydlí), takže vesničané nemusí nic nechat stát. Překážky platí jako u čtverce pole – všechny
+ * kusy na políčku (cena po kusech, dospělé stromy nevyhrazené jinou stavbou dají klády), pozemek
+ * v lese (i v lese vsi) osadníci vyklučí za sazbu lesa jako díl pole (`ForestUse`). Blíž hřbitovu
+ * než 150 m jen varuje.
  *
  * Pozemek smí na čtverec pole i sadu (population.md – Obydlí na poli a v sadu): čtverec z pole či
  * sadu zmizí (`takenLand` – celé políčko, varování „Pole se zmenší“ / „Pole zanikne“) a jeho
  * překážky pozemek neplatí – patří poli a sadu. `takeLand: false` (přestavba obyvatel na novém
- * pozemku – ti pole ani sad nezaberou) čtverce polí a sadů nepovolí.
+ * pozemku – ti pole, sad ani les nezaberou) čtverce polí, sadů a lesa vsi ani les krajiny nepovolí.
  */
 export function checkPlotPlacement(
   landscape: Landscape,
@@ -1215,11 +1420,12 @@ export function checkPlotPlacement(
   }
   const shapes = plotShapes(landscape, plot);
   for (const shape of shapes) {
-    const where = plotGroundProblem(landscape, shape);
+    const where = plotGroundProblem(landscape, shape, takeLand);
     if (where) return { ...fail(where), ...none };
   }
   const position = plotHousePosition(landscape, plot);
-  const terrain = checkFootprintTerrain(landscape, footprintSamples(type, position));
+  const samples = footprintSamples(type, position);
+  const terrain = checkFootprintTerrain(landscape, samples, 'Obydlí', takeLand);
   if (!terrain.ok) return { ...terrain, ...none };
   const sites = sacredSitesOf(obstacles);
   for (const shape of shapes) {
@@ -1301,33 +1507,62 @@ function sampledGround(
 }
 
 /**
- * Čtverec pozemku v krajině a na louce (ne voda, zatím ani les)? Políčko podle povrchu políčka,
- * natočený čtverec podle bodů vzorkování (`sampledGround`). Důvod česky, nebo null.
+ * Krajina pod čtvercem pozemku: políčko podle povrchu políčka, natočený čtverec podle bodů
+ * vzorkování (`sampledGround`).
  */
-function plotGroundProblem(landscape: Landscape, shape: Shape): string | null {
+function plotGround(landscape: Landscape, shape: Shape): SampledGround {
   if (shape.tile !== null) {
-    const cell = { x: shape.tile % landscape.size, y: Math.floor(shape.tile / landscape.size) };
-    return plotCellProblem(landscape, cell);
+    const surface = landscape.surface[shape.tile];
+    return {
+      outside: false,
+      water: surface === SURFACE_CODES.water,
+      forest: surface === SURFACE_CODES.forest,
+      fertility: landscape.fertility[shape.tile]!,
+    };
   }
   const samples = shape.square
     ? plotSquareSamples(shape.square, landscape.cellSizeM, SQUARE_SAMPLES)
     : shape.corners;
-  const ground = sampledGround(landscape, samples, shape.corners);
+  return sampledGround(landscape, samples, shape.corners);
+}
+
+/**
+ * Čtverec pozemku v krajině, ne ve vodě – na louce i v lese (bez `clearForest` jen na louce)?
+ * Políčko podle povrchu políčka, natočený čtverec podle bodů vzorkování (`sampledGround`). Důvod
+ * česky, nebo null.
+ */
+function plotGroundProblem(
+  landscape: Landscape,
+  shape: Shape,
+  clearForest: boolean,
+): string | null {
+  if (shape.tile !== null) {
+    const cell = { x: shape.tile % landscape.size, y: Math.floor(shape.tile / landscape.size) };
+    return plotCellProblem(landscape, cell, clearForest);
+  }
+  const ground = plotGround(landscape, shape);
   if (ground.outside) return 'Pozemek musí ležet uvnitř krajiny sídla.';
   if (ground.water) return 'Pozemek nemůže ležet ve vodě.';
-  if (ground.forest) return 'Pozemek jde zatím jen na louku.';
+  if (ground.forest && !clearForest) return 'Roste tu les – pozemek sem nepatří.';
   return null;
 }
 
-/** Políčko pozemku v krajině a na louce (ne voda, zatím ani les)? Důvod česky, nebo null. */
-function plotCellProblem(landscape: Landscape, cell: TileCell): string | null {
+/**
+ * Políčko pozemku v krajině, ne ve vodě – na louce i v lese (bez `clearForest` jen na louce)?
+ * Důvod česky, nebo null.
+ */
+function plotCellProblem(
+  landscape: Landscape,
+  cell: TileCell,
+  clearForest: boolean,
+): string | null {
   if (!Number.isInteger(cell.x) || !Number.isInteger(cell.y)) return 'Neplatné políčko pozemku.';
   if (cell.x < 0 || cell.y < 0 || cell.x >= landscape.size || cell.y >= landscape.size) {
     return 'Pozemek musí ležet uvnitř krajiny sídla.';
   }
   const surface = surfaceAt(landscape, cell.x, cell.y);
   if (surface === 'water') return 'Pozemek nemůže ležet ve vodě.';
-  if (surface !== 'meadow') return 'Pozemek jde zatím jen na louku.';
+  if (surface !== 'meadow' && !clearForest) return 'Roste tu les – pozemek sem nepatří.';
   return null;
 }
 
@@ -1382,10 +1617,11 @@ function plotSquareProblem(
 
 /**
  * Překážky na čtverci pozemku jako u čtverce pole – všechny kusy kromě posvátných stromů (cena
- * po kusech, dospělé stromy nevyhrazené jinou stavbou dají klády). Na pozemku posvátné místo
- * být nesmí, takže není co nechat stát (`spared` prázdné). Kde pozemek leží na čtverci pole nebo
- * sadu (`takeLand`), překážky nevyklízí – patří poli a sadu (založený díl a vysazený čtverec je
- * už nemají).
+ * po kusech, dospělé stromy nevyhrazené jinou stavbou dají klády); pozemek v lese (i v lese vsi)
+ * jako díl pole v lese – sazba lesa za plochu čtverce mimo pole a sad, stromy, podrost a pařezy
+ * v ní (`ForestUse`). Na pozemku posvátné místo být nesmí, takže není co nechat stát (`spared`
+ * prázdné). Kde pozemek leží na čtverci pole nebo sadu (`takeLand`), překážky nevyklízí – patří
+ * poli a sadu (založený díl a vysazený čtverec je už nemají). Bez `takeLand` les nevyklučí.
  */
 function plotClearing(
   landscape: Landscape,
@@ -1408,8 +1644,11 @@ function plotClearing(
           options,
         )
       : squareObstacles(obstacles, status, shape.corners, sites.protectedTrees, options);
+  const forest =
+    takeLand && squareInForest(landscape, village, shape, plotGround(landscape, shape));
+  const taken = forest ? takenSquareLand(landscape, village, shape) : [];
   return {
-    obstacleCost: tally.cost,
+    obstacleCost: squareObstacleCost(village, tally, forest, squareFreeArea(landscape, taken)),
     obstacleIds: tally.ids,
     clearedTrees: unreservedTrees(village, tally.treeIds),
     obstacleCounts: tally.counts,
@@ -1451,11 +1690,12 @@ export interface PenPlacementCheck extends PlacementCheck {
 
 /**
  * Smí na políčku `cell` stát ohrada s přístřeškem (oxen.md – stavba po čtvercích jako pozemek
- * polozemnice)? Celé políčko louky (ne voda, zatím ani les), bez skalního výchozu, posvátného dubu
+ * polozemnice)? Celé políčko louky nebo lesa (ne voda), bez skalního výchozu, posvátného dubu
  * a háje, nezabrané hřbitovem, sadem, obydlím, pozemkem, jinou ohradou ani modlou. Překážky
  * platí jako u čtverce pole – všechny kusy na políčku (dospělé stromy nevyhrazené jinou stavbou
- * dají klády). Na čtverec pole smí (fields.md – Pole jako krajina): díl z pole zmizí (`takenLand`,
- * varování „Pole se zmenší“) a překážky dílu ohrada neplatí – patří poli (stromy u cesty ano).
+ * dají klády), les (i les vsi) osadníci vyklučí za sazbu lesa jako díl pole (`ForestUse`). Na
+ * čtverec pole smí (fields.md – Pole jako krajina): díl z pole zmizí (`takenLand`, varování „Pole
+ * se zmenší“) a překážky dílu ohrada neplatí – patří poli (stromy u cesty ano).
  */
 export function checkPenPlacement(
   landscape: Landscape,
@@ -1482,7 +1722,6 @@ export function checkPenPlacement(
   }
   const surface = surfaceAt(landscape, cell.x, cell.y);
   if (surface === 'water') return { ...fail('Ohrada nemůže stát ve vodě.'), ...none };
-  if (surface !== 'meadow') return { ...fail('Ohrada jde zatím jen na louku.'), ...none };
   const center = tileCenterWorld(landscape, cell.x, cell.y);
   const square = cellCorners(landscape, cell);
   const shape: Shape = { corners: square, tile: cellIndex(landscape, cell) };
@@ -1507,9 +1746,10 @@ export function checkPenPlacement(
   const tally = cellObstacles(obstacles, status, cell, sites.protectedTrees, {
     ...(onField ? { layerOwned: onField } : {}),
   });
+  const forest = squareInForest(landscape, village, shape, { forest: surface === 'forest' });
   return {
     ...withWarning(takenLandWarning(landscape, village, takenLand)),
-    obstacleCost: tally.cost,
+    obstacleCost: squareObstacleCost(village, tally, forest, squareFreeArea(landscape, takenLand)),
     obstacleIds: tally.ids,
     clearedTrees: unreservedTrees(village, tally.treeIds),
     obstacleCounts: tally.counts,
@@ -1538,7 +1778,6 @@ function checkTurnedPen(
   const ground = squareGround(landscape, square);
   if (ground.outside) return { ...fail('Ohrada musí ležet uvnitř krajiny sídla.'), ...none };
   if (ground.water) return { ...fail('Ohrada nemůže stát ve vodě.'), ...none };
-  if (ground.forest) return { ...fail('Ohrada jde zatím jen na louku.'), ...none };
   const { x, z } = square.center;
   const free = checkFootprintFree(landscape, village, [square], FIELD_LAND);
   if (!free.ok) return { ...free, ...none, x, z };
@@ -1560,9 +1799,10 @@ function checkTurnedPen(
   const tally = squareObstacles(obstacles, status, square.corners, sites.protectedTrees, {
     ...(onField ? { layerOwned: onField } : {}),
   });
+  const forest = squareInForest(landscape, village, square, ground);
   return {
     ...withWarning(takenLandWarning(landscape, village, takenLand)),
-    obstacleCost: tally.cost,
+    obstacleCost: squareObstacleCost(village, tally, forest, squareFreeArea(landscape, takenLand)),
     obstacleIds: tally.ids,
     clearedTrees: unreservedTrees(village, tally.treeIds),
     obstacleCounts: tally.counts,
@@ -1574,9 +1814,9 @@ function checkTurnedPen(
 
 /**
  * Smí políčko `cell` dostat starší polozemnice, která na něm už stojí (převod starých vsí,
- * `withPlots`)? Jako u nového pozemku: louka, nic jiného ho nezabírá (obydlí samo se do `village`
- * nedává), bez výchozu a posvátných míst – rovnost pod domem se nehlídá, dům už stojí. Vrátí
- * překážky na políčku, nebo důvod, proč ne.
+ * `withPlots`)? Jako u nového pozemku: louka (les ne – obyvatelé ho sami nevyklučí), nic jiného ho
+ * nezabírá (obydlí samo se do `village` nedává), bez výchozu a posvátných míst – rovnost pod domem
+ * se nehlídá, dům už stojí. Vrátí překážky na políčku, nebo důvod, proč ne.
  */
 export function existingPlotSquare(
   landscape: Landscape,
@@ -1585,7 +1825,7 @@ export function existingPlotSquare(
   obstacles: ObstacleLayer,
 ): PlacementCheck & Partial<Omit<DwellingPlacementCheck, keyof PlacementCheck>> {
   const sites = sacredSitesOf(obstacles);
-  const cellProblem = plotCellProblem(landscape, cell);
+  const cellProblem = plotCellProblem(landscape, cell, false);
   if (cellProblem) return fail(cellProblem);
   const shape: Shape = { corners: cellCorners(landscape, cell), tile: cellIndex(landscape, cell) };
   const problem = plotSquareProblem(landscape, village, shape, obstacles, sites, false);
@@ -1824,9 +2064,10 @@ function dwellingShapes(
 }
 
 /**
- * Co brání čtverci stavby: voda, les (krajiny i les vsi), obydlí, pole, pohřebiště, sad, ohrada,
- * modla, svatyně; `woodEdge` – čtverec zasahuje do lesa vsi jinak než přesně jeho čtvercem
- * (natočené stavby – pole les vsi vymýtí jen po jeho čtvercích).
+ * Co je pod čtvercem stavby: voda, les (krajiny i les vsi – nebrání, osadníci ho vyklučí –
+ * `ForestUse`), obydlí, pole, pohřebiště, sad, ohrada, modla, svatyně; `woodEdge` – čtverec
+ * zasahuje do lesa vsi jinak než přesně jeho čtvercem (natočené stavby – pole les vsi vymýtí jen
+ * po jeho čtvercích, ostatním stavbám to nevadí).
  */
 interface SquareFlags {
   water: boolean;
@@ -1953,7 +2194,10 @@ interface BuildSquare {
    * krajina).
    */
   onField: boolean;
-  /** Povrch při založení – sad jen louka, pole i křoviny a les (`fieldSquareSurface`). */
+  /**
+   * Povrch při založení – pole louka, křoviny a les (`fieldSquareSurface`), sad vždy louka (les
+   * pod sadem je v `obstacleCost`).
+   */
   surface: FieldSurface;
   /** Úrodnost krajiny pod čtvercem (políčko, natočený čtverec průměr vzorků). */
   fertility: number;
@@ -1961,7 +2205,10 @@ interface BuildSquare {
   /** Od středu čtverce k nejbližšímu obydlí. */
   distanceM: number;
   tally: ObstacleTally;
-  /** Práce navíc za překážky, které nejsou v sazbě povrchu (`tallyCost`). */
+  /**
+   * Práce navíc za překážky, které nejsou v sazbě povrchu (`tallyCost`); u sadu v lese i sazba
+   * lesa za plochu mimo pole (`ForestUse`).
+   */
   obstacleCost: number;
 }
 
@@ -2012,15 +2259,16 @@ function sacredSelection(
 
 /**
  * Společná kontrola čtverců pole a sadu (staví se stejně – orchard.md): u každého čtverce, co mu
- * brání (voda, obydlí, pole, hřbitov, sad, modla, svatyně, dál než 800 m; sadu i les – zakázané
- * čtverce do náhledu), a čtverce, kde stavba smí stát – sad jen louka, pole i křoviny a les
- * (`fieldSurfaces`) – s povrchem, plochou bez skalních výchozů (nejvýš MAX_OUTCROP_SHARE
- * čtverce) a bez plochy pod korunou posvátných dubů, vzdáleností k nejbližšímu
- * z `dwellingPositions` a překážkami z vrstvy bez toho, co ves už odstranila. Posvátný dub
- * zůstane stát (nepočítá se mezi překážky), čtverce hájů se z výběru vyjmou (happiness.md).
- * Sad (`fieldSurfaces` false) smí na čtverce pole (fields.md – Pole jako krajina) – překážky
- * vrstvy na nich patří poli (`onField`), pole na pole nesmí. Čtverce natočené mřížky `grid`
- * (fields.md – Natočené stavby) berou krajinu pod sebou vzorkováním a překážky s patou uvnitř.
+ * brání (voda, obydlí, pole, hřbitov, sad, modla, svatyně, dál než 800 m – zakázané čtverce do
+ * náhledu), a čtverce, kde stavba smí stát – louka, křoviny i les – s povrchem (pole
+ * `fieldSurfaces`), plochou bez skalních výchozů (nejvýš MAX_OUTCROP_SHARE čtverce) a bez plochy
+ * pod korunou posvátných dubů, vzdáleností k nejbližšímu z `dwellingPositions` a překážkami
+ * z vrstvy bez toho, co ves už odstranila. Posvátný dub zůstane stát (nepočítá se mezi
+ * překážky), čtverce hájů se z výběru vyjmou (happiness.md). Sad (`fieldSurfaces` false) smí na
+ * čtverce pole (fields.md – Pole jako krajina) – překážky vrstvy na nich patří poli (`onField`),
+ * pole na pole nesmí; les (i les vsi, i jen zčásti) pod sadem osadníci vyklučí za sazbu lesa
+ * (`ForestUse`). Čtverce natočené mřížky `grid` (fields.md – Natočené stavby) berou krajinu pod
+ * sebou vzorkováním a překážky s patou uvnitř.
  */
 function buildSquares(
   landscape: Landscape,
@@ -2068,9 +2316,13 @@ function buildSquares(
     const distanceM = distanceToNearest(square.center, dwellingPositions);
     const { ground, woodExact, ...raw } = flagsOf(square);
     const flags = { ...raw, far: distanceM > FIELD_LIMITS.maxDistanceM };
-    // pole smí i do lesa (fields.md – Založení pole), sad jen na louku – ale i na pole
-    if (fieldSurfaces) flags.forest = false;
-    else flags.field = false;
+    // pole i sad smí do lesa (fields.md – Založení pole, ForestUse), sad i na pole a přes les vsi
+    // i zčásti (vyklučí ho), pole les vsi vymýtí jen po jeho čtvercích
+    flags.forest = false;
+    if (!fieldSurfaces) {
+      flags.field = false;
+      flags.woodEdge = false;
+    }
     let blocked = false;
     for (const key of Object.keys(flags) as (keyof typeof flags)[]) {
       if (!flags[key]) continue;
@@ -2084,7 +2336,7 @@ function buildSquares(
       : woodExact || raw.woodEdge || ground.forest
         ? 'forest'
         : 'meadow';
-    if (land === 'water' || (!fieldSurfaces && land !== 'meadow')) continue;
+    if (land === 'water') continue;
     // posvátný dub zůstane stát – není mezi překážkami a plocha pod korunou se nepočítá;
     // na čtverci pole patří překážky vrstvy poli
     const onField = !fieldSurfaces && raw.field;
@@ -2106,15 +2358,22 @@ function buildSquares(
       : 'meadow';
     const oaks = sacredInShape(landscape, obstacles, sites, square).oaks.length;
     const unusable = tally.outcropAreaM2 + oaks * SACRED_OAK.crownM2;
+    const areaM2 = cellArea - Math.min(unusable, cellArea * MAX_OUTCROP_SHARE);
+    // sad v lese: sazba lesa za plochu čtverce mimo pole (fields.md – Krajina sídla a scéna)
+    const fieldM2 = onField
+      ? takenSquareLand(landscape, village, square, ['field']).reduce((sum, t) => sum + t.areaM2, 0)
+      : 0;
     squares.push({
       square,
       onField,
       surface,
       fertility: ground.fertility,
-      areaM2: cellArea - Math.min(unusable, cellArea * MAX_OUTCROP_SHARE),
+      areaM2,
       distanceM,
       tally,
-      obstacleCost: tallyCost(tally, SURFACE_INCLUDED_OBSTACLES[surface]),
+      obstacleCost: fieldSurfaces
+        ? tallyCost(tally, SURFACE_INCLUDED_OBSTACLES[surface])
+        : squareObstacleCost(village, tally, land === 'forest', Math.max(0, areaM2 - fieldM2)),
     });
   }
   return { squares, problems, blockedCells, obstacleCounts, sacred };
@@ -2370,11 +2629,12 @@ function withWarning(warning: string | undefined): PlacementCheck {
 
 /**
  * Sad ze čtverců – políček krajiny (orchard.md – Stavba): staví se stejně jako pole (Martin) –
- * čtverce jen na louce, do 800 m od nejbližšího obydlí, souvislé, ne na obydlí, poli, hřbitově
- * ani jiném sadu. Překážky na čtverci zvednou cenu výsadby podle tabulky ve fields.md
- * a osadníci je odstraní, až čtverec vysadí; skalní výchoz zůstane a stromy ho obejdou (plocha
- * pod ním se nepočítá). Na rozdíl od pole nemá nejmenší výměru – sadem může být i jeden čtverec.
- * Náhled se počítá i při neúspěchu – kromě neplatných čtverců.
+ * čtverce na louce i v lese, do 800 m od nejbližšího obydlí, souvislé, ne na obydlí, hřbitově ani
+ * jiném sadu (na pole smí). Překážky na čtverci zvednou cenu výsadby podle tabulky ve fields.md
+ * (les za sazbu lesa – `ForestUse`) a osadníci je odstraní, až čtverec vysadí; skalní výchoz
+ * zůstane a stromy ho obejdou (plocha pod ním se nepočítá). Na rozdíl od pole nemá nejmenší
+ * výměru – sadem může být i jeden čtverec. Náhled se počítá i při neúspěchu – kromě neplatných
+ * čtverců.
  */
 export function orchardPartsFromCells(
   landscape: Landscape,
@@ -2428,7 +2688,6 @@ export function orchardPartsFromCells(
   }));
   const checks: [boolean, string][] = [
     [problems.water, 'Sad nesmí zasahovat do vody.'],
-    [problems.forest, 'Sad jde zakládat jen na louce.'],
     [problems.dwelling, 'Sad se překrývá s obydlím.'],
     [problems.cemetery, 'Sad se překrývá s hřbitovem.'],
     [problems.orchard, 'Sad se překrývá s jiným sadem.'],
@@ -2478,18 +2737,18 @@ function cemeteryWarning(dwellingM: number, waterM: number): string | undefined 
 }
 
 /**
- * Hřbitov ze čtverců – políček krajiny (cemetery.md – Stavba). Čtverce jen na louce (les
- * zatím ne – pole už ano). Čtverce, které stranou navazují na hřbitov, ho rozšíří
- * (`extendsCemetery`). Překážky na čtverci (pata v políčku, z vrstvy `obstacles` bez toho, co
- * ves už odstranila) zvednou cenu čtverce podle tabulky ve fields.md a osadníci je odstraní, až
+ * Hřbitov ze čtverců – políček krajiny (cemetery.md – Stavba). Čtverce na louce, v lese i na poli.
+ * Čtverce, které stranou navazují na hřbitov, ho rozšíří (`extendsCemetery`). Překážky na čtverci
+ * (pata v políčku, z vrstvy `obstacles` bez toho, co ves už odstranila) zvednou cenu čtverce podle
+ * tabulky ve fields.md (les i les vsi za sazbu lesa – `ForestUse`) a osadníci je odstraní, až
  * hřbitov (rozšíření) dostaví – jako u dílu pole. Skalní výchoz se neodstraní a hroby jdou na
  * čtverec v pevné mřížce (`CEMETERY.gravesPerSquare`), proto čtverec, do kterého výchoz
- * zasahuje, hřbitov mít nesmí. Kontrola v tomto pořadí: platné čtverce v krajině, ne voda, ne
- * les, nepřekrývá obydlí (i plánovaná z `dwellingPositions`), pole, hřbitov ani sad, žádný skalní
- * výchoz, navazuje nejvýš na jeden hřbitov, čtverce (i s rozšiřovaným hřbitovem) sousedí
- * stranou v jednom celku, celý hřbitov nejvýš MAX_CEMETERY_CELLS čtverců. Blízkost obydlí (pod
- * 150 m) a vody (pod 100 m) stavbu neblokuje – jen `check.warning` a `warningCells`. Náhled se
- * počítá i při neúspěchu – kromě neplatných čtverců.
+ * zasahuje, hřbitov mít nesmí. Kontrola v tomto pořadí: platné čtverce v krajině, ne voda,
+ * nepřekrývá obydlí (i plánovaná z `dwellingPositions`), hřbitov ani sad, žádný skalní výchoz,
+ * navazuje nejvýš na jeden hřbitov, čtverce (i s rozšiřovaným hřbitovem) sousedí stranou v jednom
+ * celku, celý hřbitov nejvýš MAX_CEMETERY_CELLS čtverců. Blízkost obydlí (pod 150 m) a vody (pod
+ * 100 m) stavbu neblokuje – jen `check.warning` a `warningCells`. Náhled se počítá i při
+ * neúspěchu – kromě neplatných čtverců.
  */
 export function cemeteryPartsFromCells(
   landscape: Landscape,
@@ -2562,13 +2821,14 @@ export function cemeteryPartsFromCells(
     const raw = flagsOf(gridSq);
     const flags = {
       water: raw.water,
-      forest: raw.forest,
+      // les (i les vsi, i jen zčásti) osadníci vyklučí (ForestUse)
+      forest: false,
       dwelling: raw.dwelling,
       cemetery: raw.cemetery,
       orchard: raw.orchard,
       pen: raw.pen,
       sacred: raw.sacred,
-      woodEdge: raw.woodEdge,
+      woodEdge: false,
       // na pole hřbitov smí (fields.md – Pole jako krajina) – čtverec z pole zmizí
       field: false,
       outcrop: outcropUnder(obstacles, status, gridSq.corners),
@@ -2581,10 +2841,11 @@ export function cemeteryPartsFromCells(
       blocked = true;
     }
     if (blocked) blockedCells.push(cell);
-    if (flags.water || flags.forest) continue;
+    if (flags.water) continue;
     // na čtverci pole patří překážky vrstvy poli (stromy u cesty ne) – i kus natočeného pole
     const onField = raw.field;
-    if (onField) takenLand.push(...takenSquareLand(landscape, village, gridSq, ['field']));
+    const onFieldLand = onField ? takenSquareLand(landscape, village, gridSq, ['field']) : [];
+    takenLand.push(...onFieldLand);
     const layerOwned = onField && onFieldAt ? onFieldAt : undefined;
     const owned = layerOwned ? { layerOwned } : {};
     const tally = grid
@@ -2611,7 +2872,13 @@ export function cemeteryPartsFromCells(
     squares.push({
       ...square,
       waterDistanceM: water,
-      obstacleCost: tally.cost,
+      // hřbitov v lese: sazba lesa za plochu čtverce mimo pole (ForestUse)
+      obstacleCost: squareObstacleCost(
+        village,
+        tally,
+        raw.forest,
+        squareFreeArea(landscape, onFieldLand),
+      ),
       ...(tally.ids.length > 0 ? { obstacleIds: tally.ids } : {}),
       ...withTrees(unreservedTrees(village, tally.treeIds)),
     });
@@ -2621,7 +2888,6 @@ export function cemeteryPartsFromCells(
   const extended = touching.length === 1 ? touching[0]!.squares.map((s) => s.cell) : [];
   const checks: [boolean, string][] = [
     [problems.water, 'Hřbitov nesmí zasahovat do vody.'],
-    [problems.forest, 'Hřbitov jde zatím zakládat jen na louce – mýcení lesa přijde později.'],
     [problems.dwelling, 'Hřbitov se překrývá s obydlím.'],
     [problems.cemetery, 'Hřbitov se překrývá s jiným hřbitovem.'],
     [problems.orchard, 'Hřbitov se překrývá se sadem.'],
@@ -2669,7 +2935,7 @@ export function cemeteryPartsFromCells(
 /** Názvy posvátných staveb (důvody kontroly umístění). */
 const SACRED_NAMES: Record<SacredBuildingKind, string> = { idol: 'Modla', shrine: 'Svatyně' };
 
-/** Půdorys modly nebo svatyně v krajině, na louce, a u svatyně dost rovný. */
+/** Půdorys modly nebo svatyně v krajině, ne ve vodě (louka i les), a u svatyně dost rovný. */
 function checkSacredTerrain(
   landscape: Landscape,
   kind: SacredBuildingKind,
@@ -2679,19 +2945,16 @@ function checkSacredTerrain(
   const limit = SACRED_BUILDINGS[kind].maxHeightDiffM;
   let lowest = Infinity;
   let highest = -Infinity;
-  let offMeadow = false;
   for (const [x, z] of samples) {
     const tile = tileOfWorldPoint(landscape, x, z);
     if (!tile) return fail(`${name} musí stát uvnitř krajiny sídla.`);
     const surface = surfaceAt(landscape, tile.x, tile.y);
     if (surface === 'water') return fail(`${name} nemůže stát ve vodě.`);
-    if (surface !== 'meadow') offMeadow = true;
     if (limit === null) continue;
     const height = heightAtWorld(landscape, x, z);
     lowest = Math.min(lowest, height);
     highest = Math.max(highest, height);
   }
-  if (offMeadow) return fail(`${name} jde stavět jen na louce.`);
   if (limit !== null && highest - lowest > limit) {
     return fail(
       `Země je tu příliš nerovná – rozdíl ${formatNumber(highest - lowest, 1)} m, ` +
@@ -2703,12 +2966,13 @@ function checkSacredTerrain(
 
 /**
  * Smí modla nebo svatyně stát na místě (happiness.md)? Půdorys (modla 4 × 4 m, svatyně 30 × 30 m)
- * celý na louce, u svatyně převýšení nejvýš 1 m; nepřekrývá obydlí, hřbitovy, sady, jiné modly
- * ani svatyni; žádný skalní výchoz, čtverec háje ani posvátný dub (pod korunou); svatyně jedna na
- * ves. Ostatní překážky na půdorysu osadníci odstraní – cena po kusech podle tabulky ve
- * fields.md, dospělé stromy dají klády. Na pole smí (fields.md – Pole jako krajina): díly pod
- * půdorysem se o průnik zmenší (`takenLand`, varování „Pole se zmenší“), překážky na nich stavba
- * neplatí – patří poli. `obstacles` = vrstva překážek krajiny.
+ * na louce nebo v lese (ne ve vodě), u svatyně převýšení nejvýš 1 m; nepřekrývá obydlí, hřbitovy,
+ * sady, jiné modly ani svatyni; žádný skalní výchoz, čtverec háje ani posvátný dub (pod korunou);
+ * svatyně jedna na ves. Ostatní překážky na půdorysu osadníci odstraní – cena po kusech podle
+ * tabulky ve fields.md, les (i les vsi) vyklučí za sazbu lesa (`ForestUse`), dospělé stromy dají
+ * klády. Na pole smí (fields.md – Pole jako krajina): díly pod půdorysem se o průnik zmenší
+ * (`takenLand`, varování „Pole se zmenší“), překážky na nich stavba neplatí – patří poli.
+ * `obstacles` = vrstva překážek krajiny.
  */
 export function checkSacredBuildingPlacement(
   landscape: Landscape,
@@ -2745,11 +3009,19 @@ export function checkSacredBuildingPlacement(
   if (sacredProblem) return { ...fail(sacredProblem), ...none };
   // překážky vrstvy na čtvercích polí patří poli (založený díl je už nemá)
   const fields = ownedLand(landscape, village, ['field'], []);
-  const tally = polygonObstacles(obstacles, status, footprint, fields, sites.protectedTrees);
+  const forest = freeForestClearing(landscape, village, [footprint], fields);
+  const tally = polygonObstacles(
+    obstacles,
+    status,
+    footprint,
+    fields,
+    sites.protectedTrees,
+    forest.rated,
+  );
   const takenLand = takenLandUnder(landscape, village, [footprint]);
   return {
     ...withWarning(takenLandWarning(landscape, village, takenLand)),
-    obstacleCost: tally.cost,
+    obstacleCost: tally.cost + forest.cost,
     obstacleIds: tally.ids,
     clearedTrees: unreservedTrees(village, tally.treeIds),
     obstacleCounts: tally.counts,
