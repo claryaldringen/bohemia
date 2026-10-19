@@ -1,6 +1,7 @@
 import type { PathLine, RoadGrade } from '@bohemia/game';
 import type { SceneRoad, SceneRoadApple } from '../village-view';
 import {
+  CART_RUT_OFFSET_M,
   IMPROVED_WORN_LAYER,
   JUNCTION,
   ROAD_WIDTH_M,
@@ -115,6 +116,10 @@ function shownGrade(road: SceneRoad, d: number): RoadGrade {
 export function roadBands(roads: readonly SceneRoad[]): {
   trodden: PathLine[];
   improved: PathLine[];
+  /** Vyšlapaná vozová cesta (wagons.md – Vyjeté cesty) – širší, bez holé hlíny uprostřed. */
+  cart: PathLine[];
+  /** Koleje vozových cest (i upravených) – po CART_RUT_OFFSET_M na obě strany osy. */
+  ruts: PathLine[];
 } {
   const ends = roads.flatMap((r) => [r.points[0], r.points[r.points.length - 1]]);
   const joined = (p: { x: number; z: number } | undefined, own: number): boolean =>
@@ -130,7 +135,12 @@ export function roadBands(roads: readonly SceneRoad[]): {
     if (joined(p, k)) return false;
     return road.openEnds ? road.openEnds[end] : true;
   };
-  const out = { trodden: [] as PathLine[], improved: [] as PathLine[] };
+  const out = {
+    trodden: [] as PathLine[],
+    improved: [] as PathLine[],
+    cart: [] as PathLine[],
+    ruts: [] as PathLine[],
+  };
   roads.forEach((road, k) => {
     if (road.points.length < 2) return;
     const length = roadLength(road);
@@ -155,7 +165,13 @@ export function roadBands(roads: readonly SceneRoad[]): {
         openStart: piece.from < 1e-6 && isOpen(road, k, 0),
         openEnd: piece.to > length - 1e-6 && isOpen(road, k, 1),
       };
-      (piece.improved ? out.improved : out.trodden).push(line);
+      (piece.improved ? out.improved : road.cart ? out.cart : out.trodden).push(line);
+      if (road.cart) {
+        for (const offset of [CART_RUT_OFFSET_M, -CART_RUT_OFFSET_M]) {
+          const rut = offsetPolyline(points, offset).map(([x, z]) => ({ x, z }));
+          out.ruts.push({ ...line, points: rut });
+        }
+      }
     }
   });
   return out;
@@ -169,8 +185,12 @@ export function roadBands(roads: readonly SceneRoad[]): {
 export function roadJunctions(roads: readonly SceneRoad[]): {
   trodden: RibbonJunction[];
   improved: RibbonJunction[];
+  cart: RibbonJunction[];
 } {
-  const nodes = new Map<string, { x: number; z: number; count: number; improved: boolean }>();
+  const nodes = new Map<
+    string,
+    { x: number; z: number; count: number; improved: boolean; cart: boolean }
+  >();
   for (const road of roads) {
     if (road.points.length < 2) continue;
     const length = roadLength(road);
@@ -179,16 +199,22 @@ export function roadJunctions(roads: readonly SceneRoad[]): {
       [road.points[road.points.length - 1]!, length],
     ] as const) {
       const key = `${Math.round(p.x * 100)},${Math.round(p.z * 100)}`;
-      const node = nodes.get(key) ?? { x: p.x, z: p.z, count: 0, improved: false };
+      const node = nodes.get(key) ?? { x: p.x, z: p.z, count: 0, improved: false, cart: false };
       node.count++;
       node.improved ||= shownGrade(road, d) !== 'trodden';
+      node.cart ||= road.cart === true;
       nodes.set(key, node);
     }
   }
-  const out = { trodden: [] as RibbonJunction[], improved: [] as RibbonJunction[] };
+  const out = {
+    trodden: [] as RibbonJunction[],
+    improved: [] as RibbonJunction[],
+    cart: [] as RibbonJunction[],
+  };
   for (const node of nodes.values()) {
     if (node.count < JUNCTION.minLines) continue;
-    (node.improved ? out.improved : out.trodden).push({ x: node.x, z: node.z, strength: 1 });
+    const list = node.improved ? out.improved : node.cart ? out.cart : out.trodden;
+    list.push({ x: node.x, z: node.z, strength: 1 });
   }
   return out;
 }

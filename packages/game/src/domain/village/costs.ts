@@ -91,6 +91,7 @@ export const BUILD_COSTS: Record<BuildKind, BuildCost> = {
   potter: workshopBuildCost('potter'),
   smith: workshopBuildCost('smith'),
   burner: workshopBuildCost('burner'),
+  carpenter: workshopBuildCost('carpenter'),
   field: { laborManDays: foundingCostPerHa('meadow', NO_CRAFTS.tools), perHa: true, upfront: {} },
   cemetery: { laborManDays: CEMETERY.costPerSquare, perHa: false, perSquare: true, upfront: {} },
   orchard: { laborManDays: ORCHARD.plantingPerHa, perHa: true, upfront: {} },

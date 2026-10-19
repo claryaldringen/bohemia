@@ -5,18 +5,27 @@
 // s pozemkem polozemnice (woven-fence.ts) – zakulacené rohy, jen hustší pletivo. Natočený
 // hřbitov (fields.md – Natočené stavby): obrys a hroby se počítají v „rovném prostoru“ jeho
 // mřížky (field-cells.ts – `GridFrame`) a otočí se do světa; plot se plete už ve světě.
-import { CEMETERY_GATE } from '@bohemia/game';
+// Mohyly podle významu (cemetery.md – Martin 19. 10. 2026): místo a velikost určí jádro
+// (`placeMound`), tady se jen spočítá střed (`gravePlaceCenter` z jádra), natočení a měřítko;
+// staré hroby (pohřbení před mohylami) zůstávají po řadách jako dřív (`gravePlacements`).
+import {
+  CEMETERY_GATE,
+  GRAVE_PLACES,
+  MOUND_SIZES,
+  gravePlaceCenter,
+  type MoundSize,
+} from '@bohemia/game';
 import { cellsBoundary, gridFrame, type CellSquare, type GridFrame } from './field-cells';
 import { seededRandom, type Point } from './village-layout';
 import { wovenFence, type FencePath, type FenceStyle, type WovenFence } from './woven-fence';
 
 /**
- * Hroby ve čtverci po řadách: 7 × 8 = 56 – musí sedět s CEMETERY.gravesPerSquare (hlídá test);
- * hrob ≈ 2 × 1,75 m.
+ * Hroby ve čtverci po řadách: 7 × 8 = 56 míst – z jádra (GRAVE_PLACES = CEMETERY.gravesPerSquare,
+ * hlídá test); místo ≈ 2 × 1,75 m.
  */
-export const GRAVE_GRID = { columns: 7, rows: 8 } as const;
+export const GRAVE_GRID = { columns: GRAVE_PLACES.columns, rows: GRAVE_PLACES.rows } as const;
 /** Okraj čtverce bez hrobů (m) – mohylky nesahají k plotu, mezi čtverci zůstane ulička. */
-const GRAVE_MARGIN_M = 0.5;
+const GRAVE_MARGIN_M = GRAVE_PLACES.marginM;
 /** Kolik posledních hrobů je čerstvých (holá hlína) – ostatní zarostly travou. */
 export const FRESH_GRAVES = 3;
 /**
@@ -42,18 +51,21 @@ export interface GravePlacement {
 /**
  * Mohylky prvních `graves` hrobů: čtverce v daném pořadí, v každém po řadách mřížka 7 × 8
  * s drobným rozházením (deterministicky podle `seed`). Víc hrobů, než se vejde, se nekreslí.
+ * Čerstvých (z holé hlíny) je posledních `fresh` – staré hroby vedle mohyl podle významu jsou
+ * všechny zarostlé.
  */
 export function gravePlacements(
   squares: readonly CellSquare[],
   graves: number,
   seed: number,
+  fresh: number = FRESH_GRAVES,
 ): GravePlacement[] {
   const first = squares[0];
   if (first?.rotation !== undefined) {
     // natočený hřbitov: hroby po řadách v osách čtverců, otočené do světa
     const frame = gridFrame(first);
     if (frame.rotated) {
-      return gravePlacements(flatSquares(frame, squares), graves, seed).map((grave) => {
+      return gravePlacements(flatSquares(frame, squares), graves, seed, fresh).map((grave) => {
         const [x, z] = frame.toWorld(grave.x, grave.z);
         return { ...grave, x, z, rotationY: grave.rotationY + first.rotation! };
       });
@@ -77,10 +89,88 @@ export function gravePlacements(
       z: square.z - inner / 2 + (row + 0.5) * stepZ + jitter(stepZ),
       rotationY: random() * Math.PI * 2,
       scale: 0.85 + random() * 0.3,
-      fresh: i >= count - FRESH_GRAVES,
+      fresh: i >= count - fresh,
     });
   }
   return out;
+}
+
+/**
+ * Tvar mohyly podle velikosti (cemetery.md – Mohyly podle významu): poloměr napříč, poloměr podél
+ * řad (podlouhlá mohyla hlavy rodiny leží přes dvě místa za sebou) a výška (m). Běžná = dřívější
+ * mohylka; mohyla vojvody a jeho ženy výrazně větší a s dřevěným kůlem na vrcholu.
+ */
+export const MOUND_SHAPES: Record<
+  MoundSize,
+  { radius: number; length: number; height: number; post: boolean }
+> = {
+  small: { radius: 0.55, length: 0.55, height: 0.26, post: false },
+  normal: { radius: 0.9, length: 0.9, height: 0.45, post: false },
+  large: { radius: 0.92, length: 1.6, height: 0.72, post: false },
+  great: { radius: 1.65, length: 1.65, height: 1.1, post: true },
+};
+
+/** Mohyla ve světě – střed, natočení, měřítko, velikost a jestli je čerstvá. */
+export interface MoundPlacement extends GravePlacement {
+  size: MoundSize;
+}
+
+/** Mohyla podle významu ze scény vsi (místo ve čtverci, velikost, čerstvá). */
+export interface MoundSpot {
+  cell: { x: number; y: number };
+  column: number;
+  row: number;
+  size: MoundSize;
+  fresh?: boolean;
+}
+
+/**
+ * Mohyly podle významu: střed bloku míst ve svém čtverci (`gravePlaceCenter` z jádra – stejná
+ * mřížka jako pro výběr místa, i natočený čtverec), drobné rozházení a natočení deterministicky
+ * podle hřbitova a místa. Kulaté mohyly natočené náhodně, podlouhlá po řadách čtverce. Mohyla ve
+ * čtverci, který mezi `squares` není (rozšíření ve stavbě), se nekreslí.
+ */
+export function moundPlacements(
+  squares: readonly CellSquare[],
+  mounds: readonly MoundSpot[],
+  seed: number,
+): MoundPlacement[] {
+  return mounds.flatMap((m) => {
+    const square = squares.find((q) => q.cell.x === m.cell.x && q.cell.y === m.cell.y);
+    if (!square) return [];
+    const { columns, rows } = MOUND_SIZES[m.size];
+    const center = gravePlaceCenter(
+      square,
+      square.size,
+      square.rotation,
+      m.column,
+      m.row,
+      columns,
+      rows,
+    );
+    const random = seededRandom(
+      seed * 7919 + (m.cell.x * 131 + m.cell.y) * 977 + m.row * GRAVE_GRID.columns + m.column + 3,
+    );
+    const step = (square.size - 2 * GRAVE_MARGIN_M) / GRAVE_GRID.rows;
+    const jitter = (): number => (random() - 0.5) * step * 0.2;
+    const along = m.size === 'large';
+    const big = along || m.size === 'great';
+    const turn = random();
+    return [
+      {
+        x: center.x + jitter(),
+        z: center.z + jitter(),
+        // podlouhlá mohyla po řadách čtverce (místní +z), jinak natočená jakkoli
+        rotationY: along
+          ? (square.rotation ?? 0) + (turn < 0.5 ? 0 : Math.PI) + (random() - 0.5) * 0.12
+          : turn * Math.PI * 2,
+        // velké mohyly zaberou svá místa celá – menší rozptyl velikosti
+        scale: big ? 0.96 + random() * 0.08 : 0.9 + random() * 0.2,
+        fresh: m.fresh === true,
+        size: m.size,
+      },
+    ];
+  });
 }
 
 export interface FenceLayout {
@@ -232,6 +322,15 @@ function flatSquares(frame: GridFrame, squares: readonly CellSquare[]): CellSqua
     void _turned;
     return { ...rest, x, z };
   });
+}
+
+/**
+ * Plot starého hřbitova zmizel (abandonment.md – Následky; Martin 19. 10. 2026: „starému hřbitovu
+ * plot zmizí úplně, zůstanou jen mohylky“): spadlý plot (stav 0) se nekreslí vůbec – žádné pahýly
+ * ani kůly. Opravovaný plot vyroste znovu, jakmile stav přibude.
+ */
+export function cemeteryFenceGone(condition: number | undefined): boolean {
+  return condition !== undefined && condition <= 0;
 }
 
 /** Fáze založení pohřebiště pro vývojovou lištu (průběh 0–1, navazují na sebe). */

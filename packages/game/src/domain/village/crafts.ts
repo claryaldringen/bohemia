@@ -13,6 +13,7 @@ import {
   DOMESTIC,
   DWELLING_FOOTPRINT_M,
   MILIR,
+  WOOD_TOOLS,
   WORKSHOP_PORCH_M,
 } from './rules';
 import type {
@@ -62,6 +63,8 @@ const DAYS_PER_YEAR = 365;
  */
 const TOOL_WEAR_PER_DAY = CRAFT_NEEDS.toolWearPerYear / DAYS_PER_YEAR;
 const POTTERY_BREAKAGE_PER_DAY = CRAFT_NEEDS.potteryBreakagePerYear / DAYS_PER_YEAR;
+/** Dřevěné nářadí od tesaře v užívání se opotřebí o WOOD_TOOLS.wearPerYear ročně (wagons.md). */
+const WOOD_TOOLS_WEAR_PER_DAY = WOOD_TOOLS.wearPerYear / DAYS_PER_YEAR;
 /** Mnohoúhelník vyklízeného kruhu milíře – počet vrcholů. */
 const MILIR_CLEARING_SIDES = 12;
 
@@ -73,6 +76,7 @@ export const CRAFT_NAMES: Readonly<Record<Craft, string>> = {
   potter: 'Hrnčíř',
   smith: 'Kovář',
   burner: 'Uhlíř',
+  carpenter: 'Tesař',
 };
 
 /** Zásoby výrobků řemeslníků (vsi uložené před řemesly 0). */
@@ -80,15 +84,23 @@ export function craftStocks(state: Pick<VillageState, 'crafts'>): CraftStocks {
   return state.crafts ?? NO_STOCKS;
 }
 
-/** Potřeba vsi: nástroje pro pracující od 14 let a nádoby pro všechny (kg, crafts.md – Účinek). */
-export function craftNeeds(
-  state: Pick<VillageState, 'people'>,
-  day: number,
-): { toolsKg: number; potteryKg: number } {
+/** Potřeba výrobků řemeslníků (kg): nástroje, nádoby a dřevěné nářadí. */
+export interface CraftNeeds {
+  toolsKg: number;
+  potteryKg: number;
+  woodToolsKg: number;
+}
+
+/**
+ * Potřeba vsi: nástroje pro pracující od 14 let a nádoby pro všechny (kg, crafts.md – Účinek),
+ * dřevěné nářadí pro pracující od 14 let (wagons.md – Tesař).
+ */
+export function craftNeeds(state: Pick<VillageState, 'people'>, day: number): CraftNeeds {
   const workers = state.people.filter((p) => ageGroup(p, day) !== 'child').length;
   return {
     toolsKg: CRAFT_NEEDS.toolsKgPerWorker * workers,
     potteryKg: CRAFT_NEEDS.potteryKgPerPerson * state.people.length,
+    woodToolsKg: WOOD_TOOLS.kgPerWorker * workers,
   };
 }
 
@@ -100,19 +112,24 @@ function coverageOf(stockKg: number, needKg: number): number {
 
 /**
  * Pokrytí potřeby výrobků řemeslníků v den `day` (crafts.md – Meze produktivity): zásoba
- * nástrojů ÷ potřeba pracujících a zásoba keramiky ÷ potřeba všech lidí, nejvýš 1. Ves bez
- * zásob (i uložená před řemesly) má pokrytí 0 – platí nejhorší meze.
+ * nástrojů ÷ potřeba pracujících a zásoba keramiky ÷ potřeba všech lidí, nejvýš 1; dřevěné
+ * nářadí od tesaře ÷ potřeba pracujících (wagons.md – jen když nějaké je, jinak chybí = 0). Ves
+ * bez zásob (i uložená před řemesly) má pokrytí 0 – platí nejhorší meze.
  */
 export function craftCoverage(
   state: Pick<VillageState, 'people' | 'crafts'>,
   day: number,
 ): CraftCoverage {
   const stocks = state.crafts;
-  if (!stocks || (stocks.toolsKg <= 0 && stocks.potteryKg <= 0)) return NO_CRAFTS;
+  const woodTools = stocks?.woodToolsKg ?? 0;
+  if (!stocks || (stocks.toolsKg <= 0 && stocks.potteryKg <= 0 && woodTools <= 0)) {
+    return NO_CRAFTS;
+  }
   const needs = craftNeeds(state, day);
   return {
     tools: coverageOf(stocks.toolsKg, needs.toolsKg),
     pottery: coverageOf(stocks.potteryKg, needs.potteryKg),
+    ...(woodTools > 0 ? { woodTools: coverageOf(woodTools, needs.woodToolsKg) } : {}),
   };
 }
 
@@ -123,10 +140,16 @@ export function craftCoverage(
  */
 export function wearCraftStocks(state: VillageState, day: number): void {
   const stocks = state.crafts;
-  if (!stocks || (stocks.toolsKg <= 0 && stocks.potteryKg <= 0)) return;
+  const woodTools = stocks?.woodToolsKg ?? 0;
+  if (!stocks || (stocks.toolsKg <= 0 && stocks.potteryKg <= 0 && woodTools <= 0)) return;
   const needs = craftNeeds(state, day);
   stocks.toolsKg -= Math.min(stocks.toolsKg, needs.toolsKg) * TOOL_WEAR_PER_DAY;
   stocks.potteryKg -= Math.min(stocks.potteryKg, needs.potteryKg) * POTTERY_BREAKAGE_PER_DAY;
+  // dřevěné nářadí od tesaře (wagons.md) – jen vsi, které nějaké mají
+  if (woodTools > 0) {
+    stocks.woodToolsKg =
+      woodTools - Math.min(woodTools, needs.woodToolsKg) * WOOD_TOOLS_WEAR_PER_DAY;
+  }
 }
 
 /** Řemeslo obydlí; obyčejné obydlí null. */
@@ -164,7 +187,7 @@ export function craftHouseholds(
 }
 
 /** Obývané dílny řemesla `craft` v pořadí id. */
-function occupiedWorkshops(state: VillageState, craft: Craft): Dwelling[] {
+export function occupiedWorkshops(state: VillageState, craft: Craft): Dwelling[] {
   const occupied = new Set(state.people.map((p) => p.dwellingId));
   return state.dwellings
     .filter((d) => d.workshop?.craft === craft && occupied.has(d.id))
@@ -176,15 +199,14 @@ function occupiedWorkshops(state: VillageState, craft: Craft): Dwelling[] {
  * a k ní opotřebení za CRAFT_NEEDS.reserveYears – nástroje potřeba × 1,3, keramika × 1,4. Ves
  * s takovou zásobou má potřebu pokrytou i za rok, kdy se část opotřebí.
  */
-export function craftTargets(
-  state: Pick<VillageState, 'people'>,
-  day: number,
-): { toolsKg: number; potteryKg: number } {
+export function craftTargets(state: Pick<VillageState, 'people'>, day: number): CraftNeeds {
   const needs = craftNeeds(state, day);
   return {
     toolsKg: needs.toolsKg * (1 + CRAFT_NEEDS.toolWearPerYear * CRAFT_NEEDS.reserveYears),
     potteryKg:
       needs.potteryKg * (1 + CRAFT_NEEDS.potteryBreakagePerYear * CRAFT_NEEDS.reserveYears),
+    // tesař vyrábí dřevěné nářadí do zásoby jako kovář nástroje (wagons.md – Tesař)
+    woodToolsKg: needs.woodToolsKg * (1 + WOOD_TOOLS.wearPerYear * WOOD_TOOLS.reserveYears),
   };
 }
 
@@ -225,6 +247,7 @@ export function smithsCharcoalPerYear(
  * Rozhoduje se na začátku dne ze včerejších zásob; hodnota = co dílna dnes ukáže (`resting` –
  * plná zásoba, `no-charcoal` / `no-wood` – chybí vstup, upozornění pro hráče). `obstacles` =
  * vrstva překážek (dřevo hrnčíře a buky uhlíře); bez ní (null – jen testy) dřeva neomezeně.
+ * Tesaře (wagons.md) rozhoduje `restingCarpenters` (carpentry.ts).
  */
 export function restingCrafters(
   state: VillageState,
@@ -347,7 +370,7 @@ function fellingFrom(dwelling: Dwelling, craft: Craft): { x: number; z: number }
  * posvátný (forest.md – kácení, vzdálenost). Bez vrstvy překážek (null – jen testy) se kácí bez
  * polohy za cenu blízkého lesa. Když není z čeho kácet, null.
  */
-function nextTree(
+export function nextTree(
   state: VillageState,
   dwelling: Dwelling,
   craft: Craft,
@@ -485,7 +508,11 @@ export function workCrafts(
   ),
   landscape: Landscape | null = null,
 ): WorkshopDay[] {
-  const workshops = state.dwellings.filter((d) => d.workshop).sort(workshopOrder);
+  // tesaře (wagons.md) řídí krok práce zvlášť – pomoc stavbám jde před stavbami dne
+  // (carpentry.ts – `workCarpenter`)
+  const workshops = state.dwellings
+    .filter((d) => d.workshop && d.workshop.craft !== 'carpenter')
+    .sort(workshopOrder);
   if (workshops.length === 0) return [];
   const households = craftHouseholds(state);
   const stocks = (state.crafts ??= { ...NO_STOCKS });

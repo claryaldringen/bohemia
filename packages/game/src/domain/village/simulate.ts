@@ -2,6 +2,30 @@ import { TOTAL_GAME_DAYS, dateOfDayIndex } from '../calendar';
 import type { CalendarDate } from '../calendar';
 import type { Landscape, ObstacleLayer } from '../landscape';
 import { abandonmentCheck, abandonmentDay } from './abandonment';
+import {
+  carpentryHelp,
+  constructionLaborFactor,
+  constructionWoodShare,
+  restingCarpenters,
+  workCarpenters,
+} from './carpentry';
+import {
+  addHaulTrips,
+  cropCartReach,
+  fellingHaulable,
+  haulAvailable,
+  haulCartsToday,
+  hauledBy,
+  haulPlan,
+  haulProgress,
+  logsCartReach,
+  mowingCartReach,
+  retireCarts,
+  teamsHomeShare,
+  villageCartAccess,
+  type CartAccess,
+  type HaulPlan,
+} from './carts';
 import { villageCemeteries } from './cemetery';
 import { cloneState } from './clone';
 import {
@@ -76,7 +100,7 @@ import { trimPlanToTarget } from './plan-trim';
 import { villageSacredOaks } from './sacred';
 import { sacredOakEvents } from './sacred-life';
 import { allocateDay, type LaborTaskName } from './labor';
-import { laborDay, type ConstructionWork } from './labor-report';
+import { laborDay, type ConstructionWork, type HaulWork } from './labor-report';
 import {
   ORCHARD_TASK_NAMES,
   isOrchardPlanted,
@@ -89,7 +113,7 @@ import {
 } from './orchard';
 import { laborPerDay } from './people';
 import { inLuckyYears, nextStarvationDays, populationDay } from './population';
-import { dailyMinPerHousehold } from './productivity';
+import { dailyMinPerHousehold, harvestCarryShare, woodToolsLaborFactor } from './productivity';
 import { moveRelocatedHousehold, relocatingHouseholds } from './relocation';
 import { keepManor, villageManorId } from './manor';
 import { finishExpeditions, withoutForeignGoods, workExpeditions } from './trade';
@@ -97,6 +121,7 @@ import { finishTrail, trailsDay } from './trail';
 import { isVillageDormant } from './departure';
 import { recordRuins, updateRuins } from './ruins';
 import {
+  CARTS,
   CHRONICLE_MAX_EVENTS,
   COMMON_LABOR_HISTORY_DAYS,
   CROP_ORDER,
@@ -255,6 +280,8 @@ function simulateDay(
   // pokrytí výrobky řemeslníků ze včerejších zásob – meze produktivity celého dne (crafts.md)
   const coverage = craftCoverage(state, day);
   rotLogs(state);
+  // vozy, které dosloužily – tesař vyrobí nové (wagons.md – Vůz)
+  state.chronicle.push(...retireCarts(state, day));
   // sady: shnilá jablka, konec péče a stárnutí (1. 3.), začátek a konec sklizně a péče, obnova
   // starých čtverců v oknech výsadby (stavba ze společné práce – dostane práci už dnes)
   state.chronicle.push(...orchardSeasonDay(state, day, coverage.pottery));
@@ -456,10 +483,10 @@ function sowingCapacity(
   plough = false,
 ): SowingCapacity {
   const crafts = craftHouseholds(state);
-  // práci násobí štěstí vsi (happiness.md)
+  // práci násobí štěstí vsi (happiness.md) a dřevěné nářadí od tesaře (wagons.md)
   const capacity =
     state.people.reduce((sum, p) => sum + (crafts.has(p.dwellingId) ? 0 : laborPerDay(p, day)), 0) *
-    villageLaborFactor(state);
+    villageProductivity(state, coverage);
   const dailyMin = dailyMinPerHousehold(coverage.pottery) * (householdCount(state) - crafts.size);
   // práce se zvířaty jde před polní práce (dojení, péče – diet.md); odhad podle dneška
   const animals = animalCareNeed(
@@ -542,6 +569,14 @@ function sow(parts: FieldPart[], day: number, crop: Crop): void {
 }
 
 // --- práce ------------------------------------------------------------------------------
+
+/**
+ * Násobek veškeré práce vsi: štěstí (happiness.md – `villageLaborFactor`) krát dřevěné nářadí od
+ * tesaře (wagons.md – Tesař, meze WOOD_TOOLS_LABOR; bez tesaře 1).
+ */
+function villageProductivity(state: VillageState, coverage: CraftCoverage): number {
+  return villageLaborFactor(state) * woodToolsLaborFactor(coverage.woodTools ?? 0);
+}
 
 /** Obydlí, ve kterých někdo bydlí (pořadí podle stavu). */
 function occupiedDwellings(state: VillageState): Dwelling[] {
@@ -640,8 +675,13 @@ function work(
   landscape: Landscape | null,
 ): { toil: boolean; milking: number } {
   const month = dateOfDayIndex(day).month;
-  // orba: spřežení s rádlem, se železnou špičkou od kováře rychleji (oxen.md)
-  const owned = fieldTasks(state, day, ploughCapacityPerDay(state, coverage.tools, day));
+  // orba: spřežení s rádlem, se železnou špičkou od kováře rychleji (oxen.md); slabí voli po
+  // zimě pomaleji; spřežení s vozem na výpravě neorá (wagons.md)
+  const owned = fieldTasks(
+    state,
+    day,
+    ploughCapacityPerDay(state, coverage.tools, day) * teamsHomeShare(state),
+  );
   const dayTasks: DayTask[] = owned.map((field) => ({
     name: field.name,
     remaining: field.remaining,
@@ -696,14 +736,23 @@ function work(
     dayTasks.push({ name: 'herding', remaining: herding.adults, end: -1, tie: 0, rank: 2 });
   }
   dayTasks.sort((a, b) => a.end - b.end || a.tie - b.tie || a.rank - b.rank);
+  // vozy (wagons.md – Vůz): dvoukoláky se spřežením, které dnes neorá, vozí snopy a seno tam, kam
+  // dojedou – převezmou kus nošení a jde s nimi honák a nakladač (úloha pak chce méně práce)
+  const ploughing = owned.some((task) => task.name === 'plough');
+  let cartsLeft = haulCartsToday(state, ploughing);
+  const access = cartsLeft > 0 ? villageCartAccess(state, day, landscape, obstacles) : null;
+  const hauls = new Map<DayTask, HaulPlan>();
+  if (access)
+    cartsLeft = planTaskHauls(state, dayTasks, hauls, cartsLeft, access, coverage, landscape);
 
   const households = occupiedDwellings(state);
   const repairNeeds = households.map((d) => repairNeedPerDay(d, day));
   const repairNeed = repairNeeds.reduce((sum, n) => sum + n, 0);
-  const productivity = villageLaborFactor(state);
+  const productivity = villageProductivity(state, coverage);
   // řemeslník, který dnes nemá v dílně co dělat (plná zásoba, chybí vstup), pracuje se vsí
-  // (crafts.md – Podle potřeby)
+  // (crafts.md – Podle potřeby); tesař, jen když nemá co vyrábět ani komu pomáhat (wagons.md)
   const resting = restingCrafters(state, day, coverage, productivity, obstacles);
+  for (const [id, activity] of restingCarpenters(state, day, obstacles)) resting.set(id, activity);
   const crafts = craftHouseholds(state, resting);
   const villagers =
     crafts.size > 0 ? state.people.filter((p) => !crafts.has(p.dwellingId)) : state.people;
@@ -719,19 +768,42 @@ function work(
     productivity,
   });
 
-  // polní práce dne – i odkud kam došla (rozdělení práce po dílech pro postavy, labor-report.ts)
+  // polní práce dne – i odkud kam došla (rozdělení práce po dílech pro postavy, labor-report.ts);
+  // `amount` = postup úlohy (s vozy víc než práce vsi), `labor` = práce vsi bez honáků
   const fieldWork: {
     task: CropTask;
     work: CropWork;
     before: number;
     after: number;
     amount: number;
+    labor?: number;
   }[] = [];
+  const haulWork: HaulWork[] = [];
+  let mowLabor: number | undefined;
   const mowingBefore = state.hay?.mowing?.done ?? 0;
   let milked = animals.milking > 0 ? 0 : 1;
   let herdedByAdults = 0;
   dayTasks.forEach((task, i) => {
-    const amount = allocation.taskAmounts[i] ?? 0;
+    const labor = allocation.taskAmounts[i] ?? 0;
+    // s vozy úloha postoupí víc, než na ni ves dala práce (wagons.md – Vůz)
+    const haul = hauls.get(task);
+    const amount = haul ? haulProgress(labor, haul) : labor;
+    const crew = haul ? Math.min(labor, haul.crew) : 0;
+    if (haul && crew > 0) {
+      haulWork.push({
+        job: task.name === 'mow' ? 'mow' : 'harvest',
+        manDays: crew,
+        carts: haul.carts,
+      });
+      // co vozy převzaly – nejvýš podíl nošení celé úlohy (carts.ts – haulAvailable); jízdy svozu
+      // do ročního provozu cest (vyjeté cesty – roads.md)
+      const owner = task.field ? task.field.work : state.hay?.mowing;
+      if (owner) {
+        const hauled = hauledBy(labor, haul);
+        owner.hauled = (owner.hauled ?? 0) + hauled;
+        if (owner.cartReach) addHaulTrips(state, owner.cartReach, hauled);
+      }
+    }
     if (task.name === 'milking') {
       milked = Math.min(1, amount / animals.milking);
     } else if (task.name === 'animal-care') {
@@ -740,9 +812,17 @@ function work(
       const before = cropTaskDone(task.field.work, task.field.name);
       addCropTaskWork(task.field.work, task.field.name, amount);
       const after = cropTaskDone(task.field.work, task.field.name);
-      fieldWork.push({ task: task.field.name, work: task.field.work, before, after, amount });
+      fieldWork.push({
+        task: task.field.name,
+        work: task.field.work,
+        before,
+        after,
+        amount,
+        ...(haul ? { labor: labor - crew } : {}),
+      });
     } else if (task.name === 'mow') {
       mow(state, amount);
+      if (haul) mowLabor = labor - crew;
     } else if (task.name === 'slaughter') {
       workSlaughter(state, amount);
     } else if (task.name === 'herding') {
@@ -764,8 +844,25 @@ function work(
   recordHerding(state, herding, herdedByAdults);
   // nosiči výprav k sousedům jdou ze společné práce před stavbami (trade.md – Doprava)
   const trade = workExpeditions(state, allocation.common);
-  const constructions = build(state, day, allocation.common - trade.used);
-  const workshops = workCrafts(state, day, obstacles, coverage, productivity, resting, landscape);
+  let common = allocation.common - trade.used;
+  // klády ke stavbám vozem tam, kam vůz dojede (wagons.md – Vůz) – honák a nakladač ze společné
+  // práce
+  if (access && cartsLeft > 0) {
+    const logs = haulLogs(state, day, common, cartsLeft, access, landscape, obstacles);
+    if (logs) {
+      common -= logs.manDays;
+      haulWork.push(logs);
+    }
+  }
+  // tesař pomáhá stavbám – jeho práce jde do staveb a zlevní jejich dřevěnou část (wagons.md)
+  const help = carpentryHelp(state, day, coverage, productivity, resting, (extra) =>
+    woodworkToday(state, day, common + extra),
+  );
+  const constructions = build(state, day, common + help.labor, help.coverage);
+  const workshops = [
+    ...workCrafts(state, day, obstacles, coverage, productivity, resting, landscape),
+    ...workCarpenters(state, day, obstacles, coverage, productivity, resting, help),
+  ];
   const hayMowing = state.hay?.mowing;
   state.labor = laborDay(state, day, {
     allocation,
@@ -774,10 +871,18 @@ function work(
     constructions,
     workshops,
     trade: trade.shares,
+    hauls: haulWork,
     toolCoverage: coverage.tools,
     herders: herding.freeHerders,
     ...(hayMowing
-      ? { mowing: { mowing: hayMowing, before: mowingBefore, after: hayMowing.done } }
+      ? {
+          mowing: {
+            mowing: hayMowing,
+            before: mowingBefore,
+            after: hayMowing.done,
+            ...(mowLabor !== undefined ? { labor: mowLabor } : {}),
+          },
+        }
       : {}),
   });
   // roční průměr (starší ves začne průměrem 30 dní ještě bez dneška) a posledních 30 dní
@@ -882,8 +987,15 @@ function foundingParts(founding: FoundingIndex, c: Construction): FieldPart[] {
  * Společná práce rovným dílem do rozestavěných staveb: stavba, které stačí méně, si vezme jen
  * to, co potřebuje, a zbytek se znovu rozdělí mezi ostatní; co zbude po všech, propadne.
  * Vrátí, kolik práce šlo do které stavby (rozdělení práce dne pro scénu – labor-report.ts).
+ * `carpentry` = pokrytí dřevěné práce tesařem (wagons.md – Tesař): práce stavby se násobí
+ * `constructionLaborFactor` – stejná práce s tesařem postaví víc (bez tesaře 1).
  */
-function build(state: VillageState, day: number, common: number): ConstructionWork[] {
+function build(
+  state: VillageState,
+  day: number,
+  common: number,
+  carpentry = 0,
+): ConstructionWork[] {
   const founding = foundingIndex(state);
   // díl louky, který ves se spřežením zakládá bez překážek, práci nepotřebuje – založí se hned
   // (drn rozorá první orba – oxen.md, Jen rádlo)
@@ -894,33 +1006,167 @@ function build(state: VillageState, day: number, common: number): ConstructionWo
     }
   }
   let active = state.constructions
-    .map((c) => ({ c, need: constructionNeed(state, c, day, founding) }))
+    .map((c) => {
+      const factor = constructionLaborFactor(c, carpentry);
+      return { c, factor, need: constructionNeed(state, c, day, founding) * factor };
+    })
     .filter((x) => x.need > 0);
   const invested: ConstructionWork[] = [];
-  const put = (c: Construction, amount: number, completes: boolean): void => {
+  const put = (
+    x: { c: Construction; factor: number },
+    amount: number,
+    completes: boolean,
+  ): void => {
     invested.push({
-      construction: c,
+      construction: x.c,
       manDays: amount,
-      doneBefore: c.done,
-      felledBefore: c.wood?.felled ?? 0,
+      doneBefore: x.c.done,
+      felledBefore: x.c.wood?.felled ?? 0,
     });
-    invest(state, day, c, amount, completes, founding);
+    invest(state, day, x.c, amount / x.factor, completes, founding);
   };
   let left = common;
   while (active.length > 0 && left > 0) {
     const share = left / active.length;
     const saturated = active.filter((x) => x.need <= share);
     if (saturated.length === 0) {
-      for (const x of active) put(x.c, share, false);
+      for (const x of active) put(x, share, false);
       return invested;
     }
     for (const x of saturated) {
-      put(x.c, x.need, true);
+      put(x, x.need, true);
       left = Math.max(0, left - x.need);
     }
     active = active.filter((x) => x.need > share);
   }
   return invested;
+}
+
+/**
+ * Dřevěná práce staveb dne (čd bez tesaře – wagons.md, Tesař): kolik z `common` práce rozdělené
+ * rovným dílem jako ve `build` připadne na dřevěné části staveb. Stav nemění.
+ */
+function woodworkToday(state: VillageState, day: number, common: number): number {
+  const founding = foundingIndex(state);
+  let active = state.constructions
+    .map((c) => ({
+      share: constructionWoodShare(c),
+      need: constructionNeed(state, c, day, founding),
+    }))
+    .filter((x) => x.need > 0);
+  let wood = 0;
+  let left = common;
+  while (active.length > 0 && left > 0) {
+    const share = left / active.length;
+    const saturated = active.filter((x) => x.need <= share);
+    if (saturated.length === 0) {
+      for (const x of active) wood += x.share * share;
+      return wood;
+    }
+    for (const x of saturated) {
+      wood += x.share * x.need;
+      left = Math.max(0, left - x.need);
+    }
+    active = active.filter((x) => x.need > share);
+  }
+  return wood;
+}
+
+/**
+ * Svoz vozy na úlohy dne (wagons.md – Vůz; mutuje `tasks` a `hauls`): vozy jedou na úlohy
+ * v pořadí dne – odnos snopů (podíl odnosu na sklizni) a svoz sena (CARTS.haulShare.hay) tam, kam
+ * dojedou. Úloha pak chce o převzaté nošení méně práce a o honáky a nakladače víc. Vrátí, kolik
+ * vozů zbylo (klády ke stavbám).
+ */
+function planTaskHauls(
+  state: VillageState,
+  tasks: DayTask[],
+  hauls: Map<DayTask, HaulPlan>,
+  carts: number,
+  access: CartAccess,
+  coverage: CraftCoverage,
+  landscape: Landscape | null,
+): number {
+  let left = carts;
+  const carry = harvestCarryShare(coverage.tools);
+  for (const task of tasks) {
+    if (left <= 0) break;
+    let available = 0;
+    // kam vůz dojede, se spočítá při prvním svozu úlohy a uloží u ní (vozová síť – carts.ts)
+    if (task.field?.name === 'harvest') {
+      const work = task.field.work;
+      work.cartReach ??= cropCartReach(state, work, landscape, access);
+      const share = carry * work.cartReach.share;
+      available = haulAvailable(work.required.harvest, task.remaining, work.hauled ?? 0, share);
+    } else if (task.name === 'mow' && state.hay?.mowing) {
+      const mowing = state.hay.mowing;
+      mowing.cartReach ??= mowingCartReach(state, mowing, landscape, access);
+      const share = CARTS.haulShare.hay * mowing.cartReach.share;
+      available = haulAvailable(mowing.required, task.remaining, mowing.hauled ?? 0, share);
+    } else {
+      continue;
+    }
+    const haul = haulPlan(available, left);
+    if (haul.carts === 0) continue;
+    left -= haul.carts;
+    hauls.set(task, haul);
+    task.remaining = task.remaining - haul.work + haul.crew;
+  }
+  return left;
+}
+
+/**
+ * Klády ke stavbám vozem (wagons.md – Vůz): vozy převezmou CARTS.haulShare.logs zbývajícího
+ * kácení a dovozu u stromů, ke kterým dojedou, stavbu po stavbě v pořadí staveb; honáci
+ * a nakladači jdou ze společné práce (když nestačí, vozy převezmou poměrně méně). Mutuje stav
+ * (postup staveb – kácení jako u společné práce); bez práce null.
+ */
+function haulLogs(
+  state: VillageState,
+  day: number,
+  common: number,
+  carts: number,
+  access: CartAccess,
+  landscape: Landscape | null,
+  obstacles: ObstacleLayer | null,
+): HaulWork | null {
+  if (common <= 0) return null;
+  const founding = foundingIndex(state);
+  const candidates = state.constructions.flatMap((c) => {
+    if (!c.wood || c.done + 1e-9 >= woodFellingCost(c.wood)) return [];
+    if (constructionNeed(state, c, day, founding) <= 0) return [];
+    // ke kterým stromům vůz dojede – jednou za stavbu, při prvním svozu klád
+    c.wood.cartReach ??= logsCartReach(state, c.wood, landscape, obstacles, access);
+    const reach = fellingHaulable(c, c.wood.cartReach.trees);
+    const haulable = haulAvailable(
+      reach.total,
+      reach.remaining,
+      c.wood.hauled ?? 0,
+      CARTS.haulShare.logs,
+    );
+    return haulable > 0 ? [{ c, haulable }] : [];
+  });
+  const plan = haulPlan(
+    candidates.reduce((sum, x) => sum + x.haulable, 0),
+    carts,
+  );
+  if (plan.carts === 0) return null;
+  const scale = plan.crew > common ? common / plan.crew : 1;
+  let left = plan.work * scale;
+  const trees: number[] = [];
+  for (const { c, haulable } of candidates) {
+    if (left <= 0) break;
+    const work = Math.min(left, haulable);
+    const wood = c.wood!;
+    for (const t of wood.fell.slice(wood.felled, wood.felled + 3)) {
+      if (t.id !== null && !trees.includes(t.id)) trees.push(t.id);
+    }
+    invest(state, day, c, work, false, founding);
+    wood.hauled = (wood.hauled ?? 0) + work;
+    if (wood.cartReach) addHaulTrips(state, wood.cartReach, work);
+    left -= work;
+  }
+  return { job: 'logs', manDays: plan.crew * scale, carts: plan.carts, trees };
 }
 
 /** Vloží práci do stavby; `completes` = dostala vše, co jí chybělo. */

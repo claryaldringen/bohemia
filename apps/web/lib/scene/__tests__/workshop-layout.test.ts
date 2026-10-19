@@ -11,8 +11,11 @@ import {
   PORCH_FRONT_M,
   craftSpots,
   forestKilnAnchor,
+  hasPorch,
   milirHideShape,
   milirPlace,
+  modelSpots,
+  modelVents,
   workshopVents,
 } from '../workshop-layout';
 
@@ -21,7 +24,12 @@ const TURNED = { x: -5, z: 3, rotation: Math.PI / 2 };
 
 describe('dílny ve scéně (crafts.md)', () => {
   it('řemeslo → model dílny s fázemi staveniště', () => {
-    expect(CRAFT_MODEL).toEqual({ potter: 'hrncir', smith: 'kovar', burner: 'uhlir' });
+    expect(CRAFT_MODEL).toEqual({
+      potter: 'hrncir',
+      smith: 'kovar',
+      burner: 'uhlir',
+      carpenter: 'tesar',
+    });
     for (const model of Object.values(CRAFT_MODEL)) {
       expect(CONSTRUCTION_PHASES[model].length).toBeGreaterThan(0);
     }
@@ -117,5 +125,28 @@ describe('milíř v lese (crafts.md – Uhlíř)', () => {
     expect(plantedScale(0, 1)).toBeCloseTo(0.15, 9);
     expect(plantedScale(1, 1.2)).toBeCloseTo(1.2, 9);
     expect(plantedScale(0.5, 1)).toBeGreaterThan(plantedScale(0.2, 1));
+  });
+});
+
+describe('dílna tesaře (wagons.md – Tesař)', () => {
+  it('polozemnice s přístřeškem, fáze stavby, bez dýmu', () => {
+    expect(hasPorch('tesar')).toBe(true);
+    expect(hasPorch('uhlir')).toBe(false);
+    expect(CONSTRUCTION_PHASES.tesar.map((p) => p.id)).toContain('carpentry');
+    expect(modelVents('tesar', AT)).toEqual([]);
+    expect(modelVents('kovar', AT)).toHaveLength(1);
+  });
+
+  it('tesaři stojí pod přístřeškem (mezi stěnou a předním okrajem, mezi sloupy)', () => {
+    const spots = modelSpots('tesar', AT);
+    expect(spots.length).toBeGreaterThanOrEqual(3);
+    for (const spot of spots) {
+      const lx = spot.x - AT.x;
+      const lz = spot.z - AT.z;
+      expect(lz).toBeGreaterThan(2.1);
+      expect(lz).toBeLessThan(PORCH_FRONT_M + 0.4);
+      expect(Math.abs(lx)).toBeLessThan(2.3);
+      expect(Math.hypot(spot.hx, spot.hz)).toBeCloseTo(1, 9);
+    }
   });
 });

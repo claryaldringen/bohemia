@@ -136,7 +136,11 @@ vsi blízké příbuzné, nebudou chtít útočit):
   rodičů v domě vedle dědice (starší vsi mají rodiče neznámé; oprava 19. 10. 2026 – ve Vlkově
   takhle přeplněný dvorec nedal nikoho k osídlení). Svobodný syn smí odejít sám jen z plného nebo
   přeplněného domu (Martin – i plná domácnost), od 16 let; když dědic ještě není a matka synů už
-  nemůže rodit, zůstává nejstarší syn (Martinův dědic u neplodných rodičů) a odejde druhý. Zpátky
+  nemůže rodit, zůstává nejstarší syn (Martinův dědic u neplodných rodičů) a odejde druhý. Bez
+  svobodného syna smí odejít i jiný svobodný muž od 16 let, který v domě nemá rodiče a není otcem
+  nikoho z domu (Martin, 19. 10. 2026 – „Jedna polozemnice je přeplněná a jsou v ní 4 dospělí.
+  Tohle by se mělo nějak řešit“: ve Vlkově 25letý muž s neznámými rodiči nesměl do prázdné
+  polozemnice; návrh Clauda). Zpátky
   ho nic nevrátí – sňatkem se stěhuje žena k muži a sestra ani matka si ho nevezme (bez
   příbuzenství tu vznikalo stěhování tam a zpět – 11× za 10 dní, hlídá test).
 - **Lidé k osídlení:** v každém plném nebo přeplněném domě rodiny, které odejdou, dokud dům zůstává

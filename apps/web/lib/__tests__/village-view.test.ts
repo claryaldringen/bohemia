@@ -775,7 +775,8 @@ describe('hřbitov v pohledu na ves', () => {
         progress: 0,
         capacity: 112,
         graves: 0,
-        freeGraves: 112,
+        usedPlaces: 0,
+        freePlaces: 112,
         yearsLeft: null,
         fenceCondition: 1,
         abandoned: false,
@@ -805,9 +806,37 @@ describe('hřbitov v pohledu na ves', () => {
     s.cemeteries![0]!.builtDay = DAY - 1;
     s.cemeteries![0]!.graves = 100;
     const view = buildVillageView(record(s), landscape, DAY);
-    expect(view.cemeteries[0]).toMatchObject({ built: true, progress: 1, freeGraves: 12 });
+    expect(view.cemeteries[0]).toMatchObject({
+      built: true,
+      progress: 1,
+      graves: 100,
+      usedPlaces: 100,
+      freePlaces: 12,
+    });
     expect(view.cemeteries[0]).not.toHaveProperty('spaceLabel');
     expect(view.scene.cemeteries?.[0]).toMatchObject({ built: true, graves: 100 });
+  });
+
+  it('mohyly podle významu: místa v panelu, staré hroby a mohyly ve scéně (cemetery.md)', () => {
+    const s = withCemetery();
+    s.constructions = s.constructions.filter((c) => c.kind !== 'cemetery');
+    const c = s.cemeteries![0]!;
+    c.builtDay = DAY - 1;
+    c.graves = 12;
+    c.mounds = [
+      { cell: { x: 0, y: 0 }, column: 2, row: 1, size: 'great', rank: 'manor', day: DAY - 800 },
+      { cell: { x: 1, y: 0 }, column: 6, row: 7, size: 'small', rank: 'child', day: DAY - 10 },
+    ];
+    const view = buildVillageView(record(s), landscape, DAY);
+    expect(view.cemeteries[0]).toMatchObject({ graves: 12, usedPlaces: 15, freePlaces: 97 });
+    expect(view.scene.cemeteries?.[0]).toMatchObject({
+      graves: 10,
+      mounds: [
+        { cell: { x: 0, y: 0 }, column: 2, row: 1, size: 'great' },
+        { cell: { x: 1, y: 0 }, column: 6, row: 7, size: 'small', fresh: true },
+      ],
+    });
+    expect(view.scene.cemeteries?.[0]?.mounds?.[0]).not.toHaveProperty('fresh');
   });
 });
 
@@ -1758,5 +1787,133 @@ describe('buildVillageView – odchod do nové vsi (migration.md – fáze 3 a 4
     const placement = placementVillageFromScene(view.scene);
     expect(placement.foreign?.dwellings).toHaveLength(1);
     expect(placement.foreign?.cells.length).toBeGreaterThan(0);
+  });
+});
+
+describe('buildVillageView – tesař a vozy (wagons.md)', () => {
+  /** Ves s tesařem (id 50) a rozdělaným dvoukolákem, ohradou se spřežením a vozem na svozu. */
+  const carpenterVillage = (): VillageState => {
+    const s = settled();
+    s.dwellings.push({
+      id: 50,
+      type: 'polozemnice',
+      builtDay: DAY,
+      condition: 1,
+      position: { x: 40, z: 0, rotation: 0 },
+      workshop: {
+        craft: 'carpenter',
+        felling: null,
+        fuelKg: 0,
+        activity: 'producing',
+        cart: { kind: 'two-wheel', done: 10 },
+        woodworkCoverage: 0.5,
+      },
+    });
+    s.people.push({ id: 90, bornDay: DAY - 9000, dwellingId: 50 });
+    s.pens = [
+      {
+        id: 900,
+        cell: { x: 3, y: 4 },
+        x: 50,
+        z: 60,
+        builtDay: DAY - 800,
+        team: { readyDay: DAY - 10 },
+        training: null,
+      },
+    ];
+    s.carts = [{ id: 1, kind: 'two-wheel', builtDay: DAY - 365 }];
+    s.crafts = { charcoalKg: 0, toolsKg: 0, potteryKg: 0, woodToolsKg: 12 };
+    s.labor = {
+      day: DAY,
+      shares: [{ activity: 'haul', target: { kind: 'field', id: 1 }, manDays: 2, carts: 1 }],
+    };
+    return s;
+  };
+
+  it('dílna tesaře: rozdělaný vůz, pokrytí staveb, vozy a dřevěné nářadí v řemeslech', () => {
+    const view = buildVillageView(record(carpenterVillage()), landscape, DAY);
+    const workshop = view.crafts.workshops.find((w) => w.dwellingId === 50)!;
+    expect(workshop.craft).toBe('carpenter');
+    expect(workshop.carpenter).toEqual({
+      cart: { kind: 'two-wheel', progress: 0.4 },
+      timber: 0,
+      woodworkCoverage: 0.5,
+    });
+    expect(view.crafts.present).toBe(true);
+    expect(view.crafts.stocks.woodToolsKg).toBe(12);
+    expect(view.crafts.carts).toEqual([{ id: 1, kind: 'two-wheel', condition: 0.9, away: false }]);
+    expect(view.crafts.cartTargets).toEqual({ 'two-wheel': 1, 'four-wheel': 0 });
+    // tesař netopí – dílna nekouří; model zatím polozemnice (scéna)
+    expect(view.scene.dwellings.find((d) => d.id === 50)).toMatchObject({ craft: 'carpenter' });
+    expect(view.scene.dwellings.find((d) => d.id === 50)?.working).toBeUndefined();
+  });
+
+  it('vozy ve scéně stojí u ohrady se spřežením a nesou cíl svozu dne', () => {
+    const view = buildVillageView(record(carpenterVillage()), landscape, DAY);
+    expect(view.scene.carts).toEqual([
+      {
+        id: 1,
+        kind: 'two-wheel',
+        x: 50,
+        z: 60,
+        condition: 0.9,
+        job: { activity: 'haul', target: { kind: 'field', id: 1 }, load: 'sheaves' },
+      },
+    ]);
+    expect(buildVillageView(record(settled()), landscape, DAY).scene.carts).toBeUndefined();
+  });
+
+  it('vůz na svozu nese trasu dne vozovou sítí od ohrady k dílu na čele žně (fáze 3)', () => {
+    const s = carpenterVillage();
+    const part = s.parts.find((p) => p.cell?.x === 11)!;
+    s.labor = {
+      day: DAY,
+      shares: [
+        {
+          activity: 'haul',
+          target: { kind: 'field', id: part.fieldId, parts: [part.id] },
+          manDays: 2,
+          carts: 1,
+        },
+      ],
+    };
+    const view = buildVillageView(record(s), landscape, DAY);
+    const cart = view.scene.carts![0]!;
+    expect(cart.job).toMatchObject({ activity: 'haul', load: 'sheaves' });
+    const route = cart.route!;
+    expect(route.length).toBeGreaterThanOrEqual(2);
+    expect(route.length).toBeLessThanOrEqual(80);
+    // začíná u ohrady (vyjede do 15 m od jejího středu), končí u dílu (do CARTS.reachM)
+    const first = route[0]!;
+    const last = route[route.length - 1]!;
+    expect(Math.hypot(first.x - 50, first.z - 60)).toBeLessThanOrEqual(16);
+    const target = view.scene.fields.flatMap((f) => f.parts).find((p) => p.id === part.id)!;
+    expect(Math.hypot(last.x - target.x, last.z - target.z)).toBeLessThanOrEqual(10);
+    // po cm
+    for (const p of route) {
+      expect(Math.round(p.x * 100)).toBeCloseTo(p.x * 100, 6);
+      expect(Math.round(p.z * 100)).toBeCloseTo(p.z * 100, 6);
+    }
+    // seč – seno, klády ke stavbě; vůz bez úlohy trasu nemá
+    s.labor.shares[0] = {
+      activity: 'haul',
+      target: { kind: 'meadow', cells: [{ x: 11, y: 9 }] },
+      manDays: 2,
+      carts: 1,
+    };
+    const mowing = buildVillageView(record(s), landscape, DAY).scene.carts![0]!;
+    expect(mowing.job?.load).toBe('hay');
+    expect(mowing.route?.length).toBeGreaterThanOrEqual(2);
+    s.labor.shares = [];
+    expect(buildVillageView(record(s), landscape, DAY).scene.carts![0]!.route).toBeUndefined();
+  });
+
+  it('kronika – tesař vyrobil vůz, vůz dosloužil', () => {
+    expect(chronicleText({ day: DAY, kind: 'cart-made', cart: 'two-wheel' }, 'Libice')).toBe(
+      'Tesař vyrobil dvoukolák.',
+    );
+    expect(chronicleText({ day: DAY, kind: 'cart-worn-out', cart: 'four-wheel' }, 'Libice')).toBe(
+      'Čtyřkolák dosloužil – tesař vyrobí nový.',
+    );
   });
 });

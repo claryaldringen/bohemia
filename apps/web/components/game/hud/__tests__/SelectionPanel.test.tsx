@@ -326,7 +326,8 @@ describe('SelectionPanel – opuštěné stavby (abandonment.md)', () => {
       squares: 1,
       capacity: 56,
       graves: 20,
-      freeGraves: 36,
+      usedPlaces: 26,
+      freePlaces: 30,
       yearsLeft: 9,
       built: true,
       building: null,
@@ -336,6 +337,9 @@ describe('SelectionPanel – opuštěné stavby (abandonment.md)', () => {
     };
     const html = render(cemetery);
     expect(html).toContain('Plot – stav');
+    // místa na hroby – mohyly významných zabírají víc míst (cemetery.md)
+    expect(html).toMatch(/data-testid="selection-graves"[^>]*>26\/56</);
+    expect(html).toContain('pohřbených 20');
     expect(html).toMatch(/text-red-400[^>]*>0 %/);
     expect(html).not.toContain('selection-repair');
   });
@@ -356,7 +360,8 @@ describe('SelectionPanel – opuštěné stavby (abandonment.md)', () => {
       squares: 2,
       capacity: 112,
       graves: 20,
-      freeGraves: 92,
+      usedPlaces: 20,
+      freePlaces: 92,
       yearsLeft: 9,
       built: true,
       building: null,
@@ -507,5 +512,47 @@ describe('SelectionPanel – rozvržení', () => {
     // řádek s výměrou je flex-wrap; položka (ikona + číslo) se sama nezalomí ani nezúží
     expect(html).toMatch(/<div class="flex flex-wrap items-center gap-x-3 gap-y-1">/);
     expect(html).toMatch(/class="flex shrink-0 items-center gap-1 whitespace-nowrap"/);
+  });
+});
+
+describe('SelectionPanel – dílna tesaře (wagons.md – Tesař)', () => {
+  const carpenter = (
+    activity: 'producing' | 'helping',
+    making: { kind: 'two-wheel'; progress: number } | null,
+  ): SelectionDetails =>
+    dwelling({
+      type: 'polozemnice',
+      workshop: {
+        craft: 'carpenter',
+        activity,
+        laborPerDay: 1.6,
+        outputPerDayKg: 3.2,
+        stockKg: 46,
+        coverage: 0.72,
+        kiln: null,
+        toPlant: 0,
+        carpenter: {
+          carts: [{ id: 1, kind: 'two-wheel', condition: 0.6, away: true }],
+          cartTargets: { 'two-wheel': 2, 'four-wheel': 0 },
+          making,
+          woodworkCoverage: 0.45,
+        },
+      },
+    });
+
+  it('vyrábí vůz – průběh, vozy proti potřebě, dřevěné nářadí a pokrytí staveb', () => {
+    const html = render(carpenter('producing', { kind: 'two-wheel', progress: 0.35 }));
+    expect(html).toContain('/icons/build/tesar.png');
+    expect(html).toMatch(/data-testid="selection-workshop-activity"[^>]*>[^<]*<span[^>]*>35/);
+    expect(html).toMatch(/data-testid="selection-workshop-carts-two-wheel"[^>]*>1\/2</);
+    expect(html).not.toContain('selection-workshop-carts-four-wheel');
+    expect(html).toMatch(/data-testid="selection-workshop-woodwork"[^>]*>45/);
+    expect(html).toMatch(/data-testid="selection-workshop-stock"[^>]*>46</);
+  });
+
+  it('pomáhá se stavbami – pokrytí dřevěné práce', () => {
+    const html = render(carpenter('helping', null));
+    expect(html).toContain('data-activity="helping"');
+    expect(html).toContain('Pomáhá se stavbami');
   });
 });

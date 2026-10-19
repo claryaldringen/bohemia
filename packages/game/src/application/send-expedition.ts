@@ -66,9 +66,9 @@ export function sendExpedition(
         ...(input.givePeople ? { givePeople: input.givePeople } : {}),
         ...(input.getPeople ? { getPeople: input.getPeople } : {}),
       };
-      const quote = tradeQuote(state, offer, day);
+      const quote = tradeQuote(state, offer, day, input.landscape);
       if (quote.blocked) return { ok: false, reason: quote.blocked };
-      return { ok: true, state: startExpedition(state, day, offer) };
+      return { ok: true, state: startExpedition(state, day, offer, input.landscape) };
     },
   );
 }

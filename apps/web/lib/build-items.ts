@@ -434,6 +434,8 @@ export const BUILD_ITEMS: readonly BuildItem[] = [
   workshop('potter', 'Hrnčíř', 'hrncir', 'F'),
   workshop('smith', 'Kovář', 'kovar', 'G'),
   workshop('burner', 'Uhlíř', 'uhlir', 'H'),
+  // wagons.md – tesař: vozy, dřevěné nářadí a pomoc stavbám
+  workshop('carpenter', 'Tesař', 'tesar', 'T'),
   {
     // oxen.md – ohrada s přístřeškem: jeden čtverec louky, staví se jako pole po čtvercích
     kind: 'pen',

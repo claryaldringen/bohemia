@@ -3,11 +3,13 @@ import { describe, expect, it } from 'vitest';
 import type { VillageView } from '@/lib/village-view';
 import {
   SatiationTooltip,
+  cartsLabel,
   dairyName,
   satiationState,
   showsDairy,
   showsHay,
   showsLegumes,
+  showsWoodTools,
 } from '../TopBar';
 
 // Horní lišta (diet.md, oxen.md): barva nasycení podle energie, podíly stravy v tooltipu, seno,
@@ -126,5 +128,35 @@ describe('mléko a sýr v liště', () => {
     expect(showsDairy({ cheeseKg: 0, milkLPerDay: 3.2 })).toBe(true);
     expect(dairyName({ milkLPerDay: 12.4 })).toBe('Sýr (kg) – mléko 12 l/den');
     expect(dairyName({ milkLPerDay: 0 })).toBe('Sýr (kg)');
+  });
+});
+
+describe('vozy a dřevěné nářadí v liště (wagons.md)', () => {
+  const crafts = (over: Partial<VillageView['crafts']> = {}): VillageView['crafts'] => ({
+    present: true,
+    stocks: { charcoalKg: 0, toolsKg: 0, potteryKg: 0 },
+    needs: { toolsKg: 6, potteryKg: 20, woodToolsKg: 8 },
+    coverage: { tools: 0, pottery: 0 },
+    workshops: [],
+    carts: [],
+    cartTargets: { 'two-wheel': 0, 'four-wheel': 0 },
+    ...over,
+  });
+
+  it('dřevěné nářadí jen s tesařem nebo zásobou', () => {
+    expect(showsWoodTools(crafts())).toBe(false);
+    expect(showsWoodTools(crafts({ stocks: { ...crafts().stocks, woodToolsKg: 5 } }))).toBe(true);
+  });
+
+  it('popisek vozů – druhy a kolik je na cestě', () => {
+    expect(cartsLabel([{ id: 1, kind: 'two-wheel', condition: 1, away: false }])).toBe(
+      'Vozy – dvoukoláky 1',
+    );
+    expect(
+      cartsLabel([
+        { id: 1, kind: 'two-wheel', condition: 1, away: false },
+        { id: 2, kind: 'four-wheel', condition: 1, away: true },
+      ]),
+    ).toBe('Vozy – dvoukoláky 1, čtyřkoláky 1 (na cestě 1)');
   });
 });

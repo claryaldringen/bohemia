@@ -33,6 +33,7 @@ export * from './households';
 export * from './marriage';
 export * from './extinction';
 export * from './cemetery';
+export * from './burials';
 // sady – jen čisté funkce; kroky simulace (výsadba, práce a sezóna sadů) zůstávají uvnitř
 export {
   ORCHARD_TASK_NAMES,
@@ -92,6 +93,45 @@ export * from './sacred-life';
 export * from './happiness';
 export * from './crafts';
 export * from './charcoal';
+// tesař a vozy (wagons.md) – kroky simulace (pomoc stavbám, výroba, svoz) volá simulate.ts
+export {
+  NO_HELP,
+  carpentryHelp,
+  constructionLaborFactor,
+  constructionWoodShare,
+  restingCarpenters,
+  woodworkPending,
+  type CarpentryHelp,
+} from './carpentry';
+export {
+  CART_KINDS,
+  CART_NAMES,
+  EVERYWHERE,
+  cartCondition,
+  cartOrigin,
+  cartTargets,
+  cartsAway,
+  cropCartReach,
+  expeditionCartKinds,
+  fellingHaulable,
+  harvestReachState,
+  haulAvailable,
+  haulCartsToday,
+  haulPlan,
+  haulProgress,
+  hauledBy,
+  logsCartReach,
+  missingCart,
+  mowingCartReach,
+  networkCartAccess,
+  teamsAway,
+  tradeCarts,
+  trailCartPassable,
+  villageCartAccess,
+  villageCarts,
+  type CartAccess,
+  type HaulPlan,
+} from './carts';
 export * from './paths';
 export * from './road-trees';
 export * from './road-upgrades';

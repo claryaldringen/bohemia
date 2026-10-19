@@ -3,7 +3,7 @@
 // (trade.md – Výměna lidí: rodiny a svobodní dospělí nic nenesou a nosiče nepotřebují). Čistý
 // modul.
 import {
-  expeditionPorters,
+  expeditionTransport,
   type TradeGood,
   type TradeGoods,
   type TradePeople,
@@ -16,6 +16,8 @@ export interface TradePreview {
   price: number;
   balance: number;
   porters: number;
+  /** Kolik vozů pojede (wagons.md – Obchod: náklad na voze, s vozem 2 lidé). */
+  carts: number;
   days: number;
   manDays: number;
   /** Proč výprava nejde – bez zboží, nevýhodná pro souseda, výprava na cestě; jinak null. */
@@ -63,7 +65,8 @@ export function tradePreview(
 ): TradePreview {
   const credit = total(give, neighbour.demands) + peopleCredit(neighbour, people.give);
   const price = total(get, neighbour.offers) + peoplePrice(neighbour, people.get);
-  const porters = expeditionPorters(give, get);
+  const transport = expeditionTransport(give, get, neighbour.carts);
+  const porters = transport.porters;
   const nobody =
     people.give.families + people.give.adults + people.get.families + people.get.adults === 0;
   const empty =
@@ -80,6 +83,7 @@ export function tradePreview(
     price: Math.round(price),
     balance: Math.round(credit - price),
     porters,
+    carts: transport.carts,
     days: neighbour.tripDays,
     manDays: porters * neighbour.tripDays,
     blocked,

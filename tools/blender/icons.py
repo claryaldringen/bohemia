@@ -6,7 +6,8 @@ Celé jedním příkazem z kořene repa (Blender 5, ImageMagick `magick`, intern
 
 Výstup (128 × 128 PNG, průhledné rohy) – `build/` zemnice, polozemnice, dvorec (dvorec vojvody –
 trade.md), pole, hrbitov,
-hrncir, kovar, uhlir (řemeslné dílny z `apps/web/public/models/crafts/`, uhlíř s milířem), sad
+hrncir, kovar, tesar, uhlir (řemeslné dílny z `apps/web/public/models/crafts/`, tesař pod
+přístřeškem s kozlíky a koly – wagons.md, uhlíř s milířem), sad
 (jabloňový sad), modla, svatyne (posvátná místa z `apps/web/public/models/sacred/`), dub
 (posvátný dub s obětinami), sous (posvátná souš – uschlý dub z `apps/web/public/models/decor/`
 s obětinami), haj (dubový háj s kameny) a ohrada (přístřešek, žlab a branka
@@ -24,7 +25,9 @@ hourglass (přesýpací hodiny – kolik zbývá: služba spřežení, výcvik),
 bilance obchodu se sousedem, trade.md),
 ozim (osení pod sněhem), jar (klasy jarního ječmene), charcoal (hromádka dřevěného uhlí), tools
 (kovaná sekera zkřížená se srpem) a pottery (dva hrnce pražského typu, větší s vlnovkou) –
-suroviny řemesel (crafts.md) –, overgrowth (zarůstání – keře a mladá bříza z modelů krajiny
+suroviny řemesel (crafts.md) –, cart (dvoukolák s loukoťovými koly) a wood-tools (hrábě zkřížené
+s dřevěnými vidlemi) – vozy a dřevěné nářadí od tesaře (wagons.md) –, overgrowth (zarůstání – keře
+a mladá bříza z modelů krajiny
 `apps/web/public/models/decor/` a `trees/`, fields.md – Zarůstání), condition (stav stavby –
 zšedlý rozštípnutý kůl s prasklinou a mechem) a abandoned (opuštěná stavba – padlý kůl
 v kopřivách z `apps/web/public/models/dwellings/decay.glb`, abandonment.md) a zvířata stád do panelu
@@ -305,8 +308,8 @@ def icon_dwelling(name):
 
 
 def icon_craft(name):
-    """Řemeslná dílna (tools/blender/crafts.py) jako portrét obydlí. Hrnčíř a kovář zepředu
-    do přístřešku (pec / výheň musí být v ikoně vidět), uhlíř i s kouřícím milířem – blíž
+    """Řemeslná dílna (tools/blender/crafts.py) jako portrét obydlí. Hrnčíř, kovář a tesař
+    zepředu do přístřešku (pec / výheň / kozlíky s koly musí být v ikoně vidět), uhlíř i s kouřícím milířem – blíž
     a vzadu vlevo (ve vsi je MILIR_OFFSET v crafts.py), ať se do čtverce vejde obojí."""
     objs = place_model(name, folder=CRAFTS)
     if name == "uhlir":
@@ -1786,6 +1789,97 @@ def icon_obchod():
     camera([Vector((-1.4, -1.2, 0)), Vector((1.4, 1.2, 0.95))], az=22, el=40, margin=1.02)
 
 
+# ------------------------------------------------------------------ vozy ----
+# wagons.md – vůz a dřevěné nářadí od tesaře (ikony surovin; portrét dílny tesaře je icon_craft).
+
+
+def box(bm, centre, size, rot=(0.0, 0.0, 0.0)):
+    """Kvádr (trám, prkno) se středem `centre`, rozměry `size` (x, y, z), natočený po Eulerovi `rot`."""
+    r = bmesh.ops.create_cube(bm, size=1.0)
+    m = Euler(rot).to_matrix()
+    for v in r["verts"]:
+        v.co = Vector(centre) + m @ Vector((v.co.x * size[0], v.co.y * size[1], v.co.z * size[2]))
+
+
+def cart_wheel(bm, centre, radius, axis, spokes=8, rim=0.06, hub=0.11):
+    """Loukoťové kolo: věnec z loukotí, náboj a paprsky; `axis` – osa kola (jednotkový vektor)."""
+    c, a = Vector(centre), Vector(axis).normalized()
+    u = a.cross(Vector((0, 0, 1)))
+    if u.length < 1e-6:
+        u = a.cross(Vector((1, 0, 0)))
+    u.normalize()
+    v = a.cross(u)
+    seg = 24
+    pts = [c + (u * math.cos(2 * math.pi * i / seg) + v * math.sin(2 * math.pi * i / seg)) * radius for i in range(seg)]
+    for i in range(seg):
+        cyl(bm, pts[i], pts[(i + 1) % seg], rim, rim, 8)
+    cyl(bm, c - a * 0.16, c + a * 0.16, hub, hub * 0.85, 12)
+    for k in range(spokes):
+        ang = 2 * math.pi * k / spokes
+        d = u * math.cos(ang) + v * math.sin(ang)
+        cyl(bm, c + d * hub, c + d * (radius - rim), 0.03, 0.026, 6)
+
+
+def two_wheel_cart(wood, rot=0.0, at=(0.0, 0.0, 0.0)):
+    """Dvoukolák: korba z prken s bočnicemi na ose, dvě loukoťová kola, oj vpřed s jhem (+X)."""
+    o = Vector(at)
+    m = Euler((0, 0, rot)).to_matrix()
+    P = lambda x, y, z: o + m @ Vector((x, y, z))  # noqa: E731
+    R = 0.55
+    box(wood, P(0.0, 0.0, R + 0.18), (1.7, 1.05, 0.07), (0, 0, rot))
+    for y in (-0.5, 0.5):
+        box(wood, P(0.0, y, R + 0.36), (1.7, 0.05, 0.3), (0, 0, rot))
+    for x in (-0.82, 0.82):
+        box(wood, P(x, 0.0, R + 0.32), (0.05, 1.0, 0.24), (0, 0, rot))
+    cyl(wood, P(0.0, -0.72, R), P(0.0, 0.72, R), 0.06, 0.06, 10)
+    for y in (-0.66, 0.66):
+        cart_wheel(wood, P(0.0, y, R), R, m @ Vector((0, 1, 0)))
+    # oj od korby k jhu, jho napříč
+    cyl(wood, P(0.6, 0.0, R + 0.12), P(2.6, 0.0, R + 0.32), 0.06, 0.05, 10)
+    cyl(wood, P(2.55, -0.6, R + 0.36), P(2.55, 0.6, R + 0.36), 0.06, 0.06, 10)
+
+
+def icon_cart():
+    """Vůz: dvoukolák s loukoťovými koly, korbou z prken a ojí s jhem (wagons.md – Vůz)."""
+    wood = bmesh.new()
+    two_wheel_cart(wood)
+    to_obj(wood, "cart", mat("oak", (0.55, 0.37, 0.2), 0.8, noise=24, bump=0.3))
+    sun(az=-40, el=48, strength=4.4)
+    camera([Vector((-1.0, -0.85, 0.0)), Vector((2.75, 0.85, 1.05))], az=-28, el=22, margin=1.02)
+    return True
+
+
+def icon_wood_tools():
+    """Dřevěné nářadí: hrábě zkřížené s dřevěnými vidlemi (wagons.md – Tesař)."""
+    wood, light = bmesh.new(), bmesh.new()
+    # hrábě: násada zleva dole doprava nahoru, příčka s kolíky
+    h0, h1 = Vector((-0.85, 0.0, -0.9)), Vector((0.55, 0.0, 0.75))
+    cyl(wood, h0, h1, 0.055, 0.05, 10)
+    d = (h1 - h0).normalized()
+    n = Vector((-d.z, 0, d.x))
+    head = h1 + d * 0.04
+    cyl(light, head - n * 0.55, head + n * 0.55, 0.07, 0.07, 10)
+    for k in range(9):
+        p = head - n * 0.48 + n * (0.96 * k / 8)
+        cyl(light, p, p + d * 0.22, 0.025, 0.018, 6)
+    # vidle: násada zprava dole doleva nahoru, tři ohnuté hroty
+    f0, f1 = Vector((0.85, -0.12, -0.9)), Vector((-0.35, -0.12, 0.45))
+    cyl(wood, f0, f1, 0.055, 0.05, 10)
+    e = (f1 - f0).normalized()
+    m = Vector((-e.z, 0, e.x))
+    for k in (-1, 0, 1):
+        prev = f1
+        for t in range(1, 6):
+            q = f1 + e * (0.12 * t) + m * (k * 0.06 * t)
+            cyl(light, prev, q, 0.03 - 0.003 * t, 0.027 - 0.003 * t, 6)
+            prev = q
+    to_obj(wood, "handles", mat("haft", (0.62, 0.42, 0.22), 0.75, noise=18, bump=0.3))
+    to_obj(light, "heads", mat("ash", (0.82, 0.64, 0.4), 0.7, noise=20, bump=0.2))
+    sun(az=-35, el=45, strength=4.4)
+    camera([Vector((-1.15, -0.3, -1.0)), Vector((1.0, 0.3, 1.25))], az=0, el=8, margin=1.02)
+    return True
+
+
 # --------------------------------------------------------------- hlavní ----
 
 BUILD = {
@@ -1796,6 +1890,7 @@ BUILD = {
     "hrbitov": icon_hrbitov,
     "hrncir": lambda: icon_craft("hrncir"),
     "kovar": lambda: icon_craft("kovar"),
+    "tesar": lambda: icon_craft("tesar"),
     "uhlir": lambda: icon_craft("uhlir"),
     "sad": icon_sad,
     "modla": icon_modla,
@@ -1957,6 +2052,8 @@ RESOURCES = {
     "charcoal": icon_charcoal,
     "tools": icon_tools,
     "pottery": icon_pottery,
+    "cart": icon_cart,
+    "wood-tools": icon_wood_tools,
     "overgrowth": icon_overgrowth,
     "condition": icon_condition,
     "abandoned": icon_abandoned,

@@ -121,18 +121,19 @@ export interface Dwelling {
    */
   workshop?: Workshop;
 }
-/** Řemeslo dílny (crafts.md): hrnčíř, kovář, uhlíř. */
-export type Craft = 'potter' | 'smith' | 'burner';
+/** Řemeslo dílny (crafts.md): hrnčíř, kovář, uhlíř, tesař (wagons.md – Tesař). */
+export type Craft = 'potter' | 'smith' | 'burner' | 'carpenter';
 /**
  * Co dílna dělala poslední odsimulovaný den (crafts.md – Co hráč vidí): vyrábí, kácí dřevo na
  * uhlí nebo palivo, čeká na uhlí (kovář), čeká na dřevo (uhlíř a hrnčíř – není co kácet), nemá
  * kdo pracovat (domácnost bez práce po minimu a domácí výrobě), nebo je prázdná. Uhlíř
  * (crafts.md – Uhlíř): kácí a připravuje dřevo (`felling`), staví milíř (`building`), pálí
  * a hlídá ho (`burning`), vytahuje uhlí (`drawing`), sází mladé buky (`planting`), nebo má uhlí
- * dost a pomáhá vsi (`resting`).
+ * dost a pomáhá vsi (`resting`). Tesař (wagons.md – Tesař) dnes jen pomáhá stavbám (`helping`).
  */
 export type WorkshopActivity =
   | 'producing'
+  | 'helping'
   | 'felling'
   | 'building'
   | 'burning'
@@ -199,6 +200,30 @@ export interface Workshop {
    * v pořadí kácení – obnova lesa). Bez údaje žádné.
    */
   toPlant?: number[];
+  /**
+   * Tesař (wagons.md – Tesař): klády v dílně (i rozdělané – nářadí bere po setinách), ze kterých
+   * vyrábí vozy a dřevěné nářadí. Bez údaje 0.
+   */
+  timber?: number;
+  /**
+   * Tesař: rozdělaný vůz – druh a odvedená práce (čd bez přirážky za nástroje – hotový při
+   * CARPENTRY.cartManDays); bez údaje nebo null žádný.
+   */
+  cart?: { kind: CartKind; done: number } | null;
+  /**
+   * Tesař: pokrytí dřevěné práce staveb tesaři posledního odsimulovaného dne 0–1 (wagons.md –
+   * Tesař, pomoc stavbám) – panel dílny; bez údaje 0.
+   */
+  woodworkCoverage?: number;
+}
+/**
+ * Vůz vsi – zásoba, ne stavba ve scéně (stojí u ohrady se spřežením): vyrobil ho tesař v den
+ * `builtDay`, po CARTS.lifespanYears doslouží.
+ */
+export interface Cart {
+  id: number;
+  kind: CartKind;
+  builtDay: number;
 }
 /**
  * Zásoby výrobků řemeslníků (crafts.md, kg): uhlí pro kováře, nástroje a keramika. Co ves
@@ -208,6 +233,8 @@ export interface CraftStocks {
   charcoalKg: number;
   toolsKg: number;
   potteryKg: number;
+  /** Dřevěné nářadí od tesaře (wagons.md – Tesař); u vsí uložených dřív chybí (= 0). */
+  woodToolsKg?: number;
 }
 export type PartState = 'founding' | 'ready' | 'sown' | 'fallow';
 /**
@@ -366,8 +393,16 @@ export interface Cemetery {
   grid?: SquareGrid;
   /** Strana čtverce (m) – vzdálenost od obydlí se měří k okraji čtverce. */
   squareSizeM: number;
-  /** Obsazené hroby. */
+  /**
+   * Pohřbení – kolik lidí tu leží. Hroby uložené před mohylami (`graves` − `mounds.length`, staré
+   * hroby) leží po jednom místě na prvních místech po řadách (cemetery.md – Mohyly podle významu).
+   */
   graves: number;
+  /**
+   * Mohyly pohřbených od zavedení mohyl podle významu (cemetery.md) – místo, velikost, den a druh;
+   * u hřbitovů uložených dřív chybí (jen staré hroby).
+   */
+  mounds?: GraveMound[];
   /** Den dokončení (vytyčení a ohrazení); dokud se zakládá, null. */
   builtDay: number | null;
   /**
@@ -375,6 +410,29 @@ export interface Cemetery {
    * a rozpadne se – hroby zůstávají a pohřbívá se dál. Chybí = celý plot.
    */
   fenceWear?: StructureWear;
+}
+/**
+ * Druh pohřbeného (cemetery.md – Mohyly podle významu): vojvoda a jeho žena (`voivode`), ostatní
+ * dospělí a děti vojvodovy rodiny (`manor-adult`, `manor-child` – domácnost dvorce), zasloužilá
+ * hlava rodiny, ostatní dospělí a dítě (zemřelé v dětském věku). `manor` = celá vojvodova rodina
+ * podle prvního pravidla (19. 10. 2026, před odstupňováním) – jen v mohylách uložených tehdy.
+ */
+export type GraveRank =
+  'voivode' | 'manor-adult' | 'manor-child' | 'manor' | 'head' | 'adult' | 'child';
+/** Velikost mohyly – kolik míst na hroby zabere (`MOUND_SIZES` v rules.ts). */
+export type MoundSize = 'great' | 'large' | 'normal' | 'small';
+/**
+ * Mohyla na hřbitově (cemetery.md – Mohyly podle významu): čtverec hřbitova (v jeho mřížce), první
+ * místo mřížky 7 × 8 (sloupec, řada) a velikost – zabere `MOUND_SIZES[size]` míst od něj; den
+ * pohřbu a druh pohřbeného. Velikost je menší než druhu, když se větší mohyla nevešla.
+ */
+export interface GraveMound {
+  cell: TileCell;
+  column: number;
+  row: number;
+  size: MoundSize;
+  rank: GraveRank;
+  day: number;
 }
 /**
  * Čtverec jabloňového sadu – políčko krajiny (orchard.md). Sází se jako stavba ze společné práce
@@ -545,6 +603,13 @@ export interface ConstructionWood {
   fell: { id: number | null; cost: number }[];
   /** Kolik stromů z `fell` už je pokácených. */
   felled: number;
+  /** Dovoz klád, který převzaly vozy (wagons.md – Vůz; člověkodny kácení); chybí = 0. */
+  hauled?: number;
+  /**
+   * Ke kterým stromům (v pořadí `fell`) vůz dojede a body jízd – spočítá se při prvním svozu klád
+   * (wagons.md). Chybí = ještě ne.
+   */
+  cartReach?: { trees: boolean[]; points: CartReach['points'] };
 }
 export type TaskName = 'reclaim' | 'dig' | 'sow' | 'weed' | 'harvest' | 'thresh';
 /** Polní práce s pevnou sazbou na osetý hektar (vracení přílohu se počítá podle stáří přílohu). */
@@ -557,10 +622,14 @@ export interface Bounds {
   readonly worst: number;
   readonly best: number;
 }
-/** Pokrytí potřeby výrobků řemeslníků 0–1 (crafts.md): nástroje od kováře, nádoby od hrnčíře. */
+/**
+ * Pokrytí potřeby výrobků řemeslníků 0–1 (crafts.md): nástroje od kováře, nádoby od hrnčíře
+ * a dřevěné nářadí od tesaře (wagons.md – chybí = 0).
+ */
 export interface CraftCoverage {
   readonly tools: number;
   readonly pottery: number;
+  readonly woodTools?: number;
 }
 /** Sezónní práce v sadech (orchard.md) – v rozdělení práce vedle polních prací. */
 export type OrchardTaskName = 'orchard-care' | 'orchard-harvest';
@@ -583,6 +652,21 @@ export interface CropWork {
    * ztrátě posledního spřežení dokončí motyka, i plány starších vsí).
    */
   plough?: PloughWork;
+  /**
+   * Odnos snopů, který převzaly vozy (wagons.md – Vůz; člověkodny sklizně) – nejvýš podíl odnosu
+   * na dílech, kam vůz dojede. Chybí = 0.
+   */
+  hauled?: number;
+  /** Kam vůz při žni dojede – spočítá se při prvním svozu (wagons.md – Svoz). Chybí = ještě ne. */
+  cartReach?: CartReach;
+}
+/**
+ * Kam vozy na úloze dojedou (wagons.md – Vůz, vozová síť): podíl práce úlohy na místech, kam vůz
+ * dojede (0–1), a body jízd s vahou (podíl jízd) – do ročního provozu cest.
+ */
+export interface CartReach {
+  share: number;
+  points: { x: number; z: number; weight: number }[];
 }
 /**
  * Orba jedné plodiny: díly v pořadí orby, potřebné a odvedené člověkodny a váha oraných dílů
@@ -741,6 +825,10 @@ export type ChronicleEvent = { day: number } & (
    * nikdo).
    */
   | { kind: 'trade-returned'; direction: Direction8; get: TradeGoods; people?: TradePeople }
+  /** Tesař vyrobil vůz (wagons.md – Tesař). */
+  | { kind: 'cart-made'; cart: CartKind }
+  /** Vůz dosloužil (wagons.md – Vůz) – tesař vyrobí nový, když ho ves potřebuje. */
+  | { kind: 'cart-worn-out'; cart: CartKind }
   /**
    * S výpravou přišli lidé od souseda (trade.md – Výměna lidí): rodina, svobodný muž nebo žena,
    * kolik jich je a do kterého obydlí šli.
@@ -815,6 +903,11 @@ export type LaborActivity =
   | 'domestic'
   /** Nosiči výpravy k sousedovi po zemské stezce (trade.md – Obchod). */
   | 'trade'
+  /**
+   * Svoz vozem (wagons.md – Vůz): honák a nakladač s vozem – snopy z pole, seno z luk, klády ke
+   * stavbám. Kolik vozů jede, je v `LaborShare.carts`.
+   */
+  | 'haul'
   /** Společná práce, na kterou nezbyla žádná stavba (propadla). */
   | 'idle';
 
@@ -870,6 +963,8 @@ export interface LaborShare {
    * člověka. U ostatní práce (a u rozdělení uložených dřív) chybí.
    */
   construction?: number;
+  /** Svoz a výprava s vozy (wagons.md): kolik vozů tu dnes jezdí; u ostatní práce chybí. */
+  carts?: number;
 }
 
 /** Rozdělení práce jednoho dne – uložené ve stavu vsi (`VillageState.labor`). */
@@ -1028,6 +1123,8 @@ export interface VillageState {
   trails?: Trail[];
   /** Obchod se sousedy – zásoby a poptávka sousedů a výpravy (trade.md – Obchod); chybí = nic. */
   trade?: VillageTrade;
+  /** Vozy vsi (wagons.md – Vůz) – vyrábí je tesař; chybí = žádné. */
+  carts?: Cart[];
   /**
    * Ves je opuštěná (migration.md – Odchod do nové vsi): odešli z ní všichni lidé. Dál se
    * nesimuluje, obydlí se rozpadají podle dne odchodu (`abandonedVillageAt`). Žijící ves ho nemá.
@@ -1193,6 +1290,11 @@ export interface TradeExpedition {
    * objeví po návratu. Chybí = nikdo.
    */
   getPeople?: { families: number[]; adults: number };
+  /**
+   * Vozy, které jedou s výpravou (wagons.md – Vůz, id) – s nimi jejich spřežení; doma nevozí ani
+   * neorají, dokud se výprava nevrátí. Chybí = výprava bez vozů.
+   */
+  carts?: number[];
 }
 
 /** Obchod vsi se sousedy (trade.md). */
@@ -1259,6 +1361,16 @@ export interface Road {
    * další roční kontroly).
    */
   quiet?: RoadQuietPiece[];
+  /**
+   * Vozová cesta (wagons.md – Vyjeté cesty): vyjetá vozy, širší, ve scéně dvě koleje, vůz po ní
+   * projede i lesem. Chybí = pěší cesta.
+   */
+  cart?: true;
+  /**
+   * Provoz vozů posledních let (jízd za den – roční průměr, nejnovější poslední; nejvýš
+   * CART_ROADS.dropYears) – podle něj cesta příznak vozová dostane a ztratí. Chybí = bez vozů.
+   */
+  cartTraffic?: number[];
 }
 
 /** Tichý kus osy pevné cesty – střed kusu a roky po sobě pod polovinou prahu. */
@@ -1315,7 +1427,16 @@ export interface VillageRoads {
    * Práce od poslední roční kontroly (od 1. 11.) po místech – z rozdělení práce dne. Roční síť
    * z ní bere průměrné člověkodny na den (`manDays / days`).
    */
-  labor: { from: number; days: number; shares: RoadLaborShare[] };
+  labor: {
+    from: number;
+    days: number;
+    shares: RoadLaborShare[];
+    /**
+     * Jízdy vozů od poslední roční kontroly po cílech (wagons.md – Vozová síť): kam vozy jezdily
+     * (bod cíle), jakým vozem a kolikrát – sčítá svoz (`addRoadCartTrips`). Chybí = žádné.
+     */
+    cart?: RoadCartTrips[];
+  };
   /** Jabloně vysazené hráčem podél úseků (roads.md – Vysazení jabloní); chybí = žádné. */
   apples?: RoadApple[];
   /**
@@ -1334,6 +1455,22 @@ export interface VillageRoads {
    * už žádný úsek nekončí. Chybí = žádné.
    */
   cutEnds?: RoadPoint[];
+  /**
+   * Úseky sítě vozů nad prahem z minulé roční kontroly (osy po ≈ 4 m) – kde vozy jezdí nad prahem
+   * i letos, vznikne vozová cesta (wagons.md – Vyjeté cesty). Chybí = žádné.
+   */
+  cartCandidates?: RoadPoint[][];
+}
+
+/** Druh vozu (wagons.md – Vůz): dvoukolák (svoz), čtyřkolák (obchod – hůř se otáčí). */
+export type CartKind = 'two-wheel' | 'four-wheel';
+
+/** Jízdy vozů k jednomu cíli za rok cest (wagons.md – Vozová síť). */
+export interface RoadCartTrips {
+  x: number;
+  z: number;
+  kind: CartKind;
+  trips: number;
 }
 
 /**
@@ -1420,6 +1557,10 @@ export interface HayMowing {
   required: number;
   done: number;
   yieldKg: number;
+  /** Svoz sena, který převzaly vozy (wagons.md – Vůz; člověkodny seče); chybí = 0. */
+  hauled?: number;
+  /** Kam vůz při seči dojede – spočítá se při prvním svozu (wagons.md). Chybí = ještě ne. */
+  cartReach?: CartReach;
 }
 
 /** Louka v seči: díl úhoru ve fázi louky, nebo políčko přirozené louky krajiny (oxen.md – Seno). */

@@ -1,6 +1,7 @@
 import {
   LEAVING,
   sacredBuildingHappiness,
+  type CartKind,
   type Craft,
   type Crop,
   type BuildableDwellingType,
@@ -50,6 +51,16 @@ export interface SelectionWorkshop {
   kiln: VillageView['crafts']['workshops'][number]['kiln'];
   /** Uhlíř: pařezy buků, na které ještě zasadí mladý buk. */
   toPlant: number;
+  /**
+   * Tesař (wagons.md – Tesař): vozy vsi (doma / na cestě) a kolik jich ves potřebuje, rozdělaný
+   * vůz (druh, průběh 0–1) a pokrytí dřevěné práce staveb posledního dne 0–1; ostatní dílny null.
+   */
+  carpenter: {
+    carts: VillageView['crafts']['carts'];
+    cartTargets: VillageView['crafts']['cartTargets'];
+    making: { kind: CartKind; progress: number } | null;
+    woodworkCoverage: number;
+  } | null;
 }
 
 export type SelectionDetails =
@@ -141,9 +152,12 @@ export type SelectionDetails =
       kind: 'cemetery';
       id: number;
       squares: number;
+      /** Místa na hroby (cemetery.md – Mohyly podle významu: mohyla zabere 1–4 místa). */
       capacity: number;
+      /** Pohřbení (lidé). */
       graves: number;
-      freeGraves: number;
+      usedPlaces: number;
+      freePlaces: number;
       /** Odhad, za kolik let se zaplní; bez úmrtí null. Hygienu hráč nevidí (cemetery.md). */
       yearsLeft: number | null;
       /** Vytyčený a ohrazený – nehotový ukáže jen průběh založení. */
@@ -252,6 +266,8 @@ export type SelectionDetails =
       /** Mokřina na ose (m) a brody – kde se hodí hať a lávka. */
       wetM: number;
       fords: number;
+      /** Vozová cesta – vyjetá vozy (wagons.md – Vyjeté cesty); bez údaje pěší. */
+      cart?: boolean;
       /** Rozestavěné vylepšení (stupeň, průběh 0–1, stromy ke skácení); jinak null. */
       building: { grade: RoadGrade; progress: number; treesToFell: number } | null;
       /** Vylepšení, která úsek nabízí – cena a proč teď nejde. */
@@ -378,7 +394,8 @@ export function selectionDetails(
       squares: cemetery.squares,
       capacity: cemetery.capacity,
       graves: cemetery.graves,
-      freeGraves: cemetery.freeGraves,
+      usedPlaces: cemetery.usedPlaces,
+      freePlaces: cemetery.freePlaces,
       yearsLeft: cemetery.yearsLeft,
       built: cemetery.built,
       building: cemetery.built && cemetery.progress >= 1 ? null : cemetery.progress,
@@ -536,16 +553,27 @@ function workshopDetails(view: VillageView, dwellingId: number): SelectionWorksh
       ? view.crafts.coverage.tools
       : workshop.craft === 'potter'
         ? view.crafts.coverage.pottery
-        : null;
+        : workshop.craft === 'carpenter'
+          ? (view.crafts.coverage.woodTools ?? 0)
+          : null;
+  const carpenter = workshop.carpenter;
   return {
     craft: workshop.craft,
     activity: workshop.activity,
     laborPerDay: workshop.laborPerDay,
     outputPerDayKg: workshop.outputPerDayKg,
-    stockKg: view.crafts.stocks[stock],
+    stockKg: view.crafts.stocks[stock] ?? 0,
     coverage,
     kiln: workshop.kiln,
     toPlant: workshop.toPlant,
+    carpenter: carpenter
+      ? {
+          carts: view.crafts.carts,
+          cartTargets: view.crafts.cartTargets,
+          making: carpenter.cart,
+          woodworkCoverage: carpenter.woodworkCoverage,
+        }
+      : null,
   };
 }
 

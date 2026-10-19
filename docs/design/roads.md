@@ -146,6 +146,10 @@ společné práce vsi; stromy bere jako obydlí (klády z hromady, pak nejbliž�
 | Cesta s jabloněmi nezaroste (jako upravená, hať a stezka); díl pole o cestu nepřichází   | návrh Clauda |
 | Zarůstá jen nepoužívaný kus úseku, zbytek zůstane se starým id                           | Martin       |
 | Kusy ≈ 25 m, historie jen tichých kusů (střed a roky), volný konec u zarostlého kusu     | návrh Clauda |
+| Pole lidi nezdržuje – nejkratší cesta i přes osetý díl                                   | Martin       |
+| Připojení nové cesty po souběžném kusu do 14 m                                           | návrh Clauda |
+| Vozy vyjezdí vlastní cesty, ve svahu serpentiny                                          | Martin       |
+| Vozová cesta = pevná cesta s příznakem z ročního provozu vozů, pro lidi stejná           | návrh Clauda |
 
 ## Cesta je cesta – povrch pod ní a zarůstání
 
@@ -196,7 +200,8 @@ stezka leží.“
   stavu přes 1. 11. 752: zůstane). Dnes (758) úsek 24 neexistuje a data hráče se neobnovují:
   v létě trasa ke hřbitovu obchází osetý blok západem (≈ 350 m po pěšinách místo ≈ 180 m). Na
   nejkratší trase přes pole cesta sama znovu nevznikne – mimo pevnou cestu se přes osetý díl dál
-  nechodí; 1. 11. 758 ale vznikne nová pevná cesta (79 m) od vsi k severozápadu podél okraje
+  nechodí (od 19. 10. 2026 neplatí – [Pole lidi nezdržuje](#pole-lidi-nezdržuje)); 1. 11. 758 ale
+  vznikne nová pevná cesta (79 m) od vsi k severozápadu podél okraje
   osetých dílů (stejně se starým i novým pravidlem) a po ní se pak chodí i v letech, kdy jsou
   díly pod ní oseté.
 - ~~**Otevřené – k rozhodnutí:** dlouhý úsek, jehož část vede tam, kam se už nechodí, zaroste celý
@@ -238,6 +243,55 @@ zarůstá jen nepoužívaný kus úseku“: **„ano“**. Podrobnosti návrh Cl
   k jihozápadnímu rohu nového hřbitova** – tam vede provoz (3 a víc cest denně) a stojí jabloně;
   227 m dál ke starému plnému hřbitovu (0,6 cesty denně) zaroste (kronika s novým id 131), konec
   u hřbitova je volný.
+
+## Vozové cesty
+
+Martin (19. 10. 2026): „Vozy mohou cestu vyjezdit, ale nemají takovou prostupnost jako lidé, kteří
+chodí pěšky. Bude to znamenat např. to, že ve svahu, kde lidé zvládnou chodit rovně, vůz bude muset
+vyjezdit serpentiny.“ Návrh, síť vozů a čísla: [wagons.md](wagons.md) – Vozová síť a vyjeté cesty,
+Jak je postavené – fáze 2 (návrh Clauda).
+
+- **Vyjetá cesta je pevná cesta s příznakem vozová** (`Road.cart`): vzniká z ročního provozu vozů
+  stejně jako pěší z provozu lidí – kudy vozy dva roky po sobě jezdí aspoň 0,25 jízdy denně
+  (loňské úseky `VillageRoads.cartCandidates`), vznikne nová; pevná cesta, po které vozy jezdí
+  (`Road.cartTraffic`), příznak dostane. Po 5 letech pod polovinou ho ztratí a je zase jen pěší.
+- **Lidé po ní chodí jako po každé pevné cestě** (pro síť pěšin je vozová cesta obyčejná pevná
+  cesta). Ve svahu se pěšina a vozová cesta rozejdou – pěšina rovně, vozová serpentinami; v rovině
+  vozy jezdí po pěší cestě a splynou.
+- **Zarůstání po kusech:** kus, kudy jezdí vozy (aspoň polovina prahu vozů), není tichý – vozová
+  cesta ve svahu, kudy lidé nechodí, nezaroste, dokud po ní jezdí vozy.
+- **Úseky:** vozová a pěší cesta se nespojují do jednoho úseku (jako různé stupně); u souběžných
+  cest je vozová silnější (zůstane ona).
+- **Pro vůz je sjízdná každá pevná cesta** (i pěší – lesem, přes pole), jen ne sklonem nad mez
+  a vodou bez brodu; upravená cesta i hať jsou sjízdné vždy. Lávka je jen pro pěší.
+- **Ve scéně:** širší pás (2,6 m), tráva mezi dvěma kolejemi; rozcestí vozových cest je udusaný
+  plácek na šířku vozové cesty.
+
+## Pole lidi nezdržuje
+
+Martin (19. 10. 2026): „Ať lidé chodí vždy nejkratší možnou cestou a oseté pole ať neřeší. Aspoň se
+nám pak hezky s orbou ustálí tvar polí, který je nyní příliš hranatý.“ Podrobnosti návrh Clauda.
+
+- **Pěšiny přes pole:** osetý, zralý, zoraný i zakládaný díl stojí v síti pěšin jako úhor
+  ([paths.md](paths.md) – Kudy), lidé jdou nejkratší cestou. Dřív stál osetý díl 12× a zoraný 3×
+  louku – lidé ho obcházeli a osev se rok od roku měnil, takže trasa přes pole byla každý rok jiná
+  a pevná cesta přes pole nevznikala (dva roky po sobě na stejném místě). Teď je trasa stálá
+  a pevná cesta vznikne. Zarůstající příloh (křoviny, mladý les) je vegetace – zdržuje dál. Chůze
+  pro práci (`walking.ts`) pole nepočítala ani dřív.
+- **Vozy** přes osetý díl dál nejezdí ([wagons.md](wagons.md)).
+- **Tvar polí:** pevné cesty pole rozčlení. Pod pevnou cestou obilí neroste (jen vzhled – maska ve
+  scéně), plocha dílu se neubírá (Cesta je cesta – Díl pole pod cestou o plochu nepřichází).
+- **Vlkov** (kopie stavu z 3. 1. 765, dopočet do 2. 11. 776): pevná cesta od domů k brance nového
+  hřbitova vznikne **1. 11. 766** – úsek 183 (dřív 70 m od vsi k severozápadu) se prodlouží na
+  144 m až k brance (116 m přes pole). Bez připojení po souběžném kusu (Úseky a rozcestí) by
+  vznikl jen kus 52 m u branky – trasa vedla kus souběžně s krátkým úsekem 236 a mezi úseky
+  zůstala díra 12,5 m; samotné pravidlo pro pole tu nerozhodlo (trasa ke hřbitovu vedla v letech
+  765–766 po strništi a po cestě 183). Ostatní cesty přes pole: úsek 59 se prodlouží ze 70 na
+  91 m (89 m přes pole), krátký úsek 122 u vsi zaroste (jako dřív), zemská stezka 131 (234 m přes
+  pole) a ostatní beze změny; do roku 776 už žádná další cesta nevznikne ani nezaroste.
+- **Otevřené – k rozhodnutí:** „ustálí tvar polí“ chápu tak, že cesty pole rozčlení (obilí pod
+  cestou se ve scéně nekreslí). Mělo by se dílu pod pevnou cestou ubrat i plochu (dnes ne –
+  zdůvodnění v Cesta je cesta)?
 
 ## Fáze 1 – jak je postavená
 
@@ -433,7 +487,11 @@ když odbočka zarostla, a cesty navázané na konec jiné v různých letech.
   cesty stojí dál jako u zarostlé (do 5 m od silnější cesty patří k ní), jabloně patří silnější.
   Dva úseky mezi stejnými uzly se nespojí do okruhu a při spojování úseků má přednost
   nejrovnější pokračování. Vlkov: 40 a 83 (copánek mezi stejnými rozcestími, 5–19 m od sebe)
-  se sloučí – po převodu zbude 5 úseků, cesta od vsi k polím je jedna.
+  se sloučí – po převodu zbude 5 úseků, cesta od vsi k polím je jedna. **Připojení po souběžném
+  kusu** (návrh Clauda, 19. 10. 2026): nová cesta, jejíž trasa vedla kus souběžně s jinou (do
+  12 m), začíná až za ním – její konec se k té cestě připojí do 14 m (12 m a krok vzorkování
+  2 m; dřív jen do 10 m a mezi úseky zůstala díra 12–14 m, kterou zacelování děr do 12 m
+  nespojilo – Vlkov 766, cesta ke hřbitovu).
 - **Volné konce ve scéně:** úsek nese `Road.openEnds` (určí roční kontrola) – pás cesty se
   vytrácí jen na skutečném volném konci (brána, cíl), ne kde navazuje jiný úsek nebo kde trasa
   pokračuje pěšinou dne. Pěšina dne se za koncem úseku neskrývá (`roadFade`) – navazuje na cestu

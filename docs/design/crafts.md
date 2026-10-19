@@ -1,4 +1,4 @@
-# Řemesla – uhlíř, kovář, hrnčíř
+# Řemesla – uhlíř, kovář, hrnčíř (a tesař)
 
 Stav: **schváleno 18. 10. 2026 (Martin), implementováno 18. 10. 2026**. Návrh ze 17. 10. 2026 týž
 den přepracován podle Martina (řemeslník na plný úvazek, účinky jako meze produktivity) a podle
@@ -7,7 +7,8 @@ den přepracován podle Martina (řemeslník na plný úvazek, účinky jako mez
 v `productivity.ts`, čísla v `rules.ts`; co se při implementaci rozhodlo navíc, je v části
 [Implementace](#implementace). **Uhlíř z buku** (Martin 18. 10. 2026, [rešerše
 uhlířství](research/2026-10-18-charcoal.md)) – část [Uhlíř](#uhlíř--buky-milíř-a-obnova-lesa),
-implementováno 18. 10. 2026.
+implementováno 18. 10. 2026. **Tesař** (Martin 19. 10. 2026) má vlastní návrh – [vozy a tesař](wagons.md),
+shrnutí v části [Tesař](#tesař).
 
 ## Proč
 
@@ -208,6 +209,21 @@ a ≈ 120 kg keramiky (≈ 120 člověkodní hrnčíře, ≈ ¼ stromu). Řemesl
 nespotřebuje, jde do zásoby. Malá ves ze dvou domácností ho ale neuživí – a teprve s plně
 pokrytými nástroji ušetří na polní práci až ≈ 40 %.
 
+## Tesař
+
+Podrobně [vozy a tesař](wagons.md) (Tesař, Jak je postavené – fáze 1); tady jen, jak zapadá mezi
+řemesla (návrh Clauda, 19. 10. 2026):
+
+- **Dílna** jako hrnčíř a kovář – polozemnice s přístřeškem, obydlí + 30 %, zkratka [T].
+- **Vstup:** klády z hromady, bez nich si skácí strom sám (jako hrnčíř); nástroje od kováře –
+  všechna jeho práce podle pokrytí nástroji (meze 1,5 → 1).
+- **Podle potřeby a volný čas** jako kovář a hrnčíř: pomáhá stavbám (dřevěná část práce staveb
+  1 → 0,6 podle pokrytí tesařem), vyrábí vozy (dvoukolák na spřežení, se stezkou čtyřkolák)
+  a **dřevěné nářadí** do zásoby (4 kg na pracujícího, 30 % ročně, zásoba × 1,3). Odpočívá, jen
+  když nemá co vyrábět ani komu pomáhat.
+- **Pokrytí dřevěným nářadím** násobí veškerou práci vsi (1 → 0,95) vedle nástrojů kováře.
+- V pořadí výroby dne je tesař poslední – jeho pomoc stavbám se rozdělí už před stavbami dne.
+
 ## Doba (neřeší se)
 
 Rešerše: keramika pražského typu se v 6.–9. století dělala v ruce a pálila na ohništi, dílna
@@ -292,3 +308,4 @@ Rozhodnutí kontroléru při implementaci (18. 10. 2026) – kde návrh necháva
 | Kovář a hrnčíř vyrábějí do zásoby = potřeba + opotřebení za rok (× 1,3 nástroje, × 1,4 keramika)         | návrh Clauda (18. 10. 2026)                  |
 | Bez vstupu (uhlí, dřevo) má řemeslník volný čas a pracuje se vsí                                         | návrh Clauda – výklad Martina (18. 10. 2026) |
 | Do budoucna: řemeslník vyrábí i pro ostatní vsi hráče, s financemi prodává přebytky                      | Martin (18. 10. 2026)                        |
+| Tesař – vozy, dřevěné nářadí, pomoc stavbám (wagons.md)                                                  | Martin (19. 10. 2026)                        |

@@ -6,7 +6,7 @@ import type { VillageView } from './village-view';
 // Upozornění vsi (population.md – Co hráč vidí): plná domácnost, ves hladoví, lidé umírají hlady
 // (Hlad a vymření), stavby stojí, hřbitov je plný (cemetery.md), vesničané ušetřili posvátný dub
 // nebo dubový háj (happiness.md – jen když přibude), kovář nemá uhlí a dílna nemá co kácet
-// (crafts.md), svatba mezi domy (population.md – Sňatky mezi domy, když přibude), podzimní porážka,
+// (crafts.md), tesař nemá klády, vyrobil vůz a vůz dosloužil (wagons.md), svatba mezi domy (population.md – Sňatky mezi domy, když přibude), podzimní porážka,
 // zkažené maso a zimní úhyn stáda (diet.md), spřežení volů – vycvičené, dosloužilo, vůl uhynul pro
 // nedostatek sena (oxen.md) –, vesničané obnovují starý sad a starý sad dosloužil (orchard.md –
 // Obnova sadu), posvátný dub uschl a posvátná souš padla (happiness.md), nevěsta z okolí a dcera
@@ -24,6 +24,10 @@ export type NoticeKind =
   | 'cemetery-full'
   | 'no-charcoal'
   | 'no-wood'
+  /** Tesař (wagons.md): nemá klády ani co kácet, vyrobil vůz, vůz dosloužil. */
+  | 'carpenter-no-wood'
+  | 'cart-made'
+  | 'cart-worn-out'
   | 'sacred-oak'
   | 'sacred-grove'
   | 'sacred-oak-died'
@@ -79,17 +83,21 @@ export function villageNotices(view: VillageView): VillageNotice[] {
   if (view.constructionsStalled) {
     notices.push({ kind: 'stalled', tone: 'warn', text: 'Stavby stojí' });
   }
-  // aspoň jeden hotový hřbitov a žádný hotový nemá volný hrob (rozestavěný mrtvé nepřijme)
+  // aspoň jeden hotový hřbitov a žádný hotový nemá volné místo (rozestavěný mrtvé nepřijme)
   const built = view.cemeteries.filter((c) => c.built);
-  if (built.length > 0 && built.every((c) => c.freeGraves === 0)) {
+  if (built.length > 0 && built.every((c) => c.freePlaces === 0)) {
     notices.push({ kind: 'cemetery-full', tone: 'warn', text: 'Hřbitov je plný' });
   }
   // dílny bez vstupu stojí (crafts.md)
   if (view.crafts.workshops.some((w) => w.activity === 'no-charcoal')) {
     notices.push({ kind: 'no-charcoal', tone: 'warn', text: 'Kovář nemá uhlí' });
   }
-  if (view.crafts.workshops.some((w) => w.activity === 'no-wood')) {
+  if (view.crafts.workshops.some((w) => w.activity === 'no-wood' && w.craft !== 'carpenter')) {
     notices.push({ kind: 'no-wood', tone: 'warn', text: 'Dílna nemá co kácet' });
+  }
+  // tesař bez klád na hromadě a bez stromů ke kácení (wagons.md)
+  if (view.crafts.workshops.some((w) => w.activity === 'no-wood' && w.craft === 'carpenter')) {
+    notices.push({ kind: 'carpenter-no-wood', tone: 'warn', text: 'Tesař nemá klády' });
   }
   if (view.fullHousehold) {
     notices.push({ kind: 'full-household', tone: 'info', text: 'Domácnost je plná' });
@@ -203,6 +211,9 @@ const CHRONICLE_NOTICES: Partial<
   'trail-built': () => ({ kind: 'trail-built', tone: 'info', text: 'Zemská stezka je dostavěná' }),
   'trade-departed': () => ({ kind: 'trade-departed', tone: 'info', text: 'Výprava vyrazila' }),
   'trade-returned': () => ({ kind: 'trade-returned', tone: 'info', text: 'Výprava se vrátila' }),
+  // vozy od tesaře (wagons.md – Vůz)
+  'cart-made': () => ({ kind: 'cart-made', tone: 'info', text: 'Tesař vyrobil vůz' }),
+  'cart-worn-out': () => ({ kind: 'cart-worn-out', tone: 'warn', text: 'Vůz dosloužil' }),
   // lidé od souseda (trade.md – Výměna lidí) – fakt, odkud přišli
   newcomer: (entry) => newcomerNotice(entry.group ?? 'family', entry),
   // nepasený příloh zarostl lesem a vypadl z pole (fields.md – Zarůstání)

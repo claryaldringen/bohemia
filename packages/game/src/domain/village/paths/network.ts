@@ -174,8 +174,16 @@ export interface PathVillage {
   };
   /** Odstraněné a pokácené překážky (počty – klíč sítě). */
   obstacles?: Pick<ObstacleChanges, 'removed' | 'stumps'>;
-  /** Pevné cesty (roads.md) – po nich se jde jako po plné pěšině. Bez údaje žádné. */
-  roads?: readonly { id?: number; points: readonly PathPoint[]; grade?: RoadGrade }[];
+  /**
+   * Pevné cesty (roads.md) – po nich se jde jako po plné pěšině; `cart` – vozová cesta (wagons.md
+   * – Vyjeté cesty, pro pěší stejná). Bez údaje žádné.
+   */
+  roads?: readonly {
+    id?: number;
+    points: readonly PathPoint[];
+    grade?: RoadGrade;
+    cart?: boolean;
+  }[];
   /**
    * Ohrady (oxen.md) – čtverec jako díl pole a jestli je hotová: plot obchází, k ohradě se chodí
    * krmit dobytek. `stocked: false` – hotová ohrada bez zvířat (abandonment.md): krmit se tam
@@ -284,14 +292,16 @@ const ERRAND_REACH = { factor: 1.25, extra: 30 } as const;
 /** Do takové ceny cesty se pro vodu a dřevo chodí naplno, dál úměrně méně často. */
 const ERRAND_NEAR_COST = 130;
 /**
- * Cena chůze přes díl pole podle stadia (násobek terénu): přes osetý díl se nechodí (obchází se
- * po okraji), zoraný a zakládaný díl je hrubá hlína, přes úhor a pastvinu se chodí volně (nálet
- * ani les na přílohu není).
+ * Cena chůze přes díl pole podle stadia (násobek terénu). Pole lidi nezdržuje (Martin,
+ * 19. 10. 2026: „Ať lidé chodí vždy nejkratší možnou cestou a oseté pole ať neřeší. Aspoň se nám
+ * pak hezky s orbou ustálí tvar polí, který je nyní příliš hranatý.“ – paths.md): osetý, zralý,
+ * zoraný i zakládaný díl jako úhor, louka na přílohu o kousek víc (vysoká tráva). Zarůstající
+ * příloh je vegetace, ne pole – křoviny a mladý les zdržují.
  */
 const STAGE_COST: Record<PartStage, number> = {
-  founding: 3,
-  ready: 3,
-  sown: 12,
+  founding: 1.1,
+  ready: 1.1,
+  sown: 1.1,
   'young-fallow': 1.1,
   meadow: 1.25,
   // zarůstající příloh (fields.md – Zarůstání): trnité křoviny, houština mladého lesa
@@ -525,7 +535,10 @@ export function roadsKey(roads: PathVillage['roads']): string {
     .map((r) => {
       const a = r.points[0];
       const b = r.points[r.points.length - 1];
-      return a && b ? `${r.points.length}:${a.x},${a.z}:${b.x},${b.z}:${r.grade ?? ''}` : '';
+      // vozová cesta s příznakem navíc – klíč pěších cest se nemění (wagons.md)
+      return a && b
+        ? `${r.points.length}:${a.x},${a.z}:${b.x},${b.z}:${r.grade ?? ''}${r.cart ? ':v' : ''}`
+        : '';
     })
     .join(';');
 }
@@ -572,6 +585,9 @@ interface Grid {
   road: Uint8Array | null;
 }
 
+/** Okno mřížky – rozměry, počátek a krok (terén pěšin, mřížka sítě i vozů). */
+export type GridWindow = Pick<Grid, 'width' | 'height' | 'originX' | 'originZ' | 'cellM'>;
+
 function cellX(grid: Grid, c: number): number {
   return grid.originX + (c % grid.width) * grid.cellM;
 }
@@ -581,8 +597,8 @@ function cellZ(grid: Grid, c: number): number {
 }
 
 /** Buňky se středem v obdélníku světa (včetně okraje). */
-function cellsIn(
-  grid: Grid,
+export function cellsIn(
+  grid: GridWindow,
   minX: number,
   minZ: number,
   maxX: number,
@@ -620,7 +636,10 @@ const TILE_KEY_SPAN = 2_097_152; // 2^21
  * čtverci (mezi díly pole meze nejsou), `edge` – střed na vnější hraně (tam vede pěšina podél
  * okraje). Vrátí obojí zvlášť.
  */
-function squareCells(grid: Grid, squares: readonly Square[]): { inside: number[]; edge: number[] } {
+export function squareCells(
+  grid: GridWindow,
+  squares: readonly Square[],
+): { inside: number[]; edge: number[] } {
   const first = squares[0];
   if (!first) return { inside: [], edge: [] };
   const tiles = new Set(squares.map((s) => tileKey(s.cell.x, s.cell.y)));
@@ -679,7 +698,7 @@ export interface PathBox {
 }
 
 /** Stavba, kterou pěšiny obcházejí: dům (i se šíjí), pozemek, staveniště, modla. */
-interface Building {
+export interface Building {
   position: Position;
   box: PathBox;
 }
@@ -691,7 +710,7 @@ function localToWorld(position: Position, lx: number, lz: number): [number, numb
   return [position.x + lx * c + lz * s, position.z - lx * s + lz * c];
 }
 
-function inBuilding(b: Building, x: number, z: number, margin: number): boolean {
+export function inBuilding(b: Building, x: number, z: number, margin: number): boolean {
   const c = detCos(b.position.rotation);
   const s = detSin(b.position.rotation);
   const dx = x - b.position.x;
@@ -706,7 +725,7 @@ function inBuilding(b: Building, x: number, z: number, margin: number): boolean 
   );
 }
 
-function buildingBounds(b: Building, margin: number): [number, number, number, number] {
+export function buildingBounds(b: Building, margin: number): [number, number, number, number] {
   const corners = [
     localToWorld(b.position, b.box.minX - margin, b.box.minZ - margin),
     localToWorld(b.position, b.box.maxX + margin, b.box.minZ - margin),
@@ -930,7 +949,7 @@ function cellsAround(grid: Grid, p: PathPoint, radius: number): number[] {
  * Buňky pod osami pevných cest (1, jinak 0) – osy se projdou po třetinách buňky a označí se
  * nejbližší buňka, takže cesta je souvislá řada buněk. Bez cest null.
  */
-function roadMask(grid: Grid, roads: PathVillage['roads']): Uint8Array | null {
+export function roadMask(grid: GridWindow, roads: PathVillage['roads']): Uint8Array | null {
   if (!roads || roads.length === 0) return null;
   const mask = new Uint8Array(grid.width * grid.height);
   const step = grid.cellM / 3;
@@ -1934,18 +1953,24 @@ function smoothTraffic(grid: Grid, traffic: Float32Array): Float32Array {
  * Vyšlapané pěšiny vsi. Bez obydlí (nebo bez průchodné brány) žádné. Výsledek závisí jen na
  * vstupu (deterministicky).
  */
-export function computePathNetwork(input: PathNetworkInput): PathNetwork {
-  const v = input.village;
-  const buildings = new Map<number, Building>();
+/**
+ * Neprůchodné stavby vsi: obydlí, pozemky a staveniště (podle id obydlí), milíře uhlířů a modly.
+ * Obydlí zvlášť (brány domácností) a všechny dohromady.
+ */
+export function villageBuildings(v: PathVillage): {
+  dwellings: Map<number, Building>;
+  all: Building[];
+} {
+  const dwellings = new Map<number, Building>();
   for (const d of v.dwellings) {
-    buildings.set(d.id, { position: d.position, box: dwellingBox(d) });
+    dwellings.set(d.id, { position: d.position, box: dwellingBox(d) });
   }
-  const obstaclesOnly: Building[] = [...buildings.values()];
+  const all: Building[] = [...dwellings.values()];
   // milíř uhlíře kus od zemnice – pěšina ho obejde (crafts.md)
   for (const d of v.dwellings) {
     if (d.craft !== 'burner') continue;
     const half = MILIR_RADIUS_M;
-    obstaclesOnly.push({
+    all.push({
       position: milirPosition(d.position),
       box: { minX: -half, maxX: half, minZ: -half, maxZ: half },
     });
@@ -1953,11 +1978,17 @@ export function computePathNetwork(input: PathNetworkInput): PathNetwork {
   for (const b of v.sacred?.buildings ?? []) {
     if (b.kind !== 'idol') continue;
     const half = SACRED_BUILDINGS.idol.footprintM / 2;
-    obstaclesOnly.push({
+    all.push({
       position: b.position,
       box: { minX: -half, maxX: half, minZ: -half, maxZ: half },
     });
   }
+  return { dwellings, all };
+}
+
+export function computePathNetwork(input: PathNetworkInput): PathNetwork {
+  const v = input.village;
+  const { dwellings: buildings, all: obstaclesOnly } = villageBuildings(v);
   const grid = villageGrid(input, obstaclesOnly);
   const all = grid.width * grid.height;
   const empty: PathNetwork = {

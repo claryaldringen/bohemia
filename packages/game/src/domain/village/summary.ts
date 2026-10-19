@@ -1,13 +1,22 @@
 import { TOTAL_GAME_DAYS } from '../calendar';
 import type { ObstacleLayer } from '../landscape';
+import { moundPlaces, usedPlaces } from './burials';
 import {
   burialOrder,
   cemeteryCapacity,
-  freeGraves,
+  freePlaces,
   readySquares,
   villageCemeteries,
 } from './cemetery';
-import { craftCoverage, craftNeeds, craftStocks, oreFactor, workshopLabor } from './crafts';
+import { cartCondition, cartTargets, cartsAway, villageCarts } from './carts';
+import {
+  craftCoverage,
+  craftNeeds,
+  craftStocks,
+  oreFactor,
+  workshopLabor,
+  type CraftNeeds,
+} from './crafts';
 import { isFull, isOvercrowded } from './dwellings';
 import { waitingHouseholds } from './households';
 import { familyCounts, type FamilyCounts } from './kinship';
@@ -42,7 +51,7 @@ import {
   villageOrchards,
 } from './orchard';
 import { ageGroup, foodNeedPerDay, occupants } from './people';
-import { CHARCOAL_KILN, CHRONICLE_MAX_EVENTS, DWELLINGS, STARVATION } from './rules';
+import { CARPENTRY, CHARCOAL_KILN, CHRONICLE_MAX_EVENTS, DWELLINGS, STARVATION } from './rules';
 import {
   groveHappiness,
   sacredBuildingHappiness,
@@ -57,6 +66,7 @@ import type {
   KilnStage,
   Construction,
   ConstructionKind,
+  CartKind,
   Craft,
   CraftCoverage,
   CraftStocks,
@@ -139,12 +149,16 @@ export interface CemeterySummary {
   squares: number;
   /** Vytyčené a ohrazené – přijímá mrtvé. */
   built: boolean;
+  /** Místa na hroby hotových čtverců (cemetery.md – Mohyly podle významu: mohyla zabere 1–4). */
   capacity: number;
+  /** Pohřbení (lidé). */
   graves: number;
-  freeGraves: number;
+  /** Obsazená a volná místa na hroby. */
+  usedPlaces: number;
+  freePlaces: number;
   /**
-   * Odhad, za kolik let se zaplní – podle úmrtí posledních let a pořadí pohřbívání (nejdřív
-   * pohřebiště nejblíž k obydlím). Bez úmrtí null.
+   * Odhad, za kolik let se zaplní – podle úmrtí posledních let, průměrné velikosti mohyl vsi
+   * a pořadí pohřbívání (nejdřív pohřebiště nejblíž k obydlím). Bez úmrtí null.
    */
   yearsLeft: number | null;
 }
@@ -186,14 +200,34 @@ export interface WorkshopSummary {
   } | null;
   /** Uhlíř: pařezy buků, na které ještě zasadí mladý buk; ostatní dílny 0. */
   toPlant: number;
+  /**
+   * Tesař (wagons.md – Tesař): rozdělaný vůz (druh a průběh 0–1), klády v dílně a pokrytí dřevěné
+   * práce staveb posledního dne 0–1; ostatní dílny null.
+   */
+  carpenter: {
+    cart: { kind: CartKind; progress: number } | null;
+    timber: number;
+    woodworkCoverage: number;
+  } | null;
+}
+
+/** Vůz vsi pro panel (wagons.md – Vůz): druh, stav 0–1 a jestli je s výpravou na cestě. */
+export interface CartSummary {
+  id: number;
+  kind: CartKind;
+  condition: number;
+  away: boolean;
 }
 
 /** Řemesla vsi – zásoby, potřeba, pokrytí (meze produktivity) a dílny. */
 export interface CraftsSummary {
   stocks: CraftStocks;
-  needs: { toolsKg: number; potteryKg: number };
+  needs: CraftNeeds;
   coverage: CraftCoverage;
   workshops: WorkshopSummary[];
+  /** Vozy vsi a kolik jich ves potřebuje (wagons.md – Vůz). */
+  carts: CartSummary[];
+  cartTargets: Readonly<Record<CartKind, number>>;
 }
 
 /** Štěstí obyvatel pro horní lištu (happiness.md). */
@@ -514,9 +548,13 @@ function cemeterySummaries(state: VillageState, deathsPerYear: number): Cemetery
     villageCemeteries(state),
     state.dwellings.map((d) => d.position),
   );
+  // míst na pohřeb – průměr mohyl vsi (bez mohyl jedno místo)
+  const mounds = ordered.flatMap((c) => c.mounds ?? []);
+  const perBurial =
+    mounds.length > 0 ? mounds.reduce((sum, m) => sum + moundPlaces(m.size), 0) / mounds.length : 1;
   let freeBefore = 0;
   return ordered.map((c) => {
-    const free = freeGraves(c);
+    const free = freePlaces(c);
     freeBefore += free;
     return {
       id: c.id,
@@ -524,8 +562,10 @@ function cemeterySummaries(state: VillageState, deathsPerYear: number): Cemetery
       built: c.builtDay !== null,
       capacity: cemeteryCapacity(c),
       graves: c.graves,
-      freeGraves: free,
-      yearsLeft: free === 0 ? 0 : deathsPerYear > 0 ? freeBefore / deathsPerYear : null,
+      usedPlaces: usedPlaces(c),
+      freePlaces: free,
+      yearsLeft:
+        free === 0 ? 0 : deathsPerYear > 0 ? freeBefore / (deathsPerYear * perBurial) : null,
     };
   });
 }
@@ -595,6 +635,7 @@ export function summarizeVillage(
 /** Řemesla vsi: zásoby, potřeba a pokrytí, dílny s tím, co dělají (crafts.md – Co hráč vidí). */
 function craftsSummary(state: VillageState, day: number): CraftsSummary {
   const coverage = craftCoverage(state, day);
+  const away = cartsAway(state);
   const productivity = happinessLaborFactor(villageHappiness(state));
   return {
     stocks: { ...craftStocks(state) },
@@ -617,9 +658,32 @@ function craftsSummary(state: VillageState, day: number): CraftsSummary {
           oreFactor: oreFactor(workshop),
           kiln: workshop.kiln ? kilnSummary(workshop.kiln) : null,
           toPlant: workshop.toPlant?.length ?? 0,
+          carpenter:
+            workshop.craft === 'carpenter'
+              ? {
+                  cart: workshop.cart
+                    ? {
+                        kind: workshop.cart.kind,
+                        progress: Math.min(
+                          1,
+                          workshop.cart.done / CARPENTRY.cartManDays[workshop.cart.kind],
+                        ),
+                      }
+                    : null,
+                  timber: workshop.timber ?? 0,
+                  woodworkCoverage: workshop.woodworkCoverage ?? 0,
+                }
+              : null,
         },
       ];
     }),
+    carts: villageCarts(state).map((cart) => ({
+      id: cart.id,
+      kind: cart.kind,
+      condition: cartCondition(cart, day),
+      away: away.has(cart.id),
+    })),
+    cartTargets: cartTargets(state),
   };
 }
 
