@@ -51,6 +51,24 @@ function plural(n: number, one: string, few: string, many: string): string {
   return n === 1 ? one : n >= 2 && n <= 4 ? few : many;
 }
 
+/**
+ * Kolik soused ještě vezme nebo má, ve 4. pádě s jednotkou (popisek řádku obchodu): „1 500 kg“,
+ * „4 kusy“, „1 rodinu“, „2 dospělé“.
+ */
+export function tradeAmountText(n: number, unit: 'kg' | 'ks' | PeopleKind): string {
+  const count = formatInteger(n);
+  switch (unit) {
+    case 'kg':
+      return `${count} kg`;
+    case 'ks':
+      return `${count} ${plural(n, 'kus', 'kusy', 'kusů')}`;
+    case 'family':
+      return `${count} ${plural(n, 'rodinu', 'rodiny', 'rodin')}`;
+    case 'adult':
+      return `${count} ${plural(n, 'dospělého', 'dospělé', 'dospělých')}`;
+  }
+}
+
 /** Lidé ve výměně („1 rodina a 2 dospělí“); nikdo – prázdný text. */
 export function peopleText(people: TradePeople | undefined): string {
   if (!people) return '';
