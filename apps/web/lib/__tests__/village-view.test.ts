@@ -298,6 +298,15 @@ describe('buildVillageView', () => {
         blocked: null,
         affordable: false,
       },
+      // tesař – polozemnice s přístřeškem jako hrnčíř a kovář (wagons.md)
+      carpenter: {
+        laborManDays: 286,
+        perHa: false,
+        perSquare: false,
+        upfront: [{ resource: 'wood', amount: 23, missing: 23 }, noSettlers],
+        blocked: null,
+        affordable: false,
+      },
       // ohrada s přístřeškem (oxen.md) – 40 čd a 6 stromů předem, osadníci ne
       pen: {
         laborManDays: 40,

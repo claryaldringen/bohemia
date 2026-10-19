@@ -2677,19 +2677,11 @@ const HARVEST_NAMES: Record<Crop | 'any', string> = {
   any: 'Sklizeň',
 };
 
-const BUILD_KINDS: readonly BuildKind[] = [
-  'zemnice',
-  'polozemnice',
-  'field',
-  'cemetery',
-  'orchard',
-  'idol',
-  'shrine',
-  'potter',
-  'smith',
-  'burner',
-  'pen',
-];
+/**
+ * Nabízené stavby = všechny s cenou – ručně psaný seznam už jednou zapomněl tesaře; pořadí
+ * v mřížce dává katalog staveb (`build-items.ts`).
+ */
+const BUILD_KINDS = Object.keys(BUILD_COSTS) as BuildKind[];
 /** Kolik štěstí přidá modla a svatyně (happiness.md). */
 const SACRED_HAPPINESS: Record<SacredBuildingKind, number> = {
   idol: sacredBuildingHappiness('idol'),
