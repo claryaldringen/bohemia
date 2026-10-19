@@ -73,6 +73,9 @@ import type { CalendarDate } from '../src/domain/calendar';
 import {
   DWELLINGS,
   FERTILITY,
+  FLAX,
+  cropGrossPerHa,
+  flaxNeedKg,
   FIELD_FOOD,
   FIELD_LIMITS,
   FOOD_NEED_KG_PER_YEAR,
@@ -258,13 +261,14 @@ function annualNeed(people: Person[], day: number): number {
  * Pole podle potřeby celého oběhu (ha): osev × ROTATION_FACTOR. Osev hráč odhadne jako ves se
  * zásobami na pojistce – úroda rok co rok (`steadyHarvestKg`: potřeba z pole `need`, pojistka
  * z roční potřeby celé energie `yearly`, ztráty skladováním) / čistá úroda hektaru v průměru tří
- * let osevu.
+ * let osevu – a k tomu len na oděv (`flaxKg` třeného lnu – fields.md, Len).
  */
-function neededFieldHa(need: number, yearly: number, fertility: number): number {
+function neededFieldHa(need: number, yearly: number, fertility: number, flaxKg = 0): number {
   const averageShare = 1 - FERTILITY.sowDepletion; // průměr tří let osevu (1, 0,88, 0,76)
   const netPerHa = grossYieldPerHa(fertility * averageShare) - SEED_KG_PER_HA;
   const harvest = steadyHarvestKg(need, bufferKg(yearly), NO_CRAFTS.pottery);
-  return (harvest / netPerHa) * ROTATION_FACTOR;
+  const flaxHa = flaxKg / cropGrossPerHa('flax', fertility * averageShare);
+  return (harvest / netPerHa + flaxHa) * ROTATION_FACTOR;
 }
 
 /** Plocha pole, kterou hráč počítá: zakládané, připravené, oseté díly a přílohy ≥ 0,7. */
@@ -965,6 +969,7 @@ function runVillage(start: VillageState, startLand: number, opts: RunOptions): R
             yearlyFieldNeed(after, day),
             annualNeed(after.people, day),
             averageFertility(after, opts.land, land),
+            flaxNeedKg(after, day),
           ) - countedFieldHa(after);
         const count = Math.max(MIN_FIELD_PARTS, Math.ceil((missing * M2_PER_HA) / PART_M2));
         const batch = missing > 0 ? opts.land.take(after, day, land, count) : null;
@@ -1266,7 +1271,15 @@ function runProbe(name: ProbeName): TaskResult {
   // pole o polovinu větší než potřeba z pole v ustáleném oběhu (osev podle stravy)
   const firstParts = fixedField
     ? Math.round(
-        (neededFieldHa(startNeed * steadyFieldShare(ages, land), startNeed, V1_MEADOW_FERTILITY) *
+        (neededFieldHa(
+          startNeed * steadyFieldShare(ages, land),
+          startNeed,
+          V1_MEADOW_FERTILITY,
+          ages.reduce(
+            (sum, age) => sum + (age < 14 ? FLAX.kgPerYear.child : FLAX.kgPerYear.adult),
+            0,
+          ),
+        ) *
           oversize *
           M2_PER_HA) /
           PART_M2,

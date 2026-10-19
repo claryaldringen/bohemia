@@ -174,12 +174,42 @@ describe('plán osevu se lnem (chooseCrops)', () => {
     expect(next.flax.some((p) => lastYear.has(p.id))).toBe(false);
   });
 
-  it('obilí má přednost – když půda na doplnění nestačí, lnu je méně (nebo žádný)', () => {
+  it('když půda na doplnění obilí nestačí, len ubere obilí jen o své díly', () => {
     const candidates = parts(40);
     const all = candidates.reduce((sum, p) => sum + expectedNetKg(p, DAY), 0);
     const tight = chooseCrops(candidates, input({ targetKg: all, flaxTargetKg: 20 }));
-    expect(tight.flax).toEqual([]);
-    expect(tight.winter.length + tight.spring.length).toBe(40);
+    const flaxKg = tight.flax.reduce((sum, p) => sum + expectedFlaxKg(p, DAY), 0);
+    expect(flaxKg).toBeGreaterThanOrEqual(20);
+    expect(tight.winter.length + tight.spring.length + tight.flax.length).toBe(40);
+  });
+
+  it('práce: když se len nevejde na poslední díl (jař, červenec plný ozimu), zkusí ozim', () => {
+    const candidates = parts(60);
+    // podzim pojme ozim jen na 20 dílů – zbytek výběru je jař
+    const autumn = (part: FieldPart): number => {
+      const w = partWork(part, DAY, NO_CRAFTS.tools, false, 'winter');
+      return w.reclaim + w.dig + w.sow;
+    };
+    const capacity = {
+      autumnWinter: 20 * autumn(candidates[0]!),
+      autumn: BIG,
+      spring: BIG,
+      july: BIG,
+      august: BIG,
+    };
+    const grain = chooseCrops(candidates, input({ targetKg: 400, capacity }));
+    expect(grain.spring.length).toBeGreaterThan(0);
+    const july = grain.winter.reduce(
+      (sum, p) => sum + partWork(p, DAY, NO_CRAFTS.tools, false, 'winter').harvest,
+      0,
+    );
+    // v červenci zbude jen pár člověkodní – sklizeň lnu jaře se nevejde, výměna za ozim ano
+    const r = chooseCrops(
+      candidates,
+      input({ targetKg: 400, flaxTargetKg: 5, capacity: { ...capacity, july: july + 0.5 } }),
+    );
+    expect(r.flax.length).toBeGreaterThan(0);
+    expect(grain.winter.map((p) => p.id)).toEqual(expect.arrayContaining(r.flax.map((p) => p.id)));
   });
 
   it('bez cíle lnu stejný výběr jako dřív (i s luštěninami)', () => {
@@ -223,7 +253,7 @@ describe('oděv ze lnu – trhání a štěstí', () => {
 
 describe('len v simulaci', () => {
   it('ves ho k 1. 9. zaseje na potřebu, 31. 7. vytrhá a oděv má celý', () => {
-    // první rok jde všechna založená půda na obilí (obilí má přednost), len od druhého
+    // první plán po založení pole je jen jař (díly hotové během roku) – len až k 1. 9.
     const planned = advanceVillage(found(at(600, 3, 1)), at(601, 9, 2), null);
     const flax = planned.plan?.flax;
     expect(flax).toBeDefined();

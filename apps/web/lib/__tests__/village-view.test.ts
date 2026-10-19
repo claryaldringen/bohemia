@@ -131,7 +131,7 @@ describe('buildVillageView – díl pole pro panel (fields.md – Co hráč vid�
       expect(shown.sownYears).toBe(part.sownYears);
       expect(shown.fallowYears).toBeUndefined();
       const crop = shown.work!.crop!;
-      expect(['winter', 'spring', 'legume']).toContain(crop.crop);
+      expect(['winter', 'spring', 'legume', 'flax']).toContain(crop.crop);
       // podíly na setiny
       for (const share of [crop.sow, crop.harvest, crop.prep?.share ?? 0]) {
         expect(Math.round(share * 100)).toBeCloseTo(share * 100, 9);

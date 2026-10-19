@@ -474,9 +474,10 @@ export const CROP_WINDOWS: Record<Crop, Record<TaskName, readonly WindowSegment[
   flax: FLAX_WINDOWS,
 };
 /**
- * Pořadí plodin při shodě konce okna – ozim (sklízí se dřív) první, luštěniny a len před jaří.
+ * Pořadí plodin při shodě konce okna – len první (je ho málo a bez něj chybí oděv – trhá se
+ * v červenci se ozimem a luštěninami), pak ozim (sklízí se dřív), luštěniny před jaří.
  */
-export const CROP_ORDER: readonly Crop[] = ['winter', 'legume', 'flax', 'spring'];
+export const CROP_ORDER: readonly Crop[] = ['flax', 'winter', 'legume', 'spring'];
 /**
  * diet.md a fields.md – Luštěniny (Martin 18. 10. 2026: bílkoviny 1,6 g/kg zůstávají, přidají se
  * luštěniny; čísla rešerše 2026-10-18-legumes.md, odhady návrh Clauda): hrách a čočka jako jedna

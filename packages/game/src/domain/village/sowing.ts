@@ -376,13 +376,32 @@ function moveToSideCrop(
 }
 
 /**
+ * Vešla by se práce dílu obilí `part` jako plodina `crop` (jarní práce jako jař, sklizeň
+ * v červenci) – bez změny výběru.
+ */
+function fitsSideCrop(
+  choice: Choice,
+  part: FieldPart,
+  crop: SideCrop,
+  input: CropChoiceInput,
+  workOf: (part: FieldPart) => PartWork,
+): boolean {
+  const load = { ...choice.load };
+  const work = workOf(part);
+  if (choice.winter.includes(part)) removeWinter(load, work);
+  else removeSpring(load, work);
+  const cropWork = partWork(part, input.day, input.toolCoverage, input.plough ?? false, crop);
+  return fitsLegume(load, cropWork, input.capacity);
+}
+
+/**
  * Luštěniny nebo len na díly vybrané pro obilí – luštěniny od domu (díl obilí první v pořadí
  * bloků), len od konce výběru; střídání plodin – díly, které měly tutéž plodinu loni, až nakonec –,
  * dokud očekávaná úroda plodiny
  * nepokryje `targetKg`. Po každém dílu obilí doplní další díly, kolik energie díl dá méně (len
  * celou – nejí se); když energie plánu i tak klesne pod roční potřebu (`energyFloorKg` – smí jít
- * na rezervu osevu; obilí má přednost), díl zůstane obilím a výběr plodiny končí. Díly plodiny tak
- * zůstanou souvislé.
+ * na rezervu osevu; obilí má přednost), díl zůstane obilím a výběr plodiny končí – len smí obilí
+ * ubrat nejvýš o svůj díl (je ho málo, bez něj chybí oděv). Díly plodiny tak zůstanou souvislé.
  */
 function chooseSideCrop(
   blocks: readonly (readonly FieldPart[])[],
@@ -401,10 +420,22 @@ function chooseSideCrop(
     // neleží domům v cestě (fields.md – Len)
     const order = crop === 'flax' ? fromHome.reverse() : fromHome;
     // střídání plodin: napřed díly, které loni tutéž plodinu neměly
-    const next = order.find((p) => p.crop !== crop) ?? order[0];
+    const rotated = [
+      ...order.filter((p) => p.crop !== crop),
+      ...order.filter((p) => p.crop === crop),
+    ];
+    // len (je ho málo, bez něj chybí oděv) zkusí další díl, když se práce prvního nevejde – třeba
+    // jař, když červencovou sklizeň už nese ozim; luštěniny jen první díl (jako dřív)
+    const next =
+      crop === 'flax'
+        ? rotated.find((p) => fitsSideCrop(choice, p, crop, input, workOf))
+        : rotated[0];
     if (!next) break;
     const trial = copyChoice(choice);
-    const energy = Math.min(input.energyFloorKg ?? input.targetKg, trial.net);
+    const floor = Math.min(input.energyFloorKg ?? input.targetKg, trial.net);
+    // len smí ubrat obilí nejvýš o svůj díl, když ho obilí nedoplní (chybí půda či práce) – je ho
+    // málo (≈ 1–2 % osevu) a vyrovnají to zásoby (fields.md – Len, Osev podle zásob)
+    const energy = crop === 'flax' ? floor - expectedNetKg(next, input.day) : floor;
     if (!moveToSideCrop(trial, next, crop, input, workOf)) break;
     chooseGrain(blocks, trial, input.targetKg, input, workOf);
     if (trial.net < energy - EPSILON) break;
