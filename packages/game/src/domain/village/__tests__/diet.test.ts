@@ -160,7 +160,15 @@ describe('eatDiet – příděl', () => {
     const meatKg = (DIET.caps.meat * NEED * 400) / DIET.meatEnergy;
     const cheeseKg = (DIET.caps.dairy * NEED * 150) / DAIRY.cheeseEnergy; // zima do 1. 5.
     const grainKg = 0.32 * NEED * days; // 30 % potřeby + ztráty
-    const base = input({ ...fresh, meatKg, cheeseKg, grainKg, daysToHarvest: days });
+    // maso vydrží do 31. 8. příštího roku – v září je to přes sklizeň (zkazí se až 1. 9.)
+    const base = input({
+      ...fresh,
+      meatKg,
+      cheeseKg,
+      grainKg,
+      daysToHarvest: days,
+      daysToMeatEnd: 364,
+    });
     const old = eatDiet({ ...base, daysToMilking: 240 });
     expect(old.outlook).toBeLessThan(0.95);
     const ahead = DIET.caps.dairy * NEED * (days - 1 - 150); // mléko v létě do sklizně
