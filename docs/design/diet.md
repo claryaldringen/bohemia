@@ -336,7 +336,7 @@ zásoby ≈ 3,6 t na ≈ 4,2 t potřeby do žní, jí 94 % přídělu – a při
   výcviku jsou v ohradě, mimo stáda – na nouzovou porážku nejdou. Nejdou ani **letošní mláďata**
   (od jara do podzimní porážky – jsou malá a dorůstají v příští stádo; rozhodnutí Clauda – bez
   toho ves v nouzi snědla každé jaro všechna selata a jehňata hned po narození a stádo se nikdy
-  neobnovilo).
+  neobnovilo) – **kromě selat od 1. 9.** (níž).
 - **Chovné prasnice** – Martin, 19. 10. 2026: „**Ano, pusť na to agenta**“ na návrh „Spodní
   hranice chovných prasnic: v nouzi se smí porážet jen do poloviny toho, kolik prasat uživí les.
   Vlkov by tuto zimu porazil skoro stejně a stádo by zůstalo, aby se obnovilo.“ Prasata jdou na
@@ -346,12 +346,22 @@ zásoby ≈ 3,6 t na ≈ 4,2 t potřeby do žní, jí 94 % přídělu – a při
     od vsi bez dílů polí, které ves v lese založila, s lesem vsi na bývalé louce – podle dnešního
     stavu, takže s mýcením lesa pro pole hranice klesá;
   - hranice je aspoň chovný pár (les pro méně než 4 prasata – chovný pár zůstane);
-  - počítají se dospělá prasata – letošní selata na nouzovou porážku nejdou dál, takže v létě
-    zůstane spodní hranice i se selaty;
+  - do 31. 8. se počítají dospělá prasata – letošní selata na nouzovou porážku nejdou, takže
+    v létě zůstane spodní hranice i se selaty; od 1. 9. se do prasat nad hranicí počítají
+    i selata (níž);
   - na jaře se stádo prasat zdvojnásobí (mláďata 1. 4.), takže se z prasnic do podzimu obnoví;
     co prasata nad hranicí nepokryjí, porazí ves dál v pořadí (kozy, krávy nad chovné, ovce nad
     ovce na vlnu), a když ani to nestačí, šetří přídělem. Číslo `EMERGENCY_SLAUGHTER.pigForestShare`
     (0,5).
+- **Selata od 1. 9.** – Martin, 19. 10. 2026: „**Ano ke všem návrhům**“ na návrh „letošní selata
+  smějí od 1. 9. na nouzovou porážku“ (Náměty – Hladový podzim): maso se 1. 9. kazí, do podzimní
+  porážky 1. 11. ves hladoví a nad chovnými prasnicemi jsou v září skoro jen letošní selata, která
+  nouzová porážka chránila. V září mají ≈ 5 měsíců a na podzim se prasata porážela tak jako tak.
+  Od 1. 9. do konce roku (po podzimní porážce letošní mláďata nejsou) se selata počítají do prasat
+  nad chovnými prasnicemi, spodní hranice prasat platí dál. Jehňata, kůzlata a telata zůstávají
+  chráněná celý rok. Maso z porážky v září a říjnu se jí do podzimní porážky (Trvanlivost masa) –
+  pod stropem 40 % energie tak září a říjen přemostí, ale na zimu ho ves nenaporáží. Číslo
+  `EMERGENCY_SLAUGHTER.pigletsFromMonth` (9).
 - **Kolik:** nejméně masa, se kterým výhled vyjde **i s rezervou 5 % potřeby energie do
   sklizně**. Výhled nezná ztráty zásob skladováním ani úbytek masa uzením – bez rezervy by ves
   porážela den co den po kouscích, s ní obvykle jednou za zimu (Vlkov: jednou, 23 prasat). Zabitím
@@ -379,12 +389,13 @@ zásoby ≈ 3,6 t na ≈ 4,2 t potřeby do žní, jí 94 % přídělu – a při
   porážkou snědl druhou zimu prasata až na chovný pár, stádo se už neobnovilo a lidé umírali hlady
   pět let po sobě. Druhý návrh (nouzová porážka jen do chovného stáda z poslední podzimní
   porážky) se nepoužil. Naměřeno – chovné prasnice.
-- **Hladový podzim:** ve Vlkově bez hráče umírají lidé hlady v říjnu – maso se 1. 9. zkazí, úroda
-  na rok nestačí a výhled do sklizně s masem z listopadové porážky nepočítá, takže ves od 1. 9.
-  jí kolem poloviny přídělu. Prasata nad chovné prasnice jsou v září a říjnu skoro jen letošní
-  selata, a ta na nouzovou porážku nejdou (Naměřeno – chovné prasnice: Vlkov v říjnu 782 18 úmrtí
-  hladem, bez spodní hranice 9). Návrhy: selata od 1. 9. na nouzovou porážku pustit, nebo výhled
-  od 1. 9. počítá s masem z blížící se podzimní porážky.
+- ~~**Hladový podzim**~~ – od 19. 10. 2026 ve hře jako selata od 1. 9. na nouzové porážce
+  (Nouzová porážka; Martin: „Ano ke všem návrhům“). Ve Vlkově bez hráče umírali lidé hlady
+  v říjnu – maso se 1. 9. zkazí, úroda na rok nestačí a výhled do sklizně s masem z listopadové
+  porážky nepočítá, takže ves od 1. 9. jedla kolem poloviny přídělu; prasata nad chovné prasnice
+  jsou v září a říjnu skoro jen letošní selata, a ta na nouzovou porážku nešla (Naměřeno – chovné
+  prasnice: Vlkov v říjnu 782 18 úmrtí hladem, bez spodní hranice 9). Druhý návrh (výhled od 1. 9.
+  počítá s masem z blížící se podzimní porážky) se nepoužil. Naměřeno – selata od 1. 9.
 
 - ~~**Vlna**~~ – od 19. 10. 2026 ve hře jako spodní hranice stáda ovcí (Oděv). Zůstává námětem
   přebytek sukna jako zboží k sousedům (trade.md) a oděv z kůží z porážky.
@@ -868,6 +879,28 @@ podzimní porážka 1. 11. 792 nechá s chovnými prasnicemi i bez nich 2 prasat
 před „Práce vsi – zvířata bokem“ 52 – příčina mimo nouzovou porážku), nouzové porážky jsou malé (bez hranice 418 kg, s ní 255 kg – jen
 ovce a kozy), úmrtí hladem žádné, 1. 9. 797 bez hranice 25 lidí, s ní 23.
 
+## Naměřeno – selata od 1. 9. (19. 10. 2026)
+
+Dopočet s krajinou bez hráče z uložené kopie stavu **Vlkov 16. 11. 781** (47 lidí – týž stav jako
+Naměřeno – chovné prasnice) do 15. 12. 786, dosavadní pravidla (D) a se selaty od 1. 9. (S).
+Nasycení, pokrytí bílkovin a podíl masa na energii jsou průměry vzorků 15. dne každého měsíce.
+
+|                                      | D                  | S                    |
+| ------------------------------------ | ------------------ | -------------------- |
+| úmrtí hladem září–říjen 782          | 18                 | 9                    |
+| úmrtí hladem celkem                  | 18                 | 16                   |
+| nouzové porážky v září (kg)          | –                  | 698 (782), 497 (783) |
+| podzimní porážka 782–786 (kg celkem) | 6 309              | 5 511                |
+| prasata po podzimní porážce 786      | 52,9               | 50,1                 |
+| zkažené maso 1. 9.                   | 0                  | 0                    |
+| nasycení / bílkoviny / podíl masa    | 0,90 / 0,84 / 22 % | 0,88 / 0,79 / 18 %   |
+| lidé 1. 11. 782 / na konci           | 26 / 29            | 34 / 32              |
+
+V září 782 ves porazí 14 selat (698 kg), maso jí do podzimní porážky – úmrtí hladem v září
+a říjnu 782 klesnou na polovinu a za pět let žijí 3 lidé navíc (nasycení a bílkoviny na osobu
+jsou proto o něco nižší). **Vlkov 21. 9. 792** a **27. 4. 796** (24 lidí) vyjdou se selaty
+přesně stejně jako dřív – selata v nouzi potřeba nebyla.
+
 ## Co hráč vidí
 
 - V horní liště **obilí, luštěniny, maso, mléko a sýr, ovoce** (ikony + čísla) a nasycení;
@@ -938,6 +971,7 @@ ovce a kozy), úmrtí hladem žádné, 1. 9. 797 bez hranice 25 lidí, s ní 23.
 | Pasou jen výrostci 7–13 let, mimo práci vsi; jejich počet dál omezuje stáda                                                                     | Martin, 19. 10. 2026   |
 | Dospělí ani starší nepasou; v rovnovážném hospodaření pasáci nestojí práci, omezují počet kusů                                                  | návrh Clauda           |
 | Nouzová porážka – prasata jen nad polovinu toho, kolik prasat uživí les (chovné prasnice)                                                       | Martin (19. 10. 2026)  |
-| Chovné prasnice z nosnosti lesa jako u podzimní porážky, aspoň chovný pár; letošní selata se nepočítají                                         | návrh Clauda           |
+| Chovné prasnice z nosnosti lesa jako u podzimní porážky, aspoň chovný pár; letošní selata se do 31. 8. nepočítají                               | návrh Clauda           |
+| „Ano ke všem návrhům“: letošní selata smějí od 1. 9. na nouzovou porážku; jehňata, kůzlata a telata dál ne                                      | Martin (19. 10. 2026)  |
 | Porážka zmenší stádo v nosnosti jen o maso, které ves do 31. 8. sní pod stropem; zbytek žije (Martin: co nejvíc jídla)                          | návrh Clauda           |
 | Plán stáda bez stropu výrostků v den rozhodnutí – výrostci omezí stádo jen přes podíl, který uhlídali                                           | návrh Clauda           |

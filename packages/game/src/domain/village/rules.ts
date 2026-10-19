@@ -454,7 +454,10 @@ export const WOOL = {
  * kouscích), a nejvýš tolik, kolik pod stropem masa ve stravě (DIET.caps.meat) pomůže. Když
  * schodek celý nepokryje (málo zvířat navíc, strop masa), porazí jen tehdy, zvedne-li příděl
  * aspoň o `minGain` (2 procentní body) – jinak by po každém úmrtí (méně ovcí na vlnu) porážela
- * po kusech. Letošní mláďata na nouzovou porážku nejdou.
+ * po kusech. Letošní mláďata na nouzovou porážku nejdou – kromě selat od `pigletsFromMonth`
+ * (1. 9.; diet.md – Nouzová porážka, Martin 19. 10. 2026: „Ano ke všem návrhům“ na „letošní selata
+ * smějí od 1. 9. na nouzovou porážku“ – maso se 1. 9. kazí a do podzimní porážky ves hladoví;
+ * selata mají v září ≈ 5 měsíců a prasata se na podzim porážela tak jako tak).
  * Chovné prasnice (diet.md – Nouzová porážka; Martin 19. 10. 2026: „Spodní hranice chovných
  * prasnic: v nouzi se smí porážet jen do poloviny toho, kolik prasat uživí les.“): prasata jen nad
  * `pigForestShare` nosnosti lesa pro prasata (tatáž nosnost jako u podzimní porážky –
@@ -465,6 +468,7 @@ export const EMERGENCY_SLAUGHTER = {
   reserveShare: 0.05,
   minGain: 0.02,
   pigForestShare: 0.5,
+  pigletsFromMonth: 9,
 } as const;
 // population.md – Nové obydlí (společná práce za posledních 30 dní pro „má na to“)
 export const COMMON_LABOR_HISTORY_DAYS = 30;
