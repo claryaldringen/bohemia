@@ -422,7 +422,7 @@ export interface VillageView {
   storesMonths: number;
   satiation: number;
   commonLaborPerDay: number;
-  /** Některá domácnost je plná a nečeká na ni žádné nové obydlí (upozornění). */
+  /** Některá rodina se může oddělit a nečeká na ni žádné obydlí (upozornění „Rodina čeká na dům“). */
   fullHousehold: boolean;
   /** Nabídka staveb – hráč staví kdy chce, předem musí ves mít suroviny a lidi k osídlení. */
   build: Record<BuildKind, BuildOption>;
@@ -1304,6 +1304,21 @@ function newcomerText(direction: Direction8, group: NewcomerGroup, people: numbe
   return `${lead} – ${formatInteger(people)} ${plural(people, 'člověk', 'lidé', 'lidí')}.`;
 }
 
+/** Věta kroniky o svatbě ve vsi (kinship.md – Sňatky): kdo se k komu stěhoval, vdova. */
+function marriageText(event: Extract<ChronicleEvent, { kind: 'marriage' }>): string {
+  if (event.groomMoved) {
+    return event.widow
+      ? 'Svatba – k vdově se přiženil muž ze vsi.'
+      : 'Svatba – ženich se přiženil k nevěstě.';
+  }
+  if (event.fromDwellingId === event.toDwellingId) {
+    return event.widow ? 'Svatba – vdova se znovu vdala.' : 'Svatba ve vsi.';
+  }
+  return event.widow
+    ? 'Svatba – vdova se přestěhovala k ženichovi.'
+    : 'Svatba – nevěsta se přestěhovala k ženichovi.';
+}
+
 /** Text události kroniky česky. */
 export function chronicleText(event: ChronicleEvent, villageName: string): string {
   switch (event.kind) {
@@ -1320,9 +1335,13 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
     case 'household-merged':
       return 'Zbytek domácnosti se přestěhoval k příbuzným nebo sousedům.';
     case 'marriage':
-      return 'Svatba – nevěsta se přestěhovala k ženichovi.';
+      return marriageText(event);
     case 'bride-from-outside':
       return 'Muž si přivedl nevěstu ze sousední vsi.';
+    case 'groom-from-outside':
+      return event.widow
+        ? 'K vdově se přiženil muž ze sousední vsi.'
+        : 'K ženě se přiženil muž ze sousední vsi.';
     case 'married-away':
       return 'Dcera se vdala do sousední vsi.';
     case 'construction-finished':

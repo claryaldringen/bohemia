@@ -815,7 +815,19 @@ describe('chronicleText', () => {
     { day: DAY, kind: 'household-founded', dwellingId: 2 },
     { day: DAY, kind: 'household-merged', fromDwellingId: 2, toDwellingId: 1 },
     { day: DAY, kind: 'marriage', fromDwellingId: 2, toDwellingId: 1 },
+    { day: DAY, kind: 'marriage', fromDwellingId: 2, toDwellingId: 2, widow: true },
+    { day: DAY, kind: 'marriage', fromDwellingId: 1, toDwellingId: 2, groomMoved: true },
+    {
+      day: DAY,
+      kind: 'marriage',
+      fromDwellingId: 1,
+      toDwellingId: 2,
+      groomMoved: true,
+      widow: true,
+    },
     { day: DAY, kind: 'bride-from-outside', dwellingId: 1 },
+    { day: DAY, kind: 'groom-from-outside', dwellingId: 1 },
+    { day: DAY, kind: 'groom-from-outside', dwellingId: 1, widow: true },
     { day: DAY, kind: 'married-away', dwellingId: 1 },
     {
       day: DAY,
@@ -863,6 +875,20 @@ describe('chronicleText', () => {
 
   it('každá událost má český text', () => {
     for (const event of events) expect(chronicleText(event, 'Libice')).toMatch(/\S.*\.$/);
+  });
+
+  it('svatba: kdo se stěhoval a vdova (kinship.md – Sňatky)', () => {
+    const texts = events
+      .filter((e) => e.kind === 'marriage' || e.kind === 'groom-from-outside')
+      .map((e) => chronicleText(e, 'Libice'));
+    expect(texts).toEqual([
+      'Svatba – nevěsta se přestěhovala k ženichovi.',
+      'Svatba – vdova se znovu vdala.',
+      'Svatba – ženich se přiženil k nevěstě.',
+      'Svatba – k vdově se přiženil muž ze vsi.',
+      'K ženě se přiženil muž ze sousední vsi.',
+      'K vdově se přiženil muž ze sousední vsi.',
+    ]);
   });
 
   it('sklizeň s tisíci a přestavba ve 4. pádě', () => {
