@@ -278,7 +278,15 @@ export function pathVillageOf(state: VillageState, day: number, landscape: Lands
       : {}),
     obstacles: changes,
     ...(roads.length > 0
-      ? { roads: roads.map((r) => ({ id: r.id, points: r.points, grade: r.grade })) }
+      ? {
+          roads: roads.map((r) => ({
+            id: r.id,
+            points: r.points,
+            grade: r.grade,
+            // vozová cesta (wagons.md) – ves bez vozových cest beze změny
+            ...(r.cart ? { cart: true } : {}),
+          })),
+        }
       : {}),
     ...(pens.length > 0 ? { pens } : {}),
     ...(state.livestock ? { livestock: pastureLivestock(state, day) } : {}),

@@ -1233,6 +1233,16 @@ export interface Road {
    * další roční kontroly).
    */
   quiet?: RoadQuietPiece[];
+  /**
+   * Vozová cesta (wagons.md – Vyjeté cesty): vyjetá vozy, širší, ve scéně dvě koleje, vůz po ní
+   * projede i lesem. Chybí = pěší cesta.
+   */
+  cart?: true;
+  /**
+   * Provoz vozů posledních let (jízd za den – roční průměr, nejnovější poslední; nejvýš
+   * CART_ROADS.dropYears) – podle něj cesta příznak vozová dostane a ztratí. Chybí = bez vozů.
+   */
+  cartTraffic?: number[];
 }
 
 /** Tichý kus osy pevné cesty – střed kusu a roky po sobě pod polovinou prahu. */
@@ -1289,7 +1299,16 @@ export interface VillageRoads {
    * Práce od poslední roční kontroly (od 1. 11.) po místech – z rozdělení práce dne. Roční síť
    * z ní bere průměrné člověkodny na den (`manDays / days`).
    */
-  labor: { from: number; days: number; shares: RoadLaborShare[] };
+  labor: {
+    from: number;
+    days: number;
+    shares: RoadLaborShare[];
+    /**
+     * Jízdy vozů od poslední roční kontroly po cílech (wagons.md – Vozová síť): kam vozy jezdily
+     * (bod cíle), jakým vozem a kolikrát – sčítá svoz (`addRoadCartTrips`). Chybí = žádné.
+     */
+    cart?: RoadCartTrips[];
+  };
   /** Jabloně vysazené hráčem podél úseků (roads.md – Vysazení jabloní); chybí = žádné. */
   apples?: RoadApple[];
   /**
@@ -1308,6 +1327,22 @@ export interface VillageRoads {
    * už žádný úsek nekončí. Chybí = žádné.
    */
   cutEnds?: RoadPoint[];
+  /**
+   * Úseky sítě vozů nad prahem z minulé roční kontroly (osy po ≈ 4 m) – kde vozy jezdí nad prahem
+   * i letos, vznikne vozová cesta (wagons.md – Vyjeté cesty). Chybí = žádné.
+   */
+  cartCandidates?: RoadPoint[][];
+}
+
+/** Druh vozu (wagons.md – Vůz): dvoukolák (svoz), čtyřkolák (obchod – hůř se otáčí). */
+export type CartKind = 'two-wheel' | 'four-wheel';
+
+/** Jízdy vozů k jednomu cíli za rok cest (wagons.md – Vozová síť). */
+export interface RoadCartTrips {
+  x: number;
+  z: number;
+  kind: CartKind;
+  trips: number;
 }
 
 /**

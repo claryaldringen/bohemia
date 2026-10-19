@@ -237,6 +237,37 @@ export const ROADS = {
   // provoz se v roční kontrole posuzuje po kusech osy ≈ 25 m
   pieceM: 25,
 } as const;
+// wagons.md – Vozová síť a vyjeté cesty (Martin, 19. 10. 2026: „Vozy mohou cestu vyjezdit, ale
+// nemají takovou prostupnost jako lidé … ve svahu, kde lidé zvládnou chodit rovně, vůz bude muset
+// vyjezdit serpentiny.“; čísla návrh Clauda – rešerše fáze 1 je ověří): sklon ve směru jízdy nad
+// `maxGrade` vůz nevyjede, pod ním stoupání zdražuje se čtvercem (`gradeCost` při mezi – nejlevnější
+// stoupání je polovina meze, proto serpentiny); louka, úhor a strniště 1 (pomaleji než po pevné
+// cestě – `roadCost`), zoraný díl a mokřina ještě pomaleji, brod pomalu. Vůz je široký `widthM` –
+// kolem domů a plotů se vejde jen tam, kde je místo. Dvoukolák zatočí na krok mřížky o 2 směry ze
+// 16 (≤ 53°, poloměr ≈ 4–5 m), čtyřkolák o 1 (≤ 27°, ≈ 8–11 m); každá změna směru trochu stojí
+// (`turnCost` m za směr).
+export const CART_ROUTES = {
+  maxGrade: 0.1,
+  gradeCost: 4,
+  ploughedCost: 1.6,
+  wetCost: 1.8,
+  fordCost: 3,
+  roadCost: 0.6,
+  widthM: 2.5,
+  turnSteps: { 'two-wheel': 2, 'four-wheel': 1 },
+  turnCost: 1.5,
+  /** Hledání končí za takovou cenou (m chůze volů po louce) – dál vůz nevozí. */
+  maxCost: 4000,
+} as const;
+// wagons.md – Vyjeté cesty (návrh Clauda): úsek, kudy vozy dva roky po sobě jezdí aspoň
+// `tripsPerDay` jízd denně (roční průměr – ≈ 90 jízd za rok), se stane vozovou cestou; vozová cesta,
+// kudy 5 let po sobě jezdí pod polovinou, je zas jen pěší (zaroste podle provozu lidí)
+export const CART_ROADS = {
+  tripsPerDay: 0.25,
+  years: 2,
+  dropYears: 5,
+  dropShare: 0.5,
+} as const;
 // roads.md – Stromy u pevných cest (Martin: napřed keř, stojí, dokud samy neodumřou; čísla návrh
 // Clauda): místa po 12–20 m střídavě po stranách 2,5–4 m od osy, stromy nejméně 8 m od sebe;
 // uchycení 10 % ročně na volném místě u cesty starší 5 let; polovina dubů, zbytek jilmy a topoly;

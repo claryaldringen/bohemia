@@ -51,6 +51,12 @@ A po vyšlapané pěšině se chodí lépe – cesta na vzdálené pole po ní s
   nebo svah stojí jako cesta přes louku – je to mez, po které se chodí. Dál platí jen brod
   a neprůchodná místa a ploty a stavby (hřbitov, ohrada, svatyně, domy a pozemky) – podrobnosti
   v [roads.md – Cesta je cesta](roads.md#cesta-je-cesta--povrch-pod-ní-a-zarůstání).
+- **Vozy** ([wagons.md](wagons.md) – Vozová síť; Martin, 19. 10. 2026: „ve svahu, kde lidé
+  zvládnou chodit rovně, vůz bude muset vyjezdit serpentiny“) mají vlastní síť na stejné mřížce
+  (`paths/cart.ts`): sklon ve směru jízdy nejvýš 10 %, směr jízdy v hledání (poloměr otáčení),
+  les jen po pevné cestě, voda jen brodem. Vyjeté vozové cesty jsou pevné cesty s příznakem vozová
+  ([roads.md](roads.md) – Vozové cesty) – lidé po nich chodí jako po každé pevné cestě, síť pěšin se
+  kvůli vozům nemění (ves bez vozů beze změny bit po bitu).
 - **Slévání:** vyšlapaná pěšina je pohodlnější (až o polovinu), takže kdo jde po ní, jde i kus
   oklikou – trasy sousedů se slijí do společné pěšiny a vznikne síť. **Žádné souběžné pěšiny**
   (Martin, 18. 10. 2026: „Pokud už cesta vede tím směrem, lidé by měli použít tu, ne si prošlapat
