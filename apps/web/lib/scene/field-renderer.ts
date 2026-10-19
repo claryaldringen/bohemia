@@ -33,6 +33,7 @@ import {
 } from './field-crops';
 import {
   GRID_PER_CELL,
+  appendAll,
   fieldBlockContent,
   groupFieldBlocks,
   mergeFieldBlocks,
@@ -700,11 +701,11 @@ export class FieldRenderer {
     const weeds: PlantInstance[] = [];
     const pegs: Peg[] = [];
     for (const view of this.fields.values()) {
-      for (const kind of CROP_KINDS) crops[kind].push(...view.plants.crops[kind]);
-      stooks.push(...view.plants.stooks);
-      heaps.push(...view.plants.heaps);
-      weeds.push(...view.plants.weeds);
-      pegs.push(...view.pegs);
+      for (const kind of CROP_KINDS) appendAll(crops[kind], view.plants.crops[kind]);
+      appendAll(stooks, view.plants.stooks);
+      appendAll(heaps, view.plants.heaps);
+      appendAll(weeds, view.plants.weeds);
+      appendAll(pegs, view.pegs);
     }
     const hay = [
       ...[...this.fields.values()].flatMap((v) => v.plants.hay),
