@@ -8,6 +8,7 @@ import { fallowPastureHa, hayPlanNaturalHa, PASTURE, pastureParts } from './past
 import { HAY, HAY_EATERS, HAY_WINTER_DAYS, winterHayAvailable } from './hay';
 import { legumeSupplyPerYear } from './legumes';
 import { ageGroup } from './people';
+import { woolSheep } from './wool';
 import { FOOD_NEED_KG_PER_YEAR, LEGUMES } from './rules';
 import type {
   ChronicleEvent,
@@ -142,6 +143,23 @@ export function startingLivestock(
     young: herdRecord(() => 0),
     ...(land ? { land: { ...land } } : {}),
   };
+}
+
+/**
+ * Stádo osadníků nové vsi (diet.md – Dobytek, Oděv): výchozí stádo, ovcí ale aspoň tolik, kolik
+ * jich dá vlnu na oděv pro všechny osadníky (`woolSheep`, nahoru na celé kusy) – osadníci se
+ * oblékají sami.
+ */
+export function foundingLivestock(
+  state: Pick<VillageState, 'people'>,
+  day: number,
+): LivestockState {
+  const livestock = startingLivestock(state);
+  livestock.herds.sheep = Math.max(
+    livestock.herds.sheep,
+    Math.ceil(woolSheep(state, day) - EPSILON),
+  );
+  return livestock;
 }
 
 /** Dobytek vsi (mutuje stav – vsi uložené před dobytkem dostanou výchozí stádo). */
@@ -394,6 +412,8 @@ export interface WinterInput {
   minCows?: number;
   /** Podíl stáda, který pasáci přes rok uhlídali (diet.md – Pasáci); bez údaje vše. */
   herding?: number;
+  /** Ovce na vlnu pro oděv všech (`woolSheep` – diet.md, Oděv); bez údaje jen chovný pár. */
+  minSheep?: number;
   /** Cena jídla v práci (`foodCosts` – Rovnovážné hospodaření); bez údaje typická. */
   costs?: FoodCosts;
   /** Pasáků bez práce vsi (děti od 7 let a starší); bez údaje dost. */
@@ -408,6 +428,7 @@ export interface WinterInput {
 function balanceOptions(input: WinterInput): BalanceOptions {
   return {
     minCows: input.minCows ?? 0,
+    minSheep: input.minSheep ?? 0,
     ...(input.costs ? { costs: input.costs } : {}),
     ...(input.freeHerders !== undefined ? { freeHerders: input.freeHerders } : {}),
     planLegumes: true,
@@ -415,10 +436,13 @@ function balanceOptions(input: WinterInput): BalanceOptions {
 }
 
 /**
- * Pořadí, v jakém si stáda berou pastvu a seno (diet.md – Skladba stáda, Martin 19. 10. 2026):
- * krávy, které ves drží vždy, pak ovce („primárním zvířetem by měly být ovce“), kozy a zbytek krav.
+ * Pořadí, v jakém si stáda berou pastvu a seno (diet.md – Skladba stáda, Oděv; Martin
+ * 19. 10. 2026): ovce na vlnu pro oděv všech („Ovce jsou hlavně kvůli vlně, aby se lidé mohli
+ * vůbec oblékat.“), krávy, které ves drží vždy (mléko a voly), pak další ovce („primárním zvířetem
+ * by měly být ovce“), kozy a zbytek krav.
  */
-const GRAZING_ORDER: readonly ('floor' | 'sheep' | 'goat' | 'cow')[] = [
+const GRAZING_ORDER: readonly ('wool' | 'floor' | 'sheep' | 'goat' | 'cow')[] = [
+  'wool',
   'floor',
   'sheep',
   'goat',
@@ -426,11 +450,32 @@ const GRAZING_ORDER: readonly ('floor' | 'sheep' | 'goat' | 'cow')[] = [
 ];
 
 /**
+ * Komu pasáci stačili (diet.md – Pasáci, Oděv): uhlídaný podíl `watched` celé potřeby pasáků
+ * (kusy ÷ kolik jich pasák uhlídá) jde napřed na ovce na vlnu (`woolSheep` kusů – podíl `wool`),
+ * zbytek rovným podílem na ostatní kusy (`rest`). Bez ovcí na vlnu oba podíly = `watched`.
+ */
+function watchedShares(
+  herds: Record<HerdSpecies, number>,
+  woolSheep: number,
+  watched: number,
+): { wool: number; rest: number } {
+  if (watched >= 1 - EPSILON || woolSheep <= EPSILON) return { wool: watched, rest: watched };
+  const need = HERD_SPECIES.reduce((sum, s) => sum + herds[s] / HERDING.perHerder[s], 0);
+  const wool = woolSheep / HERDING.perHerder.sheep;
+  const restNeed = need - wool;
+  const covered = watched * need;
+  return {
+    wool: Math.min(1, covered / wool),
+    rest: restNeed > EPSILON ? Math.max(0, Math.min(1, (covered - wool) / restNeed)) : watched,
+  };
+}
+
+/**
  * Co stáda unesou přes zimu – kusy po druzích (aspoň chovný pár, který ves má). Pastva a seno se
- * dělí podle přednosti (`GRAZING_ORDER` – voli první, pak krávy na mléko a voly, ovce, kozy – ty
- * spásají napřed křoviny –, zbytek krav); prasata podle lesa (pasou se v něm celý rok – žaludy,
- * bukvice, kořínky); a jen tolik, kolik pasáci uhlídali (`herding` – co nikdo neuhlídal, jde na
- * maso).
+ * dělí podle přednosti (`GRAZING_ORDER` – voli první, pak ovce na vlnu, krávy na mléko a voly,
+ * další ovce, kozy – ty spásají napřed křoviny –, zbytek krav); prasata podle lesa (pasou se v něm
+ * celý rok – žaludy, bukvice, kořínky); a jen tolik, kolik pasáci uhlídali (`herding` – co nikdo
+ * neuhlídal, jde na maso) – pasáci hlídají napřed ovce na vlnu (`watchedShares`).
  */
 export function winterTargets(
   state: VillageState,
@@ -438,7 +483,10 @@ export function winterTargets(
   input: WinterInput,
 ): Record<HerdSpecies, number> {
   const herds = villageHerds(state);
-  const watched = Math.min(1, Math.max(0, input.herding ?? 1));
+  const woolHeads = Math.min(herds.sheep, Math.max(0, input.minSheep ?? 0));
+  const watched = watchedShares(herds, woolHeads, Math.min(1, Math.max(0, input.herding ?? 1)));
+  // ovce na vlnu, které pasáci uhlídali
+  const woolSheep = woolHeads * watched.wool;
   const breeding = (s: HerdSpecies): number => Math.min(herds[s], LIVESTOCK.breedingMin);
   let pasture = Math.max(0, pastureHa(state, day) - input.oxen * LIVESTOCK.oxPastureHa);
   let browse = goatBrowseHa(state);
@@ -455,7 +503,9 @@ export function winterTargets(
       0,
       Math.min(
         wanted - targets[species],
-        herds[species] * watched - targets[species],
+        (species === 'sheep' ? woolSheep : 0) +
+          (herds[species] - (species === 'sheep' ? woolHeads : 0)) * watched.rest -
+          targets[species],
         (pasture + own) / per,
         hay / winterHay,
       ),
@@ -468,10 +518,11 @@ export function winterTargets(
     targets[species] += heads;
   };
   for (const step of GRAZING_ORDER) {
-    if (step === 'floor') take('cow', input.minCows ?? 0);
+    if (step === 'wool') take('sheep', woolSheep);
+    else if (step === 'floor') take('cow', input.minCows ?? 0);
     else take(step, Infinity);
   }
-  targets.pig = Math.min(herds.pig * watched, pigForestHa(state) / LIVESTOCK.forestHaPerPig);
+  targets.pig = Math.min(herds.pig * watched.rest, pigForestHa(state) / LIVESTOCK.forestHaPerPig);
   return herdRecord((s) => Math.max(breeding(s), targets[s]));
 }
 
@@ -606,6 +657,8 @@ const MAX_PLAN_STEPS = 100_000;
 export interface BalanceOptions {
   /** Krávy, které ves drží vždy (`breedingCows` – mléko a telata pro voly). */
   minCows?: number;
+  /** Ovce na vlnu pro oděv všech (`woolSheep` – diet.md, Oděv) – spodní hranice ovcí. */
+  minSheep?: number;
   /** Cena jídla v práci (`foodCosts`); bez údaje typická ves bez řemesel. */
   costs?: FoodCosts;
   /** Pasáků bez práce vsi (děti od 7 let a starší – `freeHerderCapacity`); bez údaje dost. */
@@ -729,12 +782,14 @@ export function sizeHerdsToNeed(
     used.legume += o.legume;
     used.herders += o.herders;
   };
-  // chovný pár od každého druhu, krávy na mléko a voly
+  // chovný pár od každého druhu, krávy na mléko a voly, ovce na vlnu pro oděv (diet.md – Oděv)
   for (const species of HERD_SPECIES) {
     const floor =
       species === 'cow'
         ? Math.max(LIVESTOCK.breedingMin, options.minCows ?? 0)
-        : LIVESTOCK.breedingMin;
+        : species === 'sheep'
+          ? Math.max(LIVESTOCK.breedingMin, options.minSheep ?? 0)
+          : LIVESTOCK.breedingMin;
     const unit = Math.min(keep[species], floor);
     if (unit > EPSILON) apply(offer(species, unit));
   }
@@ -847,8 +902,9 @@ export function starveHerds(
  * (`sizeHerdsToNeed` – i dospělé kusy; v roce zmenšení tak vznikne jednorázový přebytek masa, do
  * léta se zkazí). Když stádo potřebu nepokryje a maso v zásobě s porážkou roční potřebu masa
  * (bílkoviny po obilí, mléku, vejcích a luštěninách) taky ne, jdou na maso i letošní mláďata navíc
- * (prasata první, ovce naposled, nejvýš polovina mláďat – druhá stádo rozšíří). Chovný pár
- * a krávy na mléko a voly (`minCows`) zůstanou. Vrátí událost kroniky, nebo null.
+ * (prasata první, ovce naposled, nejvýš polovina mláďat – druhá stádo rozšíří). Chovný pár,
+ * krávy na mléko a voly (`minCows`) a ovce na vlnu (`minSheep`) zůstanou. Vrátí událost kroniky,
+ * nebo null.
  */
 export function slaughter(
   state: VillageState,
@@ -875,10 +931,13 @@ export function slaughter(
       0,
       livestock.young[species] * LIVESTOCK.youngForMeat - (herds[species] - keep[species]),
     );
+    // chovný pár, krávy na mléko a voly a ovce na vlnu (diet.md – Oděv) na maso nejdou
     const floor =
       species === 'cow'
         ? Math.max(LIVESTOCK.breedingMin, input.minCows ?? 0)
-        : LIVESTOCK.breedingMin;
+        : species === 'sheep'
+          ? Math.max(LIVESTOCK.breedingMin, input.minSheep ?? 0)
+          : LIVESTOCK.breedingMin;
     const spare = Math.max(0, keep[species] - Math.min(herds[species], floor));
     const extra = Math.min(youngLeft, spare, shortfall / LIVESTOCK.meatKg[species]);
     if (extra <= EPSILON) continue;

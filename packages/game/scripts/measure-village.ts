@@ -484,6 +484,14 @@ interface RunResult {
     starved: number;
     herds: Record<HerdSpecies, number>;
     meatKg: number;
+    /**
+     * Porážky, po kterých ovce nedaly vlnu na oděv pro všechny (`wool-short` – diet.md, Oděv),
+     * a podíl oděvu z vlny na konci běhu. Starší kontrolní body je nemají.
+     */
+    woolShort?: number;
+    woolEnd?: number;
+    /** Roky od založení vsi u porážek s nedostatkem vlny (celé roky). */
+    woolShortAges?: number[];
   };
   /**
    * Hřbitovy na konci běhu (cemetery.md – Mohyly podle významu): pohřbení, obsazená místa, mohyly
@@ -901,6 +909,11 @@ function runVillage(start: VillageState, startLand: number, opts: RunOptions): R
         result.livestock.slaughterKg += e.kg;
       } else if (e.kind === 'meat-spoiled') {
         result.livestock.spoiledKg += e.kg;
+      } else if (e.kind === 'wool-short') {
+        result.livestock.woolShort = (result.livestock.woolShort ?? 0) + 1;
+        (result.livestock.woolShortAges ??= []).push(
+          Math.floor((e.day - start.foundedDay) / DAYS_PER_YEAR),
+        );
       } else if (e.kind === 'herd-starved') {
         result.livestock.starved += Object.values(e.animals).reduce((sum, n) => sum + n, 0);
       }
@@ -1015,6 +1028,7 @@ function runVillage(start: VillageState, startLand: number, opts: RunOptions): R
   result.wood.finalLogs = state.woodLogs ?? 0;
   result.cemetery = cemeteryAtEnd(state);
   if (state.livestock) result.livestock.herds = { ...state.livestock.herds };
+  result.livestock.woolEnd = state.livestock?.wool ?? 1;
   result.livestock.meatKg = state.meatKg ?? 0;
   return result;
 }
@@ -1787,7 +1801,27 @@ function report(villages: VillageResult[], probes: Record<ProbeName, ProbeSummar
       herdVillages.reduce((sum, r) => sum + r.livestock.starved, 0) /
         Math.max(1, herdVillages.length),
       1,
-    )} kusů na ves`,
+    )} kusů na ves | ovcí chybělo na vlnu po ${pct(
+      herdVillages.reduce((sum, r) => sum + (r.livestock.woolShort ?? 0), 0) /
+        Math.max(1, herdVillages.length * config.years),
+    )} porážek (v roce vsi medián ${fmt(
+      quantile(
+        herdVillages.flatMap((r) => r.livestock.woolShortAges ?? []),
+        0.5,
+      ),
+      0,
+    )}, p90 ${fmt(
+      quantile(
+        herdVillages.flatMap((r) => r.livestock.woolShortAges ?? []),
+        0.9,
+      ),
+      0,
+    )}), vlna na oděv na konci medián ${pct(
+      quantile(
+        herdVillages.map((r) => r.livestock.woolEnd ?? 1),
+        0.5,
+      ),
+    )}`,
     'info',
   );
   const landGone = builders.filter((r) => r.landGoneYear !== null).length;

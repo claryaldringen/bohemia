@@ -809,6 +809,11 @@ export type ChronicleEvent = { day: number } & (
    * po druzích na setiny.
    */
   | { kind: 'herd-starved'; animals: Partial<Record<HerdSpecies, number>> }
+  /**
+   * Při porážce: ovce, které ves nechala přes zimu (`sheep`, na desetiny), nedají vlnu na oděv pro
+   * všechny – potřeba by byla `needed` ovcí (diet.md – Oděv).
+   */
+  | { kind: 'wool-short'; sheep: number; needed: number }
   /** Spřežení volů v ohradě je vycvičené a orá (oxen.md). */
   | { kind: 'team-ready'; penId: number }
   /** Spřežení dosloužilo – voli zestárli (oxen.md, ≈ 10 let), šli na maso. */
@@ -1578,6 +1583,11 @@ export interface LivestockState {
    * starší a dospělí uhlídali (v plných pasácích). Chybí = zatím nic (vsi uložené dřív).
    */
   herding?: { needDays: number; watchedDays: number };
+  /**
+   * Na jaký podíl oděvu dají vlnu ovce přezimující od poslední porážky (diet.md – Oděv; 0–1,
+   * `recordWool`). Chybí = dost (vsi uložené dřív a nové vsi do první porážky).
+   */
+  wool?: number;
 }
 
 /** Seno (oxen.md – Seno): zásoba, letošní seč a zima. */

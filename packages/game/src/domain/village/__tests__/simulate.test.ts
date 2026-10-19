@@ -583,18 +583,22 @@ describe('advanceVillage – založení vsi', () => {
     const zemnice = s0.constructions[0]!;
     let s = s0;
     let last = -1;
+    let stalled = 0;
     let finishedDay: number | null = null;
     for (let d = day; d < day + 365 && finishedDay === null; d++) {
       s = advanceVillage(s, d, null);
       const site = s.constructions.find((c) => c.id === zemnice.id);
       if (site) {
-        // průběh stavby je vidět – roste, ale ne skokem
-        expect(site.done).toBeGreaterThan(last);
+        // průběh stavby je vidět – roste, ale ne skokem; jen porážka 1. 11. (osadníci nemají seno
+        // – na maso jdou ovce nad chovný pár) zabere den nebo dva všechnu práci
+        expect(site.done).toBeGreaterThanOrEqual(last);
+        if (site.done <= last) stalled++;
         expect(site.done).toBeLessThan(site.cost);
         last = site.done;
         expect(s.dwellings).toEqual([]);
       } else finishedDay = d;
     }
+    expect(stalled).toBeLessThanOrEqual(2);
     // ≈ 60 člověkodní ze společné práce startovní domácnosti – desítky dní, ne den
     expect(finishedDay).not.toBeNull();
     expect(finishedDay! - day).toBeGreaterThan(20);

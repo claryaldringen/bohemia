@@ -74,7 +74,8 @@ describe('výchozí stádo', () => {
     expect(startingHerds(1)).toEqual({ sheep: 3, goat: 1, pig: 2, cow: 1 });
     expect(startingHerds(4)).toEqual({ sheep: 12, goat: 4, pig: 8, cow: 2 });
     const s = village();
-    expect(s.livestock!.herds).toEqual(startingHerds(1));
+    // osadníci (2 dospělí, 2 děti) mají ovcí na vlnu pro oděv všech – 4,8 kg ÷ 0,8 kg (Oděv)
+    expect(s.livestock!.herds).toEqual({ ...startingHerds(1), sheep: 6 });
     expect(villageChickens(s)).toBe(2);
   });
 

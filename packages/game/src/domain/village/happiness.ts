@@ -12,6 +12,7 @@ import {
   type WindowSegment,
 } from './rules';
 import { sacredHappiness } from './sacred';
+import { woolUnhappiness } from './wool';
 import type { ChronicleEvent, HappinessState, VillageState } from './types';
 
 // Štěstí obyvatel (happiness.md): cílová hodnota z hladu, úmrtí, přeplněnosti, dřiny, zásob
@@ -66,11 +67,13 @@ export interface HappinessFactors {
   meat: number;
   /** Posvátná místa – nejvýš +40. */
   sacred: number;
+  /** Chybí vlna na oděv – až 6 podle podílu, na který ovce vlnu nedají (diet.md – Oděv). */
+  wool: number;
 }
 
 /**
  * Cílové štěstí = 50 + posvátná místa + zásoby + ovoce + maso − hlad − úmrtí − přeplněnost − dřina
- * (0–100).
+ * − chybějící vlna (0–100).
  */
 export function happinessTarget(f: HappinessFactors): number {
   const value =
@@ -82,7 +85,8 @@ export function happinessTarget(f: HappinessFactors): number {
     f.hunger -
     f.deaths -
     f.crowding -
-    f.toil;
+    f.toil -
+    f.wool;
   return Math.min(HAPPINESS.max, Math.max(HAPPINESS.min, value));
 }
 
@@ -153,6 +157,7 @@ export function happinessFactors(
     fruit: fruit ? DIET.fruitHappiness : 0,
     meat: meatHappiness(meatShare),
     sacred: sacredHappiness(state, day, obstacles),
+    wool: woolUnhappiness(state),
   };
 }
 
