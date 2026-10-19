@@ -1,7 +1,7 @@
 import type { AbandonedStructure, NewcomerGroup } from '@bohemia/game';
 import { DIRECTION_NAMES, NEWCOMER_TEXTS } from './trade-names';
 import { formatInteger } from './village-format';
-import type { VillageView } from './village-view';
+import { productList, type VillageView } from './village-view';
 
 // Upozornění vsi (population.md – Co hráč vidí): plná domácnost, ves hladoví, lidé umírají hlady
 // (Hlad a vymření), stavby stojí, hřbitov je plný (cemetery.md), vesničané ušetřili posvátný dub
@@ -28,6 +28,8 @@ export type NoticeKind =
   | 'carpenter-no-wood'
   | 'cart-made'
   | 'cart-worn-out'
+  /** Vesničané koupili výrobky řemeslníků u souseda (crafts.md – Nákup u sousedů). */
+  | 'crafts-bought'
   | 'sacred-oak'
   | 'sacred-grove'
   | 'sacred-oak-died'
@@ -214,6 +216,14 @@ const CHRONICLE_NOTICES: Partial<
   // vozy od tesaře (wagons.md – Vůz)
   'cart-made': () => ({ kind: 'cart-made', tone: 'info', text: 'Tesař vyrobil vůz' }),
   'cart-worn-out': () => ({ kind: 'cart-worn-out', tone: 'warn', text: 'Vůz dosloužil' }),
+  // nákup u sousedů (crafts.md) – jen fakt: co a u koho
+  'crafts-bought': (entry) => ({
+    kind: 'crafts-bought',
+    tone: 'info',
+    text: `Vesničané koupili ${productList(entry.products ?? [])} u souseda${
+      entry.direction ? ` (${DIRECTION_NAMES[entry.direction].name})` : ''
+    }`,
+  }),
   // lidé od souseda (trade.md – Výměna lidí) – fakt, odkud přišli
   newcomer: (entry) => newcomerNotice(entry.group ?? 'family', entry),
   // nepasený příloh zarostl lesem a vypadl z pole (fields.md – Zarůstání)

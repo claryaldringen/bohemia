@@ -776,6 +776,7 @@ function targetKey(target: LaborTarget): string {
     const first = target.cells[0];
     return first ? `meadow-${first.x}-${first.y}` : 'meadow';
   }
+  if (target.kind === 'edge') return `edge-${target.direction}`;
   return `${target.kind}-${target.id}`;
 }
 
@@ -881,7 +882,9 @@ function placer(ctx: Context, share: SceneLaborShare, count: number): Placer {
     case 'domestic':
       return domestic(ctx);
     case 'trade':
-      // nosiči výpravy k sousedovi po zemské stezce (trade.md)
+      // nosiči výpravy k sousedovi po zemské stezce (trade.md); nákup u souseda bez stezky jde
+      // krajinou rovně ke kraji mapy (crafts.md – Nákup u sousedů)
+      if (t.kind === 'edge') return porters(ctx, null, [ctx.center, t]);
       return t.kind === 'trail' ? porters(ctx, t.id) : none;
     case 'haul': {
       // honák a nakladač s vozem (wagons.md – Vůz): nakladač u svozu jako nosiči snopů, sekáči
@@ -1864,10 +1867,14 @@ function roadWork(ctx: Context, roadId: number): Placer {
  * kraji mapy a zase zpět (skutečný čas jako ostatní postavy) – rozestoupení podle fáze, takže
  * tvoří karavanu po celé stezce.
  */
-function porters(ctx: Context, trailId: number): Placer {
-  const trail = (ctx.village.trails ?? []).find((t) => t.id === trailId);
-  if (!trail || trail.points.length < 2) return none;
-  const path = route(trail.points.map((p) => [p.x, p.z] as const));
+function porters(
+  ctx: Context,
+  trailId: number | null,
+  line?: readonly { x: number; z: number }[],
+): Placer {
+  const points = line ?? (ctx.village.trails ?? []).find((t) => t.id === trailId)?.points ?? [];
+  if (points.length < 2) return none;
+  const path = route(points.map((p) => [p.x, p.z] as const));
   return (_i, who) =>
     shuttle(path, {
       outClip: 'carry',

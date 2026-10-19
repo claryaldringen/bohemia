@@ -2076,3 +2076,22 @@ describe('buildVillageView – tesař a vozy (wagons.md)', () => {
     );
   });
 });
+
+describe('kronika – nákup u sousedů (crafts.md)', () => {
+  it('co ves koupila, u koho a za kolik obilí', () => {
+    expect(
+      chronicleText(
+        {
+          day: DAY,
+          kind: 'crafts-bought',
+          direction: 'NE',
+          get: { toolsKg: 9, woodToolsKg: 30 },
+          pay: { grainKg: 575 },
+        },
+        'Libice',
+      ),
+    ).toBe(
+      'Vesničané koupili nástroje a dřevěné nářadí u souseda (severovýchod) – zaplatili 575 kg obilí.',
+    );
+  });
+});
