@@ -3,10 +3,10 @@ import { dayIndexOf } from '../../calendar';
 import { foundVillage } from '../actions';
 import { axisCartCheck, cartRoutes, cartTraffic, type CartRoute } from '../paths/cart';
 import { computePathNetwork, type PathVillage } from '../paths/network';
-import { addRoadCartTrips, updateRoads, villageCartRoutes } from '../paths/roads';
+import { addRoadCartTrips, roadLengthM, updateRoads, villageCartRoutes } from '../paths/roads';
 import { CART_ROUTES } from '../rules';
 import { advanceVillage } from '../simulate';
-import type { CartKind, Dwelling, Person, VillageState } from '../types';
+import type { CartKind, Dwelling, Person, Road, VillageState } from '../types';
 import { house, part, pathLandscape, pathTestTerrain } from './paths-fixtures';
 import { withBuiltFirstDwelling } from './village-fixtures';
 
@@ -358,5 +358,204 @@ describe('vyjeté vozové cesty (roční kontrola)', () => {
       );
     }
     expect(chunked).toEqual(viaJson(whole));
+  }, 60_000);
+});
+
+// Vyježděná cesta (wagons.md – Vyjeté cesty; Martin, 19. 10. 2026: „pokud nějakou cestu vyjezdí
+// vůz, bude to vyježděná cesta. Pokud vůz takhle vyjezdí vyšlapanou cestu, tak to vozová cesta
+// přebije.“)
+
+/** Vzdálenost bodu od osy cesty (m, přesně – jen pro test). */
+function axisGap(road: Road, p: { x: number; z: number }): number {
+  let best = Infinity;
+  for (let k = 1; k < road.points.length; k++) {
+    const a = road.points[k - 1]!;
+    const b = road.points[k]!;
+    const dx = b.x - a.x;
+    const dz = b.z - a.z;
+    const l2 = dx * dx + dz * dz;
+    const t = l2 > 0 ? Math.min(1, Math.max(0, ((p.x - a.x) * dx + (p.z - a.z) * dz) / l2)) : 0;
+    best = Math.min(best, Math.hypot(p.x - (a.x + dx * t), p.z - (a.z + dz * t)));
+  }
+  return best;
+}
+
+/** Body osy po 2 m. */
+function axisSamples(road: Pick<Road, 'points'>): { x: number; z: number }[] {
+  const out: { x: number; z: number }[] = [];
+  for (let k = 1; k < road.points.length; k++) {
+    const a = road.points[k - 1]!;
+    const b = road.points[k]!;
+    const n = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / 2));
+    for (let s = k === 1 ? 0 : 1; s <= n; s++) {
+      out.push({ x: a.x + ((b.x - a.x) * s) / n, z: a.z + ((b.z - a.z) * s) / n });
+    }
+  }
+  return out;
+}
+
+/** Nejdelší souběžný kus dvou různých cest (do 12 m, směr do ≈ 37°) – m. */
+function longestParallel(roads: readonly Road[]): number {
+  let longest = 0;
+  for (const a of roads) {
+    for (const b of roads) {
+      if (a === b) continue;
+      const pts = axisSamples(a);
+      let run = 0;
+      pts.forEach((p, k) => {
+        const before = pts[Math.max(0, k - 1)]!;
+        const after = pts[Math.min(pts.length - 1, k + 1)]!;
+        const tx = after.x - before.x;
+        const tz = after.z - before.z;
+        const along = b.points.some((q, j) => {
+          if (j === 0) return false;
+          const s = b.points[j - 1]!;
+          const sx = q.x - s.x;
+          const sz = q.z - s.z;
+          const gap = axisGap({ ...b, points: [s, q] }, p);
+          const cos = Math.abs(tx * sx + tz * sz) / (Math.hypot(tx, tz) * Math.hypot(sx, sz) || 1);
+          return gap <= 12 && cos >= 0.8;
+        });
+        run = along ? run + 2 : 0;
+        longest = Math.max(longest, run);
+      });
+    }
+  }
+  return longest;
+}
+
+/** Ves s vyšlapanou cestou `points` a jízdami vozů k `target` dva roky (601, 602). */
+function cartYears(
+  points: { x: number; z: number }[],
+  target: { x: number; z: number },
+  setup: (s: VillageState) => void = () => {},
+): { state: VillageState; route: CartRoute } {
+  const s = withCarts();
+  setup(s);
+  const landscape = pathLandscape();
+  updateRoads(s, NOV1(600), landscape, null);
+  s.roads!.roads.push({
+    id: 50,
+    points,
+    bornDay: NOV1(590),
+    grade: 'trodden',
+    traffic: [5],
+    spots: [],
+  });
+  s.roads!.nextId = 51;
+  const route = villageCartRoutes(s, NOV1(601), landscape, null, 'two-wheel', [
+    { ...target, reachM: 9 },
+  ])![0]!;
+  for (const year of [601, 602]) {
+    s.roads!.labor.days = 365;
+    addRoadCartTrips(s.roads!, [{ ...target, kind: 'two-wheel', trips: 200 }]);
+    updateRoads(s, NOV1(year), landscape, null);
+  }
+  return { state: s, route };
+}
+
+/** Body trasy vozů, které nevedou po cestě, kterou vozy mají (do 5 m, nebo souběžně do 12 m). */
+function lostRoute(state: VillageState, route: CartRoute, from: number, to: number): number {
+  const carts = state.roads!.roads.filter((r) => r.cart || r.grade !== 'trodden');
+  return axisSamples(route).filter(
+    (p) => p.x >= from && p.x <= to && carts.every((r) => axisGap(r, p) > 12),
+  ).length;
+}
+
+describe('vyježděná cesta – vůz přebije vyšlapanou', () => {
+  it('vozy jedou kus po vyšlapané cestě – ten kus se stane vyježděnou, zbytek zůstane vyšlapaný', () => {
+    // cesta 140 m, vozy po ní jezdí jen k cíli na první třetině – medián provozu celé cesty je 0
+    const { state, route } = cartYears(
+      [
+        { x: -10, z: -22.5 },
+        { x: 130, z: -22.5 },
+      ],
+      { x: 40, z: -22.5 },
+    );
+    expect(route.reached).toBe(true);
+    const roads = state.roads!.roads;
+    const cart = roads.filter((r) => r.cart);
+    expect(cart.length).toBeGreaterThan(0);
+    // vyježděný kus leží na ose vyšlapané cesty a nevede za cíl
+    for (const r of cart) {
+      for (const p of r.points) expect(Math.abs(p.z + 22.5)).toBeLessThan(0.01);
+      expect(Math.max(...r.points.map((p) => p.x))).toBeLessThan(45);
+    }
+    // zbytek cesty (za cílem) zůstal vyšlapaný bez vozů
+    const rest = roads.filter((r) => !r.cart && r.points.some((p) => p.x > 100));
+    expect(rest.length).toBe(1);
+    expect(rest[0]!.grade).toBe('trodden');
+    // provoz vozů se neztratil a souběžná cesta nevznikla
+    expect(lostRoute(state, route, -5, 30)).toBe(0);
+    expect(longestParallel(roads)).toBeLessThan(25);
+  }, 60_000);
+
+  it('vozy objíždějí sad kus vedle vyšlapané cesty – osa vozu převezme, souběžná nezůstane', () => {
+    // vyšlapaná cesta vede sadem (5 čtverců), vůz sadem neprojede – objede ho souběžně kus vedle
+    const { state, route } = cartYears(
+      [
+        { x: -10, z: -22.5 },
+        { x: 130, z: -22.5 },
+      ],
+      { x: 130, z: -22.5 },
+      (s) => {
+        s.orchards = [
+          {
+            id: 70,
+            squares: [13, 14, 15, 16, 17].map((x) => ({
+              cell: { x, y: 8 },
+              areaM2: 225,
+              distanceM: 60,
+              plantingCost: 0,
+              plantingDone: 0,
+              plantedDay: NOV1(560),
+            })),
+          },
+        ];
+      },
+    );
+    expect(route.reached).toBe(true);
+    // vůz jede kus vedle cesty, souběžně do 12 m
+    const beside = axisSamples(route).filter((p) => p.x > 55 && p.x < 100);
+    expect(beside.length).toBeGreaterThan(5);
+    expect(beside.every((p) => Math.abs(p.z + 22.5) > 5 && Math.abs(p.z + 22.5) <= 12)).toBe(true);
+    const roads = state.roads!.roads;
+    // vyježděná cesta vede kudy vůz, vyšlapaná sadem zmizela, souběžná dvojice nezůstala
+    expect(lostRoute(state, route, -5, 120)).toBe(0);
+    expect(longestParallel(roads)).toBeLessThan(25);
+    expect(
+      roads.some((r) =>
+        axisSamples(r).some((p) => p.x > 60 && p.x < 95 && Math.abs(p.z + 22.5) < 1),
+      ),
+    ).toBe(false);
+  }, 60_000);
+
+  it('ve svahu vede pěšina rovně a vozy serpentinou – zůstanou obě cesty', () => {
+    const s = withCarts();
+    const landscape = SLOPE;
+    updateRoads(s, NOV1(600), landscape, null);
+    s.roads!.roads.push({
+      id: 50,
+      points: [
+        { x: -10, z: -10 },
+        { x: -10, z: -130 },
+      ],
+      bornDay: NOV1(590),
+      grade: 'trodden',
+      traffic: [5],
+      spots: [],
+    });
+    s.roads!.nextId = 51;
+    for (const year of [601, 602]) {
+      s.roads!.labor.days = 365;
+      addRoadCartTrips(s.roads!, [{ x: -10, z: -130, kind: 'two-wheel', trips: 200 }]);
+      updateRoads(s, NOV1(year), landscape, null);
+    }
+    const roads = s.roads!.roads;
+    const straight = roads.filter(
+      (r) => !r.cart && r.points.every((p) => Math.abs(p.x + 10) < 0.01),
+    );
+    expect(straight.reduce((sum, r) => sum + roadLengthM(r), 0)).toBeGreaterThan(40);
+    expect(roads.some((r) => r.cart)).toBe(true);
   }, 60_000);
 });

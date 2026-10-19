@@ -1620,11 +1620,18 @@ describe('pevné cesty v pohledu na ves (roads.md)', () => {
     ]);
   });
 
-  it('panel cesty: stupeň, délka, stromy, vylepšení s cenou; rozestavěné ve scéně s průběhem', () => {
+  it('panel cesty: druh, délka, stromy, vylepšení s cenou; rozestavěné ve scéně s průběhem', () => {
     const s = withRoads();
     const view = buildVillageView(record(s), landscape, DAY);
     const road = view.roads[0]!;
-    expect(road).toMatchObject({ id: 1, grade: 'trodden', lengthM: 80, building: null });
+    expect(road).toMatchObject({ id: 1, roadKind: 'trodden', lengthM: 80, building: null });
+    // vyšlapaná cesta s vozy se hráči jmenuje vyježděná (wagons.md – Vyježděná cesta)
+    const carted = withRoads();
+    carted.roads!.roads[0]!.cart = true;
+    expect(buildVillageView(record(carted), landscape, DAY).roads[0]).toMatchObject({
+      roadKind: 'cart',
+      kinds: [{ kind: 'cart', lengthM: 80 }],
+    });
     // stromy se počítají jen na místech úseku – tenhle úsek místa nemá
     expect(road.trees).toBe(0);
     expect(road.upgrades.map((u) => u.upgrade)).toEqual(['improved']);
@@ -1721,13 +1728,14 @@ describe('pevné cesty v pohledu na ves (roads.md)', () => {
     expect(road).toMatchObject({
       id: 1,
       segments: [1, 4, 6],
-      grade: 'trodden',
+      // vyšlapaný úsek s vozy je vyježděná cesta – zvlášť od vyšlapané (wagons.md)
+      roadKind: 'improved',
       lengthM: 200,
-      grades: [
-        { grade: 'trodden', lengthM: 120 },
-        { grade: 'improved', lengthM: 80 },
+      kinds: [
+        { kind: 'trodden', lengthM: 60 },
+        { kind: 'cart', lengthM: 60 },
+        { kind: 'improved', lengthM: 80 },
       ],
-      cartM: 60,
       ageYears: Math.floor(6000 / YEAR),
     });
     // úprava celé cesty – oba vyšlapané úseky, cena za ně dohromady

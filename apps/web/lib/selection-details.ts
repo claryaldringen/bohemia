@@ -351,19 +351,17 @@ export type SelectionDetails =
       id: number;
       /** Úseky cesty hráče (řetěz – roads.md, Cesta pro hráče). */
       segments: number[];
-      grade: RoadGrade;
+      /** Převládající druh cesty (vyšlapaná, vyježděná, upravená, hať) – portrét. */
+      roadKind: VillageRoad['roadKind'];
       lengthM: number;
-      /** Délka po stupních a vozová část (m). */
-      grades: VillageRoad['grades'];
-      cartM: number;
+      /** Délka po druzích (m). */
+      kinds: VillageRoad['kinds'];
       ageYears: number;
       /** Stojící stromy u cesty. */
       trees: number;
       /** Mokřina na ose (m) a brody – kde se hodí hať a lávka. */
       wetM: number;
       fords: number;
-      /** Vozová cesta – vyjetá vozy (wagons.md – Vyjeté cesty); bez údaje pěší. */
-      cart?: boolean;
       /** Rozestavěné vylepšení (stupeň, průběh 0–1, stromy ke skácení); jinak null. */
       building: { grade: RoadGrade; progress: number; treesToFell: number } | null;
       /** Vylepšení, která úsek nabízí – cena a proč teď nejde. */

@@ -1,4 +1,4 @@
-import type { RoadPoint } from '../types';
+import type { Road, RoadPoint } from '../types';
 
 // Cesta pro hráče (roads.md – Cesta pro hráče; Martin, 19. 10. 2026, Vlkov: „tohle by rozhodně
 // neměly být dvě cesty, ale měly by se spojit do jedné“): řetěz úseků mezi skutečnými rozcestími
@@ -6,6 +6,23 @@ import type { RoadPoint } from '../types';
 // po úsecích (stupeň, mokřina, brody, vylepšení), řetěz je jen pohled: výběr, panel, vylepšení
 // a jabloně celé cesty. Stejný stupeň se dál spojuje do jednoho úseku (`mergeRoadChains`). Čistá
 // funkce os – stejně na serveru i v prohlížeči.
+
+/**
+ * Druh cesty pro hráče (roads.md – Druhy cest; wagons.md – Vyježděná cesta; Martin, 19. 10. 2026:
+ * „pokud nějakou cestu vyjezdí vůz, bude to vyježděná cesta“): vyšlapaná, vyježděná (vyšlapaná
+ * s příznakem vozová – `Road.cart`), upravená, hať a lávka. Upravená cesta a hať jsou víc než
+ * vyježděná – vozy po nich jezdí (koleje ve scéně), ale druh zůstane. V datech zůstává stupeň
+ * a příznak (stupeň řídí chůzi a vylepšení), druh je jen pohled.
+ */
+export type RoadKind = 'trodden' | 'cart' | 'improved' | 'causeway';
+
+/** Pořadí druhů cest v panelu – od vyšlapané po hať. */
+export const ROAD_KIND_ORDER: readonly RoadKind[] = ['trodden', 'cart', 'improved', 'causeway'];
+
+/** Druh úseku pro hráče: vyšlapaný s vozy je vyježděný, jinak podle stupně. */
+export function roadKind(road: Pick<Road, 'grade' | 'cart'>): RoadKind {
+  return road.grade === 'trodden' && road.cart ? 'cart' : road.grade;
+}
 
 /** Úsek, jak ho řetěz potřebuje – id a osa. */
 export interface ChainRoad {

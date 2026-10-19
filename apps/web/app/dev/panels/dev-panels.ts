@@ -511,13 +511,13 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
       kind: 'road',
       id: 4,
       segments: [4, 9, 12],
-      grade: 'improved',
+      roadKind: 'improved',
       lengthM: 1240,
-      grades: [
-        { grade: 'trodden', lengthM: 380 },
-        { grade: 'improved', lengthM: 860 },
+      kinds: [
+        { kind: 'trodden', lengthM: 240 },
+        { kind: 'cart', lengthM: 140 },
+        { kind: 'improved', lengthM: 860 },
       ],
-      cartM: 420,
       ageYears: 112,
       trees: 46,
       wetM: 180,

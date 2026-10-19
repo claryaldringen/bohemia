@@ -1695,7 +1695,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
           className={buttonClass}
           disabled={!scene}
           onClick={toggleCarts}
-          title="Vozová síť na svahu vedle pěšin – nejdřív jen pěšina, pak vozová cesta dvoukoláku a čtyřkoláku"
+          title="Vozová síť na svahu vedle pěšin – nejdřív jen pěšina, pak vyježděná cesta dvoukoláku a čtyřkoláku"
           data-testid="dev-carts"
         >
           {cartDemo ? `Vozy: ${cartDemo.note}` : 'Vozy ve svahu'}

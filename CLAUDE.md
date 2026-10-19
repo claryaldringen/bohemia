@@ -1722,7 +1722,7 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   plánu (`poseOnRoute`). `VillageRenderer.updateCarts` (klíč z vozů, okna dne a ohrad) a
   `animateOxen`; voli táhnou buď vůz, nebo rádlo – `draftTeamsToday` (orba jen se spřežením, které
   nevozí), `penHerds` bez volů na cestě; honák jde s vozem (`villager-plan.ts` – haul bez honáků).
-  Panel cesty: vozová cesta s ikonou `resources/cart.png` (`VillageRoad.cart`). `/dev/landscape`
+  Panel cesty: vyšlapaná s vozy je **Vyježděná cesta** (Vozová síť a vyjeté cesty níž). `/dev/landscape`
   **Vozy ve svahu** – vůz stojí, pak dvoukolák a čtyřkolák vozí snopy po vyjeté cestě
   (`LandscapeScene.setWorkDayClock` – den ukázky 86 s).
 - **Vyšlapané pěšiny** ([docs/design/paths.md](docs/design/paths.md), Martin 18. 10. 2026 –
@@ -1876,19 +1876,28 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   `villageCartRoutes` (rozhraní pro svoz fáze 1 – `CartAccess`). Jízdy svozu sčítá
   `addRoadCartTrips` do `VillageRoads.labor.cart`; roční kontrola `annualCartNetwork` → provoz
   vozů, `Road.cartTraffic`, příznak `Road.cart` (`markCartRoads` – 2 roky nad 0,25 jízdy denně,
-  5 let pod polovinou pryč), nové vozové cesty `formRoads` s `cartCandidates`; kus s provozem vozů
-  nezaroste, vozová a pěší se nespojují. Scéna: `roadBands` → `cart` (širší pás) a `ruts` (dvě
+  5 let pod polovinou pryč); **vůz přebije vyšlapanou** (Martin, 19. 10. 2026: „pokud nějakou
+  cestu vyjezdí vůz, bude to vyježděná cesta. Pokud vůz takhle vyjezdí vyšlapanou cestu, tak to
+  vozová cesta přebije.“) – `formCartRoads` s `cartCandidates` třídí body tras po trasách
+  (`CartPoint`): po cestě, kterou vozy mají, provoz patří jí; po vyšlapané (do 5 m, stejným směrem)
+  ji převezmou (`takeOverRoads` – kus od 15 m dostane `cart`, úsek se rozdělí); souběžně vedle
+  (5–12 m) od 25 m nová cesta po ose vozu (souběžnou vyšlapanou pak vyřízne `mergeParallelRoads`),
+  kratší převezme; jinde nová – provoz se neztratí, souběžná nevznikne. Kus s provozem vozů
+  nezaroste, vozová a pěší se nespojují. Pro hráče je vyšlapaná s `cart` druh **vyježděná cesta**
+  (`RoadKind`, `roadKind`, `ROAD_KIND_ORDER` v `road-chains.ts`; upravená a hať zůstanou),
+  ikona `icons/build/cesta-vyjezdena.png` (`icons.py`). Scéna: `roadBands` → `cart` (širší pás) a `ruts` (dvě
   koleje ±0,65 m, `CART_RUT_LAYER` bez vlnění), `roadsKey` nese `:v`. Ves bez vozů beze změny.
   `/dev/landscape` tlačítko **Vozy ve svahu** (`dev-cart.ts`).
 - **Cesta pro hráče** ([roads.md](docs/design/roads.md) – Cesta pro hráče; Martin 19. 10. 2026:
   „tohle by rozhodně neměly být dvě cesty, ale měly by se spojit do jedné“): řetěz úseků mezi
-  rozcestími (uzel ≥ 3 konců) a volnými konci bez ohledu na stupeň a vozovou – `roadChain` /
+  rozcestími (uzel ≥ 3 konců) a volnými konci bez ohledu na druh cesty – `roadChain` /
   `roadChains` / `roadChainIds` (`paths/road-chains.ts`, začíná koncem s menším id úseku, okruh
   nejmenším id). Data zůstávají po úsecích. Vylepšení (`roadUpgradeOptions`, `startRoadUpgrade`)
   i jabloně (`roadApplesOption`, `startRoadApples`, `chainAppleSpots`) berou `roadId` kteréhokoli
   úseku a pracují s celou cestou – stavba `roadIds` v pořadí cesty, průběh po úsecích
   `roadUpgradeProgress`, čelo `roadWorkFront` / `roadApplesWorkRoad` (labor-report). Web:
-  `VillageRoad` = cesta (`segments`, `grades`, `cartM`), výběr `{ kind: 'road', id }` s id
+  `VillageRoad` = cesta (`segments`, převládající druh `roadKind`, délka po druzích `kinds` –
+  vyšlapaná, vyježděná, upravená, hať; `ROAD_KIND_NAMES`), výběr `{ kind: 'road', id }` s id
   prvního úseku (`pickVillageTarget`), zvýraznění celé cesty, `SceneRoad.upgrade.fromEnd`;
   přechod pásů různé šířky se zúží (`RibbonLine.narrowStart` / `narrowEnd`, `NARROW_M`).
 - **Průsek lesem** ([roads.md](docs/design/roads.md) – Průsek lesem, trade.md – Zemská stezka;

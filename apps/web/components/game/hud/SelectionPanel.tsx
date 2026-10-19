@@ -37,13 +37,13 @@ import {
   PRODUCT_TITLES,
   boughtProducts,
   productList,
-  ROAD_GRADE_NAMES,
+  ROAD_KIND_NAMES,
   ROAD_UPGRADE_NAMES,
   SACRED_BUILDING_NAMES,
   type Craft,
   type WorkshopActivity,
 } from '@/lib/village-view';
-import type { Direction8, RoadGrade, RoadUpgrade, TradeGoods } from '@bohemia/game';
+import type { Direction8, RoadKind, RoadUpgrade, TradeGoods } from '@bohemia/game';
 import type { PreviewPeople } from '@/lib/trade-quote';
 import { ManorUpgrades, SwathTrees } from './ManorPanel';
 import { TradePanel } from './TradePanel';
@@ -1210,8 +1210,9 @@ function PenBody({
 }
 
 /** Portréty stupňů cesty a ikony tlačítek vylepšení (`/icons/build/<ikona>.png`). */
-export const ROAD_GRADE_ICONS: Record<RoadGrade, string> = {
+export const ROAD_KIND_ICONS: Record<RoadKind, string> = {
   trodden: 'cesta',
+  cart: 'cesta-vyjezdena',
   improved: 'cesta-upravena',
   causeway: 'hat',
 };
@@ -1256,38 +1257,21 @@ function RoadBody({
               {formatInteger(details.lengthM)} m
             </span>
           </Tooltip>
-          {details.grades.length > 1 &&
-            details.grades.map((g) => (
+          {details.kinds.length > 1 &&
+            details.kinds.map((k) => (
               <Stat
-                key={g.grade}
-                src={`/icons/build/${ROAD_GRADE_ICONS[g.grade]}.png`}
-                name={ROAD_GRADE_NAMES[g.grade]}
-                testId={`selection-road-${g.grade}`}
+                key={k.kind}
+                src={`/icons/build/${ROAD_KIND_ICONS[k.kind]}.png`}
+                name={ROAD_KIND_NAMES[k.kind]}
+                testId={`selection-road-${k.kind}`}
               >
-                {formatInteger(g.lengthM)} m
+                {formatInteger(k.lengthM)} m
               </Stat>
             ))}
-          {details.cartM > 0 && (
-            <Stat icon="cart" name="Vozová cesta" testId="selection-road-cart">
-              {formatInteger(details.cartM)} m
-            </Stat>
-          )}
           <Stat icon="date" name="Stáří (roky)" testId="selection-road-age">
             {details.ageYears}
           </Stat>
           <Oaks count={details.trees} name="Stromy u cesty" testId="selection-road-trees" />
-          {details.cart && (
-            <Tooltip content="Vozová cesta" placement="above">
-              <img
-                data-testid="selection-road-cart"
-                src="/icons/resources/cart.png"
-                alt="Vozová cesta"
-                width={20}
-                height={20}
-                tabIndex={0}
-              />
-            </Tooltip>
-          )}
           {apples.trees > 0 && (
             <Stat icon="apples" name="Jabloně (plodí)" testId="selection-road-apples">
               {apples.trees}
@@ -1375,7 +1359,7 @@ function RoadBody({
               className={`hud-inset h-10 w-10 overflow-hidden rounded ${busy ? 'disabled:cursor-wait disabled:opacity-60' : 'disabled:cursor-not-allowed disabled:opacity-45 disabled:grayscale'}`}
             >
               <img
-                src={`/icons/build/${ROAD_GRADE_ICONS[option.upgrade]}.png`}
+                src={`/icons/build/${ROAD_KIND_ICONS[option.upgrade]}.png`}
                 alt=""
                 width={40}
                 height={40}
@@ -1520,7 +1504,7 @@ export function SelectionPanel({
   let body: ReactElement;
   if (details.kind === 'road') {
     portrait = (
-      <Portrait icon={ROAD_GRADE_ICONS[details.grade]} name={ROAD_GRADE_NAMES[details.grade]} />
+      <Portrait icon={ROAD_KIND_ICONS[details.roadKind]} name={ROAD_KIND_NAMES[details.roadKind]} />
     );
     body = (
       <RoadBody

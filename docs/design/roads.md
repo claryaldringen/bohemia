@@ -116,9 +116,9 @@ společné práce vsi; stromy bere jako obydlí (klády z hromady, pak nejbliž�
   „Vyšlapanou cestu nechme jako teď a upravená cesta ať je prostě jenom širší – ta odvodňovací
   strouha vypadá divně, zrušíme ji“), hať z kmenů napříč, lávka přes potok (modely nové).
 - **Stromy** u cest od keře po plný strom, souše a pařezy; jabloně s jablky od srpna.
-- **Výběr** pevné cesty kliknutím (zvýrazní se celá cesta hráče – řetěz úseků), panel: stupeň
-  (ikona), délka (u cesty z víc stupňů i po stupních, vozová část), stáří, stromy a jabloně
-  (ikony + čísla), tlačítka vylepšení.
+- **Výběr** pevné cesty kliknutím (zvýrazní se celá cesta hráče – řetěz úseků), panel: druh
+  (ikona – vyšlapaná, vyježděná, upravená, hať), délka (u cesty z víc druhů i po druzích), stáří,
+  stromy a jabloně (ikony + čísla), tlačítka vylepšení.
 - Kronika: vznikla pevná cesta, vylepšení dokončeno, jabloně vysazeny.
 
 ## Rozhodnutí
@@ -152,6 +152,8 @@ společné práce vsi; stromy bere jako obydlí (klády z hromady, pak nejbliž�
 | Připojení nové cesty po souběžném kusu do 14 m                                           | návrh Clauda |
 | Vozy vyjezdí vlastní cesty, ve svahu serpentiny                                          | Martin       |
 | Vozová cesta = pevná cesta s příznakem z ročního provozu vozů, pro lidi stejná           | návrh Clauda |
+| Vyjezdí-li vůz cestu, je to vyježděná cesta; vyšlapanou cestu vozová přebije             | Martin       |
+| Vyježděná = druh cesty pro hráče (vyšlapaná s vozy); upravená a hať zůstanou             | návrh Clauda |
 
 ## Cesta je cesta – povrch pod ní a zarůstání
 
@@ -254,21 +256,33 @@ chodí pěšky. Bude to znamenat např. to, že ve svahu, kde lidé zvládnou ch
 vyjezdit serpentiny.“ Návrh, síť vozů a čísla: [wagons.md](wagons.md) – Vozová síť a vyjeté cesty,
 Jak je postavené – fáze 2 (návrh Clauda).
 
-- **Vyjetá cesta je pevná cesta s příznakem vozová** (`Road.cart`): vzniká z ročního provozu vozů
-  stejně jako pěší z provozu lidí – kudy vozy dva roky po sobě jezdí aspoň 0,25 jízdy denně
-  (loňské úseky `VillageRoads.cartCandidates`), vznikne nová; pevná cesta, po které vozy jezdí
-  (`Road.cartTraffic`), příznak dostane. Po 5 letech pod polovinou ho ztratí a je zase jen pěší.
-- **Lidé po ní chodí jako po každé pevné cestě** (pro síť pěšin je vozová cesta obyčejná pevná
-  cesta). Ve svahu se pěšina a vozová cesta rozejdou – pěšina rovně, vozová serpentinami; v rovině
-  vozy jezdí po pěší cestě a splynou.
-- **Zarůstání po kusech:** kus, kudy jezdí vozy (aspoň polovina prahu vozů), není tichý – vozová
+Martin (19. 10. 2026): „Cesty – pokud nějakou cestu vyjezdí vůz, bude to vyježděná cesta. Pokud
+vůz takhle vyjezdí vyšlapanou cestu, tak to vozová cesta přebije.“
+
+- **Druhy cest pro hráče:** vyšlapaná, **vyježděná**, upravená, hať a lávka. Vyježděná cesta je
+  v datech vyšlapaná cesta s příznakem vozová (`Road.cart`; druh `roadKind` v
+  `paths/road-chains.ts`) – stupeň řídí chůzi a vylepšení, takže nový stupeň by byl jen jiným
+  jménem pro totéž. Upravená cesta a hať zůstanou upravenou a hatí (jsou víc než vyježděná) – vozy
+  po nich jezdí a ve scéně mají koleje. Vylepšit jde vyježděnou cestu jako vyšlapanou.
+- **Vyježděná cesta vzniká z ročního provozu vozů** stejně jako pěší z provozu lidí – kudy vozy dva
+  roky po sobě jezdí aspoň 0,25 jízdy denně (loňské úseky `VillageRoads.cartCandidates`), vznikne
+  nová. **Vůz přebije vyšlapanou:** kudy vozy jedou po vyšlapané cestě (do 5 m od osy, stejným
+  směrem), ten kus vyšlapané se stane vyježděnou (úsek se v koncích kusu rozdělí); kudy jedou
+  souběžně kus vedle (do 12 m – jako souběžné cesty), od 25 m vznikne vyježděná po ose vozu a
+  souběžný kus vyšlapané zmizí, kratší kus vyšlapanou převezme. Provoz vozů se nikdy neztratí
+  a dvě souběžné cesty nevzniknou (wagons.md – Jak je postavené, fáze 2). Po 5 letech pod
+  polovinou vyježděná příznak ztratí a je zase jen vyšlapaná.
+- **Lidé po ní chodí jako po každé pevné cestě** (pro síť pěšin je vyježděná cesta obyčejná pevná
+  cesta). Ve svahu se pěšina a vyježděná cesta rozejdou – pěšina rovně, vyježděná serpentinami;
+  v rovině vozy jezdí po vyšlapané cestě a ta se stane vyježděnou.
+- **Zarůstání po kusech:** kus, kudy jezdí vozy (aspoň polovina prahu vozů), není tichý – vyježděná
   cesta ve svahu, kudy lidé nechodí, nezaroste, dokud po ní jezdí vozy.
-- **Úseky:** vozová a pěší cesta se nespojují do jednoho úseku (jako různé stupně); u souběžných
-  cest je vozová silnější (zůstane ona).
+- **Úseky:** vyježděná a vyšlapaná cesta se nespojují do jednoho úseku (jako různé stupně) – hráč je
+  vidí jako jednu cestu s délkou po druzích; u souběžných cest je vyježděná silnější (zůstane ona).
 - **Pro vůz je sjízdná každá pevná cesta** (i pěší – lesem, přes pole), jen ne sklonem nad mez
   a vodou bez brodu; upravená cesta i hať jsou sjízdné vždy. Lávka je jen pro pěší.
-- **Ve scéně:** širší pás (2,6 m), tráva mezi dvěma kolejemi; rozcestí vozových cest je udusaný
-  plácek na šířku vozové cesty.
+- **Ve scéně:** širší pás (2,6 m), tráva mezi dvěma kolejemi; rozcestí vyježděných cest je
+  udusaný plácek na šířku vyježděné cesty.
 
 ## Pole lidi nezdržuje
 
@@ -317,7 +331,7 @@ návrh Clauda.
 - **Posvátné duby a háje** se nekácí: stezka se jim vyhne už trasou (průsek kolem buněk trasy),
   jinak by úsek nešel; u vylepšení hráče posvátný strom v pásu cesty úpravu nedovolí („Úpravě
   cesty brání posvátný dub“), po stranách zůstane stát.
-- **Vozová cesta** (wagons.md) vlastní průsek nedostane: vyšlapaná vozová cesta vzniká sama
+- **Vyježděná cesta** (wagons.md) vlastní průsek nedostane: vyježděná cesta vzniká sama
   z jízd a nikdo ji nestaví – kácení je stavba s prací a kládami, kterou zadává hráč
   vylepšením; vozy lesem i dosud jezdí jen po pevné cestě. Kdo chce širokou cestu lesem, upraví ji.
 - **Starší vsi:** hotové upravené cesty, hať a lávka a dostavěné úseky stezek dostanou průsek při
@@ -582,14 +596,15 @@ Martin (19. 10. 2026, Vlkov – upravená cesta 103 navazuje na vyšlapanou 183)
 neměly být dvě cesty, ale měly by se spojit do jedné“ a „cesty by se na sebe měly napojovat“.
 
 - **Cesta hráče** (návrh Clauda) = řetěz úseků mezi skutečnými rozcestími (uzel aspoň tří konců)
-  a volnými konci – **bez ohledu na stupeň a vozovou cestu** (`roadChain` v
+  a volnými konci – **bez ohledu na druh cesty** (stupeň i vyježděnou – `roadChain` v
   `paths/road-chains.ts`, stejně na serveru i v prohlížeči). Data zůstávají po úsecích (stupeň,
   mokřina, brody, vozová, provoz, zarůstání) – hranice stupňů je skutečná a chůze, zarůstání
   i scéna ji potřebují; stejný stupeň se dál spojuje do jednoho úseku (`mergeRoadChains`).
 - **Výběr:** klik na kterýkoli úsek vybere celou cestu (id cesty = první úsek řetězu – stejné, ať
-  se klikne kamkoli), zvýrazní se celá. **Panel:** délka celé cesty, u cesty z víc stupňů délka po
-  stupních (ikony stupňů), vozová část (ikona vozu), stáří nejstaršího úseku, stromy, jabloně,
-  mokřina a brody celé cesty; portrét podle převládajícího stupně (nejdelší).
+  se klikne kamkoli), zvýrazní se celá. **Panel:** délka celé cesty, u cesty z víc druhů délka po
+  druzích (ikony druhů – vyšlapaná, vyježděná, upravená, hať; `VillageRoad.kinds`), stáří
+  nejstaršího úseku, stromy, jabloně, mokřina a brody celé cesty; portrét podle převládajícího
+  druhu (nejdelší – `VillageRoad.roadKind`).
 - **Vylepšení celé cesty:** úprava vylepší všechny vyšlapané úseky cesty, hať a lávka všechny
   úseky přes mokřinu či brod, které ji nemají (až jsou upravené) – jedna stavba, cena za úseky
   dohromady, dřevo k polovině cesty. Stavba jde po cestě úsek po úseku (čelo práce, postavy
