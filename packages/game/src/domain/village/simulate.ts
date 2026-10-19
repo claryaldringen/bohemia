@@ -94,6 +94,7 @@ import {
   afterConstructions,
   allocateDay,
   householdElders,
+  householdWaterLabor,
   type LaborTaskName,
 } from './labor';
 import { laborDay, type AsideWork, type ConstructionWork, type HaulWork } from './labor-report';
@@ -552,8 +553,10 @@ function sowingCapacity(
     state.people.reduce((sum, p) => sum + (crafts.has(p.dwellingId) ? 0 : laborPerDay(p, day)), 0) *
     productivity;
   const minimum = dailyMinPerHousehold(coverage.pottery);
+  // denní minimum s přirážkou za chůzi pro vodu (population.md – Práce)
+  const water = householdWaterLabor(state.people, state.dwellings, crafts);
   const dailyMin = householdElders(state.people, day, crafts).reduce(
-    (sum, elders) => sum + adultDailyMin(minimum, elders, productivity),
+    (sum, elders, k) => sum + adultDailyMin(minimum + water[k]!, elders, productivity),
     0,
   );
   const free = Math.max(0, capacity - dailyMin) * PEAK_CAPACITY_SHARE;
@@ -781,6 +784,8 @@ function work(
   const allocation = allocateDay({
     capacity: villagers.reduce((sum, p) => sum + laborPerDay(p, day), 0),
     householdElders: householdElders(villagers, day),
+    // chůze pro vodu nad denní minimum (population.md – Práce, paths.md – Pochůzky pro vodu)
+    householdWater: householdWaterLabor(villagers, state.dwellings),
     tasks: dayTasks.map(({ name, remaining }) => ({ name, remaining })),
     potteryCoverage: coverage.pottery,
     productivity,

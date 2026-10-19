@@ -413,6 +413,25 @@ export const ROAD_WALK = {
 export const FIELD_LIMITS = { maxDistanceM: 800, minAreaM2: 1000 } as const;
 // fields.md – Práce (denní minimum domácností – meze: s hrnčířem 0,45); population.md – Práce
 export const DAILY_MIN_PER_HOUSEHOLD: Bounds = { worst: 0.5, best: 0.45 };
+/**
+ * paths.md – Pochůzky pro vodu, population.md – Práce (Martin 19. 10. 2026: „Ale vesničané tam
+ * přece musí chodit nějak pro vodu a musí jim to zabírat čas.“): pro vodu se chodí vždy
+ * k nejbližší vodě, `tripsPerPerson` cesty (tam a zpět) na člověka domácnosti a den – i v síti
+ * pěšin. Chůze nad `includedM` je v ceně denního minima (návrh Clauda – WHO: voda do 100 m nebo
+ * 5 minut sběru je „intermediate access“, Howard a Bartram 2003, Domestic Water Quantity, Service
+ * Level and Health, WHO/SDE/WSH/03.02); co je dál, přičte se k dennímu minimu domácnosti: cesty ×
+ * 2 × (chůze − `includedM`) ÷ `speedMps` ÷ `dayHours` h. Rychlost po louce tam a zpět s vodou
+ * 1 m/s (návrh Clauda: pohodlná chůze po rovině 1,3–1,4 m/s – Bohannon 1997, Age and Ageing 26;
+ * WHO tamtéž: voda do 1 000 m nebo 30 minut sběru tam a zpět ≈ 1,1 m/s i s čerpáním; s plnými
+ * nádobami po louce pomaleji). Den 10 h – stejný přepočet jako rešerše 2026-10-17 (FAO: 2 h nošení
+ * vody a dříví denně ≈ část denního minima).
+ */
+export const WATER_FETCHING = {
+  tripsPerPerson: 0.4,
+  includedM: 100,
+  speedMps: 1,
+  dayHours: 10,
+} as const;
 // population.md – Práce (domácí výroba – obstarají ji z většiny ženy bokem, z práce vsi nebere:
 // Martin 19. 10. 2026; čísla jen pro postavy žen u domů – labor-report.ts); oděv z vlny a lnu
 // – praní, česání, předení, tkaní a šití – je její součástí (diet.md – Oděv: vlna ≈ 21 čd na

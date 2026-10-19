@@ -705,6 +705,43 @@ describe('pěšiny – postavy chodí po vyšlapaných pěšinách (paths.md)', 
     expect(far(people)).toBeGreaterThan(35);
     expect(far(without)).toBeLessThan(35);
   });
+
+  it('pro vodu jdou i daleko – mimo rastr schůdné země, pro dřevo ne (paths.md – Pochůzky pro vodu)', () => {
+    const shares: LaborShare[] = [
+      { activity: 'domestic', target: { kind: 'village' }, manDays: 12 },
+    ];
+    // voda i dřevo 450 m od vsi – za okrajem rastru schůdné země (|z| < 400)
+    const distant = (kind: 'water' | 'wood'): VillagerPaths => ({
+      route: (a, b) => ({
+        points: [
+          [a.x, a.z],
+          [0, -30],
+          [b.x, b.z],
+        ],
+        pace: [1, 1.3],
+      }),
+      errand: (_id, k) => (k === kind ? { x: 0, z: -450 } : null),
+    });
+    const reach = (kind: 'water' | 'wood'): number => {
+      const people = planVillagers(village(shares), GROUND, {
+        seed: 7,
+        herds: 0,
+        paths: distant(kind),
+      });
+      return Math.max(
+        ...people
+          .filter((p) => p.key.startsWith('domestic:'))
+          .flatMap((p) =>
+            Array.from({ length: 200 }, (_, k) => {
+              const pose = at(p, k * 5);
+              return Math.hypot(pose.x, pose.z);
+            }),
+          ),
+      );
+    };
+    expect(reach('water')).toBeGreaterThan(440);
+    expect(reach('wood')).toBeLessThan(100);
+  });
 });
 
 describe('stavitelé – stavba neroste sama od sebe (Martin)', () => {

@@ -13,7 +13,10 @@ import {
   type PathNetwork,
   type PathVillage,
 } from '../paths/network';
+import { WATER_FETCHING } from '../rules';
+import { pathTerrainOf, pathWindowFor } from '../paths/terrain';
 import { house, part, pathTestTerrain } from './paths-fixtures';
+import { makeLandscape } from './placement-fixtures';
 
 const terrain = pathTestTerrain();
 
@@ -79,6 +82,46 @@ describe('computePathNetwork – pěšiny vsi', () => {
       expect(errand.water!.z).toBeLessThan(72);
       expect(errand.wood!.x).toBeLessThan(-80);
     }
+  });
+
+  it('pro vodu se chodí vždy k nejbližší vodě – i daleko a naplno (paths.md – Pochůzky pro vodu)', () => {
+    // Martin, 19. 10. 2026: „Ve Vlkově nikde nevidím vyšlapanou cestu k potoku. Ale vesničané tam
+    // přece musí chodit nějak pro vodu a musí jim to zabírat čas.“ – louka 750 × 750 m, potok
+    // v řadě políček z ∈ (315, 330), dům 510 m od břehu (dřív pochůzky jen do 450 m chůze)
+    const far = makeLandscape({ size: 50, surface: (_x, y) => (y === 46 ? 'water' : 'meadow') });
+    const farTerrain = pathTerrainOf(
+      far,
+      pathWindowFor(far, { minX: -375, minZ: -375, maxX: 375, maxZ: 375 }),
+    );
+    const people = 10;
+    const network = computePathNetwork({
+      village: {
+        dwellings: [house(1, 0, -200)],
+        fields: [],
+        labor: {
+          day: 4000,
+          month: 6,
+          people: { children: 0, adults: people, elders: 0 },
+          shares: [],
+        },
+      },
+      terrain: farTerrain,
+    });
+    const water = network.errands.get(1)?.water;
+    expect(water).toBeDefined();
+    expect(water!.z).toBeGreaterThan(300);
+    expect(water!.z).toBeLessThan(316);
+    // plný počet cest – 0,4 na člověka (dřív za 130 m úměrně méně)
+    const t = network.traffic;
+    const at = (x: number, z: number): number =>
+      t.raw[
+        Math.round((z - t.originZ) / t.cellM) * t.width + Math.round((x - t.originX) / t.cellM)
+      ]!;
+    let near = 0;
+    for (let dx = -20; dx <= 20; dx += t.cellM) near = Math.max(near, at(water!.x + dx, 250));
+    expect(near).toBeCloseTo(WATER_FETCHING.tripsPerPerson * people, 6);
+    // pěšina k vodě vznikne
+    expect(network.lines.some((l) => l.points.some((p) => p.z > 280))).toBe(true);
   });
 
   it('pěšina nevede domem a začíná u brány před vchodem', () => {

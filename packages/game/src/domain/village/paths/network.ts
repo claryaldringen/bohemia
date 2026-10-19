@@ -1,7 +1,7 @@
 import { detCos, detSin, length2 } from '../../landscape';
 import { milirPosition } from '../crafts';
 import { rotatedSquareCorners, rotationCosSin, rotationTurn } from '../square-grid';
-import { DWELLING_CLEARING_M, ROAD_WALK, SACRED_BUILDINGS } from '../rules';
+import { DWELLING_CLEARING_M, ROAD_WALK, SACRED_BUILDINGS, WATER_FETCHING } from '../rules';
 import type { ObstacleChanges } from '../obstacles';
 import type { PartStage } from '../summary';
 import type {
@@ -265,8 +265,11 @@ export const PATH_YEARS_UNKNOWN = 100;
 /** Stáří pro stromy podél pěšin se v klíči sítě zaokrouhluje na tolik let a nejvýš do tolika. */
 const YEARS_STEP = 2;
 const YEARS_KEY_MAX = 40;
-/** Cest za den: pro vodu na člověka domácnosti, pro dřevo na domácnost (léto / zima). */
-const WATER_TRIPS_PER_PERSON = 0.4;
+/**
+ * Cest za den: pro vodu na člověka domácnosti (WATER_FETCHING – i přirážka denního minima,
+ * population.md – Práce), pro dřevo na domácnost (léto / zima).
+ */
+const WATER_TRIPS_PER_PERSON = WATER_FETCHING.tripsPerPerson;
 const WOOD_TRIPS = { summer: 0.5, winter: 1.2 } as const;
 const WINTER_MONTHS: readonly number[] = [11, 12, 1, 2, 3];
 /** Návštěvy mezi sousedy – každá domácnost se dvěma nejbližšími. */
@@ -300,11 +303,14 @@ const CEMETERY_VISITS_PER_PERSON = 0.15;
 const DEFAULT_HOUSEHOLD = 5;
 /** Menší cesta za den se nehledá. */
 const MIN_TRIP = 0.02;
-/** Pro vodu a dřevo se chodí nejvýš tak daleko (cena v m chůze po louce). */
+/**
+ * Pro dřevo se chodí nejvýš tak daleko (cena v m chůze po louce). Pro vodu bez meze – vždy
+ * k nejbližší vodě v okně (paths.md – Pochůzky pro vodu; Martin, 19. 10. 2026).
+ */
 const ERRAND_MAX_COST = 450;
 /** Další kola hledají pochůzku domácnosti nejvýš tak daleko proti prvnímu kolu (násobek a cena navíc). */
 const ERRAND_REACH = { factor: 1.25, extra: 30 } as const;
-/** Do takové ceny cesty se pro vodu a dřevo chodí naplno, dál úměrně méně často. */
+/** Do takové ceny cesty se pro dřevo chodí naplno, dál úměrně méně často (pro vodu vždy naplno). */
 const ERRAND_NEAR_COST = 130;
 /**
  * Zarůstající příloh je vegetace, ne pole (fields.md – Zarůstání) – trnité křoviny a houština
@@ -1085,6 +1091,11 @@ interface TripGroup {
   years?: number[];
   maxCost: number;
   /**
+   * Pochůzka, kam se dál chodí méně často: do této ceny cesty naplno, dál úměrně méně (dřevo);
+   * bez údaje vždy naplno (voda).
+   */
+  nearCost?: number;
+  /**
    * Pochůzka: buňky míst (1 = sem se chodí) a po prvním kole, jak daleko smí hledání každé
    * domácnosti (cena) – další kola hledají každé domácnosti zvlášť od brány k nejbližšímu místu
    * podle cen se slevou, aby se trasy sousedů mohly slít.
@@ -1391,8 +1402,11 @@ function tripGroups(
 
 /**
  * Pochůzky pro vodu (suchý břeh u potoka) a pro dřevo (okraj lesa) – mimo stavby vsi, každá
- * domácnost k nejbližšímu místu. Cest za den: voda podle lidí v domácnosti, dřevo na domácnost
- * (v zimní půlce roku víc). Hledá se od všech míst najednou k branám.
+ * domácnost k nejbližšímu místu. Cest za den: voda podle lidí v domácnosti – vždy, k nejbližší vodě
+ * v okně bez ohledu na vzdálenost a naplno (paths.md – Pochůzky pro vodu; Martin, 19. 10. 2026:
+ * „Ale vesničané tam přece musí chodit nějak pro vodu a musí jim to zabírat čas.“), dřevo na
+ * domácnost (v zimní půlce roku víc) nejvýš ERRAND_MAX_COST, dál méně často. Hledá se od všech
+ * míst najednou k branám.
  */
 function errandGroups(
   annual: boolean,
@@ -1428,7 +1442,7 @@ function errandGroups(
       marks: marksOf(water),
       sources: water,
       weights: homes.map((h) => WATER_TRIPS_PER_PERSON * h.size * h.age),
-      maxCost: ERRAND_MAX_COST,
+      maxCost: Infinity,
       goals: nearestByAir(grid, water, homes),
     });
   }
@@ -1439,6 +1453,7 @@ function errandGroups(
       sources: wood,
       weights: homes.map((h) => woodTrips * h.age),
       maxCost: ERRAND_MAX_COST,
+      nearCost: ERRAND_NEAR_COST,
       goals: nearestByAir(grid, wood, homes),
     });
   }
@@ -1826,8 +1841,11 @@ function routeAll(
         if (first) {
           const total = state.dist[at]! + (marks[at] ? 0 : trail.rest[at]!);
           reach[k] = total * ERRAND_REACH.factor + ERRAND_REACH.extra;
-          // daleko se chodí méně často (s větším nákladem) – pěšina tam vznikne, až když se slije
-          group.weights[k] = w * Math.min(1, ERRAND_NEAR_COST / Math.max(1, total));
+          // pro dřevo se daleko chodí méně často (s větším nákladem) – pěšina tam vznikne, až když
+          // se slije; pro vodu vždy naplno
+          if (group.nearCost !== undefined) {
+            group.weights[k] = w * Math.min(1, group.nearCost / Math.max(1, total));
+          }
         }
         const trips = group.weights[k]!;
         const years = group.years?.[k] ?? homes[k]!.years;

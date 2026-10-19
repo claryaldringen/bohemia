@@ -5,6 +5,7 @@ import { distanceFactor, partWalkDistance } from '../fields';
 import type { PathLine } from '../paths/network';
 import { PATH_FOREST_EDGE, PATH_WATER_SPOT, pathTerrainOf, pathWindowFor } from '../paths/terrain';
 import {
+  WALK_VERSION,
   refreshWalkDistances,
   villagePathNetwork,
   walkLayoutHash,
@@ -14,18 +15,26 @@ import {
 import type { PathVillage } from '../paths/network';
 import {
   FASTEST_WALK_SHARE,
+  groundSpots,
   groundWalkLength,
+  nearestSpot,
   pathWalkLength,
+  roadWalk,
+  straightWalk,
   walkGraph,
+  walkGroundOf,
   walkingDistances,
+  waterWalkDistance,
   withFieldWalk,
 } from '../paths/walking';
+import { waterFetchingLabor } from '../labor';
 import { isCropPart, partWalkSpeed, pathCostFactor, roadWalkSpeed } from '../paths/walk-speed';
 import { PATH_WALK } from '../rules';
 import { advanceVillage } from '../simulate';
 import type { Person, VillageState } from '../types';
 import { partWork } from '../year-plan';
 import { LANDSCAPE, part, pathLandscape, pathTestTerrain } from './paths-fixtures';
+import { makeLandscape } from './placement-fixtures';
 import { withBuiltFirstDwelling } from './village-fixtures';
 
 const DAY = dayIndexOf({ year: 600, month: 6, day: 1 });
@@ -152,7 +161,9 @@ describe('vzdálenost chůze dílů pole (refreshWalkDistances)', () => {
     }
     // ve stavu jen otisky – rozložení se stadii z 1. dne v měsíci (1. 6. = DAY)
     expect(s.walkStages).toBe(walkLayoutHash(walkStageKey(s, DAY)));
-    expect(s.walkLayoutKey).toBe(walkLayoutHash(`${walkLayoutKey(s, DAY + 1)}|${s.walkStages}`));
+    expect(s.walkLayoutKey).toBe(
+      walkLayoutHash(`${walkLayoutKey(s, DAY + 1)}|${s.walkStages}|${WALK_VERSION}`),
+    );
     expect(s.walkLayoutKey).toMatch(/^[0-9a-f]{16}$/);
   });
 
@@ -269,6 +280,60 @@ describe('vzdálenost chůze dílů pole (refreshWalkDistances)', () => {
     expect(chunked).toEqual(viaJson(whole));
     expect(whole.parts.some((p) => p.walkDistanceM !== undefined)).toBe(true);
   }, 60_000);
+});
+
+// Martin, 19. 10. 2026: „Ale vesničané tam přece musí chodit nějak pro vodu a musí jim to zabírat
+// čas.“ – chůze z obydlí k nejbližší vodě (paths.md – Pochůzky pro vodu, population.md – Práce)
+describe('chůze k vodě (waterWalkM, waterWalkDistance)', () => {
+  it('spočítá se s krajinou k nejbližšímu břehu a přidá se k dennímu minimu', () => {
+    const s = advanceVillage(settled(), DAY + 1, null, LANDSCAPE);
+    const d = s.dwellings[0]!;
+    // zemnice (−60, −40), břeh potoka kolem z = 71 – přes 100 m rovně po louce
+    expect(d.waterWalkM).toBeDefined();
+    expect(d.waterWalkM!).toBeGreaterThan(100);
+    expect(d.waterWalkM!).toBeLessThan(130);
+    const domestic = (v: typeof s): number =>
+      v
+        .labor!.shares.filter((share) => share.activity === 'domestic')
+        .reduce((sum, share) => sum + share.manDays, 0);
+    // bez krajiny (kalibrace) chůze ani přirážka není
+    const plain = advanceVillage(settled(), DAY + 1, null);
+    expect(plain.dwellings[0]!.waterWalkM).toBeUndefined();
+    // rozdělení práce dne je na tisíciny člověkodne
+    expect(domestic(s) - domestic(plain)).toBeCloseTo(waterFetchingLabor(4, d.waterWalkM), 3);
+    // potok 360 m od domu – přirážka znatelná (4 lidé ≈ 0,02 čd za den)
+    const far = makeLandscape({ size: 50, surface: (_x, y) => (y === 46 ? 'water' : 'meadow') });
+    const away = advanceVillage(settled(), DAY + 1, null, far);
+    const walk = away.dwellings[0]!.waterWalkM!;
+    expect(walk).toBeGreaterThan(330);
+    expect(walk).toBeLessThan(380);
+    const extra = domestic(away) - domestic(plain);
+    expect(extra).toBeGreaterThan(0.015);
+    expect(extra).toBeCloseTo(waterFetchingLabor(4, walk), 3);
+  });
+
+  it('jedna funkce: po pěšinách a cestách, jen po pevných cestách, nebo rovně krajinou', () => {
+    const ground = walkGroundOf(LANDSCAPE);
+    const from = { x: -60, z: -40 };
+    const spot = nearestSpot(groundSpots(ground, PATH_WATER_SPOT), from)!;
+    const straight = waterWalkDistance(ground, straightWalk(ground), from)!;
+    expect(straight).toBeCloseTo(groundWalkLength(ground, from, spot), 9);
+    expect(waterWalkDistance(ground, roadWalk([], ground), from)).toBeCloseTo(straight, 9);
+    // vyšlapaná pevná cesta k vodě chůzi zkrátí
+    const road = {
+      points: [
+        { x: -60, z: -38 },
+        { x: spot.x, z: spot.z - 1 },
+      ],
+      grade: 'trodden' as const,
+    };
+    expect(waterWalkDistance(ground, roadWalk([road], ground), from)!).toBeLessThan(straight * 0.8);
+    // bez vody v okně null
+    const dry = {
+      terrain: { ...ground.terrain, flags: new Uint8Array(ground.terrain.flags.length) },
+    };
+    expect(waterWalkDistance(dry, straightWalk(dry), from)).toBeNull();
+  });
 });
 
 // Rychlosti chůze proti louce (Martin, 19. 10. 2026: „berme louku za výchozí: 1 vyšlapaná denní

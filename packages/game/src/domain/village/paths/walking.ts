@@ -5,6 +5,7 @@ import { nearestPartFinder } from './nearest';
 import { PathHeap, squareCells, type PathLine, type PathPoint, type PathVillage } from './network';
 import {
   PATH_WATER,
+  PATH_WATER_SPOT,
   PATH_WETLAND,
   pathTerrainOf,
   pathWindowFor,
@@ -345,4 +346,61 @@ export function villageRoadWalk(
   landscape: Landscape,
 ): Walk {
   return roadWalk(state.roads?.roads ?? [], walkGroundOf(landscape));
+}
+
+/** Chůze rovně krajinou s půdou `ground` (bez pěšin dne i pevných cest). */
+export function straightWalk(ground: WalkGround | null): Walk {
+  return (from, targets) => targets.map((t) => groundWalkLength(ground, from, t));
+}
+
+const spotsCache = new WeakMap<PathTerrain, Map<number, PathPoint[]>>();
+
+/**
+ * Body buněk půdy pro chůzi s příznakem `flag` (PATH_WATER_SPOT – suchý břeh, kam se chodí pro
+ * vodu, PATH_FOREST_EDGE – okraj lesa pro dřevo) po řádcích; v mezipaměti podle terénu půdy.
+ */
+export function groundSpots(ground: WalkGround, flag: number): readonly PathPoint[] {
+  const t = ground.terrain;
+  let byFlag = spotsCache.get(t);
+  if (!byFlag) {
+    byFlag = new Map();
+    spotsCache.set(t, byFlag);
+  }
+  const cached = byFlag.get(flag);
+  if (cached) return cached;
+  const out: PathPoint[] = [];
+  for (let j = 0; j < t.height; j++) {
+    for (let i = 0; i < t.width; i++) {
+      if (t.flags[j * t.width + i]! & flag) {
+        out.push({ x: t.originX + i * t.cellM, z: t.originZ + j * t.cellM });
+      }
+    }
+  }
+  byFlag.set(flag, out);
+  return out;
+}
+
+/** Nejbližší bod vzdušnou čarou (při shodě první); bez bodů null. */
+export function nearestSpot(points: readonly PathPoint[], from: PathPoint): PathPoint | null {
+  let best: PathPoint | null = null;
+  let bestD = Infinity;
+  for (const p of points) {
+    const d = (p.x - from.x) * (p.x - from.x) + (p.z - from.z) * (p.z - from.z);
+    if (d < bestD) {
+      best = p;
+      bestD = d;
+    }
+  }
+  return best;
+}
+
+/**
+ * Chůze z `from` k nejbližší vodě (m; paths.md – Pochůzky pro vodu): místo na suchém břehu
+ * (PATH_WATER_SPOT) nejblíž vzdušnou čarou v okně půdy pro chůzi, vzdálenost podle `walk` – po
+ * pěšinách dne a pevných cestách (`walkGraph` + `walkingDistances`), jen po pevných cestách
+ * (`roadWalk`), nebo rovně krajinou (`straightWalk`). Bez vody v okně null.
+ */
+export function waterWalkDistance(ground: WalkGround, walk: Walk, from: PathPoint): number | null {
+  const spot = nearestSpot(groundSpots(ground, PATH_WATER_SPOT), from);
+  return spot ? walk(from, [spot])[0]! : null;
 }

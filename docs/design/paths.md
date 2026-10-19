@@ -8,7 +8,9 @@ pěšina ať je nevýrazná. Vyšlapanou cestu nechme jako teď“), viz Jak pě
 pěšiny. **Po pevné cestě bez ohledu na povrch** – Martin 19. 10. 2026 („Když už někde vyšlapaná
 cesta je, ať po ní lidé chodí bez ohledu na to, na čem ta stezka leží.“), viz Jak pěšiny vznikají
 – Kudy. **Vchody** – Martin 19. 10. 2026 („A ještě, každá budova by měla mít nějaký vchod, od
-kterého cesta povede.“), viz Vchody. Síť počítá herní jádro
+kterého cesta povede.“), viz Vchody. **Pro vodu se chodí vždy** – Martin 19. 10. 2026 („Ve Vlkově
+nikde nevidím vyšlapanou cestu k potoku. Ale vesničané tam přece musí chodit nějak pro vodu a musí
+jim to zabírat čas.“, návrh schválil „Ano“), viz Pochůzky pro vodu. Síť počítá herní jádro
 (`packages/game/src/domain/village/paths/` – `terrain.ts`, `network.ts`, `walking.ts`,
 `village.ts`, `entrances.ts`) stejně na serveru i v prohlížeči; scéna `apps/web/lib/scene/path-renderer.ts`,
 `path-ribbon.ts`, `path-router.ts`. Pevné cesty a stromy u nich: [roads.md](roads.md).
@@ -24,8 +26,9 @@ A po vyšlapané pěšině se chodí lépe – cesta na vzdálené pole po ní s
   dřevo k okraji lesa, na pole, do sadu, ke hřbitovu, k posvátným dubům, hájům, modle a svatyni,
   k hromadě klád, na staveniště, k ohradě (krmení dobytka), v době seče na přirozené louky
   (oxen.md – Seno) a k sousedům; pasáci ženou stáda na úhor.
-- **Kolik se kam chodí:** voda podle lidí v domácnosti, dřevo na domácnost (v zimní půlce roku
-  víc), na pole, do sadu a na stavby podle dnešní práce (rozdělení práce dne z jádra, jeden
+- **Kolik se kam chodí:** voda podle lidí v domácnosti – vždy k nejbližší vodě, ať je jakkoli
+  daleko (Pochůzky pro vodu), dřevo na domácnost (v zimní půlce roku víc), na pole, do sadu
+  a na stavby podle dnešní práce (rozdělení práce dne z jádra, jeden
   člověkoden = jedna cesta) a k zavedeným místům trochu navíc, ať pěšina mezi pracemi nezaroste.
   Ke hřbitovu se chodí podle počtu lidí – hroby předků raní Slované navštěvovali pravidelně
   (obětiny, hostiny za mrtvé): 0,15 cesty za den na člověka, každá domácnost k nejbližšímu
@@ -35,8 +38,10 @@ A po vyšlapané pěšině se chodí lépe – cesta na vzdálené pole po ní s
   nejbližší vzdušnou čarou od domu – návrh Clauda); práce dne (pole, stavby, kácení, práce
   v sadu) jde tam, kde se dnes pracuje – vylepšení pevné cesty a práce u jabloní podél ní
   ([roads.md](roads.md)) k polovině úseku.
-  Daleko (voda, les) se chodí méně často – pěšina tam vznikne, až když se cesty víc domácností
-  slijí. Ohrada (oxen.md) má k práci dne trochu navíc jako zavedené místo – jen
+  Pro dřevo se daleko chodí méně často (nad 130 m chůze úměrně méně, nejvýš 450 m) – pěšina
+  k lesu vznikne, až když se cesty víc domácností slijí. ~~Daleko (voda, les) se chodí méně
+  často.~~ Pro vodu ne – Pochůzky pro vodu. Ohrada (oxen.md) má k práci dne trochu navíc jako
+  zavedené místo – jen
   ohrada se zvířaty (do prázdné se krmit nechodí – [abandonment.md](abandonment.md)). Stáda (diet.md – ovce
   s kozami po 20 kusech, krávy po 6, jako ve scéně) se denně vyženou na úhor a zpět – jedna cesta
   na stádo: mladý úhor vždy, louka na seno až po seči (srpen–listopad); v zimě stojí krávy
@@ -144,6 +149,41 @@ povede.“ Podrobnosti návrh Clauda.
   zaroste podle stávajících pravidel ([roads.md](roads.md)) – měnit hráči cesty naráz by bylo
   proti pravidlu, že se cesta nikdy nehýbe sama od sebe.
 
+## Pochůzky pro vodu
+
+Stav: Martin 19. 10. 2026 – „Ve Vlkově nikde nevidím vyšlapanou cestu k potoku. Ale vesničané tam
+přece musí chodit nějak pro vodu a musí jim to zabírat čas.“ Návrh níže schválil („Ano“),
+podrobnosti a čísla návrh Clauda.
+
+Ve Vlkově stály všechny domy 465–790 m od vody vzdušnou čarou, pochůzky ale sahaly jen do 450 m
+chůze po louce (a za 130 m se chodilo úměrně méně často) – pro vodu se nechodilo vůbec, pěšina ani
+pevná cesta k potoku nevznikla a čas na vodu byl jen v pevném denním minimu.
+
+- **Kam:** vždy k nejbližší vodě – suchý břeh u potoka (místo na břehu mimo stavby vsi) v okně
+  pěšin, bez horní meze vzdálenosti. Ves bez vody v okně nechodí nikam (jako dřív).
+- **Kolik:** 0,4 cesty (tam a zpět) na člověka domácnosti a den – i daleko naplno, v denní
+  i roční síti stejně (`WATER_FETCHING` v `rules.ts`). Pro dřevo beze změny.
+- **Pěšina a cesta:** pochůzky domácností se slévají na společnou pěšinu jako dřív; kudy se chodí
+  aspoň 3× denně dva roky, vznikne pevná cesta k vodě ([roads.md](roads.md)). Vlkov: pěšina
+  k potoku hned, pevná cesta k vodě (≈ 425 m) po dvou ročních kontrolách.
+- **Čas je práce:** chůze pro vodu nad 100 m se přičte k dennímu minimu domácnosti
+  ([population.md](population.md) – Práce, [fields.md](fields.md) – Práce): cesty × 2 × (chůze
+  k vodě − 100 m, nejméně 0) ÷ rychlost ÷ délka dne. Prvních 100 m je v ceně denního minima (WHO:
+  voda do 100 m nebo 5 minut je „intermediate access“ – Howard a Bartram 2003). Rychlost 1 m/s po
+  louce tam a zpět s vodou (pohodlná chůze po rovině 1,3–1,4 m/s – Bohannon 1997; WHO: do 1 km
+  nebo 30 minut sběru tam a zpět ≈ 1,1 m/s i s čerpáním), den 10 h (jako přepočty rešerše
+  2026-10-17). Domácnost 6 lidí s vodou 440 m chůze daleko: 2,4 cesty × 2 × 340 m ≈ 27 minut ≈
+  0,045 člověkodne denně; celý Vlkov (24 lidí) ≈ 0,18 člověkodne denně. Starší ji kryjí jako
+  zbytek minima.
+- **Chůze k vodě** (`Dwelling.waterWalkM`) se měří z obydlí k místu na břehu nejblíž vzdušnou
+  čarou stejně jako palivo (Pěšiny a práce) – po pěšinách dne a pevných cestách podle rychlostí
+  chůze, rovně s mokřinou, brody a poli. Jedna funkce (`waterWalkDistance`) – jde počítat i jen po
+  pevných cestách nebo rovně krajinou (kdyby pěšiny dne zmizely). Bez krajiny (kalibrace) se
+  neměří a přirážka není.
+- **Co hráč vidí:** přirážku jen přes práci – volná práce v liště, rozdělení práce dne (víc žen
+  u domácí práce). Ve scéně ženy chodí pro vodu po pěšině domácnosti i k vzdálené vodě (pro dřevo
+  jen do 220 m od domu).
+
 ## Pěšiny a práce
 
 Stav: Martin 18. 10. 2026 („Tam, kde bude vyšlapaná cesta, ať se chodí o něco lépe než tam, kde
@@ -172,7 +212,8 @@ týkají chůze.“ – tabulka v [roads.md](roads.md) – Rychlejší chůze), 
   dopočítá. Do sítě jde i práce posledního dne (kam ves chodí) a stadia dílů v den přepočtu, ale
   kvůli nim samotným se nepřepočítává.
 - **Uložení:** vzdálenost chůze každého dílu a čtverce sadu (`walkDistanceM`) a obydlí k okraji
-  lesa (`forestWalkM`); vsi uložené dřív si je spočítají při prvním dopočítání s krajinou.
+  lesa (`forestWalkM`) a k vodě (`waterWalkM` – Pochůzky pro vodu); vsi uložené dřív si je
+  spočítají při prvním dopočítání s krajinou.
   Kalibrace (bez krajiny) počítá dál s přímou vzdáleností.
 - Server i prohlížeč počítají stejnou funkcí – pěšiny ve scéně jsou tytéž, po kterých se
   počítá práce (v prohlížeči z dnešní práce dne, na serveru z rozložení při poslední změně).
