@@ -81,6 +81,20 @@ describe('rodiny, které se mohou oddělit', () => {
     expect(availableSettlers(s, DAY)).toBe(1);
   });
 
+  it('dům vdovy s dětmi drží vdova – mladý pár bez rodičů v domě odejde (Vlkov)', () => {
+    // vdova 30 s pěti dětmi, pár 27 a 19 s miminkem – polozemnice by byla přeplněná, zde zemnice
+    const s = build([
+      { id: 11, age: 30, sex: 'female' },
+      { id: 40, age: 11, sex: 'male', mother: 11 },
+      { id: 41, age: 10, sex: 'female', mother: 11 },
+      { id: 42, age: 9, sex: 'male', mother: 11 },
+      ...couple({ id: 30, age: 27 }, { id: 31, age: 19 }),
+      { id: 32, age: 0, sex: 'male', mother: 31, father: 30 },
+    ]);
+    expect(familiesOf(s, s.dwellings[0]!, DAY).map((f) => ids(f.people))).toEqual([[30, 31, 32]]);
+    expect(availableSettlers(s, DAY)).toBe(1);
+  });
+
   it('otec dědice zůstává s ním – rodiče se neoddělí', () => {
     const s = build([
       ...parents(),

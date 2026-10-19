@@ -324,7 +324,7 @@ jich bude moci mít více), tak pro něj hra končí – musí začínat znovu.�
   obydlí“; převod na rodiny [kinship.md](kinship.md) – návrh Clauda, Martin schválil; z neplného
   domu ne – rozhodnutí 18. 10. 2026). Z plného domu odejde rodina, dokud dům zůstává plný –
   obvykle jedna. **Nejstarší ženatý syn zůstává
-  s rodiči** jako dědic; v domě bez ženatého syna (ženatí bratři po smrti rodičů) zůstává
+  s rodiči** jako dědic; v domě bez ženatého syna drží dům vdova s vlastními dětmi (Martin, 19. 10. 2026 – návrh Clauda) a ženatí smí odejít všichni; jinak (ženatí bratři po smrti rodičů) zůstává
   nejstarší z ženatých mužů; ženatý muž bez rodičů v domě vedle dědice se oddělí. Rodina neodejde, když by se zbytek domácnosti rozpadl (zůstali by jen starší
   a děti). Z více rodin jde ta z nejvíc přeplněné domácnosti, v ní nejstarší muž. Když žádná
   rodina odejít nemůže, zůstane obydlí **prázdné** – postavené „do zásoby“.

@@ -132,7 +132,9 @@ vsi blízké příbuzné, nebudou chtít útočit):
 - **Vdova s vlastními dětmi do 14 let** se nevdává – zůstává v domě manžela.
 - **Domácnosti:** rodina = muž, žena a jejich svobodné děti z domu. Ženatý syn = muž, jehož matka
   nebo otec bydlí v domě; dědic = nejstarší ženatý syn a s ním zůstávají jeho rodiče; v domě bez
-  ženatého syna zůstává nejstarší ženatý muž. Všichni ostatní ženatí se oddělí – i ženatý muž bez
+  ženatého syna drží dům vdova s vlastními dětmi (Martin, 19. 10. 2026 – ve Vlkově mladý pár
+  nesměl z přeplněného domu vdovy do prázdné polozemnice; návrh Clauda) a ženatí smí všichni,
+  jinak zůstává nejstarší ženatý muž. Všichni ostatní ženatí se oddělí – i ženatý muž bez
   rodičů v domě vedle dědice (starší vsi mají rodiče neznámé; oprava 19. 10. 2026 – ve Vlkově
   takhle přeplněný dvorec nedal nikoho k osídlení). Svobodný syn smí odejít sám jen z plného nebo
   přeplněného domu (Martin – i plná domácnost), od 16 let; když dědic ještě není a matka synů už
