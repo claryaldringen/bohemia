@@ -308,6 +308,41 @@ Martin: „**A uzené maso určitě také nevydrží 3 roky.**“
 - **Důsledek:** v září a říjnu ves uzené maso nemá – bílkoviny jen z obilí, luštěnin, mléka, sýra
   a vajec, nasycení ty dva měsíce kleslo (Vlkov ≈ 0,85).
 
+#### Nouzová porážka
+
+Martin, 19. 10. 2026: „**Ano, udělej to všechno**“ – na otázku, jestli má ves, které jídlo do
+sklizně nevychází, napřed porazit zvířata navíc, než začne šetřit (Vlkov 9. 12. 781: 46 lidí,
+zásoby ≈ 3,6 t na ≈ 4,2 t potřeby do žní, jí 94 % přídělu – a přitom drží přes zimu 52 prasat,
+71 ovcí a 15,8 t sena). Podrobnosti jsou návrh Clauda.
+
+- **Kdy:** každý den před jídlem. Když výhled jídla do sklizně (příděl rovným dílem do žní – Hlad
+  a [fields.md](fields.md)) nevychází, ves dřív, než ubere z přídělu, porazí zvířata navíc. Je to
+  čistá funkce stavu a dne, takže na tom, po jakých kouscích se ves dopočítá, nezáleží.
+- **Pořadí:** napřed **prasata** (žerou les, ne seno), pak **kozy**, **krávy** nad chovné (kráva
+  na 2 domácnosti a 3 na ohradu – mléko a voly) a **ovce** nad ovce na vlnu (Oděv – ty nikdy).
+  **Chovný pár** každého druhu zůstane. Spřežení a telata ve výcviku jsou v ohradě, mimo stáda –
+  na nouzovou porážku nejdou.
+- **Kolik:** nejméně masa, se kterým výhled vyjde **i s rezervou 5 % potřeby energie do
+  sklizně**. Výhled nezná ztráty zásob skladováním ani úbytek masa uzením – bez rezervy by ves
+  porážela den co den po kouscích, s ní obvykle jednou za zimu (Vlkov: jednou, 23 prasat). Zabitím
+  dojnic ubude i mléka do sklizně, výhled s tím počítá.
+- **Maso** jde do zásoby jako z podzimní porážky – stejná výtěžnost (prase 50, koza 12, kráva
+  120, ovce 15 kg), stejné uzení 20 % ročně, jí se rovným dílem do zkažení 1. 9. Porážka a uzení
+  stojí 1 člověkoden na 20 kg; mimo listopad se udělá hned další dny (nedodělek listopadové
+  porážky propadá). Mláďata ubudou poměrně.
+- **Strop masa ve stravě 40 % energie platí i v nouzi.** Ves porazí jen tolik, kolik pod stropem
+  pomůže; když schodek ani tak nepokryje (nebo jí dojdou zvířata navíc), dál šetří přídělem.
+  Taková porážka, která schodek celý nepokryje, se udělá, jen když zvedne příděl **aspoň o 2
+  procentní body** – jinak by ves po každém úmrtí (ubude ovcí na vlnu) a po jarních mláďatech
+  porážela po kusech.
+  Proč strop nezvedat (rozhodnutí Clauda): 40 % energie z masa přes celou zimu je už na hraně
+  toho, co raně středověká ves jedla (obvykle 10–20 %); větší porážka by snědla chovné stádo, ze
+  kterého má příští rok mléko a mláďata, takže by si ves hlad jen přesunula na další zimu; a jedno
+  pravidlo stravy pro každý den je srozumitelnější než výjimka v nouzi. Vlkov se do stropu vejde
+  (≈ 37 % energie z masa).
+- **Kronika** `emergency-slaughter` (kg masa a kusy) a krátký řádek, jen fakt: „Vesničané porazili
+  23 prasat navíc“.
+
 #### Náměty (neimplementováno – Martin rozhodne)
 
 - ~~**Vlna**~~ – od 19. 10. 2026 ve hře jako spodní hranice stáda ovcí (Oděv). Zůstává námětem
@@ -724,8 +759,9 @@ Krátké `measure-village.ts 20 20` před a po (skutečné krajiny; jen orienta�
 - V horní liště **obilí, luštěniny, maso, mléko a sýr, ovoce** (ikony + čísla) a nasycení;
   tooltip nasycení ukáže energii a bílkoviny a podíly (ikony obilí / luštěniny / maso / mléko
   a sýr / vejce / ovoce s procenty).
-- Stáda ve scéně odpovídají skutečnému počtu zvířat, u stád stojí pasáci; na podzim porážka, 1. 9.
-  zkažené maso a po zimě úhyn stáda (krátké zprávy).
+- Stáda ve scéně odpovídají skutečnému počtu zvířat, u stád stojí pasáci; na podzim porážka,
+  nouzová porážka („Vesničané porazili 23 prasat navíc“), 1. 9. zkažené maso a po zimě úhyn stáda
+  (krátké zprávy).
 - V panelu ohrady a u stád počty zvířat a nosnost (ikony + čísla).
 
 ## Rozhodnutí
@@ -778,3 +814,7 @@ Krátké `measure-village.ts 20 20` před a po (skutečné krajiny; jen orienta�
 | Pastva a seno: voli, ovce na vlnu, krávy na mléko a voly; pasáci napřed ovce na vlnu                                                            | návrh Clauda           |
 | Bez vlny jen štěstí až −6 a upozornění; práce na vlně v domácí výrobě (přerozdělení, ne navíc)                                                  | Martin (19. 10. 2026)  |
 | Osadníci mají ovce na vlnu a seno na první zimu; jehňata ovcí na vlnu nejdou na maso navíc                                                      | Martin (19. 10. 2026)  |
+| Nouzová porážka – ves, které výhled jídla do sklizně nevychází, napřed porazí zvířata navíc, pak šetří                                          | Martin (19. 10. 2026)  |
+| Pořadí prasata → kozy → krávy nad chovné → ovce nad ovce na vlnu; chovný pár, spřežení a telata zůstanou                                        | Martin (19. 10. 2026)  |
+| Kontrola každý den před jídlem; porazí, aby výhled vyšel s rezervou 5 % potřeby do sklizně; částečně jen o 2 body přídělu a víc                 | návrh Clauda           |
+| Maso, uzení, zkažení 1. 9. a práce jako z podzimní porážky; strop masa 40 % platí i v nouzi                                                     | návrh Clauda           |

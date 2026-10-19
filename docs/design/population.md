@@ -295,6 +295,15 @@ jich bude moci mít více), tak pro něj hra končí – musí začínat znovu.�
   ≈ 5–6 týdnech, ves se během dalších ≈ 6 týdnů zmenší na ≈ 45–50 % lidí a zbylí jsou sytí. Mírný
   nedostatek (80 % přídělu) začne zabíjet děti a starší až po ≈ 4–5 měsících a za rok stojí
   ≈ 15 % lidí. Porody se zastaví už při nasycení 0,5 (Růst populace).
+- **Napřed nouzová porážka:** ves, které výhled do sklizně nevychází, nejdřív porazí zvířata
+  navíc a teprve pak ubírá z přídělu ([strava](diet.md) – Nouzová porážka, Martin 19. 10. 2026).
+- **Stupně upozornění** (Martin, 19. 10. 2026; příděl = rovný díl zásob do sklizně podle výhledu):
+  **„Ves šetří jídlem“**, když ves ubírá z přídělu, ale jí se 90–100 % – mírný tón (zpráva, ne
+  varování), stačí ikona nasycení; **„Ves hladoví“** pod 90 % – od té hranice se sčítá
+  nahromaděný hlad; **„Lidé umírají hlady“**, jen když opravdu hrozí smrt hladem (nahromaděný hlad
+  přes práh dětí a starších). Ukáže se vždy jen nejvyšší stupeň a ohlásí se, jen když se hlad
+  zhorší (zlepšení je vidět na ikoně nasycení). Totéž z jiné vsi hráče („Budeč: ves šetří jídlem“)
+  a v seznamu vsí.
 - **Hájení** chrání dospělé a starší i před smrtí hladem. Hlad v něm dál přibývá, ale nejvýš
   den pod prahem skupiny (dospělí 19, děti a starší 11 dní) – děti v hájení hladem neumírají
   (běžné riziko se jim půlí) a po konci hájení lidé umírají postupně, ne všichni druhý den
@@ -587,8 +596,9 @@ před → po:
   stavby, ne průměr; Martin 19. 10. 2026 –, nasycení, datum), minimapa, panel
   vybraného obydlí (obyvatelé s věkem, stav, stáří, průběh stavby) a mřížka staveb. Žádný
   průvodce ani nápovědy.
-- Krátké mizející upozornění, že rodina čeká na dům, že ves hladoví, že lidé umírají hlady, že
-  byla svatba a že přišla nevěsta či ženich z okolí (fakt, ne rada).
+- Krátké mizející upozornění, že rodina čeká na dům, že ves šetří jídlem, hladoví a že lidé
+  umírají hlady (jen nejvyšší stupeň – Hlad a vymření), že byla svatba a že přišla nevěsta či
+  ženich z okolí (fakt, ne rada).
 - Obrazovka porážky, když hráči vymřou všechny vsi (Hlad a vymření).
 - Kronika zůstává v datech vsi, v rozhraní zatím není.
 
@@ -679,3 +689,5 @@ před → po:
 | Ženatý pár, který dům nedrží, smí odejít do nového domu kdykoli                      | Martin (19. 10. 2026), návrh Clauda        |
 | Porody podle věku ženy (přirozená plodnost × 0,85), rozestup 21 / 9 měsíců           | návrh Clauda (19. 10. 2026)                |
 | Ženich z okolí (k vdově 50 % ročně), pryč 20 %; „Rodina čeká na dům“                 | návrh Clauda (19. 10. 2026)                |
+| Upozornění na hlad ve stupních: šetří jídlem (90–100 %), hladoví (pod 90 %), umírají | Martin (19. 10. 2026)                      |
+| Jen nejvyšší stupeň, ohlásí se při zhoršení; „šetří jídlem“ mírně jako zpráva        | návrh Clauda                               |

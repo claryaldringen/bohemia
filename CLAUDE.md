@@ -549,6 +549,12 @@ rozhraní částí v
   `restartGame` (bez vstupu po konci hry, `{ abandon: true }` z nabídky) a `hud/DefeatScreen.tsx`
   (Rod vymřel, jméno, roky, Začít znovu → `window.location.reload()` kvůli nové krajině). Scéna:
   neobývaná obydlí nemají dým ani zvířata a hlína u vchodu zarůstá (`ABANDONED_EARTH_ALPHA`).
+  **Stupně hladu** (population.md – Hlad a vymření, Martin 19. 10. 2026): `eat` zapíše příděl do
+  sklizně `VillageState.ration` (jen když ves šetří – `hungry`), `hungerLevel` v `summary.ts` →
+  `VillageSummary.hunger` (`fed` / `rationing` 90–100 % / `hungry` pod `STARVATION.fedFrom` /
+  `starving`) → `VillageView.hunger`, `VillageListItem.hunger`; upozornění „Ves šetří jídlem“
+  (info), „Ves hladoví“, „Lidé umírají hlady“ – jen nejvyšší stupeň, ohlásí se při zhoršení (i
+  z jiné vsi – `otherVillageNotices`).
 - **Rozpad obydlí a zbytek jámy** (population.md – Co hráč vidí, Chátrání a přestavba – Po
   zániku; Martin 18. 10. 2026): jádro – `ruins.ts`: obydlí, které zchátrá na nulu
   (`decayEmptyDwellings`), nebo jehož přestavba ho přestěhuje na nový pozemek, zapíše
@@ -961,6 +967,15 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   nezmenší) řídí seč 1. 6. (`wantedWinterHerds`), luštěniny osevu 1. 9. (`plannedLegumeKg` →
   `sowingTargets`) i porážku 1. 11.; zbytek i dospělé kusy na maso; stádo pod potřebou dá na
   maso navíc mláďata v pořadí prasata, krávy, kozy, ovce (`MEAT_ORDER`).
+  **Nouzová porážka** (diet.md – Nouzová porážka, Martin 19. 10. 2026; `emergency-slaughter.ts`,
+  `EMERGENCY_SLAUGHTER` v `rules.ts`): v `eat` před jídlem dne, když výhled do sklizně nevychází
+  (`dayMealInput` – týž vstup `eatDiet` jako jídlo dne), ves porazí zvířata navíc – prasata, kozy,
+  krávy nad `breedingCows`, ovce nad `woolSheep`, chovný pár zůstane (`emergencySpare`); nejméně
+  masa, se kterým výhled vyjde i s rezervou `reserveShare` (5 % potřeby do sklizně – půlení
+  v `emergencySlaughterPlan`, mléko zabitých dojnic se odečte), nejvýš kolik pod stropem masa
+  (`DIET.caps.meat` platí i v nouzi) pomůže. Maso přes `butcher` (uzení, zkažení 1. 9.), práce
+  mimo listopad `slaughterWork.emergency` (úloha `slaughter` hned), kronika `emergency-slaughter`
+  (kusy), upozornění „Vesničané porazili 12 prasat navíc“ (`formatAnimals`).
   **Oděv – vlna** (diet.md – Oděv; Martin 19. 10. 2026: „Ovce jsou hlavně kvůli vlně, aby se lidé
   mohli vůbec oblékat.“; `wool.ts`, `WOOL` v `rules.ts`): ovce na vlnu `woolSheep` (dospělý 1,6 kg,
   dítě 0,8 kg ÷ 0,8 kg z ovce) jsou spodní hranicí ovcí – `minSheep` ve `farmInput` →
@@ -1472,7 +1487,8 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   práce podle `forestDistanceM` obydlí. Scéna: hromada klád `lib/scene/log-pile.ts` (místo
   a hranice v `log-pile-layout.ts`, bez volného místa se nekreslí), staveniště ukazuje průběh
   bez kácení (`buildProgress`).
-- **Upozornění** (`lib/village-notices.ts`): rodina čeká na dům (fakt), lidé umírají hlady, hlad,
+- **Upozornění** (`lib/village-notices.ts`): rodina čeká na dům (fakt), stupně hladu (šetří
+  jídlem, hladoví, umírají hlady – jen nejvyšší), nouzová porážka,
   stojící stavby, plný hřbitov (žádný hotový nemá volný hrob), vesničané ušetřili posvátný dub
   / dubový háj, svatba, nevěsta a ženich z okolí a dcera vdaná pryč, přišla rodina / muž / žena od souseda
   (`newcomer` – trade.md, Výměna lidí) (fakt, když přibude – svatba podle

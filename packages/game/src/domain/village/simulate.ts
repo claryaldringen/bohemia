@@ -44,24 +44,10 @@ import {
   wantsRebuild,
   yearlyCommonLabor,
 } from './dwellings';
-import {
-  animalCareNeed,
-  dailyMilk,
-  daysUntilMilking,
-  milkEnergyBetween,
-  villageCheeseKg,
-} from './dairy';
-import {
-  DIET,
-  daysUntilMeatEnd,
-  eatDiet,
-  villageFoodNeed,
-  villageMeatKg,
-  villageProteinNeed,
-} from './diet';
+import { animalCareNeed, dailyMilk } from './dairy';
+import { DIET, eatDiet, villageFoodNeed } from './diet';
 import {
   closeFieldFoodYear,
-  fieldFoodShare,
   recordFieldFood,
   sowingTargets,
   type SowingTargets,
@@ -74,7 +60,6 @@ import {
   sowingGroup,
 } from './fields';
 import { plannedFurrowEfficiency, ploughDayFactor } from './plough-trip';
-import { daysUntilAppleRot } from './food';
 import { isToilDay, updateHappiness, villageLaborFactor, windowEndDay } from './happiness';
 import { MOWING_WINDOWS, mow, mowingRemaining } from './hay';
 import { herdingDay, recordHerding } from './herding';
@@ -82,15 +67,9 @@ import { sowingBlocks, villageHoldings, workOrder } from './holdings';
 import { occupyEmptyDwellings, settleNewDwelling } from './households';
 import { withKinship } from './kinship';
 import { husbandryDay, plannedLegumeKg } from './husbandry';
-import { daysUntilLegumeHarvest, villageLegumesKg } from './legumes';
-import {
-  SLAUGHTER_MONTH,
-  dailyEggsKg,
-  slaughterRemaining,
-  villageChickens,
-  villageHerds,
-  workSlaughter,
-} from './livestock';
+import { dayMealInput, emergencySlaughter } from './emergency-slaughter';
+import { villageLegumesKg } from './legumes';
+import { slaughterRemaining, villageChickens, villageHerds, workSlaughter } from './livestock';
 import { arrangeMarriages } from './marriage';
 import { ableTeams, finishPen, ploughCapacityPerDay, villageOxen } from './oxen';
 import { recordClearedObstacles } from './obstacles';
@@ -115,7 +94,6 @@ import {
   orchardSeasonDay,
   orchardWorkRemaining,
   plantOrchard,
-  villageApplesKg,
   workOrchards,
 } from './orchard';
 import { laborPerDay } from './people';
@@ -192,7 +170,6 @@ import {
   cropTaskDone,
   cropTaskRemaining,
   cropTaskWindows,
-  daysUntilFoodHarvest,
   harvestKg,
   planCrops,
   planPartIds,
@@ -770,7 +747,8 @@ function work(
     dayTasks.push({
       name: 'slaughter',
       remaining: butchery,
-      end: SLAUGHTER_MONTH,
+      // v listopadu, nouzová porážka i mimo něj – vždy v měsíci, kdy se porazilo (diet.md)
+      end: month,
       tie: 0,
       rank: 1,
     });
@@ -1591,42 +1569,11 @@ function eat(
   milked: number,
 ): { satiation: number; energy: number; fruit: boolean; meat: number } {
   const need = villageFoodNeed(state, day);
-  const herds = villageHerds(state);
-  const milk = dailyMilk(herds, day);
-  // ozim uživí srpen, když pokryje potřebu z pole, na kterou ves osévala (fields.md – Ozim a jař)
-  const daysToHarvest = daysUntilFoodHarvest(
-    state.plan,
-    state.parts,
-    day,
-    need * fieldFoodShare(state),
-  );
-  const meal = eatDiet({
-    grainKg: state.storesKg,
-    meatKg: villageMeatKg(state),
-    fruitKg: villageApplesKg(state),
-    cheeseKg: villageCheeseKg(state),
-    milkL: milk.liters * milked,
-    milkProteinKg: milk.proteinKg * milked,
-    milkEnergy: milk.energy * milked,
-    eggsKg: dailyEggsKg(state),
-    legumesKg: villageLegumesKg(state),
-    daysToLegumeHarvest: daysUntilLegumeHarvest(day),
-    needPerDay: need,
-    proteinNeedPerDay: villageProteinNeed(state, day),
-    daysToMilking: daysUntilMilking(day),
-    // výhled do sklizně počítá s mlékem stád (fields.md – Osev podle stravy)
-    milkAheadEnergy: milkEnergyBetween(
-      herds,
-      day + 1,
-      day + daysToHarvest - 1,
-      DIET.caps.dairy * need,
-    ),
-    daysToHarvest,
-    // jablka v nádobách od hrnčíře vydrží déle (crafts.md)
-    daysToRot: daysUntilAppleRot(day, coverage.pottery),
-    daysToMeatEnd: daysUntilMeatEnd(day),
-    potteryCoverage: coverage.pottery,
-  });
+  // nevychází-li výhled do sklizně, ves napřed porazí zvířata navíc – teprve pak šetří přídělem
+  // (diet.md – Nouzová porážka)
+  const emergency = emergencySlaughter(state, day, coverage.pottery, milked);
+  if (emergency) state.chronicle.push(emergency);
+  const meal = eatDiet(dayMealInput(state, day, coverage.pottery, milked));
   state.storesKg = meal.grainKg;
   if (state.meatKg !== undefined || meal.meatKg > 0) state.meatKg = meal.meatKg;
   if (state.cheeseKg !== undefined || meal.cheeseKg > 0) state.cheeseKg = meal.cheeseKg;
@@ -1637,6 +1584,9 @@ function eat(
   // oseje, Osev podle stravy)
   recordFieldFood(state, need, meal.diet);
   const hungry = meal.outlook < 1 - SATIATION_EPSILON;
+  // příděl do sklizně, když ves šetří – stupeň upozornění (population.md – Co hráč vidí)
+  if (hungry) state.ration = meal.outlook;
+  else delete state.ration;
   if (hungry !== state.hungry) {
     state.hungry = hungry;
     state.chronicle.push({ day, kind: hungry ? 'hunger-began' : 'hunger-ended' });

@@ -338,8 +338,13 @@ export interface VillageSummary {
    */
   fullHousehold: boolean;
   constructions: ConstructionSummary[];
-  /** Ves hladoví – zásoby nevystačí do sklizně (jako `hunger-began` v kronice). */
+  /**
+   * Ves šetří jídlem nebo hladoví – zásoby nevystačí do sklizně a ubírá z přídělu (jako
+   * `hunger-began` v kronice).
+   */
   hungry: boolean;
+  /** Stupeň hladu pro upozornění (population.md – Co hráč vidí). */
+  hunger: HungerLevel;
   /** Nahromaděný hlad ve dnech bez jídla (population.md – Hlad a vymření). */
   starvationDays: number;
   /**
@@ -375,6 +380,29 @@ export const STALL_DAYS = 3;
 const NO_LABOR = 0.01;
 /** Od kolika dnů nahromaděného hladu lidé umírají hlady – nejnižší práh věkových skupin. */
 const STARVING_FROM_DAYS = Math.min(...Object.values(STARVATION.threshold));
+
+/**
+ * Stupeň hladu (population.md – Co hráč vidí): `fed` – jí se dosyta; `rationing` – ves šetří
+ * jídlem, zásoby do sklizně nevystačí a ubírá z přídělu, ale jí se aspoň STARVATION.fedFrom (90 %);
+ * `hungry` – příděl pod 90 %, od té hranice se sčítá hlad; `starving` – lidé umírají hlady.
+ */
+export type HungerLevel = 'fed' | 'rationing' | 'hungry' | 'starving';
+
+/** Lidé umírají hlady – nahromaděný hlad přesáhl práh dětí a starších. */
+function isStarving(state: VillageState): boolean {
+  return state.people.length > 0 && (state.starvationDays ?? 0) > STARVING_FROM_DAYS;
+}
+
+/**
+ * Stupeň hladu vsi z posledního jídla: příděl do sklizně podle výhledu (`VillageState.ration`;
+ * ves uložená dřív bez něj – energie posledního jídla).
+ */
+export function hungerLevel(state: VillageState): HungerLevel {
+  if (isStarving(state)) return 'starving';
+  if (!state.hungry) return 'fed';
+  const ration = state.ration ?? state.diet?.energy ?? 0;
+  return ration < STARVATION.fedFrom ? 'hungry' : 'rationing';
+}
 
 /**
  * Stadium dílu v daný den; příloh podle let ladem a let bez pastvy a seče (`fallowStage` –
@@ -613,8 +641,9 @@ export function summarizeVillage(
     fullHousehold: waitingHouseholds(state, day) > 0,
     constructions: state.constructions.map((c) => constructionSummary(state, c)),
     hungry: state.hungry,
+    hunger: hungerLevel(state),
     starvationDays,
-    starving: state.people.length > 0 && starvationDays > STARVING_FROM_DAYS,
+    starving: isStarving(state),
     extinctDay: state.extinctDay ?? null,
     constructionsStalled: stalled(state),
     cemeteries: cemeterySummaries(state, deathsPerYear),

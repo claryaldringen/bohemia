@@ -818,6 +818,11 @@ export type ChronicleEvent = { day: number } & (
   /** Podzimní porážka (diet.md – 1. 11.): kolik kg masa a kolik kusů kterého druhu. */
   | { kind: 'slaughter'; kg: number; animals: Partial<Record<HerdSpecies, number>> }
   /**
+   * Nouzová porážka (diet.md – Nouzová porážka): výhled jídla do sklizně nevycházel, ves porazila
+   * zvířata navíc – kolik kg masa a kusů (na setiny) kterého druhu.
+   */
+  | { kind: 'emergency-slaughter'; kg: number; animals: Partial<Record<HerdSpecies, number>> }
+  /**
    * Zbytek uzeného masa se zkazil (diet.md – Trvanlivost masa, 1. 9.) – kolik kg; méně než kilo
    * se nezapíše.
    */
@@ -1059,6 +1064,11 @@ export interface VillageState {
   storesKg: number;
   domesticBacklog: number;
   hungry: boolean;
+  /**
+   * Příděl energie do sklizně podle výhledu z jídla posledního dne (0–1) – jen když ves šetří
+   * (`hungry`); jinak chybí (population.md – Co hráč vidí: šetří jídlem / hladoví).
+   */
+  ration?: number;
   /**
    * Nahromaděný hlad ve „dnech bez jídla“ (population.md – Hlad a vymření). U vsí uložených
    * před zavedením hladovění chybí (= 0).
@@ -1631,8 +1641,11 @@ export interface LivestockState {
    * a žaludy. Bez údaje výchozí hodnoty typické krajiny (LIVESTOCK.defaultLand).
    */
   land?: { meadowHa: number; forestHa: number };
-  /** Porážka a uzení (listopad) – potřebné a odvedené člověkodny; chybí = žádná. */
-  slaughterWork?: { required: number; done: number } | null;
+  /**
+   * Porážka a uzení (listopad) – potřebné a odvedené člověkodny; chybí = žádná. `emergency` –
+   * práce nouzové porážky mimo listopad (diet.md – Nouzová porážka), dělá se hned.
+   */
+  slaughterWork?: { required: number; done: number; emergency?: boolean } | null;
   /**
    * Pasení od poslední porážky (diet.md – Pasáci): součet denní potřeby pasáků a co z ní děti,
    * starší a dospělí uhlídali (v plných pasácích). Chybí = zatím nic (vsi uložené dřív).

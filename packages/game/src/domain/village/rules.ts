@@ -413,6 +413,22 @@ export const WOOL = {
   unhappiness: 6,
   noticeBelow: 0.95,
 } as const;
+/**
+ * diet.md – Nouzová porážka (Martin 19. 10. 2026: „Ano, udělej to všechno“; podrobnosti návrh
+ * Clauda): když výhled jídla do sklizně nevychází, ves dřív, než ubere z přídělu, porazí zvířata
+ * navíc v pořadí `order` – prasata (žerou les, ne seno), kozy, krávy nad chovné, ovce nad ovce na
+ * vlnu. Porazí tolik, aby výhled vyšel i s rezervou `reserveShare` potřeby energie do sklizně
+ * (ztráty zásob skladováním a uzením výhled nezná – bez rezervy by ves porážela den co den po
+ * kouscích), a nejvýš tolik, kolik pod stropem masa ve stravě (DIET.caps.meat) pomůže. Když
+ * schodek celý nepokryje (málo zvířat navíc, strop masa), porazí jen tehdy, zvedne-li příděl
+ * aspoň o `minGain` (2 procentní body) – jinak by po každém úmrtí (méně ovcí na vlnu) a jarních
+ * mláďatech porážela po kusech.
+ */
+export const EMERGENCY_SLAUGHTER = {
+  order: ['pig', 'goat', 'cow', 'sheep'],
+  reserveShare: 0.05,
+  minGain: 0.02,
+} as const;
 // population.md – Nové obydlí (společná práce za posledních 30 dní pro „má na to“)
 export const COMMON_LABOR_HISTORY_DAYS = 30;
 // population.md – Chátrání a přestavba (oprava podle hlášení Martina 18. 10. 2026): přestavba na
