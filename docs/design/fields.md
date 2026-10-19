@@ -645,7 +645,7 @@ Výchozí osevní systém je přílohová soustava raných Slovanů (Martin). Pr
   zarostl v les – proto 2,5 % (rešerše uvádí 2–2,5 %). Od 18. 10. 2026 zarůstá jen příloh, který
   stáda nespásají a ves neposeče (viz Zarůstání) – délka přílohu sama les nehlídá.
 - **Smí se osít** díl, jehož aktuální úrodnost je aspoň 70 % přirozené – v nouzi i příloh pod
-  70 % (Pořadí, bod 5 – Nouzový osev níže).
+  70 %, ale aspoň na 40 % (Pořadí, bod 5 – Nouzový osev níže).
 - **Pořadí:** k 1. září ves vybírá díly na příští rok v tomto pořadí, dokud nepokryje potřebu
   (viz Kolik ves oseje):
   1. díly, které se už osévají a smějí dál,
@@ -653,8 +653,9 @@ Výchozí osevní systém je přílohová soustava raných Slovanů (Martin). Pr
   3. přílohy zotavené aspoň na 95 % – nejmladší první (nejlevnější vrácení), při shodě
      nejbližší,
   4. když to nestačí, i přílohy zotavené na 70–95 % – nejvíc zotavené první,
-  5. **nouzově i přílohy pod 70 %** – jen pro potřebný osev, když díly od 70 % nedají energii,
-     kterou ves potřebuje sklidit; nejvíc zotavené první, při shodě nejbližší (viz Nouzový osev).
+  5. **nouzově i přílohy pod 70 %, ale aspoň na 40 %** – jen pro potřebný osev, když díly od
+     70 % nedají energii, kterou ves potřebuje sklidit; nejvíc zotavené první, při shodě nejbližší
+     (viz Nouzový osev). Příloh pod 40 % leží, dokud se nezotaví.
 
   Ves s hospodářstvími (díly na políčkách a aspoň jeden dům) bere skupiny ve stejném pořadí, ale
   po celých úsecích hospodářství od domu ven – viz Hospodaření podle polohy domů.
@@ -675,14 +676,19 @@ Výchozí osevní systém je přílohová soustava raných Slovanů (Martin). Pr
     energii, kterou ves potřebuje sklidit kvůli jídlu (cíl osevu bez luštěnin navíc na bílkoviny),
     vybere znovu i s přílohy pod 70 % za nimi (bod 5, po úsecích hospodářství jako ostatní). Ves,
     které díly od 70 % stačí, seje beze změny.
+  - **Spodní mez 40 %** (Martin, 19. 10. 2026: „ves neoseje díly pod 40 % úrodnosti“): nouzově
+    smí ves osít jen příloh s aktuální úrodností aspoň 40 % přirozené (`FERTILITY.emergencyMin`).
+    **Proč:** úroda má základ 40 % i při nulové úrodnosti (304 kg/ha proti 175 kg osiva), takže
+    se osev podle čisté úrody vyplatí vždy a díl by šel opakovaným nouzovým osevem až na nulu –
+    odtud se na 70 % vrací 28 let. Od 40 % klesne díl osevem nejvýš na 28 % a na 70 % se vrátí
+    za 17 let.
   - Ves díl vezme, jen když je jeho očekávaná čistá úroda (hrubá podle úrodnosti − osivo) kladná.
-    S dnešní úrodou (základ 40 % i při nulové úrodnosti – 304 kg/ha proti 175 kg osiva) je vždy
-    kladná – mez se zatím neuplatní. Další mez Claude nepřidal: při úrodnosti 35 (přirozená 70,
+    S dnešní úrodou je vždy kladná – mez se zatím neuplatní. Při úrodnosti 35 (přirozená 70,
     podíl 0,5) dá louka ≈ 290 kg/ha čistého obilí za ≈ 305 člověkodní ručně (≈ 0,95 kg na
     člověkoden; běžný příloh ≈ 1,45, osévaný díl ≈ 2,2) – v nouzi to pořád stojí za to.
   - Kapacita plánu (práce ve špičkách, orba spřežením) platí jako u ostatních dílů potřebného
     osevu. Úroda a pokles úrodnosti zůstávají: osetý rok ubere 12 % přirozené (nejvýš na nulu –
-    jinak by opakovaný nouzový osev šel pod nulu) a díl jde 1. 9. zase do přílohu.
+    pojistka, se spodní mezí 40 % díl klesne nejvýš na 28 %) a díl jde 1. 9. zase do přílohu.
   - Zkrácení rozjetého plánu (Osev podle zásob) ubírá napřed nezačaté nouzové díly; do osevu navíc
     nejdou.
 
@@ -1701,5 +1707,6 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 | Zkrácení plánu ubrané díly přesune do osevu navíc; volná práce v liště = práce pro stavby, před polem navíc                       | návrh Clauda                                    |
 | Nouzový osev – když potřebný osev nevychází, ves smí osít i příloh pod 70 % (úroda podle úrodnosti)                               | Martin (19. 10. 2026)                           |
 | Nouzově jen obilí potřebného osevu, nejvíc zotavené první, jen s kladnou čistou úrodou; úrodnost nejvýš na nulu                   | návrh Clauda                                    |
+| „Ves neoseje díly pod 40 % úrodnosti“ – nouzově jen příloh aspoň na 40 % přirozené, pod 40 % leží, dokud se nezotaví              | Martin (19. 10. 2026)                           |
 | „Pole, které zrovna neleží ladem: 0.5.“ – chůze přes díl v osevu 0,5× i pro vzdálenost práce, pěšina dne přes osev nezrychlí      | Martin (19. 10. 2026)                           |
 | „Neber strniště jako louku, ale dej mu drobný postih. Ber to třeba jako 0.8.“                                                     | Martin (19. 10. 2026)                           |

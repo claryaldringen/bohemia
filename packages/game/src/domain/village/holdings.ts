@@ -321,7 +321,7 @@ function smoothLanes(
 
 /**
  * Nouzový osev (fields.md – Přílohová soustava, Nouzový osev): přílohy pod 70 % přirozené
- * úrodnosti – „pátá skupina“ pořadí, jen pro `sowingBlocks(…, EMERGENCY_GROUP)`.
+ * úrodnosti (aspoň na 40 %) – „pátá skupina“ pořadí, jen pro `sowingBlocks(…, EMERGENCY_GROUP)`.
  */
 export const EMERGENCY_GROUP = 5;
 type BlockGroup = SowingGroup | typeof EMERGENCY_GROUP;
@@ -362,7 +362,7 @@ function compareKeys(a: readonly number[], b: readonly number[]): number {
  * - přílohy ≥ 95 %: nejdřív bez přílohu před sebou, pak úseky, které se už osévají (ves úsek
  *   dokončí), pak nejvíc odpočaté a nejblíž domu,
  * - přílohy 70–95 %: nejvíc zotavené, pak bez přílohu před sebou, rozběhnuté úseky, nejblíž domu,
- * - jen s `onlyGroup` = `EMERGENCY_GROUP` přílohy pod 70 % (nouzový osev) – stejně jako 70–95 %.
+ * - jen s `onlyGroup` = `EMERGENCY_GROUP` přílohy 40–70 % (nouzový osev) – stejně jako 70–95 %.
  * Mezi hospodářstvími se bloky střídají tak, aby každé mělo vybraný stejný podíl své plochy –
  * všechna hospodářství tak obíhají stejně rychle. Ves bez hospodářství (bez domů nebo jen
  * s díly bez políčka) bere díly po jednom v dřívějším pořadí `sowingOrder`. `onlyGroup` – jen

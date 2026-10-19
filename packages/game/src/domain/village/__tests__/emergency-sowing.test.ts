@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { foundVillage } from '../actions';
 import type { PartInput } from '../actions';
-import { expectedNetKg, grossYieldPerHa, isSowableFertility } from '../fields';
-import { SEED_KG_PER_HA } from '../rules';
+import { expectedNetKg, grossYieldPerHa, isEmergencyFallow, isSowableFertility } from '../fields';
+import { FERTILITY, SEED_KG_PER_HA } from '../rules';
 import { advanceVillage } from '../simulate';
 import type { FieldPart, VillageState } from '../types';
 import { planPartIds } from '../year-plan';
@@ -108,6 +108,36 @@ describe('nouzový osev přílohu pod 70 %', () => {
     const inPlan = new Set(planPartIds(planned.plan!));
     expect(inPlan.has(empty.id)).toBe(false);
     expect(planned.parts.some((p) => inPlan.has(p.id) && isEmergency(p))).toBe(true);
+  }, 60_000);
+
+  it('nouzově jen příloh aspoň na 40 % přirozené (Martin 19. 10. 2026)', () => {
+    const part = poorVillage(0, 0).parts[50]!;
+    part.fertilityShare = 0.39;
+    expect(isEmergencyFallow(part)).toBe(false);
+    part.fertilityShare = 0.4;
+    expect(isEmergencyFallow(part)).toBe(true);
+    part.fertilityShare = 0.7;
+    expect(isEmergencyFallow(part)).toBe(false);
+    part.state = 'sown';
+    part.fertilityShare = 0.5;
+    expect(isEmergencyFallow(part)).toBe(false);
+  });
+
+  it('díl na 39 % nouzově neoseje, na 40 % ano', () => {
+    const s = poorVillage(10, 0);
+    // 1. 9. se příloh zotaví o fallowRecovery – plán vidí 0,39 a jeden díl na 0,40
+    const fallows = s.parts.slice(10);
+    for (const p of fallows) p.fertilityShare = 0.39 - FERTILITY.fallowRecovery;
+    const ready = fallows[30]!;
+    ready.fertilityShare = 0.4 - FERTILITY.fallowRecovery;
+    const planned = advanceVillage(s, at(600, 9, 1), null);
+    const inPlan = new Set(planPartIds(planned.plan!));
+    const byId = new Map(planned.parts.map((p) => [p.id, p]));
+    expect(byId.get(ready.id)!.fertilityShare).toBeCloseTo(0.4, 9);
+    expect(inPlan.has(ready.id)).toBe(true);
+    for (const p of fallows) {
+      if (p.id !== ready.id) expect(inPlan.has(p.id)).toBe(false);
+    }
   }, 60_000);
 
   it('ves, které díly od 70 % stačí, nouzový příloh neoseje', () => {

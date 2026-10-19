@@ -406,7 +406,7 @@ function planYear(
   };
   let crops = chooseCrops(blocks, choice);
   // nouzový osev (fields.md – Přílohová soustava, Nouzový osev): když díly od 70 % nedají energii,
-  // kterou ves potřebuje sklidit, vezme i přílohy pod 70 % – za ostatními díly, jen s kladnou
+  // kterou ves potřebuje sklidit, vezme i přílohy 40–70 % – za ostatními díly, jen s kladnou
   // čistou úrodou; luštěniny, len ani osev navíc je neberou
   if (chosenEnergyKg(crops, day) < targets.harvestKg - SOWING_EPSILON_KG) {
     const emergency = sowingBlocks(state.parts, holdings, EMERGENCY_GROUP)

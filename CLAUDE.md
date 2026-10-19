@@ -855,7 +855,8 @@ rozhraní částí v
   polem navíc; v rozdělení práce `DayWork.extraField`. **Nouzový osev** (fields.md – Přílohová
   soustava, Martin 19. 10. 2026): když díly od 70 % nedají `SowingTargets.harvestKg`, plán vybere
   znovu i s přílohy pod 70 % (`sowingBlocks(…, EMERGENCY_GROUP)`, `isEmergencyFallow`, čistá
-  úroda > 0), jen obilí; úrodnost dílu klesá nejvýš na nulu. Potřebou z pole jde i `energyFloorKg`, odhad ozimu na srpen
+  úroda > 0), jen obilí, a jen od 40 % přirozené (`FERTILITY.emergencyMin` – Martin: „ves neoseje
+  díly pod 40 % úrodnosti“); úrodnost dílu klesá nejvýš na nulu (pojistka). Potřebou z pole jde i `energyFloorKg`, odhad ozimu na srpen
   (`daysUntilFoodHarvest`) a dobré zásoby štěstí; ustálená úroda `steadyHarvestKg` (kalibrace,
   kalkulačka – zásoba na cílové zásobě). Kalibrace vypisuje práci na poli a volnou práci po rocích
   (průměr, variační koeficient, změna z roku na rok). Volná práce plánu (`sowingCapacity`) je po
