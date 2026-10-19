@@ -71,7 +71,14 @@ export interface LivestockVillage {
     squares: readonly { x: number; z: number; size: number; rotation?: number }[];
   }[];
   /** Ohrady (oxen.md) – oplocené čtverce, stáda ani slepice do nich nechodí. */
-  pens?: readonly { x: number; z: number; size: number; rotation?: number }[];
+  pens?: readonly {
+    x: number;
+    z: number;
+    size: number;
+    rotation?: number;
+    /** Další čtverce ohrady (oxen.md – Ohrady podle druhu). */
+    extraSquares?: readonly { x: number; z: number }[];
+  }[];
   /**
    * Rozdělení práce dne: herní den (na louce na seno se pase jen po seči; bez něj se tam nepase)
    * a pasáci (`herders` – výrostci 7–13 let; starší a dospělí v podílech `herding` jen v datech
@@ -345,7 +352,8 @@ function obstacles(village: LivestockVillage): Obstacles {
   const aftermath = meadows.filter((m) => grazedMeadow(m, day));
   const uncut = meadows.filter((m) => !grazedMeadow(m, day));
   // ohrada je oplocená jako pole – stáda kolem ní, ne skrz (oxen.md)
-  const squares = [...sown, ...uncut, ...graves, ...orchards, ...(village.pens ?? [])];
+  const penSquares = (village.pens ?? []).flatMap(penSquaresOf);
+  const squares = [...sown, ...uncut, ...graves, ...orchards, ...penSquares];
   // záhony pozemků (zelí, řepa) jsou jídlo pro lidi – pozemek je oplocený
   const plots = village.dwellings.flatMap((d) => (d.plot ? [d.plot] : []));
   const houses = village.dwellings.map((d) => ({
@@ -376,8 +384,23 @@ function obstacles(village: LivestockVillage): Obstacles {
     inOtherPlot: (x, z, exceptId, margin) =>
       village.dwellings.some(
         (d) => d.id !== exceptId && d.plot !== undefined && insidePlot(d.plot, x, z, -margin),
-      ) || (village.pens ?? []).some((pen) => inSquare(pen, x, z, margin)),
+      ) || penSquares.some((pen) => inSquare(pen, x, z, margin)),
   };
+}
+
+/** Čtverce ohrady – první a další (oxen.md – Ohrady podle druhu), se stranou a natočením. */
+export function penSquaresOf(pen: {
+  x: number;
+  z: number;
+  size: number;
+  rotation?: number;
+  extraSquares?: readonly { x: number; z: number }[];
+}): { x: number; z: number; size: number; rotation?: number }[] {
+  const turned = pen.rotation !== undefined ? { rotation: pen.rotation } : {};
+  return [
+    { x: pen.x, z: pen.z, size: pen.size, ...turned },
+    ...(pen.extraSquares ?? []).map((q) => ({ x: q.x, z: q.z, size: pen.size, ...turned })),
+  ];
 }
 
 interface Square {

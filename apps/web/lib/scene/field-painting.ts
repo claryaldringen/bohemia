@@ -21,6 +21,7 @@ import {
 import {
   CellSelection,
   cellsBoundary,
+  cycleIndex,
   gridFrame,
   mergeDecalGrids,
   rectangleCells,
@@ -266,7 +267,7 @@ export class FieldPainter {
   private nextVariant(step: number): void {
     const count = this.mode.variants?.length ?? 0;
     if (count < 2) return;
-    this.variantIndex = (((this.variantIndex + step) % count) + count) % count;
+    this.variantIndex = cycleIndex(this.variantIndex, count, step);
     if (!this.gridLocked()) {
       this.adopted = false;
       if (this.lastPoint) this.followGrid(this.lastPoint);

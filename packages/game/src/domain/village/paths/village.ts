@@ -18,6 +18,8 @@ import { fieldGrids } from '../squares';
 import type {
   DwellingPlot,
   HerdSpecies,
+  Pen,
+  PenSquare,
   Position,
   SquareGrid,
   TileCell,
@@ -83,6 +85,12 @@ function square(landscape: Landscape, cell: TileCell, grid?: SquareGrid): PathSq
   }
   const c = tileCenterWorld(landscape, cell.x, cell.y);
   return { cell: { x: cell.x, y: cell.y }, x: c.x, z: c.z, size: landscape.cellSizeM };
+}
+
+/** Další čtverce ohrady, kolem kterých stojí plot – u hotové ohrady bez rozšíření ve stavbě. */
+function fencedExtra(pen: Pen): PenSquare[] {
+  const extra = pen.extraSquares ?? [];
+  return pen.builtDay === null ? extra : extra.filter((q) => q.constructionId === undefined);
 }
 
 /**
@@ -258,10 +266,11 @@ export function pathVillageOf(state: VillageState, day: number, landscape: Lands
     ...(p.grid ? { rotation: p.grid.rotation } : {}),
     built: p.builtDay !== null,
     ...(p.builtDay !== null && !stocked.has(p.id) ? { stocked: false } : {}),
-    // další čtverce ohrady (oxen.md – Ohrady podle druhu)
-    ...(p.extraSquares?.length
+    // další čtverce ohrady (oxen.md – Ohrady podle druhu) – u hotové ohrady jen hotové (plot
+    // a branka kolem nich jako ve scéně; rozšíření ve stavbě je jen vytyčené)
+    ...(fencedExtra(p).length
       ? {
-          extra: p.extraSquares.map((q) => ({
+          extra: fencedExtra(p).map((q) => ({
             cell: { x: q.cell.x, y: q.cell.y },
             x: q.x,
             z: q.z,

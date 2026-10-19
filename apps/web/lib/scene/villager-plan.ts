@@ -18,6 +18,7 @@ import type {
   SceneLabor,
   SceneVillage,
 } from '../village-view';
+import { scenePenSquares } from '../village-view';
 import {
   caravanHead,
   caravanPlan,
@@ -674,19 +675,22 @@ function context(
       box: { minX: -half, maxX: half, minZ: -half, maxZ: half },
     };
   });
-  // ohrady (oxen.md): oplocený čtverec – lidé stojí za plotem, dovnitř nechodí
-  const pens: House[] = (village.pens ?? []).map((pen) => {
-    const half = pen.size / 2;
-    return {
-      id: pen.id,
-      // natočená ohrada (fields.md – Natočené stavby) – čtverec v osách ohrady
-      position: { x: pen.x, z: pen.z, rotation: pen.rotation ?? 0 },
-      built: pen.built,
-      progress: pen.progress,
-      inhabited: false,
-      box: { minX: -half, maxX: half, minZ: -half, maxZ: half },
-    };
-  });
+  // ohrady (oxen.md): oplocené čtverce – lidé stojí za plotem, dovnitř nechodí (ohrada o víc
+  // čtvercích – oxen.md, Ohrady podle druhu – každý čtverec)
+  const pens: House[] = (village.pens ?? []).flatMap((pen) =>
+    scenePenSquares(pen).map((q) => {
+      const half = pen.size / 2;
+      return {
+        id: pen.id,
+        // natočená ohrada (fields.md – Natočené stavby) – čtverec v osách ohrady
+        position: { x: q.x, z: q.z, rotation: pen.rotation ?? 0 },
+        built: pen.built,
+        progress: pen.progress,
+        inhabited: false,
+        box: { minX: -half, maxX: half, minZ: -half, maxZ: half },
+      };
+    }),
+  );
   const houses = [...dwellings, ...milirs, ...forestKilns, ...sacred, ...pens];
   const homes = dwellings.filter((h) => h.inhabited);
   const settled = homes.length > 0 ? homes : dwellings.length > 0 ? dwellings : houses;
@@ -1078,7 +1082,9 @@ function constructionAnchors(
     }
   } else if (t.kind === 'pen') {
     const pen = (ctx.village.pens ?? []).find((p) => p.id === t.id);
-    if (pen) anchors.push({ at: pen, clip: 'build' });
+    // rozšíření ve stavbě – u nových čtverců (oxen.md – Ohrady podle druhu)
+    const pending = (pen?.extraSquares ?? []).find((q) => q.pending);
+    if (pen) anchors.push({ at: pen.built && pending ? pending : pen, clip: 'build' });
   } else if (t.kind === 'road') {
     const road = (ctx.village.roads ?? []).find((r) => r.id === t.id);
     const middle = road?.points[Math.floor(road.points.length / 2)];
@@ -1902,8 +1908,11 @@ function cemeteryFence(ctx: Context, cemeteryId: number): Placer {
  * dovnitř – kůly, proplétání a přístřešek; střídavě kolem dokola.
  */
 function penFence(ctx: Context, penId: number): Placer {
-  const pen = (ctx.village.pens ?? []).find((p) => p.id === penId);
-  if (!pen) return none;
+  const found = (ctx.village.pens ?? []).find((p) => p.id === penId);
+  if (!found) return none;
+  // rozšíření ve stavbě – lidé kolem nového čtverce (oxen.md – Ohrady podle druhu)
+  const pending = found.built ? (found.extraSquares ?? []).find((q) => q.pending) : undefined;
+  const pen = pending ? { ...found, x: pending.x, z: pending.z } : found;
   const out = pen.size / 2 + HOUSE_MARGIN_M + gap(0.5);
   const slots: { x: number; z: number; hx: number; hz: number }[] = [];
   // strany v osách ohrady (natočená ohrada – fields.md, Natočené stavby)

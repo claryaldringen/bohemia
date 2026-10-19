@@ -47,11 +47,19 @@ const text = (html: string, testId: string): string | undefined =>
   new RegExp(`data-testid="${testId}"[^>]*>([^<]*)<`).exec(html)?.[1];
 
 describe('SelectionPanel – ohrada', () => {
-  it('hotová ohrada: voli, krávy, seno v tunách, stáda vsi a pastva', () => {
+  it('hotová ohrada: zvířata svého druhu a místa, čtverce, seno v tunách, stáda vsi a pastva', () => {
     const html = render(pen());
     expect(html).toContain('data-kind="pen"');
-    expect(text(html, 'selection-oxen')).toBe('2');
-    expect(text(html, 'selection-penned-cows')).toBe('4');
+    // ohrada skotu (oxen.md – Ohrady podle druhu): krávy v ohradě na noc / místa, čtverce
+    expect(html).toContain('Ohrada skotu');
+    expect(text(html, 'selection-pen-animals')).toBe('4/90');
+    expect(text(html, 'selection-pen-squares')).toBe('2/4');
+    expect(text(html, 'selection-oxen')).toBeUndefined();
+    // ohrada spřežení ukazuje voly
+    const team = render(pen({ species: 'team', places: 0, animals: 2 }));
+    expect(team).toContain('Ohrada spřežení');
+    expect(text(team, 'selection-oxen')).toBe('2');
+    expect(text(team, 'selection-pen-animals')).toBeUndefined();
     expect(text(html, 'selection-hay')).toBe('3,2 t');
     expect(text(html, 'selection-herd-sheep')).toBe('9');
     expect(text(html, 'selection-herd-chicken')).toBe('6');

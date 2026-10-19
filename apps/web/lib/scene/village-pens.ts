@@ -3,7 +3,7 @@
 // ne v den orby, když jsou na poli –, telata ve výcviku, krávy v zimě). Kde orá spřežení, určuje
 // plough-front.ts. Kreslí village-renderer.ts (pen-renderer.ts, pen-animals.ts,
 // plough-team-renderer.ts).
-import { penEntranceFacing } from '@bohemia/game';
+import { penGateToward } from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
 import type { PenHerd } from './pen-layout';
 import type { PenView } from './pen-renderer';
@@ -16,19 +16,33 @@ import { ploughingToday } from './plough-front';
 export function scenePenViews(village: Pick<SceneVillage, 'pens' | 'dwellings'>): PenView[] {
   return (village.pens ?? []).map((pen) => {
     // natočená ohrada (fields.md – Natočené stavby) – natočení kolem středu čtverce
-    const square = {
-      x: pen.x,
-      z: pen.z,
-      size: pen.size,
-      ...(pen.rotation !== undefined ? { rotation: pen.rotation } : {}),
-    };
+    const turned = pen.rotation !== undefined ? { rotation: pen.rotation } : {};
+    const square = { x: pen.x, z: pen.z, size: pen.size, ...turned };
+    // ohrada o víc čtvercích (oxen.md – Ohrady podle druhu): plot kolem hotových čtverců,
+    // rozšíření ve stavbě vytyčené
+    const ready = (pen.extraSquares ?? []).filter((q) => !q.pending);
+    const pending = pen.built ? (pen.extraSquares ?? []).filter((q) => q.pending) : [];
+    const fenced = pen.built ? ready : (pen.extraSquares ?? []);
+    // branka k nejbližšímu obydlí – stejně jako vchod v síti pěšin (paths.md – Vchody)
+    const toward = penGateToward([square, ...fenced], village.dwellings);
     return {
       id: pen.id,
       square,
-      // branka k nejbližšímu obydlí – stejně jako vchod v síti pěšin (paths.md – Vchody)
-      facing: penEntranceFacing(pen, village.dwellings),
+      facing: { x: toward.x - pen.x, z: toward.z - pen.z },
       progress: pen.built ? 1 : Math.min(0.999, Math.max(0, pen.progress)),
       ...(pen.condition === undefined ? {} : { condition: pen.condition }),
+      ...(fenced.length > 0 ? { extra: fenced.map((q) => ({ x: q.x, z: q.z })) } : {}),
+      ...(pending.length > 0
+        ? {
+            pending: pending.map((q) => ({
+              cell: q.cell,
+              x: q.x,
+              z: q.z,
+              size: pen.size,
+              ...turned,
+            })),
+          }
+        : {}),
     };
   });
 }

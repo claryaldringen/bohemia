@@ -39,7 +39,8 @@ import {
   type StructureStage,
 } from './structure-decay';
 import { StakingPegs, createStringMaterial, createStringMesh, pegInstances } from './staking';
-import { decalGrid } from './village-layout';
+import { cellsBoundary, type CellSquare } from './field-cells';
+import { decalGrid, type Point } from './village-layout';
 import { createDecalMesh, type HeightFn } from './village-meshes';
 import { decayFence } from './woven-fence';
 import type { WovenFenceRenderer } from './woven-fence-renderer';
@@ -66,8 +67,11 @@ const MUD_STEP_M = 0.35;
 const LOW_SNOW = 0.25;
 
 /**
- * Ohrada ke kreslení: id, čtverec, směr ke vsi (branka), průběh stavby 0–1 a stav hotové
- * ohrady 0–1 (abandonment.md – opuštěná ohrada se rozpadá; bez údaje celá).
+ * Ohrada ke kreslení: id, první čtverec, směr ke vsi (branka), průběh stavby 0–1 a stav hotové
+ * ohrady 0–1 (abandonment.md – opuštěná ohrada se rozpadá; bez údaje celá). Ohrada o víc
+ * čtvercích (oxen.md – Ohrady podle druhu): `extra` – další hotové čtverce (plot kolem všech),
+ * `pending` – čtverce rozšíření ve stavbě (vytyčené kolíky a provázkem; plot je obejme, až se
+ * rozšíření dostaví – rozhodnutí Clauda).
  */
 export interface PenView {
   id: number;
@@ -75,11 +79,17 @@ export interface PenView {
   facing: Direction;
   progress: number;
   condition?: number;
+  extra?: readonly { x: number; z: number }[];
+  pending?: readonly CellSquare[];
 }
 
 interface PenEntry {
   key: string;
   layoutKey: string;
+  /** Čtverce rozšíření ve stavbě (klíč vytyčení). */
+  pendingKey: string;
+  /** Čáry vytyčení – ohrada při zadání a čtverce rozšíření ve stavbě. */
+  staking: Point[][];
   layout: PenLayout;
   stage: PenStage;
   /** Stupeň rozpadu hotové ohrady (0 = celá). */
@@ -124,6 +134,7 @@ export class PenRenderer {
     for (const view of pens) {
       seen.add(view.id);
       const { square, facing } = view;
+      const extra = view.extra ?? [];
       const layoutKey = [
         square.x,
         square.z,
@@ -131,43 +142,56 @@ export class PenRenderer {
         facing.x,
         facing.z,
         square.rotation ?? 0,
+        ...extra.flatMap((q) => [q.x, q.z]),
       ].join(',');
+      const pendingKey = (view.pending ?? []).map((q) => `${q.x},${q.z}`).join(';');
       const stage = penStage(view.progress);
       const decay = stage.built ? structureDecayStage(view.condition) : 0;
       // rozpad plotu po dvacetinách – ohrada se nepřestavuje při každé drobné změně stavu
       const fenceDecay = stage.built
         ? Math.round(fenceDecayAmount(view.condition) * FENCE_DECAY_STEPS) / FENCE_DECAY_STEPS
         : 0;
-      const key = `${layoutKey}|${Math.round(view.progress * 400)}|${decay}|${fenceDecay}`;
+      const key = `${layoutKey}|${Math.round(view.progress * 400)}|${decay}|${fenceDecay}|${pendingKey}`;
       const current = this.entries.get(view.id);
       if (current?.key === key) continue;
       changed = true;
       const same = current?.layoutKey === layoutKey;
-      const layout = same ? current.layout : penLayout(square, facing);
+      const layout = same ? current.layout : penLayout(square, facing, extra);
       let mud = same ? current.mud : null;
-      let string = same ? current.string : null;
-      if (current && !same) {
-        current.mud?.dispose();
-        current.string?.dispose();
-      }
+      let string = same && current.pendingKey === pendingKey ? current.string : null;
+      if (current && !same) current.mud?.dispose();
+      if (current && current.string !== string) current.string?.dispose();
+      // rozšíření ve stavbě – vytyčené čtverce (kolíky a provázek)
+      const pendingLines = view.pending?.length ? cellsBoundary(view.pending) : [];
       const mudCover = stage.mud * PEN_MUD_BY_STAGE[decay];
       if (mudCover > 0 && !mud) mud = this.mudMesh(view.id, layout);
       if (mud) mud.visibility = mudCover;
-      if (stage.staking && !string) {
+      const staking = [...(stage.staking ? [penStakingLine(layout)] : []), ...pendingLines];
+      if (staking.length > 0 && !string) {
         this.stringMaterial ??= createStringMaterial(this.scene);
         string = createStringMesh(
           this.scene,
           `pen-staking-string-${view.id}`,
-          [penStakingLine(layout)],
+          staking,
           this.context.groundHeight,
           this.stringMaterial,
         );
       }
-      if (!stage.staking && string) {
+      if (staking.length === 0 && string) {
         string.dispose();
         string = null;
       }
-      this.entries.set(view.id, { key, layoutKey, layout, stage, decay, mud, string });
+      this.entries.set(view.id, {
+        key,
+        layoutKey,
+        pendingKey,
+        layout,
+        stage,
+        decay,
+        mud,
+        string,
+        staking,
+      });
       const fence = penFenceStage(layout, stage);
       this.context.fences.set(
         fenceOwner(view.id),
@@ -284,7 +308,7 @@ export class PenRenderer {
       return { x: at.x, y: height(at.x, at.z) - SINK_M, z: at.z, rotationY: at.rotation, scale };
     };
     const pegs: ModelInstance[] = [];
-    for (const { layout, stage, decay } of this.entries.values()) {
+    for (const { layout, stage, decay, staking } of this.entries.values()) {
       if (stage.built) {
         // opuštěná ohrada podle stupně rozpadu (abandonment.md); bez dílů rozpadu celá
         const parts = this.decayParts ? penDecayParts(decay) : penDecayParts(0);
@@ -309,7 +333,7 @@ export class PenRenderer {
           scale: PEN_HAYSTACK_SCALE * stage.haystack,
         });
       }
-      if (stage.staking) pegs.push(...pegInstances([penStakingLine(layout)], height));
+      if (staking.length > 0) pegs.push(...pegInstances(staking, height));
     }
     const meshes = [
       ...(this.models?.values() ?? []),

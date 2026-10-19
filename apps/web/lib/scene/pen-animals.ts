@@ -65,8 +65,12 @@ export class PenAnimals {
     private readonly env: PenAnimalsEnvironment,
   ) {}
 
-  /** Zvířata ohrad; modely se stáhnou s prvním zvířetem. Vrátí true, když se něco změnilo. */
-  set(animals: readonly PenAnimal[]): boolean {
+  /**
+   * Zvířata ohrad; modely se stáhnou s prvním zvířetem. Vrátí true, když se něco změnilo. Kreslí
+   * jen voly a krávy – ovce, kozy a prasata v ohradě na noc kreslí stáda vsi (livestock.ts).
+   */
+  set(all: readonly PenAnimal[]): boolean {
+    const animals = all.filter((a) => a.kind === 'ox' || a.kind === 'cow');
     const key = animals
       .map((a) => `${a.kind}:${a.x.toFixed(2)},${a.z.toFixed(2)}:${a.scale ?? 1}`)
       .join(';');

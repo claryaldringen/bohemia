@@ -2590,6 +2590,26 @@ function scenePens(
   });
 }
 
+/**
+ * Všechny čtverce ohrady ve scéně – první a další (oxen.md – Ohrady podle druhu), se stranou
+ * a natočením ohrady; jako čtverce pole (`CellSquare`).
+ */
+export function scenePenSquares(
+  pen: Pick<ScenePen, 'cell' | 'x' | 'z' | 'size' | 'rotation' | 'extraSquares'>,
+): { cell: TileCell; x: number; z: number; size: number; rotation?: number }[] {
+  const turned = pen.rotation !== undefined ? { rotation: pen.rotation } : {};
+  return [
+    { cell: pen.cell, x: pen.x, z: pen.z, size: pen.size, ...turned },
+    ...(pen.extraSquares ?? []).map((q) => ({
+      cell: q.cell,
+      x: q.x,
+      z: q.z,
+      size: pen.size,
+      ...turned,
+    })),
+  ];
+}
+
 /** Druh ohrady ve scéně – bez údaje (ukázky) se spřežením nebo výcvikem spřežení, jinak skot. */
 export function scenePenSpecies(pen: Pick<ScenePen, 'species' | 'oxen' | 'trainees'>): PenSpecies {
   return pen.species ?? (pen.oxen > 0 || pen.trainees > 0 ? 'team' : 'cattle');
