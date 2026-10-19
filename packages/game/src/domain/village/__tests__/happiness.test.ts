@@ -39,6 +39,7 @@ const NONE = {
   meat: 0,
   sacred: 0,
   wool: 0,
+  linen: 0,
 };
 
 describe('štěstí – čísla z návrhu', () => {
@@ -77,6 +78,8 @@ describe('štěstí – čísla z návrhu', () => {
     expect(happinessTarget({ ...NONE, fruit: 5, meat: 3 })).toBe(58);
     // chybí vlna na oděv – až −6 (diet.md – Oděv)
     expect(happinessTarget({ ...NONE, wool: 6 })).toBe(44);
+    // chybí len na oděv – až −4 (fields.md – Len)
+    expect(happinessTarget({ ...NONE, linen: 4 })).toBe(46);
   });
 
   it('dřina: ves dnešním tempem nestihne polní práce do konce okna (nejbližší termín první)', () => {

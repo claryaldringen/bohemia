@@ -522,6 +522,8 @@ describe('selectionDetails – díl pole a čtverec sadu (klik – fields.md, Co
       look: 'ripe',
       stage: 'sown',
       legume: true,
+      flax: false,
+      bloom: false,
       ploughed: false,
       // celý čtverec – výměra ze strany čtverce ve scéně
       areaM2: 225,
@@ -590,9 +592,21 @@ describe('selectionDetails – díl pole a čtverec sadu (klik – fields.md, Co
 
   it('název dílu podle vzhledu, zakládaný a připravený podle stadia; čtverec sadu podle stáří', () => {
     const name = (over: Partial<Parameters<typeof fieldPartName>[0]>): string =>
-      fieldPartName({ look: 'green', stage: 'sown', legume: false, ploughed: false, ...over });
+      fieldPartName({
+        look: 'green',
+        stage: 'sown',
+        legume: false,
+        flax: false,
+        ploughed: false,
+        ...over,
+      });
     expect(name({})).toBe('Zelené obilí');
     expect(name({ look: 'plowed' })).toBe('Zkopáno');
+    // len (fields.md – Len): zelený, v červnu kvetoucí, zralý, trhání
+    expect(name({ flax: true })).toBe('Zelený len');
+    expect(name({ flax: true, bloom: true })).toBe('Kvetoucí len');
+    expect(name({ flax: true, look: 'ripe' })).toBe('Zralý len');
+    expect(name({ flax: true, look: 'harvesting' })).toBe('Trhání lnu');
     expect(name({ look: 'plowed', ploughed: true })).toBe('Zoráno');
     expect(name({ look: 'bare', stage: 'founding' })).toBe('Zakládá se');
     expect(name({ look: 'bare', stage: 'ready' })).toBe('Připraveno k osevu');

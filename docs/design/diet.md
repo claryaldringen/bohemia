@@ -439,7 +439,28 @@ práci.
 
 #### Len
 
-Doplní větev `feat/flax-smooth-sowing` (len na plátno – spodní oděv, druhá polovina oděvu).
+Martin k ovcím na vlnu: „**A to mi připomíná, že na částech pole musí být zasetý len.**“ Pravidla
+pole jsou ve [fields.md](fields.md) – Len, čísla **návrh Clauda** podle
+[rešerše](research/2026-10-19-flax.md) (experimentální košile z Viborgu – Ribe 2011, historické
+výnosy vlákna ze Skotska a Irska).
+
+- **Potřeba:** dospělý a starší **2 kg třeného lnu za rok**, dítě **1 kg** – ≈ 3 m² hrubého plátna
+  (≈ 1 kg látky) na dospělého: košile (u žen dlouhá košile jako hlavní oděv), díl spodního oděvu,
+  šátků, ručníků a plachet; lněná košile nošená denně vydrží rok až dva. Na kg látky ≈ 2 kg
+  třeného lnu (z vochlování ≈ 46 % dlouhého vlákna, část koudele na hrubé plátno).
+- **Pole:** len je plodina na dílech pole (jař se setím na jaře a trháním v červenci), ≈ 550 kg
+  třeného lnu z hektaru při plné úrodnosti – ves 30 lidí ≈ 0,1 ha ≈ 5 dílů. Obilí má přednost, len ho ubere nejvýš o svou plochu a jen ze zásob nad pojistku.
+- **Kdy se rozhodne:** při trhání 31. 7. – sklizený len ÷ potřeba při plánu k 1. 9.
+  (`VillageState.linen`), platí do dalšího trhání. Vsi uložené dřív se do prvního trhání po plánu
+  se lnem nemění.
+- **Když lnu není dost:** kronika `linen-short` a krátký řádek **„Chybí len na oděv“**; štěstí
+  ubere **až 4** podle chybějícího podílu (vlna až 6 – svrchní oděv je proti zimě důležitější).
+  Nemoci ani úmrtí ne (anti-cíl: ves nevymře kvůli oděvu).
+- **Práce:** rosení, sušení, lámání, třepení, vochlování, předení, tkaní a šití jsou **součástí
+  domácí výroby** jako u vlny – přerozdělení, ne práce navíc (rozhodnutí Clauda): dospělý ≈ 1 kg
+  látky × ≈ 200 h ≈ 20 člověkodní za rok; s vlnou (≈ 21–24 čd) ≈ 45 z ≈ 125 člověkodní domácí výroby
+  na dospělého. Předení a tkaní jsou přes 85 % času na oděvu (Ribe 2011) – len je na zpracování
+  složitější než vlna, celkem ale vyjde podobně.
 
 ## Implementace (18. 10. 2026)
 
@@ -778,3 +799,5 @@ Krátké `measure-village.ts 20 20` před a po (skutečné krajiny; jen orienta�
 | Pastva a seno: voli, ovce na vlnu, krávy na mléko a voly; pasáci napřed ovce na vlnu                                                            | návrh Clauda           |
 | Bez vlny jen štěstí až −6 a upozornění; práce na vlně v domácí výrobě (přerozdělení, ne navíc)                                                  | Martin (19. 10. 2026)  |
 | Osadníci mají ovce na vlnu a seno na první zimu; jehňata ovcí na vlnu nejdou na maso navíc                                                      | Martin (19. 10. 2026)  |
+| Na částech pole musí být zasetý len                                                                                                             | Martin (19. 10. 2026)  |
+| Len 2 kg třeného lnu na dospělého (dítě 1); bez lnu štěstí až −4; zpracování v domácí výrobě                                                    | návrh Clauda (rešerše) |

@@ -168,11 +168,33 @@ const CROP_TINT: Record<CropKind, readonly [number, number, number]> = {
   stubble: [0.92, 0.86, 0.72],
   'pea-green': [0.66, 0.78, 0.66],
   'pea-ripe': [0.86, 0.8, 0.7],
+  // len – útlé stonky z trsu vzcházejícího obilí (tráva bez klasů), tón v barvě instance:
+  // zelený, kvetoucí do modra, zralý do hněda (fields.md – Len)
+  'flax-green': [0.78, 0.9, 0.7],
+  'flax-bloom': [0.7, 0.86, 1.7],
+  'flax-ripe': [1.05, 0.82, 0.5],
+};
+/**
+ * Uzel crops.glb pro druh trsů – len nemá vlastní model: bere stébla vzcházejícího obilí, každý
+ * druh s vlastní kopií geometrie (thin instances drží buffery na geometrii).
+ */
+const CROP_NODE: Partial<Record<CropKind, string>> = {
+  'flax-green': 'crop-sprout',
+  'flax-bloom': 'crop-sprout',
+  'flax-ripe': 'crop-sprout',
 };
 /** Hromádky vytrhaného hrachu (uzel pea-heap v crops.glb) – tón suchých lodyh. */
 const HEAP_TINT: readonly [number, number, number] = [0.98, 0.92, 0.8];
 /** Trsy, které se vlní ve větru (vysoké a husté). */
-const SWAYING_KINDS: readonly CropKind[] = ['ripe', 'green', 'pea-green', 'pea-ripe'];
+const SWAYING_KINDS: readonly CropKind[] = [
+  'ripe',
+  'green',
+  'pea-green',
+  'pea-ripe',
+  'flax-green',
+  'flax-bloom',
+  'flax-ripe',
+];
 const PROP_AMBIENT = new Color3(0.4, 0.4, 0.38);
 /** Panáky ze slámy (světlé, do zlata) a stohy sena (do zelena – seno je sušená tráva). */
 const STRAW_TINT = new Color3(1, 0.94, 0.8);
@@ -1124,8 +1146,13 @@ export class FieldRenderer {
           );
           if (!parts) return;
           for (const kind of CROP_KINDS) {
-            const mesh = parts.get(`crop-${kind}`);
+            const node = CROP_NODE[kind];
+            const source = parts.get(node ?? `crop-${kind}`);
+            if (!source) continue;
+            // druh bez vlastního uzlu – kopie s vlastní geometrií (instance zvlášť)
+            const mesh = node ? source.clone(`field-crop-${kind}`, null, true) : source;
             if (!mesh) continue;
+            if (node) mesh.makeGeometryUnique();
             mesh.setEnabled(false);
             mesh.receiveShadows = true;
             this.crops.get(kind)!.mesh = mesh;

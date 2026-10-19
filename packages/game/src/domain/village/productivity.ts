@@ -2,6 +2,7 @@ import {
   CARPENTER_TOOLS_WORK,
   DAILY_MIN_PER_HOUSEHOLD,
   FIELD_WORK_PER_HA,
+  FLAX_WORK_PER_HA,
   FOUNDING_COST_PER_HA,
   HARVEST_WORK_PER_HA,
   HAY_WORK_PER_HA,
@@ -26,16 +27,24 @@ export function withinBounds(bounds: Bounds, coverage: number): number {
   return bounds.worst + (bounds.best - bounds.worst) * share;
 }
 
-/** Člověkodny polní práce na osetý hektar podle pokrytí nástroji (luštěniny – vlastní sazby). */
+/** Sazby polní práce plodiny – luštěniny a len vlastní, obilí společné. */
+const CROP_WORK_PER_HA: Record<Crop, Record<FieldTask, Bounds>> = {
+  winter: FIELD_WORK_PER_HA,
+  spring: FIELD_WORK_PER_HA,
+  legume: LEGUME_WORK_PER_HA,
+  flax: FLAX_WORK_PER_HA,
+};
+
+/**
+ * Člověkodny polní práce na osetý hektar podle pokrytí nástroji (luštěniny a len – vlastní
+ * sazby).
+ */
 export function fieldWorkPerHa(
   task: FieldTask,
   toolCoverage: number,
   crop: Crop = 'spring',
 ): number {
-  return withinBounds(
-    (crop === 'legume' ? LEGUME_WORK_PER_HA : FIELD_WORK_PER_HA)[task],
-    toolCoverage,
-  );
+  return withinBounds(CROP_WORK_PER_HA[crop][task], toolCoverage);
 }
 
 /** Člověkodny založení hektaru pole podle povrchu a pokrytí nástroji. */

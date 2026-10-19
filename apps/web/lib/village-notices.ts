@@ -37,6 +37,8 @@ export type NoticeKind =
   | 'marriage'
   | 'slaughter'
   | 'meat-spoiled'
+  /** Lnu na oděv všech je málo (fields.md – Len, diet.md – Oděv). */
+  | 'linen-short'
   | 'herd-starved'
   /** Ovcí je málo na vlnu pro oděv všech (diet.md – Oděv). */
   | 'wool-short'
@@ -195,6 +197,8 @@ const CHRONICLE_NOTICES: Partial<
         ? `Maso se zkazilo – ${formatInteger(entry.kg)} kg`
         : 'Maso se zkazilo',
   }),
+  // len z trhání nestačí na plátno pro všechny (fields.md – Len)
+  'linen-short': () => ({ kind: 'linen-short', tone: 'warn', text: 'Chybí len na oděv' }),
   'herd-starved': () => ({
     kind: 'herd-starved',
     tone: 'warn',

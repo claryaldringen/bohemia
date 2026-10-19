@@ -63,6 +63,28 @@ describe('pole, hřbitov a sad na vývojové stránce staveb', () => {
     expect(showcaseGrounds(0.7).labels.legumes).toMatch(/hromádkách/);
   });
 
+  it('pole se lnem: osev, zelený, modře kvetoucí a zralý len, trhání po čtvercích, holá zem', () => {
+    const parts = (p: number): SceneFieldPart[] =>
+      showcaseGrounds(p).village.fields.find((f) => f.id === 4)!.parts;
+    const looks = new Set<string>();
+    let bloom = false;
+    for (let p = 0; p <= 1; p += 0.005) {
+      expect(parts(p).every((part) => part.crop === 'flax' && part.stage === 'sown')).toBe(true);
+      for (const part of parts(p)) if (part.look && (part.work ?? 1) > 0) looks.add(part.look);
+      // kvete jen zelený len
+      for (const part of parts(p)) {
+        if (part.bloom) expect(part.look).toBe('green');
+        bloom ||= part.bloom === true;
+      }
+    }
+    expect(bloom).toBe(true);
+    expect([...looks].sort()).toEqual(
+      ['plowed', 'sown', 'sprouted', 'green', 'ripe', 'harvesting', 'stubble'].sort(),
+    );
+    expect(showcaseGrounds(0.48).labels.flax).toMatch(/kvete/);
+    expect(showcaseGrounds(0.7).labels.flax).toMatch(/panácích/);
+  });
+
   it('louka na seno: tráva, seč, kupky a stohy souběžně s loukou na poli', () => {
     expect(showcaseGrounds(0.5).labels.meadow).toMatch(/louka/);
     expect(showcaseGrounds(0.89).labels.meadow).toMatch(/seč/);

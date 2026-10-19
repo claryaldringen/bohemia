@@ -7,6 +7,7 @@ export * from './diet';
 export * from './field-food';
 export * from './dairy';
 export * from './legumes';
+export { expectedFlaxKg, flaxNeedKg, linenCoverage, linenUnhappiness } from './flax';
 export * from './livestock';
 export * from './hay';
 export * from './plough';

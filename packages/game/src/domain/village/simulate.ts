@@ -82,6 +82,7 @@ import { herdingDay, recordHerding } from './herding';
 import { sowingBlocks, villageHoldings, workOrder } from './holdings';
 import { occupyEmptyDwellings, settleNewDwelling } from './households';
 import { withKinship } from './kinship';
+import { flaxNeedKg, harvestFlax } from './flax';
 import { husbandryDay, plannedLegumeKg } from './husbandry';
 import { daysUntilLegumeHarvest, villageLegumesKg } from './legumes';
 import {
@@ -395,6 +396,7 @@ function planYear(
   const holdings = villageHoldings(state);
   // kolik zasít podle zásob a potřeby z pole (fields.md – Kolik ves oseje, Osev podle zásob)
   const targets = fieldSowingTargets(state, day, coverage);
+  const flaxNeed = flaxNeedKg(state, day);
   const crops = chooseCrops(sowingBlocks(state.parts, holdings), {
     targetKg: targets.targetKg,
     startKg: 0,
@@ -408,14 +410,21 @@ function planYear(
     // (fields.md – Luštěniny); smějí jít na doplnění pojistky, ne pod roční potřebu z pole
     legumeTargetKg: targets.legumeKg,
     energyFloorKg: targets.energyFloorKg,
+    // len na plátno pro všechny (fields.md – Len, diet.md – Oděv); obilí smí ubrat jen ze zásob
+    // nad pojistku
+    flaxTargetKg: flaxNeed,
+    flaxSpareKg: Math.max(0, targets.leftKg - targets.bufferKg),
   });
   // plán vzniká před změnou stavu dílů – vrácení přílohu se počítá jen u dílů v přílohu; práce
   // plánu (i orba – železná špička rádla od kováře) platí podle dnešního pokrytí nástroji celý
   // hospodářský rok
   state.plan = createYearPlan(crops, day, coverage.tools, plough, workOrder(holdings));
-  const chosen = new Set([...crops.winter, ...crops.spring, ...crops.legume].map((p) => p.id));
+  // podle potřeby lnu při plánu se při trhání zapíše, na kolik oděvu len je (fields.md – Len)
+  state.plan.flaxNeedKg = flaxNeed;
+  const sown = [...crops.winter, ...crops.spring, ...crops.legume, ...crops.flax];
+  const chosen = new Set(sown.map((p) => p.id));
   // vrácený mladý les dá za dospělé stromy klády (fields.md – Zarůstání, forest.md – Mýcení)
-  addLogs(state, reclaimedLogs([...crops.winter, ...crops.spring, ...crops.legume], day));
+  addLogs(state, reclaimedLogs(sown, day));
   for (const part of state.parts) {
     if (chosen.has(part.id) || (part.state !== 'sown' && part.state !== 'ready')) continue;
     // nevybraný osev i nevyužitý hotový díl jdou do přílohu a začnou zarůstat
@@ -427,6 +436,7 @@ function planYear(
   sow(crops.winter, day, 'winter');
   sow(crops.spring, day, 'spring');
   sow(crops.legume, day, 'legume');
+  sow(crops.flax, day, 'flax');
 }
 
 /**
@@ -1538,10 +1548,13 @@ function decideRebuilds(
 // --- sklizeň a jídlo --------------------------------------------------------------------
 
 /**
- * 31. 7. (po jídle dne): čistá úroda ozimu do zásob obilí (fields.md – Ozim a jař) a luštěnin do
- * zásoby luštěnin (fields.md – Luštěniny).
+ * 31. 7. (po jídle dne): čistá úroda ozimu do zásob obilí (fields.md – Ozim a jař), luštěnin do
+ * zásoby luštěnin (fields.md – Luštěniny) a trhání lnu – podíl oděvu, na který len je (fields.md –
+ * Len).
  */
 function harvestWinter(state: VillageState, day: number): void {
+  const linen = harvestFlax(state, day);
+  if (linen) state.chronicle.push(linen);
   const legume = state.plan?.legume;
   if (legume && legume.harvestedKg === null) {
     const kg = harvestKg(legume, state.parts, day, 'legume');
@@ -1578,8 +1591,9 @@ function endThreshing(state: VillageState): void {
   const threshing = state.threshingFromPlan;
   if (threshing === null) return;
   const crops = planCrops(threshing);
+  // luštěniny ze své zásoby, len se nemlátí (fields.md – Len)
   const loss = crops
-    .filter(({ crop }) => crop !== 'legume')
+    .filter(({ crop }) => crop !== 'legume' && crop !== 'flax')
     .reduce((sum, { work }) => sum + threshLossKg(work, work.harvestedKg ?? 0), 0);
   state.storesKg = Math.max(0, state.storesKg - loss);
   const legume = threshing.legume;

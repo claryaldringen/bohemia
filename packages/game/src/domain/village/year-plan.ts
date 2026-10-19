@@ -12,7 +12,15 @@ import { daysUntilHarvest, daysUntilWinterHarvest } from './food';
 import { PLOUGH_SOD_FACTOR, hasSod, ploughWorkPerHa } from './plough';
 import { ploughLayout } from './plough-blocks';
 import { fieldWorkPerHa } from './productivity';
-import { CROP_WINDOWS, LEGUMES, SEED_KG_PER_HA, UNWEEDED_YIELD, type WindowSegment } from './rules';
+import {
+  CROP_WINDOWS,
+  FLAX,
+  LEGUMES,
+  SEED_KG_PER_HA,
+  UNWEEDED_YIELD,
+  YIELD_BASE_KG_PER_HA,
+  type WindowSegment,
+} from './rules';
 import type {
   Crop,
   CropWork,
@@ -213,11 +221,11 @@ export function createPlan(
 }
 
 /**
- * Roční plán s ozimem, jaří a luštěninami (fields.md – Ozim a jař, Luštěniny); bez ozimu bez
- * `winter`, bez luštěnin bez `legume`.
+ * Roční plán s ozimem, jaří, luštěninami a lnem (fields.md – Ozim a jař, Luštěniny, Len); bez
+ * ozimu bez `winter`, bez luštěnin bez `legume`, bez lnu bez `flax`.
  */
 export function createYearPlan(
-  crops: { winter: FieldPart[]; spring: FieldPart[]; legume?: FieldPart[] },
+  crops: { winter: FieldPart[]; spring: FieldPart[]; legume?: FieldPart[]; flax?: FieldPart[] },
   day: number,
   toolCoverage: number,
   plough = false,
@@ -229,6 +237,9 @@ export function createYearPlan(
   }
   if (crops.legume && crops.legume.length > 0) {
     plan.legume = createCropWork(crops.legume, day, toolCoverage, plough, order, 'legume');
+  }
+  if (crops.flax && crops.flax.length > 0) {
+    plan.flax = createCropWork(crops.flax, day, toolCoverage, plough, order, 'flax');
   }
   return plan;
 }
@@ -263,13 +274,14 @@ export function addToCropWork(
 }
 
 /**
- * Práce plánu po plodinách v pořadí ozim, luštěniny, jař (ozim a luštěniny jen, když je plán
- * má).
+ * Práce plánu po plodinách v pořadí ozim, luštěniny, len, jař (ozim, luštěniny a len jen, když je
+ * plán má).
  */
 export function planCrops(plan: YearPlan): { crop: Crop; work: CropWork }[] {
   const crops: { crop: Crop; work: CropWork }[] = [];
   if (plan.winter) crops.push({ crop: 'winter', work: plan.winter });
   if (plan.legume) crops.push({ crop: 'legume', work: plan.legume });
+  if (plan.flax) crops.push({ crop: 'flax', work: plan.flax });
   crops.push({ crop: 'spring', work: plan });
   return crops;
 }
@@ -285,9 +297,14 @@ export function ploughsThisYear(state: Pick<VillageState, 'plan' | 'threshingFro
   return plan.ard === true || planCrops(plan).some(({ work }) => work.plough !== undefined);
 }
 
-/** Všechny díly plánu – ozim, luštěniny i jař. */
+/** Všechny díly plánu – ozim, luštěniny, len i jař. */
 export function planPartIds(plan: YearPlan): number[] {
-  return [...(plan.winter?.partIds ?? []), ...(plan.legume?.partIds ?? []), ...plan.partIds];
+  return [
+    ...(plan.winter?.partIds ?? []),
+    ...(plan.legume?.partIds ?? []),
+    ...(plan.flax?.partIds ?? []),
+    ...plan.partIds,
+  ];
 }
 
 /** Hotový podíl úlohy vůči celé práci plodiny (0–1); úloha bez práce = 1. */
@@ -423,15 +440,29 @@ export function harvestKg(
   return cropYieldKg(work, parts, day, planShare(work, 'sow'), workedShare(work, 'harvest'), crop);
 }
 
-/** Hrubá úroda plodiny na hektar při úrodnosti (luštěniny podíl úrody obilí – LEGUMES). */
+/**
+ * Hrubá úroda plodiny na hektar při úrodnosti (luštěniny podíl úrody obilí – LEGUMES; len kg
+ * třeného lnu – FLAX, s úrodností jako obilí).
+ */
 export function cropGrossPerHa(crop: Crop, fertility: number): number {
   const grain = grossYieldPerHa(fertility);
-  return crop === 'legume' ? grain * LEGUMES.yieldShare : grain;
+  if (crop === 'legume') return grain * LEGUMES.yieldShare;
+  if (crop === 'flax') return (grain / YIELD_BASE_KG_PER_HA) * FLAX.fiberKgPerHa;
+  return grain;
 }
 
-/** Osivo plodiny na hektar (kg). */
+/** Osivo plodiny na hektar (kg) – len seje semeno z vlastní úrody, zásoby neubírá (FLAX). */
 export function cropSeedPerHa(crop: Crop): number {
-  return crop === 'legume' ? LEGUMES.seedKgPerHa : SEED_KG_PER_HA;
+  if (crop === 'legume') return LEGUMES.seedKgPerHa;
+  if (crop === 'flax') return 0;
+  return SEED_KG_PER_HA;
+}
+
+/** Podíl úrody neopletého dílu plodiny (luštěniny a len plevel snášejí hůř). */
+function unweededYield(crop: Crop): number {
+  if (crop === 'legume') return LEGUMES.unweededYield;
+  if (crop === 'flax') return FLAX.unweededYield;
+  return UNWEEDED_YIELD;
 }
 
 function cropYieldKg(
@@ -453,7 +484,7 @@ function cropYieldKg(
     if (!part) continue;
     const ha = part.areaM2 / M2_PER_HA;
     const weeded = isWeedFree(part, day) ? 1 : weedFrac;
-    const unweeded = crop === 'legume' ? LEGUMES.unweededYield : UNWEEDED_YIELD;
+    const unweeded = unweededYield(crop);
     const gross =
       cropGrossPerHa(crop, effectiveFertility(part, day)) *
       sowFrac *

@@ -254,12 +254,13 @@ export type FallowStage = 'young-fallow' | 'meadow' | 'shrubs' | 'young-forest';
  */
 export type OvergrowthStage = 'meadow' | 'shrubs' | 'young-forest' | 'forest';
 /**
- * Plodina osetého dílu (fields.md – Ozim a jař, Luštěniny): **ozim** (`winter` – žito a pšenice,
- * kopá se a seje na podzim, sklízí v červenci), **jař** (`spring` – ječmen, kopá se na podzim nebo
- * na jaře, seje na jaře, sklízí v srpnu) a **luštěniny** (`legume` – hrách a čočka; jař – kopá
- * se jako jař, seje na jaře, sklízí v červenci; diet.md – Luštěniny).
+ * Plodina osetého dílu (fields.md – Ozim a jař, Luštěniny, Len): **ozim** (`winter` – žito
+ * a pšenice, kopá se a seje na podzim, sklízí v červenci), **jař** (`spring` – ječmen, kopá se na
+ * podzim nebo na jaře, seje na jaře, sklízí v srpnu), **luštěniny** (`legume` – hrách a čočka; jař
+ * – kopá se jako jař, seje na jaře, sklízí v červenci; diet.md – Luštěniny) a **len** (`flax` – na
+ * plátno; jař se setím na jaře a trháním v červenci jako luštěniny, nejí se – diet.md, Oděv).
  */
-export type Crop = 'winter' | 'spring' | 'legume';
+export type Crop = 'winter' | 'spring' | 'legume' | 'flax';
 /** Políčko krajiny – sloupec x a řádek y mřížky. */
 export interface TileCell {
   x: number;
@@ -755,6 +756,14 @@ export interface YearPlan extends CropWork {
   winter?: CropWork;
   /** Luštěniny (fields.md – Luštěniny) – chybí u plánů bez luštěnin (i u starších vsí). */
   legume?: CropWork;
+  /** Len (fields.md – Len) – chybí u plánů bez lnu (i u starších vsí). */
+  flax?: CropWork;
+  /**
+   * Kolik třeného lnu ves při plánu potřebovala na oděv za rok (kg – fields.md, Len): podle toho
+   * se při trhání zapíše, na jaký podíl oděvu len je (`VillageState.linen`). Chybí u plánů
+   * starších vsí a plánů mimo 1. 9. (ves založená během roku) – ty oděv nezapíší.
+   */
+  flaxNeedKg?: number;
 }
 export type ChronicleEvent = { day: number } & (
   | { kind: 'village-founded' }
@@ -817,6 +826,11 @@ export type ChronicleEvent = { day: number } & (
   | { kind: 'harvest'; kg: number; crop?: Crop }
   /** Konec sklizně jablek (1. 11.) – kolik kg se sklidilo. */
   | { kind: 'apple-harvest'; kg: number }
+  /**
+   * Při trhání lnu (31. 7.): ves sklidila jen `kg` třeného lnu z `neededKg`, které potřebuje na
+   * oděv (fields.md – Len, diet.md – Oděv).
+   */
+  | { kind: 'linen-short'; kg: number; neededKg: number }
   /** Podzimní porážka (diet.md – 1. 11.): kolik kg masa a kolik kusů kterého druhu. */
   | { kind: 'slaughter'; kg: number; animals: Partial<Record<HerdSpecies, number>> }
   /**
@@ -1139,6 +1153,12 @@ export interface VillageState {
   cheeseKg?: number;
   /** Zásoba luštěnin (kg suchého semene – diet.md, Luštěniny). Chybí = žádná. */
   legumesKg?: number;
+  /**
+   * Na jaký podíl oděvu má ves len (0–1) – zapsaný při posledním trhání lnu, platí do dalšího
+   * (fields.md – Len, diet.md – Oděv). Len není zásoba: v rámci roku se zpracuje v domácí práci.
+   * Chybí = dost (vsi uložené dřív a nové vsi do prvního trhání po plánu k 1. 9.).
+   */
+  linen?: number;
   /** Seno (oxen.md – Seno): zásoba, sečení a zima. Chybí = žádné. */
   hay?: HayState;
   /** Ohrady s přístřeškem (oxen.md); chybí = žádné. */
@@ -1815,6 +1835,12 @@ export interface FieldFoodYear {
   fieldKg: number;
   /** Podíl jídla z pole za poslední celý hospodářský rok (0–1); chybí po prvním 1. 9. */
   share?: number;
+  /**
+   * Dlouhodobý podíl jídla z pole (0–1) – klouzavý průměr ročních podílů, každý rok o třetinu
+   * rozdílu (FIELD_STORES.balanceYears; fields.md – Osev podle zásob, plynulost). Podle něj ves
+   * seje. Chybí u vsí uložených dřív – začne posledním ročním podílem.
+   */
+  longShare?: number;
 }
 
 /**

@@ -275,6 +275,7 @@ describe('panel pole – plodiny (fields.md – Luštěniny)', () => {
         { crop: 'winter', count: 3 },
         { crop: 'spring', count: 1 },
         { crop: 'legume', count: 2 },
+        { crop: 'flax', count: 1 },
       ],
       ashParts: 0,
       ashBonus: 0,
@@ -283,6 +284,8 @@ describe('panel pole – plodiny (fields.md – Luštěniny)', () => {
     });
     expect(html).toMatch(/legumes\.png.*data-testid="selection-crop-legume"[^>]*>2</);
     expect(html).toContain('Luštěniny – hrách a čočka');
+    // len na plátno (fields.md – Len)
+    expect(html).toMatch(/flax\.png.*data-testid="selection-crop-flax"[^>]*>1</);
     expect(html).toContain('data-testid="selection-crop-winter"');
   });
 });
@@ -297,6 +300,8 @@ describe('SelectionPanel – díl pole a čtverec sadu (klik – fields.md, Co h
     look: 'ripe',
     stage: 'sown',
     legume: false,
+    flax: false,
+    bloom: false,
     ploughed: true,
     areaM2: 225,
     fertility: 48,

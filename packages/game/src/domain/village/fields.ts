@@ -6,6 +6,7 @@ import { gridKey, sameGrid } from './square-grid';
 import {
   DISTANCE,
   FERTILITY,
+  FLAX,
   LEGUMES,
   FOREST_BONUS,
   OBSTACLE_COST,
@@ -162,7 +163,7 @@ export function partFoundingCost(
 /**
  * Konec hospodářského roku (1. 9.) pro jeden díl – mění ho na místě: osev vyčerpá úrodnost
  * (pod 70 % jde díl do přílohu; luštěniny ji naopak trochu vrátí – poutají dusík, fields.md –
- * Luštěniny), příloh ji obnoví.
+ * Luštěniny; len ji vyčerpá víc než obilí – fields.md, Len), příloh ji obnoví.
  */
 export function endOfSeason(part: FieldPart, day: number): void {
   // příloh, ze kterého se díl loni vracel, už plán zkrátit nemůže (fields.md – Osev podle zásob)
@@ -173,7 +174,7 @@ export function endOfSeason(part: FieldPart, day: number): void {
     part.fertilityShare =
       part.crop === 'legume'
         ? Math.min(1, part.fertilityShare + LEGUMES.fertilityGain)
-        : part.fertilityShare - FERTILITY.sowDepletion;
+        : part.fertilityShare - (part.crop === 'flax' ? FLAX.sowDepletion : FERTILITY.sowDepletion);
     part.sownYears += 1;
     if (part.fertilityShare < FERTILITY.sowableMin - EPSILON) {
       part.state = 'fallow';

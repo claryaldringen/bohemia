@@ -74,6 +74,9 @@ import type { CalendarDate } from '../src/domain/calendar';
 import {
   DWELLINGS,
   FERTILITY,
+  FLAX,
+  cropGrossPerHa,
+  flaxNeedKg,
   FIELD_FOOD,
   FIELD_LIMITS,
   FOOD_NEED_KG_PER_YEAR,
@@ -91,6 +94,7 @@ import {
   fieldFoodShare,
   fieldStoresKg,
   steadyHarvestKg,
+  storesTargetKg,
   yearlyFieldNeed,
   villageHappiness,
   livestockLandAt,
@@ -259,13 +263,14 @@ function annualNeed(people: Person[], day: number): number {
  * Pole podle potřeby celého oběhu (ha): osev × ROTATION_FACTOR. Osev hráč odhadne jako ves se
  * zásobami na pojistce – úroda rok co rok (`steadyHarvestKg`: potřeba z pole `need`, pojistka
  * z roční potřeby celé energie `yearly`, ztráty skladováním) / čistá úroda hektaru v průměru tří
- * let osevu.
+ * let osevu – a k tomu len na oděv (`flaxKg` třeného lnu – fields.md, Len).
  */
-function neededFieldHa(need: number, yearly: number, fertility: number): number {
+function neededFieldHa(need: number, yearly: number, fertility: number, flaxKg = 0): number {
   const averageShare = 1 - FERTILITY.sowDepletion; // průměr tří let osevu (1, 0,88, 0,76)
   const netPerHa = grossYieldPerHa(fertility * averageShare) - SEED_KG_PER_HA;
   const harvest = steadyHarvestKg(need, bufferKg(yearly), NO_CRAFTS.pottery);
-  return (harvest / netPerHa) * ROTATION_FACTOR;
+  const flaxHa = flaxKg / cropGrossPerHa('flax', fertility * averageShare);
+  return (harvest / netPerHa + flaxHa) * ROTATION_FACTOR;
 }
 
 /** Plocha pole, kterou hráč počítá: zakládané, připravené, oseté díly a přílohy ≥ 0,7. */
@@ -431,6 +436,16 @@ interface RunResult {
    * (rok potřeby z pole a pojistka se ztrátami – fields.md, Osev podle zásob).
    */
   storesToTarget: Map<number, number>;
+  /**
+   * Rok sklizně → práce na poli plánu toho roku (všechny úlohy všech plodin i orba – po zkrácení
+   * a přidání dílů) na člověka (čd) – rozptyl po rocích (fields.md – Osev podle zásob, plynulost).
+   */
+  fieldWork: Map<number, number>;
+  /**
+   * Rok sklizně → na jaký podíl oděvu ves vytrhala len (0–1, fields.md – Len) a plocha lnu plánu
+   * na člověka (m²); jen plány se zapsanou potřebou lnu. Chybí u běhů uložených před lnem.
+   */
+  linen?: Map<number, { coverage: number; m2: number }>;
   /** Rok sklizně → zásoby obilí po sklizni / roční potřeba celé energie (dřívější měřítko). */
   grainStoresRatio: Map<number, number>;
   /**
@@ -722,6 +737,8 @@ function emptyResult(): RunResult {
     diet: [],
     storesRatio: new Map(),
     storesToTarget: new Map(),
+    fieldWork: new Map(),
+    linen: new Map(),
     grainStoresRatio: new Map(),
     fieldShares: [],
     labor: new Map(),
@@ -855,9 +872,26 @@ function recordHarvest(
   const fieldNeed = yearlyFieldNeed(planning, day + 1);
   if (fieldNeed > 0) result.storesRatio.set(year, fieldStoresKg(after) / fieldNeed);
   const buffer = bufferKg(need);
-  const target = steadyHarvestKg(fieldNeed, buffer, NO_CRAFTS.pottery) + buffer;
+  const target =
+    steadyHarvestKg(fieldNeed, buffer, NO_CRAFTS.pottery) + storesTargetKg(fieldNeed, buffer);
   if (target > 0) result.storesToTarget.set(year, fieldStoresKg(after) / target);
   const plan = after.threshingFromPlan;
+  if (plan && after.people.length > 0) {
+    const work = planCrops(plan).reduce(
+      (sum, { work: w }) =>
+        sum + Object.values(w.required).reduce((a, b) => a + b, 0) + (w.plough?.required ?? 0),
+      0,
+    );
+    result.fieldWork.set(year, work / after.people.length);
+    if (plan.flaxNeedKg !== undefined) {
+      const byId = new Map(after.parts.map((p) => [p.id, p]));
+      const m2 = (plan.flax?.partIds ?? []).reduce(
+        (sum, id) => sum + (byId.get(id)?.areaM2 ?? 0),
+        0,
+      );
+      result.linen?.set(year, { coverage: after.linen ?? 1, m2: m2 / after.people.length });
+    }
+  }
   const record = result.plans.find((p) => p.year === year);
   if (!plan || !pinned || !record) return;
   // práce sondy z pevného složení – úmrtí v posledním kroku před sklizní by rezervu zkreslilo
@@ -1062,6 +1096,7 @@ function runVillage(start: VillageState, startLand: number, opts: RunOptions): R
             yearlyFieldNeed(after, day),
             annualNeed(after.people, day),
             averageFertility(after, opts.land, land),
+            flaxNeedKg(after, day),
           ) - countedFieldHa(after);
         const count = Math.max(MIN_FIELD_PARTS, Math.ceil((missing * M2_PER_HA) / PART_M2));
         const batch = missing > 0 ? opts.land.take(after, day, land, count) : null;
@@ -1273,6 +1308,20 @@ function fullYears(r: RunResult, foundDay: number, endDay: number): number[] {
 
 // --- statistiky -------------------------------------------------------------------------
 
+/**
+ * Rozptyl řady po rocích: variační koeficient (směrodatná odchylka ÷ průměr) a průměrná změna
+ * z roku na rok ÷ průměr. Prázdná řada NaN.
+ */
+function yearSpread(values: readonly number[]): { cv: number; step: number; mean: number } {
+  if (values.length < 2) return { cv: NaN, step: NaN, mean: NaN };
+  const mean = values.reduce((a, b) => a + b, 0) / values.length;
+  if (mean <= 0) return { cv: NaN, step: NaN, mean };
+  const variance = values.reduce((a, v) => a + (v - mean) ** 2, 0) / values.length;
+  let steps = 0;
+  for (let i = 1; i < values.length; i++) steps += Math.abs(values[i]! - values[i - 1]!);
+  return { cv: Math.sqrt(variance) / mean, step: steps / (values.length - 1) / mean, mean };
+}
+
 function quantile(values: number[], q: number): number {
   const sorted = [...values].sort((a, b) => a - b);
   if (sorted.length === 0) return NaN;
@@ -1307,6 +1356,8 @@ interface ProbeSummary {
   plough: number;
   /** Medián průměrné délky brázdy plánu (m). */
   furrowM: number;
+  /** Práce na poli po rocích v ustáleném oběhu (čd na člověka): průměr a rozptyl (medián sond). */
+  fieldWork: { mean: number; cv: number; step: number };
 }
 
 type Task = { kind: 'village'; index: number } | { kind: 'probe'; probe: ProbeName };
@@ -1395,7 +1446,15 @@ function runProbe(name: ProbeName): TaskResult {
   // pole o polovinu větší než potřeba z pole v ustáleném oběhu (osev podle stravy)
   const firstParts = fixedField
     ? Math.round(
-        (neededFieldHa(startNeed * steadyFieldShare(ages, land), startNeed, V1_MEADOW_FERTILITY) *
+        (neededFieldHa(
+          startNeed * steadyFieldShare(ages, land),
+          startNeed,
+          V1_MEADOW_FERTILITY,
+          ages.reduce(
+            (sum, age) => sum + (age < 14 ? FLAX.kgPerYear.child : FLAX.kgPerYear.adult),
+            0,
+          ),
+        ) *
           oversize *
           M2_PER_HA) /
           PART_M2,
@@ -1464,6 +1523,30 @@ function runProbe(name: ProbeName): TaskResult {
     subsistence: 1 - free / capacity,
     satiationOk: share(satiation),
     storesMedian: quantile(stores, 0.5),
+    fieldWork: (() => {
+      const spreads = results.map((r) =>
+        yearSpread(
+          [...r.fieldWork.entries()]
+            .filter(([y]) => steady(y, r))
+            .sort((a, b) => a[0] - b[0])
+            .map(([, v]) => v),
+        ),
+      );
+      return {
+        mean: quantile(
+          spreads.map((x) => x.mean),
+          0.5,
+        ),
+        cv: quantile(
+          spreads.map((x) => x.cv),
+          0.5,
+        ),
+        step: quantile(
+          spreads.map((x) => x.step),
+          0.5,
+        ),
+      };
+    })(),
     reserves: {
       autumn: Math.min(...withReserves.map((p) => p.reserves.autumn)),
       spring: Math.min(...withReserves.map((p) => p.reserves.spring)),
@@ -1842,6 +1925,12 @@ function report(villages: VillageResult[], probes: Record<ProbeName, ProbeSummar
     ),
   );
   row(
+    'Práce na poli po rocích (čd na člověka) – sondy startovní / plná',
+    'informace – rozptyl: variační koeficient, průměrná změna z roku na rok',
+    `startovní průměr ${fmt(start.fieldWork.mean)}, VK ${pct(start.fieldWork.cv)}, změna ${pct(start.fieldWork.step)} | plná průměr ${fmt(full.fieldWork.mean)}, VK ${pct(full.fieldWork.cv)}, změna ${pct(full.fieldWork.step)}`,
+    'info',
+  );
+  row(
     'Startovní ves: práce na obživu',
     '85–90 %',
     `${pct(start.subsistence)} | nasycení ≥ 0,95 v ${pct(start.satiationOk)} let | zásoby po sklizni ${fmt(start.storesMedian, 2)}`,
@@ -1909,6 +1998,104 @@ function report(villages: VillageResult[], probes: Record<ProbeName, ProbeSummar
     `${fmt(TARGET_BAND.low, 2)}–${fmt(TARGET_BAND.high, 2)} (p10 ≥ ${fmt(TARGET_BAND.low, 2)}, p90 ≤ ${fmt(TARGET_BAND.high, 2)})`,
     `p10 ${fmt(targetP10, 2)} | medián ${fmt(quantile(toTarget, 0.5), 2)} | p90 ${fmt(targetP90, 2)} | v pásmu ${pct(share(toTarget.map((v) => v >= TARGET_BAND.low && v <= TARGET_BAND.high)))}`,
     ok(targetP10 >= TARGET_BAND.low && targetP90 <= TARGET_BAND.high),
+  );
+  // práce na poli a volná práce po rocích (od 3. roku vsi – bez zakládání) – plynulost osevu
+  const spreads = villages.map(({ builder, foundDay, endDay }) => {
+    const years = fullYears(builder, foundDay, endDay).filter(
+      (y) => y - harvestYear(foundDay) >= 3,
+    );
+    const field = yearSpread(years.flatMap((y) => builder.fieldWork.get(y) ?? []));
+    const free = yearSpread(
+      years.flatMap((y) => {
+        const l = builder.labor.get(y);
+        return l && l.capacity > 0 ? [l.common / l.capacity] : [];
+      }),
+    );
+    return { field, free };
+  });
+  row(
+    'Práce na poli po rocích (čd na člověka), hráč staví',
+    'informace – rozptyl: variační koeficient, průměrná změna z roku na rok (od 3. roku vsi)',
+    `průměr medián ${fmt(
+      quantile(
+        spreads.map((x) => x.field.mean),
+        0.5,
+      ),
+    )} | VK medián ${pct(
+      quantile(
+        spreads.map((x) => x.field.cv),
+        0.5,
+      ),
+    )}, p90 ${pct(
+      quantile(
+        spreads.map((x) => x.field.cv),
+        0.9,
+      ),
+    )} | změna medián ${pct(
+      quantile(
+        spreads.map((x) => x.field.step),
+        0.5,
+      ),
+    )}, p90 ${pct(
+      quantile(
+        spreads.map((x) => x.field.step),
+        0.9,
+      ),
+    )}`,
+    'info',
+  );
+  // len na oděv (fields.md – Len) – od 3. roku vsi
+  const linenYears = villages.flatMap(({ builder, foundDay, endDay }) =>
+    fullYears(builder, foundDay, endDay)
+      .filter((y) => y - harvestYear(foundDay) >= 3)
+      .flatMap((y) => {
+        const l = builder.linen?.get(y);
+        return l ? [l] : [];
+      }),
+  );
+  if (linenYears.length > 0) {
+    row(
+      'Len na oděv, hráč staví (od 3. roku vsi)',
+      'informace – roky s plným lnem, podíl oděvu, plocha lnu na člověka',
+      `plný ${pct(share(linenYears.map((l) => l.coverage >= 1 - 1e-9)))} let | podíl p10 ${pct(
+        quantile(
+          linenYears.map((l) => l.coverage),
+          0.1,
+        ),
+      )} | plocha medián ${fmt(
+        quantile(
+          linenYears.map((l) => l.m2),
+          0.5,
+        ),
+      )} m² na člověka`,
+      'info',
+    );
+  }
+  row(
+    'Volná práce po rocích (podíl práce), hráč staví',
+    'informace – společná práce ÷ všechna práce; rozptyl jako výš',
+    `průměr medián ${pct(
+      quantile(
+        spreads.map((x) => x.free.mean),
+        0.5,
+      ),
+    )} | VK medián ${pct(
+      quantile(
+        spreads.map((x) => x.free.cv),
+        0.5,
+      ),
+    )}, p90 ${pct(
+      quantile(
+        spreads.map((x) => x.free.cv),
+        0.9,
+      ),
+    )} | změna medián ${pct(
+      quantile(
+        spreads.map((x) => x.free.step),
+        0.5,
+      ),
+    )}`,
+    'info',
   );
   const stores = builderYears.map((y) => y.stores).filter((v) => v !== undefined);
   row(
