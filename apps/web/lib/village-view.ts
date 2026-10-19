@@ -21,6 +21,7 @@ import {
   villageCartRoutes,
   villageCarts,
   CARTS,
+  CART_JOBS,
   ORCHARD_WINDOWS,
   STOCK_RESOURCES,
   affordability,
@@ -1091,11 +1092,18 @@ export interface SceneCart {
   /** Stav vozu 0–1 po desetinách (opotřebení – po CARTS.lifespanYears doslouží). */
   condition: number;
   /**
-   * Co vůz dnes dělá – svoz (`haul`: pole, louka, stromy) nebo výprava po stezce (`trade`) s cílem
-   * z rozdělení práce dne a nákladem, který veze (snopy ze žně, seno ze seče, klády ke stavbě,
-   * zboží výpravy); stojí-li u ohrady, null.
+   * Co vůz dnes dělá – svoz (`haul`: pole, louka, stromy; i jízdy mimo svoz – uhlí od milíře,
+   * osivo na pole, voda od břehu, wagons.md – Co vozy vozí) nebo výprava po stezce (`trade`)
+   * s cílem z rozdělení práce dne a nákladem, který veze (snopy ze žně, seno ze seče, klády ke
+   * stavbě, zboží výpravy, uhlí a osivo jako zboží, voda v sudech); náklad veze zpátky, osivo tam
+   * (`outbound`). Stojí-li u ohrady, null.
    */
-  job: { activity: 'haul' | 'trade'; target: LaborShare['target']; load: CartLoad } | null;
+  job: {
+    activity: 'haul' | 'trade';
+    target: LaborShare['target'];
+    load: CartLoad;
+    outbound?: true;
+  } | null;
   /**
    * Kudy vůz dnes jede (wagons.md – fáze 3): osa vozové sítě od ohrady k cíli svozu
    * (`villageCartRoutes`, zjednodušená, po cm), u výpravy od ohrady na zemskou stezku a po ní ke
@@ -1104,8 +1112,11 @@ export interface SceneCart {
   route?: { x: number; z: number }[];
 }
 
-/** Náklad vozu na cestě zpátky (u výpravy tam i zpět). */
-export type CartLoad = 'sheaves' | 'hay' | 'logs' | 'goods';
+/**
+ * Náklad vozu na cestě zpátky (u výpravy tam i zpět, osivo tam); voda v sudech zatím jen v datech
+ * (model sudů později – scéna kreslí prázdný vůz).
+ */
+export type CartLoad = 'sheaves' | 'hay' | 'logs' | 'goods' | 'water';
 
 /** Čtverec lesa vsi ve scéně (fields.md – Les vsi). */
 export interface SceneWood {
@@ -2326,7 +2337,13 @@ function sceneCarts(
   for (const share of laborReport(state)?.shares ?? []) {
     if (share.activity !== 'haul') continue;
     for (const cart of idle.splice(0, share.carts ?? 1)) {
-      jobs.set(cart.id, { activity: 'haul', target: share.target, load: haulLoad(state, share) });
+      jobs.set(cart.id, {
+        activity: 'haul',
+        target: share.target,
+        load: haulLoad(state, share),
+        // osivo veze vůz na pole, zpátky jede prázdný (wagons.md – Co vozy vozí)
+        ...(share.job === 'seed' ? { outbound: true as const } : {}),
+      });
     }
   }
   return carts.map((c) => {
@@ -2369,8 +2386,13 @@ function scenePloughApproach(
   return route?.reached && route.points.length >= 2 ? simplifiedRoute(route.points) : null;
 }
 
-/** Co vůz při svozu veze: klády ke stavbě, seno ze seče (louka, díl úhoru v seči), jinak snopy. */
+/**
+ * Co vůz při svozu veze: klády ke stavbě, seno ze seče (louka, díl úhoru v seči), jinak snopy;
+ * mimo svoz (wagons.md – Co vozy vozí) uhlí a osivo jako zboží, vodu v sudech.
+ */
 function haulLoad(state: VillageState, share: LaborShare): CartLoad {
+  if (share.job === 'water') return 'water';
+  if (share.job === 'seed' || share.job === 'charcoal') return 'goods';
   const t = share.target;
   if (t.kind === 'meadow') return 'hay';
   if (t.kind !== 'field') return 'logs';
@@ -2387,8 +2409,9 @@ const CART_ROUTE_TOLERANCE_M = 0.6;
  * Trasa vozu dne (wagons.md – fáze 3): svoz – osa vozové sítě od ohrady k místu dnešní práce
  * (díl na čele žně / seče nejblíž těžišti dnešních dílů, políčko louky, strom stavby) stejnou
  * funkcí jako dosah svozu (`villageCartRoutes`; žeň po strništi sklízené plodiny –
- * `harvestReachState`); výprava – od ohrady na začátek zemské stezky a po ní ke kraji mapy. Kam
- * vůz nedojede (nebo bez cíle), null.
+ * `harvestReachState`), mimo svoz k milíři a na břeh pro vodu (wagons.md – Co vozy vozí); výprava
+ * – od ohrady na začátek zemské stezky a po ní ke kraji mapy. Kam vůz nedojede (nebo bez cíle),
+ * null.
  */
 function cartRouteToday(
   state: VillageState,
@@ -2441,6 +2464,12 @@ function cartRouteToday(
     });
     const goal = nearestToCentroid(trees);
     axis = goal ? routeTo(state, goal, CARTS.dragM) : null;
+  } else if (t.kind === 'kiln') {
+    // uhlí od milíře ke kováři (wagons.md – Co vozy vozí) – k milíři jako jádro (kilnCartDrive)
+    axis = routeTo(state, t, CART_JOBS.charcoal.reachM);
+  } else if (t.kind === 'water') {
+    // voda v sudech – na břeh, kde trasa jádra končí (waterCartDrive)
+    axis = routeTo(state, t, CART_JOBS.water.reachM);
   }
   return axis ? simplifiedRoute(axis) : null;
 }

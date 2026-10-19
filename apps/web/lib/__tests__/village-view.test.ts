@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  CART_JOBS,
   ROAD_TREE_ID_BASE,
   advanceVillage,
   obstacleChangesAt,
@@ -30,6 +31,7 @@ import {
   tileCenterWorld,
   villageDwellingPositions,
   type ChronicleEvent,
+  type LaborShare,
   type LandTaker,
   type Landscape,
   type PartInput,
@@ -2182,6 +2184,44 @@ describe('buildVillageView – tesař a vozy (wagons.md)', () => {
     expect(mowing.route?.length).toBeGreaterThanOrEqual(2);
     s.labor.shares = [];
     expect(buildVillageView(record(s), landscape, DAY).scene.carts![0]!.route).toBeUndefined();
+  });
+
+  it('vůz mimo svoz (Co vozy vozí): uhlí a osivo jako zboží, osivo tam, voda; trasa k milíři', () => {
+    const s = carpenterVillage();
+    const part = s.parts.find((p) => p.cell?.x === 11)!;
+    const job = (share: LaborShare): NonNullable<NonNullable<VillageView['scene']['carts']>[0]> => {
+      s.labor = { day: DAY, shares: [share] };
+      return buildVillageView(record(s), landscape, DAY).scene.carts![0]!;
+    };
+    const charcoal = job({
+      activity: 'haul',
+      target: { kind: 'kiln', id: 50, x: 20, z: 20 },
+      manDays: 0.05,
+      carts: 1,
+      job: 'charcoal',
+    });
+    expect(charcoal.job).toMatchObject({ load: 'goods' });
+    expect(charcoal.job?.outbound).toBeUndefined();
+    const route = charcoal.route!;
+    expect(route.length).toBeGreaterThanOrEqual(2);
+    const last = route[route.length - 1]!;
+    expect(Math.hypot(last.x - 20, last.z - 20)).toBeLessThanOrEqual(CART_JOBS.charcoal.reachM);
+    const seed = job({
+      activity: 'haul',
+      target: { kind: 'field', id: part.fieldId, parts: [part.id] },
+      manDays: 0.2,
+      carts: 1,
+      job: 'seed',
+    });
+    expect(seed.job).toMatchObject({ load: 'goods', outbound: true });
+    const water = job({
+      activity: 'haul',
+      target: { kind: 'water', x: 30, z: 0 },
+      manDays: 0.1,
+      carts: 1,
+      job: 'water',
+    });
+    expect(water.job).toMatchObject({ load: 'water', target: { kind: 'water' } });
   });
 
   it('kronika – tesař vyrobil vůz, vůz dosloužil', () => {
