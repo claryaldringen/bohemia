@@ -147,6 +147,8 @@ import {
   withNeighbours,
   type NeighbourSnapshot,
   type PenSpecies,
+  LIVESTOCK,
+  herdRoom,
 } from '@bohemia/game';
 import { formatGameDate } from './game-date';
 import { fruitVisible, treeGrowth } from './orchard-look';
@@ -474,6 +476,11 @@ export interface VillageView {
   livestock: LivestockSummary;
   /** Ohrady v pořadí založení. */
   pens: VillagePen[];
+  /**
+   * Druhy stád, která se na noc nevejdou do ohrad svého druhu ani k domům (oxen.md – Ohrady podle
+   * druhu) – co se nevejde, půjde při porážce na maso; bez údaje se vejdou všechna.
+   */
+  penShort?: HerdSpecies[];
   /** Pevné cesty (roads.md) – úseky pro panel výběru: stupeň, délka, stáří, stromy, vylepšení. */
   roads: VillageRoad[];
   /** Klády na hromadě u vsi v kusech (forest.md). */
@@ -2610,6 +2617,20 @@ export function scenePenSquares(
   ];
 }
 
+/**
+ * Druhy stád, která se na noc nevejdou do ohrad svého druhu a k domům (`herdRoom` – oxen.md,
+ * Ohrady podle druhu; chovný pár zůstane vždy). Vše se vejde – nic.
+ */
+function penShortOf(state: VillageState): { penShort?: HerdSpecies[] } {
+  const herds = state.livestock?.herds;
+  if (!herds) return {};
+  const room = herdRoom(state);
+  const short = (['sheep', 'goat', 'pig', 'cow'] as const).filter(
+    (s) => Math.round(herds[s]) > Math.max(room[s], LIVESTOCK.breedingMin),
+  );
+  return short.length > 0 ? { penShort: short } : {};
+}
+
 /** Druh ohrady ve scéně – bez údaje (ukázky) se spřežením nebo výcvikem spřežení, jinak skot. */
 export function scenePenSpecies(pen: Pick<ScenePen, 'species' | 'oxen' | 'trainees'>): PenSpecies {
   return pen.species ?? (pen.oxen > 0 || pen.trainees > 0 ? 'team' : 'cattle');
@@ -3288,6 +3309,7 @@ export function buildVillageView(
       };
     }),
     pens: penViews(state, day, summary),
+    ...penShortOf(state),
     roads: roadViews(state, landscape, day, summary),
     scene: {
       ...sceneVillage(state, landscape, day, summary),
