@@ -56,6 +56,9 @@ import {
   roadUpgradeOptions,
   roadUpgradeProgress,
   roadChains,
+  roadKind,
+  ROAD_KIND_ORDER,
+  type RoadKind,
   villageRoadWalk,
   ruinOvergrowth,
   isAbandoned,
@@ -289,13 +292,14 @@ export interface VillageRoad {
   id: number;
   /** Úseky cesty v pořadí podél ní – výběr kteréhokoli vybere celou cestu. */
   segments: number[];
-  /** Stupeň, který na cestě převládá (podle délky; při shodě lepší) – portrét panelu. */
-  grade: RoadGrade;
+  /**
+   * Druh cesty, který na ní převládá (podle délky; při shodě lepší) – portrét panelu. Vyšlapaná
+   * s vozy je vyježděná (wagons.md – Vyježděná cesta, `roadKind`).
+   */
+  roadKind: RoadKind;
   lengthM: number;
-  /** Délka po stupních (m) – jen stupně, které cesta má, od vyšlapané po hať. */
-  grades: { grade: RoadGrade; lengthM: number }[];
-  /** Vozová část (wagons.md – Vyjeté cesty) – m; bez ní 0. */
-  cartM: number;
+  /** Délka po druzích (m) – jen druhy, které cesta má, od vyšlapané přes vyježděnou po hať. */
+  kinds: { kind: RoadKind; lengthM: number }[];
   /** Stáří nejstaršího úseku v celých letech. */
   ageYears: number;
   /** Stojící stromy u cesty (keře a stromy, ne souše a pařezy). */
@@ -303,8 +307,6 @@ export interface VillageRoad {
   /** Cesta vede mokřinou (m) a přes brody. */
   wetM: number;
   fords: number;
-  /** Vozová cesta – vyjetá vozy (wagons.md – Vyjeté cesty, `Road.cart`). */
-  cart: boolean;
   /** Rozestavěné vylepšení – na jaký stupeň, průběh 0–1 a stromy ke skácení; jinak null. */
   building: { grade: RoadGrade; progress: number; treesToFell: number } | null;
   upgrades: RoadUpgradeOption[];
@@ -321,9 +323,10 @@ export interface VillageRoad {
   };
 }
 
-/** Názvy stupňů cesty (roads.md – Vylepšení cesty). */
-export const ROAD_GRADE_NAMES: Record<RoadGrade, string> = {
+/** Názvy druhů cesty (roads.md – Druhy cest, Vylepšení cesty; wagons.md – Vyježděná cesta). */
+export const ROAD_KIND_NAMES: Record<RoadKind, string> = {
   trodden: 'Vyšlapaná cesta',
+  cart: 'Vyježděná cesta',
   improved: 'Upravená cesta',
   causeway: 'Cesta s hatí a lávkou',
 };
@@ -2048,7 +2051,6 @@ export function sceneWoods(
 }
 
 /** Pořadí stupňů cesty – od vyšlapané po hať (panel, převládající stupeň při shodě lepší). */
-const ROAD_GRADE_ORDER: readonly RoadGrade[] = ['trodden', 'improved', 'causeway'];
 
 /**
  * Pevné cesty pro panel výběru – cesta hráče = řetěz úseků (roads.md – Cesta pro hráče), i
@@ -2081,26 +2083,23 @@ function roadViews(
     const planting = summary.constructions.find((c) => c.kind === 'road-apples' && touches(c));
     const mine = apples.filter((a) => ids.has(a.roadId));
     const living = mine.filter((a) => roadAppleStage(a, day) === 'tree');
-    const byGrade = new Map<RoadGrade, number>();
-    let cartM = 0;
+    const byKind = new Map<RoadKind, number>();
     for (const m of members) {
-      const length = roadLengthM(m);
-      byGrade.set(m.grade, (byGrade.get(m.grade) ?? 0) + length);
-      if (m.cart) cartM += length;
+      const kind = roadKind(m);
+      byKind.set(kind, (byKind.get(kind) ?? 0) + roadLengthM(m));
     }
-    const grades = ROAD_GRADE_ORDER.filter((g) => (byGrade.get(g) ?? 0) > 0).map((grade) => ({
-      grade,
-      lengthM: Math.round(byGrade.get(grade)!),
+    const kinds = ROAD_KIND_ORDER.filter((k) => (byKind.get(k) ?? 0) > 0).map((kind) => ({
+      kind,
+      lengthM: Math.round(byKind.get(kind)!),
     }));
-    // převládající stupeň – nejdelší, při shodě lepší
-    const grade = grades.reduce((best, g) => (g.lengthM >= best.lengthM ? g : best)).grade;
+    // převládající druh – nejdelší, při shodě lepší
+    const prevailing = kinds.reduce((best, k) => (k.lengthM >= best.lengthM ? k : best)).kind;
     return {
       id: r.id,
       segments: members.map((m) => m.id),
-      grade,
+      roadKind: prevailing,
       lengthM: Math.round(members.reduce((sum, m) => sum + roadLengthM(m), 0)),
-      grades,
-      cartM: Math.round(cartM),
+      kinds,
       ageYears: Math.max(
         0,
         Math.floor((day - Math.min(...members.map((m) => m.bornDay))) / DAYS_PER_YEAR),
@@ -2113,7 +2112,6 @@ function roadViews(
         ),
       ),
       fords: members.reduce((sum, m) => sum + (m.ground?.fords.length ?? 0), 0),
-      cart: members.some((m) => m.cart === true),
       building:
         work && work.roadGrade
           ? { grade: work.roadGrade, progress: work.progress, treesToFell: work.treesToFell }

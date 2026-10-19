@@ -256,10 +256,21 @@ export const OBSTACLE_COST = {
 } as const;
 // fields.md – Práce (vzdálenost od obydlí, +1 % za každých 10 m nad 100 m)
 export const DISTANCE = { freeM: 100, percentPer10M: 1 } as const;
-// paths.md – Pěšiny a práce (Martin 18. 10. 2026: „Tam, kde bude vyšlapaná cesta, ať se chodí
-// o něco lépe než tam, kde není.“): po vyšlapané pěšině se chodí o čtvrtinu rychleji – úsek
-// pěšiny síly s se do vzdálenosti dílu (fields.md – Vzdálenost) počítá (1 − speedup × s) × délka
-export const PATH_WALK = { speedup: 0.25 } as const;
+// paths.md – Pěšiny a práce, roads.md – Rychlejší chůze (Martin 19. 10. 2026: „berme louku za
+// výchozí: 1 vyšlapaná denní cesta 1.3 stálá vyšlapaná cesta 1.5. Pole, které zrovna neleží
+// ladem: 0.5. Upravená cesta: 1.7 – tyhle hodnoty se týkají chůze.“): po plně prošlapané pěšině
+// dne se chodí 1,3× rychleji než po louce, slabší pěšina úměrně méně (návrh Clauda, jako dřív) –
+// úsek pěšiny síly s stojí (1 − (1 − 1 / speed) × s) × délka; přes díl pole v osevu pěšina
+// nezrychlí (platí FIELD_WALK). Stejná cena v síti pěšin i ve vzdálenosti chůze (fields.md –
+// Vzdálenost).
+export const PATH_WALK = { speed: 1.3 } as const;
+// fields.md – Vzdálenost, paths.md – ceny buněk (Martin 19. 10. 2026: „Pole, které zrovna neleží
+// ladem: 0.5.“ a „Neber strniště jako louku, ale dej mu drobný postih. Ber to třeba jako 0.8.“):
+// rychlost chůze přes díl pole proti louce – v osevu od orby nebo kopání po sklizeň (zoraný,
+// osetý, rostoucí, zralý, ve žni) 0,5, strniště po sklizni 0,8; úhor, příloh a zakládaný díl jako
+// louka. Pole není zákaz, jen cena – síť pěšin hledá nejrychlejší cestu („nejkratší cesta je ta
+// nejrychlejší“), přes pole jde, když je obcházení delší
+export const FIELD_WALK = { crop: 0.5, stubble: 0.8 } as const;
 // roads.md – Dvě vrstvy cest (návrh Clauda, schváleno 18. 10. 2026): pevné cesty se počítají
 // jednou za rok k 1. 11. (po sklizni jablek) z celoroční práce; úsek, kudy se dva roky po sobě
 // chodí aspoň 3× denně (roční průměr), se stane pevnou cestou; vyšlapaná cesta, kudy se 5 let po
@@ -387,13 +398,15 @@ export const ROAD_APPLES = {
   snagYears: 10,
   logFromYears: 20,
 } as const;
-// roads.md – Rychlejší chůze (návrh Clauda, schváleno): rychlost chůze proti louce – vyšlapaná
-// cesta 1,2×, upravená 1,5× (hať a lávka jen přes mokřinu a brod, jinde jako upravená); mokřina
-// 0,5× (bahno), po hati 1,5×; brod + 30 m (zout se, přebrodit), po lávce bez zdržení
+// roads.md – Rychlejší chůze (Martin 19. 10. 2026: „stálá vyšlapaná cesta 1.5“, „Upravená cesta:
+// 1.7“): rychlost chůze proti louce – stálá vyšlapaná i vyježděná cesta 1,5×, upravená 1,7×, hať
+// a lávka 1,7× i přes mokřinu (návrh Clauda); mokřina bez cesty i po vyšlapané či upravené cestě
+// 0,5× (bahno); brod + 30 m (zout se, přebrodit), po lávce bez zdržení. Pevná cesta přes pole jde
+// rychlostí cesty (pás cesty se neorá – roads.md, Cesta přes pole)
 export const ROAD_WALK = {
-  speed: { trodden: 1.2, improved: 1.5, causeway: 1.5 },
+  speed: { trodden: 1.5, improved: 1.7, causeway: 1.7 },
   wetSpeed: 0.5,
-  causewayWetSpeed: 1.5,
+  causewayWetSpeed: 1.7,
   fordExtraM: 30,
 } as const;
 // fields.md – Založení pole (nejdál 800 m od obydlí, nejmenší výměra 0,1 ha)

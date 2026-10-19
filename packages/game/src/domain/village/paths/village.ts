@@ -2,6 +2,7 @@ import { dateOfDayIndex } from '../../calendar';
 import { stockedPenIds } from '../abandonment';
 import { tileCenterWorld, type Landscape, type ObstacleLayer } from '../../landscape';
 import { villageCemeteries } from '../cemetery';
+import { fieldPartLooks } from '../field-progress';
 import { HAY_WINTER_MONTHS } from '../hay';
 import { grazingDemandHa, villageHerds } from '../livestock';
 import { obstacleChangesAt } from '../obstacles';
@@ -40,7 +41,14 @@ import {
   pathWindowFor,
   withObstacles,
 } from './terrain';
-import { walkGraph, walkGroundOf, walkingDistances, type WalkGround } from './walking';
+import {
+  walkGraph,
+  walkGroundOf,
+  walkingDistances,
+  withFieldWalk,
+  type WalkGround,
+} from './walking';
+import { partWalkSpeed } from './walk-speed';
 
 // Pěšiny ze stavu vsi (paths.md – Pěšiny a práce): server skládá ves pro pěšiny stejně jako
 // scéna (village-view.ts – SceneVillage), spočítá stejnou síť a z ní vzdálenosti chůze dílů
@@ -176,19 +184,28 @@ export function pathVillageOf(state: VillageState, day: number, landscape: Lands
     ),
   ];
   const grazed = pastureGrazedParts(state, day);
+  // vzhled dílů jako ve scéně – podle něj se chodí přes pole (v osevu, strniště – walk-speed.ts)
+  const looks = state.parts.length > 0 ? fieldPartLooks(state, day) : null;
   const fields = state.fields.map((f) => ({
     id: f.id,
-    parts: state.parts.flatMap((p) =>
-      p.fieldId === f.id && p.cell !== undefined
-        ? [
-            {
-              ...square(landscape, p.cell, f.grid),
-              stage: partStage(p, day),
-              ...(isGrazeableFallow(p) ? { grazed: grazed.has(p.id) } : {}),
-            },
-          ]
-        : [],
-    ),
+    parts: state.parts.flatMap((p) => {
+      if (p.fieldId !== f.id || p.cell === undefined) return [];
+      const view = looks?.get(p.id);
+      return [
+        {
+          ...square(landscape, p.cell, f.grid),
+          stage: partStage(p, day),
+          ...(view
+            ? {
+                look: view.look,
+                ...(view.work !== undefined ? { work: view.work } : {}),
+                ...(view.before ? { before: view.before } : {}),
+              }
+            : {}),
+          ...(isGrazeableFallow(p) ? { grazed: grazed.has(p.id) } : {}),
+        },
+      ];
+    }),
   }));
   const woods = villageWoods(state).map((w) => ({
     ...square(landscape, w.cell, w.grid),
@@ -316,8 +333,9 @@ export function villagePathNetwork(
   day: number,
   landscape: Landscape,
   obstacles: ObstacleLayer | null,
+  /** Ves pro pěšiny, kterou už volající spočítal ze stejného stavu a dne. */
+  village: PathVillage = pathVillageOf(state, day, landscape),
 ): PathNetwork | null {
-  const village = pathVillageOf(state, day, landscape);
   const input = JSON.stringify(village);
   const last = lastNetworks.get(landscape);
   if (last && last.obstacles === obstacles && last.input === input) return last.network;
@@ -410,16 +428,26 @@ export function walkLayoutKey(state: VillageState, day: number): string {
 }
 
 /**
- * Stadia dílů pole pro vzdálenosti chůze (paths.md, fields.md – Vzdálenost): stadium a jestli se
- * na úhoru pase. Osev a zakládání postupují po dílech den po dni – síť by se jinak přepočítávala
- * každých pár dní; do klíče chůze se proto promítají jen 1. dne v měsíci (`refreshWalkDistances`).
+ * Stadia dílů pole pro vzdálenosti chůze (paths.md, fields.md – Vzdálenost): stadium, rychlost
+ * chůze přes díl (v osevu, strniště – `partWalkSpeed` ze vzhledu dílu) a jestli se na úhoru pase.
+ * Osev a zakládání postupují po dílech den po dni – síť by se jinak přepočítávala každých pár dní;
+ * do klíče chůze se proto promítají jen 1. dne v měsíci (`refreshWalkDistances`).
  */
 export function walkStageKey(state: VillageState, day: number): string {
   const grazed = pastureGrazedParts(state, day);
+  const looks = state.parts.length > 0 ? fieldPartLooks(state, day) : null;
   return state.parts
-    .map(
-      (p) => `${p.id}:${partStage(p, day)}${isGrazeableFallow(p) && !grazed.has(p.id) ? ':-' : ''}`,
-    )
+    .map((p) => {
+      const stage = partStage(p, day);
+      const view = looks?.get(p.id);
+      const speed = partWalkSpeed({
+        stage,
+        ...(view ? { look: view.look } : {}),
+        ...(view?.work !== undefined ? { work: view.work } : {}),
+        ...(view?.before ? { before: view.before } : {}),
+      });
+      return `${p.id}:${stage}/${speed}${isGrazeableFallow(p) && !grazed.has(p.id) ? ':-' : ''}`;
+    })
     .join(';');
 }
 
@@ -462,9 +490,10 @@ export function walkDistancesTo(
   obstacles: ObstacleLayer | null,
   targets: readonly PathPoint[],
 ): number[] | null {
-  const network = villagePathNetwork(state, day, landscape, obstacles);
+  const village = pathVillageOf(state, day, landscape);
+  const network = villagePathNetwork(state, day, landscape, obstacles, village);
   if (!network) return null;
-  const ground = walkGroundOf(landscape);
+  const ground = withFieldWalk(walkGroundOf(landscape), village.fields);
   const graph = walkGraph(network.lines, { roads: state.roads?.roads ?? [], ground });
   return walkingDistances(graph, dwellingOrigins(state), targets, ground).map(
     (walk) => Math.floor(walk * WALK_ROUNDING) / WALK_ROUNDING,
@@ -495,14 +524,15 @@ export function refreshWalkDistances(
   const unchanged = state.walkLayoutKey === key;
   state.walkLayoutKey = key;
   if (unchanged) return;
-  const network = villagePathNetwork(state, day, landscape, obstacles);
+  const village = pathVillageOf(state, day, landscape);
+  const network = villagePathNetwork(state, day, landscape, obstacles, village);
   if (!network) {
     for (const p of state.parts) delete p.walkDistanceM;
     for (const o of villageOrchards(state)) for (const s of o.squares) delete s.walkDistanceM;
     for (const d of state.dwellings) delete d.forestWalkM;
     return;
   }
-  const ground = walkGroundOf(landscape);
+  const ground = withFieldWalk(walkGroundOf(landscape), village.fields);
   const graph = walkGraph(network.lines, { roads: state.roads?.roads ?? [], ground });
   const origins = dwellingOrigins(state);
   const rounded = (walk: number): number => Math.floor(walk * WALK_ROUNDING) / WALK_ROUNDING;
@@ -523,7 +553,7 @@ export function refreshWalkDistances(
     s.walkDistanceM = rounded(walks[parts.length + k]!);
   });
   // palivo: z každého obydlí k nejbližšímu okraji lesa (vzdušnou čarou) chůzí
-  const edges = forestEdges(ground);
+  const edges = forestEdges(walkGroundOf(landscape));
   for (const d of state.dwellings) {
     const edge = nearestPoint(edges, d.position);
     if (!edge) {

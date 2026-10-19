@@ -11,8 +11,9 @@ přístřeškem s kozlíky a koly – wagons.md, uhlíř s milířem), sad
 (jabloňový sad), modla, svatyne (posvátná místa z `apps/web/public/models/sacred/`), dub
 (posvátný dub s obětinami), sous (posvátná souš – uschlý dub z `apps/web/public/models/decor/`
 s obětinami), haj (dubový háj s kameny) a ohrada (přístřešek, žlab a branka
-z `apps/web/public/models/pen/`, kráva ze stáda vsi, stoh sena), cesta, cesta-upravena a hat
-(stupně pevné cesty – pás cesty, upravená širší, hať a lávka z `apps/web/public/models/roads/`)
+z `apps/web/public/models/pen/`, kráva ze stáda vsi, stoh sena), cesta, cesta-vyjezdena,
+cesta-upravena a hat (druhy pevné cesty – pás cesty, vyježděná se dvěma kolejemi, upravená širší,
+hať a lávka z `apps/web/public/models/roads/`)
 a jablone (jabloně s jablky střídavě podél cesty – tlačítko „Vysadit jabloně“), stezka (zemská
 stezka od brány dvorce – trade.md) a obchod (pytle obilí, hrnce, klády a sýr) – portréty do
 panelu výběru;
@@ -681,15 +682,16 @@ def icon_ohrada():
 # --------------------------------------------------------------- suroviny ----
 
 
-def road_strip(width, length, material, z=0.004, wobble=0.12, seed=3):
-    """Pás cesty přes portrét (podél Y) s lehce zvlněnými okraji."""
+def road_strip(width, length, material, z=0.004, wobble=0.12, seed=3, offset=0.0):
+    """Pás cesty přes portrét (podél Y) s lehce zvlněnými okraji – `offset` posune pás napříč
+    (koleje vyježděné cesty podél stejné osy)."""
     rng = random.Random(seed)
     bm = bmesh.new()
     n = 24
     rows = []
     for i in range(n + 1):
         y = -length / 2 + length * i / n
-        dx = math.sin(y * 0.6) * 0.25
+        dx = math.sin(y * 0.6) * 0.25 + offset
         row = []
         for side in (-1, 1):
             x = dx + side * (width / 2 + rng.uniform(-wobble, wobble))
@@ -701,11 +703,24 @@ def road_strip(width, length, material, z=0.004, wobble=0.12, seed=3):
 
 
 def icon_road(grade):
-    """Portrét stupně pevné cesty (roads.md): vyšlapaná, upravená (jen širší – Martin, 19. 10. 2026),
+    """Portrét druhu pevné cesty (roads.md): vyšlapaná, vyježděná (vyšlapaná vozy – širší pás
+    prošlapané trávy se dvěma kolejemi, wagons.md), upravená (jen širší – Martin, 19. 10. 2026),
     hať a lávka."""
     rng = random.Random(11)
     gr = ground(6.4, mat("g", tex=f"{TEX}/grass-dirt.jpg", scale=0.25, tint=(0.8, 0.82, 0.6)), z=-0.02, fade=0.72)
     earth = mat("earth", tex=f"{TEX}/mud.jpg", scale=0.5, tint=(0.82, 0.66, 0.48))
+    if grade == "cesta-vyjezdena":
+        # vyježděná cesta (ROAD_WIDTH_M ve scéně: 2,6 m proti 1,9 m vyšlapané): prošlapaná tráva,
+        # uprostřed tráva, dvě koleje 0,65 m od osy (CART_RUT_LAYER)
+        scale = 1.6 / 1.9
+        worn = mat("worn", tex=f"{TEX}/grass-dirt.jpg", scale=0.5, tint=(0.8, 0.66, 0.46))
+        road_strip(2.6 * scale, 12.0, worn)
+        rut = mat("rut", tex=f"{TEX}/mud.jpg", scale=0.5, tint=(0.52, 0.38, 0.25))
+        for side in (-1, 1):
+            road_strip(0.36, 12.0, rut, z=0.008, wobble=0.03, seed=5 + side, offset=side * 0.65 * scale)
+        sun(az=-55, el=46)
+        camera([Vector((-3.2, -4.6, 0)), Vector((3.2, 4.6, 1.4)), Vector((-3.2, 4.6, 0)), Vector((3.2, -4.6, 0))], az=24, el=42, margin=0.92)
+        return
     # upravená cesta je o 60 % širší než vyšlapaná (ROAD_WIDTH_M ve scéně)
     width = 1.6 if grade == "cesta" else 2.56
     road_strip(width, 12.0, earth)
@@ -2043,6 +2058,7 @@ BUILD = {
     "haj": icon_haj,
     "ohrada": icon_ohrada,
     "cesta": lambda: icon_road("cesta"),
+    "cesta-vyjezdena": lambda: icon_road("cesta-vyjezdena"),
     "cesta-upravena": lambda: icon_road("cesta-upravena"),
     "hat": lambda: icon_road("hat"),
     "jablone": icon_jablone,

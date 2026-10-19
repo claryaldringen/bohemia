@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { SelectionDetails } from '@/lib/selection-details';
 import { SelectionPanel } from '../SelectionPanel';
 
-// Panel pevné cesty (roads.md – Co hráč vidí): stupeň, délka, stáří, stromy, vylepšení a jabloně.
+// Panel pevné cesty (roads.md – Co hráč vidí): druh, délka, stáří, stromy, vylepšení a jabloně.
 
 const road = (
   over: Partial<Extract<SelectionDetails, { kind: 'road' }>> = {},
@@ -11,10 +11,9 @@ const road = (
   kind: 'road',
   id: 4,
   segments: [4],
-  grade: 'trodden',
+  roadKind: 'trodden',
   lengthM: 120,
-  grades: [{ grade: 'trodden', lengthM: 120 }],
-  cartM: 0,
+  kinds: [{ kind: 'trodden', lengthM: 120 }],
   ageYears: 7,
   trees: 3,
   wetM: 18,
@@ -62,10 +61,14 @@ const plantButton = (html: string): string | undefined =>
   /<button[^>]*data-testid="road-plant-apples"[^>]*>/.exec(html)?.[0];
 
 describe('SelectionPanel – pevná cesta', () => {
-  it('vozová cesta má ikonu vozu, pěší ne (wagons.md – Vyjeté cesty)', () => {
-    expect(render(road({ cart: true }))).toContain('data-testid="selection-road-cart"');
-    expect(render(road({ cart: true }))).toContain('/icons/resources/cart.png');
-    expect(render(road())).not.toContain('selection-road-cart');
+  it('vyježděná cesta je vlastní druh – portrét a název, ne vyšlapaná s ikonou vozu', () => {
+    const html = render(road({ roadKind: 'cart', kinds: [{ kind: 'cart', lengthM: 120 }] }));
+    expect(html).toContain('Vyježděná cesta');
+    expect(html).toContain('/icons/build/cesta-vyjezdena.png');
+    expect(html).not.toContain('Vyšlapaná cesta');
+    expect(html).not.toContain('Vozová cesta');
+    expect(html).not.toContain('/icons/resources/cart.png');
+    expect(render(road())).not.toContain('Vyježděná cesta');
   });
 
   it('portrét stupně, délka, stáří, stromy a mokřina s brody', () => {
@@ -79,29 +82,30 @@ describe('SelectionPanel – pevná cesta', () => {
     expect(html).toContain('18 m · 1×');
   });
 
-  it('cesta z víc stupňů (navazující úseky – jedna cesta): délka po stupních a vozová část', () => {
+  it('cesta z víc druhů (navazující úseky – jedna cesta): délka po druzích, vyježděná zvlášť', () => {
     const single = render(road());
     expect(single).not.toContain('data-testid="selection-road-trodden"');
     expect(single).not.toContain('data-testid="selection-road-cart"');
     const html = render(
       road({
-        segments: [4, 7],
-        grade: 'improved',
-        lengthM: 150,
-        grades: [
-          { grade: 'trodden', lengthM: 40 },
-          { grade: 'improved', lengthM: 110 },
+        segments: [4, 7, 9],
+        roadKind: 'improved',
+        lengthM: 180,
+        kinds: [
+          { kind: 'trodden', lengthM: 40 },
+          { kind: 'cart', lengthM: 30 },
+          { kind: 'improved', lengthM: 110 },
         ],
-        cartM: 40,
       }),
     );
     expect(html).toContain('Upravená cesta');
-    expect(html).toContain('150 m');
+    expect(html).toContain('180 m');
     expect(html).toMatch(/data-testid="selection-road-trodden"[^>]*>40 m</);
+    expect(html).toMatch(/data-testid="selection-road-cart"[^>]*>30 m</);
     expect(html).toMatch(/data-testid="selection-road-improved"[^>]*>110 m</);
-    expect(html).toMatch(/data-testid="selection-road-cart"[^>]*>40 m</);
     expect(html).toContain('/icons/build/cesta-upravena.png');
-    expect(html).toContain('/icons/resources/cart.png');
+    expect(html).toContain('/icons/build/cesta-vyjezdena.png');
+    expect(html).toContain('Vyježděná cesta');
   });
 
   it('tlačítka vylepšení s ikonou – nedostupné zašedlé s důvodem', () => {
@@ -116,7 +120,7 @@ describe('SelectionPanel – pevná cesta', () => {
       road({ building: { grade: 'improved', progress: 0.4, treesToFell: 0 }, upgrades: [] }),
     );
     expect(building).toContain('data-testid="selection-progress"');
-    const done = render(road({ grade: 'causeway', upgrades: [] }));
+    const done = render(road({ roadKind: 'causeway', upgrades: [] }));
     expect(done).toContain('/icons/build/hat.png');
     expect(done).not.toContain('road-upgrade-');
   });

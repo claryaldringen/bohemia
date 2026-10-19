@@ -9,3 +9,4 @@ export * from './entrances';
 export * from './cart';
 export * from './road-chains';
 export * from './road-land';
+export * from './walk-speed';

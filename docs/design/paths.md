@@ -43,13 +43,20 @@ A po vyšlapané pěšině se chodí lépe – cesta na vzdálené pole po ní s
   v ohradě, prasata jdou do lesa (návrh Clauda).
 - **Kudy:** lidé obcházejí prudké svahy, vodu (kromě mělkých brodů), domy se zahrádkami,
   kmeny, keře, balvany a skály, plot ohrady a hřbitova, lesem a zarůstajícím přílohem (křoviny,
-  mladý les) neradi. ~~Přes oseté pole nechodí (jdou po jeho okraji).~~ **Pole lidi nezdržuje**
-  (Martin, 19. 10. 2026: „Ať lidé chodí vždy nejkratší možnou cestou a oseté pole ať neřeší.
-  Aspoň se nám pak hezky s orbou ustálí tvar polí, který je nyní příliš hranatý.“): přes osetý,
-  zralý, zoraný i zakládaný díl jdou jako přes úhor (`STAGE_COST` 1,1, louka na přílohu 1,25 –
-  vysoká tráva) nejkratší cestou. Trasy přes pole se proto rok od roku nemění podle osevu
-  a vznikají po nich pevné cesty, které pole rozčlení ([roads.md](roads.md) – Pole lidi
-  nezdržuje). Vozy přes osetý díl dál nejezdí ([wagons.md](wagons.md)) – Martin mluvil o lidech. **Po pevné cestě ([roads.md](roads.md)) se jde
+  mladý les) neradi. ~~Přes oseté pole nechodí (jdou po jeho okraji).~~ ~~Pole lidi nezdržuje
+  (Martin, 19. 10. 2026: „Ať lidé chodí vždy nejkratší možnou cestou a oseté pole ať neřeší.“)~~
+  **Pole je cena, ne zákaz** (Martin, 19. 10. 2026: „Pole, které zrovna neleží ladem: 0.5.“,
+  „Neber strniště jako louku, ale dej mu drobný postih. Ber to třeba jako 0.8.“ a „nejkratší cesta
+  je ta nejrychlejší. Tj. může se stát, že někde bude jednodušší jít přes pole, než ho obcházet
+  i když je cesta přes pole pomalejší.“): **ceny buněk** = 1 / rychlost chůze proti louce
+  (roads.md – Rychlejší chůze, `walk-speed.ts`) – louka, úhor, příloh a zakládaný díl 1, díl
+  v osevu od orby nebo kopání po sklizeň 2 (rychlost 0,5), strniště 1,25 (0,8), mokřina 2 (0,5),
+  pevná cesta podle stupně (vyšlapaná a vyježděná 1 / 1,5, upravená, hať a lávka 1 / 1,7 – přes
+  mokřinu vyšlapaná a upravená 2, hať 1 / 1,7); plná pěšina dne 1 / 1,3 krát cena buňky (slabší
+  úměrně síle), přes díl v osevu pěšina nezrychlí. Nejpomalejší z mokřiny a pole platí. Díl pozná
+  síť podle vzhledu (`look` – jako scéna, `partWalkSpeed`). Síť hledá nejrychlejší cestu: díl
+  v osevu obejde, když je obcházení krátké, a jde přes něj, když je dlouhé. Vozy přes osetý díl
+  dál nejezdí ([wagons.md](wagons.md)) – Martin mluvil o lidech. **Po pevné cestě ([roads.md](roads.md)) se jde
   bez ohledu na to, na čem leží** (Martin, 19. 10. 2026, Vlkov: „Je tam vidět, že na nový hřbitov
   vedla nejkratší cesta, kolem které dokonce byly nějaké stromy (jabloně) a ta zanikla a lidé to
   začali obcházet divnou delší cestou.“ a „Když už někde vyšlapaná cesta je, ať po ní lidé chodí
@@ -85,7 +92,8 @@ A po vyšlapané pěšině se chodí lépe – cesta na vzdálené pole po ní s
   ztratí (v prototypu hned). Práce se mění s rokem – pěšina na pole je v žních silnější.
 - **Vidět jsou i v polích:** pěšina se kreslí nad poli – přes úhor a pastvinu jako prošlapaný
   pás; přes osetý díl jen úzká stopa (Martin: stromy u cesty bez cesty mátly). Od 19. 10. 2026
-  vedou pěšiny přes pole nejkratší cestou (Kudy – pole lidi nezdržuje).
+  vedou pěšiny přes pole nejrychlejší cestou – přes díl v osevu, jen když je obcházení delší
+  (Kudy – pole je cena, ne zákaz).
 - **Roční období:** tráva v pěšinách usychá jako louka, v zimě je zasype sníh – stopa pěšiny
   dne ve sněhu pořád trochu prosvítá (sníh ji zasype jen ze 30 %, pevnou cestu z 55 % – ta
   prosvítá zřetelně).
@@ -139,22 +147,26 @@ povede.“ Podrobnosti návrh Clauda.
 ## Pěšiny a práce
 
 Stav: Martin 18. 10. 2026 („Tam, kde bude vyšlapaná cesta, ať se chodí o něco lépe než tam, kde
-není.“), čísla návrh Clauda.
+není.“), rychlosti Martin 19. 10. 2026 („berme louku za výchozí: 1 vyšlapaná denní cesta 1.3 stálá
+vyšlapaná cesta 1.5. Pole, které zrovna neleží ladem: 0.5. Upravená cesta: 1.7 – tyhle hodnoty se
+týkají chůze.“ – tabulka v [roads.md](roads.md) – Rychlejší chůze), zbytek návrh Clauda.
 
-- **Po vyšlapané pěšině se chodí o čtvrtinu rychleji** (podle síly pěšiny – plná pěšina 25 %,
-  slabá úměrně méně; `PATH_WALK` v `rules.ts`). Po pevné cestě podle stupně, mokřina a brody –
-  [roads.md](roads.md) – Rychlejší chůze.
+- **Po plně prošlapané pěšině dne se chodí 1,3× rychleji než po louce** (slabší úměrně méně
+  podle síly – úsek stojí (1 − (1 − 1 / 1,3) × síla) × délka; `PATH_WALK` v `rules.ts`), přes díl
+  v osevu pěšina nezrychlí. Po pevné cestě podle stupně, mokřina a brody – [roads.md](roads.md) –
+  Rychlejší chůze. Síť pěšin (Kudy – ceny buněk) i vzdálenost chůze jdou stejně rychle.
 - **Vzdálenost dílu pole pro práci** (fields.md – Vzdálenost) se měří chůzí z nejbližšího
-  obydlí: rovně, nebo rovně k pěšině, po ní (úsek se počítá 0,75–1 × délka podle síly) a rovně
-  od ní na díl – kratší z obou. Povrch (pole, sad, les, svah) chůzi pro práci nezdražuje – ani
-  rovně, ani po pevné cestě (Martin, 19. 10. 2026 – po cestě bez ohledu na to, na čem leží); po
-  pevné cestě rozhoduje jen stupeň, mokřina a brody na ose. Pěšina práci jen zlevní – nikdy víc než chůze rovně; chůze rovně
-  ale počítá mokřinu a brody ([roads.md](roads.md)), takže díl za potokem může být dál než
-  vzdušnou čarou. Stejně se měří čtverce sadu a palivo (obydlí → okraj lesa).
+  obydlí: rovně, nebo rovně k pěšině, po ní a rovně od ní na díl – kratší z obou. Rovně se počítá
+  mokřina (0,5×), brody (+ 30 m) a pole – díl v osevu 0,5×, strniště 0,8× (`withFieldWalk` podle
+  vzhledu dílů); les, svah a sad chůzi pro práci nezdražují, po pevné cestě rozhoduje jen stupeň,
+  mokřina a brody na ose (Martin, 19. 10. 2026 – po cestě bez ohledu na to, na čem leží). Díl za
+  potokem nebo uprostřed oseté plochy tak může být dál než vzdušnou čarou. Stejně se měří čtverce
+  sadu a palivo (obydlí → okraj lesa).
 - **Kdy se přepočítá:** když se změní rozložení vsi – nové obydlí nebo staveniště, nová pole
   a díly, sady, hřbitovy, posvátná místa, pevné cesty, ohrady, stáda, kdo kde bydlí a stáří
   spojení (nová pěšina se vyšlapává dva roky). **Stadia dílů (osev, úhor, pastva na úhoru) se
-  promítají jen jednou za měsíc – k 1. dni měsíce** (Martin, 18. 10. 2026: chůze se přepočítává
+  promítají jen jednou za měsíc – k 1. dni měsíce** (i rychlost chůze přes díl – v osevu,
+  strniště: `walkStageKey`) (Martin, 18. 10. 2026: chůze se přepočítává
   měsíčně – osev a zakládání postupují po dílech den po dni a síť se přepočítávala každých pár
   dní). Simulace to kontroluje den po dni, výsledek tak nezávisí na tom, po jakých kouscích se ves
   dopočítá. Do sítě jde i práce posledního dne (kam ves chodí) a stadia dílů v den přepočtu, ale

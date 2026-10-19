@@ -1750,7 +1750,7 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   plánu (`poseOnRoute`). `VillageRenderer.updateCarts` (klíč z vozů, okna dne a ohrad) a
   `animateOxen`; voli táhnou buď vůz, nebo rádlo – `draftTeamsToday` (orba jen se spřežením, které
   nevozí), `penHerds` bez volů na cestě; honák jde s vozem (`villager-plan.ts` – haul bez honáků).
-  Panel cesty: vozová cesta s ikonou `resources/cart.png` (`VillageRoad.cart`). `/dev/landscape`
+  Panel cesty: vyšlapaná s vozy je **Vyježděná cesta** (Vozová síť a vyjeté cesty níž). `/dev/landscape`
   **Vozy ve svahu** – vůz stojí, pak dvoukolák a čtyřkolák vozí snopy po vyjeté cestě
   (`LandscapeScene.setWorkDayClock` – den ukázky 86 s).
 - **Vyšlapané pěšiny** ([docs/design/paths.md](docs/design/paths.md), Martin 18. 10. 2026 –
@@ -1765,16 +1765,22 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   pěšině, souběžné pěšiny nevzniknou), k sousedům; 2 kola,
   vyšlapané buňky hned zlevní; buňky pod pevnou cestou (`PathVillage.roads`, maska `roadMask`) od
   začátku jako plná pěšina – trasy se k ní stahují – a **bez ohledu na povrch** (Martin, 19. 10.
-  2026; `ROAD_CELL_COST` jako rovná louka: díl pole v jakémkoli stadiu, sad, les vsi i krajiny,
+  2026; `roadCellCost` = 1 / rychlost cesty podle stupně a mokřiny, pěšina dne ji nezrychlí –
+  `Grid.plain`: díl pole v jakémkoli stadiu, sad, les vsi i krajiny,
   svah a překážky krajiny se pod cestou nepočítají; brod a neprůchodné buňky zůstávají, ploty
   hřbitova a ohrady, okrsek svatyně a stavby taky – roads.md, Cesta je cesta); ohrady (`pens` –
   plot jako hřbitov, krmení jako cíl) a stáda na pastvě (`livestock` → `pastureHerds`, cesta na
   stádo denně na úhor; ze stavu `pastureLivestock` jako `SceneVillage.livestock`); cena buňky pole
   podle nejbližšího dílu přes přihrádky políček (`nearest.ts` – bit po bitu jako průchod všemi
-  díly, zlatý otisk sítě v `paths-nearest.test.ts`) – **pole lidi nezdržuje** (Martin, 19. 10.
-  2026: „Ať lidé chodí vždy nejkratší možnou cestou a oseté pole ať neřeší.“ – `STAGE_COST`:
-  osetý, zoraný a zakládaný díl jako úhor 1,1, louka 1,25, křoviny a mladý les dražší; vozy přes
-  osetý díl dál ne);
+  díly, zlatý otisk sítě v `paths-nearest.test.ts`) – **rychlosti chůze** (Martin, 19. 10. 2026:
+  „berme louku za výchozí: 1 vyšlapaná denní cesta 1.3 stálá vyšlapaná cesta 1.5. Pole, které
+  zrovna neleží ladem: 0.5. Upravená cesta: 1.7“, strniště 0,8; „nejkratší cesta je ta
+  nejrychlejší“ – mění dřívější „pole lidi nezdržuje“): cena buňky = 1 / rychlost z `walk-speed.ts`
+  (`partWalkSpeed` podle vzhledu dílu `look` jako scéna – v osevu 0,5, strniště 0,8, úhor
+  a zakládaný díl 1; mokřina 0,5 – nejpomalejší platí; `pathCostFactor` – plná pěšina 1 / 1,3,
+  přes osev pěšina nezrychlí; `roadWalkSpeed`), čísla `PATH_WALK`, `FIELD_WALK`, `ROAD_WALK`;
+  křoviny a mladý les dražší (`OVERGROWN_COST`); pole není zákaz – přes osev se jde, když je
+  obcházení delší; vozy přes osetý díl dál ne;
   síla `pathStrength` (odmocnina provozu), stáří obydlí →
   `pathAgeFactor`; vyhlazené čáry se sílou a stářím v bodech, provoz po buňkách `traffic.raw`;
   `annual: true` = roční provoz; provoz ke stavbám `visits` – opuštěné stavby, abandonment.md;
@@ -1784,11 +1790,12 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   `sacredEntrance` předek modly a svatyně; k hotové stavbě vede pěšina k vchodu, staveniště ze
   všech stran; obydlí bránou `gateOf`; konstanty pleteného plotu `WOVEN_FENCE_CORNER_M`,
   `CEMETERY_GATE`, `PEN_GATE`, `FENCE_INSET_M` bere scéna odsud; `PathVillage.cemeteries` nese
-  `built` a čtverce `pending`), `walking.ts` (`walkGraph`, `walkingDistances` – vzdálenost chůze, po pěšině
-  `PATH_WALK` rychleji, nikdy víc než rovně – čistá funkce pro každého, kdo měří cestu na pole)
+  `built` a čtverce `pending`), `walking.ts` (`walkGraph`, `walkingDistances` – vzdálenost chůze se
+  stejnými rychlostmi jako síť, rovně i přes pole – `withFieldWalk` z `PathVillage.fields`, nikdy
+  víc než rovně – čistá funkce pro každého, kdo měří cestu na pole)
   a `village.ts` (`pathVillageOf` ze stavu vsi jako scéna i s pevnými cestami, `refreshWalkDistances`
   – den po dni v `simulateDay` při změně `walkLayoutKey` (i pevné cesty), jen s krajinou;
-  **stadia dílů a pastva úhoru (`walkStageKey`) se do klíče promítají jen 1. dne v měsíci**
+  **stadia dílů, rychlost chůze přes ně (osev, strniště) a pastva úhoru (`walkStageKey`) se do klíče promítají jen 1. dne v měsíci**
   (Martin, 18. 10. 2026 – osev postupuje po dílech a síť se přepočítávala každých pár dní; otisk
   stadií z posledního 1. dne je ve stavu `walkStages`), strukturální změny hned; ve stavu jen
   otisky `walkLayoutHash`; `villagePathNetwork` si pamatuje poslední síť po krajinách (otisk `pathVillageOf`) –
@@ -1871,9 +1878,12 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   `upgradeRoad`, server action `upgradeRoad` (`{ roadId, upgrade }`), práce `{ kind: 'road' }`
   (labor-report, postavy `roadWork`, pěšina k polovině úseku). **Chůze** jen ve `walking.ts`:
   `walkGraph(lines, { roads, ground })` – pěšiny dne, pevné cesty podle `ROAD_WALK`
-  (`roadPieceCost` – stupeň, mokřina, brod + 30 m bez lávky), `groundWalkLength` (rovně: mokřina
-  ×2, vstup do vody + 30 m), `walkingDistances(graph, origins, targets, ground)`; půda
-  `walkGroundOf(landscape)` je pevné okno kolem místa vsi. `refreshWalkDistances` počítá
+  (`roadPieceCost` – stupeň: vyšlapaná i vyježděná 1,5×, upravená 1,7×, hať a lávka 1,7× i přes
+  mokřinu; mokřina 0,5×, brod + 30 m bez lávky), `groundWalkLength` (rovně: mokřina 0,5×, pole
+  podle `WalkGround.fields`, vstup do vody + 30 m), `walkingDistances(graph, origins, targets,
+ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole do ní přidá
+  `withFieldWalk` (vzdálenosti dílů, sadu, paliva a luk; kácení staveb po pevných cestách bez
+  polí). `refreshWalkDistances` počítá
   `FieldPart.walkDistanceM`, `OrchardSquare.walkDistanceM` (`squareWalkDistance`) a
   `Dwelling.forestWalkM` (`dwellingForestDistance` – palivo); kácení staveb přes `walk` v plánu
   dřeva (`roadWalk` / `villageRoadWalk` jen po pevných cestách, u kurzoru `placementWalk`
@@ -1904,19 +1914,28 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   `villageCartRoutes` (rozhraní pro svoz fáze 1 – `CartAccess`). Jízdy svozu sčítá
   `addRoadCartTrips` do `VillageRoads.labor.cart`; roční kontrola `annualCartNetwork` → provoz
   vozů, `Road.cartTraffic`, příznak `Road.cart` (`markCartRoads` – 2 roky nad 0,25 jízdy denně,
-  5 let pod polovinou pryč), nové vozové cesty `formRoads` s `cartCandidates`; kus s provozem vozů
-  nezaroste, vozová a pěší se nespojují. Scéna: `roadBands` → `cart` (širší pás) a `ruts` (dvě
+  5 let pod polovinou pryč); **vůz přebije vyšlapanou** (Martin, 19. 10. 2026: „pokud nějakou
+  cestu vyjezdí vůz, bude to vyježděná cesta. Pokud vůz takhle vyjezdí vyšlapanou cestu, tak to
+  vozová cesta přebije.“) – `formCartRoads` s `cartCandidates` třídí body tras po trasách
+  (`CartPoint`): po cestě, kterou vozy mají, provoz patří jí; po vyšlapané (do 5 m, stejným směrem)
+  ji převezmou (`takeOverRoads` – kus od 15 m dostane `cart`, úsek se rozdělí); souběžně vedle
+  (5–12 m) od 25 m nová cesta po ose vozu (souběžnou vyšlapanou pak vyřízne `mergeParallelRoads`),
+  kratší převezme; jinde nová – provoz se neztratí, souběžná nevznikne. Kus s provozem vozů
+  nezaroste, vozová a pěší se nespojují. Pro hráče je vyšlapaná s `cart` druh **vyježděná cesta**
+  (`RoadKind`, `roadKind`, `ROAD_KIND_ORDER` v `road-chains.ts`; upravená a hať zůstanou),
+  ikona `icons/build/cesta-vyjezdena.png` (`icons.py`). Scéna: `roadBands` → `cart` (širší pás) a `ruts` (dvě
   koleje ±0,65 m, `CART_RUT_LAYER` bez vlnění), `roadsKey` nese `:v`. Ves bez vozů beze změny.
   `/dev/landscape` tlačítko **Vozy ve svahu** (`dev-cart.ts`).
 - **Cesta pro hráče** ([roads.md](docs/design/roads.md) – Cesta pro hráče; Martin 19. 10. 2026:
   „tohle by rozhodně neměly být dvě cesty, ale měly by se spojit do jedné“): řetěz úseků mezi
-  rozcestími (uzel ≥ 3 konců) a volnými konci bez ohledu na stupeň a vozovou – `roadChain` /
+  rozcestími (uzel ≥ 3 konců) a volnými konci bez ohledu na druh cesty – `roadChain` /
   `roadChains` / `roadChainIds` (`paths/road-chains.ts`, začíná koncem s menším id úseku, okruh
   nejmenším id). Data zůstávají po úsecích. Vylepšení (`roadUpgradeOptions`, `startRoadUpgrade`)
   i jabloně (`roadApplesOption`, `startRoadApples`, `chainAppleSpots`) berou `roadId` kteréhokoli
   úseku a pracují s celou cestou – stavba `roadIds` v pořadí cesty, průběh po úsecích
   `roadUpgradeProgress`, čelo `roadWorkFront` / `roadApplesWorkRoad` (labor-report). Web:
-  `VillageRoad` = cesta (`segments`, `grades`, `cartM`), výběr `{ kind: 'road', id }` s id
+  `VillageRoad` = cesta (`segments`, převládající druh `roadKind`, délka po druzích `kinds` –
+  vyšlapaná, vyježděná, upravená, hať; `ROAD_KIND_NAMES`), výběr `{ kind: 'road', id }` s id
   prvního úseku (`pickVillageTarget`), zvýraznění celé cesty, `SceneRoad.upgrade.fromEnd`;
   přechod pásů různé šířky se zúží (`RibbonLine.narrowStart` / `narrowEnd`, `NARROW_M`).
 - **Průsek lesem** ([roads.md](docs/design/roads.md) – Průsek lesem, trade.md – Zemská stezka;

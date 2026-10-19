@@ -87,14 +87,18 @@ serpentiny.“ Vozy vyrábí nový řemeslník **tesař** (Martin).
   brodem nebo po hati (Martin: most zatím ne – stačí brod a hať); **lávka** je jen pro pěší. Ploty, domy a pozemky jako u pěšin, mezi domy jen
   kudy se vůz vejde (šířka ≈ 2,5 m).
 - **Přes louku, úhor a strniště** jezdí (pomaleji), **přes osetý díl** ne – jako lidé.
-- **Vyjeté cesty:** provoz vozů se sčítá jako provoz lidí (roční síť 1. 11., roads.md). Úsek
-  s dostatečným provozem vozů se stane pevnou cestou s příznakem **vozová** – vyjetá, širší (dvě
-  koleje), sjízdná pro vozy. Pevná cesta jen pro pěší (bez provozu vozů) zůstane, jak je.
-  Upravená cesta je sjízdná vždy (širší, zpevněná).
+- **Vyježděné cesty** (Martin, 19. 10. 2026: „Cesty – pokud nějakou cestu vyjezdí vůz, bude to
+  vyježděná cesta. Pokud vůz takhle vyjezdí vyšlapanou cestu, tak to vozová cesta přebije.“):
+  provoz vozů se sčítá jako provoz lidí (roční síť 1. 11., roads.md). Kudy vozy vyjezdí trasu
+  mimo cesty, vznikne **vyježděná cesta** – širší (dvě koleje), sjízdná pro vozy. Kudy vozy
+  vyjezdí vyšlapanou cestu (po ní, nebo souběžně kus vedle), vyšlapaná se v tom kusu stane
+  vyježděnou – dvě souběžné cesty nevzniknou a provoz vozů se neztratí. Pevná cesta jen pro pěší
+  (bez provozu vozů) zůstane, jak je. Upravená cesta a hať zůstanou, čím jsou (jsou víc než
+  vyježděná) – sjízdné jsou vždy (širší, zpevněné) a vozy po nich jezdí.
 - **Lidé po vozových cestách chodí** (pevná cesta je pro všechny – Martin: „Když už někde
   vyšlapaná cesta je, ať po ní lidé chodí“), ale do svahu dál i zkratkou rovně.
-- **Co hráč uvidí:** ve svahu se pěšina a vozová cesta rozejdou – pěšina rovně, vyjetá cesta
-  serpentinami; v rovině splynou.
+- **Co hráč uvidí:** ve svahu se pěšina a vyježděná cesta rozejdou – pěšina rovně, vyježděná
+  serpentinami; v rovině splynou (vyšlapaná cesta se stane vyježděnou).
 
 ## Co hráč vidí
 
@@ -102,7 +106,9 @@ serpentiny.“ Vozy vyrábí nový řemeslník **tesař** (Martin).
 - V horní liště ikona **vozů** s počtem (jen když jsou) a dřevěného nářadí (jako nástroje).
 - Ve scéně vozy s voly a honákem jezdí po vozových cestách – svoz sena, snopů, klád, výprava
   k sousedovi; prázdný vůz stojí u ohrady. Vyjeté cesty mají koleje.
-- Panel cesty ukáže, že je **vozová** (ikona vozu).
+- Panel cesty: vyšlapaná cesta s vozy je **Vyježděná cesta** – vlastní druh s portrétem (pás
+  prošlapané trávy se dvěma kolejemi) a v rozpisu celé cesty zvlášť od vyšlapané (Vyšlapaná,
+  Vyježděná, Upravená, Hať – délka po druzích).
 
 ## Grafika
 
@@ -259,14 +265,31 @@ v `paths/roads.ts`, čísla `CART_ROUTES` a `CART_ROADS` v `rules.ts`.
   klád, výmlat, stezka) se pošlou najednou, `reached` = dojede, `lengthM` / `cost` = za kolik.
   Jízdy, které svoz udělá, přičte `addRoadCartTrips(state.roads, [{ x, z, kind, trips }])` – z nich
   vzniknou vyjeté cesty.
-- **Vyjeté cesty** (roads.md – Vozové cesty): roční kontrola 1. 11. spočítá trasy jízd za rok
+- **Vyježděné cesty** (roads.md – Vozové cesty): roční kontrola 1. 11. spočítá trasy jízd za rok
   (`annualCartNetwork` – průměr na den) a provoz vozů po buňkách. Kudy vozy dva roky po sobě jezdí
-  aspoň **0,25 jízdy denně** (≈ 90 jízd za rok – `CART_ROADS`), vznikne pevná cesta s příznakem
-  **vozová** (`Road.cart`), nebo ho dostane pevná cesta, po které vozy jezdí (provoz vozů
-  `Road.cartTraffic`, posledních 5 let) – v rovině vozy jezdí po pěší cestě a nová vedle nevznikne,
-  ve svahu vznikne serpentina vedle rovné pěšiny. Vozová cesta, kudy 5 let vozy jezdí pod
-  polovinou, je zase jen pěší. Kus cesty, kudy jezdí vozy, nezaroste. Vozová a pěší cesta se
-  nespojují do jednoho úseku; u souběžných cest je vozová silnější.
+  aspoň **0,25 jízdy denně** (≈ 90 jízd za rok – `CART_ROADS`), patří provoz vyježděné cestě –
+  v kódu pevná cesta s příznakem **vozová** (`Road.cart`; vyježděná = vyšlapaná s příznakem,
+  `roadKind`). Body letošních úseků vozů, které leží i na loňských, třídí `formCartRoads` po
+  trasách (`CartPoint`):
+  - po cestě, kterou vozy už mají (vyježděná, upravená, hať – do 5 m od osy, nebo souběžně do
+    12 m), nebo napříč přes pevnou cestu – provoz patří jí;
+  - po vyšlapané cestě bez vozů (do 5 m, stejným směrem – do ≈ 37°) – **vyšlapaná ji převezme**
+    (`takeOverRoads`): kus aspoň 15 m (u kratší cesty aspoň polovina, zbytek kratší než 15 m se
+    přidá) dostane příznak; celá cesta celá, jinak se v koncích kusu rozdělí – vozová a pěší cesta
+    jsou dva úseky, hráč je vidí jako jednu cestu (roads.md – Cesta pro hráče);
+  - souběžně kus vedle vyšlapané cesty (5–12 m, vozy její osou nejedou – sráz, plot, oblouk
+    vozu): souvislý kus aspoň 25 m dá **novou vyježděnou cestu po ose vozu** a souběžný kus
+    vyšlapané pak zmizí (`mergeParallelRoads` – vozová je silnější; osa vozu je pro vůz lepší),
+    kratší kus vyšlapanou převezme;
+  - jinde nová vyježděná cesta (konec u pevné cesty se k ní připojí).
+    Provoz vozů se tak neztratí a dvě souběžné cesty nevzniknou (dřív: kudy vozy jely kus vedle
+    vyšlapané cesty, nebo jen po části úseku, medián provozu vozů po ose byl ≈ 0 – příznak nepřišel –
+    a nová cesta vedle nevznikla, protože ji zakázala souběžnost). Ve svahu vznikne serpentina vedle
+    rovné pěšiny (nejsou souběžné). Pevná cesta, po které vozy jezdí po celé délce (provoz vozů
+    `Road.cartTraffic` – medián po ose, posledních 5 let), příznak dostane i celá. Vyježděná cesta,
+    kudy 5 let vozy jezdí pod polovinou, je zase jen vyšlapaná. Kus cesty, kudy jezdí vozy,
+    nezaroste. Vozová a pěší cesta se nespojují do jednoho úseku; u souběžných cest je vozová
+    silnější.
 - **Pěšina a vozová cesta ve svahu** (ukázka, seed 44): dokud vozová cesta není, pěšina vede
   rovně do svahu a vozy jezdí serpentinou; jakmile vozová cesta stojí, chodí po ní i lidé – po
   pevné cestě jdou o polovinu levněji a prudký kamenitý svah je drahý i pro ně. Pěšina a vozová
@@ -351,7 +374,9 @@ Návrh Clauda (19. 10. 2026) – jen zobrazení, simulace se nemění.
   spřežení na cestě nestojí v ohradě (`penHerds`). Honák jde s vozem, u svozu zůstane nakladač
   (postavy – `villager-plan.ts`).
 - **Druhy vozů** mají ve scéně stejné názvy jako v jádru (`two-wheel`, `four-wheel`).
-- **Panel cesty:** vozová cesta má ikonu vozu (`resources/cart.png`).
+- **Panel cesty:** vyšlapaná cesta s vozy je druh **Vyježděná cesta** (`roadKind` →
+  `VillageRoad.roadKind` a rozpis `kinds`, portrét `icons/build/cesta-vyjezdena.png` z
+  `tools/blender/icons.py`); upravená cesta a hať s vozy zůstanou upravenou a hatí.
 - **Ukázky:** `/dev/landscape` **Vozy ve svahu** – bez vozové cesty vůz stojí u ohrady, s ní
   dvoukolák a pak čtyřkolák vozí snopy z dílu nahoře serpentinami po vyjeté cestě (den ukázky
   86 s – `LandscapeScene.setWorkDayClock`); `/dev/buildings` **Vozy** beze změny.
@@ -380,5 +405,9 @@ Návrh Clauda (19. 10. 2026) – jen zobrazení, simulace se nemění.
 | Fáze 2: 16 směrů na mřížce pěšin, směr jízdy ve stavu hledání, mez sklonu 10 %            | návrh Clauda          |
 | Pevná cesta pro vůz sjízdná vždy; vůz vyjede kdekoli u ohrady se spřežením                | návrh Clauda          |
 | Vyjetá cesta 0,25 jízdy denně 2 roky; jedna zemská stezka, sjízdnost `axisCartCheck`      | návrh Clauda          |
+| „Pokud nějakou cestu vyjezdí vůz, bude to vyježděná cesta.“                               | Martin (19. 10. 2026) |
+| „Pokud vůz takhle vyjezdí vyšlapanou cestu, tak to vozová cesta přebije.“                 | Martin (19. 10. 2026) |
+| Vyježděná = vyšlapaná s příznakem vozová, pro hráče vlastní druh; upravená a hať zůstanou | návrh Clauda          |
+| Vozy po vyšlapané převezmou kus (rozdělí úsek); souběžně vedle od 25 m převezme osa vozu  | návrh Clauda          |
 | Kola vozů točí matice instance podle ujeté dráhy (ne VAT); vlastní oj ke jhu volů         | návrh Clauda          |
 | Fáze 3: trasa dne ze serveru, tam a zpět se smyčkami obratišť, svoz zrychleně s orbou     | návrh Clauda          |
