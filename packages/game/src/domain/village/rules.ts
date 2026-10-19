@@ -1,6 +1,7 @@
 import type { ObstacleKind } from '../landscape';
 import type {
   Bounds,
+  CartJob,
   CartKind,
   ConstructionKind,
   Craft,
@@ -1191,6 +1192,47 @@ export const CARTS = {
   loadsPerCartDay: 8,
   tradeCrew: 2,
 } as const satisfies { loadKg: Record<CartKind, number> } & Record<string, unknown>;
+// wagons.md – Co vozy vozí (Martin 19. 10. 2026: „Pokud budou mít k dispozici vůz, ať na pole, pro
+// vodu nebo pro dřevěné uhlí jede vůz.“; čísla návrh Clauda): dvoukolák, který dnes nesváží úrodu,
+// seno ani klády a jehož voli neorají (ani orbu navíc – fields.md, Osev navíc), jede v pořadí:
+// - `charcoal` – uhlí z vypáleného milíře ke kováři: z vytahání, třídění a odnosu
+//   (CHARCOAL_KILN.drawManDaysPerTree – 2 čd na buk po 120 kg) je `carryShare` odnos v koších
+//   (120 kg uhlí ≈ 8 košů po 15 kg – objemová hmotnost dřevěného uhlí ≈ 250 kg/m³, FAO 1987,
+//   Simple technologies for charcoal making, FAO Forestry Paper 41; koš ≈ 60 l), u lesního milíře
+//   s přirážkou za chůzi. Ten převezme vůz – korba s koši ≈ 1,2 m³ uveze `loadKg`, nakládka
+//   a složení u kováře `stopS`; k milíři vůz dojede do `reachM` (milíř v lese jen po pevné cestě –
+//   vozová síť),
+// - `seed` – osivo na pole: z práce setí (FIELD_WORK_PER_HA.sow – 10 čd/ha) je `carryShare` nošení
+//   osiva v pytlích ze sýpky na pole a doplňování osévací plachty (SEED_KG_PER_HA ≈ 5 pytlů po
+//   35 kg na hektar, pole 100–600 m od domů),
+// - `water` – voda v sudech: člověk spotřebuje `litresPerPerson` (pití, vaření, mytí; WHO: při
+//   docházce do 1 km a 30 minut ≈ 20 l, dál pod 5 l – Howard a Bartram 2003, Domestic Water
+//   Quantity, Service Level and Health, WHO/SDE/WSH/03.02), cesta s vědry na vahadle nese
+//   litresPerPerson ÷ WATER_FETCHING.tripsPerPerson = 25 l. Dvoukolák uveze dva sudy po 150 l
+//   (`barrelL`; s vodou a sudy ≈ 350 kg – CARTS.loadKg; běžné sudy 100–250 l), nabírání vědry
+//   (25 věder po 12 l) `fillS`, rozlití do nádob u domů `unloadS`; vůz sjede na břeh, je-li suchý
+//   břeh do `reachM` od cíle (hledá se mezi `spots` břehy nejblíž ohradě). Vozí jen domácnostem,
+//   kterým ušetří práci (chůze s vědry nad WATER_FETCHING.includedM – co je blíž, je v ceně denního
+//   minima): vyplatí se až ≈ 170–200 m od vody, blíž je chůze s vědry levnější.
+// Vůz jede tempem volů po louce (TEAM_TRAVEL.speedMps; trasa vozové sítě v m po louce – cesta
+// rychleji, svah a strniště pomaleji), jdou s ním CARTS.crew lidé (honák a nakladač), den má
+// WATER_FETCHING.dayHours hodin; jízd za den nejvýš CARTS.loadsPerCartDay.
+export const CART_JOBS = {
+  order: ['charcoal', 'seed', 'water'],
+  charcoal: { carryShare: 0.2, loadKg: 300, stopS: 900, reachM: 12 },
+  seed: { carryShare: 0.1 },
+  water: {
+    litresPerPerson: 10,
+    barrelL: { 'two-wheel': 300, 'four-wheel': 600 },
+    fillS: 300,
+    unloadS: 300,
+    reachM: 4,
+    spots: 40,
+  },
+} as const satisfies {
+  order: readonly CartJob[];
+  water: { barrelL: Record<CartKind, number> } & Record<string, unknown>;
+} & Record<string, unknown>;
 
 // migration.md – Odchod do nové vsi (návrh Clauda): první zemnice nové vsi na téže mapě stojí
 // nejméně 300 m od staveb jiných vsí.

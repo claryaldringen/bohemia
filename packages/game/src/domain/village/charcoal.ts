@@ -3,8 +3,10 @@ import { length2, obstacleIndex, type ObstacleLayer } from '../landscape';
 import { distanceFactor } from './fields';
 import { buildingLocalToWorld, fellTrees, obstacleChangesAt, plantOnStump } from './obstacles';
 import { monthInWindow } from './orchard';
+import type { KilnCart } from './cart-jobs';
 import {
   BEECH_PLANTING,
+  CART_JOBS,
   CHARCOAL_KILN,
   CRAFT_PRODUCTION,
   MILIR,
@@ -250,12 +252,22 @@ export interface BurnerDay {
   /** Milíř v lese, u kterého se dnes pracovalo (střed, m); u dílny null. */
   site: { x: number; z: number } | null;
   activity: WorkshopActivity;
+  /**
+   * Uhlí dnes odvezl vůz (wagons.md – Co vozy vozí): práce posádky (čd – v `making` není), kolik
+   * uhlí vůz odvezl (kg) a kde jeho trasa u milíře končí (m). Bez vozu chybí.
+   */
+  cart?: { manDays: number; kg: number; x: number; z: number };
 }
 
 /** Co uhlíř dnes dělá s vypáleným milířem (crafts.md – Milíř stojí vždy). */
 export interface BurnerPlan {
   /** Kolik uhlí dnes donese kovářům z vypáleného milíře (kg – `charcoalDrawKg`); 0 = nenosí. */
   drawKg: number;
+  /**
+   * Vůz, který dnes uhlí odveze ke kováři (wagons.md – Co vozy vozí – `kilnCartOffer`): odnos
+   * v koších (CART_JOBS.charcoal.carryShare vytahání) nahradí jízdy vozu. Bez údaje se nosí.
+   */
+  cart?: KilnCart;
 }
 
 /**
@@ -279,7 +291,8 @@ export function migrateBurner(workshop: Workshop, stocks: CraftStocks): void {
  * strom po stromu: kácení a dovoz, pak příprava dřeva; stavba), a když žádný nemá, začne nový –
  * milíř stojí vždy (crafts.md – Milíř stojí vždy). Z vypáleného milíře donese kovářům
  * `plan.drawKg` uhlí (vytahání, třídění a odnos – u milíře v lese s přirážkou za chůzi) do zásoby
- * u kováře; rozebraný milíř zmizí a nový začne od zítřka.
+ * u kováře – s vozem (`plan.cart`) místo odnosu v koších jízdy vozu, nejvýš kolik vůz za den
+ * odveze; rozebraný milíř zmizí a nový začne od zítřka.
  */
 export function workBurner(
   state: VillageState,
@@ -386,16 +399,26 @@ export function workBurner(
       kiln.done = 0;
       break;
     }
-    // vypálený milíř: uhlíř donese kovářům uhlí podle plánu dne, jinak milíř stojí a čeká
+    // vypálený milíř: uhlíř donese kovářům uhlí podle plánu dne, jinak milíř stojí a čeká; s vozem
+    // odpadne odnos v koších a přibude práce posádky (wagons.md – Co vozy vozí)
     const inKiln = kilnCharcoalKg(kiln);
+    const cart = plan.cart;
+    const draw = DRAW_MAN_DAYS_PER_KG * factor * (cart ? 1 - CART_JOBS.charcoal.carryShare : 1);
+    const perKg = draw + (cart?.manDaysPerKg ?? 0);
     const kg = Math.min(
       plan.drawKg - out.producedKg,
       inKiln,
-      left / (DRAW_MAN_DAYS_PER_KG * factor),
+      left / perKg,
+      cart ? cart.maxKg - (out.cart?.kg ?? 0) : Infinity,
     );
     if (kg <= EPSILON) break;
-    left -= kg * DRAW_MAN_DAYS_PER_KG * factor;
-    out.making += kg * DRAW_MAN_DAYS_PER_KG * factor;
+    left -= kg * perKg;
+    out.making += kg * draw;
+    if (cart) {
+      const hauled = (out.cart ??= { manDays: 0, kg: 0, x: cart.x, z: cart.z });
+      hauled.manDays += kg * cart.manDaysPerKg;
+      hauled.kg += kg;
+    }
     out.producedKg += kg;
     stocks.charcoalKg += kg;
     worked = 'drawing';

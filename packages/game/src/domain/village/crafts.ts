@@ -34,6 +34,7 @@ import {
   smithForgeCharcoalKg,
   workBurner,
 } from './charcoal';
+import type { KilnCart } from './cart-jobs';
 import { villageRoadWalk } from './paths/walking';
 import {
   availableTrees,
@@ -342,8 +343,8 @@ function restingBurners(
   let loose = craftStocks(state).charcoalKg;
   const burners = occupiedWorkshops(state, 'burner');
   if (burners.length === 0) return loose;
-  const forgeKg = smithsForgeCharcoalKg(state, day, coverage, productivity);
-  const perYear = smithsCharcoalPerYear(state, day, coverage, productivity);
+  const draws = burnerDraws(state, day, coverage, productivity);
+  for (const draw of draws.values()) loose += draw;
   for (const d of burners) {
     const workshop = d.workshop!;
     const kiln = workshop.kiln ?? null;
@@ -356,12 +357,38 @@ function restingBurners(
       continue;
     }
     if (kiln.stage !== 'draw') continue;
+    if (!draws.has(d.id) && !planting) resting.set(d.id, 'resting');
+  }
+  return loose;
+}
+
+/**
+ * Kolik uhlí dnes uhlíři donesou kovářům z vypálených milířů (kg po dílnách – jen ti, kdo nosí;
+ * crafts.md – Milíř stojí vždy): `charcoalDrawKg` v pořadí dílen, i s uhlím, které donese uhlíř
+ * před ním. Rozhoduje se na začátku dne ze včerejších zásob (jako `restingCrafters`) – podle toho
+ * dostane uhlíř vůz (wagons.md – Co vozy vozí).
+ */
+export function burnerDraws(
+  state: VillageState,
+  day: number,
+  coverage: CraftCoverage,
+  productivity = 1,
+): Map<number, number> {
+  const draws = new Map<number, number>();
+  const burners = occupiedWorkshops(state, 'burner');
+  if (burners.length === 0) return draws;
+  let loose = craftStocks(state).charcoalKg;
+  const forgeKg = smithsForgeCharcoalKg(state, day, coverage, productivity);
+  const perYear = smithsCharcoalPerYear(state, day, coverage, productivity);
+  for (const d of burners) {
+    const kiln = d.workshop!.kiln ?? null;
+    if (kiln?.stage !== 'draw') continue;
     const lead = kilnLeadKg(state, day, d, coverage, productivity, perYear);
     const draw = charcoalDrawKg(kiln, loose, forgeKg, lead);
     loose += draw;
-    if (draw <= 0 && !planting) resting.set(d.id, 'resting');
+    if (draw > 0) draws.set(d.id, draw);
   }
-  return loose;
+  return draws;
 }
 
 /** Práce domácnosti dílny za den: celkem (se štěstím), denní minimum a řemeslo. */
@@ -425,6 +452,11 @@ export interface WorkshopDay {
   plantedTrees?: number[];
   /** Uhlíř: milíř v lese, u kterého se dnes pracovalo (střed, m); u dílny chybí. */
   kilnSite?: { x: number; z: number };
+  /**
+   * Uhlíř: uhlí dnes odvezl vůz (wagons.md – Co vozy vozí) – práce posádky (čd, v `making` není),
+   * kolik uhlí (kg) a kde trasa vozu u milíře končí (m); bez vozu chybí.
+   */
+  cart?: { manDays: number; kg: number; x: number; z: number };
 }
 
 /** Odkud dílna kácí: uhlíř od milíře (tam polena skládá), hrnčíř od dílny. */
@@ -560,7 +592,9 @@ function workshopOrder(a: Dwelling, b: Dwelling): number {
  * denním minimu (`workshopLabor`) – uhlíř pálí buky v milířích a sází mladé buky
  * (charcoal.ts), hrnčíř kácí na palivo a vypaluje nádoby, kovář kuje z uhlí ze zásob. Prázdná
  * dílna nic nevyrábí, řemeslník bez práce v dílně (`resting` – spočítá ho volající před
- * rozdělením práce vsi) pracuje se vsí. Vrací, kam práce šla (rozdělení práce dne pro scénu).
+ * rozdělením práce vsi) pracuje se vsí. Uhlíř, kterému dnes uhlí odveze vůz (`kilnCarts` – podle
+ * id obydlí; wagons.md – Co vozy vozí), místo odnosu v koších platí jízdy vozu. Vrací, kam práce
+ * šla (rozdělení práce dne pro scénu).
  */
 export function workCrafts(
   state: VillageState,
@@ -576,6 +610,7 @@ export function workCrafts(
     obstacles,
   ),
   landscape: Landscape | null = null,
+  kilnCarts: ReadonlyMap<number, KilnCart> = new Map(),
 ): WorkshopDay[] {
   // tesaře (wagons.md) řídí krok práce zvlášť – pomoc stavbám jde před stavbami dne
   // (carpentry.ts – `workCarpenter`)
@@ -623,6 +658,7 @@ export function workCrafts(
             forgeKg,
             kilnLeadKg(state, day, dwelling, coverage, productivity, perYear),
           ),
+          ...(kilnCarts.has(dwelling.id) ? { cart: kilnCarts.get(dwelling.id)! } : {}),
         },
         // chůze po pevných cestách s půdou krajiny (paths/walking.ts) – graf cest až při výběru
         // dávky; bez krajiny vzdušně
@@ -641,6 +677,7 @@ export function workCrafts(
           ? { planting: burner.planting, plantedTrees: burner.plantedTrees }
           : {}),
         ...(burner.site ? { kilnSite: { ...burner.site } } : {}),
+        ...(burner.cart ? { cart: burner.cart } : {}),
       });
       continue;
     }

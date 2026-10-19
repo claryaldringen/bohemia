@@ -162,6 +162,8 @@ function laborKey(target: LaborTarget): string {
   if (target.kind === 'meadow') return 'meadow';
   // cesta ke kraji mapy (nákup u souseda – crafts.md) podle směru
   if (target.kind === 'edge') return `edge:${target.direction}`;
+  // břeh, kam vůz jezdí pro vodu (wagons.md – Co vozy vozí)
+  if (target.kind === 'water') return `water:${target.x},${target.z}`;
   return target.kind === 'village' ? 'village' : `${target.kind}:${target.id}`;
 }
 
