@@ -224,6 +224,60 @@ Podrobně [vozy a tesař](wagons.md) (Tesař, Jak je postavené – fáze 1); ta
 - **Pokrytí dřevěným nářadím** násobí veškerou práci vsi (1 → 0,95) vedle nástrojů kováře.
 - V pořadí výroby dne je tesař poslední – jeho pomoc stavbám se rozdělí už před stavbami dne.
 
+## Nákup u sousedů
+
+Martin (19. 10. 2026): „Nástroje ať vesničané obchodují individuálně. Např. pokud ve vedlejší
+vesnici kovář je a u nás ne, ať si vesničané od něj koupí nástroje za něco z toho, co vesnice
+produkuje. Sami si spočítají, jestli se jim to vyplatí. Až bude kovář u nás, budou pravděpodobněji
+nakupovat u něj, protože si ušetří cestu. S ostatními řemesly to bude stejné.“ Detaily níž jsou
+návrh Clauda; čísla v `rules.ts` (`CRAFT_BUYING`), rešerše
+[2026-10-19-craft-buying.md](research/2026-10-19-craft-buying.md), jádro `craft-buying.ts`.
+
+- **Kdo má řemeslníky:** soused v každém z 8 směrů má řemeslníky podle toho, čím se živí
+  ([obchod](trade.md) – druhy sousedů): **řemeslníci** mají kováře, hrnčíře i tesaře **jistě**,
+  ostatní **někdy** – obilnáři kováře s pravděpodobností 50 %, hrnčíře 40 %, tesaře 30 %; pastevci
+  30 / 40 / 20 %; lesní ves 40 / 20 / 60 % (dřevaři mají tesaře). Deterministicky ze seedu vsi
+  a směru. Řemeslníci jsou kolem každé vsi dvakrát, takže každé řemeslo jde koupit.
+- **Co ves kupuje:** nástroje (kovář), keramiku (hrnčíř) a dřevěné nářadí (tesař) – výrobky,
+  které posouvají meze produktivity. Uhlí ne (je jen pro kováře), vozy zatím ne.
+- **Kdy:** jednou za rok **15. 11.** – po sklizni, ozimu, sklizni jablek a porážce, kdy je
+  volno a přebytek (Martin: září až listopad). Starší vsi se do té doby nemění.
+- **Vlastní řemeslník má přednost:** ves kupuje jen výrobek, na který nemá pracujícího
+  řemeslníka – dílna bez obyvatel, nebo bez vstupů (kovář bez uhlí, hrnčíř a tesař bez dřeva) se
+  nepočítá. Až kovář ve vsi bude, nákup nástrojů u souseda ustane.
+- **Kolik:** jen do zásoby jako řemeslník (`craftTargets` – potřeba a opotřebení za rok), menší
+  nákup než 0,5 kg ne.
+- **U koho:** u nejbližšího souseda s řemeslníkem – nejméně dní cesty: po hotové **zemské
+  stezce** jako výprava (2–6 dní a den za krajem mapy); bez stezky jdou lidé **krajinou rovně ke
+  kraji mapy** – cesta o polovinu delší a den navíc. Stejný soused – jedna cesta.
+- **Cena:** hodnota výrobku v kg obilí jako v obchodu (nabízené zboží za 0,96 hodnoty –
+  nástroje 57,6, keramika 2,88, dřevěné nářadí 1,92 kg obilí za kg). Platí se **tím, co ves
+  pěstuje – obilím nebo luštěninami**, nejlevnějším v práci (cena jídla v práci – `foodCosts`,
+  i s nošením) a **jen z přebytku nad pojistkou zásob** (co zbude k příští sklizni nad pojistku –
+  fields.md, Osev podle zásob). Bez přebytku ves nekupuje. Obilí na platbu ves vypěstuje znovu –
+  u nástrojů už s nimi (cena jídla v práci při pokrytí po nákupu).
+- **Cesta:** malá skupina – **polovina dospělých, nejvýš 8** – nese platbu tam a výrobky zpět po
+  25 kg na člověka; kdo nese víc, jde vícekrát, ale přes zimu **nejvýš 60 dní** – víc ves koupí
+  příští rok (nástroje si tak ves pořizuje po částech). Lidé jsou celé dny pryč – jejich práce
+  vsi chybí od prvního dne (jako navrhovaná výprava s předností – [obchod](trade.md), Jak je
+  postavené: výprava bez volné práce by stála, nákup jde vždy).
+- **Rozhodnutí:** ves porovná práci, kterou výrobek ušetří **za dobu služby** (1 ÷ opotřebení let
+  – nástroje a dřevěné nářadí ≈ 3,3 roku, keramika 2,5), s prací za platbu a cestu (lidé × dny tam
+  a zpět). Co výrobek ušetří (meze produktivity – Účinek): **nástroje** polní práci dílů v osevu
+  a seč (cena jídla v práci při pokrytí před a po), **keramika** ztráty zásob a denní minimum
+  domácností, **dřevěné nářadí** práci celé vsi. Kupuje, jen když ušetří víc, než stojí.
+- **Kronika a upozornění:** „Vesničané koupili nástroje a keramiku u souseda (sever) – zaplatili
+  766 kg obilí.“, krátký řádek „Vesničané koupili nástroje u souseda (sever)“ – jen fakt.
+- **Rozhraní (jen ikony):** v panelu dvorce řádek výrobků – šipka k sousedovi, u kterého ves
+  kupuje (✓ vlastní řemeslník), a nákup na cestě (šipka a dny do návratu); v panelu dílny bez vstupů
+  ikona výrobku se šipkou, že ves dokupuje u souseda. Věty jen v popiscích.
+- **Ve scéně:** skupina jde jako karavana výpravy (`porters`) po stezce, nebo rovně krajinou ke
+  kraji mapy a zpět.
+- **Námět (zatím ne):** nákup u hráčovy vlastní vsi v sousední mapě, když tam řemeslník je –
+  simulace jedné vsi o jiných mapách neví (jen o vsích na téže mapě – `neighbourSnapshot`); šlo
+  by přidat podobný snímek sousedních map v `updateVillage`. Do té doby simulace počítá i ve směru
+  vlastní vsi se sousedem bez simulace.
+
 ## Doba (neřeší se)
 
 Rešerše: keramika pražského typu se v 6.–9. století dělala v ruce a pálila na ohništi, dílna
@@ -309,3 +363,5 @@ Rozhodnutí kontroléru při implementaci (18. 10. 2026) – kde návrh necháva
 | Bez vstupu (uhlí, dřevo) má řemeslník volný čas a pracuje se vsí                                         | návrh Clauda – výklad Martina (18. 10. 2026) |
 | Do budoucna: řemeslník vyrábí i pro ostatní vsi hráče, s financemi prodává přebytky                      | Martin (18. 10. 2026)                        |
 | Tesař – vozy, dřevěné nářadí, pomoc stavbám (wagons.md)                                                  | Martin (19. 10. 2026)                        |
+| Výrobky řemeslníků vesničané kupují u sousedů sami, když se jim to vyplatí; vlastní řemeslník přednost   | Martin (19. 10. 2026)                        |
+| Nákup 15. 11., u nejbližšího souseda, platba obilím z přebytku, skupina s předností, doba služby         | návrh Clauda (19. 10. 2026)                  |

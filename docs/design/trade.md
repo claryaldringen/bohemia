@@ -190,6 +190,11 @@ Implementace `people-trade.ts` (jádro) a panel obchodu.
 
 ## Navazuje
 
+- **Nákup u sousedů** (Martin 19. 10. 2026 – vesničané si výrobky řemeslníků kupují sami, když se
+  jim to vyplatí): [řemesla](crafts.md) – Nákup u sousedů. Sousedé mají řemeslníky podle druhu
+  (řemeslníci jistě, ostatní někdy); nákup jde mimo panel obchodu – bez hráče, po stezce nebo
+  krajinou.
+
 - **Přistěhovalci** (Martin, 18. 10. 2026): noví lidé do vsi z okolí přijdou přes obchod
   a vztahy se sousedy (např. rodina, která se se sousedem domluví a přistěhuje) – navrhne se
   spolu s dalším rozvojem obchodu, ne jako samostatná mechanika. Nevěsty z okolí už nesou směr
