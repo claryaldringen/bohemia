@@ -36,6 +36,8 @@ export const PATH_WOODLAND = 8;
 export const PATH_WETLAND = 16;
 /** Buňka je voda – potok (i brod); kdo jde rovně, musí se brodit (roads.md – brod + 30 m). */
 export const PATH_WATER = 32;
+/** Buňka je v lese (uvnitř hranice lesa) – vůz tudy jede jen po pevné cestě (wagons.md). */
+export const PATH_FOREST = 64;
 
 /** Bodů mřížky na políčko (jako síť vykreslení scény – RENDER_SUBDIVISION). */
 export const PATH_GRID_PER_TILE = 4;
@@ -101,8 +103,16 @@ export interface PathTerrain {
   window: PathWindow;
   /** Násobek ceny chůze po rovné louce (1); Infinity = neprůchodné (voda, sráz, okraj). */
   cost: Float32Array;
-  /** PATH_WATER_SPOT | PATH_FOREST_EDGE | PATH_FORD | PATH_WOODLAND | PATH_WETLAND | PATH_WATER. */
+  /**
+   * PATH_WATER_SPOT | PATH_FOREST_EDGE | PATH_FORD | PATH_WOODLAND | PATH_WETLAND | PATH_WATER |
+   * PATH_FOREST.
+   */
   flags: Uint8Array;
+  /**
+   * Výška buňky (m, bilineárně z políček) – sklon ve směru jízdy vozu (wagons.md – Vozová síť).
+   * Ručně vyrobený terén (testy) ji mít nemusí – pak je rovina.
+   */
+  heights?: Float32Array;
 }
 
 /** Mřížka celé krajiny: bodů na stranu, bod (0, 0) ve světě a krok (m). */
@@ -149,6 +159,7 @@ export function buildPathTerrain(l: Landscape, window: PathWindow): PathTerrain 
   const height = window.j1 - window.j0 + 1;
   const cost = new Float32Array(width * height);
   const flags = new Uint8Array(width * height);
+  const heights = new Float32Array(width * height);
   const wet = new Uint8Array(width * height);
   /** Rovina pro mokřinu (sklon do WETLAND.slope). */
   const flat = new Uint8Array(width * height);
@@ -192,6 +203,7 @@ export function buildPathTerrain(l: Landscape, window: PathWindow): PathTerrain 
       const c = j * width + i;
       const x = originX + gi * step;
       const z = originZ + gj * step;
+      heights[c] = h(gi, gj);
       if (x > edge || x < -edge || z > edge || z < -edge) {
         cost[c] = Infinity;
         continue;
@@ -224,7 +236,10 @@ export function buildPathTerrain(l: Landscape, window: PathWindow): PathTerrain 
       const forest = field.distanceAt(x, z);
       const s = slope / SLOPE_REF;
       let k = 1 + s * s;
-      if (forest > 0) k *= FOREST_COST;
+      if (forest > 0) {
+        k *= FOREST_COST;
+        flags[c] = flags[c]! | PATH_FOREST;
+      }
       if (forest >= FOREST_EDGE_M.from && forest <= FOREST_EDGE_M.to) {
         flags[c] = flags[c]! | PATH_FOREST_EDGE;
       }
@@ -280,6 +295,7 @@ export function buildPathTerrain(l: Landscape, window: PathWindow): PathTerrain 
     window,
     cost,
     flags,
+    heights,
   };
 }
 
@@ -289,12 +305,14 @@ export function cropPathTerrain(terrain: PathTerrain, inner: PathWindow): PathTe
   const height = inner.j1 - inner.j0 + 1;
   const cost = new Float32Array(width * height);
   const flags = new Uint8Array(width * height);
+  const heights = terrain.heights ? new Float32Array(width * height) : null;
   const di = inner.i0 - terrain.window.i0;
   const dj = inner.j0 - terrain.window.j0;
   for (let j = 0; j < height; j++) {
     const from = (j + dj) * terrain.width + di;
     cost.set(terrain.cost.subarray(from, from + width), j * width);
     flags.set(terrain.flags.subarray(from, from + width), j * width);
+    heights?.set(terrain.heights!.subarray(from, from + width), j * width);
   }
   return {
     width,
@@ -305,6 +323,7 @@ export function cropPathTerrain(terrain: PathTerrain, inner: PathWindow): PathTe
     window: inner,
     cost,
     flags,
+    ...(heights ? { heights } : {}),
   };
 }
 
@@ -380,6 +399,63 @@ export function withObstacles(
     add(o.x, o.z, radius, extra);
   }
   return { ...terrain, cost };
+}
+
+/**
+ * Překážky krajiny, přes které vůz neprojede (wagons.md – Kudy vůz projede): kmeny, mladé stromky,
+ * souše, padlé stromy, keře, balvany a skalní výchozy – do poloměru jako u pěšin, aspoň buňka
+ * překážky. Pařez a kámen vůz objede (nejsou v masce). Stromy lesa vsi taky.
+ */
+const CART_BLOCKING: ReadonlySet<ObstacleKind> = new Set<ObstacleKind>([
+  'tree',
+  'youngTree',
+  'snag',
+  'fallenTree',
+  'shrub',
+  'boulder',
+  'outcrop',
+]);
+
+/** Maska buněk s překážkou pro vůz (1 = neprojede) v okně terénu – vrstva a změny vsi. */
+export function cartObstacleMask(
+  terrain: Pick<PathTerrain, 'width' | 'height' | 'originX' | 'originZ' | 'cellM'>,
+  layer: ObstacleLayer,
+  changes?: ObstacleChanges,
+): Uint8Array {
+  const { width, height, originX, originZ, cellM } = terrain;
+  const mask = new Uint8Array(width * height);
+  const half = cellM / 2;
+  const status = obstacleStatus(changes);
+  const maxX = originX + (width - 1) * cellM;
+  const maxZ = originZ + (height - 1) * cellM;
+  const mark = (x: number, z: number, radius: number): void => {
+    const reach = Math.max(radius, half);
+    const i0 = Math.max(0, Math.ceil((x - reach - originX) / cellM - 1e-6));
+    const j0 = Math.max(0, Math.ceil((z - reach - originZ) / cellM - 1e-6));
+    const i1 = Math.min(width - 1, Math.floor((x + reach - originX) / cellM + 1e-6));
+    const j1 = Math.min(height - 1, Math.floor((z + reach - originZ) / cellM + 1e-6));
+    for (let j = j0; j <= j1; j++) {
+      for (let i = i0; i <= i1; i++) {
+        if (radius > half && length2(originX + i * cellM - x, originZ + j * cellM - z) > radius) {
+          continue;
+        }
+        mask[j * width + i] = 1;
+      }
+    }
+  };
+  for (const index of obstaclesNear(layer, originX, originZ, maxX, maxZ)) {
+    const kind = status.kindOf(layer, index);
+    if (kind === null || !CART_BLOCKING.has(kind)) continue;
+    mark(layer.x[index]!, layer.z[index]!, OBSTACLE_COST[kind].radius * layer.scale[index]!);
+  }
+  for (const o of changes?.added ?? []) {
+    if (!isWoodTreeId(o.id) || !CART_BLOCKING.has(o.kind)) continue;
+    if (o.x < originX - half || o.x > maxX + half || o.z < originZ - half || o.z > maxZ + half) {
+      continue;
+    }
+    mark(o.x, o.z, OBSTACLE_COST[o.kind].radius);
+  }
+  return mask;
 }
 
 /** Poloha stromu z vrstvy překážek (kácení pro stavbu), nebo null. */

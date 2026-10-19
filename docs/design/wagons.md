@@ -113,6 +113,86 @@ Z 0 A.D. (CC BY-SA 3.0, převod jako spřežení – `tools/blender/people_from_
 `wagon_four_wheel_empty`) – s loukoťovými koly, ojí a jhem; ruční vozíky jen jako ozdoba. Měřítko
 0 A.D. se zmenší na skutečnou velikost (dvoukolák ≈ 3,5 m i s ojí, čtyřkolák ≈ 5 m).
 
+## Jak je postavené – fáze 2 (vozová síť a vyjeté cesty)
+
+Martin (19. 10. 2026): „Vozy mohou cestu vyjezdit, ale nemají takovou prostupnost jako lidé, kteří
+chodí pěšky. Bude to znamenat např. to, že ve svahu, kde lidé zvládnou chodit rovně, vůz bude muset
+vyjezdit serpentiny.“ Podrobnosti návrh Clauda (19. 10. 2026); kód `paths/cart.ts`, roční krok
+v `paths/roads.ts`, čísla `CART_ROUTES` a `CART_ROADS` v `rules.ts`.
+
+- **Mřížka:** stejná jako u pěšin (buňka ≈ 3,75 m, terén pěšin i s výškou buňky) – vozová cesta
+  v rovině splyne s pěšinou a pevnou cestou. Vůz jede v **16 směrech** (osy, úhlopříčky
+  a skoky 2 : 1 – šikmo k vrstevnici po 26,6°): v 8 směrech by vůz na svahu nad 14 % (10 % : cos
+  45°) nevyjel ani šikmo a serpentiny by měly jen úhel 45°; hustší mřížka by stála 4× víc buněk.
+- **Sklon ve směru jízdy:** z výšek koncových buněk hrany. Nad **10 %** (`maxGrade`) hrana není,
+  pod ní stoupání zdražuje se čtvercem (u meze 5×), takže nejlevnější je stoupat ≈ 5 % – do svahu
+  vede trasa šikmo a **serpentiny vzniknou samy**. Mez je zatím bez rešerše (rešerše fáze 1 ještě
+  není hotová) – spodní hranice rozmezí 10–12 % ze zadání: volský potah s nákladem na hliněné cestě,
+  i za mokra. Spodní, protože krajiny hry jsou mírné: sklon mezi políčky má medián ≈ 3 %, 99 %
+  políček pod 10–13 % a nejprudší louky (≈ 15 %) leží 700–1400 m od místa vsi (seedy 7, 8, 9, 42,
+  43, 44 a Vlkov); scéna terén převyšuje 3× (`HEIGHT_SCALE`), takže svah, který na obrazovce
+  vypadá na 30 %, má ve hře 10 %. **Při 12 % by se serpentiny u vsí skoro neobjevily** (u Vlkova
+  je nejprudší svah do 300 m od vsi 9 %) – kdo chce serpentiny vidět častěji, musí mez snížit
+  (jedno číslo v `rules.ts`), nebo ji vztáhnout k převýšené scéně (k rozhodnutí).
+  Pěšák jde dál rovně (jeho síť se nemění).
+- **Poloměr otáčení:** hledání nese **směr jízdy** (stav = buňka × 16 směrů). Dvoukolák zatočí
+  na krok nejvýš o 2 směry (≤ 53°, poloměr ≈ 4–5 m), čtyřkolák o 1 (≤ 27°, ≈ 8–11 m – širší
+  oblouk, delší serpentiny); každá změna směru stojí 1,5 m. Stav se směrem místo pokuty za ostrý
+  úhel: pokuta by ostrý obrat jen zdražila, stav ho vylučuje. Cena: 16× víc stavů.
+- **Kudy vůz projede** (`cartGrid`): voda jen brodem (lávka je jen pro pěší), les jen po pevné
+  cestě (výš: „les jen po vykácené cestě (pevné cestě)“) – pole založené v lese je vymýcené,
+  křoviny a mladý les na přílohu ne, mokřina pomaleji (1,8), přes osetý díl ne, přes zoraný
+  a zakládaný pomaleji (1,6), louka, úhor a strniště 1, po pevné cestě 0,6 – **pevná cesta je pro
+  vůz sjízdná vždy** (lesem, přes pole, mezi překážkami – jako pro lidi, Martin: „bez ohledu na to,
+  na čem ta stezka leží“), jen ne sklonem nad mez a vodou bez brodu. Kmeny, souše, keře, balvany
+  a výchozy krajiny vůz neprojede, pařez a kámen objede. Sad, hřbitov a ohrada (i jejich okraj –
+  plot, stromy), les vsi a okrsek svatyně ne. Domy, pozemky, staveniště, milíř a modla s půl
+  šířkou vozu (2,5 m) navíc – mezi pozemky (mezera 1 m) vůz neprojede.
+- **Kde vůz stojí:** u ohrady se spřežením – vyjede z kterékoli průjezdné buňky do 15 m od středu
+  ohrady. Branka může vést k sousednímu pozemku (Vlkov – 1 m od plotu), voly jde ale zapřáhnout
+  kdekoli u plotu.
+- **Trasy** (`cartRoutes`): jedno hledání (Dijkstra) od ohrad ke všem cílům najednou – pro každý
+  cíl dojede / nedojede, cena, délka a osa trasy (pro scénu), buňky (pro provoz). Ze stavu vsi
+  `villageCartRoutes(state, day, landscape, obstacles, kind, targets)` – terén v okně vsi a cílů,
+  překážky krajiny a vsi, pevné cesty; pamatuje si poslední výsledek.
+- **Napojení na svoz (fáze 1):** rozhraní `CartAccess` („dojede vůz k cíli a za kolik“) nahradí
+  `villageCartRoutes` – cíle svozu (díly pole na sklizni, louky v seči, stromy ke kácení, hromada
+  klád, výmlat, stezka) se pošlou najednou, `reached` = dojede, `lengthM` / `cost` = za kolik.
+  Jízdy, které svoz udělá, přičte `addRoadCartTrips(state.roads, [{ x, z, kind, trips }])` – z nich
+  vzniknou vyjeté cesty.
+- **Vyjeté cesty** (roads.md – Vozové cesty): roční kontrola 1. 11. spočítá trasy jízd za rok
+  (`annualCartNetwork` – průměr na den) a provoz vozů po buňkách. Kudy vozy dva roky po sobě jezdí
+  aspoň **0,25 jízdy denně** (≈ 90 jízd za rok – `CART_ROADS`), vznikne pevná cesta s příznakem
+  **vozová** (`Road.cart`), nebo ho dostane pevná cesta, po které vozy jezdí (provoz vozů
+  `Road.cartTraffic`, posledních 5 let) – v rovině vozy jezdí po pěší cestě a nová vedle nevznikne,
+  ve svahu vznikne serpentina vedle rovné pěšiny. Vozová cesta, kudy 5 let vozy jezdí pod
+  polovinou, je zase jen pěší. Kus cesty, kudy jezdí vozy, nezaroste. Vozová a pěší cesta se
+  nespojují do jednoho úseku; u souběžných cest je vozová silnější.
+- **Pěšina a vozová cesta ve svahu** (ukázka, seed 44): dokud vozová cesta není, pěšina vede
+  rovně do svahu a vozy jezdí serpentinou; jakmile vozová cesta stojí, chodí po ní i lidé – po
+  pevné cestě jdou o polovinu levněji a prudký kamenitý svah je drahý i pro ně. Pěšina a vozová
+  cesta se tak rozejdou jen tam, kde je oklika vozu víc než ≈ 2× delší a svah pro pěšáka mírný
+  (k zvážení: slevu pevné cesty pro lidi ve svahu snížit).
+- **Ve scéně:** vozová cesta je širší (2,6 m) prošlapaný pás bez holé hlíny uprostřed – tráva mezi
+  dvěma kolejemi 0,65 m od osy (`roadBands`, `CART_WORN_LAYER`, `CART_RUT_LAYER`); upravená vozová
+  cesta má koleje v upraveném pásu. Přestaví se jen při změně (`roadsKey` nese příznak vozová).
+- **Zemská stezka:** `trailRoutes` zůstává jedna trasa pro pěší i vozy – druhá, „vozová“ stezka by
+  znamenala dvojí stavbu a dvě různé cesty k témuž sousedovi; navíc stezku hráč staví jako
+  upravenou cestu, takže les a mokřina vozu nevadí. Jestli je stezka pro vozy sjízdná, řekne
+  `axisCartCheck(osa, terén)` – sklon po kusech 7,5 m nejvýš 10 % a voda jen brodem (délka příliš
+  prudkých kusů, nejprudší sklon). Obchod fáze 1 pošle vůz jen po sjízdné stezce, jinak nosiče.
+- **Ves bez vozů** (bez jízd nebo bez ohrady se spřežením) počítá jako dřív – zlaté otisky sítě
+  pěšin se nemění, ve stavu nic nepřibude.
+- **Výkon** (Vlkov, kopie stavu, ohrada se spřežením jen v kopii): hledání ke všem 1798 dílům
+  ≈ 200–290 ms (dojede k ≈ 1650 – ostatní díly jsou za osetými bloky nebo v lese), k 50 dílům
+  poprvé ≈ 570–650 ms (terén okna se teprve počítá), roční síť vozů s 30 cíli ≈ 210 ms (roční síť
+  pěšin ≈ 100 ms).
+- **Ukázka:** `/dev/landscape` – tlačítko **Vozy ve svahu** (dvoukolák, čtyřkolák): nejprudší
+  louka mapy (krajiny jsou mírné – bývá daleko od vsi, kamera se tam přesune), dole obydlí a ohrada
+  se spřežením, nahoře díl pole; pěšina na pole jde rovně, vozová cesta šikmo a serpentinami
+  (seed 44: dvoukolák 213 m, čtyřkolák 249 m, přímo 62 m).
+- **Zatím není:** vozy ve scéně a svoz (fáze 1), ikona vozu v panelu cesty.
+
 ## Rozhodnutí
 
 | Rozhodnutí                                                                                | Kdo                   |
@@ -129,3 +209,6 @@ Z 0 A.D. (CC BY-SA 3.0, převod jako spřežení – `tools/blender/people_from_
 | Most zatím ne – vůz přejede potok brodem nebo po hati                                     | Martin (19. 10. 2026) |
 | Jeden vůz na spřežení                                                                     | návrh Clauda          |
 | Dva vozy z 0 A.D. – dvoukolák (základní) a čtyřkolák (víc nákladu, obchod)                | Martin (19. 10. 2026) |
+| Fáze 2: 16 směrů na mřížce pěšin, směr jízdy ve stavu hledání, mez sklonu 10 %            | návrh Clauda          |
+| Pevná cesta pro vůz sjízdná vždy; vůz vyjede kdekoli u ohrady se spřežením                | návrh Clauda          |
+| Vyjetá cesta 0,25 jízdy denně 2 roky; jedna zemská stezka, sjízdnost `axisCartCheck`      | návrh Clauda          |

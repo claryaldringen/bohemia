@@ -7,10 +7,13 @@ import type { SceneRoad, SceneRoadApple } from '../village-view';
 import { applyGammaFog } from './gamma-fog';
 import { instanceMatrices, loadMergedModel, type ModelInstance } from './instanced-model';
 import {
+  CART_RUT_LAYER,
+  CART_WORN_LAYER,
   IMPROVED_EARTH_LAYER,
   IMPROVED_WORN_LAYER,
   ROAD_EARTH_LAYER,
   ROAD_WORN_LAYER,
+  ROAD_WIDTH_M,
   pathRibbons,
   type RibbonJunction,
   type RibbonLayer,
@@ -244,6 +247,11 @@ export function roadRibbonMeshes(
       EARTH_COLOR,
       junctions.improved,
     ],
+    // vozová cesta (wagons.md – Vyjeté cesty): širší pás, tráva mezi dvěma kolejemi; rozcestí
+    // udusaný plácek
+    ['roads-cart-worn', bands.cart, 'worn', CART_WORN_LAYER, WORN_COLOR, junctions.cart],
+    ['roads-cart-hub', [], 'earth', CART_HUB_LAYER, EARTH_COLOR, junctions.cart],
+    ['roads-cart-ruts', bands.ruts, 'earth', CART_RUT_LAYER, EARTH_COLOR, []],
   ];
   const meshes: Mesh[] = [];
   for (const [name, lines, kind, layer, color, nodes] of ribbons) {
@@ -263,6 +271,12 @@ export function roadRibbonMeshes(
   }
   return meshes;
 }
+
+/** Plácek rozcestí vozové cesty – udusaná hlína jako u vyšlapané, na šířku vozové cesty. */
+const CART_HUB_LAYER: RibbonLayer = {
+  ...ROAD_EARTH_LAYER,
+  width: { weak: ROAD_WIDTH_M.cart, strong: ROAD_WIDTH_M.cart },
+};
 
 /** Prošlapaná tráva do hněda, holá udusaná hlína tmavší a teplejší (jako pěšiny). */
 const WORN_COLOR: [number, number, number] = [0.92, 0.84, 0.7];

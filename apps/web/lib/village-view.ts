@@ -852,7 +852,7 @@ export interface SceneTrail {
   built: boolean;
 }
 
-export type SceneRoad = Pick<Road, 'id' | 'points' | 'grade' | 'ground' | 'openEnds'> & {
+export type SceneRoad = Pick<Road, 'id' | 'points' | 'grade' | 'ground' | 'openEnds' | 'cart'> & {
   upgrade?: { grade: RoadGrade; progress: number };
 };
 /** Strom u pevné cesty pro scénu – poloha, druh a vzhled v den pohledu (`roadTreeLook`). */
@@ -1513,6 +1513,8 @@ export function sceneRoads(
       id: r.id,
       points: r.points.map((p) => ({ x: p.x, z: p.z })),
       grade: r.grade,
+      // vozová cesta (wagons.md – Vyjeté cesty) – dvě koleje
+      ...(r.cart ? { cart: true as const } : {}),
       ...(r.ground
         ? {
             ground: {

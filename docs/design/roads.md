@@ -146,6 +146,8 @@ společné práce vsi; stromy bere jako obydlí (klády z hromady, pak nejbliž�
 | Cesta s jabloněmi nezaroste (jako upravená, hať a stezka); díl pole o cestu nepřichází   | návrh Clauda |
 | Zarůstá jen nepoužívaný kus úseku, zbytek zůstane se starým id                           | Martin       |
 | Kusy ≈ 25 m, historie jen tichých kusů (střed a roky), volný konec u zarostlého kusu     | návrh Clauda |
+| Vozy vyjezdí vlastní cesty, ve svahu serpentiny                                          | Martin       |
+| Vozová cesta = pevná cesta s příznakem z ročního provozu vozů, pro lidi stejná           | návrh Clauda |
 
 ## Cesta je cesta – povrch pod ní a zarůstání
 
@@ -238,6 +240,29 @@ zarůstá jen nepoužívaný kus úseku“: **„ano“**. Podrobnosti návrh Cl
   k jihozápadnímu rohu nového hřbitova** – tam vede provoz (3 a víc cest denně) a stojí jabloně;
   227 m dál ke starému plnému hřbitovu (0,6 cesty denně) zaroste (kronika s novým id 131), konec
   u hřbitova je volný.
+
+## Vozové cesty
+
+Martin (19. 10. 2026): „Vozy mohou cestu vyjezdit, ale nemají takovou prostupnost jako lidé, kteří
+chodí pěšky. Bude to znamenat např. to, že ve svahu, kde lidé zvládnou chodit rovně, vůz bude muset
+vyjezdit serpentiny.“ Návrh, síť vozů a čísla: [wagons.md](wagons.md) – Vozová síť a vyjeté cesty,
+Jak je postavené – fáze 2 (návrh Clauda).
+
+- **Vyjetá cesta je pevná cesta s příznakem vozová** (`Road.cart`): vzniká z ročního provozu vozů
+  stejně jako pěší z provozu lidí – kudy vozy dva roky po sobě jezdí aspoň 0,25 jízdy denně
+  (loňské úseky `VillageRoads.cartCandidates`), vznikne nová; pevná cesta, po které vozy jezdí
+  (`Road.cartTraffic`), příznak dostane. Po 5 letech pod polovinou ho ztratí a je zase jen pěší.
+- **Lidé po ní chodí jako po každé pevné cestě** (pro síť pěšin je vozová cesta obyčejná pevná
+  cesta). Ve svahu se pěšina a vozová cesta rozejdou – pěšina rovně, vozová serpentinami; v rovině
+  vozy jezdí po pěší cestě a splynou.
+- **Zarůstání po kusech:** kus, kudy jezdí vozy (aspoň polovina prahu vozů), není tichý – vozová
+  cesta ve svahu, kudy lidé nechodí, nezaroste, dokud po ní jezdí vozy.
+- **Úseky:** vozová a pěší cesta se nespojují do jednoho úseku (jako různé stupně); u souběžných
+  cest je vozová silnější (zůstane ona).
+- **Pro vůz je sjízdná každá pevná cesta** (i pěší – lesem, přes pole), jen ne sklonem nad mez
+  a vodou bez brodu; upravená cesta i hať jsou sjízdné vždy. Lávka je jen pro pěší.
+- **Ve scéně:** širší pás (2,6 m), tráva mezi dvěma kolejemi; rozcestí vozových cest je udusaný
+  plácek na šířku vozové cesty.
 
 ## Fáze 1 – jak je postavená
 

@@ -29,6 +29,8 @@ export interface RibbonLayer {
    * údaje 1) – u pěšin dne jen jemně.
    */
   junction?: { scale: number; alpha: number };
+  /** Jak moc se osa vlní do stran (m) – bez údaje WOBBLE_M (koleje vozové cesty se nevlní). */
+  wobble?: number;
 }
 
 /**
@@ -59,7 +61,7 @@ export const PATH_EARTH_LAYER: RibbonLayer = {
  * o 60 % víc, z herní kamery jasně širší). Podle ní i délka kmenů hatě a vytyčení úpravy
  * (road-works-layout.ts).
  */
-export const ROAD_WIDTH_M = { trodden: 1.9, improved: 3 } as const;
+export const ROAD_WIDTH_M = { trodden: 1.9, improved: 3, cart: 2.6 } as const;
 
 /**
  * Vyšlapaná pevná cesta – plně prošlapaná tráva (krytí 0,95), jako dřív nejsilnější pěšina; kreslí
@@ -89,6 +91,25 @@ export const IMPROVED_EARTH_LAYER: RibbonLayer = {
   ...ROAD_EARTH_LAYER,
   width: { weak: ROAD_WIDTH_M.improved, strong: ROAD_WIDTH_M.improved },
 };
+
+/**
+ * Vozová cesta (wagons.md – Vyjeté cesty, návrh Clauda): širší prošlapaný pás (2,6 m – vůz je
+ * široký ≈ 2,5 m) bez holé hlíny uprostřed – tráva mezi kolejemi.
+ */
+export const CART_WORN_LAYER: RibbonLayer = {
+  ...ROAD_WORN_LAYER,
+  width: { weak: ROAD_WIDTH_M.cart, strong: ROAD_WIDTH_M.cart },
+};
+/** Dvě koleje vozové cesty – úzké pásy holé hlíny po CART_RUT_OFFSET_M od osy, nevlní se. */
+export const CART_RUT_LAYER: RibbonLayer = {
+  width: { weak: 0.42, strong: 0.42 },
+  softM: 0.15,
+  alpha: (s) => (s <= 0 ? 0 : 0.92),
+  widthFactor: 1,
+  wobble: 0,
+};
+/** Koleje jsou od osy cesty tolik (m) – rozchod vozu ≈ 1,3 m. */
+export const CART_RUT_OFFSET_M = 0.65;
 
 /** Krok průřezů podél osy (m). */
 const STEP_M = 0.9;
@@ -247,7 +268,7 @@ function addRibbon(
     const nx = -tz;
     const nz = tx;
     const ends = smoothstep(0, WOBBLE_FADE_M, d) * smoothstep(0, WOBBLE_FADE_M, length - d);
-    const wobble = (noise1(seed, d / WOBBLE_WAVE_M) - 0.5) * 2 * WOBBLE_M * ends;
+    const wobble = (noise1(seed, d / WOBBLE_WAVE_M) - 0.5) * 2 * (layer.wobble ?? WOBBLE_M) * ends;
     const cx = a.x + (b.x - a.x) * u + nx * wobble;
     const cz = a.z + (b.z - a.z) * u + nz * wobble;
     const width = layer.width.weak + (layer.width.strong - layer.width.weak) * strength;
