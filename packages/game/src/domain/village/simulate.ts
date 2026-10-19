@@ -463,8 +463,12 @@ function sowingCapacity(state: VillageState, day: number, coverage: CraftCoverag
     villageChickens(state),
     day,
   );
+  // dospělí pasáci jdou před polní práce taky (diet.md – Pasáci; fields.md – Osev podle zásob) –
+  // bez nich by ves zasela víc, než v červenci sklidí; odhad podle dneška
+  const herders = herdingDay(state, day, villageOxen(state), householdCount(state)).adults;
   const free =
-    Math.max(0, capacity - dailyMin - animals.milking - animals.care) * PEAK_CAPACITY_SHARE;
+    Math.max(0, capacity - dailyMin - animals.milking - animals.care - herders) *
+    PEAK_CAPACITY_SHARE;
   const days = (segments: Parameters<typeof windowDaysLeft>[1], sowing = false): number =>
     free * Math.max(0, windowDaysLeft(day, segments) - (sowing ? SOW_AFTER_DIG_DAYS : 0));
   return {

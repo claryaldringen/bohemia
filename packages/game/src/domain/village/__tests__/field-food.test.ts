@@ -175,7 +175,8 @@ describe('cíl osevu podle zásob', () => {
     expect(t.leftKg).toBeCloseTo(buffer, 6);
     expect(t.targetKg).toBeCloseTo(steadyHarvestKg(need, buffer, NO_CRAFTS.pottery), 6);
     expect(t.targetKg).toBeGreaterThan(need);
-    expect(t.targetKg).toBeLessThan(need * 1.15);
+    // navíc jen ztráty skladováním potřeby a pojistky
+    expect(t.targetKg).toBeLessThan(need * 1.06 + buffer * 0.11);
   });
 
   it('chybějící pojistku doplní hned, přebytek sní za FIELD_STORES.surplusYears roky', () => {
@@ -188,7 +189,7 @@ describe('cíl osevu podle zásob', () => {
     const short = targetsOf(s);
     expect(short.leftKg).toBeLessThan(short.bufferKg);
     expect(short.targetKg).toBeCloseTo(afterHarvest - short.leftKg, 6);
-    s.storesKg = 2.5 * need;
+    s.storesKg = 4 * need;
     const rich = targetsOf(s);
     const surplus = rich.leftKg - rich.bufferKg;
     expect(surplus).toBeGreaterThan(0);
@@ -309,7 +310,10 @@ describe('osev podle stravy v simulaci', () => {
     const first = grain.findIndex((kg) => kg > 0);
     expect(first).toBeGreaterThan(0);
     expect(grain.slice(first).every((kg) => kg > 0)).toBe(true);
-    expect(s.chronicle.filter((e) => e.kind === 'hunger-began')).toHaveLength(0);
+    // bez hladu: nikdo hladem neumřel a hlad se nenahromadil (energie dne pod 0,9 – population.md);
+    // v září a říjnu, než porážka dá maso, smí ves krátce šetřit
+    expect(s.chronicle.filter((e) => e.kind === 'death' && e.cause === 'hunger')).toHaveLength(0);
+    expect(s.starvationDays ?? 0).toBe(0);
     // stejný stav po kouscích (i se zkracováním plánu)
     let pieces = start;
     const steps = [400, 1, 33, 365, 2, 180];

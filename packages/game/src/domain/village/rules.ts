@@ -132,13 +132,14 @@ export const START_STORES_MONTHS = 18;
 export const FIELD_FOOD = { minShare: 0.3 } as const;
 // fields.md – Kolik ves oseje, Osev podle zásob (Martin 19. 10. 2026: „Ať se osev řídí také
 // zásobami“ a „Ano“ ke zkrácení plánu uprostřed sezóny; čísla návrh Clauda): po příští sklizni má
-// ves zásoby z pole na rok spotřeby a k tomu pojistku, která zbude před další sklizní – 0,3 roční
-// potřeby celé energie (≈ 3,6 měsíce celé stravy – vydrží výpadek porážky ze 40 na ≈ 20 % energie
-// z masa i dva roky po sobě, kalibrace 20 × 20: nasycení ≥ 0,95 v 99,7 % let, s 0,2 v 98,7 %);
-// přebytek nad pojistku ves sní za 3 roky; rozjetý plán zkrátí, když převyšuje cíl o víc než
-// desetinu roční potřeby z pole (ať ho podzimní mléko a ovoce neubírají po kouscích)
+// ves zásoby z pole na rok spotřeby a k tomu pojistku, která zbude před další sklizní – 0,5 roční
+// potřeby celé energie (≈ půl roku celé stravy; se stády podle bílkovin – maso ≈ 11 %, mléko ≈ 10 %
+// energie – rostoucí ves, které nestačí práce, ji vybere; kalibrace 20 × 20: hráč staví nasycení
+// ≥ 0,95 v 97,1 % let, s 0,3 v 94,2 %); přebytek nad pojistku ves sní za 3 roky; rozjetý plán
+// zkrátí, když převyšuje cíl o víc než desetinu roční potřeby z pole (ať ho podzimní mléko a ovoce
+// neubírají po kouscích)
 export const FIELD_STORES = {
-  bufferEnergyYears: 0.3,
+  bufferEnergyYears: 0.5,
   surplusYears: 3,
   trimMarginYears: 0.1,
 } as const;
