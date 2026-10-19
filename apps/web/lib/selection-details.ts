@@ -258,10 +258,15 @@ export type SelectionDetails =
   | {
       kind: 'road';
       id: number;
+      /** Úseky cesty hráče (řetěz – roads.md, Cesta pro hráče). */
+      segments: number[];
       grade: RoadGrade;
       lengthM: number;
+      /** Délka po stupních a vozová část (m). */
+      grades: VillageRoad['grades'];
+      cartM: number;
       ageYears: number;
-      /** Stojící stromy u úseku. */
+      /** Stojící stromy u cesty. */
       trees: number;
       /** Mokřina na ose (m) a brody – kde se hodí hať a lávka. */
       wetM: number;
@@ -429,7 +434,8 @@ export function selectionDetails(
   if (target.kind === 'sacred') return sacredDetails(view, scene, target.id);
   if (target.kind === 'pen') return penDetails(view, target.id);
   if (target.kind === 'road') {
-    const road = view?.roads.find((r) => r.id === target.id);
+    // cesta hráče – vybraný kterýkoli úsek řetězu (roads.md – Cesta pro hráče)
+    const road = view?.roads.find((r) => r.id === target.id || r.segments.includes(target.id));
     return road ? { kind: 'road', ...road } : null;
   }
   if (target.kind === 'orchard') {

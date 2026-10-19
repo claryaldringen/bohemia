@@ -1,4 +1,5 @@
 import {
+  roadChainIds,
   DWELLING_FOOTPRINT_M,
   MILIR,
   SACRED_BUILDINGS,
@@ -30,7 +31,10 @@ export type VillageTarget =
   | { kind: 'sacred'; id: number }
   /** Ohrada (id ohrady – hotová i rozestavěná, oxen.md). */
   | { kind: 'pen'; id: number }
-  /** Úsek pevné cesty (id úseku – roads.md). */
+  /**
+   * Pevná cesta – cesta hráče (roads.md – Cesta pro hráče): řetěz úseků, id = jeho první úsek
+   * (`roadChainIds`), ať se klikne na kterýkoli.
+   */
   | { kind: 'road'; id: number };
 
 export interface Vec3 {
@@ -181,7 +185,9 @@ export function pickVillageTarget(
   const pen = (village.pens ?? []).find((p) => hit(p));
   if (pen) return { kind: 'pen', id: pen.id };
   const road = nearestRoad(village, ground, ROAD_PICK_M);
-  if (road !== null) return { kind: 'road', id: road };
+  // celá cesta hráče – navazující úseky různého stupně jsou jedna cesta (Martin)
+  if (road !== null)
+    return { kind: 'road', id: roadChainIds(village.roads ?? [], road)[0] ?? road };
   const field = village.fields.find((f) => f.parts.some(hit));
   if (field) return { kind: 'field', id: field.id };
   const cemetery = (village.cemeteries ?? []).find((c) => c.squares.some(hit));

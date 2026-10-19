@@ -4,6 +4,7 @@ import { deriveSeed } from '../landscape/random';
 import { giveWayToBuilding, landTakenWarning, treeTakenLand } from './land-taken';
 import { obstacleChangesAt, obstacleStatus } from './obstacles';
 import { monthInWindow, roadApplePlantingWork } from './orchard';
+import { roadChain } from './paths/road-chains';
 import { plantingBlocker, roadTreeSpots } from './paths/roads';
 import { PATH_FORD, PATH_WOODLAND } from './paths/terrain';
 import { walkGroundOf } from './paths/walking';
@@ -16,7 +17,8 @@ import type { Construction, RoadApple, RoadPoint, VillageState } from './types';
 // (kde stojí strom, jabloň nebude). Výsadba je stavba ze společné práce jen v oknech jara
 // a podzimu (≈ 0,45 čd na strom), péče v zimě a sklizeň v září–říjnu jdou se sady (orchard.ts),
 // jablka do zásoby ovoce. Po ≈ 60 letech zbude souš a místo je volné – „Vysadit jabloně“ znovu
-// doplní mezery.
+// doplní mezery. Sází se podél celé cesty hráče – řetězu úseků (road-chains.ts): místa po
+// úsecích za sebou, jedna stavba.
 
 /** Strom u cesty nebo jabloň do tolika metrů od místa – tam se jabloň nesází (Martin). */
 const CLEAR_M = ROAD_APPLES.treeClearM;
@@ -44,7 +46,8 @@ function toSegment(x: number, z: number, a: RoadPoint, b: RoadPoint): number {
  * stranách, na louce i na poli (fields.md – Pole jako krajina) a ne v lese ani ve vodě, mimo
  * stavby vsi (`plantingBlocker`), mimo jiné
  * cesty, nejméně ROAD_APPLES.treeClearM od stojícího stromu u cesty a ROAD_APPLES.gapM od jiné
- * jabloně, ne u překážky krajiny. Deterministicky ze seedu vsi a úseku.
+ * jabloně (i od míst `planned` – předchozí úseky cesty hráče), ne u překážky krajiny.
+ * Deterministicky ze seedu vsi a úseku.
  */
 export function roadAppleSpots(
   state: VillageState,
@@ -52,6 +55,7 @@ export function roadAppleSpots(
   day: number,
   landscape: Landscape,
   obstacles: ObstacleLayer | null,
+  planned: readonly RoadPoint[] = [],
 ): RoadPoint[] {
   const road = state.roads?.roads.find((r) => r.id === roadId);
   if (!road) return [];
@@ -96,6 +100,7 @@ export function roadAppleSpots(
     (x, z) => {
       if (trees.some((t) => length2(t.x - x, t.z - z) < CLEAR_M)) return false;
       if (apples.some((a) => length2(a.x - x, a.z - z) < ROAD_APPLES.gapM)) return false;
+      if (planned.some((a) => length2(a.x - x, a.z - z) < ROAD_APPLES.gapM)) return false;
       if (nearAxis(x, z)) return false;
       return terrainOk(x, z) && !blocked(x, z) && !nearObstacle(x, z);
     },
@@ -107,7 +112,32 @@ export function roadAppleSpots(
   );
 }
 
-/** Výsadba jabloní u úseku: kolik jich přibude, práce a proč teď nejde. */
+/** Volné místo na jabloň podél cesty hráče a úsek, ke kterému patří. */
+export interface ChainAppleSpot extends RoadPoint {
+  roadId: number;
+}
+
+/**
+ * Volná místa na jabloně podél cesty hráče – řetězu úseku `roadId` (road-chains.ts): úsek po
+ * úseku v pořadí cesty (`roadAppleSpots`), každý dbá rozestupu i od míst předchozích.
+ */
+export function chainAppleSpots(
+  state: VillageState,
+  roadId: number,
+  day: number,
+  landscape: Landscape,
+  obstacles: ObstacleLayer | null,
+): ChainAppleSpot[] {
+  const out: ChainAppleSpot[] = [];
+  for (const { road } of roadChain(state.roads?.roads ?? [], roadId)) {
+    for (const p of roadAppleSpots(state, road.id, day, landscape, obstacles, out)) {
+      out.push({ roadId: road.id, x: p.x, z: p.z });
+    }
+  }
+  return out;
+}
+
+/** Výsadba jabloní u cesty: kolik jich přibude, práce a proč teď nejde. */
 export interface RoadApplesOption {
   trees: number;
   laborManDays: number;
@@ -124,12 +154,18 @@ function tenths(v: number): number {
   return Math.round(v * 10) / 10;
 }
 
-/** Sází se u úseku jabloně (rozestavěná výsadba)? */
+/** Sází se u některého úseku cesty hráče (řetěz úseku) jabloně (rozestavěná výsadba)? */
 function plantingAt(state: VillageState, roadId: number): Construction | undefined {
-  return state.constructions.find((c) => c.kind === 'road-apples' && c.roadIds?.includes(roadId));
+  const chain = new Set(roadChain(state.roads?.roads ?? [], roadId).map((link) => link.road.id));
+  return state.constructions.find(
+    (c) => c.kind === 'road-apples' && (c.roadIds ?? []).some((id) => chain.has(id)),
+  );
 }
 
-/** „Vysadit jabloně“ u úseku – kolik stromů a za kolik práce, nebo proč ne; bez úseku null. */
+/**
+ * „Vysadit jabloně“ u cesty hráče (řetěz úseku `roadId`) – kolik stromů a za kolik práce, nebo
+ * proč ne; bez úseku null.
+ */
 export function roadApplesOption(
   state: VillageState,
   roadId: number,
@@ -141,7 +177,7 @@ export function roadApplesOption(
   if (plantingAt(state, roadId)) {
     return { trees: 0, laborManDays: 0, blocked: 'Jabloně se tu už sázejí.', warning: null };
   }
-  const spots = roadAppleSpots(state, roadId, day, landscape, obstacles);
+  const spots = chainAppleSpots(state, roadId, day, landscape, obstacles);
   const trees = spots.length;
   const taken = treeTakenLand(landscape, state, spots);
   const cellAreaM2 = landscape.cellSizeM * landscape.cellSizeM;
@@ -165,9 +201,9 @@ function nearestDwellingM(state: VillageState, x: number, z: number): number {
 }
 
 /**
- * Zadá výsadbu jabloní u úseku `roadId` (mutuje kopii – vrátí nový stav): jabloně na volných
- * místech čekají na výsadbu, stavba `road-apples` ze společné práce je vysadí v oknech jara
- * a podzimu. Jabloň na dílu pole mu vezme TAKEN_LAND_TREE_M2 (fields.md – Pole jako krajina),
+ * Zadá výsadbu jabloní podél cesty hráče – řetězu úseku `roadId` (mutuje kopii – vrátí nový stav):
+ * jabloně na volných místech (každá u svého úseku) čekají na výsadbu, stavba `road-apples` ze
+ * společné práce (`roadIds` = úseky cesty) je vysadí v oknech jara a podzimu po řadě podél cesty. Jabloň na dílu pole mu vezme TAKEN_LAND_TREE_M2 (fields.md – Pole jako krajina),
  * hned se zadáním jako ostatní stavby. RangeError, když výsadba nejde (`roadApplesOption`).
  */
 export function startRoadApples(
@@ -180,13 +216,14 @@ export function startRoadApples(
   const option = roadApplesOption(state, roadId, day, landscape, obstacles);
   if (!option) throw new RangeError('Cesta neexistuje.');
   if (option.blocked) throw new RangeError(option.blocked);
-  const spots = roadAppleSpots(state, roadId, day, landscape, obstacles);
+  const spots = chainAppleSpots(state, roadId, day, landscape, obstacles);
+  const chain = roadChain(state.roads?.roads ?? [], roadId).map((link) => link.road.id);
   const next = structuredClone(state);
   const roads = next.roads!;
   const id = next.nextId++;
   const apples = spots.map((p): RoadApple => ({
     id: ROAD_TREE_ID_BASE + roads.nextId++,
-    roadId,
+    roadId: p.roadId,
     x: p.x,
     z: p.z,
     distanceM: Math.round(nearestDwellingM(next, p.x, p.z) * 10) / 10,
@@ -204,10 +241,21 @@ export function startRoadApples(
     position: null,
     dwellingId: null,
     fieldId: null,
-    roadIds: [roadId],
+    roadIds: chain,
   });
   giveWayToBuilding(next, day, treeTakenLand(landscape, next, apples), 'road-apples');
   return next;
+}
+
+/** Úsek, u kterého se teď sází – první nevysazená jabloň stavby `c`; bez ní první úsek stavby. */
+export function roadApplesWorkRoad(
+  state: Pick<VillageState, 'roads'>,
+  c: Construction,
+): number | null {
+  const next = villageRoadApples(state).find(
+    (a) => a.constructionId === c.id && a.plantedDay === null,
+  );
+  return next?.roadId ?? c.roadIds?.[0] ?? null;
 }
 
 /** Kolik práce výsadbě jabloní dnes chybí – jen v oknech výsadby (jaro, podzim), jinak 0. */

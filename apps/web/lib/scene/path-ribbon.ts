@@ -112,6 +112,17 @@ export const CART_RUT_LAYER: RibbonLayer = {
 /** Koleje jsou od osy cesty tolik (m) – rozchod vozu ≈ 1,3 m. */
 export const CART_RUT_OFFSET_M = 0.65;
 
+/**
+ * Čára pásu – pěšina z jádra, u pevné cesty navíc zúžení konců (roads.md – Cesta pro hráče;
+ * Martin: navazující úseky různého stupně jsou jedna cesta): kde na pás navazuje užší pás jiného
+ * stupně, zúží se na NARROW_M k jeho šířce (`narrowStart` / `narrowEnd` – poměr šířek 0–1) –
+ * přechod bez schodu.
+ */
+export type RibbonLine = PathLine & { narrowStart?: number; narrowEnd?: number };
+
+/** Na jaké délce se pás zúží k navazujícímu užšímu pásu (m). */
+export const NARROW_M = 6;
+
 /** Krok průřezů podél osy (m). */
 const STEP_M = 0.9;
 /** Jak moc se osa vlní do stran (m) a na jakou délku vlny (m). */
@@ -204,7 +215,7 @@ export function ribbonJunctions(lines: readonly PathLine[]): RibbonJunction[] {
  * plácky rozcestí (bez nich z konců čar – `ribbonJunctions`).
  */
 export function pathRibbons(
-  lines: readonly PathLine[],
+  lines: readonly RibbonLine[],
   layer: RibbonLayer,
   widthAt: (x: number, z: number) => number = () => 1,
   alphaAt: (x: number, z: number) => number = () => 1,
@@ -245,7 +256,7 @@ export interface RibbonSection {
  * pod cestou (`ribbonTrack`). Krátká čára (pod 0,5 m) průřezy nemá.
  */
 export function ribbonSections(
-  line: PathLine,
+  line: RibbonLine,
   layer: RibbonLayer,
   widthAt: (x: number, z: number) => number,
   alphaAt: (x: number, z: number) => number,
@@ -290,9 +301,19 @@ export function ribbonSections(
     const cx = a.x + (b.x - a.x) * u + nx * wobble;
     const cz = a.z + (b.z - a.z) * u + nz * wobble;
     const width = layer.width.weak + (layer.width.strong - layer.width.weak) * strength;
+    // zúžení k navazujícímu užšímu pásu (jiný stupeň cesty)
+    const narrow = Math.min(
+      line.narrowStart === undefined
+        ? 1
+        : line.narrowStart + (1 - line.narrowStart) * smoothstep(0, NARROW_M, d),
+      line.narrowEnd === undefined
+        ? 1
+        : line.narrowEnd + (1 - line.narrowEnd) * smoothstep(0, NARROW_M, length - d),
+    );
     const half =
       (width / 2) *
       layer.widthFactor *
+      narrow *
       widthAt(cx, cz) *
       (1 + (noise1(seed + 17, d / (WOBBLE_WAVE_M * 0.6)) - 0.5) * 2 * WIDTH_JITTER);
     sections.push({
@@ -311,7 +332,7 @@ export function ribbonSections(
 }
 
 function addRibbon(
-  line: PathLine,
+  line: RibbonLine,
   layer: RibbonLayer,
   widthAt: (x: number, z: number) => number,
   alphaAt: (x: number, z: number) => number,
@@ -348,7 +369,7 @@ function addRibbon(
  * za čarami).
  */
 export function ribbonTrack(
-  lines: readonly PathLine[],
+  lines: readonly RibbonLine[],
   layer: RibbonLayer,
   widthAt: (x: number, z: number) => number = () => 1,
   alphaAt: (x: number, z: number) => number = () => 1,

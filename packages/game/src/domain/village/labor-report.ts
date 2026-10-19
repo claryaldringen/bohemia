@@ -17,6 +17,8 @@ import type {
   VillageState,
   YearPlan,
 } from './types';
+import { roadApplesWorkRoad } from './road-apples';
+import { roadWorkFront } from './road-upgrades';
 import { trailWorkRoad } from './trail';
 import { woodFellingCost } from './wood';
 import { partsWorked, type PartTask } from './field-progress';
@@ -411,8 +413,9 @@ function constructionShares(work: ConstructionWork, state: VillageState): LaborS
     return penShares(work, { kind: 'pen', id: c.penId });
   }
   if (c.kind === 'road-apples') {
-    const roadId = c.roadIds?.[0];
-    return roadId === undefined
+    // jabloně se sázejí po řadě podél cesty – u úseku první nevysazené
+    const roadId = roadApplesWorkRoad(state, c);
+    return roadId === null
       ? []
       : [
           {
@@ -423,9 +426,11 @@ function constructionShares(work: ConstructionWork, state: VillageState): LaborS
         ];
   }
   if (c.kind === 'road') {
-    // vylepšení pevné cesty (roads.md) – kácení dřeva hatě, pak práce na úseku; zemská stezka
-    // (trade.md) na úseku, kam stavba od vsi ven došla
-    const roadId = (c.trail !== undefined ? trailWorkRoad(state, c) : null) ?? c.roadIds?.[0];
+    // vylepšení pevné cesty (roads.md) – kácení dřeva hatě, pak práce na úseku, kam stavba po
+    // cestě došla (cesta hráče – víc úseků); zemská stezka (trade.md) na úseku, kam stavba od vsi
+    // ven došla
+    const roadId =
+      (c.trail !== undefined ? trailWorkRoad(state, c) : roadWorkFront(state, c)) ?? c.roadIds?.[0];
     return roadId === undefined ? [] : penShares(work, { kind: 'road', id: roadId }, 'build');
   }
   if (c.kind === 'cemetery') {

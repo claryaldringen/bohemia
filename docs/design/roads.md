@@ -78,8 +78,9 @@ Cesta se tím stává herní věcí: pamatuje si, kudy vede, a zkracuje lidem ch
 
 ## Vylepšení cesty (staví hráč)
 
-Hráč klikne na pevnou cestu – vybere se úsek, v panelu je stupeň, délka, stáří, stromy
-a jabloně a tlačítka vylepšení (ikony, cena v popisku – jako v 0 A.D.). Vylepšení je stavba ze
+Hráč klikne na pevnou cestu – vybere se celá cesta (řetěz úseků – [Cesta pro
+hráče](#cesta-pro-hráče)), v panelu je stupeň, délka, stáří, stromy a jabloně a tlačítka
+vylepšení (ikony, cena v popisku – jako v 0 A.D.). Vylepšení je stavba ze
 společné práce vsi; stromy bere jako obydlí (klády z hromady, pak nejbližší dospělé stromy).
 
 | Stupeň                     | Co se udělá                                                 | Cena (návrh Clauda)                                       | Rychlost chůze (návrh Clauda)             |
@@ -115,8 +116,9 @@ společné práce vsi; stromy bere jako obydlí (klády z hromady, pak nejbliž�
   „Vyšlapanou cestu nechme jako teď a upravená cesta ať je prostě jenom širší – ta odvodňovací
   strouha vypadá divně, zrušíme ji“), hať z kmenů napříč, lávka přes potok (modely nové).
 - **Stromy** u cest od keře po plný strom, souše a pařezy; jabloně s jablky od srpna.
-- **Výběr** pevné cesty kliknutím (zvýrazní se úsek), panel: stupeň (ikona), délka, stáří,
-  stromy a jabloně (ikony + čísla), tlačítka vylepšení.
+- **Výběr** pevné cesty kliknutím (zvýrazní se celá cesta hráče – řetěz úseků), panel: stupeň
+  (ikona), délka (u cesty z víc stupňů i po stupních, vozová část), stáří, stromy a jabloně
+  (ikony + čísla), tlačítka vylepšení.
 - Kronika: vznikla pevná cesta, vylepšení dokončeno, jabloně vysazeny.
 
 ## Rozhodnutí
@@ -496,6 +498,34 @@ když odbočka zarostla, a cesty navázané na konec jiné v různých letech.
   vytrácí jen na skutečném volném konci (brána, cíl), ne kde navazuje jiný úsek nebo kde trasa
   pokračuje pěšinou dne. Pěšina dne se za koncem úseku neskrývá (`roadFade`) – navazuje na cestu
   bez mezery. Ukázka na `/dev/landscape` (Cesta → **Díra: zacelená / otevřená**).
+
+## Cesta pro hráče
+
+Martin (19. 10. 2026, Vlkov – upravená cesta 103 navazuje na vyšlapanou 183): „tohle by rozhodně
+neměly být dvě cesty, ale měly by se spojit do jedné“ a „cesty by se na sebe měly napojovat“.
+
+- **Cesta hráče** (návrh Clauda) = řetěz úseků mezi skutečnými rozcestími (uzel aspoň tří konců)
+  a volnými konci – **bez ohledu na stupeň a vozovou cestu** (`roadChain` v
+  `paths/road-chains.ts`, stejně na serveru i v prohlížeči). Data zůstávají po úsecích (stupeň,
+  mokřina, brody, vozová, provoz, zarůstání) – hranice stupňů je skutečná a chůze, zarůstání
+  i scéna ji potřebují; stejný stupeň se dál spojuje do jednoho úseku (`mergeRoadChains`).
+- **Výběr:** klik na kterýkoli úsek vybere celou cestu (id cesty = první úsek řetězu – stejné, ať
+  se klikne kamkoli), zvýrazní se celá. **Panel:** délka celé cesty, u cesty z víc stupňů délka po
+  stupních (ikony stupňů), vozová část (ikona vozu), stáří nejstaršího úseku, stromy, jabloně,
+  mokřina a brody celé cesty; portrét podle převládajícího stupně (nejdelší).
+- **Vylepšení celé cesty:** úprava vylepší všechny vyšlapané úseky cesty, hať a lávka všechny
+  úseky přes mokřinu či brod, které ji nemají (až jsou upravené) – jedna stavba, cena za úseky
+  dohromady, dřevo k polovině cesty. Stavba jde po cestě úsek po úseku (čelo práce, postavy
+  i rozestavěný pás ve scéně – úsek ležící v cestě obráceně se upravuje od konce své osy), stupeň
+  dostanou úseky po dokončení – stejné stupně se pak spojí. Výsadba jabloní vylepšení nebrání.
+- **Jabloně podél celé cesty:** místa po úsecích za sebou (rozestup i přes navázání), jedna
+  stavba, sází se po řadě podél cesty; každá jabloň patří ke svému úseku.
+- **Server actions** dál dostávají `roadId` – kterýkoli úsek cesty, jádro si řetěz dopočítá.
+- **Přechod ve scéně bez schodu:** kde na sebe navazují pásy různé šířky (upravená a vyšlapaná,
+  vozová a pěší, rozestavěná úprava), širší pás se na 6 m plynule zúží k užšímu; koleje vozové
+  cesty se tam vytratí. Na rozcestí se nezužuje – je tam plácek.
+- **Vlkov:** 8 úseků = 6 cest hráče – 103 (upravená) + 183 (vyšlapaná) a 59 + 131 jsou každá
+  jedna cesta; úprava se z obou úseků nabízí stejně (jen vyšlapaný úsek, 21,6 čd).
 
 ## Na stavitelích
 

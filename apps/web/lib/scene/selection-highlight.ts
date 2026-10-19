@@ -2,7 +2,7 @@ import type { StandardMaterial } from '@babylonjs/core/Materials/standardMateria
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 import type { Scene } from '@babylonjs/core/scene';
-import { DWELLING_FOOTPRINT_M, SACRED_BUILDINGS } from '@bohemia/game';
+import { DWELLING_FOOTPRINT_M, SACRED_BUILDINGS, roadChain } from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
 import { cellsBoundary } from './field-cells';
 import { footprintCorners, stripSegments, type Point } from './village-layout';
@@ -134,11 +134,19 @@ export function targetOutline(village: SceneVillage, target: VillageTarget): Poi
     return pen ? cellsBoundary([pen]) : [];
   }
   if (target.kind === 'road') {
-    const road = village.roads?.find((r) => r.id === target.id);
-    if (!road) return [];
-    // úsek cesty: čáry po obou stranách pásu cesty
-    const half = road.grade === 'trodden' ? ROAD_RING_M.trodden : ROAD_RING_M.improved;
-    return [offsetLine(road.points, half), offsetLine(road.points, -half)];
+    // celá cesta hráče (roads.md – Cesta pro hráče): čáry po obou stranách pásu přes všechny
+    // úseky řetězu za sebou, na šířku nejširšího
+    const chain = roadChain(village.roads ?? [], target.id);
+    if (chain.length === 0) return [];
+    const line: { x: number; z: number }[] = [];
+    for (const { road, reversed } of chain) {
+      const axis = reversed ? [...road.points].reverse() : road.points;
+      line.push(...axis.slice(line.length > 0 ? 1 : 0));
+    }
+    const half = chain.some((l) => l.road.grade !== 'trodden')
+      ? ROAD_RING_M.improved
+      : ROAD_RING_M.trodden;
+    return [offsetLine(line, half), offsetLine(line, -half)];
   }
   const field = village.fields.find((f) => f.id === target.id);
   if (!field || field.parts.length === 0) return [];

@@ -10,8 +10,11 @@ const road = (
 ): SelectionDetails => ({
   kind: 'road',
   id: 4,
+  segments: [4],
   grade: 'trodden',
   lengthM: 120,
+  grades: [{ grade: 'trodden', lengthM: 120 }],
+  cartM: 0,
   ageYears: 7,
   trees: 3,
   wetM: 18,
@@ -60,6 +63,31 @@ describe('SelectionPanel – pevná cesta', () => {
     expect(html).toMatch(/data-testid="selection-road-age"[^>]*>7</);
     expect(html).toMatch(/data-testid="selection-road-trees"[^>]*>3</);
     expect(html).toContain('18 m · 1×');
+  });
+
+  it('cesta z víc stupňů (navazující úseky – jedna cesta): délka po stupních a vozová část', () => {
+    const single = render(road());
+    expect(single).not.toContain('data-testid="selection-road-trodden"');
+    expect(single).not.toContain('data-testid="selection-road-cart"');
+    const html = render(
+      road({
+        segments: [4, 7],
+        grade: 'improved',
+        lengthM: 150,
+        grades: [
+          { grade: 'trodden', lengthM: 40 },
+          { grade: 'improved', lengthM: 110 },
+        ],
+        cartM: 40,
+      }),
+    );
+    expect(html).toContain('Upravená cesta');
+    expect(html).toContain('150 m');
+    expect(html).toMatch(/data-testid="selection-road-trodden"[^>]*>40 m</);
+    expect(html).toMatch(/data-testid="selection-road-improved"[^>]*>110 m</);
+    expect(html).toMatch(/data-testid="selection-road-cart"[^>]*>40 m</);
+    expect(html).toContain('/icons/build/cesta-upravena.png');
+    expect(html).toContain('/icons/resources/cart.png');
   });
 
   it('tlačítka vylepšení s ikonou – nedostupné zašedlé s důvodem', () => {

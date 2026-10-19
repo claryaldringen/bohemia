@@ -3,7 +3,7 @@ import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Scene } from '@babylonjs/core/scene';
 import { describe, expect, it } from 'vitest';
 import type { SceneRoad, SceneRoadApple } from '../../village-view';
-import { ROAD_WIDTH_M } from '../path-ribbon';
+import { IMPROVED_WORN_LAYER, ROAD_WIDTH_M, ribbonSections } from '../path-ribbon';
 import { roadRibbonMeshes } from '../road-works';
 import {
   BRIDGE_LENGTH_M,
@@ -56,6 +56,84 @@ describe('vylepšené cesty ve scéně (road-works-layout)', () => {
     expect(half.improved[0]!.openEnd).toBe(false);
     expect(half.trodden[0]!.openStart).toBe(false);
     expect(half.improved[0]!.openStart).toBe(true);
+  });
+
+  it('rozestavěná úprava obráceného úseku roste od konce osy (stavba jde po cestě)', () => {
+    const back = roadBands([
+      road({ upgrade: { grade: 'improved', progress: 0.3, fromEnd: true } }),
+    ]);
+    expect(back.improved[0]!.points[0]).toEqual({ x: 70, z: 0 });
+    expect(back.improved[0]!.points.at(-1)).toEqual({ x: 100, z: 0 });
+    expect(back.trodden[0]!.points.at(-1)).toEqual({ x: 70, z: 0 });
+    const staking = stakingLines([
+      road({
+        ground: { wet: [], fords: [] },
+        upgrade: { grade: 'improved', progress: 0.3, fromEnd: true },
+      }),
+    ]);
+    expect(staking[0]![0]![0]).toBeCloseTo(0, 9);
+    expect(staking[0]!.at(-1)![0]).toBeCloseTo(70, 9);
+  });
+
+  it('přechod mezi stupni bez schodu: širší pás se k užšímu zúží, koleje se vytratí', () => {
+    const next = (extra: Partial<SceneRoad>): SceneRoad => ({
+      id: 4,
+      points: [
+        { x: 160, z: 0 },
+        { x: 100, z: 0 },
+      ],
+      grade: 'trodden',
+      ...extra,
+    });
+    const improved = roadBands([road({ grade: 'improved' }), next({})]);
+    expect(improved.improved[0]!.narrowEnd).toBeCloseTo(
+      ROAD_WIDTH_M.trodden / ROAD_WIDTH_M.improved,
+      9,
+    );
+    expect(improved.improved[0]!.narrowStart).toBeUndefined();
+    expect(improved.trodden[0]).not.toHaveProperty('narrowStart');
+    expect(improved.trodden[0]).not.toHaveProperty('narrowEnd');
+    // pás se zúží jen u přechodu – průřez na konci užší, kus před ním plný
+    const sections = ribbonSections(
+      improved.improved[0]!,
+      IMPROVED_WORN_LAYER,
+      () => 1,
+      () => 1,
+    );
+    const plain = ribbonSections(
+      { ...improved.improved[0]!, narrowEnd: undefined },
+      IMPROVED_WORN_LAYER,
+      () => 1,
+      () => 1,
+    );
+    expect(sections.at(-1)!.half / plain.at(-1)!.half).toBeCloseTo(
+      ROAD_WIDTH_M.trodden / ROAD_WIDTH_M.improved,
+      6,
+    );
+    expect(sections[sections.length - 12]!.half).toBeCloseTo(plain[plain.length - 12]!.half, 9);
+    // vozová → pěší: zúží se, koleje se u přechodu vytratí
+    const cart = roadBands([road({ cart: true }), next({})]);
+    expect(cart.cart[0]!.narrowEnd).toBeCloseTo(ROAD_WIDTH_M.trodden / ROAD_WIDTH_M.cart, 9);
+    expect(cart.ruts.every((r) => r.openEnd)).toBe(true);
+    // rozestavěná úprava: upravený kus se k vyšlapanému zúží
+    const half = roadBands([road({ upgrade: { grade: 'improved', progress: 0.3 } })]);
+    expect(half.improved[0]!.narrowEnd).toBeCloseTo(
+      ROAD_WIDTH_M.trodden / ROAD_WIDTH_M.improved,
+      9,
+    );
+    // rozcestí (tři konce) se nezužuje – je tam plácek
+    const fork = roadBands([
+      road({ grade: 'improved' }),
+      next({}),
+      next({
+        id: 5,
+        points: [
+          { x: 100, z: 40 },
+          { x: 100, z: 0 },
+        ],
+      }),
+    ]);
+    expect(fork.improved[0]!.narrowEnd).toBeUndefined();
   });
 
   it('upravená cesta je jen širší pás – bez strouhy a kamenů (Martin, 19. 10. 2026)', () => {
@@ -186,5 +264,33 @@ describe('výběr úseku cesty kliknutím', () => {
     };
     expect(pickVillageTarget(village, ray, options)).toEqual({ kind: 'road', id: 3 });
     expect(pickVillageTarget(village, ray, { ...options, ground: { x: 20, z: 6 } })).toBeNull();
+  });
+
+  it('klik na kterýkoli úsek cesty hráče vybere celou cestu (id prvního úseku řetězu)', () => {
+    const chain = {
+      dwellings: [],
+      fields: [],
+      roads: [
+        road({ id: 9 }),
+        {
+          id: 2,
+          points: [
+            { x: 100, z: 0 },
+            { x: 160, z: 0 },
+          ],
+          grade: 'improved' as const,
+        },
+      ],
+    };
+    const options = {
+      ground: { x: 20, z: 1 },
+      groundHeight: () => 0,
+      cellOf: () => ({ x: 0, y: 0 }),
+    };
+    expect(pickVillageTarget(chain, ray, options)).toEqual({ kind: 'road', id: 2 });
+    expect(pickVillageTarget(chain, ray, { ...options, ground: { x: 130, z: 1 } })).toEqual({
+      kind: 'road',
+      id: 2,
+    });
   });
 });

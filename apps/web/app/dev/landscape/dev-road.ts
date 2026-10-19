@@ -205,27 +205,48 @@ export function demoApplesStage(
   return s.apple ? apples.map((a) => ({ ...a, ...s.apple })) : [];
 }
 
-/** Stupně ukázky: vyšlapaná, úprava rozestavěná, upravená, hať rozestavěná, hať a lávka. */
+/**
+ * Stupně ukázky: vyšlapaná, úprava rozestavěná, upravená, hať rozestavěná, hať a lávka a přechod
+ * stupňů (`mixed` – první cesta rozdělená na upravenou a vyšlapanou půlku, další vozová: cesta pro
+ * hráče z víc úseků, roads.md – Cesta pro hráče; pás se k užšímu zúží bez schodu).
+ */
 export const DEMO_ROAD_STAGES: readonly {
   label: string;
   grade: RoadGrade;
   upgrade?: { grade: RoadGrade; progress: number };
+  mixed?: true;
 }[] = [
   { label: 'vyšlapaná', grade: 'trodden' },
   { label: 'úprava 40 %', grade: 'trodden', upgrade: { grade: 'improved', progress: 0.4 } },
   { label: 'upravená', grade: 'improved' },
   { label: 'hať 50 %', grade: 'improved', upgrade: { grade: 'causeway', progress: 0.5 } },
   { label: 'hať a lávka', grade: 'causeway' },
+  { label: 'přechod stupňů', grade: 'trodden', mixed: true },
 ];
+
+/** Id druhé půlky první cesty v ukázce přechodu stupňů. */
+const MIXED_SECOND_ID = 90;
 
 /** Ukázkové cesty ve stupni `stage` (index v DEMO_ROAD_STAGES). */
 export function demoRoadStage(roads: readonly SceneRoad[], stage: number): SceneRoad[] {
   const s = DEMO_ROAD_STAGES[stage % DEMO_ROAD_STAGES.length]!;
-  return roads.map((r) => {
+  const plain = roads.map((r) => {
     const { upgrade: _old, ...rest } = r;
     void _old;
     return { ...rest, grade: s.grade, ...(s.upgrade ? { upgrade: s.upgrade } : {}) };
   });
+  if (!s.mixed || plain.length === 0) return plain;
+  // první cesta: upravená půlka od vsi, za ní vyšlapaná; druhá cesta vozová
+  const [first, second, ...rest] = plain;
+  const mid = Math.floor(first!.points.length / 2);
+  const { ground: _ground, ...head } = first!;
+  void _ground;
+  return [
+    { ...head, points: first!.points.slice(0, mid + 1), grade: 'improved' },
+    { ...head, id: MIXED_SECOND_ID, points: first!.points.slice(mid), grade: 'trodden' },
+    ...(second ? [{ ...second, cart: true as const }] : []),
+    ...rest,
+  ];
 }
 
 /**

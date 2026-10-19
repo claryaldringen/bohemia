@@ -36,6 +36,8 @@ import {
   roadLengthM,
   roadTreeLook,
   roadUpgradeOptions,
+  roadUpgradeProgress,
+  roadChains,
   villageRoadWalk,
   ruinOvergrowth,
   isAbandoned,
@@ -252,25 +254,35 @@ export interface VillagePen {
 }
 
 /**
- * Pevná cesta pro panel výběru (roads.md – Co hráč vidí): stupeň, délka, stáří, stromy u ní,
- * rozestavěné vylepšení a vylepšení, která úsek nabízí (cena a proč teď nejde).
+ * Pevná cesta pro panel výběru (roads.md – Co hráč vidí, Cesta pro hráče): celá cesta hráče –
+ * řetěz úseků mezi rozcestími a volnými konci bez ohledu na stupeň (road-chains.ts). Stupeň,
+ * délka (po stupních), stáří, stromy u ní, rozestavěné vylepšení a vylepšení, která cesta nabízí
+ * (cena a proč teď nejde).
  */
 export interface VillageRoad {
+  /** Id cesty = první úsek řetězu (stejné, ať se vybere kterýkoli úsek). */
   id: number;
+  /** Úseky cesty v pořadí podél ní – výběr kteréhokoli vybere celou cestu. */
+  segments: number[];
+  /** Stupeň, který na cestě převládá (podle délky; při shodě lepší) – portrét panelu. */
   grade: RoadGrade;
   lengthM: number;
-  /** Stáří v celých letech. */
+  /** Délka po stupních (m) – jen stupně, které cesta má, od vyšlapané po hať. */
+  grades: { grade: RoadGrade; lengthM: number }[];
+  /** Vozová část (wagons.md – Vyjeté cesty) – m; bez ní 0. */
+  cartM: number;
+  /** Stáří nejstaršího úseku v celých letech. */
   ageYears: number;
-  /** Stojící stromy u úseku (keře a stromy, ne souše a pařezy). */
+  /** Stojící stromy u cesty (keře a stromy, ne souše a pařezy). */
   trees: number;
-  /** Úsek vede mokřinou (m) a přes brody. */
+  /** Cesta vede mokřinou (m) a přes brody. */
   wetM: number;
   fords: number;
   /** Rozestavěné vylepšení – na jaký stupeň, průběh 0–1 a stromy ke skácení; jinak null. */
   building: { grade: RoadGrade; progress: number; treesToFell: number } | null;
   upgrades: RoadUpgradeOption[];
   /**
-   * Jabloně podél úseku (roads.md – Vysazení jabloní): živé stromy, z nich plodící, rozestavěná
+   * Jabloně podél cesty (roads.md – Vysazení jabloní): živé stromy, z nich plodící, rozestavěná
    * výsadba (kolik jabloní a průběh 0–1) a „Vysadit jabloně“ – kolik přibude, práce a proč ne.
    */
   apples: {
@@ -945,7 +957,12 @@ export interface SceneTrail {
 }
 
 export type SceneRoad = Pick<Road, 'id' | 'points' | 'grade' | 'ground' | 'openEnds' | 'cart'> & {
-  upgrade?: { grade: RoadGrade; progress: number };
+  /**
+   * Rozestavěné vylepšení úseku – stupeň a průběh 0–1 na tomto úseku (vylepšení cesty hráče jde
+   * po úsecích – `roadUpgradeProgress`); `fromEnd` – úsek leží v cestě obráceně, práce jde od
+   * konce jeho osy.
+   */
+  upgrade?: { grade: RoadGrade; progress: number; fromEnd?: true };
 };
 /** Strom u pevné cesty pro scénu – poloha, druh a vzhled v den pohledu (`roadTreeLook`). */
 export type SceneRoadTree = Pick<RoadTree, 'id' | 'x' | 'z' | 'species'> & RoadTreeLook;
@@ -1593,6 +1610,30 @@ function sceneVillage(
   };
 }
 
+/**
+ * Úsek `ids[k]` vylepšení leží v cestě obráceně – na předchozí úsek navazuje koncem své osy, nebo
+ * na další začátkem (práce jde po cestě, tedy od konce jeho osy).
+ */
+function upgradeFromEnd(roads: readonly Road[], ids: readonly number[], k: number): boolean {
+  const find = (id: number | undefined): Road | undefined =>
+    id === undefined ? undefined : roads.find((r) => r.id === id);
+  const road = find(ids[k]);
+  if (!road || road.points.length < 2) return false;
+  const same = (a: { x: number; z: number }, b: { x: number; z: number }): boolean =>
+    Math.abs(a.x - b.x) < 0.01 && Math.abs(a.z - b.z) < 0.01;
+  const ends = (r: Road): { x: number; z: number }[] => [
+    r.points[0]!,
+    r.points[r.points.length - 1]!,
+  ];
+  const first = road.points[0]!;
+  const last = road.points[road.points.length - 1]!;
+  const prev = find(ids[k - 1]);
+  if (prev) return ends(prev).some((p) => same(p, last)) && !ends(prev).some((p) => same(p, first));
+  const next = find(ids[k + 1]);
+  if (next) return ends(next).some((p) => same(p, first)) && !ends(next).some((p) => same(p, last));
+  return false;
+}
+
 /** Pevné cesty vsi pro scénu (roads.md) – i s rozestavěným vylepšením. */
 export function sceneRoads(
   state: Pick<VillageState, 'roads'> & Partial<Pick<VillageState, 'trails' | 'constructions'>>,
@@ -1606,14 +1647,35 @@ export function sceneRoads(
   const trailRoads = new Set(
     (state.constructions ?? []).flatMap((c) => (c.trail !== undefined ? (c.roadIds ?? []) : [])),
   );
+  // vylepšení cesty hráče (víc úseků – roads.md, Cesta pro hráče) jde po úsecích v pořadí cesty
+  const upgrades = new Map<
+    number,
+    { roadGrade: RoadGrade; buildProgress: number; fromEnd: boolean }
+  >();
+  for (const c of constructions) {
+    if (c.kind !== 'road' || !c.roadGrade || !c.roadIds) continue;
+    const ids = c.roadIds.filter((id) => !trailRoads.has(id));
+    const progress = roadUpgradeProgress(
+      state,
+      { roadIds: ids, roadGrade: c.roadGrade },
+      c.buildProgress,
+    );
+    ids.forEach((id, k) => {
+      upgrades.set(id, {
+        roadGrade: c.roadGrade!,
+        buildProgress: progress.get(id) ?? 0,
+        fromEnd: upgradeFromEnd(state.roads?.roads ?? [], ids, k),
+      });
+    });
+  }
   return (state.roads?.roads ?? []).map((r) => {
     const onTrail = trailWork.get(r.id);
     // dostavěný úsek rozestavěné stezky už stavbu nemá
     const work = onTrail
-      ? { roadGrade: onTrail.grade, buildProgress: onTrail.progress }
+      ? { roadGrade: onTrail.grade, buildProgress: onTrail.progress, fromEnd: false }
       : trailRoads.has(r.id)
         ? undefined
-        : constructions.find((c) => c.kind === 'road' && c.roadIds?.includes(r.id));
+        : upgrades.get(r.id);
     return {
       id: r.id,
       points: r.points.map((p) => ({ x: p.x, z: p.z })),
@@ -1635,6 +1697,7 @@ export function sceneRoads(
             upgrade: {
               grade: work.roadGrade,
               progress: Math.round(work.buildProgress * 1000) / 1000,
+              ...(work.fromEnd ? { fromEnd: true as const } : {}),
             },
           }
         : {}),
@@ -1663,7 +1726,13 @@ export function sceneWoods(
   });
 }
 
-/** Pevné cesty pro panel výběru – i vylepšení, která úsek nabízí (s cenou a důvodem). */
+/** Pořadí stupňů cesty – od vyšlapané po hať (panel, převládající stupeň při shodě lepší). */
+const ROAD_GRADE_ORDER: readonly RoadGrade[] = ['trodden', 'improved', 'causeway'];
+
+/**
+ * Pevné cesty pro panel výběru – cesta hráče = řetěz úseků (roads.md – Cesta pro hráče), i
+ * vylepšení, která nabízí (s cenou a důvodem).
+ */
 function roadViews(
   state: VillageState,
   landscape: Landscape,
@@ -1680,22 +1749,49 @@ function roadViews(
   });
   const removed = new Set(obstacleChangesAt(state, day).removed);
   const apples = (state.roads?.apples ?? []).filter((a) => !removed.has(a.id));
-  return roads.map((r) => {
-    const spots = new Set(r.spots.map((s) => s.id));
-    const work = summary.constructions.find((c) => c.kind === 'road' && c.roadIds?.includes(r.id));
-    const planting = summary.constructions.find(
-      (c) => c.kind === 'road-apples' && c.roadIds?.includes(r.id),
-    );
-    const mine = apples.filter((a) => a.roadId === r.id);
+  return roadChains(roads).map((chain) => {
+    const members = chain.map((link) => link.road);
+    const ids = new Set(members.map((r) => r.id));
+    const r = members[0]!;
+    const spots = new Set(members.flatMap((m) => m.spots.map((s) => s.id)));
+    const touches = (c: ConstructionSummary): boolean =>
+      (c.roadIds ?? []).some((id) => ids.has(id));
+    const work = summary.constructions.find((c) => c.kind === 'road' && touches(c));
+    const planting = summary.constructions.find((c) => c.kind === 'road-apples' && touches(c));
+    const mine = apples.filter((a) => ids.has(a.roadId));
     const living = mine.filter((a) => roadAppleStage(a, day) === 'tree');
+    const byGrade = new Map<RoadGrade, number>();
+    let cartM = 0;
+    for (const m of members) {
+      const length = roadLengthM(m);
+      byGrade.set(m.grade, (byGrade.get(m.grade) ?? 0) + length);
+      if (m.cart) cartM += length;
+    }
+    const grades = ROAD_GRADE_ORDER.filter((g) => (byGrade.get(g) ?? 0) > 0).map((grade) => ({
+      grade,
+      lengthM: Math.round(byGrade.get(grade)!),
+    }));
+    // převládající stupeň – nejdelší, při shodě lepší
+    const grade = grades.reduce((best, g) => (g.lengthM >= best.lengthM ? g : best)).grade;
     return {
       id: r.id,
-      grade: r.grade,
-      lengthM: Math.round(roadLengthM(r)),
-      ageYears: Math.max(0, Math.floor((day - r.bornDay) / DAYS_PER_YEAR)),
+      segments: members.map((m) => m.id),
+      grade,
+      lengthM: Math.round(members.reduce((sum, m) => sum + roadLengthM(m), 0)),
+      grades,
+      cartM: Math.round(cartM),
+      ageYears: Math.max(
+        0,
+        Math.floor((day - Math.min(...members.map((m) => m.bornDay))) / DAYS_PER_YEAR),
+      ),
       trees: standing.filter((t) => spots.has(t.spot) && !removed.has(t.id)).length,
-      wetM: Math.round((r.ground?.wet ?? []).reduce((sum, [a, b]) => sum + (b - a), 0)),
-      fords: r.ground?.fords.length ?? 0,
+      wetM: Math.round(
+        members.reduce(
+          (sum, m) => sum + (m.ground?.wet ?? []).reduce((acc, [a, b]) => acc + (b - a), 0),
+          0,
+        ),
+      ),
+      fords: members.reduce((sum, m) => sum + (m.ground?.fords.length ?? 0), 0),
       building:
         work && work.roadGrade
           ? { grade: work.roadGrade, progress: work.progress, treesToFell: work.treesToFell }

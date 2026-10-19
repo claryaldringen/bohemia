@@ -897,7 +897,8 @@ export const ROAD_GRADE_ICONS: Record<RoadGrade, string> = {
 };
 
 /**
- * Pevná cesta (roads.md – Co hráč vidí): délka, stáří, stromy u ní, jabloně (z nich plodící),
+ * Pevná cesta (roads.md – Co hráč vidí, Cesta pro hráče – celý řetěz úseků): délka, u cesty
+ * z víc stupňů délka po stupních, vozová část, stáří, stromy u ní, jabloně (z nich plodící),
  * mokřina a brody; rozestavěné vylepšení a výsadba jabloní průběh; tlačítka vylepšení a „Vysadit
  * jabloně“ (ikony, cena v popisku jako v 0 A.D.) – když nejde, zašedlé s důvodem červeně.
  */
@@ -935,6 +936,22 @@ function RoadBody({
               {formatInteger(details.lengthM)} m
             </span>
           </Tooltip>
+          {details.grades.length > 1 &&
+            details.grades.map((g) => (
+              <Stat
+                key={g.grade}
+                src={`/icons/build/${ROAD_GRADE_ICONS[g.grade]}.png`}
+                name={ROAD_GRADE_NAMES[g.grade]}
+                testId={`selection-road-${g.grade}`}
+              >
+                {formatInteger(g.lengthM)} m
+              </Stat>
+            ))}
+          {details.cartM > 0 && (
+            <Stat icon="cart" name="Vozová cesta" testId="selection-road-cart">
+              {formatInteger(details.cartM)} m
+            </Stat>
+          )}
           <Stat icon="date" name="Stáří (roky)" testId="selection-road-age">
             {details.ageYears}
           </Stat>
