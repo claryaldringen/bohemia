@@ -1542,7 +1542,14 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   když se změnil vzhled jeho dílů (postup práce, žeň po čtvercích) nebo okraj, směr řádků či
   střed pole; hotové bloky se jen spojí (rostliny v pořadí dílů – výsledek jako celé pole
   najednou, hlídá `field-blocks.test.ts`). `fieldPartViews` má mezipaměť pro stav vsi (díly,
-  obydlí, den). Kreslí se:
+  obydlí, den). **Obnova vsi musí být levná** (výkon 19. 10. 2026 – Vlkov ≈ 1 800 dílů: obnova
+  1,5 s → 25–120 ms): blok na dni nezávisí – kupky a stohy sena (jediné rostliny podle dne) skládá
+  pole zvlášť (`fieldHay`, `FieldView.hay`); spojení použije znovu výšky a normály sítí obtisků
+  (`drapedGrid`, `drapePoints`), meshe vrstev, řádků sena a koruny se stejným obsahem
+  (`MeshSlot`, `sameContent`) a rostliny dílů, které vyšly stejně; druh trsů beze změny se znovu
+  nenahrává (`setPlants` – `sameItems`), řazení podle `rank` je `sortByRank` a obal instancí
+  `instancesBounds` (`plant-order.ts`, bit po bitu jako Babylon). `setDay` přestaví pole, jen když
+  se změní den vzhledu (s rozdělením práce je to jeho den). Kreslí se:
   obtisky z textur 0 A.D. (`public/textures/fields/` – zem s měkkými brázdami podél řádků,
   osetá zem, strniště, porost shora; tráva a kvetoucí louka z terénu) s nepravidelným měkkým
   okrajem (`raggedCoverage`) bez meze (Martin) – kde pole sousedí s jiným polem, okraj se
@@ -1582,7 +1589,7 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   `roadsKey` + `roadWorksKey`) s okrajem 0,8 m a pěšiny dne z `VillagePaths.pathTrack()` (síla po
   čtvrtinách) s okrajem 0,5 m, předává je `onChange` sítě pěšin přes
   `VillageRenderer.setPathTrack` → `FieldRenderer.setPaths` (odloženě s přepočtem pěšin, nikdy za
-  snímek). Násobí krytí pole (obtisk, trsy, panáky, plevel, koruna svahem); klíč bloku nese pásy
+  snímek – síť pěšin, jejich obtisky a přestavba polí jsou tři samostatné úlohy). Násobí krytí pole (obtisk, trsy, panáky, plevel, koruna svahem); klíč bloku nese pásy
   bloku, takže se přestaví jen bloky, kudy pás vede nebo vedl; kusy pod pásem mají jemnější síť
   (`TRACK_DETAIL` – koruna 4×, obtisk 2×). Ukázka: /dev/landscape **Cesta** se zralým polem
   15 × 15 přes rozcestí; **Velké pole** – zralé pole ≈ 10 ha se schody v obrysu (tvar polí z
@@ -1813,7 +1820,8 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   `FieldPart.walkDistanceM`, práce přes `partWalkDistance` v `year-plan.ts` (`partWork`, `partWeight`),
   `field-progress.ts` a seči `hay.ts`).
   Scéna `path-renderer.ts` (`VillagePaths` v `LandscapeScene`: přepočet jen při změně
-  `pathNetworkKey`, odloženě) – obtisky `paths-worn` / `paths-earth` z `path-ribbon.ts` **nad**
+  `pathNetworkKey`, odloženě; výpočet sítě, obtisky a pás pod nimi v polích jdou ve třech
+  úlohách – mezi ně se vejde snímek pohybu kamery) – obtisky `paths-worn` / `paths-earth` z `path-ribbon.ts` **nad**
   obtisky polí a vsi (alphaIndex 3 / 3,5, lift 0,05 / 0,055, zOffset −3,5 / −4; přes osetý díl
   úzká stopa; v pevné cestě se pěšina dne ztrácí – `roadFade`; rozcestí – konec aspoň tří čar –
   je udusaný plácek `ribbonJunctions` / `JUNCTION`, u pevných cest `roadJunctions`). **Pěšina dne
