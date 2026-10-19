@@ -1021,11 +1021,19 @@ function formRoads(
       }
       let j = i;
       while (j + 1 < run.length && confirmed[j + 1] && !onRoad[j + 1]) j++;
+      // připojení konce: k pevné cestě, po které trasa vedla (ATTACH_M), nebo k té, se kterou
+      // vedla souběžně (do PARALLEL_M – konec nové cesty je od ní až o krok vzorkování dál)
+      const reach = (k: number): number | false =>
+        k < 0 || k >= run.length || !onRoad[k]
+          ? false
+          : onRoadAt(run[k]!.x, run[k]!.z) <= ON_ROAD_M
+            ? ATTACH_M
+            : PARALLEL_M + SAMPLE_M;
       const road = formRoad(
         roads,
         run.slice(i, j + 1),
-        i > 0 && onRoad[i - 1]!,
-        j < run.length - 1 && onRoad[j + 1]!,
+        reach(i - 1),
+        reach(j + 1),
         day,
         traffic,
         context,
@@ -1042,8 +1050,9 @@ function formRoads(
 function formRoad(
   roads: VillageRoads,
   points: RoadPoint[],
-  joinStart: boolean,
-  joinEnd: boolean,
+  /** Připojit začátek / konec k pevné cestě do tolika metrů (false = ne). */
+  joinStart: number | false,
+  joinEnd: number | false,
   day: number,
   traffic: PathTraffic,
   context: SpotContext,
@@ -1051,9 +1060,9 @@ function formRoad(
 ): Road | null {
   const axis = points.map((p) => ({ x: cm(p.x), z: cm(p.z) }));
   // napojení na pevnou cestu (případné rozdělení cesty v rozcestí) – nejdřív začátek, pak konec
-  const start = joinStart ? joinPoint(roads, axis[0]!, context) : null;
+  const start = joinStart !== false ? joinPoint(roads, axis[0]!, context, joinStart) : null;
   if (start) axis.unshift(start);
-  const end = joinEnd ? joinPoint(roads, axis[axis.length - 1]!, context) : null;
+  const end = joinEnd !== false ? joinPoint(roads, axis[axis.length - 1]!, context, joinEnd) : null;
   if (end) axis.push(end);
   const simple = simplifyPathLine(axis, [], SIMPLIFY_M).points.filter(
     (p, k, all) => k === 0 || p.x !== all[k - 1]!.x || p.z !== all[k - 1]!.z,
@@ -1090,9 +1099,14 @@ function formRoad(
  * Bod, kde se konec nové cesty připojí k pevné cestě (do ATTACH_M): u konce pevné cesty do jejího
  * konce, jinak do nejbližšího bodu osy – pevná cesta se tam rozdělí na dva úseky (rozcestí).
  */
-function joinPoint(roads: VillageRoads, from: RoadPoint, context: SpotContext): RoadPoint | null {
+function joinPoint(
+  roads: VillageRoads,
+  from: RoadPoint,
+  context: SpotContext,
+  reach = ATTACH_M,
+): RoadPoint | null {
   const hit = nearestOnRoads(roads.roads, from.x, from.z);
-  if (!hit || hit.distance > ATTACH_M) return null;
+  if (!hit || hit.distance > reach) return null;
   const road = roads.roads[hit.road]!;
   const first = road.points[0]!;
   const last = road.points[road.points.length - 1]!;
@@ -2198,8 +2212,8 @@ export function addTrailRoads(
       formRoad(
         roads,
         run.slice(k, last + 1),
-        k > 0,
-        last < run.length - 1,
+        k > 0 ? ATTACH_M : false,
+        last < run.length - 1 ? ATTACH_M : false,
         day,
         NO_TRAFFIC,
         context,

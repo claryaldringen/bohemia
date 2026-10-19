@@ -1453,7 +1453,11 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   hřbitova a ohrady, okrsek svatyně a stavby taky – roads.md, Cesta je cesta); ohrady (`pens` –
   plot jako hřbitov, krmení jako cíl) a stáda na pastvě (`livestock` → `pastureHerds`, cesta na
   stádo denně na úhor; ze stavu `pastureLivestock` jako `SceneVillage.livestock`); cena buňky pole
-  podle nejbližšího dílu přes přihrádky políček (`nearest.ts` – bit po bitu jako průchod všemi díly, zlatý otisk sítě v `paths-nearest.test.ts`);
+  podle nejbližšího dílu přes přihrádky políček (`nearest.ts` – bit po bitu jako průchod všemi
+  díly, zlatý otisk sítě v `paths-nearest.test.ts`) – **pole lidi nezdržuje** (Martin, 19. 10.
+  2026: „Ať lidé chodí vždy nejkratší možnou cestou a oseté pole ať neřeší.“ – `STAGE_COST`:
+  osetý, zoraný a zakládaný díl jako úhor 1,1, louka 1,25, křoviny a mladý les dražší; vozy přes
+  osetý díl dál ne);
   síla `pathStrength` (odmocnina provozu), stáří obydlí →
   `pathAgeFactor`; vyhlazené čáry se sílou a stářím v bodech, provoz po buňkách `traffic.raw`;
   `annual: true` = roční provoz; provoz ke stavbám `visits` – opuštěné stavby, abandonment.md;
@@ -1513,7 +1517,8 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   `finishConstructions`, starší vsi při načtení `withMergedRoads` v `updateVillage`; id a den
   vzniku staršího, roads.md – Úseky a rozcestí; dva úseky mezi stejnými uzly do okruhu ne,
   nejrovnější pokračování první) → **souběžné cesty** se nevytvoří (`alongsideRoad` ve
-  `formRoads` – do 12 m stejným směrem) a existující se sloučí (`mergeParallelRoads` – kus
+  `formRoads` – do 12 m stejným směrem; konec nové cesty za souběžným kusem se k té cestě připojí
+  do 14 m – `joinPoint` s dosahem) a existující se sloučí (`mergeParallelRoads` – kus
   slabší cesty souběžný aspoň 25 m se vyřízne, `removeBraids` – copánek mezi stejnými uzly do
   25 m: zmizí oklika; vše v `tidyRoads`, příznak `parallelsChecked`) → **díry** (volný konec do 12 m od jiného
   úseku, který není u konce trasy roční sítě – brány, cíle) se napojí (`joinRoadGaps`, starší

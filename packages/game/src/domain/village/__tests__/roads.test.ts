@@ -270,6 +270,41 @@ describe('pevné cesty – roční kontrola (updateRoads)', () => {
     expect(s.roads!.trees).toContainEqual(tree);
   });
 
+  it('nová cesta, která kus vedla souběžně s jinou, se k ní připojí – díra nevznikne', () => {
+    // upravená cesta kus vedle trasy k vodě (trasa jde ≈ 4 m vedle ní): kus trasy podél ní cestou
+    // nebude (souběžná), za jejím koncem vznikne nová – její první bod je od konce staré ≈ 14 m
+    // (dřív díra; Vlkov 766 – cesta ke hřbitovu)
+    const s = village();
+    updateRoads(s, Y1, LANDSCAPE, null);
+    const side: Road = {
+      id: 500,
+      points: [
+        { x: 11.5, z: 12 },
+        { x: 11.5, z: 40 },
+      ],
+      bornDay: Y1 - 20 * 365,
+      grade: 'improved',
+      traffic: [5],
+      spots: [],
+    };
+    s.roads!.roads.push(side);
+    updateRoads(s, NOV1(601), LANDSCAPE, null);
+    updateRoads(s, NOV1(602), LANDSCAPE, null);
+    const north = s.roads!.roads.filter(
+      (r) => r.id !== 500 && r.points.some((p) => p.z > 60) && r.points.some((p) => p.z < 50),
+    );
+    expect(north.length).toBeGreaterThan(0);
+    // nová cesta k vodě končí v bodě, kde končí i jiný úsek (připojení), ne volně
+    const ends = s.roads!.roads.flatMap((r) => [r.points[0]!, r.points[r.points.length - 1]!]);
+    const south = north.map((r) =>
+      r.points[0]!.z < r.points[r.points.length - 1]!.z ? r.points[0]! : r.points.at(-1)!,
+    );
+    for (const end of south) {
+      const shared = ends.filter((q) => q.x === end.x && q.z === end.z).length;
+      expect(shared, `${end.x},${end.z}`).toBeGreaterThan(1);
+    }
+  }, 60_000);
+
   describe('zarůstá jen nepoužívaný kus (Martin, 19. 10. 2026)', () => {
     /** Cesta od vsi k potoku (k vodě se chodí silně) a dál podél břehu na východ (nikdo). */
     const toBank = (): Road => ({
