@@ -635,7 +635,8 @@ function fieldPartDetails(
     look: shown.look ?? null,
     stage: shown.stage,
     legume: shown.crop === 'legume',
-    ploughed: shown.ploughed === true,
+    // ves se spřežením orá všechno (oxen.md) – pole nese příznak `ard`
+    ploughed: scene.fields.find((f) => f.id === target.id)?.ard === true,
     areaM2: part.areaM2 ?? shown.size * shown.size,
     fertility: part.fertility,
     naturalFertility: part.naturalFertility ?? part.fertility,

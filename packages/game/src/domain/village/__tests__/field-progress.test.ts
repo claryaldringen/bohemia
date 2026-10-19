@@ -272,17 +272,16 @@ describe('letošní práce na dílu (panel dílu – fields.md, Co hráč vidí)
     }
   });
 
-  it('orba rádlem: příprava je orba, díl vrácený motyce se kope; po sklizni vše hotové', () => {
+  it('orba rádlem: příprava je orba, díl mimo orbu (starší plán) se kope; po sklizni vše hotové', () => {
     const s = advanceVillage(village(), at(601, 9, 20), null);
     const winter = s.plan!.winter!;
     const [first, second] = winter.partIds;
     winter.plough = {
-      partIds: [first!, second!],
+      partIds: [first!],
       required: 10,
       done: 0,
       weight: 1,
-      digWeight: 0,
-      returned: [second!],
+      digWeight: 1,
     };
     const work = partYearWork(s, s.lastDay);
     expect(work.get(first!)!.crop!.prep).toEqual({ task: 'plough', share: 0 });

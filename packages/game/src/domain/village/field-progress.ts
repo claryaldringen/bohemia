@@ -441,15 +441,14 @@ export function partYearWork(state: VillageState, day: number): Map<number, Part
       const t = spans.get(task)!;
       return shareOn(t.byId.get(id), t.at);
     };
-    const returned = new Set(work.plough?.returned ?? []);
     const harvested = work.harvestedKg !== null;
     for (const id of work.partIds) {
       const part = partsById.get(id);
       if (!part || part.state !== 'sown') continue;
-      // díl vrácený motyce se kope, i když ho spřežení začalo orat (oxen.md)
+      // ves se spřežením orá všechno (oxen.md); díl mimo orbu (plán starší vsi) se kope
       const steps = (['reclaim', 'plough', 'dig'] as const).flatMap((task) => {
         const done = share(task, id);
-        if (done === null || (task === 'plough' && returned.has(id))) return [];
+        if (done === null) return [];
         return [{ task, share: harvested ? 1 : done }];
       });
       const prep = steps.find((s) => s.share < DONE) ?? steps.at(-1) ?? null;
