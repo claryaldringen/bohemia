@@ -8,7 +8,7 @@ import { WOOL } from '../rules';
 import { advanceVillage } from '../simulate';
 import type { HerdSpecies, VillageState } from '../types';
 import { recordWool, woolCoverage, woolNeedKg, woolSheep, woolUnhappiness } from '../wool';
-import { withBuiltFirstDwelling } from './village-fixtures';
+import { withBuiltFirstDwelling, withRoomyPens } from './village-fixtures';
 
 // Oděv – vlna (diet.md – Oděv; Martin 19. 10. 2026: „Ovce jsou hlavně kvůli vlně, aby se lidé
 // mohli vůbec oblékat.“): ovce na vlnu pro všechny jsou spodní hranicí stáda.
@@ -52,13 +52,29 @@ describe('vlna na oděv', () => {
     const s = village();
     expect(s.livestock!.herds.sheep).toBeGreaterThanOrEqual(woolSheep(s, s.lastDay));
     expect(s.hay?.kg).toBeCloseTo(winterHayKg(s.livestock!.herds, 0), 9);
-    // ves založená na podzim přezimuje i s ovcemi na vlnu
-    const autumn = withBuiltFirstDwelling(
-      foundVillage({ seed: 7, day: at(600, 10, 1), dwellingPosition: { x: 0, z: 0, rotation: 0 } }),
+    // ves založená na podzim přezimuje i s ovcemi na vlnu – když má ohradu ovcí (oxen.md – Ohrady
+    // podle druhu)
+    const autumn = withRoomyPens(
+      withBuiltFirstDwelling(
+        foundVillage({
+          seed: 7,
+          day: at(600, 10, 1),
+          dwellingPosition: { x: 0, z: 0, rotation: 0 },
+        }),
+      ),
     );
     const spring = advanceVillage(autumn, at(601, 3, 2), null);
     expect(spring.livestock!.herds.sheep).toBeGreaterThan(woolSheep(spring, spring.lastDay) - 1);
     expect(spring.chronicle.some((e) => e.kind === 'wool-short')).toBe(false);
+    // bez ohrady ovcí si domácnost u domu nechá jen pár ovcí – vlna chybí
+    const bare = withBuiltFirstDwelling(
+      foundVillage({ seed: 7, day: at(600, 10, 1), dwellingPosition: { x: 0, z: 0, rotation: 0 } }),
+    );
+    const bareSpring = advanceVillage(bare, at(601, 3, 2), null);
+    expect(bareSpring.livestock!.herds.sheep).toBeLessThan(
+      woolSheep(bareSpring, bareSpring.lastDay),
+    );
+    expect(bareSpring.chronicle.some((e) => e.kind === 'wool-short')).toBe(true);
   });
 
   it('maso navíc z mláďat nejde z ovcí na vlnu', () => {
@@ -140,7 +156,8 @@ describe('vlna na oděv', () => {
   });
 
   it('starší ves beze změny až do porážky 1. 11.; pak ovce na vlnu nechá', () => {
-    const s = village(at(600, 9, 2));
+    // ohrada ovcí – ovce na vlnu se do ní vejdou (oxen.md – Ohrady podle druhu)
+    const s = withRoomyPens(village(at(600, 9, 2)));
     s.livestock!.herds = herds({ sheep: 3, goat: 1, pig: 2, cow: 1 });
     s.livestock!.land = { meadowHa: 1000, forestHa: 1000 };
     s.hay = { kg: 100_000, mowing: null };

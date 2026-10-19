@@ -16,6 +16,7 @@ import { advanceVillage } from '../simulate';
 import type { FieldPart, VillageState } from '../types';
 import { PLOUGH_SOD_FACTOR } from '../plough';
 import { partWeight, planPartIds } from '../year-plan';
+import { withRoomyPens } from './village-fixtures';
 
 // Postup práce po čtvercích (fields.md; Martin, 18. 10. 2026): kopání, setí a sklizeň mění díl, až
 // k němu práce dojde – díly plodiny v pořadí plánu (nejblíž obydlím první), čelo práce je díl,
@@ -37,6 +38,11 @@ const village = (): VillageState =>
     dwellingPosition: { x: 0, z: 0, rotation: 0 },
     firstField: { parts: field(75) },
   });
+/**
+ * Ves s ohradami všech druhů – stáda (a práce u nich) jako před ohradami podle druhu, žeň ozimu
+ * 10. 7. 602 tak běží (oxen.md – Ohrady podle druhu).
+ */
+const penned = (): VillageState => withRoomyPens(village());
 const byId = (s: VillageState): Map<number, FieldPart> => new Map(s.parts.map((p) => [p.id, p]));
 /** Vzhled dílů plodiny v pořadí postupu (u rozpracovaného dílu hotová část). */
 const statesInOrder = (s: VillageState, partIds: number[]): FieldPartLook[] => {
@@ -116,7 +122,7 @@ describe('postup po čtvercích', () => {
   });
 
   it('sklizeň ozimu v červenci: sklizené díly s panáky, nesklizené zůstanou zralé', () => {
-    const s = advanceVillage(village(), at(602, 7, 10), null);
+    const s = advanceVillage(penned(), at(602, 7, 10), null);
     const states = statesInOrder(s, s.plan!.winter!.partIds);
     expect(states).toContain('harvesting');
     expect(states).toContain('ripe');
@@ -297,7 +303,7 @@ describe('letošní práce na dílu (panel dílu – fields.md, Co hráč vidí)
   });
 
   it('sklizeň ozimu v červenci po dílech: sklizené díly 1, nezačaté 0', () => {
-    const s = advanceVillage(village(), at(602, 7, 10), null);
+    const s = advanceVillage(penned(), at(602, 7, 10), null);
     const looks = fieldPartLooks(s, s.lastDay);
     const work = partYearWork(s, s.lastDay);
     const harvests = s.plan!.winter!.partIds.map((id) => work.get(id)!.crop!.harvest);
