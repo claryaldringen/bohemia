@@ -59,6 +59,17 @@
         "dae": "meshes/props/shuttle_wood.dae",
         "point": "prop-weapon_R",
         "texture": "textures/skins/props/wood_e.png"
+      },
+      {
+        "name": "yoke",
+        "procedural": "yoke",
+        "point": "prop-back",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58],
+          "band": [0.75, 0.78, 0.95, 0.85],
+          "rope": [0.06, 0.72, 0.14, 0.84]
+        }
       }
     ],
     "clips": [
@@ -116,6 +127,29 @@
         "name": "fruit",
         "animation": "animation/biped/gatherer/gather_fruit_f.dae",
         "props": ["head", "basket"]
+      },
+      {
+        "name": "carry-water",
+        "animation": "animation/biped/citizen/walk_relax_f.dae",
+        "props": ["head", "yoke"],
+        "pose": {
+          "reach": {
+            "L": [0.47, 0.04, 0.98],
+            "R": [-0.47, 0.04, 0.98]
+          }
+        },
+        "report": ["hand_L", "hand_R"]
+      },
+      {
+        "name": "water-idle",
+        "animation": "animation/biped/citizen/idle_relax_f.dae",
+        "props": ["head", "yoke"],
+        "pose": {
+          "reach": {
+            "L": [0.47, 0.04, 0.98],
+            "R": [-0.47, 0.04, 0.98]
+          }
+        }
       }
     ]
   },
@@ -179,6 +213,17 @@
         "dae": "meshes/props/shuttle_wood.dae",
         "point": "prop-weapon_R",
         "texture": "textures/skins/props/wood_e.png"
+      },
+      {
+        "name": "yoke",
+        "procedural": "yoke",
+        "point": "prop-back",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58],
+          "band": [0.75, 0.78, 0.95, 0.85],
+          "rope": [0.06, 0.72, 0.14, 0.84]
+        }
       }
     ],
     "clips": [
@@ -236,6 +281,29 @@
         "name": "fruit",
         "animation": "animation/biped/gatherer/gather_fruit_m.dae",
         "props": ["head", "basket"]
+      },
+      {
+        "name": "carry-water",
+        "animation": "animation/biped/citizen/walk_relax_m.dae",
+        "props": ["head", "yoke"],
+        "pose": {
+          "reach": {
+            "L": [0.47, 0.04, 0.98],
+            "R": [-0.47, 0.04, 0.98]
+          }
+        },
+        "report": ["hand_L", "hand_R"]
+      },
+      {
+        "name": "water-idle",
+        "animation": "animation/biped/citizen/idle_relax_m_a.dae",
+        "props": ["head", "yoke"],
+        "pose": {
+          "reach": {
+            "L": [0.47, 0.04, 0.98],
+            "R": [-0.47, 0.04, 0.98]
+          }
+        }
       }
     ]
   }

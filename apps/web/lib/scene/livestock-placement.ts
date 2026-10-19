@@ -1041,3 +1041,40 @@ export function livestockGround(
     walkable: (x, z) => at(x, z, WALKABLE),
   };
 }
+
+/**
+ * Schůdná země přes celou krajinu (lidé ve vsi – villagers.md): stejné meze jako `walkable`
+ * rastru zvířat (WALK_LIMITS), ale po buňkách GROUND_CELL_M počítaných až při prvním dotazu
+ * a zapamatovaných – lidé pracují i na polích daleko za rastrem kolem vsi (pole do 800 m od
+ * obydlí) a chodí pro vodu, dotazů je ale jen pár tisíc.
+ */
+export function lazyWalkable(
+  l: Landscape,
+  env: { stream: StreamCenterline; relief: Relief },
+): (x: number, z: number) => boolean {
+  const extent = (l.size * l.cellSizeM) / 2;
+  const half = extent - EDGE_MARGIN_M;
+  const n = Math.ceil((extent * 2) / GROUND_CELL_M);
+  // 0 = ještě nepočítáno, 1 = neschůdné, 2 = schůdné
+  const cells = new Uint8Array(n * n);
+  return (x, z) => {
+    if (Math.abs(x) > half || Math.abs(z) > half) return false;
+    const i = Math.floor((x + extent) / GROUND_CELL_M);
+    const j = Math.floor((z + extent) / GROUND_CELL_M);
+    if (i < 0 || j < 0 || i >= n || j >= n) return false;
+    const k = j * n + i;
+    const known = cells[k]!;
+    if (known !== 0) return known === 2;
+    const cx = -extent + (i + 0.5) * GROUND_CELL_M;
+    const cz = -extent + (j + 0.5) * GROUND_CELL_M;
+    const tile = tileAt(l, cx, cz);
+    const ok =
+      tile !== null &&
+      l.surface[tile.y * l.size + tile.x] !== SURFACE_CODES.water &&
+      env.stream.nearest(cx, cz).bankDistance > WALK_LIMITS.bankM &&
+      env.relief.slopeAt(cx, cz) < WALK_LIMITS.slope &&
+      env.relief.rockinessAt(cx, cz) < WALK_LIMITS.rock;
+    cells[k] = ok ? 2 : 1;
+    return ok;
+  };
+}

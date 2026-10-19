@@ -40,6 +40,7 @@ import {
   grazingDay,
   herdCounts,
   herderCount,
+  lazyWalkable,
   livestockGround,
   planLivestock,
   type Herd,
@@ -105,6 +106,8 @@ interface Group {
  */
 export class VillageLivestock {
   private ground: { grid: LivestockGround; x: number; z: number } | null = null;
+  /** Schůdná země přes celou krajinu pro postavy (`lazyWalkable`) – buňky se pamatují. */
+  private walk: ((x: number, z: number) => boolean) | null = null;
   private village: LivestockVillage | null = null;
   private key = '';
   private groups: Group[] = [];
@@ -180,8 +183,18 @@ export class VillageLivestock {
   }
 
   /**
-   * Terén kolem vsi (rastr schůdné země, luk a okraje lesa) – sdílí ho postavy, aby se drahé
-   * dotazy na potok a les nepočítaly dvakrát. Bez obydlí null.
+   * Schůdná země pro postavy přes celou krajinu (pole až 800 m od obydlí, voda daleko) – buňky
+   * se počítají při prvním dotazu a pamatují (`lazyWalkable`). Bez obydlí null.
+   */
+  walkGroundFor(village: LivestockVillage): { walkable(x: number, z: number): boolean } | null {
+    if (village.dwellings.length === 0) return null;
+    this.walk ??= lazyWalkable(this.env.landscape, this.env);
+    const walk = this.walk;
+    return { walkable: walk };
+  }
+
+  /**
+   * Terén kolem vsi (rastr schůdné země, luk a okraje lesa pro zvířata). Bez obydlí null.
    */
   groundFor(village: LivestockVillage): LivestockGround | null {
     const built = village.dwellings.filter((d) => d.built);

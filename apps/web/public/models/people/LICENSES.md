@@ -9,8 +9,8 @@ licence
 hlava a nástroje (motyka, sekera, palička, nůše, otep dřeva) pevně přivázané ke kostem, měřítko
 na výšku postavy. Textury jsou složené do jednoho atlasu (JPEG, zmenšené), kostkovaný vzor
 keltských šatů a tuniky je nahrazený jednolitou nebarvenou látkou, barva vlasů je pevná; vedle
-atlasu je maska látky a vlasů (PNG, odvozená z ploch barvy hráče). Srp v ruce je nový jednoduchý
-model (skript) s texturou z `prop_weap.dds`. Upravené soubory jsou šířeny pod stejnou licencí
+atlasu je maska látky a vlasů (PNG, odvozená z ploch barvy hráče). Srp v ruce a vahadlo s vědry
+(nošení vody) jsou nové jednoduché modely (skript) s texturou z `prop_weap.dds`. Upravené soubory jsou šířeny pod stejnou licencí
 CC BY-SA 3.0. Licence se týká jen těchto souborů, ne zbytku hry Bohemia.
 
 Původní soubory jsou z `art/meshes/`, `art/animation/biped/` a `art/textures/skins/`:

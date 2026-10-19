@@ -20,6 +20,8 @@ import {
   planCrops,
   villageCartRoutes,
   villageCarts,
+  householdWater,
+  waterCartPlan,
   CARTS,
   CART_JOBS,
   ORCHARD_WINDOWS,
@@ -1130,8 +1132,8 @@ export interface SceneCart {
 }
 
 /**
- * Náklad vozu na cestě zpátky (u výpravy tam i zpět, osivo tam); voda v sudech zatím jen v datech
- * (model sudů později – scéna kreslí prázdný vůz).
+ * Náklad vozu na cestě zpátky (u výpravy tam i zpět, osivo tam); voda v sudech – sudy jsou na voze
+ * tam i zpět (wagons.md – Co vozy vozí).
  */
 export type CartLoad = 'sheaves' | 'hay' | 'logs' | 'goods' | 'water';
 
@@ -1467,6 +1469,20 @@ export interface SceneLabor {
    * (dřívější rozdělení práce) pasou děti.
    */
   herders?: { children: number; elders?: number };
+  /**
+   * Obydlené domácnosti pro provoz na cestách (villagers.md – Provoz na cestách): id obydlí, kolik
+   * v něm bydlí lidí (cest pro vodu – WATER_FETCHING) a jakou část vody mu dnes přivezl vůz v sudech
+   * (0–1 po desetinách – wagons.md, Co vozy vozí; bez údaje nic). Bez údaje (dřívější pohled) se
+   * lidé rozdělí na obydlí rovným dílem.
+   */
+  homes?: SceneLaborHome[];
+}
+
+/** Domácnost v provozu na cestách (`SceneLabor.homes`). */
+export interface SceneLaborHome {
+  id: number;
+  people: number;
+  cartWater?: number;
 }
 
 export const CHRONICLE_LENGTH = 8;
@@ -2841,13 +2857,64 @@ function sceneLabor(state: VillageState, people: SceneLabor['people']): SceneLab
     }
     return [{ ...share, manDays }];
   });
+  const homes = sceneLaborHomes(state, labor.shares);
   return {
     day: labor.day,
     month: dateOfDayIndex(labor.day).month,
     people,
     shares,
     ...(labor.herders ? { herders: { ...labor.herders } } : {}),
+    ...(homes.length > 0 ? { homes } : {}),
   };
+}
+
+/**
+ * Obydlené domácnosti pro provoz na cestách (villagers.md – Provoz na cestách): lidé po obydlích
+ * a kolik vody jim dnes přivezl vůz (`waterCartShares`).
+ */
+function sceneLaborHomes(state: VillageState, shares: readonly LaborShare[]): SceneLaborHome[] {
+  const people = new Map<number, number>();
+  for (const p of state.people) people.set(p.dwellingId, (people.get(p.dwellingId) ?? 0) + 1);
+  const cart = waterCartShares(state, shares);
+  return state.dwellings
+    .filter((d) => (people.get(d.id) ?? 0) > 0)
+    .map((d) => {
+      const water = cart.get(d.id);
+      return { id: d.id, people: people.get(d.id)!, ...(water ? { cartWater: water } : {}) };
+    });
+}
+
+/**
+ * Kolik vody (0–1 po desetinách) dnes přivezl vůz v sudech kterým domácnostem (wagons.md – Co vozy
+ * vozí): týž plán jako simulace (`waterCartPlan` – domácnostem nejdál od vody první) s vozy podílu
+ * `haul` s vodou a uloženou jízdou k břehu; domácnosti dílen, které dnes pracují, nosí vodu samy.
+ * Jen vzhled – podle toho chodí ve scéně pro vodu pěšky méně lidí.
+ */
+function waterCartShares(state: VillageState, shares: readonly LaborShare[]): Map<number, number> {
+  const out = new Map<number, number>();
+  const share = shares.find((s) => s.activity === 'haul' && s.job === 'water');
+  const drive = state.waterCart?.drive;
+  if (!share || !drive) return out;
+  const working = new Set<number>();
+  for (const s of shares) {
+    if (s.activity !== 'craft') continue;
+    if (s.target.kind === 'dwelling' || s.target.kind === 'kiln') working.add(s.target.id);
+  }
+  const villagers =
+    working.size > 0 ? state.people.filter((p) => !working.has(p.dwellingId)) : state.people;
+  const households = householdWater(villagers, state.dwellings);
+  const plan = waterCartPlan(households, share.carts ?? 1, drive);
+  if (!plan || plan.litres <= 0) return out;
+  const perLitre = plan.crew / plan.litres;
+  households.forEach((h, k) => {
+    // přivezený podíl z přirážky, která domácnosti zbyla (waterCartPlan: přirážka × (1 − podíl)
+    // + posádka za přivezené litry)
+    const rest = h.labor - perLitre * h.people * CART_JOBS.water.litresPerPerson;
+    if (rest <= 1e-9) return;
+    const served = Math.round(((h.labor - (plan.water[k] ?? h.labor)) / rest) * 10) / 10;
+    if (served > 0) out.set(h.dwellingId, Math.min(1, served));
+  });
+  return out;
 }
 
 const DAYS_PER_TREE_YEAR = 365.25;

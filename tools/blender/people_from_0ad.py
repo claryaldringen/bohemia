@@ -4,7 +4,7 @@ blender -b --factory-startup --python tools/blender/people_from_0ad.py -- \
     tools/blender/people.json <0ad>/binaries/data/mods/public/art apps/web/public/models/people
 
 people.json: [{"name", "height_m" | "length_m", "body": {"dae", "texture", "tint", "pattern"?,
-"flatten"?, "multiply"?, "coat"?}, "props": [{"name", "dae" | "procedural", "point", "texture",
+"flatten"?, "multiply"?, "coat"?}, "props": [{"name", "dae" | "procedural" (sickle | yoke), "point", "texture",
 "tint"?, "uv"?}], "clips": [{"name", "animation", "props": [jména propů viditelných v klipu],
 "pose"?, "report"?}]}]
 
@@ -253,6 +253,109 @@ def procedural_sickle(uv_blade, uv_handle):
             quad(prev[1], outer, inner, prev[0], (0, 1, 0), uv_blade)
         prev = (inner, outer)
     return {"matrix": Matrix.Identity(4), "positions": positions, "normals": normals, "uvs": uvs, "tris": tris}
+
+
+def procedural_yoke(uv_wood, uv_band, uv_rope):
+    """Vahadlo se dvěma vědry (provaz pro vodu – docs/design/villagers.md, Provoz na cestách;
+    0 A.D. ho nemá): prohnutá tyč přes ramena za krkem, z konců provazy a na nich dřevěná vědra
+    s obručí a uchem. Souřadnice bodu prop-back (jednotky 0 A.D., postava ≈ 3,9; x napříč, y
+    dozadu, z nahoru – bod leží za lopatkami ve výšce ≈ 3,08), ruce drží provazy nad vědry
+    (klip carry-water – „reach“ v people.json)."""
+    positions, normals, uvs, tris = [], [], [], []
+
+    def tri_quad(a, b, c, d, na, nb, nc, nd, uv_rect, u0=0.0, u1=1.0, v0=0.0, v1=1.0):
+        base = len(positions)
+        positions.extend([Vector(a), Vector(b), Vector(c), Vector(d)])
+        normals.extend([Vector(na), Vector(nb), Vector(nc), Vector(nd)])
+        x0, y0, x1, y1 = uv_rect
+        lerp = lambda t, lo, hi: lo + (hi - lo) * t  # noqa: E731
+        uvs.extend(
+            [
+                [lerp(u0, x0, x1), lerp(v0, y0, y1)],
+                [lerp(u1, x0, x1), lerp(v0, y0, y1)],
+                [lerp(u1, x0, x1), lerp(v1, y0, y1)],
+                [lerp(u0, x0, x1), lerp(v1, y0, y1)],
+            ]
+        )
+        i = len(normals) - 4
+        tris.append(((base, i, base), (base + 1, i + 1, base + 1), (base + 2, i + 2, base + 2)))
+        tris.append(((base, i, base), (base + 2, i + 2, base + 2), (base + 3, i + 3, base + 3)))
+
+    def tube(path, radius, sides, uv_rect):
+        """Trubka po lomené čáře (kolmý řez – osa z, jinak x) bez čel."""
+        path = [Vector(q) for q in path]
+        for k in range(len(path) - 1):
+            a, b = path[k], path[k + 1]
+            t = (b - a).normalized()
+            ref = Vector((0, 0, 1)) if abs(t.z) < 0.9 else Vector((1, 0, 0))
+            n1 = t.cross(ref).normalized()
+            n2 = t.cross(n1).normalized()
+            for j in range(sides):
+                a0 = 2 * math.pi * j / sides
+                a1 = 2 * math.pi * (j + 1) / sides
+                d0 = n1 * math.cos(a0) + n2 * math.sin(a0)
+                d1 = n1 * math.cos(a1) + n2 * math.sin(a1)
+                tri_quad(a + d0 * radius, a + d1 * radius, b + d1 * radius, b + d0 * radius, d0, d1, d1, d0, uv_rect, j / sides, (j + 1) / sides, k / len(path), (k + 1) / len(path))
+
+    def bucket(cx, cy, top, bottom, r_top, r_bottom, sides=8):
+        """Vědro – komolý kužel z dužin, dno a obruč pod okrajem (zvenku i zevnitř)."""
+        h = top - bottom
+        slope = (r_top - r_bottom) / h
+        for j in range(sides):
+            a0 = 2 * math.pi * j / sides
+            a1 = 2 * math.pi * (j + 1) / sides
+            c0, s0, c1, s1 = math.cos(a0), math.sin(a0), math.cos(a1), math.sin(a1)
+            n0 = Vector((c0, s0, -slope)).normalized()
+            n1 = Vector((c1, s1, -slope)).normalized()
+            lo0 = (cx + c0 * r_bottom, cy + s0 * r_bottom, bottom)
+            lo1 = (cx + c1 * r_bottom, cy + s1 * r_bottom, bottom)
+            hi0 = (cx + c0 * r_top, cy + s0 * r_top, top)
+            hi1 = (cx + c1 * r_top, cy + s1 * r_top, top)
+            tri_quad(lo0, lo1, hi1, hi0, n0, n1, n1, n0, uv_wood, j / sides, (j + 1) / sides, 0.0, 1.0)
+            # vnitřek (voda ani dno uvnitř nejsou vidět – tmavší dřevo stačí)
+            tri_quad(hi0, hi1, lo1, lo0, -n0, -n1, -n1, -n0, uv_wood, j / sides, (j + 1) / sides, 0.0, 0.3)
+            # dno
+            base = len(positions)
+            positions.extend([Vector((cx, cy, bottom)), Vector(lo1), Vector(lo0)])
+            normals.extend([Vector((0, 0, -1))] * 3)
+            x0, y0, x1, y1 = uv_wood
+            uvs.extend([[(x0 + x1) / 2, (y0 + y1) / 2], [x0, y0], [x1, y0]])
+            i = len(normals) - 3
+            tris.append(((base, i, base), (base + 1, i + 1, base + 1), (base + 2, i + 2, base + 2)))
+            # obruč kousek pod okrajem
+            band_hi, band_lo = top - h * 0.12, top - h * 0.24
+            rb_hi = r_bottom + (band_hi - bottom) * slope + 0.025
+            rb_lo = r_bottom + (band_lo - bottom) * slope + 0.025
+            tri_quad(
+                (cx + c0 * rb_lo, cy + s0 * rb_lo, band_lo),
+                (cx + c1 * rb_lo, cy + s1 * rb_lo, band_lo),
+                (cx + c1 * rb_hi, cy + s1 * rb_hi, band_hi),
+                (cx + c0 * rb_hi, cy + s0 * rb_hi, band_hi),
+                n0, n1, n1, n0, uv_band,
+            )
+
+    y = -0.15  # za krkem (bod prop-back je za lopatkami)
+    bar_z, half, drop = 0.30, 1.3, 0.1
+    bar = [(x, y, bar_z - drop * (x / half) ** 2) for x in [half * (k / 3 - 1) for k in range(7)]]
+    tube(bar, 0.055, 6, uv_wood)
+    top, bottom, r_top, r_bottom = -1.2, -1.9, 0.36, 0.3
+    for side in (-1, 1):
+        x = side * (half - 0.08)
+        end_z = bar_z - drop * ((half - 0.08) / half) ** 2
+        bail = top + 0.16
+        # provaz z konce tyče k uchu vědra
+        tube([(x, y, end_z), (x, y, bail)], 0.018, 4, uv_rope)
+        # ucho přes vědro (oblouk napříč)
+        arc = [(x + math.cos(math.pi * k / 4) * (r_top + 0.02), y, top + math.sin(math.pi * k / 4) * 0.16) for k in range(5)]
+        tube(arc, 0.014, 4, uv_rope)
+        bucket(x, y, top, bottom, r_top, r_bottom)
+    return {"matrix": Matrix.Identity(4), "positions": positions, "normals": normals, "uvs": uvs, "tris": tris}
+
+
+PROCEDURAL = {
+    "sickle": lambda r: procedural_sickle(r["blade"], r["handle"]),
+    "yoke": lambda r: procedural_yoke(r["wood"], r["band"], r["rope"]),
+}
 
 
 # --- Atlas -----------------------------------------------------------------------------------
@@ -664,8 +767,7 @@ def convert(spec, art, out_dir):
             geo = body
             matrix = body["bsm"]
         elif "procedural" in part:
-            r = part["uv"]
-            geo = procedural_sickle(r["blade"], r["handle"])
+            geo = PROCEDURAL[part["procedural"]](part["uv"])
             matrix = rest_world[part["joint"]] @ geo["matrix"]
         else:
             geo = load_static(os.path.join(art, part["dae"]))

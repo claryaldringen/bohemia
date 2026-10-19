@@ -19,7 +19,9 @@ export type VillagerClip =
   | 'carry-wood'
   | 'fell'
   | 'build'
-  | 'fruit';
+  | 'fruit'
+  | 'carry-water'
+  | 'water-idle';
 
 /** Všechny klipy – GLB je musí mít (people.json, hlídá test). */
 export const VILLAGER_CLIPS: readonly VillagerClip[] = [
@@ -34,6 +36,9 @@ export const VILLAGER_CLIPS: readonly VillagerClip[] = [
   'fell',
   'build',
   'fruit',
+  // pro vodu s vahadlem a vědry (provoz na cestách – villagers.md): chůze a stání
+  'carry-water',
+  'water-idle',
 ];
 
 /** Čas postav (s) ve skutečný okamžik `nowMs` – stejný počátek jako zvířata. */
@@ -82,8 +87,9 @@ export type PoseFn = (t: number, herds: readonly HerdView[], out: VillagerPose) 
  * (změřeno z GLB jako v prvním náhledu postav). Zmenšená postava jde pomaleji.
  */
 export const CLIP_SPEED_M_S: Record<VillagerKind, Partial<Record<VillagerClip, number>>> = {
-  woman: { walk: 1.25, carry: 1.05, 'carry-wood': 1.05 },
-  man: { walk: 1.0, carry: 1.1, 'carry-wood': 1.0 },
+  // s vahadlem chůze jako `walk` (stejná animace, ruce drží provazy – people.json)
+  woman: { walk: 1.25, carry: 1.05, 'carry-wood': 1.05, 'carry-water': 1.25 },
+  man: { walk: 1.0, carry: 1.1, 'carry-wood': 1.0, 'carry-water': 1.0 },
 };
 
 /** Rychlost chůze postavy v klipu `clip` (m/s) – podle druhu a měřítka. */
@@ -288,6 +294,11 @@ export interface ShuttleOptions {
   restClip: VillagerClip;
   restS: number;
   phase: number;
+  /**
+   * Odpočinek na začátku trasy je doma – postava není vidět (provoz na cestách: zajde do domu
+   * a zase vyjde – villagers.md); bez údaje stojí venku (`restClip`).
+   */
+  restHidden?: boolean;
 }
 
 /**
@@ -317,6 +328,7 @@ export function shuttle(r: Route, o: ShuttleOptions): PoseFn {
     } else {
       alongRoute(r, 0, true, out);
       out.clip = o.restClip;
+      if (o.restHidden) out.hidden = true;
     }
     return out;
   };

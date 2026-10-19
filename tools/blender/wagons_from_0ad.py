@@ -44,12 +44,14 @@ Výstup wagons.glb – díly (uzly), každý s vlastním počátkem, jeden mater
                  scéna ji natáčí od špičky rozvory (HOUNDS_TIP) ke spodku jha
   wagon-wheel    kolo (levé – náboj ven v +X), počátek ve středu náboje, osa X; pravé kolo je
                  totéž otočené o 180° kolem svislice
-  wagon2-hay, wagon2-sheaves, wagon2-logs, wagon2-goods   náklad dvoukoláku (počátek jako korba)
-  wagon4-hay, wagon4-sheaves, wagon4-logs, wagon4-goods   náklad čtyřkoláku (počátek jako korba)
+  wagon2-hay, wagon2-sheaves, wagon2-logs, wagon2-goods, wagon2-water   náklad dvoukoláku
+                 (počátek jako korba)
+  wagon4-hay, wagon4-sheaves, wagon4-logs, wagon4-goods, wagon4-water   náklad čtyřkoláku
     hay      kupa sena přes korbu s pavuzou (žerď přes kupu přivázaná vpředu a vzadu)
     sheaves  snopy napříč v řadách, klasy dovnitř, po vrstvách
     logs     klády podél, v pyramidě, přes ně řetěz z provazu; přečnívají dozadu
     goods    pytle, soudek a balík kožešin (zboží obchodní výpravy)
+    water    stojící sudy na vodu s víkem a čepem, převázané provazem (voda v sudech)
 
 Atlas: výřez textury vozu (wooden_wagon.png celá), seno a sláma (iber_struct.png – výřez slámy,
 seno přebarvené do zelena), kůra a čelo klády (atlas řemesel), pytlovina, kožešina a provaz
@@ -840,6 +842,33 @@ def goods_load(b, front, back, half_w, floor, big=False):
     fur_bundle(b, F(f, top, half_w * 0.8), F(f - 0.12, top, -half_w * 0.8), 0.11)
 
 
+def water_load(b, front, back, half_w, floor, big=False):
+    """Voda v sudech (wagons.md – Co vozy vozí; CART_JOBS.water.barrelL): stojící sudy po ≈ 150 l
+    (vnější ⌀ 0,5–0,58 m, výška 0,72–0,78 m) s víkem a dřevěným čepem, kolem každého provaz ke
+    korbě – dvoukolák dva za sebou (300 l), čtyřkolák čtyři ve dvou řadách (600 l)."""
+    if big:
+        r, h = 0.25, 0.78
+        spots = [(f, side) for f in (front - 0.5, -back + 0.62) for side in (-half_w + r + 0.01, half_w - r - 0.01)]
+    else:
+        r, h = 0.29, 0.72
+        spots = [(front - r - 0.12, 0.0), (-back + r + 0.12, 0.0)]
+    for i, (f, side) in enumerate(spots):
+        keg(b, F(f, floor, side), h, r)
+        # čep ve víku (trochu stranou, u každého sudu jinde)
+        a = 2 * math.pi * seeded(i + 11)
+        bung = F(f + math.cos(a) * r * 0.45, floor + h, side + math.sin(a) * r * 0.45)
+        b.rod([bung, bung + Vector((0, 0, 0.035))], [0.03, 0.026], "plank", sides=7, caps="endgrain")
+        # provaz kolem sudu ve dvou třetinách výšky – dokola a k bočnici
+        z = floor + h * 0.62
+        ring = [F(f + math.cos(2 * math.pi * k / 12) * r * 1.0, z, side + math.sin(2 * math.pi * k / 12) * r * 1.0) for k in range(13)]
+        b.rod(ring, [0.013] * len(ring), "rope", sides=5, caps=None)
+        for sign in (-1, 1):
+            if big and sign * side < 0:
+                continue
+            edge = half_w + 0.02
+            b.rod([F(f, z, sign * r), F(f + 0.04 * sign, z + 0.05, sign * edge)], [0.012, 0.012], "rope", sides=5, caps=None)
+
+
 def cargo(prefix, bed, big):
     front, back = bed["bed_front"], bed["bed_back"]
     hw, floor = bed["half_w"], bed["floor"]
@@ -858,6 +887,9 @@ def cargo(prefix, bed, big):
     out.append(b)
     b = Builder(f"{prefix}-goods")
     goods_load(b, front, back, hw, floor, big)
+    out.append(b)
+    b = Builder(f"{prefix}-water")
+    water_load(b, front, back, hw, floor, big)
     out.append(b)
     return out
 
@@ -920,7 +952,7 @@ def render_preview(objs, bed2, bed4, render_dir):
 
     for o in objs:
         o.hide_render = True
-    loads = [None, "hay", "sheaves", "logs", "goods"]
+    loads = [None, "hay", "sheaves", "logs", "goods", "water"]
     for k, load in enumerate(loads):
         o2 = Vector((k * 3.0, 0, 0))
         place("wagon2-body", o2)
@@ -952,6 +984,7 @@ def render_preview(objs, bed2, bed4, render_dir):
         ("wagon2-close.png", Vector((5.3, -4.6, 3.0)), Vector((3.0, -0.3, 0.8)), 35),
         ("wagon4-close.png", Vector((12.5, 2.0, 3.6)), Vector((9.0, 6.8, 0.8)), 32),
         ("wagons-top.png", Vector((6.0, 3.5, 22.0)), Vector((6.0, 3.5, 0.0)), 30),
+        ("water-close.png", Vector((19.5, -4.0, 3.4)), Vector((15.0, 3.0, 0.8)), 28),
     ):
         cam.location = loc
         cam.rotation_euler = (target - loc).to_track_quat("-Z", "Y").to_euler()

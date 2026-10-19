@@ -685,25 +685,31 @@ describe('pěšiny – postavy chodí po vyšlapaných pěšinách (paths.md)', 
     expect(route.points.length).toBe(2);
   });
 
-  it('ženy pro vodu a dřevo dojdou na konec pěšiny domácnosti', () => {
+  it('lidé pro vodu a dřevo dojdou na konec pěšiny domácnosti (provoz na cestách)', () => {
     const shares: LaborShare[] = [
       { activity: 'domestic', target: { kind: 'village' }, manDays: 12 },
     ];
     const people = planVillagers(village(shares), GROUND, { seed: 7, herds: 0, paths });
     const without = planVillagers(village(shares), GROUND, { seed: 7, herds: 0 });
-    const far = (list: PlannedVillager[]): number =>
+    const far = (list: PlannedVillager[], prefix: string): number =>
       Math.max(
+        0,
         ...list
-          .filter((p) => p.key.startsWith('domestic:'))
+          .filter((p) => p.key.startsWith(prefix))
           .flatMap((p) =>
-            [0, 10, 20, 30, 40, 60, 80, 100].map((t) => {
-              const pose = at(p, t);
-              return Math.hypot(pose.x, pose.z);
+            Array.from({ length: 120 }, (_, k) => {
+              const pose = at(p, k * 2);
+              return pose.hidden ? 0 : Math.hypot(pose.x, pose.z);
             }),
           ),
       );
-    expect(far(people)).toBeGreaterThan(35);
-    expect(far(without)).toBeLessThan(35);
+    expect(far(people, 'traffic:water:')).toBeGreaterThan(55);
+    // pro dřevo se chodí hlavně v zimě (síť pěšin – léto 0,5, zima 1,2 cesty na domácnost)
+    const winter = planVillagers(village(shares, 12), GROUND, { seed: 7, herds: 0, paths });
+    expect(far(winter, 'traffic:wood:')).toBeGreaterThan(40);
+    // bez pěšin nikdo pro vodu nechodí a domácí práce zůstane u domů
+    expect(without.some((p) => p.key.startsWith('traffic:'))).toBe(false);
+    expect(far(people, 'domestic:')).toBeLessThan(40);
   });
 
   it('pro vodu jdou i daleko – mimo rastr schůdné země, pro dřevo ne (paths.md – Pochůzky pro vodu)', () => {
@@ -729,12 +735,13 @@ describe('pěšiny – postavy chodí po vyšlapaných pěšinách (paths.md)', 
         paths: distant(kind),
       });
       return Math.max(
+        0,
         ...people
-          .filter((p) => p.key.startsWith('domestic:'))
+          .filter((p) => p.key.startsWith('traffic:'))
           .flatMap((p) =>
-            Array.from({ length: 200 }, (_, k) => {
+            Array.from({ length: 300 }, (_, k) => {
               const pose = at(p, k * 5);
-              return Math.hypot(pose.x, pose.z);
+              return pose.hidden ? 0 : Math.hypot(pose.x, pose.z);
             }),
           ),
       );
@@ -1219,5 +1226,128 @@ describe('pasáci u stád (diet.md – Pasáci)', () => {
     expect(herderKinds(labor, 2)).toEqual(['child', 'child']);
     // rozdělení práce z doby před pasáky – děti jako dřív
     expect(herderKinds({ people, shares: [] }, 3)).toEqual(['child', 'child', 'child']);
+  });
+});
+
+describe('provoz na cestách – pro vodu, k lesu a na pole (villagers.md)', () => {
+  /** Voda 450 m od vsi (za rastrem schůdné země); pěšina od domu stranou kolem vsi a k jihu. */
+  const far: VillagerPaths = {
+    route: (a, b) => ({
+      points: [
+        [a.x, a.z],
+        [a.x + 25, a.z + 10],
+        [40, -40],
+        [b.x, b.z],
+      ],
+      pace: [1, 1.3, 1.3, 1],
+    }),
+    errand: (_id, kind) => (kind === 'water' ? { x: 0, z: -450 } : null),
+  };
+  const DOMESTIC: LaborShare[] = [
+    { activity: 'domestic', target: { kind: 'village' }, manDays: 3 },
+  ];
+  /** Ves s lidmi po obydlích (`homes`) a s vozem s vodou (`cartWater`). */
+  const peopled = (people: number, cartWater?: number, shares = DOMESTIC): SceneVillage => {
+    const v = village(shares);
+    return {
+      ...v,
+      labor: {
+        ...v.labor!,
+        homes: [1, 2, 3].map((id) => ({
+          id,
+          people,
+          ...(cartWater === undefined ? {} : { cartWater }),
+        })),
+      },
+    };
+  };
+  const traffic = (list: PlannedVillager[], prefix = 'traffic:water:'): PlannedVillager[] =>
+    list.filter((p) => p.key.startsWith(prefix));
+  const plan = (v: SceneVillage, maxTraffic?: number): PlannedVillager[] =>
+    planVillagers(v, GROUND, {
+      seed: 7,
+      herds: 0,
+      paths: far,
+      ...(maxTraffic === undefined ? {} : { maxTraffic }),
+    });
+
+  it('pro vodu chodí úměrně lidem v domácnostech (cesty pro vodu v simulaci)', () => {
+    const few = traffic(plan(peopled(4))).length;
+    const many = traffic(plan(peopled(12))).length;
+    expect(few).toBeGreaterThanOrEqual(1);
+    expect(many).toBeGreaterThanOrEqual(few * 2.5);
+    expect(many).toBeLessThanOrEqual(few * 3.5);
+  });
+
+  it('ve dny, kdy vodu veze vůz v sudech, pěšky nikdo – s polovinou vody polovina', () => {
+    const all = traffic(plan(peopled(12))).length;
+    expect(traffic(plan(peopled(12, 1)))).toEqual([]);
+    const half = traffic(plan(peopled(12, 0.5))).length;
+    expect(half).toBeGreaterThanOrEqual(Math.floor(all / 2) - 1);
+    expect(half).toBeLessThanOrEqual(Math.ceil(all / 2) + 1);
+  });
+
+  it('strop postav na cestách', () => {
+    expect(traffic(plan(peopled(30), 3), 'traffic:').length).toBeLessThanOrEqual(3);
+    expect(traffic(plan(peopled(30)), 'traffic:').length).toBeGreaterThan(3);
+  });
+
+  it('stejný okamžik = stejná póza, v čase jdou po cestě', () => {
+    const a = traffic(plan(peopled(12)));
+    const b = traffic(plan(peopled(12)));
+    expect(a.map((p) => p.key)).toEqual(b.map((p) => p.key));
+    a.forEach((p, i) => {
+      for (const t of [0, 123.4, 5000]) expect(at(p, t)).toEqual(at(b[i]!, t));
+    });
+    const moved = a.some((p) => {
+      const p0 = at(p, 100);
+      const p1 = at(p, 120);
+      return Math.hypot(p1.x - p0.x, p1.z - p0.z) > 5;
+    });
+    expect(moved).toBe(true);
+  });
+
+  it('s vahadlem a vědry tam i zpět, u vody stojí, doma na chvíli zmizí', () => {
+    const [p] = traffic(plan(peopled(12)));
+    const clips = new Set<string>();
+    let hidden = 0;
+    let atWater = 0;
+    for (let t = 0; t < 2000; t += 1) {
+      const pose = at(p!, t);
+      if (pose.hidden) {
+        hidden++;
+        continue;
+      }
+      clips.add(pose.clip);
+      if (Math.hypot(pose.x, pose.z + 450) < 5) atWater++;
+    }
+    expect([...clips].sort()).toEqual(['carry-water', 'water-idle']);
+    expect(hidden).toBeGreaterThan(0);
+    expect(atWater).toBeGreaterThan(0);
+  });
+
+  it('na pole a zpět chodí od domu ke dílu dnešní práce, nikdy přes dům', () => {
+    const shares: LaborShare[] = [
+      { activity: 'harvest', target: { kind: 'field', id: 7 }, manDays: 12 },
+    ];
+    const v = peopled(5, undefined, shares);
+    const walkers = traffic(plan(v), 'traffic:field:');
+    expect(walkers.length).toBeGreaterThan(0);
+    const field = v.fields[0]!.parts;
+    let nearField = 0;
+    let nearHome = 0;
+    for (const p of walkers) {
+      for (let t = 0; t < 600; t += 2) {
+        const pose = at(p, t);
+        if (pose.hidden) continue;
+        expect(inHouse(v, pose.x, pose.z)).toBe(false);
+        if (field.some((q) => Math.abs(pose.x - q.x) < 9 && Math.abs(pose.z - q.z) < 9)) {
+          nearField++;
+        }
+        if (Math.hypot(pose.x, pose.z) < 20) nearHome++;
+      }
+    }
+    expect(nearField).toBeGreaterThan(0);
+    expect(nearHome).toBeGreaterThan(0);
   });
 });

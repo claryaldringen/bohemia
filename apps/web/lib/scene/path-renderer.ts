@@ -392,7 +392,7 @@ export class VillagePaths {
       const route = pathRouter(network);
       const errands = network.errands;
       this.router = {
-        route: (a, b) => route.route(a, b),
+        route: (a, b, reach) => route.route(a, b, reach),
         errand: (dwellingId, kind) => errands.get(dwellingId)?.[kind] ?? null,
       };
     } else {

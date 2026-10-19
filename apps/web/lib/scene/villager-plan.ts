@@ -43,6 +43,17 @@ import {
 } from './field-look';
 import { chickenBox } from './livestock-placement';
 import { orchardTreeSpots } from './orchard-layout';
+import {
+  FIELD_TRIPS_PER_MAN_DAY,
+  MAX_TRAFFIC,
+  streamPhase,
+  trafficCounts,
+  trafficHomes,
+  waterTrips,
+  woodTrips,
+  type TrafficKind,
+  type TrafficStream,
+} from './road-traffic';
 import { hash01 } from './smoke-schedule';
 import { localToWorld } from './village-layout';
 import {
@@ -67,7 +78,8 @@ import { MILIR_SHAPE_M, craftSpots, forestKilnAnchor, milirPlace } from './works
 // pravidel. Člověkodny dne se převedou na postavy (jedna na pracujícího, nejvýš MAX_WORKERS)
 // a rozestaví se k místům práce: řady na polích, nosiči mezi polem a obydlím, stavitelé kolem
 // staveniště, dřevorubci u vyhrazených stromů, lidé v sadu, u hřbitova, výmlat u vsi, ženy
-// u obydlí. Navíc starší u domů a děti u stád (nejsou práce vsi). Nikdo nestojí ve vodě,
+// u obydlí. Navíc starší u domů a děti u stád (nejsou práce vsi) a provoz na cestách – lidé, kteří
+// jdou pro vodu, k lesu pro dřevo a mezi domem a polem (road-traffic.ts). Nikdo nestojí ve vodě,
 // v domě nebo jámě ani na hrobech.
 
 /**
@@ -200,11 +212,13 @@ export interface VillagerGround {
 export interface VillagerPaths {
   /**
    * Trasa z `a` do `b` po pěšinách – body [x, z] od `a` do `b` a tempo úseků (po pěšině se jde
-   * rychleji – paths.md), nebo null – jde se rovnou.
+   * rychleji – paths.md), nebo null – jde se rovnou. `reach` = jak daleko od pěšiny smí cíl být
+   * (bez údaje kousek – díl daleko v poli: po pěšině k poli a přes pole).
    */
   route(
     a: { x: number; z: number },
     b: { x: number; z: number },
+    reach?: number,
   ): { points: readonly (readonly [number, number])[]; pace: readonly number[] } | null;
   /** Kam chodí domácnost (id obydlí) pro vodu nebo dřevo – konec její pěšiny, nebo null. */
   errand(dwellingId: number, kind: 'water' | 'wood'): { x: number; z: number } | null;
@@ -215,7 +229,9 @@ export interface VillagerPlanOptions {
   /** Kolik stád se pase (pasáčci – jeden na stádo, když jsou děti). */
   herds: number;
   maxWorkers?: number;
-  /** Vyšlapané pěšiny – nosiči a ženy pro vodu a dřevo chodí po nich. */
+  /** Nejvýš tolik lidí na cestách (provoz – road-traffic.ts); bez údaje MAX_TRAFFIC. */
+  maxTraffic?: number;
+  /** Vyšlapané pěšiny – nosiči, lidé pro vodu a dřevo a na pole chodí po nich. */
   paths?: VillagerPaths | null;
   /**
    * Okno herního dne (skutečný čas) – karavany výprav jdou podle postupu výpravy v herním čase
@@ -254,6 +270,15 @@ interface House {
   plot?: { x: number; z: number; size: number; rotation?: number };
   /** Řemeslná dílna (crafts.md) – řemeslníci stojí u pece, výhně nebo milíře. */
   craft?: Craft;
+  /** Čtverec ohrady (oxen.md) – k brance se chodí krmit, pěšina k ní smí zasáhnout dovnitř. */
+  pen?: true;
+  /**
+   * Natočení a dosah obdélníku od středu (`withReach` v `context`) – `inBox` se ptá u každého
+   * bodu tras tisíckrát, vzdálené domy tak odbude jedním porovnáním.
+   */
+  cos?: number;
+  sin?: number;
+  reach?: number;
 }
 
 /** Id překážky „milíř“ v seznamu staveb – kladná id jsou obydlí, malá záporná čekající stavby. */
@@ -343,6 +368,7 @@ export function planVillagers(
   for (const e of village.expeditions ?? []) {
     people.push(...caravanFigures(ctx, e, options.dayWindow?.(e.day) ?? null));
   }
+  people.push(...trafficFigures(ctx, labor, options.maxTraffic ?? MAX_TRAFFIC));
   return people;
 }
 
@@ -688,10 +714,16 @@ function context(
         progress: pen.progress,
         inhabited: false,
         box: { minX: -half, maxX: half, minZ: -half, maxZ: half },
+        pen: true as const,
       };
     }),
   );
   const houses = [...dwellings, ...milirs, ...forestKilns, ...sacred, ...pens];
+  for (const h of houses) {
+    h.cos = Math.cos(h.position.rotation);
+    h.sin = Math.sin(h.position.rotation);
+    h.reach = Math.hypot(Math.max(-h.box.minX, h.box.maxX), Math.max(-h.box.minZ, h.box.maxZ));
+  }
   const homes = dwellings.filter((h) => h.inhabited);
   const settled = homes.length > 0 ? homes : dwellings.length > 0 ? dwellings : houses;
   const center = {
@@ -748,10 +780,14 @@ export function plotBox(
 
 /** Bod v obdélníku domu (se šíjí) rozšířeném o `margin`. */
 function inBox(h: House, x: number, z: number, margin: number): boolean {
-  const c = Math.cos(h.position.rotation);
-  const s = Math.sin(h.position.rotation);
   const dx = x - h.position.x;
   const dz = z - h.position.z;
+  if (h.reach !== undefined) {
+    const r = h.reach + Math.max(0, margin);
+    if (dx > r || dx < -r || dz > r || dz < -r) return false;
+  }
+  const c = h.cos ?? Math.cos(h.position.rotation);
+  const s = h.sin ?? Math.sin(h.position.rotation);
   // inverze localToWorld (x napříč, z k vchodu)
   const lx = dx * c - dz * s;
   const lz = dx * s + dz * c;
@@ -1442,7 +1478,9 @@ function carriers(ctx: Context, share: SceneLaborShare, fieldId: number): Placer
     const fallback = (): PoseFn | null =>
       frontierRow(ctx, work, view, i % CREW, CREW, 'reap', who, false);
     if (!home) return fallback();
-    const door = doorPoint(home, (who.phase - 0.5) * 1.6);
+    // od vchodu jako provoz na cestách (`trafficDoor` – vchod pozemku může ústit k sousednímu
+    // pozemku); stejné místo pro všechny nosiče domu – trasa se hledá jednou
+    const door = trafficDoor(ctx, home) ?? doorPoint(home);
     const half = square.size / 2 - ROW_MARGIN_M;
     // kraj čtverce nejblíž dveřím (v osách čtverce – i natočeného)
     const [u, v] = squareLocal(square, door.x, door.z);
@@ -1453,7 +1491,7 @@ function carriers(ctx: Context, share: SceneLaborShare, fieldId: number): Placer
       x: square.x + ax.x * cu + az.x * cv,
       z: square.z + ax.z * cu + az.z * cv,
     };
-    const path = walkRoute(ctx, door, edge);
+    const path = walkRoute(ctx, door, edge) ?? fieldPath(ctx, door, edge);
     if (!path) return fallback();
     return shuttle(path, {
       outClip: 'walk',
@@ -2010,7 +2048,7 @@ function porters(
 
 /**
  * Domácí práce venku: u obydlí (po domech dokola) postávají ženy před vchodem a některé
- * chodí pro vodu nebo dřevo kousek od domu.
+ * chodí kousek od domu (pro vodu a dřevo po pěšinách chodí provoz na cestách).
  */
 function domestic(ctx: Context): Placer {
   const homes = [...ctx.homes].sort((a, b) => a.id - b.id);
@@ -2021,17 +2059,10 @@ function domestic(ctx: Context): Placer {
     const side = turn % 2 === 0 ? -gap(1.3) : gap(1.3);
     const door = nearestFree(ctx, doorPoint(home, side).x, doorPoint(home, side).z, 1.5);
     if (!door) return null;
-    // s pěšinami chodí pro vodu a dřevo i každá třetí žena od domu (je je vidět na pěšině)
-    const errandTurn = ctx.paths !== null && i % 3 === 2;
-    if (errandTurn) {
-      const errand = errandRoute(ctx, home, door, who);
-      if (errand) return fetcher(errand, who.kind, who.scale, 10 + who.phase * 8, who.phase);
-    }
+    // pro vodu a dřevo po pěšinách chodí provoz na cestách (trafficFigures) – domácí práce jen
+    // kousek od domu
     if (turn % 2 === 1) {
-      // pro vodu k potoku nebo pro dřevo k okraji lesa po vyšlapané pěšině (paths.md)
-      const errand = errandTurn ? null : errandRoute(ctx, home, door, who);
-      if (errand) return fetcher(errand, who.kind, who.scale, 10 + who.phase * 8, who.phase);
-      // bez pěšiny: 6–12 m od domu směrem od vsi
+      // 6–12 m od domu směrem od vsi (k hromadě dřeva, ke džberu)
       const away = unit(
         home.position.x - ctx.center.x + (who.phase - 0.5) * 6,
         home.position.z - ctx.center.z + 1,
@@ -2053,27 +2084,279 @@ function domestic(ctx: Context): Placer {
 const ERRAND_MAX_M: Record<'water' | 'wood', number> = { water: Infinity, wood: 220 };
 
 /**
- * Trasa pro vodu nebo dřevo po pěšině domácnosti (podle fáze postavy jedno nebo druhé), nebo
- * null – bez pěšin, pro dřevo moc daleko, nebo cíl ve vodě. Konec pochůzky mimo rastr schůdné
- * země (vzdálená voda) je suchý břeh ze sítě pěšin – postava se zastaví na něm.
+ * Trasa pro vodu nebo dřevo po pěšině domácnosti, nebo null – bez pěšin, pro dřevo moc daleko,
+ * nebo cíl ve vodě. Konec pochůzky mimo rastr schůdné země (vzdálená voda) je suchý břeh ze sítě
+ * pěšin – postava se zastaví na něm.
  */
-function errandRoute(ctx: Context, home: House, door: Point, who: Identity): Route | null {
+function errandPath(ctx: Context, home: House, door: Point, kind: 'water' | 'wood'): Route | null {
   const paths = ctx.paths;
   if (!paths) return null;
-  const kinds: ('water' | 'wood')[] = who.phase < 0.5 ? ['water', 'wood'] : ['wood', 'water'];
-  for (const kind of kinds) {
-    const end = paths.errand(home.id, kind);
-    if (!end) continue;
-    // pěšina končí u vody / pod stromy – postava se zastaví na nejbližším volném místě
-    const goal = nearestFree(ctx, end.x, end.z, 4) ?? (kind === 'water' ? end : null);
-    const along = paths.route(door, end);
-    if (!goal || !along || along.points.length < 2) continue;
-    const points = [...along.points.slice(0, -1), [goal.x, goal.z] as const];
-    if (!pathRouteOk(ctx, points, false)) continue;
-    const path = route(points, along.pace);
-    if (path.length <= ERRAND_MAX_M[kind]) return path;
+  const end = paths.errand(home.id, kind);
+  if (!end) return null;
+  // pěšina končí u vody / pod stromy – postava se zastaví na nejbližším volném místě
+  const goal = nearestFree(ctx, end.x, end.z, 4) ?? (kind === 'water' ? end : null);
+  const along = paths.route(door, end);
+  if (!goal || !along || along.points.length < 2) return null;
+  const points = [...along.points.slice(0, -1), [goal.x, goal.z] as const];
+  if (!trafficRouteOk(ctx, points, false)) return null;
+  const path = route(points, along.pace);
+  return path.length <= ERRAND_MAX_M[kind] ? path : null;
+}
+
+// --- provoz na cestách (villagers.md – Provoz na cestách) ------------------------------------
+
+/**
+ * Jak chodí lidé po cestě kterého druhu: podíl žen a dětí (pro vodu chodily hlavně ženy a děti),
+ * co dělají na konci (nabírají vodu, sbírají dřevo, u pole chvíli postojí), s čím jdou zpět.
+ */
+const TRAFFIC_LOOK: Record<
+  TrafficKind,
+  {
+    women: number;
+    children: number;
+    outClip: VillagerClip;
+    endClip: VillagerClip;
+    endS: number;
+    backClip: VillagerClip;
   }
-  return null;
+> = {
+  // s vahadlem a vědry tam i zpět, u vody chvíli stojí (nabírá)
+  water: {
+    women: 0.75,
+    children: 0.3,
+    outClip: 'carry-water',
+    endClip: 'water-idle',
+    endS: 5,
+    backClip: 'carry-water',
+  },
+  wood: {
+    women: 0.45,
+    children: 0.2,
+    outClip: 'walk',
+    endClip: 'weed',
+    endS: 6,
+    backClip: 'carry-wood',
+  },
+  field: {
+    women: 0.45,
+    children: 0,
+    outClip: 'walk',
+    endClip: 'idle',
+    endS: 2,
+    backClip: 'walk',
+  },
+};
+/** Mezi cestami je člověk chvíli doma – není vidět (s). */
+const TRAFFIC_HOME_S = 6;
+/** Na pole a zpět chodí lidé od těchto prací (u nosičů úrody, kteří chodí tak jako tak, ne). */
+const FIELD_COMMUTE: ReadonlySet<LaborActivity> = new Set([
+  'dig',
+  'reclaim',
+  'sow',
+  'weed',
+  'harvest',
+  'mow',
+  'found-field',
+]);
+
+/** Proud lidí po jedné trase (`TrafficStream`) s trasou a podílem žen. */
+interface TrafficRoute extends TrafficStream {
+  key: string;
+  route: Route;
+  women: number;
+}
+
+/**
+ * Lidé na cestách (road-traffic.ts): pro vodu a k lesu po pěšině každé domácnosti, mezi domem
+ * a polem od domů, ke kterým patří díly dnešní práce. Kolik jich na které trase je, určí cesty
+ * za den a délka cesty (`trafficCounts`, nejvýš `max`); po trase jdou rozestoupení (fáze se
+ * zlatým řezem), tam bez nákladu, zpět s vodou, dřevem nebo z pole, a doma na chvíli zmizí.
+ */
+function trafficFigures(ctx: Context, labor: SceneLabor, max: number): PlannedVillager[] {
+  const streams = trafficRoutes(ctx, labor);
+  const counts = trafficCounts(streams, max);
+  const out: PlannedVillager[] = [];
+  streams.forEach((stream, s) => {
+    const count = counts[s] ?? 0;
+    const look = TRAFFIC_LOOK[stream.kind];
+    const base = hash01(stringHash(stream.key), 1, 93);
+    for (let k = 0; k < count; k++) {
+      const key = `traffic:${stream.key}:${k}`;
+      const child =
+        labor.people.children > 0 &&
+        hash01((ctx.seed * 31 + stringHash(key)) | 0, 9, 93) < look.children;
+      const who = identity(ctx.seed, key, {
+        women: womenChance(stream.women, child ? ctx.sexes.girls : ctx.sexes.women),
+        child,
+      });
+      const pose = shuttle(stream.route, {
+        outClip: look.outClip,
+        outSpeed: walkSpeed(who.kind, look.outClip, who.scale),
+        endClip: look.endClip,
+        endS: look.endS,
+        backClip: look.backClip,
+        backSpeed: walkSpeed(who.kind, look.backClip, who.scale),
+        restClip: 'idle',
+        restS: TRAFFIC_HOME_S,
+        restHidden: true,
+        phase: streamPhase(k, base),
+      });
+      out.push(villager(who, pose, child ? 'natural' : adultHair(who, ctx.sexes.married)));
+    }
+  });
+  return out;
+}
+
+/** Proudy lidí vsi: voda a dřevo po domácnostech, pole po prácích dne a domech. */
+function trafficRoutes(ctx: Context, labor: SceneLabor): TrafficRoute[] {
+  const homes = ctx.homes.filter((h) => h.inhabited).sort((a, b) => a.id - b.id);
+  const people = new Map(
+    trafficHomes(
+      labor,
+      homes.map((h) => h.id),
+    ).map((h) => [h.id, h]),
+  );
+  const out: TrafficRoute[] = [];
+  const add = (
+    kind: TrafficKind,
+    key: string,
+    trips: number,
+    path: Route | null,
+    women: number,
+  ): void => {
+    if (!path || trips <= 0 || path.length < 1) return;
+    // táž práce na témže poli víckrát (ozim a jař) – jeden proud, cesty se sečtou
+    const same = out.find((s) => s.key === key);
+    if (same) same.trips += trips;
+    else out.push({ kind, key, trips, route: path, activeS: activeSeconds(path, kind), women });
+  };
+  for (const home of homes) {
+    const household = people.get(home.id);
+    if (!household) continue;
+    const door = trafficDoor(ctx, home);
+    if (!door) continue;
+    for (const kind of ['water', 'wood'] as const) {
+      const trips = kind === 'water' ? waterTrips(household) : woodTrips(labor.month);
+      if (trips <= 0) continue;
+      add(
+        kind,
+        `${kind}:${home.id}`,
+        trips,
+        errandPath(ctx, home, door, kind),
+        TRAFFIC_LOOK[kind].women,
+      );
+    }
+  }
+  labor.shares.forEach((share) => {
+    if (!FIELD_COMMUTE.has(share.activity) || share.target.kind !== 'field') return;
+    if (share.manDays <= 0) return;
+    const fieldId = share.target.id;
+    const work = fieldWork(ctx, fieldId);
+    if (!work) return;
+    const squares = workedSquares(ctx, share, work);
+    if (squares.length === 0) return;
+    // díl patří k nejbližšímu domu (holdings.ts) – od každého domu ke svému prvnímu dílu fronty
+    const groups = new Map<number, { home: House; square: Square; n: number }>();
+    for (const view of squares) {
+      const home = nearestHouse(homes, view.part);
+      if (!home) continue;
+      const group = groups.get(home.id);
+      if (group) group.n++;
+      else groups.set(home.id, { home, square: view.part, n: 1 });
+    }
+    for (const { home, square, n } of groups.values()) {
+      const door = trafficDoor(ctx, home);
+      if (!door) continue;
+      const trips = (share.manDays * FIELD_TRIPS_PER_MAN_DAY * n) / squares.length;
+      const edge = squareEdge(square, door);
+      add(
+        'field',
+        `field:${share.activity}:${fieldId}:${home.id}`,
+        trips,
+        walkRoute(ctx, door, edge) ?? fieldPath(ctx, door, edge),
+        WOMEN[share.activity],
+      );
+    }
+  });
+  return out;
+}
+
+/** Jak daleko od pěšiny smí být díl pole, na který se jde po pěšině a pak přes pole (m). */
+const FIELD_ENTRY_M = 260;
+
+/**
+ * Cesta na díl daleko v poli (Vlkov – pole přes 40 ha, pěšina dne končí na kraji pole u vsi): po
+ * pěšinách k nejbližšímu bodu pěšiny u dílu a od něj rovně přes pole (pole lidi nezdržuje –
+ * paths.md); rovný kus musí vést po suchu. Bez pěšin nebo přes vodu null.
+ */
+function fieldPath(ctx: Context, door: Point, edge: Point): Route | null {
+  const along = ctx.paths?.route(door, edge, FIELD_ENTRY_M);
+  if (!along || along.points.length < 2 || !trafficRouteOk(ctx, along.points)) return null;
+  return route(along.points, along.pace);
+}
+
+/** O kolik metrů smí trasa po pěšinách zasáhnout do obdélníku domu, pozemku nebo ohrady. */
+const ROUTE_HOUSE_SLACK_M = 1.5;
+
+/**
+ * Trasa po pěšinách pro provoz na cestách projde: odbočka na pěšinu a (`lastLeg`) z ní k cíli po
+ * suchu mimo hroby; nikde přes dům nebo pozemek – vyhlazená pěšina smí jen o kousek
+ * (ROUTE_HOUSE_SLACK_M) zasáhnout do rohu (síť pěšin domy obchází sama); k brance ohrady vede
+ * pěšina krmení, ohrada se proto nekontroluje.
+ */
+function trafficRouteOk(
+  ctx: Pick<Context, 'houses' | 'ground' | 'graves'>,
+  points: readonly (readonly [number, number])[],
+  lastLeg = true,
+): boolean {
+  const last = points.length - 1;
+  for (let i = 1; i <= last; i++) {
+    const [px, pz] = points[i - 1]!;
+    const [qx, qz] = points[i]!;
+    const leg = i === 1 || (lastLeg && i === last);
+    const length = Math.hypot(qx - px, qz - pz);
+    const steps = Math.max(1, Math.ceil(length / ROUTE_STEP_M));
+    for (let s = 0; s <= steps; s++) {
+      const x = px + ((qx - px) * s) / steps;
+      const z = pz + ((qz - pz) * s) / steps;
+      if (ctx.houses.some((h) => !h.pen && inBox(h, x, z, -ROUTE_HOUSE_SLACK_M))) return false;
+      if (leg && (!ctx.ground.walkable(x, z) || onGrave(ctx.graves, x, z))) return false;
+    }
+  }
+  return true;
+}
+
+/** Jak daleko od vchodu může být místo, odkud člověk vyjde na cestu (sousední pozemky – m). */
+const TRAFFIC_DOOR_REACH_M = 16;
+
+/**
+ * Kde člověk z domu vychází na cestu: před vchodem (u pozemku před plotem), nejbližší volné místo
+ * – mezi sousedními pozemky i o pár metrů dál.
+ */
+function trafficDoor(ctx: Context, home: House): Point | null {
+  const door = doorPoint(home);
+  return nearestFree(ctx, door.x, door.z, TRAFFIC_DOOR_REACH_M);
+}
+
+/** Bod na kraji čtverce nejblíž bodu `p` (v osách čtverce – i natočeného). */
+function squareEdge(square: Square, p: Point): Point {
+  const half = square.size / 2 - ROW_MARGIN_M;
+  const [u, v] = squareLocal(square, p.x, p.z);
+  const [ax, az] = squareAxes(square);
+  const cu = Math.min(half, Math.max(-half, u));
+  const cv = Math.min(half, Math.max(-half, v));
+  return { x: square.x + ax.x * cu + az.x * cv, z: square.z + ax.z * cu + az.z * cv };
+}
+
+/** Jak dlouho je člověk na cestě (s): tam, na konci, zpět – průměrná žena (FIGURE_SCALE). */
+function activeSeconds(path: Route, kind: TrafficKind): number {
+  const look = TRAFFIC_LOOK[kind];
+  const walk = path.walkLength ?? path.length;
+  return (
+    walk / walkSpeed('woman', look.outClip, FIGURE_SCALE) +
+    look.endS +
+    walk / walkSpeed('woman', look.backClip, FIGURE_SCALE)
+  );
 }
 
 /** Nečinní (společná práce bez staveb): dvojice u domů natočené k sobě. */

@@ -36,9 +36,19 @@ export const CART_SPEED_M_S = 0.85;
 
 /** Druh vozu (wagons.md – Dva druhy vozů): dvoukolák, nebo čtyřkolák – stejně jako herní jádro. */
 export type { CartKind };
-/** Náklad na korbě (wagons.md – Co vozí); prázdný vůz bez nákladu. */
-export type CartCargo = 'empty' | 'hay' | 'sheaves' | 'logs' | 'goods';
-export const CART_CARGOES: readonly CartCargo[] = ['empty', 'hay', 'sheaves', 'logs', 'goods'];
+/**
+ * Náklad na korbě (wagons.md – Co vozí, Co vozy vozí): seno, snopy, klády, zboží (i uhlí a osivo)
+ * a sudy na vodu; prázdný vůz bez nákladu.
+ */
+export type CartCargo = 'empty' | 'hay' | 'sheaves' | 'logs' | 'goods' | 'water';
+export const CART_CARGOES: readonly CartCargo[] = [
+  'empty',
+  'hay',
+  'sheaves',
+  'logs',
+  'goods',
+  'water',
+];
 
 /**
  * Rozměry vozů ve skutečné velikosti (m) z tools/blender/wagons_from_0ad.py (WHEEL_R, YOKE_Y,

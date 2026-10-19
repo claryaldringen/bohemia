@@ -92,7 +92,7 @@ describe('vozy ve vsi (village-carts.ts)', () => {
     expect('shuttle' in goods! && goods.schedule.window).toBeNull();
   });
 
-  it('mimo svoz (Co vozy vozí): osivo naložené tam, uhlí zpátky, voda zatím bez nákladu', () => {
+  it('mimo svoz (Co vozy vozí): osivo naložené tam, uhlí zpátky, sudy na vodu tam i zpět', () => {
     const window = { startMs: 0, endMs: 86_000 };
     const job = (load: 'goods' | 'water', outbound?: true): SceneCart =>
       cart({
@@ -111,7 +111,11 @@ describe('vozy ve vsi (village-carts.ts)', () => {
     expect(coal).toMatchObject({ cargo: 'goods' });
     expect('loadedOut' in coal!).toBe(false);
     const [water] = villageCartPlans(village([job('water')]), pens, window);
-    expect(water).toMatchObject({ cargo: 'empty' });
+    expect(water).toMatchObject({ cargo: 'water', loadedBothWays: true });
+    // sudy jsou na voze celou cestu – prázdné tam, plné zpět
+    for (let ms = 0; ms < 86_000; ms += 2000) {
+      expect(cartPlanPose(water!, ms, createCartPose()).loaded).toBe(true);
+    }
     // osivo: tam naložený, zpátky prázdný
     const pose = createCartPose();
     const shuttle = seed as CartShuttle;
@@ -119,7 +123,24 @@ describe('vozy ve vsi (village-carts.ts)', () => {
     const out = { s: 0, speed: 0, loaded: false };
     let sawOut = false;
     let sawBack = false;
-    for (let ms = 0; ms < 86_000; ms += 500) {
+    // mimo svoz jezdí vůz tempem volů ve skutečném čase (`steadyJob`) – bez okna dne
+    expect(shuttle.schedule.window).toBeNull();
+    expect((water as CartShuttle).schedule.window).toBeNull();
+    const [kiln] = villageCartPlans(
+      village([
+        cart({
+          id: 1,
+          job: { activity: 'haul', target: { kind: 'kiln', id: 5, x: 40, z: 80 }, load: 'goods' },
+          route: ROUTE,
+        }),
+      ]),
+      pens,
+      window,
+    );
+    expect((kiln as CartShuttle).schedule.window).toBeNull();
+    // svoz snopů dál v okně herního dne
+    expect((coal as CartShuttle).schedule.window).toEqual(window);
+    for (let ms = 0; ms < 600_000; ms += 500) {
       cartPlanPose(seed!, ms, pose);
       const at = shuttleAt(shuttle.shuttle, shuttle.schedule, ms, out);
       if (at.speed > 0 && at.s < shuttle.shuttle.farM) {

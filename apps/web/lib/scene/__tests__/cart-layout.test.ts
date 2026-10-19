@@ -249,7 +249,7 @@ describe('rozměry sedí s modely (tools/blender/wagons_from_0ad.py)', () => {
   it('díly a náklady obou vozů', () => {
     const names = json.nodes.map((n) => n.name);
     for (const prefix of ['wagon2', 'wagon4']) {
-      for (const cargo of ['hay', 'sheaves', 'logs', 'goods']) {
+      for (const cargo of ['hay', 'sheaves', 'logs', 'goods', 'water']) {
         expect(names).toContain(`${prefix}-${cargo}`);
       }
     }
@@ -282,6 +282,27 @@ describe('rozměry sedí s modely (tools/blender/wagons_from_0ad.py)', () => {
     const body4 = bounds('wagon4-body');
     expect(body4.max[2]).toBeCloseTo(CART_PARTS['four-wheel'].front, 1);
     expect(-body4.min[2]!).toBeCloseTo(CART_PARTS['four-wheel'].back, 1);
+  });
+
+  it('sudy na vodu stojí na korbě – mezi bočnicemi, nad nimi vyčnívají (Co vozy vozí)', () => {
+    for (const [prefix, kind] of [
+      ['wagon2', 'two-wheel'],
+      ['wagon4', 'four-wheel'],
+    ] as const) {
+      const water = bounds(`${prefix}-water`);
+      const body = bounds(`${prefix}-body`);
+      const goods = bounds(`${prefix}-goods`);
+      // na dně korby jako ostatní náklad
+      expect(water.min[1]).toBeCloseTo(goods.min[1]!, 2);
+      // mezi bočnicemi (provaz k bočnici smí na ni) a v délce korby
+      expect(water.max[0]).toBeLessThan(CART_PARTS[kind].halfWidth + 0.01);
+      expect(-water.min[0]!).toBeLessThan(CART_PARTS[kind].halfWidth + 0.01);
+      expect(water.max[2]).toBeLessThan(body.max[2]!);
+      expect(-water.min[2]!).toBeLessThan(CART_PARTS[kind].back);
+      // sud ≈ 0,72–0,78 m vysoký – nad bočnice korby
+      expect(water.max[1]! - water.min[1]!).toBeGreaterThan(0.7);
+      expect(water.max[1]).toBeGreaterThan(body.max[1]! - 0.1);
+    }
   });
 });
 

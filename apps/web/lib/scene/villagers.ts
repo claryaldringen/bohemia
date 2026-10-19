@@ -33,7 +33,6 @@ import type { Scene } from '@babylonjs/core/scene';
 import { obstacleIndex, obstacleStatus, obstaclesNear, type ObstacleLayer } from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
 import { caravanPoints } from './caravan';
-import type { LivestockGround } from './livestock-placement';
 import {
   createVillagerPose,
   villagerSeconds,
@@ -75,8 +74,8 @@ const HAIR_CODE: Record<HairLook, number> = { natural: 0, grey: 1, linen: 2, mad
 export interface VillagersEnvironment {
   /** Vrstva překážek krajiny – stromy ke kácení. */
   layer: ObstacleLayer;
-  /** Schůdná země kolem vsi (rastr sdílený s domácími zvířaty), bez obydlí null. */
-  ground(village: SceneVillage): LivestockGround | null;
+  /** Schůdná země (přes celou krajinu, počítaná líně – livestock-placement.ts), bez obydlí null. */
+  ground(village: SceneVillage): { walkable(x: number, z: number): boolean } | null;
   /** Přesná výška vykresleného terénu. */
   groundHeight(x: number, z: number): number;
   /** Adresa modelů (…/woman.glb). */

@@ -60,10 +60,19 @@ export function parkedCartSpot(
 }
 
 /**
+ * Jízda mimo svoz (wagons.md – Co vozy vozí): voda v sudech, uhlí od milíře, osivo na pole – vůz
+ * jezdí tam a zpět tempem volů ve skutečném čase, ne v okně herního dne.
+ */
+export function steadyJob(job: NonNullable<SceneCart['job']>): boolean {
+  return job.load === 'water' || job.target.kind === 'kiln' || job.outbound === true;
+}
+
+/**
  * Co vozy vsi dnes ve scéně dělají (`CartPlan` pro cart-renderer.ts): vůz s úlohou a trasou jede
  * tam a zpět (`shuttleRoute` – smyčky obratišť za cílem a u ohrady), náklad podle úlohy (snopy,
- * seno, klády a uhlí zpátky, osivo tam, voda zatím bez modelu, zboží výpravy tam i zpět); svoz v okně herního dne `window` (ladicí – jízdy
- * dne se vejdou do herního dne, PLOUGH_DAY_DEBUG), výprava dokola tempem volů jako nosiči.
+ * seno, klády a uhlí zpátky, osivo tam, sudy na vodu tam i zpět, zboží výpravy tam i zpět); svoz
+ * v okně herního dne `window` (ladicí – jízdy dne se vejdou do herního dne, PLOUGH_DAY_DEBUG),
+ * výprava dokola tempem volů jako nosiči.
  * Víc vozů na téže trase jede za sebou. Vůz bez jízdy stojí u ohrady (nejbližší hotové), bez
  * ohrady se nekreslí.
  */
@@ -103,15 +112,19 @@ export function villageCartPlans(
       const group = sameRoute.get(JSON.stringify(cart.route))!;
       plans.push({
         kind: cart.kind,
-        // voda v sudech zatím bez modelu – vůz jede prázdný (wagons.md – Co vozy vozí)
-        cargo: job.load === 'water' ? 'empty' : job.load,
+        cargo: job.load,
         shuttle: shuttleRoute(cart.route!, cart.kind),
         schedule: {
-          window: job.activity === 'haul' ? window : null,
+          // svoz úrody, sena a klád v okně herního dne (ladicí – práce dne se vejde do dne);
+          // voda, uhlí a osivo (Co vozy vozí) jezdí tempem volů ve skutečném čase jako provoz
+          // na cestách (villagers.md) – jízda k vodě by se do 86 s vešla jen čtyřicetikilometrovou
+          // rychlostí
+          window: job.activity === 'haul' && !steadyJob(job) ? window : null,
           maxTrips: CARTS.loadsPerCartDay,
           phase: group.indexOf(cart.id) / group.length,
         },
-        ...(job.activity === 'trade' ? { loadedBothWays: true } : {}),
+        // sudy na vodu jsou na voze tam (prázdné) i zpět (plné) – wagons.md, Co vozy vozí
+        ...(job.activity === 'trade' || job.load === 'water' ? { loadedBothWays: true } : {}),
         ...(job.outbound ? { loadedOut: true } : {}),
       });
       continue;

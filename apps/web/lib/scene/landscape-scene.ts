@@ -392,7 +392,7 @@ export class LandscapeScene {
     this.villagers?.dispose();
     this.villagers = new VillageVillagers(this.scene, {
       layer: obstacles,
-      ground: (village) => this.livestock?.groundFor(village) ?? null,
+      ground: (village) => this.livestock?.walkGroundFor(village) ?? null,
       groundHeight: (x, z) => terrainMeshHeight(surface, x, z),
       baseUrl: '/models/people/',
       herds: (nowMs) => this.livestock?.herdViews(nowMs) ?? [],

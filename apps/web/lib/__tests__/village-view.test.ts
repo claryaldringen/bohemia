@@ -2224,6 +2224,39 @@ describe('buildVillageView – tesař a vozy (wagons.md)', () => {
     expect(water.job).toMatchObject({ load: 'water', target: { kind: 'water' } });
   });
 
+  it('domácnosti pro provoz na cestách: lidé po obydlích, vodu vzdálených přivezl vůz (villagers.md)', () => {
+    const s = carpenterVillage();
+    // obydlí 50 (dílna tesaře) daleko od vody, ostatní blízko – vůz veze napřed nejvzdálenějším
+    for (const d of s.dwellings) d.waterWalkM = d.id === 50 ? 600 : 60;
+    s.waterCart = { key: 'test', drive: { costM: 150, x: 30, z: 0 } };
+    s.labor = {
+      day: DAY,
+      shares: [
+        { activity: 'domestic', target: { kind: 'village' }, manDays: 2 },
+        {
+          activity: 'haul',
+          target: { kind: 'water', x: 30, z: 0 },
+          manDays: 0.1,
+          carts: 1,
+          job: 'water',
+        },
+      ],
+    };
+    const homes = buildVillageView(record(s), landscape, DAY).scene.labor!.homes!;
+    const count = (id: number): number => s.people.filter((p) => p.dwellingId === id).length;
+    for (const h of homes) expect(h.people).toBe(count(h.id));
+    expect(homes.map((h) => h.id).sort()).toEqual(
+      [...new Set(s.people.map((p) => p.dwellingId))].filter((id) => count(id) > 0).sort(),
+    );
+    expect(homes.find((h) => h.id === 50)?.cartWater).toBe(1);
+    // blízko vody se pěšky vyplatí víc než vozem – nese si ji sama
+    for (const h of homes.filter((h) => h.id !== 50)) expect(h.cartWater).toBeUndefined();
+    // bez vozu s vodou nikomu nic
+    s.labor.shares = s.labor.shares.slice(0, 1);
+    const plain = buildVillageView(record(s), landscape, DAY).scene.labor!.homes!;
+    expect(plain.every((h) => h.cartWater === undefined)).toBe(true);
+  });
+
   it('kronika – tesař vyrobil vůz, vůz dosloužil', () => {
     expect(chronicleText({ day: DAY, kind: 'cart-made', cart: 'two-wheel' }, 'Libice')).toBe(
       'Tesař vyrobil dvoukolák.',

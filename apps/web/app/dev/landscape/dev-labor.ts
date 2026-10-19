@@ -3,14 +3,22 @@
 // zhruba podle měsíce a toho, co ve vývojové vsi stojí, ať jdou vidět všechny činnosti.
 import type { LaborShare, SceneLabor, SceneVillage } from '@/lib/village-view';
 
-/** Ukázková práce vsi v měsíci `month` – každá činnost, která ve vsi jde, dostane pár lidí. */
+/** Lidí v obydlí ukázkové vsi – podle nich chodí pro vodu (provoz na cestách). */
+const PEOPLE_PER_HOME = 5;
+
+/**
+ * Ukázková práce vsi v měsíci `month` – každá činnost, která ve vsi jde, dostane pár lidí; lidé
+ * v obydlích (`homes`) chodí pro vodu, k lesu a na pole po pěšinách (provoz na cestách –
+ * villagers.md), tolik jich, kolik by šlo v pětičlenných domácnostech.
+ */
 export function demoLabor(
   village: Omit<SceneVillage, 'labor'>,
   month: number,
   day: number,
   fellTrees: readonly number[],
 ): SceneLabor {
-  const homes = village.dwellings.filter((d) => d.built).length;
+  const built = village.dwellings.filter((d) => d.built);
+  const homes = built.length;
   const people = { children: homes * 2, adults: homes * 2, elders: Math.ceil(homes / 2) };
   const shares: LaborShare[] = [];
   const atVillage = { kind: 'village' } as const;
@@ -77,5 +85,12 @@ export function demoLabor(
   }
   add({ activity: 'idle', target: atVillage, manDays: 1.5 });
   // pasáci (diet.md – Pasáci): dítě z každé domácnosti – stáda bez pasáka stojí u domů
-  return { day, month, people, shares, herders: { children: homes } };
+  return {
+    day,
+    month,
+    people,
+    shares,
+    herders: { children: homes },
+    homes: built.map((d) => ({ id: d.id, people: PEOPLE_PER_HOME })),
+  };
 }

@@ -1412,7 +1412,7 @@ export function showcaseCarts(): CartTrack[] {
       offsetM: (route.length * i) / cargoes.length,
     }));
   return [
-    ...along(circle, 'two-wheel', ['empty', 'hay', 'sheaves']),
-    ...along(shuttle, 'four-wheel', ['logs', 'goods', 'hay']),
+    ...along(circle, 'two-wheel', ['empty', 'hay', 'sheaves', 'water']),
+    ...along(shuttle, 'four-wheel', ['logs', 'goods', 'hay', 'water']),
   ];
 }
