@@ -214,21 +214,25 @@ function peopleOf(people: {
 }
 
 /**
+ * Kolik člověkodní výprava dostala posledního dne (podíl `trade` u její stezky v rozdělení práce
+ * dne); výprava vyslaná až po dni (dnes) nebo bez rozdělení práce null.
+ */
+export function expeditionToday(state: VillageState, e: TradeExpedition): number | null {
+  const labor = state.labor;
+  if (!labor || labor.day !== state.lastDay || e.startedDay >= labor.day) return null;
+  return labor.shares
+    .filter((s) => s.activity === 'trade' && s.target.kind === 'trail' && s.target.id === e.trailId)
+    .reduce((sum, s) => sum + s.manDays, 0);
+}
+
+/**
  * Výprava pro panel: náklad a lidé tam i zpět, průběh a tempo posledního dne – kolik člověkodní
  * jí dnes dala společná práce vsi (podíl `trade` u její stezky v rozdělení práce). Bez volných
  * rukou stojí (`waiting`), s menší prací se zdrží (`slow`).
  */
 export function expeditionView(state: VillageState, e: TradeExpedition): VillageExpedition {
   const remaining = Math.max(0, e.cost - e.done);
-  const labor = state.labor;
-  const today =
-    labor && labor.day === state.lastDay && e.startedDay < labor.day
-      ? labor.shares
-          .filter(
-            (s) => s.activity === 'trade' && s.target.kind === 'trail' && s.target.id === e.trailId,
-          )
-          .reduce((sum, s) => sum + s.manDays, 0)
-      : null;
+  const today = expeditionToday(state, e);
   const EPS = 1e-6;
   const pace: VillageExpedition['pace'] =
     today === null

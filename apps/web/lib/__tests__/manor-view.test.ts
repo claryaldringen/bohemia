@@ -7,6 +7,7 @@ import {
   type Person,
   type VillageState,
 } from '@bohemia/game';
+import { sceneExpeditions } from '../caravan-view';
 import { expeditionView, neighbourViews } from '../manor-view';
 import { tradePreview } from '../trade-quote';
 
@@ -158,5 +159,57 @@ describe('výprava na cestě v panelu – tempo z práce dne (trade.md – Obcho
     expect(view(sent(4, 60))).toMatchObject({ pace: 'full', daysLeft: 0 });
     // výprava uložená s dospělými bez pohlaví – v panelu polovina muži, zbytek ženy
     expect(view(sent(12)).getPeople).toEqual({ families: 0, men: 1, women: 1 });
+  });
+});
+
+describe('výprava pro karavanu ve scéně (trade.md – Ve scéně)', () => {
+  it('kdo jde tam a zpátky, postup a dnešní tempo', () => {
+    const s = village();
+    s.lastDay = DAY;
+    s.trade!.expeditions = [
+      {
+        id: 4,
+        direction: 'S',
+        trailId: 1,
+        startedDay: DAY - 2,
+        give: { meat: 100 },
+        get: {},
+        porters: 6,
+        days: 5,
+        cost: 30,
+        done: 12,
+        givePeople: {
+          families: 0,
+          men: 1,
+          women: 0,
+          people: 1,
+          members: [{ sex: 'male', bornDay: DAY - Math.ceil(20.5 * YEAR), group: 'man' }],
+        },
+        getPeople: { families: [1], men: 0, women: 1 },
+      },
+    ];
+    s.labor = {
+      day: DAY,
+      shares: [{ activity: 'trade', target: { kind: 'trail', id: 1 }, manDays: 3 }],
+    };
+    const [e] = sceneExpeditions(s);
+    expect(e).toMatchObject({
+      id: 4,
+      trailId: 1,
+      porters: 6,
+      carriesOut: true,
+      carriesBack: false,
+      progress: 0.4,
+      rate: 0.1,
+      onMap: 0.8,
+    });
+    expect(e!.leaving).toEqual([{ sex: 'male', age: 20 }]);
+    // rodina se třemi lidmi a svobodná žena – pohlaví a věk jako při příchodu (newcomerProfiles)
+    expect(e!.coming).toHaveLength(4);
+    expect(e!.coming.map((p) => p.sex).slice(0, 2)).toEqual(['male', 'female']);
+    expect(e!.coming[3]!.sex).toBe('female');
+    // bez volných rukou stojí
+    s.labor = { day: DAY, shares: [] };
+    expect(sceneExpeditions(s)[0]!.rate).toBe(0);
   });
 });

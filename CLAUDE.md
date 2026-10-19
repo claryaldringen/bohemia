@@ -1782,7 +1782,15 @@ směr)` – stálá povaha podle druhu souseda (`neighbourKind` – obilnáři, 
   výpravu (`TradeExpedition`), `workExpeditions` (v kroku práce před stavbami – nejvýš nosiči za
   den ze společné práce) a `finishExpeditions` (po práci – zboží do zásob, kronika
   `trade-departed` / `trade-returned`). Rozdělení práce: činnost `trade`, cíl `{ kind: 'trail' }`
-  – nosiči ve scéně chodí po stezce (`porters` ve `villager-plan.ts`). Use-case `sendExpedition`,
+  – ve scéně jde výprava jako **karavana** (`scene/caravan.ts`, data `SceneVillage.expeditions`
+  z `lib/caravan-view.ts`): jedna skupina po zemské stezce podle postupu výpravy v herním čase
+  (`caravanProgress` – postup dne plynule dnešním tempem, `caravanHead` – tam, den za krajem mapy
+  pryč, zpátky), ne podle práce dne – nosiči nezmizí, když výprava nedostala volné ruce; tam
+  nosiči s nákladem a lidé, kteří odcházejí (`givePeople.members`), zpátky nosiči a lidé od
+  souseda (`newcomerProfiles`); postavy `caravanFigures` ve `villager-plan.ts` (podíl `trade`
+  se pak nekreslí; `VillagerPose.hidden` za krajem mapy), vůz v čele `caravanCartPlan`
+  (`CartCaravan` v `cart-layout.ts`, `CartPose.hidden`); obal postav zahrne celé stezky
+  s karavanou (`caravanExtent`). Ukázka `/dev/landscape` – **Karavana**. Use-case `sendExpedition`,
   server action `sendExpedition` (`{ villageId, direction, give, get, givePeople?, getPeople? }` –
   `parseSendExpeditionInput`).
   Web: `VillageManor.neighbours` (`neighbourViews`), panel `hud/TradePanel.tsx` (soused a směr,
