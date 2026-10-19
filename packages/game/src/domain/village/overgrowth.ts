@@ -1,7 +1,9 @@
 import { dateOfDayIndex, dayIndexOf } from '../calendar';
 import { isOvergrown, overgrowthStage, partOvergrowthYears } from './fields';
 import { mownPartIds } from './hay';
-import { grazingDemandHa, villageHerds } from './livestock';
+import { herdingCoverage } from './herding';
+import { grazingDemandHa, naturalPastureHa, villageHerds } from './livestock';
+import { pastureGrazing } from './pasture';
 import { villageOxen } from './oxen';
 import { OVERGROWTH } from './rules';
 import { copyGrid, squareCenter } from './square-grid';
@@ -9,9 +11,9 @@ import { fieldGridOf } from './squares';
 import type { ChronicleEvent, FieldPart, VillageState, VillageWood } from './types';
 
 // Zarůstání přílohu (fields.md – Zarůstání; Martin, 18. 10. 2026: „Ano udělej to tak“ –
-// nepasený a nesečený příloh zarůstá, les z pole vypadne). Stáda se pasou napřed na nejbližším
-// přílohu ve fázi louky (`fallowGrazing` – tutéž funkci používá síť pěšin a scéna, kam stáda
-// chodí), ves seče na seno díly úhoru (hay.ts). Díl, který se za vegetační období nespásl ani
+// nepasený a nesečený příloh zarůstá, les z pole vypadne). Stáda se pasou na pastvinách vsi
+// (`pastureGrazing` v pasture.ts – tutéž funkci používá síť pěšin a scéna, kam stáda chodí),
+// ves seče na seno díly úhoru (hay.ts). Díl, který se za vegetační období nespásl ani
 // neposekl, zarůstá: roky bez pastvy a seče přibývají 1. 11., ve fázi louky je pastva nebo seč
 // vynuluje, od křovin už ne. Díl v lese (30 let) z pole vypadne a zůstane lesem vsi (woods.ts).
 
@@ -25,36 +27,15 @@ export function isGrazeableFallow(part: Pick<FieldPart, 'state' | 'overgrowthYea
 }
 
 /**
- * Pastva stád po dílech přílohu (fields.md – Zarůstání, diet.md – Pastva po dílech): potřeba
- * pastvy `demandHa` (`grazingDemandHa` – ≈ 1 ha na krávu a vola, 0,2 ha na ovci a kozu) se
- * rozdělí po dílech přílohu ve fázi louky od nejbližšího k obydlí (přímá vzdálenost dílu, při
- * shodě id), každému nejvýš jeho plocha; zbytek se pase na loukách krajiny. Vrátí id dílu →
- * spasené ha (jen díly, na které něco připadlo). Díly nemění.
+ * Díly přílohu, které stáda spásají (fields.md – Zarůstání, diet.md – Pastva): potřeba pastvy
+ * `demandHa` se rozdělí po pastvinách (`pastureGrazing` – louka mimo seč od nejbližšího,
+ * přirozené louky, mladý příloh, otava) a spásl se díl, na který připadla aspoň polovina jeho
+ * plochy (OVERGROWTH.grazedMinShare).
  */
-export function fallowGrazing(parts: readonly FieldPart[], demandHa: number): Map<number, number> {
-  const grazing = new Map<number, number>();
-  let left = demandHa;
-  if (left <= EPSILON) return grazing;
-  const pasture = parts
-    .filter(isGrazeableFallow)
-    .sort((a, b) => a.distanceM - b.distanceM || a.id - b.id);
-  for (const part of pasture) {
-    if (left <= EPSILON) break;
-    const ha = Math.min(left, part.areaM2 / M2_PER_HA);
-    grazing.set(part.id, ha);
-    left -= ha;
-  }
-  return grazing;
-}
-
-/**
- * Díly přílohu, které stáda spásají – připadla na ně aspoň polovina jejich plochy potřeby pastvy
- * (OVERGROWTH.grazedMinShare, `fallowGrazing`).
- */
-export function grazedPartIds(parts: readonly FieldPart[], demandHa: number): Set<number> {
-  const areas = new Map(parts.map((p) => [p.id, p.areaM2 / M2_PER_HA]));
+export function grazedPartIds(state: VillageState, day: number, demandHa: number): Set<number> {
+  const areas = new Map(state.parts.map((p) => [p.id, p.areaM2 / M2_PER_HA]));
   const grazed = new Set<number>();
-  for (const [id, ha] of fallowGrazing(parts, demandHa)) {
+  for (const [id, ha] of pastureGrazing(state, day, demandHa, naturalPastureHa(state))) {
     const area = areas.get(id) ?? 0;
     if (area > 0 && ha >= OVERGROWTH.grazedMinShare * area - EPSILON) grazed.add(id);
   }
@@ -91,8 +72,9 @@ export function overgrowthDay(
   if (fallow.length === 0) return [];
   const { year } = dateOfDayIndex(day);
   const seasonStart = dayIndexOf({ year, ...OVERGROWTH.seasonStart });
-  const demand = grazingDemandHa(villageHerds(state), villageOxen(state));
-  const grazed = grazedPartIds(state.parts, demand);
+  // jen co pasáci uhlídali – stádo bez pasáka se nepase (diet.md – Pasáci)
+  const demand = grazingDemandHa(villageHerds(state), villageOxen(state)) * herdingCoverage(state);
+  const grazed = grazedPartIds(state, day, demand);
   const mown = mownPartIds(state);
   for (const part of fallow) {
     if (part.fallowSinceDay === null || part.fallowSinceDay > seasonStart) continue;

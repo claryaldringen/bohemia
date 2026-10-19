@@ -325,10 +325,20 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   (Postavy níž – `herdViews`).
   `livestock-placement.ts` je odvodí z dat vsi pro scénu (`SceneVillage`, i nepovinné
   `cemeteries`) a krajiny: slepice obcházejí dům mimo obdélník domu se šíjí (`chickenBox`),
-  ovce s kozami (stádo na 5 domácností) a krávy se pasou **přednostně na úhoru vsi** (Martin:
-  na úhoru pasáček se zvířaty – mladý úhor vždy, louka na seno jen po seči na otavě, srpen až
-  listopad: `grazeablePart`, `grazingDay` z rozdělení práce), jinak na louce do 300 m (ne osetý
-  díl, hřbitov, obydlí, voda, skála, prudký svah), prasata na okraji lesa (−7 až +5 m od hranice, hlouběji je
+  ovce s kozami (stádo na 5 domácností) a krávy se pasou **přednostně na úhoru vsi, kam je jádro
+  posílá** (`SceneFieldPart.grazed`; louka na seno jen po seči na otavě, srpen až listopad:
+  `grazeablePart`, `grazingDay` z rozdělení práce; strniště po sklizni ano), jinak na louce do
+  300 m (ne osetý díl, louka letošní seče před sečí – `hayMeadows`, `grazedMeadow` –, sad,
+  záhony pozemků, hřbitov, obydlí, voda, skála, prudký svah). **Vždy s pasákem** (Martin:
+  „Stáda domácího zvířectva se nesmí potulovat sama. Vždycky s nimi musí být nějaký
+  člověk. Ten je bude primárně vodit na louky, určené ke spásání. Domácí zvířata by neměla spásat
+  jídlo pro lidi ani ho pošlapat a na čerstvém úhoru toho k pastvě také asi moc není.“ – mění
+  dřívější „mladý úhor vždy“): na pastvu jde jen tolik stád, kolik je dnes pasáků
+  (`herderCount` – děti a starší z `SceneLabor.herders`, dospělí po člověkodnech `herding`; bez
+  údaje neomezeně), málo pasáků → pasák vede víc zvířat (`tendedHerds`); stádo bez pasáka
+  (`Herd.tended` false) stojí u domů s trasou o jedné pastvině; v zimě ovce, kozy a krávy u domů,
+  s pasákem jen prasata. Stáda s pasákem jsou v plánu napřed – pasák `k` patří ke stádu `k`
+  (`herderKinds` dostane jen jejich počet). Prasata na okraji lesa (−7 až +5 m od hranice, hlouběji je
   zakryjí koruny) do 150 m (jinak do 260 m), nejbližší vhodný okraj první – za lesem po otočení
   kamery zmizí, to nevadí (Martin). Dotazy „bod na čtverci“ jdou přes přihrádky (`squareLookup`)
   a sousední pastviny trasy z přihrádek – u pole s tisíci díly by průchod všemi trval sekundy;
@@ -845,9 +855,14 @@ rozhraní částí v
 - **Zarůstání přílohu** (fields.md – Zarůstání, Les vsi; Martin 18. 10. 2026: „Ano udělej to
   tak“ – nepasený a nesečený příloh zarůstá, les z pole vypadne; čísla návrh Clauda podle rešerše
   `research/2026-10-18-overgrowth.md`): 1–2 roky mladý příloh, pak louka (pastvina, louka na
-  seno). `overgrowth.ts`: pastva po dílech `fallowGrazing` / `grazedPartIds` (potřeba pastvy stád
-  od nejbližšího přílohu ve fázi louky, díl nejvýš svou plochou, spásl se při polovině –
-  `OVERGROWTH.grazedMinShare`; stejnou funkcí `pastureGrazedParts` v `paths/village.ts` chodí
+  seno). `overgrowth.ts`: pastva po dílech `grazedPartIds(state, day, demand)` z `pasture.ts`
+  (`pastureGrazing` – Martin 19. 10. 2026, louky určené ke spásání: napřed příloh ve fázi louky
+  mimo letošní seč od nejbližšího, pak přirozené louky mimo seč, pak mladý příloh třetinou píce,
+  nakonec otava posečených dílů – `PASTURE`; potřeba jen podílem uhlídaným pasáky –
+  `herdingCoverage`; díl nejvýš svou plochou, spásl se při polovině –
+  `OVERGROWTH.grazedMinShare`; nosnost `pastureHa(state, day)` stejně – přirozená louka bez luk
+  letošní seče `naturalPastureHa`, otava a mladý příloh třetinou; stejnou funkcí
+  `pastureGrazedParts` v `paths/village.ts` chodí
   pasáček v síti pěšin a pasou se stáda ve scéně – `SceneFieldPart.grazed`; seno se seče i na
   přirozených loukách do 600 m, ty nezarůstají), roční krok
   `overgrowthDay` 1. 11. před porážkou (jen díly ladem celé období od 1. 4.): nespasený a

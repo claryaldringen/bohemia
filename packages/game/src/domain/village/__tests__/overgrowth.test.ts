@@ -6,7 +6,8 @@ import { cloneState } from '../clone';
 import { pastureHa, pigForestHa } from '../livestock';
 import { obstacleChangesAt, plantOnStump } from '../obstacles';
 import { BEECH_PLANTING } from '../rules';
-import { fallowGrazing, grazedPartIds, overgrowthDay } from '../overgrowth';
+import { grazedPartIds, overgrowthDay } from '../overgrowth';
+import { PASTURE, pastureGrazing, pastureParts } from '../pasture';
 import { isHayMeadow, mownPartIds } from '../hay';
 import { plantingBlocker } from '../paths/roads';
 import { pathTerrainOf, pathWindowFor, withObstacles } from '../paths/terrain';
@@ -80,7 +81,7 @@ function part(id: number, over: Partial<FieldPart> = {}): FieldPart {
   };
 }
 
-describe('pastva po dílech přílohu', () => {
+describe('pastva po dílech přílohu (diet.md – Pastva)', () => {
   const parts = [
     part(1, { areaM2: 10_000, distanceM: 300 }),
     part(2, { areaM2: 5000, distanceM: 100 }),
@@ -88,22 +89,67 @@ describe('pastva po dílech přílohu', () => {
     part(4, { areaM2: 10_000, distanceM: 10, state: 'sown', fallowSinceDay: null }),
     part(5, { areaM2: 10_000, distanceM: 300 }),
   ];
+  const withParts = (list: FieldPart[]): VillageState => {
+    const s = village();
+    s.parts = list;
+    return s;
+  };
 
   it('nejbližší příloh ve fázi louky napřed, každý nejvýš svou plochou', () => {
     // křoviny (3) ani osetý díl (4) se nepasou; zbytek potřeby jde na louky krajiny
-    expect([...fallowGrazing(parts, 1.2)]).toEqual([
+    const s = withParts(parts);
+    expect([...pastureGrazing(s, NOV1, 1.2, 0)]).toEqual([
       [2, 0.5],
       [1, expect.closeTo(0.7, 9)],
     ]);
-    expect(fallowGrazing(parts, 0).size).toBe(0);
-    const all = fallowGrazing(parts, 10);
+    expect(pastureGrazing(s, NOV1, 0, 0).size).toBe(0);
+    const all = pastureGrazing(s, NOV1, 10, 0);
     expect([...all.keys()]).toEqual([2, 1, 5]);
     expect(all.get(5)).toBe(1);
   });
 
+  it('mladý příloh až po loukách a jen třetinou píce; louka letošní seče jen na otavě', () => {
+    const young = part(6, { areaM2: 10_000, distanceM: 5, fallowSinceDay: at(620, 1, 1) });
+    const hay = part(7, { areaM2: 10_000, distanceM: 1 });
+    const s = withParts([...parts, young, hay]);
+    s.hay = { kg: 0, mowing: { partIds: [7], required: 1, done: 0, yieldKg: 1500 } };
+    // louky přílohu 2,5 ha a přirozené louky 1 ha napřed – mladý příloh až pak, ač je nejblíž
+    const grazing = pastureGrazing(s, NOV1, 3.8, 1);
+    expect([...grazing.keys()]).toEqual([2, 1, 5, 6]);
+    // 0,3 ha zbylé potřeby = 1 ha mladého přílohu (třetina píce)
+    expect(grazing.get(6)).toBeCloseTo(0.3 / PASTURE.youngFallowShare, 9);
+    // louka v seči před sečí nic, po seči otava
+    expect(pastureGrazing(s, NOV1, 10, 1).has(7)).toBe(false);
+    s.hay.mowing!.done = 1;
+    expect(pastureGrazing(s, NOV1, 10, 1).get(7)).toBe(1);
+    const pasture = pastureParts(s, NOV1);
+    expect(pasture.young.map((p) => p.id)).toEqual([6]);
+    expect(pasture.mown.map((p) => p.id)).toEqual([7]);
+  });
+
+  it('pastva a zarůstání nezávisí na tom, po jakých kouscích se ves dopočítá', () => {
+    const s = village(at(618, 3, 1));
+    s.livestock!.land = { meadowHa: 0, forestHa: 5 };
+    s.livestock!.herds = herds({ sheep: 5, goat: 3 });
+    s.parts = [
+      ...[1, 2, 3, 4].map((id) => part(id, { areaM2: 10_000, distanceM: 50 * id })),
+      part(5, { areaM2: 10_000, distanceM: 20, fallowSinceDay: at(617, 9, 1) }),
+    ];
+    const end = at(621, 3, 1);
+    const whole = advanceVillage(s, end, null);
+    let chunked = s;
+    for (let d = s.lastDay + 53; d < end; d += 53) chunked = advanceVillage(chunked, d, null);
+    chunked = advanceVillage(chunked, end, null);
+    expect(chunked.parts).toEqual(whole.parts);
+    expect(chunked.livestock).toEqual(whole.livestock);
+    expect(chunked.chronicle).toEqual(whole.chronicle);
+  });
+
   it('spasený díl = připadla na něj aspoň polovina jeho plochy', () => {
-    expect([...grazedPartIds(parts, 1.2)].sort()).toEqual([1, 2]);
-    expect([...grazedPartIds(parts, 0.9)]).toEqual([2]);
+    const s = withParts(parts);
+    s.livestock!.land = { meadowHa: 0, forestHa: 0 };
+    expect([...grazedPartIds(s, NOV1, 1.2)].sort()).toEqual([1, 2]);
+    expect([...grazedPartIds(s, NOV1, 0.9)]).toEqual([2]);
   });
 
   it('síť pěšin a scéna: stáda na pastvě po dílech, v zimě krávy a voli v ohradě', () => {
@@ -269,7 +315,7 @@ describe('nosnost – zarostlý příloh a les vsi', () => {
       { cell: { x: 6, y: 5 }, areaM2: 10_000, surface: 'forest', day: NOV1 },
     ];
     // louka 20 − křoviny na louce 1 ha − les vsi na louce 1 ha (příloh 1 je pastva)
-    expect(pastureHa(s)).toBeCloseTo(18, 9);
+    expect(pastureHa(s, NOV1)).toBeCloseTo(18, 9);
     // les 10 − mladý les na vymýceném lese (díl pole) + les vsi na louce
     expect(pigForestHa(s)).toBeCloseTo(10, 9);
   });

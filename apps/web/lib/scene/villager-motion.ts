@@ -62,6 +62,8 @@ export interface HerdView {
   x: number;
   z: number;
   radiusM: number;
+  /** Pase se s pasákem; false = stojí u domu bez pasáka (bez údaje s pasákem). */
+  tended?: boolean;
   moving: number;
   headingX: number;
   headingZ: number;

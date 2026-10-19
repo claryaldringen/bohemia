@@ -6,6 +6,7 @@ import { HAY_WINTER_MONTHS } from '../hay';
 import { grazingDemandHa, villageHerds } from '../livestock';
 import { obstacleChangesAt } from '../obstacles';
 import { villageOrchards } from '../orchard';
+import { herdingCoverage } from '../herding';
 import { grazedPartIds, isGrazeableFallow } from '../overgrowth';
 import { villageOxen, villagePens } from '../oxen';
 import { ageGroup } from '../people';
@@ -97,17 +98,16 @@ export function pastureLivestock(
 }
 
 /**
- * Díly přílohu, na kterých se stáda v den `day` pasou (fields.md – Zarůstání, diet.md – Pastva po
- * dílech): stáda na pastvě (`pastureLivestock`) a voli mimo zimní ohradu po dílech přílohu ve
- * fázi louky od nejbližšího – stejné rozdělení (`grazedPartIds`) jako roční krok zarůstání.
- * Podle nich chodí pasáček (síť pěšin) a pasou se stáda ve scéně.
+ * Díly přílohu, na kterých se stáda v den `day` pasou (fields.md – Zarůstání, diet.md – Pastva):
+ * stáda na pastvě (`pastureLivestock`) a voli mimo zimní ohradu, jen kolik pasáci uhlídali
+ * (`herdingCoverage` – stádo bez pasáka se nepase), po pastvinách – stejné rozdělení
+ * (`grazedPartIds`) jako roční krok zarůstání. Podle nich chodí pasáček (síť pěšin) a pasou se
+ * stáda ve scéně.
  */
-export function pastureGrazedParts(
-  state: Pick<VillageState, 'livestock' | 'pens' | 'parts'>,
-  day: number,
-): Set<number> {
+export function pastureGrazedParts(state: VillageState, day: number): Set<number> {
   const oxen = cattlePenned(state, day) ? 0 : villageOxen(state);
-  return grazedPartIds(state.parts, grazingDemandHa(pastureLivestock(state, day), oxen));
+  const demand = grazingDemandHa(pastureLivestock(state, day), oxen) * herdingCoverage(state);
+  return grazedPartIds(state, day, demand);
 }
 
 /**
