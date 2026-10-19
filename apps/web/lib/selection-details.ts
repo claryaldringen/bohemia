@@ -234,8 +234,6 @@ export type SelectionDetails =
       training: { progress: number; daysLeft: number } | null;
       /** Zásoba sena vsi (kg). */
       hayKg: number;
-      /** Proč teď nejde začít výcvik (česky), nebo null. */
-      trainBlocked: string | null;
       /** Stav hotové ohrady 0–1 (abandonment.md). */
       condition: number;
       /** Opuštěná – bez zvířat a nikdo k ní nechodí, chátrá. */
@@ -608,7 +606,6 @@ function penDetails(view: VillageView | null, id: number): SelectionDetails | nu
     team: pen.team,
     training: pen.training,
     hayKg: view.hayKg,
-    trainBlocked: pen.trainBlocked,
     condition: pen.condition,
     abandoned: pen.abandoned,
     repair: pen.repair,

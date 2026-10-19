@@ -26,15 +26,16 @@ import {
   starveHerds,
   wantedWinterHerds,
 } from './livestock';
-import { OXEN, penDay, penOxen, villageOxen, villagePens } from './oxen';
+import { OXEN, penDay, penOxen, trainTeamsWhenReady, villageOxen, villagePens } from './oxen';
 import { walkDistancesTo } from './paths/village';
+import { villageRoadWalk } from './paths/walking';
 import type { ChronicleEvent, VillageState } from './types';
 
 // Den hospodářství vsi (diet.md, oxen.md) – stáda, seno a ohrady v pevném pořadí, před plánem
 // osevu a prací dne: roční ztráty stád a seno ve stohu (každý den), ohrady (výcvik, stáří
-// spřežení, 1. 3. pokrytí sena) a 1. 3. zimní úhyn stáda, 1. 4. mláďata a konec zimy, 1. 6.
-// zkažené loňské seno a plán seče (s krajinou i přirozené louky), 1. 9. zkažené maso, 1. 11.
-// porážka a začátek zimy, v zimě seno. Mléko a vejce se jí čerstvé v kroku jídla (diet.ts),
+// spřežení, 1. 3. pokrytí sena) a 1. 3. zimní úhyn stáda, 1. 4. mláďata a konec zimy, výcvik
+// spřežení, kdykoli jde (začíná sám), 1. 6. zkažené loňské seno a plán seče (s krajinou
+// i přirozené louky), 1. 9. zkažené maso, 1. 11. porážka a začátek zimy, v zimě seno. Mléko a vejce se jí čerstvé v kroku jídla (diet.ts),
 // dojení, péče a pasení jsou práce dne.
 
 /** Konec zimy pro voly a stádo (1. 3.) – pokrytí sena rozhodne o jarní orbě a úhynu. */
@@ -107,6 +108,14 @@ export function husbandryDay(
     herdBirths(state);
     if (state.hay) delete state.hay.winter;
   }
+  // co ulehčí práci a ves to má, vesničané používají sami – spřežení se cvičí bez hráče, první
+  // vhodný den (oxen.md – Spřežení, Martin 19. 10. 2026); po mláďatech, ať jsou telata
+  trainTeamsWhenReady(
+    state,
+    day,
+    obstacles,
+    landscape ? () => villageRoadWalk(state, landscape) : undefined,
+  );
   if (isOn(date, MOWING_DAY)) {
     // stoh přes rok – zbytek loňského sena se zkazil (oxen.md – Seno)
     spoilOldHay(state);

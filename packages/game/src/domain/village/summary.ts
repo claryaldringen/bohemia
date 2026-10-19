@@ -33,7 +33,7 @@ import {
   villageChickens,
   villageHerds,
 } from './livestock';
-import { OXEN, teamAgeYears, trainingBlock, trainingProgress, villagePens } from './oxen';
+import { OXEN, teamAgeYears, trainingProgress, villagePens } from './oxen';
 import {
   orchardAgeYears,
   orchardAreaM2,
@@ -260,10 +260,8 @@ export interface PenSummary {
   built: boolean;
   /** Vycvičené spřežení: stáří v letech a kolik let ještě slouží; bez spřežení null. */
   team: { ageYears: number; yearsLeft: number } | null;
-  /** Výcvik spřežení: průběh 0–1 a zbývající dny; bez výcviku null. */
+  /** Výcvik spřežení (začíná sám – oxen.md): průběh 0–1 a zbývající dny; bez výcviku null. */
   training: { progress: number; daysLeft: number } | null;
-  /** Proč teď nejde začít výcvik (česky), nebo null. */
-  trainBlocked: string | null;
 }
 
 export interface VillageSummary {
@@ -416,7 +414,6 @@ function penSummaries(state: VillageState, day: number): PenSummary[] {
                 Math.ceil(pen.training.startDay + OXEN.trainingYears * DAYS_PER_SERVICE_YEAR - day),
               ),
             },
-      trainBlocked: trainingBlock(state, pen.id, day, null),
     };
   });
 }

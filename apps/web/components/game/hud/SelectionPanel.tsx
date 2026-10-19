@@ -728,17 +728,14 @@ function formatTons(kg: number): string {
 
 /**
  * Ohrada (oxen.md – Co hráč vidí): rozestavěná jen průběh stavby; hotová zvířata v ohradě (voli,
- * v zimě krávy), seno, stáda vsi s pastvou, spřežení (stáří a kolik let ještě slouží) nebo
- * průběh výcviku a tlačítko „Vycvičit spřežení“ – když výcvik nejde, zašedlé s důvodem červeně.
+ * v zimě krávy), seno, stáda vsi s pastvou, spřežení (stáří a kolik let ještě slouží) a průběh
+ * výcviku. Spřežení se cvičí samo (Martin 19. 10. 2026) – tlačítko není.
  */
 function PenBody({
   details,
-  onTrainTeam,
 }: {
   details: Extract<SelectionDetails, { kind: 'pen' }>;
-  onTrainTeam?: (penId: number) => Promise<void>;
 }): ReactElement {
-  const [busy, setBusy] = useState(false);
   if (!details.built) {
     return (
       <div className="flex flex-col justify-center gap-1.5">
@@ -749,12 +746,6 @@ function PenBody({
       </div>
     );
   }
-  const blocked = details.trainBlocked;
-  const train = (): void => {
-    if (!onTrainTeam || blocked !== null || busy) return;
-    setBusy(true);
-    void onTrainTeam(details.id).finally(() => setBusy(false));
-  };
   return (
     <div className="flex min-w-0 flex-col gap-1.5">
       <div className="flex items-center gap-3">
@@ -825,31 +816,6 @@ function PenBody({
             {formatInteger(details.training.daysLeft)}
           </Stat>
         </div>
-      )}
-      {!details.training && (
-        <Tooltip
-          content={
-            blocked ? (
-              <span data-testid="train-blocked" className="font-semibold text-red-400">
-                {blocked}
-              </span>
-            ) : (
-              'Vycvičit spřežení'
-            )
-          }
-          placement="above"
-        >
-          <button
-            type="button"
-            data-testid="train-team"
-            disabled={blocked !== null || busy || !onTrainTeam}
-            aria-busy={busy}
-            onClick={train}
-            className={`hud-button px-2 py-0.5 font-serif text-sm whitespace-nowrap ${busy ? 'disabled:cursor-wait disabled:opacity-60' : 'disabled:cursor-not-allowed disabled:opacity-45 disabled:grayscale'}`}
-          >
-            Vycvičit spřežení
-          </button>
-        </Tooltip>
       )}
     </div>
   );
@@ -1102,14 +1068,13 @@ function SacredBody({
  * a průběh založení / rozšíření; sad: výměra, stáří, úroda příští sklizně a průběh výsadby;
  * posvátný dub, háj, modla a svatyně: kolik přidávají štěstí (háj i počet dubů), rozestavěná
  * modla a svatyně průběh stavby a duby ke skácení; ohrada: zvířata, seno, stáda, spřežení
- * a výcvik (`onTrainTeam` – akce „Vycvičit spřežení“); pevná cesta: délka, stáří, stromy,
+ * a výcvik (cvičí se samo); pevná cesta: délka, stáří, stromy,
  * vylepšení (`onUpgradeRoad`) a výsadba jabloní (`onPlantRoadApples`). Obydlí a víc vybraných
  * obydlí: Přestěhovat (`onRelocate`), Odejít (zatím zašedlé) a průběh stěhování se zrušením
  * (`onCancelRelocation` – migration.md).
  */
 export function SelectionPanel({
   details,
-  onTrainTeam,
   onRelocate,
   onCancelRelocation,
   onLeave,
@@ -1119,8 +1084,6 @@ export function SelectionPanel({
   onSendExpedition,
 }: {
   details: SelectionDetails | null;
-  /** Zadá v ohradě výcvik spřežení (server action) – hotovo, až se vrátí. */
-  onTrainTeam?: (penId: number) => Promise<void>;
   /** Zadá vylepšení pevné cesty (server action) – hotovo, až se vrátí. */
   onUpgradeRoad?: (roadId: number, upgrade: RoadUpgrade) => Promise<void>;
   /** Zadá výsadbu jabloní podél pevné cesty (server action) – hotovo, až se vrátí. */
@@ -1145,7 +1108,7 @@ export function SelectionPanel({
     );
   } else if (details.kind === 'pen') {
     portrait = <Portrait icon="ohrada" name="Ohrada" />;
-    body = <PenBody key={details.id} details={details} onTrainTeam={onTrainTeam} />;
+    body = <PenBody key={details.id} details={details} />;
   } else if (details.kind === 'field') {
     portrait = <Portrait icon="pole" name="Pole" />;
     body = <FieldBody details={details} />;

@@ -140,7 +140,6 @@ const pen = (over: Partial<Extract<SelectionDetails, { kind: 'pen' }>> = {}): Se
   team: { ageYears: 8, yearsLeft: 2 },
   training: { progress: 0.35, daysLeft: 438 },
   hayKg: 41_200,
-  trainBlocked: null,
   condition: 0.62,
   abandoned: false,
   repair: null,
@@ -241,7 +240,6 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
       milkLPerDay: 0,
       condition: 0.31,
       abandoned: true,
-      trainBlocked: 'Na výcvik chybí telata – stádo potřebuje aspoň 3 krávy.',
     }),
   },
   {
