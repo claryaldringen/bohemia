@@ -1,13 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { packObstacles, type ObstacleLayer, type ObstaclePlacement } from '../../landscape';
-import { foundVillage, startNewDwelling } from '../actions';
+import { foundField, foundVillage, startNewDwelling } from '../actions';
 import { obstacleChangesAt } from '../obstacles';
 import {
   checkDwellingPlacement,
   checkPenPlacement,
   checkPlotPlacement,
+  checkSacredBuildingPlacement,
   checkWorkshopPlacement,
+  fieldPartsFromCells,
   orchardPartsFromCells,
   placementVillageOf,
   rotatedPlot,
@@ -405,5 +407,106 @@ describe('posvátné duby a háje se v lese nikdy nekácí', () => {
     // v háji leží 5,8 × 15 m plochy – ta se nevyklučí
     const crowned = ZEMNICE_CROWNED.width * ZEMNICE_CROWNED.depth;
     expect(check.obstacleCost).toBeCloseTo(forestCost(crowned - 5.8 * 15));
+  });
+});
+
+describe('stavby na poli a v sadu založeném v lese (Martin 19. 10. 2026)', () => {
+  // „pokud jsem pole založil v lese, tak na něm nemohu postavit kovárnu, protože to hlásí, že
+  // objekt lze postavit jenom na louce“ – celá krajina je les, pole 5 × 5 čtverců kolem políčka
+  // (8, 8) (svět −30 … 45 m); stromy na poli patří poli (díl je vymýtí sám – zakládaný je ještě
+  // má), stavba za les ani za ně neplatí, jen pole se zmenší
+  const forest = makeLandscape({ surface: () => 'forest' });
+  const trees = packObstacles(
+    [obstacle(1, 'tree', 3, 3), obstacle(2, 'tree', 20, 20), obstacle(3, 'stump', -10, 12)],
+    16,
+    15,
+  );
+  const center: Position = { x: 7.5, z: 7.5, rotation: 0 };
+  const onField = (grid?: { x: number; z: number; rotation: number }): PlacementVillage => ({
+    dwellings: [],
+    constructions: [],
+    fields: [{ id: 1, ...(grid ? { grid } : {}) }],
+    parts: (grid ? block(-2, -2, 5, 5) : block(6, 6, 5, 5)).map((cell, i) => ({
+      id: i + 1,
+      cell,
+      fieldId: 1,
+      areaM2: 225,
+    })),
+  });
+  const turned = { x: 7.5, z: 7.5, rotation: Math.PI / 12 };
+
+  for (const [name, village] of [
+    ['pole v mřížce krajiny', onField()],
+    ['natočené pole', onField(turned)],
+  ] as const) {
+    it(`${name}: dílny, obydlí, modla i svatyně projdou bez ceny za les`, () => {
+      const checks = [
+        ...(['smith', 'potter', 'carpenter', 'burner'] as const).map((craft) =>
+          checkWorkshopPlacement(forest, village, craft, center, trees),
+        ),
+        checkDwellingPlacement(forest, village, 'zemnice', center, trees),
+        checkSacredBuildingPlacement(forest, village, 'idol', center, trees),
+        checkSacredBuildingPlacement(forest, village, 'shrine', center, trees),
+      ];
+      for (const check of checks) {
+        expect(check).toMatchObject({ ok: true, reason: null, obstacleCost: 0 });
+        expect(check.obstacleIds).toEqual([]);
+        expect(check.takenLand.length).toBeGreaterThan(0);
+        expect(check.warning).toContain('Pole se zmenší');
+      }
+    });
+  }
+
+  it('pozemek polozemnice na čtverci pole v lese, i natočený – bez ceny za les', () => {
+    const tile = checkPlotPlacement(
+      forest,
+      onField(),
+      'polozemnice',
+      { cell: { x: 8, y: 8 }, variant: 'center' },
+      trees,
+    );
+    expect(tile).toMatchObject({ ok: true, reason: null, obstacleCost: 0, obstacleIds: [] });
+    expect(tile.takenLand).toEqual([{ cell: { x: 8, y: 8 }, areaM2: 225, cellAreaM2: 225 }]);
+    const plot = rotatedPlot(forest, { x: 9, z: 7.5, rotation: Math.PI / 12 }, 'center')!;
+    const rotated = checkPlotPlacement(forest, onField(), 'polozemnice', plot, trees);
+    expect(rotated).toMatchObject({ ok: true, reason: null, obstacleCost: 0 });
+  });
+
+  it('obydlí na čtverci sadu v lese – za les neplatí, sad se zmenší', () => {
+    const village: PlacementVillage = {
+      dwellings: [],
+      constructions: [],
+      parts: [],
+      orchards: [{ id: 1, squares: block(6, 6, 5, 5).map((cell) => ({ cell, areaM2: 225 })) }],
+    };
+    const check = checkDwellingPlacement(forest, village, 'zemnice', center, trees);
+    expect(check).toMatchObject({ ok: true, reason: null, obstacleCost: 0 });
+    expect(check.warning).toContain('Sad se zmenší');
+  });
+});
+
+describe('kovárna na poli založeném v lese – kontrola jako na serveru (stav vsi)', () => {
+  it('pole v lese (zakládané i založené): kovárna projde, za les ani stromy pole neplatí', () => {
+    const s = village();
+    const cells = block(8, 6, 3, 3);
+    const field = fieldPartsFromCells(landscape, placementVillageOf(s, DAY), cells, [HOME], layer);
+    expect(field.check.ok).toBe(true);
+    const founding = foundField(s, DAY, { parts: field.parts });
+    const smithy = (state: VillageState, day: number) =>
+      checkWorkshopPlacement(
+        landscape,
+        placementVillageOf(state, day),
+        'smith',
+        { x: 22.5, z: -7.5, rotation: 0 },
+        layer,
+      );
+    for (const [state, day] of [
+      [founding, DAY],
+      [advanceVillage(founding, DAY + 2 * 365, layer), DAY + 2 * 365],
+    ] as const) {
+      const check = smithy(state, day);
+      expect(check).toMatchObject({ ok: true, reason: null, obstacleCost: 0, obstacleIds: [] });
+      expect(check.warning).toContain('Pole se zmenší');
+    }
   });
 });

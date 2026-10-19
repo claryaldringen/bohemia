@@ -1073,10 +1073,14 @@ function squareObstacleCost(
   );
 }
 
-/** Plocha čtverce (políčka) bez kusů, které stavba bere polím a sadům (`taken`). */
+/**
+ * Plocha čtverce (políčka) bez kusů, které stavba bere polím a sadům (`taken`); zbytek pod
+ * TAKEN_LAND_EPSILON_M2 (zaokrouhlení průniků natočených čtverců) je 0.
+ */
 function squareFreeArea(landscape: Landscape, taken: readonly TakenLand[]): number {
   const cellArea = landscape.cellSizeM * landscape.cellSizeM;
-  return Math.max(0, cellArea - taken.reduce((sum, t) => sum + t.areaM2, 0));
+  const free = cellArea - taken.reduce((sum, t) => sum + t.areaM2, 0);
+  return free > TAKEN_LAND_EPSILON_M2 ? free : 0;
 }
 
 /**
@@ -2425,7 +2429,12 @@ function buildSquares(
       tally,
       obstacleCost: fieldSurfaces
         ? tallyCost(tally, SURFACE_INCLUDED_OBSTACLES[surface])
-        : squareObstacleCost(village, tally, land === 'forest', Math.max(0, areaM2 - fieldM2)),
+        : squareObstacleCost(
+            village,
+            tally,
+            land === 'forest',
+            areaM2 - fieldM2 > TAKEN_LAND_EPSILON_M2 ? areaM2 - fieldM2 : 0,
+          ),
     });
   }
   return { squares, problems, blockedCells, obstacleCounts, sacred };

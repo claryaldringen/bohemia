@@ -3083,7 +3083,7 @@ function scenePlacementVillage(scene: SceneVillage): PlacementVillage {
       cell: pen.cell,
       ...(pen.grid ? { grid: pen.grid } : {}),
     })),
-    // les vsi – pole ho vymýtí jako les, ostatní stavby na něj nesmí (fields.md – Les vsi)
+    // les vsi – pole ho vymýtí jako les, ostatní stavby ho vyklučí jako les krajiny (fields.md)
     ...(scene.woods
       ? {
           woods: scene.woods.map((w) => ({ cell: w.cell, ...(w.grid ? { grid: w.grid } : {}) })),
