@@ -733,10 +733,13 @@ rozhraní částí v
   (`villageFoodCosts`; u nástrojů při pokrytí po nákupu), skupina polovina dospělých (nejvýš 8)
   po 25 kg, nejvýš 60 dní; koupí, když práce ušetřená za dobu služby (1 ÷ opotřebení let –
   nástroje polní práce a seč, keramika ztráty zásob a denní minimum, dřevěné nářadí práce vsi)
-  převýší práci za platbu a cestu. `VillageState.purchases` (`CraftPurchase` – směr, skupina, dny,
+  převýší práci za platbu a cestu – z jednoho přebytku napřed nejvyšší poměr ušetřené práce
+  k ceně (rozhodnutí Clauda). `VillageState.purchases` (`CraftPurchase` – směr, skupina, dny,
   stezka nebo bod na kraji `edge`, zboží a platba); lidé na cestě chybí v práci vsi od prvního dne
   (`purchaseTravelers` – kapacita `allocateDay`), `walkPurchases` → podíl práce `trade` s cílem
-  stezky nebo `{ kind: 'edge' }` (karavana `porters` ve `villager-plan.ts` i po přímce ke kraji),
+  stezky nebo `{ kind: 'edge' }`; ve scéně karavana (`sceneExpeditions` v `caravan-view.ts` –
+  `SceneExpedition` s `trailId` null a čarou `line` od dvorce ke kraji – `purchaseLine`, každá
+  cesta tam a zpět zvlášť podle `CraftPurchase.tripDays`; body cesty `caravanPoints`),
   `finishPurchases` → zásoby a kronika `crafts-bought`. Web: kronika a upozornění „Vesničané
   koupili nástroje u souseda (sever)“, `VillageCrafts.sources` (`craftSources`),
   `VillageView.purchases`, panel dvorce `BuyingRow` (výrobky se šipkou ke zdroji, nákup na cestě),

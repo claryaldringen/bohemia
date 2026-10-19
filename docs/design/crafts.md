@@ -266,13 +266,19 @@ návrh Clauda; čísla v `rules.ts` (`CRAFT_BUYING`), rešerše
   a zpět). Co výrobek ušetří (meze produktivity – Účinek): **nástroje** polní práci dílů v osevu
   a seč (cena jídla v práci při pokrytí před a po), **keramika** ztráty zásob a denní minimum
   domácností, **dřevěné nářadí** práci celé vsi. Kupuje, jen když ušetří víc, než stojí.
+- **Pořadí nákupu:** přebytek je jeden, proto ves platí napřed výrobek, který **ušetří nejvíc
+  práce na práci, kterou stojí** (poměr ušetřené práce k práci za platbu a cestu), a ostatní pak
+  podle toho, co z přebytku zbylo (rozhodnutí Clauda, 19. 10. 2026 – dřív pevné pořadí nástroje →
+  keramika → dřevěné nářadí: z malého přebytku ves koupila keramiku, i když dřevěné nářadí by
+  ušetřilo několikrát víc).
 - **Kronika a upozornění:** „Vesničané koupili nástroje a keramiku u souseda (sever) – zaplatili
   766 kg obilí.“, krátký řádek „Vesničané koupili nástroje u souseda (sever)“ – jen fakt.
 - **Rozhraní (jen ikony):** v panelu dvorce řádek výrobků – šipka k sousedovi, u kterého ves
   kupuje (✓ vlastní řemeslník), a nákup na cestě (šipka a dny do návratu); v panelu dílny bez vstupů
   ikona výrobku se šipkou, že ves dokupuje u souseda. Věty jen v popiscích.
-- **Ve scéně:** skupina jde jako karavana výpravy (`porters`) po stezce, nebo rovně krajinou ke
-  kraji mapy a zpět.
+- **Ve scéně:** skupina jde jako karavana výpravy ([obchod](trade.md) – Ve scéně) – nosiči
+  s platbou tam a s výrobky zpátky, po hotové stezce, jinak rovně krajinou od dvorce ke kraji mapy;
+  jde-li vícekrát, karavana jde každou cestu zvlášť.
 - **Námět (zatím ne):** nákup u hráčovy vlastní vsi v sousední mapě, když tam řemeslník je –
   simulace jedné vsi o jiných mapách neví (jen o vsích na téže mapě – `neighbourSnapshot`); šlo
   by přidat podobný snímek sousedních map v `updateVillage`. Do té doby simulace počítá i ve směru
@@ -365,3 +371,4 @@ Rozhodnutí kontroléru při implementaci (18. 10. 2026) – kde návrh necháva
 | Tesař – vozy, dřevěné nářadí, pomoc stavbám (wagons.md)                                                  | Martin (19. 10. 2026)                        |
 | Výrobky řemeslníků vesničané kupují u sousedů sami, když se jim to vyplatí; vlastní řemeslník přednost   | Martin (19. 10. 2026)                        |
 | Nákup 15. 11., u nejbližšího souseda, platba obilím z přebytku, skupina s předností, doba služby         | návrh Clauda (19. 10. 2026)                  |
+| Pořadí nákupu podle poměru ušetřené práce k ceně (z jednoho přebytku)                                    | rozhodnutí Clauda (19. 10. 2026)             |
