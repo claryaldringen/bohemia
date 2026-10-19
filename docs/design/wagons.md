@@ -112,7 +112,13 @@ níž je návrh Clauda, čísla v `CART_JOBS` (`rules.ts`).
 - **Vyjeté cesty:** jízdy pro uhlí, s osivem i pro vodu se počítají do ročního provozu cest jako
   svoz – k vodě a k milíři mohou vzniknout vyježděné cesty.
 - **Ve scéně:** vůz jede tam a zpět (`shuttleRoute`) – uhlí veze zpátky (zboží), osivo tam (zboží,
-  zpátky prázdný), voda zatím bez modelu sudů (prázdný vůz). Rozdělení práce dne má podíl `haul`
+  zpátky prázdný), voda v sudech tam i zpět (prázdné sudy k vodě, plné domů – díly `wagon2-water`
+  a `wagon4-water`: stojící sudy po ≈ 150 l s víkem a čepem, převázané provazem; dvoukolák dva,
+  čtyřkolák čtyři). Na rozdíl od svozu úrody (ladicí – jízdy dne v okně herního dne) jezdí vozy
+  s vodou, uhlím a osivem tempem volů ve skutečném čase (`steadyJob` v `village-carts.ts`) – do
+  86 s herního dne by se jízda k vodě vešla jen čtyřicetikilometrovou rychlostí; jsou tak součástí
+  provozu na cestách (villagers.md). Ve dny, kdy vůz vodu veze, chodí pro ni pěšky jen tolik
+  lidí, kolik vůz nepřivezl. Rozdělení práce dne má podíl `haul`
   s počtem vozů, cílem (milíř, díl pole, břeh – `{ kind: 'water' }`) a co vůz veze
   (`LaborShare.job`). Kronika ani upozornění nejsou.
 
@@ -413,7 +419,8 @@ zblízka**, **Sledovat vůz**) – herní logika vozů ani tesaře v jádru nen�
 - **Náklad** jako samostatné díly na korbě: seno (kupa přes korbu s pavuzou – sláma z textury
   `iber_struct.png` jako `hay_cart` 0 A.D., přebarvená do olivova), snopy (napříč, klasy dovnitř,
   po vrstvách), klády (v pyramidě, přečnívají dozadu, kůra a čela jako hromada klád a polena
-  řemesel), zboží (pytle, soudek medu, balík kožešin). Prázdný vůz bez nákladu.
+  řemesel), zboží (pytle, soudek medu, balík kožešin), voda (stojící sudy s víkem, čepem
+  a provazem ke korbě – Co vozy vozí). Prázdný vůz bez nákladu.
 - **Ve scéně:** `cart-layout.ts` (čisté funkce – trasa, póza vozu se spřežením v čase t, sklon
   a náklon podle terénu pod koly) a `cart-renderer.ts` (kreslení v instancích). Data přijdou
   z jádra jako trasa vozu (lomená čára), druh a náklad.
@@ -499,3 +506,4 @@ Návrh Clauda (19. 10. 2026) – jen zobrazení, simulace se nemění.
 | Osivo: desetina setí, jako odnos snopů (8 nosičů se 2 lidmi)                              | návrh Clauda          |
 | Voda: 10 l na člověka, sudy 300 l, jen domácnostem, kterým jízda ušetří práci             | návrh Clauda          |
 | Voda vozem – posádka v denním minimu; břeh nejblíž ohradě, kam vůz sjede                  | návrh Clauda          |
+| Ve scéně sudy na voze tam i zpět; voda, uhlí a osivo tempem volů ve skutečném čase        | návrh Clauda          |

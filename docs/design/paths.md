@@ -195,16 +195,18 @@ pevná cesta k potoku nevznikla a čas na vodu byl jen v pevném denním minimu.
   pevných cestách nebo rovně krajinou (kdyby pěšiny dne zmizely). Bez krajiny (kalibrace) se
   neměří a přirážka není.
 - **Co hráč vidí:** přirážku jen přes práci – volná práce v liště, rozdělení práce dne (víc žen
-  u domácí práce). Ve scéně ženy chodí pro vodu po pěšině domácnosti i k vzdálené vodě (pro dřevo
-  jen do 220 m od domu).
+  u domácí práce). Ve scéně chodí lidé pro vodu po pěšině domácnosti i k vzdálené vodě s vahadlem
+  a vědry, tolik, kolik odpovídá cestám domácnosti (pro dřevo jen do 220 m od domu – villagers.md,
+  Provoz na cestách).
 - **Voda vozem** ([wagons.md](wagons.md) – Co vozy vozí; Martin 19. 10. 2026: „Pokud budou mít
   k dispozici vůz, ať na pole, pro vodu nebo pro dřevěné uhlí jede vůz.“): má-li ves volný
   dvoukolák se spřežením, vozí vodu v sudech (300 l na jízdu, 10 l na člověka a den) domácnostem,
   kterým jízda ušetří práci – přirážka za vodu se zmenší o přivezenou vodu a přičte se díl práce
   posádky (jízda vozovou sítí na suchý břeh, kam vůz sjede, nabírání a rozlití). Vyplatí se
   ≈ 170–200 m od vody a dál; kam vůz nesjede, nosí se. Jízdy jdou do ročního provozu cest (k vodě
-  může vzniknout vyježděná cesta). Pochůzky domácností v síti pěšin zůstávají (zjednodušení –
-  postavy na cestách jsou samostatný úkol).
+  může vzniknout vyježděná cesta). Pochůzky domácností v síti pěšin zůstávají (zjednodušení); ve
+  scéně jde pro vodu pěšky jen tolik lidí, kolik vůz domácnosti nepřivezl (villagers.md – Provoz
+  na cestách).
 
 ## Pěšiny a práce
 

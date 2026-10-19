@@ -853,8 +853,12 @@ rozhraní částí v
   krajiny vzdušně), do ročního provozu cest `addRoadCartTrips`. Rozdělení práce: `haul`
   s `LaborShare.job` (`charcoal` / `seed` / `water`), cíl milíř (`kiln` i u dílny), díl pole, břeh
   (`LaborTarget` `{ kind: 'water', x, z }`); voda v práci `domestic` ubere posádku. Web:
-  `SceneCart.job.load` – uhlí a osivo `goods`, voda `water` (scéna zatím prázdný vůz), osivo
-  `outbound` (`CartShuttle.loadedOut` – naložené tam), trasa k milíři a břehu (`cartRouteToday`).
+  `SceneCart.job.load` – uhlí a osivo `goods`, voda `water` (sudy `wagon{2,4}-water` tam i zpět),
+  osivo `outbound` (`CartShuttle.loadedOut` – naložené tam), trasa k milíři a břehu
+  (`cartRouteToday`); voda, uhlí a osivo jezdí tempem volů ve skutečném čase (`steadyJob`
+  v `village-carts.ts`), ne v okně herního dne jako svoz úrody. Komu vůz vodu přivezl, ukazuje
+  `SceneLabor.homes[].cartWater` (týž `waterCartPlan` ve `village-view.ts`) – pěšky pro ni chodí
+  méně lidí (Postavy – Provoz na cestách).
 - **Ozim a jař** (fields.md – Ozim a jař): roční plán (`YearPlan`) nese práci jaře nahoře (tvar
   plánu z doby před ozimem) a ozimu v `winter?` (`CropWork`); díly osevu mají `crop?` (chybí =
   jař). Okna prací po plodinách `CROP_WINDOWS` (`WINDOWS` = jař, `WINTER_WINDOWS`) v `rules.ts`.
@@ -1751,7 +1755,8 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   nosiči polem ↔ obydlí (`walkRoute` obchází domy), stavitelé za
   staveništěm (`siteBox` = vyklízená plocha), dřevorubci u vyhrazených stromů, sad, obvod
   hřbitova, výmlat u vsi, ženy u vchodu, starší (šediny) u domů a děti u stád (`herdViews`
-  ze zvířat). Nikdo nestojí ve vodě (rastr schůdné země sdílený se zvířaty – `groundFor`),
+  ze zvířat). Nikdo nestojí ve vodě (schůdná země se stejnými mezemi jako rastr zvířat, ale přes
+  celou krajinu – `walkGroundFor`),
   v domě se šíjí, na pozemku polozemnice ani na hrobech. Pohyb `villager-motion.ts` – čisté funkce skutečného času
   jako u zvířat. Kreslení `villagers.ts`: GLB z `tools/blender/people_from_0ad.py`
   (`people.json` – klipy z 0 A.D., rotace klíčů jako int16, maska látky a vlasů jako
@@ -1762,7 +1767,22 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   a postava jich má právě 8 (pozice, normála, uv, kosti 2×, matice, VAT, look) – další atribut
   na vrchol nepřidávat, patří do textury. Klipy se střídají střihem (VAT prolínat neumí). Hýbou
   se jen v záběru (`WATER_FPS`), při omezeném pohybu stojí. Ve vývojovém náhledu tlačítko
-  **Lidé** (ukázkové rozdělení práce podle měsíce – `app/dev/landscape/dev-labor.ts`).
+  **Lidé** (ukázkové rozdělení práce podle měsíce – `app/dev/landscape/dev-labor.ts`, i lidé po
+  obydlích pro provoz na cestách).
+  **Provoz na cestách** (villagers.md – Provoz na cestách; Martin 19. 10. 2026: „Chci vidět
+  vesničany, jak chodí pro vodu nebo na pole.“): `road-traffic.ts` (čisté funkce) – proud lidí
+  pro vodu (`waterTrips` – `WATER_FETCHING.tripsPerPerson` × lidé z `SceneLabor.homes`, bez vody
+  přivezené vozem `cartWater`), k lesu (`woodErrandTrips` z jádra) a na pole (člověkoden polní
+  práce = cesta); na cestě cesty × doba cesty ÷ `TRAFFIC_DAY_S` (900 s) lidí, nejvýš
+  `MAX_TRAFFIC` (24), každý druh aspoň jeden (`trafficCounts`), fáze se zlatým řezem
+  (`streamPhase`). `trafficFigures` ve `villager-plan.ts` – po pěšinách (`errandPath`, na vzdálený
+  díl `fieldPath`: po pěšině k poli, `route(a, b, reach)`, a přes pole; kontrola `trafficRouteOk`
+  – ohrady se neberou, do domu jen o `ROUTE_HOUSE_SLACK_M`), vyjde se od vchodu (`trafficDoor` –
+  volné místo do 16 m), doma na chvíli zmizí (`ShuttleOptions.restHidden`); pro vodu s vahadlem
+  a vědry (klipy `carry-water` a `water-idle`, prop `yoke` – `procedural_yoke` v
+  `people_from_0ad.py`, ruce `reach` na provazech). Schůdná země postav přes celou krajinu líně
+  po 4 m (`lazyWalkable`, `VillageLivestock.walkGroundFor`) – pole až 800 m od obydlí; `inBox`
+  má rychlé odmítnutí podle dosahu domu, hledání po pěšinách si trasy pamatuje (`pathRouter`).
 - **Spřežení volů s rádlem** (oxen.md – Spřežení postupuje s orbou; Martin 19. 10. 2026,
   podrobnosti návrh Clauda): ve vsi orá na čele orby – `plough-front.ts` (`ploughFront`, čisté
   funkce bez Babylonu): díl s čárou práce z fronty `SceneLaborShare.parts` podílu `plough` (bez fronty odhad
@@ -1811,7 +1831,8 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   kostí, koňský postroj pryč, vlastní oj ke jhu, náklad modelovaný ve skriptu) do
   `public/models/wagons/wagons.glb` – díly `wagon2-body`, `wagon4-body`, `wagon4-front` (předek na
   čepu), `wagon4-pole`, `wagon-wheel` (levé kolo, pravé = otočené o 180°) a náklad
-  `wagon{2,4}-{hay,sheaves,logs,goods}`. **Kola se točí maticí instance podle ujeté dráhy, ne VAT**
+  `wagon{2,4}-{hay,sheaves,logs,goods,water}` (voda = stojící sudy s víkem a provazem). **Kola se
+  točí maticí instance podle ujeté dráhy, ne VAT**
   (animace 0 A.D. jen točí kosti kol; VAT by se s jízdou po terénu nesešla a postava s kostrou má
   ve WebGPU vyčerpaných 8 vertex bufferů). Pohyb `cart-layout.ts` (čisté funkce, testy):
   `cartRoute` (lomená čára → úseky a oblouky jako dráha rádla, rohy zaoblené `turnRadius`,
