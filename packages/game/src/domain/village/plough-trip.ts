@@ -13,8 +13,9 @@ import type { CropWork, FieldPart, PloughBand, VillageState } from './types';
 // souvrati (krátká brázda – `furrowEfficiency` pásu, který se právě orá) a cesta z ohrady k bloku
 // a zpět (Martin, 19. 10. 2026: „na místo se dostane ideálně po nějaké už hotové cestě a pak už
 // jen co nejvíce oře“; „pokud to bude rychlejší než po cestě, ať jede napříč přes pole, pokud už
-// nebude oseté“ – vozová síť, dvoukolák bez nákladu: pevná cesta rychleji, louka, úhor a strniště
-// jako louka, zoraný díl pomaleji, osetý nikdy).
+// nebude oseté“ – vozová síť, dvoukolák bez nákladu: pevná cesta rychleji podle druhu – vyježděná
+// a upravená víc než vyšlapaná (CART_SPEED), louka a úhor jako louka, strniště, zoraný díl
+// a mokřina pomaleji, osetý nikdy).
 
 /** Vůz dojede k dílu, když je od jeho středu nejvýš tak daleko (m) – kraj čtverce. */
 const BLOCK_REACH_M = 9;

@@ -107,17 +107,19 @@ třeba jako 0.8.“ K obcházení polí: „když použiješ třeba dijkstrův a
 ohodnoceného grafu, tak nejkratší cesta je ta nejrychlejší. Tj. může se stát, že někde bude
 jednodušší jít přes pole, než ho obcházet i když je cesta přes pole pomalejší.“
 
-| Kudy                                                                | Rychlost proti louce                               |
-| ------------------------------------------------------------------- | -------------------------------------------------- |
-| louka (výchozí), úhor, příloh, zakládaný díl                        | 1                                                  |
-| pěšina dne plně prošlapaná                                          | 1,3 – slabší úměrně méně podle síly (návrh Clauda) |
-| stálá vyšlapaná cesta i vyježděná cesta                             | 1,5                                                |
-| upravená cesta                                                      | 1,7                                                |
-| hať a lávka                                                         | 1,7, i přes mokřinu (návrh Clauda)                 |
-| díl pole v osevu – od orby nebo kopání po sklizeň (zoraný … ve žni) | 0,5                                                |
-| strniště po sklizni                                                 | 0,8                                                |
-| mokřina bez cesty i po vyšlapané či upravené cestě                  | 0,5                                                |
-| brod bez lávky                                                      | + 30 m                                             |
+| Kudy                                                                | Chůze – rychlost proti louce                       | Vůz (wagons.md – Vozová síť, rychlosti; návrh Clauda) |
+| ------------------------------------------------------------------- | -------------------------------------------------- | ----------------------------------------------------- |
+| louka (výchozí), úhor, příloh                                       | 1                                                  | 1                                                     |
+| zakládaný díl                                                       | 1                                                  | 0,6 (jako zoraný)                                     |
+| pěšina dne plně prošlapaná                                          | 1,3 – slabší úměrně méně podle síly (návrh Clauda) | jako povrch pod ní                                    |
+| stálá vyšlapaná cesta                                               | 1,5                                                | 1,3                                                   |
+| vyježděná cesta (vyšlapaná s příznakem vozová)                      | 1,5                                                | 1,6                                                   |
+| upravená cesta                                                      | 1,7                                                | 1,8                                                   |
+| hať a lávka                                                         | 1,7, i přes mokřinu (návrh Clauda)                 | hať 1,8, i přes mokřinu; lávka ne (brod)              |
+| díl pole v osevu – od orby nebo kopání po sklizeň (zoraný … ve žni) | 0,5                                                | neprojede (po pevné cestě ano)                        |
+| strniště po sklizni                                                 | 0,8                                                | 0,8 – žeň po strništi, připravený díl do osevu        |
+| mokřina bez cesty i po vyšlapané, vyježděné či upravené cestě       | 0,5                                                | 0,55                                                  |
+| brod bez lávky                                                      | + 30 m                                             | 0,33 – i pod hatí (lávka je jen pro pěší)             |
 
 - **Stejné rychlosti v síti pěšin i ve vzdálenosti chůze** (`walk-speed.ts` – `partWalkSpeed`,
   `pathCostFactor`, `roadWalkSpeed`; čísla `PATH_WALK`, `FIELD_WALK`, `ROAD_WALK` v `rules.ts`):
@@ -125,7 +127,10 @@ jednodušší jít přes pole, než ho obcházet i když je cesta přes pole pom
   pevné cestě se počítá stejně. Pole není zákaz, jen cena – síť hledá nejrychlejší cestu, takže
   díl v osevu obejde, když je obcházení krátké, a jde přes něj, když je dlouhé. Pěšina dne přes
   díl v osevu nezrychlí (platí cena pole), pevná cesta přes pole jde rychlostí cesty (pás cesty se
-  neorá – Cesta přes pole). Nejpomalejší z mokřiny a pole platí (ne součin). Díl pole pozná chůze
+  neorá – Cesta přes pole). Nejpomalejší z mokřiny a pole platí (ne součin). **Vůz** má vlastní
+  rychlosti (sloupec Vůz, `CART_SPEED`, wagons.md – Vozová síť, rychlosti) se stejnou mokřinou na
+  ose cesty (`Road.ground`) jako chůze; stoupání, křoviny, les bez cesty, sad, hřbitov a ohrada
+  pro vůz zůstávají jako dřív. Díl pole pozná chůze
   podle vzhledu (`fieldPartLooks` – jako scéna; rozpracovaný díl podle větší části), do klíče
   přepočtu chůze se rychlost dílu promítá jako stadium – 1. dne v měsíci (paths.md – Pěšiny
   a práce). Brod v síti pěšin stojí jako dřív (cena buňky brodu), les, svah a překážky taky.

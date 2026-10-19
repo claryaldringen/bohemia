@@ -192,7 +192,7 @@ Návrh Clauda (19. 10. 2026) – detaily, které návrh výš nechal otevřené;
     doprostřed velkého osetého pole by nedojel. Snopy se ale svážejí z požatých dílů, kde stojí
     v panácích, a žeň jde od domu ven (fields.md – Postup práce po čtvercích) – díly sklízené
     plodiny se pro vůz postupně otevírají. Dosah žně proto síť počítá s díly sklízené plodiny jako
-    se strništěm (`harvestReachState` – stadium zoraného dílu, jede se pomaleji); ostatní osetá pole
+    se strništěm (`harvestReachState` – stadium připraveného dílu, jede se jako po strništi 0,8); ostatní osetá pole
     (jař a luštěniny při žni ozimu) vůz nepustí – snopy za nimi nosí lidé jako dřív. Proti
     variantě „jen k dílům na kraji osetého bloku“ by vůz ve velkém poli nevozil skoro nic, ač
     po strništi za žní jezdil; proti „všude“ zůstává překážkou cizí osetí, voda a les.
@@ -246,13 +246,53 @@ v `paths/roads.ts`, čísla `CART_ROUTES` a `CART_ROADS` v `rules.ts`.
   úhel: pokuta by ostrý obrat jen zdražila, stav ho vylučuje. Cena: 16× víc stavů.
 - **Kudy vůz projede** (`cartGrid`): voda jen brodem (lávka je jen pro pěší), les jen po pevné
   cestě (výš: „les jen po vykácené cestě (pevné cestě)“) – pole založené v lese je vymýcené,
-  křoviny a mladý les na přílohu ne, mokřina pomaleji (1,8), přes osetý díl ne, přes zoraný
-  a zakládaný pomaleji (1,6), louka, úhor a strniště 1, po pevné cestě 0,6 – **pevná cesta je pro
+  křoviny a mladý les na přílohu ne, přes osetý díl ne, mokřina, zoraný díl a strniště pomaleji,
+  pevná cesta rychleji podle druhu (Rychlosti níž) – **pevná cesta je pro
   vůz sjízdná vždy** (lesem, přes pole, mezi překážkami – jako pro lidi, Martin: „bez ohledu na to,
   na čem ta stezka leží“), jen ne sklonem nad mez a vodou bez brodu. Kmeny, souše, keře, balvany
   a výchozy krajiny vůz neprojede, pařez a kámen objede. Sad, hřbitov a ohrada (i jejich okraj –
   plot, stromy), les vsi a okrsek svatyně ne. Domy, pozemky, staveniště, milíř a modla s půl
   šířkou vozu (2,5 m) navíc – mezi pozemky (mezera 1 m) vůz neprojede.
+- **Rychlosti** (Martin, 19. 10. 2026: souhlas s návrhem „odstupňování podle druhu cesty, jako
+  u chůze“; čísla **návrh Clauda** – `CART_SPEED` v `rules.ts`, `cartPartSpeed` a `cartRoadSpeed`
+  v `paths/cart.ts`). Dřív byla vozu každá pevná cesta stejná (0,6 m louky na metr = 1,67×) a
+  mokřinu na cestě necítil. Rychlost proti louce, cena buňky = 1 / rychlost:
+
+  | Kudy                                                              | Rychlost vozu                                   |
+  | ----------------------------------------------------------------- | ----------------------------------------------- |
+  | louka, úhor, příloh (výchozí)                                     | 1                                               |
+  | strniště (žeň po strništi, připravený díl do osevu)               | 0,8                                             |
+  | zoraný díl (zakládaný – rozrývaný drn)                            | 0,6                                             |
+  | mokřina bez cesty                                                 | 0,55                                            |
+  | vyšlapaná cesta                                                   | 1,3                                             |
+  | vyježděná cesta (vyšlapaná s příznakem vozová)                    | 1,6                                             |
+  | upravená cesta                                                    | 1,8                                             |
+  | hať                                                               | 1,8, i přes mokřinu                             |
+  | vyšlapaná, vyježděná nebo upravená cesta přes mokřinu             | 0,55 (bahno – jako bez cesty)                   |
+  | brod                                                              | 0,33 jako dřív (i pod hatí – lávka je pro pěší) |
+  | stoupání, osetý díl, křoviny, les bez cesty, sad, hřbitov, ohrada | beze změny                                      |
+  - **Mokřina na ose cesty** je z `Road.ground` (stejná data jako chůze – `roadPieceCost` ve
+    `walking.ts`): `cartVillageOf` přidá úsekům vsi sítě pěšin jejich půdu podle id, buňka cesty
+    je mokrá, když na ni připadá bod osy v mokřině (body po třetině buňky; v buňce víc cest
+    nejrychlejší). Cesta bez údaje je suchá jako u chůze. Mokřina mimo cestu je z příznaku
+    terénu jako dřív.
+  - **Na poli platí nejpomalejší** z povrchu (mokřina) a dílu, ne součin – jako u chůze (dřív
+    zoraný díl v mokřině 1,8 × 1,6). Pod pevnou cestou jen cesta (strniště, zoraný díl i mokřina –
+    mokřinu tam pozná osa cesty).
+  - **Připravený díl je strniště** (rozhodnutí Clauda): vozová síť zná díl jen podle stadia
+    a dosah žně (`harvestReachState`) vidí sklízené díly jako připravené – vůz po nich jede
+    po strništi. Skutečně připravený díl (založený, čeká na osev) do osevu sesedne – jede se po
+    něm stejně; zakládaný díl (drn se právě rozrývá) jako zoraný. Díl plánu po orbě je osetý –
+    vůz po něm nejede (beze změny).
+  - **Co se změní samo:** vše, co bere cenu vozové sítě – cesta spřežení k orbě (`tripCost`
+    v `plough-trip.ts`, `TEAM_TRAVEL`), dosah svozu (mez hledání `maxCost`), trasy vozů dne ve
+    scéně a roční síť vozů (vyjeté cesty). Vlkov (stav 27. 4. 796): cesta spřežení k bloku jaře
+    497 → 485 m louky (−2,4 %), k bloku luštěnin 418 → 416 m louky (vůz jede delší trasou po
+    upravené cestě – 422 → 467 m), k bloku ozimu beze změny (1 107 m louky); průměr k 246 dílům
+    plánu 595 → 593 m louky; dosah svozu žně beze změny. Ve Vlkově je 10 upravených cest
+    (rychlejší než dřív), 3 vyšlapané (pomalejší) a 3 vyježděné (o málo pomalejší), mokřina na
+    cestách žádná.
+
 - **Kde vůz stojí:** u ohrady se spřežením – vyjede z kterékoli průjezdné buňky do 15 m od středu
   ohrady. Branka může vést k sousednímu pozemku (Vlkov – 1 m od plotu), voly jde ale zapřáhnout
   kdekoli u plotu.
@@ -411,3 +451,6 @@ Návrh Clauda (19. 10. 2026) – jen zobrazení, simulace se nemění.
 | Vozy po vyšlapané převezmou kus (rozdělí úsek); souběžně vedle od 25 m převezme osa vozu  | návrh Clauda          |
 | Kola vozů točí matice instance podle ujeté dráhy (ne VAT); vlastní oj ke jhu volů         | návrh Clauda          |
 | Fáze 3: trasa dne ze serveru, tam a zpět se smyčkami obratišť, svoz zrychleně s orbou     | návrh Clauda          |
+| Rychlosti vozu odstupňované podle druhu cesty, jako u chůze                               | Martin (19. 10. 2026) |
+| Čísla rychlostí vozu (vyšlapaná 1,3, vyježděná 1,6, upravená a hať 1,8, mokřina 0,55…)    | návrh Clauda          |
+| Mokřina na cestě z `Road.ground` jako chůze; na poli nejpomalejší; připravený = strniště  | návrh Clauda          |

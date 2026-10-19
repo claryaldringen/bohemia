@@ -292,8 +292,8 @@ export const ROADS = {
 // nemají takovou prostupnost jako lidé … ve svahu, kde lidé zvládnou chodit rovně, vůz bude muset
 // vyjezdit serpentiny.“; čísla návrh Clauda – rešerše fáze 1 je ověří): sklon ve směru jízdy nad
 // `maxGrade` vůz nevyjede, pod ním stoupání zdražuje se čtvercem (`gradeCost` při mezi – nejlevnější
-// stoupání je polovina meze, proto serpentiny); louka, úhor a strniště 1 (pomaleji než po pevné
-// cestě – `roadCost`), zoraný díl a mokřina ještě pomaleji, brod pomalu. Vůz je široký `widthM` –
+// stoupání je polovina meze, proto serpentiny); rychlost podle povrchu a cesty – CART_SPEED, brod
+// pomalu (`fordCost` m za metr, i pod hatí – lávka je jen pro pěší). Vůz je široký `widthM` –
 // kolem domů a plotů se vejde jen tam, kde je místo. Dvoukolák zatočí na krok mřížky o 2 směry ze
 // 16 (≤ 53°, poloměr ≈ 4–5 m), čtyřkolák o 1 (≤ 27°, ≈ 8–11 m); každá změna směru trochu stojí
 // (`turnCost` m za směr).
@@ -312,15 +312,24 @@ export const TEAM_TRAVEL = { speedMps: 0.8, dayS: 6 * 3600, maxShare: 0.5 } as c
 export const CART_ROUTES = {
   maxGrade: 0.1,
   gradeCost: 4,
-  ploughedCost: 1.6,
-  wetCost: 1.8,
   fordCost: 3,
-  roadCost: 0.6,
   widthM: 2.5,
   turnSteps: { 'two-wheel': 2, 'four-wheel': 1 },
   turnCost: 1.5,
   /** Hledání končí za takovou cenou (m chůze volů po louce) – dál vůz nevozí. */
   maxCost: 4000,
+} as const;
+// wagons.md – Vozová síť – rychlosti (Martin, 19. 10. 2026: souhlas s odstupňováním podle druhu
+// cesty „jako u chůze“; čísla návrh Clauda): rychlost vozu proti louce (cena buňky = 1 / rychlost)
+// – louka, úhor a příloh 1, strniště 0,8, zoraný díl 0,6, mokřina bez cesty 0,55 (bahno);
+// vyšlapaná cesta 1,3, vyježděná (vyšlapaná s příznakem vozová) 1,6, upravená 1,8, hať 1,8 i přes
+// mokřinu; vyšlapaná, vyježděná i upravená cesta přes mokřinu jako mokřina bez cesty. Na poli
+// platí nejpomalejší z povrchu a dílu; pod pevnou cestou jen cesta
+export const CART_SPEED = {
+  stubble: 0.8,
+  ploughed: 0.6,
+  wet: 0.55,
+  road: { trodden: 1.3, cart: 1.6, improved: 1.8, causeway: 1.8 },
 } as const;
 // wagons.md – Vyjeté cesty (návrh Clauda): úsek, kudy vozy dva roky po sobě jezdí aspoň
 // `tripsPerDay` jízd denně (roční průměr – ≈ 90 jízd za rok), se stane vozovou cestou; vozová cesta,

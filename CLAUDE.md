@@ -1907,7 +1907,10 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
   pěšiny) – `cartGrid` na mřížce terénu pěšin (výšky `PathTerrain.heights`, les `PATH_FOREST`,
   překážky `cartObstacleMask` v `terrain.ts`; voda jen brodem, les jen po pevné cestě, pole
   v lese vymýcené, osetý díl, křoviny, sad, hřbitov, ohrada, les vsi a okrsek svatyně ne, domy
-  a pozemky s půl šířkou vozu; každá pevná cesta sjízdná) a `cartRoutes` – Dijkstra po stavech
+  a pozemky s půl šířkou vozu; každá pevná cesta sjízdná; rychlost podle povrchu a druhu cesty –
+  `CART_SPEED`, `cartPartSpeed`, `cartRoadSpeed`: vyšlapaná 1,3, vyježděná 1,6, upravená a hať
+  1,8, strniště i připravený díl 0,8, zoraný 0,6, mokřina 0,55 – i na cestě kromě hatě, podle
+  `Road.ground` jako chůze, `cartVillageOf`; návrh Clauda) a `cartRoutes` – Dijkstra po stavech
   buňka × 16 směrů (osy, úhlopříčky, skoky 2 : 1), sklon ve směru jízdy nad 10 % nejede, stoupání
   zdražuje se čtvercem (serpentiny samy), dvoukolák zatočí o 2 směry, čtyřkolák o 1 (širší
   oblouk); jedno hledání od depa (`cartDepots` – kolem ohrad se spřežením `teamPens`) ke všem

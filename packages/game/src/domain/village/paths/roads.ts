@@ -46,7 +46,14 @@ import {
   type PathTraffic,
   type PathVillage,
 } from './network';
-import { cartDepots, cartRoutes, cartTraffic, type CartRoute, type CartTarget } from './cart';
+import {
+  cartDepots,
+  cartRoutes,
+  cartTraffic,
+  cartVillageOf,
+  type CartRoute,
+  type CartTarget,
+} from './cart';
 import {
   PATH_FORD,
   PATH_WETLAND,
@@ -234,7 +241,8 @@ export function annualCartNetwork(
 ): { traffic: PathTraffic; runs: RoadPoint[][] } | null {
   const trips = state.roads?.labor.cart ?? [];
   if (trips.length === 0) return null;
-  const village = pathVillageOf(state, day, landscape);
+  // mokřina na ose pevných cest (Road.ground) – vůz ji vidí jako chůze
+  const village = cartVillageOf(pathVillageOf(state, day, landscape), state.roads?.roads ?? []);
   const depots = cartDepots(village, teamPens(state));
   if (depots.length === 0) return null;
   const days = Math.max(1, state.roads?.labor.days ?? 1);
@@ -311,7 +319,8 @@ export function villageCartRoutes(
   kind: CartKind,
   targets: readonly CartTarget[],
 ): CartRoute[] | null {
-  const village = pathVillageOf(state, day, landscape);
+  // mokřina na ose pevných cest (Road.ground) – vůz ji vidí jako chůze
+  const village = cartVillageOf(pathVillageOf(state, day, landscape), state.roads?.roads ?? []);
   const depots = cartDepots(village, teamPens(state));
   const bounds = pathBounds(village);
   if (depots.length === 0 || !bounds) return null;

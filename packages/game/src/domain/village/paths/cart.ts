@@ -1,13 +1,13 @@
 import { length2 } from '../../landscape';
-import { CART_ROUTES, SACRED_BUILDINGS } from '../rules';
-import type { CartKind } from '../types';
+import { CART_ROUTES, CART_SPEED, SACRED_BUILDINGS } from '../rules';
+import type { PartStage } from '../summary';
+import type { CartKind, RoadGrade, RoadGround } from '../types';
 import { nearestPartFinder } from './nearest';
 import {
   PathHeap,
   buildingBounds,
   cellsIn,
   inBuilding,
-  roadMask,
   simplifyPathLine,
   squareCells,
   villageBuildings,
@@ -28,8 +28,10 @@ import { PATH_FORD, PATH_FOREST, PATH_WATER, PATH_WETLAND, type PathTerrain } fr
 // hrany) – nad CART_ROUTES.maxGrade vůz nejede, pod ním stoupání zdražuje, takže do svahu vede
 // nejlevnější cesta šikmo a serpentiny vzniknou samy. Les jen po pevné vozové nebo upravené
 // (vykácené) cestě, křoviny a mladý les ne, voda jen brodem, lávka (jen pro pěší) ne, přes osetý
-// díl ne (po pevné cestě přes pole ano – jako lidé), kolem domů a plotů jen kudy se vůz vejde. Čistá deterministická funkce (jen přesná aritmetika – soubor
-// hlídá ESLint jako síť pěšin), stejně na serveru i v prohlížeči.
+// díl ne (po pevné cestě přes pole ano – jako lidé), kolem domů a plotů jen kudy se vůz vejde.
+// Rychlost podle povrchu a druhu cesty (CART_SPEED – vyšlapaná, vyježděná, upravená, hať; mokřina
+// na ose cesty z `Road.ground` jako u chůze). Čistá deterministická funkce (jen přesná aritmetika –
+// soubor hlídá ESLint jako síť pěšin), stejně na serveru i v prohlížeči.
 
 /** 16 směrů jízdy po mřížce v pořadí úhlu (krok 18,4–26,6°): osy, úhlopříčky, skoky (2, 1). */
 const DIRS: readonly (readonly [number, number])[] = [
@@ -108,8 +110,100 @@ export interface CartRoute {
   cells: number[];
 }
 
+/** Pevná cesta pro vůz – jako v síti pěšin, s mokřinou a brody na ose (`Road.ground`). */
+export type CartRoad = NonNullable<PathVillage['roads']>[number] & { ground?: RoadGround };
+
+/** Ves pro vozovou síť – ves sítě pěšin, pevné cesty i s půdou na ose (`cartVillageOf`). */
+export type CartVillage = Omit<PathVillage, 'roads'> & { roads?: readonly CartRoad[] };
+
+/**
+ * Ves pro vozovou síť: k pevným cestám vsi sítě pěšin (`pathVillageOf`) přidá mokřinu a brody na
+ * ose z úseků stavu (`Road.ground` – podle id), aby vůz viděl mokřinu na cestě stejně jako chůze
+ * (`roadPieceCost` ve walking.ts). Cesta bez údaje je suchá.
+ */
+export function cartVillageOf(
+  village: PathVillage,
+  roads: readonly { id: number; ground?: RoadGround }[],
+): CartVillage {
+  if (!village.roads || village.roads.length === 0) return village;
+  const ground = new Map(roads.flatMap((r) => (r.ground ? [[r.id, r.ground] as const] : [])));
+  if (ground.size === 0) return village;
+  return {
+    ...village,
+    roads: village.roads.map((r) => {
+      const g = r.id !== undefined ? ground.get(r.id) : undefined;
+      return g ? { ...r, ground: g } : r;
+    }),
+  };
+}
+
+/**
+ * Rychlost vozu přes díl pole proti louce (CART_SPEED): osetý díl, křoviny a mladý les 0 (vůz
+ * neprojede), zakládaný díl (rozrývaný drn) jako zoraný, připravený díl – sesedlá rozrytá půda do
+ * osevu, i díly sklízené plodiny při žni (`harvestReachState`) – jako strniště, úhor a příloh
+ * jako louka.
+ */
+export function cartPartSpeed(stage: PartStage): number {
+  if (stage === 'sown' || stage === 'shrubs' || stage === 'young-forest') return 0;
+  if (stage === 'founding') return CART_SPEED.ploughed;
+  if (stage === 'ready') return CART_SPEED.stubble;
+  return 1;
+}
+
+/**
+ * Rychlost vozu po pevné cestě proti louce (CART_SPEED.road): vyšlapaná, vyježděná (vyšlapaná
+ * s příznakem vozová), upravená, hať; v mokřině (`wet`) jen hať, jinak bahno jako mokřina bez
+ * cesty.
+ */
+export function cartRoadSpeed(grade: RoadGrade, cart: boolean, wet: boolean): number {
+  if (grade === 'causeway') return CART_SPEED.road.causeway;
+  if (wet) return CART_SPEED.wet;
+  const speed = CART_SPEED.road[grade];
+  return cart ? Math.max(speed, CART_SPEED.road.cart) : speed;
+}
+
+/**
+ * Cena metru po pevných cestách po buňkách (buňky jako `roadMask` – body osy po třetině buňky,
+ * mokřina podle polohy na ose z `ground.wet`); mimo cesty 0, v buňce víc cest nejrychlejší.
+ * Bez cest null.
+ */
+function cartRoadCosts(grid: GridWindow, roads: CartVillage['roads']): Float32Array | null {
+  if (!roads || roads.length === 0) return null;
+  const out = new Float32Array(grid.width * grid.height);
+  const step = grid.cellM / 3;
+  for (const road of roads) {
+    const grade = road.grade ?? 'trodden';
+    const cart = road.cart === true;
+    const dryCost = 1 / cartRoadSpeed(grade, cart, false);
+    const wetCost = 1 / cartRoadSpeed(grade, cart, true);
+    const wet = road.ground?.wet ?? [];
+    const mark = (x: number, z: number, along: number): void => {
+      const i = Math.round((x - grid.originX) / grid.cellM);
+      const j = Math.round((z - grid.originZ) / grid.cellM);
+      if (i < 0 || j < 0 || i >= grid.width || j >= grid.height) return;
+      const c = j * grid.width + i;
+      const cost = wet.some(([a, b]) => along >= a && along <= b) ? wetCost : dryCost;
+      if (out[c] === 0 || cost < out[c]!) out[c] = cost;
+    };
+    const pts = road.points;
+    if (pts.length === 1) mark(pts[0]!.x, pts[0]!.z, 0);
+    let along = 0;
+    for (let k = 1; k < pts.length; k++) {
+      const a = pts[k - 1]!;
+      const b = pts[k]!;
+      const length = length2(b.x - a.x, b.z - a.z);
+      const n = Math.max(1, Math.ceil(length / step));
+      for (let q = 0; q <= n; q++) {
+        mark(a.x + ((b.x - a.x) * q) / n, a.z + ((b.z - a.z) * q) / n, along + (length * q) / n);
+      }
+      along += length;
+    }
+  }
+  return out;
+}
+
 export interface CartRoutesInput {
-  village: PathVillage;
+  village: CartVillage;
   /** Terén pěšin v okně (s výškami a příznaky) – i s překážkami (`withObstacles`), nebo bez. */
   terrain: PathTerrain;
   /** Překážky krajiny, přes které vůz neprojede (`cartObstacleMask`) – bez údaje žádné. */
@@ -122,11 +216,12 @@ export interface CartRoutesInput {
 
 /**
  * Mřížka pro vůz (wagons.md – Kudy vůz projede): z terénu pěšin – voda jen brodem, les ne,
- * mokřina pomaleji, překážky krajiny (`blocked`) ne; díly polí podle stadia (osetý, křoviny
- * a mladý les ne, zoraný a zakládaný pomaleji, úhor a louka jako louka – meze mezi poli
- * průjezdné), sad, hřbitov, ohrada a les vsi ne (ani jejich okraj – plot, stromy), okrsek svatyně
- * ne. Pevná cesta (wagons.md: „Les jen po vykácené cestě (pevné cestě)“) je sjízdná vždy – lesem,
- * přes pole, mezi překážkami – a rychlejší; voda jen brodem a sráz ani po ní. Domy, pozemky,
+ * mokřina pomaleji, překážky krajiny (`blocked`) ne; díly polí podle stadia (`cartPartSpeed` –
+ * osetý, křoviny a mladý les ne, zakládaný jako zoraný, připravený jako strniště, úhor a louka
+ * jako louka – meze mezi poli průjezdné), sad, hřbitov, ohrada a les vsi ne (ani jejich okraj –
+ * plot, stromy), okrsek svatyně ne. Pevná cesta (wagons.md: „Les jen po vykácené cestě (pevné
+ * cestě)“) je sjízdná vždy – lesem, přes pole, mezi překážkami – rychlostí podle druhu
+ * (`cartRoadSpeed` – v mokřině na ose jen hať rychle); voda jen brodem a sráz ani po ní. Domy, pozemky,
  * staveniště, milíř a modla ne – i s půl šířkou vozu.
  */
 export function cartGrid(input: Omit<CartRoutesInput, 'kind' | 'depots' | 'targets'>): CartGrid {
@@ -155,9 +250,10 @@ export function cartGrid(input: Omit<CartRoutesInput, 'kind' | 'depots' | 'targe
     if (!Number.isFinite(t.cost[c]!) || input.blocked?.[c]) cost[c] = Infinity;
     else if (flags & PATH_WATER) cost[c] = flags & PATH_FORD ? CART_ROUTES.fordCost : Infinity;
     else if (flags & PATH_FOREST && !cleared[c]) cost[c] = Infinity;
-    else if (flags & PATH_WETLAND) cost[c] = CART_ROUTES.wetCost;
+    else if (flags & PATH_WETLAND) cost[c] = 1 / CART_SPEED.wet;
     else cost[c] = 1;
   }
+  // díly polí podle stadia – nejpomalejší z povrchu a dílu platí
   for (const field of v.fields) {
     const nearestPart = nearestPartFinder(field.parts, field.parts[0]?.size ?? 0);
     for (const c of squareCells(grid, field.parts).inside) {
@@ -165,10 +261,8 @@ export function cartGrid(input: Omit<CartRoutesInput, 'kind' | 'depots' | 'targe
         grid.originX + (c % grid.width) * grid.cellM,
         grid.originZ + Math.floor(c / grid.width) * grid.cellM,
       ).stage;
-      if (stage === 'sown' || stage === 'shrubs' || stage === 'young-forest') cost[c] = Infinity;
-      else if (stage === 'founding' || stage === 'ready') {
-        cost[c] = cost[c]! * CART_ROUTES.ploughedCost;
-      }
+      const speed = cartPartSpeed(stage);
+      cost[c] = speed > 0 ? Math.max(cost[c]!, 1 / speed) : Infinity;
     }
   }
   // les vsi je les – vůz jen po pevné cestě
@@ -177,13 +271,13 @@ export function cartGrid(input: Omit<CartRoutesInput, 'kind' | 'depots' | 'targe
     const { inside, edge } = squareCells(grid, woods);
     for (const c of [...inside, ...edge]) cost[c] = Infinity;
   }
-  // pevné cesty – sjízdné vždy (i lesem, přes pole a mezi překážkami); voda (brod) a neprůchodná
-  // místa terénu zůstávají
-  const roads = roadMask(grid, v.roads);
+  // pevné cesty – sjízdné vždy (i lesem, přes pole a mezi překážkami) rychlostí podle druhu cesty
+  // a mokřiny na ose; voda (brod – i pod hatí) a neprůchodná místa terénu zůstávají
+  const roads = cartRoadCosts(grid, v.roads);
   if (roads) {
     for (let c = 0; c < all; c++) {
       if (!roads[c] || !Number.isFinite(t.cost[c]!) || t.flags[c]! & PATH_WATER) continue;
-      cost[c] = CART_ROUTES.roadCost;
+      cost[c] = roads[c]!;
     }
   }
   // sad (stromy v řadách), hřbitov a ohrada (plot) – ani jejich okraj, okrsek svatyně
