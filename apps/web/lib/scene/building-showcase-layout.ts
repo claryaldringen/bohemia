@@ -344,7 +344,8 @@ const SQUARE_M = 15;
 /** Roh čtverce (0, 0) – za řadou staveb, aby pole, hřbitov a sad nic nezakrývaly. */
 const GROUND_ORIGIN = { x: -55, z: 18 };
 
-export type ShowcaseGroundId = 'field' | 'cemetery' | 'orchard' | 'meadow' | 'plowing' | 'legumes';
+export type ShowcaseGroundId =
+  'field' | 'cemetery' | 'orchard' | 'meadow' | 'plowing' | 'legumes' | 'flax';
 
 export interface ShowcaseGround {
   id: ShowcaseGroundId;
@@ -393,6 +394,8 @@ export const SHOWCASE_GROUNDS: readonly ShowcaseGround[] = [
   ground('plowing', 'Orání', -4, 0, 3, 1),
   // za polem ob řadu – pole s luštěninami (hrách – fields.md, Luštěniny)
   ground('legumes', 'Luštěniny', 0, 3, 3, 2),
+  // vedle luštěnin ob sloupec – len (fields.md – Len)
+  ground('flax', 'Len', 4, 3, 2, 2),
 ];
 
 /** Den ukázky orby (s skutečného času) – ve hře je herní den ≈ 86 s, tady kratší. */
@@ -575,6 +578,47 @@ export const LEGUME_SHOWCASE_PHASES: readonly (ShowcasePhase & {
     frontier: true,
   },
   { label: 'po sklizni – skoro holá zem', from: 0.82, to: 1, look: 'stubble' },
+];
+
+/**
+ * Pole se lnem (fields.md – Len): kopání a setí po čtvercích, vzcházející, zelený, v červnu modře
+ * kvetoucí a dohněda zralý len, trhání po čtvercích (hrstě schnou v malých panácích) a holá zem.
+ */
+export const FLAX_SHOWCASE_PHASES: readonly (ShowcasePhase & {
+  look: FieldLook | null;
+  before?: FieldLook;
+  frontier?: boolean;
+  bloom?: true;
+})[] = [
+  {
+    label: 'kopání – brázdy po čtvercích',
+    from: 0,
+    to: 0.12,
+    look: 'plowed',
+    before: 'stubble',
+    frontier: true,
+  },
+  {
+    label: 'setí lnu po čtvercích',
+    from: 0.12,
+    to: 0.24,
+    look: 'sown',
+    before: 'plowed',
+    frontier: true,
+  },
+  { label: 'vzchází len', from: 0.24, to: 0.32, look: 'sprouted' },
+  { label: 'zelený len', from: 0.32, to: 0.42, look: 'green' },
+  { label: 'len kvete modře (červen)', from: 0.42, to: 0.54, look: 'green', bloom: true },
+  { label: 'zralý len dohněda', from: 0.54, to: 0.64, look: 'ripe' },
+  {
+    label: 'trhání po čtvercích – hrstě schnou v panácích',
+    from: 0.64,
+    to: 0.82,
+    look: 'harvesting',
+    before: 'ripe',
+    frontier: true,
+  },
+  { label: 'po trhání – holá zem', from: 0.82, to: 1, look: 'stubble' },
 ];
 
 /** Hřbitov: do poloviny založení (fáze `CEMETERY_PHASES`), pak přibývají mohyly. */
@@ -794,6 +838,16 @@ export function showcaseGrounds(progress: number): {
     id: 100 + i,
     crop: 'legume',
   }));
+  // pole se lnem – zelený len v červnu kvete (fields.md – Len)
+  const flaxSquares = of('flax').squares;
+  const flaxBloom = phaseAt(FLAX_SHOWCASE_PHASES, p).bloom === true;
+  const flax = flaxSquares.map((square, i): SceneFieldPart => ({
+    ...square,
+    ...fieldPart(i, flaxSquares.length, p, FLAX_SHOWCASE_PHASES),
+    id: 200 + i,
+    crop: 'flax',
+    ...(flaxBloom ? { bloom: true as const } : {}),
+  }));
 
   return {
     village: {
@@ -801,6 +855,7 @@ export function showcaseGrounds(progress: number): {
       fields: [
         { id: 1, parts },
         { id: 3, parts: legumes },
+        { id: 4, parts: flax },
       ],
       cemeteries: [
         {
@@ -831,6 +886,7 @@ export function showcaseGrounds(progress: number): {
       meadow: hayLabel,
       plowing: PLOWING_LABEL,
       legumes: phaseAt(LEGUME_SHOWCASE_PHASES, p).label,
+      flax: phaseAt(FLAX_SHOWCASE_PHASES, p).label,
     },
   };
 }

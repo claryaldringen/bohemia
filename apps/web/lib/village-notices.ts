@@ -1,7 +1,7 @@
 import type { AbandonedStructure, HungerLevel, NewcomerGroup } from '@bohemia/game';
 import { DIRECTION_NAMES, NEWCOMER_TEXTS } from './trade-names';
 import { formatAnimals, formatInteger } from './village-format';
-import type { VillageView } from './village-view';
+import { productList, type VillageView } from './village-view';
 
 // Upozornění vsi (population.md – Co hráč vidí): rodina čeká na dům, ves šetří jídlem, hladoví,
 // lidé umírají hlady – vždy jen nejvyšší stupeň (Hlad a vymření), stavby stojí, hřbitov je plný (cemetery.md), vesničané ušetřili posvátný dub
@@ -30,6 +30,8 @@ export type NoticeKind =
   | 'carpenter-no-wood'
   | 'cart-made'
   | 'cart-worn-out'
+  /** Vesničané koupili výrobky řemeslníků u souseda (crafts.md – Nákup u sousedů). */
+  | 'crafts-bought'
   | 'sacred-oak'
   | 'sacred-grove'
   | 'sacred-oak-died'
@@ -39,6 +41,8 @@ export type NoticeKind =
   /** Výhled jídla nevycházel – vesničané porazili zvířata navíc (diet.md – Nouzová porážka). */
   | 'emergency-slaughter'
   | 'meat-spoiled'
+  /** Lnu na oděv všech je málo (fields.md – Len, diet.md – Oděv). */
+  | 'linen-short'
   | 'herd-starved'
   /** Ovcí je málo na vlnu pro oděv všech (diet.md – Oděv). */
   | 'wool-short'
@@ -241,6 +245,8 @@ const CHRONICLE_NOTICES: Partial<
         ? `Maso se zkazilo – ${formatInteger(entry.kg)} kg`
         : 'Maso se zkazilo',
   }),
+  // len z trhání nestačí na plátno pro všechny (fields.md – Len)
+  'linen-short': () => ({ kind: 'linen-short', tone: 'warn', text: 'Chybí len na oděv' }),
   'herd-starved': () => ({
     kind: 'herd-starved',
     tone: 'warn',
@@ -275,6 +281,14 @@ const CHRONICLE_NOTICES: Partial<
   // vozy od tesaře (wagons.md – Vůz)
   'cart-made': () => ({ kind: 'cart-made', tone: 'info', text: 'Tesař vyrobil vůz' }),
   'cart-worn-out': () => ({ kind: 'cart-worn-out', tone: 'warn', text: 'Vůz dosloužil' }),
+  // nákup u sousedů (crafts.md) – jen fakt: co a u koho
+  'crafts-bought': (entry) => ({
+    kind: 'crafts-bought',
+    tone: 'info',
+    text: `Vesničané koupili ${productList(entry.products ?? [])} u souseda${
+      entry.direction ? ` (${DIRECTION_NAMES[entry.direction].name})` : ''
+    }`,
+  }),
   // lidé od souseda (trade.md – Výměna lidí) – fakt, odkud přišli
   newcomer: (entry) => newcomerNotice(entry.group ?? 'family', entry),
   // nepasený příloh zarostl lesem a vypadl z pole (fields.md – Zarůstání)

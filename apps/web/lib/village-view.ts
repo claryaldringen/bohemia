@@ -1,5 +1,9 @@
 import {
   BUILD_COSTS,
+  CRAFT_PRODUCTS,
+  craftSources,
+  paymentValueKg,
+  purchaseDaysLeft,
   CARPENTRY,
   CELL_SIZE_M,
   CART_NAMES,
@@ -84,6 +88,8 @@ import {
   type Craft,
   type CraftCoverage,
   type CraftNeeds,
+  type CraftProduct,
+  type CraftPurchaseGoods,
   type CraftStocks,
   type Crop,
   type DwellingPlot,
@@ -378,6 +384,21 @@ export interface VillageCrafts {
   workshops: VillageWorkshop[];
   carts: VillageCart[];
   cartTargets: Readonly<Record<CartKind, number>>;
+  /**
+   * Kde ves bere nástroje, keramiku a dřevěné nářadí (crafts.md – Nákup u sousedů): vlastní
+   * pracující řemeslník, nebo nejbližší soused s řemeslníkem (směr, dny cesty, po stezce);
+   * chybí = neznámo (starší pohledy, testy).
+   */
+  sources?: VillageCraftSource[];
+}
+
+/** Odkud ves bere výrobek řemeslníků (crafts.md – Nákup u sousedů). */
+export interface VillageCraftSource {
+  product: CraftProduct;
+  own: boolean;
+  direction: Direction8 | null;
+  days: number | null;
+  trail: boolean;
 }
 
 export interface VillageView {
@@ -548,9 +569,16 @@ export interface VillageView {
     /** Kdo přišel od souseda a odkud (`newcomer` – trade.md, Výměna lidí). */
     group?: NewcomerGroup;
     direction?: Direction8;
+    /** Co ves koupila u souseda (`crafts-bought` – crafts.md, Nákup u sousedů). */
+    products?: CraftProduct[];
     dateLabel: string;
     text: string;
   }[];
+  /**
+   * Nákupy výrobků řemeslníků u sousedů na cestě (crafts.md – Nákup u sousedů): směr, co ves
+   * kupuje (kg), kolik lidí jde a kolik dní zbývá; chybí = žádný.
+   */
+  purchases?: VillagePurchase[];
   /** Den poslední svatby mezi domy (population.md – Sňatky mezi domy); žádná null. */
   lastMarriageDay: number | null;
   /**
@@ -558,6 +586,52 @@ export interface VillageView {
    * a obchod se sousedy; dokud zakladatelé první zemnici staví, null.
    */
   manor: VillageManor | null;
+}
+
+/** Nákup u souseda na cestě (crafts.md – Nákup u sousedů). */
+export interface VillagePurchase {
+  direction: Direction8;
+  get: CraftPurchaseGoods;
+  /** Platba v kg obilí (hodnota u souseda). */
+  payKg: number;
+  group: number;
+  daysLeft: number;
+  /** Průběh cesty 0–1. */
+  progress: number;
+}
+
+/** Názvy výrobků řemeslníků ve 4. pádě (kronika, upozornění – nákup u sousedů). */
+export const PRODUCT_NAMES: Record<CraftProduct, string> = {
+  toolsKg: 'nástroje',
+  potteryKg: 'keramiku',
+  woodToolsKg: 'dřevěné nářadí',
+};
+
+/** Názvy výrobků řemeslníků v 1. pádě (popisky panelu). */
+export const PRODUCT_TITLES: Record<CraftProduct, string> = {
+  toolsKg: 'Nástroje',
+  potteryKg: 'Keramika',
+  woodToolsKg: 'Dřevěné nářadí',
+};
+
+/** Ikona výrobku v `public/icons/resources/`. */
+export const PRODUCT_ICONS: Record<CraftProduct, string> = {
+  toolsKg: 'tools',
+  potteryKg: 'pottery',
+  woodToolsKg: 'wood-tools',
+};
+
+/** Co ves koupila – výrobky v pořadí CRAFT_PRODUCTS (aspoň kg). */
+export function boughtProducts(get: CraftPurchaseGoods): CraftProduct[] {
+  return CRAFT_PRODUCTS.filter((p) => (get[p] ?? 0) > 0);
+}
+
+/** Výčet výrobků česky: „nástroje, keramiku a dřevěné nářadí“. */
+export function productList(products: readonly CraftProduct[]): string {
+  const names = products.map((p) => PRODUCT_NAMES[p]);
+  return names.length <= 1
+    ? (names[0] ?? '')
+    : `${names.slice(0, -1).join(', ')} a ${names[names.length - 1]}`;
 }
 
 /** Hřbitov pro panel výběru – čísla, žádné věty (rozhraní jako v 0 A.D.). */
@@ -1077,15 +1151,23 @@ export interface SceneTrail {
 }
 
 /**
- * Výprava k sousedovi pro karavanu ve scéně (trade.md – Ve scéně, `scene/caravan.ts`): stezka,
+ * Výprava k sousedovi pro karavanu ve scéně (trade.md – Ve scéně, `scene/caravan.ts`; i skupina
+ * nákupu u souseda – crafts.md, Nákup u sousedů): stezka (bez ní čára krajinou ke kraji mapy),
  * kolik lidí jde (nosiči, s vozy honáci a pomocníci – `cartCrew` na vůz), vozy (id), kdo odchází
  * k sousedovi a kdo s výpravou přijde (pohlaví a věk z jádra), jestli se nese náklad tam a zpátky,
  * postup 0–1 na konci dne `day`, denní přírůstek postupu (dnešní tempo, výprava vyslaná dnes plné)
  * a podíl cesty na mapě (bez dne za krajem mapy).
  */
 export interface SceneExpedition {
-  id: number;
-  trailId: number;
+  /** Výprava (id z jádra), nebo skupina nákupu u souseda (`purchase:<směr>:<den>`). */
+  id: number | string;
+  /** Hotová zemská stezka, po které karavana jde; null – jde po čáře `line`. */
+  trailId: number | null;
+  /**
+   * Cesta krajinou bez stezky – od vsi rovně ke kraji mapy (nákup u souseda – crafts.md); jen
+   * s `trailId` null.
+   */
+  line?: { x: number; z: number }[];
   porters: number;
   carts: number[];
   cartCrew: number;
@@ -1253,9 +1335,12 @@ export interface SceneFieldPart {
   grazed?: boolean;
   /**
    * Plodina osetého dílu, když to není obilí – `legume` (hrách a čočka – fields.md,
-   * Luštěniny): zelené, zralé a sklizené luštěniny vypadají jinak než obilí. Bez údaje obilí.
+   * Luštěniny), `flax` (len – fields.md, Len): zelené, zralé a sklizené luštěniny i len vypadají
+   * jinak než obilí. Bez údaje obilí.
    */
-  crop?: 'legume';
+  crop?: 'legume' | 'flax';
+  /** Zelený len v červnu kvete – pole zmodrá (fields.md – Len, Co hráč vidí). */
+  bloom?: true;
   /**
    * Kousky dílu, které cesta oddělila od pole a zůstaly loukou (roads.md a fields.md – Cesta
    * přes pole; `FieldPart.roadCut` – řádky buněk po ROAD_LAND.cells bitech v mřížce dílu): scéna
@@ -1524,7 +1609,9 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
     case 'journey-started':
       return `Lidé vyrazili na ${DIRECTION_NAMES[event.direction].name} – na místo nové vsi dorazí ${formatGameDate(dateOfDayIndex(event.arrivalDay))}.`;
     case 'harvest':
-      return `${HARVEST_NAMES[event.crop ?? 'any']}: ${formatInteger(event.kg)} kg ${event.crop === 'legume' ? 'luštěnin' : 'obilí'}.`;
+      return `${HARVEST_NAMES[event.crop ?? 'any']}: ${formatInteger(event.kg)} kg ${HARVEST_GOODS[event.crop ?? 'any']}.`;
+    case 'linen-short':
+      return `Lnu je na oděv málo – vytrhali ${formatInteger(event.kg)} kg z ${formatInteger(event.neededKg)} kg, které lidé potřebují.`;
     case 'apple-harvest':
       return `Sklizeň ovoce: ${formatInteger(event.kg)} kg.`;
     case 'slaughter':
@@ -1583,6 +1670,8 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
         'odchází s nimi',
         event.people,
       );
+    case 'crafts-bought':
+      return `Vesničané koupili ${productList(boughtProducts(event.get))} u souseda (${DIRECTION_NAMES[event.direction].name}) – zaplatili ${formatInteger(paymentValueKg(event.pay))} kg obilí.`;
     case 'trade-returned':
       return tradeTripText(
         `Nosiči se vrátili ${DIRECTION_NAMES[event.direction].from}`,
@@ -1690,6 +1779,8 @@ function sceneVillage(
     ];
   });
   const looks = fieldPartLooks(state, day);
+  // len kvete v červnu (fields.md – Len)
+  const flaxBloom = dateOfDayIndex(day).month === FLAX_BLOOM_MONTH;
   // kam stáda dojdou – jen ves se skutečnými stády (bez nich scéna stáda odvodí z domácností)
   const grazed = state.livestock ? pastureGrazedParts(state, day) : null;
   // ves letos orá rádlem – celé pole má kulaté rohy (oxen.md – Jen rádlo)
@@ -1706,7 +1797,15 @@ function sceneVillage(
         {
           ...scenePart(landscape, p, p.cell, partStage(p, day), f.grid),
           ...looks.get(p.id),
-          ...(p.state === 'sown' && p.crop === 'legume' ? { crop: 'legume' as const } : {}),
+          ...(p.state === 'sown' && (p.crop === 'legume' || p.crop === 'flax')
+            ? { crop: p.crop }
+            : {}),
+          ...(p.state === 'sown' &&
+          p.crop === 'flax' &&
+          flaxBloom &&
+          looks.get(p.id)?.look === 'green'
+            ? { bloom: true as const }
+            : {}),
           ...(years > 0 ? { overgrowth: years } : {}),
           ...(grazed && isGrazeableFallow(p) ? { grazed: grazed.has(p.id) } : {}),
           ...(p.roadCut ? { roadCut: [...p.roadCut] } : {}),
@@ -2123,7 +2222,11 @@ function workshopOutputKg(
 }
 
 /** Řemesla pro lištu a panel výběru. */
-function craftsView(state: VillageState, summary: VillageSummary): VillageCrafts {
+function craftsView(
+  state: VillageState,
+  summary: VillageSummary,
+  landscape: Landscape | null,
+): VillageCrafts {
   const { stocks, needs, coverage, workshops, carts, cartTargets } = summary.crafts;
   const present =
     workshops.length > 0 ||
@@ -2148,6 +2251,13 @@ function craftsView(state: VillageState, summary: VillageSummary): VillageCrafts
     })),
     carts: carts.map((c) => ({ ...c, condition: Math.round(c.condition * 100) / 100 })),
     cartTargets,
+    sources: craftSources(state, landscape).map((source) => ({
+      product: source.product,
+      own: source.own,
+      direction: source.route?.direction ?? null,
+      days: source.route?.days ?? null,
+      trail: source.route?.trailId !== null && source.route !== null,
+    })),
   };
 }
 
@@ -2698,6 +2808,9 @@ function chronicle(state: VillageState, name: string): VillageView['chronicle'] 
         : {}),
       ...(event.kind === 'newcomer' ? { group: event.group, direction: event.direction } : {}),
       ...(event.kind === 'emergency-slaughter' ? { animals: event.animals } : {}),
+      ...(event.kind === 'crafts-bought'
+        ? { direction: event.direction, products: boughtProducts(event.get) }
+        : {}),
       dateLabel: formatGameDate(dateOfDayIndex(event.day)),
       text: chronicleText(event, name),
     }));
@@ -2708,8 +2821,21 @@ const HARVEST_NAMES: Record<Crop | 'any', string> = {
   winter: 'Sklizeň ozimu',
   spring: 'Sklizeň jaře',
   legume: 'Sklizeň luštěnin',
+  flax: 'Trhání lnu',
   any: 'Sklizeň',
 };
+
+/** Co se sklidilo (2. pád) podle plodiny. */
+const HARVEST_GOODS: Record<Crop | 'any', string> = {
+  winter: 'obilí',
+  spring: 'obilí',
+  legume: 'luštěnin',
+  flax: 'lnu',
+  any: 'obilí',
+};
+
+/** Měsíc, kdy zelený len kvete – pole zmodrá (fields.md – Len, Co hráč vidí). */
+const FLAX_BLOOM_MONTH = 6;
 
 /**
  * Nabízené stavby = všechny s cenou – ručně psaný seznam už jednou zapomněl tesaře; pořadí
@@ -2982,7 +3108,7 @@ export function buildVillageView(
     },
     livestock: summary.livestock,
     woodLogs: wholeLogs(summary.woodLogs),
-    crafts: craftsView(state, summary),
+    crafts: craftsView(state, summary, landscape),
     storesMonths: summary.storesMonths,
     satiation: summary.satiation,
     commonLaborPerDay: summary.commonLaborPerDay,
@@ -3060,9 +3186,22 @@ export function buildVillageView(
       ...(context.neighbourScenes?.length ? { neighbours: context.neighbourScenes } : {}),
     },
     chronicle: chronicle(state, name),
+    purchases: purchaseViews(state),
     lastMarriageDay: lastMarriageDay(state),
     manor: manorView(state, landscape, day, context.ownMaps ?? {}),
   };
+}
+
+/** Nákupy u sousedů na cestě pro panel (crafts.md – Nákup u sousedů). */
+function purchaseViews(state: VillageState): VillagePurchase[] {
+  return (state.purchases ?? []).map((p) => ({
+    direction: p.direction,
+    get: { ...p.get },
+    payKg: Math.round(paymentValueKg(p.pay)),
+    group: p.group,
+    daysLeft: purchaseDaysLeft(p),
+    progress: p.days > 0 ? Math.min(1, p.done / p.days) : 1,
+  }));
 }
 
 /** Ohrady pro panel výběru – stavba, spřežení, výcvik a zvířata v ohradě. */
@@ -3144,7 +3283,7 @@ function scenePlacementVillage(scene: SceneVillage): PlacementVillage {
       cell: pen.cell,
       ...(pen.grid ? { grid: pen.grid } : {}),
     })),
-    // les vsi – pole ho vymýtí jako les, ostatní stavby na něj nesmí (fields.md – Les vsi)
+    // les vsi – pole ho vymýtí jako les, ostatní stavby ho vyklučí jako les krajiny (fields.md)
     ...(scene.woods
       ? {
           woods: scene.woods.map((w) => ({ cell: w.cell, ...(w.grid ? { grid: w.grid } : {}) })),

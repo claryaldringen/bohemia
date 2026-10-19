@@ -275,6 +275,7 @@ describe('panel pole – plodiny (fields.md – Luštěniny)', () => {
         { crop: 'winter', count: 3 },
         { crop: 'spring', count: 1 },
         { crop: 'legume', count: 2 },
+        { crop: 'flax', count: 1 },
       ],
       ashParts: 0,
       ashBonus: 0,
@@ -283,6 +284,8 @@ describe('panel pole – plodiny (fields.md – Luštěniny)', () => {
     });
     expect(html).toMatch(/legumes\.png.*data-testid="selection-crop-legume"[^>]*>2</);
     expect(html).toContain('Luštěniny – hrách a čočka');
+    // len na plátno (fields.md – Len)
+    expect(html).toMatch(/flax\.png.*data-testid="selection-crop-flax"[^>]*>1</);
     expect(html).toContain('data-testid="selection-crop-winter"');
   });
 });
@@ -297,6 +300,8 @@ describe('SelectionPanel – díl pole a čtverec sadu (klik – fields.md, Co h
     look: 'ripe',
     stage: 'sown',
     legume: false,
+    flax: false,
+    bloom: false,
     ploughed: true,
     areaM2: 225,
     fertility: 48,
@@ -679,5 +684,35 @@ describe('SelectionPanel – dílna tesaře (wagons.md – Tesař)', () => {
     const html = render(carpenter('helping', null));
     expect(html).toContain('data-activity="helping"');
     expect(html).toContain('Pomáhá se stavbami');
+  });
+});
+
+describe('SelectionPanel – nákup u sousedů (crafts.md)', () => {
+  it('dvorec ukáže, kde ves bere výrobky, a nákup na cestě – jen ikony', () => {
+    const html = render(
+      dwelling({
+        buying: {
+          sources: [
+            { product: 'toolsKg', own: false, direction: 'N', days: 6, trail: true },
+            { product: 'potteryKg', own: true, direction: null, days: null, trail: false },
+            { product: 'woodToolsKg', own: false, direction: null, days: null, trail: false },
+          ],
+          purchases: [
+            {
+              direction: 'N',
+              get: { toolsKg: 9 },
+              payKg: 520,
+              group: 3,
+              daysLeft: 4,
+              progress: 0.5,
+            },
+          ],
+        },
+      }),
+    );
+    expect(html).toMatch(/data-testid="selection-buying-toolsKg"[^>]*>↑</);
+    expect(html).toMatch(/data-testid="selection-buying-potteryKg"[^>]*>✓</);
+    expect(html).toMatch(/data-testid="selection-buying-trip"[^>]*>↑ 4</);
+    expect(html).toContain('/icons/resources/wood-tools.png');
   });
 });

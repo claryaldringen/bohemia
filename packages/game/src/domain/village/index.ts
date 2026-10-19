@@ -7,6 +7,7 @@ export * from './diet';
 export * from './field-food';
 export * from './dairy';
 export * from './legumes';
+export { expectedFlaxKg, flaxNeedKg, linenCoverage, linenUnhappiness } from './flax';
 export * from './livestock';
 export * from './hay';
 export * from './plough';
@@ -98,6 +99,26 @@ export * from './sacred-life';
 export * from './happiness';
 export * from './crafts';
 export * from './charcoal';
+// nákup u sousedů (crafts.md) – kroky simulace (odchod, cesta, návrat) volá simulate.ts
+export {
+  CRAFT_PRODUCTS,
+  PRODUCT_CRAFT,
+  craftSources,
+  neighbourCrafts,
+  ownCraftsmanWorks,
+  paymentValueKg,
+  planPurchases,
+  productPrice,
+  purchaseDaysLeft,
+  purchaseLine,
+  purchaseRoute,
+  purchaseTarget,
+  purchaseTravelers,
+  type CraftProduct,
+  type CraftSource,
+  type PurchasePlan,
+  type PurchaseRoute,
+} from './craft-buying';
 // tesař a vozy (wagons.md) – kroky simulace (pomoc stavbám, výroba, svoz) volá simulate.ts
 export {
   NO_HELP,

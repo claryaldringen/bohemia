@@ -7,6 +7,8 @@ import {
   TRADE,
   ageYears,
   newcomerProfiles,
+  purchaseLine,
+  type CraftPurchase,
   type TradeExpedition,
   type VillageState,
 } from '@bohemia/game';
@@ -26,8 +28,19 @@ function leavingOf(e: TradeExpedition, day: number): SceneExpedition['leaving'] 
   }));
 }
 
-/** Výpravy vsi na cestě pro scénu – karavany po zemských stezkách. */
+/**
+ * Výpravy vsi na cestě pro scénu – karavany po zemských stezkách; i skupiny nákupu u sousedů
+ * (crafts.md – Nákup u sousedů), bez stezky po přímce krajinou ke kraji mapy.
+ */
 export function sceneExpeditions(state: VillageState): SceneExpedition[] {
+  return [
+    ...tradeCaravans(state),
+    ...(state.purchases ?? []).map((p) => purchaseCaravan(state, p)),
+  ];
+}
+
+/** Výpravy k sousedům (trade.md – Ve scéně). */
+function tradeCaravans(state: VillageState): SceneExpedition[] {
   const day = state.lastDay;
   return (state.trade?.expeditions ?? []).map((e) => {
     const today = expeditionToday(state, e);
@@ -50,4 +63,32 @@ export function sceneExpeditions(state: VillageState): SceneExpedition[] {
       onMap: e.days > 0 ? Math.max(0.2, (e.days - TRADE.beyondEdgeDays) / e.days) : 1,
     };
   });
+}
+
+/**
+ * Skupina nákupu u souseda jako karavana (crafts.md – Nákup u sousedů): nosiči nesou platbu tam
+ * a výrobky zpátky, po hotové stezce, jinak po přímce od vsi ke kraji mapy (`line`). Jde-li skupina
+ * vícekrát (`tripDays` < `days`), karavana jde každou cestu zvlášť – postup v právě běžící cestě,
+ * den za den 1 ÷ dny cesty (lidé jdou každý den, nečekají na volné ruce).
+ */
+function purchaseCaravan(state: VillageState, p: CraftPurchase): SceneExpedition {
+  const trip = Math.max(1, Math.min(p.days, p.tripDays ?? p.days));
+  const round = Math.floor(p.done / trip);
+  const progress = Math.min(1, (p.done - round * trip) / trip);
+  return {
+    id: `purchase:${p.direction}:${p.startedDay}`,
+    trailId: p.trailId,
+    ...(p.trailId === null ? { line: purchaseLine(state, p) } : {}),
+    porters: p.group,
+    carts: [],
+    cartCrew: CARTS.tradeCrew,
+    leaving: [],
+    coming: [],
+    carriesOut: (p.pay.grainKg ?? 0) + (p.pay.legumesKg ?? 0) > 0,
+    carriesBack: true,
+    progress: Math.round(progress * 1e4) / 1e4,
+    rate: p.done < p.days ? Math.round((1 / trip) * 1e4) / 1e4 : 0,
+    day: state.lastDay,
+    onMap: Math.max(0.2, (trip - TRADE.beyondEdgeDays) / trip),
+  };
 }

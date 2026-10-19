@@ -478,14 +478,16 @@ export function expeditionLaborNeed(state: Pick<VillageState, 'trade'>): number 
  * `expeditionLaborNeed`, nejvýš kolik je mezi `people` (lidé, kteří dnes pracují se vsí – bez
  * řemeslníků v dílnách) dospělých. Náklad 25 kg na několik dní cesty nesou dospělí; děti a starší
  * zůstanou doma. Krok práce ji dá do `allocateDay` jako `away` – po denním minimu domácností, před
- * úlohami dne – a `workExpeditions` ji rozdělí mezi výpravy.
+ * úlohami dne – a `workExpeditions` ji rozdělí mezi výpravy. `extra` = lidé dalších cest
+ * k sousedům (skupiny nákupu výrobků řemeslníků – crafts.md, Nákup u sousedů).
  */
 export function expeditionLaborToday(
   state: Pick<VillageState, 'trade'>,
   people: readonly Person[],
   day: number,
+  extra = 0,
 ): number {
-  const need = expeditionLaborNeed(state);
+  const need = expeditionLaborNeed(state) + extra;
   if (need <= 0) return 0;
   return Math.min(need, people.filter((p) => ageGroup(p, day) === 'adult').length);
 }

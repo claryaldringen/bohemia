@@ -262,8 +262,11 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   kamery). Na místo pokáceného stromu dá `felled-trees.ts` pařez,
   po TREE_SAPLING_AFTER_YEARS mladý stromek. **Vymýcený les** (`cleared-forest.ts`, čistý
   modul): maska po políčkách ze stavu vsi – políčko lesa bez aspoň poloviny dospělých stromů
-  nebo pod založeným dílem pole. Plocha korun nad pasekou zapadne pod zem
-  (`ForestCanopy.setCleared` mění jen výšky vrcholů), ztmavení trávy se přepočítá bez skrytých
+  nebo pod založeným dílem pole, a paseky pod stavbami v lese přesně podle tvaru
+  (`ClearedForest.areas` – vyklízené plochy obydlí a dílen s pruhem pod korunami
+  `forestClearingsOf` z jádra, natočené pozemky, modly a svatyně; `clearingDistance` měří
+  i k nim). Plocha korun nad pasekou zapadne pod zem
+  (`ForestCanopy.setCleared` mění jen výšky vrcholů, klíč i z `clearedAreasKey`), ztmavení trávy se přepočítá bez skrytých
   stromů do modrého kanálu splat textury (`TerrainMaterial.setHiddenTrees` – žádný sampler
   navíc), stínová mapa se jednou překreslí a minimapa kreslí vykácený les jako paseku. Vše jen
   při změně (`applyVillage`).
@@ -284,7 +287,11 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   (`applySeasonGround`), PBR stromy a dekorace (`applySeasonModel` podle jména modelu –
   druhy v `season-foliage.ts`: listnáče se barví a opadávají, z koruny zbudou větvičky, kůra
   ztratí zelený tón; jehličí a kameny pod sněhem; rákos stojí suchý; trnka a jabloně kvetou),
-  střechy (`applySeasonSnow`). Impostory (`applySeasonImpostors`) mají druhý sampler se
+  střechy (`applySeasonSnow`), tvary na zemi se StandardMaterial (`applySeasonRelief`) –
+  mohyly a staré hroby hřbitova, zarostlé i čerstvé, a kůl vojvody jen poprášený
+  (Martin, 19. 10. 2026: „V zimě by i mohyly na hřbitově měly zapadat sněhem.“): šum a sklon
+  `seasonSnowSlope` jako terén, sníh až po osvětlení nasvícený jako terén, bez vlastní barvy
+  a okolního světla materiálu. Impostory (`applySeasonImpostors`) mají druhý sampler se
   zimním atlasem (stahuje se souběžně, nečeká se na něj): listnáč s opadem listí přechází po
   pixelech na holý obrázek, smrk se sněhem na zasněžený; podzim barví letní obrázek. Plocha
   korun s opadem po skvrnách mizí – v zimě je pod holými stromy vidět zasněžená zem (u kmenů
@@ -374,7 +381,7 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   na obsazeném políčku až přestavbou na nejbližším volném do 50 m – `relocationPlot` (bez polí
   a sadů – `takeLand: false`), proto `advanceVillage` dostává krajinu), `PLOT_TYPES`,
   `PLOT_VARIANTS`, `PLOT_HOUSE_OFFSET_M`, `plotHousePosition` a `checkPlotPlacement`
-  v `placement.ts` (louka, bez výchozu, bez posvátného dubu a čtverce háje, dům ne pod korunou
+  v `placement.ts` (louka nebo les – les se vyklučí, viz Ves – Stavba v lese –, bez výchozu, bez posvátného dubu a čtverce háje, dům ne pod korunou
   dubu, nezabrané hřbitovem ani jiným obydlím či pozemkem – čtverec pole či sadu smí, viz Ves –
   Obydlí na poli a v sadu –, rovno jen pod domem, `spared` vždy prázdné; překážky celého
   políčka jako u čtverce pole, stromy dají klády); `dwellingPlot` zabírá celé políčko
@@ -726,6 +733,30 @@ rozhraní částí v
   scéna kreslí lesní milíř funkcemi milíře u dílny přes kotvu `forestKilnAnchor`
   (`workshop-layout.ts`), postavy u lesního milíře `kilnWorkers`, sázení `planting`, polena nosí
   k lesnímu milíři (`felling`).
+- **Nákup u sousedů** ([crafts.md](docs/design/crafts.md) – Nákup u sousedů, Martin 19. 10. 2026:
+  „Nástroje ať vesničané obchodují individuálně… Sami si spočítají, jestli se jim to vyplatí.“;
+  čísla `CRAFT_BUYING` v `rules.ts`, rešerše `research/2026-10-19-craft-buying.md`):
+  `craft-buying.ts`. Sousedé mají řemeslníky podle druhu (`neighbourCrafts` – řemeslníci kováře,
+  hrnčíře i tesaře jistě, ostatní s pravděpodobností). Ves se rozhoduje sama 15. 11.
+  (`startPurchases` na začátku dne – `planPurchases`): u výrobku bez vlastního pracujícího
+  řemeslníka (`ownCraftsmanWorks` – dílna bez vstupů se nepočítá) chybí do `craftTargets` –
+  nejbližší soused s řemeslníkem (`purchaseRoute`: po hotové stezce `trailTripDays`, jinak krajinou
+  ke kraji mapy × 1,5 a den navíc), cena `productPrice` (0,96 hodnoty), platba obilím nebo
+  luštěninami z přebytku nad pojistkou (`sowingTargets` – `leftKg − bufferKg`) nejlevnější v práci
+  (`villageFoodCosts`; u nástrojů při pokrytí po nákupu), skupina polovina dospělých (nejvýš 8)
+  po 25 kg, nejvýš 60 dní; koupí, když práce ušetřená za dobu služby (1 ÷ opotřebení let –
+  nástroje polní práce a seč, keramika ztráty zásob a denní minimum, dřevěné nářadí práce vsi)
+  převýší práci za platbu a cestu – z jednoho přebytku napřed nejvyšší poměr ušetřené práce
+  k ceně (rozhodnutí Clauda). `VillageState.purchases` (`CraftPurchase` – směr, skupina, dny,
+  stezka nebo bod na kraji `edge`, zboží a platba); lidé na cestě chybí v práci vsi od prvního dne
+  (`purchaseTravelers` – kapacita `allocateDay`), `walkPurchases` → podíl práce `trade` s cílem
+  stezky nebo `{ kind: 'edge' }`; ve scéně karavana (`sceneExpeditions` v `caravan-view.ts` –
+  `SceneExpedition` s `trailId` null a čarou `line` od dvorce ke kraji – `purchaseLine`, každá
+  cesta tam a zpět zvlášť podle `CraftPurchase.tripDays`; body cesty `caravanPoints`),
+  `finishPurchases` → zásoby a kronika `crafts-bought`. Web: kronika a upozornění „Vesničané
+  koupili nástroje u souseda (sever)“, `VillageCrafts.sources` (`craftSources`),
+  `VillageView.purchases`, panel dvorce `BuyingRow` (výrobky se šipkou ke zdroji, nákup na cestě),
+  panel dílny bez vstupů `SelectionWorkshop.buying`; řádek kalibrace „Nákup u sousedů“.
 - **Tesař a vozy** ([wagons.md](docs/design/wagons.md) – fáze 1, Martin 19. 10. 2026; čísla
   `CARPENTRY`, `WOODWORK_LABOR`, `CARPENTER_TOOLS_WORK`, `WOOD_TOOLS`, `WOOD_TOOLS_LABOR`, `CARTS`,
   `CART_ACCESS` v `rules.ts`, rešerše `research/2026-10-19-carts-carpentry.md`): řemeslo
@@ -770,15 +801,20 @@ rozhraní částí v
   podle stravy, Osev podle zásob, 19. 10. 2026): `sowingTargets` ve `field-food.ts` (v plánu
   `fieldSowingTargets`) – potřeba z pole (podíl jídla z pole za uplynulý hospodářský rok –
   `VillageState.fieldFood`, součty v `eat`, uzávěrka 1. 9. `closeFieldFoodYear`; nejméně
-  `FIELD_FOOD.minShare`, bez změřeného roku 1 – × roční potřeba); úroda má po příští sklizni
-  doplnit zásoby z pole (obilí a luštěniny, `fieldStoresKg`) na rok spotřeby a pojistku
-  (`bufferKg` – `FIELD_STORES.bufferEnergyYears` celé potřeby, `storesNeeded` / `storesLeft` se
-  ztrátami) bez toho, co zbude; přebytek za `surplusYears`; luštěniny potřeba bez zbytku zásoby.
+  `FIELD_FOOD.minShare`, bez změřeného roku 1 – × roční potřeba). **Plynulejší osev** (fields.md –
+  Plynulejší osev, Martin 19. 10. 2026): seje se podle dlouhodobého podílu
+  `FieldFoodYear.longShare` (k 1. 9. o třetinu rozdílu – `FIELD_STORES.balanceYears`; starší ves
+  začne ročním `share`) – úroda rok co rok na cílovou zásobu `storesTargetKg` = pojistka (`bufferKg`
+  – `bufferEnergyYears` celé potřeby) + `cushionYears` roční potřeby z pole (zásoby z pole – obilí
+  a luštěniny, `fieldStoresKg`; `storesNeeded` / `storesLeft` se ztrátami), odchylku od ní (přebytek
+  i schodek) vyrovná po třetinách, pod pojistkou doplní do pojistky hned; luštěniny potřeba bez
+  zbytku zásoby.
   Rozjetý plán zkrátí `trimPlan` (každý den 1. 9. – 30. 4., `plan-trim.ts`: nezačaté díly obilí
   od konce pořadí přes `shrinkInPlan` / `dropFromWork` z `land-taken.ts`, ladem jako příloh –
   `FieldPart.fallowBeforePlan`). Potřebou z pole jde i `energyFloorKg`, odhad ozimu na srpen
   (`daysUntilFoodHarvest`) a dobré zásoby štěstí; ustálená úroda `steadyHarvestKg` (kalibrace,
-  kalkulačka). Volná práce plánu (`sowingCapacity`) je po denním minimu, práci se zvířaty
+  kalkulačka – zásoba na cílové zásobě). Kalibrace vypisuje práci na poli a volnou práci po rocích
+  (průměr, variační koeficient, změna z roku na rok). Volná práce plánu (`sowingCapacity`) je po denním minimu, práci se zvířaty
   a dospělých pasácích (`herdingDay`). Výhled jídla do sklizně (`eatDiet`) počítá s mlékem stád do sklizně
   (`milkAheadEnergy` z `milkEnergyBetween`) a celou zásobou sýra.
   Polní úlohy obou plodin řadí `fieldTasks` v `simulate.ts`
@@ -793,6 +829,27 @@ rozhraní částí v
   sklizeň 31. 7. do `VillageState.legumesKg` (`harvestWinter`), osev úrodnost vrátí
   (`LEGUMES.fertilityGain` v `endOfSeason`). Scéna: `SceneFieldPart.crop: 'legume'` – trsy
   hrachu `crop-pea-green` / `crop-pea-ripe` a hromádky `pea-heap` v `crops.glb`.
+  **Len** (fields.md – Len, diet.md – Oděv; Martin 19. 10. 2026: „na částech pole musí být zasetý
+  len“, čísla návrh Clauda podle rešerše `research/2026-10-19-flax.md`): čtvrtá plodina `flax`
+  (`YearPlan.flax?`, `FLAX_WINDOWS` = okna luštěnin, `FLAX` a `FLAX_WORK_PER_HA` v `rules.ts` –
+  potřeba 2 / 1 kg třeného lnu na dospělého / dítě, 550 kg/ha, osivo 0, neopletý 50 %, úrodnost
+  −0,18 v `endOfSeason`, nemlátí se); `flax.ts` – `flaxNeedKg`, `expectedFlaxKg`, `harvestFlax`
+  (31. 7. v `harvestWinter` – `VillageState.linen` = podíl oděvu vůči `YearPlan.flaxNeedKg`
+  zapsané v `planYear`; plán bez ní – starší ves, ves založená během roku – nic nezapíše, kronika
+  `linen-short`), `linenUnhappiness` (`HappinessFactors.linen`, až `FLAX.unhappiness` 4).
+  `chooseCrops` dostane `flaxTargetKg` – `chooseSideCrop` dá len napřed (před luštěninami) na díly
+  výběru obilí **od konce** (vysiluje půdu, delší příloh neleží domům v cestě; loňský len až
+  nakonec; když se práce nevejde, zkusí další díl – `fitsSideCrop`), obilí doplní energii, a když
+  nejde, len ubere obilí nejvýš o svůj díl ze zásob nad pojistku (`flaxSpareKg` = `leftKg` −
+  `bufferKg` ze `sowingTargets`); trhání v červenci napřed (`CROP_ORDER` – len první);
+  `trimPlan` len neubírá. Zpracování je v domácí výrobě
+  (přerozdělení), žádná zásoba v liště. Web: `SceneFieldPart.crop: 'flax'` a `bloom` (červen –
+  `FLAX_BLOOM_MONTH` ve `village-view.ts`), scéna `FLAX_STYLES` / `FLAX_BLOOM` ve `field-crops.ts`
+  (druhy trsů `flax-green` / `flax-bloom` / `flax-ripe` – kopie uzlu `crop-sprout` s vlastní
+  geometrií, `CROP_NODE` ve `field-renderer.ts`; kvetoucí len napůl modré trsy), malé panáky,
+  nízká koruna; panel `CROP_LABELS.flax` (ikona `resources/flax` – `icons.py flax`),
+  `fieldPartName` („Zelený / Kvetoucí / Zralý len“, „Trhání lnu“), upozornění „Chybí len na oděv“,
+  `/dev/buildings` pole **Len** (`FLAX_SHOWCASE_PHASES`).
 - **Postup práce po čtvercích** (Martin – fields.md): kopání, setí a sklizeň mění díl, až k němu
   dojde práce. `field-progress.ts` (jen čte): díly plodiny v pořadí `CropWork.partIds` (dávka
   po úsecích hospodářství od domu ven – řadí `createCropWork` s `workOrder`, ves bez hospodářství
@@ -823,6 +880,28 @@ rozhraní částí v
   s navazujícím polem. **Stará navazující pole** (založená samostatně dřív) sloučí při načtení
   vsi `withMergedFields` v `updateVillage` (souvislé skupiny stranou do nejmenšího id, pole
   z obrysu ne; Martin) – stejným `mergeFields`, bez příznaku „převedeno“ (idempotentní a levné).
+- **Stavba v lese** (population.md – Stavba v lese; Martin 19. 10. 2026: „Oprav – obydlí může jít
+  postavit i v lese – les se prostě vyklučí.“ a „pokud jsem pole založil v lese, tak na něm nemohu
+  postavit kovárnu“; podrobnosti návrh Clauda): `placement.ts` les krajiny ani les vsi nezakazuje
+  žádné stavbě (`checkFootprintTerrain(…, clearForest)`, `LandUse.woods`, pozemek
+  `plotGroundProblem`, ohrada, sad a hřbitov v `buildSquares` / `cemeteryPartsFromCells`, modla
+  a svatyně `checkSacredTerrain`); výchoz, voda a prudký svah dál ano. **Cena = sazba lesa jako
+  díl pole** (`forestClearingCost` – `foundingCostPerHa('forest', toolCoverage)` × plocha lesa):
+  volně stojící stavba (obydlí, dílna, modla, svatyně) vyklučí vyklízenou plochu a v lese i pruh
+  `FOREST_CROWN_MARGIN_M` (4 m) pod korunami (`freeForestClearing` – mnohoúhelníky
+  `dwellingClearing(…, margin)`, `milirClearing(…, margin)`, `freeDwellingClearings(…, margin)`,
+  v pruhu jen les – `ClearingOptions.only`); plocha lesa `forestAreaUnder` (políčko lesa bez staveb
+  přesně, se čtverci staveb a lesa vsi body po 0,5 m – `forestLandAt`: políčko lesa krajiny nebo
+  čtverec lesa vsi mimo půdu polí, sadů, hřbitovů, ohrad a hájů); druhy v sazbě
+  (`SURFACE_INCLUDED_OBSTACLES.forest`) se po kusech neplatí – `RatedLand` v `polygonObstacles` /
+  `polygonsObstacles` (`ClearingOptions.rated`), kameny a balvany ano. Čtverce (pozemek, ohrada,
+  sad, hřbitov) v lese jako díl pole: `squareInForest`, `squareObstacleCost` za plochu čtverce bez
+  půdy pole a sadu (`squareFreeArea`). Na poli v lese (i natočeném) stavba za les neplatí – půda
+  patří poli (`owned`). Obyvatelé les nevyklučí (`clearForest: false` – `relocationPlot`
+  přes `takeLand: false`, `existingPlotSquare`, `freeVillageSite`). Dospělé stromy dají klády
+  jako dřív (`clearedTrees`), les vsi bez stromů zmizí. Scéna: paseka podle tvaru
+  (`cleared-forest.ts` – `areas`), podrost a zarůstání pod stavbou neroste (`wildPlants`
+  s `buildingClearings`), `/dev/landscape` odstraní překážky postavené stavby jako hra.
 - **Obydlí na poli a v sadu** (population.md – Obydlí na poli a v sadu; Martin 18. 10. 2026:
   „Pole a sad se prostě zmenší o plochu domu“): `checkDwellingPlacement`, `checkPlotPlacement`
   a `checkWorkshopPlacement` pole a sad nezakazují (`checkFootprintFree(…, DWELLING_LAND)`,
@@ -884,8 +963,9 @@ rozhraní částí v
   místa `woodTreeSpots`; 240/ha, dospělé od 15 do 70 let – `VILLAGE_WOOD`), kácí se na dřevo
   (`nearestMatureTrees`, `availableTrees`; i uhlíř – `isBeech` / `'beeches'` les vsi bere,
   pařezy se sazenicí přes `felledTreeStage`), pole na nich mýtí les (`buildSquares` – povrch les,
-  stromy z `added` dají klády; `clearWoodAt` po založení dílu), ostatní stavby na les vsi nesmí
-  (`checkFootprintFree`, příznak lesa v `squareFlags`). Prasatům je les vsi lesem (`pigForestHa`).
+  stromy z `added` dají klády; `clearWoodAt` po založení dílu), ostatní stavby ho vyklučí jako les
+  krajiny (Stavba v lese; les vsi bez stromů zmizí – `dropClearedWoods` v `recordClearedObstacles`).
+  Prasatům je les vsi lesem (`pigForestHa`).
   Starší vsi začínají roky bez pastvy počítat od nuly.
 - **Štěstí a posvátná místa** ([happiness.md](docs/design/happiness.md), `happiness.ts`,
   `sacred.ts`): štěstí 0–100 (`VillageState.happiness` – hodnota, úmrtí posledního roku, dny dřiny
@@ -907,7 +987,7 @@ rozhraní částí v
   zůstane (`DwellingPlacementCheck.spared`). Akce (`foundField`, `foundOrchard`, `foundCemetery`,
   `startNewDwelling`, `foundVillage`) dostanou `sacred` / `dwellingSpared` a ušetřená místa
   zapíší (`recordSpared` → `sacredOaks`, `groves`, kronika `sacred-spared`). **Modla a svatyně**:
-  `checkSacredBuildingPlacement` (půdorys 4 × 4 / 30 × 30 m na louce, svatyně ≤ 1 m převýšení,
+  `checkSacredBuildingPlacement` (půdorys 4 × 4 / 30 × 30 m na louce i v lese, svatyně ≤ 1 m převýšení,
   jedna na ves), `startSacredBuilding` (stavba `kind` `idol` / `shrine` s `position`, dub(y) přes
   `planSacredWood` – nejbližší dospělé duby, ne posvátné; cena `sacredLaborManDays`), po
   dostavění `VillageState.sacredBuildings` (id = id stavby). Surovina předem `oaks`
@@ -1383,7 +1463,7 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   `fieldPartsFromCells` a `cemeteryPartsFromCells` v `placement.ts` (společné kontroly čtverců;
   u hřbitova navíc `check.warning` a `warningCells`, které neblokují – oranžově). Pole smí na
   louku, do křovin i do lesa – povrch dílu `fieldSquareSurface` (les z krajiny, křoviny = louka
-  s keři za aspoň rozdíl sazeb); sad a hřbitov jen na louku. Obrys výběru při malování
+  s keři za aspoň rozdíl sazeb); sad a hřbitov na louku i do lesa (sazba lesa – Stavba v lese). Obrys výběru při malování
   prosvítá přes stromy. Server
   actions dostávají `cells` / `fieldCells` (`{ x, y }[]`). Malování ve scéně
   `lib/scene/field-painting.ts` (`FieldPainter`, režim `squares`, logika výběru ve
@@ -1502,7 +1582,8 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   (`getVillageView`) ji potřebuje jen při prvním načtení vsi založené před vrstvou (doplnění
   odstraněných překážek, ≈ 300 ms jednou).
 - **Překážky ve vsi** (`domain/village/obstacles.ts`, fields.md – tabulka překážek): obydlí
-  platí překážky na vyklízené ploše (`DWELLING_CLEARING_M` = staveniště scény) po kusech,
+  platí překážky na vyklízené ploše (`DWELLING_CLEARING_M` = staveniště scény) po kusech (les za
+  sazbu lesa – Stavba v lese),
   skalní výchoz pod půdorysem stavbu nedovolí; díl pole platí překážky v políčku jen mimo
   sazbu povrchu (`tallyCost`, `SURFACE_INCLUDED_OBSTACLES` – v lese stromy a podrost v ceně,
   v křovinách keře), výchoz zůstane a plocha pod ním se nepočítá; čtverec hřbitova

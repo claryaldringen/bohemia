@@ -183,8 +183,17 @@ má nějaké meze. Bez řemeslníků ber tu nejhorší hranici, s řemeslníky t
     v prohlížeči i na serveru jsou stejné funkce jádra; u kurzoru oranžově „Pole se zmenší“
     / „Pole zanikne“, u staveb po čtvercích i čtverce pole oranžově, u jabloní v nabídce na panelu
     cesty. Kronika: pole ustoupilo sadu, hřbitovu, ohradě, modle, svatyni, jabloním nebo stromům
-    u cesty. Pole leží na krajině pod ním – na čtverci pole v lese (vymýceném) stavby dál nesmí,
-    jako v lese (zatím).
+    u cesty. Pole leží na krajině pod ním – na čtverci pole v lese (vymýceném) stavby smí jako
+    jinde na poli a za les neplatí, pole ho už vymýtilo (Martin, 19. 10. 2026: „pokud jsem pole
+    založil v lese, tak na něm nemohu postavit kovárnu“ – oprava, viz Stavby v lese níž).
+- **Stavby v lese** (Martin, 19. 10. 2026: „Oprav – obydlí může jít postavit i v lese – les se
+  prostě vyklučí.“; podrobnosti návrh Clauda – [populace](population.md), Stavba v lese): do lesa
+  krajiny i lesa vsi smí každá stavba – obydlí, pozemek, dílny, modla, svatyně, ohrada, sad
+  i hřbitov. Les pod stavbou se platí **sazbou lesa jako díl pole** (250, s řemesly 150 člověkodní
+  na hektar plochy lesa – stromy, mladé stromky, souše, padlé kmeny, pařezy i podrost v sazbě,
+  kameny a balvany po kusech), dospělé stromy dají klády. Kolem volně stojící stavby (obydlí,
+  dílna, modla, svatyně) se v lese vyklučí i pruh 4 m pod korunami okolních stromů. Skalní
+  výchoz, voda a prudký svah stavbu dál nedovolí, posvátné duby a háje se nekácí.
 - **Navazující pole** (Martin, 18. 10. 2026: „Pokud více polí navazuje přímo na sebe, počítají se
   jako jedno.“): čtverce, které stranou navazují na pole, ho **rozšíří** – stejné pole, nové díly
   na konec (jako rozšíření hřbitova); rozestavěné založení pole dostane jejich cenu, u hotového
@@ -245,7 +254,7 @@ Clauda**; implementace v `square-grid.ts` a `squares.ts` (jádro), ve scéně `f
   buňky 7,5 m pod jeho středem – středy nepřekrývajících se čtverců jsou od sebe aspoň 15 m).
   Pole ho vymýtí, jen když je jeho čtverec přesně čtvercem pole (stejná mřížka); natočené pole
   napříč lesem vsi z jiné mřížky nejde („Les vsi pole vymýtí jen po jeho čtvercích“), ostatní
-  stavby na les vsi nesmí jako dřív.
+  stavby les vsi vyklučí i jen zčásti (Pole jako krajina – Stavby v lese).
 - **Hospodaření, pěšiny, seno, stromy u cest:** hospodářství a úseky berou středy čtverců v mřížce
   pole (sousedé při vyhlazení jen v téže mřížce), síť pěšin bere natočené čtverce v jejich
   mřížce (buňky sítě převede do souřadnic mřížky), přirozené louky na seno vynechají každé
@@ -393,7 +402,8 @@ masa, a přesto od 1. 3. kopal ≈ 9,7 člověkodne denně – volná práce nul
   ves počítá, že z pole sní aspoň 30 % energie. Obě pojistky se sčítají jen u vsí, které z pole
   jedí méně (sad, med) – mají zásoby o rozdíl vyšší.
 - **Přebytek nad pojistku ves sní za 3 roky** (zasije o třetinu přebytku méně), chybějící pojistku
-  doplní hned. **Proč:** osev tak neskáče rok co rok mezi nulou a plnou plochou – ves s velkou
+  doplní hned (od 19. 10. 2026 i schodek nad pojistkou po třetinách a seje podle dlouhodobé
+  spotřeby – viz Plynulejší osev níže). **Proč:** osev tak neskáče rok co rok mezi nulou a plnou plochou – ves s velkou
   zásobou několik let neseje obilí a pak plynule přidává (ukázková ves se zásobou obilí na 6 let
   celé potřeby zasela obilí na 0, 0, 180, 560, 610 kg a pak ≈ 290–390 kg ročně, jak lidí přibylo
   a stáda dorostla), a přitom má pojistku plnou, kdyby přišel výpadek.
@@ -438,7 +448,7 @@ masa, a přesto od 1. 3. kopal ≈ 9,7 člověkodne denně – volná práce nul
   zásoba, kterou ves po sklizni chce mít: rok potřeby z pole a pojistka se ztrátami) – pásmo
   0,8–1,25 (návrh Clauda); dřívější měřítko „1–1,5 roční potřeby z pole“ a zásoby obilí v roční
   potřebě celé energie vypisuje jako informaci. Hráč skriptu zakládá pole na úrodu rok co rok se
-  zásobami na pojistce (`steadyHarvestKg`).
+  zásobami na cílové zásobě (`steadyHarvestKg` + `storesTargetKg` – Plynulejší osev).
 - **Naměřeno s osevem podle zásob – před stády podle bílkovin, pojistka 0,3**
   (`measure-village.ts 20 20`, 19. 10. 2026, jen orientačně; v závorce před změnou): zásoby z pole po
   sklizni ÷ cíl p10 0,84 / medián 1,02 / p90 1,32, v pásmu 0,8–1,25 80 % let (**MIMO** jen p90);
@@ -483,6 +493,61 @@ masa, a přesto od 1. 3. kopal ≈ 9,7 člověkodne denně – volná práce nul
 
   Zbylé hladové roky (11 z 380) jsou ve dvou vsích: jediná domácnost, která za dva roky vyrostla ze
   4 na 7 lidí, a ves, jejíž růst předběhl práci – cíl osevu nestihnou zasít ani s pojistkou.
+
+#### Plynulejší osev
+
+Stav: **Martin, 19. 10. 2026:** „Ano, plynulejší osev určitě.“ – k návrhu: ves seje každý rok
+zhruba stejně podle dlouhodobé spotřeby z pole, zásoby vyrovnává jen pozvolna, práce bude celkově
+stejná, ale rozložená rovnoměrně; pojistka proti hladu platí dál. Podrobnosti a čísla **návrh
+Clauda**.
+
+**Proč:** ve Vlkově kolísala práce na poli podle roku mezi 30 a 89 člověkodny na člověka. Osev
+podle zásob seje na loňský podíl jídla z pole (se stády podle bílkovin kolísá rok od roku)
+a každý schodek do pojistky doplní najednou – po roce s velkou zásobou zasel skoro nic, další rok
+hodně, a v roce s velkou prací se nahromadila domácí práce, kterou ves dlouho doháněla.
+
+**Pravidla** (`sowingTargets` ve `field-food.ts`, čísla `FIELD_STORES` v `rules.ts`):
+
+- **Dlouhodobý podíl jídla z pole** (`FieldFoodYear.longShare`): k 1. 9. se posune o třetinu
+  rozdílu k podílu uplynulého roku (klouzavý průměr ≈ 3 let); podle něj ves seje i počítá
+  spotřebu do sklizně (pojistka podílu 0,3 platí dál). Starší ves začne loňským ročním podílem.
+- **Úroda rok co rok** = tolik, aby při dlouhodobé spotřebě z pole a ztrátách skladováním zůstala
+  k další sklizni **cílová zásoba** = pojistka (0,5 roční potřeby celé energie) + **třetina roční
+  potřeby z pole** (`cushionYears` – pásmo nad pojistkou, ve kterém se schodek vyrovnává pozvolna).
+- **Odchylka od cílové zásoby po třetinách** (`balanceYears` 3): přebytek i schodek, dokud je
+  zásoba k příští sklizni nad pojistkou, ves vyrovná jen třetinou za rok. **Pod pojistkou** doplní
+  chybějící do pojistky hned (beze změny) a zbytek do cílové zásoby po třetinách.
+- **Zkrácení rozjetého plánu** (`plan-trim.ts`) počítá týž cíl – jen pokud plán převýší cíl o víc
+  než desetinu roční potřeby z pole; cíl se během roku mění jen o třetinu odchylky zásob, takže se
+  plán nekýve (zkracuje se jen tehdy, když ves opravdu nasbírala hodně navíc).
+- **Cena:** cílová zásoba je o třetinu roční potřeby z pole vyšší než pojistka, ztráty skladováním
+  z ní stojí ≈ 3 % práce na poli navíc (sondy kalibrace 43,1 → 44,6 a 68,2 → 70,7 čd na člověka
+  za rok). Bez pásma (`cushionYears` 0, jen dlouhodobý podíl) byla změna práce z roku na rok
+  medián 15,6 % místo 12,9 %.
+
+**Naměřeno** (`measure-village.ts 20 20`, 19. 10. 2026, jen orientačně; v závorce před změnou):
+
+| 20 vsí × 20 let, hráč staví (od 3. roku vsi)         | Plynulejší osev         | Před                |
+| ---------------------------------------------------- | ----------------------- | ------------------- |
+| práce na poli – průměr (čd na člověka a rok, medián) | 67,5                    | 64,1                |
+| změna z roku na rok – medián / p90                   | **12,9 %** / **24,4 %** | 20,2 % / 34,9 %     |
+| variační koeficient po rocích – medián / p90         | 26,3 % / 38,1 %         | 29,2 % / 35,5 %     |
+| sondy startovní / plná – změna z roku na rok         | 4,2 % / 7,4 %           | 5,6 % / 7,7 %       |
+| volná práce (podíl) – průměr, změna z roku na rok    | 5,9 %, 47 %             | 6,6 %, 55 %         |
+| nasycení ≥ 0,95 celý rok – staví / nestaví           | 93,4 % / 99,2 % let     | 93,7 % / 98,9 % let |
+| plná domácnost / startovní ves                       | 98,0 % / 100 % let      | 98,0 % / 100 % let  |
+| zásoby po sklizni ÷ cíl (p10 / medián / p90)         | 0,63 / 0,93 / 1,15      | 0,72 / 0,98 / 1,18  |
+| práce na obživu – startovní ves / plná domácnost     | 86,2 % / 86,8 %         | 85,9 % / 85,9 %     |
+
+Variační koeficient zůstává vysoký kvůli růstu vsí (lidé, nová pole, oběh dílů) – plynulost
+ukazuje změna z roku na rok. Nasycení u hráče, který staví, bylo pod 95 % už před změnou
+(jiné změny větve – pasáci, orba rádlem, cesty).
+
+**Vlkov** (kopie stavu z 3. 3. 770, 33 lidí, 3 137 kg obilí; DB jen čtená, 5 let bez zásahu
+hráče): práce plánu k 1. 9. na člověka 64, 63, 52, 50, 50 čd (před změnou 73, 60, 56, 45, 48),
+odvedená práce na poli po hospodářských letech 59, 62, 52, 40 (59, 60, 56, 47); hlad žádný.
+Ves za těch 5 let nasbírala zásoby (obilí 3 137 → 6 400 kg) a podíl jídla z pole jí klesal
+(0,72–0,77 → 0,60 – stáda), takže práce klesá v obou verzích; plán k 1. 9. kolísá méně.
 
 ### Přílohová soustava – co se oseje a co leží ladem
 
@@ -682,6 +747,71 @@ Luštěniny). Čísla podle [rešerše](research/2026-10-18-legumes.md), kde chy
   v červenci; po sklizni místo panáků hromádky vytrhaného hrachu a skoro holá zem. Panel pole
   ukáže díly luštěnin (ikona a počet).
 
+### Len
+
+Stav: **Martin, 19. 10. 2026:** „A to mi připomíná, že na částech pole musí být zasetý len.“ (k ovcím
+na vlnu – oděv, [diet.md](diet.md) – Oděv). Pravidla **návrh Clauda** podle
+[rešerše](research/2026-10-19-flax.md).
+
+- **Plodina:** len setý na plátno – spodní oděv (košile), šátky, ručníky, plachty; vlna je svrchní
+  oděv. **Jař se stejnými okny jako luštěniny:** kopání (orba) na podzim, co se nestihne, v březnu–
+  dubnu, setí v **březnu–dubnu** (v praxi v polovině dubna), pletí v květnu–červnu, **trhání
+  v červenci** (≈ 100 dní po setí). Nemlátí se – semena se drhnou v domácí práci.
+- **Kolik ho ves potřebuje:** třeného lnu (vlákno po lámání a třepení) za rok **dospělý a starší
+  2 kg, dítě 1 kg** (≈ 3 m² hrubého plátna ≈ 1 kg látky na dospělého – košile, díl spodního oděvu,
+  šátků, ručníků a plachet; na kg látky ≈ 2 kg třeného lnu i s koudelí).
+- **Výnos:** **550 kg třeného lnu na hektar při plné úrodnosti**, s úrodností jako obilí
+  (× 0,4 + 0,6 × úrodnost) – při úrodnosti 70 ≈ 450 kg (Skotsko konec 18. st. 440–550, Irsko 1892
+  429 kg/ha). Ves 30 lidí potřebuje ≈ 48 kg ≈ 0,1 ha ≈ 5 dílů. **Osivo** je lněné semeno z vlastní
+  úrody (sedmina dílu dozraje na semeno) – zásoby obilí neubírá. **Neopletý díl dá 50 %** (len
+  snáší plevel špatně, jako luštěniny).
+- **Práce** na hektar: kopání (orba) a setí jako jař, pletí **40 / 20** (jako luštěniny), trhání
+  a vázání do hrstí **45** + odnos **10** (nástroje nepomohou – len se vytrhává i s kořenem), výmlat
+  žádný. Ves s ≈ 5 díly lnu na ně dá ≈ 23 člověkodní za rok.
+- **Úrodnost:** len vysiluje půdu – osev ubere úrodnost **0,18 přirozené** (obilí 0,12), díl pak po
+  vyčerpání leží v přílohu o ≈ 2 roky déle.
+- **Kolik ves oseje (k 1. 9.):** cíl lnu = potřeba vsi na rok. **Obilí má přednost:** ves nejdřív
+  vybere obilí na celý cíl osevu, pak len dostane díly toho výběru **od konce** (nejdál od domu –
+  jeho delší příloh pak neleží domům v cestě; díly, které měly len loni, až nakonec; když se práce
+  dílu nevejde – třeba sklizeň jaře v červenci plném ozimu –, zkusí další díl) a obilí doplní celou
+  energii dílu (len se nejí); pak luštěniny od domu. Když obilí doplnit nejde (chybí půda nebo
+  práce), **len ubere obilí nejvýš o svou plochu** (≈ 1–2 % osevu) – ale jen ze zásob, které
+  k příští sklizni zbudou nad pojistku (Osev podle zásob); ves se zásobami na pojistce má obilí
+  napřed a lnu je méně. Zkrácení rozjetého plánu (Osev podle zásob) len neubírá.
+  Díly hotové během roku jdou jen do jaře.
+- **Trhání** jde v červenci napřed (před sklizní ozimu a luštěnin – je ho málo, bez něj chybí
+  oděv).
+- **Zpracování** – rosení (máčení), sušení, lámání, třepení, vochlování, předení, tkaní a šití – je
+  součástí **domácí výroby** (`DOMESTIC`, Práce – bod 4: „oděv, …“): **přerozdělení, ne práce navíc**
+  (rozhodnutí Clauda jako u vlny). Dospělý ≈ 1 kg látky × ≈ 200 h ≈ 20 člověkodní za rok – s vlnou
+  ≈ 45 z ≈ 125 člověkodní domácí výroby na dospělého. Práce navíc by oděv počítala dvakrát a ubrala
+  volnou práci, se kterou kalibrace domácí výroby už počítá.
+- **Žádná zásoba v liště** (Martin nechce nové suroviny): len se v rámci roku zpracuje. Při
+  trhání 31. 7. se zapíše, **na jaký podíl oděvu len je** (sklizený len ÷ potřeba při plánu
+  k 1. 9.) – platí do dalšího trhání.
+- **Ves bez lnu** (rozhodnutí Clauda): jen **štěstí – až −4** podle chybějícího podílu (vlna až −6)
+  a krátký řádek **„Chybí len na oděv“** (kronika `linen-short`). Pomalejší domácí práce ani nemoci
+  ne (anti-cíl: ves nevymře kvůli oděvu). Ves, která k 1. 9. nemá pole k osevu, len nezaseje – při
+  trhání se zapíše chybějící len (štěstí −4, upozornění), dokud pole nezaloží.
+- **Starší vsi:** plán z doby před lnem (bez zapsané potřeby) oděv nezapíše – ves je beze změny až
+  do dalšího plánu k 1. 9.
+- **Ve scéně** len tvoří útlé stonky (trsy vzcházejícího obilí – tráva bez klasů – s barvou
+  instance): zelený, **v červnu modře kvete** (zmodrá i porost shora), v červenci **dozrává
+  dohněda**; po trhání holá zem a malé panáky – hrstě lnu schnou na poli. Panel pole ukáže díly
+  lnu (ikona `flax` – hrst s modrými květy), panel dílu „Zelený len“ / „Kvetoucí len“ / „Zralý len“
+  / „Trhání lnu“. Ukázka na `/dev/buildings` – pole **Len**.
+- **Naměřeno** (`measure-village.ts 20 20`, 19. 10. 2026, jen orientačně; hráč skriptu zakládá
+  pole i na len – `neededFieldHa` s `flaxNeedKg`; po sloučení s ovcemi na vlnu, v závorce stejný
+  kód bez lnu – ves bez lnu): len na plný oděv **v 92,4 % let** (od 3. roku vsi; jinak zásoby na
+  pojistce – obilí napřed), plocha lnu medián **45 m² na člověka**; práce na poli hráče, který
+  staví, 63,3 (62,1) čd na člověka a rok (+2 %), volná práce 5,8 (5,6) čd, nasycení ≥ 0,95 celý
+  rok 96,6 (96,1) % let, práce na obživu startovní ves 82,4 (82,7) %, plná domácnost 83,4
+  (83,5) %, štěstí medián 52,4 (49,4 – bez lnu −4). První verze (len jen na díl, který obilí
+  doplní, trhání v červenci až po ozimu) měla plný oděv jen v 66,5 % let – vesnicím bez volné půdy
+  len nezbyl a trhání nestihly; proto len smí ubrat obilí o svou plochu (ze zásob nad pojistku)
+  a trhá se napřed. Bez omezení na zásoby nad pojistku 99,7 % let, ale ves na hranici půdy pak
+  krátce hladověla.
+
 ### Úroda
 
 - **Hrubá úroda** osetého hektaru při plné a včasné práci: **760 kg × (0,4 + 0,6 × aktuální
@@ -816,7 +946,9 @@ povrch při založení a den vypadnutí z pole – les je tehdy 30 let starý).
 - **Stavba:** pole na lese vsi ho **vymýtí jako les** – povrch les (250, s řemesly 150 člověkodní
   na hektar, stromy v ceně), dospělé stromy dají klády a vymýcená půda popel (viz Úroda); les
   zmizí, až se díl založí. Ostatní stavby (obydlí, pozemek, ohrada, sad, hřbitov, modla
-  a svatyně) jdou jako v lese krajiny zatím jen na louku – na les vsi ne.
+  a svatyně) les vsi vyklučí jako les krajiny – sazba lesa, stromy lesa vsi v ní, dospělé dají
+  klády (Martin, 19. 10. 2026 – Pole jako krajina, Stavby v lese); les vsi, ze kterého stavby
+  odstranily všechny stromy, zmizí jako pod polem, zbytek čtverce zůstane lesem.
 - **Pastva:** les vsi na bývalé louce už není pastvinou a prasatům je lesem (žaludy a bukvice);
   les vsi na vymýceném lese se lesem prasat stane zase (díl v lese nepočítá) – [strava a
   dobytek](diet.md).
@@ -963,9 +1095,11 @@ naposledy. V řadové vsi je hran víc – lány jsou úzké pásy vedle sebe, j
   (stejně jako ostatní vrstvy). Je to největší přestavba, kterou tyto mechaniky vyžadují.
 - **Co je překážka a za kolik** (doplňuje tabulku výše – návrh Clauda): každý strom mimo políčka
   lesa jako osamělý strom (3 člověkodny), mladý stromek 1, souš 3, padlý strom 2, pařez 2.
-  Uvnitř políček lesa platí sazba lesa za hektar (stromy v ceně). **Obydlí v lese** platí místo
-  sazby za hektar stromy po kusech na ploše 10 × 10 m kolem půdorysu (v lese zhruba 5 stromů,
-  ≈ 15 člověkodní navíc).
+  Uvnitř políček lesa platí sazba lesa za hektar (stromy v ceně). **Stavba v lese** (19. 10. 2026
+  – Pole jako krajina, Stavby v lese) platí stejnou sazbu lesa za plochu lesa, kterou vyklučí
+  (dřívější návrh „stromy po kusech na ploše 10 × 10 m“ by les vyšel ≈ 3× dráž než pro pole –
+  ≈ 243 dospělých stromů na hektar × 3 čd); u zemnice v lese i s pruhem pod korunami ≈ 18 × 20 m
+  ≈ 9 člověkodní, za ≈ 8 dospělých stromů dá klády.
 - Scéna dnes staví les (hranici lesa, 3D stromy, impostory, koruny), dekorace i stínovou mapu
   **jednou z vygenerované krajiny**. Nově musí umět krajinu sídla po změně přestavět – aspoň
   dotčenou oblast: vykácené stromy a odstraněné kameny zmizí, nové pole se vykreslí, stínová
@@ -997,7 +1131,10 @@ naposledy. V řadové vsi je hran víc – lány jsou úzké pásy vedle sebe, j
   a kolem ní zapadne pod zem, ztmavení trávy pod vykácenými stromy zmizí (i pod jednotlivými
   pařezy), stínová mapa se jednou překreslí a minimapa ukáže vykácený les jako paseku (les
   řídne s podílem vykácených stromů). Díly pole ve vymýceném lese mají obtisk pole na běžné
-  trávě; při malování pole přes les prosvítá obrys výběru přes koruny.
+  trávě; při malování pole přes les prosvítá obrys výběru přes koruny. **Paseka pod stavbou
+  v lese** (19. 10. 2026): vyklučená plocha volně stojící stavby (i s pruhem pod korunami) je menší
+  než políčko – plocha korun zapadne přesně podle jejího tvaru (`ClearedForest.areas`), kolem
+  zůstane les; podrost lesa vsi pod stavbou neroste.
 
 ## Ukázka
 
@@ -1422,3 +1559,10 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 | Zkrácení plánu denně 1. 9. – 30. 4. nad cíl + desetinu potřeby z pole; jen nezačaté díly od konce pořadí, ladem jako příloh       | návrh Clauda                                    |
 | Klik na pole vybere díl s parametry, dvojklik celé pole jako dřív                                                                 | Martin (19. 10. 2026)                           |
 | Panel dílu: co na něm je, výměra, úrodnost, cesta, hospodářství, letošní práce / příloh; hřbitov celý                             | návrh Clauda                                    |
+| Obydlí a ostatní stavby smí do lesa i na pole ve vymýceném lese – les se vyklučí                                                  | Martin (19. 10. 2026)                           |
+| Les pod stavbou sazbou lesa jako díl pole (pařezy v ní), kolem volně stojící stavby i pruh 4 m pod korunami; na poli v lese nic   | návrh Clauda                                    |
+| Plynulejší osev – každý rok zhruba stejně podle dlouhodobé spotřeby, zásoby pozvolna, pojistka platí                              | Martin (19. 10. 2026)                           |
+| Podíl z pole o třetinu rozdílu ročně; cílová zásoba pojistka + třetina potřeby z pole, odchylka po třetinách                      | návrh Clauda                                    |
+| Na částech pole musí být zasetý len – plátno na spodní oděv                                                                       | Martin (19. 10. 2026)                           |
+| Len 2 kg na dospělého (dítě 1), 550 kg/ha, okna luštěnin, −0,18 úrodnosti; od konce výběru, obilí ubere jen o své díly            | návrh Clauda (rešerše)                          |
+| Zpracování lnu v domácí výrobě (přerozdělení); bez lnu jen štěstí až −4 a upozornění                                              | návrh Clauda                                    |

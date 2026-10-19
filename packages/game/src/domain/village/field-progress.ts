@@ -311,6 +311,22 @@ const NATURAL_STAGE: Record<Crop, readonly FieldPartLook[]> = {
     'sprouted',
     'sprouted',
   ],
+  // len: seje se na jaře, v květnu–červnu zelený (v červnu kvete – modře ve scéně), v červenci
+  // dozrává dohněda a trhá se (fields.md – Len)
+  flax: [
+    'sprouted',
+    'sprouted',
+    'sown',
+    'sprouted',
+    'green',
+    'green',
+    'ripe',
+    'ripe',
+    'sprouted',
+    'sprouted',
+    'sprouted',
+    'sprouted',
+  ],
 };
 
 /** Kolik práce úlohy je na dílu hotovo 0–1; díl, kterého se úloha netýká, null. */

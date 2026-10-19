@@ -1,12 +1,19 @@
 import {
   isWoodTreeId,
   rotationCosSin,
+  sacredFootprint,
   woodIdCell,
   woodTreeOf,
   woodTreeSpots,
   type AddedObstacle,
 } from '@bohemia/game';
 import type { SceneFieldPart, SceneVillage, SceneWood } from '../village-view';
+import {
+  buildingClearings,
+  clearingsKey,
+  insideClearings,
+  type Clearing,
+} from './building-clearings';
 import { hash01 } from './smoke-schedule';
 import { swathBands, swathBandsKey, swathDistance } from './swath-bands';
 
@@ -229,13 +236,43 @@ function woodTreesByCell(village: Pick<SceneVillage, 'obstacles'>): Map<string, 
   return byCell;
 }
 
+/** Ves pro zarůstání – díly polí, les vsi a jeho stromy, cesty (průsek); stavby, pod kterými nic neroste. */
+type WildVillage = Pick<SceneVillage, 'fields' | 'woods' | 'obstacles' | 'roads'> &
+  Partial<Pick<SceneVillage, 'dwellings' | 'sacred'>>;
+
+/**
+ * Plochy staveb, pod kterými keře a podrost nerostou (Martin, 19. 10. 2026 – stavba v lese les
+ * vyklučí): vyklízené plochy obydlí a dílen, natočené pozemky a půdorysy model a svatyní.
+ */
+function wildClearings(village: WildVillage): Clearing[] {
+  const sacred = (village.sacred?.buildings ?? []).map((b) => {
+    const polygon = sacredFootprint(b.kind, b.position);
+    const xs = polygon.map((p) => p[0]);
+    const zs = polygon.map((p) => p[1]);
+    return {
+      polygon,
+      minX: Math.min(...xs),
+      maxX: Math.max(...xs),
+      minZ: Math.min(...zs),
+      maxZ: Math.max(...zs),
+    };
+  });
+  return [...buildingClearings(village.dwellings ?? []), ...sacred];
+}
+
 /**
  * Všechny rostliny zarůstání ve vsi – zarůstající díly polí a les vsi; do průseku lesem
- * (roads.md – Průsek lesem) nevstoupí.
+ * (roads.md – Průsek lesem) nevstoupí a pod stavbami (vyklízená plocha, půdorys) nic neroste.
  */
-export function wildPlants(
-  village: Pick<SceneVillage, 'fields' | 'woods' | 'obstacles' | 'roads'>,
-): WildPlant[] {
+export function wildPlants(village: WildVillage): WildPlant[] {
+  const plants = allWildPlants(village);
+  const clearings = wildClearings(village);
+  if (clearings.length === 0) return plants;
+  const cleared = insideClearings(clearings, 0);
+  return plants.filter((plant) => !cleared(plant.x, plant.z));
+}
+
+function allWildPlants(village: WildVillage): WildPlant[] {
   const plants: WildPlant[] = [];
   for (const field of village.fields) {
     for (const part of field.parts) {
@@ -253,10 +290,11 @@ export function wildPlants(
   return plants.filter((p) => !(swathDistance(bands, p.x, p.z, 0) <= 0));
 }
 
-/** Klíč zarůstání – rostliny se přestaví, jen když se změní (roky dílů, les, jeho stromy). */
-export function wildKey(
-  village: Pick<SceneVillage, 'fields' | 'woods' | 'obstacles' | 'roads'>,
-): string {
+/**
+ * Klíč zarůstání – rostliny se přestaví, jen když se změní (roky dílů, les, jeho stromy, plochy
+ * staveb).
+ */
+export function wildKey(village: WildVillage): string {
   const parts = village.fields.flatMap((f) =>
     f.parts.flatMap((p) =>
       p.overgrowth && p.overgrowth >= SHRUBS.fromYears
@@ -268,5 +306,7 @@ export function wildKey(
   const trees = (village.obstacles?.added ?? [])
     .filter((o) => isWoodTreeId(o.id))
     .map((o) => `${o.id}:${o.kind}`);
-  return JSON.stringify([parts, woods, trees, swathBandsKey(swathBands(village.roads))]);
+  const clearings =
+    parts.length > 0 || woods.length > 0 ? clearingsKey(wildClearings(village)) : '';
+  return JSON.stringify([parts, woods, trees, swathBandsKey(swathBands(village.roads)), clearings]);
 }

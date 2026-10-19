@@ -134,7 +134,7 @@ export function caravanCartPlan(
   e: SceneExpedition,
   window: DayWindow | null,
 ): CartCaravan | null {
-  const trail = (village.trails ?? []).find((t) => t.id === e.trailId);
+  const trail = e.trailId === null ? null : village.trails?.find((t) => t.id === e.trailId);
   if (!trail || trail.points.length < 2 || !cart.route || cart.route.length < 2) return null;
   const L = walkRoute(trail.points.map((p) => [p.x, p.z] as const)).length;
   const radius = CART_TURN_M[cart.kind];

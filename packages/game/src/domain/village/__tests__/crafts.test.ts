@@ -385,7 +385,8 @@ describe('dílny ve vsi – simulace', () => {
   it('ves uložená před řemesly se dopočítá bez zásob a dílen', () => {
     const s = fullVillage();
     delete s.crafts;
-    const after = advanceVillage(s, DAY + 60, null);
+    // do 15. 11. – pak už může ves nakoupit u sousedů (crafts.md – Nákup u sousedů)
+    const after = advanceVillage(s, DAY + 40, null);
     expect(after.crafts).toBeUndefined();
     expect(after.dwellings.some((d) => d.workshop)).toBe(false);
   });

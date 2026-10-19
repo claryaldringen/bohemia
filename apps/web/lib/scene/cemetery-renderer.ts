@@ -22,6 +22,7 @@ import {
 } from './cemetery-layout';
 import { cellsBounds, cellsContain, type CellSquare } from './field-cells';
 import { instanceMatrices, type ModelInstance } from './instanced-model';
+import { applySeasonRelief } from './season-materials';
 import { StakingPegs, createStringMaterial, createStringMesh, pegInstances } from './staking';
 import { seededRandom, stripSegments, type HideShape, type Point } from './village-layout';
 import { createStripMesh, type HeightFn } from './village-meshes';
@@ -55,6 +56,14 @@ const MOUND_SETTLE_M = 0.2;
 const FRESH_OVERGROWN = 0.3;
 /** Rozpad plotu se ve scéně mění po dvacetinách (klíč pohřebiště). */
 const FENCE_DECAY_STEPS = 20;
+/**
+ * Sníh na kůlu mohyly vojvody – dřevo jen poprášené jako pletený plot (sklon nechá sníh jen na
+ * hlavě kůlu); mohyly zapadají celé jako terén kolem.
+ */
+const POST_SNOW = 0.5;
+/** Barva kůlu (zšedlý dub) a podíl okolního světla v jeho barvě – jako kolíky vytyčení (staking.ts). */
+const POST_COLOR = new Color3(0.3, 0.24, 0.18);
+const POST_AMBIENT_SHARE = 0.6;
 
 interface CemeteryView {
   key: string;
@@ -82,7 +91,8 @@ const MOUND_KEYS: readonly { look: MoundLook; size: MoundSize }[] = (
  * kolem čtverců s brankou k nejbližšímu obydlí, uvnitř hliněné mohylky po hrobech (čerstvé
  * z holé hlíny, starší zarostlé travou). Založení po fázích: čára vytyčení s kolíky, zatloukání
  * kůlů, pletení plotu zdola. Plot je sdílený pletený plot (woven-fence-renderer.ts), mohylky
- * sdílené meshe v instancích.
+ * sdílené meshe v instancích. V zimě mohyly zapadají sněhem jako terén kolem (stejný šum,
+ * na strmé straně méně – `applySeasonRelief`), kůl vojvody jen nahoře.
  */
 export class CemeteryRenderer {
   private readonly views = new Map<number, CemeteryView>();
@@ -381,6 +391,8 @@ export class CemeteryRenderer {
       // zarostlé mohylky jsou světlejší než louka (suchá tráva), čerstvé z hnědé hlíny
       m.diffuseColor = look === 'grass' ? new Color3(1.18, 1.04, 0.74) : new Color3(1, 0.84, 0.68);
       m.ambientColor = AMBIENT;
+      // v zimě zapadají sněhem jako terén kolem (čerstvá hlína i zarostlé stejně)
+      applySeasonRelief(m);
       return m;
     });
     mesh.isPickable = false;
@@ -424,10 +436,12 @@ export class CemeteryRenderer {
     data.applyToMesh(mesh);
     mesh.material = this.material('mound-post', () => {
       const m = new StandardMaterial('village-cemetery-mound-post', this.scene);
-      // zšedlé dubové dřevo
-      m.diffuseColor = new Color3(0.3, 0.24, 0.18);
+      // zšedlé dubové dřevo – okolní světlo v barvě dřeva jako u kolíků vytyčení (šedé by kůl
+      // vybělilo, materiál bez textury nemá barvu, kterou by okolní světlo násobilo)
+      m.diffuseColor = POST_COLOR.clone();
       m.specularColor = Color3.Black();
-      m.ambientColor = AMBIENT;
+      m.ambientColor = POST_COLOR.scale(POST_AMBIENT_SHARE);
+      applySeasonRelief(m, POST_SNOW);
       return m;
     });
     mesh.isPickable = false;

@@ -1,10 +1,12 @@
 import {
   LEAVING,
   ORCHARD,
+  PRODUCT_CRAFT,
   sacredBuildingHappiness,
   type CartKind,
   type Craft,
   type Crop,
+  type Direction8,
   type BuildableDwellingType,
   type DwellingType,
   type FamilyCounts,
@@ -32,6 +34,8 @@ import {
   type BuildOption,
   type FieldLook,
   type SceneVillage,
+  type VillageCraftSource,
+  type VillagePurchase,
   type VillageRoad,
   type VillageView,
 } from './village-view';
@@ -65,12 +69,23 @@ export interface SelectionWorkshop {
    * Tesař (wagons.md – Tesař): vozy vsi (doma / na cestě) a kolik jich ves potřebuje, rozdělaný
    * vůz (druh, průběh 0–1) a pokrytí dřevěné práce staveb posledního dne 0–1; ostatní dílny null.
    */
+  /**
+   * Ves výrobek dílny dokupuje u souseda (vlastní řemeslník nemá vstupy – crafts.md, Nákup
+   * u sousedů): směr a dny cesty; jinak chybí.
+   */
+  buying?: { direction: Direction8; days: number };
   carpenter: {
     carts: VillageView['crafts']['carts'];
     cartTargets: VillageView['crafts']['cartTargets'];
     making: { kind: CartKind; progress: number } | null;
     woodworkCoverage: number;
   } | null;
+}
+
+/** Nákup u sousedů v panelu dvorce (crafts.md – Nákup u sousedů). */
+export interface SelectionBuying {
+  sources: VillageCraftSource[];
+  purchases: VillagePurchase[];
 }
 
 export type SelectionDetails =
@@ -101,6 +116,11 @@ export type SelectionDetails =
       relocate: Record<BuildableDwellingType, BuildOption> | null;
       /** Dvorec vojvody (trade.md) – vylepšení vsi; obyčejné obydlí null. */
       manor: VillageManor | null;
+      /**
+       * Dvorec: kde ves bere výrobky řemeslníků a nákupy u sousedů na cestě (crafts.md – Nákup
+       * u sousedů); u ostatních obydlí chybí.
+       */
+      buying?: SelectionBuying;
       /** Odejít do nové vsi (migration.md); když domácnost odejít nemůže, null. */
       leave: SelectionLeave | null;
     }
@@ -171,6 +191,10 @@ export type SelectionDetails =
       stage: PartStage;
       /** Oseto luštěninami – zelené a zralé luštěniny místo obilí. */
       legume: boolean;
+      /** Oseto lnem – zelený, kvetoucí a zralý len místo obilí (fields.md – Len). */
+      flax: boolean;
+      /** Len kvete (červen). */
+      bloom: boolean;
       /** Díl letos oralo spřežení rádlem (zoráno místo zkopáno). */
       ploughed: boolean;
       areaM2: number;
@@ -370,8 +394,8 @@ export const PART_STAGE_ORDER: readonly PartStage[] = [
   'young-forest',
 ];
 
-/** Pořadí plodin v panelu pole – ozim (sklízí se dřív), jař, luštěniny. */
-export const CROP_ORDER: readonly Crop[] = ['winter', 'spring', 'legume'];
+/** Pořadí plodin v panelu pole – ozim (sklízí se dřív), jař, luštěniny, len. */
+export const CROP_ORDER: readonly Crop[] = ['winter', 'spring', 'legume', 'flax'];
 
 /** Popisky plodin a ikony (`/icons/resources/<ikona>.png`). */
 export const CROP_LABELS: Record<Crop, { name: string; icon: string }> = {
@@ -381,6 +405,7 @@ export const CROP_LABELS: Record<Crop, { name: string; icon: string }> = {
     name: 'Luštěniny – hrách a čočka, zaseté na jaře, sklizeň v červenci',
     icon: 'legumes',
   },
+  flax: { name: 'Len – na plátno, zasetý na jaře, trhá se v červenci', icon: 'flax' },
 };
 
 /** Pořadí povrchů v panelu pole – od louky po les. */
@@ -428,12 +453,18 @@ const FIELD_LOOK_NAMES: Record<FieldLook, string> = {
 export function fieldPartName(
   details: Pick<
     Extract<SelectionDetails, { kind: 'field-part' }>,
-    'look' | 'stage' | 'legume' | 'ploughed'
-  >,
+    'look' | 'stage' | 'legume' | 'flax' | 'ploughed'
+  > &
+    Partial<Pick<Extract<SelectionDetails, { kind: 'field-part' }>, 'bloom'>>,
 ): string {
   const { look, stage } = details;
   if (stage === 'founding' || stage === 'ready' || look === null) return PART_STAGE_NAMES[stage];
   if (look === 'plowed' && details.ploughed) return 'Zoráno';
+  if (details.flax) {
+    if (look === 'green') return details.bloom ? 'Kvetoucí len' : 'Zelený len';
+    if (look === 'ripe') return 'Zralý len';
+    if (look === 'harvesting') return 'Trhání lnu';
+  }
   if (details.legume) {
     if (look === 'green') return 'Zelené luštěniny';
     if (look === 'ripe') return 'Zralé luštěniny';
@@ -510,6 +541,9 @@ export function selectionDetails(
       relocation: household.relocation,
       relocate: view && household.relocationBlock === null ? view.relocation : null,
       manor: view?.manor?.dwellingId === household.dwellingId ? view.manor : null,
+      ...(view?.manor?.dwellingId === household.dwellingId && view.crafts.sources
+        ? { buying: { sources: view.crafts.sources, purchases: view.purchases ?? [] } }
+        : {}),
       leave: view ? leaveDetails(view, [household.dwellingId]) : null,
     };
   }
@@ -635,6 +669,8 @@ function fieldPartDetails(
     look: shown.look ?? null,
     stage: shown.stage,
     legume: shown.crop === 'legume',
+    flax: shown.crop === 'flax',
+    bloom: shown.bloom === true,
     // ves se spřežením orá všechno (oxen.md) – pole nese příznak `ard`
     ploughed: scene.fields.find((f) => f.id === target.id)?.ard === true,
     areaM2: part.areaM2 ?? shown.size * shown.size,
@@ -735,7 +771,14 @@ function workshopDetails(view: VillageView, dwellingId: number): SelectionWorksh
           ? (view.crafts.coverage.woodTools ?? 0)
           : null;
   const carpenter = workshop.carpenter;
+  // ves výrobek dílny dokupuje u souseda (vlastní řemeslník nemá vstupy – crafts.md)
+  const source = view.crafts.sources?.find((s) => PRODUCT_CRAFT[s.product] === workshop.craft);
+  const buying =
+    source && !source.own && source.direction !== null && source.days !== null
+      ? { direction: source.direction, days: source.days }
+      : null;
   return {
+    ...(buying ? { buying } : {}),
     craft: workshop.craft,
     activity: workshop.activity,
     laborPerDay: workshop.laborPerDay,

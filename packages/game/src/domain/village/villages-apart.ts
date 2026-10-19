@@ -51,7 +51,8 @@ export function distanceToVillages(point: VillagePoint, points: readonly Village
 
 /**
  * Místo pro první zemnici další vsi na téže mapě – nejbližší střed políčka k místu vsi krajiny
- * (`villageSite`), kam zemnice smí (`checkDwellingPlacement`) a který leží aspoň
+ * (`villageSite`), kam zemnice smí (`checkDwellingPlacement` – jen na louku, les si vesničané sami
+ * nevyklučí) a který leží aspoň
  * NEW_VILLAGE_MIN_DISTANCE_M od staveb jiných vsí (`others`). Hledá po prstencích políček od místa
  * vsi, deterministicky. Null, když takové místo na mapě není.
  */
@@ -71,7 +72,12 @@ export function freeVillageSite(
         const center = tileCenterWorld(landscape, x, y);
         if (distanceToVillages(center, others) < NEW_VILLAGE_MIN_DISTANCE_M) continue;
         const position: Position = { x: center.x, z: center.z, rotation: 0 };
-        if (checkDwellingPlacement(landscape, null, 'zemnice', position, obstacles).ok) {
+        // vesničané si místo vybírají sami – les nevyklučí (placement.ts – ForestUse)
+        const clearForest = false;
+        if (
+          checkDwellingPlacement(landscape, null, 'zemnice', position, obstacles, { clearForest })
+            .ok
+        ) {
           return position;
         }
       }

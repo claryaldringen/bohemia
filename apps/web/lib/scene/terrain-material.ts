@@ -131,7 +131,7 @@ if (seasonA.x > 0.0) {
   float seasonBed = clamp((wC.r + wC.g + wB.g) / terrainTotal, 0.0, 1.0);
   // pod stromy u kmenů místy prosvítá zem (listí, kořeny)
   float seasonTrunks = 1.0 - 0.45 * wB.b * smoothstep(0.5, 0.78, seasonNoise(terrainXz * 0.35 + 9.0));
-  float seasonCover = seasonSnowCover(terrainXz, seasonA.x) * smoothstep(0.55, 0.8, normalW.y) * (1.0 - seasonBed) * seasonTrunks;
+  float seasonCover = seasonSnowCover(terrainXz, seasonA.x) * seasonSnowSlope(normalW.y) * (1.0 - seasonBed) * seasonTrunks;
   groundColor = mix(groundColor, seasonSnowColor(groundColor), seasonCover);
 }`;
 
@@ -142,7 +142,7 @@ const SEASON_GROUND_WGSL = `if (uniforms.seasonA.y > 0.0 || uniforms.seasonA.z >
 if (uniforms.seasonA.x > 0.0) {
   let seasonBed = clamp((wC.r + wC.g + wB.g) / terrainTotal, 0.0, 1.0);
   let seasonTrunks = 1.0 - 0.45 * wB.b * smoothstep(0.5, 0.78, seasonNoise(terrainXz * 0.35 + 9.0));
-  let seasonCover = seasonSnowCover(terrainXz, uniforms.seasonA.x) * smoothstep(0.55, 0.8, normalW.y) * (1.0 - seasonBed) * seasonTrunks;
+  let seasonCover = seasonSnowCover(terrainXz, uniforms.seasonA.x) * seasonSnowSlope(normalW.y) * (1.0 - seasonBed) * seasonTrunks;
   groundColor = mix(groundColor, seasonSnowColor(groundColor), seasonCover);
 }`;
 

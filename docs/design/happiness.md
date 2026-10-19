@@ -152,7 +152,9 @@ Každé místo přidá k cílovému štěstí; posvátná místa dohromady nejv�
 ### Dřevěná modla (staví hráč)
 
 - Jednoduchá dřevěná socha na kůlu (inspirace: modly ze Zbruče a Wolinu, Martin – wiki), kolem malý
-  udusaný kruh. Staví se jako obydlí – půdorys **4 × 4 m** kamkoli na louku (návrh Clauda).
+  udusaný kruh. Staví se jako obydlí – půdorys **4 × 4 m** kamkoli na louku (návrh Clauda) i do
+  lesa – les se vyklučí jako u obydlí (Martin, 19. 10. 2026 – [populace](population.md), Stavba
+  v lese).
 - Cena: **30 člověkodní a 1 dospělý dub** (kmen na modlu – dřevo podle [lesa](forest.md)).
 - Přidá **+8** štěstí, započítají se nejvýš **2** modly.
 - Implementace: stavba ze společné práce vsi po fázích, osadníci nejsou potřeba. Dub se bere
@@ -169,7 +171,8 @@ Každé místo přidá k cílovému štěstí; posvátná místa dohromady nejv�
 
 - Podle svatyně Peruna v Perynu u Novgorodu (Martin): kruhový okrsek ≈ **21 m** v průměru,
   obehnaný příkopem s **osmi výběžky**, v každém ohniště, uprostřed modla. Půdorys
-  **30 × 30 m** na louce, rovný terén (≤ 1 m převýšení – návrh Clauda).
+  **30 × 30 m** na louce nebo v lese (les se vyklučí – Stavba v lese), rovný terén (≤ 1 m
+  převýšení – návrh Clauda).
 - Cena: **400 člověkodní a 3 dospělé duby** (návrh Clauda). Žádná odemykací podmínka kromě surovin
   (Martin – odemykání jen surovinami).
 - Přidá **+25** štěstí; jedna svatyně na ves.

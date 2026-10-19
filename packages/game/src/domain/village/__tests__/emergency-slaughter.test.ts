@@ -35,15 +35,12 @@ function village(day: number): VillageState {
     foundVillage({ seed: 11, day: day - 1, dwellingPosition: { x: 0, z: 0, rotation: 0 } }),
   );
   const home = s.people[0]!.dwellingId;
+  // dospělí bez příbuzných ve vsi (bez manžela a rodičů)
   const extra: Person[] = Array.from({ length: 8 }, (_, i) => ({
-    ...s.people[0]!,
     id: s.nextId + i,
-    birthDay: day - 30 * 365,
+    bornDay: day - 30 * 365,
     dwellingId: home,
     sex: i % 2 === 0 ? 'male' : 'female',
-    spouseId: null,
-    motherId: null,
-    fatherId: null,
   }));
   s.nextId += extra.length;
   s.people.push(...extra);

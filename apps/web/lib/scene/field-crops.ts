@@ -28,7 +28,16 @@ export type FieldTexture =
  * Trsy (uzly crops.glb – `crop-<druh>`): obilí zelené s klasy, zralé, vzcházející, strniště;
  * hrách zelený kvetoucí a zralý (luštěniny – fields.md, Luštěniny).
  */
-export type CropKind = 'green' | 'ripe' | 'sprout' | 'stubble' | 'pea-green' | 'pea-ripe';
+export type CropKind =
+  | 'green'
+  | 'ripe'
+  | 'sprout'
+  | 'stubble'
+  | 'pea-green'
+  | 'pea-ripe'
+  | 'flax-green'
+  | 'flax-bloom'
+  | 'flax-ripe';
 export const CROP_KINDS: readonly CropKind[] = [
   'green',
   'ripe',
@@ -36,10 +45,13 @@ export const CROP_KINDS: readonly CropKind[] = [
   'stubble',
   'pea-green',
   'pea-ripe',
+  'flax-green',
+  'flax-bloom',
+  'flax-ripe',
 ];
 
 /** Plodina dílu, která vypadá jinak než obilí (`SceneFieldPart.crop`). */
-export type FieldCrop = 'legume';
+export type FieldCrop = 'legume' | 'flax';
 
 /** Textura obtisku: soubor, délka opakování (m) a jestli brázdy vedou podél řádků pole. */
 export const FIELD_TEXTURES: Record<FieldTexture, { url: string; repeatM: number; rows: boolean }> =
@@ -267,15 +279,57 @@ const LEGUME_STYLES: Partial<Record<FieldLook, Partial<LookStyle>>> = {
   },
 };
 
-/** Vzhled dílu podle plodiny – luštěniny mají vlastní trsy a tón, jinak LOOK_STYLES. */
-export function lookStyle(look: FieldLook, crop?: FieldCrop): LookStyle {
+/**
+ * Len (fields.md – Len, Co hráč vidí): útlé stonky z trsů vzcházejícího obilí (tráva bez klasů)
+ * s barvou instance – zelený, v červnu kvete modře (`SceneFieldPart.bloom` – zmodrá i porost
+ * shora), v červenci dozrává dohněda; po trhání holá zem a malé panáky lnu (hrstě schnou na poli).
+ */
+const FLAX_STYLES: Partial<Record<FieldLook, Partial<LookStyle>>> = {
+  sprouted: { crop: { kind: 'sprout', height: 0.18, width: 0.6, density: 0.8 } },
+  green: {
+    tint: [0.42, 0.6, 0.36],
+    crop: { kind: 'flax-green', height: 0.8, width: 0.45, density: 1 },
+  },
+  ripe: {
+    tint: [0.66, 0.54, 0.32],
+    crop: { kind: 'flax-ripe', height: 0.85, width: 0.45, density: 1 },
+  },
+  harvesting: {
+    tint: [0.96, 0.86, 0.72],
+    crop: { kind: 'stubble', height: 0.06, width: 0.35, density: 0.1 },
+  },
+  stubble: {
+    tint: [0.94, 0.84, 0.7],
+    crop: { kind: 'stubble', height: 0.06, width: 0.35, density: 0.1 },
+  },
+};
+/** Podíl trsů kvetoucího lnu s modrými květy – ostatní jsou zelené stonky. */
+const FLAX_BLOOM_SHARE = 0.55;
+/** Kvetoucí len (červen) – porost shora do modra, část trsů modrá. */
+const FLAX_BLOOM: Partial<LookStyle> = {
+  tint: [0.46, 0.6, 0.8],
+  crop: { kind: 'flax-bloom', height: 0.8, width: 0.45, density: 1 },
+};
+
+/**
+ * Vzhled dílu podle plodiny – luštěniny a len mají vlastní trsy a tón (kvetoucí len `bloom`),
+ * jinak LOOK_STYLES.
+ */
+export function lookStyle(look: FieldLook, crop?: FieldCrop, bloom = false): LookStyle {
   const base = LOOK_STYLES[look];
-  const legume = crop === 'legume' ? LEGUME_STYLES[look] : undefined;
-  return legume ? { ...base, ...legume } : base;
+  const own =
+    crop === 'legume'
+      ? LEGUME_STYLES[look]
+      : crop === 'flax'
+        ? bloom && look === 'green'
+          ? FLAX_BLOOM
+          : FLAX_STYLES[look]
+        : undefined;
+  return own ? { ...base, ...own } : base;
 }
 
-/** Čtverec dílu s plodinou (`SceneFieldPart.crop`). */
-export type CropSquare = CellSquare & { readonly crop?: FieldCrop };
+/** Čtverec dílu s plodinou (`SceneFieldPart.crop`) a kvetoucím lnem (`bloom`). */
+export type CropSquare = CellSquare & { readonly crop?: FieldCrop; readonly bloom?: true };
 
 /**
  * Část klíče změn pole (field-renderer.ts) za vzhled dílů: vzhled, rozpracovanost po pruzích,
@@ -289,6 +343,7 @@ export function partViewsKey(views: readonly PartView[]): unknown[] {
     v.before,
     v.staked,
     v.part.crop ?? null,
+    v.part.bloom ?? false,
     v.swaths ?? false,
     v.part.furrow ? `${v.part.furrow.axis}${v.part.furrow.sweep}` : null,
   ]);
@@ -400,6 +455,9 @@ export function emptyCrops(): Record<CropKind, PlantInstance[]> {
     stubble: [],
     'pea-green': [],
     'pea-ripe': [],
+    'flax-green': [],
+    'flax-bloom': [],
+    'flax-ripe': [],
   };
 }
 
@@ -475,12 +533,15 @@ function addCrops(
       const shade = 0.86 + random() * 0.22;
       const rank = random();
       const look = lookAt(workAt(frame, part, x, z));
-      const crop = look ? lookStyle(look, part.crop).crop : null;
+      const crop = look ? lookStyle(look, part.crop, part.bloom).crop : null;
       if (!crop) continue;
       // u meze trsy řídnou s obtiskem – okraj pole je měkký
       const edge = smoothstep(0.15, 0.85, coverage(x, z));
       if (pick >= crop.density * edge) continue;
-      plants.crops[crop.kind].push({
+      // kvetoucí len – modré květy jen na části stonků, mezi nimi zelené (fields.md – Len)
+      const kind =
+        crop.kind === 'flax-bloom' && (rank * 7) % 1 >= FLAX_BLOOM_SHARE ? 'flax-green' : crop.kind;
+      plants.crops[kind].push({
         x,
         z,
         rotation,
@@ -492,6 +553,9 @@ function addCrops(
     }
   }
 }
+
+/** Panáček lnu – hrstě vytrhaného lnu schnou na poli v menších panácích než snopy obilí. */
+const FLAX_STOOK_SCALE = 0.7;
 
 function addStooks(
   plants: FieldPlants,
@@ -521,8 +585,9 @@ function addStooks(
       const x = part.x + along[0] * u + across[0] * v;
       const z = part.z + along[1] * u + across[1] * v;
       const rotation = random() * Math.PI * 2;
-      // panák stylizovaně o čtvrtinu větší (jako postavy) – z kamery je pak vidět
-      const scale = (0.92 + random() * 0.16) * 1.25;
+      // panák stylizovaně o čtvrtinu větší (jako postavy) – z kamery je pak vidět; hrstě lnu
+      // schnou v menších panácích (fields.md – Len)
+      const scale = (0.92 + random() * 0.16) * (part.crop === 'flax' ? FLAX_STOOK_SCALE : 1.25);
       const rank = random();
       const look = lookAt(workAt(frame, part, x, z));
       if (!look || !LOOK_STYLES[look].stooks || coverage(x, z) < 0.6) continue;
