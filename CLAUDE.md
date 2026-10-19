@@ -1410,10 +1410,14 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   `candidates` a práce roku cest po místech `labor` (od 1. 11., z rozdělení práce dne). Roční
   kontrola 1. 11. (`updateRoads`): roční síť `annualPathNetwork` (stejná `computePathNetwork`,
   průměrné člověkodny na den, sleva za pevné cesty) → provoz cest (`roadTraffic` – medián
-  `traffic.raw` po ose) a zarůstání vyšlapané cesty (5 let pod polovinou prahu; nezaroste cesta,
-  která se vylepšuje – `roadsInWork`, ani s vysazenými jabloněmi – `roadsWithApples`; upravená
-  a hať nezarůstají) → nové cesty z úseků nad prahem (`ROADS.tripsPerDay`), které leží i na loňských (`MATCH_M`) a nevedou po
-  pevné cestě; konec se připojí k pevné cestě a ta se v rozcestí rozdělí (`splitRoad`) – osa se
+  `traffic.raw` po ose) a zarůstání vyšlapané cesty **po kusech** (Martin, 19. 10. 2026 –
+  roads.md, Zarůstá jen nepoužívaný kus: `overgrowRoads` – osa po kusech ≈ 25 m `roadPieces`,
+  tichý kus pod polovinou prahu sčítá roky v `Road.quiet` (střed kusu, roky – jen tiché kusy,
+  starší vsi od další kontroly), po 5 letech zaroste – celý úsek zmizí, jinak `cutOvergrown`
+  vyřízne tiché kusy a zbytek zůstane se starým id, konec u zarostlého kusu volný
+  `VillageRoads.cutEnds`; nezaroste cesta, která se vylepšuje – `roadsInWork`, kus u živé jabloně
+  – `keepingApples`; upravená a hať nezarůstají) → nové cesty z úseků nad prahem
+  (`ROADS.tripsPerDay`), které leží i na loňských (`MATCH_M`) a nevedou po pevné cestě; konec se připojí k pevné cestě a ta se v rozcestí rozdělí (`splitRoad`) – osa se
   jinak nikdy nemění → **falešná rozcestí** (uzel jen se dvěma úseky stejného stupně, bez
   rozdílného vylepšení) se spojí (`mergeRoadChains` – i po dokončení vylepšení ve
   `finishConstructions`, starší vsi při načtení `withMergedRoads` v `updateVillage`; id a den

@@ -1226,6 +1226,20 @@ export interface Road {
    * chybí = podle napojení na jiný úsek.
    */
   openEnds?: [boolean, boolean];
+  /**
+   * Kusy osy (≈ ROADS.pieceM), kudy se chodí pod polovinou prahu (roads.md – Zarůstá jen
+   * nepoužívaný kus): střed kusu (m, na cm) a kolik ročních kontrol po sobě (nejvýš
+   * ROADS.overgrowYears). Jen u vyšlapané cesty; chybí = žádný (i u starších vsí – počítá se od
+   * další roční kontroly).
+   */
+  quiet?: RoadQuietPiece[];
+}
+
+/** Tichý kus osy pevné cesty – střed kusu a roky po sobě pod polovinou prahu. */
+export interface RoadQuietPiece {
+  x: number;
+  z: number;
+  years: number;
 }
 
 /** Mokřina a brody na ose úseku – vzdálenosti od začátku osy (m, na decimetry). */
@@ -1288,6 +1302,12 @@ export interface VillageRoads {
    * vsi při načtení; chybí = ještě ne.
    */
   parallelsChecked?: true;
+  /**
+   * Konce úseků, od kterých zarostl nepoužívaný kus (roads.md – Zarůstá jen nepoužívaný kus) –
+   * zůstávají volnými konci (pás cesty se tam vytrácí) a díra se k nim nedoplňuje; zmizí, když tam
+   * už žádný úsek nekončí. Chybí = žádné.
+   */
+  cutEnds?: RoadPoint[];
 }
 
 /**

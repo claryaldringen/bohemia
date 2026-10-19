@@ -4,7 +4,7 @@ import { obstaclesOf } from '../../landscape';
 import { foundField, foundVillage } from '../actions';
 import { partWalkDistance } from '../fields';
 import { squareCareWork, squareWalkDistance } from '../orchard';
-import { roadGroundOf, roadsInWork, roadsWithApples, updateRoads } from '../paths/roads';
+import { keepingApples, roadGroundOf, roadPieces, roadsInWork, updateRoads } from '../paths/roads';
 import { PATH_FORD, PATH_WATER, PATH_WETLAND, type PathTerrain } from '../paths/terrain';
 import { refreshWalkDistances } from '../paths/village';
 import {
@@ -295,14 +295,16 @@ describe('vylepšení pevné cesty', () => {
   });
 
   it('cesta, která se vylepšuje, nezaroste', () => {
-    // úsek stranou vsi, kudy nikdo nechodí
+    // úsek stranou vsi, kudy nikdo nechodí – kusy čtyři roky tiché
+    const points = [
+      { x: 100, z: -130 },
+      { x: 140, z: -130 },
+    ];
     const far = {
       ...road(),
-      points: [
-        { x: 100, z: -130 },
-        { x: 140, z: -130 },
-      ],
+      points,
       traffic: [0, 0, 0, 0, 0],
+      quiet: roadPieces(points).map((p) => ({ x: p.x, z: p.z, years: 4 })),
     };
     const s = withRoad(village(), far);
     const started = startRoadUpgrade(s, DAY, 7, 'improved', null);
@@ -317,15 +319,19 @@ describe('vylepšení pevné cesty', () => {
 
 describe('cesta s prací hráče nezaroste (roads.md – návrh Clauda, 19. 10. 2026)', () => {
   const NOV = dayIndexOf({ year: 600, month: 11, day: 1 });
-  /** Úsek stranou vsi, kudy nikdo nechodí – pět let bez provozu. */
-  const far = (grade: Road['grade'] = 'trodden'): Road => ({
-    ...road(grade),
-    points: [
+  /** Úsek stranou vsi, kudy nikdo nechodí – kusy čtyři roky tiché, letos pátý. */
+  const far = (grade: Road['grade'] = 'trodden'): Road => {
+    const points = [
       { x: 100, z: -130 },
       { x: 140, z: -130 },
-    ],
-    traffic: [0, 0, 0, 0, 0],
-  });
+    ];
+    return {
+      ...road(grade),
+      points,
+      traffic: [0, 0, 0, 0, 0],
+      quiet: roadPieces(points).map((p) => ({ x: p.x, z: p.z, years: 4 })),
+    };
+  };
   const apple = (plantedDay: number | null): RoadApple => ({
     id: 2 ** 30 + 1,
     roadId: 7,
@@ -354,8 +360,9 @@ describe('cesta s prací hráče nezaroste (roads.md – návrh Clauda, 19. 10. 
     expect(stays(far(), [apple(null)])).toBe(true);
     // souš po jabloni cestu nedrží
     expect(stays(far(), [apple(NOV - Math.round((ORCHARD.endYear + 2) * YEAR))])).toBe(false);
-    expect(roadsWithApples({ apples: [apple(NOV - 400)] }, NOV)).toEqual(new Set([7]));
-    expect(roadsWithApples({}, NOV)).toEqual(new Set());
+    expect(keepingApples({ apples: [apple(NOV - 400)] }, NOV)).toHaveLength(1);
+    expect(keepingApples({ apples: [apple(NOV - Math.round(70 * YEAR))] }, NOV)).toEqual([]);
+    expect(keepingApples({}, NOV)).toEqual([]);
   });
 });
 

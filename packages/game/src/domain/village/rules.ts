@@ -233,6 +233,9 @@ export const ROADS = {
   years: 2,
   overgrowYears: 5,
   overgrowShare: 0.5,
+  // roads.md – Zarůstá jen nepoužívaný kus (Martin, 19. 10. 2026: „ano“; délka kusu návrh Clauda):
+  // provoz se v roční kontrole posuzuje po kusech osy ≈ 25 m
+  pieceM: 25,
 } as const;
 // roads.md – Stromy u pevných cest (Martin: napřed keř, stojí, dokud samy neodumřou; čísla návrh
 // Clauda): místa po 12–20 m střídavě po stranách 2,5–4 m od osy, stromy nejméně 8 m od sebe;

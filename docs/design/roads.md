@@ -49,8 +49,10 @@ Cesta se tím stává herní věcí: pamatuje si, kudy vede, a zkracuje lidem ch
     jiné), spojí se do jednoho (Martin, 18. 10. 2026 – viz [Úseky a rozcestí](#úseky-a-rozcestí)).
     Rozcestí je ve scéně udusaný plácek – nejvyšlapanější místo cesty.
   - **Zarůstání:** vyšlapaná cesta, kterou se **5 let po sobě** chodí pod polovinu prahu,
-    zaroste a zmizí (návrh Clauda). Upravená cesta a hať nezarůstají, ani cesta s vysazenými
-    jabloněmi (návrh Clauda, 19. 10. 2026 – hráč do ní vložil práci; [Cesta je
+    zaroste a zmizí (návrh Clauda) – **po kusech**: zaroste jen kus, kudy se nechodí, zbytek
+    zůstane (Martin, 19. 10. 2026 – [Zarůstá jen nepoužívaný kus](#zarůstá-jen-nepoužívaný-kus)).
+    Upravená cesta a hať nezarůstají, ani kus cesty s vysazenými jabloněmi (návrh Clauda
+    z 19. 10. 2026 – hráč do něj vložil práci; [Cesta je
     cesta](#cesta-je-cesta--povrch-pod-ní-a-zarůstání)). Stromy u zarostlé cesty stojí dál,
     dokud neodumřou.
 
@@ -142,6 +144,8 @@ společné práce vsi; stromy bere jako obydlí (klády z hromady, pak nejbliž�
 | Po pevné cestě se chodí bez ohledu na povrch pod ní (pole, sad, les, svah)               | Martin       |
 | Výjimky: brod, neprůchodná místa, ploty hřbitova a ohrady, svatyně a stavby              | návrh Clauda |
 | Cesta s jabloněmi nezaroste (jako upravená, hať a stezka); díl pole o cestu nepřichází   | návrh Clauda |
+| Zarůstá jen nepoužívaný kus úseku, zbytek zůstane se starým id                           | Martin       |
+| Kusy ≈ 25 m, historie jen tichých kusů (střed a roky), volný konec u zarostlého kusu     | návrh Clauda |
 
 ## Cesta je cesta – povrch pod ní a zarůstání
 
@@ -170,8 +174,8 @@ stezka leží.“
   stupně, mokřiny a brodů na ose (`roadPieceCost`), rovně jen mokřina a voda – pole, sad ani les
   chůzi nezdraží (hlídá test). Beze změny.
 - **Cesta s prací hráče nezaroste** (návrh Clauda – hráč do ní vložil práci): vyšlapaná cesta,
-  podél které jsou vysazené jabloně (živé, nebo se teprve sázejí – `roadsWithApples`), nezaroste
-  ani při malém provozu – stejně jako upravená cesta, hať s lávkou a hotová zemská stezka
+  podél které jsou vysazené jabloně (živé, nebo se teprve sázejí – `keepingApples`; od zavedení
+  zarůstání po kusech drží jabloň kus cesty u sebe), nezaroste ani při malém provozu – stejně jako upravená cesta, hať s lávkou a hotová zemská stezka
   (stupeň nad vyšlapanou) a cesta, která se vylepšuje. Až všechny jabloně dožijí (souš), může
   zarůst jako jiná.
 - **Díl pole pod cestou o plochu nepřichází** (návrh Clauda) – na rozdíl od stromu na poli
@@ -195,10 +199,45 @@ stezka leží.“
   nechodí; 1. 11. 758 ale vznikne nová pevná cesta (79 m) od vsi k severozápadu podél okraje
   osetých dílů (stejně se starým i novým pravidlem) a po ní se pak chodí i v letech, kdy jsou
   díly pod ní oseté.
-- **Otevřené – k rozhodnutí:** dlouhý úsek, jehož část vede tam, kam se už nechodí, zaroste celý
+- ~~**Otevřené – k rozhodnutí:** dlouhý úsek, jehož část vede tam, kam se už nechodí, zaroste celý
   – i s používanou částí (medián provozu po ose). Ve Vlkově by úsek 24 bez jabloní zarostl
   i s novým pravidlem. Návrh Clauda: zarůstá jen nepoužívaný kus úseku – úsek se v roční kontrole
-  rozdělí tam, kde provoz klesne pod polovinu prahu, a zaroste jen ta část.
+  rozdělí tam, kde provoz klesne pod polovinu prahu, a zaroste jen ta část.~~ Rozhodnuto – Martin
+  z 19. 10. 2026: „ano“ ([Zarůstá jen nepoužívaný kus](#zarůstá-jen-nepoužívaný-kus)).
+
+## Zarůstá jen nepoužívaný kus
+
+Martin (19. 10. 2026) na návrh „dlouhý úsek zaroste celý, i když se po jeho části dál chodí –
+zarůstá jen nepoužívaný kus úseku“: **„ano“**. Podrobnosti návrh Clauda.
+
+- **Po kusech:** v roční kontrole (1. 11.) se provoz roční sítě posuzuje po kusech osy – osa
+  úseku rozdělená na stejně dlouhé kusy co nejblíž **25 m** (`ROADS.pieceM`, kratší úsek je jeden
+  kus; provoz kusu je medián bodů po 3 m jako u celého úseku). 25 m je dost krátké, aby se tichý
+  konec oddělil blízko místa, kde provoz spadne, a dost dlouhé (≥ 15 m – nejkratší pevná cesta),
+  aby jedno místo provoz nezkreslilo a odříznutý kus i zbytek byly platné úseky.
+- **Historie:** úsek nese jen tiché kusy (`Road.quiet` – střed kusu na cm a kolik ročních kontrol
+  po sobě je pod polovinou prahu, nejvýš 5), ne provoz po bodech – stav nebobtná (u Vlkova
+  desítky čísel). Rok se přičte, když loni byl tichý kus do půl kusu od středu letošního (střed
+  ve světě, takže dělení a spojování úseků historii nerozbije – kusy jdou podle polohy k nejbližší
+  ose). Kus, kde se letos chodí, historii ztratí.
+- **Zarůstání kusu:** kus tichý **5 let po sobě** zaroste, když u něj (do 6 m od osy kusu) nestojí
+  živá nebo sázená jabloň (`keepingApples`); upravená cesta, hať, stezka a cesta, která se
+  vylepšuje, nezarůstají vůbec. Zaroste-li celý úsek, zmizí jako dřív. Jinak se tiché kusy
+  vyříznou (`cutOvergrown`) a **zbytek zůstane pevnou cestou se starým id a dnem vzniku** (druhý
+  zbytek, když zarostl kus uprostřed, dostane nové id). Kronika „Nepoužívaná cesta zarostla.“
+  jen pro zarostlý kus (`road-overgrown` s novým id kusu).
+- **Volný konec:** konec zbytku u zarostlého kusu je volný (`openEnds` – pás cesty se ve scéně
+  vytrácí) a díra se k němu nedoplňuje – pamatuje si ho `VillageRoads.cutEnds`, dokud tam nějaký
+  úsek končí. Falešná rozcestí po oddělení spojí `mergeRoadChains` jako jindy.
+- **Stromy:** u zarostlého kusu stojí dál (pařezy a souše dožijí jako dřív), volná místa na stromy
+  zmizí s kusem; jabloně zůstanou a patří nejbližšímu zbytku.
+- **Starší vsi:** tiché kusy se začnou počítat od další roční kontroly – nic nezaroste hned
+  (úsek, který byl podle dřívějšího pravidla 4 roky pod prahem, počítá znovu od roku 1).
+- **Vlkov** (kopie stavu z 21. 3. 752, kdy úsek 24 ještě byl, dopočet do 2. 11. 756): úsek 24
+  (378 m ze vsi kolem nového hřbitova ke starému) 1. 11. 756 zkrátí na **151 m od vsi
+  k jihozápadnímu rohu nového hřbitova** – tam vede provoz (3 a víc cest denně) a stojí jabloně;
+  227 m dál ke starému plnému hřbitovu (0,6 cesty denně) zaroste (kronika s novým id 131), konec
+  u hřbitova je volný.
 
 ## Fáze 1 – jak je postavená
 
@@ -219,7 +258,9 @@ Návrh Clauda (detaily, které návrh výš nechal otevřené – 18. 10. 2026):
   polohy). Body osy se tím nemění – cesta se nehýbe. Rozcestí sdílí přesně stejný bod.
 - **Provoz cesty (zarůstání):** medián provozu roční sítě (cest za den) v bodech osy po 3 m (vždy
   nejvyšší z buněk kolem bodu – trasa vede po cestě nebo těsně vedle); pamatuje se posledních
-  5 let. ~~Když zaroste úsek mezi dvěma jinými, ty se nespojují (rozcestí zůstane).~~ Od 18. 10. 2026 se spojí – [Úseky a rozcestí](#úseky-a-rozcestí).
+  5 let. ~~Když zaroste úsek mezi dvěma jinými, ty se nespojují (rozcestí zůstane).~~ Od 18. 10. 2026 se spojí – [Úseky a rozcestí](#úseky-a-rozcestí). Od 19. 10. 2026 rozhoduje o zarůstání provoz po kusech
+  ≈ 25 m ([Zarůstá jen nepoužívaný kus](#zarůstá-jen-nepoužívaný-kus)); provoz celého úseku
+  zůstává pro řazení souběžných cest a copánků.
 - **Sleva za pevnou cestu** v síti dne i v roční síti: buňky pod osou cesty jako plná pěšina
   (poloviční cena) – pěšiny dne se k cestě stahují. Od 19. 10. 2026 bez ohledu na povrch pod
   cestou (Martin – [Cesta je cesta](#cesta-je-cesta--povrch-pod-ní-a-zarůstání)). Ve scéně se pěšina dne v pevné cestě ztrácí
