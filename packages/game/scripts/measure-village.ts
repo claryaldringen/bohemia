@@ -435,6 +435,11 @@ interface RunResult {
    * a přidání dílů) na člověka (čd) – rozptyl po rocích (fields.md – Osev podle zásob, plynulost).
    */
   fieldWork: Map<number, number>;
+  /**
+   * Rok sklizně → na jaký podíl oděvu ves vytrhala len (0–1, fields.md – Len) a plocha lnu plánu
+   * na člověka (m²); jen plány se zapsanou potřebou lnu. Chybí u běhů uložených před lnem.
+   */
+  linen?: Map<number, { coverage: number; m2: number }>;
   /** Rok sklizně → zásoby obilí po sklizni / roční potřeba celé energie (dřívější měřítko). */
   grainStoresRatio: Map<number, number>;
   /**
@@ -616,6 +621,7 @@ function emptyResult(): RunResult {
     storesRatio: new Map(),
     storesToTarget: new Map(),
     fieldWork: new Map(),
+    linen: new Map(),
     grainStoresRatio: new Map(),
     fieldShares: [],
     labor: new Map(),
@@ -759,6 +765,14 @@ function recordHarvest(
       0,
     );
     result.fieldWork.set(year, work / after.people.length);
+    if (plan.flaxNeedKg !== undefined) {
+      const byId = new Map(after.parts.map((p) => [p.id, p]));
+      const m2 = (plan.flax?.partIds ?? []).reduce(
+        (sum, id) => sum + (byId.get(id)?.areaM2 ?? 0),
+        0,
+      );
+      result.linen?.set(year, { coverage: after.linen ?? 1, m2: m2 / after.people.length });
+    }
   }
   const record = result.plans.find((p) => p.year === year);
   if (!plan || !pinned || !record) return;
@@ -1772,6 +1786,33 @@ function report(villages: VillageResult[], probes: Record<ProbeName, ProbeSummar
     )}`,
     'info',
   );
+  // len na oděv (fields.md – Len) – od 3. roku vsi
+  const linenYears = villages.flatMap(({ builder, foundDay, endDay }) =>
+    fullYears(builder, foundDay, endDay)
+      .filter((y) => y - harvestYear(foundDay) >= 3)
+      .flatMap((y) => {
+        const l = builder.linen?.get(y);
+        return l ? [l] : [];
+      }),
+  );
+  if (linenYears.length > 0) {
+    row(
+      'Len na oděv, hráč staví (od 3. roku vsi)',
+      'informace – roky s plným lnem, podíl oděvu, plocha lnu na člověka',
+      `plný ${pct(share(linenYears.map((l) => l.coverage >= 1 - 1e-9)))} let | podíl p10 ${pct(
+        quantile(
+          linenYears.map((l) => l.coverage),
+          0.1,
+        ),
+      )} | plocha medián ${fmt(
+        quantile(
+          linenYears.map((l) => l.m2),
+          0.5,
+        ),
+      )} m² na člověka`,
+      'info',
+    );
+  }
   row(
     'Volná práce po rocích (podíl práce), hráč staví',
     'informace – společná práce ÷ všechna práce; rozptyl jako výš',

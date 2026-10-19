@@ -17,8 +17,12 @@ import { planCrops } from './year-plan';
 /** Tolerance porovnání energie (kg obilí). */
 const EPSILON = 1e-6;
 
-/** Očekávaná energie úrody dílu plodiny (kg obilí, luštěniny svou energií) – jako `chooseCrops`. */
+/**
+ * Očekávaná energie úrody dílu plodiny (kg obilí, luštěniny svou energií, len žádnou – nejí se) –
+ * jako `chooseCrops`.
+ */
 function partEnergy(part: FieldPart, crop: Crop, day: number): number {
+  if (crop === 'flax') return 0;
   return crop === 'legume' ? legumeEnergy(expectedLegumeKg(part, day)) : expectedNetKg(part, day);
 }
 
@@ -93,7 +97,8 @@ export function trimPlanToTarget(
     const partsById = new Map(state.parts.map((p) => [p.id, p]));
     let best: { part: FieldPart; crop: Crop; work: CropWork } | null = null;
     for (const { crop, work } of planCrops(plan)) {
-      if (crop === 'legume' || work.harvestedKg !== null) continue;
+      // ubírá se jen obilí – luštěniny podle bílkovin a len na oděv zůstanou
+      if (crop === 'legume' || crop === 'flax' || work.harvestedKg !== null) continue;
       const part = lastUntouched(work, partsById, day);
       if (!part) continue;
       // nejdál od domu první; při shodě jař (kope se a seje nejpozději)

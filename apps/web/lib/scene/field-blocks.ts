@@ -112,7 +112,7 @@ export function fieldBlockContent(
   };
   const pieces = decalPieces(views, rows, center);
   for (const piece of pieces) {
-    const style = lookStyle(piece.look, piece.part.crop);
+    const style = lookStyle(piece.look, piece.part.crop, piece.part.bloom);
     // zarůstající příloh obtisk nemá – zůstane tráva louky (fields.md – Zarůstání)
     if (style.alpha <= 0) continue;
     const base = piece.part.size / GRID_PER_CELL;

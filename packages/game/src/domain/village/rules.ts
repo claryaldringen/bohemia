@@ -462,14 +462,21 @@ export const LEGUME_WINDOWS: Record<TaskName, readonly WindowSegment[]> = {
   ...WINDOWS,
   harvest: [[7, 7]],
 };
-/** Okna prací podle plodiny (fields.md – Ozim a jař, Luštěniny). */
+// fields.md – Len (rešerše 2026-10-19-flax.md): jarní len se seje v dubnu (okno jaře březen–duben),
+// trhá se po ≈ 100 dnech koncem července – okna jako luštěniny; nemlátí se (semena se drhnou
+// v domácí práci)
+export const FLAX_WINDOWS: Record<TaskName, readonly WindowSegment[]> = LEGUME_WINDOWS;
+/** Okna prací podle plodiny (fields.md – Ozim a jař, Luštěniny, Len). */
 export const CROP_WINDOWS: Record<Crop, Record<TaskName, readonly WindowSegment[]>> = {
   winter: WINTER_WINDOWS,
   spring: WINDOWS,
   legume: LEGUME_WINDOWS,
+  flax: FLAX_WINDOWS,
 };
-/** Pořadí plodin při shodě konce okna – ozim (sklízí se dřív) první, luštěniny před jaří. */
-export const CROP_ORDER: readonly Crop[] = ['winter', 'legume', 'spring'];
+/**
+ * Pořadí plodin při shodě konce okna – ozim (sklízí se dřív) první, luštěniny a len před jaří.
+ */
+export const CROP_ORDER: readonly Crop[] = ['winter', 'legume', 'flax', 'spring'];
 /**
  * diet.md a fields.md – Luštěniny (Martin 18. 10. 2026: bílkoviny 1,6 g/kg zůstávají, přidají se
  * luštěniny; čísla rešerše 2026-10-18-legumes.md, odhady návrh Clauda): hrách a čočka jako jedna
@@ -503,6 +510,36 @@ export const LEGUME_WORK_PER_HA: Record<FieldTask, Bounds> = {
     best: LEGUME_HARVEST_WORK_PER_HA.reap.best + LEGUME_HARVEST_WORK_PER_HA.carry.best,
   },
   thresh: { worst: 10, best: 6 },
+};
+/**
+ * fields.md – Len a diet.md – Oděv (Martin 19. 10. 2026: „A to mi připomíná, že na částech pole
+ * musí být zasetý len.“; čísla návrh Clauda podle rešerše 2026-10-19-flax.md): len na plátno –
+ * spodní oděv (košile), šátky, ručníky, plachty. Potřeba třeného lnu (vlákno po lámání a třepení)
+ * za rok – dospělý a starší 2 kg (≈ 3 m² hrubého plátna ≈ 1 kg látky), dítě 1 kg; výnos 550 kg
+ * třeného lnu na hektar při plné úrodnosti (× 0,4 + 0,6 × úrodnost jako obilí – při úrodnosti 70
+ * ≈ 450 kg, Skotsko 18. st. 440–550, Irsko 1892 429 kg/ha); osivo je lněné semeno z vlastní
+ * úrody (sedmina dílu dozraje) – zásoby neubírá; neopletý díl dá 50 % (len snáší plevel špatně);
+ * osev ubere úrodnost dílu 0,18 přirozené (obilí 0,12 – len vysiluje půdu); bez lnu na oděv ubere
+ * štěstí až 4 podle chybějícího podílu (vlna až 6). Máčení, lámání, třepení, vochlování, předení
+ * a tkaní jsou součástí domácí výroby (`DOMESTIC` – přerozdělení, ne práce navíc: ≈ 20 čd na
+ * dospělého za rok, s vlnou ≈ 45 z ≈ 125 čd domácí výroby na dospělého).
+ */
+export const FLAX = {
+  kgPerYear: { child: 1, adult: 2, elder: 2 },
+  fiberKgPerHa: 550,
+  unweededYield: 0.5,
+  sowDepletion: 0.18,
+  unhappiness: 4,
+} as const;
+// fields.md – Len (rešerše: len se vytrhává i s kořenem a váže do hrstí – pokus Ribe ≈ 68 čd/ha
+// začátečníků, nástroje nepomohou; pletí jako luštěniny – v pokusu 4×; příprava půdy a setí jako
+// jař; nemlátí se) – člověkodny na osetý hektar, meze
+export const FLAX_WORK_PER_HA: Record<FieldTask, Bounds> = {
+  dig: FIELD_WORK_PER_HA.dig,
+  sow: FIELD_WORK_PER_HA.sow,
+  weed: { worst: 40, best: 20 },
+  harvest: { worst: 55, best: 55 },
+  thresh: { worst: 0, best: 0 },
 };
 // orchard.md – Pravidla (Martin – oprava podle rešerše 17. 10. 2026): výsadba 80 člověkodní/ha
 // (+ překážky jako u pole), péče v zimě 10 člověkodní/ha ročně, sklizeň 8 člověkodní/ha při plné

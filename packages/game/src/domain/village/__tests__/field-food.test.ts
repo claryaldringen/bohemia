@@ -335,7 +335,7 @@ describe('osev podle stravy v simulaci', () => {
       const byId = new Map(s.parts.map((p) => [p.id, p]));
       grain.push(
         planCrops(s.plan!)
-          .filter(({ crop }) => crop !== 'legume')
+          .filter(({ crop }) => crop !== 'legume' && crop !== 'flax')
           .reduce(
             (sum, { work }) =>
               sum + work.partIds.reduce((kg, id) => kg + expectedNetKg(byId.get(id)!, day), 0),

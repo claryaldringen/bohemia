@@ -1213,9 +1213,12 @@ export interface SceneFieldPart {
   grazed?: boolean;
   /**
    * Plodina osetého dílu, když to není obilí – `legume` (hrách a čočka – fields.md,
-   * Luštěniny): zelené, zralé a sklizené luštěniny vypadají jinak než obilí. Bez údaje obilí.
+   * Luštěniny), `flax` (len – fields.md, Len): zelené, zralé a sklizené luštěniny i len vypadají
+   * jinak než obilí. Bez údaje obilí.
    */
-  crop?: 'legume';
+  crop?: 'legume' | 'flax';
+  /** Zelený len v červnu kvete – pole zmodrá (fields.md – Len, Co hráč vidí). */
+  bloom?: true;
   /**
    * Kousky dílu, které cesta oddělila od pole a zůstaly loukou (roads.md a fields.md – Cesta
    * přes pole; `FieldPart.roadCut` – řádky buněk po ROAD_LAND.cells bitech v mřížce dílu): scéna
@@ -1460,7 +1463,9 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
     case 'journey-started':
       return `Lidé vyrazili na ${DIRECTION_NAMES[event.direction].name} – na místo nové vsi dorazí ${formatGameDate(dateOfDayIndex(event.arrivalDay))}.`;
     case 'harvest':
-      return `${HARVEST_NAMES[event.crop ?? 'any']}: ${formatInteger(event.kg)} kg ${event.crop === 'legume' ? 'luštěnin' : 'obilí'}.`;
+      return `${HARVEST_NAMES[event.crop ?? 'any']}: ${formatInteger(event.kg)} kg ${HARVEST_GOODS[event.crop ?? 'any']}.`;
+    case 'linen-short':
+      return `Lnu je na oděv málo – vytrhali ${formatInteger(event.kg)} kg z ${formatInteger(event.neededKg)} kg, které lidé potřebují.`;
     case 'apple-harvest':
       return `Sklizeň ovoce: ${formatInteger(event.kg)} kg.`;
     case 'slaughter':
@@ -1620,6 +1625,8 @@ function sceneVillage(
     ];
   });
   const looks = fieldPartLooks(state, day);
+  // len kvete v červnu (fields.md – Len)
+  const flaxBloom = dateOfDayIndex(day).month === FLAX_BLOOM_MONTH;
   // kam stáda dojdou – jen ves se skutečnými stády (bez nich scéna stáda odvodí z domácností)
   const grazed = state.livestock ? pastureGrazedParts(state, day) : null;
   // ves letos orá rádlem – celé pole má kulaté rohy (oxen.md – Jen rádlo)
@@ -1636,7 +1643,15 @@ function sceneVillage(
         {
           ...scenePart(landscape, p, p.cell, partStage(p, day), f.grid),
           ...looks.get(p.id),
-          ...(p.state === 'sown' && p.crop === 'legume' ? { crop: 'legume' as const } : {}),
+          ...(p.state === 'sown' && (p.crop === 'legume' || p.crop === 'flax')
+            ? { crop: p.crop }
+            : {}),
+          ...(p.state === 'sown' &&
+          p.crop === 'flax' &&
+          flaxBloom &&
+          looks.get(p.id)?.look === 'green'
+            ? { bloom: true as const }
+            : {}),
           ...(years > 0 ? { overgrowth: years } : {}),
           ...(grazed && isGrazeableFallow(p) ? { grazed: grazed.has(p.id) } : {}),
           ...(p.roadCut ? { roadCut: [...p.roadCut] } : {}),
@@ -2635,8 +2650,21 @@ const HARVEST_NAMES: Record<Crop | 'any', string> = {
   winter: 'Sklizeň ozimu',
   spring: 'Sklizeň jaře',
   legume: 'Sklizeň luštěnin',
+  flax: 'Trhání lnu',
   any: 'Sklizeň',
 };
+
+/** Co se sklidilo (2. pád) podle plodiny. */
+const HARVEST_GOODS: Record<Crop | 'any', string> = {
+  winter: 'obilí',
+  spring: 'obilí',
+  legume: 'luštěnin',
+  flax: 'lnu',
+  any: 'obilí',
+};
+
+/** Měsíc, kdy zelený len kvete – pole zmodrá (fields.md – Len, Co hráč vidí). */
+const FLAX_BLOOM_MONTH = 6;
 
 const BUILD_KINDS: readonly BuildKind[] = [
   'zemnice',

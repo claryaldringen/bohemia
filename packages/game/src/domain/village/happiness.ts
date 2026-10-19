@@ -3,6 +3,7 @@ import type { ObstacleLayer } from '../landscape';
 import { DIET, meatHappiness } from './diet';
 import { isOvercrowded } from './dwellings';
 import { fieldFoodShare, fieldStoresKg } from './field-food';
+import { linenUnhappiness } from './flax';
 import { foodNeedPerDay } from './people';
 import {
   HAPPINESS,
@@ -66,11 +67,13 @@ export interface HappinessFactors {
   meat: number;
   /** Posvátná místa – nejvýš +40. */
   sacred: number;
+  /** Chybí len na oděv – až 4 podle podílu, na který lnu není (fields.md – Len, diet.md – Oděv). */
+  linen: number;
 }
 
 /**
  * Cílové štěstí = 50 + posvátná místa + zásoby + ovoce + maso − hlad − úmrtí − přeplněnost − dřina
- * (0–100).
+ * − chybějící len (0–100).
  */
 export function happinessTarget(f: HappinessFactors): number {
   const value =
@@ -82,7 +85,8 @@ export function happinessTarget(f: HappinessFactors): number {
     f.hunger -
     f.deaths -
     f.crowding -
-    f.toil;
+    f.toil -
+    f.linen;
   return Math.min(HAPPINESS.max, Math.max(HAPPINESS.min, value));
 }
 
@@ -153,6 +157,7 @@ export function happinessFactors(
     fruit: fruit ? DIET.fruitHappiness : 0,
     meat: meatHappiness(meatShare),
     sacred: sacredHappiness(state, day, obstacles),
+    linen: linenUnhappiness(state),
   };
 }
 

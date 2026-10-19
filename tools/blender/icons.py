@@ -23,7 +23,8 @@ cheese (mléko a sýr – bochník sýra s vykrojeným klínem a hrouda tvarohu)
 ze slámy), legumes (luštěniny – hromádka suchého hrachu a čočky, otevřený lusk s hrášky),
 hourglass (přesýpací hodiny – kolik zbývá: služba spřežení, výcvik), balance (váhy s miskami –
 bilance obchodu se sousedem, trade.md),
-ozim (osení pod sněhem), jar (klasy jarního ječmene), charcoal (hromádka dřevěného uhlí), tools
+ozim (osení pod sněhem), jar (klasy jarního ječmene), flax (len – hrst stonků s modrými květy
+a tobolkami, fields.md – Len), charcoal (hromádka dřevěného uhlí), tools
 (kovaná sekera zkřížená se srpem) a pottery (dva hrnce pražského typu, větší s vlnovkou) –
 suroviny řemesel (crafts.md) –, harvest (sklizeň – srp zkřížený s uříznutou hrstí zralých klasů,
 panel dílu pole – fields.md), walk (cesta z domu – dvě šlépěje bosých nohou ve vyšlapané hlíně, chůze
@@ -995,6 +996,49 @@ def icon_jar():
     to_obj(awns, "awns", mat("awn", (0.74, 0.76, 0.36), 0.6))
     sun(az=-40, el=46, strength=4.2)
     camera([Vector((-0.8, -0.2, -0.8)), Vector((0.8, 0.2, 1.2))], az=0, el=10, margin=1.0)
+    return True
+
+
+def icon_flax():
+    """Len: hrst vytrhaných stonků lnu svázaná povříslem – nahoře modré květy a kulaté tobolky."""
+    rng = random.Random(31)
+    stems, band, petals, centres, bolls = (bmesh.new() for _ in range(5))
+    tops = []
+    for k in range(17):
+        a = rng.uniform(0, 2 * math.pi)
+        r = 0.09 * math.sqrt(rng.random())
+        base = Vector((math.cos(a) * r, math.sin(a) * r, -0.95))
+        waist = Vector((math.cos(a) * r * 0.7, math.sin(a) * r * 0.7, -0.15))
+        spread = rng.uniform(0.12, 0.42)
+        top = Vector((math.cos(a) * spread, math.sin(a) * spread * 0.6, rng.uniform(0.62, 0.9)))
+        cyl(stems, base, waist, 0.018, 0.016, 5)
+        cyl(stems, waist, top, 0.016, 0.012, 5)
+        tops.append(top)
+    # povříslo kolem hrsti v pase
+    for i in range(3):
+        cyl(band, (0, 0, -0.24 + 0.05 * i), (0, 0, -0.2 + 0.05 * i), 0.14, 0.14, 24)
+    for i, top in enumerate(tops):
+        if i % 3 == 2:
+            # tobolka se semeny na krátké stopce
+            blob(bolls, (top + Vector((0, 0, 0.06)), (0, 0, 0)), (0.055, 0.055, 0.06), 10, 6)
+            continue
+        # květ: pět modrých okvětních lístků kolem žlutého středu, natočený k pozorovateli
+        c = top + Vector((0, -0.02, 0.05))
+        blob(centres, (c, (0, 0, 0)), (0.025, 0.025, 0.02), 8, 5)
+        for j in range(5):
+            ang = j * 2 * math.pi / 5 + rng.uniform(-0.15, 0.15)
+            d = Vector((math.cos(ang), math.sin(ang) * 0.55, 0.45 + 0.1 * math.sin(ang)))
+            blob(petals, (c + d.normalized() * 0.07, (math.radians(60), 0, ang)),
+                 (0.07, 0.045, 0.012), 10, 5)
+    objs = [
+        to_obj(stems, "stems", mat("flax_stem", (0.46, 0.56, 0.2), 0.7, noise=20)),
+        to_obj(band, "band", mat("flax_band", (0.62, 0.5, 0.26), 0.85, noise=30, bump=0.3)),
+        to_obj(petals, "petals", mat("flax_flower", (0.2, 0.36, 0.86), 0.5)),
+        to_obj(centres, "centres", mat("flax_centre", (0.85, 0.75, 0.25), 0.6)),
+        to_obj(bolls, "bolls", mat("flax_boll", (0.58, 0.5, 0.22), 0.6, noise=20)),
+    ]
+    sun(az=-40, el=46, strength=4.2)
+    camera(world_points(objs), az=0, el=12, margin=1.04)
     return True
 
 
@@ -2148,6 +2192,7 @@ RESOURCES = {
     "ox": lambda: icon_animal("ox", folder=PLOUGH),
     "ozim": icon_ozim,
     "jar": icon_jar,
+    "flax": icon_flax,
     "charcoal": icon_charcoal,
     "tools": icon_tools,
     "harvest": icon_harvest,

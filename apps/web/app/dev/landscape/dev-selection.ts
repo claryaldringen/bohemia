@@ -66,7 +66,7 @@ export function devSelectionView(village: SceneVillage, l: Landscape): VillageVi
       const fertility = p.stage === 'sown' ? Math.round(natural * 0.85) : natural;
       const work =
         p.stage === 'sown' || p.look === 'mown' || p.look === 'haystacks'
-          ? workOf(p.look, p.work, p.crop === 'legume' ? 'legume' : 'winter')
+          ? workOf(p.look, p.work, p.crop ?? 'winter')
           : undefined;
       return {
         id: p.id ?? i + 1,

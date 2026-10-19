@@ -23,10 +23,12 @@ import { smoothstep, type Bounds } from './village-layout';
  * obilí ještě roste; luštěniny (hrách a čočka – polehlé, ≈ 0,3–0,5 m) jen nízko. Ostatní vzhledy
  * korunu nemají (vzcházející osení, strniště, úhor zůstanou nízké).
  */
-export const CANOPY_M: Partial<Record<FieldLook, { grain: number; legume: number }>> = {
-  green: { grain: 0.62, legume: 0.32 },
-  ripe: { grain: 0.88, legume: 0.28 },
-};
+export const CANOPY_M: Partial<Record<FieldLook, { grain: number; legume: number; flax: number }>> =
+  {
+    // len (≈ 0,8–1 m, útlé stonky) – koruna jen nízko (listy u země), stonky trsů z ní vyčnívají
+    green: { grain: 0.62, legume: 0.32, flax: 0.32 },
+    ripe: { grain: 0.88, legume: 0.28, flax: 0.36 },
+  };
 /** Pod okrajem pole se koruna zanoří pod zem (m) – průsečík se zemí je hladký. */
 const SINK_M = 0.15;
 /** Krytí okraje pole (raggedCoverage), mezi kterým koruna vystoupá ze země na plnou výšku. */
@@ -58,7 +60,8 @@ export function emptyCanopy(): CanopyMesh {
 export function canopyHeight(look: FieldLook | null, crop?: FieldCrop): number {
   const h = look ? CANOPY_M[look] : undefined;
   if (!h) return 0;
-  return crop === 'legume' ? h.legume : h.grain;
+  if (crop === 'legume') return h.legume;
+  return crop === 'flax' ? h.flax : h.grain;
 }
 
 /** Vzhledy s korunou (pro klíče a testy). */
@@ -159,7 +162,7 @@ export function fieldCanopy(
   };
   for (const piece of pieces) {
     const h = canopyHeight(piece.look, piece.part.crop);
-    const tint = lookStyle(piece.look, piece.part.crop).tint;
+    const tint = lookStyle(piece.look, piece.part.crop, piece.part.bloom).tint;
     const b: Bounds = piece.bounds;
     // kus, přes který vede cesta, jemněji (`detail` – pás bez obilí užší než krok sítě)
     const pieceStep = step * detail(b);

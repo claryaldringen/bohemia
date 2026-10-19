@@ -1,8 +1,9 @@
 import { dateOfDayIndex, isLeapYear } from '../calendar';
 import { expectedNetKg } from './fields';
+import { expectedFlaxKg } from './flax';
 import { expectedLegumeKg, legumeEnergy } from './legumes';
 import { PLANNING_DAY, type WindowSegment } from './rules';
-import type { CropWork, FieldPart, TaskName, YearPlan } from './types';
+import type { Crop, CropWork, FieldPart, TaskName, YearPlan } from './types';
 import { emptyTaskRecord, partWork, ploughRemaining, type PartWork } from './year-plan';
 
 // Kolik ozimu a kolik jaře ves oseje (fields.md – Ozim a jař, Kolik ves oseje). Ves vybírá díly
@@ -12,7 +13,10 @@ import { emptyTaskRecord, partWork, ploughRemaining, type PartWork } from './yea
 // kolik ho po ozimu stihne, a na jaro jen zbytek. Co se nevejde nikam, ves letos neoseje.
 // Luštěniny (fields.md – Luštěniny): obilí má přednost – po výběru obilí dostanou luštěniny díly
 // toho výběru od domu, dokud očekávaná úroda nepokryje cíl luštěnin a práce se vejde jako jař
-// (sklizeň v červenci), a obilí doplní energii, kterou luštěniny dají méně.
+// (sklizeň v červenci), a obilí doplní energii, kterou luštěniny dají méně. Len (fields.md – Len)
+// stejně, jen před luštěninami a od konce výběru obilí (vysiluje půdu – jeho delší příloh neleží
+// domům v cestě): dostane díly, dokud nepokryje potřebu vsi na oděv, a obilí doplní celou energii
+// dílu (len se nejí).
 // Ves se spřežením (oxen.md – Jen rádlo) orá všechno a nekope: díl se vejde, jen když ho spřežení
 // v oknech orby stihnou zorat (orba ozimu v září–říjnu, jaře na podzim, kolik po ozimu zbude,
 // a zbytek na jaře) – víc ohrad se spřežením = víc kapacity. Orbu přitom dělají i lidé (oráč
@@ -72,6 +76,8 @@ export interface SowingLoad {
   spring: PartWork;
   /** Zbytek práce luštěnin; chybí = žádné. */
   legume?: PartWork;
+  /** Zbytek práce lnu; chybí = žádný. */
+  flax?: PartWork;
 }
 
 export interface CropChoiceInput {
@@ -88,6 +94,8 @@ export interface CropChoiceInput {
   plough?: boolean;
   /** Cíl luštěnin (kg čisté úrody – fields.md, Luštěniny); bez údaje žádné luštěniny. */
   legumeTargetKg?: number;
+  /** Cíl lnu (kg třeného lnu – fields.md, Len); bez údaje žádný len. */
+  flaxTargetKg?: number;
   /**
    * Pod kolik energie (kg obilí) luštěniny plán nesmí stáhnout – roční potřeba bez rezervy; bez
    * údaje celý cíl osevu.
@@ -116,13 +124,14 @@ function remaining(work: CropWork | undefined): PartWork {
   return rest;
 }
 
-/** Zátěž z rozběhnutého plánu (zbytek práce ozimu, jaře a luštěnin) a ze sklizně jablek. */
+/** Zátěž z rozběhnutého plánu (zbytek práce ozimu, jaře, luštěnin a lnu) a ze sklizně jablek. */
 export function planLoad(plan: YearPlan | null, orchardAutumn: number): SowingLoad {
   return {
     orchardAutumn,
     winter: remaining(plan?.winter),
     spring: remaining(plan ?? undefined),
     ...(plan?.legume ? { legume: remaining(plan.legume) } : {}),
+    ...(plan?.flax ? { flax: remaining(plan.flax) } : {}),
   };
 }
 
@@ -195,8 +204,8 @@ function addWinter(load: CropLoad, work: PartWork): void {
 }
 
 /**
- * Luštěniny pojmou práci `work`: jarní práce jako jař (kopání na podzim, kolik zbude, setí na
- * jaře) a sklizeň v červenci vedle ozimu.
+ * Luštěniny (i len – stejná okna) pojmou práci `work`: jarní práce jako jař (kopání na podzim,
+ * kolik zbude, setí na jaře) a sklizeň v červenci vedle ozimu.
  */
 function fitsLegume(load: CropLoad, work: PartWork, capacity: SowingCapacity): boolean {
   return (
@@ -226,6 +235,7 @@ interface Choice {
   winter: FieldPart[];
   spring: FieldPart[];
   legume: FieldPart[];
+  flax: FieldPart[];
   load: CropLoad;
   /** Očekávaná čistá úroda v kg obilí (luštěniny svou energií). */
   net: number;
@@ -316,87 +326,109 @@ function copyChoice(c: Choice): Choice {
     winter: [...c.winter],
     spring: [...c.spring],
     legume: [...c.legume],
+    flax: [...c.flax],
     load: { ...c.load },
     net: c.net,
     used: new Set(c.used),
   };
 }
 
+/** Plodina na díly výběru obilí – luštěniny, nebo len (stejná okna – jař se sklizní v červenci). */
+type SideCrop = Extract<Crop, 'legume' | 'flax'>;
+
+/** Energie dílu plodiny v kg obilí – luštěniny se jedí, len ne. */
+function sideCropEnergy(crop: SideCrop, part: FieldPart, day: number): number {
+  return crop === 'legume' ? legumeEnergy(expectedLegumeKg(part, day)) : 0;
+}
+
+/** Očekávaná úroda dílu plodiny (kg luštěnin, kg třeného lnu). */
+function sideCropKg(crop: SideCrop, part: FieldPart, day: number): number {
+  return crop === 'legume' ? expectedLegumeKg(part, day) : expectedFlaxKg(part, day);
+}
+
 /**
- * Přesune díl obilí `part` do luštěnin (mutuje `choice`), když se jeho práce vejde jako luštěniny
+ * Přesune díl obilí `part` do luštěnin nebo lnu (mutuje `choice`), když se jeho práce vejde
  * (jarní práce jako jař, sklizeň v červenci); vrací, jestli se přesunul.
  */
-function moveToLegume(
+function moveToSideCrop(
   choice: Choice,
   part: FieldPart,
+  crop: SideCrop,
   input: CropChoiceInput,
   workOf: (part: FieldPart) => PartWork,
 ): boolean {
   const work = workOf(part);
-  const legumeWork = partWork(part, input.day, input.toolCoverage, input.plough ?? false, 'legume');
+  const cropWork = partWork(part, input.day, input.toolCoverage, input.plough ?? false, crop);
   const fromWinter = choice.winter.includes(part);
   if (fromWinter) removeWinter(choice.load, work);
   else removeSpring(choice.load, work);
-  if (!fitsLegume(choice.load, legumeWork, input.capacity)) {
+  if (!fitsLegume(choice.load, cropWork, input.capacity)) {
     if (fromWinter) addWinter(choice.load, work);
     else addSpring(choice.load, work);
     return false;
   }
-  addLegume(choice.load, legumeWork);
+  addLegume(choice.load, cropWork);
   if (fromWinter) choice.winter = choice.winter.filter((p) => p !== part);
   else choice.spring = choice.spring.filter((p) => p !== part);
-  choice.legume.push(part);
-  choice.net += legumeEnergy(expectedLegumeKg(part, input.day)) - expectedNetKg(part, input.day);
+  choice[crop].push(part);
+  choice.net += sideCropEnergy(crop, part, input.day) - expectedNetKg(part, input.day);
   return true;
 }
 
 /**
- * Luštěniny na díly vybrané pro obilí – od domu (díl obilí první v pořadí bloků; střídání plodin –
- * díly, které měly luštěniny loni, až nakonec), dokud očekávaná
- * úroda luštěnin nepokryje `targetKg`. Po každém dílu obilí doplní další díly, kolik energie
- * luštěniny dají méně; když energie plánu i tak klesne pod roční potřebu (`energyFloorKg` – smí
- * jít na rezervu osevu; obilí má přednost), díl zůstane obilím a výběr luštěnin končí. Luštěniny
- * tak leží u domu a díly zůstanou souvislé.
+ * Luštěniny nebo len na díly vybrané pro obilí – luštěniny od domu (díl obilí první v pořadí
+ * bloků), len od konce výběru; střídání plodin – díly, které měly tutéž plodinu loni, až nakonec –,
+ * dokud očekávaná úroda plodiny
+ * nepokryje `targetKg`. Po každém dílu obilí doplní další díly, kolik energie díl dá méně (len
+ * celou – nejí se); když energie plánu i tak klesne pod roční potřebu (`energyFloorKg` – smí jít
+ * na rezervu osevu; obilí má přednost), díl zůstane obilím a výběr plodiny končí. Díly plodiny tak
+ * zůstanou souvislé.
  */
-function chooseLegumes(
+function chooseSideCrop(
   blocks: readonly (readonly FieldPart[])[],
   start: Choice,
+  crop: SideCrop,
   targetKg: number,
   input: CropChoiceInput,
   workOf: (part: FieldPart) => PartWork,
 ): Choice {
   let choice = start;
-  let legumeNet = 0;
-  while (legumeNet < targetKg - EPSILON) {
+  let cropNet = 0;
+  while (cropNet < targetKg - EPSILON) {
     const grain = new Set([...choice.winter, ...choice.spring]);
-    const order = blocks.flatMap((block) => block.filter((p) => grain.has(p)));
-    // střídání plodin: napřed díly, které loni luštěniny neměly
-    const next = order.find((p) => p.crop !== 'legume') ?? order[0];
+    const fromHome = blocks.flatMap((block) => block.filter((p) => grain.has(p)));
+    // luštěniny od domu (půdu zlepší); len od konce výběru – vysiluje půdu, jeho delší příloh tak
+    // neleží domům v cestě (fields.md – Len)
+    const order = crop === 'flax' ? fromHome.reverse() : fromHome;
+    // střídání plodin: napřed díly, které loni tutéž plodinu neměly
+    const next = order.find((p) => p.crop !== crop) ?? order[0];
     if (!next) break;
     const trial = copyChoice(choice);
     const energy = Math.min(input.energyFloorKg ?? input.targetKg, trial.net);
-    if (!moveToLegume(trial, next, input, workOf)) break;
+    if (!moveToSideCrop(trial, next, crop, input, workOf)) break;
     chooseGrain(blocks, trial, input.targetKg, input, workOf);
     if (trial.net < energy - EPSILON) break;
     choice = trial;
-    legumeNet += expectedLegumeKg(next, input.day);
+    cropNet += sideCropKg(crop, next, input.day);
   }
   return choice;
 }
 
 /**
- * Rozdělí kandidáty na ozim, jař a luštěniny podle cíle osevu a volné práce v oknech (viz hlavička
- * souboru). Kandidáti jsou díly v pořadí `sowingOrder`, nebo bloky – díly jednoho úseku od domu
+ * Rozdělí kandidáty na ozim, jař, luštěniny a len podle cíle osevu a volné práce v oknech (viz
+ * hlavička souboru). Kandidáti jsou díly v pořadí `sowingOrder`, nebo bloky – díly jednoho úseku od domu
  * ven (`sowingBlocks`, fields.md – Hospodaření podle polohy domů). Luštěniny (fields.md –
  * Luštěniny): nejdřív se vybere obilí na celý cíl osevu, pak luštěniny dostanou díly toho výběru
  * od domu (`chooseLegumes`) na cíl luštěnin (`legumeTargetKg`) a obilí doplní další díly, kolik
  * energie luštěniny dají méně – obilí má přednost: když půda nebo práce na doplnění nestačí,
- * luštěnin je méně. Bez cíle luštěnin jen obilí. Díly nemění; vrací je v pořadí výběru.
+ * luštěnin je méně. Len (fields.md – Len) stejně před luštěninami, od konce výběru – na cíl lnu
+ * (`flaxTargetKg`).
+ * Bez cíle luštěnin a lnu jen obilí. Díly nemění; vrací je v pořadí výběru.
  */
 export function chooseCrops(
   candidates: readonly FieldPart[] | readonly (readonly FieldPart[])[],
   input: CropChoiceInput,
-): { winter: FieldPart[]; spring: FieldPart[]; legume: FieldPart[] } {
+): { winter: FieldPart[]; spring: FieldPart[]; legume: FieldPart[]; flax: FieldPart[] } {
   const planned = input.load;
   const blocks = (candidates as readonly (FieldPart | readonly FieldPart[])[]).map(
     (c): readonly FieldPart[] => (Array.isArray(c) ? c : [c as FieldPart]),
@@ -417,10 +449,12 @@ export function chooseCrops(
     ploughSpring: planned.spring.plough,
   };
   if (planned.legume) addLegume(load, planned.legume);
+  if (planned.flax) addLegume(load, planned.flax);
   const choice: Choice = {
     winter: [],
     spring: [],
     legume: [],
+    flax: [],
     load,
     net: input.startKg,
     used: new Set(),
@@ -428,9 +462,17 @@ export function chooseCrops(
   const workOf = (part: FieldPart): PartWork =>
     partWork(part, input.day, input.toolCoverage, input.plough ?? false);
   const legumeTarget = input.legumeTargetKg ?? 0;
+  const flaxTarget = input.flaxTargetKg ?? 0;
   chooseGrain(blocks, choice, input.targetKg, input, workOf);
-  // luštěniny na díly obilí od domu, obilí doplní, co luštěniny dají méně energie
+  // len na díly obilí od konce výběru, obilí doplní energii dílu (len se nejí – fields.md, Len)
+  const withFlax =
+    flaxTarget > EPSILON
+      ? chooseSideCrop(blocks, choice, 'flax', flaxTarget, input, workOf)
+      : choice;
+  // luštěniny na další díly obilí od domu, obilí doplní, co luštěniny dají méně energie
   const result =
-    legumeTarget > EPSILON ? chooseLegumes(blocks, choice, legumeTarget, input, workOf) : choice;
-  return { winter: result.winter, spring: result.spring, legume: result.legume };
+    legumeTarget > EPSILON
+      ? chooseSideCrop(blocks, withFlax, 'legume', legumeTarget, input, workOf)
+      : withFlax;
+  return { winter: result.winter, spring: result.spring, legume: result.legume, flax: result.flax };
 }

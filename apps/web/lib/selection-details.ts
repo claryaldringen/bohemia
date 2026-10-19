@@ -171,6 +171,10 @@ export type SelectionDetails =
       stage: PartStage;
       /** Oseto luštěninami – zelené a zralé luštěniny místo obilí. */
       legume: boolean;
+      /** Oseto lnem – zelený, kvetoucí a zralý len místo obilí (fields.md – Len). */
+      flax: boolean;
+      /** Len kvete (červen). */
+      bloom: boolean;
       /** Díl letos oralo spřežení rádlem (zoráno místo zkopáno). */
       ploughed: boolean;
       areaM2: number;
@@ -370,8 +374,8 @@ export const PART_STAGE_ORDER: readonly PartStage[] = [
   'young-forest',
 ];
 
-/** Pořadí plodin v panelu pole – ozim (sklízí se dřív), jař, luštěniny. */
-export const CROP_ORDER: readonly Crop[] = ['winter', 'spring', 'legume'];
+/** Pořadí plodin v panelu pole – ozim (sklízí se dřív), jař, luštěniny, len. */
+export const CROP_ORDER: readonly Crop[] = ['winter', 'spring', 'legume', 'flax'];
 
 /** Popisky plodin a ikony (`/icons/resources/<ikona>.png`). */
 export const CROP_LABELS: Record<Crop, { name: string; icon: string }> = {
@@ -381,6 +385,7 @@ export const CROP_LABELS: Record<Crop, { name: string; icon: string }> = {
     name: 'Luštěniny – hrách a čočka, zaseté na jaře, sklizeň v červenci',
     icon: 'legumes',
   },
+  flax: { name: 'Len – na plátno, zasetý na jaře, trhá se v červenci', icon: 'flax' },
 };
 
 /** Pořadí povrchů v panelu pole – od louky po les. */
@@ -428,12 +433,18 @@ const FIELD_LOOK_NAMES: Record<FieldLook, string> = {
 export function fieldPartName(
   details: Pick<
     Extract<SelectionDetails, { kind: 'field-part' }>,
-    'look' | 'stage' | 'legume' | 'ploughed'
-  >,
+    'look' | 'stage' | 'legume' | 'flax' | 'ploughed'
+  > &
+    Partial<Pick<Extract<SelectionDetails, { kind: 'field-part' }>, 'bloom'>>,
 ): string {
   const { look, stage } = details;
   if (stage === 'founding' || stage === 'ready' || look === null) return PART_STAGE_NAMES[stage];
   if (look === 'plowed' && details.ploughed) return 'Zoráno';
+  if (details.flax) {
+    if (look === 'green') return details.bloom ? 'Kvetoucí len' : 'Zelený len';
+    if (look === 'ripe') return 'Zralý len';
+    if (look === 'harvesting') return 'Trhání lnu';
+  }
   if (details.legume) {
     if (look === 'green') return 'Zelené luštěniny';
     if (look === 'ripe') return 'Zralé luštěniny';
@@ -635,6 +646,8 @@ function fieldPartDetails(
     look: shown.look ?? null,
     stage: shown.stage,
     legume: shown.crop === 'legume',
+    flax: shown.crop === 'flax',
+    bloom: shown.bloom === true,
     // ves se spřežením orá všechno (oxen.md) – pole nese příznak `ard`
     ploughed: scene.fields.find((f) => f.id === target.id)?.ard === true,
     areaM2: part.areaM2 ?? shown.size * shown.size,
