@@ -735,6 +735,67 @@ Luštěniny). Čísla podle [rešerše](research/2026-10-18-legumes.md), kde chy
   v červenci; po sklizni místo panáků hromádky vytrhaného hrachu a skoro holá zem. Panel pole
   ukáže díly luštěnin (ikona a počet).
 
+### Len
+
+Stav: **Martin, 19. 10. 2026:** „A to mi připomíná, že na částech pole musí být zasetý len.“ (k ovcím
+na vlnu – oděv, [diet.md](diet.md) – Oděv). Pravidla **návrh Clauda** podle
+[rešerše](research/2026-10-19-flax.md).
+
+- **Plodina:** len setý na plátno – spodní oděv (košile), šátky, ručníky, plachty; vlna je svrchní
+  oděv. **Jař se stejnými okny jako luštěniny:** kopání (orba) na podzim, co se nestihne, v březnu–
+  dubnu, setí v **březnu–dubnu** (v praxi v polovině dubna), pletí v květnu–červnu, **trhání
+  v červenci** (≈ 100 dní po setí). Nemlátí se – semena se drhnou v domácí práci.
+- **Kolik ho ves potřebuje:** třeného lnu (vlákno po lámání a třepení) za rok **dospělý a starší
+  2 kg, dítě 1 kg** (≈ 3 m² hrubého plátna ≈ 1 kg látky na dospělého – košile, díl spodního oděvu,
+  šátků, ručníků a plachet; na kg látky ≈ 2 kg třeného lnu i s koudelí).
+- **Výnos:** **550 kg třeného lnu na hektar při plné úrodnosti**, s úrodností jako obilí
+  (× 0,4 + 0,6 × úrodnost) – při úrodnosti 70 ≈ 450 kg (Skotsko konec 18. st. 440–550, Irsko 1892
+  429 kg/ha). Ves 30 lidí potřebuje ≈ 48 kg ≈ 0,1 ha ≈ 5 dílů. **Osivo** je lněné semeno z vlastní
+  úrody (sedmina dílu dozraje na semeno) – zásoby obilí neubírá. **Neopletý díl dá 50 %** (len
+  snáší plevel špatně, jako luštěniny).
+- **Práce** na hektar: kopání (orba) a setí jako jař, pletí **40 / 20** (jako luštěniny), trhání
+  a vázání do hrstí **45** + odnos **10** (nástroje nepomohou – len se vytrhává i s kořenem), výmlat
+  žádný. Ves s ≈ 5 díly lnu na ně dá ≈ 23 člověkodní za rok.
+- **Úrodnost:** len vysiluje půdu – osev ubere úrodnost **0,18 přirozené** (obilí 0,12), díl pak po
+  vyčerpání leží v přílohu o ≈ 2 roky déle.
+- **Kolik ves oseje (k 1. 9.):** cíl lnu = potřeba vsi na rok. **Obilí má přednost:** ves nejdřív
+  vybere obilí na celý cíl osevu, pak len dostane díly toho výběru **od konce** (nejdál od domu –
+  jeho delší příloh pak neleží domům v cestě; díly, které měly len loni, až nakonec; když se práce
+  dílu nevejde – třeba sklizeň jaře v červenci plném ozimu –, zkusí další díl) a obilí doplní celou
+  energii dílu (len se nejí); pak luštěniny od domu. Když obilí doplnit nejde (chybí půda nebo
+  práce), **len ubere obilí nejvýš o svou plochu** (≈ 1–2 % osevu – vyrovnají to zásoby, Osev
+  podle zásob) – bez lnu by chyběl oděv. Zkrácení rozjetého plánu (Osev podle zásob) len neubírá.
+  Díly hotové během roku jdou jen do jaře.
+- **Trhání** jde v červenci napřed (před sklizní ozimu a luštěnin – je ho málo, bez něj chybí
+  oděv).
+- **Zpracování** – rosení (máčení), sušení, lámání, třepení, vochlování, předení, tkaní a šití – je
+  součástí **domácí výroby** (`DOMESTIC`, Práce – bod 4: „oděv, …“): **přerozdělení, ne práce navíc**
+  (rozhodnutí Clauda jako u vlny). Dospělý ≈ 1 kg látky × ≈ 200 h ≈ 20 člověkodní za rok – s vlnou
+  ≈ 45 z ≈ 125 člověkodní domácí výroby na dospělého. Práce navíc by oděv počítala dvakrát a ubrala
+  volnou práci, se kterou kalibrace domácí výroby už počítá.
+- **Žádná zásoba v liště** (Martin nechce nové suroviny): len se v rámci roku zpracuje. Při
+  trhání 31. 7. se zapíše, **na jaký podíl oděvu len je** (sklizený len ÷ potřeba při plánu
+  k 1. 9.) – platí do dalšího trhání.
+- **Ves bez lnu** (rozhodnutí Clauda): jen **štěstí – až −4** podle chybějícího podílu (vlna až −6)
+  a krátký řádek **„Chybí len na oděv“** (kronika `linen-short`). Pomalejší domácí práce ani nemoci
+  ne (anti-cíl: ves nevymře kvůli oděvu). Ves, která k 1. 9. nemá pole k osevu, len nezaseje – při
+  trhání se zapíše chybějící len (štěstí −4, upozornění), dokud pole nezaloží.
+- **Starší vsi:** plán z doby před lnem (bez zapsané potřeby) oděv nezapíše – ves je beze změny až
+  do dalšího plánu k 1. 9.
+- **Ve scéně** len tvoří útlé stonky (trsy vzcházejícího obilí – tráva bez klasů – s barvou
+  instance): zelený, **v červnu modře kvete** (zmodrá i porost shora), v červenci **dozrává
+  dohněda**; po trhání holá zem a malé panáky – hrstě lnu schnou na poli. Panel pole ukáže díly
+  lnu (ikona `flax` – hrst s modrými květy), panel dílu „Zelený len“ / „Kvetoucí len“ / „Zralý len“
+  / „Trhání lnu“. Ukázka na `/dev/buildings` – pole **Len**.
+- **Naměřeno** (`measure-village.ts 20 20`, 19. 10. 2026, jen orientačně; hráč skriptu zakládá
+  pole i na len – `neededFieldHa` s `flaxNeedKg`): len na plný oděv **v 99,7 % let** (od 3. roku
+  vsi), plocha lnu medián **45 m² na člověka**; práce na poli hráče, který staví, 67,5 → 69,0 čd
+  na člověka a rok (+2 %), volná práce 5,9 → 5,8 % práce, nasycení ≥ 0,95 celý rok 93,4 → 92,6 %
+  let (nestaví 99,2 % beze změny), práce na obživu startovní ves 86,2 → 86,4 %, plná domácnost
+  86,8 → 87,6 %, štěstí medián 53,9 → 53,5. První verze (len jen na díl, který obilí doplní,
+  trhání v červenci až po ozimu) měla plný oděv jen v 66,5 % let – vesnicím bez volné půdy len
+  nezbyl a trhání nestihly; proto len smí ubrat obilí o svou plochu a trhá se napřed.
+
 ### Úroda
 
 - **Hrubá úroda** osetého hektaru při plné a včasné práci: **760 kg × (0,4 + 0,6 × aktuální
@@ -1475,3 +1536,6 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 | Panel dílu: co na něm je, výměra, úrodnost, cesta, hospodářství, letošní práce / příloh; hřbitov celý                             | návrh Clauda                                    |
 | Plynulejší osev – každý rok zhruba stejně podle dlouhodobé spotřeby, zásoby pozvolna, pojistka platí                              | Martin (19. 10. 2026)                           |
 | Podíl z pole o třetinu rozdílu ročně; cílová zásoba pojistka + třetina potřeby z pole, odchylka po třetinách                      | návrh Clauda                                    |
+| Na částech pole musí být zasetý len – plátno na spodní oděv                                                                       | Martin (19. 10. 2026)                           |
+| Len 2 kg na dospělého (dítě 1), 550 kg/ha, okna luštěnin, −0,18 úrodnosti; od konce výběru, obilí ubere jen o své díly            | návrh Clauda (rešerše)                          |
+| Zpracování lnu v domácí výrobě (přerozdělení); bez lnu jen štěstí až −4 a upozornění                                              | návrh Clauda                                    |
