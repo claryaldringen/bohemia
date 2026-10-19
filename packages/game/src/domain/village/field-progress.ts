@@ -309,7 +309,9 @@ function shareOn(
   position: number,
 ): number | null {
   if (!span) return null;
-  return Math.min(1, Math.max(0, (position - span.start) / (span.end - span.start)));
+  const share = Math.min(1, Math.max(0, (position - span.start) / (span.end - span.start)));
+  // chyby zaokrouhlení (plán zkrácený podle zásob – shrinkInPlan) se na hotový díl neprojeví
+  return share >= 1 - EPSILON ? 1 : share;
 }
 
 /** Úseky dílů úlohy podle id. */

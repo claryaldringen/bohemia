@@ -89,6 +89,7 @@ import {
   fieldFoodShare,
   fieldStoresKg,
   steadyHarvestKg,
+  storesTargetKg,
   yearlyFieldNeed,
   villageHappiness,
   livestockLandAt,
@@ -747,7 +748,8 @@ function recordHarvest(
   const fieldNeed = yearlyFieldNeed(planning, day + 1);
   if (fieldNeed > 0) result.storesRatio.set(year, fieldStoresKg(after) / fieldNeed);
   const buffer = bufferKg(need);
-  const target = steadyHarvestKg(fieldNeed, buffer, NO_CRAFTS.pottery) + buffer;
+  const target =
+    steadyHarvestKg(fieldNeed, buffer, NO_CRAFTS.pottery) + storesTargetKg(fieldNeed, buffer);
   if (target > 0) result.storesToTarget.set(year, fieldStoresKg(after) / target);
   const plan = after.threshingFromPlan;
   if (plan && after.people.length > 0) {

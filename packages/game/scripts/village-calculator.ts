@@ -32,6 +32,7 @@ import {
   NO_CRAFTS,
   bufferKg,
   steadyHarvestKg,
+  storesTargetKg,
   type DwellingType,
   type TaskName,
 } from '../src/domain/village';
@@ -131,7 +132,9 @@ function table(rows: string[][]): string {
  */
 function steadyStores(needKg: number, input: SteadyInput): number {
   const buffer = bufferKg(foodNeedKg(input.household) * input.households);
-  return needKg > 0 ? (steadyHarvestKg(needKg, buffer, NO_CRAFTS.pottery) + buffer) / needKg : 0;
+  return needKg > 0
+    ? (steadyHarvestKg(needKg, buffer, NO_CRAFTS.pottery) + storesTargetKg(needKg, buffer)) / needKg
+    : 0;
 }
 
 function main(): void {

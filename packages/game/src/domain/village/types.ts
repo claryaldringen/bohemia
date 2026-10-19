@@ -1695,6 +1695,12 @@ export interface FieldFoodYear {
   fieldKg: number;
   /** Podíl jídla z pole za poslední celý hospodářský rok (0–1); chybí po prvním 1. 9. */
   share?: number;
+  /**
+   * Dlouhodobý podíl jídla z pole (0–1) – klouzavý průměr ročních podílů, každý rok o třetinu
+   * rozdílu (FIELD_STORES.balanceYears; fields.md – Osev podle zásob, plynulost). Podle něj ves
+   * seje. Chybí u vsí uložených dřív – začne posledním ročním podílem.
+   */
+  longShare?: number;
 }
 
 /**

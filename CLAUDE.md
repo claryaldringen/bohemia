@@ -764,15 +764,20 @@ rozhraní částí v
   podle stravy, Osev podle zásob, 19. 10. 2026): `sowingTargets` ve `field-food.ts` (v plánu
   `fieldSowingTargets`) – potřeba z pole (podíl jídla z pole za uplynulý hospodářský rok –
   `VillageState.fieldFood`, součty v `eat`, uzávěrka 1. 9. `closeFieldFoodYear`; nejméně
-  `FIELD_FOOD.minShare`, bez změřeného roku 1 – × roční potřeba); úroda má po příští sklizni
-  doplnit zásoby z pole (obilí a luštěniny, `fieldStoresKg`) na rok spotřeby a pojistku
-  (`bufferKg` – `FIELD_STORES.bufferEnergyYears` celé potřeby, `storesNeeded` / `storesLeft` se
-  ztrátami) bez toho, co zbude; přebytek za `surplusYears`; luštěniny potřeba bez zbytku zásoby.
+  `FIELD_FOOD.minShare`, bez změřeného roku 1 – × roční potřeba). **Plynulejší osev** (fields.md –
+  Plynulejší osev, Martin 19. 10. 2026): seje se podle dlouhodobého podílu
+  `FieldFoodYear.longShare` (k 1. 9. o třetinu rozdílu – `FIELD_STORES.balanceYears`; starší ves
+  začne ročním `share`) – úroda rok co rok na cílovou zásobu `storesTargetKg` = pojistka (`bufferKg`
+  – `bufferEnergyYears` celé potřeby) + `cushionYears` roční potřeby z pole (zásoby z pole – obilí
+  a luštěniny, `fieldStoresKg`; `storesNeeded` / `storesLeft` se ztrátami), odchylku od ní (přebytek
+  i schodek) vyrovná po třetinách, pod pojistkou doplní do pojistky hned; luštěniny potřeba bez
+  zbytku zásoby.
   Rozjetý plán zkrátí `trimPlan` (každý den 1. 9. – 30. 4., `plan-trim.ts`: nezačaté díly obilí
   od konce pořadí přes `shrinkInPlan` / `dropFromWork` z `land-taken.ts`, ladem jako příloh –
   `FieldPart.fallowBeforePlan`). Potřebou z pole jde i `energyFloorKg`, odhad ozimu na srpen
   (`daysUntilFoodHarvest`) a dobré zásoby štěstí; ustálená úroda `steadyHarvestKg` (kalibrace,
-  kalkulačka). Volná práce plánu (`sowingCapacity`) je po denním minimu, práci se zvířaty
+  kalkulačka – zásoba na cílové zásobě). Kalibrace vypisuje práci na poli a volnou práci po rocích
+  (průměr, variační koeficient, změna z roku na rok). Volná práce plánu (`sowingCapacity`) je po denním minimu, práci se zvířaty
   a dospělých pasácích (`herdingDay`). Výhled jídla do sklizně (`eatDiet`) počítá s mlékem stád do sklizně
   (`milkAheadEnergy` z `milkEnergyBetween`) a celou zásobou sýra.
   Polní úlohy obou plodin řadí `fieldTasks` v `simulate.ts`

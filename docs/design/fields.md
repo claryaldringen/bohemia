@@ -393,7 +393,8 @@ masa, a přesto od 1. 3. kopal ≈ 9,7 člověkodne denně – volná práce nul
   ves počítá, že z pole sní aspoň 30 % energie. Obě pojistky se sčítají jen u vsí, které z pole
   jedí méně (sad, med) – mají zásoby o rozdíl vyšší.
 - **Přebytek nad pojistku ves sní za 3 roky** (zasije o třetinu přebytku méně), chybějící pojistku
-  doplní hned. **Proč:** osev tak neskáče rok co rok mezi nulou a plnou plochou – ves s velkou
+  doplní hned (od 19. 10. 2026 i schodek nad pojistkou po třetinách a seje podle dlouhodobé
+  spotřeby – viz Plynulejší osev níže). **Proč:** osev tak neskáče rok co rok mezi nulou a plnou plochou – ves s velkou
   zásobou několik let neseje obilí a pak plynule přidává (ukázková ves se zásobou obilí na 6 let
   celé potřeby zasela obilí na 0, 0, 180, 560, 610 kg a pak ≈ 290–390 kg ročně, jak lidí přibylo
   a stáda dorostla), a přitom má pojistku plnou, kdyby přišel výpadek.
@@ -438,7 +439,7 @@ masa, a přesto od 1. 3. kopal ≈ 9,7 člověkodne denně – volná práce nul
   zásoba, kterou ves po sklizni chce mít: rok potřeby z pole a pojistka se ztrátami) – pásmo
   0,8–1,25 (návrh Clauda); dřívější měřítko „1–1,5 roční potřeby z pole“ a zásoby obilí v roční
   potřebě celé energie vypisuje jako informaci. Hráč skriptu zakládá pole na úrodu rok co rok se
-  zásobami na pojistce (`steadyHarvestKg`).
+  zásobami na cílové zásobě (`steadyHarvestKg` + `storesTargetKg` – Plynulejší osev).
 - **Naměřeno s osevem podle zásob – před stády podle bílkovin, pojistka 0,3**
   (`measure-village.ts 20 20`, 19. 10. 2026, jen orientačně; v závorce před změnou): zásoby z pole po
   sklizni ÷ cíl p10 0,84 / medián 1,02 / p90 1,32, v pásmu 0,8–1,25 80 % let (**MIMO** jen p90);
@@ -483,6 +484,61 @@ masa, a přesto od 1. 3. kopal ≈ 9,7 člověkodne denně – volná práce nul
 
   Zbylé hladové roky (11 z 380) jsou ve dvou vsích: jediná domácnost, která za dva roky vyrostla ze
   4 na 7 lidí, a ves, jejíž růst předběhl práci – cíl osevu nestihnou zasít ani s pojistkou.
+
+#### Plynulejší osev
+
+Stav: **Martin, 19. 10. 2026:** „Ano, plynulejší osev určitě.“ – k návrhu: ves seje každý rok
+zhruba stejně podle dlouhodobé spotřeby z pole, zásoby vyrovnává jen pozvolna, práce bude celkově
+stejná, ale rozložená rovnoměrně; pojistka proti hladu platí dál. Podrobnosti a čísla **návrh
+Clauda**.
+
+**Proč:** ve Vlkově kolísala práce na poli podle roku mezi 30 a 89 člověkodny na člověka. Osev
+podle zásob seje na loňský podíl jídla z pole (se stády podle bílkovin kolísá rok od roku)
+a každý schodek do pojistky doplní najednou – po roce s velkou zásobou zasel skoro nic, další rok
+hodně, a v roce s velkou prací se nahromadila domácí práce, kterou ves dlouho doháněla.
+
+**Pravidla** (`sowingTargets` ve `field-food.ts`, čísla `FIELD_STORES` v `rules.ts`):
+
+- **Dlouhodobý podíl jídla z pole** (`FieldFoodYear.longShare`): k 1. 9. se posune o třetinu
+  rozdílu k podílu uplynulého roku (klouzavý průměr ≈ 3 let); podle něj ves seje i počítá
+  spotřebu do sklizně (pojistka podílu 0,3 platí dál). Starší ves začne loňským ročním podílem.
+- **Úroda rok co rok** = tolik, aby při dlouhodobé spotřebě z pole a ztrátách skladováním zůstala
+  k další sklizni **cílová zásoba** = pojistka (0,5 roční potřeby celé energie) + **třetina roční
+  potřeby z pole** (`cushionYears` – pásmo nad pojistkou, ve kterém se schodek vyrovnává pozvolna).
+- **Odchylka od cílové zásoby po třetinách** (`balanceYears` 3): přebytek i schodek, dokud je
+  zásoba k příští sklizni nad pojistkou, ves vyrovná jen třetinou za rok. **Pod pojistkou** doplní
+  chybějící do pojistky hned (beze změny) a zbytek do cílové zásoby po třetinách.
+- **Zkrácení rozjetého plánu** (`plan-trim.ts`) počítá týž cíl – jen pokud plán převýší cíl o víc
+  než desetinu roční potřeby z pole; cíl se během roku mění jen o třetinu odchylky zásob, takže se
+  plán nekýve (zkracuje se jen tehdy, když ves opravdu nasbírala hodně navíc).
+- **Cena:** cílová zásoba je o třetinu roční potřeby z pole vyšší než pojistka, ztráty skladováním
+  z ní stojí ≈ 3 % práce na poli navíc (sondy kalibrace 43,1 → 44,6 a 68,2 → 70,7 čd na člověka
+  za rok). Bez pásma (`cushionYears` 0, jen dlouhodobý podíl) byla změna práce z roku na rok
+  medián 15,6 % místo 12,9 %.
+
+**Naměřeno** (`measure-village.ts 20 20`, 19. 10. 2026, jen orientačně; v závorce před změnou):
+
+| 20 vsí × 20 let, hráč staví (od 3. roku vsi)         | Plynulejší osev         | Před                |
+| ---------------------------------------------------- | ----------------------- | ------------------- |
+| práce na poli – průměr (čd na člověka a rok, medián) | 67,5                    | 64,1                |
+| změna z roku na rok – medián / p90                   | **12,9 %** / **24,4 %** | 20,2 % / 34,9 %     |
+| variační koeficient po rocích – medián / p90         | 26,3 % / 38,1 %         | 29,2 % / 35,5 %     |
+| sondy startovní / plná – změna z roku na rok         | 4,2 % / 7,4 %           | 5,6 % / 7,7 %       |
+| volná práce (podíl) – průměr, změna z roku na rok    | 5,9 %, 47 %             | 6,6 %, 55 %         |
+| nasycení ≥ 0,95 celý rok – staví / nestaví           | 93,4 % / 99,2 % let     | 93,7 % / 98,9 % let |
+| plná domácnost / startovní ves                       | 98,0 % / 100 % let      | 98,0 % / 100 % let  |
+| zásoby po sklizni ÷ cíl (p10 / medián / p90)         | 0,63 / 0,93 / 1,15      | 0,72 / 0,98 / 1,18  |
+| práce na obživu – startovní ves / plná domácnost     | 86,2 % / 86,8 %         | 85,9 % / 85,9 %     |
+
+Variační koeficient zůstává vysoký kvůli růstu vsí (lidé, nová pole, oběh dílů) – plynulost
+ukazuje změna z roku na rok. Nasycení u hráče, který staví, bylo pod 95 % už před změnou
+(jiné změny větve – pasáci, orba rádlem, cesty).
+
+**Vlkov** (kopie stavu z 3. 3. 770, 33 lidí, 3 137 kg obilí; DB jen čtená, 5 let bez zásahu
+hráče): práce plánu k 1. 9. na člověka 64, 63, 52, 50, 50 čd (před změnou 73, 60, 56, 45, 48),
+odvedená práce na poli po hospodářských letech 59, 62, 52, 40 (59, 60, 56, 47); hlad žádný.
+Ves za těch 5 let nasbírala zásoby (obilí 3 137 → 6 400 kg) a podíl jídla z pole jí klesal
+(0,72–0,77 → 0,60 – stáda), takže práce klesá v obou verzích; plán k 1. 9. kolísá méně.
 
 ### Přílohová soustava – co se oseje a co leží ladem
 
@@ -1417,3 +1473,5 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 | Zkrácení plánu denně 1. 9. – 30. 4. nad cíl + desetinu potřeby z pole; jen nezačaté díly od konce pořadí, ladem jako příloh       | návrh Clauda                                    |
 | Klik na pole vybere díl s parametry, dvojklik celé pole jako dřív                                                                 | Martin (19. 10. 2026)                           |
 | Panel dílu: co na něm je, výměra, úrodnost, cesta, hospodářství, letošní práce / příloh; hřbitov celý                             | návrh Clauda                                    |
+| Plynulejší osev – každý rok zhruba stejně podle dlouhodobé spotřeby, zásoby pozvolna, pojistka platí                              | Martin (19. 10. 2026)                           |
+| Podíl z pole o třetinu rozdílu ročně; cílová zásoba pojistka + třetina potřeby z pole, odchylka po třetinách                      | návrh Clauda                                    |

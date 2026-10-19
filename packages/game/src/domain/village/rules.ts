@@ -140,12 +140,16 @@ export const FIELD_FOOD = { minShare: 0.3 } as const;
 // ves zásoby z pole na rok spotřeby a k tomu pojistku, která zbude před další sklizní – 0,5 roční
 // potřeby celé energie (≈ půl roku celé stravy; se stády podle bílkovin – maso ≈ 11 %, mléko ≈ 10 %
 // energie – rostoucí ves, které nestačí práce, ji vybere; kalibrace 20 × 20: hráč staví nasycení
-// ≥ 0,95 v 97,1 % let, s 0,3 v 94,2 %); přebytek nad pojistku ves sní za 3 roky; rozjetý plán
-// zkrátí, když převyšuje cíl o víc než desetinu roční potřeby z pole (ať ho podzimní mléko a ovoce
-// neubírají po kouscích)
+// ≥ 0,95 v 97,1 % let, s 0,3 v 94,2 %); rozjetý plán zkrátí, když převyšuje cíl o víc než desetinu
+// roční potřeby z pole (ať ho podzimní mléko a ovoce neubírají po kouscích).
+// Plynulejší osev (Martin 19. 10. 2026: „Ano, plynulejší osev určitě.“; čísla návrh Clauda): ves
+// seje podle dlouhodobého podílu jídla z pole (každý rok o třetinu rozdílu – balanceYears) na
+// cílovou zásobu = pojistka + třetina roční potřeby z pole (cushionYears); odchylku od ní vyrovná
+// po třetinách za rok (balanceYears), pod pojistkou doplní chybějící do pojistky hned
 export const FIELD_STORES = {
   bufferEnergyYears: 0.5,
-  surplusYears: 3,
+  balanceYears: 3,
+  cushionYears: 1 / 3,
   trimMarginYears: 0.1,
 } as const;
 // fields.md – Kolik ves oseje (návrh Clauda)
