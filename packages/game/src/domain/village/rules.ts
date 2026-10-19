@@ -10,6 +10,7 @@ import type {
   OvergrowthStage,
   PlotVariant,
   TaskName,
+  TradeGood,
 } from './types';
 
 // Meze produktivity (Martin, oprava podle rešerše 17. 10. 2026 – docs/design/research/): práce
@@ -833,51 +834,90 @@ export const TRADE = {
   restockDay: { month: 11, day: 1 },
   keepCows: 2,
 } as const;
-// trade.md – Sousedé (návrh Clauda): soused nabízí 2–3 druhy zboží (aspoň jedno zboží zvenku)
-// a shání 2–3 (jen co ves sama umí – zboží zvenku ne); roční zásoba každého nabízeného zboží
-// v hodnotě 600–1 500 kg obilí, poptávka po sháněném 800–2 000 kg obilí
+// trade.md – Sousedé (Martin 19. 10. 2026: „Nech jen společné suroviny, nezaváděj nové.“ – soused
+// obchoduje jen se zbožím, které má i ves; druhy sousedů návrh Clauda): soused se něčím živí – to
+// nabízí (2–3 druhy ze své nabídky `offers`, je-li jich tolik) – a shání, čeho sám nemá dost (2–3
+// druhy: `always` vždy, zbytek ze svých potřeb `needs`); nabízené a sháněné se nepřekrývají. Kolem
+// vsi je každý druh souseda dvakrát (8 směrů), takže co ves potřebuje, to některý soused nabízí,
+// a co jí přebývá (obilí, maso, sýr, klády po mýcení), to některý shání. Roční zásoba každého
+// nabízeného zboží v hodnotě 600–1 500 kg obilí, poptávka po sháněném 800–2 000 kg obilí.
 export const NEIGHBOURS = {
   offers: { min: 2, max: 3 },
   demands: { min: 2, max: 3 },
   supplyKg: { from: 600, to: 1500 },
   demandKg: { from: 800, to: 2000 },
-} as const;
+  kinds: {
+    // obilnáři z bezlesé roviny – obilí, luštěniny, dobytek; klády vždy
+    farmers: {
+      offers: ['grain', 'legumes', 'cattle'],
+      always: 'logs',
+      needs: ['meat', 'cheese', 'pottery', 'tools', 'charcoal'],
+    },
+    // pastevci – dobytek, maso, sýr; obilí vždy
+    herders: {
+      offers: ['cattle', 'meat', 'cheese'],
+      always: 'grain',
+      needs: ['legumes', 'logs', 'pottery', 'tools'],
+    },
+    // lesní ves (dřevaři a uhlíři) – klády, uhlí, maso; obilí vždy
+    woodsmen: {
+      offers: ['logs', 'charcoal', 'meat'],
+      always: 'grain',
+      needs: ['legumes', 'cheese', 'pottery', 'tools'],
+    },
+    // řemeslníci (hrnčíři a kováři) – keramika, nástroje; obilí vždy
+    crafters: {
+      offers: ['pottery', 'tools'],
+      always: 'grain',
+      needs: ['legumes', 'meat', 'cheese', 'logs', 'charcoal', 'cattle'],
+    },
+  },
+} as const satisfies Record<string, unknown> & {
+  kinds: Record<
+    string,
+    { offers: readonly TradeGood[]; always: TradeGood; needs: readonly TradeGood[] }
+  >;
+};
 // trade.md – Obchod, hodnoty zboží v kg obilí (rešerše research/2026-10-18-trade-values.md, návrh
-// Clauda): obilí 1, luštěniny 1, maso 3, sýr 4, med 6, sůl 8, keramika 3, uhlí 0,5, nástroje 60,
-// železo 30 (kg), kráva 600, kláda 40, kožešina 25 (kus). `carryKg` – kolik váží kus pro nosiče
-// (kláda vleče 4 nosiči = 100 kg; kožešina 1,5 kg; dobytek se žene – `TRADE.headsPerDrover`)
+// Clauda): obilí 1, luštěniny 1, maso 3, sýr 4, keramika 3, uhlí 0,5, nástroje 60 (kg), kráva 600,
+// kláda 40 (kus). `carryKg` – kolik váží kus pro nosiče (kláda vleče 4 nosiči = 100 kg; dobytek se
+// žene – `TRADE.headsPerDrover`)
 export const TRADE_GOOD_VALUES = {
   grain: { valueKg: 1, carryKg: 1 },
   legumes: { valueKg: 1, carryKg: 1 },
   meat: { valueKg: 3, carryKg: 1 },
   cheese: { valueKg: 4, carryKg: 1 },
-  honey: { valueKg: 6, carryKg: 1 },
-  salt: { valueKg: 8, carryKg: 1 },
   pottery: { valueKg: 3, carryKg: 1 },
   charcoal: { valueKg: 0.5, carryKg: 1 },
   tools: { valueKg: 60, carryKg: 1 },
-  iron: { valueKg: 30, carryKg: 1 },
   cattle: { valueKg: 600, carryKg: 0 },
   logs: { valueKg: 40, carryKg: 100 },
-  furs: { valueKg: 25, carryKg: 1.5 },
+} as const satisfies Record<TradeGood, { valueKg: number; carryKg: number }>;
+// trade.md – Výměna lidí (Martin 19. 10. 2026: „Se sousedem půjde vyměnit i lidi... např. když on
+// jich bude mít moc a nebude je moci uživit, může jich pár vyměnit s námi za nějaké suroviny
+// a opačně.“, „Mohou se stěhovat celé rodiny i jen dospělí. Podle toho, co je v nabídce.“; čísla
+// návrh Clauda): dospělý má hodnotu ≈ dvouleté spotřeby jídla (2 × 180 kg obilí), dítě do 14 let
+// polovinu, přirážky jako u zboží. Rok obchodu: soused má s pravděpodobností 40 % lidi navíc
+// (0–2 rodiny a 0–3 svobodné dospělé, aspoň jednoho člověka), s 30 % lidi shání (vezme 0–2 rodiny
+// a 0–3 dospělé, aspoň jednoho), jinak lidi nemění. Rodina souseda: muž 24–38 let, žena o 0–6 let
+// mladší (nejméně 18 + 3 roky na dítě), 0–3 děti – nejmladší 0–2 roky, mezi dětmi 2–3 roky;
+// svobodný dospělý muž nebo žena 16–26 let.
+export const PEOPLE_TRADE = {
+  adultValueKg: 360,
+  childShare: 0.5,
+  surplusChance: 0.4,
+  shortageChance: 0.3,
+  families: { min: 0, max: 2 },
+  adults: { min: 0, max: 3 },
+  children: { min: 0, max: 3 },
+  husbandAge: { from: 24, to: 38 },
+  wifeYounger: { from: 0, to: 6 },
+  wifeMinAge: 18,
+  wifeYearsPerChild: 3,
+  youngestChildAge: { from: 0, to: 2 },
+  childSpacing: { from: 2, to: 3 },
+  adultAge: { from: 16, to: 26 },
 } as const;
-// trade.md – Zboží zvenku ve vsi (návrh Clauda): sůl se spotřebuje 3 kg na člověka a rok (≈ 8 g
-// denně) a dokud je, přidává štěstí +3; kožešiny se opotřebí 20 % ročně a přidají až +2 štěstí
-// (plně při kožešině na člověka); med se jí rovným dílem do roka, nejvýš 5 % potřeby energie
-// (0,9 kg obilí na kg), a přidá štěstí jako ovoce (+5 – s ovocem se nesčítá)
-export const FOREIGN_GOODS = {
-  saltKgPerPersonYear: 3,
-  saltHappiness: 3,
-  furWearPerYear: 0.2,
-  furHappiness: 2,
-  honeyEnergy: 0.9,
-  honeyCap: 0.05,
-  honeyDays: 365,
-} as const;
-// trade.md – Zboží zvenku, crafts.md – Kovář (návrh Clauda): z koupeného železa kovář jen kuje –
-// 1,2 kg železa (opal), 3 člověkodny a 10 kg uhlí na 1 kg nástrojů místo rudy a tavení (10 čd
-// a 50 kg uhlí); železo bere přednostně
-export const IRON_SMITHING = { ironKgPerKg: 1.2, manDaysPerKg: 3, charcoalKgPerKg: 10 } as const;
 // abandonment.md – Chátrání (Martin 18. 10. 2026: „stavby, kam nikdo nechodí, budou postupně
 // chátrat a rozpadnou se“; čísla návrh Clauda podle rešerše research/2026-10-18-abandonment.md):
 // opuštěná stavba spadne za `fallYears` let od plného stavu – modla (dubový kůl Ø 0,5 m v zemi)

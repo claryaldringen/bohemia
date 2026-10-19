@@ -98,7 +98,15 @@ export * from './road-upgrades';
 export * from './trail';
 export * from './neighbours';
 export * from './trade';
-export * from './goods';
+// výměna lidí se sousedem – příchod lidí (`settleNewcomers`) je krok simulace a zůstává uvnitř
+export {
+  NO_PEOPLE,
+  emigrantGroups,
+  neighbourFamilyValue,
+  neighbourPeople,
+  personValue,
+  type EmigrantGroup,
+} from './people-trade';
 // jabloně u cest – kroky simulace (práce a dokončení výsadby) zůstávají uvnitř
 export {
   roadAppleSpots,

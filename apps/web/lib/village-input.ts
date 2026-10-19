@@ -7,6 +7,7 @@ import {
   type Direction8,
   type TradeGood,
   type TradeGoods,
+  type TradePeople,
   type DwellingPlot,
   type LeaveDestination,
   type BuildableDwellingType,
@@ -205,15 +206,47 @@ export function parseTradeGoods(value: unknown): TradeGoods | null {
   return goods;
 }
 
-/** Vstup výpravy k sousedovi `{ direction, give, get }` (trade.md – Obchod), jinak null. */
-export function parseSendExpeditionInput(
-  value: unknown,
-): { direction: Direction8; give: TradeGoods; get: TradeGoods } | null {
+/** Nejvíc rodin či dospělých jednoho druhu, které server ve výměně lidí vůbec přijme. */
+const MAX_RAW_TRADE_PEOPLE = 100;
+
+/**
+ * Lidé ve výměně `{ families, adults }` (trade.md – Výměna lidí) – celá nezáporná čísla; chybí =
+ * nikdo (undefined), jinak null.
+ */
+export function parseTradePeople(value: unknown): TradePeople | undefined | null {
+  if (value === undefined) return undefined;
+  if (!isRecord(value)) return null;
+  const { families, adults } = value;
+  const valid = (n: unknown): n is number =>
+    Number.isInteger(n) && (n as number) >= 0 && (n as number) <= MAX_RAW_TRADE_PEOPLE;
+  return valid(families) && valid(adults) ? { families, adults } : null;
+}
+
+/**
+ * Vstup výpravy k sousedovi `{ direction, give, get, givePeople?, getPeople? }` (trade.md –
+ * Obchod, Výměna lidí), jinak null.
+ */
+export function parseSendExpeditionInput(value: unknown): {
+  direction: Direction8;
+  give: TradeGoods;
+  get: TradeGoods;
+  givePeople?: TradePeople;
+  getPeople?: TradePeople;
+} | null {
   if (!isRecord(value)) return null;
   const direction = parseDirection(value.direction);
   const give = parseTradeGoods(value.give);
   const get = parseTradeGoods(value.get);
-  return direction && give && get ? { direction, give, get } : null;
+  const givePeople = parseTradePeople(value.givePeople);
+  const getPeople = parseTradePeople(value.getPeople);
+  if (!direction || !give || !get || givePeople === null || getPeople === null) return null;
+  return {
+    direction,
+    give,
+    get,
+    ...(givePeople ? { givePeople } : {}),
+    ...(getPeople ? { getPeople } : {}),
+  };
 }
 
 /** Vstup výsadby jabloní podél pevné cesty `{ roadId }` (roads.md), jinak null. */

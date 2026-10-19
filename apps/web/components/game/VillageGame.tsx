@@ -962,10 +962,19 @@ export function VillageGame({
             ? runBuildAction(() => buildTrail({ villageId, direction }))
             : Promise.resolve();
         }}
-        onSendExpedition={(direction, give, get) => {
+        onSendExpedition={(direction, give, get, people) => {
           const villageId = viewRef.current?.id;
           return villageId
-            ? runBuildAction(() => sendExpedition({ villageId, direction, give, get }))
+            ? runBuildAction(() =>
+                sendExpedition({
+                  villageId,
+                  direction,
+                  give,
+                  get,
+                  givePeople: people.give,
+                  getPeople: people.get,
+                }),
+              )
             : Promise.resolve();
         }}
       />

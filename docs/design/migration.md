@@ -185,7 +185,7 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
 - **Co si vezmou:** 25 kg na člověka od 7 let, nejvýš poměrný díl zásob podle počtu lidí; když
   neunesou celý díl, berou ze všech zásob (obilí, maso, sýr, luštěniny, ovoce) stejný podíl.
   Stáda: poměrný díl ovcí, koz, prasat a krav i letošních mláďat (počty smí být neceločíselné
-  jako všude ve stádech); voli, ohrady, klády, nástroje, keramika a zboží zvenku zůstanou.
+  jako všude ve stádech); voli, ohrady, klády, nástroje a keramika zůstanou.
 - **Nová ves** začíná jako při založení – všichni osadníci jsou jedna domácnost na staveništi
   první zemnice (dvorec vojvody), rodiny se rozejdou do dalších domů podle běžných pravidel
   osídlení, až je hráč postaví. Id lidí zůstanou ze staré vsi (nová ves čísluje za nimi).

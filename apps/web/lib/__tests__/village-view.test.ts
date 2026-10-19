@@ -852,6 +852,52 @@ describe('chronicleText', () => {
   });
 });
 
+describe('kronika – výměna lidí (trade.md – Výměna lidí)', () => {
+  it('výprava s lidmi a lidé od souseda', () => {
+    expect(
+      chronicleText(
+        {
+          day: DAY,
+          kind: 'trade-departed',
+          direction: 'S',
+          give: { grain: 100 },
+          people: { families: 1, adults: 2 },
+        },
+        'X',
+      ),
+    ).toBe(
+      'Nosiči vyrazili po stezce na jih – nesou 100 kg obilí; odchází s nimi 1 rodina a 2 dospělí.',
+    );
+    expect(
+      chronicleText(
+        {
+          day: DAY,
+          kind: 'trade-returned',
+          direction: 'N',
+          get: {},
+          people: { families: 0, adults: 1 },
+        },
+        'X',
+      ),
+    ).toBe('Nosiči se vrátili ze severu – přišli s nimi 1 dospělý.');
+    expect(
+      chronicleText({ day: DAY, kind: 'trade-returned', direction: 'N', get: { grain: 5 } }, 'X'),
+    ).toBe('Nosiči se vrátili ze severu – přinesli 5 kg obilí.');
+    expect(
+      chronicleText(
+        { day: DAY, kind: 'newcomer', direction: 'E', group: 'family', people: 4, dwellingId: 1 },
+        'X',
+      ),
+    ).toBe('Z východu přišla rodina – 4 lidé.');
+    expect(
+      chronicleText(
+        { day: DAY, kind: 'newcomer', direction: 'SW', group: 'woman', people: 1, dwellingId: 1 },
+        'X',
+      ),
+    ).toBe('Z jihozápadu přišla svobodná žena.');
+  });
+});
+
 describe('kronika – zarůstání (fields.md)', () => {
   it('díl nebo pole zarostlo lesem a vypadlo z pole', () => {
     const forest = (parts: number, gone: boolean): string =>

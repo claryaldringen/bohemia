@@ -39,13 +39,14 @@ export interface Person {
   /** Manžel / manželka (id žijícího člověka ve vsi); svobodný, vdovec a vdova ho nemají. */
   spouseId?: number;
   /**
-   * Ze které sousední vsi člověk přišel – nevěsta z okolí (kinship.md, war.md – příbuzní
-   * v cílové vsi); narození ve vsi ho nemají.
+   * Ze které sousední vsi člověk přišel – nevěsta z okolí a lidé z výměny se sousedem (kinship.md,
+   * trade.md – Výměna lidí, war.md – příbuzní v cílové vsi); narození ve vsi ho nemají.
    */
   origin?: NeighborDirection;
 }
 /**
- * Dcera, která se vdala pryč (kinship.md – Sňatky z okolí): jen záznam v rodokmenu, nesimuluje se –
+ * Dcera, která se vdala pryč (kinship.md – Sňatky z okolí), nebo člověk, kterého ves dala sousedovi
+ * (trade.md – Výměna lidí): jen záznam v rodokmenu, nesimuluje se –
  * id, pohlaví, den narození, rodiče a směr vsi, kam odešla (war.md – muži s příbuznými v cílové
  * vsi útočit nechtějí). Ves ho drží, jen dokud ve vsi žije její rodič, sourozenec nebo dítě.
  */
@@ -713,10 +714,27 @@ export type ChronicleEvent = { day: number } & (
   | { kind: 'road-overgrown'; roadId: number }
   /** Zemská stezka ke kraji mapy je dostavěná – obchod se sousedem (trade.md). */
   | { kind: 'trail-built'; trailId: number; direction: Direction8 }
-  /** Výprava nosičů vyrazila k sousedovi – co nesou (trade.md – Obchod). */
-  | { kind: 'trade-departed'; direction: Direction8; give: TradeGoods }
-  /** Výprava se vrátila – co přinesla (trade.md – Obchod). */
-  | { kind: 'trade-returned'; direction: Direction8; get: TradeGoods }
+  /**
+   * Výprava nosičů vyrazila k sousedovi – co nesou (trade.md – Obchod) a kdo s ní odešel do
+   * sousední vsi (`people` – trade.md, Výměna lidí; chybí = nikdo).
+   */
+  | { kind: 'trade-departed'; direction: Direction8; give: TradeGoods; people?: TradePeople }
+  /**
+   * Výprava se vrátila – co přinesla (trade.md – Obchod) a kdo s ní přišel (`people`; chybí =
+   * nikdo).
+   */
+  | { kind: 'trade-returned'; direction: Direction8; get: TradeGoods; people?: TradePeople }
+  /**
+   * S výpravou přišli lidé od souseda (trade.md – Výměna lidí): rodina, svobodný muž nebo žena,
+   * kolik jich je a do kterého obydlí šli.
+   */
+  | {
+      kind: 'newcomer';
+      direction: Direction8;
+      group: NewcomerGroup;
+      people: number;
+      dwellingId: number;
+    }
   /**
    * Opuštěná stavba, ke které léta nikdo nechodil, se rozpadla (abandonment.md): modla padla,
    * svatyně se rozpadla, plot hřbitova se rozpadl, ohrada se rozpadla – id stavby.
@@ -985,11 +1003,6 @@ export interface VillageState {
   /** Obchod se sousedy – zásoby a poptávka sousedů a výpravy (trade.md – Obchod); chybí = nic. */
   trade?: VillageTrade;
   /**
-   * Zboží zvenku (trade.md – Zboží zvenku ve vsi): sůl, železo, med (kg) a kožešiny (kusy).
-   * Chybí = žádné.
-   */
-  goods?: ForeignGoods;
-  /**
    * Ves je opuštěná (migration.md – Odchod do nové vsi): odešli z ní všichni lidé. Dál se
    * nesimuluje, obydlí se rozpadají podle dne odchodu (`abandonedVillageAt`). Žijící ves ho nemá.
    */
@@ -1073,36 +1086,16 @@ export interface Trail {
 }
 
 /**
- * Zboží obchodu (trade.md – Sousedé): obilí, maso, sýr, luštěniny (kg), dobytek (kusy – krávy),
- * klády (kusy), keramika, nástroje, uhlí (kg) a zboží zvenku – sůl, železo, med (kg) a kožešiny
- * (kusy).
+ * Zboží obchodu (trade.md – Sousedé): jen to, co ves sama má – obilí, maso, sýr, luštěniny (kg),
+ * dobytek (kusy – krávy), klády (kusy), keramika, nástroje, uhlí (kg). Zboží zvenku (sůl, železo,
+ * med, kožešiny) obchod od 19. 10. 2026 nezná (Martin: „Nech jen společné suroviny, nezaváděj
+ * nové.“) – starší vsi o něj přijdou (`withoutForeignGoods`).
  */
 export type TradeGood =
-  | 'grain'
-  | 'meat'
-  | 'cheese'
-  | 'legumes'
-  | 'cattle'
-  | 'logs'
-  | 'pottery'
-  | 'tools'
-  | 'charcoal'
-  | 'salt'
-  | 'iron'
-  | 'honey'
-  | 'furs';
+  'grain' | 'meat' | 'cheese' | 'legumes' | 'cattle' | 'logs' | 'pottery' | 'tools' | 'charcoal';
 
 /** Množství zboží (jen uvedené druhy, kg nebo kusy podle druhu). */
 export type TradeGoods = Partial<Record<TradeGood, number>>;
-
-/** Zboží zvenku ve vsi (trade.md – Zboží zvenku ve vsi). */
-export interface ForeignGoods {
-  saltKg: number;
-  ironKg: number;
-  honeyKg: number;
-  /** Kožešiny (kusy; neceločíselné – opotřebení). */
-  furs: number;
-}
 
 /**
  * Soused v jednom směru – co mu letos zbývá z nabídky a kolik ještě vezme ze sháněného
@@ -1117,6 +1110,33 @@ export interface NeighbourStock {
   supply: TradeGoods;
   /** Kolik soused ještě letos vezme (sháněné zboží). */
   demand: TradeGoods;
+  /**
+   * Lidé, které soused letos ještě dá a vezme (trade.md – Výměna lidí). Chybí u zbytku roku
+   * uloženého před výměnou lidí – pak platí celý rok podle povahy (`neighbourPeople`).
+   */
+  people?: NeighbourPeople;
+}
+
+/** Lidé ve výměně se sousedem (trade.md – Výměna lidí): rodiny a svobodní dospělí. */
+export interface TradePeople {
+  families: number;
+  adults: number;
+}
+
+/** Kdo přišel od souseda (trade.md – Výměna lidí): rodina, svobodný muž, svobodná žena. */
+export type NewcomerGroup = 'family' | 'man' | 'woman';
+
+/**
+ * Lidé souseda na rok obchodu (trade.md – Výměna lidí): rodiny a svobodní dospělí, které neuživí
+ * a dá je, a kolik lidí naopak vezme.
+ */
+export interface NeighbourPeople {
+  /** Rodiny, které soused dá – počet dětí v každé; ves bere od první. */
+  families: number[];
+  /** Svobodní dospělí, které soused dá. */
+  adults: number;
+  /** Kolik rodin a svobodných dospělých soused vezme. */
+  takes: TradePeople;
 }
 
 /**
@@ -1137,6 +1157,16 @@ export interface TradeExpedition {
   /** Práce celkem (člověkodny = nosiči × dny) a kolik je odvedeno. */
   cost: number;
   done: number;
+  /**
+   * Kdo s výpravou odešel do sousední vsi (trade.md – Výměna lidí) – rodiny, dospělí a lidí
+   * celkem; už nejsou ve vsi. Chybí = nikdo (i u výprav uložených dřív).
+   */
+  givePeople?: TradePeople & { people: number };
+  /**
+   * Kdo s výpravou přijde – rodiny souseda (počet dětí v každé) a svobodní dospělí; ve vsi se
+   * objeví po návratu. Chybí = nikdo.
+   */
+  getPeople?: { families: number[]; adults: number };
 }
 
 /** Obchod vsi se sousedy (trade.md). */
@@ -1410,15 +1440,13 @@ export interface DietDay {
     eggs: number;
     fruit: number;
     legumes?: number;
-    /** Med ze zboží zvenku (trade.md); chybí u jídla uloženého dřív = 0. */
-    honey?: number;
   };
 }
 
 /**
  * Jídlo z pole za hospodářský rok (fields.md – Kolik ves oseje, Osev podle stravy). Součty běží od
  * 1. 9. (začnou prvním 1. 9. po založení vsi, takže vždy pokrývají celý rok): potřeba energie
- * a z ní část, kterou nepokrylo maso, mléko a sýr, vejce, ovoce a med – tu musí dát pole (obilí
+ * a z ní část, kterou nepokrylo maso, mléko a sýr, vejce a ovoce – tu musí dát pole (obilí
  * a luštěniny), i když ves zrovna hladověla. 1. 9. se z nich spočítá podíl uplynulého roku.
  */
 export interface FieldFoodYear {

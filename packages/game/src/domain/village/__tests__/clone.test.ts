@@ -149,7 +149,7 @@ describe('cloneState – příbuzenství (kinship.md)', () => {
   });
 });
 
-describe('cloneState – dvorec, stezky, obchod a zboží zvenku (trade.md)', () => {
+describe('cloneState – dvorec, stezky a obchod (trade.md)', () => {
   it('kopíruje celé jako structuredClone a kopie je nezávislá', () => {
     const state = {
       manorId: 1,
@@ -165,7 +165,7 @@ describe('cloneState – dvorec, stezky, obchod a zboží zvenku (trade.md)', ()
       ],
       trade: {
         neighbours: [
-          { direction: 'SE' as const, season: 600, supply: { salt: 80 }, demand: { grain: 900 } },
+          { direction: 'SE' as const, season: 600, supply: { tools: 8 }, demand: { grain: 900 } },
         ],
         expeditions: [
           {
@@ -174,7 +174,7 @@ describe('cloneState – dvorec, stezky, obchod a zboží zvenku (trade.md)', ()
             trailId: 40,
             startedDay: 120,
             give: { grain: 100 },
-            get: { salt: 10 },
+            get: { tools: 1 },
             porters: 4,
             days: 5,
             cost: 20,
@@ -183,15 +183,12 @@ describe('cloneState – dvorec, stezky, obchod a zboží zvenku (trade.md)', ()
         ],
         nextId: 2,
       },
-      goods: { saltKg: 1.5, ironKg: 0, honeyKg: 2, furs: 0.4 },
-    } as Pick<VillageState, 'manorId' | 'trails' | 'trade' | 'goods'>;
+    } as Pick<VillageState, 'manorId' | 'trails' | 'trade'>;
     const copy = cloneState(state);
     expect(copy).toEqual(structuredClone(state));
     copy.trails![0]!.pieces[0]!.manDays = 0;
     copy.trade!.expeditions[0]!.give.grain = 1;
-    copy.goods!.saltKg = 9;
     expect(state.trails![0]!.pieces[0]!.manDays).toBe(12.5);
     expect(state.trade!.expeditions[0]!.give.grain).toBe(100);
-    expect(state.goods!.saltKg).toBe(1.5);
   });
 });

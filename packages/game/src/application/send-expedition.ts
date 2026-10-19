@@ -4,6 +4,7 @@ import {
   tradeQuote,
   type Direction8,
   type TradeGoods,
+  type TradePeople,
 } from '../domain/village';
 import type { Landscape } from '../domain/landscape';
 import { updateLivingVillage } from './update-village';
@@ -19,6 +20,12 @@ export interface SendExpeditionInput {
   direction: Direction8;
   give: TradeGoods;
   get: TradeGoods;
+  /**
+   * Lidé (trade.md – Výměna lidí): kolik rodin a svobodných dospělých ves dá a vezme; bez údaje
+   * nikdo. Koho přesně ves dá, vybere jádro (`emigrantGroups`).
+   */
+  givePeople?: TradePeople;
+  getPeople?: TradePeople;
   /**
    * Směry, kde na sousední mapě leží vlastní ves hráče (migration.md) – soused bez simulace tam
    * není a obchod mezi vlastními vsemi zatím není. Bez údaje žádné.
@@ -52,7 +59,13 @@ export function sendExpedition(
     input.landscape,
     (state) => {
       const day = state.lastDay;
-      const offer = { direction: input.direction, give: input.give, get: input.get };
+      const offer = {
+        direction: input.direction,
+        give: input.give,
+        get: input.get,
+        ...(input.givePeople ? { givePeople: input.givePeople } : {}),
+        ...(input.getPeople ? { getPeople: input.getPeople } : {}),
+      };
       const quote = tradeQuote(state, offer, day);
       if (quote.blocked) return { ok: false, reason: quote.blocked };
       return { ok: true, state: startExpedition(state, day, offer) };

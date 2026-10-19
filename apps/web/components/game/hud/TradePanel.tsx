@@ -1,14 +1,21 @@
 import { useState, type ReactElement } from 'react';
-import type { Direction8, TradeGood, TradeGoods } from '@bohemia/game';
+import type { Direction8, TradeGood, TradeGoods, TradePeople } from '@bohemia/game';
 import type { VillageNeighbour } from '@/lib/manor-view';
-import { DIRECTION_NAMES, TRADE_GOOD_NAMES } from '@/lib/trade-names';
-import { tradePreview } from '@/lib/trade-quote';
+import {
+  DIRECTION_NAMES,
+  PEOPLE_NAMES,
+  TRADE_GOOD_NAMES,
+  type PeopleKind,
+} from '@/lib/trade-names';
+import { tradePreview, type PreviewPeople } from '@/lib/trade-quote';
 import { formatInteger } from '@/lib/village-format';
 import { Tooltip } from './Tooltip';
 
 // Panel obchodu ve dvorci (trade.md – Obchod, Co hráč vidí): soused (jméno, směr), ikony zboží –
 // co ves dá (soused shání) a co dostane (soused nabízí), posuvníky, bilance hodnoty pro souseda
 // (musí být ≥ 0), cena v práci a dny cesty. Potvrdit → výprava vyrazí; na cestě jen průběh.
+// Lidé (trade.md – Výměna lidí): řádek rodiny a svobodného dospělého na straně, kde je soused
+// shání nebo nabízí – počty, cena v popisku; koho ves dá, vybere jádro.
 
 /** Ikona zboží s množstvím (kg nebo kusy) a názvem v popisku. */
 function Good({ good, amount }: { good: TradeGood; amount: number }): ReactElement {
@@ -21,6 +28,89 @@ function Good({ good, amount }: { good: TradeGood; amount: number }): ReactEleme
         {unit === 'kg' ? ' kg' : ''}
       </span>
     </Tooltip>
+  );
+}
+
+/** Ikona lidí (rodina, svobodný dospělý) s počtem a názvem v popisku. */
+function People({ kind, count }: { kind: PeopleKind; count: number }): ReactElement {
+  const { name, icon } = PEOPLE_NAMES[kind];
+  return (
+    <Tooltip content={name} placement="above">
+      <span className="flex items-center gap-1 whitespace-nowrap tabular-nums" tabIndex={0}>
+        <img src={`/icons/resources/${icon}.png`} alt="" width={20} height={20} />
+        {formatInteger(count)}
+      </span>
+    </Tooltip>
+  );
+}
+
+/** Lidé výpravy na cestě – rodiny a dospělí, jen nenuloví. */
+function peopleIcons(people: TradePeople, key: string): ReactElement[] {
+  return (['families', 'adults'] as const)
+    .filter((k) => people[k] > 0)
+    .map((k) => (
+      <People key={`${key}-${k}`} kind={k === 'families' ? 'family' : 'adult'} count={people[k]} />
+    ));
+}
+
+/**
+ * Řádek lidí (rodiny nebo svobodní dospělí) s posuvníkem 0–max a cenou v popisku – u rodin cena
+ * první rodiny v řadě (rodiny se liší počtem dětí).
+ */
+function PeopleSlider({
+  side,
+  kind,
+  value,
+  max,
+  price,
+  onChange,
+}: {
+  side: 'give' | 'get';
+  kind: PeopleKind;
+  value: number;
+  max: number;
+  price: number;
+  onChange: (value: number) => void;
+}): ReactElement {
+  const { name, icon } = PEOPLE_NAMES[kind];
+  return (
+    <label className="flex items-center gap-1.5" data-testid={`trade-${side}-${kind}`}>
+      <Tooltip
+        placement="above"
+        content={
+          <span className="flex flex-col gap-0.5">
+            <span>{name}</span>
+            <span className="flex items-center gap-1 tabular-nums">
+              <img src="/icons/resources/food.png" alt="" width={16} height={16} />
+              {price.toLocaleString('cs-CZ', { maximumFractionDigits: 0 })}
+            </span>
+          </span>
+        }
+      >
+        <img
+          src={`/icons/resources/${icon}.png`}
+          alt=""
+          width={24}
+          height={24}
+          tabIndex={0}
+          className="shrink-0"
+        />
+      </Tooltip>
+      <input
+        type="range"
+        min={0}
+        max={max}
+        step={1}
+        value={Math.min(value, max)}
+        disabled={max <= 0}
+        aria-label={name}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="w-28 accent-[#d8b25c] disabled:opacity-40"
+      />
+      <span className="min-w-16 text-right text-xs whitespace-nowrap tabular-nums">
+        {formatInteger(Math.min(value, max))}/{formatInteger(max)}
+      </span>
+    </label>
   );
 }
 
@@ -91,12 +181,17 @@ export function NeighbourTrade({
 }: {
   neighbour: VillageNeighbour;
   busy?: boolean;
-  onSend?: (give: TradeGoods, get: TradeGoods) => void;
+  onSend?: (give: TradeGoods, get: TradeGoods, people: PreviewPeople) => void;
   /** Počáteční výběr (testy). */
-  initial?: { give: TradeGoods; get: TradeGoods };
+  initial?: { give: TradeGoods; get: TradeGoods; people?: PreviewPeople };
 }): ReactElement {
   const [give, setGive] = useState<TradeGoods>(initial?.give ?? {});
   const [get, setGet] = useState<TradeGoods>(initial?.get ?? {});
+  const [people, setPeople] = useState<PreviewPeople>(
+    initial?.people ?? { give: { families: 0, adults: 0 }, get: { families: 0, adults: 0 } },
+  );
+  const setSide = (side: 'give' | 'get', key: keyof TradePeople, value: number): void =>
+    setPeople({ ...people, [side]: { ...people[side], [key]: value } });
   if (neighbour.expedition) {
     const e = neighbour.expedition;
     const percent = Math.round(e.progress * 100);
@@ -106,10 +201,12 @@ export function NeighbourTrade({
           {(Object.entries(e.give) as [TradeGood, number][]).map(([g, n]) => (
             <Good key={`g-${g}`} good={g} amount={n} />
           ))}
+          {peopleIcons(e.givePeople, 'g')}
           <span aria-hidden>⇄</span>
           {(Object.entries(e.get) as [TradeGood, number][]).map(([g, n]) => (
             <Good key={`r-${g}`} good={g} amount={n} />
           ))}
+          {peopleIcons(e.getPeople, 'r')}
         </div>
         <Tooltip content={`Výprava ${percent} %`} placement="above">
           <span
@@ -127,8 +224,9 @@ export function NeighbourTrade({
       </div>
     );
   }
-  const preview = tradePreview(neighbour, give, get);
+  const preview = tradePreview(neighbour, give, get, people);
   const fair = preview.balance >= 0;
+  const { offers, takes, have } = neighbour.people;
   return (
     <div className="flex flex-col gap-2">
       <div className="flex gap-4">
@@ -144,6 +242,26 @@ export function NeighbourTrade({
               onChange={(v) => setGive({ ...give, [row.good]: v })}
             />
           ))}
+          {takes.families > 0 && (
+            <PeopleSlider
+              side="give"
+              kind="family"
+              value={people.give.families}
+              max={Math.min(takes.families, have.families.length)}
+              price={have.families[0]?.credit ?? 0}
+              onChange={(v) => setSide('give', 'families', v)}
+            />
+          )}
+          {takes.adults > 0 && (
+            <PeopleSlider
+              side="give"
+              kind="adult"
+              value={people.give.adults}
+              max={Math.min(takes.adults, have.adults)}
+              price={have.adultCredit}
+              onChange={(v) => setSide('give', 'adults', v)}
+            />
+          )}
         </div>
         <div className="flex flex-col gap-1" aria-label="Dostaneš" role="group">
           {neighbour.offers.map((row) => (
@@ -157,6 +275,26 @@ export function NeighbourTrade({
               onChange={(v) => setGet({ ...get, [row.good]: v })}
             />
           ))}
+          {offers.families.length > 0 && (
+            <PeopleSlider
+              side="get"
+              kind="family"
+              value={people.get.families}
+              max={offers.families.length}
+              price={offers.families[0]?.price ?? 0}
+              onChange={(v) => setSide('get', 'families', v)}
+            />
+          )}
+          {offers.adults > 0 && (
+            <PeopleSlider
+              side="get"
+              kind="adult"
+              value={people.get.adults}
+              max={offers.adults}
+              price={offers.adultPrice}
+              onChange={(v) => setSide('get', 'adults', v)}
+            />
+          )}
         </div>
       </div>
       <div className="flex items-center gap-3 text-sm whitespace-nowrap tabular-nums">
@@ -209,7 +347,7 @@ export function NeighbourTrade({
             aria-label="Vyslat výpravu"
             disabled={preview.blocked !== null || busy || !onSend}
             aria-busy={busy}
-            onClick={() => onSend?.(give, get)}
+            onClick={() => onSend?.(give, get, people)}
             className="hud-inset h-9 w-9 overflow-hidden rounded disabled:cursor-not-allowed disabled:opacity-45 disabled:grayscale"
           >
             <img
@@ -237,7 +375,12 @@ export function TradePanel({
   initialDirection,
 }: {
   neighbours: readonly VillageNeighbour[];
-  onSend?: (direction: Direction8, give: TradeGoods, get: TradeGoods) => Promise<void>;
+  onSend?: (
+    direction: Direction8,
+    give: TradeGoods,
+    get: TradeGoods,
+    people: PreviewPeople,
+  ) => Promise<void>;
   onClose?: () => void;
   initialDirection?: Direction8;
 }): ReactElement {
@@ -246,10 +389,10 @@ export function TradePanel({
   );
   const [busy, setBusy] = useState(false);
   const neighbour = neighbours.find((n) => n.direction === selected) ?? neighbours[0] ?? null;
-  const send = (give: TradeGoods, get: TradeGoods): void => {
+  const send = (give: TradeGoods, get: TradeGoods, people: PreviewPeople): void => {
     if (!onSend || !neighbour || busy) return;
     setBusy(true);
-    void onSend(neighbour.direction, give, get).finally(() => {
+    void onSend(neighbour.direction, give, get, people).finally(() => {
       setBusy(false);
       onClose?.();
     });

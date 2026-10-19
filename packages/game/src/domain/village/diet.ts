@@ -18,8 +18,7 @@ import {
 } from './legumes';
 import { ageGroup, foodNeedPerDay } from './people';
 import { NO_CRAFTS, storageLossPerYear } from './productivity';
-import { honeyEnergy } from './goods';
-import { APPLE_FOOD_VALUE, FOREIGN_GOODS, LEGUMES } from './rules';
+import { APPLE_FOOD_VALUE, LEGUMES } from './rules';
 import type { ChronicleEvent, DietDay, Person, VillageState } from './types';
 import { daysUntilFoodHarvest } from './year-plan';
 
@@ -131,8 +130,6 @@ export interface Eaten {
   cheeseKg: number;
   eggsKg: number;
   legumesKg: number;
-  /** Med ze zboží zvenku (trade.md); bez údaje žádný. */
-  honeyKg?: number;
 }
 
 const NOTHING: Eaten = {
@@ -162,7 +159,6 @@ export function dietOf(needPerDay: number, proteinNeedKg: number, eaten: Eaten):
       shares: { grain: 0, meat: 0, dairy: 0, eggs: 0, fruit: 0, legumes: 0 },
     };
   }
-  const honey = honeyEnergy(eaten.honeyKg ?? 0) / needPerDay;
   const shares = {
     grain: eaten.grainKg / needPerDay,
     meat: meatEnergy(eaten.meatKg) / needPerDay,
@@ -170,11 +166,10 @@ export function dietOf(needPerDay: number, proteinNeedKg: number, eaten: Eaten):
     eggs: (eaten.eggsKg * DIET.energy.eggs) / needPerDay,
     fruit: fruitEnergy(eaten.fruitKg) / needPerDay,
     legumes: legumeEnergy(eaten.legumesKg) / needPerDay,
-    ...(honey > 0 ? { honey } : {}),
   };
   const energy = Math.min(
     1,
-    shares.grain + shares.meat + shares.dairy + shares.eggs + shares.fruit + shares.legumes + honey,
+    shares.grain + shares.meat + shares.dairy + shares.eggs + shares.fruit + shares.legumes,
   );
   const proteinKg =
     eaten.grainKg * PROTEIN.perKg.grain +
@@ -203,8 +198,6 @@ export interface DietInput {
   eggsKg?: number;
   /** Zásoba luštěnin (kg). */
   legumesKg?: number;
-  /** Zásoba medu (kg – zboží zvenku, trade.md) – jí se rovným dílem do roka; bez údaje žádný. */
-  honeyKg?: number;
   /** Dní do příští sklizně luštěnin včetně dneška – jí se rovným dílem do ní; bez údaje rok. */
   daysToLegumeHarvest?: number;
   /** Potřeba energie vsi za den (kg obilí). */
@@ -243,8 +236,6 @@ export interface DietResult {
   cheeseMadeKg: number;
   /** Zásoba luštěnin po jídle (kg). */
   legumesKg: number;
-  /** Zásoba medu po jídle (kg). */
-  honeyKg: number;
   diet: DietDay;
   /**
    * Nejnižší příděl energie do sklizně podle výhledu 0–1 (dnešní, nebo po zkažení ovoce, je-li
@@ -273,7 +264,6 @@ export function eatDiet(input: DietInput): DietResult {
   const legumes =
     Math.max(0, input.legumesKg ?? 0) *
     (1 - legumeStorageLossPerYear(input.potteryCoverage)) ** (1 / COMMON_YEAR_DAYS);
-  const honey = Math.max(0, input.honeyKg ?? 0);
   const need = input.needPerDay;
   if (need <= 0) {
     // nikdo nejí – mléko na sýr
@@ -285,7 +275,6 @@ export function eatDiet(input: DietInput): DietResult {
       cheeseKg: cheese + made,
       cheeseMadeKg: made,
       legumesKg: legumes,
-      honeyKg: honey,
       diet: dietOf(0, 0, NOTHING),
       outlook: 1,
     };
@@ -313,14 +302,9 @@ export function eatDiet(input: DietInput): DietResult {
     DIET.caps.legumes * need,
     legumeEnergy(legumes) / Math.max(1, input.daysToLegumeHarvest ?? COMMON_YEAR_DAYS),
   );
-  // med ze zboží zvenku rovným dílem do roka, nejvýš FOREIGN_GOODS.honeyCap (trade.md)
-  const honeyRation = Math.min(
-    FOREIGN_GOODS.honeyCap * need,
-    honeyEnergy(honey) / FOREIGN_GOODS.honeyDays,
-  );
-  // sýr, luštěniny, med a vejce se počítají i do dalších dní, maso do svého zkažení, mléko
-  // a ovoce jen, jak opravdu přijdou
-  const daily = cheeseRation + legumeRation + honeyRation + eggsEnergy;
+  // sýr, luštěniny a vejce se počítají i do dalších dní, maso do svého zkažení, mléko a ovoce
+  // jen, jak opravdu přijdou
+  const daily = cheeseRation + legumeRation + eggsEnergy;
   const today = fruitRation + milkEnergy + meatRation + daily;
   const made = cheeseFromMilk(milkProtein * (1 - drunkShare));
   // mléko a sýr od zítřka do sklizně: s mlékem stád se počítá celá zásoba sýra (i dnešní), nejvýš
@@ -371,7 +355,6 @@ export function eatDiet(input: DietInput): DietResult {
     cheeseKg: cheeseRation / DAIRY.cheeseEnergy,
     eggsKg: eggs,
     legumesKg: legumeRation / LEGUMES.energy,
-    ...(honeyRation > 0 ? { honeyKg: honeyRation / FOREIGN_GOODS.honeyEnergy } : {}),
   };
   const diet = dietOf(need, input.proteinNeedPerDay ?? 0, eaten);
   return {
@@ -382,7 +365,6 @@ export function eatDiet(input: DietInput): DietResult {
     cheeseKg: Math.max(0, cheese - eaten.cheeseKg) + made,
     cheeseMadeKg: made,
     legumesKg: Math.max(0, legumes - eaten.legumesKg),
-    honeyKg: Math.max(0, honey - (eaten.honeyKg ?? 0)),
     diet,
     outlook: Math.min(1, outlook),
   };

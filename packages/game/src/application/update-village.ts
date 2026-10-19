@@ -19,6 +19,7 @@ import {
   withObstacleClearing,
   withPlots,
   withoutBuiltOverRuins,
+  withoutForeignGoods,
   type VillageState,
 } from '../domain/village';
 import type { Pause, VillageRecord, VillageRepository, VillageResult } from './villages';
@@ -79,7 +80,8 @@ async function advancedToTodayWithPauses(
  * z doby před dobytkem se doplní výchozí stádo a louka a les pro pastvu (`withLivestockLand`)
  * a pevné cesty z doby před slučováním úseků se spojí ve falešných rozcestích (`withMergedRoads`)
  * a zacelí se díry mezi nimi (`withJoinedRoads`) a lidem z doby před příbuzenstvím se doplní
- * pohlaví a manželé (`withKinship`) – před dopočtem, aby se s nimi už počítalo; pak se uloží.
+ * pohlaví a manželé (`withKinship`) a ves přijde o zboží zvenku, které obchod už nezná
+ * (`withoutForeignGoods`) – před dopočtem, aby se s nimi už počítalo; pak se uloží.
  * Ves se dopočítává s vrstvou překážek a krajinou sídla (přestavby kácí stromy, polozemnice bez
  * pozemku se přestaví na volném políčku). Zbytky jam po zaniklých obydlích pod novou stavbou po
  * změně zmizí (`withoutBuiltOverRuins`). S `pause` dělá dopočet mezi dny přestávky.
@@ -96,22 +98,24 @@ export async function updateVillage(
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     const record = await villages.find(villageId);
     if (record === null) return { ok: false, reason: NO_VILLAGE };
-    const migrated = withKinship(
-      withJoinedRoads(
-        withMergedRoads(
-          withLivestockLand(
-            withMergedFields(
-              withPlots(
-                withForestDistances(withObstacleClearing(record.state, obstacles), landscape),
-                landscape,
-                obstacles,
+    const migrated = withoutForeignGoods(
+      withKinship(
+        withJoinedRoads(
+          withMergedRoads(
+            withLivestockLand(
+              withMergedFields(
+                withPlots(
+                  withForestDistances(withObstacleClearing(record.state, obstacles), landscape),
+                  landscape,
+                  obstacles,
+                ),
               ),
+              landscape,
             ),
-            landscape,
           ),
+          landscape,
+          obstacles,
         ),
-        landscape,
-        obstacles,
       ),
     );
     // dvorec vojvody – starší ves ho dostane (nejstarší obydlí, trade.md)

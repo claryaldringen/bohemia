@@ -22,7 +22,6 @@ const view = (overrides: Partial<VillageView> = {}): VillageView => ({
   journey: null,
   leave: { directions: [] },
   manor: null,
-  goods: { saltKg: 0, ironKg: 0, honeyKg: 0, furs: 0 },
   dayIndex: 1000,
   people: { children: 2, adults: 2, elders: 0 },
   households: [],
@@ -328,6 +327,29 @@ describe('newNotices – porážka a spřežení (diet.md, oxen.md)', () => {
     expect(newNotices(view({ dayIndex: 1000 }), after)).toEqual([
       { kind: 'bride-from-outside', tone: 'info', text: 'Nevěsta z okolí' },
       { kind: 'married-away', tone: 'info', text: 'Dcera se vdala pryč' },
+    ]);
+  });
+
+  it('lidé od souseda – fakt, odkud přišli (trade.md – Výměna lidí)', () => {
+    const newcomer = (
+      day: number,
+      group: 'family' | 'man' | 'woman',
+    ): VillageView['chronicle'][number] => ({
+      day,
+      kind: 'newcomer',
+      group,
+      direction: 'N',
+      dateLabel: '',
+      text: '',
+    });
+    const after = view({
+      dayIndex: 1003,
+      chronicle: [newcomer(1002, 'woman'), newcomer(1001, 'man'), newcomer(1001, 'family')],
+    });
+    expect(newNotices(view({ dayIndex: 1000 }), after)).toEqual([
+      { kind: 'newcomer-family', tone: 'info', text: 'Přišla rodina ze severu' },
+      { kind: 'newcomer-man', tone: 'info', text: 'Přišel muž ze severu' },
+      { kind: 'newcomer-woman', tone: 'info', text: 'Přišla žena ze severu' },
     ]);
   });
 

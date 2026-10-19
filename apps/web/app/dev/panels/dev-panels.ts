@@ -56,15 +56,20 @@ const neighbours: VillageNeighbour[] = [
     lengthM: 820,
     tripDays: 5,
     offers: [
-      { good: 'salt', price: 7.68, left: 1200 },
-      { good: 'iron', price: 28.8, left: 300 },
-      { good: 'honey', price: 9.5, left: 140 },
+      { good: 'pottery', price: 2.88, left: 400 },
+      { good: 'tools', price: 57.6, left: 20 },
     ],
     demands: [
-      { good: 'grain', price: 1, left: 15000, have: 12400 },
-      { good: 'cheese', price: 4, left: 3000, have: 1450 },
-      { good: 'pottery', price: 6, left: 400, have: 260 },
+      { good: 'grain', price: 1, left: 1500, have: 12400 },
+      { good: 'cheese', price: 4, left: 300, have: 1450 },
+      { good: 'logs', price: 40, left: 40, have: 26 },
     ],
+    // soused má letos lidi navíc – rodinu se dvěma dětmi a svobodného dospělého (trade.md)
+    people: {
+      offers: { families: [{ people: 4, price: 1036.8 }], adults: 1, adultPrice: 345.6 },
+      takes: { families: 0, adults: 0 },
+      have: { families: [], adults: 0, adultCredit: 360 },
+    },
     expedition: null,
   },
   {
@@ -72,12 +77,23 @@ const neighbours: VillageNeighbour[] = [
     name: 'Kouřim',
     lengthM: 1200,
     tripDays: 7,
-    offers: [{ good: 'furs', price: 40, left: 12 }],
-    demands: [{ good: 'tools', price: 20, left: 80, have: 35 }],
+    offers: [
+      { good: 'cattle', price: 576, left: 2 },
+      { good: 'meat', price: 2.88, left: 350 },
+    ],
+    demands: [{ good: 'grain', price: 1, left: 1800, have: 12400 }],
+    // soused lidi shání – ves by dala rodinu ze tří a jednoho svobodného dospělého
+    people: {
+      offers: { families: [], adults: 0, adultPrice: 345.6 },
+      takes: { families: 1, adults: 2 },
+      have: { families: [{ people: 3, credit: 900 }], adults: 1, adultCredit: 360 },
+    },
     expedition: {
-      give: { tools: 20 },
-      get: { furs: 9 },
-      porters: 2,
+      give: { grain: 600 },
+      get: { cattle: 1 },
+      givePeople: { families: 0, adults: 1 },
+      getPeople: { families: 0, adults: 0 },
+      porters: 24,
       days: 7,
       progress: 0.6,
     },

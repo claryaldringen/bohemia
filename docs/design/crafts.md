@@ -24,7 +24,8 @@ dost silná, aby si řemeslníka dovolila.
 - **Cíl:** uhlíř pálí dřevo na uhlí pro kováře (Martin).
 - **Cíl:** řemeslník pracuje v dílně **na plný úvazek**, nikdy na poli – **zbytek vsi musí mít
   nadvýrobu, aby ho uživil** (Martin).
-- **Ne-cíl (teď):** obchod (přebytky zatím zůstávají v zásobě), peníze, horník a doly, další
+- **Ne-cíl (teď):** obchod (přebytky zatím zůstávají v zásobě – od 18. 10. 2026 je jde vyměnit se
+  sousedy po zemské stezce, [trade.md](trade.md)), peníze, horník a doly, další
   řemesla, kvalita výrobků, zbraně, odemykání řemesel podle letopočtu (doba se zatím neřeší –
   Martin).
 - **Anti-cíl:** řemeslo jako čisté plus bez ceny – každý řemeslník je o domácnost míň na poli.
@@ -89,7 +90,9 @@ Vzhled podle Martina (modely se připravují v `tools/blender/`):
   Celkem ≈ **10 kg uhlí za člověkoden** (sedí, konzervativně – FAO 1987), strom dá **≈ 120 kg
   uhlí** (sedí pro velký strom – dřevo : uhlí 4–8 : 1). Když není z čeho kácet, uhlí nevzniká.
 - **Kovář:** sbírá bahenní rudu v mokřadech u potoka, taví ji v jednoduché peci a kuje
-  (Martin: železo si taví sám, žádný horník ani obchod). **1 kg nástrojů = 10 člověkodní
+  (Martin: železo si taví sám, žádný horník ani obchod; koupené železo od sousedů – trade.md –
+  bylo krátce ve hře a 19. 10. 2026 ho Martin zrušil: „Nech jen společné suroviny, nezaváděj
+  nové.“ – se sousedem jde vyměnit hotové nástroje, ne železo). **1 kg nástrojů = 10 člověkodní
   a 50 kg uhlí** (oprava podle rešerše, dřív 4 člověkodny a 30 kg: Crew 1991 – ≈ 25 člověkodní
   a ≈ 100 kg uhlí na 1 kg tyčového železa v malé pravěké peci, Salter ≈ 60 kg uhlí; raně
   středověké pece byly výkonnější). Ruda dál od vody stojí víc práce: +1 % za každých 10 m nad

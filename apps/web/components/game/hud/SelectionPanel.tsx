@@ -34,6 +34,7 @@ import {
   type WorkshopActivity,
 } from '@/lib/village-view';
 import type { Direction8, RoadGrade, RoadUpgrade, TradeGoods } from '@bohemia/game';
+import type { PreviewPeople } from '@/lib/trade-quote';
 import { ManorUpgrades } from './ManorPanel';
 import { TradePanel } from './TradePanel';
 import {
@@ -315,7 +316,12 @@ interface ManorActions {
   /** Zadá stavbu zemské stezky do směru (server action) – hotovo, až se vrátí. */
   onBuildTrail?: (direction: Direction8) => Promise<void>;
   /** Vyšle výpravu k sousedovi (server action) – hotovo, až se vrátí. */
-  onSendExpedition?: (direction: Direction8, give: TradeGoods, get: TradeGoods) => Promise<void>;
+  onSendExpedition?: (
+    direction: Direction8,
+    give: TradeGoods,
+    get: TradeGoods,
+    people: PreviewPeople,
+  ) => Promise<void>;
 }
 
 function DwellingBody({

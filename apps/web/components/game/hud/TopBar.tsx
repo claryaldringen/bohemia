@@ -76,8 +76,6 @@ const DIET_SOURCES: readonly {
   { key: 'dairy', icon: 'cheese', name: 'Mléko a sýr' },
   { key: 'eggs', icon: 'eggs', name: 'Vejce' },
   { key: 'fruit', icon: 'apples', name: 'Ovoce' },
-  // med ze zboží zvenku (trade.md) – jen když se jí
-  { key: 'honey', icon: 'honey', name: 'Med' },
 ];
 
 /**
@@ -93,14 +91,12 @@ export function SatiationTooltip({ view }: { view: VillageView }): ReactElement 
         energie {formatPercent(view.diet.energy)} · bílkoviny {formatPercent(view.diet.protein)}
       </span>
       <span className="mt-0.5 flex items-center gap-2">
-        {DIET_SOURCES.filter(({ key }) => key !== 'honey' || (view.diet.shares.honey ?? 0) > 0).map(
-          ({ key, icon, name }) => (
-            <span key={key} data-share={key} className="flex items-center gap-0.5 tabular-nums">
-              <img src={`/icons/resources/${icon}.png`} alt={name} width={16} height={16} />
-              {formatPercent(view.diet.shares[key] ?? 0)}
-            </span>
-          ),
-        )}
+        {DIET_SOURCES.map(({ key, icon, name }) => (
+          <span key={key} data-share={key} className="flex items-center gap-0.5 tabular-nums">
+            <img src={`/icons/resources/${icon}.png`} alt={name} width={16} height={16} />
+            {formatPercent(view.diet.shares[key] ?? 0)}
+          </span>
+        ))}
       </span>
     </span>
   );
@@ -132,28 +128,6 @@ export function dairyName(view: Pick<VillageView, 'milkLPerDay'>): string {
 /** Seno v horní liště – když ves má hotovou ohradu nebo seno v zásobě (oxen.md). */
 export function showsHay(view: Pick<VillageView, 'hayKg' | 'pens'>): boolean {
   return Math.round(view.hayKg) > 0 || view.pens.some((pen) => pen.built);
-}
-
-/**
- * Zboží zvenku (trade.md – Zboží zvenku ve vsi): sůl, železo, med (kg) a kožešiny (kusy) – každé
- * jen, když ho ves má.
- */
-export function ForeignStocks({ goods }: { goods: VillageView['goods'] }): ReactElement {
-  const items = [
-    { icon: 'salt', name: 'Sůl (kg)', value: goods.saltKg },
-    { icon: 'iron', name: 'Železo (kg)', value: goods.ironKg },
-    { icon: 'honey', name: 'Med (kg)', value: goods.honeyKg },
-    { icon: 'furs', name: 'Kožešiny', value: goods.furs },
-  ].filter((item) => Math.round(item.value) > 0);
-  return (
-    <>
-      {items.map((item) => (
-        <Resource key={item.icon} icon={item.icon} name={item.name} testId={`village-${item.icon}`}>
-          {formatInteger(item.value)}
-        </Resource>
-      ))}
-    </>
-  );
 }
 
 /**
@@ -408,7 +382,6 @@ export function TopBar({
             {formatInteger(view.woodLogs)}
           </Resource>
           {view.crafts.present && <CraftStocks crafts={view.crafts} />}
-          <ForeignStocks goods={view.goods} />
           <Resource icon="labor" name="Volná práce" testId="village-labor">
             {formatDecimal(Math.max(0, view.commonLaborPerDay), 1)}
           </Resource>

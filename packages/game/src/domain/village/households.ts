@@ -130,17 +130,37 @@ export function loneSonOf(
 ): Person | undefined {
   if (!isFull(state, dwelling.id, day)) return undefined;
   const members = occupants(state, dwelling.id);
-  const sons = members.filter((m) => m.sex === 'male' && parentHere(m, members)).sort(byAge);
-  const marriedSon = sons.some((s) => !unmarriedHere(s, members));
-  const unmarried = sons.filter(
-    (s) => unmarriedHere(s, members) && ageYears(s.bornDay, day) >= AGE.fertile,
-  );
-  const mothers = members.filter((m) => sons.some((s) => s.motherId === m.id));
-  const parentsInfertile = !mothers.some((m) => canBear(m, day));
-  const candidate = !marriedSon && parentsInfertile ? unmarried[1] : unmarried[0];
+  const unmarried = unmarriedSons(members, day);
+  const candidate = unmarriedHeir(members, day) ? unmarried[1] : unmarried[0];
   if (!candidate) return undefined;
   const staying = members.filter((m) => m.id !== candidate.id);
   return householdBreaksUp(staying, day) ? undefined : candidate;
+}
+
+/** Svobodní synové od 16 let, jejichž matka nebo otec bydlí v domácnosti `members` – od nejstaršího. */
+function unmarriedSons(members: readonly Person[], day: number): Person[] {
+  return members
+    .filter(
+      (m) =>
+        m.sex === 'male' &&
+        parentHere(m, members) &&
+        unmarriedHere(m, members) &&
+        ageYears(m.bornDay, day) >= AGE.fertile,
+    )
+    .sort(byAge);
+}
+
+/**
+ * Svobodný dědic domácnosti `members` (kinship.md – Domácnosti, Martin): když v domě ještě není
+ * ženatý syn a rodiče už jsou neplodní (žádná matka synů v domě nemůže rodit), zůstává nejstarší
+ * svobodný syn od 16 let; jinak undefined (dědicem je nejstarší ženatý syn – `familiesOf`).
+ */
+export function unmarriedHeir(members: readonly Person[], day: number): Person | undefined {
+  const sons = members.filter((m) => m.sex === 'male' && parentHere(m, members));
+  if (sons.some((s) => !unmarriedHere(s, members))) return undefined;
+  const mothers = members.filter((m) => sons.some((s) => s.motherId === m.id));
+  if (mothers.some((m) => canBear(m, day))) return undefined;
+  return unmarriedSons(members, day)[0];
 }
 
 /** Svobodní synové, kteří smí odejít sami (`loneSonOf`) – od nejvíc přeplněného (plného) domu. */

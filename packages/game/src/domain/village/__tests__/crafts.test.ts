@@ -591,21 +591,3 @@ describe('řemeslníci vyrábějí podle potřeby, volný čas pracují pro ves 
     expect(whole.crafts!.toolsKg).toBeGreaterThan(0);
   });
 });
-
-describe('kovář z koupeného železa (trade.md – Zboží zvenku)', () => {
-  it('železo bere přednostně – jen kuje: 3 čd, 10 kg uhlí a 1,2 kg železa na 1 kg nástrojů', () => {
-    const s = withWorkshop(fullVillage(), 'smith');
-    s.crafts = { charcoalKg: 1000, toolsKg: 0, potteryKg: 0 };
-    s.goods = { saltKg: 0, ironKg: 10, honeyKg: 0, furs: 0 };
-    craftDays(s, 1, null);
-    // stejná práce dne (0,9 čd) dá z železa 0,3 kg místo 0,09 kg z rudy
-    expect(s.crafts.toolsKg).toBeCloseTo(0.3, 9);
-    expect(s.goods.ironKg).toBeCloseTo(10 - 0.36, 9);
-    expect(s.crafts.charcoalKg).toBeCloseTo(1000 - 3, 9);
-    // železa na půl dne – zbytek práce jde na rudu
-    s.goods.ironKg = 0.18;
-    craftDays(s, 1, null);
-    expect(s.goods.ironKg).toBeCloseTo(0, 9);
-    expect(s.crafts.toolsKg).toBeCloseTo(0.3 + 0.15 + 0.045, 9);
-  });
-});

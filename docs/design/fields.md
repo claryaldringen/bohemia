@@ -300,7 +300,7 @@ Clauda**; implementace v `square-grid.ts` a `squares.ts` (jádro), ve scéně `f
   ves zároveň (viz Ozim a jař).
 - **Spotřeba z pole podle stravy** (od 19. 10. 2026, viz Osev podle stravy níže): ves nejí jen
   obilí, takže seje obilí a luštěniny jen na tu část energie, kterou jí nedá maso, mléko a sýr,
-  vejce, ovoce a med.
+  vejce a ovoce.
 - Když ves během roku zjistí, že má zásob dost, **rozjetý plán zkrátí hned** – díly, na kterých
   ještě nezačala práce, nechá ladem (viz Osev podle zásob).
 
@@ -321,8 +321,8 @@ z luštěnin – obilí dorovná jen ≈ 16 %. Zásoby po sklizni proto vycháze
   140, dítě 100 kg obilí). Pole = obilí a luštěniny (luštěniny svou energií – cíl osevu je od
   luštěnin energie obou plodin, viz Luštěniny).
 - **Podíl jídla z pole** = kolik energie ves za **uplynulý hospodářský rok** (1. 9. – 31. 8.)
-  potřebovala z pole: každý den potřeba energie bez toho, co pokrylo maso, mléko a sýr, vejce,
-  ovoce a med, sečteno za rok a vyděleno roční potřebou. Měří se **potřeba, ne snědené obilí** –
+  potřebovala z pole: každý den potřeba energie bez toho, co pokrylo maso, mléko a sýr, vejce
+  a ovoce, sečteno za rok a vyděleno roční potřebou. Měří se **potřeba, ne snědené obilí** –
   když ves hladoví, sní obilí méně, ale pole jí pořád má dát celý zbytek (jinak by hlad snížil
   osev a s ním přinesl další hlad). Celý rok proto, že strava se během roku mění (ovoce září–únor,
   mléko květen–září, sýr přes zimu) – průměr celého roku ji nezkreslí.
@@ -334,7 +334,7 @@ z luštěnin – obilí dorovná jen ≈ 16 %. Zásoby po sklizni proto vycháze
   energie a příští jen na 22 %).
 - **Pojistka podílu:** podíl nejméně **0,3 = 1 − strop masa (0,4) − strop mléka a sýra (0,3)** –
   ves počítá, že z pole sní aspoň to, co maso a mléko na svých stropech nepokryjí; na ovoce (jen
-  září–únor, sad stárne), vejce (málo) a med (jen z výprav) svůj odhad spotřeby nespoléhá. Když
+  září–únor, sad stárne), vejce (málo) svůj odhad spotřeby nespoléhá. Když
   Martin stropy sníží, pojistka stoupne s nimi. Je to pojistka odhadu spotřeby – zásobu na výpadek
   drží pojistka zásob (Osev podle zásob). Cena: ves se sadem (ovoce sníží podíl pod 0,3) má zásoby
   o rozdíl vyšší.
@@ -1304,7 +1304,7 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 | Osev luštěniny úrodnost vrátí o 0,03 (obilí −0,12); ztráta skladováním jako obilí                                                 | návrh Clauda (rešerše)                          |
 | Obilí má přednost: luštěniny na díly výběru od domu, obilí doplní energii, luštěniny smějí jít na rezervu osevu, ne pod potřebu   | návrh Clauda                                    |
 | Střídání: díly s loňskými luštěninami až nakonec; díly hotové během roku jen do jaře                                              | návrh Clauda                                    |
-| Osev podle stravy – ves seje obilí a luštěniny jen na energii, kterou nedá maso, mléko a sýr, vejce, ovoce a med                  | Martin (19. 10. 2026)                           |
+| Osev podle stravy – ves seje obilí a luštěniny jen na energii, kterou nedá maso, mléko a sýr, vejce a ovoce                       | Martin (19. 10. 2026)                           |
 | Podíl z pole za uplynulý hospodářský rok (potřeba, ne snědené obilí), pojistka 0,3                                                | návrh Clauda                                    |
 | ~~Rezerva jde do obilí – zásoby obilí na 1–1,5 roku potřeby z pole~~; výhled jídla s mlékem do sklizně                            | návrh Clauda                                    |
 | Osev podle zásob – ves si drží rozumnou zásobu na hubené roky, s velkou zásobou seje méně a staví                                 | Martin (19. 10. 2026)                           |
