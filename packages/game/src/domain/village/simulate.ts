@@ -10,14 +10,16 @@ import {
   workCarpenters,
 } from './carpentry';
 import {
-  cropHaulShare,
+  addHaulTrips,
+  cropCartReach,
   fellingHaulable,
   haulAvailable,
   haulCartsToday,
   hauledBy,
   haulPlan,
   haulProgress,
-  mowingHaulShare,
+  logsCartReach,
+  mowingCartReach,
   retireCarts,
   teamsHomeShare,
   villageCartAccess,
@@ -718,7 +720,7 @@ function work(
   // dojedou – převezmou kus nošení a jde s nimi honák a nakladač (úloha pak chce méně práce)
   const ploughing = owned.some((task) => task.name === 'plough');
   let cartsLeft = haulCartsToday(state, ploughing);
-  const access = cartsLeft > 0 ? villageCartAccess(state, landscape) : null;
+  const access = cartsLeft > 0 ? villageCartAccess(state, day, landscape, obstacles) : null;
   const hauls = new Map<DayTask, HaulPlan>();
   if (access)
     cartsLeft = planTaskHauls(state, dayTasks, hauls, cartsLeft, access, coverage, landscape);
@@ -773,9 +775,14 @@ function work(
         manDays: crew,
         carts: haul.carts,
       });
-      // co vozy převzaly – nejvýš podíl nošení celé úlohy (carts.ts – haulAvailable)
+      // co vozy převzaly – nejvýš podíl nošení celé úlohy (carts.ts – haulAvailable); jízdy svozu
+      // do ročního provozu cest (vyjeté cesty – roads.md)
       const owner = task.field ? task.field.work : state.hay?.mowing;
-      if (owner) owner.hauled = (owner.hauled ?? 0) + hauledBy(labor, haul);
+      if (owner) {
+        const hauled = hauledBy(labor, haul);
+        owner.hauled = (owner.hauled ?? 0) + hauled;
+        if (owner.cartReach) addHaulTrips(state, owner.cartReach, hauled);
+      }
     }
     if (task.name === 'milking') {
       milked = Math.min(1, amount / animals.milking);
@@ -821,7 +828,7 @@ function work(
   // klády ke stavbám vozem tam, kam vůz dojede (wagons.md – Vůz) – honák a nakladač ze společné
   // práce
   if (access && cartsLeft > 0) {
-    const logs = haulLogs(state, day, common, cartsLeft, access, obstacles);
+    const logs = haulLogs(state, day, common, cartsLeft, access, landscape, obstacles);
     if (logs) {
       common -= logs.manDays;
       haulWork.push(logs);
@@ -1057,13 +1064,16 @@ function planTaskHauls(
   for (const task of tasks) {
     if (left <= 0) break;
     let available = 0;
+    // kam vůz dojede, se spočítá při prvním svozu úlohy a uloží u ní (vozová síť – carts.ts)
     if (task.field?.name === 'harvest') {
       const work = task.field.work;
-      const share = carry * cropHaulShare(state, work, landscape, access);
+      work.cartReach ??= cropCartReach(state, work, landscape, access);
+      const share = carry * work.cartReach.share;
       available = haulAvailable(work.required.harvest, task.remaining, work.hauled ?? 0, share);
     } else if (task.name === 'mow' && state.hay?.mowing) {
       const mowing = state.hay.mowing;
-      const share = CARTS.haulShare.hay * mowingHaulShare(state, mowing, landscape, access);
+      mowing.cartReach ??= mowingCartReach(state, mowing, landscape, access);
+      const share = CARTS.haulShare.hay * mowing.cartReach.share;
       available = haulAvailable(mowing.required, task.remaining, mowing.hauled ?? 0, share);
     } else {
       continue;
@@ -1089,13 +1099,17 @@ function haulLogs(
   common: number,
   carts: number,
   access: CartAccess,
+  landscape: Landscape | null,
   obstacles: ObstacleLayer | null,
 ): HaulWork | null {
   if (common <= 0) return null;
   const founding = foundingIndex(state);
   const candidates = state.constructions.flatMap((c) => {
-    if (!c.wood || constructionNeed(state, c, day, founding) <= 0) return [];
-    const reach = fellingHaulable(c, obstacles, access);
+    if (!c.wood || c.done + 1e-9 >= woodFellingCost(c.wood)) return [];
+    if (constructionNeed(state, c, day, founding) <= 0) return [];
+    // ke kterým stromům vůz dojede – jednou za stavbu, při prvním svozu klád
+    c.wood.cartReach ??= logsCartReach(state, c.wood, landscape, obstacles, access);
+    const reach = fellingHaulable(c, c.wood.cartReach.trees);
     const haulable = haulAvailable(
       reach.total,
       reach.remaining,
@@ -1121,6 +1135,7 @@ function haulLogs(
     }
     invest(state, day, c, work, false, founding);
     wood.hauled = (wood.hauled ?? 0) + work;
+    if (wood.cartReach) addHaulTrips(state, wood.cartReach, work);
     left -= work;
   }
   return { job: 'logs', manDays: plan.crew * scale, carts: plan.carts, trees };

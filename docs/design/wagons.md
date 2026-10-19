@@ -2,9 +2,9 @@
 
 Stav: **schváleno** (Martin, 19. 10. 2026: „Ano, schvaluji“). Co řekl Martin, je u bodu označeno;
 ostatní je návrh Clauda. Čísla ověřila [rešerše](research/2026-10-19-carts-carpentry.md).
-**Fáze 1 implementovaná (19. 10. 2026)** – tesař a vozy v jádru a rozhraní, dosah vozu zatím
-zástupný (část [Jak je postavené – fáze 1](#jak-je-postavené--fáze-1)); fáze 2 je vozová síť,
-fáze 3 vozy ve scéně.
+**Fáze 1 a 2 implementované (19. 10. 2026)** – tesař a vozy v jádru a rozhraní (část [Jak je
+postavené – fáze 1](#jak-je-postavené--fáze-1)), vozová síť a vyjeté cesty (fáze 2); svoz jezdí
+po vozové síti. Fáze 3 jsou vozy ve scéně.
 
 ## Proč
 
@@ -171,12 +171,33 @@ Návrh Clauda (19. 10. 2026) – detaily, které návrh výš nechal otevřené;
   (400 / 800 kg), s vozem 2 lidé místo nosičů po 25 kg; vozů jede tolik, aby lidí bylo nejméně.
   Vozy a jejich spřežení jsou do návratu pryč – doma nevozí a spřežení neorá. Stezka je pro vozy
   zatím sjízdná vždy (je upravená cesta).
-- **Dosah vozu je rozhraní** (`CartAccess` – „dojede vůz k místu a za kolik metrů“). Fáze 1 dává
-  **zástupnou odpověď** (`straightCartAccess`): vůz jede od ohrady rovně, jen po louce nebo po
-  políčku vsi (pole, ohrada), ne lesem ani vodou, se sklonem ve směru jízdy nejvýš 12 %; lesem
-  jen posledních 30 m ke stromu (kládu ke kraji vlečou lidé). Pevné cesty, brody a hať nezná –
-  je spíš přísná: kde vůz rovně nedojede, nosí se jako dřív (anti-cíl). Bez krajiny (testy,
-  kalibrace) dojede všude. Vozová síť (fáze 2) ho nahradí skutečnými trasami.
+- **Dosah vozu je rozhraní** (`CartAccess` – „dojede vůz k cílům a za kolik metrů“, cíle
+  najednou). S krajinou ho dává **vozová síť** (fáze 2 – `networkCartAccess` přes
+  `villageCartRoutes`: trasy dvoukoláku od ohrady se spřežením, sklon ve směru jízdy do meze,
+  serpentiny, brody, les jen po pevné cestě, přes osetý díl ne); bez krajiny (testy, kalibrace)
+  dojede všude (`EVERYWHERE`). Kde vůz nedojede, nosí se jako dřív (anti-cíl). Fáze 1 měla
+  zástupnou odpověď (rovně po louce, bez lesa a vody), síť ji nahradila (19. 10. 2026).
+  - **Kam vůz dojede, se počítá jednou za úlohu** – při prvním svozu úlohy (žeň plodiny, seč,
+    klády stavby) jedno hledání ke všem jejím cílům a výsledek se uloží u úlohy (`CartReach` –
+    podíl plochy, kam vůz dojede, a body jízd; u klád stromy). Výsledek tak nezávisí na kouscích
+    dopočtu a síť se nepočítá každý den (Vlkov: rok s vozem ≈ +0,5 s dopočtu, první hledání ≈ 1 s).
+  - **Cíle:** díl pole a louka do 9 m od středu čtverce (kraj dílu – `CARTS.reachM`, jako roční
+    síť vozů), strom do 30 m (kládu ke kraji lesa vlečou lidé – `CARTS.dragM`).
+  - **Žeň – vůz jede po strništi** (rozhodnutí Clauda): síť nepustí vůz přes osetý díl, takže
+    doprostřed velkého osetého pole by nedojel. Snopy se ale svážejí z požatých dílů, kde stojí
+    v panácích, a žeň jde od domu ven (fields.md – Postup práce po čtvercích) – díly sklízené
+    plodiny se pro vůz postupně otevírají. Dosah žně proto síť počítá s díly sklízené plodiny jako
+    se strništěm (`harvestReachState` – stadium zoraného dílu, jede se pomaleji); ostatní osetá pole
+    (jař a luštěniny při žni ozimu) vůz nepustí – snopy za nimi nosí lidé jako dřív. Proti
+    variantě „jen k dílům na kraji osetého bloku“ by vůz ve velkém poli nevozil skoro nic, ač
+    po strništi za žní jezdil; proti „všude“ zůstává překážkou cizí osetí, voda a les.
+  - **Jízdy do ročního provozu cest:** vůz za den udělá 8 jízd (`CARTS.loadsPerCartDay`) – podle
+    převzatého nošení se přičtou k bodům úlohy (za každé pole a louky dosažený díl nejblíž těžišti,
+    u klád stromy) přes `addRoadCartTrips`; z nich roční kontrola dělá vyjeté cesty (fáze 2).
+    První den vsi, kdy pevné cesty ještě nezačala sčítat, se jízdy nepočítají.
+  - **Výprava** jede s vozem jen po stezce sjízdné pro vozy (`trailCartPassable` –
+    `axisCartCheck`: sklon do meze, voda jen brodem); jinak nesou nosiči. Jízdy výprav se do
+    provozu nesčítají (pár za rok – pod prahem vyjeté cesty).
 - **Rozhraní:** panel dílny tesaře – co dělá (vyrábí vůz s průběhem, nářadí, pomáhá stavbám,
   kácí), vozy proti potřebě po druzích (kolik na cestě), dřevěné nářadí s pokrytím, pokrytí
   dřevěné práce staveb. Horní lišta – dřevěné nářadí (s tesařem) a vozy (jen když jsou).
@@ -188,9 +209,8 @@ Návrh Clauda (19. 10. 2026) – detaily, které návrh výš nechal otevřené;
 - **Ikony:** `build/tesar.png` (polozemnice s kozlíky, trámem a dvoukolákem), `resources/cart.png`,
   `resources/wood-tools.png` – `tools/blender/icons.py`.
 
-**Zbývá:** fáze 2 – vozová síť (sklon ve směru jízdy – běžně 8 %, mez 12 %, serpentiny, vyjeté
-cesty, brody a hať, poloměr otáčení čtyřkoláku) nahradí `straightCartAccess`; fáze 3 – vozy se
-spřežením a honákem ve scéně podle `SceneVillage.carts`, model dílny tesaře.
+**Zbývá:** fáze 3 – vozy se spřežením a honákem ve scéně podle `SceneVillage.carts` (trasu po síti
+scéně dá `villageCartRoutes`), model dílny tesaře; jízdy výprav do provozu stezky.
 
 ## Jak je postavené – fáze 2 (vozová síť a vyjeté cesty)
 
@@ -205,8 +225,9 @@ v `paths/roads.ts`, čísla `CART_ROUTES` a `CART_ROADS` v `rules.ts`.
   45°) nevyjel ani šikmo a serpentiny by měly jen úhel 45°; hustší mřížka by stála 4× víc buněk.
 - **Sklon ve směru jízdy:** z výšek koncových buněk hrany. Nad **10 %** (`maxGrade`) hrana není,
   pod ní stoupání zdražuje se čtvercem (u meze 5×), takže nejlevnější je stoupat ≈ 5 % – do svahu
-  vede trasa šikmo a **serpentiny vzniknou samy**. Mez je zatím bez rešerše (rešerše fáze 1 ještě
-  není hotová) – spodní hranice rozmezí 10–12 % ze zadání: volský potah s nákladem na hliněné cestě,
+  vede trasa šikmo a **serpentiny vzniknou samy**. Mez (návrh před rešerší) leží v rozmezí
+  [rešerše](research/2026-10-19-carts-carpentry.md) – vozy se zvířaty běžně do 8 %, krátce do 12 %
+  (Practical Action, tah volů podle Tillers) – a je spodní hranicí rozmezí 10–12 % ze zadání: volský potah s nákladem na hliněné cestě,
   i za mokra. Spodní, protože krajiny hry jsou mírné: sklon mezi políčky má medián ≈ 3 %, 99 %
   políček pod 10–13 % a nejprudší louky (≈ 15 %) leží 700–1400 m od místa vsi (seedy 7, 8, 9, 42,
   43, 44 a Vlkov); scéna terén převyšuje 3× (`HEIGHT_SCALE`), takže svah, který na obrazovce
@@ -270,7 +291,8 @@ v `paths/roads.ts`, čísla `CART_ROUTES` a `CART_ROADS` v `rules.ts`.
   louka mapy (krajiny jsou mírné – bývá daleko od vsi, kamera se tam přesune), dole obydlí a ohrada
   se spřežením, nahoře díl pole; pěšina na pole jde rovně, vozová cesta šikmo a serpentinami
   (seed 44: dvoukolák 213 m, čtyřkolák 249 m, přímo 62 m).
-- **Zatím není:** vozy ve scéně a svoz (fáze 1), ikona vozu v panelu cesty.
+- **Zatím není:** vozy ve scéně, ikona vozu v panelu cesty. Svoz fáze 1 už jezdí po síti
+  (část fáze 1 – Dosah vozu).
 
 ## Rozhodnutí
 
@@ -292,6 +314,7 @@ v `paths/roads.ts`, čísla `CART_ROUTES` a `CART_ROADS` v `rules.ts`.
 | Čtyřkolák navíc k dvoukolákům, jen s hotovou stezkou; vůz slouží 10 let                   | návrh Clauda          |
 | Vůz za den = 8 nosičů se 2 lidmi; odnos snopů, čtvrtina seče, polovina dovozu klád        | návrh Clauda          |
 | Dosah vozu jako rozhraní; fáze 1 zástupně rovně po louce, bez lesa a vody, sklon do 12 %  | návrh Clauda          |
+| Svoz po vozové síti, dosah jednou za úlohu; žeň po strništi sklízené plodiny              | návrh Clauda          |
 | Fáze 2: 16 směrů na mřížce pěšin, směr jízdy ve stavu hledání, mez sklonu 10 %            | návrh Clauda          |
 | Pevná cesta pro vůz sjízdná vždy; vůz vyjede kdekoli u ohrady se spřežením                | návrh Clauda          |
 | Vyjetá cesta 0,25 jízdy denně 2 roky; jedna zemská stezka, sjízdnost `axisCartCheck`      | návrh Clauda          |

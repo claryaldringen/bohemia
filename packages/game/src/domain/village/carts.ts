@@ -1,34 +1,34 @@
-import {
-  heightAtWorld,
-  obstacleIndex,
-  surfaceAt,
-  tileOfWorldPoint,
-  type Landscape,
-  type ObstacleLayer,
-} from '../landscape';
+import { obstacleIndex, type Landscape, type ObstacleLayer } from '../landscape';
 import { ableTeams, villagePens } from './oxen';
-import { CARTS, CART_ACCESS } from './rules';
+import { axisCartCheck, type CartTarget } from './paths/cart';
+import { addRoadCartTrips, villageCartRoutes } from './paths/roads';
+import { CARTS } from './rules';
 import { squareCenter } from './square-grid';
 import { fieldGridOf } from './squares';
 import type {
   Cart,
   CartKind,
+  CartReach,
   ChronicleEvent,
   ConstructionWood,
   CropWork,
   FieldPart,
   HayMowing,
   TradeExpedition,
+  Trail,
   VillageState,
 } from './types';
+import { trailTerrain } from './trail';
 import { woodFellingCost } from './wood';
 
 // Vozy (wagons.md – Vůz): zásoba vsi, kterou vyrábí tesař (carpentry.ts). Vůz stojí u ohrady se
 // spřežením, táhnou ho voli ze spřežení (ve dny orby orají, s výpravou jsou pryč) a jde s ním
 // honák a nakladač. Vozí snopy z pole, seno z luk a klády ke stavbám – kus práce nošení převezme
 // tam, kam dojede (`CartAccess`); obchodní výprava vezme vůz místo nosičů (trade.ts).
-// Dosah vozu je zatím zástupný (`straightCartAccess` – fáze 1); vozová síť (fáze 2) dá skutečné
-// trasy se sklonem ve směru jízdy, serpentinami a vyjetými cestami.
+// Dosah vozu dává vozová síť (fáze 2 – `villageCartRoutes`: sklon ve směru jízdy, serpentiny,
+// brody, les jen po pevné cestě; bez krajiny všude). Dosah úlohy se spočítá jednou – při prvním
+// svozu – a uloží u ní (`CartReach`), takže výsledek nezávisí na kouscích dopočtu. Jízdy svozu jdou
+// do ročního provozu cest – z nich vznikají vyjeté cesty (`addRoadCartTrips`).
 
 /** Tolerance proti chybám desetinných čísel. */
 const EPSILON = 1e-9;
@@ -220,81 +220,36 @@ export function haulAvailable(
 // --- dosah vozu ----------------------------------------------------------------------------
 
 /**
- * Dosah vozu (wagons.md – Vozová síť): dojede vůz od ohrady k místu, a kolik metrů jízdy?
- * Rozhraní pro práci s vozy – kde vůz nedojede, nosí se jako dřív (anti-cíl: vůz, který ušetří
- * práci tam, kam nedojede). Fáze 1 dává zástupnou odpověď (`straightCartAccess`), vozová síť
- * (fáze 2 – sklon ve směru jízdy, serpentiny, vyjeté cesty, brody a hať) ho nahradí.
+ * Dosah vozu (wagons.md – Vozová síť): dojede vůz od ohrady se spřežením k cílům, a kolik metrů
+ * jízdy? Rozhraní pro práci s vozy – kde vůz nedojede, nosí se jako dřív (anti-cíl: vůz, který
+ * ušetří práci tam, kam nedojede). `state` je stav vsi, ze kterého se síť počítá (i upravený –
+ * žeň po strništi, `harvestReachState`); cíle jdou najednou (jedno hledání). Délka v pořadí cílů,
+ * null = nedojede.
  */
-export interface CartAccess {
-  /**
-   * Délka jízdy k bodu (m), nebo null – vůz tam nedojede. `dragM` – posledních tolik metrů
-   * smí vést lesem (kládu ke kraji lesa vlečou lidé – CARTS.dragM); jinak 0.
-   */
-  reach(target: { x: number; z: number }, dragM?: number): number | null;
-}
+export type CartAccess = (state: VillageState, targets: readonly CartTarget[]) => (number | null)[];
 
 /** Vůz dojede všude vzdušnou čarou – ves bez krajiny (testy, kalibrace). */
-export const EVERYWHERE: CartAccess = {
-  reach: () => 0,
-};
+export const EVERYWHERE: CartAccess = (_state, targets) => targets.map(() => 0);
 
 /**
- * Zástupný dosah vozu (fáze 1, návrh Clauda – do vozové sítě): vůz jede od ohrady rovně a cesta
- * se vzorkuje po CART_ACCESS.stepM – každý bod musí ležet na louce nebo na políčku vsi (pole,
- * ohrada – `open`), ne v lese ani ve vodě, a sklon mezi body (sklon ve směru jízdy) nejvýš
- * CART_ACCESS.maxGrade. Les smí jen posledních `dragM` metrů (kládu vlečou lidé). Pevné cesty,
- * brody a hať zatím nezná – vozová síť (fáze 2) je zahrne a ve svahu najde serpentiny, takže
- * zástupná odpověď je spíš přísná: kde vůz rovně nedojede, nosí se jako dřív. Výsledky drží
- * v mezipaměti.
+ * Dosah vozů po vozové síti (wagons.md – fáze 2, `villageCartRoutes`): trasy dvoukoláku od ohrad
+ * se spřežením – sklon ve směru jízdy, serpentiny, brody, les jen po pevné cestě, přes osetý díl
+ * ne. Bez ohrady se spřežením nedojede nikam.
  */
-export function straightCartAccess(
+export function networkCartAccess(
+  day: number,
   landscape: Landscape,
-  from: { x: number; z: number },
-  open: ReadonlySet<number> = new Set(),
+  obstacles: ObstacleLayer | null,
+  kind: CartKind = 'two-wheel',
 ): CartAccess {
-  const cache = new Map<string, number | null>();
-  return {
-    reach(target, dragM = 0): number | null {
-      const key = `${target.x.toFixed(1)},${target.z.toFixed(1)},${dragM}`;
-      const cached = cache.get(key);
-      if (cached !== undefined) return cached;
-      const result = straightReach(landscape, from, target, dragM, open);
-      cache.set(key, result);
-      return result;
-    },
+  return (state, targets) => {
+    if (targets.length === 0) return [];
+    const routes = villageCartRoutes(state, day, landscape, obstacles, kind, targets);
+    return targets.map((_, k) => {
+      const route = routes?.[k];
+      return route?.reached ? route.lengthM : null;
+    });
   };
-}
-
-function straightReach(
-  landscape: Landscape,
-  from: { x: number; z: number },
-  target: { x: number; z: number },
-  dragM: number,
-  open: ReadonlySet<number>,
-): number | null {
-  const dx = target.x - from.x;
-  const dz = target.z - from.z;
-  const length = Math.sqrt(dx * dx + dz * dz);
-  const steps = Math.max(1, Math.ceil(length / CART_ACCESS.stepM));
-  const step = length / steps;
-  let previous = heightAtWorld(landscape, from.x, from.z);
-  for (let i = 1; i <= steps; i++) {
-    const t = i / steps;
-    const x = from.x + dx * t;
-    const z = from.z + dz * t;
-    const tile = tileOfWorldPoint(landscape, x, z);
-    if (!tile) return null;
-    const index = tile.y * landscape.size + tile.x;
-    const surface = surfaceAt(landscape, tile.x, tile.y);
-    if (surface === 'water') return null;
-    if (surface === 'forest' && !open.has(index) && length - t * length > dragM + EPSILON) {
-      return null;
-    }
-    const height = heightAtWorld(landscape, x, z);
-    if (step > EPSILON && Math.abs(height - previous) / step > CART_ACCESS.maxGrade) return null;
-    previous = height;
-  }
-  return length;
 }
 
 /** Odkud vozy vyjíždějí – ohrada se spřežením (nejnižší id); bez ní null. */
@@ -305,129 +260,182 @@ export function cartOrigin(state: Pick<VillageState, 'pens'>): { x: number; z: n
   return pen ? { x: pen.x, z: pen.z } : null;
 }
 
-/** Políčka krajiny, která ves otevřela (díly polí, ohrady) – vůz po nich jede i v bývalém lese. */
-function openTiles(state: VillageState, landscape: Landscape): Set<number> {
-  const tiles = new Set<number>();
-  const add = (p: { x: number; z: number }): void => {
-    const tile = tileOfWorldPoint(landscape, p.x, p.z);
-    if (tile) tiles.add(tile.y * landscape.size + tile.x);
-  };
-  for (const part of state.parts) {
-    if (part.cell) add(partCenter(state, landscape, part));
-  }
-  for (const pen of villagePens(state)) add(pen);
-  return tiles;
-}
-
-/** Střed dílu pole ve světě (díl bez čtverce – starší obrys – null). */
-function partCenter(
-  state: VillageState,
-  landscape: Landscape,
-  part: FieldPart,
-): { x: number; z: number } {
-  return squareCenter(landscape, fieldGridOf(state, part.fieldId), part.cell!);
-}
-
 /**
- * Dosah vozů vsi dnes: s krajinou zástupný dosah od ohrady se spřežením (`straightCartAccess`),
- * bez krajiny všude (testy, kalibrace – jako chůze bez krajiny vzdušně); bez ohrady null.
+ * Dosah vozů vsi dnes: s krajinou vozová síť (`networkCartAccess`), bez krajiny všude (testy,
+ * kalibrace – jako chůze bez krajiny vzdušně); bez ohrady se spřežením null.
  */
 export function villageCartAccess(
   state: VillageState,
+  day: number,
   landscape: Landscape | null,
+  obstacles: ObstacleLayer | null,
 ): CartAccess | null {
-  const origin = cartOrigin(state);
-  if (!origin) return null;
-  if (!landscape) return EVERYWHERE;
-  return straightCartAccess(landscape, origin, openTiles(state, landscape));
+  if (!cartOrigin(state)) return null;
+  return landscape ? networkCartAccess(day, landscape, obstacles) : EVERYWHERE;
 }
 
-/** Podíl plochy dílů, ke kterým vůz dojede (0–1); bez dílů 0. */
-function reachableAreaShare(
-  landscape: Landscape | null,
-  access: CartAccess,
-  squares: readonly { areaM2: number; at: () => { x: number; z: number } | null }[],
-): number {
-  let total = 0;
-  let reached = 0;
-  for (const sq of squares) {
-    total += sq.areaM2;
-    if (!landscape) {
-      reached += sq.areaM2;
-      continue;
-    }
-    const at = sq.at();
-    if (at && access.reach(at) !== null) reached += sq.areaM2;
-  }
-  return total > 0 ? reached / total : 0;
+/** Střed dílu pole ve světě. */
+function partCenter(
+  state: VillageState,
+  geo: { size: number; cellSizeM: number },
+  part: FieldPart,
+): { x: number; z: number } {
+  return squareCenter(geo, fieldGridOf(state, part.fieldId), part.cell!);
+}
+
+/** Místo svozu – cíl vozu, plocha (váha) a skupina (pole, louky), do které patří. */
+interface HaulSpot {
+  x: number;
+  z: number;
+  weight: number;
+  group: string;
 }
 
 /**
- * Podíl sklizně plodiny na dílech, kam vůz dojede (podle plochy dílů plánu) – snopy z ostatních
- * dílů se nosí jako dřív. Počítá se každý den svozu znovu (dosah se mění s poli a ohradami –
- * výsledek nesmí záviset na kouscích dopočtu); dosah sám si body pamatuje (`straightCartAccess`).
+ * Kam vozy na úloze dojedou (`CartReach`): podíl váhy míst, ke kterým vůz dojede, a body jízd –
+ * za každou skupinu (pole, louky) dosažené místo nejblíž jejímu těžišti s váhou dosažené plochy.
  */
-export function cropHaulShare(
+function reachOf(state: VillageState, spots: readonly HaulSpot[], access: CartAccess): CartReach {
+  const total = spots.reduce((sum, s) => sum + s.weight, 0);
+  if (total <= 0) return { share: 0, points: [] };
+  const lengths = access(
+    state,
+    spots.map((s) => ({ x: s.x, z: s.z, reachM: CARTS.reachM })),
+  );
+  const groups = new Map<string, { spots: HaulSpot[]; weight: number; x: number; z: number }>();
+  let reached = 0;
+  spots.forEach((spot, k) => {
+    if (lengths[k] === null || lengths[k] === undefined) return;
+    reached += spot.weight;
+    const g = groups.get(spot.group) ?? { spots: [], weight: 0, x: 0, z: 0 };
+    g.spots.push(spot);
+    g.weight += spot.weight;
+    g.x += spot.x * spot.weight;
+    g.z += spot.z * spot.weight;
+    groups.set(spot.group, g);
+  });
+  const points = [...groups.values()].map((g) => {
+    const cx = g.x / g.weight;
+    const cz = g.z / g.weight;
+    let best = g.spots[0]!;
+    let bestD = Infinity;
+    for (const spot of g.spots) {
+      const d = (spot.x - cx) ** 2 + (spot.z - cz) ** 2;
+      if (d < bestD) {
+        best = spot;
+        bestD = d;
+      }
+    }
+    return { x: best.x, z: best.z, weight: g.weight / reached };
+  });
+  return { share: reached / total, points };
+}
+
+/**
+ * Stav vsi pro žeň (wagons.md – Svoz, rozhodnutí Clauda): vůz jede za žní po strništi – snopy
+ * se svážejí z požatých dílů, kde stojí v panácích, a žeň jde od domu ven (fields.md – Postup
+ * práce po čtvercích), takže díly sklízené plodiny se pro vůz postupně otevírají. Ostatní osetá
+ * pole (jař, luštěniny při žni ozimu) zůstávají neprůjezdná. Díly plodiny `work` proto vozová síť
+ * vidí jako sklizené (strniště – stadium `ready`, jede se pomaleji).
+ */
+export function harvestReachState(state: VillageState, work: CropWork): VillageState {
+  const reaped = new Set(work.partIds);
+  return {
+    ...state,
+    parts: state.parts.map((p) =>
+      reaped.has(p.id) && p.state === 'sown' ? { ...p, state: 'ready' as const } : p,
+    ),
+  };
+}
+
+/**
+ * Kam vůz při žni plodiny dojede (podíl plochy dílů plánu, body jízd po polích) – snopy
+ * z ostatních dílů se nosí jako dřív. Bez krajiny všude (body žádné – jízdy se nesčítají).
+ */
+export function cropCartReach(
   state: VillageState,
   work: CropWork,
   landscape: Landscape | null,
   access: CartAccess,
-): number {
+): CartReach {
+  if (!landscape) return { share: 1, points: [] };
   const partsById = new Map(state.parts.map((p) => [p.id, p]));
-  const squares = work.partIds.flatMap((id) => {
+  const spots = work.partIds.flatMap((id): HaulSpot[] => {
     const part = partsById.get(id);
-    if (!part) return [];
-    return [
-      {
-        areaM2: part.areaM2,
-        at: () => (landscape && part.cell ? partCenter(state, landscape, part) : null),
-      },
-    ];
+    if (!part?.cell) return [];
+    const at = partCenter(state, landscape, part);
+    return [{ ...at, weight: part.areaM2, group: `field:${part.fieldId}` }];
   });
-  return reachableAreaShare(landscape, access, squares);
+  return reachOf(harvestReachState(state, work), spots, access);
 }
 
-/** Podíl seče na loukách, kam vůz dojede (podle plochy luk v seči). */
-export function mowingHaulShare(
+/** Kam vůz při seči dojede (podíl plochy luk v seči, body jízd – díly polí a přirozené louky). */
+export function mowingCartReach(
   state: VillageState,
   mowing: HayMowing,
   landscape: Landscape | null,
   access: CartAccess,
-): number {
+): CartReach {
+  if (!landscape) return { share: 1, points: [] };
   const partsById = new Map(state.parts.map((p) => [p.id, p]));
-  const squares = (mowing.squares ?? mowing.partIds.map((partId) => ({ partId }))).flatMap((sq) => {
+  const squares = mowing.squares ?? mowing.partIds.map((partId) => ({ partId }));
+  const spots = squares.flatMap((sq): HaulSpot[] => {
     if (sq.partId !== undefined) {
       const part = partsById.get(sq.partId);
-      if (!part) return [];
-      return [
-        {
-          areaM2: part.areaM2,
-          at: () => (landscape && part.cell ? partCenter(state, landscape, part) : null),
-        },
-      ];
+      if (!part?.cell) return [];
+      const at = partCenter(state, landscape, part);
+      return [{ ...at, weight: part.areaM2, group: `field:${part.fieldId}` }];
     }
     const cell = 'cell' in sq ? sq.cell : undefined;
     if (!cell) return [];
-    return [
-      {
-        areaM2: 'areaM2' in sq ? sq.areaM2 : 0,
-        at: () => (landscape ? squareCenter(landscape, undefined, cell) : null),
-      },
-    ];
+    const at = squareCenter(landscape, undefined, cell);
+    return [{ ...at, weight: 'areaM2' in sq ? sq.areaM2 : 0, group: 'meadow' }];
   });
-  return reachableAreaShare(landscape, access, squares);
+  return reachOf(state, spots, access);
 }
 
 /**
- * Kácení a dovoz klád stavby u stromů, ke kterým vůz dojede (člověkodny) – celé (`total`)
- * a zbývající (`remaining`); kládu z lesa ke kraji vlečou lidé (CARTS.dragM). Stromy bez polohy
- * (ves bez vrstvy překážek) dosáhne vždy, stromy mimo vrstvu (les vsi) nikdy – zástupná odpověď
- * je přísná.
+ * Ke kterým stromům stavby vůz dojede (wagons.md – Svoz klád): k dospělému stromu do
+ * CARTS.dragM (kládu ke kraji lesa vlečou lidé). Stromy bez polohy (ves bez vrstvy překážek) vždy,
+ * stromy mimo vrstvu (les vsi) nikdy – vozová síť je stejně do lesa nepustí. Body jízd = stromy.
+ */
+export function logsCartReach(
+  state: VillageState,
+  wood: ConstructionWood,
+  landscape: Landscape | null,
+  obstacles: ObstacleLayer | null,
+  access: CartAccess,
+): NonNullable<ConstructionWood['cartReach']> {
+  if (!landscape || !obstacles) return { trees: wood.fell.map(() => true), points: [] };
+  const at = wood.fell.map((tree) => {
+    if (tree.id === null) return null;
+    const index = obstacleIndex(obstacles, tree.id);
+    return index < 0 ? null : { x: obstacles.x[index]!, z: obstacles.z[index]! };
+  });
+  const asked = at.flatMap((p, k) => (p ? [{ k, p }] : []));
+  const lengths = access(
+    state,
+    asked.map(({ p }) => ({ x: p.x, z: p.z, reachM: CARTS.dragM })),
+  );
+  const trees = wood.fell.map((tree) => tree.id === null);
+  const points: CartReach['points'] = [];
+  let weight = 0;
+  asked.forEach(({ k, p }, q) => {
+    if (lengths[q] === null || lengths[q] === undefined) return;
+    trees[k] = true;
+    points.push({ x: p.x, z: p.z, weight: wood.fell[k]!.cost });
+    weight += wood.fell[k]!.cost;
+  });
+  return { trees, points: points.map((p) => ({ ...p, weight: p.weight / (weight || 1) })) };
+}
+
+/**
+ * Kácení a dovoz klád stavby u stromů, ke kterým vůz dojede (`reach` – po stromech; člověkodny)
+ * – celé (`total`) a zbývající (`remaining`).
  */
 export function fellingHaulable(
   c: { done: number; wood?: ConstructionWood },
-  obstacles: ObstacleLayer | null,
-  access: CartAccess,
+  reach: readonly boolean[],
 ): { total: number; remaining: number } {
   const wood = c.wood;
   const none = { total: 0, remaining: 0 };
@@ -437,22 +445,52 @@ export function fellingHaulable(
   let total = 0;
   let remaining = 0;
   let at = 0;
-  for (const tree of wood.fell) {
+  wood.fell.forEach((tree, k) => {
     const start = at;
     at += tree.cost;
-    let reached = tree.id === null || !obstacles;
-    if (!reached && obstacles && tree.id !== null) {
-      const index = obstacleIndex(obstacles, tree.id);
-      reached =
-        index >= 0 &&
-        access.reach({ x: obstacles.x[index]!, z: obstacles.z[index]! }, CARTS.dragM) !== null;
-    }
-    if (!reached) continue;
+    if (!reach[k]) return;
     total += tree.cost;
     // zbývá jen nepokácená část (kácí se v pořadí stromů)
     remaining += Math.max(0, at - Math.max(start, c.done));
-  }
+  });
   return { total, remaining };
+}
+
+/**
+ * Jízdy svozu do ročního provozu cest (wagons.md – Vyjeté cesty, `addRoadCartTrips`): vůz za den
+ * udělá CARTS.loadsPerCartDay jízd – podle převzatého nošení (`hauled`, čd) rozdělených na body
+ * úlohy podle váhy. Ves bez pevných cest (bez krajiny) nic nesčítá.
+ */
+export function addHaulTrips(
+  state: VillageState,
+  reach: Pick<CartReach, 'points'>,
+  hauled: number,
+  kind: CartKind = 'two-wheel',
+): void {
+  if (!state.roads || hauled <= EPSILON || reach.points.length === 0) return;
+  const trips = (hauled * CARTS.loadsPerCartDay) / CARTS.carrierManDays;
+  addRoadCartTrips(
+    state.roads,
+    reach.points.map((p) => ({ x: p.x, z: p.z, kind, trips: trips * p.weight })),
+  );
+}
+
+/**
+ * Projede vůz zemskou stezkou (wagons.md – Obchod; `axisCartCheck` – sklon ve směru jízdy do
+ * meze a voda jen brodem)? Osa stezky = její úseky pevných cest od vsi ven. Bez krajiny ano.
+ */
+export function trailCartPassable(
+  state: Pick<VillageState, 'roads'>,
+  trail: Pick<Trail, 'pieces'>,
+  landscape: Landscape | null,
+): boolean {
+  if (!landscape) return true;
+  const roads = new Map((state.roads?.roads ?? []).map((r) => [r.id, r]));
+  const terrain = trailTerrain(landscape, null);
+  return trail.pieces.every((piece) => {
+    const road = roads.get(piece.roadId);
+    return !road || axisCartCheck(road.points, terrain).passable;
+  });
 }
 
 /** Vozy výpravy podle id (pro panel – druh vozů na cestě). */

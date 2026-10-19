@@ -568,6 +568,11 @@ export interface ConstructionWood {
   felled: number;
   /** Dovoz klád, který převzaly vozy (wagons.md – Vůz; člověkodny kácení); chybí = 0. */
   hauled?: number;
+  /**
+   * Ke kterým stromům (v pořadí `fell`) vůz dojede a body jízd – spočítá se při prvním svozu klád
+   * (wagons.md). Chybí = ještě ne.
+   */
+  cartReach?: { trees: boolean[]; points: CartReach['points'] };
 }
 export type TaskName = 'reclaim' | 'dig' | 'sow' | 'weed' | 'harvest' | 'thresh';
 /** Polní práce s pevnou sazbou na osetý hektar (vracení přílohu se počítá podle stáří přílohu). */
@@ -614,6 +619,16 @@ export interface CropWork {
    * na dílech, kam vůz dojede. Chybí = 0.
    */
   hauled?: number;
+  /** Kam vůz při žni dojede – spočítá se při prvním svozu (wagons.md – Svoz). Chybí = ještě ne. */
+  cartReach?: CartReach;
+}
+/**
+ * Kam vozy na úloze dojedou (wagons.md – Vůz, vozová síť): podíl práce úlohy na místech, kam vůz
+ * dojede (0–1), a body jízd s vahou (podíl jízd) – do ročního provozu cest.
+ */
+export interface CartReach {
+  share: number;
+  points: { x: number; z: number; weight: number }[];
 }
 /**
  * Orba jedné plodiny: díly pro spřežení v pořadí orby, potřebné a odvedené člověkodny a váhy
@@ -1496,6 +1511,8 @@ export interface HayMowing {
   yieldKg: number;
   /** Svoz sena, který převzaly vozy (wagons.md – Vůz; člověkodny seče); chybí = 0. */
   hauled?: number;
+  /** Kam vůz při seči dojede – spočítá se při prvním svozu (wagons.md). Chybí = ještě ne. */
+  cartReach?: CartReach;
 }
 
 /** Louka v seči: díl úhoru ve fázi louky, nebo políčko přirozené louky krajiny (oxen.md – Seno). */

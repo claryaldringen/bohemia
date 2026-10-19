@@ -17,6 +17,7 @@ import {
   sellPrice,
   sellValue,
   tradeCarts,
+  trailCartPassable,
   trailOptions,
   trailTripDays,
   villageGoodStock,
@@ -95,8 +96,16 @@ export interface VillageManor {
   neighbours: VillageNeighbour[];
 }
 
-/** Sousedé po hotových stezkách v den `day`. */
-export function neighbourViews(state: VillageState, day: number): VillageNeighbour[] {
+/**
+ * Sousedé po hotových stezkách v den `day`; vozy jen po stezce sjízdné pro vozy (`landscape` –
+ * wagons.md, Obchod; bez krajiny vždy).
+ */
+export function neighbourViews(
+  state: VillageState,
+  day: number,
+  landscape: Landscape | null = null,
+): VillageNeighbour[] {
+  const carts = tradeCarts(state).map((c) => c.kind);
   return villageTrails(state)
     .filter((t) => t.builtDay !== null)
     .map((trail): VillageNeighbour => {
@@ -117,7 +126,7 @@ export function neighbourViews(state: VillageState, day: number): VillageNeighbo
         name: neighbour.name,
         lengthM: Math.round(trail.lengthM),
         tripDays: trailTripDays(trail.lengthM),
-        carts: tradeCarts(state).map((c) => c.kind),
+        carts: trailCartPassable(state, trail, landscape) ? carts : [],
         offers: neighbour.offers.map((good) => ({
           good,
           price: Math.round(buyPrice(good) * 100) / 100,
@@ -187,6 +196,8 @@ export function manorView(
     dwellingId: manor.id,
     trails: trailOptions(state, day, landscape, obstacles, villageRoadWalk(state, landscape)),
     // tím směrem, kde leží vlastní ves, soused bez simulace není (migration.md)
-    neighbours: neighbourViews(state, day).filter((n) => ownMaps[n.direction] === undefined),
+    neighbours: neighbourViews(state, day, landscape).filter(
+      (n) => ownMaps[n.direction] === undefined,
+    ),
   };
 }

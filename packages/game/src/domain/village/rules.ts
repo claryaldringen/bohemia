@@ -892,7 +892,10 @@ export const WOOD_TOOLS_LABOR: Bounds = { worst: 1, best: 0.95 };
 // Převezme odnos snopů (podíl odnosu na sklizni – HARVEST_WORK_PER_HA), `haulShare.hay` seče
 // (svoz a stohování) a `haulShare.logs` kácení a dovozu klád ke stavbám. Ves s vycvičeným spřežením
 // chce dvoukolák na každé spřežení a s hotovou zemskou stezkou navíc jeden čtyřkolák.
-// Kládu z lesa ke kraji, kam vůz dojede, vlečou lidé – `dragM`.
+// Kládu z lesa ke kraji, kam vůz dojede, vlečou lidé – `dragM`; k dílu pole a louce vůz dojede,
+// když je do `reachM` od středu čtverce (kraj dílu – jako roční síť vozů). Vůz za den udělá
+// `loadsPerCartDay` jízd (rešerše: nakládka a jízda ≈ 50 min na náklad) – jízdy svozu jdou do
+// ročního provozu cest (vyjeté cesty – roads.md, Vozové cesty).
 export const CARTS = {
   loadKg: { 'two-wheel': 400, 'four-wheel': 800 },
   lifespanYears: 10,
@@ -900,13 +903,10 @@ export const CARTS = {
   crew: 2,
   haulShare: { hay: 0.25, logs: 0.5 },
   dragM: 30,
+  reachM: 9,
+  loadsPerCartDay: 8,
   tradeCrew: 2,
 } as const satisfies { loadKg: Record<CartKind, number> } & Record<string, unknown>;
-// wagons.md – Vozová síť (rešerše 2026-10-19-carts-carpentry.md – Practical Action: vozy se
-// zvířaty do 8 %, Tillers: tah do svahu): zástupná dostupnost vozu (fáze 1, `CartAccess` – dokud
-// není vozová síť) – vůz jede rovně jen po louce (ne les, ne voda), sklon ve směru jízdy nejvýš
-// `maxGrade`; krok vzorkování `stepM`. Fáze 2 (vozová síť) vezme běžné stoupání 8 % a mez 12 %.
-export const CART_ACCESS = { maxGrade: 0.12, comfortGrade: 0.08, stepM: 5 } as const;
 
 // migration.md – Odchod do nové vsi (návrh Clauda): první zemnice nové vsi na téže mapě stojí
 // nejméně 300 m od staveb jiných vsí.

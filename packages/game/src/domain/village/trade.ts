@@ -8,7 +8,8 @@
 // Se sousedem jdou vyměnit i lidé – rodiny a svobodní dospělí (trade.md – Výměna lidí,
 // `people-trade.ts`): odejdou hned s výpravou, lidé od souseda přijdou s jejím návratem.
 // Čisté funkce bez I/O.
-import { tradeCarts } from './carts';
+import type { Landscape } from '../landscape';
+import { tradeCarts, trailCartPassable } from './carts';
 import { removePeople } from './kinship';
 import { startingLivestock } from './livestock';
 import {
@@ -249,9 +250,15 @@ export function expeditionTo(
 /**
  * Ocení výměnu v den `day` a zkontroluje ji: hotová stezka, žádná výprava na cestě, soused dané
  * zboží shání (nejvýš zbytek roční poptávky) a nabízené má (nejvýš zbytek zásoby), ves má, co dává,
- * a bilance pro souseda ≥ 0. Nosiči a práce i u zamítnuté výměny (náhled v panelu).
+ * a bilance pro souseda ≥ 0. Nosiči a práce i u zamítnuté výměny (náhled v panelu). Vozy jedou
+ * jen po stezce sjízdné pro vozy (`landscape` – `trailCartPassable`; bez krajiny vždy).
  */
-export function tradeQuote(state: VillageState, offer: TradeOffer, day: number): TradeQuote {
+export function tradeQuote(
+  state: VillageState,
+  offer: TradeOffer,
+  day: number,
+  landscape: Landscape | null = null,
+): TradeQuote {
   const neighbour = neighbourOf(state.seed, offer.direction);
   const stock = neighbourStock(state, offer.direction, day);
   const give = entries(offer.give);
@@ -271,8 +278,10 @@ export function tradeQuote(state: VillageState, offer: TradeOffer, day: number):
     Math.min(getPeople.adults, people.adults) * adultBuyPrice();
   const trail = builtTrail(state, offer.direction);
   const days = trail ? trailTripDays(trail.lengthM) : 0;
-  // vozy se spřežením, které jsou doma – náklad místo nosičů (wagons.md – Obchod)
-  const available = tradeCarts(state).map((c) => c.kind);
+  // vozy se spřežením, které jsou doma – náklad místo nosičů, jen po sjízdné stezce (wagons.md –
+  // Obchod, axisCartCheck)
+  const available =
+    trail && trailCartPassable(state, trail, landscape) ? tradeCarts(state).map((c) => c.kind) : [];
   const transport = expeditionTransport(offer.give, offer.get, available);
   const porters = transport.porters;
   const quote = {
@@ -360,8 +369,13 @@ function storeStock(state: VillageState, stock: NeighbourStock): void {
  * s návratem výpravy. Lidé nic nenesou a nosiče nepotřebují. RangeError, když výměna nejde
  * (`tradeQuote` – důvod česky). Konvence dne jako u ostatních akcí.
  */
-export function startExpedition(state: VillageState, day: number, offer: TradeOffer): VillageState {
-  const quote = tradeQuote(state, offer, day);
+export function startExpedition(
+  state: VillageState,
+  day: number,
+  offer: TradeOffer,
+  landscape: Landscape | null = null,
+): VillageState {
+  const quote = tradeQuote(state, offer, day, landscape);
   if (quote.blocked) throw new RangeError(quote.blocked);
   const trail = builtTrail(state, offer.direction)!;
   const next = structuredClone(state);

@@ -695,9 +695,13 @@ rozhraní částí v
   nejvýš podíl celé úlohy, převzaté v `CropWork.hauled`, `HayMowing.hauled`), `haulLogs` (klády
   ke stavbám – `fellingHaulable`, `ConstructionWood.hauled`), rozdělení práce `haul` s
   `LaborShare.carts`. Výprava: `expeditionTransport` / `tradeCarts` (`TradeQuote.carts`,
-  `TradeExpedition.carts` – spřežení je pryč, `teamsHomeShare` krátí orbu). **Dosah vozu je
-  rozhraní `CartAccess`** – zatím zástupné `straightCartAccess` (rovně od ohrady, louka a políčka
-  vsi, ne les a voda, sklon do 12 %; bez krajiny `EVERYWHERE`), vozová síť (fáze 2) ho nahradí.
+  `TradeExpedition.carts` – spřežení je pryč, `teamsHomeShare` krátí orbu; jen po stezce sjízdné
+  pro vozy – `trailCartPassable`, `axisCartCheck`). **Dosah vozu je rozhraní `CartAccess`** (cíle
+  najednou) – s krajinou vozová síť (`networkCartAccess` → `villageCartRoutes`), bez krajiny
+  `EVERYWHERE`; dosah úlohy se spočítá jednou při prvním svozu a uloží (`CartReach` –
+  `CropWork.cartReach`, `HayMowing.cartReach`, `ConstructionWood.cartReach`; `cropCartReach` se
+  žní po strništi – `harvestReachState`, `mowingCartReach`, `logsCartReach`); jízdy svozu do
+  ročního provozu cest `addHaulTrips` → `addRoadCartTrips` (vyjeté cesty).
   Web: `VillageCrafts.carts` / `cartTargets`, `VillageWorkshop.carpenter`, lišta dřevěné nářadí
   a vozy (`showsWoodTools`, `cartsLabel`), panel dílny (`CarpenterStats`), upozornění
   `cart-made`, `cart-worn-out`, `carpenter-no-wood`, náhled obchodu s vozy

@@ -14,11 +14,14 @@ import {
   haulCartsToday,
   haulPlan,
   haulProgress,
+  cropCartReach,
   missingCart,
+  networkCartAccess,
   retireCarts,
-  straightCartAccess,
+  villageCartAccess,
   teamsHomeShare,
   tradeCarts,
+  trailCartPassable,
 } from '../carts';
 import { BUILD_COSTS } from '../costs';
 import { craftCoverage, craftTargets, newWorkshop } from '../crafts';
@@ -27,7 +30,7 @@ import { CARPENTRY, CARTS, CRAFT_BASE, workshopCost, workshopTrees } from '../ru
 import { advanceVillage } from '../simulate';
 import { expeditionTransport } from '../trade';
 import type { Construction, FieldPart, VillageState } from '../types';
-import { makeLandscape } from './placement-fixtures';
+import { LANDSCAPE } from './paths-fixtures';
 import { withBuiltFirstDwelling } from './village-fixtures';
 
 // Tesař a vozy (wagons.md – fáze 1): výroba vozů a dřevěného nářadí podle potřeby, pomoc
@@ -352,22 +355,128 @@ describe('vozy (wagons.md – Vůz)', () => {
   });
 });
 
-describe('dosah vozu – zástupná odpověď (wagons.md – Vozová síť, fáze 1)', () => {
-  it('rovně po louce dojede, přes vodu, les a příkrý svah ne; bez krajiny všude', () => {
-    const flat = makeLandscape();
-    const from = { x: 7.5, z: 7.5 };
-    expect(straightCartAccess(flat, from).reach({ x: 52.5, z: 7.5 })).toBeCloseTo(45, 6);
-    const water = makeLandscape({ surface: (x) => (x === 10 ? 'water' : 'meadow') });
-    expect(straightCartAccess(water, from).reach({ x: 52.5, z: 7.5 })).toBeNull();
-    const forest = makeLandscape({ surface: (x) => (x >= 10 ? 'forest' : 'meadow') });
-    expect(straightCartAccess(forest, from).reach({ x: 67.5, z: 7.5 })).toBeNull();
-    // kládu z kraje lesa vlečou lidé – posledních 30 m lesem smí
-    expect(straightCartAccess(forest, from).reach({ x: 37.5, z: 7.5 }, 30)).not.toBeNull();
-    // 3 m na políčko 15 m = 20 % – vůz nevyjede
-    const steep = makeLandscape({ height: (x) => x * 3 });
-    expect(straightCartAccess(steep, from).reach({ x: 52.5, z: 7.5 })).toBeNull();
-    expect(EVERYWHERE.reach({ x: 1e6, z: 0 })).toBe(0);
+describe('dosah vozu – vozová síť (wagons.md – fáze 2)', () => {
+  /** Ves na krajině testů pěšin (louka, potok z ∈ (75, 90), les x < −90) s ohradou se spřežením. */
+  const onMap = (day = DAY): VillageState => {
+    const s = withTeam(village(day));
+    s.pens![0]!.x = -22.5;
+    s.pens![0]!.z = -7.5;
+    s.pens![0]!.cell = { x: 8, y: 9 };
+    return s;
+  };
+  const meadowPart = (id: number, cell: { x: number; y: number }, state: FieldPart['state']) =>
+    ({
+      id,
+      fieldId: 1,
+      areaM2: 225,
+      distanceM: 100,
+      naturalFertility: 70,
+      fertilityShare: 1,
+      bonusUntilDay: null,
+      state,
+      sownYears: state === 'sown' ? 1 : 0,
+      fallowSinceDay: state === 'fallow' ? at(596, 9, 1) : null,
+      foundingCost: 0,
+      foundingDone: 0,
+      surface: 'meadow',
+      cell,
+      ...(state === 'sown' ? { crop: 'spring' as const } : {}),
+    }) satisfies FieldPart;
+
+  it('dojede po louce, do lesa a přes potok bez brodu ne; bez krajiny všude', () => {
+    const s = onMap();
+    const reach = networkCartAccess(
+      DAY,
+      LANDSCAPE,
+      null,
+    )(s, [
+      { x: 100, z: -110, reachM: 9 },
+      { x: -130, z: 0, reachM: 4 },
+      { x: 20, z: 120, reachM: 4 },
+    ]);
+    expect(reach[0]).toBeGreaterThan(50);
+    expect(reach[1]).toBeNull();
+    expect(reach[2]).toBeNull();
+    expect(EVERYWHERE(s, [{ x: 1e6, z: 0, reachM: 1 }])).toEqual([0]);
+    // bez ohrady se spřežením vůz nevyjede
+    const noTeam = onMap();
+    noTeam.pens![0]!.team = null;
+    expect(villageCartAccess(noTeam, DAY, LANDSCAPE, null)).toBeNull();
   });
+
+  it('žeň: vůz jede po strništi sklízené plodiny, jiné osetí ho nepustí', () => {
+    const s = onMap();
+    s.fields = [{ id: 1 }, { id: 2 }];
+    // sklízené díly za pásem osetého pole jiné plodiny (pole 2 napříč krajinou)
+    s.parts = [
+      meadowPart(1, { x: 12, y: 3 }, 'sown'),
+      ...Array.from({ length: 20 }, (_, i) => ({
+        ...meadowPart(10 + i, { x: i, y: 5 }, 'sown'),
+        fieldId: 2,
+      })),
+    ];
+    const work = { partIds: [1] } as Parameters<typeof cropCartReach>[1];
+    const access = networkCartAccess(DAY, LANDSCAPE, null);
+    // pás osetého pole 2 vůz nepřejede – za ním díl nedosáhne
+    expect(cropCartReach(s, work, LANDSCAPE, access).share).toBe(0);
+    // sklízí se i pole 2 – po strništi dojede k obojímu
+    const both = { partIds: [1, ...s.parts.slice(1).map((p) => p.id)] } as typeof work;
+    const reach = cropCartReach(s, both, LANDSCAPE, access);
+    expect(reach.share).toBe(1);
+    expect(reach.points.map((p) => p.weight).reduce((a, b) => a + b, 0)).toBeCloseTo(1, 9);
+    expect(reach.points).toHaveLength(2);
+  });
+
+  it('výprava s vozem jen po stezce sjízdné pro vozy (potok bez brodu ne)', () => {
+    const road = (id: number, z0: number, z1: number) => ({
+      id,
+      points: [
+        { x: 20, z: z0 },
+        { x: 20, z: z1 },
+      ],
+      bornDay: DAY,
+      grade: 'improved' as const,
+      traffic: [],
+      spots: [],
+    });
+    const s = onMap();
+    s.roads = {
+      nextId: 3,
+      roads: [road(1, 0, 60), road(2, 60, 120)],
+      trees: [],
+      candidates: [],
+      labor: { from: DAY, days: 0, shares: [] },
+    };
+    const piece = (roadId: number) => ({ roadId, grade: 'improved' as const, manDays: 0 });
+    expect(trailCartPassable(s, { pieces: [piece(1)] }, LANDSCAPE)).toBe(true);
+    // úsek přes potok (z 75–90) bez brodu – vůz neprojede, nesou nosiči
+    expect(trailCartPassable(s, { pieces: [piece(1), piece(2)] }, LANDSCAPE)).toBe(false);
+    expect(trailCartPassable(s, { pieces: [piece(2)] }, null)).toBe(true);
+  });
+
+  it('svoz sena po síti – dosah se uloží u seče, jízdy jdou do ročního provozu cest', () => {
+    const day = at(601, 6, 10);
+    const s = onMap(day);
+    s.fields = [{ id: 1 }];
+    s.parts = [meadowPart(9, { x: 12, y: 6 }, 'fallow'), meadowPart(10, { x: 13, y: 6 }, 'fallow')];
+    // velká seč – vozy vozí i druhý den (první den ves pevné cesty teprve zakládá)
+    s.hay = { kg: 0, mowing: { partIds: [9, 10], required: 300, done: 0, yieldKg: 30_000 } };
+    s.carts = [{ id: 1, kind: 'two-wheel', builtDay: day - 10 }];
+    const next = advanceVillage(s, day + 2, null, LANDSCAPE);
+    expect(next.hay!.mowing!.cartReach?.share).toBe(1);
+    expect(next.hay!.mowing!.hauled).toBeGreaterThan(0);
+    const trips = next.roads?.labor.cart ?? [];
+    expect(trips.length).toBeGreaterThan(0);
+    expect(trips.every((t) => t.kind === 'two-wheel' && t.trips > 0)).toBe(true);
+    // na kouscích nezávisí
+    const pieces = advanceVillage(
+      advanceVillage(s, day + 1, null, LANDSCAPE),
+      day + 2,
+      null,
+      LANDSCAPE,
+    );
+    expect(pieces).toEqual(next);
+  }, 60_000);
 });
 
 describe('determinismus – tesař a vozy na kouscích nezávisí', () => {
