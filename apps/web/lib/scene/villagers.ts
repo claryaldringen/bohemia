@@ -311,7 +311,8 @@ export class VillageVillagers {
     );
     this.people = planVillagers(village, ground, {
       seed: villageSeed(village),
-      herds: herds.length,
+      // pasák jen u stád na pastvě – ta jsou v plánu napřed (livestock-placement.ts)
+      herds: herds.filter((h) => h.tended !== false).length,
       paths: this.paths,
     })
       .filter((p) => this.models?.has(p.kind))

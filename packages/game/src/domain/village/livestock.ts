@@ -2,6 +2,7 @@ import { dateOfDayIndex } from '../calendar';
 import { yearlyMilk } from './dairy';
 import { PROTEIN, proteinNeedPerDay } from './diet';
 import { isOvergrown } from './fields';
+import { fallowPastureHa, hayPlanNaturalHa, PASTURE, pastureParts } from './pasture';
 import { HAY, HAY_EATERS, HAY_WINTER_DAYS, winterHayAvailable } from './hay';
 import { legumeSupplyPerYear } from './legumes';
 import { ageGroup } from './people';
@@ -189,21 +190,18 @@ export function villageChickens(state: Pick<VillageState, 'people' | 'dwellings'
 }
 
 /**
- * Pastva (ha) pro ovce, kozy, krávy a voly: louka do 600 m bez toho, co zabírají pole mimo
- * příloh, příloh zarostlý křovím a mladým lesem, les vsi, sady, hřbitovy, pozemky a ohrady, plus
- * příloh na vymýceném lese (pase se na celém přílohu ve fázi louky – mladém i pastvině, po seči
- * i na louce na seno; fields.md – Zarůstání).
+ * Přirozená louka do 600 m, na které se pase (ha – diet.md, Pastva): louka z krajiny bez toho,
+ * co zabírají díly polí (i příloh – ten je pastvinou po dílech, `pastureParts`), les vsi, sady,
+ * hřbitovy, pozemky, ohrady a přirozené louky letošní seče (ty jen otavou – `pastureHa`).
  */
-export function pastureHa(state: VillageState): number {
+export function naturalPastureHa(state: VillageState): number {
+  return Math.max(0, naturalMeadowHa(state) - hayPlanNaturalHa(state));
+}
+
+/** Přirozená louka do 600 m bez polí a staveb (ha) – i s loukami letošní seče. */
+function naturalMeadowHa(state: VillageState): number {
   let used = 0;
-  let clearedFallow = 0;
-  for (const part of state.parts) {
-    if (part.state === 'fallow' && !isOvergrown(part)) {
-      if (part.surface === 'forest') clearedFallow += part.areaM2;
-    } else if (part.surface !== 'forest') {
-      used += part.areaM2;
-    }
-  }
+  for (const part of state.parts) if (part.surface !== 'forest') used += part.areaM2;
   for (const wood of state.woods ?? []) if (wood.surface !== 'forest') used += wood.areaM2;
   for (const orchard of state.orchards ?? []) {
     for (const square of orchard.squares) used += square.areaM2;
@@ -213,8 +211,19 @@ export function pastureHa(state: VillageState): number {
   }
   used += state.dwellings.filter((d) => d.plot).length * CELL_M2;
   used += (state.pens ?? []).length * CELL_M2;
-  const meadow = Math.max(0, livestockLand(state).meadowHa - used / M2_PER_HA);
-  return meadow + clearedFallow / M2_PER_HA;
+  return Math.max(0, livestockLand(state).meadowHa - used / M2_PER_HA);
+}
+
+/**
+ * Pastva (ha plné louky) pro ovce, kozy, krávy a voly v den `day` (diet.md – Pastva, Martin
+ * 19. 10. 2026 – stáda se pasou na loukách určených ke spásání): přirozená louka do 600 m mimo
+ * letošní seč a příloh ve fázi louky mimo seč celé, mladý příloh a otava luk letošní seče jen
+ * podílem (PASTURE). Osetý díl, křoviny a mladý les pastvou nejsou.
+ */
+export function pastureHa(state: VillageState, day: number): number {
+  const meadow = naturalMeadowHa(state);
+  const hay = Math.min(meadow, hayPlanNaturalHa(state));
+  return meadow - hay + hay * PASTURE.aftermathShare + fallowPastureHa(pastureParts(state, day));
 }
 
 /**
@@ -408,12 +417,13 @@ const GRAZING_ORDER: readonly ('floor' | 'sheep' | 'goat' | 'cow')[] = [
  */
 export function winterTargets(
   state: VillageState,
+  day: number,
   input: WinterInput,
 ): Record<HerdSpecies, number> {
   const herds = villageHerds(state);
   const watched = Math.min(1, Math.max(0, input.herding ?? 1));
   const breeding = (s: HerdSpecies): number => Math.min(herds[s], LIVESTOCK.breedingMin);
-  let pasture = Math.max(0, pastureHa(state) - input.oxen * LIVESTOCK.oxPastureHa);
+  let pasture = Math.max(0, pastureHa(state, day) - input.oxen * LIVESTOCK.oxPastureHa);
   let browse = goatBrowseHa(state);
   let hay = Math.max(
     0,
@@ -538,7 +548,7 @@ export function wantedWinterHerds(
   return sizeHerdsToNeed(
     state,
     day,
-    winterTargets(state, { ...input, hayKg: Infinity }),
+    winterTargets(state, day, { ...input, hayKg: Infinity }),
     input.minCows ?? 0,
   ).keep;
 }
@@ -584,7 +594,7 @@ export function slaughter(
 ): ChronicleEvent | null {
   const livestock = ensureLivestock(state);
   const herds = livestock.herds;
-  const sized = sizeHerdsToNeed(state, day, winterTargets(state, input), input.minCows ?? 0);
+  const sized = sizeHerdsToNeed(state, day, winterTargets(state, day, input), input.minCows ?? 0);
   const keep = sized.keep;
   let meat = HERD_SPECIES.reduce((sum, s) => sum + (herds[s] - keep[s]) * LIVESTOCK.meatKg[s], 0);
   // maso, které ves potřebuje – bílkoviny po obilí, mléku stád (přes zimu), vejcích a luštěninách

@@ -6,8 +6,10 @@ import {
   chickensFor,
   herdCounts,
   householdCount,
+  herderCount,
   livestockGround,
   planLivestock,
+  tendedHerds,
   type Herd,
   type LivestockGround,
   type LivestockVillage,
@@ -270,6 +272,156 @@ describe('planLivestock – pastva na úhoru', () => {
       herds.filter((h) => h.kind !== 'swine').some((h) => h.route.some((s) => onFallow(s.x, s.z)));
     expect(routeOn(august.herds)).toBe(true);
     expect(routeOn(may.herds)).toBe(false);
+  });
+});
+
+describe('planLivestock – vždy s pasákem (Martin 19. 10. 2026)', () => {
+  // 15. 5. roku 506 – pastevní sezóna; 15. 12. – zima
+  const MAY = 2330;
+  const DECEMBER = 2330 + 214;
+  const herding = (manDays: number): { activity: string; manDays: number } => ({
+    activity: 'herding',
+    manDays,
+  });
+  const village = (
+    herders: { children: number; elders: number } | null,
+    adults = 0,
+    day = MAY,
+  ): LivestockVillage => ({
+    ...VILLAGE,
+    livestock: { sheep: 46, goat: 12, pig: 21, cow: 13 },
+    labor: {
+      day,
+      ...(herders ? { herders } : {}),
+      shares: adults > 0 ? [herding(adults)] : [],
+    },
+  });
+  const total = (herds: Herd[], name: string): number =>
+    herds.reduce((sum, h) => sum + h.animals.filter((a) => a.species === name).length, 0);
+
+  it('pasáků dnes: děti a starší z jádra, dospělí po člověkodnech; bez údaje neomezeně', () => {
+    expect(
+      herderCount({ day: MAY, herders: { children: 2, elders: 1 }, shares: [herding(1.2)] }),
+    ).toBe(5);
+    expect(herderCount({ day: MAY })).toBe(Infinity);
+    expect(herderCount(undefined)).toBe(Infinity);
+  });
+
+  it('málo pasáků: pasák vede víc zvířat, s prasaty jde jeden, až když jsou aspoň dva', () => {
+    expect(tendedHerds(9, 4, 3)).toEqual({ pasture: 4, swine: 3 });
+    expect(tendedHerds(3, 4, 3)).toEqual({ pasture: 2, swine: 1 });
+    expect(tendedHerds(1, 4, 3)).toEqual({ pasture: 1, swine: 0 });
+    expect(tendedHerds(0, 4, 3)).toEqual({ pasture: 0, swine: 0 });
+    expect(tendedHerds(2, 0, 3)).toEqual({ pasture: 0, swine: 2 });
+  });
+
+  it('dost pasáků – všechna stáda na pastvě s pasákem, stáda s pasákem v plánu napřed', () => {
+    const plan = planLivestock(village({ children: 9, elders: 0 }), GROUND, 7);
+    expect(plan.herds.every((h) => h.tended)).toBe(true);
+    expect(total(plan.herds, 'sheep')).toBe(46);
+  });
+
+  it('dva pasáci – zvířata ve dvou stádech (louka a les), žádné samo', () => {
+    const plan = planLivestock(village({ children: 2, elders: 0 }), GROUND, 7);
+    const tended = plan.herds.filter((h) => h.tended);
+    expect(tended).toHaveLength(2);
+    expect(tended.map((h) => h.kind).sort()).toEqual(['cattle', 'swine']);
+    // všechna zvířata pasáci vedou – ovce, kozy i krávy v jednom stádě
+    expect(total(tended, 'sheep')).toBe(46);
+    expect(total(tended, 'cow')).toBe(13);
+    expect(total(tended, 'pig')).toBe(21);
+    expect(plan.herds.filter((h) => !h.tended)).toHaveLength(0);
+  });
+
+  it('bez pasáka se nepase – stádo stojí u domů a nestěhuje se', () => {
+    const plan = planLivestock(village({ children: 0, elders: 0 }), GROUND, 7);
+    expect(plan.herds.length).toBeGreaterThan(0);
+    for (const herd of plan.herds) {
+      expect(herd.tended).toBe(false);
+      expect(herd.route).toHaveLength(1);
+      const spot = herd.route[0]!;
+      expect(Math.hypot(spot.x, spot.z)).toBeLessThan(90);
+    }
+    // jeden dospělý pasák – stádo jde na louku
+    const one = planLivestock(village({ children: 0, elders: 0 }, 0.5), GROUND, 7);
+    expect(one.herds[0]!.tended).toBe(true);
+    expect(one.herds[0]!.route.length).toBeGreaterThan(1);
+    expect(one.herds.filter((h) => h.tended)).toHaveLength(1);
+  });
+
+  it('v zimě ovce, kozy a krávy u domů, s pasákem jen prasata v lese', () => {
+    const plan = planLivestock(village({ children: 1, elders: 0 }, 0, DECEMBER), GROUND, 7);
+    const tended = plan.herds.filter((h) => h.tended);
+    expect(tended.map((h) => h.kind)).toEqual(['swine']);
+    expect(plan.herds.filter((h) => !h.tended && h.kind !== 'swine').length).toBeGreaterThan(0);
+  });
+});
+
+describe('planLivestock – mimo jídlo pro lidi (Martin 19. 10. 2026)', () => {
+  const onSquare = (s: { x: number; z: number; size: number }, x: number, z: number): boolean =>
+    Math.abs(x - s.x) < s.size / 2 && Math.abs(z - s.z) < s.size / 2;
+
+  it('louka před sečí, sad a záhony pozemku nejsou pastvinou; strniště po sklizni ano', () => {
+    // pás luk letošní seče západně od vsi, jinak louka
+    const meadows = Array.from({ length: 40 }, (_, i) => ({
+      x: -40 - (i % 8) * 15,
+      z: -60 + Math.floor(i / 8) * 15,
+      size: 15,
+      look: 'meadow' as const,
+    }));
+    const village: LivestockVillage = {
+      ...VILLAGE,
+      hayMeadows: meadows,
+      labor: { day: 2330 },
+      livestock: { sheep: 60, goat: 0, pig: 0, cow: 12 },
+    };
+    const plan = planLivestock(village, GROUND, 7);
+    for (const herd of plan.herds) {
+      for (const spot of herd.route) {
+        expect(meadows.some((m) => onSquare(m, spot.x, spot.z))).toBe(false);
+      }
+    }
+    // strniště po sklizni – stáda se na něm smějí pást (přednostně jako úhor)
+    const stubble = Array.from({ length: 12 }, (_, i) => ({
+      x: -120 + (i % 4) * 15,
+      z: -30 + Math.floor(i / 4) * 15,
+      size: 15,
+      stage: 'sown' as const,
+      look: 'stubble' as const,
+    }));
+    const after = planLivestock(
+      { ...VILLAGE, fields: [{ parts: stubble }], labor: { day: 2422 } },
+      GROUND,
+      7,
+    );
+    const onStubble = after.herds
+      .filter((h) => h.kind !== 'swine')
+      .some((h) => h.route.every((s) => stubble.some((p) => onSquare(p, s.x, s.z))));
+    expect(onStubble).toBe(true);
+  });
+
+  it('stádo u domů nestojí na záhonech pozemku', () => {
+    const plots = [
+      { x: 20, z: 0, size: 15, variant: 'back-left' as const },
+      { x: -20, z: 0, size: 15, variant: 'front-right' as const },
+      { x: 0, z: 22, size: 15, variant: 'center' as const },
+    ];
+    const village: LivestockVillage = {
+      dwellings: plots.map((plot, i) => ({
+        ...dwelling(i + 1, 'polozemnice', plot.x, plot.z),
+        position: plotHouse(plot, plot.variant),
+        plot,
+      })),
+      fields: [],
+      labor: { day: 2330, herders: { children: 0, elders: 0 } },
+      livestock: { sheep: 40, goat: 8, pig: 0, cow: 6 },
+    };
+    const plan = planLivestock(village, GROUND, 7);
+    expect(plan.herds.length).toBeGreaterThan(0);
+    for (const herd of plan.herds) {
+      const spot = herd.route[0]!;
+      expect(plots.some((plot) => insidePlot(plot, spot.x, spot.z, -herd.radiusM))).toBe(false);
+    }
   });
 });
 

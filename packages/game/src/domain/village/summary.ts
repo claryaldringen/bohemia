@@ -468,7 +468,7 @@ function livestockSummary(state: VillageState, day: number): LivestockSummary {
     },
     chickens: villageChickens(state),
     oxen,
-    pastureHa: pastureHa(state),
+    pastureHa: pastureHa(state, day),
     grazingHa: grazingDemandHa(herds, oxen),
     pigForestHa: pigForestHa(state),
     meatNeedKg: meatNeedPerYear(state, day),

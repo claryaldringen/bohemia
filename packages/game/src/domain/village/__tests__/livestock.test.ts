@@ -121,7 +121,7 @@ describe('růst a nosnost', () => {
       part(4, { surface: 'forest' }),
     ];
     // louka 20 − osetý díl 1 ha (příloh na louce je pořád pastva) + příloh na lese 1 ha
-    expect(pastureHa(s)).toBeCloseTo(20, 9);
+    expect(pastureHa(s, s.lastDay)).toBeCloseTo(20, 9);
     // les 10 − dva díly založené v lese
     expect(pigForestHa(s)).toBeCloseTo(8, 9);
     expect(grazingDemandHa(herds({ sheep: 5, goat: 5, cow: 2 }), 2)).toBeCloseTo(6, 9);
@@ -131,7 +131,7 @@ describe('růst a nosnost', () => {
     const s = village();
     s.livestock!.land = { meadowHa: 6, forestHa: 3 };
     s.livestock!.herds = herds({ sheep: 20, goat: 10, pig: 10, cow: 6 });
-    const keep = winterTargets(s, { oxen: 0, hayKg: Infinity });
+    const keep = winterTargets(s, s.lastDay, { oxen: 0, hayKg: Infinity });
     // prasata podle lesa (celý rok v lese)
     expect(keep.pig).toBeCloseTo(3, 9);
     // pastva 6 ha: ovce napřed (20 × 0,2 = 4 ha), kozy zbytek (10 × 0,2 = 2 ha), krávám nic
@@ -139,22 +139,25 @@ describe('růst a nosnost', () => {
     expect(keep.goat).toBeCloseTo(10, 9);
     expect(keep.cow).toBeCloseTo(LIVESTOCK.breedingMin, 9);
     // krávy na mléko a voly mají přednost i před ovcemi
-    const cows = winterTargets(s, { oxen: 0, hayKg: Infinity, minCows: 4 });
+    const cows = winterTargets(s, s.lastDay, { oxen: 0, hayKg: Infinity, minCows: 4 });
     expect(cows.cow).toBeCloseTo(4, 9);
     expect(cows.sheep).toBeCloseTo(10, 9);
     expect(cows.goat).toBeCloseTo(LIVESTOCK.breedingMin, 9);
     // voli mají přednost na pastvě
-    expect(winterTargets(s, { oxen: 4, hayKg: Infinity }).sheep).toBeCloseTo(10, 9);
+    expect(winterTargets(s, s.lastDay, { oxen: 4, hayKg: Infinity }).sheep).toBeCloseTo(10, 9);
     // seno na zimu jen pro 10 ovcí (po ztrátách ve stohu) – kozy a krávy jen chovný pár
     const hayFor10 = (10 * 151) / winterHayAvailable(1);
-    const hay = winterTargets(s, { oxen: 0, hayKg: hayFor10 });
+    const hay = winterTargets(s, s.lastDay, { oxen: 0, hayKg: hayFor10 });
     expect(hay.sheep).toBeCloseTo(10, 9);
     expect(hay.goat).toBeCloseTo(LIVESTOCK.breedingMin, 9);
     expect(hay.cow).toBeCloseTo(LIVESTOCK.breedingMin, 9);
     // bez sena zůstane chovný pár
-    expect(winterTargets(s, { oxen: 0, hayKg: 0 }).cow).toBeCloseTo(LIVESTOCK.breedingMin, 9);
+    expect(winterTargets(s, s.lastDay, { oxen: 0, hayKg: 0 }).cow).toBeCloseTo(
+      LIVESTOCK.breedingMin,
+      9,
+    );
     // pasáci uhlídali polovinu – zbytek jde na maso (krávám zbude pastva na 3)
-    const half = winterTargets(s, { oxen: 0, hayKg: Infinity, herding: 0.5 });
+    const half = winterTargets(s, s.lastDay, { oxen: 0, hayKg: Infinity, herding: 0.5 });
     expect(half).toEqual(herds({ sheep: 10, goat: 5, pig: 3, cow: 3 }));
   });
 
@@ -167,9 +170,9 @@ describe('růst a nosnost', () => {
     ];
     expect(goatBrowseHa(s)).toBeCloseTo(1, 9);
     s.livestock!.herds = herds({ sheep: 20, goat: 10 });
-    const keep = winterTargets(s, { oxen: 0, hayKg: Infinity });
+    const keep = winterTargets(s, s.lastDay, { oxen: 0, hayKg: Infinity });
     // louka 4 − 1 ha křovin, které už pastvou nejsou: ovce 3 ha (15 kusů), kozy jen 1 ha křovin
-    expect(pastureHa(s)).toBeCloseTo(3, 9);
+    expect(pastureHa(s, s.lastDay)).toBeCloseTo(3, 9);
     expect(keep.sheep).toBeCloseTo(15, 9);
     expect(keep.goat).toBeCloseTo(5, 9);
   });

@@ -10,7 +10,13 @@ import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import type { Scene } from '@babylonjs/core/scene';
-import { type ForestField, type Landscape, type Relief } from '@bohemia/game';
+import {
+  HAY_WINTER_MONTHS,
+  dateOfDayIndex,
+  type ForestField,
+  type Landscape,
+  type Relief,
+} from '@bohemia/game';
 import { loadGeometry, writeInstanceMatrix, type FaunaGeometry } from './fauna';
 import {
   chickenArea,
@@ -29,9 +35,11 @@ import {
   type LivestockPose,
 } from './livestock-motion';
 import {
+  grazedMeadow,
   grazedPart,
   grazingDay,
   herdCounts,
+  herderCount,
   livestockGround,
   planLivestock,
   type Herd,
@@ -158,12 +166,15 @@ export class VillageLivestock {
   }
 
   /** Střed, poloměr a stěhování stád v okamžiku `nowMs` – pasáčci (villagers.ts). */
-  herdViews(nowMs: number): (HerdState & { kind: Herd['kind']; radiusM: number })[] {
+  herdViews(
+    nowMs: number,
+  ): (HerdState & { kind: Herd['kind']; radiusM: number; tended: boolean })[] {
     const clock = this.clock(nowMs);
     return this.herds.map((herd) => ({
       ...herdState(herd, clock, createHerdState()),
       kind: herd.kind,
       radiusM: herd.radiusM,
+      tended: herd.tended,
     }));
   }
 
@@ -211,8 +222,9 @@ export class VillageLivestock {
     const plan = {
       ...planned,
       herds: planned.herds.map((herd) => {
-        const sameKind = planned.herds.filter((h) => h.kind === herd.kind);
-        const previous = this.herds.filter((h) => h.kind === herd.kind)[sameKind.indexOf(herd)];
+        const same = (h: Herd): boolean => h.kind === herd.kind && h.tended === herd.tended;
+        const sameKind = planned.herds.filter(same);
+        const previous = this.herds.filter(same)[sameKind.indexOf(herd)];
         return previous ? keepRouteSpot(previous, herd, clock) : herd;
       }),
     };
@@ -428,13 +440,25 @@ export class VillageLivestock {
   }
 }
 
-/** Co z vsi rozhoduje o zvířatech: obydlí (i staveniště jako překážky), pole, hřbitovy a sady. */
+/**
+ * Co z vsi rozhoduje o zvířatech: obydlí s pozemky (i staveniště jako překážky), pole, louky
+ * letošní seče, hřbitovy, sady a pasáci dne.
+ */
 function villageKey(village: LivestockVillage): string {
   const dwellings = village.dwellings.map(
     (d) =>
       `${d.id}:${d.type}:${d.built ? 1 : 0}:${d.inhabited === false ? 0 : 1}:` +
-      `${d.position.x.toFixed(2)},${d.position.z.toFixed(2)},${d.position.rotation.toFixed(3)}`,
+      `${d.position.x.toFixed(2)},${d.position.z.toFixed(2)},${d.position.rotation.toFixed(3)}` +
+      (d.plot ? `:${JSON.stringify(d.plot)}` : ''),
   );
+  // louka před sečí stádům překáží, otava se pase
+  const meadows = (village.hayMeadows ?? []).map(
+    (m) => `${m.x.toFixed(1)},${m.z.toFixed(1)}${grazedMeadow(m, grazingDay(village)) ? 'g' : ''}`,
+  );
+  // kolik stád jde na pastvu s pasákem a jestli je zima (ovce, kozy a krávy u domů)
+  const day = village.labor?.day;
+  const winter = day !== undefined && HAY_WINTER_MONTHS.includes(dateOfDayIndex(day).month);
+  const herders = `${herderCount(village.labor)}${winter ? 'w' : ''}`;
   // díl pole, na kterém se pase (úhor), stádům nepřekáží – změna stadia přeplánuje pastviny
   const parts = village.fields
     .flatMap((f) => f.parts)
@@ -451,7 +475,7 @@ function villageKey(village: LivestockVillage): string {
   // skutečné počty stád (diet.md) – narození, porážka a krávy v ohradě přeplánují stáda
   const counts = herdCounts(village);
   const herds = `${counts.sheep},${counts.goat},${counts.pig},${counts.cow}`;
-  return `${dwellings.join(';')}|${parts.join(';')}|${squares.join(';')}|${herds}`;
+  return `${dwellings.join(';')}|${parts.join(';')}|${meadows.join(';')}|${squares.join(';')}|${herds}|${herders}`;
 }
 
 /** Náhoda zvířat podle krajiny – v každé vsi se stáda pasou jinde. */

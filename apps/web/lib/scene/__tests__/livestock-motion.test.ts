@@ -208,6 +208,7 @@ describe('valueNoise', () => {
 describe('keepRouteSpot', () => {
   const herd = (route: [number, number][]): Herd => ({
     kind: 'flock',
+    tended: true,
     seed: 1,
     phase: 0,
     routeOffset: 0,

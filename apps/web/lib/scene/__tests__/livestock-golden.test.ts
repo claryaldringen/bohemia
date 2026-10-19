@@ -42,7 +42,15 @@ describe('planLivestock – zlatý otisk', () => {
     };
     const plan = planLivestock(village, GROUND, 1234);
     expect(plan.herds.length).toBeGreaterThan(4);
-    expect(fingerprint(plan)).toBe('51108:1f0e38af');
+    // bez údaje o pasácích (starší data) jdou na pastvu všechna stáda – rozmístění je stejné jako
+    // před pasáky (19. 10. 2026 přibylo jen pole `tended`)
+    expect(plan.herds.every((h) => h.tended)).toBe(true);
+    const herds = plan.herds.map((herd) => {
+      const copy: Partial<typeof herd> = { ...herd };
+      delete copy.tended;
+      return copy;
+    });
+    expect(fingerprint({ ...plan, herds })).toBe('51108:1f0e38af');
   });
 });
 
