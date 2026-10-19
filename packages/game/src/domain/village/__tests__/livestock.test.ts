@@ -12,6 +12,7 @@ import {
   herdBirths,
   herdLosses,
   herdProteinNeed,
+  meatEatableKg,
   meatNeedPerYear,
   proteinBudget,
   pastureHa,
@@ -258,7 +259,7 @@ describe('porážka (1. 11.)', () => {
     expect(s.livestock!.young).toEqual(herds({}));
   });
 
-  it('chovné stádo nad potřebu jde na maso i s dospělými kusy – jednou, pak už jen mláďata', () => {
+  it('chovné stádo nad potřebu jde na maso jen tolik, kolik ves do zkažení sní (diet.md)', () => {
     const s = village(at(600, 11, 1));
     const day = at(600, 11, 1);
     s.livestock!.land = { meadowHa: 1000, forestHa: 1000 };
@@ -269,17 +270,49 @@ describe('porážka (1. 11.)', () => {
     const kept = sizeHerdsToNeed(s, day, herds({ pig: 40, sheep: 6, cow: 3 }), {
       planLegumes: true,
     }).keep;
+    // plán by porazil i dospělá prasata – víc masa, než ves do 31. 8. sní
+    const planned = (40 - kept.pig) * LIVESTOCK.meatKg.pig;
+    const eatable = meatEatableKg(s, day);
+    expect(planned).toBeGreaterThan(eatable);
     const event = slaughter(s, day, { oxen: 0, hayKg: Infinity });
-    expect(s.livestock!.herds.pig).toBeCloseTo(kept.pig, 9);
-    // i dospělá prasata – víc než letošní mláďata
-    expect(40 - kept.pig).toBeGreaterThan(20);
-    const kg =
-      (40 - kept.pig) * LIVESTOCK.meatKg.pig +
-      (6 - kept.sheep) * LIVESTOCK.meatKg.sheep +
-      (3 - kept.cow) * LIVESTOCK.meatKg.cow;
-    expect(event).toMatchObject({ kind: 'slaughter', kg: Math.round(kg) });
-    expect(s.livestock!.herds.sheep).toBeCloseTo(kept.sheep, 9);
-    expect(s.livestock!.herds.cow).toBeCloseTo(kept.cow, 9);
+    // na maso jen, co ves sní – napřed prasata; zbytek v nosnosti žije
+    expect(event).toMatchObject({ kind: 'slaughter' });
+    expect(event && 'kg' in event ? event.kg : 0).toBeLessThanOrEqual(Math.round(eatable) + 1);
+    expect(s.livestock!.herds.pig).toBeCloseTo(40 - eatable / LIVESTOCK.meatKg.pig, 6);
+    expect(s.livestock!.herds.pig).toBeGreaterThan(kept.pig);
+    expect(s.livestock!.herds.sheep).toBeGreaterThanOrEqual(kept.sheep - 1e-9);
+    expect(s.livestock!.herds.cow).toBeGreaterThanOrEqual(kept.cow - 1e-9);
+  });
+
+  it('stádo, které nic nestojí, porážka nezredukuje – maso se do zkažení nesní (Martin)', () => {
+    // vesničané se snaží vyrobit co nejvíc jídla: prasata uživí les a práci nestojí
+    const day = at(600, 11, 1);
+    const s = village(day);
+    s.livestock!.land = { meadowHa: 1000, forestHa: 1000 };
+    s.livestock!.herds = herds({ pig: 200, sheep: 6 });
+    s.meatKg = 100;
+    slaughter(s, day, { oxen: 0, hayKg: Infinity });
+    // maso z porážky a v zásobě ves do 31. 8. sní pod stropem – nic se nezkazí
+    expect(s.meatKg!).toBeLessThanOrEqual(meatEatableKg(s, day) + 1e-6);
+    expect(s.livestock!.herds.pig).toBeGreaterThan(150);
+    // a do zkažení se to opravdu sní
+    const spoiled = advanceVillage(s, at(601, 9, 1), null).chronicle.filter(
+      (e) => e.kind === 'meat-spoiled',
+    );
+    expect(spoiled.reduce((sum, e) => sum + ('kg' in e ? e.kg : 0), 0)).toBeLessThan(5);
+  });
+
+  it('prasata, která uživí les, porážka nesníží na pár, i když je výrostků málo (Vlkov)', () => {
+    // Vlkov 1. 11. 792: dva výrostci, 65 ovcí (38 na vlnu), 83 prasat, les asi pro 53 –
+    // dřív plán podle dnešních výrostků nechal jen chovný pár prasat
+    const day = at(600, 11, 1);
+    const s = village(day);
+    s.livestock!.land = { meadowHa: 1000, forestHa: 1000 };
+    s.livestock!.herds = herds({ pig: 83, sheep: 65, goat: 4, cow: 2 });
+    s.livestock!.herding = { needDays: 100, watchedDays: 90 };
+    slaughter(s, day, { oxen: 0, hayKg: Infinity, minSheep: 38 });
+    expect(s.livestock!.herds.pig).toBeGreaterThan(40);
+    expect(s.livestock!.herds.sheep).toBeGreaterThan(38);
   });
 
   it('chovný pár zůstane, i když nosnost nic neunese', () => {

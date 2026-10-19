@@ -1,20 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { foundVillage } from '../actions';
-import {
-  HERDING,
-  childHerderCapacity,
-  herdingCoverage,
-  herdingDay,
-  herdingDemand,
-  recordHerding,
-} from '../herding';
+import { HERDING, herdingCoverage, herdingDay, herdingDemand, recordHerding } from '../herding';
 import { HAY, HAY_WINTER_DAYS } from '../hay';
 import {
   LIVESTOCK,
   headEconomy,
   sizeHerdsToNeed,
   TYPICAL_FOOD_COSTS,
+  winterTargets,
   yearlyMeatPerHead,
 } from '../livestock';
 import { advanceVillage } from '../simulate';
@@ -74,7 +68,6 @@ describe('kolik pasáků stáda potřebují', () => {
       person(s, 4, 5, day), // malé dítě nepase
       person(s, 5, 50, day), // starší nepase
     ];
-    expect(childHerderCapacity(s, day)).toBeCloseTo(2 * HERDING.childShare, 9);
     // 30 ovcí = 0,3 pasáka – stačí jeden výrostek
     s.livestock!.herds = herds({ sheep: 30 });
     expect(herdingDay(s, day, 0)).toEqual({ demand: 0.3, free: 0.3, freeHerders: { children: 1 } });
@@ -110,31 +103,24 @@ describe('rovnovážné hospodaření – pasáci (diet.md)', () => {
       HAY.dailyKg.cow * HAY_WINTER_DAYS * TYPICAL_FOOD_COSTS.hayPerKg + slaughter('cow'),
       9,
     );
-    // pasáků na kus v době pastvy i s mláďaty – pro kapacitu výrostků
-    expect(headEconomy('sheep', TYPICAL_FOOD_COSTS).herders).toBeGreaterThan(
-      1 / HERDING.perHerder.sheep - 1e-9,
-    );
   });
 
-  it('stádo nad chovný pár omezí kapacita výrostků', () => {
+  it('stádo omezí jen podíl, který výrostci přes rok uhlídali – plán pasáky nepočítá', () => {
+    // Vlkov 1. 11. 792 (Martin 19. 10. 2026): dva výrostci k porážce, ale přes rok uhlídali 90 %
+    // – plán stáda nesmí podle dnešních výrostků porazit prasata, která uživí les
     const day = at(600, 11, 1);
     const s = village(day);
-    const keep = herds({ sheep: 400, goat: 400, pig: 400, cow: 400 });
-    const free = sizeHerdsToNeed(s, day, keep);
-    const none = sizeHerdsToNeed(s, day, keep, { freeHerders: 0 });
-    const few = sizeHerdsToNeed(s, day, keep, { freeHerders: 0.4 });
-    const total = (h: Record<HerdSpecies, number>): number => h.sheep + h.goat + h.pig + h.cow;
-    // bez výrostků jen chovné páry
-    expect(total(none.keep)).toBeLessThanOrEqual(8 + 1e-9);
-    expect(total(few.keep)).toBeGreaterThan(total(none.keep));
-    expect(total(free.keep)).toBeGreaterThanOrEqual(total(few.keep) - 1e-9);
-    // pasáků nad chovné páry nikdy víc, než výrostci dají
-    const herders = (h: Record<HerdSpecies, number>): number =>
-      (['sheep', 'goat', 'pig', 'cow'] as const).reduce(
-        (sum, sp) => sum + Math.max(0, h[sp] - 2) * headEconomy(sp, TYPICAL_FOOD_COSTS).herders,
-        0,
-      );
-    expect(herders(few.keep)).toBeLessThanOrEqual(0.4 + 1e-9);
+    s.livestock!.land = { meadowHa: 1000, forestHa: 1000 };
+    s.livestock!.herds = herds({ sheep: 60, goat: 2, pig: 40, cow: 2 });
+    const watched = winterTargets(s, day, { oxen: 0, hayKg: Infinity });
+    const half = winterTargets(s, day, { oxen: 0, hayKg: Infinity, herding: 0.5 });
+    // co výrostci neuhlídali, jde na maso (winterTargets – herdingCoverage)
+    expect(half.pig).toBeLessThan(watched.pig);
+    expect(half.sheep).toBeLessThan(watched.sheep);
+    // plán (rovnovážné hospodaření) pasáky nepočítá – ovce napřed nezaberou místo prasatům
+    const plan = sizeHerdsToNeed(s, day, watched).keep;
+    expect(plan.sheep).toBeGreaterThan(LIVESTOCK.breedingMin);
+    expect(plan.pig).toBeGreaterThan(LIVESTOCK.breedingMin);
   });
 });
 

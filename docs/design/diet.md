@@ -214,7 +214,15 @@ Martin na otázku „Má se chovné stádo zmenšovat podle toho, kolik masa ves
   jsou tytéž bílkoviny jako ovce a prasata, takže bez zmenšování by rostly k nosnosti luk (Vlkov
   48 krav na 25 lidí) a každý rok daly tuny hovězího navíc; kráva na 2 domácnosti a 3 na ohradu
   ale zůstanou vždy.
-- V roce zmenšení vznikne **jednorázový přebytek masa** – co se nesní do 31. 8., zkazí se.
+- **Na maso jen to, co ves sní** (Martin, 19. 10. 2026: vesničané se snaží vyrobit co nejvíc
+  jídla; pravidlo návrh Clauda): co přeroste nosnost (pastva, les, seno, co výrostci přes rok
+  uhlídali), jde na maso vždy. Plán stádo v nosnosti zmenší jen o tolik masa, kolik ves od
+  porážky do zkažení (31. 8.) sní pod stropem masa (40 % energie) – po masu v zásobě a masu
+  z nosnosti; na maso napřed prasata, pak krávy, kozy, ovce. Zbytek nad plán zůstane do nosnosti
+  naživu – prasata podle lesa, ostatní podle pastvy a sena –, protože ves nic nestojí (pasení
+  a péče jsou bokem) a maso by se zkazilo. Dřív v roce zmenšení vznikl **jednorázový přebytek
+  masa**, který se do 31. 8. zkazil – ve Vlkově (24 lidí) 1. 11. 792 porážka 81 prasat ze 83,
+  4,4 t masa, 2,2 t se zkazilo a prasata se z páru už nevzpamatovala.
 - Když stádo potřebu nepokryje, platí dál: na maso jde, co přeroste nosnost, a když maso v zásobě
   s porážkou roční potřebu masa nepokryje, i letošní mláďata navíc – prasata první, nejvýš
   polovina (druhá stádo rozšíří) – nově **v pořadí prasata, krávy, kozy, ovce** (obráceně proti
@@ -422,7 +430,7 @@ podle zásob – beze změny), stropy podílů energie a 1,6 g/kg zůstávají.
   | obilí samo     | 10 kg obilí       | 10                 | 1 (10 %)                         | 6,2 / 3,9                   |
 
   Prasata práci šetří vždy (žaludy v lese, bez sena), od 19. 10. 2026 (dojení, péče a pasení
-  bokem) i přežvýkavci s řemesly – stádo pak omezuje nosnost, kolik kusů výrostci uhlídají
+  bokem) i přežvýkavci s řemesly – stádo pak omezuje nosnost (i co výrostci přes rok uhlídali)
   a stropy podílů energie (dřív s řemesly stál kilogram bílkovin přežvýkavců desetiny
   člověkodne); luštěniny jsou nejdražší zdroj
   bílkovin navíc, ale pořád několikrát levnější než bílkoviny ze samotného obilí. **1,6 g/kg tak
@@ -436,12 +444,14 @@ podle zásob – beze změny), stropy podílů energie a 1,6 g/kg zůstávají.
      vždy;
   2. **cena zdroje** = práce vsi na kus (seno, porážka) mínus práce na obilí, které jeho maso
      a mléko nahradí, na kilogram bílkovin navíc proti obilí; ves přidává po kusech (luštěniny po
-     **25 kg**), **nejvýš kolik kusů výrostci uhlídají** (pasák na kus v době pastvy i s mláďaty;
-     chovný pár, krávy a ovce na vlnu se drží vždy – Martin: „Když bude ve vsi málo vhodných dětí
-     na pasení, tak to omezí i velikost stád.“);
+     **25 kg**). **Pasáci nestojí nic a plán je nepočítá** – výrostci omezí stádo jen přes
+     nosnost, tedy podíl, který přes rok uhlídali (Pasáci, Martin: „Když bude ve vsi málo
+     vhodných dětí na pasení, tak to omezí i velikost stád.“). Plán dřív navíc nechal jen tolik
+     kusů, kolik uhlídají výrostci v den rozhodnutí, a ovce v pořadí chovu jim místo vzaly
+     prasatům – ve Vlkově zbyl z 83 prasat pár, i když výrostci přes rok uhlídali 90 % (návrh
+     Clauda: strop zrušen);
   3. **co práci šetří** (záporná cena), přidá vždy, i nad potřebu – **v pořadí ovce → kozy →
-     krávy → prasata** (Martin – Skladba stáda: ovce napřed; ovce si tak berou i pasáky
-     z výrostků první), až po nosnost (pastva, les, seno, pasáci) a stropy podílů energie (maso
+     krávy → prasata** (Martin – Skladba stáda: ovce napřed), až po nosnost (pastva, les, seno, pasáci) a stropy podílů energie (maso
      40 %, mléko a sýr 30 %, luštěniny 25 % – nad strop dá kus jen zbytek pod ním);
   4. pak do **potřeby bílkovin s rezervou 10 %** (růst vsi do příští porážky – dřív 25 %)
      **nejlevnější zdroj** – přežvýkavci v pořadí ovce → kozy → krávy, prasata a luštěniny s nimi
@@ -929,3 +939,5 @@ ovce a kozy), úmrtí hladem žádné, 1. 9. 797 bez hranice 25 lidí, s ní 23.
 | Dospělí ani starší nepasou; v rovnovážném hospodaření pasáci nestojí práci, omezují počet kusů                                                  | návrh Clauda           |
 | Nouzová porážka – prasata jen nad polovinu toho, kolik prasat uživí les (chovné prasnice)                                                       | Martin (19. 10. 2026)  |
 | Chovné prasnice z nosnosti lesa jako u podzimní porážky, aspoň chovný pár; letošní selata se nepočítají                                         | návrh Clauda           |
+| Porážka zmenší stádo v nosnosti jen o maso, které ves do 31. 8. sní pod stropem; zbytek žije (Martin: co nejvíc jídla)                          | návrh Clauda           |
+| Plán stáda bez stropu výrostků v den rozhodnutí – výrostci omezí stádo jen přes podíl, který uhlídali                                           | návrh Clauda           |

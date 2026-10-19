@@ -14,7 +14,7 @@ import {
   winterHayKg,
 } from './hay';
 import { foodCosts, type FoodCosts } from './economy';
-import { childHerderCapacity, herdingCoverage } from './herding';
+import { herdingCoverage } from './herding';
 import type { Landscape, ObstacleLayer } from '../landscape';
 import {
   BIRTH_DAY,
@@ -110,7 +110,6 @@ function farmInput(
   minSheep: number;
   herding: number;
   costs: FoodCosts;
-  freeHerders: number;
 } {
   return {
     oxen: villageOxen(state),
@@ -118,7 +117,6 @@ function farmInput(
     minSheep: woolSheep(state, day),
     herding: herdingCoverage(state),
     costs: villageFoodCosts(state, day, toolCoverage),
-    freeHerders: childHerderCapacity(state, day),
   };
 }
 

@@ -127,8 +127,6 @@ describe('chovný kus za rok', () => {
     expect(cow.labor).toBeGreaterThan(goat.labor);
     const dearHay = headEconomy('cow', { ...COSTS, hayPerKg: COSTS.hayPerKg * 2 });
     expect(dearHay.labor).toBeGreaterThan(cow.labor);
-    // pasáci: kráva 40 na pasáka, ovce a koza 100 (i s mláďaty, jen v pastevní sezóně)
-    expect(cow.herders).toBeGreaterThan(sheep.herders);
   });
 });
 
@@ -235,17 +233,12 @@ describe('rovnovážná skladba stád', () => {
     expect(herd.coverage).toBeGreaterThanOrEqual(1 - 1e-9);
   });
 
-  it('stádo omezí jen výrostci – bez dětí jen chovné páry, pasáci práci nestojí', () => {
+  it('pasáci plán stáda nestojí ani neomezují – omezí ho nosnost (winterTargets)', () => {
     const s = village(day);
     const keep = herds({ sheep: 60, goat: 2, pig: 2, cow: 2 });
-    const free = sizeHerdsToNeed(s, day, keep, { costs: COSTS });
-    const none = sizeHerdsToNeed(s, day, keep, { costs: COSTS, freeHerders: 0 });
-    expect(none.keep.sheep).toBeCloseTo(LIVESTOCK.breedingMin, 9);
-    expect(none.keep.sheep).toBeLessThan(free.keep.sheep);
-    expect(none.coverage).toBeLessThan(free.coverage);
-    // dost výrostků – stejně jako bez omezení (pasáci nic nestojí)
-    const many = sizeHerdsToNeed(s, day, keep, { costs: COSTS, freeHerders: 10 });
-    expect(many.keep).toEqual(free.keep);
+    const plan = sizeHerdsToNeed(s, day, keep, { costs: COSTS });
+    // ovce práci šetří (seno a porážka) – plán si je nechá, žádný strop pasáků
+    expect(plan.keep.sheep).toBeGreaterThan(LIVESTOCK.breedingMin);
   });
 
   it('je deterministická a stav nemění', () => {
