@@ -6,7 +6,7 @@
 // orba postupuje po dnech ukázky jako ve hře, plough-front.ts),
 // vlevo od zemnice ohrada s přístřeškem (ukázka „Ohrada“, pen-layout.ts); před pozemky rozpad
 // obydlí – opuštěná zemnice a polozemnice podle posuvníku stavu a řada všech stupňů rozpadu
-// (showcaseDecay, dwelling-decay.ts).
+// (showcaseDecay, dwelling-decay.ts); vpravo vzadu pahorek s vozy (showcaseCarts, cart-layout.ts).
 import {
   ABANDONMENT,
   CEMETERY,
@@ -24,6 +24,13 @@ import type {
   SceneRoad,
   SceneVillage,
 } from '../village-view';
+import {
+  cartRoute,
+  type CartCargo,
+  type CartKind,
+  type CartRoute,
+  type CartTrack,
+} from './cart-layout';
 import { CEMETERY_PHASES } from './cemetery-layout';
 import { DECAY_LABELS, DECAY_STAGES, decayStage, type DecayStage } from './dwelling-decay';
 import { hayPhase, meadowLook, type HayMeadow } from './hay-meadows';
@@ -1094,5 +1101,67 @@ export function showcaseRoads(progress: number): SceneRoad[] {
       ground: { wet: [[6, 20]], fords: [30] },
       ...building('causeway'),
     },
+  ];
+}
+
+// --- vozy se spřežením (wagons.md – zatím jen modely, ve hře nejsou) -------------------------
+
+/**
+ * Pahorek ukázky vozů (vpravo vzadu, kde nic nestojí): zvon `height` m vysoký o poloměru
+ * `radius` – vozy na něm ukážou sklon a náklon korby podle terénu.
+ */
+const CART_HILL = { x: 122, z: -70, radius: 28, height: 2.6 } as const;
+/** O kolik je pahorek nad loukou ukázky (m) – obě sítě mají stejnou trávu, ať se nebijí. */
+const CART_HILL_LIFT_M = 0.02;
+
+/** Ukázka vozů na /dev/buildings: dvoukoláky dokola přes vrchol pahorku, čtyřkoláky tam a zpět. */
+export const SHOWCASE_CARTS = {
+  id: 'vozy',
+  label: 'Vozy',
+  hill: CART_HILL,
+  focus: { x: 120, z: -74, radius: 48 },
+} as const;
+
+/** Výška pahorku ukázky vozů (m nad loukou; mimo pahorek 0). */
+export function showcaseCartGround(x: number, z: number): number {
+  const r = Math.hypot(x - CART_HILL.x, z - CART_HILL.z);
+  if (r >= CART_HILL.radius) return 0;
+  const bell = (CART_HILL.height / 2) * (1 + Math.cos((Math.PI * r) / CART_HILL.radius));
+  const edge = Math.min(1, (CART_HILL.radius - r) / 1.5);
+  return bell + CART_HILL_LIFT_M * edge;
+}
+
+/**
+ * Vozy ukázky: tři dvoukoláky po kruhu přes úbočí pahorku (prázdný, se senem a se snopy) a tři
+ * čtyřkoláky tam a zpět přes jeho úpatí (klády, zboží obchodní výpravy a seno) – na každé trase
+ * rovnoměrně za sebou.
+ */
+export function showcaseCarts(): CartTrack[] {
+  const circle = cartRoute(
+    Array.from({ length: 36 }, (_, i) => {
+      const a = (2 * Math.PI * i) / 36;
+      return { x: 112 + 12 * Math.cos(a), z: -58 + 12 * Math.sin(a) };
+    }),
+    { closed: true, turnRadius: 3 },
+  );
+  const shuttle = cartRoute(
+    [
+      { x: 92, z: -82 },
+      { x: 150, z: -82 },
+      { x: 150, z: -92 },
+      { x: 92, z: -92 },
+    ],
+    { closed: true, turnRadius: 5 },
+  );
+  const along = (route: CartRoute, kind: CartKind, cargoes: readonly CartCargo[]): CartTrack[] =>
+    cargoes.map((cargo, i) => ({
+      kind,
+      cargo,
+      route,
+      offsetM: (route.length * i) / cargoes.length,
+    }));
+  return [
+    ...along(circle, 'two', ['empty', 'hay', 'sheaves']),
+    ...along(shuttle, 'four', ['logs', 'goods', 'hay']),
   ];
 }
