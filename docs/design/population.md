@@ -527,7 +527,8 @@ pravidla → první verze hladu (1 − nasycení za den, hájení bez stropu) �
 
 - Rozhraní jako v 0 A.D. (Martin, 17. 10. 2026: „Ovládací prvky a layout udělej jako u 0AD.
   Odstraň všechny popisky – hráč nepotřebuje průvodce. Nevoď hráče za ručičku.“): horní lišta
-  se jménem vsi a ikonami s čísly (lidé, obilí, volná práce, nasycení, datum), minimapa, panel
+  se jménem vsi a ikonami s čísly (lidé, obilí, volná práce – práce, která ves dnes zbude na
+  stavby, ne průměr; Martin 19. 10. 2026 –, nasycení, datum), minimapa, panel
   vybraného obydlí (obyvatelé s věkem, stav, stáří, průběh stavby) a mřížka staveb. Žádný
   průvodce ani nápovědy.
 - Krátké mizející upozornění, že je domácnost plná, že ves hladoví, že lidé umírají hlady a že

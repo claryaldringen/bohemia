@@ -113,10 +113,12 @@ describe('summarizeVillage', () => {
     expect(field!.progress).toBeLessThan(1);
   });
 
-  it('společná práce za den je průměr posledních dní', () => {
+  it('volná práce je práce posledního dne, ne průměr – jaro s nulou je vidět hned', () => {
     const s = found();
+    s.commonLaborHistory = [5, 5, 0];
+    expect(summarizeVillage(s, DAY).commonLaborPerDay).toBe(0);
     s.commonLaborHistory = [1, 2, 3];
-    expect(summarizeVillage(s, DAY).commonLaborPerDay).toBeCloseTo(2);
+    expect(summarizeVillage(s, DAY).commonLaborPerDay).toBe(3);
     s.commonLaborHistory = [];
     expect(summarizeVillage(s, DAY).commonLaborPerDay).toBe(0);
   });
